@@ -51,7 +51,7 @@ namespace CardCore
     /// ① 攻击目标变更（守卫结算改写攻击目标）② 战斗结算（ResolvePair）③ 死亡处理
     /// （由栈机器 SBA 轮统一接管——战斗死亡与效果致死同口径，救场窗口自然覆盖）。
     /// 旧批次模型（会话/阻挡阶段/ExecuteDamage 批结算/EndCombat 直执泵）全部退役。
-        /// 横置在**战斗结算完成后**支付（2026-10-15 定案：双方以竖直状态完成战斗——战斗期间
+        /// 横置在**战斗结算完成后**支付（2026-10-15 定案：双方以可用状态完成战斗——战斗期间
         /// 攻击者照常输出、拦截守卫照常反击，战斗结束后攻击者与守卫才横置；确定进入战斗才支付，
         /// 到点重查，宣言期零支付）。
     ///
@@ -59,12 +59,12 @@ namespace CardCore
     /// 反伤力=角色攻击指示物层数（2026-10-07 弹药定案，武器系统退役；见类内"角色参战"块注释）。
     ///
     /// 关键词行为（定案；2026-09-16 攻/守效果化修订）：
-    /// - 可用性统一走横置：随从一律横置入场；冲锋/突袭一次性生效 = 解除横置 + 消耗关键词
-    ///   （突袭残留紊乱指示物一回合，期间不能以玩家为目标）；攻击/拦截/主动均以未横置为资格，
+    /// - 可用性统一走横置：入场即可用（2026-10-17 取消横置入场）；冲锋的登场解横置成为空操作、
+    ///   突袭残留紊乱指示物一回合（期间不能以玩家为目标）；攻击/拦截/主动均以未横置为资格，
     ///   横置即上限——激励解除横置即可再动
         /// - 攻击 = 速度0主动效果（默认自带，NoAttack 卡不能攻；标准速度门 0≥计数器——连锁中不可宣）；
         ///   守卫 = 速度1响应拦截（默认自带，NoGuard 卡不能拦）：响应窗口内入栈，结算期改写攻击
-        ///   目标并登记 GuardBlocker——守卫竖直参战照常反击，横置随攻击结算在战斗完成后支付
+        ///   目标并登记 GuardBlocker——守卫以可用状态参战照常反击，横置随攻击结算在战斗完成后支付
         /// - 警戒：已横置（自身先前动作所致）的防守者也能造成战斗伤害（见 ResolvePair）
     /// - 帷幕（原嘲讽，2026-09-13 更名）：不拦攻击（只吸引效果目标）；攻击侧目标强制由守卫拦截承担
     /// - 潜行（2026-10-08 指示物化）：不可被指定为攻击/效果目标（三指定口读潜行层数>0）；
@@ -197,7 +197,7 @@ namespace CardCore
         /// 守卫拦截结算（速度1响应，LIFO 先于被拦截的攻击结算）：
         /// 重检（存活/未横置——横置支付不出即落空，宣言期零支付天然不回滚）→
         /// **攻击目标变更**（战斗三段第①段）：改写被拦截攻击宣言对象的目标为守卫者、
-        /// 登记 GuardBlocker。守卫**不在此横置**（2026-10-15 定案）：战斗期间竖直参战
+        /// 登记 GuardBlocker。守卫**不在此横置**（2026-10-15 定案）：战斗期间以可用状态参战
         /// 照常反击，横置由攻击结算在战斗完成后统一支付（攻击落空=守卫未参战不支付）。
         /// 原阻挡阶段（SelectBlocker/DeclareBlock）退役。
         /// </summary>
@@ -232,7 +232,7 @@ namespace CardCore
         /// 战斗死亡与效果致死同口径，救场窗口自然覆盖，旧 EndCombat 直执泵退役）：
         /// ① 重检：窗口内状态可能已变（冻结抢先横置/死亡/目标丢失）→ 落空
         ///    （CombatCancelledEvent；宣言期零支付，天然不回滚）。
-        /// ② 战斗结算：ResolvePair——双方以竖直状态完成战斗（2026-10-15 定案：攻击者与
+        /// ② 战斗结算：ResolvePair——双方以可用状态完成战斗（2026-10-15 定案：攻击者与
         ///    拦截守卫照常输出/反击，横置不再先于战斗支付）；结算完成后支付双方横置
         ///    （攻击者+GuardBlocker 守卫——完成战斗才横置，此后才无法反击）。
         /// </summary>
@@ -240,12 +240,14 @@ namespace CardCore
         {
             var attacker = attack?.Source;
             var target = attack?.Targets != null && attack.Targets.Count > 0 ? attack.Targets[0] : null;
+            GameActions.Crumb($"CF-attack-resolve atk={(attacker as Card)?.ID ?? (attacker as Player)?.Name} power={GetPower(attacker)} tgt={(target as Card)?.ID ?? (target as Player)?.Name} alive={attacker?.IsAlive} tapped={attacker?.IsTapped()} stackLeft={GameCore.Instance?.StackEngine?.StackSize}");
 
             // ① 重检（此时已含守卫改写后的目标）
             if (attacker == null || !attacker.IsAlive || attacker.IsTapped()
                 || target == null || !target.IsAlive
                 || !CanAttackTarget(attacker, target, attack.Controller))
             {
+                GameActions.Crumb($"CF-attack-cancel atk={(attacker as Card)?.ID ?? (attacker as Player)?.Name} reason=重检失败(存活/横置/目标)");
                 EventManager.Instance.Publish(new CombatCancelledEvent
                 {
                     Attacker = attacker,
@@ -271,7 +273,7 @@ namespace CardCore
             if (attacker is Card counted)
                 counted.AttacksThisTurn++;
 
-            // ② 战斗结算（2026-10-15 定案：双方竖直完成战斗——此时攻击者未横置、拦截守卫
+            // ② 战斗结算（2026-10-15 定案：双方以可用状态完成战斗——此时攻击者未横置、拦截守卫
             // 未横置，反击资格按 ResolvePair 口径自然成立——守卫照常反击）。
             // 溅射枢轴=宣言原目标（2026-10-16 碾压改版：守卫改写后的 target 只是主战斗对象）
             ResolvePair(attacker, target, attack.OriginalAttackTarget ?? target);
@@ -334,10 +336,15 @@ namespace CardCore
             // 反击资格（2026-10-15 修订）：只有未横置的随从才能反击——反击不消耗横置（横置是
             // 攻击/发动的代价），已横置（自身先前动作所致）的随从只能挨打，警戒例外：横置仍反击。
             // 横置支付已移到战斗完成后（ResolveAttackDeclaration）：战斗期间攻击者与拦截守卫
-            // 均竖直——守卫照常反击（旧"守卫拦截即横置→单向受伤"口径退役）。
+            // 均可用——守卫照常反击（旧"守卫拦截即横置→单向受伤"口径退役）。
             // 角色目标无横置概念（恒视为未横置）——角色反伤照常。
             bool targetCanCounter = !target.IsTapped()
                                     || (target is Card vc && vc.HasKeyword(KeywordRules.Vigilance));
+
+            // 取证（2026-10-17 守卫无反击排查）：配对结算入口全变量快照——区分 0 力/已横置/资格否三条路径
+            GameActions.Crumb($"CF-pair atk={(attacker as Card)?.ID ?? (attacker as Player)?.Name} atkP={attackerPower}"
+                              + $" tgt={(target as Card)?.ID ?? (target as Player)?.Name} tgtP={targetPower}"
+                              + $" tgtTapped={target.IsTapped()} tgtAlive={target.IsAlive} counter={targetCanCounter} disarm={disarmed}");
 
             // ---- 先攻步 ----
             if (attackerFirst)
@@ -350,10 +357,13 @@ namespace CardCore
                     CounterRules.RemoveHeroAttackAmmo(counterFirst);
             }
 
-            // ---- 普通步（存活者；连击者在两步各结算一次） ----
+            // ---- 普通步（连击者在两步各结算一次；2026-10-17 双向同时定案：反击资格按攻击伤害
+            //      落下前的存活快照判定——1/1 拦 8/8 被打死也照样输出 1 点反击，先落伤害不再吞反击） ----
+            bool counterEligible = !disarmed && targetCanCounter && target != attacker
+                                   && target.IsAlive && (!targetFirst || targetDouble);
             if (attacker.IsAlive && (!attackerFirst || attackerDouble))
                 DealCombatDamage(attacker, target, attackerPower);
-            if (!disarmed && targetCanCounter && target != attacker && target.IsAlive && (!targetFirst || targetDouble))
+            if (counterEligible)
             {
                 DealCombatDamage(target, attacker, targetPower);
                 // 角色（玩家）反伤结算完成 → 烧除全部攻击弹药（2026-10-07 弹药定案：烧完即止，
@@ -422,6 +432,9 @@ namespace CardCore
         private void DealCombatDamage(Entity source, Entity target, int amount)
         {
             if (amount <= 0 || target == null || !target.IsAlive) return;
+
+            // 取证（2026-10-17 反击丢失排查）：伤害进关键词管线前的入口快照
+            GameActions.Crumb($"CF-dmg src={(source as Card)?.ID ?? (source as Player)?.Name} tgt={(target as Card)?.ID ?? (target as Player)?.Name} amt={amount}");
 
             KeywordRules.ApplyDamage(source, target, amount, true);
 

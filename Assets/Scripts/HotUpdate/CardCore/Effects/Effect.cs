@@ -201,7 +201,7 @@ namespace CardCore
         /// 由 StackEngine.PushAttackDeclaration 创建、ResolveStack 的 IsAttackDeclaration 分支
         /// 交 CombatSystem.ResolveAttackDeclaration 消费（重检→战斗结算→战斗后横置支付；死亡
         /// 处理由栈机器 SBA 轮统一接管）。横置/扣费在**结算时**支付（到点重查，宣言期零支付）——
-        /// 2026-10-15 起攻击者以竖直状态完成战斗，横置移到战斗结算完成后支付。
+        /// 2026-10-15 起攻击者以可用状态完成战斗，横置移到战斗结算完成后支付。
         /// </summary>
         public bool IsAttackDeclaration { get; set; }
 
@@ -210,7 +210,7 @@ namespace CardCore
         /// Source=守卫者、Targets=[被拦截的攻击宣言对象]、Controller=防守方；
         /// ResolveStack 交 CombatSystem.ResolveGuardDeclaration 消费：重检→攻击目标变更
         ///（改写攻击宣言对象的 Targets[0]=守卫者+登记 GuardBlocker）。守卫横置不再在此支付——
-        /// 2026-10-15 定案：战斗期间守卫竖直（照常反击），横置随攻击结算在战斗完成后统一支付。
+        /// 2026-10-15 定案：战斗期间守卫可用（照常反击），横置随攻击结算在战斗完成后统一支付。
         /// </summary>
         public bool IsGuardDeclaration { get; set; }
 

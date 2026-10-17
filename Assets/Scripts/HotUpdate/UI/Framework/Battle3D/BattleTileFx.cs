@@ -5,29 +5,41 @@ using Object = UnityEngine.Object;
 
 namespace SynergyUI
 {
-    /// <summary>
-    /// 地块菲涅尔特效层（2026-10-13 卡背方案退役改版）：可行动性/地牌状态改由地块自身表达——
-    /// 生物未横置未死亡=脚下地块暖白菲涅尔，横置或死亡即熄；
-    /// 地牌未横置=锁色菲涅尔 + 格面元素图标（Element.prefab，叠层错位两张），横置（已产元素）即熄。
-    ///
-    /// 形态：每格一枚菲涅尔壳（BattleHex mesh 同形，挂 tile-{x}-{z} 下随浮起动画同走；
-    /// 抬 4mm + 侧壁微外扩防与本体叠面闪烁），材质=落盘资产 BattleTile_Fresnel.mat
-    /// （Inspector 调 Power/Intensity 归用户），颜色按格走 MaterialPropertyBlock 覆写。
-    ///
-    /// 消费模型：全量对账——BattleFieldView.Apply 开头 ClearAll 全熄，随 Reconcile 按数据逐格
-    /// 点亮（幂等；对账频率=引擎事件，非逐帧）。依赖缺失（shader/材质/图标 prefab）逐级回落
-    /// 为"该格无特效"并告警一次，不阻塞对局。
-    /// </summary>
+/// <summary>
+/// 地块高光特效层：可行动性/地牌状态改由地块自身表达——
+/// 生物未横置未死亡=脚下地块暖白扩散波，横置或死亡即熄；
+/// 地牌未横置=顶面锁色描边环（2026-10-17 定案：整块菲涅尔壳颜色压住格面文字/元素图标退役）
+/// + 格面元素图标（Element.prefab，叠层错位两张），横置（已产元素）即熄。
+///
+/// 形态：生物=每格一枚菲涅尔壳（BattleHex mesh 同形，挂 tile-{x}-{z} 下随浮起动画同走；
+/// 抬 4mm + 侧壁微外扩防与本体叠面闪烁），材质=落盘资产 BattleTile_Fresnel.mat（波模式）；
+/// 地牌=顶面六边形描边环（环网格运行时由 BattleHex 顶面轮廓推导，外缘 0.98 内缘 0.85 让开
+/// 格面图标与平贴计数文字），材质=BattleTileRing.shader 运行时实例；颜色均按格走
+/// MaterialPropertyBlock 覆写。
+///
+/// 消费模型：全量对账——BattleFieldView.Apply 开头 ClearAll 全熄，随 Reconcile 按数据逐格
+/// 点亮（幂等；对账频率=引擎事件，非逐帧）。依赖缺失（shader/材质/图标 prefab）逐级回落
+/// 为"该格无特效"并告警一次，不阻塞对局。
+/// </summary>
     public static class BattleTileFx
     {
         private const string FresnelMatPath = "Assets/Art/Battle3D/Materials/BattleTile_Fresnel.mat";
         private const string HexMeshPath = "Assets/Art/Battle3D/BattleHex.asset";
         private const string ElementPrefabPath = "Assets/Art/Prefab/Element.prefab";
+        private const string RingShaderPath = "Assets/Art/Shaders/BattleTileRing.shader";
 
         private static readonly int FresnelColorId = Shader.PropertyToID("_FresnelColor");
         private static readonly int WaveWeightId = Shader.PropertyToID("_WaveWeight");
+        private static readonly int RingColorId = Shader.PropertyToID("_RingColor");
 
-        // 地牌菲涅尔配色：下标=ManaType 序 [灰,红,蓝,绿,白,黑]；黑=additive 黑不发光，以紫罗兰替代
+        // 描边环几何（BattleHex mesh 本地空间，六边形角半径=1）：外缘近贴顶面边，内缘让开
+        // 格面图标（+z 0.35 缩 0.5，最远点距格心 ~0.65）与平贴计数文字（-z 0.42，宽串 "10/10"
+        // 端点距格心 ~0.69）——内缘平边 0.85×0.866≈0.736，两侧均留余量；带宽≈0.11~0.13
+        private const float RingOuterScale = 0.98f;
+        private const float RingInnerScale = 0.85f;
+        private const float RingLift = 0.006f; // 顶面之上 6mm（菲涅尔壳 0.004 与图标 0.008 之间）
+
+        // 地牌锁色配色（描边环，兼旧菲涅尔壳口径）：下标=ManaType 序 [灰,红,蓝,绿,白,黑]；黑=additive 黑不发光，以紫罗兰替代
         private static readonly Color[] GlowColors =
         {
             new Color(0.62f, 0.64f, 0.70f), // 灰
@@ -38,9 +50,11 @@ namespace SynergyUI
             new Color(0.62f, 0.38f, 0.95f), // 黑（紫替代）
         };
 
-        // 生物可行动高光=淡蓝扩散波（2026-10-13 晚用户定案：菲涅尔侧壁太弱，改格心向外扩散光波；
-        // 波参数全局调在 BattleTile_Fresnel.mat，此处只给色+波模式）
+        // 生物可行动高光=扩散波（2026-10-13 晚用户定案：菲涅尔侧壁太弱，改格心向外扩散光波；
+        // 波参数全局调在 BattleTile_Fresnel.mat，此处只给色+波模式；
+        // 2026-10-17 分色：己方=淡蓝不动，对手=红色）
         private static readonly Color UnitGlowColor = new Color(0.45f, 0.72f, 1.00f);
+        private static readonly Color UnitGlowColorOpp = new Color(1.00f, 0.35f, 0.28f);
 
         private static readonly string[] ElemMatNames = { "Gray", "Red", "Blue", "Green", "White", "Black" };
         private static readonly Material[] _elemMats = new Material[6]; // 元素图标面片材质（下标=ManaType 序）
@@ -49,19 +63,23 @@ namespace SynergyUI
         private static Mesh _hexMesh;
         private static GameObject _elementPrefab;
         private static MaterialPropertyBlock _mpb;
+        private static Material _ringMat; // BattleTileRing.shader 运行时实例（跨域重载 fake-null 判死重建）
+        private static Mesh _ringMesh;    // 顶面轮廓推导的描边环网格（全盘共享一枚）
 
         private static readonly Dictionary<long, Transform> _tiles = new Dictionary<long, Transform>();
         private static readonly Dictionary<long, Renderer> _glows = new Dictionary<long, Renderer>();
+        private static readonly Dictionary<long, Renderer> _rings = new Dictionary<long, Renderer>();
         private static readonly List<GameObject> _icons = new List<GameObject>();
         private static bool _depsLogged;
 
-        /// <summary>当前点亮的菲涅尔壳数（对账日志证据）。</summary>
+        /// <summary>当前点亮的高光件数=菲涅尔壳+描边环（对账日志证据）。</summary>
         public static int GlowOn
         {
             get
             {
                 int n = 0;
                 foreach (var r in _glows.Values) if (r != null && r.enabled) n++;
+                foreach (var r in _rings.Values) if (r != null && r.enabled) n++;
                 return n;
             }
         }
@@ -75,19 +93,24 @@ namespace SynergyUI
         {
             _tiles.Clear();
             _glows.Clear();
+            _rings.Clear();
             _icons.Clear();
             _fresnelMat = null;
             _hexMesh = null;
             _elementPrefab = null;
+            _ringMat = null;
+            _ringMesh = null;
             System.Array.Clear(_elemMats, 0, _elemMats.Length); // readonly 数组：清元素不换引用
             _depsLogged = false;
         }
 
-        /// <summary>全熄+图标全清（对账开头调用；菲涅尔壳 renderer 留存复用，图标按次重建）。</summary>
+        /// <summary>全熄+图标全清（对账开头调用；菲涅尔壳/描边环 renderer 留存复用，图标按次重建）。</summary>
         public static void ClearAll()
         {
             foreach (var r in _glows.Values)
                 if (r != null) r.enabled = false; // fake-null（棋盘重建）跳过，下次 Ensure 判死重建
+            foreach (var r in _rings.Values)
+                if (r != null) r.enabled = false;
             foreach (var icon in _icons)
                 if (icon != null)
                 {
@@ -102,15 +125,24 @@ namespace SynergyUI
         {
             _tiles.Clear();
             _glows.Clear();
+            _rings.Clear();
             _icons.Clear();
         }
 
-        /// <summary>生物可行动：脚下地块淡蓝扩散波（格心向外循环推进）。</summary>
-        public static void SetUnitGlow(int x, int z) => Light(x, z, UnitGlowColor, wave: true);
+        /// <summary>生物可行动：脚下地块扩散波（己方淡蓝 / 对手红；缺省蓝=选格候选等同己方口径）。</summary>
+        public static void SetUnitGlow(int x, int z, bool opponent = false)
+            => Light(x, z, opponent ? UnitGlowColorOpp : UnitGlowColor);
 
-        /// <summary>地牌色组仍有未横置张：锁色菲涅尔（lockedColor&lt;0 按灰；2026-10-14 按色叠格后每格恒单色）。</summary>
+        /// <summary>地牌色组仍有未横置张：顶面锁色描边环（lockedColor&lt;0 按灰；2026-10-14 按色叠格后每格恒单色）。</summary>
         public static void SetLandGlow(int x, int z, int lockedColor)
-            => Light(x, z, GlowColors[Mathf.Clamp(lockedColor, 0, GlowColors.Length - 1)], wave: false);
+        {
+            var r = EnsureRing(x, z);
+            if (r == null) return;
+            if (_mpb == null) _mpb = new MaterialPropertyBlock();
+            _mpb.SetColor(RingColorId, GlowColors[Mathf.Clamp(lockedColor, 0, GlowColors.Length - 1)]);
+            r.SetPropertyBlock(_mpb);
+            r.enabled = true;
+        }
 
         // 环境光 SetAmbientGlow 随半场泛光退役（2026-10-15 用户定案：与地格玩法高光共用壳互相覆盖——
         // 优先权指示迁 BattlePriorityGlow 战场底部双光条）
@@ -145,13 +177,13 @@ namespace SynergyUI
 
         private static long Key(int x, int z) => ((long)x << 32) | (uint)z;
 
-        private static void Light(int x, int z, Color c, bool wave)
+        private static void Light(int x, int z, Color c)
         {
             var r = EnsureGlow(x, z);
             if (r == null) return;
             if (_mpb == null) _mpb = new MaterialPropertyBlock();
             _mpb.SetColor(FresnelColorId, c);
-            _mpb.SetFloat(WaveWeightId, wave ? 1f : 0f); // 波=生物可行动档 / 菲涅尔=地牌档
+            _mpb.SetFloat(WaveWeightId, 1f); // 壳现仅承载生物扩散波（地牌档 2026-10-17 迁描边环）
             r.SetPropertyBlock(_mpb);
             r.enabled = true;
         }
@@ -197,6 +229,89 @@ namespace SynergyUI
             rend.enabled = false; // 建=熄，Light 时点亮
             _glows[key] = rend;
             return rend;
+        }
+
+        /// <summary>描边环惰性建（每格最多一枚；依赖缺失回落 null=该格无环）。</summary>
+        private static Renderer EnsureRing(int x, int z)
+        {
+            var key = Key(x, z);
+            if (_rings.TryGetValue(key, out var r) && r != null) return r; // fake-null 判死重建
+            var tile = TileOf(x, z);
+            if (tile == null) return null;
+            if (!EnsureRingDeps()) return null;
+
+            var go = new GameObject("fx-ring");
+            go.transform.SetParent(tile, false);
+            go.transform.localPosition = new Vector3(0f, _hexMesh.bounds.max.y + RingLift, 0f);
+            go.AddComponent<MeshFilter>().sharedMesh = _ringMesh;
+            var rend = go.AddComponent<MeshRenderer>();
+            rend.sharedMaterial = _ringMat;
+            rend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            rend.receiveShadows = false;
+            rend.enabled = false; // 建=熄，SetLandGlow 时点亮
+            _rings[key] = rend;
+            return rend;
+        }
+
+        /// <summary>环材质+网格一次性就绪（BattleHex mesh 与菲涅尔壳链共享缓存；缺件告警一次回落 false）。</summary>
+        private static bool EnsureRingDeps()
+        {
+            if (_ringMat != null && _ringMesh != null) return true;
+            if (_hexMesh == null)
+            {
+                _hexMesh = HotUpdateAssets.Load<Mesh>("BattleHex", HexMeshPath);
+                if (_hexMesh == null) { WarnDeps("BattleHex.asset(mesh)"); return false; }
+            }
+            if (_ringMat == null)
+            {
+                var shader = HotUpdateAssets.Load<Shader>("BattleTileRing", RingShaderPath);
+                if (shader == null) { WarnDeps("BattleTileRing.shader"); return false; }
+                _ringMat = new Material(shader) { name = "BattleTile_Ring_Runtime" };
+            }
+            if (_ringMesh == null) _ringMesh = BuildRingMesh(_hexMesh);
+            return _ringMesh != null;
+        }
+
+        /// <summary>顶面六边形描边环网格：轮廓直接取 BattleHex 顶面外缘顶点（绕序/朝向零假设），
+        /// 内外双环成带平铺 y=0（GO 负责抬高）。顶面若有扇形中心点（半径近 0）按最远点半径滤除；
+        /// 轮廓点不足 3=mesh 拓扑异常，告警一次回落 null=环禁用。</summary>
+        private static Mesh BuildRingMesh(Mesh hex)
+        {
+            float topY = hex.bounds.max.y;
+            var outline = new List<Vector2>();
+            var seen = new HashSet<string>();
+            foreach (var v in hex.vertices)
+            {
+                if (v.y < topY - 0.001f) continue;
+                if (!seen.Add(v.x.ToString("F3") + "," + v.z.ToString("F3"))) continue;
+                outline.Add(new Vector2(v.x, v.z));
+            }
+
+            var center = Vector2.zero;
+            foreach (var p in outline) center += p;
+            if (outline.Count > 0) center /= outline.Count;
+            float maxR = 0f;
+            foreach (var p in outline) maxR = Mathf.Max(maxR, (p - center).magnitude);
+            outline.RemoveAll(p => (p - center).magnitude < maxR * 0.5f);
+            if (outline.Count < 3) { WarnDeps("BattleHex 顶面轮廓"); return null; }
+            outline.Sort((a, b) => Mathf.Atan2(a.y - center.y, a.x - center.x)
+                .CompareTo(Mathf.Atan2(b.y - center.y, b.x - center.x)));
+
+            int n = outline.Count;
+            var verts = new Vector3[n * 2];
+            var tris = new int[n * 6];
+            for (int i = 0; i < n; i++)
+            {
+                verts[i] = new Vector3(outline[i].x * RingOuterScale, 0f, outline[i].y * RingOuterScale);
+                verts[n + i] = new Vector3(outline[i].x * RingInnerScale, 0f, outline[i].y * RingInnerScale);
+                int j = (i + 1) % n;
+                tris[i * 6 + 0] = i;         tris[i * 6 + 1] = j;         tris[i * 6 + 2] = n + j;
+                tris[i * 6 + 3] = i;         tris[i * 6 + 4] = n + j;     tris[i * 6 + 5] = n + i;
+            }
+            var mesh = new Mesh { name = "BattleTile_Ring_Runtime" };
+            mesh.vertices = verts;
+            mesh.triangles = tris; // shader 无 NORMAL 输入，法线可缺；Cull Off 免绕序
+            return mesh;
         }
 
         /// <summary>元素图标面片材质（下标=ManaType 序；沿卡背时代资产 BattleCardBack_Elem_*_Mat）。</summary>

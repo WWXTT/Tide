@@ -19,10 +19,11 @@ namespace SynergyUI
         public string id;
         public string name;
         public int rngSeed;
-        /// <summary>玩家卡组（30 个卡 id，按摸牌顺序；教学脚本组卡口径：每卡 1 张不重复）。</summary>
-        public List<string> playerDeck;
-        /// <summary>机器人卡组（同上）。</summary>
-        public List<string> aiDeck;
+        /// <summary>玩家卡组引用文件名（2026-10-17 卡组文件化：读 StreamingAssets/Tutorial/{x}.json
+        /// ——{name, cardIds} 红·快攻同款格式；id 引用即是卡组，同 id 出现多次即多张，可重复入组）。</summary>
+        public string playerDeckFile;
+        /// <summary>机器人卡组引用文件名（同上）。</summary>
+        public string aiDeckFile;
         /// <summary>机器人脚本：turn=机器人的第几个回合（从 1 计，与引擎全局回合号无关）。</summary>
         public List<TutorialTurnScript> aiScript;
 
@@ -52,6 +53,17 @@ namespace SynergyUI
         /// <summary>取机器人第 aiTurn 回合的剧本（无则 null——ScriptedAi 直接结束回合）。</summary>
         public TutorialTurnScript GetAiTurn(int aiTurn)
             => aiScript?.FirstOrDefault(t => t != null && t.turn == aiTurn);
+
+        [NonSerialized] private List<string> _playerDeckIds;
+        [NonSerialized] private List<string> _aiDeckIds;
+
+        /// <summary>玩家卡组 id 序（读 deckFile 展开缓存；文件缺/空=空表，调用方回落）。</summary>
+        public List<string> PlayerDeckIds
+            => _playerDeckIds ??= TutorialLibrary.LoadDeckIds(playerDeckFile);
+
+        /// <summary>机器人卡组 id 序（同上）。</summary>
+        public List<string> AiDeckIds
+            => _aiDeckIds ??= TutorialLibrary.LoadDeckIds(aiDeckFile);
     }
 
     /// <summary>机器人单回合脚本：动作按序执行；type=end 提前截断（脚本末尾隐含结束回合）。</summary>
@@ -70,7 +82,8 @@ namespace SynergyUI
     /// play——出 card（mode=抉择模式序号；targets=逗号分隔目标串，"hero"=对方英雄/卡 id=场上单位，
     /// 缺省或 "auto"=引擎自动解析）；
     /// attack——attacker（场上卡 id）宣言攻击 target（"hero"=对方英雄/卡 id=场上单位）；
-    /// skill——英雄技能；end——提前结束本回合（跳过剩余动作）。
+    /// fallback=attack 首选目标不可解析（已死/已离场）时的回落目标（2026-10-17 考验：四小只打
+    /// 6/6 主将、主将死后转攻角色）；skill——英雄技能；end——提前结束本回合（跳过剩余动作）。
     /// </summary>
     [Serializable]
     public class TutorialAction
@@ -81,6 +94,7 @@ namespace SynergyUI
         public string target;
         public int mode;
         public string targets;
+        public string fallback;
     }
 
     /// <summary>
@@ -130,6 +144,35 @@ namespace SynergyUI
         /// <summary>按 id 取教学条目（找不到返回 null，调用方自行回落）。</summary>
         public static TutorialConfig Get(string id)
             => string.IsNullOrEmpty(id) ? null : _byId.TryGetValue(id, out var t) ? t : null;
+
+        /// <summary>教学/测试卡组引用文件 → 卡 id 序（2026-10-17 卡组文件化：StreamingAssets/
+        /// Tutorial/{deckFile}.json，{name, cardIds} 红·快攻同款 DeckData 格式——id 引用即是卡组，
+        /// 同 id 多次出现即多张，全面支持重复卡）。文件缺/读失败=空表（Warn 兜底，不缓存复用）。</summary>
+        public static List<string> LoadDeckIds(string deckFile)
+        {
+            if (string.IsNullOrEmpty(deckFile)) return new List<string>();
+            try
+            {
+                string path = CardDataPaths.TutorialFileIn(deckFile + ".json");
+                if (!System.IO.File.Exists(path))
+                {
+                    TideLog.Warn($"[TutorialLibrary] 卡组引用文件不存在：{path}");
+                    return new List<string>();
+                }
+                var deck = TideJson.FromJson<DeckData>(System.IO.File.ReadAllText(path));
+                if (deck?.cardIds == null || deck.cardIds.Count == 0)
+                {
+                    TideLog.Warn($"[TutorialLibrary] 卡组引用文件为空：{path}");
+                    return new List<string>();
+                }
+                return deck.cardIds;
+            }
+            catch (Exception e)
+            {
+                TideLog.Warn($"[TutorialLibrary] 卡组引用文件读取失败：{deckFile}：{e.Message}");
+                return new List<string>();
+            }
+        }
 
         /// <summary>卡 id 序列 → CardData 卡组（保持顺序=摸牌序列；缺失 id 记警告跳过）。</summary>
         public static List<CardData> BuildDeck(List<string> cardIds)

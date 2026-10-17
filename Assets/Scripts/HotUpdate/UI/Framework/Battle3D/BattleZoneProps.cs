@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Cysharp.Threading.Tasks;
 using GameBoard;
 using Tide.HotUpdate;
 using UnityEngine;
@@ -69,6 +70,43 @@ namespace SynergyUI
             int n = Mathf.Clamp(count, 0, MaxCards);
             stack.localScale = new Vector3(1f, n * CardThickness, 1f);
             stack.gameObject.SetActive(n > 0);
+        }
+
+        /// <summary>卡堆顶面世界坐标（2026-10-17 抽卡飞入起点）：未装台/依赖缺失返回 false。
+        /// 高度取当前对账值——抽牌瞬间先于 SetDeckCount 变矮调用，拿到的是抽牌前的顶面。</summary>
+        public static bool DeckTopWorldPosition(int owner, out Vector3 pos)
+        {
+            pos = default;
+            if (owner < 0 || owner > 1) return false;
+            var stack = _stacks[owner];
+            if (stack == null) return false; // fake-null 同 EnsureStack 口径
+            pos = stack.position + Vector3.up * stack.localScale.y;
+            return true;
+        }
+
+        /// <summary>卡堆抽牌脉冲（2026-10-17 抽卡演出）：XZ 0.25s 1→1.12→1 正弦，Y 每帧取对账
+        /// 现值（与 SetDeckCount 直写共存不打架）；fire-and-forget 纯装饰不占视觉门。</summary>
+        public static void PulseDeck(int owner)
+        {
+            if (owner < 0 || owner > 1) return;
+            var stack = _stacks[owner];
+            if (stack == null) return;
+            PulseDeckAsync(stack).Forget();
+        }
+
+        private static async UniTaskVoid PulseDeckAsync(Transform stack)
+        {
+            float t0 = Time.realtimeSinceStartup;
+            const float dur = 0.25f;
+            while (stack != null && Time.realtimeSinceStartup - t0 < dur)
+            {
+                float t = (Time.realtimeSinceStartup - t0) / dur;
+                float s = 1f + 0.12f * Mathf.Sin(t * Mathf.PI);
+                stack.localScale = new Vector3(s, stack.localScale.y, s);
+                await UniTask.Yield();
+            }
+            if (stack != null)
+                stack.localScale = new Vector3(1f, stack.localScale.y, 1f);
         }
 
         /// <summary>拆台清索引+销毁运行时 mesh（对象本体随棋盘根销毁；DismountBoard 调用）。</summary>

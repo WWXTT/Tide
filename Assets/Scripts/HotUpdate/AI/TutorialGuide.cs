@@ -8,15 +8,21 @@ namespace SynergyUI
     /// <summary>
     /// 引导步骤规格（TutorialConfig.guide 条目）：
     /// intro——纯讲解步（2026-10-16 教学一两段式）：闸住玩家一切操作，UI 点击引导横幅确认推进
-    ///   （NotifyIntroConfirmed）；reveal=演出指令串（board/zone:*/heroes/deck/hand/midTransition，
-    ///   逻辑层透传，BattleScreen 消费做分区渐进显示等演出）；
+    ///   （NotifyIntroConfirmed）；带 audio 字段（2026-10-17 配音改版）=介绍段配音卡片——
+    ///   暂停画面+大字文案+播放 StreamingAssets/TutorialAudio/{audio}.mp3+【确定】钮（无 audio=文字卡片）；
+    ///   reveal=演出指令串（语音联动地块显隐：BattleRevealDirector.Solo 独占显示语音描述的区块；
+    ///   midTransition=第二段注入）；
     /// attack——玩家须用 attacker 宣言攻击 target（"hero"=对方角色 / 卡 id=场上单位）；
+    ///   attacker 可空（2026-10-17 宽松步）：任意己方生物攻击 target 即推进；aiGuard=true 时
+    ///   该攻击的响应窗由 AI 选守卫（守卫演示：目标被改写——AI 应答器消费，逻辑层只透传）；
     /// guard——对手 attacker 宣言攻击时玩家须用 guarder 守卫拦截；
     /// end——强制结束回合（此步进行中一切攻击被拒）；
     /// element——玩家须把 card（手牌）放入元素池当地牌（target 可选=锁定产色名，2026-10-11 锁色定案）；
+    ///   card 可空（宽松）：任意手牌入池即推进；
     /// tap——已退役（2026-10-11 现取现用：地牌横置=付费步系统自动动作，无手动产色步骤）；
     /// tapcreature——玩家须横置 card（带 LandTrait 的生物）产色（临时元素）；
-    /// play——玩家须从手牌打出 card；
+    /// play——玩家须从手牌打出 card；card 可空（宽松）：任意生物召唤成功即推进（引擎费用闸
+    ///   自然逼玩家挑付得起的——「看费用」本身是教学点）；
     /// victory——自由挑战收尾步（2026-10-16）：闸全放行（玩家自由操作），对局胜利
     ///   （GameOverEvent 玩家胜）时步骤完成=引导全部完成。
     /// hint=引导提示文案（UI 高亮/弹窗后续接，逻辑层只透传）。
@@ -29,10 +35,15 @@ namespace SynergyUI
         public string target;
         public string guarder;
         public string hint;
-        public string card;   // element/tapcreature/play 的卡 id
+        public string card;   // element/tapcreature/play 的卡 id（空=宽松任意）
         public string land;   // tap 的地牌源卡 id
         public string color;  // tap 的产出颜色（"Gray"/"Red"/"Blue"/"Green"/"White"/"Black"）
-        public string reveal; // intro 的演出指令（board/zone:p1-land/zone:p1-units/zone:mid/zone:p2/zone:special/heroes/deck/hand/midTransition）
+        public string reveal; // intro 的演出指令（语音联动显隐 zone:*/board/all/hand；midTransition=第二段注入）
+        public string audio;  // intro 的配音文件名（StreamingAssets/TutorialAudio/{audio}.mp3；空=文字卡片不播语音）
+        public bool aiGuard;  // attack 步标记（2026-10-17 守卫演示）：此攻击的响应窗 AI 选守卫（目标改写演出）；
+                              // 宣言不推进——结算/取消探针才算完成（UI 侧等战斗表现收尾再弹解说卡）
+        public bool aiTurnOnConfirm; // intro 步标记（2026-10-17 考验改版）：确定后把回合交给对手——
+                              // midTransition 全清重铺后=对手进攻回合（BattleScreen 复用 OnEndTurnFan 序列）
     }
 
     /// <summary>
@@ -81,13 +92,14 @@ namespace SynergyUI
         // ======================================== 生命周期 ========================================
 
         /// <summary>按教学配置装闸启动引导（guide 为空/全空步骤=只装课规（heroLockCard）或直接返回；
-        /// 重复 Begin 先 End 防钩子泄漏）。</summary>
-        public static void Begin(TutorialConfig tutorial)
+        /// 重复 Begin 先 End 防钩子泄漏）。guideOverride（2026-10-16 教学一跳过介绍）：非空时替代
+        /// tutorial.guide 装链（skip 模式传 tutorial.guideSkip 直入第二段）。</summary>
+        public static void Begin(TutorialConfig tutorial, List<TutorialGuideStepSpec> guideOverride = null)
         {
             End();
             _steps.Clear();
             _missed.Clear();
-            foreach (var s in tutorial?.guide ?? new List<TutorialGuideStepSpec>())
+            foreach (var s in guideOverride ?? tutorial?.guide ?? new List<TutorialGuideStepSpec>())
                 if (s != null && !string.IsNullOrEmpty(s.type))
                     _steps.Add(s);
             _heroLockCard = tutorial?.heroLockCard;
@@ -173,9 +185,9 @@ namespace SynergyUI
             if (step.type == "end")
                 return "引导要求结束回合——请结束回合（演示下一环节在对手回合发生）";
             if (step.type != "attack") return null; // 资源步骤不拦攻击（理论上不冲突，保守放行）
-            // attack 步骤：精确匹配（错误目标/其余生物一律拒绝——含锁定生物）
+            // attack 步：attacker 空=宽松（任意己方生物）；target 精确匹配（错误目标/其余生物一律拒绝）
             var attackerId = (attacker as Card)?.ID;
-            if (attackerId != step.attacker)
+            if (!string.IsNullOrEmpty(step.attacker) && attackerId != step.attacker)
                 return $"引导要求用 {NameOf(step.attacker)} 攻击（{NameOf(attackerId)} 现在不可操作）";
             var targetOk = (target is Player && step.target == "hero")
                            || (target as Card)?.ID == step.target;
@@ -215,8 +227,8 @@ namespace SynergyUI
             if (step == null) return null;
             if (step.type == "victory") return null; // 自由挑战步：放行
             if (step.type == "element")
-                return card?.ID == step.card
-                    ? null
+                return string.IsNullOrEmpty(step.card) || card?.ID == step.card
+                    ? null // 宽松（card 空=任意）或精确匹配
                     : $"引导要求把 {NameOf(step.card)} 放入元素池当土地（{NameOf(card?.ID)} 现在不可操作）";
             return "引导进行中——暂不可放地";
         }
@@ -258,8 +270,8 @@ namespace SynergyUI
             if (step == null) return null;
             if (step.type == "victory") return null; // 自由挑战步：放行
             if (step.type == "play")
-                return card?.ID == step.card
-                    ? null
+                return string.IsNullOrEmpty(step.card) || card?.ID == step.card
+                    ? null // 宽松（card 空=任意——引擎费用闸自然逼玩家挑付得起的）或精确匹配
                     : $"引导要求打出 {NameOf(step.card)}（{NameOf(card?.ID)} 现在不可打出）";
             return "引导进行中——暂不可出牌";
         }
@@ -271,8 +283,9 @@ namespace SynergyUI
             var step = Current;
             if (step == null || step.type != "attack"
                 || player != GameCore.Instance?.Player1
-                || (attacker as Card)?.ID != step.attacker)
-                return;
+                || (!string.IsNullOrEmpty(step.attacker) && (attacker as Card)?.ID != step.attacker))
+                return; // attacker 空=宽松（任意己方生物宣言成功即推进）
+            if (step.aiGuard) return; // 守卫演示步（2026-10-17 考验改版）：宣言帧不推进——等结算探针（战斗先演完）
             Advance(missed: false);
         }
 
@@ -286,12 +299,21 @@ namespace SynergyUI
             Advance(missed: false);
         }
 
-        /// <summary>漏守兜底：守卫步骤对应的攻击已结算/取消（未被拦截）→ 步骤记 Missed 完成推进。</summary>
+        /// <summary>攻击结算/取消探针（CombatSystem 两条路径均到）：guard 步=漏守兜底（未被拦截）记
+        /// Missed 完成推进；attack+aiGuard（守卫演示步，2026-10-17 考验改版）=战斗已结算即完成——
+        /// 宣言帧不推进，解说卡由 UI 侧等战斗表现收尾后再弹。</summary>
         private static void NotifyAttackResolved(Entity attacker, Entity finalTarget)
         {
             var step = Current;
-            if (step == null || step.type != "guard" || (attacker as Card)?.ID != step.attacker) return;
-            Advance(missed: true);
+            if (step == null) return;
+            if (step.type == "guard")
+            {
+                if ((attacker as Card)?.ID == step.attacker) Advance(missed: true);
+                return;
+            }
+            if (step.type == "attack" && step.aiGuard
+                && (string.IsNullOrEmpty(step.attacker) || (attacker as Card)?.ID == step.attacker))
+                Advance(missed: false);
         }
 
         /// <summary>end 步骤完成：玩家成功结束回合（GateEndTurn 已放行，此探针推进步骤）。</summary>
@@ -306,7 +328,8 @@ namespace SynergyUI
         {
             var step = Current;
             if (step == null || step.type != "element"
-                || player != GameCore.Instance?.Player1 || card?.ID != step.card) return;
+                || player != GameCore.Instance?.Player1
+                || (!string.IsNullOrEmpty(step.card) && card?.ID != step.card)) return; // card 空=宽松任意
             Advance(missed: false);
         }
 
@@ -331,7 +354,8 @@ namespace SynergyUI
         {
             var step = Current;
             if (step == null || step.type != "play"
-                || player != GameCore.Instance?.Player1 || card?.ID != step.card) return;
+                || player != GameCore.Instance?.Player1
+                || (!string.IsNullOrEmpty(step.card) && card?.ID != step.card)) return; // card 空=宽松任意
             Advance(missed: false);
         }
 

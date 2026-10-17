@@ -134,12 +134,13 @@ namespace CardCore.Attribute
             GameBoard.LinkAuraSystem.InvalidateCache(); // 光环 live-query 缓存失效重算（TransferEquipment 同惯例）
 
             // 变为结界形态：自动非横置（结界无横置态）+ 按入场同口径初始化耐久层
+            //（2026-10-17 定案：结界一律走耐久经济——TotalDurabilityOf 单源，不以印刷>0 为闸）
             if (clone.Supertype == Cardtype.Enchantment)
             {
                 self._isTapped = false;
-                if (clone.Durability > 0 && self.GetCounterCount(CounterRules.DurabilityCounter) <= 0)
+                if (self.GetCounterCount(CounterRules.DurabilityCounter) <= 0)
                     self.AddCounters(CounterRules.DurabilityCounter,
-                        clone.Durability + CardCompositionCost.DurabilityBonusOf(clone));
+                        CardCompositionCost.TotalDurabilityOf(clone));
             }
 
             // 变形指示物（中性 Resident，层恒 1）：解除口=换区/净化清（ClearCounters 钩子）

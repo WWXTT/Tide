@@ -142,7 +142,7 @@ namespace SynergyUI
             return -1;
         }
 
-        /// <summary>候选格高亮：色档>=0=菲涅尔锁色档（放地候选色），-1=波纹档（单位空格）。</summary>
+        /// <summary>候选格高亮：色档>=0=锁色描边环档（放地候选色，2026-10-17 起环样式），-1=波纹档（单位空格）。</summary>
         private void HighlightCandidates()
         {
             for (int i = 0; i < _options.Count; i++)

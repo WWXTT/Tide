@@ -27,6 +27,12 @@ namespace SynergyUI
         /// <summary>目录内文件完整路径。</summary>
         public static string FileIn(string fileName) => Path.Combine(CardDir, fileName);
 
+        /// <summary>教学资源目录内文件完整路径（2026-10-17 教学卡分家定案：教学卡表/卡组引用
+        /// 单独放 StreamingAssets/Tutorial，不与正式卡 Card/ 混放——防正常选卡组界面误入测试卡组；
+        /// 教学表只读，打包后留包内即可，不参与 persistentData 引导拷贝）。</summary>
+        public static string TutorialFileIn(string fileName)
+            => Path.Combine(TidePaths.StreamingAssetsPath, "Tutorial", fileName);
+
         /// <summary>
         /// 玩家端首启引导：persistentData 目录缺失时从包内 StreamingAssets/Card 拷贝种子
         /// （幂等——目录已存在即返回；编辑器空操作）。各读写入口调用。

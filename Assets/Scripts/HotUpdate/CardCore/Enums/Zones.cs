@@ -902,7 +902,7 @@ namespace CardCore
         /// 设计规则：发动通过后要进战场时失败 → 进墓地。
         /// </summary>
         /// <returns>true = 成功入场</returns>
-        public static bool TryMoveToBattlefield(this ZoneManager zm, Card card, Player controller, Zone fromZone, bool tapped = true, EnterSource enterSource = EnterSource.None)
+        public static bool TryMoveToBattlefield(this ZoneManager zm, Card card, Player controller, Zone fromZone, EnterSource enterSource = EnterSource.None)
         {
             if (zm == null || card == null || controller == null) return false;
             var container = zm.GetZoneContainer(controller);
@@ -924,11 +924,10 @@ namespace CardCore
 
             container.Move(card, fromZone, Zone.Battlefield);
 
-            // 入场可用性统一走横置（定案）：随从一律横置入场（召唤失调）；
-            // 冲锋/突袭不再豁免——已改为卡的登场效果（OnPlay+激励自己解除横置，突袭另自上紊乱指示物）。
-            // 默认 true（2026-09-09 修正）：此前默认 false 且无调用方显式传 true——cast 出牌/效果直入/
-            // 复活全部不横置，09-08「一律横置」只落实在 TryAddToBattlefield；显式 tapped=false 可解横置入场。
-            card._isTapped = tapped;
+            // 入场即可用（2026-10-17 定案：取消横置入场，召唤失调退役）——显式复位而非沿用旧值：
+            // 复活路径的卡可能带着横置态死亡，重入场必须复位为可用。横置的唯一来源=战斗后代价与
+            // 效果横置（沉睡/冻结/横置原子）；冲锋/突袭的登场解横置效果行就此成为空操作（真实卡池 0 张）。
+            card._isTapped = false;
 
             if (fromZone == Zone.Activation)
                 PublishEntryEvent(new CardLeaveActivationEvent
@@ -995,9 +994,9 @@ namespace CardCore
             }
 
             container.Add(card, Zone.Battlefield);
-            // 入场可用性统一走横置（定案）：衍生物/副本同样一律横置；
-            // 冲锋/突袭已改为登场效果（OnPlay+激励自己，突袭另自上紊乱指示物），入场不豁免
-            card._isTapped = true;
+            // 入场即可用（2026-10-17 定案：取消横置入场）——衍生物/副本同普通生物；
+            // 横置仅来自战斗后代价与效果横置（沉睡/冻结/横置原子）
+            card._isTapped = false;
 
             // 入场刷新（2026-09-09 定案）：与 TryMoveToBattlefield 同口径（统一出口，真入场才刷新）
             CardCore.Attribute.KeywordRules.RefreshPrintedKeywordsOnEntry(card);

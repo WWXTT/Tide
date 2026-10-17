@@ -64,6 +64,20 @@ namespace CardCore
         }
 
         /// <summary>
+        /// 终局撤销（2026-10-17 教学考验「打输重来」定案）：Ended→Running——教学局败局原地重铺
+        /// （midTransition 重注入+生命重置）续打，不走新开局。语义上终局本应不可逆，此口仅供
+        /// 教学重开链路使用（调用方负责场面/生命的完整重置），非教学局禁止使用。
+        /// </summary>
+        public bool ResumeFromEnded()
+        {
+            if (CurrentState != GameState.Ended)
+                return false;
+
+            TransitionTo(GameState.Running);
+            return true;
+        }
+
+        /// <summary>
         /// 重置状态到 NotStarted
         /// </summary>
         public void Reset()

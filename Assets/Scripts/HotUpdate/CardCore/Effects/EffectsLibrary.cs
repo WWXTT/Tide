@@ -13,9 +13,10 @@ namespace CardCore
     public static class EffectsLibrary
     {
         private const string ConfigRelative = "Card/Effects.json";
-        // 教学独立效果表（2026-10-16 定案：教学效果不再与正式表混用）：同格式副表，
+        // 教学独立效果表（2026-10-16 定案：教学效果不再与正式表混用；2026-10-17 分家：
+        // 文件随教学卡挪至 StreamingAssets/Tutorial/）：同格式副表，
         // EnsureLoaded 时合并（重复 id 保正式表首条——与主表内重复 id 同口径）。
-        private const string TutorialConfigRelative = "Card/TutorialEffects.json";
+        private const string TutorialConfigRelative = "Tutorial/TutorialEffects.json";
 
         [Serializable]
         private class Wrapper { public List<EffectSlimDto> items; }
@@ -61,7 +62,7 @@ namespace CardCore
         {
             try
             {
-                string tpath = SynergyUI.CardDataPaths.FileIn("TutorialEffects.json");
+                string tpath = SynergyUI.CardDataPaths.TutorialFileIn("TutorialEffects.json");
                 if (!File.Exists(tpath))
                 {
                     TideLog.Warn($"[EffectsLibrary] 教学效果表未找到: {tpath}");

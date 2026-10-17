@@ -241,6 +241,9 @@ namespace CardCore.Attribute
         {
             if (amount <= 0 || target == null || !target.IsAlive) return 0;
 
+            // 取证（2026-10-17 反击丢失排查）：伤害管线入口快照（DealCombatDamage 之后、替代引擎之前）
+            CardCore.GameActions.Crumb($"CF-apply src={(source as Card)?.ID ?? (source as Player)?.Name} tgt={(target as Card)?.ID ?? (target as Player)?.Name} amt={amount} combat={isCombat}");
+
             // 规则修改类效果（OCP）：伤害实例先经替代引擎取最终值（如伤害封顶），再走关键词管线。
             // 替代效果经 GameCore.ReplacementEngine 注册（状态无关、实时查询光环），本管线不点名任何具体系统。
             // 穿透伤害同样经此层（"受光环限制"）。
@@ -281,7 +284,7 @@ namespace CardCore.Attribute
                         {
                             Target = target,
                             Keyword = Guardian,
-                            Detail = $"守护改写：伤害转由 {guardian} 承受",
+                            Detail = $"守护改写：{EffectText.Name(target)} 受到的伤害转由 {EffectText.Name(guardian)} 承受",
                             Source = guardian,
                         });
                     return ApplyDamage(source, guardian, amount, isCombat, pierce, guardRerouted: true);
@@ -521,27 +524,26 @@ namespace CardCore.Attribute
                 return;
             }
 
-            // 2. 护甲指示物：逐点吸收（AddArmor 原子写入的 counter 池）
-            if (target is Card armored)
+            // 2. 护甲指示物：逐点吸收（AddArmor 原子写入的 counter 池）。
+            //    2026-10-17 放开为 Entity 级（对齐圣盾/坚韧两层——文档口径"角色可持有"本就如此，
+            //    旧 is Card 过滤=实现漂移；对局准备流程"后手角色 +5 护甲"依赖本口吸收）。
+            int armor = target.GetCounterCount(ArmorCounter);
+            if (armor > 0)
             {
-                int armor = armored.GetCounterCount(ArmorCounter);
-                if (armor > 0)
+                int absorbed = Math.Min(armor, amount);
+                target.AddCounters(ArmorCounter, -absorbed);
+                amount -= absorbed;
+                EventManager.Instance.Publish(new KeywordAppliedEvent
                 {
-                    int absorbed = Math.Min(armor, amount);
-                    armored.AddCounters(ArmorCounter, -absorbed);
-                    amount -= absorbed;
-                    EventManager.Instance.Publish(new KeywordAppliedEvent
-                    {
-                        Target = target,
-                        Keyword = ArmorCounter,
-                        Detail = $"护甲指示物吸收 {absorbed} 点",
-                        Source = source
-                    });
-                    if (amount <= 0)
-                    {
-                        amount = 0;
-                        return;
-                    }
+                    Target = target,
+                    Keyword = ArmorCounter,
+                    Detail = $"护甲指示物吸收 {absorbed} 点",
+                    Source = source
+                });
+                if (amount <= 0)
+                {
+                    amount = 0;
+                    return;
                 }
             }
 
@@ -592,7 +594,7 @@ namespace CardCore.Attribute
             card._life = 1;
             if (card._maxLife < 1) card._maxLife = 1;
             card.IsAlive = true;
-            card._isTapped = true;          // 横置（可用性统一指标：视为重新入场，本回合不可用）
+            card._isTapped = true;          // 横置（死亡替代平衡阀：2026-10-17 入场已不横置，复生仍横置——本回合不可用）
             EventManager.Instance.Publish(new KeywordAppliedEvent
             {
                 Target = card,

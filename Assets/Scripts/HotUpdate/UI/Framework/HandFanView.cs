@@ -69,6 +69,7 @@ namespace SynergyUI
         private FanInteractions _hooks;
         private float _glowPhase;    // 可发动流光脉冲相位（Tick 推进）
         private float _sinkT = 1f;   // 未悬停收缩插值（1=收起 0=展开；Tick 缓动，RebuildTargets 消费）
+        private Vector2? _drawOrigin; // 抽卡飞入起点（挂载层坐标系；单次消费，对账末恒清防滞留）
 
         /// <summary>交互钩子（宿主屏注入；null=无交互——按钮层永不显示）。</summary>
         public FanInteractions Hooks => _hooks;
@@ -115,6 +116,24 @@ namespace SynergyUI
         /// <summary>扇区当前卡数。</summary>
         public int Count => _cards.Count;
 
+        /// <summary>抽卡飞入起点注入（世界坐标口径，2026-10-17）：卡堆顶世界点 → 本扇挂载层
+        /// 本地坐标（与 Config.Center 同系；Canvas 按 renderMode 自取相机，Overlay 传 null）。
+        /// 下一次对账新建的卡从该点弧线飞入扇位（单次消费）。转换失败静默返回 false
+        /// =新建卡维持吸附。</summary>
+        public bool SetDrawOriginFromWorld(Vector3 worldPos, Camera worldCam)
+        {
+            if (_layer == null || worldCam == null) return false;
+            var canvas = _layer.GetComponentInParent<Canvas>();
+            if (canvas == null) return false;
+            var screenPos = worldCam.WorldToScreenPoint(worldPos);
+            var uiCam = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
+            if (!RectTransformUtility.ScreenPointToWorldPointInRectangle(_layer, screenPos, uiCam, out var wp))
+                return false;
+            _drawOrigin = (Vector2)_layer.InverseTransformPoint(wp);
+            Debug.Log($"[HandFan] 抽卡飞入起点 world={worldPos} → layer-local={_drawOrigin}");
+            return true;
+        }
+
         /// <summary>悬停上报（HandFanCard 转发）：进入/离开都触发目标重排。</summary>
         internal void NotifyHover(HandFanCard card, bool enter)
         {
@@ -153,6 +172,13 @@ namespace SynergyUI
                         if (card == null) card = Create();
                         card.RuntimeId = d.RuntimeId;
                         card.Fresh = true;
+                        if (_drawOrigin is Vector2 origin)
+                        {
+                            // 抽卡飞入（2026-10-17）：单次消费；弧线大幅荡向屏幕中央
+                            //（控制点 2 倍卡高——起终点同在屏幕边条，平移实测看不见；对手抽牌卡背同轨）
+                            _drawOrigin = null;
+                            card.BeginFlyIn(origin, (_cfg.TopSide ? -1f : 1f) * _cardSize.y * 2f);
+                        }
                     }
                     card.Face.Apply(d.Item, CardOverlayLayout.Full);
                     card.Face.SetFaceUp(d.FaceUp);
@@ -164,6 +190,7 @@ namespace SynergyUI
             }
             foreach (var leftover in _alive.Values)
             {
+                leftover.ResetFlyState(); // 池回收复位（防出池残留飞入态/半透明）
                 leftover.gameObject.SetActive(false);
                 _pool.Push(leftover);
             }
@@ -171,8 +198,12 @@ namespace SynergyUI
 
             if (_hovered != null && !_cards.Contains(_hovered)) _hovered = null;
             _hovered?.RefreshActionButtons(); // 对账后悬停卡按钮条件可能已变（费用/上限）
+            _drawOrigin = null; // 未消费即弃（防武装后该拍无新卡、起点滞留到后续对账误飞）
             RebuildTargets();
         }
+
+        /// <summary>飞入完成回调（HandFanCard 终点落位后调）：重建布局恢复正典兄弟序/位姿。</summary>
+        internal void OnFlyInDone(HandFanCard card) => RebuildTargets();
 
         /// <summary>重算全部卡的布局目标（间距压缩→谷形弧位姿→悬停态叠加→兄弟序）。</summary>
         private void RebuildTargets()
@@ -242,6 +273,11 @@ namespace SynergyUI
                 var c = _cards[i];
                 if (c == null) continue; // 防销毁卡（同 SetCards 清扫口径）：防 Updater 链被单卡异常打断
                 c.TickGlow(_glowPhase);
+                if (c.Flying)
+                {
+                    c.TickFlight(Time.deltaTime); // 抽卡飞入（2026-10-17）：优先于常规缓动，到达自动交还
+                    continue;
+                }
                 if (c.Fresh)
                 {
                     c.Fresh = false;

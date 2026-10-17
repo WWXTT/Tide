@@ -1,0 +1,134 @@
+{
+ "cards": [
+  {
+   "id": "C_4A88A165",
+   "cardName": "教学生物12",
+   "supertype": "Creature",
+   "power": 1,
+   "life": 1,
+   "costList": [
+    1,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "tags": [
+    "教学"
+   ]
+  },
+  {
+   "id": "C_62DD963D",
+   "cardName": "教学生物13",
+   "supertype": "Creature",
+   "power": 2,
+   "life": 1,
+   "costList": [
+    1,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "tags": [
+    "教学"
+   ]
+  },
+  {
+   "id": "C_159D9AD0",
+   "cardName": "教学生物24",
+   "supertype": "Creature",
+   "power": 3,
+   "life": 2,
+   "costList": [
+    2,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "tags": [
+    "教学"
+   ]
+  },
+  {
+   "id": "C_7E5A100B",
+   "cardName": "教学生物11",
+   "supertype": "Creature",
+   "illustration": "PetitAngel",
+   "power": 2,
+   "life": 2,
+   "costList": [
+    2,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "tags": [
+    "教学"
+   ]
+  },
+  {
+   "id": "C_7E5A100D",
+   "cardName": "教学生物13",
+   "supertype": "Creature",
+   "illustration": "DragonessTheWickedKnight",
+   "power": 7,
+   "life": 7,
+   "costList": [
+    2,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "tags": [
+    "教学"
+   ]
+  },
+  {
+   "id": "C_7E5A100E",
+   "cardName": "教学生物14",
+   "supertype": "Creature",
+   "illustration": "Kojikocy",
+   "power": 8,
+   "life": 8,
+   "costList": [
+    2,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "tags": [
+    "教学"
+   ]
+  },
+  {
+   "id": "C_7E5A100F",
+   "cardName": "教学生物15",
+   "supertype": "Creature",
+   "illustration": "DarkPrisoner",
+   "power": 6,
+   "life": 1,
+   "costList": [
+    2,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "tags": [
+    "教学"
+   ]
+  }
+ ]
+}

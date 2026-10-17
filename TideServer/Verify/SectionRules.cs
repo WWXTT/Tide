@@ -3611,7 +3611,10 @@ namespace TideServer.Verify
                 ID = "V9S_gVictim", CardName = "守卫戏肉", Supertype = Cardtype.Creature, Power = 1, Life = 10,
             });
             guardVictim.SetController(sp2);
-            VerifySuite.Assert(score.ZoneManager.TryAddToBattlefield(guardVictim, sp2), "守卫戏肉入场（横置=非守卫候选）");
+            VerifySuite.Assert(score.ZoneManager.TryAddToBattlefield(guardVictim, sp2), "守卫戏肉入场");
+            // 2026-10-17 取消横置入场：前段经 TryAddToBattlefield 入场的 sp2 残留生物现已可用——
+            // 整队显式横置，保住「守卫候选=角色独占」夹具前提（旧规则下入场自带横置天然满足）
+            foreach (var c in score.ZoneManager.GetCards(sp2, Zone.Battlefield)) c.Tap();
             var guardAtk = new CardWrapper(new CardData
             {
                 ID = "V9S_gAtk", CardName = "守卫攻门者", Supertype = Cardtype.Creature, Power = 2, Life = 10,

@@ -33,7 +33,6 @@ namespace CardCore.Editor.Tests
         private const string HoundToken = "TOKEN_HOUND";   // 红：灰烬猎犬
         private const string GoblinToken = "TOKEN_GOBLIN"; // 红：火花哥布林
 
-        [MenuItem("Tools/构建三色主题卡组")]
         public static void Build()
         {
             var red = BuildRedDeck();

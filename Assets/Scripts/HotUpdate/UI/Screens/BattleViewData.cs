@@ -65,6 +65,8 @@ namespace SynergyUI
         public bool IsAI;
         public int HeroAttack; // 角色攻击力=HeroAttackCounter 弹药层数（2026-10-10 角色参战收口：0=无攻击资格，3D HUD 消费）
         public int Armor;      // 角色护甲层数（ArmorCounter 指示物；2026-10-16 立柱生命「(+x)」后缀显示）
+        public CounterEntryDTO[] Counters; // 角色层全量指示物（2026-10-17 角色状态展示补齐）：本地=Entity.EnumerateCounters
+                                           // 投影、网络=PlayerState.Counters 回填（协议早已携带）；立柱摘要/悬停状态段消费
     }
 
     /// <summary>对战整局视图。</summary>
@@ -174,7 +176,7 @@ namespace SynergyUI
                 Runtime = s,
             };
 
-            var data = CardCatalog.GetById(s.ID);
+            var data = CardCatalog.GetByInstanceId(s.ID);
             if (data != null)
             {
                 v.Name = string.IsNullOrEmpty(data.CardName) ? data.ID : data.CardName;
@@ -187,6 +189,8 @@ namespace SynergyUI
                 v.HasAura = data.LinkAuras != null && data.LinkAuras.Count > 0; // 加载侧已聚合（CardLoader.AggregateEffectAuras）
                 v.BasePower = data.Power; // 印刷基础值（属性配色比较基准）
                 v.BaseLife = data.Life;
+                if (data.Supertype == Cardtype.Enchantment)
+                    v.BaseLife = CardCompositionCost.TotalDurabilityOf(data); // 2026-10-17 恒耐久定案：头顶生命位=耐久，基准=派生总耐久
             }
             else
             {
@@ -277,6 +281,8 @@ namespace SynergyUI
                 v.WalletByColor[(int)m] = core.ElementPool.GetAvailableManaCount(m, p);
             v.HeroAttack = p.GetPower(); // Player 分支=弹药层数钳非负（EntityEffectExtensions）
             v.Armor = Math.Max(0, p.GetCounterCount(CardCore.Attribute.KeywordRules.ArmorCounter));
+            v.Counters = p.EnumerateCounters() // 角色层全量指示物（滤 0 层——展示口径与卡快照一致）
+                .Select(kvp => new CounterEntryDTO { Key = kvp.Key, Value = kvp.Value }).ToArray();
 
             var skill = HeroSkillSystem.ResolveSkillCard(core, p);
             if (skill != null)
@@ -418,6 +424,7 @@ namespace SynergyUI
             v.IsAI = ps.IsAI;
             v.HeroAttack = Math.Max(0, ps.Counters?.FirstOrDefault(c => c.Key == CardCore.Attribute.CounterRules.HeroAttackCounter)?.Value ?? 0);
             v.Armor = Math.Max(0, ps.Counters?.FirstOrDefault(c => c.Key == CardCore.Attribute.KeywordRules.ArmorCounter)?.Value ?? 0);
+            v.Counters = ps.Counters; // 角色层全量指示物（协议已携带，直接回填视图模型）
             v.BankText = ps.ElementBank == null || ps.ElementBank.Length == 0 ? "—"
                 : string.Join(" ", ps.ElementBank
                     .Where(e => e.Value > 0)
@@ -489,7 +496,7 @@ namespace SynergyUI
             if (r == null) return "?";
             if (r.IsPlayer)
                 return r.Seat == viewerSeat ? "我方" : "对手";
-            var data = string.IsNullOrEmpty(r.CardId) ? null : CardCatalog.GetById(r.CardId);
+            var data = string.IsNullOrEmpty(r.CardId) ? null : CardCatalog.GetByInstanceId(r.CardId);
             string name = data != null && !string.IsNullOrEmpty(data.CardName) ? data.CardName : (r.CardId ?? "?");
             return $"{name}#{r.RuntimeId % 10000}";
         }

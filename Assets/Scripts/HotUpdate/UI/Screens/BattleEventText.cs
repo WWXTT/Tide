@@ -36,19 +36,24 @@ namespace SynergyUI
                     return new Line($"—— 回合 {t.TurnNumber}：{Who(t.TurnPlayer, isSelf)} ——" +
                         (t.TurnPlayer != null && t.TurnPlayer.IsAI ? "（AI）" : ""), "log-line--turn");
 
+                // 阶段分段（2026-10-17）：回合行下按 准备/主要/结束 三段切开——
+                // 中文口径与中线状态行同源（BattleView.PhaseZh）。
+                case PhaseStartEvent ph:
+                    return new Line($"〔{BattleView.PhaseZh(ph.Phase)}阶段〕", "log-line--phase");
+
                 case CardDrawEvent d:
                     return new Line($"{Who(d.Player, isSelf)}抽 {Math.Max(1, d.DrawCount)} 张", "");
 
                 case CardPlayEvent p:
                     return new Line($"{Who(p.Player, isSelf)}使用 {CardName(p.PlayedCard)}" +
-                        (p.FromZone == Zone.Graveyard ? "（墓地）" : ""), "");
+                        (p.FromZone == Zone.Graveyard ? "（墓地）" : ""), "log-line--card");
 
                 case CombatDamageEvent c:
                     return new Line($"{EntityName(c.Attacker, isSelf)} → {EntityName(c.Defender, isSelf)}：{c.Damage} 伤害", "log-line--combat");
 
                 case LifeChangeEvent l:
                     return new Line($"{Who(l.Player, isSelf)}生命 {l.OldLife} → {l.NewLife}",
-                        l.NewLife < l.OldLife ? "log-line--combat" : "log-line--system");
+                        l.NewLife < l.OldLife ? "log-line--combat" : "log-line--effect");
 
                 case LifeLossEvent ll:
                     return new Line($"{Who(ll.Player, isSelf)}生命流失 {ll.Amount}", "log-line--combat");
@@ -68,8 +73,8 @@ namespace SynergyUI
                 {
                     string src = ei.Source is Card sc ? CardName(sc) : EntityName(ei.Source, isSelf);
                     return ei.Definition.ActivationType == EffectActivationType.Voluntary
-                        ? new Line($"{Who(ei.Controller, isSelf)}发动：{src}「{ei.Definition.DisplayName}」", "")
-                        : new Line($"{src} 触发「{ei.Definition.DisplayName}」", "");
+                        ? new Line($"{Who(ei.Controller, isSelf)}发动：{src}「{ei.Definition.DisplayName}」", "log-line--effect")
+                        : new Line($"{src} 触发「{ei.Definition.DisplayName}」", "log-line--effect");
                 }
                 case StackAddEvent _: // 施放/攻击/守卫/SBA：不重复记（空行=订阅方跳过）
                     return new Line(null, null);
@@ -86,12 +91,45 @@ namespace SynergyUI
                     return ctr.Amount > 0
                         ? new Line(CounterRules.IsNegative(ctr.CounterType)
                             ? $"{who} 被附加 {ctr.Amount} 层{name}"
-                            : $"{who} 获得 {ctr.Amount} 层{name}", "")
-                        : new Line($"{who} 失去 {-ctr.Amount} 层{name}", "");
+                            : $"{who} 获得 {ctr.Amount} 层{name}", "log-line--effect")
+                        : new Line($"{who} 失去 {-ctr.Amount} 层{name}", "log-line--effect");
                 }
+
+                // 关键词改写步（2026-10-17）：守护/舍身改写发生在 ApplyDamage 内层递归里，
+                // 战报此前只见最终的「谁 → 谁造成 N 伤害」，缺中间改写描述行。KeywordAppliedEvent
+                // 按关键词过滤只放行守护/舍身（结成 + 改写行）；其余关键词（圣盾/护甲/易损/吸血/
+                // 潜行/禁魔石…）暂不放行防刷屏，显式空行防回落 GenericLocal 打出反射原生行。
+                // 角色名观侧化同 EffectExecutionSummaryEvent 口径（本地局玩家名恒 Player 1/2）。
+                case KeywordAppliedEvent kw when kw.Keyword == KeywordRules.Guardian
+                                             || kw.Keyword == KeywordRules.Martyrdom:
+                {
+                    if (string.IsNullOrEmpty(kw.Detail)) return new Line(null, null);
+                    return new Line(kw.Detail
+                        .Replace("Player 1", "【己方角色】").Replace("Player 2", "【对方角色】"), "log-line--effect");
+                }
+                case KeywordAppliedEvent _:
+                    return new Line(null, null);
 
                 case GameOverEvent g:
                     return new Line($"★ {(g.Winner != null && isSelf(g.Winner) ? "我方" : "对手")}获胜（{g.Reason}）· 共 {g.TotalTurns} 回合", "log-line--system");
+
+                // 效果结算完整文本（2026-10-17 战报指名）：Description 含逐原子「→ 具体目标名」——
+                // 发动/触发行只报效果名（表内静态文本泛称「己方单位」），具体落点由此行补明。
+                // 前缀「　→ 」缩进=视觉挂在上一条发动/触发行下；观侧化=句首控制器名→我方/对手、
+                // 正文角色名→【己方/对方角色】（本地局玩家名恒 Player 1/2；替换未命中=自定义名原文保留）。
+                case EffectExecutionSummaryEvent sum:
+                {
+                    if (string.IsNullOrEmpty(sum.Description)) return new Line(null, null);
+                    string text = sum.Description;
+                    if (sum.Controller != null && isSelf != null)
+                    {
+                        string prefix = EffectText.Name(sum.Controller) + " 的 ";
+                        if (text.StartsWith(prefix, StringComparison.Ordinal))
+                            text = (isSelf(sum.Controller) ? "我方" : "对手") + " 的 " + text.Substring(prefix.Length);
+                    }
+                    text = text.Replace("Player 1", "【己方角色】").Replace("Player 2", "【对方角色】");
+                    return new Line("　→ " + text, "log-line--effect");
+                }
 
                 default:
                     return GenericLocal(e, isSelf);
@@ -146,6 +184,12 @@ namespace SynergyUI
                     return new Line($"—— 回合 {Int(map, "TurnNumber")}：{who} ——", "log-line--turn");
                 }
 
+                case "PhaseStartEvent":
+                {
+                    var phase = (PhaseType)Int(map, "Phase");
+                    return new Line($"〔{BattleView.PhaseZh(phase)}阶段〕", "log-line--phase");
+                }
+
                 case "CardDrawEvent":
                 {
                     string who = Entity(map, "Player", viewerSeat);
@@ -157,7 +201,7 @@ namespace SynergyUI
                     string who = Entity(map, "Player", viewerSeat);
                     string card = Entity(map, "PlayedCard", viewerSeat);
                     string tag = Int(map, "FromZone") == (int)Zone.Graveyard ? "（墓地）" : "";
-                    return new Line($"{who}使用 {card}{tag}", "");
+                    return new Line($"{who}使用 {card}{tag}", "log-line--card");
                 }
 
                 case "CombatDamageEvent":
@@ -172,7 +216,7 @@ namespace SynergyUI
                     string who = Entity(map, "Player", viewerSeat);
                     int oldL = Int(map, "OldLife"), newL = Int(map, "NewLife");
                     return new Line($"{who}生命 {oldL} → {newL}",
-                        newL < oldL ? "log-line--combat" : "log-line--system");
+                        newL < oldL ? "log-line--combat" : "log-line--effect");
                 }
 
                 case "LifeLossEvent":
@@ -280,7 +324,9 @@ namespace SynergyUI
 
         private static string EntityName(Entity en, Func<Player, bool> isSelf)
         {
-            if (en is Player p) return Who(p, isSelf);
+            // 2026-10-17 战报指名：角色目标不再泛称「我方/对手」——与悬停状态段/选择候选同口径
+            //【己方/对方角色】（卡目标本就显卡名；CombatDamage/CounterChanged/反射兜底共用此口）。
+            if (en is Player p) return isSelf != null && isSelf(p) ? "【己方角色】" : "【对方角色】";
             if (en is Card c) return CardName(c);
             return en != null ? en.ToString() : "?";
         }

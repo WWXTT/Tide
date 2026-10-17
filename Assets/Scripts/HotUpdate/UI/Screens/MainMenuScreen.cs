@@ -1,3 +1,4 @@
+using System.Linq;
 using UnityEngine;
 using CardCore;
 using Cysharp.Threading.Tasks;
@@ -30,8 +31,9 @@ namespace SynergyUI
 
             BindButton("btn-teaching", EnterTutorialFlow);
 
-            // 大厅入口（未完成教学期间隐藏，RefreshTutorialGates 换装）
-            BindButton("btn-match", () => Manager.Show<MatchScreen>());
+            // 匹配入口（2026-10-17 对局准备改版）：硬币定先后+选卡组（本地 AI）。旧联机大厅
+            // MatchScreen 休眠保留（NetGate 关闭本就不可达——联机回归时再换回）
+            BindButton("btn-match", () => Manager.Show<PreMatchScreen>());
             BindButton("btn-deck", () => Manager.Show<DeckBuilderScreen>());
             BindButton("btn-card", () => Manager.Show<CardComposerScreen>());
             BindButton("btn-effect", () => Manager.Show<EffectComposerScreen>());
@@ -64,30 +66,64 @@ namespace SynergyUI
             if (_matchNode != null) _matchNode.gameObject.SetActive(done);
         }
 
-        /// <summary>「基础教学」入口（2026-10-14 测试期直达）：直接进镜像对决——默认卡组镜像 +
-        /// AI=tide_policy（不可用回落 SimpleAI）。不落考核档（AssessmentActive=false，进度不被
-        /// 测试胜负污染）。四态裁决/两个教学回头恢复（原实现见 git：AskSkip/FinalChallenge/
-        /// Assessment/Tutorial 四分支）。</summary>
+        /// <summary>「基础教学」入口（2026-10-17 恢复建档跳过链后三态）：最后一课镜像局 / 正常开课 /
+        /// 考核路径。首点教学（建档 skipAskPending）弹「是否跳过基础教学，进入考核？」；选过跳过且
+        /// 考核未胜=直接重开考核局（不提供回课程——用户定案：负=原地重试）。</summary>
         private void EnterTutorialFlow()
         {
-            BattleEntry.Mode = BattleMode.LocalAI;
-            BattleEntry.MirrorDeck = TutorialCreationFlow.ResolveDefaultMirrorDeck();
-            BattleEntry.MirrorSkillCardId = null;
-            SwallowToBattle();
+            if (TutorialProgressManager.Instance.IsTutorialDone) return; // 换装漏网兜底
+            switch (TutorialFlow.ResolveTutorialButtonClick())
+            {
+                case TutorialButtonClickAction.StartFinalChallenge:
+                    if (TutorialCreationFlow.StartFinalChallenge())
+                        SwallowToBattle();
+                    else
+                        TideLog.Warn("[MainMenu] 最后一课无可用卡组（记名卡组丢失）——停留菜单");
+                    return;
+                case TutorialButtonClickAction.StartTutorial:
+                    AskSkipOrStart();
+                    return;
+            }
         }
 
-        /// <summary>开教学局；下一课=chuangzuo 时分流到效果合成器（StartTutorialBattle 对
-        /// chuangzuo 只 BeginLesson 不设 BattleEntry——分支判定必须用调用前的 NextTutorialId，
-        /// 事后查 BattleEntry.Mode 会被上一局残留值骗到）。</summary>
-        private void StartTutorialBattleWithSplit()
+        /// <summary>教学按钮三态分流（2026-10-17 定案，替代旧「跳过基础介绍？」重进弹窗——已删）：
+        /// ① 建档首点=弹「是否跳过基础教学，进入考核？」（不跳过=从教学一完整链开始）；
+        /// ② 考核路径（选过跳过、未胜）=直接重开考核局；
+        /// ③ 其余（课程进行中/续点）=正常开课——教学一每次点开都从头完整重走，不再询问。</summary>
+        private void AskSkipOrStart()
         {
-            var next = TutorialProgressManager.Instance.NextTutorialId;
-            TutorialFlow.StartTutorialBattle();
-            if (next == TutorialProgressManager.CreationLessonId)
+            var p = TutorialProgressManager.Instance;
+            if (p.SkipAskPending)
             {
-                Manager.Show<EffectComposerScreen>();
+                UiKit.ConfirmBox(Root, "是否跳过基础教学，进入考核？",
+                    "跳过将直接进行镜像考核对局：获胜即完成全部新手教学；失败可随时重试。",
+                    "跳过，进入考核", () => { p.ChooseSkip(true); StartAssessment(); },
+                    "不跳过，从教学一开始", () => { p.ChooseSkip(false); StartTutorialBattleWithSplit(); },
+                    danger: true);
                 return;
             }
+            if (p.SkipChosen && !p.Skipped)
+            {
+                StartAssessment(); // 考核路径重试（2026-10-17 用户定案：负=原地重试，不回课程）
+                return;
+            }
+            StartTutorialBattleWithSplit();
+        }
+
+        /// <summary>开考核局（建档跳过路径）：默认卡组镜像对局（主体卡组→红·快攻→随机镜像回落）；
+        /// 无可用卡组=记日志停留菜单。</summary>
+        private void StartAssessment()
+        {
+            if (TutorialCreationFlow.StartAssessment())
+                SwallowToBattle();
+            else
+                TideLog.Warn("[MainMenu] 考核局无可用镜像卡组——停留菜单");
+        }
+
+        /// <summary>开教学局（创作课取消后无分流，2026-10-17：序列=basics→lunzhuan 纯对战局）。</summary>
+        private void StartTutorialBattleWithSplit()
+        {
+            TutorialFlow.StartTutorialBattle();
             SwallowToBattle();
         }
 

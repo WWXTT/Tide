@@ -38,6 +38,7 @@ namespace SynergyUI
         private readonly Transform _root;
         private readonly Dictionary<uint, UnitVisual> _units = new Dictionary<uint, UnitVisual>();
         private readonly Dictionary<int, HeroVisual> _heroes = new Dictionary<int, HeroVisual>(); // key=归属 0/1
+        private readonly HashSet<int> _fatigueBusy = new HashSet<int>(); // 疲劳演出在途 owner（重入只补浮字，2026-10-17）
         private readonly Dictionary<long, TextMeshPro> _landCounts = new Dictionary<long, TextMeshPro>(); // key=格(x<<32|z)：地牌格「可用/上限」计数
         private readonly HashSet<uint> _heldUnits = new HashSet<uint>(); // 演出持有（2026-10-13 战斗编舞）
         private readonly List<GameObject> _creatureArrows = new List<GameObject>(); // 生物箭头地面件（钉 tile，全量对账重建）
@@ -46,31 +47,34 @@ namespace SynergyUI
         //（2026-10-15 深夜改版）单位【发动效果】头顶按钮退役：单位本体退出射线检测，
         // 攻击/守卫/发动拆到格前三键（BattleTileButtons），本类不再持有可点 3D 件。
 
-        // 施放占格立牌（2026-10-15 发动格拆除：整个 2×6 兼任发动区）：发动区占位卡 × 单位区空格的
-        // "卡牌立牌"呈现——Quad 贴卡面立绘（无立绘纯色兜底）+底部卡名；立牌自带碰撞体
-        //（cast-{RuntimeId}）供 BattleScreen 射线路由（hover 卡信息/点击开发动区列卡）。
+        // 施放占格类型图标（2026-10-15 发动格拆除：整个 2×6 兼任发动区；2026-10-17 两改：
+        // 立绘立牌→程序描边边框→Element 预制体平贴图标）：Element.prefab 面朝上平躺贴格面，
+        // 图标=三张卡类型图（结界 barrier / 生物 biology / 法术 spell·装备兜底，纯白不染色）——
+        // 材质以 BattleCardBack_Elem_White_Mat（URP Unlit 透明·纯白）为模板运行时实例换贴图；
+        // 完整卡面同帧由 BattleScreen 左上角施放展示（cast-stage）呈现。图标补挂 MeshCollider
+        //（Element 无碰撞体）保 cast-{RuntimeId} 射线路由（hover 卡信息/点击开发动区列卡）。
         private readonly Dictionary<uint, GameObject> _castings = new Dictionary<uint, GameObject>(); // key=RuntimeId
-        private readonly Dictionary<uint, Vector2Int> _castingCells = new Dictionary<uint, Vector2Int>(); // 施放立牌占格（key=RuntimeId；随立牌对账同进出，TryGetOnBoardCell 查询用）
-        private Material _castMat; // 立牌底材（卡背材质资产实例——URP Unlit 透明，逐卡再实例贴图/纯色）
+        private readonly Dictionary<uint, GameObject> _castingLingers = new Dictionary<uint, GameObject>(); // 离区 linger 期图标（key=RuntimeId；登场演出/等待期窗口，到期或被顶即销）
+        private readonly Dictionary<uint, Vector2Int> _castingCells = new Dictionary<uint, Vector2Int>(); // 施放图标占格（key=RuntimeId；随对账同进出，TryGetOnBoardCell 查询用）
+        private GameObject _castIconPrefab; // Element 预制体（HotUpdateAssets 惰性加载，地牌元素图标同源）
+        private readonly Dictionary<Cardtype, Material> _castTypeMats = new Dictionary<Cardtype, Material>(); // 类型→图标材质（运行时实例，随 Dispose 销毁）
 
         // 出场粒子汇聚载荷（2026-10-15 用户定案：弃弹出动画改 INab 粒子）：CastPlayed 入场 →
         // BattleCastArrival 粒子演出 1s 后显现模型；paid 键=ManaType 下标、值=该色实付量
         private readonly Dictionary<uint, (int seat, Dictionary<int, float> paid)> _arrivals =
             new Dictionary<uint, (int, Dictionary<int, float>)>();
 
-        /// <summary>施放立牌节点名前缀（BattleScreen.PollFieldPointer 射线命中路由——cast-{RuntimeId}）。</summary>
+        /// <summary>施放占格节点名前缀（BattleScreen.PollFieldPointer 射线命中路由——cast-{RuntimeId}）。</summary>
         public const string CastingCardPrefix = "cast-";
 
         private static readonly Color P1UnitColor = new Color(0.29f, 0.50f, 0.83f);
         private static readonly Color P2UnitColor = new Color(0.83f, 0.35f, 0.35f);
 
-        // 死亡退场（2026-10-16 三改：碎裂散落停稳→**维持原大小**滚到己方墓地格→墓上原地自旋
-        // 缩小消失——途中缩小奇怪（用户定案），旋转缩小不并入滚程、整段表现时间放慢；
-        // 2026-10-15 距离折算沿用）——滚程=钳制(距离/速度, 下限, 上限)：近距不闪没、远角不拖沓
-        private const float DeathSlideUnitsPerSecond = 3.2f;
-        private const float DeathSlideMinSeconds = 0.75f;
-        private const float DeathSlideMaxSeconds = 2.6f;
-        private const float DeathSpinSeconds = 1f; // 墓地格上原地自旋（两圈）+ 缩没
+        // 死亡退场（2026-10-17 定案：砍掉滚墓与墓上自旋两段，退场不再去墓地格）——
+        // 生物=碎裂散落原地停 DeathRestSeconds 沉降即收；无 rig 单位（结界等）暂无碎裂，
+        // 整身原地沉降入板面（深度=模型顶高+余量）
+        private const float DeathRestSeconds = 0.5f; // 碎裂落地后的沉降等待
+        private const float DeathSinkSeconds = 0.5f; // 无 rig 单位整身下沉时长
 
         // 属性配色（2026-10-15）：与印刷基础值持平=白（TMP 默认色）、低于=红（受伤/降攻）、
         // 高于=绿（增益）——攻击/生命逐数字独立着色（富文本），查表 miss（无印刷值）恒白。
@@ -112,9 +116,23 @@ namespace SynergyUI
             _creatureArrows.Clear(); // 钉在 tile 上不随 _root 销毁，须自清
             _units.Clear();
             _heroes.Clear();
-            _landCounts.Clear();
-            _castings.Clear(); // 立牌是 _root 子物体随根销毁；逐卡实例材质由 GC/卸载回收（短命局对象）
+            foreach (var l in _landCounts.Values)
+                if (l != null)
+                {
+                    if (Application.isPlaying) Object.Destroy(l.gameObject);
+                    else Object.DestroyImmediate(l.gameObject);
+                }
+            _landCounts.Clear(); // 2026-10-17 计数条钉在 tile 上不随 _root 销毁，须自清（同 _creatureArrows）
+            _castings.Clear(); // 类型图标是 _root 子物体随根销毁；材质实例（CastType_*/CastFallback_*）逐类自清
+            _castingLingers.Clear(); // linger 期图标随根销毁（延迟协程对已销毁对象 fake-null 判死退出）
             _castingCells.Clear();
+            foreach (var m in _castTypeMats.Values)
+                if (m != null)
+                {
+                    if (Application.isPlaying) Object.Destroy(m);
+                    else Object.DestroyImmediate(m);
+                }
+            _castTypeMats.Clear(); // 运行时实例材质不跨局（跨域 fake-null 防口）
             _arrivals.Clear(); // 未消费的入场载荷不跨局
             if (_root != null) Object.Destroy(_root.gameObject);
         }
@@ -158,7 +176,7 @@ namespace SynergyUI
             // ---- 生物箭头（2026-10-15 用户定案：钉地格不跟 wrapper——攻击/守卫跑动留在原地） ----
             ReconcileCreatureArrows(d);
 
-            // ---- 施放占格立牌（2026-10-15 发动格拆除：发动区占位卡 × 单位区空格） ----
+            // ---- 施放占格类型图标（2026-10-15 发动格拆除：发动区占位卡 × 单位区空格） ----
             ReconcileCasting(d.CastingCards);
 
             // ---- 地牌（固定元素格；2026-10-14 晚定案：6 格固定元素身份 灰红蓝绿黑白） ----
@@ -179,7 +197,7 @@ namespace SynergyUI
                       + $"（新建{createdU} 移动{movedU} 销毁{removedU}{(createdU > 0 ? " 最近模型=" + lastModel : "")}）"
                       + $" 地牌 己{d.SelfLands.Count}/敌{d.OppLands.Count}"
                       + $" 地块高亮{BattleTileFx.GlowOn} 元素图标{BattleTileFx.IconCount} 生物箭头{_creatureArrows.Count}"
-                      + $" 施放立牌{d.CastingCards.Count}"
+                      + $" 施放类型图标{d.CastingCards.Count}"
                       + $" 牌库 己{d.Self.DeckCount}/敌{d.Opp.DeckCount}"
                       + $" 生命 己{d.Self.Life}/敌{d.Opp.Life}"
                       + $" 地牌上限 己{d.Self.LandCap}/敌{d.Opp.LandCap}"
@@ -330,13 +348,14 @@ namespace SynergyUI
                     v.Model.transform.localRotation = Quaternion.Euler(0f, v.ModelYaw, 0f);
             }
 
-            // 可行动高光（2026-10-13 卡背退役定案·晚改扩散波）：未横置未死亡=脚下地块淡蓝扩散波，横置/死亡即熄
+            // 可行动高光（2026-10-13 卡背退役定案·晚改扩散波·2026-10-17 分色）：未横置未死亡=脚下地块
+            // 扩散波，己方淡蓝 / 对手红；横置/死亡即熄
             if (!card.IsTapped && !card.IsDead)
-                BattleTileFx.SetUnitGlow(card.X, card.Z);
+                BattleTileFx.SetUnitGlow(card.X, card.Z, owner == 1);
 
             // 死亡↔复活（MonsterRig 基础态）：死亡翻转只落一次记账（v.Dead 锁存）；
-            // 非 hold 的死亡走通用退场演出（碎裂散落→停稳→维持大小滚入墓地→墓上原地自旋
-            // 缩小消失，2026-10-16 三改：旋转缩小不并入滚程、表现时间放慢）
+            // 非 hold 的死亡走通用退场演出（生物=碎裂散落原地沉降片刻即收、结界等无 rig
+            // 单位整身沉降入板面——2026-10-17 砍掉滚墓+自旋段，退场不再去墓地格）
             if (card.IsDead && !v.Dead)
             {
                 v.Dead = true;
@@ -490,16 +509,18 @@ namespace SynergyUI
             return v;
         }
 
-        // ======================================== 施放占格立牌（2026-10-15 发动格拆除） ========================================
+        // ======================================== 施放占格类型图标（2026-10-15 发动格拆除） ========================================
 
-        /// <summary>施放卡立牌对账（发动区占位卡 × 单位区空格——整个 2×6 兼任发动区）。
-        /// 永久物转正=立牌消失、单位对账同帧上模型；法术结算/失败离场=立牌随 stale 清除。</summary>
+        /// <summary>施放卡类型图标对账（发动区占格卡 × 单位区空格——整个 2×6 兼任发动区）。
+        /// 2026-10-17 时序定案：离区不即清——转正在场（同帧已入 _units，Apply 单位先于本段）=
+        /// linger 至登场演出完成（≈1.15s）；其余（法术结算）=1s 等待期；被阻拦失败=
+        /// InterruptCasting 即清（CardActivationFailedEvent）；新卡占同格=顶掉旧 linger。</summary>
         private void ReconcileCasting(List<BattleCardView> cards)
         {
             var seen = new HashSet<uint>();
             foreach (var card in cards)
             {
-                if (card.X < 0 || card.Z < 0) continue; // 未落格（满场无空格）不立牌
+                if (card.X < 0 || card.Z < 0) continue; // 未落格（满场无空格）不出图标
                 seen.Add(card.RuntimeId);
                 if (!_castings.TryGetValue(card.RuntimeId, out var go) || go == null)
                 {
@@ -522,75 +543,138 @@ namespace SynergyUI
                 _castings.Remove(id);
                 _castingCells.Remove(id);
                 if (go == null) continue;
-                var rend = go.GetComponent<MeshRenderer>();
-                if (rend != null && rend.material != null)
-                {
-                    if (Application.isPlaying) Object.Destroy(rend.material); // 逐卡实例材质随件销毁防泄漏
-                    else Object.DestroyImmediate(rend.material);
-                }
-                if (Application.isPlaying) Object.Destroy(go);
-                else Object.DestroyImmediate(go);
+                _castingLingers[id] = go; // linger 登记（InterruptCasting/同格顶替可提前清）
+                bool arrived = _units.ContainsKey(id); // 成功转正：登场演出档；否则=法术结算 1s 等待期
+                LingerCastingAsync(id, go, arrived ? 1.15f : 1.0f).Forget();
             }
+        }
+
+        /// <summary>施放 linger 到期销毁（离区后延迟清除——登场演出/等待期窗口）。</summary>
+        private async UniTaskVoid LingerCastingAsync(uint id, GameObject go, float seconds)
+        {
+            await UniTask.Delay((int)(seconds * 1000f));
+            if (go == null) return; // 已被 InterruptCasting/同格顶替/Dispose 清掉（Unity fake-null 判死）
+            _castingLingers.Remove(id);
+            DestroyCastingIcon(go);
+        }
+
+        /// <summary>施放被阻拦/失败（CardActivationFailedEvent）：图标即清——不等 linger。</summary>
+        public void InterruptCasting(uint runtimeId)
+        {
+            if (_castings.TryGetValue(runtimeId, out var live))
+            {
+                _castings.Remove(runtimeId);
+                _castingCells.Remove(runtimeId);
+                if (live != null) DestroyCastingIcon(live);
+            }
+            if (_castingLingers.TryGetValue(runtimeId, out var ling))
+            {
+                _castingLingers.Remove(runtimeId);
+                if (ling != null) DestroyCastingIcon(ling);
+            }
+        }
+
+        /// <summary>销毁单枚施放图标（含降级材质实例回收；共享 CastType_* 不动）。</summary>
+        private static void DestroyCastingIcon(GameObject go)
+        {
+            if (go == null) return;
+            var rend = go.GetComponent<MeshRenderer>();
+            var sm = rend != null ? rend.sharedMaterial : null; // 只读 sharedMaterial——.material getter 会实例化共享件
+            if (sm != null && sm.name.StartsWith("CastFallback_", StringComparison.Ordinal))
+            {
+                if (Application.isPlaying) Object.Destroy(sm); // 降级路径逐卡实例随件销毁防泄漏
+                else Object.DestroyImmediate(sm);
+            }
+            if (Application.isPlaying) Object.Destroy(go);
+            else Object.DestroyImmediate(go);
         }
 
         private GameObject CreateCastingCard(BattleCardView card)
         {
-            var go = GameObject.CreatePrimitive(PrimitiveType.Quad); // 自带 MeshCollider：hover/点击命中
-            go.name = CastingCardPrefix + card.RuntimeId;
-            go.transform.SetParent(_root, false);
-            go.transform.position = CastingAnchor(card.X, card.Z);
-            go.transform.localScale = new Vector3(0.9f, 1.35f, 1f); // 卡牌 2:3 形态
-            var cam = BattleStageDirector.WorldCam;
-            if (cam != null)
-                go.transform.rotation = Quaternion.LookRotation(go.transform.position - cam.transform.position);
-            go.AddComponent<StatsBillboard>(); // 每帧对相机（与头顶数值同款 billboard，朝向同口径）
+            // 2026-10-17 二改（用户验收）：程序描边退役——Element 预制体平贴卡类型图标
+            //（barrier/biology/spell 纯白），缺件回落纯色 Quad（材质名 CastFallback_ 前缀=随件销毁）。
+            if (_castIconPrefab == null)
+                _castIconPrefab = Tide.HotUpdate.HotUpdateAssets.Load<GameObject>(
+                    "Element", "Assets/Art/Prefab/Element.prefab");
+            if (_castIconPrefab == null)
+            {
+                Debug.LogWarning("[BattleField] Element.prefab 缺失——施放类型图标降级纯色 Quad");
+                var fb = GameObject.CreatePrimitive(PrimitiveType.Quad); // 自带 MeshCollider
+                fb.name = CastingCardPrefix + card.RuntimeId;
+                fb.transform.SetParent(_root, false);
+                fb.transform.position = CastingAnchor(card.X, card.Z);
+                fb.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
+                fb.transform.localScale = new Vector3(0.8f, 0.8f, 1f);
+                var frend = fb.GetComponent<MeshRenderer>();
+                frend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                var fmat = frend.material; // 逐卡实例（命名标记=stale 清理只杀实例不杀共享）
+                fmat.name = "CastFallback_" + card.RuntimeId;
+                fmat.color = Color.white;
+                return fb;
+            }
 
-            bool own = BoardLayout.OwnerOf(card.X, card.Z) == 0;
+            var go = Object.Instantiate(_castIconPrefab, _root, false);
+            go.name = CastingCardPrefix + card.RuntimeId;
+            // 同格旧 linger 顶替（新卡使用了=旧的让位）：先清同格遗留再落位
+            var anchorNow = CastingAnchor(card.X, card.Z);
+            List<uint> sameCell = null;
+            foreach (var kv in _castingLingers)
+                if (kv.Value != null && (kv.Value.transform.position - anchorNow).sqrMagnitude < 0.1f)
+                    (sameCell ?? (sameCell = new List<uint>())).Add(kv.Key);
+            if (sameCell != null)
+                foreach (var oldId in sameCell)
+                {
+                    var oldGo = _castingLingers[oldId];
+                    _castingLingers.Remove(oldId);
+                    if (oldGo != null) DestroyCastingIcon(oldGo);
+                }
+            go.transform.position = anchorNow;
+            go.transform.rotation = Quaternion.Euler(90f, 0f, 0f); // 面朝上（与 BattleTileFx.AddElement 同防御）
+            go.transform.localScale = Vector3.one * 0.6f;
             var rend = go.GetComponent<MeshRenderer>();
             rend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            if (_castMat == null)
-            {
-                var src = Tide.HotUpdate.HotUpdateAssets.Load<Material>(
-                    "BattleCardBack_Back", "Assets/Art/Battle3D/Materials/BattleCardBack_Back_Mat.asset");
-                _castMat = src != null ? new Material(src) : null; // URP Unlit 透明底材（材质资产化约定）
-            }
-            if (_castMat != null)
-            {
-                rend.sharedMaterial = _castMat;
-                var mat = rend.material; // 逐卡实例
-                var sprite = CardArtLibrary.Load(card.Illustration);
-                if (sprite != null) mat.mainTexture = sprite.texture; // 生物=模型预览图/卡面立绘
-                else
-                {
-                    mat.mainTexture = null; // 无立绘（法术/结界常态，2026-10-15 口径）：归属色纯色牌
-                    mat.color = own ? P1UnitColor : P2UnitColor;
-                }
-            }
-            else
-                rend.material.color = own ? P1UnitColor : P2UnitColor; // 底材缺失兜底（默认 Lit 灰牌染色）
-
-            // 底部卡名（TMP 缺字体时静默跳过——与头顶数值同约定）
-            if (EnsureTmpFont())
-            {
-                var labelGo = new GameObject("cast-name");
-                labelGo.transform.SetParent(go.transform, false);
-                labelGo.transform.localPosition = new Vector3(0f, -0.82f, -0.02f); // 面向相机侧、牌缘下方
-                var tmp = labelGo.AddComponent<TextMeshPro>();
-                tmp.fontSize = 2.4f;
-                tmp.alignment = TextAlignmentOptions.Center;
-                tmp.color = Color.white;
-                tmp.text = card.Name;
-            }
-            Debug.Log($"[BattleField] 施放立牌：{card.Name}({card.CardId}) @({card.X},{card.Z})（{(own ? "己方" : "对手")}发动）");
+            rend.receiveShadows = false;
+            var mat = CastTypeMaterialOf(card.Type);
+            if (mat != null) rend.sharedMaterial = mat;
+            var mf = go.GetComponent<MeshFilter>();
+            var col = go.AddComponent<MeshCollider>(); // Element 无碰撞体——补挂保 cast-{rid} 射线路由
+            if (mf != null && mf.sharedMesh != null) col.sharedMesh = mf.sharedMesh;
+            Debug.Log($"[BattleField] 施放类型图标：{card.Name}({card.CardId}) @({card.X},{card.Z})（类型 {card.Type}）");
             return go;
         }
 
-        /// <summary>立牌锚点：格心上方悬浮（卡面中心≈0.8m——底缘离格面≈0.12m）。</summary>
+        /// <summary>卡类型→图标材质：三图（结界 barrier / 生物 biology / 法术 spell·装备兜底）纯白——
+        /// 以元素图标白模板（URP Unlit 透明·_BaseColor 恒白）运行时实例换 _BaseMap/_MainTex；
+        /// 实例随 BattleFieldView.Dispose 销毁（跨局不缓存——跨域 fake-null 防口）。</summary>
+        private Material CastTypeMaterialOf(Cardtype t)
+        {
+            if (_castTypeMats.TryGetValue(t, out var m)) return m; // 含失败缓存（null）——缺件不逐次重试刷告警
+            string icon = t == Cardtype.Enchantment ? "barrier"
+                        : t == Cardtype.Creature ? "biology"
+                        : "spell";
+            var template = Tide.HotUpdate.HotUpdateAssets.Load<Material>(
+                "BattleCardBack_Elem_White", "Assets/Art/Battle3D/Materials/BattleCardBack_Elem_White_Mat.asset");
+            var tex = Tide.HotUpdate.HotUpdateAssets.Load<Texture2D>(
+                icon, $"Assets/Art/Battle3D/Icons/{icon}.png");
+            if (template == null || tex == null)
+            {
+                Debug.LogWarning($"[BattleField] 施放类型图标缺件：{(template == null ? "Elem_White 模板" : icon + ".png")}——该类型降级预制体默认材质");
+                _castTypeMats[t] = null; // 失败入缓存：一次告警，之后恒走降级
+                return null;
+            }
+            m = new Material(template) { name = "CastType_" + t };
+            m.SetTexture("_BaseMap", tex);
+            m.SetTexture("_MainTex", tex); // 模板双贴图口同口径（与元素材质资产一致）
+            _castTypeMats[t] = m;
+            return m;
+        }
+
+        /// <summary>图标锚点：格面上方微浮（+0.012 与 BattlePriorityPanel 同防地块遮挡/防 z-fight）。</summary>
         private static Vector3 CastingAnchor(int x, int z)
-            => BattleBoardGrid.WorldPositionOf(x, z) + new Vector3(0f, 0.8f, 0f);
+            => BattleBoardGrid.WorldPositionOf(x, z) + new Vector3(0f, 0.012f, 0f);
 
         /// <summary>场上卡占格查询（2026-10-16 目标选择红瞄准面片）：单位（生物/结界/衍生物）
-        /// 与施放占格立牌都算「在场上」——命中返回其数据格坐标；不在场/未落格=false。
+        /// 与施放占格类型图标都算「在场上」——命中返回其数据格坐标；不在场/未落格=false。
         /// 只读对账记账（_units/_castingCells），不触引擎。</summary>
         public bool TryGetOnBoardCell(uint runtimeId, out int x, out int z)
         {
@@ -626,8 +710,9 @@ namespace SynergyUI
         /// 计数=「可用/上限」（2026-10-14 表述定案，当晚上限语义修正）：可用=未横置张+钱包该色余额
         ///（黑白无地牌=钱包余额）；上限=红蓝绿灰该色已放入地牌张数（含横置）；**黑白格只显余量不显上限**
         ///（2026-10-16 全类型累计钳改案：黑白的生成上限语义移交中线产量双格「累计/地牌上限」，
-        /// 六色同池后黑白格不再单独挂上限数字）；可用&gt;0 点亮锁色菲涅尔。
-        /// 计数条=格面平铺 TMP（不看向相机——平贴地块，见 EnsureFlatCellLabel）。</summary>
+            /// 六色同池后黑白格不再单独挂上限数字）；可用&gt;0 点亮顶面锁色描边环
+            /// （2026-10-17 定案：整块菲涅尔壳颜色压住格面文字/图标退役，见 BattleTileFx）。
+            /// 计数条=格面平铺 TMP（不看向相机——平贴地块，见 EnsureFlatCellLabel）。</summary>
         private void ReconcileLands(List<BattleCardView> lands, BattlePlayerView pv, int owner)
         {
             // 按色聚合（引擎固定元素格保证同色同格；无锁色异常卡按灰聚拢=同引擎口径）
@@ -691,6 +776,7 @@ namespace SynergyUI
 
         private void ReconcileHero(BattlePlayerView p, int owner)
         {
+            if (BattleRevealDirector.SuppressHeroes) return; // 教学介绍段闸（2026-10-17 语音联动显隐）：介绍到角色格前不建柱
             HeroVisual v;
             if (!_heroes.TryGetValue(owner, out v))
             {
@@ -711,10 +797,23 @@ namespace SynergyUI
                 _heroes[owner] = v;
             }
             // 立柱数值（2026-10-16）：常态只显 HP；护甲>0 缀「(+x)」；获得攻击力（HeroAttack 弹药>0）
-            // 追加「Ac:x」——无攻击力不占位，弹药打空自动回落纯 HP
+            // 追加「Ac:x」——无攻击力不占位，弹药打空自动回落纯 HP。
+            // 2026-10-17 角色状态展示：非读数层指示物续拼「名×n」摘要（读数层 Ac/护甲已表达）——
+            // 与生物悬停状态段同滤法（滤 0 层与 LayerRole==Reading）。
             if (v.Stats == null) return;
             string txt = "HP " + p.Life + ArmorSuffix(p.Armor);
             if (p.HeroAttack > 0) txt += " Ac:" + p.HeroAttack;
+            if (p.Counters != null)
+            {
+                foreach (var c in p.Counters)
+                {
+                    if (c == null || c.Value == 0) continue;
+                    var spec = CardCore.Attribute.CounterRules.Find(c.Key);
+                    if (spec != null && spec.LayerRole == CardCore.Attribute.CounterLayerRole.Reading) continue;
+                    if (c.Key == CardCore.Attribute.KeywordRules.ArmorCounter) continue; // 护甲已是 (+x) 后缀，不重复
+                    txt += " " + CounterText.DisplayNameOf(c.Key) + "×" + c.Value;
+                }
+            }
             if (v.LastStats != txt)
             {
                 v.LastStats = txt;
@@ -729,15 +828,19 @@ namespace SynergyUI
         /// ——正解=LookRotation(down, forward)=Euler(90,0,0)，相机 (7,8,-4)/(50,0,0) 自 -z 俯拍实测
         /// （旧 LookRotation(up,…) 三项全反：字镜像且读向右到左，中文整句一眼翻反、1/1 回文数漏检）。
         /// 贴格顶面 y=0.014（顶面 y=0、菲涅尔 0.004、图标 0.008 之上），位置=格心向视角前缘（-z）
-        /// 偏移 0.42，与上移 +z 0.35 的居中图标让位。key=格(x&lt;&lt;32|z)。</summary>
+        /// 偏移 0.42，与上移 +z 0.35 的居中图标让位。key=格(x&lt;&lt;32|z)。
+        /// 2026-10-17 改挂 tile 子物体（原挂 _root）：教学介绍段独占显隐按 tile SetActive 收格，
+        /// 文字不再悬空留在盘面上（与元素图标/HudRow 认领件同口径）。</summary>
         private TextMeshPro EnsureFlatCellLabel(long key, int x, int z)
         {
             if (!EnsureTmpFont()) return null;
             if (_landCounts.TryGetValue(key, out var label) && label != null) return label; // fake-null 判死重建
+            var tile = BattleBoardGrid.Root != null ? BattleBoardGrid.Root.transform.Find($"tile-{x}-{z}") : null;
+            if (tile == null) return null; // 未装台/格名异常：不建，下一事件重试（与 BattleTileFx.TileOf 同法）
             var go = new GameObject("cell-flat-" + x + "-" + z);
-            go.transform.SetParent(_root, false);
-            go.transform.position = BattleBoardGrid.WorldPositionOf(x, z) + new Vector3(0f, 0.014f, -0.42f);
-            go.transform.rotation = Quaternion.LookRotation(Vector3.down, Vector3.forward); // 平贴·轴对齐·字向正（2026-10-14 修）
+            go.transform.SetParent(tile, false); // tile 本体位姿=格心恒等变换，局部值即原世界偏移
+            go.transform.localPosition = new Vector3(0f, 0.014f, -0.42f);
+            go.transform.localRotation = Quaternion.LookRotation(Vector3.down, Vector3.forward); // 平贴·轴对齐·字向正（2026-10-14 修）
             label = go.AddComponent<TextMeshPro>();
             label.fontSize = 3.5f;
             label.alignment = TextAlignmentOptions.Center;
@@ -809,7 +912,11 @@ namespace SynergyUI
             foreach (var id in stale)
             {
                 if (held.Contains(id)) continue; // 演出持有：销毁时机归编舞器/吸走演出（下次对账再试）
-                Object.Destroy(map[id].Wrapper.gameObject);
+                var v = map[id];
+                // 2026-10-17：wrapper 可能已被外部销毁（重看介绍复现——MissingReferenceException
+                // 中断整次对账）：fake-null 视为已退场，只清字典并留痕（owner/模型名供定位来源）。
+                if (v.Wrapper != null) Object.Destroy(v.Wrapper.gameObject);
+                else Debug.LogWarning($"[BattleField] 对账发现单位 {id % 10000}（owner={v.Owner} model={v.Model?.name}）的 wrapper 已被外部销毁——仅移出字典");
                 map.Remove(id);
                 removed++;
             }
@@ -884,9 +991,14 @@ namespace SynergyUI
         private int _visualsInFlight;
 
         /// <summary>视觉段开始/结束（严格 try/finally 配对）：攻击演出（编舞器 PerformAsync）、
-        /// 死亡漩涡吸入、角色受击脉冲计入——归零=表现层空闲。人机对局 AI 经 WaitVisualsIdleAsync
-        /// 在动作间等门（等一件事演完再做下一件）；AI-vs-AI/无头不查门（全速，完全不管渲染层）。</summary>
+        /// 角色受击脉冲计入——归零=表现层空闲（死亡退场为可忽略表演不占门，2026-10-17）。
+        /// 人机对局 AI 经 WaitVisualsIdleAsync 在动作间等门（等一件事演完再做下一件）；
+        /// AI-vs-AI/无头不查门（全速，完全不管渲染层）。</summary>
         public void BeginVisual() => _visualsInFlight++;
+
+        /// <summary>表现层是否忙碌（2026-10-17 结束回合守卫）：战斗演出/受击脉冲等
+        /// 在途（计数>0）——玩家此时结束回合会把演出和回合状态撕裂，UI 层据此拦截。</summary>
+        public bool VisualsBusy => _visualsInFlight > 0;
 
         public void EndVisual()
         {
@@ -999,96 +1111,86 @@ namespace SynergyUI
         /// wrapper 恒 identity，走位期 wrapper 转向=期望世界朝向(Atan2)−本值。</summary>
         public static float FacingYawOf(int owner) => owner == 0 ? 0f : 180f;
 
-        /// <summary>死亡退场演出（战斗编舞与通用死亡同路径；2026-10-16 三改）：倒地碎裂（部件
-        /// 抛物线散落）→停稳→碎块**维持原大小**滚向己方墓地格（距离折算时长）→墓上原地自旋
-        /// （两圈缓起）+缩到 0 消失→销毁。旋转缩小是到达后的独立段，不并入滚程（途中缩小奇怪，
-        /// 表现时间放慢——用户定案）。无 rig 动画的单位（结界等）跳过碎裂直接滚行。中途复活
-        /// （v.Dead 翻回）/拆屏即中止并释放 hold（体型朝向复原交还对账）；退场完 RetireUnit 自清。</summary>
+        /// <summary>死亡退场演出（战斗编舞与通用死亡同路径；2026-10-17 定案：砍掉滚墓与墓上
+        /// 自旋段，退场不再去墓地格）：生物=倒地碎裂（部件抛物线散落）原地停 DeathRestSeconds
+        /// 沉降即收；无 rig 单位（结界等）暂无碎裂，整身原地沉降入板面消失。中途复活
+        /// （v.Dead 翻回）/拆屏即中止并释放 hold（体型朝向与站位复原交还对账）；退场完
+        /// RetireUnit 自清。2026-10-17 可忽略表演定案：**纯装饰不占视觉在途门**——逻辑上卡早已
+        /// 入墓（SBA 结算即完成），退场动画期间玩家/AI 照常行动（立即发动墓地相关效果在墓地里
+        /// 找得到目标）；调用方 fire-and-forget。</summary>
         public async UniTask PlayDeathExitAsync(uint id, int owner)
         {
-            BeginVisual(); // 视觉在途门：死亡演出期间人机局 AI 等待
-            try
-            {
-                if (!_units.TryGetValue(id, out var v) || v.Wrapper == null) return;
+            // 可忽略表演：不 BeginVisual——不阻塞 AI 节奏等待/结束回合守卫（战斗主序列/受击等
+            // 信息性表演才占门；纯装饰表演此后按此口径分类，预计还有多种）
+            if (!_units.TryGetValue(id, out var v) || v.Wrapper == null) return;
                 HoldUnit(id); // 防 RemoveStale 抢销毁
 
-                // ① 碎裂：倒地散落——部件脱离层级做抛物线散落（无 Anim 的单位为 no-op）；
-                // 头顶数值同帧消失（中途复活由对账分支恢复显示）
-                v.SetStatsVisible(false);
-                v.Anim?.Play(MonsterAction.FallDown);
-                await WaitFallSettledAsync(v);
-                if (v.Wrapper == null || !v.Dead) { ReleaseUnit(id); return; } // 复活竞争：交还对账
-
-                var graveCell = BattleZoneProps.GraveCellOf(owner);
-                var grave = BattleBoardGrid.WorldPositionOf(graveCell.x, graveCell.z);
-                // 滚程按距离放慢（2026-10-15 定案沿用）：远处死亡滚得久，下限防近距闪没，封顶防远角拖沓
-                float dist = Vector3.Distance(v.Wrapper.position, grave);
-                float slide = Mathf.Clamp(dist / DeathSlideUnitsPerSecond, DeathSlideMinSeconds, DeathSlideMaxSeconds);
-                // ② 滚入墓地：维持原大小原朝向，只有位移
-                await SlideToGraveAsync(v, grave, slide);
-                if (v.Wrapper == null || !v.Dead) { ReleaseUnit(id); return; } // 复活竞争：交还对账
-                // ③ 墓上原地自旋缩小到消失
-                await SpinShrinkAsync(v, DeathSpinSeconds);
-                if (v.Wrapper != null && v.Dead)
-                {
-                    Debug.Log($"[BattleField] 单位 {id % 10000} 已碎裂滚入墓地旋转消失（owner={owner}）");
-                    RetireUnit(id);
-                }
-                else ReleaseUnit(id);
+            // 头顶数值同帧消失（中途复活由对账分支恢复显示）
+            v.SetStatsVisible(false);
+            bool finished;
+            if (v.Anim != null)
+            {
+                // 生物：碎裂散落（部件脱离层级抛物线落地），固定等 0.5s 沉降即收
+                v.Anim.Play(MonsterAction.FallDown);
+                finished = await DeadHoldAsync(v, DeathRestSeconds);
             }
-            finally { EndVisual(); }
+            else
+            {
+                // 结界等无 rig 单位：暂无碎裂，整身沉降入板面后收
+                finished = await SinkUnderBoardAsync(v, DeathSinkSeconds);
+            }
+            if (finished)
+            {
+                Debug.Log($"[BattleField] 单位 {id % 10000} 死亡退场完成（owner={owner}）");
+                RetireUnit(id);
+            }
+            else ReleaseUnit(id);
+            // 可忽略表演：无门配对/无 try 包装——异常自然上抛由调用方 Forget 吞记
         }
 
-        /// <summary>等碎裂散落停稳：ScatterSim 直写部件世界位，未停稳就滚 wrapper 会把碎块甩在
-        /// 原地——须等 Settled（个别高弹碎片由上限兜底）。无散落模拟（结界等无 rig 单位）即返；
-        /// 复活/销毁即停。</summary>
-        private static async UniTask WaitFallSettledAsync(UnitVisual v, float timeoutSeconds = 2.2f)
+        /// <summary>死亡等待：固定时长（复活/销毁即提前返回 false 交还对账）。</summary>
+        private static async UniTask<bool> DeadHoldAsync(UnitVisual v, float seconds)
         {
-            var scatter = v.Anim?.Driver?.Scatter;
-            if (scatter == null) return;
             float t0 = Time.realtimeSinceStartup;
-            while (!scatter.Settled && Time.realtimeSinceStartup - t0 < timeoutSeconds)
+            while (Time.realtimeSinceStartup - t0 < seconds)
             {
-                if (v.Wrapper == null || !v.Dead) return;
+                if (v.Wrapper == null || !v.Dead) return false;
                 await UniTask.Yield();
             }
+            return v.Wrapper != null && v.Dead;
         }
 
-        /// <summary>滚行入墓：碎块维持原大小/朝向沿板面滚向墓地格（缓入缓出，只有位移——
-        /// 途中不旋转不缩小）；复活竞争/销毁即停。</summary>
-        private static async UniTask SlideToGraveAsync(UnitVisual v, Vector3 gravePos, float seconds)
+        /// <summary>整身沉降入板面（无 rig 单位的死亡退场）：wrapper 缓入下沉（渐快），深度=模型
+        /// 顶高+余量（整只没入地面下）；复活竞争即停并复原站位，销毁即停。</summary>
+        private static async UniTask<bool> SinkUnderBoardAsync(UnitVisual v, float seconds)
         {
             Vector3 start = v.Wrapper.position;
+            float depth = ModelHeightAbove(v) + 0.15f;
             float t0 = Time.realtimeSinceStartup;
             while (v.Wrapper != null && v.Dead)
             {
                 float t = (Time.realtimeSinceStartup - t0) / seconds;
                 if (t >= 1f) break;
-                float k = t * t * (3f - 2f * t); // smoothstep 缓入缓出
-                v.Wrapper.position = Vector3.Lerp(start, gravePos, k);
+                v.Wrapper.position = start + Vector3.down * (depth * t * t); // 缓入：下沉渐快
                 await UniTask.Yield();
             }
+            if (v.Wrapper != null && !v.Dead) v.Wrapper.position = start; // 复活竞争：复原站位
+            return v.Wrapper != null && v.Dead;
         }
 
-        /// <summary>旋转缩小消失：墓地格上 Y 轴自旋（两圈缓起加速收）+ 缩到 0（表现时间 1s——
-        /// 2026-10-16 三改放慢，原 0.55s 太赶）；复活竞争/销毁即停并复原体型朝向。</summary>
-        private static async UniTask SpinShrinkAsync(UnitVisual v, float seconds)
+        /// <summary>模型顶相对 wrapper 原点的高度（沉降深度用；取模型子树渲染器包围盒）。</summary>
+        private static float ModelHeightAbove(UnitVisual v)
         {
-            Vector3 startScale = v.Wrapper.localScale;
-            float t0 = Time.realtimeSinceStartup;
-            while (v.Wrapper != null && v.Dead)
+            if (v.Model == null) return 2f;
+            bool has = false;
+            Bounds bounds = default;
+            foreach (var r in v.Model.GetComponentsInChildren<Renderer>())
             {
-                float t = (Time.realtimeSinceStartup - t0) / seconds;
-                if (t >= 1f) break;
-                v.Wrapper.rotation = Quaternion.Euler(0f, t * t * 720f, 0f); // 自旋缓起加速收
-                v.Wrapper.localScale = startScale * Mathf.Max(1f - t * t, 0.02f);
-                await UniTask.Yield();
+                if (!has) { bounds = r.bounds; has = true; }
+                else bounds.Encapsulate(r.bounds);
             }
-            if (v.Wrapper != null) // 复活竞争复原（销毁路径无谓）
-            {
-                v.Wrapper.localScale = startScale;
-                v.Wrapper.rotation = Quaternion.identity;
-            }
+            if (!has) return 2f;
+            return Mathf.Max(0.5f, bounds.max.y - v.Wrapper.position.y);
         }
 
         /// <summary>角色受击脉动（2026-10-13 裁定②：角色目标无模型，立柱缩放脉冲表受击）。</summary>
@@ -1109,6 +1211,69 @@ namespace SynergyUI
                     await UniTask.Yield();
                 }
                 if (v.Root != null) v.Root.localScale = baseScale;
+            }
+            finally { EndVisual(); }
+        }
+
+        /// <summary>疲劳受击演出（2026-10-17）：立柱红闪脉冲（0.36s，同受击脉冲数学）+ 头顶红色
+        /// 「疲劳 -N」浮字上浮渐隐（0.9s，world TMP 一次性建毁）。信息性表演占视觉门（口径同
+        /// HeroImpactPulse）——节奏 AI 等演完再动。立柱未建（教学介绍段 SuppressHeroes）静默返回；
+        /// 同 owner 重入（连续疲劳）跳过脉冲只补浮字（防双写缩放/颜色）。</summary>
+        public async UniTask HeroFatigueHitAsync(int owner, int damage)
+        {
+            BeginVisual();
+            try
+            {
+                if (!_heroes.TryGetValue(owner, out var v) || v.Root == null) return;
+
+                var floatTxt = CreateStatsText(v.Root, 1.9f); // 立柱 stats（1.3）之上的高位浮字
+                if (floatTxt != null)
+                {
+                    floatTxt.fontSize = 6f;
+                    floatTxt.text = "疲劳 -" + damage;
+                    floatTxt.color = StatDownColor;
+                }
+
+                bool pulse = _fatigueBusy.Add(owner);
+                Renderer rend = pulse && v.Root != null ? v.Root.GetComponent<Renderer>() : null;
+                Color baseColor = owner == 0 ? P1UnitColor : P2UnitColor;
+                var baseScale = new Vector3(0.55f, 0.6f, 0.55f);
+                var startLocal = floatTxt != null ? (Vector3)floatTxt.transform.localPosition : Vector3.zero;
+
+                float t0 = Time.realtimeSinceStartup;
+                const float pulseDur = 0.36f, totalDur = 0.9f, fadeStart = 0.45f, rise = 0.85f;
+                while (Time.realtimeSinceStartup - t0 < totalDur)
+                {
+                    float t = Time.realtimeSinceStartup - t0;
+                    if (pulse && t < pulseDur && v.Root != null)
+                    {
+                        float wave = Mathf.Sin(t / pulseDur * Mathf.PI);
+                        v.Root.localScale = new Vector3(
+                            baseScale.x * (1f + 0.18f * wave),
+                            baseScale.y * (1f - 0.08f * wave),
+                            baseScale.z * (1f + 0.18f * wave));
+                        if (rend != null) rend.material.color = Color.Lerp(baseColor, StatDownColor, wave * 0.85f);
+                    }
+                    if (floatTxt != null)
+                    {
+                        float k = Mathf.Clamp01(t / totalDur);
+                        // easeOut 上浮 + 后半程渐隐
+                        floatTxt.transform.localPosition = startLocal + Vector3.up * (rise * (1f - (1f - k) * (1f - k)));
+                        float alpha = t < fadeStart ? 1f : Mathf.Clamp01(1f - (t - fadeStart) / (totalDur - fadeStart));
+                        var c = floatTxt.color; c.a = alpha; floatTxt.color = c;
+                    }
+                    await UniTask.Yield();
+                }
+                if (pulse)
+                {
+                    if (v.Root != null)
+                    {
+                        v.Root.localScale = baseScale;
+                        if (rend != null) rend.material.color = baseColor;
+                    }
+                    _fatigueBusy.Remove(owner);
+                }
+                if (floatTxt != null) Object.Destroy(floatTxt.gameObject);
             }
             finally { EndVisual(); }
         }
