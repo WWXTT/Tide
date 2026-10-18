@@ -284,9 +284,16 @@ namespace SynergyUI
                     c.SnapToTarget();
                     continue;
                 }
+                if (c.AtTarget) continue; // 收敛截断：到位即停写 transform，微差由下一次目标变更唤醒
                 c.Pos = Vector2.Lerp(c.Pos, c.TargetPos, t);
                 c.Rot = Mathf.Lerp(c.Rot, c.TargetRot, t);
                 c.Scale = Mathf.Lerp(c.Scale, c.TargetScale, t);
+                if (c.AtTarget) // 越过阈值即吸附，避免渐近缓动永不收敛
+                {
+                    c.Pos = c.TargetPos;
+                    c.Rot = c.TargetRot;
+                    c.Scale = c.TargetScale;
+                }
                 c.ApplyTransform();
             }
         }

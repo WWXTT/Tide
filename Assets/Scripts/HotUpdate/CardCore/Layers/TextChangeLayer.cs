@@ -30,6 +30,9 @@ namespace CardCore
         private Dictionary<Card, List<TextModification>> _cardTextChanges =
             new Dictionary<Card, List<TextModification>>();
 
+        // 主循环每帧调 CheckTextModifications：过期收集复用缓冲，避免每帧分配
+        private readonly List<TextModification> _expiredBuffer = new List<TextModification>();
+
         private Dictionary<string, Card> _cardIdMap = new Dictionary<string, Card>();
 
         /// <summary>
@@ -191,7 +194,11 @@ namespace CardCore
         /// </summary>
         public void CheckTextModifications()
         {
-            var expiredModifications = new List<TextModification>();
+            if (_cardTextChanges.Count == 0)
+                return; // 主循环每帧调用：无文本修改时零成本
+
+            var expiredModifications = _expiredBuffer;
+            expiredModifications.Clear();
 
             foreach (var kvp in _cardTextChanges)
             {

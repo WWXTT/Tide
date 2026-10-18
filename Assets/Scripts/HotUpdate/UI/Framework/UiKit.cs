@@ -114,7 +114,8 @@ namespace SynergyUI
         {
             if (_guideFrameSrc == null)
             {
-                var shader = Shader.Find("SynergyUI/GuideFrame");
+                // 2026-10-18 真机修复：同 HandFan 雾光——Shader.Find 摸不到 bundle 里的 shader，走 HotUpdateAssets
+                var shader = HotUpdateAssets.Load<Shader>("GuideFrame", "Assets/Art/Shaders/GuideFrame.shader");
                 if (shader != null)
                 {
                     _guideFrameSrc = new Material(shader);

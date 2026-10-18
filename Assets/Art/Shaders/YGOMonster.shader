@@ -124,8 +124,15 @@ Shader "Tide/YGOMonster"
                 UNITY_SETUP_INSTANCE_ID(IN);
                 half4 tex = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, IN.uv) * _Color;
                 clip(tex.a - _Cutoff);
-                float dissolveK = YgoDissolveK(IN.positionWS);
-                clip(-dissolveK); // 线以上（含噪声扰动）裁掉——与阴影/深度同裁
+                // 消融惰性分支（2026-10-18 性能）：常态 _DissolveY=1000 时 3D 值噪声（8 hash+三线性/片元）
+                // 三个 Pass 都白付——uniform 分支常态整段跳过；边带光随分支归零（ inactive 时语义同旧：全显+无边）
+                half edge = 0.0h;
+                [branch] if (_DissolveY < 900.0)
+                {
+                    float dissolveK = YgoDissolveK(IN.positionWS);
+                    clip(-dissolveK); // 线以上（含噪声扰动）裁掉——与阴影/深度同裁
+                    edge = saturate(1.0h + dissolveK / max(_DissolveBand, 1e-4));
+                }
 
                 // 双面渲染：单面片（翅膀膜）从背面看时法线翻转（VFACE），两视角受光均正确；
                 // 从镂空看到的体内表面也随之按朝向相机受光（体素风可接受）
@@ -134,7 +141,6 @@ Shader "Tide/YGOMonster"
                 half ndl = saturate(dot(n, mainLight.direction));
                 half3 col = tex.rgb * (mainLight.color * ndl + SampleSH(n));
                 // 消融边淡光：紧贴线下沿的噪声亮带（元素色；默认黑 a=0=无）
-                half edge = saturate(1.0h + dissolveK / max(_DissolveBand, 1e-4));
                 col += _DissolveEdgeColor.rgb * (edge * _DissolveEdgeColor.a);
                 col = MixFog(col, IN.fogCoord);
                 return half4(col, 1);
@@ -229,7 +235,8 @@ Shader "Tide/YGOMonster"
                 UNITY_SETUP_INSTANCE_ID(IN);
                 half a = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, IN.uv).a * _Color.a;
                 clip(a - _Cutoff);
-                clip(-YgoDissolveK(IN.positionWS)); // 消融线以上不出影
+                [branch] if (_DissolveY < 900.0) // 消融惰性分支（同 ForwardLit：常态跳过噪声）
+                    clip(-YgoDissolveK(IN.positionWS)); // 消融线以上不出影
                 return 0;
             }
             ENDHLSL
@@ -310,7 +317,8 @@ Shader "Tide/YGOMonster"
                 UNITY_SETUP_INSTANCE_ID(IN);
                 half a = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, IN.uv).a * _Color.a;
                 clip(a - _Cutoff);
-                clip(-YgoDissolveK(IN.positionWS)); // 消融线以上不写深度
+                [branch] if (_DissolveY < 900.0) // 消融惰性分支（同 ForwardLit：常态跳过噪声）
+                    clip(-YgoDissolveK(IN.positionWS)); // 消融线以上不写深度
                 return 0;
             }
             ENDHLSL

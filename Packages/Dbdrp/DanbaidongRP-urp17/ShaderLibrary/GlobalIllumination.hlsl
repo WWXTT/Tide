@@ -51,14 +51,6 @@ float VisibleGGXPDF(float3 localV, float3 localH, float roughness)
 
     return D * G1 * VdotH / max(NdotV, 0.001);
 }
-#if defined(_SCREEN_SPACE_IRRADIANCE)
-TEXTURE2D_X(_ScreenSpaceIrradiance);
-
-half3 SampleScreenSpaceGI(float2 pos)
-{
-    return LOAD_TEXTURE2D_X(_ScreenSpaceIrradiance, pos).rgb;
-}
-#endif
 
 // If lightmap is not defined than we evaluate GI (ambient + probes) from SH
 

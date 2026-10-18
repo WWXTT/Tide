@@ -38,8 +38,16 @@ namespace SynergyUI
         private const float CleanupSeconds = 2.6f;     // 发射组清理
         private const float LandSpawnLift = 0.6f;      // 地格出生抬升（清地块遮挡——贴地火花被六棱柱挡）
         private const float AttractionStrength = 12f;  // 拉火花随遮罩飞向发动位
+        // 2026-10-18 用户实测验收值：÷5 减档（6000/24000）被否决——浓度肉眼不可见，恢复原值勿再降；
+        // 移动端若需减压走分级配置/容量下调（capacity 只省内存不改观感），须用户重新验收
         private const float SpawnRatePerCost = 30000f; // 每点费用发射率
         private const float SpawnRateCap = 120000f;
+
+        /// <summary>出场粒子总闸。2026-10-18 深夜曾临时停用：真根因=坏导入期（INabCommon 缺失+切目标撞车）
+        /// 把 .vfx 资产撕裂写伤（主图对 Uniform Mesh Sample 子图依赖被置 {fileID: 0}+槽位重编号），
+        /// 生成 HLSL 引用未声明 _Position → Initialize compute 编译失败 → "Kernel at index (0) is invalid"
+        /// （该编译错误只落 Editor.log 不进 Console）。终修=VFX 目录还原 HEAD+VFXCompat 垫片后强制重导入，零错误。</summary>
+        public static bool ParticlesEnabled = true;
 
         private static VisualEffectAsset _asset;
         private static bool _assetTried;
@@ -132,18 +140,21 @@ namespace SynergyUI
 
                 var sb = new System.Text.StringBuilder();
                 var dominant = DominantChromatic(paid); // 消融边+全部粒子统一主色（无三色则灰）
-                foreach (var kv in paid)
+                if (ParticlesEnabled)
                 {
-                    float amount = Mathf.Max(0f, kv.Value);
-                    if (amount <= 0.0001f) continue;
-                    var element = (ManaType)kv.Key;
-                    var (x, z) = BoardLayout.LandCellOfElement(seat, element);
-                    if (x < 0) continue;
-                    var g = CreateGroup(asset, element, amount, total,
-                        BattleBoardGrid.WorldPositionOf(x, z), target, dominant);
-                    if (g == null) continue;
-                    _groups.Add(g);
-                    sb.Append($" {element}x{amount:0.#}@({x},{z})");
+                    foreach (var kv in paid)
+                    {
+                        float amount = Mathf.Max(0f, kv.Value);
+                        if (amount <= 0.0001f) continue;
+                        var element = (ManaType)kv.Key;
+                        var (x, z) = BoardLayout.LandCellOfElement(seat, element);
+                        if (x < 0) continue;
+                        var g = CreateGroup(asset, element, amount, total,
+                            BattleBoardGrid.WorldPositionOf(x, z), target, dominant);
+                        if (g == null) continue;
+                        _groups.Add(g);
+                        sb.Append($" {element}x{amount:0.#}@({x},{z})");
+                    }
                 }
 
                 CreateGhost(modelTemplate, paid, asset);
@@ -179,6 +190,8 @@ namespace SynergyUI
 
                 _mpb = new MaterialPropertyBlock();
                 ApplyDissolve(_dissolveStartY); // 入场瞬间线在 -0.5=模型全消融不可见
+
+                if (!ParticlesEnabled) return; // 总闸关：消融已配好，影子 VFX 不建（防内核报错刷屏）
 
                 // 影子（粒子出生体）：合并网格 + 隐形渲染器 + VFX 手写属性
                 var merged = MergeModelMeshes(template);
@@ -344,9 +357,20 @@ namespace SynergyUI
                 float t = 0f;
                 bool emitting = true;
                 bool ghostStarted = false;
+                float probeAcc = 0f; // 【临时探针·2026-10-18 粒子不可见取证】判读：alive>0=已发射被剔除/未渲染；alive<=0=未发射
                 while (t < CleanupSeconds)
                 {
                     t += Time.deltaTime;
+                    probeAcc += Time.deltaTime;
+                    if (probeAcc >= 0.3f && (_groups.Count > 0 || _ghostVfx != null))
+                    {
+                        probeAcc = 0f;
+                        var pb = new System.Text.StringBuilder();
+                        for (int i = 0; i < _groups.Count; i++)
+                            pb.Append($" g{i}={_groups[i].Vfx.aliveParticleCount}");
+                        if (_ghostVfx != null) pb.Append($" ghost={_ghostVfx.aliveParticleCount}");
+                        Debug.Log($"[CastArrival探针] t={t:0.0}{pb}");
+                    }
 
                     // 地牌飞行段（0→0.8s）：前半遮罩滞留地格上空聚量，后半快速摆到发动位——
                     // 吸力（12）拖着已出生的火花群从地格飞向发动位
@@ -385,7 +409,8 @@ namespace SynergyUI
                             _groups[i].Vfx.SetFloat("Spawn Rate", 0f); // 图无 OnStop 上下文——停发靠速率归零兜底
                             _groups[i].Vfx.Stop();
                         }
-                        Debug.Log($"[CastArrival] t={t:0.00} 停止发射（组数={_groups.Count}）");
+                        if (_groups.Count > 0)
+                            Debug.Log($"[CastArrival] t={t:0.00} 停止发射（组数={_groups.Count}）");
                     }
 
                     if (!_arrived && t >= RevealSeconds)

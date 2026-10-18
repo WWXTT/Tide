@@ -238,7 +238,7 @@ namespace CardCore
     /// </summary>
     public class ValueSystemConfigManager
     {
-        // 相对 Application.dataPath 的配置路径（该目录不是 Resources，必须用 System.IO 读取）
+        // 相对 DataPath 的配置路径（2026-10-18 寻址收口走 TidePaths.ReadConfigText：宿主 → 直读 → StreamingAssets 随包档）
         private const string ConfigRelativePath = "Configs/ValueSystemConfig.json";
 
         private static ValueSystemConfigManager _instance;
@@ -288,15 +288,16 @@ namespace CardCore
         /// </summary>
         private static ValueSystemRuntimeConfig LoadFromJson()
         {
-            string path = Path.Combine(TidePaths.DataPath, ConfigRelativePath);
-            if (!File.Exists(path))
+            // 2026-10-18 寻址收口：统一 TidePaths.ReadConfigText（玩家构建命中 StreamingAssets 随包档）
+            string raw = TidePaths.ReadConfigText(ConfigRelativePath);
+            if (string.IsNullOrEmpty(raw))
             {
-                TideLog.Warn($"[ValueSystemConfigManager] 配置文件不存在: {path}，使用代码默认值");
+                TideLog.Warn($"[ValueSystemConfigManager] 配置不可读：{ConfigRelativePath}，使用代码默认值");
                 return null;
             }
 
             var config = new ValueSystemRuntimeConfig(); // 字段初始化器 = 兜底默认值，表值逐条覆盖
-            int applied = ApplyEntries(path, config);
+            int applied = ApplyEntries(raw, config);
 
             // CostOffsetConfig.json 已删（2026-09-14 代价原子化）：CardCost 三行（StatUnit/
             // KeywordsShareDelayDiscount/MaxTier）已回迁本表；机制行与当量行随抵消系统退役。
@@ -305,17 +306,17 @@ namespace CardCore
             return config;
         }
 
-        /// <summary>读单文件 KV 条目并反射灌入（Category+"Config" → 同名字段；表加行+代码加同名字段即接通）。</summary>
-        private static int ApplyEntries(string path, ValueSystemRuntimeConfig config)
+        /// <summary>解析 KV 条目并反射灌入（Category+"Config" → 同名字段；表加行+代码加同名字段即接通）。</summary>
+        private static int ApplyEntries(string raw, ValueSystemRuntimeConfig config)
         {
             List<ValueSystemConfigEntry> entries;
             try
             {
-                entries = ParseEntries(File.ReadAllText(path));
+                entries = ParseEntries(raw);
             }
             catch (Exception e)
             {
-                TideLog.Warn($"[ValueSystemConfigManager] 加载 {path} 失败: {e.Message}，跳过该文件");
+                TideLog.Warn($"[ValueSystemConfigManager] 解析 {ConfigRelativePath} 失败: {e.Message}，跳过该文件");
                 return 0;
             }
             if (entries == null) return 0;

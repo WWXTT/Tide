@@ -41,7 +41,16 @@ namespace SynergyUI
         private readonly HashSet<int> _fatigueBusy = new HashSet<int>(); // 疲劳演出在途 owner（重入只补浮字，2026-10-17）
         private readonly Dictionary<long, TextMeshPro> _landCounts = new Dictionary<long, TextMeshPro>(); // key=格(x<<32|z)：地牌格「可用/上限」计数
         private readonly HashSet<uint> _heldUnits = new HashSet<uint>(); // 演出持有（2026-10-13 战斗编舞）
-        private readonly List<GameObject> _creatureArrows = new List<GameObject>(); // 生物箭头地面件（钉 tile，全量对账重建）
+        /// <summary>生物箭头留存条目（2026-10-18 性能差量对账）：位次/朝向/方向集未变则整帧零操作。</summary>
+        private sealed class ArrowEntry
+        {
+            public GameObject Inst;
+            public int X, Z, Dirs, Owner;
+        }
+
+        private readonly Dictionary<uint, ArrowEntry> _creatureArrows = new Dictionary<uint, ArrowEntry>(); // 生物箭头地面件（钉 tile，按单位 id 差量对账）
+        private readonly HashSet<uint> _arrowSeen = new HashSet<uint>();   // 本轮对账在场集合（stale 判定）
+        private readonly List<uint> _arrowStale = new List<uint>();        // 离场单位回收清单（复用缓冲）
         private int _lastSkipLogFrame = -1;
 
         //（2026-10-15 深夜改版）单位【发动效果】头顶按钮退役：单位本体退出射线检测，
@@ -107,15 +116,21 @@ namespace SynergyUI
             if (_heldUnits.Count > 0)
                 Debug.LogWarning($"[BattleField] Dispose 时仍有 {_heldUnits.Count} 个演出 hold 未释放（正常应在编舞 finally 清空）——随 Dispose 一并丢弃");
             _heldUnits.Clear();
-            foreach (var a in _creatureArrows)
-                if (a != null)
+            foreach (var a in _creatureArrows.Values)
+                if (a != null && a.Inst != null)
                 {
-                    if (Application.isPlaying) Object.Destroy(a);
-                    else Object.DestroyImmediate(a);
+                    if (Application.isPlaying) Object.Destroy(a.Inst);
+                    else Object.DestroyImmediate(a.Inst);
                 }
             _creatureArrows.Clear(); // 钉在 tile 上不随 _root 销毁，须自清
             _units.Clear();
-            _heroes.Clear();
+            foreach (var h in _heroes.Values)
+                if (h != null && h.Mat != null)
+                {
+                    if (Application.isPlaying) Object.Destroy(h.Mat);
+                    else Object.DestroyImmediate(h.Mat);
+                }
+            _heroes.Clear(); // 角色柱随 _root 销毁；着色克隆实例（HeroPillar_*）逐柱自清（2026-10-18）
             foreach (var l in _landCounts.Values)
                 if (l != null)
                 {
@@ -193,6 +208,7 @@ namespace SynergyUI
             BattleZoneProps.SetDeckCount(0, d.Self.DeckCount);
             BattleZoneProps.SetDeckCount(1, d.Opp.DeckCount);
 
+#if UNITY_EDITOR
             Debug.Log($"[BattleField] 对账：单位 己{d.SelfUnits.Count}/敌{d.OppUnits.Count}"
                       + $"（新建{createdU} 移动{movedU} 销毁{removedU}{(createdU > 0 ? " 最近模型=" + lastModel : "")}）"
                       + $" 地牌 己{d.SelfLands.Count}/敌{d.OppLands.Count}"
@@ -203,6 +219,8 @@ namespace SynergyUI
                       + $" 地牌上限 己{d.Self.LandCap}/敌{d.Opp.LandCap}"
                       + $" 钱包(白黑) 己{d.Self.WalletByColor[(int)ManaType.White]}/{d.Self.WalletByColor[(int)ManaType.Black]}"
                       + $" 敌{d.Opp.WalletByColor[(int)ManaType.White]}/{d.Opp.WalletByColor[(int)ManaType.Black]}");
+#endif
+            _gazeVersion++; // 待机注视缓存作废：单位集合/位次可能已变（事件级重扫）
             return true;
         }
 
@@ -226,6 +244,8 @@ namespace SynergyUI
             public bool IsCreature = true;    // 生物才作注视目标（结界三件模型不参与对视）
             public float LookHeight = 0.6f;   // 注视点高度（包围盒胸口位估算）
             public Func<Vector3?> LookPin;    // 战斗注视钉（编舞器）：非空优先于待机注视
+            public int IdleGazeVer;           // 待机注视缓存版本（_gazeVersion 对账递增——版本不符才重扫最近敌人）
+            public UnitVisual IdleGazeEnemy;  // 缓存的最近敌方生物（null=无→回落角色立柱）
 
             // —— 头顶数值节拍（2026-10-15 定案：攻击结算同帧改血，展示等命中时刻）——
             // Shown=当前展示值（滚动起点/逐帧推进）；Target=对账目标值（冻结期只缓冲）；
@@ -417,13 +437,17 @@ namespace SynergyUI
                     ve.ModelYaw = owner == 0 ? 180f : 0f;
                     return ve;
                 }
+#if UNITY_EDITOR
                 Debug.Log($"[BattleField] 结界 {card.Name}({card.CardId}) prefab 缺失→占位胶囊");
+#endif
             }
 
             var prefab = MonsterModelResolver.Resolve(card.CardId, card.Name, card.Illustration);
             if (prefab != null)
             {
+#if UNITY_EDITOR
                 Debug.Log($"[BattleField] 单位 {card.Name}({card.CardId}) 模型={MonsterModelResolver.LastPolicy}");
+#endif
                 model = Object.Instantiate(prefab, wrapper.transform);
                 model.name = prefab.name; // 去 (Clone)：目录名/日志一致性
                 model.transform.localPosition = Vector3.zero;
@@ -437,7 +461,9 @@ namespace SynergyUI
             else
             {
                 // 占位胶囊（模型清单空/加载失败的兜底）——不再静默：点名到卡（2026-10-13）
+#if UNITY_EDITOR
                 Debug.Log($"[BattleField] 单位 {card.Name}({card.CardId}) 无模型→占位胶囊（清单空或 prefab 加载失败）");
+#endif
                 model = GameObject.CreatePrimitive(PrimitiveType.Capsule);
                 Object.Destroy(model.GetComponent<Collider>());
                 model.transform.SetParent(wrapper.transform, false);
@@ -639,7 +665,9 @@ namespace SynergyUI
             var mf = go.GetComponent<MeshFilter>();
             var col = go.AddComponent<MeshCollider>(); // Element 无碰撞体——补挂保 cast-{rid} 射线路由
             if (mf != null && mf.sharedMesh != null) col.sharedMesh = mf.sharedMesh;
+#if UNITY_EDITOR
             Debug.Log($"[BattleField] 施放类型图标：{card.Name}({card.CardId}) @({card.X},{card.Z})（类型 {card.Type}）");
+#endif
             return go;
         }
 
@@ -772,6 +800,7 @@ namespace SynergyUI
             public Transform Root;
             public TextMeshPro Stats;
             public string LastStats;
+            public Material Mat; // 2026-10-18 着色克隆实例：非资产件随 Dispose 销毁（跨域 fake-null 防口）
         }
 
         private void ReconcileHero(BattlePlayerView p, int owner)
@@ -781,19 +810,38 @@ namespace SynergyUI
             if (!_heroes.TryGetValue(owner, out v))
             {
                 var cell = BoardLayout.CharacterCell(owner);
-                var pillar = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-                Object.Destroy(pillar.GetComponent<Collider>());
+                // 2026-10-18 出包粉红修复：CreatePrimitive 自带的内置默认材质不随包分发（真机恒粉），
+                // 改 Assets/Art/Prefab/Hero.prefab 实例（ArtStatic bundle 按完整路径收录）；着色走
+                // HeroPillarMaterial 的资产模板克隆（shader 随 bundle 打包），预制体原件不动。
+                var prefab = Tide.HotUpdate.HotUpdateAssets.Load<GameObject>(
+                    "Hero", "Assets/Art/Prefab/Hero.prefab");
+                GameObject pillar;
+                if (prefab != null)
+                {
+                    pillar = Object.Instantiate(prefab, _root, false);
+                    foreach (var col in pillar.GetComponentsInChildren<Collider>())
+                        Object.Destroy(col); // 原口径保留：柱不截射线，点击/悬停归角色格 tile
+                }
+                else
+                {
+                    Debug.LogWarning("[BattleField] Hero.prefab 缺失（Assets/Art/Prefab/Hero.prefab）——"
+                        + "角色柱回落内置圆柱（真机需重跑 Tools/打包/Art资源到StreamingAssets）");
+                    pillar = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                    Object.Destroy(pillar.GetComponent<Collider>());
+                    pillar.transform.SetParent(_root, false);
+                }
                 pillar.name = "hero-" + (owner == 0 ? "self" : "opp");
-                pillar.transform.SetParent(_root, false);
                 pillar.transform.position = BattleBoardGrid.WorldPositionOf(cell.x, cell.z) + new Vector3(0f, 0.6f, 0f);
                 pillar.transform.localScale = new Vector3(0.55f, 0.6f, 0.55f);
-                pillar.GetComponent<Renderer>().material.color = owner == 0 ? P1UnitColor : P2UnitColor;
-
                 v = new HeroVisual
                 {
                     Root = pillar.transform,
                     Stats = CreateStatsText(pillar.transform, 1.3f),
+                    Mat = HeroPillarMaterial(owner),
                 };
+                if (v.Mat != null) pillar.GetComponent<Renderer>().sharedMaterial = v.Mat;
+                else pillar.GetComponent<Renderer>().material.color = owner == 0 ? P1UnitColor : P2UnitColor; // 模板缺件兜底：旧着色链（编辑器可见，真机粉=缺包已告警）
+
                 _heroes[owner] = v;
             }
             // 立柱数值（2026-10-16）：常态只显 HP；护甲>0 缀「(+x)」；获得攻击力（HeroAttack 弹药>0）
@@ -819,6 +867,23 @@ namespace SynergyUI
                 v.LastStats = txt;
                 v.Stats.text = txt;
             }
+        }
+
+        /// <summary>角色柱着色（2026-10-18 出包粉红修复）：分区格材质资产（URP Lit·已入 artstatic
+        /// bundle·棋盘出包验证可渲染）克隆实例 + _BaseColor 按 owner 上色——CreatePrimitive/
+        /// 内置默认材质链整退。实例存 HeroVisual.Mat，随 Dispose 销毁（同 _castTypeMats 口径）。</summary>
+        private Material HeroPillarMaterial(int owner)
+        {
+            var template = Tide.HotUpdate.HotUpdateAssets.Load<Material>(
+                "BattleTile_Zone02", "Assets/Art/Battle3D/Materials/BattleTile_Zone02_P1Unit.mat");
+            if (template == null)
+            {
+                Debug.LogWarning("[BattleField] 分区格材质模板缺失（BattleTile_Zone02_P1Unit.mat）——角色柱走旧着色兜底");
+                return null;
+            }
+            var m = new Material(template) { name = "HeroPillar_" + (owner == 0 ? "P1" : "P2") };
+            m.SetColor("_BaseColor", owner == 0 ? P1UnitColor : P2UnitColor); // URP Lit 主色属性名，显式写免 .color 回退歧义
+            return m;
         }
 
         // ======================================== 技能格（2026-10-16 撤销——空段留档） ========================================
@@ -933,6 +998,10 @@ namespace SynergyUI
 
         // ======================================== 头注视（2026-10-15 战场接线） ========================================
 
+        // 待机注视缓存版本（2026-10-18 性能）：Apply 尾递增——最近敌人选择改事件级重扫，
+        // 帧间只取缓存目标的实时位置（单位走位仍逐帧跟踪），全场 O(N²)/帧 → O(N)/事件
+        private int _gazeVersion;
+
         /// <summary>单位注视解析（每 Tick 求值）：战斗注视钉（编舞器：攻击看攻击对象/被守卫拦截
         /// 看拦截者）优先，钉供应器返回 null（目标已离场）自动回落待机；待机=最近敌方生物→
         /// 对方角色→null（与 MonsterLookTarget 同语义，此处含存活性/结界过滤的战场单源实现）。</summary>
@@ -949,17 +1018,23 @@ namespace SynergyUI
         private Vector3? IdleGazeOf(UnitVisual v)
         {
             if (v.Wrapper == null) return null;
-            Vector3 self = v.Wrapper.position;
-            UnitVisual best = null;
-            float bestSqr = float.MaxValue;
-            foreach (var kv in _units)
+            if (v.IdleGazeVer != _gazeVersion)
             {
-                var o = kv.Value;
-                if (o == v || !o.IsCreature || o.Owner == v.Owner || o.Dead || o.Wrapper == null) continue;
-                float sqr = (o.Wrapper.position - self).sqrMagnitude;
-                if (sqr < bestSqr) { bestSqr = sqr; best = o; }
+                v.IdleGazeVer = _gazeVersion;
+                v.IdleGazeEnemy = null;
+                Vector3 self = v.Wrapper.position;
+                float bestSqr = float.MaxValue;
+                foreach (var kv in _units)
+                {
+                    var o = kv.Value;
+                    if (o == v || !o.IsCreature || o.Owner == v.Owner || o.Dead || o.Wrapper == null) continue;
+                    float sqr = (o.Wrapper.position - self).sqrMagnitude;
+                    if (sqr < bestSqr) { bestSqr = sqr; v.IdleGazeEnemy = o; }
+                }
             }
-            if (best != null) return best.Wrapper.position + Vector3.up * best.LookHeight;
+            var cached = v.IdleGazeEnemy;
+            if (cached != null && !cached.Dead && cached.Wrapper != null) // 对账间隙死亡/离场兜底
+                return cached.Wrapper.position + Vector3.up * cached.LookHeight;
             if (_heroes.TryGetValue(1 - v.Owner, out var hero) && hero.Root != null)
                 return hero.Root.position; // 角色立柱位（y≈0.6 胸口高）
             return null;
@@ -1069,20 +1144,29 @@ namespace SynergyUI
         /// 旧 wrapper 半场朝向（己方 180/对方 0）+ Apply 的对手 Opposite 镜像。</summary>
         private void ReconcileCreatureArrows(BattleViewData d)
         {
-            foreach (var a in _creatureArrows)
-                if (a != null)
+            _arrowSeen.Clear();
+            if (BattleBoardGrid.Root != null)
+            {
+                ReconcileCreatureArrowSet(d.SelfUnits, 0);
+                ReconcileCreatureArrowSet(d.OppUnits, 1);
+            }
+            // 离场/失格单位销毁（对账级；留存只为跨事件复用——原全量销毁重建的每事件 Instantiate 风暴根除）
+            _arrowStale.Clear();
+            foreach (var kv in _creatureArrows)
+                if (!_arrowSeen.Contains(kv.Key)) _arrowStale.Add(kv.Key);
+            foreach (var rid in _arrowStale)
+            {
+                var a = _creatureArrows[rid];
+                if (a.Inst != null)
                 {
-                    if (Application.isPlaying) Object.Destroy(a);
-                    else Object.DestroyImmediate(a);
+                    if (Application.isPlaying) Object.Destroy(a.Inst);
+                    else Object.DestroyImmediate(a.Inst);
                 }
-            _creatureArrows.Clear();
-            if (BattleBoardGrid.Root == null) return;
-
-            AddCreatureArrows(d.SelfUnits, 0);
-            AddCreatureArrows(d.OppUnits, 1);
+                _creatureArrows.Remove(rid);
+            }
         }
 
-        private void AddCreatureArrows(List<BattleCardView> units, int owner)
+        private void ReconcileCreatureArrowSet(List<BattleCardView> units, int owner)
         {
             var prefab = BattleEnchantModel.Load();
             if (prefab == null) return; // 缺失告警由 Load 落（与结界路径同源一次）
@@ -1090,9 +1174,23 @@ namespace SynergyUI
             {
                 if (card.ArrowDirs == 0 || card.Type == Cardtype.Enchantment) continue; // 结界三件自带
                 if (card.IsDead || card.X < 0 || card.Z < 0) continue;
-                var tile = BattleBoardGrid.Root.transform.Find($"tile-{card.X}-{card.Z}");
-                if (tile == null) continue;
+                _arrowSeen.Add(card.RuntimeId);
+                if (_creatureArrows.TryGetValue(card.RuntimeId, out var entry) && entry.Inst != null)
+                {
+                    if (entry.X == card.X && entry.Z == card.Z && entry.Dirs == card.ArrowDirs && entry.Owner == owner)
+                        continue; // 未变：留存直用（常见路径=静止在场）
+                    var movedTile = BattleTileFx.TileOf(card.X, card.Z);
+                    if (movedTile == null) continue;
+                    entry.Inst.transform.SetParent(movedTile, false);
+                    entry.Inst.transform.localPosition = new Vector3(0f, 0.006f, 0f);
+                    entry.Inst.transform.localRotation = owner == 0 ? Quaternion.Euler(0f, 180f, 0f) : Quaternion.identity;
+                    entry.Inst.GetComponent<BattleEnchantFx>()?.Apply((HexDirection)card.ArrowDirs, owner == 1, false);
+                    entry.X = card.X; entry.Z = card.Z; entry.Dirs = card.ArrowDirs; entry.Owner = owner;
+                    continue;
+                }
 
+                var tile = BattleTileFx.TileOf(card.X, card.Z);
+                if (tile == null) continue;
                 var inst = Object.Instantiate(prefab, tile, false);
                 inst.name = "fx-creature-arrows";
                 inst.transform.localPosition = new Vector3(0f, 0.006f, 0f);
@@ -1100,7 +1198,7 @@ namespace SynergyUI
                 inst.GetComponent<BattleEnchantFx>()?.Apply((HexDirection)card.ArrowDirs, owner == 1, false);
                 var cone = inst.transform.Find("cone");
                 if (cone != null) cone.gameObject.SetActive(false);
-                _creatureArrows.Add(inst);
+                _creatureArrows[card.RuntimeId] = new ArrowEntry { Inst = inst, X = card.X, Z = card.Z, Dirs = card.ArrowDirs, Owner = owner };
             }
         }
 
@@ -1236,6 +1334,7 @@ namespace SynergyUI
 
                 bool pulse = _fatigueBusy.Add(owner);
                 Renderer rend = pulse && v.Root != null ? v.Root.GetComponent<Renderer>() : null;
+                Material rendMat = rend != null ? rend.material : null; // 实例一次取用：脉冲循环内直写，免每帧 getter 查找
                 Color baseColor = owner == 0 ? P1UnitColor : P2UnitColor;
                 var baseScale = new Vector3(0.55f, 0.6f, 0.55f);
                 var startLocal = floatTxt != null ? (Vector3)floatTxt.transform.localPosition : Vector3.zero;
@@ -1252,7 +1351,7 @@ namespace SynergyUI
                             baseScale.x * (1f + 0.18f * wave),
                             baseScale.y * (1f - 0.08f * wave),
                             baseScale.z * (1f + 0.18f * wave));
-                        if (rend != null) rend.material.color = Color.Lerp(baseColor, StatDownColor, wave * 0.85f);
+                        if (rendMat != null) rendMat.SetColor("_BaseColor", Color.Lerp(baseColor, StatDownColor, wave * 0.85f)); // 2026-10-18 角色柱换 URP Lit 克隆实例：红闪直写 _BaseColor
                     }
                     if (floatTxt != null)
                     {
@@ -1269,7 +1368,7 @@ namespace SynergyUI
                     if (v.Root != null)
                     {
                         v.Root.localScale = baseScale;
-                        if (rend != null) rend.material.color = baseColor;
+                        if (rendMat != null) rendMat.color = baseColor;
                     }
                     _fatigueBusy.Remove(owner);
                 }

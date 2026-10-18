@@ -24,9 +24,9 @@ namespace CardCore
         /// </summary>
         public static ElementCost DeriveElementCosts(EffectDefinition effect, int modeIndex = 0)
         {
-            // 2026-10-12 小数直通定案（用户）：效果级组合全程小数（计算/显示/存储），逐步取整退役——
-            // 约等于只发生在两处终点：合成卡（CardCostService.Derive L3 整卡一次取整）与
-            // 运行时支付（ElementPaymentValidator.NormalizeBill 四舍五入）。
+            // 2026-10-18 效果合成阶段取整（取代 10-12 小数直通）：效果级费用逐色四舍五入（AwayFromZero）
+            // ——出账即整数（原支付终点 NormalizeBill 的取整规则前移到合成点，支付侧保留为兼容兜底）；
+            // 卡级挂载折扣（d(C) 小数）后的整卡取整仍在 CardCostService.ApportionMounted（L3）。
             var byColor = new Dictionary<ManaType, float>();
             if (effect != null)
             {
@@ -55,11 +55,13 @@ namespace CardCore
                 });
             }
 
-            // 2026-10-04 费用位置数组化：输出统一为 ElementCost（序数序天然确定，非零即入）
+            // 2026-10-04 费用位置数组化：输出统一为 ElementCost（序数序天然确定，非零即入）——
+            // 逐色取整（2026-10-18 效果合成阶段定案：效果费用以整数出账）
             var result = new ElementCost();
             foreach (var kv in byColor)
             {
-                if (kv.Value > 0) result[kv.Key] = kv.Value;
+                int amount = (int)Math.Round(kv.Value, MidpointRounding.AwayFromZero);
+                if (amount > 0) result[kv.Key] = amount;
             }
             return result;
         }
@@ -181,7 +183,7 @@ namespace CardCore
         /// <summary>
         /// 单个原子的元素费用：
         /// 检索＝筛选维度系数；其余＝BaseCost×CostMultiplier×max(1,Value)×持续折扣
-        ///（2026-10-12 小数直通：逐步 round 退役——真值带小数直传，终点约等于见 DeriveElementCosts 头注），
+        ///（内部全程小数不取整——出口取整见 DeriveElementCosts 头注〔2026-10-18 效果合成阶段逐色取整〕），
         /// 固定数量再 ×N（减费已归代价 Payload 体系——抽牌缺陷累减 2026-09-16 退役）。
         ///
         /// 持续时间计价（2026-09-10 上移定案后）：持续唯一真相在组合层（def.Duration），
@@ -414,8 +416,7 @@ namespace CardCore
 
         private static float ComputeAtomCost(AtomicEffectInstance atom, EffectDefinition def, List<int> domain, AtomicEffectConfig cfg)
         {
-            // 2026-10-12 小数直通：系数链全程不取整（各步 (int)Math.Round 退役）——
-            // 效果级真值带小数，终点取整见 DeriveElementCosts 头注。
+            // 系数链全程不取整（2026-10-12 起）——效果出口逐色取整见 DeriveElementCosts 头注（2026-10-18）。
             float amount = ComputeAtomBaseAmount(atom, def, cfg);
             if (amount <= 0f) return 0f;
 
@@ -542,8 +543,8 @@ namespace CardCore
         /// <summary>
         /// 原子基础量（错边拆分/×N/抽牌缺陷之前的单价）：检索按筛选维度档，其余通用公式。
         /// 计费（ComputeAtomCost）与黑白获得（ComputeAtomUnitGrant）共用，保证同源不漂移。
-        /// 2026-10-12 小数直通：本口与 ComputeAtomCost 全程不取整（各分档 Math.Round 退役）——
-        /// 效果级真值带小数（如 回复生命 锚 0.5绿/点），终点取整见 DeriveElementCosts 头注。
+        /// 2026-10-12 起本口与 ComputeAtomCost 全程不取整（内部真值带小数，如 回复生命 锚 0.5绿/点）
+        /// ——出口取整见 DeriveElementCosts 头注（2026-10-18 效果合成阶段逐色取整）。
         /// </summary>
         private static float ComputeAtomBaseAmount(AtomicEffectInstance atom, EffectDefinition def, AtomicEffectConfig cfg)
         {
@@ -655,8 +656,8 @@ namespace CardCore
         public static Dictionary<ManaType, float> ComputeAtomCostByColor(AtomicEffectInstance atom, EffectDefinition def,
             List<int> domain, AtomicEffectConfig cfg)
         {
-            // 2026-10-12 小数直通：总价与分色份额均不再取整（旧「末色吃余数」的 int 保额逻辑随之
-            // 退役——float 比例拆分天然保额）；约等于只在合成卡/支付两终点。
+            // 总价与分色份额内部均不取整（float 比例拆分天然保额）——
+            // 出口取整在 DeriveElementCosts（2026-10-18 效果合成阶段逐色四舍五入）。
             var result = new Dictionary<ManaType, float>();
             float total = ComputeAtomCost(atom, def, domain, cfg);
             var cost = cfg?.ManaList;

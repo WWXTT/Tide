@@ -17,7 +17,7 @@ namespace CardCore
     /// </summary>
     public sealed class TutorialProgressManager
     {
-        /// <summary>基础教学关卡 id（与 TutorialConfig.json 条目、BattleEntry.TutorialId 缺省一致）。
+        /// <summary>基础教学关卡 id（与教学配置档 TutorialConfig.json 条目、BattleEntry.TutorialId 缺省一致）。
         /// 2026-10-16 教学一改版：两段式基础教学回炉重造（介绍段+攻防段），重新进序列第一位；
         /// 旧长教学的「不进序列」口径随之退役。</summary>
         public const string BasicsId = "basics";

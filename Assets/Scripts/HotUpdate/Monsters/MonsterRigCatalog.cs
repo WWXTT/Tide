@@ -82,6 +82,10 @@ namespace MonsterRig
             try
             {
                 string raw = TidePaths.ReadConfigText(ConfigRelativePath);
+                if (string.IsNullOrEmpty(raw))
+                    // 真机回退（2026-10-18 双端方案）：Configs 不随包、Yoo 未开时 TidePaths 无源——
+                    // 目录随 monsterrig 包内嵌（#catalog）。编辑器直改 JSON 仍走 TidePaths 免重启。
+                    raw = Tide.HotUpdate.MonsterRigAssets.CatalogText();
                 if (!string.IsNullOrEmpty(raw))
                 {
                     var root = TideJson.FromJson<MonsterRigCatalogRoot>(raw);

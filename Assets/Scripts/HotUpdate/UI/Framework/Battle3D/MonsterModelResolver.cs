@@ -1,7 +1,4 @@
-using System;
 using System.Collections.Generic;
-using System.IO;
-using MonsterRig;
 using Tide.HotUpdate;
 using UnityEngine;
 
@@ -13,14 +10,13 @@ namespace SynergyUI
     /// ② 卡名与模型目录名精确匹配（忽略大小写）命中；
     /// ③ 未命中按 CardId 稳定哈希（FNV-1a）落目录清单——同卡恒同模型、跨会话确定；
     /// ④ prefab 加载失败/清单空 → null（调用方摆占位胶囊）。
-    /// 目录清单 = MonsterRigCatalog 条目按名排序（编辑器下剔除 prefab 目录已不存在的漂移条目）；
-    /// 排序 + 稳定哈希保证下标跨会话稳定。解析路径日志留痕（LastPolicy）。
+    /// 模型与名单来源 = StreamingAssets bundle（2026-10-17 安卓/PC 双端定案，MonsterRigAssets：
+    /// 打包侧只收 prefab+预览图齐全的目录，内嵌 #names 名单）；排序 + 稳定哈希保证下标
+    /// 跨会话/跨平台稳定。解析路径日志留痕（LastPolicy）。
     /// </summary>
     public static class MonsterModelResolver
     {
-        private const string ModelRootEditor = "Assets/Art/YGOMonstersRig";
-
-        private static string[] _names; // 排序后目录名（=prefab 名）
+        private static string[] _names; // 排序后模型名（=prefab 名）
         private static readonly Dictionary<string, GameObject> _cache = new Dictionary<string, GameObject>();
 
         /// <summary>最近一次解析策略（立绘:名 / 同名:名 / 哈希:名 / 占位）——对账日志用。</summary>
@@ -61,30 +57,16 @@ namespace SynergyUI
         {
             GameObject cached;
             if (_cache.TryGetValue(name, out cached)) return cached;
-            cached = HotUpdateAssets.Load<GameObject>(name, ModelRootEditor + "/" + name + "/" + name + ".prefab");
-            _cache[name] = cached; // 负结果也缓存（缺失目录不重查）
+            cached = MonsterRigAssets.LoadPrefab(name);
+            _cache[name] = cached; // 负结果也缓存（缺失名不重查）
             return cached;
         }
 
         private static void EnsureNames()
         {
             if (_names != null) return;
-            var list = new List<string>();
-            foreach (var kv in MonsterRigCatalog.All)
-            {
-#if UNITY_EDITOR
-                // 目录漂移剔除（catalog 438 条 vs 实际 prefab 目录数会随清整漂移）：
-                // 2026-10-13 收紧=目录+prefab 文件双校验——防"清单有名无 prefab"（哈希档选中必落占位胶囊）
-                var dir = Path.Combine(Application.dataPath, "Art/YGOMonstersRig", kv.Key);
-                if (!Directory.Exists(dir) || !File.Exists(Path.Combine(dir, kv.Key + ".prefab")))
-                    continue;
-#endif
-                list.Add(kv.Key);
-            }
-            list.Sort(StringComparer.Ordinal);
-            _names = list.ToArray();
-            Debug.Log("[BattleField] 怪兽模型清单：" + _names.Length + " 个可用目录（catalog "
-                + MonsterRigCatalog.All.Count + " 条，" + (MonsterRigCatalog.All.Count - _names.Length) + " 条漂移剔除）");
+            _names = MonsterRigAssets.Names(); // 已 Ordinal 排序（失败空表由 Names 内部报 Error）
+            Debug.Log("[BattleField] 怪兽模型清单：" + _names.Length + " 个可用模型（StreamingAssets/MonsterRig bundle）");
         }
 
         /// <summary>FNV-1a 32 位（跨会话/平台确定）。</summary>

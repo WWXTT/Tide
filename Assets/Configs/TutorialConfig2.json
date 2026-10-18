@@ -1,0 +1,224 @@
+{
+  "tutorials": [
+    {
+      "id": "lunzhuan",
+      "name": "资源流转·末日降临",
+      "rngSeed": 20261006,
+      "_说明": "第二课改版（2026-10-11 资源重做第四轮·现取现用）：回合一机器人使用幻卡清空手牌牌库、释放纳川仪典（双方免疲劳）、召唤末日降临（30/30，装载期费用推导自动回填）、赋予 15 回合紊乱、并塞给玩家一张归土仪典。回合二开始引导（教学不洗牌）。新教学线：起始手牌即含白源/黑源——放红苗锁色→打出白源/黑源（预置黑白临时元素支付）→下回合横置两源产黑白（黑白获取唯一通道，临时元素可垫灰费、回合末即逝）→灰苗/蓝苗/绿苗依次入池锁色→打出三色斗士：系统按账单自动横置红/蓝/绿苗支付（现取现用；三色只有本色能付、黑白只垫灰）。",
+      "heroLockCard": "C_7E5A2001",
+      "scenario": {
+        "startTurn": 2,
+        "firstPlayer": "P1",
+        "player": {
+          "life": 30,
+          "fatigue": 0,
+          "bank": [
+            0,
+            0,
+            0,
+            0,
+            1,
+            1
+          ],
+          "lands": [],
+          "units": [],
+          "hand": [
+            "C_7E5A200B",
+            "C_7E5A2004",
+            "C_7E5A2002",
+            "C_7E5A2003"
+          ],
+          "deck": [
+            "C_7E5A2008",
+            "C_7E5A2005",
+            "C_7E5A2006",
+            "C_7E5A2007"
+          ],
+          "grave": []
+        },
+        "ai": {
+          "life": 30,
+          "fatigue": 0,
+          "bank": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "lands": [],
+          "units": [
+            {
+              "card": "C_7E5A2001",
+              "tapped": false,
+              "x": 4,
+              "z": 1,
+              "counters": [
+                {
+                  "key": "RushSickness",
+                  "value": 15
+                }
+              ]
+            },
+            {
+              "card": "C_7E5A200C",
+              "tapped": false,
+              "x": 2,
+              "z": 1,
+              "activateRuleAura": "HandLimitNoFatigue"
+            }
+          ],
+          "hand": [],
+          "deck": [],
+          "grave": []
+        }
+      },
+      "guide": [
+        {
+          "type": "element",
+          "card": "C_7E5A2004",
+          "hint": "把手牌里的红苗放入元素池当土地，锁定红色产色（入池后固定；付费时系统自动横置支付，无需手动产色）"
+        },
+        {
+          "type": "play",
+          "card": "C_7E5A2002",
+          "hint": "打出白源（白费）——用场景预置的白色临时元素支付。带地牌特性的生物能横置产色（横置入场，下回合才能产）"
+        },
+        {
+          "type": "play",
+          "card": "C_7E5A2003",
+          "hint": "打出黑源（黑费）——用预置的黑色临时元素支付"
+        },
+        {
+          "type": "end",
+          "hint": "两源入场横置——结束回合，下回合回来产色（注意：临时元素未用完，回合结束就消失）"
+        },
+        {
+          "type": "tapcreature",
+          "card": "C_7E5A2002",
+          "hint": "横置白源产出白色临时元素（黑白获取的唯一通道；可垫灰费，不能垫红蓝绿）"
+        },
+        {
+          "type": "tapcreature",
+          "card": "C_7E5A2003",
+          "hint": "横置黑源产出黑色临时元素（同样只能垫灰费）"
+        },
+        {
+          "type": "element",
+          "card": "C_7E5A2008",
+          "hint": "把抽到的灰苗放入元素池当土地，锁定灰色产色"
+        },
+        {
+          "type": "end",
+          "hint": "结束回合——刚才产出的黑白临时元素已随回合结束清空（现取现用，要用当回合用）"
+        },
+        {
+          "type": "element",
+          "card": "C_7E5A2005",
+          "hint": "把抽到的蓝苗放入元素池当土地，锁定蓝色产色"
+        },
+        {
+          "type": "end",
+          "hint": "结束回合"
+        },
+        {
+          "type": "element",
+          "card": "C_7E5A2006",
+          "hint": "把抽到的绿苗放入元素池当土地，锁定绿色产色——红蓝绿灰四色地牌齐了"
+        },
+        {
+          "type": "play",
+          "card": "C_7E5A2007",
+          "hint": "打出三色斗士——系统自动横置红苗/蓝苗/绿苗支付对应色费用（现取现用；三色只有本色能付，黑白只垫灰）"
+        },
+        {
+          "type": "end",
+          "hint": "引导结束——接下来自由操作，想办法解决末日降临"
+        }
+      ],
+      "aiScript": [
+        {
+          "turn": 1,
+          "actions": [
+            {
+              "type": "attack",
+              "attacker": "C_7E5A2001",
+              "target": "hero"
+            }
+          ]
+        },
+        {
+          "turn": 2,
+          "actions": [
+            {
+              "type": "attack",
+              "attacker": "C_7E5A2001",
+              "target": "hero"
+            }
+          ]
+        },
+        {
+          "turn": 3,
+          "actions": [
+            {
+              "type": "attack",
+              "attacker": "C_7E5A2001",
+              "target": "hero"
+            }
+          ]
+        },
+        {
+          "turn": 4,
+          "actions": [
+            {
+              "type": "attack",
+              "attacker": "C_7E5A2001",
+              "target": "hero"
+            }
+          ]
+        },
+        {
+          "turn": 5,
+          "actions": [
+            {
+              "type": "attack",
+              "attacker": "C_7E5A2001",
+              "target": "hero"
+            }
+          ]
+        },
+        {
+          "turn": 6,
+          "actions": [
+            {
+              "type": "attack",
+              "attacker": "C_7E5A2001",
+              "target": "hero"
+            }
+          ]
+        },
+        {
+          "turn": 7,
+          "actions": [
+            {
+              "type": "attack",
+              "attacker": "C_7E5A2001",
+              "target": "hero"
+            }
+          ]
+        },
+        {
+          "turn": 8,
+          "actions": [
+            {
+              "type": "attack",
+              "attacker": "C_7E5A2001",
+              "target": "hero"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

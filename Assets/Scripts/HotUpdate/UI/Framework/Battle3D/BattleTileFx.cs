@@ -69,7 +69,9 @@ namespace SynergyUI
         private static readonly Dictionary<long, Transform> _tiles = new Dictionary<long, Transform>();
         private static readonly Dictionary<long, Renderer> _glows = new Dictionary<long, Renderer>();
         private static readonly Dictionary<long, Renderer> _rings = new Dictionary<long, Renderer>();
-        private static readonly List<GameObject> _icons = new List<GameObject>();
+        // 元素图标留存池（2026-10-18 性能）：键=格+色（技能格黑白双图标错位共存）——图标几何/色恒定，
+        // 对账只做显隐不再销毁重建（原每事件 Destroy+Instantiate 全部地牌图标）
+        private static readonly Dictionary<long, GameObject> _icons = new Dictionary<long, GameObject>();
         private static bool _depsLogged;
 
         /// <summary>当前点亮的高光件数=菲涅尔壳+描边环（对账日志证据）。</summary>
@@ -84,8 +86,16 @@ namespace SynergyUI
             }
         }
 
-        /// <summary>当前格面元素图标数（对账日志证据）。</summary>
-        public static int IconCount => _icons.Count;
+        /// <summary>当前格面元素图标数（对账日志证据；=留存池中激活数）。</summary>
+        public static int IconCount
+        {
+            get
+            {
+                int n = 0;
+                foreach (var i in _icons.Values) if (i != null && i.activeSelf) n++;
+                return n;
+            }
+        }
 
         /// <summary>域重载关闭（Enter Play Mode Options）防跨 Play 残留：与 BattleStageDirector.ResetStatics 同口径。</summary>
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
@@ -104,20 +114,15 @@ namespace SynergyUI
             _depsLogged = false;
         }
 
-        /// <summary>全熄+图标全清（对账开头调用；菲涅尔壳/描边环 renderer 留存复用，图标按次重建）。</summary>
+        /// <summary>全熄（对账开头调用；菲涅尔壳/描边环/元素图标 renderer 全部留存复用只熄不毁）。</summary>
         public static void ClearAll()
         {
             foreach (var r in _glows.Values)
                 if (r != null) r.enabled = false; // fake-null（棋盘重建）跳过，下次 Ensure 判死重建
             foreach (var r in _rings.Values)
                 if (r != null) r.enabled = false;
-            foreach (var icon in _icons)
-                if (icon != null)
-                {
-                    if (Application.isPlaying) Object.Destroy(icon); // 编辑态调用（工具/冒烟）走立即销毁
-                    else Object.DestroyImmediate(icon);
-                }
-            _icons.Clear();
+            foreach (var icon in _icons.Values)
+                if (icon != null) icon.SetActive(false);
         }
 
         /// <summary>拆台清索引（对象本体随棋盘根销毁；BattleStageDirector.DismountBoard 调用）。</summary>
@@ -152,6 +157,14 @@ namespace SynergyUI
         public static void AddElement(int x, int z, int lockedColor, Vector2 offset)
         {
             if (lockedColor < 0) return;
+            var iconKey = (Key(x, z) << 8) | (uint)(lockedColor & 0xff);
+            if (_icons.TryGetValue(iconKey, out var existing) && existing != null)
+            {
+                // 留存复用（2026-10-18 性能）：同格同色图标几何恒定——只重激活+校位（offset 调用侧恒定，防御性回写）
+                existing.transform.localPosition = new Vector3(offset.x, 0.008f, offset.y);
+                existing.SetActive(true);
+                return;
+            }
             var tile = TileOf(x, z);
             if (tile == null) return;
             if (_elementPrefab == null)
@@ -170,7 +183,7 @@ namespace SynergyUI
             var rend = icon.GetComponent<MeshRenderer>();
             rend.sharedMaterial = mat;
             rend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            _icons.Add(icon);
+            _icons[iconKey] = icon;
         }
 
         // ======================================== 内部 ========================================
@@ -188,8 +201,9 @@ namespace SynergyUI
             r.enabled = true;
         }
 
-        /// <summary>格 → tile Transform（root.Find 按名；浮起动画不动父子关系，缓存跨帧安全）。</summary>
-        private static Transform TileOf(int x, int z)
+        /// <summary>格 → tile Transform（root.Find 按名；浮起动画不动父子关系，缓存跨帧安全）。
+        /// 公开：BattleFieldView 箭头/计数条同源取格（2026-10-18——替代各自 transform.Find 字符串查找）。</summary>
+        public static Transform TileOf(int x, int z)
         {
             var key = Key(x, z);
             if (_tiles.TryGetValue(key, out var t) && t != null) return t; // fake-null 判死重查

@@ -31,6 +31,7 @@ namespace Tide.HotUpdateTools
         public static void SetupHybridClr()
         {
             var settings = HybridCLRSettings.LoadOrCreate();
+            settings.enable = true; // 2026-10-18 热更管线恢复：处理流程整体打开
             settings.hotUpdateAssemblies = new[] { HotUpdateLoader.HotAssemblyName };
             settings.patchAOTAssemblies = HotUpdateLoader.PatchAotAssemblies;
             HybridCLRSettings.Save();
@@ -62,16 +63,21 @@ namespace Tide.HotUpdateTools
             AddGroup(package, "AotDll", AotDllFolder);
             AddGroup(package, "Scene", "Assets/Scenes", "CollectAllExceptLaunch");
             AddGroup(package, "Configs", "Assets/Configs");
-            AddGroup(package, "UI", "Assets/UI/Res");
+            AddGroup(package, "CardData", "Assets/CardData");
+            AddGroup(package, "TutorialData", "Assets/TutorialData");
             AddGroup(package, "AIModel", "Assets/Art/AIModels");
-            // HexMap 美术资源为场景/组件的序列化引用，静态收集进包但不寻址——
-            // 按文件名寻址时同目录同名异扩展（Nettle.FBX/Nettle.tif）会地址冲突
-            AddGroup(package, "ArtStatic", "Assets/Art/HexMap", "CollectAll", ECollectorType.StaticAssetCollector);
+            // Assets/Art 运行时资产（prefab/贴图/材质/shader/vfx）：白名单过滤，模型库与 AIModels 子树出局（各有专组）；
+            // 相对路径寻址（去 Assets/ 前缀）——BattleHex 网格/预制体等同名异扩展在文件名寻址下撞址（2026-10-18 审计）
+            AddGroup(package, "ArtRuntime", "Assets/Art", "CollectRuntimeArt",
+                ECollectorType.MainAssetCollector, "AddressByRelativePath");
+            // 模型库：专用寻址（prefab=名、png=名#preview、_manifest.txt=#names）+ 完整性过滤（残缺目录整组出局）
+            AddGroup(package, "MonsterRig", "Assets/Art/YGOMonstersRig", "CollectRigComplete",
+                ECollectorType.MainAssetCollector, "RigModelAddress");
 
             BundleCollectorSettingData.SaveFile();
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
-            Debug.Log("[热更配置] YooAsset 收集器：DefaultPackage（Addressable）← HotUpdateDll/AotDll/Scene/Configs/UI/AIModel 六个寻址组 + ArtStatic 静态组（HexMap 依赖打包）");
+            Debug.Log("[热更配置] YooAsset 收集器：DefaultPackage（Addressable）← HotUpdateDll/AotDll/Scene/Configs/CardData/TutorialData/AIModel/ArtRuntime/MonsterRig 九组（2026-10-18 热更恢复+数据迁移；规则见 YooCollectRules，ArtRuntime=完整路径寻址防同名撞址）");
         }
 
         [MenuItem("Tools/热更/3. 生成 Launch 场景")]
@@ -136,7 +142,7 @@ namespace Tide.HotUpdateTools
             Debug.Log("[热更前置] GenerateAll 完成（生成后请重跑第 4 步拷贝 AOT DLL）");
         }
 
-        private static void AddGroup(BundleCollectorPackage package, string groupName, string collectPath, string filterRuleName = "CollectAll", ECollectorType collectorType = ECollectorType.MainAssetCollector)
+        private static void AddGroup(BundleCollectorPackage package, string groupName, string collectPath, string filterRuleName = "CollectAll", ECollectorType collectorType = ECollectorType.MainAssetCollector, string addressRuleName = "AddressByFileName")
         {
             EnsureFolder(collectPath);
             var group = new BundleCollectorGroup { GroupName = groupName, GroupDesc = groupName };
@@ -145,7 +151,7 @@ namespace Tide.HotUpdateTools
                 CollectPath = collectPath,
                 CollectorGUID = AssetDatabase.AssetPathToGUID(collectPath),
                 CollectorType = collectorType,
-                AddressRuleName = "AddressByFileName",
+                AddressRuleName = addressRuleName,
                 PackRuleName = "PackDirectory",
                 FilterRuleName = filterRuleName,
             });

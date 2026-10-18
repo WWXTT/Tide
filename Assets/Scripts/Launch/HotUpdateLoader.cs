@@ -27,6 +27,15 @@ namespace Tide.Launch
 
         public const string HotAssemblyName = "Tide.HotUpdate";
 
+        // AOT 泛型预实例化兜底（2026-10-18 真机实录）：热更侧 BattleScreen.ShowTipPromptAsync 为
+        // async UniTask<bool?>，HybridCLR 泛型分析器对 AsyncUniTaskMethodBuilder<Nullable<bool>> 漏扫
+        // （AOTGenericReferences 同方法只记出 Nullable<byte>），真机点投降弹 MissingMethodException。
+        // AOT 侧显式引用一次强制 il2cpp 生成该组合；若日后分析器命中，此行属无害冗余，勿删。
+        static HotUpdateLoader()
+        {
+            _ = Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<bool?>.Create();
+        }
+
         /// <summary>资源寻址地址（.dll.bytes 文件经 AddressByFileName 规则保留 .dll 段）</summary>
         public const string HotDllLocation = "Tide.HotUpdate.dll";
 

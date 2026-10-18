@@ -56,6 +56,10 @@ namespace SynergyUI
             { Cardtype.Enchantment, ("barrier", "mask_circle") },
         };
         private static readonly Dictionary<string, Sprite> SpriteCache = new();
+        private static GameObject _backPrefab;   // ACardBack prefab 静态缓存（EnsureBackPrefab 单次 Load）
+        private static bool _backPrefabTried;
+        private readonly List<string> _lastKeyChips = new List<string>();   // 芯片差量快照（FillChips 短路用）
+        private readonly List<string> _lastStatChips = new List<string>();
         private static string SpritePath(string name) => $"Assets/Art/Battle3D/Icons/{name}.png";
         private string _artLoaded; // 已加载立绘名（防同图重复加载；空=保持预制体占位）
         // 立绘（type/mask/art）按名称两级回落：UI Sprites → YGOMonstersRig 模型预览图（CardArtLibrary，
@@ -192,13 +196,15 @@ namespace SynergyUI
             // keys / stats 芯片区（无内容整块隐藏）
             if (full)
             {
-                FillChips(_keysBlock, _keysTemplate, ChipLabels(item.KeywordChips));
-                FillChips(_statsBlock, _statsTemplate, StatLabels(item.CounterChips));
+                FillChips(_keysBlock, _keysTemplate, ChipLabels(item.KeywordChips), _lastKeyChips);
+                FillChips(_statsBlock, _statsTemplate, StatLabels(item.CounterChips), _lastStatChips);
             }
             else
             {
                 SetActive(_keysBlock, false);
                 SetActive(_statsBlock, false);
+                _lastKeyChips.Clear(); // 形态收起=缓存失效（下次 Full 重建）
+                _lastStatChips.Clear();
             }
 
             if (_group != null) _group.alpha = item.IsTapped ? 0.62f : 1f;
@@ -235,12 +241,18 @@ namespace SynergyUI
         /// 对手手牌卡背/被展示（Exposed）才见详细信息——宿主屏 RefreshFans 口径。</summary>
         private void EnsureBackPrefab()
         {
-            var prefab = Tide.HotUpdate.HotUpdateAssets.Load<GameObject>("ACardBack", UiKit.PrefabPath("ACardBack"));
-            if (prefab == null)
+            // 静态缓存（2026-10-18 性能）：对手手牌每张伏面卡首次落位都 Load 一次 prefab——
+            // HotUpdateAssets 句柄永生累积（长局泄漏）；同 SpriteCache 口径缓存引用
+            if (_backPrefab == null && !_backPrefabTried)
             {
-                Debug.LogError("[ACardView] ACardBack.prefab 缺失（" + UiKit.PrefabPath("ACardBack") + "）——伏面卡背不可用");
-                return;
+                _backPrefab = Tide.HotUpdate.HotUpdateAssets.Load<GameObject>("ACardBack", UiKit.PrefabPath("ACardBack"));
+                _backPrefabTried = true; // 失败也只试一次（错误日志下方单发）
+                if (_backPrefab == null)
+                    Debug.LogError("[ACardView] ACardBack.prefab 缺失（" + UiKit.PrefabPath("ACardBack") + "）——伏面卡背不可用");
             }
+            var prefab = _backPrefab;
+            if (prefab == null)
+                return;
             _back = Instantiate(prefab, transform, false);
             _back.name = "ACardBack"; // 层级直书预制体名（Bind 按名找回，重绑幂等）
             var rt = (RectTransform)_back.transform;
@@ -352,16 +364,28 @@ namespace SynergyUI
         /// <summary>芯片流式排布：按 preferredWidth 累计分行（行=HLG，块内 VLG 纵排）——uGUI 无现成 wrap 布局。
         /// 固定尺寸卡面口径（2026-10-14）：最多 2 行，丢弃的芯片并成末行「+N」；行宽预算取 sizeDelta（定宽，
         /// 不依赖布局时机）；块高=6+行数×15 回写（1 行=21、2 行=36）。labels 空=整块隐藏。
-        /// template=芯片克隆源（字体随预制体），本体隐藏。</summary>
-        private void FillChips(RectTransform block, RectTransform template, List<string> labels)
+        /// template=芯片克隆源（字体随预制体），本体隐藏。
+        /// lastLabels=上次填充快照（2026-10-18 性能）：事件级刷新常见值未变——同标签直退，
+        /// 免整组行销毁重建（卡池复用/扇区全量重绘的主要构造成本）。</summary>
+        private void FillChips(RectTransform block, RectTransform template, List<string> labels, List<string> lastLabels)
         {
             if (block == null) return;
             if (labels == null || labels.Count == 0)
             {
                 block.gameObject.SetActive(false);
+                lastLabels.Clear();
                 return;
             }
             block.gameObject.SetActive(true);
+
+            // 差量短路：标签序列未变（含池复用同卡重绘）→ 行/芯片/块高全部保持
+            if (labels.Count == lastLabels.Count)
+            {
+                bool same = true;
+                for (int i = 0; i < labels.Count; i++)
+                    if (!string.Equals(labels[i], lastLabels[i], System.StringComparison.Ordinal)) { same = false; break; }
+                if (same) return;
+            }
 
             // 清旧芯片行（模板之外全毁；编辑态探针走 DestroyImmediate）
             for (int i = block.childCount - 1; i >= 0; i--)
@@ -417,6 +441,10 @@ namespace SynergyUI
 
             // 块高随行数（固定卡内的局部弹性；根 VLG 重排下方区块）
             block.sizeDelta = new Vector2(block.sizeDelta.x, 6f + rows * 15f);
+
+            // 快照收口（差量短路比对源）
+            lastLabels.Clear();
+            lastLabels.AddRange(labels);
         }
 
         // ==================== 小工具 ====================

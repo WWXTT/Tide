@@ -34,9 +34,14 @@ namespace SynergyUI
             public Transform Tile;
             public GameObject Attack, Guard, Activate; // null=该格预制体缺件（手搭遗漏，容错跳过）
             public int LastBits = -1;                  // 上次可用位图（-1=首写强制）
+            public Renderer AttackRend, GuardRend, ActivateRend; // 首绘取一次：免每次显隐 GetComponent+material getter 查找
         }
 
         private static readonly Dictionary<long, TileButtons> _shown = new Dictionary<long, TileButtons>();
+
+        // 每帧对账复用缓冲（2026-10-18 性能）：避免每帧 new HashSet/List
+        private static readonly HashSet<long> _keepBuf = new HashSet<long>();
+        private static readonly List<long> _staleBuf = new List<long>();
 
         /// <summary>域重载关闭（Enter Play Mode Options）防跨 Play 残留：与 BattleTileFx.ResetStatics 同口径。</summary>
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
@@ -49,41 +54,41 @@ namespace SynergyUI
         /// 显键按可用位图写色（renderer.material 实例色，件随 tile 销毁自然回收）。</summary>
         public static void Apply(List<Entry> entries)
         {
-            var keep = new HashSet<long>();
+            _keepBuf.Clear();
             if (entries != null)
             {
                 foreach (var e in entries)
                 {
                     if (e == null || e.X < 0 || e.Z < 0) continue;
                     long key = ((long)e.X << 32) | (uint)e.Z;
-                    keep.Add(key);
+                    _keepBuf.Add(key);
                     var tb = Ensure(e.X, e.Z, key);
                     if (tb == null) continue; // 格未拼/缺件：不显不计
                     int bits = (e.Attack ? 1 : 0) | (e.Guard ? 2 : 0) | (e.Activate ? 4 : 0);
                     if (bits == tb.LastBits) continue;
                     tb.LastBits = bits;
-                    Paint(tb.Attack, e.Attack);
-                    Paint(tb.Guard, e.Guard);
-                    Paint(tb.Activate, e.Activate);
+                    Paint(tb.Attack, ref tb.AttackRend, e.Attack);
+                    Paint(tb.Guard, ref tb.GuardRend, e.Guard);
+                    Paint(tb.Activate, ref tb.ActivateRend, e.Activate);
                 }
             }
 
-            List<long> stale = null;
+            _staleBuf.Clear();
             foreach (var k in _shown.Keys)
-                if (!keep.Contains(k)) (stale ?? (stale = new List<long>())).Add(k);
-            if (stale == null) return;
-            foreach (var k in stale)
+                if (!_keepBuf.Contains(k)) _staleBuf.Add(k);
+            foreach (var k in _staleBuf)
             {
                 Hide(_shown[k]);
                 _shown.Remove(k);
             }
         }
 
-        private static void Paint(GameObject go, bool on)
+        private static void Paint(GameObject go, ref Renderer cached, bool on)
         {
             if (go == null) return;
             go.SetActive(true);
-            go.GetComponent<Renderer>().material.color = on ? UsableColor : DimColor;
+            if (cached == null) cached = go.GetComponent<Renderer>();
+            if (cached != null) cached.material.color = on ? UsableColor : DimColor;
         }
 
         private static void Hide(TileButtons tb)

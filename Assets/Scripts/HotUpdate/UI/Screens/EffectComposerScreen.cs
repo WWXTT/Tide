@@ -6,7 +6,6 @@ using System.Linq;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
-using UnityEngine.WSA;
 using UInputField = TMPro.TMP_InputField;
 
 namespace SynergyUI
@@ -833,7 +832,8 @@ namespace SynergyUI
 
         /// <summary>并列效果费用构成（效果锚价口径：ConvertOne+DeriveElementCosts 纯表累加、
         /// 无减免抵消；代价不参与——代价栏已上移卡组合层）。逐原子贡献=同头单原子 shim 单独推导
-        /// （与 RewardDerivedCost 同手法；DeriveElementCosts 按原子独立累加，shim 分账与整效果推导一致）。
+        /// （与 RewardDerivedCost 同手法）。2026-10-18 效果合成阶段取整后：逐原子 shim 各自取整，
+        /// 分账加总与合计（整效果一次取整）允许 ±取整尾差——合计行才是真值。
         /// 2026-10-10 参与变量写全：逐原子不再只报数——展开「基准×系数链＝结果」
         ///（AtomCostFormula 与 ComputeAtomCost 同批判定原语，如 造成伤害5：基准1红×5×速度档2＝10红）。</summary>
         private string ParallelCostText()

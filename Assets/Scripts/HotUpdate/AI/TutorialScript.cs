@@ -10,8 +10,9 @@ namespace SynergyUI
     /// 双方卡组的**顺序即摸牌序列**（InitGame lockDeckOrder 锁牌库序：前 OpeningHandSize 张为起手、
     /// 之后逐回合摸牌恒取牌库顶）；机器人逐回合动作脚本由 ScriptedAi 按条执行；rngSeed 钉效果随机。
     /// 三者合一台教学局完全确定，可反复重演同一节奏。
-    /// 数据：Assets/Configs/TutorialConfig.json（TidePaths 寻址：编辑器直读、直改 JSON 后 Reload 免重启，
-    /// 真机由宿主装配进热更包——同 AtomicEffectTable 惯例）。
+    /// 数据：Assets/Configs/ 按课拆档（2026-10-18）：TutorialConfig.json=第一课（basics）、
+    /// TutorialConfig2.json=第二课（lunzhuan），TutorialLibrary 两档合并装载（TidePaths 寻址：编辑器直读、
+    /// 直改 JSON 后 Reload 免重启，真机由宿主装配进热更包——同 AtomicEffectTable 惯例）。
     /// </summary>
     [Serializable]
     public class TutorialConfig
@@ -99,11 +100,18 @@ namespace SynergyUI
 
     /// <summary>
     /// 教学配置库（仿 AtomicEffectTable 惯例：静态表 + TidePaths.ReadConfigText + Reload 免重启）。
-    /// Get 按 id 取条目；BuildDeck 把卡 id 序列解析为 CardData 卡组（缺失 id 记警告跳过，不炸局）。
+    /// 按课拆档（2026-10-18）：第一课 TutorialConfig.json + 第二课 TutorialConfig2.json，两档合并
+    /// 装载进同一 id 表——消费方（BattleScreen/TutorialFlow 按 id Get）零改动；跨档重复 id 保先装档
+    /// 并 Warn（与 EffectsLibrary 教学副表合并同口径）。Get 按 id 取条目；BuildDeck 把卡 id 序列
+    /// 解析为 CardData 卡组（缺失 id 记警告跳过，不炸局）。
     /// </summary>
     public static class TutorialLibrary
     {
-        private const string ConfigRelativePath = "Configs/TutorialConfig.json";
+        private static readonly string[] ConfigRelativePaths =
+        {
+            "Configs/TutorialConfig.json",  // 第一课（basics）
+            "Configs/TutorialConfig2.json", // 第二课（lunzhuan）
+        };
 
         private static Dictionary<string, TutorialConfig> _byId;
 
@@ -115,29 +123,40 @@ namespace SynergyUI
         private static void Initialize()
         {
             _byId = new Dictionary<string, TutorialConfig>();
+            foreach (var configPath in ConfigRelativePaths)
+                LoadFile(configPath);
+        }
+
+        private static void LoadFile(string configPath)
+        {
             try
             {
-                string raw = TidePaths.ReadConfigText(ConfigRelativePath);
+                string raw = TidePaths.ReadConfigText(configPath);
                 if (string.IsNullOrEmpty(raw))
                 {
-                    TideLog.Warn($"[TutorialLibrary] 配置不可读：{ConfigRelativePath}");
+                    TideLog.Warn($"[TutorialLibrary] 配置不可读：{configPath}");
                     return;
                 }
                 var file = TideJson.FromJson<TutorialConfigFile>(raw);
                 if (file?.tutorials == null || file.tutorials.Count == 0)
                 {
-                    TideLog.Warn($"[TutorialLibrary] 未加载到任何教学条目：{ConfigRelativePath}");
+                    TideLog.Warn($"[TutorialLibrary] 未加载到任何教学条目：{configPath}");
                     return;
                 }
                 foreach (var t in file.tutorials)
                 {
                     if (t == null || string.IsNullOrEmpty(t.id)) continue;
+                    if (_byId.ContainsKey(t.id))
+                    {
+                        TideLog.Warn($"[TutorialLibrary] 重复教学条目 id（保先装档）：{t.id} @ {configPath}");
+                        continue;
+                    }
                     _byId[t.id] = t;
                 }
             }
             catch (Exception e)
             {
-                TideLog.Warn($"[TutorialLibrary] 加载 {ConfigRelativePath} 失败: {e.Message}");
+                TideLog.Warn($"[TutorialLibrary] 加载 {configPath} 失败: {e.Message}");
             }
         }
 

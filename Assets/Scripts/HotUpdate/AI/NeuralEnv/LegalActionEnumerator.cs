@@ -285,14 +285,13 @@ namespace CardCore.AI.NeuralEnv
             if (engine == null || zm == null || p == null || engine.IsEmpty || engine.IsResolving) return false;
             if (engine.CurrentPriorityHolder != p) return false;
 
-            bool isTurn = p == engine.ActivePlayer;
             var hand = zm.GetCards(p, Zone.Hand) ?? new List<Card>();
             foreach (var c in hand)
             {
                 if (c == null || !RuleHooks.CanPlay(core, p, c, Zone.Hand)) continue;
                 if (GameActions.GetPayloadGateReject(core, p, c) != null) continue; // 代价门槛镜像（2026-10-04：全价过地牌上限/代价无目标）
                 if (!engine.SpeedCounter.CanActivate(
-                        SpeedCalculator.GetCardCastSpeed(c), isTurn, EffectActivationType.Voluntary)) continue;
+                        SpeedCalculator.GetCardCastSpeed(c), EffectActivationType.Voluntary, engine.IsEmpty)) continue;
                 if (!IsSpell(c) && !zm.HasBattlefieldSpace(p)) continue;
                 int modes = ModeCount(c);
                 for (int m = 0; m < modes; m++)
@@ -655,20 +654,20 @@ namespace CardCore.AI.NeuralEnv
         }
 
         /// <summary>响应出牌行（v2）：手牌卡在响应窗口打出（发动无效/效果无效等反制）。
-        /// 预检镜像 GameActions.PlayCardInResponse/PushCardCast：速度门（回合方 ≥ / 非回合方严格 &gt;
-        /// 记速器）+ RuleHooks + 战场容量 + 费用（含 pending 承诺）+ 目标域；目标逐张展开。</summary>
+        /// 预检镜像 GameActions.PlayCardInResponse/PushCardCast：速度门（2026-10-18 全严格大于，
+        /// 响应窗口恒非空栈——空栈首动豁免不触发）+ RuleHooks + 战场容量 + 费用（含 pending 承诺）
+        /// + 目标域；目标逐张展开。</summary>
         private void EnumerateRespondPlay(GameCore core, Player me)
         {
             var engine = core.StackEngine;
-            bool isTurn = me == engine.ActivePlayer;
             var hand = core.ZoneManager.GetCards(me, Zone.Hand);
             for (int i = 0; i < hand.Count; i++)
             {
                 var c = hand[i];
                 if (!RuleHooks.CanPlay(core, me, c, Zone.Hand)) continue;
                 if (GameActions.GetPayloadGateReject(core, me, c) != null) continue; // 代价门槛镜像（2026-10-04：全价过地牌上限/代价无目标）
-                if (!engine.SpeedCounter.CanActivate(
-                        SpeedCalculator.GetCardCastSpeed(c), isTurn, EffectActivationType.Voluntary)) continue;
+                int castSpeed = SpeedCalculator.GetCardCastSpeed(c);
+                if (!engine.SpeedCounter.CanActivate(castSpeed, EffectActivationType.Voluntary, engine.IsEmpty)) continue;
                 if (!IsSpell(c) && !core.ZoneManager.HasBattlefieldSpace(me)) continue;
 
                 int modes = ModeCount(c);
@@ -848,17 +847,9 @@ namespace CardCore.AI.NeuralEnv
                 case TideActionType.VoluntaryTrigger:
                     return CostDerivationService.DeriveElementCosts(a.Effect, 0).Total; // 效果费现推（主动/自愿桶发动时现付——L1 现推口径）
                 case TideActionType.HeroSkill:
-                    // 技能=技能区法术（2026-10-15 改版）：现付所选效果锚价（ModeIndex=效果序号）；
-                    // 行上已带 Effect（逐效果枚举），兜底再按序号取
-                {
-                    var fx = a.Effect
-                             ?? (a.Card != null
-                                 ? HeroSkillSystem.SkillEffectsOf(a.Card) is { } list && list.Count > 0
-                                     ? list[Math.Clamp(a.ModeIndex, 0, list.Count - 1)]
-                                     : null
-                                 : null);
-                    return fx != null ? CostDerivationService.DeriveElementCosts(fx, 0).Total : 0f;
-                }
+                    // 技能发动费（2026-10-18 深夜修订口径）：免锚价 + 抉择技能每次 1 灰——
+                    // ActivationBill 单源（效果锚价已不是技能实付口径，勿再按锚价现推）
+                    return HeroSkillSystem.ActivationBill(a.Card).Total;
                 default:
                     return 0f;
             }

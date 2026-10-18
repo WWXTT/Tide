@@ -129,7 +129,7 @@ namespace CardCore
         /// <summary>
         /// 计算实际发动速度
         /// 2026-09-13 定案：无"基础速度"——速度 = BaseSpeed（组合期声明，原子默认 0）+ 动态支付；
-        /// 回合归属不进速度，只进记速器门槛（SpeedCounter.CanActivate）
+        /// 回合归属不进速度（2026-10-18 起也不进记速器门槛——全严格大于，回合/非回合同一裁决）
         /// </summary>
         public int CalculateActivationSpeed(Player activator, Player activePlayer, PhaseType phase, int paidBoost = 0)
         {
@@ -174,7 +174,9 @@ namespace CardCore
         /// <summary>
         /// 创建待发效果
         /// 条件发动 speed=Max 绕过速度检查
-        /// 速度发动 = BaseSpeed + 疾风场上加成（2026-10-16：场上源卡主动效果+1）+ paidBoost（2026-09-13：无基础速度）
+        /// 速度发动 = BaseSpeed + 疾风场上加成（2026-10-16：场上源卡主动效果+1）+ paidBoost（2026-09-13：无基础速度）。
+        /// 技能栏法术源（英雄技能）基速恒 0（2026-10-18 深夜修订：技能可反复发动，不吃法术槽位
+        /// 盈余——转换器烘焙进 BaseSpeed 的加成整体不取；场上增益/付费提速照常叠加）。
         /// </summary>
         public static PendingEffect Create(
             EffectDefinition effect,
@@ -188,7 +190,8 @@ namespace CardCore
             int speed = (effect.ActivationType != EffectActivationType.Voluntary)
                 ? int.MaxValue
                 : SpeedCalculator.CalculateSpeed(
-                    effect.BaseSpeed + RuleAuraComponents.OnBoardActiveSpeedBonus(source), paidBoost);
+                    (HeroSkillSystem.IsSkillSource(source) ? 0 : effect.BaseSpeed)
+                    + RuleAuraComponents.OnBoardActiveSpeedBonus(source), paidBoost);
 
             return new PendingEffect
             {
@@ -260,12 +263,13 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 获取可发动的速度效果列表（2026-09-13 口径：回合持有者 ≥ 记速器 / 非回合持有者严格 &gt;）
+        /// 获取可发动的速度效果列表（2026-10-18 定案：门槛=全严格大于；stackEmpty=空栈首动免门槛，
+        /// 由 StackEngine 以栈真值传入——主阶段空栈发动 0 速可选触发靠此豁免）
         /// </summary>
-        public List<PendingEffect> GetVoluntaryEffects(bool isTurnPlayer)
+        public List<PendingEffect> GetVoluntaryEffects(bool stackEmpty)
         {
             return _voluntaryEffects
-                .Where(e => _speedCounter.CanActivate(e.ActivationSpeed, isTurnPlayer, EffectActivationType.Voluntary))
+                .Where(e => _speedCounter.CanActivate(e.ActivationSpeed, EffectActivationType.Voluntary, stackEmpty))
                 .OrderByDescending(e => e.ActivationSpeed)
                 .ThenBy(e => e.SequenceNumber)
                 .ToList();

@@ -593,8 +593,6 @@ namespace MonsterRig
             // 相位随机（防全场同步呼吸）：黄金比例序列散布，不依赖过时的 GetInstanceID
             _phase = (float)((_phaseSeq++ * 0.6180339887498949) % 1.0) * RigMotionTuning.BasePeriod;
             if (_lookTarget != null) _driver?.SetLookTarget(_lookTarget);
-            if (_driver.MissingRefs > 0)
-                Debug.Log($"[MonsterRig] {name}：{_driver.ResolvedBones} 骨骼，{_driver.MissingRefs} 项目录引用缺失（已跳过）");
         }
 
         static int _phaseSeq = System.Environment.TickCount & 0x7fffffff;

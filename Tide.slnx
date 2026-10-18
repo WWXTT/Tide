@@ -1,7 +1,7 @@
 ﻿<Solution>
   <Project Path="Unity.RenderPipelines.Universal.Runtime.csproj" />
-  <Project Path="Tide.HotUpdate.csproj" />
   <Project Path="MCPForUnity.Runtime.csproj" />
+  <Project Path="Tide.HotUpdate.csproj" />
   <Project Path="Unity.RenderPipelines.Universal.2D.Runtime.csproj" />
   <Project Path="Unity.RenderPipelines.Universal.Editor.csproj" />
   <Project Path="PPv2URPConverters.csproj" />
@@ -14,5 +14,6 @@
   <Project Path="Unity.RenderPipeline.Universal.ShaderLibrary.csproj" />
   <Project Path="Unity.RenderPipelines.Universal.Shaders.csproj" />
   <Project Path="Unity.RenderPipelines.Core.Samples.Editor.csproj" />
+  <Project Path="INabCommon.csproj" />
   <Project Path="Unity.RenderPipelines.Universal.Config.Runtime.csproj" />
 </Solution>

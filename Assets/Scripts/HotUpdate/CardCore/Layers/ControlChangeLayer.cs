@@ -251,6 +251,9 @@ namespace CardCore
         /// </summary>
         public void ProcessExpiredTemporaryControls()
         {
+            if (_controlHistory.Count == 0)
+                return; // 主循环每帧调用：无控制变更历史时零成本（临时控制罕见）
+
             var expired = GetExpiredTemporaryControls();
 
             foreach (var entity in expired)

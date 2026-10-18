@@ -134,6 +134,11 @@ namespace CardCore
 
             // 4. 费用检查：元素代价自动推导（含抵消可达性），特殊代价走原子预检
             var elementCosts = CostDerivationService.DeriveElementCosts(effect);
+            // 技能发动费（2026-10-18 深夜修订：技能可反复用，不与同名法术同免费）：
+            // 免元素锚价；多效果（抉择）技能每次发动另收 1 灰（ActivationBill 单源）；
+            // 特殊代价（牺牲等效果机制）不属「费用」，照收
+            if (HeroSkillSystem.IsSkillSource(source))
+                elementCosts = HeroSkillSystem.ActivationBill(source);
             // 临摹/变形发动补价（2026-10-13 差额恒蓝·蓝色专属能力）：被变形卡的主动效果按变形前后
             // 声明费差额补蓝——预检与 ExecuteAsync 现付段同口径（付不出=不可发动）
             {
@@ -253,6 +258,10 @@ namespace CardCore
             // 卡牌的 effect.Costs 仅保留非元素的特殊代价（Payload 原子），走付费步异步执行+补偿。
             // 抉择卡按所选模式推导（per-mode 独立计价定案）。
             var elementCosts = CostDerivationService.DeriveElementCosts(effect, instance.ModeIndex);
+            // 技能发动费（2026-10-18 深夜修订）：免元素锚价 + 抉择技能每次 1 灰
+            //（ActivationBill 单源，与 CanActivate 预检同口径）
+            if (HeroSkillSystem.IsSkillSource(instance.Source))
+                elementCosts = HeroSkillSystem.ActivationBill(instance.Source);
             //（结界发动费抵扣臂已随 2026-10-15 拆分定案退役：免费点固定拆「速1+其余入耐久」，
             // 不再二选一抵每次发动费——DurabilityBonusOf/EnchantSpeedBonusOf 两向落位。）
             // 临摹/变形发动补价（2026-10-13 差额恒蓝·蓝色专属能力，落在底盘抵扣之后——底盘属原卡，
@@ -1025,19 +1034,19 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 尝试发动效果（速度发动入口，2026-09-13 定案口径）
-        /// 门槛：回合持有者 速度 ≥ 记速器；非回合持有者 速度 &gt; 记速器（严格大于）
+        /// 尝试发动效果（速度发动入口，2026-10-18 定案口径）
+        /// 门槛：所有主动发动 速度 **严格大于** 记速器（同速连锁一律禁止）；
+        /// 空栈首动（新连锁第一个发动）免门槛。
         /// 入栈时记速器只在更高速度时抬升（RaiseTo，非无条件 +1）
         /// </summary>
         public bool TryActivateEffect(PendingEffect pending)
         {
-            bool gate = _speedCounter.CanActivate(pending.ActivationSpeed, pending.Controller == _activePlayer, pending.ActivationType);
-            GameActions.Crumb($"CF-activate-try def={pending?.Effect?.Id} speed={pending?.ActivationSpeed} by={pending?.Controller?.Name} active={pending?.Controller == _activePlayer} ctr={_speedCounter.CurrentSpeed} gate={gate}");
+            bool gate = _speedCounter.CanActivate(pending.ActivationSpeed, pending.ActivationType, _stack.Count == 0);
+            GameActions.Crumb($"CF-activate-try def={pending?.Effect?.Id} speed={pending?.ActivationSpeed} by={pending?.Controller?.Name} ctr={_speedCounter.CurrentSpeed} gate={gate}");
             if (!gate)
                 return false;
 
             _speedCounter.RaiseTo(pending.ActivationSpeed); // ★ 记速器：更高才抬升
-            _speedCounter.RecordRaiser(pending.Controller == _activePlayer); // 同速自连锁禁：记录归属
 
             var instance = EffectInstance.FromPendingEffect(pending);
             _stack.Push(instance);
@@ -1060,8 +1069,9 @@ namespace CardCore
         /// <summary>
         /// 整卡施放入栈（使用时点声明）：打出的卡已移入发动区，本对象代表「此卡被使用」，
         /// 对手获得优先权——响应窗口内可经 GameActions.PlayCardInResponse 打出 发动无效/效果无效 等。
-        /// 2026-09-13 定案：整卡施放同为速度发动——速度=卡面声明（效果 BaseSpeed 最大值，缺省 0）；
-        /// 门槛同 TryActivateEffect（回合方 ≥ / 非回合方严格大于），0 速卡无法在对手回合响应打出。
+        /// 2026-10-18 定案：整卡施放同为速度发动——速度=卡面声明（效果 BaseSpeed 最大值，缺省 0）；
+        /// 门槛=全严格大于（同速连锁一律禁止，连锁对象无关归属），空栈首动（主阶段出牌）免门槛，
+        /// 0 速卡无法在对手回合响应打出。
         /// 结算消费点见 GameActions.ResolveCardCastAsync（Option Y：扣费在响应窗口之后）。
         /// </summary>
         public bool PushCardCast(Card card, Player controller, List<Entity> targets, int modeIndex = 0)
@@ -1070,7 +1080,7 @@ namespace CardCore
             if (_isResolving) return false; // 结算中不可声明（与 SpeedCounter.CanActivate 同口径）
             SyncActivePlayerFromTurn();
             int castSpeed = SpeedCalculator.GetCardCastSpeed(card);
-            if (!_speedCounter.CanActivate(castSpeed, controller == _activePlayer, EffectActivationType.Voluntary))
+            if (!_speedCounter.CanActivate(castSpeed, EffectActivationType.Voluntary, _stack.Count == 0))
                 return false;
 
             var instance = new EffectInstance
@@ -1084,7 +1094,6 @@ namespace CardCore
             };
 
             _speedCounter.RaiseTo(castSpeed); // ★ 记速器：更高才抬升
-            _speedCounter.RecordRaiser(controller == _activePlayer); // 同速自连锁禁：记录归属
 
             _stack.Push(instance);
             _priorityHolder = controller.Opponent;
@@ -1125,7 +1134,6 @@ namespace CardCore
             };
 
             _speedCounter.RaiseTo(SbaStackSpeed); // ★ 记速器：SBA 抬到 1（本连锁的最高速度基线）
-            _speedCounter.RecordRaiser(null); // 系统动作：不占用回合方「等于」优惠（SBA 窗口现状保持）
 
             _stack.Push(instance);
             _priorityHolder = _activePlayer;   // 回合方先响应（与触发式轮统一）
@@ -1142,7 +1150,7 @@ namespace CardCore
         }
 
         /// <summary>攻击宣言栈对象速度（2026-09-16 战斗接入栈机器定案）：攻击=速度0——
-        /// 回合方 ≥ 计数器，即计数器为 0（栈空/连锁闭合）才可宣言，连锁中天然不可宣。
+        /// 宣言本就要求空栈（连锁中不可宣），走空栈首动豁免（2026-10-18），门槛恒过。
         /// 宣言期零支付（不横置不扣费）——横置在结算时支付（到点重查）。</summary>
         public const int AttackStackSpeed = 0;
 
@@ -1165,8 +1173,9 @@ namespace CardCore
         }
 
         /// <summary>守卫拦截速度（2026-09-16 定案）：守卫=速度1响应（原2速阻挡阶段退役）——
-        /// 非回合方（防守方）严格 &gt; 计数器：1 &gt; 0 ✓；入栈后计数器抬到 1，
-        /// 攻击方可 ≥1 再连锁，防守方守卫全 1 速无法再响应（1 不 &gt; 1）→ 双 Pass 结算。</summary>
+        /// 防守方（非回合方）严格 &gt; 计数器：1 &gt; 0 ✓；入栈后计数器抬到 1，
+        /// 攻方须 &gt;1 再连锁（2026-10-18 全严格大于口径，旧「攻方可 ≥1 再连锁」退役），
+        /// 防守方守卫全 1 速无法再响应（1 不 &gt; 1）→ 双 Pass 结算。</summary>
         public const int GuardStackSpeed = 1;
 
         /// <summary>
@@ -1182,9 +1191,8 @@ namespace CardCore
             if (_stack.Count > 0) return false; // 连锁中不可宣（速度门 0≥计数器的等价直查）
             SyncActivePlayerFromTurn();
             int speed = AttackStackSpeed + RuleAuraComponents.OnBoardActiveSpeedBonus(attacker);
-            if (!_speedCounter.CanActivate(speed, controller == _activePlayer, EffectActivationType.Voluntary))
+            if (!_speedCounter.CanActivate(speed, EffectActivationType.Voluntary, _stack.Count == 0))
                 return false;
-            _speedCounter.RecordRaiser(controller == _activePlayer); // 同速自连锁禁：攻宣也是「自己发动」
 
             var instance = new EffectInstance
             {
@@ -1237,11 +1245,10 @@ namespace CardCore
                 guardOk = false;
             if (!guardOk) return false;
             SyncActivePlayerFromTurn();
-            if (!_speedCounter.CanActivate(GuardStackSpeed, controller == _activePlayer, EffectActivationType.Voluntary))
+            if (!_speedCounter.CanActivate(GuardStackSpeed, EffectActivationType.Voluntary, _stack.Count == 0))
                 return false;
 
-            _speedCounter.RaiseTo(GuardStackSpeed); // ★ 记速器抬到 1：攻方可 ≥1 连锁、守方 1 速不能再响应
-            _speedCounter.RecordRaiser(controller == _activePlayer); // 同速自连锁禁：记录归属
+            _speedCounter.RaiseTo(GuardStackSpeed); // ★ 记速器抬到 1：攻方须 >1 连锁、守方 1 速不能再响应
 
             var instance = new EffectInstance
             {
@@ -1344,11 +1351,12 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 获取可发动的速度效果列表（2026-09-13 口径：回合归属进门槛——activator=null 按非回合方严格口径）
+        /// 获取可发动的速度效果列表（2026-10-18 定案：门槛=全严格大于；空栈首动免门槛——
+        /// 主阶段空栈发动 0 速可选触发靠此豁免，stackEmpty 由本引擎真值传入）
         /// </summary>
         public List<PendingEffect> GetActivatableVoluntaryEffects(Player activator)
         {
-            return _pendingQueue.GetVoluntaryEffects(activator != null && activator == _activePlayer);
+            return _pendingQueue.GetVoluntaryEffects(_stack.Count == 0);
         }
 
         /// <summary>

@@ -83,6 +83,8 @@ namespace CardCore
     public class ContinuousEffectDurationTracker
     {
         private List<ContinuousEffectEntry> _effects = new List<ContinuousEffectEntry>();
+        // 主循环每帧调 CheckAndCleanExpired：过期收集复用缓冲，避免每帧分配
+        private readonly List<ContinuousEffectEntry> _expiredBuffer = new List<ContinuousEffectEntry>();
 
         /// <summary>
         /// 所有追踪的持续效果
@@ -245,17 +247,27 @@ namespace CardCore
         /// </summary>
         public void CheckAndCleanExpired()
         {
-            var expired = new List<ContinuousEffectEntry>();
+            if (_effects.Count == 0)
+                return;
+
+            _expiredBuffer.Clear();
 
             foreach (var effect in _effects)
             {
+                // 失效条目不再处理：条目只标记不移除（仅整局 Clear），若不跳过会每帧重复发布结束事件
+                if (!effect.IsActive)
+                    continue;
+
                 if (!effect.IsStillValid())
                 {
-                    expired.Add(effect);
+                    _expiredBuffer.Add(effect);
                 }
             }
 
-            foreach (var effect in expired)
+            if (_expiredBuffer.Count == 0)
+                return;
+
+            foreach (var effect in _expiredBuffer)
             {
                 effect.IsActive = false;
 

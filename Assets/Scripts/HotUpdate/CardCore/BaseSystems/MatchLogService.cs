@@ -29,6 +29,7 @@ namespace CardCore
     public static class MatchLogService
     {
         private const int MaxEntries = 50000;
+        private const int TrimBatch = 4096; // 分批截头（2026-10-18 性能）：逐条 RemoveAt(0) 是 O(n)/事件，超限后改为一次裁一批均摊 O(1)
 
         private static readonly List<MatchLogEntry> _entries = new List<MatchLogEntry>();
         private static bool _started;
@@ -71,7 +72,7 @@ namespace CardCore
 
             if (_entries.Count >= MaxEntries)
             {
-                _entries.RemoveAt(0);
+                _entries.RemoveRange(0, TrimBatch); // 截头留序（有序 List 语义/导出遍历不变）；早丢 ≤一批，标志位同旧
                 _truncated = true;
             }
             _entries.Add(entry);

@@ -41,6 +41,7 @@ namespace SynergyUI
         private RectTransform _template;
         private readonly List<RectTransform> _squares = new List<RectTransform>(); // 本视图生成的方格（Destroy 帧末生效，定位不看 childCount）
         private readonly List<int> _squareMana = new List<int>(); // 与 _squares 平行的每格 ManaType 序号（田字排布识别同色段用）
+        private readonly List<int> _pendingMana = new List<int>(); // SetCosts 展开的逐格色序（差量比对用，2026-10-18）
 
         /// <summary>方格生成序（2026-10-15）：三色红蓝绿优先、灰垫底；黑白沿用 CardSorter 的黑先白后。
         /// 未知色与灰同档排末尾。</summary>
@@ -125,34 +126,54 @@ namespace SynergyUI
         public void SetCosts(IEnumerable<ElementCostRef> costs)
         {
             EnsureTemplate();
-            for (int i = transform.childCount - 1; i >= 0; i--)
-            {
-                var c = transform.GetChild(i);
-                if (c.name == TemplateName) continue;
-                Destroy(c.gameObject);
-            }
 
             var list = costs?.Where(c => c != null && c.value > 0).ToList() ?? new List<ElementCostRef>();
             list.Sort((a, b) => DisplayRank((ManaType)a.mana).CompareTo(DisplayRank((ManaType)b.mana)));
-            _squares.Clear();
-            _squareMana.Clear();
+
+            // 展开为逐格色序（排序定案=红蓝绿黑白灰，调用方传入序不保留）
+            _pendingMana.Clear();
             foreach (var c in list)
-            {
-                var color = ManaColor((ManaType)c.mana);
                 for (int k = 0; k < c.value; k++)
+                    _pendingMana.Add(c.mana);
+
+            // 差量短路（2026-10-18 性能）：卡面事件级刷新极常见值未变——同色序直退，
+            // 免整组销毁重建（Instantiate/Destroy+布局脏）与重排
+            if (_pendingMana.Count == _squareMana.Count)
+            {
+                bool same = true;
+                for (int i = 0; i < _pendingMana.Count; i++)
+                    if (_pendingMana[i] != _squareMana[i]) { same = false; break; }
+                if (same) return;
+            }
+
+            // 原位对账：同位改色 / 多余销毁 / 缺口补建——方格除色外无独立状态，可安全复用
+            int overlap = Mathf.Min(_pendingMana.Count, _squareMana.Count);
+            for (int i = 0; i < overlap; i++)
+            {
+                if (_pendingMana[i] == _squareMana[i]) continue;
+                _squareMana[i] = _pendingMana[i];
+                var img = _squares[i].GetComponent<Image>();
+                if (img != null) img.color = ManaColor((ManaType)_pendingMana[i]);
+            }
+            for (int i = _squares.Count - 1; i >= _pendingMana.Count; i--)
+            {
+                Destroy(_squares[i].gameObject);
+                _squares.RemoveAt(i);
+                _squareMana.RemoveAt(i);
+            }
+            for (int i = _squares.Count; i < _pendingMana.Count; i++)
+            {
+                var sq = Instantiate(_template.gameObject, transform, false);
+                sq.name = "square";
+                sq.SetActive(true);
+                var img = sq.GetComponent<Image>();
+                if (img != null)
                 {
-                    var sq = Instantiate(_template.gameObject, transform, false);
-                    sq.name = "square";
-                    sq.SetActive(true);
-                    var img = sq.GetComponent<Image>();
-                    if (img != null)
-                    {
-                        img.color = color;
-                        img.raycastTarget = false;
-                    }
-                    _squares.Add((RectTransform)sq.transform);
-                    _squareMana.Add(c.mana);
+                    img.color = ManaColor((ManaType)_pendingMana[i]);
+                    img.raycastTarget = false;
                 }
+                _squares.Add((RectTransform)sq.transform);
+                _squareMana.Add(_pendingMana[i]);
             }
             Relayout();
         }

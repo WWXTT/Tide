@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
+using Tide.HotUpdate;
 
 namespace SynergyUI
 {
@@ -41,6 +42,13 @@ namespace SynergyUI
         public Vector2 TargetPos;
         public float TargetRot;
         public float TargetScale = 1f;
+
+        /// <summary>已到位（收敛判定）：扇区 Tick 据此跳过 transform 写入——单 Canvas 下
+        /// 恒久微写入会每帧触发整批重排（2026-10-18 性能）；目标被 RebuildTargets/SetCards 改动后自然失效。</summary>
+        public bool AtTarget =>
+            (TargetPos - Pos).sqrMagnitude < 0.0001f
+            && Mathf.Abs(TargetRot - Rot) < 0.05f
+            && Mathf.Abs(TargetScale - Scale) < 0.0005f;
 
         /// <summary>刚取用（池空新建或首次出池）：首帧吸附目标，不从旧位置飞入。</summary>
         public bool Fresh;
@@ -240,7 +248,9 @@ namespace SynergyUI
         private void EnsureFogFx()
         {
             if (_flowRoot == null || _flowMat != null) return;
-            var shader = Shader.Find("SynergyUI/FogEdgeGlow");
+            // 2026-10-18 真机修复：Shader.Find 只搜玩家包本体，美术 shader 只在 artstatic bundle 里
+            // （玩家日志实锤找不到）——改走 HotUpdateAssets（编辑器 AssetDatabase → 真机 bundle）。
+            var shader = HotUpdateAssets.Load<Shader>("FogEdgeGlow", "Assets/Art/Shaders/FogEdgeGlow.shader");
             if (shader == null)
             {
                 if (!_fogWarned)

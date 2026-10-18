@@ -29,3 +29,7 @@
 /HybridCLRData/
 # YooAsset 资源包构建输出
 /Bundles/
+# YooAsset 首包产物（出包前 ClearAndCopyAll 拷入，构建生成不入库）
+/Assets/StreamingAssets/yoo/
+/Builds/
+/.utmp/

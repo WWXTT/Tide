@@ -20,11 +20,26 @@ namespace Tide.Launch
         public const string MainSceneLocation = "Main";
 
         [Header("资源运行模式")]
-        [Tooltip("EditorSimulateMode=编辑器模拟；HostPlayMode=真机热更；OfflinePlayMode=单机；WebPlayMode=WebGL")]
+        [Tooltip("预留：接 CDN 后改 EffectivePlayMode 返回 HostPlayMode 并填 HostServerUrl。当前实际取值=代码分支：编辑器 EditorSimulateMode（全链模拟），真机 OfflinePlayMode（首包全量内置=视为已下载）")]
         public EPlayMode PlayMode = EPlayMode.EditorSimulateMode;
 
         [Header("热更资源服务器（HostPlayMode 用）")]
         public string HostServerUrl = "";
+
+        /// <summary>实际运行模式（2026-10-18 定案）：出包自带全部资源、视为已下载——真机
+        /// OfflinePlayMode 直读首包（零网络逻辑）；有热更地址后在真机分支改返 HostPlayMode
+        /// 并填 HostServerUrl（PatchFlow 两种模式都已实现）。</summary>
+        private EPlayMode EffectivePlayMode
+        {
+            get
+            {
+#if UNITY_EDITOR
+                return EPlayMode.EditorSimulateMode;
+#else
+                return EPlayMode.OfflinePlayMode;
+#endif
+            }
+        }
 
         private void Start()
         {
@@ -40,7 +55,7 @@ namespace Tide.Launch
                 if (!YooAssets.TryGetPackage(PackageName, out ResourcePackage package))
                     package = YooAssets.CreatePackage(PackageName);
 
-                if (!await PatchFlow.RunAsync(package, PlayMode, HostServerUrl))
+                if (!await PatchFlow.RunAsync(package, EffectivePlayMode, HostServerUrl))
                 {
                     await PatchConsole.WaitRetryAsync();
                     continue;

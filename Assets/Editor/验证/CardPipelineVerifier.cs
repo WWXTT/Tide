@@ -3337,7 +3337,7 @@ namespace CardCore.Editor
                    + $" canDecl={combat.CanDeclareAttack(striker, p1)} canTgt={combat.CanAttackTarget(striker, victim, p1)}"
                    + $" 栈深={core.StackEngine.StackSize} 待发={core.StackEngine.HasPendingEffects}"
                    + $" sp={core.StackEngine.SpeedCounter.CurrentSpeed} spr={core.StackEngine.SpeedCounter.IsResolving}"
-                   + $" gate0={core.StackEngine.SpeedCounter.CanActivate(0, true, CardCore.EffectActivationType.Voluntary)}"
+                   + $" gate0={core.StackEngine.SpeedCounter.CanActivate(0, CardCore.EffectActivationType.Voluntary, false)}"
                    + $" prio={core.StackEngine.CurrentPriorityHolder?.Name ?? "null"}"
                    + $" act={core.StackEngine.ActivePlayer?.Name ?? "null"} turn={core.TurnEngine.TurnNumber}"
                    + $" tapped={striker.IsTapped()}）");

@@ -659,14 +659,13 @@ namespace CardCore
             var options = new List<ResponseOption>();
             if (core?.StackEngine == null || p == null || core.IsGameOver) return options;
             var engine = core.StackEngine;
-            bool isTurnPlayer = p == engine.ActivePlayer;
 
             // ① 守卫能力（速度1响应）：栈上有对方的攻击宣言 → 己方未横置守卫生物
             foreach (var obj in engine.GetStackContents())
             {
                 if (obj == null || !obj.IsAttackDeclaration || obj.Controller == p) continue;
-                if (!engine.SpeedCounter.CanActivate(StackEngine.GuardStackSpeed, isTurnPlayer,
-                        EffectActivationType.Voluntary)) continue;
+                if (!engine.SpeedCounter.CanActivate(StackEngine.GuardStackSpeed, EffectActivationType.Voluntary,
+                        engine.IsEmpty)) continue;
                 foreach (var g in core.ZoneManager.GetCards(p, Zone.Battlefield) ?? new List<Card>())
                 {
                     if (g == null || !g.IsAlive || g.IsTapped() || !g.HasGuardAbility()) continue;
@@ -714,8 +713,8 @@ namespace CardCore
                 {
                     if (def == null || !def.IsActivatedEffect) continue;
                     var pending = PendingEffect.Create(def, src, p, engine.ActivePlayer, phase);
-                    if (!engine.SpeedCounter.CanActivate(pending.ActivationSpeed, isTurnPlayer,
-                            EffectActivationType.Voluntary)) continue;
+                    if (!engine.SpeedCounter.CanActivate(pending.ActivationSpeed, EffectActivationType.Voluntary,
+                            engine.IsEmpty)) continue;
                     if (!executor.CanActivate(def, src, p, engine.ActivePlayer, phase,
                             core.TurnEngine.TurnNumber)) continue;
                     options.Add(new ResponseOption
@@ -743,12 +742,14 @@ namespace CardCore
                 });
             }
 
-            // ③ 手牌响应卡（2026-10-16 二期窗口 UI 补接；2026-10-17 连锁门禁收敛定案）：
-            //    连锁资格唯一条件=速度门（SpeedCounter.CanActivate：回合方 ≥ 记速器 / 非回合方
-            //    严格大于——与 PlayCardInResponse/PushCardCast 同一裁决），不再要求栈上有对手
-            //    对象/攻宣锚点——旧口径攻击方在自家攻宣窗口 0 候选被自动双 Pass，攻击同帧结算、
-            //    战斗诡雷永远迟到。代价（定案接受）：自己每次出牌/宣攻后，手里有速度合法且
-            //    可付的卡就会弹「连锁吗」（含记速器 0 时的 0 速永久物）——让过=点「不连锁」。
+            // ③ 手牌响应卡（2026-10-16 二期窗口 UI 补接；2026-10-18 速度门全严格大于定案）：
+            //    连锁资格唯一条件=速度门（SpeedCounter.CanActivate：严格 > 记速器，同速连锁
+            //    一律禁止——与 PlayCardInResponse/PushCardCast 同一裁决；本窗口恒非空栈，
+            //    空栈首动豁免在此天然不触发），不再要求栈上有对手对象/攻宣锚点——旧口径
+            //    攻击方在自家攻宣窗口 0 候选被自动双 Pass，攻击同帧结算、战斗诡雷永远迟到。
+            //    代价（定案接受）：自己每次出牌/宣攻后，手里有**严格更快**且可付的卡就会
+            //    弹「连锁吗」——让过=点「不连锁」（自己的 0 速/同速手牌不再进弹窗，含
+            //    登场效果锚点场景——10-17 归属台账盲区由全严格大于口径根除）。
             //    其余过滤是「可发动性」而非连锁条件，全保留：CanPlay 钩子、同名仪典闸、
             //    代价门槛、永久物战场容量、任一模式可付+目标域有候选（付不起/指不了的不进弹窗，
             //    同"候选=0 跳过弹窗"口径）。目标不在此预选：cast 结算期经 TargetSelectionService
@@ -761,7 +762,7 @@ namespace CardCore
                     if (RuleAuraSystem.BlocksDuplicatePlay(c)) continue;
                     if (GetPayloadGateReject(core, p, c) != null) continue;
                     int castSpeed = SpeedCalculator.GetCardCastSpeed(c);
-                    if (!engine.SpeedCounter.CanActivate(castSpeed, isTurnPlayer, EffectActivationType.Voluntary))
+                    if (!engine.SpeedCounter.CanActivate(castSpeed, EffectActivationType.Voluntary, false))
                         continue;
                     if (!c.IsSpellCard() && !core.ZoneManager.HasBattlefieldSpace(p)) continue;
                     var data = (c as CardWrapper)?.GetData();

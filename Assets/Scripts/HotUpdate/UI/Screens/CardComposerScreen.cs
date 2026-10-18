@@ -2090,23 +2090,13 @@ namespace SynergyUI
             HighlightArtTile();
         }
 
-        /// <summary>生物立绘可选名（=模型目录名，与战场 MonsterModelResolver 同源根目录）。
-        /// 编辑器直读 YGOMonstersRig 目录且要求存在同名预览图（无图不可选）。</summary>
+        /// <summary>生物立绘可选名（=模型名，与战场 MonsterModelResolver 同源：StreamingAssets bundle
+        /// 内嵌 #names 名单，全平台同一条路径）。打包侧只收「prefab+预览图齐全」的目录——名单即全部可选。
+        /// 旧编辑器直扫 YGOMonstersRig 目录版已随 2026-10-17 StreamingAssets 化退役（#if 空体正是
+        /// CS0161 根因：非编辑器编译下方法体无 yield 无 return）。</summary>
         private static IEnumerable<string> CreatureArtNames()
         {
-#if UNITY_EDITOR
-            var root = System.IO.Path.Combine(Application.dataPath, "Art/YGOMonstersRig");
-            if (!System.IO.Directory.Exists(root)) yield break;
-            var names = new List<string>();
-            foreach (var dir in System.IO.Directory.GetDirectories(root))
-            {
-                var n = System.IO.Path.GetFileName(dir);
-                if (!System.IO.File.Exists(System.IO.Path.Combine(dir, n + ".png"))) continue;
-                names.Add(n);
-            }
-            names.Sort(System.StringComparer.Ordinal);
-            foreach (var n in names) yield return n;
-#endif
+            return Tide.HotUpdate.MonsterRigAssets.Names();
         }
 
         private void MakeArtTile(string spriteName)

@@ -136,18 +136,18 @@ namespace TideServer.Verify
             var fb = CardCostService.Derive(fbCard);
             VerifySuite.Assert(Math.Abs(fb.Factor - 0.75f) < 1e-4f,
                 $"法术未声明档 f=d(18)=0.75（实际 {fb.Factor:0.###}）——旧 f≡1 已废");
-            // 2026-10-16 一发时机入价：OnPlay 效果 E×0.8（红4蓝2→红3.2蓝1.6）→ ×0.75=红2.4蓝1.2
-            // → L3 取整 4·最大余数法 → 红3蓝1
-            VerifySuite.Assert((int)fb.DerivedCost[ManaType.Red] == 3
-                              && (int)fb.DerivedCost[ManaType.Blue] == 1,
-                $"法术 4伤+1抽 = 红3+蓝1（实际 红{(int)fb.DerivedCost[ManaType.Red]}蓝{(int)fb.DerivedCost[ManaType.Blue]}；"
-                + "OnPlay×0.8 入价后无抵价——2026-10-16 时机系数改写 10-15 的红3蓝2）");
+            // 2026-10-16 一发时机入价 + 2026-10-18 效果合成阶段取整：E 逐色取整（红 round(4×0.8)=3、
+            // 蓝 round(2×0.8)=2）→ ×0.75=红2.25蓝1.5 → L3 取整 4·最大余数法 → 红2蓝2
+            VerifySuite.Assert((int)fb.DerivedCost[ManaType.Red] == 2
+                              && (int)fb.DerivedCost[ManaType.Blue] == 2,
+                $"法术 4伤+1抽 = 红2+蓝2（实际 红{(int)fb.DerivedCost[ManaType.Red]}蓝{(int)fb.DerivedCost[ManaType.Blue]}；"
+                + "效果逐色取整后无抵价——2026-10-18 取整前移改写 10-16 的红3蓝1）");
             // SpeedBonus 字段退役（2026-10-15 改版：速度=3−槽数动态算）——脏数据写值不得影响
             fbCard.SpeedBonus = 2;
             var fbSpeed = CardCostService.Derive(fbCard);
-            VerifySuite.Assert((int)fbSpeed.DerivedCost[ManaType.Red] == 3
-                              && (int)fbSpeed.DerivedCost[ManaType.Blue] == 1,
-                $"SpeedBonus 脏数据无效：仍红3蓝1（实际 红{(int)fbSpeed.DerivedCost[ManaType.Red]}蓝{(int)fbSpeed.DerivedCost[ManaType.Blue]}）");
+            VerifySuite.Assert((int)fbSpeed.DerivedCost[ManaType.Red] == 2
+                              && (int)fbSpeed.DerivedCost[ManaType.Blue] == 2,
+                $"SpeedBonus 脏数据无效：仍红2蓝2（实际 红{(int)fbSpeed.DerivedCost[ManaType.Red]}蓝{(int)fbSpeed.DerivedCost[ManaType.Blue]}）");
 
             // ============================ V9.b 域数据（表级） ============================
 
@@ -2676,18 +2676,18 @@ namespace TideServer.Verify
             // ---- ④' 指示物统一计价（2026-10-08 层改造定案）：基础费用×赋予层数（线性，砍档位梯）——
             //      基础费用=表行 ManaList 锚（1 层价，量级回归表行）；层数=max(1,|value|)。
             //      判定=表行 Tags 行为三型；原属性指示物锚梯（StatCounterTierPrice 1.5/层）退役。
-            //      2026-10-12 小数直通：不再逐原子取整——期望=行锚×层数真值（毒素 0.5×3=1.5），
-            //      约等于只在合成卡 L3 / 支付归一两个终点。
+            //      2026-10-18 效果合成阶段取整：期望=round(行锚×层数)（毒素 0.5×3=1.5→2）——
+            //      取整在效果出口逐色发生，支付/卡级不再二次约等于。
             var puRow = AtomicEffectTable.GetByType(AtomicEffectType.AddPowerUp);
             var toxinRow = AtomicEffectTable.GetByType(AtomicEffectType.AddToxin);
             float ExpectLayers(CardCore.Attribute.AtomicEffectConfig row, int n)
-                => row.TotalUnitCost * Math.Max(1, n);
+                => (int)Math.Round(row.TotalUnitCost * Math.Max(1, n), MidpointRounding.AwayFromZero);
             VerifySuite.Assert(puRow != null && toxinRow != null
                               && Math.Abs(DeriveAtomTotal(puRow, 2, 1) - ExpectLayers(puRow, 2)) < 0.01f
                               && Math.Abs(DeriveAtomTotal(toxinRow, 3, 2) - ExpectLayers(toxinRow, 3)) < 0.01f
                               && Math.Abs(DeriveAtomTotal(puRow, 0, 1) - ExpectLayers(puRow, 0)) < 0.01f,
-                $"指示物统一计价：行锚×层数（攻增 {puRow?.TotalUnitCost}×2={DeriveAtomTotal(puRow, 2, 1)}；" +
-                $"毒素 {toxinRow?.TotalUnitCost}×3={DeriveAtomTotal(toxinRow, 3, 2)}；未声明层数=1 层；小数直通不取整）");
+                $"指示物统一计价：round(行锚×层数)（攻增 {puRow?.TotalUnitCost}×2={DeriveAtomTotal(puRow, 2, 1)}；" +
+                $"毒素 {toxinRow?.TotalUnitCost}×3={DeriveAtomTotal(toxinRow, 3, 2)}；未声明层数=1 层；效果出口逐色取整）");
 
             // ---- ④'' 层行为标签（2026-10-08 显性化）：指示物行 Tags 携带行为型三值——
             //      衰退型（层=剩余回合，回合末倒数）/ 换区清除型（常驻）/ 生效自减型（生效后自减），
@@ -4083,19 +4083,20 @@ namespace TideServer.Verify
                     }, "V9W_SUMMON1");
                     var wCost2 = CostDerivationService.DeriveElementCosts(wSummon2);
                     var wCost1 = CostDerivationService.DeriveElementCosts(wSummon1);
-                    // 白板：单价 = 内容全价 4 −补偿2 = 2/只 ×2 层 = 4 → OnPlay 宿主一发时机 ×0.8 = 3.2（2026-10-16）
-                    VerifySuite.Assert(Math.Abs(wCost2.Total - (4 - 2) * 2 * 0.8f) < 1e-4f
-                                       && Math.Abs(wCost2[ManaType.Gray] - 4 * 0.8f) < 1e-4f,
-                        $"无底盘计价：白板×2层 → 3.2 灰（S2+结构2=4−负面补偿2=2/只×2=4，OnPlay 宿主×0.8"
+                    // 白板：单价 = 内容全价 4 −补偿2 = 2/只 ×2 层 = 4 → OnPlay 宿主一发时机 ×0.8 = 3.2
+                    // → 效果出口逐色取整（2026-10-18）= 3 灰
+                    VerifySuite.Assert(Math.Abs(wCost2.Total - 3f) < 1e-4f
+                                       && Math.Abs(wCost2[ManaType.Gray] - 3f) < 1e-4f,
+                        $"无底盘计价：白板×2层 → 3 灰（S2+结构2=4−负面补偿2=2/只×2=4，OnPlay 宿主×0.8=3.2 取整"
                         + $"——实际 Total {wCost2.Total:0.##} 灰{wCost2[ManaType.Gray]:0.##}）");
                     // 单效果：内容 灰5蓝2，白锚 2 无白可扣 → 转扣灰 → 补偿后桶 **灰3蓝2**（精确落位，
                     // 不再比例分摊）。2026-10-12 裁决：负面补偿=遗忘行 GrantTemporary 单层锚（白2·表驱动）
-                    // ——白优先补白、无白自动转灰；同日小数直通（分色不取整，终点才约等于）。
-                    // 2026-10-16：OnPlay 宿主一发时机 ×0.8 → 灰2.4蓝1.6。
+                    // ——白优先补白、无白自动转灰。2026-10-16：OnPlay 宿主一发时机 ×0.8=灰2.4蓝1.6；
+                    // 2026-10-18 效果出口逐色取整 → 灰2蓝2（Total 4 不变）。
                     VerifySuite.Assert(Math.Abs(wCost1.Total - 4) < 1e-4f
-                                       && Math.Abs(wCost1[ManaType.Gray] - 2.4f) < 1e-3f
-                                       && Math.Abs(wCost1[ManaType.Blue] - 1.6f) < 1e-3f,
-                        $"内容全价分色：单效果×1层 → 灰5蓝2−白锚转灰2=灰3+蓝2，OnPlay×0.8=灰2.4蓝1.6"
+                                       && Math.Abs(wCost1[ManaType.Gray] - 2f) < 1e-3f
+                                       && Math.Abs(wCost1[ManaType.Blue] - 2f) < 1e-3f,
+                        $"内容全价分色：单效果×1层 → 灰5蓝2−白锚转灰2=灰3+蓝2，OnPlay×0.8=灰2.4蓝1.6 取整灰2蓝2"
                         + $"（实际 Total {wCost1.Total:0.##} 灰{wCost1[ManaType.Gray]:0.##}蓝{wCost1[ManaType.Blue]:0.##}）");
                     // 声明费脱钩回归锚（取代旧「底盘中性」锚）：改模板声明费 → 召唤价不动
                     wSlotted.Cost = PosCost((ManaType.Gray, 99f));
@@ -4244,23 +4245,25 @@ namespace TideServer.Verify
                                   && !CostDerivationService.FiresOncePerPaidLifetime(TriggerTiming.OnAttack),
                     "抽牌/伤害/回合开始结束等期望>1 时机不入档（费用系数不变）；OnSummon 超集除外");
 
-                // ---- ② 计价链：同原子 OnPlay 宿主=OnTurnStart 宿主×0.8；主动/引擎载荷 ×1；公式链含时机档 ----
+                // ---- ② 计价链：同原子 OnPlay 宿主=round(OnTurnStart 宿主×0.8)（2026-10-18 效果出口
+                //      取整后小基数折扣会被取整吞掉——value 用 5：5×0.8=4 可观测）；主动/引擎载荷 ×1；
+                //      公式链含时机档 ----
                 CardEffectData ZDef(TriggerTiming t) => new CardEffectData
                 {
                     Id = "V9Z_COST_" + t, TriggerTiming = (int)t, SelectionMode = -1,
-                    AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.DealDamage, value: 1, kinds: new List<int> { 2 }) },
+                    AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.DealDamage, value: 5, kinds: new List<int> { 2 }) },
                 };
                 var zOn = CostDerivationService.DeriveElementCosts(CardEffectConverter.ConvertOne(ZDef(TriggerTiming.OnTurnStart), "V9Z"));
                 var zPlay = CostDerivationService.DeriveElementCosts(CardEffectConverter.ConvertOne(ZDef(TriggerTiming.OnPlay), "V9Z"));
                 var zAct = CostDerivationService.DeriveElementCosts(CardEffectConverter.ConvertOne(new CardEffectData
                 {
                     Id = "V9Z_COST_ACT", TriggerTiming = (int)TriggerTiming.Activate_Active, SelectionMode = -1,
-                    AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.DealDamage, value: 1, kinds: new List<int> { 2 }) },
+                    AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.DealDamage, value: 5, kinds: new List<int> { 2 }) },
                 }, "V9Z"));
                 VerifySuite.Assert(zOn.Total > 0f
-                                  && Math.Abs(zPlay.Total - zOn.Total * 0.8f) < 1e-4f
+                                  && Math.Abs(zPlay.Total - Math.Round(zOn.Total * 0.8f, MidpointRounding.AwayFromZero)) < 1e-4f
                                   && Math.Abs(zAct.Total - zOn.Total) < 1e-4f,
-                    $"一发时机计价：OnPlay=OnTurnStart×0.8（{zPlay.Total:0.##} vs {zOn.Total:0.##}）；主动×1（{zAct.Total:0.##}）");
+                    $"一发时机计价：OnPlay=round(OnTurnStart×0.8)（{zPlay.Total:0.##} vs {zOn.Total:0.##}）；主动×1（{zAct.Total:0.##}）");
                 var zPlayDef = CardEffectConverter.ConvertOne(ZDef(TriggerTiming.OnPlay), "V9Z");
                 var zPlayAtom = zPlayDef.Effects[0];
                 var zFormula = CostDerivationService.AtomCostFormula(zPlayAtom, zPlayDef,
@@ -4426,6 +4429,208 @@ namespace TideServer.Verify
             // 旧段=地牌沉默/迟钝闸（横置换元素=主动效果口径）——现取现用后地牌横置=付费步系统
             // 强制动作，两闸拦截对象消失，沉默/迟钝表行已去元素池域（TargetKinds）。地牌的移除轴
             // =摧毁/抹除（原子既有、handler 出池支持既有），无需另立新锚。
+
+            // ============================ V9.aa 速度门全严格大于 + 空栈首动豁免（2026-10-18 定案） ============================
+            // 旧双轨（回合方 ≥ / 非回合方严格 >）与 10-17 归属台账退役：所有主动发动一律**严格大于**
+            // 记速器，同速连锁（无论连锁对象归属）一律禁止；唯一豁免=空栈首动（新连锁第一动不查速度）。
+            // 锚：① 自己 0 速施放锚点下自家 0 速手牌不进候选且引擎拒入；② 严格更快照常可连锁；
+            // ③ 对手抬速后回合方同速跟=被禁（旧「对手抬速后可同速跟」口径退役）；
+            // ④ 触发式锚点（0 速·ProcessTriggeredEffects 推栈形态，无台账可读）下自家 0 速手牌
+            //    同样被禁（10-17 台账盲区→10-18 全严格大于根除的正主回归锚）；⑤ 空栈首动豁免。
+            VerifySuite.Section("V9.aa 速度门：全严格大于+空栈首动豁免（2026-10-18 定案）");
+            var aacore = GameCore.Instance;
+            aacore.Reset();
+            ZoneContainer.Reseed(20261018);
+            var aaFill = Enumerable.Range(0, 8).Select(i => new CardData
+            {
+                ID = $"V9AA_fill_{i}", CardName = "V9AA填充" + i, Supertype = Cardtype.Creature, Power = 1, Life = 1,
+            }).ToList();
+            aacore.InitGame(CardLoader.BuildDeck(aaFill, 2), CardLoader.BuildDeck(aaFill, 2));
+            var aa1 = aacore.Player1;
+            var aa2 = aacore.Player2;
+            GameActions.SkipElementPool(aacore, aa1);
+            var aaPool1 = aacore.ElementPool.GetPool(aa1);
+            var aaPool2 = aacore.ElementPool.GetPool(aa2);
+            foreach (ManaType t in Enum.GetValues(typeof(ManaType)))
+            {
+                aaPool1.TempElements[t] = 99;
+                aaPool2.TempElements[t] = 99;
+            }
+            aaPool1.GlobalTurnIndex = 9;
+            aaPool2.GlobalTurnIndex = 9;
+
+            Card AACard(string id, string name, Cardtype type, int baseSpeed, Player owner, List<int> kinds)
+            {
+                var data = new CardData { ID = id, CardName = name, Supertype = type };
+                data.Cost = PosCost((ManaType.Gray, 1));
+                if (type == Cardtype.Spell)
+                    data.Effects.Add(new CardEffectData
+                    {
+                        Id = id + "_EFF",
+                        TriggerTiming = (int)TriggerTiming.OnPlay,
+                        BaseSpeed = baseSpeed,
+                        SelectionMode = -1,
+                        // 指域按场景选必然非空者：{1,2}=敌方生物（配合在场木桩）、{15,16}=对手发动区
+                        //（V9.o 已证形态）——候选可达性与速度门解耦，别把「域空」误报成「门禁拦」
+                        AtomicEffects = new List<AtomicEffectEntry>
+                        {
+                            AtomRefs.New(AtomicEffectType.DealDamage, value: 1, kinds: kinds),
+                        },
+                    });
+                var card = new CardWrapper(data);
+                card.SetController(owner);
+                aacore.ZoneManager.GetZoneContainer(owner).Add(card, Zone.Hand);
+                return card;
+            }
+
+            // 对手在场木桩：保住 {1,2} 敌方生物域候选非空（只进域、不被结算）
+            var aaDummy2 = new CardWrapper(new CardData
+            {
+                ID = "V9AA_DUMMY", CardName = "V9aa木桩", Supertype = Cardtype.Creature, Power = 1, Life = 5,
+            });
+            aaDummy2.SetController(aa2);
+            VerifySuite.Assert(aacore.ZoneManager.TryAddToBattlefield(aaDummy2, aa2), "④前置 对手木桩入场（保快卡指域非空）");
+
+            var aaSlow = AACard("V9AA_SLOW", "V9aa慢卡", Cardtype.Creature, 0, aa1, null);   // 0 速生物（无效果）
+            var aaFast = AACard("V9AA_FAST", "V9aa快卡", Cardtype.Spell, 0, aa1, new List<int> { 1, 2 }); // 法术 1 槽（=速度 2 档·敌生物域）
+            var aaAnchor = AACard("V9AA_ANCH", "V9aa锚结界", Cardtype.Enchantment, 0, aa1, null); // 0 速结界锚
+            int aaSlowSpeed = SpeedCalculator.GetCardCastSpeed(aaSlow);
+            int aaFastSpeed = SpeedCalculator.GetCardCastSpeed(aaFast);
+            VerifySuite.Assert(aaSlowSpeed == 0 && aaFastSpeed > 0,
+                $"夹具前提：慢卡速度 0 / 快卡速度&gt;0（实际 {aaSlowSpeed}/{aaFastSpeed}）");
+
+            // ---- ①⑤ 自己 0 速施放锚点（空栈首动豁免打出）→ 自家 0 速手牌被禁、严格更快可入 ----
+            VerifySuite.Assert(GameActions.PlayCard(aacore, aa1, aaAnchor),
+                "⑤ 空栈首动豁免：0 速结界照常打出（新连锁第一动不查速度）");
+            var aaOpts1 = GameActions.CollectAvailableResponses(aacore, aa1);
+            VerifySuite.Assert(aaOpts1.All(o => o.SourceCard != aaSlow)
+                              && !aacore.StackEngine.PushCardCast(aaSlow, aa1, new List<Entity>()),
+                "① 自己 0 速锚点下：0 速手牌不进响应候选且引擎拒入（同速自连锁禁——10-18 正主）");
+            VerifySuite.Assert(aaOpts1.Any(o => o.SourceCard == aaFast),
+                $"② 严格更快（{aaFastSpeed} 速）照常进候选（连锁未被封死）");
+            GameActions.DrainStack(aacore);
+            if (!aacore.StackEngine.IsEmpty) aacore.StackEngine.Clear();
+            aacore.StackEngine.SpeedCounter.Reset();
+
+            // ---- ③ 对手抬速后，回合方同速跟被禁（旧「等于」优惠退役锚）----
+            var aaAnchor2 = AACard("V9AA_ANCH2", "V9aa锚结界2", Cardtype.Enchantment, 0, aa1, null);
+            var aaFast2 = AACard("V9AA_FAST2", "V9aa快卡2", Cardtype.Spell, 0, aa2, new List<int> { 15, 16 });
+            VerifySuite.Assert(GameActions.PlayCard(aacore, aa1, aaAnchor2), "③ 0 速锚2 打出（空栈首动豁免）");
+            VerifySuite.Assert(GameActions.PlayCardInResponse(aacore, aa2, aaFast2, new List<Entity> { aaAnchor2 }),
+                $"③ 对手以 {SpeedCalculator.GetCardCastSpeed(aaFast2)} 速响应（抬记速器）");
+            var aaOpts3 = GameActions.CollectAvailableResponses(aacore, aa1);
+            VerifySuite.Assert(aaOpts3.All(o => o.SourceCard != aaFast)
+                              && !aacore.StackEngine.PushCardCast(aaFast, aa1, new List<Entity>()),
+                $"③ 对手抬速后同速跟被禁：{aaFastSpeed} 速快卡不进候选且引擎拒入（全严格大于——旧「对手抬速后可同速跟」退役）");
+            GameActions.DrainStack(aacore);
+            if (!aacore.StackEngine.IsEmpty) aacore.StackEngine.Clear();
+            aacore.StackEngine.SpeedCounter.Reset();
+
+            // ---- ④ 触发式锚点（登场效果推栈形态：0 速、无台账可读）→ 自家 0 速手牌同样被禁 ----
+            var aaTrigData = new CardData
+            {
+                ID = "V9AA_TRIG", CardName = "V9aa触发者", Supertype = Cardtype.Creature, Power = 1, Life = 5,
+            };
+            aaTrigData.Effects.Add(new CardEffectData
+            {
+                Id = "V9AA_TRIG_EFF", TriggerTiming = (int)TriggerTiming.OnPlay, SelectionMode = -1,
+                AtomicEffects = new List<AtomicEffectEntry>
+                {
+                    AtomRefs.New(AtomicEffectType.Heal, value: 1, kinds: new List<int> { 1, 2 }),
+                },
+            });
+            var aaTrig = new CardWrapper(aaTrigData);
+            aaTrig.SetController(aa1);
+            VerifySuite.Assert(aacore.ZoneManager.TryAddToBattlefield(aaTrig, aa1), "④ 触发者入场");
+            var aaDef = GameActions.GetCardEffectDefinitions(aaTrig).FirstOrDefault();
+            var aaPending = new PendingEffect
+            {
+                Effect = aaDef, Source = aaTrig, Controller = aa1,
+                ActivationSpeed = 0, ActivationType = EffectActivationType.Mandatory, // 镜像 ProcessTriggeredEffects 推栈形态
+                SelectedTargets = new List<Entity>(),
+                TimestampInfo = TimestampSystem.CreateTimestamp(),
+            };
+            VerifySuite.Assert(aaDef != null && aacore.StackEngine.TryActivateEffect(aaPending),
+                "④ 登场效果锚点入栈（0 速·触发式——台账已删，门槛不再读归属）");
+            var aaOpts4 = GameActions.CollectAvailableResponses(aacore, aa1);
+            VerifySuite.Assert(aaOpts4.All(o => o.SourceCard != aaSlow)
+                              && aaOpts4.Any(o => o.SourceCard == aaFast),
+                "④ 触发式锚点下：自家 0 速手牌被禁（10-17 弹窗 bug 根除锚）、严格更快照常可入");
+            aacore.StackEngine.Clear();
+            aacore.StackEngine.SpeedCounter.Reset();
+
+            // ---- ⑥ 技能发动待遇（2026-10-18 深夜修订：技能每回合都能重复用，不与同名法术同速同免费）：
+            //      发动速度恒 0（不吃法术槽位盈余）+ 免元素锚价 + 抉择技能每次 +1 灰 + 一回合一次 ----
+            VerifySuite.Assert(aacore.TurnEngine.CurrentPhase?.Phase == PhaseType.Main
+                              && aacore.TurnEngine.TurnPlayer == aa1,
+                "⑥前置 主阶段+回合方（InitGame→准备自动推进）");
+            var aaSkillData = new CardData { ID = "V9AA_SKILL", CardName = "V9aa技能", Supertype = Cardtype.Spell };
+            aaSkillData.Cost = PosCost((ManaType.Gray, 1));
+            // 原子=DrawCard（洞察术同款·无指向自结算——无头下不依赖目标反问），value 1/2 区分抉择路由
+            aaSkillData.Effects.Add(new CardEffectData
+            {
+                Id = "V9AA_SK_E0", TriggerTiming = (int)TriggerTiming.Activate_Active, BaseSpeed = 1, SelectionMode = -1,
+                AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.DrawCard, value: 1) },
+            });
+            aaSkillData.Effects.Add(new CardEffectData
+            {
+                Id = "V9AA_SK_E1", TriggerTiming = (int)TriggerTiming.Activate_Active, BaseSpeed = 1, SelectionMode = -1,
+                AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.DrawCard, value: 2) },
+            });
+            var aaSkill = new CardWrapper(aaSkillData);
+            aaSkill.SetController(aa1);
+            aacore.ZoneManager.GetZoneContainer(aa1).Add(aaSkill, Zone.FieldZone); // 技能栏=FieldZone
+            var aaSkillDefs = GameActions.GetCardEffectDefinitions(aaSkill);
+            int aaCastSpeed = SpeedCalculator.GetCardCastSpeed(aaSkill);
+            VerifySuite.Assert(aaSkillDefs.Count == 2 && aaCastSpeed == 2
+                              && PendingEffect.Create(aaSkillDefs[0], aaSkill, aa1, aa1, PhaseType.Main).ActivationSpeed == 0
+                              && PendingEffect.Create(aaSkillDefs[1], aaSkill, aa1, aa1, PhaseType.Main).ActivationSpeed == 0,
+                $"⑥ 速度降级：技能发动速度恒 0（def.BaseSpeed 含烘焙盈余={aaSkillDefs[0].BaseSpeed} 但技能口不取；"
+                + $"同名法术手牌施放仍 {aaCastSpeed} 速——法术语义不变）");
+            int aaHand0 = aacore.ZoneManager.GetCards(aa1, Zone.Hand).Count;
+            int aaGray0 = aaPool1.TempElements[ManaType.Gray]; // ①-⑤ 已打过锚结界（各付 1 灰卡费）——起点现取
+            VerifySuite.Assert(GameActions.ActivateHeroSkill(aacore, aa1, 1).GetAwaiter().GetResult()
+                              && GameActions.DrainStack(aacore)
+                              && aacore.ZoneManager.GetCards(aa1, Zone.Hand).Count == aaHand0 + 2
+                              && aaPool1.TempElements[ManaType.Gray] == aaGray0 - 1,
+                $"⑥ 抉择路由+附加费：effectIndex=1 走第 2 条（抽 2 而非 1）且恰扣 1 灰"
+                + $"（{aaGray0}→{aaPool1.TempElements[ManaType.Gray]}；{aaHand0}→{aacore.ZoneManager.GetCards(aa1, Zone.Hand).Count}）");
+            VerifySuite.Assert(!GameActions.ActivateHeroSkill(aacore, aa1, 0).GetAwaiter().GetResult(),
+                "⑥ 一回合一次：横置后同回合再发动被拒");
+            foreach (ManaType t in Enum.GetValues(typeof(ManaType))) aaPool1.TempElements[t] = 0; // 钱包清零
+            HeroSkillSystem.ResetSkillForTurn(aacore, aa1); // 回合开始解横置（等价推进一回合）
+            VerifySuite.Assert(!GameActions.ActivateHeroSkill(aacore, aa1, 0).GetAwaiter().GetResult(),
+                "⑥ 抉择附加费：钱包全 0 发动被拒（1 灰不可付——CanActivate 预检拦）");
+            aaPool1.TempElements[ManaType.Gray] = 1;
+            VerifySuite.Assert(GameActions.ActivateHeroSkill(aacore, aa1, 0).GetAwaiter().GetResult()
+                              && GameActions.DrainStack(aacore)
+                              && aacore.ZoneManager.GetCards(aa1, Zone.Hand).Count == aaHand0 + 3
+                              && aaPool1.TempElements[ManaType.Gray] == 0,
+                $"⑥ 抉择附加费：补 1 灰后发动成功且恰扣 1 灰（再抽 1；灰余 {aaPool1.TempElements[ManaType.Gray]}）");
+            // 单效果技能=免费（无抉择附加费）：换 1 效果卡验证（FieldZone 只此一卡，清引用逼 lazy 回填）
+            aacore.ZoneManager.GetZoneContainer(aa1).Remove(aaSkill, Zone.FieldZone);
+            aa1.HeroSkillCard = null;
+            var aaSkill1Data = new CardData { ID = "V9AA_SKILL1", CardName = "V9aa技能1", Supertype = Cardtype.Spell };
+            aaSkill1Data.Cost = PosCost((ManaType.Gray, 1));
+            aaSkill1Data.Effects.Add(new CardEffectData
+            {
+                Id = "V9AA_SK1_E0", TriggerTiming = (int)TriggerTiming.Activate_Active, BaseSpeed = 1, SelectionMode = -1,
+                AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.DrawCard, value: 1) },
+            });
+            var aaSkill1 = new CardWrapper(aaSkill1Data);
+            aaSkill1.SetController(aa1);
+            aacore.ZoneManager.GetZoneContainer(aa1).Add(aaSkill1, Zone.FieldZone);
+            VerifySuite.Assert(GameActions.ActivateHeroSkill(aacore, aa1, 0).GetAwaiter().GetResult()
+                              && GameActions.DrainStack(aacore)
+                              && aacore.ZoneManager.GetCards(aa1, Zone.Hand).Count == aaHand0 + 4,
+                $"⑥ 单效果免费：钱包全 0 照常发动（再抽 1；{aaHand0 + 3}→{aacore.ZoneManager.GetCards(aa1, Zone.Hand).Count}）");
+            bool aaWalletClean = true;
+            foreach (ManaType t in Enum.GetValues(typeof(ManaType)))
+                if (aaPool1.TempElements[t] != 0) aaWalletClean = false;
+            VerifySuite.Assert(aaWalletClean,
+                "⑥ 单效果免费：全程分文未扣（横置即定价，无抉择附加费）");
+            aacore.StackEngine.Clear();
+            aacore.StackEngine.SpeedCounter.Reset();
 
             VerifySuite.Section("V9 引擎规则回归完成");
         }

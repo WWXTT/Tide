@@ -31,7 +31,20 @@ MonoBehaviour:
       ActiveRuleName: EnableGroup
       Collectors:
       - CollectPath: Assets/HotUpdateDlls
-        CollectorGUID: 5eef97ef9fc2fc941bd27653e2231728
+        CollectorGUID: 66027b765c3b6f74dab82468dbbd6d57
+        CollectorType: 0
+        AddressRuleName: AddressByFileName
+        PackRuleName: PackDirectory
+        FilterRuleName: CollectAll
+        AssetTags: 
+        UserData: 
+    - GroupName: AotDll
+      GroupDesc: AotDll
+      AssetTags: 
+      ActiveRuleName: EnableGroup
+      Collectors:
+      - CollectPath: Assets/AotDlls
+        CollectorGUID: 5d47c46c68af5824a92009cf5adcbb45
         CollectorType: 0
         AddressRuleName: AddressByFileName
         PackRuleName: PackDirectory
@@ -64,13 +77,26 @@ MonoBehaviour:
         FilterRuleName: CollectAll
         AssetTags: 
         UserData: 
-    - GroupName: UI
-      GroupDesc: UI
+    - GroupName: CardData
+      GroupDesc: CardData
       AssetTags: 
       ActiveRuleName: EnableGroup
       Collectors:
-      - CollectPath: Assets/Art/UI
-        CollectorGUID: 1fc5fd11defe247439a93949dd0b87bb
+      - CollectPath: Assets/CardData
+        CollectorGUID: 506a4fc18f755a846a0b3baca8df777d
+        CollectorType: 0
+        AddressRuleName: AddressByFileName
+        PackRuleName: PackDirectory
+        FilterRuleName: CollectAll
+        AssetTags: 
+        UserData: 
+    - GroupName: TutorialData
+      GroupDesc: TutorialData
+      AssetTags: 
+      ActiveRuleName: EnableGroup
+      Collectors:
+      - CollectPath: Assets/TutorialData
+        CollectorGUID: ce656f466697aea46be46f16bdd54bc6
         CollectorType: 0
         AddressRuleName: AddressByFileName
         PackRuleName: PackDirectory
@@ -90,16 +116,29 @@ MonoBehaviour:
         FilterRuleName: CollectAll
         AssetTags: 
         UserData: 
-    - GroupName: ArtStatic
-      GroupDesc: ArtStatic
+    - GroupName: ArtRuntime
+      GroupDesc: ArtRuntime
       AssetTags: 
       ActiveRuleName: EnableGroup
       Collectors:
       - CollectPath: Assets/Art
-        CollectorGUID: 515d130b280c4ccf8f20f28e13c9516f
-        CollectorType: 1
-        AddressRuleName: AddressByFileName
+        CollectorGUID: f9682571504a2474680777d24ea29e35
+        CollectorType: 0
+        AddressRuleName: AddressByRelativePath
         PackRuleName: PackDirectory
-        FilterRuleName: CollectAll
+        FilterRuleName: CollectRuntimeArt
+        AssetTags: 
+        UserData: 
+    - GroupName: MonsterRig
+      GroupDesc: MonsterRig
+      AssetTags: 
+      ActiveRuleName: EnableGroup
+      Collectors:
+      - CollectPath: Assets/Art/YGOMonstersRig
+        CollectorGUID: ff75bd80062957745800662fe26c70f9
+        CollectorType: 0
+        AddressRuleName: RigModelAddress
+        PackRuleName: PackDirectory
+        FilterRuleName: CollectRigComplete
         AssetTags: 
         UserData: 
