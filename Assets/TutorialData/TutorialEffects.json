@@ -1,32 +1,180 @@
 {
  "items": [
   {
-   "id": "ET2060003",
-   "name": "巨壁的自我激励：攻击宣言时+1/+1",
-   "timing": 7,
+   "id": "E3695EF7",
+   "name": "教学·暮龟灵息：回合结束时抽1张牌",
+   "timing": 6,
    "activation": 1,
+   "cost": [
+    0,
+    0,
+    2,
+    0,
+    0,
+    0
+   ],
    "steps": [
     {
      "kind": 0,
      "atom": {
-      "refId": "8bc5b925",
-      "kinds": [
-       0
-      ]
+      "refId": "e5e2e116",
+      "value": 1
      }
     }
    ]
   },
   {
-   "id": "ET2060005",
-   "name": "纳川仪典投放：手牌上限15+免疫疲劳",
+   "id": "9C7F4AF4",
+   "name": "教学·亡灵怨爆：死亡时对对方目标造成3点伤害",
+   "timing": 1,
+   "activation": 1,
+   "cost": [
+    0,
+    3,
+    0,
+    0,
+    0,
+    0
+   ],
    "steps": [
     {
      "kind": 0,
      "atom": {
-      "refId": "1b257704",
-      "value": 0,
-      "str": "HandLimitNoFatigue"
+      "refId": "a4b823fc",
+      "kinds": [
+       2
+      ],
+      "value": 3
+     }
+    }
+   ]
+  },
+  {
+   "id": "B9B12ABE",
+   "name": "教学·火灵速袭：主动发动，对对方目标造成2点伤害",
+   "timing": 19,
+   "activation": 2,
+   "speed": 1,
+   "cost": [
+    0,
+    2,
+    0,
+    0,
+    0,
+    0
+   ],
+   "steps": [
+    {
+     "kind": 0,
+     "atom": {
+      "refId": "a4b823fc",
+      "kinds": [
+       2
+      ],
+      "value": 2
+     }
+    }
+   ]
+  },
+  {
+   "id": "BDB1C5AF",
+   "name": "教学·焰卫重炮：主动发动，对对方目标造成3点伤害",
+   "timing": 19,
+   "activation": 2,
+   "speed": 3,
+   "cost": [
+    0,
+    3,
+    0,
+    0,
+    0,
+    0
+   ],
+   "steps": [
+    {
+     "kind": 0,
+     "atom": {
+      "refId": "a4b823fc",
+      "kinds": [
+       2
+      ],
+      "value": 3
+     }
+    }
+   ]
+  },
+  {
+   "id": "DFD79C17",
+   "name": "教学·暗影箭：对对方目标造成4点伤害",
+   "timing": 19,
+   "activation": 2,
+   "cost": [
+    0,
+    4,
+    0,
+    0,
+    0,
+    0
+   ],
+   "steps": [
+    {
+     "kind": 0,
+     "atom": {
+      "refId": "a4b823fc",
+      "kinds": [
+       2,
+       4
+      ],
+      "value": 4
+     }
+    }
+   ]
+  },
+  {
+   "id": "E109B3D9",
+   "name": "教学·启示：抽2张牌",
+   "timing": 19,
+   "activation": 2,
+   "cost": [
+    0,
+    0,
+    4,
+    0,
+    0,
+    0
+   ],
+   "steps": [
+    {
+     "kind": 0,
+     "atom": {
+      "refId": "e5e2e116",
+      "value": 2
+     }
+    }
+   ]
+  },
+  {
+   "id": "66CAFB68",
+   "name": "教学·反制闪：对对方目标造成2点伤害",
+   "timing": 19,
+   "activation": 2,
+   "cost": [
+    0,
+    2,
+    0,
+    0,
+    0,
+    0
+   ],
+   "steps": [
+    {
+     "kind": 0,
+     "atom": {
+      "refId": "a4b823fc",
+      "kinds": [
+       2
+      ],
+      "value": 2
      }
     }
    ]

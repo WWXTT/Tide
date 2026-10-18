@@ -6,30 +6,29 @@ using CardCore;
 namespace SynergyUI
 {
     /// <summary>
-    /// 第三课「创作管线」逻辑（2026-10-06，纯逻辑不建 UI）：引导玩家走一遍创作链——
-    /// 新建一个效果 → 新建一张含该效果的卡 → 保存一套含该卡的卡组（在默认卡组基础上改一张即可）。
-    /// 三步走完=本课完成；主菜单「最后一课」临时按钮（显隐判据 ShouldShowFinalChallenge）开镜像局：
-    /// AI 操纵玩家这套卡组的镜像，获胜=全部新手考验完成。跳过教学者（考核路径）直接打镜像局——
-    /// 用默认卡组（主体卡组，用户后续制作），无改卡组机会。
+    /// 创作管线走查逻辑（2026-10-06，纯逻辑不建 UI；2026-10-17 创作课取消后休眠保留）：
+    /// 引导玩家走一遍创作链——新建一个效果 → 新建一张含该效果的卡 → 保存一套含该卡的卡组。
+    /// 三步走完=本课完成。
     ///
     /// 检测口径：效果/卡没有创建标记字段，「新建」=以开课快照的 id 基线做差集（内容哈希 id——
     /// 内容变即 id 变，重存旧内容不误判）。三个合成界面在保存成功后调 Notify*（无参薄挂钩；
     /// 本课未开/已完成时零行为）。从卡内「+新建效果」再存卡的流程里效果落库发生在卡保存时——
     /// NotifyCardsChanged 同轮差集可同时达成步①②，两种创作路径（效果库直存/卡内新建）统一覆盖。
     /// 数据源可整体注入（验证器用内存假源，不碰真实 StreamingAssets）。
+    ///
+    /// 旧「最后一课镜像局」链（StartFinalChallenge/FinalChallengeActive/ReportFinalChallengeResult/
+    /// ClearSession）2026-10-19 随三课制整删；ResolveDefaultMirrorDeck 保留=TestStartFlow 测试卡组
+    /// 缺卡时的回落链。
     /// </summary>
     public static class TutorialCreationFlow
     {
-        /// <summary>默认卡组名（跳过路径镜像局用；6 色主体卡组由用户后续制作——缺失时回落下述镜像回退卡组）。</summary>
+        /// <summary>默认卡组名（测试链回落用；6 色主体卡组由用户后续制作）。</summary>
         public const string DefaultDeckName = "主体卡组";
 
-        /// <summary>镜像局回退卡组名（2026-10-15 定案）：主体卡组待制作期间镜像局用 红·快攻
+        /// <summary>镜像回退卡组名（2026-10-15 定案）：主体卡组待制作期间回落用 红·快攻
         ///（现阶段唯一全量 30 张主题卡组，红+灰双色经济）。此前主体卡组缺失直接随机镜像=
         /// 全卡池彩虹手牌——「卡组文件已改纯、对局仍五颜六色」的根因（文件与对局卡源脱节）。</summary>
         public const string MirrorFallbackDeckName = "红·快攻";
-
-        /// <summary>最后一课镜像局进行中（会话级标记；TutorialFlow.ReportBattleResult 路由消费）。</summary>
-        public static bool FinalChallengeActive { get; private set; }
 
         /// <summary>走查步推进事件（参数=新步号 1/2/3；UI 步骤高亮后续接）。</summary>
         public static event Action<int> OnStepAdvanced;
@@ -173,68 +172,11 @@ namespace SynergyUI
                    && e.effectIds != null && e.effectIds.Any(newEffects.Contains))
                .ToList();
 
-        // ======================================== 最后一课镜像局 ========================================
+        // ======================================== 默认镜像卡组（测试链回落） ========================================
 
-        /// <summary>开最后一课镜像局（2026-10-17 创作课取消定案：记名卡组来源随走查退役，
-        /// 改用默认镜像链——主体卡组→红·快攻→随机镜像）。返回 false=无可用卡组（记日志）。</summary>
-        public static bool StartFinalChallenge()
-        {
-            var deck = ResolveDefaultMirrorDeck();
-            BattleEntry.Mode = BattleMode.LocalAI;
-            BattleEntry.MirrorDeck = deck;
-            FinalChallengeActive = true;
-            return true;
-        }
-
-        /// <summary>镜像局结果（TutorialFlow.ReportBattleResult 路由）：胜=全部新手考验完成；负=可原地重开。</summary>
-        public static void ReportFinalChallengeResult(bool playerWon, TutorialProgressManager progress = null)
-        {
-            FinalChallengeActive = false;
-            if (playerWon)
-                (progress ?? TutorialProgressManager.Instance).MarkFinalChallengeDone();
-        }
-
-        // ======================================== 考核局（建档跳过路径，2026-10-17 恢复） ========================================
-
-        /// <summary>考核局会话标记：跳过基础教学路径的镜像对局进行中（胜利路由/中途退出清理用）。</summary>
-        public static bool AssessmentActive { get; private set; }
-
-        /// <summary>开考核局（首点教学选「跳过，进入考核」；负=原地可重试）：默认卡组镜像对局
-        ///（ResolveDefaultMirrorDeck 解析链：主体卡组→红·快攻→随机镜像）。胜=免教学。</summary>
-        public static bool StartAssessment()
-        {
-            var deck = ResolveDefaultMirrorDeck();
-            if (deck == null || deck.Count == 0)
-            {
-                TideLog.Warn("[TutorialCreation] 考核局无可用镜像卡组");
-                return false;
-            }
-            BattleEntry.Mode = BattleMode.LocalAI;
-            BattleEntry.MirrorDeck = deck;
-            AssessmentActive = true;
-            return true;
-        }
-
-        /// <summary>考核局结果（TutorialFlow.ReportBattleResult 路由）：胜=skipped 免教学；
-        /// 负=无落档（留在考核路径，主菜单教学按钮=重开考核局，不提供回课程）。</summary>
-        public static void ReportAssessmentResult(bool playerWon)
-        {
-            AssessmentActive = false;
-            if (playerWon)
-                TutorialProgressManager.Instance.MarkAssessmentWon();
-        }
-
-        /// <summary>会话标记清理（未终局退出路径；TutorialFlow.ClearAssessment 一并调）。</summary>
-        public static void ClearSession()
-        {
-            FinalChallengeActive = false;
-            AssessmentActive = false;
-        }
-
-        /// <summary>默认卡组镜像（跳过教学路径用）解析链（2026-10-15 定案）：
-        /// 主体卡组（待制作）→ 红·快攻（镜像回退卡组）→ 随机镜像（最后兜底）。
-        /// 双方同用一份卡组（保住「镜像」考核语义）；发牌走 InitGame 正常洗牌抽卡
-        /// （镜像分支不锁牌库序——教学固定发卡在 StartTutorialGame 分支，不受影响）。</summary>
+        /// <summary>默认卡组镜像解析链（2026-10-15 定案，2026-10-19 起唯一消费方=TestStartFlow
+        /// 测试卡组缺卡回落）：主体卡组（待制作）→ 红·快攻（镜像回退卡组）→ 随机镜像（最后兜底）。
+        /// 双方同用一份卡组（保住「镜像」语义）；发牌走 InitGame 正常洗牌抽卡。</summary>
         public static List<CardData> ResolveDefaultMirrorDeck()
         {
             var decks = _decksSource();

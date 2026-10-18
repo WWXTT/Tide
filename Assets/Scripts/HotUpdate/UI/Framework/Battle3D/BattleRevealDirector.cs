@@ -21,22 +21,28 @@ namespace SynergyUI
         /// <summary>手牌扇刷新闸（true=BattleScreen.RefreshFans 跳过——介绍到费用段前手牌区空）。</summary>
         public static bool SuppressHandFan { get; private set; }
 
+        /// <summary>对手英雄柱隐藏（2026-10-18 教学一修订：讲角色/右侧区只显自己）：对手柱**创建流程
+        /// 不动**，由 BattleFieldView 建柱后按本标记 SetActive 隐藏；Solo("all")（操作预告段）/End 解除。</summary>
+        public static bool HideOpponentHero { get; private set; }
+
         private static bool _active;
         private static readonly HashSet<long> _keep = new HashSet<long>();
 
-        /// <summary>教学介绍段开始：全 tile 隐藏+两闸上锁（棋盘骨架/相机/日照正常）。</summary>
+        /// <summary>教学介绍段开始：全 tile 隐藏+闸上锁（棋盘骨架/相机/日照正常）。</summary>
         public static void BeginIntroReveal()
         {
             _active = true;
             SuppressHeroes = true;
             SuppressHandFan = true;
+            HideOpponentHero = true;
             ApplyKeep();
         }
 
         /// <summary>逐段独占显示（2026-10-17 定案：仅展示语音描述的目标）：全隐藏后只亮 token 区块。
-        /// token：board=棋盘总览但**右列三区不亮**（2026-10-17 晚定案：卡组/墓/除外讲到 zone:right
-        /// 再显示——开场总览不亮卡组）；all=全显；zone:mid=中线信息条；zone:role=双方角色格；
-        /// zone:activation=己方单位区 12 格（发动区）；zone:right=卡组/墓/除外三格；
+        /// token（2026-10-18 教学一修订：对手读到操作预告段才显露）：board=整块棋盘总览**含双方
+        /// 卡组/墓/除外右列**（总览不藏区）；all=全显+解除对手柱隐藏；zone:mid=中线信息条；
+        /// zone:role=仅己方角色格（对手柱照常建、建后按 HideOpponentHero 隐藏）；
+        /// zone:activation=己方单位区 12 格（发动区）；zone:right=仅己方卡组/墓/除外三格；
         /// zone:p1-land=己方地牌行；hand=解手牌闸（调用方随后 RefreshFans）。
         /// 解闸类 token（zone:role/hand）不改变盘面保持。</summary>
         public static void Solo(string token)
@@ -50,12 +56,11 @@ namespace SynergyUI
                     for (int x = 0; x < BoardLayout.Width; x++)
                         for (int z = 0; z < BoardLayout.Height; z++)
                             AddCell((x, z));
-                    foreach (var c in RightColumnCells()) // 右列三区讲到 zone:right 再亮
-                        _keep.Remove(((long)c.x << 32) | (uint)c.z);
                     ApplyKeep();
                     return;
                 }
                 case "all":
+                    HideOpponentHero = false; // 操作预告段：对手到此才显露（调用方随后 RefreshField 显柱）
                     _keep.Clear(); // 空=全显
                     ApplyKeep();
                     return;
@@ -66,10 +71,9 @@ namespace SynergyUI
                     }
                     return; // 手牌扇非 tile：解闸即可，盘面保持不变
                 case "zone:role":
-                    SuppressHeroes = false; // 解除英雄柱闸（调用方随后 RefreshField 建柱）
+                    SuppressHeroes = false; // 解除英雄柱闸（调用方随后 RefreshField 建柱——对手柱建后隐藏）
                     _keep.Clear();
-                    AddCell(BoardLayout.CharacterCell(0));
-                    AddCell(BoardLayout.CharacterCell(1));
+                    AddCell(BoardLayout.CharacterCell(0)); // 仅己方角色格
                     ApplyKeep();
                     return;
                 case "zone:activation":
@@ -79,7 +83,9 @@ namespace SynergyUI
                     return;
                 case "zone:right":
                     _keep.Clear();
-                    foreach (var c in RightColumnCells()) AddCell(c);
+                    AddCell((BoardLayout.P1DeckX, BoardLayout.P1DeckZ));   // 卡组
+                    AddCell((BoardLayout.P1GraveX, BoardLayout.P1GraveZ)); // 墓地
+                    AddCell((BoardLayout.P1ExileX, BoardLayout.P1ExileZ)); // 除外
                     ApplyKeep();
                     return;
                 case "zone:mid":
@@ -104,6 +110,7 @@ namespace SynergyUI
             _active = false;
             SuppressHeroes = false;
             SuppressHandFan = false;
+            HideOpponentHero = false;
             _keep.Clear();
             ApplyKeep();
         }
@@ -115,17 +122,6 @@ namespace SynergyUI
         private static void AddCells(IReadOnlyList<(int x, int z)> cells)
         {
             foreach (var c in cells) AddCell(c);
-        }
-
-        /// <summary>右列三区格（双方卡组/墓/除外共 6 格）——zone:right 独占显示与 board 总览排除共用。</summary>
-        private static IEnumerable<(int x, int z)> RightColumnCells()
-        {
-            yield return (BoardLayout.P1DeckX, BoardLayout.P1DeckZ);   // 卡组
-            yield return (BoardLayout.P1GraveX, BoardLayout.P1GraveZ); // 墓地
-            yield return (BoardLayout.P1ExileX, BoardLayout.P1ExileZ); // 除外
-            yield return BoardLayout.Rotate180(BoardLayout.P1DeckX, BoardLayout.P1DeckZ);
-            yield return BoardLayout.Rotate180(BoardLayout.P1GraveX, BoardLayout.P1GraveZ);
-            yield return BoardLayout.Rotate180(BoardLayout.P1ExileX, BoardLayout.P1ExileZ);
         }
 
         /// <summary>按当前 _keep 应用显隐（空=全显）。tile 坐标用 localPosition 反算（改名免疫）。</summary>

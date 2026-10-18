@@ -6,7 +6,6 @@ using Cysharp.Threading.Tasks;
 using GameBoard;
 using MonsterRig;
 using UnityEngine;
-using UnityEngine.EventSystems;
 
 namespace SynergyUI
 {
@@ -75,6 +74,13 @@ namespace SynergyUI
         private bool _blocked;                             // 攻击被守卫拦截（目标已改写为守卫者）
         private (int x, int z)? _originalTargetCell;       // 原攻击目标格：守卫者挡位终点（踏此格挡伤害）
 
+        // ---- 攻击瞄准贴片（2026-10-18 晚定案：只挂攻击——放置/发动美术已够）----
+        // 守卫不改写贴片（用户定案：守卫者已瞬移赴原目标格，贴片原地即=守卫者脚下，转移=画蛇添足）
+        private const uint ReticleId = 0x40000000u; // 伪键：真键=RuntimeId 小整数·角色伪键=MaxValue-i，中段不撞
+        private bool _reticleUp;          // 贴片在盘
+        private uint _reticleSubjectId;   // 贴片主体（0=角色格口径）——并行演出 finally 对账防代拆
+        private uint _declaredTargetId;   // 宣言期原目标（守卫改写不覆盖）——贴片主体，演出收尾按此对账
+
         // ---- 战斗注视钉（2026-10-15 头跟随）：本编舞器下发过的注视单位集（ClearCapture 兜底全清） ----
         private readonly List<uint> _gazePinned = new List<uint>();
 
@@ -135,7 +141,7 @@ namespace SynergyUI
             _picker = attacker;
             _onPicked = onPicked;
             Debug.Log($"[CombatChoreo] 目标选择开始：{attacker.Name}（{attacker.X},{attacker.Z}）"
-                      + "——箭头随鼠标，悬停合法目标变绿，左键确认，右键/ESC 取消");
+                      + "——箭头随鼠标，悬停合法目标变绿，左键确认，右键/ESC 取消；触摸=长按滑动（箭头终点=手指点位），抬起确定");
             TargetingLoopAsync(_epoch).Forget();
         }
 
@@ -145,12 +151,13 @@ namespace SynergyUI
             _picker = null;
             _onPicked = null;
             _arrow.Hide();
+            HideReticle(); // 悬停期贴片随选择取消撤（宣言后的贴片归捕获/演出链管）
         }
 
         private async UniTaskVoid TargetingLoopAsync(int epoch)
         {
             bool openingFrame = true; // 首帧吞点击（2026-10-14 单位直点进攻击）：开启箭头的点击
-            while (!_disposed && epoch == _epoch && _picker != null) // 落在棋盘上，同帧 MouseButtonDown
+            while (!_disposed && epoch == _epoch && _picker != null) // 落在棋盘上，同帧确认触发
             {                                                         // 恒真——不吞则首轮即按「光标压在
                 if (!BattleBoardGrid.Ready) { CancelTargeting(); return; } // 自格=非法」自取消
                 if (Input.GetMouseButtonDown(1) || Input.GetKeyDown(KeyCode.Escape))
@@ -163,27 +170,51 @@ namespace SynergyUI
                 var cam = BattleStageDirector.WorldCam;
                 if (cam == null) { _arrow.Hide(); await UniTask.Yield(); continue; }
 
-                bool overUI = EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
-                bool hasCell = RaycastCell(cam, out int x, out int z);
-                bool valid = !overUI && hasCell && TryResolveTarget(x, z, out _, out _);
+                // 鼠标/触摸统一（2026-10-18 安卓滑动输入·BattlePointer）：裁决/箭头终点=指针
+                // 落点（触摸不偏置——手指盖住箭头时合法变绿经箭身可观察）；确认=左键按下/触摸抬起
+                BattlePointer.Sample();
+                bool touch = BattlePointer.TouchTracked;
+                bool overUI = BattlePointer.OverUI;
+                var aim = BattlePointer.ConfirmPressed ? BattlePointer.ConfirmPoint : BattlePointer.AimPoint;
+                bool hasCell = RaycastCell(cam, aim, out int x, out int z);
+                BattleCardView target = null; // 先声明再传 out：&& 短路时下方使用点不受未赋值限制
+                bool hero = false;
+                bool valid = !overUI && hasCell && TryResolveTarget(x, z, out target, out hero);
 
-                // 箭头以生物为起点随鼠标动态拉长（终点=鼠标地面投影）；攻击=红，悬停合法目标变绿
-                if (MouseGroundPoint(cam, out Vector3 mousePt))
-                    _arrow.Show(AttackerPos(), mousePt, valid
+                // 箭头以生物为起点随指针动态拉长（终点=指针地面投影）；攻击=红，悬停/滑动悬停
+                // 合法目标变绿+脚下瞄准贴片（2026-10-18；触摸无悬停——未滑动时全隐藏）
+                if ((!touch || BattlePointer.SlideActive)
+                    && MouseGroundPoint(cam, aim, out Vector3 aimPt))
+                {
+                    _arrow.Show(AttackerPos(), aimPt, valid
                         ? BattleAttackArrow.ValidSkin : BattleAttackArrow.AttackSkin);
+                    if (valid)
+                    {
+                        if (hero) ShowReticleAt(0u, x, z); // 角色格=悬停格本身
+                        else ShowReticleAt(target.RuntimeId, target.X, target.Z);
+                    }
+                    else HideReticle();
+                }
                 else
+                {
                     _arrow.Hide();
+                    HideReticle();
+                }
 
-                if (!openingFrame && Input.GetMouseButtonDown(0) && !overUI)
+                if (!openingFrame && BattlePointer.ConfirmPressed && !overUI)
                 {
                     if (valid)
                     {
                         await ConfirmTargetAsync(x, z);
                         return;
                     }
-                    Debug.Log("[CombatChoreo] 目标选择取消（点击无效格）");
-                    CancelTargeting();
-                    return;
+                    if (!BattlePointer.ConfirmWasSlide)
+                    {
+                        Debug.Log("[CombatChoreo] 目标选择取消（点击无效格）");
+                        CancelTargeting();
+                        return;
+                    }
+                    Debug.Log("[CombatChoreo] 滑动收在非法目标——只收滑动，选择继续（触摸探索口径）");
                 }
                 openingFrame = false;
                 await UniTask.Yield();
@@ -244,12 +275,12 @@ namespace SynergyUI
             return unit != null;
         }
 
-        /// <summary>tile-{x}-{z} BoxCollider 射线（与 BattleScreen.HandleFieldClick 同口径）。</summary>
-        private static bool RaycastCell(Camera cam, out int x, out int z)
+        /// <summary>tile-{x}-{z} BoxCollider 射线（与 BattleScreen.HandleFieldClick 同口径；点=裁决落点）。</summary>
+        private static bool RaycastCell(Camera cam, Vector2 screenPoint, out int x, out int z)
         {
             x = z = -1;
             RaycastHit hit;
-            if (!Physics.Raycast(cam.ScreenPointToRay(Input.mousePosition), out hit, 300f)) return false;
+            if (!Physics.Raycast(cam.ScreenPointToRay(screenPoint), out hit, 300f)) return false;
             var name = hit.collider != null ? hit.collider.gameObject.name : "";
             if (!name.StartsWith("tile-")) return false;
             var parts = name.Split('-');
@@ -257,12 +288,12 @@ namespace SynergyUI
                    && BoardMath.InBounds(x, z);
         }
 
-        /// <summary>鼠标 → 棋盘地平面（y=0）世界点：箭头终点随鼠标动态拉长的投影源
+        /// <summary>指针 → 棋盘地平面（y=0）世界点：箭头终点随指针动态拉长的投影源
         /// （不依赖 tile 命中——指到棋盘外也拉得出）。BattleScreen 守卫箭头共用此投影。</summary>
-        public static bool MouseGroundPoint(Camera cam, out Vector3 point)
+        public static bool MouseGroundPoint(Camera cam, Vector2 screenPoint, out Vector3 point)
         {
             point = Vector3.zero;
-            var ray = cam.ScreenPointToRay(Input.mousePosition);
+            var ray = cam.ScreenPointToRay(screenPoint);
             var plane = new Plane(Vector3.up, Vector3.zero);
             if (!plane.Raycast(ray, out float enter) || enter <= 0f || enter > 300f) return false;
             point = ray.GetPoint(enter);
@@ -273,7 +304,7 @@ namespace SynergyUI
 
         private void OnAttackDeclared(AttackDeclarationEvent e)
         {
-            ClearCapture(); // 防御：上一捕获未清（不应发生）
+            ClearCapture(); // 上一捕获收尾（已交接开演的捕获属常态——并行演出，见 ClearCapture 释放守卫）
             _capturing = true;
             _attackerEntity = e.Attacker;
             _targetEntity = e.Target;
@@ -281,6 +312,7 @@ namespace SynergyUI
             _targetId = IdOf(e.Target);
             _heroAttacker = _attackerId == 0;
             _heroTarget = _targetId == 0;
+            _declaredTargetId = _targetId; // 宣言期原目标：贴片主体（守卫改写 _targetId 不覆盖此值）
             var self = _selfPlayer?.Invoke();
             _attackingIsSelf = self != null && ReferenceEquals(e.AttackingPlayer, self);
 
@@ -304,6 +336,7 @@ namespace SynergyUI
             // _targetId 已改写为拦截者，供应器动态解析即自动转看拦截者）；守方看攻击者
             if (!_heroAttacker) SetGaze(_attackerId, () => CombatGazeOf(true));
             if (!_heroTarget) SetGaze(_targetId, () => CombatGazeOf(false));
+            ShowReticleAtTarget(); // 瞄准贴片钉在受击者脚下（含对手/AI 攻击）——守卫拦截不转移（守卫者瞬移赴原目标格）
             Debug.Log($"[CombatChoreo] 攻击宣言捕获：{NameOf(e.Attacker)} → {NameOf(e.Target)}"
                       + $"（{(_attackingIsSelf ? "我方" : "对方")}发起，hold 位姿对账）");
         }
@@ -338,6 +371,7 @@ namespace SynergyUI
             }
 
             // 守卫拦截双箭（2026-10-15 定案：守卫=蓝）：红箭改指拦截者、蓝箭=守卫者→攻击者
+            //（瞄准贴片不转移：守卫者瞬移赴原目标格挡打，贴片原地即=守卫者脚下）
             if (CombatPosOf(_attackerId, _heroAttacker, _attackingIsSelf ? 0 : 1, out var gFrom)
                 && CombatPosOf(_targetId, _heroTarget, _attackingIsSelf ? 1 : 0, out var gTo))
             {
@@ -399,15 +433,64 @@ namespace SynergyUI
             _arrowLive = false;
             _arrow.Hide();
             _guardArrow.Hide();
-            if (!_heroAttacker && _attackerId != 0) _field.ReleaseUnit(_attackerId);
-            if (!_heroTarget && _targetId != 0) _field.ReleaseUnit(_targetId);
+            HideReticle(); // 取消/Dispose/新宣言吞并：贴片撤（新宣言随后 OnAttackDeclared 重钉）
+            // hold 释放守卫（2026-10-18 并行演出修复）：仅捕获未交接（_capturing——取消/新宣言吞并
+            // 尚未开演的捕获）时释放；栈空交接后（_capturing=false）hold 归在途演出的 finally 管，
+            // 此处释放会偷走第二场的持有 → 其死亡目标被 RemoveStale 提前销毁（模型命中前消失）
+            if (_capturing)
+            {
+                if (!_heroAttacker && _attackerId != 0) _field.ReleaseUnit(_attackerId);
+                if (!_heroTarget && _targetId != 0) _field.ReleaseUnit(_targetId);
+            }
             _capturing = false;
             _resolved = false;
             _blocked = false;
             _originalTargetCell = null;
             _attackerEntity = _targetEntity = null;
             _attackerId = _targetId = 0;
+            _declaredTargetId = 0;
             _damages.Clear();
+        }
+
+        // ======================================== 攻击瞄准贴片（2026-10-18 晚） ========================================
+
+        /// <summary>瞄准贴片钉到宣言期目标脚下（单位格或防守方角色格；视图格缺失静默跳过）。</summary>
+        private void ShowReticleAtTarget()
+        {
+            if (_heroTarget)
+            {
+                var hc = BoardLayout.CharacterCell(_attackingIsSelf ? 1 : 0);
+                ShowReticleAt(0u, hc.x, hc.z);
+            }
+            else
+            {
+                var cell = CellOf(_targetId);
+                if (cell.HasValue) ShowReticleAt(_targetId, cell.Value.x, cell.Value.z);
+            }
+        }
+
+        /// <summary>贴片上盘/挪位（主体=单位 RuntimeId 或 0=角色格；同主体幂等）。</summary>
+        private void ShowReticleAt(uint subjectId, int x, int z)
+        {
+            if (_reticleUp && _reticleSubjectId == subjectId) return;
+            BattleTargetReticle.Hide(ReticleId); // 同键早退不挪位——换主体先下盘再钉新格
+            BattleTargetReticle.Show(ReticleId, x, z);
+            _reticleUp = true;
+            _reticleSubjectId = subjectId;
+        }
+
+        /// <summary>撤贴片（未上盘=无操作）。</summary>
+        private void HideReticle()
+        {
+            if (!_reticleUp) return;
+            BattleTargetReticle.Hide(ReticleId);
+            _reticleUp = false;
+        }
+
+        /// <summary>只撤还钉在指定主体上的贴片——并行演出各自收场互不代拆（主体 0=角色格口径）。</summary>
+        private void HideReticleIfSubject(uint subjectId)
+        {
+            if (_reticleUp && _reticleSubjectId == subjectId) HideReticle();
         }
 
         // ======================================== 演出计划与序列 ========================================
@@ -427,6 +510,7 @@ namespace SynergyUI
             public bool Blocked;                        // 本次攻击被守卫拦截（Target=守卫者）
             public bool TargetTapped;                   // 守卫者横置（战斗后支付——仅演出日志记录，2026-10-15 不再停呼吸）
             public List<(int x, int z)> BlockerPath;    // 守卫者→原目标格挡位（null=规划失败回落旧演出）
+            public uint ReticleSubjectId;               // 瞄准贴片主体=宣言期原目标（0=角色格；守卫改写不覆盖——收尾对账用）
         }
 
         private void AssembleAndPerform()
@@ -443,6 +527,7 @@ namespace SynergyUI
                 AttackerTapped = _attackerEntity != null && _attackerEntity.IsTapped(),
                 TargetTapped = _targetEntity != null && _targetEntity.IsTapped(),
                 Blocked = _blocked,
+                ReticleSubjectId = _declaredTargetId,
                 Counter = _damages.Any(d => ReferenceEquals(d.Attacker, _targetEntity)
                                             && ReferenceEquals(d.Defender, _attackerEntity)),
                 AttackerName = NameOf(_attackerEntity),
@@ -624,7 +709,9 @@ namespace SynergyUI
                     attBody = attBody && attW != null; // 节拍中途同样可能被并行演出销毁——再重估
                     tgtBody = tgtBody && tgtW != null;
                     if (tgtBody && tgtW != null) tgtAnim?.Play(MonsterAction.Hit);
-                    else _field.HeroImpactPulseAsync(targetOwner).Forget();
+                    else if (plan.HeroTarget) _field.HeroImpactPulseAsync(targetOwner).Forget();
+                    // 单位目标 wrapper 缺失（并行演出降级，见上）＝跳过该侧表现——不回落角色立柱
+                    // 脉冲（2026-10-18 修：被攻击单位提前消失时角色立柱会莫名"受击"一次）
                     foreach (var id in plan.SplashIds)
                     {
                         if (_field.TryGetUnitBody(id, out _, out var fa)) fa?.Play(MonsterAction.Hit);
@@ -708,6 +795,7 @@ namespace SynergyUI
                     _arrowLive = false; // 箭头兜底收（正常路径命中已渐隐；中止路径即时藏）
                     _arrow.Hide();
                     _guardArrow.Hide();
+                    HideReticleIfSubject(plan.ReticleSubjectId); // 演出收场撤贴片——按宣言期主体对账（守卫不改写），并行演出不代拆
                     if (!plan.HeroAttacker) _field.ClearCombatGaze(plan.AttackerId); // 注视兜底清（正常路径⑥⑦已清）
                     if (!plan.HeroTarget) _field.ClearCombatGaze(plan.TargetId);
                     if (!plan.HeroAttacker) _field.ReleaseUnit(plan.AttackerId);

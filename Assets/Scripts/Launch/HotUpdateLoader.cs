@@ -31,9 +31,18 @@ namespace Tide.Launch
         // async UniTask<bool?>，HybridCLR 泛型分析器对 AsyncUniTaskMethodBuilder<Nullable<bool>> 漏扫
         // （AOTGenericReferences 同方法只记出 Nullable<byte>），真机点投降弹 MissingMethodException。
         // AOT 侧显式引用一次强制 il2cpp 生成该组合；若日后分析器命中，此行属无害冗余，勿删。
+        // 二次实录（同日 21:20 教学一守卫窗口）：UniTask<引用类型>（ResponseOption 响应窗口弹窗、
+        // List<int> Region 选卡）在 AOT 上统一解析到 <object> 共享形态，而 AOT 侧没有任何
+        // async UniTask<引用类型> 时该共享形态不生成——首个此类调用真机 MissingMethodException，
+        // 响应窗弹不出（无「不连锁」按钮、守卫恒灰、AI 回合中断）。<object> 一行覆盖全族引用类型；
+        // int/int? 为值类型不共享须逐组合补。UniTaskCompletionSource<引用类型>（守卫 _guardTcs）同规则。
         static HotUpdateLoader()
         {
             _ = Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<bool?>.Create();
+            _ = Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<int>.Create();
+            _ = Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<int?>.Create();
+            _ = Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.Create();
+            _ = new Cysharp.Threading.Tasks.UniTaskCompletionSource<object>();
         }
 
         /// <summary>资源寻址地址（.dll.bytes 文件经 AddressByFileName 规则保留 .dll 段）</summary>

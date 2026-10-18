@@ -239,5 +239,10 @@ namespace CardCore
         /// <summary>终局发布探针（2026-10-16 教学一两段式）：winner → victory 引导步骤的完成信号。
         /// GameCore.PublishGameOverOnce 处发射（每局至多一次；非教学局也经过——订阅方自行过滤）。</summary>
         public static Action<Player> OnTutorialGameOver;
+
+        /// <summary>人类玩家响应决策探针（2026-10-19 第二课连锁教学）：SettleResponseWindowAsync
+        /// 每次把响应窗口交给人类应答器（含让过）后发射——respond 引导步骤的完成信号。
+        /// 非教学局也经过（订阅方自行过滤）。</summary>
+        public static Action<Player> OnTutorialHumanResponded;
     }
 }

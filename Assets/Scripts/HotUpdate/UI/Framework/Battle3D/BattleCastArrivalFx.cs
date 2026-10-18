@@ -65,7 +65,7 @@ namespace SynergyUI
         {
             if (onArrived == null) return;
             if (!TryLoadAsset()) { Debug.LogWarning("[CastArrival] Play 跳过：特效资产未载入"); onArrived(); return; }
-            if (paid == null || paid.Count == 0) { Debug.Log("[CastArrival] Play 跳过：账单为空"); onArrived(); return; }
+            if (paid == null || paid.Count == 0) { onArrived(); return; }
 
             float total = 0f;
             foreach (var v in paid.Values) total += Mathf.Max(0f, v);
@@ -138,7 +138,6 @@ namespace SynergyUI
                 if (BattleStageDirector.MapRoot != null) // 运行时临时对象收进 Map 总根
                     _root.transform.SetParent(BattleStageDirector.MapRoot, true);
 
-                var sb = new System.Text.StringBuilder();
                 var dominant = DominantChromatic(paid); // 消融边+全部粒子统一主色（无三色则灰）
                 if (ParticlesEnabled)
                 {
@@ -153,7 +152,6 @@ namespace SynergyUI
                             BattleBoardGrid.WorldPositionOf(x, z), target, dominant);
                         if (g == null) continue;
                         _groups.Add(g);
-                        sb.Append($" {element}x{amount:0.#}@({x},{z})");
                     }
                 }
 
@@ -161,12 +159,10 @@ namespace SynergyUI
 
                 if (_groups.Count == 0 && _modelRenderers == null)
                 {
-                    Arrive("无有效发射组");
+                    Arrive();
                     Destroy(_root);
                     return;
                 }
-                Debug.Log($"[CastArrival] 汇聚开始 组数={_groups.Count} 消融={(_modelRenderers != null)}"
-                          + $" 总费={total:0.#} 目标={target}{sb}");
                 StartCoroutine(Timeline());
             }
 
@@ -357,20 +353,9 @@ namespace SynergyUI
                 float t = 0f;
                 bool emitting = true;
                 bool ghostStarted = false;
-                float probeAcc = 0f; // 【临时探针·2026-10-18 粒子不可见取证】判读：alive>0=已发射被剔除/未渲染；alive<=0=未发射
                 while (t < CleanupSeconds)
                 {
                     t += Time.deltaTime;
-                    probeAcc += Time.deltaTime;
-                    if (probeAcc >= 0.3f && (_groups.Count > 0 || _ghostVfx != null))
-                    {
-                        probeAcc = 0f;
-                        var pb = new System.Text.StringBuilder();
-                        for (int i = 0; i < _groups.Count; i++)
-                            pb.Append($" g{i}={_groups[i].Vfx.aliveParticleCount}");
-                        if (_ghostVfx != null) pb.Append($" ghost={_ghostVfx.aliveParticleCount}");
-                        Debug.Log($"[CastArrival探针] t={t:0.0}{pb}");
-                    }
 
                     // 地牌飞行段（0→0.8s）：前半遮罩滞留地格上空聚量，后半快速摆到发动位——
                     // 吸力（12）拖着已出生的火花群从地格飞向发动位
@@ -409,15 +394,13 @@ namespace SynergyUI
                             _groups[i].Vfx.SetFloat("Spawn Rate", 0f); // 图无 OnStop 上下文——停发靠速率归零兜底
                             _groups[i].Vfx.Stop();
                         }
-                        if (_groups.Count > 0)
-                            Debug.Log($"[CastArrival] t={t:0.00} 停止发射（组数={_groups.Count}）");
                     }
 
                     if (!_arrived && t >= RevealSeconds)
                     {
                         ClearDissolve(); // 线沉底=模型完全显现（MPB 复位）
                         if (_ghostVfx != null) _ghostVfx.Stop();
-                        Arrive(null); // 影子留到 Cleanup 一并拆（尾巴无突兀）
+                        Arrive(); // 影子留到 Cleanup 一并拆（尾巴无突兀）
                     }
 
                     yield return null;
@@ -436,13 +419,11 @@ namespace SynergyUI
                 if (_root != null) Destroy(_root);
             }
 
-            /// <summary>模型显现回调（恰好一次）；reason 非空=提前到达的兜底路径。</summary>
-            private void Arrive(string reason)
+            /// <summary>模型显现回调（恰好一次；正常路径 t=RevealSeconds，兜底路径提前）。</summary>
+            private void Arrive()
             {
                 if (_arrived) return;
                 _arrived = true;
-                if (reason != null) Debug.Log($"[CastArrival] 提前显现（{reason}）");
-                else Debug.Log($"[CastArrival] t={RevealSeconds:0.0} 汇聚完成→模型显现");
                 _onArrived?.Invoke();
             }
 

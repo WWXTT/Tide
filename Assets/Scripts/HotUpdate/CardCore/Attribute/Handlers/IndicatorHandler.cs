@@ -107,8 +107,9 @@ namespace CardCore.Attribute.Handlers
     /// <summary>
     /// 复生原子（2026-10-08 指示物化，表行 94f6a32d——原子类型沿用 GrantReborn；
     /// refId 已重推 502be10d→94f6a32d，2026-10-08 全量 ID 重推·卡数据随后重建）：
-    /// 对目标附加 {value} 层复生指示物（CounterRules.RebornCounter）——每层一次死亡替代
-    ///（1 血回场横置，TryReborn 消耗 1 层）；可叠加；换区不清（生效自减档）、净化可清。
+        /// 对目标附加 {value} 层复生指示物（CounterRules.RebornCounter）——每层一次死亡替代
+        ///（1 血回场，TryReborn 消耗 1 层；2026-10-19 起 Entity 级——角色归零宣判前消耗）；
+        /// 可叠加；换区不清（生效自减档）、净化可清。
     /// </summary>
     public class GrantRebornHandler : AtomicEffectHandlerBase
     {

@@ -114,7 +114,7 @@ namespace CardCore.Attribute
             card._pendingDeathCause = null;
             card._pendingDeathSource = null;
 
-            // 复生：死亡替代（1 血回场 + 横置，消耗 1 层复生指示物——多层=多次替代）——湮灭不可被复活
+            // 复生：死亡替代（1 血回场，消耗 1 层复生指示物——多层=多次替代；2026-10-19 起回场不横置）——湮灭不可被复活
             if (cause != DeathCause.Annihilate && KeywordRules.TryReborn(card))
                 return false;
 

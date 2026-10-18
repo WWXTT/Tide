@@ -176,9 +176,10 @@ namespace CardCore
                 && !_zoneManager.IsCardInZone(zc, targetController, Zone.Battlefield))
                 return false;
 
-            // 潜行/隐密：不可被指定为攻击目标（潜行 2026-10-08 指示物化——层数>0 即持有）
-            if (target is Card sc && (sc.GetCounterCount(Attribute.CounterRules.StealthCounter) > 0
-                                      || sc.HasKeyword(KeywordRules.Concealed)))
+            // 潜行/隐密：不可被指定为攻击目标（潜行 2026-10-08 指示物化——层数>0 即持有；
+            // 2026-10-19 Entity 级——角色持潜行层同样不可被指定）
+            if (target.GetCounterCount(Attribute.CounterRules.StealthCounter) > 0
+                || target.HasKeyword(KeywordRules.Concealed))
                 return false;
 
             // 突袭紊乱（负面指示物，持续一回合）：期间不准以玩家为目标——只能攻随从
@@ -258,13 +259,14 @@ namespace CardCore
                 return;
             }
 
-            // 潜行：攻击后消耗 1 层（2026-10-08 指示物化；取消/落空的攻击不计数）
-            if (attacker is Card attackerCard && attackerCard.GetCounterCount(Attribute.CounterRules.StealthCounter) > 0)
+            // 潜行：攻击后消耗 1 层（2026-10-08 指示物化；取消/落空的攻击不计数；
+            // 2026-10-19 Entity 级——角色宣言攻击后同样消耗）
+            if (attacker.GetCounterCount(Attribute.CounterRules.StealthCounter) > 0)
             {
-                attackerCard.AddCounters(Attribute.CounterRules.StealthCounter, -1);
+                attacker.AddCounters(Attribute.CounterRules.StealthCounter, -1);
                 EventManager.Instance.Publish(new KeywordAppliedEvent
                 {
-                    Target = attackerCard,
+                    Target = attacker,
                     Keyword = Attribute.CounterRules.StealthCounter,
                     Detail = "攻击后潜行失效（消耗 1 层）",
                     Source = attacker

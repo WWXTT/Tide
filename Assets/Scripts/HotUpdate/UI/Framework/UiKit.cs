@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
+using Cysharp.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -1115,6 +1117,75 @@ namespace SynergyUI
                 UnityEngine.Object.Destroy(_open);
                 _open = null;
             }
+        }
+    }
+
+    /// <summary>TipPanel 提示弹窗宿主（2026-10-18 统一定案）：所有提示类弹窗一律复用
+    /// TipPanel.prefab——美术换皮只改预制体一处全局生效；对局中选择目标卡仍走 Region 列卡
+    ///（独立形态，明确不并入）。每屏一实例（ctor 注入 Root 惰性取值），同拍在途提示唯一
+    ///（新提示顶替旧）。返回 true=btn-ok / false=btn-no / null=未点即清（拆屏 Close/顶替/
+    /// 预制体缺失——调用方按取消口径处理）。</summary>
+    public sealed class TipPromptHost
+    {
+        private readonly Func<RectTransform> _root;
+        private GameObject _prefab; // 惰性加载（TipPanel.prefab，进程级句柄保活同 BattleScreen 口径）
+        private GameObject _panel; // 在途面板实例
+        private TaskCompletionSource<bool?> _tcs;
+
+        public TipPromptHost(Func<RectTransform> root) => _root = root;
+
+        /// <summary>弹提示：msg=正文（无独立标题位——文案自带语境），两键文案运行时填
+        ///（noText=null 隐藏 btn-no 单键形态）。</summary>
+        public async UniTask<bool?> ShowAsync(string msg, string okText, string noText = null)
+        {
+            if (_prefab == null)
+                _prefab = HotUpdateAssets.Load<GameObject>("TipPanel", UiKit.PrefabPath("TipPanel"));
+            var root = _root();
+            if (_prefab == null || root == null)
+            {
+                Debug.LogWarning($"[TipPrompt] TipPanel.prefab 加载失败——提示弹窗不可用：{msg}");
+                return null;
+            }
+            Close();
+            var panel = UnityEngine.Object.Instantiate(_prefab, root, false);
+            panel.name = "tip-prompt";
+            var rt = panel.transform as RectTransform;
+            var msgTmp = UiKit.FindDeep(rt, "msg")?.GetComponent<TMP_Text>();
+            if (msgTmp != null) msgTmp.text = msg;
+            var tcs = new TaskCompletionSource<bool?>();
+            Bind(rt, "btn-ok", okText, true, tcs);
+            var noBtn = UiKit.FindDeep(rt, "btn-no");
+            if (noText == null) noBtn?.gameObject.SetActive(false); // 单键形态
+            else Bind(rt, "btn-no", noText, false, tcs);
+            _panel = panel;
+            _tcs = tcs;
+            return await tcs.Task;
+        }
+
+        /// <summary>关面板（点击收尾/拆屏 OnExit 清理/新提示顶替共用）：未点即关=结果置 null。</summary>
+        public void Close()
+        {
+            if (_panel != null)
+            {
+                UnityEngine.Object.Destroy(_panel);
+                _panel = null;
+            }
+            var tcs = _tcs;
+            _tcs = null;
+            tcs?.TrySetResult(null);
+        }
+
+        /// <summary>提示键接线：文案写按钮 label（TMP 子节点），点击=记结果并关面板。</summary>
+        private void Bind(RectTransform panel, string btnName, string text, bool result,
+            TaskCompletionSource<bool?> tcs)
+        {
+            var btnT = UiKit.FindDeep(panel, btnName);
+            if (btnT == null) return;
+            var lbl = btnT.GetComponentInChildren<TMP_Text>(true);
+            if (lbl != null) lbl.text = text;
+            var button = btnT.GetComponent<Button>();
+            if (button != null)
+                button.onClick.AddListener(() => { tcs.TrySetResult(result); Close(); });
         }
     }
 }

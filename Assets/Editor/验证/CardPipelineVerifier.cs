@@ -3555,9 +3555,9 @@ namespace CardCore.Editor
             var phoenix = Make(p1, 2, 5, CardCore.Attribute.CounterRules.RebornCounter);
             phoenix.IsAlive = false;
             Assert(CardCore.Attribute.KeywordRules.TryReborn(phoenix)
-                   && phoenix.IsAlive && phoenix.GetLife() == 1 && phoenix.IsTapped()
+                   && phoenix.IsAlive && phoenix.GetLife() == 1 && !phoenix.IsTapped()
                    && phoenix.GetCounterCount(CardCore.Attribute.CounterRules.RebornCounter) == 0,
-                   "复生：1 血回场、横置（本回合不可用）、消耗 1 层");
+                   "复生：1 血回场（2026-10-19 起不横置）、消耗 1 层");
 
             // ---- 15b. 死亡决策表（DeathRules）：死因×护盾 定案断言（DeathCause.Poison 列已随
             //      2026-10-08 剧毒转关键词删除——消灭统一走 DestroyEffect） ----
@@ -3569,6 +3569,24 @@ namespace CardCore.Editor
             Assert(!CardCore.Attribute.DeathRules.TryKill(ironReborn, CardCore.Attribute.DeathCause.DestroyEffect, p1, core.ZoneManager)
                    && ironReborn.IsAlive && ironReborn.GetLife() == 1,
                    "决策表：复生对摧毁效果死因生效（消耗回场，TryKill 返回未死）");
+
+            // ---- 15b2. 角色复生/角色潜行（2026-10-19 Entity 化：表行去 NoRole 后对角色全通） ----
+            int p2LifeBackup = p2.Life;
+            p2.AddCounters(CardCore.Attribute.CounterRules.RebornCounter, 1);
+            p2.Life = 0;
+            core.SBAEngine.ExecuteAll();
+            Assert(p2.Life == 1 && !core.IsGameOver
+                   && p2.GetCounterCount(CardCore.Attribute.CounterRules.RebornCounter) == 0,
+                   "角色复生：归零宣判前消耗 1 层回 1 血，不宣判不终局");
+            p2.Life = p2LifeBackup;
+
+            p2.AddCounters(CardCore.Attribute.CounterRules.StealthCounter, 1);
+            Assert(!core.CombatSystem.CanAttackTarget(phoenix, p2, p1),
+                   "角色潜行：持层期间不可被指定为攻击目标");
+            var shown = TargetResolver.ExcludeUnselectable(new List<Entity> { phoenix, p2 }, p1);
+            Assert(!shown.Contains(p2) && shown.Contains(phoenix),
+                   "角色潜行：选择域隐藏对方角色、己方单位照常可选");
+            p2.AddCounters(CardCore.Attribute.CounterRules.StealthCounter, -1);
 
             // ---- 15c. 神佑已删（2026-10-13 定案）----
             // 锚①：角色构造/Reset 均不再注入神佑；锚②：净化打在角色上照常清 Status 轨

@@ -9,11 +9,11 @@ namespace CardCore
     /// 教学进度管理器（2026-10-06 教学逻辑层）：首次登录在 persistentDataPath 建档（仿
     /// ElementUnlockManager 范式：惰性单例 + TideJson + 每次变更即写、缺档回落默认并落盘），
     /// 记录已完成教学关卡。UI 层（主菜单按钮显隐）后续只读本类，不再自持进度状态。
-    /// 状态机（2026-10-17 清理后）：建档 → 按 CourseOrder 逐课推进（basics 两段式 → lunzhuan →
-    /// chuangzuo 创作走查）→ 三课全完成 → 主菜单「最后一课」镜像局 → 胜=finalChallengeDone
-    /// （IsTutorialDone，全部新手考验完成）。
-    /// （旧「询问跳过/考核局免教学」路径已删——AskSkip 弹窗从未实装、考核分支不可达；
-    ///   旧档多余 JSON 字段反序列化自动忽略，天然兼容。）
+    /// 状态机（2026-10-19 三课制定案）：建档零进度 → 按 CourseOrder 逐课推进（basics 攻防 →
+    /// jinjie 进阶机制 → lunzhuan 末日降临 Boss）→ 三课全胜=教学整体完成（IsTutorialDone，
+    /// 教学按钮换装本地对战按钮→对局准备双选卡组）。无任何跳过/免教学路径——教学按钮纯进度路由。
+    /// （旧「结业镜像局」环节 2026-10-19 随三课制整删：finalChallengeDone 字段/MarkFinalChallengeDone/
+    ///   ShouldShowFinalChallenge 全链退役，旧档多余键反序列化自动忽略，天然兼容。）
     /// </summary>
     public sealed class TutorialProgressManager
     {
@@ -26,11 +26,21 @@ namespace CardCore
         /// 不是 TutorialConfig 条目；StartTutorialBattle 对本 id 分流到 BeginLesson）。</summary>
         public const string CreationLessonId = "chuangzuo";
 
-        /// <summary>新手课程序列（2026-10-17 创作课取消定案）：basics → lunzhuan 两课，
-        /// 全部完成 + 最后一课镜像局获胜 = 教学整体完成（IsTutorialDone）。
-        /// chuangzuo（创作管线走查）已取消——走查机制休眠保留，旧档 completed 残留惰性、
+        /// <summary>第二课·进阶机制关卡 id（2026-10-19 三课制）：脚本化教学局教四大进阶机制——
+        /// 代价生成黑白元素资源、全时点卡的自动效果、不同速度主动效果连锁、规则光环唯一性
+        /// （TutorialConfig2.json 条目，教学卡在 TutorialData）。</summary>
+        public const string JinjieId = "jinjie";
+
+        /// <summary>第三课·末日降临 Boss 挑战关卡 id（2026-10-18 真实对局流程版，2026-10-19 挪入
+        /// 第三课位）：走 PreMatchScreen 教学三变体（硬币+选卡组），AI 镜像玩家卡组后被幻卡清算、
+        /// 召唤末日降临。课序挪位不改 id——旧档 completed/lunzhuanAttempted 天然兼容。</summary>
+        public const string LunzhuanId = "lunzhuan";
+
+        /// <summary>新手课程序列（2026-10-19 三课制定案）：basics 攻防 → jinjie 进阶机制 →
+        /// lunzhuan 末日降临 Boss，三课全胜=教学整体完成（IsTutorialDone）。
+        /// chuangzao（创作管线走查）已取消（2026-10-17）——走查机制休眠保留，旧档 completed 残留惰性、
         /// currentTutorial=chuangzuo 序列外自动作废（NextTutorialId 现行口径）。</summary>
-        public static readonly string[] CourseOrder = { BasicsId, "lunzhuan" };
+        public static readonly string[] CourseOrder = { BasicsId, JinjieId, LunzhuanId };
 
         private const string SAVE_FILE = "TutorialProgress.json";
 
@@ -59,46 +69,33 @@ namespace CardCore
 
         // ======================================== 查询 ========================================
 
-        /// <summary>待询问「是否跳过基础教学，进入考核？」（建档时置位，ChooseSkip 消费；
-        /// 2026-10-17 恢复建档跳过链——首次点教学按钮时弹）。</summary>
-        public bool SkipAskPending => _data.skipAskPending;
-
-        /// <summary>跳过询问中选了「跳过」（考核路径进行中）：!Skipped 期间教学按钮=重开考核局，
-        /// 不再提供回课程入口（2026-10-17 用户定案：负=原地重试）。</summary>
-        public bool SkipChosen => _data.skipChosen;
-
-        /// <summary>考核局已获胜=免教学（教学整体完成——主菜单解除门禁、教学按钮换匹配按钮）。</summary>
-        public bool Skipped => _data.skipped;
-
         /// <summary>已完成的教学关卡 id 集。</summary>
         public IReadOnlyList<string> CompletedTutorials => _data.completedTutorials;
 
         /// <summary>进行中的教学关卡 id（null=未开始/已完成）。</summary>
         public string CurrentTutorial => _data.currentTutorial;
 
-        /// <summary>新手课程序列（CourseOrder）是否全部完成（不含最后一课镜像局）。</summary>
+        /// <summary>新手课程序列（CourseOrder）是否全部完成（三课全胜=教学整体完成）。</summary>
         public bool IsCourseCompleted
             => CourseOrder.All(id => _data.completedTutorials.Contains(id));
 
-        /// <summary>最后一课镜像局是否已获胜（教学整体完成的最后一环）。</summary>
-        public bool FinalChallengeDone => _data.finalChallengeDone;
+        /// <summary>第三课（末日降临挑战）是否已打过一局（2026-10-18 定案：无论胜负）——
+        /// 三个组合界面按钮（卡组/卡面/效果）的解锁判据（IsTutorialDone 兜底）。
+        /// 完成语义独立：胜=MarkTutorialCompleted(LunzhuanId)；负只置本标记，重挑直到胜。</summary>
+        public bool LunzhuanAttempted => _data.lunzhuanAttempted;
 
-        /// <summary>教学整体完成（考核局获胜免教学 或 新手课程全完成+最后一课镜像局获胜）——
-        /// 主菜单解除门禁、教学按钮换匹配按钮的判据。</summary>
-        public bool IsTutorialDone => _data.skipped || (IsCourseCompleted && _data.finalChallengeDone);
+        /// <summary>教学整体完成（2026-10-19 三课制：三课全胜即完成——结业镜像局环节退役）——
+        /// 主菜单解除门禁、教学按钮换本地对战按钮的判据。</summary>
+        public bool IsTutorialDone => IsCourseCompleted;
 
         /// <summary>主菜单是否门禁（true=只显示教学按钮；教学未完成期间）。</summary>
         public bool ShouldGateMainMenu => !IsTutorialDone;
-
-        /// <summary>主菜单「最后一课」临时按钮显隐判据：新手课程走完、镜像局未胜、未走考核免教学。</summary>
-        public bool ShouldShowFinalChallenge
-            => !IsTutorialDone && !_data.skipped && IsCourseCompleted && !_data.finalChallengeDone;
 
         /// <summary>第三课创作管线走查状态（null=未开课；差集判定「新建」的开课基线+三步进度）。</summary>
         public CreationLessonData Creation => _data.creation;
 
         /// <summary>下一步要开的教学关卡 id（进行中优先 → 序列中第一个未完成 → 全完成=null）。
-        /// null=新手课程已走完（此时入口应查 ShouldShowFinalChallenge 走最后一课，而非再开课）。
+        /// null=新手课程已全部走完（三课全胜=IsTutorialDone，教学按钮已换装本地对战按钮）。
         /// 2026-10-17 教学一改版兼容：tianji 攻防段并入 basics 第二段移出 CourseOrder——旧档残留的
         /// currentTutorial=tianji（序列外）作废，按序列首门未完成课取。</summary>
         public string NextTutorialId
@@ -135,29 +132,12 @@ namespace CardCore
             SaveAndNotify();
         }
 
-        /// <summary>消耗「是否跳过基础教学，进入考核？」询问（2026-10-17 恢复）：skip=true=进考核
-        /// 路径（skipChosen 落档）；false=正常课程路径。幂等消费 skipAskPending。</summary>
-        public void ChooseSkip(bool skip)
+        /// <summary>第三课已尝试落档（2026-10-18：胜负都调——组合界面解锁判据；幂等）。
+        /// 与完成语义解耦：胜另走 MarkTutorialCompleted，负只置本标记留在课程内重挑。</summary>
+        public void MarkLunzhuanAttempted()
         {
-            _data.skipAskPending = false;
-            if (skip) _data.skipChosen = true;
-            SaveAndNotify();
-        }
-
-        /// <summary>考核局获胜落档=免教学（TutorialFlow.ReportBattleResult 路由）。负=无落档：
-        /// 留在考核路径，下次点教学按钮重开考核局（2026-10-17 定案：不提供回课程）。</summary>
-        public void MarkAssessmentWon()
-        {
-            if (_data.skipped) return;
-            _data.skipped = true;
-            SaveAndNotify();
-        }
-
-        /// <summary>最后一课镜像局获胜落档（教学整体完成）。</summary>
-        public void MarkFinalChallengeDone()
-        {
-            if (_data.finalChallengeDone) return;
-            _data.finalChallengeDone = true;
+            if (_data.lunzhuanAttempted) return;
+            _data.lunzhuanAttempted = true;
             SaveAndNotify();
         }
 
@@ -202,8 +182,9 @@ namespace CardCore
                 TideLog.Error($"[TutorialProgress] 读档失败 - {ex.Message}（按缺档重建）");
             }
 
-            // 首次登录建档（2026-10-17 恢复建档跳过链：skipAskPending 置位——首点教学按钮时弹询问）
-            _data = new TutorialProgressData { skipAskPending = true };
+            // 首次登录建档（2026-10-18 定案：纯课程模型——无跳过询问，建档即零进度，
+            // 首点教学=直进教学一；旧档 skipAskPending/skipChosen/skipped 多余键反序列化自动忽略）
+            _data = new TutorialProgressData();
             SaveState();
             TideLog.Info($"[TutorialProgress] 首次登录建档：{_savePath}");
         }
@@ -226,18 +207,15 @@ namespace CardCore
         [Serializable]
         private class TutorialProgressData
         {
-            public bool skipAskPending;    // 建档置位：首点教学弹「是否跳过基础教学，进入考核？」（ChooseSkip 消费）
-            public bool skipChosen;        // 选过「跳过」：考核路径进行中（!skipped 时教学按钮=重开考核局）
-            public bool skipped;           // 考核局获胜=免教学（教学整体完成）
-            public bool finalChallengeDone; // 最后一课镜像局已获胜（教学整体完成的最后一环）
+            public bool lunzhuanAttempted; // 第三课（末日降临）已打过一局（无论胜负——组合界面解锁判据；旧档缺列=false 兼容）
             public List<string> completedTutorials = new List<string>();
             public string currentTutorial;
             public CreationLessonData creation; // 第三课走查状态（null=未开课；旧档缺列兼容）
         }
     }
 
-    /// <summary>第三课「创作管线」走查状态：差集判定「新建」的开课基线 + 三步进度（单调推进）。
-    /// 属主=TutorialProgressManager（单存档单源）；读写逻辑在 TutorialCreationFlow。</summary>
+    /// <summary>创作管线走查状态（已取消课程的休眠机制，2026-10-17）：差集判定「新建」的开课基线 +
+    /// 三步进度（单调推进）。属主=TutorialProgressManager（单存档单源）；读写逻辑在 TutorialCreationFlow。</summary>
     [Serializable]
     public class CreationLessonData
     {

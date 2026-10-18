@@ -40,7 +40,10 @@ namespace SynergyUI
         private readonly Dictionary<int, HeroVisual> _heroes = new Dictionary<int, HeroVisual>(); // key=归属 0/1
         private readonly HashSet<int> _fatigueBusy = new HashSet<int>(); // 疲劳演出在途 owner（重入只补浮字，2026-10-17）
         private readonly Dictionary<long, TextMeshPro> _landCounts = new Dictionary<long, TextMeshPro>(); // key=格(x<<32|z)：地牌格「可用/上限」计数
-        private readonly HashSet<uint> _heldUnits = new HashSet<uint>(); // 演出持有（2026-10-13 战斗编舞）
+        // 演出持有（2026-10-13 战斗编舞）——引用计数（2026-10-18 并行演出修复）：同一单位可同时
+        // 被在途演出与新一轮攻击捕获共同持有（连续攻击共享目标），各持一票，全弃才放行对账销毁；
+        // 旧 HashSet 单票制下第一场演出 finally 会偷走第二场的持有 → 死亡目标被 RemoveStale 提前销毁
+        private readonly Dictionary<uint, int> _heldUnits = new Dictionary<uint, int>();
         /// <summary>生物箭头留存条目（2026-10-18 性能差量对账）：位次/朝向/方向集未变则整帧零操作。</summary>
         private sealed class ArrowEntry
         {
@@ -347,7 +350,7 @@ namespace SynergyUI
 
             if (v.X != card.X || v.Z != card.Z)
             {
-                if (!_heldUnits.Contains(card.RuntimeId))
+                if (!IsHeld(card.RuntimeId))
                 {
                     v.Wrapper.position = UnitAnchor(card.X, card.Z);
                     v.X = card.X;
@@ -361,7 +364,7 @@ namespace SynergyUI
             // 朝向架构（2026-10-15 用户定案·二次修订）：模型层持对敌朝向（己方0/对手180）、stats 自
             // billboard、wrapper 恒 identity（横置 24° 侧倾同日退役——横置仅由光波熄表达；
             // 走位/演出期 wrapper 转向=期望世界朝向−ModelYaw，归编舞器）；hold 中归编舞器
-            if (!_heldUnits.Contains(card.RuntimeId))
+            if (!IsHeld(card.RuntimeId))
             {
                 v.Wrapper.rotation = Quaternion.identity;
                 if (v.Model != null)
@@ -379,7 +382,7 @@ namespace SynergyUI
             if (card.IsDead && !v.Dead)
             {
                 v.Dead = true;
-                if (!_heldUnits.Contains(card.RuntimeId))
+                if (!IsHeld(card.RuntimeId))
                     PlayDeathExitAsync(card.RuntimeId, owner).Forget();
                 // hold 中：记账已锁存，退场时机归编舞器⑤（数值/体型照常刷新）
             }
@@ -494,7 +497,6 @@ namespace SynergyUI
         {
             if (!_arrivals.TryGetValue(card.RuntimeId, out var payload)) return;
             _arrivals.Remove(card.RuntimeId);
-            Debug.Log($"[BattleField] 单位 {card.Name}({card.RuntimeId}) 入场演出开始（世界Y消融+粒子汇聚）");
             BattleCastArrival.Play(card.RuntimeId, payload.seat, payload.paid,
                 UnitAnchor(card.X, card.Z), model,
                 () => { }); // 模型消融自显——回调仅节拍通知（保留契约供外部观察）
@@ -844,6 +846,10 @@ namespace SynergyUI
 
                 _heroes[owner] = v;
             }
+            // 教学介绍段对手柱显隐（2026-10-18 用户定案：创建流程不动，建后隐藏）：讲角色/右侧区
+            // 只显自己，读到操作预告段（Solo("all")）才显露；非教学局标记恒 false 零影响。每次对账幂等同步。
+            if (owner == 1)
+                v.Root.gameObject.SetActive(!BattleRevealDirector.HideOpponentHero);
             // 立柱数值（2026-10-16）：常态只显 HP；护甲>0 缀「(+x)」；获得攻击力（HeroAttack 弹药>0）
             // 追加「Ac:x」——无攻击力不占位，弹药打空自动回落纯 HP。
             // 2026-10-17 角色状态展示：非读数层指示物续拼「名×n」摘要（读数层 Ac/护甲已表达）——
@@ -966,7 +972,7 @@ namespace SynergyUI
             }
         }
 
-        private static int RemoveStale(Dictionary<uint, UnitVisual> map, HashSet<uint> seen, HashSet<uint> held)
+        private static int RemoveStale(Dictionary<uint, UnitVisual> map, HashSet<uint> seen, Dictionary<uint, int> held)
         {
             List<uint> stale = null;
             foreach (var kv in map)
@@ -976,7 +982,8 @@ namespace SynergyUI
             int removed = 0;
             foreach (var id in stale)
             {
-                if (held.Contains(id)) continue; // 演出持有：销毁时机归编舞器/吸走演出（下次对账再试）
+                if (held.TryGetValue(id, out var n) && n > 0)
+                    continue; // 演出持有（引用计数>0）：销毁时机归编舞器/吸走演出（下次对账再试）
                 var v = map[id];
                 // 2026-10-17：wrapper 可能已被外部销毁（重看介绍复现——MissingReferenceException
                 // 中断整次对账）：fake-null 视为已退场，只清字典并留痕（owner/模型名供定位来源）。
@@ -990,11 +997,23 @@ namespace SynergyUI
 
         // ======================================== 战斗编舞接口（2026-10-13 攻击演出） ========================================
 
-        /// <summary>演出持有：hold 中的单位对账跳过位置/横置侧倾写与销毁（编舞器独占位姿），
-        /// 死亡翻转不自动倒地（时机由编舞器在受击时刻驱动）。hold 泄漏兜底：Dispose 点名日志。</summary>
-        public void HoldUnit(uint id) => _heldUnits.Add(id);
+        /// <summary>演出持有（引用计数）：hold 中的单位对账跳过位置/横置侧倾写与销毁（编舞器独占位姿），
+        /// 死亡翻转不自动倒地（时机由编舞器在受击时刻驱动）。每次捕获/退场演出各持一票，
+        /// 对应 Release 各弃一票（并行演出共享单位互不偷票）；RetireUnit/Dispose 全量清。
+        /// hold 泄漏兜底：Dispose 点名日志。</summary>
+        public void HoldUnit(uint id)
+            => _heldUnits[id] = _heldUnits.TryGetValue(id, out var n) ? n + 1 : 1;
 
-        public void ReleaseUnit(uint id) => _heldUnits.Remove(id);
+        /// <summary>弃一票持有；计满归零移除。未知 id（已被 RetireUnit 全清/从未持有）静默无操作。</summary>
+        public void ReleaseUnit(uint id)
+        {
+            if (!_heldUnits.TryGetValue(id, out var n)) return;
+            if (n <= 1) _heldUnits.Remove(id);
+            else _heldUnits[id] = n - 1;
+        }
+
+        /// <summary>是否仍被任一持有方 hold（引用计数&gt;0）。</summary>
+        private bool IsHeld(uint id) => _heldUnits.TryGetValue(id, out var n) && n > 0;
 
         // ======================================== 头注视（2026-10-15 战场接线） ========================================
 

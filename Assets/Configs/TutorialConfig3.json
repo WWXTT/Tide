@@ -1,0 +1,170 @@
+{
+  "tutorials": [
+    {
+      "id": "lunzhuan",
+      "name": "资源流转·末日降临",
+      "rngSeed": 20261018,
+      "_说明": "第三课·末日降临 Boss 挑战（2026-10-18 真实对局流程定案；2026-10-19 三课制挪入第三课位，课序挪位不改 id——旧档存档兼容）：走对局准备界面教学三变体（PreMatchScreen.Teaching3：硬币定先后+10 秒倒计时从正式卡组文件夹选卡组，AI 卡组=镜像玩家所选）。AI 第一回合幻卡清算（ScriptedAi phantom 动作）：烧空己方镜像卡组→末日降临正主 C_791FE42E（30/30·再生=回合开始回满·攻宣+1/+1）入场+紊乱 RushSickness×12→纳川仪典 C_57A3ADD6 入场直挂 HandLimitNoFatigue（免疲劳——镜像卡组烧空后 AI 空牌库抽牌不自伤，覆盖双方）。heroLockCard=boss 存活期间玩家不可攻击对方角色（先解决拦路巨兽）。解法=一回合总伤≥30 打空（磨血被再生抹掉）→解锁打脸（AI 生命 30）。紊乱×12=AI 回合 1-12 安全窗口（每它回合末−1），turn13 起 boss 打脸（30 攻≈判负时钟）。引导=intro 语音卡（lunzhuan_01..05 文字占位待配音，mp3 后补即播——语音文件名沿用 lunzhuan 前缀）+宽松 element 放地复习步+ victory 自由挑战。教学卡零注入。胜负语义：胜=MarkTutorialCompleted 过课=三课全胜教学整体完成；负=只记 LunzhuanAttempted（组合界面三按钮解锁判据）重挑直到胜（败局弹窗 Back 回 PreMatchScreen 重选卡组）。lockDeckOrder+rngSeed=同卡组重挑战同局、换卡组=新局。",
+      "heroLockCard": "C_791FE42E",
+      "guide": [
+        {
+          "type": "intro",
+          "reveal": "board",
+          "audio": "lunzhuan_01",
+          "hint": "欢迎来到第三课。前两课你掌握了攻防和进阶机制，现在是毕业考验：一场真正的对局——你掷过硬币、选定了自己的卡组，对手也复制了它——然后把这些复制品用幻卡烧了个精光。它召唤出了末日降临。"
+        },
+        {
+          "type": "intro",
+          "reveal": "board",
+          "audio": "lunzhuan_02",
+          "hint": "认识一下你的对手：末日降临，30 攻 30 血，拥有再生——每个回合开始时恢复全部生命。磨血对它完全无效；它存活期间，你也无法攻击对手角色。唯一的解法：在单独一个回合里，把它的 30 点生命一口气打空。"
+        },
+        {
+          "type": "intro",
+          "reveal": "all",
+          "audio": "lunzhuan_03",
+          "hint": "它头上的紊乱指示物是倒计时：紊乱期间它无法攻击你的角色，但每过一个它的回合就脱落一层——归零之后，它一击就能打空你的生命。时钟在走，抓紧壮大自己的场面。"
+        },
+        {
+          "type": "intro",
+          "reveal": "zone:p1-land",
+          "audio": "lunzhuan_04",
+          "hint": "资源是取胜的钥匙：任意手牌都能放进元素池当作土地，入池即锁定一种产色；出牌付费时系统按账单自动横置地牌（现取现用）。灰色最通用；黑与白是进阶元素，无法从地牌获得——第二课学过的代价兑换，在这里就是你的武器。"
+        },
+        {
+          "type": "element",
+          "card": "",
+          "hint": "复习放地：点击手牌中的一张卡，把它放进元素池（下排地牌格）——它会锁定产色，出牌时自动横置付费"
+        },
+        {
+          "type": "intro",
+          "reveal": "all",
+          "audio": "lunzhuan_05",
+          "hint": "战斗须知：生物攻击末日降临会遭到 30 点反击，攻击者基本必死——这是交换的代价。所以要么攒够多个生物在同一个回合一起出手（总攻击力一次打满 30），要么用法术的直达伤害补足缺口。生物阵亡不亏，胜利才是目的。"
+        },
+        {
+          "type": "victory",
+          "hint": "自由挑战——在紊乱归零之前，一回合打满 30 点伤害解决末日降临，然后把对手角色的生命打到 0！"
+        }
+      ],
+      "aiScript": [
+        {
+          "turn": 1,
+          "actions": [
+            {
+              "type": "phantom",
+              "card": "C_791FE42E",
+              "target": "C_57A3ADD6",
+              "targets": "HandLimitNoFatigue",
+              "mode": 12
+            }
+          ]
+        },
+        {
+          "turn": 2,
+          "actions": [ { "type": "end" } ]
+        },
+        {
+          "turn": 3,
+          "actions": [ { "type": "end" } ]
+        },
+        {
+          "turn": 4,
+          "actions": [ { "type": "end" } ]
+        },
+        {
+          "turn": 5,
+          "actions": [ { "type": "end" } ]
+        },
+        {
+          "turn": 6,
+          "actions": [ { "type": "end" } ]
+        },
+        {
+          "turn": 7,
+          "actions": [ { "type": "end" } ]
+        },
+        {
+          "turn": 8,
+          "actions": [ { "type": "end" } ]
+        },
+        {
+          "turn": 9,
+          "actions": [ { "type": "end" } ]
+        },
+        {
+          "turn": 10,
+          "actions": [ { "type": "end" } ]
+        },
+        {
+          "turn": 11,
+          "actions": [ { "type": "end" } ]
+        },
+        {
+          "turn": 12,
+          "actions": [ { "type": "end" } ]
+        },
+        {
+          "turn": 13,
+          "actions": [
+            {
+              "type": "attack",
+              "attacker": "C_791FE42E",
+              "target": "hero"
+            }
+          ]
+        },
+        {
+          "turn": 14,
+          "actions": [
+            {
+              "type": "attack",
+              "attacker": "C_791FE42E",
+              "target": "hero"
+            }
+          ]
+        },
+        {
+          "turn": 15,
+          "actions": [
+            {
+              "type": "attack",
+              "attacker": "C_791FE42E",
+              "target": "hero"
+            }
+          ]
+        },
+        {
+          "turn": 16,
+          "actions": [
+            {
+              "type": "attack",
+              "attacker": "C_791FE42E",
+              "target": "hero"
+            }
+          ]
+        },
+        {
+          "turn": 17,
+          "actions": [
+            {
+              "type": "attack",
+              "attacker": "C_791FE42E",
+              "target": "hero"
+            }
+          ]
+        },
+        {
+          "turn": 18,
+          "actions": [
+            {
+              "type": "attack",
+              "attacker": "C_791FE42E",
+              "target": "hero"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

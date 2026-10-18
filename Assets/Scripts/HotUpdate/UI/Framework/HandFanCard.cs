@@ -74,6 +74,17 @@ namespace SynergyUI
         private static Texture2D _noiseTex; // 平铺值噪声纹理（shader 滚动雾用，扇区共享，运行时生成）
         private static bool _fogWarned;
 
+        // ---- 离场消融（2026-10-18：放置/使用等结算移卡的对账瞬间起势） ----
+        private RectTransform _burnRoot;  // Dissolve 层（卡根下运行时建：Image+逐卡烧蚀材质）
+        private Material _burnMat;        // 逐卡实例（_Progress 由 TickDissolve 推进；池复用留用）
+        private float _burnT;             // 消融进度 0..1
+        private CanvasGroup _cardGroup;   // 卡根 CanvasGroup（ACardView.Bind 必建，飞入淡入共用件——消融期独占 alpha）
+        private static bool _burnWarned;
+        private const float BurnDuration = 0.5f; // 烧蚀线全程扫完时长
+
+        /// <summary>消融退场中（HandFanView 退场列表驱动；位姿冻结在起势时的扇形位）。</summary>
+        public bool Dissolving { get; private set; }
+
         public void OnPointerEnter(PointerEventData eventData)
         {
             Fan?.NotifyHover(this, true);
@@ -287,6 +298,106 @@ namespace SynergyUI
             _flowMat.SetFloat("_Seed", UnityEngine.Random.value * 97f); // 逐卡呼吸错相+噪声域错开
             _flowMat.SetFloat("_Fade", _fade);
             flowImg.material = _flowMat;
+        }
+
+        // ---- 离场消融（2026-10-18） ----
+
+        /// <summary>离场消融起势（HandFanView 对账移除时调用＝引擎开始结算移卡的瞬间；确认
+        /// 使用/选格阶段不经过对账移除，天然不触发）：叠噪声烧蚀层+卡面同步淡出。按钮/雾光
+        /// 同拍收起（悬停中的卡离场不残留交互件）、指针射线关闭、渲染置顶（邻卡合拢期烧蚀
+        /// 光盖在其上）。shader 缺失返回 false＝调用方即时回收（无消融不阻断对账）。</summary>
+        public bool BeginDissolve()
+        {
+            if (Dissolving) return true;
+            if (!EnsureBurnFx()) return false;
+            Dissolving = true;
+            _burnT = 0f;
+            Fresh = false;
+            Flying = false;
+            HideActionButtons();
+            SetPlayable(false); // 雾光目标转淡出（TickGlow 由退场驱动链继续推）
+            _cardGroup = GetComponent<CanvasGroup>(); // ACardView.Bind 必建；极端缺件兜底
+            if (_cardGroup == null) _cardGroup = gameObject.AddComponent<CanvasGroup>();
+            _cardGroup.blocksRaycasts = false; // 退场卡不再接指针
+            _cardGroup.alpha = 1f;
+            transform.SetAsLastSibling();
+            return true;
+        }
+
+        /// <summary>消融推进（HandFanView.Tick 退场列表驱动）：烧蚀线 0.5s 自下而上扫完；
+        /// 卡面在 10%~75% 进度间同步淡出（线扫到哪儿卡面隐到哪儿）。返回 true＝播完可回池。</summary>
+        public bool TickDissolve(float dt)
+        {
+            _burnT = Mathf.Clamp01(_burnT + dt / BurnDuration);
+            if (_burnMat != null) _burnMat.SetFloat("_Progress", _burnT);
+            if (_cardGroup != null) _cardGroup.alpha = 1f - Mathf.SmoothStep(0.1f, 0.75f, _burnT);
+            return _burnT >= 1f;
+        }
+
+        /// <summary>消融态复位（播完回池/中途回手两种出口都过这里）：alpha/射线归位+烧蚀层
+        /// 收起（材质留用——_Progress 回零，池内复用零装配；卡面 alpha 由对账 Apply 重写无冲突）。</summary>
+        public void ResetDissolve()
+        {
+            Dissolving = false;
+            _burnT = 0f;
+            if (_burnMat != null) _burnMat.SetFloat("_Progress", 0f);
+            if (_burnRoot != null && _burnRoot.gameObject.activeSelf)
+                _burnRoot.gameObject.SetActive(false);
+            if (_cardGroup != null)
+            {
+                _cardGroup.alpha = 1f;
+                _cardGroup.blocksRaycasts = true;
+            }
+        }
+
+        /// <summary>烧蚀层装配（BeginDissolve 惰性执行；池复用只校准几何）。几何与雾光同口径：
+        /// 嵌套 ACard 卡面实值、卡根居中、外扩 8px（SDF 卡形在 quad 边内收，辉光贴边不裁切）。
+        /// shader 缺失（未导入/未随包收录）整段降级=无消融并警告一次。</summary>
+        private bool EnsureBurnFx()
+        {
+            var shader = HotUpdateAssets.Load<Shader>("CardDissolve", "Assets/Art/Shaders/CardDissolve.shader");
+            if (shader == null)
+            {
+                if (!_burnWarned)
+                {
+                    _burnWarned = true;
+                    Debug.LogWarning("[HandFan] SynergyUI/CardDissolve shader 未找到"
+                        + "（Assets/Art/Shaders/CardDissolve.shader 未导入/未随包收录）——手牌离场消融缺省");
+                }
+                return false;
+            }
+
+            var face = transform.Find("ACard") as RectTransform ?? (RectTransform)transform;
+            Vector2 faceSize = face.rect.size;
+            if (faceSize.x < 1f || faceSize.y < 1f) faceSize = ((RectTransform)transform).rect.size;
+
+            const float margin = 8f;
+            if (_burnRoot == null)
+            {
+                _burnRoot = new GameObject("Dissolve", typeof(RectTransform), typeof(Image)).transform as RectTransform;
+                _burnRoot.SetParent(transform, false);
+            }
+            _burnRoot.anchorMin = _burnRoot.anchorMax = _burnRoot.pivot = new Vector2(0.5f, 0.5f);
+            _burnRoot.anchoredPosition = Vector2.zero;
+            _burnRoot.sizeDelta = faceSize + new Vector2(margin * 2f, margin * 2f);
+            _burnRoot.SetAsLastSibling();
+
+            var burnImg = _burnRoot.GetComponent<Image>();
+            burnImg.sprite = null; // 整幅四边形交 shader 绘制
+            burnImg.color = Color.white;
+            burnImg.raycastTarget = false;
+            if (_burnMat == null)
+            {
+                _burnMat = new Material(shader);
+                _burnMat.SetTexture("_NoiseTex", EnsureNoiseTexture()); // 与雾光共享平铺噪声
+                _burnMat.SetFloat("_Seed", UnityEngine.Random.value * 89f); // 逐卡烧蚀毛边各异
+            }
+            _burnMat.SetVector("_CardHalf", new Vector4(faceSize.x * 0.5f, faceSize.y * 0.5f, 0f, 0f));
+            _burnMat.SetVector("_QuadSize", new Vector4(faceSize.x + margin * 2f, faceSize.y + margin * 2f, 0f, 0f));
+            _burnMat.SetFloat("_Progress", 0f);
+            burnImg.material = _burnMat;
+            _burnRoot.gameObject.SetActive(true);
+            return true;
         }
 
         /// <summary>平铺值噪声纹理（128px，R 通道；8/16 格双倍频——格点确定性哈希+平滑插值，

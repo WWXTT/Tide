@@ -831,7 +831,11 @@ namespace CardCore
                             choice = ResponseWindowService.AiResponder?.Invoke(core, holder, options)
                                      ?? DefaultAiRespond(core, holder, options);
                         else if (ResponseWindowService.HumanResponder != null)
+                        {
                             choice = await ResponseWindowService.HumanResponder(holder, options);
+                            // 人类响应决策探针（连锁/让过都算——respond 引导步骤完成信号，2026-10-19）
+                            RuleHooks.OnTutorialHumanResponded?.Invoke(holder);
+                        }
                         // 挂死兜底不在引擎侧（2026-10-17 定案）：UniTask.Delay 型超时在链孤悬时
                         // 同样不触发（两度实测），且 TideServer shim 无 Delay/WhenAny——真正的
                         // 保命层=BattleScreen.WatchdogStalePick（MonoBehaviour 帧驱动墙钟）。

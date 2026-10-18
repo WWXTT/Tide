@@ -10,9 +10,10 @@ namespace SynergyUI
     /// 双方卡组的**顺序即摸牌序列**（InitGame lockDeckOrder 锁牌库序：前 OpeningHandSize 张为起手、
     /// 之后逐回合摸牌恒取牌库顶）；机器人逐回合动作脚本由 ScriptedAi 按条执行；rngSeed 钉效果随机。
     /// 三者合一台教学局完全确定，可反复重演同一节奏。
-    /// 数据：Assets/Configs/ 按课拆档（2026-10-18）：TutorialConfig.json=第一课（basics）、
-    /// TutorialConfig2.json=第二课（lunzhuan），TutorialLibrary 两档合并装载（TidePaths 寻址：编辑器直读、
-    /// 直改 JSON 后 Reload 免重启，真机由宿主装配进热更包——同 AtomicEffectTable 惯例）。
+    /// 数据：Assets/Configs/ 按课拆档（2026-10-19 三课制）：TutorialConfig.json=第一课（basics 攻防）、
+    /// TutorialConfig2.json=第二课（jinjie 进阶机制）、TutorialConfig3.json=第三课（lunzhuan 末日降临
+    /// Boss），TutorialLibrary 三档合并装载（TidePaths 寻址：编辑器直读、直改 JSON 后 Reload 免重启，
+    /// 真机由宿主装配进热更包——同 AtomicEffectTable 惯例）。
     /// </summary>
     [Serializable]
     public class TutorialConfig
@@ -58,13 +59,22 @@ namespace SynergyUI
         [NonSerialized] private List<string> _playerDeckIds;
         [NonSerialized] private List<string> _aiDeckIds;
 
-        /// <summary>玩家卡组 id 序（读 deckFile 展开缓存；文件缺/空=空表，调用方回落）。</summary>
+        /// <summary>玩家卡组 id 序（读 deckFile 展开；仅非空结果缓存——文件缺/读失败的空表不粘死，
+        /// 下次访问重读自愈。真机实录 2026-10-18：首启竞速空表被 ??= 缓存后整个会话教学恒回落普通局）。</summary>
         public List<string> PlayerDeckIds
-            => _playerDeckIds ??= TutorialLibrary.LoadDeckIds(playerDeckFile);
+            => DeckIdsCached(ref _playerDeckIds, playerDeckFile);
 
         /// <summary>机器人卡组 id 序（同上）。</summary>
         public List<string> AiDeckIds
-            => _aiDeckIds ??= TutorialLibrary.LoadDeckIds(aiDeckFile);
+            => DeckIdsCached(ref _aiDeckIds, aiDeckFile);
+
+        /// <summary>卡组 id 缓存读（非空命中即用；空表/未读每次重读——失败态不落缓存）。</summary>
+        private List<string> DeckIdsCached(ref List<string> cache, string deckFile)
+        {
+            if (cache == null || cache.Count == 0)
+                cache = TutorialLibrary.LoadDeckIds(deckFile);
+            return cache;
+        }
     }
 
     /// <summary>机器人单回合脚本：动作按序执行；type=end 提前截断（脚本末尾隐含结束回合）。</summary>
@@ -81,10 +91,15 @@ namespace SynergyUI
     ///           地牌不耗竭，付费时系统按账单自动横置）；
     /// tap——已删（2026-10-11 现取现用：无回合初横置动作）；
     /// play——出 card（mode=抉择模式序号；targets=逗号分隔目标串，"hero"=对方英雄/卡 id=场上单位，
-    /// 缺省或 "auto"=引擎自动解析）；
+    ///           缺省或 "auto"=引擎自动解析）；
     /// attack——attacker（场上卡 id）宣言攻击 target（"hero"=对方英雄/卡 id=场上单位）；
     /// fallback=attack 首选目标不可解析（已死/已离场）时的回落目标（2026-10-17 考验：四小只打
-    /// 6/6 主将、主将死后转攻角色）；skill——英雄技能；end——提前结束本回合（跳过剩余动作）。
+    ///           6/6 主将、主将死后转攻角色）；skill——英雄技能；end——提前结束本回合（跳过剩余动作）；
+    /// activate——场上卡 card 宣动主动效果（2026-10-19 第二课连锁教学：mode=第几个主动效果 0 起，
+    ///           宣动后开响应窗等人类玩家连锁/让过，不立即排干栈）；
+    /// phantom——幻卡清算（2026-10-18 教学二·AI 第一回合签名动作）：烧空己方全部区域（镜像卡组），
+    ///           凭空召唤 card（末日降临，mode=紊乱 RushSickness 层数）+ target 仪典载体入场并直挂
+    ///           targets 规则光环（如 HandLimitNoFatigue）。实现见 ScriptedAi.ExecutePhantom。
     /// </summary>
     [Serializable]
     public class TutorialAction
@@ -100,17 +115,18 @@ namespace SynergyUI
 
     /// <summary>
     /// 教学配置库（仿 AtomicEffectTable 惯例：静态表 + TidePaths.ReadConfigText + Reload 免重启）。
-    /// 按课拆档（2026-10-18）：第一课 TutorialConfig.json + 第二课 TutorialConfig2.json，两档合并
-    /// 装载进同一 id 表——消费方（BattleScreen/TutorialFlow 按 id Get）零改动；跨档重复 id 保先装档
-    /// 并 Warn（与 EffectsLibrary 教学副表合并同口径）。Get 按 id 取条目；BuildDeck 把卡 id 序列
-    /// 解析为 CardData 卡组（缺失 id 记警告跳过，不炸局）。
+    /// 按课拆档（2026-10-19 三课制）：第一课 TutorialConfig.json + 第二课 TutorialConfig2.json +
+    /// 第三课 TutorialConfig3.json，三档合并装载进同一 id 表——消费方（BattleScreen/TutorialFlow
+    /// 按 id Get）零改动；跨档重复 id 保先装档并 Warn（与 EffectsLibrary 教学副表合并同口径）。
+    /// Get 按 id 取条目；BuildDeck 把卡 id 序列解析为 CardData 卡组（缺失 id 记警告跳过，不炸局）。
     /// </summary>
     public static class TutorialLibrary
     {
         private static readonly string[] ConfigRelativePaths =
         {
-            "Configs/TutorialConfig.json",  // 第一课（basics）
-            "Configs/TutorialConfig2.json", // 第二课（lunzhuan）
+            "Configs/TutorialConfig.json",  // 第一课（basics 攻防）
+            "Configs/TutorialConfig2.json", // 第二课（jinjie 进阶机制）
+            "Configs/TutorialConfig3.json", // 第三课（lunzhuan 末日降临 Boss）
         };
 
         private static Dictionary<string, TutorialConfig> _byId;
@@ -164,12 +180,15 @@ namespace SynergyUI
         public static TutorialConfig Get(string id)
             => string.IsNullOrEmpty(id) ? null : _byId.TryGetValue(id, out var t) ? t : null;
 
-        /// <summary>教学/测试卡组引用文件 → 卡 id 序（2026-10-17 卡组文件化：StreamingAssets/
-        /// Tutorial/{deckFile}.json，{name, cardIds} 红·快攻同款 DeckData 格式——id 引用即是卡组，
-        /// 同 id 多次出现即多张，全面支持重复卡）。文件缺/读失败=空表（Warn 兜底，不缓存复用）。</summary>
+        /// <summary>教学/测试卡组引用文件 → 卡 id 序（2026-10-17 卡组文件化：{name, cardIds} 红·快攻
+        /// 同款 DeckData 格式——id 引用即是卡组，同 id 多次出现即多张，全面支持重复卡；2026-10-18
+        /// 迁 CardDataPaths.TutorialFileIn 寻址）。文件缺/读失败=空表（Warn 兜底，不缓存复用）。</summary>
         public static List<string> LoadDeckIds(string deckFile)
         {
             if (string.IsNullOrEmpty(deckFile)) return new List<string>();
+            // 本读是教学开局链首个裸 File 探测点，须先落 persistent 种子（真机首启竞速实录：
+            // 2026-10-18 引导只挂在 CardCatalog/EffectsLibrary，此处先行则必判"文件不存在"回落普通局）
+            CardDataPaths.EnsureBootstrap();
             try
             {
                 string path = CardDataPaths.TutorialFileIn(deckFile + ".json");

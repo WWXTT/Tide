@@ -1,3 +1,4 @@
+using Cysharp.Threading.Tasks;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -73,6 +74,9 @@ namespace SynergyUI
 
         /// <summary>覆盖替换（2026-09-24 定案）：正在编辑的旧卡 ID；null=新建。效果合成器往返期间保留。</summary>
         private string _editingOriginalId;
+
+        private TipPromptHost _tips; // TipPanel 提示弹窗宿主（2026-10-18 统一定案；惰性建——字段初始化器不能引用实例 Root）
+        private TipPromptHost Tips => _tips ??= new TipPromptHost(() => Root);
 
         /// <summary>跨屏待编辑卡 ID（2026-10-16 卡组界面「编辑」跳转）：UIManager.Show 无法
         /// 传参——静态会话仿 ComposerSession；OnEnterInternal 消费后即清（一次性，防残留串局）。</summary>
@@ -202,6 +206,7 @@ namespace SynergyUI
         public override void OnExit()
         {
             UiKit.DescRequested -= OnDescRequested;
+            Tips.Close(); // 在途提示弹窗清理
         }
 
         private void OnEnterInternal()
@@ -1177,7 +1182,7 @@ namespace SynergyUI
         }
 
         /// <summary>删除卡池中的当前卡（2026-10-16 强制删除机制定案）：无引用直接删；
-        /// 被卡组引用→ConfirmBox 提示+允许强制——强删后卡组断链，卡组界面按
+        /// 被卡组引用→TipPanel 提示+允许强制（2026-10-18 弹窗统一）——强删后卡组断链，卡组界面按
         /// DeckCompositionValidator.MissingIds 标记「不可用」。</summary>
         private void OnDeleteCard()
         {
@@ -1192,10 +1197,18 @@ namespace SynergyUI
                 DeleteCurrentCard(0);
                 return;
             }
-            UiKit.ConfirmBox(Root, "删除卡牌",
-                $"「{_card.CardName}」被 {refs.Count} 个卡组引用：\n{string.Join("、", refs)}\n\n"
-                + "强制删除后这些卡组将断链（卡组界面会标记「断链·不可用」）。",
-                "强制删除", () => DeleteCurrentCard(refs.Count));
+            ConfirmForceDeleteCardAsync(refs).Forget();
+        }
+
+        /// <summary>强删确认（TipPanel 双键）：取消/拆屏=null/否=不动。</summary>
+        private async UniTaskVoid ConfirmForceDeleteCardAsync(List<string> refs)
+        {
+            if (await Tips.ShowAsync(
+                    $"「{_card.CardName}」被 {refs.Count} 个卡组引用：\n{string.Join("、", refs)}\n\n"
+                    + "强制删除后这些卡组将断链（卡组界面会标记「断链·不可用」）。",
+                    "强制删除", "取消") != true)
+                return;
+            DeleteCurrentCard(refs.Count);
         }
 
         private void DeleteCurrentCard(int brokenDecks)

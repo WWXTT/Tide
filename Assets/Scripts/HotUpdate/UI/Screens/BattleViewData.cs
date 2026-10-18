@@ -111,18 +111,14 @@ namespace SynergyUI
     /// <summary>视图构建与格位/文案映射（本地与网络两入口）。</summary>
     public static class BattleView
     {
-        // ---- 中文映射（展示串中文） ----
-        private static readonly Dictionary<PhaseType, string> PhaseNames = new Dictionary<PhaseType, string>
-        {
-            { PhaseType.Standby, "准备" }, { PhaseType.Main, "主要" }, { PhaseType.End, "结束" },
-        };
+        // ---- 中文映射（展示串中文；PhaseZh/ManaZh 已收敛 CardCore 单源——2026-10-18 B1 日志中间层） ----
         private static readonly Dictionary<ManaType, string> ManaNames = new Dictionary<ManaType, string>
         {
             { ManaType.Gray, "灰" }, { ManaType.Red, "红" }, { ManaType.Blue, "蓝" },
             { ManaType.Green, "绿" }, { ManaType.White, "白" }, { ManaType.Black, "黑" },
         };
 
-        public static string PhaseZh(PhaseType p) => PhaseNames.TryGetValue(p, out var s) ? s : p.ToString();
+        public static string PhaseZh(PhaseType p) => CardCore.MatchLogRenderer.PhaseZh(p);
         public static string ManaZh(ManaType m) => ManaNames.TryGetValue(m, out var s) ? s : m.ToString();
 
         /// <summary>声明费用（位置数组）→ 中文（如「红2 灰1」；序数序=枚举序；空=0）。</summary>

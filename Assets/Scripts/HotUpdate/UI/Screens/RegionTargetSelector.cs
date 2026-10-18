@@ -252,7 +252,9 @@ namespace SynergyUI
             _btnSelect.onClick.RemoveAllListeners();
             ClearInstances();
             _frames.Clear();
-            BattleTargetReticle.ClearAll();
+            if (_reticles != null) // 按登记逐 id 撤（2026-10-18 改：ClearAll 会连坐攻击链瞄准贴片——
+                for (int i = 0; i < _reticles.Length; i++) // 连锁响应开窗时 CombatChoreographer 的贴片不受本窗关合影响）
+                    if (_reticles[i].HasValue) BattleTargetReticle.Hide(_reticles[i].Value.id);
             _reticles = null;
             foreach (var kv in hidden) kv.Key.SetActive(kv.Value);
             _region.gameObject.SetActive(regionWasActive);

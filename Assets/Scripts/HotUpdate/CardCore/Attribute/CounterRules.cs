@@ -181,13 +181,16 @@ namespace CardCore.Attribute
         public const string DivineShieldCounter = "DivineShield";
         /// <summary>
         /// 复生（2026-10-08 指示物化，表行 94f6a32d/GrantReborn）：每层一次死亡替代——
-        /// 不进墓不离场、生命变 1、横置，消耗 1 层；湮灭不可救。
-        /// 消耗口=KeywordRules.TryReborn（死亡路径送墓前调用）；换区不清（生效自减档）、净化可清。
+        /// 不进墓不离场、生命变 1，消耗 1 层；湮灭不可救。Entity 级（2026-10-19 角色复生）：
+        /// 角色归零宣判前消耗（StateBasedActions.ExecuteZeroLife 闸）——回 1 血、不发角色死亡事件。
+        /// 横置平衡阀已退役（2026-10-19）——复生回场即可用，与「入场即可用」口径统一。
+        /// 消耗口=KeywordRules.TryReborn（卡牌死亡路径送墓前 / 角色 SBA 宣判前调用）；
+        /// 换区不清（生效自减档）、净化可清。
         /// </summary>
         public const string RebornCounter = "Reborn";
         /// <summary>
-        /// 潜行（2026-10-08 指示物化，表行 8f84641e/GrantStealth）：持有层数 &gt;0 期间不可被
-        /// 攻击/效果指定（两指定口：CombatSystem.CanAttackTarget /
+        /// 潜行（2026-10-08 指示物化，表行 8f84641e/GrantStealth；2026-10-19 Entity 级——角色可持有）：
+        /// 持有层数 &gt;0 期间不可被攻击/效果指定（两指定口：CombatSystem.CanAttackTarget /
         /// TargetFilterSystem.ExcludeUnselectable，与隐密 Concealed 关键词同查——原第三口
         /// EffectTargeting.CanTarget 已随 2026-10-13 死基建删除，从未接通）；
         /// 攻击宣言/发动效果/实际受到伤害各消耗 1 层（逐份撤口径，承自旧台账消耗型语义）；

@@ -226,6 +226,12 @@ namespace CardCore
             // 血量已回正或已判负 → 空转
             if (player.Life > 0 || (_gameCore != null && _gameCore.IsGameOver)) return;
 
+            // 复生消耗闸（2026-10-19 角色复生定案，镜像 DeathRules.TryKill 的复生闸）：宣判前先问
+            // 复生层——消耗 1 层、生命回 1、不发 RoleDeathEvent 也不落宣判标记（Life>0 后下轮
+            // ZeroLifeChecker 自然不再检出）。时点=响应窗口之后（ZeroLife 为关键 SBA，结算前照常
+            // 开窗口——救场治疗与复生同窗口语义，与生物死亡路径口径一致）。
+            if (Attribute.KeywordRules.TryReborn(player)) return;
+
             // 角色亡语定案（2026-09-15，判负效果化）：不直接终局——发角色死亡事件，
             // 角色亡语（默认=宣告对手获得胜利，宣判即终局）经触发式轮结算；
             // 亡语被全拦/未挂时由 GameCore.CheckLifeGameOver 兜底判负 LifeZero。

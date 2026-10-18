@@ -346,8 +346,9 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 手动选择显示域（2026-09-13 潜行定案；2026-10-04 隐密同口径；扰魔 2026-10-13 整体退役）：从"选择"候选中隐藏
-        /// 对方侧潜行/隐密单位——弹窗不显示、AI/无头代替选取（自动取前 N）同口径不可选；
+        /// 手动选择显示域（2026-09-13 潜行定案；2026-10-04 隐密同口径；扰魔 2026-10-13 整体退役；
+        /// 2026-10-19 Entity 级——角色持潜行/隐密同口径隐藏）：从"选择"候选中隐藏
+        /// 对方侧潜行/隐密单位（生物+角色）——弹窗不显示、AI/无头代替选取（自动取前 N）同口径不可选；
         /// 不改变范围本身（Full/Random 从完整候选域结算，照常命中）。
         /// </summary>
         public static List<Entity> ExcludeUnselectable(List<Entity> candidates, Player controller)
@@ -355,11 +356,11 @@ namespace CardCore
             if (candidates == null || candidates.Count == 0) return candidates ?? new List<Entity>();
             return candidates.Where(c =>
             {
-                if (!(c is Card card) || controller == null) return true;
-                var tc = card.GetController();
-                return tc == null || tc == controller
-                    || !(card.GetCounterCount(Attribute.CounterRules.StealthCounter) > 0
-                         || card.HasKeyword(KeywordRules.Concealed));
+                if (controller == null) return true;
+                var side = c is Card card ? card.GetController() : c as Player;
+                return side == null || side == controller
+                    || !(c.GetCounterCount(Attribute.CounterRules.StealthCounter) > 0
+                         || c.HasKeyword(KeywordRules.Concealed));
             }).ToList();
         }
 

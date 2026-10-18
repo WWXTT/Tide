@@ -139,6 +139,31 @@ namespace SynergyUI
                     if (ok) GameActions.DrainStack(core);
                     return LogResult(action, ok, "英雄技能被拒（费用/横置/沉默/已用）");
                 }
+                case "activate":
+                {
+                    // 场上卡主动效果宣动（2026-10-19 第二课连锁教学）：card=场上卡 id（action.card 复用），
+                    // mode=第几个主动效果（0 起，缺省首个 IsActivatedEffect）。宣动成功后**不排干栈**——
+                    // await SettleResponseWindowAsync 开响应窗给人类玩家连锁（教学核心演示位），
+                    // 双 Pass 结算后才继续（镜像 attack 口径）。
+                    var source = FindOnBattlefield(core, me, action.card);
+                    if (source == null) return LogResult(action, false, $"场上无 {action.card}");
+                    var defs = CardEffectConverter.ConvertAll(
+                        (source as CardWrapper)?.GetData()?.Effects, source.ID);
+                    EffectDefinition def = null;
+                    int idx = 0;
+                    foreach (var d in defs ?? new List<EffectDefinition>())
+                    {
+                        if (d == null || !d.IsActivatedEffect) continue;
+                        if (idx == action.mode) { def = d; break; }
+                        idx++;
+                    }
+                    if (def == null)
+                        return LogResult(action, false, $"{action.card} 无主动效果（或序号越界）");
+                    if (!GameActions.ActivateEffect(core, me, def, source))
+                        return LogResult(action, false, "主动效果宣动被拒（主阶段/横置/速度门）");
+                    await GameActions.SettleResponseWindowAsync(core); // 连锁窗口：人类玩家可响应
+                    return true;
+                }
                 // "tap"/"tapland" 已删（2026-10-11 现取现用：地牌横置=付费步系统自动动作，
                 // 教学脚本不再演示手动产色；"tapcreature" 保留——带地牌特性生物的产色仍是主动能力）
                 case "tapcreature":
@@ -158,6 +183,12 @@ namespace SynergyUI
                     GameActions.DrainStack(core);
                     return true;
                 }
+                case "phantom":
+                {
+                    // 幻卡清算（2026-10-18 教学二·末日降临挑战）：AI 第一回合签名动作——烧空己方
+                    // 镜像卡组，凭空召唤末日降临（带紊乱束缚）+ 仪典载体直挂规则光环。
+                    return LogResult(action, ExecutePhantom(core, me, action), "幻卡清算失败");
+                }
                 default:
                     TideLog.Warn($"[ScriptedAi] 未知动作类型：{action.type}（机器人回合 {_aiTurnCount}）");
                     return false;
@@ -170,6 +201,105 @@ namespace SynergyUI
                 TideLog.Warn($"[ScriptedAi] 机器人回合 {_aiTurnCount} 动作失败 {action.type} " +
                              $"{action.card ?? action.attacker}：{failReason}");
             return ok;
+        }
+
+        // ======================================== 幻卡清算（教学二） ========================================
+
+        /// <summary>幻卡清算（2026-10-18 教学二·末日降临挑战·AI 第一回合签名动作）。字段口径——
+        /// card=末日降临卡 id（正主 C_791FE42E）、target=仪典载体卡 id（纳川仪典 C_57A3ADD6）、
+        /// targets=仪典规则光环 id（HandLimitNoFatigue=免疲劳——镜像卡组烧空后 AI 空牌库抽牌
+        /// 不再疲劳自伤）、mode=紊乱层数（RushSickness：boss 暂不可攻击角色、每它回合末−1）。
+        /// 实现：烧空=TutorialScenarioSeeder.ClearSide 同款抹除口径（容器直删+CardMoveEvent
+        /// To=None，不走死亡/换区结算）；造卡=CardCatalog→CardLoader（Seeder SpawnToDeck 同源）；
+        /// 入场=ZoneManager.TryMoveToBattlefield 官方口（容量闸+CardPutToBattlefieldEvent——
+        /// 视图对账+出场演出）+RegisterCardTriggeredEffects 显式补（静默入场不接触发式）；
+        /// 仪典光环=RuleAuraSystem.Activate 直挂（Seeder 预置仪典同口径，覆盖双方）。</summary>
+        private static bool ExecutePhantom(GameCore core, Player me, TutorialAction action)
+        {
+            var container = core.ZoneManager?.GetZoneContainer(me);
+            if (container == null || string.IsNullOrEmpty(action.card)) return false;
+
+            // ① 烧空己方全部区域（镜像手牌+牌库为主；其余区域防御性同清——ClearSide 同款）
+            int burned = 0;
+            foreach (var zone in new[] { Zone.Battlefield, Zone.ElementPool, Zone.Hand, Zone.Deck, Zone.Graveyard, Zone.Exile })
+            {
+                foreach (var card in core.ZoneManager.GetCards(me, zone) ?? new List<Card>())
+                {
+                    if (card == null) continue;
+                    if (zone == Zone.ElementPool) core.ElementPool.RemoveCardFromPool(card, me);
+                    container.Remove(card, zone);
+                    if (zone == Zone.Battlefield)
+                    {
+                        card.IsAlive = false;
+                        core.PublishEvent(new CardLeaveBattlefieldEvent
+                        {
+                            Card = card,
+                            Controller = me,
+                            Destination = Zone.None,
+                        });
+                    }
+                    core.PublishEvent(new CardMoveEvent
+                    {
+                        MovedCard = card,
+                        From = zone,
+                        To = Zone.None,
+                        Controller = me,
+                    });
+                    burned++;
+                }
+            }
+            var wallet = core.ElementPool.GetPool(me);
+            if (wallet != null)
+                for (ManaType t = ManaType.Gray; t <= ManaType.Black; t++)
+                    wallet.TempElements[t] = 0;
+
+            // ② 末日降临入场 + 紊乱束缚×mode
+            var boss = SpawnToBattlefield(core, me, action.card);
+            if (boss == null) return false;
+            if (action.mode > 0)
+                boss.AddCounters(CardCore.Attribute.KeywordRules.RushSicknessCounter, action.mode, me);
+
+            // ③ 仪典载体入场 + 规则光环直挂
+            string auraNote = "";
+            if (!string.IsNullOrEmpty(action.target))
+            {
+                var carrier = SpawnToBattlefield(core, me, action.target);
+                if (carrier != null)
+                {
+                    if (!string.IsNullOrEmpty(action.targets))
+                        RuleAuraSystem.Activate(action.targets, carrier, me);
+                    auraNote = $"，仪典入场（{action.targets}）";
+                }
+            }
+
+            TideLog.Info($"[ScriptedAi] 幻卡清算：{me?.Name} 烧掉 {burned} 张镜像卡，召唤 " +
+                         $"{TutorialGuide.NameOf(action.card)}（紊乱×{action.mode}）{auraNote}");
+            return true;
+        }
+
+        /// <summary>凭空造卡直入战场：CardCatalog→CardLoader 造实例，先静默入牌库（官方入场口
+        /// 的源区域），再 TryMoveToBattlefield（Deck→Battlefield=SummonedByEffect 入场源，发布
+        /// 入场事件链）；失败（满场）=官方口已入墓，返回 null。</summary>
+        private static Card SpawnToBattlefield(GameCore core, Player owner, string cardId)
+        {
+            var data = CardCatalog.GetById(cardId);
+            if (data == null)
+            {
+                TideLog.Warn($"[ScriptedAi] 幻卡造卡失败（卡表无此 id）：{cardId}");
+                return null;
+            }
+            var card = CardLoader.BuildDeck(new List<CardData> { data }, 1)?.FirstOrDefault(c => c != null);
+            if (card == null) return null;
+            card.SetController(owner);
+            var container = core.ZoneManager.GetZoneContainer(owner);
+            container.Add(card, Zone.Deck);
+            if (!core.ZoneManager.TryMoveToBattlefield(card, owner, Zone.Deck))
+            {
+                TideLog.Warn($"[ScriptedAi] 幻卡召唤入场失败（满场？）：{cardId}");
+                return null;
+            }
+            GameActions.RegisterCardTriggeredEffects(core, card, owner);
+            return card;
         }
 
         // ======================================== 找牌与目标解析 ========================================

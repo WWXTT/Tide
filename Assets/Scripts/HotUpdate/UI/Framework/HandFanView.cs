@@ -62,6 +62,7 @@ namespace SynergyUI
         private readonly Config _cfg;
         private readonly List<HandFanCard> _cards = new List<HandFanCard>();
         private readonly Stack<HandFanCard> _pool = new Stack<HandFanCard>();
+        private readonly List<HandFanCard> _dissolving = new List<HandFanCard>(); // 消融退场中（2026-10-18）
         private readonly Dictionary<uint, HandFanCard> _alive = new Dictionary<uint, HandFanCard>();
         private GameObject _prefab;
         private Vector2 _cardSize;   // 动态读取的卡牌尺寸（卡面改版只动 prefab，布局自适应）
@@ -167,9 +168,12 @@ namespace SynergyUI
                 {
                     if (!_alive.Remove(d.RuntimeId, out var card))
                     {
-                        card = null;
-                        while (_pool.Count > 0 && card == null) card = _pool.Pop(); // 池内销毁实例丢弃
-                        if (card == null) card = Create();
+                        card = TakeBackDissolving(d.RuntimeId); // 消融中途回手（结算失败同拍回牌等）：原实例撤演续用，防双影
+                        if (card == null)
+                        {
+                            while (_pool.Count > 0 && card == null) card = _pool.Pop(); // 池内销毁实例丢弃
+                            if (card == null) card = Create();
+                        }
                         card.RuntimeId = d.RuntimeId;
                         card.Fresh = true;
                         if (_drawOrigin is Vector2 origin)
@@ -191,8 +195,15 @@ namespace SynergyUI
             foreach (var leftover in _alive.Values)
             {
                 leftover.ResetFlyState(); // 池回收复位（防出池残留飞入态/半透明）
-                leftover.gameObject.SetActive(false);
-                _pool.Push(leftover);
+                // 离场消融（2026-10-18）：放置/使用等结算移卡的对账瞬间起势（确认使用/选格期
+                // 卡未离手不触发）；播完由 Tick 退场链回池。shader 缺失回落即时回收。
+                if (leftover.BeginDissolve())
+                    _dissolving.Add(leftover);
+                else
+                {
+                    leftover.gameObject.SetActive(false);
+                    _pool.Push(leftover);
+                }
             }
             _alive.Clear();
 
@@ -251,12 +262,47 @@ namespace SynergyUI
                 _hovered.transform.SetAsLastSibling(); // 悬停卡渲染置顶（盖住邻卡）
         }
 
+        /// <summary>消融中途回手接管（对账同帧离场又回列＝引擎快速回牌，如声明失败收回）：
+        /// 撤演复位原实例，不与新建实例双影并存。无此 id 在演=返回 null 走池。</summary>
+        private HandFanCard TakeBackDissolving(uint runtimeId)
+        {
+            for (int i = 0; i < _dissolving.Count; i++)
+                if (_dissolving[i].RuntimeId == runtimeId)
+                {
+                    var c = _dissolving[i];
+                    _dissolving.RemoveAt(i);
+                    c.ResetDissolve();
+                    return c;
+                }
+            return null;
+        }
+
+        /// <summary>消融退场推进（2026-10-18）：必须在 _cards 空的早退之前——打出手牌最后
+        /// 一张时对账后 _cards 已空，漏推=卡永远冻在半消融态。雾光同链淡出收层；播完复位回池。</summary>
+        private void TickDissolving()
+        {
+            for (int i = _dissolving.Count - 1; i >= 0; i--)
+            {
+                var c = _dissolving[i];
+                if (c == null) { _dissolving.RemoveAt(i); continue; } // 防销毁卡（同 SetCards 清扫口径）
+                c.TickGlow(_glowPhase);
+                if (c.TickDissolve(Time.deltaTime))
+                {
+                    _dissolving.RemoveAt(i);
+                    c.ResetDissolve();
+                    c.gameObject.SetActive(false);
+                    _pool.Push(c);
+                }
+            }
+        }
+
         /// <summary>帧驱动：全部活跃卡向目标 exp 缓动（宿主挂 UiKit.Updater 调用）；
         /// 流光相位统一推进（可发动卡的边缘光带巡游）。
         /// 收缩插值同步缓动（无悬停卡→收起/有→展开），过渡期间逐帧重排目标。</summary>
         public void Tick()
         {
             _glowPhase += Time.deltaTime * 4.5f;
+            TickDissolving(); // 先推退场（手牌清空早退前——见方法注）
             if (_cards.Count == 0) return;
             float t = 1f - Mathf.Exp(-Mathf.Min(Time.deltaTime, 0.05f) * _cfg.TweenSpeed);
 
@@ -304,6 +350,9 @@ namespace SynergyUI
             foreach (var c in _cards)
                 if (c != null) UnityEngine.Object.Destroy(c.gameObject);
             _cards.Clear();
+            foreach (var c in _dissolving)
+                if (c != null) UnityEngine.Object.Destroy(c.gameObject);
+            _dissolving.Clear();
             while (_pool.Count > 0)
             {
                 var c = _pool.Pop();

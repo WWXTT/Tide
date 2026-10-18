@@ -1,224 +1,282 @@
 {
   "tutorials": [
     {
-      "id": "lunzhuan",
-      "name": "资源流转·末日降临",
-      "rngSeed": 20261006,
-      "_说明": "第二课改版（2026-10-11 资源重做第四轮·现取现用）：回合一机器人使用幻卡清空手牌牌库、释放纳川仪典（双方免疲劳）、召唤末日降临（30/30，装载期费用推导自动回填）、赋予 15 回合紊乱、并塞给玩家一张归土仪典。回合二开始引导（教学不洗牌）。新教学线：起始手牌即含白源/黑源——放红苗锁色→打出白源/黑源（预置黑白临时元素支付）→下回合横置两源产黑白（黑白获取唯一通道，临时元素可垫灰费、回合末即逝）→灰苗/蓝苗/绿苗依次入池锁色→打出三色斗士：系统按账单自动横置红/蓝/绿苗支付（现取现用；三色只有本色能付、黑白只垫灰）。",
-      "heroLockCard": "C_7E5A2001",
+      "id": "jinjie",
+      "name": "进阶机制·代价与连锁",
+      "rngSeed": 20261019,
+      "_说明": "第二课·进阶机制（2026-10-19 三课制定案）：脚本化教学局（scenario 直入）教四大机制——①代价生成元素资源（血祭术自伤→黑、馈赠术资敌回血→白、暗影箭花黑/启示花白——临时钱包+每回合生成上限）；②全时点卡的自动效果（暮龟回合结束抽牌、亡灵死亡时怨爆、焰卫攻击宣言时+1/+1——全时点自动无需横置）；③不同速度的主动效果连锁（火灵速1宣动→玩家用速2反制闪连锁；焰卫速3宣动→玩家无更高速只能让过——严格大于+后发先至）；④规则光环唯一性（AI 挂纳川仪典→同名仪典打出被拒→消灭载体后换自己的挂上——同名禁止/异名共存/载体离场失效）。场面：玩家=暮龟2/4+6灰地+7张教学手牌；AI=焰卫3/3（6136F558攻宣成长+速3重炮BDB1C5AF）+6灰4绿地+手牌[速1火灵,正式纳川仪典C_57A3ADD6]，生命10（馈赠术会奶到16——教学故意的）。aiScript：t1=出火灵+activate（玩家连锁演示）；t2=出纳川仪典；t3=activate焰卫（速3不可连锁演示）；t4起双怪打脸。教学卡零余额依赖：血祭3黑/暗影箭2黑、馈赠3白/启示2白（PayloadUnitGrant 全价口径，留1.5倍余量防卡死）。语音 jinjie_01..12 文字占位待配音（mp3 后补即播）。教学卡/效果在 TutorialData（TutorialCards/TutorialEffects 副表合并），卡组引用 jinjie.json/jinjie_ai.json。",
       "scenario": {
-        "startTurn": 2,
+        "startTurn": 10,
         "firstPlayer": "P1",
+        "_说明": "直入中盘（回合10=地牌曲线封顶10，双方地牌预置）：玩家=暮龟(4,4)+6灰地（元素井C_50E2F45D锁灰）；AI=焰卫(4,2)+6灰4绿地（4绿=付正式纳川仪典的1灰4绿）；AI生命10（馈赠术后16，胜利线≈12-16）。手牌/牌库=教学卡（顺序即摸牌序列：玩家牌库首张=暗影箭#2——暮龟回合末第一抽即上手，供段五打仪典载体）。",
         "player": {
           "life": 30,
           "fatigue": 0,
-          "bank": [
-            0,
-            0,
-            0,
-            0,
-            1,
-            1
+          "bank": [0, 0, 0, 0, 0, 0],
+          "lands": [
+            { "card": "C_50E2F45D", "tokenType": "Gray" },
+            { "card": "C_50E2F45D", "tokenType": "Gray" },
+            { "card": "C_50E2F45D", "tokenType": "Gray" },
+            { "card": "C_50E2F45D", "tokenType": "Gray" },
+            { "card": "C_50E2F45D", "tokenType": "Gray" },
+            { "card": "C_50E2F45D", "tokenType": "Gray" }
           ],
-          "lands": [],
-          "units": [],
+          "units": [
+            { "card": "C_CF768081", "tapped": false, "x": 4, "z": 4 }
+          ],
           "hand": [
-            "C_7E5A200B",
-            "C_7E5A2004",
-            "C_7E5A2002",
-            "C_7E5A2003"
+            "C_34F3E42C",
+            "C_2A19A22A",
+            "C_4C6E83A5",
+            "C_BFBC744B",
+            "C_54CFD9FA",
+            "C_062545B3",
+            "C_5FB62F46"
           ],
           "deck": [
-            "C_7E5A2008",
-            "C_7E5A2005",
-            "C_7E5A2006",
-            "C_7E5A2007"
+            "C_4C6E83A5",
+            "C_7E5A100B",
+            "C_7E5A100B",
+            "C_7E5A100B",
+            "C_7E5A100B",
+            "C_7E5A100B",
+            "C_7E5A100B",
+            "C_7E5A100B"
           ],
           "grave": []
         },
         "ai": {
-          "life": 30,
+          "life": 10,
           "fatigue": 0,
-          "bank": [
-            0,
-            0,
-            0,
-            0,
-            0,
-            0
+          "bank": [0, 0, 0, 0, 0, 0],
+          "lands": [
+            { "card": "C_50E2F45D", "tokenType": "Gray" },
+            { "card": "C_50E2F45D", "tokenType": "Gray" },
+            { "card": "C_50E2F45D", "tokenType": "Gray" },
+            { "card": "C_50E2F45D", "tokenType": "Gray" },
+            { "card": "C_50E2F45D", "tokenType": "Gray" },
+            { "card": "C_50E2F45D", "tokenType": "Gray" },
+            { "card": "C_50E2F45D", "tokenType": "Green" },
+            { "card": "C_50E2F45D", "tokenType": "Green" },
+            { "card": "C_50E2F45D", "tokenType": "Green" },
+            { "card": "C_50E2F45D", "tokenType": "Green" }
           ],
-          "lands": [],
           "units": [
-            {
-              "card": "C_7E5A2001",
-              "tapped": false,
-              "x": 4,
-              "z": 1,
-              "counters": [
-                {
-                  "key": "RushSickness",
-                  "value": 15
-                }
-              ]
-            },
-            {
-              "card": "C_7E5A200C",
-              "tapped": false,
-              "x": 2,
-              "z": 1,
-              "activateRuleAura": "HandLimitNoFatigue"
-            }
+            { "card": "C_30F94729", "tapped": false, "x": 4, "z": 2 }
           ],
-          "hand": [],
-          "deck": [],
+          "hand": [
+            "C_B3748C30",
+            "C_57A3ADD6"
+          ],
+          "deck": [
+            "C_4A88A165",
+            "C_4A88A165",
+            "C_4A88A165",
+            "C_4A88A165",
+            "C_4A88A165",
+            "C_4A88A165"
+          ],
           "grave": []
         }
       },
       "guide": [
         {
-          "type": "element",
-          "card": "C_7E5A2004",
-          "hint": "把手牌里的红苗放入元素池当土地，锁定红色产色（入池后固定；付费时系统自动横置支付，无需手动产色）"
+          "type": "intro",
+          "reveal": "all",
+          "audio": "jinjie_01",
+          "hint": "欢迎来到第二课：进阶机制。第一课你学会了攻防；这一课教四件事——用代价换取黑白元素资源、无处不在的自动效果、不同速度的主动效果如何连锁，以及规则光环的唯一性。"
+        },
+        {
+          "type": "intro",
+          "reveal": "zone:p1-land",
+          "audio": "jinjie_02",
+          "hint": "先说资源：黑与白无法从地牌获得，只能靠代价换取——对自己释放负面效果，获得黑色元素；对对手释放正面效果，获得白色元素。代价获得的元素进入临时钱包，受每回合生成上限约束，回合结束清空——要用就得抓紧。"
         },
         {
           "type": "play",
-          "card": "C_7E5A2002",
-          "hint": "打出白源（白费）——用场景预置的白色临时元素支付。带地牌特性的生物能横置产色（横置入场，下回合才能产）"
+          "card": "C_34F3E42C",
+          "hint": "打出「血祭术」：它的代价是对自己的一方造成3点伤害——选暮龟或你的角色都行，黑色元素将进入你的临时钱包"
+        },
+        {
+          "type": "intro",
+          "reveal": "zone:p1-land",
+          "audio": "jinjie_03",
+          "hint": "看到了吗？自伤的代价结算后，黑色元素立即进入了你的临时钱包（战场中线的黑白格显示余量）。代价是强制的——打出这类卡，代价必定执行、必定兑换。"
         },
         {
           "type": "play",
-          "card": "C_7E5A2003",
-          "hint": "打出黑源（黑费）——用预置的黑色临时元素支付"
+          "card": "C_2A19A22A",
+          "hint": "打出「馈赠术」：代价是为对方角色回复6点生命——看着心疼，但白色元素到手了"
         },
         {
-          "type": "end",
-          "hint": "两源入场横置——结束回合，下回合回来产色（注意：临时元素未用完，回合结束就消失）"
-        },
-        {
-          "type": "tapcreature",
-          "card": "C_7E5A2002",
-          "hint": "横置白源产出白色临时元素（黑白获取的唯一通道；可垫灰费，不能垫红蓝绿）"
-        },
-        {
-          "type": "tapcreature",
-          "card": "C_7E5A2003",
-          "hint": "横置黑源产出黑色临时元素（同样只能垫灰费）"
-        },
-        {
-          "type": "element",
-          "card": "C_7E5A2008",
-          "hint": "把抽到的灰苗放入元素池当土地，锁定灰色产色"
-        },
-        {
-          "type": "end",
-          "hint": "结束回合——刚才产出的黑白临时元素已随回合结束清空（现取现用，要用当回合用）"
-        },
-        {
-          "type": "element",
-          "card": "C_7E5A2005",
-          "hint": "把抽到的蓝苗放入元素池当土地，锁定蓝色产色"
-        },
-        {
-          "type": "end",
-          "hint": "结束回合"
-        },
-        {
-          "type": "element",
-          "card": "C_7E5A2006",
-          "hint": "把抽到的绿苗放入元素池当土地，锁定绿色产色——红蓝绿灰四色地牌齐了"
+          "type": "intro",
+          "reveal": "zone:p1-land",
+          "audio": "jinjie_04",
+          "hint": "白色元素入账。黑白同池共享每回合生成上限（中线信息条可查），且钱包在回合结束清空——地牌里的彩色元素不会清，黑白会。接下来把它们花掉。"
         },
         {
           "type": "play",
-          "card": "C_7E5A2007",
-          "hint": "打出三色斗士——系统自动横置红苗/蓝苗/绿苗支付对应色费用（现取现用；三色只有本色能付，黑白只垫灰）"
+          "card": "C_4C6E83A5",
+          "hint": "打出「暗影箭」（费用2黑——从钱包支付）：对任意对方目标造成4点伤害"
+        },
+        {
+          "type": "intro",
+          "audio": "jinjie_05",
+          "hint": "黑色元素花掉了——付费时系统自动优先规划钱包，不足部分再横置地牌补。黑白元素是进阶卡的费用通道，换与花都在同一个回合内完成最划算。"
+        },
+        {
+          "type": "play",
+          "card": "C_BFBC744B",
+          "hint": "趁回合还没结束，打出「启示」（费用2白）：抽2张牌"
+        },
+        {
+          "type": "intro",
+          "reveal": "hand",
+          "audio": "jinjie_06",
+          "hint": "第二课的第二个主题：卡的自动效果。你场上的暮龟，在你每个回合结束时自动抽一张牌；手里的亡灵，死亡时会自动对对方造成3点伤害；对手的焰卫，每次攻击宣言时自动+1/+1。自动效果在它的时点自己发动——不需要横置，也不需要你操作。"
+        },
+        {
+          "type": "play",
+          "card": "C_5FB62F46",
+          "hint": "召唤「亡灵」（3/2，死亡时自动怨爆3点伤害）——悬停可以读它卡面上的触发时点"
+        },
+        {
+          "type": "intro",
+          "audio": "jinjie_07",
+          "hint": "接下来结束回合：先看暮龟的回合结束自动效果抽牌；然后对手回合它会发动火灵的主动效果（速度1）——你手里的「反制闪」是速度2，比它快，到时候可以连锁反制（也可以选择让过）。"
         },
         {
           "type": "end",
-          "hint": "引导结束——接下来自由操作，想办法解决末日降临"
+          "hint": "结束回合——看暮龟的自动抽牌，然后到对手回合"
+        },
+        {
+          "type": "respond",
+          "hint": "对手宣动了火灵的主动效果（速度1）——响应窗口开在你手上：用「反制闪」（速度2）连锁，或点「不连锁」让过"
+        },
+        {
+          "type": "intro",
+          "audio": "jinjie_08",
+          "hint": "这就是连锁：一方宣动后，另一方可以追加更快的发动，后发动的先结算（后发先至）。规则是速度必须严格高于当前记速器——速度2能连锁速度1，但速度1连锁不了速度1。"
+        },
+        {
+          "type": "intro",
+          "audio": "jinjie_09",
+          "hint": "下一个主题：规则光环。对手接下来会挂出「纳川仪典」——一种规则光环，它改变整局的规则（手牌上限变15、免疫空库疲劳），并且对双方同时生效。"
+        },
+        {
+          "type": "end",
+          "hint": "结束回合，看对手挂出纳川仪典"
+        },
+        {
+          "type": "intro",
+          "audio": "jinjie_10",
+          "hint": "纳川仪典已挂上（对手场上那个结界就是载体）。规则光环有一条铁律：同名唯一——它在场时，任何人（包括你）都不能再打出同名仪典。想挂自己的？先消灭它的载体。用你刚抽到的第二张暗影箭打掉它。"
+        },
+        {
+          "type": "play",
+          "card": "C_4C6E83A5",
+          "hint": "打出「暗影箭」，目标选对手场上的纳川仪典（无生命单位也可以被指定）——消灭载体，光环失效"
+        },
+        {
+          "type": "play",
+          "card": "C_062545B3",
+          "hint": "现在名字腾出来了——打出你自己的「教学·纳川仪典」，把规则光环挂到你这边"
+        },
+        {
+          "type": "intro",
+          "audio": "jinjie_11",
+          "hint": "唯一性三要点：同名禁止（在场时打不出第二张）、异名共存（不同规则光环互不排斥）、载体离场即失效（消灭结界就是拆除光环）。"
+        },
+        {
+          "type": "intro",
+          "audio": "jinjie_12",
+          "hint": "最后再看一次速度的分量：对手将用焰卫发动速度3的重炮——你的反制闪只有速度2，连锁不了，这次只能让过。记住：想拦住高速发动，手里得有更快的牌。"
+        },
+        {
+          "type": "end",
+          "hint": "结束回合——体验一次「连锁不了」的高速宣动"
+        },
+        {
+          "type": "respond",
+          "hint": "焰卫的重炮（速度3）宣动了——你没有更快的牌，点「不连锁」让过"
+        },
+        {
+          "type": "victory",
+          "hint": "四样都学会了——自由发挥，把对面角色的生命打到 0，赢下第二课！（亡灵的怨爆、暗影箭、生物进攻都在你手上）"
         }
       ],
       "aiScript": [
         {
           "turn": 1,
           "actions": [
-            {
-              "type": "attack",
-              "attacker": "C_7E5A2001",
-              "target": "hero"
-            }
+            { "type": "play", "card": "C_B3748C30" },
+            { "type": "activate", "card": "C_B3748C30" }
           ]
         },
         {
           "turn": 2,
           "actions": [
-            {
-              "type": "attack",
-              "attacker": "C_7E5A2001",
-              "target": "hero"
-            }
+            { "type": "play", "card": "C_57A3ADD6" }
           ]
         },
         {
           "turn": 3,
           "actions": [
-            {
-              "type": "attack",
-              "attacker": "C_7E5A2001",
-              "target": "hero"
-            }
+            { "type": "activate", "card": "C_30F94729" }
           ]
         },
         {
           "turn": 4,
           "actions": [
-            {
-              "type": "attack",
-              "attacker": "C_7E5A2001",
-              "target": "hero"
-            }
+            { "type": "attack", "attacker": "C_30F94729", "target": "hero" },
+            { "type": "attack", "attacker": "C_B3748C30", "target": "hero" }
           ]
         },
         {
           "turn": 5,
           "actions": [
-            {
-              "type": "attack",
-              "attacker": "C_7E5A2001",
-              "target": "hero"
-            }
+            { "type": "attack", "attacker": "C_30F94729", "target": "hero" },
+            { "type": "attack", "attacker": "C_B3748C30", "target": "hero" }
           ]
         },
         {
           "turn": 6,
           "actions": [
-            {
-              "type": "attack",
-              "attacker": "C_7E5A2001",
-              "target": "hero"
-            }
+            { "type": "attack", "attacker": "C_30F94729", "target": "hero" },
+            { "type": "attack", "attacker": "C_B3748C30", "target": "hero" }
           ]
         },
         {
           "turn": 7,
           "actions": [
-            {
-              "type": "attack",
-              "attacker": "C_7E5A2001",
-              "target": "hero"
-            }
+            { "type": "attack", "attacker": "C_30F94729", "target": "hero" },
+            { "type": "attack", "attacker": "C_B3748C30", "target": "hero" }
           ]
         },
         {
           "turn": 8,
           "actions": [
-            {
-              "type": "attack",
-              "attacker": "C_7E5A2001",
-              "target": "hero"
-            }
+            { "type": "attack", "attacker": "C_30F94729", "target": "hero" },
+            { "type": "attack", "attacker": "C_B3748C30", "target": "hero" }
+          ]
+        },
+        {
+          "turn": 9,
+          "actions": [
+            { "type": "attack", "attacker": "C_30F94729", "target": "hero" },
+            { "type": "attack", "attacker": "C_B3748C30", "target": "hero" }
+          ]
+        },
+        {
+          "turn": 10,
+          "actions": [
+            { "type": "attack", "attacker": "C_30F94729", "target": "hero" },
+            { "type": "attack", "attacker": "C_B3748C30", "target": "hero" }
           ]
         }
-      ]
+      ],
+      "playerDeckFile": "jinjie",
+      "aiDeckFile": "jinjie_ai"
     }
   ]
 }

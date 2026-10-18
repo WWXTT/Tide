@@ -382,16 +382,16 @@ namespace CardCore.Attribute
                 player.Life -= amount;
             }
 
-            // 潜行受伤失效（2026-10-04 弱化定案；2026-10-08 指示物化）：伤害**实际落定**（替代/改写/
-            // 防护层之后仍有剩余到达落血/耐久）才算「受到伤害」——圣盾/护甲/坚韧完全挡住、舍身转投
-            // 改写（return 0）不触发；触发即消耗 1 层潜行指示物（逐份撤口径）。
-            // 隐密（Concealed）不失效——不因受伤掉正是它的定价理由（蓝5 vs 蓝1）。
-            if (target is Card hurtCard && hurtCard.GetCounterCount(CounterRules.StealthCounter) > 0)
+            // 潜行受伤失效（2026-10-04 弱化定案；2026-10-08 指示物化；2026-10-19 Entity 级——角色受伤
+            // 同样消耗）：伤害**实际落定**（替代/改写/防护层之后仍有剩余到达落血/耐久）才算「受到伤害」
+            // ——圣盾/护甲/坚韧完全挡住、舍身转投改写（return 0）不触发；触发即消耗 1 层潜行指示物
+            // （逐份撤口径）。隐密（Concealed）不失效——不因受伤掉正是它的定价理由（蓝5 vs 蓝1）。
+            if (target.GetCounterCount(CounterRules.StealthCounter) > 0)
             {
-                hurtCard.AddCounters(CounterRules.StealthCounter, -1);
+                target.AddCounters(CounterRules.StealthCounter, -1);
                 EventManager.Instance.Publish(new KeywordAppliedEvent
                 {
-                    Target = hurtCard,
+                    Target = target,
                     Keyword = CounterRules.StealthCounter,
                     Detail = "受到伤害后潜行失效（消耗 1 层）",
                     Source = source
@@ -582,24 +582,41 @@ namespace CardCore.Attribute
 
         /// <summary>
         /// 复生结算（死亡替代定案；2026-10-08 指示物化）：死亡时的送墓效果被替代——不进墓地、不离场，
-        /// 生命值变成 1、横置（本回合不可用），消耗 1 层复生指示物（多层=多次死亡替代）。
-        /// 由死亡路径（SBA 零防御 / 摧毁效果）在送墓前调用；true = 已复生（留在战场）。
+        /// 生命值变成 1，消耗 1 层复生指示物（多层=多次死亡替代）。
+        /// Entity 级（2026-10-19 角色复生）：卡牌由死亡路径（SBA 零防御 / 摧毁效果）送墓前调用；
+        /// 角色由 SBA ExecuteZeroLife 宣判前消耗——归零回 1 血、不发 RoleDeathEvent。
+        /// 复生横置平衡阀已退役（2026-10-19）：与「入场即可用」口径统一，回场即可用。
         /// </summary>
-        public static bool TryReborn(Card card)
+        public static bool TryReborn(Entity entity)
         {
-            int layers = card?.GetCounterCount(CounterRules.RebornCounter) ?? 0;
+            int layers = entity?.GetCounterCount(CounterRules.RebornCounter) ?? 0;
             if (layers <= 0) return false;
 
-            card.AddCounters(CounterRules.RebornCounter, -1);
-            card._life = 1;
-            if (card._maxLife < 1) card._maxLife = 1;
-            card.IsAlive = true;
-            card._isTapped = true;          // 横置（死亡替代平衡阀：2026-10-17 入场已不横置，复生仍横置——本回合不可用）
+            entity.AddCounters(CounterRules.RebornCounter, -1);
+            if (entity is Card card)
+            {
+                card._life = 1;
+                if (card._maxLife < 1) card._maxLife = 1;
+                card.IsAlive = true;
+            }
+            else if (entity is Player role)
+            {
+                int oldLife = role.Life;
+                role.Life = 1;
+                if (role.MaxHealth < 1) role.IncreaseMaxHealth(1 - role.MaxHealth); // 上限地板，镜像生物 maxLife
+                // Player.Life 是裸属性无事件——手动播报驱动生命柱/UI 刷新（与 ApplyDamage 落血口径一致）
+                EventManager.Instance.Publish(new LifeChangeEvent
+                {
+                    Player = role,
+                    OldLife = oldLife,
+                    NewLife = role.Life
+                });
+            }
             EventManager.Instance.Publish(new KeywordAppliedEvent
             {
-                Target = card,
+                Target = entity,
                 Keyword = CounterRules.RebornCounter,
-                Detail = $"复生：死亡替代——生命变 1 留场（横置，不进墓；余 {layers - 1} 层）"
+                Detail = $"复生：死亡替代——生命变 1 留场（不进墓；余 {layers - 1} 层）"
             });
             return true;
         }

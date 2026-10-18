@@ -1,3 +1,4 @@
+using Cysharp.Threading.Tasks;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -43,6 +44,9 @@ namespace SynergyUI
 
         // 当前正在构筑的卡组（卡牌 ID 列表，同卡多册多条目）。
         private readonly List<string> _deckCardIds = new List<string>();
+
+        private TipPromptHost _tips; // TipPanel 提示弹窗宿主（2026-10-18 统一定案；惰性建——字段初始化器不能引用实例 Root）
+        private TipPromptHost Tips => _tips ??= new TipPromptHost(() => Root);
 
         // 英雄技能标记卡 ID（技能栏常显；null=未设置——保存口必选拦截；资格自愈同旧版）。
         private string _skillCardId;
@@ -134,6 +138,7 @@ namespace SynergyUI
         {
             // UGUI 卡牌层回收（中栏卡面独立池化，切屏必须显式清）
             CardOverlayController.ClearActive();
+            Tips.Close(); // 在途提示弹窗清理
         }
 
         // ======================================== 右栏：卡池列表 ========================================
@@ -790,10 +795,14 @@ namespace SynergyUI
         }
 
         private void ConfirmDeleteDeck(string name)
+            => ConfirmDeleteDeckAsync(name).Forget();
+
+        /// <summary>删除卡组确认（2026-10-18 弹窗统一：TipPanel 双键，替代 ConfirmBox 现搭弹窗）。</summary>
+        private async UniTaskVoid ConfirmDeleteDeckAsync(string name)
         {
-            UiKit.ConfirmBox(Root, "删除卡组",
-                $"确定删除卡组「{name}」？该操作不可恢复。",
-                "删除", () => DeleteDeck(name));
+            if (await Tips.ShowAsync($"删除卡组：确定删除「{name}」？该操作不可恢复。", "删除", "取消") != true)
+                return;
+            DeleteDeck(name);
         }
 
         private void DeleteDeck(string name)

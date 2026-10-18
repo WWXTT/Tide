@@ -1,3 +1,4 @@
+using Cysharp.Threading.Tasks;
 using CardCore;
 using CardCore.Attribute;
 using System;
@@ -144,6 +145,9 @@ namespace SynergyUI
 
         // 从效果表载入的源效果 id（编辑换内容=换 id——保存后清旧档防重复；null=非效果表载入）
         private string _loadedFromLibraryId;
+
+        private TipPromptHost _tips; // TipPanel 提示弹窗宿主（2026-10-18 统一定案；惰性建——字段初始化器不能引用实例 Root）
+        private TipPromptHost Tips => _tips ??= new TipPromptHost(() => Root);
 
         // ---- 校验区：不合规设置=GuideFrame 遮罩高亮框（shader 红边闪烁）+错误文本上描述条，保存按钮禁用 ----
         private sealed class ZoneEntry
@@ -393,6 +397,7 @@ namespace SynergyUI
         public override void OnExit()
         {
             UiKit.DescRequested -= OnDescRequested;
+            Tips.Close(); // 在途提示弹窗清理
         }
 
         /// <summary>描述条统一写口（空串=隐藏）：控件功能描述（DescRequested）与校验错误文本共用。</summary>
@@ -988,8 +993,8 @@ namespace SynergyUI
         }
 
         /// <summary>删除当前载入的库效果（btn-delete）：按源 id 清档后重置为新建空效果。
-        /// 2026-10-16 强制删除机制：被卡引用时弹窗提示+允许强制（ReferenceAudit 反查）——
-        /// 强删后引用卡装载时该效果被跳过（卡组合界面卡池行标记⚠断链）。
+        /// 2026-10-16 强制删除机制：被卡引用时 TipPanel 提示+允许强制（ReferenceAudit 反查，
+        /// 2026-10-18 弹窗统一）——强删后引用卡装载时该效果被跳过（卡组合界面卡池行标记⚠断链）。
         /// 不重建两下拉——防 Changed 重复订阅（Build*Dropdown 只在进屏时挂一次）。</summary>
         private void OnDeleteEffect()
         {
@@ -998,13 +1003,40 @@ namespace SynergyUI
             var refs = ReferenceAudit.CardsReferencingEffect(removed);
             if (refs.Count > 0)
             {
-                UiKit.ConfirmBox(Root, "删除库效果",
-                    $"效果 {removed}（{_graph?.name}）被 {refs.Count} 张卡引用：\n{string.Join("、", refs)}\n\n"
-                    + "强制删除后这些卡的效果引用断链（卡组合界面卡池行会标记⚠，卡装载时该效果被跳过）。",
-                    "强制删除", () => DeleteEffectFromLibrary(removed, refs.Count));
+                ConfirmForceDeleteEffectAsync(removed, refs).Forget();
                 return;
             }
             DeleteEffectFromLibrary(removed, 0);
+        }
+
+        /// <summary>强删确认（TipPanel 双键）：取消/拆屏=null/否=不动。</summary>
+        private async UniTaskVoid ConfirmForceDeleteEffectAsync(string removed, List<string> refs)
+        {
+            if (await Tips.ShowAsync(
+                    $"效果 {removed}（{_graph?.name}）被 {refs.Count} 张卡引用：\n{string.Join("、", refs)}\n\n"
+                    + "强制删除后这些卡的效果引用断链（卡组合界面卡池行会标记⚠，卡装载时该效果被跳过）。",
+                    "强制删除", "取消") != true)
+                return;
+            DeleteEffectFromLibrary(removed, refs.Count);
+        }
+
+        /// <summary>保存替换旧版效果的去留询问（TipPanel 二选一，fire-and-forget）：删除旧版=引用卡
+        /// 断链（同删效果口径）；保留旧版=新旧共存。null（拆屏/顶替）=按保留处理不提示——数据口径
+        /// 与保留一致（旧版留存），只是没有确认 toast。</summary>
+        private async UniTaskVoid HandleReplacedLegacyAsync(string oldId, List<string> refs)
+        {
+            var picked = await Tips.ShowAsync(
+                $"旧版 {oldId} 被 {refs.Count} 张卡引用：{string.Join("、", refs)}。\n\n"
+                + "「保留旧版」=新旧共存，引用卡继续用旧版；「删除旧版」=引用卡断链（装载时该效果被跳过）。",
+                "删除旧版", "保留旧版");
+            if (picked == true)
+            {
+                EffectLibrarySerializer.DeleteById(oldId);
+                ShowToast($"旧版 {oldId} 已删——{refs.Count} 张卡引用断链（卡组合界面已标记⚠）");
+                if (_rightMode == RightMode.Effects) RefreshEffectsList();
+            }
+            else if (picked == false)
+                ShowToast($"已保留旧版 {oldId}（{refs.Count} 张卡仍引用旧版）");
         }
 
         private void DeleteEffectFromLibrary(string removed, int brokenCards)
@@ -3553,20 +3585,9 @@ namespace SynergyUI
                 var refs = ReferenceAudit.CardsReferencingEffect(replacedId);
                 if (refs.Count > 0)
                 {
-                    var captured = replacedId;
-                    var capturedRefs = refs;
-                    UiKit.ConfirmBox(Root, "旧版效果处理",
-                        $"旧版 {captured} 被 {capturedRefs.Count} 张卡引用：{string.Join("、", capturedRefs)}。\n\n"
-                        + "「保留旧版」=新旧共存，引用卡继续用旧版；「删除旧版」=引用卡断链（装载时该效果被跳过）。",
-                        "删除旧版",
-                        () =>
-                        {
-                            EffectLibrarySerializer.DeleteById(captured);
-                            ShowToast($"旧版 {captured} 已删——{capturedRefs.Count} 张卡引用断链（卡组合界面已标记⚠）");
-                            if (_rightMode == RightMode.Effects) RefreshEffectsList();
-                        },
-                        cancelLabel: "保留旧版",
-                        onCancel: () => ShowToast($"已保留旧版 {captured}（{capturedRefs.Count} 张卡仍引用旧版）"));
+                    // 2026-10-18 弹窗统一：TipPanel 二选一，fire-and-forget——保存流程不被弹窗阻塞
+                    //（同旧 ConfirmBox 回调时序：此处立即闭链继续保存，旧版去留弹窗后置处理）。
+                    HandleReplacedLegacyAsync(replacedId, refs).Forget();
                     _loadedFromLibraryId = null; // 闭链；旧版去留交给弹窗（本保存提示走共存口径）
                     replacedId = null;
                 }

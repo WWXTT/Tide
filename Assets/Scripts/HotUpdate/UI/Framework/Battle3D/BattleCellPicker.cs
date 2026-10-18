@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
-using UnityEngine.EventSystems;
 
 namespace SynergyUI
 {
@@ -12,8 +11,10 @@ namespace SynergyUI
     /// 候选格集合（放地=候选元素色格；出牌永久物=己方单位区空格）。
     /// 候选格高亮每帧重应用（BattleTileFx 是全量对账模型，引擎事件 ClearAll 会清标记——
     /// 逐帧补点亮最稳）；选择结束由宿主 RefreshLocal 全量对账恢复正常高亮。
-    /// 交互语义与 CombatChoreographer.TargetingLoopAsync 同源（右键/ESC/点无效格=取消）；
-    /// 与攻击选择的互斥由宿主屏保证（进入前取消在途选择）。纯表现层，不触引擎。
+    ///（2026-10-18 晚修订：瞄准贴片只挂攻击选目标——放置/发动的候选高亮美术已够，选格不上贴片。）
+/// 交互语义与 CombatChoreographer.TargetingLoopAsync 同源（右键/ESC/点无效格=取消；
+/// 2026-10-18 触摸口径：长按滑动、箭头终点=手指点位（不偏置）、抬起确定——滑动落非法格
+/// 只收滑动不取消）；与攻击选择的互斥由宿主屏保证（进入前取消在途选择）。纯表现层，不触引擎。
     /// </summary>
     public sealed class BattleCellPicker
     {
@@ -50,7 +51,7 @@ namespace SynergyUI
             _onCancel = onCancel;
             _active = true;
             Debug.Log($"[CellPicker] 选格开始：起点({_origin.x:F2},{_origin.z:F2}) 候选{_options.Count}格"
-                      + "——箭头随鼠标，悬停合法格变绿，左键确认，右键/ESC 取消");
+                      + "——箭头随鼠标，悬停合法格变绿，左键确认，右键/ESC 取消；触摸=长按滑动（箭头终点=手指点位），抬起确定");
             LoopAsync(_epoch).Forget();
         }
 
@@ -89,26 +90,36 @@ namespace SynergyUI
 
                 HighlightCandidates(); // 每帧重应用（对账 ClearAll 会清，逐帧补点亮）
 
-                bool overUI = EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
-                bool hasCell = RaycastCell(cam, out int x, out int z);
+                // 鼠标/触摸统一（2026-10-18 安卓滑动输入·BattlePointer）：裁决/箭头终点=指针落点
+                // （触摸不偏置——手指盖住箭头时合法变绿经箭身可观察）；确认=左键按下/触摸抬起
+                BattlePointer.Sample();
+                bool touch = BattlePointer.TouchTracked;
+                bool overUI = BattlePointer.OverUI;
+                var aim = BattlePointer.ConfirmPressed ? BattlePointer.ConfirmPoint : BattlePointer.AimPoint;
+                bool hasCell = RaycastCell(cam, aim, out int x, out int z);
                 bool valid = !overUI && hasCell && IndexOf(x, z) >= 0;
 
-                if (CombatChoreographer.MouseGroundPoint(cam, out Vector3 mousePt))
-                    _arrow.Show(_origin, mousePt, valid
+                if ((!touch || BattlePointer.SlideActive)
+                    && CombatChoreographer.MouseGroundPoint(cam, aim, out Vector3 visPt))
+                    _arrow.Show(_origin, visPt, valid
                         ? BattleAttackArrow.ValidSkin : BattleAttackArrow.PlaceSkin); // 放地/入场=黄，选对=绿
                 else
                     _arrow.Hide();
 
-                if (!openingFrame && Input.GetMouseButtonDown(0) && !overUI)
+                if (!openingFrame && BattlePointer.ConfirmPressed && !overUI)
                 {
                     if (valid)
                     {
                         await ConfirmAsync(x, z, epoch);
                         return;
                     }
-                    Debug.Log("[CellPicker] 选格取消（点击无效格）");
-                    Cancel();
-                    return;
+                    if (!BattlePointer.ConfirmWasSlide)
+                    {
+                        Debug.Log("[CellPicker] 选格取消（点击无效格）");
+                        Cancel();
+                        return;
+                    }
+                    Debug.Log("[CellPicker] 滑动收在非法格——只收滑动，选格继续（触摸探索口径）");
                 }
                 openingFrame = false;
                 await UniTask.Yield();
@@ -153,12 +164,12 @@ namespace SynergyUI
             }
         }
 
-        /// <summary>tile-{x}-{z} BoxCollider 射线（与 CombatChoreographer.RaycastCell/HandleFieldClick 同口径同源）。</summary>
-        private static bool RaycastCell(Camera cam, out int x, out int z)
+        /// <summary>tile-{x}-{z} BoxCollider 射线（与 CombatChoreographer.RaycastCell/HandleFieldClick 同口径同源；点=裁决落点）。</summary>
+        private static bool RaycastCell(Camera cam, Vector2 screenPoint, out int x, out int z)
         {
             x = z = -1;
             RaycastHit hit;
-            if (!Physics.Raycast(cam.ScreenPointToRay(Input.mousePosition), out hit, 300f)) return false;
+            if (!Physics.Raycast(cam.ScreenPointToRay(screenPoint), out hit, 300f)) return false;
             var name = hit.collider != null ? hit.collider.gameObject.name : "";
             if (!name.StartsWith("tile-")) return false;
             var parts = name.Split('-');

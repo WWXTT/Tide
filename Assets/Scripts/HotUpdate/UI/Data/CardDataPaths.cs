@@ -21,7 +21,10 @@ namespace SynergyUI
         /// <summary>教学表/卡组引用种子（热更包 TutorialData 组 → persistent）。教学音频不在此列——
         /// mp3 以 AudioClip 资产进包，BattleScreen.PlayTutorialVoiceAsync 直取。</summary>
         private static readonly string[] TutorialSeedFiles =
-            { "TutorialCards.json", "TutorialEffects.json", "basics.json", "basics_ai.json", "测试卡组.json" };
+        {
+            "TutorialCards.json", "TutorialEffects.json", "basics.json", "basics_ai.json",
+            "jinjie.json", "jinjie_ai.json", "测试卡组.json",
+        };
 
         /// <summary>玩家端种子读取器（宿主装配模式，同 TideLog.Sink）：Unity 侧由 HotUpdateEntry
         /// 装配为 HotUpdateAssets.LoadText（真机从热更包读种子）；TideServer 不装配——EnsureBootstrap
