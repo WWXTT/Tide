@@ -4225,14 +4225,16 @@ namespace CardCore.Editor
                    && CardCore.MountKindExtensions.ParseCsv("7").Count == 0,
                    "MountKinds 词表：可（3）/不可（8）中文与数字双轨解析通过；位 7 空缺解析为空集（数字轨兼容）");
             // 引擎参数范围与奖励预算（2026-10-09 自平衡统一：全引擎预算 -1——门槛=Then 锚价推导，
-            // 「死亡计数/元素充盈/手牌序位 预算=x」旧制退役；手填参数只剩运势点数线/倒计时/附加诅咒·祝福张数）
+            // 「死亡计数/元素充盈 预算=x」旧制退役；手填参数=运势点数线/倒计时/效果序位 x/附加诅咒·祝福张数）
             CardCore.ComposerCatalog.EngineParamRange(CardCore.BranchEngineKind.DeathToll, out int rMin, out int rMax);
             Assert(rMin == 0 && rMax == 99, "引擎参数范围：死亡计数区间退役落 default [0,99]（派生门槛引擎无手填参数）");
             CardCore.ComposerCatalog.EngineParamRange(CardCore.BranchEngineKind.LuckRoll, out int rMin2, out int rMax2);
-            Assert(rMin2 == 1 && rMax2 == 5, "引擎参数范围：运势 x∈[1,5]（双 6 才中=1/36）");
+            Assert(rMin2 == 1 && rMax2 == 6, "引擎参数范围：运势 x∈[1,6]（双骰≥x；x=6 双 6 才中=1/36）");
+            CardCore.ComposerCatalog.EngineParamRange(CardCore.BranchEngineKind.EffectOrdinal, out int rMin3, out int rMax3);
+            Assert(rMin3 == 1 && rMax3 == 6, "引擎参数范围：效果序位 x∈[1,6] 手填（门槛=x−1，2026-10-19 手牌序位改案）");
             Assert(CardCore.ComposerCatalog.EngineRewardBudget(CardCore.BranchEngineKind.DeathToll, 3) == -1
                    && CardCore.ComposerCatalog.EngineRewardBudget(CardCore.BranchEngineKind.ManaSurplus, 2) == -1
-                   && CardCore.ComposerCatalog.EngineRewardBudget(CardCore.BranchEngineKind.NthHandCard, 2) == -1
+                   && CardCore.ComposerCatalog.EngineRewardBudget(CardCore.BranchEngineKind.EffectOrdinal, 2) == -1
                    && CardCore.ComposerCatalog.EngineRewardBudget(CardCore.BranchEngineKind.Clash, 3) == -1
                    && CardCore.ComposerCatalog.EngineRewardBudget(CardCore.BranchEngineKind.Countdown, 0) == -1
                    && CardCore.ComposerCatalog.EngineRewardBudget(CardCore.BranchEngineKind.LuckRoll, 1) == -1,
@@ -4240,13 +4242,13 @@ namespace CardCore.Editor
             Assert(CardCore.ComposerCatalog.IsDerivedThresholdEngine(CardCore.BranchEngineKind.Clash)
                    && CardCore.ComposerCatalog.IsDerivedThresholdEngine(CardCore.BranchEngineKind.DeathToll)
                    && CardCore.ComposerCatalog.IsDerivedThresholdEngine(CardCore.BranchEngineKind.ManaSurplus)
-                   && CardCore.ComposerCatalog.IsDerivedThresholdEngine(CardCore.BranchEngineKind.NthHandCard)
+                   && !CardCore.ComposerCatalog.IsDerivedThresholdEngine(CardCore.BranchEngineKind.EffectOrdinal)
                    && !CardCore.ComposerCatalog.IsDerivedThresholdEngine(CardCore.BranchEngineKind.LuckRoll)
                    && !CardCore.ComposerCatalog.IsDerivedThresholdEngine(CardCore.BranchEngineKind.Countdown)
                    && !CardCore.ComposerCatalog.IsDerivedThresholdEngine(CardCore.BranchEngineKind.CurseOnDraw)
                    && !CardCore.ComposerCatalog.IsDerivedThresholdEngine(CardCore.BranchEngineKind.BlessingOnDraw),
-                   "派生门槛引擎单源：拼点/死亡计数/元素充盈/手牌序位（门槛=Then 锚价，无手填参数）；"
-                   + "运势/倒计时/附加诅咒/附加祝福仍手填");
+                   "派生门槛引擎单源：拼点/死亡计数/元素充盈（门槛=Then 锚价，无手填参数）；"
+                   + "效果序位/运势/倒计时/附加诅咒/附加祝福仍手填（序位 x∈[1,6] 门槛=x−1）");
             Assert(CardCore.CostDerivationService.RewardThreshold(new List<CardCore.AtomicEffectInstance>
                        { CardCore.CardEffectConverter.ConvertAtomForUI(AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1)) }) == 2
                    && CardCore.CostDerivationService.RewardThreshold(null) == 1,
@@ -4544,8 +4546,8 @@ namespace CardCore.Editor
             var engineBody = SynergyUI.AtomText.EngineShortBodyFor(
                 EngineAtom(CardCore.AtomicEffectType.EngineDeathToll, 1, CardCore.BranchEngineKind.DeathToll, 2,
                     Atom("DrawCard", 1)));
-            Assert(engineBody == "本回合中，类似死亡的生物数量大于等于2",
-                   $"引擎短文案（自平衡统一·死亡计数完整句定案）：「{engineBody}」——门槛=Then 锚价推导（DrawCard1=2），engineParam 死数据不参与");
+            Assert(engineBody == "此卡在手牌或场上时计数双方生物死亡，计数大于等于2时触发奖励（满6不再计数，使用后清零）",
+                   $"引擎短文案（2026-10-19 手牌/场上改案·死亡计数完整句）：「{engineBody}」——门槛=Then 锚价推导（DrawCard1=2），engineParam 死数据不参与");
             var outcomeSuffix = SynergyUI.AtomText.BranchSuffix(
                 OutcomeAtom(CardCore.AtomicEffectType.DealDamage, 3, "DmgKillsTarget", Atom("DrawCard", 1)));
             Assert(outcomeSuffix.Contains("如果消灭了目标") && outcomeSuffix.Contains("，") && outcomeSuffix.Contains("抽"),
@@ -7159,9 +7161,10 @@ namespace CardCore.Editor
             PadDeck(core, p1, 15, "VERIFY_0922_P1_");
             PadDeck(core, p2, 15, "VERIFY_0922_P2_");
 
-            // ---- 5. 死亡计数：双方合计 ≥ 门槛触发一次/回合（2026-10-09 自平衡统一：门槛=Then 锚价推导，
-            //      DrawCard(1)=2 → 门槛 2——engineParam 旧值 2 为死数据不参与判定）----
-            // 引擎宿主用真实生物（0/0 结界会在出牌结算的 SBA 泵里被"防御归零"送墓——见 6 段教训）
+            // ---- 5. 死亡计数（2026-10-19 手牌/场上改案）：此卡在手牌中或场上时计数双方生物死亡——
+            //      计数 ≥ 门槛（Then 锚价推导，DrawCard(1)=2 → 门槛 2）即触发奖励（每次递增都触发，
+            //      触发不清零）；满值 6 达满不再计数；使用（换区）后清零。
+            //      （engineParam 旧值 2 为死数据不参与判定；旧「场上·本回合合计·每回合一发」口径退役）----
             var tollData = new CardData
             {
                 ID = "VERIFY_ENGINE_TOLL", CardName = "验证死亡计数", Supertype = Cardtype.Creature, Power = 3, Life = 3,
@@ -7187,36 +7190,52 @@ namespace CardCore.Editor
 
             var tollCard = new CardWrapper(tollData);
             tollCard.SetController(p1);
-            Assert(core.ZoneManager.TryAddToBattlefield(tollCard, p1), "死亡计数：引擎宿主入场");
+            core.ZoneManager.GetZoneContainer(p1).Add(tollCard, Zone.Hand); // 手牌改案：手牌中即计数
 
-            var tollA = SpawnTier(core, p2, 1, 1);
-            var tollB = SpawnTier(core, p1, 1, 1);
-            var tollC = SpawnTier(core, p2, 1, 1);
+            var tollVictims = new Card[9];
+            for (int i = 0; i < tollVictims.Length; i++)
+                tollVictims[i] = i % 2 == 0 ? SpawnTier(core, p2, 1, 1) : SpawnTier(core, p1, 1, 1); // 双方交替死
             int deckAtToll = core.ZoneManager.GetCards(p1, Zone.Deck).Count;
+            System.Func<int> tollCount = () =>
+                tollCard.GetCounterCount(CardCore.Attribute.CounterRules.DeathTollCounter);
             System.Func<string> tollState = () =>
-                $"stats={core.MatchStats.GetStat(p1, CardCore.MatchStatsService.CreaturesDied, StatScope.ThisTurn)}+"
-                + $"{core.MatchStats.GetStat(p2, CardCore.MatchStatsService.CreaturesDied, StatScope.ThisTurn)} "
-                + $"deck={core.ZoneManager.GetCards(p1, Zone.Deck).Count} tollAlive={tollCard.IsAlive} "
-                + $"tollZone={tollCard.GetZone()} A={tollA.IsAlive}/{tollA.GetZone()} B={tollB.IsAlive}/{tollB.GetZone()}";
-            CardCore.Attribute.KeywordRules.ApplyDamage(p2, tollA, 99, false); // 对手侧 1 死
-            core.SBAEngine.CheckAndExecute(); // 直接 ApplyDamage 不经栈——手动泵 SBA 送墓（标死→死透→CardDestroyEvent）
-            Crumb("toll kill1: " + tollState());
-            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckAtToll,
-                   "死亡计数：双方合计 1 < 门槛 2（Then 锚价推导）未触发");
-            CardCore.Attribute.KeywordRules.ApplyDamage(p1, tollB, 99, false); // 己方侧 +1 → 合计 2
-            core.SBAEngine.CheckAndExecute();
-            Crumb("toll kill2: " + tollState());
-            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckAtToll - 1,
-                   "死亡计数：双方合计 2 ≥ 门槛 2（推导）触发（抽 1）——含双方口径（第 2 死是己方生物）");
-            CardCore.Attribute.KeywordRules.ApplyDamage(p2, tollC, 99, false); // 第 3 死
-            core.SBAEngine.CheckAndExecute();
-            Crumb("toll kill3: " + tollState());
-            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckAtToll - 1,
-                   "死亡计数：计数单调达标时刻唯一——同回合不重复触发");
+                $"count={tollCount()} deck={core.ZoneManager.GetCards(p1, Zone.Deck).Count} tollZone={tollCard.GetZone()}";
+            void TollKill(int i)
+            {
+                CardCore.Attribute.KeywordRules.ApplyDamage(i % 2 == 0 ? p2 : p1, tollVictims[i], 99, false);
+                core.SBAEngine.CheckAndExecute(); // 直接 ApplyDamage 不经栈——手动泵 SBA 送墓（标死→死透→CardDestroyEvent）
+                Crumb($"toll kill{i + 1}: " + tollState());
+            }
+            TollKill(0); // 对手侧 1 死
+            Assert(tollCount() == 1 && core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckAtToll,
+                   "死亡计数：手牌中计数——对手生物死亡 +1（1 < 门槛 2 未触发）");
+            TollKill(1); // 己方侧 +1 → 累计 2（双方口径）
+            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckAtToll - 1 && tollCount() == 2,
+                   "死亡计数：双方生物死亡累计 2 ≥ 门槛 2（推导）触发（抽 1）——触发不清零（计数保持 2）");
+            TollKill(2); // 累计 3 ≥ 2 → 再触发
+            TollKill(3); // 累计 4 ≥ 2 → 再触发
+            TollKill(4); // 累计 5 ≥ 2 → 再触发
+            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckAtToll - 4 && tollCount() == 5,
+                   "死亡计数：[x,6] 区间每次递增都触发（元素充盈同款；抽 4）——无每回合一发上限");
+            TollKill(5); // 累计 6 = 满值 → 末次触发
+            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckAtToll - 5 && tollCount() == 6,
+                   "死亡计数：满值 6 仍触发（6 ≥ 2，抽 5）——计数停在 6");
+            TollKill(6); // 满值后死亡：不再计数不再触发
+            Assert(tollCount() == 6 && core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckAtToll - 5,
+                   "死亡计数：满值 6 达满不再计数——超出死亡不 +1 不触发");
+            core.ZoneManager.MoveCard(tollCard, p1, Zone.Hand, Zone.Battlefield); // 使用（打出）→ 换区
+            Assert(tollCount() == 0, "死亡计数：使用后清零（系统指示物换区清）");
+            TollKill(7); // 场上计数：累计 1
+            Assert(tollCount() == 1 && core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckAtToll - 5,
+                   "死亡计数：场上同样计数（1 < 2 未触发）——手牌/场上双面口径");
+            TollKill(8); // 场上累计 2 → 触发
+            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckAtToll - 6 && tollCount() == 2,
+                   "死亡计数：场上达标触发（抽 6）——清零重计后周期重启");
             core.ZoneManager.MoveCard(tollCard, p1, Zone.Battlefield, Zone.Graveyard);
 
-            // ---- 6. 元素充盈（2026-10-11 判据重定义）：出牌付费后**未横置地牌最多同色数** > 门槛，
-            //      每次达标都触发（旧「bank 最多色」判据随 bank 退役）----
+            // ---- 6. 元素充盈（2026-10-19 判据三改）：出牌付费**扣除消耗后**元素池剩余总量
+            //      （未横置地牌+钱包余额，全六色合计，封顶 6）≥ 门槛，每次达标都触发
+            //      （旧「未横置地牌最多同色数」判据随本改案退役）----
             // 引擎宿主用真实生物：0/0 结界会在出牌结算后的 SBA 泵里被"防御归零"送墓（首跑实证），引擎只活半次
             var surgeData = new CardData
             {
@@ -7236,7 +7255,7 @@ namespace CardCore.Editor
             surgeCard.SetController(p1);
             Assert(core.ZoneManager.TryAddToBattlefield(surgeCard, p1), "元素充盈：引擎宿主入场");
 
-            // 判据供能：3 张未横置红锁地牌（最多同色数 3 > 门槛 2）
+            // 判据供能：3 张未横置红锁地牌 + 钱包红 2（Then=DrawCard1 → 门槛 2）
             var surgePool = core.ElementPool.GetPool(p1);
             surgePool.GlobalTurnIndex = 9;
             surgePool.PooledCards.Clear();
@@ -7246,63 +7265,112 @@ namespace CardCore.Editor
 
             EnsureMainPhase(core, p1); // 先归位主阶段（可能推进回合——会清空钱包/重置地牌横置）
             foreach (ManaType t in System.Enum.GetValues(typeof(ManaType))) surgePool.TempElements[t] = 0;
-            surgePool.TempElements[ManaType.Red] = 99; // 钱包灌满付载体账单（钱包足额→地牌不被
-            surgePool.TempElements[ManaType.Blue] = 99; // 自动横置，判据读数全程稳定）
+            surgePool.TempElements[ManaType.Red] = 3; // 钱包精确控量：付费走钱包→地牌不横置，读数全程可控
+            surgePool.TempElements[ManaType.Blue] = 6; //（载体实付=推导账单 红1蓝2：印刷红1+DrawCard1 锚价蓝2）
 
-            CardData SurgeSpell() => new CardData
+            CardData SurgeSpell(float red = 1f) => new CardData
             {
                 ID = "VERIFY_SURGE_SPELL", CardName = "充盈载体", Supertype = Cardtype.Spell,
-                Cost = CostOf((ManaType.Red, 1f)),
+                Cost = CostOf((ManaType.Red, red)),
             };
+            // 拒因直读（出牌失败时面包屑留痕——上游段落状态级联排查用）
+            bool SurgeCast(CardData data, string tag)
+            {
+                var c = InjectCard(core, p1, data);
+                if (!GameActions.PlayCard(core, p1, c, null, Zone.Hand, 0, out var why))
+                { Crumb($"surge {tag} reject: {why}"); return false; }
+                GameActions.DrainStack(core);
+                return true;
+            }
             int surgeDeck = core.ZoneManager.GetCards(p1, Zone.Deck).Count;
             System.Func<string> surgeState = () =>
-                $"red={surgePool.TempElements[ManaType.Red]} maxLands={core.ElementPool.GetMaxManaCount(p1)} "
+                $"red={surgePool.TempElements[ManaType.Red]} total={core.ElementPool.GetRemainingElementTotal(p1)} "
                 + $"deck={core.ZoneManager.GetCards(p1, Zone.Deck).Count} surgeZone={surgeCard.GetZone()} "
                 + $"hand={core.ZoneManager.GetCards(p1, Zone.Hand).Count}";
 
-            // 出牌①：付费后未横置同色地 3 > 门槛2 → 引擎抽1 + 载体抽1 = -2
+            // 出牌①：付推导账单 红1蓝2（钱包红 3→2 蓝 6→4）→ 剩余总量 = 地 3 + 钱包 6 = 9 ≥ 门槛 2
+            // → 引擎抽1 + 载体抽1 = -2
             var spell1 = SurgeSpell();
             spell1.Effects.Add(new CardEffectData
             {
                 Id = "VERIFY_SURGE_SPELL_FX",
                 AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1) },
             });
-            Assert(PlayCardSync(core, p1, InjectCard(core, p1, spell1)), "元素充盈：载体①打出");
+            Assert(SurgeCast(spell1, "cast1"), "元素充盈：载体①打出");
             Crumb("surge cast1: " + surgeState());
             Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == surgeDeck - 2,
-                   "元素充盈：付费后未横置同色地 3 > 门槛 2（Then 锚价推导）→ 触发（引擎抽1 + 载体抽1）");
+                   "元素充盈：付费后剩余总量 9 ≥ 门槛 2（Then 锚价推导）→ 触发（引擎抽1 + 载体抽1）");
 
-            // 出牌②：判据持续达标 → 再触发（每次达标都触发——2026-09-22 用户定案）
+            // 出牌②：再付 红1蓝2（钱包红 2→1 蓝 4→2）→ 剩余总量 = 地 3 + 钱包 3 = 6 ≥ 2 → 再触发（每次达标都触发）
             var spell2 = SurgeSpell();
             spell2.Effects.Add(new CardEffectData
             {
                 Id = "VERIFY_SURGE_SPELL_FX2",
                 AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1) },
             });
-            Assert(PlayCardSync(core, p1, InjectCard(core, p1, spell2)), "元素充盈：载体②打出");
+            Assert(SurgeCast(spell2, "cast2"), "元素充盈：载体②打出");
             Crumb("surge cast2: " + surgeState());
             Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == surgeDeck - 4,
                    "元素充盈：每次达标都触发（同回合第二次出牌照样触发）");
 
-            // 非出牌支付（直接 PayCost）不触发：牌库不动
+            // 非出牌支付（直接 PayCost）不触发：钱包红 1 垫付 + 自动横置 1 张红地补足，牌库不动
             core.ElementPool.TryPayCostWithAutoTap(CostOf((ManaType.Red, 2f)), p1);
             Crumb("surge manualpay: " + surgeState());
             Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == surgeDeck - 4,
                    "元素充盈：非出牌支付（直接扣款）不触发——钩子只在出牌付费口");
 
-            // 出牌③：横置一张红地 → 最多同色地 2 ≤ 门槛 2 → 不触发，仅载体抽1 = -1
-            surgePool.PooledCards[0].IsTapped = true;
-            var spell3 = SurgeSpell();
+            // 出牌③（先扣后读证明）：三地全横置 + 钱包红 2 蓝 2——付费前总量 4 ≥ 2，付费（账单 红2蓝2
+            // 全走钱包 → 归零）后总量 0 < 2 → 不触发，仅载体抽1 = -1（读数在扣除本次消耗之后）
+            foreach (var surgeLand in surgePool.PooledCards) surgeLand.IsTapped = true;
+            surgePool.TempElements[ManaType.Red] = 2;
+            var spell3 = SurgeSpell(2f);
             spell3.Effects.Add(new CardEffectData
             {
                 Id = "VERIFY_SURGE_SPELL_FX3",
                 AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1) },
             });
-            Assert(PlayCardSync(core, p1, InjectCard(core, p1, spell3)), "元素充盈：载体③打出");
+            Assert(SurgeCast(spell3, "cast3"), "元素充盈：载体③打出");
             Crumb("surge cast3: " + surgeState());
             Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == surgeDeck - 5,
-                   "元素充盈：付费后最多同色地 2 ≤ 门槛 2 → 不触发（判定读未横置地牌，仅载体抽1）");
-            core.ZoneManager.MoveCard(surgeCard, p1, Zone.Battlefield, Zone.Graveyard);
+                   "元素充盈：付费前总量 4 ≥ 门槛但付费后 0 < 2 → 不触发（先扣除消耗后才计算剩余，仅载体抽1）");
+            core.ZoneManager.MoveCard(surgeCard, p1, Zone.Battlefield, Zone.Graveyard); // 门槛2宿主退场防连带
+
+            // 出牌④（读数封顶 6）：Then=4×DrawCard1 → 门槛 8 > 满值 6——地牌全解横置 + 钱包红99蓝99，
+            // 剩余总量 198 远超门槛仍不触发（读数 min(198,6)=6 < 8）——仅载体抽1 = -1
+            var surgeData2 = new CardData
+            {
+                ID = "VERIFY_ENGINE_SURGE2", CardName = "验证充盈封顶", Supertype = Cardtype.Creature, Power = 3, Life = 3,
+            };
+            surgeData2.Effects.Add(new CardEffectData
+            {
+                Id = "VERIFY_SURGE2_MAIN",
+                TriggerTiming = (int)CardCore.TriggerTiming.Activate_Active, // 引擎宿主惰性化（同上）
+                AtomicEffects = new List<AtomicEffectEntry>
+                {
+                    EngineAtom(CardCore.AtomicEffectType.DrawCard, 1, CardCore.BranchEngineKind.ManaSurplus, 1,
+                        AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1),
+                        AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1),
+                        AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1),
+                        AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1)),
+                },
+            });
+            var surgeCard2 = new CardWrapper(surgeData2);
+            surgeCard2.SetController(p1);
+            Assert(core.ZoneManager.TryAddToBattlefield(surgeCard2, p1), "元素充盈：封顶宿主入场");
+            foreach (var surgeLand in surgePool.PooledCards) surgeLand.IsTapped = false;
+            surgePool.TempElements[ManaType.Red] = 99;
+            surgePool.TempElements[ManaType.Blue] = 99;
+            var spell4 = SurgeSpell();
+            spell4.Effects.Add(new CardEffectData
+            {
+                Id = "VERIFY_SURGE_SPELL_FX4",
+                AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1) },
+            });
+            Assert(SurgeCast(spell4, "cast4"), "元素充盈：载体④打出");
+            Crumb("surge cast4: " + surgeState());
+            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == surgeDeck - 6,
+                   "元素充盈：剩余总量 198 封顶 6 < 门槛 8 → 不触发（读数封顶 6，仅载体抽1）");
+            core.ZoneManager.MoveCard(surgeCard2, p1, Zone.Battlefield, Zone.Graveyard);
             surgePool.PooledCards.Clear(); // 段界卫生：合成地牌不留池
 
             // ---- 7. 局面状态门（评估器直测 + 口径断言；有限分支 2026-10-09 还原）----
@@ -7400,83 +7468,119 @@ namespace CardCore.Editor
             //      差价计价 / converter 配对守卫 / 效果伤害拦截三路同批废除，无头侧锚见 V9.p；
             //      战斗伤害改写族=关键词侧（毒刺/冰晶等），另测未动）----
 
-            // ---- 9. 手牌序位：此卡=本回合从手牌使用的第 x 张卡 → 施放结算时发奖 ----
-            // 回合层清零（序位统计与本回合手牌使用计数归零；shield 隔离自动化副作用）
-            var nthShield = new TurnStartAutomationShield();
-            RuleHooks.RegisterTurnStartInterceptor(nthShield);
+            // ---- 9. 效果序位（2026-10-19 手牌序位改案·定案）：本回合**双方**效果发动数达到 x−1 时执行
+            //      奖励——主动/自动效果入栈声明+法术/技能整卡施放各计 1（攻击/守卫宣言、SBA、引擎合成
+            //      奖励不算）；x∈[1,6] 手填门槛=x−1；观察面=手牌∪场上双方引擎卡；TurnStart 清零后即评估 ----
+            // 回合层清零（序位发动计数清零；shield 隔离自动化副作用；此刻无序位卡在手/场=清零评估空转）
+            var eoShield = new TurnStartAutomationShield();
+            RuleHooks.RegisterTurnStartInterceptor(eoShield);
             try
             {
                 EventManager.Instance.Publish(new TurnStartEvent { TurnPlayer = p1, TurnNumber = 800 });
                 GameActions.DrainStack(core);
             }
-            finally { RuleHooks.UnregisterTurnStartInterceptor(nthShield); }
+            finally { RuleHooks.UnregisterTurnStartInterceptor(eoShield); }
 
             EnsureMainPhase(core, p1);
-            // 供能+定费（确定性）：红1 费卡 + bank 红 4——空表/null Cost 的 0 费路径跨版本行为不稳，实测口径
-            var nthPool = core.ElementPool.GetPool(p1);
-            nthPool.GlobalTurnIndex = 9;
-            nthPool.TempElements[ManaType.Red] = 4;
-            CardData NthCard(int x)
+            PadDeck(core, p1, 6, "VERIFY_EO_FILL_"); // 奖励观测口径=抽牌数（引擎奖励抽 3+收尾 1，垫足 6）
+            CardData EOCard(string id, int x)
             {
                 var d = new CardData
                 {
-                    ID = "VERIFY_ENGINE_NTH" + x, CardName = "验证手牌序位" + x,
+                    ID = id, CardName = "验证效果序位x" + x,
                     Supertype = Cardtype.Creature, Power = 2, Life = 2,
-                    Cost = CostOf((ManaType.Red, 1f)),
                 };
-                // 主干=抽1（主动惰性宿主——打出不自动结算，防主干抽牌污染序位断言）
-                // + 手牌序位引擎载荷（2026-10-09 自平衡统一：门槛=Then 锚价推导——DrawCard v=x/2 → 锚价 x
-                //   → 序位==门槛 时施放结算发奖；engineParam=x 为死数据仅留对照）
+                // 主干=引擎行（EngineEffectOrdinal，条件载体非效果——执行按 Settle==Engine 跳过）
+                // + x 手填（门槛=x−1）+ Then=抽 1（奖励自身即「第 x 位」不占发动位）
                 d.Effects.Add(new CardEffectData
                 {
-                    Id = "VERIFY_NTH_MAIN" + x,
-                    TriggerTiming = (int)CardCore.TriggerTiming.Activate_Active,
+                    Id = id + "_EFF",
+                    TriggerTiming = (int)CardCore.TriggerTiming.OnCardPlayed,
                     AtomicEffects = new List<AtomicEffectEntry>
                     {
-                        EngineAtom(CardCore.AtomicEffectType.DrawCard, 1, CardCore.BranchEngineKind.NthHandCard, x,
-                            AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: x / 2)),
+                        EngineAtom(CardCore.AtomicEffectType.EngineEffectOrdinal, 1, CardCore.BranchEngineKind.EffectOrdinal, x,
+                            AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1)),
                     },
                 });
                 return d;
             }
-            var nthDef = CardEffectConverter.ConvertAll(NthCard(2).Effects, "VERIFY_NTH")
-                .FirstOrDefault(d => d?.Effects != null && d.Effects.Any(a =>
-                    a?.Branch?.EngineKind == CardCore.BranchEngineKind.NthHandCard));
-            Assert(nthDef != null && nthDef.Effects[0].Branch.Then.Count == 1
-                   && CardCore.CostDerivationService.DeriveElementCosts(nthDef)[CardCore.ManaType.Gray] == 0,
-                   "手牌序位：槽级载荷转存 Then 且引擎零计价（门槛=Then 锚价推导非收费）");
+            var eoDef = CardEffectConverter.ConvertOne(EOCard("VERIFY_EO_A", 2).Effects[0], "VERIFY_EO_A");
+            Assert(eoDef != null && eoDef.Effects.Count == 1 && eoDef.Effects[0].Branch != null
+                   && eoDef.Effects[0].Branch.Settle == CardCore.BranchSettleKind.Engine
+                   && eoDef.Effects[0].Branch.EngineKind == CardCore.BranchEngineKind.EffectOrdinal
+                   && eoDef.Effects[0].Branch.Then.Count == 1
+                   && eoDef.TriggerTiming == CardCore.TriggerTiming.OnCardPlayed
+                   && eoDef.ActivationType == CardCore.EffectActivationType.Automatic
+                   && eoDef.TriggerLimitPerTurn == -1,
+                   "效果序位：槽级载荷转存 Then + 引擎头钉死 使用卡牌时+自动+无限（2026-10-19 手牌序位改案口径）");
+            Assert((int)CardCore.CostDerivationService.DeriveElementCosts(eoDef)[CardCore.ManaType.Gray] == 0,
+                   "效果序位计价：引擎零计价（门槛=x−1 手填判定条件非收费；Then 奖励不并入卡费）");
 
-            int deckAtNth = core.ZoneManager.GetCards(p1, Zone.Deck).Count;
-            // 出牌并断言（拒因探针嵌消息——一次运行定位 PlayCard 门禁失败点）
-            void NthPlay(CardData data, string label)
+            Card EOToHand(CardData data)
             {
-                var c = InjectCard(core, p1, data);
-                bool ok = PlayCardSync(core, p1, c);
-                Assert(ok, label + "——拒因：" + PlayGateProbe(core, p1, c));
+                var card = new CardWrapper(data);
+                card.SetController(p1);
+                core.ZoneManager.GetZoneContainer(p1).Add(card, Zone.Hand); // 观察面=手牌∪场上
+                return card;
             }
+            var eoA = EOToHand(EOCard("VERIFY_EO_A", 2)); // x=2 → 门槛 1
+            var eoB = EOToHand(EOCard("VERIFY_EO_B", 3)); // x=3 → 门槛 2
+            var eoC = EOToHand(EOCard("VERIFY_EO_C", 1)); // x=1 → 门槛 0（回合开始即触发——收尾验）
+            int eoDeck0 = core.ZoneManager.GetCards(p1, Zone.Deck).Count;
 
-            // 第 1 张手牌使用：普通红1 费生物（无引擎，不抽牌）
-            NthPlay(new CardData
-            { ID = "VERIFY_NTH_FILLER", CardName = "序位垫子", Supertype = Cardtype.Creature, Power = 1, Life = 1,
-              Cost = CostOf((ManaType.Red, 1f)) },
-                "手牌序位：第 1 张手牌使用（垫子）");
-            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckAtNth,
-                   "手牌序位：垫子无引擎不抽牌（序位 1 占位）");
+            // 规则动作不占发动位（合成声明观察口事件，不入栈）：SBA/攻击宣言无 Definition → 计数不动
+            EventManager.Instance.Publish(new StackAddEvent { AddedObject = new EffectInstance { IsSBA = true } });
+            EventManager.Instance.Publish(new StackAddEvent
+            {
+                AddedObject = new EffectInstance { IsAttackDeclaration = true, Source = p1, Targets = new List<Entity> { p2 } },
+            });
+            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == eoDeck0,
+                   "效果序位：SBA/攻击宣言不占发动位（规则动作≠效果发动，三卡零触发）");
 
-            // 第 2 张：门槛 2 引擎卡（Then=抽1·锚价2）→ 序位 2 == 门槛 → 发奖（抽 1；主干主动不结算）
-            NthPlay(NthCard(2), "手牌序位：第 2 张（门槛 2 引擎卡）打出");
-            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckAtNth - 1,
-                   "手牌序位：此卡为第 2 张手牌使用 = 门槛 2（Then 锚价推导）→ 执行奖励（抽 1）");
+            // 对手法术整卡施放计 1（双方口径）：计数 1 = A 门槛（x−1）→ A 触发抽 1
+            var eoSpellP2 = new CardWrapper(new CardData { ID = "VERIFY_EO_SPELL_P2", CardName = "序位法术P2", Supertype = Cardtype.Spell });
+            eoSpellP2.SetController(p2);
+            Assert(core.StackEngine.PushCardCast(eoSpellP2, p2, null), "效果序位：对手法术施放入栈（空栈首动免门槛）");
+            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == eoDeck0 - 1,
+                   "效果序位：双方口径——对手法术施放计 1 次发动 → 计数 1=x−1 → A(x=2) 触发抽 1（生物/地牌施放不算）");
+            GameActions.DrainStack(core);
 
-            // 第 3 张：门槛 2 引擎卡 → 序位 3 ≠ 2 → 不发奖
-            NthPlay(NthCard(2), "手牌序位：第 3 张（门槛 2 引擎卡）打出");
-            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckAtNth - 1,
-                   "手牌序位：序位 3 ≠ 门槛 2 → 不触发");
+            // 己方主动效果声明计 1（速 2）：计数 2 = B 门槛 → B 触发抽 1（A 门槛已过不重复）
+            var eoVolDef = new CardCore.EffectDefinition
+            {
+                Id = "VERIFY_EO_VOL", DisplayName = "序位主动探针", BaseSpeed = 2,
+                TriggerTiming = CardCore.TriggerTiming.Activate_Active, ActivationType = CardCore.EffectActivationType.Voluntary,
+                ElementCostPrepaid = true,
+                Effects = new List<CardCore.AtomicEffectInstance> { new CardCore.AtomicEffectInstance { Type = CardCore.AtomicEffectType.DrawCard, Value = 1 } },
+            };
+            Assert(core.StackEngine.TryActivateEffect(PendingEffect.Create(eoVolDef, eoA, p1, p1,
+                       core.TurnEngine.CurrentPhase?.Phase ?? PhaseType.Main)),
+                   "效果序位：己方主动效果声明入栈（空栈首动免门槛）");
+            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == eoDeck0 - 2,
+                   "效果序位：主动效果声明计 1 次发动 → 计数 2=x−1 → B(x=3) 触发抽 1（A 门槛已过不再重复——每值只经过一次）");
+            GameActions.DrainStack(core); // 声明效果自身结算（主干抽 1 属己方效果，不作引擎奖励口径）
 
-            // 第 4 张：门槛 4 引擎卡（Then=抽2·锚价4）→ 序位 4 == 门槛 → 发奖
-            NthPlay(NthCard(4), "手牌序位：第 4 张（门槛 4 引擎卡）打出");
-            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckAtNth - 3,
-                   "手牌序位：序位 4 = 门槛 4（Then=抽2 锚价推导）→ 执行奖励（抽 2）——序位含自身按宣言序计");
+            // 计数 3：无 ==x−1 门槛（A=1/B=2 均已过）→ 不触发
+            var eoSpellP1 = new CardWrapper(new CardData { ID = "VERIFY_EO_SPELL_P1", CardName = "序位法术P1", Supertype = Cardtype.Spell });
+            eoSpellP1.SetController(p1);
+            Assert(core.StackEngine.PushCardCast(eoSpellP1, p1, null), "效果序位：己方法术施放入栈");
+            GameActions.DrainStack(core);
+            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == eoDeck0 - 3,
+                   "效果序位：计数 3 无等值门槛不触发（判定===x−1 非 ≥，计数续增不重复发奖）");
+
+            // TurnStart 清零后即评估：C(x=1) 门槛 0 = 回合开始即占第 1 位（A/B 门槛非 0 不受扰）
+            RuleHooks.RegisterTurnStartInterceptor(eoShield);
+            try
+            {
+                EventManager.Instance.Publish(new TurnStartEvent { TurnPlayer = p1, TurnNumber = 801 });
+                GameActions.DrainStack(core);
+            }
+            finally { RuleHooks.UnregisterTurnStartInterceptor(eoShield); }
+            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == eoDeck0 - 4,
+                   "效果序位：TurnStart 清零后即评估——C(x=1) 门槛 0 回合开始即触发（A/B 门槛非 0 不连带）");
+            core.ZoneManager.MoveCard(eoA, p1, Zone.Hand, Zone.Graveyard); // 清场防跨段连带
+            core.ZoneManager.MoveCard(eoB, p1, Zone.Hand, Zone.Graveyard);
+            core.ZoneManager.MoveCard(eoC, p1, Zone.Hand, Zone.Graveyard);
         }
 
         /// <summary>

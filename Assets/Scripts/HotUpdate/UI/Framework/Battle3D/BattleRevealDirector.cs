@@ -25,6 +25,11 @@ namespace SynergyUI
         /// 不动**，由 BattleFieldView 建柱后按本标记 SetActive 隐藏；Solo("all")（操作预告段）/End 解除。</summary>
         public static bool HideOpponentHero { get; private set; }
 
+        /// <summary>单位出场闸（2026-10-19 教学二段一「生物出场」）：true=BattleFieldView 对账不出场
+        /// 单位（存量全清——重置回介绍段也走此口径）；Solo("units")/End 解除，随后 RefreshField
+        /// 建单位（入场演出随建触发）。</summary>
+        public static bool SuppressUnits { get; private set; }
+
         private static bool _active;
         private static readonly HashSet<long> _keep = new HashSet<long>();
 
@@ -35,6 +40,7 @@ namespace SynergyUI
             SuppressHeroes = true;
             SuppressHandFan = true;
             HideOpponentHero = true;
+            SuppressUnits = true;
             ApplyKeep();
         }
 
@@ -43,8 +49,9 @@ namespace SynergyUI
         /// 卡组/墓/除外右列**（总览不藏区）；all=全显+解除对手柱隐藏；zone:mid=中线信息条；
         /// zone:role=仅己方角色格（对手柱照常建、建后按 HideOpponentHero 隐藏）；
         /// zone:activation=己方单位区 12 格（发动区）；zone:right=仅己方卡组/墓/除外三格；
-        /// zone:p1-land=己方地牌行；hand=解手牌闸（调用方随后 RefreshFans）。
-        /// 解闸类 token（zone:role/hand）不改变盘面保持。</summary>
+        /// zone:p1-land=己方地牌行；hand=解手牌闸（调用方随后 RefreshFans）；
+        /// units=解单位闸（2026-10-19 教学二「生物出场」——调用方随后 RefreshField 建单位）。
+        /// 解闸类 token（zone:role/hand/units）不改变盘面保持。</summary>
         public static void Solo(string token)
         {
             if (!_active || string.IsNullOrEmpty(token)) return;
@@ -70,6 +77,9 @@ namespace SynergyUI
                         SuppressHandFan = false;
                     }
                     return; // 手牌扇非 tile：解闸即可，盘面保持不变
+                case "units":
+                    SuppressUnits = false; // 解单位闸（调用方随后 RefreshField 建单位=生物出场）
+                    return; // 单位模型非 tile：解闸即可，盘面保持不变
                 case "zone:role":
                     SuppressHeroes = false; // 解除英雄柱闸（调用方随后 RefreshField 建柱——对手柱建后隐藏）
                     _keep.Clear();
@@ -111,6 +121,7 @@ namespace SynergyUI
             SuppressHeroes = false;
             SuppressHandFan = false;
             HideOpponentHero = false;
+            SuppressUnits = false;
             _keep.Clear();
             ApplyKeep();
         }

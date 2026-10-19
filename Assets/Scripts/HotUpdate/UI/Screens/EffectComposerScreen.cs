@@ -1189,8 +1189,8 @@ namespace SynergyUI
                         _slotZones.Add(MakeZone(firstEmptySlot, () =>
                             !_graph.steps.Any(s => s != null && ((s.kind == 0 && s.atomic != null) || s.kind == 2))
                                 ? "效果为空——并列模式至少需要一个原子（选中槽后点击右侧库行）" : null));
-                    // 全局唯一（2026-10-09 定案·库隐藏口径）：同原子只出现一次——库已隐不可再添，
-                    // 本区仅拦载入旧数据/旁路（隐藏交互、不拒绝）
+                    // 限重复（2026-10-09 全局唯一 → 2026-10-19 放开修订：仅引擎主干/仪典）：
+                    // 库已隐不可再添，本区仅拦载入旧数据/旁路（隐藏交互、不拒绝）
                     _slotZones.Add(MakeZone(_slotArea.Content, DuplicateAtomError));
                     break;
                 }
@@ -2083,29 +2083,38 @@ namespace SynergyUI
 
         // ---- 全局唯一规则（2026-10-09 定案·隐藏口径）+ 衍生物行 ----
 
-        /// <summary>组合内已用原子 refId 集（主干槽+Then 奖励——与 DuplicateAtomError 同口径）。
-        /// 库列表按此隐藏：用过即隐（不拒绝），换掉/删除后随 RefreshLibrary 回归。</summary>
-        private HashSet<string> UsedAtomRefIds()
+        /// <summary>组合内限重复行已用 refId 集（主干槽+Then 奖励——与 DuplicateAtomError 同口径）。
+        /// 2026-10-19 放开定案后仅引擎主干/仪典行（ComposerCatalog.DuplicateRestricted）用过即隐
+        /// （不拒绝），换掉/删除后随 RefreshLibrary 回归；其余行可重复不隐藏。</summary>
+        private HashSet<string> RestrictedUsedRefIds()
         {
             var set = new HashSet<string>();
+            void Add(string refId)
+            {
+                if (string.IsNullOrEmpty(refId)) return;
+                if (ComposerCatalog.DuplicateRestricted(AtomicEffectTable.GetByHashId(refId))) set.Add(refId);
+            }
             foreach (var s in _graph.steps ?? new List<EffectStepData>())
             {
                 if (s?.kind != 0 || s.atomic == null) continue;
-                if (!string.IsNullOrEmpty(s.atomic.refId)) set.Add(s.atomic.refId);
+                Add(s.atomic.refId);
                 foreach (var r in s.atomic.branch?.then ?? new List<AtomicEffectEntry>())
-                    if (r != null && !string.IsNullOrEmpty(r.refId)) set.Add(r.refId);
+                    if (r != null) Add(r.refId);
             }
             return set;
         }
 
-        /// <summary>校验区口径的全局唯一检查（null=合规）：库隐藏口径下正常组合不会产生重复
-        /// ——本区仅拦载入的旧数据/旁路落位（报错时保存禁用，删其一即解）。</summary>
-        private string DuplicateAtomError()        {
+        /// <summary>校验区口径的限重复检查（null=合规）：库隐藏口径下正常组合不会产生重复
+        /// ——本区仅拦载入的旧数据/旁路落位（报错时保存禁用，删其一即解）。
+        /// 2026-10-19 放开定案：仅引擎主干/仪典行限重复，其余行可重复。</summary>
+        private string DuplicateAtomError()
+        {
             var seen = new HashSet<string>();
             string dupName = null;
             void Check(AtomicEffectEntry a)
             {
                 if (a == null || !string.IsNullOrEmpty(dupName) || string.IsNullOrEmpty(a.refId)) return;
+                if (!ComposerCatalog.DuplicateRestricted(AtomicEffectTable.GetByHashId(a.refId))) return;
                 if (!seen.Add(a.refId))
                     dupName = AtomicEffectTable.GetByHashId(a.refId)?.DisplayName ?? a.refId;
             }
@@ -2116,7 +2125,7 @@ namespace SynergyUI
                 foreach (var r in s.atomic.branch?.then ?? new List<AtomicEffectEntry>()) Check(r);
             }
             return dupName == null ? null
-                : $"重复效果「{dupName}」——全局规则：一个组合效果中同一效果只能出现一次（并列槽与奖励均计入）";
+                : $"重复效果「{dupName}」——引擎主干/仪典在一个组合中只能出现一次（并列槽与奖励均计入）";
         }
 
         private static bool IsSummonTokenEntry(AtomicEffectEntry a)
@@ -2693,9 +2702,9 @@ namespace SynergyUI
             }
 
             var pred = CurrentSlotPredicate(out _); // 过滤缘由说明行 lbl-lib-context 已移除（2026-10-07 定案）
-            // 全局唯一（2026-10-09 隐藏口径）：已入组合（主干/奖励）的原子从库中隐藏——用过即隐不拒绝，
-            // 换掉/删除后随本刷新回归；与颜色/搜索/槽位可用性取交集
-            var usedRefIds = UsedAtomRefIds();
+            // 限重复隐藏（2026-10-09 隐藏口径 → 2026-10-19 放开修订）：引擎主干/仪典已入组合即隐
+            // ——用过即隐不拒绝，换掉/删除后随本刷新回归；其余行可重复不隐。与颜色/搜索/槽位可用性取交集
+            var usedRefIds = RestrictedUsedRefIds();
             var payloads = new List<LibPayload>();
             foreach (var row in AllTableRows())
             {

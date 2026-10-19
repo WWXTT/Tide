@@ -63,18 +63,19 @@ namespace SynergyUI
         /// <summary>舞台保持原语：PresentationHold 拦住帧泵自动双 Pass（GameLoopController
         /// .ProcessPriority 无候选即抢先结算——裸等会被它下一帧排干），等视觉在途 + CastStageMs。
         /// 先 hold 再等：结算时序与旧同帧排干完全一致（触发式仍随排干一起落）。
-        /// 未注入 PacingWait 同步直通；finally 保证终局/异常不漏还原。</summary>
+        /// 未注入 PacingWait 同步直通；finally 保证终局/异常不漏还原。
+        /// 2026-10-19 改引用计数口：结算事件会让逆结算回放导演也持有闸，bool 直写会互清。</summary>
         private async Cysharp.Threading.Tasks.UniTask StageHoldAsync(GameCore core)
         {
             var wait = PacingWait;
             if (wait == null) return;
-            core.PresentationHold = true;
+            core.AcquirePresentationHold();
             try
             {
                 await wait();
                 await Cysharp.Threading.Tasks.UniTask.Delay(CastStageMs);
             }
-            finally { core.PresentationHold = false; }
+            finally { core.ReleasePresentationHold(); }
         }
 
         /// <summary>出牌舞台总装（2026-10-16 用户定案）：声明成功 → UI 亮卡面/箭头（OnCastStaged）

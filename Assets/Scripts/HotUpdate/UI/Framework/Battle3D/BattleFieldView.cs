@@ -44,6 +44,10 @@ namespace SynergyUI
         // 被在途演出与新一轮攻击捕获共同持有（连续攻击共享目标），各持一票，全弃才放行对账销毁；
         // 旧 HashSet 单票制下第一场演出 finally 会偷走第二场的持有 → 死亡目标被 RemoveStale 提前销毁
         private readonly Dictionary<uint, int> _heldUnits = new Dictionary<uint, int>();
+        /// <summary>效果死亡预持登记（2026-10-19 消灭表现）：CardDestroyEvent 引擎时点持票的尸体——
+        /// 快照对账只枚举 Battlefield，效果致死卡已入墓=不进快照，RemoveStale 会抢先销毁 wrapper
+        /// 致碎裂退场永不播（战斗击杀有编舞器持有兜底）。持票防抢，回放步放出时开演并弃票。</summary>
+        private readonly HashSet<uint> _effectDeathHeld = new HashSet<uint>();
         /// <summary>生物箭头留存条目（2026-10-18 性能差量对账）：位次/朝向/方向集未变则整帧零操作。</summary>
         private sealed class ArrowEntry
         {
@@ -63,7 +67,8 @@ namespace SynergyUI
         // 立绘立牌→程序描边边框→Element 预制体平贴图标）：Element.prefab 面朝上平躺贴格面，
         // 图标=三张卡类型图（结界 barrier / 生物 biology / 法术 spell·装备兜底，纯白不染色）——
         // 材质以 BattleCardBack_Elem_White_Mat（URP Unlit 透明·纯白）为模板运行时实例换贴图；
-        // 完整卡面同帧由 BattleScreen 左上角施放展示（cast-stage）呈现。图标补挂 MeshCollider
+        // 材质以 BattleCardBack_Elem_White_Mat（URP Unlit 透明·纯白）为模板运行时实例换贴图；
+        // 完整卡面呈现归连锁链舞台（BattleChainStage·2026-10-19：cast-stage 左上角卡面退役）。图标补挂 MeshCollider
         //（Element 无碰撞体）保 cast-{RuntimeId} 射线路由（hover 卡信息/点击开发动区列卡）。
         private readonly Dictionary<uint, GameObject> _castings = new Dictionary<uint, GameObject>(); // key=RuntimeId
         private readonly Dictionary<uint, GameObject> _castingLingers = new Dictionary<uint, GameObject>(); // 离区 linger 期图标（key=RuntimeId；登场演出/等待期窗口，到期或被顶即销）
@@ -119,6 +124,7 @@ namespace SynergyUI
             if (_heldUnits.Count > 0)
                 Debug.LogWarning($"[BattleField] Dispose 时仍有 {_heldUnits.Count} 个演出 hold 未释放（正常应在编舞 finally 清空）——随 Dispose 一并丢弃");
             _heldUnits.Clear();
+            _effectDeathHeld.Clear();
             foreach (var a in _creatureArrows.Values)
                 if (a != null && a.Inst != null)
                 {
@@ -184,11 +190,16 @@ namespace SynergyUI
             BattleHudRow.SetTimePriority(holderSeat);
 
             // ---- 单位区（生物/结界/衍生物） ----
+            // 教学介绍段单位闸（2026-10-19 教学二「生物出场」）：闸上=单位不出场（seen 空→存量全清，
+            // 重置回介绍段同口径）；解闸后首次对账建单位=生物出场（入场演出随建触发）
             var seenUnits = new HashSet<uint>();
             int createdU = 0, movedU = 0, removedU = 0;
             string lastModel = "";
-            foreach (var card in d.SelfUnits) ReconcileUnit(card, owner: 0, seenUnits, ref createdU, ref movedU, ref lastModel);
-            foreach (var card in d.OppUnits) ReconcileUnit(card, owner: 1, seenUnits, ref createdU, ref movedU, ref lastModel);
+            if (!BattleRevealDirector.SuppressUnits)
+            {
+                foreach (var card in d.SelfUnits) ReconcileUnit(card, owner: 0, seenUnits, ref createdU, ref movedU, ref lastModel);
+                foreach (var card in d.OppUnits) ReconcileUnit(card, owner: 1, seenUnits, ref createdU, ref movedU, ref lastModel);
+            }
             removedU = RemoveStale(_units, seenUnits, _heldUnits);
 
             // ---- 生物箭头（2026-10-15 用户定案：钉地格不跟 wrapper——攻击/守卫跑动留在原地） ----
@@ -811,30 +822,16 @@ namespace SynergyUI
             HeroVisual v;
             if (!_heroes.TryGetValue(owner, out v))
             {
-                var cell = BoardLayout.CharacterCell(owner);
-                // 2026-10-18 出包粉红修复：CreatePrimitive 自带的内置默认材质不随包分发（真机恒粉），
-                // 改 Assets/Art/Prefab/Hero.prefab 实例（ArtStatic bundle 按完整路径收录）；着色走
-                // HeroPillarMaterial 的资产模板克隆（shader 随 bundle 打包），预制体原件不动。
-                var prefab = Tide.HotUpdate.HotUpdateAssets.Load<GameObject>(
-                    "Hero", "Assets/Art/Prefab/Hero.prefab");
-                GameObject pillar;
-                if (prefab != null)
+                // 开场预置柱收养（2026-10-19 五段式开局段二）：BattleOpeningDirector 已建并演完就位
+                // 动画的柱（名字/位姿同规格）直接复用不重建；收养/新建同口补 Stats/着色/登记。
+                var adopted = _root != null ? _root.Find("hero-" + (owner == 0 ? "self" : "opp")) : null;
+                var pillar = adopted != null ? adopted.gameObject : CreateHeroPillar(owner);
+                if (adopted == null) // 新建柱定位定格；预置柱位姿由开场就位动画钉死，不覆写（防打断在途动画）
                 {
-                    pillar = Object.Instantiate(prefab, _root, false);
-                    foreach (var col in pillar.GetComponentsInChildren<Collider>())
-                        Object.Destroy(col); // 原口径保留：柱不截射线，点击/悬停归角色格 tile
+                    var cell = BoardLayout.CharacterCell(owner);
+                    pillar.transform.position = BattleBoardGrid.WorldPositionOf(cell.x, cell.z) + new Vector3(0f, 0.6f, 0f);
+                    pillar.transform.localScale = new Vector3(0.55f, 0.6f, 0.55f);
                 }
-                else
-                {
-                    Debug.LogWarning("[BattleField] Hero.prefab 缺失（Assets/Art/Prefab/Hero.prefab）——"
-                        + "角色柱回落内置圆柱（真机需重跑 Tools/打包/Art资源到StreamingAssets）");
-                    pillar = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-                    Object.Destroy(pillar.GetComponent<Collider>());
-                    pillar.transform.SetParent(_root, false);
-                }
-                pillar.name = "hero-" + (owner == 0 ? "self" : "opp");
-                pillar.transform.position = BattleBoardGrid.WorldPositionOf(cell.x, cell.z) + new Vector3(0f, 0.6f, 0f);
-                pillar.transform.localScale = new Vector3(0.55f, 0.6f, 0.55f);
                 v = new HeroVisual
                 {
                     Root = pillar.transform,
@@ -874,6 +871,61 @@ namespace SynergyUI
                 v.Stats.text = txt;
             }
         }
+
+        /// <summary>建角色柱 GameObject（ReconcileHero 新建与开场预置共用规格）：Hero.prefab 实例
+        ///（2026-10-18 出包粉红修复：内置默认材质不随包分发，改 prefab 实例走 ArtStatic bundle；
+        /// 着色由调用方经 HeroPillarMaterial 模板克隆）+ 拆全部 Collider（柱不截射线，点击归角色格
+        /// tile）+ 命名 hero-self/opp + 挂 _root。定位/缩放归调用方。</summary>
+        private GameObject CreateHeroPillar(int owner)
+        {
+            var prefab = Tide.HotUpdate.HotUpdateAssets.Load<GameObject>(
+                "Hero", "Assets/Art/Prefab/Hero.prefab");
+            GameObject pillar;
+            if (prefab != null)
+            {
+                pillar = Object.Instantiate(prefab, _root, false);
+                foreach (var col in pillar.GetComponentsInChildren<Collider>())
+                    Object.Destroy(col);
+            }
+            else
+            {
+                Debug.LogWarning("[BattleField] Hero.prefab 缺失（Assets/Art/Prefab/Hero.prefab）——"
+                    + "角色柱回落内置圆柱（真机需重跑 Tools/打包/Art资源到StreamingAssets）");
+                pillar = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                Object.Destroy(pillar.GetComponent<Collider>());
+                pillar.transform.SetParent(_root, false);
+            }
+            pillar.name = "hero-" + (owner == 0 ? "self" : "opp");
+            return pillar;
+        }
+
+        /// <summary>开场段二预置角色柱（2026-10-19 五段式开局·BattleOpeningDirector）：建柱定格到
+        /// 角色格位姿（规格同 ReconcileHero），返回根 Transform 供就位动画驱动；本柱无 Stats/着色
+        ///（数值对账期才有），首次对账由 ReconcileHero 按名收养补齐。已收养/已存在返回现柱不重建。</summary>
+        public Transform PlaceOpeningHero(int owner)
+        {
+            if (_heroes.ContainsKey(owner))
+            {
+                HeroVisual existing;
+                return _heroes.TryGetValue(owner, out existing) ? existing.Root : null; // 已对账（重放开场竞态）
+            }
+            var adopted = _root != null ? _root.Find("hero-" + (owner == 0 ? "self" : "opp")) : null;
+            if (adopted != null) return adopted;
+            var cell = BoardLayout.CharacterCell(owner);
+            var pillar = CreateHeroPillar(owner);
+            pillar.transform.position = BattleBoardGrid.WorldPositionOf(cell.x, cell.z) + new Vector3(0f, 0.6f, 0f);
+            pillar.transform.localScale = new Vector3(0.55f, 0.6f, 0.55f);
+            return pillar.transform;
+        }
+
+        /// <summary>world 空间 billboard 文本（2026-10-19 开场件公用）：CreateStatsText 公开转发——
+        /// 开场卡组名签/提示签与常规头顶数值同源同规格。</summary>
+        public static TextMeshPro CreateWorldLabel(Transform parent, float height)
+            => CreateStatsText(parent, height);
+
+        /// <summary>world 浮字公开转发（2026-10-19 开场硬币落定提示）：上浮渐隐 0.9s 一次性建毁。</summary>
+        public static void ShowFloatText(Transform parent, float height, string text, Color color)
+            => FloatTextAsync(parent, height, text, color).Forget();
 
         /// <summary>角色柱着色（2026-10-18 出包粉红修复）：分区格材质资产（URP Lit·已入 artstatic
         /// bundle·棋盘出包验证可渲染）克隆实例 + _BaseColor 按 owner 上色——CreatePrimitive/
@@ -1164,11 +1216,11 @@ namespace SynergyUI
         private void ReconcileCreatureArrows(BattleViewData d)
         {
             _arrowSeen.Clear();
-            if (BattleBoardGrid.Root != null)
+            if (BattleBoardGrid.Root != null && !BattleRevealDirector.SuppressUnits)
             {
                 ReconcileCreatureArrowSet(d.SelfUnits, 0);
                 ReconcileCreatureArrowSet(d.OppUnits, 1);
-            }
+            } // 单位闸上=箭头全收（_arrowSeen 空→stale 清理兜底；2026-10-19 教学二段一）
             // 离场/失格单位销毁（对账级；留存只为跨事件复用——原全量销毁重建的每事件 Instantiate 风暴根除）
             _arrowStale.Clear();
             foreach (var kv in _creatureArrows)
@@ -1394,6 +1446,251 @@ namespace SynergyUI
                 if (floatTxt != null) Object.Destroy(floatTxt.gameObject);
             }
             finally { EndVisual(); }
+        }
+
+        // ======================================== 效果命中演出（2026-10-19 Arctibyte 接入：弹体/爆点/浮字） ========================================
+
+        /// <summary>效果目标解析结果（伤害/回复/指示物浮字共用）：单位（生物/结界）或角色立柱。</summary>
+        private sealed class EffectTarget
+        {
+            public UnitVisual Unit;      // 单位目标（null=角色目标）
+            public int HeroOwner = -1;   // 角色目标归属（-1=非角色）
+            public Vector3 ImpactAnchor; // 爆点/弹体落点（单位=胸口注视高，角色=立柱中段）
+            public Transform FloatParent;// 浮字挂载父（wrapper / 立柱根）
+            public float FloatHeight;    // 浮字本地高度（头顶数值之上）
+        }
+
+        /// <summary>解析效果目标（Card→场上单位；Player→角色立柱）。不在视图（教学介绍段
+        /// SuppressUnits/已退场/未建柱）返回 null——调用方静默跳过，绝不报错。</summary>
+        private EffectTarget ResolveEffectTarget(Entity target, Func<Player, int> ownerOf)
+        {
+            if (target is Card tc)
+            {
+                if (!_units.TryGetValue(tc.RuntimeId, out var uv) || uv.Wrapper == null) return null;
+                var et = new EffectTarget { Unit = uv, FloatParent = uv.Wrapper };
+                et.FloatHeight = uv.Stats != null ? uv.Stats.transform.localPosition.y + 0.55f : 1.9f;
+                et.ImpactAnchor = uv.Wrapper.position + Vector3.up * uv.LookHeight; // 胸口（同注视点口径）
+                return et;
+            }
+            var player = target as Player;
+            if (player == null || ownerOf == null) return null;
+            int owner = ownerOf(player);
+            if (!_heroes.TryGetValue(owner, out var hv) || hv.Root == null) return null;
+            return new EffectTarget
+            {
+                HeroOwner = owner,
+                FloatParent = hv.Root,
+                FloatHeight = 1.9f, // 立柱 stats（1.3）之上的高位浮字（同疲劳口径）
+                ImpactAnchor = hv.Root.position + Vector3.up * 1.1f,
+            };
+        }
+
+        /// <summary>解析效果源锚点（弹体出发点，2026-10-19 用户定案：**法术源头=施法者角色**）：
+        /// 来源是场上单位（生物主动/触发效果）→ 单位胸口；否则（施放中的法术/手牌来源）→
+        /// 施法者（Controller/Owner）角色立柱。解析失败返回 null——调用方跳过飞行段直落爆点。</summary>
+        private Vector3? ResolveEffectSourceAnchor(Entity source, Func<Player, int> ownerOf)
+        {
+            Player caster = source as Player;
+            if (caster == null && source is Card sc)
+            {
+                if (_units.TryGetValue(sc.RuntimeId, out var v) && v.Wrapper != null && !v.Dead)
+                    return v.Wrapper.position + Vector3.up * v.LookHeight; // 单位来源效果：从单位胸口发出
+                caster = sc.GetController() ?? sc.GetOwner(); // 非场上来源=施法者角色
+            }
+            if (caster == null || ownerOf == null) return null;
+            int owner = ownerOf(caster);
+            return _heroes.TryGetValue(owner, out var hv) && hv.Root != null
+                ? hv.Root.position + Vector3.up * 1.1f
+                : (Vector3?)null;
+        }
+
+        /// <summary>效果演出色（2026-10-19 六色复用定案）：来源卡施放费用的红/蓝/绿主色
+        /// （同出场粒子 DominantChromatic 口径——非彩或无卡来源=灰）。费用单源=GameActions.GetCardCost。</summary>
+        private static Color DominantCostColor(Entity source)
+        {
+            if (source is Card sc)
+            {
+                var cost = GameActions.GetCardCost(sc);
+                ManaType best = ManaType.Gray;
+                float bestV = 0f;
+                for (var m = ManaType.Red; m <= ManaType.Green; m++)
+                {
+                    float v = cost[m];
+                    if (v > bestV) { bestV = v; best = m; }
+                }
+                return BattleCastArrival.ManaColor(best);
+            }
+            return BattleCastArrival.ManaColor(ManaType.Gray);
+        }
+
+        /// <summary>效果伤害演出（AtomicDamageEvent·IsCombatDamage=false——投影器延迟载荷随回放步
+        /// 放出，非回放路径直跑）：源锚点 → MagicOrb 弹体 0.35s → Impact 爆点 + 红「-N」浮字 +
+        /// 受击（生物=Hit 动画 / 角色=立柱脉冲）。信息性表演占视觉门（口径同疲劳受击——回放导演
+        /// WaitVisualsIdleAsync 逐步等待）；目标不在视图静默返回。</summary>
+        public async UniTask PlayEffectDamageAsync(Entity source, Entity target, int amount,
+            Func<Player, int> ownerOf)
+        {
+            var et = ResolveEffectTarget(target, ownerOf);
+            if (et == null) return;
+            BeginVisual();
+            try
+            {
+                var src = ResolveEffectSourceAnchor(source, ownerOf);
+                var tint = DominantCostColor(source); // 六色：来源卡费用主色（图改暴露后生效）
+                if (src != null)
+                    await BattleEffectFx.PlayOrbAsync(src.Value, et.ImpactAnchor, tint); // 飞行段（缺件=立即返回直落爆点）
+                var impact = BattleEffectFx.PlayImpact(et.ImpactAnchor, tint);
+                if (et.Unit != null && !et.Unit.Dead)
+                    et.Unit.Anim?.Play(MonsterAction.Hit); // 受击（一次性压扁回弹，叠在待机上）；致死者让位碎裂退场（Dead 闸防 Hit 盖掉 FallDown）
+                else
+                    HeroImpactPulseAsync(et.HeroOwner).Forget(); // 角色立柱脉冲（自带门配对）
+#if UNITY_EDITOR
+                Debug.Log($"[EffectFx] 伤害演出 amount={amount} 目标={(target is Card c ? "单位" + c.RuntimeId % 10000 : "角色" + et.HeroOwner)}"
+                          + $" 弹体={(src != null ? 1 : 0)} 爆点={(impact != null ? 1 : 0)}"); // 演出取证口（构建不打）
+#endif
+                await FloatTextAsync(et.FloatParent, et.FloatHeight, "-" + amount, StatDownColor);
+            }
+            finally { EndVisual(); }
+        }
+
+        /// <summary>回复演出（HealEvent）：绿火花（Dissolve Template 复用，脚下涌起）+ 绿「+N」浮字。
+        /// amount 为扣溢后实效（发布方 Amount-Overfill，屏侧算好传入）；占视觉门。</summary>
+        public async UniTask PlayEffectHealAsync(Entity target, int amount, Func<Player, int> ownerOf)
+        {
+            if (amount <= 0) return;
+            var et = ResolveEffectTarget(target, ownerOf);
+            if (et == null) return;
+            BeginVisual();
+            try
+            {
+                Vector3 ground = et.Unit != null && et.Unit.Wrapper != null
+                    ? et.Unit.Wrapper.position
+                    : et.FloatParent != null ? et.FloatParent.position : et.ImpactAnchor;
+                BattleEffectFx.PlaySpark(ground + Vector3.up * SparkLift, SparkUpColor);
+                await FloatTextAsync(et.FloatParent, et.FloatHeight, "+" + amount, StatUpColor);
+            }
+            finally { EndVisual(); }
+        }
+
+        /// <summary>火花色（回复/增益共用）：StatUpColor 向白提亮一档——纯绿粒子自发光观感偏暗。</summary>
+        private static readonly Color SparkUpColor = Color.Lerp(new Color(0.42f, 1f, 0.45f), Color.white, 0.25f);
+
+        /// <summary>属性指示物浮字（CounterChangedEvent·白名单过滤）：攻/血/±1/角色弹药族 →
+        /// 绿/红「±N」头顶浮字。文案 ASCII（TMP 默认字体数字/ASCII 口径，与头顶 P/L 同语言）；
+        /// 毒素/护甲/耐久/状态类已有指示物 UI，不浮字防刷屏。占视觉门（浮字期人机节奏等待）。</summary>
+        public async UniTask PlayCounterFloatAsync(Entity target, string counterType, int amount,
+            Func<Player, int> ownerOf)
+        {
+            string label;
+            Color color;
+            switch (counterType)
+            {
+                case CardCore.Attribute.CounterRules.PowerUpCounter:
+                    label = "P +" + amount; color = StatUpColor; break;
+                case CardCore.Attribute.CounterRules.PowerDownCounter:
+                    label = "P -" + amount; color = StatDownColor; break;
+                case CardCore.Attribute.CounterRules.LifeUpCounter:
+                    label = "L +" + amount; color = StatUpColor; break;
+                case CardCore.Attribute.CounterRules.LifeDownCounter:
+                    label = "L -" + amount; color = StatDownColor; break;
+                case CardCore.Attribute.CounterRules.PlusOneCounter:
+                    label = "+" + amount + "/+" + amount; color = StatUpColor; break;
+                case CardCore.Attribute.CounterRules.MinusOneCounter:
+                    label = "-" + amount + "/-" + amount; color = StatDownColor; break;
+                case CardCore.Attribute.CounterRules.HeroAttackCounter:
+                    label = "P +" + amount; color = StatUpColor; break;
+                default: return; // 非属性族（毒素/护甲/耐久/系统计数…）——已有指示物 UI，零成本直返
+            }
+            var et = ResolveEffectTarget(target, ownerOf);
+            if (et == null) return; // 手牌费用族（CostUp/Down 在白名单外）/目标离场——静默
+            BeginVisual();
+            try { await FloatTextAsync(et.FloatParent, et.FloatHeight, label, color); }
+            finally { EndVisual(); }
+        }
+
+        /// <summary>火花抬升（2026-10-19 实测定案）：贴地火花被六棱柱地块遮挡不可见——
+        /// 与 BattleCastArrival.LandSpawnLift 同防（0.6+）。</summary>
+        private const float SparkLift = 0.65f;
+
+        /// <summary>效果死亡预持（CardDestroyEvent 引擎时点同步调，投影器死亡钩子）：
+        /// 尸体在视图且无人持有（编舞器战斗击杀已持有=不接管）→ 锁 Dead+持票，防快照对账
+        /// RemoveStale 抢先销毁（效果致死卡已入墓不进快照）。返回后由 PresentEffectDeathAsync 消费。</summary>
+        public void HoldForEffectDeath(CardDestroyEvent e)
+        {
+            var card = e?.DestroyedCard;
+            if (card == null) return;
+            if (!_units.TryGetValue(card.RuntimeId, out var v) || v.Wrapper == null) return;
+            if (v.Dead || IsHeld(card.RuntimeId)) return; // 已在退场/编舞器持有（战斗击杀）=不接管
+            v.Dead = true; // 锁存：重复死亡事件/对账分支不再双触发
+            HoldUnit(card.RuntimeId);
+            _effectDeathHeld.Add(card.RuntimeId);
+        }
+
+        /// <summary>效果死亡演出（延迟载荷随回放步放出）：①碎裂退场——预持接管时开演并弃票
+        /// （纯装饰不占门，死亡退场原口径；不接管=编舞器/无视图，零动作）；②消灭/摧毁族
+        /// （Reason=Destroyed/Smashed）专属表现（信息性占门）：施法角色立柱→目标弹体飞行 →
+        /// 目标处紫火花涌起（SparkLift 防地块遮挡）。地牌在池内无视图单位——静默返回。</summary>
+        public async UniTask PresentEffectDeathAsync(Entity source, Card card, DestroyReason reason,
+            Func<Player, int> ownerOf)
+        {
+            if (card == null) return;
+            if (_effectDeathHeld.Remove(card.RuntimeId))
+            {
+                if (_units.TryGetValue(card.RuntimeId, out var v) && v.Wrapper != null)
+                    PlayDeathExitAsync(card.RuntimeId, v.Owner).Forget(); // 碎裂退场（内部自持票至收尾）
+                ReleaseUnit(card.RuntimeId); // 弃预持票（退场演出已自持）
+#if UNITY_EDITOR
+                Debug.Log($"[EffectFx] 死亡碎裂 目标=单位{card.RuntimeId % 10000} reason={reason}");
+#endif
+            }
+            if (reason != DestroyReason.Destroyed && reason != DestroyReason.Smashed) return; // 战斗/毒等：只补碎裂
+            var et = ResolveEffectTarget(card, null);
+            if (et?.Unit?.Wrapper == null) return;
+            BeginVisual();
+            try
+            {
+                var src = ResolveEffectSourceAnchor(source, ownerOf); // 法术源头=施法者角色（2026-10-19 定案）
+                var tint = DominantCostColor(source);
+                if (src != null)
+                    await BattleEffectFx.PlayOrbAsync(src.Value, et.ImpactAnchor, tint);
+                BattleEffectFx.PlaySpark(et.Unit.Wrapper.position + Vector3.up * SparkLift, DestroySparkColor, 16000f);
+#if UNITY_EDITOR
+                Debug.Log($"[EffectFx] 消灭演出 目标=单位{card.RuntimeId % 10000} 弹体={(src != null ? 1 : 0)}");
+#endif
+            }
+            finally { EndVisual(); }
+        }
+
+        /// <summary>消灭火花色：暗紫提亮（纯暗紫自发光不可见，向白提一档）。</summary>
+        private static readonly Color DestroySparkColor = new Color(0.62f, 0.34f, 0.95f);
+
+        /// <summary>头顶浮字（上浮渐隐 0.9s，world TMP 一次性建毁——数学同疲劳浮字）。</summary>
+        private static async UniTask FloatTextAsync(Transform parent, float height, string text, Color color)
+        {
+            var floatTxt = CreateStatsText(parent, height);
+            if (floatTxt != null)
+            {
+                floatTxt.fontSize = 6f;
+                floatTxt.text = text;
+                floatTxt.color = color;
+            }
+            var startLocal = floatTxt != null ? (Vector3)floatTxt.transform.localPosition : Vector3.zero;
+            const float totalDur = 0.9f, fadeStart = 0.45f, rise = 0.85f;
+            float t0 = Time.realtimeSinceStartup;
+            while (Time.realtimeSinceStartup - t0 < totalDur)
+            {
+                if (parent == null) break; // 拆台/单位退场销毁——浮字随父同殁，直接收
+                if (floatTxt != null)
+                {
+                    float t = Time.realtimeSinceStartup - t0;
+                    float k = Mathf.Clamp01(t / totalDur);
+                    floatTxt.transform.localPosition = startLocal + Vector3.up * (rise * (1f - (1f - k) * (1f - k)));
+                    float alpha = t < fadeStart ? 1f : Mathf.Clamp01(1f - (t - fadeStart) / (totalDur - fadeStart));
+                    var c = floatTxt.color; c.a = alpha; floatTxt.color = c;
+                }
+                await UniTask.Yield();
+            }
+            if (floatTxt != null) Object.Destroy(floatTxt.gameObject);
         }
     }
 }

@@ -341,9 +341,10 @@ namespace CardCore
         public static float EngineBranchSurchargeHalf(List<AtomicEffectInstance> then)
             => (float)Math.Ceiling(RewardDerivedCost(then) / 2f);
 
-        /// <summary>自平衡门槛（原拼点门槛 2026-10-09 抽公共；同日四引擎统一——运行时判定与 UI 短文案同源，
-        /// 防显示≠判定）：拼点/死亡计数/元素充盈/手牌序位共用——奖励锚价合计四舍五入（AwayFromZero）、
-        /// 下限 1，门槛随 Then 奖励实时变（奖励越贵门槛越高，玩家在合成器 1-5 费区间内调奖励即调门槛）。</summary>
+        /// <summary>自平衡门槛（原拼点门槛 2026-10-09 抽公共；同日统一——运行时判定与 UI 短文案同源，
+        /// 防显示≠判定）：拼点/死亡计数/元素充盈共用——奖励锚价合计四舍五入（AwayFromZero）、
+        /// 下限 1，门槛随 Then 奖励实时变（奖励越贵门槛越高，玩家在合成器 1-5 费区间内调奖励即调门槛）。
+        /// 效果序位（2026-10-19 手牌序位改案）不入此族：x∈[1,6] 手填，门槛=x−1。</summary>
         public static int RewardThreshold(List<AtomicEffectInstance> then)
             => Math.Max(1, (int)Math.Round(RewardDerivedCost(then), MidpointRounding.AwayFromZero));
 
@@ -378,14 +379,9 @@ namespace CardCore
             return false;
         }
 
-        /// <summary>发动速度计价系数（2026-10-09 速度入价定案，表 PricingTier：0 普通 ×1 / 1 瞬间 ×1.5 / 2 高速 ×2）。
-        /// 仅主动效果消费——响应权越强越贵；自动/强制/光环（速度组不显、数据携带无效）恒 ×1。
-        /// 只进费用侧（ComputeAtomCost）——错边黑白获得（ComputeAtomUnitGrant）不乘：出手快不改变发放资源量。</summary>
-        public static float SpeedCostFactor(EffectDefinition def)
-        {
-            if (def == null || def.ActivationType != EffectActivationType.Voluntary) return 1f;
-            return Tiers.SpeedFactor(def.BaseSpeed);
-        }
+        /// <summary>发动速度计价已退役（2026-10-19 定案：三类卡分类改版把发动速度特化为法术专属
+        ///——速度=3−槽数是法术的类特性而非可购溢价，旧规给速 2 效果 ×2 属历史遗留多收；
+        /// 其余主动效果速度已全归默认 0。SpeedFactor/SpeedTier 配置位同批整删。）</summary>
 
         /// <summary>发动时机计价系数（2026-10-16 定案，表 PricingTier.TimingOnceFactor，取代 2026-10-05
         /// 「时机轴不接计价」口径）：整个生命期望固定=1 的触发时机（付费后基本只能触发一次、不会有
@@ -453,11 +449,7 @@ namespace CardCore
             if (Math.Abs(timingFactor - 1f) > 0.001f)
                 amount *= timingFactor;
 
-            // 发动速度计价（2026-10-09 定案入价，表 PricingTier）：主动效果 0 普通 ×1 / 1 瞬间 ×1.5 / 2 高速 ×2
-            //——速度是效果头效果级参数，逐原子分账（shim 克隆 BaseSpeed）随主干同乘。
-            float speedFactor = SpeedCostFactor(def);
-            if (speedFactor > 1f)
-                amount *= speedFactor;
+            // 发动速度计价已退役（2026-10-19：速度特化法术专属=类特性非溢价——旧 ×1.5/×2 档随拆）。
 
             // 双方同时作用减半（2026-10-03 用户定案；2026-10-07 规则光环范围化）：效果同时作用于双方——
             // 双侧域 + 全取档/显式多目标（双方全体恢复/双方各消灭一生物），或规则光环的作用范围=双方
@@ -714,11 +706,11 @@ namespace CardCore
             => PricingDomain(effect, atom, ResolveVisitDomain(effect, modeIndex));
 
         /// <summary>单原子计价公式展开（效果合成器顶栏费用预览——把参与变量写全，如
-        /// 「基准1红×5×速度档2」）：数值真源仍是 ComputeAtomCost，本口只展开显示构成——
+        /// 「基准1红×5×数量档1.5」）：数值真源仍是 ComputeAtomCost，本口只展开显示构成——
         /// 基准量＋逐段系数链（系数=1 不列），分档判定复用同一批 primitives
-        ///（BaseExprOf 各分档 / QuantityFactor / TriggerCostFactor / SpeedCostFactor /
+        ///（BaseExprOf 各分档 / QuantityFactor / TriggerCostFactor /
         /// IsSymmetricBothSides / WrongSide），不另立计价口径。系数顺序与 ComputeAtomCost
-        /// 管线一致：基准内系（量级/表乘数/持续/控制/赋予档）→错边→数量档→触发档→速度档→双方减半。
+        /// 管线一致：基准内系（量级/表乘数/持续/控制/赋予档）→错边→数量档→触发档→双方减半。
         /// 基准内的乘法在数值侧折叠为一次 round（ComputeAtomBaseAmount），展开链只作显示——
         /// 末端结果由调用方取 DeriveElementCosts 实值，不重算。</summary>
         public static (string baseExpr, List<string> factorExprs) AtomCostFormula(
@@ -729,7 +721,7 @@ namespace CardCore
 
             string baseExpr = BaseExprOf(atom, def, ResolvePricingConfig(atom), factors);
 
-            // 管线系数（ComputeAtomCost 同序同条件）
+            // 管线系数（ComputeAtomCost 同序同条件；速度档已随速度计价退役 2026-10-19）
             float polarity = atom.Polarity;
             if (polarity != 0f && !IsSelfSleepExempt(atom.Type, domain) && WrongSide(polarity, domain))
                 AddFactor(factors, "错边", 1f - Math.Abs(polarity));
@@ -738,7 +730,6 @@ namespace CardCore
             AddFactor(factors, "数量档", n);
             AddFactor(factors, "触发档", TriggerCostFactor(def));
             AddFactor(factors, "时机档", TimingCostFactor(def));
-            AddFactor(factors, "速度档", SpeedCostFactor(def));
             if (IsSymmetricBothSides(atom, def, domain))
                 AddFactor(factors, "双方减半", SymmetricDiscountFactor);
             return (baseExpr, factors);

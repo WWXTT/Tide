@@ -73,11 +73,13 @@ namespace SynergyUI
             {
                 TideLog.Error("[TestStartFlow] 地牌素材卡缺失：" + LandMaterialCardId + "（不设 Scenario，回落普通镜像局）");
                 BattleEntry.Mode = BattleMode.LocalAI;
+                BattleEntry.StagedOpening = false; // 测试路径=立即启动（2026-10-19 防五段开场旗标残留）
                 BattleEntry.MirrorDeck = shuffled;
                 BattleEntry.MirrorSkillCardId = null;
                 return;
             }
             BattleEntry.Mode = BattleMode.LocalAI;
+            BattleEntry.StagedOpening = false; // 测试路径=立即启动（2026-10-19 防五段开场旗标残留）
             BattleEntry.MirrorDeck = BuildTestDeck(shuffled, material);
             BattleEntry.MirrorSkillCardId = HeroSkillSystem.AutoPickSkillCard(deck);
             BattleEntry.Scenario = BuildFullLandsScenario(shuffled);

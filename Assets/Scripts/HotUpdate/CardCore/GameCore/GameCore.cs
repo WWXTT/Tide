@@ -580,18 +580,23 @@ namespace CardCore
         public void EndGame(Player winner, GameOverReason reason)
             => PublishGameOverOnce(winner, reason);
 
-        /// <summary>表现层演出暂停闸（2026-10-16 AI 出牌舞台）：true=Update 本帧直接返回——
-        /// 帧泵的自动双 Pass（GameLoopController.ProcessPriority）不得在演出期抢先结算栈。
-        /// 只延迟泵的调用时机，不改任何响应/结算决策逻辑；由 SimpleAI 舞台期置位、finally 归还，
-        /// 无头/AI 互打（无 PacingWait）永不置位。</summary>
-        public bool PresentationHold;
+        /// <summary>表现层演出暂停闸（2026-10-16 AI 出牌舞台；2026-10-19 改引用计数）：持有数>0=
+        /// Update 本帧直接返回——帧泵的自动双 Pass（GameLoopController.ProcessPriority）不得在
+        /// 演出期抢先结算栈。多持有方（SimpleAI 出牌舞台/逆结算步进回放导演）各自 Acquire/Release，
+        /// 互不清对方的闸（旧 bool 口径：AI finally 一刀清零会误放回放导演的闸）。只延迟泵的调用
+        /// 时机，不改任何响应/结算决策逻辑；无头/AI 互打（无 PacingWait/无 UI 导演）永不置位。</summary>
+        public int PresentationHoldCount { get; private set; }
+
+        public void AcquirePresentationHold() => PresentationHoldCount++;
+
+        public void ReleasePresentationHold() => PresentationHoldCount = System.Math.Max(0, PresentationHoldCount - 1);
 
         /// <summary>
         /// 游戏主循环
         /// </summary>
         public void Update()
         {
-            if (!_stateManager.CanPerformGameActions || PresentationHold)
+            if (!_stateManager.CanPerformGameActions || PresentationHoldCount > 0)
                 return;
 
             _loopController.Update();

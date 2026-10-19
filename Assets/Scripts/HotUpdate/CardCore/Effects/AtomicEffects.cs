@@ -243,9 +243,9 @@ namespace CardCore
         // 不设玩家可组合的指示物表行。
         /// <summary>引擎主干·倒计时：回合开始计数-1，归零触发奖励并重置（延迟即付费）。枚举只可尾部追加。</summary>
         EngineCountdown,
-        /// <summary>引擎主干·运势：回合开始掷 2d6，双＞x 触发奖励。枚举只可尾部追加。</summary>
+        /// <summary>引擎主干·运势：掷 2d6，双骰都≥x（=分支费用）触发奖励。枚举只可尾部追加。</summary>
         EngineLuckRoll,
-        /// <summary>引擎主干·拼点：双方各随机取样生物比攻击力，差额≥门槛（=奖励锚价）触发奖励。枚举只可尾部追加。</summary>
+        /// <summary>引擎主干·拼点：双方各从手牌展示一张生物（取攻击力最高，无生物=0）比攻击力，差额≥门槛（=奖励锚价）触发奖励。枚举只可尾部追加。</summary>
         EngineClash,
         /// <summary>引擎主干·死亡计数：双方生物死亡累计≥x 触发奖励（预算=x）。枚举只可尾部追加。</summary>
         EngineDeathToll,
@@ -346,11 +346,18 @@ namespace CardCore
         /// 枚举只可尾部追加。</summary>
         RemoveDebuffs,
 
-        /// <summary>报复（2026-10-16 新增，红1/层，表行）：对目标附加 {value} 层报复指示物
+         /// <summary>报复（2026-10-16 新增，红1/层，表行）：对目标附加 {value} 层报复指示物
         ///（RetaliationCounter，Exception 生效自减——换区不清）——持有者实际受到伤害时对
         /// 伤害来源造成等于层数的伤害（非战斗伤害，来源=持有者），生效后层数减半（floor）。
         /// 触发口=KeywordRules.ApplyDamage 管线尾段（吸血后、剧毒前）。枚举只可尾部追加。</summary>
         GrantRetaliation,
+
+        /// <summary>引擎主干·效果序位（2026-10-19 手牌序位改案：计数源从「本方从手牌使用张数」整体
+        /// 替换为「双方效果发动次数」）：本回合双方效果发动数（主动/自动效果入栈声明+法术/技能整卡
+        /// 施放各算 1；攻击/守卫宣言、SBA、引擎合成奖励不算）达到 x−1 时触发奖励——奖励自身即
+        /// 「第 x 位」，不占发动位（不用计数自身）。x∈[1,6] 手填参数（EngineParamRange）；
+        /// 观察面=手牌∪场上双方引擎卡（死亡计数 2026-10-19 改案同口径）。枚举只可尾部追加。</summary>
+        EngineEffectOrdinal,
     }
 
     /// <summary>

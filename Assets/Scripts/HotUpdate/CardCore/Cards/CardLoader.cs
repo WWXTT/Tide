@@ -406,15 +406,21 @@ namespace CardCore
                     var def = CardEffectConverter.ConvertOne(eff, card.ID);
                     if (def == null) continue;
 
-                    // 全局唯一规则（2026-10-09 定案）：同一原子（refId=表行身份）在一个组合效果中
-                    // 只出现一次——主序列/抉择/Then 奖励均计入（并列与奖励同规；合成期已拦，此处构筑期兜底）
+                    // 限重复规则（2026-10-09 全局唯一定案 → 2026-10-19 放开修订）：仅引擎主干/仪典行
+                    //（ComposerCatalog.DuplicateRestricted——引擎状态按卡单台账/仪典运行时同名一槽）
+                    // 同一原子在一个组合效果中只出现一次——主序列/抉择/Then 奖励均计入（合成期已拦，此处构筑期兜底）；
+                    // 其余行放开可重复（逐原子独立解析/计价）
                     var seenRefIds = new HashSet<string>();
                     var dupRefIds = new HashSet<string>();
                     foreach (var a in EnumerateAtomEntries(eff))
-                        if (!string.IsNullOrEmpty(a?.refId) && !seenRefIds.Add(a.refId)) dupRefIds.Add(a.refId);
+                    {
+                        if (string.IsNullOrEmpty(a?.refId) || seenRefIds.Add(a.refId)) continue;
+                        if (ComposerCatalog.DuplicateRestricted(AtomicEffectTable.GetByHashId(a.refId)))
+                            dupRefIds.Add(a.refId);
+                    }
                     if (dupRefIds.Count > 0)
                         TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {def.Id}：重复效果 "
-                                       + $"[{string.Join(",", dupRefIds)}]——全局规则：一个组合效果中同一效果只能出现一次（并列与奖励均计入）");
+                                       + $"[{string.Join(",", dupRefIds)}]——引擎主干/仪典：一个组合效果中同一效果只能出现一次（并列与奖励均计入）");
 
                     // 组合上限（2026-10-05 两槽定案）：主序列（Steps 优先，扁平兜底）主干原子计数 ≤ 2——
                     // 并列缩为两槽（Then 奖励/光环条目不计入），超限=构筑期拦截

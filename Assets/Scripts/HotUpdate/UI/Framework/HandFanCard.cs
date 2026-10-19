@@ -225,10 +225,15 @@ namespace SynergyUI
         }
 
         /// <summary>可发动雾光开关（宿主屏对账后逐卡设置）：开启=首次惰性装配并淡入，
-        /// 关闭=淡出（TickGlow 在 fade 归零时收尾关层——池复用/对账中转都友好退场）。</summary>
-        public void SetPlayable(bool playable)
+        /// 关闭=淡出（TickGlow 在 fade 归零时收尾关层——池复用/对账中转都友好退场）。
+        /// gateArmed（2026-10-19 教学二·分支金圈）：卡上有限分支条件已达成时光圈换金色，
+        /// 区别于常规「费用可用」绿——色值写进逐卡实例材质的 _Color（shader 属性本就在，
+        /// 此前恒用默认绿）；池复用/重评每次覆写，无脏态。</summary>
+        public void SetPlayable(bool playable, bool gateArmed = false)
         {
             _fadeTarget = playable ? 1f : 0f;
+            if (_flowMat != null)
+                _flowMat.SetColor("_Color", gateArmed ? ArmedGlowColor : PlayableGlowColor);
             if (playable)
             {
                 EnsureFogFx();
@@ -236,6 +241,12 @@ namespace SynergyUI
                     _flowRoot.gameObject.SetActive(true);
             }
         }
+
+        /// <summary>常规可用光圈色（=FogEdgeGlow shader 默认绿，显式写回防上一张金残留）。</summary>
+        private static readonly Color PlayableGlowColor = new Color(0.38f, 1f, 0.58f, 1f);
+
+        /// <summary>分支条件已达成（武装态）光圈色——金黄色（2026-10-19 教学二定案）。</summary>
+        private static readonly Color ArmedGlowColor = new Color(1f, 0.82f, 0.25f, 1f);
 
         /// <summary>淡入淡出推进（扇区 Tick 统一调用）：雾带/噪声翻涌/呼吸全在 shader 内
         /// _Time 自驱，此处只线性缓动 _Fade（4.5/s≈0.22s 过渡）；淡出归零后关层省一张 quad。

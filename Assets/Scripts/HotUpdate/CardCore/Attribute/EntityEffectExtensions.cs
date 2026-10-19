@@ -353,11 +353,15 @@ namespace CardCore
 
         /// <summary>检查是否有关键词（连接光环关键词=光环期间视为持有，
         /// 不进 _keywords、不参与 GetKeywordCount 重复叠加计数）。角色同走连接光环读数
-        /// （2026-10-07 定案：关键词光环可经箭头指向角色格投递；属性光环钉死生物专用）。</summary>
+        /// （2026-10-07 定案：关键词光环可经箭头指向角色格投递；属性光环钉死生物专用）。
+        /// 缄默压制（2026-10-19 关键词=自动效果定案）：本体关键词（印刷/Setting/Temp 轨）在
+        /// 持有者被缄默（NullifyCounter）期间失效；光环投递轨不受受益者缄默影响——
+        /// 光环只认来源侧缄默（LinkAuraSystem.EnumerateApplicable 来源闸）。</summary>
         public static bool HasKeyword(this Entity entity, string keyword)
         {
             if (entity == null) return false;
-            if (entity._keywords.Contains(keyword)) return true;
+            if (entity._keywords.Contains(keyword)
+                && entity.GetCounterCount(CardCore.Attribute.CounterRules.NullifyCounter) == 0) return true;
             if (entity is Card card) return GameBoard.LinkAuraSystem.HasAuraKeyword(card, keyword);
             if (entity is Player player) return GameBoard.LinkAuraSystem.HasAuraKeyword(player, keyword);
             return false;

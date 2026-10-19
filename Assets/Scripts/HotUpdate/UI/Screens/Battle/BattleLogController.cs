@@ -59,6 +59,13 @@ namespace SynergyUI
 
         private void OnAppended(MatchLogEntry entry)
         {
+            if (_holding) { _heldEntries.Add(entry); return; } // 结算回放期缓冲（2026-10-19 步进放行）
+            ProcessEntry(entry);
+        }
+
+        /// <summary>单条入史（即时路径与回放放行共用）：时序整理（武装/挂起）+ 行入列。</summary>
+        private void ProcessEntry(MatchLogEntry entry)
+        {
             var e = entry.Event;
             if (e is TurnStartEvent)
             {
@@ -82,6 +89,41 @@ namespace SynergyUI
         {
             foreach (var unsub in _unsubscribers) unsub();
             _unsubscribers.Clear();
+        }
+
+        // ==== 结算回放逐步放行（2026-10-19 逆结算步进定案） ====
+        // Hold 后新条目缓冲不入史；回放导演每放一步调 ReleaseUpTo(全局条数边界)——边界计数源=
+        // MatchLogService.Entries.Count（步快照捕获点同帧读），事件同步发布无竞态，缓冲序=落史序。
+        // ReleaseAll=轮末收尾/看门狗/退屏全放。_logArmed/_standbyDeferred 语义在放出时照常运行。
+
+        private bool _holding;
+        private int _holdBase; // Hold 时 MatchLogService.Entries.Count（全局序换算基准）
+        private readonly List<MatchLogEntry> _heldEntries = new List<MatchLogEntry>();
+
+        /// <summary>开始缓冲（回放导演激活时调；幂等）。</summary>
+        public void Hold()
+        {
+            if (_holding) return;
+            _holding = true;
+            _holdBase = MatchLogService.Entries.Count;
+        }
+
+        /// <summary>放行至全局条数边界（步快照捕获点的日志水位）：按序放出缓冲条目。</summary>
+        public void ReleaseUpTo(int globalCount)
+        {
+            if (!_holding) return;
+            int take = Mathf.Clamp(globalCount - _holdBase, 0, _heldEntries.Count);
+            for (int i = 0; i < take; i++) ProcessEntry(_heldEntries[i]);
+            if (take > 0) _heldEntries.RemoveRange(0, take);
+        }
+
+        /// <summary>全量放行并结束缓冲（收尾/看门狗/退屏调；幂等于未 Hold）。</summary>
+        public void ReleaseAll()
+        {
+            if (!_holding) return;
+            foreach (var e in _heldEntries) ProcessEntry(e);
+            _heldEntries.Clear();
+            _holding = false;
         }
 
         /// <summary>放行挂起的回合自然抽牌行（〔准备阶段〕行落定后调用；兜底点=下回合头行前）。</summary>

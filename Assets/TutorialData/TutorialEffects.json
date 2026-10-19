@@ -1,14 +1,14 @@
 {
  "items": [
   {
-   "id": "E3695EF7",
-   "name": "教学·暮龟灵息：回合结束时抽1张牌",
-   "timing": 6,
-   "activation": 1,
+   "id": "3C1041AC",
+   "name": "教学·处决：消灭一个对方生物",
+   "timing": 19,
+   "activation": 2,
    "cost": [
     0,
+    3,
     0,
-    2,
     0,
     0,
     0
@@ -17,20 +17,955 @@
     {
      "kind": 0,
      "atom": {
-      "refId": "e5e2e116",
+      "refId": "82c35ce6",
+      "kinds": [
+       2
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "0489681E",
+   "name": "教学·乱灭：随机消灭一个对方生物",
+   "timing": 19,
+   "activation": 2,
+   "cost": [
+    0,
+    3,
+    0,
+    0,
+    0,
+    0
+   ],
+   "steps": [
+    {
+     "kind": 0,
+     "atom": {
+      "refId": "82c35ce6",
+      "kinds": [
+       2
+      ],
+      "count": 1,
+      "rand": 1
+     }
+    }
+   ]
+  },
+  {
+   "id": "8DD071F9",
+   "name": "教学·缄默处决：先缄默目标，再消灭目标",
+   "timing": 19,
+   "activation": 2,
+   "cost": [
+    0,
+    3,
+    0,
+    0,
+    0,
+    2
+   ],
+   "steps": [
+    {
+     "kind": 0,
+     "atom": {
+      "refId": "ab2e0a4f",
+      "kinds": [
+       2
+      ]
+     }
+    },
+    {
+     "kind": 0,
+     "atom": {
+      "refId": "82c35ce6",
+      "kinds": [
+       2
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "5B9B45C5",
+   "name": "教学·先发箭：对对方目标造成1点伤害；若为本回合使用的第一张卡，再对对方目标造成1点伤害",
+   "timing": 19,
+   "activation": 2,
+   "cost": [
+    0,
+    1,
+    0,
+    0,
+    0,
+    0
+   ],
+   "steps": [
+    {
+     "kind": 0,
+     "atom": {
+      "refId": "a4b823fc",
+      "kinds": [
+       2
+      ],
+      "value": 1,
+      "branch": {
+       "settle": 1,
+       "gateId": "FirstCardThisTurn",
+       "then": [
+        {
+         "refId": "a4b823fc",
+         "kinds": [
+          2
+         ],
+         "value": 1
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "91FCF40A",
+   "name": "教学·以少胜多：对对方目标造成1点伤害；若场上生物低于对手，再对对方目标造成1点伤害",
+   "timing": 19,
+   "activation": 2,
+   "cost": [
+    0,
+    1,
+    0,
+    0,
+    0,
+    0
+   ],
+   "steps": [
+    {
+     "kind": 0,
+     "atom": {
+      "refId": "a4b823fc",
+      "kinds": [
+       2
+      ],
+      "value": 1,
+      "branch": {
+       "settle": 1,
+       "gateId": "CreaturesBelowOpp",
+       "then": [
+        {
+         "refId": "a4b823fc",
+         "kinds": [
+          2
+         ],
+         "value": 1
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "0DEC4CDA",
+   "name": "教学·厚积薄发：对对方目标造成1点伤害；若卡组剩余高于对手，再对对方目标造成1点伤害",
+   "timing": 19,
+   "activation": 2,
+   "cost": [
+    0,
+    1,
+    0,
+    0,
+    0,
+    0
+   ],
+   "steps": [
+    {
+     "kind": 0,
+     "atom": {
+      "refId": "a4b823fc",
+      "kinds": [
+       2
+      ],
+      "value": 1,
+      "branch": {
+       "settle": 1,
+       "gateId": "DeckAboveOpp",
+       "then": [
+        {
+         "refId": "a4b823fc",
+         "kinds": [
+          2
+         ],
+         "value": 1
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "BB69AEA6",
+   "name": "教学·终结击：对对方目标造成1点伤害；若此伤害消灭了目标，抽1张牌",
+   "timing": 19,
+   "activation": 2,
+   "cost": [
+    0,
+    1,
+    0,
+    0,
+    0,
+    0
+   ],
+   "steps": [
+    {
+     "kind": 0,
+     "atom": {
+      "refId": "a4b823fc",
+      "kinds": [
+       2
+      ],
+      "value": 1,
+      "branch": {
+       "settle": 2,
+       "outcomeId": "DmgKillsTarget",
+       "then": [
+        {
+         "refId": "e5e2e116",
+         "value": 1
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "23FB3BC4",
+   "name": "教学·以弱搏强：对对方目标造成1点伤害；若生命值低于对手，再对对方目标造成1点伤害",
+   "timing": 19,
+   "activation": 2,
+   "cost": [
+    0,
+    1,
+    0,
+    0,
+    0,
+    0
+   ],
+   "steps": [
+    {
+     "kind": 0,
+     "atom": {
+      "refId": "a4b823fc",
+      "kinds": [
+       2
+      ],
+      "value": 1,
+      "branch": {
+       "settle": 1,
+       "gateId": "LifeBelowOpp",
+       "then": [
+        {
+         "refId": "a4b823fc",
+         "kinds": [
+          2
+         ],
+         "value": 1
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "F3ADA5C6",
+   "name": "教学·大地之力：对对方目标造成1点伤害；若操控地数量≥7，抽1张牌",
+   "timing": 19,
+   "activation": 2,
+   "cost": [
+    0,
+    1,
+    0,
+    0,
+    0,
+    0
+   ],
+   "steps": [
+    {
+     "kind": 0,
+     "atom": {
+      "refId": "a4b823fc",
+      "kinds": [
+       2
+      ],
+      "value": 1,
+      "branch": {
+       "settle": 1,
+       "gateId": "LandsGe7",
+       "then": [
+        {
+         "refId": "e5e2e116",
+         "value": 1
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "ACDF1245",
+   "name": "教学·命运之牌：对对方目标造成1点伤害；若本回合准备阶段抽到本卡，再对对方目标造成3点伤害",
+   "timing": 19,
+   "activation": 2,
+   "cost": [
+    0,
+    1,
+    0,
+    0,
+    0,
+    0
+   ],
+   "steps": [
+    {
+     "kind": 0,
+     "atom": {
+      "refId": "a4b823fc",
+      "kinds": [
+       2
+      ],
+      "value": 1,
+      "branch": {
+       "settle": 1,
+       "gateId": "DrawnInStandbyThisTurn",
+       "then": [
+        {
+         "refId": "a4b823fc",
+         "kinds": [
+          2
+         ],
+         "value": 3
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "E3E2EE1B",
+   "name": "教学·以多欺少：对对方目标造成1点伤害；若场上生物高于对手，再对对方目标造成1点伤害",
+   "timing": 19,
+   "activation": 2,
+   "cost": [
+    0,
+    1,
+    0,
+    0,
+    0,
+    0
+   ],
+   "steps": [
+    {
+     "kind": 0,
+     "atom": {
+      "refId": "a4b823fc",
+      "kinds": [
+       2
+      ],
+      "value": 1,
+      "branch": {
+       "settle": 1,
+       "gateId": "CreaturesAboveOpp",
+       "then": [
+        {
+         "refId": "a4b823fc",
+         "kinds": [
+          2
+         ],
+         "value": 1
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "8ECC5F8B",
+   "name": "教学·弹尽粮绝：对对方目标造成1点伤害；若卡组剩余低于对手，再对对方目标造成1点伤害",
+   "timing": 19,
+   "activation": 2,
+   "cost": [
+    0,
+    1,
+    0,
+    0,
+    0,
+    0
+   ],
+   "steps": [
+    {
+     "kind": 0,
+     "atom": {
+      "refId": "a4b823fc",
+      "kinds": [
+       2
+      ],
+      "value": 1,
+      "branch": {
+       "settle": 1,
+       "gateId": "DeckBelowOpp",
+       "then": [
+        {
+         "refId": "a4b823fc",
+         "kinds": [
+          2
+         ],
+         "value": 1
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "11043BA0",
+   "name": "教学·居高临下：对对方目标造成1点伤害；若生命值高于对手，再对对方目标造成1点伤害",
+   "timing": 19,
+   "activation": 2,
+   "cost": [
+    0,
+    1,
+    0,
+    0,
+    0,
+    0
+   ],
+   "steps": [
+    {
+     "kind": 0,
+     "atom": {
+      "refId": "a4b823fc",
+      "kinds": [
+       2
+      ],
+      "value": 1,
+      "branch": {
+       "settle": 1,
+       "gateId": "LifeAboveOpp",
+       "then": [
+        {
+         "refId": "a4b823fc",
+         "kinds": [
+          2
+         ],
+         "value": 1
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "745280CE",
+   "name": "教学·破釜沉舟：对己方目标造成1点伤害；若己方生命值≤7，再对对方目标造成2点伤害",
+   "timing": 19,
+   "activation": 2,
+   "cost": [
+    0,
+    1,
+    0,
+    0,
+    0,
+    0
+   ],
+   "steps": [
+    {
+     "kind": 0,
+     "atom": {
+      "refId": "a4b823fc",
+      "kinds": [
+       1
+      ],
+      "value": 1,
+      "branch": {
+       "settle": 1,
+       "gateId": "LifeLe7",
+       "then": [
+        {
+         "refId": "a4b823fc",
+         "kinds": [
+          2
+         ],
+         "value": 2
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "ABFAF65D",
+   "name": "教学·最后一发：对对方目标造成1点伤害；若手牌数量为0，再对对方目标造成2点伤害",
+   "timing": 19,
+   "activation": 2,
+   "cost": [
+    0,
+    1,
+    0,
+    0,
+    0,
+    0
+   ],
+   "steps": [
+    {
+     "kind": 0,
+     "atom": {
+      "refId": "a4b823fc",
+      "kinds": [
+       2
+      ],
+      "value": 1,
+      "branch": {
+       "settle": 1,
+       "gateId": "HandEmpty",
+       "then": [
+        {
+         "refId": "a4b823fc",
+         "kinds": [
+          2
+         ],
+         "value": 2
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "AC0306F3",
+   "name": "教学·倒计时龟：倒计时2——回合开始计数-1，归零时对对方目标造成2点伤害",
+   "timing": 5,
+   "activation": 1,
+   "cost": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "steps": [
+    {
+     "kind": 0,
+     "atom": {
+      "refId": "74066ce9",
+      "branch": {
+       "settle": 3,
+       "engine": 1,
+       "engineParam": 2,
+       "then": [
+        {
+         "refId": "a4b823fc",
+         "kinds": [
+          2
+         ],
+         "value": 2
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "C5DDE357",
+   "name": "教学·运势壹：回合开始掷两个六面骰子，掷出的值都≥1时，对对方目标造成1点伤害",
+   "timing": 5,
+   "activation": 1,
+   "cost": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "steps": [
+    {
+     "kind": 0,
+     "atom": {
+      "refId": "9f6e4f49",
+      "branch": {
+       "settle": 3,
+       "engine": 2,
+       "engineParam": 1,
+       "then": [
+        {
+         "refId": "a4b823fc",
+         "kinds": [
+          2
+         ],
+         "value": 1
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "D4531AA1",
+   "name": "教学·运势贰：回合开始掷两个六面骰子，掷出的值都≥2时，对对方目标造成2点伤害",
+   "timing": 5,
+   "activation": 1,
+   "cost": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "steps": [
+    {
+     "kind": 0,
+     "atom": {
+      "refId": "9f6e4f49",
+      "branch": {
+       "settle": 3,
+       "engine": 2,
+       "engineParam": 2,
+       "then": [
+        {
+         "refId": "a4b823fc",
+         "kinds": [
+          2
+         ],
+         "value": 2
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "322D145C",
+   "name": "教学·运势叁：回合开始掷两个六面骰子，掷出的值都≥3时，对对方目标造成3点伤害",
+   "timing": 5,
+   "activation": 1,
+   "cost": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "steps": [
+    {
+     "kind": 0,
+     "atom": {
+      "refId": "9f6e4f49",
+      "branch": {
+       "settle": 3,
+       "engine": 2,
+       "engineParam": 3,
+       "then": [
+        {
+         "refId": "a4b823fc",
+         "kinds": [
+          2
+         ],
+         "value": 3
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "D7B81DDC",
+   "name": "教学·运势肆：回合开始掷两个六面骰子，掷出的值都≥4时，对对方目标造成4点伤害",
+   "timing": 5,
+   "activation": 1,
+   "cost": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "steps": [
+    {
+     "kind": 0,
+     "atom": {
+      "refId": "9f6e4f49",
+      "branch": {
+       "settle": 3,
+       "engine": 2,
+       "engineParam": 4,
+       "then": [
+        {
+         "refId": "a4b823fc",
+         "kinds": [
+          2
+         ],
+         "value": 4
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "2CD9048A",
+   "name": "教学·运势伍：回合开始掷两个六面骰子，掷出的值都≥5时，对对方目标造成5点伤害",
+   "timing": 5,
+   "activation": 1,
+   "cost": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "steps": [
+    {
+     "kind": 0,
+     "atom": {
+      "refId": "9f6e4f49",
+      "branch": {
+       "settle": 3,
+       "engine": 2,
+       "engineParam": 5,
+       "then": [
+        {
+         "refId": "a4b823fc",
+         "kinds": [
+          2
+         ],
+         "value": 5
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "8E367535",
+   "name": "教学·运势陆：回合开始掷两个六面骰子，掷出的值都≥6时，对对方目标造成6点伤害",
+   "timing": 5,
+   "activation": 1,
+   "cost": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "steps": [
+    {
+     "kind": 0,
+     "atom": {
+      "refId": "9f6e4f49",
+      "branch": {
+       "settle": 3,
+       "engine": 2,
+       "engineParam": 6,
+       "then": [
+        {
+         "refId": "a4b823fc",
+         "kinds": [
+          2
+         ],
+         "value": 6
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "A6975E5D",
+   "name": "教学·拼点武者：攻击宣言时与双方手牌各自展示攻击力最高的生物比攻击力，差额≥门槛时对对方目标造成6点伤害",
+   "cost": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "steps": [
+    {
+     "kind": 0,
+     "atom": {
+      "refId": "21c3a99e",
+      "branch": {
+       "settle": 3,
+       "engine": 3,
+       "then": [
+        {
+         "refId": "a4b823fc",
+         "kinds": [
+          2
+         ],
+         "value": 6
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "3BE52030",
+   "name": "教学·死亡计数官：此卡在手中或场上时对双方生物死亡计数，计数≥6时对对方目标造成6点伤害",
+   "cost": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "steps": [
+    {
+     "kind": 0,
+     "atom": {
+      "refId": "b61a539c",
+      "branch": {
+       "settle": 3,
+       "engine": 4,
+       "then": [
+        {
+         "refId": "a4b823fc",
+         "kinds": [
+          2
+         ],
+         "value": 6
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "D0501DB1",
+   "name": "教学·元素充盈甲：使用卡牌付费后，剩余元素≥6时对对方目标造成6点伤害",
+   "cost": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "steps": [
+    {
+     "kind": 0,
+     "atom": {
+      "refId": "fb8a41c9",
+      "branch": {
+       "settle": 3,
+       "engine": 5,
+       "then": [
+        {
+         "refId": "a4b823fc",
+         "kinds": [
+          2
+         ],
+         "value": 6
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "0B949DE1",
+   "name": "教学·元素充盈乙：使用卡牌付费后，剩余元素≥2时对对方目标造成2点伤害",
+   "cost": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "steps": [
+    {
+     "kind": 0,
+     "atom": {
+      "refId": "fb8a41c9",
+      "branch": {
+       "settle": 3,
+       "engine": 5,
+       "then": [
+        {
+         "refId": "a4b823fc",
+         "kinds": [
+          2
+         ],
+         "value": 2
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "EB561A43",
+   "name": "教学·火花：对对方目标造成1点伤害",
+   "timing": 19,
+   "activation": 2,
+   "cost": [
+    0,
+    1,
+    0,
+    0,
+    0,
+    0
+   ],
+   "steps": [
+    {
+     "kind": 0,
+     "atom": {
+      "refId": "a4b823fc",
+      "kinds": [
+       2
+      ],
       "value": 1
      }
     }
    ]
   },
   {
-   "id": "9C7F4AF4",
-   "name": "教学·亡灵怨爆：死亡时对对方目标造成3点伤害",
-   "timing": 1,
-   "activation": 1,
+   "id": "5E6839AA",
+   "name": "教学·附加诅咒：施放时给对手牌库随机1张卡附加诅咒指示物，对手抽到该卡时受到10点伤害并移除指示物",
+   "timing": 19,
+   "activation": 2,
    "cost": [
     0,
-    3,
+    5,
     0,
     0,
     0,
@@ -40,26 +975,35 @@
     {
      "kind": 0,
      "atom": {
-      "refId": "a4b823fc",
-      "kinds": [
-       2
-      ],
-      "value": 3
+      "refId": "90ba9782",
+      "branch": {
+       "settle": 3,
+       "engine": 8,
+       "engineParam": 1,
+       "then": [
+        {
+         "refId": "a4b823fc",
+         "kinds": [
+          2
+         ],
+         "value": 10
+        }
+       ]
+      }
      }
     }
    ]
   },
   {
-   "id": "B9B12ABE",
-   "name": "教学·火灵速袭：主动发动，对对方目标造成2点伤害",
+   "id": "2DEAFA89",
+   "name": "教学·附加祝福：施放时给自己牌库随机1张卡附加祝福指示物，自己抽到该卡时回复20点生命并移除指示物",
    "timing": 19,
    "activation": 2,
-   "speed": 1,
    "cost": [
     0,
-    2,
     0,
     0,
+    5,
     0,
     0
    ],
@@ -67,24 +1011,33 @@
     {
      "kind": 0,
      "atom": {
-      "refId": "a4b823fc",
-      "kinds": [
-       2
-      ],
-      "value": 2
+      "refId": "e829f7af",
+      "branch": {
+       "settle": 3,
+       "engine": 9,
+       "engineParam": 1,
+       "then": [
+        {
+         "refId": "599fcc9a",
+         "kinds": [
+          1
+         ],
+         "value": 20
+        }
+       ]
+      }
      }
     }
    ]
   },
   {
-   "id": "BDB1C5AF",
-   "name": "教学·焰卫重炮：主动发动，对对方目标造成3点伤害",
+   "id": "D9C996F2",
+   "name": "教学·效果序位兽：此效果是本回合第6个发动的效果时，对对方目标造成6点伤害",
    "timing": 19,
    "activation": 2,
-   "speed": 3,
    "cost": [
     0,
-    3,
+    0,
     0,
     0,
     0,
@@ -94,87 +1047,20 @@
     {
      "kind": 0,
      "atom": {
-      "refId": "a4b823fc",
-      "kinds": [
-       2
-      ],
-      "value": 3
-     }
-    }
-   ]
-  },
-  {
-   "id": "DFD79C17",
-   "name": "教学·暗影箭：对对方目标造成4点伤害",
-   "timing": 19,
-   "activation": 2,
-   "cost": [
-    0,
-    4,
-    0,
-    0,
-    0,
-    0
-   ],
-   "steps": [
-    {
-     "kind": 0,
-     "atom": {
-      "refId": "a4b823fc",
-      "kinds": [
-       2,
-       4
-      ],
-      "value": 4
-     }
-    }
-   ]
-  },
-  {
-   "id": "E109B3D9",
-   "name": "教学·启示：抽2张牌",
-   "timing": 19,
-   "activation": 2,
-   "cost": [
-    0,
-    0,
-    4,
-    0,
-    0,
-    0
-   ],
-   "steps": [
-    {
-     "kind": 0,
-     "atom": {
-      "refId": "e5e2e116",
-      "value": 2
-     }
-    }
-   ]
-  },
-  {
-   "id": "66CAFB68",
-   "name": "教学·反制闪：对对方目标造成2点伤害",
-   "timing": 19,
-   "activation": 2,
-   "cost": [
-    0,
-    2,
-    0,
-    0,
-    0,
-    0
-   ],
-   "steps": [
-    {
-     "kind": 0,
-     "atom": {
-      "refId": "a4b823fc",
-      "kinds": [
-       2
-      ],
-      "value": 2
+      "refId": "b951e72f",
+      "branch": {
+       "settle": 3,
+       "engine": 10,
+       "then": [
+        {
+         "refId": "a4b823fc",
+         "kinds": [
+          2
+         ],
+         "value": 6
+        }
+       ]
+      }
      }
     }
    ]

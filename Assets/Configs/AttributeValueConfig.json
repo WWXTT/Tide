@@ -401,7 +401,7 @@
   {
     "ID": "ceea9f38",
     "EnumName": "净化",
-    "DisplayName": "净化{target}：移除其全部关键词与指示物",
+    "DisplayName": "净化{target}：移除其全部指示物",
     "EffectType": "Purify",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": "NoRole",
@@ -1388,11 +1388,11 @@
   },
   {
     "ID": "ab2e0a4f",
-    "EnumName": "失能",
-    "DisplayName": "对{target}附加失能指示物（不可发动自动效果）",
+    "EnumName": "缄默",
+    "DisplayName": "对{target}附加缄默指示物（不可发动自动效果）",
     "EffectType": "AddNullify",
     "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位",
-    "TargetFilter": null,
+    "TargetFilter": "NoRole",
     "Polarity": -1.0,
     "MountKinds": "指示物",
     "Tags": "换区清除型",
@@ -1879,7 +1879,7 @@
   {
     "ID": "74066ce9",
     "EnumName": "倒计时",
-    "DisplayName": "自由分支·倒计时：回合开始计数-1，x 归零触发奖励并重置",
+    "DisplayName": "自由分支·倒计时：回合开始计数-1（费用与回合数一比一），归零则触发奖励并重置",
     "EffectType": "EngineCountdown",
     "TargetKinds": null,
     "TargetFilter": null,
@@ -1891,7 +1891,7 @@
   {
     "ID": "9f6e4f49",
     "EnumName": "运势",
-    "DisplayName": "自由分支·运势：回合开始掷 2d6，双＞x 触发奖励",
+    "DisplayName": "自由分支·运势：回合开始掷两个六面骰子，掷出的值≥x，则触发奖励",
     "EffectType": "EngineLuckRoll",
     "TargetKinds": null,
     "TargetFilter": null,
@@ -1903,7 +1903,7 @@
   {
     "ID": "21c3a99e",
     "EnumName": "拼点",
-    "DisplayName": "自由分支·拼点：双方各随机展示生物卡，比攻击力，差额≥x 触发奖励",
+    "DisplayName": "自由分支·拼点：自动从双方的手牌中展示一张生物卡，比攻击力，无法展示视为0，差额≥x，则触发奖励（最大值6）",
     "EffectType": "EngineClash",
     "TargetKinds": null,
     "TargetFilter": null,
@@ -1915,7 +1915,7 @@
   {
     "ID": "b61a539c",
     "EnumName": "死亡计数",
-    "DisplayName": "自由分支·死亡计数：双方生物死亡累计≥x 触发奖励",
+    "DisplayName": "自由分支·死亡计数：此卡在手中或场上时，记录对双方生物死亡数量，计数≥x，则触发奖励（满6不再计数，使用后清零）",
     "EffectType": "EngineDeathToll",
     "TargetKinds": null,
     "TargetFilter": null,
@@ -1927,7 +1927,7 @@
   {
     "ID": "fb8a41c9",
     "EnumName": "元素充盈",
-    "DisplayName": "自由分支·元素充盈：己方元素池三色取最大值＞x 触发奖励",
+    "DisplayName": "自由分支·元素充盈：使用效果时，先扣除消耗后元素池中剩余元素的总量≥x，则触发奖励（最大值6）",
     "EffectType": "EngineManaSurplus",
     "TargetKinds": null,
     "TargetFilter": null,
@@ -1938,9 +1938,9 @@
   },
   {
     "ID": "b951e72f",
-    "EnumName": "手牌序位",
-    "DisplayName": "自由分支·手牌序位：此卡是本回合第 x 张使用的手牌发动时触发奖励",
-    "EffectType": "EngineNthHandCard",
+    "EnumName": "效果序位",
+    "DisplayName": "自由分支·效果序位：此效果是本回合第 x 个发动的效果，x恰好等于分支需要的费用时触发奖励（最大值6）",
+    "EffectType": "EngineEffectOrdinal",
     "TargetKinds": null,
     "TargetFilter": null,
     "Polarity": 0.0,

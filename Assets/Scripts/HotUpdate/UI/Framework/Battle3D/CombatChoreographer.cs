@@ -422,6 +422,21 @@ namespace SynergyUI
         private void OnStackEmpty(StackEmptyEvent _)
         {
             if (!_capturing) return;
+            if (ReplayDriven) return; // 回放导演在场（2026-10-19 逆结算步进）：捕获位保留——攻击步开演归它驱动（PerformCapturedNow 消费）
+            _capturing = false;
+            AssembleAndPerform();
+        }
+
+        /// <summary>回放驱动模式（2026-10-19 逆结算步进定案·战斗严格按结算序）：置位=StackEmpty
+        /// 不自动开演，战斗演出改由 BattleResolutionDirector 在回放到攻击步时调 PerformCapturedNow
+        /// 驱动（效果步逐个演完、轮到攻击步才播战斗）。未置位=旧行为（栈空即演）。</summary>
+        public bool ReplayDriven { get; set; }
+
+        /// <summary>回放驱动口（2026-10-19）：回放到攻击步时由导演调——把已捕获的战斗按演出计划
+        /// 开演（占用视觉门，导演随后等 WaitVisualsIdle）。无捕获=空操作。</summary>
+        public void PerformCapturedNow()
+        {
+            if (!_capturing) return;
             _capturing = false;
             AssembleAndPerform();
         }

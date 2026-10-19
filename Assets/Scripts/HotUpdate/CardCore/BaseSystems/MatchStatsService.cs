@@ -49,7 +49,6 @@ namespace CardCore
         public const string StandbySkipped = "StandbySkipped";           // 跳过自己准备阶段次数
         public const string CreaturesDied = "CreaturesDied";             // 己方随从死亡次数
         public const string CardsPlayed = "CardsPlayed";                 // 使用卡牌次数（使用宣言）
-        public const string CardsPlayedFromHand = "CardsPlayedFromHand"; // 从手牌使用的卡牌次数（手牌序位引擎用；墓地视手牌等他源不算）
         public const string SpellsCast = "SpellsCast";                   // 施放法术次数
         public const string DamageDealt = "DamageDealt";                 // 造成伤害量（点）
         public const string DamageTaken = "DamageTaken";                 // 受到伤害量（点）
@@ -61,7 +60,7 @@ namespace CardCore
             _subscribed = true;
 
             var em = EventManager.Instance;
-            em.Subscribe<TurnStartEvent>(OnTurnStart);
+            em.Subscribe<TurnEndEvent>(OnTurnEndedClear);
 
             // —— 累计口径 ——
             em.Subscribe<LifePaymentCostEvent>(e => Add(e?.Player, LifePaid, e?.Amount ?? 0));
@@ -91,8 +90,6 @@ namespace CardCore
             {
                 if (e?.Player == null) return;
                 Add(e.Player, CardsPlayed, 1);
-                if (e.FromZone == Zone.Hand)
-                    Add(e.Player, CardsPlayedFromHand, 1);
                 if (e.PlayedCard is IHasSupertype st && st.Supertype == Cardtype.Spell)
                     Add(e.Player, SpellsCast, 1);
             });
@@ -197,9 +194,14 @@ namespace CardCore
             stats[statId] = v + amount;
         }
 
-        private void OnTurnStart(TurnStartEvent e)
+        /// <summary>本回合层清零（全局回合口径：双方共享同一个"当前回合"）——
+        /// 2026-10-19 订阅序修复：清零挂 TurnEnd（原 TurnStart）。GameCore 的 TurnStart 订阅
+        /// （其内做回合准备抽牌）先于本服务注册（MatchStats 在 GameCore 构造后段创建）——原次序
+        /// 同一事件分派内"先抽牌登记 _standbyDrawn、后清零"，刚登记即被清，DrawnInStandbyThisTurn
+        /// 恒假（教学二命运之牌是首个 settle=1 实卡，此前从未暴露）；挂 TurnEnd 语义等价
+        /// （回合层统计只在回合进行中消费）且对订阅先后序天然免疫。</summary>
+        private void OnTurnEndedClear(TurnEndEvent e)
         {
-            // 本回合层清零（全局回合口径：双方共享同一个"当前回合"）
             _turn.Clear();
             _standbyDrawn.Clear();
         }

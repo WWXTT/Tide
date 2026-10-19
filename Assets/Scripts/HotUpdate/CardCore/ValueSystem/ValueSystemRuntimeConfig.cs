@@ -45,11 +45,13 @@ namespace CardCore
     }
 
     /// <summary>
-    /// 计价档位系数（表 Category=PricingTier，2026-10-05 用户定案）——目标数量/作用次数/发动速度/发动时机的增量系数统一：
-    /// 数量 1:1 / 2:1.5 / 3:2 / 全部:3；次数 1:1 / 2:1.5 / 3:2 / 无上限:4；速度 0:1 / 1:1.5 / 2:2（2026-10-09 入价）；
+    /// 计价档位系数（表 Category=PricingTier，2026-10-05 用户定案）——目标数量/作用次数/发动时机的增量系数统一：
+    /// 数量 1:1 / 2:1.5 / 3:2 / 全部:3；次数 1:1 / 2:1.5 / 3:2 / 无上限:4；
     /// 一发时机 0.8（2026-10-16 时机轴接入计价：登场/死亡等整个生命期望=1 的触发时机减免）。
-    /// 消费方 CostDerivation（QuantityFactor / TriggerCostFactor / TimingCostFactor / SpeedCostFactor）；
-    /// 原 整数×N/期望4/1.2 连乘 口径退役。
+    /// 消费方 CostDerivation（QuantityFactor / TriggerCostFactor / TimingCostFactor）；
+    /// 速度档已随 2026-10-19 速度计价退役整删——三类卡分类把发动速度特化为法术专属类特性
+    ///（速度=3−槽数、其余主动默认 0），不再是可购溢价轴。
+    /// 原 整数×N/期望4/1.2 连乘口径退役。
     /// </summary>
     [Serializable]
     public class PricingTierConfig
@@ -62,9 +64,6 @@ namespace CardCore
         public float TriggerLimit2 = 1.5f;       // 作用次数 2
         public float TriggerLimit3 = 2.0f;       // 作用次数 3
         public float TriggerLimitInfinite = 4.0f; // 作用次数 无上限（-1；N>3 视同此档）
-        public float SpeedTier0 = 1.0f;          // 发动速度 0 普通档：基准（2026-10-09 速度入价定案）
-        public float SpeedTier1 = 1.5f;          // 发动速度 1 瞬间档（可当响应打出）
-        public float SpeedTier2 = 2.0f;          // 发动速度 2 高速档（可响应 1 速）
         public float TimingOnceFactor = 0.8f;    // 一发时机减免：整个生命期望=1 的触发时机（登场/死亡/游戏开始/
                                                 // 角色死亡/破坏/除外/离场/墓地回场）×0.8（2026-10-16 入价定案）
 
@@ -92,19 +91,6 @@ namespace CardCore
                 case 3: return TriggerLimit3;
                 case -1: return TriggerLimitInfinite;
                 default: return limit > 3 ? TriggerLimitInfinite : TriggerLimit1;
-            }
-        }
-
-        /// <summary>发动速度→计价系数（仅主动效果消费——越快响应权越强越贵）。
-        /// 越界口径：&lt;0 视同普通档；N&gt;2 视同高速档。</summary>
-        public float SpeedFactor(int speed)
-        {
-            switch (speed)
-            {
-                case 0: return SpeedTier0;
-                case 1: return SpeedTier1;
-                case 2: return SpeedTier2;
-                default: return speed > 2 ? SpeedTier2 : SpeedTier0;
             }
         }
     }

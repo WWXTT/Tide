@@ -32,8 +32,9 @@ namespace CardCore
         public const string JinjieId = "jinjie";
 
         /// <summary>第三课·末日降临 Boss 挑战关卡 id（2026-10-18 真实对局流程版，2026-10-19 挪入
-        /// 第三课位）：走 PreMatchScreen 教学三变体（硬币+选卡组），AI 镜像玩家卡组后被幻卡清算、
-        /// 召唤末日降临。课序挪位不改 id——旧档 completed/lunzhuanAttempted 天然兼容。</summary>
+        /// 第三课位）：走战场五段式开局教学三变体（掷币+战场选卡组·BattleOpeningDirector），AI 镜像
+        /// 玩家卡组后被幻卡清算、召唤末日降临。课序挪位不改 id——旧档 completed/lunzhuanAttempted
+        /// 天然兼容。</summary>
         public const string LunzhuanId = "lunzhuan";
 
         /// <summary>新手课程序列（2026-10-19 三课制定案）：basics 攻防 → jinjie 进阶机制 →

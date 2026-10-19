@@ -63,21 +63,16 @@ namespace SynergyUI
         /// 一次性消费；null=无技能。AI 侧随机卡组在 StartLocalFan 自动挑合格结界。</summary>
         public static string ChallengeSkillCardId;
 
-        /// <summary>对局准备流程玩家卡组（2026-10-17 PreMatchScreen）：非空=按此开局（null=随机兜底）。
-        /// 一次性消费防跨局残留（StartLocalFan 开局即置空）。注入方=PreMatchScreen。</summary>
-        public static List<CardData> MatchDeck;
+        // 对局准备流程五字段（MatchDeck/MatchSkillCardId/AiDeck/AiSkillCardId/FirstPlayerIsPlayer）
+        // 已随 2026-10-19 掷币演出挪战场整删：掷币+选卡组改在战场五段式开局内发生（BattleOpeningDirector），
+        // 结果经 EngageStagedBattle 直喂 EngageLocalBattle 参数——不再经静态入口传递。
 
-        /// <summary>对局准备流程玩家技能标记卡 ID：与 MatchDeck 成对一次性消费；null=按卡组随机挑。</summary>
-        public static string MatchSkillCardId;
-
-        /// <summary>对局准备流程 AI 卡组（2026-10-17）：非空=AI 按此开局（null=随机兜底）。</summary>
-        public static List<CardData> AiDeck;
-
-        /// <summary>对局准备流程 AI 技能标记卡 ID：与 AiDeck 成对一次性消费。</summary>
-        public static string AiSkillCardId;
-
-        /// <summary>硬币先手（2026-10-17 对局准备流程）：true=我方先手 / false=对方先手 / null=现状
-        /// （Player1 恒先）。后手角色开局 +5 护甲指示物（StartNewGame secondArmorBonus）。</summary>
-        public static bool? FirstPlayerIsPlayer;
+        /// <summary>战场五段式开局（2026-10-19 掷币演出挪战场定案）：true=掷硬币+选卡组在战场 3D 内
+        /// 发生（1 地块就位→2 角色就位→3 硬币先后手→4 战场选卡组→5 开始回合一），卡组/硬币结果由
+        /// BattleOpeningDirector 段五喂给 EngageLocalBattle；false=立即启动（教学一二/挑战/测试镜像路径）。
+        /// 持久旗标（非一次性·ChallengeDifficulty 同口径）：每个对局入口显式置位——普通对战与教学三
+        /// （lunzhuan）=true，教学一二/挑战/测试入口=false，防跨局残留串模式；教学三败局重挑 Replace
+        /// 重入沿用现值（重掷硬币+重选卡组=换卡组新局的教学语义保持）。</summary>
+        public static bool StagedOpening;
     }
 }

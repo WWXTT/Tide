@@ -12,7 +12,7 @@ namespace CardCore.Attribute
     /// - 配对表：持有者 runtimeId → (持有者, 转投目标)；重复选择取最新覆盖（叠层授予即重选）；
     /// - 无限次改写直到持有者死亡/离场——离场即清配对（死亡/弹回/流放/牺牲统一口）；
     ///   墓地复活=新入场事件→重新选择（旧关系必然不存在）；复生 Reborn=原地留场不离场→配对保持；
-    /// - 查询时活性实时校验（存活 && 在场 && 未被「无效」压制）——无事件注销、懒清扫；
+    /// - 查询时活性实时校验（存活 && 在场 && 未被「缄默」压制——FindVictim 持有者侧检查）——无事件注销、懒清扫；
     /// - 转投目标死亡不清配对：苏生复活同实例（runtimeId 不变）转投延续——断链判据只有持有者侧。
     /// - 选目标走 TargetSelectionService：UI 弹选 / AI 与无头自动取首候选；候选=对方战场单位+对方角色；
     ///   空候选跳过（无转投对象=关键词空转，战斗伤害照常结算）。
@@ -64,6 +64,7 @@ namespace CardCore.Attribute
         {
             if (holder == null || _bonds.Count == 0) return null;
             if (!_bonds.TryGetValue(holder.RuntimeId, out var bond)) return null;
+            if (holder.GetCounterCount(CounterRules.NullifyCounter) > 0) return null; // 「缄默」=压制口（镜像守护 FindGuardian）
             var victim = bond.victim;
             if (victim == null || !victim.IsAlive) return null;
             if (victim is Card vc && vc.GetZone() != Zone.Battlefield) return null;

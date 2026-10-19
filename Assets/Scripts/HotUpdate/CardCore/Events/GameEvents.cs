@@ -581,11 +581,15 @@ namespace CardCore
     }
 
     /// <summary>
-    /// 栈结算完成事件
+    /// 栈结算完成事件（每弹一个栈对象结算完发布一次）
     /// </summary>
     public class StackResolutionEndEvent : GameEventBase
     {
         public int StackSize { get; set; }
+        /// <summary>刚结算完的栈对象（2026-10-19 逆结算步进表现定案）：表现层据步快照映射
+        /// 连锁链高亮/步标签（卡牌施放项携带 Source 卡）与战斗演出驱动位（攻击步开演）。
+        /// 日志渲染不消费（MatchLogRenderer 未映射=空行），无头/验证零影响。</summary>
+        public EffectInstance ResolvedItem { get; set; }
     }
 
     /// <summary>

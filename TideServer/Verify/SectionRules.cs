@@ -1241,6 +1241,28 @@ namespace TideServer.Verify
                               && debuffProbe.GetCounterCount(CounterRules.MorphStateCounter) == 1,
                 "减益解除：负面指示物清空，正面与中性（极性0）指示物保留");
 
+            // 沉默/缄默与净化、减益解除的交互（2026-10-19 规格定案：压制类指示物归净化/解减益清除）
+            debuffProbe.AddCounters(CounterRules.SilenceCounter, 1);
+            debuffProbe.AddCounters(CounterRules.NullifyCounter, 1);
+            debuffProbe.AddCounters(CounterRules.PlusOneCounter, 1);
+            CardCore.Attribute.EffectHandlerRegistry.ExecuteEffectAsync(
+                new AtomicEffectInstance { Type = AtomicEffectType.RemoveDebuffs, Value = 1 },
+                new EffectExecutionContext { Controller = i1, Source = i1, Targets = new List<Entity> { debuffProbe } })
+                .GetAwaiter().GetResult();
+            VerifySuite.Assert(debuffProbe.GetCounterCount(CounterRules.SilenceCounter) == 0
+                              && debuffProbe.GetCounterCount(CounterRules.NullifyCounter) == 0
+                              && debuffProbe.GetCounterCount(CounterRules.PlusOneCounter) == 1,
+                "减益解除清沉默/缄默层（负面极性），正面指示物保留");
+            debuffProbe.AddCounters(CounterRules.SilenceCounter, 1);
+            debuffProbe.AddCounters(CounterRules.NullifyCounter, 1);
+            CardCore.Attribute.EffectHandlerRegistry.ExecuteEffectAsync(
+                new AtomicEffectInstance { Type = AtomicEffectType.Purify, Value = 1 },
+                new EffectExecutionContext { Controller = i1, Source = i1, Targets = new List<Entity> { debuffProbe } })
+                .GetAwaiter().GetResult();
+            VerifySuite.Assert(debuffProbe.GetCounterCount(CounterRules.SilenceCounter) == 0
+                              && debuffProbe.GetCounterCount(CounterRules.NullifyCounter) == 0,
+                "净化全清沉默/缄默层");
+
             // 探针离场清理（不扰动后续 ⑧-⑩ 段：注册注销+移除外区）
             icore.TriggerEngine.UnregisterEntityEffects(linmoSelf);
             icore.TriggerEngine.UnregisterEntityEffects(linmoSrc);
@@ -1406,6 +1428,14 @@ namespace TideServer.Verify
                               && PendingEffect.Create(galeActDef, galeUnit, i1, i1, PhaseType.Main).ActivationSpeed == 1
                               && StackEngine.GuardStackSpeed == 1,
                 $"疾风：场上卡攻击宣言/主动效果发动速度+1（0→1；守卫恒1不加；实际攻宣 {galeAtkObj?.ActivationSpeed}）");
+
+            // 缄默压规则光环载体（2026-10-19 规格定案：缄默光环本体才让光环无效——载体被缄默即失效）
+            galeSpeedCarrier.AddCounters(CounterRules.NullifyCounter, 1, i2);
+            VerifySuite.Assert(!RuleAuraSystem.IsActive(RuleAuraComponents.CastSpeedUp),
+                "缄默压规则光环：载体被缄默 → IsActive 实时失效（Matches 载体闸）");
+            galeSpeedCarrier.AddCounters(CounterRules.NullifyCounter, -1, i2);
+            VerifySuite.Assert(RuleAuraSystem.IsActive(RuleAuraComponents.CastSpeedUp),
+                "缄默解除：规则光环恢复");
 
             // ---- ⑩ 轮回（2026-10-04 承接原疾风）：每个玩家连续进行两个回合（AABB） ----
             var samsaraCarrier = MakeRuleCarrier("时光仪典", RuleAuraComponents.DoubleTurn, 2);
@@ -2642,6 +2672,106 @@ namespace TideServer.Verify
             VerifySuite.Assert(dealtM4 == 0 && w1Martyr.GetLife() == w1MartLife0 && mineCr.GetLife() == mineLifeM0 - 2,
                 $"舍身对向：对方持有者战斗伤害转投我方首单位（返 {dealtM4}，原目标余 {w1Martyr.GetLife()}，victim {mineLifeM0}→{mineCr.GetLife()}）");
 
+            // ==================== 缄默/沉默压制矩阵（2026-10-19 规格定案） ====================
+            // 缄默（Nullify）=拦自动效果：本体关键词（HasKeyword 收口）+ 舍身/守护配对 + 光环来源/载体；
+            // 沉默=拦主动（CanActivate 引擎既有口）——负例钉死沉默不压关键词/守护。
+            // 触发式拦截（FindMatchingEffects）为 2026-09-09 既有闸，本段不重复驱动。
+            // 前序夹具已把 mineCr 打到 1 血——先回满，防本段反例伤害将其打死级联后续断言
+            mineCr.Heal(4);
+
+            // 缄默压舍身（FindVictim 持有者闸）：转投失效，战斗伤害照常落原目标
+            foeMartyr.AddCounters(CounterRules.NullifyCounter, 1, w1);
+            int w1MLifeN0 = w1Martyr.GetLife(); int mineLifeN0 = mineCr.GetLife();
+            int dealtMute = KeywordRules.ApplyDamage(foeMartyr, w1Martyr, 2, isCombat: true);
+            VerifySuite.Assert(dealtMute == 2 && w1Martyr.GetLife() == w1MLifeN0 - 2 && mineCr.GetLife() == mineLifeN0,
+                $"缄默压舍身：转投失效战斗伤害照常（返 {dealtMute}，原目标余 {w1Martyr.GetLife()}，victim 不掉血）");
+            foeMartyr.AddCounters(CounterRules.NullifyCounter, -1, w1);
+            int w1MLifeN1 = w1Martyr.GetLife(); int mineLifeN1 = mineCr.GetLife();
+            int dealtUnmute = KeywordRules.ApplyDamage(foeMartyr, w1Martyr, 1, isCombat: true);
+            VerifySuite.Assert(dealtUnmute == 0 && w1Martyr.GetLife() == w1MLifeN1 && mineCr.GetLife() == mineLifeN1 - 1,
+                $"缄默解除舍身恢复：转投照常（返 {dealtUnmute}，victim {mineLifeN1}→{mineCr.GetLife()}）");
+
+            // 缄默压守护（FindGuardian 既有闸——回归）+ 沉默负例（沉默不压守护改写）
+            var muteGuard = new CardWrapper(new CardData
+            {
+                ID = "V9P_MUTE_GUARD", CardName = "V9P缄默守护者", Supertype = Cardtype.Creature, Power = 2, Life = 9,
+            });
+            muteGuard.SetController(w1);
+            wcore.ZoneManager.GetZoneContainer(w1).Add(muteGuard, Zone.Battlefield);
+            muteGuard.AddKeyword(KeywordRules.Guardian, KeywordLane.Setting, muteGuard, 1, -1);
+            GuardianRules.OnGrantedInPlay(muteGuard); // 无头自动配对首候选=mineCr
+            var muteAtk = new CardWrapper(new CardData
+            {
+                ID = "V9P_MUTE_ATK", CardName = "V9P白板攻击手", Supertype = Cardtype.Creature, Power = 2, Life = 5,
+            });
+            muteAtk.SetController(w2);
+            wcore.ZoneManager.GetZoneContainer(w2).Add(muteAtk, Zone.Battlefield);
+
+            int mineLifeG0 = mineCr.GetLife(); int guardLife0 = muteGuard.GetLife();
+            int dealtG0 = KeywordRules.ApplyDamage(muteAtk, mineCr, 2, isCombat: true);
+            VerifySuite.Assert(dealtG0 == 2 && mineCr.GetLife() == mineLifeG0 && muteGuard.GetLife() == guardLife0 - 2,
+                $"守护前置：受伤改写守护者承受（返 {dealtG0}，ward 不掉血，守护者 {guardLife0}→{muteGuard.GetLife()}）");
+            muteGuard.AddCounters(CounterRules.NullifyCounter, 1, w2);
+            int mineLifeG1 = mineCr.GetLife(); int guardLife1 = muteGuard.GetLife();
+            int dealtG1 = KeywordRules.ApplyDamage(muteAtk, mineCr, 2, isCombat: true);
+            VerifySuite.Assert(dealtG1 == 2 && mineCr.GetLife() == mineLifeG1 - 2 && muteGuard.GetLife() == guardLife1,
+                $"缄默压守护：配对失效改写不发生（返 {dealtG1}，ward {mineLifeG1}→{mineCr.GetLife()}，守护者不掉血）");
+            muteGuard.AddCounters(CounterRules.NullifyCounter, -1, w2);
+            muteGuard.AddCounters(CounterRules.SilenceCounter, 1, w2);
+            int mineLifeG2 = mineCr.GetLife(); int guardLife2 = muteGuard.GetLife();
+            int dealtG2 = KeywordRules.ApplyDamage(muteAtk, mineCr, 2, isCombat: true);
+            VerifySuite.Assert(dealtG2 == 2 && mineCr.GetLife() == mineLifeG2 && muteGuard.GetLife() == guardLife2 - 2,
+                $"沉默不压守护：改写照常（返 {dealtG2}，守护者 {guardLife2}→{muteGuard.GetLife()}）——沉默只拦主动");
+            muteGuard.AddCounters(CounterRules.SilenceCounter, -1, w2);
+
+            // 缄默压剧毒（HasKeyword 收口行为证据）：关键词失效 → 战斗伤害落血不消灭
+            var muteVenom = new CardWrapper(new CardData
+            {
+                ID = "V9P_MUTE_VENOM", CardName = "V9P缄默剧毒者", Supertype = Cardtype.Creature, Power = 2, Life = 5,
+            });
+            muteVenom.SetController(w2);
+            wcore.ZoneManager.GetZoneContainer(w2).Add(muteVenom, Zone.Battlefield);
+            muteVenom.AddKeyword(KeywordRules.Venom, KeywordLane.Setting, muteVenom, 1, -1);
+            var mutePrey = new CardWrapper(new CardData
+            {
+                ID = "V9P_MUTE_PREY", CardName = "V9P剧毒靶", Supertype = Cardtype.Creature, Power = 1, Life = 5,
+            });
+            mutePrey.SetController(w1);
+            wcore.ZoneManager.GetZoneContainer(w1).Add(mutePrey, Zone.Battlefield);
+
+            muteVenom.AddCounters(CounterRules.NullifyCounter, 1, w1);
+            int preyLife0 = mutePrey.GetLife();
+            KeywordRules.ApplyDamage(muteVenom, mutePrey, 2, isCombat: true);
+            VerifySuite.Assert(mutePrey.IsAlive && mutePrey.GetLife() == preyLife0 - 2,
+                "缄默压剧毒：关键词失效，战斗伤害落血不消灭");
+            muteVenom.AddCounters(CounterRules.NullifyCounter, -1, w1);
+            KeywordRules.ApplyDamage(muteVenom, mutePrey, 2, isCombat: true);
+            VerifySuite.Assert(!mutePrey.IsAlive,
+                "缄默解除剧毒恢复：实际落定>0 → TryKill 消灭");
+
+            // HasKeyword 收口单元断言：本体关键词缄默失效/沉默不失效（光环投递轨见 V9S 段）
+            var muteProbe = new CardWrapper(new CardData
+            {
+                ID = "V9P_MUTE_PROBE", CardName = "V9P缄默探针", Supertype = Cardtype.Creature, Power = 1, Life = 5,
+            });
+            muteProbe.SetController(w1);
+            wcore.ZoneManager.GetZoneContainer(w1).Add(muteProbe, Zone.Battlefield);
+            muteProbe.AddKeyword(KeywordRules.Taunt, KeywordLane.Setting, muteProbe, 1, -1);
+            VerifySuite.Assert(muteProbe.HasKeyword(KeywordRules.Taunt), "前置：探针持有嘲讽");
+            muteProbe.AddCounters(CounterRules.NullifyCounter, 1, w2);
+            VerifySuite.Assert(!muteProbe.HasKeyword(KeywordRules.Taunt), "缄默压本体关键词（HasKeyword 收口）");
+            muteProbe.AddCounters(CounterRules.SilenceCounter, 1, w2);
+            VerifySuite.Assert(!muteProbe.HasKeyword(KeywordRules.Taunt), "沉默不复活关键词（仍被缄默）");
+            muteProbe.AddCounters(CounterRules.NullifyCounter, -1, w2);
+            VerifySuite.Assert(muteProbe.HasKeyword(KeywordRules.Taunt), "沉默不压关键词（缄默解除即恢复）");
+            muteProbe.AddCounters(CounterRules.SilenceCounter, -1, w2);
+
+            // 探针清场（不扰动后续段；mutePrey 已被消灭入墓）
+            wcore.ZoneManager.MoveCard(muteGuard, w1, Zone.Battlefield, Zone.Exile);
+            wcore.ZoneManager.MoveCard(muteAtk, w2, Zone.Battlefield, Zone.Exile);
+            wcore.ZoneManager.MoveCard(muteVenom, w2, Zone.Battlefield, Zone.Exile);
+            wcore.ZoneManager.MoveCard(muteProbe, w1, Zone.Battlefield, Zone.Exile);
+
             // ---- ③ 成长翻倍：2026-10-08 机制删除，回归块随机制移除 ----
 
             // ---- ④ 赋予主干（Grant=7 引擎解体 2026-10-05）：无分支槽原子 + 效果级持续档计价 ----
@@ -2795,7 +2925,7 @@ namespace TideServer.Verify
                 { AtomicEffectType.EngineClash, BranchEngineKind.Clash },
                 { AtomicEffectType.EngineDeathToll, BranchEngineKind.DeathToll },
                 { AtomicEffectType.EngineManaSurplus, BranchEngineKind.ManaSurplus },
-                { AtomicEffectType.EngineNthHandCard, BranchEngineKind.NthHandCard },
+                { AtomicEffectType.EngineEffectOrdinal, BranchEngineKind.EffectOrdinal },   // 2026-10-19 手牌序位改案
                 { AtomicEffectType.EngineCurseOnDraw, BranchEngineKind.CurseOnDraw },       // 2026-10-08 引擎主干化
                 { AtomicEffectType.EngineBlessingOnDraw, BranchEngineKind.BlessingOnDraw }, // 2026-10-08
             };
@@ -2806,6 +2936,12 @@ namespace TideServer.Verify
                                    && ComposerCatalog.EngineKindOf(kv.Key) == kv.Value,
                     $"引擎主干行回表：{kv.Key}（位 5 引擎主干、映射 {kv.Value}——2026-10-07 位 0 删除后主干资格派生，引擎行互斥由 CanBeRewardRow 排除）");
             }
+
+            // ---- ①b 效果序位（2026-10-19 手牌序位改案·定案）：本回合双方效果发动数达到 x−1 时触发——
+            //      发动口径=主动/自动效果入栈声明+法术整卡施放各 1；SBA/攻击宣言等规则栈对象与引擎奖励
+            //      不算；奖励自身不占发动位；观察面=手牌∪场上双方引擎卡。运行时行为夹具见本段段尾 ⑧ ----
+
+
 
             // ---- ② 引擎行装载：载荷挂主干原子、Then 零计价、主序列执行跳过（无处理器告警=漏跳证据） ----
             var bEngineCard = new CardData { ID = "V9Q_ENGINE", CardName = "V9Q引擎卡", Supertype = Cardtype.Spell };
@@ -2883,46 +3019,60 @@ namespace TideServer.Verify
                                && Math.Abs(bCursePrice - Math.Ceiling(bThenCost / 2f)) < 1e-4f,
                 $"附加诅咒分支费减半向上取整：卡价 {bCursePrice:0.##} = ceil(Then {bThenCost:0.##}/2)——拼点锚仍 {CostDerivationService.DeriveElementCosts(bEngineDef).Total:0.##}");
 
-            // ---- ②d 拼点触发事件迁移回归锚（2026-10-09：回合开始→攻击宣言·仅攻击方·无限） ----
+            // ---- ②d 拼点触发事件迁移回归锚（2026-10-09：回合开始→攻击宣言·仅攻击方·无限；
+            //      2026-10-19 取样改版：牌库随机取样→手牌展示最高攻生物，挂「展示」对双方公开） ----
             var bEngineUnit = new CardWrapper(bEngineCard);
             bEngineUnit.SetController(b1x);
             bcore.ZoneManager.GetZoneContainer(b1x).Add(bEngineUnit, Zone.Battlefield);
-            foreach (var side in new[] { b1x, b2x }) // 双方牌库清空后各注已知生物（随机取样确定化）
+            foreach (var side in new[] { b1x, b2x }) // 牌库+手牌清空（防抽牌引入未知卡），手牌各注一张已知生物=取样确定
             {
+                var zc = bcore.ZoneManager.GetZoneContainer(side);
                 foreach (var c in bcore.ZoneManager.GetCards(side, Zone.Deck).ToList())
-                    bcore.ZoneManager.GetZoneContainer(side).Move(c, Zone.Deck, Zone.Graveyard);
+                    zc.Move(c, Zone.Deck, Zone.Graveyard);
+                foreach (var c in bcore.ZoneManager.GetCards(side, Zone.Hand).ToList())
+                    zc.Move(c, Zone.Hand, Zone.Graveyard);
             }
-            // 回合开始 SBA 会抽 1 张——注入多张同能力生物：抽走一张后随机取样仍确定（己方 9/对方 1）
-            for (int i = 0; i < 3; i++)
-            {
-                var bDeckA = new CardWrapper(new CardData
-                { ID = $"V9Q_DECK_A_{i}", CardName = "V9Q己方库生物", Supertype = Cardtype.Creature, Power = 9, Life = 1 });
-                bDeckA.SetController(b1x);
-                bcore.ZoneManager.GetZoneContainer(b1x).Add(bDeckA, Zone.Deck);
-            }
-            for (int i = 0; i < 2; i++)
-            {
-                var bDeckB = new CardWrapper(new CardData
-                { ID = $"V9Q_DECK_B_{i}", CardName = "V9Q对方库生物", Supertype = Cardtype.Creature, Power = 1, Life = 1 });
-                bDeckB.SetController(b2x);
-                bcore.ZoneManager.GetZoneContainer(b2x).Add(bDeckB, Zone.Deck);
-            }
+            var bHandA = new CardWrapper(new CardData
+            { ID = "V9Q_HAND_A", CardName = "V9Q己方手牌生物", Supertype = Cardtype.Creature, Power = 9, Life = 1 });
+            bHandA.SetController(b1x);
+            bcore.ZoneManager.GetZoneContainer(b1x).Add(bHandA, Zone.Hand);
+            var bHandB = new CardWrapper(new CardData
+            { ID = "V9Q_HAND_B", CardName = "V9Q对方手牌生物", Supertype = Cardtype.Creature, Power = 1, Life = 1 });
+            bHandB.SetController(b2x);
+            bcore.ZoneManager.GetZoneContainer(b2x).Add(bHandB, Zone.Hand);
 
             int clashEvents = 0;
             string clashDetail = null;
+            int clashRevealEvents = 0;
             EventManager.Instance.Subscribe<KeywordAppliedEvent>(
                 e => { if (e.Keyword == "拼点" && e.Target == bEngineUnit) { clashEvents++; clashDetail = e.Detail; } });
+            EventManager.Instance.Subscribe<RevealCardsEvent>(
+                e => { if (e.Source == bEngineUnit) clashRevealEvents += e.Cards?.Count ?? 0; });
             int bThreshold = CostDerivationService.RewardThreshold(bEngineDef.Effects[0].Branch.Then);
             EventManager.Instance.Publish(new TurnStartEvent { TurnPlayer = b1x, TurnNumber = 99 });
             VerifySuite.Assert(clashEvents == 0,
                 "拼点不再回合开始触发（2026-10-09 触发改版回归锚——TurnStart 零拼点播报）");
             EventManager.Instance.Publish(new AttackDeclarationEvent { AttackingPlayer = b1x });
-            VerifySuite.Assert(clashEvents == 1 && clashDetail != null && clashDetail.Contains("拼点"),
+            VerifySuite.Assert(clashEvents == 1 && clashDetail != null && clashDetail.Contains("拼点 9 vs 1"),
                 $"攻击宣言触发拼点（仅攻击方：9 vs 1 差额 8 ≥ 门槛 {bThreshold}——实际 {clashEvents} 次：{clashDetail ?? "无"}）");
+            VerifySuite.Assert(clashRevealEvents == 2
+                              && bHandA.GetCounterCount(CounterRules.ExposedCounter) == 1
+                              && bHandB.GetCounterCount(CounterRules.ExposedCounter) == 1,
+                $"拼点展示：双方手牌最高攻生物各挂「展示」并播报（RevealCards 计数 {clashRevealEvents}，指示物 " +
+                $"{bHandA.GetCounterCount(CounterRules.ExposedCounter)}/{bHandB.GetCounterCount(CounterRules.ExposedCounter)}）");
             int clashAfterDefender = clashEvents;
             EventManager.Instance.Publish(new AttackDeclarationEvent { AttackingPlayer = b2x });
-            VerifySuite.Assert(clashEvents == clashAfterDefender,
-                "对方攻击宣言不触发我方拼点引擎（仅攻击方结算——守方引擎卡零播报）");
+            VerifySuite.Assert(clashEvents == clashAfterDefender && clashRevealEvents == 2,
+                "对方攻击宣言不触发我方拼点引擎（仅攻击方结算——守方引擎卡零播报零展示）");
+            bcore.ZoneManager.GetZoneContainer(b2x).Move(bHandB, Zone.Hand, Zone.Graveyard); // 对方手牌无生物=0
+            EventManager.Instance.Publish(new AttackDeclarationEvent { AttackingPlayer = b1x });
+            VerifySuite.Assert(clashEvents == 2 && clashDetail.Contains("拼点 9 vs 0") && clashRevealEvents == 2,
+                $"无法展示视为0（对方手牌无生物 9 vs 0 仍判定并再触发；已展示卡不重复挂层不重播——实际 {clashEvents} 次：{clashDetail ?? "无"}）");
+            foreach (var c in bcore.ZoneManager.GetCards(b1x, Zone.Hand).ToList()) // 我方手牌也无生物
+                bcore.ZoneManager.GetZoneContainer(b1x).Move(c, Zone.Hand, Zone.Graveyard);
+            EventManager.Instance.Publish(new AttackDeclarationEvent { AttackingPlayer = b1x });
+            VerifySuite.Assert(clashEvents == 2,
+                $"双方均无法展示 0 vs 0 差额 0 < 门槛 {bThreshold}（下限1）不触发（实际 {clashEvents} 次）");
 
             // ---- ③ 条件体系现状锚：有限分支（Gate）2026-10-09 还原 + settle 越界丢弃 ----
             CardData BetCard(string id) => new CardData
@@ -3163,6 +3313,104 @@ namespace TideServer.Verify
             }
             finally { TideLog.Sink = bPrevSink; }
 
+            // ---- ⑧ 效果序位运行时（2026-10-19 手牌序位改案·定案）：本回合双方效果发动数达到 x−1 时触发。
+            //      段尾执行——段内既有出牌已抬计数，经同程序集探针复位锚定基线（合成 TurnStart 有级联
+            //      副作用不作复位用）；残留栈对象随下段 Reset 清理 ----
+            {
+                BranchEngines.ResetEffectOrdinalForVerify();
+                VerifySuite.Assert(BranchEngines.EffectOrdinalCountForVerify == 0, "效果序位：计数基线复位（验证器探针）");
+
+                // 奖励载体备料：段内既有断言已抽干 b1x 牌库——回填 2 张供 DrawCard 奖励观测
+                for (int eoFill = 0; eoFill < 2; eoFill++)
+                {
+                    var eoDeckFiller = new CardWrapper(new CardData
+                    {
+                        ID = "V9Q_EO_FILL" + eoFill, CardName = "序位填充", Supertype = Cardtype.Creature, Power = 1, Life = 1,
+                    });
+                    eoDeckFiller.SetController(b1x);
+                    bcore.ZoneManager.GetZoneContainer(b1x).Add(eoDeckFiller, Zone.Deck);
+                }
+
+                CardData EOCard(string id, int x)
+                {
+                    var d = new CardData { ID = id, CardName = id, Supertype = Cardtype.Creature, Power = 1, Life = 1 };
+                    d.Effects.Add(new CardEffectData
+                    {
+                        Id = id + "_EFF", TriggerTiming = (int)TriggerTiming.OnCardPlayed, SelectionMode = -1,
+                        AtomicEffects = new List<AtomicEffectEntry>
+                        {
+                            new AtomicEffectEntry
+                            {
+                                refId = AtomicEffectTable.GetByType(AtomicEffectType.EngineEffectOrdinal)?.HashId,
+                                value = 1,
+                                branch = new BranchEntryData
+                                {
+                                    settle = (int)BranchSettleKind.Engine,
+                                    engine = (int)BranchEngineKind.EffectOrdinal,
+                                    engineParam = x,
+                                    then = new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.DrawCard, value: 1) },
+                                },
+                            },
+                        },
+                    });
+                    return d;
+                }
+                Card EOToHand(Player owner, CardData data)
+                {
+                    var card = new CardWrapper(data);
+                    card.SetController(owner);
+                    bcore.ZoneManager.GetZoneContainer(owner).Add(card, Zone.Hand);
+                    return card;
+                }
+                var eoAData = EOCard("V9Q_EO_A", 2); // x=2 → 门槛=1
+                var eoBData = EOCard("V9Q_EO_B", 3); // x=3 → 门槛=2
+                var eoA = EOToHand(b1x, eoAData);
+                EOToHand(b1x, eoBData);
+
+                // 转换器钉死组：错声明（使用卡牌时之外）归一 使用卡牌时+自动+无限（显示缺省；真实观察口=StackAddEvent）
+                var eoDef = CardEffectConverter.ConvertOne(eoAData.Effects[0], "V9Q");
+                VerifySuite.Assert(eoDef.TriggerTiming == TriggerTiming.OnCardPlayed
+                                  && eoDef.ActivationType == EffectActivationType.Automatic
+                                  && eoDef.TriggerLimitPerTurn == -1,
+                    "效果序位钉死组：引擎头归一 使用卡牌时+自动+无限（2026-10-19 手牌序位改案口径）");
+
+                int eoHand0 = bcore.ZoneManager.GetCards(b1x, Zone.Hand).Count; // 基线在合成回合开始（含其抽牌）之后
+
+                // 规则栈对象探针（合成事件，不占栈）：SBA/攻击宣言无 Definition → 不占发动位
+                EventManager.Instance.Publish(new StackAddEvent { AddedObject = new EffectInstance { IsSBA = true } });
+                EventManager.Instance.Publish(new StackAddEvent
+                {
+                    AddedObject = new EffectInstance { IsAttackDeclaration = true, Source = b1x, Targets = new List<Entity> { b2x } },
+                });
+                VerifySuite.Assert(bcore.ZoneManager.GetCards(b1x, Zone.Hand).Count == eoHand0
+                                  && BranchEngines.EffectOrdinalCountForVerify == 0,
+                    "效果序位：SBA/攻击宣言不占发动位（计数恒 0，规则动作≠效果发动）");
+
+                // 法术整卡施放=1 次发动（真实入栈）：计数 1 = A 门槛（x−1）→ A 触发抽 1
+                var eoSpell = new CardWrapper(new CardData { ID = "V9Q_EO_SPELL", CardName = "序位法术", Supertype = Cardtype.Spell });
+                eoSpell.SetController(b1x);
+                VerifySuite.Assert(bcore.StackEngine.PushCardCast(eoSpell, b1x, null)
+                                  && BranchEngines.EffectOrdinalCountForVerify == 1, "法术施放入栈探针（空栈首动豁免）+ 计数=1");
+                VerifySuite.Assert(bcore.ZoneManager.GetCards(b1x, Zone.Hand).Count == eoHand0 + 1,
+                    $"效果序位：法术施放计 1 次发动 → 计数 1 = x−1 → A(x=2) 触发抽 1（生物/地牌施放不算）" +
+                    $"（实际手牌 {bcore.ZoneManager.GetCards(b1x, Zone.Hand).Count}/{eoHand0}、牌库余 {bcore.ZoneManager.GetCards(b1x, Zone.Deck).Count}）");
+
+                // 主动效果声明=1 次发动（真实入栈，速 2>记速器 0 过门槛）：计数 2 = B 门槛 → B 触发抽 1
+                var eoVolDef = new EffectDefinition
+                {
+                    Id = "V9Q_EO_VOL", DisplayName = "序位主动探针", BaseSpeed = 2,
+                    TriggerTiming = TriggerTiming.Activate_Active, ActivationType = EffectActivationType.Voluntary,
+                    ElementCostPrepaid = true,
+                    Effects = new List<AtomicEffectInstance> { new AtomicEffectInstance { Type = AtomicEffectType.DrawCard, Value = 1 } },
+                };
+                VerifySuite.Assert(bcore.StackEngine.TryActivateEffect(PendingEffect.Create(eoVolDef, eoA, b1x, b1x,
+                        bcore.TurnEngine.CurrentPhase?.Phase ?? PhaseType.Main))
+                                  && BranchEngines.EffectOrdinalCountForVerify == 2,
+                    "主动效果声明入栈探针（速 2>记速器 0）+ 计数=2");
+                VerifySuite.Assert(bcore.ZoneManager.GetCards(b1x, Zone.Hand).Count == eoHand0 + 2,
+                    "效果序位：主动效果声明计 1 次发动 → 计数 2 = x−1 → B(x=3) 触发抽 1（A 门槛已过不再重复——计数每值只经过一次）");
+            }
+
             // ============================ V9.r 挑战模式（2026-10-06） ============================
             VerifySuite.Section("V9.r 挑战模式（曲线/起手）");
 
@@ -3375,6 +3623,22 @@ namespace TideServer.Verify
             GameBoard.LinkAuraSystem.InvalidateCache();
             VerifySuite.Assert(sp1.HasKeyword(RoleProbe),
                 "箭头档对照：未拉黑关键词箭头指角色格照投（通道无门——限制全在表拉黑位）");
+
+            // ---- 缄默×连接光环（2026-10-19 规格定案：缄默光环本体才让光环无效） ----
+            // 来源被缄默 → 条目失效；受益者被缄默 → 光环照常（只认来源侧，打受益者不除光环）
+            sAuraSrc.AddCounters(CounterRules.NullifyCounter, 1, sp2);
+            GameBoard.LinkAuraSystem.InvalidateCache();
+            VerifySuite.Assert(!sp1.HasKeyword(RoleProbe),
+                "来源被缄默：关键词光环失效（LinkAuraSystem 来源闸——条目随来源整体失效）");
+            sAuraSrc.AddCounters(CounterRules.NullifyCounter, -1, sp2);
+            GameBoard.LinkAuraSystem.InvalidateCache();
+            VerifySuite.Assert(sp1.HasKeyword(RoleProbe), "来源缄默解除：光环恢复");
+            sp1.AddCounters(CounterRules.NullifyCounter, 1, sp2);
+            GameBoard.LinkAuraSystem.InvalidateCache();
+            VerifySuite.Assert(sp1.HasKeyword(RoleProbe),
+                "受益者被缄默：光环投递照常——缄默打在受益者身上不除光环（只认来源侧）");
+            sp1.AddCounters(CounterRules.NullifyCounter, -1, sp2);
+            GameBoard.LinkAuraSystem.InvalidateCache();
 
             // ---- 坚韧指示物（2026-10-09 生效自减改版，同毒素档）：受伤每层 −1 → 实际拦到即生效，
             //      生效后层数减半（floor，1 层生效一次即清零）；可叠加；角色同口径；换区不清 ----
@@ -4324,9 +4588,10 @@ namespace TideServer.Verify
                     Id = "V9Z_DT_PIN", TriggerTiming = (int)TriggerTiming.OnDraw, SelectionMode = -1, // 故意错声明
                     AtomicEffects = ZEngineAtoms(BranchEngineKind.DeathToll, 1),
                 }, "V9Z");
-                VerifySuite.Assert(zPinned.TriggerTiming == TriggerTiming.OnPlay
-                                  && zPinned.ActivationType == EffectActivationType.Automatic,
-                    "钉死组照旧：死亡计数错声明归一 登场+自动（解绑只开倒计时/运势）");
+                VerifySuite.Assert(zPinned.TriggerTiming == TriggerTiming.OnOtherCreatureDeath
+                                  && zPinned.ActivationType == EffectActivationType.Automatic
+                                  && zPinned.TriggerLimitPerTurn == -1,
+                    "钉死组照旧：死亡计数错声明归一 其他生物死亡+自动+无限（2026-10-19 手牌/场上改案口径；解绑只开倒计时/运势）");
 
                 // 奖励估值不吃时机（REWARD_SHIM 钉非触发式）：DrawCard1=蓝2 面值（×0.8 会成 1.6）
                 var zDrawDef = CardEffectConverter.ConvertOne(new CardEffectData
@@ -4411,18 +4676,18 @@ namespace TideServer.Verify
                     for (int s = 1; ; s++)
                     {
                         var r = new Random(s); // 镜像 GameRng（System.Random 同种子同序列）
-                        bool pass = r.Next(1, 7) > 3 && r.Next(1, 7) > 3;
+                        bool pass = r.Next(1, 7) >= 3 && r.Next(1, 7) >= 3; // 双≥口径（2026-10-19 改版）
                         if (pass == wantPass) return s;
                     }
                 }
                 GameRng.Reseed(ZSeed(true));
                 zcore.PublishEvent(new CardPlayEvent { Player = z1, PlayedCard = zExiledStub, FromZone = Zone.Hand });
                 VerifySuite.Assert(zLuck == 1,
-                    $"使用卡牌事件：掷骰双>3 过门执行奖励（种子复现——实际 {zLuck}）");
+                    $"使用卡牌事件：掷骰双≥3 过门执行奖励（种子复现——实际 {zLuck}）");
                 GameRng.Reseed(ZSeed(false));
                 zcore.PublishEvent(new CardPlayEvent { Player = z1, PlayedCard = zExiledStub, FromZone = Zone.Hand });
                 VerifySuite.Assert(zLuck == 1,
-                    $"掷骰未过双>3：不执行奖励（种子复现——实际 {zLuck}）");
+                    $"掷骰未过双≥3：不执行奖励（种子复现——实际 {zLuck}）");
             }
 
             // ============================ V9.x 已删（2026-10-11 资源重做） ============================
@@ -4631,6 +4896,96 @@ namespace TideServer.Verify
                 "⑥ 单效果免费：全程分文未扣（横置即定价，无抉择附加费）");
             aacore.StackEngine.Clear();
             aacore.StackEngine.SpeedCounter.Reset();
+
+            // ============================ V9.ab 运势双≥改版（2026-10-19 定案） ============================
+            // 旧口径=双>x 已废：掷 2d6 后双骰都 ≥ 分支费用 x 才触发（表行 9f6e4f49 DisplayName 已先行改版，
+            // 此处对齐运行时与参数域）。理论概率 P(x)=((7−x)/6)²：x=1→36/36 恒中（不测）、
+            // 2→25/36≈69.44%、3→16/36≈44.44%、4→9/36=25%、5→4/36≈11.11%、6→1/36≈2.78%。
+            VerifySuite.Section("V9.ab 运势双≥改版：参数域[1,6]+概率分布 x=2..6（2026-10-19）");
+            {
+                // ---- ① 参数域单源：x∈[1,6]（双≥下 x=6=双 6 才中，1/36；UI/装载/短文案全经此口） ----
+                ComposerCatalog.EngineParamRange(BranchEngineKind.LuckRoll, out int abMin, out int abMax);
+                VerifySuite.Assert(abMin == 1 && abMax == 6,
+                    $"运势参数域 [1,6]（双≥口径 x=6 入列；实际 [{abMin},{abMax}]）");
+
+                // ---- ② 概率分布：x=2..6 五张引擎卡同场，36000 次「使用卡牌」事件各独立掷骰 ----
+                //（奖励=抽 0 张占位：纯采样掷骰播报，Hit 计数走 KeywordAppliedEvent。
+                // 每档 σ：x=2≈0.24pp / x=6≈0.09pp，容差 1pp ≥ 3.8σ）
+                var abCore = GameCore.Instance;
+                abCore.Reset();
+                ZoneContainer.Reseed(20261019);
+                var abFill = Enumerable.Range(0, 8).Select(i => new CardData
+                {
+                    ID = $"V9AB_fill_{i}", CardName = "V9AB填充" + i, Supertype = Cardtype.Creature, Power = 1, Life = 1,
+                }).ToList();
+                abCore.InitGame(CardLoader.BuildDeck(abFill, 2), CardLoader.BuildDeck(abFill, 2));
+                var abP1 = abCore.Player1;
+                GameActions.SkipElementPool(abCore, abP1);
+                int[] abXs = { 2, 3, 4, 5, 6 };
+                var abUnits = new List<CardWrapper>();
+                var abHits = new int[abXs.Length];
+                for (int i = 0; i < abXs.Length; i++)
+                {
+                    var abData = new CardData
+                    {
+                        ID = $"V9AB_LUCK_{abXs[i]}", CardName = $"V9AB运势体{abXs[i]}",
+                        Supertype = Cardtype.Creature, Power = 1, Life = 5,
+                    };
+                    abData.Effects.Add(new CardEffectData
+                    {
+                        Id = $"V9AB_LUCK_{abXs[i]}_EFF", TriggerTiming = (int)TriggerTiming.OnCardPlayed,
+                        ActivationType = 1, SelectionMode = -1,
+                        AtomicEffects = new List<AtomicEffectEntry>
+                        {
+                            new AtomicEffectEntry
+                            {
+                                refId = AtomicEffectTable.GetByType(AtomicEffectType.EngineLuckRoll)?.HashId,
+                                value = 1,
+                                branch = new BranchEntryData
+                                {
+                                    settle = (int)BranchSettleKind.Engine,
+                                    engine = (int)BranchEngineKind.LuckRoll,
+                                    engineParam = abXs[i],
+                                    // 奖励=抽 0 张：Then 非空过 converter「条件空转折叠」守卫，handler 零循环零副作用
+                                    //（空 Then 会被折为无分支；抽 1 张则 2.5 万次命中会把牌库抽干吃疲劳）
+                                    then = new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.DrawCard, value: 0) },
+                                },
+                            },
+                        },
+                    });
+                    var abUnit = new CardWrapper(abData);
+                    abUnit.SetController(abP1);
+                    VerifySuite.Assert(abCore.ZoneManager.TryAddToBattlefield(abUnit, abP1), $"运势引擎卡 x={abXs[i]} 入场");
+                    abUnits.Add(abUnit);
+                }
+                EventManager.Instance.Subscribe<KeywordAppliedEvent>(e =>
+                {
+                    if (e.Keyword != "运势") return;
+                    int j = abUnits.IndexOf(e.Target as CardWrapper);
+                    if (j >= 0) abHits[j]++;
+                });
+                var abStub = new CardWrapper(new CardData
+                {
+                    ID = "V9AB_STUB", CardName = "V9AB使用桩", Supertype = Cardtype.Creature,
+                });
+                abStub.SetController(abP1);
+                GameRng.Reseed(20261019);
+                const int abRolls = 36000;
+                for (int i = 0; i < abRolls; i++)
+                    abCore.PublishEvent(new CardPlayEvent { Player = abP1, PlayedCard = abStub, FromZone = Zone.Graveyard });
+                double[] abExpect = { 25 / 36.0, 16 / 36.0, 9 / 36.0, 4 / 36.0, 1 / 36.0 };
+                var abLines = new List<string>();
+                for (int i = 0; i < abXs.Length; i++)
+                {
+                    double freq = abHits[i] / (double)abRolls;
+                    abLines.Add($"x={abXs[i]}:{abHits[i]}/{abRolls}={freq:P2}(理论 {abExpect[i]:P2})");
+                    VerifySuite.Assert(Math.Abs(freq - abExpect[i]) < 0.01,
+                        $"运势双≥概率 x={abXs[i]}：频率 {freq:P2} ≈ 理论 {abExpect[i]:P2}（±1pp 容差——{abHits[i]}/{abRolls}）");
+                }
+                VerifySuite.Assert(abHits[0] > abHits[1] && abHits[1] > abHits[2] && abHits[2] > abHits[3] && abHits[3] > abHits[4],
+                    "触发频率随 x 单调递减（" + string.Join("，", abLines) + "）");
+                VerifySuite.Log("运势双≥实测分布（" + abRolls + " 次/档）：" + string.Join("，", abLines));
+            }
 
             VerifySuite.Section("V9 引擎规则回归完成");
         }

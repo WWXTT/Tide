@@ -69,7 +69,7 @@ namespace Tide.Launch
             const float height = 180f;
             var area = new Rect((Screen.width - width) / 2f, Screen.height / 2f - height, width, height);
             GUILayout.BeginArea(area, GUI.skin.box);
-            GUILayout.Label("Tide", new GUIStyle(GUI.skin.label) { fontSize = 20, alignment = TextAnchor.MiddleCenter });
+            GUILayout.Label("潮汐", new GUIStyle(GUI.skin.label) { fontSize = 20, alignment = TextAnchor.MiddleCenter });
             GUILayout.Space(10f);
 
             string message = _error.Length > 0 ? _error : _stage;

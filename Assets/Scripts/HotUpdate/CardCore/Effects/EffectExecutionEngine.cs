@@ -945,6 +945,10 @@ namespace CardCore
         /// <summary>栈顶未结算项（2026-10-16 lbl-toast 定案：响应窗提示「在响应什么」用；
         /// 空栈=null，只读不弹——CurrentPhase 死字段勿读的教训不适用于此只读口）。</summary>
         public EffectInstance PeekStack() => _stack.Count > 0 ? _stack.Peek() : null;
+
+        /// <summary>栈内容只读快照（2026-10-19 连锁链 UI 数据源）：返回即时拷贝（顶→底序），
+        /// 防外部枚举期间栈变动；BattleViewData 据此构建 ChainCards。</summary>
+        public List<EffectInstance> SnapshotStack() => new List<EffectInstance>(_stack);
         public Player CurrentPriorityHolder => _priorityHolder;
         public Player ActivePlayer => _activePlayer;
         public bool WaitingForPlayer => _waitingForPlayer;
@@ -1418,7 +1422,8 @@ namespace CardCore
 
                     EventManager.Instance.Publish(new StackResolutionEndEvent
                     {
-                        StackSize = _stack.Count
+                        StackSize = _stack.Count,
+                        ResolvedItem = top // 2026-10-19 逆结算步进：表现层按步回放的步载荷
                     });
                 }
 
@@ -1733,10 +1738,11 @@ namespace CardCore
                         continue;
                 }
 
-                // 无效指示物（2026-09-09 定案）：拦全部触发式（事件匹配后、上栈前）——
-                // 含登场 OnPlay 族触发；只拦「注册来源自身」的能力。与沉默（拦主动，CanActivate）对称。
-                // 伤害管线被动（坚韧/圣盾/护甲——指示物与圣盾走 ApplyDamage 管线）与回合维护
-                // （再生，GameCore 直连）不经此，天然不拦。
+                // 缄默指示物（2026-09-09 定案；2026-10-19 定名缄默/关键词=自动效果）：拦全部触发式
+                // （事件匹配后、上栈前）——含登场 OnPlay 族触发；只拦「注册来源自身」的能力。
+                // 与沉默（拦主动，CanActivate）对称。本体关键词另经 HasKeyword 收口同被缄默压制
+                // （再生=GameCore 直连，读数走 HasKeyword 一并失效）；伤害管线被动
+                // （坚韧/圣盾/护甲——指示物，走 ApplyDamage 管线）不归缄默管，天然不拦。
                 if (registered.Source != null
                     && registered.Source.GetCounterCount(CardCore.Attribute.CounterRules.NullifyCounter) > 0)
                     continue;
@@ -2001,16 +2007,17 @@ namespace CardCore
             // OverrideRestriction 仍暂不实现（规则轴提案 §6：可能被 ModifyGameRule(str) 完全覆盖）
             AtomicEffectType.OverrideRestriction,
 
-            // 引擎主干行（2026-10-05 回表；2026-10-08 附加诅咒/附加祝福入列）：条件载体非效果——
+            // 引擎主干行（2026-10-05 回表；2026-10-08 附加诅咒/附加祝福入列；2026-10-19 效果序位入列）：条件载体非效果——
             // 主序列执行按 Branch.Settle==Engine 跳过，引擎条件由 BranchEngines 事件驱动，无需（也不应有）处理器
             AtomicEffectType.EngineCountdown,
             AtomicEffectType.EngineLuckRoll,
             AtomicEffectType.EngineClash,
             AtomicEffectType.EngineDeathToll,
             AtomicEffectType.EngineManaSurplus,
-            AtomicEffectType.EngineNthHandCard,
+            AtomicEffectType.EngineNthHandCard, // 已退役（2026-10-19 效果序位改案）——枚举值位保留，表行已改挂 EngineEffectOrdinal
             AtomicEffectType.EngineCurseOnDraw,
             AtomicEffectType.EngineBlessingOnDraw,
+            AtomicEffectType.EngineEffectOrdinal,
         };
 
         private static void VerifyHandlerCoverage()

@@ -145,9 +145,12 @@ namespace CardCore.Attribute
         /// <summary>沉默：持有者不可发动主动效果（换区清）</summary>
         public const string SilenceCounter = "Silence";
         /// <summary>
-        /// 无效（2026-09-09 定案，蓝3）：目标的**非主动**能力无法发动——拦全部触发式（含登场 OnPlay）
-        /// + 拦光环静态能力（连接箭头来源被无效压制，是唯一能压光环的口）；
-        /// 坚韧/圣盾等伤害管线被动与再生等回合维护不是「能力发动」，不拦。换区清除。
+        /// 缄默（2026-09-09 定案蓝3；2026-10-19 规格定名「缄默」，运行时 id 沿用 Nullify）：
+        /// 持有者的**自动效果**失效——拦全部触发式（含登场 OnPlay）+ 拦本体关键词
+        ///（HasKeyword 收口，先攻/剧毒/守护/再生等一概失效）+ 拦光环（作为连接光环来源
+        /// LinkAuraSystem / 作为规则光环载体 RuleAuraSystem——缄默光环本体才让光环无效，
+        /// 打在受益者身上不除光环）。指示物能力（圣盾/坚韧/潜行/报复）不归此管——由净化/减益解除清除。
+        /// 与沉默对称：沉默拦主动（CanActivate）、缄默拦自动。换区清除。
         /// </summary>
         public const string NullifyCounter = "Nullify";
         /// <summary>
@@ -245,10 +248,15 @@ namespace CardCore.Attribute
 
         // ---- 系统指示物（2026-10-08 定案：引擎主干行用到的指示物归系统，不设玩家可组合的指示物表行
         //      ——投放/触发/消耗全部由引擎（BranchEngines/CurseSystem）内部驱动。诅咒/祝福后经
-        //      2026-10-08 晚补裁决移入 Exception 生效自减（换区不清——跨区存活是机制必需），系统类仅剩倒计时）----
+        //      2026-10-08 晚补裁决移入 Exception 生效自减（换区不清——跨区存活是机制必需），系统类=倒计时/死亡计数）----
         /// <summary>倒计时：引擎主干·倒计时的计数层——控制者回合开始 −1，归零触发奖励并重置。
         /// 仅由引擎投放（BranchEngines.OnEnterBattlefield），无玩家表行；换区清（引擎重挂兜底）。</summary>
         public const string CountdownCounter = "Countdown";
+        /// <summary>死亡计数（2026-10-19 手牌/场上改案）：引擎主干·死亡计数的计数层——挂**手牌中或场上**的
+        /// 引擎卡上，每次双方生物死亡 +1；满值 6 达满不再计数；计数≥门槛（Then 锚价推导）即触发奖励
+        /// （每次递增都触发，触发不清零），使用（换区）后清零重计。
+        /// 仅由引擎投放（BranchEngines.OnCreatureDestroyed），无玩家表行；换区清。</summary>
+        public const string DeathTollCounter = "DeathToll";
         /// <summary>诅咒（2026-10-08 引擎主干化；生效自减类）：由引擎主干·附加诅咒施放时投放到对手牌库的卡上——
         /// 跨区存活（须活过牌库→手牌的换区清除），对手抽到该卡时 CurseSystem 自动执行诅咒分支效果
         /// 并消层（一次性）。无玩家表行。</summary>
@@ -348,7 +356,7 @@ namespace CardCore.Attribute
             Register(new CounterSpec { Id = PlusOneCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.Resident, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.None, DisplayName = "+1/+1", StatKind = StatCounterKind.PlusOnePlusOne });
             Register(new CounterSpec { Id = MinusOneCounter, Polarity = CounterPolarity.Negative, Class = CounterClass.Resident, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.None, DisplayName = "-1/-1", StatKind = StatCounterKind.MinusOneMinusOne });
             Register(new CounterSpec { Id = SilenceCounter, Polarity = CounterPolarity.Negative, Class = CounterClass.Resident, LayerRole = CounterLayerRole.Display, TickPolicy = CounterTickPolicy.None, DisplayName = "沉默" });
-            Register(new CounterSpec { Id = NullifyCounter, Polarity = CounterPolarity.Negative, Class = CounterClass.Resident, LayerRole = CounterLayerRole.Display, TickPolicy = CounterTickPolicy.None, DisplayName = "无响应" });
+            Register(new CounterSpec { Id = NullifyCounter, Polarity = CounterPolarity.Negative, Class = CounterClass.Resident, LayerRole = CounterLayerRole.Display, TickPolicy = CounterTickPolicy.None, DisplayName = "缄默" });
             // 耐久（2026-09-13 装备系统）：常驻层——使用消耗（EquipRules.LoseDurability），归零销毁
             Register(new CounterSpec { Id = DurabilityCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.Resident, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.External, DisplayName = "耐久" });
             Register(new CounterSpec { Id = PowerUpCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.Resident, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.None, DisplayName = "攻击力增加", StatKind = StatCounterKind.PowerUp });
@@ -380,8 +388,11 @@ namespace CardCore.Attribute
             // 锁定：层=剩余回合，手牌区同样倒数（窥渊只锁手牌——被锁卡无法打出故不换区，与换区清无冲突）
             Register(new CounterSpec { Id = LockCounter, Polarity = CounterPolarity.Negative, Class = CounterClass.Decay, LayerRole = CounterLayerRole.Clock, TickPolicy = CounterTickPolicy.TurnEndTickDown, DisplayName = "锁定" });
 
-            // ---- 系统（System：引擎主干投放/消耗，不给玩家用；换区清——引擎重挂兜底）----
+            // ---- 系统（System：引擎主干投放/消耗，不给玩家用；换区清——引擎重挂/重计兜底）----
             Register(new CounterSpec { Id = CountdownCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.System, LayerRole = CounterLayerRole.Clock, TickPolicy = CounterTickPolicy.External, DisplayName = "倒计时" });
+            // 死亡计数（2026-10-19 手牌/场上改案）：手牌/场上引擎卡的死亡累计层——满值 6 达满不再计，
+            // 达标触发不清零，使用（换区）后清零
+            Register(new CounterSpec { Id = DeathTollCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.System, LayerRole = CounterLayerRole.Clock, TickPolicy = CounterTickPolicy.External, DisplayName = "死亡计数" });
 
             // ---- 剧毒指示物已退役（2026-10-08 转关键词 Venom：消灭受到其战斗伤害的生物，
             //     施加口 GrantVenom/落定点 KeywordRules.ApplyDamage 尾部）----

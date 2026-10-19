@@ -95,6 +95,11 @@ namespace SynergyUI
         //（2026-10-15 发动格拆除：发动区占位卡 × 单位区空格立牌——整个 2×6 兼任发动区；
         // 旧 ActivationTexts 文本摘要随立牌呈现退役，写入点 lbl-activation 本就静默 null）
 
+        public List<BattleCardView> ChainCards = new List<BattleCardView>(); // 连锁链卡牌施放项
+        //（2026-10-19 chain UI 定案：栈上 IsCardCast 项，底→顶序——攻击/守卫/触发效果/SBA 不占
+        // 链位；随栈实时伸缩（结算出栈即短），链舞台在结算期按「只增不删」口径消费；网络快照
+        // 未承载恒空）
+
         public bool GameOver;
         public string GameOverTitle, GameOverText;
 
@@ -253,6 +258,20 @@ namespace SynergyUI
                     v.X = cx;
                     v.Z = cz;
                     d.CastingCards.Add(v);
+                }
+            }
+
+            // 连锁链（2026-10-19 chain UI）：栈上卡牌施放项，底→顶——SnapshotStack 为顶→底故倒序入列；
+            // 归属按施放者（EffectInstance.Controller）判观侧
+            var stackItems = core.StackEngine?.SnapshotStack();
+            if (stackItems != null)
+            {
+                for (int i = stackItems.Count - 1; i >= 0; i--)
+                {
+                    var item = stackItems[i];
+                    if (item == null || !item.IsCardCast || !(item.Source is Card chainCard)) continue;
+                    d.ChainCards.Add(FromRuntime(SerializableRuntimeCardState.FromCard(chainCard),
+                        chainCard, item.Controller == opp));
                 }
             }
 

@@ -173,6 +173,7 @@ namespace SynergyUI
             }
 
             BattleEntry.Mode = BattleMode.Challenge;
+            BattleEntry.StagedOpening = false; // 挑战=立即启动（2026-10-19 防普通局五段开场旗标残留串模式）
             BattleEntry.ChallengeDifficulty = _difficulty;
             BattleEntry.ChallengeDeck = deck; // null=StartLocalFan 兜底随机
             BattleEntry.ChallengeSkillCardId = skillCardId;

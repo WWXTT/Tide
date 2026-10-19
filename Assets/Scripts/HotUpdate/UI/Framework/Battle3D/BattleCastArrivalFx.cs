@@ -480,8 +480,9 @@ namespace SynergyUI
             return bestV > 0.0001f ? ManaColor(best) : ManaColor(ManaType.Gray);
         }
 
-        /// <summary>六色→粒子色（UiStyle 方格色为基；黑抬亮——纯黑粒子不可见；其余向白提一档自发光观感）。</summary>
-        private static Color ManaColor(ManaType m)
+        /// <summary>六色→粒子色（UiStyle 方格色为基；黑抬亮——纯黑粒子不可见；其余向白提一档自发光观感）。
+        /// 2026-10-19 起公开=粒子色单源：BattleEffectFx 六色弹体/爆点同口径复用。</summary>
+        public static Color ManaColor(ManaType m)
         {
             Color c = m switch
             {

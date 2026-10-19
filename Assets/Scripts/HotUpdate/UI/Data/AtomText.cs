@@ -315,9 +315,9 @@ namespace SynergyUI
         }
 
         /// <summary>引擎主干行短式正文（2026-10-09 八引擎统一定案）：「自由分支·{中文名}{x}」——
-        /// 派生门槛引擎（拼点/死亡计数/元素充盈/手牌序位，自平衡统一）x=奖励锚价推导门槛、倒计时声明 0 时
+        /// 派生门槛引擎（拼点/死亡计数/元素充盈，自平衡统一）x=奖励锚价推导门槛、倒计时声明 0 时
         /// x=按奖励费换算回合（均随 Then 奖励实时变，公式经 CostDerivationService 与运行时判定同源）；
-        /// 其余引擎（运势/附加诅咒/祝福）x=engineParam（EngineParamRange 钳制显示）。
+        /// 其余引擎（运势/效果序位/附加诅咒/祝福）x=engineParam（EngineParamRange 钳制显示）。
         /// 非引擎行/引擎身份未定义返回 null（调用方回退表行长模板——原子库列表行长文案保留完整玩法说明）。</summary>
         /// <summary>引擎短文案公开口（验证器锚定用；合成器摘要走 Render 主路径消费同函数）。</summary>
         public static string EngineShortBodyFor(AtomicEffectEntry atom) => EngineShortBody(atom);
@@ -338,21 +338,24 @@ namespace SynergyUI
             int x;
             switch (kind)
             {
-                // 派生门槛引擎（IsDerivedThresholdEngine 单源：拼点/死亡计数/元素充盈/手牌序位）
+                // 派生门槛引擎（IsDerivedThresholdEngine 单源：拼点/死亡计数/元素充盈）
                 // ——2026-10-09 自平衡统一：x=Then 奖励锚价推导，随奖励计费实时变
                 case BranchEngineKind.DeathToll:
-                    // 2026-10-09 文案定案：死亡计数条件句改为完整句（类似死亡=CardDestroyEvent 生物：
-                    // 战斗死亡+消灭；牺牲直送非死亡无事件不计）
-                    return $"本回合中，类似死亡的生物数量大于等于{CostDerivationService.RewardThreshold(ToInstances(then))}";
-                case BranchEngineKind.Clash:
+                    // 2026-10-19 手牌/场上改案完整句：此卡在手牌或场上时计数双方生物死亡（类似死亡=
+                    // CardDestroyEvent 生物：战斗死亡+消灭；牺牲直送非死亡无事件不计），满 6 不再计数，
+                    // 计数≥x 触发奖励（触发不清零），使用后清零
+                    return $"此卡在手牌或场上时计数双方生物死亡，计数大于等于{CostDerivationService.RewardThreshold(ToInstances(then))}时触发奖励（满6不再计数，使用后清零）";
                 case BranchEngineKind.ManaSurplus:
-                case BranchEngineKind.NthHandCard:
+                    // 2026-10-19 判据三改完整句：出牌付费扣除消耗后，元素池剩余总量（未横置地牌+钱包，
+                    // 全六色合计，封顶 6）≥x 触发，每次达标都触发
+                    return $"使用牌付费后，元素池剩余元素总量大于等于{CostDerivationService.RewardThreshold(ToInstances(then))}时触发奖励（封顶6）";
+                case BranchEngineKind.Clash:
                     x = CostDerivationService.RewardThreshold(ToInstances(then));
                     break;
                 case BranchEngineKind.Countdown:
                     x = CostDerivationService.CountdownTurnsOf(atom.branch?.engineParam ?? 0, ToInstances(then));
                     break;
-                default: // 运势点数线/附加诅咒·祝福张数——手填参数（EngineParamRange 钳制显示）
+                default: // 运势点数线/效果序位发动位/附加诅咒·祝福张数——手填参数（EngineParamRange 钳制显示）
                     ComposerCatalog.EngineParamRange(kind, out var mn, out var mx);
                     x = Math.Clamp(atom.branch?.engineParam ?? mn, mn, mx);
                     break;

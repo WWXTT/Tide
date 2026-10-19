@@ -26,6 +26,9 @@ namespace SynergyUI
     /// respond——玩家须完成一次响应窗口决策（2026-10-19 第二课连锁教学）：AI 宣动后响应窗交给
     ///   玩家（连锁打出/发动或点「不连锁」让过）即推进——探针=OnTutorialHumanResponded；
     ///   窗口未开（玩家无可连锁项被自动让过）时由「对手回合结束」兜底记 Missed 推进（防死锁）；
+    /// fieldclear——自由清场步（2026-10-19 教学二段一改版）：闸全放行（玩家自由操作，用卡顺序
+    ///   不再钉死——打错了靠「重置考验」重来），对手场上存活生物清零即完成；探针=PollFieldClear
+    ///   （UI 侧逐帧轮询，栈收口后调用）；
     /// victory——自由挑战收尾步（2026-10-16）：闸全放行（玩家自由操作），对局胜利
     ///   （GameOverEvent 玩家胜）时步骤完成=引导全部完成。
     /// hint=引导提示文案（UI 高亮/弹窗后续接，逻辑层只透传）。
@@ -41,7 +44,8 @@ namespace SynergyUI
         public string card;   // element/tapcreature/play 的卡 id（空=宽松任意）
         public string land;   // tap 的地牌源卡 id
         public string color;  // tap 的产出颜色（"Gray"/"Red"/"Blue"/"Green"/"White"/"Black"）
-        public string reveal; // intro 的演出指令（语音联动显隐 zone:*/board/all/hand；midTransition=第二段注入）
+        public string reveal; // intro 的演出指令（语音联动显隐 zone:*/board/all/hand/units；逗号分隔多令牌
+                              // 逐个消费（2026-10-19 教学二段一：units,hand/all）；midTransition=换场注入）
         public string audio;  // intro 的配音文件名（StreamingAssets/TutorialAudio/{audio}.mp3；空=文字卡片不播语音）
         public bool aiGuard;  // attack 步标记（2026-10-17 守卫演示）：此攻击的响应窗 AI 选守卫（目标改写演出）；
                               // 宣言不推进——结算/取消探针才算完成（UI 侧等战斗表现收尾再弹解说卡）
@@ -74,6 +78,8 @@ namespace SynergyUI
         private static readonly List<bool> _missed = new List<bool>();
         private static int _index = -1;
         private static string _heroLockCard;
+        /// <summary>玩家胜利已发生（多段尾段追赶：击杀先于 victory 步到达时由 Advance 补结算）。</summary>
+        private static bool _victorySeen;
 
         /// <summary>引导步骤是否仍在进行（全部完成后=false，但课规钩子留存到 End）。</summary>
         public static bool Active { get; private set; }
@@ -104,6 +110,7 @@ namespace SynergyUI
             End();
             _steps.Clear();
             _missed.Clear();
+            _victorySeen = false;
             foreach (var s in guideOverride ?? tutorial?.guide ?? new List<TutorialGuideStepSpec>())
                 if (s != null && !string.IsNullOrEmpty(s.type))
                     _steps.Add(s);
@@ -138,6 +145,19 @@ namespace SynergyUI
             else
                 return; // 既无步骤也无课规：不占钩子
             OnStepAdvanced?.Invoke(0);
+        }
+
+        /// <summary>跳段重入（2026-10-19 常驻重置按钮·分段回退）：跳到指定步重新成为当前步——
+        /// 不重装闸（Begin 已装、跨段有效），重发步事件驱动 UI 消费（midTransition 步会重新换场：
+        /// ApplyRuntime 幂等，导演侧按段落账去重）。越界钳到 [0, Count-1]。</summary>
+        public static void JumpTo(int index)
+        {
+            if (_steps.Count == 0) return;
+            _index = System.Math.Max(0, System.Math.Min(index, _steps.Count - 1));
+            while (_missed.Count < _steps.Count) _missed.Add(false);
+            while (_missed.Count > _steps.Count) _missed.RemoveAt(_missed.Count - 1);
+            Active = true;
+            OnStepAdvanced?.Invoke(_index);
         }
 
         /// <summary>完全退场（卸全部钩子；局末/切屏/回落普通局时调用，成对 Begin/End 防跨局残留）。
@@ -184,7 +204,7 @@ namespace SynergyUI
             if (!Active) return null; // 步骤全部完成=自由对局（课规已在上方处理）
             var step = Current;
             if (step == null) return null;
-            if (step.type == "victory") return null; // 自由挑战步：攻击全放行（胜利探针收尾）
+            if (step.type == "victory" || step.type == "fieldclear") return null; // 自由步：攻击全放行（探针收尾）
             if (step.type == "intro")
                 return "引导讲解中——先读完提示（点击横幅继续）";
             if (step.type == "guard")
@@ -211,7 +231,7 @@ namespace SynergyUI
             if (step.type == "end") return null;                // end 本身即引导动作
             if (step.type == "guard") return null;              // 守卫发生在对手回合，不挡
             if (step.type == "respond") return null;            // 响应步发生在对手回合宣动后，放行（回合交接是它的前置）
-            if (step.type == "victory") return null;            // 自由挑战步：回合流转放行
+            if (step.type == "victory" || step.type == "fieldclear") return null; // 自由步：回合流转放行
             return $"引导未完成——{step.hint ?? Describe(step)}"; // intro/attack/element/tap/tapcreature/play：先做完引导动作
         }
 
@@ -233,7 +253,7 @@ namespace SynergyUI
             if (!Active || player != GameCore.Instance?.Player1) return null;
             var step = Current;
             if (step == null) return null;
-            if (step.type == "victory") return null; // 自由挑战步：放行
+            if (step.type == "victory" || step.type == "fieldclear") return null; // 自由步：放行
             if (step.type == "element")
                 return string.IsNullOrEmpty(step.card) || card?.ID == step.card
                     ? null // 宽松（card 空=任意）或精确匹配
@@ -246,7 +266,7 @@ namespace SynergyUI
             if (!Active || player != GameCore.Instance?.Player1) return null;
             var step = Current;
             if (step == null) return null;
-            if (step.type == "victory") return null; // 自由挑战步：放行
+            if (step.type == "victory" || step.type == "fieldclear") return null; // 自由步：放行
             if (step.type == "tap")
             {
                 if (land?.SourceCard?.ID != step.land)
@@ -263,7 +283,7 @@ namespace SynergyUI
             if (!Active || player != GameCore.Instance?.Player1) return null;
             var step = Current;
             if (step == null) return null;
-            if (step.type == "victory") return null; // 自由挑战步：放行
+            if (step.type == "victory" || step.type == "fieldclear") return null; // 自由步：放行
             if (step.type == "tapcreature")
                 return creature?.ID == step.card
                     ? null
@@ -276,7 +296,7 @@ namespace SynergyUI
             if (!Active || player != GameCore.Instance?.Player1) return null;
             var step = Current;
             if (step == null) return null;
-            if (step.type == "victory") return null; // 自由挑战步：放行
+            if (step.type == "victory" || step.type == "fieldclear") return null; // 自由步：放行
             if (step.type == "play")
                 return string.IsNullOrEmpty(step.card) || card?.ID == step.card
                     ? null // 宽松（card 空=任意——引擎费用闸自然逼玩家挑付得起的）或精确匹配
@@ -385,9 +405,12 @@ namespace SynergyUI
         }
 
         /// <summary>victory 步探针（GameCore.PublishGameOverOnce 发射）：玩家胜利=步骤完成（引导全部完成）；
-        /// 玩家失败=对局已终（步骤停留，回菜单重开教学局即重来——终局呈现由 BattleScreen 负责）。</summary>
+        /// 玩家失败=对局已终（步骤停留，回菜单重开教学局即重来——终局呈现由 BattleScreen 负责）。
+        /// 多段尾段（2026-10-19）：击杀可能发生在 intro 步在位期（段尾自动引擎发奖不等点击）——
+        /// 胜利先到、victory 步后到时由 Advance 追赶补结算（_victorySeen）。</summary>
         private static void NotifyGameOver(Player winner)
         {
+            if (winner != null && winner == GameCore.Instance?.Player1) _victorySeen = true;
             var step = Current;
             if (step == null || step.type != "victory") return;
             if (winner == null || winner != GameCore.Instance?.Player1) return;
@@ -404,10 +427,32 @@ namespace SynergyUI
             Advance(missed: false);
         }
 
+        /// <summary>fieldclear 步探针（2026-10-19 教学二段一自由操作）：对手场上存活生物清零即完成
+        /// ——UI 侧逐帧轮询（栈收口、表现播毕后才调，防结算中途的瞬态空场误判）。结界等非生物
+        /// 驻场不算数（判据=存活生物，非战场总数）。非 fieldclear 步在位时零开销直返。</summary>
+        public static void PollFieldClear()
+        {
+            var step = Current;
+            if (step == null || step.type != "fieldclear") return;
+            var board = GameCore.Instance?.ZoneManager?
+                .GetCards(GameCore.Instance?.Player2, Zone.Battlefield);
+            if (board == null || board.Any(c => c != null && c.IsAlive
+                    && CardCatalog.GetById(c.ID)?.Supertype == Cardtype.Creature))
+                return;
+            Advance(missed: false);
+        }
+
         private static void Advance(bool missed)
         {
             if (missed && _index >= 0 && _index < _missed.Count) _missed[_index] = true;
             _index++;
+            // 胜利先到步后到（多段尾段）：击杀发生时在位的是 intro 步——进入 victory 步时补结算
+            if (Active && _victorySeen && _index >= 0 && _index < _steps.Count
+                && _steps[_index] != null && _steps[_index].type == "victory")
+            {
+                _index++; // victory 步视为完成
+                TideLog.Info("[TutorialGuide] 追赶补结算：终局先于 victory 步到达——视为完成");
+            }
             var done = _index >= _steps.Count;
             if (done) Active = false; // 步骤闸退场；课规（heroLock）随钩子留存到 End()
             TideLog.Info($"[TutorialGuide] 步骤 {_index}/{_steps.Count} 完成{(missed ? "（漏做/未按引导）" : "")}——"
@@ -436,6 +481,7 @@ namespace SynergyUI
                 case "tapcreature": return $"tapcreature：横置 {NameOf(s.card)} 产色（{s.hint}）";
                 case "play": return $"play：打出 {NameOf(s.card)}（{s.hint}）";
                 case "respond": return $"respond：完成一次响应窗口决策（连锁或让过）（{s.hint}）";
+                case "fieldclear": return $"fieldclear：自由操作清空对手全场生物（{s.hint}）";
                 case "victory": return $"victory：消灭对手完成教学（{s.hint}）";
                 default: return $"attack：用 {NameOf(s.attacker)} 攻击 {(s.target == "hero" ? "对方角色" : NameOf(s.target))}（{s.hint}）";
             }

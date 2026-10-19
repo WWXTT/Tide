@@ -79,6 +79,9 @@ namespace SynergyUI
                 AttachBoard(); // 棋盘先于注入：单位显式落位（PinCard 钉子）需要 BoardState 在场
                 TutorialScenarioSeeder.Apply(GameCore.Instance, scenario, _board);
                 GameCore.Instance.StartGame(); // TurnEngine 已预置起跳回合 → StartNewTurn 落到 startTurn/Main
+                _board?.Resync(); // 首铺落位兜底（2026-10-19 实测根因）：SeedSide 未钉格/越区单位按序填空
+                                  // ——重置与换场路径均显式 Resync（生物正常出场），本路径漏调致教学直入局
+                                  // 单位恒 X=-1 不渲染（对账 敌3 新建0）；无待落位单位时零成本。
                 return;
             }
 

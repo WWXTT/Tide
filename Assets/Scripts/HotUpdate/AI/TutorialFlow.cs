@@ -33,6 +33,7 @@ namespace SynergyUI
             }
             BattleEntry.Mode = BattleMode.Tutorial;
             BattleEntry.TutorialId = id;
+            BattleEntry.StagedOpening = false; // 教学一二=立即启动（2026-10-19 防普通局五段开场旗标残留串模式）
         }
 
         /// <summary>第二段注入（midTransition，2026-10-16 教学一两段式·逻辑层单源）：ApplyRuntime

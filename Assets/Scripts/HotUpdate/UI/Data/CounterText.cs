@@ -33,7 +33,7 @@ namespace SynergyUI
             { CounterRules.PlusOneCounter, "每层攻击力与生命 +1；换区清除" },
             { CounterRules.MinusOneCounter, "每层攻击力与生命 −1；换区清除" },
             { CounterRules.SilenceCounter, "持有者不可发动主动效果；换区清除" },
-            { CounterRules.NullifyCounter, "持有者的非主动能力无法发动（拦全部触发式与光环静态能力）；换区清除" },
+            { CounterRules.NullifyCounter, "持有者的自动效果失效（触发式与本体关键词；作为光环来源/载体时光环无效——打在受益者身上不除光环）；换区清除" },
             { CounterRules.DurabilityCounter, "发动次数池——主动发动与场上被动触发各 −1；战场归零销毁入墓，技能栏归零休眠（回合开始 +1 回充）" },
             { CounterRules.PowerUpCounter, "每层攻击力 +1；仅场上，换区清除" },
             { CounterRules.PowerDownCounter, "每层攻击力 −1；仅场上，换区清除" },
@@ -51,6 +51,7 @@ namespace SynergyUI
             { CounterRules.LockCounter, "持有期间无法打出、无法进入发动区与地牌区；持有者回合结束层数 −1，归零解锁" },
             // ---- 系统（System：引擎投放/消耗）----
             { CounterRules.CountdownCounter, "控制者回合开始层数 −1，归零触发奖励并重置" },
+            { CounterRules.DeathTollCounter, "此卡在手牌或场上时计数双方生物死亡；计数≥x（x=奖励锚价推导）触发奖励；满 6 不再计数；使用后清零" },
         };
 
         /// <summary>单条状态行：「显示名×层数：完整解说」（与卡面 stats 芯片同 DisplayName 口径）。</summary>

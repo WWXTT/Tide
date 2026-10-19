@@ -590,19 +590,15 @@ namespace CardCore
             return GetPool(player).TempElements.Values.Sum();
         }
 
-        /// <summary>未横置地牌中数量最多的同色数（2026-10-11 重定义——元素充盈引擎判据：
-        /// 旧「bank 最多色」随 bank 退役；并列取枚举序靠前者）。</summary>
-        public int GetMaxManaCount(Player player)
+        /// <summary>元素池剩余可付总量（2026-10-19 重定义——元素充盈引擎判据三改）：全六色合计
+        /// 「未横置地牌张数 + 临时钱包余额」，与出牌支付同资源口径（钱包优先消耗+地牌横置补足，
+        /// 判定读数在本次消耗扣除之后）；旧「未横置最多同色数」随判据退役。</summary>
+        public int GetRemainingElementTotal(Player player)
         {
-            var counts = new Dictionary<ManaType, int>();
-            foreach (ManaType m in Enum.GetValues(typeof(ManaType)))
-                counts[m] = 0;
-            foreach (var pc in GetPool(player).PooledCards)
-                if (!pc.IsTapped) counts[pc.LockedColor]++;
-            int best = 0;
-            foreach (var kv in counts)
-                if (kv.Value > best) best = kv.Value;
-            return best;
+            var pool = GetPool(player);
+            int wallet = pool.TempElements.Values.Sum();
+            int untapped = pool.PooledCards.Count(pc => pc != null && !pc.IsTapped);
+            return wallet + untapped;
         }
 
         public List<PooledCard> GetPooledCards(Player player)

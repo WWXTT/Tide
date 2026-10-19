@@ -635,10 +635,11 @@ namespace CardCore.Attribute.Handlers
     }
 
     /// <summary>
-    /// 无效指示物（2026-09-09 定案，蓝3）：目标的非主动能力无法发动——
-    /// 拦全部触发式（含登场 OnPlay，挂 TriggerEngine.FindMatchingEffects）+ 拦光环静态能力
-    /// （连接箭头来源被无效压制，LinkAuraSystem 查询时跳过——唯一能压光环的指示物；
-    /// 净化/沉默不压箭头：箭头是卡面数据）。与沉默对称：沉默拦主动、无效拦非主动。
+    /// 缄默指示物（2026-09-09 定案蓝3；2026-10-19 规格定名「缄默」，运行时 id 沿用 Nullify）：
+    /// 持有者的自动效果失效——拦全部触发式（含登场 OnPlay，挂 TriggerEngine.FindMatchingEffects）
+    /// + 拦本体关键词（EntityEffectExtensions.HasKeyword 收口）+ 拦光环（连接箭头来源
+    /// LinkAuraSystem / 规则光环载体 RuleAuraSystem——唯一能压光环的指示物；缄默光环本体才无效，
+    /// 打在受益者身上不除光环；净化/沉默不压箭头：箭头是卡面数据）。与沉默对称：沉默拦主动、缄默拦自动。
     /// </summary>
     public class AddNullifyHandler : AtomicEffectHandlerBase
     {
@@ -662,14 +663,14 @@ namespace CardCore.Attribute.Handlers
                 PublishEvent(new KeywordAppliedEvent
                 {
                     Target = target,
-                    Keyword = "无效",
-                    Detail = "无效：持有者的非主动能力（触发式/光环）无法发动",
+                    Keyword = "缄默",
+                    Detail = "缄默：持有者的自动效果（触发式/关键词/光环来源）失效",
                     Source = context.Source
                 });
             }
         }
 
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => "附加无效指示物（非主动能力无法发动）";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "附加缄默指示物（自动效果无法发动）";
     }
 
     /// <summary>

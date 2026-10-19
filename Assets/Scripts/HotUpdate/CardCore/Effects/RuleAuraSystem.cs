@@ -55,10 +55,12 @@ namespace CardCore
         public static Player ControllerOf(string ruleId)
             => IsActive(ruleId) ? _active[ruleId].Controller : null;
 
-        /// <summary>槽位活性（ruleId 匹配 + 载体在战场且存活——离场/死亡自然失效，无需显式移除）。</summary>
+        /// <summary>槽位活性（ruleId 匹配 + 载体在战场且存活——离场/死亡自然失效，无需显式移除；
+        /// 载体被缄默（NullifyCounter）期间光环无效——2026-10-19 缄默光环本体定案）。</summary>
         private static bool Matches(ActiveRuleAura s, string ruleId)
             => s != null && s.RuleId == ruleId && s.Carrier != null && s.Carrier.IsAlive
-               && s.Carrier.GetZone() == Zone.Battlefield;
+               && s.Carrier.GetZone() == Zone.Battlefield
+               && s.Carrier.GetCounterCount(CardCore.Attribute.CounterRules.NullifyCounter) == 0;
 
         /// <summary>规则是否生效（实时查询；2026-10-07 唯一性改版：异名共存——按 ruleId 各自独立槽）。</summary>
         public static bool IsActive(string ruleId)

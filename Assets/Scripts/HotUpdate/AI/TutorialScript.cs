@@ -52,6 +52,11 @@ namespace SynergyUI
         /// 按本场面直入（StartTutorialGame 分流走 scenario 口径）；null=不支持跳过。</summary>
         public TutorialScenario skipScenario;
 
+        /// <summary>后续段场面列表（2026-10-19 教学二多段化）：guide 里的 reveal=midTransition 步
+        /// 依次换场——第 1 个换 skipScenario（段二），第 2 个起依次取本列表（段三a/段三b/…）。
+        /// 空/缺=课程两段以内，多出的换场步会被跳过（场面空守卫）。</summary>
+        public List<TutorialScenario> phaseScenarios;
+
         /// <summary>取机器人第 aiTurn 回合的剧本（无则 null——ScriptedAi 直接结束回合）。</summary>
         public TutorialTurnScript GetAiTurn(int aiTurn)
             => aiScript?.FirstOrDefault(t => t != null && t.turn == aiTurn);

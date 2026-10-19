@@ -103,13 +103,14 @@ namespace SynergyUI
                 _layer.gameObject.SetActive(visible);
         }
 
-        /// <summary>逐卡可发动流光（宿主屏对账后刷新；未知 id 忽略）。</summary>
-        public void SetPlayable(uint runtimeId, bool playable)
+        /// <summary>逐卡可发动流光（宿主屏对账后刷新；未知 id 忽略）。gateArmed=分支条件
+        /// 已达成（金圈，2026-10-19 教学二），缺省 false=常规可用绿。</summary>
+        public void SetPlayable(uint runtimeId, bool playable, bool gateArmed = false)
         {
             foreach (var c in _cards)
                 if (c.RuntimeId == runtimeId)
                 {
-                    c.SetPlayable(playable);
+                    c.SetPlayable(playable, gateArmed);
                     return;
                 }
         }

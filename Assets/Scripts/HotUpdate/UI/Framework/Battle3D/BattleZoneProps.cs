@@ -36,7 +36,7 @@ namespace SynergyUI
         private static readonly Transform[] _stacks = new Transform[2]; // 下标=归属 0/1
         private static readonly Dictionary<long, Transform> _vortexes = new Dictionary<long, Transform>();
         private static Mesh _stackMesh;
-        private static Material _sideMat, _topMat, _graveMat, _exileMat;
+        private static Material _sideMat, _topMat, _graveMat, _exileMat, _litTemplate;
         private static bool _depsLogged;
 
         /// <summary>装台（棋盘拼装后调，幂等）：双方卡堆 + 四格漩涡惰性建齐；返回实建道具数。</summary>
@@ -135,6 +135,7 @@ namespace SynergyUI
             _topMat = null;
             _graveMat = null;
             _exileMat = null;
+            _litTemplate = null;
             _depsLogged = false;
         }
 
@@ -168,17 +169,7 @@ namespace SynergyUI
             var cell = DeckCell(owner);
             var tile = TileOf(cell.x, cell.z);
             if (tile == null) return null;
-
-            if (_sideMat == null)
-            {
-                _sideMat = HotUpdateAssets.Load<Material>("BattleCardStack_Side", SideMatPath);
-                if (_sideMat == null) { WarnDeps("BattleCardStack_Side.mat"); return null; }
-            }
-            if (_topMat == null)
-            {
-                _topMat = HotUpdateAssets.Load<Material>("BattleCardBack_Back", TopMatPath);
-                if (_topMat == null) { WarnDeps("BattleCardBack_Back_Mat（卡背资产）"); return null; }
-            }
+            if (!EnsureStackMaterials()) return null;
 
             var go = new GameObject($"deck-stack-{(owner == 0 ? "self" : "opp")}");
             go.transform.SetParent(tile, false);
@@ -191,6 +182,47 @@ namespace SynergyUI
             rend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             _stacks[owner] = go.transform;
             return go.transform;
+        }
+
+        private static bool EnsureStackMaterials()
+        {
+            if (_sideMat == null)
+            {
+                _sideMat = HotUpdateAssets.Load<Material>("BattleCardStack_Side", SideMatPath);
+                if (_sideMat == null) { WarnDeps("BattleCardStack_Side.mat"); return false; }
+            }
+            if (_topMat == null)
+            {
+                _topMat = HotUpdateAssets.Load<Material>("BattleCardBack_Back", TopMatPath);
+                if (_topMat == null) { WarnDeps("BattleCardBack_Back_Mat（卡背资产）"); return false; }
+            }
+            return true;
+        }
+
+        /// <summary>开场段四候选卡组堆共享资产（2026-10-19 五段式开局·BattleDeckPickStage）：与卡组格
+        /// 正主卡堆同 mesh 同双材质（卡背顶面+条纹侧面）；mesh 生命周期随 Unmount（开场期恒已装台）。
+        /// false=依赖缺失（调用方降级为无堆）。</summary>
+        public static bool TryGetStackAssets(out Mesh mesh, out Material side, out Material top)
+        {
+            mesh = null; side = null; top = null;
+            if (!EnsureStackMaterials()) return false;
+            mesh = BuildStackMesh();
+            side = _sideMat;
+            top = _topMat;
+            return true;
+        }
+
+        /// <summary>URP Lit 纯色材质模板（2026-10-19 开场件公用）：硬币面盘/选堆色环的着色克隆源
+        ///（HeroPillarMaterial 同源模板）。返回资产原件——调用方须 new Material 克隆后改色，勿直改。</summary>
+        public static Material LitTemplate
+        {
+            get
+            {
+                if (_litTemplate == null)
+                    _litTemplate = HotUpdateAssets.Load<Material>(
+                        "BattleTile_Zone02", "Assets/Art/Battle3D/Materials/BattleTile_Zone02_P1Unit.mat");
+                return _litTemplate;
+            }
         }
 
         private static void EnsureVortex(int x, int z, string kind, Material mat)

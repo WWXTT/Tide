@@ -321,6 +321,10 @@ namespace SynergyUI
                 }
                 card.SetController(owner);
                 container.Add(card, Zone.Battlefield);
+                // 印刷关键词补齐（2026-10-19 实测根因）：静默播种不走 TryMoveToBattlefield 统一出口，
+                // 卡面关键词的差集补齐/指示物化补层（潜行 1 层等）从不发生——教学二潜行者可被效果
+                // 指名、不朽卫士无「不灭」。官方入场口同款显式补调；无卡面关键词零开销直返。
+                CardCore.Attribute.KeywordRules.RefreshPrintedKeywordsOnEntry(card);
                 if (unit.tapped) card.Tap();
                 GameActions.RegisterCardTriggeredEffects(core, card, owner); // 静默入场不接触发式，显式补
                 foreach (var counter in unit.counters ?? new List<TutorialCounterSpec>())
