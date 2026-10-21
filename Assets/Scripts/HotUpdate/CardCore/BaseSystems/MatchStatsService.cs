@@ -174,6 +174,15 @@ namespace CardCore
             //（订阅本身一次性挂载）
         }
 
+        /// <summary>清本回合层（_turn+_standbyDrawn，OnTurnEndedClear 同口径）——教学「重置考验」用：
+        /// 重铺后回合不推进，残留 CardsPlayed 会让 FirstCardThisTurn 门恒假（重置后首卡奖励不触发）、
+        /// 旧首抽集合是脏读面；_game 全局累计不动。</summary>
+        public void ClearTurnScope()
+        {
+            _turn.Clear();
+            _standbyDrawn.Clear();
+        }
+
         // ======================================== 内部 ========================================
 
         private void Add(Player player, string statId, int amount)

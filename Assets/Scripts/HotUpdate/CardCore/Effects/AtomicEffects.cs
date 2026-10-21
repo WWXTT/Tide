@@ -249,7 +249,7 @@ namespace CardCore
         EngineClash,
         /// <summary>引擎主干·死亡计数：双方生物死亡累计≥x 触发奖励（预算=x）。枚举只可尾部追加。</summary>
         EngineDeathToll,
-        /// <summary>引擎主干·元素充盈：己方元素池最多色＞x 触发奖励（预算=x）。枚举只可尾部追加。</summary>
+        /// <summary>引擎主干·元素充盈：己方元素池上限与对手的差≥x（门槛=Then 锚价推导）触发奖励。枚举只可尾部追加。</summary>
         EngineManaSurplus,
         /// <summary>引擎主干·手牌序位：本回合第 x 张使用的手牌发动时触发奖励（预算=x）。枚举只可尾部追加。</summary>
         EngineNthHandCard,
@@ -352,12 +352,12 @@ namespace CardCore
         /// 触发口=KeywordRules.ApplyDamage 管线尾段（吸血后、剧毒前）。枚举只可尾部追加。</summary>
         GrantRetaliation,
 
-        /// <summary>引擎主干·效果序位（2026-10-19 手牌序位改案：计数源从「本方从手牌使用张数」整体
-        /// 替换为「双方效果发动次数」）：本回合双方效果发动数（主动/自动效果入栈声明+法术/技能整卡
-        /// 施放各算 1；攻击/守卫宣言、SBA、引擎合成奖励不算）达到 x−1 时触发奖励——奖励自身即
-        /// 「第 x 位」，不占发动位（不用计数自身）。x∈[1,6] 手填参数（EngineParamRange）；
-        /// 观察面=手牌∪场上双方引擎卡（死亡计数 2026-10-19 改案同口径）。枚举只可尾部追加。</summary>
-        EngineEffectOrdinal,
+        /// <summary>引擎主干·团结（2026-10-20 效果序位换轴·第6种改空间轴）：与此卡相邻的单位数
+        ///（生物/结界占格各 1、角色格恒 1、非空地牌格 1；施放占位卡不计）达到 x 时触发奖励——
+        /// 评估口=己方出牌施放结算完成后（元素充盈同拍），每次达标都触发。x∈[1,6] 手填参数
+        ///（EngineParamRange）；观察面=己方场上引擎卡（手牌无格不观察）；邻接计数经注入委托
+        ///（核心不绑棋盘）。枚举只可尾部追加。</summary>
+        EngineUnity,
     }
 
     /// <summary>
@@ -458,6 +458,10 @@ namespace CardCore
 
         /// <summary>触发事件</summary>
         public IGameEvent TriggeringEvent { get; set; }
+
+        /// <summary>预评标志（2026-10-21 金圈时序）：金圈/扇区预评（尚未宣言出牌）置 true——
+        /// FirstCardThisTurn/HandEmpty 按「这张打出后」口径评估；结算期上下文不置（读真实计数）。</summary>
+        public bool SimulatedPreview;
 
         /// <summary>区域管理器</summary>
         public ZoneManager ZoneManager { get; set; }

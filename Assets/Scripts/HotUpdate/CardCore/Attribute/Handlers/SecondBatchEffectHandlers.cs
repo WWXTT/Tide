@@ -316,7 +316,8 @@ namespace CardCore.Attribute.Handlers
                 PublishEvent(new AtomicDamageEvent
                 {
                     Source = context.Source, Target = target, Damage = dmg,
-                    IsCombatDamage = true, DamageType = DamageType.Combat
+                    IsCombatDamage = true, DamageType = DamageType.Combat,
+                    EffectTint = effect.AnchorTint()
                 });
                 PublishEvent(new CombatDamageEvent
                 {
@@ -382,7 +383,8 @@ namespace CardCore.Attribute.Handlers
                 PublishEvent(new AtomicDamageEvent
                 {
                     Source = context.Source, Target = target, Damage = amount,
-                    IsCombatDamage = false, DamageType = DamageType.LifeLoss
+                    IsCombatDamage = false, DamageType = DamageType.LifeLoss,
+                    EffectTint = effect.AnchorTint()
                 });
             }
         }

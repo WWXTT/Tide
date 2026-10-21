@@ -33,8 +33,8 @@ namespace CardCore
 
         /// <summary>第三课·末日降临 Boss 挑战关卡 id（2026-10-18 真实对局流程版，2026-10-19 挪入
         /// 第三课位）：走战场五段式开局教学三变体（掷币+战场选卡组·BattleOpeningDirector），AI 镜像
-        /// 玩家卡组后被幻卡清算、召唤末日降临。课序挪位不改 id——旧档 completed/lunzhuanAttempted
-        /// 天然兼容。</summary>
+        /// 玩家卡组后被幻卡清算、召唤末日降临。课序挪位不改 id——旧档 completed 天然兼容
+        ///（旧档残留 lunzhuanAttempted 键 2026-10-21 随判据退役，反序列化自动忽略）。</summary>
         public const string LunzhuanId = "lunzhuan";
 
         /// <summary>新手课程序列（2026-10-19 三课制定案）：basics 攻防 → jinjie 进阶机制 →
@@ -79,11 +79,6 @@ namespace CardCore
         /// <summary>新手课程序列（CourseOrder）是否全部完成（三课全胜=教学整体完成）。</summary>
         public bool IsCourseCompleted
             => CourseOrder.All(id => _data.completedTutorials.Contains(id));
-
-        /// <summary>第三课（末日降临挑战）是否已打过一局（2026-10-18 定案：无论胜负）——
-        /// 三个组合界面按钮（卡组/卡面/效果）的解锁判据（IsTutorialDone 兜底）。
-        /// 完成语义独立：胜=MarkTutorialCompleted(LunzhuanId)；负只置本标记，重挑直到胜。</summary>
-        public bool LunzhuanAttempted => _data.lunzhuanAttempted;
 
         /// <summary>教学整体完成（2026-10-19 三课制：三课全胜即完成——结业镜像局环节退役）——
         /// 主菜单解除门禁、教学按钮换本地对战按钮的判据。</summary>
@@ -130,15 +125,6 @@ namespace CardCore
         public void WriteCreationState(CreationLessonData creation)
         {
             _data.creation = creation;
-            SaveAndNotify();
-        }
-
-        /// <summary>第三课已尝试落档（2026-10-18：胜负都调——组合界面解锁判据；幂等）。
-        /// 与完成语义解耦：胜另走 MarkTutorialCompleted，负只置本标记留在课程内重挑。</summary>
-        public void MarkLunzhuanAttempted()
-        {
-            if (_data.lunzhuanAttempted) return;
-            _data.lunzhuanAttempted = true;
             SaveAndNotify();
         }
 
@@ -208,7 +194,6 @@ namespace CardCore
         [Serializable]
         private class TutorialProgressData
         {
-            public bool lunzhuanAttempted; // 第三课（末日降临）已打过一局（无论胜负——组合界面解锁判据；旧档缺列=false 兼容）
             public List<string> completedTutorials = new List<string>();
             public string currentTutorial;
             public CreationLessonData creation; // 第三课走查状态（null=未开课；旧档缺列兼容）

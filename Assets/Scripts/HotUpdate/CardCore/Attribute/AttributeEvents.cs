@@ -19,6 +19,9 @@ namespace CardCore.Attribute
         public int Damage { get; set; }
         public bool IsCombatDamage { get; set; }
         public DamageType DamageType { get; set; }
+        /// <summary>效果基础色（2026-10-20 定案：弹体/爆点按所用效果的基础色）：发布方填
+        /// 原子行费用基准主色（effect.AnchorTint()）；null=无基准（表现层回落来源卡费用主色）。</summary>
+        public ManaType? EffectTint { get; set; }
     }
 
     /// <summary>治疗事件</summary>

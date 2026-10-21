@@ -69,7 +69,7 @@
     {
      "kind": 0,
      "atom": {
-      "refId": "ab2e0a4f",
+      "refId": "4b5fe01c",
       "kinds": [
        2
       ]
@@ -472,7 +472,7 @@
   },
   {
    "id": "745280CE",
-   "name": "教学·破釜沉舟：对己方目标造成1点伤害；若己方生命值≤7，再对对方目标造成2点伤害",
+   "name": "教学·破釜沉舟：代价对自己造成1点伤害并获得1黑；对对方目标造成1点伤害；若己方生命值≤7，再对对方目标造成2点伤害",
    "timing": 19,
    "activation": 2,
    "cost": [
@@ -489,7 +489,7 @@
      "atom": {
       "refId": "a4b823fc",
       "kinds": [
-       1
+       2
       ],
       "value": 1,
       "branch": {
@@ -505,6 +505,21 @@
         }
        ]
       }
+     }
+    }
+   ],
+   "costs": [
+    {
+     "type": 7,
+     "value": 0,
+     "manaType": 0,
+     "turns": 0,
+     "payload": {
+      "refId": "a4b823fc",
+      "kinds": [
+       1
+      ],
+      "value": 1
      }
     }
    ]
@@ -561,11 +576,12 @@
     0,
     0
    ],
+   "limit": 1,
    "steps": [
     {
      "kind": 0,
      "atom": {
-      "refId": "74066ce9",
+      "refId": "24194dca",
       "branch": {
        "settle": 3,
        "engine": 1,
@@ -586,9 +602,12 @@
   },
   {
    "id": "C5DDE357",
-   "name": "教学·运势壹：回合开始掷两个六面骰子，掷出的值都≥1时，对对方目标造成1点伤害",
-   "timing": 5,
-   "activation": 1,
+   "name": "教学·运势壹：点击掷两个骰子，运势一，则【对对方单位造成1点伤害(本回合0/1)】",
+   "timing": 19,
+   "activation": 2,
+   "kinds": [
+    2
+   ],
    "cost": [
     0,
     0,
@@ -597,15 +616,17 @@
     0,
     0
    ],
+   "limit": 1,
    "steps": [
     {
      "kind": 0,
      "atom": {
-      "refId": "9f6e4f49",
+      "refId": "d530c5a2",
       "branch": {
        "settle": 3,
        "engine": 2,
        "engineParam": 1,
+       "tactivate": 2,
        "then": [
         {
          "refId": "a4b823fc",
@@ -622,9 +643,12 @@
   },
   {
    "id": "D4531AA1",
-   "name": "教学·运势贰：回合开始掷两个六面骰子，掷出的值都≥2时，对对方目标造成2点伤害",
-   "timing": 5,
-   "activation": 1,
+   "name": "教学·运势贰：点击掷两个骰子，运势二，则【对对方单位造成2点伤害(本回合0/1)】",
+   "timing": 19,
+   "activation": 2,
+   "kinds": [
+    2
+   ],
    "cost": [
     0,
     0,
@@ -633,15 +657,17 @@
     0,
     0
    ],
+   "limit": 1,
    "steps": [
     {
      "kind": 0,
      "atom": {
-      "refId": "9f6e4f49",
+      "refId": "d530c5a2",
       "branch": {
        "settle": 3,
        "engine": 2,
        "engineParam": 2,
+       "tactivate": 2,
        "then": [
         {
          "refId": "a4b823fc",
@@ -658,9 +684,12 @@
   },
   {
    "id": "322D145C",
-   "name": "教学·运势叁：回合开始掷两个六面骰子，掷出的值都≥3时，对对方目标造成3点伤害",
-   "timing": 5,
-   "activation": 1,
+   "name": "教学·运势叁：点击掷两个骰子，运势三，则【对对方单位造成3点伤害(本回合0/1)】",
+   "timing": 19,
+   "activation": 2,
+   "kinds": [
+    2
+   ],
    "cost": [
     0,
     0,
@@ -669,15 +698,17 @@
     0,
     0
    ],
+   "limit": 1,
    "steps": [
     {
      "kind": 0,
      "atom": {
-      "refId": "9f6e4f49",
+      "refId": "d530c5a2",
       "branch": {
        "settle": 3,
        "engine": 2,
        "engineParam": 3,
+       "tactivate": 2,
        "then": [
         {
          "refId": "a4b823fc",
@@ -694,9 +725,12 @@
   },
   {
    "id": "D7B81DDC",
-   "name": "教学·运势肆：回合开始掷两个六面骰子，掷出的值都≥4时，对对方目标造成4点伤害",
-   "timing": 5,
-   "activation": 1,
+   "name": "教学·运势肆：点击掷两个骰子，运势四，则【对对方单位造成4点伤害(本回合0/1)】",
+   "timing": 19,
+   "activation": 2,
+   "kinds": [
+    2
+   ],
    "cost": [
     0,
     0,
@@ -705,15 +739,17 @@
     0,
     0
    ],
+   "limit": 1,
    "steps": [
     {
      "kind": 0,
      "atom": {
-      "refId": "9f6e4f49",
+      "refId": "d530c5a2",
       "branch": {
        "settle": 3,
        "engine": 2,
        "engineParam": 4,
+       "tactivate": 2,
        "then": [
         {
          "refId": "a4b823fc",
@@ -730,9 +766,12 @@
   },
   {
    "id": "2CD9048A",
-   "name": "教学·运势伍：回合开始掷两个六面骰子，掷出的值都≥5时，对对方目标造成5点伤害",
-   "timing": 5,
-   "activation": 1,
+   "name": "教学·运势伍：点击掷两个骰子，运势五，则【对对方单位造成5点伤害(本回合0/1)】",
+   "timing": 19,
+   "activation": 2,
+   "kinds": [
+    2
+   ],
    "cost": [
     0,
     0,
@@ -741,15 +780,17 @@
     0,
     0
    ],
+   "limit": 1,
    "steps": [
     {
      "kind": 0,
      "atom": {
-      "refId": "9f6e4f49",
+      "refId": "d530c5a2",
       "branch": {
        "settle": 3,
        "engine": 2,
        "engineParam": 5,
+       "tactivate": 2,
        "then": [
         {
          "refId": "a4b823fc",
@@ -766,9 +807,12 @@
   },
   {
    "id": "8E367535",
-   "name": "教学·运势陆：回合开始掷两个六面骰子，掷出的值都≥6时，对对方目标造成6点伤害",
-   "timing": 5,
-   "activation": 1,
+   "name": "教学·运势陆：点击掷两个骰子，运势六，则【对对方单位造成6点伤害(本回合0/1)】",
+   "timing": 19,
+   "activation": 2,
+   "kinds": [
+    2
+   ],
    "cost": [
     0,
     0,
@@ -777,15 +821,17 @@
     0,
     0
    ],
+   "limit": 1,
    "steps": [
     {
      "kind": 0,
      "atom": {
-      "refId": "9f6e4f49",
+      "refId": "d530c5a2",
       "branch": {
        "settle": 3,
        "engine": 2,
        "engineParam": 6,
+       "tactivate": 2,
        "then": [
         {
          "refId": "a4b823fc",
@@ -811,11 +857,12 @@
     0,
     0
    ],
+   "limit": 1,
    "steps": [
     {
      "kind": 0,
      "atom": {
-      "refId": "21c3a99e",
+      "refId": "2b4f8efd",
       "branch": {
        "settle": 3,
        "engine": 3,
@@ -844,11 +891,12 @@
     0,
     0
    ],
+   "limit": 1,
    "steps": [
     {
      "kind": 0,
      "atom": {
-      "refId": "b61a539c",
+      "refId": "d1ddfd78",
       "branch": {
        "settle": 3,
        "engine": 4,
@@ -867,8 +915,8 @@
    ]
   },
   {
-   "id": "D0501DB1",
-   "name": "教学·元素充盈甲：使用卡牌付费后，剩余元素≥6时对对方目标造成6点伤害",
+   "id": "BF69F534",
+   "name": "教学·充盈1：对手回合对手使用卡牌结算后，双方剩余元素的差恰为1时，对目标造成1点伤害（仅自动）",
    "cost": [
     0,
     0,
@@ -877,11 +925,12 @@
     0,
     0
    ],
+   "limit": 1,
    "steps": [
     {
      "kind": 0,
      "atom": {
-      "refId": "fb8a41c9",
+      "refId": "aa15df99",
       "branch": {
        "settle": 3,
        "engine": 5,
@@ -891,7 +940,7 @@
          "kinds": [
           2
          ],
-         "value": 6
+         "value": 1
         }
        ]
       }
@@ -900,8 +949,8 @@
    ]
   },
   {
-   "id": "0B949DE1",
-   "name": "教学·元素充盈乙：使用卡牌付费后，剩余元素≥2时对对方目标造成2点伤害",
+   "id": "A628AC66",
+   "name": "教学·充盈2：对手回合对手使用卡牌结算后，双方剩余元素的差恰为2时，对目标造成2点伤害（仅自动）",
    "cost": [
     0,
     0,
@@ -910,11 +959,12 @@
     0,
     0
    ],
+   "limit": 1,
    "steps": [
     {
      "kind": 0,
      "atom": {
-      "refId": "fb8a41c9",
+      "refId": "aa15df99",
       "branch": {
        "settle": 3,
        "engine": 5,
@@ -933,27 +983,137 @@
    ]
   },
   {
-   "id": "EB561A43",
-   "name": "教学·火花：对对方目标造成1点伤害",
-   "timing": 19,
-   "activation": 2,
+   "id": "6C28CDF3",
+   "name": "教学·充盈3：对手回合对手使用卡牌结算后，双方剩余元素的差恰为3时，对目标造成3点伤害（仅自动）",
    "cost": [
     0,
-    1,
+    0,
     0,
     0,
     0,
     0
    ],
+   "limit": 1,
    "steps": [
     {
      "kind": 0,
      "atom": {
-      "refId": "a4b823fc",
-      "kinds": [
-       2
-      ],
-      "value": 1
+      "refId": "aa15df99",
+      "branch": {
+       "settle": 3,
+       "engine": 5,
+       "then": [
+        {
+         "refId": "a4b823fc",
+         "kinds": [
+          2
+         ],
+         "value": 3
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "981112BA",
+   "name": "教学·充盈4：对手回合对手使用卡牌结算后，双方剩余元素的差恰为4时，对目标造成4点伤害（仅自动）",
+   "cost": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "limit": 1,
+   "steps": [
+    {
+     "kind": 0,
+     "atom": {
+      "refId": "aa15df99",
+      "branch": {
+       "settle": 3,
+       "engine": 5,
+       "then": [
+        {
+         "refId": "a4b823fc",
+         "kinds": [
+          2
+         ],
+         "value": 4
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "60852B8F",
+   "name": "教学·充盈5：对手回合对手使用卡牌结算后，双方剩余元素的差恰为5时，对目标造成5点伤害（仅自动）",
+   "cost": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "limit": 1,
+   "steps": [
+    {
+     "kind": 0,
+     "atom": {
+      "refId": "aa15df99",
+      "branch": {
+       "settle": 3,
+       "engine": 5,
+       "then": [
+        {
+         "refId": "a4b823fc",
+         "kinds": [
+          2
+         ],
+         "value": 5
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "B0280213",
+   "name": "教学·充盈6：对手回合对手使用卡牌结算后，双方剩余元素的差恰为6时，对目标造成6点伤害（仅自动）",
+   "cost": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "limit": 1,
+   "steps": [
+    {
+     "kind": 0,
+     "atom": {
+      "refId": "aa15df99",
+      "branch": {
+       "settle": 3,
+       "engine": 5,
+       "then": [
+        {
+         "refId": "a4b823fc",
+         "kinds": [
+          2
+         ],
+         "value": 6
+        }
+       ]
+      }
      }
     }
    ]
@@ -980,6 +1140,7 @@
        "settle": 3,
        "engine": 8,
        "engineParam": 1,
+       "tactivate": 2,
        "then": [
         {
          "refId": "a4b823fc",
@@ -1016,6 +1177,7 @@
        "settle": 3,
        "engine": 9,
        "engineParam": 1,
+       "tactivate": 2,
        "then": [
         {
          "refId": "599fcc9a",
@@ -1032,11 +1194,46 @@
   },
   {
    "id": "D9C996F2",
-   "name": "教学·效果序位兽：此效果是本回合第6个发动的效果时，对对方目标造成6点伤害",
+   "name": "教学·团结兽：与此卡相邻的单位数（生物/结界/角色/非空地牌格各算一）达到4时，对目标造成4点伤害",
+   "cost": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "limit": 1,
+   "steps": [
+    {
+     "kind": 0,
+     "atom": {
+      "refId": "52c1ce3f",
+      "branch": {
+       "settle": 3,
+       "engine": 10,
+       "engineParam": 4,
+       "then": [
+        {
+         "refId": "a4b823fc",
+         "kinds": [
+          2
+         ],
+         "value": 4
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "E1D84E55",
+   "name": "教学·直伤兽：对目标造成1点伤害",
    "timing": 19,
    "activation": 2,
    "cost": [
-    0,
+    1,
     0,
     0,
     0,
@@ -1047,20 +1244,11 @@
     {
      "kind": 0,
      "atom": {
-      "refId": "b951e72f",
-      "branch": {
-       "settle": 3,
-       "engine": 10,
-       "then": [
-        {
-         "refId": "a4b823fc",
-         "kinds": [
-          2
-         ],
-         "value": 6
-        }
-       ]
-      }
+      "refId": "a4b823fc",
+      "kinds": [
+       2
+      ],
+      "value": 1
      }
     }
    ]

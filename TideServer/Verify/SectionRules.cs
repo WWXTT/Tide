@@ -676,6 +676,10 @@ namespace TideServer.Verify
             hcore.InitGame(CardLoader.BuildDeck(fillerH, 2), CardLoader.BuildDeck(fillerH, 2));
             var h1 = hcore.Player1;
             var h2 = hcore.Player2;
+            // 挂载随机走静态 GameRng（InfoAxisHandlers 牌库随机一张）——本段 InitGame 未传 rngSeed，
+            // 流位置取决于全进程先前抽取（上游教学模拟段行为变化即漂移：祝福挂到末张→循环抽干后
+            // 奖励抽牌撞空库差1）。钉种子=位置确定（20261020 修复实证），同 5132 行 Reseed 惯例。
+            GameRng.Reseed(20261020);
             GameActions.SkipElementPool(hcore, h1);
             // 夹具卡未声明 Cost——出牌链按效果推导费，灌满银行保证可付（夹具局即弃，不还原）
             foreach (ManaType t in Enum.GetValues(typeof(ManaType)))
@@ -2925,7 +2929,7 @@ namespace TideServer.Verify
                 { AtomicEffectType.EngineClash, BranchEngineKind.Clash },
                 { AtomicEffectType.EngineDeathToll, BranchEngineKind.DeathToll },
                 { AtomicEffectType.EngineManaSurplus, BranchEngineKind.ManaSurplus },
-                { AtomicEffectType.EngineEffectOrdinal, BranchEngineKind.EffectOrdinal },   // 2026-10-19 手牌序位改案
+                { AtomicEffectType.EngineUnity, BranchEngineKind.Unity },                  // 2026-10-20 效果序位换轴·空间轴
                 { AtomicEffectType.EngineCurseOnDraw, BranchEngineKind.CurseOnDraw },       // 2026-10-08 引擎主干化
                 { AtomicEffectType.EngineBlessingOnDraw, BranchEngineKind.BlessingOnDraw }, // 2026-10-08
             };
@@ -2937,9 +2941,11 @@ namespace TideServer.Verify
                     $"引擎主干行回表：{kv.Key}（位 5 引擎主干、映射 {kv.Value}——2026-10-07 位 0 删除后主干资格派生，引擎行互斥由 CanBeRewardRow 排除）");
             }
 
-            // ---- ①b 效果序位（2026-10-19 手牌序位改案·定案）：本回合双方效果发动数达到 x−1 时触发——
-            //      发动口径=主动/自动效果入栈声明+法术整卡施放各 1；SBA/攻击宣言等规则栈对象与引擎奖励
-            //      不算；奖励自身不占发动位；观察面=手牌∪场上双方引擎卡。运行时行为夹具见本段段尾 ⑧ ----
+            // ---- ①b 团结（2026-10-20 效果序位换轴定案·第6种改空间轴）：与此卡相邻的单位数
+            //      （生物/结界占格、角色格、非空地牌格各算一；施放占位卡不计）≥ x 时触发——
+            //      评估口=OnCardCastSettled（己方出牌结算后，充盈同拍），每次达标都触发；
+            //      只观察己方场上引擎卡；x∈[1,6] 手填；邻接计数经注入委托（BoardState.AdjacentOccupantCount）。
+            //      运行时行为夹具见本段段尾 ⑧ ----
 
 
 
@@ -3313,25 +3319,27 @@ namespace TideServer.Verify
             }
             finally { TideLog.Sink = bPrevSink; }
 
-            // ---- ⑧ 效果序位运行时（2026-10-19 手牌序位改案·定案）：本回合双方效果发动数达到 x−1 时触发。
-            //      段尾执行——段内既有出牌已抬计数，经同程序集探针复位锚定基线（合成 TurnStart 有级联
-            //      副作用不作复位用）；残留栈对象随下段 Reset 清理 ----
+            // ---- ⑧ 团结运行时（2026-10-20 效果序位换轴定案·空间轴）：与此卡相邻的单位数 ≥ x 时触发。
+            //      评估口=OnCardCastSettled（己方出牌结算后，充盈同拍），每次达标都触发；只观察己方
+            //      场上引擎卡（手牌无格）；核心不绑棋盘——邻接计数经 UnityAdjacentCountOf 注入
+            //      （宿主接线 BoardState.AdjacentOccupantCount；本夹具注假计数）；finally 清防跨段泄漏 ----
             {
-                BranchEngines.ResetEffectOrdinalForVerify();
-                VerifySuite.Assert(BranchEngines.EffectOrdinalCountForVerify == 0, "效果序位：计数基线复位（验证器探针）");
+                // 隔离：清 b1x 战场残留（段内前组夹具可能留有充盈等引擎卡——同口评估会串扰抽牌计数）
+                foreach (var staleUnit in bcore.ZoneManager.GetCards(b1x, Zone.Battlefield).ToList())
+                    if (staleUnit != null) bcore.ZoneManager.GetZoneContainer(b1x).Remove(staleUnit, Zone.Battlefield);
 
                 // 奖励载体备料：段内既有断言已抽干 b1x 牌库——回填 2 张供 DrawCard 奖励观测
-                for (int eoFill = 0; eoFill < 2; eoFill++)
+                for (int uniFill = 0; uniFill < 2; uniFill++)
                 {
-                    var eoDeckFiller = new CardWrapper(new CardData
+                    var uniDeckFiller = new CardWrapper(new CardData
                     {
-                        ID = "V9Q_EO_FILL" + eoFill, CardName = "序位填充", Supertype = Cardtype.Creature, Power = 1, Life = 1,
+                        ID = "V9Q_UNI_FILL" + uniFill, CardName = "团结填充", Supertype = Cardtype.Creature, Power = 1, Life = 1,
                     });
-                    eoDeckFiller.SetController(b1x);
-                    bcore.ZoneManager.GetZoneContainer(b1x).Add(eoDeckFiller, Zone.Deck);
+                    uniDeckFiller.SetController(b1x);
+                    bcore.ZoneManager.GetZoneContainer(b1x).Add(uniDeckFiller, Zone.Deck);
                 }
 
-                CardData EOCard(string id, int x)
+                CardData UnityCard(string id, int x)
                 {
                     var d = new CardData { ID = id, CardName = id, Supertype = Cardtype.Creature, Power = 1, Life = 1 };
                     d.Effects.Add(new CardEffectData
@@ -3341,12 +3349,12 @@ namespace TideServer.Verify
                         {
                             new AtomicEffectEntry
                             {
-                                refId = AtomicEffectTable.GetByType(AtomicEffectType.EngineEffectOrdinal)?.HashId,
+                                refId = AtomicEffectTable.GetByType(AtomicEffectType.EngineUnity)?.HashId,
                                 value = 1,
                                 branch = new BranchEntryData
                                 {
                                     settle = (int)BranchSettleKind.Engine,
-                                    engine = (int)BranchEngineKind.EffectOrdinal,
+                                    engine = (int)BranchEngineKind.Unity,
                                     engineParam = x,
                                     then = new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.DrawCard, value: 1) },
                                 },
@@ -3355,60 +3363,50 @@ namespace TideServer.Verify
                     });
                     return d;
                 }
-                Card EOToHand(Player owner, CardData data)
+                Card UnityToZone(Player owner, CardData data, Zone zone)
                 {
                     var card = new CardWrapper(data);
                     card.SetController(owner);
-                    bcore.ZoneManager.GetZoneContainer(owner).Add(card, Zone.Hand);
+                    card.IsAlive = true;
+                    bcore.ZoneManager.GetZoneContainer(owner).Add(card, zone);
                     return card;
                 }
-                var eoAData = EOCard("V9Q_EO_A", 2); // x=2 → 门槛=1
-                var eoBData = EOCard("V9Q_EO_B", 3); // x=3 → 门槛=2
-                var eoA = EOToHand(b1x, eoAData);
-                EOToHand(b1x, eoBData);
+                var uniAData = UnityCard("V9Q_UNI_A", 2); // x=2
+                var uniBData = UnityCard("V9Q_UNI_B", 2); // 场上第二张（每次达标都触发→各抽 1）
+                UnityToZone(b1x, uniAData, Zone.Battlefield);
+                UnityToZone(b1x, uniBData, Zone.Battlefield);
+                UnityToZone(b1x, UnityCard("V9Q_UNI_HAND", 1), Zone.Hand); // 手牌载体：无格不观察
 
-                // 转换器钉死组：错声明（使用卡牌时之外）归一 使用卡牌时+自动+无限（显示缺省；真实观察口=StackAddEvent）
-                var eoDef = CardEffectConverter.ConvertOne(eoAData.Effects[0], "V9Q");
-                VerifySuite.Assert(eoDef.TriggerTiming == TriggerTiming.OnCardPlayed
-                                  && eoDef.ActivationType == EffectActivationType.Automatic
-                                  && eoDef.TriggerLimitPerTurn == -1,
-                    "效果序位钉死组：引擎头归一 使用卡牌时+自动+无限（2026-10-19 手牌序位改案口径）");
+                // 转换器钉死组：引擎头归一 使用卡牌时+自动+无限（充盈同款显示缺省）
+                var uniDef = CardEffectConverter.ConvertOne(uniAData.Effects[0], "V9Q");
+                VerifySuite.Assert(uniDef.TriggerTiming == TriggerTiming.OnCardPlayed
+                                  && uniDef.ActivationType == EffectActivationType.Automatic
+                                  && uniDef.TriggerLimitPerTurn == -1,
+                    "团结钉死组：引擎头归一 使用卡牌时+自动+无限（2026-10-20 效果序位换轴口径）");
 
-                int eoHand0 = bcore.ZoneManager.GetCards(b1x, Zone.Hand).Count; // 基线在合成回合开始（含其抽牌）之后
-
-                // 规则栈对象探针（合成事件，不占栈）：SBA/攻击宣言无 Definition → 不占发动位
-                EventManager.Instance.Publish(new StackAddEvent { AddedObject = new EffectInstance { IsSBA = true } });
-                EventManager.Instance.Publish(new StackAddEvent
+                int uniHand0 = bcore.ZoneManager.GetCards(b1x, Zone.Hand).Count;
+                try
                 {
-                    AddedObject = new EffectInstance { IsAttackDeclaration = true, Source = b1x, Targets = new List<Entity> { b2x } },
-                });
-                VerifySuite.Assert(bcore.ZoneManager.GetCards(b1x, Zone.Hand).Count == eoHand0
-                                  && BranchEngines.EffectOrdinalCountForVerify == 0,
-                    "效果序位：SBA/攻击宣言不占发动位（计数恒 0，规则动作≠效果发动）");
+                    // 未接线（无头默认）=0 恒不触发
+                    BranchEngines.UnityAdjacentCountOf = null;
+                    BranchEngines.OnCardCastSettled(b1x);
+                    VerifySuite.Assert(bcore.ZoneManager.GetCards(b1x, Zone.Hand).Count == uniHand0,
+                        "团结：邻接计数未接线（无头默认）= 0 恒不触发");
 
-                // 法术整卡施放=1 次发动（真实入栈）：计数 1 = A 门槛（x−1）→ A 触发抽 1
-                var eoSpell = new CardWrapper(new CardData { ID = "V9Q_EO_SPELL", CardName = "序位法术", Supertype = Cardtype.Spell });
-                eoSpell.SetController(b1x);
-                VerifySuite.Assert(bcore.StackEngine.PushCardCast(eoSpell, b1x, null)
-                                  && BranchEngines.EffectOrdinalCountForVerify == 1, "法术施放入栈探针（空栈首动豁免）+ 计数=1");
-                VerifySuite.Assert(bcore.ZoneManager.GetCards(b1x, Zone.Hand).Count == eoHand0 + 1,
-                    $"效果序位：法术施放计 1 次发动 → 计数 1 = x−1 → A(x=2) 触发抽 1（生物/地牌施放不算）" +
-                    $"（实际手牌 {bcore.ZoneManager.GetCards(b1x, Zone.Hand).Count}/{eoHand0}、牌库余 {bcore.ZoneManager.GetCards(b1x, Zone.Deck).Count}）");
+                    // 邻接不足：1 < x=2 不触发
+                    BranchEngines.UnityAdjacentCountOf = c => 1;
+                    BranchEngines.OnCardCastSettled(b1x);
+                    VerifySuite.Assert(bcore.ZoneManager.GetCards(b1x, Zone.Hand).Count == uniHand0,
+                        "团结：相邻单位数 1 < x=2 不触发");
 
-                // 主动效果声明=1 次发动（真实入栈，速 2>记速器 0 过门槛）：计数 2 = B 门槛 → B 触发抽 1
-                var eoVolDef = new EffectDefinition
-                {
-                    Id = "V9Q_EO_VOL", DisplayName = "序位主动探针", BaseSpeed = 2,
-                    TriggerTiming = TriggerTiming.Activate_Active, ActivationType = EffectActivationType.Voluntary,
-                    ElementCostPrepaid = true,
-                    Effects = new List<AtomicEffectInstance> { new AtomicEffectInstance { Type = AtomicEffectType.DrawCard, Value = 1 } },
-                };
-                VerifySuite.Assert(bcore.StackEngine.TryActivateEffect(PendingEffect.Create(eoVolDef, eoA, b1x, b1x,
-                        bcore.TurnEngine.CurrentPhase?.Phase ?? PhaseType.Main))
-                                  && BranchEngines.EffectOrdinalCountForVerify == 2,
-                    "主动效果声明入栈探针（速 2>记速器 0）+ 计数=2");
-                VerifySuite.Assert(bcore.ZoneManager.GetCards(b1x, Zone.Hand).Count == eoHand0 + 2,
-                    "效果序位：主动效果声明计 1 次发动 → 计数 2 = x−1 → B(x=3) 触发抽 1（A 门槛已过不再重复——计数每值只经过一次）");
+                    // 达标：4 ≥ 2——场上两卡各自触发抽 2（每次达标都触发）；手牌载体无格不观察
+                    BranchEngines.UnityAdjacentCountOf = c => 4;
+                    BranchEngines.OnCardCastSettled(b1x);
+                    VerifySuite.Assert(bcore.ZoneManager.GetCards(b1x, Zone.Hand).Count == uniHand0 + 2,
+                        $"团结：相邻单位数 4 ≥ x=2 → 场上两卡各抽 1（每次达标都触发；手牌载体不观察）" +
+                        $"（实际手牌 {bcore.ZoneManager.GetCards(b1x, Zone.Hand).Count}/{uniHand0}、牌库余 {bcore.ZoneManager.GetCards(b1x, Zone.Deck).Count}）");
+                }
+                finally { BranchEngines.UnityAdjacentCountOf = null; } // 静态委托防跨段泄漏
             }
 
             // ============================ V9.r 挑战模式（2026-10-06） ============================
@@ -4486,8 +4484,9 @@ namespace TideServer.Verify
             // 改版口径①（时机轴接入计价，取代 2026-10-05「时机不接计价」）：整个生命期望=1 的触发时机
             //（登场/死亡/游戏开始/角色死亡/破坏/除外/离场/墓地回场）×0.8（表 PricingTier.TimingOnceFactor）；
             // 期望>1 时机与非触发式不乘；引擎载荷豁免（def 时机=奖励发射窗，不代表主干发射次数）。
-            // 改版口径②（引擎头解绑「回合开始」）：倒计时仅**计数**钉回合开始，归零→奖励待发（布尔，
-            // 多轮不积累），按声明时机发射（主动=0费 def 上栈/自动=直接结算）；运势掷骰随声明时机判定。
+            // 改版口径②（引擎头解绑「回合开始」；2026-10-20 倒计时固定触发定案修订）：解绑仅剩**运势**
+            // 掷骰随声明时机判定；倒计时收回为固定触发（回合开始递减·归零直接触发奖励·重挂多轮——
+            // 主干/奖励不拆开，声明时机与 tactivate 均被无视）。
             VerifySuite.Section("V9.z 一发时机系数 + 引擎头解绑（2026-10-16 改版）");
             {
                 // ---- ① 分类表：一发时机八值；多频/事件/观察者族与 OnSummon 超集不入档 ----
@@ -4536,7 +4535,7 @@ namespace TideServer.Verify
                     $"公式链展开含时机档（实际 [{string.Join("×", zFormula.Item2)}]——与 ComputeAtomCost 同批判定原语）");
 
                 // ---- ③ 引擎头解绑·转换器：FreeTiming 声明值优先/未声明回落缺省/钉死组照旧 ----
-                List<AtomicEffectEntry> ZEngineAtoms(BranchEngineKind kind, int param) => new List<AtomicEffectEntry>
+                List<AtomicEffectEntry> ZEngineAtoms(BranchEngineKind kind, int param, int tactivate = -1) => new List<AtomicEffectEntry>
                 {
                     new AtomicEffectEntry
                     {
@@ -4553,6 +4552,7 @@ namespace TideServer.Verify
                             settle = (int)BranchSettleKind.Engine,
                             engine = (int)kind,
                             engineParam = param,
+                            tactivate = tactivate,
                             then = new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.DrawCard, value: 1) },
                         },
                     },
@@ -4562,19 +4562,19 @@ namespace TideServer.Verify
                     Id = "V9Z_CD_DRAW", TriggerTiming = (int)TriggerTiming.OnDraw, ActivationType = 2, // 主动
                     SelectionMode = -1, AtomicEffects = ZEngineAtoms(BranchEngineKind.Countdown, 1),
                 }, "V9Z");
-                VerifySuite.Assert(zCdDef.TriggerTiming == TriggerTiming.OnDraw
-                                  && zCdDef.ActivationType == EffectActivationType.Voluntary
+                VerifySuite.Assert(zCdDef.TriggerTiming == TriggerTiming.OnStandbyPhase
+                                  && zCdDef.ActivationType == EffectActivationType.Automatic
                                   && zCdDef.ElementCostPrepaid && zCdDef.TriggerLimitPerTurn == -1
                                   && Math.Abs(CostDerivationService.TimingCostFactor(zCdDef) - 1f) < 1e-6f,
-                    "倒计时解绑：声明 抽牌时+主动 保留、费用0（prepaid）、次数钉无限、时机系数豁免——不走诅咒主动折叠");
+                    "倒计时固定触发（2026-10-20 定案）：声明 抽牌时+主动 → 归一 准备阶段+自动（回合开始收归系统）、费用0（prepaid）、次数钉无限、时机系数豁免");
                 var zCdLegacy = CardEffectConverter.ConvertOne(new CardEffectData
                 {
                     Id = "V9Z_CD_LEGACY", TriggerTiming = -1, SelectionMode = -1,
                     AtomicEffects = ZEngineAtoms(BranchEngineKind.Countdown, 1),
                 }, "V9Z");
-                VerifySuite.Assert(zCdLegacy.TriggerTiming == TriggerTiming.OnTurnStart
+                VerifySuite.Assert(zCdLegacy.TriggerTiming == TriggerTiming.OnStandbyPhase
                                   && zCdLegacy.ActivationType == EffectActivationType.Automatic,
-                    "倒计时未声明（&lt;0 回落 Activate_Active）→ 缺省 回合开始+自动（存量行为不漂移）");
+                    "倒计时未声明（&lt;0 回落 Activate_Active）→ 缺省 准备阶段+自动（2026-10-20 回合开始收归系统）");
                 var zLuckDef = CardEffectConverter.ConvertOne(new CardEffectData
                 {
                     Id = "V9Z_LUCK_CP", TriggerTiming = (int)TriggerTiming.OnCardPlayed, ActivationType = 1,
@@ -4582,7 +4582,7 @@ namespace TideServer.Verify
                 }, "V9Z");
                 VerifySuite.Assert(zLuckDef.TriggerTiming == TriggerTiming.OnCardPlayed
                                   && zLuckDef.ActivationType == EffectActivationType.Automatic,
-                    "运势解绑：声明 使用卡牌时 保留；掷骰恒自动（发动方式不开放）");
+                    "运势解绑：声明 使用卡牌时 保留；自动声明照旧钉自动（主动声明两段式开放——见⑥，2026-10-20 改案）");
                 var zPinned = CardEffectConverter.ConvertOne(new CardEffectData
                 {
                     Id = "V9Z_DT_PIN", TriggerTiming = (int)TriggerTiming.OnDraw, SelectionMode = -1, // 故意错声明
@@ -4591,7 +4591,7 @@ namespace TideServer.Verify
                 VerifySuite.Assert(zPinned.TriggerTiming == TriggerTiming.OnOtherCreatureDeath
                                   && zPinned.ActivationType == EffectActivationType.Automatic
                                   && zPinned.TriggerLimitPerTurn == -1,
-                    "钉死组照旧：死亡计数错声明归一 其他生物死亡+自动+无限（2026-10-19 手牌/场上改案口径；解绑只开倒计时/运势）");
+                    "钉死组照旧：死亡计数错声明归一 其他生物死亡+自动+无限（2026-10-19 手牌/场上改案口径；解绑仅剩运势——倒计时 2026-10-20 退钉死）");
 
                 // 奖励估值不吃时机（REWARD_SHIM 钉非触发式）：DrawCard1=蓝2 面值（×0.8 会成 1.6）
                 var zDrawDef = CardEffectConverter.ConvertOne(new CardEffectData
@@ -4602,9 +4602,8 @@ namespace TideServer.Verify
                 VerifySuite.Assert(Math.Abs(CostDerivationService.RewardDerivedCost(zDrawDef.Effects) - 2f) < 1e-4f,
                     "分支奖励按单次面值估值（shim 钉非触发式——门槛/换算/附加费/召唤补偿四口不吃时机减免）");
 
-                // ---- ④ 倒计时运行时：归零→待发（多轮不积累）→按声明时机发射→发射即消耗 ----
-                //（时机用 OnExile 隔离：环境存在回合开始自动抽牌且其订阅序先于本类递减——OnDraw 时机
-                // 会在下一回合开始被真实抽牌事件打掉，无法净观测「不积累」；除外事件零环境噪声）
+                // ---- ④ 倒计时运行时（2026-10-20 固定触发定案）：回合开始递减→归零**当事件内直接触发
+                // 奖励**→重挂（多轮继续）；def 声明时机被无视（无待发标记/无时机发射）；tactivate 同样被无视。
                 var zcore = GameCore.Instance;
                 zcore.Reset();
                 ZoneContainer.Reseed(20261017);
@@ -4621,7 +4620,7 @@ namespace TideServer.Verify
                 };
                 zCdCardData.Effects.Add(new CardEffectData
                 {
-                    Id = "V9Z_CD_UNIT_EFF", TriggerTiming = (int)TriggerTiming.OnExile, ActivationType = 1, // 自动（直接结算路径）
+                    Id = "V9Z_CD_UNIT_EFF", TriggerTiming = (int)TriggerTiming.OnExile, ActivationType = 1, // 声明被无视：固定 回合开始+自动
                     SelectionMode = -1, AtomicEffects = ZEngineAtoms(BranchEngineKind.Countdown, 1),
                 });
                 var zCdUnit = new CardWrapper(zCdCardData);
@@ -4634,22 +4633,118 @@ namespace TideServer.Verify
                 {
                     if (e.Target != zCdUnit) return;
                     if (e.Detail.Contains("归零")) zZero++;
-                    if (e.Detail.Contains("按发动时机")) zFire++;
+                    if (e.Detail.Contains("自动触发奖励")) zFire++;
                 });
                 var zExiledStub = new CardWrapper(new CardData { ID = "V9Z_STUB", CardName = "V9Z除外桩", Supertype = Cardtype.Creature });
                 zExiledStub.SetController(z1);
                 zcore.PublishEvent(new TurnStartEvent { TurnPlayer = z1, TurnNumber = 101 });
-                VerifySuite.Assert(zZero == 1 && zFire == 0,
-                    $"回合开始①：计数归零→待发+重挂（声明时机=除外时，归零即发旧口径已废——实际 归零{zZero} 发{zFire}）");
+                VerifySuite.Assert(zZero == 1 && zFire == 1,
+                    $"回合开始①：计数归零→当事件内直接触发奖励+重挂（声明时机被无视——实际 归零{zZero} 发{zFire}）");
                 zcore.PublishEvent(new TurnStartEvent { TurnPlayer = z1, TurnNumber = 102 });
-                VerifySuite.Assert(zZero == 2 && zFire == 0,
-                    $"回合开始②：再归零不积累（待发恒 1 份——实际 归零{zZero} 发{zFire}）");
+                VerifySuite.Assert(zZero == 2 && zFire == 2,
+                    $"回合开始②：重挂后再归零再直发（多轮继续触发——实际 归零{zZero} 发{zFire}）");
                 zcore.PublishEvent(new CardExileEvent { Card = zExiledStub, Source = z1, FromZone = Zone.Graveyard });
-                VerifySuite.Assert(zFire == 1,
-                    $"除外事件：待发奖励按声明时机发射（实际 发{zFire}）");
-                zcore.PublishEvent(new CardExileEvent { Card = zExiledStub, Source = z1, FromZone = Zone.Graveyard });
-                VerifySuite.Assert(zFire == 1,
-                    $"再除外不重发（发射即消耗——实际 发{zFire}）");
+                VerifySuite.Assert(zFire == 2,
+                    $"声明时机（除外时）被无视：除外事件不再发射（实际 发{zFire}）");
+
+                // 防御档：倒计时 + tactivate=2（主动奖励声明）仍直发、无 BRANCH_REWARD 待发入队
+                var zCdActiveData = new CardData
+                {
+                    ID = "V9Z_CD_ACTIVE_UNIT", CardName = "V9Z倒计时主动声明", Supertype = Cardtype.Creature, Power = 1, Life = 5,
+                };
+                zCdActiveData.Effects.Add(new CardEffectData
+                {
+                    Id = "V9Z_CD_ACTIVE_EFF", TriggerTiming = (int)TriggerTiming.OnTurnStart, ActivationType = 1,
+                    SelectionMode = -1, AtomicEffects = ZEngineAtoms(BranchEngineKind.Countdown, 1, tactivate: 2),
+                });
+                var zCdActive = new CardWrapper(zCdActiveData);
+                zCdActive.SetController(z1);
+                VerifySuite.Assert(zcore.ZoneManager.TryAddToBattlefield(zCdActive, z1), "倒计时(主动声明)引擎卡入场");
+                int zActiveFire = 0;
+                EventManager.Instance.Subscribe<KeywordAppliedEvent>(e =>
+                {
+                    if (e.Target == zCdActive && e.Detail.Contains("自动触发奖励")) zActiveFire++;
+                });
+                zcore.PublishEvent(new TurnStartEvent { TurnPlayer = z1, TurnNumber = 103 });
+                VerifySuite.Assert(zActiveFire == 1
+                                  && zcore.StackEngine.GetActivatableVoluntaryEffects(z1).All(pe => !ReferenceEquals(pe?.Source, zCdActive)),
+                    $"倒计时 tactivate=2 被无视：归零直发、无 BRANCH_REWARD 待发入队（实际 发{zActiveFire}）");
+
+                // ---- ④b 倒计时奖励实际落地（2026-10-20 补）：伤害真落对方角色（kind2 含角色·单候选自动取）
+                //      + 归零重挂——此前夹具只断言播报消息，奖励执行从未验证（Play 回归定位后补的回归口）。 ----
+                {
+                    List<AtomicEffectEntry> CdDamageAtoms(int turns) => new List<AtomicEffectEntry>
+                    {
+                        new AtomicEffectEntry
+                        {
+                            refId = AtomicEffectTable.GetByType(AtomicEffectType.EngineCountdown)?.HashId,
+                            value = 1,
+                            branch = new BranchEntryData
+                            {
+                                settle = (int)BranchSettleKind.Engine,
+                                engine = (int)BranchEngineKind.Countdown,
+                                engineParam = turns,
+                                then = new List<AtomicEffectEntry>
+                                {
+                                    new AtomicEffectEntry
+                                    {
+                                        refId = AtomicEffectTable.GetByType(AtomicEffectType.DealDamage)?.HashId,
+                                        kinds = new List<int> { 2 }, value = 2, // 对方有生命单位（含角色）——教学龟同款
+                                    },
+                                },
+                            },
+                        },
+                    };
+                    var pd = new CardData { ID = "V9Z_CD_DMG", CardName = "V9Z倒计时伤害体", Supertype = Cardtype.Creature, Power = 1, Life = 5 };
+                    pd.Effects.Add(new CardEffectData
+                    {
+                        Id = "V9Z_CD_DMG_EFF", TriggerTiming = (int)TriggerTiming.OnTurnStart, ActivationType = 1, SelectionMode = -1,
+                        AtomicEffects = CdDamageAtoms(2),
+                    });
+                    var pu = new CardWrapper(pd);
+                    pu.SetController(z1);
+                    VerifySuite.Assert(zcore.ZoneManager.TryAddToBattlefield(pu, z1), "探针：倒计时(伤害奖励)引擎卡入场");
+                    int dmgEvents = 0; bool hitP2Role = false;
+                    EventManager.Instance.Subscribe<CardCore.Attribute.AtomicDamageEvent>(e =>
+                    {
+                        dmgEvents++;
+                        if (ReferenceEquals(e.Target, zcore.Player2)) hitP2Role = true;
+                    });
+                    int p2Before = zcore.Player2.Life;
+                    zcore.PublishEvent(new TurnStartEvent { TurnPlayer = z1, TurnNumber = 121 });
+                    VerifySuite.Assert(pu.GetCounterCount(CardCore.Attribute.CounterRules.CountdownCounter) == 1
+                                      && zcore.Player2.Life == p2Before,
+                        $"探针①：回合开始递减 2→1 未发奖（计数={pu.GetCounterCount(CardCore.Attribute.CounterRules.CountdownCounter)} P2 {p2Before}→{zcore.Player2.Life}）");
+                    zcore.PublishEvent(new TurnStartEvent { TurnPlayer = z1, TurnNumber = 122 });
+                    VerifySuite.Assert(pu.GetCounterCount(CardCore.Attribute.CounterRules.CountdownCounter) == 2
+                                      && zcore.Player2.Life == p2Before - 2,
+                        $"探针②：归零直发+重挂（计数={pu.GetCounterCount(CardCore.Attribute.CounterRules.CountdownCounter)} "
+                        + $"P2 {p2Before}→{zcore.Player2.Life} 伤害事件={dmgEvents} 打中角色={hitP2Role}）");
+                }
+
+                // ---- ④c 引擎主干不入触发管线（2026-10-20 Play 卡死回归）：Settle==Engine 的 def
+                //      注册即拒——否则回合开始被当普通自动触发推栈成孤儿项（GameLoopController 只在
+                //      栈空时驱动优先权），堵死 EndTurn 栈空闸（实测：教学倒计时龟整局卡死）。
+                //      （宿主类修正 2026-10-20：RegisterEffect/OnEvent 挂在 TriggerEngine——原稿误写
+                //      StackEngine 编不过，阻塞共享构建，机械改调用目标，断言不动） ----
+                {
+                    zcore.TriggerEngine.RegisterEffect(zCdDef, zCdUnit, z1); // 倒计时 def（引擎主干）
+                    zcore.TriggerEngine.OnEvent(new TurnStartEvent { TurnPlayer = z1, TurnNumber = 131 });
+                    VerifySuite.Assert(!zcore.StackEngine.HasPendingEffects,
+                        "引擎主干不入触发管线：注册+回合开始事件后无待发（防孤儿栈项堵 EndTurn 栈空闸）");
+                    // 对照：普通自动触发 def（非引擎载荷）照常注册入队
+                    var zNormDef = CardEffectConverter.ConvertOne(new CardEffectData
+                    {
+                        Id = "V9Z_NORM_TRG", TriggerTiming = (int)TriggerTiming.OnDraw, ActivationType = 1,
+                        SelectionMode = -1,
+                        AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.DrawCard, value: 1) },
+                    }, "V9Z");
+                    zcore.TriggerEngine.RegisterEffect(zNormDef, zCdUnit, z1);
+                    zcore.TriggerEngine.OnEvent(new CardDrawEvent { Player = z1, DrawnCard = zExiledStub, DrawCount = 1 });
+                    VerifySuite.Assert(zcore.StackEngine.HasPendingEffects,
+                        "对照：普通自动触发照常入待发队列（排除只针对引擎主干）");
+                    GameActions.DrainStack(zcore); // 排干防串段（抽 1 张无害）
+                }
 
                 // ---- ⑤ 运势运行时：随声明时机掷骰（回合开始不再触发）+ 种子镜像复现过/不过两分支 ----
                 var zLuckCardData = new CardData
@@ -4688,6 +4783,75 @@ namespace TideServer.Verify
                 zcore.PublishEvent(new CardPlayEvent { Player = z1, PlayedCard = zExiledStub, FromZone = Zone.Hand });
                 VerifySuite.Assert(zLuck == 1,
                     $"掷骰未过双≥3：不执行奖励（种子复现——实际 {zLuck}）");
+
+                // ---- ⑥ 主动运势一步点击（2026-10-20 定案：点击→选目标→执行期掷骰，达标则分支效果适用）----
+                // 转换器：act=2 声明保留主动+时机 Activate_Active（推翻③的「掷骰恒自动」）；效果级
+                // kinds=[2] → 共享组合域（结算期首弹选/单候选自动取）。结算期 ApplyActiveLuckTrunkAsync：
+                // 掷双骰→达标=奖励作用于已选目标、未达标=落空仅播报；全程无待发入队（两段式已废——
+                // 一次发动横置后，待发源卡过不了 CanActivate 横置检查）。
+                List<AtomicEffectEntry> ZLuckVolAtoms() => new List<AtomicEffectEntry>
+                {
+                    new AtomicEffectEntry
+                    {
+                        refId = AtomicEffectTable.GetByType(AtomicEffectType.EngineLuckRoll)?.HashId,
+                        value = 1,
+                        branch = new BranchEntryData
+                        {
+                            settle = (int)BranchSettleKind.Engine,
+                            engine = (int)BranchEngineKind.LuckRoll,
+                            engineParam = 3,
+                            tactivate = 2,
+                            then = new List<AtomicEffectEntry>
+                            {
+                                new AtomicEffectEntry
+                                {
+                                    refId = AtomicEffectTable.GetByType(AtomicEffectType.DealDamage)?.HashId,
+                                    kinds = new List<int> { 2 }, value = 2, // 对方有生命单位（含角色·单候选自动取）
+                                },
+                            },
+                        },
+                    },
+                };
+                var zLuckVolDef = CardEffectConverter.ConvertOne(new CardEffectData
+                {
+                    Id = "V9Z_LUCK_VOL", TriggerTiming = (int)TriggerTiming.Activate_Active, ActivationType = 2,
+                    SelectionMode = -1, TargetKinds = new List<int> { 2 },
+                    AtomicEffects = ZLuckVolAtoms(),
+                }, "V9Z");
+                VerifySuite.Assert(zLuckVolDef.TriggerTiming == TriggerTiming.Activate_Active
+                                  && zLuckVolDef.ActivationType == EffectActivationType.Voluntary
+                                  && !zLuckVolDef.ElementCostPrepaid
+                                  && !zLuckVolDef.PerAtomTargets
+                                  && zLuckVolDef.TargetDomain != null && zLuckVolDef.TargetDomain.Contains(2),
+                    "主动运势声明保留：timing=主动+act=2 不再归一回自动；效果级 kinds=[2]→共享组合域（一步点击定案）");
+                var zLuckVolUnit = new CardWrapper(new CardData
+                {
+                    ID = "V9Z_LUCK_VOL_UNIT", CardName = "V9Z主动运势体", Supertype = Cardtype.Creature, Power = 1, Life = 5,
+                });
+                zLuckVolUnit.SetController(z1);
+                VerifySuite.Assert(zcore.ZoneManager.TryAddToBattlefield(zLuckVolUnit, z1), "主动运势引擎卡入场");
+                int zVolP2Before = zcore.Player2.Life;
+                int zVolRolls = 0;
+                EventManager.Instance.Subscribe<KeywordAppliedEvent>(e =>
+                {
+                    if (e.Keyword == "运势" && e.Target == zLuckVolUnit) zVolRolls++;
+                });
+                GameRng.Reseed(ZSeed(true));
+                VerifySuite.Assert(zcore.StackEngine.TryActivateEffect(PendingEffect.Create(zLuckVolDef, zLuckVolUnit,
+                        z1, z1, zcore.TurnEngine.CurrentPhase?.Phase ?? PhaseType.Main))
+                                  && GameActions.DrainStack(zcore) && zVolRolls == 1
+                                  && zcore.Player2.Life == zVolP2Before - 2
+                                  && zcore.StackEngine.GetActivatableVoluntaryEffects(z1)
+                                      .All(pe => !ReferenceEquals(pe.Source, zLuckVolUnit)),
+                    $"一步点击·达标：掷骰1次+伤害直落已选目标（{zVolP2Before}→{zcore.Player2.Life}，kinds2 单候选=对方角色自动取），无待发入队");
+                GameRng.Reseed(ZSeed(false));
+                VerifySuite.Assert(zcore.StackEngine.TryActivateEffect(PendingEffect.Create(zLuckVolDef, zLuckVolUnit,
+                        z1, z1, zcore.TurnEngine.CurrentPhase?.Phase ?? PhaseType.Main))
+                                  && GameActions.DrainStack(zcore) && zVolRolls == 2
+                                  && zcore.Player2.Life == zVolP2Before - 2
+                                  && zcore.StackEngine.GetActivatableVoluntaryEffects(z1)
+                                      .All(pe => !ReferenceEquals(pe.Source, zLuckVolUnit)),
+                    "一步点击·未达标：照播报（2次）但分支效果不适用、无待发入队");
             }
 
             // ============================ V9.x 已删（2026-10-11 资源重做） ============================

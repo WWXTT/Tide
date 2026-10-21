@@ -63,17 +63,21 @@ namespace CardCore
                     return Opp(context) != null && CreatureCount(context, context.Controller) < CreatureCount(context, Opp(context));
                 case "CreaturesAboveOpp": // 场上生物高于对手
                     return Opp(context) != null && CreatureCount(context, context.Controller) > CreatureCount(context, Opp(context));
-                case "FirstCardThisTurn": // 本回合使用的第一张卡（CardPlayEvent 宣言点已计数，含正在结算的这张）
+                case "FirstCardThisTurn": // 本回合使用的第一张卡（CardPlayEvent 宣言点已计数，含正在结算的这张；
+                    // 预评口径（SimulatedPreview，2026-10-21 金圈时序）：宣言未计入——本回合尚无出牌（0）
+                    // =这张将是第一张，金圈应在出牌前就亮；结算期不置旗读真实计数（==1）。
                     return MatchStatsService.Instance != null
                         && MatchStatsService.Instance.GetStat(context.Controller,
-                            MatchStatsService.CardsPlayed, StatScope.ThisTurn) == 1;
+                            MatchStatsService.CardsPlayed, StatScope.ThisTurn)
+                            == (context != null && context.SimulatedPreview ? 0 : 1);
                 // ---- 局面状态族·二批（2026-09-22 追加，预算 2）----
                 case "LandsGe7":   // 操控地数量 ≥ 7（地牌=元素池中未耗尽的地牌张数）
                     return context?.Controller != null && context.ElementPool != null
                         && context.ElementPool.GetPooledCards(context.Controller).Count >= 7;
-                case "HandEmpty":  // 手牌数量 = 0
+                case "HandEmpty":  // 手牌数量 = 0（预评口径同 FirstCardThisTurn：手里只剩本张=打出后即空）
                     return context?.Controller != null
-                        && (context.ZoneManager?.GetCards(context.Controller, Zone.Hand)?.Count ?? 1) == 0;
+                        && (context.ZoneManager?.GetCards(context.Controller, Zone.Hand)?.Count ?? 1)
+                            == (context.SimulatedPreview ? 1 : 0);
                 case "LifeLe7":    // 角色生命值 ≤ 7
                     return context?.Controller != null && context.Controller.GetLife() <= 7;
 

@@ -29,7 +29,8 @@ namespace CardCore.Attribute.Handlers
                     Source = context.Source,
                     Target = target,
                     Damage = dmg,
-                    IsCombatDamage = false
+                    IsCombatDamage = false,
+                    EffectTint = effect.AnchorTint()
                 });
             }
         }
@@ -75,7 +76,8 @@ namespace CardCore.Attribute.Handlers
                     Source = context.Source,
                     Target = target,
                     Damage = dmg,
-                    IsCombatDamage = false
+                    IsCombatDamage = false,
+                    EffectTint = effect.AnchorTint()
                 });
             }
         }

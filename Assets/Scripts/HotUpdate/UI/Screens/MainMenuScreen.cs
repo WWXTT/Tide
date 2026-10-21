@@ -81,9 +81,10 @@ namespace SynergyUI
 
         /// <summary>教学↔本地对战换装（2026-10-19 三课制定案）：教学未整体完成=btn-teaching 在、
         /// btn-battle 藏；IsTutorialDone（三课全胜）反转——btn-battle=本地对战入口（对局准备双选
-        /// 卡组）。btn-match 不外露（与 btn-battle 同目的地）。三个组合界面按钮：第三课打过一局
-        /// （无论胜负=LunzhuanAttempted）或教学整体完成前隐藏——之后常显供自组卡组重挑末日降临。
-        /// btn-teaching 文案按进度显示：基础教学一/二/三；教学三内容尚未完成——按钮置灰不可进。</summary>
+        /// 卡组；考验三未胜不换装=依旧不给用）。btn-match 不外露（与 btn-battle 同目的地）。
+        /// 三个组合界面按钮（2026-10-21 提前）：教学二（jinjie）完成即显示——供自组卡组备战，
+        /// 此前隐藏。btn-teaching 文案按进度显示：基础教学一/二/三；教学三内容尚未完成——按钮
+        /// 置灰不可进。</summary>
         private void RefreshTutorialGates()
         {
             var p = TutorialProgressManager.Instance;
@@ -91,7 +92,7 @@ namespace SynergyUI
             if (_teachingNode != null) _teachingNode.gameObject.SetActive(!done);
             if (_battleNode != null) _battleNode.gameObject.SetActive(done);
             if (_matchNode != null) _matchNode.gameObject.SetActive(false); // 预留：对局准备入口（btn-battle 同目的地，不外露）
-            bool comboUnlocked = p.LunzhuanAttempted || done;
+            bool comboUnlocked = p.CompletedTutorials.Contains(TutorialProgressManager.JinjieId); // 教学二完成（三课全胜时必含 jinjie，无需再兜底）
             foreach (var node in _comboNodes)
                 if (node != null) node.gameObject.SetActive(comboUnlocked);
 

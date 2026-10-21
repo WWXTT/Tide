@@ -101,10 +101,15 @@ namespace CardCore.Attribute
 
         /// <summary>
         /// 死亡全流程（效果驱动路径的统一入口）：护盾判定 →
-        /// 复生替代（湮灭不可复活）→ 按控制者落墓（湮灭直送除外区）→ CardDestroyEvent
-        /// （Reason 按死因映射，经路由发布——OnDeath 触发时点可见）。true = 已死亡落葬。
+        /// 复生替代（湮灭不可复活）→ CardDestroyEvent（Reason 按死因映射，经路由发布——
+        /// OnDeath 触发时点可见）→ 按控制者落墓（湮灭直送除外区；移区再发离场事件）。
+        /// true = 已死亡落葬。
+        /// 事件序定案（2026-10-20 用户）：**先死亡后移墓**——逻辑因果=死亡在先、进入墓地在后、
+        /// 离场随移区发布；旧序（先移墓后发死亡事件）致日志/表现层离场先于死亡，靠展示层配对
+        /// 补救被否——引擎侧正本清源。OnDeath 触发此刻见卡仍在场（IsAlive 已 false）。
         /// </summary>
-        public static bool TryKill(Card card, DeathCause cause, Entity source, ZoneManager zoneManager = null)
+        public static bool TryKill(Card card, DeathCause cause, Entity source, ZoneManager zoneManager = null,
+            ManaType? effectTint = null)
         {
             if (card == null) return false;
             if (IsShielded(card, cause)) return false;
@@ -118,6 +123,17 @@ namespace CardCore.Attribute
             if (cause != DeathCause.Annihilate && KeywordRules.TryReborn(card))
                 return false;
 
+            var e = new CardDestroyEvent
+            {
+                DestroyedCard = card,
+                Cause = cause,
+                Reason = ToReason(cause),
+                Source = source,
+                EffectTint = effectTint // 效果基础色透传（2026-10-20：消灭族弹体按所用效果基础色）
+            };
+            if (GameCore.Instance != null) GameCore.Instance.PublishEvent(e);
+            else EventManager.Instance.Publish(e);
+
             var destination = cause == DeathCause.Annihilate ? Zone.Exile : Zone.Graveyard;
             // 归属路由（2026-09-13 定案：死亡去**持有者**的墓地）——临时偷取的单位死在对手场
             // 上也回原主墓地；改写持有者（ChangeOwner/GainControl Permanent）后归新主。
@@ -130,16 +146,6 @@ namespace CardCore.Attribute
                     manager.GetZoneContainer(owner).Move(card, from, destination);
                 card.SetZone(destination);
             }
-
-            var e = new CardDestroyEvent
-            {
-                DestroyedCard = card,
-                Cause = cause,
-                Reason = ToReason(cause),
-                Source = source
-            };
-            if (GameCore.Instance != null) GameCore.Instance.PublishEvent(e);
-            else EventManager.Instance.Publish(e);
             return true;
         }
 

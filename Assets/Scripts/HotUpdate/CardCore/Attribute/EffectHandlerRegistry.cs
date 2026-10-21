@@ -358,8 +358,12 @@ namespace CardCore.Attribute
         /// 双域原子可选两侧、跨侧命中走错边黑白发放经济；极性收窄是合成器 UI 的选择集口径，
         /// 「苏醒式自缚」类显式锁己域数据照常生效）；数量档/随机档为**每原子声明**
         ///（2026-10-09 下沉：未声明 -2/-1 回落效果级 def，效果级对未声明原子统一生效）。
-        /// 声明期预选目标归属：preselected 落在该原子合法候选内 → 直接沿用（响应窗口指向性卡
-        ///（发动区反制）/教学与 AI 预选保活）；预选全落域外 → 该原子回落自解析。
+        /// 声明期预选目标归属（2026-10-20 有序消费改案）：**可消耗队列**（按声明期收集序=原子执行序，
+        /// 调用方执行器线程共享，逐原子消费移除）——仅交互选一/选多原子消费；defer（效果处理时选）/
+        /// 全取/强制/随机原子自解析不吃队列，防同域多原子互抢预选（缄默处决=缄默+消灭同域双原子，
+        /// 旧「预选∩域内全沿用」口径会双双沿用同一预选）。消费=从队首按需求量取域内项；
+        /// 队内域内无可消费项 → 回落自解析。先于隐藏区早退——「点名已展示的对方手牌卡」等
+        /// 信息轴联动依赖预选透传。
         /// 行为口径与组合层解析（ResolveCompositionTargetsAsync）对齐：
         /// 全隐藏区=自结算空列表（隐藏信息不进选择）；全取档/数量"全部"=候选全取不弹窗；
         /// 强制类（Mandatory）无选择窗口=自动全取；随机=帷幕收窄池内种子抽取（潜行可命中）；
@@ -369,19 +373,32 @@ namespace CardCore.Attribute
         /// </summary>
         public static async UniTask<List<Entity>> ResolveAtomTargetsAsync(
             EffectDefinition def, AtomicEffectInstance atom, EffectExecutionContext context,
-            List<Entity> preselected = null, string title = "选择目标")
+            List<Entity> preselectQueue = null, string title = "选择目标")
         {
             if (def == null || atom == null || context == null) return new List<Entity>();
 
             var kinds = atom.TargetKinds ?? new List<int>();
             if (kinds.Count == 0) return new List<Entity>(); // 无域原子：handler 自结算
 
-            // 预选归属：预选目标 ∈ 该原子合法候选 → 沿用（域外原子不消费预选，回落自解析）。
-            // 先于隐藏区早退——「点名已展示的对方手牌卡」等信息轴联动依赖预选透传。
-            if (preselected != null && preselected.Count > 0)
+            bool noWindow = def.ActivationType == EffectActivationType.Mandatory; // 强制类无目标选择窗口
+            bool randomPick = atom.EffectiveRandomTarget(def);
+            int effCount = atom.EffectiveTargetCount(def); // 每原子有效数量（未声明=效果级）
+
+            // 预选归属（有序消费）：仅交互原子吃队列（豁免口径见头注）
+            if (atom.DeferSelect != 1 && !randomPick && effCount != 0 && !noWindow
+                && !SelectionModeRules.IsTakeAll(def.SelectionMode)
+                && preselectQueue != null && preselectQueue.Count > 0)
             {
                 var pool = ResolveCandidates(kinds, atom.Filter ?? "", context);
-                var kept = preselected.Where(pool.Contains).ToList();
+                int quota = effCount == -1 ? int.MaxValue : Math.Max(1, effCount);
+                var kept = new List<Entity>();
+                for (int i = 0; i < preselectQueue.Count && kept.Count < quota; i++)
+                {
+                    if (!pool.Contains(preselectQueue[i])) continue;
+                    kept.Add(preselectQueue[i]);
+                    preselectQueue.RemoveAt(i); // 已消费——后续原子不再可见（有序归属）
+                    i--;
+                }
                 if (kept.Count > 0) return kept;
             }
 
@@ -390,13 +407,11 @@ namespace CardCore.Attribute
 
             var candidates = ResolveCandidates(kinds, atom.Filter ?? "", context);
             GameActions.Crumb($"atom-targets {def.Id}/{atom.Type} kinds={TargetKindRules.Format(kinds)} "
-                + $"pre={preselected?.Count ?? 0} cands={candidates.Count} mode={def.SelectionMode} cnt={atom.EffectiveTargetCount(def)}");
+                + $"pre={preselectQueue?.Count ?? 0} cands={candidates.Count} mode={def.SelectionMode} cnt={atom.EffectiveTargetCount(def)}");
             if (candidates.Count == 0) return candidates;
 
             bool edictExempt = TargetResolver.IsEdict(atom.Type);
-            bool noWindow = def.ActivationType == EffectActivationType.Mandatory; // 强制类无目标选择窗口
             bool noneAsSingle = def.SelectionMode == SelectionMode.None; // 未声明模式=按选一（与组合层同口径）
-            int effCount = atom.EffectiveTargetCount(def); // 每原子有效数量（未声明=效果级）
 
             // 全取：候选全取——潜行照常命中，不受帷幕收窄；强制类无窗口同走全取（构筑期目标明确）
             if (SelectionModeRules.IsTakeAll(def.SelectionMode) || effCount == 0 || noWindow)
@@ -417,6 +432,12 @@ namespace CardCore.Attribute
                 TargetResolver.ApplyTauntRestriction(candidates, context, edictExempt), context.Controller);
             if (candidates.Count == 0) return candidates;
 
+            // 结算期问选取消闸（2026-10-20 定案）：法术 cast 上下文（CastCard 非空）=类自动效果
+            // 必须选目标不可取消——费已付卡已承诺无落空逃跑（可取消撤销只在声明期收集器）；
+            // 生物/技能/触发效果照旧 Voluntary 口径。
+            bool allowCancelDecl = context.CastCard == null
+                && def.ActivationType == EffectActivationType.Voluntary;
+
             if (noneAsSingle || SelectionModeRules.IsPickOne(def.SelectionMode))
             {
                 // 选一个（2026-10-16 晚定案，同组合层口径）：候选 ≤ 需求/纯 Self 域自动取
@@ -430,11 +451,10 @@ namespace CardCore.Attribute
                     MaxCount = 1,
                     Chooser = context.Controller,
                     Title = title,
-                    // lbl-toast 定案（2026-10-16）：宿主+效果 Id 供 UI 渲染完整效果文说明「选目标来干嘛」；
-                    // 主动（Voluntary）可取消=「不发动」（空目标落空），自动/强制不可拒（默认代选）
+                    // lbl-toast 定案（2026-10-16）：宿主+效果 Id 供 UI 渲染完整效果文说明「选目标来干嘛」
                     PromptSource = (Entity)context.CastCard ?? context.Source,
                     PromptEffectId = def.Id,
-                    AllowCancel = def.ActivationType == EffectActivationType.Voluntary,
+                    AllowCancel = allowCancelDecl,
                 });
             }
 
@@ -450,7 +470,7 @@ namespace CardCore.Attribute
                     Title = title + "（任意数量）",
                     PromptSource = (Entity)context.CastCard ?? context.Source,
                     PromptEffectId = def.Id,
-                    AllowCancel = def.ActivationType == EffectActivationType.Voluntary,
+                    AllowCancel = allowCancelDecl,
                 });
             }
             int need = effCount > 0 ? effCount : candidates.Count;
@@ -467,8 +487,155 @@ namespace CardCore.Attribute
                 Title = title,
                 PromptSource = (Entity)context.CastCard ?? context.Source,
                 PromptEffectId = def.Id,
-                AllowCancel = def.ActivationType == EffectActivationType.Voluntary,
+                AllowCancel = allowCancelDecl,
             });
+        }
+
+        /// <summary>
+        /// 声明期目标收集器（2026-10-20 法术发动流程改案）：法术发动（上栈）前逐原子预选目标——
+        /// 与 ResolveAtomTargetsAsync 结算路径同口径（候选/帷幕收窄/显示域过滤/自动取谓词单源），
+        /// 差异两处：①AllowCancel=true（预选可取消=撤销发动——与结算期必须选相对）；
+        /// ②只收集「结算期会弹选」的交互原子——defer（效果处理时选）/无域/引擎主干/全隐藏域/
+        /// 全取/强制/随机/自动取档一律跳过（结算期照常自解析，互不干扰）。
+        /// 返回序=原子执行序：结算期经预选队列有序消费对齐归属（多原子不互抢）。
+        /// 返回：null=玩家取消（调用方终止发动）；空表=无需问询（直通声明）；非空=预选目标。
+        /// </summary>
+        public static async UniTask<List<Entity>> CollectDeclarationTargetsAsync(
+            EffectDefinition def, EffectExecutionContext context, string title = "选择目标")
+        {
+            var none = new List<Entity>();
+            if (def == null || context == null) return none;
+
+            // header 域（PerAtomTargets=false）：组合目标共享一次问选
+            if (!def.PerAtomTargets)
+                return await AskCompositionDeclarationAsync(def, context, title);
+
+            if (def.Effects == null || def.Effects.Count == 0) return none;
+            var collected = new List<Entity>();
+            foreach (var atom in def.Effects)
+            {
+                if (atom == null) continue;
+                // 引擎主干=条件载体不执行（与执行器 IsEngineTrunk 同判）
+                if (atom.Branch?.Settle == BranchSettleKind.Engine
+                    || ComposerCatalog.EngineKindOf(atom.Type) != BranchEngineKind.None) continue;
+
+                var kinds = atom.TargetKinds ?? new List<int>();
+                if (kinds.Count == 0) continue; // 无域原子：handler 自结算
+                if (atom.DeferSelect == 1) continue; // 效果处理时选——结算期问（必须选）
+                if (TargetKindRules.AllHiddenZone(kinds)) continue; // 隐藏区不进选择
+
+                bool noWindow = def.ActivationType == EffectActivationType.Mandatory;
+                bool randomPick = atom.EffectiveRandomTarget(def);
+                int effCount = atom.EffectiveTargetCount(def);
+                if (noWindow || randomPick || effCount == 0
+                    || SelectionModeRules.IsTakeAll(def.SelectionMode))
+                    continue; // 强制/随机/全取：结算期自动，无问选
+
+                var candidates = ResolveCandidates(kinds, atom.Filter ?? "", context);
+                if (candidates.Count == 0) continue;
+                bool edictExempt = TargetResolver.IsEdict(atom.Type);
+                candidates = TargetResolver.ExcludeUnselectable(
+                    TargetResolver.ApplyTauntRestriction(candidates, context, edictExempt), context.Controller);
+                if (candidates.Count == 0) continue;
+
+                bool noneAsSingle = def.SelectionMode == SelectionMode.None;
+                TargetSelectionRequest req;
+                if (noneAsSingle || SelectionModeRules.IsPickOne(def.SelectionMode))
+                {
+                    if (ShouldAutoTake(kinds, candidates.Count, need: 1, allSemantics: false)) continue;
+                    req = new TargetSelectionRequest
+                    {
+                        Candidates = candidates, MinCount = 1, MaxCount = 1, Title = title,
+                    };
+                }
+                else if (effCount == -1) // 任意：玩家自选数量
+                {
+                    req = new TargetSelectionRequest
+                    {
+                        Candidates = candidates, MinCount = 0, MaxCount = candidates.Count,
+                        Title = title + "（任意数量）",
+                    };
+                }
+                else
+                {
+                    int need = effCount > 0 ? effCount : candidates.Count;
+                    if (ShouldAutoTake(kinds, candidates.Count, need, allSemantics: effCount <= 0)) continue;
+                    req = new TargetSelectionRequest
+                    {
+                        Candidates = candidates,
+                        MinCount = Math.Min(need, candidates.Count), // 候选不足按实有收口（同结算口径）
+                        MaxCount = need, Title = title,
+                    };
+                }
+                req.Chooser = context.Controller;
+                req.PromptSource = (Entity)context.CastCard ?? context.Source;
+                req.PromptEffectId = def.Id;
+                req.AllowCancel = true; // 预选可取消=撤销发动
+                var picked = await TargetSelectionService.RequestAsync(req);
+                if (picked == null || picked.Count == 0) return null; // 取消（任意档确认 0 个视同取消）
+                collected.AddRange(picked);
+            }
+            return collected;
+        }
+
+        /// <summary>声明期组合目标问选（header 域效果，收集器子路径）：镜像
+        /// ResolveCompositionTargetsAsync 的交互分支（takeall/random/自动取/隐藏区/无域不问——
+        /// 结算期照常自动或早退），差异=AllowCancel=true 可取消撤销发动。
+        /// null=取消；空表=无需问询；非空=预选组合目标。</summary>
+        private static async UniTask<List<Entity>> AskCompositionDeclarationAsync(
+            EffectDefinition def, EffectExecutionContext context, string title)
+        {
+            var domain = def.TargetDomain;
+            if (def.ChoiceDomains != null && context.ModeIndex >= 0
+                && context.ModeIndex < def.ChoiceDomains.Length
+                && def.ChoiceDomains[context.ModeIndex] != null
+                && def.ChoiceDomains[context.ModeIndex].Count > 0)
+                domain = def.ChoiceDomains[context.ModeIndex];
+            if (domain == null || domain.Count == 0
+                || (def.SelectionMode == SelectionMode.None && TargetKindRules.AllHiddenZone(domain))
+                || SelectionModeRules.IsTakeAll(def.SelectionMode)
+                || def.RandomTarget)
+                return new List<Entity>();
+
+            var candidates = ResolveCandidates(domain, def.TargetFilter, context);
+            if (candidates.Count == 0) return new List<Entity>();
+
+            bool edictExempt = def.Effects != null
+                && def.Effects.Any(a => a != null && TargetResolver.IsEdict(a.Type));
+            candidates = TargetResolver.ExcludeUnselectable(
+                TargetResolver.ApplyTauntRestriction(candidates, context, edictExempt), context.Controller);
+            if (candidates.Count == 0) return new List<Entity>();
+
+            bool noneAsSingle = def.SelectionMode == SelectionMode.None; // None+可见域：按选一共享
+            TargetSelectionRequest Build(int min, int max, string t)
+                => new TargetSelectionRequest
+                {
+                    Candidates = candidates, MinCount = min, MaxCount = max,
+                    Chooser = context.Controller, Title = t,
+                    PromptSource = (Entity)context.CastCard ?? context.Source,
+                    PromptEffectId = def.Id,
+                    AllowCancel = true, // 预选可取消=撤销发动
+                };
+
+            if (noneAsSingle || SelectionModeRules.IsPickOne(def.SelectionMode))
+            {
+                if (ShouldAutoTake(domain, candidates.Count, need: 1, allSemantics: false))
+                    return new List<Entity>();
+                var picked = await TargetSelectionService.RequestAsync(Build(1, 1, title));
+                return picked != null && picked.Count > 0 ? picked : null;
+            }
+            if (def.TargetCount == -1) // 任意：玩家自选数量
+            {
+                var picked = await TargetSelectionService.RequestAsync(Build(0, candidates.Count, title + "（任意数量）"));
+                return picked != null && picked.Count > 0 ? picked : null;
+            }
+            int need = noneAsSingle ? 1 : (def.TargetCount > 0 ? def.TargetCount : candidates.Count);
+            if (ShouldAutoTake(domain, candidates.Count, need,
+                    allSemantics: def.TargetCount <= 0 && !noneAsSingle))
+                return new List<Entity>();
+            var pickedN = await TargetSelectionService.RequestAsync(
+                Build(Math.Min(need, candidates.Count), need, title));
+            return pickedN != null && pickedN.Count > 0 ? pickedN : null;
         }
 
         /// <summary>按域+filter 解析候选（域模型统一口径；TargetDomainService 预检复用）。</summary>

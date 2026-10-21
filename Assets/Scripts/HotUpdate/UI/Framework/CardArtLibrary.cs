@@ -18,12 +18,15 @@ namespace SynergyUI
 
         public static string UiSpritePath(string name) => $"Assets/Art/Battle3D/Icons/{name}.png";
 
-        /// <summary>按名称取立绘 Sprite；null=两级都未命中（调用方保持占位）。</summary>
+        /// <summary>按名称取立绘 Sprite；null=两级都未命中（调用方保持占位）。
+        /// tryBareAddress=false（2026-10-21）：图标组=相对路径寻址，裸名第二发永不合法命中——
+        /// 而生物立绘名与 rig prefab 裸名地址同名（PetitAngel 等），按 Sprite 误载 prefab 会触发
+        /// Yoo LogError（真机噪音/编辑器离线卡死）。命中回落交给 LoadPreviewSprite 的 #preview。</summary>
         public static Sprite Load(string name)
         {
             if (string.IsNullOrEmpty(name)) return null;
             if (Cache.TryGetValue(name, out var cached)) return cached;
-            var sprite = Tide.HotUpdate.HotUpdateAssets.Load<Sprite>(name, UiSpritePath(name));
+            var sprite = Tide.HotUpdate.HotUpdateAssets.Load<Sprite>(name, UiSpritePath(name), tryBareAddress: false);
             if (sprite == null)
                 sprite = Tide.HotUpdate.MonsterRigAssets.LoadPreviewSprite(name);
             Cache[name] = sprite;

@@ -163,6 +163,7 @@ namespace CardCore.AI.NeuralEnv
             _board.EnableAutoResync();
             CombatSystem.AdjacentResolver = _board.FlankNeighbors; // 碾压=左右同排生物（2026-10-04 语义修订）
             CombatSystem.RoleAdjacentResolver = _board.FlankNeighborsOfRole; // 碾压攻角色=角色格左右邻格（2026-10-16 改版）
+            BranchEngines.UnityAdjacentCountOf = _board.AdjacentOccupantCount; // 团结=六邻单位数（2026-10-20 效果序位换轴）
             GameBoard.LinkAuraSystem.Attach(_board); // 连接光环（三轨制）：箭头指向格占据者享受 linkAuras
 
             _gameOver = false;
@@ -289,6 +290,7 @@ namespace CardCore.AI.NeuralEnv
             EventManager.Instance.Unsubscribe<GameOverEvent>(OnGameOver);
             CombatSystem.AdjacentResolver = null;
             CombatSystem.RoleAdjacentResolver = null;
+            BranchEngines.UnityAdjacentCountOf = null; // 团结邻接注入同步归零
             GameBoard.LinkAuraSystem.Detach(); // 连接光环接线同步归零
             _board?.Dispose();
             _board = null;

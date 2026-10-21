@@ -480,21 +480,21 @@ namespace SynergyUI
             return bestV > 0.0001f ? ManaColor(best) : ManaColor(ManaType.Gray);
         }
 
-        /// <summary>六色→粒子色（UiStyle 方格色为基；黑抬亮——纯黑粒子不可见；其余向白提一档自发光观感）。
+        /// <summary>六色→粒子色（UiStyle 方格色直映；2026-10-20 用户定案：**不做白化 lerp**——
+        /// VFX 图侧对传入色忠实渲染（外部设纯红=渲染纯红），白化只会把 G/B 抬浑致观感偏紫；
+        /// 黑=纯黑粒子不可见→直映紫 (0.38,0.32,0.55)）。
         /// 2026-10-19 起公开=粒子色单源：BattleEffectFx 六色弹体/爆点同口径复用。</summary>
         public static Color ManaColor(ManaType m)
         {
-            Color c = m switch
+            switch (m)
             {
-                ManaType.Red => UiStyle.DotRed,
-                ManaType.Blue => UiStyle.DotBlue,
-                ManaType.Green => UiStyle.DotGreen,
-                ManaType.Black => UiStyle.DotBlack,
-                ManaType.White => UiStyle.DotWhite,
-                _ => UiStyle.DotGray,
-            };
-            if (m == ManaType.Black) return Color.Lerp(c, new Color(0.38f, 0.32f, 0.55f), 0.85f);
-            return Color.Lerp(c, Color.white, 0.15f);
+                case ManaType.Black: return new Color(0.38f, 0.32f, 0.55f); // 黑→紫直映（lerp 链退役）
+                case ManaType.Red: return UiStyle.DotRed;
+                case ManaType.Blue: return UiStyle.DotBlue;
+                case ManaType.Green: return UiStyle.DotGreen;
+                case ManaType.White: return UiStyle.DotWhite;
+                default: return UiStyle.DotGray;
+            }
         }
 
         private static Gradient BuildGradient(Color c)

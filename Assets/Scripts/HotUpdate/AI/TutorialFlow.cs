@@ -55,10 +55,6 @@ namespace SynergyUI
         {
             if (mode == BattleMode.Tutorial)
             {
-                // 第三课（2026-10-18 真实对局流程版）：无论胜负都记「已尝试」——组合界面解锁判据；
-                // 负局只置尝试标记留在课程内（重挑直到胜），胜局才 MarkTutorialCompleted 过课。
-                if (BattleEntry.TutorialId == TutorialProgressManager.LunzhuanId)
-                    TutorialProgressManager.Instance.MarkLunzhuanAttempted();
                 if (playerWon)
                     TutorialProgressManager.Instance.MarkTutorialCompleted(BattleEntry.TutorialId);
                 return;

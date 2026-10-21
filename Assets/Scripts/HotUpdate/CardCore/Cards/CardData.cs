@@ -427,6 +427,7 @@ namespace CardCore
         public List<int> kinds;       // 实例域收窄（TargetKind 序号；null=表行默认域）
         public int count = -2;        // 每原子目标数量（2026-10-09：档 1/2/3；-2=未声明回落效果级 TargetCount）
         public int rand = -1;         // 每原子目标随机（2026-10-09：1=随机抽不弹窗/0=弹窗；-1=未声明回落效果级 RandomTarget）
+        public int defer;             // 每原子目标选择方式（2026-10-20：0=发动前预选=默认/1=效果处理时选——结算期必须选不可取消）
         public BranchEntryData branch; // 槽级分支载荷（2026-10-05 两槽定案）：null=无分支
     }
 
@@ -448,6 +449,8 @@ namespace CardCore
         public string condStr;         // settle==2：条件字符串参数
         public int engine;             // settle==3：BranchEngineKind 枚举值
         public int engineParam;        // 引擎参数 x（倒计时 0=按 then 推导费自动换算）
+        public int tactivate = -1;     // 奖励发动方式（2026-10-20 定案：奖励按自身发动方式发射——
+                                       // -1=未声明随主干·向后兼容；1=自动；2=主动（条件达成入待发队列走响应窗））
         public List<AtomicEffectEntry> then; // 奖励原子列表
     }
 
@@ -633,6 +636,10 @@ namespace CardCore
         /// 本列的意义是构筑资料与 Effects.json 的人类可读性。派生数据：不入内容哈希，
         // 原子表调价后即陈旧（重算不换 id——运行时不受影响，快照下次保存时刷新）。
         public ElementCost AnchorCost;
+
+        /// <summary>锚价钉死标志（2026-10-20）：1=AnchorCost 列为权威锚价——显示/预检/扣款直读
+        /// 不再实时推导（手作教学行用，如附加诅咒/祝福 0 费施放）；缺省 0=快照仅参考（历史口径）。</summary>
+        public int AnchorCostPinned;
 
         public List<ActivationConditionData> ActivationConditions;
         public List<ActivationConditionData> TriggerConditions;

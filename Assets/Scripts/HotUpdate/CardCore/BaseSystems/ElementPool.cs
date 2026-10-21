@@ -590,9 +590,9 @@ namespace CardCore
             return GetPool(player).TempElements.Values.Sum();
         }
 
-        /// <summary>元素池剩余可付总量（2026-10-19 重定义——元素充盈引擎判据三改）：全六色合计
-        /// 「未横置地牌张数 + 临时钱包余额」，与出牌支付同资源口径（钱包优先消耗+地牌横置补足，
-        /// 判定读数在本次消耗扣除之后）；旧「未横置最多同色数」随判据退役。</summary>
+        /// <summary>元素池剩余可付总量（2026-10-20 判据五恢复——元素充盈引擎判据）：全六色合计
+        /// 「未横置地牌张数 + 临时钱包余额」，与出牌支付同资源口径（钱包优先消耗+地牌横置补足）。
+        /// 引擎在对手施放结算后读双方此值求差（判据三同式，判据四「上限差」随改案退役）。</summary>
         public int GetRemainingElementTotal(Player player)
         {
             var pool = GetPool(player);

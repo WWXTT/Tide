@@ -34,8 +34,13 @@ namespace CardCore
         public string CostSummary;
 
         /// <summary>手牌响应卡（Kind=HandCard）：施放抉择模式序号（收集期已过该模式门禁；
-        /// ApplyResponse 经 PlayCardInResponse 消费——目标不预选，cast 结算期反问）。</summary>
+        /// ApplyResponse 经 PlayCardInResponse 消费——2026-10-20 起声明期预选目标经
+        /// CollectSpellDeclarationTargetsAsync 收集后随本字段下发；取消=撤销发动）。</summary>
         public int ModeIndex;
+
+        /// <summary>手牌响应卡（Kind=HandCard）声明期预选目标（2026-10-20）：
+        /// null=未收集（无交互原子/AI——结算期照常反问代选）。</summary>
+        public List<Entity> Targets;
     }
 
     /// <summary>
@@ -60,5 +65,23 @@ namespace CardCore
             Kind = (ResponseOption.ResponseKind)(-1),
             Label = "让过",
         };
+
+        // ---- 本轮窗口撤销记忆（2026-10-20 法术发动流程改案·用户定案） ----
+        // 连锁（响应窗）内取消声明期目标选择=撤销该次发动，且**本轮连锁不再询问该卡是否发动**
+        // （防取消→重弹循环）；生命周期=响应窗泵一次会话（SettleResponseWindowAsync 进入时清空）。
+        // 栈空主阶段路径无此机制（撤销即完，无重弹语境）。
+        private static readonly HashSet<Card> _declinedThisWindow = new HashSet<Card>();
+
+        /// <summary>标记该卡本轮响应窗内已撤销发动（CollectAvailableResponses 剔除其手牌卡候选）。</summary>
+        public static void DeclineForThisWindow(Card card)
+        {
+            if (card != null) _declinedThisWindow.Add(card);
+        }
+
+        /// <summary>该卡本轮响应窗内是否已撤销发动（True=不再进候选）。</summary>
+        public static bool IsDeclined(Card card) => card != null && _declinedThisWindow.Contains(card);
+
+        /// <summary>响应窗会话开启时清空（SettleResponseWindowAsync 进入口调用=一条连锁会话）。</summary>
+        public static void ResetDeclinedWindow() => _declinedThisWindow.Clear();
     }
 }

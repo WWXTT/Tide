@@ -167,7 +167,16 @@ namespace CardCore.Attribute.Handlers
             foreach (var target in context.Targets)
             {
                 if (!(target is Card victim)) continue;
-                DeathRules.TryKill(victim, DeathCause.DestroyEffect, context.Source, context.ZoneManager);
+                // 发动表演照播（2026-10-20 用户定案）：不灭等拦截=效果对目标不适用——效果已发动
+                //（费已付），补飞行事件驱动弹体+到达表现（无死亡事件，表现层仅飞行不结算）。
+                if (!DeathRules.TryKill(victim, DeathCause.DestroyEffect, context.Source, context.ZoneManager,
+                        effect.AnchorTint()))
+                    PublishEvent(new EffectFlightEvent
+                    {
+                        Source = context.Source, CastCard = context.CastCard, Target = victim,
+                        Tint = effect.AnchorTint(),
+                        Note = "目标不灭——效果不适用"
+                    });
             }
         }
 
@@ -206,6 +215,16 @@ namespace CardCore.Attribute.Handlers
                     context.ElementPool.RemoveCardFromPool(card, owner);
                 }
 
+                // 事件序定案（2026-10-20 用户：先死亡后移墓）：摧毁事件先发（此刻卡仍在场），
+                // 移区随后发离场——旧序（先移后发）日志离场先于死亡。
+                PublishEvent(new CardDestroyEvent
+                {
+                    DestroyedCard = card,
+                    Reason = DestroyReason.Smashed,
+                    Source = context.Source,
+                    EffectTint = effect.AnchorTint()
+                });
+
                 // 直送墓地（无生命值单位不走 DeathRules）
                 var cardOwner = card.GetOwner() ?? card.GetController();
                 if (context.ZoneManager != null && cardOwner != null)
@@ -214,13 +233,6 @@ namespace CardCore.Attribute.Handlers
                     if (from != Zone.Graveyard)
                         context.ZoneManager.MoveCard(card, cardOwner, from, Zone.Graveyard);
                 }
-
-                PublishEvent(new CardDestroyEvent
-                {
-                    DestroyedCard = card,
-                    Reason = DestroyReason.Smashed,
-                    Source = context.Source
-                });
             }
         }
 

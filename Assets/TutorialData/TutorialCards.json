@@ -497,7 +497,7 @@
     "教学"
    ],
    "effectIds": [
-    "407eb771"
+    "91535cec"
    ]
   },
   {
@@ -718,8 +718,8 @@
    "life": 2
   },
   {
-   "id": "C_A0BE3471",
-   "cardName": "教学·元素充盈甲",
+   "id": "C_37590ABA",
+   "cardName": "教学·充盈兽一",
    "supertype": "Creature",
    "costList": [
     1,
@@ -733,40 +733,18 @@
     "教学"
    ],
    "effectIds": [
-    "D0501DB1"
-   ],
-   "illustration": "Kojikocy",
-   "power": 1,
-   "life": 2
-  },
-  {
-   "id": "C_60BC2AFB",
-   "cardName": "教学·元素充盈乙",
-   "supertype": "Creature",
-   "costList": [
-    1,
-    0,
-    0,
-    0,
-    0,
-    0
-   ],
-   "tags": [
-    "教学"
-   ],
-   "effectIds": [
-    "0B949DE1"
+    "BF69F534"
    ],
    "illustration": "PetitAngel",
    "power": 1,
    "life": 2
   },
   {
-   "id": "C_9A6284F1",
-   "cardName": "教学·火花",
-   "supertype": "Spell",
+   "id": "C_E5B9B439",
+   "cardName": "教学·充盈兽二",
+   "supertype": "Creature",
    "costList": [
-    0,
+    1,
     0,
     0,
     0,
@@ -777,8 +755,118 @@
     "教学"
    ],
    "effectIds": [
-    "EB561A43"
-   ]
+    "A628AC66"
+   ],
+   "illustration": "PetitAngel",
+   "power": 1,
+   "life": 2
+  },
+  {
+   "id": "C_B5CB770F",
+   "cardName": "教学·充盈兽三",
+   "supertype": "Creature",
+   "costList": [
+    1,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "tags": [
+    "教学"
+   ],
+   "effectIds": [
+    "6C28CDF3"
+   ],
+   "illustration": "PetitAngel",
+   "power": 1,
+   "life": 2
+  },
+  {
+   "id": "C_D5F53D47",
+   "cardName": "教学·充盈兽四",
+   "supertype": "Creature",
+   "costList": [
+    1,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "tags": [
+    "教学"
+   ],
+   "effectIds": [
+    "981112BA"
+   ],
+   "illustration": "PetitAngel",
+   "power": 1,
+   "life": 2
+  },
+  {
+   "id": "C_4EAE4725",
+   "cardName": "教学·充盈兽五",
+   "supertype": "Creature",
+   "costList": [
+    1,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "tags": [
+    "教学"
+   ],
+   "effectIds": [
+    "60852B8F"
+   ],
+   "illustration": "PetitAngel",
+   "power": 1,
+   "life": 2
+  },
+  {
+   "id": "C_BCA1D9C8",
+   "cardName": "教学·充盈兽六",
+   "supertype": "Creature",
+   "costList": [
+    1,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "tags": [
+    "教学"
+   ],
+   "effectIds": [
+    "B0280213"
+   ],
+   "illustration": "PetitAngel",
+   "power": 1,
+   "life": 2
+  },
+  {
+   "id": "C_3D470EE8",
+   "cardName": "教学·幼兽",
+   "supertype": "Creature",
+   "costList": [
+    0,
+    0,
+    0,
+    1,
+    0,
+    0
+   ],
+   "tags": [
+    "教学"
+   ],
+   "illustration": "Kojikocy",
+   "power": 1,
+   "life": 1
   },
   {
    "id": "C_35A53D34",
@@ -820,7 +908,7 @@
   },
   {
    "id": "C_9A2961C5",
-   "cardName": "教学·效果序位兽",
+   "cardName": "教学·团结兽",
    "supertype": "Creature",
    "illustration": "MukaMuka",
    "power": 1,
@@ -838,6 +926,47 @@
    ],
    "effectIds": [
     "D9C996F2"
+   ]
+  },
+  {
+   "id": "C_C18EE5C3",
+   "cardName": "教学·直伤兽",
+   "supertype": "Creature",
+   "illustration": "Kojikocy",
+   "power": 1,
+   "life": 2,
+   "costList": [
+    1,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "tags": [
+    "教学"
+   ],
+   "effectIds": [
+    "E1D84E55"
+   ]
+  },
+  {
+   "id": "C_09BAF20F",
+   "cardName": "教学·黑晶仔",
+   "supertype": "Creature",
+   "illustration": "Kojikocy",
+   "power": 1,
+   "life": 1,
+   "costList": [
+    1,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "tags": [
+    "教学"
    ]
   }
  ]

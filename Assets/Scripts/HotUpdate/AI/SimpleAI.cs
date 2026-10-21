@@ -252,14 +252,18 @@ namespace SynergyUI
             return ok;
         }
 
-        /// <summary>发动引擎已入队的可选待发效果（触发式可选项，"把能发动的都发动"）。</summary>
+        /// <summary>发动引擎已入队的可选待发效果（触发式可选项，"把能发动的都发动"）。
+        /// 控制器过滤（2026-10-20）：待发桶双方共享且 GetActivatableVoluntaryEffects 无视激活方——
+        /// 不滤会把玩家掷骰入队的 BRANCH_REWARD 当自己的发射（目标被 AI 代选）。</summary>
         private static bool DrainVoluntaryQueue(GameCore core)
         {
             bool any = false;
+            var me = core.StackEngine.CurrentPriorityHolder;
             // 快照遍历：发动（出队入栈）本身会改动待发队列
-            var pending = new List<PendingEffect>(core.StackEngine.GetActivatableVoluntaryEffects(core.StackEngine.CurrentPriorityHolder));
+            var pending = new List<PendingEffect>(core.StackEngine.GetActivatableVoluntaryEffects(me));
             foreach (var effect in pending)
             {
+                if (effect.Controller != me) continue; // 只发动自己队列里的待发
                 if (core.StackEngine.PlayerActivateVoluntary(effect))
                     any = true;
             }

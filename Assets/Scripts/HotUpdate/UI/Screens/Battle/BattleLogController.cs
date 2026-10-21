@@ -108,6 +108,12 @@ namespace SynergyUI
             _holdBase = MatchLogService.Entries.Count;
         }
 
+        /// <summary>缓冲在途（Hold↔Release 窗口）——日志可见性判别口（2026-10-20 定案「UI 真相源=
+        /// 日志」）：false=新行此刻入史可见（消费方可即时对账，如角色HP读数渲染宣言帧中间态）；
+        /// true=行缓冲中、随回放步放行（终值归步进快照/命中节拍）。比 SuppressAutoFlush 早一拍
+        /// （Hold 在 StackResolutionStart、抑制在首个 StackResolutionEnd）——正好拦住步内事件。</summary>
+        public bool IsHeld => _holding;
+
         /// <summary>放行至全局条数边界（步快照捕获点的日志水位）：按序放出缓冲条目。</summary>
         public void ReleaseUpTo(int globalCount)
         {

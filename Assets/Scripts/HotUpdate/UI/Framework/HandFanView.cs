@@ -217,6 +217,20 @@ namespace SynergyUI
         /// <summary>飞入完成回调（HandFanCard 终点落位后调）：重建布局恢复正典兄弟序/位姿。</summary>
         internal void OnFlyInDone(HandFanCard card) => RebuildTargets();
 
+        /// <summary>单卡显隐（2026-10-20 法术声明期预览）：声明期目标收集时藏卡（战场贴片预览代位——
+        /// 「卡已放到发动区」观感）；取消路径显式还原，确认路径由 SetCards 对账自然收卡。
+        /// 期间若扇区被全量对账，隐藏位会被 SetCards 复活（引擎态卡仍在手）——仅外观短暂双显，无伤。</summary>
+        public bool SetCardActive(uint runtimeId, bool active)
+        {
+            foreach (var c in _cards)
+                if (c != null && c.RuntimeId == runtimeId)
+                {
+                    c.gameObject.SetActive(active);
+                    return true;
+                }
+            return false;
+        }
+
         /// <summary>重算全部卡的布局目标（间距压缩→谷形弧位姿→悬停态叠加→兄弟序）。</summary>
         private void RebuildTargets()
         {

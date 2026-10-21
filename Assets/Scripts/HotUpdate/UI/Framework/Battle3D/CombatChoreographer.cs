@@ -343,7 +343,13 @@ namespace SynergyUI
 
         private void OnBlockDeclared(BlockDeclarationEvent e)
         {
-            if (!_capturing) return;
+            if (!_capturing)
+            {
+                // 取证（2026-10-21 教学一考验守卫表现）：守卫拦截到达时攻击捕获已不在（被后续宣言
+                // ClearCapture 洗掉或已开演交接）——本次拦截无挡枪演出，逻辑照常结算。出现即节奏失序。
+                Debug.LogWarning("[CombatChoreo] 守卫拦截到达时无在途攻击捕获——本次拦截无挡枪演出（捕获被洗/已交接）");
+                return;
+            }
             // 原目标格速记（改写前取，仅首次拦截记录——多次拦截共用最初目标做挡位参照）：
             // 角色目标=防守方角色格
             if (!_blocked)
@@ -733,6 +739,7 @@ namespace SynergyUI
                         _field.ReleaseUnitStats(id); // 数值节拍：溅射方伤害随主命中落地
                     }
                     _field.ReleaseUnitStats(plan.TargetId); // 数值节拍：目标伤害此刻滚动显示
+                    _field.ReleaseAllHeroStats(); // 数值节拍（2026-10-20）：角色方伤害随主命中落地——角色目标与立柱脉冲同拍，溅射波及角色同拍覆盖；未冻结=幂等无操作
                     await DelayChainAware(AttackBeatMs - ImpactDelayMs); // 连锁冻结感知节拍（2026-10-17）
                     if (Stopped(epoch, attW, tgtW))
                     {
@@ -806,7 +813,7 @@ namespace SynergyUI
                 finally
                 {
                     _field.EndVisual(); // 视觉在途门：演出结束（含中止/异常路径）归零
-                    _field.ReleaseAllHeldStats(); // 数值节拍兜底：未逐个释放的冻结全量放行（终值滚动/直落）
+                    _field.ReleaseAllHeldStats(); // 数值节拍兜底：未逐个释放的冻结全量放行（单位终值滚动/角色柱直落）
                     _arrowLive = false; // 箭头兜底收（正常路径命中已渐隐；中止路径即时藏）
                     _arrow.Hide();
                     _guardArrow.Hide();

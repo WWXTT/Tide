@@ -161,7 +161,12 @@ namespace GameBoard
                     int idx = BoardMath.Index(c.x, c.z);
                     if (!usage.Contains(idx)) { placed = idx; break; }
                 }
-                if (placed < 0) break; // 容量外（控制权迁移等边缘）不落格、不抛错（原口径）
+                if (placed < 0)
+                {
+                    // 2026-10-21 段零召唤物无视觉取证：容量外不落格原口径静默——埋点显形
+                    TideLog.Warn($"[BoardState] {card?.ID} 容量外未落格（本区格数={cells.Count} 已占={usage.Count}）");
+                    break;
+                }
                 usage.Add(placed);
                 _occupant[placed] = card;
                 _cellOf[card] = placed;
@@ -384,6 +389,25 @@ namespace GameBoard
                 if (neighbor != null && neighbor != card && !IsCasting(neighbor))
                     yield return neighbor;
             }
+        }
+
+        /// <summary>团结邻接计数（2026-10-20 团结引擎·BranchEngines.UnityAdjacentCountOf 注入）：
+        /// 此卡 6 邻格中的"单位"数——生物/结界占格各 1（单位区占用者）、角色格恒 1（角色无卡实体按格计）、
+        /// 非空地牌格 1（同色组首张占格=非空；空地牌格无占用不计）；施放占位卡非在场单位不计
+        ///（战斗邻接同口径）；自身不计；未落格 = 0；六邻天然封顶 6。</summary>
+        public int AdjacentOccupantCount(Card card)
+        {
+            if (!TryGetCell(card, out int x, out int z)) return 0;
+            int count = 0;
+            foreach (BoardDirection dir in Enum.GetValues(typeof(BoardDirection)))
+            {
+                var (nx, nz) = BoardMath.Neighbor(x, z, dir);
+                if (!BoardMath.InBounds(nx, nz)) continue;
+                if (BoardLayout.RoleOf(nx, nz) == CellRole.Character) { count++; continue; }
+                var occupant = CardAt(nx, nz);
+                if (occupant != null && occupant != card && !IsCasting(occupant)) count++;
+            }
+            return count;
         }
 
         /// <summary>卡所在格左右同排（E/W 两向）邻格占用生物（碾压 AdjacentResolver 接线用；

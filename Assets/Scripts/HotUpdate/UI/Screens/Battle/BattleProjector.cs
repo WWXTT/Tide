@@ -35,11 +35,16 @@ namespace SynergyUI
         private readonly Action<StackResolutionStartEvent> _onResolutionStart; // 逆结算回合开始（2026-10-19 步进回放）
         private readonly Action<StackResolutionEndEvent> _onStepResolved;      // 逆结算单步完成（步载荷=ResolvedItem）
         private readonly Action<StackEmptyEvent> _onRoundStackEmpty;           // 逆结算轮末（栈排干）
-        private readonly Action<AtomicDamageEvent> _onEffectDamage;   // 效果伤害演出（弹体→爆点+浮字+受击，2026-10-19 Arctibyte 接入）
+        private readonly Action<AtomicDamageEvent, (int x, int z)?> _onEffectDamage; // 效果伤害演出（弹体→爆点+浮字+受击，2026-10-19 Arctibyte 接入；
+        // 2026-10-20 时序定案：携发动位抓拍——法术伤害弹体从法术位起飞、先等费用粒子到位）
         private readonly Action<HealEvent> _onEffectHeal;             // 回复演出（绿火花+浮字）
         private readonly Action<CounterChangedEvent> _onCounterFloat; // 属性指示物浮字（白名单在演出侧过滤）
         private readonly Action<CardDestroyEvent> _onDeathHold;    // 效果死亡预持（引擎时点同步——防对账抢先销毁尸体）
-        private readonly Action<CardDestroyEvent> _onDeathPresent; // 效果死亡演出（碎裂退场+消灭族角色→目标飞行/紫火花）
+        private readonly Action<CardDestroyEvent, (int x, int z)?> _onDeathPresent; // 效果死亡演出（消灭飞行+碎裂链尾；2026-10-20 携发动位抓拍）
+        private readonly Action<EffectFlightEvent, (int x, int z)?> _onEffectFlight; // 效果飞行演出（2026-10-20：效果无效/不适用场景——发动照播弹体）
+        private readonly Action<ClashResolvedEvent> _onClashResolved; // 拼点演出（2026-10-20：差值浮字+成败粒子——成败两态都发）
+        private readonly Action<LuckRolledEvent> _onLuckRoll;         // 运势掷骰浮字（2026-10-20 定案：不搞特效——TMP 文本「投掷结果 d1+d2，效果通过/不通过」·结构化事件成败都发）
+        private readonly Func<bool> _logHeld;                         // 日志缓冲在途探针（2026-10-20「UI 真相源=日志」：HP 读数按日志可见性走——见 On<LifeChangeEvent>）
 
         private readonly List<Action> _unsubscribers = new List<Action>();
         private int _lastCoreNullLogFrame = -999; // 核心未就绪跳过的节流日志帧
@@ -59,11 +64,15 @@ namespace SynergyUI
             Action<StackResolutionStartEvent> onResolutionStart = null,
             Action<StackResolutionEndEvent> onStepResolved = null,
             Action<StackEmptyEvent> onRoundStackEmpty = null,
-            Action<AtomicDamageEvent> onEffectDamage = null,
+            Action<AtomicDamageEvent, (int x, int z)?> onEffectDamage = null,
             Action<HealEvent> onEffectHeal = null,
             Action<CounterChangedEvent> onCounterFloat = null,
             Action<CardDestroyEvent> onDeathHold = null,
-            Action<CardDestroyEvent> onDeathPresent = null)
+            Action<CardDestroyEvent, (int x, int z)?> onDeathPresent = null,
+            Action<EffectFlightEvent, (int x, int z)?> onEffectFlight = null,
+            Action<ClashResolvedEvent> onClashResolved = null,
+            Action<LuckRolledEvent> onLuckRoll = null,
+            Func<bool> logHeld = null)
         {
             _core = core;
             _ctrl = ctrl;
@@ -85,6 +94,10 @@ namespace SynergyUI
             _onCounterFloat = onCounterFloat;
             _onDeathHold = onDeathHold;
             _onDeathPresent = onDeathPresent;
+            _onEffectFlight = onEffectFlight;
+            _onClashResolved = onClashResolved;
+            _onLuckRoll = onLuckRoll;
+            _logHeld = logHeld;
         }
 
         // ==== 订阅（唯一订阅点） ====
@@ -104,14 +117,21 @@ namespace SynergyUI
         public void Wire()
         {
             On<CardPlayEvent>(_ => { QueueFans(); QueueField(); });            // 出牌→单位/地牌落格
+            // 金圈时序（2026-10-21 命运一抽绿→金修复）：入扇对账发生在 CardEnterHandEvent（移动内），
+            // 早于 DrawnInStandbyThisTurn 的登记（CardDrawEvent——MatchStats 订阅在 GameCore 构造期，
+            // 同一分派内先跑）——门卡首评恒绿；抽牌事件（此刻登记已完成）补一次刷扇重评即金。
+            On<CardDrawEvent>(_ => QueueFans());
             On<CardZoneChangeEvent>(_ => { QueueFans(); QueueField(); });
             On<CardMoveEvent>(_ => { QueueFans(); QueueField(); });
             On<CardDestroyEvent>(e => // 单位死亡→离场对账；效果死亡补碎裂（引擎时点预持——效果致死卡
             {                          // 已入墓不进快照，RemoveStale 会抢先销毁致碎裂永不播），消灭族再附飞行/火花
                 if (e != null && e.DestroyedCard != null)
                 {
-                    _onDeathHold?.Invoke(e);                      // 同步：持票防抢（编舞器持有=不接管）
-                    DeferOrRun(() => _onDeathPresent?.Invoke(e)); // 演出：碎裂+消灭表现随回放步放出
+                    _onDeathHold?.Invoke(e); // 同步：持票防抢（编舞器持有=不接管）
+                    // 发动位抓拍须在事件期（回放期法术卡已入墓离区——事件期它还在发动区）：
+                    // 死亡时序定案（2026-10-20）——消灭飞行体从法术位起飞、先等费用粒子到位
+                    var castCell = ResolveCastFxCell(e.Source);
+                    DeferOrRun(() => _onDeathPresent?.Invoke(e, castCell)); // 演出：碎裂+消灭表现随回放步放出
                 }
                 QueueFans(); QueueField();
             });
@@ -137,16 +157,39 @@ namespace SynergyUI
             // 钱包入账/支付（ElementPool 两事件）——RefreshField 全量对账覆盖
             On<TurnStartEvent>(_ => { _clearPendingPins(); QueueField(); }); // 出牌选格残单随回合清
             On<PhaseStartEvent>(_ => QueueField()); // TurnStart 先于切阶段发布：缺此订阅 View.Phase 滞留上回合 End（回合≥2 点单位被误拒）
-            On<LifeChangeEvent>(_ => QueueField());
+            On<LifeChangeEvent>(e => // 角色HP读数·日志即真相源（2026-10-20 用户定案）：引擎同帧瞬达、
+            {                       // 步进快照只带终值——中间值（宣言帧拼点奖励 30→24 等）只能靠"日志行
+                                    // 可见"时刻的事件态同步对账上屏；帧首 Flush 会被同帧后续结算+抑制
+                                    // 跑赢而吞掉中间值。未按住=行即刻入史可见→立即全量对账（此刻引擎
+                                    // 即中间态）；按住（结算回放期）=行缓冲中、终值随步放（攻击步另有
+                                    // 命中节拍）→照旧只置脏（抑制期丢弃）。
+                if (_logHeld == null || !_logHeld()) RefreshField();
+                QueueField();
+            });
             On<FatigueEvent>(e => DeferOrRun(() => _onFatigue(e))); // 疲劳受击演出（红闪脉冲+头顶浮字——信息性表演占视觉门；回放抑制期延迟随步放出）
             On<AtomicDamageEvent>(e => // 效果伤害演出（2026-10-19：法术/效果伤害此前零专属表现——教学二 1 伤卡根因）；
             {                            // IsCombatDamage 过滤防与战斗编舞双播（战斗伤害走 CombatChoreographer 受击节拍）
-                if (!e.IsCombatDamage && _onEffectDamage != null) DeferOrRun(() => _onEffectDamage(e));
+                if (!e.IsCombatDamage && _onEffectDamage != null)
+                {
+                    // 发动位抓拍须在事件期（回放期法术卡已入墓离区——事件期它还在发动区）：
+                    // 费用粒子→弹体从法术位起飞→目标受击/死亡的时序链（2026-10-20 用户定案）
+                    var castCell = ResolveCastFxCell(e.Source);
+                    DeferOrRun(() => _onEffectDamage(e, castCell));
+                }
                 QueueField();
             });
             On<HealEvent>(e => // 回复演出（绿火花+浮字；溢出截断在屏侧算实效）
             {
                 if (_onEffectHeal != null) DeferOrRun(() => _onEffectHeal(e));
+                QueueField();
+            });
+            On<EffectFlightEvent>(e => // 效果飞行演出（2026-10-20 定案：效果无效/不适用≠发动无效——
+            {                          // 费已付弹体照飞；发动无效在 ResolveCardCastAsync 早退=零表现零事件）
+                if (_onEffectFlight != null)
+                {
+                    var castCell = ResolveCastFxCell(e.Source); // 事件期抓拍（回放期法术卡已入墓）
+                    DeferOrRun(() => _onEffectFlight(e, castCell));
+                }
                 QueueField();
             });
             On<ElementPoolGainEvent>(_ => QueueField());
@@ -155,6 +198,15 @@ namespace SynergyUI
             On<ElementPoolAddEvent>(_ => { QueueFans(); QueueField(); });
             // 攻击宣言（2026-10-14 优先权半场高光）：宣言即优先权翻转（守卫窗口对手持有）
             On<AttackDeclarationEvent>(_ => QueueField());
+            On<ClashResolvedEvent>(e => // 拼点演出（2026-10-20：攻击宣言期引擎结算同步到——差值浮字随展示翻面同拍）
+            {
+                if (_onClashResolved != null) DeferOrRun(() => _onClashResolved(e)); // 回放抑制期延迟随步放出
+            });
+            On<LuckRolledEvent>(e => // 运势掷骰浮字（2026-10-20 一步点击定案：主动/自动两路掷骰同源结构化事件——成败都发）
+            {
+                if (_onLuckRoll != null)
+                    DeferOrRun(() => _onLuckRoll(e)); // 回放抑制期延迟随步放出
+            });
             On<GameOverEvent>(_onGameOver);
         }
 
@@ -162,6 +214,22 @@ namespace SynergyUI
         {
             EventManager.Instance.Subscribe(handler);
             _unsubscribers.Add(() => EventManager.Instance.Unsubscribe(handler));
+        }
+
+        /// <summary>法术伤害表现的发动位抓拍（2026-10-20 时序定案）：伤害来源=角色（法术效果来源归因）
+        /// 且其发动区有施放中法术 → 施放贴片落格（弹体从这里起飞）；否则 null——单位来源/技能/
+        /// 触发效果照旧从来源锚点起飞。**事件期求值**：回放期卡已入墓，发动区查不到。</summary>
+        private (int x, int z)? ResolveCastFxCell(Entity source)
+        {
+            if (!(source is Player p)) return null;
+            var core = _core();
+            var board = _ctrl()?.Board;
+            if (core?.ZoneManager == null || board == null) return null;
+            Card spell = null;
+            foreach (var c in core.ZoneManager.GetCards(p, Zone.Activation) ?? new List<Card>())
+                if (c != null && c.IsSpellCard()) { spell = c; break; }
+            if (spell == null) return null;
+            return board.TryGetCastingCell(spell, out int x, out int z) ? ((int x, int z)?)(x, z) : null;
         }
 
         public void Dispose()
@@ -228,6 +296,12 @@ namespace SynergyUI
                 }
                 return;
             }
+            // 棋盘先于视图（2026-10-21 段零召唤物无视觉终根因）：投影器与 BoardState.AutoResync
+            // 同订 CardZoneChangeEvent 且订阅序在前——同一事件的视图快照建于棋盘落格之前（召唤物
+            // X=-1 对账跳过建视觉）；Resync 本身不发事件、无补偿刷新，其后无刷新事件即永久滞留
+            //（教学段零召唤后正无事件，考验/教学二靠换场与自由操作自愈故曾表现正常）。
+            // 视图构建前显式 Resync（幂等全量重建，字典级开销）——对订阅序免疫。
+            ctrl.Board?.Resync();
             View = BattleView.BuildLocal(core, ctrl.Board, ctrl.P1, ctrl.P2);
             _onApplied(View);
             ViewVersion++; // 悬停源缓存作废：全部悬停文本的数据源随本刷新重建（2026-10-18 性能）
@@ -240,6 +314,7 @@ namespace SynergyUI
             var core = _core();
             var ctrl = _ctrl();
             if (core == null || ctrl?.P1 == null || ctrl?.P2 == null) return;
+            ctrl.Board?.Resync(); // 同 RefreshField：视图快照前棋盘先落格（订阅序免疫）
             View = BattleView.BuildLocal(core, ctrl.Board, ctrl.P1, ctrl.P2);
             _onBarsOnly();
         }

@@ -136,6 +136,7 @@ namespace SynergyUI
             _board.EnableAutoResync();
             CombatSystem.AdjacentResolver = _board.FlankNeighbors; // 碾压=左右同排生物（2026-10-04 语义修订）
             CombatSystem.RoleAdjacentResolver = _board.FlankNeighborsOfRole; // 碾压攻角色=角色格左右邻格（2026-10-16 改版）
+            BranchEngines.UnityAdjacentCountOf = _board.AdjacentOccupantCount; // 团结=六邻单位数（2026-10-20 效果序位换轴）
             GameBoard.LinkAuraSystem.Attach(_board); // 连接光环（三轨制）：箭头指向格占据者享受 linkAuras
         }
 
@@ -172,6 +173,7 @@ namespace SynergyUI
             _board = null;
             CombatSystem.AdjacentResolver = null;
             CombatSystem.RoleAdjacentResolver = null;
+            BranchEngines.UnityAdjacentCountOf = null; // 团结邻接注入随棋盘归零（静态委托防跨局指向过期占用层）
             GameBoard.LinkAuraSystem.Detach();
         }
 

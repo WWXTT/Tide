@@ -25,7 +25,11 @@ namespace SynergyUI
         private const string SparkPath = "Assets/Art/VFX/Dissolve Template.vfx";
 
         /// <summary>弹体飞行段（源→目标，easeIn 加速冲向目标）。</summary>
-        public const float OrbFlySeconds = 0.35f;
+        public const float OrbFlySeconds = 0.5f;
+
+        /// <summary>弹体尾焰驻留（2026-10-20 实测改案）：MagicOrb=长周期持续发射演出（Play 下
+        /// alive 4 万+），旧"抵达即毁"把内容掐在萌芽期=看不到飞行过程——抵达停发后驻留收尾再毁。</summary>
+        public const float OrbLingerSeconds = 0.9f;
 
         /// <summary>爆点驻留（含余烬尾；fire-and-forget 定时销毁）。</summary>
         public const float ImpactLingerSeconds = 1.0f;
@@ -64,8 +68,9 @@ namespace SynergyUI
             return go;
         }
 
-        /// <summary>弹体飞行（占位协程：transform 驱动 GO，VFX 图粒子随宿主走；抵达即毁）。
-        /// color=六色主色（图加 Color 暴露属性后生效——HasProperty 守卫，未改图=图本色）。
+        /// <summary>弹体飞行（transform 驱动 GO，VFX 图粒子随宿主走）。**抵达不即毁**（2026-10-20
+        /// 实测改案）：停发+尾焰驻留 0.9s 后毁——调用方 await 到达即返（爆点照常在到达时刻播）。
+        /// color=六色主色（按图守卫——MagicOrb 吃 Color）。
         /// 资产缺失/异常兜底=立即返回（调用方径直接爆点）。</summary>
         public static async UniTask PlayOrbAsync(Vector3 from, Vector3 to, Color color)
         {
@@ -87,10 +92,26 @@ namespace SynergyUI
                     go.transform.position = Vector3.Lerp(from, to, k * k); // easeIn：加速冲向目标
                     await UniTask.Yield();
                 }
+                LingerOrbAsync(go, vfx).Forget(); // 尾焰驻留交协程（fire-and-forget）
+                go = null; // 已交驻留协程管理——finally 不再销毁
             }
             catch (Exception ex)
             {
                 Debug.LogWarning($"[EffectFx] 弹体异常（兜底=立即爆点）：{ex.Message}");
+            }
+            finally
+            {
+                if (go != null) UnityEngine.Object.Destroy(go);
+            }
+        }
+
+        /// <summary>弹体尾焰驻留：停发（已生粒子按寿命收尾）→0.9s 后毁件；拆台/已销假 null 判死跳过。</summary>
+        private static async UniTaskVoid LingerOrbAsync(GameObject go, VisualEffect vfx)
+        {
+            try
+            {
+                if (vfx != null) vfx.Stop();
+                await UniTask.Delay((int)(OrbLingerSeconds * 1000f));
             }
             finally
             {
@@ -112,15 +133,18 @@ namespace SynergyUI
             return vfx;
         }
 
-        /// <summary>六色染色（2026-10-19 六色复用·实测修正）：两图出厂即带颜色暴露，无需改图——
-        /// MagicOrb=**Color**（单色），Impact=**Color1（主）+Color2（副）**，两图另有 Size(float)
-        ///（暴露名经 Set/Get 回读探针证实——此序列化格式 text-grep 查不到，"零暴露"旧结论作废）。
-        /// SetVector4 对未暴露名实测静默忽略→三名全写，各图吃各自暴露名；Color2=提亮副色保层次。</summary>
+        /// <summary>六色染色（2026-10-20 探针定案·推翻"三名全写静默忽略"旧结论）：未暴露名
+        /// SetVector4 会打 "Value of name 'x' was not found"（Play 实测两条错源=弹体实例）。
+        /// 按图守卫：MagicOrb=Color（单色）；Impact=Color1（主）+Color2（副，提亮保层次）。</summary>
         private static void ApplyColor(VisualEffect vfx, Color color)
         {
-            vfx.SetVector4("Color", color);
-            vfx.SetVector4("Color1", color);
-            vfx.SetVector4("Color2", Color.Lerp(color, Color.white, 0.55f));
+            // TEMP-PROBE（紫色复现取证）：传入色 + 各守卫真实结果——定位是值错还是图侧不消费
+            Debug.Log($"[EffectFx] ApplyColor in=({color.r:F2},{color.g:F2},{color.b:F2},{color.a:F2})" +
+                      $" asset={(vfx.visualEffectAsset != null ? vfx.visualEffectAsset.name : "null")}" +
+                      $" gColor={vfx.HasVector4("Color")} gColor1={vfx.HasVector4("Color1")} gColor2={vfx.HasVector4("Color2")}");
+            if (vfx.HasVector4("Color")) vfx.SetVector4("Color", color);
+            if (vfx.HasVector4("Color1")) vfx.SetVector4("Color1", color);
+            if (vfx.HasVector4("Color2")) vfx.SetVector4("Color2", Color.Lerp(color, Color.white, 0.55f));
         }
 
         /// <summary>短促彩色火花（回复=绿/增益可选色）：Dissolve Template + 水平网格烘焙 +

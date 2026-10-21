@@ -432,22 +432,25 @@ namespace CardCore
             }).ToList();
         }
 
-        /// <summary>某玩家的战场生物（有生命单位中的卡部分；角色由调用方补）。</summary>
+        /// <summary>某玩家的战场生物（有生命单位中的卡部分；角色由调用方补）。
+        /// 死亡事件窗口内死卡仍列战场区（先死亡后移墓定案，见 DeathRules.TryKill）且
+        /// IsAlive 已先置 false——须滤除，否则死亡计数等事件内同步结算的目标弹窗见已死生物。</summary>
         private List<Entity> CreaturesOf(Player player)
         {
             var list = new List<Entity>();
             foreach (var c in GetZoneCards(player, Zone.Battlefield))
-                if (c is IHasSupertype st && st.Supertype == Cardtype.Creature)
+                if (c.IsAlive && c is IHasSupertype st && st.Supertype == Cardtype.Creature)
                     list.Add(c);
             return list;
         }
 
-        /// <summary>某玩家的战场非生物持久物（无生命单位）。</summary>
+        /// <summary>某玩家的战场非生物持久物（无生命单位）。死亡滤除同 <see cref="CreaturesOf"/>
+        ///（结界耐久归零死亡同样先死亡后移墓）。</summary>
         private List<Entity> NonLivingOf(Player player)
         {
             var list = new List<Entity>();
             foreach (var c in GetZoneCards(player, Zone.Battlefield))
-                if (c is IHasSupertype st && st.Supertype != Cardtype.Creature)
+                if (c.IsAlive && c is IHasSupertype st && st.Supertype != Cardtype.Creature)
                     list.Add(c);
             return list;
         }

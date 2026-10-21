@@ -158,18 +158,23 @@ namespace SynergyUI
             _tutorial = new BattleTutorialDirector(() => Root, () => Core, () => _ctrl, () => _field, _toast,
                 ShowTipPromptAsync, () => Manager.Back(), RefreshField, RefreshFans, OnEndTurnFan,
                 () => _gameEnded, v => _gameEnded = v,
-                () => Manager.Replace<BattleScreen>()); // 教学三重开战场（2026-10-19）：弹栈重入=五段开场重放
+                () => Manager.Replace<BattleScreen>(), // 教学三重开战场（2026-10-19）：弹栈重入=五段开场重放
+                () => _director != null && _director.Busy); // 表现在途探针（2026-10-20 运势段被截修复）：回放导演 Busy
             _projector = new BattleProjector(() => Core, () => _ctrl, ApplyProjection, RefreshView,
                 () => _fanFlyArmed = true, ArmDrawFlyIn,
                 e => { if (e?.Card != null) _field?.InterruptCasting(e.Card.RuntimeId); },
                 e => { if (e?.Player == null || _field == null) return; _field.HeroFatigueHitAsync(e.Player == P2 ? 1 : 0, e.Damage).Forget(); },
                 CapturePaid, CaptureArrival, OnGameOverFan, () => _pendingPins.Clear(),
                 _director.OnResolutionStart, _director.OnStepResolved, _director.OnRoundStackEmpty,
-                e => _field?.PlayEffectDamageAsync(e.Source, e.Target, e.Damage, p => p == P2 ? 1 : 0).Forget(),
+                (e, castCell) => _field?.PlayEffectDamageAsync(e.Source, e.Target, e.Damage, p => p == P2 ? 1 : 0, castCell, e.EffectTint).Forget(),
                 e => _field?.PlayEffectHealAsync(e.Target, e.Amount - e.Overfill, p => p == P2 ? 1 : 0).Forget(),
                 e => _field?.PlayCounterFloatAsync(e.Target, e.CounterType, e.Amount, p => p == P2 ? 1 : 0).Forget(),
                 e => _field?.HoldForEffectDeath(e),
-                e => _field?.PresentEffectDeathAsync(e.Source, e.DestroyedCard, e.Reason, p => p == P2 ? 1 : 0).Forget());
+                (e, castCell) => _field?.PresentEffectDeathAsync(e.Source, e.DestroyedCard, e.Reason, p => p == P2 ? 1 : 0, castCell, e.EffectTint).Forget(),
+                (e, castCell) => _field?.PlayEffectFlightAsync(e.Source, e.Target, p => p == P2 ? 1 : 0, castCell, e.Tint).Forget(),
+                e => _field?.PlayClashResolvedAsync(e.EngineCard, e.MyPower, e.TheirPower, e.Threshold, e.Success, p => p == P2 ? 1 : 0).Forget(),
+                e => _field?.PlayLuckRollAsync(e.EngineCard, e.D1, e.D2, e.Success, p => p == P2 ? 1 : 0).Forget(), // 运势掷骰：来源单位头顶浮字（投掷结果+通过与否·主动/自动两路同源）
+                () => _log != null && _log.IsHeld); // 日志缓冲探针（2026-10-20「UI 真相源=日志」）：HP 读数按日志可见性即时/随步对账
 
             // 悬浮完整卡面（ACard 预览）2026-10-15 退役：prefab 节点已删，场上卡详情=hover-info 四段文本
 
@@ -220,6 +225,7 @@ namespace SynergyUI
                 _toast.Tick();      // error-tip 滑入/到时收（BattleToastHub·2026-10-18 拆分）
                 _director?.Tick();  // 步进回放看门狗（2026-10-19：超时无进展强制收口）
                 TickTutorialResetButton(); // 常驻考验重置门控（2026-10-19）：显隐+可点性逐帧评估
+                PollTutorialJumpKey();    // T 键测试跳段（2026-10-21）：教学局直跳最终考验
                 PollFieldClearStep();     // 教学自由清场步（2026-10-19 教学二段一）：栈收口+表现播毕后空场即推进
                 PollFieldPointer(); // 3D 棋盘悬停/点击（区域格/功能格/单位地牌统一入口——2026-10-13）
                 _hudTicker.Tick();  // HUD 时间/速度/产量格（4Hz 节流；BattleHudTicker·2026-10-18 拆分）
@@ -409,6 +415,7 @@ namespace SynergyUI
 
             // 战场 3D 摆位 + 装台（2026-10-13 战场重做；2026-10-18 网络簇整删后仅本地直连）
             _field = new BattleFieldView();
+            _field.HeroLifeShownChanged = OnHeroLifeShownChanged; // 角色HP读数节拍（2026-10-20）：命中拍释放时同拍重写 2D 生命标签
             // 战斗编舞（2026-10-13）：3D 寻路箭头选攻击目标 + 战斗演出（走位/受击/死亡漩涡吸走）；
             // 事件订阅须先于本屏刷新订阅（宣言即 hold 位姿），OnEnter 建立即满足
             _choreo = new CombatChoreographer(_field, () => _view, RefreshField, listenEvents: true, selfPlayer: () => P1);
@@ -461,6 +468,7 @@ namespace SynergyUI
             _pendingPins.Clear();
             _castStage?.Hide(); // AI 出牌舞台防御性收幕（正常路径由 SimpleAI 的 finally 收）
             _chainStage?.Dissolve(); // 连锁链克隆防御性消散（2026-10-19：正常路径由回放导演轮末收）
+            if (_field != null) _field.HeroLifeShownChanged = null; // 节拍回调摘线（实例互持，随 _field=null 一并断）
             _field?.Dispose();
             _field = null;
 
@@ -910,6 +918,19 @@ namespace SynergyUI
                 foreach (var kv in e.PaidCost)
                     if (kv.Value > 0.0001f) paid[kv.Key] = kv.Value;
             _lastPaidBySeat[seat] = paid;
+
+            // 法术扣费粒子（2026-10-20 用户定案「沿用生物召唤元素粒子飘向使用区域」）：
+            // 打出实付 + 付费者发动区是法术卡 → 实付色粒子自地格汇聚至施放贴片格。
+            // 生物不动（CastPlayed 入场汇聚 EnqueueArrival 已覆盖，防双份）；效果费/技能费
+            // SourceNote 非「打出:」口径天然排除。
+            if (paid.Count > 0 && e.SourceNote != null && e.SourceNote.StartsWith("打出:", StringComparison.Ordinal))
+            {
+                var spell = (Core?.ZoneManager?.GetCards(e.Player, Zone.Activation) ?? new List<Card>())
+                    .FirstOrDefault(c => c != null && c.IsSpellCard());
+                if (spell != null && _ctrl?.Board != null
+                    && _ctrl.Board.TryGetCastingCell(spell, out int cx, out int cz))
+                    _field?.PlayCastPay(seat, paid, cx, cz);
+            }
         }
 
         /// <summary>CastPlayed 入场 → 取该 seat 最近实付账单组装配荷；无账单/零费回落卡面印刷费色，
@@ -968,10 +989,14 @@ namespace SynergyUI
         private void FillBar(BattlePlayerView p, bool opp)
         {
             string aiTag = p.IsAI ? "（AI）" : "";
+            // 生命标签走节拍展示值（2026-10-20 角色HP接入命中节拍）：攻击步冻结期角色柱缓冲终值，
+            // 这里取当前展示值（旧值）防快照直出；未建柱/首写前回落数据值
+            int lifeShown = p.Life;
+            if (_field != null && _field.TryGetHeroLifeShown(opp ? 1 : 0, out var shown)) lifeShown = shown;
             if (opp)
             {
                 if (_oppName != null) _oppName.text = $"对手{aiTag}";
-                if (_oppLife != null) _oppLife.text = $"生命 {p.Life}/{p.MaxHealth}";
+                if (_oppLife != null) _oppLife.text = $"生命 {lifeShown}/{p.MaxHealth}";
                 if (_oppDeck != null) _oppDeck.text = $"牌库 {p.DeckCount}";
                 if (_oppHand != null) _oppHand.text = $"手牌 {p.HandCount}";
                 if (_oppGrave != null) _oppGrave.text = $"墓地 {p.GraveyardCount}";
@@ -981,13 +1006,24 @@ namespace SynergyUI
             else
             {
                 if (_selfName != null) _selfName.text = "我方";
-                if (_selfLife != null) _selfLife.text = $"生命 {p.Life}/{p.MaxHealth}";
+                if (_selfLife != null) _selfLife.text = $"生命 {lifeShown}/{p.MaxHealth}";
                 if (_selfDeck != null) _selfDeck.text = $"牌库 {p.DeckCount}";
                 if (_selfHandCount != null) _selfHandCount.text = $"手牌 {p.HandCount}";
                 if (_selfGrave != null) _selfGrave.text = $"墓地 {p.GraveyardCount}";
                 if (_selfFatigue != null) _selfFatigue.text = p.FatigueCount > 0 ? $"疲劳 {p.FatigueCount}" : "";
                 if (_selfBank != null) _selfBank.text = $"地牌上限 {p.LandCap} · 临时元素 {p.BankText}";
             }
+        }
+
+        /// <summary>角色柱HP读数落地回调（BattleFieldView 命中节拍释放时触发，2026-10-20）：
+        /// 只同拍重写 2D 生命标签（FillBar 常规刷新走节拍展示值，这里补命中拍这一刻的即时跟进）。</summary>
+        private void OnHeroLifeShownChanged(int owner, int life)
+        {
+            var d = _view;
+            if (d == null) return;
+            var p = owner == 1 ? d.Opp : d.Self;
+            if (owner == 1) { if (_oppLife != null) _oppLife.text = $"生命 {life}/{p.MaxHealth}"; }
+            else { if (_selfLife != null) _selfLife.text = $"生命 {life}/{p.MaxHealth}"; }
         }
 
         private void UpdateButtons(BattleViewData d)
@@ -1072,7 +1108,15 @@ namespace SynergyUI
                 return;
             }
 
-            PlayCardFinal(card, null, idx, fromGrave);
+            // 法术：手牌路径手选发动位→声明流（2026-10-20：必须先到发动区）；墓地路径自动落位直入声明流；
+            // 永久物抉择照旧直出选格
+            if (isSpell)
+            {
+                if (fromGrave) SpellDeclarationFlow(card, idx, fromGrave: true).Forget();
+                else BeginSpellCastCellPicking(card, card.CoreCard, idx);
+            }
+            else
+                PlayCardFinal(card, null, idx, fromGrave);
         }
 
         /// <summary>法术各效果的显示名（抉择窗选项；DisplayName 空=「作用 N」）。</summary>
@@ -1098,15 +1142,18 @@ namespace SynergyUI
         private static string CostText(ElementCost cost)
             => cost == null || cost.IsZero ? "0" : BattleView.CostTextOf(cost);
 
-        /// <summary>出牌终态：PlayCard+响应窗口泵（2026-10-18 网络簇整删——intent 上行分支随网络簇退役）。</summary>
+        /// <summary>出牌终态：PlayCard+响应窗口泵（2026-10-18 网络簇整删——intent 上行分支随网络簇退役）。
+        /// 2026-10-20 法术改版：法术经 SpellDeclarationFlow 进入（声明期预选目标+贴片预览+可取消撤销），
+        /// 本口仍是终态单点（法术带 targets、生物/结界 targets=null 照旧）。</summary>
         private void PlayCardFinal(BattleCardView card, List<Entity> targets, int modeIndex, bool fromGrave)
         {
             var core = Core;
             if (core == null || P1 == null) return;
 
-            // 2026-10-16 定案：法术声明期目标预选（PromptLocalTargetThenPlay 旧列表弹窗）退役——
-            // 指向性法术目标统一在 cast 结算期经 TargetSelectionService 反问（Region 面板，与生物
-            // 技能同源）；牌库等隐藏区/区域自结算类效果不弹选直接结算（引擎 None 模式早退单源）。
+            // 2026-10-16 定案（法术目标口径已被 2026-10-20 改案取代）：指向性法术目标统一在
+            // 声明期收集（SpellDeclarationFlow→CollectSpellDeclarationTargetsAsync——可取消=撤销发动）；
+            // defer 原子（效果处理时选）结算期反问（必须选）；牌库等隐藏区/区域自结算类效果
+            // 不弹选直接结算（引擎 None 模式早退单源）。
             bool ok = fromGrave
                 ? GameActions.PlayCardFromGraveyard(core, P1, card.CoreCard, targets, modeIndex)
                 : GameActions.PlayCard(core, P1, card.CoreCard, targets, Zone.Hand, modeIndex);
@@ -1128,6 +1175,112 @@ namespace SynergyUI
 
         // LandFlow（手牌直点放地的旧选色弹窗链）已随 2026-10-16 弹窗退役整删：放地现役入口=
         // OnFanPlaceLand 落格箭头（同格多候选色→PickLandColorAsync 走 Region 卡牌列表）。
+
+        // ---- 法术发动声明流（2026-10-20 改案·用户定案：手选发动位→发动区就位→选目标（可取消）→连锁检测→扣费→效果） ----
+
+        /// <summary>法术出牌选发动位（2026-10-20 用户定案：手牌使用规范=必须先到发动区——玩家手选
+        /// 发动位置再选目标）：候选=己方单位区空格（与永久物出牌选格同款箭头交互、同源占用口径
+        /// ——含施放占格卡）。确认→登记选格单（PlayCardFinal 声明成功即 PinCard——PlaceCasting
+        /// 钉优先落同格）→SpellDeclarationFlow（贴片预览=所选格+声明期目标收集，可取消）；
+        /// 取消恢复手牌。教学闸预检前置（防选完位置才被拒）。</summary>
+        private void BeginSpellCastCellPicking(BattleCardView view, Card card, int modeIndex)
+        {
+            var board = _ctrl?.Board;
+            if (board == null) return;
+
+            // 教学闸预检（同 SpellDeclarationFlow 口径——选位前先验）
+            if (RuleHooks.TutorialPlayGate?.Invoke(P1, card) is string gateReject)
+            {
+                _toast.Show($"教学引导：{gateReject}");
+                return;
+            }
+
+            var options = new List<BattleCellPicker.CellOption>();
+            foreach (var cell in BoardLayout.UnitCells(0))
+                if (board.CardAt(cell.x, cell.z) == null)
+                    options.Add(new BattleCellPicker.CellOption { X = cell.x, Z = cell.z, ColorIndex = -1 });
+            if (options.Count == 0) { _toast.Show("单位区已满——无法发动（法术须先到发动区占位）"); return; }
+
+            _choreo?.CancelTargeting();
+            _selfFan?.SetVisible(false);
+            var origin = BoardLayout.CharacterCell(0);
+            _cellPicker.Begin(BattleBoardGrid.WorldPositionOf(origin.x, origin.z), options, opt =>
+            {
+                RestoreFan();
+                _pendingPins[card.RuntimeId] = (opt.X, opt.Z);
+                Debug.Log($"[HandPlay] 法术发动位：{view.Name} → ({opt.X},{opt.Z})（声明成功即钉）");
+                SpellDeclarationFlow(view, modeIndex, fromGrave: false, pickedX: opt.X, pickedZ: opt.Z).Forget();
+            }, RestoreFan);
+        }
+
+        /// <summary>法术发动声明流：发动位/模式/费用已过 → 预览态（贴片预览——手牌路径=玩家所选格，
+        /// 墓地路径自动 first-free + 手牌扇藏卡=「卡已放发动区」观感）→ 声明期目标收集（逐原子问选，
+        /// 可取消）→ 取消=撤销发动（PlayCard 未调：使用宣言触发等声明副作用零，选格单一并
+        /// 作废，回退绝对干净）→ 确认=预览贴片无缝转正 + PlayCardFinal（真声明：进发动区+上栈+PinCard
+        /// 钉所选格）→ SettleResponseWindow（连锁检测=引擎现状；无连锁结算期扣费+粒子+效果表现）。
+        /// 无交互原子（全取/随机/全 defer）：收集器同步完成空表——预览同帧转正零可见闪烁
+        ///（UniTask 同步前缀保证）。</summary>
+        private async UniTaskVoid SpellDeclarationFlow(BattleCardView view, int modeIndex, bool fromGrave,
+            int pickedX = -1, int pickedZ = -1)
+        {
+            var core = Core;
+            var card = view?.CoreCard;
+            if (core == null || P1 == null || card == null) return;
+
+            // 教学闸预检（声明期先验——防选完目标才被引擎拒；PlayCard 内终审保留同口径）
+            if (!fromGrave && RuleHooks.TutorialPlayGate?.Invoke(P1, card) is string gateReject)
+            {
+                _pendingPins.Remove(card.RuntimeId); // 选位单作废（手选发动位路径）
+                _toast.Show($"教学引导：{gateReject}");
+                return;
+            }
+
+            // 落格：手牌路径=玩家所选格（选格单已登记）；墓地路径自动 first-free 镜像
+            var (cellX, cellZ) = pickedX >= 0 ? (pickedX, pickedZ) : PreviewCastingCell();
+            _field?.ShowCastingPreview(card, cellX, cellZ);
+            _selfFan?.SetCardActive(card.RuntimeId, false);
+
+            try
+            {
+                var targets = await GameActions.CollectSpellDeclarationTargetsAsync(card, P1, modeIndex);
+
+                if (targets == null)
+                {
+                    // 玩家取消——撤销发动：拆预览+还原手牌扇+选格单作废（引擎零状态）
+                    _field?.HideCastingPreview();
+                    _selfFan?.SetCardActive(card.RuntimeId, true);
+                    _pendingPins.Remove(card.RuntimeId);
+                    RefreshLocal();
+                    return;
+                }
+
+                // 确认：预览贴片转正（选格单经 PlayCardFinal 声明成功 PinCard——PlaceCasting 钉优先落同格）
+                _field?.PromoteCastingPreview(card, cellX, cellZ);
+                PlayCardFinal(view, targets, modeIndex, fromGrave);
+            }
+            catch (Exception ex)
+            {
+                // 异常兜底=按取消清理（2026-10-20 实测教训：续体异常打断声明流会滞留预览/藏卡不还=UI 卡死）
+                Debug.LogException(ex);
+                _field?.HideCastingPreview();
+                _selfFan?.SetCardActive(card.RuntimeId, true);
+                _pendingPins.Remove(card.RuntimeId);
+                RefreshLocal();
+            }
+        }
+
+        /// <summary>声明期贴片预览落格（墓地路径回落用——手牌路径已改玩家手选发动位 2026-10-20）：
+        /// 镜像 BoardState.PlaceCasting 法术档（first-free——UnitCells(0) 首个无占用格；
+        /// 预览期无状态变更，引擎届时落同格）。满格 (-1,-1)=无贴片预览。</summary>
+        private (int x, int z) PreviewCastingCell()
+        {
+            var board = _ctrl?.Board;
+            if (board == null) return (-1, -1);
+            foreach (var c in BoardLayout.UnitCells(0))
+                if (board.CardAt(c.x, c.z) == null)
+                    return (c.x, c.z);
+            return (-1, -1);
+        }
 
         /// <summary>放地锁产色（2026-10-16 弹窗退役：旧选色弹窗→Region 卡牌列表，min=1 强制选；
         /// 单色直落）。null=缺 Region 静默取消（本次放置作废）。</summary>
@@ -1243,6 +1396,7 @@ namespace SynergyUI
                         CastCard = card,
                         ZoneManager = Core.ZoneManager,
                         ElementPool = Core.ElementPool,
+                        SimulatedPreview = true, // 预评口径：按「这张打出后」评估（首卡计 0、手牌剩 1 等）
                     };
                     if (BranchConditionEvaluator.Evaluate(b.gateId, new EffectOutcome(),
                             b.condParam, b.condStr, ctx))
@@ -1275,18 +1429,44 @@ namespace SynergyUI
             _tutorial?.TryResetTrial();
         }
 
-        /// <summary>教学自由清场步轮询（2026-10-19 教学二段一改版）：fieldclear 步在位时逐帧查
-        /// 对手场上生物——清零即完成推进（下一 intro 解说卡弹出）。栈收口（防结算中途瞬态空场）
-        /// 且表现播毕（死亡退场演完再弹卡）才查；非该步在位零开销直返。</summary>
+        /// <summary>T 键测试跳段（2026-10-21 用户要求·临时调试口）：教学局按 T=直接跳到最终
+        /// 考验段（教学二=段 8 命运一抽考验）。门控=重置按钮口径（玩家主阶段+无选择在身+无介绍
+        /// 卡在屏）另加栈收口+回放导演闲——防结算/回放中途强跳撕裂换场重铺；非教学局零开销直返。</summary>
+        private void PollTutorialJumpKey()
+        {
+            if (BattleEntry.Mode != BattleMode.Tutorial || _gameEnded) return;
+            if (!Input.GetKeyDown(KeyCode.T)) return;
+            if (!FanGateQuiet() || IsTargetSelecting()) return;
+            if (_tutorial == null || _tutorial.IntroPanelOpen) return;
+            if (Core != null && Core.StackEngine != null
+                && (!Core.StackEngine.IsEmpty || Core.StackEngine.IsResolving)) return;
+            if (_field != null && _field.VisualsBusy) return;
+            if (_director != null && _director.Busy) return;
+            _tutorial.JumpToFinalTrial();
+        }
+
+        /// <summary>教学自由步轮询（2026-10-19 教学二段一改版）：fieldclear 步在位时逐帧查
+        /// 对手场上生物——清零即完成推进（下一 intro 解说卡弹出）。luckuse/deathtoll 自由步同口
+        /// 接入（2026-10-20）。栈收口（防结算中途瞬态空场）且表现播毕（死亡退场演完再弹卡）
+        /// 才查；非自由步在位零开销直返。
+        /// 终局放行（2026-10-20 段六元素充盈）：等待步的完成击杀恰是预设剧本（充盈兽 3 伤=AI 3 血
+        /// 一发终结）——IsScriptedContinuation 在位时终局弹窗已跳过、全靠本轮询推进到换场步续接，
+        /// 此时不可因 _gameEnded 冻结（否则死锁在终局画面）；非续接终局（真打完）照旧冻结。</summary>
         private void PollFieldClearStep()
         {
             if (BattleEntry.Mode != BattleMode.Tutorial || !TutorialGuide.Active) return;
-            if (TutorialGuide.Current == null || TutorialGuide.Current.type != "fieldclear") return;
-            if (_gameEnded) return;
+            var stepType = TutorialGuide.Current?.type;
+            if (stepType != "fieldclear" && stepType != "luckuse" && stepType != "deathtoll") return;
+            if (_gameEnded && (_tutorial == null || !_tutorial.IsScriptedContinuation)) return;
             if (Core == null || Core.StackEngine == null
                 || !Core.StackEngine.IsEmpty || Core.StackEngine.IsResolving) return;
             if (_field != null && _field.VisualsBusy) return;
-            TutorialGuide.PollFieldClear();
+            // 回放导演在途（2026-10-20 运势段被截修复）：步间停顿/末步等待期视觉门瞬空——
+            // 演出载荷还在导演手里没放出，栈空+门空双双穿透，步进早于演出收口
+            if (_director != null && _director.Busy) return;
+            if (stepType == "fieldclear") TutorialGuide.PollFieldClear();
+            else if (stepType == "deathtoll") TutorialGuide.PollDeathToll(); // 死亡计数段自由步（2026-10-20）：计数满 6 触发奖励即推进
+            else TutorialGuide.PollLuckUse(); // 运势段用毕步（2026-10-20）：全横置+无待发奖励才推进
         }
 
         /// <summary>选格/出牌流程收尾：恢复手牌扇+全量对账（按钮条件/流光随刷新重评估）。</summary>
@@ -1359,8 +1539,10 @@ namespace SynergyUI
             return null;
         }
 
-        /// <summary>「发动」点击（2026-10-14 定案）：法术不占格=直通现有出牌链（模式窗/目标弹窗在链内）；
-        /// 永久物（生物/结界）=模式窗（多模式）→藏手牌→箭头选己方单位区空格（所选格=最终落位，
+        /// <summary>「发动」点击（2026-10-14 定案；2026-10-20 手选发动位改案）：
+        /// 法术=模式窗（多作用）→费用/教学预检→**箭头手选发动区落格**（手牌使用规范=必须先到
+        /// 发动区）→SpellDeclarationFlow（贴片预览+声明期选目标，可取消撤销）；
+        /// 永久物（生物/结界）=模式窗（多模式）→箭头选己方单位区空格（所选格=最终落位，
         /// 入场后补钉）→确认出牌。取消恢复手牌。</summary>
         private void OnFanUse(HandFanCard fan)
         {
@@ -1373,9 +1555,20 @@ namespace SynergyUI
 
             if (data.Supertype == Cardtype.Spell)
             {
-                // 2026-10-15 改版：>1 个作用弹抉择窗（选择要发动的效果）；单作用直通
+                // 2026-10-15 改版：>1 个作用弹抉择窗（选择要发动的效果）；单作用费用预检后直入选位。
+                // 2026-10-20 改版：手选发动位→声明流（预选+贴片预览+可取消撤销）
                 if (GetModeCount(view) >= 2) PromptModeThenPlay(view, fromGrave: false).Forget();
-                else PlayCardFinal(view, null, 0, fromGrave: false);
+                else
+                {
+                    // 费用预检（与模式窗同口径——防选完位置目标才被引擎拒）
+                    if (Core == null || !Core.ElementPool.CanPayCostWithAutoTap(
+                            GameActions.GetCardCost(card, 0), P1))
+                    {
+                        _toast.Show("费用不足——该作用不可发动");
+                        return;
+                    }
+                    BeginSpellCastCellPicking(view, card, 0);
+                }
                 return;
             }
             if (CostDerivationService.GetModeCount(data) >= 2)
@@ -1797,6 +1990,7 @@ namespace SynergyUI
         // 定义转换（ConvertAll+LINQ），改事件级重算、帧间复用；SelfUnits 每次 RefreshField 重建，
         // 引用比对兜底 + RefreshField 尾置脏（StackEmpty 订阅兜住变形/临摹等改写效果的结算路径）
         private readonly Dictionary<BattleCardView, bool> _unitActivateFlags = new Dictionary<BattleCardView, bool>();
+        private readonly Dictionary<BattleCardView, bool> _unitPendingFlags = new Dictionary<BattleCardView, bool>();
         private bool _activateFlagsDirty = true;
         private List<BattleCardView> _activateFlagsFor;
         private bool _heroActivateFlag;
@@ -1824,14 +2018,24 @@ namespace SynergyUI
                 _activateFlagsFor = units;
                 _activateFlagsDirty = false;
                 _unitActivateFlags.Clear();
+                _unitPendingFlags.Clear();
+                int withPending = 0; // TEMP 诊断（定位后删）
                 if (units != null)
                 {
                     foreach (var c in units)
                     {
                         if (c == null || c.CoreCard == null) continue;
+                        // 发动键点亮两源分记（2026-10-20 一步点击修订）：自身主动效果（发动即横置=
+                        // 每回合一发闸——点亮须未横置，镜像攻击键，横置判定在对账现场取活值）**或
+                        // 待发主动奖励**（自由分支 tactivate=2 条件达成入队——入队随引擎事件、发动
+                        // 无横置闸，点亮不吃横置）。深判定（速度门）留引擎，亮了被拒走 toast
+                        bool hasPending = PendingRewardsOf(c.CoreCard).Count > 0;
+                        if (hasPending) withPending++;
                         _unitActivateFlags[c] = UnitActivatedEffects(c).Count > 0;
+                        _unitPendingFlags[c] = hasPending;
                     }
                 }
+                Debug.Log($"[BR-Flags] 三键旗重算：单位数={units?.Count ?? 0} 含待发奖励={withPending} myTurn={_view?.MyTurn} phase={_view?.Phase}"); // TEMP 诊断（定位后删）
                 _heroActivateFlag = P1 != null && HeroHasActivatableSkill();
             }
             _tileBtnBuf.Clear();
@@ -1848,7 +2052,10 @@ namespace SynergyUI
                     {
                         e.Attack = myMain && IsCreatureCard(c) && !c.IsTapped
                                    && (c.Runtime == null || c.Runtime.Power > 0);
-                        e.Activate = myMain && _unitActivateFlags.TryGetValue(c, out var canAct) && canAct;
+                        // 发动键：主动效果须未横置（引擎 ActivateEffect 横置闸的前置显示——一步点击
+                        // 定案后发动即横置，亮死键=点两次案残留）；待发奖励不受横置影响
+                        e.Activate = myMain && ((_unitActivateFlags.TryGetValue(c, out var hasDef) && hasDef && !c.IsTapped)
+                                                || (_unitPendingFlags.TryGetValue(c, out var hasPend) && hasPend));
                     }
                     _tileBtnBuf.Add(e);
                 }
@@ -1890,24 +2097,82 @@ namespace SynergyUI
         }
 
         /// <summary>格前【发动效果】键点击（2026-10-15 三键改版：单位由参数直给，原头顶按钮路由退役）：
-        /// 单效果直达发动，多效果 Region 卡牌列表择一（2026-10-16 弹窗退役）；目标不在此弹——
-        /// 引擎结算期反问经 TargetSelectionService（Current=RegionTargetSelector）弹 Region 选卡面板。
-        /// 门禁时点/优先权/费用/横置/耐久全在 GameActions.ActivateEffect 裁决，拒绝 toast。</summary>
+        /// 待发优先（2026-10-20 主动运势两段式：第一次点击=掷骰入待发，第二次点击=发动待发）——
+        /// 有待发奖励时不再与主动效果混选：单个直达发动、多个只在待发里择一；无待发才走主动效果
+        /// （掷骰后生物已横置，本回合再掷被 ActivateEffect 横置闸拒，(本回合0/1) 闭环）。
+        /// 目标不在此弹——引擎结算期反问经 TargetSelectionService（Current=RegionTargetSelector）
+        /// 弹 Region 选卡面板。门禁时点/优先权/费用/横置/耐久全在 GameActions.ActivateEffect 裁决，
+        /// 拒绝 toast。</summary>
         private async UniTaskVoid OnClickUnitEffectButton(BattleCardView card)
         {
             if (card?.CoreCard == null) return;
             if (IsTargetSelecting()) return; // 选择期点击=目标语义（两语义裁定）
             if (!GateMyMain()) return;
             var defs = UnitActivatedEffects(card);
+            var pendings = PendingRewardsOf(card.CoreCard); // 待发主动奖励（自由分支·2026-10-20）
+            if (pendings.Count > 0)
+            {
+                if (pendings.Count == 1)
+                {
+                    ActivatePendingReward(pendings[0]);
+                    return;
+                }
+                var popts = new List<string>(pendings.Count);
+                foreach (var pe in pendings)
+                    popts.Add((string.IsNullOrEmpty(pe.Effect?.DisplayName) ? "待发奖励" : pe.Effect.DisplayName)
+                              + "（奖励待发）");
+                int? pp = await PickRegionOptionAsync("选择待发奖励", popts);
+                if (pp == null || pp.Value < 0 || pp.Value >= pendings.Count) return;
+                ActivatePendingReward(pendings[pp.Value]);
+                return;
+            }
             if (defs.Count == 0) return;
-            if (defs.Count == 1) { ActivateUnitEffect(card, defs[0]); return; }
+            if (defs.Count == 1)
+            {
+                ActivateUnitEffect(card, defs[0]);
+                return;
+            }
 
             var options = new List<string>(defs.Count);
             for (int i = 0; i < defs.Count; i++)
                 options.Add(string.IsNullOrEmpty(defs[i].DisplayName) ? $"主动效果 {i + 1}" : defs[i].DisplayName);
             int? picked = await PickRegionOptionAsync("选择效果", options);
             if (picked == null) return;
-            if (picked.Value >= 0 && picked.Value < defs.Count) ActivateUnitEffect(card, defs[picked.Value]);
+            if (picked.Value < 0 || picked.Value >= defs.Count) return;
+            ActivateUnitEffect(card, defs[picked.Value]);
+        }
+
+        /// <summary>该卡的待发主动奖励（BRANCH_REWARD·自由分支 tactivate=2 条件达成入队）：
+        /// 发动键点亮与点击分流共用。速度门深判定留引擎（PlayerActivateVoluntary 裁决）。</summary>
+        private List<PendingEffect> PendingRewardsOf(Card card)
+        {
+            var list = new List<PendingEffect>();
+            if (card == null || Core?.StackEngine == null || P1 == null)
+            {
+                Debug.Log($"[BR-Pending] 查询跳过：card={(card as CardCore.IHasName)?.CardName} coreNull={Core?.StackEngine == null} p1Null={P1 == null}"); // TEMP 诊断（定位后删）
+                return list;
+            }
+            var activatable = Core.StackEngine.GetActivatableVoluntaryEffects(P1);
+            foreach (var pe in activatable)
+                if (pe != null && ReferenceEquals(pe.Source, card)) list.Add(pe);
+            // TEMP 诊断日志（2026-10-20 倒计时按钮不亮排查——定位后删）：只在有队列项或匹配时刷
+            if (activatable.Count > 0 || list.Count > 0)
+                Debug.Log($"[BR-Pending] 卡={(card as CardCore.IHasName)?.CardName} 队列可发动={activatable.Count}"
+                    + $"（各源：{string.Join("|", activatable.Where(pe => pe != null).Select(pe => (pe.Source as CardCore.IHasName)?.CardName ?? pe.Source?.ToString()))}）"
+                    + $" 本卡匹配={list.Count} 栈大小={Core.StackEngine.StackSize}");
+            return list;
+        }
+
+        /// <summary>发动待发主动奖励（2026-10-20 自由分支定案）：入栈后走响应窗泵（对手可连锁；
+        /// 无候选自动双 Pass 结算——技能发动同款）。速度门被拒回插队列不丢。</summary>
+        private void ActivatePendingReward(PendingEffect pe)
+        {
+            var name = pe?.Effect?.DisplayName ?? "待发奖励";
+            Debug.Log($"[BattleScreen] 待发奖励发动：{name}");
+            bool ok = Core != null && Core.StackEngine.PlayerActivateVoluntary(pe);
+            if (!ok) _toast.Show("无法发动（速度门禁）");
+            else _ctrl.SettleResponseWindow().Forget();
+            RefreshField();
         }
 
         /// <summary>发动单位主动效果（本地局）：入栈后无响应候选自动双 Pass（技能发动同款）；
@@ -2033,7 +2298,7 @@ namespace SynergyUI
                 view.SupertypeText = BattleView.SupertypeZh(data.Supertype);
             }
             if (GetModeCount(view) >= 2) PromptModeThenPlay(view, fromGrave: true).Forget();
-            else PlayCardFinal(view, null, 0, fromGrave: true);
+            else SpellDeclarationFlow(view, 0, fromGrave: true).Forget();
         }
 
         // 技能=一回合一次重复用的法术（2026-10-18 深夜修订）：与同名法术**不同速不同费**——

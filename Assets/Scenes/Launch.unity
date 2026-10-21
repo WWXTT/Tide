@@ -148,7 +148,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 72e9f12de93e5e04c8b31339c71ef278, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Tide.Launch.Launch
-  PlayMode: 1
+  PlayMode: 2
   HostServerUrl: 
 --- !u!4 &1233593293
 Transform:

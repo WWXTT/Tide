@@ -24,6 +24,15 @@ namespace CardCore
         /// </summary>
         public static ElementCost DeriveElementCosts(EffectDefinition effect, int modeIndex = 0)
         {
+            // 锚价钉死（2026-10-20 教学段七配套）：手作行 cost 列为权威——直出不推导
+            //（null/空=0 费钉死）；法术施放锚价/合成器预览等全部消费面同口单源。
+            // 缺省不钉=实时推导（历史唯一口径，正式表零影响）。
+            // 锚价钉死（2026-10-20 教学段七配套）：手作行 cost 列为权威——直出不推导
+            //（null/空=0 费钉死）；法术施放锚价/合成器预览等全部消费面同口单源。
+            // 缺省不钉=实时推导（历史唯一口径，正式表零影响）。
+            if (effect != null && effect.AnchorCostPinned)
+                return effect.AnchorCostPin != null ? effect.AnchorCostPin.Clone() : new ElementCost();
+
             // 2026-10-18 效果合成阶段取整（取代 10-12 小数直通）：效果级费用逐色四舍五入（AwayFromZero）
             // ——出账即整数（原支付终点 NormalizeBill 的取整规则前移到合成点，支付侧保留为兼容兜底）；
             // 卡级挂载折扣（d(C) 小数）后的整卡取整仍在 CardCostService.ApportionMounted（L3）。
@@ -344,7 +353,7 @@ namespace CardCore
         /// <summary>自平衡门槛（原拼点门槛 2026-10-09 抽公共；同日统一——运行时判定与 UI 短文案同源，
         /// 防显示≠判定）：拼点/死亡计数/元素充盈共用——奖励锚价合计四舍五入（AwayFromZero）、
         /// 下限 1，门槛随 Then 奖励实时变（奖励越贵门槛越高，玩家在合成器 1-5 费区间内调奖励即调门槛）。
-        /// 效果序位（2026-10-19 手牌序位改案）不入此族：x∈[1,6] 手填，门槛=x−1。</summary>
+        /// 团结（2026-10-20 效果序位换轴）不入此族：x∈[1,6] 手填，门槛=x。</summary>
         public static int RewardThreshold(List<AtomicEffectInstance> then)
             => Math.Max(1, (int)Math.Round(RewardDerivedCost(then), MidpointRounding.AwayFromZero));
 

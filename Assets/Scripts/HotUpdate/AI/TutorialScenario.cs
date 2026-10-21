@@ -57,6 +57,11 @@ namespace SynergyUI
         /// <summary>生命（同时写上限，ResetVitals 口径）。缺省 30=GameCore.InitialLife。</summary>
         public int life = 30;
 
+        /// <summary>生命上限（2026-10-20 祝福不回血根因修复）：声明 &gt;life=**带伤入场**（life/maxLife 分离）
+        /// ——回复类原子的 Damaged 过滤只认 life&lt;max，纯 ResetVitals 恒满血会让治疗奖励零合法目标被拒
+        ///（段七祝福+20 实测"效果无法执行: Heal"）。缺省 0=不分离（满血入场，现有配置零影响）。</summary>
+        public int maxLife;
+
         /// <summary>已疲劳次数（缺省 0）。</summary>
         public int fatigue;
 
@@ -293,7 +298,18 @@ namespace SynergyUI
             if (side.landCapBonus > 0)
                 pool.LandCapBonus += side.landCapBonus;
 
-            owner.ResetVitals(side.life > 0 ? side.life : GameCore.InitialLife);
+            // 生命播种（2026-10-20 受伤态支持）：声明 maxLife>life=带伤入场（life/maxLife 分离）——
+            // 回复类原子的 Damaged 过滤只认 life<max（段七祝福+20 根因）；未声明=满血（原口径）
+            int seedLife = side.life > 0 ? side.life : GameCore.InitialLife;
+            if (side.maxLife > seedLife)
+            {
+                owner.ResetVitals(side.maxLife);
+                owner.Life = seedLife;
+            }
+            else
+            {
+                owner.ResetVitals(seedLife);
+            }
             owner.FatigueCount = side.fatigue > 0 ? side.fatigue : 0;
 
             if (side.bank != null)
@@ -325,6 +341,11 @@ namespace SynergyUI
                 // 卡面关键词的差集补齐/指示物化补层（潜行 1 层等）从不发生——教学二潜行者可被效果
                 // 指名、不朽卫士无「不灭」。官方入场口同款显式补调；无卡面关键词零开销直返。
                 CardCore.Attribute.KeywordRules.RefreshPrintedKeywordsOnEntry(card);
+                // 守护播种配对（2026-10-21）：官方入场口的配对由入场事件驱动，静默播种无入场事件——
+                // 持守护关键词的种子（考验守墓巨像）配对永不建立。逐单位显式补选：此刻列表后续单位
+                // 尚未入场，候选只剩己方角色（播种序=入场序契约；AI/无头自动取首候选不弹窗）。
+                if (card.HasKeyword(CardCore.Attribute.KeywordRules.Guardian))
+                    CardCore.Attribute.GuardianRules.OnGrantedInPlay(card);
                 if (unit.tapped) card.Tap();
                 GameActions.RegisterCardTriggeredEffects(core, card, owner); // 静默入场不接触发式，显式补
                 foreach (var counter in unit.counters ?? new List<TutorialCounterSpec>())

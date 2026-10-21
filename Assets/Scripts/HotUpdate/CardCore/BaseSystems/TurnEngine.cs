@@ -244,20 +244,25 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 玩家主动结束回合
+        /// 玩家主动结束回合。
+        /// 返回是否真实结束（2026-10-20 教学双推进修复）：阶段非 Main/非 Active/栈未空时静默拒绝
+        /// 并返回 false——调用方（GameActions.EndTurn）据此**不发教学探针**：旧口径拒绝时探针照发，
+        /// 同帧双击/回合翻转前重入会让 OnTutorialTurnEnded 连发两次，end 步一击双进
+        ///（实测段七 end#1+end#2 连推→换场与考验武装提前→段七 AI 回合必杀直伤提前落地）。
         /// </summary>
-        public void EndTurn()
+        public bool EndTurn()
         {
             if (_currentPhase?.Phase != PhaseType.Main)
-                return;
+                return false;
             if (_currentPhase?.State != PhaseState.Active)
-                return;
+                return false;
             // 栈未结算完毕时不能结束回合
             if (_isStackEmpty != null && !_isStackEmpty())
-                return;
+                return false;
 
             EndCurrentPhase();
             GoToNextPhase();
+            return true;
         }
 
         /// <summary>

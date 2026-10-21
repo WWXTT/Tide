@@ -76,6 +76,10 @@ namespace SynergyUI
         private GameObject _castIconPrefab; // Element 预制体（HotUpdateAssets 惰性加载，地牌元素图标同源）
         private readonly Dictionary<Cardtype, Material> _castTypeMats = new Dictionary<Cardtype, Material>(); // 类型→图标材质（运行时实例，随 Dispose 销毁）
 
+        // 声明期贴片预览（2026-10-20 法术发动流程改案）：法术目标收集期的占格贴片——
+        // 与正片同款外观；确认=PromoteCastingPreview 转正（无缝衔接），取消=HideCastingPreview 销毁。
+        private GameObject _castPreview;
+
         // 出场粒子汇聚载荷（2026-10-15 用户定案：弃弹出动画改 INab 粒子）：CastPlayed 入场 →
         // BattleCastArrival 粒子演出 1s 后显现模型；paid 键=ManaType 下标、值=该色实付量
         private readonly Dictionary<uint, (int seat, Dictionary<int, float> paid)> _arrivals =
@@ -97,6 +101,15 @@ namespace SynergyUI
         // 高于=绿（增益）——攻击/生命逐数字独立着色（富文本），查表 miss（无印刷值）恒白。
         private static readonly Color StatDownColor = new Color(1f, 0.38f, 0.32f);
         private static readonly Color StatUpColor = new Color(0.42f, 1f, 0.45f);
+
+        // 拼点配色（2026-10-20 教学二表现）：胜=金（引擎奖励语义——区别于回复绿/伤害红/消灭紫，
+        // 与运势等引擎成功族共用色的候选锚点）；败=灰（无彩=无奖励；正差额未达门槛同判败侧灰）。
+        private static readonly Color ClashWinColor = new Color(1f, 0.78f, 0.28f);
+        private static readonly Color ClashLoseColor = new Color(0.62f, 0.62f, 0.62f);
+        // 拼点/运势结果句字号：2026-10-20 用户实测整句糊满屏，双双减半（拼点 4.5→2.25·运势 6→3），
+        // ±N 浮字缺省 6 不动（美术口径后置）。
+        private const float ClashFontSize = 2.25f;
+        private const float LuckRollFontSize = 3f;
 
         private static string FormatStats(int power, int life, int? basePower, int? baseLife)
             => StatSpan(power, basePower) + "/" + StatSpan(life, baseLife);
@@ -158,6 +171,10 @@ namespace SynergyUI
                 }
             _castTypeMats.Clear(); // 运行时实例材质不跨局（跨域 fake-null 防口）
             _arrivals.Clear(); // 未消费的入场载荷不跨局
+            _castPayArriveAt.Clear(); // 扣费粒子到位时刻不跨局（Time.time 基准——陈旧值只会误等）
+            foreach (var t in _unitFxTails.Values) t.TrySetResult(); // 链尾收口防悬挂
+            _unitFxTails.Clear(); // 单位串行链不跨局
+            HideCastingPreview(); // 声明期预览贴片不跨局
             if (_root != null) Object.Destroy(_root.gameObject);
         }
 
@@ -253,6 +270,9 @@ namespace SynergyUI
             public TextMeshPro Stats;
             public int X, Z;
             public bool Dead;
+            public bool DeathExitStarted;    // 碎裂退场已开演（2026-10-20 时序定案：效果伤害受击判据——
+                                             // Dead 会被 HoldForEffectDeath 在死亡事件期早锁，链化后伤害
+                                             // 演出执行时 Dead 常 true 但碎裂尚未开演=受击照放）
             public int Owner;                 // 归属 0/1（头注视敌我分辨）
             public float ModelYaw;            // 模型层对敌本地偏航（2026-10-15 定案：朝向归模型层；结界=箭头净朝向 180/0）
             public bool IsCreature = true;    // 生物才作注视目标（结界三件模型不参与对视）
@@ -343,7 +363,13 @@ namespace SynergyUI
             HashSet<uint> seen, ref int created, ref int moved, ref string lastModel)
         {
             seen.Add(card.RuntimeId);
-            if (card.X < 0 || card.Z < 0) return; // 未落格（异常数据）
+            if (card.X < 0 || card.Z < 0)
+            {
+                // 2026-10-21 段零召唤物无视觉取证：视图数据无格=BoardState._cellOf 缺该卡。
+                // 埋点输出卡身份/运行区——下一轮复测据此分辨（钉无效/未Resync/满格/链未达）。
+                TideLog.Warn($"[BattleField] 单位 {card.Name}#{card.RuntimeId} 未落格 X={card.X}——对账跳过建视觉");
+                return;
+            }
 
             UnitVisual v;
             if (!_units.TryGetValue(card.RuntimeId, out v))
@@ -583,8 +609,10 @@ namespace SynergyUI
                 _castingCells.Remove(id);
                 if (go == null) continue;
                 _castingLingers[id] = go; // linger 登记（InterruptCasting/同格顶替可提前清）
-                bool arrived = _units.ContainsKey(id); // 成功转正：登场演出档；否则=法术结算 1s 等待期
-                LingerCastingAsync(id, go, arrived ? 1.15f : 1.0f).Forget();
+            bool arrived = _units.ContainsKey(id); // 成功转正：登场演出档；否则=法术结算档
+            // 法术结算档 3s（2026-10-20 时序定案）：覆盖全程 粒子1.05s+弹体0.35s+浮字0.9s+碎裂开演余量
+            //——旧 1s 在弹体起飞前就收贴片（法术位裸奔）；生物登场档不动。
+            LingerCastingAsync(id, go, arrived ? 1.15f : 3.0f).Forget();
             }
         }
 
@@ -611,6 +639,82 @@ namespace SynergyUI
                 _castingLingers.Remove(runtimeId);
                 if (ling != null) DestroyCastingIcon(ling);
             }
+        }
+
+        // ---- 声明期贴片预览 + 法术扣费粒子（2026-10-20 法术发动流程改案） ----
+
+        /// <summary>施放贴片预览：法术声明期目标收集的占格贴片（CreateCastingCard 同款外观/落位）。
+        /// 预览名 castprev-{rid} 不占 cast-{rid} 射线路由、碰撞体禁用（预览非正片不可点——
+        /// 禁用而非销毁：转正只需回启，规避 Destroy 延迟/假 null 重挂一整类坑）。
+        /// 返回 false=无空格/缺件——调用方照常走收集（无贴片不阻塞流程）。</summary>
+        public bool ShowCastingPreview(Card card, int x, int z)
+        {
+            HideCastingPreview();
+            if (card == null || x < 0 || z < 0) return false;
+            var view = BattleView.FromRuntime(
+                CardCore.Serialization.SerializableRuntimeCardState.FromCard(card), card, false);
+            view.X = x;
+            view.Z = z;
+            var go = CreateCastingCard(view);
+            if (go == null) return false;
+            go.name = "castprev-" + card.RuntimeId;
+            var col = go.GetComponent<MeshCollider>();
+            if (col != null) col.enabled = false;
+            _castPreview = go;
+            return true;
+        }
+
+        /// <summary>预览贴片转正（声明成功后调用）：直接挂入 _castings——正片对账复用同对象零闪烁
+        ///（ReconcileCasting 见已存在不重建，仅校正落位）；声明失败竞态由 stale 清扫 1s linger 兜底回收。
+        /// 碰撞体回启并补网格（cast-{rid} 射线路由/hover 归位）——用 == 判空（Unity 假 null 语义：
+        /// `??` 是 C# 引用判空，销毁包装类非空会跳过重挂，对死件写属性即 MissingComponentException）。</summary>
+        public void PromoteCastingPreview(Card card, int x, int z)
+        {
+            var go = _castPreview;
+            _castPreview = null;
+            if (go == null || card == null) return;
+            go.name = CastingCardPrefix + card.RuntimeId; // 转正占回射线路由名
+            var mc = go.GetComponent<MeshCollider>();
+            if (mc == null) mc = go.AddComponent<MeshCollider>();
+            mc.enabled = true;
+            var mf = go.GetComponent<MeshFilter>();
+            if (mf != null && mf.sharedMesh != null && mc.sharedMesh != mf.sharedMesh)
+                mc.sharedMesh = mf.sharedMesh;
+            _castings[card.RuntimeId] = go;
+            _castingCells[card.RuntimeId] = new Vector2Int(x, z);
+        }
+
+        /// <summary>销毁声明期预览贴片（取消=撤销发动路径；Dispose 兜底同口）。</summary>
+        public void HideCastingPreview()
+        {
+            if (_castPreview == null) return;
+            DestroyCastingIcon(_castPreview);
+            _castPreview = null;
+        }
+
+        /// <summary>法术扣费粒子（2026-10-20）：实付色粒子自地格汇聚至施放贴片格——复用出场粒子链
+        /// 无模型档（BattleCastArrival.Play modelTemplate=null：跳过消融只播地格→目标汇聚段）。
+        /// 零费/无落格跳过；生物不动（CastPlayed 入场汇聚 EnqueueArrival 已覆盖，防双份）。
+        /// 同时登记该 seat 的粒子到位时刻——法术伤害演出等它后才从法术位起飞（时序定案）。</summary>
+        public void PlayCastPay(int seat, Dictionary<int, float> paid, int x, int z)
+        {
+            if (paid == null || paid.Count == 0 || x < 0 || z < 0) return;
+            _castPayArriveAt[seat] = Time.time + CastPayFlightSeconds;
+            BattleCastArrival.Play(0u, seat, paid, CastingAnchor(x, z), null, () => { });
+        }
+
+        /// <summary>扣费粒子飞行时长（BattleCastArrival.LandPhase=1s 地格→目标 + 到位余量）——
+        /// 法术伤害弹体起飞前等待上限。</summary>
+        private const float CastPayFlightSeconds = 1.05f;
+        private readonly Dictionary<int, float> _castPayArriveAt = new Dictionary<int, float>(); // seat → 粒子到位时刻
+
+        /// <summary>等待该 seat 的扣费粒子到位于法术位（时序链第 1→2 步）：未登记（零费法术）或
+        /// 已过期立即返回；等待期间视觉门保持占用（回放导演逐步等待不抢步）。</summary>
+        private async UniTask WaitCastPayArrived(int seat)
+        {
+            if (seat < 0) return;
+            if (!_castPayArriveAt.TryGetValue(seat, out float until) || until <= Time.time) return;
+            await UniTask.WaitUntil(() => Time.time >= until);
         }
 
         /// <summary>销毁单枚施放图标（含降级材质实例回收；共享 CastType_* 不动）。</summary>
@@ -814,6 +918,26 @@ namespace SynergyUI
             public TextMeshPro Stats;
             public string LastStats;
             public Material Mat; // 2026-10-18 着色克隆实例：非资产件随 Dispose 销毁（跨域 fake-null 防口）
+
+            // —— 角色HP读数节拍（2026-10-20：镜像单位 StatsHeld——攻击步快照终值缓冲，命中拍落地）——
+            public int ShownLife = int.MinValue; // 当前展示生命（2D 血条节拍取值；首写前 MinValue=未建）
+            public string PendingStats;          // 冻结期缓冲的目标文本（null=无缓冲）
+            public int PendingLife;              // 缓冲文本对应生命（释放时落 ShownLife）
+            public bool StatsHeld;               // 攻击步冻结：对账只缓冲不写屏
+
+            /// <summary>命中节拍/兜底释放：缓冲文本直写落地（角色读数无逐格滚动语义）。</summary>
+            public void ReleaseStatsHold()
+            {
+                if (!StatsHeld) return;
+                StatsHeld = false;
+                if (PendingStats == null) return;
+                var txt = PendingStats;
+                PendingStats = null;
+                ShownLife = PendingLife;
+                if (LastStats == txt) return;
+                LastStats = txt;
+                if (Stats != null) Stats.text = txt;
+            }
         }
 
         private void ReconcileHero(BattlePlayerView p, int owner)
@@ -865,6 +989,13 @@ namespace SynergyUI
                     txt += " " + CounterText.DisplayNameOf(c.Key) + "×" + c.Value;
                 }
             }
+            if (v.StatsHeld) // 攻击步冻结（2026-10-20 角色HP节拍）：快照终值只缓冲，命中拍落地
+            {
+                v.PendingStats = txt;
+                v.PendingLife = p.Life;
+                return;
+            }
+            v.ShownLife = p.Life;
             if (v.LastStats != txt)
             {
                 v.LastStats = txt;
@@ -1157,6 +1288,37 @@ namespace SynergyUI
             while (_visualsInFlight > 0) await UniTask.Yield();
         }
 
+        // ======================================== 单位级表现串行链（2026-10-20 定案） ========================================
+
+        // 用户定案：**同一单位上的表现串行，不同单位并行**。法术施放四段链
+        //（贴牌=发动前 → 费用粒子飞到卡位 → 效果粒子到目标=效果处理中串行 → 死亡=效果后）
+        // 的③④段靠本链保序：载荷（付费/伤害/死亡）在抑制开启前或倾泻 drain 下同帧爆发、
+        // 各自 fire-and-forget，只有"启动顺序"没有"执行顺序"——链把同单位的目标类演出
+        //（伤害/回复/碎裂/消灭）排成队，逐个 await 前驱完成后才开演。
+        private readonly Dictionary<uint, UniTaskCompletionSource> _unitFxTails = new Dictionary<uint, UniTaskCompletionSource>();
+
+        /// <summary>在单位 rid 的串行链尾追加一个表现操作：await 前驱完成后执行 op；
+        /// 无论成败都完成自己的尾票（后续不悬挂）。跨单位天然并行（各持各链）。
+        /// 调用方负责在链外层持视觉门（BeginVisual 包住排队等待全程——回放导演逐步等待覆盖整链）。</summary>
+        private async UniTask RunUnitFxAsync(uint rid, Func<UniTask> op)
+        {
+            UniTask prev = default; // default UniTask=同步完成（无前驱）
+            if (_unitFxTails.TryGetValue(rid, out var tail)) prev = tail.Task;
+            var mine = new UniTaskCompletionSource();
+            _unitFxTails[rid] = mine;
+            try
+            {
+                await prev;
+                if (op != null) await op();
+            }
+            finally
+            {
+                if (_unitFxTails.TryGetValue(rid, out var cur) && ReferenceEquals(cur, mine))
+                    _unitFxTails.Remove(rid);
+                mine.TrySetResult();
+            }
+        }
+
         /// <summary>单位身体访问（编舞器走位/动作驱动用）；wrapper 承载位移（不触发 Recapture）。</summary>
         public bool TryGetUnitBody(uint id, out Transform wrapper, out MonsterRigAnimator anim)
         {
@@ -1201,10 +1363,48 @@ namespace SynergyUI
             if (_units.TryGetValue(id, out var v)) v.ReleaseStatsHold();
         }
 
-        /// <summary>全量释放（演出收尾/取消/Dispose 兜底）：任何路径不漏冻结。</summary>
+        /// <summary>全量释放（演出收尾/取消/Dispose 兜底）：任何路径不漏冻结（单位+角色柱）。</summary>
         public void ReleaseAllHeldStats()
         {
             foreach (var v in _units.Values) v.ReleaseStatsHold();
+            ReleaseAllHeroStats();
+        }
+
+        // ======================================== 角色柱HP读数节拍（2026-10-20：镜像单位 StatsHeld——攻击步快照终值缓冲，命中拍落地） ========================================
+
+        /// <summary>2D 血条同拍回调（owner, 展示生命）：释放时显示值真变才触发（BattleScreen 只重写生命标签）。</summary>
+        public Action<int, int> HeroLifeShownChanged;
+
+        /// <summary>战斗攻击步冻结双方角色柱HP读数（回放导演在应用攻击步快照前调）：对账照常
+        /// 缓冲目标文本但展示不动——编舞器命中节拍释放（角色目标与立柱脉冲同拍，溅射波及角色
+        /// 同拍覆盖），演出收尾/回放兜底全量放行。宣言帧不冻：拼点/宣言期奖励伤害照常直显
+        ///（2026-10-20 用户定案「先24再23」——中段值宣言帧落地，战斗伤害等命中拍）。</summary>
+        public void HoldAllHeroStats()
+        {
+            foreach (var v in _heroes.Values) v.StatsHeld = true;
+        }
+
+        /// <summary>命中节拍/兜底释放全部角色柱HP读数（编舞器主命中/演出收尾/回放兜底调）。</summary>
+        public void ReleaseAllHeroStats()
+        {
+            foreach (var kv in _heroes)
+            {
+                int before = kv.Value.ShownLife;
+                kv.Value.ReleaseStatsHold();
+                if (kv.Value.ShownLife != before)
+                {
+                    Debug.Log($"[HeroStatBeat] 角色{kv.Key} HP读数落地 {before} → {kv.Value.ShownLife}");
+                    HeroLifeShownChanged?.Invoke(kv.Key, kv.Value.ShownLife);
+                }
+            }
+        }
+
+        /// <summary>角色柱当前展示生命（FillBar 节拍取值）：未建柱/首写前 false（调用方回落数据值）；
+        /// 冻结期返回旧展示值——堵住 ApplyProjection→RefreshBars 的提前直出。</summary>
+        public bool TryGetHeroLifeShown(int owner, out int life)
+        {
+            life = 0;
+            return _heroes.TryGetValue(owner, out var v) && (life = v.ShownLife) != int.MinValue;
         }
 
         // ======================================== 生物箭头（钉地） ========================================
@@ -1292,6 +1492,7 @@ namespace SynergyUI
             // 可忽略表演：不 BeginVisual——不阻塞 AI 节奏等待/结束回合守卫（战斗主序列/受击等
             // 信息性表演才占门；纯装饰表演此后按此口径分类，预计还有多种）
             if (!_units.TryGetValue(id, out var v) || v.Wrapper == null) return;
+                v.DeathExitStarted = true; // 退场开演（效果受击判据让位——战斗/兜底路径同置位）
                 HoldUnit(id); // 防 RemoveStale 抢销毁
 
             // 头顶数值同帧消失（中途复活由对账分支恢复显示）
@@ -1525,55 +1726,144 @@ namespace SynergyUI
 
         /// <summary>效果伤害演出（AtomicDamageEvent·IsCombatDamage=false——投影器延迟载荷随回放步
         /// 放出，非回放路径直跑）：源锚点 → MagicOrb 弹体 0.35s → Impact 爆点 + 红「-N」浮字 +
-        /// 受击（生物=Hit 动画 / 角色=立柱脉冲）。信息性表演占视觉门（口径同疲劳受击——回放导演
-        /// WaitVisualsIdleAsync 逐步等待）；目标不在视图静默返回。</summary>
+        /// 受击（生物=Hit 动画 / 角色=立柱脉冲）。信息性表演占视觉门（含排队等待全程——回放导演
+        /// WaitVisualsIdleAsync 逐步等待）；目标不在视图静默返回。
+        /// castCell（2026-10-20 时序定案）：法术伤害变体——**先等扣费粒子到位于法术位**，弹体改从
+        /// 施放贴片上起飞（数据层来源仍是角色，表现层归位法术）。
+        /// 单位串行链（2026-10-20 定案）：单位目标排队等前驱（同单位伤害/回复/碎裂）完成后开演；
+        /// 角色目标无链直演。</summary>
         public async UniTask PlayEffectDamageAsync(Entity source, Entity target, int amount,
-            Func<Player, int> ownerOf)
+            Func<Player, int> ownerOf, (int x, int z)? castCell = null, ManaType? effectTint = null)
         {
             var et = ResolveEffectTarget(target, ownerOf);
             if (et == null) return;
             BeginVisual();
             try
             {
-                var src = ResolveEffectSourceAnchor(source, ownerOf);
-                var tint = DominantCostColor(source); // 六色：来源卡费用主色（图改暴露后生效）
-                if (src != null)
-                    await BattleEffectFx.PlayOrbAsync(src.Value, et.ImpactAnchor, tint); // 飞行段（缺件=立即返回直落爆点）
-                var impact = BattleEffectFx.PlayImpact(et.ImpactAnchor, tint);
-                if (et.Unit != null && !et.Unit.Dead)
-                    et.Unit.Anim?.Play(MonsterAction.Hit); // 受击（一次性压扁回弹，叠在待机上）；致死者让位碎裂退场（Dead 闸防 Hit 盖掉 FallDown）
+                if (target is Card tc)
+                    await RunUnitFxAsync(tc.RuntimeId, () => DamageFxCoreAsync(et, source, amount, ownerOf, castCell, effectTint));
                 else
-                    HeroImpactPulseAsync(et.HeroOwner).Forget(); // 角色立柱脉冲（自带门配对）
-#if UNITY_EDITOR
-                Debug.Log($"[EffectFx] 伤害演出 amount={amount} 目标={(target is Card c ? "单位" + c.RuntimeId % 10000 : "角色" + et.HeroOwner)}"
-                          + $" 弹体={(src != null ? 1 : 0)} 爆点={(impact != null ? 1 : 0)}"); // 演出取证口（构建不打）
-#endif
-                await FloatTextAsync(et.FloatParent, et.FloatHeight, "-" + amount, StatDownColor);
+                    await DamageFxCoreAsync(et, source, amount, ownerOf, castCell, effectTint);
             }
             finally { EndVisual(); }
         }
 
+        /// <summary>伤害演出本体（串行链内执行）。受击判据=碎裂未开演（DeathExitStarted）：
+        /// Dead 会被 HoldForEffectDeath 在死亡事件期早锁，链化排队后执行时 Dead 常 true
+        /// 但碎裂排在链尾尚未开演——受击照放（受击→碎裂顺序由链保证）；角色脉冲只在真角色目标走。
+        /// effectTint=效果基础色（2026-10-20 定案：按所用效果的原子行费用基准主色——事件下发；
+        /// null=无基准回落来源卡费用主色 DominantCostColor）。</summary>
+        private async UniTask DamageFxCoreAsync(EffectTarget et, Entity source, int amount,
+            Func<Player, int> ownerOf, (int x, int z)? castCell, ManaType? effectTint)
+        {
+            if (castCell != null)
+                await WaitCastPayArrived(ownerOf(source as Player)); // 时序①→②：费用粒子到位才起飞
+            var src = castCell != null
+                ? CastingAnchor(castCell.Value.x, castCell.Value.z) + Vector3.up * 0.35f // 贴片平躺地面——抬起一点起飞
+                : ResolveEffectSourceAnchor(source, ownerOf);
+            var tint = effectTint != null
+                ? BattleCastArrival.ManaColor(effectTint.Value) // 效果基础色（所用原子行基准主色）
+                : DominantCostColor(source); // 无基准回落：来源卡费用主色
+            if (src != null)
+                await BattleEffectFx.PlayOrbAsync(src.Value, et.ImpactAnchor, tint); // 飞行段（缺件=立即返回直落爆点）
+            var impact = BattleEffectFx.PlayImpact(et.ImpactAnchor, tint);
+            if (et.Unit != null && !et.Unit.DeathExitStarted)
+                et.Unit.Anim?.Play(MonsterAction.Hit); // 受击（一次性压扁回弹，叠在待机上）；碎裂退场排在链尾——受击先放
+            else if (et.Unit == null)
+                HeroImpactPulseAsync(et.HeroOwner).Forget(); // 角色立柱脉冲（自带门配对）
+#if UNITY_EDITOR
+            Debug.Log($"[EffectFx] 伤害演出 amount={amount} 目标单位{(et.Unit != null ? "" : "=无（角色）")}"
+                      + $" 弹体={(src != null ? 1 : 0)} 爆点={(impact != null ? 1 : 0)}"
+                      + $"{(castCell != null ? $" 法术位({castCell.Value.x},{castCell.Value.z})" : "")}"); // 演出取证口（构建不打）
+#endif
+            await FloatTextAsync(et.FloatParent, et.FloatHeight, "-" + amount, StatDownColor);
+        }
+
         /// <summary>回复演出（HealEvent）：绿火花（Dissolve Template 复用，脚下涌起）+ 绿「+N」浮字。
-        /// amount 为扣溢后实效（发布方 Amount-Overfill，屏侧算好传入）；占视觉门。</summary>
+        /// amount 为扣溢后实效（发布方 Amount-Overfill，屏侧算好传入）；占视觉门；单位目标入串行链
+        ///（2026-10-20 定案：同一单位串行——回复不与伤害/碎裂抢拍）。</summary>
         public async UniTask PlayEffectHealAsync(Entity target, int amount, Func<Player, int> ownerOf)
         {
+            // 取证口（2026-10-21 祝福+20无绿字排查）：演出链入口——amount≤0 早退/目标解析失败/根本未被调用三分支一翻便知
+            TideLog.Info($"[HealFx] 回复演出入口：target={(target is Player ? "角色" : (target as Card)?.ID ?? "null")} amount={amount}");
             if (amount <= 0) return;
             var et = ResolveEffectTarget(target, ownerOf);
             if (et == null) return;
             BeginVisual();
             try
             {
-                Vector3 ground = et.Unit != null && et.Unit.Wrapper != null
-                    ? et.Unit.Wrapper.position
-                    : et.FloatParent != null ? et.FloatParent.position : et.ImpactAnchor;
-                BattleEffectFx.PlaySpark(ground + Vector3.up * SparkLift, SparkUpColor);
-                await FloatTextAsync(et.FloatParent, et.FloatHeight, "+" + amount, StatUpColor);
+                if (target is Card tc)
+                    await RunUnitFxAsync(tc.RuntimeId, () => HealFxCoreAsync(et, amount));
+                else
+                    await HealFxCoreAsync(et, amount);
             }
             finally { EndVisual(); }
         }
 
+        private async UniTask HealFxCoreAsync(EffectTarget et, int amount)
+        {
+            Vector3 ground = et.Unit != null && et.Unit.Wrapper != null
+                ? et.Unit.Wrapper.position
+                : et.FloatParent != null ? et.FloatParent.position : et.ImpactAnchor;
+            BattleEffectFx.PlaySpark(ground + Vector3.up * SparkLift, SparkUpColor);
+            await FloatTextAsync(et.FloatParent, et.FloatHeight, "+" + amount, StatUpColor);
+        }
+
         /// <summary>火花色（回复/增益共用）：StatUpColor 向白提亮一档——纯绿粒子自发光观感偏暗。</summary>
         private static readonly Color SparkUpColor = Color.Lerp(new Color(0.42f, 1f, 0.45f), Color.white, 0.25f);
+
+        /// <summary>拼点演出（ClashResolvedEvent·2026-10-20 教学二表现接入）：攻击宣言期双方手牌展示
+        /// 最高攻生物（扇区同拍翻面），本演出在**引擎卡**头顶出结果句「己方x，对方x，成功/失败」
+        ///（胜=金/败=灰——正差额未达门槛的惜败同判灰；粒子版因观感基本不可见已退役，美术表现后置）。
+        /// 占视觉门；引擎卡入单位串行链（同单位伤害/回复排队）；引擎卡不在视图（教学介绍段/未上场）
+        /// 静默返回。奖励本体另有各自演出（抽牌飞入/伤害弹体…），本演出只担「比拼结果」一拍。</summary>
+        public async UniTask PlayClashResolvedAsync(Card engineCard, int myPower, int theirPower,
+            int threshold, bool success, Func<Player, int> ownerOf)
+        {
+            if (engineCard == null) return;
+            var et = ResolveEffectTarget(engineCard, ownerOf);
+            if (et == null) return;
+            BeginVisual();
+            try
+            {
+                await RunUnitFxAsync(engineCard.RuntimeId,
+                    () => ClashFxCoreAsync(et, myPower, theirPower, threshold, success));
+            }
+            finally { EndVisual(); }
+        }
+
+        /// <summary>运势掷骰浮字（LuckRolledEvent·2026-10-20 定案：**不搞特效**——TMP 文本一拍）：
+        /// 来源引擎卡**头顶**出「投掷结果 {d1}+{d2}，效果通过/不通过」（默认字体=PZD 中文齐备），
+        /// 通过=金／不通过=灰（拼点同款双色）。占视觉门（同单位伤害/回复串行链）；引擎卡不在
+        /// 视图（教学介绍段/已退场）静默返回，绝不报错。骰值细节另有战报行（KeywordApplied）。</summary>
+        public async UniTask PlayLuckRollAsync(Card source, int d1, int d2, bool success,
+            Func<Player, int> ownerOf)
+        {
+            if (source == null) return;
+            var et = ResolveEffectTarget(source, ownerOf);
+            if (et == null) return;
+            string label = $"投掷结果 {d1}+{d2}，效果{(success ? "通过" : "不通过")}";
+            BeginVisual();
+            try
+            {
+                await RunUnitFxAsync(source.RuntimeId,
+                    () => FloatTextAsync(et.FloatParent, et.FloatHeight, label,
+                        success ? ClashWinColor : ClashLoseColor, LuckRollFontSize));
+            }
+            finally { EndVisual(); }
+        }
+
+        private async UniTask ClashFxCoreAsync(EffectTarget et, int myPower, int theirPower,
+            int threshold, bool success)
+        {
+#if UNITY_EDITOR
+            Debug.Log($"[EffectFx] 拼点演出 己方{myPower} 对方{theirPower} 门槛{threshold}={(success ? "成功" : "失败")}"
+                      + "（手牌展示比攻击力）"); // 演出取证口（构建不打）
+#endif
+            await FloatTextAsync(et.FloatParent, et.FloatHeight,
+                $"己方{myPower}，对方{theirPower}，{(success ? "成功" : "失败")}",
+                success ? ClashWinColor : ClashLoseColor, ClashFontSize);
+        }
 
         /// <summary>属性指示物浮字（CounterChangedEvent·白名单过滤）：攻/血/±1/角色弹药族 →
         /// 绿/红「±N」头顶浮字。文案 ASCII（TMP 默认字体数字/ASCII 口径，与头顶 P/L 同语言）；
@@ -1626,51 +1916,119 @@ namespace SynergyUI
             _effectDeathHeld.Add(card.RuntimeId);
         }
 
-        /// <summary>效果死亡演出（延迟载荷随回放步放出）：①碎裂退场——预持接管时开演并弃票
-        /// （纯装饰不占门，死亡退场原口径；不接管=编舞器/无视图，零动作）；②消灭/摧毁族
-        /// （Reason=Destroyed/Smashed）专属表现（信息性占门）：施法角色立柱→目标弹体飞行 →
-        /// 目标处紫火花涌起（SparkLift 防地块遮挡）。地牌在池内无视图单位——静默返回。</summary>
+        /// <summary>效果死亡演出（延迟载荷随回放步放出；2026-10-20 时序定案=**效果发动后的表现**）：
+        /// 整体入单位串行链一次跑完（排在同单位伤害/回复之后），占视觉门（效果致死档退出
+        /// 「可忽略不占门」口径——导演逐步等待覆盖；战斗编舞击杀不接管=编舞器自有串行不变）。
+        /// 链内两段：③消灭/摧毁族（Reason=Destroyed/Smashed）飞行体——先等扣费粒子到位于法术位
+        ///（castCell 事件期抓拍，回放期卡已入墓查不到；null=技能/触发等照旧角色锚点）→弹体飞到
+        /// 目标→紫火花涌起；④碎裂退场——预持接管时开演（DeathExitStarted 置位让受击判据让位）
+        /// 并弃预持票。伤害击杀（非消灭族）只有④——排在链上的伤害演出之后=受击后碎裂。
+        /// 地牌在池内无视图单位——静默返回。</summary>
         public async UniTask PresentEffectDeathAsync(Entity source, Card card, DestroyReason reason,
-            Func<Player, int> ownerOf)
+            Func<Player, int> ownerOf, (int x, int z)? castCell = null, ManaType? effectTint = null)
         {
             if (card == null) return;
-            if (_effectDeathHeld.Remove(card.RuntimeId))
-            {
-                if (_units.TryGetValue(card.RuntimeId, out var v) && v.Wrapper != null)
-                    PlayDeathExitAsync(card.RuntimeId, v.Owner).Forget(); // 碎裂退场（内部自持票至收尾）
-                ReleaseUnit(card.RuntimeId); // 弃预持票（退场演出已自持）
-#if UNITY_EDITOR
-                Debug.Log($"[EffectFx] 死亡碎裂 目标=单位{card.RuntimeId % 10000} reason={reason}");
-#endif
-            }
-            if (reason != DestroyReason.Destroyed && reason != DestroyReason.Smashed) return; // 战斗/毒等：只补碎裂
-            var et = ResolveEffectTarget(card, null);
-            if (et?.Unit?.Wrapper == null) return;
+            bool destroyFamily = reason == DestroyReason.Destroyed || reason == DestroyReason.Smashed;
+            bool heldTaken = _effectDeathHeld.Remove(card.RuntimeId);
+            if (!heldTaken && !destroyFamily) return; // 编舞器接管/无预持且非消灭族=零动作
+
+            var rid = card.RuntimeId;
+            var et = destroyFamily ? ResolveEffectTarget(card, null) : null;
+            bool fly = destroyFamily && et?.Unit?.Wrapper != null; // 消灭飞行体需目标在视图
+
             BeginVisual();
             try
             {
-                var src = ResolveEffectSourceAnchor(source, ownerOf); // 法术源头=施法者角色（2026-10-19 定案）
-                var tint = DominantCostColor(source);
-                if (src != null)
-                    await BattleEffectFx.PlayOrbAsync(src.Value, et.ImpactAnchor, tint);
-                BattleEffectFx.PlaySpark(et.Unit.Wrapper.position + Vector3.up * SparkLift, DestroySparkColor, 16000f);
+                await RunUnitFxAsync(rid, async () =>
+                {
+                    // 段③：消灭族飞行体（效果弹体——先等扣费粒子到位于法术位再起飞）
+                    if (fly)
+                    {
+                        if (castCell != null)
+                            await WaitCastPayArrived(ownerOf(source as Player));
+                        var src = castCell != null
+                            ? CastingAnchor(castCell.Value.x, castCell.Value.z) + Vector3.up * 0.35f // 法术位起飞（同伤害弹体口径）
+                            : ResolveEffectSourceAnchor(source, ownerOf); // 技能/触发等无发动位=施法者角色
+                        var tint = effectTint != null
+                            ? BattleCastArrival.ManaColor(effectTint.Value) // 效果基础色（所用原子行基准主色）
+                            : DominantCostColor(source); // 无基准回落：来源卡费用主色
+                        if (src != null)
+                            await BattleEffectFx.PlayOrbAsync(src.Value, et.ImpactAnchor, tint);
+                        var impact = BattleEffectFx.PlayImpact(et.ImpactAnchor, tint); // 命中爆点（2026-10-20 补齐）：同伤害/飞行链口径——锚=弹体落点、色=效果色；紫火花仍是消灭印记
+                        BattleEffectFx.PlaySpark(et.Unit.Wrapper.position + Vector3.up * SparkLift, DestroySparkColor, 16000f);
 #if UNITY_EDITOR
-                Debug.Log($"[EffectFx] 消灭演出 目标=单位{card.RuntimeId % 10000} 弹体={(src != null ? 1 : 0)}");
+                        Debug.Log($"[EffectFx] 消灭演出 目标=单位{rid % 10000} 弹体={(src != null ? 1 : 0)} 爆点={(impact != null ? 1 : 0)}"
+                                  + $"{(castCell != null ? $" 法术位({castCell.Value.x},{castCell.Value.z})" : "")}");
 #endif
+                    }
+                    // 段④：碎裂退场（预持接管时）
+                    if (heldTaken)
+                    {
+                        if (_units.TryGetValue(rid, out var v) && v.Wrapper != null)
+                        {
+                            v.DeathExitStarted = true; // 链内开演置位（受击判据让位）
+                            await PlayDeathExitAsync(rid, v.Owner); // 链内 await（不再 Forget——串行收尾）
+                        }
+                        ReleaseUnit(rid); // 弃预持票（退场已自持/收尾已 Retire 幂等）
+#if UNITY_EDITOR
+                        Debug.Log($"[EffectFx] 死亡碎裂 目标=单位{rid % 10000} reason={reason}（链尾开演）");
+#endif
+                    }
+                });
             }
             finally { EndVisual(); }
+        }
+
+        /// <summary>效果飞行演出（EffectFlightEvent·2026-10-20 定案：**效果无效或对目标不适用≠
+        /// 发动无效**——费已付，弹体照飞+到达爆点；无伤害/死亡事件=无浮字/受击/碎裂）：
+        /// 等扣费粒子到位于法术位→弹体法术位→目标→爆点。单位目标入串行链+占门（同伤害口径）。</summary>
+        public async UniTask PlayEffectFlightAsync(Entity source, Entity target,
+            Func<Player, int> ownerOf, (int x, int z)? castCell, ManaType? effectTint)
+        {
+            var et = ResolveEffectTarget(target, ownerOf);
+            if (et == null) return;
+            BeginVisual();
+            try
+            {
+                if (target is Card tc)
+                    await RunUnitFxAsync(tc.RuntimeId, () => FlightFxCoreAsync(et, source, ownerOf, castCell, effectTint));
+                else
+                    await FlightFxCoreAsync(et, source, ownerOf, castCell, effectTint);
+            }
+            finally { EndVisual(); }
+        }
+
+        private async UniTask FlightFxCoreAsync(EffectTarget et, Entity source,
+            Func<Player, int> ownerOf, (int x, int z)? castCell, ManaType? effectTint)
+        {
+            if (castCell != null)
+                await WaitCastPayArrived(ownerOf(source as Player));
+            var src = castCell != null
+                ? CastingAnchor(castCell.Value.x, castCell.Value.z) + Vector3.up * 0.35f
+                : ResolveEffectSourceAnchor(source, ownerOf);
+            var tint = effectTint != null
+                ? BattleCastArrival.ManaColor(effectTint.Value)
+                : DominantCostColor(source);
+            if (src != null)
+                await BattleEffectFx.PlayOrbAsync(src.Value, et.ImpactAnchor, tint);
+            BattleEffectFx.PlayImpact(et.ImpactAnchor, tint);
+#if UNITY_EDITOR
+            Debug.Log($"[EffectFx] 飞行演出（效果无效/不适用·发动照播）目标={(et.Unit != null ? "单位" : "角色")}"
+                      + $"{(castCell != null ? $" 法术位({castCell.Value.x},{castCell.Value.z})" : "")}");
+#endif
         }
 
         /// <summary>消灭火花色：暗紫提亮（纯暗紫自发光不可见，向白提一档）。</summary>
         private static readonly Color DestroySparkColor = new Color(0.62f, 0.34f, 0.95f);
 
         /// <summary>头顶浮字（上浮渐隐 0.9s，world TMP 一次性建毁——数学同疲劳浮字）。</summary>
-        private static async UniTask FloatTextAsync(Transform parent, float height, string text, Color color)
+        private static async UniTask FloatTextAsync(Transform parent, float height, string text, Color color,
+            float fontSize = 6f)
         {
             var floatTxt = CreateStatsText(parent, height);
             if (floatTxt != null)
             {
-                floatTxt.fontSize = 6f;
+                floatTxt.fontSize = fontSize;
                 floatTxt.text = text;
                 floatTxt.color = color;
             }

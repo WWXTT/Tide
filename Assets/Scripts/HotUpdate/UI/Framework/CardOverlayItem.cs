@@ -285,15 +285,27 @@ namespace SynergyUI
             return string.Join("\n", lines);
         }
 
-        /// <summary>代价行（2026-10-16 组装效果代价）：原子序列以「＋」连接（legacy 单条折入同口）；null=无代价行。</summary>
+        /// <summary>代价行（2026-10-16 组装效果代价；2026-10-21 补效果级 costs）：原子序列以「＋」连接
+        /// （legacy 单条折入同口）；效果级 Costs 的 payload 原子并入——主动效果的代价由执行器现付同源
+        ///（破釜沉舟：自伤1→获得1黑），此前只读卡层 PayloadCost 导致 ACard 卡面 cost 行恒空；
+        /// 补偿后缀与合成器同源（CardComposerScreen.PayloadGrantText）。null=无代价行。</summary>
         private static string PayloadTextOf(CardData d)
         {
-            var atoms = d?.PayloadCost?.AllPayloads();
-            if (atoms == null || atoms.Count == 0) return null;
             var parts = new List<string>();
-            foreach (var a in atoms)
-                if (a != null && !string.IsNullOrEmpty(a.refId)) parts.Add(AtomText.RenderAtomEntry(a));
-            return parts.Count == 0 ? null : "代价：" + string.Join("＋", parts);
+            var atoms = new List<AtomicEffectEntry>();
+            foreach (var a in d?.PayloadCost?.AllPayloads() ?? new List<AtomicEffectEntry>())
+                if (a != null && !string.IsNullOrEmpty(a.refId)) { parts.Add(AtomText.RenderAtomEntry(a)); atoms.Add(a); }
+            if (d?.Effects != null)
+                foreach (var fx in d.Effects)
+                {
+                    if (fx?.Costs == null) continue;
+                    foreach (var c in fx.Costs)
+                        foreach (var a in c?.AllPayloads() ?? new List<AtomicEffectEntry>())
+                            if (a != null && !string.IsNullOrEmpty(a.refId))
+                            { parts.Add(AtomText.RenderAtomEntry(a)); atoms.Add(a); }
+                }
+            if (parts.Count == 0) return null;
+            return "代价：" + string.Join("＋", parts) + CardComposerScreen.PayloadGrantText(atoms);
         }
     }
 }

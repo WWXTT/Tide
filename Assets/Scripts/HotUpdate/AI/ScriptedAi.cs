@@ -50,6 +50,11 @@ namespace SynergyUI
         /// 缺省 null=全速（AI-vs-AI/无头验证不受影响）。镜像 SimpleAI.PacingWait 口径。</summary>
         public Func<UniTask> PacingWait { get; set; }
 
+        /// <summary>最终考验压力拍武装（导演器 RunMidTransition 单点维护：末段=武装、非末段/分段
+        /// 回退重入=按目标段重算解除——防上段武装残留误杀）。武装后 AI 回合开场直伤对方英雄
+        ///（玩家）致死→考验失败重挑（2026-10-20 用户定案：自己回合没解决对手，下个回合被打死）。</summary>
+        public bool TrialPressureArmed;
+
         /// <summary>同步入口（编辑器/无头验证：无人类响应者，全链同步完成）。</summary>
         public void TakeTurn(BattleController ctrl)
             => TakeTurnAsync(ctrl).GetAwaiter().GetResult();
@@ -65,6 +70,16 @@ namespace SynergyUI
 
             // 0. 跳过产元素阶段进入主阶段（镜像 SimpleAI；剧本的 element 动作在主阶段执行）
             GameActions.SkipElementPool(core, me);
+
+            // 最终考验压力拍（武装闸见 TrialPressureArmed）：AI 回合开场直伤对方英雄——玩家回合
+            // 未解决对手即被打死，考验失败。走效果伤害正链（ApplyDamage+AtomicDamageEvent）：
+            // 弹体/爆点/红浮字演出与英雄死亡/败局弹窗原生触发。致死即收（剧本动作/EndTurn 不再推进）。
+            if (TrialPressureArmed && !core.IsGameOver)
+            {
+                ApplyTrialPressure(core, me);
+                if (core.IsGameOver) return;
+                if (PacingWait != null) await PacingWait();
+            }
 
             var turn = _script?.GetAiTurn(_aiTurnCount);
             if (turn?.actions == null || turn.actions.Count == 0)
@@ -91,6 +106,25 @@ namespace SynergyUI
                 GameActions.EndTurn(core, me);
         }
 
+        /// <summary>考验直伤：对方英雄当前生命+2（护甲余量——考验段玩家无护甲，纯保险）=必杀。
+        /// 演出走 AtomicDamageEvent 正链（BattleProjector→PlayEffectDamageAsync：弹体+爆点+红浮字）。</summary>
+        private static void ApplyTrialPressure(GameCore core, Player me)
+        {
+            var target = me?.Opponent;
+            if (target == null || target.GetLife() <= 0) return;
+            int lifeBefore = target.GetLife();
+            int actual = CardCore.Attribute.KeywordRules.ApplyDamage(me, target, lifeBefore + 2, false, false);
+            core.PublishEvent(new CardCore.Attribute.AtomicDamageEvent
+            {
+                Source = me,
+                Target = target,
+                Damage = actual,
+                IsCombatDamage = false,
+                DamageType = CardCore.Attribute.DamageType.Normal,
+            });
+            TideLog.Info($"[ScriptedAi] 考验压力直伤：{me?.Name} → {target.Name} {actual} 伤（{lifeBefore}→{target.GetLife()}）");
+        }
+
         // ======================================== 动作执行 ========================================
 
         private async UniTask<bool> ExecuteAsync(BattleController ctrl, GameCore core, Player me, TutorialAction action)
@@ -113,6 +147,10 @@ namespace SynergyUI
                 {
                     var card = FindInZone(core, me, Zone.Hand, action.card);
                     if (card == null) return LogResult(action, false, $"手牌无 {action.card}");
+                    // 连锁防线（2026-10-20 充盈六连修复）：出牌前先排干残留栈——上一动作的奖励结算
+                    //（弹选清账后续排）没走完时直接施放会叠上未空栈=速度0非法连锁。教学剧本全部
+                    // 串行动作，正常路径此处恒空栈零开销；DrainStack 幂等。
+                    GameActions.DrainStack(core);
                     bool ok = GameActions.PlayCard(core, me, card, ResolveTargets(core, me, action.targets),
                         Zone.Hand, action.mode, out var reason);
                     if (!ok) return LogResult(action, false, $"出牌被拒：{reason}");
@@ -188,6 +226,21 @@ namespace SynergyUI
                     // 幻卡清算（2026-10-18 教学二·末日降临挑战）：AI 第一回合签名动作——烧空己方
                     // 镜像卡组，凭空召唤末日降临（带紊乱束缚）+ 仪典载体直挂规则光环。
                     return LogResult(action, ExecutePhantom(core, me, action), "幻卡清算失败");
+                }
+                case "wallet":
+                {
+                    // 钱包灌入（2026-10-20 段六充盈钱包制）：钱包任一回合结束清空——场景播种的 bank
+                    // 跨不过回合边界，须在实际消费的回合内重灌。side=player/ai（缺省 ai），
+                    // target=颜色名（缺省 Gray，同 element 动作产色槽），mode=数量（缺省 1）。
+                    // 走 AddMana 官方口：生成钳同口径（教学量≤地牌上限不受影响）+ElementPoolGainEvent 可观测。
+                    var owner = action.side == "player" ? me.Opponent : me;
+                    ManaType color = ManaType.Gray;
+                    if (!string.IsNullOrEmpty(action.target)
+                        && System.Enum.TryParse<ManaType>(action.target, true, out var wc))
+                        color = wc;
+                    int amount = action.mode > 0 ? action.mode : 1;
+                    int granted = core.ElementPool.AddMana(owner, color, null, amount);
+                    return LogResult(action, granted == amount, $"钱包灌入被钳（实发 {granted}/{amount} {color}）");
                 }
                 default:
                     TideLog.Warn($"[ScriptedAi] 未知动作类型：{action.type}（机器人回合 {_aiTurnCount}）");

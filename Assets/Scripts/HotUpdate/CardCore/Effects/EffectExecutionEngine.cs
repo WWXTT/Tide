@@ -314,6 +314,10 @@ namespace CardCore
                         instance.IsResolved = true;
                         return;
                     }
+                    // [代价] 取证（2026-10-21 教学二破釜沉舟「代价未执行/无黑元素」排查）：主动效果的
+                    // 效果级代价唯一真付费点（cast 付费步按设计跳过主动效果）——此行发出即证明
+                    // 装载（EffectsLibrary）→转换（CardEffectConverter）→执行链全通；不发=数据层未带上。
+                    TideLog.Info($"[代价] 效果 {effect.Id} 特殊代价已付并补偿（{specialCosts.Count} 条）");
                 }
             }
 
@@ -450,11 +454,24 @@ namespace CardCore
             var compositionTargets = originalTargets.Count > 0
                 ? new List<Entity>(originalTargets)
                 : new List<Entity> { null };
+            // 声明期预选队列（2026-10-20 有序消费）：逐原子共享可消耗——交互原子按序吃队归属，
+            // defer/全取/随机原子不吃（见 ResolveAtomTargetsAsync）；每轮重放重建（预选只在首轮有效）
+            var preselectQueue = new List<Entity>(originalTargets);
 
             foreach (var atomicEffect in effect.Effects)
             {
                 if (atomicEffect == null) continue;
-                if (IsEngineTrunk(atomicEffect)) continue; // 引擎主干=条件载体（BranchEngines 事件驱动），不在主序列执行
+                if (IsEngineTrunk(atomicEffect))
+                {
+                    // 主动运势一步点击（2026-10-20 定案：点击→选目标→执行期掷骰，达标则分支效果
+                    // 作用于已选目标）：两段式（掷骰入待发+二次发动）已废——第一次点击（主动发动）
+                    // 横置源卡，待发奖励再发动被 CanActivate 横置检查拒。其余引擎仍条件载体跳过
+                    //（自动运势走 BranchEngines.OnRoutedEvent 事件驱动；倒计时钉死组直发）。
+                    if (effect.ActivationType == EffectActivationType.Voluntary
+                        && atomicEffect.Branch?.EngineKind == BranchEngineKind.LuckRoll)
+                        await ApplyActiveLuckTrunkAsync(atomicEffect.Branch, context, fragments);
+                    continue;
+                }
                 var payload = atomicEffect.Branch;
 
                 // 逐原子目标制（2026-10-09）：该原子按自身极性过滤域独立解析（弹窗/AI 代选落结算期）；
@@ -464,7 +481,7 @@ namespace CardCore
                 List<Entity> ownTargets = null;
                 if (effect.PerAtomTargets)
                     ownTargets = await EffectHandlerRegistry.ResolveAtomTargetsAsync(
-                        effect, atomicEffect, context, originalTargets);
+                        effect, atomicEffect, context, preselectQueue);
 
                 if (HasOutcome(atomicEffect))
                 {
@@ -544,6 +561,10 @@ namespace CardCore
             var compositionTargets = context.Targets != null && context.Targets.Count > 0
                 ? new List<Entity>(context.Targets)
                 : new List<Entity> { null };
+            // 声明期预选队列（2026-10-20 有序消费，与扁平路径同口径）：序列内逐原子共享可消耗
+            var preselectQueue = compositionTargets[0] == null && compositionTargets.Count == 1
+                ? new List<Entity>()
+                : new List<Entity>(compositionTargets);
 
             for (int i = 0; i < steps.Count; i++)
             {
@@ -576,15 +597,12 @@ namespace CardCore
                 var wrongHits = new Dictionary<AtomicEffectInstance, int>();
 
                 // 逐原子目标制（2026-10-09）：该原子按自身极性过滤域独立解析（弹窗/AI 代选落结算期）；
-                // 声明期预选目标（组合快照非 {null} 占位）先经域归属过滤；空解析=单次 null 目标自结算。
+                // 声明期预选目标经有序队列归属消费（2026-10-20）；空解析=单次 null 目标自结算。
                 var stepTargets = compositionTargets;
                 if (effect.PerAtomTargets)
                 {
-                    var preselected = compositionTargets.Count == 1 && compositionTargets[0] == null
-                        ? null
-                        : compositionTargets;
                     var resolved = await EffectHandlerRegistry.ResolveAtomTargetsAsync(
-                        effect, atomic, context, preselected);
+                        effect, atomic, context, preselectQueue);
                     stepTargets = resolved.Count > 0 ? resolved : new List<Entity> { null };
                 }
 
@@ -781,6 +799,50 @@ namespace CardCore
                 payload.GateId, context.LastOutcome, payload.ConditionParam, payload.ConditionStringParam, context);
             if (!pass) return;
             await ExecuteThenRewardsAsync(payload.Then, context, fragments);
+        }
+
+        /// <summary>主动运势掷骰（2026-10-20 一步点击定案：点击→选目标→执行期先掷骰，达标则分支
+        /// 效果适用、未达标落空）：掷双骰判 d1,d2 ≥ x，成败都播报（战报白名单放行"运势"）；达标 →
+        /// Then 奖励**作用于组合目标**——效果级作用范围（kinds）在结算期首已弹选共享（单候选自动取），
+        /// 未声明域/无候选（组合目标空）回落 ExecuteThenRewardsAsync 弹选口径。奖励原子免费
+        /// （卡价收讫，同 FireRewards 口径）。</summary>
+        private static async UniTask ApplyActiveLuckTrunkAsync(BranchPayload payload,
+            EffectExecutionContext context, List<string> fragments)
+        {
+            if (payload?.Then == null || payload.Then.Count == 0) return;
+            int x = Math.Max(1, Math.Min(6, payload.EngineParam));
+            int d1 = GameRng.Next(1, 7), d2 = GameRng.Next(1, 7);
+            bool hit = d1 >= x && d2 >= x;
+            EventManager.Instance.Publish(new KeywordAppliedEvent
+            {
+                Target = context.Source, Keyword = "运势",
+                Detail = hit ? $"运势 {d1}+{d2} ≥ {x}×2：分支效果适用" : $"运势 {d1}+{d2} < {x}×2：未达标",
+            });
+            // 表现层结构化观察口（成败都发）：来源单位头顶浮字「投掷结果 d1+d2，效果通过/不通过」
+            EventManager.Instance.Publish(new LuckRolledEvent
+            {
+                EngineCard = context.Source as Card,
+                Controller = context.Controller,
+                D1 = d1, D2 = d2, Threshold = x, Success = hit,
+            });
+            if (!hit) return;
+            if (context.Targets == null || context.Targets.Count == 0)
+            {
+                await ExecuteThenRewardsAsync(payload.Then, context, fragments);
+                return;
+            }
+            var shared = new List<Entity>(context.Targets);
+            foreach (var reward in payload.Then)
+            {
+                if (reward == null) continue;
+                foreach (var rt in shared)
+                {
+                    context.Targets = rt != null ? new List<Entity> { rt } : new List<Entity>();
+                    await EffectHandlerRegistry.ExecuteEffectAsync(reward, context);
+                    CaptureDescription(reward, context, fragments);
+                }
+            }
+            context.Targets = shared;
         }
 
         /// <summary>Then 奖励强制结算（两槽定案，槽级载荷/引擎共用）：依次执行——
@@ -1650,6 +1712,14 @@ namespace CardCore
             if (!effect.IsTriggeredEffect)
                 return;
 
+            // 引擎主干不入触发管线（2026-10-20 定案）：Branch 载荷 Settle==Engine 的效果是
+            // BranchEngines 自订阅评估的引擎机械（倒计时递减/掷骰判定等），不该走「时机事件→
+            // 待发队列→推栈」管线——推上栈后无人结算成孤儿项（GameLoopController 只在栈空时
+            // 驱动优先权），堵死 EndTurn 栈空闸（Play 实测：教学倒计时龟 AC0306F3 在回合开始
+            // 入栈后整局卡死）。
+            if (CardEffectConverter.EngineKindOfDefinition(effect) != BranchEngineKind.None)
+                return;
+
             // 幂等：同一来源实体 + 同一效果 Id 只注册一次
             // （同模板两张不同实例 Source 不同、各自注册，正确；死亡期靠 Source.IsAlive 门禁兜底）
             for (int i = 0; i < _registeredEffects.Count; i++)
@@ -2007,17 +2077,17 @@ namespace CardCore
             // OverrideRestriction 仍暂不实现（规则轴提案 §6：可能被 ModifyGameRule(str) 完全覆盖）
             AtomicEffectType.OverrideRestriction,
 
-            // 引擎主干行（2026-10-05 回表；2026-10-08 附加诅咒/附加祝福入列；2026-10-19 效果序位入列）：条件载体非效果——
+            // 引擎主干行（2026-10-05 回表；2026-10-08 附加诅咒/附加祝福入列；2026-10-20 效果序位换轴为团结）：条件载体非效果——
             // 主序列执行按 Branch.Settle==Engine 跳过，引擎条件由 BranchEngines 事件驱动，无需（也不应有）处理器
             AtomicEffectType.EngineCountdown,
             AtomicEffectType.EngineLuckRoll,
             AtomicEffectType.EngineClash,
             AtomicEffectType.EngineDeathToll,
             AtomicEffectType.EngineManaSurplus,
-            AtomicEffectType.EngineNthHandCard, // 已退役（2026-10-19 效果序位改案）——枚举值位保留，表行已改挂 EngineEffectOrdinal
+            AtomicEffectType.EngineNthHandCard, // 已退役（2026-10-19 效果序位改案）——枚举值位保留，表行已改挂 EngineUnity
             AtomicEffectType.EngineCurseOnDraw,
             AtomicEffectType.EngineBlessingOnDraw,
-            AtomicEffectType.EngineEffectOrdinal,
+            AtomicEffectType.EngineUnity, // 团结（2026-10-20 效果序位换轴·复用其表行 52c1ce3f）
         };
 
         private static void VerifyHandlerCoverage()

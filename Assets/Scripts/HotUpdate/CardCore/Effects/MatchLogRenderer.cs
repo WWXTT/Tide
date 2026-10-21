@@ -120,6 +120,16 @@ namespace CardCore
                         "log-line--combat");
                 case CardDestroyEvent k:
                     return new Line($"{Name(k.DestroyedCard)} 死亡（{k.Reason}）", "log-line--combat");
+                case EffectFlightEvent flight:
+                {
+                    // 效果不适用/无效（2026-10-20 定案：发动照常——费用照付弹体照飞，但结算无果。
+                    // 此前对不灭目标放消灭=日志零提示）
+                    string note = string.IsNullOrEmpty(flight.Note) ? "效果不适用" : flight.Note;
+                    return new Line(
+                        $"{EntityName(flight.Source, isSelf)} 的 {Name(flight.CastCard)} → " +
+                        $"{EntityName(flight.Target, isSelf)}：{note}",
+                        "log-line--effect");
+                }
 
                 // ==== 生命 ====
                 case LifeChangeEvent life:
@@ -170,7 +180,8 @@ namespace CardCore
                     return new Line("　→ " + text, "log-line--effect");
                 }
                 case KeywordAppliedEvent kw when kw.Keyword == KeywordRules.Guardian
-                                                 || kw.Keyword == KeywordRules.Martyrdom:
+                                                 || kw.Keyword == KeywordRules.Martyrdom
+                                                 || kw.Keyword == "运势": // 主动运势两段式（2026-10-20）：掷骰结果须玩家可见（成败都播报；自动路径同享）
                 {
                     if (string.IsNullOrEmpty(kw.Detail)) return Empty;
                     string text = kw.Detail;

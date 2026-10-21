@@ -35,7 +35,8 @@ namespace CardCore.Attribute.Handlers
                     Target = target,
                     Damage = actual,
                     IsCombatDamage = false,
-                    DamageType = DamageType.Normal
+                    DamageType = DamageType.Normal,
+                    EffectTint = effect.AnchorTint()
                 });
             }
         }
@@ -66,7 +67,8 @@ namespace CardCore.Attribute.Handlers
                     Target = target,
                     Damage = dmg,
                     IsCombatDamage = false,
-                    DamageType = DamageType.LifeLoss
+                    DamageType = DamageType.LifeLoss,
+                    EffectTint = effect.AnchorTint()
                 });
             }
 

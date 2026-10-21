@@ -429,12 +429,6 @@ namespace CardCore
                 return;
             }
 
-            // 元素充盈引擎判定（2026-09-22 定案；2026-10-19 判据三改）：出牌付费完成后回调——
-            // 引擎读**元素池剩余总量**（未横置地牌+钱包余额合计，先扣除本次消耗后读数，封顶 6）≥ x 即发奖，
-            // 每次达标都触发；效果费支付不走此口。发动无效不回卷：费已实付，照判。代价补偿在引擎读数之后
-            // 到账（下方 ③ 才执行——将生成的黑白不计入读数，2026-10-16 恢复旧序）。
-            BranchEngines.OnCardCostPaid(player);
-
             // ③ 代价强制执行 + 补偿入临时钱包（PayWithCompensationAsync 内部：快照全价 → 执行 → 发放；
             //    AddMana 黑白单次钳：单次 ≤ 地牌上限）
             var costCtx = new CostContext
@@ -451,16 +445,30 @@ namespace CardCore
                 return;
             }
 
-            // 3. 效果无效：付了但被否定 → 入墓、跳过效果、费用不退
+            // 3. 效果无效：付了但被否定 → 入墓、跳过效果、费用不退。
+            // 发动表演照播（2026-10-20 用户定案：效果无效≠发动无效——费已付，弹体照飞到预选目标；
+            // 效果不结算=无伤害/死亡事件，表现层仅飞行+到达）。发动无效（①卡已离发动区）在上方
+            // 早退：不付费不结算，什么都不播。
             if (card._isNegated)
             {
                 card._isNegated = false; // 消费即复位（同一否定标记只拦一次）
+                if (cast.Targets != null && cast.Targets.Count > 0)
+                {
+                    var fizzTint = FirstAtomTint(card, cast.ModeIndex);
+                    foreach (var t in cast.Targets)
+                        if (t != null)
+                            core.PublishEvent(new EffectFlightEvent
+                            {
+                                Source = player, CastCard = card, Target = t, Tint = fizzTint,
+                                Note = "效果无效（发动照常，效果未结算）"
+                            });
+                }
                 CastAbortToGraveyard(core, card, player, "效果无效");
                 return;
             }
 
             // 附加诅咒/附加祝福部署（BranchEngines.OnCardCastResolved）：施放结算时投放指示物+登记载荷；
-            // 无效已在上游拦截（效果不结算）。手牌序位引擎已随 2026-10-19 效果序位改案退役（声明期观察，不走此口）。
+            // 无效已在上游拦截（效果不结算）。手牌序位/效果序位引擎均已退役（后者 2026-10-20 换轴为团结——评估走 OnCardCastSettled，不走此口）。
             BranchEngines.OnCardCastResolved(card, player);
 
             // 4. 结算：法术 → 效果全结算后离区入墓；永久物 → 登记触发式 + 入场
@@ -472,6 +480,25 @@ namespace CardCore
             {
                 ResolvePermanentEntry(core, player, card);
             }
+
+            // 元素充盈引擎判定（2026-09-22 定案；2026-10-20 判据五改）：施放结算完成后评估——
+            // 仅对手回合（施放者==当前回合玩家）时评估施放者对手的引擎：双方**剩余元素总量**
+            // （未横置地牌+钱包）之差（封顶 6）恰==x 即发奖（差每+1踩一档各一次）；奖励恒直发。
+            // 发动无效/效果无效早退不评估；效果费支付不走此口。
+            BranchEngines.OnCardCastSettled(player);
+        }
+
+        /// <summary>施放卡声明期收集（效果无效 fizz 场景的飞行色）：所选模式首个原子的行基准主色。</summary>
+        private static ManaType? FirstAtomTint(Card card, int modeIndex)
+        {
+            var defs = GetCardEffectDefinitions(card);
+            if (defs == null || defs.Count == 0) return null;
+            var chosen = defs[Math.Clamp(modeIndex, 0, defs.Count - 1)];
+            if (chosen?.Effects == null) return null;
+            foreach (var a in chosen.Effects)
+                if (a != null)
+                    return a.AnchorTint();
+            return null;
         }
 
         /// <summary>cast 结算中止（支付失败 / 发动无效）：离开发动区入墓 + 失败/离区事件。</summary>
@@ -727,11 +754,14 @@ namespace CardCore
                 }
             }
             // 待发自愿队列（触发式「可以发动」，速度门已在 GetVoluntaryEffects 内过）：
-            // IsActivatedEffect 项跳过——主动效果统一走上方位枚举，防重复候选
+            // IsActivatedEffect 项跳过——主动效果统一走上方位枚举，防重复候选；
+            // 控制器过滤（2026-10-20）：待发桶双方共享——只列决策方自己的待发，对方的
+            // BRANCH_REWARD 不是本窗口可发动项
             foreach (var pe in engine.GetActivatableVoluntaryEffects(p))
             {
                 var def = pe.Effect;
                 if (def == null || def.IsActivatedEffect) continue;
+                if (pe.Controller != p) continue;
                 options.Add(new ResponseOption
                 {
                     Kind = ResponseOption.ResponseKind.VoluntaryEffect,
@@ -761,6 +791,9 @@ namespace CardCore
                     if (c == null || !RuleHooks.CanPlay(core, p, c, Zone.Hand)) continue;
                     if (RuleAuraSystem.BlocksDuplicatePlay(c)) continue;
                     if (GetPayloadGateReject(core, p, c) != null) continue;
+                    // 本轮窗口撤销记忆（2026-10-20 定案）：连锁内取消过声明期目标选择的卡
+                    // 不再进候选——本次连锁不再询问该卡是否发动（防取消→重弹循环）
+                    if (ResponseWindowService.IsDeclined(c)) continue;
                     int castSpeed = SpeedCalculator.GetCardCastSpeed(c);
                     if (!engine.SpeedCounter.CanActivate(castSpeed, EffectActivationType.Voluntary, false))
                         continue;
@@ -806,6 +839,7 @@ namespace CardCore
         public static async Cysharp.Threading.Tasks.UniTask SettleResponseWindowAsync(GameCore core, int maxRounds = 96)
         {
             Crumb($"CF-pump-enter stack={core?.StackEngine?.StackSize} res={core?.StackEngine?.IsResolving}");
+            ResponseWindowService.ResetDeclinedWindow(); // 撤销记忆会话边界=本泵一次（一条连锁会话）
             try
             {
                 for (int i = 0; i < maxRounds; i++)
@@ -835,6 +869,22 @@ namespace CardCore
                             choice = await ResponseWindowService.HumanResponder(holder, options);
                             // 人类响应决策探针（连锁/让过都算——respond 引导步骤完成信号，2026-10-19）
                             RuleHooks.OnTutorialHumanResponded?.Invoke(holder);
+
+                            // 声明期目标收集（2026-10-20 法术发动流程改案）：手牌响应卡选定后
+                            // 先逐原子预选目标（可取消=撤销发动）。取消 → 该卡记入本轮窗口
+                            // declined 集（本次连锁不再询问）+ 本轮视同让过；确认 → 目标随选项下发。
+                            if (choice != null && choice.Kind == ResponseOption.ResponseKind.HandCard
+                                && choice.SourceCard != null && choice.SourceCard.IsSpellCard())
+                            {
+                                var pre = await CollectSpellDeclarationTargetsAsync(choice.SourceCard, holder, choice.ModeIndex);
+                                if (pre == null)
+                                {
+                                    ResponseWindowService.DeclineForThisWindow(choice.SourceCard);
+                                    Crumb($"CF-declined card={(choice.SourceCard as IHasName)?.CardName}（声明期目标选择取消——本轮窗口不再询问）");
+                                    choice = null; // 本轮让过（其余候选下轮照常收集）
+                                }
+                                else choice.Targets = pre;
+                            }
                         }
                         // 挂死兜底不在引擎侧（2026-10-17 定案）：UniTask.Delay 型超时在链孤悬时
                         // 同样不触发（两度实测），且 TideServer shim 无 Delay/WhenAny——真正的
@@ -860,7 +910,7 @@ namespace CardCore
         }
 
         /// <summary>应用所选响应：守卫=PushGuardDeclaration；主动=ActivateEffect；自愿效果=PlayerActivateVoluntary；
-        /// 手牌卡=PlayCardInResponse（目标=null——cast 结算期反问，同结算期反问单源）。</summary>
+        /// 手牌卡=PlayCardInResponse（目标=声明期预选（2026-10-20 收集器下发）或 null——结算期反问单源）。</summary>
         private static bool ApplyResponse(GameCore core, Player p, ResponseOption opt)
         {
             if (opt == null) return false;
@@ -870,7 +920,7 @@ namespace CardCore
                     return core.StackEngine.PushGuardDeclaration(opt.SourceCard, opt.AttackInstance, p);
                 case ResponseOption.ResponseKind.HandCard:
                     return opt.SourceCard != null
-                        && PlayCardInResponse(core, p, opt.SourceCard, null, opt.ModeIndex);
+                        && PlayCardInResponse(core, p, opt.SourceCard, opt.Targets, opt.ModeIndex);
                 case ResponseOption.ResponseKind.ActivatedAbility:
                     return opt.Definition != null && opt.SourceCard != null
                         && ActivateEffectInResponse(core, p, opt.Definition, opt.SourceCard);
@@ -907,6 +957,38 @@ namespace CardCore
                     chosen = anyGuard;
             }
             return chosen;
+        }
+
+        /// <summary>
+        /// 声明期目标收集（2026-10-20 法术发动流程改案）：法术发动（PlayCard/PlayCardInResponse）
+        /// **前**逐原子预选目标——调用方（BattleScreen 主路径 / 响应窗泵手牌卡分支）拿到结果再声明。
+        /// 返回：null=玩家取消（终止发动——主路径撤销、响应路径记 declined）；空表=无交互原子
+        /// （直通声明，结算期照常自解析）；非空=预选目标（按原子序，结算期经预选队列有序消费）。
+        /// 口径单源=EffectHandlerRegistry.CollectDeclarationTargetsAsync（与结算路径同谓词）；
+        /// 教学闸/费用门不在此口——调用方先过、PlayCard 内终审（本口零引擎副作用）。
+        /// caster 显式传参：响应路径施法者可能非回合玩家。
+        /// </summary>
+        public static async Cysharp.Threading.Tasks.UniTask<List<Entity>> CollectSpellDeclarationTargetsAsync(
+            Card card, Player caster, int modeIndex)
+        {
+            var core = GameCore.Instance;
+            if (card == null || caster == null || core?.ZoneManager == null) return new List<Entity>();
+
+            var defs = GetCardEffectDefinitions(card);
+            if (defs == null || defs.Count == 0) return new List<Entity>();
+            var chosen = defs[Math.Clamp(modeIndex, 0, defs.Count - 1)];
+            if (chosen == null) return new List<Entity>();
+
+            var ctx = new EffectExecutionContext
+            {
+                Source = card, // 声明期卡在手（旧 PromptLocalTargetThenPlay 同口径——Self 域候选如此解析）
+                Controller = caster,
+                ZoneManager = core.ZoneManager,
+                ElementPool = core.ElementPool,
+                CastCard = card, // PromptSource 展示与结算口径一致
+                ModeIndex = modeIndex,
+            };
+            return await Attribute.EffectHandlerRegistry.CollectDeclarationTargetsAsync(chosen, ctx);
         }
 
         /// <summary>
@@ -1146,7 +1228,14 @@ namespace CardCore
                 return false;
             }
 
-            core.TurnEngine.EndTurn();
+            // 真发判定（2026-10-20 教学双推进修复）：TurnEngine 静默拒绝（阶段非 Main/栈未空——
+            // 同帧双击、回合翻转前重入的典型态）时**不发教学探针**——否则 OnTutorialTurnEnded
+            // 连发两次，连续 end 步一击双进（段七实测：换场/考验武装提前、必杀直伤提前落地）。
+            if (!core.TurnEngine.EndTurn())
+            {
+                TideLog.Warn("[GameActions] 结束回合被引擎拒绝（阶段已推进/连锁未结算）——不发教学探针");
+                return false;
+            }
             RuleHooks.OnTutorialTurnEnded?.Invoke(player);
             return true;
         }

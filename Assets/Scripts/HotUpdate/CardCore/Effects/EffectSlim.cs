@@ -92,6 +92,9 @@ namespace CardCore
         // 运行时无消费者，显示/预检/扣款一律实时重推导）；装载期逐效果还原为 AnchorCost 缓存；
         // 派生数据不入内容哈希（表变更重算不换 id）。旧 [{mana,value}] 对列表形态已随全表重推退役。
         public List<float> cost;
+        // 锚价钉死（2026-10-20）：1=cost 列为权威锚价（手作教学行——显示/预检/扣款直读不实时推导；
+        // cost 列缺省/空=0 费钉死）；缺省 0=cost 列纯快照（历史口径）。
+        public int costPin;
         public List<CostRef> costs;
         public List<StepRef> steps;
         // 引擎通道（engine/engineParam/rewards 头字段）已随 2026-10-05 两槽定案载荷化退役——
@@ -267,6 +270,7 @@ namespace CardCore
                 AnchorCost = dto.cost != null && dto.cost.Count > 0
                     ? new ElementCost(dto.cost.ToArray())
                     : null, // 锚价缓存（2026-09-23；2026-10-04 位置数组）——装载期逐效果建立
+                AnchorCostPinned = dto.costPin, // 锚价钉死（2026-10-20）：1=上行 cost 列为权威
                 Costs = ToCostEntries(dto.costs),
                 Steps = dto.steps != null
                     ? dto.steps.Select(ToStep).Where(st => st != null).ToList() : null,
@@ -314,6 +318,7 @@ namespace CardCore
             }
             if (d.cost != null && d.cost.Count > 0)
                 o["cost"] = new JArray(d.cost.Select(v => Math.Round((double)v, 3))); // float32 尾噪截断（显示快照列）
+            if (d.costPin != 0) o["costPin"] = d.costPin; // 锚价钉死（2026-10-20）——往返保真
             if (d.costs != null && d.costs.Count > 0)
             {
                 var costs = new JArray(d.costs.Where(c => c != null).Select(EmitCost).Where(x => x != null));

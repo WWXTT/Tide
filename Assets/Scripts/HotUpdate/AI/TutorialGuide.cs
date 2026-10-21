@@ -29,6 +29,16 @@ namespace SynergyUI
     /// fieldclear——自由清场步（2026-10-19 教学二段一改版）：闸全放行（玩家自由操作，用卡顺序
     ///   不再钉死——打错了靠「重置考验」重来），对手场上存活生物清零即完成；探针=PollFieldClear
     ///   （UI 侧逐帧轮询，栈收口后调用）；
+    /// luckuse——自由等待步（2026-10-20 教学二）：闸全放行。判据分档（PollLuckUse）：场上有运势
+    ///   引擎单位=运势段口径（全部掷毕=横置且无待发主动奖励）；场上无运势单位=自由等待——己方卡
+    ///   的引擎奖励**真实触发**（KeywordAppliedEvent「元素充盈/团结」发布点与 LaunchReward
+    ///   同帧，段六/六b）或等待中击杀对手（终段「击杀对手」/段六备用击杀线）即闩锁完成；
+    ///   都不满足=不推进；
+    /// deathtoll——自由死亡计数步（2026-10-20 教学二段五改版）：闸全放行（谁攻击谁不钉死，
+    ///   玩家自由分配攻击者与目标），死亡计数引擎在计数 ≥ 6 时触发过门槛奖励（触发即满值、
+    ///   奖励伤害随栈收口结算完毕）即完成；探针=PollDeathToll 消费 KeywordAppliedEvent 触发
+    ///   捕获（UI 侧逐帧轮询，栈收口后调用——判据是真实触发而非单纯计数=6：门槛 x 随锚价推导
+    ///   无上限钳，调价漂移>6 时计数满 6 也不触发，此步不放行）；
     /// victory——自由挑战收尾步（2026-10-16）：闸全放行（玩家自由操作），对局胜利
     ///   （GameOverEvent 玩家胜）时步骤完成=引导全部完成。
     /// hint=引导提示文案（UI 高亮/弹窗后续接，逻辑层只透传）。
@@ -51,6 +61,9 @@ namespace SynergyUI
                               // 宣言不推进——结算/取消探针才算完成（UI 侧等战斗表现收尾再弹解说卡）
         public bool aiTurnOnConfirm; // intro 步标记（2026-10-17 考验改版）：确定后把回合交给对手——
                               // midTransition 全清重铺后=对手进攻回合（BattleScreen 复用 OnEndTurnFan 序列）
+        public bool waitTurnStart; // end 步标记（2026-10-20 倒计时段）：点击结束回合**不立即推进**——
+                              // 等玩家**下个回合开始**（TurnStartEvent）才完成。段切换（midTransition）重铺
+                              // 会吞掉 pending 的回合翻转，倒计时归零直发的报酬必须先在回合开始落地再换场。
     }
 
     /// <summary>
@@ -80,6 +93,26 @@ namespace SynergyUI
         private static string _heroLockCard;
         /// <summary>玩家胜利已发生（多段尾段追赶：击杀先于 victory 步到达时由 Advance 补结算）。</summary>
         private static bool _victorySeen;
+        /// <summary>end 步等待中（waitTurnStart，2026-10-20 倒计时段）：已点结束回合，
+        /// 推进挪到玩家下个回合开始（NotifyTurnStarted）——防段切换重铺吞掉 pending 回合翻转。</summary>
+        private static bool _endWaitNextTurn;
+
+        /// <summary>deathtoll 步触发捕获（2026-10-20 教学二死亡计数段）：死亡计数引擎在计数 ≥ 6 时
+        /// 触发过门槛奖励（KeywordAppliedEvent——发布点与 LaunchReward 同帧，故"已触发=伤害在途"）。
+        /// Begin/JumpTo 清零（段重置防陈旧闩锁误过）。</summary>
+        private static bool _deathTollSixFired;
+
+        /// <summary>luckuse 步引擎触发捕获（2026-10-20 教学二段六/六b）：己方卡的引擎奖励真实触发
+        ///（KeywordAppliedEvent「元素充盈/团结」——发布点与 LaunchReward 同帧，触发=奖励在途）。
+        /// 消费即清（PollLuckUse 推进时）+ Begin/JumpTo 清零——防上一步期间的历史触发误过本步。</summary>
+        private static bool _engineRewardFired;
+
+        /// <summary>luckuse 步击杀捕获（2026-10-20 教学二终段「击杀对手」）：等待步在位时玩家胜利
+        ///（NotifyGameOver 探针）即闩锁。终段之后无换场步、IsScriptedContinuation=false 走正常终局
+        /// 弹窗（引导完成与否不拦终局）；本闩锁主要兜「等待步中把对手打死」的备用击杀线（如段六
+        /// 不打成长改磨脸 3 血 AI——弹窗被跳过、全靠轮询推进到换场步续接，无此闩锁=死锁终局画面）。
+        /// 消费即清 + Begin/JumpTo 清零。</summary>
+        private static bool _luckKillFired;
 
         /// <summary>引导步骤是否仍在进行（全部完成后=false，但课规钩子留存到 End）。</summary>
         public static bool Active { get; private set; }
@@ -111,6 +144,10 @@ namespace SynergyUI
             _steps.Clear();
             _missed.Clear();
             _victorySeen = false;
+            _endWaitNextTurn = false;
+            _deathTollSixFired = false;
+            _engineRewardFired = false;
+            _luckKillFired = false;
             foreach (var s in guideOverride ?? tutorial?.guide ?? new List<TutorialGuideStepSpec>())
                 if (s != null && !string.IsNullOrEmpty(s.type))
                     _steps.Add(s);
@@ -137,6 +174,8 @@ namespace SynergyUI
             RuleHooks.OnTutorialCardPlayed = NotifyCardPlayed;
             RuleHooks.OnTutorialGameOver = NotifyGameOver;
             RuleHooks.OnTutorialHumanResponded = NotifyHumanResponded;
+            EventManager.Instance.Subscribe<TurnStartEvent>(NotifyTurnStarted); // end 步 waitTurnStart 推进口（2026-10-20）
+            EventManager.Instance.Subscribe<KeywordAppliedEvent>(OnKeywordApplied); // deathtoll 步触发捕获（2026-10-20）
 
             if (Active)
                 TideLog.Info($"[TutorialGuide] 引导开始：{_steps.Count} 步——第 1 步 {Describe(_steps[0])}");
@@ -154,6 +193,9 @@ namespace SynergyUI
         {
             if (_steps.Count == 0) return;
             _index = System.Math.Max(0, System.Math.Min(index, _steps.Count - 1));
+            _deathTollSixFired = false; // 段重置重入：清陈旧闩锁（重铺后计数归零，触发须重新挣得）
+            _engineRewardFired = false; // 同上：重铺后引擎状态归零，触发须重新挣得
+            _luckKillFired = false; // 同上：段重置后击杀须重新达成
             while (_missed.Count < _steps.Count) _missed.Add(false);
             while (_missed.Count > _steps.Count) _missed.RemoveAt(_missed.Count - 1);
             Active = true;
@@ -169,6 +211,12 @@ namespace SynergyUI
             Active = false;
             _index = -1;
             _heroLockCard = null;
+            _endWaitNextTurn = false;
+            _deathTollSixFired = false;
+            _engineRewardFired = false;
+            _luckKillFired = false;
+            EventManager.Instance.Unsubscribe<TurnStartEvent>(NotifyTurnStarted);
+            EventManager.Instance.Unsubscribe<KeywordAppliedEvent>(OnKeywordApplied);
             RuleHooks.TutorialAttackGate = null;
             RuleHooks.TutorialEndTurnGate = null;
             RuleHooks.TutorialGuardFilter = null;
@@ -204,7 +252,7 @@ namespace SynergyUI
             if (!Active) return null; // 步骤全部完成=自由对局（课规已在上方处理）
             var step = Current;
             if (step == null) return null;
-            if (step.type == "victory" || step.type == "fieldclear") return null; // 自由步：攻击全放行（探针收尾）
+            if (step.type == "victory" || step.type == "fieldclear" || step.type == "luckuse" || step.type == "deathtoll") return null; // 自由步：攻击全放行（探针收尾）
             if (step.type == "intro")
                 return "引导讲解中——先读完提示（点击横幅继续）";
             if (step.type == "guard")
@@ -231,7 +279,7 @@ namespace SynergyUI
             if (step.type == "end") return null;                // end 本身即引导动作
             if (step.type == "guard") return null;              // 守卫发生在对手回合，不挡
             if (step.type == "respond") return null;            // 响应步发生在对手回合宣动后，放行（回合交接是它的前置）
-            if (step.type == "victory" || step.type == "fieldclear") return null; // 自由步：回合流转放行
+            if (step.type == "victory" || step.type == "fieldclear" || step.type == "luckuse" || step.type == "deathtoll") return null; // 自由步：回合流转放行
             return $"引导未完成——{step.hint ?? Describe(step)}"; // intro/attack/element/tap/tapcreature/play：先做完引导动作
         }
 
@@ -253,7 +301,7 @@ namespace SynergyUI
             if (!Active || player != GameCore.Instance?.Player1) return null;
             var step = Current;
             if (step == null) return null;
-            if (step.type == "victory" || step.type == "fieldclear") return null; // 自由步：放行
+            if (step.type == "victory" || step.type == "fieldclear" || step.type == "luckuse" || step.type == "deathtoll") return null; // 自由步：放行
             if (step.type == "element")
                 return string.IsNullOrEmpty(step.card) || card?.ID == step.card
                     ? null // 宽松（card 空=任意）或精确匹配
@@ -266,7 +314,7 @@ namespace SynergyUI
             if (!Active || player != GameCore.Instance?.Player1) return null;
             var step = Current;
             if (step == null) return null;
-            if (step.type == "victory" || step.type == "fieldclear") return null; // 自由步：放行
+            if (step.type == "victory" || step.type == "fieldclear" || step.type == "luckuse" || step.type == "deathtoll") return null; // 自由步：放行
             if (step.type == "tap")
             {
                 if (land?.SourceCard?.ID != step.land)
@@ -283,7 +331,7 @@ namespace SynergyUI
             if (!Active || player != GameCore.Instance?.Player1) return null;
             var step = Current;
             if (step == null) return null;
-            if (step.type == "victory" || step.type == "fieldclear") return null; // 自由步：放行
+            if (step.type == "victory" || step.type == "fieldclear" || step.type == "luckuse" || step.type == "deathtoll") return null; // 自由步：放行
             if (step.type == "tapcreature")
                 return creature?.ID == step.card
                     ? null
@@ -296,7 +344,7 @@ namespace SynergyUI
             if (!Active || player != GameCore.Instance?.Player1) return null;
             var step = Current;
             if (step == null) return null;
-            if (step.type == "victory" || step.type == "fieldclear") return null; // 自由步：放行
+            if (step.type == "victory" || step.type == "fieldclear" || step.type == "luckuse" || step.type == "deathtoll") return null; // 自由步：放行
             if (step.type == "play")
                 return string.IsNullOrEmpty(step.card) || card?.ID == step.card
                     ? null // 宽松（card 空=任意——引擎费用闸自然逼玩家挑付得起的）或精确匹配
@@ -346,18 +394,36 @@ namespace SynergyUI
 
         /// <summary>end 步骤完成：玩家成功结束回合（GateEndTurn 已放行，此探针推进步骤）；
         /// respond 步骤兜底（2026-10-19 连锁教学）：对手回合结束=响应窗已不可能再开（玩家无可
-        /// 连锁项被自动让过等）——记 Missed 完成推进，防死锁。</summary>
+        /// 连锁项被自动让过等）——记 Missed 完成推进，防死锁。
+        /// waitTurnStart（2026-10-20 倒计时段）：不在此推进——挂起等玩家下个回合开始
+        ///（NotifyTurnStarted），保证段切换重铺前回合翻转完整走完、倒计时报酬落地。</summary>
         private static void NotifyTurnEnded(Player player)
         {
             var step = Current;
             if (step == null) return;
             if (step.type == "end" && player == GameCore.Instance?.Player1)
             {
+                if (step.waitTurnStart)
+                {
+                    _endWaitNextTurn = true; // 幂等：双发 EndTurn 只置一次
+                    return;
+                }
                 Advance(missed: false);
                 return;
             }
             if (step.type == "respond" && player == GameCore.Instance?.Player2)
                 Advance(missed: true);
+        }
+
+        /// <summary>end 步等待推进口（waitTurnStart，2026-10-20 倒计时段）：玩家下个回合开始
+        ///（回合翻转含对手回合完整走完）才完成 end 步——此时段切换重铺不再有 pending 翻转可吞。</summary>
+        private static void NotifyTurnStarted(TurnStartEvent e)
+        {
+            if (!_endWaitNextTurn) return;
+            if (e == null || e.TurnPlayer != GameCore.Instance?.Player1) return;
+            _endWaitNextTurn = false;
+            var step = Current;
+            if (step != null && step.type == "end") Advance(missed: false);
         }
 
         private static void NotifyElementPlaced(Player player, Card card)
@@ -410,7 +476,13 @@ namespace SynergyUI
         /// 胜利先到、victory 步后到时由 Advance 追赶补结算（_victorySeen）。</summary>
         private static void NotifyGameOver(Player winner)
         {
-            if (winner != null && winner == GameCore.Instance?.Player1) _victorySeen = true;
+            if (winner != null && winner == GameCore.Instance?.Player1)
+            {
+                _victorySeen = true;
+                var cur = Current;
+                if (cur != null && cur.type == "luckuse")
+                    _luckKillFired = true; // 等待步在位击杀（终段「击杀对手」/段六备用击杀线）
+            }
             var step = Current;
             if (step == null || step.type != "victory") return;
             if (winner == null || winner != GameCore.Instance?.Player1) return;
@@ -440,6 +512,103 @@ namespace SynergyUI
                     && CardCatalog.GetById(c.ID)?.Supertype == Cardtype.Creature))
                 return;
             Advance(missed: false);
+        }
+
+        /// <summary>luckuse 步探针（2026-10-20 教学二运势段）：**双判据**自由等待步——
+        /// ① 场上有运势引擎单位（段三b）：己方运势单位全部用毕即完成——全部已横置（两段式第一击
+        /// 掷骰即横置，掷不中也算用毕）且无它们来源的待发主动奖励（掷达标的第二击「发动」完毕）；
+        /// ② 场上无运势单位（段六元素充盈/段六b团结复用本步型）：己方卡引擎奖励**真实触发**
+        ///（_engineRewardFired 闩锁——KeywordAppliedEvent 与 LaunchReward 同帧，触发=奖励在途）
+        /// 即完成。UI 侧逐帧轮询（栈收口、表现播毕后才调，防结算中途瞬态误判）。两判据都不满足
+        /// 不推进（等待本身即教学点：成长未打满/序位未到第 x 个=效果未触发）。非 luckuse 步零开销直返。</summary>
+        public static void PollLuckUse()
+        {
+            var step = Current;
+            if (step == null || step.type != "luckuse") return;
+            var core = GameCore.Instance;
+            var zm = core?.ZoneManager;
+            var p1 = core?.Player1;
+            if (zm == null || p1 == null || core?.StackEngine == null) return;
+            var units = new List<Card>();
+            foreach (var c in zm.GetCards(p1, Zone.Battlefield))
+                if (c != null && c.IsAlive && HasLuckEngine(c)) units.Add(c);
+            if (units.Count == 0)
+            {
+                // 判据②：引擎触发/自由击杀等待（无运势单位=非运势段复用步型）——
+                // 成长三张打满充盈触发、序位第 6 个发动、或等待中直接击杀（备用线）任一达成即完成
+                if (_engineRewardFired || _luckKillFired)
+                {
+                    _engineRewardFired = false; // 消费即清：防本步完成前的历史触发误过下个等待步
+                    _luckKillFired = false;
+                    Advance(missed: false);
+                }
+                return;
+            }
+            foreach (var c in units)
+                if (!c.IsTapped()) return; // 有未掷骰的（第一击未做）
+            foreach (var pe in core.StackEngine.GetActivatableVoluntaryEffects(p1))
+                if (pe != null && units.Any(u => ReferenceEquals(pe.Source, u))) return; // 有待发奖励未发动（第二击未做）
+            Advance(missed: false);
+        }
+
+        /// <summary>卡上是否携带运势引擎载荷（数据级直扫——扁平原子与节点化步骤双查，不做效果转换）。</summary>
+        private static bool HasLuckEngine(Card card)
+        {
+            var data = (card as CardWrapper)?.GetData();
+            if (data?.Effects == null) return false;
+            foreach (var fx in data.Effects)
+            {
+                if (fx?.AtomicEffects != null)
+                    foreach (var atom in fx.AtomicEffects)
+                        if (IsLuckBranch(atom?.branch)) return true;
+                if (fx.Steps != null)
+                    foreach (var s in fx.Steps)
+                        if (IsLuckBranch(s?.atomic?.branch)) return true;
+            }
+            return false;
+        }
+
+        private static bool IsLuckBranch(BranchEntryData b)
+            => b != null
+               && (BranchSettleKind)b.settle == BranchSettleKind.Engine
+               && (BranchEngineKind)b.engine == BranchEngineKind.LuckRoll;
+
+        /// <summary>deathtoll 步探针（2026-10-20 教学二死亡计数段）：死亡计数引擎在计数 ≥ 6 时
+        /// 触发过门槛奖励（OnKeywordApplied 捕获的闩锁）即完成。判据=真实触发而非单纯计数=6：
+        /// 门槛 x 随 Then 锚价推导且无上限钳（CostDerivationService.RewardThreshold 仅下限 1），
+        /// 原子调价漂到 >6 时计数满 6 也永不触发——此步不放行（与「成功触发并造成伤害」判据一致）。
+        /// 奖励伤害到 UI 轮询时点（栈收口、表现播毕后才调）已结算；计数官被打死换区（指示物清零、
+        /// 引擎随墓失效）则再也触发不了——打错路线靠「重置考验」重来。非 deathtoll 步零开销直返。</summary>
+        public static void PollDeathToll()
+        {
+            var step = Current;
+            if (step == null || step.type != "deathtoll") return;
+            if (!_deathTollSixFired) return;
+            Advance(missed: false);
+        }
+
+        /// <summary>KeywordAppliedEvent 订阅（2026-10-20 教学二死亡计数段）：死亡计数引擎触发门槛
+        /// 奖励时 BranchEngines 与 LaunchReward 同帧发布（Keyword="死亡计数"，全库唯一发布点）——
+        /// 触发时读卡上计数 ≥ 6 才闩锁（门槛若被调价漂低，计数 5 的早发不算——判据钉「计数 6」）。
+        /// luckuse 引擎等待（2026-10-20 教学二段六/六b）：己方卡的「元素充盈/团结」奖励触发
+        /// 同帧发布——闩锁 _engineRewardFired（发布点紧邻 LaunchReward，已触发=奖励在途）。
+        /// 步型守卫（2026-10-20 段六b 跳步修复）：闩锁只认**对应等待步在位**时的触发——
+        /// 段六六连充盈在 end 步挂起期（waitTurnStart·对手回合）触发，无守卫时 _engineRewardFired
+        /// 携 true 跨步存活，段六b luckuse 一上位即被 PollLuckUse 消费跳步（团结兽从未等玩家摆，
+        /// 确定键连点直接换场）。deathtoll 同理：其他段位期间的死亡计数触发不得闩锁本步。</summary>
+        private static void OnKeywordApplied(KeywordAppliedEvent e)
+        {
+            if (e == null || e.Target == null) return;
+            var step = Current;
+            if (step == null) return;
+            if (step.type == "deathtoll"
+                && e.Keyword == "死亡计数"
+                && e.Target.GetCounterCount(CardCore.Attribute.CounterRules.DeathTollCounter) >= 6)
+                _deathTollSixFired = true;
+            if (step.type == "luckuse"
+                && (e.Keyword == "元素充盈" || e.Keyword == "团结")
+                && e.Target.GetController() == GameCore.Instance?.Player1)
+                _engineRewardFired = true;
         }
 
         private static void Advance(bool missed)
@@ -482,6 +651,8 @@ namespace SynergyUI
                 case "play": return $"play：打出 {NameOf(s.card)}（{s.hint}）";
                 case "respond": return $"respond：完成一次响应窗口决策（连锁或让过）（{s.hint}）";
                 case "fieldclear": return $"fieldclear：自由操作清空对手全场生物（{s.hint}）";
+                case "luckuse": return $"luckuse：自由等待（运势用毕/引擎奖励触发）（{s.hint}）";
+                case "deathtoll": return $"deathtoll：自由攻击至死亡计数满 6 触发奖励（{s.hint}）";
                 case "victory": return $"victory：消灭对手完成教学（{s.hint}）";
                 default: return $"attack：用 {NameOf(s.attacker)} 攻击 {(s.target == "hero" ? "对方角色" : NameOf(s.target))}（{s.hint}）";
             }

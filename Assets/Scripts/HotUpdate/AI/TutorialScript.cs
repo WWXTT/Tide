@@ -8,8 +8,8 @@ namespace SynergyUI
     /// <summary>
     /// 教学固定局配置（2026-10-02 教学模式地基）：一局教学的完整剧本——
     /// 双方卡组的**顺序即摸牌序列**（InitGame lockDeckOrder 锁牌库序：前 OpeningHandSize 张为起手、
-    /// 之后逐回合摸牌恒取牌库顶）；机器人逐回合动作脚本由 ScriptedAi 按条执行；rngSeed 钉效果随机。
-    /// 三者合一台教学局完全确定，可反复重演同一节奏。
+    /// 之后逐回合摸牌恒取牌库顶）；机器人逐回合动作脚本由 ScriptedAi 按条执行；rngSeed=复现钉子
+    /// （2026-10-20 定案：非 0=钉同局重放；0/缺省=每局新抽——效果随机换局不同，卡序/剧本仍确定）。
     /// 数据：Assets/Configs/ 按课拆档（2026-10-19 三课制）：TutorialConfig.json=第一课（basics 攻防）、
     /// TutorialConfig2.json=第二课（jinjie 进阶机制）、TutorialConfig3.json=第三课（lunzhuan 末日降临
     /// Boss），TutorialLibrary 三档合并装载（TidePaths 寻址：编辑器直读、直改 JSON 后 Reload 免重启，
@@ -20,6 +20,8 @@ namespace SynergyUI
     {
         public string id;
         public string name;
+        /// <summary>效果随机种子（一局一枚、双方共用、换局重抽）：非 0=复现钉子重放同局；
+        /// 0/缺省=开局新抽（导演器记日志留种子号，回填即可复现）。</summary>
         public int rngSeed;
         /// <summary>玩家卡组引用文件名（2026-10-17 卡组文件化：读 StreamingAssets/Tutorial/{x}.json
         /// ——{name, cardIds} 红·快攻同款格式；id 引用即是卡组，同 id 出现多次即多张，可重复入组）。</summary>
@@ -105,6 +107,10 @@ namespace SynergyUI
     /// phantom——幻卡清算（2026-10-18 教学二·AI 第一回合签名动作）：烧空己方全部区域（镜像卡组），
     ///           凭空召唤 card（末日降临，mode=紊乱 RushSickness 层数）+ target 仪典载体入场并直挂
     ///           targets 规则光环（如 HandLimitNoFatigue）。实现见 ScriptedAi.ExecutePhantom。
+    /// wallet——钱包灌入（2026-10-20 段六充盈钱包制）：给 side（"player"/"ai"，缺省 ai）的临时钱包
+    ///           加 mode 个 target 色（颜色名缺省 Gray）元素——走 AddMana 官方口（事件可观测、
+    ///           生成钳同口径）。用途：钱包任一回合结束清空，场景播种的 bank 跨不过回合边界——
+    ///           须在实际消费的回合内（如 AI 连打前）重灌。
     /// </summary>
     [Serializable]
     public class TutorialAction
@@ -116,6 +122,7 @@ namespace SynergyUI
         public int mode;
         public string targets;
         public string fallback;
+        public string side;
     }
 
     /// <summary>

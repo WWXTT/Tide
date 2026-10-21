@@ -36,6 +36,14 @@ namespace CardCore
                 timing = data.TriggerTiming < 0 ? TriggerTiming.Activate_Active : TriggerTiming.OnPlay;
             }
 
+            // 回合开始收归系统专用（2026-10-20 定案）：自动抽牌/倒计时递减等系统行为专属时点，
+            // 效果不准再挂——存量声明一律归一为 准备阶段（同回合窗口、紧随系统处理，可观察行为等价）。
+            if (timing == TriggerTiming.OnTurnStart)
+            {
+                TideLog.Warn($"[CardEffectConverter] 卡 {sourceCardId} 效果 {data.Id} 时机=回合开始（2026-10-20 起系统专用），已归一为 准备阶段");
+                timing = TriggerTiming.OnStandbyPhase;
+            }
+
             // 确定 ActivationType：未指定(0) 时根据 TriggerTiming 取默认值
             EffectActivationType activationType = data.ActivationType > 0
                 ? (EffectActivationType)data.ActivationType
@@ -47,13 +55,12 @@ namespace CardCore
             // 自动=事件触发（条件达成弹窗询问）；强制=系统内部无条件触发（不开放、不动）。
             // 主动声明带真实触发时机（合成器旧 bug 只写 ActivationType 不写 Activate 时机/手写 JSON）
             // → 告警并钉时机 Activate_Active（主阶段主动档；反向"Activate_* 非主动"由下方对称校验收口）。
-            // 2026-10-16 解绑豁免：倒计时载荷例外——其主动=「归零待发→按声明时机走响应窗的 0 费触发」
-            //（BranchEngines 上栈 PendingEffect，费用由 ElementCostPrepaid 落实），保留真实时机。
+            //（2026-10-16 解绑曾对倒计时载荷豁免——主动+真实时机保留；2026-10-20 倒计时固定触发定案
+            //  收回：倒计时声明值一律被下方引擎归一覆写为 自动+回合开始。）
             if (activationType == EffectActivationType.Voluntary
                 && timing != TriggerTiming.Activate_Active
                 && timing != TriggerTiming.Activate_Instant
-                && timing != TriggerTiming.Activate_Response
-                && !HasCountdownPayload(data))
+                && timing != TriggerTiming.Activate_Response)
             {
                 TideLog.Warn($"[CardEffectConverter] 卡 {sourceCardId} 效果 {data.Id} 发动方式=主动但时机={timing}" +
                                  "（主动效果不设真实触发时机——2026-10-02 定案；2026-10-16 称谓统一），时机已钉 Activate_Active");
@@ -96,6 +103,13 @@ namespace CardCore
                 SourceCardId = sourceCardId,
                 ElementCostPrepaid = !isActivated,
             };
+
+            // 锚价钉死（2026-10-20）：手作行 cost 列为权威锚价——null 列=0 费钉死
+            if (data.AnchorCostPinned != 0)
+            {
+                def.AnchorCostPinned = true;
+                def.AnchorCostPin = data.AnchorCost != null ? data.AnchorCost.Clone() : new ElementCost();
+            }
 
             // 关键词型原子不得作主动（2026-10-02 定案）：主动效果内的纯自指 Grant 原子
             //（=给自己加关键词——横置换静态身份无意义）告警剔除（内容契约"错边剔除"同款先例）；
@@ -294,20 +308,30 @@ namespace CardCore
             // 引擎效果头兜底归一（2026-10-09 自由分支九项定案）：效果含引擎载荷（引擎=单原子形态）→
             // 发动方式/时机/速度/生效次数按 ComposerCatalog.EngineHeaderPresetOf 归一——合成器已锁定，
             // 此处收口旧数据/手写数据（引擎运行时本就无视效果头，自订阅事件；归一保证显示/计价/数据三面一致）。
-            // 2026-10-16 解绑修订：倒计时/运势（FreeTiming）时机声明值优先（倒计时连发动方式）；
-            // 非触发式声明（含 <0 未声明的 Activate_Active 回落）→ 预设缺省 OnTurnStart（存量效果库
-            // 无倒计时/运势行，生产数据零迁移；倒计时主动奖励=带真实时机的 Voluntary 触发式，
-            // 不走诅咒/祝福的 Activate_Active 折叠——费用 0 由 ElementCostPrepaid 落实）。
+            // 2026-10-16 解绑修订：运势（FreeTiming）时机声明值优先；非触发式声明（含 <0 未声明的
+            // Activate_Active 回落）→ 预设缺省 OnTurnStart。2026-10-20 倒计时固定触发定案：退回
+            // 钉死组——声明值一律归一 自动+回合开始（归零直接触发奖励，主干/奖励不拆开）。
             var engineKind = EngineKindOfDefinition(def);
             if (ComposerCatalog.EngineHeaderPresetOf(engineKind) is { } ehp)
             {
                 if (ehp.FreeTiming)
                 {
-                    bool hasRealTiming = def.IsTriggeredEffect
-                        && TriggerTimingDefaults.GetEventType(def.TriggerTiming) != null;
-                    def.TriggerTiming = hasRealTiming ? def.TriggerTiming : ehp.Timing;
-                    if (engineKind == BranchEngineKind.LuckRoll || !hasRealTiming)
-                        def.ActivationType = ehp.Activation; // 运势掷骰恒自动；倒计时仅在未声明时回落预设
+                    // 2026-10-20 主动运势一步点击修订（推翻同日早「掷骰恒自动」口径）：声明主动
+                    //（activation=2）→ 发动方式保留声明，时机取声明 Activate_* 值（非主动时机
+                    // 声明回落 Activate_Active）——点击→选目标（效果级 kinds 弹选）→执行期掷骰，
+                    // 达标则分支效果作用于已选目标。自动/未声明照旧：触发式时机声明值优先、
+                    // 否则预设缺省，发动方式钉 Automatic。
+                    if (def.ActivationType == EffectActivationType.Voluntary)
+                    {
+                        def.TriggerTiming = def.IsActivatedEffect ? def.TriggerTiming : TriggerTiming.Activate_Active;
+                    }
+                    else
+                    {
+                        bool hasRealTiming = def.IsTriggeredEffect
+                            && TriggerTimingDefaults.GetEventType(def.TriggerTiming) != null;
+                        def.TriggerTiming = hasRealTiming ? def.TriggerTiming : ehp.Timing;
+                        def.ActivationType = ehp.Activation;
+                    }
                 }
                 else
                 {
@@ -316,7 +340,10 @@ namespace CardCore
                         ? TriggerTiming.Activate_Active : ehp.Timing;
                 }
                 def.BaseSpeed = ehp.Speed;
-                def.TriggerLimitPerTurn = ehp.Limit;
+                // 单回合触发上限（2026-10-20 教学卡配置化定案）：效果行**显式声明**（limit>0）优先——
+                // 引擎奖励结算点（BranchEngines）按此收口反复触发；预设的无限档（-1）只兜底未声明行，
+                // 现行卡表行为不变（缺省无限）。教学引擎卡（充盈/团结等）行内声明 limit:1。
+                def.TriggerLimitPerTurn = data.TriggerLimitPerTurn > 0 ? data.TriggerLimitPerTurn : ehp.Limit;
                 def.ElementCostPrepaid = !(def.TriggerTiming == TriggerTiming.Activate_Active
                                            || def.TriggerTiming == TriggerTiming.Activate_Instant
                                            || def.TriggerTiming == TriggerTiming.Activate_Response);
@@ -325,23 +352,9 @@ namespace CardCore
             return def;
         }
 
-        /// <summary>数据级倒计时载荷探测（2026-10-16 解绑·主动豁免用）：倒计时奖励可为
-        /// 「主动+真实时机」（归零待发→按时机上栈走响应窗的 0 费触发）——主动⇒主动折叠对其豁免。</summary>
-        private static bool HasCountdownPayload(CardEffectData data)
-        {
-            if (data?.AtomicEffects == null) return false;
-            foreach (var e in data.AtomicEffects)
-            {
-                if (e?.branch != null
-                    && (BranchSettleKind)e.branch.settle == BranchSettleKind.Engine
-                    && (BranchEngineKind)e.branch.engine == BranchEngineKind.Countdown)
-                    return true;
-            }
-            return false;
-        }
-
-        /// <summary>效果内首个引擎载荷种类（扁平 Effects 与节点化 Steps 原子双扫；无=None）。</summary>
-        private static BranchEngineKind EngineKindOfDefinition(EffectDefinition def)
+        /// <summary>效果内首个引擎载荷种类（扁平 Effects 与节点化 Steps 原子双扫；无=None）。
+        /// 触发管线排除口（2026-10-20 定案）：RegisterEffect 用它识别引擎主干——不入触发队列/栈。</summary>
+        internal static BranchEngineKind EngineKindOfDefinition(EffectDefinition def)
         {
             BranchEngineKind KindOf(AtomicEffectInstance atom)
             {
@@ -499,6 +512,7 @@ namespace CardCore
                 TargetKinds = kinds,
                 TargetCount = entry.count,   // 每原子数量覆盖（-2=未声明回落效果级）
                 RandomTarget = entry.rand,   // 每原子随机覆盖（-1=未声明回落效果级）
+                DeferSelect = entry.defer,   // 每原子目标选择方式（0=预选=默认/1=效果处理时选）
                 Filter = config.TargetFilter ?? "",
                 Polarity = polarity,
                 Branch = ConvertBranchPayload(entry.branch),
@@ -548,6 +562,7 @@ namespace CardCore
                     payload.EngineKind = engine;
                     payload.EngineParam = data.engineParam;
                     payload.CountdownTurns = data.engineParam; // 声明初值；0=ConvertOne 按 Then 推导换算
+                    payload.ThenActivation = data.tactivate;  // 奖励发动方式（2026-10-20：-1=未声明随主干）
                     break;
             }
 

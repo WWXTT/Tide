@@ -24,9 +24,47 @@ namespace CardCore
         private static Dictionary<string, EffectSlimDto> _byId;
         private static List<EffectSlimDto> _items;
 
+        // 缓存新鲜度记账（2026-10-21 破釜沉舟代价排查）：本库曾无任何失效检查——效果表直写
+        // （手改 costs/锚价/教学副表）后旧静态缓存跨 Play 沿用（合成器 Reload 为唯一手动口），
+        // 表现为「改了表却不生效」。与 CardCatalog 同盯 mtime；两文件**独立**记账（主/副表戳
+        // 分开比对，避免「以主表戳比对副表」的恒过期缺陷）。高频入口按 2 秒节流防查盘 IO。
+        private static string _mainPath;
+        private static DateTime _mainStampUtc = DateTime.MinValue;
+        private static DateTime _tutorialStampUtc = DateTime.MinValue;
+        private static DateTime _lastStaleCheckUtc = DateTime.MinValue;
+
         private static void EnsureLoaded()
         {
-            if (_byId != null) return;
+            if (_byId == null)
+            {
+                LoadAll();
+                return;
+            }
+            if ((DateTime.UtcNow - _lastStaleCheckUtc).TotalSeconds < 2) return;
+            _lastStaleCheckUtc = DateTime.UtcNow;
+            if (CacheIsStale()) Reload();
+        }
+
+        /// <summary>缓存是否过期：主表消失/路径变/任一 mtime 变。读失败按未过期（读失败≠数据变）。</summary>
+        private static bool CacheIsStale()
+        {
+            try
+            {
+                string path = SynergyUI.CardDataPaths.FileIn("Effects.json");
+                if (path != _mainPath || !File.Exists(path)) return true;
+                if (File.GetLastWriteTimeUtc(path) != _mainStampUtc) return true;
+                string tpath = SynergyUI.CardDataPaths.TutorialFileIn("TutorialEffects.json");
+                if (File.Exists(tpath) && File.GetLastWriteTimeUtc(tpath) != _tutorialStampUtc) return true;
+                return false;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static void LoadAll()
+        {
             _byId = new Dictionary<string, EffectSlimDto>();
             _items = new List<EffectSlimDto>();
             try
@@ -34,20 +72,25 @@ namespace CardCore
                 // 路径收口（2026-09-24）：经 SynergyUI.CardDataPaths——编辑器 StreamingAssets / 玩家 persistentData
                 SynergyUI.CardDataPaths.EnsureBootstrap();
                 string path = SynergyUI.CardDataPaths.FileIn("Effects.json");
+                _mainPath = path;
+                _mainStampUtc = DateTime.MinValue; // 先记「未读到文件」态——文件出现后 mtime 必 ≠ MinValue，自动恢复
                 if (!File.Exists(path))
                 {
                     TideLog.Warn($"[EffectsLibrary] 效果库不存在: {path}（卡表 effectIds 引用将解析为空）");
                     return;
                 }
                 var wrapper = TideJson.FromJson<Wrapper>(File.ReadAllText(path));
-                if (wrapper?.items == null) return;
-                foreach (var it in wrapper.items)
+                if (wrapper?.items != null)
                 {
-                    if (it == null || string.IsNullOrEmpty(it.id)) continue;
-                    if (_byId.ContainsKey(it.id)) continue; // 重复 id 保首条
-                    _byId[it.id] = it;
-                    _items.Add(it);
+                    foreach (var it in wrapper.items)
+                    {
+                        if (it == null || string.IsNullOrEmpty(it.id)) continue;
+                        if (_byId.ContainsKey(it.id)) continue; // 重复 id 保首条
+                        _byId[it.id] = it;
+                        _items.Add(it);
+                    }
                 }
+                _mainStampUtc = File.GetLastWriteTimeUtc(path); // 解析成功才记账：坏 JSON 不落缓存态，下次调用重试
                 MergeTutorialEffects(); // 教学副表合并（2026-10-16）
             }
             catch (Exception e)
@@ -69,14 +112,17 @@ namespace CardCore
                     return;
                 }
                 var wrapper = TideJson.FromJson<Wrapper>(File.ReadAllText(tpath));
-                if (wrapper?.items == null) return;
-                foreach (var it in wrapper.items)
+                if (wrapper?.items != null)
                 {
-                    if (it == null || string.IsNullOrEmpty(it.id)) continue;
-                    if (_byId.ContainsKey(it.id)) continue; // 重复 id 保首条（正式表）
-                    _byId[it.id] = it;
-                    _items.Add(it);
+                    foreach (var it in wrapper.items)
+                    {
+                        if (it == null || string.IsNullOrEmpty(it.id)) continue;
+                        if (_byId.ContainsKey(it.id)) continue; // 重复 id 保首条（正式表）
+                        _byId[it.id] = it;
+                        _items.Add(it);
+                    }
                 }
+                _tutorialStampUtc = File.GetLastWriteTimeUtc(tpath); // 解析成功才记账（与主表同口径）
             }
             catch (Exception e)
             {

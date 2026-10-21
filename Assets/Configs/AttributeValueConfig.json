@@ -399,7 +399,7 @@
     ]
   },
   {
-    "ID": "ceea9f38",
+    "ID": "4147e3a7",
     "EnumName": "净化",
     "DisplayName": "净化{target}：移除其全部指示物",
     "EffectType": "Purify",
@@ -1387,7 +1387,7 @@
     ]
   },
   {
-    "ID": "ab2e0a4f",
+    "ID": "4b5fe01c",
     "EnumName": "缄默",
     "DisplayName": "对{target}附加缄默指示物（不可发动自动效果）",
     "EffectType": "AddNullify",
@@ -1425,7 +1425,7 @@
     ]
   },
   {
-    "ID": "00c32e3b",
+    "ID": "9995544b",
     "EnumName": "紊乱",
     "DisplayName": "对{target}附加{value}层紊乱指示物，期间不能以玩家为攻击目标，持有者回合末自动解除一层紊乱",
     "EffectType": "RushSickness",
@@ -1482,7 +1482,7 @@
     ]
   },
   {
-    "ID": "b70a8a42",
+    "ID": "fe142e09",
     "EnumName": "重放",
     "DisplayName": "对{target}附加{value}层重放指示物【可叠加】，该单位效果结算后自动消耗一层并再生效一次（重放不触发重放）",
     "EffectType": "GrantReplay",
@@ -1877,9 +1877,9 @@
     "ManaList": null
   },
   {
-    "ID": "74066ce9",
+    "ID": "24194dca",
     "EnumName": "倒计时",
-    "DisplayName": "自由分支·倒计时：回合开始计数-1（费用与回合数一比一），归零则触发奖励并重置",
+    "DisplayName": "自由分支·倒计时：准备阶段倒计时+1（费用与回合数一比一），倒计时≥x，则触发奖励并重置倒计时（最大值6）",
     "EffectType": "EngineCountdown",
     "TargetKinds": null,
     "TargetFilter": null,
@@ -1889,9 +1889,9 @@
     "ManaList": null
   },
   {
-    "ID": "9f6e4f49",
+    "ID": "d530c5a2",
     "EnumName": "运势",
-    "DisplayName": "自由分支·运势：回合开始掷两个六面骰子，掷出的值≥x，则触发奖励",
+    "DisplayName": "自由分支·运势：掷两个六面骰子，掷出的值都≥x，则触发奖励",
     "EffectType": "EngineLuckRoll",
     "TargetKinds": null,
     "TargetFilter": null,
@@ -1901,9 +1901,9 @@
     "ManaList": null
   },
   {
-    "ID": "21c3a99e",
+    "ID": "2b4f8efd",
     "EnumName": "拼点",
-    "DisplayName": "自由分支·拼点：自动从双方的手牌中展示一张生物卡，比攻击力，无法展示视为0，差额≥x，则触发奖励（最大值6）",
+    "DisplayName": "自由分支·拼点：从双方的手牌中展示攻击力最高的生物卡，比攻击力，无法展示视为0，差额≥x，则触发奖励（最大值6）",
     "EffectType": "EngineClash",
     "TargetKinds": null,
     "TargetFilter": null,
@@ -1913,9 +1913,9 @@
     "ManaList": null
   },
   {
-    "ID": "b61a539c",
+    "ID": "d1ddfd78",
     "EnumName": "死亡计数",
-    "DisplayName": "自由分支·死亡计数：此卡在手中或场上时，记录对双方生物死亡数量，计数≥x，则触发奖励（满6不再计数，使用后清零）",
+    "DisplayName": "自由分支·死亡计数：此卡在手中或场上时，记录对双方生物死亡数量，计数≥x，则触发奖励并重置死亡计数（最大值6）",
     "EffectType": "EngineDeathToll",
     "TargetKinds": null,
     "TargetFilter": null,
@@ -1925,9 +1925,9 @@
     "ManaList": null
   },
   {
-    "ID": "fb8a41c9",
+    "ID": "aa15df99",
     "EnumName": "元素充盈",
-    "DisplayName": "自由分支·元素充盈：使用效果时，先扣除消耗后元素池中剩余元素的总量≥x，则触发奖励（最大值6）",
+    "DisplayName": "自由分支·元素充盈：仅对手回合，对手使用卡牌结算后，双方剩余元素的差恰等于x，则触发奖励（仅自动，差额上限为6）",
     "EffectType": "EngineManaSurplus",
     "TargetKinds": null,
     "TargetFilter": null,
@@ -1937,10 +1937,10 @@
     "ManaList": null
   },
   {
-    "ID": "b951e72f",
-    "EnumName": "效果序位",
-    "DisplayName": "自由分支·效果序位：此效果是本回合第 x 个发动的效果，x恰好等于分支需要的费用时触发奖励（最大值6）",
-    "EffectType": "EngineEffectOrdinal",
+    "ID": "52c1ce3f",
+    "EnumName": "团结",
+    "DisplayName": "自由分支·团结：与此卡相邻的单位数量（生物/结界/角色/非空地牌格各算一）达到 x 时触发奖励（最大值6）",
+    "EffectType": "EngineUnity",
     "TargetKinds": null,
     "TargetFilter": null,
     "Polarity": 0.0,

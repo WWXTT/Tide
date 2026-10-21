@@ -238,6 +238,13 @@ namespace SynergyUI
                     if (c == null || c.Value == 0) continue;
                     var spec = CardCore.Attribute.CounterRules.Find(c.Key);
                     if (spec != null && spec.LayerRole == CardCore.Attribute.CounterLayerRole.Reading) continue;
+                    // 倒计时状态行（2026-10-20 固定触发定案）：恒「倒计时【x】」——归零即自动直发并重挂，
+                    // 无待发完成态（tactivate 拆分对倒计时收回）。
+                    if (c.Key == CardCore.Attribute.CounterRules.CountdownCounter)
+                    {
+                        statusLines.Add($"倒计时【{c.Value}】");
+                        continue;
+                    }
                     statusLines.Add(CounterText.Line(c.Key, c.Value));
                 }
             }
@@ -339,8 +346,9 @@ namespace SynergyUI
             return "阶段显示\n" + View.PhaseText + "\n回合结构：准备 → 主要 → 结束";
         }
 
-        /// <summary>格前三键悬停解说（2026-10-15：三键上盘后无解说补齐；2026-10-16 角色格同款三键）。
-        /// 灰态原因与 ReconcileTileButtons 高亮门禁同源；深判定（费用/横置代价/耐久）留引擎裁决不预写。</summary>
+        /// <summary>格前三键悬停解说（2026-10-20 用户定案·简化版）：一行式「(卡名)动作说明」——
+        /// 白/灰门禁解说等冗余全删（门禁与 ReconcileTileButtons 高亮同源，灰态点击无响应自明）。
+        /// 发动键附【效果摘要】：待发主动奖励优先（奖励原子文本+使用档），否则首个主动效果名。</summary>
         private string TileButtonHoverInfo(string btnKind, string tileName)
         {
             string who = "";
@@ -349,43 +357,65 @@ namespace SynergyUI
             if (TryParseTile(tileName, out x, out z))
             {
                 var u = UnitAt(x, z);
-                if (u != null) who = $"（{u.Name}）";
-                else if (x == BoardLayout.P1CharX && z == BoardLayout.P1CharZ) { heroCell = true; who = "（角色）"; }
+                if (u != null) who = $"({u.Name})";
+                else if (x == BoardLayout.P1CharX && z == BoardLayout.P1CharZ) { heroCell = true; who = "(角色)"; }
             }
             if (heroCell)
             {
-                int ammo = P1 != null ? P1.GetPower() : 0;
                 switch (btnKind)
                 {
                     case "Attack":
-                        return $"角色攻击{who}\n点击发起角色攻击：拉箭头选目标（对方单位或角色）后宣言。\n"
-                             + $"白=有攻击弹药（当前 {ammo}）且己方主要阶段；灰=弹药 0 或不可操作。\n"
-                             + "攻击结算后弹药全部烧光（与反伤共用同一份）。";
+                        return $"{who}点击一个目标发起角色攻击";
                     case "Defense":
-                        return $"角色守卫{who}\n响应动作：对手攻击宣言后的守卫窗口内，点角色格（或本键）选中角色为守卫者，"
-                             + "再点攻击者确认——拦截=攻击目标改写为角色，承受战斗并以弹药反伤（反伤后弹药烧光）。\n窗口外恒灰。";
-                    default: // Activate（2026-10-16 晚迁移：技能四段介绍从角色格悬停挪到本键）
+                        return $"{who}对手攻击宣言后的守卫窗口内，点击拦截目标";
+                    default:
                     {
                         var skill = View?.Self?.Skill;
-                        string skillText = skill != null ? CardHoverInfo(skill) : "本局无技能卡";
-                        return $"发动英雄技能{who}\n点击发动英雄主动技能（多个效果弹选择窗）。发动速度恒 0（不与同名法术同速）；免元素费，但多效果技能每次发动另付 1 灰；每回合一次由引擎在发动时裁决。\n"
-                             + "白=有技能且己方主要阶段；灰=无技能或不可操作。\n"
-                             + skillText;
+                        return $"{who}点击发动英雄技能【{skill?.Name ?? "本局无技能"}】";
                     }
                 }
             }
             switch (btnKind)
             {
                 case "Attack":
-                    return $"攻击{who}\n点击宣告该生物发起攻击：拉箭头选目标后宣言。\n"
-                         + "白=此刻可宣告；灰=不可用（需己方主要阶段、未横置且攻击力>0）。";
+                    return $"{who}点击一个目标发起攻击";
                 case "Defense":
-                    return $"守卫{who}\n响应动作：对手攻击宣言后的守卫窗口内，点击该生物选中为守卫者（再点攻击者确认拦截，右键/ESC 让过）。\n"
-                         + "窗口外恒灰——守卫不可主动发动。";
-                default: // Activate
-                    return $"发动主动效果{who}\n点击发动该单位的主动效果（多个效果弹选择窗；费用/横置/耐久由引擎在发动时裁决）。\n"
-                         + "白=有主动效果且己方主要阶段；灰=当前无主动效果可发动。";
+                    return $"{who}对手攻击宣言后的守卫窗口内，点击拦截目标";
+                default:
+                    return $"{who}点击发动该单位的主动效果【{ActivateSummaryOf(UnitAt(x, z))}】";
             }
+        }
+
+        /// <summary>发动键悬停的效果摘要（2026-10-20）：引擎分支卡=奖励原子文本（主动声明附
+        /// (本回合0/1) 使用档——倒计时固定触发不附）；否则首个主动效果显示名（缺省「主动效果」）。</summary>
+        private string ActivateSummaryOf(BattleCardView card)
+        {
+            var data = _dataOf(card);
+            if (data?.Effects != null)
+            {
+                string firstActive = null;
+                foreach (var fx in data.Effects)
+                {
+                    if (fx?.Steps == null) continue;
+                    foreach (var s in fx.Steps)
+                    {
+                        var b = s?.atomic?.branch;
+                        if (b == null || (CardCore.BranchSettleKind)b.settle != CardCore.BranchSettleKind.Engine) continue;
+                        var then0 = b.then != null && b.then.Count > 0 ? b.then[0] : null;
+                        if (then0 == null) continue;
+                        string txt = AtomText.RenderRewardAtomEntry(then0);
+                        return b.tactivate == 2
+                               && (CardCore.BranchEngineKind)b.engine != CardCore.BranchEngineKind.Countdown
+                            ? $"{txt}(本回合0/1)" : txt;
+                    }
+                    var timing = (CardCore.TriggerTiming)fx.TriggerTiming;
+                    if (firstActive == null
+                        && (timing == CardCore.TriggerTiming.Activate_Active || timing == CardCore.TriggerTiming.Activate_Instant))
+                        firstActive = string.IsNullOrEmpty(fx.DisplayName) ? "主动效果" : fx.DisplayName;
+                }
+                if (firstActive != null) return firstActive;
+            }
+            return "主动效果";
         }
 
         /// <summary>特殊格悬停信息（数量+点击引导；技能格/上限格/中线=2026-10-14 改版新增）。</summary>

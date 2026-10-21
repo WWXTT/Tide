@@ -38,6 +38,11 @@ namespace Tide.HotUpdate
             {
                 if (YooAsset.YooAssets.TryGetPackage(HotUpdateAssets.DefaultPackageName, out var package))
                 {
+                    // 无效地址静默探测（2026-10-21 终根因：同名档拿卡名当地址——未命中属常态，
+                    // 直接 LoadAssetAsync 会触发 Yoo 内部 LogError（真机仅噪音；编辑器离线包
+                    // 虚拟句柄 WaitForAsyncComplete 直接炸断单位对账链——段零召唤物全没的根因）。
+                    // IsLocationValid 前置=HotUpdateAssets.LoadViaYoo 同款口径）。
+                    if (!package.IsLocationValid(name)) return null;
                     var handle = package.LoadAssetAsync<GameObject>(name);
                     handle.WaitForAsyncComplete();
                     if (handle.Status == YooAsset.EOperationStatus.Succeeded
@@ -77,6 +82,8 @@ namespace Tide.HotUpdate
             {
                 if (YooAsset.YooAssets.TryGetPackage(HotUpdateAssets.DefaultPackageName, out var package))
                 {
+                    // 无效地址静默探测（同 LoadPrefab：预览地址未命中属常态，勿触发 Yoo LogError）
+                    if (!package.IsLocationValid(name + PreviewSuffix)) { _previewCache[name] = null; return null; }
                     var handle = package.LoadSubAssetsAsync<Sprite>(name + PreviewSuffix);
                     handle.WaitForAsyncComplete();
                     if (handle.Status == YooAsset.EOperationStatus.Succeeded)
@@ -135,22 +142,27 @@ namespace Tide.HotUpdate
             {
                 if (YooAsset.YooAssets.TryGetPackage(HotUpdateAssets.DefaultPackageName, out var package))
                 {
-                    var handle = package.LoadAssetAsync<TextAsset>(NamesAddress);
-                    handle.WaitForAsyncComplete();
-                    if (handle.Status == YooAsset.EOperationStatus.Succeeded && handle.AssetObject is TextAsset ta)
+                    // 无效地址静默探测（同 LoadPrefab：包内无 #names 时只报自家友好 Error，勿叠 Yoo LogError）
+                    if (package.IsLocationValid(NamesAddress))
                     {
-                        _keepAlive.Add(handle);
-                        foreach (var line in ta.text.Split('\n'))
+                        var handle = package.LoadAssetAsync<TextAsset>(NamesAddress);
+                        handle.WaitForAsyncComplete();
+                        if (handle.Status == YooAsset.EOperationStatus.Succeeded && handle.AssetObject is TextAsset ta)
                         {
-                            var n = line.Trim();
-                            if (n.Length > 0) list.Add(n);
+                            _keepAlive.Add(handle);
+                            foreach (var line in ta.text.Split('\n'))
+                            {
+                                var n = line.Trim();
+                                if (n.Length > 0) list.Add(n);
+                            }
+                        }
+                        else
+                        {
+                            handle.Dispose();
                         }
                     }
-                    else
-                    {
-                        handle.Dispose();
+                    if (list.Count == 0)
                         Debug.LogError("[MonsterRigAssets] 包内名单缺失（地址 " + NamesAddress + "）——重跑 Tools/打包/YooAsset资源打包");
-                    }
                 }
             }
             catch (Exception)

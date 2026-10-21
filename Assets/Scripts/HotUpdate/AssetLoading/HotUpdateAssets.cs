@@ -25,8 +25,13 @@ namespace Tide.HotUpdate
 #endif
 
         /// <summary>按 YooAsset 地址加载资产（AddressByFileName=文件名不含扩展名）。
-        /// editorAssetPath 为编辑器兜底的完整资产路径（"Assets/..."），仅编辑器生效。</summary>
-        public static T Load<T>(string address, string editorAssetPath) where T : Object
+        /// editorAssetPath 为编辑器兜底的完整资产路径（"Assets/..."），仅编辑器生效。
+        /// tryBareAddress=第二发裸名试载开关（2026-10-21 撞名事故）：裸名地址与 rig 组 prefab
+        /// 的可寻址地址同名时（如立绘图名 'PetitAngel'=rig prefab 地址），按错误类型加载会触发
+        /// Yoo 内部 LogError——真机仅噪音（回落 #preview 恢复），编辑器离线包（虚拟句柄）直接
+        /// 卡死刷新链。裸名组消费方（TutorialAudio 等）保持缺省 true；按路径寻址的消费方
+        /// （CardArtLibrary 图标）传 false——裸名对其本就永不合法命中。</summary>
+        public static T Load<T>(string address, string editorAssetPath, bool tryBareAddress = true) where T : Object
         {
 #if TIDE_HYBRID_YOO
             // YooAsset：包未初始化/收集器未配置时抛异常或返回失败句柄，捕获后回落，
@@ -39,7 +44,9 @@ namespace Tide.HotUpdate
                     // 双址试载（2026-10-18 撞名审计定案）：ArtRuntime 组=相对路径寻址（去 Assets/ 前缀，
                     // BattleHex 网格/预制体等同名异扩展防撞——双源变换：editor 侧 YooCollectRules.AddressByRelativePath），
                     // 其余组=文件名寻址——先相对路径再 address
-                    T viaYoo = LoadViaYoo<T>(package, StripAssetsPrefix(editorAssetPath)) ?? LoadViaYoo<T>(package, address);
+                    T viaYoo = LoadViaYoo<T>(package, StripAssetsPrefix(editorAssetPath));
+                    if (viaYoo == null && tryBareAddress)
+                        viaYoo = LoadViaYoo<T>(package, address);
                     if (viaYoo != null) return viaYoo;
                 }
             }

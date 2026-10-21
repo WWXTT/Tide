@@ -61,15 +61,21 @@ namespace CardCore
         {
             if (!(eventData is IGameEvent e)) return;
 
-            var entry = new MatchLogEntry
+            // 死亡→离场序由引擎侧正本清源（2026-10-20 用户定案：TryKill/摧毁口先发死亡事件再移区）
+            // ——日志层零干预，按事件序直录。
+            AppendEntry(new MatchLogEntry
             {
                 EventId = e.EventId,
                 TurnNumber = GameCore.Instance?.TurnEngine?.TurnNumber ?? 0,
                 EventType = e.GetType().Name,
                 Event = e,
                 Time = e.Timestamp
-            };
+            });
+        }
 
+        /// <summary>入缓冲（截头 + 追加 + Appended 通知）。</summary>
+        private static void AppendEntry(MatchLogEntry entry)
+        {
             if (_entries.Count >= MaxEntries)
             {
                 _entries.RemoveRange(0, TrimBatch); // 截头留序（有序 List 语义/导出遍历不变）；早丢 ≤一批，标志位同旧

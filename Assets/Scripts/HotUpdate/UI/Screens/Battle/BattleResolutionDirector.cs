@@ -165,6 +165,7 @@ namespace SynergyUI
                     var p = _projector();
                     if (p != null)
                     {
+                        if (s.IsAttack) _field()?.HoldAllHeroStats(); // 攻击步：角色HP读数冻结（单位 StatsHeld 同构）——快照终值先缓冲，命中拍才落地（2026-10-20「先24再23」）
                         p.ApplySnapshot(s.Snapshot);      // 数据先到位（View 所有权单点仍在投影器）
                         p.DrainDeferredPresentationOps(); // 本步事件载荷随步放出（入场/疲劳/实付）
                     }
@@ -177,6 +178,7 @@ namespace SynergyUI
                     var f = _field();
                     if (f != null) await f.WaitVisualsIdleAsync();   // 等本步演出（战斗走位/入场粒子/疲劳）
                     if (epoch != _epoch) return;
+                    if (s.IsAttack) _field()?.ReleaseAllHeldStats(); // 攻击步兜底：演出中止/未开演的冻结放行（命中拍已放则幂等——单位+角色柱）
                     await UniTask.Delay(StepMs);                    // 步间停顿
                     if (epoch != _epoch) return;
                     _chain()?.MarkResolved(s.CardRid);
@@ -206,6 +208,7 @@ namespace SynergyUI
             _active = false;
             _queue.Clear();
             _core()?.ReleasePresentationHold();
+            _field()?.ReleaseAllHeldStats(); // 数值节拍兜底：看门狗/退屏强收口防冻结读数卡死在旧值
             var p = _projector();
             if (p != null)
             {

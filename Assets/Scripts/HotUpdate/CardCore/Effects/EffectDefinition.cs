@@ -81,6 +81,14 @@ namespace CardCore
         /// </summary>
         public bool ElementCostPrepaid = false;
 
+        /// <summary>锚价钉死（2026-10-20 教学段七配套）：手作效果行声明 cost 列为**权威锚价**——
+        /// DeriveElementCosts 头部直出 AnchorCostPin（null/空=0 费钉死），显示/预检/扣款全单源；
+        /// 缺省 false=实时推导（历史唯一口径，正式表零影响）。</summary>
+        public bool AnchorCostPinned;
+
+        /// <summary>钉死锚价值（AnchorCostPinned=true 时消费；null=0 费）。</summary>
+        public ElementCost AnchorCostPin;
+
         // ---- 组合层编排属性（2026-09-10 重构：自原子层上移；旧死字段 TargetType 已删）----
         /// <summary>ForTurns 持续的回合数 N（0 视为 1）。持续唯一真相在效果级（Duration）。</summary>
         public int DurationValue;
@@ -385,7 +393,8 @@ namespace CardCore
                 TriggerTiming.OnTakeDamage => typeof(DamageEvent),
 
                 // 回合/阶段族
-                TriggerTiming.OnTurnStart => typeof(TurnStartEvent),
+                TriggerTiming.OnTurnStart => typeof(TurnStartEvent), // 系统专用（2026-10-20 定案）——效果时点归一 OnStandbyPhase
+                TriggerTiming.OnStandbyPhase => typeof(PhaseStartEvent), // 准备阶段（载荷过滤限定 Phase==Standby）
                 TriggerTiming.OnTurnEnd => typeof(TurnEndEvent),
                 TriggerTiming.OnPhaseStart => typeof(PhaseStartEvent),
                 TriggerTiming.OnPhaseEnd => typeof(PhaseEndEvent),
@@ -519,6 +528,11 @@ namespace CardCore
         /// 引擎运行时归零重置回此值）。仅 EngineKind==Countdown 有语义。</summary>
         public int CountdownTurns;
 
+        /// <summary>奖励发动方式（2026-10-20 用户定案：奖励=一般效果按自身发动方式发射，主干只管
+        /// 触发判定）：-1=未声明随主干 def.ActivationType·向后兼容；1=自动直发；2=主动（条件达成
+        /// 入待发队列走既有响应窗路径——LaunchReward 统一口）。</summary>
+        public int ThenActivation = -1;
+
         /// <summary>条件达成的奖励原子（≤预算；结算期依次弹选/解析目标）。</summary>
         public List<AtomicEffectInstance> Then = new List<AtomicEffectInstance>();
     }
@@ -544,13 +558,14 @@ namespace CardCore
         /// <summary>死亡计数（2026-09-22 定案）：本回合**双方合计**生物死亡数 ≥ x 时执行奖励（计数单调，
         /// 每回合达标时刻唯一→天然一次/回合）；奖励预算=x（奖励原子锚价合计 ≤ x，引擎零计价）。x∈[1,9]</summary>
         DeathToll = 4,
-        /// <summary>元素充盈（2026-09-22 定案；2026-10-19 判据三改）：自己出牌付费完成后判定（先扣除本次
-        /// 消耗后读余量）——元素池剩余总量（未横置地牌+钱包余额，全六色合计，封顶 6）≥ x 即执行奖励，
-        /// **每次达标都触发**（无每回合上限，多张引擎卡各自触发）；门槛=Then 锚价推导。</summary>
+        /// <summary>元素充盈（2026-09-22 定案；2026-10-20 判据五改）：**只能是自动效果、只能在对手回合中
+        /// 发动**——对手（=当前回合玩家）出牌施放结算完成后，比较双方剩余元素总量（未横置地牌+钱包）
+        /// ——己方与对手的差（封顶 6）**恰好等于** x 即执行奖励（==x：差每+1踩一档各一次）；奖励恒直发，
+        /// 目标由控制者结算期弹选；门槛=Then 锚价推导。</summary>
         ManaSurplus = 5,
-        // 值 6（手牌序位引擎）已随 2026-10-19 效果序位改案整体退役——计数源从「本方从手牌使用张数」
-        // 替换为「双方效果发动次数」（见 EffectOrdinal）；值位保留防 CurseOnDraw=8/附加祝福=9 的
-        // branch.engine int 载荷漂移（无存量卡引用旧引擎，原子表行已改挂 EngineEffectOrdinal）。
+        // 值 6（手牌序位引擎）已随 2026-10-19 效果序位改案整体退役；效果序位又在 2026-10-20 换轴为
+        // 团结（空间轴，值 10 复用改名）——值位保留防 CurseOnDraw=8/附加祝福=9 的 branch.engine int
+        // 载荷漂移（无存量卡引用旧引擎，原子表行 52c1ce3f 已改挂 EngineUnity）。
         // 值 7（Grant 赋予引擎）已随 2026-10-05 两槽定案解体实删——"无条件主干"化为无分支槽原子+效果级
         // 持续档计价（Grant 梯沿用），枚举尾删安全（无存量 int 序列化依赖）。
         /// <summary>附加诅咒（2026-10-08 自由分支化，自有限分支 CurseOnDraw 门接棒）：此卡施放结算时
@@ -560,12 +575,13 @@ namespace CardCore
         /// <summary>附加祝福（2026-10-08）：同 CurseOnDraw，作用面=自己牌库、指示物=「祝福」——
         /// 抽到该卡时执行祝福分支效果并消层（一次性）。x∈[1,3]。</summary>
         BlessingOnDraw = 9,
-        /// <summary>效果序位（2026-10-19 手牌序位改案·定案）：本回合**双方**效果发动数达到 x−1 时执行
-        /// 奖励——奖励自身即「第 x 位」，不占发动位（不用计数自身）。发动口径=主动/自动效果入栈声明
-        /// +法术/技能整卡施放各 1 次；攻击/守卫宣言、SBA、引擎合成奖励不算。x∈[1,6] 手填；
-        /// 观察面=手牌∪场上双方引擎卡（死亡计数同口径）；TurnStart 清零后即评估（x=1 门槛 0=回合开始
-        /// 即触发），计数单调每值只过一次→各门槛至多一次/回合。</summary>
-        EffectOrdinal = 10,
+        /// <summary>团结（2026-10-20 效果序位换轴定案·第6种改空间轴）：与此卡**相邻的单位数** ≥ x 时执行
+        /// 奖励——计数口径：生物/结界占格各 1、角色格恒 1（角色无卡实体按格计）、非空地牌格 1
+        ///（同色组首张占格=非空；空地牌格不计）；施放占位卡非在场单位不计（同战斗邻接口径）；六邻天然
+        /// 封顶 6。评估口=己方每次出牌施放结算完成后（OnCardCastSettled，与元素充盈同拍）——只观察己方
+        /// 场上引擎卡（手牌无格），每次达标都触发；x∈[1,6] 手填。核心不绑棋盘（架构铁律）——邻接计数经
+        /// UnityAdjacentCountOf 注入（宿主接线 BoardState.AdjacentOccupantCount）。</summary>
+        Unity = 10,
     }
 
     public class AtomicEffectInstance
@@ -596,6 +612,9 @@ namespace CardCore
         /// <summary>每原子目标随机覆盖（2026-10-09：entry.rand；-1=未声明回落效果级 def.RandomTarget）。
         /// 解析读 EffectiveRandomTarget(def) 取有效值。</summary>
         public int RandomTarget = -1;
+        /// <summary>每原子目标选择方式（2026-10-20：entry.defer；0=发动前预选=默认/1=效果处理时选——
+        /// 结算期必须选不可取消（类自动效果）。声明期收集器与预选归属段双消费。</summary>
+        public int DeferSelect;
 
         /// <summary>每原子有效目标数量（2026-10-09）：实例声明（1/2/3）优先；-2 未声明回落效果级 def.TargetCount。</summary>
         public int EffectiveTargetCount(EffectDefinition def)
@@ -604,6 +623,14 @@ namespace CardCore
         /// <summary>每原子有效目标随机（2026-10-09）：实例声明优先（1=随机抽不弹窗/0=弹窗）；-1 未声明回落效果级 def.RandomTarget。</summary>
         public bool EffectiveRandomTarget(EffectDefinition def)
             => RandomTarget != -1 ? RandomTarget == 1 : def != null && def.RandomTarget;
+
+        /// <summary>效果基础色（2026-10-20 用户定案：弹体/爆点按**所用效果**的基础色）：
+        /// 原子表行费用基准（ManaList）主色；无行/零费 → null（表现层回落来源卡费用主色口径）。</summary>
+        public ManaType? AnchorTint()
+        {
+            var ml = Attribute.AtomicEffectTable.GetByHashId(RowHashId)?.ManaList;
+            return ml != null && !ml.IsZero ? ml.PrimaryColor : (ManaType?)null;
+        }
         /// <summary>域内属性过滤 token（表级 TargetFilter；converter 解析存实例）。</summary>
         public string Filter;
         /// <summary>极性（表级解析：-1=对对手释放有益 / +1=对己方释放有益 / 0=中性；错边折价输入）。</summary>

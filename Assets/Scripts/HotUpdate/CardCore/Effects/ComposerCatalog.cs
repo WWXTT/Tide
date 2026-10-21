@@ -32,7 +32,7 @@ namespace CardCore
                 case AtomicEffectType.EngineClash: return BranchEngineKind.Clash;
                 case AtomicEffectType.EngineDeathToll: return BranchEngineKind.DeathToll;
                 case AtomicEffectType.EngineManaSurplus: return BranchEngineKind.ManaSurplus;
-                case AtomicEffectType.EngineEffectOrdinal: return BranchEngineKind.EffectOrdinal;
+                case AtomicEffectType.EngineUnity: return BranchEngineKind.Unity;
                 case AtomicEffectType.EngineCurseOnDraw: return BranchEngineKind.CurseOnDraw;
                 case AtomicEffectType.EngineBlessingOnDraw: return BranchEngineKind.BlessingOnDraw;
                 default: return BranchEngineKind.None;
@@ -60,7 +60,7 @@ namespace CardCore
             BranchEngineKind.Clash => "拼点",
             BranchEngineKind.DeathToll => "死亡计数",
             BranchEngineKind.ManaSurplus => "元素充盈",
-            BranchEngineKind.EffectOrdinal => "效果序位",
+            BranchEngineKind.Unity => "团结",
             BranchEngineKind.CurseOnDraw => "附加诅咒",
             BranchEngineKind.BlessingOnDraw => "附加祝福",
             _ => engine.ToString(),
@@ -69,13 +69,13 @@ namespace CardCore
         /// <summary>引擎参数 x 的钳制范围（UI 输入框与运行时判定共用）。
         /// 2026-10-09 自平衡统一：死亡计数/元素充盈并入拼点式派生门槛（IsDerivedThresholdEngine）
         /// ——参数区间随「预算=x」旧制一并退役（落入 default；合成器不再出参数行，运行时读推导门槛）。
-        /// 效果序位（2026-10-19）为手填参数：x∈[1,6]，门槛=x−1。</summary>
+        /// 团结（2026-10-20 效果序位换轴）为手填参数：x∈[1,6]=所需相邻单位数（六邻封顶 6）。</summary>
         public static void EngineParamRange(BranchEngineKind kind, out int min, out int max)
         {
             switch (kind)
             {
                 case BranchEngineKind.LuckRoll: min = 1; max = 6; break;      // 概率门槛：双骰≥x（x=6 双 6 才中=1/36）
-                case BranchEngineKind.EffectOrdinal: min = 1; max = 6; break; // 效果序位：发动序位 x（门槛=x−1，奖励自身即第 x 位）
+                case BranchEngineKind.Unity: min = 1; max = 6; break;         // 团结：所需相邻单位数 x（六邻天然封顶 6）
                 case BranchEngineKind.CurseOnDraw: min = 1; max = 3; break;   // 附加诅咒：附加张数（每张各自完整载荷）
                 case BranchEngineKind.BlessingOnDraw: min = 1; max = 3; break; // 附加祝福：附加张数（同上）
                 default: min = 0; max = 99; break;                            // Countdown：0=按奖励推导费自动换算
@@ -93,7 +93,7 @@ namespace CardCore
         /// 门槛 x=Then 奖励锚价实时推导（RewardThreshold），无手填参数、无独立预算。
         /// 消费：合成器参数行门控（EffectComposerScreen）、装载诊断跳参（CardLoader）、
         /// 短文案 x 口径（AtomText）与运行时判定（BranchEngines）。
-        /// 效果序位（2026-10-19 手牌序位改案）不入此族：x∈[1,6] 手填（EngineParamRange），门槛=x−1。</summary>
+        /// 团结（2026-10-20 效果序位换轴）不入此族：x∈[1,6] 手填（EngineParamRange），门槛=x。</summary>
         public static bool IsDerivedThresholdEngine(BranchEngineKind kind) => kind switch
         {
             BranchEngineKind.Clash => true,
@@ -106,16 +106,17 @@ namespace CardCore
         /// 速度/生效次数由引擎内生触发事件决定——效果头四值按引擎钉死：合成器锁定不可改（ApplyEngineHeaderLock），
         /// 转换期（ConvertOne）对旧数据/手写数据兜底归一。引擎运行时本就无视效果头（BranchEngines 自订阅
         /// 事件）——此表保证显示/计价/数据三面与引擎真实语义一致。
-        /// 2026-10-16 解绑定案：倒计时/运势 FreeTiming=true——时机不再钉死（倒计时仅计数钉回合开始，
-        /// 奖励归零后按声明时机发射；运势掷骰随声明时机判定）；表内 Timing/Activation 退化为**缺省值**，
-        /// 合成器解锁时机（倒计时连发动方式）可改，转换期声明值优先、未声明回落此缺省。</summary>
+        /// 2026-10-16 解绑定案：运势 FreeTiming=true——时机不再钉死（掷骰随声明时机判定），表内
+        /// Timing/Activation 退化为**缺省值**，合成器解锁时机可改，转换期声明值优先、未声明回落此缺省。
+        /// 2026-10-20 倒计时固定触发定案：倒计时退回钉死组（自动·回合开始——归零直接触发奖励，
+        /// 主干/奖励不拆开，tactivate 不适用）。</summary>
         public readonly struct EngineHeaderPreset
         {
             public readonly EffectActivationType Activation;
             public readonly TriggerTiming Timing;
             public readonly int Speed;
             public readonly int Limit; // 生效次数：-1=无限
-            /// <summary>自由时机引擎（2026-10-16 解绑）：true=时机（倒计时含发动方式）可自由声明，
+            /// <summary>自由时机引擎（2026-10-16 解绑）：true=时机可自由声明，
             /// 表内 Activation/Timing 为缺省而非钉死值；速度/生效次数仍钉。</summary>
             public readonly bool FreeTiming;
 
@@ -124,22 +125,27 @@ namespace CardCore
             { Activation = activation; Timing = timing; Speed = speed; Limit = limit; FreeTiming = freeTiming; }
         }
 
-        /// <summary>各引擎固定档（null=非引擎）——FreeTiming 组（2026-10-16 解绑）：倒计时=缺省自动·回合开始
-        ///（仅**计数**钉回合开始：归零→奖励待发，按声明的发动时机发射，多轮归零不积累；发动方式可改主动=
-        /// 走响应窗的 0 费触发）/ 运势=缺省自动·回合开始（掷骰随声明时机判定，骰子本就随时可扔）。
-        /// 钉死组照旧：死亡计数=自动·其他生物死亡·无限（2026-10-19 手牌/场上改案：手牌或场上累计双方
+        /// <summary>各引擎固定档（null=非引擎）——FreeTiming 组（2026-10-16 解绑）仅剩**运势**=缺省自动·
+        /// 准备阶段（掷骰随声明时机判定，骰子本就随时可扔；缺省时机 2026-10-20 随「回合开始收归系统」
+        /// 由回合开始迁至准备阶段）。
+        /// 钉死组照旧：倒计时=自动·**准备阶段**·无限（2026-10-20 固定触发定案：回合开始系统递减、
+        /// 归零**直接触发奖励**——主干/奖励不拆开，tactivate 不适用；效果头时点=准备阶段，
+        /// 递减本身是回合开始的系统行为）；
+        /// 死亡计数=自动·其他生物死亡·无限（2026-10-19 手牌/场上改案：手牌或场上累计双方
         /// 生物死亡，满 6 不再计，达标触发不清零，使用后清零——时机/次数随口径更新）；拼点=自动·攻击宣言·无限（仅攻击方结算）；
-        /// 元素充盈/效果序位=自动·使用卡牌时·无限（效果序位真实观察口=StackAddEvent 效果发动声明，
-        /// 时机列仅作显示缺省——2026-10-19 手牌序位改案）；
+        /// 元素充盈=自动·使用卡牌时·无限（2026-10-20 判据五：真实评估口=OnCardCastSettled 且**仅对手回合**
+        /// 对手出牌后（剩余元素差恰==x），时机列仅作显示缺省；奖励恒直发）；团结=自动·使用卡牌时·无限
+        /// （2026-10-20 效果序位换轴：团结评估口=OnCardCastSettled 出牌施放结算完成，与充盈同拍——
+        /// 时机列仅作显示缺省）；
         /// 附加诅咒/祝福=主动·主动钉档·速度 0（部署点=施放结算，主动打出即生效）。</summary>
         public static EngineHeaderPreset? EngineHeaderPresetOf(BranchEngineKind kind) => kind switch
         {
-            BranchEngineKind.Countdown => new EngineHeaderPreset(EffectActivationType.Automatic, TriggerTiming.OnTurnStart, 0, -1, freeTiming: true),
-            BranchEngineKind.LuckRoll => new EngineHeaderPreset(EffectActivationType.Automatic, TriggerTiming.OnTurnStart, 0, -1, freeTiming: true),
+            BranchEngineKind.Countdown => new EngineHeaderPreset(EffectActivationType.Automatic, TriggerTiming.OnStandbyPhase, 0, -1),
+            BranchEngineKind.LuckRoll => new EngineHeaderPreset(EffectActivationType.Automatic, TriggerTiming.OnStandbyPhase, 0, -1, freeTiming: true),
             BranchEngineKind.DeathToll => new EngineHeaderPreset(EffectActivationType.Automatic, TriggerTiming.OnOtherCreatureDeath, 0, -1),
             BranchEngineKind.Clash => new EngineHeaderPreset(EffectActivationType.Automatic, TriggerTiming.OnAttack, 0, -1),
             BranchEngineKind.ManaSurplus => new EngineHeaderPreset(EffectActivationType.Automatic, TriggerTiming.OnCardPlayed, 0, -1),
-            BranchEngineKind.EffectOrdinal => new EngineHeaderPreset(EffectActivationType.Automatic, TriggerTiming.OnCardPlayed, 0, -1),
+            BranchEngineKind.Unity => new EngineHeaderPreset(EffectActivationType.Automatic, TriggerTiming.OnCardPlayed, 0, -1),
             BranchEngineKind.CurseOnDraw => new EngineHeaderPreset(EffectActivationType.Voluntary, TriggerTiming.Activate_Active, 0, 1),
             BranchEngineKind.BlessingOnDraw => new EngineHeaderPreset(EffectActivationType.Voluntary, TriggerTiming.Activate_Active, 0, 1),
             _ => (EngineHeaderPreset?)null,

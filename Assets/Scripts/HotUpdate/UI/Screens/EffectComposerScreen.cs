@@ -253,6 +253,7 @@ namespace SynergyUI
             TriggerTiming.OnReturnFromGraveyard => "从墓地回到战场时（复活）。",
             TriggerTiming.OnLeaveBattlefield => "离场时：从战场去任何其他区域。",
             TriggerTiming.OnDraw => "抽牌时：你抽到牌的那一刻。",
+            TriggerTiming.OnStandbyPhase => "准备阶段：回合开始系统处理（自动抽牌/倒计时等）之后的第一个阶段（2026-10-20 定案：回合开始收归系统专用，效果时点挂这里）。",
             TriggerTiming.OnDealDamage => "造成伤害时：这张卡每次造成伤害。",
             TriggerTiming.OnTakeDamage => "受到伤害时：这张卡每次受到伤害。",
             TriggerTiming.OnTurnStart => "回合开始时：每回合固定一发——作用次数自动锁 1。",
@@ -465,8 +466,9 @@ namespace SynergyUI
             if (_timingDropdown == null) return; // 预制体缺节点——BindDropdown 已报，时机编辑不可用
             // 全中文时机下拉（主动三档 Activate_* 不入——主动不设时机；系统自用时点不入
             // ——OnAtomicEffect* 三段/OnSummon 召唤进场/OnPhase* 阶段开始结束/OnGameStart 游戏开始，
-            // 2026-10-09 定案不开放玩家选择）
-            _timings = TimingZh.Keys.ToList();
+            // 2026-10-09 定案不开放玩家选择；**回合开始 2026-10-20 起同样收归系统专用**——
+            // 自动抽牌/倒计时递减等系统行为专属，效果时点改挂「准备阶段」）
+            _timings = TimingZh.Keys.Where(t => t != TriggerTiming.OnTurnStart).ToList();
             var labels = _timings.Select(t => TimingZh[t]).ToList();
             _timingDropdown.SetOptions(labels, 0);
             SyncTimingDropdown();
@@ -1815,6 +1817,32 @@ namespace SynergyUI
                 // 费用减少指示物（AddCostDown）奖励数量钉 1（2026-10-09 定案，见 BindAtomTargetRow）
                 BindAtomTargetRow(area, reward, RefreshText, pinCountOne: IsAddCostDownRow(rewardCfg));
                 BindAtomDerivativeRow(area, reward);
+
+                // 奖励发动方式（2026-10-20 定案：奖励=一般效果按自身发动方式发射，主干只管触发判定）：
+                // 克隆区内现有下拉代码建（prefab 不动，同「目标选择」做法）。
+                // 倒计时不建（2026-10-20 固定触发定案：主干/奖励不拆开——归零恒自动直发，tactivate 不适用）。
+                var srcDd = (BranchEngineKind)b.engine == BranchEngineKind.Countdown
+                    ? null
+                    : area.GetComponentInChildren<TMP_Dropdown>(true);
+                if (srcDd != null)
+                {
+                    var tgo = UnityEngine.Object.Instantiate(srcDd.gameObject, area, false);
+                    tgo.name = "dd-tactivate";
+                    var trt = (RectTransform)tgo.transform;
+                    trt.SetAsLastSibling();
+                    trt.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, trt.rect.width + 50f);
+                    BindTierDropdown(trt, new[] { -1, 2, 1 }, b.tactivate,
+                        v =>
+                        {
+                            b.tactivate = v;
+                            RefreshText();
+                        },
+                        "奖励发动：条件达成后奖励按此方式发射——主动=待发由你在响应窗发动（0 费上栈可连锁）；自动=达成即直发；未声明=随主干（旧口径）。",
+                        labelOf: v => v == -1 ? "随主干" : v == 2 ? "主动" : "自动",
+                        optionDesc: v => v == -1 ? "未声明（默认）：奖励随主干的发动方式（向后兼容旧数据）。"
+                            : v == 2 ? "主动：条件达成后奖励待发，由你在响应窗中发动（0 费上栈，可被连锁）。"
+                            : "自动：条件达成后奖励立即结算（不经响应窗）。");
+                }
             }
             else
             {
@@ -2167,7 +2195,8 @@ namespace SynergyUI
         }
 
         /// <summary>每原子目标行（placeholder：dd-num 目标数量 1/2/3 + rand 随机目标 Toggle——2026-10-09
-        /// 数量/随机下沉每原子）：写 atom.count/atom.rand（未声明=首档占位/显 off 不写回——回落效果级）；
+        /// 数量/随机下沉每原子；2026-10-20 增 dd-select 目标选择方式=预选/结算期）：写 atom.count/atom.rand
+        /// /atom.defer（未声明=首档占位/显 off 不写回——回落效果级）；
         /// 零域原子（引擎主干/条件行）无目标可选，整行隐藏。槽卡与奖励卡共用。
         /// 2026-10-09 自由分支定案两钉：①隐蔽域强制随机——表行**原生** TargetKinds 含 对方手牌/对方牌库
         ///（隐蔽信息不可指定，随机必须开启不可改；己方牌库可自查不入列；指示物授予注入的 {1..8} 全域
@@ -2192,7 +2221,11 @@ namespace SynergyUI
             if (hiddenDomain) atom.rand = 1;
             if (pinCountOne) atom.count = 1;
 
-            var ddCount = BindTierDropdown(row, CountTiers, atom.count,
+            // 目标数量按名取 dd-num（行内现有多枚下拉：dd-num/dd-select——不再靠「首个下拉」隐式命中）
+            var ddNumNode = UiKit.FindDeep(row, "dd-num");
+            if (ddNumNode == null)
+                Debug.LogError("[EffectComposer] placeholder 行缺 dd-num 下拉（目标数量不可编）——检查 EffectUI.prefab");
+            var ddCount = ddNumNode == null ? null : BindTierDropdown(ddNumNode, CountTiers, atom.count,
                 v =>
                 {
                     atom.count = v;
@@ -2225,6 +2258,32 @@ namespace SynergyUI
                 UiKit.Described(tg,
                     "目标随机：开启后这个原子不再弹窗选目标，改为在其作用范围内随机抽取（潜行挡不住随机）。");
             }
+
+            // 目标选择方式（2026-10-20 用户定案）：预选=发动前声明期选（默认·可取消撤销发动）/
+            // 结算期=效果处理时选（必须选不可取消，类自动效果）。prefab 静态下拉 dd-select
+            //（槽/奖励两模板 placeholder 行各一枚；dd-num=目标数量是独立有效参数不可挪用）；
+            // 与随机正交——随机开启=无弹选语境，本下拉禁用。
+            TMP_Dropdown ddDefer = null;
+            var deferNode = UiKit.FindDeep(row, "dd-select");
+            if (deferNode == null)
+                Debug.LogError("[EffectComposer] placeholder 行缺 dd-select 下拉（预选/结算期不可编）——检查 EffectUI.prefab");
+            else
+            {
+                ddDefer = BindTierDropdown(deferNode, new[] { 0, 1 }, atom.defer,
+                    v =>
+                    {
+                        atom.defer = v;
+                        refresh?.Invoke();
+                    },
+                    "目标选择：预选=发动前先选好目标，选择时可取消=撤销本次发动（默认）；结算期=扣费后效果处理时才选，必须选不可取消。",
+                    labelOf: v => v == 0 ? "预选" : "结算期",
+                    optionDesc: v => v == 0
+                        ? "预选（默认）：发动宣言前先选目标——发动区就位→选目标（可取消撤销）→连锁检测→扣费。"
+                        : "结算期：效果处理时才选目标——类似自动效果必须选、不可取消（费已付卡已承诺）。");
+                if (ddDefer != null) ddDefer.interactable = !hiddenDomain && atom.rand != 1;
+            }
+            if (tg != null && ddDefer != null)
+                tg.onValueChanged.AddListener(on => ddDefer.interactable = !hiddenDomain && !on);
         }
 
         /// <summary>每原子引用卡行（derivative：InputField=引用卡ID str、num=召唤数量 1-3 value）——
@@ -2375,8 +2434,9 @@ namespace SynergyUI
 
         /// <summary>引擎效果头锁定（2026-10-09 自由分支九项定案；速度组 2026-10-15 退役；2026-10-16 解绑）：
         /// 首槽引擎在案 → 效果头按 ComposerCatalog.EngineHeaderPresetOf 归一，控件按引擎锁定；
-        /// **FreeTiming 组（倒计时/运势）时机不再钉死**——倒计时连发动方式可改（主动=0费触发走响应窗）、
-        /// 运势时机可改（掷骰恒自动）；速度/生效次数仍钉。落槽瞬间（引擎种类切换）且时机仍为图缺省
+        /// **FreeTiming 组（仅运势）时机不再钉死**——时机可改（掷骰恒自动）；速度/生效次数仍钉。
+        /// 倒计时=钉死组（2026-10-20 固定触发定案：自动·回合开始·归零直发——时机/发动方式恒锁）。
+        /// 落槽瞬间（引擎种类切换）且时机仍为图缺省
         /// OnPlay(0) → 补预设缺省 OnTurnStart（防新效果落在「奖励等下次入场」死档）；其余刷新不动用户值。
         /// 引擎主干零计价——limit=-1 档无费用影响。
         /// 消费点：RefreshSlots 尾部（覆盖引擎落槽/换引擎/载入三路径）。</summary>
@@ -2398,10 +2458,9 @@ namespace SynergyUI
                 bool voluntary = preset.Value.Activation == EffectActivationType.Voluntary;
                 if (freeTiming)
                 {
-                    // 2026-10-16 解绑：时机/（倒计时）发动方式声明值优先——只在落槽瞬间补缺省。
+                    // 2026-10-16 解绑（仅运势在册）：时机声明值优先——只在落槽瞬间补缺省；掷骰恒自动。
                     if (justLanded && h.TriggerTiming == 0) h.TriggerTiming = (int)preset.Value.Timing;
-                    if (currentKind != BranchEngineKind.Countdown)
-                        h.ActivationType = (int)preset.Value.Activation; // 运势掷骰恒自动；倒计时保留声明值
+                    h.ActivationType = (int)preset.Value.Activation;
                 }
                 else
                 {
@@ -2418,10 +2477,10 @@ namespace SynergyUI
             SyncTimingDropdown();
             SyncActivateBarValues();
 
-            // 禁用面（2026-10-16 解绑）：时机——FreeTiming 组解锁；发动方式——仅倒计时解锁（主动奖励）；
-            // 速度组已退役无控件；生效次数恒钉引擎预设。
+            // 禁用面（2026-10-20 倒计时退钉死后发动方式恒锁——发动下拉对全部引擎锁定）：
+            // 时机——FreeTiming 组（仅运势）解锁；速度组已退役无控件；生效次数恒钉引擎预设。
             if (_activationDropdown != null)
-                _activationDropdown.Interactable = !locked || (freeTiming && currentKind == BranchEngineKind.Countdown);
+                _activationDropdown.Interactable = !locked;
             if (_timingDropdown != null)
                 _timingDropdown.Interactable = !locked || freeTiming;
             if (locked) _ddLimit.interactable = false;
@@ -2974,7 +3033,7 @@ namespace SynergyUI
             {
                 int param;
                 if (ComposerCatalog.IsDerivedThresholdEngine(engineKind) || engineKind == BranchEngineKind.Countdown)
-                    param = 0; // 派生门槛（拼点/死亡计数/元素充盈/手牌序位）参数=死数据；倒计时 0=自动换算
+                    param = 0; // 派生门槛（拼点/死亡计数/元素充盈）参数=死数据；倒计时 0=自动换算
                 else
                 {
                     ComposerCatalog.EngineParamRange(engineKind, out var mn, out var mx);

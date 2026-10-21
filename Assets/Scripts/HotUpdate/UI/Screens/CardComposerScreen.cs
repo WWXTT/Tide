@@ -1591,6 +1591,7 @@ namespace SynergyUI
                     amp = src.amp,
                     count = src.count,
                     rand = src.rand,
+                    defer = src.defer,
                     kinds = src.kinds != null ? new List<int>(src.kinds) : null,
                     branch = src.branch,
                 };
@@ -1620,8 +1621,9 @@ namespace SynergyUI
         }
 
         /// <summary>代价槽 des 后缀（2026-10-16 用户定案格式）：「，获得N个黑/白元素」——
-        /// 逐原子全价+极性色聚合（混合图黑白并列「，获得1黑1白元素」）；解析失败兜底回旧文案。</summary>
-        private static string PayloadGrantText(List<CardCore.AtomicEffectEntry> entries)
+        /// 逐原子全价+极性色聚合（混合图黑白并列「，获得1黑1白元素」）；解析失败兜底回旧文案。
+        /// 2026-10-21 改 public：卡面代价栏（CardOverlayItem.PayloadTextOf）同源复用。</summary>
+        public static string PayloadGrantText(List<CardCore.AtomicEffectEntry> entries)
         {
             int black = 0, white = 0;
             foreach (var e in entries ?? new List<CardCore.AtomicEffectEntry>())

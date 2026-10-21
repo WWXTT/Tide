@@ -449,17 +449,19 @@ namespace CardCore.Attribute
                     return;
                 }
                 var owner = durable.GetOwner() ?? durable.GetController();
+                // 事件序定案（2026-10-20 用户：先死亡后移墓）：摧毁事件先发（此刻卡仍在场），
+                // 移区随后发离场——旧序（先移后发）日志离场先于死亡。
+                EventManager.Instance.Publish(new CardDestroyEvent
+                {
+                    DestroyedCard = durable,
+                    Reason = DestroyReason.Smashed, // 耐久耗尽=摧毁口径（无生命直毁）
+                });
                 if (owner != null)
                 {
                     var from = durable.GetZone();
                     if (from != Zone.Graveyard)
                         core.ZoneManager.MoveCard(durable, owner, from, Zone.Graveyard);
                 }
-                EventManager.Instance.Publish(new CardDestroyEvent
-                {
-                    DestroyedCard = durable,
-                    Reason = DestroyReason.Smashed, // 耐久耗尽=摧毁口径（无生命直毁）
-                });
                 EventManager.Instance.Publish(new KeywordAppliedEvent
                 {
                     Target = durable,

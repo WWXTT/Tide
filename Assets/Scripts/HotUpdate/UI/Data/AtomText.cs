@@ -33,7 +33,8 @@ namespace SynergyUI
             { TriggerTiming.OnDraw, "抽牌时" },
             { TriggerTiming.OnDealDamage, "造成伤害时" },
             { TriggerTiming.OnTakeDamage, "受到伤害时" },
-            { TriggerTiming.OnTurnStart, "回合开始时" },
+            { TriggerTiming.OnTurnStart, "回合开始时" }, // 系统专用（2026-10-20 定案）——效果时点归一 准备阶段，下拉不提供
+            { TriggerTiming.OnStandbyPhase, "准备阶段" }, // 2026-10-20 新增：承接旧「回合开始档」的效果时点语义
             { TriggerTiming.OnTurnEnd, "回合结束时" },
             { TriggerTiming.OnAttack, "攻击宣言时" },
             { TriggerTiming.OnAttacked, "被攻击时" },
@@ -123,9 +124,9 @@ namespace SynergyUI
         public static string Render(AtomicEffectConfig cfg, AtomicEffectEntry atom, CardEffectData header)
             => RenderCore(cfg, atom, header, false);
 
-        /// <summary>奖励原子渲染（2026-10-08 定案）：Then 奖励结算在合法范围重新弹选目标
-        /// （ExecuteThenRewardsAsync→ResolveRewardTargetsAsync，2026-10-07 晚定案），不沿用主干目标——
-        /// {target} 名次冠「新的」与主干目标区分（"对新的目标造成2点伤害"）；模板无 {target} 不受影响。</summary>
+        /// <summary>奖励原子渲染：Then 奖励结算在合法范围重新弹选目标
+        ///（ExecuteThenRewardsAsync→ResolveRewardTargetsAsync），不沿用主干目标。
+        /// 2026-10-20 用户定案：名次**不再冠「新的」**（冗余——【奖励】段已区分）。</summary>
         public static string RenderReward(AtomicEffectConfig cfg, AtomicEffectEntry atom)
             => RenderCore(cfg, atom, null, true);
 
@@ -141,9 +142,8 @@ namespace SynergyUI
             // {target} → 实例域名次（2026-09-22 五轮：单值域显作用对象；表默认/多值保持「目标」；
             // 2026-10-04 补：关键词行 [Self] 存储态回退「目标」，见 TargetNoun；
             // 2026-10-04 相同目标定案：header 效果级作用范围单值优先；
-            // 2026-10-08 奖励口径：名次冠「新的」——奖励目标合法范围重选，非主干目标）
+            // 2026-10-20 定案：奖励名次不再冠「新的」——【奖励】段已区分，冗余词删除）
             string noun = TargetNoun(cfg, atom, header);
-            if (newTargetNoun) noun = "新的" + noun;
             string body = tpl.Replace("{value}", number).Replace("{target}", noun);
             // {衍生物} → 模板卡名（2026-10-09 衍生物召唤配套）：SummonToken 的 str 指向真实生物卡——
             // 未填/未解析显「未指定模板」/原样 ID；表行括注「{衍生物}=字符串参数指向…」整段折叠为卡名
@@ -242,7 +242,16 @@ namespace SynergyUI
                 }
             }
             string joined = string.Join("；", parts);
-            return joined.Length == 0 ? "" : ActivationPrefix(h, owner) + joined;
+            if (joined.Length == 0) return "";
+            // 引擎主干卡（自由分支·2026-10-20 用户定案）：不加时机/发动前缀——引擎身份+参数即正文首
+            //（"自由分支·倒计时2，【奖励】…"）；常规效果照旧前缀。
+            bool hasEngineTrunk = false;
+            if (graph.steps != null)
+                foreach (var s in graph.steps)
+                    if (s?.kind == 0 && s.atomic?.branch != null
+                        && (BranchSettleKind)s.atomic.branch.settle == BranchSettleKind.Engine)
+                    { hasEngineTrunk = true; break; }
+            return hasEngineTrunk ? joined : ActivationPrefix(h, owner) + joined;
         }
 
         /// <summary>效果描述开头前缀（2026-10-15 晚措辞改版+卡型速度接线）：主动=「发动速度x，」
@@ -270,8 +279,16 @@ namespace SynergyUI
             switch ((BranchSettleKind)b.settle)
             {
                 case BranchSettleKind.Engine:
-                    // 引擎身份+参数已在正文短式（自由分支·{名}{x}）——后缀只接奖励
-                    return $"→{reward}";
+                    // 引擎身份+参数已在正文短式（自由分支·{名}{x}）——后缀只接奖励。
+                    // 2026-10-20 用户定案格式：「，【奖励】{奖励}」；声明主动的奖励附使用档「(本回合0/1)」
+                    //（一次/待发周期）；自动/未声明不附。倒计时固定触发（同日定案）恒不附——主干/奖励不拆开。
+                    // 主动运势改式（同日修订）：「，则【{奖励}(本回合0/1)】」使用档入方括号——
+                    // 与正文「点击掷两个骰子，运势一」成句；其余引擎照定案格式。
+                    if (b.engine == (int)BranchEngineKind.LuckRoll && b.tactivate == 2)
+                        return $"，则【{reward}(本回合0/1)】";
+                    return b.tactivate == 2 && (BranchEngineKind)b.engine != BranchEngineKind.Countdown
+                        ? $"，【奖励】{reward}(本回合0/1)"
+                        : $"，【奖励】{reward}";
                 case BranchSettleKind.Gate:
                     // 局面门（有限分支）：DisplayName 即自然从句（如"生命值低于对手"）
                     var sc = ComposerCatalog.SituationGates.FirstOrDefault(g => g.Id == b.gateId);
@@ -317,7 +334,7 @@ namespace SynergyUI
         /// <summary>引擎主干行短式正文（2026-10-09 八引擎统一定案）：「自由分支·{中文名}{x}」——
         /// 派生门槛引擎（拼点/死亡计数/元素充盈，自平衡统一）x=奖励锚价推导门槛、倒计时声明 0 时
         /// x=按奖励费换算回合（均随 Then 奖励实时变，公式经 CostDerivationService 与运行时判定同源）；
-        /// 其余引擎（运势/效果序位/附加诅咒/祝福）x=engineParam（EngineParamRange 钳制显示）。
+        /// 其余引擎（运势/团结/附加诅咒/祝福）x=engineParam（EngineParamRange 钳制显示）。
         /// 非引擎行/引擎身份未定义返回 null（调用方回退表行长模板——原子库列表行长文案保留完整玩法说明）。</summary>
         /// <summary>引擎短文案公开口（验证器锚定用；合成器摘要走 Render 主路径消费同函数）。</summary>
         public static string EngineShortBodyFor(AtomicEffectEntry atom) => EngineShortBody(atom);
@@ -346,22 +363,29 @@ namespace SynergyUI
                     // 计数≥x 触发奖励（触发不清零），使用后清零
                     return $"此卡在手牌或场上时计数双方生物死亡，计数大于等于{CostDerivationService.RewardThreshold(ToInstances(then))}时触发奖励（满6不再计数，使用后清零）";
                 case BranchEngineKind.ManaSurplus:
-                    // 2026-10-19 判据三改完整句：出牌付费扣除消耗后，元素池剩余总量（未横置地牌+钱包，
-                    // 全六色合计，封顶 6）≥x 触发，每次达标都触发
-                    return $"使用牌付费后，元素池剩余元素总量大于等于{CostDerivationService.RewardThreshold(ToInstances(then))}时触发奖励（封顶6）";
+                    // 2026-10-20 判据五改完整句：仅对手回合·对手出牌结算后（只能是自动效果），
+                    // 双方剩余元素（未横置地牌+钱包）之差恰==x 触发（差每+1踩一档各一次）
+                    return $"对手回合对手使用卡牌结算后，双方剩余元素的差恰好等于{CostDerivationService.RewardThreshold(ToInstances(then))}时触发奖励（仅自动，差额封顶6）";
                 case BranchEngineKind.Clash:
                     x = CostDerivationService.RewardThreshold(ToInstances(then));
                     break;
                 case BranchEngineKind.Countdown:
                     x = CostDerivationService.CountdownTurnsOf(atom.branch?.engineParam ?? 0, ToInstances(then));
                     break;
-                default: // 运势点数线/效果序位发动位/附加诅咒·祝福张数——手填参数（EngineParamRange 钳制显示）
+                default: // 运势点数线/团结邻位数/附加诅咒·祝福张数——手填参数（EngineParamRange 钳制显示）
                     ComposerCatalog.EngineParamRange(kind, out var mn, out var mx);
                     x = Math.Clamp(atom.branch?.engineParam ?? mn, mn, mx);
                     break;
             }
+            // 主动运势短式（2026-10-20 修订）：奖励声明主动（tactivate=2）→「点击掷两个骰子，运势{中文}」
+            //（教学二新流程——掷骰随发动键走）；自动/未声明照旧「自由分支·{名}{x}」。
+            if (kind == BranchEngineKind.LuckRoll && atom.branch?.tactivate == 2)
+                return $"点击掷两个骰子，运势{ZhDigit(x)}";
             return $"自由分支·{ComposerCatalog.EngineZhOf(kind)}{x}";
         }
+
+        /// <summary>1-6 中文数字（主动运势短文案「运势一」用；越界回落阿拉伯数字）。</summary>
+        private static string ZhDigit(int n) => n >= 1 && n <= 6 ? "一二三四五六"[n - 1].ToString() : n.ToString();
 
         /// <summary>UI 奖励原子 → 运行时实例（与 EffectComposerScreen.RewardCost 同口径：
         /// ConvertAtomForUI 逐原子转换，行缺失/转换失败剔除）。</summary>

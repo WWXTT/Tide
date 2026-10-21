@@ -51,7 +51,7 @@ namespace CardCore.Editor.Tests
             ResolveTokenTemplate(red, GoblinToken, "火花哥布林");
 
             // ---- 3) 落盘：剔旧主题卡 → 保留其余 → 全量重写（RegenOneDeck 同模式）----
-            string cardsPath = Path.Combine(Application.streamingAssetsPath, "Card", "Cards.json");
+            string cardsPath = SynergyUI.CardDataPaths.FileIn("Cards.json"); // 2026-10-18 热更迁移：CardDataPaths 收口
             var keep = SynergyUI.CardConfigSerializer.LoadAll()
                 .Where(c => c.Tags == null || !c.Tags.Any(t => t == RedTag || t == GreenTag || t == BlueTag))
                 .ToList();
@@ -76,7 +76,7 @@ namespace CardCore.Editor.Tests
             ValidateComposition(BlueDeckName, blue);
 
             Debug.Log($"[主题卡组] 完成：红{red.Count}/绿{green.Count}/蓝{blue.Count} 张（保留既有非主题卡 {keep.Count} 张）；" +
-                      $"卡表 {cardsPath}；卡组目录 StreamingAssets/Card/。曲线见上方逐卡日志。");
+                      $"卡表 {cardsPath}；卡组目录同 CardDataPaths。曲线见上方逐卡日志。");
         }
 
         // ======================================== 红 · 赤红疾袭（快攻） ========================================

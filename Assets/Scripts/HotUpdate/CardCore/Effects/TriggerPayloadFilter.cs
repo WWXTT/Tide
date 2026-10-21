@@ -52,6 +52,12 @@ namespace CardCore
                     // 任意卡使用宣言（含法术、含对手——对手/自己限定交给 TriggerConditions）
                     return true;
 
+                // ---- 阶段族（PhaseStartEvent）----
+                case TriggerTiming.OnStandbyPhase:
+                    // 准备阶段（2026-10-20 定案）：GetEventType 只有类型级映射（PhaseStartEvent），
+                    // 相位级区分在此收口——仅 Standby 相位开始触发（Main/End 相位开始不算）
+                    return gameEvent is PhaseStartEvent ps && ps.Phase == PhaseType.Standby;
+
                 case TriggerTiming.OnSpellCast:
                     return gameEvent is CardPlayEvent c &&
                            c.PlayedCard is IHasSupertype st &&

@@ -44,7 +44,7 @@
         },
         {
           "type": "intro",
-          "reveal": "all",
+          "reveal": "all,units",
           "audio": "basics_07",
           "hint": "接下来将引导你完成回合中的基础操作，需要你根据提示进行对应的操作才能推进教程进度。"
         },

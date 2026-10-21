@@ -170,6 +170,9 @@ namespace CardCore
         public CardCore.Attribute.DeathCause Cause { get; set; }
         public DestroyReason Reason { get; set; }
         public Entity Source { get; set; }
+        /// <summary>效果基础色（2026-10-20 定案：消灭/摧毁族弹体按所用效果的基础色）：
+        /// 发布方填原子行费用基准主色；null=无基准（表现层回落来源卡费用主色）。</summary>
+        public ManaType? EffectTint { get; set; }
     }
 
     /// <summary>
@@ -339,6 +342,39 @@ namespace CardCore
     }
 
     /// <summary>
+    /// 拼点结算事件（2026-10-20 表现接入）：拼点引擎每次攻击宣言评估**必发**——成败两态都发。
+    /// 旧口径只有成功侧 KeywordAppliedEvent（失败零事件），表现层无从得知比拼结果；本事件补齐
+    /// 观察口：差值浮字+成败粒子（BattleFieldView.PlayClashResolvedAsync）消费，日志族不受影响。
+    /// </summary>
+    public class ClashResolvedEvent : GameEventBase
+    {
+        public Card EngineCard { get; set; }   // 拼点引擎卡（攻击方场上）
+        public Player AttackingPlayer { get; set; }
+        public Card MyReveal { get; set; }     // 攻击方展示的最高攻生物（null=手牌无生物按 0）
+        public Card TheirReveal { get; set; }  // 对手展示（null=同上）
+        public int MyPower { get; set; }
+        public int TheirPower { get; set; }
+        public int Threshold { get; set; }     // Then 锚价推导门槛
+        public bool Success { get; set; }      // 差额 ≥ 门槛
+    }
+
+    /// <summary>
+    /// 运势掷骰事件（2026-10-20 表现接入·一步点击定案）：主动（结算期 ApplyActiveLuckTrunkAsync）
+    /// 与自动（OnRoutedEvent 按声明时机）两路掷骰**必发**——成败两态都发。表现层浮字消费
+    /// 「投掷结果 d1+d2，效果通过/不通过」（BattleFieldView.PlayLuckRollAsync）；战报行另有
+    /// KeywordApplied("运势") 播报（MatchLogRenderer 白名单）。
+    /// </summary>
+    public class LuckRolledEvent : GameEventBase
+    {
+        public Card EngineCard { get; set; }   // 掷骰引擎卡（来源单位）
+        public Player Controller { get; set; } // 掷骰方
+        public int D1 { get; set; }            // 骰一（1-6）
+        public int D2 { get; set; }            // 骰二（1-6）
+        public int Threshold { get; set; }     // 门槛 x（双骰各 ≥x）
+        public bool Success { get; set; }      // d1 ≥ x 且 d2 ≥ x
+    }
+
+    /// <summary>
     /// 攻击取消事件（宣言后重检失败）：
     /// 宣言时点触发的效果抢先横置/消灭了攻击者（横置代价支付不出），或目标丢失——
     /// 宣言回滚（不支付、不计数、不入队），上层应让玩家重新确认攻击目标。
@@ -451,6 +487,24 @@ namespace CardCore
     {
         public Effect NegatedEffect { get; set; }
         public Entity Source { get; set; }
+    }
+
+    /// <summary>效果飞行表现事件（2026-10-20 用户定案：**发动无效才什么都不播；效果无效或
+    /// 效果对目标不适用（如不灭拦消灭）不影响效果发动的表演**）——效果已发动（费已付）但
+    /// 目标上无结算结果（无伤害/死亡事件）时，由引擎补发本事件驱动弹体飞行+到达表现。
+    /// 发布口：①ResolveCardCastAsync 效果无效分支（逐预选目标）；②消灭/摧毁被不灭等拦截
+    ///（TryKill=false 逐目标）。正常结算路径不发（伤害/消灭事件自带飞行表现）。</summary>
+    public class EffectFlightEvent : GameEventBase
+    {
+        /// <summary>施法者（弹体色回落口径与法术位抓拍用）。</summary>
+        public Entity Source { get; set; }
+        /// <summary>施放宿主卡（日志/溯源）。</summary>
+        public Card CastCard { get; set; }
+        public Entity Target { get; set; }
+        /// <summary>效果基础色（发布方填原子行基准主色；null=表现层回落）。</summary>
+        public ManaType? Tint { get; set; }
+        /// <summary>不适用/无效原因（日志行文案，发布方填：效果无效 / 目标不灭——效果不适用 等）。</summary>
+        public string Note { get; set; }
     }
 
     /// <summary>
