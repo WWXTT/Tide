@@ -3,20 +3,21 @@ using System;
 namespace CardCore.Network
 {
     /// <summary>
-    /// 会话服务器组合根（M2）：NetTcpHost（传输）+ NetRoom（单房间状态机）+ 逻辑线程泵。
+    /// 会话服务器组合根（M2）：INetTransportHost（TCP 第一实现）+ NetRoom（单房间状态机）+ 逻辑线程泵。
     ///
     /// 单逻辑线程定案（网络协议.md §9.4）的落地形态：
     /// - IO 线程（accept/读）只入队；**一切房间/引擎状态只在本类 Pump 里碰**。
     /// - Pump 的宿主：编辑器菜单 = EditorApplication.update；batchmode = 阻塞自旋；
-    ///   验证器 = 同步直调（三宿主同一份泵代码）。
-    /// - 出站单写者 = Pump 线程（NetClientConnection.Send 注释）。
+    ///   验证器 = 同步直调（三宿主同一份泵代码）；P2P 房主运行时 = UIBootstrap.Update（2026-10-21）。
+    /// - 出站单写者 = Pump 线程（INetChannel.Send 注释）。
     /// - 引擎推进在 NetRoom.PumpEngine：相位由玩家 intent 驱动（与全部无头驱动器同口径，
     ///   不调 GameCore.Update——其空栈分支会自由滑阶段）；UniTask 链在逻辑线程同步收敛
     ///   （人类反问经 NetworkTargetSelector 的 TCS 内联完成）。
     /// </summary>
     public sealed class NetSessionServer
     {
-        private readonly NetTcpHost _host = new NetTcpHost();
+        // TCP 第一实现（2026-10-21 P2P 定案：传输缝=INetTransportHost，换 Steam P2P 等第二传输只动这里）
+        private readonly INetTransportHost _host = new NetTcpHost();
         private readonly NetRoom _room;
 
         /// <summary>逻辑线程泵宿主接进来的回调（编辑器 update / batchmode 自旋共用）。</summary>
@@ -35,11 +36,16 @@ namespace CardCore.Network
         /// （同 NetLobbyServer.IsRunning——同进程宿主对局期间 GameCore 由服务器泵独占驱动）。</summary>
         public static bool IsRunning { get; private set; }
 
+        /// <summary>当前进程的会话服务器实例（Start 登记 / Stop 清空）——
+        /// P2P 房主运行时（2026-10-21）：UIBootstrap.Update 经此取泵驱动引擎（单逻辑线程纪律）。</summary>
+        public static NetSessionServer Current { get; private set; }
+
         /// <summary>开始监听（port=0 由 OS 分配空闲口）。</summary>
         public void Start(int port)
         {
             _host.Start(port);
             IsRunning = true;
+            Current = this;
             _log?.Invoke($"[NetSession] 会话服务器监听 0.0.0.0:{_host.Port}（单房间单进程）");
         }
 
@@ -47,6 +53,7 @@ namespace CardCore.Network
         public void Stop()
         {
             IsRunning = false;
+            if (ReferenceEquals(Current, this)) Current = null;
             _host.Stop();
             _room.TeardownIfActive(); // 2026-10-03：兑现「拆对局接线」——不再 Pump 观察不到断线，
                                       // 反问桥若不在此卸载会残留全局（TargetSelectionService.Current）

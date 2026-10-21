@@ -88,10 +88,28 @@ namespace SynergyUI
         /// </summary>
         private void Update()
         {
-            // 比赛禁联机（NetGate）：闸关时不可能有服务器托管态，短路直驱引擎
+            // NetGate 闸关时不可能有服务器托管态，短路直驱引擎（紧急开关位）
             if (!CardCore.Network.NetGate.OnlineEnabled)
             {
                 GameCore.Instance?.Update();
+                return;
+            }
+
+            // P2P 房主（2026-10-21 定案）：会话服务器宿主在本进程——服务器泵独占驱动引擎
+            //（IO 收发→房间分派→引擎推进→下行出队；本地帧驱停摆，防双驱动交错管理响应窗口）。
+            // 房主自身=回环客户端，同帧随泵（先服务器下行、后客户端消费）。
+            var session = CardCore.Network.NetSessionServer.Current;
+            if (session != null)
+            {
+                session.Pump();
+                NetClientRuntime.Pump();
+                return;
+            }
+
+            // 纯客人：只泵联机客户端（本地无引擎可驱——快照/事件流驱动渲染）
+            if (NetClientRuntime.Active != null)
+            {
+                NetClientRuntime.Pump();
                 return;
             }
 

@@ -8,58 +8,17 @@ using UnityEngine;
 namespace CardCore.Editor.NetSession
 {
     /// <summary>
-    /// 大厅服务器宿主（L1，2026-09-24；2026-09-26 改为随 Play 模式自动起停）：
-    ///
-    /// - **自动托管**：进入 Play 模式即自动启动本机大厅（房间列表/自动匹配/AI 填位），
-    ///   退出 Play 模式即停止——[InitializeOnLoad] 挂 playModeStateChanged，无需菜单操作。
-    ///   EditorApplication.update 驱动泵；本机 UI 客户端（MatchScreen）连 127.0.0.1 即可
-    ///   单人全流程测试（配 AI 填位当对手）。非对局期间大厅空转，不干扰本地 AI 对战
-    ///   （UIBootstrap 的引擎驱动闸只在对局期间停驱——见 NetLobbyServer.HasLiveMatch）。
+    /// 大厅服务器宿主（L1，2026-09-24；随 Play 自启已于 2026-10-21 P2P 定案摘除）：
+    /// P2P 拓扑下生产不走大厅层（房主=NetSessionServer 直连 JoinRoom），本宿主仅保留
+    /// batchmode 手动入口供跨机调试与回环验证器对照——不再随 Play 模式自动起停。
     /// - batchmode：-executeMethod CardCore.Editor.NetSession.NetLobbyHost.Main -netPort N，
     ///   供另一台机器/关闭编辑器时做真人双端宿主（阻塞自旋 ~60Hz）。
     /// </summary>
-    [InitializeOnLoad]
     public static class NetLobbyHost
     {
         private const int DefaultPort = 8090;
 
         private static NetLobbyServer _server;
-
-        static NetLobbyHost()
-        {
-            EditorApplication.playModeStateChanged += OnPlayModeChanged;
-        }
-
-        /// <summary>Play 模式进出自动起停（2026-09-26 定案）：运行=开服，停止=关服。
-        /// 端口被占（双编辑器实例联机：另一实例已是宿主）时静默退位——本实例作为纯客户端。
-        /// 比赛禁联机（NetGate，2026-10-01）：闸关时不再自启大厅（也不监听端口）。</summary>
-        private static void OnPlayModeChanged(PlayModeStateChange state)
-        {
-            switch (state)
-            {
-                case PlayModeStateChange.EnteredPlayMode:
-                    if (!NetGate.OnlineEnabled)
-                    {
-                        Debug.Log("[NetLobby] 联机已禁用");
-                        break;
-                    }
-                    if (_server != null)
-                    {
-                        Debug.Log("[NetLobby] 沿用已在运行的大厅服务器（进入 Play 模式）");
-                        break;
-                    }
-                    try { StartServer(); }
-                    catch (Exception ex)
-                    {
-                        Debug.LogWarning($"[NetLobby] 自动启动失败（{ex.Message}）——本实例作为纯客户端，请连接对方大厅");
-                    }
-                    break;
-
-                case PlayModeStateChange.ExitingPlayMode:
-                    if (_server != null) StopServer();
-                    break;
-            }
-        }
 
         public static void StartServer()
         {

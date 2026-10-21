@@ -11,7 +11,7 @@ namespace SynergyUI
     /// <summary>
     /// 主菜单 —— 子界面入口（2026-10-01 预制体化：层级来自 Assets/Art/Prefab/MainUI.prefab，
     /// Build 只做按名绑定+闭包接线；title/subtitle 等静态文本由预制体烘焙）。
-    /// 教学接线（2026-10-19 三课制）：btn-teaching=纯进度路由（basics→jinjie→lunzhuan 逐课推进）；
+    /// 教学接线（2026-10-19 三课制）：btn-teaching=纯进度路由（basics→advanced→lunzhuan 逐课推进）；
     /// 教学↔本地对战按钮按 IsTutorialDone 换装（btn-battle=对局准备双选卡组入口）。
     /// </summary>
     public sealed class MainMenuScreen : UIScreen
@@ -40,14 +40,10 @@ namespace SynergyUI
 
             _teachingButton = BindButton("btn-teaching", EnterTutorialFlow);
 
-            // 匹配入口（2026-10-17 对局准备改版→2026-10-19 挪战场）：与 btn-battle 同目的地
-            //（五段式开局·本地 AI），不外露。旧联机大厅 MatchScreen 已随 2026-10-18 网络簇整删。
-            BindButton("btn-match", () =>
-            {
-                BattleEntry.Mode = BattleMode.LocalAI;
-                BattleEntry.StagedOpening = true;
-                SwallowToBattle();
-            });
+            // 联机入口（2026-10-21 P2P 复活）：btn-match 复活为联机房间屏入口
+            //（房主=进程内服务器/客人直连 IP——RefreshTutorialGates 随教学完成换装显隐）。
+            // 旧联机大厅 MatchScreen 已随 2026-10-18 网络簇整删，现行= LobbyScreen。
+            BindButton("btn-match", () => Manager.Show<LobbyScreen>());
             BindButton("btn-deck", () => Manager.Show<DeckBuilderScreen>());
             BindButton("btn-card", () => Manager.Show<CardComposerScreen>());
             BindButton("btn-effect", () => Manager.Show<EffectComposerScreen>());
@@ -82,7 +78,7 @@ namespace SynergyUI
         /// <summary>教学↔本地对战换装（2026-10-19 三课制定案）：教学未整体完成=btn-teaching 在、
         /// btn-battle 藏；IsTutorialDone（三课全胜）反转——btn-battle=本地对战入口（对局准备双选
         /// 卡组；考验三未胜不换装=依旧不给用）。btn-match 不外露（与 btn-battle 同目的地）。
-        /// 三个组合界面按钮（2026-10-21 提前）：教学二（jinjie）完成即显示——供自组卡组备战，
+        /// 三个组合界面按钮（2026-10-21 提前）：教学二（advanced）完成即显示——供自组卡组备战，
         /// 此前隐藏。btn-teaching 文案按进度显示：基础教学一/二/三；教学三内容尚未完成——按钮
         /// 置灰不可进。</summary>
         private void RefreshTutorialGates()
@@ -91,8 +87,8 @@ namespace SynergyUI
             bool done = p.IsTutorialDone;
             if (_teachingNode != null) _teachingNode.gameObject.SetActive(!done);
             if (_battleNode != null) _battleNode.gameObject.SetActive(done);
-            if (_matchNode != null) _matchNode.gameObject.SetActive(false); // 预留：对局准备入口（btn-battle 同目的地，不外露）
-            bool comboUnlocked = p.CompletedTutorials.Contains(TutorialProgressManager.JinjieId); // 教学二完成（三课全胜时必含 jinjie，无需再兜底）
+            if (_matchNode != null) _matchNode.gameObject.SetActive(done); // 联机入口（2026-10-21 P2P 复活：与 btn-battle 同门槛外露）
+            bool comboUnlocked = p.CompletedTutorials.Contains(TutorialProgressManager.AdvancedId); // 教学二完成（三课全胜时必含 advanced，无需再兜底）
             foreach (var node in _comboNodes)
                 if (node != null) node.gameObject.SetActive(comboUnlocked);
 
@@ -101,7 +97,7 @@ namespace SynergyUI
             bool thirdLocked = next == TutorialProgressManager.LunzhuanId;
             if (_teachingLabel != null)
             {
-                _teachingLabel.text = next == TutorialProgressManager.JinjieId ? "基础教学二"
+                _teachingLabel.text = next == TutorialProgressManager.AdvancedId ? "基础教学二"
                     : thirdLocked ? "基础教学三"
                     : "基础教学一";
                 _teachingLabel.alpha = thirdLocked ? 0.5f : 1f;
@@ -111,7 +107,7 @@ namespace SynergyUI
         }
 
         /// <summary>「基础教学」入口（2026-10-19 三课制：纯进度路由，无任何询问/跳过路径）：
-        /// 按 CourseOrder 推进——basics 攻防 → jinjie 进阶机制 → lunzhuan 末日降临 Boss（走
+        /// 按 CourseOrder 推进——basics 攻防 → advanced 进阶机制 → lunzhuan 末日降临 Boss（走
         /// 对局准备教学三变体选卡组）；三课全胜=教学整体完成（按钮换装 btn-battle，本口不可达）。
         /// 教学三内容尚未完成：进度到达时按钮置灰，本口直接返回。</summary>
         private void EnterTutorialFlow()
@@ -121,7 +117,7 @@ namespace SynergyUI
             StartTutorialBattleWithSplit();
         }
 
-        /// <summary>开教学局（2026-10-19 三课制：序列=basics→jinjie→lunzhuan 纯对战局）。
+        /// <summary>开教学局（2026-10-19 三课制：序列=basics→advanced→lunzhuan 纯对战局）。
         /// 第三课 lunzhuan 同走战场五段式开局变体（段四只选我方+10 秒倒计时+AI 镜像卡组——
         /// 角色就位让位 boss intro 揭示段），其余课直进战场立即开打。</summary>
         private void StartTutorialBattleWithSplit()

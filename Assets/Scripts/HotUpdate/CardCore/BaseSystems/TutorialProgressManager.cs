@@ -10,7 +10,7 @@ namespace CardCore
     /// ElementUnlockManager 范式：惰性单例 + TideJson + 每次变更即写、缺档回落默认并落盘），
     /// 记录已完成教学关卡。UI 层（主菜单按钮显隐）后续只读本类，不再自持进度状态。
     /// 状态机（2026-10-19 三课制定案）：建档零进度 → 按 CourseOrder 逐课推进（basics 攻防 →
-    /// jinjie 进阶机制 → lunzhuan 末日降临 Boss）→ 三课全胜=教学整体完成（IsTutorialDone，
+    /// advanced 进阶机制 → lunzhuan 末日降临 Boss）→ 三课全胜=教学整体完成（IsTutorialDone，
     /// 教学按钮换装本地对战按钮→对局准备双选卡组）。无任何跳过/免教学路径——教学按钮纯进度路由。
     /// （旧「结业镜像局」环节 2026-10-19 随三课制整删：finalChallengeDone 字段/MarkFinalChallengeDone/
     ///   ShouldShowFinalChallenge 全链退役，旧档多余键反序列化自动忽略，天然兼容。）
@@ -28,8 +28,10 @@ namespace CardCore
 
         /// <summary>第二课·进阶机制关卡 id（2026-10-19 三课制）：脚本化教学局教四大进阶机制——
         /// 代价生成黑白元素资源、全时点卡的自动效果、不同速度主动效果连锁、规则光环唯一性
-        /// （TutorialConfig2.json 条目，教学卡在 TutorialData）。</summary>
-        public const string JinjieId = "jinjie";
+        /// （TutorialConfig2.json 条目，教学卡在 TutorialData）。2026-10-21 进度标识由拼音 jinjie
+        /// 改英文 advanced——旧档 completed 残留 jinjie 失效（需重上第二课）；教学卡组/语音资产
+        /// 仍按 jinjie 文件名寻址，与本 id 无耦合。</summary>
+        public const string AdvancedId = "advanced";
 
         /// <summary>第三课·末日降临 Boss 挑战关卡 id（2026-10-18 真实对局流程版，2026-10-19 挪入
         /// 第三课位）：走战场五段式开局教学三变体（掷币+战场选卡组·BattleOpeningDirector），AI 镜像
@@ -37,11 +39,11 @@ namespace CardCore
         ///（旧档残留 lunzhuanAttempted 键 2026-10-21 随判据退役，反序列化自动忽略）。</summary>
         public const string LunzhuanId = "lunzhuan";
 
-        /// <summary>新手课程序列（2026-10-19 三课制定案）：basics 攻防 → jinjie 进阶机制 →
+        /// <summary>新手课程序列（2026-10-19 三课制定案）：basics 攻防 → advanced 进阶机制 →
         /// lunzhuan 末日降临 Boss，三课全胜=教学整体完成（IsTutorialDone）。
         /// chuangzao（创作管线走查）已取消（2026-10-17）——走查机制休眠保留，旧档 completed 残留惰性、
         /// currentTutorial=chuangzuo 序列外自动作废（NextTutorialId 现行口径）。</summary>
-        public static readonly string[] CourseOrder = { BasicsId, JinjieId, LunzhuanId };
+        public static readonly string[] CourseOrder = { BasicsId, AdvancedId, LunzhuanId };
 
         private const string SAVE_FILE = "TutorialProgress.json";
 

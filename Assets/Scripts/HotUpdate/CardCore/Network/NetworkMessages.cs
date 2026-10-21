@@ -43,6 +43,7 @@ namespace CardCore.Network
         SelectResponse = 110,        // 反问应答（MsgSelectResponse）
         DeckSubmit = 111,            // 开局握手：卡组提交（MsgDeckSubmit，见 网络协议.md §11）
         JoinRoom = 112,              // 会话层：进房分座/观战登记（MsgJoinRoom，见 网络协议.md §12）
+        IntentActivateHeroSkill = 113, // 英雄技能发动（MsgIntentActivateHeroSkill——2026-10-21 协议补课：技能格 10-15 加入后首个新 intent；离散位在会话层消息之后）
 
         // ---- 下行（服务器→客户端）----
         SelectRequest = 120,         // 反问请求（MsgSelectRequest）

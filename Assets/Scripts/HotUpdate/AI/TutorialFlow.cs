@@ -9,7 +9,7 @@ namespace SynergyUI
     /// 教学局的开局参数与结果上报。UI 层接线只调本类与
     /// TutorialProgressManager/TutorialCreationFlow，不自持流程状态。
     /// 流程（2026-10-19 三课制定案）：教学按钮纯进度路由，无任何询问/跳过——按 CourseOrder
-    /// 逐课推进（basics 攻防 → jinjie 进阶机制 → lunzhuan 末日降临 Boss）；三课全胜=教学整体完成
+    /// 逐课推进（basics 攻防 → advanced 进阶机制 → lunzhuan 末日降临 Boss）；三课全胜=教学整体完成
     /// （主菜单教学按钮换装本地对战按钮→对局准备双选卡组）。
     /// （旧「最后一课镜像局」环节 2026-10-19 随三课制整删——StartFinalChallenge/
     ///   FinalChallengeActive/裁决枚举全链退役；测试一律走 btn-teststart/TestStartFlow。）
@@ -19,7 +19,7 @@ namespace SynergyUI
         /// <summary>
         /// 开教学局：tutorialId 缺省取进行中关卡（否则序列首门未完成课）。scenario 条目由
         /// BattleScreen.StartTutorialGame 按 TutorialId 自动走预设场面直入。
-        /// 创作课 chuangzuo 已取消（2026-10-17 定案）——序列=basics→jinjie→lunzhuan 纯对战局，走查分流删除。</summary>
+        /// 创作课 chuangzuo 已取消（2026-10-17 定案）——序列=basics→advanced→lunzhuan 纯对战局，走查分流删除。</summary>
         public static void StartTutorialBattle(string tutorialId = null)
         {
             var id = string.IsNullOrEmpty(tutorialId)

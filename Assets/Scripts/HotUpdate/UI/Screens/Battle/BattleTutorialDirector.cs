@@ -148,7 +148,7 @@ namespace SynergyUI
             }
             else if (BattleEntry.TutorialId == TutorialProgressManager.BasicsId)
                 PromptTutorialCompleteAsync().Forget(); // 教学第一阶段（basics）通关：结算弹窗，确定回主菜单
-            else if (BattleEntry.TutorialId == TutorialProgressManager.JinjieId)
+            else if (BattleEntry.TutorialId == TutorialProgressManager.AdvancedId)
                 PromptTutorialCompleteAsync("你已完成第二课的教学").Forget(); // 第二课（主动效果）通关：同 basics 结算口径
             else if (BattleEntry.TutorialId == TutorialProgressManager.LunzhuanId)
                 PromptLunzhuanCompleteAsync().Forget(); // 教学第三阶段（末日降临挑战）通关：结算弹窗
@@ -718,7 +718,7 @@ namespace SynergyUI
         public bool IntroPanelOpen => _introPanel != null;
 
         /// <summary>考验段进行中（basics 两段式：midTransition/跳介绍后=true；重置目标据此分流）。
-        /// 单段课程（jinjie 等 scenario 直入）恒 false——重置即回场面首步。</summary>
+        /// 单段课程（advanced 等 scenario 直入）恒 false——重置即回场面首步。</summary>
         public bool InTrialSegment { get; private set; }
 
         /// <summary>常驻考验重置（2026-10-19 用户定案：教学一败局重置升级为随时可点的重置按钮——
@@ -809,7 +809,7 @@ namespace SynergyUI
             // 教学二末段补账（同 TryResetTrial）：跳段落点仍在原回合（段首卡无 aiTurnOnConfirm 不交
             // 回合）——本回合已无准备抽牌，清本回合统计+按首抽口径补抽牌库顶（命运一抽，金圈随
             // CardDrawEvent 补刷）。其余课走 aiTurnOnConfirm 交回合链自带回合翻转+自然首抽，不补。
-            if (BattleEntry.TutorialId == TutorialProgressManager.JinjieId
+            if (BattleEntry.TutorialId == TutorialProgressManager.AdvancedId
                 && PhaseScenarioOf(tutorial, targetPhase + 1) == null)
             {
                 MatchStatsService.Instance?.ClearTurnScope();
@@ -831,7 +831,7 @@ namespace SynergyUI
             if (_phaseStarts.Count > target)
                 _phaseStarts.RemoveRange(target, _phaseStarts.Count - target);
             TutorialGuide.JumpTo(startStep);
-            if (compensateDraw && BattleEntry.TutorialId == TutorialProgressManager.JinjieId
+            if (compensateDraw && BattleEntry.TutorialId == TutorialProgressManager.AdvancedId
                 && PhaseScenarioOf(tutorial, target + 1) == null)
             {
                 MatchStatsService.Instance?.ClearTurnScope();
@@ -875,7 +875,7 @@ namespace SynergyUI
             // 教学二败局重开（2026-10-21 用户定案「绑右上重置同款」）：旧 ApplyMidTransition 会把
             // 场面铺回早期考验段。死亡时刻通常在 AI 考验回合（必杀直伤）——重铺后驱动 AI 收完回合，
             // 玩家新考验回合自然准备抽牌=命运之牌（不手动补抽，否则双抽）；己方回合死才交回合。
-            if (BattleEntry.TutorialId == TutorialProgressManager.JinjieId
+            if (BattleEntry.TutorialId == TutorialProgressManager.AdvancedId
                 && _phaseIndex > 0 && _phaseStarts.Count > _phaseIndex
                 && TutorialGuide.Steps.Count > _phaseStarts[_phaseIndex]
                 && TutorialGuide.Steps[_phaseStarts[_phaseIndex]] != null
@@ -899,7 +899,7 @@ namespace SynergyUI
 
         /// <summary>教学第一阶段（basics）通关结算（2026-10-17）：TipPanel 单键弹窗「你已完成第一阶段
         /// 的教学」，确定=回主菜单（Manager.Back，终局口径同认输键直回）。拆屏/缺预制体=null：留在
-        /// 终局画面（返回主菜单键仍可用，不自动退）。title 可覆写（2026-10-19 jinjie 第二课复用）。</summary>
+        /// 终局画面（返回主菜单键仍可用，不自动退）。title 可覆写（2026-10-19 advanced 第二课复用）。</summary>
         private async UniTaskVoid PromptTutorialCompleteAsync(string title = "你已完成第一阶段的教学")
         {
             if (await _showTip(title, "确定", null) == true)

@@ -11,7 +11,7 @@ namespace SynergyUI
     /// 之后逐回合摸牌恒取牌库顶）；机器人逐回合动作脚本由 ScriptedAi 按条执行；rngSeed=复现钉子
     /// （2026-10-20 定案：非 0=钉同局重放；0/缺省=每局新抽——效果随机换局不同，卡序/剧本仍确定）。
     /// 数据：Assets/Configs/ 按课拆档（2026-10-19 三课制）：TutorialConfig.json=第一课（basics 攻防）、
-    /// TutorialConfig2.json=第二课（jinjie 进阶机制）、TutorialConfig3.json=第三课（lunzhuan 末日降临
+    /// TutorialConfig2.json=第二课（advanced 进阶机制）、TutorialConfig3.json=第三课（lunzhuan 末日降临
     /// Boss），TutorialLibrary 三档合并装载（TidePaths 寻址：编辑器直读、直改 JSON 后 Reload 免重启，
     /// 真机由宿主装配进热更包——同 AtomicEffectTable 惯例）。
     /// </summary>
@@ -137,7 +137,7 @@ namespace SynergyUI
         private static readonly string[] ConfigRelativePaths =
         {
             "Configs/TutorialConfig.json",  // 第一课（basics 攻防）
-            "Configs/TutorialConfig2.json", // 第二课（jinjie 进阶机制）
+            "Configs/TutorialConfig2.json", // 第二课（advanced 进阶机制）
             "Configs/TutorialConfig3.json", // 第三课（lunzhuan 末日降临 Boss）
         };
 

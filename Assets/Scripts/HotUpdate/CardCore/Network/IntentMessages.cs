@@ -83,6 +83,16 @@ namespace CardCore.Network
         public int PaidBoost;
     }
 
+    /// <summary>发动英雄技能（2026-10-21 协议补课：技能格 2026-10-15 加入，此后协议首个新 intent）。
+    /// 守卫与效果解析全在服务器侧 HeroSkillSystem.ActivateAsync（回合玩家+主阶段+每回合横置闸+
+    /// 沉默+CanActivate 预检）；effectIndex=多效果技能的抉择（单效果恒 0，UI 弹窗择定后随 intent 公开）。</summary>
+    [MemoryPackable]
+    public partial class MsgIntentActivateHeroSkill
+    {
+        [MemoryPackOrder(TagTable.MsgIntentActivateHeroSkill_EffectIndex)]
+        public int EffectIndex;
+    }
+
     // ============================================================
     // 反问请求（服务器 → 特定玩家）与应答（玩家 → 服务器）。
     // 覆盖 TargetSelectionService 全部反问通道（实体选择/单选/卡位选择，皆索引语义）。

@@ -27,8 +27,8 @@ namespace CardCore.Network
         private readonly int? _seed;
 
         private NetRoomPhase _phase = NetRoomPhase.Waiting;
-        private readonly NetClientConnection[] _chairs = new NetClientConnection[2];
-        private readonly List<NetClientConnection> _spectators = new List<NetClientConnection>();
+        private readonly INetChannel[] _chairs = new INetChannel[2];
+        private readonly List<INetChannel> _spectators = new List<INetChannel>();
         private readonly string[][] _deckIds = new string[2][];
         // 英雄技能标记卡（2026-10-07 卡牌化）：按椅位随卡组提交存；开局前宽松校验
         //（须 ∈ CardIds 且 HeroSkillSystem.CanBeSkillCard——否则置 null 按无技能开局，不拒握手）
@@ -68,7 +68,7 @@ namespace CardCore.Network
         // ============================================================ 上行分派 ============================================================
 
         /// <summary>处理一条来自成员连接的上行消息（逻辑线程）。</summary>
-        public void OnMessage(GameCore core, NetClientConnection conn, NetworkMessage msg)
+        public void OnMessage(GameCore core, INetChannel conn, NetworkMessage msg)
         {
             if (conn == null || msg == null) return;
 
@@ -95,8 +95,11 @@ namespace CardCore.Network
                         break;
 
                     default:
-                        if (msg.Type >= NetworkMessageType.IntentPlayCard
-                            && msg.Type <= NetworkMessageType.IntentConcede)
+                        // intent 段=100..109 连续段 + 离散位（113 IntentActivateHeroSkill 在会话层消息之后）
+                        bool isIntent = (msg.Type >= NetworkMessageType.IntentPlayCard
+                                            && msg.Type <= NetworkMessageType.IntentConcede)
+                                        || msg.Type == NetworkMessageType.IntentActivateHeroSkill;
+                        if (isIntent)
                             HandleIntent(core, conn, msg);
                         else
                             SendError(conn, $"消息类型 {msg.Type} 不是会话层可处理的上行", msg.Type.ToString());
@@ -112,7 +115,7 @@ namespace CardCore.Network
 
         /// <summary>进房分座（M2；2026-09-24 大厅层复用：LobbyCreateRoom/LobbyJoinRoom/自动配对
         /// 全部经此口入座，与直连 JoinRoom 同一校验路径）。</summary>
-        public void HandleJoin(NetClientConnection conn, MsgJoinRoom join)
+        public void HandleJoin(INetChannel conn, MsgJoinRoom join)
         {
             if (conn.ChairSeat != -2) { SendError(conn, "本连接已进房（M2 一连接一身份）", "JoinRoom"); return; }
             if (_phase == NetRoomPhase.Finished)
@@ -158,7 +161,7 @@ namespace CardCore.Network
             }
         }
 
-        private void HandleDeckSubmit(NetClientConnection conn, NetworkMessage msg)
+        private void HandleDeckSubmit(INetChannel conn, NetworkMessage msg)
         {
             if (conn.ChairSeat != 0 && conn.ChairSeat != 1)
             { SendError(conn, "非玩家座位不能提交卡组", "DeckSubmit"); return; }
@@ -199,7 +202,7 @@ namespace CardCore.Network
             return skillCardId;
         }
 
-        private void HandleSelectResponse(NetClientConnection conn, NetworkMessage msg)
+        private void HandleSelectResponse(INetChannel conn, NetworkMessage msg)
         {
             if (_phase != NetRoomPhase.Playing || _selector == null) return;
             var resp = NetworkSerializer.DeserializePayload<MsgSelectResponse>(msg);
@@ -210,7 +213,7 @@ namespace CardCore.Network
             SendError(conn, $"反问应答未知 RequestId={resp.RequestId}（迟到或已作废）", "SelectResponse");
         }
 
-        private void HandleIntent(GameCore core, NetClientConnection conn, NetworkMessage msg)
+        private void HandleIntent(GameCore core, INetChannel conn, NetworkMessage msg)
         {
             if (_phase != NetRoomPhase.Playing)
             { SendError(conn, "对局未在进行中", msg.Type.ToString()); return; }
@@ -341,7 +344,7 @@ namespace CardCore.Network
         // ============================================================ 断线 / 重置 ============================================================
 
         /// <summary>成员断开（逻辑线程；由宿主泵发现）。</summary>
-        public void OnDisconnect(NetClientConnection conn)
+        public void OnDisconnect(INetChannel conn)
         {
             if (conn.ChairSeat == -2) return; // 未进房的连接：无房间侧状态
 
@@ -500,7 +503,7 @@ namespace CardCore.Network
 
         // ============================================================ 杂项 ============================================================
 
-        private IEnumerable<NetClientConnection> AllMembers()
+        private IEnumerable<INetChannel> AllMembers()
         {
             foreach (var chair in _chairs)
                 if (chair != null) yield return chair;
@@ -508,7 +511,7 @@ namespace CardCore.Network
                 yield return spec;
         }
 
-        private NetClientConnection SeatConnection(int matchSeat)
+        private INetChannel SeatConnection(int matchSeat)
             => _chairs.FirstOrDefault(c => c != null && c.MatchSeat == matchSeat);
 
         private void MarkSnapshotDirty()
@@ -540,7 +543,7 @@ namespace CardCore.Network
             };
         }
 
-        private void SendError(NetClientConnection conn, string reason, string context)
+        private void SendError(INetChannel conn, string reason, string context)
             => conn.SendPayload(NetworkMessageType.Error, new MsgError { Reason = reason, Context = context });
 
         private void BroadcastError(string reason)

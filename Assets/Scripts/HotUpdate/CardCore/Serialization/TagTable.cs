@@ -262,6 +262,9 @@ namespace CardCore.Serialization
         public const int MsgIntentActivateEffect_Targets = 795110869;
         public const int MsgIntentActivateEffect_PaidBoost = 1309359023;
 
+        // ---- MsgIntentActivateHeroSkill（2026-10-21 协议补课）----
+        public const int MsgIntentActivateHeroSkill_EffectIndex = 1738103103;
+
         // ---- MsgSelectRequest ----
         public const int MSelR_RequestId = 1404564517;
         public const int MSelR_ChooserSeat = 499080371;

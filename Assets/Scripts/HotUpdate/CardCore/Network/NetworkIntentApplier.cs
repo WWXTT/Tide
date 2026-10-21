@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using Cysharp.Threading.Tasks;
 using MemoryPack;
 
 namespace CardCore.Network
@@ -123,6 +124,20 @@ namespace CardCore.Network
 
                     // 注意：ActivateEffect 的 targets 经由 PendingEffect 携带（LegalActionEnumerator.Apply 同款口径）
                     return Ok(ActivateWithTargets(core, player, effect, source, targets, intent.PaidBoost), out error);
+                }
+
+                case NetworkMessageType.IntentActivateHeroSkill:
+                {
+                    var intent = MemoryPackSerializer.Deserialize<MsgIntentActivateHeroSkill>(msg.Payload);
+                    if (intent == null) { error = "IntentActivateHeroSkill 载荷损坏"; return false; }
+
+                    // ActivateAsync 是伪异步（全同步守卫 + 同步 ActivateEffect，末尾 CompletedTask——
+                    // 2026-10-21 补课时核实）：泵线程同步取结果即可。防御分支：未来真异步化（如内部
+                    // 反问化）时按已受理放行，失败经事件流/快照可见，不阻塞泵线程。
+                    var task = GameActions.ActivateHeroSkill(core, player, intent.EffectIndex);
+                    if (task.Status == UniTaskStatus.Succeeded)
+                        return Ok(task.GetAwaiter().GetResult(), "技能发动被拒（时点/每回合横置闸/沉默/费用/目标预检）", out error);
+                    return true;
                 }
 
                 case NetworkMessageType.IntentPassPriority:

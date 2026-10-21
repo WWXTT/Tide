@@ -15,18 +15,29 @@ namespace SynergyUI
         /// <summary>挑战模式（2026-10-06）：玩家自选卡组，电脑按难度 N 获得非对称优势——
         /// 地牌槽上限 7+N（N≥7 触顶 14）、起手 6+N（InitGame 加成参数）。渲染/交互与本地 AI 局同轨。</summary>
         Challenge,
+        /// <summary>网络对局（P2P，2026-10-21 复活）：房主=进程内 NetSessionServer 权威服务器，
+        /// 本端（房主/客人同一路径）以 NetGameClient 客户端运行——快照/事件流驱动渲染、intent 上行。
+        /// 入口方接线：LobbyScreen 收到 MatchManifest 后把同一条连接经 Client 字段移交战斗屏。</summary>
+        Network,
     }
 
     /// <summary>
     /// 对战入口参数（UIManager.Show 无参构造——静态传参）。
-    /// 2026-10-18 功能拆分随 BattleScreen 出文件；同日网络簇整删：Network 模式值与
-    /// Host/Port/Nickname/Client 四个连接字段一并退役（NetGate 禁联机期 BattleScreen 网络链
-    /// 为休眠死代码、零调用；引擎侧协议在 CardCore.Network 原样保留，复活走第二轮决策管线重写，
-    /// git 历史可回取）。
+    /// 2026-10-18 功能拆分随 BattleScreen 出文件；同日网络簇整删（Network 模式值与连接字段退役）；
+    /// 2026-10-21 P2P 复活：Network 模式值与 Client/Nickname 连接字段回归（Host/Port 不再需要——
+    /// 连接对象自持远端地址，房间建立由 LobbyScreen 负责）。
     /// </summary>
     public static class BattleEntry
     {
         public static BattleMode Mode = BattleMode.LocalAI;
+
+        /// <summary>网络局客户端连接（一次性移交）：LobbyScreen 收到 MatchManifest 时写入，
+        /// BattleScreen OnEnter 消费后接管生命周期（NetClientRuntime 同步改绑）——
+        /// 同连接防「重连+重新进房」撞座位锁（DeckSubmit 起玩家位锁定）。null=非网络局。</summary>
+        public static CardCore.Network.NetGameClient Client;
+
+        /// <summary>本端昵称（网络局房间展示/战报口径；空=战斗屏按座位兜底）。</summary>
+        public static string Nickname = "";
 
         /// <summary>教学局关卡 id（TutorialLibrary 条目；缺省 "basics" 基础教学）。
         /// 入口方接线：BattleEntry.Mode = BattleMode.Tutorial 后 Show&lt;BattleScreen&gt;。</summary>

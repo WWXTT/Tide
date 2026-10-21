@@ -27,13 +27,13 @@ namespace CardCore.Network
     /// </summary>
     public sealed class NetLobbyServer
     {
-        private readonly NetTcpHost _host = new NetTcpHost();
+        private readonly INetTransportHost _host = new NetTcpHost(); // TCP 第一实现（2026-10-21 传输缝）
         private readonly NetRoom _room;
         private readonly Action<string> _log;
 
         private string _roomName = "";                       // 展示名（创建者命名；房间回收时清空）
-        private readonly List<NetClientConnection> _lobby = new List<NetClientConnection>(); // 大厅相位连接
-        private readonly List<NetClientConnection> _queue = new List<NetClientConnection>();  // 自动匹配队列
+        private readonly List<INetChannel> _lobby = new List<INetChannel>(); // 大厅相位连接
+        private readonly List<INetChannel> _queue = new List<INetChannel>();  // 自动匹配队列
         private readonly List<AiFiller> _ais = new List<AiFiller>();
         private bool _lobbyDirty = true;
         private int _aiCounter;
@@ -147,7 +147,7 @@ namespace CardCore.Network
 
         // ============================================================ 大厅上行 ============================================================
 
-        private void HandleLobbyMessage(NetClientConnection conn, NetworkMessage msg)
+        private void HandleLobbyMessage(INetChannel conn, NetworkMessage msg)
         {
             try
             {
@@ -239,7 +239,7 @@ namespace CardCore.Network
             }
         }
 
-        private void OnDisconnect(NetClientConnection conn)
+        private void OnDisconnect(INetChannel conn)
         {
             if (_lobby.Remove(conn)) _lobbyDirty = true;
             if (_queue.Remove(conn)) _lobbyDirty = true;
@@ -273,7 +273,7 @@ namespace CardCore.Network
                 conn.SendPayload(NetworkMessageType.LobbyState, state);
         }
 
-        private void SendLobbyError(NetClientConnection conn, string reason, string context)
+        private void SendLobbyError(INetChannel conn, string reason, string context)
             => conn.SendPayload(NetworkMessageType.Error, new MsgError { Reason = reason, Context = context });
 
         // ============================================================ AI 填位（回环客户端） ============================================================

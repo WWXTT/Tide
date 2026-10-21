@@ -234,6 +234,7 @@ namespace CardCore.Tools
                 ("MsgIntentDeclareBlock", "Blocker"), ("MsgIntentDeclareBlock", "Attacker"),
                 ("MsgIntentActivateEffect", "SourceCardRuntimeId"), ("MsgIntentActivateEffect", "EffectId"),
                 ("MsgIntentActivateEffect", "Targets"), ("MsgIntentActivateEffect", "PaidBoost"),
+                ("MsgIntentActivateHeroSkill", "EffectIndex"),
 
                 // ---- 反问请求/应答 ----
                 ("MsgSelectRequest", "RequestId"), ("MsgSelectRequest", "ChooserSeat"),

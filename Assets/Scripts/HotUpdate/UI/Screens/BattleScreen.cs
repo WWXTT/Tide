@@ -4,6 +4,7 @@ using System.Linq;
 using CardCore;
 using CardCore.AI;
 using CardCore.Attribute;
+using CardCore.Network;
 using CardCore.Serialization;
 using GameBoard;
 using Tide.HotUpdate;
@@ -87,6 +88,12 @@ namespace SynergyUI
         private BattleChainStage _chainStage;      // 连锁链舞台：chain 节点克隆卡面（2026-10-19·Battle/BattleChainStage.cs）
         private BattleResolutionDirector _director; // 逆结算步进回放导演（2026-10-19·Battle/BattleResolutionDirector.cs）
         private BattleOpeningDirector _opening;     // 五段式开局导演（2026-10-19 掷币演出挪战场·Battle/BattleOpeningDirector.cs）
+
+        // ---- 网络模式（2026-10-21 P2P 复活）：本屏不建 BattleController——快照驱动渲染 + intent 上行 ----
+        // 房主侧引擎也只归服务器泵（NetSessionServer.Current），UI 一律走客户端路径（座位过滤防全信息泄漏）。
+        private NetGameClient _netClient;           // 网络局客户端（OnEnter 消费 BattleEntry.Client 一次性移交）
+        private MsgGameStateSync _netSnapshot;      // 最近快照（网络反问候选/守卫栈条目查询用）
+        private bool NetActive => _netClient != null && !_netClient.Disconnected;
 
         /// <summary>排队全量刷扇（转发投影器置脏——冲刷在 Updater 帧首执行）。</summary>
         private void QueueRefreshFans() => _projector.QueueFans();
@@ -208,8 +215,9 @@ namespace SynergyUI
             BindBattleButton("btn-log", "对局日志", _log.Toggle);
 
             // 不入连锁（2026-10-15）：守卫响应窗口让过口——2026-10-17 短暂挪入 Region 后挪回根级
-            //（战斗拒绝连锁：守卫窗口 Region 关也要能点——点击=让过，等价右键/ESC），平时隐藏
-            _decision.Bind(BindBattleButton("btn-notchain", "不连锁", _decision.OnNotChainClick)); // 三义按钮归决策中枢（2026-10-18 B3）
+            //（战斗拒绝连锁：守卫窗口 Region 关也要能点——点击=让过，等价右键/ESC），平时隐藏。
+            // 网络局（2026-10-21）：让过=PassPriority intent（屏侧包装分发——本地/网络同键不同义）
+            _decision.Bind(BindBattleButton("btn-notchain", "不连锁", OnNotChainClick)); // 三义按钮归决策中枢（2026-10-18 B3）
 
             // Region 区域面板骨架（prefab 用户节点：点棋盘墓地/除外/发动区/卡组/临时元素格打开——
             // 2026-10-18 拆分：骨架/开关/列卡池化收进 BattleRegionPanel，屏侧只留守卫转发）
@@ -411,24 +419,31 @@ namespace SynergyUI
             if (_lblMode != null)
                 _lblMode.text = BattleEntry.Mode == BattleMode.Tutorial ? $"教学 · {BattleEntry.TutorialId}"
                     : BattleEntry.Mode == BattleMode.Challenge ? $"挑战 · 难度{BattleEntry.ChallengeDifficulty}"
+                    : BattleEntry.Mode == BattleMode.Network ? "联机 · P2P"
                     : "本地 · AI";
 
             // 战场 3D 摆位 + 装台（2026-10-13 战场重做；2026-10-18 网络簇整删后仅本地直连）
             _field = new BattleFieldView();
             _field.HeroLifeShownChanged = OnHeroLifeShownChanged; // 角色HP读数节拍（2026-10-20）：命中拍释放时同拍重写 2D 生命标签
             // 战斗编舞（2026-10-13）：3D 寻路箭头选攻击目标 + 战斗演出（走位/受击/死亡漩涡吸走）；
-            // 事件订阅须先于本屏刷新订阅（宣言即 hold 位姿），OnEnter 建立即满足
-            _choreo = new CombatChoreographer(_field, () => _view, RefreshField, listenEvents: true, selfPlayer: () => P1);
+            // 事件订阅须先于本屏刷新订阅（宣言即 hold 位姿），OnEnter 建立即满足。
+            // 网络局不订引擎事件（2026-10-21）：房主侧引擎事件来自服务器房（全信息），订阅会触发
+            // 走位/受击演出读本地 Core（null）——网络局表现走快照对账+轻事件，编舞器不参与。
+            bool netMode = BattleEntry.Mode == BattleMode.Network && BattleEntry.Client != null;
+            _choreo = new CombatChoreographer(_field, () => _view, RefreshField, listenEvents: !netMode, selfPlayer: () => P1);
             _choreo.ReplayDriven = true; // 战斗演出改由步进回放导演驱动（2026-10-19 严格结算序：攻击步到位才开演）
             _cellPicker = new BattleCellPicker();
             BattleStageDirector.MountBoardAndDawnAsync().Forget(); // 转场③④：装载棋盘（分区表注入）→ 日出
             // 棋盘就绪后首刷（英雄柱/初始摆位）：staged 开局局挪到段五起步——段一~四无 Core 恒不就绪，
-            // 45s deadline 会在选卡组期空转（2026-10-19 掷币演出挪战场）
-            if (!StagedOpeningActive())
+            // 45s deadline 会在选卡组期空转（2026-10-19 掷币演出挪战场）。网络局无 Core（首刷=首快照）
+            if (!StagedOpeningActive() && !netMode)
                 RefreshFieldWhenBoardReady().Forget();
 
             _regionSelector?.ForceIdle(); // 跨局残留清算（2026-10-17）：上局退出时在途选择孤悬的 IsOpen/busy 在此钉回
-            StartLocalFan();
+            if (netMode)
+                StartNetFan();
+            else
+                StartLocalFan();
         }
 
         public override void OnExit()
@@ -439,6 +454,7 @@ namespace SynergyUI
             _tutorial?.UnhookBanner(); // 静态引导订阅退订（BattleTutorialDirector·2026-10-18 拆分）
             _toast.ClearLayers(); // toast 双层清空（2026-10-17 僵尸订阅口径——2026-10-18 收进 BattleToastHub）
             _running = false;
+            NetShutdown(); // 网络局连接/房主服务器收口（2026-10-21 P2P；本地局 no-op）
             _opening?.Dispose(); // 五段式开场收口（2026-10-19）：在途演出停、相机位姿还原、选卡组堆拆除
             _opening = null;
             _director?.Shutdown(); // 步进回放收闸（2026-10-19）：先于日志/投影器退订——hold 解除、缓冲日志全放
@@ -485,6 +501,517 @@ namespace SynergyUI
             _regionSelector = null;
             if (_decision != null && ResponseWindowService.HumanResponder == _decision.ShowResponseAsync)
                 ResponseWindowService.HumanResponder = null;
+        }
+
+        // ======================================== 网络模式（2026-10-21 P2P 复活） ========================================
+        // 本屏无 BattleController/本地引擎（房主侧引擎也只归服务器泵——UI 一律客户端路径）：
+        // 快照 → BuildNet → 投影器 ApplySnapshot（复用全套 3D 对账/信息栏/连锁链渲染）；
+        // 交互收口 intent 上行（目标不预收——结算期 SelectRequest 反问回弹，服务器权威候选集）；
+        // 反问 = Region 选项列表（实体候选按 CardId 查表渲染卡名）；
+        // 表现 MVP = 战报轻日志+浮字级演出（伤害/治疗粒度的 3D 演出接 NetEvent 载荷属后续里程碑）。
+
+        /// <summary>网络对局接入（LobbyScreen 移交的连接一次性消费）。</summary>
+        private void StartNetFan()
+        {
+            _netClient = BattleEntry.Client;
+            BattleEntry.Client = null;
+            if (_netClient == null)
+            {
+                _toast.Show("网络对局连接缺失——返回主菜单");
+                Manager.Back();
+                return;
+            }
+
+            // 反问选择器（Region 选项列表）。不挂 TargetSelectionService/ResponseWindowService：
+            // 网络局本端无引擎请求在途；房主侧更不得覆盖 NetRoom 已挂的 NetworkTargetSelector
+            //（覆盖=引擎反问改走本地 Region 选择器→读全信息引擎→泄漏+流程错乱）。
+            _regionSelector = _regionPanelCtl != null
+                ? new RegionTargetSelector(_regionPanelCtl.PanelNode, BoardCellOf, p => false, RoleCellOf,
+                    BuildSelectPrompt, _decision.OnSelectCancel)
+                : null;
+
+            // 手牌扇交互（网络版：可发动性按视图近似评估，真校验交服务器 Error 反馈）
+            _selfFan?.SetInteractions(new FanInteractions
+            {
+                CanUse = NetFanCanUse,
+                CanPlaceLand = NetFanCanPlaceLand,
+                OnUse = NetOnFanUse,
+                OnPlaceLand = NetOnFanPlaceLand,
+            });
+
+            _netClient.OnSnapshot += NetOnSnapshot;
+            _netClient.OnEventBatch += NetOnEvents;
+            _netClient.OnSelectRequest += NetOnSelectRequest;
+            _netClient.OnRoomState += NetOnRoomState;
+            _netClient.OnError += e => _toast.Show($"被拒（{e?.Context}）：{e?.Reason}");
+            _netClient.OnDisconnected += NetOnDisconnected;
+
+            Debug.Log($"[BattleScreen] 网络对局已接入（{_netClient.Remote}）——等待首快照");
+        }
+
+        /// <summary>快照到达：BuildNet → 投影器 ApplySnapshot（渲染扇出与本地同轨）+ 双扇对账。</summary>
+        private void NetOnSnapshot(MsgGameStateSync snap)
+        {
+            if (snap == null) return;
+            _netSnapshot = snap;
+            _projector.ApplySnapshot(BattleView.BuildNet(snap));
+            RefreshFansNet();
+        }
+
+        /// <summary>网络局双扇对账：己方手牌正面（快照 OwnRuntimeIds）；对手=数量背面+展示卡翻正面。</summary>
+        private void RefreshFansNet()
+        {
+            if (BattleRevealDirector.SuppressHandFan) return;
+            var d = _view;
+            if (d == null) return;
+
+            var self = new List<HandFanCardData>();
+            foreach (var card in d.SelfHand)
+                self.Add(new HandFanCardData
+                {
+                    RuntimeId = card.RuntimeId,
+                    Item = CardOverlayItem.FromHand(card),
+                    FaceUp = true,
+                });
+            _selfFan?.SetCards(self);
+
+            // 对手手牌：背面按数量（RuntimeId 隐藏——合成键）；被展示（Exposed）的经 RevealedZoneCards 翻正面
+            var exposed = new List<SerializableRuntimeCardState>();
+            if (_netSnapshot?.RevealedZoneCards != null)
+                foreach (var z in _netSnapshot.RevealedZoneCards)
+                    if (z != null && (Zone)z.Zone == Zone.Hand && z.Seat == 1 - d.NetViewerSeat)
+                        exposed.AddRange(z.Cards ?? Array.Empty<SerializableRuntimeCardState>());
+            var opp = new List<HandFanCardData>();
+            int backs = Math.Max(0, d.Opp.HandCount - exposed.Count);
+            for (int i = 0; i < backs; i++)
+                opp.Add(new HandFanCardData { RuntimeId = 0x80000000u + (uint)i, Item = BlankBack(0), FaceUp = false });
+            foreach (var s in exposed)
+            {
+                var v = BattleView.FromRuntime(s, null, ownerIsOpponent: true);
+                opp.Add(new HandFanCardData { RuntimeId = s.RuntimeId, Item = CardOverlayItem.FromHand(v), FaceUp = true });
+            }
+            _oppFan?.SetCards(opp);
+
+            // 可发动流光近似（我方主阶段全亮——费用真值交服务器拒绝反馈）
+            bool gate = !_gameEnded && d.MyTurn && d.Phase == PhaseType.Main;
+            if (_selfFan != null)
+                foreach (var card in d.SelfHand)
+                    _selfFan.SetPlayable(card.RuntimeId, gate, false);
+        }
+
+        // ---- 网络局交互（intent 上行） ----
+
+        private bool NetFanGate()
+        {
+            var d = _view;
+            return !_gameEnded && d != null && d.MyTurn && d.Phase == PhaseType.Main && !IsTargetSelecting();
+        }
+
+        private bool NetFanCanUse(HandFanCard fan) => NetFanGate();
+
+        private bool NetFanCanPlaceLand(HandFanCard fan)
+        {
+            if (!NetFanGate()) return false;
+            // 锁色资格=卡费含红/蓝/绿/灰（ElementPoolSystem.GetLandColorChoices 同谓词的 CardData 版）
+            return NetLandColorChoices(DataOf(NetHandViewOf(fan))).Count > 0;
+        }
+
+        /// <summary>可锁产色（卡费非零色的红/蓝/绿/灰——黑白不可作地牌；GetLandColorChoices 网络侧口径）。</summary>
+        private static List<ManaType> NetLandColorChoices(CardData data)
+        {
+            var result = new List<ManaType>();
+            if (data?.Cost == null) return result;
+            foreach (var type in data.Cost.NonzeroColors())
+                if (type != ManaType.Black && type != ManaType.White)
+                    result.Add(type);
+            return result;
+        }
+
+        /// <summary>扇区卡 → 视图手牌卡（RuntimeId 对账；不在手=已过态返回 null）。</summary>
+        private BattleCardView NetHandViewOf(HandFanCard fan)
+        {
+            if (fan == null) return null;
+            foreach (var c in _view?.SelfHand ?? new List<BattleCardView>())
+                if (c != null && c.RuntimeId == fan.RuntimeId) return c;
+            return null;
+        }
+
+        private void NetOnFanUse(HandFanCard fan)
+        {
+            var card = NetHandViewOf(fan);
+            if (card == null || !NetFanGate())
+            {
+                if (card != null && !_gameEnded && _view != null && !_view.MyTurn) _toast.Show("对手回合，暂不可操作");
+                return;
+            }
+            NetUseCardAsync(card).Forget();
+        }
+
+        /// <summary>网络出牌：模式抉择（Region）→ IntentPlayCard（目标 null=结算期反问回弹）。
+        /// 不做发动位手选/声明期预选——选格与预演属本地表现层，网络局服务器权威 first-free。</summary>
+        private async UniTaskVoid NetUseCardAsync(BattleCardView card)
+        {
+            var data = DataOf(card);
+            if (data == null) return;
+
+            int modeIndex = 0;
+            if (GetModeCount(card) >= 2)
+            {
+                var labels = data.Supertype == Cardtype.Spell ? SpellEffectLabels(data) : FindChoiceLabels(data);
+                int modeCount = data.Supertype == Cardtype.Spell
+                    ? Math.Max(2, data.Effects?.Count ?? 1)
+                    : Math.Max(2, CostDerivationService.GetModeCount(data));
+                var options = new List<string>();
+                for (int i = 0; i < modeCount; i++)
+                {
+                    string name = i < labels.Count && !string.IsNullOrEmpty(labels[i]) ? labels[i] : $"模式 {i + 1}";
+                    options.Add(name);
+                }
+                int? picked = await PickRegionOptionAsync(
+                    data.Supertype == Cardtype.Spell ? "选择要发动的效果" : "选择模式", options);
+                if (picked == null) return; // 取消/缺 Region：本次不出牌
+                modeIndex = picked.Value;
+            }
+
+            _netClient.Send(NetworkMessageType.IntentPlayCard, new MsgIntentPlayCard
+            {
+                CardRuntimeId = card.RuntimeId,
+                FromZone = (int)Zone.Hand,
+                ModeIndex = modeIndex,
+                Targets = null, // 声明期目标不预收：结算期经 SelectRequest 反问（服务器候选集权威）
+            });
+        }
+
+        private void NetOnFanPlaceLand(HandFanCard fan)
+        {
+            var card = NetHandViewOf(fan);
+            if (card == null || !NetFanGate()) return;
+            NetPlaceLandAsync(card).Forget();
+        }
+
+        /// <summary>网络放地：锁色选择（多色 Region 单选）→ IntentAddToElementPool（ModeIndex=锁色）。</summary>
+        private async UniTaskVoid NetPlaceLandAsync(BattleCardView card)
+        {
+            var colors = NetLandColorChoices(DataOf(card));
+            if (colors == null || colors.Count == 0) return;
+            int colorIndex;
+            if (colors.Count == 1)
+            {
+                colorIndex = (int)colors[0];
+            }
+            else
+            {
+                var options = colors.Select(c => $"锁定 {BattleView.ManaZh(c)} 产色").ToList();
+                int? picked = await PickRegionOptionAsync("选择地牌产色", options);
+                if (picked == null) return;
+                colorIndex = (int)colors[picked.Value];
+            }
+            _netClient.Send(NetworkMessageType.IntentAddToElementPool, new MsgIntentAddToElementPool
+            {
+                CardRuntimeId = card.RuntimeId,
+                ModeIndex = colorIndex, // 2026-10-11 锁色定案：ModeIndex 复用为 ManaType 枚举值
+            });
+        }
+
+        /// <summary>网络局点己方单位：响应窗口在身=守卫候选；我方主阶段=攻击宣言（Region 选目标——
+        /// 3D 寻路箭头选择器依赖本地引擎路径，网络局列表选择）。</summary>
+        private void NetUnitClick(BattleCardView card)
+        {
+            var d = _view;
+            if (_gameEnded || d == null) return;
+            if (d.StackNotEmpty && d.MyPriority)
+            {
+                NetGuardFlowAsync(card).Forget();
+                return;
+            }
+            if (!d.MyTurn || d.Phase != PhaseType.Main)
+            {
+                _toast.Show(!d.MyTurn ? "对手回合，暂不可操作" : "当前不是主要阶段");
+                return;
+            }
+            if (card.IsTapped) { _toast.Show("该单位已横置"); return; }
+            if (card.Runtime != null && card.Runtime.Power <= 0) { _toast.Show("该单位攻击力为 0"); return; }
+            NetAttackFlowAsync(card).Forget();
+        }
+
+        private async UniTaskVoid NetAttackFlowAsync(BattleCardView card)
+        {
+            var d = _view;
+            var options = new List<string> { "对方角色" };
+            var targets = new List<NetEntityRef>
+            {
+                new NetEntityRef { Seat = 1 - d.NetViewerSeat, IsPlayer = true },
+            };
+            foreach (var u in d.OppUnits)
+            {
+                if (u == null) continue;
+                options.Add(u.Name);
+                targets.Add(new NetEntityRef
+                {
+                    RuntimeId = u.RuntimeId,
+                    CardId = u.CardId,
+                    Seat = 1 - d.NetViewerSeat,
+                    IsPlayer = false,
+                });
+            }
+            int? picked = await PickRegionOptionAsync("选择攻击目标", options);
+            if (picked == null) return;
+            _netClient.Send(NetworkMessageType.IntentDeclareAttack, new MsgIntentDeclareAttack
+            {
+                Attacker = new NetEntityRef
+                {
+                    RuntimeId = card.RuntimeId,
+                    CardId = card.CardId,
+                    Seat = d.NetViewerSeat,
+                    IsPlayer = false,
+                },
+                Target = targets[picked.Value],
+            });
+        }
+
+        /// <summary>网络守卫：守卫对象=栈上的攻击宣言（StackObjectType==AttackDeclaration，Source=攻击者）。</summary>
+        private async UniTaskVoid NetGuardFlowAsync(BattleCardView blocker)
+        {
+            if (blocker.IsTapped) { _toast.Show("该单位已横置（守卫须未横置）"); return; }
+            var snap = _netSnapshot;
+            if (snap == null) return;
+            var options = new List<string>();
+            var attackers = new List<NetEntityRef>();
+            foreach (var item in snap.StackV2 ?? Array.Empty<StackItemDTO>())
+            {
+                if (item == null || item.StackObjectType != (int)StackObjectType.AttackDeclaration) continue;
+                if (item.Source == null || item.Source.IsPlayer) continue;
+                options.Add($"拦截 {BattleView.EntityTextOf(item.Source, snap.ViewerSeat)} 的攻击");
+                attackers.Add(item.Source);
+            }
+            if (options.Count == 0) { _toast.Show("没有可守卫的攻击"); return; }
+            int? picked = await PickRegionOptionAsync("选择要守卫的攻击", options);
+            if (picked == null) return;
+            _netClient.Send(NetworkMessageType.IntentDeclareBlock, new MsgIntentDeclareBlock
+            {
+                Blocker = new NetEntityRef
+                {
+                    RuntimeId = blocker.RuntimeId,
+                    CardId = blocker.CardId,
+                    Seat = snap.ViewerSeat,
+                    IsPlayer = false,
+                },
+                Attacker = attackers[picked.Value],
+            });
+        }
+
+        /// <summary>网络局英雄技能发动（角色格【发动】键）：多效果 Region 抉择 → intent（服务器横置闸校验）。</summary>
+        private async UniTaskVoid NetActivateSkillAsync()
+        {
+            var d = _view;
+            if (_gameEnded || d == null || !d.MyTurn || d.Phase != PhaseType.Main) return;
+            var skill = d.Self?.Skill;
+            if (skill == null) { _toast.Show("本局无英雄技能"); return; }
+            if (skill.IsTapped) { _toast.Show("技能本回合已发动"); return; }
+
+            // 主动效果计数（CardData 口径——与 HeroSkillSystem.SkillEffectsOf 同谓词）
+            var data = DataOf(skill);
+            int count = 0;
+            var names = new List<string>();
+            if (data?.Effects != null)
+                foreach (var e in data.Effects)
+                {
+                    int timing = e?.TriggerTiming ?? -1;
+                    if (timing != (int)TriggerTiming.Activate_Active
+                        && timing != (int)TriggerTiming.Activate_Instant) continue;
+                    count++;
+                    names.Add(string.IsNullOrEmpty(e.DisplayName) ? $"效果 {count}" : e.DisplayName);
+                }
+            if (count == 0) { _toast.Show("技能无可发动效果"); return; }
+
+            int effectIndex = 0;
+            if (count > 1)
+            {
+                var options = names.Select(n => $"{n}（付1灰·速度0）").ToList();
+                int? picked = await PickRegionOptionAsync("选择要发动的效果", options);
+                if (picked == null) return;
+                effectIndex = picked.Value;
+            }
+            _netClient.Send(NetworkMessageType.IntentActivateHeroSkill,
+                new MsgIntentActivateHeroSkill { EffectIndex = effectIndex });
+        }
+
+        /// <summary>网络局结束回合（hud 结束格）。</summary>
+        private void NetEndTurn()
+        {
+            var d = _view;
+            if (_gameEnded || d == null) return;
+            if (!d.MyTurn) { _toast.Show("对手回合进行中，暂不可结束回合"); return; }
+            _netClient.Send<object>(NetworkMessageType.IntentEndTurn, null);
+        }
+
+        /// <summary>网络局让行（btn-notchain：响应窗口/优先权在我时让过=PassPriority）。</summary>
+        private void NetPassPriority()
+            => _netClient.Send<object>(NetworkMessageType.IntentPassPriority, null);
+
+        /// <summary>btn-notchain 分发（2026-10-21 网络复活）：网络局=让过 intent；本地局=决策中枢三义键。</summary>
+        private void OnNotChainClick()
+        {
+            if (NetActive)
+            {
+                NetPassPriority();
+                return;
+            }
+            _decision.OnNotChainClick();
+        }
+
+        // ---- 网络局反问（SelectRequest → Region 选项列表 → SelectResponse） ----
+
+        private void NetOnSelectRequest(MsgSelectRequest req)
+        {
+            if (req == null || !NetActive) return;
+            NetSelectAsync(req).Forget();
+        }
+
+        private async UniTaskVoid NetSelectAsync(MsgSelectRequest req)
+        {
+            int me = _view?.NetViewerSeat ?? _netSnapshot?.ViewerSeat ?? 0;
+            List<string> options;
+            if (req.Candidates != null && req.Candidates.Length > 0)
+            {
+                // 实体反问：候选按 CardId 查表渲染卡名（Labels 恒空——线上去文本口径）
+                options = new List<string>(req.Candidates.Length);
+                foreach (var r in req.Candidates)
+                    options.Add(BattleView.EntityTextOf(r, me));
+            }
+            else
+            {
+                options = req.Labels?.ToList() ?? new List<string>();
+            }
+
+            string title = string.IsNullOrWhiteSpace(req.Title) ? "请选择" : req.Title;
+            if (options.Count == 0)
+            {
+                // 空候选（无目标可用等）：直接空应答（引擎 AutoSelect 兜底同口径）
+                _netClient.Send(NetworkMessageType.SelectResponse, new MsgSelectResponse
+                {
+                    RequestId = req.RequestId,
+                    Indices = Array.Empty<int>(),
+                });
+                return;
+            }
+
+            int[] indices;
+            if (req.Max > 1 && _regionSelector != null)
+            {
+                var picked = await _regionSelector.SelectIndicesAsync(
+                    options, Math.Max(1, Math.Min(req.Min, options.Count)),
+                    Math.Min(Math.Max(req.Max, 1), options.Count), title, "", false, 60f);
+                indices = picked != null ? picked.ToArray() : Array.Empty<int>();
+            }
+            else
+            {
+                int? picked = await PickRegionOptionAsync(title, options);
+                indices = picked == null ? Array.Empty<int>() : new[] { picked.Value };
+            }
+            if (!NetActive) return; // 断线后不再应答
+            _netClient.Send(NetworkMessageType.SelectResponse, new MsgSelectResponse
+            {
+                RequestId = req.RequestId,
+                Indices = indices,
+            });
+        }
+
+        // ---- 网络局下行事件（表现 MVP：终局+战报轻日志） ----
+
+        private void NetOnEvents(NetEvent[] events)
+        {
+            if (events == null) return;
+            foreach (var e in events)
+            {
+                if (e == null) continue;
+                if (e.EventType == nameof(GameOverEvent))
+                {
+                    var winner = NetParamEntity(e, nameof(GameOverEvent.Winner));
+                    string reason = NetParamString(e, nameof(GameOverEvent.Reason));
+                    int me = _view?.NetViewerSeat ?? -1;
+                    bool win = me >= 0 && winner != null && winner.Seat == me;
+                    if (!_gameEnded)
+                    {
+                        _gameEnded = true;
+                        MarkGameOverUi($"{(win ? "胜利" : "失败")}——{(win ? "我方" : "对手")}获胜（{reason}）");
+                    }
+                    continue;
+                }
+                NetAppendLogLight(e);
+            }
+        }
+
+        /// <summary>轻量战报行（schema-less 参数直取；完整战报中间层随演出里程碑接入）。</summary>
+        private void NetAppendLogLight(NetEvent e)
+        {
+            int me = _view?.NetViewerSeat ?? -1;
+            string line = null;
+            switch (e.EventType)
+            {
+                case nameof(CardPlayEvent):
+                    line = $"{WhoText(NetParamEntity(e, nameof(CardPlayEvent.Player)), me)} 打出 " +
+                           $"{BattleView.EntityTextOf(NetParamEntity(e, nameof(CardPlayEvent.PlayedCard)), me)}";
+                    break;
+                case nameof(DamageEvent):
+                    line = $"{BattleView.EntityTextOf(NetParamEntity(e, nameof(DamageEvent.Target)), me)} " +
+                           $"受到 {NetParamInt(e, nameof(DamageEvent.Amount))} 点伤害";
+                    break;
+                case nameof(CardDrawEvent):
+                    line = $"{WhoText(NetParamEntity(e, nameof(CardDrawEvent.Player)), me)} 抽了一张牌";
+                    break;
+            }
+            if (line != null) _log.Append(line, "log-line--net");
+        }
+
+        private static string WhoText(NetEntityRef r, int viewerSeat)
+            => r != null && r.IsPlayer ? (r.Seat == viewerSeat ? "我方" : "对手") : "?";
+
+        private static NetParam NetParamOf(NetEvent e, string field)
+            => e.Params?.FirstOrDefault(p => p != null && p.FieldName == field);
+
+        private static NetEntityRef NetParamEntity(NetEvent e, string field)
+            => NetParamOf(e, field)?.EntityRefs?.FirstOrDefault();
+
+        private static long NetParamInt(NetEvent e, string field)
+            => NetParamOf(e, field)?.IntValue ?? 0;
+
+        private static string NetParamString(NetEvent e, string field)
+            => NetParamOf(e, field)?.StringValue;
+
+        private void NetOnRoomState(MsgRoomState room)
+        {
+            // 对局中断线作废（M2 策略）：服务器广播 Error+Finished——留守侧收口为终局态
+            if (room != null && room.Phase == (int)NetRoomPhase.Finished && !_gameEnded)
+            {
+                _gameEnded = true;
+                MarkGameOverUi("对局作废（对手断线/房间关闭）——返回主菜单");
+            }
+        }
+
+        private void NetOnDisconnected()
+        {
+            if (_gameEnded) return;
+            _gameEnded = true;
+            MarkGameOverUi("连接断开——对局作废（断线重连属后续里程碑）");
+        }
+
+        /// <summary>网络局收口（OnExit）：拆连接；房主侧会话服务器一并停机（重开=回房间屏重建）。</summary>
+        private void NetShutdown()
+        {
+            if (_netClient != null)
+            {
+                _netClient.OnSnapshot -= NetOnSnapshot;
+                _netClient.OnEventBatch -= NetOnEvents;
+                _netClient.OnSelectRequest -= NetOnSelectRequest;
+                _netClient.OnRoomState -= NetOnRoomState;
+                _netClient.OnDisconnected -= NetOnDisconnected;
+                NetClientRuntime.Unbind(_netClient);
+                _netClient.Close();
+                _netClient = null;
+            }
+            NetSessionServer.Current?.Stop(); // 房主侧：非 host 为 no-op
+            _netSnapshot = null;
         }
 
         // ======================================== 本地模式 ========================================
@@ -706,6 +1233,7 @@ namespace SynergyUI
         /// <summary>结束己方回合并让 AI 跑完对手回合（手牌变化经事件链刷新扇区）。</summary>
         private async void OnEndTurnFan()
         {
+            if (NetActive) { NetEndTurn(); return; } // 网络局：intent 上行（对手回合由真人对手驱动）
             if (_gameEnded || Core == null || _ctrl.TurnPlayer != P1) return;
             if ((_field != null && _field.VisualsBusy) // 表演中不许结束回合（2026-10-17）：演出与回合状态撕裂防护
                 || (_director != null && _director.Busy)) // 步进回放在途（2026-10-19）：表现层未追平引擎真值
@@ -1030,7 +1558,8 @@ namespace SynergyUI
         {
             bool myMain = d.MyTurn && d.Phase == PhaseType.Main && !_gameEnded;
 
-            if (_btnGrave != null) _btnGrave.interactable = myMain && d.Self.GraveyardCount > 0;
+            // 网络局：墓地视手牌使用暂不开放（本地链依赖引擎配额口，随协议补；2026-10-21 MVP）
+            if (_btnGrave != null) _btnGrave.interactable = !NetActive && myMain && d.Self.GraveyardCount > 0;
             // _btnSkill/_btnPass 已随 2026-10-18 网络簇整删退役（技能键早已无节点恒 null；让优先权=网络专属）
             // 认输键终局后仍可点=返回主菜单出口（2026-10-16 弹窗退役：旧弹窗取消键职责迁移至此）
             if (_btnConcede != null) _btnConcede.interactable = true;
@@ -1482,6 +2011,7 @@ namespace SynergyUI
         /// 同格多候选新色=弹现选色窗消歧；取消（右键/ESC/无效格）恢复手牌。</summary>
         private void OnFanPlaceLand(HandFanCard fan)
         {
+            if (NetActive) { NetOnFanPlaceLand(fan); return; } // 网络局：锁色选择+intent 上行
             if (!GateFanMyMain()) return;
             var card = FanCardOf(fan);
             if (card == null) return;
@@ -1546,6 +2076,7 @@ namespace SynergyUI
         /// 入场后补钉）→确认出牌。取消恢复手牌。</summary>
         private void OnFanUse(HandFanCard fan)
         {
+            if (NetActive) { NetOnFanUse(fan); return; } // 网络局：模式抉择+intent 上行（目标结算期反问）
             if (!GateFanMyMain()) return;
             var card = FanCardOf(fan);
             if (card == null) return;
@@ -1659,6 +2190,7 @@ namespace SynergyUI
         /// 取代旧 ShowPickOverlay 列表弹窗（overlay 节点缺失时空转的依赖一并解除）。</summary>
         private void OnClickMyUnit(BattleCardView card)
         {
+            if (NetActive) { NetUnitClick(card); return; } // 网络局：守卫/攻击 intent（列表选目标）
             if (!GateMyMain()) return;
             if (card.IsTapped) { _toast.Show("该单位已横置"); return; }
             if (card.Runtime != null && card.Runtime.Power <= 0) { _toast.Show("该单位攻击力为 0"); return; }
@@ -1876,12 +2408,13 @@ namespace SynergyUI
 
             // 功能地块（BattleHudRow 中线状态行：结束回合格可点；两时间/连锁速度格纯展示——
             // 未认领名走 TryParseTile 失败分支收弹窗，无需另接点击）
-            if (hitName == "hud-tile-end-turn")
-            {
-                Debug.Log("[HUD地块] 点击：结束回合");
-                CloseRegion();
-                if (IsTargetSelecting()) return; // Region 抉择/反问在身：先完成选择再推进（非模态须自防重入）
-                // 仅己方回合可点（2026-10-14 定案）：对手回合就地提示，不再静默吞（引擎闸仍在 OnEndTurnFan 兜底）
+                if (hitName == "hud-tile-end-turn")
+                {
+                    Debug.Log("[HUD地块] 点击：结束回合");
+                    CloseRegion();
+                    if (IsTargetSelecting()) return; // Region 抉择/反问在身：先完成选择再推进（非模态须自防重入）
+                    if (NetActive) { OnEndTurnFan(); return; } // 网络局：视图闸在 NetEndTurn（Core 侧门不适用）
+                    // 仅己方回合可点（2026-10-14 定案）：对手回合就地提示，不再静默吞（引擎闸仍在 OnEndTurnFan 兜底）
                 if (Core == null || _ctrl == null || _ctrl.TurnPlayer != P1)
                 {
                     _toast.Show("对手回合进行中，暂不可结束回合");
@@ -2308,6 +2841,7 @@ namespace SynergyUI
 
         private async UniTaskVoid ActivateSkillAsync(int effectIndex = 0)
         {
+            if (NetActive) { NetActivateSkillAsync().Forget(); return; } // 网络局：intent 上行（服务器横置闸）
             var skill = HeroSkillSystem.ResolveSkillCard(Core, P1);
             var effects = skill != null ? HeroSkillSystem.SkillEffectsOf(skill) : null;
             if (effects != null && effects.Count > 1)
@@ -2335,6 +2869,12 @@ namespace SynergyUI
         {
             if (_gameEnded) { Manager.Back(); return; } // 终局：退出通道（旧弹窗取消键职责迁移）
             if (await ShowTipPromptAsync("投降确认", "确认", "取消") != true) return; // 取消/拆屏=不动
+            if (NetActive)
+            {
+                // 网络局：认输 intent——终局经事件流回传（MarkGameOverUi），再走返回通道
+                _netClient.Send<object>(NetworkMessageType.IntentConcede, null);
+                return;
+            }
             Core.EndGame(P2, GameOverReason.Concede);
             RefreshLocal();
         }
