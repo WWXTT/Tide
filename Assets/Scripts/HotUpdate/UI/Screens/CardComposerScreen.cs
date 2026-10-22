@@ -23,8 +23,8 @@ namespace SynergyUI
     ///
     /// 2026-10-16 定案（prefab 重做配套）：
     /// · toast/标签输入/建议档位+采纳/算费明细列表/六色声明费手动行 全部退役——
-    ///   操作反馈走 Console+desc-strip；费用=纯内容建议分布自动直写（CardCostCalculator.SuggestedCost，
-    ///   绕开 DeclaredTier 回显分支防冻结），构成明细改 type 区悬浮；
+    ///   操作反馈走 Console+desc-strip；费用=内容推导分布自动直写（CardCostCalculator.SuggestedCost
+    ///   =DerivedCost，2026-10-22 恒推导后无声明回显分支），构成明细改 type 区悬浮；
     /// · 效果槽操作收窄=选中+删除（无调序、无行内编辑跳转——编辑=删后重挂，库级编辑走效果库行「编辑」）；
     /// · btn-delete=删除卡池中的当前卡：被卡组引用时弹窗提示、允许强制删除（ReferenceAudit 反查），
     ///   强删后卡组界面按 DeckCompositionValidator 标记断链不可用；
@@ -2484,8 +2484,8 @@ namespace SynergyUI
         {
             var result = CardCostCalculator.Calculate(_card);
 
-            // 自动算费直写（2026-10-16 定案：手动声明/采纳/建议标签全退役）——费用恒=纯内容建议分布。
-            // 必须绕开 Result.CostDict（DeclaredTier>0 时回显当前声明——回写后会冻结不随内容变）。
+            // 自动算费直写（2026-10-16 定案：手动声明/采纳/建议标签全退役）——费用恒=内容推导分布。
+            //（2026-10-22 恒推导定案后 CostDict=SuggestedCost=DerivedCost，无声明回显分支可绕。）
             var suggested = result.SuggestedCost;
             bool same = _card.Cost != null && suggested != null && _card.Cost.v.SequenceEqual(suggested.v);
             if (!same)

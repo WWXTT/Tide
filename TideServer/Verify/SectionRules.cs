@@ -90,38 +90,36 @@ namespace TideServer.Verify
             // ==== 临时探针已删（结论：池解析健康 102 卡/112 原子——Unity 塌陷系迁移中间态） ====
 
             // ============================ V9.a 法术同折（纯函数，不依赖对局） ============================
-
-            VerifySuite.Section("V9.a 法术同折（f=d(C) 三类统一，旧豁免已废）");
-            CardCostResult Probe(Cardtype type, int tier)
+            // 2026-10-22 恒推导定案：档位=推导总额所在档 Ĉ=round(S+E+K)（不读存档 costList）——
+            // 探针改按伤值调内容（旧「costList 写档调档」通道已废）。
+            VerifySuite.Section("V9.a 法术同折（f=d(Ĉ) 三类统一，旧豁免已废）");
+            CardCostResult Probe(Cardtype type, int dmg)
             {
-                var d = new CardData { ID = $"V9_probe_{type}_{tier}", CardName = "V9折扣探针", Supertype = type };
+                var d = new CardData { ID = $"V9_probe_{type}_{dmg}", CardName = "V9折扣探针", Supertype = type };
                 if (type == Cardtype.Creature) { d.Power = 2; d.Life = 2; }
-                d.Cost = ElementCost.FromValue(ManaType.Gray, tier);
                 d.Effects.Add(new CardEffectData
                 {
                     Id = "V9_probe_onplay",
                     TriggerTiming = (int)TriggerTiming.OnPlay,
-                    // value 6：6 damage probe anchor Red6 → D(1)=6 vs D(8)=5, the gap is stable and visible
-                    // (2026-10-15 revision flipped: spells have no price offset channel, the difference is no longer erased by the offset)
-                    AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.DealDamage, value: 6) },
+                    // 档位由内容自决：E=红 dmg×时机 → Ĉ=round(E[+S])（放大锚距保「高档折更深」的严格性）
+                    AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.DealDamage, value: dmg) },
                 });
                 return CardCostService.Derive(d);
             }
 
-            var spell1 = Probe(Cardtype.Spell, 1);
-            var spell8 = Probe(Cardtype.Spell, 8);
-            var creature8 = Probe(Cardtype.Creature, 8);
-            VerifySuite.Assert(Math.Abs(spell1.Factor - 1f) < 1e-6f, $"法术低档 f=d(1)={spell1.Factor:0.###}=1（同内容同锚价）");
-            VerifySuite.Assert(spell8.Factor < 0.99f && spell8.Factor > 0.7f,
-                $"法术高档同折 f=d(8)={spell8.Factor:0.###}∈(0.7,1)——旧 f≡1 豁免已废");
-            VerifySuite.Assert(Math.Abs(spell8.Factor - creature8.Factor) < 1e-6f,
-                $"法术与生物同档同折（{spell8.Factor:0.###} vs {creature8.Factor:0.###}）");
-            VerifySuite.Assert(spell8.DerivedTotal < spell1.DerivedTotal,
-                $"高档推导价更低：D(8)={spell8.DerivedTotal} < D(1)={spell1.DerivedTotal}");
+            var spellCheap = Probe(Cardtype.Spell, 1);
+            var spell9 = Probe(Cardtype.Spell, 9);
+            var creature9 = Probe(Cardtype.Creature, 9);
+            VerifySuite.Assert(Math.Abs(spellCheap.Factor - 1f) < 1e-6f, $"法术低档 f=d(Ĉ1)={spellCheap.Factor:0.###}=1");
+            VerifySuite.Assert(spell9.Factor < 0.99f && spell9.Factor > 0.7f,
+                $"法术高档同折 f=d(Ĉ7)={spell9.Factor:0.###}∈(0.7,1)——旧 f≡1 豁免已废");
+            VerifySuite.Assert(creature9.Factor < spell9.Factor,
+                $"生物随总额升档折更深：d(Ĉ9)={creature9.Factor:0.###} < d(Ĉ7)={spell9.Factor:0.###}（生物 S 计入 Ĉ）");
+            VerifySuite.Assert(spell9.DerivedTotal > spellCheap.DerivedTotal,
+                $"内容决定价：D(9伤)={spell9.DerivedTotal} > D(1伤)={spellCheap.DerivedTotal}");
 
-            // 法术 4伤+1抽（未声明档——与 Unity 计价锚同数字）：f=d(MaxTier=18)=0.75；
-            // 锚价红4蓝2 ×0.75 取整总额5（最大余数法→红3蓝2）。2026-10-15 改版：法术免费点
-            // 全投提速（槽位从速度扣）——无抵价通道 → 红3蓝2
+            // 法术 4伤+1抽（与 Unity 计价锚同数字同口径）：恒推导 Ĉ=E=红3.2+蓝2.0（现表锚价——Draw
+            // 不吃时机折）=5.2→档5 → f=d(5)=0.9333；×f 后红2.99+蓝1.87=4.85→L3 取整 5·最大余数法 → 红3蓝2。
             var fbCard = new CardData { ID = "V9_fb_card", CardName = "法术计价锚", Supertype = Cardtype.Spell };
             fbCard.Effects.Add(new CardEffectData
             {
@@ -134,20 +132,17 @@ namespace TideServer.Verify
                 },
             });
             var fb = CardCostService.Derive(fbCard);
-            VerifySuite.Assert(Math.Abs(fb.Factor - 0.75f) < 1e-4f,
-                $"法术未声明档 f=d(18)=0.75（实际 {fb.Factor:0.###}）——旧 f≡1 已废");
-            // 2026-10-16 一发时机入价 + 2026-10-18 效果合成阶段取整：E 逐色取整（红 round(4×0.8)=3、
-            // 蓝 round(2×0.8)=2）→ ×0.75=红2.25蓝1.5 → L3 取整 4·最大余数法 → 红2蓝2
-            VerifySuite.Assert((int)fb.DerivedCost[ManaType.Red] == 2
+            VerifySuite.Assert(fb.DerivedTier == 5 && Math.Abs(fb.Factor - 0.93333f) < 1e-4f,
+                $"法术档随总额自决 Ĉ=5（f=d(5)={fb.Factor:0.###}——旧「未声明档=d(MaxTier)」口径已废）");
+            VerifySuite.Assert((int)fb.DerivedCost[ManaType.Red] == 3
                               && (int)fb.DerivedCost[ManaType.Blue] == 2,
-                $"法术 4伤+1抽 = 红2+蓝2（实际 红{(int)fb.DerivedCost[ManaType.Red]}蓝{(int)fb.DerivedCost[ManaType.Blue]}；"
-                + "效果逐色取整后无抵价——2026-10-18 取整前移改写 10-16 的红3蓝1）");
+                $"法术 4伤+1抽 = 红3+蓝2（实际 红{(int)fb.DerivedCost[ManaType.Red]}蓝{(int)fb.DerivedCost[ManaType.Blue]}；编辑器运行时已对拍）");
             // SpeedBonus 字段退役（2026-10-15 改版：速度=3−槽数动态算）——脏数据写值不得影响
             fbCard.SpeedBonus = 2;
             var fbSpeed = CardCostService.Derive(fbCard);
-            VerifySuite.Assert((int)fbSpeed.DerivedCost[ManaType.Red] == 2
+            VerifySuite.Assert((int)fbSpeed.DerivedCost[ManaType.Red] == 3
                               && (int)fbSpeed.DerivedCost[ManaType.Blue] == 2,
-                $"SpeedBonus 脏数据无效：仍红2蓝2（实际 红{(int)fbSpeed.DerivedCost[ManaType.Red]}蓝{(int)fbSpeed.DerivedCost[ManaType.Blue]}）");
+                $"SpeedBonus 脏数据无效：仍红3蓝2（实际 红{(int)fbSpeed.DerivedCost[ManaType.Red]}蓝{(int)fbSpeed.DerivedCost[ManaType.Blue]}）");
 
             // ============================ V9.b 域数据（表级） ============================
 
@@ -530,11 +525,16 @@ namespace TideServer.Verify
                     },
                 });
                 var fixedCard = ToHandF(f1, fixedData);
+                // 恒推导（2026-10-22）：存档快照 灰2绿1 不参与支付——灰份额单源取 GetCardCost
+                //（3/3+Sleep2 定长的推导灰），显式层数不走灰豁免 → 照扣。
+                var fixedPay = GameActions.GetCardCost(fixedCard);
+                int fixedGray = (int)fixedPay[ManaType.Gray];
+                VerifySuite.Assert(fixedGray > 0, $"前置：定长沉睡推导费含灰 {fixedGray}（>0 可观测）");
                 int grayBefore2 = bankF.TempElements[ManaType.Gray];
                 VerifySuite.Assert(GameActions.PlayCard(fs, f1, fixedCard), "定长沉睡卡打出");
                 GameActions.DrainStack(fs);
-                VerifySuite.Assert(bankF.TempElements[ManaType.Gray] == grayBefore2 - 2,
-                    "定长沉睡不走灰豁免：照扣 2 灰");
+                VerifySuite.Assert(bankF.TempElements[ManaType.Gray] == grayBefore2 - fixedGray,
+                    $"定长沉睡不走灰豁免：照扣推导灰 {fixedGray}（存档快照不参与——恒推导定案）");
                 VerifySuite.Assert(fixedCard.GetCounterCount(KeywordRules.SleepCounter) == 2,
                     $"定长沉睡 2 层（实际 {fixedCard.GetCounterCount(KeywordRules.SleepCounter)}）");
             }
@@ -1297,8 +1297,15 @@ namespace TideServer.Verify
             var redCostData = new CardData
             {
                 ID = "V9I_RED3", CardName = "红费探针", Supertype = Cardtype.Creature, Power = 1, Life = 1,
-                Cost = PosCost((ManaType.Red, 3)),
             };
+            // 恒推导（2026-10-22）：无内容卡推导 0 费；旧手填红3 退役。1/1 + 战吼 DD4 → E=红3.2、
+            // Ĉ=4 → f=0.9667 → 取整 灰1红3——生物无施放锚价，单一支付事件付红3（三相口径不变）。
+            redCostData.Effects.Add(new CardEffectData
+            {
+                Id = "V9I_R3_EFF",
+                TriggerTiming = (int)TriggerTiming.OnPlay,
+                AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.DealDamage, value: 4) },
+            });
             var redCostCard = IToHand(i1, redCostData);
             VerifySuite.Assert(GameActions.PlayCard(icore, i1, redCostCard), "红3 费探针打出（触发 ElementPoolPayEvent）");
             GameActions.DrainStack(icore);
@@ -1505,8 +1512,8 @@ namespace TideServer.Verify
                 Cost = new ElementCost(),
             };
             var zeroCostCard = new CardWrapper(zeroCostData);
-            // ⚠ 双写（V9.l 同款陷阱）：构造器会把建议费快照进 IHasCost.Cost——须显式清零，否则
-            // 锁色候选非空、0 费卡被放行（占掉回合 1 的唯一地牌格）
+            // 恒推导定案（2026-10-22）：构造器恒刷**推导费**（1/1 白板推导为 0）——快照清零成为自然态；
+            // 显式清零保留作文档（防御未来推导口径变动时误放行）。
             ((CardCore.IHasCost)zeroCostCard).Cost = new ElementCost();
             zeroCostCard.SetController(j1);
             jcore.ZoneManager.GetZoneContainer(j1).Add(zeroCostCard, Zone.Hand);
@@ -1521,7 +1528,12 @@ namespace TideServer.Verify
             VerifySuite.Assert(!jcore.ElementPool.AddCardToPool(bwOnlyCard, j1), "纯黑白费卡不可作地牌（黑白不由地牌产出——回归锚）");
 
             // ---- 三型放行（地牌槽上限：回合1=1，推进两回合到 3） ----
-            var creatureLand = JToHand(j1, fillerJ[3]);
+            // 恒推导（2026-10-22）：锁色候选=推导费颜色（无内容卡推导 0 费不可入池）——
+            // 三夹具改带内容：4/4 生物=灰3 / Draw1 法术=蓝2 / Heal2 结界=绿1。
+            var creatureLand = JToHand(j1, new CardData
+            {
+                ID = "V9J_CREATURE_LAND", CardName = "生物地", Supertype = Cardtype.Creature, Power = 4, Life = 4,
+            });
             VerifySuite.Assert(jcore.ElementPool.AddCardToPool(creatureLand, j1), "生物可作地牌（回归锚）");
             GameActions.EndTurn(jcore, j1);
             jcore.TurnEngine.CheckPhaseTransition();
@@ -1530,11 +1542,17 @@ namespace TideServer.Verify
             jcore.TurnEngine.CheckPhaseTransition();
             GameActions.SkipElementPool(jcore, j1);
 
-            var spellLand = JToHand(j1, new CardData
+            var spellLandData = new CardData
             {
                 ID = "V9J_SPELL_LAND", CardName = "法术地", Supertype = Cardtype.Spell,
-                Cost = PosCost((ManaType.Blue, 2)),
+            };
+            spellLandData.Effects.Add(new CardEffectData
+            {
+                Id = "V9J_SL_EFF",
+                TriggerTiming = (int)TriggerTiming.OnPlay,
+                AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.DrawCard, value: 1) }, // 蓝2
             });
+            var spellLand = JToHand(j1, spellLandData);
             VerifySuite.Assert(jcore.ElementPool.AddCardToPool(spellLand, j1), "法术可作地牌（2026-10-03 新资格）");
             // 地牌槽上限按全局回合同步涨（2026-10-15：此刻全局 3=上限 3，已占 2）——再推进一轮余位更足
             GameActions.EndTurn(jcore, j1);
@@ -1543,11 +1561,18 @@ namespace TideServer.Verify
             GameActions.EndTurn(jcore, j2);
             jcore.TurnEngine.CheckPhaseTransition();
             GameActions.SkipElementPool(jcore, j1);
-            var enchLand = JToHand(j1, new CardData
+            var enchLandData = new CardData
             {
                 ID = "V9J_ENCH_LAND", CardName = "结界地", Supertype = Cardtype.Enchantment,
-                Cost = PosCost((ManaType.Green, 2)), // 黑白不产指示物（既有定案）——用可产色
+            };
+            enchLandData.Effects.Add(new CardEffectData
+            {
+                Id = "V9J_EL_EFF",
+                TriggerTiming = (int)TriggerTiming.OnPlay,
+                // Heal2=绿1（可产色——黑白不由地牌产出，用绿色锁色候选）
+                AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.Heal, value: 2) },
             });
+            var enchLand = JToHand(j1, enchLandData);
             VerifySuite.Assert(jcore.ElementPool.AddCardToPool(enchLand, j1), "结界可作地牌（2026-10-03 新资格）");
 
             // ============================ V9.k 计价双方减半 + 错边收缩（2026-10-03 定案） ============================
@@ -1770,11 +1795,13 @@ namespace TideServer.Verify
             // 灰链可由黑白红蓝绿垫（清空其余钱包色，只留绿 3——绿先付绿费 1、余 2 垫不齐灰 3 → 拒付）
             lcore.ElementPool.GetPool(l1).GlobalTurnIndex = 0;
             foreach (ManaType t in Enum.GetValues(typeof(ManaType))) lbank[t] = 0;
-            lbank[ManaType.Green] = 3;
+            // 恒推导（2026-10-22）：本卡推导费=灰3+黑2（3/3 身材灰3 + Sleep0 灰时长锚=黑2）。
+            // 钱包只给黑2：本色直付黑2 后无余量垫灰3 → 未立约拒付；立约豁免灰3 → 恰可付。
+            lbank[ManaType.Black] = 2;
             var awakenData = new CardData
             {
                 ID = "V9L_AWAKEN", CardName = "V9L苏醒者", Supertype = Cardtype.Creature, Power = 3, Life = 3,
-                Cost = PosCost((ManaType.Gray, 3), (ManaType.Green, 1)),
+                Cost = PosCost((ManaType.Gray, 3), (ManaType.Green, 1)), // 陈旧快照（显示缓存）——不参与支付
             };
             awakenData.Effects.Add(new CardEffectData
             {
@@ -1789,14 +1816,15 @@ namespace TideServer.Verify
             var awakenCard = LToHand(l1, awakenData);
             VerifySuite.Assert(!GameActions.PlayCard(lcore, l1, awakenCard, null, Zone.Hand, 0, out var rejectL3)
                               && rejectL3 != null,
-                $"灰不足未立约：无法使用（{rejectL3}——旧「使用时生效」死循环根源锚）");
+                $"灰黑付不齐未立约：无法使用（{rejectL3}——黑2 已尽本色、灰3 无垫；旧「使用时生效」死循环根源锚）");
             VerifySuite.Assert(GameActions.CommitAwaken(lcore, l1, awakenCard, out var rejectL4),
                 $"手牌立约（拒绝原因：{rejectL4 ?? "无"}）");
             VerifySuite.Assert(GameActions.PlayCard(lcore, l1, awakenCard),
-                "灰不足立约后：成功使用（灰份全免转时长，1 绿 ≤ 浓度上限）");
+                "灰不足立约后：成功使用（推导灰3 全免转时长 3 层、黑2 本色照付——支付不受浓度钳）");
             GameActions.DrainStack(lcore);
-            VerifySuite.Assert(lbank[ManaType.Gray] == 0 && awakenCard.GetCounterCount(KeywordRules.SleepCounter) == 3,
-                $"立约结算：灰仍为 0、沉睡 3 层（实际层 {awakenCard.GetCounterCount(KeywordRules.SleepCounter)}）");
+            VerifySuite.Assert(lbank[ManaType.Gray] == 0 && lbank[ManaType.Black] == 0
+                              && awakenCard.GetCounterCount(KeywordRules.SleepCounter) == 3,
+                $"立约结算：灰仍 0、黑付讫、沉睡 3 层=推导灰（实际层 {awakenCard.GetCounterCount(KeywordRules.SleepCounter)}）");
 
             // ---- ④ 临时指示物化（2026-10-10 回响改版；2026-10-12 生效自减改稿）：复制体带 1 层；
             //      回合末不在战场→从游戏中移除、在战场→不生效不倒数（层保留，转正退役） ----
@@ -2211,7 +2239,9 @@ namespace TideServer.Verify
             // ---- ⑧ 先扣卡费·支付失败（2026-10-16 恢复 10-04 旧序——10-11「补偿先付垫本卡」回调退役）：
             //      窗口内池恶化 → 卡费付不出入墓不回卷，代价未执行、无补偿入账 ----
             var orderCardData = new CardData { ID = "V9N_ORDER", CardName = "V9n顺序代价卡", Supertype = Cardtype.Spell };
-            orderCardData.Cost = ElementCost.FromValue(ManaType.Black, 3);
+            // 恒推导（2026-10-22）：无内容法术推导为 0 费（旧手填黑3 不再参与支付）——黑费用经
+            // 关键词入价：GrantLifesteal 行 ManaList=黑3，法术无身材 → 恰推导黑3（本色只黑付）。
+            orderCardData.Keywords = new List<string> { "Lifesteal" };
             orderCardData.PayloadCost = new CostEntry { CostType = (int)CostType.Payload, Value = 1, payload = smallPayload };
             var orderCard = new CardWrapper(orderCardData);
             orderCard.SetController(n1);
@@ -2231,7 +2261,8 @@ namespace TideServer.Verify
 
             // ---- ⑨ 声明期不预计算代价垫色（2026-10-16 恢复旧序——垫色 seed 退役）：池差=补偿量 → 拒发留手 ----
             var affordCardData = new CardData { ID = "V9N_AFFORD", CardName = "V9n余量代价卡", Supertype = Cardtype.Spell };
-            affordCardData.Cost = ElementCost.FromValue(ManaType.Black, 3);
+            // 恒推导：同⑧——Lifesteal 关键词推导黑3（卡费黑3 与将生成的黑同色，垫色口径可观测）
+            affordCardData.Keywords = new List<string> { "Lifesteal" };
             affordCardData.PayloadCost = new CostEntry { CostType = (int)CostType.Payload, Value = 1, payload = smallPayload };
             var affordCard = new CardWrapper(affordCardData);
             affordCard.SetController(n1);
@@ -2318,11 +2349,13 @@ namespace TideServer.Verify
                 List<int> kinds = null)
             {
                 var data = new CardData { ID = id, CardName = name, Supertype = Cardtype.Spell };
-                data.Cost = PosCost((ManaType.Gray, 1));
+                data.Cost = PosCost((ManaType.Gray, 1)); // 陈旧快照（恒推导不读）——防御性保留
                 data.Effects.Add(new CardEffectData
                 {
                     Id = id + "_EFF",
-                    TriggerTiming = (int)TriggerTiming.OnPlay,
+                    // 法术正形=主动效果（2026-10-15 改版）：不进 E 桶，锚价施放现付（恒推导下
+                    // OnPlay 档会卡面费+锚价双重计费——旧夹具靠手填灰1 快照绕过，已不可复现）
+                    TriggerTiming = (int)TriggerTiming.Activate_Active,
                     BaseSpeed = baseSpeed,
                     SelectionMode = -1,
                     AtomicEffects = new List<AtomicEffectEntry>
@@ -2358,15 +2391,17 @@ namespace TideServer.Verify
             var fbB = OSpell("V9O_FB_B", "V9o火球B", 0, ddRowO, o1, new List<int> { 1, 2 });
             var neCard = OSpell("V9O_NE", "V9o效果无效", 2, neRow, o2);
             int o1GrayB = opool.TempElements[ManaType.Gray];
+            int o1RedB = opool.TempElements[ManaType.Red]; // 恒推导：火球B（DD1）推导费=红1——灰快照不参与
             VerifySuite.Assert(GameActions.PlayCard(qcore, o1, fbB, new List<Entity> { o2 }), "② 火球B打出");
             VerifySuite.Assert(GameActions.PlayCardInResponse(qcore, o2, neCard, new List<Entity> { fbB }),
                 "② 响应窗口内打出效果无效");
             GameActions.DrainStack(qcore);
             if (!qcore.StackEngine.IsEmpty) qcore.StackEngine.Clear();
             VerifySuite.Assert(o2.Life == o2LifeA
-                              && opool.TempElements[ManaType.Gray] == o1GrayB - 1
+                              && opool.TempElements[ManaType.Red] == o1RedB - 1
+                              && opool.TempElements[ManaType.Gray] == o1GrayB
                               && qcore.ZoneManager.GetCards(o1, Zone.Graveyard).Contains(fbB),
-                $"② 效果无效=扣费照付：无伤害、费用实扣不返还（灰 {o1GrayB}→{opool.TempElements[ManaType.Gray]}）、卡入墓");
+                $"② 效果无效=扣费照付：无伤害、费用实扣不返还（红 {o1RedB}→{opool.TempElements[ManaType.Red]}、灰 {o1GrayB} 不动）、卡入墓");
 
             // ---- ③ 触发式计数口径：发动无效不计发动次数（记账退还）/ 效果无效计入（记账保留） ----
             var executor = qcore.StackEngine.GetExecutor();

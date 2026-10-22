@@ -17,7 +17,8 @@ namespace CardCore.Editor.Tests
     /// · 卡组 → DeckSerializer.Save 落 StreamingAssets/Card/&lt;name&gt;.json（DeckData=卡 ID 引用数组）。
     /// 幂等：主题卡全部带 Theme* 标签——重跑先剔除旧主题卡再写新（改设计不残留旧卡）；
     /// 内容哈希 ID 天然按功能去重。构筑合规：原子全用表行 refId 引用、内容契约（错边只进代价栏、
-    /// 代价 ≤1 费）、声明费缺省走 EnsureCost 建议档（规则一 D≤C 由全表巡检验证）。
+    /// 代价 ≤1 费）、费用恒推导（2026-10-22 定案——设计只选原子/身材/关键词，费用是算出来的；
+    /// EnsureCost 刷新显示缓存，规则一 D≤Ĉ 由全表巡检验证）。
     /// </summary>
     public static class ThemeDeckBuilder
     {
@@ -39,11 +40,10 @@ namespace CardCore.Editor.Tests
             var green = BuildGreenDeck();
             var blue = BuildBlueDeck();
 
-            // ---- 1) 逐卡建议费（EnsureCost 写 ID/Cost；内容身份哈希同管线建立）----
+            // ---- 1) 逐卡推导费刷新（EnsureCost 写 ID/费用显示缓存；内容身份哈希同管线建立）----
             foreach (var c in red.Concat(green).Concat(blue))
             {
-                c.Cost = null; // 建议档口径（声明优先惯例不适用于构建器——重跑以最新推导为准）
-                CardCostService.EnsureCost(c);
+                CardCostService.EnsureCost(c); // 恒推导：重跑即最新推导价（存档快照无声明语义）
             }
 
             // ---- 2) 衍生物模板占位 → 真实卡 ID（C_+HashCard，与 CardConfigSerializer.ToEntry 同源）----

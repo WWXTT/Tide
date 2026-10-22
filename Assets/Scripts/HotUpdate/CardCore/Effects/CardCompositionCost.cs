@@ -34,7 +34,7 @@ namespace CardCore
     /// ⑤衍生物无底盘（CardCostService.ContentPriceOf/ByColor 口径）：未走「入组/抽牌」通道，
     ///   结构费全额计（攻/守/槽全算）、无免费点可支配——见 CostDerivation SummonToken 分支。
     ///
-    /// 应用点：CardCostService.Derive/DeriveModeCosts/BuildCostAtTier 统一附加；
+    /// 应用点：CardCostService.Derive/DeriveModeCosts 统一附加；
     /// 运行时消费口：GameActions（法术提速）/ EffectExecutionEngine（结界发动费抵扣）/
     /// EquipRules·HeroSkillSystem（结界耐久 +N）。
     /// 参数见 ValueSystemRuntimeConfig.CardCompositionConfig（表 Category=CardComposition）。

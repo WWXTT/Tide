@@ -63,7 +63,7 @@ TEXTURE2D_X(_GBuffer1);
 TEXTURE2D_X(_GBuffer2);
 // Optional gbuffer, accroding to UnityGBuffer.hlsl defined
 #ifdef GBUFFER_OPTIONAL_SLOT_1
-TEXTURE2D_X(_GBuffer4);
+TYPED_TEXTURE2D_X(uint4, _GBuffer4);
 #endif
 #ifdef GBUFFER_OPTIONAL_SLOT_2
 TEXTURE2D_X(_GBuffer5);
@@ -306,8 +306,8 @@ ShadingData DecodeShadingDataFromGBuffer(PositionInputs posInput)
     shadingData.fresnel0            = ComputeFresnel0(shadingData.albedo, shadingData.metallic, DEFAULT_SPECULAR_VALUE);
 
 #ifdef _LIGHT_LAYERS
-    float4 renderingLayers = LOAD_TEXTURE2D_X(MERGE_NAME(_, GBUFFER_LIGHT_LAYERS), posInput.positionSS);
-    shadingData.meshRenderingLayers = DecodeMeshRenderingLayer(renderingLayers.r);
+    uint4 renderingLayers = LOAD_TEXTURE2D_X(MERGE_NAME(_, GBUFFER_LIGHT_LAYERS), posInput.positionSS);
+    shadingData.meshRenderingLayers = renderingLayers.x;
 #endif
 
     return shadingData;

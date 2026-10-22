@@ -14,7 +14,8 @@ namespace SynergyUI
     /// 仅统计构成与断链（玩家自构筑多色卡组不受限）。
     ///
     /// 费用两层口径（与 2026-10-15 教学卡组人工复查同源）：
-    /// ① 出牌费 card.Cost——EnsureCost 已烘焙身材灰桶/关键词 K/效果锚价 E/代价栏，全量在此；
+    /// ① 出牌费 card.Cost——EnsureCost 已刷新为推导费（恒推导定案：身材灰桶/关键词 K/效果锚价 E/
+    ///    代价槽费烘焙后的推导分布，全量在此）；
     /// ② 主动效果的运行时锚价（CostDerivationService.DeriveElementCosts）——构筑期不占
     ///    卡费、发动时现付（CardCostService.E 桶跳过项），须单独检测。
     /// 断链（cardIds 在 Cards.json 无此 ID）单列——主题卡组重建期 0/30 断链的历史坑。

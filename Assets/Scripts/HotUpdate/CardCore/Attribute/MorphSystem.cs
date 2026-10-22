@@ -74,7 +74,7 @@ namespace CardCore.Attribute
             // 深克隆目标形态（TideJson 往返——回响复制同款先例；不与目标共享任何可变引用）
             var clone = TideJson.FromJson<CardData>(TideJson.ToJson(form));
             if (clone == null) return false;
-            CardCostService.EnsureCost(clone); // 直构 CardData 缺 costList 时补建议档位
+            CardCostService.EnsureCost(clone); // 直构克隆走统一计价口：刷新推导费显示缓存（恒推导定案）
             int surcharge = Math.Max(0, (int)(clone.Cost?.Total ?? 0f) - (int)((self as IHasCost)?.Cost?.Total ?? 0f));
 
             // 快照原形态与状态（纯回滚数据源——含横置态与原文本效果）

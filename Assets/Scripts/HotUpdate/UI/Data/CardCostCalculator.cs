@@ -30,20 +30,20 @@ namespace SynergyUI
             /// <summary>推导价 D_total（逐色取整后总和）。</summary>
             public float Total;
 
-            /// <summary>档位：声明优先，未声明取建议 Ĉ。</summary>
+            /// <summary>档位=推导档 Ĉ（round(S+E+K) 所在档——f=d(Ĉ) 的输入；恒推导，无声明）。</summary>
             public int ManaCost;
 
-            /// <summary>规则一缺口 Req = max(0, D_total − C_total)（2026-09-11 简化：D≤C 直判，无当量抵扣）。</summary>
+            /// <summary>规则一缺口 Req = max(0, D_total − Ĉ)（2026-09-11 简化：D≤Ĉ 直判，无当量抵扣）。</summary>
             public int OffsetRequirement;
 
             /// <summary>黑白元素获得（错边原子转化；结算时发放，封顶地牌上限）。键=枚举 int。</summary>
             public Dictionary<int, int> Grants = new Dictionary<int, int>();
 
-            /// <summary>建议采纳的费用分布（2026-10-04 位置数组；已有声明时回显当前声明构成）。</summary>
+            /// <summary>推导费用分布（=DerivedCost；2026-10-22 恒推导定案起无声明回显分支）。</summary>
             public ElementCost CostDict = new ElementCost();
 
-            /// <summary>纯内容推导的建议分布（2026-10-16 自动算费直写定案）：不受已声明费用影响——
-            /// 卡组合界面费用恒取本值回写 _card.Cost（手动声明/采纳已退役），DeclaredTier 分支不参与。</summary>
+            /// <summary>纯内容推导分布（=DerivedCost；2026-10-16 自动算费直写定案沿用）——
+            /// 卡组合界面费用恒取本值回写 _card.Cost。</summary>
             public ElementCost SuggestedCost = new ElementCost();
 
             public readonly List<BreakdownLine> Breakdown = new List<BreakdownLine>();
@@ -55,13 +55,11 @@ namespace SynergyUI
             var result = new Result
             {
                 Total = r.DerivedTotal,
-                ManaCost = r.DeclaredTier > 0 ? r.DeclaredTier : r.SuggestedTier,
+                ManaCost = r.DerivedTier,
                 OffsetRequirement = r.OffsetRequirement,
                 Grants = r.Grants.ToColorDictInt().ToDictionary(kv => (int)kv.Key, kv => kv.Value),
-                CostDict = r.DeclaredTier > 0 && card != null && card.Cost != null && !card.Cost.IsZero
-                    ? card.Cost.Clone()
-                    : r.SuggestedCost.Clone(),
-                SuggestedCost = r.SuggestedCost.Clone(),
+                CostDict = r.DerivedCost.Clone(),
+                SuggestedCost = r.DerivedCost.Clone(),
             };
 
             foreach (var line in r.Breakdown)

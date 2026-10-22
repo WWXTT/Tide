@@ -34,6 +34,13 @@ struct GBufferFragOutput
 #undef DECL_SV_TARGET
 #undef DECL_OPT_GBUFFER_TARGET
 
+// DanbaidongRP fork derivative: 17.5 original lacks the baked-GI material flag the fork
+// deferred lighting reads; packed below when LIGHTMAP_ON. Guarded in case UnityGBuffer.hlsl
+// (which defines the same flag) is also in the include chain.
+#ifndef kMaterialFlagUseBakedGI
+#define kMaterialFlagUseBakedGI 16 // The geometry uses baked GlobalIllumination, skip env ambient in deferred lighting
+#endif
+
 // Pack SurfaceData into GBuffers.
 GBufferFragOutput PackGBuffersSurfaceData(SurfaceData surfaceData, InputData inputData, half3 globalIllumination)
 {
@@ -49,6 +56,10 @@ GBufferFragOutput PackGBuffersSurfaceData(SurfaceData surfaceData, InputData inp
 
     #if defined(LIGHTMAP_ON) && defined(_MIXED_LIGHTING_SUBTRACTIVE)
     materialFlags |= kMaterialFlagSubtractiveMixedLighting;
+    #endif
+
+    #if defined(LIGHTMAP_ON)
+    materialFlags |= kMaterialFlagUseBakedGI;
     #endif
 
     GBufferFragOutput output;
@@ -103,6 +114,10 @@ GBufferFragOutput PackGBuffersBRDFData(BRDFData brdfData, InputData inputData, h
 
     #if defined(LIGHTMAP_ON) && defined(_MIXED_LIGHTING_SUBTRACTIVE)
     materialFlags |= kMaterialFlagSubtractiveMixedLighting;
+    #endif
+
+    #if defined(LIGHTMAP_ON)
+    materialFlags |= kMaterialFlagUseBakedGI;
     #endif
 
     GBufferFragOutput output;

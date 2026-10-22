@@ -79,14 +79,22 @@ namespace CardCore
 
         /// <summary>
         /// 费用（2026-10-04 位置数组定案：ElementCost，下标=ManaType 枚举序号 [灰,红,蓝,绿,白,黑]；
-        /// 落盘 _costJson = 位置数组 JSON，如 "[0,3,0,0,0,0]"）
+        /// 落盘 _costJson = 位置数组 JSON，如 "[0,3,0,0,0,0]"）。
+        /// 2026-10-22 恒推导定案：本字段降级为**显示缓存**——运行时支付价恒经 CardCostService 推导
+        ///（GetRuntimeCost），装载时由 EnsureCost 刷新为推导值（抉择卡=最大模式费）；
+        /// 编辑器对存档值与推导不一致仅告警，不参与运行时。
         /// </summary>
         [TideSerialized]
         private string _costJson;
         public ElementCost Cost { get; set; } = new ElementCost();
 
+        // 非抉择卡整卡推导费缓存（2026-10-22 恒推导定案）：CardCostService.GetRuntimeCost 写入/读取
+        //（AI 枚举等高频口记忆化，ResetCache 失效）；抉择卡走 ModeCostCache，本缓存不用。
+        [NonSerialized]
+        internal ElementCost DerivedCostCache;
+
         // 抉择（Choice）per-mode 费用缓存（2026-09-07 定案）：构筑/装载期由 CardCostService.DeriveModeCosts
-        // 推导写入（发动时只读取不重推导）；声明 Cost 为最大模式费（地牌/素材/UI 消费面口径）。
+        // 推导写入（发动时只读取不重推导）；Cost 显示缓存=最大模式费（地牌锁色/UI/排序消费面口径）。
         [NonSerialized]
         internal List<ElementCost> ModeCostCache;
 
@@ -363,6 +371,7 @@ namespace CardCore
         {
             _totalCost = -1;
             _hasActiveEffect = null;
+            DerivedCostCache = null; // 整卡推导费随内容/配置失效（下次 GetRuntimeCost/EnsureCost 重推导）
             ModeCostCache = null; // 抉择 per-mode 费用随配置失效（下次构筑期重推导）
             SelfSleepEffectCache = null; // 自我沉睡判定随效果数据失效（2026-09-11）
         }
@@ -751,7 +760,8 @@ namespace CardCore
             else
                 (this as IHasPower).Power = 0;
 
-            // 设置费用（前先做统一计价兜底：直构 CardData（验证器/合成卡）无 costList 时补建议档位）
+            // 设置费用（前先走统一计价口：EnsureCost 刷新推导费显示缓存——直构（验证器/合成卡）与
+            // 装载路径同管线；运行时支付价经 CardCostService.GetRuntimeCost 恒推导，不读本字段）
             CardCostService.EnsureCost(data);
             (this as IHasCost).Cost = data.Cost;
 

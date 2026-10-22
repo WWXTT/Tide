@@ -32,17 +32,22 @@
         #define GBUFFER_LIGHT_LAYERS GBuffer5
     #endif //#if OUTPUT_SHADOWMASK && defined(_WRITE_RENDERING_LAYERS)
 #else
-    #define GBUFFER_OPTIONAL_SLOT_1_TYPE float4
+    // Rendering-layers slot (GBuffer4) is uint-encoded (17.5 alignment, RT is R8_UInt).
+    // When that slot carries the shadow mask instead it must stay float4, hence the
+    // per-branch type below: uint and float4 are mutually exclusive on SV_Target4.
     #if OUTPUT_SHADOWMASK && (defined(_WRITE_RENDERING_LAYERS) || defined(_LIGHT_LAYERS))
         #define GBUFFER_OPTIONAL_SLOT_1 GBuffer4
+        #define GBUFFER_OPTIONAL_SLOT_1_TYPE uint
         #define GBUFFER_OPTIONAL_SLOT_2 GBuffer5
         #define GBUFFER_LIGHT_LAYERS GBuffer4
         #define GBUFFER_SHADOWMASK GBuffer5
     #elif OUTPUT_SHADOWMASK
         #define GBUFFER_OPTIONAL_SLOT_1 GBuffer4
+        #define GBUFFER_OPTIONAL_SLOT_1_TYPE float4
         #define GBUFFER_SHADOWMASK GBuffer4
     #elif (defined(_WRITE_RENDERING_LAYERS) || defined(_LIGHT_LAYERS))
         #define GBUFFER_OPTIONAL_SLOT_1 GBuffer4
+        #define GBUFFER_OPTIONAL_SLOT_1_TYPE uint
         #define GBUFFER_LIGHT_LAYERS GBuffer4
     #endif //#if OUTPUT_SHADOWMASK && defined(_WRITE_RENDERING_LAYERS)
 #endif //#if _RENDER_PASS_ENABLED
@@ -151,8 +156,7 @@ FragmentOutput SurfaceDataToGbuffer(SurfaceData surfaceData, InputData inputData
     output.GBUFFER_SHADOWMASK = inputData.shadowMask; // will have unity_ProbesOcclusion value if subtractive lighting is used (baked)
     #endif
     #ifdef _WRITE_RENDERING_LAYERS
-    uint renderingLayers = GetMeshRenderingLayer();
-    output.GBUFFER_LIGHT_LAYERS = float4(EncodeMeshRenderingLayer(renderingLayers), 0.0, 0.0, 0.0);
+    output.GBUFFER_LIGHT_LAYERS = EncodeMeshRenderingLayer();
     #endif
 
     return output;
@@ -228,8 +232,7 @@ FragmentOutput BRDFDataToGbuffer(BRDFData brdfData, InputData inputData, float s
     output.GBUFFER_SHADOWMASK = inputData.shadowMask; // will have unity_ProbesOcclusion value if subtractive lighting is used (baked)
     #endif
     #ifdef _WRITE_RENDERING_LAYERS
-    uint renderingLayers = GetMeshRenderingLayer();
-    output.GBUFFER_LIGHT_LAYERS = float4(EncodeMeshRenderingLayer(renderingLayers), 0.0, 0.0, 0.0);
+    output.GBUFFER_LIGHT_LAYERS = EncodeMeshRenderingLayer();
     #endif
 
     return output;

@@ -1431,17 +1431,17 @@ namespace CardCore
         /// 法术（2026-10-15 深夜三类卡改版）：出牌费不含效果锚价——真实施放账单=卡面费+所选效果锚价，
         /// 本口单源并入（预检 CanAffordCast / cast 结算扣费 / pending 承诺 / AI 动作特征 / UI 费用预览全消费）；
         /// modeIndex=施放时抉择的效果序号（>1 效果弹窗三选一，单效果=0）。
+        /// 2026-10-22 恒推导定案：基价恒走 CardCostService 推导（GetRuntimeCost）——存档 costList 仅为
+        /// 显示缓存不参与支付；调原子表 BaseCost 后全表即时变价，无「上次推导快照」延迟。
         /// </summary>
         public static ElementCost GetCardCost(Card card, int modeIndex = 0)
         {
             ElementCost cost;
             var data = card is CardCore.CardWrapper wrapper ? wrapper.GetData() : null;
-            if (data != null && CostDerivationService.HasChoiceEffect(data))
-                cost = CardCostService.GetModeCost(data, modeIndex); // 抉择：按所选模式（副本，指示物层叠加不污染缓存）
-            else if (card is IHasCost hasCost && hasCost.Cost != null)
-                cost = hasCost.Cost.Clone();
+            if (data != null)
+                cost = CardCostService.GetRuntimeCost(data, modeIndex); // 恒推导（抉择=所选模式；副本供指示物层叠加）
             else
-                cost = ElementCost.FromValue(ManaType.Gray, 1); // 默认费用：灰色1点
+                cost = ElementCost.FromValue(ManaType.Gray, 1); // 防御默认：无卡数据按灰1（正常链路不达）
 
             // 法术锚价并入（改版定案：发动按效果费用支付，无额外费用——见 SpellCastAnchor）
             if (data != null && data.Supertype == Cardtype.Spell)
@@ -1464,7 +1464,7 @@ namespace CardCore
             //（card.AwakenCommitted——预立约）才豁免——灰份额转沉睡时长（暂存 card.PendingSleepGray，
             // 入场 Sleep 原子消费为沉睡指示物数）。未发动=照常全价（修复旧「使用时生效」死循环：
             // 付不起→用不出→无减免——现在穷时先在手牌立约，再以减免价施放）。
-            // 预检/付费/pending/UI 均经本口——全消费面同口径；卡面声明 Cost 不动（地牌/素材口径照旧）。
+            // 预检/付费/pending/UI 均经本口——全消费面同口径（恒推导定案：存档 costList 不参与）。
             if (data != null && card.AwakenCommitted && HasSelfSleepEffect(data))
             {
                 int waived = (int)cost[ManaType.Gray];
