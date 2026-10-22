@@ -1,0 +1,30 @@
+{
+  "task": "card-textpanel-paper",
+  "style": "cosmic-parchment",
+  "seed": 20261011,
+  "variants": 3,
+  "note": "2026-10-11 v4：去炉石权重、纸张材质加权 1.4、边缘维持鎏金（v3 见 _r1_hearthstone 归档）",
+  "items": [
+    {
+      "id": "panel_effect_paper",
+      "type": "plaque_paper",
+      "w": 1280,
+      "h": 731,
+      "exact": true,
+      "exact_base": 512,
+      "note": "效果文字板·纸面版 → 512x296",
+      "prompt_addon": "blank card effect text panel, horizontal rectangular plaque, thick carved antique gold metal border on the rim, (aged parchment paper texture interior:1.4), warm vellum material, subtle paper grain, readable quiet surface for effect text, no text"
+    },
+    {
+      "id": "banner_name_paper",
+      "type": "plaque_paper",
+      "w": 1383,
+      "h": 576,
+      "exact": true,
+      "exact_base": 512,
+      "corner": 0.3,
+      "note": "卡名板·纸面版（cartouche 圆角档）→ 512x216",
+      "prompt_addon": "blank card name title banner, elongated horizontal cartouche, thick carved antique gold metal border on the rim, (aged parchment paper texture interior:1.4), warm vellum material, subtle paper grain, clean empty middle for card name, no text"
+    }
+  ]
+}

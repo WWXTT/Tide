@@ -1,0 +1,40 @@
+{
+  "task": "card-artframe-metal-starry",
+  "style": "metal-starry-hollow",
+  "seed": 20261011,
+  "variants": 2,
+  "note": "2026-10-11 深夜：三卡框重做（anything-v5 × Space_sdxl@0.6 尾挂）——金属主体+星空点缀（新风格 metal-starry-hollow 主客反转）；三框几何语料逐字复用已验收 v2 配方（结界圆/法术倒三角锐角/生物方锐角、纯黑中心后期抠透明、Hearthstone 权重 1.3）；星空点缀语料只挂 metal 上；denoise --scan 0.70/0.75=SD1.5 当日实测风格化带（旧 SDXL 档不迁移）",
+  "items": [
+    {
+      "id": "frame_ring",
+      "type": "frame_ring",
+      "w": 976,
+      "h": 976,
+      "exact": true,
+      "exact_base": 512,
+      "prompt_addon": "game card hollow illustration frame, perfect circular hollow frame, round ring border, smooth continuous curve, hollow empty center, cutout center, frame only, no center artwork, pure black empty center for masking, thick wide border, double-layered frame, (Hearthstone-style ornate fantasy card frame:1.3), chunky carved antique gold metal frame as the main body, gemstone inlays, embossed gold patterns, luminous gold accents, sparse stardust and tiny star inlays scattered on the metal frame only, slightly stylized but geometrically accurate, sharp crisp outer contour, clean geometric silhouette, defined boundary, high contrast rim light, subtle wear, chipped gold paint, <lora:Space_sdxl:0.6>",
+      "note": "结界·圆形镂空插画框 → 512x512"
+    },
+    {
+      "id": "frame_tri_inv",
+      "type": "frame_tri_inv",
+      "w": 976,
+      "h": 976,
+      "exact": true,
+      "exact_base": 512,
+      "prompt_addon": "game card hollow illustration frame, perfect inverted equilateral triangle hollow frame, downward-pointing triangle border, sharp triangular points, straight edges, hollow empty center, cutout center, frame only, no center artwork, pure black empty center for masking, thick wide border, double-layered frame, (Hearthstone-style ornate fantasy card frame:1.3), chunky carved antique gold metal frame as the main body, gemstone inlays, embossed gold patterns, luminous gold accents, sparse stardust and tiny star inlays scattered on the metal frame only, slightly stylized but geometrically accurate, sharp crisp outer contour, clean geometric silhouette, defined boundary, high contrast rim light, subtle wear, chipped gold paint, <lora:Space_sdxl:0.6>",
+      "note": "法术·倒等边三角镂空插画框 → 512x512"
+    },
+    {
+      "id": "frame_square",
+      "type": "frame_square",
+      "w": 976,
+      "h": 976,
+      "exact": true,
+      "exact_base": 512,
+      "corner": 0,
+      "prompt_addon": "game card hollow illustration frame, perfect square hollow frame, right-angle square border, sharp 90-degree corners, straight edges, hollow empty center, cutout center, frame only, no center artwork, pure black empty center for masking, thick wide border, double-layered frame, (Hearthstone-style ornate fantasy card frame:1.3), chunky carved antique gold metal frame as the main body, gemstone inlays, embossed gold patterns, luminous gold accents, sparse stardust and tiny star inlays scattered on the metal frame only, slightly stylized but geometrically accurate, sharp crisp outer contour, clean geometric silhouette, defined boundary, high contrast rim light, subtle wear, chipped gold paint, <lora:Space_sdxl:0.6>",
+      "note": "生物·方形镂空插画框（corner 0=锐角 90°）→ 512x512"
+    }
+  ]
+}

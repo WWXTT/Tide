@@ -1,0 +1,14 @@
+{
+  "task": "cardstyle-spell-silver",
+  "style": "silver-crimson",
+  "server": "http://127.0.0.1:7860",
+  "variants": 3,
+  "items": [
+    { "id": "spell-frame",  "type": "card",        "w": 400, "h": 600, "exact": true,
+      "prompt_addon": "trading card game spell card frame, vertical 2:3, large art window in upper half, wide plain strip at bottom reserved for effect text, elegant restrained filigree on border only",
+      "note": "法术卡框·实底模板 400x600 (2:3)" },
+    { "id": "spell-hollow", "type": "card_hollow", "w": 400, "h": 600, "exact": true,
+      "prompt_addon": "trading card game spell card frame, vertical 2:3, large art window in upper half, wide plain strip at bottom reserved for effect text, elegant restrained filigree on border only",
+      "note": "法术卡框·空心边框模板 400x600 (2:3)" }
+  ]
+}

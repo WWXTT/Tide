@@ -1,0 +1,86 @@
+{
+  "task": "elem-glyphs6-r5",
+  "style": "elem-line",
+  "server": "http://127.0.0.1:7860",
+  "variants": 5,
+  "items": [
+    {
+      "id": "elem_red_huo",
+      "type": "elem_glyph",
+      "glyph": "huo",
+      "w": 256, "h": 256,
+      "denoise": 0.75,
+      "tint_bg": [10, 10, 20],
+      "tint_face": [150, 64, 52],
+      "tint_edge": [232, 82, 82],
+      "prompt_addon": "(an ancient oracle bone script glyph rendered as glowing calligraphic strokes:1.4), single archaic character meaning fire, warm red luminous stroke, (ethereal misty glow, soft diffused edges:1.2)",
+      "negative_addon": "realistic flame, fire, burning, multiple characters, extra glyphs, bone artifact, tortoise shell, carved bone surface, photorealistic, sharp focus, filled shape",
+      "note": "红·甲骨「火」"
+    },
+    {
+      "id": "elem_blue_shui",
+      "type": "elem_glyph",
+      "glyph": "shui",
+      "w": 256, "h": 256,
+      "denoise": 0.75,
+      "tint_bg": [10, 10, 20],
+      "tint_face": [64, 96, 150],
+      "tint_edge": [84, 138, 242],
+      "prompt_addon": "(an ancient oracle bone script glyph rendered as glowing calligraphic strokes:1.4), single archaic character meaning water, cool blue luminous stroke, (ethereal misty glow, soft diffused edges:1.2)",
+      "negative_addon": "realistic water, splashes, droplets, ripples, multiple characters, extra glyphs, bone artifact, tortoise shell, carved bone surface, photorealistic, sharp focus, filled shape",
+      "note": "蓝·甲骨「水」"
+    },
+    {
+      "id": "elem_green_mu",
+      "type": "elem_glyph",
+      "glyph": "mu",
+      "w": 256, "h": 256,
+      "denoise": 0.75,
+      "tint_bg": [10, 10, 20],
+      "tint_face": [56, 120, 78],
+      "tint_edge": [74, 200, 108],
+      "prompt_addon": "(an ancient oracle bone script glyph rendered as glowing calligraphic strokes:1.4), single archaic character meaning wood tree, fresh green luminous stroke, (ethereal misty glow, soft diffused edges:1.2)",
+      "negative_addon": "realistic tree, botanical illustration, detailed leaves, branches, multiple characters, extra glyphs, bone artifact, tortoise shell, carved bone surface, photorealistic, sharp focus, filled shape",
+      "note": "绿·甲骨「木」"
+    },
+    {
+      "id": "elem_white_ri",
+      "type": "elem_glyph",
+      "glyph": "ri",
+      "w": 256, "h": 256,
+      "denoise": 0.75,
+      "tint_bg": [10, 10, 20],
+      "tint_face": [214, 182, 124],
+      "tint_edge": [240, 243, 248],
+      "prompt_addon": "(an ancient oracle bone script glyph rendered as glowing calligraphic strokes:1.4), single archaic character meaning sun, warm white-gold luminous stroke, (ethereal misty glow, soft diffused edges:1.2)",
+      "negative_addon": "realistic sun, solar flares, sunlight rays scene, multiple characters, extra glyphs, bone artifact, tortoise shell, carved bone surface, photorealistic, sharp focus, filled shape",
+      "note": "白·甲骨「日」"
+    },
+    {
+      "id": "elem_black_yue",
+      "type": "elem_glyph",
+      "glyph": "yue",
+      "w": 256, "h": 256,
+      "denoise": 0.75,
+      "tint_bg": [10, 10, 20],
+      "tint_face": [122, 112, 162],
+      "tint_edge": [22, 20, 34],
+      "prompt_addon": "(an ancient oracle bone script glyph rendered as glowing calligraphic strokes:1.4), single archaic character meaning moon, dark void stroke with pale indigo rim glow, (ethereal misty glow, soft diffused edges:1.2)",
+      "negative_addon": "realistic moon, lunar surface, night sky scene, multiple characters, extra glyphs, bone artifact, tortoise shell, carved bone surface, photorealistic, sharp focus, filled silhouette",
+      "note": "黑·甲骨「月」"
+    },
+    {
+      "id": "elem_gray_xing",
+      "type": "elem_glyph",
+      "glyph": "xing",
+      "w": 256, "h": 256,
+      "denoise": 0.75,
+      "tint_bg": [10, 10, 20],
+      "tint_face": [96, 100, 116],
+      "tint_edge": [148, 154, 166],
+      "prompt_addon": "(an ancient oracle bone script glyph rendered as glowing calligraphic strokes:1.4), single archaic character meaning star, soft silver luminous stroke, (ethereal misty glow, soft diffused edges:1.2)",
+      "negative_addon": "realistic stars, night sky, sparkle, lens flare, constellation, multiple characters, extra glyphs, bone artifact, tortoise shell, carved bone surface, photorealistic, sharp focus, filled shape",
+      "note": "灰·甲骨「星」（生+两枚小方星）"
+    }
+  ]
+}

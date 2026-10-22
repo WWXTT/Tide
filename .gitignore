@@ -1,35 +1,76 @@
-# ============== 忽略特定文件 ==============
-*.tmp
-*.meta
-*.asset
-*.csproj
+# ============================================================
+# Tide · Unity 工程 .gitignore
+#
+# 目标：换一台电脑 git clone 后，不依赖本机残留即可打开并运行。
+# 原则：
+#   1) 只忽略「每台机器本地生成」的缓存 / 构建产物；
+#   2) 只忽略「没有再分发授权」的第三方资源（见 Assets/Packages/.gitignore）；
+#   3) 绝不忽略 *.meta / *.asset —— Unity 用 .meta 里的 GUID 维持
+#      场景 / 预制体 / 材质引用，忽略它们会让克隆端大面积丢引用
+#      （粉材质、空预制体、场景丢对象）。
+# ============================================================
 
-# ============== 系统/IDE 文件 ==============
-/Library/
-/Logs/
-/obj/
-/Temp/
-/Config/
-/TideServer/bin/
-/TideServer/obj/
+# ---------------- Unity 自动生成（各机本地重建） ----------------
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Mm]emoryCaptures/
+/[Rr]ecordings/
+/.utmp/
+sysinfo.txt
+crashlytics-build.properties
 
-# Unity 生成的工程文件（含本机绝对路径，跨机互踩必炸——各自本地生成；手写工程 TideServer/TideServer.csproj 不受影响）
+# ---------------- IDE / 本机工程文件 ----------------
+# Unity 生成的 csproj/sln 含本机绝对路径，跨机必炸，各自本地生成；
+# 手写的 TideServer/TideServer.csproj、Tide.slnx 不受影响。
 /*.csproj
 /*.sln
 /.vs/
 /.idea/
-/tide_rl/logs/
-/tide_rl/__pycache__/
-/tide_rl/.venv-export/
-/Assets/Packages/Crest/Crest-Examples/
-/Assets/Packages/Toby Fredson/(TTFE)_Demo/
+*.suo
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+*.tmp
 
-# ============== 热更管线（HybridCLR + YooAsset） ==============
-# HybridCLR 本地安装与编译产物（机器本地生成，不入库）
-/HybridCLRData/
-# YooAsset 资源包构建输出
-/Bundles/
-# YooAsset 首包产物（出包前 ClearAndCopyAll 拷入，构建生成不入库）
-/Assets/StreamingAssets/yoo/
+# ---------------- Python 工具（tide_rl / SD-UI-Kit） ----------------
+__pycache__/
+*.pyc
+/tide_rl/logs/
+/tide_rl/.venv-export/
+
+# ---------------- 构建 / 热更产物 ----------------
 /Builds/
-/.utmp/
+/Bundles/
+/HybridCLRData/
+/Assets/StreamingAssets/yoo/
+/Assets/StreamingAssets/yoo.meta
+/build/outputs/
+/Tide_BackUpThisFolder_ButDontShipItWithYourGame/
+/Tide_BurstDebugInformation_DoNotShip/
+/TideServer/bin/
+/TideServer/obj/
+
+# ---------------- 编辑器工具 / 会话临时 ----------------
+/.codegraph/
+/.zcode/
+/.ztmp/
+
+# ---------------- 无再分发授权（仅本机使用） ----------------
+# 厂商卡牌 / 效果资料：版权研究数据，不随仓库分发
+/Config/
+# HybridCLR：Unity 运行时 AOT 程序集副本（Unity 授权文件，本地生成）
+/Assets/AotDlls/
+/Assets/AotDlls.meta
+# 付费美术资源 / 商用字体：见 Assets/Packages/.gitignore
+# SD-UI-Kit：生成的候选图不入库，脚本与 manifests 仍入库
+/SD-UI-Kit/output/
+/SD-UI-Kit/__pycache__/

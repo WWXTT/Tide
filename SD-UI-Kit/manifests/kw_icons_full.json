@@ -1,0 +1,363 @@
+{
+ "task": "kw-icons-full",
+ "style": "icon-status-plain",
+ "server": "http://127.0.0.1:7860",
+ "variants": 2,
+ "seed_note": "2026-10-11 用户重设计全部意像（差异锁制）；B套无LoRA；全随机seed；锁定LockCard入列=41概念",
+ "items": [
+  {
+   "id": "lifesteal",
+   "type": "kwicon",
+   "w": 256,
+   "h": 256,
+   "prompt_addon": "(bat wing, blood drop, fang notch, dark red, round emblem:1.3)",
+   "note": "吸血·关键词：差异锁=唯一蝙蝠翼/獠牙"
+  },
+  {
+   "id": "concealed",
+   "type": "kwicon",
+   "w": 256,
+   "h": 256,
+   "prompt_addon": "(hood, faceless shadow, mist, grey purple, cloak:1.3)",
+   "note": "隐密·关键词：差异锁=唯一兜帽无脸",
+   "negative_addon": "weapon, sword, axe, dagger, shield, badge, crest, heraldry, coat of arms, metal armor, helmet, medallion"
+  },
+  {
+   "id": "guardian",
+   "type": "kwicon",
+   "w": 256,
+   "h": 256,
+   "prompt_addon": "(stone guardian statue, holding shield, square base, white gold:1.3)",
+   "note": "守护·关键词：差异锁=石像守卫抱盾，非普通盾牌"
+  },
+  {
+   "id": "overwhelm",
+   "type": "kwicon",
+   "w": 256,
+   "h": 256,
+   "prompt_addon": "(giant hammer, cracked ground, mountain silhouette, orange red:1.3)",
+   "note": "碾压·关键词：差异锁=唯一巨锤压裂地面"
+  },
+  {
+   "id": "vigilance",
+   "type": "kwicon",
+   "w": 256,
+   "h": 256,
+   "prompt_addon": "(owl eye, watchtower, clock face, blue gold:1.3)",
+   "note": "警戒·关键词：差异锁=猫头鹰眼+哨塔，非普通眼睛",
+   "negative_addon": "weapon, sword, axe, dagger, shield, badge, crest, heraldry, coat of arms, metal armor, helmet, medallion"
+  },
+  {
+   "id": "firststrike",
+   "type": "kwicon",
+   "w": 256,
+   "h": 256,
+   "prompt_addon": "(lightning, sword tip, speed lines, silver blue, diamond:1.3)",
+   "note": "先攻·关键词：差异锁=闪电剑尖，非双剑"
+  },
+  {
+   "id": "spellbreak",
+   "type": "kwicon",
+   "w": 256,
+   "h": 256,
+   "prompt_addon": "(broken prism, anti-magic rune, crack, purple:1.3)",
+   "note": "扰魔·关键词：差异锁=破碎棱镜，区别完整护盾",
+   "negative_addon": "weapon, sword, axe, dagger, shield, badge, crest, heraldry, coat of arms, metal armor, helmet, medallion"
+  },
+  {
+   "id": "indestructible",
+   "type": "kwicon",
+   "w": 256,
+   "h": 256,
+   "prompt_addon": "(phoenix, infinity ring, feather, gold red:1.3)",
+   "note": "不灭·关键词：差异锁=凤凰+无限环，非复活十字",
+   "negative_addon": "weapon, sword, axe, dagger, shield, badge, crest, heraldry, coat of arms, metal armor, helmet, medallion"
+  },
+  {
+   "id": "lifelink",
+   "type": "kwicon",
+   "w": 256,
+   "h": 256,
+   "prompt_addon": "(life tree, heart, vine link, emerald green:1.3)",
+   "note": "系命·关键词：差异锁=生命树心脏+藤蔓",
+   "negative_addon": "weapon, sword, axe, dagger, shield, badge, crest, heraldry, coat of arms, metal armor, helmet, medallion"
+  },
+  {
+   "id": "regen",
+   "type": "kwicon",
+   "w": 256,
+   "h": 256,
+   "prompt_addon": "(ouroboros, green sprout, scales, jade:1.3)",
+   "note": "再生·关键词：差异锁=衔尾蛇绿芽，非凤凰",
+   "negative_addon": "weapon, sword, axe, dagger, shield, badge, crest, heraldry, coat of arms, metal armor, helmet, medallion"
+  },
+  {
+   "id": "disarm",
+   "type": "kwicon",
+   "w": 256,
+   "h": 256,
+   "prompt_addon": "(broken sword, chain, wrist shackle, grey red:1.3)",
+   "note": "缴械·关键词：差异锁=断剑+镣铐，非完整剑"
+  },
+  {
+   "id": "tauntveil",
+   "type": "kwicon",
+   "w": 256,
+   "h": 256,
+   "prompt_addon": "(purple curtain, mask, single eye, dark violet:1.3)",
+   "note": "帷幕·关键词：差异锁=紫幕+面具，唯一嘲讽幕布",
+   "negative_addon": "weapon, sword, axe, dagger, shield, badge, crest, heraldry, coat of arms, metal armor, helmet, medallion"
+  },
+  {
+   "id": "spellban",
+   "type": "kwicon",
+   "w": 256,
+   "h": 256,
+   "prompt_addon": "(obsidian pillar, rune, lightless crystal, black blue:1.3)",
+   "note": "禁魔石·关键词：差异锁=黑曜石柱，非蓝色护盾",
+   "negative_addon": "weapon, sword, axe, dagger, shield, badge, crest, heraldry, coat of arms, metal armor, helmet, medallion"
+  },
+  {
+   "id": "doublestrike",
+   "type": "kwicon",
+   "w": 256,
+   "h": 256,
+   "prompt_addon": "(dual blades, afterimage, X cross, silver red:1.3)",
+   "note": "连击·关键词：差异锁=双刃残影，非闪电"
+  },
+  {
+   "id": "venom",
+   "type": "kwicon",
+   "w": 256,
+   "h": 256,
+   "prompt_addon": "(venomous snake, skull, dripping vial, fangs, toxic green:1.3)",
+   "note": "剧毒·关键词：差异锁=毒蛇+滴瓶，区别毒素指示物",
+   "negative_addon": "weapon, sword, axe, dagger, shield, badge, crest, heraldry, coat of arms, metal armor, helmet, medallion"
+  },
+  {
+   "id": "spellshield",
+   "type": "kwicon",
+   "w": 256,
+   "h": 256,
+   "prompt_addon": "(blue hexagonal crystal shield, rune, layer ring, translucent:1.3)",
+   "note": "法术护盾·指示物：差异锁=蓝六角水晶盾，唯一透明层数盾"
+  },
+  {
+   "id": "reborn",
+   "type": "kwicon",
+   "w": 256,
+   "h": 256,
+   "prompt_addon": "(feather cross, rebirth ring, small skull, gold green:1.3)",
+   "note": "复生·指示物：差异锁=羽毛十字+复活环",
+   "negative_addon": "weapon, sword, axe, dagger, shield, badge, crest, heraldry, coat of arms, metal armor, helmet, medallion"
+  },
+  {
+   "id": "divineshield",
+   "type": "kwicon",
+   "w": 256,
+   "h": 256,
+   "prompt_addon": "(angelic shield, feathered wings, holy halo, white gold:1.3)",
+   "note": "圣盾·指示物：差异锁=天使羽翼盾，唯一白金神圣盾"
+  },
+  {
+   "id": "stealth",
+   "type": "kwicon",
+   "w": 256,
+   "h": 256,
+   "prompt_addon": "(footprints, smoke, dagger, closed eye, grey purple:1.3)",
+   "note": "潜行·指示物：差异锁=脚印+烟雾，区别兜帽隐密"
+  },
+  {
+   "id": "costup",
+   "type": "kwicon",
+   "w": 256,
+   "h": 256,
+   "prompt_addon": "(red copper chain, coin pile, weight, up arrow:1.3)",
+   "note": "费用增加·指示物：差异锁=锁链砝码+向上箭头",
+   "negative_addon": "weapon, sword, axe, dagger, shield, badge, crest, heraldry, coat of arms, metal armor, helmet, medallion"
+  },
+  {
+   "id": "costdown",
+   "type": "kwicon",
+   "w": 256,
+   "h": 256,
+   "prompt_addon": "(green feather, gold coin, down arrow, lightweight:1.3)",
+   "note": "费用减少·指示物：差异锁=羽毛金币+向下箭头",
+   "negative_addon": "weapon, sword, axe, dagger, shield, badge, crest, heraldry, coat of arms, metal armor, helmet, medallion"
+  },
+  {
+   "id": "powerup",
+   "type": "kwicon",
+   "w": 256,
+   "h": 256,
+   "prompt_addon": "(red sword, up arrow, flame, gold red:1.3)",
+   "note": "攻击力增加·指示物：差异锁=完整剑+火焰+向上"
+  },
+  {
+   "id": "powerdown",
+   "type": "kwicon",
+   "w": 256,
+   "h": 256,
+   "prompt_addon": "(broken sword, down arrow, crack, dark red:1.3)",
+   "note": "攻击力减少·指示物：差异锁=断剑+裂纹+向下"
+  },
+  {
+   "id": "hpup",
+   "type": "kwicon",
+   "w": 256,
+   "h": 256,
+   "prompt_addon": "(green heart, up arrow, life tree, emerald:1.3)",
+   "note": "生命值增加·指示物：差异锁=完整绿心+生命树+向上",
+   "negative_addon": "weapon, sword, axe, dagger, shield, badge, crest, heraldry, coat of arms, metal armor, helmet, medallion"
+  },
+  {
+   "id": "hpdown",
+   "type": "kwicon",
+   "w": 256,
+   "h": 256,
+   "prompt_addon": "(broken heart, down arrow, wither, dark green:1.3)",
+   "note": "生命值减少·指示物：差异锁=碎心+枯萎+向下",
+   "negative_addon": "weapon, sword, axe, dagger, shield, badge, crest, heraldry, coat of arms, metal armor, helmet, medallion"
+  },
+  {
+   "id": "statup",
+   "type": "kwicon",
+   "w": 256,
+   "h": 256,
+   "prompt_addon": "(green red gems, plus one plus one, shield sword cross:1.3)",
+   "note": "属性增加·指示物：差异锁=双宝石+盾剑交叉+加号"
+  },
+  {
+   "id": "statdown",
+   "type": "kwicon",
+   "w": 256,
+   "h": 256,
+   "prompt_addon": "(broken purple gems, minus one minus one, corrosion:1.3)",
+   "note": "属性减少·指示物：差异锁=碎宝石+腐蚀+减号",
+   "negative_addon": "weapon, sword, axe, dagger, shield, badge, crest, heraldry, coat of arms, metal armor, helmet, medallion"
+  },
+  {
+   "id": "toughness",
+   "type": "kwicon",
+   "w": 256,
+   "h": 256,
+   "prompt_addon": "(rock skin, mountain, layered shield, grey iron:1.3)",
+   "note": "坚韧·指示物：差异锁=岩石皮肤山，非金属板"
+  },
+  {
+   "id": "armor",
+   "type": "kwicon",
+   "w": 256,
+   "h": 256,
+   "prompt_addon": "(metal plate, rivets, layered armor, silver grey:1.3)",
+   "note": "护甲·指示物：差异锁=金属板铆钉，唯一工业护甲"
+  },
+  {
+   "id": "toxin",
+   "type": "kwicon",
+   "w": 256,
+   "h": 256,
+   "prompt_addon": "(toxic vial, green bubbles, small skull, droplet, toxic green:1.3)",
+   "note": "毒素·指示物：差异锁=毒瓶气泡，区别剧毒蛇",
+   "negative_addon": "weapon, sword, axe, dagger, shield, badge, crest, heraldry, coat of arms, metal armor, helmet, medallion"
+  },
+  {
+   "id": "silence",
+   "type": "kwicon",
+   "w": 256,
+   "h": 256,
+   "prompt_addon": "(sealed mask, locked mouth, silence rune, grey white:1.3)",
+   "note": "沉默·指示物：差异锁=封口面具+锁嘴",
+   "negative_addon": "weapon, sword, axe, dagger, shield, badge, crest, heraldry, coat of arms, metal armor, helmet, medallion"
+  },
+  {
+   "id": "sluggish",
+   "type": "kwicon",
+   "w": 256,
+   "h": 256,
+   "prompt_addon": "(slow clock, snail, hourglass, grey blue:1.3)",
+   "note": "迟钝·指示物：差异锁=慢钟+蜗牛+沙漏",
+   "negative_addon": "weapon, sword, axe, dagger, shield, badge, crest, heraldry, coat of arms, metal armor, helmet, medallion"
+  },
+  {
+   "id": "freeze",
+   "type": "kwicon",
+   "w": 256,
+   "h": 256,
+   "prompt_addon": "(ice crystal, chain, snowflake, ice blue:1.3)",
+   "note": "冻结·指示物：差异锁=冰晶锁链+雪花",
+   "negative_addon": "weapon, sword, axe, dagger, shield, badge, crest, heraldry, coat of arms, metal armor, helmet, medallion"
+  },
+  {
+   "id": "confusion",
+   "type": "kwicon",
+   "w": 256,
+   "h": 256,
+   "prompt_addon": "(dizzy spiral, question mark, tangled lines, purple red:1.3)",
+   "note": "紊乱·指示物：差异锁=眩晕漩涡+问号",
+   "negative_addon": "weapon, sword, axe, dagger, shield, badge, crest, heraldry, coat of arms, metal armor, helmet, medallion"
+  },
+  {
+   "id": "vulnerable",
+   "type": "kwicon",
+   "w": 256,
+   "h": 256,
+   "prompt_addon": "(cracked shield, bullseye, fracture, orange red:1.3)",
+   "note": "易损·指示物：差异锁=裂纹盾+靶心"
+  },
+  {
+   "id": "depravity",
+   "type": "kwicon",
+   "w": 256,
+   "h": 256,
+   "prompt_addon": "(inverted healing vial, blood drop, bandage, red green:1.3)",
+   "note": "放血·指示物：差异锁=倒置治疗瓶+血滴+绷带",
+   "negative_addon": "weapon, sword, axe, dagger, shield, badge, crest, heraldry, coat of arms, metal armor, helmet, medallion"
+  },
+  {
+   "id": "replay",
+   "type": "kwicon",
+   "w": 256,
+   "h": 256,
+   "prompt_addon": "(double loop arrow, echo ripple, phantom card, blue gold:1.3)",
+   "note": "重放·指示物：差异锁=双环箭头+回响波纹",
+   "negative_addon": "weapon, sword, axe, dagger, shield, badge, crest, heraldry, coat of arms, metal armor, helmet, medallion"
+  },
+  {
+   "id": "oblivion",
+   "type": "kwicon",
+   "w": 256,
+   "h": 256,
+   "prompt_addon": "(faded card, hourglass, blur crack, grey purple:1.3)",
+   "note": "遗忘·指示物：差异锁=褪色卡牌+沙漏+虚化",
+   "negative_addon": "weapon, sword, axe, dagger, shield, badge, crest, heraldry, coat of arms, metal armor, helmet, medallion"
+  },
+  {
+   "id": "sleep",
+   "type": "kwicon",
+   "w": 256,
+   "h": 256,
+   "prompt_addon": "(crescent moon, Zzz, pillow, closed eye, deep blue:1.3)",
+   "note": "沉睡·指示物：差异锁=月牙+Zzz+枕头",
+   "negative_addon": "weapon, sword, axe, dagger, shield, badge, crest, heraldry, coat of arms, metal armor, helmet, medallion"
+  },
+  {
+   "id": "reveal",
+   "type": "kwicon",
+   "w": 256,
+   "h": 256,
+   "prompt_addon": "(eye, spotlight, magnifying glass, card, gold white:1.3)",
+   "note": "展示·指示物：差异锁=眼睛+聚光灯+放大镜",
+   "negative_addon": "weapon, sword, axe, dagger, shield, badge, crest, heraldry, coat of arms, metal armor, helmet, medallion"
+  },
+  {
+   "id": "lock",
+   "type": "kwicon",
+   "w": 256,
+   "h": 256,
+   "prompt_addon": "(padlock, chain, hand card, keyhole, red black:1.3)",
+   "note": "锁定·指示物：差异锁=挂锁锁链+手牌",
+   "negative_addon": "weapon, sword, axe, dagger, shield, badge, crest, heraldry, coat of arms, metal armor, helmet, medallion"
+  }
+ ]
+}

@@ -1,0 +1,60 @@
+{
+  "task": "card-artframe-cosmic",
+  "style": "cosmic-hollow",
+  "seed": 20261011,
+  "variants": 3,
+  "note": "2026-10-11 用户配方 v2：三框共用同一措辞仅换 [SHAPE]（结界圆/法术倒三角锐角/生物方锐角）+效果文字板+卡名板；纯黑底出图后中心抠透明；v1 全批钉同 seed=20261011 保风格统一，v2/v3 随机供挑选",
+  "items": [
+    {
+      "id": "frame_ring",
+      "type": "frame_ring",
+      "w": 976,
+      "h": 976,
+      "exact": true,
+      "note": "结界·圆形镂空插画框 → 1024x1024",
+      "prompt_addon": "game card hollow illustration frame, perfect circular hollow frame, round ring border, smooth continuous curve, hollow empty center, cutout center, frame only, no center artwork, pure black empty center for masking, thick wide border, double-layered frame, (Hearthstone-style ornate fantasy card frame:1.3), chunky carved antique gold metal frame, gemstone inlays, embossed gold patterns, luminous gold accents, slightly stylized but geometrically accurate, sharp crisp outer contour, clean geometric silhouette, defined boundary, high contrast rim light, subtle wear, chipped gold paint",
+      "exact_base": 512
+    },
+    {
+      "id": "frame_tri_inv",
+      "type": "frame_tri_inv",
+      "w": 976,
+      "h": 976,
+      "exact": true,
+      "note": "法术·倒等边三角镂空插画框（flip_v 锐角多边形模板）→ 1024x1024",
+      "prompt_addon": "game card hollow illustration frame, perfect inverted equilateral triangle hollow frame, downward-pointing triangle border, sharp triangular points, straight edges, hollow empty center, cutout center, frame only, no center artwork, pure black empty center for masking, thick wide border, double-layered frame, (Hearthstone-style ornate fantasy card frame:1.3), chunky carved antique gold metal frame, gemstone inlays, embossed gold patterns, luminous gold accents, slightly stylized but geometrically accurate, sharp crisp outer contour, clean geometric silhouette, defined boundary, high contrast rim light, subtle wear, chipped gold paint",
+      "exact_base": 512
+    },
+    {
+      "id": "frame_square",
+      "type": "frame_square",
+      "w": 976,
+      "h": 976,
+      "exact": true,
+      "corner": 0.0,
+      "note": "生物·方形镂空插画框（corner 0=锐角 90°）→ 1024x1024",
+      "prompt_addon": "game card hollow illustration frame, perfect square hollow frame, right-angle square border, sharp 90-degree corners, straight edges, hollow empty center, cutout center, frame only, no center artwork, pure black empty center for masking, thick wide border, double-layered frame, (Hearthstone-style ornate fantasy card frame:1.3), chunky carved antique gold metal frame, gemstone inlays, embossed gold patterns, luminous gold accents, slightly stylized but geometrically accurate, sharp crisp outer contour, clean geometric silhouette, defined boundary, high contrast rim light, subtle wear, chipped gold paint",
+      "exact_base": 512
+    },
+    {
+      "id": "panel_effect",
+      "type": "panel",
+      "w": 1280,
+      "h": 731,
+      "exact": true,
+      "note": "效果文字背景板 → exact 1024x584（配方比例 1.75 保真，长边 1024 直出）",
+      "prompt_addon": "blank card effect text panel, horizontal rectangular plaque, empty clean center for text, game card UI asset, thick carved antique gold metal border, (Hearthstone-style ornate fantasy card frame:1.25), dark cosmic deep space background, inner glow, low-detail center, readable empty area, no text",
+      "exact_base": 512
+    },
+    {
+      "id": "banner_name",
+      "type": "banner",
+      "w": 1383,
+      "h": 576,
+      "exact": true,
+      "note": "卡名文字背景板 → exact 1024x424（配方比例 2.4 保真，长边 1024 直出）",
+      "prompt_addon": "blank card name title banner, elongated horizontal cartouche, empty center for card name, game card UI asset, thick carved antique gold metal border, (Hearthstone-style ornate fantasy card frame:1.25), clean empty middle, no text",
+      "exact_base": 512
+    }
+  ]
+}

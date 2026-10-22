@@ -1,0 +1,11 @@
+{
+  "task": "calibration-tint2",
+  "style": "gold-arcane",
+  "server": "http://127.0.0.1:7860",
+  "variants": 2,
+  "items": [
+    { "id": "btn-top",     "type": "button", "w": 120, "h": 60,  "note": "顶栏按钮" },
+    { "id": "panel-side",  "type": "panel",  "w": 750, "h": 974, "note": "右侧面板" },
+    { "id": "row-list",    "type": "row",    "w": 718, "h": 60,  "note": "列表行" }
+  ]
+}

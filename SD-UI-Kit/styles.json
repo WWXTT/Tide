@@ -1,0 +1,680 @@
+{
+ "stone-sigil": {
+  "desc": "发动区石板（2026-10-11 用户想象落件）：大圆内接方内接倒三角三环凿槽、石板材质、槽留空（元素池引擎后灌）——负面禁液体/发光/符文/中心徽记；tint=冷灰石面+暖光刻痕（暗夜鎏金法则的石头版）",
+  "prefix": "carved dark stone slab, ancient game board artifact, three nested recessed grooves forming a sacred sigil, large perfect circle groove, inscribed square groove, inscribed downward-pointing equilateral triangle groove, deep empty chiseled channels, matte natural granite and slate stone, hand-chiseled matte surface, porous fine-grained rock, flat level planar stone field between the grooves, smooth even surface outside the channels, gilded gold edge on the slab rim, beveled groove edges catching dim warm light, bold continuous unbroken groove lines, clean bold geometry, hand-carved masonry, symmetrical, centered, high contrast, clean crisp edges, sharp geometry, aged weathered surface, subtle cracks, dark fantasy game asset, ultra detailed, masterpiece, best quality, 8k",
+  "negative": "text, letters, words, numbers, runes, symbols, watermark, signature, logo, glowing, glowing grooves, liquid, water, molten, lava, filled channels, filled grooves, glowing runes, fragmented grooves, broken channels, dashed lines, shattered lines, cracked channels, busy stonework pattern, central emblem, emblem in center, ornaments in center, busy center, multiple slabs, multiple circles, extra shapes, grid, tiles, cropped, off-center, soft edges, blurry, feathered edge, distorted shape, warped geometry, irregular outline, asymmetrical, low contrast, heavy damage, broken, plastic, glossy, shiny, polished surface, reflective, waxy, airbrushed, 3d render, bumpy surface, uneven surface, lumpy field, embossed relief, raised relief, sculpted relief, rocky rubble, gravel, photo, realistic scene, people, human, face, hands, checkerboard",
+  "sampler": "DPM++ 2M",
+  "scheduler": "karras",
+  "steps": 32,
+  "cfg": 6.0,
+  "denoise_base": 0.0,
+  "checkpoint": null,
+  "tint_bg": [12, 12, 18],
+  "tint_face": [92, 90, 96],
+  "tint_edge": [214, 192, 148]
+ },
+ "stone-sigil-marble": {
+  "desc": "发动区石板·大理石版（2026-10-11 深夜用户指令：改用 anything-v5 重做、材质花岗岩→大理石）：stone-sigil 姐妹条目——材质词全换 marble+honed matte+浅灰脉络（veins=大理石辨识度来源，是材质纹非装饰）；几何语料/槽留空禁令/负面（含塑料感 glossy 族=当年 0.43%→0.05% 的教训必须带）全继承；tint 不动=暗灰石面配暗夜鎏金锚",
+  "prefix": "carved dark marble slab, ancient game board artifact, three nested recessed grooves forming a sacred sigil, large perfect circle groove, inscribed square groove, inscribed downward-pointing equilateral triangle groove, deep empty chiseled channels, natural marble with subtle light-grey veining, honed matte marble surface, smooth crystalline stone, flat level planar stone field between the grooves, smooth even surface outside the channels, gilded gold edge on the slab rim, beveled groove edges catching dim warm light, bold continuous unbroken groove lines, clean bold geometry, hand-carved masonry, symmetrical, centered, high contrast, clean crisp edges, sharp geometry, aged weathered surface, subtle cracks, dark fantasy game asset, ultra detailed, masterpiece, best quality, 8k",
+  "negative": "text, letters, words, numbers, runes, symbols, watermark, signature, logo, glowing, glowing grooves, liquid, water, molten, lava, filled channels, filled grooves, glowing runes, fragmented grooves, broken channels, dashed lines, shattered lines, cracked channels, busy stonework pattern, central emblem, emblem in center, ornaments in center, busy center, multiple slabs, multiple circles, extra shapes, grid, tiles, cropped, off-center, soft edges, blurry, feathered edge, distorted shape, warped geometry, irregular outline, asymmetrical, low contrast, heavy damage, broken, plastic, glossy, shiny, polished surface, mirror polish, reflective, waxy, airbrushed, 3d render, bumpy surface, uneven surface, lumpy field, embossed relief, raised relief, sculpted relief, rocky rubble, gravel, photo, realistic scene, people, human, face, hands, checkerboard",
+  "sampler": "DPM++ 2M",
+  "scheduler": "karras",
+  "steps": 32,
+  "cfg": 6.0,
+  "denoise_base": 0.0,
+  "checkpoint": null,
+  "tint_bg": [12, 12, 18],
+  "tint_face": [92, 90, 96],
+  "tint_edge": [214, 192, 148]
+ },
+ "cosmic-parchment": {
+  "desc": "文字板专用（2026-10-11 v3 用户裁决：三框已过、两板全否→修饰只走边缘+内芯纸张材质）：cosmic-hollow 的姐妹条目——filigree/ornaments 全部限定 outer rim only，内芯=羊皮纸；负面加中心装饰族禁令（不禁纹理，纸张纹要保留）；tint_bg=羊皮纸色（plaque_paper 模板内芯取 bg）",
+  "prefix": "hand-painted fantasy UI, ornate antique gold metal border strictly confined to the outer rim only, engraved filigree and rivets on the border only, corner ornaments on the rim, aged parchment paper interior, warm vellum material, quiet paper texture center reserved for text, readable empty area, low-detail paper surface, subtle paper grain, cosmic deep space, dark night, midnight blue, dark purple nebula, stardust, gold dust, centered, symmetrical, sharp crisp edges, hard edge, high contrast, lightly used, subtle scratches, micro chips, scuffed edges, aged patina, used look, not heavily damaged, ultra detailed, masterpiece, best quality, 8k",
+  "negative": "text, letters, words, numbers, runes, symbols, watermark, signature, logo, ornaments in center, central ornament, filigree in center, gemstone in center, gems in center, busy center, cluttered center, decorative center, patterned center, glowing center, vignette, multiple frames, extra frames, multiple panels, multiple banners, cropped, off-center, soft edges, blurry, feathered edge, distorted shape, irregular outline, asymmetrical, low contrast, heavy damage, broken, cracked, rusted, dirty, grunge overlay, messy scratches, photo, realistic scene, people, human, face, hands, checkerboard",
+  "sampler": "DPM++ 2M",
+  "scheduler": "karras",
+  "steps": 32,
+  "cfg": 6.0,
+  "denoise_base": 0.0,
+  "checkpoint": null,
+  "tint_bg": [192, 168, 122],
+  "tint_face": [90, 55, 25],
+  "tint_edge": [250, 200, 130]
+ },
+ "parchment-wear": {
+  "desc": "v5 纸金磨损（2026-10-11 用户裁决：两板 __template 本体即最满意基准，以图生图只加材质——中央往纸张靠/边缘鎏金/整体一点磨损，不要旧 prompt_addon）：cosmic-parchment 姐妹条目——删深空/星云/星尘组（星云把内芯拖成暗图案），纸面加权 1.3+纸纤维，环绕改中性深底一句，磨损词保留并补 worn gilt；负面追加星空禁令；三色/采样/checkpoint 全继承（保证 plaque_paper 模板与用户留存两张图字节级一致，已 MD5 验证）",
+  "prefix": "hand-painted fantasy UI, ornate antique gold metal border strictly confined to the outer rim only, engraved filigree and rivets on the border only, corner ornaments on the rim, (aged parchment paper interior:1.3), warm vellum material, quiet paper texture center reserved for text, readable empty area, low-detail paper surface, subtle paper grain, faint paper fibers, dark neutral background outside the plaque, gold dust, centered, symmetrical, sharp crisp edges, hard edge, high contrast, lightly used, subtle scratches, micro chips, scuffed edges, aged patina, worn gilt on the raised rim, used look, not heavily damaged, ultra detailed, masterpiece, best quality, 8k",
+  "negative": "text, letters, words, numbers, runes, symbols, watermark, signature, logo, ornaments in center, central ornament, filigree in center, gemstone in center, gems in center, busy center, cluttered center, decorative center, patterned center, glowing center, nebula, space background, stars, cosmic, vignette, multiple frames, extra frames, multiple panels, multiple banners, cropped, off-center, soft edges, blurry, feathered edge, distorted shape, irregular outline, asymmetrical, low contrast, heavy damage, broken, cracked, rusted, dirty, grunge overlay, messy scratches, photo, realistic scene, people, human, face, hands, checkerboard",
+  "sampler": "DPM++ 2M",
+  "scheduler": "karras",
+  "steps": 32,
+  "cfg": 6.0,
+  "denoise_base": 0.0,
+  "checkpoint": null,
+  "tint_bg": [192, 168, 122],
+  "tint_face": [90, 55, 25],
+  "tint_edge": [250, 200, 130]
+ },
+ "parchment-vine": {
+  "desc": "v6 金丝藤蔓（2026-10-11 用户裁决：鎏金=树枝藤蔓等金丝勾勒边缘，不是金属板——v5 金属板根因=plaque_paper 模板边带是实心色带+metal/rivets 语料；且文字区不得掺非纸物）：配 plaque_paper_vine 模板（通体羊皮纸+外金线/内细金线双钩+角点锚，藤蔓沿线生长）；正面=golden vine filigree/thin branches/tendrils，负面=金属板族+rivets/浮雕+中心污渍图案族；纸面语料/磨损词/三色/采样沿 v5",
+  "prefix": "hand-painted fantasy UI, (delicate golden vine filigree tracing the outer rim:1.3), thin elegant branches and swirling tendrils of fine gold linework outlining the border, organic botanical curves, graceful curling vine sprigs and tiny gold leaves on the rim only, aged parchment paper interior, warm vellum material, quiet paper texture center reserved for text, readable empty area, low-detail paper surface, subtle paper grain, faint paper fibers, dark neutral background outside the plaque, gold dust, centered, symmetrical, sharp crisp edges, high contrast, lightly used, subtle scratches, micro chips, aged patina, gilt slightly worn on the vines, used look, not heavily damaged, ultra detailed, masterpiece, best quality, 8k",
+  "negative": "text, letters, words, numbers, runes, symbols, watermark, signature, logo, ornaments in center, central ornament, filigree in center, gemstone in center, gems in center, busy center, cluttered center, decorative center, patterned center, glowing center, stains, blotches, ink smudges, smudges, drawings in center, illustration in center, sketch in center, symbols in center, solid metal border, metal plate, metal slab, heavy metal band, chunky frame, thick solid border, rivets, embossed metal, raised rim, 3d bevel, nebula, space background, stars, cosmic, vignette, multiple frames, extra frames, multiple panels, multiple banners, cropped, off-center, soft edges, blurry, feathered edge, distorted shape, irregular outline, asymmetrical, low contrast, heavy damage, broken, cracked, rusted, dirty, grunge overlay, messy scratches, photo, realistic scene, people, human, face, hands, checkerboard",
+  "sampler": "DPM++ 2M",
+  "scheduler": "karras",
+  "steps": 32,
+  "cfg": 6.0,
+  "denoise_base": 0.0,
+  "checkpoint": null,
+  "tint_bg": [192, 168, 122],
+  "tint_face": [90, 55, 25],
+  "tint_edge": [250, 200, 130]
+ },
+ "metal-starry-hollow": {
+  "desc": "三卡框·金属主体星空点缀版（2026-10-11 深夜用户配方：金属作主体、星空只作点缀）：cosmic-hollow 的主客反转——删宇宙底词组（nebula/midnight blue/deep space），金属框语料升为 dominant subject，星空降为 on-metal 点缀（stardust/tiny star inlays/constellation inlays）；负面加星云禁令防反扑；磨损/硬边语料与三色锚、采样全继承；配 <lora:Space_sdxl:0.6>（manifest addon 尾挂）",
+  "prefix": "hand-painted fantasy game UI, (ornate metal frame as the dominant subject:1.2), chunky forged antique gold metal, carved engraved metal filigree, rivets, beveled edges, corner ornaments, gemstone inlays, sparse stardust accents on the metal only, tiny stars inlaid in the frame, subtle constellation inlays, gold dust, centered, symmetrical, sharp crisp edges, hard edge, high contrast, lightly used, subtle scratches, micro scratches, micro chips, scuffed edges, aged patina, used look, not heavily damaged, ultra detailed, masterpiece, best quality, 8k",
+  "negative": "text, letters, words, numbers, runes, symbols, watermark, signature, logo, center artwork, filled center, busy center, cluttered, nebula, galaxy background, space background dominating, starry sky background, multiple frames, extra frames, multiple panels, multiple banners, cropped, off-center, soft edges, blurry, blurry edges, feathered edge, glowing edge bleeding, rounded corners, rounded triangle, rounded square, distorted shape, warped geometry, irregular outline, asymmetrical, melting, fuzzy silhouette, low contrast, heavy damage, broken, cracked, rusted, dirty, grunge overlay, messy scratches, photo, realistic scene, people, human, face, hands, checkerboard",
+  "sampler": "DPM++ 2M",
+  "scheduler": "karras",
+  "steps": 32,
+  "cfg": 6.0,
+  "denoise_base": 0.0,
+  "checkpoint": null,
+  "tint_bg": [10, 10, 20],
+  "tint_face": [90, 55, 25],
+  "tint_edge": [250, 200, 130]
+ },
+ "metal-dblstroke": {
+  "desc": "三卡框·双描边定版（v3 2026-10-11 深夜用户反馈：撤拉丝浮雕引导词（效果不好）、星空带必须出效果（优先）——LoRA 0.6→0.8、负面撤框外禁星（保留星云背景禁令）、init 星带加密加亮×3）：金属只住内外描边（thin inner/thick outer），两描边间=等宽星空带（星场语料 1.4 权重）；配 frame2_* 双描边模板（平行偏移轮廓=等宽）+<lora:Space_sdxl:0.8>（manifest addon 尾挂）；三色锚/采样继承",
+  "prefix": "hand-painted fantasy game UI, (metal double-stroke frame as the dominant subject:1.2), thick outer stroke of forged antique gold metal, thin inner stroke of the same gold metal, (uniform-width glittering starry sky band densely filled with tiny stars running between the two strokes:1.5), deep space with sparkling stardust filling the band, dark plain background outside the frame, gold dust, centered, symmetrical, sharp crisp edges, hard edge, high contrast, lightly used, subtle scratches, micro chips, scuffed edges, aged patina, used look, not heavily damaged, ultra detailed, masterpiece, best quality, 8k",
+  "negative": "text, letters, words, numbers, runes, symbols, watermark, signature, logo, center artwork, filled center, busy center, cluttered, solid metal band, metal filling the gap, metal filling the band between strokes, wide solid frame filling, nebula, galaxy background, space background dominating, multiple frames, extra frames, multiple panels, cropped, off-center, soft edges, blurry, blurry edges, feathered edge, glowing edge bleeding, rounded corners, rounded triangle, rounded square, distorted shape, warped geometry, irregular outline, asymmetrical, melting, fuzzy silhouette, low contrast, heavy damage, broken, cracked, rusted, dirty, grunge overlay, messy scratches, photo, realistic scene, people, human, face, hands, checkerboard",
+  "sampler": "DPM++ 2M",
+  "scheduler": "karras",
+  "steps": 32,
+  "cfg": 6.0,
+  "denoise_base": 0.0,
+  "checkpoint": null,
+  "tint_bg": [10, 10, 20],
+  "tint_face": [90, 55, 25],
+  "tint_edge": [250, 200, 130]
+ },
+ "cosmic-hollow": {
+  "desc": "卡牌镂空插画框/文字板批次（2026-10-11 用户配方 v2）：炉石厚涂框×暗夜鎏金×磨损做旧，无 LoRA 基线；prefix=v2 positive 三组公共段（厚涂工艺/宇宙底/硬边/磨损），组专属措辞（含 Hearthstone 权重 1.3/1.25）走 manifest prompt_addon；负面=v2 三组并集（禁圆角/羽化边/重度损伤）；采样=DPM++ 2M+karras（新 webui 采样器/调度器拆分）；tint=决策账三色锚",
+  "prefix": "hand-painted fantasy UI, beveled edges, rivets, engraved filigree, corner ornaments, gemstone accents, cosmic deep space, dark night, obsidian black, midnight blue, dark purple nebula, stardust, gold dust, centered, symmetrical, sharp crisp edges, hard edge, high contrast, lightly used, subtle scratches, micro scratches, micro chips, scuffed edges, aged patina, used look, not heavily damaged, ultra detailed, masterpiece, best quality, 8k",
+  "negative": "text, letters, words, numbers, runes, symbols, watermark, signature, logo, center artwork, filled center, busy center, cluttered, multiple frames, extra frames, multiple panels, multiple banners, cropped, off-center, soft edges, blurry, blurry edges, feathered edge, glowing edge bleeding, rounded corners, rounded triangle, rounded square, distorted shape, warped geometry, irregular outline, asymmetrical, melting, fuzzy silhouette, low contrast, heavy damage, broken, cracked, rusted, dirty, grunge overlay, messy scratches, photo, realistic scene, people, human, face, hands, checkerboard",
+  "sampler": "DPM++ 2M",
+  "scheduler": "karras",
+  "steps": 32,
+  "cfg": 6.0,
+  "denoise_base": 0.0,
+  "checkpoint": null,
+  "tint_bg": [10, 10, 20],
+  "tint_face": [90, 55, 25],
+  "tint_edge": [250, 200, 130]
+ },
+ "gold-arcane": {
+  "desc": "奥术暗金（SDXL base + game-icon-diablo LoRA，2026-10-10 接线；denoise 区间与 tint 待 SDXL 下重扫）",
+  "prefix": "<lora:game-icon-diablo:0.9>, game icon, masterpiece, best quality, ornate dark fantasy game UI, golden filigree trim, arcane runes, painterly, high detail",
+  "negative": "text, watermark, letters, words, photo, realistic, 3d render, blurry, lowres, deformed, extra objects, busy background",
+  "sampler": "DPM++ 2M SDE",
+  "steps": 30,
+  "cfg": 6.0,
+  "denoise_base": 0.0,
+  "checkpoint": null,
+  "tint_bg": [
+   38,
+   32,
+   22
+  ],
+  "tint_face": [
+   96,
+   76,
+   44
+  ],
+  "tint_edge": [
+   206,
+   172,
+   98
+  ]
+ },
+ "silver-crimson": {
+  "desc": "银灰主体+暗红点缀（2026-10-10 用户反馈迭代：金色太抢/浮雕须只在边缘）",
+  "prefix": "<lora:game-icon-diablo:0.7>, game icon, masterpiece, best quality, dark fantasy game UI, silver-gray steel tones, dark crimson accents, engraved filigree confined to edges and border, flat plain center, subtle blood-red runes, painterly, high detail",
+  "negative": "text, watermark, letters, words, photo, realistic, 3d render, blurry, lowres, deformed, extra objects, busy background, central ornament, centered emblem, centerpiece relief, ornaments in center",
+  "sampler": "DPM++ 2M SDE",
+  "steps": 30,
+  "cfg": 6.0,
+  "denoise_base": 0.0,
+  "checkpoint": null,
+  "tint_bg": [
+   42,
+   45,
+   50
+  ],
+  "tint_face": [
+   104,
+   110,
+   118
+  ],
+  "tint_edge": [
+   150,
+   58,
+   52
+  ]
+ },
+ "verdigris-arcane": {
+  "desc": "青铜锈绿×古金（2026-10-10 三风格实操之一，自由发挥档）",
+  "prefix": "<lora:game-icon-diablo:0.7>, game icon, masterpiece, best quality, dark fantasy game UI, aged bronze and verdigris green tones, antique gold accents, engraved filigree strictly confined to the outer border only, smooth clean untextured center reserved for text, painterly, high detail",
+  "negative": "text, watermark, letters, words, photo, realistic, 3d render, blurry, lowres, deformed, extra objects, busy background, central ornament, centered emblem, centerpiece relief, ornaments in center, busy center, textured center, patterned center, cluttered interior, filigree in center",
+  "sampler": "DPM++ 2M SDE",
+  "steps": 30,
+  "cfg": 6.0,
+  "denoise_base": 0.0,
+  "checkpoint": null,
+  "tint_bg": [
+   30,
+   42,
+   38
+  ],
+  "tint_face": [
+   86,
+   108,
+   94
+  ],
+  "tint_edge": [
+   196,
+   158,
+   92
+  ]
+ },
+ "obsidian-violet": {
+  "desc": "黑曜石×紫晶（2026-10-10 三风格实操之一，自由发挥档）",
+  "prefix": "<lora:game-icon-diablo:0.7>, game icon, masterpiece, best quality, dark fantasy game UI, obsidian black and deep violet tones, glowing amethyst accents, engraved filigree confined to edges and border, flat plain center, subtle arcane glow, painterly, high detail",
+  "negative": "text, watermark, letters, words, photo, realistic, 3d render, blurry, lowres, deformed, extra objects, busy background, central ornament, centered emblem, centerpiece relief, ornaments in center",
+  "sampler": "DPM++ 2M SDE",
+  "steps": 30,
+  "cfg": 6.0,
+  "denoise_base": 0.0,
+  "checkpoint": null,
+  "tint_bg": [
+   28,
+   26,
+   38
+  ],
+  "tint_face": [
+   72,
+   66,
+   92
+  ],
+  "tint_edge": [
+   168,
+   130,
+   208
+  ]
+ },
+ "hearthstone": {
+  "desc": "仿炉石：暗暖木/皮革+古金饰边只走边框，中心素面低对比（2026-10-10 二轮：首版太亮太抢眼，压暗+边缘化装饰）",
+  "prefix": "<lora:game-icon-diablo:0.5>, game icon, best quality, hearthstone style game UI, dark warm carved wood and leather, hand-painted cartoon fantasy, dim torchlight, muted colors, engraved filigree strictly confined to the outer border only, smooth clean untextured dark center reserved for UI content, low contrast, painterly",
+  "negative": "text, watermark, letters, words, photo, realistic, 3d render, blurry, lowres, deformed, extra objects, busy background, cold tones, blue tones, sci-fi, steel metal, grim dark, central ornament, centered emblem, centerpiece relief, ornaments in center, busy center, textured center, patterned center, cluttered interior, filigree in center, bright, glowing, vivid colors, high contrast",
+  "sampler": "DPM++ 2M SDE",
+  "steps": 30,
+  "cfg": 6.0,
+  "denoise_base": 0.0,
+  "checkpoint": null,
+  "tint_bg": [
+   22,
+   16,
+   11
+  ],
+  "tint_face": [
+   64,
+   46,
+   26
+  ],
+  "tint_edge": [
+   188,
+   148,
+   78
+  ]
+ },
+ "hs2-warm": {
+  "desc": "炉石借鉴二代（卡框专用，2026-10-10）：去 diablo LoRA（暗黑向与卡通厚涂相冲），tint 提亮一档，厚涂富装饰；与面板用的 hearthstone（压暗版）分道",
+  "prefix": "Hearthstone style game card, hand-painted cartoon fantasy, chunky ornate carved wood and antique gold border, warm torchlight, rich painterly textures, colorful fantasy illustration inside art window, recessed parchment text panel at bottom, high detail",
+  "negative": "text, watermark, letters, words, photo, realistic, 3d render, blurry, lowres, deformed, extra objects, busy background, sci-fi, steel metal, grim dark, dull, flat colors, low contrast",
+  "sampler": "DPM++ 2M SDE",
+  "steps": 30,
+  "cfg": 6.0,
+  "denoise_base": 0.0,
+  "checkpoint": null,
+  "tint_bg": [
+   30,
+   20,
+   12
+  ],
+  "tint_face": [
+   110,
+   78,
+   42
+  ],
+  "tint_edge": [
+   212,
+   168,
+   92
+  ]
+ },
+ "hs2-diablo": {
+  "desc": "hs2-warm 对照组：同款提示词留 0.3 权重 diablo LoRA，看纹饰密度是否受益",
+  "prefix": "<lora:game-icon-diablo:0.3>, Hearthstone style game card, hand-painted cartoon fantasy, chunky ornate carved wood and antique gold border, warm torchlight, rich painterly textures, colorful fantasy illustration inside art window, recessed parchment text panel at bottom, high detail",
+  "negative": "text, watermark, letters, words, photo, realistic, 3d render, blurry, lowres, deformed, extra objects, busy background, sci-fi, steel metal, grim dark, dull, flat colors, low contrast",
+  "sampler": "DPM++ 2M SDE",
+  "steps": 30,
+  "cfg": 6.0,
+  "denoise_base": 0.0,
+  "checkpoint": null,
+  "tint_bg": [
+   30,
+   20,
+   12
+  ],
+  "tint_face": [
+   110,
+   78,
+   42
+  ],
+  "tint_edge": [
+   212,
+   168,
+   92
+  ]
+ },
+ "neutral-calib": {
+  "desc": "校准用：中性描述，验证形状约束与 denoise 区间",
+  "prefix": "game user interface element, clean simple shape, plain dark background, centered, game asset",
+  "negative": "text, watermark, letters, photo, realistic, blurry, lowres, deformed, extra objects",
+  "sampler": "DPM++ 2M SDE",
+  "steps": 24,
+  "cfg": 7.0,
+  "denoise_base": 0.0,
+  "checkpoint": null
+ },
+ "icon-emblem": {
+  "desc": "关键词/指示物图标专用（2026-10-10）：中心徽记+纯色背景方便扣图，与 UI 骨架风格（禁中心徽记）相反；语义由 manifest prompt_addon 逐个注入，全 40 图标共用本风格保证一致性",
+  "prefix": "<lora:game-icon-diablo:0.9>, game item icon, masterpiece, best quality, single centered fantasy emblem, dark fantasy hand-painted game icon style, bold clear silhouette, strong rim light, vivid magic glow, glossy painterly detail, isolated emblem on plain flat solid background",
+  "negative": "text, watermark, letters, words, photo, realistic, 3d render, blurry, lowres, deformed, multiple objects, duplicate emblem, busy background, textured background, patterned background, gradient background, border, frame, vignette, cropped, cut off, off-center, tiny emblem, large empty margin",
+  "sampler": "DPM++ 2M SDE",
+  "steps": 30,
+  "cfg": 6.0,
+  "denoise_base": 0.0,
+  "checkpoint": null,
+  "tint_bg": [
+   26,
+   26,
+   30
+  ],
+  "tint_face": [
+   120,
+   120,
+   128
+  ],
+  "tint_edge": [
+   210,
+   190,
+   140
+  ]
+ },
+ "icon-status-lora": {
+  "desc": "意像配方（A 组已验收 2026-10-10）：LoRA 0.45 只借笔触，'状态效果图标'框架，语义主体 (…:1.3) 权重；武器禁令走逐项 negative_addon。教训：勿加 central circle/rounded 措辞（徽章化）、勿钉 seed（近似+不迁移）",
+  "prefix": "<lora:game-icon-diablo:0.45>, fantasy game status effect icon, single centered symbol, hand-painted dark fantasy illustration, bold clear silhouette, strong rim light, glossy painterly detail, masterpiece, best quality, isolated on plain flat solid background",
+  "negative": "text, watermark, letters, words, photo, realistic, 3d render, blurry, lowres, deformed, multiple objects, duplicate, busy background, textured background, patterned background, gradient background, border, frame, vignette, cropped, off-center",
+  "sampler": "DPM++ 2M SDE",
+  "steps": 30,
+  "cfg": 6.0,
+  "denoise_base": 0.0,
+  "checkpoint": null,
+  "tint_bg": [
+   26,
+   26,
+   30
+  ],
+  "tint_face": [
+   120,
+   120,
+   128
+  ],
+  "tint_edge": [
+   210,
+   190,
+   140
+  ]
+ },
+ "icon-status-plain": {
+  "desc": "意像对照 B：完全去 LoRA，纯 SDXL 底模——与 A 同提示词对照，隔离'武器徽章化'到底来自 LoRA 先验还是提示词",
+  "prefix": "fantasy game status effect icon, single centered symbol, hand-painted dark fantasy illustration, bold clear silhouette, strong rim light, glossy painterly detail, masterpiece, best quality, isolated on plain flat solid background",
+  "negative": "text, watermark, letters, words, photo, realistic, 3d render, blurry, lowres, deformed, multiple objects, duplicate, busy background, textured background, patterned background, gradient background, border, frame, vignette, cropped, off-center",
+  "sampler": "DPM++ 2M SDE",
+  "steps": 30,
+  "cfg": 6.0,
+  "denoise_base": 0.0,
+  "checkpoint": null,
+  "tint_bg": [
+   26,
+   26,
+   30
+  ],
+  "tint_face": [
+   120,
+   120,
+   128
+  ],
+  "tint_edge": [
+   210,
+   190,
+   140
+  ]
+ },
+ "cosmic-space": {
+  "desc": "2026-10-11 宇宙系五 LoRA 横评之一（Space_sdxl）：深空暗金锚点族，tint=美术决策账三色锚",
+  "prefix": "<lora:Space_sdxl:0.7>, dark space fantasy game asset, deep void black background, cold blue-black shadows, warm amber ember-gold glow, star dust particles, soft halo bloom, painterly, high detail",
+  "negative": "text, watermark, letters, words, photo, realistic, 3d render, blurry, lowres, deformed, extra objects, busy background, neon saturated colors, hard sharp edges, bright daylight",
+  "sampler": "DPM++ 2M SDE",
+  "steps": 30,
+  "cfg": 6.0,
+  "denoise_base": 0.0,
+  "checkpoint": null,
+  "tint_bg": [
+   10,
+   10,
+   20
+  ],
+  "tint_face": [
+   90,
+   55,
+   25
+  ],
+  "tint_edge": [
+   250,
+   200,
+   130
+  ]
+ },
+ "elem-line": {
+  "desc": "六元素线条图案（2026-10-12 用户配方：红火焰/蓝水滴/绿幼苗/白太阳/黑月牙/灰星星，简单线条勾勒）：init 即权威——图案几何与颜色全画进 elem_glyph 模板（edge=核心线条色=游戏内 UiStyle.Dot* 元素色锚，face=晕光环色，bg=暗宇宙底 [10,10,20]），SD 只润饰线条质感；黑元素=黑芯+暗紫晕（纯黑芯在暗底不可见，晕环即轮廓）；denoise 走 SD1.5 校准带 0.60-0.75（几何件 +0.10 后移律）",
+  "prefix": "fantasy game element symbol, single centered sigil drawn with simple clean bold outline strokes, minimalist line art, thin luminous stroke with soft glow halo, dark void background, centered composition, clean crisp lines, high contrast, masterpiece, best quality",
+  "negative": "text, letters, words, numbers, runes, watermark, signature, logo, multiple symbols, duplicate, extra objects, extra symbols, busy background, textured background, patterned background, complex ornament, filigree, solid filled silhouette, heavy shading, gradient mesh, 3d render, photo, realistic scene, people, human, face, hands, blurry, soft edges, feathered edge, off-center, cropped, border, frame, vignette, tiny subject, small subject, mostly empty background",
+  "sampler": "DPM++ 2M",
+  "scheduler": "karras",
+  "steps": 32,
+  "cfg": 6.0,
+  "denoise_base": 0.0,
+  "checkpoint": null,
+  "tint_bg": [10, 10, 20],
+  "tint_face": [120, 100, 80],
+  "tint_edge": [250, 200, 130]
+ },
+ "silk-silvergold": {
+  "desc": "战斗动作图标（2026-10-15 用户配方：攻击/守卫/发动，银色主体+金色描边+黑色丝绸背景）：elem_glyph 双描边天然映射——edge=银芯线（主体）/face=金晕边（2 倍宽=描边）/bg=黑丝底 [12,12,16]；init 即权威（形状与银金双色画进模板），SD 只润饰线条质感+丝绸光泽；贴暗夜鎏金锚（bg 冷黑/edge 族内取琥珀金）；denoise 走 SD1.5 校准带 0.60-0.75",
+  "prefix": "fantasy game action icon, single centered sigil drawn with simple clean bold outline strokes, minimalist line art, luminous polished silver stroke edged with radiant golden glow halo, on lustrous black silk fabric background with subtle flowing sheen, centered composition, clean crisp lines, high contrast, masterpiece, best quality",
+  "negative": "text, letters, words, numbers, runes, watermark, signature, logo, multiple symbols, duplicate, extra objects, extra symbols, busy background, complex ornament, filigree, solid filled silhouette, heavy shading, gradient mesh, 3d render, photo, realistic scene, people, human, face, hands, blurry, soft edges, feathered edge, off-center, cropped, border, frame, vignette, tiny subject, small subject, mostly empty background, wrinkles, creases, folds, coarse fabric weave, strong specular highlights",
+  "sampler": "DPM++ 2M",
+  "scheduler": "karras",
+  "steps": 32,
+  "cfg": 6.0,
+  "denoise_base": 0.0,
+  "checkpoint": null,
+  "tint_bg": [12, 12, 16],
+  "tint_face": [250, 200, 130],
+  "tint_edge": [208, 214, 224]
+ },
+ "badge-silvergold-3d": {
+  "desc": "战斗动作图标·圆徽章版（2026-10-15 用户两轮裁决：①否决抽象线稿要 3D 质感功能图标 ②背景纯黑+圆形徽章、反插画化）：badge_glow init=金环几何权威+盘内银白光团（SD 雕主体）+环外纯黑；银=金属主体/金=环+rim light/底=纯黑；反插画负面（painterly/brush strokes/canvas）；dn 0.65-0.75（环结构保护带）",
+  "prefix": "3D game skill icon, circular badge emblem with ornate gold ring border, polished silver metal subject with golden rim light accents, glossy sculpted details, bold iconic silhouette, dramatic lighting, high contrast, sharp focus, pure black background, masterpiece, best quality",
+  "negative": "text, letters, words, numbers, watermark, signature, logo, multiple emblems, duplicate, split panel, square badge, diamond badge, hexagon badge, painting, illustration, painterly brush strokes, canvas texture, concept art, sketch, line art, minimalist, flat design, plain 2d, dull, washed out, faded, desaturated, low contrast, blurry, soft focus, cropped, off-center, photorealistic human face, busy background outside badge, background scenery outside the badge",
+  "sampler": "DPM++ 2M",
+  "scheduler": "karras",
+  "steps": 32,
+  "cfg": 6.0,
+  "denoise_base": 0.0,
+  "checkpoint": null,
+  "tint_bg": [8, 8, 10],
+  "tint_face": [250, 200, 130],
+  "tint_edge": [208, 214, 224]
+ },
+ "cardback-void": {
+  "desc": "统一卡背（2026-10-12 用户任务：地牌图标后的统一卡背，中心留符号位）：cosmic-hollow 的卡背面版本——金饰边带承暗夜鎏金锚，内场=深空暗面+稀疏星尘，中心=quiet dark 留给元素符号（引擎后期合成）；负面禁中心徽记/卡面插画/多卡",
+  "prefix": "hand-painted fantasy card back design, ornate antique gold filigree border richly decorated, corner ornaments on the rim only, deep void black field with sparse faint stardust, quiet empty dark center reserved for an emblem, perfectly symmetrical, centered composition, sharp crisp edges, hard edge, high contrast, lightly used, subtle scratches, aged patina, used look, not heavily damaged, masterpiece, best quality, 8k",
+  "negative": "text, letters, words, numbers, runes, watermark, signature, logo, emblem in center, symbol in center, busy center, cluttered center, decorative center, patterned center, glowing center, bright center, vignette, card front, card face, illustration, artwork inside, multiple cards, card fan, stack of cards, cropped, off-center, asymmetric border, soft edges, blurry, feathered edge, low contrast, heavy damage, broken, cracked, people, human, face, photo, realistic scene",
+  "sampler": "DPM++ 2M",
+  "scheduler": "karras",
+  "steps": 32,
+  "cfg": 6.0,
+  "denoise_base": 0.0,
+  "checkpoint": null,
+  "tint_bg": [10, 10, 20],
+  "tint_face": [90, 55, 25],
+  "tint_edge": [250, 200, 130]
+ },
+ "cosmic-galaxy": {
+  "desc": "2026-10-11 宇宙系五 LoRA 横评之一（galaxy_cosmic_v1）",
+  "prefix": "<lora:galaxy_cosmic_v1:0.7>, dark space fantasy game asset, deep void black background, cold blue-black shadows, warm amber ember-gold glow, star dust particles, soft halo bloom, painterly, high detail",
+  "negative": "text, watermark, letters, words, photo, realistic, 3d render, blurry, lowres, deformed, extra objects, busy background, neon saturated colors, hard sharp edges, bright daylight",
+  "sampler": "DPM++ 2M SDE",
+  "steps": 30,
+  "cfg": 6.0,
+  "denoise_base": 0.0,
+  "checkpoint": null,
+  "tint_bg": [
+   10,
+   10,
+   20
+  ],
+  "tint_face": [
+   90,
+   55,
+   25
+  ],
+  "tint_edge": [
+   250,
+   200,
+   130
+  ]
+ },
+ "cosmic-winter": {
+  "desc": "2026-10-11 宇宙系五 LoRA 横评之一（Cosmic_Winter，冬夜向对照）",
+  "prefix": "<lora:Cosmic_Winter:0.7>, dark space fantasy game asset, deep void black background, cold blue-black shadows, warm amber ember-gold glow, star dust particles, soft halo bloom, painterly, high detail",
+  "negative": "text, watermark, letters, words, photo, realistic, 3d render, blurry, lowres, deformed, extra objects, busy background, neon saturated colors, hard sharp edges, bright daylight",
+  "sampler": "DPM++ 2M SDE",
+  "steps": 30,
+  "cfg": 6.0,
+  "denoise_base": 0.0,
+  "checkpoint": null,
+  "tint_bg": [
+   10,
+   10,
+   20
+  ],
+  "tint_face": [
+   90,
+   55,
+   25
+  ],
+  "tint_edge": [
+   250,
+   200,
+   130
+  ]
+ },
+ "cosmic-entity": {
+  "desc": "2026-10-11 宇宙系五 LoRA 横评之一（Cool_Cosmic_Entity_Design）",
+  "prefix": "<lora:Cool_Cosmic_Entity_Design:0.7>, dark space fantasy game asset, deep void black background, cold blue-black shadows, warm amber ember-gold glow, star dust particles, soft halo bloom, painterly, high detail",
+  "negative": "text, watermark, letters, words, photo, realistic, 3d render, blurry, lowres, deformed, extra objects, busy background, neon saturated colors, hard sharp edges, bright daylight",
+  "sampler": "DPM++ 2M SDE",
+  "steps": 30,
+  "cfg": 6.0,
+  "denoise_base": 0.0,
+  "checkpoint": null,
+  "tint_bg": [
+   10,
+   10,
+   20
+  ],
+  "tint_face": [
+   90,
+   55,
+   25
+  ],
+  "tint_edge": [
+   250,
+   200,
+   130
+  ]
+ },
+ "cosmic-k2": {
+  "desc": "2026-10-11 宇宙系五 LoRA 横评之一（k2E997AAE58589Copy.Tz8n，LiblibAI 款内容未知，纯摸底）",
+  "prefix": "<lora:k2E997AAE58589Copy.Tz8n:0.7>, dark space fantasy game asset, deep void black background, cold blue-black shadows, warm amber ember-gold glow, star dust particles, soft halo bloom, painterly, high detail",
+  "negative": "text, watermark, letters, words, photo, realistic, 3d render, blurry, lowres, deformed, extra objects, busy background, neon saturated colors, hard sharp edges, bright daylight",
+  "sampler": "DPM++ 2M SDE",
+  "steps": 30,
+  "cfg": 6.0,
+  "denoise_base": 0.0,
+  "checkpoint": null,
+  "tint_bg": [
+   10,
+   10,
+   20
+  ],
+  "tint_face": [
+   90,
+   55,
+   25
+  ],
+  "tint_edge": [
+   250,
+   200,
+   130
+  ]
+ },
+ "cosmic-space-icon": {
+  "desc": "图标 v3（2026-10-11 两轮反馈定档）：Space_sdxl@0.6 意象主语+宇宙氛围保留（v1=0.7 星空喧宾、v2=0.35 味被洗尽返暗黑底模风）",
+  "prefix": "<lora:Space_sdxl:0.6>, game item icon, single large centered subject filling most of the frame, bold clear silhouette, strong rim light, glossy painterly detail, deep space ambience with the subject as dominant glowing focus, masterpiece, best quality",
+  "negative": "text, watermark, letters, words, photo, realistic, 3d render, blurry, lowres, deformed, multiple objects, duplicate, busy background, textured background, patterned background, border, frame, vignette, cropped, off-center, tiny subject, small subject, mostly empty background",
+  "sampler": "DPM++ 2M SDE",
+  "steps": 30,
+  "cfg": 6.0,
+  "denoise_base": 0.0,
+  "checkpoint": null,
+  "tint_bg": [
+   10,
+   10,
+   20
+  ],
+  "tint_face": [
+   90,
+   55,
+   25
+  ],
+  "tint_edge": [
+   250,
+   200,
+   130
+  ]
+ },
+ "cosmic-galaxy-icon": {
+  "desc": "图标 v3（2026-10-11 两轮反馈定档）：galaxy_cosmic_v1@0.6 意象主语+宇宙氛围保留（v1=0.7 星空喧宾、v2=0.35 味被洗尽返暗黑底模风）",
+  "prefix": "<lora:galaxy_cosmic_v1:0.6>, game item icon, single large centered subject filling most of the frame, bold clear silhouette, strong rim light, glossy painterly detail, deep space ambience with the subject as dominant glowing focus, masterpiece, best quality",
+  "negative": "text, watermark, letters, words, photo, realistic, 3d render, blurry, lowres, deformed, multiple objects, duplicate, busy background, textured background, patterned background, border, frame, vignette, cropped, off-center, tiny subject, small subject, mostly empty background",
+  "sampler": "DPM++ 2M SDE",
+  "steps": 30,
+  "cfg": 6.0,
+  "denoise_base": 0.0,
+  "checkpoint": null,
+  "tint_bg": [
+   10,
+   10,
+   20
+  ],
+  "tint_face": [
+   90,
+   55,
+   25
+  ],
+  "tint_edge": [
+   250,
+   200,
+   130
+  ]
+ },
+ "cosmic-winter-icon": {
+  "desc": "图标 v3（2026-10-11 两轮反馈定档）：Cosmic_Winter@0.6 意象主语+宇宙氛围保留（v1=0.7 星空喧宾、v2=0.35 味被洗尽返暗黑底模风）",
+  "prefix": "<lora:Cosmic_Winter:0.6>, game item icon, single large centered subject filling most of the frame, bold clear silhouette, strong rim light, glossy painterly detail, deep space ambience with the subject as dominant glowing focus, masterpiece, best quality",
+  "negative": "text, watermark, letters, words, photo, realistic, 3d render, blurry, lowres, deformed, multiple objects, duplicate, busy background, textured background, patterned background, border, frame, vignette, cropped, off-center, tiny subject, small subject, mostly empty background",
+  "sampler": "DPM++ 2M SDE",
+  "steps": 30,
+  "cfg": 6.0,
+  "denoise_base": 0.0,
+  "checkpoint": null,
+  "tint_bg": [
+   10,
+   10,
+   20
+  ],
+  "tint_face": [
+   90,
+   55,
+   25
+  ],
+  "tint_edge": [
+   250,
+   200,
+   130
+  ]
+ },
+ "cosmic-entity-icon": {
+  "desc": "图标 v3（2026-10-11 两轮反馈定档）：Cool_Cosmic_Entity_Design@0.6 意象主语+宇宙氛围保留（v1=0.7 星空喧宾、v2=0.35 味被洗尽返暗黑底模风）",
+  "prefix": "<lora:Cool_Cosmic_Entity_Design:0.6>, game item icon, single large centered subject filling most of the frame, bold clear silhouette, strong rim light, glossy painterly detail, deep space ambience with the subject as dominant glowing focus, masterpiece, best quality",
+  "negative": "text, watermark, letters, words, photo, realistic, 3d render, blurry, lowres, deformed, multiple objects, duplicate, busy background, textured background, patterned background, border, frame, vignette, cropped, off-center, tiny subject, small subject, mostly empty background",
+  "sampler": "DPM++ 2M SDE",
+  "steps": 30,
+  "cfg": 6.0,
+  "denoise_base": 0.0,
+  "checkpoint": null,
+  "tint_bg": [
+   10,
+   10,
+   20
+  ],
+  "tint_face": [
+   90,
+   55,
+   25
+  ],
+  "tint_edge": [
+   250,
+   200,
+   130
+  ]
+ },
+ "cosmic-k2-icon": {
+  "desc": "图标 v3（2026-10-11 两轮反馈定档）：k2E997AAE58589Copy.Tz8n@0.6 意象主语+宇宙氛围保留（v1=0.7 星空喧宾、v2=0.35 味被洗尽返暗黑底模风）",
+  "prefix": "<lora:k2E997AAE58589Copy.Tz8n:0.6>, game item icon, single large centered subject filling most of the frame, bold clear silhouette, strong rim light, glossy painterly detail, deep space ambience with the subject as dominant glowing focus, masterpiece, best quality",
+  "negative": "text, watermark, letters, words, photo, realistic, 3d render, blurry, lowres, deformed, multiple objects, duplicate, busy background, textured background, patterned background, border, frame, vignette, cropped, off-center, tiny subject, small subject, mostly empty background",
+  "sampler": "DPM++ 2M SDE",
+  "steps": 30,
+  "cfg": 6.0,
+  "denoise_base": 0.0,
+  "checkpoint": null,
+  "tint_bg": [
+   10,
+   10,
+   20
+  ],
+  "tint_face": [
+   90,
+   55,
+   25
+  ],
+  "tint_edge": [
+   250,
+   200,
+   130
+  ]
+ }
+}

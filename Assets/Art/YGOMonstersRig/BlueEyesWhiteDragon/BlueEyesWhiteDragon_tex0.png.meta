@@ -1,0 +1,442 @@
+fileFormatVersion: 2
+guid: 4b5a8ea26b4102a4d9a73430e89e5dad
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: -1036402966514096005
+    second: BlueEyesWhiteDragon_tex0_0
+  - first:
+      213: -352085055483328895
+    second: BlueEyesWhiteDragon_tex0_1
+  - first:
+      213: -311494362096169141
+    second: BlueEyesWhiteDragon_tex0_2
+  - first:
+      213: 1519377243194724185
+    second: BlueEyesWhiteDragon_tex0_3
+  - first:
+      213: -4589690172339339432
+    second: BlueEyesWhiteDragon_tex0_4
+  - first:
+      213: -7055537363992239174
+    second: BlueEyesWhiteDragon_tex0_5
+  - first:
+      213: 4248742367485196281
+    second: BlueEyesWhiteDragon_tex0_6
+  - first:
+      213: -4573554716958645774
+    second: BlueEyesWhiteDragon_tex0_7
+  - first:
+      213: 5121259992447579096
+    second: BlueEyesWhiteDragon_tex0_8
+  - first:
+      213: -9049710164047490463
+    second: BlueEyesWhiteDragon_tex0_9
+  - first:
+      213: 4458109558127564405
+    second: BlueEyesWhiteDragon_tex0_10
+  - first:
+      213: -8342922036303041152
+    second: BlueEyesWhiteDragon_tex0_11
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 1
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 0
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 0
+  spriteTessellationDetail: -1
+  textureType: 0
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: BlueEyesWhiteDragon_tex0_0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 449
+        width: 113
+        height: 60
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b7824c83ef4fd91f0800000000000000
+      internalID: -1036402966514096005
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlueEyesWhiteDragon_tex0_1
+      rect:
+        serializedVersion: 2
+        x: 223
+        y: 484
+        width: 52
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1864139e1842d1bf0800000000000000
+      internalID: -352085055483328895
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlueEyesWhiteDragon_tex0_2
+      rect:
+        serializedVersion: 2
+        x: 465
+        y: 482
+        width: 47
+        height: 30
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b4f88bd27895dabf0800000000000000
+      internalID: -311494362096169141
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlueEyesWhiteDragon_tex0_3
+      rect:
+        serializedVersion: 2
+        x: 223
+        y: 423
+        width: 48
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 95f0f6c7d89e51510800000000000000
+      internalID: 1519377243194724185
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlueEyesWhiteDragon_tex0_4
+      rect:
+        serializedVersion: 2
+        x: 223
+        y: 395
+        width: 38
+        height: 20
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 85fbc900b152e40c0800000000000000
+      internalID: -4589690172339339432
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlueEyesWhiteDragon_tex0_5
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 272
+        width: 173
+        height: 113
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ab32fb73622b51e90800000000000000
+      internalID: -7055537363992239174
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlueEyesWhiteDragon_tex0_6
+      rect:
+        serializedVersion: 2
+        x: 133
+        y: 307
+        width: 62
+        height: 30
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9f77b142ca096fa30800000000000000
+      internalID: 4248742367485196281
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlueEyesWhiteDragon_tex0_7
+      rect:
+        serializedVersion: 2
+        x: 200
+        y: 329
+        width: 58
+        height: 31
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2f12ed677387780c0800000000000000
+      internalID: -4573554716958645774
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlueEyesWhiteDragon_tex0_8
+      rect:
+        serializedVersion: 2
+        x: 80
+        y: 264
+        width: 28
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8d3f14c54de521740800000000000000
+      internalID: 5121259992447579096
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlueEyesWhiteDragon_tex0_9
+      rect:
+        serializedVersion: 2
+        x: 248
+        y: 133
+        width: 20
+        height: 24
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 16215bf9d88f86280800000000000000
+      internalID: -9049710164047490463
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlueEyesWhiteDragon_tex0_10
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 166
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 57697f5e5036edd30800000000000000
+      internalID: 4458109558127564405
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlueEyesWhiteDragon_tex0_11
+      rect:
+        serializedVersion: 2
+        x: 348
+        y: 0
+        width: 164
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 08de0655c9cf73c80800000000000000
+      internalID: -8342922036303041152
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      BlueEyesWhiteDragon_tex0_0: -1036402966514096005
+      BlueEyesWhiteDragon_tex0_1: -352085055483328895
+      BlueEyesWhiteDragon_tex0_10: 4458109558127564405
+      BlueEyesWhiteDragon_tex0_11: -8342922036303041152
+      BlueEyesWhiteDragon_tex0_2: -311494362096169141
+      BlueEyesWhiteDragon_tex0_3: 1519377243194724185
+      BlueEyesWhiteDragon_tex0_4: -4589690172339339432
+      BlueEyesWhiteDragon_tex0_5: -7055537363992239174
+      BlueEyesWhiteDragon_tex0_6: 4248742367485196281
+      BlueEyesWhiteDragon_tex0_7: -4573554716958645774
+      BlueEyesWhiteDragon_tex0_8: 5121259992447579096
+      BlueEyesWhiteDragon_tex0_9: -9049710164047490463
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

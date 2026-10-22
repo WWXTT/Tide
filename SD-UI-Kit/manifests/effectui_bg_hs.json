@@ -1,0 +1,11 @@
+{
+  "task": "effectui-bg-hs",
+  "style": "hearthstone",
+  "server": "http://127.0.0.1:7860",
+  "variants": 4,
+  "items": [
+    { "id": "bg-full",  "type": "background", "w": 1920, "h": 1080, "exact": true, "denoise": 0.80, "note": "整屏底层背景" },
+    { "id": "bg-left",  "type": "panel",      "w": 1120, "h": 946,  "exact": true, "denoise": 0.70, "note": "左栏背板（顶=110+12 底缝12）" },
+    { "id": "bg-right", "type": "panel",      "w": 750,  "h": 946,  "exact": true, "denoise": 0.70, "note": "右栏背板（同左）" }
+  ]
+}

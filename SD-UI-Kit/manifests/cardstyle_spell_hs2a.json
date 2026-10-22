@@ -1,0 +1,14 @@
+{
+  "task": "cardstyle-spell-hs2a",
+  "style": "hs2-warm",
+  "server": "http://127.0.0.1:7860",
+  "variants": 2,
+  "items": [
+    { "id": "spell-face",   "type": "card_hs",     "w": 400, "h": 600, "exact": true,
+      "prompt_addon": "spell card, vertical 2:3, single line of effect text, generous margins",
+      "note": "法术卡面·四分区版式模板 400x600 (2:3)" },
+    { "id": "spell-hollow", "type": "card_hollow", "w": 400, "h": 600, "exact": true,
+      "prompt_addon": "spell card, vertical 2:3",
+      "note": "法术卡框·空心边框模板（暖金 tint） 400x600 (2:3)" }
+  ]
+}

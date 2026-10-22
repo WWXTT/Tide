@@ -1,0 +1,236 @@
+{
+ "panel": {
+  "shape": "rounded_solid",
+  "corner": 0.1,
+  "prompt": "game UI popup panel, decorated border, large smooth flat dark empty center, minimal interior texture",
+  "denoise": 0.65,
+  "pad": 1.06,
+  "base_px": 1024
+ },
+ "button": {
+  "shape": "rounded_solid",
+  "corner": 0.15,
+  "prompt": "fantasy game UI button, ornate beveled edge, metallic trim, plain center for label",
+  "denoise": 0.65,
+  "pad": 1.15,
+  "base_px": 1024
+ },
+ "row": {
+  "shape": "rounded_inset",
+  "corner": 0.1,
+  "prompt": "game UI list row bar, plain dark recessed strip for text, thin simple border, minimal ornament",
+  "denoise": 0.65,
+  "pad": 1.1,
+  "base_px": 1024
+ },
+ "field": {
+  "shape": "rounded_inset",
+  "corner": 0.12,
+  "prompt": "game UI input field, recessed dark slot for text, smooth plain dark interior, thin simple border",
+  "denoise": 0.65,
+  "pad": 1.2,
+  "base_px": 1024
+ },
+ "slider": {
+  "shape": "rounded_inset",
+  "corner": 0.15,
+  "prompt": "game UI slider track bar, recessed groove, thin ornate border, small notch mark in middle",
+  "denoise": 0.65,
+  "pad": 1.3,
+  "base_px": 1024
+ },
+ "dropdown": {
+  "shape": "rounded_inset",
+  "corner": 0.12,
+  "prompt": "game UI dropdown bar, recessed dark slot for text, smooth plain dark interior, thin simple border, small arrow on right",
+  "denoise": 0.65,
+  "pad": 1.15,
+  "base_px": 1024
+ },
+ "slot": {
+  "shape": "rounded_inset",
+  "corner": 0.12,
+  "prompt": "game UI inventory slot, square recessed inset frame, beveled inner edge",
+  "denoise": 0.65,
+  "pad": 1.12,
+  "base_px": 1024
+ },
+ "card": {
+  "shape": "rounded_solid",
+  "corner": 0.08,
+  "prompt": "ornate card frame, decorated border, hollow center",
+  "denoise": 0.65,
+  "pad": 1.05,
+  "base_px": 1024
+ },
+ "card_hollow": {
+  "shape": "frame_hollow",
+  "corner": 0.08,
+  "prompt": "ornate trading card border frame, decorated outer rim only, quiet dark empty interior",
+  "denoise": 0.65,
+  "pad": 1.05,
+  "base_px": 1024
+ },
+ "frame_ring": {
+  "shape": "ring_hollow",
+  "corner": 0.0,
+  "prompt": "circular ornate frame ring, decorated rim only, quiet dark empty interior",
+  "denoise": 0.65,
+  "pad": 1.05,
+  "base_px": 1024
+ },
+ "frame_tri": {
+  "shape": "tri_hollow",
+  "corner": 0.0,
+  "prompt": "triangular ornate frame with rounded corners, decorated rim only, quiet dark empty interior",
+  "denoise": 0.65,
+  "pad": 1.05,
+  "base_px": 1024
+ },
+ "frame_tri_inv": {
+  "shape": "tri_hollow",
+  "flip_v": true,
+  "corner": 0.0,
+  "prompt": "inverted triangular ornate frame with rounded corners, apex pointing down, decorated rim only, quiet dark empty interior",
+  "denoise": 0.65,
+  "pad": 1.05,
+  "base_px": 1024
+ },
+ "frame_square": {
+  "shape": "frame_hollow",
+  "corner": 0.06,
+  "prompt": "square ornate frame with slightly rounded corners, decorated rim only, quiet dark empty interior",
+  "denoise": 0.65,
+  "pad": 1.05,
+  "base_px": 1024
+ },
+ "frame2_ring": {
+  "shape": "ring_dblstroke",
+  "corner": 0.0,
+  "prompt": "circular hollow card frame, thick outer metal stroke and thin inner metal stroke, uniform-width starry sky band between the two strokes, deep dark center",
+  "denoise": 0.75,
+  "pad": 1.05,
+  "base_px": 1024
+ },
+ "frame2_square": {
+  "shape": "rect_dblstroke",
+  "corner": 0.0,
+  "prompt": "square hollow card frame with sharp 90-degree corners, thick outer metal stroke and thin inner metal stroke, uniform-width starry sky band between the two strokes, deep dark center",
+  "denoise": 0.75,
+  "pad": 1.05,
+  "base_px": 1024
+ },
+ "frame2_tri_inv": {
+  "shape": "tri_dblstroke",
+  "flip_v": true,
+  "corner": 0.0,
+  "prompt": "inverted equilateral triangle hollow card frame, downward-pointing, sharp triangular points, thick outer metal stroke and thin inner metal stroke, uniform-width starry sky band between the two strokes, deep dark center",
+  "denoise": 0.75,
+  "pad": 1.05,
+  "base_px": 1024
+ },
+ "banner": {
+  "shape": "rounded_solid",
+  "corner": 0.4,
+  "prompt": "game UI name banner plate, short decorated ribbon bar, plain center reserved for text",
+  "denoise": 0.65,
+  "pad": 1.18,
+  "base_px": 1024
+ },
+ "plaque_paper": {
+  "shape": "plaque_paper",
+  "corner": 0.12,
+  "prompt": "ornate game UI text plaque, decorated gold border confined to the outer rim, quiet parchment paper interior reserved for text, minimal interior ornament",
+  "denoise": 0.65,
+  "pad": 1.1,
+  "base_px": 1024
+ },
+ "plaque_paper_vine": {
+  "shape": "plaque_paper_vine",
+  "corner": 0.12,
+  "prompt": "game UI text plaque, thin gold vine linework tracing the outer rim only, quiet parchment paper interior reserved for text, minimal interior ornament",
+  "denoise": 0.65,
+  "pad": 1.1,
+  "base_px": 1024
+ },
+ "slab_sigil": {
+  "shape": "sigil_grooves",
+  "corner": 0.04,
+  "prompt": "carved dark stone slab, sacred sigil grooves, square and inverted triangle both inscribed in the circle with vertices precisely touching the circle, interlocking channels, empty chiseled channels, no central emblem",
+  "denoise": 0.65,
+  "pad": 1.0,
+  "base_px": 1024
+ },
+ "card_hs": {
+  "shape": "card_face",
+  "corner": 0.08,
+  "prompt": "trading card face layout, thick sculpted frame border, large illustration window in upper half, name banner at top, recessed text panel at bottom",
+  "denoise": 0.7,
+  "pad": 1.05,
+  "base_px": 1024
+ },
+ "icon": {
+  "shape": "plain",
+  "corner": 0.0,
+  "prompt": "single game icon symbol, centered, plain background",
+  "denoise": 0.8,
+  "pad": 1.0,
+  "base_px": 1024
+ },
+ "background": {
+  "shape": "plain",
+  "corner": 0.0,
+  "prompt": "dark empty texture background, very low contrast, plain quiet surface, no ornaments, no text",
+  "denoise": 0.85,
+  "pad": 1.0,
+  "base_px": 1024
+ },
+ "kwicon": {
+  "shape": "plain",
+  "corner": 0.0,
+  "prompt": "single centered status effect symbol filling most of the frame, plain solid background",
+  "denoise": 0.8,
+  "pad": 1.0,
+  "base_px": 1024
+ },
+ "kwgem": {
+  "shape": "gem_blob",
+  "corner": 0.0,
+  "prompt": "single centered round elemental gem emblem, glowing crystal orb, plain dark background",
+  "denoise": 0.7,
+  "pad": 1.0,
+  "base_px": 1024
+ },
+ "elem_glyph": {
+  "shape": "elem_glyph",
+  "corner": 0.0,
+  "prompt": "single centered elemental sigil drawn with simple bold clean outline strokes, minimalist line art, thin luminous stroke with soft glow halo, plain dark void background",
+  "denoise": 0.7,
+  "pad": 1.0,
+  "base_px": 512
+ },
+ "action_glyph": {
+  "shape": "elem_glyph",
+  "corner": 0.0,
+  "prompt": "single centered battle action sigil drawn with simple bold clean outline strokes, minimalist line art, luminous stroke with glow halo, dark lustrous silk background",
+  "denoise": 0.7,
+  "pad": 1.0,
+  "base_px": 512
+ },
+ "icon3d": {
+  "shape": "badge_glow",
+  "corner": 0.0,
+  "prompt": "circular game skill icon badge with a gold ring border, single glossy 3D sculpted silver subject emblem centered inside the round badge, bold iconic silhouette, pure black background outside the badge",
+  "denoise": 0.75,
+  "pad": 1.0,
+  "base_px": 768
+ },
+ "card_back": {
+  "shape": "card_back",
+  "corner": 0.06,
+  "prompt": "ornate trading card back, decorated gold filigree border, deep dark quiet field, subtle recessed emblem slot in the center",
+  "denoise": 0.7,
+  "pad": 1.02,
+  "base_px": 512
+ }
+}

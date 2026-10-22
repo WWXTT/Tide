@@ -1,0 +1,1138 @@
+{
+ "task": "icons-cosmic5-v3",
+ "style": "cosmic-space-icon",
+ "server": "http://127.0.0.1:7860",
+ "variants": 2,
+ "items": [
+  {
+   "id": "stat-attack__space",
+   "type": "kwicon",
+   "w": 44,
+   "h": 40,
+   "style": "cosmic-space-icon",
+   "flat": false,
+   "prompt_addon": "(a single upright sword with glowing sharp blade:1.3), centered weapon icon",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "攻击力·剑 · cosmic-space-icon"
+  },
+  {
+   "id": "stat-attack__galaxy",
+   "type": "kwicon",
+   "w": 44,
+   "h": 40,
+   "style": "cosmic-galaxy-icon",
+   "flat": false,
+   "prompt_addon": "(a single upright sword with glowing sharp blade:1.3), centered weapon icon",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "攻击力·剑 · cosmic-galaxy-icon"
+  },
+  {
+   "id": "stat-attack__winter",
+   "type": "kwicon",
+   "w": 44,
+   "h": 40,
+   "style": "cosmic-winter-icon",
+   "flat": false,
+   "prompt_addon": "(a single upright sword with glowing sharp blade:1.3), centered weapon icon",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "攻击力·剑 · cosmic-winter-icon"
+  },
+  {
+   "id": "stat-attack__entity",
+   "type": "kwicon",
+   "w": 44,
+   "h": 40,
+   "style": "cosmic-entity-icon",
+   "flat": false,
+   "prompt_addon": "(a single upright sword with glowing sharp blade:1.3), centered weapon icon",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "攻击力·剑 · cosmic-entity-icon"
+  },
+  {
+   "id": "stat-attack__k2",
+   "type": "kwicon",
+   "w": 44,
+   "h": 40,
+   "style": "cosmic-k2-icon",
+   "flat": false,
+   "prompt_addon": "(a single upright sword with glowing sharp blade:1.3), centered weapon icon",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "攻击力·剑 · cosmic-k2-icon"
+  },
+  {
+   "id": "stat-life__space",
+   "type": "kwicon",
+   "w": 44,
+   "h": 40,
+   "style": "cosmic-space-icon",
+   "flat": false,
+   "prompt_addon": "(a single glowing heart-shaped vitality ruby:1.3), soft warm pulse glow",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "生命值·心 · cosmic-space-icon"
+  },
+  {
+   "id": "stat-life__galaxy",
+   "type": "kwicon",
+   "w": 44,
+   "h": 40,
+   "style": "cosmic-galaxy-icon",
+   "flat": false,
+   "prompt_addon": "(a single glowing heart-shaped vitality ruby:1.3), soft warm pulse glow",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "生命值·心 · cosmic-galaxy-icon"
+  },
+  {
+   "id": "stat-life__winter",
+   "type": "kwicon",
+   "w": 44,
+   "h": 40,
+   "style": "cosmic-winter-icon",
+   "flat": false,
+   "prompt_addon": "(a single glowing heart-shaped vitality ruby:1.3), soft warm pulse glow",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "生命值·心 · cosmic-winter-icon"
+  },
+  {
+   "id": "stat-life__entity",
+   "type": "kwicon",
+   "w": 44,
+   "h": 40,
+   "style": "cosmic-entity-icon",
+   "flat": false,
+   "prompt_addon": "(a single glowing heart-shaped vitality ruby:1.3), soft warm pulse glow",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "生命值·心 · cosmic-entity-icon"
+  },
+  {
+   "id": "stat-life__k2",
+   "type": "kwicon",
+   "w": 44,
+   "h": 40,
+   "style": "cosmic-k2-icon",
+   "flat": false,
+   "prompt_addon": "(a single glowing heart-shaped vitality ruby:1.3), soft warm pulse glow",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "生命值·心 · cosmic-k2-icon"
+  },
+  {
+   "id": "stat-durability__space",
+   "type": "kwicon",
+   "w": 44,
+   "h": 40,
+   "style": "cosmic-space-icon",
+   "flat": false,
+   "prompt_addon": "(a single round shield with concentric layered plates:1.3), sturdy",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "耐久·层盾 · cosmic-space-icon"
+  },
+  {
+   "id": "stat-durability__galaxy",
+   "type": "kwicon",
+   "w": 44,
+   "h": 40,
+   "style": "cosmic-galaxy-icon",
+   "flat": false,
+   "prompt_addon": "(a single round shield with concentric layered plates:1.3), sturdy",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "耐久·层盾 · cosmic-galaxy-icon"
+  },
+  {
+   "id": "stat-durability__winter",
+   "type": "kwicon",
+   "w": 44,
+   "h": 40,
+   "style": "cosmic-winter-icon",
+   "flat": false,
+   "prompt_addon": "(a single round shield with concentric layered plates:1.3), sturdy",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "耐久·层盾 · cosmic-winter-icon"
+  },
+  {
+   "id": "stat-durability__entity",
+   "type": "kwicon",
+   "w": 44,
+   "h": 40,
+   "style": "cosmic-entity-icon",
+   "flat": false,
+   "prompt_addon": "(a single round shield with concentric layered plates:1.3), sturdy",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "耐久·层盾 · cosmic-entity-icon"
+  },
+  {
+   "id": "stat-durability__k2",
+   "type": "kwicon",
+   "w": 44,
+   "h": 40,
+   "style": "cosmic-k2-icon",
+   "flat": false,
+   "prompt_addon": "(a single round shield with concentric layered plates:1.3), sturdy",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "耐久·层盾 · cosmic-k2-icon"
+  },
+  {
+   "id": "stat-speed__space",
+   "type": "kwicon",
+   "w": 44,
+   "h": 40,
+   "style": "cosmic-space-icon",
+   "flat": false,
+   "prompt_addon": "(a single swift feathered wing with motion streaks:1.3)",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "速度·翼 · cosmic-space-icon"
+  },
+  {
+   "id": "stat-speed__galaxy",
+   "type": "kwicon",
+   "w": 44,
+   "h": 40,
+   "style": "cosmic-galaxy-icon",
+   "flat": false,
+   "prompt_addon": "(a single swift feathered wing with motion streaks:1.3)",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "速度·翼 · cosmic-galaxy-icon"
+  },
+  {
+   "id": "stat-speed__winter",
+   "type": "kwicon",
+   "w": 44,
+   "h": 40,
+   "style": "cosmic-winter-icon",
+   "flat": false,
+   "prompt_addon": "(a single swift feathered wing with motion streaks:1.3)",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "速度·翼 · cosmic-winter-icon"
+  },
+  {
+   "id": "stat-speed__entity",
+   "type": "kwicon",
+   "w": 44,
+   "h": 40,
+   "style": "cosmic-entity-icon",
+   "flat": false,
+   "prompt_addon": "(a single swift feathered wing with motion streaks:1.3)",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "速度·翼 · cosmic-entity-icon"
+  },
+  {
+   "id": "stat-speed__k2",
+   "type": "kwicon",
+   "w": 44,
+   "h": 40,
+   "style": "cosmic-k2-icon",
+   "flat": false,
+   "prompt_addon": "(a single swift feathered wing with motion streaks:1.3)",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "速度·翼 · cosmic-k2-icon"
+  },
+  {
+   "id": "arrow-up__space",
+   "type": "kwicon",
+   "w": 30,
+   "h": 30,
+   "style": "cosmic-space-icon",
+   "flat": false,
+   "prompt_addon": "(a single bold arrow pointing straight up, thick shaft, wide arrowhead:1.3), clean silhouette",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate, tilted, diagonal, curved",
+   "note": "方向箭头·向上，其余方向 Unity 旋转 · cosmic-space-icon"
+  },
+  {
+   "id": "arrow-up__galaxy",
+   "type": "kwicon",
+   "w": 30,
+   "h": 30,
+   "style": "cosmic-galaxy-icon",
+   "flat": false,
+   "prompt_addon": "(a single bold arrow pointing straight up, thick shaft, wide arrowhead:1.3), clean silhouette",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate, tilted, diagonal, curved",
+   "note": "方向箭头·向上，其余方向 Unity 旋转 · cosmic-galaxy-icon"
+  },
+  {
+   "id": "arrow-up__winter",
+   "type": "kwicon",
+   "w": 30,
+   "h": 30,
+   "style": "cosmic-winter-icon",
+   "flat": false,
+   "prompt_addon": "(a single bold arrow pointing straight up, thick shaft, wide arrowhead:1.3), clean silhouette",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate, tilted, diagonal, curved",
+   "note": "方向箭头·向上，其余方向 Unity 旋转 · cosmic-winter-icon"
+  },
+  {
+   "id": "arrow-up__entity",
+   "type": "kwicon",
+   "w": 30,
+   "h": 30,
+   "style": "cosmic-entity-icon",
+   "flat": false,
+   "prompt_addon": "(a single bold arrow pointing straight up, thick shaft, wide arrowhead:1.3), clean silhouette",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate, tilted, diagonal, curved",
+   "note": "方向箭头·向上，其余方向 Unity 旋转 · cosmic-entity-icon"
+  },
+  {
+   "id": "arrow-up__k2",
+   "type": "kwicon",
+   "w": 30,
+   "h": 30,
+   "style": "cosmic-k2-icon",
+   "flat": false,
+   "prompt_addon": "(a single bold arrow pointing straight up, thick shaft, wide arrowhead:1.3), clean silhouette",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate, tilted, diagonal, curved",
+   "note": "方向箭头·向上，其余方向 Unity 旋转 · cosmic-k2-icon"
+  },
+  {
+   "id": "kind-creature__space",
+   "type": "kwicon",
+   "w": 44,
+   "h": 40,
+   "style": "cosmic-space-icon",
+   "flat": false,
+   "prompt_addon": "(a square beast sigil with claw marks on sturdy totem corners:1.3), square emblem",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "发动类型·生物=方形 · cosmic-space-icon"
+  },
+  {
+   "id": "kind-creature__galaxy",
+   "type": "kwicon",
+   "w": 44,
+   "h": 40,
+   "style": "cosmic-galaxy-icon",
+   "flat": false,
+   "prompt_addon": "(a square beast sigil with claw marks on sturdy totem corners:1.3), square emblem",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "发动类型·生物=方形 · cosmic-galaxy-icon"
+  },
+  {
+   "id": "kind-creature__winter",
+   "type": "kwicon",
+   "w": 44,
+   "h": 40,
+   "style": "cosmic-winter-icon",
+   "flat": false,
+   "prompt_addon": "(a square beast sigil with claw marks on sturdy totem corners:1.3), square emblem",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "发动类型·生物=方形 · cosmic-winter-icon"
+  },
+  {
+   "id": "kind-creature__entity",
+   "type": "kwicon",
+   "w": 44,
+   "h": 40,
+   "style": "cosmic-entity-icon",
+   "flat": false,
+   "prompt_addon": "(a square beast sigil with claw marks on sturdy totem corners:1.3), square emblem",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "发动类型·生物=方形 · cosmic-entity-icon"
+  },
+  {
+   "id": "kind-creature__k2",
+   "type": "kwicon",
+   "w": 44,
+   "h": 40,
+   "style": "cosmic-k2-icon",
+   "flat": false,
+   "prompt_addon": "(a square beast sigil with claw marks on sturdy totem corners:1.3), square emblem",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "发动类型·生物=方形 · cosmic-k2-icon"
+  },
+  {
+   "id": "kind-enchant__space",
+   "type": "kwicon",
+   "w": 44,
+   "h": 40,
+   "style": "cosmic-space-icon",
+   "flat": false,
+   "prompt_addon": "(a circular magic seal ring with orbiting runes:1.3), round emblem",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "发动类型·结界=圆形 · cosmic-space-icon"
+  },
+  {
+   "id": "kind-enchant__galaxy",
+   "type": "kwicon",
+   "w": 44,
+   "h": 40,
+   "style": "cosmic-galaxy-icon",
+   "flat": false,
+   "prompt_addon": "(a circular magic seal ring with orbiting runes:1.3), round emblem",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "发动类型·结界=圆形 · cosmic-galaxy-icon"
+  },
+  {
+   "id": "kind-enchant__winter",
+   "type": "kwicon",
+   "w": 44,
+   "h": 40,
+   "style": "cosmic-winter-icon",
+   "flat": false,
+   "prompt_addon": "(a circular magic seal ring with orbiting runes:1.3), round emblem",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "发动类型·结界=圆形 · cosmic-winter-icon"
+  },
+  {
+   "id": "kind-enchant__entity",
+   "type": "kwicon",
+   "w": 44,
+   "h": 40,
+   "style": "cosmic-entity-icon",
+   "flat": false,
+   "prompt_addon": "(a circular magic seal ring with orbiting runes:1.3), round emblem",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "发动类型·结界=圆形 · cosmic-entity-icon"
+  },
+  {
+   "id": "kind-enchant__k2",
+   "type": "kwicon",
+   "w": 44,
+   "h": 40,
+   "style": "cosmic-k2-icon",
+   "flat": false,
+   "prompt_addon": "(a circular magic seal ring with orbiting runes:1.3), round emblem",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "发动类型·结界=圆形 · cosmic-k2-icon"
+  },
+  {
+   "id": "kind-spell__space",
+   "type": "kwicon",
+   "w": 44,
+   "h": 40,
+   "style": "cosmic-space-icon",
+   "flat": false,
+   "prompt_addon": "(a triangular arcane burst sigil with sharp corners:1.3), triangle emblem",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "发动类型·法术=三角 · cosmic-space-icon"
+  },
+  {
+   "id": "kind-spell__galaxy",
+   "type": "kwicon",
+   "w": 44,
+   "h": 40,
+   "style": "cosmic-galaxy-icon",
+   "flat": false,
+   "prompt_addon": "(a triangular arcane burst sigil with sharp corners:1.3), triangle emblem",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "发动类型·法术=三角 · cosmic-galaxy-icon"
+  },
+  {
+   "id": "kind-spell__winter",
+   "type": "kwicon",
+   "w": 44,
+   "h": 40,
+   "style": "cosmic-winter-icon",
+   "flat": false,
+   "prompt_addon": "(a triangular arcane burst sigil with sharp corners:1.3), triangle emblem",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "发动类型·法术=三角 · cosmic-winter-icon"
+  },
+  {
+   "id": "kind-spell__entity",
+   "type": "kwicon",
+   "w": 44,
+   "h": 40,
+   "style": "cosmic-entity-icon",
+   "flat": false,
+   "prompt_addon": "(a triangular arcane burst sigil with sharp corners:1.3), triangle emblem",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "发动类型·法术=三角 · cosmic-entity-icon"
+  },
+  {
+   "id": "kind-spell__k2",
+   "type": "kwicon",
+   "w": 44,
+   "h": 40,
+   "style": "cosmic-k2-icon",
+   "flat": false,
+   "prompt_addon": "(a triangular arcane burst sigil with sharp corners:1.3), triangle emblem",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "发动类型·法术=三角 · cosmic-k2-icon"
+  },
+  {
+   "id": "elem-gray__space",
+   "type": "kwgem",
+   "w": 14,
+   "h": 14,
+   "style": "cosmic-space-icon",
+   "flat": false,
+   "denoise": 0.7,
+   "tint_face": [
+    79,
+    79,
+    81
+   ],
+   "tint_edge": [
+    176,
+    176,
+    182
+   ],
+   "seed": 20261011,
+   "prompt_addon": "(a single arcane elemental gem emblem, faceted crystal core with orbiting rune shards:1.3), centered, glowing",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "元素·gray tint=[176, 176, 182] · 同 seed 同构图 · cosmic-space-icon"
+  },
+  {
+   "id": "elem-gray__galaxy",
+   "type": "kwgem",
+   "w": 14,
+   "h": 14,
+   "style": "cosmic-galaxy-icon",
+   "flat": false,
+   "denoise": 0.7,
+   "tint_face": [
+    79,
+    79,
+    81
+   ],
+   "tint_edge": [
+    176,
+    176,
+    182
+   ],
+   "seed": 20261011,
+   "prompt_addon": "(a single arcane elemental gem emblem, faceted crystal core with orbiting rune shards:1.3), centered, glowing",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "元素·gray tint=[176, 176, 182] · 同 seed 同构图 · cosmic-galaxy-icon"
+  },
+  {
+   "id": "elem-gray__winter",
+   "type": "kwgem",
+   "w": 14,
+   "h": 14,
+   "style": "cosmic-winter-icon",
+   "flat": false,
+   "denoise": 0.7,
+   "tint_face": [
+    79,
+    79,
+    81
+   ],
+   "tint_edge": [
+    176,
+    176,
+    182
+   ],
+   "seed": 20261011,
+   "prompt_addon": "(a single arcane elemental gem emblem, faceted crystal core with orbiting rune shards:1.3), centered, glowing",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "元素·gray tint=[176, 176, 182] · 同 seed 同构图 · cosmic-winter-icon"
+  },
+  {
+   "id": "elem-gray__entity",
+   "type": "kwgem",
+   "w": 14,
+   "h": 14,
+   "style": "cosmic-entity-icon",
+   "flat": false,
+   "denoise": 0.7,
+   "tint_face": [
+    79,
+    79,
+    81
+   ],
+   "tint_edge": [
+    176,
+    176,
+    182
+   ],
+   "seed": 20261011,
+   "prompt_addon": "(a single arcane elemental gem emblem, faceted crystal core with orbiting rune shards:1.3), centered, glowing",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "元素·gray tint=[176, 176, 182] · 同 seed 同构图 · cosmic-entity-icon"
+  },
+  {
+   "id": "elem-gray__k2",
+   "type": "kwgem",
+   "w": 14,
+   "h": 14,
+   "style": "cosmic-k2-icon",
+   "flat": false,
+   "denoise": 0.7,
+   "tint_face": [
+    79,
+    79,
+    81
+   ],
+   "tint_edge": [
+    176,
+    176,
+    182
+   ],
+   "seed": 20261011,
+   "prompt_addon": "(a single arcane elemental gem emblem, faceted crystal core with orbiting rune shards:1.3), centered, glowing",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "元素·gray tint=[176, 176, 182] · 同 seed 同构图 · cosmic-k2-icon"
+  },
+  {
+   "id": "elem-red__space",
+   "type": "kwgem",
+   "w": 14,
+   "h": 14,
+   "style": "cosmic-space-icon",
+   "flat": false,
+   "denoise": 0.7,
+   "tint_face": [
+    101,
+    32,
+    26
+   ],
+   "tint_edge": [
+    226,
+    72,
+    58
+   ],
+   "seed": 20261011,
+   "prompt_addon": "(a single arcane elemental gem emblem, faceted crystal core with orbiting rune shards:1.3), centered, glowing",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "元素·red tint=[226, 72, 58] · 同 seed 同构图 · cosmic-space-icon"
+  },
+  {
+   "id": "elem-red__galaxy",
+   "type": "kwgem",
+   "w": 14,
+   "h": 14,
+   "style": "cosmic-galaxy-icon",
+   "flat": false,
+   "denoise": 0.7,
+   "tint_face": [
+    101,
+    32,
+    26
+   ],
+   "tint_edge": [
+    226,
+    72,
+    58
+   ],
+   "seed": 20261011,
+   "prompt_addon": "(a single arcane elemental gem emblem, faceted crystal core with orbiting rune shards:1.3), centered, glowing",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "元素·red tint=[226, 72, 58] · 同 seed 同构图 · cosmic-galaxy-icon"
+  },
+  {
+   "id": "elem-red__winter",
+   "type": "kwgem",
+   "w": 14,
+   "h": 14,
+   "style": "cosmic-winter-icon",
+   "flat": false,
+   "denoise": 0.7,
+   "tint_face": [
+    101,
+    32,
+    26
+   ],
+   "tint_edge": [
+    226,
+    72,
+    58
+   ],
+   "seed": 20261011,
+   "prompt_addon": "(a single arcane elemental gem emblem, faceted crystal core with orbiting rune shards:1.3), centered, glowing",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "元素·red tint=[226, 72, 58] · 同 seed 同构图 · cosmic-winter-icon"
+  },
+  {
+   "id": "elem-red__entity",
+   "type": "kwgem",
+   "w": 14,
+   "h": 14,
+   "style": "cosmic-entity-icon",
+   "flat": false,
+   "denoise": 0.7,
+   "tint_face": [
+    101,
+    32,
+    26
+   ],
+   "tint_edge": [
+    226,
+    72,
+    58
+   ],
+   "seed": 20261011,
+   "prompt_addon": "(a single arcane elemental gem emblem, faceted crystal core with orbiting rune shards:1.3), centered, glowing",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "元素·red tint=[226, 72, 58] · 同 seed 同构图 · cosmic-entity-icon"
+  },
+  {
+   "id": "elem-red__k2",
+   "type": "kwgem",
+   "w": 14,
+   "h": 14,
+   "style": "cosmic-k2-icon",
+   "flat": false,
+   "denoise": 0.7,
+   "tint_face": [
+    101,
+    32,
+    26
+   ],
+   "tint_edge": [
+    226,
+    72,
+    58
+   ],
+   "seed": 20261011,
+   "prompt_addon": "(a single arcane elemental gem emblem, faceted crystal core with orbiting rune shards:1.3), centered, glowing",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "元素·red tint=[226, 72, 58] · 同 seed 同构图 · cosmic-k2-icon"
+  },
+  {
+   "id": "elem-blue__space",
+   "type": "kwgem",
+   "w": 14,
+   "h": 14,
+   "style": "cosmic-space-icon",
+   "flat": false,
+   "denoise": 0.7,
+   "tint_face": [
+    38,
+    66,
+    106
+   ],
+   "tint_edge": [
+    86,
+    148,
+    236
+   ],
+   "seed": 20261011,
+   "prompt_addon": "(a single arcane elemental gem emblem, faceted crystal core with orbiting rune shards:1.3), centered, glowing",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "元素·blue tint=[86, 148, 236] · 同 seed 同构图 · cosmic-space-icon"
+  },
+  {
+   "id": "elem-blue__galaxy",
+   "type": "kwgem",
+   "w": 14,
+   "h": 14,
+   "style": "cosmic-galaxy-icon",
+   "flat": false,
+   "denoise": 0.7,
+   "tint_face": [
+    38,
+    66,
+    106
+   ],
+   "tint_edge": [
+    86,
+    148,
+    236
+   ],
+   "seed": 20261011,
+   "prompt_addon": "(a single arcane elemental gem emblem, faceted crystal core with orbiting rune shards:1.3), centered, glowing",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "元素·blue tint=[86, 148, 236] · 同 seed 同构图 · cosmic-galaxy-icon"
+  },
+  {
+   "id": "elem-blue__winter",
+   "type": "kwgem",
+   "w": 14,
+   "h": 14,
+   "style": "cosmic-winter-icon",
+   "flat": false,
+   "denoise": 0.7,
+   "tint_face": [
+    38,
+    66,
+    106
+   ],
+   "tint_edge": [
+    86,
+    148,
+    236
+   ],
+   "seed": 20261011,
+   "prompt_addon": "(a single arcane elemental gem emblem, faceted crystal core with orbiting rune shards:1.3), centered, glowing",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "元素·blue tint=[86, 148, 236] · 同 seed 同构图 · cosmic-winter-icon"
+  },
+  {
+   "id": "elem-blue__entity",
+   "type": "kwgem",
+   "w": 14,
+   "h": 14,
+   "style": "cosmic-entity-icon",
+   "flat": false,
+   "denoise": 0.7,
+   "tint_face": [
+    38,
+    66,
+    106
+   ],
+   "tint_edge": [
+    86,
+    148,
+    236
+   ],
+   "seed": 20261011,
+   "prompt_addon": "(a single arcane elemental gem emblem, faceted crystal core with orbiting rune shards:1.3), centered, glowing",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "元素·blue tint=[86, 148, 236] · 同 seed 同构图 · cosmic-entity-icon"
+  },
+  {
+   "id": "elem-blue__k2",
+   "type": "kwgem",
+   "w": 14,
+   "h": 14,
+   "style": "cosmic-k2-icon",
+   "flat": false,
+   "denoise": 0.7,
+   "tint_face": [
+    38,
+    66,
+    106
+   ],
+   "tint_edge": [
+    86,
+    148,
+    236
+   ],
+   "seed": 20261011,
+   "prompt_addon": "(a single arcane elemental gem emblem, faceted crystal core with orbiting rune shards:1.3), centered, glowing",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "元素·blue tint=[86, 148, 236] · 同 seed 同构图 · cosmic-k2-icon"
+  },
+  {
+   "id": "elem-green__space",
+   "type": "kwgem",
+   "w": 14,
+   "h": 14,
+   "style": "cosmic-space-icon",
+   "flat": false,
+   "denoise": 0.7,
+   "tint_face": [
+    43,
+    93,
+    55
+   ],
+   "tint_edge": [
+    96,
+    208,
+    124
+   ],
+   "seed": 20261011,
+   "prompt_addon": "(a single arcane elemental gem emblem, faceted crystal core with orbiting rune shards:1.3), centered, glowing",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "元素·green tint=[96, 208, 124] · 同 seed 同构图 · cosmic-space-icon"
+  },
+  {
+   "id": "elem-green__galaxy",
+   "type": "kwgem",
+   "w": 14,
+   "h": 14,
+   "style": "cosmic-galaxy-icon",
+   "flat": false,
+   "denoise": 0.7,
+   "tint_face": [
+    43,
+    93,
+    55
+   ],
+   "tint_edge": [
+    96,
+    208,
+    124
+   ],
+   "seed": 20261011,
+   "prompt_addon": "(a single arcane elemental gem emblem, faceted crystal core with orbiting rune shards:1.3), centered, glowing",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "元素·green tint=[96, 208, 124] · 同 seed 同构图 · cosmic-galaxy-icon"
+  },
+  {
+   "id": "elem-green__winter",
+   "type": "kwgem",
+   "w": 14,
+   "h": 14,
+   "style": "cosmic-winter-icon",
+   "flat": false,
+   "denoise": 0.7,
+   "tint_face": [
+    43,
+    93,
+    55
+   ],
+   "tint_edge": [
+    96,
+    208,
+    124
+   ],
+   "seed": 20261011,
+   "prompt_addon": "(a single arcane elemental gem emblem, faceted crystal core with orbiting rune shards:1.3), centered, glowing",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "元素·green tint=[96, 208, 124] · 同 seed 同构图 · cosmic-winter-icon"
+  },
+  {
+   "id": "elem-green__entity",
+   "type": "kwgem",
+   "w": 14,
+   "h": 14,
+   "style": "cosmic-entity-icon",
+   "flat": false,
+   "denoise": 0.7,
+   "tint_face": [
+    43,
+    93,
+    55
+   ],
+   "tint_edge": [
+    96,
+    208,
+    124
+   ],
+   "seed": 20261011,
+   "prompt_addon": "(a single arcane elemental gem emblem, faceted crystal core with orbiting rune shards:1.3), centered, glowing",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "元素·green tint=[96, 208, 124] · 同 seed 同构图 · cosmic-entity-icon"
+  },
+  {
+   "id": "elem-green__k2",
+   "type": "kwgem",
+   "w": 14,
+   "h": 14,
+   "style": "cosmic-k2-icon",
+   "flat": false,
+   "denoise": 0.7,
+   "tint_face": [
+    43,
+    93,
+    55
+   ],
+   "tint_edge": [
+    96,
+    208,
+    124
+   ],
+   "seed": 20261011,
+   "prompt_addon": "(a single arcane elemental gem emblem, faceted crystal core with orbiting rune shards:1.3), centered, glowing",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "元素·green tint=[96, 208, 124] · 同 seed 同构图 · cosmic-k2-icon"
+  },
+  {
+   "id": "elem-white__space",
+   "type": "kwgem",
+   "w": 14,
+   "h": 14,
+   "style": "cosmic-space-icon",
+   "flat": false,
+   "denoise": 0.7,
+   "tint_face": [
+    109,
+    108,
+    104
+   ],
+   "tint_edge": [
+    244,
+    242,
+    232
+   ],
+   "seed": 20261011,
+   "prompt_addon": "(a single arcane elemental gem emblem, faceted crystal core with orbiting rune shards:1.3), centered, glowing",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "元素·white tint=[244, 242, 232] · 同 seed 同构图 · cosmic-space-icon"
+  },
+  {
+   "id": "elem-white__galaxy",
+   "type": "kwgem",
+   "w": 14,
+   "h": 14,
+   "style": "cosmic-galaxy-icon",
+   "flat": false,
+   "denoise": 0.7,
+   "tint_face": [
+    109,
+    108,
+    104
+   ],
+   "tint_edge": [
+    244,
+    242,
+    232
+   ],
+   "seed": 20261011,
+   "prompt_addon": "(a single arcane elemental gem emblem, faceted crystal core with orbiting rune shards:1.3), centered, glowing",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "元素·white tint=[244, 242, 232] · 同 seed 同构图 · cosmic-galaxy-icon"
+  },
+  {
+   "id": "elem-white__winter",
+   "type": "kwgem",
+   "w": 14,
+   "h": 14,
+   "style": "cosmic-winter-icon",
+   "flat": false,
+   "denoise": 0.7,
+   "tint_face": [
+    109,
+    108,
+    104
+   ],
+   "tint_edge": [
+    244,
+    242,
+    232
+   ],
+   "seed": 20261011,
+   "prompt_addon": "(a single arcane elemental gem emblem, faceted crystal core with orbiting rune shards:1.3), centered, glowing",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "元素·white tint=[244, 242, 232] · 同 seed 同构图 · cosmic-winter-icon"
+  },
+  {
+   "id": "elem-white__entity",
+   "type": "kwgem",
+   "w": 14,
+   "h": 14,
+   "style": "cosmic-entity-icon",
+   "flat": false,
+   "denoise": 0.7,
+   "tint_face": [
+    109,
+    108,
+    104
+   ],
+   "tint_edge": [
+    244,
+    242,
+    232
+   ],
+   "seed": 20261011,
+   "prompt_addon": "(a single arcane elemental gem emblem, faceted crystal core with orbiting rune shards:1.3), centered, glowing",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "元素·white tint=[244, 242, 232] · 同 seed 同构图 · cosmic-entity-icon"
+  },
+  {
+   "id": "elem-white__k2",
+   "type": "kwgem",
+   "w": 14,
+   "h": 14,
+   "style": "cosmic-k2-icon",
+   "flat": false,
+   "denoise": 0.7,
+   "tint_face": [
+    109,
+    108,
+    104
+   ],
+   "tint_edge": [
+    244,
+    242,
+    232
+   ],
+   "seed": 20261011,
+   "prompt_addon": "(a single arcane elemental gem emblem, faceted crystal core with orbiting rune shards:1.3), centered, glowing",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "元素·white tint=[244, 242, 232] · 同 seed 同构图 · cosmic-k2-icon"
+  },
+  {
+   "id": "elem-black__space",
+   "type": "kwgem",
+   "w": 14,
+   "h": 14,
+   "style": "cosmic-space-icon",
+   "flat": false,
+   "denoise": 0.7,
+   "tint_face": [
+    62,
+    43,
+    94
+   ],
+   "tint_edge": [
+    138,
+    96,
+    210
+   ],
+   "seed": 20261011,
+   "prompt_addon": "(a single arcane elemental gem emblem, faceted crystal core with orbiting rune shards:1.3), centered, glowing",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "元素·black tint=[138, 96, 210] · 同 seed 同构图 · cosmic-space-icon"
+  },
+  {
+   "id": "elem-black__galaxy",
+   "type": "kwgem",
+   "w": 14,
+   "h": 14,
+   "style": "cosmic-galaxy-icon",
+   "flat": false,
+   "denoise": 0.7,
+   "tint_face": [
+    62,
+    43,
+    94
+   ],
+   "tint_edge": [
+    138,
+    96,
+    210
+   ],
+   "seed": 20261011,
+   "prompt_addon": "(a single arcane elemental gem emblem, faceted crystal core with orbiting rune shards:1.3), centered, glowing",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "元素·black tint=[138, 96, 210] · 同 seed 同构图 · cosmic-galaxy-icon"
+  },
+  {
+   "id": "elem-black__winter",
+   "type": "kwgem",
+   "w": 14,
+   "h": 14,
+   "style": "cosmic-winter-icon",
+   "flat": false,
+   "denoise": 0.7,
+   "tint_face": [
+    62,
+    43,
+    94
+   ],
+   "tint_edge": [
+    138,
+    96,
+    210
+   ],
+   "seed": 20261011,
+   "prompt_addon": "(a single arcane elemental gem emblem, faceted crystal core with orbiting rune shards:1.3), centered, glowing",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "元素·black tint=[138, 96, 210] · 同 seed 同构图 · cosmic-winter-icon"
+  },
+  {
+   "id": "elem-black__entity",
+   "type": "kwgem",
+   "w": 14,
+   "h": 14,
+   "style": "cosmic-entity-icon",
+   "flat": false,
+   "denoise": 0.7,
+   "tint_face": [
+    62,
+    43,
+    94
+   ],
+   "tint_edge": [
+    138,
+    96,
+    210
+   ],
+   "seed": 20261011,
+   "prompt_addon": "(a single arcane elemental gem emblem, faceted crystal core with orbiting rune shards:1.3), centered, glowing",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "元素·black tint=[138, 96, 210] · 同 seed 同构图 · cosmic-entity-icon"
+  },
+  {
+   "id": "elem-black__k2",
+   "type": "kwgem",
+   "w": 14,
+   "h": 14,
+   "style": "cosmic-k2-icon",
+   "flat": false,
+   "denoise": 0.7,
+   "tint_face": [
+    62,
+    43,
+    94
+   ],
+   "tint_edge": [
+    138,
+    96,
+    210
+   ],
+   "seed": 20261011,
+   "prompt_addon": "(a single arcane elemental gem emblem, faceted crystal core with orbiting rune shards:1.3), centered, glowing",
+   "negative_addon": "badge, crest, heraldry, coat of arms, medallion, multiple objects, duplicate",
+   "note": "元素·black tint=[138, 96, 210] · 同 seed 同构图 · cosmic-k2-icon"
+  }
+ ]
+}

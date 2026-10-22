@@ -1,0 +1,20 @@
+{
+  "task": "effectui-dd",
+  "style": "verdigris-arcane",
+  "server": "http://127.0.0.1:7860",
+  "variants": 1,
+  "items": [
+    { "id": "dd-bar-400x40",  "type": "dropdown", "w": 400, "h": 40,  "exact": true, "note": "下拉收起条·筛选类型 400x40" },
+    { "id": "dd-bar-320x30",  "type": "dropdown", "w": 320, "h": 30,  "exact": true, "note": "下拉收起条·门槛 320x30" },
+    { "id": "dd-bar-200x30",  "type": "dropdown", "w": 200, "h": 30,  "exact": true, "note": "下拉收起条·速度/方式/生效/时机 200x30" },
+    { "id": "dd-bar-160x30",  "type": "dropdown", "w": 160, "h": 30,  "exact": true, "note": "下拉收起条·光环种类/数量 160x30" },
+    { "id": "dd-win-400x400", "type": "panel",    "w": 400, "h": 400, "exact": true, "note": "下拉展开窗·筛选 400x400" },
+    { "id": "dd-win-320x150", "type": "panel",    "w": 320, "h": 150, "exact": true, "note": "下拉展开窗·门槛 320x150" },
+    { "id": "dd-win-200x150", "type": "panel",    "w": 200, "h": 150, "exact": true, "note": "下拉展开窗·速度/方式/生效/时机 200x150" },
+    { "id": "dd-win-160x150", "type": "panel",    "w": 160, "h": 150, "exact": true, "note": "下拉展开窗·光环种类/数量 160x150" },
+    { "id": "dd-item-383x40", "type": "row",      "w": 383, "h": 40,  "exact": true, "note": "窗内条目·筛选 383x40" },
+    { "id": "dd-item-303x30", "type": "row",      "w": 303, "h": 30,  "exact": true, "note": "窗内条目·门槛 303x30" },
+    { "id": "dd-item-182x20", "type": "row",      "w": 182, "h": 20,  "exact": true, "note": "窗内条目·速度族 182x20" },
+    { "id": "dd-item-142x20", "type": "row",      "w": 142, "h": 20,  "exact": true, "note": "窗内条目·光环/数量 142x20" }
+  ]
+}

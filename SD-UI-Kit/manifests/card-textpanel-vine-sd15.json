@@ -1,0 +1,30 @@
+{
+  "task": "card-textpanel-vine-sd15",
+  "style": "parchment-vine",
+  "seed": 20261011,
+  "variants": 2,
+  "note": "2026-10-11 深夜：底模判死后首测 SD1.5(anything-v5)+Space_sdxl@0.6（A/B 对拍已证 LoRA 在 SD1.5 真实生效 mean|diff|13.4/255）。LoRA 标签走 item 级 prompt_addon 尾挂，不另加星空调词。denoise --scan 0.55/0.65=SD1.5 旧校准带（几何0.55/纹饰0.65）",
+  "items": [
+    {
+      "id": "panel_effect_paper",
+      "type": "plaque_paper_vine",
+      "w": 1280,
+      "h": 731,
+      "exact": true,
+      "exact_base": 512,
+      "prompt_addon": "<lora:Space_sdxl:0.6>",
+      "note": "效果文字板 → 512x296"
+    },
+    {
+      "id": "banner_name_paper",
+      "type": "plaque_paper_vine",
+      "w": 1383,
+      "h": 576,
+      "exact": true,
+      "exact_base": 512,
+      "corner": 0.3,
+      "prompt_addon": "<lora:Space_sdxl:0.6>",
+      "note": "卡名板（cartouche 圆角档）→ 512x216"
+    }
+  ]
+}

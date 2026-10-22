@@ -1,0 +1,338 @@
+fileFormatVersion: 2
+guid: 863a2379741e38f44a8785d9e3469670
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: -649122801940931132
+    second: WingedDragonGuardianOfTheFortress2_tex0_0
+  - first:
+      213: -5005405452500924653
+    second: WingedDragonGuardianOfTheFortress2_tex0_1
+  - first:
+      213: 4171568292986381176
+    second: WingedDragonGuardianOfTheFortress2_tex0_2
+  - first:
+      213: 5789990712096125837
+    second: WingedDragonGuardianOfTheFortress2_tex0_3
+  - first:
+      213: 8133575183341694040
+    second: WingedDragonGuardianOfTheFortress2_tex0_4
+  - first:
+      213: 5307893530045058508
+    second: WingedDragonGuardianOfTheFortress2_tex0_5
+  - first:
+      213: -7269489756093392470
+    second: WingedDragonGuardianOfTheFortress2_tex0_6
+  - first:
+      213: 6649225174676423406
+    second: WingedDragonGuardianOfTheFortress2_tex0_7
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 1
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 0
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 0
+  spriteTessellationDetail: -1
+  textureType: 0
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: WingedDragonGuardianOfTheFortress2_tex0_0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 101
+        width: 81
+        height: 27
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4cd54b6304addf6f0800000000000000
+      internalID: -649122801940931132
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: WingedDragonGuardianOfTheFortress2_tex0_1
+      rect:
+        serializedVersion: 2
+        x: 27
+        y: 78
+        width: 55
+        height: 34
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 31701eeb24a398ab0800000000000000
+      internalID: -5005405452500924653
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: WingedDragonGuardianOfTheFortress2_tex0_2
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 51
+        width: 33
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8736cb3b24364e930800000000000000
+      internalID: 4171568292986381176
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: WingedDragonGuardianOfTheFortress2_tex0_3
+      rect:
+        serializedVersion: 2
+        x: 28
+        y: 74
+        width: 16
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d83fc4f30ed2a5050800000000000000
+      internalID: 5789990712096125837
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: WingedDragonGuardianOfTheFortress2_tex0_4
+      rect:
+        serializedVersion: 2
+        x: 43
+        y: 62
+        width: 24
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 85ca305298340e070800000000000000
+      internalID: 8133575183341694040
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: WingedDragonGuardianOfTheFortress2_tex0_5
+      rect:
+        serializedVersion: 2
+        x: 28
+        y: 51
+        width: 12
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ccd0eeb0b0d69a940800000000000000
+      internalID: 5307893530045058508
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: WingedDragonGuardianOfTheFortress2_tex0_6
+      rect:
+        serializedVersion: 2
+        x: 49
+        y: 54
+        width: 14
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: aa956bd05959d1b90800000000000000
+      internalID: -7269489756093392470
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: WingedDragonGuardianOfTheFortress2_tex0_7
+      rect:
+        serializedVersion: 2
+        x: 68
+        y: 54
+        width: 14
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ee24c28311bc64c50800000000000000
+      internalID: 6649225174676423406
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      WingedDragonGuardianOfTheFortress2_tex0_0: -649122801940931132
+      WingedDragonGuardianOfTheFortress2_tex0_1: -5005405452500924653
+      WingedDragonGuardianOfTheFortress2_tex0_2: 4171568292986381176
+      WingedDragonGuardianOfTheFortress2_tex0_3: 5789990712096125837
+      WingedDragonGuardianOfTheFortress2_tex0_4: 8133575183341694040
+      WingedDragonGuardianOfTheFortress2_tex0_5: 5307893530045058508
+      WingedDragonGuardianOfTheFortress2_tex0_6: -7269489756093392470
+      WingedDragonGuardianOfTheFortress2_tex0_7: 6649225174676423406
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

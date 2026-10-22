@@ -1,0 +1,21 @@
+{
+  "task": "activation-slab",
+  "style": "stone-sigil",
+  "seed": 20261011,
+  "variants": 3,
+  "note": "2026-10-11 发动区石板：大圆→内接方→内接倒三角三环凿槽、石板材质、槽留空（元素池像流水的部分=引擎后期灌入，用户自言自语不入图）；512 快稿档；v1 钉 seed=20261011 与卡框族同源",
+  "items": [
+    {
+      "id": "slab_sigil",
+      "type": "slab_sigil",
+      "w": 976,
+      "h": 976,
+      "exact": true,
+      "exact_base": 512,
+      "note": "发动区石板 r3：钉 seed=59444770（dn0.58_v2 用户认可构图）+材质修正（去塑料感/非槽区找平/鎏金边保持）→ 512x512",
+      "prompt_addon": "carved stone activation platform, perfect geometric nested grooves, circle containing square containing inverted triangle, precise straight edges, empty channels ready to be filled",
+      "seed": 59444770,
+      "denoise": 0.58
+    }
+  ]
+}

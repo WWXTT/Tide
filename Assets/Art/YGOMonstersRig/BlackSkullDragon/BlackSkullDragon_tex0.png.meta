@@ -1,0 +1,416 @@
+fileFormatVersion: 2
+guid: aa2e4ac73fec6c44cbcb9dc3251560a9
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: 6063660286102894174
+    second: BlackSkullDragon_tex0_0
+  - first:
+      213: -7200945052384621912
+    second: BlackSkullDragon_tex0_1
+  - first:
+      213: 2766561585283006848
+    second: BlackSkullDragon_tex0_2
+  - first:
+      213: -5069330125338071640
+    second: BlackSkullDragon_tex0_3
+  - first:
+      213: 2379469070507471237
+    second: BlackSkullDragon_tex0_4
+  - first:
+      213: 647741670376721572
+    second: BlackSkullDragon_tex0_5
+  - first:
+      213: -3839308696860260096
+    second: BlackSkullDragon_tex0_6
+  - first:
+      213: 5039740449618820394
+    second: BlackSkullDragon_tex0_7
+  - first:
+      213: -253951190519935759
+    second: BlackSkullDragon_tex0_8
+  - first:
+      213: -2862733604913281186
+    second: BlackSkullDragon_tex0_9
+  - first:
+      213: 4897727745841857870
+    second: BlackSkullDragon_tex0_10
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 1
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 0
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 0
+  spriteTessellationDetail: -1
+  textureType: 0
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: BlackSkullDragon_tex0_0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 219
+        width: 65
+        height: 37
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e567ecf47e2762450800000000000000
+      internalID: 6063660286102894174
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackSkullDragon_tex0_1
+      rect:
+        serializedVersion: 2
+        x: 69
+        y: 208
+        width: 54
+        height: 46
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8aa028980aa111c90800000000000000
+      internalID: -7200945052384621912
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackSkullDragon_tex0_2
+      rect:
+        serializedVersion: 2
+        x: 127
+        y: 210
+        width: 82
+        height: 46
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 081090c9a1dc46620800000000000000
+      internalID: 2766561585283006848
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackSkullDragon_tex0_3
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 193
+        width: 33
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8ada9060c1f16a9b0800000000000000
+      internalID: -5069330125338071640
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackSkullDragon_tex0_4
+      rect:
+        serializedVersion: 2
+        x: 185
+        y: 159
+        width: 28
+        height: 40
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 58170ad3382950120800000000000000
+      internalID: 2379469070507471237
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackSkullDragon_tex0_5
+      rect:
+        serializedVersion: 2
+        x: 127
+        y: 155
+        width: 68
+        height: 34
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4acc5090e9d3df800800000000000000
+      internalID: 647741670376721572
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackSkullDragon_tex0_6
+      rect:
+        serializedVersion: 2
+        x: 189
+        y: 135
+        width: 20
+        height: 23
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 009839ce41908bac0800000000000000
+      internalID: -3839308696860260096
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackSkullDragon_tex0_7
+      rect:
+        serializedVersion: 2
+        x: 127
+        y: 108
+        width: 64
+        height: 35
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a2d72bbbc31c0f540800000000000000
+      internalID: 5039740449618820394
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackSkullDragon_tex0_8
+      rect:
+        serializedVersion: 2
+        x: 127
+        y: 56
+        width: 82
+        height: 64
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1fc85cadcb8c97cf0800000000000000
+      internalID: -253951190519935759
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackSkullDragon_tex0_9
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 50
+        width: 77
+        height: 34
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e57029824f68548d0800000000000000
+      internalID: -2862733604913281186
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackSkullDragon_tex0_10
+      rect:
+        serializedVersion: 2
+        x: 75
+        y: 53
+        width: 76
+        height: 46
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e458a718f6938f340800000000000000
+      internalID: 4897727745841857870
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      BlackSkullDragon_tex0_0: 6063660286102894174
+      BlackSkullDragon_tex0_1: -7200945052384621912
+      BlackSkullDragon_tex0_10: 4897727745841857870
+      BlackSkullDragon_tex0_2: 2766561585283006848
+      BlackSkullDragon_tex0_3: -5069330125338071640
+      BlackSkullDragon_tex0_4: 2379469070507471237
+      BlackSkullDragon_tex0_5: 647741670376721572
+      BlackSkullDragon_tex0_6: -3839308696860260096
+      BlackSkullDragon_tex0_7: 5039740449618820394
+      BlackSkullDragon_tex0_8: -253951190519935759
+      BlackSkullDragon_tex0_9: -2862733604913281186
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

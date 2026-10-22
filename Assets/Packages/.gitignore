@@ -1,5 +1,22 @@
-# CodeGraph data files — local to each machine, not for committing.
-# Ignore everything in .codegraph/ except this file itself, so transient
-# files (the database, daemon.pid, sockets, logs) never show up in git.
-*
-!.gitignore
+# ============================================================
+# Assets/Packages —— 第三方资源
+#
+# 这些资源只有使用权、没有再分发 / 开源授权，**即使工程里已经引用，
+# 也一律不入库**。换机器时需自行从 Asset Store / 原渠道重新导入。
+# 除下列路径外，Assets/Packages 的其余内容（MemoryPack、TMP 运行时
+# 着色器等）正常入库。
+# ============================================================
+
+# PixPlays（付费 VFX 资源包）
+/PixPlays/
+/PixPlays.meta
+
+# PolygonNatureBiomes（付费自然场景资源包）
+/PolygonNatureBiomes/
+/PolygonNatureBiomes.meta
+
+# 商用字体「庞门正道标题体」及其生成的 TMP 字体资产（授权仅限本机使用）
+/TextMesh Pro/Fonts/庞门正道标题体.ttf
+/TextMesh Pro/Fonts/庞门正道标题体.ttf.meta
+/TextMesh Pro/Resources/Fonts & Materials/PZD.asset
+/TextMesh Pro/Resources/Fonts & Materials/PZD.asset.meta
