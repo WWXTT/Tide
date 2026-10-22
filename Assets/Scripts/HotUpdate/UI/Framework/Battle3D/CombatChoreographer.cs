@@ -19,15 +19,18 @@ namespace SynergyUI
     ///
     /// 任务① 目标选择：点单位直接进入（2026-10-14 定案：无操作弹层——产元素全自动）——
     /// 3D 箭头以生物为起点随鼠标动态拉长（悬停合法目标箭头变绿），左键点目标=吸附目标格
-    /// 冻结渐隐并回传目标给宣言链路（本地 DeclareAttack / 网络 intent，下游不变；确认时
-    /// 另算 BFS 接近路径供演出走位）；右键/ESC/点空地取消。
-    /// 任务② 演出：走位到目标临格→攻击前扑→目标受击（溅射第三方原地受击；角色目标=立柱脉动）
-    /// →反击（以实际伤害事件存在性判定——守方横置/先击杀自然无）→死者倒地碎裂、原地沉降
-    /// 片刻即收（BattleFieldView.PlayDeathExitAsync，2026-10-17 砍掉滚墓+自旋段）
-    /// →幸存者原路返回待机（准备阶段回正由对账恢复；24° 横置侧倾 2026-10-15 退役）。
-    /// 守卫拦截（2026-10-15 用户定案改版，中线会合退役）：守卫者走到被攻击者那一格挡伤害
-    ///（挡位点向攻击侧偏移、与被保护者错开身位），攻击者接近原目标格邻格开打，战后各自
-    /// 原路归位；规划失败回落旧演出（攻击者单方走到守卫者临格开打）。
+/// 冻结渐隐并回传目标给宣言链路（本地 DeclareAttack / 网络 intent，下游不变；确认时
+/// 另算 BFS 接近路径供演出定飞行终点）；右键/ESC/点空地取消。
+        /// 任务② 演出（2026-10-21 定案：走动退役，移动方式唯一=快速飞行）：直线飞行到目标
+        /// 临格（sin 半弧拔起-掠行-落定，不迈步保持呼吸）→攻击前扑→目标受击（溅射第三方
+        /// 原地受击；角色目标=立柱脉动）→反击（以实际伤害事件存在性判定——守方横置/先击杀
+        /// 自然无）→死者倒地碎裂、原地沉降片刻即收（BattleFieldView.PlayDeathExitAsync，
+        /// 2026-10-17 砍掉滚墓+自旋段）→幸存者飞回待机（准备阶段回正由对账恢复；24° 横置
+        /// 侧倾 2026-10-15 退役）。
+        /// 守卫拦截（2026-10-15 挡位定案·2026-10-21 闪现保留）：守卫者瞬移闪现到被攻击者
+        /// 那一格挡伤害（SummonPop 现身·挡位点向攻击侧偏移与被保护者错开身位——闪现即到，
+        /// 避免守卫后到达），攻击者飞行接近原目标格邻格开打，战后各自飞回归位；规划失败
+        /// 回落（攻击者单方飞到守卫者临格开打）。
     ///
     /// 边界：宣攻被取消/响应窗内目标被移走→释放 hold 防幽灵；模型缺失占位胶囊=只动位姿不播
     /// 动作；AI 发起的攻击同走本编舞（事件驱动）；网络模式只接目标选择（事件订阅关闭——
@@ -37,7 +40,8 @@ namespace SynergyUI
     public sealed class CombatChoreographer : IDisposable
     {
         // ---- 演出调参 ----
-        private const float WalkSpeed = 3f;          // 世界单位/秒（格心距≈1.5-1.73，约 2 格/秒）
+        private const float FlySpeed = 13f;         // 飞行速度（世界单位/秒·2026-10-21 走动退役——移动方式唯一=快速飞行）
+        private const float FlyArcHeight = 0.9f;    // 飞行离地弧高（sin 半弧：拔起-掠行-落定）
         private const int ImpactDelayMs = 180;       // 攻击前扑到命中节拍
         private const int AttackBeatMs = 520;        // 一次攻击完整节拍（含缓冲）
         private const float GuardCoverOffset = 0.7f; // 守卫挡位偏移：原目标格心向攻击侧挪——与被保护者错开身位
@@ -238,10 +242,10 @@ namespace SynergyUI
 
             _arrow.Show(from, BattleBoardGrid.WorldPositionOf(x, z), BattleAttackArrow.ValidSkin); // 吸附目标格（选对了=绿）再冻结渐隐
             await _arrow.FadeOutAsync(0.35f);
-            string pathText = path != null && path.Count > 0
-                ? string.Join("→", path.Select(c => $"({c.x},{c.z})")) : "原地";
+            string endText = path != null && path.Count > 0
+                ? $"({path[path.Count - 1].x},{path[path.Count - 1].z})" : "原地";
             Debug.Log($"[CombatChoreo] 目标确认：{attacker.Name} → {(hero ? "对方角色" : target.Name)}"
-                      + $"（攻击者{attacker.RuntimeId % 10000}）路径[{pathText}]");
+                      + $"（攻击者{attacker.RuntimeId % 10000}）飞行终点[{endText}]");
             cb?.Invoke(hero ? null : target);
         }
 
@@ -527,10 +531,11 @@ namespace SynergyUI
             public string AttackerName = "?", TargetName = "?";
             public string Summary => $"{AttackerName}→{TargetName}";
 
-            // 守卫拦截挡位（2026-10-15 改版：中线会合退役）：守卫者踏上被攻击者那格挡打、打完原路归位
+            // 守卫拦截挡位（2026-10-15 改版·2026-10-21 飞行/闪现）：守卫者闪现赴挡、打完飞回归位
             public bool Blocked;                        // 本次攻击被守卫拦截（Target=守卫者）
             public bool TargetTapped;                   // 守卫者横置（战斗后支付——仅演出日志记录，2026-10-15 不再停呼吸）
-            public List<(int x, int z)> BlockerPath;    // 守卫者→原目标格挡位（null=规划失败回落旧演出）
+            public bool GuardCover;                     // 守卫闪现赴挡已规划（false=规划失败回落：攻击者单方飞守卫临格）
+            public (int x, int z)? GuardVictimCell;     // 挡位参照格=宣言期原目标格（挡位点=其格心向攻击侧偏移）
             public uint ReticleSubjectId;               // 瞄准贴片主体=宣言期原目标（0=角色格；守卫改写不覆盖——收尾对账用）
         }
 
@@ -572,11 +577,9 @@ namespace SynergyUI
             {
                 plan.Path = null; // 角色攻击：原地，目标侧受击（裁定②）
             }
-            else if (plan.Blocked && !plan.HeroTarget
-                     && TryPlanGuardCover(plan, out var guardAttPath, out var guardBlkPath))
+            else if (plan.Blocked && !plan.HeroTarget && TryPlanGuardApproach(plan))
             {
-                plan.Path = guardAttPath;
-                plan.BlockerPath = guardBlkPath;
+                // plan.Path/GuardCover/GuardVictimCell 已由守卫分支填（守卫闪现赴挡不规划路径）
             }
             else if (_pickedPath != null && _pathAttackerId == plan.AttackerId && _pathTargetId == plan.TargetId)
             {
@@ -595,37 +598,33 @@ namespace SynergyUI
                     : null;
             }
 
-            Debug.Log($"[CombatChoreo] 演出计划：{plan.Summary} 走位[{(plan.Path != null ? plan.Path.Count.ToString() : "无")}]格"
-                      + (plan.Blocked ? $" 守卫挡位[{(plan.BlockerPath != null ? plan.BlockerPath.Count.ToString() : "回落旧演出")}]格" : "")
+            Debug.Log($"[CombatChoreo] 演出计划：{plan.Summary} 飞行[{(plan.Path != null ? plan.Path.Count.ToString() : "无")}]格"
+                      + (plan.Blocked ? (plan.GuardCover ? " 守卫闪现赴挡" : " 守卫规划失败回落") : "")
                       + $" 反击={plan.Counter} 攻死={plan.AttackerDead} 守死={plan.TargetDead} 溅射={plan.SplashIds.Count}"
                       + $" 攻横置={plan.AttackerTapped} 守横置={plan.TargetTapped}");
             PerformAsync(plan, _epoch).Forget();
         }
 
-        /// <summary>守卫挡位规划（2026-10-15 用户定案：不再中线会合——守卫者走到被攻击者那一格
-        /// 挡伤害）：攻击者=常规接近（原目标格的空闲邻格，FindApproach）；守卫者=先走近原目标
-        /// 空闲邻格、再踏上原目标格（追加终点格构造——FindApproach 的 BFS 不入占用格，途经
-        /// 不穿原目标）。视图数据/参战格缺失=失败（调用方回落旧演出：攻击者单方走到守卫者
-        /// 临格开打）。</summary>
-        private bool TryPlanGuardCover(CombatPlan plan, out List<(int x, int z)> attPath, out List<(int x, int z)> blkPath)
+        /// <summary>守卫挡位规划（2026-10-15 挡位定案·2026-10-21 飞行/闪现改版）：攻击者飞行
+        /// 终点=原目标格的空闲邻格（FindApproach 末格）；守卫者=瞬移闪现赴挡（挡位点=
+        /// GuardVictimCell 格心向攻击侧偏移，见 GuardCoverPoint——不规划路径）。视图数据/
+        /// 参战格缺失=失败（调用方回落：攻击者单方飞到守卫者临格开打，守卫原地挨打）。</summary>
+        private bool TryPlanGuardApproach(CombatPlan plan)
         {
-            attPath = blkPath = null;
             if (!_originalTargetCell.HasValue) return false;
             var d = _view?.Invoke();
             if (d == null || !BattleBoardGrid.Ready) return false;
             var fromAtt = CellOf(plan.AttackerId);
-            var fromBlk = CellOf(plan.TargetId);
-            if (!fromAtt.HasValue || !fromBlk.HasValue) return false;
+            if (!fromAtt.HasValue) return false;
 
             var victim = _originalTargetCell.Value;
-            attPath = BattlePathfinder.FindApproach(fromAtt.Value.x, fromAtt.Value.z, victim.x, victim.z,
+            plan.Path = BattlePathfinder.FindApproach(fromAtt.Value.x, fromAtt.Value.z, victim.x, victim.z,
                 BattlePathfinder.BlockedSetOf(d, plan.AttackerId));
-            blkPath = BattlePathfinder.FindApproach(fromBlk.Value.x, fromBlk.Value.z, victim.x, victim.z,
-                BattlePathfinder.BlockedSetOf(d, plan.TargetId));
-            blkPath.Add(victim); // 踏上被攻击者那一格（演出终点向攻击侧偏移错开身位，见 GuardCoverPoints）
-            string attEnd = attPath.Count > 0
-                ? $"({attPath[attPath.Count - 1].x},{attPath[attPath.Count - 1].z})" : "原地";
-            Debug.Log($"[CombatChoreo] 守卫挡位：攻击者{attEnd} 守卫者→({victim.x},{victim.z})原目标格挡伤害");
+            plan.GuardVictimCell = victim;
+            plan.GuardCover = true;
+            string attEnd = plan.Path.Count > 0
+                ? $"({plan.Path[plan.Path.Count - 1].x},{plan.Path[plan.Path.Count - 1].z})" : "原地";
+            Debug.Log($"[CombatChoreo] 守卫挡位：攻击者飞往{attEnd} 守卫者闪现→({victim.x},{victim.z})原目标格挡伤害");
             return true;
         }
 
@@ -651,41 +650,30 @@ namespace SynergyUI
                     if (plan.TargetDead && tgtBody && tgtAnim != null) { tgtAnim.Revive(); tgtAnim.Play(MonsterAction.Breath); }
                     if (plan.AttackerDead && attBody && attAnim != null) { attAnim.Revive(); attAnim.Play(MonsterAction.Breath); }
 
-                    // ② 走位：守卫拦截（2026-10-17 用户定案：守卫者**瞬移**赴挡——攻击者走过去
-                    //    站在原地等守卫走来的观感差，改为只有攻击者走位，守卫者直接现身挡位；
-                    //    同晚补现身动画=召唤弹出 SummonPop（程序动画现成件复用：缩放从无到有+
-                    //    上方速升缓落 0.9s，与攻击者走位并行，命中前等完全显形））
-                    //    + 攻击者接近原目标邻格。
-                    //    走位折线（2026-10-17 缝走定案：不再走空地格心——沿两格交界线）：
-                    //    途经=格间缝点，末点=接近格格心（战斗站位）；起点格缺失回落旧格心折线
-                    var attStartCell = CellOf(plan.AttackerId);
-                    List<Vector3> attPts = plan.Path != null && plan.Path.Count > 0
-                        ? (attStartCell.HasValue
-                            ? SeamWaypoints(plan.Path, attStartCell.Value)
-                            : ToWorldPath(plan.Path))
-                        : null;
-                    List<Vector3> blkPts = null; // 守卫挡位折线（⑦ 归位原路缝返回复用）
-                    if (plan.Blocked && plan.BlockerPath != null && attBody && tgtBody)
+                    // ② 飞行赴位（2026-10-21 定案：走动退役——移动方式唯一=快速飞行）：攻击者
+                    //    直线飞到接近格（sin 半弧拔起-掠行-落定，不迈步保持呼吸）；守卫拦截局
+                    //    守卫者保持瞬移闪现赴挡（SummonPop 现身·闪现即到，避免守卫后到达），
+                    //    与攻击者飞行并行
+                    Vector3? attEnd = plan.Path != null && plan.Path.Count > 0
+                        ? (Vector3?)ToWorldAnchor(plan.Path[plan.Path.Count - 1]) // 战斗站位=接近格格心
+                        : null; // 原地（已相邻/路径空）
+                    bool guardCovered = plan.GuardCover && attBody && tgtBody;
+                    if (guardCovered)
                     {
-                        attAnim?.Play(MonsterAction.Walk);
-                        blkPts = GuardCoverPoints(plan, attW, CellOf(plan.TargetId));
-                        float popDeadline = -1f;
-                        if (blkPts != null && blkPts.Count > 0)
-                        {
-                            tgtW.position = blkPts[blkPts.Count - 1]; // 瞬移挡位（原目标格心向攻击侧偏移错身）
-                            tgtAnim?.Revive();
-                            tgtAnim?.Play(MonsterAction.Breath);
-                            tgtAnim?.PlaySummonPop(); // 现身：召唤弹出（0.9s，随走位并行）
-                            popDeadline = Time.realtimeSinceStartup + RigMotionTuning.PopDuration;
-                        }
-                        if (!await WalkAsync(attW, attPts, epoch,
+                        Vector3 blkPoint = GuardCoverPoint(plan.GuardVictimCell.GetValueOrDefault(),
+                            attEnd ?? attW.position); // 攻击者无飞段=以其当前位定偏移向
+                        tgtW.position = blkPoint; // 瞬移挡位（原目标格心向攻击侧偏移错身）
+                        tgtAnim?.Revive();
+                        tgtAnim?.Play(MonsterAction.Breath);
+                        tgtAnim?.PlaySummonPop(); // 现身：召唤弹出（0.9s，随飞行并行，命中前等完全显形）
+                        float popDeadline = Time.realtimeSinceStartup + RigMotionTuning.PopDuration;
+                        if (attEnd.HasValue && !await FlyAsync(attW, attEnd.Value, epoch,
                                 modelYaw: BattleFieldView.FacingYawOf(plan.AttackerOwner)))
                         {
-                            Debug.Log($"[CombatChoreo] 演出中止@攻击者走位：{plan.Summary}");
+                            Debug.Log($"[CombatChoreo] 演出中止@攻击者飞行：{plan.Summary}");
                             return;
                         }
-                        attAnim?.Play(MonsterAction.Breath);
-                        while (popDeadline > 0f && Time.realtimeSinceStartup < popDeadline)
+                        while (Time.realtimeSinceStartup < popDeadline)
                         {
                             if (Stopped(epoch, attW, tgtW)) break; // 中止/销毁不再干等
                             await UniTask.Yield();
@@ -697,16 +685,14 @@ namespace SynergyUI
                         }
                         Face2D(tgtW, attW.position, BattleFieldView.FacingYawOf(targetOwner)); // 守卫者转面攻击者（挡位迎敌）
                     }
-                    else if (attBody && attPts != null && attPts.Count > 0)
+                    else if (attBody && attEnd.HasValue)
                     {
-                        attAnim?.Play(MonsterAction.Walk);
-                        if (!await WalkAsync(attW, attPts, epoch,
+                        if (!await FlyAsync(attW, attEnd.Value, epoch,
                                 modelYaw: BattleFieldView.FacingYawOf(plan.AttackerOwner)))
                         {
-                            Debug.Log($"[CombatChoreo] 演出中止@攻击者走位：{plan.Summary}");
+                            Debug.Log($"[CombatChoreo] 演出中止@攻击者飞行：{plan.Summary}");
                             return;
                         }
-                        attAnim?.Play(MonsterAction.Breath);
                     }
 
                     // 参战者存活重估（2026-10-17 并行演出共享单位修复）：attBody/tgtBody 是方法开头
@@ -766,7 +752,7 @@ namespace SynergyUI
                     }
 
                     // ⑤⑥⑦ 收尾段并行（2026-10-17 用户定案：表现者不是同一个单位就不排队——
-                    //    归位走回互不等待；同一单位的互斥由条件天然保证（死者不归位））。
+                    //    归位飞行互不等待；同一单位的互斥由条件天然保证（死者不归位））。
                     // ⑤ 死亡=可忽略表演（同晚定案：纯装饰不占门不等待——逻辑早已入墓，退场动画
                     //    期间后续动作/墓地相关效果照常；fire-and-forget 与一切并行）
                     if (plan.TargetDead && tgtBody)
@@ -776,30 +762,21 @@ namespace SynergyUI
 
                     var tails = new List<UniTask>();
 
-                    // ⑥ 幸存者原路返回待机（2026-10-15 晚裁定：横置不再停呼吸，归位恒播呼吸，
-                    //    可行动性只看脚下光波）；回程解除对视（攻击已结束，头回待机注视）
+                    // ⑥ 幸存者飞行归位（2026-10-21 移动唯一=飞行；2026-10-15 晚裁定：横置不再
+                    //    停呼吸，归位恒播呼吸，可行动性只看脚下光波）；回程解除对视（攻击已结束）
                     if (attBody && !plan.AttackerDead && attW != null)
                     {
                         _field.ClearCombatGaze(plan.AttackerId);
-                        var back = new List<Vector3>();
-                        if (attPts != null)
-                            for (int i = attPts.Count - 1; i >= 0; i--)
-                                back.Add(attPts[i]); // 原路缝返回（首点=站位≈当前位）
-                        back.Add(homePos);
-                        tails.Add(ReturnAsync(attW, attAnim, back, epoch,
+                        tails.Add(ReturnAsync(attW, attAnim, homePos, epoch,
                             BattleFieldView.FacingYawOf(plan.AttackerOwner), "攻击者归位", plan.Summary));
                     }
 
-                    // ⑦ 守卫者归位（挡位演出收尾）：幸存守卫者原路返回自格（末格=原目标格不回踏
-                    //    ——被保护者仍站其上；横置不停呼吸，同⑥）；回程同解除对视
-                    if (plan.Blocked && blkPts != null && tgtBody && !plan.TargetDead && tgtW != null)
+                    // ⑦ 守卫者归位（挡位演出收尾）：幸存守卫者飞行返回自格（闪现赴挡的对称
+                    //    回收；横置不停呼吸，同⑥）；回程同解除对视
+                    if (guardCovered && tgtBody && !plan.TargetDead && tgtW != null)
                     {
                         _field.ClearCombatGaze(plan.TargetId);
-                        var blkBack = new List<Vector3>();
-                        for (int i = blkPts.Count - 1; i >= 0; i--)
-                            blkBack.Add(blkPts[i]); // 原路缝返回（首点=挡位点≈当前位）
-                        blkBack.Add(blkHomePos);
-                        tails.Add(ReturnAsync(tgtW, tgtAnim, blkBack, epoch,
+                        tails.Add(ReturnAsync(tgtW, tgtAnim, blkHomePos, epoch,
                             BattleFieldView.FacingYawOf(targetOwner), "守卫者归位", plan.Summary));
                     }
                     if (tails.Count > 0)
@@ -830,13 +807,13 @@ namespace SynergyUI
         private bool Stopped(int epoch, Transform a, Transform b)
             => _disposed || epoch != _epoch || (a == null && b == null);
 
-        /// <summary>幸存者归位尾段（2026-10-17 收尾并行化拆出）：走回原格→呼吸待机→wrapper 恒零。
-        /// 中止（Dispose/销毁）只放弃本段——并行收尾互不牵连，finally 兜底统一收场。</summary>
+        /// <summary>幸存者飞行归位尾段（2026-10-17 收尾并行化拆出·2026-10-21 飞行改版）：直线
+        /// 飞回原格→呼吸待机→wrapper 恒零。中止（Dispose/销毁）只放弃本段——并行收尾互不
+        /// 牵连，finally 兜底统一收场。</summary>
         private async UniTask ReturnAsync(Transform wrapper, MonsterRigAnimator anim,
-            List<Vector3> path, int epoch, float yaw, string label, string summary)
+            Vector3 home, int epoch, float yaw, string label, string summary)
         {
-            anim?.Play(MonsterAction.Walk);
-            if (!await WalkAsync(wrapper, path, epoch, 0f, yaw))
+            if (!await FlyAsync(wrapper, home, epoch, yaw))
             {
                 Debug.Log($"[CombatChoreo] 演出中止@{label}：{summary}");
                 return;
@@ -922,68 +899,44 @@ namespace SynergyUI
             return false;
         }
 
-        // ======================================== 走位 ========================================
+        // ======================================== 飞行 ========================================
 
-        /// <summary>沿折线移动 wrapper（恒速）：模型前向朝移动段方向（wrapper 转向=世界朝向−modelYaw
-        /// 补偿——朝向常驻模型层，2026-10-15）、可选侧倾渐变（现恒传 0：24° 横置侧倾同日退役）。
+        /// <summary>快速直线飞行（2026-10-21 定案：走动退役，移动方式唯一=飞行）：起点→终点
+        /// sin 半弧（拔起-掠行-落定，弧高 FlyArcHeight）；模型前向朝飞行方向（wrapper 转向=
+        /// 世界朝向−modelYaw 补偿——朝向常驻模型层，2026-10-15）；动作不迈步（保持呼吸）。
         /// 返回 false=中止（Dispose/销毁），调用方应放弃后续步骤。</summary>
-        private async UniTask<bool> WalkAsync(Transform wrapper, List<Vector3> waypoints, int epoch,
-            float tiltTo = 0f, float modelYaw = 0f)
+        private async UniTask<bool> FlyAsync(Transform wrapper, Vector3 to, int epoch, float modelYaw = 0f)
         {
-            if (waypoints == null || waypoints.Count == 0) return true;
             Vector3 start = wrapper.position;
-            float total = 0f;
-            var cum = new float[waypoints.Count];
-            for (int i = 0; i < waypoints.Count; i++)
+            Vector3 flat = to - start;
+            flat.y = 0f;
+            float dist = flat.magnitude;
+            if (dist < 0.05f)
             {
-                total += Vector3.Distance(start, waypoints[i]);
-                cum[i] = total;
-                start = waypoints[i];
+                wrapper.position = to;
+                return true;
             }
-            start = wrapper.position;
-            if (total < 0.01f) return true;
 
-            float walked = 0f; // 累计计时（2026-10-17 连锁冻结）：realtime 基准在冻结恢复后会跳帧，改累计制
-            float duration = total / WalkSpeed;
+            float flown = 0f; // 累计计时（2026-10-17 连锁冻结）：冻结帧不计飞行时长
+            float duration = Mathf.Max(dist / FlySpeed, 0.08f); // 近距保底时长：贴脸攻击不闪帧
             float yaw = wrapper.rotation.eulerAngles.y;
-            float tilt0 = wrapper.rotation.eulerAngles.z;
-            var last = waypoints[waypoints.Count - 1];
+            float targetYaw = Mathf.Atan2(flat.x, flat.z) * Mathf.Rad2Deg - modelYaw; // 前向 +Z（2026-10-15 定案）：世界朝向=Atan2，wrapper 补 modelYaw
             while (true)
             {
                 if (wrapper == null || _disposed || epoch != _epoch) return false;
-                await WaitChainIdleAsync(); // 连锁窗口期停帧（2026-10-17 表现冻结定案）：窗口关闭续走
+                await WaitChainIdleAsync(); // 连锁窗口期停帧（2026-10-17 表现冻结定案）：窗口关闭续飞
                 if (wrapper == null || _disposed || epoch != _epoch) return false;
-                float t = Mathf.Min(walked / duration, 1f);
-                float dist = t * total;
-
-                Vector3 pos = last, segDir = Vector3.zero;
-                for (int i = 0; i < waypoints.Count; i++)
-                {
-                    if (dist > cum[i]) continue;
-                    float before = i == 0 ? 0f : cum[i - 1];
-                    float segLen = cum[i] - before;
-                    float f = segLen > 1e-5f ? (dist - before) / segLen : 0f;
-                    Vector3 a = i == 0 ? start : waypoints[i - 1];
-                    pos = Vector3.Lerp(a, waypoints[i], f);
-                    segDir = waypoints[i] - a;
-                    break;
-                }
-
-                segDir.y = 0f;
-                if (segDir.sqrMagnitude > 1e-4f)
-                {
-                    // 模型前向领走：烘焙前向=本地 +Z（2026-10-15 用户定案：头朝向即 +Z，以攻击前拱为判据
-                    // 手工校准）——期望世界朝向=Atan2，wrapper 补 modelYaw
-                    float targetYaw = Mathf.Atan2(segDir.x, segDir.z) * Mathf.Rad2Deg - modelYaw;
-                    yaw = Mathf.MoveTowardsAngle(yaw, targetYaw, 460f * Time.deltaTime);
-                }
+                float t = Mathf.Min(flown / duration, 1f);
+                Vector3 pos = Vector3.Lerp(start, to, t);
+                pos.y += Mathf.Sin(Mathf.PI * t) * FlyArcHeight;
+                yaw = Mathf.MoveTowardsAngle(yaw, targetYaw, 460f * Time.deltaTime);
                 wrapper.position = pos;
-                wrapper.rotation = Quaternion.Euler(0f, yaw, Mathf.Lerp(tilt0, tiltTo, t));
+                wrapper.rotation = Quaternion.Euler(0f, yaw, 0f);
                 if (t >= 1f) break;
                 await UniTask.Yield();
-                if (!ChainFrozen) walked += Time.deltaTime; // 冻结帧不计走位时长
+                if (!ChainFrozen) flown += Time.deltaTime; // 冻结帧不计飞行时长
             }
-            wrapper.position = last;
+            wrapper.position = to;
             return true;
         }
 
@@ -1003,52 +956,19 @@ namespace SynergyUI
             return BattleBoardGrid.WorldPositionOf(cell.x, cell.z);
         }
 
-        private static List<Vector3> ToWorldPath(List<(int x, int z)> cells)
-        {
-            var list = new List<Vector3>(cells.Count);
-            foreach (var c in cells) list.Add(ToWorldAnchor(c));
-            return list;
-        }
-
         private static Vector3 ToWorldAnchor((int x, int z) c)
             => BattleBoardGrid.WorldPositionOf(c.x, c.z) + new Vector3(0f, 0.05f, 0f);
 
-        /// <summary>途经格序列 → 格间缝折线（2026-10-17 用户定案：走位不再穿空地格心——
-        /// 沿两格交界线走）：相邻两格共享棱中点=两格心中点（正六边形铺装恒成立），
-        /// 末点=末格格心（战斗站位）。cells 不含起点格（FindApproach 口径）。</summary>
-        private static List<Vector3> SeamWaypoints(List<(int x, int z)> cells, (int x, int z) startCell)
+        /// <summary>守卫挡位终点（闪现即到·2026-10-21 飞行/闪现改版）：原目标格心向攻击者
+        /// 终点方向偏移 GuardCoverOffset——挡在被保护者身前，与其模型错开不重合。
+        /// 攻击者无飞段（已相邻/路径空）=取其当前位定偏移向。</summary>
+        private static Vector3 GuardCoverPoint((int x, int z) victim, Vector3 attFinal)
         {
-            var pts = new List<Vector3>(cells.Count);
-            for (int i = 0; i < cells.Count; i++)
-                pts.Add(i == cells.Count - 1
-                    ? ToWorldAnchor(cells[i])
-                    : SeamMid(i == 0 ? startCell : cells[i - 1], cells[i]));
-            return pts;
-        }
-
-        /// <summary>两格共享棱中点世界坐标（+0.05 锚高同 ToWorldAnchor）。</summary>
-        private static Vector3 SeamMid((int x, int z) a, (int x, int z) b)
-            => (BattleBoardGrid.WorldPositionOf(a.x, a.z) + BattleBoardGrid.WorldPositionOf(b.x, b.z)) * 0.5f
-               + new Vector3(0f, 0.05f, 0f);
-
-        /// <summary>守卫者挡位路径点（2026-10-17 缝走同口径）：途经=格间缝折线（SeamWaypoints，
-        /// blkStart=守卫者起始格；缺失回落旧格心折线）；终点=原目标格心（BlockerPath 末格）
-        /// 向攻击者终格方向偏移 GuardCoverOffset——挡在被保护者身前，与其模型错开不重合。
-        /// 攻击者无走位（已相邻/路径空）=取其当前位姿定偏移向。</summary>
-        private static List<Vector3> GuardCoverPoints(CombatPlan plan, Transform attW, (int x, int z)? blkStart)
-        {
-            var pts = blkStart.HasValue
-                ? SeamWaypoints(plan.BlockerPath, blkStart.Value)
-                : ToWorldPath(plan.BlockerPath);
-            if (pts.Count == 0) return pts;
-            Vector3 cover = pts[pts.Count - 1];
-            Vector3 attFinal = plan.Path != null && plan.Path.Count > 0
-                ? ToWorldAnchor(plan.Path[plan.Path.Count - 1])
-                : (attW != null ? attW.position : cover);
+            Vector3 cover = ToWorldAnchor(victim);
             Vector3 dir = attFinal - cover;
             dir.y = 0f;
-            if (dir.sqrMagnitude > 1e-4f) pts[pts.Count - 1] = cover + dir.normalized * GuardCoverOffset;
-            return pts;
+            if (dir.sqrMagnitude > 1e-4f) cover += dir.normalized * GuardCoverOffset;
+            return cover;
         }
 
         // ======================================== 战斗注视（2026-10-15 头跟随） ========================================

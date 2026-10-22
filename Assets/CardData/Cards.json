@@ -284,48 +284,6 @@
       ]
     },
     {
-      "id": "C_791FE42E",
-      "cardName": "末日降临",
-      "supertype": "Creature",
-      "illustration": "AirEater",
-      "power": 30,
-      "life": 30,
-      "costList": [
-        24.0,
-        0.0,
-        0.0,
-        2.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "6136F558",
-        "c2565884"
-      ]
-    },
-    {
-      "id": "C_57A3ADD6",
-      "cardName": "纳川仪典",
-      "supertype": "Enchantment",
-      "costList": [
-        0.0,
-        0.0,
-        5.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "CCA478E6"
-      ]
-    },
-    {
       "id": "C_7F1F67FF",
       "cardName": "试作·猎犬",
       "supertype": "Creature",
@@ -1232,51 +1190,6 @@
       ],
       "effectIds": [
         "23D9455C"
-      ]
-    },
-    {
-      "id": "C_0CF04C1E",
-      "cardName": "火花术",
-      "supertype": "Spell",
-      "tags": [
-        "测试"
-      ],
-      "effectIds": [
-        "3169D2F9"
-      ]
-    },
-    {
-      "id": "C_BD523DFD",
-      "cardName": "强击术",
-      "supertype": "Spell",
-      "tags": [
-        "测试"
-      ],
-      "effectIds": [
-        "B84096E9"
-      ]
-    },
-    {
-      "id": "C_4BB30047",
-      "cardName": "洞察术",
-      "supertype": "Spell",
-      "tags": [
-        "测试"
-      ],
-      "effectIds": [
-        "014E4682"
-      ]
-    },
-    {
-      "id": "C_733F8535",
-      "cardName": "双策术",
-      "supertype": "Spell",
-      "tags": [
-        "测试"
-      ],
-      "effectIds": [
-        "3169D2F9",
-        "014E4682"
       ]
     },
     {

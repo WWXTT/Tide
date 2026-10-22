@@ -968,6 +968,67 @@
    "tags": [
     "教学"
    ]
+  },
+  {
+   "id": "C_7F5ADCE4",
+   "cardName": "教学·元素井",
+   "supertype": "Creature",
+   "illustration": "Morinphen",
+   "power": 1,
+   "life": 1,
+   "costList": [
+    1,
+    1,
+    1,
+    1,
+    0,
+    0
+   ],
+   "tags": [
+    "教学"
+   ]
+  },
+  {
+   "id": "C_791FE42E",
+   "cardName": "末日降临",
+   "supertype": "Creature",
+   "illustration": "AirEater",
+   "power": 30,
+   "life": 30,
+   "costList": [
+    24,
+    0,
+    0,
+    2,
+    0,
+    0
+   ],
+   "tags": [
+    "教学"
+   ],
+   "effectIds": [
+    "6136F558",
+    "c2565884"
+   ]
+  },
+  {
+   "id": "C_57A3ADD6",
+   "cardName": "纳川仪典",
+   "supertype": "Enchantment",
+   "costList": [
+    0,
+    0,
+    5,
+    0,
+    0,
+    0
+   ],
+   "tags": [
+    "教学"
+   ],
+   "effectIds": [
+    "CCA478E6"
+   ]
   }
  ]
 }

@@ -180,6 +180,23 @@ namespace SynergyUI
 
         // ---- UI 引用 ----
         private UiKit.Scroll _slotArea, _libraryList, _effectsList;
+
+        // ---- 右栏两列表（2026-10-21 回收式虚拟化）：条目装配 + 行池复用 ----
+        private UiKit.RecycledList _atomRows;     // list-library=原子表/光环条目库
+        private UiKit.RecycledList _effectRows;   // list-effects=效果表
+        private readonly List<TableRowData> _atomItems = new List<TableRowData>();
+        private readonly List<TableRowData> _effectItems = new List<TableRowData>();
+
+        /// <summary>右栏列表条目（原子行/光环行/效果行共用形态；IsHint=提示行）。</summary>
+        private sealed class TableRowData
+        {
+            public bool IsHint;
+            public string Meta;
+            public Color Dot;
+            public ElementCost Costs;   // null=清空方格
+            public Action OnClick;
+            public float H;
+        }
         private RectTransform _modeBar, _timingRow;
         private TMP_Text _nameLabel;
         private TMP_Text _costLabel; // 顶栏费用文本 lbl-effect-cost（2026-10-05 预制体改版：方格→文本；无效组合不显示）
@@ -365,6 +382,12 @@ namespace SynergyUI
             _libraryList = FindScroll("list-library"); // 2026-10-03 手改预制体重命名（原 library-list）
             _effectsList = FindScroll("list-effects");
 
+            // 2026-10-21 回收式虚拟化：原子表/效果表行池复用（筛选/搜索只重绑可见行——VLG 参数由 Attach 吸收）
+            _atomRows = UiKit.RecycledList.Attach(_libraryList)
+                ?.Configure(i => _atomItems[i].IsHint ? 1 : 0, AtomRowFactory, BindAtomRow);
+            _effectRows = UiKit.RecycledList.Attach(_effectsList)
+                ?.Configure(i => _effectItems[i].IsHint ? 1 : 0, EffectRowFactory, BindEffectRow);
+
             // 描述条路由（红框闪烁已迁 shader——GuideFrame 自驱，无 C# 帧泵）
             UiKit.DescRequested += OnDescRequested;
         }
@@ -453,8 +476,9 @@ namespace SynergyUI
             SetRightMode(RightMode.Atoms);
             ValidateZones(); // 初始校验（载入数据可能自带违规——如超预算奖励）
 
-            // 空库自诊断：正常应 ≥91 行（87+改写仪典 4 行）——为空说明表未装载或初始化半途出错（查 Console）
-            int libCount = _libraryList?.Content?.childCount ?? 0;
+            // 空库自诊断：正常应 ≥91 行（87+改写仪典 4 行）——为空说明表未装载或初始化半途出错（查 Console）。
+            // 2026-10-21 虚拟化后 content.childCount≠条数——读回收列表条数
+            int libCount = _atomRows?.Count ?? 0;
             if (libCount == 0)
                 ShowToast("原子库为空（表加载失败或初始化异常——查 Console）");
         }
@@ -2537,12 +2561,14 @@ namespace SynergyUI
 
         private void RefreshEffectsList()
         {
-            ClearContent(_effectsList.Content);
+            if (_effectRows == null) return;
             EffectsLibrary.Reload(); // 外部可能直改 Effects.json——进效果表即重读
             var effects = EffectLibrarySerializer.LoadAll();
+            _effectItems.Clear();
             if (effects.Count == 0)
             {
-                MakeHint(_effectsList.Content, "效果库为空——左侧编辑后「保存」即入库");
+                AddTableHint(_effectItems, _effectsList, "效果库为空——左侧编辑后「保存」即入库");
+                _effectRows.SetItems(_effectItems.Count, i => _effectItems[i].H);
                 return;
             }
             string q = _filterName.text;
@@ -2563,12 +2589,16 @@ namespace SynergyUI
                     if (!SearchQuery.Match(corpus, q)) continue;
                 }
 
-                MakeListRow(_effectsList.Content,
-                    AtomText.RenderEffectSummary(captured), // 完整效果描述（2026-10-03 定案：不再简写）
-                    DotColor(ColorFilter.OfTagsCsv(parts.FirstOrDefault()?.Tags)),
-                    captured.header?.AnchorCost,
-                    () => LoadEffectFromLibrary(captured));
+                _effectItems.Add(new TableRowData
+                {
+                    Meta = AtomText.RenderEffectSummary(captured), // 完整效果描述（2026-10-03 定案：不再简写）
+                    Dot = DotColor(ColorFilter.OfTagsCsv(parts.FirstOrDefault()?.Tags)),
+                    Costs = captured.header?.AnchorCost,
+                    OnClick = () => LoadEffectFromLibrary(captured),
+                    H = TableRowH,
+                });
             }
+            _effectRows.SetItems(_effectItems.Count, i => _effectItems[i].H);
         }
 
         /// <summary>点击效果表条目 → 载入左侧编辑（保存覆盖原名，自动改名清旧档）。
@@ -2751,12 +2781,14 @@ namespace SynergyUI
 
         private void RefreshLibrary()
         {
-            ClearContent(_libraryList.Content);
+            if (_atomRows == null) return;
+            _atomItems.Clear();
 
             // 光环模式：右栏=光环条目库（点击添加）——条目编辑在左栏，原子库按槽过滤口径不适用
             if (_mode == ComposeMode.Aura)
             {
                 RefreshAuraLibrary();
+                _atomRows.SetItems(_atomItems.Count, i => _atomItems[i].H);
                 return;
             }
 
@@ -2783,13 +2815,16 @@ namespace SynergyUI
             // 费用升序（2026-10-13 定案）：按表行 ManaList 合计（小数直通口径）排——不计价行合计 0
             // 列最前；同价保表序（OrderBy 稳定排序）
             foreach (var payload in payloads.OrderBy(p => p.Cfg?.ManaList?.Total ?? 0f))
-                MakeLibraryRow(payload);
+                _atomItems.Add(new TableRowData
+                {
+                    Meta = payload.Cfg.Description + CounterClearSuffix(payload.Cfg.Tags), // 2026-10-13 定案：指示物类行统一追加清除方式
+                    Dot = DotColor(ColorFilter.OfTagsCsv(payload.Cfg.Tags)),
+                    Costs = AtomCosts(payload.Cfg),
+                    OnClick = () => QuickAdd(payload),
+                    H = TableRowH,
+                });
+            _atomRows.SetItems(_atomItems.Count, i => _atomItems[i].H);
         }
-
-        private void MakeLibraryRow(LibPayload payload) =>
-            MakeListRow(_libraryList.Content,
-                payload.Cfg.Description + CounterClearSuffix(payload.Cfg.Tags), // 2026-10-13 定案：指示物类行统一追加清除方式
-                DotColor(ColorFilter.OfTagsCsv(payload.Cfg.Tags)), AtomCosts(payload.Cfg), () => QuickAdd(payload));
 
         /// <summary>指示物类原子介绍栏统一后缀（2026-10-13 定案）：清除方式按表行 Tags 四分类标注
         ///（CounterClass 的表侧镜像——衰退=回合末倒数+换区清 / 换区清除=常驻不自动消退 /
@@ -2814,60 +2849,105 @@ namespace SynergyUI
             return cost;
         }
 
-        /// <summary>右栏列表行（原子库/效果表/光环库三处共用，2026-10-03 模板约定；2026-10-04 费用=位置数组）：
-        /// content 直属不激活模板「row」克隆填充（2026-10-07 单名定案——tpl-row 别名与代码建行退役；
-        /// 2026-10-08 定案：行不显示名字——文本只有 meta 单列，name 节点绑定退役；行内费用=模板换入的
-        /// CostSquares 实例（按组件找），无实例回落 dot 色点染色；行点击 Button），布局样式全以模板为准；
-        /// 缺模板 LogError 返回 null。</summary>
-        private RectTransform MakeListRow(RectTransform content, string metaText,
-            Color dot, ElementCost costs, Action onClick)
+        // ---- 右栏行工厂/绑定（2026-10-21 回收式虚拟化；行视觉以模板为单一来源） ----
+
+        private const float TableRowH = 60f; // 行高=模板行（VLG ctrlH=False 原口径）
+
+        /// <summary>提示条目装配（量高：按内容宽测 preferred 高）。</summary>
+        private static void AddTableHint(List<TableRowData> items, UiKit.Scroll list, string text) =>
+            items.Add(new TableRowData
+            {
+                IsHint = true,
+                Meta = text,
+                H = UiKit.MeasureTextHeight(text, list.Content.rect.width - 16f, UiStyle.SmallSize) + 8f,
+            });
+
+        /// <summary>右栏行工厂路由（kind 分池：0 数据行 / 1 提示行）。两列表行结构同构——闭包区分父级。</summary>
+        private UiKit.RecycledList.MakeFn AtomRowFactory(int kind) => kind == 1 ? MakeTableHintRow : MakeTableRow;
+        private UiKit.RecycledList.MakeFn EffectRowFactory(int kind) => kind == 1 ? MakeTableHintRowEx : MakeTableRowEx;
+
+        /// <summary>数据行结构：content 直属不激活模板「row」克隆（Image+Button+CostSquares+meta）。</summary>
+        private RectTransform MakeTableRow()
         {
-            var tpl = UiKit.CloneTemplate("row", content);
+            var tpl = UiKit.CloneTemplate("row", _libraryList.Content);
             if (tpl == null)
             {
                 Debug.LogError("[EffectComposer] 列表缺 row 模板（content 直属、不激活）——本行跳过；检查 EffectUI.prefab");
-                return null;
+                return UiKit.Node("row-miss", _libraryList.Content);
             }
-
-            FillRowParts(tpl, metaText);
-            // 行内费用方格（模板换入的 CostSquares 实例，按组件找）；无实例回落旧 dot 染色
-            var rowView = tpl.GetComponentInChildren<CostSquaresView>(true);
-            if (rowView != null)
-            {
-                if (costs != null && !costs.IsZero) rowView.SetCosts(costs);
-                else rowView.Clear();
-            }
-            else SetPartColor(tpl, "dot", dot);
-            // 模板行宽兜底（2026-10-03）：模板没拉满时克隆体只有几十像素宽（实测 28px 细条）——
-            // 视觉上等于空表。统一铺满 content 宽 + LE 弹性宽（VLG 控宽时优先）；高度仍以模板为准。
-            float cw = Mathf.Max(content.rect.width,
-                content.parent is RectTransform vp ? vp.rect.width : 0f);
-            if (tpl.rect.width < cw * 0.5f)
-                tpl.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, cw);
-            UiKit.Size(tpl, fw: 1f);
-            var tbtn = tpl.GetComponent<Button>();
-            if (tbtn == null)
-            {
-                tbtn = tpl.gameObject.AddComponent<Button>();
-                tbtn.transition = Selectable.Transition.None;
-                if (tbtn.targetGraphic == null) tbtn.targetGraphic = tpl.GetComponent<Image>();
-            }
-            tbtn.onClick.RemoveAllListeners();
-            tbtn.onClick.AddListener(() => { Debug.Log("[UI点击] 库行"); onClick(); });
             return tpl;
         }
 
-        /// <summary>模板行文本填充（2026-10-08 定案）：行不显示名字——唯一文本列=meta 节点
-        ///（name 节点绑定退役，不再按位置序兜底）；缺节点 LogError。</summary>
-        private static void FillRowParts(RectTransform row, string metaText)
+        private RectTransform MakeTableRowEx()
         {
-            var metaT = UiKit.FindDeep(row, "meta")?.GetComponentInChildren<TMP_Text>(true);
-            if (metaT == null)
+            var tpl = UiKit.CloneTemplate("row", _effectsList.Content);
+            if (tpl == null)
             {
-                Debug.LogError("[EffectComposer] row 模板缺 meta 文本节点——本行文本丢失；检查 EffectUI.prefab");
+                Debug.LogError("[EffectComposer] 列表缺 row 模板（content 直属、不激活）——本行跳过；检查 EffectUI.prefab");
+                return UiKit.Node("row-miss", _effectsList.Content);
+            }
+            return tpl;
+        }
+
+        /// <summary>提示行结构：12 号·暗色·自动换行（原子表侧）。</summary>
+        private RectTransform MakeTableHintRow()
+        {
+            var rt = UiKit.Node("hint", _libraryList.Content);
+            var lbl = UiKit.Label("lbl", rt, "", UiStyle.SmallSize, UiStyle.TextHint, wrap: true);
+            UiKit.StretchInset(lbl.rectTransform, 4f, 4f);
+            return rt;
+        }
+
+        /// <summary>提示行结构（效果表侧）。</summary>
+        private RectTransform MakeTableHintRowEx()
+        {
+            var rt = UiKit.Node("hint", _effectsList.Content);
+            var lbl = UiKit.Label("lbl", rt, "", UiStyle.SmallSize, UiStyle.TextHint, wrap: true);
+            UiKit.StretchInset(lbl.rectTransform, 4f, 4f);
+            return rt;
+        }
+
+        /// <summary>右栏行绑定（原子表侧）：meta 文本 + 费用方格（无实例回落 dot 染色）+ 点击监听。</summary>
+        private void BindAtomRow(RectTransform row, int index) => BindTableRow(row, _atomItems[index]);
+
+        /// <summary>右栏行绑定（效果表侧）。</summary>
+        private void BindEffectRow(RectTransform row, int index) => BindTableRow(row, _effectItems[index]);
+
+        /// <summary>右栏行绑定共用：2026-10-08 定案——行不显示名字，文本只有 meta 单列；
+        /// 行内费用=模板换入的 CostSquares 实例（按组件找），无实例回落 dot 色点染色；行点击 Button。</summary>
+        private void BindTableRow(RectTransform row, TableRowData item)
+        {
+            if (item.IsHint)
+            {
+                var lbl = row.GetComponentInChildren<TMP_Text>(true);
+                if (lbl != null) lbl.text = item.Meta;
                 return;
             }
-            metaT.text = metaText ?? "";
+
+            var metaT = UiKit.FindDeep(row, "meta")?.GetComponentInChildren<TMP_Text>(true);
+            if (metaT == null)
+                Debug.LogError("[EffectComposer] row 模板缺 meta 文本节点——本行文本丢失；检查 EffectUI.prefab");
+            else
+                metaT.text = item.Meta ?? "";
+
+            var rowView = row.GetComponentInChildren<CostSquaresView>(true);
+            if (rowView != null)
+            {
+                if (item.Costs != null && !item.Costs.IsZero) rowView.SetCosts(item.Costs);
+                else rowView.Clear();
+            }
+            else SetPartColor(row, "dot", item.Dot);
+
+            var tbtn = row.GetComponent<Button>();
+            if (tbtn == null)
+            {
+                tbtn = row.gameObject.AddComponent<Button>();
+                tbtn.transition = Selectable.Transition.None;
+                if (tbtn.targetGraphic == null) tbtn.targetGraphic = row.GetComponent<Image>();
+            }
+            var onClick = item.OnClick;
+            tbtn.onClick.RemoveAllListeners();
+            tbtn.onClick.AddListener(() => { Debug.Log("[UI点击] 库行"); onClick?.Invoke(); });
         }
 
         private static void SetPartColor(RectTransform row, string child, Color color)
@@ -2884,7 +2964,7 @@ namespace SynergyUI
             // 宿主光环闸（2026-10-15 改版）：连接光环=结界专属——生物（禁挂改版）/法术（只挂主动）不出库
             if (HostBlocksAura)
             {
-                MakeHint(_libraryList.Content, _editingCard.Supertype == Cardtype.Creature
+                AddTableHint(_atomItems, _libraryList, _editingCard.Supertype == Cardtype.Creature
                     ? "生物不可挂连接光环（2026-10-15 改版——光环专属结界）"
                     : "法术只挂主动效果（施放时抉择其一），不可挂光环");
                 return;
@@ -2894,7 +2974,13 @@ namespace SynergyUI
             {
                 // 近似搜索（2026-10-13 多词 AND）：标题∪meta
                 if (!SearchQuery.Match(title + "\n" + meta, _filterName.text)) return;
-                MakeListRow(_libraryList.Content, meta, DotColor(color), null, onAdd);
+                _atomItems.Add(new TableRowData
+                {
+                    Meta = meta,
+                    Dot = DotColor(color),
+                    OnClick = onAdd,
+                    H = TableRowH,
+                });
             }
 
             void AddAura(LinkAuraData entry)

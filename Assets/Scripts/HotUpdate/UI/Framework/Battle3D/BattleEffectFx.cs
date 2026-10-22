@@ -138,10 +138,6 @@ namespace SynergyUI
         /// 按图守卫：MagicOrb=Color（单色）；Impact=Color1（主）+Color2（副，提亮保层次）。</summary>
         private static void ApplyColor(VisualEffect vfx, Color color)
         {
-            // TEMP-PROBE（紫色复现取证）：传入色 + 各守卫真实结果——定位是值错还是图侧不消费
-            Debug.Log($"[EffectFx] ApplyColor in=({color.r:F2},{color.g:F2},{color.b:F2},{color.a:F2})" +
-                      $" asset={(vfx.visualEffectAsset != null ? vfx.visualEffectAsset.name : "null")}" +
-                      $" gColor={vfx.HasVector4("Color")} gColor1={vfx.HasVector4("Color1")} gColor2={vfx.HasVector4("Color2")}");
             if (vfx.HasVector4("Color")) vfx.SetVector4("Color", color);
             if (vfx.HasVector4("Color1")) vfx.SetVector4("Color1", color);
             if (vfx.HasVector4("Color2")) vfx.SetVector4("Color2", Color.Lerp(color, Color.white, 0.55f));
@@ -149,7 +145,8 @@ namespace SynergyUI
 
         /// <summary>短促彩色火花（回复=绿/增益可选色）：Dissolve Template + 水平网格烘焙 +
         /// 平面遮罩贴目标脚下（配方同 BattleCastArrival.CreateGroup——该图必须喂网格采样缓冲）。
-        /// fire-and-forget：0.55s 停发、1.3s 清理（含 GraphicsBuffer 释放）。</summary>
+        /// fire-and-forget：0.55s 停发、1.3s 清理（含 GraphicsBuffer 释放）。
+        /// spawnRate 统一乘 BattleCastArrival.ParticleDensityScale（2026-10-21 /10 减档）。</summary>
         public static void PlaySpark(Vector3 at, Color color, float spawnRate = 7000f)
         {
             if (!SparkReady) return;
@@ -158,7 +155,7 @@ namespace SynergyUI
             {
                 var go = NewFxRoot("fx-spark", at);
                 runner = go.AddComponent<Runner>();
-                runner.Begin(_spark, at, color, spawnRate);
+                runner.Begin(_spark, at, color, spawnRate * BattleCastArrival.ParticleDensityScale);
             }
             catch (Exception ex)
             {

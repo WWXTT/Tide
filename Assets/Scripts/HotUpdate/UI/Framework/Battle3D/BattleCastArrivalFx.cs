@@ -43,6 +43,11 @@ namespace SynergyUI
         private const float SpawnRatePerCost = 30000f; // 每点费用发射率
         private const float SpawnRateCap = 120000f;
 
+        /// <summary>粒子浓度全局缩放（2026-10-21 群友真机发热反馈·用户拍板 /10）：乘在全部发射率上
+        ///（地格组/幽灵表面火花/BattleEffectFx 火花同源引用）；资产容量同步 /10（MagicOrb
+        /// 90000→9000·Dissolve Template 25000→2500）。观感须用户重新验收，回档=改此一处+容量还原。</summary>
+        public const float ParticleDensityScale = 0.1f;
+
         /// <summary>出场粒子总闸。2026-10-18 深夜曾临时停用：真根因=坏导入期（INabCommon 缺失+切目标撞车）
         /// 把 .vfx 资产撕裂写伤（主图对 Uniform Mesh Sample 子图依赖被置 {fileID: 0}+槽位重编号），
         /// 生成 HLSL 引用未声明 _Position → Initialize compute 编译失败 → "Kernel at index (0) is invalid"
@@ -224,7 +229,7 @@ namespace SynergyUI
                 _ghostVfx.SetVector4("Mask Right", new Vector4(1f, 0f, 0f, 0f));
                 _ghostVfx.SetVector4("Mask Forward", new Vector4(0f, 0f, 1f, 0f));
                 _ghostVfx.SetVector4("Mask Scale", new Vector4(1f, 1f, 1f, 0f));
-                _ghostVfx.SetFloat("Spawn Rate", 50000f); // 模型侧表面火花（用户反馈浓度偏低，2万→5万）
+                _ghostVfx.SetFloat("Spawn Rate", 50000f * ParticleDensityScale); // 模型侧表面火花（用户反馈浓度偏低，2万→5万；/10 减档 2026-10-21）
                 _ghostVfx.SetFloat("Spawn Rate Multiplier", 1f);
                 _ghostVfx.SetFloat("Emission Power", 2f);
                 _ghostVfx.SetFloat("Scale Multiplier", 3f); // 粒子×3（用户定案）
@@ -340,7 +345,7 @@ namespace SynergyUI
                 vfx.SetVector4("Color", color); // 本版 VisualEffect 无 SetColor——Color 属性走 Vector4 隐式转换
                 vfx.SetGradient("Color Gradient", BuildGradient(color));
                 vfx.SetFloat("Emission Power", 2.5f);
-                vfx.SetFloat("Spawn Rate", Mathf.Min(SpawnRatePerCost * amount, SpawnRateCap)); // 浓度 ∝ 该色实付量
+                vfx.SetFloat("Spawn Rate", Mathf.Min(SpawnRatePerCost * amount, SpawnRateCap) * ParticleDensityScale); // 浓度 ∝ 该色实付量（/10 减档 2026-10-21）
                 vfx.SetFloat("Spawn Rate Multiplier", 1f);
                 vfx.SetFloat("Scale Multiplier", Mathf.Clamp((0.7f + 0.1f * total) * 3f, 2.1f, 4.8f)); // 粒子×3（用户定案）
 

@@ -82,6 +82,10 @@ namespace SynergyUI
             Bind(manager, parent);
             CreateRoot();
             Build();
+            // 异形屏安全区避让（2026-10-21）：Build 后挂屏根（prefab 屏/回落空根/纯代码屏
+            // 三路径的 Root 此刻均已就位）——TipPanel 等屏内弹层随屏根同缩，无需各自处理。
+            if (Root != null && Root.GetComponent<SafeAreaFitter>() == null)
+                Root.gameObject.AddComponent<SafeAreaFitter>();
             OnEnter();
         }
 

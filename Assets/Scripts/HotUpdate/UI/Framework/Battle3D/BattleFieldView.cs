@@ -882,16 +882,20 @@ namespace SynergyUI
             {
                 int element = (int)BoardLayout.LandCellElementOrder[i];
                 var cell = cells[i];
-                // 元素标识常驻（空格也亮身份）；+z 0.35 上移让位（屏幕上方向——固定机位自 -z 俯拍，
-                // 图标靠格上缘、下方留给平贴计数文字）
-                BattleTileFx.AddElement(cell.x, cell.z, element, new Vector2(0f, 0.35f));
+                // 元素标识常驻（空格也亮身份）。对手（owner=1）=图标 +z 0.35 靠格上缘、数字 -z 0.42
+                // 靠下缘；己方（owner=0）2026-10-21 调换定案：底部手牌收缩态压住格下缘——
+                // 数字上移 +z 0.35、图标下沉 -z 0.42（被手牌遮的只剩图标，读数不再被挡）
+                bool selfSide = owner == 0;
+                float iconZ = selfSide ? -0.42f : 0.35f;
+                BattleTileFx.AddElement(cell.x, cell.z, element, new Vector2(0f, iconZ));
                 int wallet = pv != null && element >= 0 && element < pv.WalletByColor.Length
                     ? pv.WalletByColor[element] : 0;
                 byColor.TryGetValue(element, out var g);
                 bool isBw = element == (int)ManaType.White || element == (int)ManaType.Black;
                 int remaining = isBw ? wallet : (g != null ? g.Untapped : 0) + wallet; // 黑白：可用即钱包（无地牌）
                 if (remaining > 0) BattleTileFx.SetLandGlow(cell.x, cell.z, element);
-                var label = EnsureFlatCellLabel(((long)cell.x << 32) | (uint)cell.z, cell.x, cell.z);
+                var label = EnsureFlatCellLabel(((long)cell.x << 32) | (uint)cell.z, cell.x, cell.z,
+                    selfSide ? 0.35f : -0.42f);
                 if (label != null)
                 {
                     label.gameObject.SetActive(true);
@@ -1081,19 +1085,24 @@ namespace SynergyUI
         /// 晚二批=轴对齐 z 旋 0；本批修字向）：面朝上且**读向 +x、字头 +z、可读面（TMP 本地 -Z）朝相机**
         /// ——正解=LookRotation(down, forward)=Euler(90,0,0)，相机 (7,8,-4)/(50,0,0) 自 -z 俯拍实测
         /// （旧 LookRotation(up,…) 三项全反：字镜像且读向右到左，中文整句一眼翻反、1/1 回文数漏检）。
-        /// 贴格顶面 y=0.014（顶面 y=0、菲涅尔 0.004、图标 0.008 之上），位置=格心向视角前缘（-z）
-        /// 偏移 0.42，与上移 +z 0.35 的居中图标让位。key=格(x&lt;&lt;32|z)。
+        /// 贴格顶面 y=0.014（顶面 y=0、菲涅尔 0.004、图标 0.008 之上），zOffset=格心 z 向偏移
+        ///（默认 -0.42=视角前缘靠下缘；己方 2026-10-21 调换=+0.35 与图标换位——缓存复用路径
+        /// 同步校位，防实例跨局残留旧 z）。key=格(x&lt;&lt;32|z)。
         /// 2026-10-17 改挂 tile 子物体（原挂 _root）：教学介绍段独占显隐按 tile SetActive 收格，
         /// 文字不再悬空留在盘面上（与元素图标/HudRow 认领件同口径）。</summary>
-        private TextMeshPro EnsureFlatCellLabel(long key, int x, int z)
+        private TextMeshPro EnsureFlatCellLabel(long key, int x, int z, float zOffset = -0.42f)
         {
             if (!EnsureTmpFont()) return null;
-            if (_landCounts.TryGetValue(key, out var label) && label != null) return label; // fake-null 判死重建
+            if (_landCounts.TryGetValue(key, out var label) && label != null)
+            {
+                label.transform.localPosition = new Vector3(0f, 0.014f, zOffset); // 防御性回写（同 AddElement 口径）
+                return label; // fake-null 判死重建
+            }
             var tile = BattleBoardGrid.Root != null ? BattleBoardGrid.Root.transform.Find($"tile-{x}-{z}") : null;
             if (tile == null) return null; // 未装台/格名异常：不建，下一事件重试（与 BattleTileFx.TileOf 同法）
             var go = new GameObject("cell-flat-" + x + "-" + z);
             go.transform.SetParent(tile, false); // tile 本体位姿=格心恒等变换，局部值即原世界偏移
-            go.transform.localPosition = new Vector3(0f, 0.014f, -0.42f);
+            go.transform.localPosition = new Vector3(0f, 0.014f, zOffset);
             go.transform.localRotation = Quaternion.LookRotation(Vector3.down, Vector3.forward); // 平贴·轴对齐·字向正（2026-10-14 修）
             label = go.AddComponent<TextMeshPro>();
             label.fontSize = 3.5f;

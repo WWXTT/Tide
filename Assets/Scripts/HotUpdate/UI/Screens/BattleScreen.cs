@@ -193,6 +193,8 @@ namespace SynergyUI
                 _selfFan = new HandFanView(selfLayer, new HandFanView.Config
                 {
                     Center = new Vector2(0f, -375f), // 卡心离屏底 ~165px（悬停抬起后不越界）
+                    HoverScaleMul = 1.93f, // 悬停放大 1.38×1.4（2026-10-21 用户反馈仍看不清）——只调己方扇，对手卡背无放大需求
+                    IdleSinkRatio = 0.65f, // 收缩再下沉（2026-10-21：收缩态仍压己方地牌池——配合数字/图标调换）
                 });
             var oppLayer = FanLayer("opp-fan-layer");
             if (oppLayer != null)
@@ -202,6 +204,7 @@ namespace SynergyUI
                     Center = new Vector2(0f, 375f),
                     BaseScale = 0.72f,
                     MaxFanWidth = 830f,
+                    IdleSinkRatio = 0.65f, // 与己方扇同深（2026-10-21 对称收缩）——TopSide 自动上收镜像
                 });
 
             // 旧版战场 UI 绑定复活（2026-10-13 补回未 3D 化部分——信息条/中栏/战报/overlay 弹层；

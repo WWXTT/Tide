@@ -19,7 +19,7 @@
 //     On all other platforms we could basically get away with preset 15 which has slightly better edge quality.
 
 // Tweakable params (can be changed to get different performance and quality tradeoffs)
-#if SHADER_API_PS5 && defined(HDR_INPUT)
+#if (SHADER_API_PS5 || SHADER_API_SWITCH2) && defined(HDR_INPUT)
 // The console implementation does not generate artefacts when the input pixels are in nits (monitor HDR range).
 #define FXAA_PC 0
 #else
@@ -188,7 +188,7 @@ float3 ApplyTonemap(float3 input
     return saturate(input);
 }
 
-float3 ApplyColorGrading(float3 input, float postExposure, TEXTURE2D_PARAM(lutTex, lutSampler), float3 lutParams, TEXTURE2D_PARAM(userLutTex, userLutSampler), float3 userLutParams, float userLutContrib
+float3 ApplyColorGrading(float3 input, float postExposure, TEXTURE2D_PARAM(lutTex, lutSampler), float3 lutParams, TEXTURE2D_PARAM(userLutTex, userLutSampler), float3 userLutParams, float userLutContrib, float paperWhite, float oneOverPaperWhite
 #if _TONEMAP_GT
     , float4 tonemapParams0
     , float4 tonemapParams1
@@ -209,11 +209,19 @@ float3 ApplyColorGrading(float3 input, float postExposure, TEXTURE2D_PARAM(lutTe
         UNITY_BRANCH
         if (userLutContrib > 0.0)
         {
+        #ifdef HDR_INPUT
+            input = RotateOutputSpaceToRec709(input * oneOverPaperWhite);
+        #endif
+
             input = saturate(input);
             input.rgb = GetLinearToSRGB(input.rgb); // In LDR do the lookup in sRGB for the user LUT
             float3 outLut = ApplyLut2D(TEXTURE2D_ARGS(userLutTex, userLutSampler), input, userLutParams);
             input = lerp(input, outLut, userLutContrib);
             input.rgb = GetSRGBToLinear(input.rgb);
+
+        #ifdef HDR_INPUT
+            input = RotateRec709ToOutputSpace(input) * paperWhite;
+        #endif
         }
     }
 
