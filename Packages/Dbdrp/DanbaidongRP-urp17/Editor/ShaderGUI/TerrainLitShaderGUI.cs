@@ -1,11 +1,12 @@
 using System;
 using UnityEngine;
 using UnityEngine.Rendering;
+using UnityEditor;
 using UnityEngine.Experimental.Rendering;
 
 namespace UnityEditor.Rendering.Universal
 {
-    internal class TerrainLitShaderGUI : BaseShaderGUI, ITerrainLayerCustomUI
+    internal class TerrainLitShaderGUI : UnityEditor.ShaderGUI, ITerrainLayerCustomUI
     {
         private class StylesLayer
         {
@@ -39,11 +40,8 @@ namespace UnityEditor.Rendering.Universal
         static StylesLayer s_Styles = null;
         private static StylesLayer styles { get { if (s_Styles == null) s_Styles = new StylesLayer(); return s_Styles; } }
 
-        protected override uint materialFilter => (uint)Expandable.SurfaceOptions;
-
         public TerrainLitShaderGUI()
         {
-
         }
 
         // Height blend params
@@ -100,16 +98,12 @@ namespace UnityEditor.Rendering.Universal
             return false;
         }
 
-        public override void FindProperties(MaterialProperty[] properties)
+        public override void OnGUI(MaterialEditor materialEditorIn, MaterialProperty[] properties)
         {
-            base.FindProperties(properties);
-            FindMaterialProperties(properties);
-        }
+            if (materialEditorIn == null)
+                throw new ArgumentNullException("materialEditorIn");
 
-        public override void DrawSurfaceOptions(Material material)
-        {
-            if (materialEditor == null)
-                throw new ArgumentNullException("materialEditor");
+            FindMaterialProperties(properties);
 
             bool optionsChanged = false;
             EditorGUI.BeginChangeCheck();
@@ -117,16 +111,18 @@ namespace UnityEditor.Rendering.Universal
                 if (enableHeightBlend != null)
                 {
                     EditorGUI.indentLevel++;
-                    materialEditor.ShaderProperty(enableHeightBlend, styles.enableHeightBlend);
+                    materialEditorIn.ShaderProperty(enableHeightBlend, styles.enableHeightBlend);
                     if (enableHeightBlend.floatValue > 0)
                     {
                         EditorGUI.indentLevel++;
                         EditorGUILayout.HelpBox(styles.warningHeightBasedBlending.text, MessageType.Info);
-                        materialEditor.ShaderProperty(heightTransition, styles.heightTransition);
+                        materialEditorIn.ShaderProperty(heightTransition, styles.heightTransition);
                         EditorGUI.indentLevel--;
                     }
                     EditorGUI.indentLevel--;
                 }
+
+                EditorGUILayout.Space();
             }
             if (EditorGUI.EndChangeCheck())
             {
@@ -141,21 +137,21 @@ namespace UnityEditor.Rendering.Universal
             {
                 EditorGUI.indentLevel++;
                 EditorGUI.BeginChangeCheck();
-                materialEditor.ShaderProperty(enableInstancedPerPixelNormal, styles.enableInstancedPerPixelNormal);
+                materialEditorIn.ShaderProperty(enableInstancedPerPixelNormal, styles.enableInstancedPerPixelNormal);
                 enablePerPixelNormalChanged = EditorGUI.EndChangeCheck();
                 EditorGUI.indentLevel--;
             }
 
             if (optionsChanged || enablePerPixelNormalChanged)
             {
-                foreach (var obj in materialEditor.targets)
+                foreach (var obj in materialEditorIn.targets)
                 {
                     SetupMaterialKeywords((Material)obj);
                 }
             }
 
             // We should always do this call at the end
-            materialEditor.serializedObject.ApplyModifiedProperties();
+            materialEditorIn.serializedObject.ApplyModifiedProperties();
         }
 
         bool ITerrainLayerCustomUI.OnTerrainLayerGUI(TerrainLayer terrainLayer, Terrain terrain)
@@ -299,12 +295,9 @@ namespace UnityEditor.Rendering.Universal
                     maskMapRemapMin.y = Mathf.Min(maskMapRemapMin.y, maskMapRemapMax.y);
                     maskMapRemapMin.z = Mathf.Min(Mathf.Max(0, maskMapRemapMin.z), maskMapRemapMax.z);
 
-                    // See also: TerrainLitGUI, TerrainLayerInspector.
                     if (TextureHasAlpha(terrainLayer.diffuseTexture))
                     {
-                        terrainLayer.smoothnessSource = (UnityEngine.TerrainLayerSmoothnessSource)EditorGUILayout.EnumPopup(
-                            EditorGUIUtility.TrTextContent("Smoothness Source"), terrainLayer.smoothnessSource);
-
+                        terrainLayer.smoothnessSource = (UnityEngine.TerrainLayerSmoothnessSource)EditorGUILayout.EnumPopup(EditorGUIUtility.TrTextContent("Smoothness Source"), terrainLayer.smoothnessSource);
                         if (terrainLayer.smoothnessSource == TerrainLayerSmoothnessSource.DiffuseAlphaChannel)
                         {
                             GUIStyle warnStyle = new GUIStyle(GUI.skin.label);

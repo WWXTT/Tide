@@ -1,6 +1,5 @@
 Pass
 {
-    Name "SceneSelectionPass"
     Tags { "LightMode"="SceneSelectionPass" }
 
     ZWrite On
@@ -14,7 +13,6 @@ Pass
 
 Pass
 {
-    Name "SceneSelectionPass"
     Tags { "LightMode"="Picking" }
 
     ZWrite On

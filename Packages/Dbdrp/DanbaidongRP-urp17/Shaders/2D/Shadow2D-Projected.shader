@@ -10,17 +10,10 @@ Shader "Hidden/ShadowProjected2D"
         Tags { "RenderType"="Transparent" }
 
         Cull    Off
-        BlendOp Max
+        BlendOp Add
         Blend   One One, One One
         ZWrite  Off
         ZTest   Always
-
-        Stencil
-        {
-            Ref       1
-            Comp      NotEqual
-            Pass      Keep
-        }
 
         // This pass draws the projected shadows
         Pass
@@ -72,7 +65,7 @@ Shader "Hidden/ShadowProjected2D"
             }
 
 
-            Name "Projected Unshadow (G) - Stencil: Ref 1, Comp Eq, Pass Keep"
+            Name "Projected Unshadow (R) - Stencil: Ref 1, Comp Eq, Pass Keep"
 
             // Draw the shadow
             ColorMask G

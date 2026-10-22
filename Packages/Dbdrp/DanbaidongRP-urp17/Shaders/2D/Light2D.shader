@@ -21,7 +21,6 @@ Shader "Hidden/Light2D"
             #pragma vertex vert
             #pragma fragment frag
             #pragma multi_compile_local USE_NORMAL_MAP __
-            #pragma multi_compile_local USE_SHADOW_MAP __
             #pragma multi_compile_local USE_ADDITIVE_BLENDING __
             #pragma multi_compile_local USE_VOLUMETRIC __
             #pragma multi_compile_local USE_POINT_LIGHT_COOKIES __
@@ -71,35 +70,6 @@ Shader "Hidden/Light2D"
 
             half _InverseHDREmulationScale;
 
-            Varyings vert_shape_shared(float3 position, Attributes a, PerLight2D light)
-            {
-                Varyings o = (Varyings)0;
-
-                o.positionCS = TransformObjectToHClip(position);
-                o.color = _L2D_COLOR * _InverseHDREmulationScale;
-                o.color.a = a.color.a;
-#if USE_VOLUMETRIC
-                o.color.a = _L2D_COLOR.a * _L2D_VOLUME_OPACITY;
-#endif
-                // If Sprite use UV.
-                o.uv = (_L2D_LIGHT_TYPE == 2) ? a.uv : float2(a.color.a, _L2D_FALLOFF_INTENSITY);
-
-                float4 worldSpacePos;
-                worldSpacePos.xyz = TransformObjectToWorld(position);
-                worldSpacePos.w = 1;
-                TRANSFER_NORMALS_LIGHTING(o, worldSpacePos, _L2D_POSITION.xyz, _L2D_POSITION.w)
-                TRANSFER_SHADOWS(o)
-
-                return o;
-            }
-
-
-            Varyings vert_provider(Attributes a, PerLight2D light)
-            {
-                return vert_shape_shared(a.positionOS, a, light);
-            }
-
-
             Varyings vert_shape(Attributes a, PerLight2D light)
             {
                 Varyings o = (Varyings)0;
@@ -108,7 +78,22 @@ Shader "Hidden/Light2D"
                 positionOS.x = positionOS.x + _L2D_FALLOFF_DISTANCE * a.color.r;
                 positionOS.y = positionOS.y + _L2D_FALLOFF_DISTANCE * a.color.g;
 
-                return vert_shape_shared(positionOS, a, light);
+                o.positionCS = TransformObjectToHClip(positionOS);
+                o.color = _L2D_COLOR * _InverseHDREmulationScale;
+                o.color.a = a.color.a;
+#if USE_VOLUMETRIC
+                o.color.a = _L2D_COLOR.a * _L2D_VOLUME_OPACITY;
+#endif
+
+                // If Sprite use UV.
+                o.uv = (_L2D_LIGHT_TYPE == 2) ? a.uv : float2(a.color.a, _L2D_FALLOFF_INTENSITY);
+
+                float4 worldSpacePos;
+                worldSpacePos.xyz = TransformObjectToWorld(positionOS);
+                worldSpacePos.w = 1;
+                TRANSFER_NORMALS_LIGHTING(o, worldSpacePos, _L2D_POSITION.xyz, _L2D_POSITION.w)
+                TRANSFER_SHADOWS(o)
+                return o;
             }
 
             Varyings vert_point(Attributes a, PerLight2D light)
@@ -155,14 +140,6 @@ Shader "Hidden/Light2D"
                         v.lightOffset = attributes.color;
                         return v;
                     }
-                    break;
-                    case 5:
-                    {
-                        Varyings v = vert_provider(attributes, light);
-                        v.lightOffset = attributes.color;
-                        return v;
-                    }
-
                 }
 
                 Varyings v = (Varyings)0;
@@ -178,11 +155,11 @@ Shader "Hidden/Light2D"
 #if USE_ADDITIVE_BLENDING
                     lightColor *= cookie * cookie.a;
 #else
-                    lightColor *= cookie;          
+                    lightColor *= cookie;
 #endif
                 }
                 else
-                {  
+                {
 #if USE_ADDITIVE_BLENDING
                     lightColor *= SAMPLE_TEXTURE2D(_FalloffLookup, sampler_FalloffLookup, i.uv).r;
 #elif USE_VOLUMETRIC
@@ -195,11 +172,7 @@ Shader "Hidden/Light2D"
 #if !USE_VOLUMETRIC
                 APPLY_NORMALS_LIGHTING(i, lightColor, _L2D_POSITION.xyz, _L2D_POSITION.w);
 #endif
-
-#if USE_SHADOW_MAP
                 APPLY_SHADOWS(i, lightColor, _L2D_SHADOW_INTENSITY);
-#endif
-
                 return ToFragmentOutput(lightColor);
             }
 
@@ -235,10 +208,7 @@ Shader "Hidden/Light2D"
 #if !USE_VOLUMETRIC
                 APPLY_NORMALS_LIGHTING(i, lightColor, _L2D_POSITION.xyz, _L2D_POSITION.w);
 #endif
-
-#if USE_SHADOW_MAP
                 APPLY_SHADOWS(i, lightColor, _L2D_SHADOW_INTENSITY);
-#endif
 
 #if USE_VOLUMETRIC
                 lightColor *= _L2D_VOLUME_OPACITY;
@@ -260,7 +230,6 @@ Shader "Hidden/Light2D"
                     case 0:
                     case 1:
                     case 2:
-                    case 5:
                     {
                         FragmentOutput output = frag_shape(i, light);
                         return output;

@@ -18,6 +18,8 @@ Shader "Hidden/Shadow2DUnshadowGeometry"
             }
 
             Cull Off
+            Blend   SrcColor Zero
+            BlendOp Add
             ZWrite Off
             ZTest Always
 

@@ -2,7 +2,7 @@
 #define UNIVERSAL_SPEEDTREE8_PASSES_INCLUDED
 
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
-#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/GBufferOutput.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/UnityGBuffer.hlsl"
 #include "Packages/com.unity.shadergraph/ShaderGraphLibrary/Nature/SpeedTreeCommon.hlsl"
 #include "SpeedTreeUtility.hlsl"
 #if defined(LOD_FADE_CROSSFADE)
@@ -98,9 +98,8 @@ struct SpeedTreeFragmentInput
 void InitializeData(inout SpeedTreeVertexInput input, float lodValue)
 {
 #if !defined(EFFECT_BILLBOARD)
-    #if defined(LOD_FADE_PERCENTAGE)
-    UNITY_BRANCH if (unity_LODFade.w <= 1.0)
-        input.vertex.xyz = lerp(input.vertex.xyz, input.texcoord2.xyz, lodValue);
+    #if defined(LOD_FADE_PERCENTAGE) && (!defined(LOD_FADE_CROSSFADE))
+    input.vertex.xyz = lerp(input.vertex.xyz, input.texcoord2.xyz, lodValue);
     #endif
 
     // geometry type
@@ -122,8 +121,7 @@ void InitializeData(inout SpeedTreeVertexInput input, float lodValue)
 
     // wind
     #if defined(ENABLE_WIND) && !defined(_WINDQUALITY_NONE)
-        float windEnabled = dot(_ST_WindVector.xyz, _ST_WindVector.xyz) > 0.0f ? 1.0f : 0.0f;
-        if (windEnabled > 0)
+        if (_WindEnabled > 0)
         {
             float3 rotatedWindVector = mul(_ST_WindVector.xyz, (float3x3)UNITY_MATRIX_M);
             float windLength = length(rotatedWindVector);
@@ -145,7 +143,7 @@ void InitializeData(inout SpeedTreeVertexInput input, float lodValue)
                     // remove anchor position
                     float3 anchor = float3(input.texcoord1.zw, input.texcoord2.w);
                     windyPosition -= anchor;
-
+                    
                     // leaf wind
                     #if defined(_WINDQUALITY_FAST) || defined(_WINDQUALITY_BETTER) || defined(_WINDQUALITY_BEST)
                         #ifdef _WINDQUALITY_BEST
@@ -372,7 +370,7 @@ void InitializeInputData(SpeedTreeFragmentInput input, half3 normalTS, out Input
 }
 
 #ifdef GBUFFER
-GBufferFragOutput SpeedTree8Frag(SpeedTreeFragmentInput input)
+FragmentOutput SpeedTree8Frag(SpeedTreeFragmentInput input)
 #else
 half4 SpeedTree8Frag(SpeedTreeFragmentInput input) : SV_Target
 #endif
@@ -469,10 +467,11 @@ half4 SpeedTree8Frag(SpeedTreeFragmentInput input) : SV_Target
     InitializeBRDFData(albedo, metallic, specular, smoothness, alpha, brdfData);
 
     MixRealtimeAndBakedGI(mainLight, inputData.normalWS, inputData.bakedGI, inputData.shadowMask);
-    half3 color = GlobalIllumination(brdfData, (BRDFData)0, 0, inputData.bakedGI, occlusion, inputData.positionWS,
-                                     inputData.normalWS, inputData.viewDirectionWS, inputData.normalizedScreenSpaceUV);
+    // half3 color = GlobalIllumination(brdfData, inputData.bakedGI, occlusion, inputData.positionWS, inputData.normalWS, inputData.viewDirectionWS);
 
-    return PackGBuffersBRDFData(brdfData, inputData, smoothness, emission + color, occlusion);
+    // return BRDFDataToGbuffer(brdfData, inputData, smoothness, emission + color, occlusion);
+    return BRDFDataToGbuffer(brdfData, inputData, smoothness, emission, occlusion);
+
 
 #else
     SurfaceData surfaceData;

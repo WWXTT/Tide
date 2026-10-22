@@ -35,7 +35,7 @@ void frag(
     PackedVaryings packedInput
     , out half4 outColor : SV_Target0
 #ifdef _WRITE_RENDERING_LAYERS
-    , out uint outRenderingLayers : SV_Target1
+    , out float4 outRenderingLayers : SV_Target1
 #endif
 )
 {
@@ -66,7 +66,7 @@ void frag(
     surfaceDescription.BaseColor = AlphaModulate(surfaceDescription.BaseColor, alpha);
 #endif
 
-#if defined(_DBUFFER) && defined(UNLIT_DEFAULT_DECAL_BLENDING)
+#if defined(_DBUFFER)
     ApplyDecalToBaseColor(unpacked.positionCS, surfaceDescription.BaseColor);
 #endif
 
@@ -81,7 +81,7 @@ void frag(
     half4 finalColor = UniversalFragmentUnlit(inputData, surfaceDescription.BaseColor, alpha);
     finalColor.a = OutputAlpha(finalColor.a, isTransparent);
 
-    #if defined(_SCREEN_SPACE_OCCLUSION) && !defined(_SURFACE_TYPE_TRANSPARENT) && defined(UNLIT_DEFAULT_SSAO)
+    #if defined(_SCREEN_SPACE_OCCLUSION) && !defined(_SURFACE_TYPE_TRANSPARENT)
         float2 normalizedScreenSpaceUV = GetNormalizedScreenSpaceUV(unpacked.positionCS);
         AmbientOcclusionFactor aoFactor = GetScreenSpaceAmbientOcclusion(normalizedScreenSpaceUV);
         finalColor.rgb *= aoFactor.directAmbientOcclusion;
@@ -90,6 +90,7 @@ void frag(
     outColor = finalColor;
 
 #ifdef _WRITE_RENDERING_LAYERS
-    outRenderingLayers = EncodeMeshRenderingLayer();
+    uint renderingLayers = GetMeshRenderingLayer();
+    outRenderingLayers = float4(EncodeMeshRenderingLayer(renderingLayers), 0, 0, 0);
 #endif
 }

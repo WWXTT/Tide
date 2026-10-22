@@ -17,13 +17,7 @@ float SampleSceneDepth(float2 uv, SAMPLER(samplerParam))
 
 float SampleSceneDepth(float2 uv)
 {
-    uv = UnityStereoTransformScreenSpaceTex(uv);
-    #if defined(UNITY_PRETRANSFORM_TO_DISPLAY_ORIENTATION)
-    uv = RemovePretransformRotation(uv, GetScaledScreenParams());
-    #endif
-    uv = ClampAndScaleUVForBilinear(uv, _CameraDepthTexture_TexelSize.xy);
-    uint2 pixelCoord = uint2(uv * _ScreenSize.xy);
-    return LOAD_TEXTURE2D_X(_CameraDepthTexture, pixelCoord).r;
+    return SampleSceneDepth(uv, sampler_PointClamp);
 }
 
 float LoadSceneDepth(uint2 pixelCoords)

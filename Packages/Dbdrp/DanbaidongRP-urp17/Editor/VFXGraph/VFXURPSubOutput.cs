@@ -1,5 +1,3 @@
-using UnityEngine.Rendering.Universal;
-
 #if HAS_VFX_GRAPH
 
 namespace UnityEditor.VFX.URP
@@ -8,10 +6,6 @@ namespace UnityEditor.VFX.URP
     {
         //URP only support motion vector on opaque geometry (with or without ShaderGraph)
         public override bool supportsMotionVector => owner.isBlendModeOpaque;
-        public override string GetRenderPipelineTagStr()
-        {
-            return UniversalRenderPipeline.k_ShaderTagName;
-        }
     }
 }
 #endif

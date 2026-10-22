@@ -35,10 +35,6 @@ Shader "Hidden/Universal Render Pipeline/XR/XRMotionVector"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
             // -------------------------------------
-            // Constants
-            float _SpaceWarpNDCModifier;
-
-            // -------------------------------------
             // Structs
             struct Attributes
             {
@@ -49,8 +45,7 @@ Shader "Hidden/Universal Render Pipeline/XR/XRMotionVector"
             struct Varyings
             {
                 float4 position : SV_POSITION;
-                float4 posCS : TEXCOORD0;
-                float4 prevPosCS : TEXCOORD1;
+                float3 posWS : TEXCOORD0;
                 UNITY_VERTEX_OUTPUT_STEREO
             };
 
@@ -62,16 +57,13 @@ Shader "Hidden/Universal Render Pipeline/XR/XRMotionVector"
                 UNITY_SETUP_INSTANCE_ID(input);
                 UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
 
-                output.position = GetFullScreenTriangleVertexPosition(input.vertexID, 1 - UNITY_NEAR_CLIP_VALUE);
+                output.position = GetFullScreenTriangleVertexPosition(input.vertexID);
+
+                float depth = 1 - UNITY_NEAR_CLIP_VALUE;
+                output.position.z = depth;
 
                 // Reconstruct world position
-                // We can use the clip space as is because contrary to the convention mentioned in Common.hlsl (RP Core),
-                // this clip space is already Y-up
-                float3 posWS = ComputeWorldSpacePosition(output.position, UNITY_MATRIX_I_VP);
-                
-                // Multiply with current and previous non-jittered view projection
-                output.posCS = mul(_NonJitteredViewProjMatrix, float4(posWS, 1.0));
-                output.prevPosCS = mul(_PrevViewProjMatrix, float4(posWS, 1.0));
+                output.posWS = ComputeWorldSpacePosition(output.position.xy, depth, UNITY_MATRIX_I_VP);
 
                 return output;
             }
@@ -82,17 +74,17 @@ Shader "Hidden/Universal Render Pipeline/XR/XRMotionVector"
             {
                 UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
 
+                // Multiply with current and previous non-jittered view projection
+                float4 posCS = mul(_NonJitteredViewProjMatrix, float4(input.posWS.xyz, 1.0));
+                float4 prevPosCS = mul(_PrevViewProjMatrix, float4(input.posWS.xyz, 1.0));
+
                 // Non-uniform raster needs to keep the posNDC values in float to avoid additional conversions
                 // since uv remap functions use floats
-                float3 posNDC = input.posCS.xyz * rcp(input.posCS.w);
-                float3 prevPosNDC = input.prevPosCS.xyz * rcp(input.prevPosCS.w);
+                float3 posNDC = posCS.xyz * rcp(posCS.w);
+                float3 prevPosNDC = prevPosCS.xyz * rcp(prevPosCS.w);
 
                 // Calculate forward velocity
                 float3 velocity = (posNDC - prevPosNDC);
-                
-                #if UNITY_UV_STARTS_AT_TOP
-                velocity.y = velocity.y * _SpaceWarpNDCModifier;
-                #endif
 
                 return float4(velocity.xyz, 0);
             }

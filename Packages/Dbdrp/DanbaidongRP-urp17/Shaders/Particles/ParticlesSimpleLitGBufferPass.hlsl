@@ -2,7 +2,7 @@
 #define UNIVERSAL_PARTICLES_GBUFFER_SIMPLE_LIT_PASS_INCLUDED
 
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
-#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/GBufferOutput.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/UnityGBuffer.hlsl"
 #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Particles.hlsl"
 
 void InitializeInputData(VaryingsParticle input, half3 normalTS, out InputData inputData)
@@ -142,7 +142,7 @@ VaryingsParticle ParticlesLitGBufferVertex(AttributesParticle input)
 }
 
 
-GBufferFragOutput ParticlesLitGBufferFragment(VaryingsParticle input)
+FragmentOutput ParticlesLitGBufferFragment(VaryingsParticle input)
 {
     UNITY_SETUP_INSTANCE_ID(input);
     UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
@@ -156,7 +156,7 @@ GBufferFragOutput ParticlesLitGBufferFragment(VaryingsParticle input)
 
     half4 color = half4(inputData.bakedGI * surfaceData.albedo + surfaceData.emission, surfaceData.alpha);
 
-    return PackGBuffersSurfaceData(surfaceData, inputData, color.rgb);
+    return SurfaceDataToGbuffer(surfaceData, inputData, color.rgb, kLightingSimpleLit);
 
 }
 

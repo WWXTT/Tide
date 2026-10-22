@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using UnityEngine.Rendering.RenderGraphModule;
 
@@ -21,17 +20,9 @@ namespace UnityEngine.Rendering.Universal
                 currentFrameIndex = Time.frameCount,
             };
 
-            try
-            {
-                renderGraph.BeginRecording(rgParams);
-                RecordRenderGraph(renderGraph, context, renderer);
-                renderGraph.EndRecordingAndExecute();
-            }
-            catch (Exception e)
-            {
-                if (renderGraph.ResetGraphAndLogException(e))
-                    throw;
-            }
+            renderGraph.BeginRecording(rgParams);
+            RecordRenderGraph(renderGraph, context, renderer);
+            renderGraph.EndRecordingAndExecute();
         }
     }
 }

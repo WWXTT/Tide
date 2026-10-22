@@ -18,30 +18,22 @@ struct Light
     uint    layerMask;
 };
 
-#if USE_CLUSTER_LIGHT_LOOP && defined(LIGHTMAP_ON) && defined(LIGHTMAP_SHADOW_MIXING)
-#define CLUSTER_LIGHT_LOOP_SUBTRACTIVE_LIGHT_CHECK if (_AdditionalLightsColor[lightIndex].a > 0.0h) continue;
+#if USE_FORWARD_PLUS && defined(LIGHTMAP_ON) && defined(LIGHTMAP_SHADOW_MIXING)
+#define FORWARD_PLUS_SUBTRACTIVE_LIGHT_CHECK if (_AdditionalLightsColor[lightIndex].a > 0.0h) continue;
 #else
-#define CLUSTER_LIGHT_LOOP_SUBTRACTIVE_LIGHT_CHECK
+#define FORWARD_PLUS_SUBTRACTIVE_LIGHT_CHECK
 #endif
 
-
-#if defined(UNITY_PLATFORM_META_QUEST) && META_QUEST_LIGHTUNROLL
-	#define UNROLL_ONELIGHT [unroll(1)]
-#else
-	#define UNROLL_ONELIGHT
-#endif
-
-#if USE_CLUSTER_LIGHT_LOOP
+#if USE_FORWARD_PLUS
     #define LIGHT_LOOP_BEGIN(lightCount) { \
     uint lightIndex; \
     ClusterIterator _urp_internal_clusterIterator = ClusterInit(inputData.normalizedScreenSpaceUV, inputData.positionWS, 0); \
     [loop] while (ClusterNext(_urp_internal_clusterIterator, lightIndex)) { \
         lightIndex += URP_FP_DIRECTIONAL_LIGHTS_COUNT; \
-        CLUSTER_LIGHT_LOOP_SUBTRACTIVE_LIGHT_CHECK
+        FORWARD_PLUS_SUBTRACTIVE_LIGHT_CHECK
     #define LIGHT_LOOP_END } }
 #else
     #define LIGHT_LOOP_BEGIN(lightCount) \
-    UNROLL_ONELIGHT \
     for (uint lightIndex = 0u; lightIndex < lightCount; ++lightIndex) {
     #define LIGHT_LOOP_END }
 #endif
@@ -90,7 +82,7 @@ Light GetMainLight()
 {
     Light light;
     light.direction = half3(_MainLightPosition.xyz);
-#if USE_CLUSTER_LIGHT_LOOP
+#if USE_FORWARD_PLUS
 #if defined(LIGHTMAP_ON) && defined(LIGHTMAP_SHADOW_MIXING)
     light.distanceAttenuation = _MainLightColor.a;
 #else
@@ -166,12 +158,8 @@ Light GetAdditionalPerObjectLight(int perObjectLightIndex, float3 positionWS)
 
     half3 lightDirection = half3(lightVector * rsqrt(distanceSqr));
     // full-float precision required on some platforms
-#if (META_QUEST_NO_SPOTLIGHTS_LIGHT_LOOP)
-    float attenuation = DistanceAttenuation(distanceSqr, distanceAndSpotAttenuation.xy);
-#else
     float attenuation = DistanceAttenuation(distanceSqr, distanceAndSpotAttenuation.xy) * AngleAttenuation(spotDirection.xyz, lightDirection, distanceAndSpotAttenuation.zw);
-#endif
-    
+
     Light light;
     light.direction = lightDirection;
     light.distanceAttenuation = attenuation;
@@ -235,7 +223,7 @@ int GetPerObjectLightIndex(uint index)
 // index to a perObjectLightIndex
 Light GetAdditionalLight(uint i, float3 positionWS)
 {
-#if USE_CLUSTER_LIGHT_LOOP
+#if USE_FORWARD_PLUS
     int lightIndex = i;
 #else
     int lightIndex = GetPerObjectLightIndex(i);
@@ -245,7 +233,7 @@ Light GetAdditionalLight(uint i, float3 positionWS)
 
 Light GetAdditionalLight(uint i, float3 positionWS, half4 shadowMask)
 {
-#if USE_CLUSTER_LIGHT_LOOP
+#if USE_FORWARD_PLUS
     int lightIndex = i;
 #else
     int lightIndex = GetPerObjectLightIndex(i);
@@ -282,7 +270,7 @@ Light GetAdditionalLight(uint i, InputData inputData, half4 shadowMask, AmbientO
 
 int GetAdditionalLightsCount()
 {
-#if USE_CLUSTER_LIGHT_LOOP
+#if USE_FORWARD_PLUS
     // Counting the number of lights in clustered requires traversing the bit list, and is not needed up front.
     return 0;
 #else

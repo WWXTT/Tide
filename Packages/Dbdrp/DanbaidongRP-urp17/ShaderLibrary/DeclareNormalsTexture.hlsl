@@ -11,11 +11,7 @@ float4 _CameraNormalsTexture_TexelSize;
 
 float3 SampleSceneNormals(float2 uv, SAMPLER(samplerParam))
 {
-    uv = UnityStereoTransformScreenSpaceTex(uv);
-    #if defined(UNITY_PRETRANSFORM_TO_DISPLAY_ORIENTATION)
-    uv = RemovePretransformRotation(uv, GetScaledScreenParams());
-    #endif
-    uv = ClampAndScaleUVForBilinear(uv, _CameraNormalsTexture_TexelSize.xy);
+    uv = ClampAndScaleUVForBilinear(UnityStereoTransformScreenSpaceTex(uv), _CameraNormalsTexture_TexelSize.xy);
     float3 normal = SAMPLE_TEXTURE2D_X(_CameraNormalsTexture, samplerParam, uv).xyz;
 
     #if defined(_GBUFFER_NORMALS_OCT)

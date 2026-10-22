@@ -28,7 +28,6 @@ namespace UnityEditor.Rendering.Universal
 
         SerializedDataParameter m_Denoiser;
         SerializedDataParameter m_EdgeAvoidingWaveletBlur;
-        SerializedDataParameter m_IndirectSpecularShadowOcclusion;
 
         static GUIContent s_PerObjectShadowPenumbra = EditorGUIUtility.TrTextContent("Penumbra (PerObjectShadow)", "Controls the width of PerObjectShadow.");
 
@@ -56,7 +55,6 @@ namespace UnityEditor.Rendering.Universal
 
             m_Denoiser = Unpack(o.Find(x => x.denoiser));
             m_EdgeAvoidingWaveletBlur = Unpack(o.Find(x => x.edgeAvoidingWaveletBlur));
-            m_IndirectSpecularShadowOcclusion = Unpack(o.Find(x => x.indirectSpecularShadowOcclusion));
         }
 
         void RayTracedShadowsGUI()
@@ -82,7 +80,6 @@ namespace UnityEditor.Rendering.Universal
                 EditorGUILayout.Space(10);
                 PropertyField(m_Denoiser);
                 PropertyField(m_EdgeAvoidingWaveletBlur);
-                PropertyField(m_IndirectSpecularShadowOcclusion);
 
                 EditorGUILayout.Space(20);
                 PropertyField(m_PerObjectShadowPenumbra, s_PerObjectShadowPenumbra);
@@ -117,7 +114,6 @@ namespace UnityEditor.Rendering.Universal
 
             PropertyField(m_Penumbra);
             PropertyField(m_PerObjectShadowPenumbra, s_PerObjectShadowPenumbra);
-            PropertyField(m_IndirectSpecularShadowOcclusion);
 
             EditorGUILayout.Space(10);
 

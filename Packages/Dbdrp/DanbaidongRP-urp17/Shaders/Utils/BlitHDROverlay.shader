@@ -19,7 +19,6 @@ Shader "Hidden/Universal/BlitHDROverlay"
         TEXTURE2D_X(_OverlayUITexture);
 
         float4 _HDROutputLuminanceParams;
-        float4 _OffscreenUIViewportParams;
 
         #define MinNits    _HDROutputLuminanceParams.x
         #define MaxNits    _HDROutputLuminanceParams.y
@@ -46,8 +45,7 @@ Shader "Hidden/Universal/BlitHDROverlay"
                 return color;
             }
 
-            float2 uiCoord = input.texcoord * _OffscreenUIViewportParams.zw + _OffscreenUIViewportParams.xy;
-            float4 uiSample = SAMPLE_TEXTURE2D_X(_OverlayUITexture, sampler_PointClamp, uiCoord);
+            float4 uiSample = SAMPLE_TEXTURE2D_X(_OverlayUITexture, sampler_PointClamp, input.texcoord);
             return SceneComposition(color, uiSample);
         }
 
@@ -56,7 +54,7 @@ Shader "Hidden/Universal/BlitHDROverlay"
         half4 FragmentURPBlitHDR(Varyings input, SamplerState blitsampler)
         {
             half4 color = FragBlitHDR(input, blitsampler);
-
+            
             #if defined(DEBUG_DISPLAY)
             half4 debugColor = 0;
             float2 uv = input.texcoord;
@@ -73,7 +71,7 @@ Shader "Hidden/Universal/BlitHDROverlay"
     SubShader
     {
         Tags{ "RenderPipeline" = "UniversalPipeline" }
-
+        
         // 0: Bilinear blit with debug draw support
         Pass
         {

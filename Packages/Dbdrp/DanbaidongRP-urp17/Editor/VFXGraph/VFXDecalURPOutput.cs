@@ -172,7 +172,7 @@ namespace UnityEditor.VFX.URP
                     if (affectMAOS && useOcclusionMap)
                         yield return "AFFECT_AMBIENT_OCCLUSION";
 
-                    if (useEmissiveColor || useEmissiveMap || (colorMode & ColorMode.Emissive) != 0)
+                    if (useEmissive /*TODO: add useEmissiveColor like in HDRP */ || useEmissiveMap)
                     {
                         yield return "AFFECT_EMISSIVE";
                     }

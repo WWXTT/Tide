@@ -33,7 +33,6 @@ Shader "Hidden/Universal Render Pipeline/FinalPost"
         float4 _Grain_TilingParams;
         float4 _Dithering_Params;
         float4 _HDROutputLuminanceParams;
-        float4 _OffscreenUIViewportParams;
 
         #define GrainIntensity          _Grain_Params.x
         #define GrainResponse           _Grain_Params.y
@@ -128,8 +127,7 @@ Shader "Hidden/Universal Render Pipeline/FinalPost"
             {
                 UNITY_BRANCH if(_HDR_OVERLAY)
                 {
-                    float2 uiCoord = input.texcoord * _OffscreenUIViewportParams.zw + _OffscreenUIViewportParams.xy;
-                    float4 uiSample = SAMPLE_TEXTURE2D_X(_OverlayUITexture, sampler_PointClamp, uiCoord);
+                    float4 uiSample = SAMPLE_TEXTURE2D_X(_OverlayUITexture, sampler_PointClamp, input.texcoord);
                     color.rgb = SceneUIComposition(uiSample, color.rgb, PaperWhite, MaxNits);
                 }
 
@@ -162,29 +160,15 @@ Shader "Hidden/Universal Render Pipeline/FinalPost"
     SubShader
     {
         Tags { "RenderType" = "Opaque" "RenderPipeline" = "UniversalPipeline"}
+        LOD 100
+        ZTest Always ZWrite Off Cull Off
 
         Pass
         {
             Name "FinalPost"
-            LOD 100
-            ZTest Always ZWrite Off Cull Off
+
             HLSLPROGRAM
                 #pragma vertex Vert
-                #pragma fragment FragFinalPost
-                #pragma target 4.5
-            ENDHLSL
-        }
-
-        Pass
-        {
-            Name "FinalPostXR"
-            LOD 100
-            ZWrite Off ZTest LEqual Blend Off Cull Off
-
-            HLSLPROGRAM
-                #include "Packages/com.unity.render-pipelines.universal/Shaders/XR/XRVisibilityMeshHelper.hlsl"
-
-                #pragma vertex VertVisibilityMeshXR
                 #pragma fragment FragFinalPost
                 #pragma target 4.5
             ENDHLSL
@@ -195,29 +179,15 @@ Shader "Hidden/Universal Render Pipeline/FinalPost"
     SubShader
     {
         Tags { "RenderType" = "Opaque" "RenderPipeline" = "UniversalPipeline"}
+        LOD 100
+        ZTest Always ZWrite Off Cull Off
 
         Pass
         {
             Name "FinalPost"
-            LOD 100
-            ZTest Always ZWrite Off Cull Off
 
             HLSLPROGRAM
                 #pragma vertex Vert
-                #pragma fragment FragFinalPost
-            ENDHLSL
-        }
-
-        Pass
-        {
-            Name "FinalPostXR"
-            LOD 100
-            ZWrite Off ZTest LEqual Blend Off Cull Off
-
-            HLSLPROGRAM
-                #include "Packages/com.unity.render-pipelines.universal/Shaders/XR/XRVisibilityMeshHelper.hlsl"
-
-                #pragma vertex VertVisibilityMeshXR
                 #pragma fragment FragFinalPost
             ENDHLSL
         }

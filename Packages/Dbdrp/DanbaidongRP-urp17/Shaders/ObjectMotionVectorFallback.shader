@@ -30,8 +30,7 @@ Shader "Hidden/Universal Render Pipeline/ObjectMotionVectorFallback"
             }
 
             HLSLPROGRAM
-            #define APPLICATION_SPACE_WARP_MOTION 1
-            #define APPLICATION_SPACE_WARP_MOTION_TRANSPARENT 0
+            #define APLICATION_SPACE_WARP_MOTION 1
             #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/ObjectMotionVectors.hlsl"
             ENDHLSL
         }
