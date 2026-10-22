@@ -79,9 +79,9 @@ namespace CardCore.AI
                     if (c?.Tags == null) continue;
                     foreach (var t in c.Tags)
                     {
-                        if (t == "ThemeRed") red++;
-                        else if (t == "ThemeGreen") green++;
-                        else if (t == "ThemeBlue") blue++;
+                        if (t == "ThemeRedClash") red++;
+                        else if (t == "ThemeGreenCountdown") green++;
+                        else if (t == "ThemeBlueSurplus") blue++;
                     }
                 }
                 if (red > green && red > blue) return RedAggro;

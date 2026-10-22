@@ -15,8 +15,10 @@ namespace SynergyUI
     /// </summary>
     public static class CardDataPaths
     {
-        /// <summary>卡牌种子文件（热更包 CardData 组 → persistent；新增种子文件须同步此表）。</summary>
-        private static readonly string[] CardSeedFiles = { "Cards.json", "Effects.json", "红·快攻.json" };
+        /// <summary>卡牌种子文件（热更包 CardData 组 → persistent；新增种子文件须同步此表）。
+        /// 2026-10-22 三套主题卡组迁教学：卡组 json 与 50 张主题卡/38 条效果全部移入 TutorialData，
+        /// 主表只留玩家自建内容（当前为空表，首启仍写入空壳保持路径存在）。</summary>
+        private static readonly string[] CardSeedFiles = { "Cards.json", "Effects.json" };
 
         /// <summary>教学表/卡组引用种子（热更包 TutorialData 组 → persistent）。教学音频不在此列——
         /// mp3 以 AudioClip 资产进包，BattleScreen.PlayTutorialVoiceAsync 直取。</summary>
@@ -24,7 +26,22 @@ namespace SynergyUI
         {
             "TutorialCards.json", "TutorialEffects.json", "basics.json", "basics_ai.json",
             "jinjie.json", "jinjie_ai.json", "测试卡组.json",
+            "红·快攻.json", "蓝·控制.json", "绿·慢速.json",
         };
+
+        /// <summary>预组卡组名（2026-10-22 定案）：三套主题卡组随包只读，文件在 TutorialData；
+        /// 玩家侧同名档一律不列/不可保存（防旧安装残留与同名覆盖）——见 DeckSerializer 过滤与
+        /// DeckBuilderScreen 保存闸。顺序=UI 展示序。</summary>
+        public static readonly string[] PresetDeckNames = { "红·快攻", "蓝·控制", "绿·慢速" };
+
+        /// <summary>是否预组卡组名（大小写/空白不归一——卡组名本身即文件名，保持精确匹配）。</summary>
+        public static bool IsPresetDeckName(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return false;
+            foreach (var n in PresetDeckNames)
+                if (n == name) return true;
+            return false;
+        }
 
         /// <summary>玩家端种子读取器（宿主装配模式，同 TideLog.Sink）：Unity 侧由 HotUpdateEntry
         /// 装配为 HotUpdateAssets.LoadText（真机从热更包读种子）；TideServer 不装配——EnsureBootstrap
@@ -56,7 +73,9 @@ namespace SynergyUI
         /// 从热更包引导到 persistent，只读）。</summary>
         public static string TutorialFileIn(string fileName) => Path.Combine(TutorialDir, fileName);
 
-        private static string TutorialDir
+        /// <summary>教学数据目录（编辑器=仓库源 Assets/TutorialData；玩家=persistent/Tutorial；
+        /// TideServer=仓库源回落）。2026-10-22 起同时承载三套预组卡组（只读）。</summary>
+        public static string TutorialDir
         {
             get
             {
@@ -73,32 +92,46 @@ namespace SynergyUI
         }
 
         /// <summary>
-        /// 玩家端首启引导：persistent 缺目录时从热更包读种子写入（幂等；编辑器空操作）。各读写入口调用。
+        /// 玩家端引导（编辑器空操作，每次读写入口调用，幂等）：
+        /// · **玩家数据 Card/**：只在文件缺失时补种子（绝不覆盖玩家自建卡/效果）；
+        /// · **教学数据 Tutorial/**：从热更包**整体刷新**（只读内容，玩家从不写）——否则老版本
+        ///   安装的 persistent/Tutorial 目录已存在时永远收不到新增教学表/预组卡组（2026-10-22
+        ///   三套主题卡组迁教学即靠这条把 50 张卡/75 条效果/三个预组下发给存量玩家）。
         /// </summary>
         public static void EnsureBootstrap()
         {
 #if !UNITY_EDITOR
-            SeedDirectory(Path.Combine(TidePaths.PersistentDataPath, "Card"), "CardData", CardSeedFiles);
-            SeedDirectory(Path.Combine(TidePaths.PersistentDataPath, "Tutorial"), "TutorialData", TutorialSeedFiles);
+            if (_bootstrapped || PackTextReader == null) return; // 未装配宿主：不置位，装配后重试
+            SeedDirectory(Path.Combine(TidePaths.PersistentDataPath, "Card"), "CardData", CardSeedFiles,
+                overwrite: false);
+            SeedDirectory(Path.Combine(TidePaths.PersistentDataPath, "Tutorial"), "TutorialData", TutorialSeedFiles,
+                overwrite: true);
+            _bootstrapped = true;
 #endif
         }
 
-        private static void SeedDirectory(string destDir, string packRelative, string[] seedFiles)
+#if !UNITY_EDITOR
+        private static bool _bootstrapped;
+#endif
+
+        /// <summary>种子落盘：overwrite=false 只在目标缺失时写（玩家数据）；true=每次覆盖（教学只读内容）。</summary>
+        private static void SeedDirectory(string destDir, string packRelative, string[] seedFiles, bool overwrite)
         {
-            if (Directory.Exists(destDir)) return;
             if (PackTextReader == null) return; // 未装配（TideServer/无宿主）：不落盘，读取走仓库源回落
             try
             {
                 Directory.CreateDirectory(destDir);
                 foreach (string file in seedFiles)
                 {
+                    string dest = Path.Combine(destDir, file);
+                    if (!overwrite && File.Exists(dest)) continue;
                     string text = PackTextReader(packRelative + "/" + file);
                     if (string.IsNullOrEmpty(text))
                     {
-                        TideLog.Warn($"[CardDataPaths] 热更包缺种子 {file}（将视为空数据启动）");
+                        TideLog.Warn($"[CardDataPaths] 热更包缺种子 {file}（保留旧档/视为空数据）");
                         continue;
                     }
-                    File.WriteAllText(Path.Combine(destDir, file), text);
+                    File.WriteAllText(dest, text);
                 }
             }
             catch (System.Exception ex)

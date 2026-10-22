@@ -189,7 +189,8 @@ namespace CardCore
         /// 准备阶段：纯自动阶段，无玩家操作。
         /// 横置恢复 / 抽 1 张 / 元素池与「每回合一次」计数重置由 GameCore.OnTurnStarted 统一处理
         /// （订阅 TurnStartEvent，在准备阶段开始前完成）。
-        /// 准备阶段仅等待推进（GameActions.SkipElementPool → AdvanceFromStandby）。
+        /// 推进：StartNewTurn 末尾直调 AdvanceFromStandby（2026-09-24 口径：准备→主自动推进）；
+        /// GameActions.SkipElementPool 走同一条入口，现仅为兼容保留（此时相位已不在 Standby，守卫直接返回）。
         /// </summary>
         private void OnStandbyPhaseStarted()
         {
@@ -197,7 +198,7 @@ namespace CardCore
 
         /// <summary>
         /// 准备阶段完成，进入主阶段
-        /// 由 GameActions.SkipElementPool 调用
+        /// 现行驱动：StartNewTurn 末尾直调；GameActions.SkipElementPool 为兼容入口
         /// （地牌放置已移至主阶段，不再驱动阶段推进）
         /// </summary>
         public void AdvanceFromStandby()

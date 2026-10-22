@@ -37,6 +37,8 @@ namespace SynergyUI
         public Cardtype Supertype;                       // type 区：底图+遮罩形状映射
         public string Illustration = "";                 // type 区立绘资源名（空=保持预制体占位）
         public string AttributeText = "";                // attribute 区：攻击/生命/耐久（空=藏区；发动速度归效果句首）
+        public int? AttrPower, AttrLife;                 // attribute 区图标数字（2026-10-22 B6：生物攻/血改图标+数字；
+                                                          // null=非生物。AttributeText 保留全词=图标素材缺失时的回落档）
         public string PayloadText = "";                  // cost 区：代价行（PayloadCost 产黑白元素等；空=藏区）
         public List<string> KeywordChips;                // keys 区：关键词中文简称芯片（null/空=藏区）
         public List<(string Name, int Layers)> CounterChips; // stats 区：指示物简称+层数（空=藏区）
@@ -88,6 +90,7 @@ namespace SynergyUI
             it.Supertype = d.Supertype;
             it.Illustration = d.Illustration ?? "";
             it.AttributeText = AttributeTextOf(d);
+            if (d.Supertype == Cardtype.Creature) { it.AttrPower = d.Power ?? 0; it.AttrLife = d.Life ?? 0; }
             it.PayloadText = PayloadTextOf(d);
 
             // keys 芯片：印刷关键词（合成期无运行态，无授予/净化合并）
@@ -140,6 +143,7 @@ namespace SynergyUI
                 it.Supertype = data.Supertype;
                 it.Illustration = data.Illustration ?? "";
                 it.AttributeText = AttributeTextOf(data);
+                if (data.Supertype == Cardtype.Creature) { it.AttrPower = data.Power ?? 0; it.AttrLife = data.Life ?? 0; }
                 it.PayloadText = PayloadTextOf(data);
             }
 

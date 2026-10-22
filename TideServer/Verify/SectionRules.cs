@@ -396,9 +396,10 @@ namespace TideServer.Verify
 
             // ============================ V9.f 自我沉睡（2026-10-03 苏醒改造：手牌立约制） ============================
 
-            VerifySuite.Section("V9.f 自我沉睡：手牌苏醒立约 + 灰费转时长 + 定长照付");
+            VerifySuite.Section("V9.f 自我沉睡：手牌苏醒立约 + 灰/绿费转时长 + 定长照付");
             // Sleep 单行极性 -1——自我沉睡（收窄域 {Self}）经 2026-10-03 错边收缩在效果栏放行
-            //（负面指向自己合法）；灰费豁免须先 CommitAwaken（手牌立约，2026-10-03 苏醒改造）
+            //（负面指向自己合法）；豁免费须先 CommitAwaken（手牌立约，2026-10-03 苏醒改造；
+            // 2026-10-22 扩灰+绿：两色份额都转沉睡时长）
             var ssData = new CardData
             {
                 ID = "V9F_SLEEP", CardName = "V9F沉睡者", Supertype = Cardtype.Creature, Power = 4, Life = 4,
@@ -410,7 +411,7 @@ namespace TideServer.Verify
                 TriggerTiming = (int)TriggerTiming.OnPlay,
                 AtomicEffects = new List<AtomicEffectEntry>
                 {
-                    AtomRefs.New(AtomicEffectType.Sleep, value: 0, kinds: new List<int> { 0 }), // 灰时长模式
+                    AtomRefs.New(AtomicEffectType.Sleep, value: 0, kinds: new List<int> { 0 }), // 豁免时长模式
                 },
             });
             var ssDef = CardEffectConverter.ConvertOne(ssData.Effects[0], "V9F");
@@ -458,8 +459,13 @@ namespace TideServer.Verify
                 });
                 var uncommittedCard = ToHandF(f1, ssDataU);
 
-                // ---- ② 手牌立约：灰全免 + 转沉睡时长 + 横置（回合1 即可出——立约修复的意义） ----
+                // ---- ② 手牌立约：灰、绿全免 + 转沉睡时长 + 横置（回合1 即可出——立约修复的意义） ----
                 var sleepCard = ToHandF(f1, ssData);
+                // 未立约全价口径（豁免前取价，恒推导不钉数值——断言对表价漂移免疫）
+                var ssFull = GameActions.GetCardCost(sleepCard);
+                int grayFullF = (int)ssFull[ManaType.Gray], greenFullF = (int)ssFull[ManaType.Green];
+                VerifySuite.Assert(grayFullF + greenFullF > 0,
+                    $"前置：立约卡推导含可豁免灰/绿费（灰{grayFullF}+绿{greenFullF}）");
                 VerifySuite.Assert(GameActions.CommitAwaken(fs, f1, sleepCard, out var rejectAwaken),
                     $"手牌苏醒立约（拒绝原因：{rejectAwaken ?? "无"}）");
                 VerifySuite.Assert(!GameActions.CommitAwaken(fs, f1, sleepCard, out var rejectAwaken2)
@@ -470,11 +476,14 @@ namespace TideServer.Verify
                                   && rejectAwaken3 != null,
                     $"非自我沉睡卡立约拒绝（{rejectAwaken3}）");
                 int grayBefore = bankF.TempElements[ManaType.Gray];
-                VerifySuite.Assert(GameActions.PlayCard(fs, f1, sleepCard), "立约沉睡卡打出（灰豁免后仅需绿1）");
+                int greenBefore = bankF.TempElements[ManaType.Green];
+                VerifySuite.Assert(GameActions.PlayCard(fs, f1, sleepCard), "立约沉睡卡打出（灰、绿全免 0 费）");
                 GameActions.DrainStack(fs);
-                VerifySuite.Assert(bankF.TempElements[ManaType.Gray] == grayBefore, "灰费豁免：3 灰未扣（转沉睡时长）");
-                VerifySuite.Assert(sleepCard.GetCounterCount(KeywordRules.SleepCounter) == 3,
-                    $"入场沉睡 3 层（=豁免灰量；实际 {sleepCard.GetCounterCount(KeywordRules.SleepCounter)}）");
+                VerifySuite.Assert(bankF.TempElements[ManaType.Gray] == grayBefore
+                                  && bankF.TempElements[ManaType.Green] == greenBefore,
+                    $"灰、绿全免：两色均未扣（灰{grayFullF}+绿{greenFullF}转沉睡时长）");
+                VerifySuite.Assert(sleepCard.GetCounterCount(KeywordRules.SleepCounter) == grayFullF + greenFullF,
+                    $"入场沉睡 {grayFullF + greenFullF} 层（=豁免灰+绿量；实际 {sleepCard.GetCounterCount(KeywordRules.SleepCounter)}）");
                 VerifySuite.Assert(sleepCard.IsTapped(), "横置进沉睡");
 
                 // ---- ① 未立约（对照）：总费 4 受浓度上限压制——推进三轮（全局同步上限升到 7）后照扣全价 ----
@@ -492,11 +501,15 @@ namespace TideServer.Verify
                 }
                 foreach (ManaType t in Enum.GetValues(typeof(ManaType))) bankF.TempElements[t] = 99; // 回合末清空后重播种
                 int grayUncommittedBefore = bankF.TempElements[ManaType.Gray];
+                int greenUncommittedBefore = bankF.TempElements[ManaType.Green];
+                var ssFullUncommitted = GameActions.GetCardCost(uncommittedCard);
                 VerifySuite.Assert(GameActions.PlayCard(fs, f1, uncommittedCard, null, Zone.Hand, 0, out var rejectF1),
                     $"未立约沉睡卡照常打出（付全价；拒绝原因：{rejectF1 ?? "无"}）");
                 GameActions.DrainStack(fs);
-                VerifySuite.Assert(bankF.TempElements[ManaType.Gray] == grayUncommittedBefore - 3,
-                    $"未立约对照：灰照扣 3（{grayUncommittedBefore}→{bankF.TempElements[ManaType.Gray]}——豁免须先手牌立约）");
+                VerifySuite.Assert(bankF.TempElements[ManaType.Gray] == grayUncommittedBefore - (int)ssFullUncommitted[ManaType.Gray]
+                                  && bankF.TempElements[ManaType.Green] == greenUncommittedBefore - (int)ssFullUncommitted[ManaType.Green],
+                    $"未立约对照：照付全价灰{(int)ssFullUncommitted[ManaType.Gray]}+绿{(int)ssFullUncommitted[ManaType.Green]}"
+                    + $"（{grayUncommittedBefore}→{bankF.TempElements[ManaType.Gray]}——豁免须先手牌立约）");
 
                 // ---- ③ 定长沉睡照付（不变：显式层数不走灰豁免，立约与否同价） ----
 
@@ -665,7 +678,7 @@ namespace TideServer.Verify
 
             // ============================ V9.h 附加诅咒/附加祝福（2026-10-08 引擎主干化） ============================
 
-            VerifySuite.Section("V9.h 附加诅咒/附加祝福（引擎主干）：施放部署/抽到发作/一次性消耗/Permanent");
+            VerifySuite.Section("V9.h 附加诅咒/附加祝福（引擎主干）：施放部署/抽到发作/一次性消耗/Permanent/叠加与死载荷修剪");
             var hcore = GameCore.Instance;
             hcore.Reset();
             ZoneContainer.Reseed(20261005);
@@ -816,6 +829,135 @@ namespace TideServer.Verify
                 "空 Then：无部署（对方牌库无 Curse 挂层——条件空转不投放）");
             VerifySuite.Assert(hcore.ZoneManager.GetCards(h1, Zone.Hand).Count == h1HandBefore3 - 1,
                 "空 Then 空转：打出只消耗手牌自身（无任何原子执行）");
+
+            // ---- ⑥ 叠加·同种双命中（2026-10-22 绿·慢速配套）：两发同种诅咒挂同一张卡（2层2载荷），
+            //      抽到时一次抽牌双结算（设计内双发——随机有放回可双中同卡） ----
+            var hz6 = hcore.ZoneManager.GetZoneContainer(h2);
+            Card SoloDeckTarget(string id)
+            {
+                var target = HToHand(h2, new CardData
+                {
+                    ID = id, CardName = "V9H" + id, Supertype = Cardtype.Creature, Power = 1, Life = 1,
+                });
+                hz6.Move(target, Zone.Hand, Zone.Deck);
+                foreach (var other in hcore.ZoneManager.GetCards(h2, Zone.Deck).Where(c => c != target).ToList())
+                    hz6.Move(other, Zone.Deck, Zone.Hand); // 牌库只剩靶卡 → 随机挂载确定命中
+                return target;
+            }
+            var stack6 = SoloDeckTarget("V9H_stack6");
+            foreach (var engineId in new[] { "V9H_CURSE_6A", "V9H_CURSE_6B" })
+            {
+                var engine6 = MakeOnDrawEngine(engineId, AtomicEffectType.EngineCurseOnDraw,
+                    BranchEngineKind.CurseOnDraw, new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.DrawCard, value: 1) });
+                VerifySuite.Assert(GameActions.PlayCard(hcore, h1, engine6, null, Zone.Hand, 0),
+                    $"叠加⑥诅咒引擎打出（{engineId}）");
+                GameActions.DrainStack(hcore);
+            }
+            VerifySuite.Assert(stack6.GetCounterCount(CounterRules.CurseCounter) == 2
+                              && CurseSystem.GetCurses(stack6).Count == 2,
+                "叠加⑥部署：同卡 2 层 Curse + 2 条载荷（同种叠加成对登记）");
+            string outbreak6 = null;
+            EventManager.Instance.Subscribe<KeywordAppliedEvent>(
+                e => { if (e.Keyword == "诅咒" && e.Target == stack6) outbreak6 = e.Detail; });
+            int h1Hand6 = hcore.ZoneManager.GetCards(h1, Zone.Hand).Count;
+            for (int i = 0; i < 64 && stack6.GetZone() == Zone.Deck; i++)
+            {
+                if (hcore.ZoneManager.DrawCard(h2) == null) break;
+            }
+            VerifySuite.Assert(stack6.GetZone() == Zone.Hand
+                              && stack6.GetCounterCount(CounterRules.CurseCounter) == 0
+                              && CurseSystem.GetCurses(stack6).Count == 0,
+                "叠加⑥一次性消耗：一次抽牌清空 2 层 + 摘除全部载荷");
+            VerifySuite.Assert(outbreak6 != null && outbreak6.Contains("消耗 2 层"),
+                $"叠加⑥播报消耗 2 层（实际：{outbreak6 ?? "无"}）");
+            VerifySuite.Assert(hcore.ZoneManager.GetCards(h1, Zone.Hand).Count - h1Hand6 == 2,
+                "叠加⑥双结算：施诅方抽 1×2（两条载荷各自落地——设计内双发不漏不重）");
+
+            // ---- ⑦ 叠加·诅咒+祝福并存：同卡两类指示物独立记账互不代扣（镜像局可现） ----
+            // 手工挂载走 CurseSystem 直接口：Then 须为运行时原子列（AttachEngine 口径）——
+            // 数据条目经 CardEffectConverter.ConvertOne 转换（同 ⑤ emptyDef 先例）
+            List<CardCore.AtomicEffectInstance> RuntimeThen(AtomicEffectType type, int value)
+            {
+                var holder = new CardEffectData
+                {
+                    Id = "V9H_manual_then",
+                    AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(type, value: value) },
+                };
+                return CardEffectConverter.ConvertOne(holder, "V9H_manual").Effects;
+            }
+            var stack7 = SoloDeckTarget("V9H_stack7");
+            var filler7 = hcore.ZoneManager.GetCards(h2, Zone.Hand).First(c => c != stack7);
+            hz6.Move(filler7, Zone.Hand, Zone.Deck); // 库里多留 1 张：祝福 Then 抽牌不撞空库疲劳
+            stack7.AddCounters(CounterRules.CurseCounter, 1, h1);
+            CurseSystem.AttachEngine(stack7, CounterRules.CurseCounter, RuntimeThen(AtomicEffectType.DrawCard, 1), h1, null);
+            stack7.AddCounters(CounterRules.BlessingCounter, 1, h2);
+            CurseSystem.AttachEngine(stack7, CounterRules.BlessingCounter, RuntimeThen(AtomicEffectType.DrawCard, 1), h2, null);
+            VerifySuite.Assert(stack7.GetCounterCount(CounterRules.CurseCounter) == 1
+                              && stack7.GetCounterCount(CounterRules.BlessingCounter) == 1
+                              && CurseSystem.GetCurses(stack7).Count == 2,
+                "叠加⑦部署：同卡 Curse=1 + Blessing=1（两类并存）");
+            string curse7 = null, bless7 = null;
+            EventManager.Instance.Subscribe<KeywordAppliedEvent>(e =>
+            {
+                if (e.Target != stack7) return;
+                if (e.Keyword == "诅咒") curse7 = e.Detail;
+                if (e.Keyword == "祝福") bless7 = e.Detail;
+            });
+            int h1Hand7 = hcore.ZoneManager.GetCards(h1, Zone.Hand).Count;
+            for (int i = 0; i < 64 && stack7.GetZone() == Zone.Deck; i++)
+            {
+                if (hcore.ZoneManager.DrawCard(h2) == null) break;
+            }
+            VerifySuite.Assert(stack7.GetZone() == Zone.Hand
+                              && stack7.GetCounterCount(CounterRules.CurseCounter) == 0
+                              && stack7.GetCounterCount(CounterRules.BlessingCounter) == 0
+                              && CurseSystem.GetCurses(stack7).Count == 0,
+                "叠加⑦独立消耗：诅咒/祝福各自归零、载荷全摘（互不代扣）");
+            VerifySuite.Assert(curse7 != null && bless7 != null,
+                $"叠加⑦双播报（诅咒：{curse7 ?? "无"}；祝福：{bless7 ?? "无"}）");
+            VerifySuite.Assert(hcore.ZoneManager.GetCards(h1, Zone.Hand).Count - h1Hand7 == 1,
+                "叠加⑦诅咒载荷落地：施诅方抽 1（祝福 Then 归施加方 h2——己方收益不串施诅方）");
+
+            // ---- ⑧ 净化死载荷修剪（2026-10-22 修复锚）：PurgeAll 清层不清载荷成死重；
+            //      同卡再挂新诅咒时 AddPayload 按层数修剪旧死载荷——不修剪则 Take(登记序) 顶包
+            //      （旧行为=旧载荷结算、新载荷残留，Then 可观测区分：旧=抽1 新=抽2） ----
+            var stack8 = SoloDeckTarget("V9H_stack8");
+            var engine8a = MakeOnDrawEngine("V9H_CURSE_8A", AtomicEffectType.EngineCurseOnDraw,
+                BranchEngineKind.CurseOnDraw, new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.DrawCard, value: 1) });
+            VerifySuite.Assert(GameActions.PlayCard(hcore, h1, engine8a, null, Zone.Hand, 0), "叠加⑧旧诅咒引擎打出");
+            GameActions.DrainStack(hcore);
+            VerifySuite.Assert(stack8.GetCounterCount(CounterRules.CurseCounter) == 1
+                              && CurseSystem.GetCurses(stack8).Count == 1, "叠加⑧旧载荷挂载（1层1载荷）");
+            CounterRules.PurgeAll(stack8); // 净化：全清指示物，载荷注册成死重（现状口径）
+            VerifySuite.Assert(stack8.GetCounterCount(CounterRules.CurseCounter) == 0
+                              && CurseSystem.GetCurses(stack8).Count == 1,
+                "叠加⑧净化现状：层清零、载荷残留（死重）");
+            var engine8b = MakeOnDrawEngine("V9H_CURSE_8B", AtomicEffectType.EngineCurseOnDraw,
+                BranchEngineKind.CurseOnDraw, new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.DrawCard, value: 2) });
+            VerifySuite.Assert(GameActions.PlayCard(hcore, h1, engine8b, null, Zone.Hand, 0), "叠加⑧新诅咒引擎打出（Then=抽2）");
+            GameActions.DrainStack(hcore);
+            VerifySuite.Assert(stack8.GetCounterCount(CounterRules.CurseCounter) == 1
+                              && CurseSystem.GetCurses(stack8).Count == 1,
+                "叠加⑧死载荷修剪：新挂后载荷数=层数（旧死载荷被剔除，不顶包新载荷）");
+            // h1 牌库可能已被③④⑥抽干——回填 3 张保 Then=抽2 可观测（不撞空库疲劳）
+            for (int i = 0; i < 3; i++)
+            {
+                var refillCard = hcore.ZoneManager.GetCards(h1, Zone.Hand).FirstOrDefault();
+                if (refillCard == null) break;
+                hcore.ZoneManager.GetZoneContainer(h1).Move(refillCard, Zone.Hand, Zone.Deck);
+            }
+            int h1Hand8 = hcore.ZoneManager.GetCards(h1, Zone.Hand).Count;
+            for (int i = 0; i < 64 && stack8.GetZone() == Zone.Deck; i++)
+            {
+                if (hcore.ZoneManager.DrawCard(h2) == null) break;
+            }
+            VerifySuite.Assert(stack8.GetZone() == Zone.Hand
+                              && stack8.GetCounterCount(CounterRules.CurseCounter) == 0
+                              && CurseSystem.GetCurses(stack8).Count == 0,
+                "叠加⑧消耗收口：层与载荷同步清空");
+            VerifySuite.Assert(hcore.ZoneManager.GetCards(h1, Zone.Hand).Count - h1Hand8 == 2,
+                $"叠加⑧新载荷结算：抽 2（实际 {hcore.ZoneManager.GetCards(h1, Zone.Hand).Count - h1Hand8}"
+                + "——若旧死载荷顶包则只抽 1 且新载荷残留，修复前行为）");
 
             // ============================ V9.i 规则光环（规则轴路线 B 转正，2026-10-03 定案） ============================
 
@@ -1575,6 +1717,51 @@ namespace TideServer.Verify
             var enchLand = JToHand(j1, enchLandData);
             VerifySuite.Assert(jcore.ElementPool.AddCardToPool(enchLand, j1), "结界可作地牌（2026-10-03 新资格）");
 
+            // ---- 四色地牌素材卡（2026-10-22 恒推导改版）：警戒(绿2 K桶)+直伤1(红)+自身潜行1(蓝)+1/1(灰)
+            // → 推导 [灰1红1蓝1绿2]，D=Ĉ=5 合规（两槽上限下单效果两原子+关键词是四色唯一合规形状）。
+            var landMatData = new CardData
+            {
+                ID = "V9J_LAND_MAT", CardName = "夹具·元素井", Supertype = Cardtype.Creature, Power = 1, Life = 1,
+            };
+            landMatData.Keywords.Add("Vigilance");
+            landMatData.Effects.Add(new CardEffectData
+            {
+                Id = "V9J_LM_EFF",
+                TriggerTiming = (int)TriggerTiming.OnPlay,
+                AtomicEffects = new List<AtomicEffectEntry>
+                {
+                    AtomRefs.New(AtomicEffectType.DealDamage, value: 1, kinds: new List<int> { 2 }),   // 红1
+                    AtomRefs.New(AtomicEffectType.GrantStealth, value: 1, kinds: new List<int> { 0 }), // 蓝1
+                },
+            });
+            var lm = CardCostService.Derive(landMatData);
+            VerifySuite.Assert((int)lm.DerivedCost[ManaType.Gray] == 1
+                && (int)lm.DerivedCost[ManaType.Red] == 1
+                && (int)lm.DerivedCost[ManaType.Blue] == 1
+                && (int)lm.DerivedCost[ManaType.Green] == 2,
+                $"元素井推导价=[灰1红1蓝1绿2]（实际 灰{(int)lm.DerivedCost[ManaType.Gray]}红{(int)lm.DerivedCost[ManaType.Red]}"
+                + $"蓝{(int)lm.DerivedCost[ManaType.Blue]}绿{(int)lm.DerivedCost[ManaType.Green]}）");
+            VerifySuite.Assert(lm.DerivedTotal == lm.DerivedTier && lm.OffsetRequirement == 0,
+                $"元素井 D{lm.DerivedTotal}=Ĉ{lm.DerivedTier} 合规（单效果1槽超槽与免费点对冲）");
+            var landMat = JToHand(j1, landMatData);
+            var landColors = ElementPoolSystem.GetLandColorChoices(landMat);
+            VerifySuite.Assert(landColors.Count == 4
+                && landColors.Contains(ManaType.Gray) && landColors.Contains(ManaType.Red)
+                && landColors.Contains(ManaType.Blue) && landColors.Contains(ManaType.Green),
+                "元素井锁色候选=灰红蓝绿四色全开（恒推导下四色地牌资格）");
+            VerifySuite.Assert(jcore.ElementPool.AddCardToPool(landMat, j1, ManaType.Red),
+                "元素井显式锁红入池成功（教学二/测试开局播种口径——坍缩纯灰时此处被拒）");
+            // 表落位断言：素材卡与孪生卡现居教学表（主表用户池被并行重建不再承载）
+            var matFromTable = SynergyUI.CardCatalog.GetById("C_50E2F45D");
+            VerifySuite.Assert(matFromTable != null, "素材卡 C_50E2F45D 教学表落位可取");
+            if (matFromTable != null)
+                VerifySuite.Assert(ElementPoolSystem.GetLandColorChoices((CardCore.Card)new CardWrapper(matFromTable)).Count == 4,
+                    "素材卡表内推导仍四色全开（TutorialCards/TutorialEffects 接线）");
+            var twinFromTable = SynergyUI.CardCatalog.GetById("C_7F5ADCE4");
+            VerifySuite.Assert(twinFromTable != null
+                && ElementPoolSystem.GetLandColorChoices((CardCore.Card)new CardWrapper(twinFromTable)).Count == 4,
+                "孪生卡教学表推导四色全开（教学二 25 处红/绿播种恢复）");
+
             // ============================ V9.k 计价双方减半 + 错边收缩（2026-10-03 定案） ============================
 
             VerifySuite.Section("V9.k 双方减半计价（双侧+全取/多目标）+ 错边收缩（负面指己放行）");
@@ -1685,7 +1872,7 @@ namespace TideServer.Verify
 
             // ============================ V9.l 端到端四则（2026-10-03 用户定案配套） ============================
 
-            VerifySuite.Section("V9.l 衍生物/临时卡×地牌 + 灰不足苏醒 + 归土回响乒乓配额");
+            VerifySuite.Section("V9.l 衍生物/临时卡×地牌 + 灰不足苏醒 + 归土回响乒乓配额 + 模板摘额外区");
             var lcore = GameCore.Instance;
             lcore.Reset();
             ZoneContainer.Reseed(20261009);
@@ -1795,8 +1982,8 @@ namespace TideServer.Verify
             // 灰链可由黑白红蓝绿垫（清空其余钱包色，只留绿 3——绿先付绿费 1、余 2 垫不齐灰 3 → 拒付）
             lcore.ElementPool.GetPool(l1).GlobalTurnIndex = 0;
             foreach (ManaType t in Enum.GetValues(typeof(ManaType))) lbank[t] = 0;
-            // 恒推导（2026-10-22）：本卡推导费=灰3+黑2（3/3 身材灰3 + Sleep0 灰时长锚=黑2）。
-            // 钱包只给黑2：本色直付黑2 后无余量垫灰3 → 未立约拒付；立约豁免灰3 → 恰可付。
+            // 恒推导（2026-10-22 自我沉睡零黑费）：本卡推导费=灰3（3/3 身材灰3 + Sleep0 0费）。
+            // 钱包只给黑2：黑2 垫不齐灰3 → 未立约拒付；立约豁免灰3 → 0 费可付、黑2 原样保留。
             lbank[ManaType.Black] = 2;
             var awakenData = new CardData
             {
@@ -1820,11 +2007,11 @@ namespace TideServer.Verify
             VerifySuite.Assert(GameActions.CommitAwaken(lcore, l1, awakenCard, out var rejectL4),
                 $"手牌立约（拒绝原因：{rejectL4 ?? "无"}）");
             VerifySuite.Assert(GameActions.PlayCard(lcore, l1, awakenCard),
-                "灰不足立约后：成功使用（推导灰3 全免转时长 3 层、黑2 本色照付——支付不受浓度钳）");
+                "灰不足立约后：成功使用（推导灰3 全免转时长 3 层、无黑费——自我沉睡零黑）");
             GameActions.DrainStack(lcore);
-            VerifySuite.Assert(lbank[ManaType.Gray] == 0 && lbank[ManaType.Black] == 0
+            VerifySuite.Assert(lbank[ManaType.Gray] == 0 && lbank[ManaType.Black] == 2
                               && awakenCard.GetCounterCount(KeywordRules.SleepCounter) == 3,
-                $"立约结算：灰仍 0、黑付讫、沉睡 3 层=推导灰（实际层 {awakenCard.GetCounterCount(KeywordRules.SleepCounter)}）");
+                $"立约结算：灰仍 0、黑不付（自我沉睡零黑）、沉睡 3 层=推导灰（实际层 {awakenCard.GetCounterCount(KeywordRules.SleepCounter)}）");
 
             // ---- ④ 临时指示物化（2026-10-10 回响改版；2026-10-12 生效自减改稿）：复制体带 1 层；
             //      回合末不在战场→从游戏中移除、在战场→不生效不倒数（层保留，转正退役） ----
@@ -1863,6 +2050,45 @@ namespace TideServer.Verify
             VerifySuite.Assert(gtHost.GetZone() == Zone.Battlefield
                               && gtHost.GetCounterCount(CardCore.Attribute.CounterRules.TempCounter) == 1,
                 "回合末：在战场不生效不倒数（生效自减——层保留、生物留场，转正退役）");
+
+            // ---- ⑤ 衍生物模板摘出额外区（2026-10-22 绿·慢速配套）：卡组里 tags 含「衍生物」的卡
+            //      开局落 Zone.Extra——不进牌库不会被抽到（洗牌/起手抽牌均不触及）----
+            var xcore = GameCore.Instance;
+            xcore.Reset();
+            var xFiller = Enumerable.Range(0, 10).Select(i => new CardData
+            {
+                ID = $"V9L_xfill_{i}", CardName = "V9L额外填充" + i, Supertype = Cardtype.Creature, Power = 1, Life = 1,
+            }).ToList();
+            CardData XToken(string id, int body)
+            {
+                var tpl = new CardData
+                {
+                    ID = id, CardName = "V9L" + id, Supertype = Cardtype.Creature, Power = body, Life = body,
+                };
+                tpl.Tags.Add("衍生物");
+                return tpl;
+            }
+            var xDeck1 = new List<CardData>(xFiller) { XToken("V9L_xtpl4", 4), XToken("V9L_xtpl7", 7) };
+            var xDeck2 = new List<CardData>(xFiller) { XToken("V9L_xtpl4", 4), XToken("V9L_xtpl7", 7) };
+            xcore.InitGame(CardLoader.BuildDeck(xDeck1, 1), CardLoader.BuildDeck(xDeck2, 1), rngSeed: 20261022);
+            var x1 = xcore.Player1;
+            var x2 = xcore.Player2;
+            VerifySuite.Assert(xcore.ZoneManager.GetCards(x1, Zone.Extra).Count == 2
+                              && xcore.ZoneManager.GetCards(x2, Zone.Extra).Count == 2,
+                "额外区摘出：双方各 2 张模板卡落 Zone.Extra（卡组内衍生物开局摘出）");
+            VerifySuite.Assert(xcore.ZoneManager.GetCards(x1, Zone.Deck)
+                                  .All(c => !(c is CardWrapper cw2 && cw2.GetData().IsTokenTemplate))
+                              && xcore.ZoneManager.GetCards(x1, Zone.Hand)
+                                  .All(c => !(c is CardWrapper cw3 && cw3.GetData().IsTokenTemplate)),
+                "模板卡不进牌库不起手（Deck/Hand 均无衍生物——不会被抽到）");
+            VerifySuite.Assert(xcore.ZoneManager.GetCards(x1, Zone.Deck).Count
+                               + xcore.ZoneManager.GetCards(x1, Zone.Hand).Count == 10,
+                $"牌库+手牌=正卡 10 张守恒（起手/先手首抽张数随流程——模板卡摘出不参与抽牌；"
+                + $"实际 库{xcore.ZoneManager.GetCards(x1, Zone.Deck).Count}"
+                + $"+手{xcore.ZoneManager.GetCards(x1, Zone.Hand).Count}）");
+            VerifySuite.Assert(xcore.ZoneManager.GetCards(x1, Zone.Extra)
+                                  .All(c => c is CardWrapper cw4 && cw4.GetData().IsTokenTemplate),
+                "额外区只收衍生物模板（正卡不入）");
 
             // ============================ V9.m 归土×回响×唯一槽×墓地配额（压力剧本） ============================
 
@@ -2184,10 +2410,10 @@ namespace TideServer.Verify
             slotCardData.PayloadCost = new CostEntry { CostType = (int)CostType.Payload, Value = 1, payload = smallPayload };
             VerifySuite.Assert(CostDerivationService.CountEffectSlots(slotCardData) == 2,
                 "代价栏计 1 效果槽（1 效果 + 1 代价 = 2——使用代价栏单独为效果栏付 1 费）");
-            VerifySuite.Assert(CardCompositionCost.StructuralSurcharge(slotCardData) == 2,
-                "底盘同口径：生物效果槽全加价（效果1+代价栏1=2槽 → +2 灰；三分额已归属性/攻/守，2026-10-15 分配定案）");
-            VerifySuite.Assert(CardCompositionCost.SurplusOf(slotCardData) == 1,
-                "免费点不随槽位减少：生物恒 属性1（与槽加价对冲后首槽净 0，总额同旧口径）");
+            VerifySuite.Assert(CardCompositionCost.StructuralSurcharge(slotCardData) == 1,
+                "底盘同口径：攻1+守1+槽2=4 项 → 超 1 灰（2026-10-22 最终定案：结构项>3 差额入灰）");
+            VerifySuite.Assert(CardCompositionCost.SurplusOf(slotCardData) == 0,
+                "免费点=3−结构项：攻1+守1+槽2=4 → 0（2026-10-22 最终定案）");
             var legacySlotData = new CardData { ID = "V9N_SLOT2", CardName = "V9n旧式槽位卡", Supertype = Cardtype.Spell };
             legacySlotData.Effects.Add(new CardEffectData
             {
@@ -3106,11 +3332,21 @@ namespace TideServer.Verify
             VerifySuite.Assert(clashEvents == clashAfterDefender && clashRevealEvents == 2,
                 "对方攻击宣言不触发我方拼点引擎（仅攻击方结算——守方引擎卡零播报零展示）");
             bcore.ZoneManager.GetZoneContainer(b2x).Move(bHandB, Zone.Hand, Zone.Graveyard); // 对方手牌无生物=0
+            // 2026-10-22 全局规则：同一张卡每回合只能触发一次自由分支——第 2 次攻击不重复发奖
+            EventManager.Instance.Publish(new AttackDeclarationEvent { AttackingPlayer = b1x });
+            VerifySuite.Assert(clashEvents == 1 && clashRevealEvents == 2,
+                $"每卡每回合 1 次：同回合第 2 次攻击不重复发奖（实际 {clashEvents} 次）");
+            // 新回合翻章后允许再触发（9 vs 0 判定仍成立）
+            EventManager.Instance.Publish(new TurnStartEvent { TurnPlayer = b1x, TurnNumber = 100 });
             EventManager.Instance.Publish(new AttackDeclarationEvent { AttackingPlayer = b1x });
             VerifySuite.Assert(clashEvents == 2 && clashDetail.Contains("拼点 9 vs 0") && clashRevealEvents == 2,
-                $"无法展示视为0（对方手牌无生物 9 vs 0 仍判定并再触发；已展示卡不重复挂层不重播——实际 {clashEvents} 次：{clashDetail ?? "无"}）");
+                $"新回合：无法展示视为0（对方手牌无生物 9 vs 0）仍判定并触发；已展示卡不重复挂层不重播——实际 {clashEvents} 次：{clashDetail ?? "无"}");
+            EventManager.Instance.Publish(new AttackDeclarationEvent { AttackingPlayer = b1x });
+            VerifySuite.Assert(clashEvents == 2,
+                $"同回合第 3 次攻击被每卡每回合 1 次收口（实际 {clashEvents} 次）");
             foreach (var c in bcore.ZoneManager.GetCards(b1x, Zone.Hand).ToList()) // 我方手牌也无生物
                 bcore.ZoneManager.GetZoneContainer(b1x).Move(c, Zone.Hand, Zone.Graveyard);
+            EventManager.Instance.Publish(new TurnStartEvent { TurnPlayer = b1x, TurnNumber = 101 });
             EventManager.Instance.Publish(new AttackDeclarationEvent { AttackingPlayer = b1x });
             VerifySuite.Assert(clashEvents == 2,
                 $"双方均无法展示 0 vs 0 差额 0 < 门槛 {bThreshold}（下限1）不触发（实际 {clashEvents} 次）");
@@ -5171,7 +5407,11 @@ namespace TideServer.Verify
                 GameRng.Reseed(20261019);
                 const int abRolls = 36000;
                 for (int i = 0; i < abRolls; i++)
+                {
+                    // 2026-10-22 每卡每回合 1 次：概率采样要独立同分布，逐次清空回合发射记账
+                    BranchEngines.ResetTurnCapsForTest();
                     abCore.PublishEvent(new CardPlayEvent { Player = abP1, PlayedCard = abStub, FromZone = Zone.Graveyard });
+                }
                 double[] abExpect = { 25 / 36.0, 16 / 36.0, 9 / 36.0, 4 / 36.0, 1 / 36.0 };
                 var abLines = new List<string>();
                 for (int i = 0; i < abXs.Length; i++)

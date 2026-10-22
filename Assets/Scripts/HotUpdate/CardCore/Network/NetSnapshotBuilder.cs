@@ -8,7 +8,7 @@ namespace CardCore.Network
     /// 快照构造器（M1 协议下行）：GameCore → MsgGameStateSync（viewerSeat 视角）。
     ///
     /// - 隐藏信息：己方手牌传 RuntimeId（CardHandInfo.OwnRuntimeIds）、对方只数量；
-    ///   牌库只数量；坟场/除外/战场/元素池/发动区/场地区全量公开。
+    ///   牌库只数量；坟场/除外/战场/元素池/发动区/场地区/**额外区**全量公开。
     ///   例外（信息轴 2026-10-02 定案）：隐藏区中被展示（Exposed 指示物）的卡经 RevealedZoneCards
     ///   恒全量下发——持续暴露对双方可见。
     /// - 字节稳定：Counters 按键排序后序列化（同状态两次序列化 byte[] 相等——确定性回归断言用）。
@@ -18,11 +18,12 @@ namespace CardCore.Network
     /// </summary>
     public static class NetSnapshotBuilder
     {
-        /// <summary>公开区域（进 ZoneCards 全量）；Hand/Deck 不在此列——隐私经 CardHandInfo/Count 承载。</summary>
+        /// <summary>公开区域（进 ZoneCards 全量）；Hand/Deck 不在此列——隐私经 CardHandInfo/Count 承载。
+        /// Extra=额外区（衍生物模板区，2026-10-22 补入快照）：双方可见，客户端按格位识别。</summary>
         private static readonly Zone[] PublicZones =
         {
             Zone.Battlefield, Zone.Graveyard, Zone.Exile,
-            Zone.ElementPool, Zone.Activation, Zone.FieldZone,        };
+            Zone.ElementPool, Zone.Activation, Zone.FieldZone, Zone.Extra,        };
 
         public static MsgGameStateSync Build(GameCore core, int viewerSeat)
             => Build(core, viewerSeat, fullInfo: false);

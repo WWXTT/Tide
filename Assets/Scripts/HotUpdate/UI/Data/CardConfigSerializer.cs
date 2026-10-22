@@ -5,6 +5,14 @@ using UnityEngine;
 
 namespace SynergyUI
 {
+    /// <summary>卡表目标（2026-10-22 三套主题卡组迁教学）：主表=玩家卡池 Card/Cards.json；
+    /// 教学表=Tutorial/TutorialCards.json（只读随包内容，玩家侧卡池/合成器经 tags=教学 隔离）。</summary>
+    public enum CardTable
+    {
+        Main,
+        Tutorial,
+    }
+
     /// <summary>
     /// 卡牌 JSON 写出/读回 —— 把合成界面产出的 CardData 写成 CardLoader 能解析的格式。
     /// 项目原本只有 CardLoader 读、无任何写出路径，本类补齐写出端。
@@ -26,10 +34,12 @@ namespace SynergyUI
     {
         public const string DefaultFileRelative = "Card/Cards.json";
 
-        private static string PathFor(string relative)
+        /// <summary>卡表路径（2026-10-22 双表）：主表=Card/Cards.json，教学表=Tutorial/TutorialCards.json。</summary>
+        private static string PathOf(CardTable table)
         {
-            // 路径收口（2026-09-24）：经 CardDataPaths——编辑器 StreamingAssets / 玩家 persistentData
-            return CardDataPaths.FileIn("Cards.json");
+            return table == CardTable.Tutorial
+                ? CardDataPaths.TutorialFileIn("TutorialCards.json")
+                : CardDataPaths.FileIn("Cards.json");
         }
 
         /// <summary>
@@ -38,6 +48,13 @@ namespace SynergyUI
         /// ID 必变、无法原地覆盖，落盘新卡后删除旧条目（调用方负责先检查卡组引用）。
         /// </summary>
         public static string Save(CardData card, string fileRelative = null, string replaceId = null)
+            => SaveTo(card, CardTable.Main, replaceId);
+
+        /// <summary>写入教学卡表（2026-10-22 三套主题卡组迁教学；效果行同步写教学效果表）。</summary>
+        public static string SaveTutorial(CardData card, string replaceId = null)
+            => SaveTo(card, CardTable.Tutorial, replaceId);
+
+        private static string SaveTo(CardData card, CardTable table, string replaceId)
         {
             if (card == null)
             {
@@ -45,7 +62,7 @@ namespace SynergyUI
                 return null;
             }
 
-            string path = PathFor(fileRelative);
+            string path = PathOf(table);
             Directory.CreateDirectory(Path.GetDirectoryName(path));
 
             var wrapper = ReadWrapper(path) ?? new TestCardsConfigWrapper();
@@ -61,7 +78,7 @@ namespace SynergyUI
             // 效果引用化：ToEntry 的 EffectIdsOf 逐效果 upsert（HashEffect 为 id）并取引用——
             // 效果 id → 卡 id 依赖链在 HashCard 内部同构推导（ContentHasher.HashEffectOf 单源投影）
 
-            var entry = ToEntry(card);
+            var entry = ToEntry(card, table);
 
             // 按功能内容哈希去重：相同功能内容（id 相同）替换，不重复追加。
             int existing = wrapper.cards.FindIndex(c => c != null && c.id == entry.id);
@@ -89,10 +106,15 @@ namespace SynergyUI
         /// <summary>按 id 从卡表删除条目（2026-10-16 强制删除定案）。返回是否删到。
         /// 卡组引用检查由调用方负责：强删被卡组引用的卡会使卡组断链——卡组界面按
         /// DeckCompositionValidator.Check().MissingIds 标记「不可用」。</summary>
-        public static bool Remove(string cardId)
+        public static bool Remove(string cardId) => RemoveFrom(CardTable.Main, cardId);
+
+        /// <summary>按 id 从教学卡表删除条目（2026-10-22 三套主题卡组迁教学——构建器重建前清旧档）。</summary>
+        public static bool RemoveTutorial(string cardId) => RemoveFrom(CardTable.Tutorial, cardId);
+
+        private static bool RemoveFrom(CardTable table, string cardId)
         {
             if (string.IsNullOrEmpty(cardId)) return false;
-            string path = PathFor(null);
+            string path = PathOf(table);
             var wrapper = ReadWrapper(path);
             if (wrapper?.cards == null) return false;
             int removed = wrapper.cards.RemoveAll(c => c != null && c.id == cardId);
@@ -103,10 +125,17 @@ namespace SynergyUI
             return true;
         }
 
-        /// <summary>读回目标卡表为 CardData 列表（复用 CardLoader 解析器验证 round-trip）。</summary>
+        /// <summary>读回主卡表为 CardData 列表（复用 CardLoader 解析器验证 round-trip）。
+        /// 注意：这里是**主表文件**，不含教学副表——运行时全池请走 CardCatalog.LoadAll。</summary>
         public static List<CardData> LoadAll(string fileRelative = null)
+            => LoadAllFrom(CardTable.Main);
+
+        /// <summary>读回教学卡表（不含主表）。</summary>
+        public static List<CardData> LoadAllTutorial() => LoadAllFrom(CardTable.Tutorial);
+
+        private static List<CardData> LoadAllFrom(CardTable table)
         {
-            string path = PathFor(fileRelative);
+            string path = PathOf(table);
             if (!File.Exists(path))
             {
                 return new List<CardData>();
@@ -115,12 +144,13 @@ namespace SynergyUI
         }
 
         // 把 CardData 映射回 JSON 条目。
-        private static CardConfigEntry ToEntry(CardData card)
+        private static CardConfigEntry ToEntry(CardData card, CardTable table = CardTable.Main)
         {
             // 关键词引用化（2026-09-24 定案）：本体关键词=effectIds 直接引用原子 refId（Grant 族反查），
             // keywords 列退役——仅承接反查失败的遗留 id（引擎专用词），装载端合并去重。
             // HashCard 读运行时 Keywords 列表（物化结果）——引用化前后卡 ID 稳定，卡组引用不断链。
-            var effectIds = EffectLibrarySerializer.EffectIdsOf(card.Effects);
+            var effectIds = EffectLibrarySerializer.EffectIdsOf(
+                card.Effects, table == CardTable.Tutorial);
             var unmappedKeywords = new List<string>();
             foreach (var kw in card.Keywords ?? new List<string>())
             {
@@ -154,6 +184,10 @@ namespace SynergyUI
                     : null, // 空表不写列（向后兼容旧 JSON）
                 durability = card.Durability,
                 speedBonus = card.SpeedBonus, // 卡型速度：法术提速份额（2026-10-15 缺省 2=剩余全投提速；结界/生物恒 0）
+                // 攻/守 opt-out（2026-10-22 红套 NoGuard 定案）：CardConfigEntry 有列但 ToEntry 此前漏拷——
+                // 不写回则 Save 后 noGuard 永远 false，结构项/属性换算全错。
+                noAttack = card.NoAttack,
+                noGuard = card.NoGuard,
                 // 代价栏（2026-10-16 组装效果代价）：统一走 AllPayloads——单原子也装进 payloads
                 //（装载端 payloads 优先、旧单条折入；payload 列只承接历史档不再新写）
                 payloads = card.PayloadCost != null

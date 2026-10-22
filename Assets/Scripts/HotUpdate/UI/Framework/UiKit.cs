@@ -810,7 +810,7 @@ namespace SynergyUI
             if (_textMeasurer == null)
             {
                 var go = new GameObject("uikit-text-measurer", typeof(RectTransform));
-                UnityEngine.Object.DontDestroyOnLoad(go);
+                if (Application.isPlaying) UnityEngine.Object.DontDestroyOnLoad(go); // 编辑态 DDoL 抛 InvalidOperationException（量高件只在编辑态冒烟时会碰到）
                 _textMeasurer = go.AddComponent<TextMeshProUGUI>();
                 go.SetActive(false);
             }
@@ -826,89 +826,170 @@ namespace SynergyUI
         /// 两形态：变高列表（SetItems+heightOf，单列满宽）；网格（SetGrid，等格多列，列数随宽自算）。
         /// 前提：行的激活态子节点须全由 make 建（含按钮等子控件），bind 只填数据/换监听。
         /// </summary>
-        public sealed class RecycledList
+        /// <summary>
+        /// 回收式虚拟滚动列表（2026-10-22 引擎换血：自制 Driver 在真实滚动下不补行——改接
+        /// LoopScrollRect 1.1.5，qiankanglai/MIT，Assets/Plugins/LoopScrollRect）：
+        /// 引擎组件 = LoopVerticalScrollRectMulti（接管原 ScrollRect：原组件仅禁用保留序列化态），
+        /// 可见行回收/补行由引擎 LateUpdate 驱动（真实滚动/惯性/边界全覆盖）。
+        /// 本类=行池+行种类路由：GetObject 按 kindOf(index) 分池出 makeOf 建的行（LoopScrollPrefabSource），
+        /// ProvideData 转 bind（LoopScrollMultiDataSource）；变高列表走 sizeHelper（前缀和）。
+        /// content 上的 VLG/GLG 保持启用（引擎靠它排版可见行）；克隆模板被搬去滚动根下
+        /// tpl-park（content 只装活行——引擎的池化/边界数学要求），工厂克隆模板用 TemplatePark 定位。
+        /// 行结构建一次（make），数据反复绑（bind，先 RemoveAllListeners 再挂）。
+        /// </summary>
+        public sealed class RecycledList : UnityEngine.UI.LoopScrollPrefabSource, UnityEngine.UI.LoopScrollDataSource, UnityEngine.UI.LoopScrollMultiDataSource
         {
             /// <summary>行工厂：新建一条完整结构的行（只在池空时调用）。</summary>
             public delegate RectTransform MakeFn();
             /// <summary>行绑定：填数据+重挂监听（池化复用反复调用——先清旧监听）。</summary>
             public delegate void BindFn(RectTransform row, int index);
 
-            private ScrollRect _scroll;
+            private UnityEngine.UI.LoopScrollRectBase _loop;          // 回收引擎（null=Attach 失败，各口自守；网格=单kind变体/列表=Multi变体）
             private RectTransform _viewport;
             private RectTransform _content;
-            private Driver _driver;
+            private RectTransform _park;                 // 克隆模板停靠点（scroll 根下 inactive）
+            private GridLayoutGroup _gridGeom;           // content 的 GLG（网格模式行预置尺寸用；列表模式 null）
 
             private Func<int, int> _kindOf;
             private Func<int, MakeFn> _makeOf;
             private BindFn _bind;
 
-            private float[] _heights;      // 列表模式：逐条目高度（网格模式=null）
-            private float[] _offsets;      // 前缀和：条目 i 顶部距内容顶偏移（含前置 spacing）；长度 count+1
+            private float _spacing = 4f;                 // VLG 吸收（sizeHelper 前缀和口径用）
+            private float[] _offsets;                    // 前缀和：条目高+后置 spacing（长度 count+1；网格=null）
             private int _count;
 
-            private float _spacing = 4f, _padTop = 4f, _padBottom = 4f, _padLeft = 4f, _padRight = 4f;
-            private bool _gridMode;                           // 网格模式（列数可为 1——不与列表模式互斥判据）
-            private int _gridCols = 1;
-            private float _cellW, _cellH, _spacingX = 0f;    // 网格几何（spacingY 并入 _spacing）
-            private float _lastContentWidth = -1f;
-
             private readonly Dictionary<int, List<RectTransform>> _pools = new Dictionary<int, List<RectTransform>>();
-            private readonly Dictionary<int, RectTransform> _live = new Dictionary<int, RectTransform>(); // 条目下标 → 激活行
-            private readonly Dictionary<int, int> _liveKind = new Dictionary<int, int>(); // 条目下标 → 行结构种类（回池归属，防新旧数据源同下标异种错池）
+            private readonly Dictionary<RectTransform, int> _rowKind = new Dictionary<RectTransform, int>(); // 行→结构种类（回池归属）
 
             /// <summary>数据条数（外部空态/诊断用——content.childCount 不再等于条数）。</summary>
-            public int Count => _count;
+            public int Count => _loop != null ? _loop.totalCount : 0;
             /// <summary>接管中的 content（空态提示行等外部节点若直接挂入须自行定位）。</summary>
             public RectTransform Content => _content;
 
-            /// <summary>可见行（无可见行=null）——断言/测试探针口。</summary>
-            public RectTransform RowAt(int index) => _live.TryGetValue(index, out var row) ? row : null;
+            /// <summary>当前激活行数（引擎窗口 itemTypeEnd−itemTypeStart；编辑态引擎不铺行恒 0）。</summary>
+            public int LiveCount
+            {
+                get { var (start, end) = ItemWindow(); return Mathf.Max(0, end - start); }
+            }
 
-            /// <summary>接管滚动区：吸收 VLG/GLG/CSF 的布局参数后停用它们，挂每帧脏检查驱动。
-            /// content 既有激活子（旧路径遗留行）一并回收销毁——接入方不再自清。</summary>
+            /// <summary>激活窗口内的行（窗口外已回池=null）——断言/测试探针口。</summary>
+            public RectTransform RowAt(int index)
+            {
+                var (start, end) = ItemWindow();
+                if (index < start || index >= end) return null;
+                int child = index - start;
+                return _content != null && child < _content.childCount ? _content.GetChild(child) as RectTransform : null;
+            }
+
+            private static readonly System.Reflection.FieldInfo FiStart = typeof(UnityEngine.UI.LoopScrollRectBase)
+                .GetField("itemTypeStart", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            private static readonly System.Reflection.FieldInfo FiEnd = typeof(UnityEngine.UI.LoopScrollRectBase)
+                .GetField("itemTypeEnd", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+            private (int start, int end) ItemWindow()
+            {
+                if (_loop == null || FiStart == null || FiEnd == null) return (0, 0);
+                return ((int)FiStart.GetValue(_loop), (int)FiEnd.GetValue(_loop));
+            }
+
+            /// <summary>接管滚动区：禁用原 ScrollRect、挂 LoopVerticalScrollRectMulti、模板搬去 tpl-park。
+            /// content 既有激活子（旧路径遗留行）清场销毁——接入方不再自清。</summary>
             public static RecycledList Attach(Scroll scroll)
             {
                 if (scroll?.Rect == null || scroll.Content == null) return null;
-                var list = new RecycledList
-                {
-                    _scroll = scroll.Rect,
-                    _viewport = (RectTransform)scroll.Rect.viewport?.transform ?? scroll.Content.parent as RectTransform,
-                    _content = scroll.Content,
-                };
-                if (list._viewport == null) return null;
+                var sr = scroll.Rect;
+                var content = scroll.Content;
+                var viewport = sr.viewport != null ? (RectTransform)sr.viewport.transform : content.parent as RectTransform;
+                if (viewport == null) return null;
 
-                var vlg = list._content.GetComponent<VerticalLayoutGroup>();
-                if (vlg != null)
-                {
-                    list._spacing = vlg.spacing;
-                    list._padTop = vlg.padding.top; list._padBottom = vlg.padding.bottom;
-                    list._padLeft = vlg.padding.left; list._padRight = vlg.padding.right;
-                    vlg.enabled = false;
-                }
-                var glg = list._content.GetComponent<GridLayoutGroup>();
+                var list = new RecycledList { _content = content, _viewport = viewport };
+
+                // 布局组保持启用：引擎靠 VLG/GLG 排版可见行（spacing/padding 也由引擎惰性读取）
+                var vlg = content.GetComponent<VerticalLayoutGroup>();
+                if (vlg != null) { list._spacing = vlg.spacing; vlg.enabled = true; }
+                var glg = content.GetComponent<GridLayoutGroup>();
                 if (glg != null)
                 {
-                    list._cellW = glg.cellSize.x; list._cellH = glg.cellSize.y;
-                    list._spacingX = glg.spacing.x; list._spacing = glg.spacing.y;
-                    list._padTop = glg.padding.top; list._padBottom = glg.padding.bottom;
-                    list._padLeft = glg.padding.left; list._padRight = glg.padding.right;
-                    glg.enabled = false;
+                    list._spacing = glg.spacing.y;
+                    glg.enabled = true;
+                    list._gridGeom = glg;
+                    // 库 Awake 断言 Flexible 不支持——约束必须在 SetActive(恢复) 前就位（列数 SetGrid 再精算）
+                    glg.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
                 }
-                var csf = list._content.GetComponent<ContentSizeFitter>();
-                if (csf != null) csf.enabled = false;
+                var csf = content.GetComponent<ContentSizeFitter>();
+                if (csf == null) csf = content.gameObject.AddComponent<ContentSizeFitter>();
+                // 引擎边界数学依赖 content.rect 随可见行长高（GetBounds 量 content 自身角点）——
+                // CSF 垂直 Preferred 是官方接法，停用会让引擎判"恒缺行"无限追加+弹性把滚动拉回顶
+                csf.enabled = true;
+                csf.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+                csf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
-                // 旧路径遗留的激活子清场（inactive 模板=克隆源，保留）
-                for (int i = list._content.childCount - 1; i >= 0; i--)
+                // 克隆模板搬出 content（引擎的池化/边界数学要求 content 只装活行）；
+                // 旧路径遗留的激活子一并清场
+                var parkGo = new GameObject("tpl-park", typeof(RectTransform));
+                list._park = parkGo.transform as RectTransform;
+                list._park.SetParent(sr.transform, false);
+                list._park.gameObject.SetActive(false);
+                for (int i = content.childCount - 1; i >= 0; i--)
                 {
-                    var child = list._content.GetChild(i);
-                    if (!child.gameObject.activeSelf) continue;
-                    child.SetParent(null);
-                    UnityEngine.Object.Destroy(child.gameObject);
+                    var child = content.GetChild(i);
+                    if (!child.gameObject.activeSelf) { child.SetParent(list._park, false); continue; }
+                    if (Application.isPlaying) UnityEngine.Object.Destroy(child.gameObject);
+                    else UnityEngine.Object.DestroyImmediate(child.gameObject);
                 }
 
-                list._driver = list._scroll.gameObject.AddComponent<Driver>();
-                list._driver.Owner = list;
+                // 引擎交换：原 ScrollRect 禁用（序列化监听不丢、可回退），Loop 组件复制滚动参数接管。
+                // 库默认 vertical/horizontal 双 true：AddComponent 会同步跑 Awake 断言——先临时禁用 GO
+                // 把 Awake 顺延到参数配好、重新激活时（demo 是预制体作者手改的，代码挂组件必踩）。
+                // 变体选择：网格走单 kind 的 LoopVerticalScrollRect（GetSize 走 GLG cellSize——
+                // Multi 变体的 GetSize 恒走 preferred，代码现建的首行布局前 preferred=0 会触发库断言）；
+                // 变高列表（多 kind 行）走 Multi（temp-pool 不跨种类复用）。
+                sr.enabled = false;
+                bool wasActive = sr.gameObject.activeSelf;
+                sr.gameObject.SetActive(false);
+                UnityEngine.UI.LoopScrollRectBase loop;
+                if (list._gridGeom != null)
+                {
+                    var single = sr.gameObject.AddComponent<UnityEngine.UI.LoopVerticalScrollRect>();
+                    single.dataSource = list; // 单 kind 数据源（与 Multi 接口同签名，本类双实现）
+                    loop = single;
+                }
+                else
+                {
+                    var multi = sr.gameObject.AddComponent<UnityEngine.UI.LoopVerticalScrollRectMulti>();
+                    multi.dataSource = list;
+                    loop = multi;
+                }
+                loop.content = content;
+                loop.viewport = viewport;
+                loop.horizontal = false;
+                loop.vertical = true;
+                loop.movementType = (UnityEngine.UI.LoopScrollRectBase.MovementType)(int)sr.movementType;
+                loop.elasticity = sr.elasticity;
+                loop.inertia = sr.inertia;
+                loop.decelerationRate = sr.decelerationRate;
+                loop.scrollSensitivity = sr.scrollSensitivity;
+                loop.verticalScrollbar = sr.verticalScrollbar;
+                loop.horizontalScrollbar = sr.horizontalScrollbar;
+                sr.gameObject.SetActive(wasActive);
+
+                // content 顶部对齐归一（引擎编辑器断言：pivot/锚点 Y=1）
+                content.pivot = new Vector2(content.pivot.x, 1f);
+                content.anchorMin = new Vector2(content.anchorMin.x, 1f);
+                content.anchorMax = new Vector2(content.anchorMax.x, 1f);
+                content.anchoredPosition = Vector2.zero;
+
+                loop.prefabSource = list;
+                list._loop = loop;
                 return list;
+            }
+
+            /// <summary>克隆模板停靠点（Attach 搬迁目的地）——行工厂克隆模板时的查找范围（找不到回落 content 兼容未接管滚动区）。</summary>
+            public static RectTransform TemplatePark(Scroll scroll)
+            {
+                var root = scroll?.Rect;
+                if (root == null) return scroll != null ? scroll.Content : null;
+                return root.transform.Find("tpl-park") as RectTransform ?? scroll.Content;
             }
 
             /// <summary>配置行种类与工厂/绑定（kindOf 决定分池，makeOf 按种类建行，bind 填数据）。</summary>
@@ -918,288 +999,127 @@ namespace SynergyUI
                 return this;
             }
 
-            /// <summary>变高列表数据源（单列满宽行）：count 条目 + 逐条目高度（表头/行/提示行混排）。
-            /// 换数据即整体重置：出界全回池、内容高度重算、滚回顶、立即铺可见区。</summary>
+            /// <summary>变高列表数据源（单列满宽行）：count 条目 + 逐条目高度。
+            /// 换数据即整体重置（回顶重铺）；行高经 sizeHelper 前缀和供引擎滚动条/跳位数学。</summary>
             public void SetItems(int count, Func<int, float> heightOf)
             {
-                _gridMode = false;
-                _gridCols = 1;
-                RecycleAll();
                 _count = Mathf.Max(0, count);
-                _heights = new float[_count];
                 _offsets = new float[_count + 1];
                 float acc = 0f;
                 for (int i = 0; i < _count; i++)
                 {
-                    _heights[i] = Mathf.Max(1f, heightOf?.Invoke(i) ?? 60f);
                     _offsets[i] = acc;
-                    acc += _heights[i] + _spacing;
+                    acc += Mathf.Max(1f, heightOf?.Invoke(i) ?? 60f) + _spacing;
                 }
-                _offsets[_count] = acc; // 含末位 spacing（内容高度计算时扣除）
-                ApplyContentSize(ListHeight());
-                ResetToTop();
-                RefreshView();
+                _offsets[_count] = acc; // 含末位 spacing（sizeHelper 计算时扣除）
+                if (_loop == null) return;
+                _loop.sizeHelper = _count > 0 ? new SizeHelper { Owner = this } : null;
+                _loop.totalCount = _count;
+                if (Application.isPlaying) _loop.RefillCells(); // 引擎仅 Play 铺行；编辑态 Count 已就位（空态诊断可用）
             }
 
-            /// <summary>网格数据源（等格多列）：列数按内容宽自算（宽变重算——驱动每帧校验）。</summary>
-            /// <summary>网格数据源（等格多列）：列数按内容宽自算（宽变重算——驱动每帧校验）。
-            /// cellW/cellH 缺省用 Attach 从 GLG 吸收的格几何（无 GLG 又缺参=LogError 空转）。</summary>
+            /// <summary>网格数据源（等格多列）：格几何取 content 的 GLG（cellW/cellH 可覆写），
+            /// 列数按内容宽自算并锁进 GLG（引擎只认 FixedColumnCount）。</summary>
             public void SetGrid(int count, float cellW = 0f, float cellH = 0f)
             {
-                _gridMode = true;
-                RecycleAll();
                 _count = Mathf.Max(0, count);
-                if (cellW > 0f) _cellW = cellW;
-                if (cellH > 0f) _cellH = cellH;
-                if (_cellW <= 0f || _cellH <= 0f)
+                _offsets = null;
+                if (_loop == null) return;
+                var glg = _content != null ? _content.GetComponent<GridLayoutGroup>() : null;
+                if (glg == null || glg.cellSize.x <= 0f || glg.cellSize.y <= 0f)
                 {
+                    if (glg != null)
+                    {
+                        if (cellW > 0f) glg.cellSize = new Vector2(cellW, glg.cellSize.y);
+                        if (cellH > 0f) glg.cellSize = new Vector2(glg.cellSize.x, cellH);
+                    }
                     Debug.LogError("[RecycledList] SetGrid 缺格几何（content 无 GridLayoutGroup 且未传 cellW/cellH）");
-                    _count = 0;
+                    _loop.totalCount = 0;
+                    return;
                 }
-                _gridCols = -1; // 待 RefreshView 按宽计算
-                _heights = null; _offsets = null;
-                ApplyContentSize(GridHeight(ComputeCols()));
-                ResetToTop();
-                RefreshView();
+                int cols = Mathf.Max(1, Mathf.FloorToInt(
+                    (_content.rect.width - glg.padding.left - glg.padding.right + glg.spacing.x)
+                    / (glg.cellSize.x + glg.spacing.x)));
+                glg.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+                glg.constraintCount = cols;
+                _loop.sizeHelper = null; // 等格：引擎原生估算
+                _loop.totalCount = _count;
+                if (Application.isPlaying) _loop.RefillCells();
             }
 
-            /// <summary>条数/高度不变、数据内容变：只重绑当前可见行（如选中态变化）。</summary>
+            /// <summary>条数/高度不变、数据内容变：只重绑当前激活行（如选中态变化）。</summary>
             public void RebindVisible()
             {
-                foreach (var kv in _live) _bind?.Invoke(kv.Value, kv.Key);
+                if (_loop != null && Application.isPlaying) _loop.RefreshCells();
             }
 
-            /// <summary>滚回顶（SetItems/SetGrid 已内含——外部显式复位用）。</summary>
+            /// <summary>滚回顶重铺（SetItems/SetGrid 已内含——外部显式复位用）。</summary>
             public void ResetToTop()
             {
-                if (_content != null) _content.anchoredPosition = Vector2.zero;
+                if (_loop != null && Application.isPlaying) _loop.RefillCells();
             }
 
-            /// <summary>当前可见行数（断言/诊断口——与 Count 对比即知回收率）。</summary>
-            public int LiveCount => _live.Count;
+            // ---------------- LoopScrollRect 回调 ----------------
 
-            // ---------------- 内部 ----------------
-
-            /// <summary>每帧脏检查（滚动位/视口高/内容宽变化才重算可见区）。</summary>
-            internal void Tick()
+            /// <summary>引擎取行（LoopScrollPrefabSource）：按 kind 分池出/建行。</summary>
+            public GameObject GetObject(int index)
             {
-                if (_content == null) return;
-                float w = _content.rect.width;
-                if (!Mathf.Approximately(w, _lastContentWidth))
-                {
-                    _lastContentWidth = w;
-                    if (_gridMode)
-                    {
-                        // 网格列数随宽变：条目→格位映射整体变化——全部回池重铺（列表模式行满宽不受影响）
-                        RecycleAll();
-                        ApplyContentSize(GridHeight(ComputeCols()));
-                    }
-                }
-                RefreshView();
-            }
-
-            private int ComputeCols()
-            {
-                float w = _content.rect.width;
-                int cols = Mathf.Max(1, Mathf.FloorToInt((w - _padLeft - _padRight + _spacingX) / (_cellW + _spacingX)));
-                _gridCols = cols;
-                return cols;
-            }
-
-            private float ListHeight()
-            {
-                if (_count == 0) return _padTop + _padBottom;
-                return _padTop + _offsets[_count] - _spacing + _padBottom; // 末位 spacing 不占高
-            }
-
-            private float GridHeight(int cols)
-            {
-                if (_count == 0) return _padTop + _padBottom;
-                int bands = Mathf.CeilToInt(_count / (float)cols);
-                return _padTop + bands * _cellH + (bands - 1) * _spacing + _padBottom;
-            }
-
-            private void ApplyContentSize(float height)
-            {
-                // 内容至少与视口等高（ScrollRect Clamped 下小内容不滚动、行恒从顶铺）
-                float viewH = _viewport != null ? _viewport.rect.height : 0f;
-                _content.sizeDelta = new Vector2(0f, Mathf.Max(height, viewH));
-                _lastContentWidth = _content.rect.width;
-            }
-
-            /// <summary>重算可见区：出界回池、入界取池/新建并绑定。索引位置只算一次（索引不变位置不变）。</summary>
-            internal void RefreshView()
-            {
-                if (_content == null || _bind == null) return;
-                float viewH = _viewport.rect.height;
-                float top = Mathf.Max(0f, -_content.anchoredPosition.y);
-                float bottom = top + viewH;
-
-                int first, last;
-                if (_gridMode)
-                {
-                    float bandStep = _cellH + _spacing;
-                    int firstBand = Mathf.Max(0, Mathf.FloorToInt((top - _padTop) / bandStep) - 1);
-                    int lastBand = Mathf.CeilToInt((bottom - _padTop) / bandStep) + 1;
-                    int bands = Mathf.CeilToInt(_count / (float)_gridCols);
-                    lastBand = Mathf.Min(lastBand, bands - 1);
-                    first = Mathf.Max(0, firstBand * _gridCols);
-                    last = lastBand * _gridCols + _gridCols - 1;
-                }
-                else
-                {
-                    first = FirstIndexVisible(top) - 2;
-                    last = LastIndexVisible(bottom) + 2;
-                }
-                if (_count == 0) { first = 0; last = -1; }
-                first = Mathf.Max(0, first);
-                last = Mathf.Min(_count - 1, last);
-
-                // 出界回池
-                if (_live.Count > 0)
-                {
-                    List<int> drop = null;
-                    foreach (var kv in _live)
-                        if (kv.Key < first || kv.Key > last)
-                            (drop ??= new List<int>()).Add(kv.Key);
-                    if (drop != null)
-                        foreach (var i in drop) RecycleOne(i);
-                }
-
-                // 入界铺行
-                for (int i = first; i <= last; i++)
-                {
-                    if (_live.ContainsKey(i)) continue;
-                    var row = TakeRow(i, out int kind);
-                    if (row == null) continue;
-                    Position(row, i);
-                    _live[i] = row;
-                    _liveKind[i] = kind;
-                    row.gameObject.SetActive(true);
-                    _bind(row, i);
-                }
-            }
-
-            /// <summary>首个底边越过可视顶的条目（二分找 offset>top 后回退叠压项）。</summary>
-            private int FirstIndexVisible(float top)
-            {
-                int lo = 0, hi = _count; // 找第一个 offset > top
-                while (lo < hi)
-                {
-                    int mid = (lo + hi) >> 1;
-                    if (_offsets[mid] <= top) lo = mid + 1; else hi = mid;
-                }
-                int i = Mathf.Max(0, lo - 1); // lo-1=最后一个顶边≤top 的条目；再回退至底边也压 top 的
-                while (i > 0 && _offsets[i - 1] + _heights[i - 1] > top) i--;
-                return i;
-            }
-
-            /// <summary>最后一个顶边落在可视底之上的条目（二分）。</summary>
-            private int LastIndexVisible(float bottom)
-            {
-                int lo = 0, hi = _count; // 找第一个 offset >= bottom
-                while (lo < hi)
-                {
-                    int mid = (lo + hi) >> 1;
-                    if (_offsets[mid] < bottom) lo = mid + 1; else hi = mid;
-                }
-                return Mathf.Max(0, lo - 1);
-            }
-
-            private void Position(RectTransform row, int index)
-            {
-                if (_gridMode)
-                {
-                    int band = index / _gridCols, col = index % _gridCols;
-                    row.anchorMin = row.anchorMax = new Vector2(0f, 1f);
-                    row.pivot = new Vector2(0f, 1f);
-                    row.anchoredPosition = new Vector2(
-                        _padLeft + col * (_cellW + _spacingX),
-                        -(_padTop + band * (_cellH + _spacing)));
-                    row.sizeDelta = new Vector2(_cellW, _cellH);
-                }
-                else
-                {
-                    float y = _padTop + _offsets[index];
-                    row.anchorMin = new Vector2(0f, 1f);
-                    row.anchorMax = new Vector2(1f, 1f);
-                    row.pivot = new Vector2(0.5f, 1f);
-                    row.offsetMin = new Vector2(_padLeft, -(y + _heights[index]));
-                    row.offsetMax = new Vector2(-_padRight, -y);
-                }
-            }
-
-            private RectTransform TakeRow(int index, out int kind)
-            {
-                kind = _kindOf?.Invoke(index) ?? 0;
-                if (!_pools.TryGetValue(kind, out var pool))
-                    _pools[kind] = pool = new List<RectTransform>();
+                int kind = (_kindOf != null && index >= 0 && index < _count) ? _kindOf(index) : 0;
+                if (!_pools.TryGetValue(kind, out var pool)) _pools[kind] = pool = new List<RectTransform>();
                 while (pool.Count > 0)
                 {
-                    var row = pool[pool.Count - 1];
+                    var pooled = pool[pool.Count - 1];
                     pool.RemoveAt(pool.Count - 1);
-                    if (row != null) return row; // 池中行可能随屏销毁（屏灭池亡，这里防御）
+                    if (pooled != null) return pooled.gameObject; // 池行可能随屏销毁，这里防御
                 }
-                var made = _makeOf?.Invoke(kind)?.Invoke();
-                if (made != null)
+                var row = _makeOf?.Invoke(kind)?.Invoke();
+                if (row == null) row = Node("row-miss", _content); // 工厂缺行兜底：绝不还 null 给引擎
+                row.name = "row-p"; // 不与停靠模板撞名
+                // 新建行预置尺寸：引擎量高（新建/回收均经 GetSize→GetPreferredHeight）常发生在
+                // 首次布局前——行内布局组缓存 preferred=0 会盖过 sizeDelta 触发库断言。
+                // 一律垫 LayoutElement（优先级最高）：网格=cellSize、变高列表=前缀和行高（与 sizeHelper 同口径）。
+                if (_gridGeom != null)
                 {
-                    made.SetParent(_content, false);
-                    made.name = "row-p"; // 池行改名：不与 content 直属克隆模板 "row" 撞 Find
+                    row.sizeDelta = _gridGeom.cellSize;
+                    var le = row.GetComponent<LayoutElement>() ?? row.gameObject.AddComponent<LayoutElement>();
+                    le.preferredWidth = _gridGeom.cellSize.x;
+                    le.preferredHeight = _gridGeom.cellSize.y;
                 }
-                return made;
+                else if (_offsets != null && index >= 0 && index < _count)
+                {
+                    float h = _offsets[index + 1] - _offsets[index] - _spacing;
+                    row.sizeDelta = new Vector2(row.sizeDelta.x, h);
+                    var le = row.GetComponent<LayoutElement>() ?? row.gameObject.AddComponent<LayoutElement>();
+                    le.preferredHeight = h;
+                }
+                _rowKind[row] = kind;
+                return row.gameObject;
             }
 
-            private void RecycleOne(int index)
+            /// <summary>引擎还行（LoopScrollPrefabSource）：按行记录的 kind 回池；外来节点（模板等）不动。</summary>
+            public void ReturnObject(Transform trans)
             {
-                if (!_live.TryGetValue(index, out var row)) return;
-                _live.Remove(index);
-                int kind = _liveKind.TryGetValue(index, out var k) ? k : 0;
-                _liveKind.Remove(index);
-                if (row == null) return;
+                if (!(trans is RectTransform row) || !_rowKind.TryGetValue(row, out int kind)) return;
                 row.gameObject.SetActive(false);
-                if (!_pools.TryGetValue(kind, out var pool))
-                    _pools[kind] = pool = new List<RectTransform>();
+                row.SetParent(_park != null ? _park : _content, false); // 离开 content：引擎边界数学只认活行
+                if (!_pools.TryGetValue(kind, out var pool)) _pools[kind] = pool = new List<RectTransform>();
                 pool.Add(row);
             }
 
-            private void RecycleAll()
-            {
-                if (_live.Count == 0) return;
-                foreach (var kv in _live)
-                {
-                    if (kv.Value == null) continue;
-                    int kind = _liveKind.TryGetValue(kv.Key, out var k) ? k : 0;
-                    kv.Value.gameObject.SetActive(false);
-                    if (!_pools.TryGetValue(kind, out var pool))
-                        _pools[kind] = pool = new List<RectTransform>();
-                    pool.Add(kv.Value);
-                }
-                _live.Clear();
-                _liveKind.Clear();
-            }
+            /// <summary>引擎绑行（LoopScrollMultiDataSource）→ bind。</summary>
+            public void ProvideData(Transform transform, int index) => _bind?.Invoke(transform as RectTransform, index);
 
-            /// <summary>每帧驱动（挂滚动区根）：脏检查后重算可见区——滚动/布局尺寸变化/刷新全覆盖。</summary>
-            private sealed class Driver : MonoBehaviour
+            /// <summary>变高前缀和（库口径：纯条目高，不含 spacing）。</summary>
+            private sealed class SizeHelper : UnityEngine.UI.LoopScrollSizeHelper
             {
-                [System.NonSerialized] public RecycledList Owner;
-                private Vector2 _lastPos;
-                private float _lastViewH = -1f;
-                private float _lastW = -1f;
-                private int _lastCount = -1;
-
-                private void Update()
+                public RecycledList Owner;
+                public float GetItemsSize(int itemStart, int itemEnd)
                 {
-                    if (Owner == null) return;
-                    var content = Owner.Content;
-                    if (content == null) return;
-                    // 脏检查：滚动位/视口高/内容宽/条数任一变化才进重算（平静帧零开销）
-                    Vector2 pos = content.anchoredPosition;
-                    float viewH = Owner._viewport.rect.height;
-                    float w = content.rect.width;
-                    if (pos == _lastPos && Mathf.Approximately(viewH, _lastViewH)
-                        && Mathf.Approximately(w, _lastW) && Owner._count == _lastCount) return;
-                    _lastPos = pos; _lastViewH = viewH; _lastW = w; _lastCount = Owner._count;
-                    Owner.Tick();
+                    var o = Owner;
+                    if (o == null || o._offsets == null || o._count == 0) return 0f;
+                    int a = Mathf.Clamp(itemStart, 0, o._count);
+                    int b = Mathf.Clamp(itemEnd, a, o._count);
+                    return o._offsets[b] - o._offsets[a] - o._spacing * (b - a);
                 }
             }
         }

@@ -98,7 +98,7 @@ namespace CardCore
         [NonSerialized]
         internal List<ElementCost> ModeCostCache;
 
-        // 自我沉睡判定缓存（2026-09-11 灰费豁免定案）：任一非主动效果含 Sleep 原子且组合域={Self}。
+        // 自我沉睡判定缓存（2026-09-11 豁免费定案；灰+绿 2026-10-22）：任一非主动效果含 Sleep 原子且组合域={Self}。
         // GetCardCost 高频调用，转换结果缓存（ResetCache 失效，随 ModeCostCache 口径）。
         [NonSerialized]
         internal bool? SelfSleepEffectCache;
@@ -183,6 +183,11 @@ namespace CardCore
             get => _tags ??= new List<string>();
             set => _tags = value;
         }
+
+        /// <summary>衍生物模板卡（2026-10-22 额外区配套；tag「衍生物」单源判定——卡池面过滤
+        /// CardCatalog.IsTokenCard 同口径）：InitGame 开局从卡组摘出落 Zone.Extra 额外区
+        ///（不进牌库不会被抽到），SummonToken 按模板 id 另行实例化。</summary>
+        public bool IsTokenTemplate => Tags != null && Tags.Contains("衍生物");
 
         /// <summary>
         /// 关键词列表（如冲锋、飞行、圣盾等自身被动效果）
@@ -563,7 +568,8 @@ namespace CardCore
         public List<AtomicEffectEntry> thenSteps;     // kind==1：条件成立时执行
         public List<AtomicEffectEntry> elseSteps;     // kind==1：否则执行
 
-        // kind==1 的产出条件（OutcomeGate），取自 BranchConfig 目录。
+        // kind==1 的产出条件（OutcomeGate）：id 由代码侧 BranchConditionEvaluator 识别
+        //（原 BranchConfig 目录层已于 2026-10-22 删除，本字段直接写评估器 switch 的条件 id）。
         // 替代借用 condition/ConditionType（后者保留给发动前条件）。
         public string conditionId;                    // 条件 id，如 "DmgKillsTarget"
         public int conditionParam;                    // 数值参数（如门槛）

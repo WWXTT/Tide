@@ -134,7 +134,7 @@ namespace CardCore
         /// RL/挑战传卡组列表时优先在卡组内挑（卡组没法术再回落全池——技能不占张数，卡组照常完整）。</summary>
         public static string AutoPickSkillCard(IEnumerable<CardData> source = null)
         {
-            IEnumerable<CardData> candidates = source ?? SynergyUI.CardCatalog.LoadPlayPool();
+            IEnumerable<CardData> candidates = source ?? DefaultSkillCandidates();
             CardData best = null;
             float bestAnchor = float.MaxValue;
             foreach (var c in candidates)
@@ -146,6 +146,17 @@ namespace CardCore
             if (best == null && source != null)
                 return AutoPickSkillCard(); // 卡组内无合格法术——回落全卡池
             return best?.ID;
+        }
+
+        /// <summary>默认技能候选（2026-10-22 三套预组迁教学）：玩家可用面 LoadPlayPool 可为空
+        ///（主题卡全带 tags=教学）——为空时回落全卡池，保证仍有合格主动法术可挑。
+        /// 注：战斗入口（挑战/木桩/联机）对预组卡组直接传卡组自带 skillCardId，不依赖本回落；
+        /// 本类在 TideServer 共享编译（CardCore 目录），不得引用 UI 层 DeckCatalog。</summary>
+        private static IEnumerable<CardData> DefaultSkillCandidates()
+        {
+            var pool = SynergyUI.CardCatalog.LoadPlayPool();
+            if (pool != null && pool.Count > 0) return pool;
+            return SynergyUI.CardCatalog.LoadAll();
         }
 
         /// <summary>卡上各效果锚价总额的最小值（AutoPick 挑选键；次数分量坍缩 ×1 同施放口径）。</summary>

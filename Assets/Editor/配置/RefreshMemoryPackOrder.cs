@@ -228,7 +228,7 @@ namespace CardCore.Tools
                 // ---- 上行 intent ----
                 ("MsgIntentPlayCard", "CardRuntimeId"), ("MsgIntentPlayCard", "Targets"),
                 ("MsgIntentPlayCard", "FromZone"), ("MsgIntentPlayCard", "ModeIndex"),
-                ("MsgIntentTapForElement", "CardRuntimeId"), ("MsgIntentTapForElement", "ManaType"),
+                // MsgIntentTapForElement 已删（2026-10-11 现取现用：无手动横置）——两个 tag 常量同批移除（2026-10-22）
                 ("MsgIntentAddToElementPool", "CardRuntimeId"),
                 ("MsgIntentDeclareAttack", "Attacker"), ("MsgIntentDeclareAttack", "Target"),
                 ("MsgIntentDeclareBlock", "Blocker"), ("MsgIntentDeclareBlock", "Attacker"),
@@ -287,7 +287,7 @@ namespace CardCore.Tools
             (string constName, int value, string note)[] rawTags)
         {
             var sb = new StringBuilder();
-            sb.AppendLine("// 此文件由 Tools/刷新MemoryPackOrder 自动生成，请勿手动修改");
+            sb.AppendLine("// 此文件由 Tools/刷新属性排序（新增序列化字段时使用）自动生成，请勿手动修改");
             sb.AppendLine("// 如需添加新属性，请修改 RefreshMemoryPackOrder.cs 中的 GetTagDefinitions()");
             sb.AppendLine("// 手工定值标签登记 GetRawTagDefinitions()（只改 TagTable.cs 的手改区会被下次重生成冲掉）");
             sb.AppendLine();

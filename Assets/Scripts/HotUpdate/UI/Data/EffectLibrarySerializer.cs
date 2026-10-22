@@ -23,17 +23,23 @@ namespace SynergyUI
 
         private static string FilePath => CardDataPaths.FileIn("Effects.json"); // 路径收口（2026-09-24）
 
+        /// <summary>写入目标（2026-10-22 三套主题卡组迁教学）：false=玩家主表 Card/Effects.json；
+        /// true=教学表 Tutorial/TutorialEffects.json（只读内容，随包发）。</summary>
+        private static string FilePathOf(bool tutorial)
+            => tutorial ? CardDataPaths.TutorialFileIn("TutorialEffects.json") : FilePath;
+
         [Serializable]
         private class Wrapper { public List<EffectSlimDto> items; }
 
         // ======================================== 读 ========================================
 
-        /// <summary>读取全部效果（文件缺失返回空）。</summary>
-        public static List<EffectGraphData> LoadAll()
+        /// <summary>读取全部效果（文件缺失返回空）。tutorial=true 读教学表（2026-10-22）。</summary>
+        public static List<EffectGraphData> LoadAll(bool tutorial = false)
         {
             var result = new List<EffectGraphData>();
-            if (!File.Exists(FilePath)) return result;
-            var wrapper = JsonUtility.FromJson<Wrapper>(File.ReadAllText(FilePath));
+            string path = FilePathOf(tutorial);
+            if (!File.Exists(path)) return result;
+            var wrapper = JsonUtility.FromJson<Wrapper>(File.ReadAllText(path));
             if (wrapper?.items == null) return result;
             foreach (var dto in wrapper.items)
             {
@@ -45,8 +51,9 @@ namespace SynergyUI
 
         // ======================================== 写 ========================================
 
-        /// <summary>保存（按 id upsert；id=HashEffect 单源化口径，Save 内计算回填）。返回文件路径。</summary>
-        public static string Save(EffectGraphData graph)
+        /// <summary>保存（按 id upsert；id=HashEffect 单源化口径，Save 内计算回填）。返回文件路径。
+        /// tutorial=true 写教学表（2026-10-22 三套主题卡组迁教学）。</summary>
+        public static string Save(EffectGraphData graph, bool tutorial = false)
         {
             if (graph == null) return null;
             graph.header ??= new CardEffectData();
@@ -54,7 +61,8 @@ namespace SynergyUI
             graph.id = ContentHasher.HashEffect(graph);
             if (string.IsNullOrEmpty(graph.name)) graph.name = graph.id;
 
-            var wrapper = ReadWrapper() ?? new Wrapper { items = new List<EffectSlimDto>() };
+            string path = FilePathOf(tutorial);
+            var wrapper = ReadWrapper(tutorial) ?? new Wrapper { items = new List<EffectSlimDto>() };
             wrapper.items ??= new List<EffectSlimDto>();
             var dto = ToDto(graph);
             dto.id = graph.id;
@@ -62,23 +70,25 @@ namespace SynergyUI
             if (existing >= 0) wrapper.items[existing] = dto;
             else wrapper.items.Add(dto);
 
-            Directory.CreateDirectory(Path.GetDirectoryName(FilePath));
-            File.WriteAllText(FilePath, EffectSlim.EmitCompact(wrapper.items)); // 紧凑发射（2026-10-09 按值省略定案）
-            return FilePath;
+            Directory.CreateDirectory(Path.GetDirectoryName(path));
+            File.WriteAllText(path, EffectSlim.EmitCompact(wrapper.items)); // 紧凑发射（2026-10-09 按值省略定案）
+            return path;
         }
 
-        /// <summary>按 id 删除条目（内容变更换 id 后清旧档）。</summary>
-        public static void DeleteById(string id)
+        /// <summary>按 id 删除条目（内容变更换 id 后清旧档）。tutorial=true 删教学表。</summary>
+        public static void DeleteById(string id, bool tutorial = false)
         {
-            if (string.IsNullOrEmpty(id) || !File.Exists(FilePath)) return;
-            var wrapper = ReadWrapper();
+            string path = FilePathOf(tutorial);
+            if (string.IsNullOrEmpty(id) || !File.Exists(path)) return;
+            var wrapper = ReadWrapper(tutorial);
             if (wrapper?.items == null) return;
             wrapper.items.RemoveAll(i => i != null && i.id == id);
-            File.WriteAllText(FilePath, EffectSlim.EmitCompact(wrapper.items)); // 删除重写=顺带压缩存量全量条目
+            File.WriteAllText(path, EffectSlim.EmitCompact(wrapper.items)); // 删除重写=顺带压缩存量全量条目
         }
 
-        /// <summary>效果列表 → 引用 id 列表（逐个 upsert 落库后取 id）。供卡表保存写 effectIds。</summary>
-        public static List<string> EffectIdsOf(List<CardEffectData> effects)
+        /// <summary>效果列表 → 引用 id 列表（逐个 upsert 落库后取 id）。供卡表保存写 effectIds。
+        /// tutorial=true 时效果行写教学表（2026-10-22 教学卡引用不跨表）。</summary>
+        public static List<string> EffectIdsOf(List<CardEffectData> effects, bool tutorial = false)
         {
             var ids = new List<string>();
             if (effects == null) return ids;
@@ -86,28 +96,29 @@ namespace SynergyUI
             {
                 if (fx == null) continue;
                 var graph = new EffectGraphData(fx.DisplayName) { header = fx, steps = fx.Steps ?? new List<EffectStepData>() };
-                Save(graph);
+                Save(graph, tutorial);
                 ids.Add(graph.id);
             }
             return ids;
         }
 
         /// <summary>卡牌保存链路：批量落库（EffectIdsOf 的底层共用口）。</summary>
-        public static void EnsureEffectsSaved(List<CardEffectData> effects)
+        public static void EnsureEffectsSaved(List<CardEffectData> effects, bool tutorial = false)
         {
             if (effects == null) return;
             foreach (var fx in effects)
             {
                 if (fx == null) continue;
                 var graph = new EffectGraphData(fx.DisplayName) { header = fx, steps = fx.Steps ?? new List<EffectStepData>() };
-                Save(graph);
+                Save(graph, tutorial);
             }
         }
 
-        private static Wrapper ReadWrapper()
+        private static Wrapper ReadWrapper(bool tutorial = false)
         {
-            if (!File.Exists(FilePath)) return null;
-            try { return JsonUtility.FromJson<Wrapper>(File.ReadAllText(FilePath)); }
+            string path = FilePathOf(tutorial);
+            if (!File.Exists(path)) return null;
+            try { return JsonUtility.FromJson<Wrapper>(File.ReadAllText(path)); }
             catch { return null; }
         }
 

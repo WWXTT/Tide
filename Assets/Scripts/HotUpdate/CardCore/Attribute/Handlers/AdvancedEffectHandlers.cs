@@ -8,12 +8,12 @@ namespace CardCore.Attribute.Handlers
 {
     // ================================================================
     // 高级 handler — 栈操作 / 能力复制。
-    // スタック保持側（StackEngine）を GameCore.Instance 経由で操作する。
+    // 栈的持有方（StackEngine）经 GameCore.Instance 操作。
     // ================================================================
 
     /// <summary>
-    /// 重定向目标（栈顶 pending 效果の目标を本効果の解決 target へ差替）。
-    /// UI 接続点：本来は重定向先をプレイヤーが選ぶ。現状は本原子効果の解決 target をそのまま採用。
+    /// 重定向目标（把栈顶 pending 效果的目标替换为本效果解析出的目标）。
+    /// UI 接线点：理论上重定向目标应由玩家选择；现状直接采用本原子效果解析出的目标。
     /// </summary>
     public class RedirectTargetHandler : AtomicEffectHandlerBase
     {
@@ -69,7 +69,7 @@ namespace CardCore.Attribute.Handlers
 
     // CopyTargetAbility 已删除（2026-09-03 原子表整体修正——复制能力类占位行清除）
 
-    /// <summary>高级 handler ファクトリ</summary>
+    /// <summary>高级 handler 工厂</summary>
     public static class AdvancedEffectHandlerFactory
     {
         public static IAtomicEffectHandler[] CreateAll()

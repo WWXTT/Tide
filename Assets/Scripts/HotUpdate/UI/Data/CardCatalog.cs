@@ -32,6 +32,11 @@ namespace SynergyUI
         // 表现为卡组合界面卡池恒 0 张。缓存前按 mtime 复核，变了就弃缓存重读。
         private static string _cachePath;
         private static DateTime _cacheStampUtc = DateTime.MinValue;
+        // 教学/主表 mtime 独立记账（2026-10-22 NRE 修复，与 EffectsLibrary 2026-10-21 同案）：
+        // 旧口径拿主表戳比教学表 mtime → 两文件 mtime 永不相等 → 恒过期。装载教学表途中
+        // CardLoader 费用巡检重入 GetById→LoadAll 时恒过期触发 Invalidate 把在用 _byId 置空
+        // → 外层 MergeTutorialCards 的 _byId.ContainsKey NRE（界面装载异常/卡池空）。
+        private static DateTime _tutorialStampUtc = DateTime.MinValue;
         private static DateTime _lastStaleCheckUtc = DateTime.MinValue; // GetById 高频入口的盯盘节流（2026-10-17）
 
         /// <summary>加载（并缓存）全部卡牌。文件缺失返回空列表。
@@ -98,7 +103,7 @@ namespace SynergyUI
                 if (path != _cachePath || !File.Exists(path)) return true;
                 if (File.GetLastWriteTimeUtc(path) != _cacheStampUtc) return true;
                 string tpath = CardDataPaths.TutorialFileIn(TutorialCardsFile);
-                if (File.Exists(tpath) && File.GetLastWriteTimeUtc(tpath) != _cacheStampUtc) return true;
+                if (File.Exists(tpath) && File.GetLastWriteTimeUtc(tpath) != _tutorialStampUtc) return true;
                 return false;
             }
             catch
@@ -120,6 +125,7 @@ namespace SynergyUI
             }
             var cards = CardLoader.LoadCardsFromText(File.ReadAllText(tpath));
             if (cards == null) return;
+            _tutorialStampUtc = File.GetLastWriteTimeUtc(tpath); // 解析成功才记账：坏 JSON 不落缓存态，下次调用重试（与主表同口径）
             foreach (var card in cards)
             {
                 if (card == null || string.IsNullOrEmpty(card.ID)) continue;

@@ -87,7 +87,7 @@ namespace SynergyUI
             if (_cache != null) return _cache;
             _cache = HotUpdateAssets.Load<GameObject>(PrefabAddress, PrefabPath);
             if (_cache == null)
-                Debug.LogWarning("[BattleEnchant] BattleEnchant.prefab 缺失（" + PrefabPath + "）——结界回落占位胶囊（Tools/Battle3D/生成结界模型）");
+                Debug.LogWarning("[BattleEnchant] BattleEnchant.prefab 缺失（" + PrefabPath + "）——结界回落占位胶囊（该预制体已资产化，缺失时从版本库恢复，无生成菜单）");
             return _cache;
         }
     }

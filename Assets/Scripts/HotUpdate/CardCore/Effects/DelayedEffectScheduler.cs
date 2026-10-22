@@ -7,9 +7,9 @@ namespace CardCore
 {
     /// <summary>
     /// 延迟效果调度器。
-    /// DelayedEffect handler が登録した (controller, source, 子効果, 発火タイミング) を保持し、
-    /// 回合终了 / 相位终了 に一致したものを 1 回限り解決する。
-    /// GameCore の OnTurnEnded / OnPhaseEnded から OnTurnEnd / OnPhaseEnd を呼び出して駆動する。
+    /// 保存 DelayedEffect handler 登记下来的 (控制者, 来源, 子效果, 触发时机)，
+    /// 在回合结束 / 阶段结束 时把匹配的条目结算一次。
+    /// 由 GameCore 的 OnTurnEnded / OnPhaseEnded 调用 OnTurnEnd / OnPhaseEnd 驱动。
     /// </summary>
     public class DelayedEffectScheduler
     {
@@ -26,7 +26,7 @@ namespace CardCore
 
         private readonly List<Entry> _entries = new List<Entry>();
 
-        /// <summary>延迟效果を登録する</summary>
+        /// <summary>登记一条延迟效果</summary>
         public void Schedule(Player controller, Entity source, List<AtomicEffectInstance> subEffects,
             string fireTiming, IGameEvent triggeringEvent, ZoneManager zoneManager, ElementPoolSystem elementPool)
         {
@@ -44,13 +44,13 @@ namespace CardCore
             });
         }
 
-        /// <summary>回合终了で "TurnEnd" タイミングの効果を解決する</summary>
+        /// <summary>回合结束时结算 "TurnEnd" 时机的效果</summary>
         public UniTask OnTurnEnd(Player turnPlayer)
         {
             return Fire("TurnEnd", e => e.Controller == null || e.Controller == turnPlayer);
         }
 
-        /// <summary>相位终了で "PhaseEnd" タイミングの効果を解決する</summary>
+        /// <summary>阶段结束时结算 "PhaseEnd" 时机的效果</summary>
         public UniTask OnPhaseEnd()
         {
             return Fire("PhaseEnd", _ => true);
@@ -58,7 +58,7 @@ namespace CardCore
 
         private async UniTask Fire(string timing, System.Func<Entry, bool> extra)
         {
-            // 解決中の再登録に備えてスナップショットで走査
+            // 结算过程中可能再登记——先取快照再遍历
             var due = _entries.Where(e => e.FireTiming == timing && extra(e)).ToList();
             foreach (var entry in due)
             {
@@ -79,7 +79,7 @@ namespace CardCore
             }
         }
 
-        /// <summary>全延迟效果を破棄する（局終了/リセット用）</summary>
+        /// <summary>清空全部延迟效果（局结束/重置用）</summary>
         public void Clear() => _entries.Clear();
     }
 }

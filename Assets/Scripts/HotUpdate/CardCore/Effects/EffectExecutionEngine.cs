@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Cysharp.Threading.Tasks;
@@ -1656,8 +1656,8 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 重定向栈顶效果的目标（RedirectTarget 原子效果が使用）。
-        /// 栈顶效果が無ければ false。
+        /// 重定向栈顶效果的目标（RedirectTarget 原子效果使用）。
+        /// 栈顶无对象时返回 false。
         /// </summary>
         public bool RetargetTopStackObject(List<Entity> newTargets)
         {

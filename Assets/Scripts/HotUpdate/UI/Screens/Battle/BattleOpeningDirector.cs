@@ -4,6 +4,7 @@ using System.Linq;
 using CardCore;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace SynergyUI
 {
@@ -26,6 +27,7 @@ namespace SynergyUI
         private readonly BattleFieldView _field;
         private readonly bool _lunzhuan;
         private readonly Action<List<CardData>, string, List<CardData>, string, bool?> _engage;
+        private readonly bool? _fixedPlayerFirst; // 木桩测试固定先后手（null=照常掷币）
 
         private BattleDeckPickStage _pickStage;
         private bool _deckPicking;        // 段四输入期（点击归卡堆，不作跳过）
@@ -38,12 +40,14 @@ namespace SynergyUI
         public bool Active { get; private set; }
 
         public BattleOpeningDirector(Func<bool> running, BattleFieldView field, bool lunzhuan,
-            Action<List<CardData>, string, List<CardData>, string, bool?> engage)
+            Action<List<CardData>, string, List<CardData>, string, bool?> engage,
+            bool? fixedPlayerFirst = null)
         {
             _running = running;
             _field = field;
             _lunzhuan = lunzhuan;
             _engage = engage;
+            _fixedPlayerFirst = fixedPlayerFirst;
         }
 
         private bool Dead => _disposed || _field == null || !_running();
@@ -67,9 +71,18 @@ namespace SynergyUI
                     Debug.Log("[BattleOpening] 段二 角色就位完成");
                 }
 
-                // ---- 段三：硬币先后手（镜头推近板心→掷币→还原） ----
-                bool playerFirst = await CoinStageAsync();
-                Debug.Log("[BattleOpening] 段三 硬币落定 playerFirst=" + playerFirst);
+                // ---- 段三：硬币先后手（固定先后手=跳过掷币——木桩测试选项；镜头推近属掷币演出一并省） ----
+                bool playerFirst;
+                if (_fixedPlayerFirst.HasValue)
+                {
+                    playerFirst = _fixedPlayerFirst.Value;
+                    Debug.Log("[BattleOpening] 段三 先后手已固定 playerFirst=" + playerFirst + "（跳过掷币）");
+                }
+                else
+                {
+                    playerFirst = await CoinStageAsync();
+                    Debug.Log("[BattleOpening] 段三 硬币落定 playerFirst=" + playerFirst);
+                }
 
                 // ---- 段四：战场选卡组 ----
                 var (myName, aiName) = await DeckPickStageAsync();
@@ -157,10 +170,19 @@ namespace SynergyUI
         /// <summary>段四：候选卡组建堆 → 双选两轮/教学三单轮+倒计时；返回卡组名（null=随机）。</summary>
         private async UniTask<(string myName, string aiName)> DeckPickStageAsync()
         {
-            var decks = DeckSerializer.LoadAll()
+            // 2026-10-22 三套主题卡组迁教学：候选=玩家存档 + 只读预组（DeckCatalog 合并口）。
+            // 预组带「·预组」后缀仅作展示，deckName 仍是原卡组名（BuildDeckOf 经 DeckCatalog 回落教学目录）。
+            // 预组恒入候选（同日修正）：预组在 LoadAll 里固定追加在玩家档之后，整列 Take(5) 会把它们
+            // 挤出——改为玩家档限量（5−预组数）、预组全保。
+            var all = DeckCatalog.LoadAll()
                 .Where(d => d != null && !string.IsNullOrEmpty(d.name))
-                .Take(5)
-                .Select(d => new BattleDeckPickStage.Entry(d.name, d.name))
+                .ToList();
+            var presets = all.Where(d => DeckCatalog.IsPreset(d.name)).ToList();
+            var players = all.Where(d => !DeckCatalog.IsPreset(d.name))
+                .Take(Math.Max(0, 5 - presets.Count))
+                .ToList();
+            var decks = players.Concat(presets)
+                .Select(d => new BattleDeckPickStage.Entry(DeckCatalog.DisplayNameOf(d), d.name))
                 .ToList();
             decks.Add(new BattleDeckPickStage.Entry("随机卡组", null)); // 末位兜底堆（恒在）
 
@@ -222,7 +244,7 @@ namespace SynergyUI
         private static List<CardData> BuildDeckOf(string deckName, string side)
         {
             if (deckName == null) return null;
-            var data = DeckSerializer.Load(deckName);
+            var data = DeckCatalog.Load(deckName); // 玩家存档 / 只读预组（2026-10-22 统一口）
             if (data?.cardIds == null) return null;
             var built = TutorialLibrary.BuildDeck(data.cardIds);
             if (built != null && built.Count >= GameCore.OpeningHandSize) return built;
@@ -232,7 +254,7 @@ namespace SynergyUI
 
         private static string SkillOf(string deckName)
         {
-            var data = deckName != null ? DeckSerializer.Load(deckName) : null;
+            var data = deckName != null ? DeckCatalog.Load(deckName) : null;
             return data?.skillCardId;
         }
 
@@ -265,6 +287,122 @@ namespace SynergyUI
             {
                 if (_skip) return;
                 await UniTask.Yield();
+            }
+        }
+    }
+
+    /// <summary>
+    /// 木桩测试选项面板（2026-10-22）：进入战场先不开始——模态弹窗给三行可选列表
+    ///（先后手：掷硬币/我方先手/对方先手——固定先后=开场跳过掷币段；卡组洗牌：是/否；
+    /// 元素池：常规/充满）+ 开始/返回主菜单。行内循环选钮（点击换档，LobbyScreen 选卡组钮先例）。
+    /// 纯代码构建（LobbyScreen 纯代码屏先例，prefab 化留美术换皮）；全屏遮罩拦棋盘点击。
+    /// ShowAsync 返回 Options?=null=返回主菜单（dead 拆屏同判）。
+    /// </summary>
+    public sealed class DummyOptionsPanel
+    {
+        /// <summary>面板结果：PlayerFirst=null=掷硬币；Shuffle=false=锁牌库序；FullPool=true=充满预设。</summary>
+        public readonly struct Options
+        {
+            public readonly bool? PlayerFirst;
+            public readonly bool Shuffle;
+            public readonly bool FullPool;
+            public Options(bool? playerFirst, bool shuffle, bool fullPool)
+            {
+                PlayerFirst = playerFirst;
+                Shuffle = shuffle;
+                FullPool = fullPool;
+            }
+        }
+
+        private static readonly string[] OrderLabels = { "掷硬币决定", "我方先手（固定）", "对方先手（固定）" };
+        private static readonly string[] ShuffleLabels = { "洗牌", "不洗牌（卡组文件序）" };
+        private static readonly string[] PoolLabels = { "常规开局", "充满（40 地+5白5黑·起跳回合 10）" };
+
+        private RectTransform _root;
+        private Options? _result;
+        private bool _cancelled;
+        private readonly int[] _idx = new int[3]; // 0=先后手 1=洗牌 2=元素池（数组槽位可被闭包安全捕获）
+
+        /// <summary>弹面板并等结果（dead=拆屏判定；返回 null=取消/拆屏——调用方退回主菜单）。</summary>
+        public static async UniTask<Options?> ShowAsync(Func<bool> dead, RectTransform parent)
+        {
+            var panel = new DummyOptionsPanel(parent);
+            try
+            {
+                while (!dead() && panel._result == null && !panel._cancelled)
+                    await UniTask.Yield();
+                return panel._result;
+            }
+            finally
+            {
+                panel.Dispose();
+            }
+        }
+
+        private DummyOptionsPanel(RectTransform parent)
+        {
+            _root = UiKit.Overlay("dummy-options", parent);
+            var dim = _root.gameObject.AddComponent<Image>();
+            dim.color = new Color(0f, 0f, 0f, 0.55f); // 模态遮罩：拦棋盘点击
+            dim.raycastTarget = true;
+
+            // 居中定宽盒（父级 Overlay 无布局组——锚点直写生效；高度由 CSF 随内容自适应）
+            var box = UiKit.Panel("dummy-options-box", _root, pad: 20f, spacing: 12f);
+            box.anchorMin = box.anchorMax = box.pivot = new Vector2(0.5f, 0.5f);
+            box.anchoredPosition = Vector2.zero;
+            box.sizeDelta = new Vector2(660f, 0f);
+            var fitter = box.gameObject.AddComponent<ContentSizeFitter>();
+            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            UiKit.Label("lbl-title", box, "木桩测试设置", 20, align: TextAnchor.MiddleCenter, style: FontStyle.Bold);
+            UiKit.Label("lbl-hint", box, "对手为木桩：不出牌、不攻击、不响应、不守卫；双方卡组随后都由你选定。",
+                13, align: TextAnchor.MiddleLeft);
+
+            CycleRow(box, "row-order", "先后手", OrderLabels, 0);
+            CycleRow(box, "row-shuffle", "卡组洗牌", ShuffleLabels, 1);
+            CycleRow(box, "row-pool", "元素池", PoolLabels, 2);
+
+            var btns = UiKit.Row("row-btns", box, spacing: 14f, align: TextAnchor.MiddleCenter);
+            UiKit.Button("btn-start", btns, "开始", () => _result = new Options(
+                _idx[0] == 0 ? (bool?)null : _idx[0] == 1, _idx[1] == 0, _idx[2] == 1),
+                UiStyle.BtnPrimary);
+            UiKit.Button("btn-back", btns, "返回主菜单", () => _cancelled = true);
+        }
+
+        /// <summary>一行「标题 + 循环选钮」：点击按 values 轮换（slot=选值数组槽——闭包经数组保值）。</summary>
+        private void CycleRow(RectTransform parent, string rowName, string caption,
+            string[] values, int slot)
+        {
+            var row = UiKit.Row(rowName, parent);
+            UiKit.Label("lbl-" + rowName, row, caption, 15);
+            UiKit.Size(UiKit.Button("btn-" + rowName, row, values[_idx[slot]], () =>
+            {
+                _idx[slot] = (_idx[slot] + 1) % values.Length;
+                Refresh();
+            }), w: 320f);
+        }
+
+        /// <summary>循环钮文案刷新（Build 期字段序：三行钮已建全，逐名深找回写）。</summary>
+        private void Refresh()
+        {
+            SetCycleText("btn-row-order", OrderLabels[_idx[0]]);
+            SetCycleText("btn-row-shuffle", ShuffleLabels[_idx[1]]);
+            SetCycleText("btn-row-pool", PoolLabels[_idx[2]]);
+        }
+
+        private void SetCycleText(string btnName, string text)
+        {
+            var node = UiKit.FindDeep(_root, btnName);
+            var t = node != null ? node.GetComponentInChildren<TMPro.TMP_Text>(true) : null;
+            if (t != null) t.text = text;
+        }
+
+        public void Dispose()
+        {
+            if (_root != null)
+            {
+                UnityEngine.Object.Destroy(_root.gameObject);
+                _root = null;
             }
         }
     }

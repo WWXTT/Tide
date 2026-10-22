@@ -678,8 +678,8 @@ namespace CardCore.Attribute.Handlers
     /// 层=持续回合数，持有者回合末 −1、归零解除（无法重置+效果无效期间持续）。
     /// 效果/指示物分离原则：本原子只负责**赋予指示物**——持续规则由指示物自身承载
     ///（CounterRules.OnTurnEnd ③块倒数；TriggerEngine/CanActivate 拦效果）。
-    /// 自我沉睡的灰费转时长：目标=来源卡自身且 Value 未显式 → 数量=PendingSleepGray
-    /// （打出时灰份额豁免量，GetCardCost 剥离暂存，消费即清）。
+    /// 自我沉睡的豁免费转时长（2026-10-22 扩灰+绿）：目标=来源卡自身且 Value 未显式 →
+    /// 数量=PendingSleepLayers（打出时灰、绿份额豁免量，GetCardCost 剥离暂存，消费即清）。
     /// </summary>
     public class SleepHandler : AtomicEffectHandlerBase
     {
@@ -691,12 +691,12 @@ namespace CardCore.Attribute.Handlers
             {
                 if (target == null || !target.IsAlive) continue;
 
-                // 2026-09-13 数值随机：层数掷值（每目标独立）；缺省 0 层走灰费豁免/兜底 1
+                // 2026-09-13 数值随机：层数掷值（每目标独立）；缺省 0 层走豁免费/兜底 1
                 int amount = context.GetValueAfterModifiers(effect.GetRolledValue());
-                if (amount <= 0 && context.Source is Card src && target == src && src.PendingSleepGray > 0)
+                if (amount <= 0 && context.Source is Card src && target == src && src.PendingSleepLayers > 0)
                 {
-                    amount = src.PendingSleepGray; // 灰费豁免转时长（自我沉睡）
-                    src._pendingSleepGray = 0;     // 消费即清（一次性）
+                    amount = src.PendingSleepLayers; // 豁免费转时长（自我沉睡，灰+绿合计）
+                    src._pendingSleepLayers = 0;     // 消费即清（一次性）
                 }
                 if (amount <= 0)
                 {
@@ -721,6 +721,6 @@ namespace CardCore.Attribute.Handlers
         }
 
         protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => effect.Value > 0 ? $"赋予{effect.Value}层沉睡（无法重置、效果无效）" : "赋予沉睡（灰费豁免量=持续回合）";
+            => effect.Value > 0 ? $"赋予{effect.Value}层沉睡（无法重置、效果无效）" : "赋予沉睡（豁免费量=持续回合）";
     }
 }

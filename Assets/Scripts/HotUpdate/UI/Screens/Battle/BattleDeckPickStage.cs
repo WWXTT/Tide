@@ -225,11 +225,13 @@ namespace SynergyUI
 
         // ======================================== 内部 ========================================
 
-        /// <summary>卡组张数（视觉厚度用；读档失败按 30）。</summary>
+        /// <summary>卡组张数（视觉厚度用；读档失败按 30）。衍生物模板不计（额外区配套——
+        /// 厚度按牌库正卡数，绿·慢速 32 条显示 30）。</summary>
         private static int CountOf(string deckName)
         {
-            var data = DeckSerializer.Load(deckName);
-            return data?.cardIds != null ? data.cardIds.Count : 30;
+            var data = DeckCatalog.Load(deckName); // 玩家存档 / 只读预组（2026-10-22）
+            if (data?.cardIds == null) return 30;
+            return data.cardIds.Count(id => CardCatalog.GetById(id)?.IsTokenTemplate != true);
         }
 
         private void SetPrompt(string text)

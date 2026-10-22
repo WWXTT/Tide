@@ -143,7 +143,7 @@ namespace CardCore
                     id = keywordId,
                     nameZh = atom.DisplayName,      // 中文短名（冲锋/突袭…）
                     nameEn = atom.EnumName,
-                    color = ElementAffinities.GetAffinityForEffect(type).PrimaryColor.ToString(), // 源自表 EffectColor
+                    color = ElementAffinities.GetAffinityForEffect(type).PrimaryColor.ToString(), // 源自表 ManaList 主色（装载时并入 Tags 色名；旧 EffectColor 列已删）
                     description = atom.Description, // 展示模板（{target}获得冲锋）
                     isPassive = true,
                     atomicEffect = atom.EnumName,   // 被动授予的原子效果（GrantXxx）
@@ -389,7 +389,7 @@ namespace CardCore
 
         /// <summary>
         /// 构筑期目标域校验（2026-09-10 目标域模型）：每效果的主序列原子域交集为空 → LogError
-        /// （仿 BranchConfigTable.ValidateAgainstCode 先例：可见不炸——坏卡点名，装载不中断）。
+        /// （可见不炸——坏卡点名，装载不中断）。
         /// 同场校验组合上限：主序列原子 ≤ 2（2026-09-10 攻/守效果化定案——
         /// 三种合法组合形式：抉择 / 条件奖励(门) / 并列；超限告警不拦截）。
         /// 单范围域宽校验（2026-09-16 六值定案）：模式 0/1/2 要求组合域单一 TargetKind——
@@ -643,11 +643,6 @@ namespace CardCore
 
             return result;
         }
-
-        /// <summary>
-        /// 构筑期目标域校验（2026-09-10 目标域模型）：每效果的主序列原子域交集为空 → LogError
-        /// （仿 BranchConfigTable.ValidateAgainstCode 先例：可见不炸——坏卡点名，装载不中断）。
-        /// </summary>
 
         /// <summary>
         /// 将 CardData 列表转换为 CardWrapper 列表

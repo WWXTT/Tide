@@ -32,7 +32,7 @@ namespace CardCore.AI.NeuralEnv
     /// 但把决策点替换为「读动作 → GameActions 调用 → 快照 Φ 做差算塑形奖励」。
     ///
     /// 时序（每回合）：
-    ///   Standby → SkipElementPool → 回合初自动横置地牌产费 → Main（模型决策点）
+    ///   回合开始（StartNewTurn 自动过 Standby → Main；下方 Standby 分支只是防御兜底）
     ///   → 模型选动作 → 应用 → 响应窗口（v2）→ 阶段推进折返 → 下一决策点（可能是对方回合
     ///   或对方回合内的响应窗口）。
     ///
@@ -312,7 +312,8 @@ namespace CardCore.AI.NeuralEnv
         /// 推进到下一决策点（v2 泛化：Main 停靠 + 响应停靠）：
         ///   栈非空（或空栈待发先上栈）→ 响应窗口：候选&gt;0 停靠（decider=优先权方），
         ///     候选=0 驱动自动 Pass 直到窗口关闭（双 Pass 结算）——与旧 DrainStack 双 Pass 语义等价；
-        ///   栈空 → 相位推进：Standby → SkipElementPool → 回合初横置产费 → Main 停靠（decider=回合玩家）；
+        ///   栈空 → 相位推进：若仍处 Standby 走兼容口 SkipElementPool 入 Main（正常流程 StartNewTurn
+        ///     已自动推进，此分支仅防御）→ Main 停靠（decider=回合玩家）；
         ///     End → CheckPhaseTransition → 下一回合 Standby（循环折返）。
         /// vs SimpleAI 模式：非模型回合不逐相位推进，直接整回合交给 SimpleAI（镜像 AiBattleDriver）；
         /// 模型回合内的响应窗口也自动让过（TryResolveResponseWindow 内的 vs 分支）。

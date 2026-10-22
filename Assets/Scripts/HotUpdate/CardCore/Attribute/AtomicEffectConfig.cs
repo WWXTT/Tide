@@ -78,9 +78,6 @@ namespace CardCore.Attribute
         /// <summary>可选触发时机（逗号分隔的 TriggerTiming 枚举名，空表示无触发配置）</summary>
         public string AvailableTriggerTimings;
 
-        /// <summary>分支配置ID（逗号分隔，引用 BranchConfigTable）</summary>
-        public string BranchConfigs;
-
         /// <summary>关联效果枚举名（逗号分隔，常搭配出现的效果）</summary>
         public string RelatedEffects;
 
@@ -137,21 +134,6 @@ namespace CardCore.Attribute
         /// </summary>
         public List<int> GetTargetKindList()
             => CardCore.TargetKindRules.Parse(TargetKinds);
-
-        /// <summary>
-        /// 获取分支配置ID列表
-        /// </summary>
-        public List<string> GetBranchConfigIdList()
-        {
-            if (string.IsNullOrEmpty(BranchConfigs)) return new List<string>();
-            var list = new List<string>();
-            foreach (var s in BranchConfigs.Split(','))
-            {
-                var trimmed = s.Trim();
-                if (!string.IsNullOrEmpty(trimmed)) list.Add(trimmed);
-            }
-            return list;
-        }
     }
 
     #region 属性枚举定义

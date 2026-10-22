@@ -1,1034 +1,1939 @@
 {
- "cards": [
-  {
-   "id": "C_4A88A165",
-   "cardName": "教学生物12",
-   "supertype": "Creature",
-   "power": 1,
-   "life": 1,
-   "costList": [
-    1,
-    0,
-    0,
-    0,
-    0,
-    0
-   ],
-   "tags": [
-    "教学"
-   ]
-  },
-  {
-   "id": "C_62DD963D",
-   "cardName": "教学生物13",
-   "supertype": "Creature",
-   "power": 2,
-   "life": 1,
-   "costList": [
-    1,
-    0,
-    0,
-    0,
-    0,
-    0
-   ],
-   "tags": [
-    "教学"
-   ]
-  },
-  {
-   "id": "C_159D9AD0",
-   "cardName": "教学生物24",
-   "supertype": "Creature",
-   "power": 3,
-   "life": 2,
-   "costList": [
-    2,
-    0,
-    0,
-    0,
-    0,
-    0
-   ],
-   "tags": [
-    "教学"
-   ]
-  },
-  {
-   "id": "C_7E5A100B",
-   "cardName": "教学生物11",
-   "supertype": "Creature",
-   "illustration": "PetitAngel",
-   "power": 2,
-   "life": 2,
-   "costList": [
-    2,
-    0,
-    0,
-    0,
-    0,
-    0
-   ],
-   "tags": [
-    "教学"
-   ]
-  },
-  {
-   "id": "C_7E5A100D",
-   "cardName": "教学生物13",
-   "supertype": "Creature",
-   "illustration": "DragonessTheWickedKnight",
-   "power": 7,
-   "life": 7,
-   "costList": [
-    2,
-    0,
-    0,
-    0,
-    0,
-    0
-   ],
-   "tags": [
-    "教学"
-   ]
-  },
-  {
-   "id": "C_7E5A100E",
-   "cardName": "教学生物14",
-   "supertype": "Creature",
-   "illustration": "Kojikocy",
-   "power": 8,
-   "life": 8,
-   "costList": [
-    2,
-    0,
-    0,
-    0,
-    0,
-    0
-   ],
-   "tags": [
-    "教学"
-   ]
-  },
-  {
-   "id": "C_7E5A100F",
-   "cardName": "教学生物15",
-   "supertype": "Creature",
-   "illustration": "DarkPrisoner",
-   "power": 6,
-   "life": 1,
-   "costList": [
-    2,
-    0,
-    0,
-    0,
-    0,
-    0
-   ],
-   "tags": [
-    "教学"
-   ]
-  },
-  {
-   "id": "C_62154923",
-   "cardName": "教学·处决",
-   "supertype": "Spell",
-   "costList": [
-    0,
-    0,
-    0,
-    0,
-    0,
-    0
-   ],
-   "tags": [
-    "教学"
-   ],
-   "effectIds": [
-    "3C1041AC"
-   ]
-  },
-  {
-   "id": "C_DE67CAC7",
-   "cardName": "教学·乱灭",
-   "supertype": "Spell",
-   "costList": [
-    0,
-    0,
-    0,
-    0,
-    0,
-    0
-   ],
-   "tags": [
-    "教学"
-   ],
-   "effectIds": [
-    "0489681E"
-   ]
-  },
-  {
-   "id": "C_61CE70CE",
-   "cardName": "教学·缄默处决",
-   "supertype": "Spell",
-   "costList": [
-    0,
-    0,
-    0,
-    0,
-    0,
-    0
-   ],
-   "tags": [
-    "教学"
-   ],
-   "effectIds": [
-    "8DD071F9"
-   ]
-  },
-  {
-   "id": "C_CA794022",
-   "cardName": "教学·岩甲兽",
-   "supertype": "Creature",
-   "illustration": "Kojikocy",
-   "power": 8,
-   "life": 9,
-   "costList": [
-    3,
-    0,
-    0,
-    0,
-    0,
-    0
-   ],
-   "tags": [
-    "教学"
-   ]
-  },
-  {
-   "id": "C_7F4A73BE",
-   "cardName": "教学·不朽卫士",
-   "supertype": "Creature",
-   "illustration": "MukaMuka",
-   "power": 3,
-   "life": 3,
-   "costList": [
-    3,
-    0,
-    0,
-    0,
-    0,
-    0
-   ],
-   "tags": [
-    "教学"
-   ],
-   "keywords": [
-    "Indestructible"
-   ]
-  },
-  {
-   "id": "C_63272F1B",
-   "cardName": "教学·潜行者",
-   "supertype": "Creature",
-   "illustration": "DarkPrisoner",
-   "power": 2,
-   "life": 2,
-   "costList": [
-    2,
-    0,
-    0,
-    0,
-    0,
-    0
-   ],
-   "tags": [
-    "教学"
-   ],
-   "keywords": [
-    "Stealth"
-   ]
-  },
-  {
-   "id": "C_DC33C804",
-   "cardName": "教学·先发箭",
-   "supertype": "Spell",
-   "costList": [
-    0,
-    0,
-    0,
-    0,
-    0,
-    0
-   ],
-   "tags": [
-    "教学"
-   ],
-   "effectIds": [
-    "5B9B45C5"
-   ]
-  },
-  {
-   "id": "C_AE6B683B",
-   "cardName": "教学·以少胜多",
-   "supertype": "Spell",
-   "costList": [
-    0,
-    0,
-    0,
-    0,
-    0,
-    0
-   ],
-   "tags": [
-    "教学"
-   ],
-   "effectIds": [
-    "91FCF40A"
-   ]
-  },
-  {
-   "id": "C_E640E61F",
-   "cardName": "教学·厚积薄发",
-   "supertype": "Spell",
-   "costList": [
-    0,
-    0,
-    0,
-    0,
-    0,
-    0
-   ],
-   "tags": [
-    "教学"
-   ],
-   "effectIds": [
-    "0DEC4CDA"
-   ]
-  },
-  {
-   "id": "C_D3385C0C",
-   "cardName": "教学·终结击",
-   "supertype": "Spell",
-   "costList": [
-    0,
-    0,
-    0,
-    0,
-    0,
-    0
-   ],
-   "tags": [
-    "教学"
-   ],
-   "effectIds": [
-    "BB69AEA6"
-   ]
-  },
-  {
-   "id": "C_DF350591",
-   "cardName": "教学·以弱搏强",
-   "supertype": "Spell",
-   "costList": [
-    0,
-    0,
-    0,
-    0,
-    0,
-    0
-   ],
-   "tags": [
-    "教学"
-   ],
-   "effectIds": [
-    "23FB3BC4"
-   ]
-  },
-  {
-   "id": "C_19FC3189",
-   "cardName": "教学·大地之力",
-   "supertype": "Spell",
-   "costList": [
-    0,
-    0,
-    0,
-    0,
-    0,
-    0
-   ],
-   "tags": [
-    "教学"
-   ],
-   "effectIds": [
-    "F3ADA5C6"
-   ]
-  },
-  {
-   "id": "C_368ECF31",
-   "cardName": "教学·命运之牌",
-   "supertype": "Spell",
-   "costList": [
-    0,
-    0,
-    0,
-    0,
-    0,
-    0
-   ],
-   "tags": [
-    "教学"
-   ],
-   "effectIds": [
-    "ACDF1245"
-   ]
-  },
-  {
-   "id": "C_1D537FE9",
-   "cardName": "教学·以多欺少",
-   "supertype": "Spell",
-   "costList": [
-    0,
-    0,
-    0,
-    0,
-    0,
-    0
-   ],
-   "tags": [
-    "教学"
-   ],
-   "effectIds": [
-    "E3E2EE1B"
-   ]
-  },
-  {
-   "id": "C_DC84250C",
-   "cardName": "教学·弹尽粮绝",
-   "supertype": "Spell",
-   "costList": [
-    0,
-    0,
-    0,
-    0,
-    0,
-    0
-   ],
-   "tags": [
-    "教学"
-   ],
-   "effectIds": [
-    "8ECC5F8B"
-   ]
-  },
-  {
-   "id": "C_0E021A0D",
-   "cardName": "教学·居高临下",
-   "supertype": "Spell",
-   "costList": [
-    0,
-    0,
-    0,
-    0,
-    0,
-    0
-   ],
-   "tags": [
-    "教学"
-   ],
-   "effectIds": [
-    "11043BA0"
-   ]
-  },
-  {
-   "id": "C_1489CC0B",
-   "cardName": "教学·破釜沉舟",
-   "supertype": "Spell",
-   "costList": [
-    0,
-    0,
-    0,
-    0,
-    0,
-    0
-   ],
-   "tags": [
-    "教学"
-   ],
-   "effectIds": [
-    "745280CE"
-   ]
-  },
-  {
-   "id": "C_DE1F1C8B",
-   "cardName": "教学·最后一发",
-   "supertype": "Spell",
-   "costList": [
-    0,
-    0,
-    0,
-    0,
-    0,
-    0
-   ],
-   "tags": [
-    "教学"
-   ],
-   "effectIds": [
-    "ABFAF65D"
-   ]
-  },
-  {
-   "id": "C_295C5E0F",
-   "cardName": "教学·守墓巨像",
-   "supertype": "Creature",
-   "illustration": "MukaMuka",
-   "power": 2,
-   "life": 7,
-   "costList": [
-    3,
-    0,
-    0,
-    0,
-    0,
-    0
-   ],
-   "tags": [
-    "教学"
-   ],
-   "effectIds": [
-    "91535cec"
-   ]
-  },
-  {
-   "id": "C_2E341806",
-   "cardName": "教学·游离小妖",
-   "supertype": "Creature",
-   "illustration": "PetitAngel",
-   "power": 1,
-   "life": 2,
-   "costList": [
-    1,
-    0,
-    0,
-    0,
-    0,
-    0
-   ],
-   "tags": [
-    "教学"
-   ]
-  },
-  {
-   "id": "C_CA720FD5",
-   "cardName": "教学·倒计时龟",
-   "supertype": "Creature",
-   "illustration": "MukaMuka",
-   "power": 2,
-   "life": 3,
-   "costList": [
-    2,
-    0,
-    0,
-    0,
-    0,
-    0
-   ],
-   "tags": [
-    "教学"
-   ],
-   "effectIds": [
-    "AC0306F3"
-   ]
-  },
-  {
-   "id": "C_2FA0E93E",
-   "cardName": "教学·运势壹",
-   "supertype": "Creature",
-   "illustration": "PetitAngel",
-   "power": 1,
-   "life": 2,
-   "costList": [
-    1,
-    0,
-    0,
-    0,
-    0,
-    0
-   ],
-   "tags": [
-    "教学"
-   ],
-   "effectIds": [
-    "C5DDE357"
-   ]
-  },
-  {
-   "id": "C_43782189",
-   "cardName": "教学·运势贰",
-   "supertype": "Creature",
-   "illustration": "DragonessTheWickedKnight",
-   "power": 1,
-   "life": 2,
-   "costList": [
-    1,
-    0,
-    0,
-    0,
-    0,
-    0
-   ],
-   "tags": [
-    "教学"
-   ],
-   "effectIds": [
-    "D4531AA1"
-   ]
-  },
-  {
-   "id": "C_1A67BE43",
-   "cardName": "教学·运势叁",
-   "supertype": "Creature",
-   "illustration": "Kojikocy",
-   "power": 1,
-   "life": 2,
-   "costList": [
-    1,
-    0,
-    0,
-    0,
-    0,
-    0
-   ],
-   "tags": [
-    "教学"
-   ],
-   "effectIds": [
-    "322D145C"
-   ]
-  },
-  {
-   "id": "C_CCC6BD2F",
-   "cardName": "教学·运势肆",
-   "supertype": "Creature",
-   "illustration": "DarkPrisoner",
-   "power": 1,
-   "life": 2,
-   "costList": [
-    1,
-    0,
-    0,
-    0,
-    0,
-    0
-   ],
-   "tags": [
-    "教学"
-   ],
-   "effectIds": [
-    "D7B81DDC"
-   ]
-  },
-  {
-   "id": "C_ED2C6F51",
-   "cardName": "教学·运势伍",
-   "supertype": "Creature",
-   "illustration": "MukaMuka",
-   "power": 1,
-   "life": 2,
-   "costList": [
-    1,
-    0,
-    0,
-    0,
-    0,
-    0
-   ],
-   "tags": [
-    "教学"
-   ],
-   "effectIds": [
-    "2CD9048A"
-   ]
-  },
-  {
-   "id": "C_F2B9055A",
-   "cardName": "教学·运势陆",
-   "supertype": "Creature",
-   "illustration": "Griffore",
-   "power": 1,
-   "life": 2,
-   "costList": [
-    1,
-    0,
-    0,
-    0,
-    0,
-    0
-   ],
-   "tags": [
-    "教学"
-   ],
-   "effectIds": [
-    "8E367535"
-   ]
-  },
-  {
-   "id": "C_D915D58E",
-   "cardName": "教学·拼点武者",
-   "supertype": "Creature",
-   "costList": [
-    1,
-    0,
-    0,
-    0,
-    0,
-    0
-   ],
-   "tags": [
-    "教学"
-   ],
-   "effectIds": [
-    "A6975E5D"
-   ],
-   "illustration": "DragonessTheWickedKnight",
-   "power": 1,
-   "life": 1
-  },
-  {
-   "id": "C_47366FDF",
-   "cardName": "教学·死亡计数官",
-   "supertype": "Creature",
-   "costList": [
-    1,
-    0,
-    0,
-    0,
-    0,
-    0
-   ],
-   "tags": [
-    "教学"
-   ],
-   "effectIds": [
-    "3BE52030"
-   ],
-   "illustration": "DarkPrisoner",
-   "power": 1,
-   "life": 2
-  },
-  {
-   "id": "C_37590ABA",
-   "cardName": "教学·充盈兽一",
-   "supertype": "Creature",
-   "costList": [
-    1,
-    0,
-    0,
-    0,
-    0,
-    0
-   ],
-   "tags": [
-    "教学"
-   ],
-   "effectIds": [
-    "BF69F534"
-   ],
-   "illustration": "PetitAngel",
-   "power": 1,
-   "life": 2
-  },
-  {
-   "id": "C_E5B9B439",
-   "cardName": "教学·充盈兽二",
-   "supertype": "Creature",
-   "costList": [
-    1,
-    0,
-    0,
-    0,
-    0,
-    0
-   ],
-   "tags": [
-    "教学"
-   ],
-   "effectIds": [
-    "A628AC66"
-   ],
-   "illustration": "PetitAngel",
-   "power": 1,
-   "life": 2
-  },
-  {
-   "id": "C_B5CB770F",
-   "cardName": "教学·充盈兽三",
-   "supertype": "Creature",
-   "costList": [
-    1,
-    0,
-    0,
-    0,
-    0,
-    0
-   ],
-   "tags": [
-    "教学"
-   ],
-   "effectIds": [
-    "6C28CDF3"
-   ],
-   "illustration": "PetitAngel",
-   "power": 1,
-   "life": 2
-  },
-  {
-   "id": "C_D5F53D47",
-   "cardName": "教学·充盈兽四",
-   "supertype": "Creature",
-   "costList": [
-    1,
-    0,
-    0,
-    0,
-    0,
-    0
-   ],
-   "tags": [
-    "教学"
-   ],
-   "effectIds": [
-    "981112BA"
-   ],
-   "illustration": "PetitAngel",
-   "power": 1,
-   "life": 2
-  },
-  {
-   "id": "C_4EAE4725",
-   "cardName": "教学·充盈兽五",
-   "supertype": "Creature",
-   "costList": [
-    1,
-    0,
-    0,
-    0,
-    0,
-    0
-   ],
-   "tags": [
-    "教学"
-   ],
-   "effectIds": [
-    "60852B8F"
-   ],
-   "illustration": "PetitAngel",
-   "power": 1,
-   "life": 2
-  },
-  {
-   "id": "C_BCA1D9C8",
-   "cardName": "教学·充盈兽六",
-   "supertype": "Creature",
-   "costList": [
-    1,
-    0,
-    0,
-    0,
-    0,
-    0
-   ],
-   "tags": [
-    "教学"
-   ],
-   "effectIds": [
-    "B0280213"
-   ],
-   "illustration": "PetitAngel",
-   "power": 1,
-   "life": 2
-  },
-  {
-   "id": "C_3D470EE8",
-   "cardName": "教学·幼兽",
-   "supertype": "Creature",
-   "costList": [
-    0,
-    0,
-    0,
-    1,
-    0,
-    0
-   ],
-   "tags": [
-    "教学"
-   ],
-   "illustration": "Kojikocy",
-   "power": 1,
-   "life": 1
-  },
-  {
-   "id": "C_35A53D34",
-   "cardName": "教学·附加诅咒",
-   "supertype": "Spell",
-   "costList": [
-    0,
-    0,
-    0,
-    0,
-    0,
-    0
-   ],
-   "tags": [
-    "教学"
-   ],
-   "effectIds": [
-    "5E6839AA"
-   ]
-  },
-  {
-   "id": "C_BEE512DB",
-   "cardName": "教学·附加祝福",
-   "supertype": "Spell",
-   "costList": [
-    0,
-    0,
-    0,
-    0,
-    0,
-    0
-   ],
-   "tags": [
-    "教学"
-   ],
-   "effectIds": [
-    "2DEAFA89"
-   ]
-  },
-  {
-   "id": "C_9A2961C5",
-   "cardName": "教学·团结兽",
-   "supertype": "Creature",
-   "illustration": "MukaMuka",
-   "power": 1,
-   "life": 2,
-   "costList": [
-    1,
-    0,
-    0,
-    0,
-    0,
-    0
-   ],
-   "tags": [
-    "教学"
-   ],
-   "effectIds": [
-    "D9C996F2"
-   ]
-  },
-  {
-   "id": "C_C18EE5C3",
-   "cardName": "教学·直伤兽",
-   "supertype": "Creature",
-   "illustration": "Kojikocy",
-   "power": 1,
-   "life": 2,
-   "costList": [
-    1,
-    0,
-    0,
-    0,
-    0,
-    0
-   ],
-   "tags": [
-    "教学"
-   ],
-   "effectIds": [
-    "E1D84E55"
-   ]
-  },
-  {
-   "id": "C_09BAF20F",
-   "cardName": "教学·黑晶仔",
-   "supertype": "Creature",
-   "illustration": "Kojikocy",
-   "power": 1,
-   "life": 1,
-   "costList": [
-    1,
-    0,
-    0,
-    0,
-    0,
-    0
-   ],
-   "tags": [
-    "教学"
-   ]
-  },
-  {
-   "id": "C_7F5ADCE4",
-   "cardName": "教学·元素井",
-   "supertype": "Creature",
-   "illustration": "Morinphen",
-   "power": 1,
-   "life": 1,
-   "costList": [
-    1,
-    1,
-    1,
-    1,
-    0,
-    0
-   ],
-   "tags": [
-    "教学"
-   ]
-  },
-  {
-   "id": "C_791FE42E",
-   "cardName": "末日降临",
-   "supertype": "Creature",
-   "illustration": "AirEater",
-   "power": 30,
-   "life": 30,
-   "costList": [
-    24,
-    0,
-    0,
-    2,
-    0,
-    0
-   ],
-   "tags": [
-    "教学"
-   ],
-   "effectIds": [
-    "6136F558",
-    "c2565884"
-   ]
-  },
-  {
-   "id": "C_57A3ADD6",
-   "cardName": "纳川仪典",
-   "supertype": "Enchantment",
-   "costList": [
-    0,
-    0,
-    5,
-    0,
-    0,
-    0
-   ],
-   "tags": [
-    "教学"
-   ],
-   "effectIds": [
-    "CCA478E6"
-   ]
-  }
- ]
+  "cards": [
+    {
+      "id": "C_4A88A165",
+      "cardName": "教学生物12",
+      "supertype": "Creature",
+      "power": 1,
+      "life": 1,
+      "costList": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "教学"
+      ]
+    },
+    {
+      "id": "C_62DD963D",
+      "cardName": "教学生物13",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 1,
+      "costList": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "教学"
+      ]
+    },
+    {
+      "id": "C_159D9AD0",
+      "cardName": "教学生物24",
+      "supertype": "Creature",
+      "power": 3,
+      "life": 2,
+      "costList": [
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "教学"
+      ]
+    },
+    {
+      "id": "C_7E5A100B",
+      "cardName": "教学生物11",
+      "supertype": "Creature",
+      "illustration": "PetitAngel",
+      "power": 2,
+      "life": 2,
+      "costList": [
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "教学"
+      ]
+    },
+    {
+      "id": "C_7E5A100D",
+      "cardName": "教学生物13",
+      "supertype": "Creature",
+      "illustration": "DragonessTheWickedKnight",
+      "power": 7,
+      "life": 7,
+      "costList": [
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "教学"
+      ]
+    },
+    {
+      "id": "C_7E5A100E",
+      "cardName": "教学生物14",
+      "supertype": "Creature",
+      "illustration": "Kojikocy",
+      "power": 8,
+      "life": 8,
+      "costList": [
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "教学"
+      ]
+    },
+    {
+      "id": "C_7E5A100F",
+      "cardName": "教学生物15",
+      "supertype": "Creature",
+      "illustration": "DarkPrisoner",
+      "power": 6,
+      "life": 1,
+      "costList": [
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "教学"
+      ]
+    },
+    {
+      "id": "C_62154923",
+      "cardName": "教学·处决",
+      "supertype": "Spell",
+      "tags": [
+        "教学"
+      ],
+      "effectIds": [
+        "3C1041AC"
+      ]
+    },
+    {
+      "id": "C_DE67CAC7",
+      "cardName": "教学·乱灭",
+      "supertype": "Spell",
+      "tags": [
+        "教学"
+      ],
+      "effectIds": [
+        "0489681E"
+      ]
+    },
+    {
+      "id": "C_61CE70CE",
+      "cardName": "教学·缄默处决",
+      "supertype": "Spell",
+      "tags": [
+        "教学"
+      ],
+      "effectIds": [
+        "8DD071F9"
+      ]
+    },
+    {
+      "id": "C_CA794022",
+      "cardName": "教学·岩甲兽",
+      "supertype": "Creature",
+      "illustration": "Kojikocy",
+      "power": 8,
+      "life": 9,
+      "costList": [
+        3.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "教学"
+      ]
+    },
+    {
+      "id": "C_7F4A73BE",
+      "cardName": "教学·不朽卫士",
+      "supertype": "Creature",
+      "illustration": "MukaMuka",
+      "power": 3,
+      "life": 3,
+      "costList": [
+        3.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "keywords": [
+        "Indestructible"
+      ],
+      "tags": [
+        "教学"
+      ]
+    },
+    {
+      "id": "C_63272F1B",
+      "cardName": "教学·潜行者",
+      "supertype": "Creature",
+      "illustration": "DarkPrisoner",
+      "power": 2,
+      "life": 2,
+      "costList": [
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "keywords": [
+        "Stealth"
+      ],
+      "tags": [
+        "教学"
+      ]
+    },
+    {
+      "id": "C_DC33C804",
+      "cardName": "教学·先发箭",
+      "supertype": "Spell",
+      "tags": [
+        "教学"
+      ],
+      "effectIds": [
+        "5B9B45C5"
+      ]
+    },
+    {
+      "id": "C_AE6B683B",
+      "cardName": "教学·以少胜多",
+      "supertype": "Spell",
+      "tags": [
+        "教学"
+      ],
+      "effectIds": [
+        "91FCF40A"
+      ]
+    },
+    {
+      "id": "C_E640E61F",
+      "cardName": "教学·厚积薄发",
+      "supertype": "Spell",
+      "tags": [
+        "教学"
+      ],
+      "effectIds": [
+        "0DEC4CDA"
+      ]
+    },
+    {
+      "id": "C_D3385C0C",
+      "cardName": "教学·终结击",
+      "supertype": "Spell",
+      "tags": [
+        "教学"
+      ],
+      "effectIds": [
+        "BB69AEA6"
+      ]
+    },
+    {
+      "id": "C_DF350591",
+      "cardName": "教学·以弱搏强",
+      "supertype": "Spell",
+      "tags": [
+        "教学"
+      ],
+      "effectIds": [
+        "23FB3BC4"
+      ]
+    },
+    {
+      "id": "C_19FC3189",
+      "cardName": "教学·大地之力",
+      "supertype": "Spell",
+      "tags": [
+        "教学"
+      ],
+      "effectIds": [
+        "F3ADA5C6"
+      ]
+    },
+    {
+      "id": "C_368ECF31",
+      "cardName": "教学·命运之牌",
+      "supertype": "Spell",
+      "tags": [
+        "教学"
+      ],
+      "effectIds": [
+        "ACDF1245"
+      ]
+    },
+    {
+      "id": "C_1D537FE9",
+      "cardName": "教学·以多欺少",
+      "supertype": "Spell",
+      "tags": [
+        "教学"
+      ],
+      "effectIds": [
+        "E3E2EE1B"
+      ]
+    },
+    {
+      "id": "C_DC84250C",
+      "cardName": "教学·弹尽粮绝",
+      "supertype": "Spell",
+      "tags": [
+        "教学"
+      ],
+      "effectIds": [
+        "8ECC5F8B"
+      ]
+    },
+    {
+      "id": "C_0E021A0D",
+      "cardName": "教学·居高临下",
+      "supertype": "Spell",
+      "tags": [
+        "教学"
+      ],
+      "effectIds": [
+        "11043BA0"
+      ]
+    },
+    {
+      "id": "C_1489CC0B",
+      "cardName": "教学·破釜沉舟",
+      "supertype": "Spell",
+      "tags": [
+        "教学"
+      ],
+      "effectIds": [
+        "745280CE"
+      ]
+    },
+    {
+      "id": "C_DE1F1C8B",
+      "cardName": "教学·最后一发",
+      "supertype": "Spell",
+      "tags": [
+        "教学"
+      ],
+      "effectIds": [
+        "ABFAF65D"
+      ]
+    },
+    {
+      "id": "C_295C5E0F",
+      "cardName": "教学·守墓巨像",
+      "supertype": "Creature",
+      "illustration": "MukaMuka",
+      "power": 2,
+      "life": 7,
+      "costList": [
+        3.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "教学"
+      ],
+      "effectIds": [
+        "91535cec"
+      ]
+    },
+    {
+      "id": "C_2E341806",
+      "cardName": "教学·游离小妖",
+      "supertype": "Creature",
+      "illustration": "PetitAngel",
+      "power": 1,
+      "life": 2,
+      "costList": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "教学"
+      ]
+    },
+    {
+      "id": "C_CA720FD5",
+      "cardName": "教学·倒计时龟",
+      "supertype": "Creature",
+      "illustration": "MukaMuka",
+      "power": 2,
+      "life": 3,
+      "costList": [
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "教学"
+      ],
+      "effectIds": [
+        "AC0306F3"
+      ]
+    },
+    {
+      "id": "C_2FA0E93E",
+      "cardName": "教学·运势壹",
+      "supertype": "Creature",
+      "illustration": "PetitAngel",
+      "power": 1,
+      "life": 2,
+      "costList": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "教学"
+      ],
+      "effectIds": [
+        "C5DDE357"
+      ]
+    },
+    {
+      "id": "C_43782189",
+      "cardName": "教学·运势贰",
+      "supertype": "Creature",
+      "illustration": "DragonessTheWickedKnight",
+      "power": 1,
+      "life": 2,
+      "costList": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "教学"
+      ],
+      "effectIds": [
+        "D4531AA1"
+      ]
+    },
+    {
+      "id": "C_1A67BE43",
+      "cardName": "教学·运势叁",
+      "supertype": "Creature",
+      "illustration": "Kojikocy",
+      "power": 1,
+      "life": 2,
+      "costList": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "教学"
+      ],
+      "effectIds": [
+        "322D145C"
+      ]
+    },
+    {
+      "id": "C_CCC6BD2F",
+      "cardName": "教学·运势肆",
+      "supertype": "Creature",
+      "illustration": "DarkPrisoner",
+      "power": 1,
+      "life": 2,
+      "costList": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "教学"
+      ],
+      "effectIds": [
+        "D7B81DDC"
+      ]
+    },
+    {
+      "id": "C_ED2C6F51",
+      "cardName": "教学·运势伍",
+      "supertype": "Creature",
+      "illustration": "MukaMuka",
+      "power": 1,
+      "life": 2,
+      "costList": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "教学"
+      ],
+      "effectIds": [
+        "2CD9048A"
+      ]
+    },
+    {
+      "id": "C_F2B9055A",
+      "cardName": "教学·运势陆",
+      "supertype": "Creature",
+      "illustration": "Griffore",
+      "power": 1,
+      "life": 2,
+      "costList": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "教学"
+      ],
+      "effectIds": [
+        "8E367535"
+      ]
+    },
+    {
+      "id": "C_D915D58E",
+      "cardName": "教学·拼点武者",
+      "supertype": "Creature",
+      "illustration": "DragonessTheWickedKnight",
+      "power": 1,
+      "life": 1,
+      "costList": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "教学"
+      ],
+      "effectIds": [
+        "A6975E5D"
+      ]
+    },
+    {
+      "id": "C_47366FDF",
+      "cardName": "教学·死亡计数官",
+      "supertype": "Creature",
+      "illustration": "DarkPrisoner",
+      "power": 1,
+      "life": 2,
+      "costList": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "教学"
+      ],
+      "effectIds": [
+        "3BE52030"
+      ]
+    },
+    {
+      "id": "C_37590ABA",
+      "cardName": "教学·充盈兽一",
+      "supertype": "Creature",
+      "illustration": "PetitAngel",
+      "power": 1,
+      "life": 2,
+      "costList": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "教学"
+      ],
+      "effectIds": [
+        "BF69F534"
+      ]
+    },
+    {
+      "id": "C_E5B9B439",
+      "cardName": "教学·充盈兽二",
+      "supertype": "Creature",
+      "illustration": "PetitAngel",
+      "power": 1,
+      "life": 2,
+      "costList": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "教学"
+      ],
+      "effectIds": [
+        "A628AC66"
+      ]
+    },
+    {
+      "id": "C_B5CB770F",
+      "cardName": "教学·充盈兽三",
+      "supertype": "Creature",
+      "illustration": "PetitAngel",
+      "power": 1,
+      "life": 2,
+      "costList": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "教学"
+      ],
+      "effectIds": [
+        "6C28CDF3"
+      ]
+    },
+    {
+      "id": "C_D5F53D47",
+      "cardName": "教学·充盈兽四",
+      "supertype": "Creature",
+      "illustration": "PetitAngel",
+      "power": 1,
+      "life": 2,
+      "costList": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "教学"
+      ],
+      "effectIds": [
+        "981112BA"
+      ]
+    },
+    {
+      "id": "C_4EAE4725",
+      "cardName": "教学·充盈兽五",
+      "supertype": "Creature",
+      "illustration": "PetitAngel",
+      "power": 1,
+      "life": 2,
+      "costList": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "教学"
+      ],
+      "effectIds": [
+        "60852B8F"
+      ]
+    },
+    {
+      "id": "C_BCA1D9C8",
+      "cardName": "教学·充盈兽六",
+      "supertype": "Creature",
+      "illustration": "PetitAngel",
+      "power": 1,
+      "life": 2,
+      "costList": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "教学"
+      ],
+      "effectIds": [
+        "B0280213"
+      ]
+    },
+    {
+      "id": "C_3D470EE8",
+      "cardName": "教学·幼兽",
+      "supertype": "Creature",
+      "illustration": "Kojikocy",
+      "power": 1,
+      "life": 1,
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "教学"
+      ]
+    },
+    {
+      "id": "C_35A53D34",
+      "cardName": "教学·附加诅咒",
+      "supertype": "Spell",
+      "tags": [
+        "教学"
+      ],
+      "effectIds": [
+        "5E6839AA"
+      ]
+    },
+    {
+      "id": "C_BEE512DB",
+      "cardName": "教学·附加祝福",
+      "supertype": "Spell",
+      "tags": [
+        "教学"
+      ],
+      "effectIds": [
+        "2DEAFA89"
+      ]
+    },
+    {
+      "id": "C_9A2961C5",
+      "cardName": "教学·团结兽",
+      "supertype": "Creature",
+      "illustration": "MukaMuka",
+      "power": 1,
+      "life": 2,
+      "costList": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "教学"
+      ],
+      "effectIds": [
+        "D9C996F2"
+      ]
+    },
+    {
+      "id": "C_C18EE5C3",
+      "cardName": "教学·直伤兽",
+      "supertype": "Creature",
+      "illustration": "Kojikocy",
+      "power": 1,
+      "life": 2,
+      "costList": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "教学"
+      ],
+      "effectIds": [
+        "E1D84E55"
+      ]
+    },
+    {
+      "id": "C_09BAF20F",
+      "cardName": "教学·黑晶仔",
+      "supertype": "Creature",
+      "illustration": "Kojikocy",
+      "power": 1,
+      "life": 1,
+      "costList": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "教学"
+      ]
+    },
+    {
+      "id": "C_7F5ADCE4",
+      "cardName": "教学·元素井",
+      "supertype": "Creature",
+      "illustration": "Morinphen",
+      "power": 1,
+      "life": 1,
+      "costList": [
+        1.0,
+        1.0,
+        1.0,
+        2.0,
+        0.0,
+        0.0
+      ],
+      "keywords": [
+        "Vigilance"
+      ],
+      "tags": [
+        "教学"
+      ],
+      "effectIds": [
+        "a3c78f52"
+      ]
+    },
+    {
+      "id": "C_50E2F45D",
+      "cardName": "试作·元素井",
+      "supertype": "Creature",
+      "illustration": "Morinphen",
+      "power": 1,
+      "life": 1,
+      "costList": [
+        1.0,
+        1.0,
+        1.0,
+        2.0,
+        0.0,
+        0.0
+      ],
+      "keywords": [
+        "Vigilance"
+      ],
+      "tags": [
+        "教学"
+      ],
+      "effectIds": [
+        "a3c78f52"
+      ]
+    },
+    {
+      "id": "C_791FE42E",
+      "cardName": "末日降临",
+      "supertype": "Creature",
+      "illustration": "AirEater",
+      "power": 30,
+      "life": 30,
+      "costList": [
+        24.0,
+        0.0,
+        0.0,
+        2.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "教学"
+      ],
+      "effectIds": [
+        "6136F558",
+        "c2565884"
+      ]
+    },
+    {
+      "id": "C_57A3ADD6",
+      "cardName": "纳川仪典",
+      "supertype": "Enchantment",
+      "costList": [
+        0.0,
+        0.0,
+        5.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "教学"
+      ],
+      "effectIds": [
+        "CCA478E6"
+      ]
+    },
+    {
+      "id": "C_1F977068",
+      "cardName": "潮汐观测者",
+      "supertype": "Creature",
+      "power": 1,
+      "life": 3,
+      "costList": [
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeBlueSurplus",
+        "教学"
+      ],
+      "effectIds": [
+        "A3A57507"
+      ]
+    },
+    {
+      "id": "C_B61F1A73",
+      "cardName": "静水贤者",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 2,
+      "costList": [
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeBlueSurplus",
+        "教学"
+      ],
+      "effectIds": [
+        "78B0D3FE"
+      ]
+    },
+    {
+      "id": "C_A9D3C4BF",
+      "cardName": "霜涌结界",
+      "supertype": "Enchantment",
+      "costList": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeBlueSurplus",
+        "教学"
+      ],
+      "effectIds": [
+        "E9CCA56D"
+      ],
+      "durability": 2
+    },
+    {
+      "id": "C_C2C0FA05",
+      "cardName": "秘藏结界",
+      "supertype": "Enchantment",
+      "costList": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeBlueSurplus",
+        "教学"
+      ],
+      "effectIds": [
+        "2070586F"
+      ],
+      "durability": 2
+    },
+    {
+      "id": "C_A4B3AF6D",
+      "cardName": "冰封",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeBlueSurplus",
+        "教学"
+      ],
+      "effectIds": [
+        "977AB6FC"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_554D8515",
+      "cardName": "霜环",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeBlueSurplus",
+        "教学"
+      ],
+      "effectIds": [
+        "F9AA3B87"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_A6864DC8",
+      "cardName": "退潮",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeBlueSurplus",
+        "教学"
+      ],
+      "effectIds": [
+        "9DD21C35"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_B635B3DD",
+      "cardName": "霜蚀抉择",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeBlueSurplus",
+        "教学"
+      ],
+      "effectIds": [
+        "977AB6FC",
+        "73DB24E3"
+      ],
+      "speedBonus": 1
+    },
+    {
+      "id": "C_2E69189D",
+      "cardName": "预知",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeBlueSurplus",
+        "教学"
+      ],
+      "effectIds": [
+        "E2565876"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_F4C2186D",
+      "cardName": "冰墙",
+      "supertype": "Creature",
+      "life": 5,
+      "costList": [
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeBlueSurplus",
+        "教学"
+      ]
+    },
+    {
+      "id": "C_5AC4A93E",
+      "cardName": "霜甲守卫",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 4,
+      "costList": [
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeBlueSurplus",
+        "教学"
+      ]
+    },
+    {
+      "id": "C_563CD6A2",
+      "cardName": "深海巨兽",
+      "supertype": "Creature",
+      "power": 4,
+      "life": 5,
+      "costList": [
+        4.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeBlueSurplus",
+        "教学"
+      ]
+    },
+    {
+      "id": "C_0AB79D0F",
+      "cardName": "隐匿",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeBlueSurplus",
+        "教学"
+      ],
+      "effectIds": [
+        "631B76A9"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_872DA59C",
+      "cardName": "赤烬猎犬",
+      "supertype": "Creature",
+      "power": 3,
+      "life": 2,
+      "costList": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeRedClash",
+        "教学"
+      ],
+      "noGuard": true
+    },
+    {
+      "id": "C_35C5EE76",
+      "cardName": "熔岩突袭兵",
+      "supertype": "Creature",
+      "power": 4,
+      "life": 2,
+      "costList": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeRedClash",
+        "教学"
+      ],
+      "noGuard": true
+    },
+    {
+      "id": "C_6FDF5F8F",
+      "cardName": "燃爪斥候",
+      "supertype": "Creature",
+      "power": 4,
+      "life": 3,
+      "costList": [
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeRedClash",
+        "教学"
+      ],
+      "noGuard": true
+    },
+    {
+      "id": "C_CCD21FFD",
+      "cardName": "焚城先锋",
+      "supertype": "Creature",
+      "power": 4,
+      "life": 2,
+      "costList": [
+        3.0,
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeRedClash",
+        "教学"
+      ],
+      "effectIds": [
+        "1E9B3BDE"
+      ],
+      "noGuard": true,
+      "payloads": [
+        {
+          "refId": "bf06d56b",
+          "kinds": [
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C_6D1F28D9",
+      "cardName": "空手掠袭者",
+      "supertype": "Creature",
+      "power": 4,
+      "life": 2,
+      "costList": [
+        3.0,
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeRedClash",
+        "教学"
+      ],
+      "effectIds": [
+        "6371FBD3"
+      ],
+      "noGuard": true,
+      "payloads": [
+        {
+          "refId": "bf06d56b",
+          "kinds": [
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C_D706FDA0",
+      "cardName": "血怒先锋",
+      "supertype": "Creature",
+      "power": 4,
+      "life": 2,
+      "costList": [
+        2.0,
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeRedClash",
+        "教学"
+      ],
+      "effectIds": [
+        "073f18c7"
+      ],
+      "noGuard": true,
+      "payloads": [
+        {
+          "refId": "bf06d56b",
+          "kinds": [
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C_63D508CA",
+      "cardName": "断刃武士",
+      "supertype": "Creature",
+      "power": 5,
+      "life": 2,
+      "costList": [
+        3.0,
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeRedClash",
+        "教学"
+      ],
+      "effectIds": [
+        "5269CB2C"
+      ],
+      "noGuard": true,
+      "payloads": [
+        {
+          "refId": "bf06d56b",
+          "kinds": [
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C_64C9DEFC",
+      "cardName": "拼点·烬刃武者",
+      "supertype": "Creature",
+      "power": 4,
+      "life": 2,
+      "costList": [
+        3.0,
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeRedClash",
+        "教学"
+      ],
+      "effectIds": [
+        "C33B9907"
+      ],
+      "noGuard": true,
+      "payloads": [
+        {
+          "refId": "bf06d56b",
+          "kinds": [
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C_806CEB98",
+      "cardName": "斩首猎手",
+      "supertype": "Creature",
+      "power": 5,
+      "life": 2,
+      "costList": [
+        3.0,
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeRedClash",
+        "教学"
+      ],
+      "effectIds": [
+        "E72D83F7"
+      ],
+      "noGuard": true,
+      "payloads": [
+        {
+          "refId": "bf06d56b",
+          "kinds": [
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C_EB930092",
+      "cardName": "双刃屠夫",
+      "supertype": "Creature",
+      "power": 5,
+      "life": 2,
+      "costList": [
+        3.0,
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeRedClash",
+        "教学"
+      ],
+      "effectIds": [
+        "AF4D057E"
+      ],
+      "noGuard": true,
+      "payloads": [
+        {
+          "refId": "bf06d56b",
+          "kinds": [
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C_1909E57D",
+      "cardName": "拼点·焚面鬼",
+      "supertype": "Creature",
+      "power": 6,
+      "life": 2,
+      "costList": [
+        3.0,
+        3.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeRedClash",
+        "教学"
+      ],
+      "effectIds": [
+        "66EC9B48"
+      ],
+      "noGuard": true,
+      "payloads": [
+        {
+          "refId": "bf06d56b",
+          "kinds": [
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C_E722F3B6",
+      "cardName": "血税突袭",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeRedClash",
+        "教学"
+      ],
+      "effectIds": [
+        "886E275E"
+      ],
+      "speedBonus": 2,
+      "payloads": [
+        {
+          "refId": "bf06d56b",
+          "kinds": [
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C_72FBE469",
+      "cardName": "战嚎",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeRedClash",
+        "教学"
+      ],
+      "effectIds": [
+        "0F69B9FA"
+      ],
+      "speedBonus": 2,
+      "payloads": [
+        {
+          "refId": "bf06d56b",
+          "kinds": [
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C_9D3326D1",
+      "cardName": "永久磨砺",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeRedClash",
+        "教学"
+      ],
+      "effectIds": [
+        "1AF47825"
+      ],
+      "speedBonus": 2,
+      "payloads": [
+        {
+          "refId": "bf06d56b",
+          "kinds": [
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C_33EA1360",
+      "cardName": "烈焰箭",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeRedClash",
+        "教学"
+      ],
+      "effectIds": [
+        "B663AB71"
+      ],
+      "speedBonus": 2,
+      "payloads": [
+        {
+          "refId": "bf06d56b",
+          "kinds": [
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C_2338F1EE",
+      "cardName": "斩首令",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeRedClash",
+        "教学"
+      ],
+      "effectIds": [
+        "2566E6B9"
+      ],
+      "speedBonus": 2,
+      "payloads": [
+        {
+          "refId": "bf06d56b",
+          "kinds": [
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C_CFBD7C10",
+      "cardName": "激励",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeRedClash",
+        "教学"
+      ],
+      "effectIds": [
+        "F4A0440D"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_079E718B",
+      "cardName": "远古树灵",
+      "supertype": "Creature",
+      "power": 4,
+      "life": 4,
+      "costList": [
+        3.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeGreenCountdown",
+        "衍生物",
+        "教学"
+      ]
+    },
+    {
+      "id": "C_C934C965",
+      "cardName": "世界树之影",
+      "supertype": "Creature",
+      "power": 7,
+      "life": 7,
+      "costList": [
+        5.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeGreenCountdown",
+        "衍生物",
+        "教学"
+      ]
+    },
+    {
+      "id": "C_7D1BF1B4",
+      "cardName": "年轮守卫",
+      "supertype": "Creature",
+      "power": 1,
+      "life": 4,
+      "costList": [
+        3.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeGreenCountdown",
+        "教学"
+      ],
+      "effectIds": [
+        "A308B3EB"
+      ]
+    },
+    {
+      "id": "C_C4013195",
+      "cardName": "苔甲巨龟",
+      "supertype": "Creature",
+      "life": 5,
+      "costList": [
+        3.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeGreenCountdown",
+        "教学"
+      ],
+      "effectIds": [
+        "9164BC9E"
+      ]
+    },
+    {
+      "id": "C_0BB1F76F",
+      "cardName": "时之藤结界",
+      "supertype": "Enchantment",
+      "costList": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeGreenCountdown",
+        "教学"
+      ],
+      "effectIds": [
+        "5B012D05"
+      ],
+      "durability": 2
+    },
+    {
+      "id": "C_27098D09",
+      "cardName": "荆棘古树",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 5,
+      "costList": [
+        4.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeGreenCountdown",
+        "教学"
+      ],
+      "effectIds": [
+        "11A77A85"
+      ]
+    },
+    {
+      "id": "C_46EF2B75",
+      "cardName": "世界树之种",
+      "supertype": "Enchantment",
+      "costList": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeGreenCountdown",
+        "教学"
+      ],
+      "effectIds": [
+        "C718A964"
+      ],
+      "durability": 2
+    },
+    {
+      "id": "C_BDC2E758",
+      "cardName": "苏醒古树",
+      "supertype": "Creature",
+      "power": 4,
+      "life": 5,
+      "costList": [
+        5.0,
+        0.0,
+        0.0,
+        2.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeGreenCountdown",
+        "教学"
+      ],
+      "effectIds": [
+        "44E81E46",
+        "974089EE",
+        "4cf22304"
+      ]
+    },
+    {
+      "id": "C_937E43DB",
+      "cardName": "苏醒巨像",
+      "supertype": "Creature",
+      "power": 5,
+      "life": 7,
+      "costList": [
+        6.0,
+        0.0,
+        0.0,
+        2.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeGreenCountdown",
+        "教学"
+      ],
+      "effectIds": [
+        "44E81E46",
+        "3674559E",
+        "c2565884"
+      ]
+    },
+    {
+      "id": "C_5D73FF7F",
+      "cardName": "毒雾诅咒",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeGreenCountdown",
+        "教学"
+      ],
+      "effectIds": [
+        "2FC34B20"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_48A11B22",
+      "cardName": "蚀命诅咒",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeGreenCountdown",
+        "教学"
+      ],
+      "effectIds": [
+        "98C4AF96"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_C825490B",
+      "cardName": "回春祝福",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeGreenCountdown",
+        "教学"
+      ],
+      "effectIds": [
+        "A2FEA4F2"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_EF4154EB",
+      "cardName": "生长祝福",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeGreenCountdown",
+        "教学"
+      ],
+      "effectIds": [
+        "A29CBC11"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_8DD331C4",
+      "cardName": "回春术",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeGreenCountdown",
+        "教学"
+      ],
+      "effectIds": [
+        "22127205"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_666B36DF",
+      "cardName": "木甲术",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeGreenCountdown",
+        "教学"
+      ],
+      "effectIds": [
+        "1AE291B0"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_B91D1C1B",
+      "cardName": "荆棘壁",
+      "supertype": "Creature",
+      "life": 6,
+      "costList": [
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeGreenCountdown",
+        "教学"
+      ]
+    },
+    {
+      "id": "C_30D84105",
+      "cardName": "古木守卫",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 6,
+      "costList": [
+        3.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeGreenCountdown",
+        "教学"
+      ]
+    },
+    {
+      "id": "C_EB1553F2",
+      "cardName": "世界树苗",
+      "supertype": "Creature",
+      "power": 4,
+      "life": 8,
+      "costList": [
+        4.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeGreenCountdown",
+        "教学"
+      ]
+    },
+    {
+      "id": "C_4E1B6FE3",
+      "cardName": "再生古树",
+      "supertype": "Creature",
+      "life": 6,
+      "costList": [
+        2.0,
+        0.0,
+        0.0,
+        2.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeGreenCountdown",
+        "教学"
+      ],
+      "effectIds": [
+        "c2565884"
+      ]
+    },
+    {
+      "id": "C_0CF72B98",
+      "cardName": "成长",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeGreenCountdown",
+        "教学"
+      ],
+      "effectIds": [
+        "65B7FDB1"
+      ],
+      "speedBonus": 2
+    }
+  ]
 }

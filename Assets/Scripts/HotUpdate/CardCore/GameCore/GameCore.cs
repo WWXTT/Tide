@@ -164,7 +164,7 @@ namespace CardCore
             _subSystems.Register(combatSystem);
 
 
-            // 初始化延迟效果调度器（DelayedEffect handler が登録、回合/相位终了で解决）
+            // 初始化延迟效果调度器（由 DelayedEffect handler 登记，回合/阶段结束时结算）
             var delayedEffectScheduler = new DelayedEffectScheduler();
             _subSystems.Register(delayedEffectScheduler);
 
@@ -435,16 +435,21 @@ namespace CardCore
             var skill1 = HeroSkillSystem.CreateSkillCard(deck1, skillCardId1);
             var skill2 = HeroSkillSystem.CreateSkillCard(deck2, skillCardId2);
 
-            // 将卡牌加入牌库区域，设置控制者
+            // 将卡牌加入牌库区域，设置控制者（2026-10-22 额外区配套：tags 含「衍生物」的模板卡
+            // 摘出落 Zone.Extra——照英雄技能卡摘出先例，不进牌库不会被抽到，纯识别/引用面）
             foreach (var card in deck1)
             {
                 card.SetController(_player1);
-                ZoneManager.GetZoneContainer(_player1).Add(card, Zone.Deck);
+                var data1 = card is CardWrapper wrapper1 ? wrapper1.GetData() : null;
+                ZoneManager.GetZoneContainer(_player1)
+                    .Add(card, data1 != null && data1.IsTokenTemplate ? Zone.Extra : Zone.Deck);
             }
             foreach (var card in deck2)
             {
                 card.SetController(_player2);
-                ZoneManager.GetZoneContainer(_player2).Add(card, Zone.Deck);
+                var data2 = card is CardWrapper wrapper2 ? wrapper2.GetData() : null;
+                ZoneManager.GetZoneContainer(_player2)
+                    .Add(card, data2 != null && data2.IsTokenTemplate ? Zone.Extra : Zone.Deck);
             }
 
             // 技能卡落 FieldZone（英雄技能栏）——落位不触发入场事件、不初始化耐久

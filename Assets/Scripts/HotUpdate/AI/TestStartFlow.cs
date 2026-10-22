@@ -26,7 +26,8 @@ namespace SynergyUI
         /// <summary>每种颜色的锁色地牌张数（灰/红/蓝/绿四色）。</summary>
         public const int LandsPerColor = 10;
 
-        /// <summary>地牌素材卡：试作·元素井（1灰1红1蓝1绿 白板 1/1，四色候选任选锁色）。</summary>
+        /// <summary>地牌素材卡：试作·元素井（2026-10-22 恒推导改版：1灰1红1蓝2绿 1/1 警戒+入场直伤/潜行，
+        /// 落教学表 TutorialCards.json——主表用户池被并行重建不再承载；四色候选任选锁色）。</summary>
         public const string LandMaterialCardId = "C_50E2F45D";
 
         /// <summary>预置临时钱包 [灰,红,蓝,绿,白,黑]（回合末清空——黑白费只能从钱包出）。</summary>
@@ -74,12 +75,14 @@ namespace SynergyUI
                 TideLog.Error("[TestStartFlow] 地牌素材卡缺失：" + LandMaterialCardId + "（不设 Scenario，回落普通镜像局）");
                 BattleEntry.Mode = BattleMode.LocalAI;
                 BattleEntry.StagedOpening = false; // 测试路径=立即启动（2026-10-19 防五段开场旗标残留）
+                BattleEntry.DummyTest = false;     // 同上口径：本入口非木桩
                 BattleEntry.MirrorDeck = shuffled;
                 BattleEntry.MirrorSkillCardId = null;
                 return;
             }
             BattleEntry.Mode = BattleMode.LocalAI;
             BattleEntry.StagedOpening = false; // 测试路径=立即启动（2026-10-19 防五段开场旗标残留）
+            BattleEntry.DummyTest = false;     // 同上口径：本入口非木桩（防上次木桩局残留串模式）
             BattleEntry.MirrorDeck = BuildTestDeck(shuffled, material);
             BattleEntry.MirrorSkillCardId = HeroSkillSystem.AutoPickSkillCard(deck);
             BattleEntry.Scenario = BuildFullLandsScenario(shuffled);
@@ -127,14 +130,121 @@ namespace SynergyUI
             return lands;
         }
 
-        /// <summary>Fisher-Yates 洗牌（测试局每局随机，不钉种子）。</summary>
-        private static void Shuffle<T>(List<T> list)
+        /// <summary>Fisher-Yates 洗牌（测试局每局随机，不钉种子）。公有=木桩测试 DummyTestFlow 复用。</summary>
+        public static void Shuffle<T>(List<T> list)
         {
             for (int i = list.Count - 1; i > 0; i--)
             {
                 int j = UnityEngine.Random.Range(0, i + 1);
                 (list[i], list[j]) = (list[j], list[i]);
             }
+        }
+    }
+
+    /// <summary>
+    /// 木桩驱动器（2026-10-22 木桩测试）：对方回合全程不动作——跳产元素阶段、排干栈、直接结束
+    /// 回合（收尾镜像 ScriptedAi「无剧本」口径：栈未空时 EndTurn 被栈空守卫拒绝，故先排干）。
+    /// 不出牌/不攻击/不放地；回合开始触发式效果照常由引擎事件驱动（真实条件不受木桩影响）。
+    /// 响应窗口全让过（守卫/连锁永不反制）由 BattleController.EnablePassiveAiResponder 承担
+    ///（PassOption 哨兵——返回 null 会回落内置守卫启发）。
+    /// </summary>
+    public sealed class DummyAi : IAiTurnDriver
+    {
+        /// <summary>同步入口（无头验证同型驱动口径）。全链同步——木桩无任何异步动作。</summary>
+        public void TakeTurn(BattleController ctrl)
+            => TakeTurnAsync(ctrl).GetAwaiter().GetResult();
+
+        public Cysharp.Threading.Tasks.UniTask TakeTurnAsync(BattleController ctrl)
+        {
+            var core = ctrl.Core;
+            var me = ctrl.TurnPlayer;
+            if (core != null && me != null && me == core.TurnEngine.TurnPlayer)
+            {
+                GameActions.SkipElementPool(core, me); // 跳准备阶段进主阶段（回合推进必需）
+                GameActions.DrainStack(core);          // 排干在途触发（EndTurn 前置契约）
+                if (!core.IsGameOver)
+                    GameActions.EndTurn(core, me);
+            }
+            return Cysharp.Threading.Tasks.UniTask.CompletedTask;
+        }
+    }
+
+    /// <summary>
+    /// 木桩测试开局装配（2026-10-22）：把五段式开局段五交班的双卡组按面板选项组装成引擎参数。
+    /// 元素池充满=TestStartFlow「地牌充满」预设的按卡组版——双方独立（各用其所选卡组组场，
+    /// 不再钉死测试卡组）；洗牌开关注入前自洗（场景管线 InitGame 恒锁牌库序，序由场景
+    /// hand/deck 列表自身决定——镜像 EnterFullLandsTest 先洗后建场景口径）。
+    /// </summary>
+    public static class DummyTestFlow
+    {
+        /// <summary>充满元素池开局组装：out 场景 + 已并 40 素材地的双方卡组（SeedSide 按此取卡）。
+        /// 素材卡缺失返回 false（调用方回落常规开局路径，不炸局）。playerFirst 编入场景
+        /// firstPlayer（场景管线不走 StartNewGame 的 playerFirst 参数）。
+        /// 洗牌=同一份洗好的列表双用（场景 hand/deck 序 + 引擎卡组序）——只洗场景副本会让
+        /// 剩余牌库保持原文件序（SeedSide 按牌库实例序取卡），洗牌开关失效。</summary>
+        public static bool TryBuildFullPool(List<CardData> myDeck, List<CardData> aiDeck, bool shuffle,
+            bool playerFirst, out TutorialScenario scenario,
+            out List<CardData> seededMyDeck, out List<CardData> seededAiDeck)
+        {
+            scenario = null;
+            seededMyDeck = null;
+            seededAiDeck = null;
+            var material = CardCatalog.GetById(TestStartFlow.LandMaterialCardId);
+            if (material == null)
+            {
+                TideLog.Error("[DummyTestFlow] 地牌素材卡缺失：" + TestStartFlow.LandMaterialCardId
+                    + "（元素池充满回落常规开局）");
+                return false;
+            }
+            var myList = new List<CardData>(myDeck);
+            var aiList = new List<CardData>(aiDeck);
+            if (shuffle)
+            {
+                TestStartFlow.Shuffle(myList);
+                TestStartFlow.Shuffle(aiList);
+            }
+            scenario = new TutorialScenario
+            {
+                startTurn = TestStartFlow.StartTurn,
+                firstPlayer = playerFirst ? "P1" : "P2",
+                player = BuildSide(myList),
+                ai = BuildSide(aiList),
+            };
+            seededMyDeck = WithMaterials(myList, material);
+            seededAiDeck = WithMaterials(aiList, material);
+            return true;
+        }
+
+        /// <summary>单侧状态：手牌/剩余牌库=（已按开关洗好的）所选卡组前后段，地牌=素材卡
+        /// 四色各 10，钱包 5白5黑 + 地牌槽上限 30 加值（EnterFullLandsTest 同款对称口径）。</summary>
+        private static TutorialSideState BuildSide(List<CardData> orderedDeck)
+        {
+            int handSize = Mathf.Max(1, GameCore.OpeningHandSize);
+            return new TutorialSideState
+            {
+                bank = (int[])TestStartFlow.SeedBank.Clone(),
+                landCapBonus = TestStartFlow.LandCapBonus,
+                hand = orderedDeck.Take(handSize).Select(c => c.ID).ToList(),
+                deck = orderedDeck.Skip(handSize).Select(c => c.ID).ToList(),
+                lands = BuildLands(),
+            };
+        }
+
+        /// <summary>场景管线卡组=所选卡组 + 40 张素材地（SeedSide 从牌库按 id 取卡：手牌/牌库/地牌全在此）。</summary>
+        private static List<CardData> WithMaterials(List<CardData> deck, CardData material)
+        {
+            var seeded = new List<CardData>(deck);
+            for (int i = 0; i < TestStartFlow.LandsPerColor * 4; i++) seeded.Add(material);
+            return seeded;
+        }
+
+        private static List<TutorialLandSpec> BuildLands()
+        {
+            var lands = new List<TutorialLandSpec>();
+            foreach (var color in new[] { "Gray", "Red", "Blue", "Green" })
+                for (int i = 0; i < TestStartFlow.LandsPerColor; i++)
+                    lands.Add(new TutorialLandSpec { card = TestStartFlow.LandMaterialCardId, tokenType = color });
+            return lands;
         }
     }
 }

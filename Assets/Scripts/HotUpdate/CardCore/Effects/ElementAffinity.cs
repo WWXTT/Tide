@@ -158,8 +158,9 @@ namespace CardCore
 
     /// <summary>
     /// 预定义的元素倾向（仅红蓝绿灰）
-    /// 颜色来源：配置表 AttributeValueConfig.json 的 EffectColor（经 AtomicEffectTable 加载，存于 Tags；
-    /// 2026-09-11 起 Tags 只含 EffectColor——EffectFunction 列已删）。
+    /// 颜色来源：配置表 AttributeValueConfig.json 的 ManaList 主色（首个非零下标色）——
+    /// AtomicEffectTable.BuildConfig 装载时把中文色名追加到 Tags，本类扫 Tags 取色；
+    /// 旧 EffectColor 列已随 2026-10-04 位置数组迁移删除（Tags 现=产出族标签+色名）。
     /// </summary>
     public static class ElementAffinities
     {

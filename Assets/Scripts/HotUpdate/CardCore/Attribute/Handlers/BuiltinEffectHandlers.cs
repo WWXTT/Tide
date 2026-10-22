@@ -137,26 +137,27 @@ namespace CardCore.Attribute.Handlers
         }
     }
 
-    /// <summary>回响（2026-10-07 关键词→普通效果改版，蓝2）：将施放卡的临时复制加入手牌——
+    /// <summary>回响（2026-10-07 关键词→普通效果改版，蓝1；2026-10-22 改版：不再恒以自己为目标）：
+    /// 选择双方战场的一张卡（表行域四单位类+NotRole——与临摹同口径），将其临时复制加入手牌——
     /// 完全复制（null 覆盖：属性/费用/效果不变），临时性=1 层临时指示物（TempCounter，2026-10-10
     /// 指示物化——回合末口=CounterRules.OnTurnEnd ②块：不在战场从游戏中移除；在战场不生效
     /// 也不倒数（2026-10-12 生效自减改稿——层保留，转正退役）），
-    /// 复制带效果栏（连锁天然保留）。时点=结算期（旧宣言时点关键词形态退役——发动无效=无复制）。</summary>
+    /// 复制带效果栏（连锁天然保留）。时点=结算期（旧宣言时点关键词形态退役——发动无效=无复制；
+    /// 无候选/空过=不产生复制）。</summary>
     public class EchoCopyHandler : AtomicEffectHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.EchoCopy;
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            // 卡身份：先取施放中的宿主卡（CastCard——魔法卡效果 Source=角色 来源归因定案），
-            // 退回 Source as Card（生物/结界本体效果的 Source 即卡）
-            var data = (context.CastCard as CardWrapper)?.GetData()
-                       ?? (context.Source as CardWrapper)?.GetData();
+            // 复制源=结算期所选目标卡（2026-10-22 改版：旧版取施放宿主卡/Source=恒以自己为目标，
+            // 现由表行域解析弹选——生物带回响仍可选自身，法术则任选场上卡）
+            var data = (context.Targets?.OfType<CardWrapper>().FirstOrDefault())?.GetData();
             TempCopyRules.CreateTemporaryCopy(data, null, null, null, context.Controller, context.ZoneManager);
         }
 
         protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => "将施放卡的临时复制加入手牌";
+            => "将所选卡的临时复制加入手牌";
     }
 
     /// <summary>弹回手牌</summary>

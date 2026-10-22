@@ -162,7 +162,10 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 准备阶段：结束准备阶段进入主阶段
+        /// 准备阶段推进（**已退役的兼容口**，2026-09-24 回合口径定案）：准备→主阶段由
+        /// `TurnEngine.StartNewTurn` 末尾直调 `AdvanceFromStandby` 自动完成，因此正常流程调用本方法时
+        /// 相位已是 Main → 直接返回 false。保留签名只为 AI/验证器的防御性调用（万一真处于 Standby 仍可推进）。
+        /// intent 103（IntentSkipStandby）仍路由到此，语义=幂等 no-op。
         /// </summary>
         public static bool SkipElementPool(GameCore core, Player player)
         {
@@ -1375,10 +1378,10 @@ namespace CardCore
 
         /// <summary>
         /// 苏醒：在手牌中发动（2026-10-03 用户定案——手牌区动作，无先例）：
-        /// 对带「自我沉睡登场效果」的卡预立约——此后施放费用中的**灰色份额全免**
-        /// （转入场沉睡层数，1 灰=1 层，GetCardCost 豁免闸门读 AwakenCommitted）。
-        /// 未发动=照常全价。定长沉睡（Value 显式）无灰豁免语义，发动无效果（拒绝）。
-        /// 门禁：自己回合主阶段 + 卡在自己手牌 + 含灰时长模式自我沉睡 + 未发动过（幂等拒绝）。
+        /// 对带「自我沉睡登场效果」的卡预立约——此后施放费用中的**灰、绿份额全免**
+        /// （转入场沉睡层数，1 元素=1 层，GetCardCost 豁免闸门读 AwakenCommitted；2026-10-22 扩灰+绿）。
+        /// 未发动=照常全价。定长沉睡（Value 显式）无豁免语义，发动无效果（拒绝）。
+        /// 门禁：自己回合主阶段 + 卡在自己手牌 + 含豁免时长模式自我沉睡 + 未发动过（幂等拒绝）。
         /// </summary>
         public static bool CommitAwaken(GameCore core, Player player, Card card)
             => CommitAwaken(core, player, card, out _);
@@ -1400,14 +1403,21 @@ namespace CardCore
 
             var data = card is CardWrapper wrapper ? wrapper.GetData() : null;
             if (data == null || !HasSelfSleepEffect(data))
-            { rejectReason = "该卡没有灰时长模式的自我沉睡效果（定长沉睡无灰豁免语义）"; return false; }
+            { rejectReason = "该卡没有豁免时长模式的自我沉睡效果（定长沉睡无豁免语义）"; return false; }
+
+            // 苏醒门限（2026-10-22 定案，同日扩灰+绿）：必须有可豁免的灰/绿费——两色皆 0 的卡
+            // 发动苏醒不产生任何沉睡层数，纯空转；门限=灰+绿≥1（本套设计只给大生物，见绿·慢速设计稿）。
+            var awakenCost = GetCardCost(card);
+            if (awakenCost == null
+                || awakenCost[ManaType.Gray] + awakenCost[ManaType.Green] <= 0f)
+            { rejectReason = "该卡没有可豁免的灰/绿费（苏醒门限：灰+绿≥1）"; return false; }
 
             card.AwakenCommitted = true;
             core.PublishEvent(new KeywordAppliedEvent
             {
                 Target = card,
                 Keyword = "苏醒",
-                Detail = "苏醒：在手牌中发动——施放费用的灰色份额全免，转为入场沉睡层数",
+                Detail = "苏醒：在手牌中发动——施放费用的灰、绿份额全免，转为入场沉睡层数",
                 Source = player,
             });
             return true;
@@ -1460,18 +1470,19 @@ namespace CardCore
                 cost[ManaType.Gray] = Math.Max(0, gray);
             }
 
-            // 自我沉睡的灰费豁免（2026-09-11 定案；2026-10-03 苏醒改造）：**须先在手牌中发动苏醒**
-            //（card.AwakenCommitted——预立约）才豁免——灰份额转沉睡时长（暂存 card.PendingSleepGray，
-            // 入场 Sleep 原子消费为沉睡指示物数）。未发动=照常全价（修复旧「使用时生效」死循环：
-            // 付不起→用不出→无减免——现在穷时先在手牌立约，再以减免价施放）。
-            // 预检/付费/pending/UI 均经本口——全消费面同口径（恒推导定案：存档 costList 不参与）。
+            // 自我沉睡的豁免费（2026-09-11 定案；2026-10-03 苏醒改造；2026-10-22 扩灰+绿）：
+            // **须先在手牌中发动苏醒**（card.AwakenCommitted——预立约）才豁免——灰、绿份额转沉睡
+            // 时长（暂存 card.PendingSleepLayers，入场 Sleep 原子消费为沉睡指示物数）。未发动=照常
+            // 全价（修复旧「使用时生效」死循环：付不起→用不出→无减免——现在穷时先在手牌立约，
+            // 再以减免价施放）。预检/付费/pending/UI 均经本口——全消费面同口径（恒推导定案）。
             if (data != null && card.AwakenCommitted && HasSelfSleepEffect(data))
             {
-                int waived = (int)cost[ManaType.Gray];
+                int waived = (int)cost[ManaType.Gray] + (int)cost[ManaType.Green];
                 if (waived > 0)
                 {
                     cost[ManaType.Gray] = 0f;
-                    card._pendingSleepGray = waived;
+                    cost[ManaType.Green] = 0f;
+                    card._pendingSleepLayers = waived;
                 }
             }
             return cost;
@@ -1495,9 +1506,9 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 是否带「自我沉睡登场效果（灰时长模式）」（灰费豁免判定，2026-09-11 定案）：
+        /// 是否带「自我沉睡登场效果（豁免时长模式）」（豁免费判定，2026-09-11 定案；扩灰+绿 2026-10-22）：
         /// 任一非主动效果含 **Value 缺省** 的 Sleep 原子且组合域={Self}——
-        /// Value&gt;0 的显式层数沉睡不走灰费豁免（定长沉睡照常付费）。
+        /// Value&gt;0 的显式层数沉睡不走豁免（定长沉睡照常付费）。
         /// 结果缓存于 CardData（ResetCache 失效）。
         /// v3（2026-10-14）private→public：LegalActionEnumerator 的 CommitAwaken 资格预检
         /// 复用同一谓词（镜像复制会漂移）；零行为变化。
@@ -1514,23 +1525,23 @@ namespace CardCore
                 if (def.TargetDomain == null || def.TargetDomain.Count != 1
                     || def.TargetDomain[0] != (int)TargetKind.Self) continue;
                 bool hasSleep = def.Steps != null && def.Steps.Count > 0
-                    ? ContainsGraySleepAtom(def.Steps.SelectMany(s => s != null && s.Atomic != null
+                    ? ContainsWaivableSleepAtom(def.Steps.SelectMany(s => s != null && s.Atomic != null
                         ? new[] { s.Atomic } : new CardCore.AtomicEffectInstance[0]))
-                    : (def.Effects != null && ContainsGraySleepAtom(def.Effects));
+                    : (def.Effects != null && ContainsWaivableSleepAtom(def.Effects));
                 if (hasSleep) { result = true; break; }
             }
             data.SelfSleepEffectCache = result;
             return result;
         }
 
-        /// <summary>灰时长模式的沉睡原子（Value≤0：层数=灰费豁免量）。</summary>
-        private static bool ContainsGraySleepAtom(IEnumerable<CardCore.AtomicEffectInstance> atoms)
+        /// <summary>豁免时长模式的沉睡原子（Value≤0：层数=豁免费量灰+绿）。</summary>
+        private static bool ContainsWaivableSleepAtom(IEnumerable<CardCore.AtomicEffectInstance> atoms)
         {
             foreach (var atom in atoms)
             {
                 if (atom == null) continue;
                 if (atom.Type == AtomicEffectType.Sleep && atom.Value <= 0) return true;
-                if (atom.SubEffects != null && ContainsGraySleepAtom(atom.SubEffects)) return true;
+                if (atom.SubEffects != null && ContainsWaivableSleepAtom(atom.SubEffects)) return true;
             }
             return false;
         }

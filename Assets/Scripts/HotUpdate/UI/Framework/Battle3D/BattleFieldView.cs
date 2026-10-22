@@ -1025,7 +1025,7 @@ namespace SynergyUI
             else
             {
                 Debug.LogWarning("[BattleField] Hero.prefab 缺失（Assets/Art/Prefab/Hero.prefab）——"
-                    + "角色柱回落内置圆柱（真机需重跑 Tools/打包/Art资源到StreamingAssets）");
+                    + "角色柱回落内置圆柱（真机需重跑 Tools/打包/YooAsset资源打包（当前平台）——2026-10-18 起替代旧 StreamingAssets 三件套）");
                 pillar = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
                 Object.Destroy(pillar.GetComponent<Collider>());
                 pillar.transform.SetParent(_root, false);

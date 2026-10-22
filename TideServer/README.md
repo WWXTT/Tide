@@ -6,13 +6,14 @@
 > （进程内房主 + 双回环客户端整局，含 IntentActivateHeroSkill(113) 路由与端到端）。
 
 独立于 Unity 的专用服务器进程（2026-09-27 立项，定案见根目录 `网络协议.md` §14）。
-**线格式零改动、Unity 客户端零改动**——客户端在匹配界面连 `服务器IP:7777` 即可（编辑器
-NetLobbyHost 因端口被占自动退位为纯客户端，现成机制）。
+**线格式零改动**——网关曾支持「匹配界面填 `服务器IP:7777` 直连」，该链路随 `MatchScreen` 于 2026-10-18 整删；
+现行 Unity 侧联机 = `LobbyScreen`（P2P 房主即服务器），本工程的 gateway 只作调试/回归用（端口占用时
+`NetLobbyHost.StartServer` 直接抛出，**不再有自动退位机制**）。
 
 ## 架构
 
 ```
-Unity 客户端 A ──┐                          ┌─ match 子进程 #1（NetSessionServer 宿主，127.0.0.1:随机口）
+Unity 客户端 A ──┐                          ┌─ match 子进程 #1（NetSessionServer 宿主，0.0.0.0:随机口）
                  ├─ gateway 网关（公网口 7777：
 Unity 客户端 B ──┤   大厅消息 + 房间列表 + 匹配队列 +        └─ match 子进程 #2（并发第二局）
                  │   子进程生命周期 + 字节中继隧道 + AI 填位）
@@ -25,7 +26,7 @@ Unity 客户端 B ──┤   大厅消息 + 房间列表 + 匹配队列 +      
 - **AI 填位**：网关内 `BrainClient`（NetClientBrain 修订锁步）直连子进程，走完整握手链路。
 - **崩溃安全**：Windows Job Object（KILL_ON_JOB_CLOSE）——网关死亡连带终止全部子进程，
   无孤儿对局进程。
-- **回收策略**：终局 + 全员断开（5s 宽限）或空房闲置 180s 或子进程 60s 无心跳 → 杀子进程。
+- **回收策略**（`GatewayHost` 泵侧实况）：开过局的房间回 Waiting 且全员离开 5s / Finished 挂空 10s / 从未开局且空 5s → 杀子进程；另有子进程 60s 无心跳。**旧文档的「空房闲置 180s」只存在于注释，无实现分支**。
 
 ## 构建
 
@@ -62,7 +63,7 @@ TideServer/verify.ps1 -WithUnity   # 附加慢档：串行 Unity 批处理跑三
 dotnet run --project TideServer -- verify --sections V1,V5   # 按段过滤（调试迭代用）
 ```
 
-退出码即门禁结果（0=通过）。`TideServer verify` 分段与 Unity 回环验证器编号对齐：
+退出码即门禁结果（0=通过）。`TideServer verify` 分段：V0-V7 对标 Unity 回环验证器，**V8-V10 为服务器侧新增**（Unity 验证器只有 1/2/3/5/6/7 段）：
 
 | 段 | 内容 | quick |
 |---|---|---|
@@ -74,23 +75,27 @@ dotnet run --project TideServer -- verify --sections V1,V5   # 按段过滤（�
 | V6 | 真实 socket 会话：分座/抢座拒绝/观战/握手双向/拒绝 Error 帧/脚本化整局/隐藏过滤/观战全信息 | ✓ |
 | V7 | 同种子对拍：同进程三局+Reset 三件套，事件流逐值相等+终局快照字节相等+换种子发散 | ✗ |
 | V8 | 网关/子进程（跨进程）：大厅反例/AI 填位整局+回收/双房并发/对局中断线作废/网关强杀 Job Object | 快子集 |
+| V9 | 引擎规则回归（三类卡型定案：结界耐久/技能/关键词口径） | ✓ |
+| V10 | 战报映射（日志中间层 B1：事件→战报行） | ✓ |
 
-断言口径逐条对标 `Assets/Editor/验证/NetProtocolLoopbackVerifier.cs`（V8 为服务器专属新增）；
+断言口径逐条对标 `Assets/Editor/验证/NetProtocolLoopbackVerifier.cs`（V8/V9/V10 为服务器专属新增）；
 整局驱动 = 进程内 NetSessionServer + 双 NetClientBrain（M3 骨架），纯 .NET 泵下单局 5-10 秒。
 
 ## Unity 客户端连接
 
-Play → MatchScreen → 服务器地址填网关 IP:7777 → 建房/匹配/AI 填位照旧。
-同机测试：先起 gateway，再进 Play（编辑器自动起服会因 7777 被占静默退位为纯客户端）。
+P2P 生产拓扑下客户端不再连本网关：Play → 主菜单「联机对战」= `LobbyScreen`（房主即服务器）——
+创建房间=本进程起 `NetSessionServer` 并回环入座，客人填房主 `IP:端口` 直连（默认端口 28000）。
+调试/回归时仍可对 gateway：`LobbyScreen` 的加入口填网关 `IP:7777` 即可沿用大厅层（§13）。
 
 ## 数据路径
 
 TidePaths 自定位：从程序目录向上探测 `Assets/Configs/AttributeValueConfig.json`
 （仓库根布局）——编辑器与 TideServer 同仓免配置。正式数据只读：
-`Assets/Configs/`（原子表）+ `Assets/StreamingAssets/Card/`（卡表/效果/卡组）。
+`Assets/Configs/`（原子表/规则表）+ `Assets/CardData/`（玩家池卡表/效果/卡组）+ `Assets/TutorialData/`（教学卡表/效果/三套预组）。
+`Assets/StreamingAssets/Card/` 已不存在（2026-10-18 换 YooAsset 后 StreamingAssets 下只剩 `yoo/`）。
 
 ## 当前边界（v1，2026-09-27）
 
 - 断线重连 / 心跳踢人 / 服务器主动代打：M4 范畴，未做。
 - 观战：经网关的观战入口未开（直连 match 子进程端口的调试观战可用）。
-- 子进程绑 127.0.0.1——子进程不跨机部署（网关可跨机）。
+- 子进程监听 `IPAddress.Any:随机口`（**非 127.0.0.1 绑定**；`NetTcpHost.Start` 口径），实际可听全网卡——网关与子进程同机部署时不外露靠端口随机 + 无公开端口映射。

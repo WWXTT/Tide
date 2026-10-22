@@ -19,8 +19,9 @@ namespace CardCore.Editor.TideHeadless
     /// 无头桥接服务（Phase 2）：Unity batchmode 内跑，stdio 换行 JSON 协议，供 Python 训练侧驱动。
     ///
     /// 入口：
-    ///   - 编辑器菜单「Tools/AI/无头驱动自测」：随机策略跑完整一局，验证 reset/step 驱动环 + 终局收口。
-    ///   - batchmode（-executeMethod TideHeadlessServer.Main）：起 TCP 桥接（同编辑器菜单路径，端口经 -tidePort 传入）。
+    ///   - `RunSelfTest()`：随机策略跑完整一局，验证 reset/step 驱动环 + 终局收口（**当前无菜单入口**——
+    ///     原「Tools/AI/无头驱动自测」菜单已移除，需经 -executeMethod 或编辑器直接调用）。
+    ///   - batchmode（-executeMethod TideHeadlessServer.Main）：起 TCP 桥接（端口经 -tidePort 传入）。
     ///
     /// 协议（每行一条 JSON）：
     ///   请求  {"op":"reset"}                          → 自对弈（双方都由模型驱动）

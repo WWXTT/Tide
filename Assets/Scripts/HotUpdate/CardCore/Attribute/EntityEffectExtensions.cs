@@ -536,11 +536,12 @@ namespace CardCore
         // 回到手牌（任何来源）即重置为未展示。
         internal bool _isRevealed = false;
 
-        // 灰费豁免转沉睡时长（2026-09-11 定案）：自我沉睡卡打出时灰份额不扣（GetCardCost 剥离），
-        // 剥离量暂存于此，登场 Sleep 原子据此赋沉睡指示物（消费后清零）。运行时瞬态，不序列化。
-        internal int _pendingSleepGray = 0;
-        /// <summary>自我沉睡的灰费豁免量（支付时剥离→入场转沉睡指示物数）。</summary>
-        public int PendingSleepGray => _pendingSleepGray;
+        // 豁免费转沉睡时长（2026-09-11 定案；2026-10-22 扩灰+绿）：自我沉睡卡打出时灰、绿份额
+        // 不扣（GetCardCost 剥离），剥离量暂存于此，登场 Sleep 原子据此赋沉睡指示物（消费后清零）。
+        // 运行时瞬态，不序列化。
+        internal int _pendingSleepLayers = 0;
+        /// <summary>自我沉睡的豁免费量（灰+绿，支付时剥离→入场转沉睡指示物数）。</summary>
+        public int PendingSleepLayers => _pendingSleepLayers;
 
         // 出牌两阶段（2026-10-04 定案）：带代价的卡声明期先算代价——预选代价目标暂存于此，
         // cast 结算付费步经 CostContext.PreselectedCostTargets 消费（响应窗口内不重选；消费后清空）。

@@ -293,7 +293,12 @@ namespace CardCore.Network
         /// </summary>
         private void SpawnAiFiller(string nickname)
         {
-            var deckIds = SynergyUI.CardCatalog.LoadPlayPool().Select(c => c.ID).Distinct().Take(30).ToArray(); // 教学专用卡不入 AI 填位卡组（2026-10-06 隔离）
+            // 2026-10-22 三套主题卡组迁教学：玩家池（LoadPlayPool）可为空（主题卡全带 tags=教学）——
+            // 空时回落全池前 30 张（教学卡已并入全池）。本类在 TideServer 共享编译（CardCore 目录），
+            // 不得引用 UI 层 DeckCatalog。
+            var pool = SynergyUI.CardCatalog.LoadPlayPool();
+            if (pool.Count == 0) pool = SynergyUI.CardCatalog.LoadAll();
+            var deckIds = pool.Select(c => c.ID).Distinct().Take(30).ToArray();
             if (deckIds.Length == 0)
             {
                 _log?.Invoke("[NetLobby] AI 填位失败：本地卡表为空");

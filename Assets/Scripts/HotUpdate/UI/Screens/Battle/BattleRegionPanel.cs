@@ -10,7 +10,7 @@ using TMPro;
 namespace SynergyUI
 {
     /// <summary>面板当前展示的区域。</summary>
-    internal enum RegionKind { None, Graveyard, Exile, Activation, Deck }
+    internal enum RegionKind { None, Graveyard, Exile, Activation, Deck, Extra }
 
     /// <summary>
     /// Region 区域面板（2026-10-18 BattleScreen 功能拆分第四块外迁）：骨架构建（prefab 用户节点：
@@ -133,12 +133,16 @@ namespace SynergyUI
                 RegionKind.Graveyard => Zone.Graveyard,
                 RegionKind.Exile => Zone.Exile,
                 RegionKind.Activation => Zone.Activation,
+                RegionKind.Extra => Zone.Extra,
                 _ => null,
             };
             if (zone.HasValue)
             {
                 var cards = Core != null ? Core.ZoneManager.GetCards(_owner, zone.Value) : null;
-                string zoneName = _kind == RegionKind.Graveyard ? "墓地" : _kind == RegionKind.Exile ? "除外区" : "发动区";
+                string zoneName = _kind == RegionKind.Graveyard ? "墓地"
+                    : _kind == RegionKind.Exile ? "除外区"
+                    : _kind == RegionKind.Extra ? "额外区（衍生物模板）"
+                    : "发动区";
                 _title.text = $"{who}{zoneName} · {cards?.Count ?? 0} 张";
                 FillCards(cards, ownerIsOpp);
                 Debug.Log($"[Region] {who}{zoneName} 列卡 {cards?.Count ?? 0} 张");

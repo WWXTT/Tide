@@ -23,7 +23,8 @@ namespace CardCore
     /// - 消耗前置（先消层摘载荷、再结算）：现网原子抽牌路径 CardDrawEvent 双发
     ///   （DrawCardHandler 与 ZoneManagerExtensions.DrawCard 各发一次）——第一次已消耗、第二次自然空转，
     ///   亦防载荷再抽牌的重入双触发。诅咒/祝福各自独立消耗（同一卡可同时持两类载荷，互不代扣）。
-    /// - 净化（PurgeAll 清指示物）后残留的载荷注册为死重：抽到时计数=0 直接空转，局重置统一回收。
+    /// - 净化（PurgeAll 清指示物）后残留的载荷注册为死重：抽到时计数=0 直接空转，局重置统一回收；
+    ///   同卡再挂新载荷时 AddPayload 按层数修剪死载荷（防其登记在先顶包新载荷）。
     /// - 组合根 EnsureRegistered/Reset（GameCore.Reset，幂等；跨局不残留）。
     /// </summary>
     public static class CurseSystem
@@ -92,6 +93,18 @@ namespace CardCore
                 _payloads[target] = list;
             }
             list.Add(payload);
+
+            // 死载荷修剪（2026-10-22）：净化（PurgeAll）等强清口只清层不清载荷——层少于同指示物
+            // 载荷数时，超额旧载荷永不满足 Take(layers) 配对，反而在新载荷挂载后顶包（Take 按登记序
+            // 先取旧的）。挂载点按「层数=同指示物载荷上限」修剪最旧超额载荷，层/载荷恢复一一对应。
+            int layers = target.GetCounterCount(payload.CounterId);
+            var same = list.Where(p => p.CounterId == payload.CounterId).ToList();
+            if (same.Count > layers)
+            {
+                foreach (var dead in same.Take(same.Count - layers))
+                    list.Remove(dead);
+                if (list.Count == 0) _payloads.Remove(target);
+            }
         }
 
         /// <summary>查询卡上挂着的载荷（UI 展示用：载荷效果 id + 施加方——引擎/inline 形态 effectId=null）。</summary>

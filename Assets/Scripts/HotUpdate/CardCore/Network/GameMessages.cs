@@ -120,7 +120,8 @@ namespace CardCore.Network
         [MemoryPackOrder(TagTable.SID_EffectId)]
         public string EffectId;
 
-        // SID_EffectDisplayName 已删（2026-09-22 线上去文本：显示名客户端按 EffectId 查 Effects.json；tag 留作保留位）
+        // SID_EffectDisplayName 已删（2026-09-22 线上去文本：显示名客户端按 EffectId 查 Effects.json；
+        // tag 常量也已于 2026-10-10 墓碑清理实删，不占保留位）
 
         [MemoryPackOrder(TagTable.SID_ModeIndex)]
         public int ModeIndex;

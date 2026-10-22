@@ -404,6 +404,20 @@ namespace SynergyUI
             card.Face = face;
             card.Fan = this;
             card.WireFlowing(); // 可用流光层接线（AHandCard/Flowing；缺节点=无流光不报错）
+            // 触摸垫片（2026-10-22 玩家反馈 B2「点卡牌连着下面的一起会点到」）：卡根矩形外扩
+            // 8px 的全透明可射线 Image——封住卡间缝隙/下沉半卡的漏点，不再被 3D 棋盘点击
+            // 误裁决（漏点曾命中地牌行/结束回合格）。事件冒泡到卡根=悬停/按钮行为不变；
+            // 悬停放大/下沉均随卡根 transform，覆盖恒贴合。
+            var shield = new GameObject("touch-shield", typeof(RectTransform));
+            var shieldRt = (RectTransform)shield.transform;
+            shieldRt.SetParent(go.transform, false);
+            shieldRt.anchorMin = Vector2.zero;
+            shieldRt.anchorMax = Vector2.one;
+            shieldRt.offsetMin = new Vector2(-8f, -8f);
+            shieldRt.offsetMax = new Vector2(8f, 8f);
+            var shieldImg = shield.AddComponent<Image>();
+            shieldImg.color = new Color(1f, 1f, 1f, 0f); // alpha 0 不参与绘制；raycastTarget 默认不做 alpha 阈值测试
+            shieldImg.raycastTarget = true;
             // 放置/发动按钮接线（prefab 用户摆位，m_OnClick 空）：点击交宿主屏钩子接管
             card.UseButton = go.transform.Find("btn/Use")?.GetComponent<Button>();
             card.PlaceButton = go.transform.Find("btn/Place")?.GetComponent<Button>();

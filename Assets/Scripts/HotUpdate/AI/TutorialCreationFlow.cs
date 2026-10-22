@@ -65,8 +65,10 @@ namespace SynergyUI
                        .ToList()))
                .ToList();
 
+        /// <summary>卡组源（2026-10-22）：DeckCatalog 合并口——玩家存档 + 只读预组（红·快攻已在
+        /// TutorialData 预组里，回退链照常命中）。</summary>
         private static List<DeckData> DefaultDecksSource()
-            => DeckSerializer.LoadAll();
+            => DeckCatalog.LoadAll();
 
         // ======================================== 走查 ========================================
 
@@ -192,8 +194,8 @@ namespace SynergyUI
                 if (cards.Count >= GameCore.OpeningHandSize) return cards;
                 TideLog.Warn($"[TutorialCreation] 镜像卡组 {name} 张数不足（{cards.Count}）——继续回落");
             }
-            TideLog.Warn("[TutorialCreation] 主体卡组/红·快攻 均不可用——回落随机镜像（全色随机池，仅保镜像语义）");
-            return BattleController.RandomDeckFrom(CardCatalog.LoadAll());
+            TideLog.Warn("[TutorialCreation] 主体卡组/红·快攻 均不可用——回落随机镜像（三套预组随机其一，仅保镜像语义）");
+            return BattleController.RandomDeck();
         }
 
         // ResolveChallengeDeck/DeckContainsQualifying（走查记名卡组解析）已随创作课取消删除（2026-10-17）

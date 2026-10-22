@@ -138,6 +138,13 @@ namespace SynergyUI
         public static void SetUnitGlow(int x, int z, bool opponent = false)
             => Light(x, z, opponent ? UnitGlowColorOpp : UnitGlowColor);
 
+        /// <summary>单格熄扩散波（2026-10-22 B5 自动选定脉冲收口）：只熄本格，不波及对账态
+        ///（ClearAll 会连清选格候选/可行动高光，脉冲收口禁用）。</summary>
+        public static void ClearGlow(int x, int z)
+        {
+            if (_glows.TryGetValue(Key(x, z), out var r) && r != null) r.enabled = false;
+        }
+
         /// <summary>地牌色组仍有未横置张：顶面锁色描边环（lockedColor&lt;0 按灰；2026-10-14 按色叠格后每格恒单色）。</summary>
         public static void SetLandGlow(int x, int z, int lockedColor)
         {

@@ -31,6 +31,8 @@ namespace SynergyUI
         private RectTransform _typeBlock;
         private CostSquaresView _typeCost;
         private TMP_Text _nameText, _effectText, _passivesText, _attributeText, _costText;
+        private RectTransform _attrIconRow;             // B6 攻/血图标行（attribute 块内运行时建，仿 FillChips 行构建）
+        private TMP_Text _attrPowerText, _attrLifeText; // 图标行数字（字体/色取 attribute/text 同源）
         private RectTransform _effectBlock, _effectCostRow, _passivesBlock, _keysBlock, _statsBlock, _attributeBlock, _costBlock;
         private CostSquaresView _effectCost;
         private RectTransform _keysTemplate, _statsTemplate;
@@ -113,9 +115,11 @@ namespace SynergyUI
             if (_statsTemplate != null) _statsTemplate.gameObject.SetActive(false);
 
             // TMP 兜底（防实例属性漂移；prefab 已同值）：固定格内缩号+省略号
-            ConfigureText(_nameText, 8, 12);
-            ConfigureText(_costText, 8, 12);
-            ConfigureText(_attributeText, 8, 10);
+            // 2026-10-22 B7：name/cost/attribute 三档上调（玩家反馈牌面底部信息太小/攻血不醒目）——
+            // effect/passives 长文本维持（放大=更多省略截断，得不偿失）
+            ConfigureText(_nameText, 9, 13);
+            ConfigureText(_costText, 9, 13);
+            ConfigureText(_attributeText, 9, 12);
             ConfigureText(_effectText, 8, 11);
             ConfigureText(_passivesText, 8, 11);
             _bound = true;
@@ -166,12 +170,25 @@ namespace SynergyUI
             SetActive(_costBlock, hasPayload);
             if (hasPayload) SetText(_costText, item.PayloadText);
 
-            // attribute 区：攻击/生命/耐久全词直书（生物=攻击+生命、结界=耐久；空=藏块）——
-            // 文本由 CardOverlayItem.AttributeTextOf 单源拼装；发动速度不在卡面属性显示
-            //（2026-10-15 晚定案：速度归每个主动效果描述句首，见 AtomText.ActivationPrefix）
-            bool hasAttr = full && !string.IsNullOrEmpty(item.AttributeText);
+            // attribute 区（2026-10-22 B6 图标化）：生物=剑/心图标+数字（FightIcon/HeartIcon 双就绪才走
+            // 图标档——缺素材回落全词文本，AttributeText 恒为回落源）；结界=耐久纯文本；空=藏块
+            var atkIcon = LoadSprite("FightIcon");
+            var hpIcon = LoadSprite("HeartIcon");
+            bool iconMode = full && item.AttrPower.HasValue && item.AttrLife.HasValue
+                            && atkIcon != null && hpIcon != null;
+            bool hasAttr = full && (iconMode || !string.IsNullOrEmpty(item.AttributeText));
             SetActive(_attributeBlock, hasAttr);
-            if (hasAttr) SetText(_attributeText, item.AttributeText);
+            if (hasAttr)
+            {
+                if (iconMode) FillAttributeIcons(item, atkIcon, hpIcon);
+                else
+                {
+                    if (_attrIconRow != null && _attrIconRow.gameObject.activeSelf)
+                        _attrIconRow.gameObject.SetActive(false); // 池复用回落文本档
+                    SetActive(_attributeText, true);               // 还显全词文本（图标档曾藏）
+                    SetText(_attributeText, item.AttributeText);
+                }
+            }
 
             // effect 区：无主动效果整块隐藏（根 VLG 自动收拢）
             bool hasActive = full && !string.IsNullOrEmpty(item.ActiveEffectText);
@@ -318,6 +335,79 @@ namespace SynergyUI
         {
             if (_runtimeCard == null) return;
             Apply(CardOverlayItem.FromLiveCard(_runtimeCard), CardOverlayLayout.Full);
+        }
+
+        // ==================== attribute 图标行（2026-10-22 B6 玩家反馈：攻/血一行数字不醒目） ====================
+
+        /// <summary>攻/血图标+数字行：剑图标+攻数字+心图标+血数字（玩家建议 ❤:3 🗡:5 式）。
+        /// 行在 attribute 块内运行时构建（块高 20 保持不动——根 VLG 下游零位移）；数字字号 12
+        /// 固定（高于文本档 max 10，突出主数值）；字体/颜色取 attribute/text 同源。
+        /// 图标档激活期藏全词文本；池复用回落文本档由 Apply 侧负责还显。</summary>
+        private void FillAttributeIcons(CardOverlayItem item, Sprite atkIcon, Sprite hpIcon)
+        {
+            if (_attributeBlock == null || _attributeText == null) return;
+            if (_attrIconRow == null) BuildAttrIconRow(atkIcon, hpIcon);
+            if (_attrIconRow == null) return; // 构建异常兜底：保持上一帧（极端缺组件不崩）
+            _attributeText.gameObject.SetActive(false); // 图标档藏全词文本
+            _attrIconRow.gameObject.SetActive(true);
+            _attrPowerText.text = item.AttrPower.Value.ToString();
+            _attrLifeText.text = item.AttrLife.Value.ToString();
+        }
+
+        private void BuildAttrIconRow(Sprite atkIcon, Sprite hpIcon)
+        {
+            var rowGo = new GameObject("icon-row", typeof(RectTransform));
+            var row = (RectTransform)rowGo.transform;
+            row.SetParent(_attributeBlock, false);
+            row.anchorMin = Vector2.zero;
+            row.anchorMax = Vector2.one;
+            row.offsetMin = row.offsetMax = Vector2.zero;
+            var hlg = rowGo.AddComponent<HorizontalLayoutGroup>();
+            hlg.spacing = 5f;
+            hlg.childAlignment = TextAnchor.MiddleLeft;
+            hlg.padding = new RectOffset(8, 4, 0, 0);
+            hlg.childControlWidth = true;
+            hlg.childControlHeight = true;
+            hlg.childForceExpandWidth = false;
+            hlg.childForceExpandHeight = false;
+
+            Image IconNode(string name, Sprite sprite)
+            {
+                var go = new GameObject(name, typeof(RectTransform));
+                go.transform.SetParent(row, false);
+                var img = go.AddComponent<Image>();
+                img.sprite = sprite;
+                img.preserveAspect = true;
+                img.raycastTarget = false;
+                var le = go.AddComponent<LayoutElement>();
+                le.preferredWidth = 13f;
+                le.preferredHeight = 13f;
+                return img;
+            }
+
+            TMP_Text NumNode(string name)
+            {
+                var go = new GameObject(name, typeof(RectTransform));
+                go.transform.SetParent(row, false);
+                var t = go.AddComponent<TextMeshProUGUI>();
+                if (_attributeText != null)
+                {
+                    t.font = _attributeText.font;
+                    t.color = _attributeText.color;
+                }
+                t.fontSize = 12f;
+                t.fontStyle = FontStyles.Bold;
+                t.alignment = TextAlignmentOptions.MidlineLeft;
+                t.enableWordWrapping = false;
+                t.raycastTarget = false;
+                return t;
+            }
+
+            IconNode("atk-icon", atkIcon);
+            _attrPowerText = NumNode("atk-num");
+            IconNode("hp-icon", hpIcon);
+            _attrLifeText = NumNode("hp-num");
+            _attrIconRow = row;
         }
 
         // ==================== type 区 ====================

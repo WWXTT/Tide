@@ -33,8 +33,8 @@ namespace SynergyUI
 
         private void OnEnable()
         {
-            //定死60帧
-            Application.targetFrameRate = 60;
+            // 移动端锁 30 帧压发热（真机反馈"热飞了"），PC 保持 60；与 Launch.Start 同口径
+            Application.targetFrameRate = Application.isMobilePlatform ? 30 : 60;
             // 幂等补齐 Canvas 体系（场景挂点通常只有本脚本；AddComponent<Canvas> 会自动带上 RectTransform）
             var canvas = GetComponent<Canvas>();
             if (canvas == null)

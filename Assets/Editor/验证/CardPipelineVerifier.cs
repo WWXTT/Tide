@@ -190,9 +190,10 @@ namespace CardCore.Editor
             TestCostAnchors();
             Crumb("→TestComposerModel");
             TestComposerModel();
-            // BranchConfig.json 已随 5397a3f 删除（2026-09-10 用户裁定：分支目录/例外规则复杂度
-            // 暂不收编，原规则收尾后再恢复——恢复时还原该文件 + 取消本行注释）
-            // TestBranchCatalog();
+            // 分支目录层已于 2026-10-22 彻底删除（2026-09-10 曾以 5397a3f 暂时下架，本次定案不再恢复：
+            // 配置只保留原子表 + ValueSystemConfig 两张）。原 TestBranchCatalog 收敛为
+            // TestInfoAtomsAndDimensions（保留信息族原子/维度有限域断言，目录断言随表删除）。
+            // TestInfoAtomsAndDimensions();
             Crumb("→TestInformationFlow");
             TestInformationFlow(core, p1, p2);
             Crumb("→TestKeywords");
@@ -1073,7 +1074,7 @@ namespace CardCore.Editor
                     TriggerTiming = (int)TriggerTiming.OnPlay,
                     AtomicEffects = new List<AtomicEffectEntry>
                     {
-                        AtomRefs.New(AtomicEffectType.Sleep, value: 0, kinds: new List<int> { 0 }), // 收窄域={Self}，Value≤0=灰费时长模式（灰费豁免判定口径）
+                        AtomRefs.New(AtomicEffectType.Sleep, value: 0, kinds: new List<int> { 0 }), // 收窄域={Self}，Value≤0=豁免时长模式（灰+绿豁免判定口径）
                     },
                 });
                 sleepData.Effects.Add(new CardEffectData
@@ -1089,25 +1090,31 @@ namespace CardCore.Editor
                 });
                 var sleepCard = InjectCard(core, p1, sleepData);
 
-                // 苏醒立约（2026-10-03 定案）：灰费豁免须先在手牌中发动苏醒（AwakenCommitted 预立约），
-                // 未立约=照常全价——先立约再打出，灰份额才转沉睡时长
+                // 未立约全价口径（豁免前取价，恒推导不钉数值——断言对表价漂移免疫）
+                var sleepFull = GameActions.GetCardCost(sleepCard);
+                int grayFull = (int)sleepFull[ManaType.Gray], greenFull = (int)sleepFull[ManaType.Green];
+                int totalLayers = grayFull + greenFull;
+                Assert(totalLayers > 0, $"前置：本卡推导含可豁免灰/绿费（灰{grayFull}+绿{greenFull}）");
+
+                // 苏醒立约（2026-10-03 定案）：豁免费须先在手牌中发动苏醒（AwakenCommitted 预立约），
+                // 未立约=照常全价——先立约再打出，灰、绿份额才转沉睡时长（2026-10-22 扩灰+绿）
                 Assert(GameActions.CommitAwaken(core, p1, sleepCard, out var awakenReject),
                        $"苏醒立约成功（实际拒绝：{awakenReject}）");
                 int grayBefore = pool1.TempElements[ManaType.Gray];
                 int greenBefore = pool1.TempElements[ManaType.Green];
-                Assert(GameActions.PlayCard(core, p1, sleepCard), "打出自我沉睡生物（灰豁免后仅需绿1）");
+                Assert(GameActions.PlayCard(core, p1, sleepCard), "打出自我沉睡生物（灰、绿全免 0 费）");
                 GameActions.DrainStack(core);
 
-                Assert(pool1.TempElements[ManaType.Green] == greenBefore - 1, "支付：扣绿1");
-                Assert(pool1.TempElements[ManaType.Gray] == grayBefore, "灰费豁免：3 灰未扣（转沉睡时长）");
+                Assert(pool1.TempElements[ManaType.Gray] == grayBefore && pool1.TempElements[ManaType.Green] == greenBefore,
+                       $"灰、绿全免：两色均未扣（灰{grayFull}+绿{greenFull}转沉睡时长）");
                 Assert(core.ZoneManager.IsCardInZone(sleepCard, p1, Zone.Battlefield), "已入场");
-                Assert(sleepCard.IsTapped() && sleepCard.GetCounterCount(Attribute.KeywordRules.SleepCounter) == 3,
-                       $"入场沉睡：横置+沉睡指示物×3（=豁免灰量；实际 {sleepCard.GetCounterCount(Attribute.KeywordRules.SleepCounter)} 层）");
+                Assert(sleepCard.IsTapped() && sleepCard.GetCounterCount(Attribute.KeywordRules.SleepCounter) == totalLayers,
+                       $"入场沉睡：横置+沉睡指示物{totalLayers}层（=豁免灰+绿量；实际 {sleepCard.GetCounterCount(Attribute.KeywordRules.SleepCounter)} 层）");
 
-                // ---- 2. 周期推进：沉睡期间无法重置 + OnTurnEnd 被拦；3 次己方回合结束后倒数归零 ----
+                // ---- 2. 周期推进：沉睡期间无法重置 + OnTurnEnd 被拦；totalLayers 次己方回合结束后倒数归零 ----
                 // 周期 = p1回合结束(③块倒数+触发口被拦) → p2空过 → p1回合开始(BlocksUntap 判定) → 回主阶段
                 // （2026-10-08 层即持续定案：倒数从回合开始挪回合末，苏醒特判退役——归零后下回合开始自然重置）
-                for (int cycle = 1; cycle <= 3; cycle++)
+                for (int cycle = 1; cycle <= totalLayers; cycle++)
                 {
                     int countersBefore = sleepCard.GetCounterCount(Attribute.KeywordRules.SleepCounter);
                     EndTurnPumped(core, p1);                 // p1 回合结束：③块倒数 −1 层；沉睡中 → OnTurnEnd 被拦
@@ -1125,7 +1132,7 @@ namespace CardCore.Editor
                     Assert(!sleepCard.HasKeyword("Taunt"),
                            $"周期{cycle}：沉睡期间 OnTurnEnd 效果无效（未获嘲讽）");
                 }
-                Assert(!sleepCard.IsTapped() && sleepCard.GetCounterCount(Attribute.KeywordRules.SleepCounter) == 0, "三周期后完全苏醒");
+                Assert(!sleepCard.IsTapped() && sleepCard.GetCounterCount(Attribute.KeywordRules.SleepCounter) == 0, "倒数归零后完全苏醒");
 
             // ---- 3. 苏醒后 OnTurnEnd 恢复 ----
             Crumb($"awake pre: sleep={sleepCard.GetCounterCount(Attribute.KeywordRules.SleepCounter)} tapped={sleepCard.IsTapped()}");
@@ -2882,50 +2889,18 @@ namespace CardCore.Editor
             return string.Join("|", entries);
         }
 
-        // ======================================== 分支条件目录 + 信息族（Phase A） ========================================
+        // ======================================== 信息族（Phase A） ========================================
+
+        // 分支目录契约验证 TestBranchCatalog 已删（2026-10-22 用户定案：配置只保留原子表
+        // AttributeValueConfig + 功能系数表 ValueSystemConfig 两张，BranchConfig.json 目录层
+        // 连同 BranchConfigTable/BranchConfig 类型一并删除）。分支条件目录的现行真相源=
+        // ComposerCatalog.SituationGates / CostDerivation.GatePremium / BranchConditionEvaluator 三处代码表。
 
         /// <summary>
-        /// 分支目录契约验证：三族覆盖、与设计文稿数值一致、目录↔代码同步契约、维度有限域。
+        /// 信息族与维度有限域验证（原 TestBranchCatalog 的非目录部分）。
         /// </summary>
-        private static void TestBranchCatalog()
+        private static void TestInfoAtomsAndDimensions()
         {
-            var all = BranchConfigTable.GetAll().ToList();
-            Assert(all.Count >= 8, $"BranchConfig 目录加载（{all.Count} 个效果条目 ≥ 8）");
-            if (all.Count == 0) return;
-
-            Assert(BranchConfigTable.GetByEffectType("DealDamage")?.Conditions.Count(c => c.Kind == BranchConditionKind.OutcomeGate) == 3,
-                   "伤害族 3 条件（DmgKillsTarget/TargetSurvived/Overkill）");
-            Assert(BranchConfigTable.GetByEffectType("PierceDamage")?.Conditions.Count >= 2, "穿透伤害仍可挂伤害分支");
-            Assert(BranchConfigTable.GetByEffectType("Heal")?.Conditions.Count >= 2, "治疗族 2 条件（Overheal/TargetStillWounded）");
-            Assert(BranchConfigTable.GetByEffectType("DeclareHand")?.Conditions.Count >= 2, "宣言族 2 条件（DeclareHit/DeclareMiss）");
-            Assert(BranchConfigTable.GetByEffectType("ProphecyNextCard")?.Conditions.Count >= 2, "预言族 2 条件（ProphecyHit/ProphecyMiss）");
-
-            // 抽牌减费缺陷目录已随减费归入代价体系退役（2026-09-16）——减负表达走代价栏 Payload 原子
-            // 检索改宣言卡名（ExactCard 单档；TypePlusRace/SingleDimension 不再可表达，已删）
-            Assert(BranchConfigTable.GetFilterTier("ExactCard")?.Cost == 3
-                   && BranchConfigTable.GetFilterTier("TypePlusRace") == null
-                   && BranchConfigTable.GetFilterTier("SingleDimension") == null,
-                   "检索维度收敛 ExactCard 单档=3（宣言卡名）");
-
-            // 同步契约：目录项全在原子表 ∩ 产出族；条件 id 全被评估器识别（与 BranchConfigTable 自检同源）
-            bool contract = true;
-            foreach (var cfg in all)
-            {
-                if (CardCore.Attribute.AtomicEffectTable.GetByEnumName(cfg.EffectTypeName) == null) contract = false;
-                else if (!BranchConfigTable.OutcomeProducerTypes.Contains(cfg.EffectTypeName)) contract = false;
-                else
-                    foreach (var c in cfg.Conditions)
-                        if (c.Kind == BranchConditionKind.OutcomeGate && !BranchConditionEvaluator.IsKnownCondition(c.Id))
-                            contract = false;
-            }
-            Assert(contract, "同步契约：目录项全在原子表 ∩ 产出族，条件 id 全被评估器识别");
-
-            // 不可挂族不在目录（改值/授予/移动系——设计文稿：无可串联条件）
-            Assert(BranchConfigTable.GetByEffectType("ModifyPower") == null
-                   && BranchConfigTable.GetByEffectType("DrawCard") == null
-                   && BranchConfigTable.GetByEffectType("SearchDeck") == null,
-                   "改值/移动/检索系不在分支目录（Drawback 与 FilterPrecision 另有挂载机制）");
-
             // 信息族原子已入原子表（JSON → 运行时表全链路；宣言手牌族只保留一档，探查手牌已删）
             Assert(CardCore.Attribute.AtomicEffectTable.GetByEnumName("DeclareHand") != null
                    && CardCore.Attribute.AtomicEffectTable.GetByEnumName("DeclareDeckTop") != null
@@ -4628,14 +4603,14 @@ namespace CardCore.Editor
             Assert(CardCompositionCost.SurplusOf(MakeCostCard(Cardtype.Creature, 1, 1)) == 1
                    && CardCompositionCost.StructuralSurcharge(MakeCostCard(Cardtype.Creature, 1, 1)) == 0,
                    "计价锚：底盘 0 效果生物 → 免费点 1（属性1）全额减灰桶 S");
-            Assert(CardCompositionCost.SurplusOf(MakeCostCard(Cardtype.Creature, 1, 1, MakeEffect("Heal", 1))) == 1
-                   && CardCompositionCost.StructuralSurcharge(MakeCostCard(Cardtype.Creature, 1, 1, MakeEffect("Heal", 1))) == 1,
-                   "计价锚：底盘 1 效果生物 → 免费点 1（属性1）+ 效果槽超槽加价 1（对冲净 0，总额同旧口径）");
-            Assert(CardCompositionCost.StructuralSurcharge(MakeCostCard(Cardtype.Creature, 1, 1, MakeEffect("Heal", 1), MakeEffect("Heal", 1))) == 2,
-                   "计价锚：底盘 2 效果生物 → 每槽加价（2 槽=+2；免费点 1 对冲 → 净 +1 同旧口径）");
+            Assert(CardCompositionCost.SurplusOf(MakeCostCard(Cardtype.Creature, 1, 1, MakeEffect("Heal", 1))) == 0
+                   && CardCompositionCost.StructuralSurcharge(MakeCostCard(Cardtype.Creature, 1, 1, MakeEffect("Heal", 1))) == 0,
+                   "计价锚：底盘 1 效果生物 → 攻1+守1+槽1=3 项正好用满（免费点0/超槽0；总额同旧口径）");
+            Assert(CardCompositionCost.StructuralSurcharge(MakeCostCard(Cardtype.Creature, 1, 1, MakeEffect("Heal", 1), MakeEffect("Heal", 1))) == 1,
+                   "计价锚：底盘 2 效果生物 → 攻1+守1+槽2=4 项 → 超 1 灰（免费点0；净 +1 同旧口径）");
             Assert(CardCompositionCost.StructuralSurcharge(MakeCostCard(Cardtype.Creature, 1, 1,
-                       MakeEffect("Heal", 1), MakeEffect("Heal", 1), MakeEffect("Heal", 1))) == 3,
-                   "计价锚：底盘 3 效果生物 → 每槽加价（3 槽=+3；净 +2 同旧口径）");
+                       MakeEffect("Heal", 1), MakeEffect("Heal", 1), MakeEffect("Heal", 1))) == 2,
+                   "计价锚：底盘 3 效果生物 → 攻1+守1+槽3=5 项 → 2 灰（用户点名口径）");
             var noAtk = MakeCostCard(Cardtype.Creature, 1, 1);
             noAtk.NoAttack = true;
             Assert(CardCompositionCost.SurplusOf(noAtk) == 2,
@@ -7365,19 +7340,18 @@ namespace CardCore.Editor
                    "元素充盈：差 2 ≥ 门槛 2（Then 锚价推导）→ 首次达标触发（引擎抽1）");
             Assert(SurgeCast(SurgeSpell(), "ladder3"), "元素充盈：对手载体③（差3）打出");
             Crumb("surge ladder3: " + surgeState());
-            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == surgeDeck - 2,
-                   "元素充盈：差 3 ≥ 2 每次达标都再触发（判据六 ≥x——反复触发收口靠 limit 声明）");
+            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == surgeDeck - 1,
+                   "元素充盈：同卡本回合已触发过——差 3 不再发奖（2026-10-22 每卡每回合 1 次）");
 
-            // 同差重复评估（差回到 2 再出 0 费载体）：每次达标评估都触发（本夹具卡未声明 limit=无限）
+            // 同差重复评估（差回到 2 再出 0 费载体）：同卡每回合仅 1 次，不再触发
             SurgeWallets(p1Red: 5, p2Red: 3); // 钱包直改模拟剩余变化 → 差 = 5−3 = 2
             Assert(SurgeCast(SurgeSpell(0f), "again"), "元素充盈：0费载体（差仍2）打出");
             Crumb("surge again: " + surgeState());
-            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == surgeDeck - 3,
-                   "元素充盈：同差 2 重复出牌再触发（每次达标评估都触发·未声明上限=无限）");
+            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == surgeDeck - 1,
+                   "元素充盈：同卡本回合已触发过——同差 2 重复出牌不再发奖（每卡每回合 1 次）");
 
-            // 单回合上限（2026-10-20 配置化定案）：显式声明 limit=1 的引擎卡同回合只发一次——
-            // 与场上无限卡（VERIFY_ENGINE_SURGE 旧宿主）同场对照：每次 0 费载体结算后两卡都评估，
-            // 有限卡第二发起被 EngineCapReached 收口、无限卡照发
+            // 2026-10-22 全局规则：所有自由分支同卡每回合 1 次——旧宿主与限一卡同场，
+            // 首次达标各发一次后，第二次达标两卡都被 EngineCapReached 收口
             var cappedData = new CardData
             {
                 ID = "VERIFY_ENGINE_SURGE_CAP", CardName = "验证充盈·限一", Supertype = Cardtype.Creature, Power = 3, Life = 3,
@@ -7399,12 +7373,12 @@ namespace CardCore.Editor
             int capBase = core.ZoneManager.GetCards(p1, Zone.Deck).Count;
             Assert(SurgeCast(SurgeSpell(0f), "cap1"), "元素充盈：限一段载体①（差仍2）打出");
             Crumb("surge cap1: " + surgeState());
-            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == capBase - 2,
-                   "元素充盈：两卡首次达标各发一次（限一第 1/1 发·无限卡照发）");
+            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == capBase - 1,
+                   "元素充盈：限一卡首次达标发一次；旧宿主本回合已发过，不再发（每卡每回合 1 次）");
             Assert(SurgeCast(SurgeSpell(0f), "cap2"), "元素充盈：限一段载体②（差仍2）打出");
             Crumb("surge cap2: " + surgeState());
-            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == capBase - 3,
-                   "元素充盈：limit=1 同回合第二次达标收口不再发（仅无限卡再发——单回合上限配置化）");
+            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == capBase - 1,
+                   "元素充盈：两卡本回合均已发过——第二次达标均收口（每卡每回合 1 次）");
 
             // 己方回合门：p1 自己回合出牌（差恰 2）不触发——评估观察的是施放者对手（p2 场上无引擎）
             EnsureMainPhase(core, p1);
@@ -7425,8 +7399,8 @@ namespace CardCore.Editor
                    "元素充盈：非出牌支付（直接扣款）不触发——评估只在施放结算口");
 
             // 封顶 6 上界 + 六档阶梯全型（教学二段六同场景）：门槛 6 宿主（Then=3×DrawCard1 锚价 6），
-            // p2 新回合重灌（回合结束清钱包）——p2 剩余 6→0、差 1..6：门槛 2 宿主恰差 2 抽 1 +
-            // 门槛 6 宿主恰差 6（读数封顶==6）抽 3 = 共 4 抽；差 3/4/5 越过不触发
+            // p2 剩余 6→0、差 1..6：2026-10-22 每卡每回合 1 次——门槛 2 宿主本回合已发过，
+            // 仅门槛 6 宿主恰差 6（读数封顶==6）抽 3；差 3/4/5 越过不触发
             var surgeData2 = new CardData
             {
                 ID = "VERIFY_ENGINE_SURGE2", CardName = "验证充盈封顶", Supertype = Cardtype.Creature, Power = 3, Life = 3,
@@ -7451,8 +7425,8 @@ namespace CardCore.Editor
             surgeDeck = core.ZoneManager.GetCards(p1, Zone.Deck).Count;
             for (int k = 1; k <= 6; k++) Assert(SurgeCast(SurgeSpell(), $"cap{k}"), $"元素充盈：对手六连载体{k}（差{k}）打出");
             Crumb("surge ladder-done: " + surgeState());
-            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == surgeDeck - 4,
-                   "元素充盈：差 1..6 六档阶梯——门槛2恰差2抽1 + 门槛6恰差6（封顶读数==6）抽3（差3/4/5 越过不触发）");
+            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == surgeDeck - 3,
+                   "元素充盈：差 1..6 六档阶梯——仅门槛6宿主恰差6（封顶读数==6）抽3（门槛2宿主本回合已发过；差3/4/5 越过不触发）");
 
             core.ZoneManager.MoveCard(surgeCard, p1, Zone.Battlefield, Zone.Graveyard); // 门槛2宿主退场防连带
             core.ZoneManager.MoveCard(surgeCard2, p1, Zone.Battlefield, Zone.Graveyard);

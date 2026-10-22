@@ -10,7 +10,7 @@ namespace CardCore.AI.NeuralEnv
     /// 可直接替换 BattleController 里的 SimpleAI 实例——活体对局接入点。
     ///
     /// 回合时序镜像 TideHeadlessDriver（训练口径，别镜像 SimpleAI——它是不同的时序）：
-    ///   SkipElementPool → 回合初自动横置地牌（色匹配启发式，不建模）
+    ///   回合已由 TurnEngine.StartNewTurn 自动推进到主阶段（SkipElementPool 兼容口在 Main 恒返回 false，调用无副作用）
     ///   → 决策循环：枚举合法动作 → TideObservation 观测 → 策略 argmax → Apply → 排干栈
     ///     （引擎拒绝的动作按签名本回合摘除，保证回合必然流动）
     ///   → EndTurn：先结算本回合攻击 → 排干死亡触发 → EndTurn。

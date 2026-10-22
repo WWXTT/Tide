@@ -549,6 +549,14 @@ namespace CardCore
         /// </summary>
         private static float ComputeAtomBaseAmount(AtomicEffectInstance atom, EffectDefinition def, AtomicEffectConfig cfg)
         {
+            // 自我沉睡（灰费时长模式，2026-10-22 定案）：Value≤0 且实例域={Self}——这是苏醒的代价，
+            // 由被豁免的灰费（转为沉睡层数）支付，不再收黑费；否则绿卡带自我沉睡会被推导出黑费、
+            // 主题纯度直接破功，且「代价」被重复收两次。固定层数沉睡（Value>0）仍按黑费计。
+            if (atom.Type == AtomicEffectType.Sleep && atom.Value <= 0
+                && atom.TargetKinds != null && atom.TargetKinds.Count == 1
+                && atom.TargetKinds[0] == (int)TargetKind.Self)
+                return 0f;
+
             // 检索：按筛选维度档计费，替代通用公式。维度档存于 atom.StringValue（默认单一维度）。
             if (atom.Type == AtomicEffectType.SearchDeck)
                 return FilterPrecisionCost(atom);
@@ -897,10 +905,10 @@ namespace CardCore
         }
 
         /// <summary>自我沉睡豁免（2026-10-02 苏醒退役配套）：Sleep 原子收窄域恰为 {Self} 不作错边——
-        /// 沉睡行合并后极性 -1，自我沉睡实例（灰时长/定长两模式）是既定效果栏机制，
-        /// 其"对自己有害"的代价语义由灰费豁免（GameActions.HasSelfSleepEffect：灰份额剥离转时长）
+        /// 沉睡行合并后极性 -1，自我沉睡实例（豁免时长/定长两模式）是既定效果栏机制，
+        /// 其"对自己有害"的代价语义由豁免费（GameActions.HasSelfSleepEffect：灰+绿份额剥离转时长）
         /// 替代承担——契约剔除与错边转化（计价 ×(1−|p|) 出计价 / 黑获得）双双跳过，
-        /// 自我沉睡按全价绿计、支付时仅剥离灰份额。消费点：CardEffectConverter 契约、
+        /// 自我沉睡按全价计、支付时剥离灰+绿份额。消费点：CardEffectConverter 契约、
         /// ComputeAtomCost 错边拆分、AccumulateElementGrant 黑白获得。</summary>
         public static bool IsSelfSleepExempt(AtomicEffectType type, List<int> domain)
             => type == AtomicEffectType.Sleep
@@ -982,9 +990,10 @@ namespace CardCore
         {
             // 检索改宣言卡名（2026-09-03 定案）：StringValue = 宣言的卡名（构筑期预置），
             // 精度恒为按名称检索（ExactCard 单档=3）；未预置宣言名视为最低档 1。
+            // 2026-10-22 定案：BranchConfig 目录层已删（配置只剩原子表 + ValueSystemConfig 两张），
+            // ExactCard=3 收敛为代码常量。
             if (string.IsNullOrEmpty(atom.StringValue)) return 1;
-            var tier = BranchConfigTable.GetFilterTier("ExactCard");
-            return tier != null ? tier.Cost : 3;
+            return 3;
         }
 
         private static void AccumulateSubEffects(AtomicEffectInstance atom, EffectDefinition def, List<int> domain, Dictionary<ManaType, float> byColor)

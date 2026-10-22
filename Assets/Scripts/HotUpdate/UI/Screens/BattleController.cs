@@ -125,6 +125,35 @@ namespace SynergyUI
             return deck;
         }
 
+        /// <summary>随机卡组（2026-10-22 三套预组时代）：三套主题卡组整体迁教学后，玩家卡池
+        /// （LoadPlayPool）为空——RandomDeckFrom 会组出 0 张。优先从只读预组随机抽一套整组
+        ///（含卡组自带的技能标记，30 张恒可用）；预组缺失才回落旧「全池随机」。消费方：挑战电脑
+        /// 兜底、木桩双方随机、创作课镜像兜底。</summary>
+        public static List<CardData> RandomDeck()
+        {
+            string _;
+            return RandomDeck(out _);
+        }
+
+        /// <summary>同上并回传预组自带英雄技能（预组缺失回落随机时为 null）。</summary>
+        public static List<CardData> RandomDeck(out string skillCardId)
+        {
+            skillCardId = null;
+            var presets = DeckCatalog.LoadPresets();
+            if (presets.Count > 0)
+            {
+                int idx = (int)((uint)Guid.NewGuid().GetHashCode() % (uint)presets.Count);
+                var preset = presets[idx];
+                var deck = TutorialLibrary.BuildDeck(preset.cardIds);
+                if (deck.Count > 0)
+                {
+                    skillCardId = preset.skillCardId;
+                    return deck;
+                }
+            }
+            return RandomDeckFrom(CardCatalog.LoadAll());
+        }
+
         /// <summary>棋盘占用层接线：注入碾压 AdjacentResolver/RoleAdjacentResolver + 连接光环 LinkAuraSystem（核心不绑棋盘，由宿主组装）。</summary>
         private void AttachBoard()
         {

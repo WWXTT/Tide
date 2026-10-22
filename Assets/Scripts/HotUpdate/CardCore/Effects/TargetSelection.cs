@@ -67,7 +67,7 @@ namespace CardCore
 
     /// <summary>
     /// 目标选择服务（引擎侧入口）。
-    /// 集中处理：AI/ヘッドレス 即时自动选择、回合数递增超时、超时/异常兜底自动选择。
+    /// 集中处理：AI/无头环境即时自动选择、回合数递增超时、超时/异常兜底自动选择。
     /// UI 层启动时注册 Current；测试/服务器环境保持 null（全部走自动选择）。
     /// </summary>
     public static class TargetSelectionService
@@ -103,7 +103,7 @@ namespace CardCore
 
             GameActions.Crumb($"target-select cands={req.Candidates.Count} min={req.MinCount} chooser={req.Chooser?.Name} ui={(Current != null ? Current.GetType().Name : "null→auto")}");
 
-            // AI / ヘッドレス → 即时自动选择（先頭 MinCount 个）
+            // AI / 无头 → 即时自动选择（取前 MinCount 个）
             if (Current == null || (req.Chooser != null && req.Chooser.IsAI))
                 return AutoSelect(req.Candidates, req.MinCount);
 

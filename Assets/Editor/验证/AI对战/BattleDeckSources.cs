@@ -17,12 +17,12 @@ namespace CardCore.Editor.Tests
     /// </summary>
     public static class BattleDeckSources
     {
-        /// <summary>主题 key → 卡组名（与 ThemeDeckBuilder 三常量同序：red/green/blue）。</summary>
+        /// <summary>主题 key → 卡组名（与三套主题构建器 DeckName 常量同序：red/green/blue）。</summary>
         public static readonly (string key, string deckName)[] ThemeKeys =
         {
-            ("red", ThemeDeckBuilder.RedDeckName),
-            ("green", ThemeDeckBuilder.GreenDeckName),
-            ("blue", ThemeDeckBuilder.BlueDeckName),
+            ("red", RedClashDeckBuilder.DeckName),
+            ("green", GreenCountdownDeckBuilder.DeckName),
+            ("blue", BlueSurplusDeckBuilder.DeckName),
         };
 
         /// <summary>Cards.json 全池（CardCatalog 静态缓存；编辑器内改表后 Invalidate 再取）。</summary>
@@ -40,16 +40,17 @@ namespace CardCore.Editor.Tests
             {
                 var deck = LoadDeckByName(deckName);
                 if (deck == null || deck.Count == 0)
-                    Debug.LogError($"[BattleDeckSources] 主题卡组缺失或为空：{deckName}（先运行 Tools/构建三色主题卡组）");
+                    Debug.LogError($"[BattleDeckSources] 主题卡组缺失或为空：{deckName}（先运行 Tools/验证 里的三套构建器）");
                 result.Add((key, deck ?? new List<CardData>()));
             }
             return result;
         }
 
-        /// <summary>按名加载卡组（卡 ID 引用 → CardCatalog 还原；缺卡记错误后跳过该卡）。</summary>
+        /// <summary>按名加载卡组（卡 ID 引用 → CardCatalog 还原；缺卡记错误后跳过该卡）。
+        /// 2026-10-22 三套主题卡组迁教学：DeckCatalog 合并口——预组名回落到 TutorialData 只读档。</summary>
         public static List<CardData> LoadDeckByName(string deckName)
         {
-            var deck = DeckSerializer.Load(deckName);
+            var deck = DeckCatalog.Load(deckName);
             if (deck == null || deck.cardIds == null || deck.cardIds.Count == 0) return null;
             var cards = new List<CardData>(deck.cardIds.Count);
             var missing = new List<string>();
@@ -60,8 +61,8 @@ namespace CardCore.Editor.Tests
                 else cards.Add(card);
             }
             if (missing.Count > 0)
-                Debug.LogError($"[BattleDeckSources] 卡组 {deckName} 有 {missing.Count} 张卡在 Cards.json 找不到" +
-                               $"（先运行 Tools/构建三色主题卡组）：{string.Join(",", missing.Take(3))}…");
+                Debug.LogError($"[BattleDeckSources] 卡组 {deckName} 有 {missing.Count} 张卡在卡表找不到" +
+                               $"（主表+教学表；先运行 Tools/验证 里的三套构建器）：{string.Join(",", missing.Take(3))}…");
             return cards;
         }
 

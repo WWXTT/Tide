@@ -45,6 +45,10 @@ namespace GameBoard
         /// 对手剩余操作时间 / 回合结束（贴己方右手边——原 lx0 放反已纠）
         /// （BattleHudRow 认领功能与状态地块；x7 槽位=odd-r 居中缺口，无实体格）。</summary>
         Middle,
+
+        /// <summary>额外区格（2026-10-22 衍生物模板区）：衍生物模板卡开局落 Zone.Extra（不进牌库），
+        /// 点击本格弹区域面板列出模板卡供识别。格位=原技能格位回收（P1 (0,0)／P2 旋转 (7,6)）。</summary>
+        Extra,
     }
 
     /// <summary>
@@ -109,7 +113,9 @@ namespace GameBoard
         public const int P1ExileX = 7,  P1ExileZ = 2; // 除外格：右列近中线
         public const int P1GraveX = 7,  P1GraveZ = 1; // 墓地格：右列中间
         public const int P1DeckX = 7,   P1DeckZ = 0;  // 卡组格：右列贴边（自身视角右下角）
-        // 角色格邻接：奇行 (0,1) 六邻圈=(1,1) 单位格 + (0,0) 边缘装饰格（原技能格位）+
+        public const int P1ExtraX = 0,  P1ExtraZ = 0; // 额外区格：原技能格位回收（P2=旋转 (7,6)）——
+                                                      // 衍生物模板卡展示入口（点击弹区域面板）
+        // 角色格邻接：奇行 (0,1) 六邻圈=(1,1) 单位格 + (0,0) 额外区格（原技能格位回收，2026-10-22）+
         // (0,2) 边缘装饰格（原发动格位）——关键词光环经箭头投递角色格需要至少一个邻接单位格
         //（V9.s 几何扫描锚须随 8×7 几何更新）。
 
@@ -155,6 +161,7 @@ namespace GameBoard
             SetSpecial(CellRole.Exile, P1ExileX, P1ExileZ);
             SetSpecial(CellRole.Graveyard, P1GraveX, P1GraveZ);
             SetSpecial(CellRole.Deck, P1DeckX, P1DeckZ);
+            SetSpecial(CellRole.Extra, P1ExtraX, P1ExtraZ); // 额外区格（原技能格位回收，2026-10-22）
             for (int x = ColMin; x <= ColMax; x++)
             {
                 Set(CellRole.Unit, x, P1UnitFarZ, 0);

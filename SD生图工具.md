@@ -60,6 +60,6 @@
 
 ## 待定项
 
-1. ~~改 `styles.json`：`checkpoint` 字段 + prefix 里加 `<lora:名:权重>`~~ —— 已有 5 条 `cosmic-*` 条目（2026-10-11 宇宙系五 LoRA 横评，tint=暗夜鎏金三色锚）。
+1. ✅ 已完成（2026-10-11）：`styles.json` 已加 `checkpoint` 字段 + prefix 内 `<lora:名:权重>`，现有 `cosmic-*` 条目（宇宙系五 LoRA 横评，tint=暗夜鎏金三色锚；后续又派生 `*-icon` 变体）。
 2. 五 LoRA 横评出料（`output/icons-cosmic5/` + `output/cardbg-shapes5/`）→ 用户挑选 → 胜者定为主力风格，必要时 `--scan` 重校区间。
 3. 之后按"屏幕 + 风格"直接出正式候选料。

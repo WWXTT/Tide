@@ -246,11 +246,12 @@ namespace SynergyUI
                 EnsureSavedDecks();
         }
 
-        /// <summary>已保存卡组懒加载（进选卡阶段时刷新一次；空列表也有"随机卡组"兜底）。</summary>
+        /// <summary>已保存卡组懒加载（进选卡阶段时刷新一次；空列表也有"随机卡组"兜底）。
+        /// 2026-10-22 三套主题卡组迁教学：列表=玩家存档 + 只读预组（DeckCatalog 合并口）。</summary>
         private void EnsureSavedDecks()
         {
             if (_savedDecks != null) return;
-            _savedDecks = DeckSerializer.LoadAll();
+            _savedDecks = DeckCatalog.LoadAll();
             if (_deckIndex > _savedDecks.Count) _deckIndex = 0;
             RefreshDeckPickLabel();
         }
@@ -268,7 +269,7 @@ namespace SynergyUI
             if (_deckPickLabel == null) return;
             string name = _deckIndex == 0 || _savedDecks == null || _savedDecks.Count == 0
                 ? "随机卡组"
-                : _savedDecks[_deckIndex - 1].name;
+                : DeckCatalog.DisplayNameOf(_savedDecks[_deckIndex - 1]); // 预组带「·预组」后缀（与其他口一致）
             _deckPickLabel.text = $"卡组：{name}";
         }
 

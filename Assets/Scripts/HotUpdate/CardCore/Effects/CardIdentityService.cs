@@ -299,7 +299,7 @@ namespace CardCore
         /// 这几个随便改名不动 ID）与卡 id 自身（避免循环）。同内容卡（跨文件）同 ID；
         /// 无序集合（关键词/tag/光环/条件/代价）规范化排序后哈希，手抖调行序不变 ID。
         /// 与身份哈希的分工：身份拆散到原子级供 embedding 共享；内容 ID 是整卡别名，
-        /// 供重推导工具一键回写（Tools/重推导测试卡表费用）。</summary>
+        /// 供重推导工具一键回写（Tools/重推导测试卡表费用与ID）。</summary>
         public static string ContentId(CardData card)
         {
             var sb = new StringBuilder();

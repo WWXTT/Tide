@@ -203,7 +203,7 @@ namespace CardCore.Attribute
                 // 选一个（2026-10-16 晚定案）：候选 ≤ 需求（无可选余地）自动取不弹窗——
                 // 落点可见性走历史记录；纯 Self 域=源卡自身同自动；AI/无头 Service 选首不变
                 if (ShouldAutoTake(domain, candidates.Count, need: 1, allSemantics: false))
-                    return candidates.Take(1).ToList();
+                    return AutoTake(candidates, 1, domain, context.Controller, allSemantics: false);
                 return await TargetSelectionService.RequestAsync(new TargetSelectionRequest
                 {
                     Candidates = candidates,
@@ -231,7 +231,8 @@ namespace CardCore.Attribute
             //——反转当日早间「一律弹选」口径，落点可见性走历史记录）；数量≤0=全取维持自动
             if (ShouldAutoTake(domain, candidates.Count, need,
                     allSemantics: def.TargetCount <= 0 && !noneAsSingle))
-                return candidates.Take(need).ToList();
+                return AutoTake(candidates, need, domain, context.Controller,
+                    allSemantics: def.TargetCount <= 0 && !noneAsSingle);
             return await TargetSelectionService.RequestAsync(new TargetSelectionRequest
             {
                 Candidates = candidates,
@@ -250,6 +251,22 @@ namespace CardCore.Attribute
         private static bool ShouldAutoTake(List<int> kinds, int candidateCount, int need, bool allSemantics)
             => allSemantics || candidateCount == 0 || candidateCount <= need
                || (kinds != null && kinds.Count == 1 && kinds[0] == (int)TargetKind.Self);
+
+        /// <summary>结算路径免弹自动取收敛口（2026-10-22 玩家反馈 B5）：ShouldAutoTake 命中处统一
+        /// 经此口取前 need 个，并经 RuleHooks.OnAutoTargetTaken 抛出 (chooser, 取定目标)——UI 侧补
+        /// 「已自动选定目标」反馈，消除单目标自动选定的无感知（玩家原话「发动好诡异」）。
+        /// 仅在「确有选择余地被省略」（候选数 ∈ (0, need]）时抛——全体档/纯 Self 域/零候选不抛
+        /// （全体效果逐次弹提示=刷屏；Self 域多见于入场即自动的关键词赋予，同为噪音）。
+        /// 取值口径与原各分支 Take(need) 逐一相同，行为零变化。</summary>
+        private static List<Entity> AutoTake(List<Entity> candidates, int need,
+            List<int> kinds, Player chooser, bool allSemantics)
+        {
+            var taken = candidates.Take(need).ToList();
+            bool selfDomain = kinds != null && kinds.Count == 1 && kinds[0] == (int)TargetKind.Self;
+            if (!allSemantics && !selfDomain && candidates.Count > 0 && candidates.Count <= need)
+                RuleHooks.OnAutoTargetTaken?.Invoke(chooser, taken);
+            return taken;
+        }
 
         /// <summary>
         /// 按原子效果配置解析目标候选列表（同步，不弹交互；headless/触发路径用）。
@@ -294,7 +311,7 @@ namespace CardCore.Attribute
             // 候选 ≤ 需求自动取（2026-10-16 晚定案——奖励落点可见性走历史记录，不弹确认）；
             // 纯 Self 域自指奖励维持自动；AI/无头 Service 选首结果不变
             if (ShouldAutoTake(kinds, pool.Count, need, allSemantics: false))
-                return pool.Take(need).ToList();
+                return AutoTake(pool, need, kinds, context.Controller, allSemantics: false);
             return await TargetSelectionService.RequestAsync(new TargetSelectionRequest
             {
                 Candidates = pool,
@@ -443,7 +460,7 @@ namespace CardCore.Attribute
                 // 选一个（2026-10-16 晚定案，同组合层口径）：候选 ≤ 需求/纯 Self 域自动取
                 //（落点可见性走历史记录）；AI/无头 Service 选首不变
                 if (ShouldAutoTake(kinds, candidates.Count, need: 1, allSemantics: false))
-                    return candidates.Take(1).ToList();
+                    return AutoTake(candidates, 1, kinds, context.Controller, allSemantics: false);
                 return await TargetSelectionService.RequestAsync(new TargetSelectionRequest
                 {
                     Candidates = candidates,
@@ -477,7 +494,7 @@ namespace CardCore.Attribute
             // 数量档>0=固定 N：候选 ≤ 需求自动取（2026-10-16 晚定案——反转当日「一律弹选」，
             // 落点可见性走历史记录）；effCount≤0=全取维持自动
             if (ShouldAutoTake(kinds, candidates.Count, need, allSemantics: effCount <= 0))
-                return candidates.Take(need).ToList();
+                return AutoTake(candidates, need, kinds, context.Controller, allSemantics: effCount <= 0);
             return await TargetSelectionService.RequestAsync(new TargetSelectionRequest
             {
                 Candidates = candidates,

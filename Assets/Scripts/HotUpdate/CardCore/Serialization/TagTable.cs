@@ -1,4 +1,4 @@
-// 此文件由 Tools/刷新MemoryPackOrder 自动生成，请勿手动修改
+// 此文件由 Tools/刷新属性排序（新增序列化字段时使用）自动生成，请勿手动修改
 // 如需添加新属性，请修改 RefreshMemoryPackOrder.cs 中的 GetTagDefinitions()
 // 手工定值标签登记 GetRawTagDefinitions()（只改 TagTable.cs 的手改区会被下次重生成冲掉）
 
@@ -241,9 +241,7 @@ namespace CardCore.Serialization
         public const int MsgIntentPlayCard_FromZone = 933788219;
         public const int MsgIntentPlayCard_ModeIndex = 1969366828;
 
-        // ---- MsgIntentTapForElement ----
-        public const int MsgIntentTapForElement_CardRuntimeId = 1223238136;
-        public const int MsgIntentTapForElement_ManaType = 1523545680;
+        // ---- MsgIntentTapForElement 常量已删（DTO 2026-10-11 退役；tag 2026-10-22 同批移除）----
 
         // ---- MsgIntentAddToElementPool ----
         public const int MsgIntentAddToElementPool_CardRuntimeId = 713270002;

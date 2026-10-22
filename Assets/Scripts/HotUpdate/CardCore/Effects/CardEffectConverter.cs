@@ -136,13 +136,6 @@ namespace CardCore
                     if (instance != null)
                         def.Effects.Add(instance);
                 }
-                // 倒计时载荷换算：初值=Then 推导费 1费=1回合（声明 0/缺省时）
-                foreach (var atom in def.Effects)
-                {
-                    if (atom?.Branch?.EngineKind == BranchEngineKind.Countdown && atom.Branch.CountdownTurns <= 0)
-                        atom.Branch.CountdownTurns = CostDerivationService.CountdownTurnsOf(
-                            atom.Branch.EngineParam, atom.Branch.Then); // 公式与 UI 短文案同源
-                }
             }
 
             // 转换节点化步骤（遗留路径）。含抉择（kind==2）→ 保留 Steps 结构（执行引擎步骤遍历）；
@@ -163,6 +156,15 @@ namespace CardCore
                 {
                     FoldBranchSteps(data.Steps, def, sourceCardId);
                 }
+            }
+
+            // 倒计时载荷换算（Steps/扁平两通道统一，2026-10-22 修复）：初值=Then 推导费 1费=1回合
+            //（声明 0/缺省时）；此前只覆盖扁平通道，Steps 形态的倒计时 CountdownTurns 恒 0 → 入场不挂计数。
+            foreach (var atom in def.Effects)
+            {
+                if (atom?.Branch?.EngineKind == BranchEngineKind.Countdown && atom.Branch.CountdownTurns <= 0)
+                    atom.Branch.CountdownTurns = CostDerivationService.CountdownTurnsOf(
+                        atom.Branch.EngineParam, atom.Branch.Then); // 公式与 UI 短文案同源
             }
 
             // ---- 组合层域预计算（2026-09-10 目标域模型）----

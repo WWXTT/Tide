@@ -244,5 +244,10 @@ namespace CardCore
         /// 每次把响应窗口交给人类应答器（含让过）后发射——respond 引导步骤的完成信号。
         /// 非教学局也经过（订阅方自行过滤）。</summary>
         public static Action<Player> OnTutorialHumanResponded;
+
+        /// <summary>免弹自动取目标探针（2026-10-22 玩家反馈 B5「单目标自动选定无感知」）：
+        /// 结算路径候选 ≤ 需求免弹自动取时发射 (chooser, 取定目标)。UI 侧补「已自动选定目标」
+        /// toast+目标格脉冲；chooser 非人类玩家由订阅方自行过滤；全体档/零候选不发射。</summary>
+        public static Action<Player, List<Entity>> OnAutoTargetTaken;
     }
 }

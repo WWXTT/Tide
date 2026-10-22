@@ -102,7 +102,7 @@ namespace CardCore
             return cards.Count(c => c is IHasSupertype st && st.Supertype == Cardtype.Creature);
         }
 
-        /// <summary>条件 id 是否被评估器识别（BranchConfigTable 加载自检用，保证目录与代码同步）</summary>
+        /// <summary>条件 id 是否被评估器识别（验证器/自检用：条件目录=本评估器 switch，原 BranchConfigTable 已删）</summary>
         public static bool IsKnownCondition(string conditionId)
         {
             switch (conditionId)

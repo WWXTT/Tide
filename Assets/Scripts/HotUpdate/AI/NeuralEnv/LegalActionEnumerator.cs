@@ -26,7 +26,7 @@ namespace CardCore.AI.NeuralEnv
         RespondActivate = 10,    // 响应发动（主动；镜像 NetworkIntentApplier.ActivateWithTargets）
         Guard = 11,              // 守卫宣言（拦截栈上的攻击宣言对象）
         TapCreature = 12,        // 横置带地牌特性(LandTrait)的生物产 1 元素进临时钱包（主阶段；产色自动=费用首色）
-        CommitAwaken = 13,       // 苏醒立约（主阶段；手牌+灰时长自我沉睡+未立约+未锁定——灰份额免付转沉睡层数）
+        CommitAwaken = 13,       // 苏醒立约（主阶段；手牌+豁免时长自我沉睡+未立约+未锁定——灰/绿份额免付转沉睡层数）
         // 2 = 墓地出牌（已移除 2026-09-09）：RL 标准池不含可从墓地打出的来源卡，
         //     枚举出的动作引擎必拒（口径漂移白耗动作配额）。引擎侧 GameActions.PlayCardFromGraveyard
         //     保留（引擎能力/UI 走它），只是不再进动作空间。
@@ -594,9 +594,9 @@ namespace CardCore.AI.NeuralEnv
             }
         }
 
-        /// <summary>苏醒立约行（v3 契约 §1 CommitAwaken=13）：手牌中带灰时长自我沉睡效果的卡
-        /// 预立约——此后施放灰份额全免转沉睡层数。资格镜像 GameActions.CommitAwaken 守卫
-        /// （HasSelfSleepEffect 已公开化复用，含 CardData 结果缓存）。</summary>
+        /// <summary>苏醒立约行（v3 契约 §1 CommitAwaken=13）：手牌中带豁免时长自我沉睡效果的卡
+        /// 预立约——此后施放灰、绿份额全免转沉睡层数（2026-10-22 扩灰+绿）。资格镜像
+        /// GameActions.CommitAwaken 守卫（HasSelfSleepEffect 已公开化复用，含 CardData 结果缓存）。</summary>
         private void EnumerateCommitAwakens(GameCore core, Player me, ZoneManager zm)
         {
             var hand = zm.GetCards(me, Zone.Hand);

@@ -45,6 +45,14 @@ namespace SynergyUI
         // 当前正在构筑的卡组（卡牌 ID 列表，同卡多册多条目）。
         private readonly List<string> _deckCardIds = new List<string>();
 
+        /// <summary>衍生物模板卡判定（2026-10-22 额外区配套）：入组开局落 Zone.Extra 不进牌库——
+        /// 不计入 30-60 构筑张数（添加口/汇总/保存口三处同口径）。</summary>
+        private static bool IsTokenTemplateId(string id)
+            => CardCatalog.GetById(id)?.IsTokenTemplate == true;
+
+        /// <summary>构筑张数口径：排除衍生物模板卡后的张数。</summary>
+        private int DeckBuildCount => _deckCardIds.Count(id => !IsTokenTemplateId(id));
+
         private TipPromptHost _tips; // TipPanel 提示弹窗宿主（2026-10-18 统一定案；惰性建——字段初始化器不能引用实例 Root）
         private TipPromptHost Tips => _tips ??= new TipPromptHost(() => Root);
 
@@ -325,7 +333,8 @@ namespace SynergyUI
         private void AddCard(string id)
         {
             // 构筑规则③：30-60 张内重复任意张——上限在添加口即时反馈
-            if (_deckCardIds.Count >= MaxDeckCards)
+            //（衍生物模板卡不计入：入组开局落 Zone.Extra 额外区不进牌库，2026-10-22 口径）
+            if (DeckBuildCount >= MaxDeckCards)
             {
                 ShowToast($"卡组已达上限 {MaxDeckCards} 张");
                 return;
@@ -473,8 +482,12 @@ namespace SynergyUI
                 if (card != null) totalCost += card.TotalCost;
             }
             if (_summary != null)
-                _summary.text = $"卡数 {_deckCardIds.Count}（需 {MinDeckCards}-{MaxDeckCards}） · " +
-                                $"合计费用 {(int)totalCost}";
+            {
+                int tokens = _deckCardIds.Count(IsTokenTemplateId);
+                _summary.text = $"卡数 {DeckBuildCount}（需 {MinDeckCards}-{MaxDeckCards}）"
+                                + (tokens > 0 ? $" + 衍生物{tokens}（额外区）" : "")
+                                + $" · 合计费用 {(int)totalCost}";
+            }
         }
 
         // ======================================== 中栏：只读卡面 + 技能栏 ========================================
@@ -747,13 +760,29 @@ namespace SynergyUI
 
         // ======================================== 右栏：卡组列表 ========================================
 
-        /// <summary>卡组列表刷新：行=[卡组名|张数·不可用标记|✕删除]；行点击=载入左栏编辑。
+        /// <summary>卡组列表刷新（2026-10-22 预组分栏）：上方独立「预组卡组（只读）」区块——
+        /// 预组不可载入编辑（防改名另存出引用教学 id 的脆弱浅拷贝），改只能复制成玩家副本；
+        /// 下方「我的卡组」玩家档区块，行=[卡组名|张数·不可用标记|✕删除]，行点击=载入左栏编辑。
         /// 不可用口径=DeckCompositionValidator.UnusableTag（断链/形状/违色任一即不可用，
         /// 与挑战/对战入口全局同源——2026-10-16 对齐定案）。</summary>
         private void RefreshDecksList()
         {
             if (_decksList == null) return;
             ClearContent(_decksList.Content);
+
+            // ---- 预组卡组（只读）分栏 ----
+            var presets = DeckCatalog.LoadPresets();
+            if (presets.Count > 0)
+            {
+                MakeSectionHeader("预组卡组（只读·复制后可改）");
+                foreach (var preset in presets)
+                {
+                    if (preset == null || string.IsNullOrEmpty(preset.name)) continue;
+                    MakePresetRow(preset);
+                }
+            }
+            MakeSectionHeader("我的卡组");
+
             var decks = DeckSerializer.LoadAll();
             if (decks.Count == 0)
             {
@@ -781,7 +810,7 @@ namespace SynergyUI
             UiKit.Size(name, fw: 1f);
             var tag = DeckCompositionValidator.UnusableTag(deck);
             UiKit.Label("meta", row,
-                $"{deck.cardIds?.Count ?? 0} 张" + (tag.Length > 0 ? "·" + tag : ""),
+                DeckCountText(deck) + (tag.Length > 0 ? "·" + tag : ""),
                 UiStyle.SmallSize, tag.Length > 0 ? UiStyle.DotRed : UiStyle.TextFaint);
 
             var captured = deck.name;
@@ -792,6 +821,80 @@ namespace SynergyUI
             rowBtn.transition = Selectable.Transition.None;
             rowBtn.targetGraphic = bg;
             rowBtn.onClick.AddListener(() => LoadDeck(captured));
+        }
+
+        /// <summary>卡组列表分区标题行（2026-10-22 预组分栏）。</summary>
+        private void MakeSectionHeader(string title)
+        {
+            var header = UiKit.Label("section", _decksList.Content, title,
+                UiStyle.SmallSize, UiStyle.TextHint, TextAnchor.MiddleLeft);
+            UiKit.Size(header, fw: 1f);
+        }
+
+        /// <summary>卡组张数文案口径（预组/玩家档通用）：正卡数+衍生物M（模板不计张数——额外区配套）。</summary>
+        private static string DeckCountText(DeckData deck)
+        {
+            int total = deck?.cardIds?.Count ?? 0;
+            int tokens = deck?.cardIds?.Count(IsTokenTemplateId) ?? 0;
+            int main = total - tokens;
+            return tokens > 0 ? $"{main} 张+衍生物{tokens}" : $"{main} 张";
+        }
+
+        /// <summary>预组行（只读）：[名·预组|张数|复制钮]；行点击=只读提示（不载入——防脆弱浅拷贝）。</summary>
+        private void MakePresetRow(DeckData preset)
+        {
+            var row = UiKit.Row("preset-row", _decksList.Content, spacing: 8f, pad: 6f);
+            var bg = UiKit.BgRow(row);
+            bg.raycastTarget = true;
+            UiKit.Size(row, h: 34f);
+
+            var name = UiKit.Label("name", row, preset.name + "·预组",
+                UiStyle.BodySize, UiStyle.TextBody);
+            UiKit.Size(name, fw: 1f);
+            var tag = DeckCompositionValidator.UnusableTag(preset);
+            UiKit.Label("meta", row, DeckCountText(preset) + (tag.Length > 0 ? "·" + tag : ""),
+                UiStyle.SmallSize, tag.Length > 0 ? UiStyle.DotRed : UiStyle.TextFaint);
+
+            var captured = preset.name;
+            UiKit.MiniButton("copy", row, "复制", () => ConfirmCopyPreset(captured));
+
+            var rowBtn = row.gameObject.AddComponent<Button>();
+            rowBtn.transition = Selectable.Transition.None;
+            rowBtn.targetGraphic = bg;
+            rowBtn.onClick.AddListener(() =>
+                ShowToast("预组只读——点「复制」生成自己的副本后修改"));
+        }
+
+        private void ConfirmCopyPreset(string presetName)
+            => ConfirmCopyPresetAsync(presetName).Forget();
+
+        /// <summary>复制预组确认（TipPanel 双键）：文案注明复制范围（卡/衍生物模板/技能卡/引用效果），
+        /// 确认后走 DeckCopyService 深拷贝并载入副本。</summary>
+        private async UniTaskVoid ConfirmCopyPresetAsync(string presetName)
+        {
+            var deck = DeckCatalog.Load(presetName);
+            if (deck == null || deck.cardIds == null || deck.cardIds.Count == 0)
+            {
+                ShowToast("预组读取失败");
+                return;
+            }
+            int tokens = deck.cardIds.Count(IsTokenTemplateId);
+            int main = deck.cardIds.Count - tokens;
+            string skillPart = string.IsNullOrEmpty(deck.skillCardId) ? "" : "、技能卡";
+            if (await Tips.ShowAsync(
+                    $"复制预组「{presetName}」为可修改副本？\n" +
+                    $"将复制 {main} 张卡（含 {tokens} 张衍生物模板）{skillPart}及引用的全部组合效果。",
+                    "复制", "取消") != true)
+                return;
+            var newName = DeckCopyService.CopyPreset(presetName, out var error);
+            if (newName == null)
+            {
+                ShowToast("复制失败：" + error);
+                return;
+            }
+            RefreshDecksList(); // 副本进「我的卡组」区块
+            LoadDeck(newName);
+            ShowToast($"已复制为「{newName}」——副本可随意修改");
         }
 
         private void ConfirmDeleteDeck(string name)
@@ -893,10 +996,17 @@ namespace SynergyUI
                 ? "新卡组"
                 : (_nameField != null ? _nameField.text : _currentDeckName).Trim();
 
-            // 构筑规则③：卡组 30-60 张（卡可重复任意张）
-            if (_deckCardIds.Count < MinDeckCards || _deckCardIds.Count > MaxDeckCards)
+            // 预组名闸（2026-10-22 三套主题卡组迁教学）：预组只读，同名玩家档会遮蔽预组——禁止保存。
+            if (DeckCatalog.IsPreset(name))
             {
-                ShowToast($"卡组须 {MinDeckCards}-{MaxDeckCards} 张（当前 {_deckCardIds.Count} 张）");
+                ShowToast($"「{name}」是只读预组卡组名，请换个名字");
+                return;
+            }
+
+            // 构筑规则③：卡组 30-60 张（卡可重复任意张；衍生物模板卡不计数——落额外区不进牌库）
+            if (DeckBuildCount < MinDeckCards || DeckBuildCount > MaxDeckCards)
+            {
+                ShowToast($"卡组须 {MinDeckCards}-{MaxDeckCards} 张（当前 {DeckBuildCount} 张）");
                 return;
             }
 

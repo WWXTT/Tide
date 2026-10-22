@@ -207,6 +207,7 @@ namespace SynergyUI
                     new UiKit.Scroll { Rect = gallery.GetComponent<ScrollRect>(), Content = _galleryContent });
                 _galleryList?.Configure(i => 0, k => MakeArtTile, BindArtTile);
             }
+            _galleryForKind = null; // Build=每次进屏重建（Attach 出的是全新空列表）：缓存实例的换型守卫须复位，否则二次进屏画廊永不被喂数据
             BuildArtGallery();
 
             // ---- 右栏：效果库 ↔ 卡池 ----
@@ -2649,9 +2650,10 @@ namespace SynergyUI
         private RectTransform CloneRow(UiKit.Scroll list)
         {
             if (list?.Content == null) return null;
-            var clone = UiKit.CloneTemplateFrom(list.Content, "row", list.Content);
+            // 模板已被虚拟化接管搬去 tpl-park（content 只装活行）——从停靠点克隆
+            var clone = UiKit.CloneTemplateFrom(UiKit.RecycledList.TemplatePark(list), "row", list.Content);
             if (clone == null)
-                Debug.LogError("[CardComposer] 缺行模板 row（CardUI.prefab 对应 list 的 content 下 inactive row）——该行跳过");
+                Debug.LogError("[CardComposer] 缺行模板 row（tpl-park/content 直属 inactive row）——该行跳过");
             return clone;
         }
 

@@ -18,18 +18,20 @@ namespace CardCore
  ///   效果发动速度=卡的发动速度（法术专享通道）；从手牌打出即按此速度过门（GetCardCastSpeed）。
  /// · 结界禁主动效果（只挂自动/光环）：速度通道退役（EnchantSpeedBonusOf 删除），
  ///   免费点全投耐久（DurabilityBonusOf=剩余）；耐久=受击/被动触发次数池（主动−1 通道退役）。
- /// · 生物 = 属性1 + 攻击1 + 守卫1——三点全部投在身材：计价侧只减灰桶 S（不溢出彩色，
- ///   不干扰三色费用梯度）；攻/守 opt-out（NoAttack/NoGuard）释放的点也只减身材费，不能用作其他。
- ///   效果槽不占底盘额度 → 每槽超槽加价 +1 入灰（与属性1抵扣对冲后，默认生物首槽净 0，与旧口径总额一致）。
+ /// · 生物 = 攻击 1 + 守卫 1 + 每个效果槽 1——**结构项>3 的差额入灰**（2026-10-22 最终定案）：
+ ///   纯白板（攻+守=2 项）盈余 1 点 → +1/+1 属性；攻/守 opt-out 各释放 1 点（NoGuard 红套 = 攻 1 项，
+ ///   盈余 2 点 → +2/+2 属性）；3 效果+攻+守=5 项 → 2 灰槽位费。
+ ///   效果槽与攻/守同占 3 点底盘，不再“效果槽不占额度、每槽单独加价”。
  ///   生物禁挂连接光环（2026-10-15 改版：只留主动/自动/规则光环/本体关键词）。
  /// · 生物和结界从手牌使用的默认速度是 0（仅己方主要阶段，目前无效果能改）。
- /// ①底盘结构项（占额度）：生物 = 攻/守在场各占 1（属性1 恒投身材不占）、非生物 = 效果槽 ×CountEffectSlots
- ///   （抉择分支计槽 2026-09-21 维持；主动照常计槽——AI 可见性锚；代价栏计 1 槽）。
- /// ②免费点 N = 3 − 结构项，按卡型固定去向：法术 → 提速（N=槽数余量，槽位从速度扣）；
+ /// ①底盘结构项（占额度）：生物 = 攻/守在场各占 1 + 效果槽 ×CountEffectSlots；
+ ///   非生物 = 效果槽 ×CountEffectSlots（抉择分支计槽 2026-09-21 维持；主动照常计槽；代价栏计 1 槽）。
+ /// ②免费点 N = 3 − 结构项（≥0），按卡型固定去向：法术 → 提速（N=槽数余量，槽位从速度扣）；
  ///   结界 → 全入耐久（EquipRules 落位，免卡价）；
  ///   生物 → 全额减灰桶 S（仅灰，不溢出）；地牌/其余 → 全额抵价（ReduceBuckets 先灰后最高色）。
- /// ③超槽加价：非生物 = 结构项>3 的差额；生物 = 每效果槽 ×1（三分额已被属性/攻/守占满）。
+ /// ③超槽加价：**统一 = 结构项>3 的差额 ×1 入灰**（生物/非生物同式；3 效果+攻+守 = 2 灰）；
  ///   取整后入灰（不吃 d(C)），与抵价不再互斥（生物加价与灰桶抵扣同帧落位）。
+ /// ④抵价落位：d(C) 取整后总价逐点扣，先灰后最高费用色（ReduceBuckets）；生物抵扣恒灰桶专属。
  /// ④抵价落位：d(C) 取整后总价逐点扣，先灰后最高费用色（ReduceBuckets）；生物抵扣恒灰桶专属。
     /// ⑤衍生物无底盘（CardCostService.ContentPriceOf/ByColor 口径）：未走「入组/抽牌」通道，
     ///   结构费全额计（攻/守/槽全算）、无免费点可支配——见 CostDerivation SummonToken 分支。
@@ -41,30 +43,30 @@ namespace CardCore
     /// </summary>
     public static class CardCompositionCost
     {
-        /// <summary>结构项数（未乘费率；2026-10-15 卡型默认分配）：生物 = 攻在 + 守在
-        ///（属性1 恒投身材、效果槽走超槽加价——均不占额度）；非生物 = 效果槽（CountEffectSlots
-        /// 口径，抉择分支计槽）。供 SurplusOf 占用侧。</summary>
+        /// <summary>结构项数（未乘费率；2026-10-22 最终定案）：**统一 = 攻/守/效果槽各占 1 点**——
+        /// 生物 = 攻在 + 守在 + 效果槽（CountEffectSlots，抉择分支计槽；NoAttack/NoGuard 各释放 1 点）；
+        /// 非生物 = 效果槽。三点免费底盘被占用后的盈余按卡型分配，结构项>3 的差额入灰加价。</summary>
         public static int ChassisItems(CardData card)
         {
+            int slots = CostDerivationService.CountEffectSlots(card);
             if (card != null && card.Supertype == Cardtype.Creature)
-                return (card.NoAttack ? 0 : 1) + (card.NoGuard ? 0 : 1);
-            return CostDerivationService.CountEffectSlots(card);
+                return (card.NoAttack ? 0 : 1) + (card.NoGuard ? 0 : 1) + slots;
+            return slots;
         }
 
         /// <summary>
-        /// 超槽加价（恒 ≥0、永不退费，取整后入灰不吃 d(C)）：
-        /// 非生物 = 结构项 × 费率超出 3 点额度的差额；生物 = 每效果槽 × 费率（三分额已被
-        /// 属性/攻/守占满——与 SurplusOf 的属性1灰桶抵扣对冲后，默认生物首槽净 0，总额同旧口径）。
-        /// 攻/守 = 生物默认自带（NoAttack/NoGuard 玩家自选 opt-out——Power=0 不自动剥夺，
-        /// 2026-10-10 撤销「Power=0 视同 NoAttack」）。
+        /// 超槽加价（恒 ≥0、永不退费，取整后入灰不吃 d(C)）；2026-10-22 最终定案统一为
+        /// **结构项 × 费率 − 3 点额度**（生物/非生物同式）：
+        /// 生物 3 效果 + 攻 + 守 = 5 项 → 2 灰（用户点名口径）；
+        /// 1 效果生物 = 3 项 → 0 灰（与 SurplusOf=0 对冲，净 0）；
+        /// 2 效果生物 = 4 项 → 1 灰；纯白板 = 2 项（攻+守）→ 0 灰且盈余 1 点入属性。
+        /// 攻/守 = 生物默认自带（NoAttack/NoGuard 玩家自选 opt-out——Power=0 不自动剥夺）。
         /// </summary>
         public static int StructuralSurcharge(CardData card)
         {
             var cfg = ValueSystemConfigManager.Instance.GetOrCreateConfig().CardCompositionConfig;
             int budget = (int)Math.Max(0f, cfg.ChassisBudget);
             int rate = Math.Max(1, (int)Math.Max(0f, cfg.ChassisItemRate));
-            if (card != null && card.Supertype == Cardtype.Creature)
-                return CostDerivationService.CountEffectSlots(card) * rate;
             return Math.Max(0, ChassisItems(card) * rate - budget);
         }
 

@@ -35,6 +35,7 @@ namespace SynergyUI
                 //（硬币 50/50、后手角色 +5 护甲——语义与旧对局准备流程一致，演出挪进战场 3D）
                 BattleEntry.Mode = BattleMode.LocalAI;
                 BattleEntry.StagedOpening = true;
+                BattleEntry.DummyTest = false; // 显式清（持久旗标防上次木桩局残留串模式）
                 SwallowToBattle();
             });
 
@@ -48,9 +49,17 @@ namespace SynergyUI
             BindButton("btn-card", () => Manager.Show<CardComposerScreen>());
             BindButton("btn-effect", () => Manager.Show<EffectComposerScreen>());
 
-            // 测试开局（2026-10-16）：教学预设场面管线解耦的通用测试入口（当前预设=地牌充满，
-            // 见 TestStartFlow）；入口只写 BattleEntry，跳转同 EnterTutorialFlow 口径
-            BindButton("btn-teststart", () => { TestStartFlow.EnterFullLandsTest(); SwallowToBattle(); });
+            // 木桩测试（2026-10-22，接管原 2026-10-16 测试开局入口）：进入战场先弹选项面板
+            //（先后手/洗牌/元素池），确认后走五段式开局变体（固定先后手=跳过掷币段；掷硬币照常），
+            // 双方卡组都在段四由玩家从自己牌库选定；对手=纯木桩（不出牌/不攻击/响应窗全让过）。
+            // 旧一键「地牌充满」直入链保留在 TestStartFlow.EnterFullLandsTest（代码入口，无 UI 挂接）。
+            BindButton("btn-teststart", () =>
+            {
+                BattleEntry.Mode = BattleMode.LocalAI;
+                BattleEntry.StagedOpening = true; // 木桩走五段式变体（选项面板先于段一）
+                BattleEntry.DummyTest = true;
+                SwallowToBattle();
+            });
 
             _teachingNode = Find("btn-teaching");
             _battleNode = Find("btn-battle");
@@ -128,10 +137,12 @@ namespace SynergyUI
                 BattleEntry.Mode = BattleMode.Tutorial;
                 BattleEntry.TutorialId = TutorialProgressManager.LunzhuanId;
                 BattleEntry.StagedOpening = true; // 教学三开场变体（败局重挑 Replace 重入沿用现值）
+                BattleEntry.DummyTest = false;    // 同 StagedOpening 清残留口径
                 SwallowToBattle();
                 return;
             }
             BattleEntry.StagedOpening = false; // 教学一二=立即启动（防上次普通局残留串模式）
+            BattleEntry.DummyTest = false;     // 同上清残留
             TutorialFlow.StartTutorialBattle(id);
             SwallowToBattle();
         }

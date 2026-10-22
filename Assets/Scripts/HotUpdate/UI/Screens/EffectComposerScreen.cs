@@ -1654,7 +1654,8 @@ namespace SynergyUI
                 atom.branch = b;
 
                 MakeHint(slot, $"{ComposerCatalog.EngineZhOf(engineKind)}门槛=Then 奖励锚价合计"
-                        + "（随奖励实时推导，无需参数；奖励在 1-5 费区间内自由调整，门槛随计费变）"
+                        + "（随奖励实时推导，无需参数；奖励在 1-5 费区间内自由调整，门槛随计费变；"
+                        + "同一张卡每回合只触发一次）"
                         + $"——见顶栏预览「自由分支·{ComposerCatalog.EngineZhOf(engineKind)}x」");
 
                 MakeRewardSlot(slot, b, slotIndex);
@@ -2866,13 +2867,13 @@ namespace SynergyUI
         private UiKit.RecycledList.MakeFn AtomRowFactory(int kind) => kind == 1 ? MakeTableHintRow : MakeTableRow;
         private UiKit.RecycledList.MakeFn EffectRowFactory(int kind) => kind == 1 ? MakeTableHintRowEx : MakeTableRowEx;
 
-        /// <summary>数据行结构：content 直属不激活模板「row」克隆（Image+Button+CostSquares+meta）。</summary>
+        /// <summary>数据行结构：克隆模板「row」——虚拟化接管后模板停靠在 tpl-park（content 只装活行）。</summary>
         private RectTransform MakeTableRow()
         {
-            var tpl = UiKit.CloneTemplate("row", _libraryList.Content);
+            var tpl = UiKit.CloneTemplate("row", UiKit.RecycledList.TemplatePark(_libraryList));
             if (tpl == null)
             {
-                Debug.LogError("[EffectComposer] 列表缺 row 模板（content 直属、不激活）——本行跳过；检查 EffectUI.prefab");
+                Debug.LogError("[EffectComposer] 列表缺 row 模板（tpl-park/content 直属、不激活）——本行跳过；检查 EffectUI.prefab");
                 return UiKit.Node("row-miss", _libraryList.Content);
             }
             return tpl;
@@ -2880,10 +2881,10 @@ namespace SynergyUI
 
         private RectTransform MakeTableRowEx()
         {
-            var tpl = UiKit.CloneTemplate("row", _effectsList.Content);
+            var tpl = UiKit.CloneTemplate("row", UiKit.RecycledList.TemplatePark(_effectsList));
             if (tpl == null)
             {
-                Debug.LogError("[EffectComposer] 列表缺 row 模板（content 直属、不激活）——本行跳过；检查 EffectUI.prefab");
+                Debug.LogError("[EffectComposer] 列表缺 row 模板（tpl-park/content 直属、不激活）——本行跳过；检查 EffectUI.prefab");
                 return UiKit.Node("row-miss", _effectsList.Content);
             }
             return tpl;

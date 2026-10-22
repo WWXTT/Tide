@@ -461,7 +461,7 @@ namespace CardCore
         /// <summary>Kind==Atomic 时的原子效果。</summary>
         public AtomicEffectInstance Atomic;
 
-        /// <summary>Kind==Branch 时的条件 id（取自 BranchConfig 目录）。</summary>
+        /// <summary>Kind==Branch 时的条件 id（由代码侧 BranchConditionEvaluator 识别；原 BranchConfig 目录已删）。</summary>
         public string ConditionId;
         public int ConditionParam;
         public string ConditionStringParam;
@@ -636,8 +636,8 @@ namespace CardCore
         /// <summary>极性（表级解析：-1=对对手释放有益 / +1=对己方释放有益 / 0=中性；错边折价输入）。</summary>
         public float Polarity;
 
-        // メタ効果（RepeatEffect/RandomEffect/ChooseOneEffect/DelayedEffect）の子効果。
-        // TODO(network): MemoryPack DTO 往復は範囲外。ネットワーク同期する場合は専用 DTO へ写像が必要。
+        // 元效果（RepeatEffect/RandomEffect/ChooseOneEffect/DelayedEffect）的子效果。
+        // TODO(network)：MemoryPack DTO 不往返这一层；将来要进网络同步需映射到专用 DTO。
         public List<AtomicEffectInstance> SubEffects = new List<AtomicEffectInstance>();
 
         /// <summary>无执行场景的模板描述（代价文本等）：走 handler 注册表（context=null → 纯模板）。

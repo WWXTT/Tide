@@ -13,8 +13,8 @@ namespace CardCore.Editor.Tests
 {
     /// <summary>
     /// AI 自动对战选卡组窗口（2026-09-21 策略模式整合）：
-    /// · 卡组=「玩家卡组」下拉（StreamingAssets/Card/ 下的 DeckData——三色主题卡组经
-    ///   Tools/构建三色主题卡组 生成）｜随机三色（三主题并池抽 30）｜拖入 JSON（旧路径保留）；
+    /// · 卡组=「玩家卡组」下拉（DeckCatalog 合并口：CardData/Card 玩家存档 + TutorialData/Tutorial 只读预组——
+    ///   三套主题预组经 Tools/验证/重建三套主题卡组（写入教学表）生成）｜随机三色（三主题并池抽 30）｜拖入 JSON（旧路径保留）；
     /// · 策略=每玩家独立下拉（自动匹配卡组主色/通用/红快攻/绿慢速/蓝控制——SimpleAI 决策偏好分化）；
     /// · 大脑=脚本 SimpleAI（策略生效）/AI 神经网络（策略忽略）；
     /// · 局数=1 单局战报；N 批量换边循环并写 Logs/ThemeBattle_Report.md（原 ArchetypeBattle 职责并入）。
@@ -53,8 +53,8 @@ namespace CardCore.Editor.Tests
 
         private void ReloadDecks()
         {
-            // 玩家卡组=Card/ 下的 DeckData（DeckSerializer 与 Cards/Effects 同目录——过滤非卡组文件）
-            _deckNames = SynergyUI.DeckSerializer.LoadAll()
+            // 卡组=玩家存档 + 只读预组（2026-10-22 DeckCatalog 合并口——三套主题卡组已迁教学目录）
+            _deckNames = SynergyUI.DeckCatalog.LoadAll()
                 .Where(d => !string.IsNullOrEmpty(d.name) && d.cardIds != null && d.cardIds.Count > 0)
                 .Select(d => d.name)
                 .ToList();
@@ -67,7 +67,7 @@ namespace CardCore.Editor.Tests
             _scroll = EditorGUILayout.BeginScrollView(_scroll);
 
             EditorGUILayout.HelpBox(
-                "卡组：玩家卡组（StreamingAssets/Card/，Tools/构建三色主题卡组 生成红/绿/蓝）· 拖入 JSON · 随机三色。\n" +
+                "卡组：玩家存档 + 只读预组（Tools/验证/重建三套主题卡组 生成红/绿/蓝）· 拖入 JSON · 随机三色。\n" +
                 "策略：仅脚本大脑生效——红=铺场打脸+激励最高攻、绿=回血攒费+大生物碾压、蓝=指示物控场+中等换小。",
                 MessageType.Info);
 
@@ -206,13 +206,13 @@ namespace CardCore.Editor.Tests
             {
                 var pool = ThemeColorPools().SelectMany(p => p).ToList();
                 if (pool.Count == 0)
-                    throw new Exception("主题卡池为空——先运行 Tools/构建三色主题卡组。");
+                    throw new Exception("主题卡池为空——先运行 Tools/验证/重建三套主题卡组（写入教学表）。");
                 var rng = new System.Random(); // 单实例双采样（两个新实例可能同刻同种子）
                 return SampleDeck(rng, pool);
             }
             int nameIndex = deckIndex - 1;
             if (nameIndex < 0 || nameIndex >= _deckNames.Count) throw new Exception("卡组列表已变化，请刷新。");
-            var deck = SynergyUI.DeckSerializer.Load(_deckNames[nameIndex]);
+            var deck = SynergyUI.DeckCatalog.Load(_deckNames[nameIndex]);
             if (deck == null) throw new Exception($"卡组不存在：{_deckNames[nameIndex]}");
             var cards = new List<CardData>();
             var missing = new List<string>();
@@ -391,10 +391,10 @@ namespace CardCore.Editor.Tests
         private static string ManifestPath
             => Path.Combine(Application.dataPath, "..", "tide_rl", "card_identity_manifest.json");
 
-        /// <summary>三色主题卡池（Cards.json 按 Theme* 标签过滤；下标红/绿/蓝——2026-09-21 起替代已删的 Configs/TestDecks）。</summary>
+        /// <summary>三色主题卡池（Cards.json 按三套新构建器标签过滤；下标红/绿/蓝——2026-10-22 起一代 Theme* 卡已清池）。</summary>
         private static List<CardData>[] ThemeColorPools()
         {
-            var tags = new[] { "ThemeRed", "ThemeGreen", "ThemeBlue" };
+            var tags = new[] { "ThemeRedClash", "ThemeGreenCountdown", "ThemeBlueSurplus" };
             var pools = new List<CardData>[tags.Length];
             var all = SynergyUI.CardCatalog.LoadAll();
             for (int i = 0; i < tags.Length; i++)

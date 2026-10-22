@@ -417,10 +417,12 @@ namespace SynergyUI
         {
             _gameEnded = false;
             _running = true;
+            RuleHooks.OnAutoTargetTaken = OnAutoTargetTaken; // 免弹自动取反馈（2026-10-22 B5）——静态探针，OnExit 先行退订
 
 
             if (_lblMode != null)
-                _lblMode.text = BattleEntry.Mode == BattleMode.Tutorial ? $"教学 · {BattleEntry.TutorialId}"
+                _lblMode.text = BattleEntry.DummyTest && BattleEntry.Mode == BattleMode.LocalAI ? "木桩 · 测试"
+                    : BattleEntry.Mode == BattleMode.Tutorial ? $"教学 · {BattleEntry.TutorialId}"
                     : BattleEntry.Mode == BattleMode.Challenge ? $"挑战 · 难度{BattleEntry.ChallengeDifficulty}"
                     : BattleEntry.Mode == BattleMode.Network ? "联机 · P2P"
                     : "本地 · AI";
@@ -455,6 +457,7 @@ namespace SynergyUI
             // 清理（守卫窗续跑/Region 收口/箭头回收）之前——OnExit 中途异常截断会让静态事件
             // OnStepAdvanced 摄着本实例跨局复活（残留 _toastOverlay 每步重渲+访问已毁 UI）。
             _tutorial?.UnhookBanner(); // 静态引导订阅退订（BattleTutorialDirector·2026-10-18 拆分）
+            RuleHooks.OnAutoTargetTaken = null; // B5 静态探针退订（OnEnter 注册——僵尸订阅同口径）
             _toast.ClearLayers(); // toast 双层清空（2026-10-17 僵尸订阅口径——2026-10-18 收进 BattleToastHub）
             _running = false;
             NetShutdown(); // 网络局连接/房主服务器收口（2026-10-21 P2P；本地局 no-op）
@@ -504,6 +507,34 @@ namespace SynergyUI
             _regionSelector = null;
             if (_decision != null && ResponseWindowService.HumanResponder == _decision.ShowResponseAsync)
                 ResponseWindowService.HumanResponder = null;
+        }
+
+        /// <summary>免弹自动取目标反馈（2026-10-22 玩家反馈 B5「单目标自动选定无感知」）：
+        /// toast 报目标名 + 目标格 0.7s 扩散波脉冲（单格 ClearGlow 收口不动对账态）。
+        /// 仅己方为 chooser 时提示——AI 结算自动取不弹（刷屏）。</summary>
+        private void OnAutoTargetTaken(Player chooser, List<Entity> targets)
+        {
+            if (!_running || chooser == null || chooser != P1 || targets == null || targets.Count == 0) return;
+            var names = string.Join("、", targets.Select(t => MatchLogRenderer.EntityName(t, p => p == P1)));
+            _toast.Show($"已自动选定目标：{names}");
+            PulseAutoTargetGlowAsync(targets).Forget();
+        }
+
+        /// <summary>B5 脉冲高亮：目标实体落格（角色等无格实体跳过）短亮后单格熄灭。</summary>
+        private async UniTaskVoid PulseAutoTargetGlowAsync(List<Entity> targets)
+        {
+            var board = _ctrl?.Board;
+            var cells = new List<(int x, int z)>();
+            if (board != null)
+                foreach (var t in targets)
+                    if (t is Card c && board.TryGetCell(c, out int x, out int z))
+                        cells.Add((x, z));
+            if (cells.Count == 0) return;
+            foreach (var (x, z) in cells)
+                BattleTileFx.SetUnitGlow(x, z, BoardLayout.OwnerOf(x, z) == 1);
+            await UniTask.Delay(700, ignoreTimeScale: true);
+            foreach (var (x, z) in cells)
+                BattleTileFx.ClearGlow(x, z);
         }
 
         // ======================================== 网络模式（2026-10-21 P2P 复活） ========================================
@@ -1055,11 +1086,17 @@ namespace SynergyUI
 
             if (StagedOpeningActive())
             {
-                // 五段式开局（2026-10-19 掷币演出挪战场）：先战场演出（地块就位→角色就位→掷硬币→
+                // 五段式开局（2026-10-19 掷币挪战场）：先战场演出（地块就位→角色就位→掷硬币→
                 // 战场选卡组），引擎启动整体推迟到段五——BattleOpeningDirector 段末回调
                 // EngageStagedBattle 交班。段一~四无 Core/无事件订阅可撞；段二预置柱由段五首次
                 // 对账按名收养；AI 先手 kickoff 随 Engage 尾段（防硬币对方先手局冻结的同款洞）。
                 WireLocalUi();
+                if (BattleEntry.DummyTest)
+                {
+                    // 木桩测试（2026-10-22）：进入先不开始——选项面板确认后才走五段式开场
+                    StartDummyOpeningAsync().Forget();
+                    return;
+                }
                 _opening = new BattleOpeningDirector(() => _running, _field,
                     BattleEntry.Mode == BattleMode.Tutorial && BattleEntry.TutorialId == TutorialProgressManager.LunzhuanId,
                     EngageStagedBattle);
@@ -1082,6 +1119,30 @@ namespace SynergyUI
             RefreshFieldWhenBoardReady().Forget();
             EngageLocalBattle(null, null, null, null, null, myDeck, mySkill, aiDeck, aiSkill,
                 playerFirst, forceMatch: true);
+        }
+
+        /// <summary>木桩测试开局（2026-10-22）：进入战场先不开始——模态弹选项面板（先后手/洗牌/
+        /// 元素池），确认后按选项走五段式开场（固定先后手=开场跳过掷币段；掷硬币=照常）；
+        /// 返回主菜单=直接退屏（无引擎已建，OnExit 常规收口即可）。三选项经 BattleEntry
+        /// 静态口带给 EngageLocalBattle 木桩分支（段五交班时消费）。</summary>
+        private async UniTaskVoid StartDummyOpeningAsync()
+        {
+            var picked = await DummyOptionsPanel.ShowAsync(() => _running, Root);
+            if (!_running) return; // 拆屏（面板随 Root 销毁自清）
+            if (picked == null)
+            {
+                Manager.Back();
+                return;
+            }
+            BattleEntry.DummyPlayerFirst = picked.Value.PlayerFirst;
+            BattleEntry.DummyShuffle = picked.Value.Shuffle;
+            BattleEntry.DummyFullPool = picked.Value.FullPool;
+            Debug.Log("[BattleScreen] 木桩选项：先后手=" + (picked.Value.PlayerFirst == null ? "掷硬币"
+                    : picked.Value.PlayerFirst == true ? "我方先手" : "对方先手")
+                + " 洗牌=" + picked.Value.Shuffle + " 元素池充满=" + picked.Value.FullPool);
+            _opening = new BattleOpeningDirector(() => _running, _field, false, EngageStagedBattle,
+                picked.Value.PlayerFirst);
+            _opening.RunAsync().Forget();
         }
 
         /// <summary>本地对局启动后半段（原 StartLocalFan 尾段整体抽出·2026-10-19 五段式开局复用——
@@ -1115,6 +1176,30 @@ namespace SynergyUI
                         playerFirst: playerFirst, secondArmorBonus: 5);
                 }
             }
+            else if (BattleEntry.DummyTest)
+                // 木桩测试局（2026-10-22）：双方卡组皆玩家段四所选（null=随机在此解析——场景管线
+                // 的 hand/deck 引用须与卡组同源，不能交给 StartNewGame 内部随机）；对手=木桩驱动
+                //（全让过）+被动响应器（守卫/连锁永不反制）；洗牌关=锁牌库序（文件序抽牌可复现）；
+                // 元素池充满=按所选卡组组「地牌充满」预设（素材缺失回落常规开局）。不注入后手护甲
+                //（纯测试床，与正式局差异从简）。
+            {
+                // 随机兜底=三套预组随机其一（2026-10-22；玩家池已空）——技能随预组回传
+                string myRandomSkill = null, aiRandomSkill = null;
+                var myDummy = matchDeck ?? BattleController.RandomDeck(out myRandomSkill);
+                var aiDummy = aiDeck ?? BattleController.RandomDeck(out aiRandomSkill);
+                string myDummySkill = matchSkill ?? myRandomSkill;
+                string aiDummySkill = aiSkill ?? aiRandomSkill;
+                if (BattleEntry.DummyFullPool
+                    && DummyTestFlow.TryBuildFullPool(myDummy, aiDummy, BattleEntry.DummyShuffle,
+                        playerFirst != false, out var scen, out var mySeeded, out var aiSeeded))
+                    _ctrl.StartNewGame(mySeeded, aiSeeded, new DummyAi(),
+                        scenario: scen, mySkillCardId: myDummySkill, aiSkillCardId: aiDummySkill);
+                else
+                    _ctrl.StartNewGame(myDummy, aiDummy, new DummyAi(),
+                        lockDeckOrder: !BattleEntry.DummyShuffle,
+                        mySkillCardId: myDummySkill, aiSkillCardId: aiDummySkill, playerFirst: playerFirst);
+                _ctrl.EnablePassiveAiResponder();
+            }
             else if (matchDeck != null || forceMatch)
                 // 对局准备流程（2026-10-19 挪入战场五段式开局：掷币+选卡组结果段五注入，旧
                 // PreMatchScreen 当日整删）：AI 策略按其卡组自适配（卡组缺=缺省策略）；硬币后手
@@ -1140,11 +1225,14 @@ namespace SynergyUI
                 // 技能（2026-10-07 卡牌化）：玩家=卡组标记；AI 随机卡组自动挑一张合格结界
                 var difficulty = Mathf.Clamp(BattleEntry.ChallengeDifficulty, 1, ChallengeProgressManager.MaxDifficulty);
                 BattleEntry.ChallengeDifficulty = difficulty;
-                var challAiDeck = BattleController.RandomDeckFrom(CardCatalog.LoadAll());
+                string challAiRandomSkill;
+                var challAiDeck = BattleController.RandomDeck(out challAiRandomSkill); // 三套预组随机其一（玩家池已空）
                 _ctrl.StartNewGame(challengeDeck, challAiDeck, MakePacedAi(AiStrategy.AutoMatch(challAiDeck)),
                     aiLandCapBonus: difficulty, aiExtraOpeningDraws: difficulty,
                     mySkillCardId: challengeSkill,
-                    aiSkillCardId: HeroSkillSystem.AutoPickSkillCard(challAiDeck));
+                    aiSkillCardId: !string.IsNullOrEmpty(challAiRandomSkill)
+                        ? challAiRandomSkill
+                        : HeroSkillSystem.AutoPickSkillCard(challAiDeck));
             }
             else
                 // 普通本地局兜底（2026-10-13 补）：LocalAI 无镜像时原链无分支命中=空战场不 InitGame
@@ -1640,12 +1728,11 @@ namespace SynergyUI
                 return;
             }
 
-            // 法术：手牌路径手选发动位→声明流（2026-10-20：必须先到发动区）；墓地路径自动落位直入声明流；
-            // 永久物抉择照旧直出选格
+            // 法术：手牌/墓地路径均自动落位（B4）直入声明流；永久物抉择照旧直出选格
             if (isSpell)
             {
                 if (fromGrave) SpellDeclarationFlow(card, idx, fromGrave: true).Forget();
-                else BeginSpellCastCellPicking(card, card.CoreCard, idx);
+                else BeginSpellCastAutoPlace(card, card.CoreCard, idx);
             }
             else
                 PlayCardFinal(card, null, idx, fromGrave);
@@ -1708,41 +1795,35 @@ namespace SynergyUI
         // LandFlow（手牌直点放地的旧选色弹窗链）已随 2026-10-16 弹窗退役整删：放地现役入口=
         // OnFanPlaceLand 落格箭头（同格多候选色→PickLandColorAsync 走 Region 卡牌列表）。
 
-        // ---- 法术发动声明流（2026-10-20 改案·用户定案：手选发动位→发动区就位→选目标（可取消）→连锁检测→扣费→效果） ----
+        // ---- 法术发动声明流（2026-10-20 改案；2026-10-22 B4 反馈修订：恒自动落位→选目标（可取消）→连锁检测→扣费→效果） ----
 
-        /// <summary>法术出牌选发动位（2026-10-20 用户定案：手牌使用规范=必须先到发动区——玩家手选
-        /// 发动位置再选目标）：候选=己方单位区空格（与永久物出牌选格同款箭头交互、同源占用口径
-        /// ——含施放占格卡）。确认→登记选格单（PlayCardFinal 声明成功即 PinCard——PlaceCasting
-        /// 钉优先落同格）→SpellDeclarationFlow（贴片预览=所选格+声明期目标收集，可取消）；
-        /// 取消恢复手牌。教学闸预检前置（防选完位置才被拒）。</summary>
-        private void BeginSpellCastCellPicking(BattleCardView view, Card card, int modeIndex)
+        /// <summary>法术发动起手（2026-10-22 玩家反馈 B4 修订：手选发动位退役——法术发动位无战略
+        /// 语义（施放占格临时），恒自动落位首空格，与墓地路径 PreviewCastingCell / 网络局服务器
+        /// first-free 同口径；仅满区拦截。）：登记选格单（PlayCardFinal 声明成功即 PinCard——
+        /// PlaceCasting 钉优先落同格）→SpellDeclarationFlow（贴片预览+声明期目标收集，可取消）。
+        /// 教学闸预检前置（防落位后才被拒）。</summary>
+        private void BeginSpellCastAutoPlace(BattleCardView view, Card card, int modeIndex)
         {
             var board = _ctrl?.Board;
             if (board == null) return;
 
-            // 教学闸预检（同 SpellDeclarationFlow 口径——选位前先验）
+            // 教学闸预检（同 SpellDeclarationFlow 口径——落位前先验）
             if (RuleHooks.TutorialPlayGate?.Invoke(P1, card) is string gateReject)
             {
                 _toast.Show($"教学引导：{gateReject}");
                 return;
             }
 
-            var options = new List<BattleCellPicker.CellOption>();
+            (int x, int z) picked = (-1, -1);
             foreach (var cell in BoardLayout.UnitCells(0))
-                if (board.CardAt(cell.x, cell.z) == null)
-                    options.Add(new BattleCellPicker.CellOption { X = cell.x, Z = cell.z, ColorIndex = -1 });
-            if (options.Count == 0) { _toast.Show("单位区已满——无法发动（法术须先到发动区占位）"); return; }
+                if (board.CardAt(cell.x, cell.z) == null) { picked = (cell.x, cell.z); break; }
+            if (picked.x < 0) { _toast.Show("单位区已满——无法发动（法术须先到发动区占位）"); return; }
 
             _choreo?.CancelTargeting();
-            _selfFan?.SetVisible(false);
-            var origin = BoardLayout.CharacterCell(0);
-            _cellPicker.Begin(BattleBoardGrid.WorldPositionOf(origin.x, origin.z), options, opt =>
-            {
-                RestoreFan();
-                _pendingPins[card.RuntimeId] = (opt.X, opt.Z);
-                Debug.Log($"[HandPlay] 法术发动位：{view.Name} → ({opt.X},{opt.Z})（声明成功即钉）");
-                SpellDeclarationFlow(view, modeIndex, fromGrave: false, pickedX: opt.X, pickedZ: opt.Z).Forget();
-            }, RestoreFan);
+            _pendingPins[card.RuntimeId] = picked;
+            Debug.Log($"[HandPlay] 法术自动落位：{view.Name} → ({picked.x},{picked.z})（B4 免手选发动区）");
+            _toast.Show("已自动落位发动区");
+            SpellDeclarationFlow(view, modeIndex, fromGrave: false, pickedX: picked.x, pickedZ: picked.z).Forget();
         }
 
         /// <summary>法术发动声明流：发动位/模式/费用已过 → 预览态（贴片预览——手牌路径=玩家所选格，
@@ -2101,7 +2182,7 @@ namespace SynergyUI
                         _toast.Show("费用不足——该作用不可发动");
                         return;
                     }
-                    BeginSpellCastCellPicking(view, card, 0);
+                    BeginSpellCastAutoPlace(view, card, 0);
                 }
                 return;
             }
@@ -2300,7 +2381,9 @@ namespace SynergyUI
                 _hoverProv.Clear(); // 放地/出牌选格中：点击由选格器消费（箭头跟随+候选格高亮），本屏路由让路
                 return;
             }
-            if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
+            if (BattlePointer.OverUI) // UI 让路口径统一（2026-10-22 B2）：无参 IsPointerOverGameObject
+                // 触摸下基本恒 false（不采手指位），与选择循环（BattlePointer）口径分裂——曾致触摸经
+                // UGUI 区漏判为棋盘点击；OverUI 在本方法开头 Sample() 已刷新（鼠标/触摸同源）。
             {
                 _hoverProv.Clear();
                 return;
@@ -2456,9 +2539,10 @@ namespace SynergyUI
             CloseRegion();
         }
 
-        /// <summary>特殊格点击：墓地/除外/发动区/卡组/临时元素→Region 面板；角色格→技能详情+操作组。
+        /// <summary>特殊格点击：墓地/除外/发动区/卡组/额外区→Region 面板；角色格→技能详情+操作组。
         /// 2026-10-17 点击门槛（用户定案）：墓地/除外须有卡才开列表面（无卡=点击无反馈，信息走悬停）；
-        /// 卡组是隐藏区，只有存在被展示的卡（RevealRules 信息轴）才开——列表只列被展示的卡。</summary>
+        /// 卡组是隐藏区，只有存在被展示的卡（RevealRules 信息轴）才开——列表只列被展示的卡。
+        /// 额外区（2026-10-22 衍生物模板区·原技能格位）：有模板卡才开（同墓地/除外门槛）。</summary>
         private void HandleZoneCellClick(CellRole role, int ownerIdx)
         {
             var owner = ownerIdx == 0 ? P1 : P2;
@@ -2479,6 +2563,9 @@ namespace SynergyUI
                 // CellRole.Skill 已随技能格撤销（2026-10-16）退役：技能发动入口=角色格【发动】键
                 //（HandleFieldClick btnKind 路由——OnClickHeroZone 链路），介绍=角色格悬停。
                 case CellRole.Character: OnClickCharacterCell(owner); break;
+                case CellRole.Extra:
+                    if (ZoneCount(owner, Zone.Extra) > 0) OpenRegion(RegionKind.Extra, owner);
+                    break;
             }
         }
 

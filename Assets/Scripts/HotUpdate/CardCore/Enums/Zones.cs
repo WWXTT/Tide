@@ -55,6 +55,13 @@ namespace CardCore
         /// 注意：新值只能追加在枚举末尾——SerializableRuntimeCardState 按 int 序列化，插中间会错位旧档。
         /// </summary>
         Activation,
+
+        /// <summary>
+        /// 额外区（2026-10-22 衍生物模板区）：卡组里 tags 含「衍生物」的模板卡开局由 InitGame
+        /// 摘出落此区（照英雄技能卡摘出先例）——不进牌库、不会被抽到；纯展示/识别/引用面
+        /// （SummonToken 按模板 id 从卡池解析实例化，不消费区内卡）。新值只能追加在枚举末尾。
+        /// </summary>
+        Extra,
     }
 
     /// <summary>

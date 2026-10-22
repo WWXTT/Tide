@@ -78,7 +78,7 @@ public class TextureArrayGeneratorEditor : EditorWindow
         }
     }
 
-    // 菜单入口集中在 FTextureEditWindows_MenuItems（Tools/美术/创建贴图数组）
+    // 菜单入口集中在 FTextureEditWindows_MenuItems（Assets/Texture Tools/创建贴图数组）
     public static void ShowWindow()
     {
         GetWindow<TextureArrayGeneratorEditor>("Texture Array Generator");

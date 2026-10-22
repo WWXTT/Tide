@@ -440,6 +440,7 @@ namespace CardCore
                 if (!string.IsNullOrEmpty(a.branch.condStr)) b["condStr"] = a.branch.condStr;
                 if (a.branch.engine != 0) b["engine"] = a.branch.engine;
                 if (a.branch.engineParam != 0) b["engineParam"] = a.branch.engineParam;
+                if (a.branch.tactivate != -1) b["tactivate"] = a.branch.tactivate; // 奖励发动方式（-1=随主干·省略）
                 b["then"] = EmitAtoms(a.branch.then);
                 o["branch"] = b;
             }

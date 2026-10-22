@@ -161,15 +161,13 @@ namespace CardCore
             // 退费先灰后最高色（法术常无灰分量），加价入灰。
             var kwMultiplier = cc.KeywordsShareDelayDiscount ? factor : 1f;
             int statGray = (int)Math.Round(statValue, MidpointRounding.AwayFromZero);
-            // 底盘（2026-10-15 卡型默认分配定案，取代 10-10 可支配）：生物效果槽超槽加价入灰
-            //（不吃 d(C)）+ 免费点只减灰桶 S；法术免费点投提速（占用份额不抵价）；
-            // 结界免费点走速1+耐久（运行时落位）；地牌全额抵价（先灰后最高色）。
+            // 底盘（2026-10-22 最终定案，取代 10-15 生物按槽加价）：结构项=攻/守+效果槽，
+            // 结构项>3 差额入灰（生物/非生物同式）；免费点按卡型：生物→属性（灰桶 S）、法术→提速、
+            // 结界→耐久、地牌→全额抵价（先灰后最高色）。
             int surcharge = CardCompositionCost.StructuralSurcharge(card);
             if (surcharge > 0)
                 result.Breakdown.Add(new CostBreakdownLine("C",
-                    card.Supertype == Cardtype.Creature
-                        ? $"效果槽×{CostDerivationService.CountEffectSlots(card)} 超槽加价 +{surcharge} 入灰（不吃 d(C)；与属性1抵扣对冲后首槽净 0）"
-                        : $"结构加价 结构{CardCompositionCost.ChassisItems(card)}×1 − 预算3 → +{surcharge} 入灰（不吃 d(C)）",
+                    $"结构项 {CardCompositionCost.ChassisItems(card)} − 预算3 → +{surcharge} 入灰（不吃 d(C)）",
                     surcharge, ManaType.Gray));
             int surplus = CardCompositionCost.SurplusOf(card);
             if (surplus > 0)

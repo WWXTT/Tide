@@ -84,10 +84,12 @@ namespace SynergyUI
 
             // 随机卡组行（缺省选中——无存档卡组时的唯一选项）
             MakeDeckRow(RandomDeckLabel, null);
-            foreach (var deck in DeckSerializer.LoadAll())
+            // 2026-10-22 三套主题卡组迁教学：列表=玩家存档 + 只读预组（DeckCatalog 合并口；
+            // 预组名后带「·预组」仅展示，点选仍用 deck.name）。
+            foreach (var deck in DeckCatalog.LoadAll())
             {
                 if (deck == null || string.IsNullOrEmpty(deck.name)) continue;
-                MakeDeckRow(deck.name, deck);
+                MakeDeckRow(DeckCatalog.DisplayNameOf(deck), deck);
             }
             SelectDeck(_selectedDeckName); // 保持上次选择（缺失回落随机）
         }
@@ -105,7 +107,7 @@ namespace SynergyUI
             var tag = deck != null ? DeckCompositionValidator.UnusableTag(deck) : "";
             UiKit.Label("meta", row,
                 deck?.cardIds != null
-                    ? $"{deck.cardIds.Count} 张" + (tag.Length > 0 ? "·" + tag : "")
+                    ? DeckCountText(deck) + (tag.Length > 0 ? "·" + tag : "")
                     : "30 张随机",
                 UiStyle.SmallSize, tag.Length > 0 ? UiStyle.DotRed : UiStyle.TextFaint);
 
@@ -118,6 +120,15 @@ namespace SynergyUI
                 _randomDeckRow = rowBtn;
             else
                 _deckRows[deck.name] = rowBtn;
+        }
+
+        /// <summary>卡组张数文案（2026-10-22 额外区配套）：正卡数+衍生物M——模板卡开局摘额外区不计张数。</summary>
+        private static string DeckCountText(DeckData deck)
+        {
+            int total = deck?.cardIds?.Count ?? 0;
+            int tokens = deck?.cardIds?.Count(id => CardCatalog.GetById(id)?.IsTokenTemplate == true) ?? 0;
+            int main = total - tokens;
+            return tokens > 0 ? $"{main} 张+衍生物{tokens}" : $"{main} 张";
         }
 
         private void SelectDeck(string deckName)
@@ -157,7 +168,7 @@ namespace SynergyUI
             string skillCardId = null; // 玩家卡组的英雄技能标记（2026-10-07 卡牌化；随机兜底=null）
             if (_selectedDeckName != null)
             {
-                var data = DeckSerializer.Load(_selectedDeckName);
+                var data = DeckCatalog.Load(_selectedDeckName); // 玩家存档 / 只读预组（2026-10-22）
                 // 2026-10-16 全局对齐：构成校验未过（断链/形状/违色）与缺卡/张数不足同判不可用
                 bool usable = data?.cardIds != null && DeckCompositionValidator.Usable(data);
                 if (usable)
@@ -174,6 +185,7 @@ namespace SynergyUI
 
             BattleEntry.Mode = BattleMode.Challenge;
             BattleEntry.StagedOpening = false; // 挑战=立即启动（2026-10-19 防普通局五段开场旗标残留串模式）
+            BattleEntry.DummyTest = false;     // 同上清残留（防上次木桩局劫持挑战开局分支）
             BattleEntry.ChallengeDifficulty = _difficulty;
             BattleEntry.ChallengeDeck = deck; // null=StartLocalFan 兜底随机
             BattleEntry.ChallengeSkillCardId = skillCardId;

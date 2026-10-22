@@ -255,8 +255,9 @@ namespace SynergyUI
             sb.Append("br{").Append(b.settle).Append('/')
               .Append(b.gateId ?? "").Append('#')
               .Append(b.outcomeId ?? "").Append('/').Append(b.condParam).Append('/').Append(b.condStr ?? "")
-              .Append('#').Append(b.engine).Append('/').Append(b.engineParam)
-              .Append(";then[");
+              .Append('#').Append(b.engine).Append('/').Append(b.engineParam);
+            if (b.tactivate != -1) sb.Append(";tact:").Append(b.tactivate); // 奖励发动方式（-1=随主干·不写段）
+            sb.Append(";then[");
             if (b.then != null)
             {
                 foreach (var r in b.then) AppendAtomic(sb, r);

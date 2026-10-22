@@ -53,6 +53,8 @@ namespace CardCore.Network
         /// LoadAll 前 30 过 DeckSubmit 闭包校验；LoadPlayPool 滤池含效果断链卡会被拒）。</summary>
         public static NetAiFiller FromPlayPool(string nickname)
         {
+            // 2026-10-22 三套主题卡组迁教学：本类在 TideServer 共享编译（CardCore 目录），
+            // 不能引用 UI 层 DeckCatalog——统一用 CardCatalog.LoadAll（教学卡已并入全池）。
             var pool = SynergyUI.CardCatalog.LoadAll();
             var deckIds = pool.Select(c => c.ID).Distinct().Take(30).ToArray();
             if (deckIds.Length == 0) return null;

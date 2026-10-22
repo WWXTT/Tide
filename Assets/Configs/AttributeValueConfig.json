@@ -148,7 +148,7 @@
       0.0,
       0.0,
       0.0,
-      3.0
+      2.0
     ]
   },
   {
@@ -591,10 +591,10 @@
   {
     "ID": "b44286ba",
     "EnumName": "回响",
-    "DisplayName": "将此卡的具有一层遗忘指示物的复制加入手牌",
+    "DisplayName": "选择双方战场的一张卡，将其具有一层遗忘指示物的复制加入手牌",
     "EffectType": "EchoCopy",
-    "TargetKinds": "",
-    "TargetFilter": null,
+    "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位",
+    "TargetFilter": "NotRole",
     "Polarity": 1,
     "MountKinds": "",
     "Tags": null,
@@ -1037,7 +1037,7 @@
     "Tags": null,
     "ManaList": [
       0.0,
-      2.0,
+      1.0,
       0.0,
       0.0,
       0.0,

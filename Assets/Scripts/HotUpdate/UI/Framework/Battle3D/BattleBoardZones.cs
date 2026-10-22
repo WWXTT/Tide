@@ -38,6 +38,11 @@ namespace SynergyUI
         public const byte P1LandCap = 21;
         public const byte P2LandCap = 22;
 
+        // 2026-10-22 衍生物额外区追加（分区号只增不改）：23/24=额外区格（原技能格位回收——
+        // 衍生物模板卡开局落 Zone.Extra，点击格子弹区域面板识别）。
+        public const byte P1Extra = 23;
+        public const byte P2Extra = 24;
+
         private static readonly string[] Labels =
         {
             "盘外背景", "边缘环",
@@ -45,6 +50,7 @@ namespace SynergyUI
             "对方单位区", "对方地牌行", "对方卡组", "对方墓地", "对方除外", "对方角色", "对方发动",
             "己方临时元素", "对方临时元素",
             "己方技能格", "对方技能格", "中线行", "己方地牌上限", "对方地牌上限",
+            "己方额外区", "对方额外区",
         };
 
         private static readonly string[] FileLabels =
@@ -54,12 +60,15 @@ namespace SynergyUI
             "P2Unit", "P2Land", "P2Deck", "P2Grave", "P2Exile", "P2Char", "P2Act",
             "P1Temp", "P2Temp",
             "P1Skill", "P2Skill", "Middle", "P1LandCap", "P2LandCap",
+            "P1Extra", "P2Extra",
         };
 
         // 生成器默认色板（材质资产落盘后由用户在 Inspector 调色，此处仅首建初值）
+        // 2026-10-22 E1 玩家反馈「场地做成绿的/草地」：公共底盘三分区（Backdrop/Edge/Middle）
+        // 换草绿系；双方单位/地牌等功能区保留敌我辨识色不动语义。
         private static readonly Color[] DefaultColors =
         {
-            new Color(0.045f, 0.052f, 0.068f), new Color(0.115f, 0.125f, 0.145f),
+            new Color(0.045f, 0.085f, 0.045f), new Color(0.13f, 0.24f, 0.10f),
             new Color(0.09f, 0.21f, 0.36f), new Color(0.07f, 0.27f, 0.17f),
             new Color(0.13f, 0.15f, 0.28f), new Color(0.11f, 0.09f, 0.19f),
             new Color(0.08f, 0.08f, 0.10f), new Color(0.09f, 0.25f, 0.28f),
@@ -69,8 +78,9 @@ namespace SynergyUI
             new Color(0.32f, 0.10f, 0.25f), new Color(0.30f, 0.21f, 0.07f),
             new Color(0.08f, 0.34f, 0.38f), new Color(0.40f, 0.14f, 0.32f),
             new Color(0.10f, 0.30f, 0.42f), new Color(0.42f, 0.16f, 0.34f),
-            new Color(0.16f, 0.17f, 0.20f),
+            new Color(0.19f, 0.31f, 0.13f),
             new Color(0.20f, 0.24f, 0.14f), new Color(0.26f, 0.20f, 0.10f),
+            new Color(0.05f, 0.27f, 0.30f), new Color(0.31f, 0.10f, 0.27f),
         };
 
         /// <summary>分区 id → 中文名（日志/自检用）。</summary>
@@ -88,11 +98,13 @@ namespace SynergyUI
         /// <summary>角色×归属 → 分区 id（越界/未知组合回落边缘环）。
         /// LandCap 分支已退役（2026-10-14 晚缩盘：地牌上限格不再存在，角色成墓碑永不命中）；
         /// Activation 分支同口径退役（2026-10-15 发动格拆除，角色成墓碑永不命中）；
-        /// Skill 分支同口径退役（2026-10-16 技能格撤销，角色成墓碑永不命中）。</summary>
+        /// Skill 分支同口径退役（2026-10-16 技能格撤销，角色成墓碑永不命中）。
+        /// Extra 分支（2026-10-22）：格位=原技能格位回收，分区号新增 23/24（退役编号不回收）。</summary>
         public static byte ZoneOf(CellRole role, int owner)
         {
             if (role == CellRole.Edge) return EdgeRing;
             if (role == CellRole.Middle) return MiddleRow;
+            if (role == CellRole.Extra) return owner == 0 ? P1Extra : P2Extra;
             int slot;
             switch (role)
             {

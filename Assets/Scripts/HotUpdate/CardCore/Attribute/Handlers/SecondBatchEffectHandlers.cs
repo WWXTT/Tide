@@ -394,7 +394,8 @@ namespace CardCore.Attribute.Handlers
 
     // ======================= 特殊 =======================
 
-    /// <summary>额外回合</summary>
+    /// <summary>额外回合（**表行暂缺**：原子表当前无 TakeExtraTurn 行，故不可配置；2026-10-22 用户裁定
+    /// 「未来可能重启，先留着」——handler 与 TurnEngine.GrantExtraTurn 一并保留，重启时补表行即可）</summary>
     public class TakeExtraTurnHandler : AtomicEffectHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.TakeExtraTurn;
