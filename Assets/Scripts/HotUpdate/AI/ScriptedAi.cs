@@ -50,6 +50,10 @@ namespace SynergyUI
         /// 缺省 null=全速（AI-vs-AI/无头验证不受影响）。镜像 SimpleAI.PacingWait 口径。</summary>
         public Func<UniTask> PacingWait { get; set; }
 
+        /// <summary>无剧本回合是否告警（缺省 true=教学缺剧本属配置 bug 要吵；木桩脚本驱动
+        /// 2026-10-23 无剧本=预期行为，置 false 静默让过）。</summary>
+        public bool WarnWithoutScript = true;
+
         /// <summary>最终考验压力拍武装（导演器 RunMidTransition 单点维护：末段=武装、非末段/分段
         /// 回退重入=按目标段重算解除——防上段武装残留误杀）。武装后 AI 回合开场直伤对方英雄
         ///（玩家）致死→考验失败重挑（2026-10-20 用户定案：自己回合没解决对手，下个回合被打死）。</summary>
@@ -84,7 +88,8 @@ namespace SynergyUI
             var turn = _script?.GetAiTurn(_aiTurnCount);
             if (turn?.actions == null || turn.actions.Count == 0)
             {
-                TideLog.Warn($"[ScriptedAi] 机器人回合 {_aiTurnCount} 无剧本——直接结束回合（教学剧本未覆盖）");
+                if (WarnWithoutScript)
+                    TideLog.Warn($"[ScriptedAi] 机器人回合 {_aiTurnCount} 无剧本——直接结束回合（教学剧本未覆盖）");
             }
             else
             {

@@ -70,6 +70,10 @@ namespace CardCore
         public static TutorialProgressManager CreateForVerification(string savePath)
             => new TutorialProgressManager(savePath);
 
+        /// <summary>云存档还原后重置单例（2026-10-23 云存档接入）：下次访问按新落盘数据重建。
+        /// 旧实例的事件订阅随之失效——订阅方（主菜单等）须在 CloudSyncService.OnRestored 重订。</summary>
+        public static void ResetForCloudRestore() => _instance = null;
+
         // ======================================== 查询 ========================================
 
         /// <summary>已完成的教学关卡 id 集。</summary>

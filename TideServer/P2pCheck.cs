@@ -44,6 +44,10 @@ namespace TideServer
             // ---- 数据装载（DeckSubmit 校验/卡组摘要依赖卡表） ----
             LoadCheck.Run();
 
+            // 帧大小探针（2026-10-23 TapTap 接入：量化各类消息实际大小——分片参数的实证依据）
+            FrameSizeProbe.Reset();
+            FrameSizeProbe.Enabled = true;
+
             // ---- 房主：进程内会话服务器（port 0=OS 分配） ----
             var server = new NetSessionServer("p2p-check", msg => Console.WriteLine($"[P2pCheck][服务器] {msg}"), seed);
             server.Start(0);
@@ -132,6 +136,10 @@ namespace TideServer
                 server.Stop();
             }
             Assert(!NetSessionServer.IsRunning && NetSessionServer.Current == null, "停机后 Current/IsRunning 清空");
+
+            // 帧大小报告（探针在开跑前已开）——TapTap 单条 2048B/片 1500B 的适配依据
+            FrameSizeProbe.Enabled = false;
+            Console.WriteLine(FrameSizeProbe.Report());
 
             Console.WriteLine($"[P2pCheck] 完成：PASS {pass} / FAIL {fail}");
             return fail == 0 ? 0 : 1;

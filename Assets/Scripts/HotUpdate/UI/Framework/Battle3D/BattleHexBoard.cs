@@ -27,6 +27,11 @@ namespace SynergyUI
         private const string TilePrefabAddress = "BattleHex";
         private const string TilePrefabPath = "Assets/Art/Prefab/BattleHex.prefab";
 
+        // v3 预制体化（2026-10-23 13:00）：战场=可编辑资产 BattleStage.prefab
+        //（Board 55 格+Env+Stairs 预烘焙——生成：Tools/战场/生成战场预制体）
+        private const string StagePrefabAddress = "BattleStage";
+        private const string StagePrefabPath = "Assets/Art/Battle3D/Prefab/BattleStage.prefab";
+
         // 分区材质（2026-10-13 配色恢复·资产化）：Materials/BattleTile_Zone{NN}_{段}.mat
         //（一次性生成落盘，Inspector 调色归用户）。资产引用跨域边界永生；fake-null 防御同 ZoneMaterial 语义。
         private static readonly Dictionary<byte, Material> _zoneMats = new Dictionary<byte, Material>();
@@ -41,9 +46,29 @@ namespace SynergyUI
             return mat; // null=资产未生成：回落预制体自带材质
         }
 
-        /// <summary>拼装全盘棋盘（每格一枚 BattleHex 预制体实例，含两侧特殊格与空格）。
-        /// 预制体缺失返回 null（装台降级，不阻塞日出）；分区材质资产缺失回落预制体自带材质。</summary>
+        /// <summary>拼装战场（v3 预制体化）：优先加载 BattleStage.prefab（美术可在 Prefab 里直接
+        /// 拖动编辑任何件），缺失回落运行时拼装 BuildLegacy。返回=战场总根：prefab 态=BattleStage
+        ///（Board/Env/Stairs 为其子节点，由 BattleStageDirector 认领）；回落态=棋盘根（导演层另行铺环境）。</summary>
         public static GameObject Build()
+        {
+            var prefab = HotUpdateAssets.Load<GameObject>(StagePrefabAddress, StagePrefabPath);
+            if (prefab != null)
+            {
+                var stage = Object.Instantiate(prefab);
+                stage.name = "BattleStage";
+                var board = stage.transform.Find("Board");
+                Debug.Log($"[BattleHexBoard] 战场预制体装台：{StagePrefabPath}" +
+                          $"（Board格={board?.childCount ?? 0} + Env/Stairs 预烘焙）");
+                return stage;
+            }
+            Debug.LogWarning("[BattleHexBoard] BattleStage.prefab 缺失——回落运行时拼装（生成菜单 Tools/战场/生成战场预制体；P3 打包前须生成）");
+            return BuildLegacy();
+        }
+
+        /// <summary>运行时逐格拼装（生成器/回落路径·2026-10-23 v3 前的 Build 原体）：
+        /// 每格一枚 BattleHex 预制体实例（tile-x-z 命名+缩格+同名拾取代理），分区配色资产引用。
+        /// 预制体缺失返回 null（装台降级，不阻塞日出）。</summary>
+        public static GameObject BuildLegacy()
         {
             var prefab = HotUpdateAssets.Load<GameObject>(TilePrefabAddress, TilePrefabPath);
             if (prefab == null)
@@ -67,6 +92,30 @@ namespace SynergyUI
                     var tile = Object.Instantiate(prefab, root.transform, false);
                     tile.name = $"tile-{x}-{z}";
                     tile.transform.localPosition = BattleBoardGrid.CellCenterLocal(x, z);
+                    // P0 缩格（2026-10-23 战场美化）：格心不变，视觉缩 0.82 露缝。
+                    // 点选补偿（红线：拾取=单发 Physics.Raycast 认 tile- 名）：预制体根实况=六边形
+                    // MeshCollider（非 BoxCollider——随根缩会缩水 18%，BoxCollider.size 补偿不适用）。
+                    // 方案=同名子代理反缩 1/TileScale，逐点复刻原六边形拾取面（形状/面积与基线一致）；
+                    // 根 MeshCollider 销毁防双份。代理与格同名 tile-{x}-{z}，射线名字路由无感。
+                    // 中线功能行（z3）例外：不加代理不毁根碰撞体——BattleHudRow 认领改名 hud-tile-*
+                    // 后仍靠根碰撞体路由点击（结束回合/悬停），其面积随视觉缩属预期。
+                    tile.transform.localScale = Vector3.one * BattleBoardGrid.TileScale;
+                    if (z != BoardLayout.MiddleZ)
+                    {
+                        var mf = tile.GetComponent<MeshFilter>();
+                        var rootCol = tile.GetComponent<Collider>();
+                        if (mf != null && mf.sharedMesh != null && rootCol is MeshCollider)
+                        {
+                            var pick = new GameObject(tile.name); // 与格同名：名字路由零改动
+                            pick.transform.SetParent(tile.transform, false);
+                            pick.transform.localPosition = Vector3.zero;
+                            pick.transform.localScale = Vector3.one / BattleBoardGrid.TileScale;
+                            var mc = pick.AddComponent<MeshCollider>();
+                            mc.sharedMesh = mf.sharedMesh;
+                            mc.convex = ((MeshCollider)rootCol).convex;
+                            Object.Destroy(rootCol);
+                        }
+                    }
                     // 格前三键（Attack/Defense/Activate，2026-10-15 手搭）默认收起——
                     // 仅己方单位格由 BattleTileButtons 对账显键（预制体原件 active=1 不可直接用）
                     HideActionButtons(tile.transform);

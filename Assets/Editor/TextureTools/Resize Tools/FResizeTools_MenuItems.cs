@@ -7,19 +7,7 @@ namespace FIMSpace.FEditor
     public static class FResizeTools_MenuItems
     {
         // ── 尺寸调整（80-89）────────────────────────────────────
-        [MenuItem("Assets/Texture Tools/修改贴图分辨率", priority = 80)]
-        public static void ResizeTexture()
-        {
-            FResizeWindow.Init();
-        }
-
-        [MenuItem("Assets/Texture Tools/快速缩放", priority = 81)]
-        public static void QuickResizeTexture()
-        {
-            FQuickResizeWindow.Init();
-        }
-
-
+        // 修改贴图分辨率 / 快速缩放两个窗口入口已删（点不动，失效）。
         [MenuItem("Assets/Texture Tools/缩放到最近二次幂", priority = 82)]
         public static void ResizeToPowerOf2()
         {
@@ -93,20 +81,5 @@ namespace FIMSpace.FEditor
 
         }
 
-
-        [MenuItem("Assets/Texture Tools/修改贴图分辨率", true)]
-        [MenuItem("Assets/Texture Tools/快速缩放", true)]
-        public static bool CheckResizeTextureAllSelected()
-        {
-            if (!Selection.activeObject) return false;
-
-            for (int i = 0; i < Selection.objects.Length; i++) // We need just one file to be texture to return true
-            {
-                AssetImporter tex = AssetImporter.GetAtPath(AssetDatabase.GetAssetPath(Selection.objects[i]));
-                if (tex as TextureImporter) return true;
-            }
-
-            return false;
-        }
     }
 }

@@ -16,15 +16,18 @@ namespace CardCore.Network
     /// </summary>
     public sealed class NetSessionServer
     {
-        // TCP 第一实现（2026-10-21 P2P 定案：传输缝=INetTransportHost，换 Steam P2P 等第二传输只动这里）
-        private readonly INetTransportHost _host = new NetTcpHost();
+        // TCP 第一实现（2026-10-21 P2P 定案：传输缝=INetTransportHost，换第二传输注入这里）
+        // 2026-10-23 TapTap 接入：构造可注入组合宿主（TCP 回环 + TapBattleTransportHost）
+        private readonly INetTransportHost _host;
         private readonly NetRoom _room;
 
         /// <summary>逻辑线程泵宿主接进来的回调（编辑器 update / batchmode 自旋共用）。</summary>
         private readonly System.Action<string> _log;
 
-        public NetSessionServer(string roomId, System.Action<string> log = null, int? seed = null)
+        public NetSessionServer(string roomId, System.Action<string> log = null, int? seed = null,
+            INetTransportHost host = null)
         {
+            _host = host ?? new NetTcpHost();
             _room = new NetRoom(roomId, seed);
             _log = log;
         }

@@ -12,7 +12,7 @@ namespace SynergyUI
     /// 持有方本色、非持有方暗置 12%（扳机切换=亮暗对调）；holderSeat 由 BattleViewData 复合推导：
     /// 栈非空=优先权持有方，栈空=回合方（见 BattleFieldView.PrioritySeatOf）。
     ///
-    /// 面片高度=世界 y=−0.2（2026-10-15 用户定档，可在常量处自调；地块跨 y∈[−0.2,0]）。
+    /// 面片高度=世界 y=PanelY（2026-10-15 用户定档 -0.2 → 2026-10-23 战场美化让位改贴台面，见常量注）。
     /// 挂 BattleStageDirector.MapRoot（Map 恒 identity=世界坐标；棋盘根子计数被
     /// SelfCheck 钉死 55 不得加子），无 Collider 不挡棋盘射线；DismountBoard 显式销毁。
     /// </summary>
@@ -31,8 +31,13 @@ namespace SynergyUI
 
         // 摆位（Map 恒 identity=世界系；footprint 2026-10-15 用户实测：各片覆盖半场，中线行留缝）
         private static readonly Vector3 PanelSize = new Vector3(14.7f, 5f, 1f); // Quad 网格 XY 平面：x=盘宽 y=盘深
-        private static readonly Vector3 SelfPos = new Vector3(7.3f, -0.2f, 0.8f);
-        private static readonly Vector3 OppPos = new Vector3(7.3f, -0.2f, 7f);
+        // 2026-10-23 战场美化 P0' 地编让位（plan 红线7"为让位环境"·待 DSH 确认）：原定档 y=-0.2 悬空
+        // 平铺整盘——从缩格地缝往下看视线必先穿这两张面片，台面/法阵被完全遮蔽（缝里只读蓝色面片）。
+        // 地编版层次：面片抬到地面件顶(≈-0.78)之上、金法阵(≈-0.76)之下——从"悬空蓝片"变"台面上的
+        // 半场归属光带"：归属语义不变，缝里可透出地面瓦片与法阵金纹。回滚=本值改回 -0.2。
+        private const float PanelY = -0.77f;
+        private static readonly Vector3 SelfPos = new Vector3(7.3f, PanelY, 0.8f);
+        private static readonly Vector3 OppPos = new Vector3(7.3f, PanelY, 7f);
         private static readonly Quaternion SelfRot = Quaternion.Euler(90f, 0f, 0f);  // 平铺朝上·梯度亮边=南(己侧)
         private static readonly Quaternion OppRot = Quaternion.Euler(90f, 180f, 0f); // 平铺朝上·梯度亮边=北(对侧)
 

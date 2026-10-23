@@ -37,11 +37,13 @@ namespace TideServer
                     return LoadCheck.Run();
                 case "p2pcheck":
                     return P2pCheck.Run(options);
+                case "tapcodec":
+                    return TapCodecCheck.Run(options);
                 case "aiguest":
                     return AiGuest.Run(options);
                 default:
                     Console.WriteLine($"未知子命令: {command}");
-                    Console.WriteLine("用法: TideServer gateway|match|selftest|verify|loadcheck|p2pcheck|aiguest [--port N] [--seed N] [--tick-ms N] [--quick] [--sections V1,V5]");
+                    Console.WriteLine("用法: TideServer gateway|match|selftest|verify|loadcheck|p2pcheck|tapcodec|aiguest [--port N] [--seed N] [--tick-ms N] [--quick] [--sections V1,V5]");
                     return 2;
             }
         }

@@ -26,6 +26,9 @@ namespace CardCore
             }
         }
 
+        /// <summary>云存档还原后重置单例（2026-10-23 云存档接入）：下次访问按新落盘数据重建。</summary>
+        public static void ResetForCloudRestore() => _instance = null;
+
         #endregion
 
         #region 常量

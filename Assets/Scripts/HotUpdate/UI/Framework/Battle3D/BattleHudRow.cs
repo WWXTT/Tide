@@ -226,6 +226,7 @@ namespace SynergyUI
             go.transform.SetParent(tile, false);
             go.transform.localPosition = new Vector3(0f, 0.014f, 0f); // 贴格顶面（菲涅尔层之上，同地牌计数条）
             go.transform.localRotation = Quaternion.LookRotation(Vector3.down, Vector3.forward); // 平贴·字向正（2026-10-14 修：旧 up 版镜像反字，同 BattleFieldView.EnsureFlatCellLabel）
+            go.transform.localScale = Vector3.one / BattleBoardGrid.TileScale; // P0 缩格补偿：文字不随格缩小（2026-10-23）
             var label = go.AddComponent<TextMeshPro>();
             label.fontSize = fontSize;
             label.alignment = TextAlignmentOptions.Center;
@@ -247,6 +248,7 @@ namespace SynergyUI
             go.transform.SetParent(tile, false);
             go.transform.localPosition = new Vector3(0f, 0.014f, 0f); // 贴格顶面（菲涅尔层之上，同地牌计数条）
             go.transform.localRotation = Quaternion.LookRotation(Vector3.down, Vector3.forward); // 平贴·字向正
+            go.transform.localScale = Vector3.one / BattleBoardGrid.TileScale; // P0 缩格补偿：文字不随格缩小（2026-10-23）
             var label = go.AddComponent<TextMeshPro>();
             label.fontSize = 3.5f;
             label.alignment = TextAlignmentOptions.Center;

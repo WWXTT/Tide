@@ -18,6 +18,11 @@ namespace Tide.HotUpdate
             // 共享源配置读取装配（2026-09-30 合并定案）：CardCore 配置表统一 TidePaths.ReadConfigText，
             // 真机经此走 YooAsset 热更包（地址=文件名 AddressByFileName）；编辑器由 HotUpdateAssets 内部 File 兜底。
             CardCore.TidePaths.SetTextLoader(LoadConfigText);
+
+            // TapTap 云存档（2026-10-23 接入，仅 Android 真机；内部自判平台/凭证，编辑器与 PC 空转
+            // 只留一条日志）：Init→静默登录(basic_info)→启动同步全链旁路，失败不阻断本地玩法。
+            CloudSave.TapCloudSaveBootstrap.Init();
+
             Debug.Log($"[HotUpdate] Tide.HotUpdate v{Version} 启动（程序集入口调用成功，热更链路可用）");
         }
 

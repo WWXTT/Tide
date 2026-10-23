@@ -38,6 +38,7 @@ namespace SynergyUI
         /// <summary>压栈进入新界面，隐藏（OnExit+销毁层级）当前界面。</summary>
         public T Show<T>() where T : UIScreen, new()
         {
+            Debug.Log("[UINav] Show<" + typeof(T).Name + ">（depth " + _stack.Count + "→" + (_stack.Count + 1) + "）");
             DeactivateCurrent();
             var screen = GetOrCreate<T>();
             _stack.Push(screen);
@@ -48,6 +49,7 @@ namespace SynergyUI
         /// <summary>替换当前界面（弹出当前并压入新界面，历史深度不变）。</summary>
         public T Replace<T>() where T : UIScreen, new()
         {
+            Debug.Log("[UINav] Replace<" + typeof(T).Name + "> 调用栈：\n" + Environment.StackTrace);
             if (_stack.Count > 0)
             {
                 var top = _stack.Pop();
@@ -66,6 +68,8 @@ namespace SynergyUI
             {
                 return;
             }
+            // 2026-10-22 木桩取证常驻面包屑：静默换屏曾把战场屏弹回主菜单而无任何日志可查
+            Debug.Log("[UINav] Back（弹 " + _stack.Peek().GetType().Name + "）调用栈：\n" + Environment.StackTrace);
             var top = _stack.Pop();
             Deactivate(top);
             Activate(_stack.Peek());

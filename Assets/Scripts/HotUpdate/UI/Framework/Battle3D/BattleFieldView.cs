@@ -1104,6 +1104,7 @@ namespace SynergyUI
             go.transform.SetParent(tile, false); // tile 本体位姿=格心恒等变换，局部值即原世界偏移
             go.transform.localPosition = new Vector3(0f, 0.014f, zOffset);
             go.transform.localRotation = Quaternion.LookRotation(Vector3.down, Vector3.forward); // 平贴·轴对齐·字向正（2026-10-14 修）
+            go.transform.localScale = Vector3.one / BattleBoardGrid.TileScale; // P0 缩格补偿：计数条不随格缩小（2026-10-23）
             label = go.AddComponent<TextMeshPro>();
             label.fontSize = 3.5f;
             label.alignment = TextAlignmentOptions.Center;

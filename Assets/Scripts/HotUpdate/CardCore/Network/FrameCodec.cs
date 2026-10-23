@@ -24,6 +24,7 @@ namespace CardCore.Network
             frame[2] = (byte)(payload.Length >> 8);
             frame[3] = (byte)payload.Length;
             Buffer.BlockCopy(payload, 0, frame, 4, payload.Length);
+            FrameSizeProbe.Record(message.Type, frame.Length);
             return frame;
         }
 
@@ -80,6 +81,57 @@ namespace CardCore.Network
                 if (_head == 0) return;
                 if (_head >= _buffer.Count) { _buffer.Clear(); _head = 0; }
                 else if (_head >= 4096) { _buffer.RemoveRange(0, _head); _head = 0; }
+            }
+        }
+    }
+
+    /// <summary>
+    /// 帧大小探针（2026-10-23 TapTap 接入：量化各类消息序列化后大小分布——TapTap 单条
+    /// ≤2048B/分片 1500B，快照/事件批量是否常态多片由实测定参）。默认关（Record 首行短路），
+    /// p2pcheck 开启并在终局打印报告。
+    /// </summary>
+    public static class FrameSizeProbe
+    {
+        public static bool Enabled;
+
+        private static readonly object _lock = new object();
+        private static readonly Dictionary<NetworkMessageType, long> _max = new Dictionary<NetworkMessageType, long>();
+        private static readonly Dictionary<NetworkMessageType, long> _sum = new Dictionary<NetworkMessageType, long>();
+        private static readonly Dictionary<NetworkMessageType, int> _count = new Dictionary<NetworkMessageType, int>();
+
+        public static void Record(NetworkMessageType type, int frameBytes)
+        {
+            if (!Enabled) return;
+            lock (_lock)
+            {
+                _max[type] = _max.TryGetValue(type, out var m) && m > frameBytes ? m : frameBytes;
+                _sum[type] = (_sum.TryGetValue(type, out var s) ? s : 0) + frameBytes;
+                _count[type] = (_count.TryGetValue(type, out var c) ? c : 0) + 1;
+            }
+        }
+
+        public static void Reset()
+        {
+            lock (_lock) { _max.Clear(); _sum.Clear(); _count.Clear(); }
+        }
+
+        /// <summary>按最大值降序的文本报告（含 TapTap 分片数换算）。</summary>
+        public static string Report()
+        {
+            lock (_lock)
+            {
+                if (_count.Count == 0) return "[FrameSizeProbe] 无样本";
+                var lines = new List<string> { "[FrameSizeProbe] 类型 | 条数 | 最大 | 平均 | TapTap片数(最大)" };
+                var order = new List<NetworkMessageType>(_count.Keys);
+                order.Sort((a, b) => _max[b].CompareTo(_max[a]));
+                foreach (var t in order)
+                {
+                    long max = _max[t], sum = _sum[t];
+                    int n = _count[t];
+                    int chunks = (int)((max - 4 + TapMessageCodec.ChunkBinaryBytes - 1) / TapMessageCodec.ChunkBinaryBytes);
+                    lines.Add($"{t} | {n} | {max}B | {sum / n}B | {Math.Max(1, chunks)}片");
+                }
+                return string.Join("\n", lines);
             }
         }
     }

@@ -18,6 +18,12 @@ namespace SynergyUI
         public const float OuterRadius = 1f;
         public const float InnerRadius = 0.866025404f;
 
+        /// <summary>地块视觉缩格比例（2026-10-23 战场美化 P0：整盘统一缩小露缝，缝下见祭坛台面）。
+        /// 格心/点选面积不变——拼装设 localScale=TileScale，BattleHexBoard 加同名反缩拾取代理
+        /// （预制体根实况=MeshCollider 非简报所记 BoxCollider）；挂格子的平贴文字（中线行/
+        /// 地牌计数条）按 1/TileScale 反缩保原尺寸。单一来源勿写魔数。</summary>
+        public const float TileScale = 0.82f;
+
         /// <summary>棋盘实例根（装台后非 null；null=未装台）。</summary>
         public static Transform Root { get; private set; }
 

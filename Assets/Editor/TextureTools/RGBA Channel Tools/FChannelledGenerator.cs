@@ -2,7 +2,7 @@
 using FIMSpace.FTex;
 using UnityEditor;
 using UnityEngine;
-using static FIMSpace.FEditor.FTextureEditorToolsMethods;
+using static FTextureEditorToolsMethods;
 
 namespace FIMSpace.FEditor
 {

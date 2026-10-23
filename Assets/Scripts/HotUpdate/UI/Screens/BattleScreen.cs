@@ -1127,10 +1127,19 @@ namespace SynergyUI
         /// 静态口带给 EngageLocalBattle 木桩分支（段五交班时消费）。</summary>
         private async UniTaskVoid StartDummyOpeningAsync()
         {
-            var picked = await DummyOptionsPanel.ShowAsync(() => _running, Root);
-            if (!_running) return; // 拆屏（面板随 Root 销毁自清）
+            Debug.Log("[木桩] 选项面板已显示（等待确认）");
+            // 2026-10-22 根因修复：dead 语义=「已死该退出」，须传 !_running。旧代码照抄
+            // BattleOpeningDirector 的 () => _running 惯例（那边内部取反），导致面板刚建好
+            // 循环即判死退出→恒走取消分支→当帧 Back 回主菜单（用户所见"点了没反应"）。
+            var picked = await DummyOptionsPanel.ShowAsync(() => !_running, Root);
+            if (!_running)
+            {
+                Debug.Log("[木桩] 面板拆屏退出（_running=false）");
+                return; // 拆屏（面板随 Root 销毁自清）
+            }
             if (picked == null)
             {
+                Debug.Log("[木桩] 面板取消——返回主菜单");
                 Manager.Back();
                 return;
             }
@@ -1141,7 +1150,7 @@ namespace SynergyUI
                     : picked.Value.PlayerFirst == true ? "我方先手" : "对方先手")
                 + " 洗牌=" + picked.Value.Shuffle + " 元素池充满=" + picked.Value.FullPool);
             _opening = new BattleOpeningDirector(() => _running, _field, false, EngageStagedBattle,
-                picked.Value.PlayerFirst);
+                picked.Value.PlayerFirst, dummy: true, overlayParent: Root, onCancelled: () => Manager.Back());
             _opening.RunAsync().Forget();
         }
 
@@ -1177,11 +1186,13 @@ namespace SynergyUI
                 }
             }
             else if (BattleEntry.DummyTest)
-                // 木桩测试局（2026-10-22）：双方卡组皆玩家段四所选（null=随机在此解析——场景管线
-                // 的 hand/deck 引用须与卡组同源，不能交给 StartNewGame 内部随机）；对手=木桩驱动
-                //（全让过）+被动响应器（守卫/连锁永不反制）；洗牌关=锁牌库序（文件序抽牌可复现）；
-                // 元素池充满=按所选卡组组「地牌充满」预设（素材缺失回落常规开局）。不注入后手护甲
-                //（纯测试床，与正式局差异从简）。
+                // 木桩测试局（2026-10-22；2026-10-23 选卡组弹窗+难度三档）：双方卡组由掷币后弹窗选定
+                //（我方=玩家档+三套预组；木桩侧限三套主题预组；null=随机在此解析——场景管线的
+                // hand/deck 引用须与卡组同源）。对手难度（BattleEntry.DummyDifficulty）：0=木桩/1=脚本
+                //（ScriptedAi 无剧本口径，脚本=剧本挂载位）、2=AI（MakePacedAi+AutoMatch 正式对手）；
+                // 被动响应器（守卫/连锁永不反制）只给木桩/脚本。洗牌关=锁牌库序（可复现）；
+                // 元素池充满=按所选卡组组「地牌充满」预设（素材缺失回落常规开局）。
+                // 不注入后手护甲（纯测试床，与正式局差异从简）。
             {
                 // 随机兜底=三套预组随机其一（2026-10-22；玩家池已空）——技能随预组回传
                 string myRandomSkill = null, aiRandomSkill = null;
@@ -1189,16 +1200,21 @@ namespace SynergyUI
                 var aiDummy = aiDeck ?? BattleController.RandomDeck(out aiRandomSkill);
                 string myDummySkill = matchSkill ?? myRandomSkill;
                 string aiDummySkill = aiSkill ?? aiRandomSkill;
+                bool aiOpponent = BattleEntry.DummyDifficulty == 2;
+                IAiTurnDriver dummyDriver = aiOpponent
+                    ? (IAiTurnDriver)MakePacedAi(AiStrategy.AutoMatch(aiDummy))
+                    : MakeScriptedDummyAi();
                 if (BattleEntry.DummyFullPool
                     && DummyTestFlow.TryBuildFullPool(myDummy, aiDummy, BattleEntry.DummyShuffle,
                         playerFirst != false, out var scen, out var mySeeded, out var aiSeeded))
-                    _ctrl.StartNewGame(mySeeded, aiSeeded, new DummyAi(),
+                    _ctrl.StartNewGame(mySeeded, aiSeeded, dummyDriver,
                         scenario: scen, mySkillCardId: myDummySkill, aiSkillCardId: aiDummySkill);
                 else
-                    _ctrl.StartNewGame(myDummy, aiDummy, new DummyAi(),
+                    _ctrl.StartNewGame(myDummy, aiDummy, dummyDriver,
                         lockDeckOrder: !BattleEntry.DummyShuffle,
                         mySkillCardId: myDummySkill, aiSkillCardId: aiDummySkill, playerFirst: playerFirst);
-                _ctrl.EnablePassiveAiResponder();
+                if (!aiOpponent)
+                    _ctrl.EnablePassiveAiResponder(); // 木桩/脚本：响应窗全让过；AI 档走内置启发
             }
             else if (matchDeck != null || forceMatch)
                 // 对局准备流程（2026-10-19 挪入战场五段式开局：掷币+选卡组结果段五注入，旧
@@ -1377,6 +1393,20 @@ namespace SynergyUI
             };
         }
 
+
+        /// <summary>木桩脚本驱动（2026-10-23 用户改案，替代 DummyAi）：ScriptedAi 无剧本口径
+        ///（跳产元素→排干栈→让过——每回合行为与旧木桩一致），PacingWait 与 MakePacedAi 同拍
+        ///（后续喂 TutorialConfig 剧本时动作间等演出播完）；静默无剧本告警（教学缺剧本才该吵）。</summary>
+        private ScriptedAi MakeScriptedDummyAi()
+            => new ScriptedAi(null)
+            {
+                WarnWithoutScript = false,
+                PacingWait = async () =>
+                {
+                    if (_field != null) await _field.WaitVisualsIdleAsync();
+                    if (_director != null) await _director.WaitIdleAsync();
+                },
+            };
 
         /// <summary>终局弹窗（扇形过渡面口径；旧链 OnGameOver 的 RefreshLocal 依赖已删预制体字段，不走）。
         /// 2026-10-16 弹窗退役：终局呈现=toast+战报行，退出=认输键改「返回主菜单」直回（MarkGameOverUi）。

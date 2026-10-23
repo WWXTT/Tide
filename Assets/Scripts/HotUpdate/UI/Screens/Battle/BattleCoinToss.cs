@@ -9,7 +9,7 @@ namespace SynergyUI
     /// <summary>
     /// 开场掷硬币演出（2026-10-19 掷币演出挪战场定案·方案B：代码动画网格本体+现成 VFX 装饰）。
     ///
-    /// 硬币=运行时拼装（圆柱银边+上下双色面盘——红面=我方先手/蓝面=对方先手，落定浮字明示），
+    /// 硬币=运行时拼装（圆柱银边+上下双色圆盘——蓝面=我方先手/红面=对方先手（v3 对调），落定浮字明示），
     /// 结果先定后演（Random.value&lt;0.5 与旧 PreMatch 同源 50/50），自旋终角按结果钉死胜方面朝上；
     /// 落地装饰=Impact 爆点（金）+ world 浮字（BattleFieldView.FloatTextAsync 公开转发）。
     /// 纯演出件：发生在引擎开局前，不接投影器/DeferOrRun/视觉门；物件不带 Collider（不扰棋盘射线）。
@@ -28,8 +28,8 @@ namespace SynergyUI
         private const float TiltDegrees = 32f;  // 落定后向镜头微倾（-z 俯拍机位可正面读面）
         private const int SpinTurns = 4;        // 自旋整圈数（终角=整圈+按结果 0/180°）
 
-        private static readonly Color SelfFaceColor = new Color(0.92f, 0.28f, 0.24f);  // 红面=我方先手
-        private static readonly Color OppFaceColor = new Color(0.3f, 0.52f, 0.95f);    // 蓝面=对方先手
+        private static readonly Color SelfFaceColor = new Color(0.30f, 0.55f, 1.00f);  // 蓝面=我方先手（2026-10-23 v3 对调）
+        private static readonly Color OppFaceColor = new Color(0.92f, 0.28f, 0.24f);   // 红面=对方先手
         private static readonly Color EdgeColor = new Color(0.82f, 0.84f, 0.9f);       // 银边
         private static readonly Color ImpactGold = new Color(1f, 0.82f, 0.35f);
 
@@ -88,7 +88,7 @@ namespace SynergyUI
                 BattleFieldView.ShowFloatText(coin.transform, 1.1f,
                     playerFirst ? "我方先手！" : "对方先手·我方 +5 护甲",
                     playerFirst ? SelfFaceColor : OppFaceColor);
-                Debug.Log($"[BattleCoinToss] 掷币落定：playerFirst={playerFirst}（红面我方/蓝面对方）");
+                Debug.Log($"[BattleCoinToss] 掷币落定：playerFirst={playerFirst}（蓝面我方/红面对方·v3 对调）");
                 t0 = Time.realtimeSinceStartup;
                 while (Time.realtimeSinceStartup - t0 < HoldSeconds)
                 {
@@ -107,7 +107,8 @@ namespace SynergyUI
             return playerFirst;
         }
 
-        /// <summary>硬币物件：圆柱银边（Ø0.9×厚0.1）+ 上下色面盘（Ø0.8，+Y 红=我方 / −Y 蓝=对方）。
+        /// <summary>硬币物件：圆柱银边（Ø0.9×厚0.1）+ 上下色面盘（Ø0.8 **圆盘**，2026-10-23 v3：
+        /// Quad 方片退役，压扁圆柱同径双面；+Y 蓝=我方 / −Y 红=对方）。
         /// 全件无 Collider（不扰棋盘射线）；挂 MapRoot 随战场生命周期。</summary>
         private static GameObject BuildCoin(Vector3 at)
         {
@@ -122,21 +123,22 @@ namespace SynergyUI
             body.transform.localScale = new Vector3(0.9f, 0.05f, 0.9f);
             SetBodyMaterial(body, EdgeColor);
 
-            MakeFaceDisc(go.transform, SelfFaceColor, +1); // 上盘=红（我方先手面）
-            MakeFaceDisc(go.transform, OppFaceColor, -1);  // 下盘=蓝（对方先手面）
+            MakeFaceDisc(go.transform, SelfFaceColor, +1); // 上盘=蓝（我方先手面·v3 对调）
+            MakeFaceDisc(go.transform, OppFaceColor, -1);  // 下盘=红（对方先手面）
             return go;
         }
 
-        /// <summary>面盘：Quad 贴圆柱端面（Euler(±90,0,0) 面法线 ±Y——与 BattleZoneProps 漩涡同向口径）。</summary>
+        /// <summary>面盘：压扁圆柱圆盘（Ø0.8×厚≈1mm，轴向 Y 天然对齐圆柱端面——无需转轴；
+        /// v3 前 Quad 方片已退役）。两 face 同径。</summary>
         private static void MakeFaceDisc(Transform parent, Color color, int side)
         {
-            var disc = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            var disc = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             KillCollider(disc);
             disc.name = side > 0 ? "face-self" : "face-opp";
             disc.transform.SetParent(parent, false);
-            disc.transform.localRotation = Quaternion.Euler(side > 0 ? 90f : -90f, 0f, 0f);
+            disc.transform.localRotation = Quaternion.identity; // 圆柱轴向=Y，与币体同轴
             disc.transform.localPosition = new Vector3(0f, side * 0.053f, 0f);
-            disc.transform.localScale = Vector3.one * 0.8f;
+            disc.transform.localScale = new Vector3(0.8f, 0.0008f, 0.8f); // 压成圆片（厚1.6mm）
             SetBodyMaterial(disc, color);
         }
 

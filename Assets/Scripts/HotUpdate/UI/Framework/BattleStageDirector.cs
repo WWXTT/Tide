@@ -40,7 +40,8 @@ namespace SynergyUI
         private static Transform _light;             // 主光源
         private static Camera _worldCam;
         private static Pose? _menuCamPose;           // 吞屏前菜单位姿快照（回菜单还原）
-        private static GameObject _boardRoot;        // 战场棋盘实例（BattleHexBoard 运行时拼装）
+        private static GameObject _stageRoot;        // 战场总根（v3 prefab 态=BattleStage；回落态=棋盘根）
+        private static GameObject _boardRoot;        // 棋盘 Board 节点（prefab 态=stage 子节点；回落=stage 自身）
         private static Transform _mapRoot;           // 运行时战场临时对象总根「Map」（棋盘/BattleFieldView/箭头等）
         private static bool _mapOwned;               // Map 是否运行时自建（场景手摆颗拆台不销毁）
         private static bool _swallowing;             // 吞屏重入防抖
@@ -61,6 +62,7 @@ namespace SynergyUI
             _worldCam = null;
             _menuCamPose = null;
             _boardRoot = null;
+            _stageRoot = null;
             _mapRoot = null;
             _mapOwned = false;
             _swallowing = false;
@@ -106,7 +108,11 @@ namespace SynergyUI
         /// 然后回调 onSwallowed 切战场屏（屏内 OnEnter 继续③④）。场景缺件（如调试场景）直接回调不过渡。</summary>
         public static async UniTaskVoid SwallowToBattleAsync(Action onSwallowed)
         {
-            if (_swallowing) return;
+            if (_swallowing)
+            {
+                Debug.Log("[BattleStage] 吞屏在途——本次进战场请求被忽略（重入防抖）");
+                return;
+            }
             if (!ResolveScene())
             {
                 onSwallowed?.Invoke();
@@ -155,7 +161,7 @@ namespace SynergyUI
             {
                 // ③ 棋盘装台（2026-10-13 缩盘定案二段：9×6 全盘运行时拼装——
                 // BattleHexMeshBuilder 只产单枚六边形 mesh，摆位/配色在此装配）
-                if (_boardRoot == null)
+                if (_stageRoot == null)
                 {
                     // 临时战场地块总根「Map」（2026-10-14 晚定案）：运行时临时对象（棋盘根/BattleFieldView/
                     // 攻击箭头等）统一收进 Map，不堆积场景根目录。优先认领场景里用户手摆的 Map 节点
@@ -166,14 +172,24 @@ namespace SynergyUI
                         _mapOwned = existing == null;
                         _mapRoot = (existing != null ? existing : new GameObject("Map")).transform;
                     }
-                    _boardRoot = BattleHexBoard.Build();
-                    if (_boardRoot != null)
+                    // v3 预制体化（2026-10-23 13:00）：Build 返回战场总根——prefab 态=BattleStage
+                    //（Board/Env/Stairs 子节点），回落态=运行时拼装的棋盘根。总根挂 Map；
+                    // Grid 认 Board 子节点（回落=根自身）；Env 由 ArenaStage 认领。
+                    var built = BattleHexBoard.Build();
+                    if (built != null)
                     {
-                        _boardRoot.transform.SetParent(_mapRoot, false); // Map 恒 identity，局部坐标=世界坐标
+                        _stageRoot = built;
+                        _stageRoot.transform.SetParent(_mapRoot, false); // Map 恒 identity，局部坐标=世界坐标
+                        var board = _stageRoot.transform.Find("Board");
+                        var env = _stageRoot.transform.Find("Env");
+                        var stairs = _stageRoot.transform.Find("Stairs");
+                        _boardRoot = board != null ? board.gameObject : _stageRoot;
                         BattleBoardGrid.Mount(_boardRoot.transform);
                         BattleBoardGrid.SelfCheck(); // 数据层自检（格数/mesh/材质/格心公式）
                         BattleZoneProps.Mount(); // 特殊格道具：卡组卡堆+墓地/除外漩涡（挂 tile 下随浮起同走）
                         BattleHudRow.Mount(); // 功能地块行（2026-10-13 按钮上盘：返回/结束回合，独立根）
+                        if (env != null) BattleArenaStage.Attach(env, stairs); // prefab 态：Env 已烘焙
+                        else BattleArenaStage.Mount(_mapRoot); // 回落态：运行时铺（独立 EnvRoot）
                     }
                 }
 
@@ -205,12 +221,14 @@ namespace SynergyUI
             BattleZoneProps.Unmount(); // 特殊格道具同口径（卡堆/漩涡随根销毁，运行时 mesh 显式销毁）
             BattleHudRow.Unmount(); // 功能地块行（独立根+运行时材质实例显式销毁）
             BattlePriorityGlow.Unmount(); // 优先权底部光条（Map 下独立根，显式销毁+清引用）
+            BattleArenaStage.Unmount(); // 祭坛环境（EnvRoot 显式销毁——场景手摆 Map 根不随之拆）
             BattleBoardGrid.Unmount();
-            if (_boardRoot != null)
+            if (_stageRoot != null)
             {
-                UnityEngine.Object.Destroy(_boardRoot);
-                _boardRoot = null;
+                UnityEngine.Object.Destroy(_stageRoot); // v3：销毁战场总根（Board/Env/Stairs 一并收——prefab 态 Env 挂 stage 下）
+                _stageRoot = null;
             }
+            _boardRoot = null;
             if (_mapRoot != null && _mapOwned)
             {
                 UnityEngine.Object.Destroy(_mapRoot.gameObject);

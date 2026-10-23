@@ -42,6 +42,10 @@ namespace CardCore
         public static ChallengeProgressManager CreateForVerification(string savePath)
             => new ChallengeProgressManager(savePath);
 
+        /// <summary>云存档还原后重置单例（2026-10-23 云存档接入）：下次访问按新落盘数据重建。
+        /// 旧实例的事件订阅随之失效——订阅方须在 CloudSyncService.OnRestored 重订。</summary>
+        public static void ResetForCloudRestore() => _instance = null;
+
         // ======================================== 查询 ========================================
 
         /// <summary>最高通关难度（0=尚未通关任何档）。</summary>

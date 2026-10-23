@@ -142,38 +142,11 @@ namespace SynergyUI
     }
 
     /// <summary>
-    /// 木桩驱动器（2026-10-22 木桩测试）：对方回合全程不动作——跳产元素阶段、排干栈、直接结束
-    /// 回合（收尾镜像 ScriptedAi「无剧本」口径：栈未空时 EndTurn 被栈空守卫拒绝，故先排干）。
-    /// 不出牌/不攻击/不放地；回合开始触发式效果照常由引擎事件驱动（真实条件不受木桩影响）。
-    /// 响应窗口全让过（守卫/连锁永不反制）由 BattleController.EnablePassiveAiResponder 承担
-    ///（PassOption 哨兵——返回 null 会回落内置守卫启发）。
-    /// </summary>
-    public sealed class DummyAi : IAiTurnDriver
-    {
-        /// <summary>同步入口（无头验证同型驱动口径）。全链同步——木桩无任何异步动作。</summary>
-        public void TakeTurn(BattleController ctrl)
-            => TakeTurnAsync(ctrl).GetAwaiter().GetResult();
-
-        public Cysharp.Threading.Tasks.UniTask TakeTurnAsync(BattleController ctrl)
-        {
-            var core = ctrl.Core;
-            var me = ctrl.TurnPlayer;
-            if (core != null && me != null && me == core.TurnEngine.TurnPlayer)
-            {
-                GameActions.SkipElementPool(core, me); // 跳准备阶段进主阶段（回合推进必需）
-                GameActions.DrainStack(core);          // 排干在途触发（EndTurn 前置契约）
-                if (!core.IsGameOver)
-                    GameActions.EndTurn(core, me);
-            }
-            return Cysharp.Threading.Tasks.UniTask.CompletedTask;
-        }
-    }
-
-    /// <summary>
     /// 木桩测试开局装配（2026-10-22）：把五段式开局段五交班的双卡组按面板选项组装成引擎参数。
     /// 元素池充满=TestStartFlow「地牌充满」预设的按卡组版——双方独立（各用其所选卡组组场，
     /// 不再钉死测试卡组）；洗牌开关注入前自洗（场景管线 InitGame 恒锁牌库序，序由场景
     /// hand/deck 列表自身决定——镜像 EnterFullLandsTest 先洗后建场景口径）。
+    /// （木桩对手驱动 2026-10-23 改 ScriptedAi 无剧本口径——旧 DummyAi 类已随之删除。）
     /// </summary>
     public static class DummyTestFlow
     {

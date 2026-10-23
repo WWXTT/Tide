@@ -1,6 +1,5 @@
 #if !UNITY_WEBGL
 using System;
-using System.Net.Sockets;
 using CardCore.Network;
 
 namespace CardCore.Network
@@ -11,6 +10,9 @@ namespace CardCore.Network
     /// （连接/FrameCodec 解帧/收发/下行分派同款），改为事件回调驱动——宿主每帧调 Pump()
     /// 在主线程分派下行（UI 线程安全）。连接配置（ip/port/昵称/卡组选择）属匹配界面职责，
     /// 本组件只收就绪参数；WebGL 下 TcpClient 不可用，整类条件编译隔离（不堵死）。
+    ///
+    /// 2026-10-23 抽缝：IO 收发拆入 INetClientTransport（TCP 直连/TapTap 房间中转两实现），
+    /// 会话逻辑（JoinRoom/握手/下行分派）不动。
     /// </summary>
     public sealed class NetGameClient
     {
@@ -25,47 +27,36 @@ namespace CardCore.Network
         public event Action OnDisconnected;
 
         public bool Disconnected { get; private set; }
-        public string Remote { get; private set; } = "";
+        public string Remote => _io != null ? _io.Remote : "";
 
-        private readonly TcpClient _tcp = new TcpClient();
-        private NetworkStream _stream;
-        private readonly FrameCodec.FrameDecoder _decoder = new FrameCodec.FrameDecoder();
-        private readonly byte[] _buf = new byte[16 * 1024];
+        private INetClientTransport _io;
 
+        /// <summary>TCP 直连（阻塞，失败抛——调用方在线程池上跑）。局域网/回环路径。</summary>
         public void Connect(string host, int port)
         {
-            Remote = $"{host}:{port}";
-            _tcp.Connect(host, port);
-            _stream = _tcp.GetStream();
+            Connect(new TcpClientTransport(host, port));
+        }
+
+        /// <summary>注入传输（TapTap 房间中转等——构造时已就绪的传输实例）。</summary>
+        public void Connect(INetClientTransport transport)
+        {
+            _io = transport;
         }
 
         public void Send<T>(NetworkMessageType type, T payload) where T : class
         {
-            if (Disconnected || _stream == null) return;
-            try
-            {
-                var frame = FrameCodec.Frame(NetworkSerializer.BuildEnvelope(type, payload));
-                _stream.Write(frame, 0, frame.Length);
-                _stream.Flush();
-            }
-            catch (Exception) { MarkDisconnected(); }
+            if (Disconnected || _io == null) return;
+            _io.Send(NetworkSerializer.BuildEnvelope(type, payload));
         }
 
-        /// <summary>非阻塞收一轮（DataAvailable 轮询，无 Sleep）+ 主线程分派下行。宿主每帧调用。
-        /// 半途帧由解码器缓冲跨 Pump 续接，不丢数据。</summary>
+        /// <summary>非阻塞收一轮 + 主线程分派下行。宿主每帧调用。</summary>
         public void Pump()
         {
-            if (Disconnected || _stream == null) return;
-            while (_stream.DataAvailable)
-            {
-                int n;
-                try { n = _stream.Read(_buf, 0, _buf.Length); }
-                catch (Exception) { MarkDisconnected(); return; }
-                if (n <= 0) { MarkDisconnected(); return; }
-                _decoder.Append(_buf, 0, n);
-                while (_decoder.TryDecode(out var msg))
-                    Dispatch(msg);
-            }
+            if (Disconnected || _io == null) return;
+            _io.Pump();
+            if (_io.Disconnected) { MarkDisconnected(); return; }
+            while (_io.TryReceive(out var msg))
+                Dispatch(msg);
         }
 
         private void Dispatch(NetworkMessage msg)
@@ -121,8 +112,7 @@ namespace CardCore.Network
         public void Close()
         {
             Disconnected = true;
-            try { _stream?.Close(); } catch { }
-            try { _tcp.Close(); } catch { }
+            _io?.Close();
         }
     }
 }
