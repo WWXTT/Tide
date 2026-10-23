@@ -135,6 +135,11 @@ namespace CardCore.Attribute
                 // 可装载范围（2026-09-11；2026-10-06 中文化；2026-10-07 仅可转换）：
                 // 空 = 未声明 = 普通行（无特殊位——主干/奖励资格走派生谓词，不再兜底全开）
                 config.MountKinds = entry.MountKinds ?? "";
+
+                // 有限分支门槛行（2026-10-23 入表）：身份/预算两列直通——目录（SituationGates）
+                // 与预算（BuildGatePremium）从表派生，判定谓词仍在 BranchConditionEvaluator
+                config.GateId = entry.GateId;
+                config.Budget = entry.Budget;
             }
             else
             {
@@ -263,6 +268,11 @@ namespace CardCore.Attribute
             public string Tags;           // 逗号分隔中文标签（2026-10-06 产出族迁表中文化：伤害产出族/诅咒产出族 等；
                                           // 表色由 BuildConfig 在标签后追加中文色名，ElementAffinity 扫标签取色）
         public string ID;             // 表首列：8 位 hex 描述哈希（原子引用键——EffectSlim.AtomRef.refId）
+
+            // ---- 有限分支门槛行专用（2026-10-23 入表；仅 MountKinds 含「有限分支」位的行有意义，其余行 null/0）----
+            public string GateId;        // 门槛语义 id（如 LifeBelowOpp）——ComposerCatalog.SituationGates 派生源，
+                                         // 与 BranchConditionEvaluator 判定谓词注册 id 对齐
+            public int Budget;           // 奖励锚价上限（BuildGatePremium 派生源；0=无门槛语义）
         }
 
         [Serializable]

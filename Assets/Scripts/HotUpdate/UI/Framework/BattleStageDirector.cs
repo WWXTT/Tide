@@ -38,8 +38,7 @@ namespace SynergyUI
         private static Material _blackHoleMat;       // 实例材质（renderer.material，改视界不污染资产）
         private static float _menuHorizonScale = HorizonFrom; // 首次解析时读材质烘焙值
         private static Transform _light;             // 主光源
-        private static Camera _worldCam;
-        private static Pose? _menuCamPose;           // 吞屏前菜单位姿快照（回菜单还原）
+        private static Camera _worldCam;             // 场景相机（v4 起位姿=场景控制，本类只读引用）
         private static GameObject _stageRoot;        // 战场总根（v3 prefab 态=BattleStage；回落态=棋盘根）
         private static GameObject _boardRoot;        // 棋盘 Board 节点（prefab 态=stage 子节点；回落=stage 自身）
         private static Transform _mapRoot;           // 运行时战场临时对象总根「Map」（棋盘/BattleFieldView/箭头等）
@@ -60,7 +59,6 @@ namespace SynergyUI
             _blackHoleMat = null;
             _light = null;
             _worldCam = null;
-            _menuCamPose = null;
             _boardRoot = null;
             _stageRoot = null;
             _mapRoot = null;
@@ -91,8 +89,6 @@ namespace SynergyUI
             if (_blackHoleMat != null)
                 _blackHoleMat.SetFloat(HorizonId, _menuHorizonScale);
             SetLightX(MenuLightX);
-            if (_menuCamPose.HasValue)
-                _worldCam.transform.SetPositionAndRotation(_menuCamPose.Value.position, _menuCamPose.Value.rotation);
         }
 
         /// <summary>立即隐藏黑洞（非战场的其它界面）。</summary>
@@ -122,8 +118,6 @@ namespace SynergyUI
             _swallowing = true;
             try
             {
-                _menuCamPose = new Pose(_worldCam.transform.position, _worldCam.transform.rotation);
-
                 // ① 主光源压到 -20°（0s，瞬时）
                 SetLightX(MenuLightX);
 
@@ -195,9 +189,9 @@ namespace SynergyUI
 
                 if (_boardRoot != null)
                 {
-                    FrameBoardCamera(); // 先对盘取景（浮起出生点按取景后视锥计算）
-                    // ③.5 棋格画外浮起（逐格随机速度/到达，≤2s 窗口）——FireAndForget 与日出并行，
-                    // 不阻塞装台返回；BoardMountSmoke 以 Running 门禁等落位
+                    // 2026-10-23 v4 用户定案：相机由场景控制（Main.unity 里手摆机位），代码不再设置
+                    // 位姿——原 FrameBoardCamera 定档/菜单位姿快照还原整链退役；装台仍用场景相机算
+                    // 浮起出生视锥（_worldCam 由 ResolveScene 解析，只读不写）。
                     BattleBoardAssemble.PlayAsync(_boardRoot.transform, _worldCam).Forget();
                 }
 
@@ -217,7 +211,6 @@ namespace SynergyUI
         public static void DismountBoard()
         {
             BattleTileFx.Unmount(); // 特效对象挂 tile 下随根销毁，此处只清索引
-            BattleTileButtons.Unmount(); // 格前三键挂 tile 下同口径（随根销毁，清索引）
             BattleZoneProps.Unmount(); // 特殊格道具同口径（卡堆/漩涡随根销毁，运行时 mesh 显式销毁）
             BattleHudRow.Unmount(); // 功能地块行（独立根+运行时材质实例显式销毁）
             BattlePriorityGlow.Unmount(); // 优先权底部光条（Map 下独立根，显式销毁+清引用）
@@ -309,14 +302,8 @@ namespace SynergyUI
             }
         }
 
-        /// <summary>战场相机取景：棋盘（BattleHexBoard）锚定世界原点，固定机位
-        ///（2026-10-13 定档 (7,8,-3)/(50,0,0) → 10-17 改档 (7,8,-2)/(60,0,0)）。</summary>
-        private static void FrameBoardCamera()
-        {
-            if (_worldCam == null) return;
-
-            _worldCam.transform.position = new Vector3(7f, 8f, -2f);
-            _worldCam.transform.rotation = Quaternion.Euler(60f, 0f, 0f);
-        }
+        /// <summary>战场相机：2026-10-23 v4 用户定案=**场景控制**（Main.unity 手摆机位），代码不再
+        /// 设置位姿（原 (7,8,-2)/(60,0,0)→(7,10,-1.9)/(65,0,0) 定档链与菜单位姿还原随帧取景一起退役）。
+        /// 装台/吞屏只经 WorldCam 只读引用取相机。</summary>
     }
 }

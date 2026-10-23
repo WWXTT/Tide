@@ -36,8 +36,6 @@ namespace SynergyUI
         private bool _deckPicking;        // 段四输入期（点击归卡堆，不作跳过）
         private bool _skip;               // 演出快进旗标（点击置位，各段动画消费后自复位）
         private bool _disposed;
-        private Pose? _camPose;           // 推镜前战场位姿快照（还原=FrameBoardCamera 定档口径）
-        private bool _camPushed;
 
         /// <summary>开场在途（BattleScreen.PollFieldPointer 顶部闸——开场期点击不进游戏分支）。</summary>
         public bool Active { get; private set; }
@@ -228,20 +226,14 @@ namespace SynergyUI
 
         // ======================================== 生命周期 ========================================
 
-        /// <summary>退屏兜底（BattleScreen.OnExit）：停流程、拆卡堆、还原机位（推过才还原）。</summary>
+        /// <summary>退屏兜底（BattleScreen.OnExit）：停流程、拆卡堆。（相机=场景控制——
+        /// 2026-10-23 v4 定案，推镜还原链已随 v3 掷币改版退役，此处不再碰相机。）</summary>
         public void Dispose()
         {
             _disposed = true;
             Active = false;
             _pickStage?.Dispose();
             _pickStage = null;
-            if (_camPushed && _camPose.HasValue)
-            {
-                var cam = BattleStageDirector.WorldCam;
-                if (cam != null)
-                    cam.transform.SetPositionAndRotation(_camPose.Value.position, _camPose.Value.rotation);
-            }
-            _camPushed = false;
         }
 
         // ======================================== 内部 ========================================

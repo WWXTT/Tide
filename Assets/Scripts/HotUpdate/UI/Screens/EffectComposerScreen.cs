@@ -29,6 +29,10 @@ namespace SynergyUI
         /// row 模板/guide-frame/描述条）；复合检索退役（BindDropdown 单名 TMP、BindableButton 单名、
         /// row 模板单名、FillRowParts 按名不按位、费用/计数不再父级回退）。
         /// 2026-10-08 右栏行定案不显示名字：FillRowParts 只填 meta 单列（name 节点绑定与 title 形参退役）。
+    /// 2026-10-23 五分类定案：并列/自由分支/有限分支/连接光环/范围光环 五形态（ComposeMode 五值）——
+    /// 分支两形态从并列槽级载荷升为独立形态（并列回归纯两原子）；有限分支门槛卡=克隆 aura-card 点选
+    ///（dd-trunk 下拉路径退役删除）；产出条件不再提供新建入口（历史 settle=2 载入只读展示）；
+    /// 光环拆连接（箭头+条目）/范围（仪典步）两面，aura 判定统一走 IsAuraMode。
     /// 2026-10-05 两槽定案：形态只余 并列（两槽）/光环——自由分支·事件引擎、有限分支·产出条件
     /// 折叠进并列形态的槽级 atomic.branch 载荷（结算方式下拉+条件/引擎参数+Then 奖励槽）；
     /// 2026-10-09 并列/分支互斥：分支编辑区仅第一槽——任一分支已开则第二槽隐藏、第二槽有原子则分支区隐藏。
@@ -41,21 +45,37 @@ namespace SynergyUI
     {
         // ======================================== 组合形态 ========================================
 
-        /// <summary>组合形态（2026-10-05 两槽定案）：并列（两槽）/ 光环（连接箭头）。
-        /// 分支编辑能力折叠进并列形态的槽级 branch 载荷——2026-10-09 互斥定案：
-        /// 分支编辑区只在第一槽，与第二槽互斥（开了分支没有第二槽，填了第二槽没有分支盒）。</summary>
-        public enum ComposeMode { Parallel, Aura }
+        /// <summary>组合形态（2026-10-23 五分类定案）：并列（两原子）/ 自由分支（引擎主干+Then 奖励）/
+        /// 有限分支（普通原子+局面门槛+Then 奖励）/ 连接光环（箭头+条目）/ 范围光环（仪典步）。
+        /// 前三类共享槽级 branch 载荷（settle=Engine/Gate/Outcome），后两类共享光环面板。</summary>
+        public enum ComposeMode { Parallel, FreeBranch, LimitedBranch, LinkAura, RangeAura }
+
+        /// <summary>光环双形态统一判定（连接∪范围）——本屏显隐与 CardComposerScreen 五处调用共用。</summary>
+        public static bool IsAuraMode(ComposeMode mode)
+            => mode == ComposeMode.LinkAura || mode == ComposeMode.RangeAura;
 
         /// <summary>右栏双模式：原子库（点击装配）/ 效果表（点击载入编辑）。</summary>
         private enum RightMode { Atoms, Effects }
 
-        /// <summary>由数据推断组合形态（两槽定案）：光环声明（箭头/光环条目/规则光环步）→ Aura；
-        /// 其余（含槽级分支载荷）一律并列。引擎头字段判断已随载荷化删除。</summary>
+        /// <summary>由数据推断组合形态（2026-10-23 五分类，先光环后分支）：
+        /// ①箭头/连接条目→连接光环；②规则光环步→范围光环；③首原子引擎（行身份∪branch.settle）
+        /// →自由分支；④首原子 Gate/历史 Outcome 载荷→有限分支（产出条件不再新建，载入只读保留）；
+        /// ⑤其余→并列。</summary>
         public static ComposeMode InferMode(EffectGraphData g)
         {
-            if (g?.header != null && (g.header.ArrowDirections != 0
-                || (g.header.LinkAuras != null && g.header.LinkAuras.Count > 0))) return ComposeMode.Aura;
-            if (HasRuleAuraStep(g)) return ComposeMode.Aura;
+            if (g?.header == null) return ComposeMode.Parallel;
+            if (g.header.ArrowDirections != 0
+                || (g.header.LinkAuras != null && g.header.LinkAuras.Count > 0)) return ComposeMode.LinkAura;
+            if (HasRuleAuraStep(g)) return ComposeMode.RangeAura;
+            var first = g.steps?.FirstOrDefault(s => s?.kind == 0 && s.atomic != null)?.atomic;
+            if (first != null)
+            {
+                if (ComposerCatalog.IsEngineTrunkRow(AtomicEffectTable.GetByHashId(first.refId))
+                    || (first.branch != null && (BranchSettleKind)first.branch.settle == BranchSettleKind.Engine))
+                    return ComposeMode.FreeBranch;
+                if (first.branch != null && !BranchEntryRules.IsPhantom(first.branch))
+                    return ComposeMode.LimitedBranch;
+            }
             return ComposeMode.Parallel;
         }
 
@@ -122,7 +142,8 @@ namespace SynergyUI
         // 槽内卡片展开状态（代价栏已上移卡组合层）
         // 2026-10-05 两槽定案：原 GateTrunk/GateReward/FreeTrunk/FreeReward 并入 Parallel（主干槽）
         // 与 Reward（槽内 Then 奖励选中态——_selRewardSlot 标记当前编辑哪槽的奖励）
-        private enum SelKind { None, Parallel, Reward }
+        // 2026-10-23 五分类：Gate=有限分支门槛卡选中态（右栏切 11 条门槛列表）；分支恒挂首主干
+        private enum SelKind { None, Parallel, Reward, Gate }
 
         // 展开态集合（2026-10-06 定案：多卡独立展开——点击其他卡不再收起已展开的卡）：
         // 键=对象身份——换序/删除免下标维护，ClampSelection 渲染前剪除悬挂条目
@@ -568,7 +589,7 @@ namespace SynergyUI
         private void SyncActivationVisibility()
         {
             if (_timingRow == null && _activationDropdown == null) return;
-            bool aura = _mode == ComposeMode.Aura;
+            bool aura = IsAuraMode(_mode);
             var h = _graph.header;
 
             // 宿主形状归一（2026-10-15 深夜改版——载入旧数据/切换宿主时兜底）：
@@ -617,7 +638,7 @@ namespace SynergyUI
         /// 主动=次数组隐，非主动（自动/系统）次数组显；光环形态全隐（无发动概念——设置盒拆除口径并轨）。</summary>
         private void SyncSettingsRowVisibility()
         {
-            bool aura = _mode == ComposeMode.Aura;
+            bool aura = IsAuraMode(_mode);
             bool voluntary = !aura && _graph.header.ActivationType == (int)EffectActivationType.Voluntary;
             // 次数轴归宿主（2026-10-10 发数经济）：非生物宿主（结界=耐久即次数池/法术=一次性）的
             // 次数档不参与卡价——下拉隐藏、落盘值由 NormalizeLimitForHost 归一；效果库模式无宿主保持可编辑
@@ -695,7 +716,7 @@ namespace SynergyUI
         private string AutoName()
         {
             var h = _graph.header;
-            if (_mode == ComposeMode.Aura)
+            if (IsAuraMode(_mode))
             {
                 // 投放步（仪典/改写，2026-10-07 定案句式）：仪典=「规则光环：【范围】描述」
                 //（表 Description 已带「规则光环：」前缀——剥离后插范围）；改写（降级连接光环）
@@ -791,7 +812,7 @@ namespace SynergyUI
         private string CurrentDisplayName()
         {
             var full = AtomText.RenderEffectSummary(_graph);
-            return _mode == ComposeMode.Aura ? AutoName()
+            return IsAuraMode(_mode) ? AutoName()
                 : (string.IsNullOrEmpty(full) ? AutoName() : full);
         }
 
@@ -811,7 +832,7 @@ namespace SynergyUI
         {
             try
             {
-                if (_mode == ComposeMode.Aura) return AuraTopCostText();
+                if (IsAuraMode(_mode)) return AuraTopCostText();
                 string trunk = ZonesAllValid() ? ParallelCostText() : "";
                 string branch = BranchCostText();
                 if (trunk.Length == 0) return branch;
@@ -1086,13 +1107,19 @@ namespace SynergyUI
         private void RefreshModeBar()
         {
             if (_modeBar == null) return;
-            // 不清重建：模式片按名绑定烘焙节点（mode-Parallel/mode-Aura）；芯片文案以预制体为准
-            //（2026-10-09 定案：代码不覆写 UI 设置好的文本——BindableButton 传 null 跳过回写），
-            // 刷新只更新态色/接线
+            // 不清重建：模式片按名绑定烘焙节点（mode-Parallel/FreeBranch/LimitedBranch/LinkAura/RangeAura）；
+            // 芯片文案以预制体为准（2026-10-09 定案：代码不覆写 UI 设置好的文本——BindableButton 传 null
+            // 跳过回写），刷新只更新态色/接线；缺节点 BindableButton 已 LogError 跳过（兜底构建全退）
             MakeModeChip(ComposeMode.Parallel,
-                "并列形态：最多两个槽，各放一颗原子组成效果；或只放一个原子、给它加分支条件（条件成立才有奖励）——两原子并列与分支互斥，不可兼得。");
-            MakeModeChip(ComposeMode.Aura,
-                "光环形态：效果挂在卡上持续生效，作用于连接箭头指向的单位；在下方配条目（属性/关键词）。");
+                "并列形态：最多两个槽，各放一颗原子组成效果，两原子并列生效——要给原子挂条件或引擎请切分支形态");
+            MakeModeChip(ComposeMode.FreeBranch,
+                "自由分支：主干是一颗事件引擎（倒计时/拼点/运势等），事件达成时发放下方 Then 奖励——奖励在 1-5 费区间自由调整，门槛随计费推导");
+            MakeModeChip(ComposeMode.LimitedBranch,
+                "有限分支：一颗主干原子加一个局面门槛，当前局面达标时发放 Then 奖励——不达标不奖励也不惩罚（奖励免费）");
+            MakeModeChip(ComposeMode.LinkAura,
+                "连接光环：效果挂在卡上持续生效，作用于连接箭头指向的单位——在下方配条目（属性/关键词），箭头在光环槽底部选");
+            MakeModeChip(ComposeMode.RangeAura,
+                "范围光环：挂一条仪典按作用面（己方/双方/对方）持续改写规则——无箭头，同名仪典全局唯一");
 
             // 卡编辑模式提示（常驻节点按名绑定——非编辑时隐藏；新建才定宽，烘焙宽以节点为准）
             bool tagExisted = _modeBar.Find("editing-tag") != null;
@@ -1113,9 +1140,12 @@ namespace SynergyUI
                 active ? UiStyle.ChipActiveText : UiStyle.TextBody), desc);
         }
 
-        /// <summary>形态切换（两形态互切，2026-10-05 两槽定案）：best-effort 数据搬运（原子尽量保留），
-        /// 切换后收起展开卡。光环字段只在光环形态存续——切出即清（防非光环效果夹带箭头落库）；
-        /// 切入光环清原子步；并列切出清光环字段。原 FreeBranch/OutcomeGate 分支已随形态删除。</summary>
+        /// <summary>形态切换（2026-10-23 五分类，best-effort 数据搬运）：
+        /// →并列：保留前 2 原子，拆分支载荷（奖励随之丢弃）；
+        /// →自由分支：保留首个引擎行（无则清空提示先选引擎主干），奖励随载荷保留；
+        /// →有限分支：保留首个非引擎原子，门槛/奖励保留（引擎载荷不跟普通原子）；
+        /// →连接光环：清 steps（仪典步不入）、箭头重选（光环字段只在光环形态存续）；
+        /// →范围光环：清 LinkAuras/箭头，保留仪典步。切换后收起展开卡。</summary>
         private void SwitchMode(ComposeMode newMode)
         {
             if (newMode == _mode) return;
@@ -1126,23 +1156,93 @@ namespace SynergyUI
             {
                 case ComposeMode.Parallel:
                 {
-                    // 切出光环：清 LinkAuras/箭头，留一枚种子原子（分支载荷随原子保留）
-                    AtomicEffectEntry seed = FirstKind0Atom();
+                    // 保留前 2 原子，拆分支载荷（奖励随之丢弃——toast 明示）
+                    var kept = new List<EffectStepData>();
+                    int seen = 0;
+                    foreach (var s in _graph.steps)
+                    {
+                        if (s?.kind == 0)
+                        {
+                            if (seen >= ParallelSlotCount) continue;
+                            seen++;
+                            if (s.atomic != null) s.atomic.branch = null;
+                        }
+                        kept.Add(s);
+                    }
+                    _graph.steps.Clear();
+                    _graph.steps.AddRange(kept);
                     h.AtomicEffects = null; // 扁平/奖励通道退役——防夹带
                     h.ArrowDirections = 0;
                     h.LinkAuras = null;
-                    _graph.steps.Clear();
-                    if (seed != null) _graph.steps.Add(new EffectStepData { kind = 0, atomic = seed });
-                    ShowToast("切换为并列（原子已尽量保留）");
+                    ShowToast("切换为并列——已保留前两颗原子，分支载荷与 Then 奖励已丢弃");
                     break;
                 }
-                case ComposeMode.Aura:
+                case ComposeMode.FreeBranch:
                 {
-                    // 光环（效果层定案）＝箭头+光环条目随效果合成——任意会话可用；
-                    // 作用对象不可指定（运行时 live-query 箭头指向格占据者）；原子数据清空防夹带。
                     h.AtomicEffects = null;
+                    h.ArrowDirections = 0;
+                    h.LinkAuras = null;
+                    var engine = _graph.steps.FirstOrDefault(s => s?.kind == 0 && s.atomic != null
+                        && ComposerCatalog.IsEngineTrunkRow(AtomicEffectTable.GetByHashId(s.atomic.refId)));
                     _graph.steps.Clear();
-                    ShowToast("光环模式：右侧光环库点击选择（新选即替换上一个）；连接方向的光环在光环槽底部选箭头");
+                    if (engine != null)
+                    {
+                        _graph.steps.Add(new EffectStepData { kind = 0, atomic = engine.atomic });
+                        ShowToast("切换为自由分支——已保留引擎主干与 Then 奖励");
+                    }
+                    else ShowToast("自由分支主干=引擎行——无可保留主干已清空，先到右侧选引擎主干");
+                    break;
+                }
+                case ComposeMode.LimitedBranch:
+                {
+                    h.AtomicEffects = null;
+                    h.ArrowDirections = 0;
+                    h.LinkAuras = null;
+                    int dropped = 0;
+                    EffectStepData trunk = null;
+                    foreach (var s in _graph.steps)
+                    {
+                        if (s?.kind != 0 || s.atomic == null
+                            || ComposerCatalog.IsEngineTrunkRow(AtomicEffectTable.GetByHashId(s.atomic.refId)))
+                        {
+                            if (s != null) dropped++;
+                            continue;
+                        }
+                        trunk = s;
+                        break;
+                    }
+                    _graph.steps.Clear();
+                    if (trunk != null)
+                    {
+                        if (trunk.atomic.branch != null
+                            && (BranchSettleKind)trunk.atomic.branch.settle == BranchSettleKind.Engine)
+                            trunk.atomic.branch = null; // 引擎载荷不跟普通原子
+                        _graph.steps.Add(trunk);
+                        ShowToast(trunk.atomic.branch != null
+                            ? $"切换为有限分支——主干/门槛/奖励已保留" + (dropped > 0 ? $"（丢弃 {dropped} 步）" : "")
+                            : $"切换为有限分支——主干已保留，门槛未选（点门槛卡到右栏选择）" + (dropped > 0 ? $"（丢弃 {dropped} 步）" : ""));
+                    }
+                    else ShowToast("有限分支主干=普通原子——无可保留主干，先到右侧选一颗原子");
+                    break;
+                }
+                case ComposeMode.LinkAura:
+                {
+                    // 连接光环（效果层定案）＝箭头+光环条目随效果合成；仪典步不入（切范围光环再配）
+                    h.AtomicEffects = null;
+                    h.ArrowDirections = 0; // 切入箭头恒 0——连接方向的光环在光环槽底部选箭头
+                    _graph.steps.Clear();
+                    ShowToast("连接光环：右侧光环库点击换选（新选即替换上一个）；连接方向的光环在光环槽底部选箭头");
+                    break;
+                }
+                case ComposeMode.RangeAura:
+                {
+                    // 范围光环＝仪典步专用面：条目/箭头清空（属连接光环），仪典步保留
+                    h.AtomicEffects = null;
+                    h.ArrowDirections = 0;
+                    h.LinkAuras = null;
+                    _graph.steps.RemoveAll(s => s == null || s.kind != 0 || s.atomic == null
+                        || !IsRuleAuraRow(AtomicEffectTable.GetByHashId(s.atomic.refId)));
+                    ShowToast("范围光环：右侧仪典库点击选择规则光环（新选即替换）");
                     break;
                 }
             }
@@ -1178,16 +1278,10 @@ namespace SynergyUI
             {
                 case ComposeMode.Parallel:
                 {
-                    // 2026-10-05 两槽定案：槽位循环 for i<2；2026-10-09 并列/分支互斥：分支盒与第二槽
-                    // 默认齐开、单向互斥——①任一槽分支已开（引擎主干行填槽即分支/gate 下拉非「无」）
-                    // → 第二槽整槽不出（分支=单原子形态）；②第二槽已有步（原子/只读）→ 第一槽分支
-                    // 编辑区不渲染（并列=无分支形态），第二槽永不渲染分支区。判定单源=StepBranchActive
-                    //（按行身份∪载荷——引擎行载荷是落槽期挂的，只查 branch 会漏第一拍）。
-                    bool branchOn = _graph.steps.Any(StepBranchActive);
+                    // 并列（2026-10-23 五分类回归纯并列）：两槽原子、无分支——分支两形态独立成 chip
                     RectTransform firstEmptySlot = null;
                     for (int i = 0; i < ParallelSlotCount; i++)
                     {
-                        if (i == 1 && branchOn) break; // 分支形态：第二槽隐藏（含空槽占位与"满 2"提示）
                         int idx = i;
                         var slot = MakeSlot($"原子槽 {i + 1}");
                         if (slot == null) continue; // 模板缺失——该槽跳过（MakeSlot 已报）
@@ -1198,12 +1292,7 @@ namespace SynergyUI
                         {
                             var step = _graph.steps[i];
                             if (step.kind == 0 && step.atomic != null)
-                            {
                                 MakeAtomCard(slot, step.atomic, idx, SelKind.Parallel);
-                                // 分支编辑区仅第一槽、且第二槽为空（互斥②；第二槽引擎行被库过滤拦在门外）
-                                if (i == 0 && _graph.steps.Count < ParallelSlotCount)
-                                    MakeBranchEditor(slot, step.atomic, idx);
-                            }
                             else MakeReadonlyStepBadge(slot, step); // 抉择等只读
                         }
                         else if (i == _graph.steps.Count) firstEmptySlot ??= slot; // 空槽提示已去——slot-title 即空槽位
@@ -1220,7 +1309,76 @@ namespace SynergyUI
                     _slotZones.Add(MakeZone(_slotArea.Content, DuplicateAtomError));
                     break;
                 }
-                case ComposeMode.Aura:
+                case ComposeMode.FreeBranch:
+                {
+                    // 自由分支：单主干槽（引擎行）+ 槽内 Then 奖励块（引擎预设锁效果头）
+                    var slot = MakeSlot("主干（引擎行）");
+                    if (slot == null) break; // 模板缺失——MakeSlot 已报
+                    MarkSelected(slot, SelKind.Parallel, 0);
+                    SelectOnClick(slot, SelKind.Parallel, 0, false);
+                    var atom = FirstKind0Atom();
+                    if (atom != null)
+                    {
+                        MakeAtomCard(slot, atom, 0, SelKind.Parallel);
+                        if (ComposerCatalog.IsEngineTrunkRow(AtomicEffectTable.GetByHashId(atom.refId)))
+                        {
+                            var engineKind = ComposerCatalog.EngineKindOf(ResolveType(atom));
+                            var b = atom.branch ?? new BranchEntryData { settle = (int)BranchSettleKind.Engine };
+                            b.settle = (int)BranchSettleKind.Engine; // 引擎载荷落槽即挂（载入/换行双保险）
+                            if (engineKind != BranchEngineKind.None) b.engine = (int)engineKind;
+                            atom.branch = b;
+                            MakeHint(slot, $"{ComposerCatalog.EngineZhOf(engineKind)}门槛=Then 奖励锚价合计"
+                                + "（随奖励实时推导，无需参数；奖励在 1-5 费区间内自由调整，门槛随计费变；"
+                                + "同一张卡每回合只触发一次）"
+                                + $"——见顶栏预览「自由分支·{ComposerCatalog.EngineZhOf(engineKind)}x」");
+                            MakeRewardSlot(slot, b);
+                        }
+                        else
+                        {
+                            atom.branch = null; // 引擎载荷只配引擎主干行（旧形状静默归位）
+                            MakeHint(slot, "该行不是引擎主干——到右侧重新选择（自由分支主干=引擎行）");
+                        }
+                    }
+                    else MakeHint(slot, "主干为空——到右侧选择引擎行（倒计时/拼点/运势/死亡计数/元素充盈…）");
+                    _slotZones.Add(MakeZone(slot, () =>
+                    {
+                        var a = FirstKind0Atom();
+                        if (a == null) return "主干为空——到右侧选择引擎主干行";
+                        return ComposerCatalog.IsEngineTrunkRow(AtomicEffectTable.GetByHashId(a.refId))
+                            ? null : "自由分支主干必须是引擎行——到右侧重新选择引擎主干";
+                    }));
+                    break;
+                }
+                case ComposeMode.LimitedBranch:
+                {
+                    // 有限分支：单主干槽（普通原子）+ 门槛卡（点选）+ 槽内 Then 奖励块
+                    var slot = MakeSlot("主干（原子槽 1）");
+                    if (slot == null) break; // 模板缺失——MakeSlot 已报
+                    MarkSelected(slot, SelKind.Parallel, 0);
+                    SelectOnClick(slot, SelKind.Parallel, 0, false);
+                    var atom = FirstKind0Atom();
+                    if (atom != null)
+                    {
+                        MakeAtomCard(slot, atom, 0, SelKind.Parallel);
+                        if (atom.branch != null
+                            && (BranchSettleKind)atom.branch.settle == BranchSettleKind.Engine)
+                            atom.branch = null; // 引擎载荷不配普通原子（切形态残留兜底）
+                    }
+                    else MakeHint(slot, "主干为空——到右侧选择一颗普通原子（引擎行请切「自由分支」形态）");
+                    MakeGateCard(slot, atom);
+                    var lb = atom?.branch;
+                    if (lb != null && !BranchEntryRules.IsPhantom(lb)) MakeRewardSlot(slot, lb);
+                    _slotZones.Add(MakeZone(slot, () =>
+                    {
+                        var a = FirstKind0Atom();
+                        if (a == null) return "主干为空——到右侧选择一颗普通原子";
+                        return ComposerCatalog.IsEngineTrunkRow(AtomicEffectTable.GetByHashId(a.refId))
+                            ? "有限分支主干须为普通原子——引擎行请切「自由分支」形态" : null;
+                    }));
+                    break;
+                }
+                case ComposeMode.LinkAura:
+                case ComposeMode.RangeAura:
                 {
                     MakeAuraPanel(_slotArea.Content);
                     break;
@@ -1288,57 +1446,42 @@ namespace SynergyUI
             RefreshLibrary();
         }
 
-        /// <summary>进入/切模式/载入时的默认选中：并列=原子1；光环=无槽。</summary>
+        /// <summary>进入/切模式/载入时的默认选中（2026-10-23 五分类）：并列=原子 1；分支=主干；
+        /// 光环双形态=唯一光环槽（仪典入槽）。门槛选中态（Gate）只由点门槛卡进入。</summary>
         private void EnsureDefaultSelection()
         {
-            switch (_mode)
-            {
-                case ComposeMode.Parallel:
-                    _selSlot = SelKind.Parallel;
-                    _selSlotIndex = 0;
-                    break;
-                case ComposeMode.Aura:
-                    _selSlot = SelKind.Parallel; // 2026-10-06 光环共用原子槽（仪典入槽）——默认首槽
-                    _selSlotIndex = 0;
-                    break;
-            }
+            _selSlot = SelKind.Parallel;
+            _selSlotIndex = 0;
         }
 
-        /// <summary>每次刷新前校正当选中槽（模式变化/删除原子/清分支后防悬挂）；
-        /// 并列槽允许 0..min(已填数,槽位数-1)（首空槽可追加）；奖励选中态目标槽须仍有分支载荷。</summary>
+        /// <summary>每次刷新前校正当选中槽（模式变化/删除原子/清门槛后防悬挂）；
+        /// 并列槽允许 0..min(已填数,槽位数-1)（首空槽可追加）；分支形态恒主干槽，
+        /// 奖励选中态须仍有分支载荷，门槛选中态（Gate）只在有限分支。</summary>
         private void ClampSelection()
         {
+            // 展开态防悬挂（2026-10-06 多卡独立展开）：键=对象身份——只保留仍挂在当前 steps 上的原子/分支
+            var stepsNow = _graph.steps ?? new List<EffectStepData>();
+            _expandedAtoms.RemoveWhere(a => !stepsNow.Any(s => s?.kind == 0 && ReferenceEquals(s.atomic, a)));
+            _expandedRewards.RemoveWhere(br => !stepsNow.Any(s => s?.kind == 0 && ReferenceEquals(s.atomic?.branch, br)));
+
             switch (_mode)
             {
                 case ComposeMode.Parallel:
-                    if (_selSlot == SelKind.Reward)
-                    {
-                        if (BranchOfSlot(_selRewardSlot) == null)
-                        {
-                            _selSlot = SelKind.Parallel;
-                            _selSlotIndex = 0;
-                        }
-                    }
-                    else if (_selSlot != SelKind.Parallel)
-                    {
-                        _selSlot = SelKind.Parallel;
-                        _selSlotIndex = 0;
-                    }
-                    int max = Mathf.Min(_graph.steps?.Count ?? 0, ParallelSlotCount - 1);
-                    if (_selSlot == SelKind.Parallel && _selSlotIndex > max) _selSlotIndex = max;
-                    // 并列/分支互斥（2026-10-09）：任一槽分支已开 → 第二槽隐藏——选中钉回第一槽
-                    //（防开分支前残留的第二槽选中指向隐藏槽、库按第二槽口径过滤的旁路落位）
-                    if (_selSlot == SelKind.Parallel && _selSlotIndex > 0
-                        && (_graph.steps ?? new List<EffectStepData>()).Any(StepBranchActive))
-                        _selSlotIndex = 0;
-                    // 展开态防悬挂（2026-10-06 多卡独立展开）：键=对象身份——只保留仍挂在当前 steps 上的原子/分支
-                    var stepsNow = _graph.steps ?? new List<EffectStepData>();
-                    _expandedAtoms.RemoveWhere(a => !stepsNow.Any(s => s?.kind == 0 && ReferenceEquals(s.atomic, a)));
-                    _expandedRewards.RemoveWhere(br => !stepsNow.Any(s => s?.kind == 0 && ReferenceEquals(s.atomic?.branch, br)));
+                    if (_selSlot != SelKind.Parallel) { _selSlot = SelKind.Parallel; _selSlotIndex = 0; }
+                    int max = Mathf.Min(stepsNow.Count, ParallelSlotCount - 1);
+                    if (_selSlotIndex > max) _selSlotIndex = max;
                     break;
-                case ComposeMode.Aura:
-                    // 2026-10-06 光环单槽定案：选中恒槽 0（奖励选中态不适用）
-                    _selSlot = SelKind.Parallel;
+                case ComposeMode.FreeBranch:
+                case ComposeMode.LimitedBranch:
+                    _selSlotIndex = 0; // 分支形态单主干——选中恒槽 0
+                    if (_selSlot == SelKind.Reward && BranchOfSlot(0) == null) _selSlot = SelKind.Parallel;
+                    if (_selSlot == SelKind.Gate && _mode != ComposeMode.LimitedBranch) _selSlot = SelKind.Parallel;
+                    if (_selSlot != SelKind.Parallel && _selSlot != SelKind.Reward && _selSlot != SelKind.Gate)
+                        _selSlot = SelKind.Parallel;
+                    break;
+                case ComposeMode.LinkAura:
+                case ComposeMode.RangeAura:
+                    _selSlot = SelKind.Parallel; // 光环单槽：选中恒槽 0（奖励/门槛选中态不适用）
                     _selSlotIndex = 0;
                     break;
             }
@@ -1454,7 +1597,7 @@ namespace SynergyUI
 
             if (head != null)
             {
-                bool par = selKind == SelKind.Parallel;
+                bool par = selKind == SelKind.Parallel && _mode == ComposeMode.Parallel; // 换序仅并列双槽有意义
                 BindCardButton(UiKit.FindDeep(card, "up"), "↑", par, () => MoveParallel(index, -1));
                 BindCardButton(UiKit.FindDeep(card, "down"), "↓", par, () => MoveParallel(index, 1));
                 BindCardButton(UiKit.FindDeep(card, "del"), "删除", true, () => RemoveAtom(selKind, index));
@@ -1627,143 +1770,140 @@ namespace SynergyUI
                 MakeHint(inject, "检索按维度档计费：宣言在对局中以文本输入（组合期不填——空=单维度 1 档）");
         }
 
-        // ======================================== 槽内分支编辑区（2026-10-05 两槽定案） ========================================
+        // ======================================== 门槛卡与分支主干（2026-10-23 五分类） ========================================
 
-        /// <summary>槽内分支编辑区（2026-10-05 晚间定案：两流程；2026-10-09 互斥：仅第一槽渲染——
-        /// RefreshSlots 控制，第二槽有原子即整区不出，第二槽自身永不渲染分支区）：
-        /// ① 引擎主干行（位 7）——填入即自由分支：无 gate-row，参数行+Then 奖励槽直出
-        ///   （引擎标识行 branch-engine 已退役 2026-10-09——费用与可实现费用上限上移顶栏费用预览）；
-        /// ② 通常原子——单 gate-row（默认「无」）：族内产出条件 ∪ 局面门（有限分支），
-        ///   选条件后建奖励槽；settle 按条件 id 推导（产出条件→Outcome / 局面门→Gate 纯条件奖励——
-        ///   达标发奖，不达标不奖不惩，2026-10-09 定案）。
-        /// gate-row 走 prefab 静态模板（content 直属 tpl-gate-row 经 CloneTemplateFrom 跨级克隆进槽，
-        /// dd-trunk=条件 TMP 下拉）；缺模板 LogError 跳过本槽分支编辑（2026-10-07 兜底退役）。</summary>
-        private void MakeBranchEditor(RectTransform slot, AtomicEffectEntry atom, int slotIndex)
+        /// <summary>分支形态主干落槽（自由=引擎行自动挂 Engine 载荷；有限=普通原子、保留既有门槛/奖励载荷
+        /// ——门槛与奖励属效果不属原子，换主干原子不丢）。落位后选中停在主干槽、展开新卡。</summary>
+        private void ReplaceBranchTrunk(AtomicEffectEntry entry, bool keepBranch)
         {
-            var type = ResolveType(atom);
-            var b = atom.branch;
-
-            // ---- ① 引擎主干行：填入即自由分支（引擎身份=行身份，切引擎=换库行） ----
-            var trunkRow = AtomicEffectTable.GetByHashId(atom.refId);
-            if (ComposerCatalog.IsEngineTrunkRow(trunkRow))
-            {
-                var engineKind = ComposerCatalog.EngineKindOf(type);
-                b ??= new BranchEntryData { settle = (int)BranchSettleKind.Engine };
-                b.settle = (int)BranchSettleKind.Engine;
-                if (engineKind != BranchEngineKind.None) b.engine = (int)engineKind;
-                atom.branch = b;
-
-                MakeHint(slot, $"{ComposerCatalog.EngineZhOf(engineKind)}门槛=Then 奖励锚价合计"
-                        + "（随奖励实时推导，无需参数；奖励在 1-5 费区间内自由调整，门槛随计费变；"
-                        + "同一张卡每回合只触发一次）"
-                        + $"——见顶栏预览「自由分支·{ComposerCatalog.EngineZhOf(engineKind)}x」");
-
-                MakeRewardSlot(slot, b, slotIndex);
-                return;
-            }
-
-            // ---- ② 通常原子：单 gate-row（默认「无」） ----
-            if (b != null && (BranchSettleKind)b.settle == BranchSettleKind.Engine)
-            {
-                atom.branch = null; // 引擎载荷只配引擎主干行（效果库空置期——旧形状静默归位）
-                b = null;
-            }
-
-            var choices = GateRowChoices(type);
-            int cur = 0; // 默认「无」
-            if (b != null)
-            {
-                string curId = (BranchSettleKind)b.settle == BranchSettleKind.Outcome ? b.outcomeId : b.gateId;
-                int found = choices.FindIndex(g => g.Id == curId);
-                if (found > 0) cur = found;
-            }
-
-            // gate-row=prefab 静态模板（content 直属 tpl-gate-row 跨级克隆进槽）：label=「分支」名、
-            // dd-trunk=条件 TMP 下拉（选项/取值经 UiKit.Dropdown(TMP) 统一进出）；缺失跳过（兜底退役）。
-            var gateRow = UiKit.CloneTemplateFrom(_slotArea.Content, "tpl-gate-row", slot);
-            var gateDd = gateRow != null
-                ? UiKit.FindDeep(gateRow, "dd-trunk")?.GetComponent<TMP_Dropdown>() : null;
-            if (gateRow == null || gateDd == null)
-            {
-                if (gateRow != null) UnityEngine.Object.Destroy(gateRow.gameObject); // 残缺克隆体弃用
-                Debug.LogError("[EffectComposer] gate-row 模板缺失或缺 dd-trunk（TMP_Dropdown）——本槽分支编辑跳过；检查 EffectUI.prefab");
-                return; // 兜底构建已退役（2026-10-07）——缺模板即无分支行
-            }
-            // 槽布局组控宽——LE 只补 flexibleWidth 铺满（不经 Size：其会把模板烘焙的 minHeight=40 重置掉）
-            var gateLe = gateRow.GetComponent<LayoutElement>();
-            if (gateLe == null) gateLe = gateRow.gameObject.AddComponent<LayoutElement>();
-            gateLe.flexibleWidth = 1f;
-            var gateLbl = UiKit.FindDeep(gateRow, "lbl-gate")?.GetComponentInChildren<TMP_Text>(); // 2026-10-07 预制体改名 label→lbl-gate
-            if (gateLbl != null) gateLbl.text = "分支";
-
-            var labels = choices.Select(g => g.Id == null ? "无" : ComposerCatalog.GateLabel(g)).ToList();
-            void OnGateChanged(int idx, string _)
-            {
-                var pick = choices[Mathf.Clamp(idx, 0, choices.Count - 1)];
-                if (string.IsNullOrEmpty(pick.Id))
-                {
-                    atom.branch = null; // 「无」=无分支
-                }
-                else
-                {
-                    var nb = atom.branch ?? new BranchEntryData();
-                    nb.then ??= new List<AtomicEffectEntry>();
-                    nb.gateId = null; nb.condParam = 0; nb.condStr = null;
-                    nb.outcomeId = null; nb.engine = 0; nb.engineParam = 0;
-                    if (ComposerCatalog.IsOutcomeCondition(pick.Id))
-                    {
-                        nb.settle = (int)BranchSettleKind.Outcome; // 产出条件=纯奖励
-                        nb.outcomeId = pick.Id;
-                    }
-                    else
-                    {
-                        nb.settle = (int)BranchSettleKind.Gate; // 局面门=有限分支（达标奖励/不达标无事）
-                        nb.gateId = pick.Id;
-                    }
-                    atom.branch = nb;
-                }
-                RefreshSlots(); // 奖励槽随条件建/撤
-                RefreshRightPanels(); // 库过滤随条件预算刷新
-            }
-            var dd = new UiKit.Dropdown(gateDd, labels, cur, OnGateChanged);
-            dd.Describe(
-                "分支条件：给这个槽的效果加前置条件，条件成立才发下方奖励——点选项看各条件的玩法。",
-                idx =>
-                {
-                    var pick = choices[Mathf.Clamp(idx, 0, choices.Count - 1)];
-                    if (string.IsNullOrEmpty(pick.Id)) return "无：不加条件，效果直接结算。";
-                    if (ComposerCatalog.IsOutcomeCondition(pick.Id))
-                        return $"{pick.DisplayName}——产出条件：本槽效果真办成这件事时才发放下方奖励（延迟验证，奖励免费）。";
-                    return $"{pick.DisplayName}——有限分支：当前局面满足条件时发放下方奖励；不满足则不发（不奖励也不惩罚，奖励免费）。";
-                });
-
-            if (!BranchEntryRules.IsPhantom(b)) // 幽灵分支（JsonUtility 物化 settle=0）不建奖励槽——与下拉「无」一致
-                MakeRewardSlot(slot, b, slotIndex);
+            _graph.steps ??= new List<EffectStepData>();
+            var old = _graph.steps.Count > 0 && _graph.steps[0].kind == 0 ? _graph.steps[0].atomic : null;
+            if (keepBranch && old?.branch != null) entry.branch = old.branch;
+            _graph.steps.Clear();
+            _graph.steps.Add(new EffectStepData { kind = 0, atomic = entry });
+            _expandedAtoms.Add(entry);
+            _selSlot = SelKind.Parallel;
+            _selSlotIndex = 0;
+            RefreshSlots();
         }
 
-        /// <summary>gate-row 条目集（两流程定案）：[无] + 族内产出条件 + 局面门全集（有限分支——
-        /// 任意原子可挂，与产出无关）。首项恒「无」（Id=null → branch 置空）。</summary>
-        private static readonly ComposerCatalog.GateSpec NoneGateSpec =
-            new ComposerCatalog.GateSpec { Id = null, DisplayName = "无" };
-
-        private static List<ComposerCatalog.GateSpec> GateRowChoices(AtomicEffectType trunk)
+        /// <summary>右栏门槛行点击 → 写入 branch{settle=Gate, gateId, then=原奖励保留}——
+        /// 历史 Outcome 载荷被整体换成 Gate（产出条件不再新建，2026-10-23 裁定）；
+        /// 写入后选中自动切奖励块（下一步必是填奖励），右栏随 RefreshLibrary 切奖励候选。</summary>
+        private void ApplySituationGate(ComposerCatalog.GateSpec gate)
         {
-            var list = new List<ComposerCatalog.GateSpec> { NoneGateSpec };
-            list.AddRange(ComposerCatalog.OutcomeConditionsFor(trunk));
-            list.AddRange(ComposerCatalog.SituationGates);
-            return list;
+            var atom = FirstKind0Atom();
+            if (atom == null) { ShowToast("先到右侧选一颗主干原子——门槛挂在主干上"); return; }
+            var b = atom.branch ?? new BranchEntryData();
+            b.then ??= new List<AtomicEffectEntry>();
+            b.settle = (int)BranchSettleKind.Gate;
+            b.gateId = gate.Id;
+            b.outcomeId = null;
+            b.engine = 0; b.engineParam = 0; b.condParam = 0; b.condStr = null;
+            atom.branch = b;
+            _selSlot = SelKind.Reward; // 门槛已选——下一步必是填奖励
+            _selRewardSlot = 0;
+            RefreshSlots();
+            RefreshLibrary();
+            ShowToast("门槛已选——到右侧挑一个奖励原子");
+        }
+
+        /// <summary>门槛卡（2026-10-23 五分类·有限分支）：克隆 tpl-aura-slot/aura-card（head/text/del+des），
+        /// 隐藏 field-value/actuating-range，命名 gate-card。空态=引导点选；已选=◈ 名【奖励B】；
+        /// 历史 Outcome 载荷只读展示「产出条件（旧版）」。点卡=选中门槛（右栏切 11 条门槛列表）；
+        /// del=清空整条 branch（含奖励，防空门槛空转）。选中态=焦点底色（与原子槽/奖励块同款）。</summary>
+        private void MakeGateCard(RectTransform slot, AtomicEffectEntry atom)
+        {
+            var card = CloneAuraCard(slot);
+            if (card == null) return; // CloneAuraCard 已报缺模板
+            card.name = "gate-card";
+            UiKit.FindDeep(card, "field-value")?.gameObject.SetActive(false);   // 门槛无数值参数
+            UiKit.FindDeep(card, "actuating-range")?.gameObject.SetActive(false); // 门槛无作用范围档
+
+            var b = atom?.branch;
+            bool phantom = b == null || BranchEntryRules.IsPhantom(b);
+            bool legacyOutcome = !phantom && (BranchSettleKind)b.settle == BranchSettleKind.Outcome;
+            var gate = !phantom && (BranchSettleKind)b.settle == BranchSettleKind.Gate ? GateSpecOf(b.gateId) : null;
+
+            var text = UiKit.FindDeep(card, "text")?.GetComponent<TMP_Text>();
+            if (text == null) Debug.LogError("[EffectComposer] aura-card 缺 text 摘要文本——门槛卡不可显；检查 EffectUI.prefab");
+            else
+            {
+                text.text = gate != null
+                    ? $"◈ {gate.DisplayName}【奖励{ComposerCatalog.GateBudget(gate)}】"
+                    : legacyOutcome
+                        ? $"产出条件（旧版）：{ComposerCatalog.OutcomeConditions.FirstOrDefault(g => g.Id == b.outcomeId)?.DisplayName ?? b.outcomeId}"
+                        : "门槛：未选——点击本卡后在右侧选择有限分支";
+                UiKit.Size(text, fw: 1f);
+            }
+            var des = UiKit.FindDeep(card, "des")?.GetComponent<TMP_Text>();
+            if (des == null) Debug.LogError("[EffectComposer] aura-card 缺 des 参数文本——检查 EffectUI.prefab");
+            else
+            {
+                des.text = "有限分支：达标发放下方奖励，不达标不奖励也不惩罚（奖励免费）";
+                UiKit.Size(des, fw: 1f);
+            }
+
+            // del=清空整条 branch（含奖励）
+            var head = UiKit.FindDeep(card, "head");
+            var delNode = head != null ? UiKit.FindDeep(head, "del") : null;
+            if (delNode == null) Debug.LogError("[EffectComposer] aura-card 缺 del 删除按钮——门槛不可清；检查 EffectUI.prefab");
+            else BindCardButton(delNode, "删除", !phantom, () =>
+            {
+                var a = FirstKind0Atom();
+                var bb = a?.branch;
+                if (bb == null) return;
+                _expandedRewards.Remove(bb);
+                a.branch = null; // 门槛+奖励整条清空（防空门槛空转）
+                if (_selSlot == SelKind.Reward) _selSlot = SelKind.Gate;
+                RefreshSlots();
+                RefreshLibrary(); // 奖励删除后原子回归库
+            });
+
+            // 点卡=选中门槛（右栏切门槛列表）；选中态=焦点底色（与原子槽/奖励块同款）
+            var img = card.GetComponent<Image>();
+            var btn = card.gameObject.GetComponent<Button>();
+            if (btn == null)
+            {
+                btn = card.gameObject.AddComponent<Button>();
+                btn.transition = Selectable.Transition.None;
+                btn.targetGraphic = img;
+            }
+            btn.onClick.RemoveAllListeners();
+            btn.onClick.AddListener(() =>
+            {
+                if (FirstKind0Atom() == null) { ShowToast("先选主干原子——门槛挂在主干上"); return; }
+                SelectSlot(SelKind.Gate, 0);
+            });
+            UiKit.Described(btn,
+                "门槛：当前局面达标时发放下方 Then 奖励——点击本卡后到右侧点选一条局面门槛（11 条，表驱动）");
+            if (_selSlot == SelKind.Gate && img != null)
+            {
+                img.enabled = true;
+                img.color = new Color(70f / 255f, 110f / 255f, 170f / 255f, 0.32f); // 焦点态底（与槽/奖励块同款）
+            }
+
+            // 校验：门槛未选（主干空由主干区报——此处只管有主干没门槛）
+            _slotZones.Add(MakeZone(card, () =>
+            {
+                var a = FirstKind0Atom();
+                if (a == null) return null;
+                return a.branch == null || BranchEntryRules.IsPhantom(a.branch)
+                    ? "门槛未选——点击门槛卡后到右侧选择有限分支" : null;
+            }));
         }
 
         /// <summary>gateId → 目录项（局面门）。</summary>
         private static ComposerCatalog.GateSpec GateSpecOf(string gateId)
             => ComposerCatalog.SituationGates.FirstOrDefault(g => g.Id == gateId);
 
-        /// <summary>槽内 Then 奖励槽区（2026-10-06 预制体化：content 烘焙 reward-slot → tpl-reward-slot
-        /// 跨级克隆进槽，视觉不再代码构建——slot-title 标题行 + head 摘要行 + editor 参数区）。
-        /// 显隐定案（2026-10-06）：无分支不克隆（整区隐藏）；非自由主干（局面门/产出条件——预算恒 1/2/3）
-        /// 奖励参数按预算自动生成不可控——editor 恒隐藏、head 摘要无展开箭头（点击=选中奖励槽）；
+        /// <summary>槽内 Then 奖励槽区（2026-10-06 预制体化；2026-10-23 五分类：分支两形态共用——
+        /// 自由分支=引擎载荷（free），有限分支=门槛/产出载荷）：content 烘焙 reward-slot → tpl-reward-slot
+        /// 跨级克隆进槽，视觉不再代码构建——slot-title 标题行 + head 摘要行 + editor 参数区。
+        /// 非自由主干（局面门/产出条件——预算=门槛 Budget/条件 2）奖励参数按预算自动生成不可控
+        /// ——editor 恒隐藏、head 摘要无展开箭头（点击=选中奖励块）；
         /// 自由主干（引擎）奖励无上限引擎封顶 5——维持手控：head 点击展开 editor 编辑数值。</summary>
-        private void MakeRewardSlot(RectTransform slot, BranchEntryData b, int slotIndex)
+        private void MakeRewardSlot(RectTransform slot, BranchEntryData b)
         {
             bool free = (BranchSettleKind)b.settle == BranchSettleKind.Engine;
             var reward = b.then?.FirstOrDefault();
@@ -1786,7 +1926,7 @@ namespace SynergyUI
             if (title == null) Debug.LogError("[EffectComposer] tpl-reward-slot 缺 slot-title——检查 EffectUI.prefab");
             else
             {
-                title.text = $"槽 {slotIndex + 1}·Then 奖励（单原子·预算内）";
+                title.text = $"Then 奖励（预算 {RewardFilterCap(b)} 以内）";
                 UiKit.Size(title, fw: 1f);
             }
 
@@ -1813,7 +1953,7 @@ namespace SynergyUI
             {
                 BindCardButton(delNode, "删除", true, () =>
                 {
-                    BranchOfSlot(slotIndex)?.then?.Clear();
+                    b.then?.Clear();
                     _expandedRewards.Remove(b);
                     RefreshSlots();
                     RefreshLibrary(); // 全局唯一（隐藏口径）：奖励删除后该原子回归库
@@ -1829,7 +1969,7 @@ namespace SynergyUI
                 headBtn.onClick.AddListener(() =>
                 {
                     if (free) ToggleRewardExpand(b);                   // 自由主干=展开手控（多卡独立展开）
-                    else SelectSlot(SelKind.Reward, slotIndex);        // 非自由主干=仅选中（参数自动生成，无可编辑）
+                    else SelectSlot(SelKind.Reward, 0);                // 非自由主干=仅选中（参数自动生成，无可编辑）
                 });
             }
 
@@ -1913,13 +2053,13 @@ namespace SynergyUI
             }
 
             // 选中态高亮（2026-10-09：选中色改焦点蓝与原子槽一致（MarkSelected 同色）——只跟奖励槽选中走，选别处即褪色；编辑器展开不携带色）
-            if (_selSlot == SelKind.Reward && _selRewardSlot == slotIndex)
+            if (_selSlot == SelKind.Reward && _selRewardSlot == 0)
             {
                 img.enabled = true; // 防御：组件禁用态强制开启——选中色必可见
                 img.color = new Color(70f / 255f, 110f / 255f, 170f / 255f, 0.32f);
             }
 
-            // 整区点击=选中该奖励槽（head 有自己的按钮——其余区域冒泡到本区）
+            // 整区点击=选中该奖励块（head 有自己的按钮——其余区域冒泡到本区）
             var btn = area.gameObject.GetComponent<Button>();
             if (btn == null)
             {
@@ -1927,19 +2067,21 @@ namespace SynergyUI
                 btn.transition = Selectable.Transition.None;
                 btn.targetGraphic = img;
             }
-            btn.onClick.AddListener(() => SelectSlot(SelKind.Reward, slotIndex));
+            btn.onClick.AddListener(() => SelectSlot(SelKind.Reward, 0));
 
             // 校验：分支未设奖励（converter 折叠为无分支——条件空转）+ 可实现费用内。
             // 2026-10-09 定案：上限统一走 RewardFilterCap——自由分支（引擎）恒 5（自平衡统一后引擎预算全 -1；
-            // 此前 -1 直通=「校验恒满足」根因）。超限=GuideFrame 红框脉冲（shader _Time 闪）+描述条文本+禁存。
+            // 此前 -1 直通=「校验恒满足」根因）；有限分支=门槛 Budget。超限=GuideFrame 红框脉冲+描述条文本+禁存。
             _slotZones.Add(MakeZone(area, () =>
             {
                 if (b.then == null || b.then.Count == 0)
-                    return $"槽 {slotIndex + 1} 分支未设奖励——条件空转（装载按无分支处理）：点本区选中后到右栏填入，或改回「无分支」";
+                    return free
+                        ? "Then 奖励未填——点本区选中后到右栏挑一个奖励原子（1-5 费）"
+                        : "Then 奖励未填——点本区选中后到右栏挑一个奖励原子（≤门槛预算），或删除门槛";
                 int cap = RewardFilterCap(b);
                 float cost = RewardCost(b.then[0]);
                 return cost > cap
-                    ? $"槽 {slotIndex + 1} 奖励超出分支可实现费用（{cost:0.#}/{cap}）——"
+                    ? $"奖励超出分支可实现费用（{cost:0.#}/{cap}）——"
                       + (free ? "调低数值或换原子" : "参数已按预算自动生成仍超出——换更便宜的原子")
                     : null;
             }));
@@ -1986,17 +2128,7 @@ namespace SynergyUI
             UiKit.Size(text, fw: 1f);
         }
 
-        // ---- 分支载荷工具（2026-10-05 两槽定案） ----
-
-        /// <summary>槽序 → 该槽原子的分支载荷（无原子/无载荷=null）。</summary>
-        /// <summary>槽位分支已开（并列/分支互斥判定单源，2026-10-09 定案）：引擎主干行（填槽即自由分支
-        /// ——载荷落槽期才挂，须按行身份判）或非幽灵 branch 载荷（gate 下拉非「无」）。</summary>
-        private static bool StepBranchActive(EffectStepData step)
-        {
-            if (step?.kind != 0 || step.atomic == null) return false;
-            if (ComposerCatalog.IsEngineTrunkRow(AtomicEffectTable.GetByHashId(step.atomic.refId))) return true;
-            return step.atomic.branch != null && !BranchEntryRules.IsPhantom(step.atomic.branch);
-        }
+        // ---- 分支载荷工具（2026-10-05 两槽定案；2026-10-23 五分类：分支恒挂首主干） ----
 
         private BranchEntryData BranchOfSlot(int slotIndex)
         {
@@ -2006,8 +2138,8 @@ namespace SynergyUI
             return s?.kind == 0 ? s.atomic?.branch : null;
         }
 
-        /// <summary>分支奖励预算（两槽定案）：Gate=门预算（GatePremium 同源）；Outcome=产出条件预算；
-        /// Engine=引擎预算（2026-10-09 自平衡统一：全引擎 -1 无上限——门槛与预算同源于 Then 锚价推导）。</summary>
+        /// <summary>分支奖励预算（两槽定案）：Gate=门预算（表 Budget 列——SituationGates/BuildGatePremium 同源）；
+        /// Outcome=产出条件预算；Engine=引擎预算（2026-10-09 自平衡统一：全引擎 -1 无上限——门槛与预算同源于 Then 锚价推导）。</summary>
         private static int BranchBudget(BranchEntryData b)
         {
             if (b == null) return -1;
@@ -2026,7 +2158,7 @@ namespace SynergyUI
             }
         }
 
-        /// <summary>奖励可实现费用上限（2026-10-09 定案·四口共用）：有限分支=门预算（GatePremium 1/2；
+        /// <summary>奖励可实现费用上限（2026-10-09 定案·四口共用）：有限分支=门预算（表 Budget 列 1/2；
         /// DrawnInStandbyThisTurn=3）；产出条件=条件预算（恒 2）；自由分支=引擎分支恒 5（自平衡统一后
         /// 引擎预算全 -1——玩家在 1-5 费区间自由调奖励、门槛随计费推导）
         /// ——库展示、落槽校验、槽区保存校验（超限禁存）与费用预览分支段共用一口。</summary>
@@ -2440,7 +2572,7 @@ namespace SynergyUI
             }
         }
 
-        /// <summary>当前效果引擎种类（首槽原子 branch 载荷∪行身份——与 StepBranchActive 同口径；null=无引擎）。</summary>
+        /// <summary>当前效果引擎种类（首主干 branch 载荷∪行身份——与 InferMode 同口径；null=无引擎）。</summary>
         private BranchEngineKind? EngineKindOfGraph()
         {
             var atom = _graph?.steps?.FirstOrDefault(s => s?.kind == 0 && s.atomic != null)?.atomic;
@@ -2738,43 +2870,59 @@ namespace SynergyUI
             => row == null ? "" : string.Join("\n",
                 row.DisplayName, row.Description, row.Tags, row.MountKinds, row.TargetKinds);
 
-        /// <summary>当前选中槽的可放置性谓词（库只展示可用项——与分类/搜索取交集）。
-        /// 附带中文上下文（库顶标签显示）。主干槽=派生主干资格+非错边+域非空（引擎主干行仅第一槽——互斥）；
-        /// 奖励槽（SelKind.Reward）=BranchReward 位+非错边+分支预算内。</summary>
+        /// <summary>当前选中槽的可放置性谓词（库只展示可用项——与分类/搜索取交集；2026-10-23 五分类）。
+        /// 附带中文上下文（右栏顶部 AddTableHint 提示行消费）。并列=普通主干原子（排除引擎行）；
+        /// 自由分支主干=仅引擎行（位 5）；有限分支主干=普通原子（排引擎/门槛行）；奖励块=BranchReward
+        /// 位+非错边+预算内（自由恒 5、有限=门槛 Budget）。门槛选中态/光环形态不走本口（RefreshLibrary 分流）。</summary>
         private Func<LibPayload, bool> CurrentSlotPredicate(out string contextZh)
         {
             switch (_mode)
             {
                 case ComposeMode.Parallel:
                 {
+                    contextZh = _selSlotIndex == 1
+                        ? "并列槽 2（主动原子·非错边）"
+                        : "并列槽 1（主动原子·非错边）";
+                    // 五分类：并列无分支——引擎行不入并列槽（要引擎请切自由分支）
+                    return lp => lp.CanBeTrunk && !lp.IsWrongSideOnly && !lp.IsEngineTrunk
+                                 && (lp.Cfg?.GetTargetKindList()?.Count ?? 0) > 0;
+                }
+                case ComposeMode.FreeBranch:
+                {
                     if (_selSlot == SelKind.Reward)
                     {
-                        // 槽内 Then 奖励槽选中：按 BranchReward 位+可实现费用上限过滤（2026-10-09 自平衡统一口径：
-                        // 产出条件=条件预算（恒 2）；自由分支（引擎）恒按上限 5 过滤——玩家在 1-5 费区间
-                        // 自由调奖励，门槛随计费推导、超 5 红闪禁存；不再随参数缩过滤面）
-                        var b = BranchOfSlot(_selRewardSlot);
-                        int budget = BranchBudget(b);
+                        // 自由分支奖励：上限恒 5（引擎预算 -1 无上限——玩家在 1-5 费区间自由调，
+                        // 门槛随计费推导、超 5 红闪禁存）
+                        var b = BranchOfSlot(0);
                         int cap = RewardFilterCap(b);
-                        contextZh = budget > 0
-                            ? $"槽 {_selRewardSlot + 1} 分支奖励（非错边——仅示 ≤{cap} 费原子）"
-                            : $"槽 {_selRewardSlot + 1} 分支奖励（非错边——仅示 0-{cap} 费原子）";
-                        return lp => lp.CanBeBranchReward && !lp.IsWrongSideOnly
+                        contextZh = $"Then 奖励（非错边——仅示 ≤{cap} 费原子）";
+                        return lp => b != null && lp.CanBeBranchReward && !lp.IsWrongSideOnly
                                      && RewardWithinFilterCap(lp.Entry(), b);
                     }
-                    // 逐原子目标制（2026-10-09）：不做槽间域交集过滤——各原子按自身表域独立解析；
-                    // 仅保留行自身域非空（零域行除引擎主干/载荷外无目标可解析，不可入主干槽）。
-                    // 并列/分支互斥（同日定案）：引擎主干行=分支载体只进第一槽——第二槽纯并列原子
-                    bool second = _selSlotIndex == 1;
-                    contextZh = second
-                        ? "并列槽 2（主动原子·非错边——与分支互斥，不放引擎主干）"
-                        : "并列槽 1（主动原子/引擎主干·非错边）";
-                    return lp => lp.CanBeTrunk && !lp.IsWrongSideOnly
-                                 && (!second || !lp.IsEngineTrunk)
-                                 && (lp.IsEngineTrunk || (lp.Cfg?.GetTargetKindList()?.Count ?? 0) > 0);
+                    contextZh = "引擎主干（仅引擎行——倒计时/拼点/运势/死亡计数/元素充盈/团结/附加诅咒·祝福）";
+                    return lp => lp.IsEngineTrunk;
                 }
-                case ComposeMode.Aura:
-                    contextZh = "光环模式——不可指定作用对象（箭头指向格占据者，运行时解析）";
-                    return lp => false;
+                case ComposeMode.LimitedBranch:
+                {
+                    if (_selSlot == SelKind.Reward)
+                    {
+                        // 有限分支奖励：上限=该门槛 Budget（RewardFilterCap 单源）
+                        var b = BranchOfSlot(0);
+                        int cap = RewardFilterCap(b);
+                        contextZh = b != null
+                            ? $"Then 奖励（非错边——仅示 ≤{cap} 费原子）"
+                            : null; // 无门槛无奖励口——门槛卡区校验已提示
+                        return lp => b != null && lp.CanBeBranchReward && !lp.IsWrongSideOnly
+                                     && RewardWithinFilterCap(lp.Entry(), b);
+                    }
+                    contextZh = "主干（普通原子·非错边——引擎行请切自由分支）";
+                    return lp => lp.CanBeTrunk && !lp.IsWrongSideOnly && !lp.IsEngineTrunk
+                                 && (lp.Cfg?.GetTargetKindList()?.Count ?? 0) > 0;
+                }
+                case ComposeMode.LinkAura:
+                case ComposeMode.RangeAura:
+                    contextZh = null; // 光环库走 RefreshAuraLibrary 分流
+                    return null;
             }
             contextZh = null;
             return null;
@@ -2785,15 +2933,40 @@ namespace SynergyUI
             if (_atomRows == null) return;
             _atomItems.Clear();
 
-            // 光环模式：右栏=光环条目库（点击添加）——条目编辑在左栏，原子库按槽过滤口径不适用
-            if (_mode == ComposeMode.Aura)
+            // 光环双形态：右栏=光环条目库（连接）/仪典库（范围）——点击换选，编辑在左栏
+            if (IsAuraMode(_mode))
             {
                 RefreshAuraLibrary();
                 _atomRows.SetItems(_atomItems.Count, i => _atomItems[i].H);
                 return;
             }
 
-            var pred = CurrentSlotPredicate(out _); // 过滤缘由说明行 lbl-lib-context 已移除（2026-10-07 定案）
+            // 有限分支·门槛选中态：右栏=11 条门槛（表驱动——颜色筛选不适用，门槛无费用色；搜索照旧可筛）
+            if (_mode == ComposeMode.LimitedBranch && _selSlot == SelKind.Gate)
+            {
+                AddTableHint(_atomItems, _libraryList, "当前：填入门槛——点一条即填入（达标发奖，不达标不奖不惩）");
+                foreach (var g in ComposerCatalog.SituationGates)
+                {
+                    var captured = g;
+                    if (!SearchQuery.Match(captured.DisplayName ?? "", _filterName.text)) continue;
+                    _atomItems.Add(new TableRowData
+                    {
+                        Meta = ComposerCatalog.GateLabel(captured),
+                        Dot = DotColor(UIColor.All),
+                        Costs = null, // 门槛行无费用方格
+                        OnClick = () => ApplySituationGate(captured),
+                        H = TableRowH,
+                    });
+                }
+                if (_atomItems.Count == 1) // 只剩提示行=门槛目录为空
+                    AddTableHint(_atomItems, _libraryList, "门槛目录为空——原子表未装载门槛行（查 Console）");
+                _atomRows.SetItems(_atomItems.Count, i => _atomItems[i].H);
+                return;
+            }
+
+            var pred = CurrentSlotPredicate(out var contextZh);
+            if (!string.IsNullOrEmpty(contextZh)) // 顶部上下文提示行（2026-10-23 五分类：告知右栏当前填什么）
+                AddTableHint(_atomItems, _libraryList, $"当前：{contextZh}");
             // 限重复隐藏（2026-10-09 隐藏口径 → 2026-10-19 放开修订）：引擎主干/仪典已入组合即隐
             // ——用过即隐不拒绝，换掉/删除后随本刷新回归；其余行可重复不隐。与颜色/搜索/槽位可用性取交集
             var usedRefIds = RestrictedUsedRefIds();
@@ -2957,16 +3130,18 @@ namespace SynergyUI
             if (img != null) img.color = color;
         }
 
-        /// <summary>右栏·光环条目库（点击换选）：属性光环（位 3 表驱动：设置攻击力/生命力系统行）
-        /// + 关键词光环（CanMountAsAura——默认可−消耗型拉黑）。2026-10-09 单槽定案：光环槽唯一选择
-        /// ——库点击即整组替换上一个选中（规则↔条目互斥，不再追加叠加）；近似搜索按显示名过滤。</summary>
+        /// <summary>右栏·光环库（点击换选——2026-10-23 五分类双面）：
+        /// 连接光环=属性光环（位 3 表驱动：设置攻击力/生命力系统行）+ 关键词光环（CanMountAsAura——
+        /// 默认可−消耗型拉黑），**不列规则光环行**（仪典属范围光环）；
+        /// 范围光环=仪典行（位 6）——只列规则光环。单槽定案：库点击即整组替换上一个选中；
+        /// 近似搜索按显示名过滤。</summary>
         private void RefreshAuraLibrary()
         {
-            // 宿主光环闸（2026-10-15 改版）：连接光环=结界专属——生物（禁挂改版）/法术（只挂主动）不出库
+            // 宿主光环闸（2026-10-15 改版）：光环=结界专属——生物（禁挂改版）/法术（只挂主动）不出库
             if (HostBlocksAura)
             {
                 AddTableHint(_atomItems, _libraryList, _editingCard.Supertype == Cardtype.Creature
-                    ? "生物不可挂连接光环（2026-10-15 改版——光环专属结界）"
+                    ? "生物不可挂光环（2026-10-15 改版——光环专属结界）"
                     : "法术只挂主动效果（施放时抉择其一），不可挂光环");
                 return;
             }
@@ -2994,9 +3169,8 @@ namespace SynergyUI
 
             // 规则级光环：落 steps 为 ModifyGameRule 登场原子（str=规则短名）——引擎 RuleAuraSystem
             // 多槽（2026-10-07 唯一性改版：异名共存、同名在场禁打出）；作用范围=entry.value
-            //（RuleAuraScope：缺省极性驱动——负面族(负极性)缺省对方、其余缺省双方，设置盒可改·极性门控）；
-            // 不占 LinkAura 连接位（无箭头）。2026-10-09 单槽定案：steps 整组重建+连接条目随选清空
-            // ——替代上一个选中（残留多行规则原子一并清，不再走 ReplaceParallel 追加语义）
+            //（RuleAuraScope：缺省极性驱动——负面族(负极性)缺省对方、其余缺省双方，仪典卡可改·极性门控）；
+            // 不占 LinkAura 连接位（无箭头）。新选即整组替换
             void AddRuleAura(AtomicEffectConfig cfg)
             {
                 _graph.steps = new List<EffectStepData> { new EffectStepData { kind = 0,
@@ -3004,9 +3178,28 @@ namespace SynergyUI
                         value = cfg.Polarity <= -0.5f ? (int)RuleAuraScope.Opponent : (int)RuleAuraScope.Both,
                         str = RuleAuraIds.TryGetValue(cfg.DisplayName, out var r) ? r : cfg.DisplayName } } };
                 _graph.header.LinkAuras = null;
-                _graph.header.ArrowDirections = 0; // 规则级无箭头（MakeAuraPanel hasRule 分支同置——落位即写一致）
+                _graph.header.ArrowDirections = 0; // 规则级无箭头（MakeAuraPanel 范围面分支同置——落位即写一致）
                 RefreshSlots();
             }
+
+            // ---- 范围光环面：仪典行（位 6）——只列规则光环 ----
+            if (_mode == ComposeMode.RangeAura)
+            {
+                AddTableHint(_atomItems, _libraryList, "当前：仪典——点击选择一条规则光环（新选即替换；作用面在仪典卡上选）");
+                foreach (var r in AllTableRows())
+                {
+                    var rule = r;
+                    if (!IsRuleAuraRow(rule)) continue;
+                    AddRow($"规则光环·{rule.DisplayName}",
+                        $"{rule.Description}——{RuleAuraScopeOf(rule)}，同名在场时不可再打出（异名可共存），载体离场/被无效即失效；无箭头",
+                        ColorFilter.OfTagsCsv(rule.Tags),
+                        () => AddRuleAura(rule));
+                }
+                return;
+            }
+
+            // ---- 连接光环面：属性 + 关键词条目（规则光环行不入——切「范围光环」配仪典） ----
+            AddTableHint(_atomItems, _libraryList, "当前：光环条目——点击换选（新选即替换上一个；连接方向的光环在光环槽底部选箭头）");
 
             // 属性光环（2026-10-07 深夜改源；2026-10-08 库行细分定案）：一般效果「属性增加/属性减少」
             //（原子表位 3 行）的光环化——每源行拆 攻/生/属性 三行（卡面种类下拉已随 actuating-range
@@ -3040,18 +3233,11 @@ namespace SynergyUI
                     ColorFilter.OfKeyword(captured.id),
                     () => AddAura(new LinkAuraData { keyword = captured.id }));
             }
-            foreach (var r in AllTableRows())
-            {
-                var rule = r;
-                if (!IsRuleAuraRow(rule)) continue;
-                AddRow($"规则光环·{rule.DisplayName}", $"{rule.Description}——{RuleAuraScopeOf(rule)}，同名在场时不可再打出（异名可共存），载体离场/被无效即失效；无箭头",
-                    ColorFilter.OfTagsCsv(rule.Tags),
-                    () => AddRuleAura(rule));
-            }
         }
 
-        /// <summary>点击库行 = 替换左侧选中槽的原子；选中槽不合适该原子时 toast 提示。
-        /// 错边原子不在效果区落位（代价栏已上移卡组合层）。</summary>
+        /// <summary>点击库行 = 替换左侧选中槽（2026-10-23 五分类路由）；选中槽不合适该原子时 toast 提示。
+        /// 错边原子不在效果区落位（代价栏已上移卡组合层）。光环双形态/门槛选中态不走本口
+        ///（条目/仪典/门槛行各有专属 OnClick）。</summary>
         private void QuickAdd(LibPayload payload)
         {
             // 表级错边原子（域锁错侧——如 弃牌/送墓 锁己方域）：效果区禁错边
@@ -3064,25 +3250,45 @@ namespace SynergyUI
             switch (_mode)
             {
                 case ComposeMode.Parallel:
+                    if (!ParallelCanDrop(payload)) { ShowToast("该原子不可作并列主干（引擎行请切自由分支/规则光环不入效果栏）"); break; }
+                    if (payload.IsKeywordAtom) ApplyKeywordHeader();
+                    ReplaceParallel(InferredTrunkEntry(payload));
+                    RefreshLibrary(); // 全局唯一（隐藏口径）：落位原子从库中隐藏——库随落位刷新
+                    break;
+                case ComposeMode.FreeBranch:
                     if (_selSlot == SelKind.Reward)
                     {
-                        // 槽内 Then 奖励槽选中（两槽定案）：落 branch.then——挂载位+可逆转+分支预算校验
-                        var b = BranchOfSlot(_selRewardSlot);
-                        if (b == null) { ShowToast("该槽未启用分支——先在槽内 gate-row 选择条件"); break; }
-                        if (!RewardCanDrop(payload, b)) { ShowToast("选中槽=奖励——挂载位不合或超出条件预算"); break; }
-                        if (payload.IsKeywordAtom) ApplyKeywordHeader(); // 关键词=他人赋予形态
-                        DropBranchReward(payload, _selRewardSlot);
+                        var fb = BranchOfSlot(0);
+                        if (fb == null) { ShowToast("主干未定——先到右侧选引擎主干行"); break; }
+                        if (!RewardCanDrop(payload, fb)) { ShowToast("选中块=奖励——挂载位不合或超出预算（≤5 费）"); break; }
+                        if (payload.IsKeywordAtom) ApplyKeywordHeader();
+                        DropBranchReward(payload, 0);
                     }
                     else
                     {
-                        if (!ParallelCanDrop(payload)) { ShowToast("该原子不可作主干（规则光环/仅连接光环节点不入效果栏）"); break; }
-                        // 互斥兜底：引擎主干=分支载体只进第一槽（库已按槽过滤——拦旁路与旧选中态）
-                        if (_selSlotIndex == 1 && payload.IsEngineTrunk)
-                        { ShowToast("引擎主干是分支载体——只进原子槽 1（与第二槽互斥）"); break; }
-                        if (payload.IsKeywordAtom) ApplyKeywordHeader();
-                        ReplaceParallel(InferredTrunkEntry(payload));
+                        if (!payload.IsEngineTrunk) { ShowToast("自由分支主干=引擎行（倒计时/拼点/运势…）——其余原子请切并列/有限分支"); break; }
+                        ReplaceBranchTrunk(InferredTrunkEntry(payload), keepBranch: false); // 引擎行自动挂 Engine 载荷
                     }
-                    RefreshLibrary(); // 全局唯一（2026-10-09 隐藏口径）：落位原子从库中隐藏——库随落位刷新
+                    RefreshLibrary();
+                    break;
+                case ComposeMode.LimitedBranch:
+                    if (_selSlot == SelKind.Gate) break; // 门槛列表分流——行点击走 ApplySituationGate
+                    if (_selSlot == SelKind.Reward)
+                    {
+                        var lb = BranchOfSlot(0);
+                        if (lb == null) { ShowToast("先选门槛——奖励挂在门槛下（点门槛卡到右栏选择）"); break; }
+                        if (!RewardCanDrop(payload, lb)) { ShowToast("选中块=奖励——挂载位不合或超出门槛预算"); break; }
+                        if (payload.IsKeywordAtom) ApplyKeywordHeader();
+                        DropBranchReward(payload, 0);
+                    }
+                    else
+                    {
+                        if (payload.IsEngineTrunk) { ShowToast("引擎行是自由分支主干——请切「自由分支」形态"); break; }
+                        if (!ParallelCanDrop(payload)) { ShowToast("该原子不可作主干（规则光环/门槛行不入效果栏）"); break; }
+                        if (payload.IsKeywordAtom) ApplyKeywordHeader();
+                        ReplaceBranchTrunk(EntryForEffectSlot(payload), keepBranch: true); // 换主干保留门槛/奖励
+                    }
+                    RefreshLibrary();
                     break;
             }
         }
@@ -3185,110 +3391,111 @@ namespace SynergyUI
         // 箭头计数标签（就地刷新防输入丢焦；光环条目费用由顶栏 AuraTopCostText 同源独占——面板行已退役）
         private TMP_Text _arrowCountLabel;
 
-        /// <summary>光环编辑面板（2026-10-06 箭头预制体化+槽共用）：普通光环=prefab 烘焙 arrows 盒
-        /// （arrow-picker 预制体实例）+光环槽+条目；规则级光环（仪典）=无箭头·双方生效·全局唯一
-        /// （2026-10-03 定案）——含规则原子即关闭箭头预选（规则光环不占连接位）。
-        /// 2026-10-09 定案：arrows 盒迁入光环槽底部（跨级克隆 tpl-arrows 进 slot——槽区仅 aura-slot
-        /// 一个槽）；单槽单选——库点击整组替换上一个选中（RefreshAuraLibrary 落位）。
-        /// 2026-10-07 条目迁入槽下作卡（aura-card 克隆——编辑走卡内 editor，与原子卡同模式）；
-        /// 条目列表区就地编辑与面板 aura-cost 费用预览退役（费用由顶栏同源独占）。</summary>
+        /// <summary>光环编辑面板（2026-10-23 五分类双面）：
+        /// 连接光环=光环槽（条目卡——aura-card 克隆、编辑走卡内 editor）+ 槽底连接箭头盒
+        ///（arrow-picker 预制体实例），条目库点击整组替换；
+        /// 范围光环=规则光环槽（仪典卡，作用面在卡面行选）——无箭头、条目属连接面（切面即清）。
+        /// 两面共用 tpl-aura-slot 模板；单槽单选——库点击即替换上一个选中。</summary>
         private void MakeAuraPanel(RectTransform parent)
         {
             var h = _graph.header;
+            var slot = UiKit.CloneTemplate("tpl-aura-slot", _slotArea.Content);
+            if (slot == null)
+            {
+                Debug.LogError("[EffectComposer] 缺 tpl-aura-slot 光环槽模板——光环槽区跳过（校验区随缺）；检查 EffectUI.prefab");
+                return;
+            }
+            foreach (var ol in slot.GetComponents<Outline>()) UnityEngine.Object.Destroy(ol);
+            var slotImg = slot.GetComponent<Image>();
+            if (slotImg != null) slotImg.raycastTarget = true; // 整槽可点（选中）
+            var auraTitle = UiKit.FindDeep(slot, "slot-title")?.GetComponent<TMP_Text>();
+            if (auraTitle == null) Debug.LogError("[EffectComposer] tpl-aura-slot 缺 slot-title——检查 EffectUI.prefab");
+            else { auraTitle.text = _mode == ComposeMode.RangeAura ? "规则光环（仪典）" : "光环槽"; UiKit.Size(auraTitle, fw: 1f); }
+            MarkSelected(slot, SelKind.Parallel, 0);
+            SelectOnClick(slot, SelKind.Parallel, 0, false);
+
+            // ---- 范围光环面：仪典步专用（无箭头/无条目；历史非仪典步保留只读提示） ----
+            if (_mode == ComposeMode.RangeAura)
+            {
+                h.ArrowDirections = 0; // 范围光环恒无箭头（仪典按作用面生效——写盘一致）
+                h.LinkAuras ??= new List<LinkAuraData>();
+                MakeHint(parent, "范围光环＝仪典：载体入场即挂（同名新的把旧的送墓），离场/被无效即失效"
+                    + "——无箭头、不占连接位；作用面（己方/双方/对方）在仪典卡上选，双方档费用减半");
+                int ritual = 0, foreign = 0;
+                foreach (var s in _graph.steps ?? new List<EffectStepData>())
+                {
+                    if (s?.kind != 0 || s.atomic == null) { if (s != null) foreign++; continue; }
+                    if (!IsRitualStepRow(AtomicEffectTable.GetByHashId(s.atomic.refId))) { foreign++; continue; }
+                    if (ritual == 0) MakeAuraRuleCard(slot, s.atomic); // 仪典卡=摘要+作用面（光环专用卡）
+                    ritual++;
+                }
+                if (ritual == 0)
+                    MakeHint(slot, "尚无仪典——右侧仪典库点击选择（新选即替换）");
+                else if (ritual > 1)
+                    MakeHint(slot, $"已装 {ritual} 条仪典——仪典同名全局唯一、通常一条就够（多的入场时会被送墓）");
+                if (foreign > 0)
+                    MakeHint(slot, $"另有 {foreign} 步非仪典内容（历史数据）——本面不展示，保存时原样保留");
+                _slotZones.Add(MakeZone(slot, () => RuleAtomCount(_graph) == 0
+                    ? "范围光环至少配一条仪典——右侧点击选择" : null));
+                return;
+            }
+
+            // ---- 连接光环面：条目+箭头（仪典步不入——切「范围光环」配仪典） ----
+            MakeHint(parent, "光环＝持续效果：连接方向档作用对象=箭头指向格的当前占据者（断链/离场即失效）；"
+                + "作用面档（己方/对方/双方）=整侧生物，关键词条目可选「是否包含角色」（计费按 5 单位档）。");
             h.LinkAuras ??= new List<LinkAuraData>();
-            bool hasRule = HasRuleAuraStep(_graph);
-            if (hasRule)
-            {
-                h.ArrowDirections = 0; // 规则级光环：无箭头（引擎侧不读连接位——写盘一致）
-                MakeHint(parent, "规则级光环＝全局唯一：载体入场即挂（新的登场把旧的送墓），离场/被无效即失效"
-                    + "——无箭头、不占连接位；普通光环（连接箭头）才需要箭头预选。作用域按行：仪典族对双方生效；"
-                    + "战斗改写仪典（毒蚀/霜蚀/眠蚀）仅持有者（光环控制者）的生物生效（2026-10-05）");
-            }
-            else
-            {
-                MakeHint(parent, "光环＝持续效果：连接方向档作用对象=箭头指向格的当前占据者（断链/离场即失效）；"
-                    + "作用面档（己方/对方/双方）=整侧生物，关键词条目可选「是否包含角色」（计费按 5 单位档）。");
-            }
+            foreach (var s in _graph.steps ?? new List<EffectStepData>())
+                if (s?.kind == 0 && s.atomic != null)
+                    MakeReadonlyStepBadge(slot, s); // 历史仪典/原子步只读（连接面不编辑——切范围光环处理）
+            for (int i = 0; i < h.LinkAuras.Count; i++)
+                MakeAuraEntryCard(slot, i);
+            if (h.LinkAuras.Count == 0)
+                MakeHint(slot, "尚无光环——右侧光环库点击选择（属性/关键词；新选即替换旧选）");
+            MakeHint(slot, "条目费=行锚×量级×目标系数（×1.2 按目标数累乘：己/对方=箭头×4、全体=箭头×2、含角色=箭头×5）；光环默认持续——不收持续费");
 
-            // ---- 连接箭头已迁入光环槽底部（2026-10-09）——克隆随下方光环槽块 ----
-
-            // ---- 光环槽（2026-10-07 专用定案：光环单独用 tpl-aura-slot——不再与普通原子槽混用；
-            //      仪典卡/条目卡统一走 aura-card，编辑在卡面直给） ----
+            // ---- 连接箭头（2026-10-09 迁入光环槽底部——跨级克隆 tpl-arrows 进 slot；
+            //      存在连接方向档条目才显示；作用面档条目不依赖箭头） ----
+            _arrowCountLabel = null; // 随面板重建作废（防悬挂引用写已销毁对象）
+            if (AnyArrowModeEntry(h))
             {
-                var slot = UiKit.CloneTemplate("tpl-aura-slot", _slotArea.Content);
-                if (slot == null)
+                var arrowsBox = UiKit.CloneTemplateFrom(_slotArea.Content, "tpl-arrows", slot);
+                if (arrowsBox == null)
+                    Debug.LogError("[EffectComposer] 槽区缺 arrows 烘焙节点（2026-10-06 箭头预制体化）——检查 EffectUI.prefab");
+                else
                 {
-                    Debug.LogError("[EffectComposer] 缺 tpl-aura-slot 光环槽模板——光环槽区跳过（校验区随缺）；检查 EffectUI.prefab");
-                    return;
+                    UiKit.Size(arrowsBox, fw: 1f); // 槽内铺满宽（高度仍由模板接管）
+                    var title = UiKit.FindDeep(arrowsBox, "title")?.GetComponent<TMP_Text>();
+                    if (title != null) title.text = "连接箭头";
+                    var head = UiKit.FindDeep(arrowsBox, "head");
+                    if (head == null)
+                        Debug.LogError("[EffectComposer] arrows 盒缺 head 行——箭头计数标签不显示；检查 EffectUI.prefab");
+                    _arrowCountLabel = head != null
+                        ? UiKit.Label("count", head, ArrowCountText(), UiStyle.MiniSize, UiStyle.TextHint)
+                        : null;
+                    var picker = BindArrowPicker(arrowsBox);
+                    UiKit.Described(picker.GetComponent<Button>() ?? picker.gameObject.AddComponent<Button>(),
+                        "连接箭头：光环的作用方向。点击某个方向点亮或取消（白=已选），"
+                        + "光环持续作用于箭头所指格子上的单位。方向以这张卡持有者的视角为准，"
+                        + "至少要选一个方向；箭头越多费用涨得越快。");
+                    // 校验：普通光环必须搭配至少一支箭头（无箭头=永无受益者）
+                    _slotZones.Add(MakeZone(arrowsBox, () => (HexDirection)h.ArrowDirections == HexDirection.None
+                        ? "未选箭头——光环必须搭配至少一支箭头（无箭头=永无受益者）；规则级光环则不需要箭头" : null));
                 }
-                foreach (var ol in slot.GetComponents<Outline>()) UnityEngine.Object.Destroy(ol);
-                var slotImg = slot.GetComponent<Image>();
-                if (slotImg != null) slotImg.raycastTarget = true; // 整槽可点（选中）
-                var auraTitle = UiKit.FindDeep(slot, "slot-title")?.GetComponent<TMP_Text>();
-                if (auraTitle == null) Debug.LogError("[EffectComposer] tpl-aura-slot 缺 slot-title——检查 EffectUI.prefab");
-                else { auraTitle.text = "光环槽"; UiKit.Size(auraTitle, fw: 1f); }
-                MarkSelected(slot, SelKind.Parallel, 0);
-                SelectOnClick(slot, SelKind.Parallel, 0, false);
-                if (_graph.steps.Count > 0)
-                {
-                    var step = _graph.steps[0];
-                    if (step.kind == 0 && step.atomic != null)
-                        MakeAuraRuleCard(slot, step.atomic); // 仪典卡=摘要+删除（光环专用卡，无参数区）
-                    else MakeReadonlyStepBadge(slot, step); // 抉择等只读
-                }
-                for (int i = 0; i < h.LinkAuras.Count; i++)
-                    MakeAuraEntryCard(slot, i);
-                if (h.LinkAuras.Count == 0 && !hasRule)
-                    MakeHint(slot, "尚无光环——右侧光环库点击选择（属性/关键词/规则级；新选即替换旧选）");
-                MakeHint(slot, "条目费=行锚×量级×目标系数（×1.2 按目标数累乘：己/对方=箭头×4、全体=箭头×2、含角色=箭头×5）；光环默认持续——不收持续费");
-
-                // ---- 连接箭头（2026-10-09 迁入光环槽底部——arrows 归 aura-slot 下面；跨级克隆
-                //      tpl-arrows（模板在槽区 content）进 slot。存在连接方向档条目才显示；
-                //      规则级/作用面档关闭） ----
-                _arrowCountLabel = null; // 随面板重建作废（防悬挂引用写已销毁对象）
-                if (!hasRule && AnyArrowModeEntry(h))
-                {
-                    var arrowsBox = UiKit.CloneTemplateFrom(_slotArea.Content, "tpl-arrows", slot);
-                    if (arrowsBox == null)
-                        Debug.LogError("[EffectComposer] 槽区缺 arrows 烘焙节点（2026-10-06 箭头预制体化）——检查 EffectUI.prefab");
-                    else
-                    {
-                        UiKit.Size(arrowsBox, fw: 1f); // 槽内铺满宽（高度仍由模板接管）
-                        var title = UiKit.FindDeep(arrowsBox, "title")?.GetComponent<TMP_Text>();
-                        if (title != null) title.text = "连接箭头";
-                        var head = UiKit.FindDeep(arrowsBox, "head");
-                        if (head == null)
-                            Debug.LogError("[EffectComposer] arrows 盒缺 head 行——箭头计数标签不显示；检查 EffectUI.prefab");
-                        _arrowCountLabel = head != null
-                            ? UiKit.Label("count", head, ArrowCountText(), UiStyle.MiniSize, UiStyle.TextHint)
-                            : null;
-                        var picker = BindArrowPicker(arrowsBox);
-                        UiKit.Described(picker.GetComponent<Button>() ?? picker.gameObject.AddComponent<Button>(),
-                            "连接箭头：光环的作用方向。点击某个方向点亮或取消（白=已选），"
-                            + "光环持续作用于箭头所指格子上的单位。方向以这张卡持有者的视角为准，"
-                            + "至少要选一个方向；箭头越多费用涨得越快。");
-                        // 校验：普通光环必须搭配至少一支箭头（无箭头=永无受益者）
-                        _slotZones.Add(MakeZone(arrowsBox, () => (HexDirection)h.ArrowDirections == HexDirection.None
-                            ? "未选箭头——光环必须搭配至少一支箭头（无箭头=永无受益者）；规则级光环则不需要箭头" : null));
-                    }
-                }
-                // 校验：至少一条有效光环内容（条目或槽内规则原子）+ 关键词条目须位 5 可挂 + 多仪典全局唯一提醒
-                _slotZones.Add(MakeZone(slot, () =>
-                {
-                    if (ValidAuraCount(h.LinkAuras) == 0 && !hasRule)
-                        return "无有效光环内容——条目/规则级原子 至少配一条（空条目保存时剔除）";
-                    if (RuleAtomCount(_graph) >= 2)
-                        return "多行规则原子：仪典全局唯一，入场时新的把旧的送墓——通常一行就够";
-                    foreach (var a in h.LinkAuras)
-                    {
-                        if (a == null || string.IsNullOrEmpty(a.keyword)) continue;
-                        if (!ComposerCatalog.IsAuraMountableKeyword(a.keyword))
-                            return $"关键词「{a.keyword}」不可作光环——表行标「不可作为连接光环」"
-                                 + "（真消耗型生效后移除，与光环 live-query 持续语义冲突）；请改选下拉中的可挂关键词";
-                    }
-                    return null;
-                }));
             }
+            // 校验：至少一条有效光环内容 + 关键词条目须位 5 可挂（仪典唯一性属范围光环面）
+            _slotZones.Add(MakeZone(slot, () =>
+            {
+                if (ValidAuraCount(h.LinkAuras) == 0)
+                    return "无有效光环内容——至少配一条条目（空条目保存时剔除）";
+                foreach (var a in h.LinkAuras)
+                {
+                    if (a == null || string.IsNullOrEmpty(a.keyword)) continue;
+                    if (!ComposerCatalog.IsAuraMountableKeyword(a.keyword))
+                        return $"关键词「{a.keyword}」不可作光环——表行标「不可作为连接光环」"
+                             + "（真消耗型生效后移除，与光环 live-query 持续语义冲突）；请改选下拉中的可挂关键词";
+                }
+                return null;
+            }));
         }
 
         /// <summary>steps 中的规则光环原子数（光环槽内仪典计数——全局唯一提醒用）。</summary>
@@ -3702,7 +3909,7 @@ namespace SynergyUI
             // 效果名=顶栏预览同源串（CurrentDisplayName 单源化）；只读展示，保存时落账
             _graph.name = CurrentDisplayName();
             _graph.header.DisplayName = _graph.name;
-            if (_mode == ComposeMode.Aura)
+            if (IsAuraMode(_mode))
             {
                 // 空条目剔除（stat/keyword 双空=无效——与装载期过滤同口径）
                 _graph.header.LinkAuras?.RemoveAll(a =>
@@ -3913,11 +4120,16 @@ namespace SynergyUI
             // 防御：UI 恒载荷形态（载入已归一化）——此处仍滤掉任何残留 kind=1 门步骤与空步
             var saved = (_graph.steps ?? new List<EffectStepData>())
                 .Where(s => s != null && s.kind != 1).ToList();
-            // 互斥防御（2026-10-09）：并列形态两槽齐时槽级分支载荷不该存在（载入已归一、UI 已互斥）
-            //——写盘前兜底清空；光环形态不动（切形态保留的种子分支载荷合法）
-            if (_mode == ComposeMode.Parallel && saved.Count >= ParallelSlotCount)
+            // 形态防御（2026-10-23 五分类）：并列=纯两原子（分支载荷一律拆）；连接光环=steps 恒空
+            //（条目在 LinkAuras）；范围光环=只留仪典步（条目/杂步属其他形态）
+            if (_mode == ComposeMode.Parallel)
                 foreach (var s in saved)
                     if (s?.kind == 0 && s.atomic != null) s.atomic.branch = null;
+            else if (_mode == ComposeMode.LinkAura)
+                saved.RemoveAll(s => s.kind == 0);
+            else if (_mode == ComposeMode.RangeAura)
+                saved.RemoveAll(s => s.kind == 0
+                    && !IsRitualStepRow(AtomicEffectTable.GetByHashId(s.atomic?.refId)));
             effect.Steps = saved.Count > 0
                 ? JsonUtility.FromJson<ListStepWrap>(JsonUtility.ToJson(new ListStepWrap { items = saved })).items
                 : null;
@@ -3931,14 +4143,14 @@ namespace SynergyUI
             // 持续行退役（2026-10-09 指示物层化定案）：UI 不再编辑持续档——哨兵清空回落 Once 锚（1.0×）
             effect.Duration = -1;
             effect.DurationValue = 0;
-            if (_mode != ComposeMode.Aura)
+            if (!IsAuraMode(_mode))
             {
                 effect.ArrowDirections = 0;
                 effect.LinkAuras = null;
             }
-            else if (HasRuleAuraStep(_graph))
+            else if (_mode == ComposeMode.RangeAura || HasRuleAuraStep(_graph))
             {
-                effect.ArrowDirections = 0; // 规则级光环不占连接位（UI 已关箭头预选——写盘一致）
+                effect.ArrowDirections = 0; // 范围光环/规则级光环不占连接位（UI 已关箭头——写盘一致）
             }
             return effect;
         }

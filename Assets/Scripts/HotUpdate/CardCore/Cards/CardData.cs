@@ -103,6 +103,11 @@ namespace CardCore
         [NonSerialized]
         internal bool? SelfSleepEffectCache;
 
+        // 地牌锁色候选缓存（2026-10-23 锚价开格定案）：ElementPoolSystem.GetLandColorChoices 写入/读取
+        //（放地按钮逐帧评估+AI 枚举高频口记忆化，ResetCache 失效——随费用/效果数据同口径）。
+        [NonSerialized]
+        internal List<ManaType> LandColorChoicesCache;
+
         // 内容身份（2026-09-09 定案，CardIdentityService 与 EnsureCost 同管线推导）：拆散到原子级——
         // 原子哈希数组（跨效果按执行序展平）+ 组合结构哈希 + 关键词/tag/光环组合哈希，全部混入
         // 原子表指纹。观测侧（TideObservation [15..22]）据此查 embedding，同原子跨卡共享行。
@@ -379,6 +384,7 @@ namespace CardCore
             DerivedCostCache = null; // 整卡推导费随内容/配置失效（下次 GetRuntimeCost/EnsureCost 重推导）
             ModeCostCache = null; // 抉择 per-mode 费用随配置失效（下次构筑期重推导）
             SelfSleepEffectCache = null; // 自我沉睡判定随效果数据失效（2026-09-11）
+            LandColorChoicesCache = null; // 地牌锁色候选随费用/效果数据失效（2026-10-23 锚价开格）
         }
 
         /// <summary>效果层光环聚合（2026-09-23 定案：箭头/光环随效果合成，卡面=聚合缓存）——

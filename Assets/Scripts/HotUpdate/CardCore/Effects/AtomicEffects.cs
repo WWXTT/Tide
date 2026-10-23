@@ -359,6 +359,14 @@ namespace CardCore
         ///（EngineParamRange）；观察面=己方场上引擎卡（手牌无格不观察）；邻接计数经注入委托
         ///（核心不绑棋盘）。枚举只可尾部追加。</summary>
         EngineUnity,
+
+        /// <summary>有限分支门槛行（2026-10-23 入表定案）：仅作原子表门槛行的**身份枚举**
+        ///（EffectType="SituationGate"，11 行共享）——表行承载身份（GateId）/挂载（MountKind 位 10
+        /// 有限分支）/预算（Budget 列），目录与预算由表派生（ComposerCatalog.SituationGates /
+        /// CostDerivationService.BuildGatePremium）；判定谓词仍由 BranchConditionEvaluator 代码注册。
+        /// 不挂处理器、不参与主序列执行（ExecuteEffect 对未注册 handler=Warn+跳过）；
+        /// CanBeTrunkRow/CanBeRewardRow 排除——门槛行不得作主干/奖励。枚举只可尾部追加。</summary>
+        SituationGate,
     }
 
     /// <summary>

@@ -56,9 +56,12 @@ namespace SynergyUI
             {
                 var stage = Object.Instantiate(prefab);
                 stage.name = "BattleStage";
+                // 环境风（2026-10-23 v4 §10.5）：单一驱动器挂战场根——植物摆动+篝火倾斜/横向风
+                //（组件走运行时挂载：prefab 保持零脚本引用，热更程序集无序列化耦合）
+                stage.AddComponent<BattleEnvWind>();
                 var board = stage.transform.Find("Board");
                 Debug.Log($"[BattleHexBoard] 战场预制体装台：{StagePrefabPath}" +
-                          $"（Board格={board?.childCount ?? 0} + Env/Stairs 预烘焙）");
+                          $"（Board格={board?.childCount ?? 0} + Env/Stairs 预烘焙 + BattleEnvWind）");
                 return stage;
             }
             Debug.LogWarning("[BattleHexBoard] BattleStage.prefab 缺失——回落运行时拼装（生成菜单 Tools/战场/生成战场预制体；P3 打包前须生成）");
@@ -116,9 +119,6 @@ namespace SynergyUI
                             Object.Destroy(rootCol);
                         }
                     }
-                    // 格前三键（Attack/Defense/Activate，2026-10-15 手搭）默认收起——
-                    // 仅己方单位格由 BattleTileButtons 对账显键（预制体原件 active=1 不可直接用）
-                    HideActionButtons(tile.transform);
                     var zoneMat = ZoneMaterial(BattleBoardZones.ZoneOf(BoardLayout.RoleOf(x, z), BoardLayout.OwnerOf(x, z)));
                     if (zoneMat != null)
                     {
@@ -132,16 +132,6 @@ namespace SynergyUI
                       + $"（BattleHex.prefab 实例，分区配色 {zoned}/{count}"
                       + "，未配格=预制体自带材质；root (+0.866,-0.75) 居中）");
             return root;
-        }
-
-        /// <summary>格前三键默认收起（件名与 BattleTileButtons 同源；Find 直子级查）。</summary>
-        private static void HideActionButtons(Transform tile)
-        {
-            foreach (var name in new[] { "Attack", "Defense", "Activate" })
-            {
-                var btn = tile.Find(name);
-                if (btn != null) btn.gameObject.SetActive(false);
-            }
         }
     }
 }

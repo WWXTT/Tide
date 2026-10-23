@@ -61,7 +61,8 @@ namespace SynergyUI
         private int _lastSkipLogFrame = -1;
 
         //（2026-10-15 深夜改版）单位【发动效果】头顶按钮退役：单位本体退出射线检测，
-        // 攻击/守卫/发动拆到格前三键（BattleTileButtons），本类不再持有可点 3D 件。
+        // 攻击/守卫/发动入口走格前（2026-10-23 v4 §10.2 起为点单位弹 BattleUnitActionPopup），
+        // 本类不再持有可点 3D 件。
 
         // 施放占格类型图标（2026-10-15 发动格拆除：整个 2×6 兼任发动区；2026-10-17 两改：
         // 立绘立牌→程序描边边框→Element 预制体平贴图标）：Element.prefab 面朝上平躺贴格面，

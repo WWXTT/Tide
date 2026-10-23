@@ -58,7 +58,13 @@ namespace CardCore
         NoLinkAura = 8,
         // 历史：位 9「主动发动」（2026-10-13 定案，动态计价原子强制主动）当日晚间删除——
         // 触发式预付与主动现付同额同源、变形补价挂在被变形卡的主动发动上与原子挂法无关，
-        // 类别不产生额外计价保护；主动/自动由玩家自由选择。末位删除无索引错位，不留占位。
+        // 类别不产生额外计价保护；主动/自动由玩家自由选择。位 9 不得复用（ZhNames 留空串占位）。
+        /// <summary>有限分支门槛行（2026-10-23 入表定案）：原子表门槛行的身份/挂载/预算位——
+        /// 表行承载身份（GateId）、挂载（本位）、预算（Budget 列），目录与预算由表派生
+        /// （ComposerCatalog.SituationGates / CostDerivationService.BuildGatePremium）；
+        /// 判定谓词仍由 BranchConditionEvaluator 代码注册。挂本位的行不作主干/奖励
+        /// （CanBeTrunkRow/CanBeRewardRow 排除），不挂处理器、不入主序列执行。</summary>
+        SituationGate = 10,
     }
 
     /// <summary>MountKinds CSV 解析/判定辅助（AtomicEffectTable 与装载校验共用）。</summary>
@@ -77,7 +83,8 @@ namespace CardCore
             "规则光环", // 6 RuleAura
             "仅可以作为连接光环", // 7 LinkAuraOnly（已删——坚韧/守护回归关键词族，占位保索引对齐）
             "不可作为连接光环", // 8 NoLinkAura（2026-10-07 晚：消耗型关键词黑名单）
-            // 9 ActivatedOnly「主动发动」（2026-10-13 当日删——末位无占位，旧表数据 token 被解析忽略）
+            "",         // 9 ActivatedOnly「主动发动」（2026-10-13 删——空串占位保下标=枚举值，不复用）
+            "有限分支", // 10 SituationGate（2026-10-23 入表——门槛行身份/挂载/预算位）
         };
 
         /// <summary>成员中文名（越界回退枚举名）。</summary>

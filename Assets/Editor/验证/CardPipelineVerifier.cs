@@ -2893,8 +2893,9 @@ namespace CardCore.Editor
 
         // 分支目录契约验证 TestBranchCatalog 已删（2026-10-22 用户定案：配置只保留原子表
         // AttributeValueConfig + 功能系数表 ValueSystemConfig 两张，BranchConfig.json 目录层
-        // 连同 BranchConfigTable/BranchConfig 类型一并删除）。分支条件目录的现行真相源=
-        // ComposerCatalog.SituationGates / CostDerivation.GatePremium / BranchConditionEvaluator 三处代码表。
+        // 连同 BranchConfigTable/BranchConfig 类型一并删除）。分支条件目录的现行真相源
+        //（2026-10-23 有限分支入表）：身份/挂载/预算=原子表（SituationGates/BuildGatePremium 表派生）、
+        // 判定谓词=BranchConditionEvaluator 代码注册；产出条件族仍为代码常量（OutcomeConditions）。
 
         /// <summary>
         /// 信息族与维度有限域验证（原 TestBranchCatalog 的非目录部分）。
@@ -4172,14 +4173,13 @@ namespace CardCore.Editor
         /// </summary>
         private static void TestComposerModel()
         {
-            // ---- 1. MountKind 8 值（2026-10-07 深夜终版：位 7 仅可删除——坚韧/守护回归关键词族；
-            // 枚举 0..6+8，位 7 空缺保数字轨兼容（"7" 解析为空集）；关键词默认可−位 8 拉黑消耗型；
-            // 位 3=一般效果行光环化源（属性增加/减少））----
+            // ---- 1. MountKind 值域（2026-10-07 深夜终版：位 7 仅可删除；2026-10-23 有限分支入表：位 10 新增）----
             Assert(System.Linq.Enumerable.Range(0, 7).All(v => System.Enum.IsDefined(typeof(CardCore.MountKind), v))
                    && System.Enum.IsDefined(typeof(CardCore.MountKind), 8)
+                   && System.Enum.IsDefined(typeof(CardCore.MountKind), 10)
                    && !System.Enum.IsDefined(typeof(CardCore.MountKind), 7)
                    && !System.Enum.IsDefined(typeof(CardCore.MountKind), 9),
-                   "MountKind 8 值 0..6+8（2026-10-07 深夜：位 7 仅可删除留空缺，位 8 不可作为连接光环）");
+                   "MountKind 值域 0..6+8+10（2026-10-23：位 10=有限分支门槛行；位 7/9 空缺防旧数字数据误读）");
             Assert((int)CardCore.MountKind.Keyword == 0
                    && (int)CardCore.MountKind.Counter == 1
                    && (int)CardCore.MountKind.NoRandom == 2
@@ -4187,8 +4187,9 @@ namespace CardCore.Editor
                    && (int)CardCore.MountKind.SystemInternal == 4
                    && (int)CardCore.MountKind.EngineTrunk == 5
                    && (int)CardCore.MountKind.RuleAura == 6
-                   && (int)CardCore.MountKind.NoLinkAura == 8,
-                   "MountKind 位锚：Keyword=0/Counter=1/NoRandom=2/LinkAura=3/SystemInternal=4/EngineTrunk=5/RuleAura=6/NoLinkAura=8（7 空缺）");
+                   && (int)CardCore.MountKind.NoLinkAura == 8
+                   && (int)CardCore.MountKind.SituationGate == 10,
+                   "MountKind 位锚：Keyword=0/Counter=1/NoRandom=2/LinkAura=3/SystemInternal=4/EngineTrunk=5/RuleAura=6/NoLinkAura=8/SituationGate=10（7/9 空缺）");
             var dualAuraKinds = CardCore.MountKindExtensions.ParseCsv("关键词,可以作为连接光环");
             var noAuraKinds = CardCore.MountKindExtensions.ParseCsv("不可作为连接光环");
             Assert(dualAuraKinds.Count == 2
@@ -4198,8 +4199,11 @@ namespace CardCore.Editor
                    && noAuraKinds.Contains(CardCore.MountKind.NoLinkAura)
                    && CardCore.MountKindExtensions.ParseCsv("8").Count == 1
                    && CardCore.MountKindExtensions.ParseCsv("8").Contains(CardCore.MountKind.NoLinkAura)
-                   && CardCore.MountKindExtensions.ParseCsv("7").Count == 0,
-                   "MountKinds 词表：可（3）/不可（8）中文与数字双轨解析通过；位 7 空缺解析为空集（数字轨兼容）");
+                   && CardCore.MountKindExtensions.ParseCsv("7").Count == 0
+                   && CardCore.MountKindExtensions.ParseCsv("9").Count == 0
+                   && CardCore.MountKindExtensions.ParseCsv("有限分支").Count == 1
+                   && CardCore.MountKindExtensions.ParseCsv("有限分支").Contains(CardCore.MountKind.SituationGate),
+                   "MountKinds 词表：可（3）/不可（8）中文与数字双轨解析通过；位 7/9 空缺解析为空集（数字轨兼容）；有限分支（10）命中新位");
             // 引擎参数范围与奖励预算（2026-10-09 自平衡统一：全引擎预算 -1——门槛=Then 锚价推导，
             // 「死亡计数/元素充盈 预算=x」旧制退役；手填参数=运势点数线/倒计时/团结 x/附加诅咒·祝福张数）
             CardCore.ComposerCatalog.EngineParamRange(CardCore.BranchEngineKind.DeathToll, out int rMin, out int rMax);
@@ -4417,10 +4421,11 @@ namespace CardCore.Editor
             var gate = System.Linq.Enumerable.First(CardCore.ComposerCatalog.OutcomeConditionsFor(CardCore.AtomicEffectType.DealDamage));
             Assert(gate.Id == "DmgKillsTarget" && CardCore.ComposerCatalog.GateBudget(gate) == 2
                    && CardCore.ComposerCatalog.GateLabel(gate).Contains("【奖励2】"),
-                   "产出条件目录：伤害产出族 → 消灭门【奖励2】（premium 与 GatePremium 同源）");
+                   "产出条件目录：伤害产出族 → 消灭门【奖励2】（Budget 代码常量，与 BuildGatePremium 同源）");
             Assert(!CardCore.ComposerCatalog.OutcomeConditionsFor(CardCore.AtomicEffectType.DrawCard).Any(),
                    "产出条件族匹配：抽牌非产出族 → 不可挂产出条件（空目录）");
-            // ---- 3b. 局面状态门目录（有限分支 2026-10-09 还原——任意原子可挂，与产出无关；总数不锚，成员锚定）----
+            // ---- 3b. 局面状态门目录（2026-10-23 入表：表派生——身份/挂载/预算走原子表，
+            // 判定谓词仍在 BranchConditionEvaluator；总数不锚（随表扩缩），成员锚定）----
             var drawGates = CardCore.ComposerCatalog.SituationGates;
             Assert(drawGates.Length >= 7 && drawGates.All(g => g.ProducerTag == null)
                    && drawGates.Any(g => g.Id == "FirstCardThisTurn") && drawGates.Any(g => g.Id == "DrawnInStandbyThisTurn")
@@ -4428,24 +4433,37 @@ namespace CardCore.Editor
                    && drawGates.Any(g => g.Id == "LandsGe7") && drawGates.Any(g => g.Id == "HandEmpty")
                    && drawGates.Any(g => g.Id == "LifeLe7"),
                    "局面门目录与产出无关（任意主干原子可挂，含二批三门；总数随目录扩缩不锚）");
+            // 门槛行不入主干/奖励（2026-10-23 入表：位 10 排除——防门槛行漏进原子库与卡组合）
+            var gateRowsFromTable = CardCore.Attribute.AtomicEffectTable.GetAll()
+                .Where(r => r != null && CardCore.ComposerCatalog.HasMountBit(r, CardCore.MountKind.SituationGate)).ToList();
+            Assert(gateRowsFromTable.Count == drawGates.Length
+                   && gateRowsFromTable.All(r => !CardCore.ComposerCatalog.CanBeTrunkRow(r))
+                   && gateRowsFromTable.All(r => !CardCore.ComposerCatalog.CanBeRewardRow(r)),
+                   "门槛行挂位 10 有限分支：不得作主干/奖励（CanBeTrunkRow/CanBeRewardRow 排除；行数与目录一致随表漂移）");
             Assert(CardCore.ComposerCatalog.IsOutcomeCondition("DmgKillsTarget")
                    && CardCore.ComposerCatalog.IsOutcomeCondition("DeclareHit")
                    && !CardCore.ComposerCatalog.IsOutcomeCondition("LifeBelowOpp")
                    && CardCore.ComposerCatalog.IsSituationCondition("LifeBelowOpp")
                    && !CardCore.ComposerCatalog.IsSituationCondition("DmgKillsTarget"),
                    "条件族归类判定（converter 折叠遗留门步骤同源：产出族→Outcome、局面族→Gate）");
-            Assert(CardCore.CostDerivationService.GatePremium.TryGetValue("FirstCardThisTurn", out var sb) && sb == 1
-                   && CardCore.CostDerivationService.GatePremium.TryGetValue("LifeBelowOpp", out var lb) && lb == 1,
-                   "状态门预算=1（零计价——预算只是放置上限）");
-            Assert(CardCore.CostDerivationService.GatePremium.TryGetValue("LandsGe7", out var lg) && lg == 2
-                   && CardCore.CostDerivationService.GatePremium.TryGetValue("HandEmpty", out var he) && he == 2
-                   && CardCore.CostDerivationService.GatePremium.TryGetValue("LifeLe7", out var ll) && ll == 2,
-                   "状态门二批预算=2（操控地≥7/手牌=0/生命≤7）");
+            // 预算三面同源（2026-10-23 入表定案）：表 Budget 列 = SituationGates.Budget = BuildGatePremium
+            var gatePremium = CardCore.CostDerivationService.BuildGatePremium();
+            Assert(drawGates.All(g => gateRowsFromTable.Any(r => r.GateId == g.Id && r.Budget == g.Budget))
+                   && drawGates.All(g => gatePremium.TryGetValue(g.Id, out var pb) && pb == g.Budget),
+                   "门槛预算三面同源：表 Budget 列 = 目录 Budget = BuildGatePremium（逐项相等——预算唯一来源=表）");
+            Assert(drawGates.First(g => g.Id == "DrawnInStandbyThisTurn").Budget == 3
+                   && drawGates.First(g => g.Id == "LifeBelowOpp").Budget == 1
+                   && drawGates.First(g => g.Id == "FirstCardThisTurn").Budget == 1,
+                   "状态门预算锚：命运一抽 3 / 一批通用门 1（表 Budget 列）");
+            Assert(drawGates.First(g => g.Id == "LandsGe7").Budget == 2
+                   && drawGates.First(g => g.Id == "HandEmpty").Budget == 2
+                   && drawGates.First(g => g.Id == "LifeLe7").Budget == 2,
+                   "状态门二批预算锚：操控地≥7/手牌=0/生命≤7 均 2（表 Budget 列）");
             // 改写门目录（2026-10-05 退役）：拦截式改写族已迁唯一光环——三族目录全清；
             // 诅咒门不还原（诅咒通道=引擎主干行 EngineCurseOnDraw，2026-10-08 接棒）
             Assert(CardCore.ComposerCatalog.OutcomeConditions.All(g => !g.Id.StartsWith("DmgRewrite"))
                    && CardCore.ComposerCatalog.SituationGates.All(g => !g.Id.StartsWith("DmgRewrite"))
-                   && !CardCore.CostDerivationService.GatePremium.ContainsKey("CurseOnDraw"),
+                   && !gatePremium.ContainsKey("CurseOnDraw"),
                    "改写门四条已从分支目录退役（迁唯一光环；差价计价/配对守卫同批废除）；CurseOnDraw 不在预算表");
 
             // ---- 4. 并列保序：无抉择 Steps 平铺折叠进 def.Effects（两槽定案）----

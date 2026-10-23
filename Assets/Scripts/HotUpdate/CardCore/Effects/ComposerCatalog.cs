@@ -153,7 +153,8 @@ namespace CardCore
 
         // ======================================== 自由分支·产出条件目录 ========================================
 
-        /// <summary>产出条件目录项。Premium（门附加费=Then 预算）从 GatePremium 读——勿双写。</summary>
+        /// <summary>产出条件目录项。Budget（门附加费=Then 预算）：产出条件族=代码常量（各 2）；
+        /// 局面门族从表派生（SituationGates 直通）——勿双写。</summary>
         public sealed class GateSpec
         {
             /// <summary>条件 id（评估走 BranchConditionEvaluator，如 "DmgKillsTarget"）。</summary>
@@ -167,6 +168,9 @@ namespace CardCore
             /// 「{主干}，如果{IfClause}，{奖励}」（如"消灭了目标"）——与 DisplayName（"消灭目标时"）
             /// 并存：DisplayName 用于 gate-row 下拉名，IfClause 用于摘要句子。null 时回退去尾「时」。</summary>
             public string IfClause;
+            /// <summary>门预算（Then 原子锚价上限）：产出条件族=代码常量 2；局面门族=表 Budget 列直通。
+            /// 2026-10-23 入表定案：目录项自带预算（与 BuildGatePremium 同源），GateLabel/GateBudget 读此。</summary>
+            public int Budget;
         }
 
         /// <summary>产出族标签词表（2026-10-06 迁表+中文化：族成员名单由原子表 Tags 列维护，代码不再持有数组；
@@ -177,14 +181,15 @@ namespace CardCore
         public const string ProphecyProducerTag = "预言产出族";
 
         /// <summary>自由分支·产出条件全集（原 OutcomeGate 产出族——2026-10-05 两槽定案改归自由分支；
-        /// 同日删除：TargetSurvived/Overkill/TargetStillWounded/Overheal）。</summary>
+        /// 同日删除：TargetSurvived/Overkill/TargetStillWounded/Overheal）。
+        /// 2026-10-23 入表定案的边界：产出条件族保持代码常量（预算 2 内联）——不迁表。</summary>
         public static readonly GateSpec[] OutcomeConditions =
         {
-            new GateSpec { Id = "DmgKillsTarget", DisplayName = "消灭目标时", IfClause = "消灭了目标", ProducerTag = DamageProducerTag },
-            new GateSpec { Id = "DeclareHit",     DisplayName = "宣言命中时", IfClause = "宣言命中",   ProducerTag = DeclareProducerTag },
-            new GateSpec { Id = "DeclareMiss",    DisplayName = "宣言落空时", IfClause = "宣言落空",   ProducerTag = DeclareProducerTag },
-            new GateSpec { Id = "ProphecyHit",    DisplayName = "预言命中时", IfClause = "预言命中",   ProducerTag = ProphecyProducerTag },
-            new GateSpec { Id = "ProphecyMiss",   DisplayName = "预言落空时", IfClause = "预言落空",   ProducerTag = ProphecyProducerTag },
+            new GateSpec { Id = "DmgKillsTarget", DisplayName = "消灭目标时", IfClause = "消灭了目标", ProducerTag = DamageProducerTag, Budget = 2 },
+            new GateSpec { Id = "DeclareHit",     DisplayName = "宣言命中时", IfClause = "宣言命中",   ProducerTag = DeclareProducerTag, Budget = 2 },
+            new GateSpec { Id = "DeclareMiss",    DisplayName = "宣言落空时", IfClause = "宣言落空",   ProducerTag = DeclareProducerTag, Budget = 2 },
+            new GateSpec { Id = "ProphecyHit",    DisplayName = "预言命中时", IfClause = "预言命中",   ProducerTag = ProphecyProducerTag, Budget = 2 },
+            new GateSpec { Id = "ProphecyMiss",   DisplayName = "预言落空时", IfClause = "预言落空",   ProducerTag = ProphecyProducerTag, Budget = 2 },
         };
 
         /// <summary>是否产出条件族 id（converter 折叠遗留门步骤时按此归类 Outcome）。</summary>
@@ -205,24 +210,15 @@ namespace CardCore
 
         /// <summary>有限分支条件全集（局面状态族）：不读主干产出、任意原子可挂，效果结算时评估一次——
         /// 达标→Then 奖励，不达标→不奖励也不惩罚（2026-10-09 定案，纯条件奖励）。
+        /// 2026-10-23 入表定案：目录**每次从原子表派生**（表重读即生效，不做永久缓存——11 行开销可忽略）：
+        /// 取 MountKinds 含「有限分支」位（MountKind.SituationGate）的行，顺序=表序（装载序号）；
+        /// 行承载身份（GateId）/挂载（位 10）/预算（Budget 列），判定谓词仍由 BranchConditionEvaluator 代码注册。
         /// 诅咒门（CurseOnDraw）不在列——诅咒通道=引擎主干行 EngineCurseOnDraw（2026-10-08 接棒）。</summary>
-        public static readonly GateSpec[] SituationGates =
-        {
-            // ---- 局面状态族·一批（通用门，预算 1；DrawnInStandbyThisTurn 2026-10-09 调 3）----
-            new GateSpec { Id = "DrawnInStandbyThisTurn", DisplayName = "命运一抽【唯一】" },
-            new GateSpec { Id = "LifeBelowOpp",    DisplayName = "生命值低于对手" },
-            new GateSpec { Id = "LifeAboveOpp",    DisplayName = "生命值高于对手" },
-            new GateSpec { Id = "DeckBelowOpp",    DisplayName = "卡组剩余低于对手" },
-            new GateSpec { Id = "DeckAboveOpp",    DisplayName = "卡组剩余高于对手" },
-            new GateSpec { Id = "CreaturesBelowOpp", DisplayName = "场上生物低于对手" },
-            new GateSpec { Id = "CreaturesAboveOpp", DisplayName = "场上生物高于对手" },
-            new GateSpec { Id = "FirstCardThisTurn", DisplayName = "本回合使用的第一张卡" },
-
-            // ---- 局面状态族·二批（通用门，预算 2）----
-            new GateSpec { Id = "LandsGe7",   DisplayName = "操控地数量≥7" },
-            new GateSpec { Id = "HandEmpty",  DisplayName = "手牌数量为0" },
-            new GateSpec { Id = "LifeLe7",    DisplayName = "生命值≤7" },
-        };
+        public static GateSpec[] SituationGates => Attribute.AtomicEffectTable.GetAll()
+            .Where(r => r != null && HasMountBit(r, MountKind.SituationGate) && !string.IsNullOrEmpty(r.GateId))
+            .OrderBy(r => r.Id)
+            .Select(r => new GateSpec { Id = r.GateId, DisplayName = r.DisplayName, Budget = r.Budget, ProducerTag = null })
+            .ToArray();
 
         /// <summary>是否局面状态门 id（converter 折叠遗留门步骤时按此归类 Gate）。</summary>
         public static bool IsSituationCondition(string conditionId)
@@ -348,13 +344,16 @@ namespace CardCore
 
         /// <summary>主干槽可落资格（2026-10-07 位 0「入效果栏」删除后派生，合成器 LibPayload 与装载校验共用）：
         /// 非规则光环即可（位 7 仅可已删）。引擎行经 EngineTrunk
-        /// 位进主干槽（填槽即自由分支）；系统/攻守行有资格但被合成器库过滤隐藏；关键词/指示物行以授予形态落槽。</summary>
+        /// 位进主干槽（填槽即自由分支）；系统/攻守行有资格但被合成器库过滤隐藏；关键词/指示物行以授予形态落槽。
+        /// 2026-10-23 有限分支入表：门槛行（位 10）不得作主干——表行只承载门槛身份/挂载/预算，
+        /// 防门槛行漏进原子库与卡组合。</summary>
         public static bool CanBeTrunkRow(Attribute.AtomicEffectConfig row)
-            => row != null && !HasMountBit(row, MountKind.RuleAura);
+            => row != null && !HasMountBit(row, MountKind.RuleAura) && !HasMountBit(row, MountKind.SituationGate);
 
         /// <summary>槽内 Then 奖励资格（2026-10-07 位 3「分支奖励」删除后派生）：
         /// 派生主干资格 ∩ 非引擎行（引擎行=条件载体零域，不作奖励）。
         /// 预算/可逆转/非错边过滤在调用点照旧。
+        /// 2026-10-23 有限分支入表：门槛行随主干排除一并出局（位 10）。
         /// （2026-10-13 晚「主动发动」位已删：动态计价原子（召唤衍生物/临摹/变形赋予）触发式预付
         /// 与主动现付同额同源（ResolveTemplate→ContentPriceOf），奖励入价在构筑期——主动/自动自由选择。）</summary>
         public static bool CanBeRewardRow(Attribute.AtomicEffectConfig row)
@@ -406,15 +405,14 @@ namespace CardCore
             return list;
         }
 
-        /// <summary>条件的显示文本（含【奖励x】——premium 取 GatePremium，与计价同源）。</summary>
+        /// <summary>条件的显示文本（含【奖励x】——x=目录项 Budget：产出条件族=代码常量，
+        /// 局面门族=表 Budget 列；2026-10-23 入表起与 BuildGatePremium 同源（都从表派生））。</summary>
         public static string GateLabel(GateSpec gate)
-        {
-            int premium = CostDerivationService.GatePremium.TryGetValue(gate.Id, out var p) ? p : 0;
-            return $"{gate.DisplayName}【奖励{premium}】";
-        }
+            => $"{gate.DisplayName}【奖励{gate.Budget}】";
 
-        /// <summary>门预算（Then 原子推导费上限）：GatePremium 值（灰）。</summary>
+        /// <summary>门预算（Then 原子推导费上限）：目录项 Budget 直通（灰）——
+        /// 局面门族=表 Budget 列（SituationGates 同源），产出条件族=代码常量 2。</summary>
         public static int GateBudget(GateSpec gate)
-            => CostDerivationService.GatePremium.TryGetValue(gate.Id, out var p) ? p : 0;
+            => gate.Budget;
     }
 }

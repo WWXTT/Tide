@@ -743,12 +743,12 @@ namespace SynergyUI
             ? 3 + (_card.NoAttack ? 1 : 0) + (_card.NoGuard ? 1 : 0)
             : 0;
 
-        /// <summary>光环形态判据（与效果合成器 InferMode 同源）：规则光环/连接光环都走 Aura 形态效果图。</summary>
+        /// <summary>光环形态判据（与效果合成器 InferMode 同源）：连接/范围光环都走光环形态效果图（IsAuraMode）。</summary>
         private static bool IsAuraEffect(CardEffectData fx)
         {
             if (fx == null) return false;
             var graph = new EffectGraphData(fx.DisplayName ?? "") { header = fx, steps = fx.Steps };
-            return EffectComposerScreen.InferMode(graph) == EffectComposerScreen.ComposeMode.Aura;
+            return EffectComposerScreen.IsAuraMode(EffectComposerScreen.InferMode(graph));
         }
 
         private static bool IsActiveGraph(EffectGraphData g)
@@ -1923,7 +1923,7 @@ namespace SynergyUI
         {
             LibNewBtn();
             var graphs = EffectLibrarySerializer.LoadAll()
-                .Where(g => EffectComposerScreen.InferMode(g) != EffectComposerScreen.ComposeMode.Aura && IsActiveGraph(g))
+                .Where(g => !EffectComposerScreen.IsAuraMode(EffectComposerScreen.InferMode(g)) && IsActiveGraph(g))
                 .ToList();
             LibHeader(_kind == CardKind.Spell
                 ? $"主动效果（{graphs.Count}）——点击=填入主动槽（1~3 个·施放抉择·速度加成=3−槽数）"
@@ -1941,7 +1941,7 @@ namespace SynergyUI
         {
             LibNewBtn();
             var graphs = EffectLibrarySerializer.LoadAll();
-            bool Aura(EffectGraphData g) => EffectComposerScreen.InferMode(g) == EffectComposerScreen.ComposeMode.Aura;
+            bool Aura(EffectGraphData g) => EffectComposerScreen.IsAuraMode(EffectComposerScreen.InferMode(g));
             if (_kind == CardKind.Enchantment)
             {
                 var auras = graphs.Where(Aura).ToList();
@@ -2167,7 +2167,7 @@ namespace SynergyUI
         {
             // 光环形态闸：连接光环=结界专属（生物禁挂改版；法术只挂主动效果）
             if ((_kind == CardKind.Creature || _kind == CardKind.Spell)
-                && EffectComposerScreen.InferMode(graph) == EffectComposerScreen.ComposeMode.Aura)
+                && EffectComposerScreen.IsAuraMode(EffectComposerScreen.InferMode(graph)))
             {
                 ShowToast(_kind == CardKind.Creature
                     ? "生物不可挂连接光环（2026-10-15 改版——光环专属结界）"
@@ -2192,7 +2192,7 @@ namespace SynergyUI
             // 槽类型路由：选中效果槽按槽型对表（主动槽只收主动图；自动槽不收主动图）；
             // 未选/非效果槽（右栏视图本就按槽过滤，走不到）按形状归类
             bool activeGraph = IsActiveEffect(graph?.header);
-            bool auraGraph = EffectComposerScreen.InferMode(graph) == EffectComposerScreen.ComposeMode.Aura;
+            bool auraGraph = EffectComposerScreen.IsAuraMode(EffectComposerScreen.InferMode(graph));
             bool slotTargeted = _selType == ZoneId.Effect || _selType == ZoneId.Passives;
             var target = slotTargeted ? _selType.Value : (activeGraph ? ZoneId.Effect : ZoneId.Passives);
             if (target == ZoneId.Effect && !activeGraph)

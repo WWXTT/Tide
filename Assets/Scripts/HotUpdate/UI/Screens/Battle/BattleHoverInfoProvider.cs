@@ -92,17 +92,16 @@ namespace SynergyUI
         }
 
         /// <summary>悬停展示：功能地块/特殊格=信息文本；单位格（生物+结界，双方）与角色格（角色+技能卡）
-        /// =四段悬停信息（CardHoverInfo：主动/自动/关键词/状态）。格前三键命中已归并所属格——btnKind 非空时
-        /// 键解说优先（落格卡信息让路，格体命中仍出卡信息）。</summary>
-        internal void Handle(string hitName, string btnKind = null)
+        /// =四段悬停信息（CardHoverInfo：主动/自动/关键词/状态）。（2026-10-23 v4 §10.2：格前三键退役，
+        /// 键解说口随删——动作可用性改由点单位弹 BattleUnitActionPopup 表达。）</summary>
+        internal void Handle(string hitName)
         {
             if (string.IsNullOrEmpty(hitName)) { Clear(); return; }
             // 源缓存（2026-10-18 性能）：同命中+同视图版本=文本必未变——跳过四段全文构建与去重键拼接
             // （悬停数据源全部随 RefreshField 重建：View/引擎事件触发刷新；时间格文案不含活秒数）
-            var srcKey = hitName + "#" + (btnKind ?? "") + "#" + ViewVersion;
+            var srcKey = hitName + "#" + ViewVersion;
             if (srcKey == _hoverSrcKey) return;
             _hoverSrcKey = srcKey;
-            if (btnKind != null) { SetHoverInfo(TileButtonHoverInfo(btnKind, hitName)); return; }
             if (hitName == "hud-tile-end-turn") { SetHoverInfo(EndTurnTileInfo()); return; }
             if (hitName == "hud-tile-phase") { SetHoverInfo(PhaseTileInfo()); return; }
             if (hitName == "hud-tile-opp-time") { SetHoverInfo(TimeTileInfo(false)); return; }
@@ -344,78 +343,6 @@ namespace SynergyUI
         {
             if (View == null) return "阶段显示";
             return "阶段显示\n" + View.PhaseText + "\n回合结构：准备 → 主要 → 结束";
-        }
-
-        /// <summary>格前三键悬停解说（2026-10-20 用户定案·简化版）：一行式「(卡名)动作说明」——
-        /// 白/灰门禁解说等冗余全删（门禁与 ReconcileTileButtons 高亮同源，灰态点击无响应自明）。
-        /// 发动键附【效果摘要】：待发主动奖励优先（奖励原子文本+使用档），否则首个主动效果名。</summary>
-        private string TileButtonHoverInfo(string btnKind, string tileName)
-        {
-            string who = "";
-            bool heroCell = false;
-            int x, z;
-            if (TryParseTile(tileName, out x, out z))
-            {
-                var u = UnitAt(x, z);
-                if (u != null) who = $"({u.Name})";
-                else if (x == BoardLayout.P1CharX && z == BoardLayout.P1CharZ) { heroCell = true; who = "(角色)"; }
-            }
-            if (heroCell)
-            {
-                switch (btnKind)
-                {
-                    case "Attack":
-                        return $"{who}点击一个目标发起角色攻击";
-                    case "Defense":
-                        return $"{who}对手攻击宣言后的守卫窗口内，点击拦截目标";
-                    default:
-                    {
-                        var skill = View?.Self?.Skill;
-                        return $"{who}点击发动英雄技能【{skill?.Name ?? "本局无技能"}】";
-                    }
-                }
-            }
-            switch (btnKind)
-            {
-                case "Attack":
-                    return $"{who}点击一个目标发起攻击";
-                case "Defense":
-                    return $"{who}对手攻击宣言后的守卫窗口内，点击拦截目标";
-                default:
-                    return $"{who}点击发动该单位的主动效果【{ActivateSummaryOf(UnitAt(x, z))}】";
-            }
-        }
-
-        /// <summary>发动键悬停的效果摘要（2026-10-20）：引擎分支卡=奖励原子文本（主动声明附
-        /// (本回合0/1) 使用档——倒计时固定触发不附）；否则首个主动效果显示名（缺省「主动效果」）。</summary>
-        private string ActivateSummaryOf(BattleCardView card)
-        {
-            var data = _dataOf(card);
-            if (data?.Effects != null)
-            {
-                string firstActive = null;
-                foreach (var fx in data.Effects)
-                {
-                    if (fx?.Steps == null) continue;
-                    foreach (var s in fx.Steps)
-                    {
-                        var b = s?.atomic?.branch;
-                        if (b == null || (CardCore.BranchSettleKind)b.settle != CardCore.BranchSettleKind.Engine) continue;
-                        var then0 = b.then != null && b.then.Count > 0 ? b.then[0] : null;
-                        if (then0 == null) continue;
-                        string txt = AtomText.RenderRewardAtomEntry(then0);
-                        return b.tactivate == 2
-                               && (CardCore.BranchEngineKind)b.engine != CardCore.BranchEngineKind.Countdown
-                            ? $"{txt}(本回合0/1)" : txt;
-                    }
-                    var timing = (CardCore.TriggerTiming)fx.TriggerTiming;
-                    if (firstActive == null
-                        && (timing == CardCore.TriggerTiming.Activate_Active || timing == CardCore.TriggerTiming.Activate_Instant))
-                        firstActive = string.IsNullOrEmpty(fx.DisplayName) ? "主动效果" : fx.DisplayName;
-                }
-                if (firstActive != null) return firstActive;
-            }
-            return "主动效果";
         }
 
         /// <summary>特殊格悬停信息（数量+点击引导；技能格/上限格/中线=2026-10-14 改版新增）。</summary>

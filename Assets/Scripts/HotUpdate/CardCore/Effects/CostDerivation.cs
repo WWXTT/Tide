@@ -266,33 +266,27 @@ namespace CardCore
         internal static bool IsCounterAtom(AtomicEffectConfig cfg)
             => cfg != null && cfg.GetTagList().Any(CounterBehaviorTags.Contains);
 
-        /// <summary>固定分支条件预算表（2026-09-14 定案：条件=纯校验上限，零计价——奖励原子维持 0 费，
-        /// 预算只是放置上限）。
-        /// 产出条件五项（消灭/宣言命中落空/预言命中落空）预算 2；
-        /// 局面状态族 11 门（有限分支，2026-10-09 还原——达标奖励/不达标无事，纯条件奖励）：
-        /// 一批预算 1（DrawnInStandbyThisTurn 调 3）、二批预算 2。
+        /// <summary>分支条件预算表构建（2026-10-23 有限分支入表定案：静态字典 → 每次构建——
+        /// 产出条件 5 项（消灭/宣言命中落空/预言命中落空）预算恒 2 为代码常量，
+        /// 局面状态族 11 门并入原子表 Budget 列（表重读即生效，**预算唯一来源=表**——产出条件族除外，
+        /// 任何人不得再在代码里手写局面门预算）。
+        /// 条件=纯校验上限零计价（2026-09-14 定案）——奖励原子维持 0 费，预算只是放置上限。
         /// 改写门（DmgRewrite*）已随四条改写迁唯一光环退役；诅咒门不还原（引擎主干行接棒）。</summary>
-        public static readonly Dictionary<string, int> GatePremium = new Dictionary<string, int>
+        public static Dictionary<string, int> BuildGatePremium()
         {
-            { "DmgKillsTarget", 2 }, // 消灭目标时
-            { "DeclareHit", 2 },     // 宣言结果一致时
-            { "DeclareMiss", 2 },    // 宣言落空时（与命中对称）
-            { "ProphecyHit", 2 },    // 预言命中时（延迟验证：对手下回合首张出牌结算）
-            { "ProphecyMiss", 2 },   // 预言落空时（延迟验证，语义反转）
-            // ---- 局面状态族（2026-09-22，预算 1；DrawnInStandbyThisTurn 2026-10-09 调 3）----
-            { "DrawnInStandbyThisTurn", 3 }, // 本回合第一张抽到的卡
-            { "LifeBelowOpp", 1 },           // 生命值低于对手
-            { "LifeAboveOpp", 1 },           // 生命值高于对手
-            { "DeckBelowOpp", 1 },           // 卡组剩余低于对手
-            { "DeckAboveOpp", 1 },           // 卡组剩余高于对手
-            { "CreaturesBelowOpp", 1 },      // 场上生物低于对手
-            { "CreaturesAboveOpp", 1 },      // 场上生物高于对手
-            { "FirstCardThisTurn", 1 },      // 本回合使用的第一张卡
-            // ---- 局面状态族·二批（2026-09-22 追加，预算 2）----
-            { "LandsGe7", 2 },               // 操控地数量≥7
-            { "HandEmpty", 2 },              // 手牌数量=0
-            { "LifeLe7", 2 },                // 生命值≤7
-        };
+            var premium = new Dictionary<string, int>
+            {
+                { "DmgKillsTarget", 2 }, // 消灭目标时
+                { "DeclareHit", 2 },     // 宣言结果一致时
+                { "DeclareMiss", 2 },    // 宣言落空时（与命中对称）
+                { "ProphecyHit", 2 },    // 预言命中时（延迟验证：对手下回合首张出牌结算）
+                { "ProphecyMiss", 2 },   // 预言落空时（延迟验证，语义反转）
+            };
+            // ---- 局面状态族：原子表 Budget 列直通（ComposerCatalog.SituationGates 同源）----
+            foreach (var gate in ComposerCatalog.SituationGates)
+                premium[gate.Id] = gate.Budget;
+            return premium;
+        }
 
         /// <summary>奖励原子的推导费合计（2026-09-14 自 CardEffectConverter 上移——倒计时回合换算与
         /// 合成器【奖励x】预算校验共用同一口径）：单次/单目标锚价——Once、TargetCount=1、

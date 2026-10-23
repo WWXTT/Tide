@@ -1,4 +1,0 @@
-<linker>
-  <assembly fullname="TapSDK.CloudSave.Runtime" preserve="all" />
-  <assembly fullname="TapSDK.CloudSave.Mobile.Runtime" preserve="all" />
-</linker>

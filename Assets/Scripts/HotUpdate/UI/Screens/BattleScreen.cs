@@ -150,7 +150,7 @@ namespace SynergyUI
                 () => _viewVersion, DataOf);
             _hoverProv.Bind(FindOptional("hover-info")); // 缺节点=悬停文本静默不显
             _decision = new BattleDecisionHub(() => _view, () => Core, () => P1, () => P2, () => _field, _toast,
-                (hitName, btnKind) => _hoverProv.Handle(hitName, btnKind),
+                hitName => _hoverProv.Handle(hitName),
                 text => _tutorial.RefreshBanner(text),
                 () => _regionSelector, CardDisplayName,
                 () => $"targeting={(_choreo != null && _choreo.IsTargeting)} picker={(_cellPicker != null && _cellPicker.Active)} overUI={BattlePointer.OverUI} view={_view != null} cam={BattleStageDirector.WorldCam != null}");
@@ -472,6 +472,7 @@ namespace SynergyUI
             _decision.Shutdown(); // 守卫/响应窗收口协议（顺序依据见 BattleDecisionHub——2026-10-18 B3）
             _tutorial?.CloseIntroPanel(); // 介绍段配音卡片防跨屏残留（2026-10-17）
             CloseTipPrompt(); // TipPanel 提示弹窗防跨屏残留（2026-10-17）
+            _unitPopup.DestroyUI(); // 单位动作弹窗防跨屏残留（2026-10-23 v4 §10.2）
             BattleRevealDirector.End(); // 语音联动显隐全恢复防跨屏残留（2026-10-17）
             _tutorial?.UninstallResponder(); // 教学守卫应答器卸载（null=回落内置启发）
             _toast.Hide();
@@ -646,20 +647,13 @@ namespace SynergyUI
         private bool NetFanCanPlaceLand(HandFanCard fan)
         {
             if (!NetFanGate()) return false;
-            // 锁色资格=卡费含红/蓝/绿/灰（ElementPoolSystem.GetLandColorChoices 同谓词的 CardData 版）
+            // 锁色资格=可锁产色候选非空（GetLandColorChoices 单源：卡面/各模式费 ∪ 主动效果锚价，去黑白）
             return NetLandColorChoices(DataOf(NetHandViewOf(fan))).Count > 0;
         }
 
-        /// <summary>可锁产色（卡费非零色的红/蓝/绿/灰——黑白不可作地牌；GetLandColorChoices 网络侧口径）。</summary>
+        /// <summary>可锁产色（GetLandColorChoices 网络侧口径——CardData 单源重载直转，锚价开格 2026-10-23）。</summary>
         private static List<ManaType> NetLandColorChoices(CardData data)
-        {
-            var result = new List<ManaType>();
-            if (data?.Cost == null) return result;
-            foreach (var type in data.Cost.NonzeroColors())
-                if (type != ManaType.Black && type != ManaType.White)
-                    result.Add(type);
-            return result;
-        }
+            => ElementPoolSystem.GetLandColorChoices(data);
 
         /// <summary>扇区卡 → 视图手牌卡（RuntimeId 对账；不在手=已过态返回 null）。</summary>
         private BattleCardView NetHandViewOf(HandFanCard fan)
@@ -2133,7 +2127,7 @@ namespace SynergyUI
                 return;
 
             var choices = ElementPoolSystem.GetLandColorChoices(card);
-            if (choices.Count == 0) { _toast.Show("该卡无费用颜色可锁定（0费/纯黑白不可作地牌）"); return; }
+            if (choices.Count == 0) { _toast.Show("该卡无可锁定产色（无费用元素/纯黑白不可作地牌）"); return; }
 
             var view = BattleView.FromRuntime(SerializableRuntimeCardState.FromCard(card), card, false);
             var board = _ctrl?.Board;
@@ -2382,8 +2376,8 @@ namespace SynergyUI
         /// 悬停路由（单位格=四段卡信息/特殊格与功能地块=hover-info 文本），左键点击路由
         /// （功能地块/特殊格 Region 面板/角色格角色与技能详情/地牌信息）。
         /// UI 命中让路且不关弹窗（销毁按钮会吞掉 onClick，原口径）；单位模型 collider 已拆，
-        /// 打格反查是既定通路。2026-10-15 定案：落格=展示信息，攻击/守卫/发动拆到格前三键
-        /// （BattleHex.prefab 手搭件，BattleTileButtons 高亮），三键命中归并所属格路由。
+        /// 打格反查是既定通路。2026-10-23 v4 §10.2：格前三键退役——点有可行动作的己方单位/
+        /// 角色格弹 BattleUnitActionPopup（位图=ReconcileTileButtons）。
         /// 2026-10-18 安卓滑动输入：鼠标/触摸统一走 BattlePointer（触摸点击=抬起裁决、
         /// 落点=手指原始点位；PC 口径零变化）。</summary>
         private void PollFieldPointer()
@@ -2400,7 +2394,7 @@ namespace SynergyUI
                 return;
             }
 
-            ReconcileTileButtons(); // 格前三键每帧对账先行（让路路径同样收键——编舞/选格中不可操作）
+            ReconcileTileButtons(); // 可用动作位图每帧对账先行（弹窗触发/内容/关闭单源；让路路径同样关弹窗）
             if (_choreo != null && _choreo.IsTargeting)
             {
                 _hoverProv.Clear(); // 攻击目标选择中：悬停/点击由编舞器消费（寻路箭头跟随），本屏路由让路
@@ -2431,23 +2425,16 @@ namespace SynergyUI
             bool hasHit = Physics.Raycast(cam.ScreenPointToRay(aim), out hit, 300f);
             var hitCollider = hasHit ? hit.collider : null;
             var hitName = hitCollider != null ? hitCollider.gameObject.name : "";
-            // 格前三键命中 → 归并所属格（按钮=tile 子件）：hover 按格走（落格=展示信息），
-            // btnKind 记动作供点击分流；守卫窗口吃所有点击（三键=格的延伸）
-            string btnKind = null;
-            if (hitName == "Attack" || hitName == "Defense" || hitName == "Activate")
+            // 守卫窗口：点守卫者/角色/攻击者全归决策中枢——可守卫的己方格先弹动作弹窗（守卫钮=选守卫者，
+            // v4 §10.2 两段式），攻击者/无动作格原口直进（悬停帧 btnKind 空照常路由）
+            if (_decision != null && _decision.GuardWindowOpen)
             {
-                for (var p = hitCollider.transform.parent; p != null; p = p.parent)
-                    if (p.name.StartsWith("tile-", System.StringComparison.Ordinal))
-                    {
-                        btnKind = hitName;
-                        hitName = p.name;
-                        break;
-                    }
-                if (btnKind == null) hitName = ""; // 键不在格上（异常挂载）→ 视作无命中
+                if (BattlePointer.ConfirmPressed && TryPopupCell(hitName)) return;
+                _decision.HandlePointer(hitName, cam);
+                return;
             }
-            if (_decision != null && _decision.GuardWindowOpen) { _decision.HandlePointer(hitName, cam, btnKind); return; } // 守卫窗口：点守卫生物/角色/攻击者
-            _hoverProv.Handle(hitName, btnKind);
-            if (BattlePointer.ConfirmPressed) HandleFieldClick(hitName, btnKind);
+            _hoverProv.Handle(hitName);
+            if (BattlePointer.ConfirmPressed) HandleFieldClick(hitName);
         }
 
         // ---- 悬停路由 ----
@@ -2475,52 +2462,15 @@ namespace SynergyUI
 
         // ---- 点击路由 ----
 
-        /// <summary>左键点击路由（btnKind=格前三键命中归并前的动作名——Attack/Defense/Activate；
-        /// null=格体/其他命中）。三键=所属单位/角色格操作入口：Attack→攻击目标选择（单位=ShowUnitActions
-        /// 全门禁、角色=OnClickSelfHero 弹药门+箭头选目标），Activate→单位主动效果/英雄技能；
-        /// Activate→单位主动效果；Defense 由守卫窗口独占消费（点键=点格选守卫者），窗口未开=引导提示。
-        /// 格体命中=展示信息语义：只收弹窗不开操作（2026-10-15 定案，单位操作全走格前三键）。</summary>
-        private void HandleFieldClick(string hitName, string btnKind)
+        /// <summary>左键点击路由（2026-10-23 v4 §10.2：格前三键退役——有可行动作的己方单位/角色格
+        /// 弹 BattleUnitActionPopup，动作处理器经 OnUnitPopupAction 沿用既有入口；其余落点=关弹窗后
+        /// 走原信息展示语义）。功能地块/特殊格/地牌/施放图标路由不变。</summary>
+        private void HandleFieldClick(string hitName)
         {
-            // 格前三键（2026-10-15 定案：单位本体退出射线，攻击/守卫/发动拆到格前；
-            // 2026-10-16 角色格同款三键：攻击=弹药门+箭头选目标，发动=英雄技能）
-            if (btnKind != null)
-            {
-                int bx, bz;
-                bool hasTile = TryParseTile(hitName, out bx, out bz);
-                // 角色格三键：Attack→OnClickSelfHero（弹药/网络门禁沿用），Activate→OnClickHeroZone；
-                // Defense 由守卫窗口独占消费（点键=点格选角色守卫），窗口未开=引导提示
-                if (hasTile && bx == BoardLayout.P1CharX && bz == BoardLayout.P1CharZ)
-                {
-                    CloseRegion();
-                    if (btnKind == "Attack") OnClickSelfHero();
-                    else if (btnKind == "Activate") OnClickHeroZone();
-                    else _toast.Show("守卫在对手攻击宣言后的守卫窗口内可用（白键=角色可拦截）");
-                    return;
-                }
-                var btnUnit = hasTile
-                    ? (_view.SelfUnits ?? new List<BattleCardView>())
-                        .FirstOrDefault(c => c != null && c.X == bx && c.Z == bz && !c.IsDead)
-                    : null;
-                if (btnKind == "Attack")
-                {
-                    CloseRegion();
-                    if (btnUnit == null) return; // 键下单位已离场（对账竞态）
-                    ShowUnitActions(btnUnit, bx, bz); // 门禁/教学/横置/攻0 拒绝 toast 全沿用
-                    return;
-                }
-                if (btnKind == "Activate")
-                {
-                    CloseRegion();
-                    if (btnUnit != null) OnClickUnitEffectButton(btnUnit).Forget();
-                    return;
-                }
-                // Defense：守卫窗口开启时点击被 HandleGuardPointer 消费（点键=点格）；
-                // 窗口未开=守卫是响应动作，引导即可
-                CloseRegion();
-                _toast.Show("守卫在对手攻击宣言后的守卫窗口内可用（白键=该生物可拦截）");
-                return;
-            }
+            // 点单位弹可用动作（§10.2）：命中格在位图中且有任一可用项=弹窗（换目标即重开）；
+            // 其余任何落点（含点空白/无动作格/无命中）=关弹窗
+            if (TryPopupCell(hitName)) return;
+            _unitPopup.Close();
 
             // 功能地块（BattleHudRow 中线状态行：结束回合格可点；两时间/连锁速度格纯展示——
             // 未认领名走 TryParseTile 失败分支收弹窗，无需另接点击）
@@ -2560,7 +2510,7 @@ namespace SynergyUI
                 return;
             }
 
-            // 单位格体=展示信息（悬停已出四段卡信息）：只收弹窗，操作走格前三键
+            // 单位格体（有动作的已在方法头弹窗返回；此处=无动作单位）=展示信息（悬停已出四段卡信息）
             var unit = (_view.SelfUnits ?? new List<BattleCardView>()).FirstOrDefault(c => c.X == x && c.Z == z && !c.IsDead);
             if (unit != null) { CloseRegion(); return; }
 
@@ -2635,9 +2585,15 @@ namespace SynergyUI
             OnClickMyUnit(card);
         }
 
-        // ---- 格前三键对账（2026-10-15 定案：攻击/守卫/发动拆到格前，高亮=可用） ----
+        // ---- 单位可用动作位图 + 动作弹窗（2026-10-23 v4 §10.2：格前三键退役，位图单源喂弹窗） ----
 
-        private readonly List<BattleTileButtons.Entry> _tileBtnBuf = new List<BattleTileButtons.Entry>();
+        private struct CellActions { public int X, Z; public bool Attack, Guard, Activate; }
+
+        private readonly List<CellActions> _cellActions = new List<CellActions>();
+        private readonly BattleUnitActionPopup _unitPopup = new BattleUnitActionPopup();
+        private bool _popupMyTurn;          // 开弹窗时的回合/阶段印章（变化=关，§10.2 关闭条件）
+        private PhaseType _popupPhase;
+        private int _popupTurnNo;
 
         // 三键效果缓存（2026-10-18 性能）：UnitActivatedEffects/HeroHasActivatableSkill 每次跑完整效果
         // 定义转换（ConvertAll+LINQ），改事件级重算、帧间复用；SelfUnits 每次 RefreshField 重建，
@@ -2648,19 +2604,21 @@ namespace SynergyUI
         private List<BattleCardView> _activateFlagsFor;
         private bool _heroActivateFlag;
 
-        /// <summary>三键每帧对账（幂等差量，BattleTileButtons 落盘）：编舞选目标/放格选格=全收；
-        /// 守卫窗口=守卫候选亮蓝（窗口独占，攻/发键暗灰）；常态=己方单位格——攻击=生物未横置攻&gt;0
-        /// 且我方主阶段、发动=有主动效果且我方主阶段、守卫=仅窗口内亮。
-        /// 角色格（2026-10-16 同款三键）：攻击=有弹药且我方主阶段、发动=技能挂主动效果且我方主阶段、
-        /// 守卫=窗口内且角色在候选（弹药&gt;0）。
-        /// 深判定（费用/横置代价/耐久/每回合一次）留引擎裁决，高亮不预判，拒绝走点击 toast。</summary>
+        /// <summary>可用动作位图每帧对账（2026-10-23 v4 §10.2 改版：格前三键退役，位图落 _cellActions
+        /// 单源——点单位弹 BattleUnitActionPopup 的触发与内容都吃这里）：编舞选目标/放格选格/
+        /// 网络局/反问在身=清空+关弹窗；守卫窗口=守卫候选亮（窗口独占）；常态=己方单位格——
+        /// 攻击=生物未横置攻&gt;0 且我方主阶段、发动=有主动效果且我方主阶段、守卫=仅窗口内。
+        /// 角色格：攻击=有弹药且我方主阶段、发动=技能挂主动效果、守卫=窗口内且角色在候选。
+        /// 深判定（费用/横置代价/耐久/每回合一次）留引擎裁决，位图不预判，拒绝走点击 toast。</summary>
         private void ReconcileTileButtons()
         {
             if (_view == null || !BattleBoardGrid.Ready
                 || (_choreo != null && _choreo.IsTargeting)
-                || (_cellPicker != null && _cellPicker.Active))
+                || (_cellPicker != null && _cellPicker.Active)
+                || NetActive || IsTargetSelecting())
             {
-                BattleTileButtons.Apply(null);
+                _cellActions.Clear();
+                _unitPopup.Close();
                 return;
             }
 
@@ -2691,13 +2649,13 @@ namespace SynergyUI
                 Debug.Log($"[BR-Flags] 三键旗重算：单位数={units?.Count ?? 0} 含待发奖励={withPending} myTurn={_view?.MyTurn} phase={_view?.Phase}"); // TEMP 诊断（定位后删）
                 _heroActivateFlag = P1 != null && HeroHasActivatableSkill();
             }
-            _tileBtnBuf.Clear();
+            _cellActions.Clear();
             if (units != null)
             {
                 foreach (var c in units)
                 {
                     if (c == null || c.IsDead || c.CoreCard == null || c.X < 0 || c.Z < 0) continue;
-                    var e = new BattleTileButtons.Entry { X = c.X, Z = c.Z };
+                    var e = new CellActions { X = c.X, Z = c.Z };
                     if (_decision != null && _decision.GuardWindowOpen)
                         e.Guard = _decision.GuardCandidates != null
                                   && _decision.GuardCandidates.Exists(o => o != null && ReferenceEquals(o.SourceCard, c.CoreCard));
@@ -2710,16 +2668,16 @@ namespace SynergyUI
                         e.Activate = myMain && ((_unitActivateFlags.TryGetValue(c, out var hasDef) && hasDef && !c.IsTapped)
                                                 || (_unitPendingFlags.TryGetValue(c, out var hasPend) && hasPend));
                     }
-                    _tileBtnBuf.Add(e);
+                    _cellActions.Add(e);
                 }
             }
 
-            // 角色格三键（2026-10-16）：Attack=弹药>0、Activate=技能挂主动效果、
+            // 角色格位图（2026-10-16）：Attack=弹药>0、Activate=技能挂主动效果、
             // Guard=守卫窗口内且角色在候选（ReferenceEquals 匹配 SourcePlayer——引擎侧弹药门同源）
             if (P1 != null)
             {
                 var hc = BoardLayout.CharacterCell(0);
-                var hero = new BattleTileButtons.Entry { X = hc.x, Z = hc.z };
+                var hero = new CellActions { X = hc.x, Z = hc.z };
                 if (_decision != null && _decision.GuardWindowOpen)
                     hero.Guard = _decision.GuardCandidates != null
                                  && _decision.GuardCandidates.Exists(o => o != null && ReferenceEquals(o.SourcePlayer, P1));
@@ -2728,9 +2686,69 @@ namespace SynergyUI
                     hero.Attack = myMain && P1.GetPower() > 0;
                     hero.Activate = myMain && _heroActivateFlag;
                 }
-                _tileBtnBuf.Add(hero);
+                _cellActions.Add(hero);
             }
-            BattleTileButtons.Apply(_tileBtnBuf);
+
+            // 弹窗随行关闭（§10.2）：阶段或回合变化（印章对拍）——选目标/网络局在方法头已收
+            if (_unitPopup.IsOpen
+                && (_view.MyTurn != _popupMyTurn || _view.Phase != _popupPhase || _view.TurnNumber != _popupTurnNo))
+                _unitPopup.Close();
+        }
+
+        /// <summary>§10.2：命中的格有可用动作（位图单源=_cellActions）→ 弹单位动作弹窗。
+        /// 网络/无动作=false（调用方走原路由=关弹窗）。守卫窗口内同样先弹窗（守卫钮→PickGuarderAt）。</summary>
+        private bool TryPopupCell(string hitName)
+        {
+            if (NetActive) return false; // 网络局不弹（§10.2 关闭条件）
+            int x, z;
+            if (!TryParseTile(hitName, out x, out z)) return false;
+            for (int i = 0; i < _cellActions.Count; i++)
+            {
+                if (_cellActions[i].X != x || _cellActions[i].Z != z) continue;
+                if (!_cellActions[i].Attack && !_cellActions[i].Guard && !_cellActions[i].Activate) return false;
+                OpenUnitPopup(x, z, _cellActions[i]);
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>开/换弹窗：锚=格世界坐标（弹窗自行上偏+投影），动作为零分配转发到既有入口。</summary>
+        private void OpenUnitPopup(int x, int z, CellActions e)
+        {
+            bool isHero = x == BoardLayout.P1CharX && z == BoardLayout.P1CharZ;
+            BattleCardView unit = null;
+            if (!isHero)
+                unit = (_view.SelfUnits ?? new List<BattleCardView>())
+                    .FirstOrDefault(c => c != null && c.X == x && c.Z == z && !c.IsDead);
+            _popupMyTurn = _view.MyTurn; // 关闭印章（ReconcileTileButtons 对拍）
+            _popupPhase = _view.Phase;
+            _popupTurnNo = _view.TurnNumber;
+            _unitPopup.Show(Root, BattleBoardGrid.WorldPositionOf(x, z), isHero ? "角色" : (unit != null ? unit.Name : "?"),
+                            e.Attack, e.Guard, e.Activate,
+                            kind => OnUnitPopupAction(kind, isHero, unit, x, z));
+        }
+
+        /// <summary>弹窗动作分流（§10.2：处理器全沿用三键时代的现有入口）：
+        /// 攻击=单位 ShowUnitActions/角色 OnClickSelfHero；发动=单位主动效果/角色技能；
+        /// 守卫=守卫窗口专属（PickGuarderAt=原点格选守卫者同口）。</summary>
+        private void OnUnitPopupAction(BattleUnitActionPopup.Kind kind, bool isHero, BattleCardView unit, int x, int z)
+        {
+            if (kind == BattleUnitActionPopup.Kind.Guard)
+            {
+                if (_decision != null && _decision.GuardWindowOpen) _decision.PickGuarderAt(x, z);
+                else _toast.Show("守卫在对手攻击宣言后的守卫窗口内可用");
+                return;
+            }
+            CloseRegion();
+            if (isHero)
+            {
+                if (kind == BattleUnitActionPopup.Kind.Attack) OnClickSelfHero();
+                else OnClickHeroZone();
+                return;
+            }
+            if (unit == null) return; // 单位已离场（对账竞态）
+            if (kind == BattleUnitActionPopup.Kind.Attack) ShowUnitActions(unit, x, z);
+            else OnClickUnitEffectButton(unit).Forget();
         }
 
         /// <summary>单位可发动效果清单（三键高亮/点击单源）：引擎效果定义中时机=主动两档

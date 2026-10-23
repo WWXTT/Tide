@@ -75,6 +75,15 @@ namespace CardCore.Attribute
         /// 预言产出族/诅咒产出族，表色由加载器追加中文色名）</summary>
         public string Tags;
 
+        /// <summary>门槛语义 id（2026-10-23 有限分支入表）：仅 MountKinds 含「有限分支」位的门槛行有意义
+        ///（如 LifeBelowOpp）——目录（ComposerCatalog.SituationGates）与预算（BuildGatePremium）的派生源；
+        /// 判定谓词仍由 BranchConditionEvaluator 代码注册。其余行 null。</summary>
+        public string GateId;
+
+        /// <summary>门槛奖励锚价上限（2026-10-23 有限分支入表）：门槛行 Then 奖励的放置上限（灰）；
+        /// 其余行 0（无门槛语义）。</summary>
+        public int Budget;
+
         /// <summary>可选触发时机（逗号分隔的 TriggerTiming 枚举名，空表示无触发配置）</summary>
         public string AvailableTriggerTimings;
 

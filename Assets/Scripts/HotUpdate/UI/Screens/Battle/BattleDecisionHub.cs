@@ -32,7 +32,7 @@ namespace SynergyUI
         private readonly Func<Player> _p2;
         private readonly Func<BattleFieldView> _field;
         private readonly BattleToastHub _toast;
-        private readonly Action<string, string> _hoverRouter;   // 悬停路由（守卫期也要能看牌）
+        private readonly Action<string> _hoverRouter;         // 悬停路由（守卫期也要能看牌）
         private readonly Action<string> _banner;                // 横幅：null=复位教学文案；否则守卫提示覆盖
         private readonly Func<RegionTargetSelector> _selector;  // 结算期反问选择器（StartLocalFan 建前恒 null）
         private readonly Func<Card, string> _cardName;
@@ -72,7 +72,7 @@ namespace SynergyUI
 
         public BattleDecisionHub(Func<BattleViewData> view, Func<GameCore> core,
             Func<Player> p1, Func<Player> p2, Func<BattleFieldView> field, BattleToastHub toast,
-            Action<string, string> hoverRouter, Action<string> banner,
+            Action<string> hoverRouter, Action<string> banner,
             Func<RegionTargetSelector> selector, Func<Card, string> cardName,
             Func<string> probeSnapshot)
         {
@@ -163,9 +163,9 @@ namespace SynergyUI
         private static Entity AttackTargetOf(ResponseOption opt)
             => opt?.AttackInstance?.Targets is List<Entity> t && t.Count > 0 ? t[0] : null;
 
-        public void HandlePointer(string hitName, Camera cam, string btnKind = null)
+        public void HandlePointer(string hitName, Camera cam)
         {
-            _hoverRouter(hitName, btnKind); // 悬停卡面/信息保留（选守卫者时也要能看牌；键上=键解说）
+            _hoverRouter(hitName); // 悬停卡面/信息保留（选守卫者时也要能看牌）
 
             int x, z;
             bool hasCell = BattleHoverInfoProvider.TryParseTile(hitName, out x, out z);
@@ -194,7 +194,7 @@ namespace SynergyUI
                 return;
             }
             if (!BattlePointer.ConfirmPressed) return;
-            Debug.Log($"[GuardProbe] 守卫路由收到确认：hit={hitName} btn={btnKind ?? "-"} selected={(_guarder != null ? _guarder.Name : (_guarderIsHero ? "角色" : "无"))}");
+            Debug.Log($"[GuardProbe] 守卫路由收到确认：hit={hitName} selected={(_guarder != null ? _guarder.Name : (_guarderIsHero ? "角色" : "无"))}");
 
             if (!hasCell) { SelectGuarder(null); return; }
 
@@ -228,6 +228,28 @@ namespace SynergyUI
                 return;
             }
             SelectGuarder(null); // 点空地/非攻击者=只取消选择（不让过）
+        }
+
+        /// <summary>弹窗守卫钮入口（2026-10-23 v4 §10.2）：格→守卫者选择——与点格选守卫者
+        /// 完全同口（角色格=角色守卫；候选外单位=提示；窗口未开由调用方提示）。</summary>
+        public void PickGuarderAt(int x, int z)
+        {
+            if (_guardTcs == null) return; // 窗口已关（弹窗残留点击竞态）
+            var myChar = BoardLayout.CharacterCell(0);
+            if (x == myChar.x && z == myChar.z && HasHeroGuardOption())
+            {
+                SelectGuarder(null, hero: true);
+                return;
+            }
+            var mine = (View.SelfUnits ?? new List<BattleCardView>())
+                .FirstOrDefault(c => c != null && c.X == x && c.Z == z && !c.IsDead);
+            if (mine == null) return;
+            if (_guardOptions.All(o => !ReferenceEquals(o.SourceCard, mine.CoreCard)))
+            {
+                _toast.Show("该生物不能守卫（已横置或无守卫能力）");
+                return;
+            }
+            SelectGuarder(mine);
         }
 
         private void SelectGuarder(BattleCardView v, bool hero = false)

@@ -6,7 +6,8 @@ namespace CardCore
 {
     /// <summary>
     /// 元素池中的卡牌（地牌，锁色产色体）——2026-10-11 资源系统重做定案：
-    /// 指示物整套退役。入池时从卡牌费用颜色（红/蓝/绿/灰）中自选锁定一个产色，后续生成固定；
+    /// 指示物整套退役。入池时从锁色候选（卡面/各模式费 ∪ 主动效果锚价的红/蓝/绿/灰——
+    /// 见 ElementPoolSystem.GetLandColorChoices）中自选锁定一个产色，后续生成固定；
     /// 地牌不消耗、不耗竭、不入墓（移除口=摧毁/抹除效果）。
     /// 付费时系统按账单自动横置（强制系统动作，无速度交互，自己/对手回合都一样），
     /// 每地牌每回合周期恰好横置一次，产 1 个锁定色元素**直接支付**（不入库）。
@@ -167,33 +168,66 @@ namespace CardCore
                    || ht.Supertype == Cardtype.Enchantment);
 
         /// <summary>
-        /// 地牌可锁定的产色候选（2026-10-11 定案沿用；2026-10-22 恒推导修订）：
-        /// 卡牌**推导费用**（Cost 显示缓存=EnsureCost 刷新的推导分布；抉择卡=最大模式费）中的
-        /// 红/蓝/绿/灰颜色集合（黑白不由地牌产出；抉择卡按该缓存取色，不再按所选模式）。
-        /// 按费用份额降序排列（并列取枚举序靠前者）——缺省锁色（colorChoice=null）取首位=主色。
-        /// 空候选（0 费卡/纯黑白费卡）不可入池。
+        /// 地牌可锁定的产色候选（2026-10-23 锚价开格定案，取代「仅卡面费取色」旧口径）：
+        /// （卡面/各模式推导费 ∪ 全部主动效果锚价）中的红/蓝/绿/灰颜色集合（黑白不由地牌产出）。
+        /// 正形法术的主动效果构筑期不占卡费（卡面费 0），元素需求全在锚价——按锚价开格；
+        /// 抉择类法术（1~3 主动效果）逐效果锚价并集=多色多地格同开；抉择永久物各模式费并入。
+        /// 按份额降序排列（并列取枚举序靠前者）——缺省锁色（colorChoice=null）取首位=主色。
+        /// 空候选（全无费用元素——真无费/纯黑白）不可入池。
+        /// 结果缓存于 CardData.LandColorChoicesCache（ResetCache 失效）；返回副本。
         /// </summary>
         public static List<ManaType> GetLandColorChoices(Card card)
-            => card is IHasCost hasCost ? GetLandColorChoices(hasCost) : new List<ManaType>();
+            => GetLandColorChoices(card is CardWrapper wrapper ? wrapper.GetData() : null);
 
-        /// <summary>同 GetLandColorChoices（IHasCost 重载——CardData 同接口，UI 网络侧无引擎对象时直用卡数据）。</summary>
-        public static List<ManaType> GetLandColorChoices(IHasCost hasCost)
+        /// <summary>同 GetLandColorChoices（CardData 重载——网络侧无引擎对象时直用卡数据，单源）。</summary>
+        public static List<ManaType> GetLandColorChoices(CardData data)
         {
-            var pairs = new List<(ManaType color, int amount)>();
-            if (hasCost?.Cost != null)
+            if (data == null) return new List<ManaType>();
+            if (data.LandColorChoicesCache != null) return new List<ManaType>(data.LandColorChoicesCache);
+
+            var total = new ElementCost();
+            void Add(ElementCost cost)
             {
-                foreach (var type in hasCost.Cost.NonzeroColors())
-                {
-                    int amount = (int)hasCost.Cost[type];
-                    if (amount > 0 && type != ManaType.Black && type != ManaType.White)
-                        pairs.Add((type, amount));
-                }
+                if (cost == null) return;
+                foreach (var color in cost.NonzeroColors())
+                    total[color] = total[color] + cost[color];
             }
-            return pairs
+
+            // ① 卡面/各模式推导费（抉择卡逐模式并集——不再只读最大模式费显示缓存）
+            if (CostDerivationService.HasChoiceEffect(data))
+            {
+                int modeCount = CostDerivationService.GetModeCount(data);
+                for (int m = 0; m < modeCount; m++)
+                    Add(CardCostService.GetModeCost(data, m));
+            }
+            else
+                Add(CardCostService.GetRuntimeCost(data, 0));
+
+            // ② 主动效果锚价（效果真正需要的元素——构筑期不占卡费、运行时现付，口径同 SpellCastAnchor）：
+            //    逐主动效果 ×（含抉择步时）逐模式并入
+            int anchorModes = Math.Max(1, CostDerivationService.GetModeCount(data));
+            foreach (var def in CardEffectConverter.ConvertAll(data.Effects, data.ID))
+            {
+                if (def == null || !def.IsActivatedEffect) continue;
+                def.TriggerLimitPerTurn = 1; // 次数轴坍缩——同 Derive/SpellCastAnchor 主入口口径
+                for (int m = 0; m < anchorModes; m++)
+                    Add(CostDerivationService.DeriveElementCosts(def, m));
+            }
+
+            var pairs = new List<(ManaType color, int amount)>();
+            foreach (var type in total.NonzeroColors())
+            {
+                int amount = (int)total[type];
+                if (amount > 0 && type != ManaType.Black && type != ManaType.White)
+                    pairs.Add((type, amount));
+            }
+            var result = pairs
                 .OrderByDescending(p => p.amount)
                 .ThenBy(p => (int)p.color)
                 .Select(p => p.color)
                 .ToList();
+            data.LandColorChoicesCache = result;
+            return new List<ManaType>(result);
         }
 
         /// <summary>入池预检（UI/AI 共用单点）：资格由 CanServeAsLand 另查；这里只看各自上限余位。</summary>
@@ -220,7 +254,7 @@ namespace CardCore
             if (pool.PooledCards.Count >= GetLandCap(owner))
                 return false;
 
-            // 锁色候选：卡费颜色（去黑白）；空候选（0费/纯黑白）拒绝入池
+            // 锁色候选（卡面/各模式费 ∪ 主动效果锚价，去黑白）；空候选（真无费用元素）拒绝入池
             var choices = GetLandColorChoices(card);
             if (choices.Count == 0)
                 return false;
