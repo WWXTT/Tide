@@ -1,2 +1,6 @@
 *
 !.gitignore
+# 付费资源包显式忽略（2026-10-23 VFX 接入；上方 * 已全忽略，此处按包显式化备查——含 PolygonDarkFantasy 等其余包勿改成白名单式）
+/Synty/
+/Epic Toon FX/
+/Hovl Studio/

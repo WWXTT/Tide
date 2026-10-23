@@ -1719,6 +1719,11 @@ namespace SynergyUI
         /// <summary>效果演出色（2026-10-19 六色复用定案）：来源卡施放费用的红/蓝/绿主色
         /// （同出场粒子 DominantChromatic 口径——非彩或无卡来源=灰）。费用单源=GameActions.GetCardCost。</summary>
         private static Color DominantCostColor(Entity source)
+            => BattleCastArrival.ManaColor(DominantCostMana(source));
+
+        /// <summary>DominantCostColor 的 ManaType 版（2026-10-23 VFX 路由接入）：主色循环同源拷贝——
+        /// BattleVfxFx 按 ManaType 查 BattleVfxCatalog（红蓝绿主色/无卡或无彩=Gray）。</summary>
+        private static ManaType DominantCostMana(Entity source)
         {
             if (source is Card sc)
             {
@@ -1730,9 +1735,9 @@ namespace SynergyUI
                     float v = cost[m];
                     if (v > bestV) { bestV = v; best = m; }
                 }
-                return BattleCastArrival.ManaColor(best);
+                return best;
             }
-            return BattleCastArrival.ManaColor(ManaType.Gray);
+            return ManaType.Gray;
         }
 
         /// <summary>效果伤害演出（AtomicDamageEvent·IsCombatDamage=false——投影器延迟载荷随回放步
@@ -1772,19 +1777,35 @@ namespace SynergyUI
             var src = castCell != null
                 ? CastingAnchor(castCell.Value.x, castCell.Value.z) + Vector3.up * 0.35f // 贴片平躺地面——抬起一点起飞
                 : ResolveEffectSourceAnchor(source, ownerOf);
-            var tint = effectTint != null
-                ? BattleCastArrival.ManaColor(effectTint.Value) // 效果基础色（所用原子行基准主色）
-                : DominantCostColor(source); // 无基准回落：来源卡费用主色
-            if (src != null)
-                await BattleEffectFx.PlayOrbAsync(src.Value, et.ImpactAnchor, tint); // 飞行段（缺件=立即返回直落爆点）
-            var impact = BattleEffectFx.PlayImpact(et.ImpactAnchor, tint);
+            var mana = effectTint ?? DominantCostMana(source); // 路由色（2026-10-23 VFX 接入）：效果基准主色，无基准回落来源卡费用主色
+            var tint = BattleCastArrival.ManaColor(mana);
+            // 颜色路由链（Phase 1）：Cast→弹体→Hit 三节点查 BattleVfxCatalog；used=false（缺件/
+            // 未配置/并发超限/异常/开关关）整链回落旧 MagicOrb+Impact——两套不同播。
+            // 调用点 scale 恒 1f（2026-10-23 晚整改：entry.scale=生成器按角色归一化的绝对目标尺寸，勿双重缩放）。
+            bool used = false;
+            if (BattleVfxFx.Enabled && src != null)
+            {
+                try
+                {
+                    used = BattleVfxFx.TryPlayCast(mana, src.Value, 1f);
+                    if (used) await BattleVfxFx.TryPlayProjectileAsync(mana, src.Value, et.ImpactAnchor, 1f);
+                    if (used) BattleVfxFx.TryPlayHit(mana, et.ImpactAnchor, 1f);
+                }
+                catch (Exception ex) { BattleVfxFx.NoteFailure(ex); used = false; }
+            }
+            if (!used)
+            {
+                if (src != null)
+                    await BattleEffectFx.PlayOrbAsync(src.Value, et.ImpactAnchor, tint); // 飞行段（缺件=立即返回直落爆点）
+                BattleEffectFx.PlayImpact(et.ImpactAnchor, tint);
+            }
             if (et.Unit != null && !et.Unit.DeathExitStarted)
                 et.Unit.Anim?.Play(MonsterAction.Hit); // 受击（一次性压扁回弹，叠在待机上）；碎裂退场排在链尾——受击先放
             else if (et.Unit == null)
                 HeroImpactPulseAsync(et.HeroOwner).Forget(); // 角色立柱脉冲（自带门配对）
 #if UNITY_EDITOR
             Debug.Log($"[EffectFx] 伤害演出 amount={amount} 目标单位{(et.Unit != null ? "" : "=无（角色）")}"
-                      + $" 弹体={(src != null ? 1 : 0)} 爆点={(impact != null ? 1 : 0)}"
+                      + $" 路由={(used ? "VFX三节点" : "旧链")} 弹体={(src != null ? 1 : 0)}"
                       + $"{(castCell != null ? $" 法术位({castCell.Value.x},{castCell.Value.z})" : "")}"); // 演出取证口（构建不打）
 #endif
             await FloatTextAsync(et.FloatParent, et.FloatHeight, "-" + amount, StatDownColor);
@@ -1816,7 +1837,16 @@ namespace SynergyUI
             Vector3 ground = et.Unit != null && et.Unit.Wrapper != null
                 ? et.Unit.Wrapper.position
                 : et.FloatParent != null ? et.FloatParent.position : et.ImpactAnchor;
-            BattleEffectFx.PlaySpark(ground + Vector3.up * SparkLift, SparkUpColor);
+            // 回复节点优先（Phase 1）：绿=HealBig/白=HealNova（回复事件无效果色——绿为治疗主色档）；
+            // 未路由回落绿火花（Dissolve 复用）。锚同火花口径抬 SparkLift 防六棱柱地块遮挡。
+            bool healed = false;
+            if (BattleVfxFx.Enabled)
+            {
+                try { healed = BattleVfxFx.TryPlayHeal(ManaType.Green, ground + Vector3.up * SparkLift, 1f); }
+                catch (Exception ex) { BattleVfxFx.NoteFailure(ex); }
+            }
+            if (!healed)
+                BattleEffectFx.PlaySpark(ground + Vector3.up * SparkLift, SparkUpColor);
             await FloatTextAsync(et.FloatParent, et.FloatHeight, "+" + amount, StatUpColor);
         }
 
@@ -1960,15 +1990,24 @@ namespace SynergyUI
                         var src = castCell != null
                             ? CastingAnchor(castCell.Value.x, castCell.Value.z) + Vector3.up * 0.35f // 法术位起飞（同伤害弹体口径）
                             : ResolveEffectSourceAnchor(source, ownerOf); // 技能/触发等无发动位=施法者角色
-                        var tint = effectTint != null
-                            ? BattleCastArrival.ManaColor(effectTint.Value) // 效果基础色（所用原子行基准主色）
-                            : DominantCostColor(source); // 无基准回落：来源卡费用主色
-                        if (src != null)
-                            await BattleEffectFx.PlayOrbAsync(src.Value, et.ImpactAnchor, tint);
-                        var impact = BattleEffectFx.PlayImpact(et.ImpactAnchor, tint); // 命中爆点（2026-10-20 补齐）：同伤害/飞行链口径——锚=弹体落点、色=效果色；紫火花仍是消灭印记
+                        var mana = effectTint ?? DominantCostMana(source); // 路由色（2026-10-23 VFX 接入，同伤害链口径）
+                        var tint = BattleCastArrival.ManaColor(mana);
+                        // 范围节点优先（Phase 1）：消灭族目标点 AOE 爆；未路由走原弹体+爆点链。紫火花=消灭印记恒保留
+                        bool areaRouted = false;
+                        if (BattleVfxFx.Enabled)
+                        {
+                            try { areaRouted = BattleVfxFx.TryPlayArea(mana, et.ImpactAnchor, 1f); }
+                            catch (Exception ex) { BattleVfxFx.NoteFailure(ex); }
+                        }
+                        if (!areaRouted)
+                        {
+                            if (src != null)
+                                await BattleEffectFx.PlayOrbAsync(src.Value, et.ImpactAnchor, tint);
+                            BattleEffectFx.PlayImpact(et.ImpactAnchor, tint); // 命中爆点（2026-10-20 补齐）：同伤害/飞行链口径——锚=弹体落点、色=效果色
+                        }
                         BattleEffectFx.PlaySpark(et.Unit.Wrapper.position + Vector3.up * SparkLift, DestroySparkColor, 16000f);
 #if UNITY_EDITOR
-                        Debug.Log($"[EffectFx] 消灭演出 目标=单位{rid % 10000} 弹体={(src != null ? 1 : 0)} 爆点={(impact != null ? 1 : 0)}"
+                        Debug.Log($"[EffectFx] 消灭演出 目标=单位{rid % 10000} 路由={(areaRouted ? "AOE" : "旧链")} 弹体={(src != null ? 1 : 0)}"
                                   + $"{(castCell != null ? $" 法术位({castCell.Value.x},{castCell.Value.z})" : "")}");
 #endif
                     }
@@ -2017,14 +2056,32 @@ namespace SynergyUI
             var src = castCell != null
                 ? CastingAnchor(castCell.Value.x, castCell.Value.z) + Vector3.up * 0.35f
                 : ResolveEffectSourceAnchor(source, ownerOf);
-            var tint = effectTint != null
-                ? BattleCastArrival.ManaColor(effectTint.Value)
-                : DominantCostColor(source);
-            if (src != null)
-                await BattleEffectFx.PlayOrbAsync(src.Value, et.ImpactAnchor, tint);
-            BattleEffectFx.PlayImpact(et.ImpactAnchor, tint);
+            var mana = effectTint ?? DominantCostMana(source); // 路由色（2026-10-23 VFX 接入，同伤害链口径）
+            var tint = BattleCastArrival.ManaColor(mana);
+            // 颜色路由（Phase 1）：弹体→Hit 两节点（飞行事件无发动位=无 Cast 节点）；失败整链回落旧 orb+impact
+            bool routed = false;
+            if (BattleVfxFx.Enabled)
+            {
+                try
+                {
+                    if (src != null)
+                    {
+                        routed = await BattleVfxFx.TryPlayProjectileAsync(mana, src.Value, et.ImpactAnchor, 1f);
+                        if (routed) BattleVfxFx.TryPlayHit(mana, et.ImpactAnchor, 1f);
+                    }
+                    else // 无源锚点=直落命中（同旧链 src==null 只播爆点口径）
+                        routed = BattleVfxFx.TryPlayHit(mana, et.ImpactAnchor, 1f);
+                }
+                catch (Exception ex) { BattleVfxFx.NoteFailure(ex); routed = false; }
+            }
+            if (!routed)
+            {
+                if (src != null)
+                    await BattleEffectFx.PlayOrbAsync(src.Value, et.ImpactAnchor, tint);
+                BattleEffectFx.PlayImpact(et.ImpactAnchor, tint);
+            }
 #if UNITY_EDITOR
-            Debug.Log($"[EffectFx] 飞行演出（效果无效/不适用·发动照播）目标={(et.Unit != null ? "单位" : "角色")}"
+            Debug.Log($"[EffectFx] 飞行演出（效果无效/不适用·发动照播）目标={(et.Unit != null ? "单位" : "角色")} 路由={(routed ? "VFX" : "旧链")}"
                       + $"{(castCell != null ? $" 法术位({castCell.Value.x},{castCell.Value.z})" : "")}");
 #endif
         }
