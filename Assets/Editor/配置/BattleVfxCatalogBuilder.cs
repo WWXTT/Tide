@@ -54,8 +54,8 @@ namespace Tide.HotUpdateTools
             { "FireballCast", 3.5f },
             { "FireballHit", 2.5f },
             { "WaterballCast", 1.2f },
-            { "WaterballProjectile", 2.5f },
             { "WaterballHit", 1.0f },
+            { "Glowing orb 33", 0.6f },
             { "MysticExplosionWhite", 0.6f },
             { "MysticExplosionDark/Cast", 0.45f }, // 只覆盖 Cast；Area 仍走自动归一化
             { "ShadowExplosion", 0.6f },
@@ -204,7 +204,7 @@ namespace Tide.HotUpdateTools
 
             // ---- 蓝·水（PixPlays 独占）----
             l.Add(new Spec(ManaType.Blue, VfxRole.Cast, $"{pix}/ElementalProjectiles/Waterball/Version_URP/WaterballCast/WaterballCast.prefab"));
-            l.Add(new Spec(ManaType.Blue, VfxRole.Projectile, $"{pix}/ElementalProjectiles/Waterball/Version_URP/WaterballProjectile/WaterballProjectile.prefab"));
+            l.Add(new Spec(ManaType.Blue, VfxRole.Projectile, $"{hov}/Glowing orb 33.prefab"));
             l.Add(new Spec(ManaType.Blue, VfxRole.Hit, $"{pix}/ElementalProjectiles/Waterball/Version_URP/WaterExplosion/WaterballHit.prefab"));
             l.Add(new Spec(ManaType.Blue, VfxRole.Area, $"{pix}/ElementalAOE/WaterAOE/Version_URP/WaterAoeVFX.prefab"));
 
