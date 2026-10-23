@@ -180,7 +180,9 @@ namespace CardCore
     /// **表列词表统一用本表的「灰」**。</summary>
     public static class ManaTypeNames
     {
-        /// <summary>中文名（下标=枚举序 [灰,红,蓝,绿,白,黑]，扩色须同步补名）。</summary>
+        /// <summary>中文名（下标=枚举序 [灰,红,蓝,绿,白,黑,任意]，扩色须同步补名）。
+        /// 「任意」=Any 万能货币（2026-10-23）——表色追加/反查场景不应出现（费用不使用 Any），
+        /// 进词表仅为展示完备。</summary>
         private static readonly string[] ZhNames =
         {
             "灰", // Gray
@@ -189,6 +191,7 @@ namespace CardCore
             "绿", // Green
             "白", // White
             "黑", // Black
+            "任意", // Any（万能货币，非地牌锁色色）
         };
 
         /// <summary>中文名（越界回退枚举名）。</summary>

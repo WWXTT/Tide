@@ -308,7 +308,7 @@ namespace SynergyUI
             }
             var wallet = core.ElementPool.GetPool(me);
             if (wallet != null)
-                for (ManaType t = ManaType.Gray; t <= ManaType.Black; t++)
+                foreach (ManaType t in System.Enum.GetValues(typeof(ManaType)))
                     wallet.TempElements[t] = 0;
 
             // ② 末日降临入场 + 紊乱束缚×mode

@@ -910,6 +910,23 @@ namespace SynergyUI
                         label.text = $"{remaining}/{(g != null ? g.Total : 0)}";
                 }
             }
+
+            // 任意元素格（2026-10-23）：展示在地牌行靠角色端的端格（BoardLayout.AnyElementCell=
+            // 额外区格位 (0,0)/(7,6)，此前视觉空闲）——图标常驻+余额数字+余额>0 描边环（黑白同款
+            //「可用即钱包」口径：Any 不由地牌产出，永不叠地牌卡）；格角色仍是 Extra（点击行为不变）
+            var anyCell = BoardLayout.AnyElementCell(owner);
+            float anyIconZ = owner == 0 ? -0.42f : 0.35f;
+            BattleTileFx.AddElement(anyCell.x, anyCell.z, (int)ManaType.Any, new Vector2(0f, anyIconZ));
+            int anyWallet = pv != null && (int)ManaType.Any < pv.WalletByColor.Length
+                ? pv.WalletByColor[(int)ManaType.Any] : 0;
+            if (anyWallet > 0) BattleTileFx.SetLandGlow(anyCell.x, anyCell.z, (int)ManaType.Any);
+            var anyLabel = EnsureFlatCellLabel(((long)anyCell.x << 32) | (uint)anyCell.z, anyCell.x, anyCell.z,
+                owner == 0 ? 0.35f : -0.42f);
+            if (anyLabel != null)
+            {
+                anyLabel.gameObject.SetActive(true);
+                anyLabel.text = anyWallet.ToString(); // 只显余量（黑白同款——不挂上限数字）
+            }
         }
 
         private sealed class LandGroup

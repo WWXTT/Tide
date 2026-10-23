@@ -1269,6 +1269,15 @@ namespace CardCore
                 return false;
             }
 
+            // 教学引导闸（2026-10-23 元素合成步）：资源步期间拦截玩家侧主动效果发动——
+            // 防把后续步骤要用的效果提前烧掉（横置后步骤软锁）；AI 侧与响应路径不经此口
+            var guideReject = RuleHooks.TutorialActivateGate?.Invoke(player, source, effect);
+            if (guideReject != null)
+            {
+                Crumb($"CF-activate-reject def={effect.Id} reason=引导闸：{guideReject}");
+                return false;
+            }
+
             // 发动代价预检（仅主动；战场/技能栏源卡，手牌/墓地施放不适用）：
             // 结界=拒发动（禁主动定案）；其余（生物/技能区法术）=未横置（横置=一回合一次闸门）。
             if (effect.IsActivatedEffect && source != null
@@ -1306,6 +1315,9 @@ namespace CardCore
                 if (Attribute.KeywordRules.ShouldTap(source))
                     source.Tap();
             }
+
+            if (activated)
+                RuleHooks.OnTutorialEffectActivated?.Invoke(player, source); // 教学探针（2026-10-23 activate 步完成信号）
 
             return activated;
         }
@@ -1629,6 +1641,7 @@ namespace CardCore
             ManaType.Green => "绿",
             ManaType.White => "白",
             ManaType.Black => "黑",
+            ManaType.Any => "任意",
             _ => "灰",
         };
 

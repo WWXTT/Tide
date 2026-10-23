@@ -439,7 +439,7 @@
   {
     "ID": "35ce9ad8",
     "EnumName": "临摹",
-    "DisplayName": "变成场上目标单位(无法复制规则光环)，附加一层变形指示物，解除时还原;发动时，按变形前后卡费用，用蓝色元素补齐差额",
+    "DisplayName": "变成场上目标单位(无法复制规则光环)，附加一层变形指示物，解除时还原;发动时，按变形前后卡费用，用任意元素补齐差额",
     "EffectType": "Morph",
     "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位",
     "TargetFilter": "NotRole",
@@ -477,7 +477,7 @@
   {
     "ID": "0772c3e0",
     "EnumName": "变形赋予",
-    "DisplayName": "将{target}变成引用卡（引用卡ID指向一张真实生物/结界卡，无法引用规则光环），附加一层变形指示物，解除时还原；发动主动效果按变形前后卡费差额补蓝",
+    "DisplayName": "将{target}变成引用卡（引用卡ID指向一张真实生物/结界卡，无法引用规则光环），附加一层变形指示物，解除时还原；发动主动效果按变形前后卡费用，用任意元素补齐差额",
     "EffectType": "GrantMorph",
     "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位",
     "TargetFilter": "NotRole",
@@ -723,20 +723,20 @@
   },
   {
     "ID": "42e883b2",
-    "EnumName": "光合",
-    "DisplayName": "获得1个临时绿色元素（回合结束消失）",
-    "EffectType": "GrantPhotosynthesis",
-    "TargetKinds": "自己",
-    "TargetFilter": "NoRole",
+    "EnumName": "元素合成",
+    "DisplayName": "获得{value}个临时任意元素（可代替任何元素支付，回合结束消失）",
+    "EffectType": "GainAnyElement",
+    "TargetKinds": null,
+    "TargetFilter": null,
     "Polarity": 1,
-    "MountKinds": "关键词",
+    "MountKinds": "",
     "Tags": null,
     "ManaList": [
       0,
       0,
       0,
-      3,
       0,
+      3,
       0
     ]
   },

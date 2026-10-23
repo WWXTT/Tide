@@ -391,7 +391,7 @@ namespace CardCore.Attribute.Handlers
     /// 自身（效果源卡，须在场）以效果目标（场上生物/结界）为模板——连身份一起复制
     ///（卡名/ID/类别/攻血费/印刷关键词），以其文本效果取代自身文本效果（跳过其规则光环步），
     /// 附加 1 层变形指示物（中性 Resident）：换区/净化解除即**纯回滚**原形态（含横置态）；
-    /// 变为结界形态自动非横置+初始化耐久；发动主动效果按变形前后声明费差额补蓝（叠加于横置/耐久——蓝色专属能力）。</summary>
+    /// 变为结界形态自动非横置+初始化耐久；发动主动效果按变形前后声明费差额以任意元素补差（叠加于横置/耐久）。</summary>
     public class MorphHandler : AtomicEffectHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.Morph;
@@ -409,14 +409,14 @@ namespace CardCore.Attribute.Handlers
         }
 
         protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => "临摹目标：以其文本效果取代自身（跳过其规则光环），附加一层变形指示物，解除时还原；发动主动效果按变形前后费差补蓝";
+            => "临摹目标：以其文本效果取代自身（跳过其规则光环），附加一层变形指示物，解除时还原；发动主动效果按变形前后费差以任意元素补差";
     }
 
     /// <summary>变形赋予（2026-10-13 新增，引用卡ID 形式·行价 0·同临摹后付）：
     /// 将效果目标（场上生物/结界）变成引用卡（StringValue=真实卡 ID，经
     /// SummonTokenHandler.ResolveTemplate 解析——与召唤衍生物共用引用卡ID 解析器）；
     /// 复制面与临摹完全一致（身份/属性/关键词/文本效果·跳规则光环+变形指示物+解除纯回滚+
-    /// 结界形态非横置/耐久初始化+发动差额补蓝）；数量恒 1。</summary>
+    /// 结界形态非横置/耐久初始化+发动差额任意元素补差）；数量恒 1。</summary>
     public class GrantMorphHandler : AtomicEffectHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.GrantMorph;
@@ -448,7 +448,7 @@ namespace CardCore.Attribute.Handlers
         }
 
         protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => "将目标变成引用卡（复制其身份/属性/文本效果，跳过其规则光环），附加一层变形指示物，解除时还原；发动主动效果按变形前后费差补蓝";
+            => "将目标变成引用卡（复制其身份/属性/文本效果，跳过其规则光环），附加一层变形指示物，解除时还原；发动主动效果按变形前后费差以任意元素补差";
     }
 
     // ============ 战斗底盘（2026-09-10 攻击/守卫效果化） ============

@@ -196,16 +196,20 @@ namespace CardCore.Attribute.Handlers
 
     // 采掘（Mine）已删（2026-10-11 资源重做：指示物退役，「去 3 指示物换 1 元素」语义无载体）——
     // 枚举位 AtomicEffectType.Mine 留洞保序，表行 4fd4c954 同批删除；接替者=光合作用（下）。
+    // 光合作用（GrantPhotosynthesisHandler）亦于 2026-10-23 退役：表行 42e883b2「元素合成」改挂
+    // GainAnyElement（生成任意元素——非关键词族），枚举位同样留洞保序；接替者=下 handler。
 
     /// <summary>
-    /// 光合作用（2026-10-11 资源重做新增，绿3·关键词族 Grant 行）：回合开始时宿主控制者获得
-    /// {value} 个**临时绿色元素**（默认 1）——落临时钱包（任一回合结束清空），当回合内可付
-    /// 绿色费/垫灰费。触发时点由效果声明的 TriggerTiming=OnTurnStart 决定（通用触发通道），
-    /// handler 零特判——不感知时机/挂载，只管入账。
+    /// 元素合成/生成任意元素（2026-10-23 定案，白3·无目标资源行，表行 42e883b2）：控制者获得
+    /// {value} 个**任意元素**（默认 1，ManaType.Any）——万能货币落临时钱包（任一回合结束清空），
+    /// 支付时沿各色支付链末位垫付、可代替任何颜色元素（含黑白本色费——ChainFor 各链尾 Any）。
+    /// 非 Grant 关键词族（旧光合作用是「回合开始产绿」，本行不挂关键词位/无目标）；
+    /// 时机/挂载由效果声明驱动，handler 零特判——不感知时机/挂载，只管入账
+    /// （AddMana 内含全类型累计钳，钳掉部分不入账）。
     /// </summary>
-    public class GrantPhotosynthesisHandler : AtomicEffectHandlerBase
+    public class GainAnyElementHandler : AtomicEffectHandlerBase
     {
-        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.GrantPhotosynthesis;
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.GainAnyElement;
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
@@ -213,11 +217,11 @@ namespace CardCore.Attribute.Handlers
             int amount = context.GetValueAfterModifiers(effect.Value > 0 ? effect.Value : 1);
             if (amount <= 0) return;
             var from = context.Source as Card ?? context.CastCard as Card;
-            context.ElementPool.AddMana(context.Controller, ManaType.Green, from, amount);
+            context.ElementPool.AddMana(context.Controller, ManaType.Any, from, amount);
         }
 
         protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => $"光合作用：回合开始时获得 {(effect.Value > 0 ? effect.Value : 1)} 个临时绿色元素（回合结束消失）";
+            => $"获得 {(effect.Value > 0 ? effect.Value : 1)} 个任意元素（可代替任何元素支付，回合结束消失）";
     }
 
     // ======================= 控制相关 =======================

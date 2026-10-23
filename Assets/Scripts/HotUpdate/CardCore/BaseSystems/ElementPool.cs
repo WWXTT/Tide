@@ -91,10 +91,13 @@ namespace CardCore
     ///    各自上限管各自地牌张数（10-10 的全场合计占用不复活）。
     /// 3. 付费 = 现取现用：按账单规划「临时钱包余额 + 未横置地牌横置」组合，钱包优先消耗（回合末即逝），
     ///    地牌横置=系统自动的强制动作（无速度交互），自己/对手回合都一样（跨回合支付不变）。
-    /// 4. 支付链（2026-10-11 收窄）：红/蓝/绿仅本色；灰=[灰,黑,白,红,蓝,绿]（黑白只垫灰、三色垫灰沿用）；
-    ///    黑白本色费只有黑白元素能付（单向不变）。浓度上限（2026-10-16 临时元素超上限改版）：只钳
-    ///    **地牌横置贡献**（每货币单次 ≤ 地牌上限——地牌张数本就有界，钳为双保险），临时钱包贡献不受钳
-    ///    （获取=对应地块可用+1、可用可超上限——纯色需求超帽部分由钱包覆盖即付）。
+    /// 4. 支付链（2026-10-11 收窄；2026-10-23 任意元素）：红/蓝/绿仅本色；灰=[灰,黑,白,红,蓝,绿]
+    ///    （黑白只垫灰、三色垫灰沿用）；黑白本色费只有黑白元素能付（单向不变）；
+    ///    **任意元素（Any）=万能货币**（42e883b2 元素合成生成、落临时钱包），恒处各链末位垫付
+    ///    ——可代替任何颜色元素（含黑白本色费），链内前序耗尽才消耗（本色优先）。浓度上限
+    ///    （2026-10-16 临时元素超上限改版）：只钳**地牌横置贡献**（每货币单次 ≤ 地牌上限——地牌张数
+    ///    本就有界，钳为双保险），临时钱包贡献不受钳（获取=对应地块可用+1、可用可超上限——
+    ///    纯色需求超帽部分由钱包覆盖即付）。
     /// 5. 临时钱包：效果授予元素的唯一归宿，任一回合结束清空；生成钳（2026-10-16 全类型累计钳改案，
     ///    接替当日上午「黑白单次钳」）：**全类型（六色同池）单周期累计生成 ≤ 地牌上限**——周期=自己
     ///    回合开始清零；单次入账受剩余配额钳制，钳掉部分不入账不发事件。
@@ -218,7 +221,7 @@ namespace CardCore
             foreach (var type in total.NonzeroColors())
             {
                 int amount = (int)total[type];
-                if (amount > 0 && type != ManaType.Black && type != ManaType.White)
+                if (amount > 0 && type != ManaType.Black && type != ManaType.White && type != ManaType.Any)
                     pairs.Add((type, amount));
             }
             var result = pairs
@@ -524,12 +527,21 @@ namespace CardCore
                 }
             }
 
-            // ② 黑白本色费先行预留（防后续贪心吃掉黑白货币；黑白不垫任何色——单向；钱包不受钳）
+            // ② 黑白本色费先行预留（防后续贪心吃掉黑白货币；黑白不垫任何色——单向；钱包不受钳；
+            //    2026-10-23 任意元素：沿 ChainFor(黑白) 链扣——任意元素可垫黑白本色费，
+            //    地牌锁色不含任意，横置侧天然不参与）
             foreach (var bw in new[] { ManaType.Black, ManaType.White })
             {
                 if (!bill.TryGetValue(bw, out var bwNeed) || bwNeed <= 0) continue;
-                if (walletSim[bw] < bwNeed) return null;
-                Record(bw, bwNeed, null);
+                foreach (var currency in ElementPaymentValidator.ChainFor(bw))
+                {
+                    if (bwNeed <= 0) break;
+                    int take = Math.Min(walletSim[currency], bwNeed);
+                    if (take <= 0) continue;
+                    Record(currency, take, null);
+                    bwNeed -= take;
+                }
+                if (bwNeed > 0) return null;
             }
 
             // ③④ 四色需求按固定序×填链贪心：钱包优先（不受浓度钳，可超上限）、后横置地牌（每货币 ≤ cap）

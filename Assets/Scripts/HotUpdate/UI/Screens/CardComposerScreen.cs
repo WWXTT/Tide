@@ -47,6 +47,11 @@ namespace SynergyUI
     /// · type 区 ID 钮：仅在保存过卡后出现（num 显卡 ID，点击复制——方便衍生物填 ID）；
     /// · type 区 "CostSquares " 文本节点＝卡费文字公式（方格退役，口径参考效果组合界面费用公式）；
     /// · 右栏类别 chips 退役——颜色多选+模糊串搜索两列表通用。
+    ///
+    /// 2026-10-23 v2 三栏重排（对齐卡组 v2 观感）：左 520=图库（3 列 160 格+搜索+金框选中）/
+    /// 中 800=卡面 360×648 只读预览+表单两列网格（名称/类别/费用｜攻/血/耐久 带图标输入）+
+    /// 追加四钮 88×32/右 568=行模板（44 高·26 圆片费标·f14 名称·右侧 meta 标签·操作钮）；
+    /// 行描述全部走 desc-strip 悬停（行内不再塞全文）；chips 选中=ChipActive 底+描边。
     /// </summary>
     public sealed class CardComposerScreen : UIScreen
     {
@@ -107,6 +112,10 @@ namespace SynergyUI
         private TMP_Text _typeCostText;   // type 区 "CostSquares " 文本节点：卡费文字公式（方格已随 prefab 重做退役）
         private UInputField _nameInput, _attackInput, _lifeInput, _durabilityInput;
         private readonly Dictionary<CardKind, UnityEngine.UI.Button> _kindButtons = new Dictionary<CardKind, UnityEngine.UI.Button>();
+        private readonly Dictionary<CardKind, Color> _kindBtnBase = new Dictionary<CardKind, Color>(); // v2：chip 原底色（选中换 ChipActiveBg/还原）
+
+        // ---- 中栏 v2（2026-10-23）：卡面 360×648 只读预览层（名称/类别/构成摘要随算费同拍刷新） ----
+        private TMP_Text _nameView, _kindView, _faceNote;
 
         // ---- ID 钮（type 区）：仅在保存过卡后出现——num 显卡 ID，点击复制（方便衍生物那边填 ID） ----
         private UnityEngine.UI.Button _idBtn;
@@ -119,6 +128,9 @@ namespace SynergyUI
         private RectTransform _galleryContent;
         private UiKit.RecycledList _galleryList;
         private List<string> _artNames; // 立绘名数据源（首项 null=占位；非生物=空表）
+        private UInputField _artSearchField; // v2：左栏图库搜索（按立绘名子串过滤）
+        private TMP_Text _galleryCount;      // v2：图库表头计数
+        private string _galleryQuery = "";
 
         // ---- 右栏两列表（同日虚拟化：行池复用，筛选/搜索只重绑可见行） ----
         private UiKit.RecycledList _poolRows;   // list-effects=卡池
@@ -144,11 +156,13 @@ namespace SynergyUI
             public Action<EffectGraphData> Click;
             public string SummaryOverride;
             public Action ClickAction;
+            public string Tag;             // v2：右侧类型标签（代价/主动/光环/自动/关键词…）
             public float H;
         }
 
-        // 卡池颜色过滤 chips（预制体烘焙，Build 一次绑定；激活态=Outline 开关）。
+        // 卡池颜色过滤 chips（预制体烘焙，Build 一次绑定；激活态=底色+Outline，v2 同卡组 chips 视觉）。
         private readonly Dictionary<UIColor, UnityEngine.UI.Button> _filterChips = new Dictionary<UIColor, UnityEngine.UI.Button>();
+        private readonly Dictionary<UIColor, Color> _filterChipBase = new Dictionary<UIColor, Color>(); // v2：chip 原底色
 
         // ---- 悬浮介绍（2026-10-16：与效果组合界面同机制——UiKit.Described/DescRequested） ----
         private TMP_Text _descStrip;               // pool-panel 内 desc-strip 下 lbl-prop-desc
@@ -211,6 +225,16 @@ namespace SynergyUI
                 _galleryList?.Configure(i => 0, k => MakeArtTile, BindArtTile);
             }
             _galleryForKind = null; // Build=每次进屏重建（Attach 出的是全新空列表）：缓存实例的换型守卫须复位，否则二次进屏画廊永不被喂数据
+            // v2：图库搜索框（按立绘名子串过滤）+ 表头计数
+            _artSearchField = FindInput("field-art-search");
+            if (_artSearchField != null)
+            {
+                Describe(_artSearchField, "图库搜索：按立绘名子串过滤（仅生物画廊有图；空=全量含占位项）");
+                _artSearchField.onValueChanged.RemoveAllListeners();
+                _artSearchField.onValueChanged.AddListener(q => { _galleryQuery = q ?? ""; BuildArtGallery(true); });
+            }
+            var hdrGallery = Find("hdr-gallery");
+            _galleryCount = hdrGallery != null ? UiKit.FindDeep(hdrGallery, "count")?.GetComponent<TMP_Text>() : null;
             BuildArtGallery();
 
             // ---- 右栏：效果库 ↔ 卡池 ----
@@ -372,14 +396,24 @@ namespace SynergyUI
             foreach (var kv in _kindButtons)
             {
                 bool on = kv.Key == _kind;
+                var img = kv.Value.GetComponent<Image>();
+                if (img != null)
+                {
+                    if (!_kindBtnBase.TryGetValue(kv.Key, out var baseCol)) _kindBtnBase[kv.Key] = baseCol = img.color;
+                    img.color = on ? UiStyle.ChipActiveBg : baseCol; // v2：选中=ChipActive 底（同卡组 chips）
+                }
                 var ol = kv.Value.GetComponent<Outline>();
                 if (on && ol == null)
                 {
                     ol = kv.Value.gameObject.AddComponent<Outline>();
-                    ol.effectColor = UiStyle.TextPrimary;
+                    ol.effectColor = UiStyle.ChipActiveEdge;
                     ol.effectDistance = new Vector2(1.5f, -1.5f);
                 }
-                if (ol != null) ol.enabled = on;
+                if (ol != null)
+                {
+                    ol.effectColor = UiStyle.ChipActiveEdge;
+                    ol.enabled = on;
+                }
             }
         }
 
@@ -394,27 +428,19 @@ namespace SynergyUI
             _typeBg = FindImageUnder(_typeZone, "bg");
             _maskImg = FindImageUnder(_typeZone, "mask");
             _artImg = FindImageUnder(_typeZone, "art");
-            // 费用公式文本节点（prefab 由 CostSquares 方格改 TMP，节点名带尾空格 "CostSquares "）——
-            // 按名前缀找防尾空格丢失；开启自动换行（公式长于区宽）
-            if (_typeZone != null)
-            {
-                for (int i = 0; i < _typeZone.childCount; i++)
-                {
-                    var c = _typeZone.GetChild(i);
-                    if (!c.name.StartsWith("CostSquares", StringComparison.Ordinal)) continue;
-                    _typeCostText = c.GetComponent<TMP_Text>();
-                    if (_typeCostText != null)
-                    {
-                        _typeCostText.enableWordWrapping = true;
-                        break;
-                    }
-                }
-            }
+            // 费用公式文本节点（v2：随表单网格「费用」行移出 type 区；节点名带尾空格 "CostSquares "）——
+            // 按名前缀深扫防尾空格丢失；开启自动换行（公式长于行宽）
+            _typeCostText = FindCostFormulaText(_cardFace);
+            if (_typeCostText != null) _typeCostText.enableWordWrapping = true;
             BindIdButton();
 
             _nameInput = FindInputUnder(_cardFace, "name");
             if (_nameInput != null)
-                _nameInput.onValueChanged.AddListener(v => { _card.CardName = v; });
+                _nameInput.onValueChanged.AddListener(v =>
+                {
+                    _card.CardName = v;
+                    if (_nameView != null) _nameView.text = string.IsNullOrEmpty(v) ? "（未命名）" : v;
+                });
 
             _attributeZone = UiKit.FindDeep(_cardFace, "attribute");
             _attackInput = BindIntInput(_attributeZone, "attack",
@@ -423,6 +449,11 @@ namespace SynergyUI
                 v => { _card.Life = v; Recalculate(); }, "生物生命值——计入自动算费");
             _durabilityInput = BindIntInput(_attributeZone, "durability",
                 v => { _card.Durability = v; Recalculate(); }, "结界耐久——免费点全投耐久，装/卸效果时即时重算");
+
+            // v2 卡面只读预览层（卡名回显由上方输入监听直写；类别/构成摘要随 Recalculate/RefreshSlots 同拍）
+            _nameView = FindTmpUnder(_cardFace, "name-view");
+            _kindView = FindTmpUnder(_cardFace, "kind-view");
+            _faceNote = FindTmpUnder(_cardFace, "face-note");
 
             _costZone = UiKit.FindDeep(_cardFace, "cost");
             _effectZone = UiKit.FindDeep(_cardFace, "effect");
@@ -452,7 +483,8 @@ namespace SynergyUI
 
         private void BindIdButton()
         {
-            var idRt = _typeZone != null ? UiKit.FindDeep(_typeZone, "ID") : null;
+            // v2：ID 钮随卡面重排已迁出 type 区（card-visual 直属）——按 _cardFace 深扫（剃层免疫）
+            var idRt = _cardFace != null ? UiKit.FindDeep(_cardFace, "ID") : null;
             _idBtn = idRt?.GetComponent<UnityEngine.UI.Button>();
             _idNum = idRt != null ? UiKit.FindDeep(idRt, "num")?.GetComponent<TMP_Text>() : null;
             if (_idBtn == null)
@@ -468,7 +500,7 @@ namespace SynergyUI
                 nrt.anchorMax = new Vector2(0.62f, 1f);
                 nrt.offsetMin = new Vector2(10f, 0f);
                 nrt.offsetMax = Vector2.zero;
-                _idNum.fontSize = 24f;
+                _idNum.fontSize = 14f;
                 _idNum.alignment = TextAlignmentOptions.MidlineLeft;
             }
             var caption = UiKit.FindDeep(idRt, "Text")?.GetComponent<TMP_Text>();
@@ -479,7 +511,7 @@ namespace SynergyUI
                 crt.anchorMax = new Vector2(1f, 1f);
                 crt.offsetMin = Vector2.zero;
                 crt.offsetMax = new Vector2(-10f, 0f);
-                caption.fontSize = 20f;
+                caption.fontSize = 12f;
                 caption.alignment = TextAlignmentOptions.MidlineRight;
             }
             _idBtn.onClick.RemoveAllListeners();
@@ -559,6 +591,27 @@ namespace SynergyUI
         private static UInputField FindInputUnder(RectTransform scope, string name) =>
             scope != null ? UiKit.FindDeep(scope, name)?.GetComponentInChildren<UInputField>(true) : null;
 
+        private static TMP_Text FindTmpUnder(RectTransform scope, string name) =>
+            scope != null ? UiKit.FindDeep(scope, name)?.GetComponent<TMP_Text>() : null;
+
+        /// <summary>费用公式节点深扫（v2：节点在表单网格 cost-row 下；名带尾空格按前缀匹配）。</summary>
+        private static TMP_Text FindCostFormulaText(RectTransform scope)
+        {
+            if (scope == null) return null;
+            for (int i = 0; i < scope.childCount; i++)
+            {
+                var c = scope.GetChild(i);
+                if (c.name.StartsWith("CostSquares", StringComparison.Ordinal))
+                {
+                    var t = c.GetComponent<TMP_Text>();
+                    if (t != null) return t;
+                }
+                var deep = FindCostFormulaText(c as RectTransform);
+                if (deep != null) return deep;
+            }
+            return null;
+        }
+
         private UInputField BindIntInput(RectTransform scope, string node, Action<int> onChanged, string desc)
         {
             var field = FindInputUnder(scope, node);
@@ -575,20 +628,28 @@ namespace SynergyUI
         }
 
         /// <summary>属性输入框显隐+回写（生物=攻/血、结界=耐久、法术=attribute 整区隐藏）。
-        /// 攻/血文本回显收窄到 SetAttrTexts（留空=未填，保存闸口径）；耐久恒回显数字。</summary>
+        /// 攻/血文本回显收窄到 SetAttrTexts（留空=未填，保存闸口径）；耐久恒回显数字。
+        /// v2：输入在表单网格行壳内（icon+label+input）——行壳随输入一起显隐。</summary>
         private void SyncAttributeInputs()
         {
             if (_attributeZone != null)
                 _attributeZone.gameObject.SetActive(HasStats || HasDurability);
-            if (_attackInput != null)
-                _attackInput.gameObject.SetActive(HasStats);
-            if (_lifeInput != null)
-                _lifeInput.gameObject.SetActive(HasStats);
+            SetAttrActive(_attackInput, HasStats);
+            SetAttrActive(_lifeInput, HasStats);
+            SetAttrActive(_durabilityInput, HasDurability);
             if (_durabilityInput != null)
-            {
-                _durabilityInput.gameObject.SetActive(HasDurability);
                 _durabilityInput.SetTextWithoutNotify(_card.Durability.ToString());
-            }
+        }
+
+        /// <summary>输入框连同其行壳显隐（行壳=输入的直接父级，若非 attribute 区本身）。</summary>
+        private void SetAttrActive(UInputField field, bool on)
+        {
+            if (field == null) return;
+            var go = field.gameObject;
+            var row = field.transform.parent as RectTransform;
+            if (row != null && row != _attributeZone && row.name.EndsWith("-row", StringComparison.Ordinal))
+                go = row.gameObject;
+            go.SetActive(on);
         }
 
         /// <summary>攻/血输入框回显（2026-10-16 属性必填定案）：留空=未填（新建/清空后保存拦截）；
@@ -855,6 +916,40 @@ namespace SynergyUI
                 lines.Add($"总档位 D={result.Total:0}");
                 Describe(_typeZone, "卡牌费用（自动算费，手动声明已退役）——构成：\n" + string.Join("\n", lines));
             }
+            SyncCardPreview();
+        }
+
+        /// <summary>卡面只读预览层（v2）：名称/类别/构成摘要（身材·耐久·关键词·各效果一行）——
+        /// 与算费同拍（Recalculate）+ 槽行重建（RefreshSlots）后刷新；卡名另有输入监听直写。</summary>
+        private void SyncCardPreview()
+        {
+            if (_nameView != null)
+                _nameView.text = string.IsNullOrEmpty(_card.CardName) ? "（未命名）" : _card.CardName;
+            if (_kindView != null)
+                _kindView.text = _kind switch
+                {
+                    CardKind.Spell => "法术",
+                    CardKind.Enchantment => "结界",
+                    _ => "生物",
+                };
+            if (_faceNote != null)
+            {
+                var lines = new List<string>();
+                if (_kind == CardKind.Creature) lines.Add($"攻 {_card.Power ?? 0} ／ 血 {_card.Life ?? 0}");
+                else if (_kind == CardKind.Enchantment) lines.Add($"耐久 {_card.Durability:0.#}");
+                foreach (var k in _card.Keywords ?? new List<string>())
+                {
+                    var zh = KeywordZh(k);
+                    if (!string.IsNullOrEmpty(zh)) lines.Add("◆ " + zh);
+                }
+                foreach (var fx in _card.Effects ?? new List<CardEffectData>())
+                {
+                    if (fx == null) continue;
+                    string tag = IsAuraEffect(fx) ? "光环" : (IsActiveEffect(fx) ? "主动" : "自动");
+                    lines.Add($"[{tag}] {fx.DisplayName ?? "效果"}");
+                }
+                _faceNote.text = string.Join("\n", lines);
+            }
         }
 
         // ======================================== 左栏：卡池筛选 ========================================
@@ -890,20 +985,30 @@ namespace SynergyUI
             foreach (var kv in _filterChips)
             {
                 bool active = kv.Key == UIColor.All ? _colorFilterSet.Count == 0 : _colorFilterSet.Contains(kv.Key);
+                var img = kv.Value.GetComponent<Image>();
+                if (img != null)
+                {
+                    if (!_filterChipBase.TryGetValue(kv.Key, out var baseCol)) _filterChipBase[kv.Key] = baseCol = img.color;
+                    img.color = active ? UiStyle.ChipActiveBg : baseCol;
+                }
                 var ol = kv.Value.GetComponent<Outline>();
                 if (active && ol == null)
                 {
                     ol = kv.Value.gameObject.AddComponent<Outline>();
-                    ol.effectColor = UiStyle.TextPrimary;
+                    ol.effectColor = UiStyle.ChipActiveEdge;
                     ol.effectDistance = new Vector2(1.5f, -1.5f);
                 }
-                if (ol != null) ol.enabled = active;
+                if (ol != null)
+                {
+                    ol.effectColor = UiStyle.ChipActiveEdge;
+                    ol.enabled = active;
+                }
             }
         }
 
         // ChipColors/Rgb（关键词 chip 配色）随 tpl-kwchip 退役删除——关键词槽行走统一模板视觉。
 
-        private const float PoolRowH = 60f;   // 卡行高=模板行（VLG ctrlH=False 原口径）
+        private const float PoolRowH = 44f;   // v2 卡行高=模板行（44·圆片费标+名称+右侧标签）
         private const float PoolBtnH = 36f;   // 空态按钮行高
         private HashSet<string> _poolLibIds;  // 本轮刷新的库效果 id 集（断链标记，bind 时消费）
         private Color _poolRowBgDefault = Color.white; // 卡行模板底色（选中态还原基准，工厂首次捕获）
@@ -1009,7 +1114,7 @@ namespace SynergyUI
                 }
             }
 
-            // ---- 卡行（原 MakePoolRow 全量口径） ----
+            // ---- 卡行（v2 行模板：f14 名称+右侧 f12 标签+26 圆片费标；详情走悬浮） ----
             var card = item.Card;
             bool selected = !string.IsNullOrEmpty(_editingOriginalId) && card.ID == _editingOriginalId;
             bool broken = (card.Effects ?? new List<CardEffectData>())
@@ -1025,18 +1130,16 @@ namespace SynergyUI
             if (keywords.Count > 0) detailParts.Add(string.Join("·", keywords));
             if (summaries.Count > 0) detailParts.Add(string.Join("｜", summaries));
 
-            var text = (broken ? "⚠效果断链 " : "")
-                + (string.IsNullOrEmpty(card.CardName) ? card.ID : card.CardName) + "  " + TypeStatLine(card);
-            if (detailParts.Count > 0) text += "\n" + string.Join("｜", detailParts);
-            var meta = row.GetComponentInChildren<TMP_Text>(true);
-            if (meta != null) meta.text = text;
-
-            var csv = row.GetComponentInChildren<CostSquaresView>(true);
-            if (csv != null)
+            string displayName = string.IsNullOrEmpty(card.CardName) ? card.ID : card.CardName;
+            var nameText = UiKit.FindDeep(row, "name")?.GetComponent<TMP_Text>();
+            if (nameText != null)
             {
-                if (card.Cost != null && !card.Cost.IsZero) csv.SetCosts(card.Cost);
-                else csv.Clear();
+                nameText.text = (broken ? "⚠ " : "") + displayName;
+                nameText.color = broken ? UiStyle.ErrorRed : new Color(0.88f, 0.9f, 0.93f); // 行池复用须显式还原
             }
+            var metaText = UiKit.FindDeep(row, "meta")?.GetComponent<TMP_Text>();
+            if (metaText != null) metaText.text = TypeStatLine(card);
+            BindCostBadge(row, card.Cost);
 
             var img = row.GetComponent<Image>();
             if (img != null) img.color = selected ? UiStyle.SelectedRowBg : _poolRowBgDefault; // 池行复用须显式还原
@@ -1046,8 +1149,24 @@ namespace SynergyUI
                 btn2.onClick.RemoveAllListeners();
                 btn2.onClick.AddListener(() => LoadCardForEdit(card));
             }
-            Describe(row, "点击载入该卡到中间编辑（保存=覆盖替换旧卡）"
-                + (broken ? "——⚠该卡有效果引用断链（库效果已删/换代），装载时该效果会被跳过" : ""));
+            Describe(row, $"点击载入「{displayName}」到中间编辑（保存=覆盖替换旧卡）｜{TypeStatLine(card)}"
+                + (detailParts.Count > 0 ? "\n" + string.Join("\n", detailParts) : "")
+                + (broken ? "\n⚠该卡有效果引用断链（库效果已删/换代），装载时该效果会被跳过" : ""));
+        }
+
+        /// <summary>费用徽标写值（v2 行模板：cost 圆片+数字；无费用数据=隐藏——池行复用须显式还原）。</summary>
+        private static void BindCostBadge(RectTransform row, ElementCost cost)
+        {
+            var badge = UiKit.FindDeep(row, "cost");
+            if (badge == null) return;
+            if (cost == null || cost.IsZero)
+            {
+                badge.gameObject.SetActive(false);
+                return;
+            }
+            badge.gameObject.SetActive(true);
+            var num = badge.GetComponentInChildren<TMP_Text>(true);
+            if (num != null) num.text = ((int)Mathf.Round(cost.Total)).ToString();
         }
 
         private static string TypeStatLine(CardData card)
@@ -1415,6 +1534,7 @@ namespace SynergyUI
             BuildSlots(ZoneId.Passives);
             BuildSlots(ZoneId.Keys);
             SyncAddSlotButtons();
+            SyncCardPreview(); // v2：槽行重建后卡面构成摘要对账（多数路径随后还有 Recalculate 兜底）
         }
 
         /// <summary>逐槽行渲染：已填（数据下标）在前、空槽（_emptySlots）在后；
@@ -1824,7 +1944,7 @@ namespace SynergyUI
 
         private const float LibHeaderH = 28f;    // 表头行高
         private const float LibNewBtnH = 40f;    // 「新建效果」钮行高
-        private const float LibRowH = 60f;       // 效果/候选行高=模板行
+        private const float LibRowH = 44f;       // v2 效果/候选行高=模板行（44）
 
         /// <summary>效果库刷新（2026-10-16 二次改版）：选中槽 → 按槽类型过滤候选——cost=代价单原子图（一般主动/赋予·2026-10-21 简化定案）/
         /// effect=主动图 / passives=光环+自动图（结界分组）/ keys=关键词目录（唯一原子表直加口）；未选槽=全量效果图。
@@ -1866,7 +1986,7 @@ namespace SynergyUI
             _libItems.Add(new LibRowData { Kind = 2, H = LibNewBtnH });
 
         private void LibEffect(EffectGraphData graph, Action<EffectGraphData> onClick = null,
-            string summaryOverride = null)
+            string summaryOverride = null, string tag = null)
         {
             var name = string.IsNullOrEmpty(graph.name) ? "(未命名)" : graph.name;
             var summary = summaryOverride ?? AtomText.RenderEffectSummary(graph);
@@ -1875,16 +1995,19 @@ namespace SynergyUI
             {
                 Kind = 3, Graph = graph, Text = name, SummaryOverride = summary,
                 Click = onClick, H = LibRowH,
+                // v2 右侧标签：显式指定（代价/关键词视图）优先，否则按形态推导
+                Tag = tag ?? (EffectComposerScreen.IsAuraMode(EffectComposerScreen.InferMode(graph)) ? "光环"
+                    : (IsActiveGraph(graph) ? "主动" : "自动")),
             });
         }
 
-        private void LibCandidate(string title, string summary, Action onClick)
+        private void LibCandidate(string title, string summary, Action onClick, string tag = null)
         {
             if (!RowPassFilters(title + "\n" + (summary ?? ""), null)) return;
             _libItems.Add(new LibRowData
             {
-                Kind = 4, Text = string.IsNullOrEmpty(summary) ? title : title + "\n" + summary,
-                ClickAction = onClick, H = LibRowH,
+                Kind = 4, Text = title, // v2：单行显示（summary 只参与过滤/悬浮口径由调用方 Describe）
+                ClickAction = onClick, Tag = tag, H = LibRowH,
             });
         }
 
@@ -1919,7 +2042,7 @@ namespace SynergyUI
                 return;
             }
             foreach (var graph in graphs)
-                LibEffect(graph, FillPayloadCost, CostPreviewText(graph));
+                LibEffect(graph, FillPayloadCost, CostPreviewText(graph), "代价");
         }
 
         private void BuildLibraryActiveView()
@@ -1977,7 +2100,7 @@ namespace SynergyUI
             foreach (var kw in catalog)
             {
                 var captured = kw;
-                LibCandidate(captured.DisplayName, "", () => FillKeyword(captured));
+                LibCandidate(captured.DisplayName, "", () => FillKeyword(captured), "关键词");
             }
         }
 
@@ -2071,12 +2194,17 @@ namespace SynergyUI
                 }
                 case 4:
                 {
-                    var meta = row.GetComponentInChildren<TMP_Text>(true);
-                    if (meta != null) meta.text = item.Text;
-                    var csv = row.GetComponentInChildren<CostSquaresView>(true);
-                    if (csv != null) csv.Clear();
-                    var btn = row.GetComponent<UnityEngine.UI.Button>();
                     var title = item.Text.Split('\n')[0];
+                    var nameT = UiKit.FindDeep(row, "name")?.GetComponent<TMP_Text>();
+                    if (nameT != null)
+                    {
+                        nameT.text = title;
+                        nameT.color = new Color(0.88f, 0.9f, 0.93f);
+                    }
+                    var metaT = UiKit.FindDeep(row, "meta")?.GetComponent<TMP_Text>();
+                    if (metaT != null) metaT.text = item.Tag ?? "";
+                    BindCostBadge(row, null); // 候选行无费用数据——徽标隐藏（池行复用还原）
+                    var btn = row.GetComponent<UnityEngine.UI.Button>();
                     var act = item.ClickAction;
                     if (btn != null)
                     {
@@ -2088,19 +2216,19 @@ namespace SynergyUI
                 }
             }
 
-            // ---- 效果行（原 MakeLibraryEffectRow 全量口径） ----
+            // ---- 效果行（v2：f14 名称+右侧 f12 标签+费标；摘要走悬浮） ----
             var graph = item.Graph;
             var name = item.Text;
             var summary = item.SummaryOverride ?? "";
-            var meta2 = row.GetComponentInChildren<TMP_Text>(true);
-            if (meta2 != null) meta2.text = string.IsNullOrEmpty(summary) ? name : name + "\n" + summary;
-            var csv2 = row.GetComponentInChildren<CostSquaresView>(true);
-            if (csv2 != null)
+            var name2 = UiKit.FindDeep(row, "name")?.GetComponent<TMP_Text>();
+            if (name2 != null)
             {
-                var cost = graph.header?.AnchorCost;
-                if (cost != null && !cost.IsZero) csv2.SetCosts(cost);
-                else csv2.Clear();
+                name2.text = name;
+                name2.color = new Color(0.88f, 0.9f, 0.93f);
             }
+            var meta2 = UiKit.FindDeep(row, "meta")?.GetComponent<TMP_Text>();
+            if (meta2 != null) meta2.text = item.Tag ?? "";
+            BindCostBadge(row, graph?.header?.AnchorCost);
             var rowBtn = row.GetComponent<UnityEngine.UI.Button>();
             if (rowBtn != null)
             {
@@ -2113,9 +2241,10 @@ namespace SynergyUI
                     else FillSelectedSlot(graph);
                 });
             }
-            Describe(row, item.Click != null
-                ? $"点击=把「{name}」整图填入代价槽（逐原子全价·生效后补偿黑/白）"
-                : $"点击=把「{name}」填入中间选中槽位（未选槽=追加到末尾）");
+            Describe(row, (item.Click != null
+                    ? $"点击=把「{name}」整图填入代价槽（逐原子全价·生效后补偿黑/白）"
+                    : $"点击=把「{name}」填入中间选中槽位（未选槽=追加到末尾）")
+                + (string.IsNullOrEmpty(summary) ? "" : "\n" + summary));
             var editBtn = UiKit.FindDeep(row, "edit")?.GetComponent<UnityEngine.UI.Button>();
             if (editBtn != null)
             {
@@ -2333,18 +2462,24 @@ namespace SynergyUI
         // 换类型才重铺，载入/新建卡只重绑可见格（滚动位置不再被重置）。
         private CardKind? _galleryForKind;
 
-        private void BuildArtGallery()
+        private void BuildArtGallery(bool force = false)
         {
             if (_galleryList == null) return;
-            if (_galleryForKind == _kind) { _galleryList.RebindVisible(); return; } // 同类型：仅对账高亮
+            if (!force && _galleryForKind == _kind) { _galleryList.RebindVisible(); return; } // 同类型：仅对账高亮
             _galleryForKind = _kind;
             _artNames = new List<string>();
             if (_kind == CardKind.Creature)
             {
-                _artNames.Add(null); // 占位项（清空立绘=预制体占位图，ACardView 同口径）
-                _artNames.AddRange(CreatureArtNames());
+                bool emptyQuery = string.IsNullOrEmpty(_galleryQuery);
+                if (emptyQuery) _artNames.Add(null); // 占位项（清空立绘=预制体占位图）——搜索态隐藏
+                foreach (var n in CreatureArtNames())
+                    if (emptyQuery || n.IndexOf(_galleryQuery, StringComparison.OrdinalIgnoreCase) >= 0)
+                        _artNames.Add(n);
             }
-            _galleryList.SetGrid(_artNames.Count); // 格几何（210×270·间16）由 Attach 从 GLG 吸收
+            if (_galleryCount != null)
+                _galleryCount.text = _kind != CardKind.Creature ? "无"
+                    : (_artNames.Count == 0 ? "0" : (_artNames.Count - 1).ToString()) + " 张";
+            _galleryList.SetGrid(_artNames.Count); // 格几何（160×160·间8·3 列）由 Attach 从 GLG 吸收
         }
 
         /// <summary>生物立绘可选名（=模型名，与战场 MonsterModelResolver 同源：StreamingAssets bundle
@@ -2356,35 +2491,56 @@ namespace SynergyUI
             return Tide.HotUpdate.MonsterRigAssets.Names();
         }
 
-        /// <summary>贴片结构（工厂，只建一次）：底板+缩略图（占位字随绑显隐）+名称+按钮+选中描边。
-        /// 内部 VLG（thumb/label 排版）不受 content 布局接管影响——只摘了 content 上的 GLG。</summary>
+        /// <summary>贴片结构（v2 工厂，只建一次）：160×160 满格=Rounded6 底板+统一方形缩略（preserveAspect）
+        /// +底部半透明名称条（f12 覆盖在缩略下部）+按钮+金框选中描边。内部无布局组（GLG 控格）。</summary>
         private RectTransform MakeArtTile()
         {
-            var tile = UiKit.Column("tile", _galleryContent, spacing: 4f, pad: 6f);
+            var tile = UiKit.Node("tile", _galleryContent);
             var bg = tile.gameObject.AddComponent<Image>();
-            bg.color = new Color(0.18f, 0.19f, 0.22f, 0.8f);
+            bg.sprite = UiKit.RoundedSprite; // 程序生成圆角（同 UiKit.Button 口径，无 bundle 依赖）
+            bg.color = new Color(0.16f, 0.18f, 0.22f, 1f);
             bg.raycastTarget = true;
 
             var thumb = UiKit.Node("thumb", tile);
             var img = thumb.gameObject.AddComponent<Image>();
-            UiKit.Size(thumb, w: 198f, h: 200f);
-            var hint = UiKit.Label("hint", thumb, "占位", UiStyle.BodySize, UiStyle.TextHint,
-                TextAnchor.MiddleCenter);
-            UiKit.StretchInset(hint.rectTransform, 2f, 0f);
-            hint.gameObject.SetActive(false); // 占位项才显示（bind 开关）
+            img.raycastTarget = false;
+            UiKit.Stretch(thumb); // 160×160 满格（GLG 定格）
 
-            var label = UiKit.Label("label", tile, "", UiStyle.SmallSize, UiStyle.TextBody, wrap: true);
-            UiKit.Size(label, fw: 1f);
+            var labelBg = UiKit.Node("label-bg", thumb).gameObject.AddComponent<Image>();
+            labelBg.color = new Color(0f, 0f, 0f, 0.55f);
+            labelBg.raycastTarget = false;
+            var lbRt = labelBg.rectTransform;
+            lbRt.anchorMin = new Vector2(0f, 0f);
+            lbRt.anchorMax = new Vector2(1f, 0f);
+            lbRt.pivot = new Vector2(0.5f, 0f);
+            lbRt.sizeDelta = new Vector2(0f, 20f);
+
+            var label = UiKit.Label("label", thumb, "", UiStyle.SmallSize, UiStyle.TextBody, TextAnchor.MiddleLeft);
+            var lRt = label.rectTransform;
+            lRt.anchorMin = new Vector2(0f, 0f);
+            lRt.anchorMax = new Vector2(1f, 0f);
+            lRt.pivot = new Vector2(0.5f, 0f);
+            lRt.sizeDelta = new Vector2(-8f, 20f);
+            lRt.anchoredPosition = new Vector2(0f, 1f);
+            label.overflowMode = TextOverflowModes.Ellipsis;
+
+            var hint = UiKit.Label("hint", thumb, "占位", UiStyle.SmallSize, UiStyle.TextHint,
+                TextAnchor.MiddleCenter);
+            UiKit.Stretch(hint.rectTransform);
+            hint.gameObject.SetActive(false); // 占位项才显示（bind 开关）
 
             var btn = tile.gameObject.AddComponent<UnityEngine.UI.Button>();
             btn.transition = Selectable.Transition.None;
             btn.targetGraphic = bg;
-            var ol = tile.gameObject.AddComponent<Outline>(); // 选中描边（bind 对账开关）
-            ol.effectColor = UiStyle.TextPrimary;
+            var ol = tile.gameObject.AddComponent<Outline>(); // 选中金框（bind 对账开关）
+            ol.effectColor = Gold;
             ol.effectDistance = new Vector2(2f, -2f);
             ol.enabled = false;
             return tile;
         }
+
+        /// <summary>图库选中金框（v2）。</summary>
+        private static readonly Color Gold = new Color(0.91f, 0.75f, 0.35f);
 
         /// <summary>贴片绑定：立绘图/占位字/名称/选中描边/点击监听（原 HighlightArtTile 高亮并入此处）。</summary>
         private void BindArtTile(RectTransform tile, int index)
@@ -2403,7 +2559,7 @@ namespace SynergyUI
             }
             var hintGo = thumb != null ? thumb.Find("hint") : null;
             if (hintGo != null) hintGo.gameObject.SetActive(placeholder);
-            var label = tile.Find("label")?.GetComponent<TMP_Text>();
+            var label = thumb != null ? thumb.Find("label")?.GetComponent<TMP_Text>() : null;
             if (label != null) label.text = placeholder ? "（占位）" : spriteName;
 
             var ol = tile.GetComponent<Outline>();

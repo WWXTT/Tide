@@ -121,6 +121,7 @@ namespace SynergyUI
         {
             { ManaType.Gray, "灰" }, { ManaType.Red, "红" }, { ManaType.Blue, "蓝" },
             { ManaType.Green, "绿" }, { ManaType.White, "白" }, { ManaType.Black, "黑" },
+            { ManaType.Any, "任意" }, // 万能货币（2026-10-23）：钱包串显示「任意N」
         };
 
         public static string PhaseZh(PhaseType p) => CardCore.MatchLogRenderer.PhaseZh(p);

@@ -134,15 +134,25 @@ namespace GameBoard
         };
 
         /// <summary>固定元素格映射：元素 → 该玩家地牌行格（LandCellElementOrder 序）。
-        /// 未知色回落序首（灰格）；黑白命中固定格但引擎永不入池（UI 侧常显身份）。</summary>
+        /// 未知色回落序首（灰格）；黑白命中固定格但引擎永不入池（UI 侧常显身份）；
+        /// 任意元素（Any）→ 角色侧端格（AnyElementCell——视觉叠加展示，不入 LandCellElementOrder
+        /// 六色序/不占 Land 格角色）。</summary>
         public static (int x, int z) LandCellOfElement(int player, CardCore.ManaType element)
         {
+            if (element == CardCore.ManaType.Any) return AnyElementCell(player);
             var cells = LandCells(player);
             if (cells.Count == 0) return (-1, -1);
             int i = System.Array.IndexOf(LandCellElementOrder, element);
             if (i < 0 || i >= cells.Count) i = 0;
             return cells[i];
         }
+
+        /// <summary>任意元素格（2026-10-23 定案）：地牌行**靠角色端**的端格——P1=(0,0)／P2=旋转像
+        /// (7,6)，即额外区格位（此前视觉空闲）。任意元素不由地牌产出、永不叠地牌卡：该格只作
+        /// 视觉叠加（图标+钱包余额数字+余额&gt;0 描边环，BattleFieldView.ReconcileLands），格角色
+        /// 仍是 Extra（点击弹额外区面板不变）——不扩 LandCells（六格一元素一格定案不动）。</summary>
+        public static (int x, int z) AnyElementCell(int player)
+            => player == 0 ? (P1ExtraX, P1ExtraZ) : Rotate180(P1ExtraX, P1ExtraZ);
 
         // ---- 表（静态构造一次）----
         private static readonly CellRole[] _roles = new CellRole[Width * Height];

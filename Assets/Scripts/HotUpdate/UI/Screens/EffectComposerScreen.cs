@@ -33,6 +33,10 @@ namespace SynergyUI
     /// 分支两形态从并列槽级载荷升为独立形态（并列回归纯两原子）；有限分支门槛卡=克隆 aura-card 点选
     ///（dd-trunk 下拉路径退役删除）；产出条件不再提供新建入口（历史 settle=2 载入只读展示）；
     /// 光环拆连接（箭头+条目）/范围（仪典步）两面，aura 判定统一走 IsAuraMode。
+    /// 2026-10-23 布局对齐卡组 v2（EffectUI.prefab 同批手术）：左900/右950、面板 Rounded8+1px 边框、
+    /// 形态 chips 独立行（14号/间距8/标签「形态」）、右栏行模板化 44 高双行（费用26+名称14+标签12+
+    /// 操作钮，次行描述小字）、顶栏费用=徽标+一行摘要（明细悬浮进描述条——desc-strip 单行滚动）、
+    /// 空槽常驻「从右侧选原子填入」占位。
     /// 2026-10-05 两槽定案：形态只余 并列（两槽）/光环——自由分支·事件引擎、有限分支·产出条件
     /// 折叠进并列形态的槽级 atomic.branch 载荷（结算方式下拉+条件/引擎参数+Then 奖励槽）；
     /// 2026-10-09 并列/分支互斥：分支编辑区仅第一槽——任一分支已开则第二槽隐藏、第二槽有原子则分支区隐藏。
@@ -208,10 +212,15 @@ namespace SynergyUI
         private readonly List<TableRowData> _atomItems = new List<TableRowData>();
         private readonly List<TableRowData> _effectItems = new List<TableRowData>();
 
-        /// <summary>右栏列表条目（原子行/光环行/效果行共用形态；IsHint=提示行）。</summary>
+        /// <summary>右栏列表条目（原子行/光环行/效果行共用形态；IsHint=提示行）。
+        /// 2026-10-23 行模板化：Name/Tag/Btn 三列上首行（名称14+标签12+操作钮），
+        /// Meta 降为次行单行小字（悬浮整行经描述条看全文）。</summary>
         private sealed class TableRowData
         {
             public bool IsHint;
+            public string Name;
+            public string Tag;
+            public string Btn;
             public string Meta;
             public Color Dot;
             public ElementCost Costs;   // null=清空方格
@@ -220,7 +229,9 @@ namespace SynergyUI
         }
         private RectTransform _modeBar, _timingRow;
         private TMP_Text _nameLabel;
-        private TMP_Text _costLabel; // 顶栏费用文本 lbl-effect-cost（2026-10-05 预制体改版：方格→文本；无效组合不显示）
+        private TMP_Text _costLabel; // 顶栏费用文本 lbl-effect-cost（2026-10-23 改版：只装一行摘要——公式链明细悬浮进描述条）
+        private RectTransform _costBadgeNode; // 费用徽标 cost-badge（2026-10-23 改版：Circle32 徽标=合计数值；无费用隐藏）
+        private TMP_Text _costBadgeLabel;
         private Button _deleteBtn;            // 删除当前库效果（仅效果表载入态可用）
         private UInputField _filterName;
         private UiKit.Dropdown _timingDropdown, _activationDropdown;
@@ -351,8 +362,13 @@ namespace SynergyUI
             _costLabel = Find("lbl-effect-cost")?.GetComponent<TMP_Text>();
             if (_costLabel != null)
                 UiKit.Described(_costLabel,
-                    "费用预览：主干各原子费用＋合计；分支 Then 奖励免费（不计合计）。"
-                    + "分支槽奖励超出可实现费用时按槽区红框提示调整后才能保存。");
+                    "费用预览：合计费用＋黑白获得；悬浮此处看完整费用构成（逐原子公式链）。"
+                    + "分支 Then 奖励免费（不计合计）；奖励超出可实现费用时按槽区红框提示调整后才能保存。");
+            // 费用徽标（2026-10-23 改版）：合计数值常驻顶栏——0/无效组合隐藏
+            _costBadgeNode = Find("cost-badge") as RectTransform;
+            _costBadgeLabel = _costBadgeNode != null ? _costBadgeNode.GetComponentInChildren<TMP_Text>(true) : null;
+            if (_costBadgeLabel == null)
+                Debug.LogError("[EffectComposer] 顶栏缺 cost-badge 费用徽标——检查 EffectUI.prefab");
             // 发动参数（2026-10-09 prefab 重排）：activate-bar 静态组（way/timing/take-effect，
             // 每组=标签+子节点 dropdown；speed 组 2026-10-15 随发动速度退役删除）；原 root 级
             // dropdown-activation/dropdown-timing/timing-row 与设置盒 speed/limit 随设置盒拆除退役
@@ -819,10 +835,22 @@ namespace SynergyUI
         private void RefreshName()
         {
             _nameLabel.text = CurrentDisplayName();
-            if (_costLabel != null) _costLabel.text = EffectCostText();
+            // 2026-10-23 改版：顶栏=徽标＋一行摘要；完整构成（公式链/逐原子分账）悬浮费用区经描述条展开
+            if (_costLabel != null)
+            {
+                _costLabel.text = CostSummaryText();
+                var costTag = _costLabel.GetComponent<UiKit.DescTag>();
+                if (costTag != null) costTag.Text = EffectCostText();
+            }
+            if (_costBadgeLabel != null)
+            {
+                float badgeTotal = CostBadgeTotal();
+                _costBadgeLabel.text = Mathf.RoundToInt(badgeTotal).ToString();
+                if (_costBadgeNode != null) _costBadgeNode.gameObject.SetActive(badgeTotal > 0f);
+            }
         }
 
-        /// <summary>顶栏费用文本（lbl-effect-cost，2026-10-05 预制体改版方格→文本）：
+        /// <summary>费用完整构成（2026-10-23 改版：不再直显顶栏——悬浮费用区经描述条单行滚动展开）：
         /// 并列=主干段（参数合规才显示：效果锚价完整构成——逐原子贡献＋合计＋黑白获得）
         /// ＋分支段（2026-10-09 定案：只声明「分支（奖励免费）」——奖励锚价/上限不随段列出，
         /// 超上限提示由槽区校验红框承载、保存已禁；分支段独立于主干校验恒显——超限时主干段隐藏，
@@ -842,6 +870,79 @@ namespace SynergyUI
             {
                 return "";
             }
+        }
+
+        /// <summary>顶栏费用一行摘要（2026-10-23 改版：顶栏=费用徽标＋一行；公式链明细悬浮费用区进描述条）：
+        /// 并列=「合计 X｜获得 Y｜分支（…）」；光环=「合计 X（N 条目）」。无效组合只留分支段。</summary>
+        private string CostSummaryText()
+        {
+            try
+            {
+                if (IsAuraMode(_mode))
+                {
+                    var (total, n) = AuraCostTotal();
+                    return n > 0 ? $"合计 {CostZh(total)}（{n} 条目）" : "";
+                }
+                string branch = BranchCostText();
+                if (!ZonesAllValid()) return branch;
+                var def = CardEffectConverter.ConvertOne(BuildCardEffect(), "COMPOSER_COST_PREVIEW");
+                if (def == null) return branch;
+                if (_editingCard != null && _editingCard.Supertype != Cardtype.Creature)
+                    def.TriggerLimitPerTurn = 1; // 镜像 ParallelCostText 非生物口径
+                var text = $"合计 {CostZh(CostDerivationService.DeriveElementCosts(def, 0))}";
+                var grants = CostDerivationService.DeriveElementGrants(def, 0);
+                if (grants != null && !grants.IsZero) text += $"｜获得 {CostZh(grants)}";
+                return branch.Length == 0 ? text : text + "｜" + branch;
+            }
+            catch
+            {
+                return "";
+            }
+        }
+
+        /// <summary>费用徽标数值=合计各色份额总和（无效组合/无费用=0——徽标隐藏）。</summary>
+        private float CostBadgeTotal()
+        {
+            try
+            {
+                if (IsAuraMode(_mode))
+                {
+                    var (total, n) = AuraCostTotal();
+                    return n > 0 ? SumCost(total) : 0f;
+                }
+                if (!ZonesAllValid()) return 0f;
+                var def = CardEffectConverter.ConvertOne(BuildCardEffect(), "COMPOSER_COST_PREVIEW");
+                if (def == null) return 0f;
+                if (_editingCard != null && _editingCard.Supertype != Cardtype.Creature)
+                    def.TriggerLimitPerTurn = 1;
+                return SumCost(CostDerivationService.DeriveElementCosts(def, 0));
+            }
+            catch
+            {
+                return 0f;
+            }
+        }
+
+        /// <summary>光环条目费用合计（Stage A 明细按色累加；n=条目行数——AuraTopCostText 同源）。</summary>
+        private (ElementCost total, int n) AuraCostTotal()
+        {
+            var lines = CardCore.CardCostService.Derive(AuraPreviewCard()).Breakdown
+                .Where(l => l != null && l.Stage == "A").ToList();
+            var total = new ElementCost();
+            foreach (var l in lines)
+            {
+                if (l.Color.HasValue) total[l.Color.Value] += l.Value;
+                else total[(int)ManaType.Gray] += l.Value;
+            }
+            return (total, lines.Count);
+        }
+
+        private static float SumCost(ElementCost cost)
+        {
+            if (cost == null) return 0f;
+            float s = 0f;
+            foreach (var c in cost.NonzeroColors()) s += cost[c];
+            return s;
         }
 
         /// <summary>分支段文本（2026-10-09 定案）：引擎/其余分支只声明「分支（奖励免费）」；**附加诅咒/祝福
@@ -1295,7 +1396,12 @@ namespace SynergyUI
                                 MakeAtomCard(slot, step.atomic, idx, SelKind.Parallel);
                             else MakeReadonlyStepBadge(slot, step); // 抉择等只读
                         }
-                        else if (i == _graph.steps.Count) firstEmptySlot ??= slot; // 空槽提示已去——slot-title 即空槽位
+                        else
+                        {
+                            // 空槽占位引导（2026-10-23 改版）：空槽卡区内常驻一行「从右侧选原子填入」
+                            if (i == _graph.steps.Count) firstEmptySlot ??= slot;
+                            MakeHint(slot, "从右侧选原子填入");
+                        }
                     }
                     if (_graph.steps.Count >= ParallelSlotCount)
                         MakeHint(_slotArea.Content, "已满 2 原子——点击槽选中后，右侧点击即替换");
@@ -1565,7 +1671,7 @@ namespace SynergyUI
 
         private static void MakeHint(RectTransform parent, string text)
         {
-            var hint = UiKit.Label("hint", parent, text, UiStyle.MiniSize, UiStyle.TextHint, wrap: true);
+            var hint = UiKit.Label("hint", parent, text, UiStyle.SmallSize, UiStyle.TextHint, wrap: true);
             UiKit.Size(hint, fw: 1f);
         }
 
@@ -2482,7 +2588,7 @@ namespace SynergyUI
                 });
                 UiKit.Described(idField, isGrantMorph
                     ? "引用卡ID（变形赋予）：指向一张真实生物或结界卡——目标变成那张卡（复制其身份/属性/文本效果，"
-                      + "跳过其规则光环），附加一层变形指示物；发动其主动效果按变形前后费差补蓝。数量恒 1。"
+                      + "跳过其规则光环），附加一层变形指示物；发动其主动效果按变形前后费差以任意元素补差。数量恒 1。"
                     : "引用卡ID（召唤衍生物）：指向一张真实生物卡——实例=该卡全参数复制、恒落战场（白板模板如 "
                       + "token_0_1/token_1_1/token_2_2/token_3_3）。填不存在的 ID 装载时构筑期拦截。");
             }
@@ -2733,9 +2839,12 @@ namespace SynergyUI
 
                 _effectItems.Add(new TableRowData
                 {
+                    Name = captured.name,                                          // 行名（2026-10-23 行模板化恢复显示）
+                    Tag = string.Join("·", parts.Select(c => c?.DisplayName ?? "")), // 组成简称
                     Meta = AtomText.RenderEffectSummary(captured), // 完整效果描述（2026-10-03 定案：不再简写）
                     Dot = DotColor(ColorFilter.OfTagsCsv(parts.FirstOrDefault()?.Tags)),
                     Costs = captured.header?.AnchorCost,
+                    Btn = "载入",
                     OnClick = () => LoadEffectFromLibrary(captured),
                     H = TableRowH,
                 });
@@ -2960,9 +3069,11 @@ namespace SynergyUI
                     if (!SearchQuery.Match(captured.DisplayName ?? "", _filterName.text)) continue;
                     _atomItems.Add(new TableRowData
                     {
+                        Name = captured.DisplayName,
                         Meta = ComposerCatalog.GateLabel(captured),
                         Dot = DotColor(UIColor.All),
                         Costs = null, // 门槛行无费用方格
+                        Btn = "填入",
                         OnClick = () => ApplySituationGate(captured),
                         H = TableRowH,
                     });
@@ -3000,9 +3111,12 @@ namespace SynergyUI
             foreach (var payload in payloads.OrderBy(p => p.Cfg?.ManaList?.Total ?? 0f))
                 _atomItems.Add(new TableRowData
                 {
+                    Name = payload.Cfg.DisplayName,
+                    Tag = payload.Cfg.Tags,
                     Meta = payload.Cfg.Description + CounterClearSuffix(payload.Cfg.Tags), // 2026-10-13 定案：指示物类行统一追加清除方式
                     Dot = DotColor(ColorFilter.OfTagsCsv(payload.Cfg.Tags)),
                     Costs = AtomCosts(payload.Cfg),
+                    Btn = "填入",
                     OnClick = () => QuickAdd(payload),
                     H = TableRowH,
                 });
@@ -3034,7 +3148,7 @@ namespace SynergyUI
 
         // ---- 右栏行工厂/绑定（2026-10-21 回收式虚拟化；行视觉以模板为单一来源） ----
 
-        private const float TableRowH = 60f; // 行高=模板行（VLG ctrlH=False 原口径）
+        private const float TableRowH = 44f; // 行高=模板行（2026-10-23 行模板化：60→44 双行紧凑）
 
         /// <summary>提示条目装配（量高：按内容宽测 preferred 高）。</summary>
         private static void AddTableHint(List<TableRowData> items, UiKit.Scroll list, string text) =>
@@ -3096,8 +3210,8 @@ namespace SynergyUI
         /// <summary>右栏行绑定（效果表侧）。</summary>
         private void BindEffectRow(RectTransform row, int index) => BindTableRow(row, _effectItems[index]);
 
-        /// <summary>右栏行绑定共用：2026-10-08 定案——行不显示名字，文本只有 meta 单列；
-        /// 行内费用=模板换入的 CostSquares 实例（按组件找），无实例回落 dot 色点染色；行点击 Button。</summary>
+        /// <summary>右栏行绑定共用（2026-10-23 行模板化改版）：首行=费用方格(26)+名称(14)+标签(12)+操作钮，
+        /// 次行=meta 单行小字（溢出省略）；悬浮整行经描述条看全文。行点击与操作钮同源 OnClick。</summary>
         private void BindTableRow(RectTransform row, TableRowData item)
         {
             if (item.IsHint)
@@ -3107,11 +3221,16 @@ namespace SynergyUI
                 return;
             }
 
-            var metaT = UiKit.FindDeep(row, "meta")?.GetComponentInChildren<TMP_Text>(true);
-            if (metaT == null)
-                Debug.LogError("[EffectComposer] row 模板缺 meta 文本节点——本行文本丢失；检查 EffectUI.prefab");
-            else
-                metaT.text = item.Meta ?? "";
+            var nameT = UiKit.FindDeep(row, "name")?.GetComponent<TMP_Text>();
+            if (nameT == null)
+                Debug.LogError("[EffectComposer] row 模板缺 name 文本——本行名称丢失；检查 EffectUI.prefab");
+            else nameT.text = item.Name ?? "";
+            var tagT = UiKit.FindDeep(row, "tag")?.GetComponent<TMP_Text>();
+            if (tagT != null) tagT.text = item.Tag ?? "";
+            var descT = UiKit.FindDeep(row, "desc")?.GetComponent<TMP_Text>();
+            if (descT == null)
+                Debug.LogError("[EffectComposer] row 模板缺 desc 文本——本行描述丢失；检查 EffectUI.prefab");
+            else descT.text = item.Meta ?? "";
 
             var rowView = row.GetComponentInChildren<CostSquaresView>(true);
             if (rowView != null)
@@ -3131,6 +3250,25 @@ namespace SynergyUI
             var onClick = item.OnClick;
             tbtn.onClick.RemoveAllListeners();
             tbtn.onClick.AddListener(() => { Debug.Log("[UI点击] 库行"); onClick?.Invoke(); });
+            UiKit.Described(tbtn, item.Meta); // 悬浮行=完整描述（指示物清除方式等后缀全量）上描述条
+
+            var actNode = UiKit.FindDeep(row, "btn-act");
+            if (actNode == null)
+                Debug.LogError("[EffectComposer] row 模板缺 btn-act 操作钮——行尾操作不可用；检查 EffectUI.prefab");
+            else
+            {
+                var actLbl = actNode.GetComponentInChildren<TMP_Text>(true);
+                if (actLbl != null) actLbl.text = string.IsNullOrEmpty(item.Btn) ? "填入" : item.Btn;
+                var actBtn = actNode.GetComponent<Button>();
+                if (actBtn == null)
+                {
+                    actBtn = actNode.gameObject.AddComponent<Button>();
+                    actBtn.transition = Selectable.Transition.None;
+                    actBtn.targetGraphic = actNode.GetComponent<Image>();
+                }
+                actBtn.onClick.RemoveAllListeners();
+                actBtn.onClick.AddListener(() => { Debug.Log("[UI点击] 库行操作钮"); onClick?.Invoke(); });
+            }
         }
 
         private static void SetPartColor(RectTransform row, string child, Color color)
@@ -3161,8 +3299,10 @@ namespace SynergyUI
                 if (!SearchQuery.Match(title + "\n" + meta, _filterName.text)) return;
                 _atomItems.Add(new TableRowData
                 {
+                    Name = title,
                     Meta = meta,
                     Dot = DotColor(color),
+                    Btn = "填入",
                     OnClick = onAdd,
                     H = TableRowH,
                 });

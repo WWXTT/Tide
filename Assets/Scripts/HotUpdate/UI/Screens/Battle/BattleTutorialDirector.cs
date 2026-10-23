@@ -274,7 +274,23 @@ namespace SynergyUI
                 ShowIntroPanelAfterCombatAsync(step, stepIndex).Forget();
             }
             else
+            {
                 CloseIntroPanel();
+                // 操作步配音（2026-10-23 v5 全程配音定案）：非 intro 步带 audio 同样播音——
+                // 步进即起声（元素合成/召唤/攻击/守卫解说随操作落点播）；**victory 步例外**
+                //（2026-10-24）：进入=自由挑战开始，胜利解说须等真赢（见下方完成时播放）
+                if (step != null && !string.IsNullOrEmpty(step.audio) && step.type != "victory")
+                    PlayTutorialVoiceAsync(step.audio).Forget();
+            }
+
+            // 胜利步配音在完成时播（2026-10-24）：引导全部完成（步进号=步数，末步=victory 带
+            // audio）=玩家真赢——此刻与通关弹窗（PromptBattleOver→Complete 弹窗）同拍起声
+            if (stepIndex >= TutorialGuide.Steps.Count && TutorialGuide.Steps.Count > 0)
+            {
+                var doneStep = TutorialGuide.Steps[TutorialGuide.Steps.Count - 1];
+                if (doneStep != null && doneStep.type == "victory" && !string.IsNullOrEmpty(doneStep.audio))
+                    PlayTutorialVoiceAsync(doneStep.audio).Forget();
+            }
 
             // 考验开局（2026-10-17）：过场卡（basics_12·aiTurnOnConfirm）确定即把回合交给对手——
             // 援军全清重铺后=对手进攻回合（OnEndTurnFan 现成序列：EndTurn→等翻 P2→驱动剧本 AI）。

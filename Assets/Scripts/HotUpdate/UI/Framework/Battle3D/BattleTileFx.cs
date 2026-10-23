@@ -39,7 +39,8 @@ namespace SynergyUI
         private const float RingInnerScale = 0.85f;
         private const float RingLift = 0.006f; // 顶面之上 6mm（菲涅尔壳 0.004 与图标 0.008 之间）
 
-        // 地牌锁色配色（描边环，兼旧菲涅尔壳口径）：下标=ManaType 序 [灰,红,蓝,绿,白,黑]；黑=additive 黑不发光，以紫罗兰替代
+        // 地牌锁色配色（描边环，兼旧菲涅尔壳口径）：下标=ManaType 序 [灰,红,蓝,绿,白,黑,任意]；
+        // 黑=additive 黑不发光，以紫罗兰替代；任意=万能货币用鎏金（与战场 v6 强调色同族——六色皆可替）
         private static readonly Color[] GlowColors =
         {
             new Color(0.62f, 0.64f, 0.70f), // 灰
@@ -48,6 +49,7 @@ namespace SynergyUI
             new Color(0.30f, 0.95f, 0.40f), // 绿
             new Color(0.95f, 0.95f, 0.88f), // 白
             new Color(0.62f, 0.38f, 0.95f), // 黑（紫替代）
+            new Color(0.90f, 0.76f, 0.30f), // 任意（鎏金）
         };
 
         // 生物可行动高光=扩散波（2026-10-13 晚用户定案：菲涅尔侧壁太弱，改格心向外扩散光波；
@@ -56,8 +58,8 @@ namespace SynergyUI
         private static readonly Color UnitGlowColor = new Color(0.776f, 0.635f, 0.294f);
         private static readonly Color UnitGlowColorOpp = new Color(0.60f, 0.37f, 0.31f);
 
-        private static readonly string[] ElemMatNames = { "Gray", "Red", "Blue", "Green", "White", "Black" };
-        private static readonly Material[] _elemMats = new Material[6]; // 元素图标面片材质（下标=ManaType 序）
+        private static readonly string[] ElemMatNames = { "Gray", "Red", "Blue", "Green", "White", "Black", "Any" };
+        private static readonly Material[] _elemMats = new Material[7]; // 元素图标面片材质（下标=ManaType 序；含 Any 万能货币）
 
         private static Material _fresnelMat;
         private static Mesh _hexMesh;

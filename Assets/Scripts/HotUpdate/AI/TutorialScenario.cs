@@ -249,10 +249,10 @@ namespace SynergyUI
                 }
             }
 
-            // 临时钱包清零（回合末清空同款——归一口径不留余额）
+            // 临时钱包清零（回合末清空同款——归一口径不留余额；枚举全遍历含 Any）
             var pool = core.ElementPool.GetPool(owner);
             if (pool != null)
-                for (ManaType t = ManaType.Gray; t <= ManaType.Black; t++)
+                foreach (ManaType t in System.Enum.GetValues(typeof(ManaType)))
                     pool.TempElements[t] = 0;
         }
 

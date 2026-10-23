@@ -296,7 +296,8 @@ namespace CardCore.AI.NeuralEnv
             g[14] = zm.GetCards(opp, Zone.Deck).Count / 60f;
             g[15] = zm.GetCards(me, Zone.Exile).Count;  // v3 新增：放逐计数（v2 完全缺失）
             g[16] = zm.GetCards(opp, Zone.Exile).Count;
-            // g[17..28] 临时钱包（现取现用：效果授予元素，回合末清空）
+            // g[17..28] 临时钱包（现取现用：效果授予元素，回合末清空）——固定六色向量（维度 v3 冻结）：
+            // Any 任意元素（2026-10-23）不进观测，AI 感知其支付力走 CanAfford 规则口（PlanBill 含链尾 Any）
             for (int i = 0; i < 6; i++) g[17 + i] = ep.GetPool(me).TempElements[(ManaType)i];
             for (int i = 0; i < 6; i++) g[23 + i] = ep.GetPool(opp).TempElements[(ManaType)i];
             g[29] = core.StackEngine.IsEmpty ? 0f : 1f; // 栈占用（二值）

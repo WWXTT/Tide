@@ -139,11 +139,11 @@ namespace CardCore
             // 特殊代价（牺牲等效果机制）不属「费用」，照收
             if (HeroSkillSystem.IsSkillSource(source))
                 elementCosts = HeroSkillSystem.ActivationBill(source);
-            // 临摹/变形发动补价（2026-10-13 差额恒蓝·蓝色专属能力）：被变形卡的主动效果按变形前后
-            // 声明费差额补蓝——预检与 ExecuteAsync 现付段同口径（付不出=不可发动）
+            // 临摹/变形发动补价（2026-10-23 开放元素限制——并入灰档=任意元素可补差；灰档支付链六色皆可垫付）：
+            // 被变形卡的主动效果按变形前后声明费差额补差——预检与 ExecuteAsync 现付段同口径（付不出=不可发动）
             {
                 int morphFee = Attribute.MorphSystem.ActivationSurcharge(source);
-                if (morphFee > 0) elementCosts[ManaType.Blue] += morphFee;
+                if (morphFee > 0) elementCosts[ManaType.Gray] += morphFee;
             }
             var specialCosts = effect.Costs != null
                 ? effect.Costs.Where(c => c.Type != CostType.ElementConsume).ToList()
@@ -264,13 +264,13 @@ namespace CardCore
                 elementCosts = HeroSkillSystem.ActivationBill(instance.Source);
             //（结界发动费抵扣臂已随 2026-10-15 拆分定案退役：免费点固定拆「速1+其余入耐久」，
             // 不再二选一抵每次发动费——DurabilityBonusOf/EnchantSpeedBonusOf 两向落位。）
-            // 临摹/变形发动补价（2026-10-13 差额恒蓝·蓝色专属能力，落在底盘抵扣之后——底盘属原卡，
-            // 不抵变形溢价）：被变形卡的主动效果按变形前后声明费差额补蓝并入本次账单；
+            // 临摹/变形发动补价（2026-10-23 开放元素限制——并入灰档=任意元素可补差，落在底盘抵扣之后——底盘属原卡，
+            // 不抵变形溢价）：被变形卡的主动效果按变形前后声明费差额补差并入本次账单；
             // 触发式（ElementCostPrepaid）不经此段；付不出沿用空转口径
             if (effect.IsActivatedEffect && !effect.ElementCostPrepaid)
             {
                 int morphFee = Attribute.MorphSystem.ActivationSurcharge(instance.Source);
-                if (morphFee > 0) elementCosts[ManaType.Blue] += morphFee;
+                if (morphFee > 0) elementCosts[ManaType.Gray] += morphFee;
             }
             var specialCosts = effect.Costs != null
                 ? effect.Costs.Where(c => c.Type != CostType.ElementConsume).ToList()
@@ -2021,8 +2021,9 @@ namespace CardCore
                 // 衍生物生成（落区三档：战场/手牌/牌组，费用按落区系数计价）
                 new SummonTokenHandler(),
 
-                // 关键词族 — 光合作用（2026-10-11：采掘退役接替者，绿3 Grant 行，回合开始+临时绿元素）
-                new GrantPhotosynthesisHandler(),
+                // 资源族 — 元素合成/任意元素（2026-10-23：光合作用退役，表行 42e883b2 改生成
+                // 任意元素——万能货币落临时钱包，各支付链末位垫付）
+                new GainAnyElementHandler(),
                 // 资源族 — 成长（2026-10-11：灵气复苏改+1，绿3，各自池可无限重复；2026-10-15 封顶退役）
                 new IncreaseLandCapHandler(),
 

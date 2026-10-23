@@ -4,7 +4,8 @@ using System.Collections.Generic;
 namespace CardCore
 {
     /// <summary>
-    /// 法力/元素类型
+    /// 法力/元素类型。2026-10-23 尾部追加 Any（万能货币）：ElementCost.Length 等数组口径
+    /// 随枚举自动加长，已落盘的六长位置数组读侧补零、语义不变（写入侧新数据为七长）。
     /// </summary>
     public enum ManaType
     {
@@ -14,6 +15,10 @@ namespace CardCore
         Green = 3,
         White = 4,
         Black = 5,
+        /// <summary>任意元素（2026-10-23 元素合成定案）：万能货币——仅由效果生成落临时钱包
+        ///（42e883b2 元素合成，回合末清空），支付时沿各色支付链**末位**垫付、可代替任何
+        /// 颜色元素（含黑白本色费）。不是第七种颜色：不由地牌产出、不可锁色、费用不使用。</summary>
+        Any = 6,
     }
 
     /// <summary>

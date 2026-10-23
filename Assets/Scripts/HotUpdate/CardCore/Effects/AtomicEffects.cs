@@ -324,11 +324,9 @@ namespace CardCore
         /// 消费口=EraseHandler。枚举只可尾部追加。</summary>
         Erase,
 
-        /// <summary>光合作用（2026-10-11 资源重做新增，绿3，**关键词族**——Grant 前缀+Self 域）：
-        /// 回合开始时宿主控制者获得 {value} 个临时绿色元素（默认 1）——落临时钱包（任一回合
-        /// 结束清空）。触发时点=效果声明 TriggerTiming=OnTurnStart（通用触发通道，零特判——
-        /// handler 只管 AddMana，时机/挂载全由声明与关键词归类驱动）。旧同名主动版（原蓄能，
-        /// 横置产绿）已退役。枚举只可尾部追加。</summary>
+        /// <summary>光合作用（已退役 2026-10-23）：表行 42e883b2「元素合成」改挂 GainAnyElement
+        ///（生成任意元素，非关键词族），本枚举位无表行引用——留洞保序（Mine 先例），handler 已删。
+        /// 旧语义：回合开始获得 {value} 个临时绿色元素（Grant 关键词族）。</summary>
         GrantPhotosynthesis,
 
         /// <summary>变形赋予（2026-10-13 临摹/变形赋予定案，表行价 0·同临摹后付）：
@@ -337,7 +335,7 @@ namespace CardCore
         /// 合成器输入框；数量恒 1）。复制面与临摹一致：连身份一起复制（卡名/ID/类别/攻血费/
         /// 印刷关键词）+ 以其文本效果取代自身（跳过其规则光环步），附加 1 层变形指示物
         ///（MorphStateCounter，中性 Resident）——换区/净化解除即纯回滚原形态；
-        /// 变为结界形态自动非横置+初始化耐久；发动主动效果按变形前后费差补蓝（叠加——蓝色专属能力）。
+        /// 变为结界形态自动非横置+初始化耐久；发动主动效果按变形前后费差以任意元素补差（并入灰档——六色支付链皆可垫付）。
         /// 消费口=GrantMorphHandler（MorphSystem.ApplyForm）。枚举只可尾部追加。</summary>
         GrantMorph,
 
@@ -367,6 +365,14 @@ namespace CardCore
         /// 不挂处理器、不参与主序列执行（ExecuteEffect 对未注册 handler=Warn+跳过）；
         /// CanBeTrunkRow/CanBeRewardRow 排除——门槛行不得作主干/奖励。枚举只可尾部追加。</summary>
         SituationGate,
+
+        /// <summary>元素合成/生成任意元素（2026-10-23 定案，白3·无目标资源行——表行 42e883b2，
+        /// 接替退役的光合作用）：控制者获得 {value} 个**任意元素**（默认 1，ManaType.Any）——
+        /// 万能货币落临时钱包（任一回合结束清空），支付时沿各色支付链末位垫付、可代替任何
+        /// 颜色元素（含黑白本色费）。非关键词族（Grant 前缀与 MountKinds 关键词位退役——
+        /// 无目标原子，时机/挂载由效果声明驱动）。生成受全类型累计钳（AddMana 内钳）。
+        /// 枚举只可尾部追加。</summary>
+        GainAnyElement,
     }
 
     /// <summary>

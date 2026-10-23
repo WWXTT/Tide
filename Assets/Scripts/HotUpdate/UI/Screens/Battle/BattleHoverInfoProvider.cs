@@ -373,6 +373,18 @@ namespace SynergyUI
                         : $"{who}卡组 · 剩 {n} 张（隐藏）";
                 }
                 // CellRole.Skill 已随技能格撤销（2026-10-16）退役：技能介绍=己方【发动】键悬停（对手=角色格悬停）
+                case CellRole.Extra:
+                {
+                    // 任意元素格叠展于此（2026-10-23：BoardLayout.AnyElementCell）——余额读数随悬停补齐；
+                    // 额外区入口文案顺带补上（此前该格悬停无文案）
+                    int anyN = pv != null && (int)ManaType.Any < pv.WalletByColor.Length
+                        ? pv.WalletByColor[(int)ManaType.Any] : 0;
+                    int extraN = ZoneCountOf(Core, owner, Zone.Extra);
+                    string anyLine = $"任意元素 · 钱包余额 {anyN}（可代替任何元素支付，回合结束消失；不由地牌产出）";
+                    return extraN > 0
+                        ? $"{who}格 · {anyLine}\n{who}额外区 · 衍生物模板 {extraN} 张（点击查看）"
+                        : $"{who}格 · {anyLine}";
+                }
                 case CellRole.Middle:
                     return null; // 中线格全数认领为功能格（2026-10-16 产量双格补 lx2/lx4 后无空格）——已改名 hud-tile-*，走各自悬停分支
                 default:

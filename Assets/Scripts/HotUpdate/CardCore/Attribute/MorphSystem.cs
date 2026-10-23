@@ -29,9 +29,10 @@ namespace CardCore.Attribute
         public HexDirection ArrowDirections;
         /// <summary>变形前横置态（变为结界形态自动非横置——解除时还原变形前的真实横置态）</summary>
         public bool WasTapped;
-        /// <summary>发动补价（差额恒蓝——变形=蓝色专属能力）：max(0, 变形后声明费总点 − 变形前声明费总点)——
-        /// 被变形卡发动主动效果时并入该次元素账单（叠加于横置/耐久经济之上）；触发式不补价。</summary>
-        public int SurchargeBlue;
+        /// <summary>发动补价（2026-10-23 开放元素限制——任意元素可补差）：max(0, 变形后声明费总点 − 变形前声明费总点)——
+        /// 被变形卡发动主动效果时并入该次元素账单的**灰档**（灰档支付链=灰→黑→白→红→蓝→绿，六色皆可垫付），
+        /// 叠加于横置/耐久经济之上；触发式不补价。</summary>
+        public int Surcharge;
     }
 
     /// <summary>
@@ -100,7 +101,7 @@ namespace CardCore.Attribute
                 LinkAuras = data.LinkAuras,
                 ArrowDirections = data.ArrowDirections,
                 WasTapped = self._isTapped,
-                SurchargeBlue = surcharge,
+                Surcharge = surcharge,
             };
 
             // 复制身份/属性/关键词 + 文本效果取代
@@ -156,7 +157,7 @@ namespace CardCore.Attribute
             {
                 Target = self,
                 Keyword = "临摹",
-                Detail = $"临摹为 {clone.CardName}（跳过其规则光环；发动主动效果按变形前后费差补蓝 {surcharge}）",
+                Detail = $"临摹为 {clone.CardName}（跳过其规则光环；发动主动效果按变形前后费差以任意元素补差 {surcharge}）",
                 Source = source,
             });
 
@@ -222,10 +223,11 @@ namespace CardCore.Attribute
             return true;
         }
 
-        /// <summary>发动补价（差额恒蓝——变形=蓝色专属能力）：被变形卡当前应补的蓝色点数；未变形=0。
-        /// 消费口=EffectExecutor.CanActivate 费用预检与 ExecuteAsync 现付段（仅主动——触发式预付不经此）。</summary>
+        /// <summary>发动补价（2026-10-23 开放元素限制——任意元素可补差）：被变形卡当前应补的差额点数；未变形=0。
+        /// 消费口=EffectExecutor.CanActivate 费用预检与 ExecuteAsync 现付段（并入灰档——六色支付链皆可垫付；
+        /// 仅主动——触发式预付不经此）。</summary>
         public static int ActivationSurcharge(Entity source)
-            => source is Card c && c._morphSnapshot.HasValue ? c._morphSnapshot.Value.SurchargeBlue : 0;
+            => source is Card c && c._morphSnapshot.HasValue ? c._morphSnapshot.Value.Surcharge : 0;
 
         /// <summary>触发式重挂：整卡注销旧注册 + 按当前 data 现转注册（主动每帧现转，无需此处）。</summary>
         private static void ReregisterTriggers(Card card)

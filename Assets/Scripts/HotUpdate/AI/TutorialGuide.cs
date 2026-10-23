@@ -23,6 +23,10 @@ namespace SynergyUI
     /// tapcreature——玩家须横置 card（带 LandTrait 的生物）产色（临时元素）；
     /// play——玩家须从手牌打出 card；card 可空（宽松）：任意生物召唤成功即推进（引擎费用闸
     ///   自然逼玩家挑付得起的——「看费用」本身是教学点）；
+    /// activate——玩家须发动 card（场上单位/角色）的主动效果（2026-10-23 元素合成步：
+    ///   发动入栈成功即推进=RuleHooks.OnTutorialEffectActivated 探针，GameActions.ActivateEffect
+    ///   主路径尾部发射）；card 可空（宽松）：任意主动效果发动即推进；其余引导步期间主动效果
+    ///   发动被闸（TutorialActivateGate——防提前横置烧掉步骤资源）；
     /// respond——玩家须完成一次响应窗口决策（2026-10-19 第二课连锁教学）：AI 宣动后响应窗交给
     ///   玩家（连锁打出/发动或点「不连锁」让过）即推进——探针=OnTutorialHumanResponded；
     ///   窗口未开（玩家无可连锁项被自动让过）时由「对手回合结束」兜底记 Missed 推进（防死锁）；
@@ -164,6 +168,8 @@ namespace SynergyUI
             RuleHooks.TutorialTapGate = GateTap;
             RuleHooks.TutorialTapCreatureGate = GateTapCreature;
             RuleHooks.TutorialPlayGate = GatePlay;
+            RuleHooks.TutorialActivateGate = GateActivate;
+            RuleHooks.OnTutorialEffectActivated = NotifyEffectActivated;
             RuleHooks.OnTutorialAttackDeclared = NotifyAttackDeclared;
             RuleHooks.OnTutorialAttackResolved = NotifyAttackResolved;
             RuleHooks.OnTutorialGuardResolved = NotifyGuardResolved;
@@ -224,6 +230,8 @@ namespace SynergyUI
             RuleHooks.TutorialTapGate = null;
             RuleHooks.TutorialTapCreatureGate = null;
             RuleHooks.TutorialPlayGate = null;
+            RuleHooks.TutorialActivateGate = null;
+            RuleHooks.OnTutorialEffectActivated = null;
             RuleHooks.OnTutorialAttackDeclared = null;
             RuleHooks.OnTutorialAttackResolved = null;
             RuleHooks.OnTutorialGuardResolved = null;
@@ -259,7 +267,9 @@ namespace SynergyUI
                 return $"生物保留待守卫（{NameOf(step.guarder)} 将拦截对手的 {NameOf(step.attacker)}）";
             if (step.type == "end")
                 return "引导要求结束回合——请结束回合（演示下一环节在对手回合发生）";
-            if (step.type != "attack") return null; // 资源步骤不拦攻击（理论上不冲突，保守放行）
+            if (step.type == "respond") return null; // 响应步=对手回合（本侧攻击不可达，保守放行）
+            if (step.type != "attack") // 资源步骤拦攻击（2026-10-23 收紧：预铺生物在场后步骤期乱攻击
+                return "引导未完成——按提示完成当前步骤后再攻击"; // 会横置掉后续步骤要用的单位=软锁；自由步已在上方放行）
             // attack 步：attacker 空=宽松（任意己方生物）；target 精确匹配（错误目标/其余生物一律拒绝）
             var attackerId = (attacker as Card)?.ID;
             if (!string.IsNullOrEmpty(step.attacker) && attackerId != step.attacker)
@@ -350,6 +360,21 @@ namespace SynergyUI
                     ? null // 宽松（card 空=任意——引擎费用闸自然逼玩家挑付得起的）或精确匹配
                     : $"引导要求打出 {NameOf(step.card)}（{NameOf(card?.ID)} 现在不可打出）";
             return "引导进行中——暂不可出牌";
+        }
+
+        /// <summary>主动效果发动闸（2026-10-23 元素合成步）：activate 步精确放行本卡、其余引导步拦截
+        ///（防提前烧掉步骤资源：发动即横置，横置后 activate 步软锁）。GameActions.ActivateEffect 主路径消费。</summary>
+        private static string GateActivate(Player player, Card card, EffectDefinition effect)
+        {
+            if (!Active || player != GameCore.Instance?.Player1) return null;
+            var step = Current;
+            if (step == null) return null;
+            if (step.type == "victory" || step.type == "fieldclear" || step.type == "luckuse" || step.type == "deathtoll") return null; // 自由步：放行
+            if (step.type == "activate")
+                return string.IsNullOrEmpty(step.card) || card?.ID == step.card
+                    ? null // 宽松（card 空=任意主动效果）或精确匹配
+                    : $"引导要求发动 {NameOf(step.card)} 的主动效果（{NameOf(card?.ID)} 现在不可发动）";
+            return "引导进行中——暂不可发动主动效果";
         }
 
         // ======================================== 探针（步骤完成信号） ========================================
@@ -458,6 +483,18 @@ namespace SynergyUI
             if (step == null || step.type != "play"
                 || player != GameCore.Instance?.Player1
                 || (!string.IsNullOrEmpty(step.card) && card?.ID != step.card)) return; // card 空=宽松任意
+            Advance(missed: false);
+        }
+
+        /// <summary>activate 步探针（2026-10-23 元素合成步）：玩家侧主动效果发动入栈成功
+        ///（GameActions.ActivateEffect 主路径尾部 RuleHooks 发射）即推进——元素合成无目标无连锁等待，
+        /// 宣言即教学事实完成；任意元素入账紧随其后。</summary>
+        private static void NotifyEffectActivated(Player player, Card source)
+        {
+            var step = Current;
+            if (step == null || step.type != "activate"
+                || player == null || player != GameCore.Instance?.Player1) return;
+            if (!string.IsNullOrEmpty(step.card) && source?.ID != step.card) return; // card 空=宽松任意
             Advance(missed: false);
         }
 
@@ -649,6 +686,7 @@ namespace SynergyUI
                 case "tap": return $"tap：横置 {NameOf(s.land)} 产出 {s.color}（{s.hint}）";
                 case "tapcreature": return $"tapcreature：横置 {NameOf(s.card)} 产色（{s.hint}）";
                 case "play": return $"play：打出 {NameOf(s.card)}（{s.hint}）";
+                case "activate": return $"activate：发动 {NameOf(s.card)} 的主动效果（{s.hint}）";
                 case "respond": return $"respond：完成一次响应窗口决策（连锁或让过）（{s.hint}）";
                 case "fieldclear": return $"fieldclear：自由操作清空对手全场生物（{s.hint}）";
                 case "luckuse": return $"luckuse：自由等待（运势用毕/引擎奖励触发）（{s.hint}）";

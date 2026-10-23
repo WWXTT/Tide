@@ -1363,7 +1363,57 @@ namespace CardCore.Editor
                        && bwPadGrayPlan.Count == 1
                        && bwPadGrayPlan.GetValueOrDefault(ManaType.Black) == 3,
                        "黑白垫灰：灰3 由黑3 垫付（黑白只垫灰、链序同源）");
+
+                // 任意元素（2026-10-23 定案，42e883b2 元素合成）：Any=万能货币，各链末位垫付
+                //（含黑白本色费）；本色优先消耗、Any 保留（链序末端）
+                var anyPadRedPlan = CardCore.ElementPaymentValidator.GetBillPaymentPlan(
+                    new Dictionary<ManaType, int> { { ManaType.Red, 1 } },
+                    Bank((ManaType.Any, 1)));
+                Assert(anyPadRedPlan != null
+                       && anyPadRedPlan.Count == 1
+                       && anyPadRedPlan.GetValueOrDefault(ManaType.Any) == 1,
+                       "任意元素垫三色：红1 = Any1（红缺由任意垫付）");
+                var anyPadBlackPlan = CardCore.ElementPaymentValidator.GetBillPaymentPlan(
+                    new Dictionary<ManaType, int> { { ManaType.Black, 1 } },
+                    Bank((ManaType.Any, 1)));
+                Assert(anyPadBlackPlan != null
+                       && anyPadBlackPlan.Count == 1
+                       && anyPadBlackPlan.GetValueOrDefault(ManaType.Any) == 1,
+                       "任意元素垫黑白本色费：黑1 = Any1（单向性不拦 Any）");
+                var anyKeepPlan = CardCore.ElementPaymentValidator.GetBillPaymentPlan(
+                    new Dictionary<ManaType, int> { { ManaType.Red, 1 } },
+                    Bank((ManaType.Red, 1), (ManaType.Any, 1)));
+                Assert(anyKeepPlan != null
+                       && anyKeepPlan.GetValueOrDefault(ManaType.Red) == 1
+                       && !anyKeepPlan.ContainsKey(ManaType.Any),
+                       "本色优先：红1 有红付红（Any 保留在链尾不消耗）");
+                var anyGrayTailPlan = CardCore.ElementPaymentValidator.GetBillPaymentPlan(
+                    new Dictionary<ManaType, int> { { ManaType.Gray, 1 } },
+                    Bank((ManaType.Any, 1)));
+                Assert(anyGrayTailPlan != null
+                       && anyGrayTailPlan.GetValueOrDefault(ManaType.Any) == 1,
+                       "灰链尾任意垫付：灰1 = Any1（六色全零后 Any 兜底）");
+                Assert(CardCore.ElementPaymentValidator.GetBillPaymentPlan(
+                           new Dictionary<ManaType, int> { { ManaType.Gray, 1 }, { ManaType.Blue, 1 } },
+                           Bank((ManaType.Any, 1))) == null,
+                       "Any 单份不重复垫两色：灰1+蓝1 只有 Any1 → 拒付");
+
                 pool1.GlobalTurnIndex = 3;
+
+                // 任意元素端到端（PlanBill 综合规划器 + AddMana 入账，2026-10-23）：隔离遗留地牌后
+                // 钱包只 Any1 → 蓝1 账单由 Any 直付并扣除；AddMana(Any) 入账受全类型累计钳同口径
+                pool1.PooledCards.Clear(); // 隔离：防遗留锁色地横置垫付污染 Any 直付断言
+                pool1.TempGainedThisTurn = 0; // 累计钳台账隔离（前段黑白补偿探针已耗配额——配额重置按全价入账）
+                foreach (ManaType t in System.Enum.GetValues(typeof(ManaType)))
+                    pool1.TempElements[t] = 0;
+                pool1.TempElements[ManaType.Any] = 1;
+                Assert(core.ElementPool.TryPayCostWithAutoTap(ElementCost.FromValue(ManaType.Blue, 1f), p1)
+                       && pool1.TempElements[ManaType.Any] == 0,
+                       "任意元素端到端：蓝1 由钱包 Any1 直付并扣除（地牌清场）");
+                Assert(core.ElementPool.AddMana(p1, ManaType.Any, null, 2) == 2
+                       && pool1.TempElements[ManaType.Any] == 2,
+                       "任意元素入账：AddMana(Any) 落临时钱包（全类型累计钳同口径）");
+                pool1.TempElements[ManaType.Any] = 0;
 
                 // 支付链收窄（2026-10-11）：三色仅本色——黑不再垫红；红缺=拒付（先证）
                 pool1.TempElements[ManaType.Red] = 0;
@@ -1812,9 +1862,13 @@ namespace CardCore.Editor
             var mode1Bill = CardCore.ElementPaymentValidator.NormalizeBill(GameActions.GetCardCost(probeCard, 1));
             core.ZoneManager.GetZoneContainer(p1).Remove(probeCard, Zone.Hand); // 探针即弃
             Assert(mode0Bill[ManaType.Red] > 0 && mode0Bill.GetValueOrDefault(modalDrawColor) == 0,
-                   "模式0账单：卡面红费+伤害锚红（per-mode 独立——锚价只挂所选效果）");
-            Assert(mode1Bill[modalDrawColor] > 0 && mode1Bill[ManaType.Red] < mode0Bill[ManaType.Red],
-                   "模式1账单：抽牌锚价落蓝（per-mode 独立不求和——卡面费两模式同担）");
+                   "模式0账单：伤害锚红（per-mode 独立——恒推导口径：模式费=该模式效果推导价）");
+            // 2026-10-24 适配费用恒推导定案（2026-10-22：GetRuntimeCost 单源、costList=显示缓存）：
+            // 模式费按所选效果独立推导、无「卡面费两模式同担」——模式1=纯抽牌锚（蓝），红份额恒 0
+            //（旧断言直取 mode1Bill[Red] 在恒推导下 KeyNotFound 中断全量验证）。
+            Assert(mode1Bill.GetValueOrDefault(modalDrawColor) > 0
+                   && mode1Bill.GetValueOrDefault(ManaType.Red) < mode0Bill[ManaType.Red],
+                   "模式1账单：抽牌锚价落蓝（per-mode 独立不求和——恒推导：模式1无红份额）");
 
             try
             {

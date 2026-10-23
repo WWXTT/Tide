@@ -122,8 +122,8 @@ namespace SynergyUI
             AtomicEffectType.Heal,
             AtomicEffectType.ReturnToHand, AtomicEffectType.SummonToken,
             AtomicEffectType.ReturnFromGraveyard, AtomicEffectType.RecoverToHand,
-            // 资源族（2026-10-11：Mine 已删、AdditionalEnergy 已换 Photosynthesis）
-            AtomicEffectType.Untap, AtomicEffectType.AddArmor, AtomicEffectType.GrantPhotosynthesis,
+            // 资源族（2026-10-11：Mine 已删；2026-10-23：Photosynthesis 已换 GainAnyElement）
+            AtomicEffectType.Untap, AtomicEffectType.AddArmor, AtomicEffectType.GainAnyElement,
             // 强化族（GrantX 关键词与数值强化；单向属性增益——攻击力/生命值/±1/费用减少）
             AtomicEffectType.ModifyPower, AtomicEffectType.ModifyLife,
             // 设置系复活（2026-09-09 三轨制重建）——有益直改

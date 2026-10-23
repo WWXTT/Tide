@@ -39,6 +39,7 @@ namespace CardCore
                 ManaType.Gray => "通用",
                 ManaType.White => "白",
                 ManaType.Black => "黑",
+                ManaType.Any => "任意",
                 _ => PrimaryColor.ToString()
             };
         }
@@ -91,17 +92,22 @@ namespace CardCore
             return bill;
         }
 
-        /// <summary>填链：需求色的候选货币按支付序排列（2026-10-11 收窄定案）：
-        /// 红/蓝/绿=[本色]（黑白不再垫三色、灰本就不垫三色——三色缺口只有本色能付）；
-        /// 灰=[灰,黑,白,红,蓝,绿]（黑白只垫灰；三色垫灰沿用；黑先于白，确定性）；
-        /// 黑/白=[本色]（单向）。
-        /// 公开给 ElementPool.PlanBill——横置产色候选须沿同一填链评估。</summary>
+        /// <summary>填链：需求色的候选货币按支付序排列（2026-10-11 收窄定案；2026-10-23 任意元素）：
+        /// 红/蓝/绿=[本色,任意]（黑白不再垫三色、灰本就不垫三色——三色缺口只有本色或任意元素能付）；
+        /// 灰=[灰,黑,白,红,蓝,绿,任意]（黑白只垫灰；三色垫灰沿用；黑先于白，确定性）；
+        /// 黑/白=[本色,任意]（单向不变：其余色仍补不了黑白本色费）；
+        /// 任意=万能货币（42e883b2 元素合成生成），恒处链**末位**垫付——链内前序耗尽才消耗，
+        /// 保留其万能性（本色优先消耗）。
+        /// 公开给 ElementPool.PlanBill——横置产色候选须沿同一填链评估（地牌锁色不含任意，
+        /// 横置侧天然无任意货币）。</summary>
         public static ManaType[] ChainFor(ManaType need) => need switch
         {
-            ManaType.Red => new[] { ManaType.Red },
-            ManaType.Blue => new[] { ManaType.Blue },
-            ManaType.Green => new[] { ManaType.Green },
-            ManaType.Gray => new[] { ManaType.Gray, ManaType.Black, ManaType.White, ManaType.Red, ManaType.Blue, ManaType.Green },
+            ManaType.Red => new[] { ManaType.Red, ManaType.Any },
+            ManaType.Blue => new[] { ManaType.Blue, ManaType.Any },
+            ManaType.Green => new[] { ManaType.Green, ManaType.Any },
+            ManaType.Gray => new[] { ManaType.Gray, ManaType.Black, ManaType.White, ManaType.Red, ManaType.Blue, ManaType.Green, ManaType.Any },
+            ManaType.Black => new[] { ManaType.Black, ManaType.Any },
+            ManaType.White => new[] { ManaType.White, ManaType.Any },
             _ => new[] { need },
         };
 
@@ -122,13 +128,23 @@ namespace CardCore
             foreach (ManaType c in Enum.GetValues(typeof(ManaType)))
                 if (!working.ContainsKey(c)) working[c] = 0;
 
-            // 黑白本色费先行预留（黑白只来自钱包、不受浓度钳——余额定生死）
+            // 黑白本色费先行预留（黑白只来自钱包、不受浓度钳——余额定生死；
+            // 2026-10-23 任意元素：沿 ChainFor(黑白) 链扣——任意元素可垫黑白，本色优先）
             foreach (var bw in new[] { ManaType.Black, ManaType.White })
             {
                 if (!bill.TryGetValue(bw, out var bwNeed) || bwNeed <= 0) continue;
-                if (working[bw] < bwNeed) return null;
-                working[bw] -= bwNeed;
-                plan[bw] = bwNeed;
+                foreach (var currency in ChainFor(bw))
+                {
+                    if (bwNeed <= 0) break;
+                    int have = working[currency];
+                    if (have <= 0) continue;
+                    int take = Math.Min(have, bwNeed);
+                    if (take <= 0) continue;
+                    working[currency] = have - take;
+                    plan[currency] = plan.TryGetValue(currency, out var prev) ? prev + take : take;
+                    bwNeed -= take;
+                }
+                if (bwNeed > 0) return null;
             }
 
             foreach (var need in FourColorOrder)

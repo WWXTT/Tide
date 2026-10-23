@@ -279,6 +279,7 @@ namespace CardCore
             ManaType.Green => "绿",
             ManaType.White => "白",
             ManaType.Black => "黑",
+            ManaType.Any => "任意",
             _ => "灰",
         };
 

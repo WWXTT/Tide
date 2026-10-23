@@ -224,6 +224,13 @@ namespace CardCore
         /// <summary>出牌闸（手牌打出）：(player, card) → 拒绝原因；null=放行。</summary>
         public static Func<Player, Card, string> TutorialPlayGate;
 
+        /// <summary>主动效果发动闸（2026-10-23 元素合成步）：(player, 源卡, 效果) → 拒绝原因；null=放行。
+        /// 拦 GameActions.ActivateEffect 主路径（玩家点单位/角色【发动】）——资源步期间防提前烧掉步骤资源。</summary>
+        public static Func<Player, Card, EffectDefinition, string> TutorialActivateGate;
+
+        /// <summary>主动效果发动成功探针（2026-10-23 activate 步骤完成信号）：入栈成功即报（源卡可空）。</summary>
+        public static Action<Player, Card> OnTutorialEffectActivated;
+
         /// <summary>放地成功探针（element 引导步骤完成信号）。</summary>
         public static Action<Player, Card> OnTutorialElementPlaced;
 
