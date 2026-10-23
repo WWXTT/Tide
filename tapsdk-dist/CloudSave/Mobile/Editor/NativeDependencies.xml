@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<dependencies>
+  <androidPackages>
+    <repositories>
+      <repository>https://repo.maven.apache.org/maven2</repository>
+    </repositories>
+    <androidPackage spec="com.taptap.sdk:tap-cloudsave:4.11.0" />
+  </androidPackages>
+  <iosPods>
+    <sources>
+      <source>https://github.com/CocoaPods/Specs.git</source>
+    </sources>
+    <iosPod addToAllTargets="false" bitcodeEnabled="false" name="TapTapSDK/CloudSave" version="4.11.0" />
+  </iosPods>
+</dependencies>
