@@ -2087,7 +2087,7 @@ namespace CardCore
             AtomicEffectType.EngineNthHandCard, // 已退役（2026-10-19 效果序位改案）——枚举值位保留，表行已改挂 EngineUnity
             AtomicEffectType.EngineCurseOnDraw,
             AtomicEffectType.EngineBlessingOnDraw,
-            AtomicEffectType.EngineUnity, // 团结（2026-10-20 效果序位换轴·复用其表行 52c1ce3f）
+            AtomicEffectType.EngineUnity, // 团结（2026-10-20 效果序位换轴·复用其表行 83c150f2）
         };
 
         private static void VerifyHandlerCoverage()

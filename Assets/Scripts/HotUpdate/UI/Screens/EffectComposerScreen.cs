@@ -29,7 +29,7 @@ namespace SynergyUI
         /// row 模板/guide-frame/描述条）；复合检索退役（BindDropdown 单名 TMP、BindableButton 单名、
         /// row 模板单名、FillRowParts 按名不按位、费用/计数不再父级回退）。
         /// 2026-10-08 右栏行定案不显示名字：FillRowParts 只填 meta 单列（name 节点绑定与 title 形参退役）。
-    /// 2026-10-23 五分类定案：并列/自由分支/有限分支/连接光环/范围光环 五形态（ComposeMode 五值）——
+    /// 2026-10-23 五分类定案：并列/自由分支/有限分支/连接光环/规则光环 五形态（ComposeMode 五值）——
     /// 分支两形态从并列槽级载荷升为独立形态（并列回归纯两原子）；有限分支门槛卡=克隆 aura-card 点选
     ///（dd-trunk 下拉路径退役删除）；产出条件不再提供新建入口（历史 settle=2 载入只读展示）；
     /// 光环拆连接（箭头+条目）/范围（仪典步）两面，aura 判定统一走 IsAuraMode。
@@ -46,7 +46,7 @@ namespace SynergyUI
         // ======================================== 组合形态 ========================================
 
         /// <summary>组合形态（2026-10-23 五分类定案）：并列（两原子）/ 自由分支（引擎主干+Then 奖励）/
-        /// 有限分支（普通原子+局面门槛+Then 奖励）/ 连接光环（箭头+条目）/ 范围光环（仪典步）。
+        /// 有限分支（普通原子+局面门槛+Then 奖励）/ 连接光环（箭头+条目）/ 规则光环（仪典步）。
         /// 前三类共享槽级 branch 载荷（settle=Engine/Gate/Outcome），后两类共享光环面板。</summary>
         public enum ComposeMode { Parallel, FreeBranch, LimitedBranch, LinkAura, RangeAura }
 
@@ -58,7 +58,7 @@ namespace SynergyUI
         private enum RightMode { Atoms, Effects }
 
         /// <summary>由数据推断组合形态（2026-10-23 五分类，先光环后分支）：
-        /// ①箭头/连接条目→连接光环；②规则光环步→范围光环；③首原子引擎（行身份∪branch.settle）
+        /// ①箭头/连接条目→连接光环；②规则光环步→规则光环；③首原子引擎（行身份∪branch.settle）
         /// →自由分支；④首原子 Gate/历史 Outcome 载荷→有限分支（产出条件不再新建，载入只读保留）；
         /// ⑤其余→并列。</summary>
         public static ComposeMode InferMode(EffectGraphData g)
@@ -101,7 +101,7 @@ namespace SynergyUI
             { "霜蚀仪典", RuleAuraComponents.CombatFreeze },
             { "眠蚀仪典", RuleAuraComponents.CombatSleep },
             // 舍身仪典已删（2026-10-16 关键词化：舍身改 GrantMartyrdom 关键词——关键词族投放，不在仪典目录）
-            { "暗牧仪典", RuleAuraComponents.HealInversion },  // 2026-10-09 治疗转伤害（受光环影响一方的治疗改写为等量伤害；黑8 表行 9dfed4f8；用户命名——初拟「反疗仪典」）
+            { "暗牧仪典", RuleAuraComponents.HealInversion },  // 2026-10-09 治疗转伤害（受光环影响一方的治疗改写为等量伤害；黑8 表行 79ef61f3；用户命名——初拟「反疗仪典」）
         };
 
         /// <summary>规则光环默认范围中文（行级——右栏库行说明用）：改写仪典=仅己方（落槽缺省）、
@@ -1119,7 +1119,7 @@ namespace SynergyUI
             MakeModeChip(ComposeMode.LinkAura,
                 "连接光环：效果挂在卡上持续生效，作用于连接箭头指向的单位——在下方配条目（属性/关键词），箭头在光环槽底部选");
             MakeModeChip(ComposeMode.RangeAura,
-                "范围光环：挂一条仪典按作用面（己方/双方/对方）持续改写规则——无箭头，同名仪典全局唯一");
+                "规则光环：挂一条仪典按作用面（己方/双方/对方）持续改写规则——同名仪典全局唯一");
 
             // 卡编辑模式提示（常驻节点按名绑定——非编辑时隐藏；新建才定宽，烘焙宽以节点为准）
             bool tagExisted = _modeBar.Find("editing-tag") != null;
@@ -1145,7 +1145,7 @@ namespace SynergyUI
         /// →自由分支：保留首个引擎行（无则清空提示先选引擎主干），奖励随载荷保留；
         /// →有限分支：保留首个非引擎原子，门槛/奖励保留（引擎载荷不跟普通原子）；
         /// →连接光环：清 steps（仪典步不入）、箭头重选（光环字段只在光环形态存续）；
-        /// →范围光环：清 LinkAuras/箭头，保留仪典步。切换后收起展开卡。</summary>
+        /// →规则光环：清 LinkAuras/箭头，保留仪典步。切换后收起展开卡。</summary>
         private void SwitchMode(ComposeMode newMode)
         {
             if (newMode == _mode) return;
@@ -1227,7 +1227,7 @@ namespace SynergyUI
                 }
                 case ComposeMode.LinkAura:
                 {
-                    // 连接光环（效果层定案）＝箭头+光环条目随效果合成；仪典步不入（切范围光环再配）
+                    // 连接光环（效果层定案）＝箭头+光环条目随效果合成；仪典步不入（切规则光环再配）
                     h.AtomicEffects = null;
                     h.ArrowDirections = 0; // 切入箭头恒 0——连接方向的光环在光环槽底部选箭头
                     _graph.steps.Clear();
@@ -1236,13 +1236,13 @@ namespace SynergyUI
                 }
                 case ComposeMode.RangeAura:
                 {
-                    // 范围光环＝仪典步专用面：条目/箭头清空（属连接光环），仪典步保留
+                    // 规则光环＝仪典步专用面：条目/箭头清空（属连接光环），仪典步保留
                     h.AtomicEffects = null;
                     h.ArrowDirections = 0;
                     h.LinkAuras = null;
                     _graph.steps.RemoveAll(s => s == null || s.kind != 0 || s.atomic == null
                         || !IsRuleAuraRow(AtomicEffectTable.GetByHashId(s.atomic.refId)));
-                    ShowToast("范围光环：右侧仪典库点击选择规则光环（新选即替换）");
+                    ShowToast("规则光环：右侧仪典库点击选择（新选即替换）");
                     break;
                 }
             }
@@ -1860,7 +1860,13 @@ namespace SynergyUI
                 RefreshLibrary(); // 奖励删除后原子回归库
             });
 
-            // 点卡=选中门槛（右栏切门槛列表）；选中态=焦点底色（与原子槽/奖励块同款）
+            // 点卡=选中门槛（右栏切门槛列表）——整个红框区都可点：卡根+标题行双路接线
+            //（模板 head 烘焙了自带 Button，会吃掉点击不冒泡到卡根——2026-10-23 用户反馈修正）
+            void SelectGate()
+            {
+                if (FirstKind0Atom() == null) { ShowToast("先选主干原子——门槛挂在主干上"); return; }
+                SelectSlot(SelKind.Gate, 0);
+            }
             var img = card.GetComponent<Image>();
             var btn = card.gameObject.GetComponent<Button>();
             if (btn == null)
@@ -1870,13 +1876,16 @@ namespace SynergyUI
                 btn.targetGraphic = img;
             }
             btn.onClick.RemoveAllListeners();
-            btn.onClick.AddListener(() =>
+            btn.onClick.AddListener(SelectGate);
+            var headBtn = head != null ? head.GetComponent<Button>() : null; // 模板烘焙的标题行按钮
+            if (headBtn != null)
             {
-                if (FirstKind0Atom() == null) { ShowToast("先选主干原子——门槛挂在主干上"); return; }
-                SelectSlot(SelKind.Gate, 0);
-            });
+                headBtn.transition = Selectable.Transition.None;
+                headBtn.onClick.RemoveAllListeners();
+                headBtn.onClick.AddListener(SelectGate);
+            }
             UiKit.Described(btn,
-                "门槛：当前局面达标时发放下方 Then 奖励——点击本卡后到右侧点选一条局面门槛（11 条，表驱动）");
+                "门槛：当前局面达标时发放下方 Then 奖励——点击本卡任意位置后到右侧点选一条局面门槛（11 条，表驱动）");
             if (_selSlot == SelKind.Gate && img != null)
             {
                 img.enabled = true;
@@ -3132,8 +3141,8 @@ namespace SynergyUI
 
         /// <summary>右栏·光环库（点击换选——2026-10-23 五分类双面）：
         /// 连接光环=属性光环（位 3 表驱动：设置攻击力/生命力系统行）+ 关键词光环（CanMountAsAura——
-        /// 默认可−消耗型拉黑），**不列规则光环行**（仪典属范围光环）；
-        /// 范围光环=仪典行（位 6）——只列规则光环。单槽定案：库点击即整组替换上一个选中；
+        /// 默认可−消耗型拉黑），**不列规则光环行**（仪典属规则光环）；
+        /// 规则光环=仪典行（位 6）——只列规则光环。单槽定案：库点击即整组替换上一个选中；
         /// 近似搜索按显示名过滤。</summary>
         private void RefreshAuraLibrary()
         {
@@ -3182,7 +3191,7 @@ namespace SynergyUI
                 RefreshSlots();
             }
 
-            // ---- 范围光环面：仪典行（位 6）——只列规则光环 ----
+            // ---- 规则光环面：仪典行（位 6）——只列规则光环 ----
             if (_mode == ComposeMode.RangeAura)
             {
                 AddTableHint(_atomItems, _libraryList, "当前：仪典——点击选择一条规则光环（新选即替换；作用面在仪典卡上选）");
@@ -3191,14 +3200,14 @@ namespace SynergyUI
                     var rule = r;
                     if (!IsRuleAuraRow(rule)) continue;
                     AddRow($"规则光环·{rule.DisplayName}",
-                        $"{rule.Description}——{RuleAuraScopeOf(rule)}，同名在场时不可再打出（异名可共存），载体离场/被无效即失效；无箭头",
+                        $"{rule.Description}——{RuleAuraScopeOf(rule)}，同名在场时不可再打出（异名可共存），载体离场/被无效即失效",
                         ColorFilter.OfTagsCsv(rule.Tags),
                         () => AddRuleAura(rule));
                 }
                 return;
             }
 
-            // ---- 连接光环面：属性 + 关键词条目（规则光环行不入——切「范围光环」配仪典） ----
+            // ---- 连接光环面：属性 + 关键词条目（规则光环行不入——切「规则光环」配仪典） ----
             AddTableHint(_atomItems, _libraryList, "当前：光环条目——点击换选（新选即替换上一个；连接方向的光环在光环槽底部选箭头）");
 
             // 属性光环（2026-10-07 深夜改源；2026-10-08 库行细分定案）：一般效果「属性增加/属性减少」
@@ -3394,7 +3403,7 @@ namespace SynergyUI
         /// <summary>光环编辑面板（2026-10-23 五分类双面）：
         /// 连接光环=光环槽（条目卡——aura-card 克隆、编辑走卡内 editor）+ 槽底连接箭头盒
         ///（arrow-picker 预制体实例），条目库点击整组替换；
-        /// 范围光环=规则光环槽（仪典卡，作用面在卡面行选）——无箭头、条目属连接面（切面即清）。
+        /// 规则光环=规则光环槽（仪典卡，作用面在卡面行选）——无箭头、条目属连接面（切面即清）。
         /// 两面共用 tpl-aura-slot 模板；单槽单选——库点击即替换上一个选中。</summary>
         private void MakeAuraPanel(RectTransform parent)
         {
@@ -3414,13 +3423,13 @@ namespace SynergyUI
             MarkSelected(slot, SelKind.Parallel, 0);
             SelectOnClick(slot, SelKind.Parallel, 0, false);
 
-            // ---- 范围光环面：仪典步专用（无箭头/无条目；历史非仪典步保留只读提示） ----
+            // ---- 规则光环面：仪典步专用（无箭头/无条目；历史非仪典步保留只读提示） ----
             if (_mode == ComposeMode.RangeAura)
             {
-                h.ArrowDirections = 0; // 范围光环恒无箭头（仪典按作用面生效——写盘一致）
+                h.ArrowDirections = 0; // 规则光环恒无箭头（仪典按作用面生效——写盘一致）
                 h.LinkAuras ??= new List<LinkAuraData>();
-                MakeHint(parent, "范围光环＝仪典：载体入场即挂（同名新的把旧的送墓），离场/被无效即失效"
-                    + "——无箭头、不占连接位；作用面（己方/双方/对方）在仪典卡上选，双方档费用减半");
+                MakeHint(parent, "规则光环＝仪典：载体入场即挂（同名新的把旧的送墓），离场/被无效即失效"
+                    + "——不占连接位；作用面（己方/双方/对方）在仪典卡上选，双方档费用减半");
                 int ritual = 0, foreign = 0;
                 foreach (var s in _graph.steps ?? new List<EffectStepData>())
                 {
@@ -3436,17 +3445,17 @@ namespace SynergyUI
                 if (foreign > 0)
                     MakeHint(slot, $"另有 {foreign} 步非仪典内容（历史数据）——本面不展示，保存时原样保留");
                 _slotZones.Add(MakeZone(slot, () => RuleAtomCount(_graph) == 0
-                    ? "范围光环至少配一条仪典——右侧点击选择" : null));
+                    ? "规则光环至少配一条仪典——右侧点击选择" : null));
                 return;
             }
 
-            // ---- 连接光环面：条目+箭头（仪典步不入——切「范围光环」配仪典） ----
+            // ---- 连接光环面：条目+箭头（仪典步不入——切「规则光环」配仪典） ----
             MakeHint(parent, "光环＝持续效果：连接方向档作用对象=箭头指向格的当前占据者（断链/离场即失效）；"
                 + "作用面档（己方/对方/双方）=整侧生物，关键词条目可选「是否包含角色」（计费按 5 单位档）。");
             h.LinkAuras ??= new List<LinkAuraData>();
             foreach (var s in _graph.steps ?? new List<EffectStepData>())
                 if (s?.kind == 0 && s.atomic != null)
-                    MakeReadonlyStepBadge(slot, s); // 历史仪典/原子步只读（连接面不编辑——切范围光环处理）
+                    MakeReadonlyStepBadge(slot, s); // 历史仪典/原子步只读（连接面不编辑——切规则光环处理）
             for (int i = 0; i < h.LinkAuras.Count; i++)
                 MakeAuraEntryCard(slot, i);
             if (h.LinkAuras.Count == 0)
@@ -3482,7 +3491,7 @@ namespace SynergyUI
                         ? "未选箭头——光环必须搭配至少一支箭头（无箭头=永无受益者）；规则级光环则不需要箭头" : null));
                 }
             }
-            // 校验：至少一条有效光环内容 + 关键词条目须位 5 可挂（仪典唯一性属范围光环面）
+            // 校验：至少一条有效光环内容 + 关键词条目须位 5 可挂（仪典唯一性属规则光环面）
             _slotZones.Add(MakeZone(slot, () =>
             {
                 if (ValidAuraCount(h.LinkAuras) == 0)
@@ -4121,7 +4130,7 @@ namespace SynergyUI
             var saved = (_graph.steps ?? new List<EffectStepData>())
                 .Where(s => s != null && s.kind != 1).ToList();
             // 形态防御（2026-10-23 五分类）：并列=纯两原子（分支载荷一律拆）；连接光环=steps 恒空
-            //（条目在 LinkAuras）；范围光环=只留仪典步（条目/杂步属其他形态）
+            //（条目在 LinkAuras）；规则光环=只留仪典步（条目/杂步属其他形态）
             if (_mode == ComposeMode.Parallel)
                 foreach (var s in saved)
                     if (s?.kind == 0 && s.atomic != null) s.atomic.branch = null;
@@ -4150,7 +4159,7 @@ namespace SynergyUI
             }
             else if (_mode == ComposeMode.RangeAura || HasRuleAuraStep(_graph))
             {
-                effect.ArrowDirections = 0; // 范围光环/规则级光环不占连接位（UI 已关箭头——写盘一致）
+                effect.ArrowDirections = 0; // 规则光环/规则级光环不占连接位（UI 已关箭头——写盘一致）
             }
             return effect;
         }

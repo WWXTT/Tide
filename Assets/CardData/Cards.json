@@ -1,5 +1,623 @@
 {
-  "cards": [],
+  "cards": [
+    {
+      "id": "C_8DFBB242",
+      "cardName": "赤烬猎犬·副本",
+      "supertype": "Creature",
+      "power": 3,
+      "life": 2,
+      "costList": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeRedClash"
+      ],
+      "noGuard": true
+    },
+    {
+      "id": "C_352F6205",
+      "cardName": "熔岩突袭兵·副本",
+      "supertype": "Creature",
+      "power": 4,
+      "life": 2,
+      "costList": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeRedClash"
+      ],
+      "noGuard": true
+    },
+    {
+      "id": "C_024D6EFC",
+      "cardName": "燃爪斥候·副本",
+      "supertype": "Creature",
+      "power": 4,
+      "life": 3,
+      "costList": [
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeRedClash"
+      ],
+      "noGuard": true
+    },
+    {
+      "id": "C_763DE7D1",
+      "cardName": "焚城先锋·副本",
+      "supertype": "Creature",
+      "power": 4,
+      "life": 2,
+      "costList": [
+        3.0,
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeRedClash"
+      ],
+      "effectIds": [
+        "1E9B3BDE"
+      ],
+      "noGuard": true,
+      "payloads": [
+        {
+          "refId": "bf06d56b",
+          "kinds": [
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C_994FF997",
+      "cardName": "空手掠袭者·副本",
+      "supertype": "Creature",
+      "power": 4,
+      "life": 2,
+      "costList": [
+        3.0,
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeRedClash"
+      ],
+      "effectIds": [
+        "6371FBD3"
+      ],
+      "noGuard": true,
+      "payloads": [
+        {
+          "refId": "bf06d56b",
+          "kinds": [
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C_A2B04A3F",
+      "cardName": "血怒先锋·副本",
+      "supertype": "Creature",
+      "power": 4,
+      "life": 2,
+      "costList": [
+        2.0,
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeRedClash"
+      ],
+      "effectIds": [
+        "073f18c7"
+      ],
+      "noGuard": true,
+      "payloads": [
+        {
+          "refId": "bf06d56b",
+          "kinds": [
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C_BEE0FECA",
+      "cardName": "断刃武士·副本",
+      "supertype": "Creature",
+      "power": 5,
+      "life": 2,
+      "costList": [
+        3.0,
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeRedClash"
+      ],
+      "effectIds": [
+        "5269CB2C"
+      ],
+      "noGuard": true,
+      "payloads": [
+        {
+          "refId": "bf06d56b",
+          "kinds": [
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C_6BF8A931",
+      "cardName": "拼点·烬刃武者·副本",
+      "supertype": "Creature",
+      "power": 4,
+      "life": 2,
+      "costList": [
+        3.0,
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeRedClash"
+      ],
+      "effectIds": [
+        "C33B9907"
+      ],
+      "noGuard": true,
+      "payloads": [
+        {
+          "refId": "bf06d56b",
+          "kinds": [
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C_2B6AF18F",
+      "cardName": "斩首猎手·副本",
+      "supertype": "Creature",
+      "power": 5,
+      "life": 2,
+      "costList": [
+        3.0,
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeRedClash"
+      ],
+      "effectIds": [
+        "E72D83F7"
+      ],
+      "noGuard": true,
+      "payloads": [
+        {
+          "refId": "bf06d56b",
+          "kinds": [
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C_FABC56C0",
+      "cardName": "双刃屠夫·副本",
+      "supertype": "Creature",
+      "power": 5,
+      "life": 2,
+      "costList": [
+        3.0,
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeRedClash"
+      ],
+      "effectIds": [
+        "AF4D057E"
+      ],
+      "noGuard": true,
+      "payloads": [
+        {
+          "refId": "bf06d56b",
+          "kinds": [
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C_394AE4DA",
+      "cardName": "拼点·焚面鬼·副本",
+      "supertype": "Creature",
+      "power": 6,
+      "life": 2,
+      "costList": [
+        3.0,
+        3.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeRedClash"
+      ],
+      "effectIds": [
+        "66EC9B48"
+      ],
+      "noGuard": true,
+      "payloads": [
+        {
+          "refId": "bf06d56b",
+          "kinds": [
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C_D1C8586B",
+      "cardName": "血税突袭·副本",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeRedClash"
+      ],
+      "effectIds": [
+        "886E275E"
+      ],
+      "speedBonus": 2,
+      "payloads": [
+        {
+          "refId": "bf06d56b",
+          "kinds": [
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C_A53563D9",
+      "cardName": "战嚎·副本",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeRedClash"
+      ],
+      "effectIds": [
+        "0F69B9FA"
+      ],
+      "speedBonus": 2,
+      "payloads": [
+        {
+          "refId": "bf06d56b",
+          "kinds": [
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C_8222535F",
+      "cardName": "永久磨砺·副本",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeRedClash"
+      ],
+      "effectIds": [
+        "1AF47825"
+      ],
+      "speedBonus": 2,
+      "payloads": [
+        {
+          "refId": "bf06d56b",
+          "kinds": [
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C_AB1C12CA",
+      "cardName": "烈焰箭·副本",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeRedClash"
+      ],
+      "effectIds": [
+        "B663AB71"
+      ],
+      "speedBonus": 2,
+      "payloads": [
+        {
+          "refId": "bf06d56b",
+          "kinds": [
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C_81CF6218",
+      "cardName": "斩首令·副本",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeRedClash"
+      ],
+      "effectIds": [
+        "2566E6B9"
+      ],
+      "speedBonus": 2,
+      "payloads": [
+        {
+          "refId": "bf06d56b",
+          "kinds": [
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C_6C6C0B26",
+      "cardName": "激励·副本",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeRedClash"
+      ],
+      "effectIds": [
+        "F4A0440D"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_37D6379C",
+      "cardName": "潮汐观测者·副本",
+      "supertype": "Creature",
+      "power": 1,
+      "life": 3,
+      "costList": [
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeBlueSurplus"
+      ],
+      "effectIds": [
+        "A0EAF9BB"
+      ]
+    },
+    {
+      "id": "C_9084BD00",
+      "cardName": "静水贤者·副本",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 2,
+      "costList": [
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeBlueSurplus"
+      ],
+      "effectIds": [
+        "A74C29A8"
+      ]
+    },
+    {
+      "id": "C_B90C5FA9",
+      "cardName": "霜涌结界·副本",
+      "supertype": "Enchantment",
+      "costList": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeBlueSurplus"
+      ],
+      "effectIds": [
+        "E35825C2"
+      ],
+      "durability": 2
+    },
+    {
+      "id": "C_9BA74DF0",
+      "cardName": "秘藏结界·副本",
+      "supertype": "Enchantment",
+      "costList": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeBlueSurplus"
+      ],
+      "effectIds": [
+        "B6B4C57B"
+      ],
+      "durability": 2
+    },
+    {
+      "id": "C_BCED47A8",
+      "cardName": "冰封·副本",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeBlueSurplus"
+      ],
+      "effectIds": [
+        "977AB6FC"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_1C373E18",
+      "cardName": "霜环·副本",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeBlueSurplus"
+      ],
+      "effectIds": [
+        "F9AA3B87"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_3DB50BB7",
+      "cardName": "退潮·副本",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeBlueSurplus"
+      ],
+      "effectIds": [
+        "9DD21C35"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_5904FFB9",
+      "cardName": "霜蚀抉择·副本",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeBlueSurplus"
+      ],
+      "effectIds": [
+        "977AB6FC",
+        "73DB24E3"
+      ],
+      "speedBonus": 1
+    },
+    {
+      "id": "C_565F0059",
+      "cardName": "预知·副本",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeBlueSurplus"
+      ],
+      "effectIds": [
+        "E2565876"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_B44F06D9",
+      "cardName": "冰墙·副本",
+      "supertype": "Creature",
+      "life": 5,
+      "costList": [
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeBlueSurplus"
+      ]
+    },
+    {
+      "id": "C_3C536079",
+      "cardName": "霜甲守卫·副本",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 4,
+      "costList": [
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeBlueSurplus"
+      ]
+    },
+    {
+      "id": "C_9DCE6564",
+      "cardName": "深海巨兽·副本",
+      "supertype": "Creature",
+      "power": 4,
+      "life": 5,
+      "costList": [
+        4.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeBlueSurplus"
+      ]
+    },
+    {
+      "id": "C_DEF9D11D",
+      "cardName": "隐匿·副本",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeBlueSurplus"
+      ],
+      "effectIds": [
+        "631B76A9"
+      ],
+      "speedBonus": 2
+    }
+  ],
   "deckConfig": {
     "copiesPerCard": 1
   }

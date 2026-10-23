@@ -139,7 +139,7 @@ namespace SynergyUI
             string atkName = GuardAttackerName();
             string tgtName = EntityDisplay(AttackTargetOf(guards[0]));
             bool heroCanGuard = HasHeroGuardOption();
-            _banner($"对手的 {atkName} 攻击 {tgtName}！点我方守卫生物{(heroCanGuard ? "/角色" : "")}拦截"
+            _banner($"对手的 {atkName} 攻击 {tgtName}！点我方守卫生物{(heroCanGuard ? "/角色" : "")}，再点攻击者确认"
                 + (moreTiers ? "（右键/ESC 让过——让过后还可发动速度2响应）" : "（右键/ESC 让过）"));
             if (_btnNotChain != null)
             {

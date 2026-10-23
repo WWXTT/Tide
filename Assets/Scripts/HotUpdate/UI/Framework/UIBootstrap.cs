@@ -44,12 +44,21 @@ namespace SynergyUI
                 canvas.sortingOrder = 0;
             }
 
-            if (GetComponent<CanvasScaler>() == null)
+            var existingScaler = GetComponent<CanvasScaler>();
+            if (existingScaler == null)
             {
                 var scaler = gameObject.AddComponent<CanvasScaler>();
                 scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
                 scaler.referenceResolution = new Vector2(1920f, 1080f);
                 scaler.matchWidthOrHeight = 0.5f;
+                scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.Expand;
+            }
+            else
+            {
+                // Phase A（2026-10-23）：Expand 让画布恒 ≥1920×1080——任意横屏比例不裁切，
+                // 多出的部分成为设计台留边（由 backdrop 画框填色）。场景已有 scaler 也钉死该模式，
+                // 防资产序列化漂移（match 值在 Expand 下不参与缩放，不强行覆写）。
+                existingScaler.screenMatchMode = CanvasScaler.ScreenMatchMode.Expand;
             }
 
             if (GetComponent<GraphicRaycaster>() == null)
@@ -68,6 +77,77 @@ namespace SynergyUI
                 _manager = new UIManager(rootRect);
                 _manager.Show<MainMenuScreen>();
             }
+
+            // backdrop 画框兜底确保（常态由 SafeAreaFitter.FrameBackdrop/UIScreen.Mount 惰性维护；
+            // 此处保证 manager 存活的再使能路径下它也存在且在最底层）
+            EnsureBackdrop((RectTransform)transform);
+        }
+
+        // ================= 全屏 backdrop 画框（2026-10-23 UI 适配 Phase A） =================
+
+        /// <summary>backdrop=Canvas 根 sibling 0 的「画框」：设计台矩形外的四条 ScreenBg 边条，
+        /// 填充 Expand 留边与安全区避让区。四条而非整面——MainUI/BattleUI 是透明底、
+        /// 视觉依赖 3D（黑洞/战场）透出，整面底图会盖死世界相机；四边条只在留边处落色，
+        /// 1920×1080 下边条宽为 0（像素级无痕）。Stage 屏的 SafeAreaFitter 每次重算都会
+        /// FrameBackdrop；Inset 屏（战场）由 SyncBackdropFor 整体隐藏。</summary>
+        internal static void FrameBackdrop(RectTransform canvasRoot, Rect stageRect)
+        {
+            var frame = EnsureBackdrop(canvasRoot);
+            var pr = canvasRoot.rect;
+            if (pr.width <= 0f || pr.height <= 0f) return;
+            var xMin = (stageRect.xMin - pr.xMin) / pr.width;
+            var xMax = (stageRect.xMax - pr.xMin) / pr.width;
+            var yMin = (stageRect.yMin - pr.yMin) / pr.height;
+            var yMax = (stageRect.yMax - pr.yMin) / pr.height;
+            PlaceStrip(frame, "left", 0f, 0f, xMin, 1f);
+            PlaceStrip(frame, "right", xMax, 0f, 1f, 1f);
+            PlaceStrip(frame, "bottom", xMin, 0f, xMax, yMin);
+            PlaceStrip(frame, "top", xMin, yMax, xMax, 1f);
+        }
+
+        /// <summary>装屏收口时同步画框可见性：Stage 屏显示画框；Inset 屏（含战场 3D 透出）隐藏。</summary>
+        internal static void SyncBackdropFor(RectTransform screenRoot)
+        {
+            if (screenRoot == null) return;
+            var canvasRoot = screenRoot.parent as RectTransform;
+            if (canvasRoot == null) return;
+            var frame = EnsureBackdrop(canvasRoot);
+            var fitter = screenRoot.GetComponent<SafeAreaFitter>();
+            frame.gameObject.SetActive(fitter == null || fitter.IsStage);
+        }
+
+        private static RectTransform EnsureBackdrop(RectTransform canvasRoot)
+        {
+            var frame = canvasRoot.Find("backdrop") as RectTransform;
+            if (frame == null)
+            {
+                var go = new GameObject("backdrop", typeof(RectTransform));
+                frame = (RectTransform)go.transform;
+                frame.SetParent(canvasRoot, false);
+                UiKit.Stretch(frame);
+                foreach (var side in new[] { "left", "right", "bottom", "top" })
+                {
+                    var strip = new GameObject(side, typeof(RectTransform));
+                    var srt = (RectTransform)strip.transform;
+                    srt.SetParent(frame, false);
+                    var img = strip.AddComponent<Image>();
+                    img.color = UiStyle.ScreenBg;
+                    img.raycastTarget = true; // 留边区域拦截点击，防穿到 3D
+                }
+            }
+            frame.SetAsFirstSibling();
+            return frame;
+        }
+
+        private static void PlaceStrip(RectTransform frame, string side,
+            float axMin, float ayMin, float axMax, float ayMax)
+        {
+            var rt = frame.Find(side) as RectTransform;
+            if (rt == null) return;
+            rt.anchorMin = new Vector2(axMin, ayMin);
+            rt.anchorMax = new Vector2(axMax, ayMax);
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
         }
 
         /// <summary>全项目唯一 EventSystem（存在即复用）。</summary>

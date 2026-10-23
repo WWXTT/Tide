@@ -28,12 +28,17 @@ namespace SynergyUI
         private RectTransform _matchNode;
         private RectTransform[] _comboNodes = new RectTransform[3]; // 卡组/卡面/效果三组合界面
 
-        // 云存档入口（2026-10-23 接入：右下角运行时建——B6 图标行先例，不动 MainUI.prefab）
+        // 云存档入口/面板（2026-10-23 预制体化：视觉烘焙在 CloudSaveEntry/CloudSavePanel.prefab，
+        // 本屏只加载实例化+绑定；状态刷新只写文本/可点性）
         private Button _cloudButton;
         private TMP_Text _cloudStatusLabel;
-        private UiKit.Modal _cloudModal;
+        private GameObject _cloudPanel; // 面板实例（打开时建、关闭即毁——TipPanel 同款）
         private TMP_Text _cloudStatusLine;
         private TMP_Text _cloudAccountLine;
+        private Button _cloudLoginButton; // 文案随登录态换「登录/退出登录」
+
+        private static GameObject _cloudEntryPrefab; // 进程级预制体句柄保活（同 TipPromptHost 口径）
+        private static GameObject _cloudPanelPrefab;
 
         protected override void Build()
         {
@@ -82,9 +87,9 @@ namespace SynergyUI
             var teachingLabel = _teachingNode != null ? FindUnder(_teachingNode, "label") : null;
             _teachingLabel = teachingLabel != null ? teachingLabel.GetComponentInChildren<TMP_Text>(true) : null;
 
-            // TapTap 登录徽章（2026-10-23 登录接入）：右上角运行时建——克隆 btn-match 换皮
-            // 继承主题（零 prefab 手术）；编辑器/未配置时 Attach 内 IsSupported 闸直接不建。
-            TapLoginBadge.Attach(_matchNode, Root);
+            // TapTap 登录徽章（2026-10-23 登录接入·预制体化）：右上角 TapLoginBadge.prefab 实例化；
+            // 编辑器/未配置时 Attach 内 IsSupported 闸直接不实例化（徽章缺席=正确态）。
+            TapLoginBadge.Attach(Root);
 
             // 云存档入口（2026-10-23 接入）：右下角常驻（不受教学门禁——进度同步对新手同样有价值；
             // 未启用平台/未配置凭证时置灰只读展示状态）。
@@ -181,74 +186,103 @@ namespace SynergyUI
 
         // ======================================== 云存档（2026-10-23 接入） ========================================
 
-        /// <summary>右下角云存档入口：按钮+状态行（Overlay 逃逸主布局，锚死右下角）。
+        /// <summary>右下角云存档入口：CloudSaveEntry.prefab 实例化+绑定（视觉/锚点烘焙在预制体）。
         /// 未启用平台/未配置凭证时置灰——状态文本仍可见（编辑器冒烟=「编辑器/PC 未启用」态）。</summary>
         private void BuildCloudEntry()
         {
-            var holder = UiKit.Overlay("cloud-entry", Root);
-            holder.anchorMin = holder.anchorMax = holder.pivot = new Vector2(1f, 0f);
-            holder.anchoredPosition = new Vector2(-16f, 12f);
-
-            _cloudButton = UiKit.Button("btn-cloud", holder, "云存档", OpenCloudPanel,
-                height: 30f, fontSize: 13);
-            var brt = (RectTransform)_cloudButton.transform;
-            brt.anchorMin = brt.anchorMax = brt.pivot = new Vector2(1f, 0f); // 按钮右下角钉在锚点上
-            brt.anchoredPosition = Vector2.zero;
-            brt.sizeDelta = new Vector2(96f, 30f);
-
-            _cloudStatusLabel = UiKit.Label("cloud-status", holder, "", 12,
-                align: TextAnchor.LowerRight);
-            var srt = _cloudStatusLabel.rectTransform;
-            srt.anchorMin = srt.anchorMax = srt.pivot = new Vector2(1f, 0f);
-            srt.anchoredPosition = new Vector2(0f, 36f);
-            srt.sizeDelta = new Vector2(420f, 18f);
+            if (_cloudEntryPrefab == null)
+                _cloudEntryPrefab = HotUpdateAssets.Load<GameObject>("CloudSaveEntry", UiKit.PrefabPath("CloudSaveEntry"));
+            if (_cloudEntryPrefab == null)
+            {
+                Debug.LogError("[MainMenu] CloudSaveEntry.prefab 加载失败——云存档入口不显示"
+                               + "（检查 Assets/Art/Prefab/CloudSaveEntry.prefab 与 Yoo UI 组收集）");
+                return;
+            }
+            var entry = UnityEngine.Object.Instantiate(_cloudEntryPrefab, Root, false);
+            entry.name = "cloud-entry"; // 锚点/尺寸烘焙在预制体根（右下 -16,12）
+            var rt = (RectTransform)entry.transform;
+            var btnNode = UiKit.FindDeep(rt, "btn-cloud");
+            _cloudButton = btnNode != null ? btnNode.GetComponentInChildren<Button>(true) : null;
+            if (_cloudButton != null) _cloudButton.onClick.AddListener(OpenCloudPanel);
+            var statusNode = UiKit.FindDeep(rt, "lbl-status");
+            _cloudStatusLabel = statusNode != null ? statusNode.GetComponentInChildren<TMP_Text>(true) : null;
         }
 
-        /// <summary>入口状态行+可点性刷新（OnStateChanged/OnAccountChanged/进场触发）。</summary>
+        /// <summary>入口状态行+可点性刷新（OnStateChanged/OnAccountChanged/进场触发；面板开着同步刷）。</summary>
         private void RefreshCloudEntry()
         {
             if (_cloudStatusLabel != null) _cloudStatusLabel.text = CloudSyncService.StatusText;
             if (_cloudButton != null)
                 _cloudButton.interactable = TapSdkConfig.CloudSaveSupported && TapSdkConfig.IsCredentialsReady;
-            if (_cloudStatusLine != null && _cloudModal != null) RefreshCloudPanel();
+            if (_cloudPanel != null) RefreshCloudPanel();
         }
 
-        /// <summary>云存档面板：状态/账号行 + 上传/恢复/登录/关闭。</summary>
+        /// <summary>云存档面板：CloudSavePanel.prefab 实例化+接线（打开时建、关闭即毁）。
+        /// 状态/账号行 + 上传/恢复/登录/关闭。</summary>
         private void OpenCloudPanel()
         {
             CloseCloudPanel();
             CloudSyncService.EnsureHost(); // 首次交互保底宿主（自动上传轮询常驻）
-            _cloudModal = UiKit.ModalBox(Root, "云存档（TapTap）");
-            _cloudStatusLine = UiKit.Label("status", _cloudModal.Panel, CloudSyncService.StatusText, 15);
-            UiKit.Size(_cloudStatusLine.rectTransform, fw: 1f);
-            _cloudAccountLine = UiKit.Label("account", _cloudModal.Panel, CloudAccountText(), 13);
-            UiKit.Size(_cloudAccountLine.rectTransform, fw: 1f);
-            var bar = UiKit.Row("bar", _cloudModal.Panel, spacing: 8f);
-            bar.GetComponent<HorizontalLayoutGroup>().childAlignment = TextAnchor.MiddleRight;
-            UiKit.Button("btn-upload", bar, "上传到云端",
-                () => CloudSyncService.UploadAsync("manual").Forget(),
-                bg: UiStyle.BtnPrimary, fg: UiStyle.White);
-            UiKit.Button("btn-restore", bar, "从云端恢复", ConfirmCloudRestore,
-                bg: UiStyle.BtnDanger, fg: UiStyle.White);
-            UiKit.Button("btn-login", bar, CloudSave.TapAccountService.LoggedIn ? "退出登录" : "登录",
-                ToggleCloudLogin);
-            UiKit.Button("btn-close", bar, "关闭", CloseCloudPanel);
+            if (_cloudPanelPrefab == null)
+                _cloudPanelPrefab = HotUpdateAssets.Load<GameObject>("CloudSavePanel", UiKit.PrefabPath("CloudSavePanel"));
+            if (_cloudPanelPrefab == null)
+            {
+                Debug.LogError("[MainMenu] CloudSavePanel.prefab 加载失败——云存档面板打不开"
+                               + "（检查 Assets/Art/Prefab/CloudSavePanel.prefab 与 Yoo UI 组收集）");
+                return;
+            }
+            var panel = UnityEngine.Object.Instantiate(_cloudPanelPrefab, Root, false);
+            panel.name = "cloud-panel";
+            _cloudPanel = panel;
+            var rt = (RectTransform)panel.transform;
+            var statusNode = UiKit.FindDeep(rt, "lbl-status");
+            _cloudStatusLine = statusNode != null ? statusNode.GetComponentInChildren<TMP_Text>(true) : null;
+            var accountNode = UiKit.FindDeep(rt, "lbl-account");
+            _cloudAccountLine = accountNode != null ? accountNode.GetComponentInChildren<TMP_Text>(true) : null;
+            BindPanelButton(rt, "btn-upload", () => CloudSyncService.UploadAsync("manual").Forget());
+            BindPanelButton(rt, "btn-restore", ConfirmCloudRestore);
+            _cloudLoginButton = BindPanelButton(rt, "btn-login", ToggleCloudLogin);
+            BindPanelButton(rt, "btn-close", CloseCloudPanel);
             RefreshCloudPanel();
+        }
+
+        /// <summary>面板按钮绑定：找节点→清监听→挂回调；缺节点 LogError（不静默）。</summary>
+        private Button BindPanelButton(RectTransform panel, string name, Action onClick)
+        {
+            var node = UiKit.FindDeep(panel, name);
+            var btn = node != null ? node.GetComponentInChildren<Button>(true) : null;
+            if (btn == null)
+            {
+                Debug.LogError($"[MainMenu] 云存档面板缺按钮：{name}（检查 CloudSavePanel.prefab）");
+                return null;
+            }
+            btn.onClick.RemoveAllListeners();
+            btn.onClick.AddListener(() => onClick());
+            return btn;
         }
 
         private void RefreshCloudPanel()
         {
-            if (_cloudModal == null) return;
+            if (_cloudPanel == null) return;
             if (_cloudStatusLine != null) _cloudStatusLine.text = CloudSyncService.StatusText;
             if (_cloudAccountLine != null) _cloudAccountLine.text = CloudAccountText();
+            if (_cloudLoginButton != null)
+            {
+                var lbl = _cloudLoginButton.GetComponentInChildren<TMP_Text>(true);
+                if (lbl != null) lbl.text = CloudSave.TapAccountService.LoggedIn ? "退出登录" : "登录";
+            }
         }
 
         private void CloseCloudPanel()
         {
-            _cloudModal?.Close();
-            _cloudModal = null;
+            if (_cloudPanel != null)
+            {
+                UnityEngine.Object.Destroy(_cloudPanel);
+                _cloudPanel = null;
+            }
             _cloudStatusLine = null;
             _cloudAccountLine = null;
+            _cloudLoginButton = null;
         }
 
         private static string CloudAccountText()

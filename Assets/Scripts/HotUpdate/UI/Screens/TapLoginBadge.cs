@@ -4,22 +4,21 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using SynergyUI.Online;
+using Tide.HotUpdate;
 
 namespace SynergyUI
 {
     /// <summary>
-    /// 主菜单 TapTap 登录徽章（2026-10-23 登录接入）：运行时克隆 MainUI 现有按钮换皮——
-    /// 底色/字体/点击渐变全部继承预制体主题，零新增美术资产、零 prefab 手术。
-    /// 三态：IsSupported=false（编辑器/未配置）=整体不建；未登录=「TapTap 登录」钮；
-    /// 已登录=昵称条+「退出」钮。状态源=TapAccountService.OnChanged（主线程）。
+    /// 主菜单 TapTap 登录徽章（2026-10-23 预制体化）：视觉全部烘焙在 TapLoginBadge.prefab
+    /// （按钮=主菜单按钮同款平色底+ColorTint，字体/对齐烘焙），本类只负责加载实例化与
+    /// 三节点绑定（TipPromptHost 同款加载姿势——HotUpdateAssets.Load + Instantiate）。
+    /// 三态：IsSupported=false（编辑器/未配置）=不实例化（徽章缺席即正确态）；
+    /// 未登录=「TapTap 登录」钮；已登录=昵称条+「退出」钮。状态源=TapAccountService.OnChanged（主线程）。
     /// TODO(合规)：上架前按 TapTap《登录按钮设计规范》换官方按钮素材（开发者中心下载，
-    /// 届时只动 Build 的克隆来源/贴图，状态机不动）。
+    /// 届时只动 prefab 换贴图，状态机不动）。
     /// </summary>
     public sealed class TapLoginBadge : MonoBehaviour
     {
-        private const float Gap = 20f;   // 昵称条与退出钮间距
-        private const float Width = 320f; // 昵称/登录钮宽（与主菜单按钮同族，高 84 略低于 100）
-
         private RectTransform _btnLogin;
         private RectTransform _btnLogout;
         private RectTransform _nameNode;
@@ -29,46 +28,44 @@ namespace SynergyUI
         private bool _loggingIn;
         private TipPromptHost _tips;
 
-        /// <summary>挂到主菜单根（幂等——同名节点已在不重建；未支持平台直接不建）。</summary>
-        public static void Attach(RectTransform cloneSource, RectTransform root)
+        private static GameObject _prefab; // 进程级预制体句柄保活（同 TipPromptHost 口径）
+
+        /// <summary>实例化徽章预制体并接线（幂等——同名节点已在不重建；未支持平台直接不建）。</summary>
+        public static void Attach(RectTransform root)
         {
-            if (root == null || cloneSource == null) return;
+            if (root == null) return;
             if (root.Find("taptap-badge") != null) return;
             if (!TapAccountService.IsSupported) return; // 编辑器/未配置——徽章缺席即正确态
 
-            var go = new GameObject("taptap-badge", typeof(RectTransform));
-            var rt = (RectTransform)go.transform;
-            rt.SetParent(root, false);
-            rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(1, 1);
-            rt.anchoredPosition = new Vector2(-40, -40);
-            rt.sizeDelta = new Vector2(Width * 2 + Gap, 84);
-            go.AddComponent<TapLoginBadge>().Build(cloneSource);
+            if (_prefab == null)
+                _prefab = HotUpdateAssets.Load<GameObject>("TapLoginBadge", UiKit.PrefabPath("TapLoginBadge"));
+            if (_prefab == null)
+            {
+                Debug.LogError("[TapLoginBadge] TapLoginBadge.prefab 加载失败——徽章不显示"
+                               + "（检查 Assets/Art/Prefab/TapLoginBadge.prefab 与 Yoo UI 组收集）");
+                return;
+            }
+            var go = Instantiate(_prefab, root, false);
+            go.name = "taptap-badge"; // 锚点/尺寸烘焙在预制体根（右上 -40,-40）
+            go.AddComponent<TapLoginBadge>().Build();
         }
 
-        private void Build(RectTransform cloneSource)
+        private void Build()
         {
-            _tips = new TipPromptHost(() => (RectTransform)transform.parent);
+            var rt = (RectTransform)transform;
+            _tips = new TipPromptHost(() => (RectTransform)rt.parent);
 
-            _btnLogin = CloneButton(cloneSource, "btn-taptap", Vector2.zero, Width, "TapTap 登录");
-            _loginButton = _btnLogin.GetComponent<Button>();
-            _loginLabel = _btnLogin.GetComponentInChildren<TMP_Text>(true);
-            _loginButton.onClick.AddListener(OnLoginClicked);
+            _btnLogin = UiKit.FindDeep(rt, "btn-login");
+            _loginButton = _btnLogin != null ? _btnLogin.GetComponentInChildren<Button>(true) : null;
+            _loginLabel = _btnLogin != null ? _btnLogin.GetComponentInChildren<TMP_Text>(true) : null;
+            if (_loginButton != null) _loginButton.onClick.AddListener(OnLoginClicked);
 
-            _btnLogout = CloneButton(cloneSource, "btn-taptap-logout",
-                new Vector2(-(Width + Gap), 0), 140, "退出");
-            _btnLogout.GetComponent<Button>().onClick.AddListener(OnLogoutClicked);
+            _btnLogout = UiKit.FindDeep(rt, "btn-logout");
+            var logoutButton = _btnLogout != null ? _btnLogout.GetComponentInChildren<Button>(true) : null;
+            if (logoutButton != null) logoutButton.onClick.AddListener(OnLogoutClicked);
 
-            // 昵称条：克隆整只按钮后剥掉 Button/Image，只留换过文案的 label（字体/颜色继承）
-            var nameGo = Instantiate(_btnLogin.gameObject, transform, false);
-            nameGo.name = "lbl-taptap-name";
-            Destroy(nameGo.GetComponent<Button>());
-            Destroy(nameGo.GetComponent<Image>());
-            _nameNode = (RectTransform)nameGo.transform;
-            _nameNode.anchorMin = _nameNode.anchorMax = _nameNode.pivot = new Vector2(1, 1);
-            _nameNode.anchoredPosition = Vector2.zero;
-            _nameNode.sizeDelta = new Vector2(Width, 84);
-            _nameLabel = nameGo.GetComponentInChildren<TMP_Text>(true);
-            if (_nameLabel != null) _nameLabel.overflowMode = TextOverflowModes.Ellipsis; // 长昵称截断不溢出
+            _nameNode = UiKit.FindDeep(rt, "lbl-name"); // 预制体默认 inactive
+            _nameLabel = _nameNode != null ? _nameNode.GetComponentInChildren<TMP_Text>(true) : null;
 
             TapAccountService.OnChanged += Refresh;
             Refresh();
@@ -113,22 +110,5 @@ namespace SynergyUI
         }
 
         private void OnLogoutClicked() => TapAccountService.Logout(); // 状态回刷经 OnChanged→Refresh
-
-        /// <summary>克隆主菜单按钮：换名/换文案/去源监听/重锚右上角。源按钮可处于隐藏态（克隆后强制激活）。</summary>
-        private RectTransform CloneButton(RectTransform source, string name, Vector2 pos, float width, string text)
-        {
-            var go = Instantiate(source.gameObject, transform, false);
-            go.name = name;
-            go.SetActive(true);
-            var rt = (RectTransform)go.transform;
-            rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(1, 1);
-            rt.anchoredPosition = pos;
-            rt.sizeDelta = new Vector2(width, 84);
-            var button = go.GetComponent<Button>();
-            if (button != null) button.onClick.RemoveAllListeners(); // 运行时加的监听不随克隆走，保险再清
-            var label = go.GetComponentInChildren<TMP_Text>(true);
-            if (label != null) label.text = text;
-            return rt;
-        }
     }
 }

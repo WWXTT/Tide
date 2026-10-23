@@ -2,7 +2,7 @@
   "cards": [
     {
       "id": "C_4A88A165",
-      "cardName": "教学生物12",
+      "cardName": "教学·3",
       "supertype": "Creature",
       "power": 1,
       "life": 1,
@@ -20,7 +20,7 @@
     },
     {
       "id": "C_62DD963D",
-      "cardName": "教学生物13",
+      "cardName": "教学·1",
       "supertype": "Creature",
       "power": 2,
       "life": 1,
@@ -38,7 +38,7 @@
     },
     {
       "id": "C_159D9AD0",
-      "cardName": "教学生物24",
+      "cardName": "教学·5",
       "supertype": "Creature",
       "power": 3,
       "life": 2,
@@ -56,7 +56,7 @@
     },
     {
       "id": "C_7E5A100B",
-      "cardName": "教学生物11",
+      "cardName": "教学·7",
       "supertype": "Creature",
       "illustration": "PetitAngel",
       "power": 2,
@@ -75,7 +75,7 @@
     },
     {
       "id": "C_7E5A100D",
-      "cardName": "教学生物13",
+      "cardName": "教学·8",
       "supertype": "Creature",
       "illustration": "DragonessTheWickedKnight",
       "power": 7,
@@ -94,7 +94,7 @@
     },
     {
       "id": "C_7E5A100E",
-      "cardName": "教学生物14",
+      "cardName": "教学·9",
       "supertype": "Creature",
       "illustration": "Kojikocy",
       "power": 8,
@@ -113,7 +113,7 @@
     },
     {
       "id": "C_7E5A100F",
-      "cardName": "教学生物15",
+      "cardName": "教学·6",
       "supertype": "Creature",
       "illustration": "DarkPrisoner",
       "power": 6,
@@ -132,7 +132,7 @@
     },
     {
       "id": "C_62154923",
-      "cardName": "教学·处决",
+      "cardName": "教学·14",
       "supertype": "Spell",
       "tags": [
         "教学"
@@ -143,7 +143,7 @@
     },
     {
       "id": "C_DE67CAC7",
-      "cardName": "教学·乱灭",
+      "cardName": "教学·15",
       "supertype": "Spell",
       "tags": [
         "教学"
@@ -154,7 +154,7 @@
     },
     {
       "id": "C_61CE70CE",
-      "cardName": "教学·缄默处决",
+      "cardName": "教学·16",
       "supertype": "Spell",
       "tags": [
         "教学"
@@ -165,7 +165,7 @@
     },
     {
       "id": "C_CA794022",
-      "cardName": "教学·岩甲兽",
+      "cardName": "教学·17",
       "supertype": "Creature",
       "illustration": "Kojikocy",
       "power": 8,
@@ -184,7 +184,7 @@
     },
     {
       "id": "C_7F4A73BE",
-      "cardName": "教学·不朽卫士",
+      "cardName": "教学·18",
       "supertype": "Creature",
       "illustration": "MukaMuka",
       "power": 3,
@@ -206,7 +206,7 @@
     },
     {
       "id": "C_63272F1B",
-      "cardName": "教学·潜行者",
+      "cardName": "教学·19",
       "supertype": "Creature",
       "illustration": "DarkPrisoner",
       "power": 2,
@@ -228,7 +228,7 @@
     },
     {
       "id": "C_DC33C804",
-      "cardName": "教学·先发箭",
+      "cardName": "教学·39",
       "supertype": "Spell",
       "tags": [
         "教学"
@@ -239,7 +239,7 @@
     },
     {
       "id": "C_AE6B683B",
-      "cardName": "教学·以少胜多",
+      "cardName": "教学·40",
       "supertype": "Spell",
       "tags": [
         "教学"
@@ -250,7 +250,7 @@
     },
     {
       "id": "C_E640E61F",
-      "cardName": "教学·厚积薄发",
+      "cardName": "教学·41",
       "supertype": "Spell",
       "tags": [
         "教学"
@@ -261,7 +261,7 @@
     },
     {
       "id": "C_D3385C0C",
-      "cardName": "教学·终结击",
+      "cardName": "教学·42",
       "supertype": "Spell",
       "tags": [
         "教学"
@@ -272,7 +272,7 @@
     },
     {
       "id": "C_DF350591",
-      "cardName": "教学·以弱搏强",
+      "cardName": "教学·13",
       "supertype": "Spell",
       "tags": [
         "教学"
@@ -283,7 +283,7 @@
     },
     {
       "id": "C_19FC3189",
-      "cardName": "教学·大地之力",
+      "cardName": "教学·43",
       "supertype": "Spell",
       "tags": [
         "教学"
@@ -294,7 +294,7 @@
     },
     {
       "id": "C_368ECF31",
-      "cardName": "教学·命运之牌",
+      "cardName": "教学·46",
       "supertype": "Spell",
       "tags": [
         "教学"
@@ -305,7 +305,7 @@
     },
     {
       "id": "C_1D537FE9",
-      "cardName": "教学·以多欺少",
+      "cardName": "教学·44",
       "supertype": "Spell",
       "tags": [
         "教学"
@@ -316,7 +316,7 @@
     },
     {
       "id": "C_DC84250C",
-      "cardName": "教学·弹尽粮绝",
+      "cardName": "教学·45",
       "supertype": "Spell",
       "tags": [
         "教学"
@@ -327,7 +327,7 @@
     },
     {
       "id": "C_0E021A0D",
-      "cardName": "教学·居高临下",
+      "cardName": "教学·38",
       "supertype": "Spell",
       "tags": [
         "教学"
@@ -338,7 +338,7 @@
     },
     {
       "id": "C_1489CC0B",
-      "cardName": "教学·破釜沉舟",
+      "cardName": "教学·47",
       "supertype": "Spell",
       "tags": [
         "教学"
@@ -349,7 +349,7 @@
     },
     {
       "id": "C_DE1F1C8B",
-      "cardName": "教学·最后一发",
+      "cardName": "教学·48",
       "supertype": "Spell",
       "tags": [
         "教学"
@@ -360,7 +360,7 @@
     },
     {
       "id": "C_295C5E0F",
-      "cardName": "教学·守墓巨像",
+      "cardName": "教学·49",
       "supertype": "Creature",
       "illustration": "MukaMuka",
       "power": 2,
@@ -382,7 +382,7 @@
     },
     {
       "id": "C_2E341806",
-      "cardName": "教学·游离小妖",
+      "cardName": "教学·2",
       "supertype": "Creature",
       "illustration": "PetitAngel",
       "power": 1,
@@ -401,7 +401,7 @@
     },
     {
       "id": "C_CA720FD5",
-      "cardName": "教学·倒计时龟",
+      "cardName": "教学·20",
       "supertype": "Creature",
       "illustration": "MukaMuka",
       "power": 2,
@@ -423,7 +423,7 @@
     },
     {
       "id": "C_2FA0E93E",
-      "cardName": "教学·运势壹",
+      "cardName": "教学·21",
       "supertype": "Creature",
       "illustration": "PetitAngel",
       "power": 1,
@@ -445,7 +445,7 @@
     },
     {
       "id": "C_43782189",
-      "cardName": "教学·运势贰",
+      "cardName": "教学·22",
       "supertype": "Creature",
       "illustration": "DragonessTheWickedKnight",
       "power": 1,
@@ -467,7 +467,7 @@
     },
     {
       "id": "C_1A67BE43",
-      "cardName": "教学·运势叁",
+      "cardName": "教学·23",
       "supertype": "Creature",
       "illustration": "Kojikocy",
       "power": 1,
@@ -489,7 +489,7 @@
     },
     {
       "id": "C_CCC6BD2F",
-      "cardName": "教学·运势肆",
+      "cardName": "教学·24",
       "supertype": "Creature",
       "illustration": "DarkPrisoner",
       "power": 1,
@@ -511,7 +511,7 @@
     },
     {
       "id": "C_ED2C6F51",
-      "cardName": "教学·运势伍",
+      "cardName": "教学·25",
       "supertype": "Creature",
       "illustration": "MukaMuka",
       "power": 1,
@@ -533,7 +533,7 @@
     },
     {
       "id": "C_F2B9055A",
-      "cardName": "教学·运势陆",
+      "cardName": "教学·26",
       "supertype": "Creature",
       "illustration": "Griffore",
       "power": 1,
@@ -555,7 +555,7 @@
     },
     {
       "id": "C_D915D58E",
-      "cardName": "教学·拼点武者",
+      "cardName": "教学·10",
       "supertype": "Creature",
       "illustration": "DragonessTheWickedKnight",
       "power": 1,
@@ -577,7 +577,7 @@
     },
     {
       "id": "C_47366FDF",
-      "cardName": "教学·死亡计数官",
+      "cardName": "教学·27",
       "supertype": "Creature",
       "illustration": "DarkPrisoner",
       "power": 1,
@@ -599,7 +599,7 @@
     },
     {
       "id": "C_37590ABA",
-      "cardName": "教学·充盈兽一",
+      "cardName": "教学·28",
       "supertype": "Creature",
       "illustration": "PetitAngel",
       "power": 1,
@@ -621,7 +621,7 @@
     },
     {
       "id": "C_E5B9B439",
-      "cardName": "教学·充盈兽二",
+      "cardName": "教学·29",
       "supertype": "Creature",
       "illustration": "PetitAngel",
       "power": 1,
@@ -643,7 +643,7 @@
     },
     {
       "id": "C_B5CB770F",
-      "cardName": "教学·充盈兽三",
+      "cardName": "教学·30",
       "supertype": "Creature",
       "illustration": "PetitAngel",
       "power": 1,
@@ -665,7 +665,7 @@
     },
     {
       "id": "C_D5F53D47",
-      "cardName": "教学·充盈兽四",
+      "cardName": "教学·31",
       "supertype": "Creature",
       "illustration": "PetitAngel",
       "power": 1,
@@ -687,7 +687,7 @@
     },
     {
       "id": "C_4EAE4725",
-      "cardName": "教学·充盈兽五",
+      "cardName": "教学·32",
       "supertype": "Creature",
       "illustration": "PetitAngel",
       "power": 1,
@@ -709,7 +709,7 @@
     },
     {
       "id": "C_BCA1D9C8",
-      "cardName": "教学·充盈兽六",
+      "cardName": "教学·33",
       "supertype": "Creature",
       "illustration": "PetitAngel",
       "power": 1,
@@ -731,7 +731,7 @@
     },
     {
       "id": "C_3D470EE8",
-      "cardName": "教学·幼兽",
+      "cardName": "教学·34",
       "supertype": "Creature",
       "illustration": "Kojikocy",
       "power": 1,
@@ -750,7 +750,7 @@
     },
     {
       "id": "C_35A53D34",
-      "cardName": "教学·附加诅咒",
+      "cardName": "教学·11",
       "supertype": "Spell",
       "tags": [
         "教学"
@@ -761,7 +761,7 @@
     },
     {
       "id": "C_BEE512DB",
-      "cardName": "教学·附加祝福",
+      "cardName": "教学·12",
       "supertype": "Spell",
       "tags": [
         "教学"
@@ -772,7 +772,7 @@
     },
     {
       "id": "C_9A2961C5",
-      "cardName": "教学·团结兽",
+      "cardName": "教学·37",
       "supertype": "Creature",
       "illustration": "MukaMuka",
       "power": 1,
@@ -794,7 +794,7 @@
     },
     {
       "id": "C_C18EE5C3",
-      "cardName": "教学·直伤兽",
+      "cardName": "教学·36",
       "supertype": "Creature",
       "illustration": "Kojikocy",
       "power": 1,
@@ -816,7 +816,7 @@
     },
     {
       "id": "C_09BAF20F",
-      "cardName": "教学·黑晶仔",
+      "cardName": "教学·4",
       "supertype": "Creature",
       "illustration": "Kojikocy",
       "power": 1,
@@ -835,7 +835,7 @@
     },
     {
       "id": "C_7F5ADCE4",
-      "cardName": "教学·元素井",
+      "cardName": "教学·35",
       "supertype": "Creature",
       "illustration": "Morinphen",
       "power": 1,
@@ -927,7 +927,7 @@
     },
     {
       "id": "C_1F977068",
-      "cardName": "潮汐观测者",
+      "cardName": "预组·17",
       "supertype": "Creature",
       "power": 1,
       "life": 3,
@@ -949,7 +949,7 @@
     },
     {
       "id": "C_B61F1A73",
-      "cardName": "静水贤者",
+      "cardName": "预组·18",
       "supertype": "Creature",
       "power": 2,
       "life": 2,
@@ -971,7 +971,7 @@
     },
     {
       "id": "C_A9D3C4BF",
-      "cardName": "霜涌结界",
+      "cardName": "预组·19",
       "supertype": "Enchantment",
       "costList": [
         1.0,
@@ -992,7 +992,7 @@
     },
     {
       "id": "C_C2C0FA05",
-      "cardName": "秘藏结界",
+      "cardName": "预组·20",
       "supertype": "Enchantment",
       "costList": [
         1.0,
@@ -1013,7 +1013,7 @@
     },
     {
       "id": "C_A4B3AF6D",
-      "cardName": "冰封",
+      "cardName": "预组·21",
       "supertype": "Spell",
       "tags": [
         "ThemeBlueSurplus",
@@ -1026,7 +1026,7 @@
     },
     {
       "id": "C_554D8515",
-      "cardName": "霜环",
+      "cardName": "预组·22",
       "supertype": "Spell",
       "tags": [
         "ThemeBlueSurplus",
@@ -1039,7 +1039,7 @@
     },
     {
       "id": "C_A6864DC8",
-      "cardName": "退潮",
+      "cardName": "预组·23",
       "supertype": "Spell",
       "tags": [
         "ThemeBlueSurplus",
@@ -1052,7 +1052,7 @@
     },
     {
       "id": "C_B635B3DD",
-      "cardName": "霜蚀抉择",
+      "cardName": "预组·24",
       "supertype": "Spell",
       "tags": [
         "ThemeBlueSurplus",
@@ -1066,7 +1066,7 @@
     },
     {
       "id": "C_2E69189D",
-      "cardName": "预知",
+      "cardName": "预组·25",
       "supertype": "Spell",
       "tags": [
         "ThemeBlueSurplus",
@@ -1079,7 +1079,7 @@
     },
     {
       "id": "C_F4C2186D",
-      "cardName": "冰墙",
+      "cardName": "预组·26",
       "supertype": "Creature",
       "life": 5,
       "costList": [
@@ -1097,7 +1097,7 @@
     },
     {
       "id": "C_5AC4A93E",
-      "cardName": "霜甲守卫",
+      "cardName": "预组·27",
       "supertype": "Creature",
       "power": 2,
       "life": 4,
@@ -1116,7 +1116,7 @@
     },
     {
       "id": "C_563CD6A2",
-      "cardName": "深海巨兽",
+      "cardName": "预组·28",
       "supertype": "Creature",
       "power": 4,
       "life": 5,
@@ -1148,7 +1148,7 @@
     },
     {
       "id": "C_872DA59C",
-      "cardName": "赤烬猎犬",
+      "cardName": "预组·1",
       "supertype": "Creature",
       "power": 3,
       "life": 2,
@@ -1168,7 +1168,7 @@
     },
     {
       "id": "C_35C5EE76",
-      "cardName": "熔岩突袭兵",
+      "cardName": "预组·2",
       "supertype": "Creature",
       "power": 4,
       "life": 2,
@@ -1188,7 +1188,7 @@
     },
     {
       "id": "C_6FDF5F8F",
-      "cardName": "燃爪斥候",
+      "cardName": "预组·3",
       "supertype": "Creature",
       "power": 4,
       "life": 3,
@@ -1208,7 +1208,7 @@
     },
     {
       "id": "C_CCD21FFD",
-      "cardName": "焚城先锋",
+      "cardName": "预组·4",
       "supertype": "Creature",
       "power": 4,
       "life": 2,
@@ -1239,7 +1239,7 @@
     },
     {
       "id": "C_6D1F28D9",
-      "cardName": "空手掠袭者",
+      "cardName": "预组·5",
       "supertype": "Creature",
       "power": 4,
       "life": 2,
@@ -1270,7 +1270,7 @@
     },
     {
       "id": "C_D706FDA0",
-      "cardName": "血怒先锋",
+      "cardName": "预组·6",
       "supertype": "Creature",
       "power": 4,
       "life": 2,
@@ -1301,7 +1301,7 @@
     },
     {
       "id": "C_63D508CA",
-      "cardName": "断刃武士",
+      "cardName": "预组·7",
       "supertype": "Creature",
       "power": 5,
       "life": 2,
@@ -1332,7 +1332,7 @@
     },
     {
       "id": "C_64C9DEFC",
-      "cardName": "拼点·烬刃武者",
+      "cardName": "预组·8",
       "supertype": "Creature",
       "power": 4,
       "life": 2,
@@ -1363,7 +1363,7 @@
     },
     {
       "id": "C_806CEB98",
-      "cardName": "斩首猎手",
+      "cardName": "预组·9",
       "supertype": "Creature",
       "power": 5,
       "life": 2,
@@ -1394,7 +1394,7 @@
     },
     {
       "id": "C_EB930092",
-      "cardName": "双刃屠夫",
+      "cardName": "预组·10",
       "supertype": "Creature",
       "power": 5,
       "life": 2,
@@ -1425,7 +1425,7 @@
     },
     {
       "id": "C_1909E57D",
-      "cardName": "拼点·焚面鬼",
+      "cardName": "预组·11",
       "supertype": "Creature",
       "power": 6,
       "life": 2,
@@ -1456,7 +1456,7 @@
     },
     {
       "id": "C_E722F3B6",
-      "cardName": "血税突袭",
+      "cardName": "预组·12",
       "supertype": "Spell",
       "tags": [
         "ThemeRedClash",
@@ -1477,7 +1477,7 @@
     },
     {
       "id": "C_72FBE469",
-      "cardName": "战嚎",
+      "cardName": "预组·13",
       "supertype": "Spell",
       "tags": [
         "ThemeRedClash",
@@ -1498,7 +1498,7 @@
     },
     {
       "id": "C_9D3326D1",
-      "cardName": "永久磨砺",
+      "cardName": "预组·14",
       "supertype": "Spell",
       "tags": [
         "ThemeRedClash",
@@ -1519,7 +1519,7 @@
     },
     {
       "id": "C_33EA1360",
-      "cardName": "烈焰箭",
+      "cardName": "预组·15",
       "supertype": "Spell",
       "tags": [
         "ThemeRedClash",
@@ -1540,7 +1540,7 @@
     },
     {
       "id": "C_2338F1EE",
-      "cardName": "斩首令",
+      "cardName": "预组·16",
       "supertype": "Spell",
       "tags": [
         "ThemeRedClash",
@@ -1574,7 +1574,7 @@
     },
     {
       "id": "C_079E718B",
-      "cardName": "远古树灵",
+      "cardName": "预组·29",
       "supertype": "Creature",
       "power": 4,
       "life": 4,
@@ -1594,7 +1594,7 @@
     },
     {
       "id": "C_C934C965",
-      "cardName": "世界树之影",
+      "cardName": "预组·30",
       "supertype": "Creature",
       "power": 7,
       "life": 7,
@@ -1614,7 +1614,7 @@
     },
     {
       "id": "C_7D1BF1B4",
-      "cardName": "年轮守卫",
+      "cardName": "预组·31",
       "supertype": "Creature",
       "power": 1,
       "life": 4,
@@ -1636,7 +1636,7 @@
     },
     {
       "id": "C_C4013195",
-      "cardName": "苔甲巨龟",
+      "cardName": "预组·32",
       "supertype": "Creature",
       "life": 5,
       "costList": [
@@ -1657,7 +1657,7 @@
     },
     {
       "id": "C_0BB1F76F",
-      "cardName": "时之藤结界",
+      "cardName": "预组·33",
       "supertype": "Enchantment",
       "costList": [
         1.0,
@@ -1678,7 +1678,7 @@
     },
     {
       "id": "C_27098D09",
-      "cardName": "荆棘古树",
+      "cardName": "预组·34",
       "supertype": "Creature",
       "power": 2,
       "life": 5,
@@ -1700,7 +1700,7 @@
     },
     {
       "id": "C_46EF2B75",
-      "cardName": "世界树之种",
+      "cardName": "预组·35",
       "supertype": "Enchantment",
       "costList": [
         1.0,
@@ -1721,7 +1721,7 @@
     },
     {
       "id": "C_BDC2E758",
-      "cardName": "苏醒古树",
+      "cardName": "预组·36",
       "supertype": "Creature",
       "power": 4,
       "life": 5,
@@ -1745,7 +1745,7 @@
     },
     {
       "id": "C_937E43DB",
-      "cardName": "苏醒巨像",
+      "cardName": "预组·37",
       "supertype": "Creature",
       "power": 5,
       "life": 7,
@@ -1769,7 +1769,7 @@
     },
     {
       "id": "C_5D73FF7F",
-      "cardName": "毒雾诅咒",
+      "cardName": "预组·38",
       "supertype": "Spell",
       "tags": [
         "ThemeGreenCountdown",
@@ -1782,7 +1782,7 @@
     },
     {
       "id": "C_48A11B22",
-      "cardName": "蚀命诅咒",
+      "cardName": "预组·39",
       "supertype": "Spell",
       "tags": [
         "ThemeGreenCountdown",
@@ -1795,7 +1795,7 @@
     },
     {
       "id": "C_C825490B",
-      "cardName": "回春祝福",
+      "cardName": "预组·40",
       "supertype": "Spell",
       "tags": [
         "ThemeGreenCountdown",
@@ -1808,7 +1808,7 @@
     },
     {
       "id": "C_EF4154EB",
-      "cardName": "生长祝福",
+      "cardName": "预组·41",
       "supertype": "Spell",
       "tags": [
         "ThemeGreenCountdown",
@@ -1821,7 +1821,7 @@
     },
     {
       "id": "C_8DD331C4",
-      "cardName": "回春术",
+      "cardName": "预组·42",
       "supertype": "Spell",
       "tags": [
         "ThemeGreenCountdown",
@@ -1834,7 +1834,7 @@
     },
     {
       "id": "C_666B36DF",
-      "cardName": "木甲术",
+      "cardName": "预组·43",
       "supertype": "Spell",
       "tags": [
         "ThemeGreenCountdown",
@@ -1847,7 +1847,7 @@
     },
     {
       "id": "C_B91D1C1B",
-      "cardName": "荆棘壁",
+      "cardName": "预组·44",
       "supertype": "Creature",
       "life": 6,
       "costList": [
@@ -1865,7 +1865,7 @@
     },
     {
       "id": "C_30D84105",
-      "cardName": "古木守卫",
+      "cardName": "预组·45",
       "supertype": "Creature",
       "power": 2,
       "life": 6,
@@ -1884,7 +1884,7 @@
     },
     {
       "id": "C_EB1553F2",
-      "cardName": "世界树苗",
+      "cardName": "预组·46",
       "supertype": "Creature",
       "power": 4,
       "life": 8,
@@ -1903,7 +1903,7 @@
     },
     {
       "id": "C_4E1B6FE3",
-      "cardName": "再生古树",
+      "cardName": "预组·47",
       "supertype": "Creature",
       "life": 6,
       "costList": [

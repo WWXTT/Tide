@@ -86,6 +86,8 @@ namespace SynergyUI
             // 三路径的 Root 此刻均已就位）——TipPanel 等屏内弹层随屏根同缩，无需各自处理。
             if (Root != null && Root.GetComponent<SafeAreaFitter>() == null)
                 Root.gameObject.AddComponent<SafeAreaFitter>();
+            // Phase A（2026-10-23）：Stage 屏显示留边画框 / Inset 屏（战场 3D 透出）隐藏 backdrop
+            UIBootstrap.SyncBackdropFor(Root);
             OnEnter();
         }
 
@@ -106,7 +108,8 @@ namespace SynergyUI
             instance.name = RootName; // 实例根统一重命名为屏根名（保持按名断言/查找口径）
             Root = (RectTransform)instance.transform;
             Root.SetAsLastSibling();
-            UiKit.Stretch(Root);
+            // 不 Stretch：保留预制体原始锚点（固定 1920×1080 设计台=Stage / 拉伸=Inset），
+            // SafeAreaFitter 按原始锚点判定模式并接管安全区适配（2026-10-23 Phase A）。
         }
 
         // ================= 预制体绑定助手（深度按名，对剃层免疫） =================

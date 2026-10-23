@@ -1,2428 +1,2428 @@
 {
-  "items": [
-    {
-      "id": "3C1041AC",
-      "name": "教学·处决：消灭一个对方生物",
-      "timing": 19,
-      "activation": 2,
-      "cost": [
-        0.0,
-        3.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "82c35ce6",
-            "kinds": [
-              2
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "id": "0489681E",
-      "name": "教学·乱灭：随机消灭一个对方生物",
-      "timing": 19,
-      "activation": 2,
-      "cost": [
-        0.0,
-        3.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "82c35ce6",
-            "kinds": [
-              2
-            ],
-            "count": 1,
-            "rand": 1
-          }
-        }
-      ]
-    },
-    {
-      "id": "8DD071F9",
-      "name": "教学·缄默处决：先缄默目标，再消灭目标",
-      "timing": 19,
-      "activation": 2,
-      "cost": [
-        0.0,
-        3.0,
-        0.0,
-        0.0,
-        0.0,
-        2.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "4b5fe01c",
-            "kinds": [
-              2
-            ]
-          }
-        },
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "82c35ce6",
-            "kinds": [
-              2
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "id": "5B9B45C5",
-      "name": "教学·先发箭：对对方目标造成1点伤害；若为本回合使用的第一张卡，再对对方目标造成1点伤害",
-      "timing": 19,
-      "activation": 2,
-      "cost": [
-        0.0,
-        1.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "a4b823fc",
-            "kinds": [
-              2
-            ],
-            "branch": {
-              "settle": 1,
-              "gateId": "FirstCardThisTurn",
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "kinds": [
-                    2
-                  ]
-                }
+    "items":  [
+                  {
+                      "id":  "3C1041AC",
+                      "name":  "消灭一个对方生物",
+                      "timing":  19,
+                      "activation":  2,
+                      "cost":  [
+                                   0.0,
+                                   3.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "82c35ce6",
+                                                     "kinds":  [
+                                                                   2
+                                                               ]
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "0489681E",
+                      "name":  "随机消灭一个对方生物",
+                      "timing":  19,
+                      "activation":  2,
+                      "cost":  [
+                                   0.0,
+                                   3.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "82c35ce6",
+                                                     "kinds":  [
+                                                                   2
+                                                               ],
+                                                     "count":  1,
+                                                     "rand":  1
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "8DD071F9",
+                      "name":  "先缄默目标，再消灭目标",
+                      "timing":  19,
+                      "activation":  2,
+                      "cost":  [
+                                   0.0,
+                                   3.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   2.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "4b5fe01c",
+                                                     "kinds":  [
+                                                                   2
+                                                               ]
+                                                 }
+                                    },
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "82c35ce6",
+                                                     "kinds":  [
+                                                                   2
+                                                               ]
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "5B9B45C5",
+                      "name":  "对对方目标造成1点伤害；若为本回合使用的第一张卡，再对对方目标造成1点伤害",
+                      "timing":  19,
+                      "activation":  2,
+                      "cost":  [
+                                   0.0,
+                                   1.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "a4b823fc",
+                                                     "kinds":  [
+                                                                   2
+                                                               ],
+                                                     "branch":  {
+                                                                    "settle":  1,
+                                                                    "gateId":  "FirstCardThisTurn",
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "a4b823fc",
+                                                                                     "kinds":  [
+                                                                                                   2
+                                                                                               ]
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "91FCF40A",
+                      "name":  "对对方目标造成1点伤害；若场上生物低于对手，再对对方目标造成1点伤害",
+                      "timing":  19,
+                      "activation":  2,
+                      "cost":  [
+                                   0.0,
+                                   1.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "a4b823fc",
+                                                     "kinds":  [
+                                                                   2
+                                                               ],
+                                                     "branch":  {
+                                                                    "settle":  1,
+                                                                    "gateId":  "CreaturesBelowOpp",
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "a4b823fc",
+                                                                                     "kinds":  [
+                                                                                                   2
+                                                                                               ]
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "0DEC4CDA",
+                      "name":  "对对方目标造成1点伤害；若卡组剩余高于对手，再对对方目标造成1点伤害",
+                      "timing":  19,
+                      "activation":  2,
+                      "cost":  [
+                                   0.0,
+                                   1.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "a4b823fc",
+                                                     "kinds":  [
+                                                                   2
+                                                               ],
+                                                     "branch":  {
+                                                                    "settle":  1,
+                                                                    "gateId":  "DeckAboveOpp",
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "a4b823fc",
+                                                                                     "kinds":  [
+                                                                                                   2
+                                                                                               ]
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "BB69AEA6",
+                      "name":  "对对方目标造成1点伤害；若此伤害消灭了目标，抽1张牌",
+                      "timing":  19,
+                      "activation":  2,
+                      "cost":  [
+                                   0.0,
+                                   1.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "a4b823fc",
+                                                     "kinds":  [
+                                                                   2
+                                                               ],
+                                                     "branch":  {
+                                                                    "settle":  2,
+                                                                    "outcomeId":  "DmgKillsTarget",
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "e5e2e116"
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "23FB3BC4",
+                      "name":  "对对方目标造成1点伤害；若生命值低于对手，再对对方目标造成1点伤害",
+                      "timing":  19,
+                      "activation":  2,
+                      "cost":  [
+                                   0.0,
+                                   1.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "a4b823fc",
+                                                     "kinds":  [
+                                                                   2
+                                                               ],
+                                                     "branch":  {
+                                                                    "settle":  1,
+                                                                    "gateId":  "LifeBelowOpp",
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "a4b823fc",
+                                                                                     "kinds":  [
+                                                                                                   2
+                                                                                               ]
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "F3ADA5C6",
+                      "name":  "对对方目标造成1点伤害；若操控地数量≥7，抽1张牌",
+                      "timing":  19,
+                      "activation":  2,
+                      "cost":  [
+                                   0.0,
+                                   1.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "a4b823fc",
+                                                     "kinds":  [
+                                                                   2
+                                                               ],
+                                                     "branch":  {
+                                                                    "settle":  1,
+                                                                    "gateId":  "LandsGe7",
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "e5e2e116"
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "ACDF1245",
+                      "name":  "对对方目标造成1点伤害；若本回合准备阶段抽到本卡，再对对方目标造成3点伤害",
+                      "timing":  19,
+                      "activation":  2,
+                      "cost":  [
+                                   0.0,
+                                   1.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "a4b823fc",
+                                                     "kinds":  [
+                                                                   2
+                                                               ],
+                                                     "branch":  {
+                                                                    "settle":  1,
+                                                                    "gateId":  "DrawnInStandbyThisTurn",
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "a4b823fc",
+                                                                                     "value":  3,
+                                                                                     "kinds":  [
+                                                                                                   2
+                                                                                               ]
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "E3E2EE1B",
+                      "name":  "对对方目标造成1点伤害；若场上生物高于对手，再对对方目标造成1点伤害",
+                      "timing":  19,
+                      "activation":  2,
+                      "cost":  [
+                                   0.0,
+                                   1.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "a4b823fc",
+                                                     "kinds":  [
+                                                                   2
+                                                               ],
+                                                     "branch":  {
+                                                                    "settle":  1,
+                                                                    "gateId":  "CreaturesAboveOpp",
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "a4b823fc",
+                                                                                     "kinds":  [
+                                                                                                   2
+                                                                                               ]
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "8ECC5F8B",
+                      "name":  "对对方目标造成1点伤害；若卡组剩余低于对手，再对对方目标造成1点伤害",
+                      "timing":  19,
+                      "activation":  2,
+                      "cost":  [
+                                   0.0,
+                                   1.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "a4b823fc",
+                                                     "kinds":  [
+                                                                   2
+                                                               ],
+                                                     "branch":  {
+                                                                    "settle":  1,
+                                                                    "gateId":  "DeckBelowOpp",
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "a4b823fc",
+                                                                                     "kinds":  [
+                                                                                                   2
+                                                                                               ]
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "11043BA0",
+                      "name":  "对对方目标造成1点伤害；若生命值高于对手，再对对方目标造成1点伤害",
+                      "timing":  19,
+                      "activation":  2,
+                      "cost":  [
+                                   0.0,
+                                   1.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "a4b823fc",
+                                                     "kinds":  [
+                                                                   2
+                                                               ],
+                                                     "branch":  {
+                                                                    "settle":  1,
+                                                                    "gateId":  "LifeAboveOpp",
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "a4b823fc",
+                                                                                     "kinds":  [
+                                                                                                   2
+                                                                                               ]
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "745280CE",
+                      "name":  "代价对自己造成1点伤害并获得1黑；对对方目标造成1点伤害；若己方生命值≤7，再对对方目标造成2点伤害",
+                      "timing":  19,
+                      "activation":  2,
+                      "cost":  [
+                                   0.0,
+                                   1.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "costs":  [
+                                    {
+                                        "type":  7,
+                                        "value":  0,
+                                        "manaType":  0,
+                                        "turns":  0,
+                                        "payload":  {
+                                                        "refId":  "a4b823fc",
+                                                        "kinds":  [
+                                                                      1
+                                                                  ]
+                                                    }
+                                    }
+                                ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "a4b823fc",
+                                                     "kinds":  [
+                                                                   2
+                                                               ],
+                                                     "branch":  {
+                                                                    "settle":  1,
+                                                                    "gateId":  "LifeLe7",
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "a4b823fc",
+                                                                                     "value":  2,
+                                                                                     "kinds":  [
+                                                                                                   2
+                                                                                               ]
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "ABFAF65D",
+                      "name":  "对对方目标造成1点伤害；若手牌数量为0，再对对方目标造成2点伤害",
+                      "timing":  19,
+                      "activation":  2,
+                      "cost":  [
+                                   0.0,
+                                   1.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "a4b823fc",
+                                                     "kinds":  [
+                                                                   2
+                                                               ],
+                                                     "branch":  {
+                                                                    "settle":  1,
+                                                                    "gateId":  "HandEmpty",
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "a4b823fc",
+                                                                                     "value":  2,
+                                                                                     "kinds":  [
+                                                                                                   2
+                                                                                               ]
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "AC0306F3",
+                      "name":  "倒计时2——回合开始计数-1，归零时对对方目标造成2点伤害",
+                      "timing":  5,
+                      "activation":  1,
+                      "limit":  1,
+                      "cost":  [
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "24194dca",
+                                                     "branch":  {
+                                                                    "settle":  3,
+                                                                    "engine":  1,
+                                                                    "engineParam":  2,
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "a4b823fc",
+                                                                                     "value":  2,
+                                                                                     "kinds":  [
+                                                                                                   2
+                                                                                               ]
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "C5DDE357",
+                      "name":  "点击掷两个骰子，运势一，则【对对方单位造成1点伤害(本回合0/1)】",
+                      "timing":  19,
+                      "activation":  2,
+                      "limit":  1,
+                      "kinds":  [
+                                    2
+                                ],
+                      "cost":  [
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "d530c5a2",
+                                                     "branch":  {
+                                                                    "settle":  3,
+                                                                    "engine":  2,
+                                                                    "engineParam":  1,
+                                                                    "tactivate":  2,
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "a4b823fc",
+                                                                                     "kinds":  [
+                                                                                                   2
+                                                                                               ]
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "D4531AA1",
+                      "name":  "点击掷两个骰子，运势二，则【对对方单位造成2点伤害(本回合0/1)】",
+                      "timing":  19,
+                      "activation":  2,
+                      "limit":  1,
+                      "kinds":  [
+                                    2
+                                ],
+                      "cost":  [
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "d530c5a2",
+                                                     "branch":  {
+                                                                    "settle":  3,
+                                                                    "engine":  2,
+                                                                    "engineParam":  2,
+                                                                    "tactivate":  2,
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "a4b823fc",
+                                                                                     "value":  2,
+                                                                                     "kinds":  [
+                                                                                                   2
+                                                                                               ]
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "322D145C",
+                      "name":  "点击掷两个骰子，运势三，则【对对方单位造成3点伤害(本回合0/1)】",
+                      "timing":  19,
+                      "activation":  2,
+                      "limit":  1,
+                      "kinds":  [
+                                    2
+                                ],
+                      "cost":  [
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "d530c5a2",
+                                                     "branch":  {
+                                                                    "settle":  3,
+                                                                    "engine":  2,
+                                                                    "engineParam":  3,
+                                                                    "tactivate":  2,
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "a4b823fc",
+                                                                                     "value":  3,
+                                                                                     "kinds":  [
+                                                                                                   2
+                                                                                               ]
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "D7B81DDC",
+                      "name":  "点击掷两个骰子，运势四，则【对对方单位造成4点伤害(本回合0/1)】",
+                      "timing":  19,
+                      "activation":  2,
+                      "limit":  1,
+                      "kinds":  [
+                                    2
+                                ],
+                      "cost":  [
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "d530c5a2",
+                                                     "branch":  {
+                                                                    "settle":  3,
+                                                                    "engine":  2,
+                                                                    "engineParam":  4,
+                                                                    "tactivate":  2,
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "a4b823fc",
+                                                                                     "value":  4,
+                                                                                     "kinds":  [
+                                                                                                   2
+                                                                                               ]
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "2CD9048A",
+                      "name":  "点击掷两个骰子，运势五，则【对对方单位造成5点伤害(本回合0/1)】",
+                      "timing":  19,
+                      "activation":  2,
+                      "limit":  1,
+                      "kinds":  [
+                                    2
+                                ],
+                      "cost":  [
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "d530c5a2",
+                                                     "branch":  {
+                                                                    "settle":  3,
+                                                                    "engine":  2,
+                                                                    "engineParam":  5,
+                                                                    "tactivate":  2,
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "a4b823fc",
+                                                                                     "value":  5,
+                                                                                     "kinds":  [
+                                                                                                   2
+                                                                                               ]
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "8E367535",
+                      "name":  "点击掷两个骰子，运势六，则【对对方单位造成6点伤害(本回合0/1)】",
+                      "timing":  19,
+                      "activation":  2,
+                      "limit":  1,
+                      "kinds":  [
+                                    2
+                                ],
+                      "cost":  [
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "d530c5a2",
+                                                     "branch":  {
+                                                                    "settle":  3,
+                                                                    "engine":  2,
+                                                                    "engineParam":  6,
+                                                                    "tactivate":  2,
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "a4b823fc",
+                                                                                     "value":  6,
+                                                                                     "kinds":  [
+                                                                                                   2
+                                                                                               ]
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "A6975E5D",
+                      "name":  "攻击宣言时与双方手牌各自展示攻击力最高的生物比攻击力，差额≥门槛时对对方目标造成6点伤害",
+                      "limit":  1,
+                      "cost":  [
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "2b4f8efd",
+                                                     "branch":  {
+                                                                    "settle":  3,
+                                                                    "engine":  3,
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "a4b823fc",
+                                                                                     "value":  6,
+                                                                                     "kinds":  [
+                                                                                                   2
+                                                                                               ]
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "3BE52030",
+                      "name":  "此卡在手中或场上时对双方生物死亡计数，计数≥6时对对方目标造成6点伤害",
+                      "limit":  1,
+                      "cost":  [
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "d1ddfd78",
+                                                     "branch":  {
+                                                                    "settle":  3,
+                                                                    "engine":  4,
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "a4b823fc",
+                                                                                     "value":  6,
+                                                                                     "kinds":  [
+                                                                                                   2
+                                                                                               ]
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "BF69F534",
+                      "name":  "对手回合对手使用卡牌结算后，双方剩余元素的差恰为1时，对目标造成1点伤害（仅自动）",
+                      "limit":  1,
+                      "cost":  [
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "dd548e6f",
+                                                     "branch":  {
+                                                                    "settle":  3,
+                                                                    "engine":  5,
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "a4b823fc",
+                                                                                     "kinds":  [
+                                                                                                   2
+                                                                                               ]
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "A628AC66",
+                      "name":  "对手回合对手使用卡牌结算后，双方剩余元素的差恰为2时，对目标造成2点伤害（仅自动）",
+                      "limit":  1,
+                      "cost":  [
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "dd548e6f",
+                                                     "branch":  {
+                                                                    "settle":  3,
+                                                                    "engine":  5,
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "a4b823fc",
+                                                                                     "value":  2,
+                                                                                     "kinds":  [
+                                                                                                   2
+                                                                                               ]
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "6C28CDF3",
+                      "name":  "对手回合对手使用卡牌结算后，双方剩余元素的差恰为3时，对目标造成3点伤害（仅自动）",
+                      "limit":  1,
+                      "cost":  [
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "dd548e6f",
+                                                     "branch":  {
+                                                                    "settle":  3,
+                                                                    "engine":  5,
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "a4b823fc",
+                                                                                     "value":  3,
+                                                                                     "kinds":  [
+                                                                                                   2
+                                                                                               ]
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "981112BA",
+                      "name":  "对手回合对手使用卡牌结算后，双方剩余元素的差恰为4时，对目标造成4点伤害（仅自动）",
+                      "limit":  1,
+                      "cost":  [
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "dd548e6f",
+                                                     "branch":  {
+                                                                    "settle":  3,
+                                                                    "engine":  5,
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "a4b823fc",
+                                                                                     "value":  4,
+                                                                                     "kinds":  [
+                                                                                                   2
+                                                                                               ]
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "60852B8F",
+                      "name":  "对手回合对手使用卡牌结算后，双方剩余元素的差恰为5时，对目标造成5点伤害（仅自动）",
+                      "limit":  1,
+                      "cost":  [
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "dd548e6f",
+                                                     "branch":  {
+                                                                    "settle":  3,
+                                                                    "engine":  5,
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "a4b823fc",
+                                                                                     "value":  5,
+                                                                                     "kinds":  [
+                                                                                                   2
+                                                                                               ]
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "B0280213",
+                      "name":  "对手回合对手使用卡牌结算后，双方剩余元素的差恰为6时，对目标造成6点伤害（仅自动）",
+                      "limit":  1,
+                      "cost":  [
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "dd548e6f",
+                                                     "branch":  {
+                                                                    "settle":  3,
+                                                                    "engine":  5,
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "a4b823fc",
+                                                                                     "value":  6,
+                                                                                     "kinds":  [
+                                                                                                   2
+                                                                                               ]
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "5E6839AA",
+                      "name":  "施放时给对手牌库随机1张卡附加诅咒指示物，对手抽到该卡时受到10点伤害并移除指示物",
+                      "timing":  19,
+                      "activation":  2,
+                      "cost":  [
+                                   0.0,
+                                   5.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "90ba9782",
+                                                     "branch":  {
+                                                                    "settle":  3,
+                                                                    "engine":  8,
+                                                                    "engineParam":  1,
+                                                                    "tactivate":  2,
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "a4b823fc",
+                                                                                     "value":  10,
+                                                                                     "kinds":  [
+                                                                                                   2
+                                                                                               ]
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "2DEAFA89",
+                      "name":  "施放时给自己牌库随机1张卡附加祝福指示物，自己抽到该卡时回复20点生命并移除指示物",
+                      "timing":  19,
+                      "activation":  2,
+                      "cost":  [
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   5.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "e829f7af",
+                                                     "branch":  {
+                                                                    "settle":  3,
+                                                                    "engine":  9,
+                                                                    "engineParam":  1,
+                                                                    "tactivate":  2,
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "599fcc9a",
+                                                                                     "value":  20,
+                                                                                     "kinds":  [
+                                                                                                   1
+                                                                                               ]
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "D9C996F2",
+                      "name":  "与此卡相邻的单位数（生物/结界/角色/非空地牌格各算一）达到4时，对目标造成4点伤害",
+                      "limit":  1,
+                      "cost":  [
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "83c150f2",
+                                                     "branch":  {
+                                                                    "settle":  3,
+                                                                    "engine":  10,
+                                                                    "engineParam":  4,
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "a4b823fc",
+                                                                                     "value":  4,
+                                                                                     "kinds":  [
+                                                                                                   2
+                                                                                               ]
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "E1D84E55",
+                      "name":  "对目标造成1点伤害",
+                      "timing":  19,
+                      "activation":  2,
+                      "cost":  [
+                                   1.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "a4b823fc",
+                                                     "kinds":  [
+                                                                   2
+                                                               ]
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "6136F558",
+                      "name":  "巨壁的自我激励：攻击宣言时+1/+1",
+                      "timing":  7,
+                      "activation":  1,
+                      "cost":  [
+                                   1.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "8bc5b925",
+                                                     "kinds":  [
+                                                                   0
+                                                               ]
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "CCA478E6",
+                      "name":  "纳川仪典投放：手牌上限15+免疫疲劳",
+                      "cost":  [
+                                   0.0,
+                                   0.0,
+                                   5.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "1738ec58",
+                                                     "value":  0,
+                                                     "str":  "HandLimitNoFatigue"
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "a3c78f52",
+                      "name":  "元素井入场：对敌方单位造成1点伤害；自身获得1层潜行",
+                      "cost":  [
+                                   0.0,
+                                   1.0,
+                                   1.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "a4b823fc",
+                                                     "kinds":  [
+                                                                   2
+                                                               ]
+                                                 }
+                                    },
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "8f84641e",
+                                                     "kinds":  [
+                                                                   0
+                                                               ]
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "6371FBD3",
+                      "name":  "登场时，获得缴械；若手牌为0，抽1张卡",
+                      "selection":  0,
+                      "count":  1,
+                      "cost":  [
+                                   0.0,
+                                   2.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "c253788f",
+                                                     "branch":  {
+                                                                    "settle":  1,
+                                                                    "gateId":  "HandEmpty",
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "e5e2e116"
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "5269CB2C",
+                      "name":  "登场时，获得缴械；自由分支·拼点2→抽1张卡",
+                      "selection":  0,
+                      "count":  1,
+                      "cost":  [
+                                   0.0,
+                                   2.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "c253788f",
+                                                     "branch":  {
+                                                                    "settle":  3,
+                                                                    "engine":  3,
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "e5e2e116"
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "C33B9907",
+                      "name":  "登场时，获得先攻；自由分支·拼点2→抽1张卡",
+                      "selection":  0,
+                      "count":  1,
+                      "cost":  [
+                                   0.0,
+                                   2.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "073f18c7",
+                                                     "branch":  {
+                                                                    "settle":  3,
+                                                                    "engine":  3,
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "e5e2e116"
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "E72D83F7",
+                      "name":  "登场时，对对方单位造成2点伤害；若消灭目标，抽1张卡",
+                      "selection":  0,
+                      "count":  1,
+                      "cost":  [
+                                   0.0,
+                                   2.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "a4b823fc",
+                                                     "value":  2,
+                                                     "kinds":  [
+                                                                   2
+                                                               ],
+                                                     "branch":  {
+                                                                    "settle":  2,
+                                                                    "outcomeId":  "DmgKillsTarget",
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "e5e2e116"
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "AF4D057E",
+                      "name":  "登场时，获得连击；若手牌为0，抽1张卡",
+                      "selection":  0,
+                      "count":  1,
+                      "cost":  [
+                                   0.0,
+                                   2.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "8c988c18",
+                                                     "branch":  {
+                                                                    "settle":  1,
+                                                                    "gateId":  "HandEmpty",
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "e5e2e116"
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "66EC9B48",
+                      "name":  "登场时，获得碾压；自由分支·拼点2→抽1张卡",
+                      "selection":  0,
+                      "count":  1,
+                      "cost":  [
+                                   0.0,
+                                   3.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "f1bd9a67",
+                                                     "branch":  {
+                                                                    "settle":  3,
+                                                                    "engine":  3,
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "e5e2e116"
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "886E275E",
+                      "name":  "重置一个己方单位；若手牌为0，抽1张卡；代价：弃1张手牌",
+                      "timing":  19,
+                      "activation":  2,
+                      "selection":  0,
+                      "count":  1,
+                      "cost":  [
+                                   0.0,
+                                   1.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "efc6de8a",
+                                                     "kinds":  [
+                                                                   1
+                                                               ],
+                                                     "branch":  {
+                                                                    "settle":  1,
+                                                                    "gateId":  "HandEmpty",
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "e5e2e116"
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "0F69B9FA",
+                      "name":  "己方全体单位+1攻；代价：弃1张手牌",
+                      "timing":  19,
+                      "activation":  2,
+                      "selection":  2,
+                      "count":  0,
+                      "cost":  [
+                                   2.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "39a3106c",
+                                                     "kinds":  [
+                                                                   1
+                                                               ]
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "1AF47825",
+                      "name":  "一个己方单位永久+1/+1；若手牌为0，抽1张卡；代价：弃1张手牌",
+                      "timing":  19,
+                      "activation":  2,
+                      "selection":  0,
+                      "count":  1,
+                      "cost":  [
+                                   3.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "9256b41a",
+                                                     "kinds":  [
+                                                                   1
+                                                               ],
+                                                     "branch":  {
+                                                                    "settle":  1,
+                                                                    "gateId":  "HandEmpty",
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "e5e2e116"
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "B663AB71",
+                      "name":  "对对方单位造成2点伤害；若手牌为0，抽1张卡；代价：弃1张手牌",
+                      "timing":  19,
+                      "activation":  2,
+                      "selection":  0,
+                      "count":  1,
+                      "cost":  [
+                                   0.0,
+                                   2.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "a4b823fc",
+                                                     "value":  2,
+                                                     "kinds":  [
+                                                                   2
+                                                               ],
+                                                     "branch":  {
+                                                                    "settle":  1,
+                                                                    "gateId":  "HandEmpty",
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "e5e2e116"
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "2566E6B9",
+                      "name":  "对对方单位造成3点伤害；若消灭目标，抽1张卡；代价：弃1张手牌",
+                      "timing":  19,
+                      "activation":  2,
+                      "selection":  0,
+                      "count":  1,
+                      "cost":  [
+                                   0.0,
+                                   3.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "a4b823fc",
+                                                     "value":  3,
+                                                     "kinds":  [
+                                                                   2
+                                                               ],
+                                                     "branch":  {
+                                                                    "settle":  2,
+                                                                    "outcomeId":  "DmgKillsTarget",
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "e5e2e116"
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "F4A0440D",
+                      "name":  "重置一个己方单位",
+                      "timing":  19,
+                      "activation":  2,
+                      "selection":  0,
+                      "count":  1,
+                      "cost":  [
+                                   0.0,
+                                   1.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "efc6de8a",
+                                                     "kinds":  [
+                                                                   1
+                                                               ]
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "A3A57507",
+                      "name":  "对手回合对手使用卡牌结算后，若己方剩余元素比对手多1，对对方单位造成1点伤害",
+                      "limit":  1,
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "dd548e6f",
+                                                     "branch":  {
+                                                                    "settle":  3,
+                                                                    "engine":  5,
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "a4b823fc",
+                                                                                     "kinds":  [
+                                                                                                   2
+                                                                                               ]
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "78B0D3FE",
+                      "name":  "对手回合对手使用卡牌结算后，若己方剩余元素比对手多2，抽1张卡",
+                      "limit":  1,
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "dd548e6f",
+                                                     "branch":  {
+                                                                    "settle":  3,
+                                                                    "engine":  5,
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "e5e2e116"
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "E9CCA56D",
+                      "name":  "对手回合对手使用卡牌结算后，若己方剩余元素比对手多2，对对方单位造成2点伤害",
+                      "limit":  1,
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "dd548e6f",
+                                                     "branch":  {
+                                                                    "settle":  3,
+                                                                    "engine":  5,
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "a4b823fc",
+                                                                                     "value":  2,
+                                                                                     "kinds":  [
+                                                                                                   2
+                                                                                               ]
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "2070586F",
+                      "name":  "对手回合对手使用卡牌结算后，若己方剩余元素比对手多1，冻结一个对方单位",
+                      "limit":  1,
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "dd548e6f",
+                                                     "branch":  {
+                                                                    "settle":  3,
+                                                                    "engine":  5,
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "30d0e234",
+                                                                                     "kinds":  [
+                                                                                                   2
+                                                                                               ]
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "977AB6FC",
+                      "name":  "冻结一个对方单位",
+                      "timing":  19,
+                      "activation":  2,
+                      "selection":  0,
+                      "count":  1,
+                      "cost":  [
+                                   0.0,
+                                   0.0,
+                                   1.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "30d0e234",
+                                                     "kinds":  [
+                                                                   2
+                                                               ]
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "F9AA3B87",
+                      "name":  "冻结两个对方单位",
+                      "timing":  19,
+                      "activation":  2,
+                      "selection":  1,
+                      "count":  2,
+                      "cost":  [
+                                   0.0,
+                                   0.0,
+                                   2.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "30d0e234",
+                                                     "kinds":  [
+                                                                   2
+                                                               ]
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "9DD21C35",
+                      "name":  "将一个对方单位弹回手牌",
+                      "timing":  19,
+                      "activation":  2,
+                      "selection":  0,
+                      "count":  1,
+                      "cost":  [
+                                   0.0,
+                                   0.0,
+                                   3.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "3e00ecd2",
+                                                     "kinds":  [
+                                                                   2
+                                                               ]
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "73DB24E3",
+                      "name":  "使一个对方单位失去3点生命",
+                      "timing":  19,
+                      "activation":  2,
+                      "selection":  0,
+                      "count":  1,
+                      "cost":  [
+                                   2.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "d3d792bb",
+                                                     "value":  3,
+                                                     "kinds":  [
+                                                                   2
+                                                               ]
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "E2565876",
+                      "name":  "抽1张卡",
+                      "timing":  19,
+                      "activation":  2,
+                      "cost":  [
+                                   0.0,
+                                   0.0,
+                                   2.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "e5e2e116"
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "631B76A9",
+                      "name":  "赋予一个己方单位1层潜行",
+                      "timing":  19,
+                      "activation":  2,
+                      "selection":  0,
+                      "count":  1,
+                      "cost":  [
+                                   0.0,
+                                   0.0,
+                                   1.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "8f84641e",
+                                                     "kinds":  [
+                                                                   1
+                                                               ]
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "A308B3EB",
+                      "name":  "倒计时4：归零时召唤一个4/4远古树灵（重挂）",
+                      "timing":  33,
+                      "activation":  1,
+                      "limit":  1,
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "24194dca",
+                                                     "branch":  {
+                                                                    "settle":  3,
+                                                                    "engine":  1,
+                                                                    "engineParam":  4,
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "ad76d8b0",
+                                                                                     "str":  "C_079E718B"
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "9164BC9E",
+                      "name":  "倒计时3：归零时为己方单位回复6点生命（重挂）",
+                      "timing":  33,
+                      "activation":  1,
+                      "limit":  1,
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "24194dca",
+                                                     "branch":  {
+                                                                    "settle":  3,
+                                                                    "engine":  1,
+                                                                    "engineParam":  3,
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "599fcc9a",
+                                                                                     "value":  6,
+                                                                                     "kinds":  [
+                                                                                                   1
+                                                                                               ]
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "5B012D05",
+                      "name":  "倒计时3：归零时为己方单位添加6层护甲（重挂）",
+                      "timing":  33,
+                      "activation":  1,
+                      "limit":  1,
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "24194dca",
+                                                     "branch":  {
+                                                                    "settle":  3,
+                                                                    "engine":  1,
+                                                                    "engineParam":  3,
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "ff8922af",
+                                                                                     "value":  6,
+                                                                                     "kinds":  [
+                                                                                                   1
+                                                                                               ]
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "11A77A85",
+                      "name":  "倒计时4：归零时对对方单位造成4点伤害（重挂）",
+                      "timing":  33,
+                      "activation":  1,
+                      "limit":  1,
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "24194dca",
+                                                     "branch":  {
+                                                                    "settle":  3,
+                                                                    "engine":  1,
+                                                                    "engineParam":  4,
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "a4b823fc",
+                                                                                     "value":  4,
+                                                                                     "kinds":  [
+                                                                                                   2
+                                                                                               ]
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "C718A964",
+                      "name":  "倒计时6：归零时召唤一个7/7世界树之影（重挂）",
+                      "timing":  33,
+                      "activation":  1,
+                      "limit":  1,
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "24194dca",
+                                                     "branch":  {
+                                                                    "settle":  3,
+                                                                    "engine":  1,
+                                                                    "engineParam":  6,
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "ad76d8b0",
+                                                                                     "str":  "C_C934C965"
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "2724DE54",
+                      "name":  "苏醒：灰费全免，转为入场沉睡层数（睡完才继续倒计时）",
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "bfa4a758",
+                                                     "value":  0,
+                                                     "kinds":  [
+                                                                   0
+                                                               ]
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "974089EE",
+                      "name":  "倒计时3：归零时召唤一个4/4远古树灵（重挂）",
+                      "timing":  33,
+                      "activation":  1,
+                      "limit":  1,
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "24194dca",
+                                                     "branch":  {
+                                                                    "settle":  3,
+                                                                    "engine":  1,
+                                                                    "engineParam":  3,
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "ad76d8b0",
+                                                                                     "str":  "C_079E718B"
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "3674559E",
+                      "name":  "倒计时4：归零时召唤一个7/7世界树之影（重挂）",
+                      "timing":  33,
+                      "activation":  1,
+                      "limit":  1,
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "24194dca",
+                                                     "branch":  {
+                                                                    "settle":  3,
+                                                                    "engine":  1,
+                                                                    "engineParam":  4,
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "ad76d8b0",
+                                                                                     "str":  "C_C934C965"
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "2FC34B20",
+                      "name":  "施放时给对手牌库随机2张卡附加诅咒；抽到时获得2层毒素（自动）",
+                      "timing":  19,
+                      "activation":  2,
+                      "cost":  [
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   1.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "90ba9782",
+                                                     "branch":  {
+                                                                    "settle":  3,
+                                                                    "engine":  8,
+                                                                    "engineParam":  2,
+                                                                    "tactivate":  1,
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "3d68a8bf",
+                                                                                     "value":  2,
+                                                                                     "kinds":  [
+                                                                                                   2
+                                                                                               ]
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "98C4AF96",
+                      "name":  "施放时给对手牌库随机2张卡附加诅咒；抽到时失去2点生命（自动）",
+                      "timing":  19,
+                      "activation":  2,
+                      "cost":  [
+                                   1.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "90ba9782",
+                                                     "branch":  {
+                                                                    "settle":  3,
+                                                                    "engine":  8,
+                                                                    "engineParam":  2,
+                                                                    "tactivate":  1,
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "d3d792bb",
+                                                                                     "value":  2,
+                                                                                     "kinds":  [
+                                                                                                   2
+                                                                                               ]
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "A2FEA4F2",
+                      "name":  "施放时给自己牌库随机2张卡附加祝福；抽到时回复4点生命（自动）",
+                      "timing":  19,
+                      "activation":  2,
+                      "cost":  [
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   1.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "e829f7af",
+                                                     "branch":  {
+                                                                    "settle":  3,
+                                                                    "engine":  9,
+                                                                    "engineParam":  2,
+                                                                    "tactivate":  1,
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "599fcc9a",
+                                                                                     "value":  4,
+                                                                                     "kinds":  [
+                                                                                                   1
+                                                                                               ]
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "A29CBC11",
+                      "name":  "施放时给自己牌库随机2张卡附加祝福；抽到时地牌上限+1（自动）",
+                      "timing":  19,
+                      "activation":  2,
+                      "cost":  [
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   1.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "e829f7af",
+                                                     "branch":  {
+                                                                    "settle":  3,
+                                                                    "engine":  9,
+                                                                    "engineParam":  2,
+                                                                    "tactivate":  1,
+                                                                    "then":  [
+                                                                                 {
+                                                                                     "refId":  "20a1549f"
+                                                                                 }
+                                                                             ]
+                                                                }
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "22127205",
+                      "name":  "为一个己方单位回复4点生命",
+                      "timing":  19,
+                      "activation":  2,
+                      "selection":  0,
+                      "count":  1,
+                      "cost":  [
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   2.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "599fcc9a",
+                                                     "value":  4,
+                                                     "kinds":  [
+                                                                   1
+                                                               ]
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "1AE291B0",
+                      "name":  "为一个己方单位添加2层护甲",
+                      "timing":  19,
+                      "activation":  2,
+                      "selection":  0,
+                      "count":  1,
+                      "cost":  [
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   1.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "ff8922af",
+                                                     "value":  2,
+                                                     "kinds":  [
+                                                                   1
+                                                               ]
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "65B7FDB1",
+                      "name":  "地牌上限+1",
+                      "timing":  19,
+                      "activation":  2,
+                      "cost":  [
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   2.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "20a1549f"
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "1E9B3BDE",
+                      "name":  "登场时，对对方单位造成2点伤害",
+                      "selection":  0,
+                      "count":  1,
+                      "cost":  [
+                                   0.0,
+                                   2.0,
+                                   0.0,
+                                   0.0,
+                                   0.0,
+                                   0.0
+                               ],
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "a4b823fc",
+                                                     "value":  2,
+                                                     "kinds":  [
+                                                                   2
+                                                               ]
+                                                 }
+                                    }
+                                ]
+                  },
+                  {
+                      "id":  "44E81E46",
+                      "name":  "苏醒：灰、绿费全免，转为入场沉睡层数（睡完才继续倒计时）",
+                      "steps":  [
+                                    {
+                                        "kind":  0,
+                                        "atom":  {
+                                                     "refId":  "bfa4a758",
+                                                     "value":  0,
+                                                     "kinds":  [
+                                                                   0
+                                                               ]
+                                                 }
+                                    }
+                                ]
+                  }
               ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "91FCF40A",
-      "name": "教学·以少胜多：对对方目标造成1点伤害；若场上生物低于对手，再对对方目标造成1点伤害",
-      "timing": 19,
-      "activation": 2,
-      "cost": [
-        0.0,
-        1.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "a4b823fc",
-            "kinds": [
-              2
-            ],
-            "branch": {
-              "settle": 1,
-              "gateId": "CreaturesBelowOpp",
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "0DEC4CDA",
-      "name": "教学·厚积薄发：对对方目标造成1点伤害；若卡组剩余高于对手，再对对方目标造成1点伤害",
-      "timing": 19,
-      "activation": 2,
-      "cost": [
-        0.0,
-        1.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "a4b823fc",
-            "kinds": [
-              2
-            ],
-            "branch": {
-              "settle": 1,
-              "gateId": "DeckAboveOpp",
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "BB69AEA6",
-      "name": "教学·终结击：对对方目标造成1点伤害；若此伤害消灭了目标，抽1张牌",
-      "timing": 19,
-      "activation": 2,
-      "cost": [
-        0.0,
-        1.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "a4b823fc",
-            "kinds": [
-              2
-            ],
-            "branch": {
-              "settle": 2,
-              "outcomeId": "DmgKillsTarget",
-              "then": [
-                {
-                  "refId": "e5e2e116"
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "23FB3BC4",
-      "name": "教学·以弱搏强：对对方目标造成1点伤害；若生命值低于对手，再对对方目标造成1点伤害",
-      "timing": 19,
-      "activation": 2,
-      "cost": [
-        0.0,
-        1.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "a4b823fc",
-            "kinds": [
-              2
-            ],
-            "branch": {
-              "settle": 1,
-              "gateId": "LifeBelowOpp",
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "F3ADA5C6",
-      "name": "教学·大地之力：对对方目标造成1点伤害；若操控地数量≥7，抽1张牌",
-      "timing": 19,
-      "activation": 2,
-      "cost": [
-        0.0,
-        1.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "a4b823fc",
-            "kinds": [
-              2
-            ],
-            "branch": {
-              "settle": 1,
-              "gateId": "LandsGe7",
-              "then": [
-                {
-                  "refId": "e5e2e116"
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "ACDF1245",
-      "name": "教学·命运之牌：对对方目标造成1点伤害；若本回合准备阶段抽到本卡，再对对方目标造成3点伤害",
-      "timing": 19,
-      "activation": 2,
-      "cost": [
-        0.0,
-        1.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "a4b823fc",
-            "kinds": [
-              2
-            ],
-            "branch": {
-              "settle": 1,
-              "gateId": "DrawnInStandbyThisTurn",
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "value": 3,
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "E3E2EE1B",
-      "name": "教学·以多欺少：对对方目标造成1点伤害；若场上生物高于对手，再对对方目标造成1点伤害",
-      "timing": 19,
-      "activation": 2,
-      "cost": [
-        0.0,
-        1.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "a4b823fc",
-            "kinds": [
-              2
-            ],
-            "branch": {
-              "settle": 1,
-              "gateId": "CreaturesAboveOpp",
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "8ECC5F8B",
-      "name": "教学·弹尽粮绝：对对方目标造成1点伤害；若卡组剩余低于对手，再对对方目标造成1点伤害",
-      "timing": 19,
-      "activation": 2,
-      "cost": [
-        0.0,
-        1.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "a4b823fc",
-            "kinds": [
-              2
-            ],
-            "branch": {
-              "settle": 1,
-              "gateId": "DeckBelowOpp",
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "11043BA0",
-      "name": "教学·居高临下：对对方目标造成1点伤害；若生命值高于对手，再对对方目标造成1点伤害",
-      "timing": 19,
-      "activation": 2,
-      "cost": [
-        0.0,
-        1.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "a4b823fc",
-            "kinds": [
-              2
-            ],
-            "branch": {
-              "settle": 1,
-              "gateId": "LifeAboveOpp",
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "745280CE",
-      "name": "教学·破釜沉舟：代价对自己造成1点伤害并获得1黑；对对方目标造成1点伤害；若己方生命值≤7，再对对方目标造成2点伤害",
-      "timing": 19,
-      "activation": 2,
-      "cost": [
-        0.0,
-        1.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "costs": [
-        {
-          "type": 7,
-          "value": 0,
-          "manaType": 0,
-          "turns": 0,
-          "payload": {
-            "refId": "a4b823fc",
-            "kinds": [
-              1
-            ]
-          }
-        }
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "a4b823fc",
-            "kinds": [
-              2
-            ],
-            "branch": {
-              "settle": 1,
-              "gateId": "LifeLe7",
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "value": 2,
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "ABFAF65D",
-      "name": "教学·最后一发：对对方目标造成1点伤害；若手牌数量为0，再对对方目标造成2点伤害",
-      "timing": 19,
-      "activation": 2,
-      "cost": [
-        0.0,
-        1.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "a4b823fc",
-            "kinds": [
-              2
-            ],
-            "branch": {
-              "settle": 1,
-              "gateId": "HandEmpty",
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "value": 2,
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "AC0306F3",
-      "name": "教学·倒计时龟：倒计时2——回合开始计数-1，归零时对对方目标造成2点伤害",
-      "timing": 5,
-      "activation": 1,
-      "limit": 1,
-      "cost": [
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "24194dca",
-            "branch": {
-              "settle": 3,
-              "engine": 1,
-              "engineParam": 2,
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "value": 2,
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "C5DDE357",
-      "name": "教学·运势壹：点击掷两个骰子，运势一，则【对对方单位造成1点伤害(本回合0/1)】",
-      "timing": 19,
-      "activation": 2,
-      "limit": 1,
-      "kinds": [
-        2
-      ],
-      "cost": [
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "d530c5a2",
-            "branch": {
-              "settle": 3,
-              "engine": 2,
-              "engineParam": 1,
-              "tactivate": 2,
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "D4531AA1",
-      "name": "教学·运势贰：点击掷两个骰子，运势二，则【对对方单位造成2点伤害(本回合0/1)】",
-      "timing": 19,
-      "activation": 2,
-      "limit": 1,
-      "kinds": [
-        2
-      ],
-      "cost": [
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "d530c5a2",
-            "branch": {
-              "settle": 3,
-              "engine": 2,
-              "engineParam": 2,
-              "tactivate": 2,
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "value": 2,
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "322D145C",
-      "name": "教学·运势叁：点击掷两个骰子，运势三，则【对对方单位造成3点伤害(本回合0/1)】",
-      "timing": 19,
-      "activation": 2,
-      "limit": 1,
-      "kinds": [
-        2
-      ],
-      "cost": [
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "d530c5a2",
-            "branch": {
-              "settle": 3,
-              "engine": 2,
-              "engineParam": 3,
-              "tactivate": 2,
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "value": 3,
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "D7B81DDC",
-      "name": "教学·运势肆：点击掷两个骰子，运势四，则【对对方单位造成4点伤害(本回合0/1)】",
-      "timing": 19,
-      "activation": 2,
-      "limit": 1,
-      "kinds": [
-        2
-      ],
-      "cost": [
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "d530c5a2",
-            "branch": {
-              "settle": 3,
-              "engine": 2,
-              "engineParam": 4,
-              "tactivate": 2,
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "value": 4,
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "2CD9048A",
-      "name": "教学·运势伍：点击掷两个骰子，运势五，则【对对方单位造成5点伤害(本回合0/1)】",
-      "timing": 19,
-      "activation": 2,
-      "limit": 1,
-      "kinds": [
-        2
-      ],
-      "cost": [
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "d530c5a2",
-            "branch": {
-              "settle": 3,
-              "engine": 2,
-              "engineParam": 5,
-              "tactivate": 2,
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "value": 5,
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "8E367535",
-      "name": "教学·运势陆：点击掷两个骰子，运势六，则【对对方单位造成6点伤害(本回合0/1)】",
-      "timing": 19,
-      "activation": 2,
-      "limit": 1,
-      "kinds": [
-        2
-      ],
-      "cost": [
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "d530c5a2",
-            "branch": {
-              "settle": 3,
-              "engine": 2,
-              "engineParam": 6,
-              "tactivate": 2,
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "value": 6,
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "A6975E5D",
-      "name": "教学·拼点武者：攻击宣言时与双方手牌各自展示攻击力最高的生物比攻击力，差额≥门槛时对对方目标造成6点伤害",
-      "limit": 1,
-      "cost": [
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "2b4f8efd",
-            "branch": {
-              "settle": 3,
-              "engine": 3,
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "value": 6,
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "3BE52030",
-      "name": "教学·死亡计数官：此卡在手中或场上时对双方生物死亡计数，计数≥6时对对方目标造成6点伤害",
-      "limit": 1,
-      "cost": [
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "d1ddfd78",
-            "branch": {
-              "settle": 3,
-              "engine": 4,
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "value": 6,
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "BF69F534",
-      "name": "教学·充盈1：对手回合对手使用卡牌结算后，双方剩余元素的差恰为1时，对目标造成1点伤害（仅自动）",
-      "limit": 1,
-      "cost": [
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "aa15df99",
-            "branch": {
-              "settle": 3,
-              "engine": 5,
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "A628AC66",
-      "name": "教学·充盈2：对手回合对手使用卡牌结算后，双方剩余元素的差恰为2时，对目标造成2点伤害（仅自动）",
-      "limit": 1,
-      "cost": [
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "aa15df99",
-            "branch": {
-              "settle": 3,
-              "engine": 5,
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "value": 2,
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "6C28CDF3",
-      "name": "教学·充盈3：对手回合对手使用卡牌结算后，双方剩余元素的差恰为3时，对目标造成3点伤害（仅自动）",
-      "limit": 1,
-      "cost": [
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "aa15df99",
-            "branch": {
-              "settle": 3,
-              "engine": 5,
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "value": 3,
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "981112BA",
-      "name": "教学·充盈4：对手回合对手使用卡牌结算后，双方剩余元素的差恰为4时，对目标造成4点伤害（仅自动）",
-      "limit": 1,
-      "cost": [
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "aa15df99",
-            "branch": {
-              "settle": 3,
-              "engine": 5,
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "value": 4,
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "60852B8F",
-      "name": "教学·充盈5：对手回合对手使用卡牌结算后，双方剩余元素的差恰为5时，对目标造成5点伤害（仅自动）",
-      "limit": 1,
-      "cost": [
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "aa15df99",
-            "branch": {
-              "settle": 3,
-              "engine": 5,
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "value": 5,
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "B0280213",
-      "name": "教学·充盈6：对手回合对手使用卡牌结算后，双方剩余元素的差恰为6时，对目标造成6点伤害（仅自动）",
-      "limit": 1,
-      "cost": [
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "aa15df99",
-            "branch": {
-              "settle": 3,
-              "engine": 5,
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "value": 6,
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "5E6839AA",
-      "name": "教学·附加诅咒：施放时给对手牌库随机1张卡附加诅咒指示物，对手抽到该卡时受到10点伤害并移除指示物",
-      "timing": 19,
-      "activation": 2,
-      "cost": [
-        0.0,
-        5.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "90ba9782",
-            "branch": {
-              "settle": 3,
-              "engine": 8,
-              "engineParam": 1,
-              "tactivate": 2,
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "value": 10,
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "2DEAFA89",
-      "name": "教学·附加祝福：施放时给自己牌库随机1张卡附加祝福指示物，自己抽到该卡时回复20点生命并移除指示物",
-      "timing": 19,
-      "activation": 2,
-      "cost": [
-        0.0,
-        0.0,
-        0.0,
-        5.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "e829f7af",
-            "branch": {
-              "settle": 3,
-              "engine": 9,
-              "engineParam": 1,
-              "tactivate": 2,
-              "then": [
-                {
-                  "refId": "599fcc9a",
-                  "value": 20,
-                  "kinds": [
-                    1
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "D9C996F2",
-      "name": "教学·团结兽：与此卡相邻的单位数（生物/结界/角色/非空地牌格各算一）达到4时，对目标造成4点伤害",
-      "limit": 1,
-      "cost": [
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "52c1ce3f",
-            "branch": {
-              "settle": 3,
-              "engine": 10,
-              "engineParam": 4,
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "value": 4,
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "E1D84E55",
-      "name": "教学·直伤兽：对目标造成1点伤害",
-      "timing": 19,
-      "activation": 2,
-      "cost": [
-        1.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "a4b823fc",
-            "kinds": [
-              2
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "id": "6136F558",
-      "name": "巨壁的自我激励：攻击宣言时+1/+1",
-      "timing": 7,
-      "activation": 1,
-      "cost": [
-        1.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "8bc5b925",
-            "kinds": [
-              0
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "id": "CCA478E6",
-      "name": "纳川仪典投放：手牌上限15+免疫疲劳",
-      "cost": [
-        0.0,
-        0.0,
-        5.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "1b257704",
-            "value": 0,
-            "str": "HandLimitNoFatigue"
-          }
-        }
-      ]
-    },
-    {
-      "id": "a3c78f52",
-      "name": "元素井入场：对敌方单位造成1点伤害；自身获得1层潜行",
-      "cost": [
-        0.0,
-        1.0,
-        1.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "a4b823fc",
-            "kinds": [
-              2
-            ]
-          }
-        },
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "8f84641e",
-            "kinds": [
-              0
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "id": "6371FBD3",
-      "name": "登场时，获得缴械；若手牌为0，抽1张卡",
-      "selection": 0,
-      "count": 1,
-      "cost": [
-        0.0,
-        2.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "c253788f",
-            "branch": {
-              "settle": 1,
-              "gateId": "HandEmpty",
-              "then": [
-                {
-                  "refId": "e5e2e116"
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "5269CB2C",
-      "name": "登场时，获得缴械；自由分支·拼点2→抽1张卡",
-      "selection": 0,
-      "count": 1,
-      "cost": [
-        0.0,
-        2.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "c253788f",
-            "branch": {
-              "settle": 3,
-              "engine": 3,
-              "then": [
-                {
-                  "refId": "e5e2e116"
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "C33B9907",
-      "name": "登场时，获得先攻；自由分支·拼点2→抽1张卡",
-      "selection": 0,
-      "count": 1,
-      "cost": [
-        0.0,
-        2.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "073f18c7",
-            "branch": {
-              "settle": 3,
-              "engine": 3,
-              "then": [
-                {
-                  "refId": "e5e2e116"
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "E72D83F7",
-      "name": "登场时，对对方单位造成2点伤害；若消灭目标，抽1张卡",
-      "selection": 0,
-      "count": 1,
-      "cost": [
-        0.0,
-        2.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "a4b823fc",
-            "value": 2,
-            "kinds": [
-              2
-            ],
-            "branch": {
-              "settle": 2,
-              "outcomeId": "DmgKillsTarget",
-              "then": [
-                {
-                  "refId": "e5e2e116"
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "AF4D057E",
-      "name": "登场时，获得连击；若手牌为0，抽1张卡",
-      "selection": 0,
-      "count": 1,
-      "cost": [
-        0.0,
-        2.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "8c988c18",
-            "branch": {
-              "settle": 1,
-              "gateId": "HandEmpty",
-              "then": [
-                {
-                  "refId": "e5e2e116"
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "66EC9B48",
-      "name": "登场时，获得碾压；自由分支·拼点2→抽1张卡",
-      "selection": 0,
-      "count": 1,
-      "cost": [
-        0.0,
-        3.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "f1bd9a67",
-            "branch": {
-              "settle": 3,
-              "engine": 3,
-              "then": [
-                {
-                  "refId": "e5e2e116"
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "886E275E",
-      "name": "重置一个己方单位；若手牌为0，抽1张卡；代价：弃1张手牌",
-      "timing": 19,
-      "activation": 2,
-      "selection": 0,
-      "count": 1,
-      "cost": [
-        0.0,
-        1.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "efc6de8a",
-            "kinds": [
-              1
-            ],
-            "branch": {
-              "settle": 1,
-              "gateId": "HandEmpty",
-              "then": [
-                {
-                  "refId": "e5e2e116"
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "0F69B9FA",
-      "name": "己方全体单位+1攻；代价：弃1张手牌",
-      "timing": 19,
-      "activation": 2,
-      "selection": 2,
-      "count": 0,
-      "cost": [
-        2.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "39a3106c",
-            "kinds": [
-              1
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "id": "1AF47825",
-      "name": "一个己方单位永久+1/+1；若手牌为0，抽1张卡；代价：弃1张手牌",
-      "timing": 19,
-      "activation": 2,
-      "selection": 0,
-      "count": 1,
-      "cost": [
-        3.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "9256b41a",
-            "kinds": [
-              1
-            ],
-            "branch": {
-              "settle": 1,
-              "gateId": "HandEmpty",
-              "then": [
-                {
-                  "refId": "e5e2e116"
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "B663AB71",
-      "name": "对对方单位造成2点伤害；若手牌为0，抽1张卡；代价：弃1张手牌",
-      "timing": 19,
-      "activation": 2,
-      "selection": 0,
-      "count": 1,
-      "cost": [
-        0.0,
-        2.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "a4b823fc",
-            "value": 2,
-            "kinds": [
-              2
-            ],
-            "branch": {
-              "settle": 1,
-              "gateId": "HandEmpty",
-              "then": [
-                {
-                  "refId": "e5e2e116"
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "2566E6B9",
-      "name": "对对方单位造成3点伤害；若消灭目标，抽1张卡；代价：弃1张手牌",
-      "timing": 19,
-      "activation": 2,
-      "selection": 0,
-      "count": 1,
-      "cost": [
-        0.0,
-        3.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "a4b823fc",
-            "value": 3,
-            "kinds": [
-              2
-            ],
-            "branch": {
-              "settle": 2,
-              "outcomeId": "DmgKillsTarget",
-              "then": [
-                {
-                  "refId": "e5e2e116"
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "F4A0440D",
-      "name": "重置一个己方单位",
-      "timing": 19,
-      "activation": 2,
-      "selection": 0,
-      "count": 1,
-      "cost": [
-        0.0,
-        1.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "efc6de8a",
-            "kinds": [
-              1
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "id": "A3A57507",
-      "name": "对手回合对手使用卡牌结算后，若己方剩余元素比对手多1，对对方单位造成1点伤害",
-      "limit": 1,
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "aa15df99",
-            "branch": {
-              "settle": 3,
-              "engine": 5,
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "78B0D3FE",
-      "name": "对手回合对手使用卡牌结算后，若己方剩余元素比对手多2，抽1张卡",
-      "limit": 1,
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "aa15df99",
-            "branch": {
-              "settle": 3,
-              "engine": 5,
-              "then": [
-                {
-                  "refId": "e5e2e116"
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "E9CCA56D",
-      "name": "对手回合对手使用卡牌结算后，若己方剩余元素比对手多2，对对方单位造成2点伤害",
-      "limit": 1,
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "aa15df99",
-            "branch": {
-              "settle": 3,
-              "engine": 5,
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "value": 2,
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "2070586F",
-      "name": "对手回合对手使用卡牌结算后，若己方剩余元素比对手多1，冻结一个对方单位",
-      "limit": 1,
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "aa15df99",
-            "branch": {
-              "settle": 3,
-              "engine": 5,
-              "then": [
-                {
-                  "refId": "30d0e234",
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "977AB6FC",
-      "name": "冻结一个对方单位",
-      "timing": 19,
-      "activation": 2,
-      "selection": 0,
-      "count": 1,
-      "cost": [
-        0.0,
-        0.0,
-        1.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "30d0e234",
-            "kinds": [
-              2
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "id": "F9AA3B87",
-      "name": "冻结两个对方单位",
-      "timing": 19,
-      "activation": 2,
-      "selection": 1,
-      "count": 2,
-      "cost": [
-        0.0,
-        0.0,
-        2.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "30d0e234",
-            "kinds": [
-              2
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "id": "9DD21C35",
-      "name": "将一个对方单位弹回手牌",
-      "timing": 19,
-      "activation": 2,
-      "selection": 0,
-      "count": 1,
-      "cost": [
-        0.0,
-        0.0,
-        3.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "3e00ecd2",
-            "kinds": [
-              2
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "id": "73DB24E3",
-      "name": "使一个对方单位失去3点生命",
-      "timing": 19,
-      "activation": 2,
-      "selection": 0,
-      "count": 1,
-      "cost": [
-        2.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "d3d792bb",
-            "value": 3,
-            "kinds": [
-              2
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "id": "E2565876",
-      "name": "抽1张卡",
-      "timing": 19,
-      "activation": 2,
-      "cost": [
-        0.0,
-        0.0,
-        2.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "e5e2e116"
-          }
-        }
-      ]
-    },
-    {
-      "id": "631B76A9",
-      "name": "赋予一个己方单位1层潜行",
-      "timing": 19,
-      "activation": 2,
-      "selection": 0,
-      "count": 1,
-      "cost": [
-        0.0,
-        0.0,
-        1.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "8f84641e",
-            "kinds": [
-              1
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "id": "A308B3EB",
-      "name": "倒计时4：归零时召唤一个4/4远古树灵（重挂）",
-      "timing": 33,
-      "activation": 1,
-      "limit": 1,
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "24194dca",
-            "branch": {
-              "settle": 3,
-              "engine": 1,
-              "engineParam": 4,
-              "then": [
-                {
-                  "refId": "ad76d8b0",
-                  "str": "C_079E718B"
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "9164BC9E",
-      "name": "倒计时3：归零时为己方单位回复6点生命（重挂）",
-      "timing": 33,
-      "activation": 1,
-      "limit": 1,
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "24194dca",
-            "branch": {
-              "settle": 3,
-              "engine": 1,
-              "engineParam": 3,
-              "then": [
-                {
-                  "refId": "599fcc9a",
-                  "value": 6,
-                  "kinds": [
-                    1
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "5B012D05",
-      "name": "倒计时3：归零时为己方单位添加6层护甲（重挂）",
-      "timing": 33,
-      "activation": 1,
-      "limit": 1,
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "24194dca",
-            "branch": {
-              "settle": 3,
-              "engine": 1,
-              "engineParam": 3,
-              "then": [
-                {
-                  "refId": "ff8922af",
-                  "value": 6,
-                  "kinds": [
-                    1
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "11A77A85",
-      "name": "倒计时4：归零时对对方单位造成4点伤害（重挂）",
-      "timing": 33,
-      "activation": 1,
-      "limit": 1,
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "24194dca",
-            "branch": {
-              "settle": 3,
-              "engine": 1,
-              "engineParam": 4,
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "value": 4,
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "C718A964",
-      "name": "倒计时6：归零时召唤一个7/7世界树之影（重挂）",
-      "timing": 33,
-      "activation": 1,
-      "limit": 1,
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "24194dca",
-            "branch": {
-              "settle": 3,
-              "engine": 1,
-              "engineParam": 6,
-              "then": [
-                {
-                  "refId": "ad76d8b0",
-                  "str": "C_C934C965"
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "2724DE54",
-      "name": "苏醒：灰费全免，转为入场沉睡层数（睡完才继续倒计时）",
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "bfa4a758",
-            "value": 0,
-            "kinds": [
-              0
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "id": "974089EE",
-      "name": "倒计时3：归零时召唤一个4/4远古树灵（重挂）",
-      "timing": 33,
-      "activation": 1,
-      "limit": 1,
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "24194dca",
-            "branch": {
-              "settle": 3,
-              "engine": 1,
-              "engineParam": 3,
-              "then": [
-                {
-                  "refId": "ad76d8b0",
-                  "str": "C_079E718B"
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "3674559E",
-      "name": "倒计时4：归零时召唤一个7/7世界树之影（重挂）",
-      "timing": 33,
-      "activation": 1,
-      "limit": 1,
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "24194dca",
-            "branch": {
-              "settle": 3,
-              "engine": 1,
-              "engineParam": 4,
-              "then": [
-                {
-                  "refId": "ad76d8b0",
-                  "str": "C_C934C965"
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "2FC34B20",
-      "name": "施放时给对手牌库随机2张卡附加诅咒；抽到时获得2层毒素（自动）",
-      "timing": 19,
-      "activation": 2,
-      "cost": [
-        0.0,
-        0.0,
-        0.0,
-        1.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "90ba9782",
-            "branch": {
-              "settle": 3,
-              "engine": 8,
-              "engineParam": 2,
-              "tactivate": 1,
-              "then": [
-                {
-                  "refId": "3d68a8bf",
-                  "value": 2,
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "98C4AF96",
-      "name": "施放时给对手牌库随机2张卡附加诅咒；抽到时失去2点生命（自动）",
-      "timing": 19,
-      "activation": 2,
-      "cost": [
-        1.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "90ba9782",
-            "branch": {
-              "settle": 3,
-              "engine": 8,
-              "engineParam": 2,
-              "tactivate": 1,
-              "then": [
-                {
-                  "refId": "d3d792bb",
-                  "value": 2,
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "A2FEA4F2",
-      "name": "施放时给自己牌库随机2张卡附加祝福；抽到时回复4点生命（自动）",
-      "timing": 19,
-      "activation": 2,
-      "cost": [
-        0.0,
-        0.0,
-        0.0,
-        1.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "e829f7af",
-            "branch": {
-              "settle": 3,
-              "engine": 9,
-              "engineParam": 2,
-              "tactivate": 1,
-              "then": [
-                {
-                  "refId": "599fcc9a",
-                  "value": 4,
-                  "kinds": [
-                    1
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "A29CBC11",
-      "name": "施放时给自己牌库随机2张卡附加祝福；抽到时地牌上限+1（自动）",
-      "timing": 19,
-      "activation": 2,
-      "cost": [
-        0.0,
-        0.0,
-        0.0,
-        1.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "e829f7af",
-            "branch": {
-              "settle": 3,
-              "engine": 9,
-              "engineParam": 2,
-              "tactivate": 1,
-              "then": [
-                {
-                  "refId": "20a1549f"
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "22127205",
-      "name": "为一个己方单位回复4点生命",
-      "timing": 19,
-      "activation": 2,
-      "selection": 0,
-      "count": 1,
-      "cost": [
-        0.0,
-        0.0,
-        0.0,
-        2.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "599fcc9a",
-            "value": 4,
-            "kinds": [
-              1
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "id": "1AE291B0",
-      "name": "为一个己方单位添加2层护甲",
-      "timing": 19,
-      "activation": 2,
-      "selection": 0,
-      "count": 1,
-      "cost": [
-        0.0,
-        0.0,
-        0.0,
-        1.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "ff8922af",
-            "value": 2,
-            "kinds": [
-              1
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "id": "65B7FDB1",
-      "name": "地牌上限+1",
-      "timing": 19,
-      "activation": 2,
-      "cost": [
-        0.0,
-        0.0,
-        0.0,
-        2.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "20a1549f"
-          }
-        }
-      ]
-    },
-    {
-      "id": "1E9B3BDE",
-      "name": "登场时，对对方单位造成2点伤害",
-      "selection": 0,
-      "count": 1,
-      "cost": [
-        0.0,
-        2.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "a4b823fc",
-            "value": 2,
-            "kinds": [
-              2
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "id": "44E81E46",
-      "name": "苏醒：灰、绿费全免，转为入场沉睡层数（睡完才继续倒计时）",
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "bfa4a758",
-            "value": 0,
-            "kinds": [
-              0
-            ]
-          }
-        }
-      ]
-    }
-  ]
 }

@@ -51,6 +51,7 @@ namespace SynergyUI
         public static readonly Color LogCard = Rgb(170, 176, 188);     // .log-line--card 灰（卡的打出/放置）
         public static readonly Color LogPhase = Rgb(130, 136, 148);    // .log-line--phase 阶段分段（暗灰，让位于内容行）
         public static readonly Color AccentBlue = Rgb(86, 150, 250);
+        public static readonly Color BarFill = Rgb(69, 110, 181);      // 统计曲线柱（2026-10-23 deck-ui-plan §2 定案——替 DeckBuilder 旧硬编码柱色；柱底色烘焙在 tpl-stat-bar）
 
         // ---------- 色点（USS 提亮版——深底上小圆点需加饱和） ----------
         public static readonly Color DotRed = Rgb(232, 82, 82);

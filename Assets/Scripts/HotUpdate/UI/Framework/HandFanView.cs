@@ -186,6 +186,7 @@ namespace SynergyUI
                         }
                     }
                     card.Face.Apply(d.Item, CardOverlayLayout.Full);
+                    card.SetUseLabel(d.Item);
                     card.Face.SetFaceUp(d.FaceUp);
                     card.HideActionButtons(); // 池复用重置（悬停卡随后重评估）
                     card.SetPlayable(false);  // 可用性由宿主屏对账后重设

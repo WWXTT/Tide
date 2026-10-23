@@ -1,6 +1,8 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
+using TMPro;
+using CardCore;
 using Tide.HotUpdate;
 
 namespace SynergyUI
@@ -198,6 +200,14 @@ namespace SynergyUI
 
         /// <summary>收起按钮层（出扇/复用/发起流程时）。</summary>
         public void HideActionButtons() => Face?.SetActionLayerVisible(false);
+
+        /// <summary>手牌按钮文字（2026-10-23 术语定案）：生物=召唤，法术/结界=发动；地牌键恒「放置」。</summary>
+        public void SetUseLabel(CardOverlayItem item)
+        {
+            if (UseButton == null || item == null) return;
+            var lbl = UseButton.GetComponentInChildren<TMP_Text>(true);
+            if (lbl != null) lbl.text = item.Supertype == Cardtype.Creature ? "召唤" : "发动";
+        }
 
         /// <summary>按钮点击（Button.onClick 接线）：先收按钮再交宿主屏接管（宿主会隐藏手牌扇）。</summary>
         public void OnUseClicked()

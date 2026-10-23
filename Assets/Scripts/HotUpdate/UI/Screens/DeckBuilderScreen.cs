@@ -12,21 +12,24 @@ using UButton = UnityEngine.UI.Button;
 namespace SynergyUI
 {
     /// <summary>
-    /// 卡组构建界面（2026-10-16 三栏改版）：
-    /// 左=当前卡组（卡名行·同卡聚合 ×册数·展示/删除两钮·异常卡标记）+ 卡组名/新建/保存 +
-    /// 底部统计滚动区（构成检测/费用曲线/颜色分布/类型比例）；
-    /// 中=只读卡面（CardOverlayItem.FromCardDataFull 六区快照，与手牌/合成器同族）+
-    /// 英雄技能栏（右侧选主动技能卡填入·常显发动费）；
-    /// 右=卡池（颜色+卡型两套过滤+搜索；行点击预览·添加/编辑/技能）+ 卡组列表
-    /// （行点击载入左栏编辑·✕删除·不可用标记）。
+    /// 卡组构建界面（2026-10-23 v2 空间重排 + 模板化，deck-ui-plan 定案）：
+    /// 左 648=当前卡组（名称行/汇总/卡表滚动 452/统计区**非滚动** 356——构成检测+曲线/颜色双列+类型行）；
+    /// 中 392=只读卡面（SlotBg 底板 240×432 居中）+ 异常提示 + 英雄技能栏；
+        /// 右 824=卡池（色/型 chips 固定面板内不滚动 + 搜索 + 滚动填充剩余高度）+ 卡组库（预组 3 只读可复制
+        /// + 我的卡组，固定 260 贴底）。中栏卡面可点击放大（全屏遮罩+360×648，独立 Zoom 绑定）。
+    ///
+    /// 视觉全部走 prefab 烘焙模板（DeckUI.prefab 各面板 templates 根下 tpl-*，隐藏约定见
+    /// UiKit.CloneTemplateFrom）：行/chip/统计块/分区标题/空态一律克隆模板 + 绑文本/显隐/onClick，
+    /// 代码不再现搭视觉节点。色 chips 预制体烘焙（带色），卡型 chips 由 tpl-chip 克隆进 facet-kind
+    /// 一次、刷新只切选中态（Outline 烘焙 disabled，只切 enabled）。
     ///
     /// 构筑规则（2026-10-11 定案）：① 必须标记英雄技能（资格=HeroSkillSystem.CanBeSkillCard
     /// ——法术且 1~3 个主动效果），技能栏空则不可保存；② 唯一效果（唯一门/同名仪典）每卡组
     /// 限 1 张——添加口+保存口双拦；③ 卡组 30-60 张、卡可重复任意张。
     /// 主题双色约束（2026-10-15）：红/绿/蓝开头卡组拒加主题外颜色卡（出牌费+主动锚价两面）。
     ///
-    /// 异常卡口径（2026-10-16 全局对齐定案）：断链卡（卡表无此 ID）无法展示——展示钮灰仅可
-    /// 删除；形状违规/主题违色卡可展示但红字标记；整套含任一异常即不可保存，卡组列表/挑战/
+        /// 异常卡口径（2026-10-16 全局对齐定案）：断链卡（卡表无此 ID）无法展示——仅可
+        /// 删除；形状违规/主题违色卡可展示但红字标记；整套含任一异常即不可保存，卡组列表/挑战/
     /// 对战入口按 DeckCompositionValidator.UnusableTag 同源标记（单源 Usable）。
     ///
     /// 编辑跳转：卡池行「编辑」→ CardComposerScreen.PendingEditCardId（UIManager.Show 无法
@@ -69,8 +72,16 @@ namespace SynergyUI
         private readonly List<CardOverlayBinding> _previewBindings = new List<CardOverlayBinding>();
         private CardData _previewCard;
 
-        // 两套过滤（2026-10-16 收敛定案）：色 chips（预制体烘焙）+ 卡型 chips（列表首行运行时建）。
+        // 放大态绑定（验收2）：独立 Key="Zoom" 与 card-slot 的 "Preview" 并存——Bind 同键只挂一处，
+        // 异键双挂互不冲突；遮罩/放大卡槽烘焙在 overlay/zoom-overlay（默认隐藏，点卡面开启）。
+        private readonly List<CardOverlayBinding> _zoomBindings = new List<CardOverlayBinding>();
+        private RectTransform _zoomOverlay;
+        private RectTransform _zoomSlot;
+
+        // 两套过滤（2026-10-23 v2）：色 chips（预制体烘焙 facet-color）+ 卡型 chips（tpl-chip 克隆进
+        // facet-kind 一次，固定面板内不随列表滚动；刷新只切选中态）。
         private readonly Dictionary<UIColor, UButton> _filterChips = new Dictionary<UIColor, UButton>();
+        private readonly Dictionary<string, UButton> _kindChips = new Dictionary<string, UButton>(); // ""=全部
         private UIColor _colorFilter = UIColor.All;
         private string _kindFilterZh; // null = 全部（技能=可标记英雄技能的法术，独立第四档）
         private static readonly string[] KindFilterChoices = { "生物", "法术", "结界", "技能" };
@@ -79,15 +90,20 @@ namespace SynergyUI
         private UiKit.Scroll _catalogList;
         private UiKit.Scroll _deckList;
         private UiKit.Scroll _decksList;
-        private UiKit.Scroll _statsZone;
+        private RectTransform _statsZone;   // v2：非滚动统计容器（常驻 stats-row 行）
         private RectTransform _cardSlot;
         private RectTransform _overlay;
-        private RectTransform _catalogFilter;
+        private RectTransform _catalogFilter; // facet-color（v2 改名，旧 catalog-filter）
+        private RectTransform _facetKind;     // 卡型 chips 固定容器
+        private RectTransform _deckTemplates; // deck-panel/templates（隐藏模板根）
+        private RectTransform _catTemplates;  // catalog-panel/templates
         private TMP_Text _summary;
         private TMP_Text _toast;
         private TMP_Text _previewNote;
         private TMP_Text _skillLabel;
         private TMP_Text _skillCostLabel;
+        private TMP_Text _deckCount;    // hdr-deck 右侧「N 种 / M 张」
+        private TMP_Text _catalogCount; // hdr-catalog 右侧「N 张」
         private UButton _skillClearBtn;
         private UInputField _nameField;
         private UInputField _searchField;
@@ -113,7 +129,8 @@ namespace SynergyUI
             _summary = FindText("lbl-summary");
             _toast = FindText("lbl-toast");
             _deckList = FindScroll("list-deck");
-            _statsZone = FindScroll("stats-zone");
+            _statsZone = Find("stats-zone"); // v2 非滚动（RectMask 都不再需要——纯容器）
+            _deckCount = FindUnder(Find("hdr-deck"), "count")?.GetComponentInChildren<TMP_Text>(true);
 
             // ---- 中栏：只读卡面 + 英雄技能栏 ----
             _cardSlot = Find("card-slot");
@@ -122,15 +139,29 @@ namespace SynergyUI
             _skillCostLabel = FindText("lbl-skill-cost");
             _skillClearBtn = BindButton("btn-skill-clear", OnClearSkill);
 
+            // 放大态遮罩接线（验收2）：点遮罩=还原（放大卡本体无 OnClick，点卡面不关闭）
+            _zoomOverlay = Find("zoom-overlay");
+            _zoomSlot = Find("zoom-card");
+            var zoomMask = UiKit.FindDeep(_zoomOverlay, "zoom-mask");
+            var zoomMaskBtn = zoomMask != null ? zoomMask.GetComponentInChildren<UButton>(true) : null;
+            if (zoomMaskBtn != null)
+                zoomMaskBtn.onClick.AddListener(() => { Debug.Log("[UI点击] zoom-mask"); CloseZoom(); });
+
             // ---- 右栏：卡池过滤 / 搜索 / 卡组列表 ----
-            _catalogFilter = Find("catalog-filter");
+            _catalogFilter = Find("facet-color"); // v2 改名（旧 catalog-filter）
+            _facetKind = Find("facet-kind");
             _catalogList = FindScroll("list-catalog");
+            _catalogCount = FindUnder(Find("hdr-catalog"), "count")?.GetComponentInChildren<TMP_Text>(true);
             _searchField = FindInput("field-search");
             if (_searchField != null)
                 _searchField.onValueChanged.AddListener(_ => RefreshCatalog());
             _decksList = FindScroll("list-decks");
 
-            BindFilterRow();
+            // 模板根（面板下隐藏 templates——不进滚动 content，刷新不连坐）
+            _deckTemplates = FindUnder(Find("deck-panel"), "templates");
+            _catTemplates = FindUnder(Find("catalog-panel"), "templates");
+
+            BindFilterRow(); // 色 chips（烘焙）一次接线 + 卡型 chips（tpl-chip 克隆进 facet-kind 一次）
         }
 
         public override void OnEnter()
@@ -144,55 +175,142 @@ namespace SynergyUI
 
         public override void OnExit()
         {
-            // UGUI 卡牌层回收（中栏卡面独立池化，切屏必须显式清）
+            // UGUI 卡牌层回收（中栏卡面独立池化，切屏必须显式清）；放大绑定随清——
+            // 遮罩节点随屏销毁，残留绑定会在下一屏 Bind 时往已毁槽位挂卡
+            _zoomBindings.Clear();
             CardOverlayController.ClearActive();
             Tips.Close(); // 在途提示弹窗清理
         }
 
-        // ======================================== 右栏：卡池列表 ========================================
+        // ======================================== 模板绑定小件（克隆+绑文本/显隐/onClick） ========================================
 
-        /// <summary>颜色 chips 绑定（预制体烘焙 chip-{Color}，一次接线；激活态=Outline 开关）。</summary>
-        private void BindFilterRow()
+        /// <summary>克隆模板到容器（缺模板/模板激活=断线，LogError 暴露不静默）。</summary>
+        private RectTransform Clone(RectTransform templates, string tplName, RectTransform parent)
         {
-            if (_catalogFilter == null) return;
-            foreach (UIColor color in Enum.GetValues(typeof(UIColor)))
-            {
-                var captured = color;
-                var chipRt = UiKit.FindDeep(_catalogFilter, $"chip-{captured}");
-                var chip = chipRt != null ? chipRt.GetComponentInChildren<UButton>(true) : null;
-                if (chip == null) continue; // 缺 chip 由 FindDeep 静默——此处仅容错跳过
-                chip.onClick.AddListener(() =>
-                {
-                    _colorFilter = captured;
-                    UpdateFilterChips();
-                    RefreshCatalog();
-                });
-                _filterChips[captured] = chip;
-            }
-            UpdateFilterChips();
+            var row = UiKit.CloneTemplateFrom(templates, tplName, parent);
+            if (row == null)
+                Debug.LogError($"[DeckBuilder] 模板克隆失败：{tplName}（检查 DeckUI.prefab {templates?.parent?.name}/templates）");
+            return row;
         }
 
-        /// <summary>激活态切换：当前过滤色的 chip 加描边（预制体化后不重建行，只开关 Outline）。</summary>
+        /// <summary>按名取行内 TMP 写文本（可选换色——断链红字/选中态等数据态用）。</summary>
+        private static void SetText(RectTransform scope, string node, string text, Color? color = null)
+        {
+            var t = UiKit.FindDeep(scope, node)?.GetComponentInChildren<TMP_Text>(true);
+            if (t == null) return;
+            t.text = text ?? "";
+            if (color.HasValue) t.color = color.Value;
+        }
+
+        /// <summary>按名取行内节点切显隐（模板全件烘焙，代码只切）。</summary>
+        private static void SetVisible(RectTransform scope, string node, bool visible)
+        {
+            var rt = UiKit.FindDeep(scope, node);
+            if (rt != null) rt.gameObject.SetActive(visible);
+        }
+
+        /// <summary>行内按钮接线（克隆体复用安全：先清旧监听）。</summary>
+        private static UButton BindRowButton(RectTransform row, string node, Action onClick)
+        {
+            var rt = UiKit.FindDeep(row, node);
+            var btn = rt != null ? rt.GetComponentInChildren<UButton>(true) : null;
+            if (btn == null) return null;
+            btn.onClick.RemoveAllListeners();
+            if (onClick != null)
+                btn.onClick.AddListener(() => { Debug.Log($"[UI点击] {node}"); onClick(); });
+            return btn;
+        }
+
+        /// <summary>费用徽标写值（圆片烘焙在模板 cost 节点）。</summary>
+        private static void BindCost(RectTransform row, CardData card)
+            => SetText(row, "cost", ((int)card.TotalCost).ToString());
+
+        /// <summary>空态克隆：文本 +（可选）「清除全部筛选」钮。</summary>
+        private RectTransform MakeEmpty(RectTransform templates, RectTransform content, string text, bool clearButton)
+        {
+            var empty = Clone(templates, "tpl-empty", content);
+            if (empty == null) return null;
+            SetText(empty, "label", text);
+            SetVisible(empty, "btn-clear", clearButton);
+            if (clearButton) BindRowButton(empty, "btn-clear", ClearAllFilters);
+            UiKit.Size(empty, fw: 1f);
+            return empty;
+        }
+
+        // ======================================== 右栏：卡池列表 ========================================
+
+        /// <summary>色 chips 绑定（预制体烘焙 chip-{Color}，一次接线）+ 卡型 chips 克隆进 facet-kind
+        /// （v2 固定面板内不滚动）；激活态=烘焙 Outline 开关（默认 disabled，代码只切 enabled）。</summary>
+        private void BindFilterRow()
+        {
+            if (_catalogFilter != null)
+            {
+                foreach (UIColor color in Enum.GetValues(typeof(UIColor)))
+                {
+                    var captured = color;
+                    var chipRt = UiKit.FindDeep(_catalogFilter, $"chip-{captured}");
+                    var chip = chipRt != null ? chipRt.GetComponentInChildren<UButton>(true) : null;
+                    if (chip == null) continue; // 缺 chip 由 FindDeep 静默——此处仅容错跳过
+                    chip.onClick.AddListener(() =>
+                    {
+                        _colorFilter = captured;
+                        UpdateFilterChips();
+                        RefreshCatalog();
+                    });
+                    _filterChips[captured] = chip;
+                }
+                UpdateFilterChips();
+            }
+
+            // 卡型 chips：模板克隆一次（全部/生物/法术/结界/技能），刷新只切选中态不重建
+            if (_facetKind != null && _catTemplates != null)
+            {
+                BindKindChip(null);
+                foreach (var kind in KindFilterChoices)
+                    BindKindChip(kind);
+                UpdateKindChips();
+            }
+        }
+
+        private void BindKindChip(string kind)
+        {
+            var captured = kind; // null=全部
+            var chip = Clone(_catTemplates, "tpl-chip", _facetKind);
+            if (chip == null) return;
+            SetText(chip, "label", captured ?? "全部");
+            var btn = chip.GetComponentInChildren<UButton>(true);
+            if (btn == null) return;
+            btn.onClick.AddListener(() =>
+            {
+                _kindFilterZh = captured;
+                UpdateKindChips();
+                RefreshCatalog();
+            });
+            _kindChips[captured ?? ""] = btn;
+        }
+
+        /// <summary>激活态切换（两套 chips 同口径）：选中 chip 开烘焙 Outline。</summary>
         private void UpdateFilterChips()
         {
             foreach (var kv in _filterChips)
             {
-                bool active = kv.Key == _colorFilter;
                 var ol = kv.Value.GetComponent<Outline>();
-                if (active && ol == null)
-                {
-                    ol = kv.Value.gameObject.AddComponent<Outline>();
-                    ol.effectColor = UiStyle.TextPrimary;
-                    ol.effectDistance = new Vector2(1.5f, -1.5f);
-                }
-                if (ol != null) ol.enabled = active;
+                if (ol != null) ol.enabled = kv.Key == _colorFilter;
+            }
+        }
+
+        private void UpdateKindChips()
+        {
+            foreach (var kv in _kindChips)
+            {
+                var ol = kv.Value.GetComponent<Outline>();
+                if (ol != null) ol.enabled = kv.Key == (_kindFilterZh ?? "");
             }
         }
 
         private void RefreshCatalog()
         {
             ClearContent(_catalogList.Content);
-            BuildKindRow(); // 卡型 chips 行=内容首行，随刷新重建
 
             IEnumerable<CardData> cards = CardCatalog.LoadPlayPool(); // 教学专用卡不进构筑卡池
             if (_colorFilter != UIColor.All)
@@ -209,37 +327,21 @@ namespace SynergyUI
                 // 搜索态排序加权：名命中前置（稳定排序——命中组内保持全局 色→费→名 序）
                 sorted = sorted.OrderByDescending(c => SearchQuery.NameHit(c, query)).ToList();
 
+            if (_catalogCount != null) _catalogCount.text = $"{sorted.Count} 张";
+
             if (sorted.Count == 0)
             {
-                MakeEmptyState(query);
+                var parts = new List<string>();
+                if (_colorFilter != UIColor.All) parts.Add($"色：{ColorZh(_colorFilter)}");
+                if (_kindFilterZh != null) parts.Add($"型：{_kindFilterZh}");
+                if (SearchQuery.IsActive(query)) parts.Add($"词：{query.Trim()}");
+                MakeEmpty(_catTemplates, _catalogList.Content,
+                    parts.Count > 0 ? $"（无匹配卡牌）当前筛选：{string.Join(" + ", parts)}" : "（无卡牌可显示）",
+                    clearButton: parts.Count > 0);
                 return;
             }
             foreach (var card in sorted)
                 MakeCatalogRow(card);
-        }
-
-        /// <summary>卡型 chips 行（内容首行）：全部/生物/法术/结界/技能。</summary>
-        private void BuildKindRow()
-        {
-            var kindRow = UiKit.Row("facet-kind", _catalogList.Content, spacing: 4f, pad: 4f);
-            UiKit.Size(kindRow, fw: 1f);
-            MakeChip("全部", kindRow, _kindFilterZh == null, () => { _kindFilterZh = null; RefreshCatalog(); });
-            foreach (var kind in KindFilterChoices)
-            {
-                var captured = kind;
-                MakeChip(captured, kindRow, _kindFilterZh == captured,
-                    () => { _kindFilterZh = captured; RefreshCatalog(); });
-            }
-        }
-
-        /// <summary>chip：MiniButton+激活描边（随内容全量重建，激活态建行时烧入）。</summary>
-        private static void MakeChip(string label, RectTransform parent, bool active, Action onClick)
-        {
-            var chip = UiKit.MiniButton("chip-" + label, parent, label, onClick);
-            if (!active) return;
-            var ol = chip.gameObject.AddComponent<Outline>();
-            ol.effectColor = UiStyle.TextPrimary;
-            ol.effectDistance = new Vector2(1.5f, -1.5f);
         }
 
         /// <summary>卡型谓词：技能=HeroSkillSystem.CanBeSkillCard（法术且 1~3 个主动效果）——
@@ -256,27 +358,13 @@ namespace SynergyUI
             }
         }
 
-        /// <summary>空结果可解释：列出当前生效的全部筛选 +「清除全部」。</summary>
-        private void MakeEmptyState(string query)
-        {
-            var parts = new List<string>();
-            if (_colorFilter != UIColor.All) parts.Add($"色：{ColorZh(_colorFilter)}");
-            if (_kindFilterZh != null) parts.Add($"型：{_kindFilterZh}");
-            if (SearchQuery.IsActive(query)) parts.Add($"词：{query.Trim()}");
-            var hint = UiKit.Label("empty", _catalogList.Content,
-                parts.Count > 0 ? $"（无匹配卡牌）当前筛选：{string.Join(" + ", parts)}" : "（无卡牌可显示）",
-                UiStyle.SmallSize, UiStyle.TextHint, wrap: true);
-            UiKit.Size(hint, fw: 1f);
-            if (parts.Count > 0)
-                UiKit.MiniButton("btn-clear-filters", _catalogList.Content, "清除全部筛选", ClearAllFilters);
-        }
-
         private void ClearAllFilters()
         {
             _colorFilter = UIColor.All;
             _kindFilterZh = null;
             if (_searchField != null) _searchField.SetTextWithoutNotify("");
-            UpdateFilterChips(); // 色 chips 为 prefab 常驻，单独恢复
+            UpdateFilterChips(); // chips 常驻（色=烘焙/型=克隆），单独恢复选中态
+            UpdateKindChips();
             RefreshCatalog();
         }
 
@@ -294,29 +382,28 @@ namespace SynergyUI
             }
         }
 
-        /// <summary>卡池行：费用徽标+卡名+类型身材，行点击=中栏预览；行尾「技能/编辑/添加」——
-        /// 技能钮仅资格卡显示（填入中栏英雄技能栏）；编辑=跳卡牌编辑界面。</summary>
+        /// <summary>卡池行（tpl-row-card 克隆）：费用徽标+卡名+类型身材，行点击=中栏预览；
+        /// 行尾「技能/编辑/添加」——技能钮仅资格卡显示（填入中栏英雄技能栏）；编辑=跳卡牌编辑界面。</summary>
         private void MakeCatalogRow(CardData card)
         {
             var captured = card;
-            var row = UiKit.Row("row", _catalogList.Content, spacing: 8f, pad: 6f);
-            var rowBg = UiKit.BgRow(row);
-            rowBg.raycastTarget = true; // 行背景可点（行点击=预览；行内按钮在上层，互不串扰）
-            UiKit.Size(row, h: 40f);
+            var row = Clone(_catTemplates, "tpl-row-card", _catalogList.Content);
+            if (row == null) return;
 
-            CostBadge("cost", row, ((int)card.TotalCost).ToString());
-            var name = UiKit.Label("name", row, NameOf(card), UiStyle.BodySize, UiStyle.TextBody);
-            UiKit.Size(name, fw: 1f);
-            UiKit.Label("meta", row, TypeStatLine(card), UiStyle.SmallSize, UiStyle.TextFaint);
-            if (HeroSkillSystem.CanBeSkillCard(card))
-                UiKit.MiniButton("skill", row, "技能", () => SetSkill(captured));
-            UiKit.MiniButton("edit", row, "编辑", () => EditCard(captured));
-            UiKit.MiniButton("add", row, "添加", () => AddCard(captured.ID));
+            BindCost(row, card);
+            SetText(row, "name", NameOf(card));
+            SetText(row, "meta", TypeStatLine(card));
+            var skillBtn = BindRowButton(row, "btn-skill", () => SetSkill(captured));
+            if (skillBtn != null) skillBtn.gameObject.SetActive(HeroSkillSystem.CanBeSkillCard(card));
+            BindRowButton(row, "btn-edit", () => EditCard(captured));
+            BindRowButton(row, "btn-add", () => AddCard(captured.ID));
 
-            var rowBtn = row.gameObject.AddComponent<Button>();
-            rowBtn.transition = Selectable.Transition.None;
-            rowBtn.targetGraphic = rowBg;
-            rowBtn.onClick.AddListener(() => ShowPreview(captured));
+            var rowBtn = row.GetComponent<UButton>();
+            if (rowBtn != null)
+            {
+                rowBtn.onClick.RemoveAllListeners();
+                rowBtn.onClick.AddListener(() => ShowPreview(captured));
+            }
         }
 
         /// <summary>跳卡牌编辑界面（2026-10-16）：UIManager.Show 无法传参——静态会话带卡 ID，
@@ -386,7 +473,7 @@ namespace SynergyUI
         private static string NameOf(CardData card)
             => card == null ? "?" : string.IsNullOrEmpty(card.CardName) ? card.ID : card.CardName;
 
-        /// <summary>移出一册（2026-10-16 聚合行语义：同卡多册只减 1；技能标记不随移除清除）。</summary>
+        /// <summary>移出一册（同卡聚合行语义：同卡多册只减 1；技能标记不随移除清除）。</summary>
         private void RemoveCopy(string cardId)
         {
             _deckCardIds.Remove(cardId);
@@ -394,8 +481,9 @@ namespace SynergyUI
         }
 
         /// <summary>左栏当前卡组（同卡聚合 ×册数，保序=首次入组序）：行=[费用徽标|卡名×N|异常
-        /// 标记|展示|删除]。断链卡（卡表无此 ID）无法展示——展示钮灰、仅可删除；形状违规/主题
-        /// 违色卡可展示、行尾红字标记。</summary>
+        /// 标记|删除]（tpl-row-deck 克隆，行点击=中栏预览）。断链卡（卡表无此 ID）无法展示——
+        /// 仅可删除；形状违规/主题违色卡行尾红字标记。衍生物模板与效果引用的外部卡排在
+        /// 「衍生物 / 引用卡」分区之后（验收6；汇总张数口径不变——衍生物不计 30-60）。</summary>
         private void RefreshDeckList()
         {
             ClearContent(_deckList.Content);
@@ -418,50 +506,148 @@ namespace SynergyUI
                 counts.Add(1);
             }
 
+            if (_deckCount != null)
+                _deckCount.text = $"{ids.Count} 种 / {DeckBuildCount} 张";
+
             if (ids.Count == 0)
             {
-                var hint = UiKit.Label("empty", _deckList.Content,
-                    "（空卡组——右侧卡池点「添加」入组）", UiStyle.SmallSize, UiStyle.TextHint);
-                UiKit.Size(hint, fw: 1f);
+                MakeEmpty(_deckTemplates, _deckList.Content, "（空卡组——右侧卡池点「添加」入组）", false);
                 return;
             }
 
+            // 普通卡行在前；衍生物模板卡行挪进分区（保序）
+            var tokenRows = new List<int>();
             for (int i = 0; i < ids.Count; i++)
-                MakeDeckRow(ids[i], CardCatalog.GetById(ids[i]), counts[i], theme);
+            {
+                if (IsTokenTemplateId(ids[i])) tokenRows.Add(i);
+                else MakeDeckRow(ids[i], CardCatalog.GetById(ids[i]), counts[i], theme);
+            }
+
+            // 分区：衍生物模板（卡组条目，可删照旧）+ 卡组效果引用的外部卡（只读可预览）
+            var externalRefs = CollectExternalReferences();
+            if (tokenRows.Count > 0 || externalRefs.Count > 0)
+            {
+                MakeSectionHeader("衍生物 / 引用卡", _deckList.Content);
+                foreach (int i in tokenRows)
+                    MakeDeckRow(ids[i], CardCatalog.GetById(ids[i]), counts[i], theme);
+                foreach (var refId in externalRefs)
+                    MakeReferenceRow(refId);
+            }
         }
 
         private void MakeDeckRow(string cardId, CardData card, int copies, ManaType? theme)
         {
-            var row = UiKit.Row("row", _deckList.Content, spacing: 6f, pad: 6f);
-            UiKit.BgRow(row).raycastTarget = false;
-            UiKit.Size(row, h: 38f);
+            var row = Clone(_deckTemplates, "tpl-row-deck", _deckList.Content);
+            if (row == null) return;
+
+            var rowBtn = row.GetComponent<UButton>();
+            if (rowBtn != null) rowBtn.onClick.RemoveAllListeners();
 
             if (card == null)
             {
-                // 断链卡：无卡面数据可展示——展示钮灰（interactable=false），只能删除
-                var miss = UiKit.Label("name", row, $"[断链] {cardId} ×{copies}",
-                    UiStyle.BodySize, UiStyle.DotRed);
-                UiKit.Size(miss, fw: 1f);
-                var showBtn = UiKit.MiniButton("show", row, "展示", null);
-                showBtn.interactable = false;
-                UiKit.MiniButton("del", row, "删除", () => RemoveCopy(cardId),
-                    bg: UiStyle.BtnDanger, fg: UiStyle.White);
+                // 断链卡：无卡面数据可展示——只能删除
+                SetVisible(row, "cost", false);
+                SetText(row, "name", $"[断链] {cardId} ×{copies}", UiStyle.DotRed);
+                SetVisible(row, "flag", false);
+                BindRowButton(row, "btn-del", () => RemoveCopy(cardId));
                 return;
             }
 
             var captured = card;
-            CostBadge("cost", row, ((int)card.TotalCost).ToString());
-            var name = UiKit.Label("name", row,
-                NameOf(card) + (copies > 1 ? $" ×{copies}" : ""), UiStyle.BodySize, UiStyle.TextBody);
-            UiKit.Size(name, fw: 1f);
+            BindCost(row, card);
+            SetText(row, "name", NameOf(card) + (copies > 1 ? $" ×{copies}" : ""));
 
             var flags = CardFlags(card, theme);
+            SetVisible(row, "flag", flags.Count > 0);
             if (flags.Count > 0)
-                UiKit.Label("flag", row, "✘" + string.Join("/", flags), UiStyle.SmallSize, UiStyle.DotRed);
+                SetText(row, "flag", "✘" + string.Join("/", flags), UiStyle.DotRed);
 
-            UiKit.MiniButton("show", row, "展示", () => ShowPreview(captured));
-            UiKit.MiniButton("del", row, "删除", () => RemoveCopy(cardId),
-                bg: UiStyle.BtnDanger, fg: UiStyle.White);
+            BindRowButton(row, "btn-del", () => RemoveCopy(cardId));
+            if (rowBtn != null)
+                rowBtn.onClick.AddListener(() => ShowPreview(captured));
+        }
+
+        /// <summary>引用卡行（验收6）：卡组效果引用但不在卡组内的卡（SummonToken/GrantMorph 目标）——
+        /// 行点击=预览、不可删（要断引用须移除引用它的卡）；flag 位灰字「引用」区分。断链引用红字。</summary>
+        private void MakeReferenceRow(string refId)
+        {
+            var row = Clone(_deckTemplates, "tpl-row-deck", _deckList.Content);
+            if (row == null) return;
+
+            var rowBtn = row.GetComponent<UButton>();
+            if (rowBtn != null) rowBtn.onClick.RemoveAllListeners();
+            SetVisible(row, "btn-del", false);
+
+            var card = CardCatalog.GetById(refId);
+            if (card == null)
+            {
+                SetVisible(row, "cost", false);
+                SetText(row, "name", "[断链] " + refId, UiStyle.DotRed);
+                SetVisible(row, "flag", false);
+                return;
+            }
+
+            BindCost(row, card);
+            SetText(row, "name", NameOf(card));
+            SetText(row, "flag", "引用", UiStyle.TextHint);
+            if (rowBtn != null)
+                rowBtn.onClick.AddListener(() => ShowPreview(card));
+        }
+
+        /// <summary>卡组效果引用的外部卡枚举（验收6）：SummonToken.str（召唤衍生物模板）与
+        /// GrantMorph.str（变形赋予目标）两原子的 str=卡 ID——其余原子 str 语义不同（宣言卡名等）
+        /// 不收。遍历口径与 DeckCopyService.RewriteCardReferences 同构（步骤/扁平原子/分支奖励/
+        /// 代价载荷）；已在卡组内的 id 不收（在组模板行已在分区内、在组普通卡留在普通区）。</summary>
+        private List<string> CollectExternalReferences()
+        {
+            var seen = new HashSet<string>(_deckCardIds);
+            var result = new List<string>();
+            foreach (var id in _deckCardIds)
+            {
+                var card = CardCatalog.GetById(id);
+                if (card == null) continue;
+                foreach (var fx in card.Effects)
+                {
+                    if (fx == null) continue;
+                    if (fx.Steps != null)
+                        foreach (var step in fx.Steps)
+                        {
+                            if (step == null) continue;
+                            CollectRefAtom(step.atomic, seen, result);
+                            CollectRefAtoms(step.thenSteps, seen, result);
+                            CollectRefAtoms(step.elseSteps, seen, result);
+                        }
+                    CollectRefAtoms(fx.AtomicEffects, seen, result);
+                    if (fx.Costs != null)
+                        foreach (var cost in fx.Costs)
+                            CollectRefAtoms(cost != null ? cost.AllPayloads() : null, seen, result);
+                }
+                CollectRefAtoms(card.PayloadCost != null ? card.PayloadCost.AllPayloads() : null, seen, result);
+            }
+            return result;
+        }
+
+        private static void CollectRefAtoms(List<AtomicEffectEntry> atoms, HashSet<string> seen, List<string> result)
+        {
+            if (atoms == null) return;
+            foreach (var atom in atoms) CollectRefAtom(atom, seen, result);
+        }
+
+        /// <summary>单原子引用判定：查原子表行（refId→EnumName），SummonToken/GrantMorph 才把
+        /// str 当卡 ID；分支奖励原子列（倒计时召唤模板在此）一并下钻。</summary>
+        private static void CollectRefAtom(AtomicEffectEntry atom, HashSet<string> seen, List<string> result)
+        {
+            if (atom == null) return;
+            if (atom.branch != null && atom.branch.then != null)
+                CollectRefAtoms(atom.branch.then, seen, result);
+            if (string.IsNullOrEmpty(atom.str) || seen.Contains(atom.str)) return;
+            var cfg = CardCore.Attribute.AtomicEffectTable.GetByHashId(atom.refId);
+            if (cfg == null) return;
+            string summon = AtomicEffectType.SummonToken.ToString();
+            string morph = AtomicEffectType.GrantMorph.ToString();
+            if (cfg.EnumName != summon && cfg.EnumName != morph) return;
+            seen.Add(atom.str);
+            result.Add(atom.str);
         }
 
         /// <summary>单卡异常标记（左栏行尾红字/中栏 note，短词）：形状违规 / 主题违色。</summary>
@@ -497,11 +683,11 @@ namespace SynergyUI
             _previewCard = card;
             BuildPreview();
             // 行点击路径不走 RefreshAll——卡面层单独重绑
-            CardOverlayController.Instance.Bind(_previewBindings);
+            RebindCardLayer();
         }
 
         /// <summary>中栏卡面：FromCardDataFull 六区静态快照（与手牌/合成器同族，去运行态）；
-        /// 异常卡在 note 行给出首条明细（形状违规人读串 / 违色 Detail）。</summary>
+        /// 点卡面放大全屏（验收2）；异常卡在 note 行给出首条明细（形状违规人读串 / 违色 Detail）。</summary>
         private void BuildPreview()
         {
             _previewBindings.Clear();
@@ -512,11 +698,13 @@ namespace SynergyUI
                 _previewNote.text = "点击左右列表的行，在此显示卡面";
                 return;
             }
+            var captured = card;
             _previewBindings.Add(new CardOverlayBinding
             {
                 Slot = _cardSlot,
                 Item = CardOverlayItem.FromCardDataFull(card, "Preview"),
                 Layout = CardOverlayLayout.Full,
+                OnClick = () => OpenZoom(captured), // 点卡面=放大（空态无卡实例天然不可点）
             });
 
             string note = "";
@@ -533,6 +721,54 @@ namespace SynergyUI
                 }
             }
             _previewNote.text = note; // 空=无异常（卡面下方留白）
+        }
+
+        /// <summary>放大中栏卡面（验收2）：全屏遮罩 + 360×648 放大卡居中。独立 Key="Zoom" 与
+        /// card-slot 预览并存（Bind 同键只挂一处，异键双挂互不冲突）；放大卡本体不接 OnClick——
+        /// 点遮罩/空白还原。尺寸口径=战场手牌悬停同款：ACard 六区按 200×360 设计矩形由根 VLG
+        /// 固定排版（不控制子尺寸），槽位拉伸只会放大背板——放大卡走 200×360 槽 + 实例
+        /// localScale（见 RebindCardLayer）。</summary>
+        private void OpenZoom(CardData card)
+        {
+            if (card == null || _zoomOverlay == null || _zoomSlot == null) return;
+            _zoomBindings.Clear();
+            _zoomBindings.Add(new CardOverlayBinding
+            {
+                Slot = _zoomSlot,
+                Item = CardOverlayItem.FromCardDataFull(card, "Zoom"),
+                Layout = CardOverlayLayout.Full,
+            });
+            _zoomOverlay.gameObject.SetActive(true);
+            RebindCardLayer();
+        }
+
+        /// <summary>还原放大态：关遮罩+清放大绑定，卡面层重绑回中栏预览。</summary>
+        private void CloseZoom()
+        {
+            if (_zoomBindings.Count == 0) return;
+            _zoomBindings.Clear();
+            if (_zoomOverlay != null) _zoomOverlay.gameObject.SetActive(false);
+            RebindCardLayer();
+        }
+
+        /// <summary>卡面整体缩放（手牌悬停同款口径）：200×360 设计矩形 ×1.8 = 360×648。</summary>
+        private const float ZoomCardScale = 1.8f;
+
+        /// <summary>UGUI 卡面层全量重绑：中栏预览 + 放大态（如开着）合并一次 Bind
+        ///（池化全量换绑成本低，两态互不抢占）。绑定后逐槽归一缩放——放大卡 = 设计尺寸槽 +
+        /// localScale（ACard 根 VLG 不控制六区尺寸，槽位拉伸只放大背板=「卡背放大」缺陷）；
+        /// 预览槽恒 scale 1（防池复用把放大 scale 带回中栏）。</summary>
+        private void RebindCardLayer()
+        {
+            var all = new List<CardOverlayBinding>(_previewBindings.Count + _zoomBindings.Count);
+            all.AddRange(_previewBindings);
+            all.AddRange(_zoomBindings);
+            CardOverlayController.Instance.Bind(all);
+
+            if (_cardSlot != null && _cardSlot.childCount > 0)
+                ((RectTransform)_cardSlot.GetChild(0)).localScale = Vector3.one;
+            if (_zoomSlot != null && _zoomSlot.childCount > 0)
+                ((RectTransform)_zoomSlot.GetChild(0)).localScale = Vector3.one * ZoomCardScale;
         }
 
         /// <summary>技能栏刷新：已设置=卡名+发动费区间+取消钮；未设置=空态提示（保存口必选拦截）。</summary>
@@ -588,22 +824,71 @@ namespace SynergyUI
             ShowToast("已取消英雄技能标记");
         }
 
-        // ======================================== 统计区（左栏底部滚动区） ========================================
+        // ======================================== 统计区（左栏底部·非滚动容器） ========================================
 
         private void RefreshStats()
         {
-            if (_statsZone == null) return;
-            ClearContent(_statsZone.Content);
+            if (_statsZone == null || _deckTemplates == null) return;
+            ClearStatsClones();
             var cards = _deckCardIds
                 .Select(id => CardCatalog.GetById(id))
                 .Where(c => c != null)
                 .ToList();
 
-            BuildCompositionCheck();
-            BuildCostCurve(cards);
-            BuildColorDistribution(cards);
-            BuildTypeRatio(cards);
+            BuildCompositionCheck();          // 构成检测（全宽 140）
+            BuildCostCurve(cards);            // 曲线（左列 300×164）
+            BuildColorDistribution(cards);    // 颜色（右列 300×164）
+            BuildTypeRatio(cards);            // 类型行（全宽 20，无标题）
         }
+
+        /// <summary>清统计区克隆块（stats-row 及其内部双列块都属刷新范围；stats-row 为预制体
+        /// 常驻行本体保留——只清其子级，防曲线/颜色块跨刷新累积）。</summary>
+        private void ClearStatsClones()
+        {
+            var row = UiKit.FindDeep(_statsZone, "stats-row");
+            if (row != null)
+            {
+                for (int i = row.childCount - 1; i >= 0; i--)
+                {
+                    var inner = row.GetChild(i);
+                    inner.SetParent(null);
+                    UnityEngine.Object.Destroy(inner.gameObject);
+                }
+            }
+            for (int i = _statsZone.childCount - 1; i >= 0; i--)
+            {
+                var child = _statsZone.GetChild(i);
+                if (child.name == "stats-row") continue;
+                child.SetParent(null);
+                UnityEngine.Object.Destroy(child.gameObject);
+            }
+        }
+
+        /// <summary>统计块克隆（tpl-stat）：写标题/块尺寸；返回块根。width=null=全宽入 stats-zone，
+        /// 有 width=入 stats-row 双列。typeLine=true 隐藏标题行（类型行 20 高单行形态）。</summary>
+        private RectTransform CloneStat(string title, float height, float? width, bool typeLine)
+        {
+            var parent = width.HasValue ? UiKit.FindDeep(_statsZone, "stats-row") : _statsZone;
+            var block = Clone(_deckTemplates, "tpl-stat", parent);
+            if (block == null) return null;
+            var le = block.GetComponent<LayoutElement>();
+            if (le != null)
+            {
+                if (width.HasValue) le.preferredWidth = width.Value;
+                le.preferredHeight = height;
+            }
+            if (typeLine) SetVisible(block, "header", false);
+            else
+            {
+                var headerRt = UiKit.FindDeep(block, "header");
+                SetText(headerRt, "label", title);
+            }
+            return block;
+        }
+
+        /// <summary>块正文 TMP（body/label——富文本烘焙：构成检测多行/颜色分布彩点都走它）。</summary>
+        private static TMP_Text StatBodyLabel(RectTransform block)
+            => UiKit.FindDeep(UiKit.FindDeep(block, "body"), "label")?.GetComponent<TMP_Text>();
 
         /// <summary>当前卡组名主题色（红/绿/蓝首字；其余 null=无约束）——
         /// 添加口/保存口/统计区检测块/行内标记共用。</summary>
@@ -615,74 +900,63 @@ namespace SynergyUI
         /// 实时刷新。违色在添加口已拦，此处兜底旧档载入与卡数据热改；口径=DeckCompositionValidator。</summary>
         private void BuildCompositionCheck()
         {
-            var zone = _statsZone.Content;
-            UiKit.Label("check-header", zone, "构成检测", UiStyle.HeaderSize,
-                UiStyle.TextSecondary, TextAnchor.LowerLeft, FontStyle.Bold);
+            var block = CloneStat("构成检测", 150f, null, false);
+            if (block != null) block.SetSiblingIndex(0); // stats-row 为常驻 idx0——检测块置顶（S3 评审 P1：曲线/颜色曾压顶）
+            if (block == null) return;
+            var body = StatBodyLabel(block);
+            if (body == null) return;
 
             var report = DeckCompositionValidator.Check(
                 _nameField != null ? _nameField.text : _currentDeckName, _deckCardIds);
 
+            var lines = new List<string>();
             if (report.ThemeColor == null)
             {
-                var hint = UiKit.Label("check-theme", zone,
-                    "无主题约束（卡组名以 红/绿/蓝 开头才启用「主题色+灰」双色检测）",
-                    UiStyle.SmallSize, UiStyle.TextHint, wrap: true);
-                UiKit.Size(hint, fw: 1f);
-                if (report.MissingIds.Count == 0) return;
+                lines.Add($"<color=#{ColorUtility.ToHtmlStringRGB(UiStyle.TextHint)}>" +
+                          "无主题约束（卡组名以 红/绿/蓝 开头才启用「主题色+灰」双色检测）</color>");
             }
             else
             {
-                var line = UiKit.Label("check-theme", zone,
-                    $"主题约束：{DeckCompositionValidator.ColorZh(report.ThemeColor.Value)}+灰",
-                    UiStyle.SmallSize, UiStyle.TextSecondary);
-                UiKit.Size(line, fw: 1f);
+                lines.Add($"<color=#{ColorUtility.ToHtmlStringRGB(UiStyle.TextSecondary)}>" +
+                          $"主题约束：{DeckCompositionValidator.ColorZh(report.ThemeColor.Value)}+灰</color>");
             }
 
             if (report.Ok)
             {
-                var ok = UiKit.Label("check-ok", zone,
-                    report.CardCount == 0 ? "（空卡组）" : "✔ 通过——无主题外颜色、无断链",
-                    UiStyle.SmallSize, UiStyle.DotGreen);
-                UiKit.Size(ok, fw: 1f);
-                return;
+                lines.Add($"<color=#{ColorUtility.ToHtmlStringRGB(UiStyle.DotGreen)}>" +
+                          (report.CardCount == 0 ? "（空卡组）" : "✔ 通过——无主题外颜色、无断链") + "</color>");
             }
-
-            const int maxRows = 8; // 超出折叠计数——违例长列表滚动区放不下
-            int shown = 0;
-            foreach (var v in report.Violations)
+            else
             {
-                if (shown++ >= maxRows) break;
-                var row = UiKit.Label("check-bad", zone,
-                    $"✘ {v.CardName} ×{v.Copies}｜{v.Surface}｜" +
-                    $"{DeckCompositionValidator.ColorZh(v.Color)}{v.Amount:0.#}",
-                    UiStyle.SmallSize, UiStyle.DotRed, wrap: true);
-                UiKit.Size(row, fw: 1f);
+                const int maxRows = 8; // 超出折叠计数——违例长列表区块放不下
+                int shown = 0;
+                var red = ColorUtility.ToHtmlStringRGB(UiStyle.DotRed);
+                foreach (var v in report.Violations)
+                {
+                    if (shown++ >= maxRows) break;
+                    lines.Add($"<color=#{red}>✘ {v.CardName} ×{v.Copies}｜{v.Surface}｜" +
+                              $"{DeckCompositionValidator.ColorZh(v.Color)}{v.Amount:0.#}</color>");
+                }
+                if (report.Violations.Count > maxRows)
+                    lines.Add($"<color=#{red}>……另有 {report.Violations.Count - maxRows} 项违色</color>");
+                foreach (var err in report.ShapeErrors)
+                    lines.Add($"<color=#{red}>✘ {err}</color>");
+                foreach (var id in report.MissingIds)
+                    lines.Add($"<color=#{red}>✘ 断链卡 {id}——卡表中无此 ID</color>");
             }
-            if (report.Violations.Count > maxRows)
-            {
-                var more = UiKit.Label("check-more", zone,
-                    $"……另有 {report.Violations.Count - maxRows} 项违色",
-                    UiStyle.SmallSize, UiStyle.DotRed);
-                UiKit.Size(more, fw: 1f);
-            }
-            foreach (var err in report.ShapeErrors)
-            {
-                var se = UiKit.Label("check-shape", zone, "✘ " + err,
-                    UiStyle.SmallSize, UiStyle.DotRed, wrap: true);
-                UiKit.Size(se, fw: 1f);
-            }
-            foreach (var id in report.MissingIds)
-            {
-                var miss = UiKit.Label("check-missing", zone,
-                    $"✘ 断链卡 {id}——卡表中无此 ID", UiStyle.SmallSize, UiStyle.DotRed, wrap: true);
-                UiKit.Size(miss, fw: 1f);
-            }
+            body.text = string.Join("\n", lines);
         }
 
-        /// <summary>费用曲线：1-9 档（>9 并入 9+）条形分布。</summary>
+        /// <summary>费用曲线：1-9 档（>9 并入 9+）条形分布（tpl-stat-bar ×9 克隆进 body）。</summary>
         private void BuildCostCurve(List<CardData> cards)
         {
-            var zone = _statsZone.Content;
+            var block = CloneStat("费用曲线", 170f, 308f, false);
+            if (block == null) return;
+            var body = UiKit.FindDeep(block, "body");
+            var bodyLabel = StatBodyLabel(block);
+            if (bodyLabel != null) bodyLabel.gameObject.SetActive(false); // 曲线块用柱条不用文本
+            if (body == null || _deckTemplates == null) return;
+
             var tiers = new int[10]; // 0 位弃用；1..9；>9 并入 9（标签显示 9+）
             foreach (var card in cards)
             {
@@ -690,60 +964,43 @@ namespace SynergyUI
                 tiers[tier]++;
             }
 
-            UiKit.Label("curve-header", zone, "费用曲线", UiStyle.HeaderSize,
-                UiStyle.TextSecondary, TextAnchor.LowerLeft, FontStyle.Bold);
-
-            var chart = UiKit.Row("curve", zone, spacing: 2f);
-            chart.GetComponent<HorizontalLayoutGroup>().childAlignment = TextAnchor.LowerLeft; // 条形自底生长
-            UiKit.Size(chart, fw: 1f, h: 64f);
             int max = tiers.Skip(1).Max();
             for (int tier = 1; tier <= 9; tier++)
             {
                 int count = tiers[tier];
-                var cell = UiKit.Column("tier-" + tier, chart, spacing: 0f);
-                cell.GetComponent<VerticalLayoutGroup>().childAlignment = TextAnchor.LowerCenter;
-                UiKit.Size(cell, w: 26f, fh: 1f);
-
-                var bar = UiKit.Node("bar", cell);
-                var barImg = bar.gameObject.AddComponent<Image>();
-                barImg.color = new Color(0.27f, 0.43f, 0.71f, 0.9f);
-                UiKit.Size(bar, w: 14f, h: count > 0 ? Mathf.Max(6f, (int)(52f * count / Mathf.Max(1, max))) : 2f);
-
-                var countLabel = UiKit.Label("count", cell, count > 0 ? count.ToString() : "",
-                    UiStyle.SmallSize, UiStyle.TextFaint, TextAnchor.MiddleCenter);
-                var tierLabel = UiKit.Label("tier", cell, tier == 9 ? "9+" : tier.ToString(),
-                    UiStyle.SmallSize, UiStyle.TextHint, TextAnchor.MiddleCenter);
+                var barCol = Clone(_deckTemplates, "tpl-stat-bar", body);
+                if (barCol == null) continue;
+                var bar = UiKit.FindDeep(barCol, "bar");
+                var barLe = bar != null ? bar.GetComponent<LayoutElement>() : null;
+                if (barLe != null)
+                    barLe.preferredHeight = count > 0
+                        ? Mathf.Max(6f, (int)(52f * count / Mathf.Max(1, max))) : 2f;
+                SetText(barCol, "count", count > 0 ? count.ToString() : "");
+                SetText(barCol, "tier", tier == 9 ? "9+" : tier.ToString());
             }
         }
 
-        /// <summary>颜色分布：六色计数（色点+数字）。</summary>
+        /// <summary>颜色分布：六色计数（彩点+数字，富文本单行——色值取 UiStyle.Dot* 令牌）。</summary>
         private void BuildColorDistribution(List<CardData> cards)
         {
-            var row = UiKit.Row("colors", _statsZone.Content, spacing: 4f);
+            var block = CloneStat("颜色分布", 170f, 308f, false);
+            if (block == null) return;
+            var body = StatBodyLabel(block);
+            if (body == null) return;
 
-            foreach (UIColor color in new[] { UIColor.Red, UIColor.Blue, UIColor.Green, UIColor.Gray, UIColor.Black, UIColor.White })
+            var parts = new List<string>();
+            foreach (var pair in new[] {
+                (UIColor.Red, UiStyle.DotRed, "红"), (UIColor.Blue, UiStyle.DotBlue, "蓝"),
+                (UIColor.Green, UiStyle.DotGreen, "绿"), (UIColor.Gray, UiStyle.DotGray, "灰"),
+                (UIColor.Black, UiStyle.DotBlack, "黑"), (UIColor.White, UiStyle.DotWhite, "白") })
             {
-                int count = cards.Count(c => CardSorter.HasCostColor(c, color));
-                UiKit.Dot($"dot-{color}", row, DotColor(color));
-                var num = UiKit.Label("num", row, $"{count}", UiStyle.SmallSize, UiStyle.TextFaint);
-                UiKit.Size(num, w: 26f);
+                int count = cards.Count(c => CardSorter.HasCostColor(c, pair.Item1));
+                parts.Add($"<color=#{ColorUtility.ToHtmlStringRGB(pair.Item2)}>●</color> {pair.Item3} {count}");
             }
+            body.text = string.Join("   ", parts);
         }
 
-        private static Color DotColor(UIColor color)
-        {
-            switch (color)
-            {
-                case UIColor.Red: return UiStyle.DotRed;
-                case UIColor.Blue: return UiStyle.DotBlue;
-                case UIColor.Green: return UiStyle.DotGreen;
-                case UIColor.Black: return UiStyle.DotBlack;
-                case UIColor.White: return UiStyle.DotWhite;
-                default: return UiStyle.DotGray;
-            }
-        }
-
-        /// <summary>类型比例：生物/法术/结界计数。</summary>
+        /// <summary>类型比例：生物/法术/结界计数（单行无标题形态——header 显隐切换）。</summary>
         private void BuildTypeRatio(List<CardData> cards)
         {
             int creatures = cards.Count(c => c.Supertype == Cardtype.Creature);
@@ -751,20 +1008,21 @@ namespace SynergyUI
             int enchantments = cards.Count(c => c.Supertype == Cardtype.Enchantment);
             int other = cards.Count - creatures - spells - enchantments;
 
-            var line = UiKit.Label("type-ratio", _statsZone.Content,
-                $"类型：生物 {creatures} · 法术 {spells} · 结界 {enchantments}"
-                + (other > 0 ? $" · 其他 {other}" : ""),
-                UiStyle.SmallSize, UiStyle.TextDim);
-            UiKit.Size(line, fw: 1f);
+            var block = CloneStat(null, 20f, null, true);
+            if (block == null) return;
+            var body = StatBodyLabel(block);
+            if (body != null)
+                body.text = $"类型：生物 {creatures} · 法术 {spells} · 结界 {enchantments}"
+                            + (other > 0 ? $" · 其他 {other}" : "");
         }
 
         // ======================================== 右栏：卡组列表 ========================================
 
-        /// <summary>卡组列表刷新（2026-10-22 预组分栏）：上方独立「预组卡组（只读）」区块——
-        /// 预组不可载入编辑（防改名另存出引用教学 id 的脆弱浅拷贝），改只能复制成玩家副本；
-        /// 下方「我的卡组」玩家档区块，行=[卡组名|张数·不可用标记|✕删除]，行点击=载入左栏编辑。
-        /// 不可用口径=DeckCompositionValidator.UnusableTag（断链/形状/违色任一即不可用，
-        /// 与挑战/对战入口全局同源——2026-10-16 对齐定案）。</summary>
+        /// <summary>卡组列表刷新（2026-10-22 预组分栏·2026-10-23 模板化）：上方独立
+        /// 「预组卡组（只读）」区块——预组不可载入编辑（防改名另存出引用教学 id 的脆弱浅拷贝），
+        /// 改只能复制成玩家副本；下方「我的卡组」玩家档区块，行=[卡组名|张数·不可用标记|✕删除]，
+        /// 行点击=载入左栏编辑。不可用口径=DeckCompositionValidator.UnusableTag（断链/形状/违色
+        /// 任一即不可用，与挑战/对战入口全局同源——2026-10-16 对齐定案）。</summary>
         private void RefreshDecksList()
         {
             if (_decksList == null) return;
@@ -774,21 +1032,19 @@ namespace SynergyUI
             var presets = DeckCatalog.LoadPresets();
             if (presets.Count > 0)
             {
-                MakeSectionHeader("预组卡组（只读·复制后可改）");
+                MakeSectionHeader("预组卡组（只读·复制后可改）", _decksList.Content);
                 foreach (var preset in presets)
                 {
                     if (preset == null || string.IsNullOrEmpty(preset.name)) continue;
                     MakePresetRow(preset);
                 }
             }
-            MakeSectionHeader("我的卡组");
+            MakeSectionHeader("我的卡组", _decksList.Content);
 
             var decks = DeckSerializer.LoadAll();
             if (decks.Count == 0)
             {
-                var hint = UiKit.Label("empty", _decksList.Content,
-                    "（无存档卡组——左栏构筑后点「保存」）", UiStyle.SmallSize, UiStyle.TextHint);
-                UiKit.Size(hint, fw: 1f);
+                MakeEmpty(_catTemplates, _decksList.Content, "（无存档卡组——左栏构筑后点「保存」）", false);
                 return;
             }
             foreach (var deck in decks)
@@ -798,36 +1054,44 @@ namespace SynergyUI
             }
         }
 
-        private void MakeDeckListRow(DeckData deck)
+        /// <summary>卡组列表行（tpl-row-decklib 克隆）。</summary>
+        private RectTransform MakeDeckLibRow()
         {
-            var row = UiKit.Row("deck-row", _decksList.Content, spacing: 8f, pad: 6f);
-            var bg = UiKit.BgRow(row);
-            if (deck.name == _selectedDeckName) bg.color = UiStyle.SelectedRowBg;
-            bg.raycastTarget = true;
-            UiKit.Size(row, h: 34f);
-
-            var name = UiKit.Label("name", row, deck.name, UiStyle.BodySize, UiStyle.TextBody);
-            UiKit.Size(name, fw: 1f);
-            var tag = DeckCompositionValidator.UnusableTag(deck);
-            UiKit.Label("meta", row,
-                DeckCountText(deck) + (tag.Length > 0 ? "·" + tag : ""),
-                UiStyle.SmallSize, tag.Length > 0 ? UiStyle.DotRed : UiStyle.TextFaint);
-
-            var captured = deck.name;
-            UiKit.MiniButton("del", row, "✕", () => ConfirmDeleteDeck(captured),
-                bg: UiStyle.BtnDanger, fg: UiStyle.White);
-
-            var rowBtn = row.gameObject.AddComponent<Button>();
-            rowBtn.transition = Selectable.Transition.None;
-            rowBtn.targetGraphic = bg;
-            rowBtn.onClick.AddListener(() => LoadDeck(captured));
+            var row = Clone(_catTemplates, "tpl-row-decklib", _decksList.Content);
+            if (row == null) return null;
+            var rowBtn = row.GetComponent<UButton>();
+            if (rowBtn != null) rowBtn.onClick.RemoveAllListeners();
+            return row;
         }
 
-        /// <summary>卡组列表分区标题行（2026-10-22 预组分栏）。</summary>
-        private void MakeSectionHeader(string title)
+        private void MakeDeckListRow(DeckData deck)
         {
-            var header = UiKit.Label("section", _decksList.Content, title,
-                UiStyle.SmallSize, UiStyle.TextHint, TextAnchor.MiddleLeft);
+            var row = MakeDeckLibRow();
+            if (row == null) return;
+
+            SetText(row, "name", deck.name);
+            var tag = DeckCompositionValidator.UnusableTag(deck);
+            SetText(row, "meta", DeckCountText(deck) + (tag.Length > 0 ? "·" + tag : ""),
+                tag.Length > 0 ? UiStyle.DotRed : (Color?)null);
+            SetVisible(row, "btn-copy", false); // 玩家档无复制钮
+
+            var captured = deck.name;
+            BindRowButton(row, "btn-del", () => ConfirmDeleteDeck(captured));
+
+            var bg = row.GetComponent<Image>();
+            if (bg != null) bg.color = deck.name == _selectedDeckName ? UiStyle.SelectedRowBg : UiStyle.RowBg;
+
+            var rowBtn = row.GetComponent<UButton>();
+            if (rowBtn != null)
+                rowBtn.onClick.AddListener(() => LoadDeck(captured));
+        }
+
+        /// <summary>卡组列表分区标题行（tpl-section 克隆；右栏卡组库分栏与左栏衍生物/引用卡分区共用）。</summary>
+        private void MakeSectionHeader(string title, RectTransform content)
+        {
+            var header = Clone(_catTemplates, "tpl-section", content);
+            if (header == null) return;
+            SetText(header, "label", title);
             UiKit.Size(header, fw: 1f);
         }
 
@@ -843,26 +1107,22 @@ namespace SynergyUI
         /// <summary>预组行（只读）：[名·预组|张数|复制钮]；行点击=只读提示（不载入——防脆弱浅拷贝）。</summary>
         private void MakePresetRow(DeckData preset)
         {
-            var row = UiKit.Row("preset-row", _decksList.Content, spacing: 8f, pad: 6f);
-            var bg = UiKit.BgRow(row);
-            bg.raycastTarget = true;
-            UiKit.Size(row, h: 34f);
+            var row = MakeDeckLibRow();
+            if (row == null) return;
 
-            var name = UiKit.Label("name", row, preset.name + "·预组",
-                UiStyle.BodySize, UiStyle.TextBody);
-            UiKit.Size(name, fw: 1f);
+            SetText(row, "name", preset.name + "·预组");
             var tag = DeckCompositionValidator.UnusableTag(preset);
-            UiKit.Label("meta", row, DeckCountText(preset) + (tag.Length > 0 ? "·" + tag : ""),
-                UiStyle.SmallSize, tag.Length > 0 ? UiStyle.DotRed : UiStyle.TextFaint);
+            SetText(row, "meta", DeckCountText(preset) + (tag.Length > 0 ? "·" + tag : ""),
+                tag.Length > 0 ? UiStyle.DotRed : (Color?)null);
+            SetVisible(row, "btn-del", false); // 预组不可删
 
             var captured = preset.name;
-            UiKit.MiniButton("copy", row, "复制", () => ConfirmCopyPreset(captured));
+            BindRowButton(row, "btn-copy", () => ConfirmCopyPreset(captured));
 
-            var rowBtn = row.gameObject.AddComponent<Button>();
-            rowBtn.transition = Selectable.Transition.None;
-            rowBtn.targetGraphic = bg;
-            rowBtn.onClick.AddListener(() =>
-                ShowToast("预组只读——点「复制」生成自己的副本后修改"));
+            var rowBtn = row.GetComponent<UButton>();
+            if (rowBtn != null)
+                rowBtn.onClick.AddListener(() =>
+                    ShowToast("预组只读——点「复制」生成自己的副本后修改"));
         }
 
         private void ConfirmCopyPreset(string presetName)
@@ -984,8 +1244,8 @@ namespace SynergyUI
             BuildPreview();
             RefreshSkillSlot();
 
-            // UGUI 卡面层重绑（中栏卡面挂 card-slot；滚动裁剪由 RectMask2D/Mask 自动处理）
-            CardOverlayController.Instance.Bind(_previewBindings);
+            // UGUI 卡面层重绑（中栏卡面挂 card-slot；滚动裁剪由 RectMask2D 自动处理）
+            RebindCardLayer();
         }
 
         // ======================================== 保存 ========================================
@@ -1079,20 +1339,6 @@ namespace SynergyUI
         }
 
         // ======================================== 小件 ========================================
-
-        /// <summary>费用徽标（蓝色小圆片+数字，对标 .cost-badge）。</summary>
-        private static TMP_Text CostBadge(string name, RectTransform parent, string value)
-        {
-            var rt = UiKit.Node(name, parent);
-            var img = rt.gameObject.AddComponent<Image>();
-            img.sprite = UiKit.CircleSprite;
-            img.color = UiStyle.BtnPrimary;
-            var lbl = UiKit.Label("label", rt, value, UiStyle.SmallSize, UiStyle.White,
-                TextAnchor.MiddleCenter, FontStyle.Bold);
-            UiKit.StretchInset(lbl.rectTransform, 2f, 0f);
-            UiKit.Size(rt, w: 26f, h: 24f);
-            return lbl;
-        }
 
         private static string TypeStatLine(CardData card)
         {

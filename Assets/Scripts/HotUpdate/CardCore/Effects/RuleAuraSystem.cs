@@ -207,7 +207,7 @@ namespace CardCore
         public const string CombatFreeze = "CombatFreeze";           // 霜蚀仪典（攻击后→冻结）
         public const string CombatSleep = "CombatSleep";             // 眠蚀仪典（主动发动→沉睡）
 
-        // ---- 治疗改写仪典（2026-10-09，黑8，表行 9dfed4f8，用户命名「暗牧仪典」）：
+        // ---- 治疗改写仪典（2026-10-09，黑8，表行 79ef61f3，用户命名「暗牧仪典」）：
         // 受光环影响一方的单位与角色受到的治疗改写为等量伤害
         //（改写口=EntityEffectExtensions.Heal 咽喉→TryRewriteHealAsDamage；
         // 范围按受疗方一侧判 ScopeHits——同丰盈/离散的"受疗方"口径）。配套的实体级姊妹机制=

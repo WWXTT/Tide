@@ -75,6 +75,9 @@ namespace SynergyUI
         /// <summary>覆盖替换（2026-09-24 定案）：正在编辑的旧卡 ID；null=新建。效果合成器往返期间保留。</summary>
         private string _editingOriginalId;
 
+        /// <summary>新建卡默认名序号（2026-10-23 定案：新建·1、新建·2…从 1 起、不补零、无上限；玩家可改）。</summary>
+        private static int _newCardSeq;
+
         private TipPromptHost _tips; // TipPanel 提示弹窗宿主（2026-10-18 统一定案；惰性建——字段初始化器不能引用实例 Root）
         private TipPromptHost Tips => _tips ??= new TipPromptHost(() => Root);
 
@@ -743,7 +746,7 @@ namespace SynergyUI
             ? 3 + (_card.NoAttack ? 1 : 0) + (_card.NoGuard ? 1 : 0)
             : 0;
 
-        /// <summary>光环形态判据（与效果合成器 InferMode 同源）：连接/范围光环都走光环形态效果图（IsAuraMode）。</summary>
+        /// <summary>光环形态判据（与效果合成器 InferMode 同源）：连接/规则光环都走光环形态效果图（IsAuraMode）。</summary>
         private static bool IsAuraEffect(CardEffectData fx)
         {
             if (fx == null) return false;
@@ -1233,7 +1236,7 @@ namespace SynergyUI
 
         private void OnNewCard()
         {
-            _card.CardName = null; // 名称可缺省（留空保存=用生成的卡 ID 当卡名）
+            _card.CardName = $"新建·{++_newCardSeq}"; // 默认名（2026-10-23 定案：不补零、无上限）；玩家可改
             _card.Supertype = Cardtype.Creature;
             _card.Illustration = null; // 立绘复位（画廊高亮随 RefreshCardFace 对账）
             _card.Power = 0;

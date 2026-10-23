@@ -6,16 +6,16 @@
     "EffectType": "DealDamage",
     "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位",
     "TargetFilter": null,
-    "Polarity": -1.0,
+    "Polarity": -1,
     "MountKinds": "",
     "Tags": "伤害产出族",
     "ManaList": [
-      0.0,
-      1.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0
+      0,
+      1,
+      0,
+      0,
+      0,
+      0
     ]
   },
   {
@@ -25,16 +25,16 @@
     "EffectType": "DealDamageAllEnemies",
     "TargetKinds": "",
     "TargetFilter": null,
-    "Polarity": -1.0,
+    "Polarity": -1,
     "MountKinds": "",
     "Tags": "伤害产出族",
     "ManaList": [
-      0.0,
-      3.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0
+      0,
+      3,
+      0,
+      0,
+      0,
+      0
     ]
   },
   {
@@ -44,16 +44,16 @@
     "EffectType": "Heal",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": "Damaged",
-    "Polarity": 1.0,
+    "Polarity": 1,
     "MountKinds": "",
     "Tags": null,
     "ManaList": [
-      0.0,
-      0.0,
-      0.0,
+      0,
+      0,
+      0,
       0.5,
-      0.0,
-      0.0
+      0,
+      0
     ]
   },
   {
@@ -63,16 +63,16 @@
     "EffectType": "PierceDamage",
     "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位",
     "TargetFilter": null,
-    "Polarity": -1.0,
+    "Polarity": -1,
     "MountKinds": "",
     "Tags": "伤害产出族",
     "ManaList": [
-      0.0,
+      0,
       1.5,
-      0.0,
-      0.0,
-      0.0,
-      0.0
+      0,
+      0,
+      0,
+      0
     ]
   },
   {
@@ -82,16 +82,16 @@
     "EffectType": "DrainLife",
     "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位",
     "TargetFilter": null,
-    "Polarity": -1.0,
+    "Polarity": -1,
     "MountKinds": "",
     "Tags": "伤害产出族",
     "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      2.0
+      0,
+      0,
+      0,
+      0,
+      0,
+      2
     ]
   },
   {
@@ -101,16 +101,16 @@
     "EffectType": "AddHeroAttack",
     "TargetKinds": "己方单位",
     "TargetFilter": "Player",
-    "Polarity": 1.0,
+    "Polarity": 1,
     "MountKinds": "",
     "Tags": "生效自减型",
     "ManaList": [
-      1.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0
+      1,
+      0,
+      0,
+      0,
+      0,
+      0
     ]
   },
   {
@@ -120,16 +120,16 @@
     "EffectType": "DrawCard",
     "TargetKinds": "己方牌库",
     "TargetFilter": null,
-    "Polarity": 1.0,
+    "Polarity": 1,
     "MountKinds": "",
     "Tags": null,
     "ManaList": [
-      0.0,
-      0.0,
-      2.0,
-      0.0,
-      0.0,
-      0.0
+      0,
+      0,
+      2,
+      0,
+      0,
+      0
     ]
   },
   {
@@ -139,16 +139,16 @@
     "EffectType": "DiscardCard",
     "TargetKinds": "己方手牌,对方手牌",
     "TargetFilter": null,
-    "Polarity": -1.0,
+    "Polarity": -1,
     "MountKinds": "不可随机",
     "Tags": null,
     "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      2.0
+      0,
+      0,
+      0,
+      0,
+      0,
+      2
     ]
   },
   {
@@ -158,16 +158,16 @@
     "EffectType": "ReturnToHand",
     "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位",
     "TargetFilter": "NoRole",
-    "Polarity": -1.0,
+    "Polarity": -1,
     "MountKinds": "",
     "Tags": null,
     "ManaList": [
-      0.0,
-      0.0,
-      3.0,
-      0.0,
-      0.0,
-      0.0
+      0,
+      0,
+      3,
+      0,
+      0,
+      0
     ]
   },
   {
@@ -177,16 +177,16 @@
     "EffectType": "RecoverToHand",
     "TargetKinds": "己方墓地,对方墓地",
     "TargetFilter": "",
-    "Polarity": 1.0,
+    "Polarity": 1,
     "MountKinds": "",
     "Tags": null,
     "ManaList": [
-      0.0,
-      0.0,
-      3.0,
-      0.0,
-      0.0,
-      0.0
+      0,
+      0,
+      3,
+      0,
+      0,
+      0
     ]
   },
   {
@@ -196,16 +196,16 @@
     "EffectType": "Exile",
     "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位",
     "TargetFilter": "NoRole",
-    "Polarity": -1.0,
+    "Polarity": -1,
     "MountKinds": "",
     "Tags": null,
     "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      5.0
+      0,
+      0,
+      0,
+      0,
+      0,
+      5
     ]
   },
   {
@@ -215,16 +215,16 @@
     "EffectType": "ShuffleIntoDeck",
     "TargetKinds": "己方墓地,对方墓地",
     "TargetFilter": "",
-    "Polarity": 1.0,
+    "Polarity": 1,
     "MountKinds": "",
     "Tags": null,
     "ManaList": [
-      0.0,
-      0.0,
-      1.0,
-      0.0,
-      0.0,
-      0.0
+      0,
+      0,
+      1,
+      0,
+      0,
+      0
     ]
   },
   {
@@ -234,16 +234,16 @@
     "EffectType": "SearchDeck",
     "TargetKinds": "己方牌库",
     "TargetFilter": null,
-    "Polarity": 1.0,
+    "Polarity": 1,
     "MountKinds": "",
     "Tags": null,
     "ManaList": [
-      0.0,
-      0.0,
-      5.0,
-      0.0,
-      0.0,
-      0.0
+      0,
+      0,
+      5,
+      0,
+      0,
+      0
     ]
   },
   {
@@ -253,16 +253,16 @@
     "EffectType": "ReturnFromGraveyard",
     "TargetKinds": "己方墓地",
     "TargetFilter": "NoRole",
-    "Polarity": 1.0,
+    "Polarity": 1,
     "MountKinds": "",
     "Tags": null,
     "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      5.0,
-      0.0
+      0,
+      0,
+      0,
+      0,
+      5,
+      0
     ]
   },
   {
@@ -272,16 +272,16 @@
     "EffectType": "LookAtTopCards",
     "TargetKinds": "己方牌库,对方牌库",
     "TargetFilter": null,
-    "Polarity": 1.0,
+    "Polarity": 1,
     "MountKinds": "不可随机",
     "Tags": null,
     "ManaList": [
-      0.0,
-      0.0,
-      2.0,
-      0.0,
-      0.0,
-      0.0
+      0,
+      0,
+      2,
+      0,
+      0,
+      0
     ]
   },
   {
@@ -291,16 +291,16 @@
     "EffectType": "Untap",
     "TargetKinds": "己方单位",
     "TargetFilter": "NoRole,Tapped",
-    "Polarity": 1.0,
+    "Polarity": 1,
     "MountKinds": "",
     "Tags": null,
     "ManaList": [
-      0.0,
-      1.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0
+      0,
+      1,
+      0,
+      0,
+      0,
+      0
     ]
   },
   {
@@ -310,16 +310,16 @@
     "EffectType": "LifeLoss",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": null,
-    "Polarity": -1.0,
+    "Polarity": -1,
     "MountKinds": "",
     "Tags": null,
     "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      2.0
+      0,
+      0,
+      0,
+      0,
+      0,
+      2
     ]
   },
   {
@@ -329,16 +329,16 @@
     "EffectType": "LockCard",
     "TargetKinds": "己方手牌,对方手牌",
     "TargetFilter": null,
-    "Polarity": -1.0,
+    "Polarity": -1,
     "MountKinds": "不可随机",
     "Tags": "衰退型",
     "ManaList": [
-      0.0,
-      0.0,
-      1.0,
-      0.0,
-      0.0,
-      0.0
+      0,
+      0,
+      1,
+      0,
+      0,
+      0
     ]
   },
   {
@@ -348,16 +348,16 @@
     "EffectType": "GainControl",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": "NoRole",
-    "Polarity": -1.0,
+    "Polarity": -1,
     "MountKinds": "",
     "Tags": null,
     "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      5.0
+      0,
+      0,
+      0,
+      0,
+      0,
+      5
     ]
   },
   {
@@ -367,16 +367,16 @@
     "EffectType": "NegateActivation",
     "TargetKinds": "己方发动区,对方发动区,己方单位,对方单位,己方无生命单位,对方无生命单位",
     "TargetFilter": null,
-    "Polarity": -1.0,
+    "Polarity": -1,
     "MountKinds": "",
     "Tags": null,
     "ManaList": [
-      0.0,
-      0.0,
-      3.0,
-      0.0,
-      0.0,
-      0.0
+      0,
+      0,
+      3,
+      0,
+      0,
+      0
     ]
   },
   {
@@ -386,16 +386,16 @@
     "EffectType": "NegateEffect",
     "TargetKinds": "己方发动区,对方发动区,己方单位,对方单位,己方无生命单位,对方无生命单位",
     "TargetFilter": null,
-    "Polarity": -1.0,
+    "Polarity": -1,
     "MountKinds": "",
     "Tags": null,
     "ManaList": [
-      0.0,
-      0.0,
-      5.0,
-      0.0,
-      0.0,
-      0.0
+      0,
+      0,
+      5,
+      0,
+      0,
+      0
     ]
   },
   {
@@ -405,16 +405,16 @@
     "EffectType": "Purify",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": "NoRole",
-    "Polarity": 0.0,
+    "Polarity": 0,
     "MountKinds": "",
     "Tags": null,
     "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      3.0,
-      0.0
+      0,
+      0,
+      0,
+      0,
+      3,
+      0
     ]
   },
   {
@@ -424,16 +424,16 @@
     "EffectType": "SkipTurn",
     "TargetKinds": "对方单位",
     "TargetFilter": "Player",
-    "Polarity": -1.0,
+    "Polarity": -1,
     "MountKinds": "",
     "Tags": null,
     "ManaList": [
-      0.0,
-      0.0,
-      15.0,
-      0.0,
-      0.0,
-      0.0
+      0,
+      0,
+      15,
+      0,
+      0,
+      0
     ]
   },
   {
@@ -443,16 +443,16 @@
     "EffectType": "Morph",
     "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位",
     "TargetFilter": "NotRole",
-    "Polarity": 0.0,
+    "Polarity": 0,
     "MountKinds": "",
     "Tags": "换区清除型",
     "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
     ]
   },
   {
@@ -462,16 +462,16 @@
     "EffectType": "RemoveDebuffs",
     "TargetKinds": "己方单位",
     "TargetFilter": "NoRole",
-    "Polarity": 1.0,
+    "Polarity": 1,
     "MountKinds": "",
     "Tags": null,
     "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      2.0,
-      0.0
+      0,
+      0,
+      0,
+      0,
+      2,
+      0
     ]
   },
   {
@@ -481,16 +481,16 @@
     "EffectType": "GrantMorph",
     "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位",
     "TargetFilter": "NotRole",
-    "Polarity": 0.0,
+    "Polarity": 0,
     "MountKinds": "",
     "Tags": "换区清除型",
     "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
     ]
   },
   {
@@ -500,16 +500,16 @@
     "EffectType": "Devour",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": "NoRole",
-    "Polarity": -1.0,
+    "Polarity": -1,
     "MountKinds": "",
     "Tags": null,
     "ManaList": [
-      0.0,
-      3.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0
+      0,
+      3,
+      0,
+      0,
+      0,
+      0
     ]
   },
   {
@@ -519,16 +519,16 @@
     "EffectType": "Smash",
     "TargetKinds": "己方无生命单位,对方无生命单位,己方元素池,对方元素池",
     "TargetFilter": null,
-    "Polarity": -1.0,
+    "Polarity": -1,
     "MountKinds": "",
     "Tags": null,
     "ManaList": [
-      0.0,
-      4.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0
+      0,
+      4,
+      0,
+      0,
+      0,
+      0
     ]
   },
   {
@@ -538,16 +538,16 @@
     "EffectType": "Erase",
     "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位,己方元素池,对方元素池",
     "TargetFilter": "NotRole",
-    "Polarity": -1.0,
+    "Polarity": -1,
     "MountKinds": "",
     "Tags": null,
     "ManaList": [
-      0.0,
-      6.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0
+      0,
+      6,
+      0,
+      0,
+      0,
+      0
     ]
   },
   {
@@ -557,16 +557,16 @@
     "EffectType": "SummonToken",
     "TargetKinds": null,
     "TargetFilter": null,
-    "Polarity": 1.0,
+    "Polarity": 1,
     "MountKinds": "",
     "Tags": null,
     "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
     ]
   },
   {
@@ -576,20 +576,20 @@
     "EffectType": "IncreaseLandCap",
     "TargetKinds": null,
     "TargetFilter": null,
-    "Polarity": 1.0,
+    "Polarity": 1,
     "MountKinds": "",
     "Tags": null,
     "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      2.0,
-      0.0,
-      0.0
+      0,
+      0,
+      0,
+      2,
+      0,
+      0
     ]
   },
   {
-    "ID": "b44286ba",
+    "ID": "51843d31",
     "EnumName": "回响",
     "DisplayName": "选择双方战场的一张卡，将其具有一层遗忘指示物的复制加入手牌",
     "EffectType": "EchoCopy",
@@ -614,16 +614,16 @@
     "EffectType": "DiscoverCard",
     "TargetKinds": "己方牌库",
     "TargetFilter": null,
-    "Polarity": 1.0,
+    "Polarity": 1,
     "MountKinds": "不可随机",
     "Tags": null,
     "ManaList": [
-      0.0,
-      0.0,
-      3.0,
-      0.0,
-      0.0,
-      0.0
+      0,
+      0,
+      3,
+      0,
+      0,
+      0
     ]
   },
   {
@@ -633,16 +633,16 @@
     "EffectType": "Sacrifice",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": "Player",
-    "Polarity": -1.0,
+    "Polarity": -1,
     "MountKinds": "",
     "Tags": null,
     "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      5.0
+      0,
+      0,
+      0,
+      0,
+      0,
+      5
     ]
   },
   {
@@ -652,16 +652,16 @@
     "EffectType": "ChangeOwner",
     "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位",
     "TargetFilter": "NoRole",
-    "Polarity": -1.0,
+    "Polarity": -1,
     "MountKinds": "",
     "Tags": null,
     "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      6.0
+      0,
+      0,
+      0,
+      0,
+      0,
+      6
     ]
   },
   {
@@ -671,16 +671,16 @@
     "EffectType": "MillCard",
     "TargetKinds": "己方牌库,对方牌库",
     "TargetFilter": null,
-    "Polarity": -1.0,
+    "Polarity": -1,
     "MountKinds": "不可随机",
     "Tags": null,
     "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      1.0
+      0,
+      0,
+      0,
+      0,
+      0,
+      1
     ]
   },
   {
@@ -690,16 +690,16 @@
     "EffectType": "BounceToTop",
     "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位",
     "TargetFilter": "NoRole",
-    "Polarity": -1.0,
+    "Polarity": -1,
     "MountKinds": "",
     "Tags": null,
     "ManaList": [
-      0.0,
-      0.0,
-      4.0,
-      0.0,
-      0.0,
-      0.0
+      0,
+      0,
+      4,
+      0,
+      0,
+      0
     ]
   },
   {
@@ -709,16 +709,16 @@
     "EffectType": "BounceToBottom",
     "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位",
     "TargetFilter": "NoRole",
-    "Polarity": -1.0,
+    "Polarity": -1,
     "MountKinds": "",
     "Tags": null,
     "ManaList": [
-      0.0,
-      0.0,
-      4.0,
-      0.0,
-      0.0,
-      0.0
+      0,
+      0,
+      4,
+      0,
+      0,
+      0
     ]
   },
   {
@@ -728,16 +728,16 @@
     "EffectType": "GrantPhotosynthesis",
     "TargetKinds": "自己",
     "TargetFilter": "NoRole",
-    "Polarity": 1.0,
+    "Polarity": 1,
     "MountKinds": "关键词",
     "Tags": null,
     "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      3.0,
-      0.0,
-      0.0
+      0,
+      0,
+      0,
+      3,
+      0,
+      0
     ]
   },
   {
@@ -747,16 +747,16 @@
     "EffectType": "GrantLifesteal",
     "TargetKinds": "自己",
     "TargetFilter": "NoRole",
-    "Polarity": 1.0,
+    "Polarity": 1,
     "MountKinds": "关键词",
     "Tags": null,
     "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      3.0
+      0,
+      0,
+      0,
+      0,
+      0,
+      3
     ]
   },
   {
@@ -766,16 +766,16 @@
     "EffectType": "GrantConcealed",
     "TargetKinds": "自己",
     "TargetFilter": "NoRole",
-    "Polarity": 1.0,
+    "Polarity": 1,
     "MountKinds": "关键词",
     "Tags": null,
     "ManaList": [
-      0.0,
-      0.0,
-      5.0,
-      0.0,
-      0.0,
-      0.0
+      0,
+      0,
+      5,
+      0,
+      0,
+      0
     ]
   },
   {
@@ -785,16 +785,16 @@
     "EffectType": "GrantGuardian",
     "TargetKinds": "自己",
     "TargetFilter": null,
-    "Polarity": 1.0,
+    "Polarity": 1,
     "MountKinds": "关键词,不可作为连接光环",
     "Tags": null,
     "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      2.0,
-      0.0,
-      0.0
+      0,
+      0,
+      0,
+      2,
+      0,
+      0
     ]
   },
   {
@@ -804,16 +804,16 @@
     "EffectType": "GrantOverwhelm",
     "TargetKinds": "自己",
     "TargetFilter": "NoRole",
-    "Polarity": 1.0,
+    "Polarity": 1,
     "MountKinds": "关键词",
     "Tags": null,
     "ManaList": [
-      0.0,
-      3.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0
+      0,
+      3,
+      0,
+      0,
+      0,
+      0
     ]
   },
   {
@@ -823,16 +823,16 @@
     "EffectType": "GrantVigilance",
     "TargetKinds": "自己",
     "TargetFilter": "NoRole",
-    "Polarity": 1.0,
+    "Polarity": 1,
     "MountKinds": "关键词",
     "Tags": null,
     "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      2.0,
-      0.0,
-      0.0
+      0,
+      0,
+      0,
+      2,
+      0,
+      0
     ]
   },
   {
@@ -842,16 +842,16 @@
     "EffectType": "GrantFirstStrike",
     "TargetKinds": "自己",
     "TargetFilter": "NoRole",
-    "Polarity": 1.0,
+    "Polarity": 1,
     "MountKinds": "关键词",
     "Tags": null,
     "ManaList": [
-      0.0,
-      2.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0
+      0,
+      2,
+      0,
+      0,
+      0,
+      0
     ]
   },
   {
@@ -861,16 +861,16 @@
     "EffectType": "GrantSpellShield",
     "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位",
     "TargetFilter": "",
-    "Polarity": 1.0,
+    "Polarity": 1,
     "MountKinds": "指示物",
     "Tags": "生效自减型",
     "ManaList": [
-      0.0,
-      0.0,
-      2.0,
-      0.0,
-      0.0,
-      0.0
+      0,
+      0,
+      2,
+      0,
+      0,
+      0
     ]
   },
   {
@@ -880,16 +880,16 @@
     "EffectType": "GrantIndestructible",
     "TargetKinds": "自己",
     "TargetFilter": "NoRole",
-    "Polarity": 1.0,
+    "Polarity": 1,
     "MountKinds": "关键词",
     "Tags": null,
     "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      2.0,
-      0.0
+      0,
+      0,
+      0,
+      0,
+      2,
+      0
     ]
   },
   {
@@ -899,16 +899,16 @@
     "EffectType": "GrantLifelink",
     "TargetKinds": "自己",
     "TargetFilter": "NoRole",
-    "Polarity": 1.0,
+    "Polarity": 1,
     "MountKinds": "关键词",
     "Tags": null,
     "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      3.0,
-      0.0,
-      0.0
+      0,
+      0,
+      0,
+      3,
+      0,
+      0
     ]
   },
   {
@@ -918,16 +918,16 @@
     "EffectType": "GrantRegeneration",
     "TargetKinds": "自己",
     "TargetFilter": "NoRole",
-    "Polarity": 1.0,
+    "Polarity": 1,
     "MountKinds": "关键词,不可作为连接光环",
     "Tags": null,
     "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      3.0,
-      0.0,
-      0.0
+      0,
+      0,
+      0,
+      3,
+      0,
+      0
     ]
   },
   {
@@ -937,16 +937,16 @@
     "EffectType": "GrantDisarm",
     "TargetKinds": "自己",
     "TargetFilter": "NoRole",
-    "Polarity": 1.0,
+    "Polarity": 1,
     "MountKinds": "关键词",
     "Tags": null,
     "ManaList": [
-      0.0,
-      2.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0
+      0,
+      2,
+      0,
+      0,
+      0,
+      0
     ]
   },
   {
@@ -956,16 +956,16 @@
     "EffectType": "GrantTaunt",
     "TargetKinds": "自己",
     "TargetFilter": "NoRole",
-    "Polarity": 1.0,
+    "Polarity": 1,
     "MountKinds": "关键词",
     "Tags": null,
     "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      3.0,
-      0.0
+      0,
+      0,
+      0,
+      0,
+      3,
+      0
     ]
   },
   {
@@ -975,16 +975,16 @@
     "EffectType": "GrantSpellban",
     "TargetKinds": "自己",
     "TargetFilter": "NoRole",
-    "Polarity": 1.0,
+    "Polarity": 1,
     "MountKinds": "关键词,不可作为连接光环",
     "Tags": null,
     "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      5.0,
-      0.0
+      0,
+      0,
+      0,
+      0,
+      5,
+      0
     ]
   },
   {
@@ -994,16 +994,16 @@
     "EffectType": "GrantDoubleStrike",
     "TargetKinds": "自己",
     "TargetFilter": "NoRole",
-    "Polarity": 1.0,
+    "Polarity": 1,
     "MountKinds": "关键词",
     "Tags": null,
     "ManaList": [
-      0.0,
-      3.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0
+      0,
+      3,
+      0,
+      0,
+      0,
+      0
     ]
   },
   {
@@ -1013,16 +1013,16 @@
     "EffectType": "GrantVenom",
     "TargetKinds": "自己",
     "TargetFilter": "NoRole",
-    "Polarity": 1.0,
+    "Polarity": 1,
     "MountKinds": "关键词",
     "Tags": null,
     "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      3.0,
-      0.0,
-      0.0
+      0,
+      0,
+      0,
+      3,
+      0,
+      0
     ]
   },
   {
@@ -1032,16 +1032,16 @@
     "EffectType": "GrantMartyrdom",
     "TargetKinds": "自己",
     "TargetFilter": null,
-    "Polarity": 0.0,
+    "Polarity": 0,
     "MountKinds": "关键词,不可作为连接光环",
     "Tags": null,
     "ManaList": [
-      0.0,
-      1.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0
+      0,
+      1,
+      0,
+      0,
+      0,
+      0
     ]
   },
   {
@@ -1051,16 +1051,16 @@
     "EffectType": "GrantReborn",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": null,
-    "Polarity": 1.0,
+    "Polarity": 1,
     "MountKinds": "指示物",
     "Tags": "生效自减型",
     "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      3.0,
-      0.0
+      0,
+      0,
+      0,
+      0,
+      3,
+      0
     ]
   },
   {
@@ -1070,16 +1070,16 @@
     "EffectType": "GrantDivineShield",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": null,
-    "Polarity": 1.0,
+    "Polarity": 1,
     "MountKinds": "指示物",
     "Tags": "生效自减型",
     "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      1.0,
-      0.0
+      0,
+      0,
+      0,
+      0,
+      1,
+      0
     ]
   },
   {
@@ -1089,16 +1089,16 @@
     "EffectType": "GrantStealth",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": null,
-    "Polarity": 1.0,
+    "Polarity": 1,
     "MountKinds": "指示物",
     "Tags": "生效自减型",
     "ManaList": [
-      0.0,
-      0.0,
-      1.0,
-      0.0,
-      0.0,
-      0.0
+      0,
+      0,
+      1,
+      0,
+      0,
+      0
     ]
   },
   {
@@ -1108,16 +1108,16 @@
     "EffectType": "AddCostUp",
     "TargetKinds": "己方手牌,对方手牌",
     "TargetFilter": null,
-    "Polarity": -1.0,
+    "Polarity": -1,
     "MountKinds": "指示物,不可随机",
     "Tags": "换区清除型",
     "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      2.0
+      0,
+      0,
+      0,
+      0,
+      0,
+      2
     ]
   },
   {
@@ -1127,16 +1127,16 @@
     "EffectType": "AddCostDown",
     "TargetKinds": "己方手牌,对方手牌",
     "TargetFilter": null,
-    "Polarity": 1.0,
+    "Polarity": 1,
     "MountKinds": "指示物,不可随机",
     "Tags": "换区清除型",
     "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      2.0,
-      0.0
+      0,
+      0,
+      0,
+      0,
+      2,
+      0
     ]
   },
   {
@@ -1146,16 +1146,16 @@
     "EffectType": "AddPowerUp",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": "NoRole",
-    "Polarity": 1.0,
+    "Polarity": 1,
     "MountKinds": "指示物,可以作为连接光环,不可随机",
     "Tags": "换区清除型",
     "ManaList": [
       0.5,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0
+      0,
+      0,
+      0,
+      0,
+      0
     ]
   },
   {
@@ -1165,16 +1165,16 @@
     "EffectType": "AddPowerDown",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": "NoRole",
-    "Polarity": -1.0,
+    "Polarity": -1,
     "MountKinds": "指示物,可以作为连接光环,不可随机",
     "Tags": "换区清除型",
     "ManaList": [
       0.5,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0
+      0,
+      0,
+      0,
+      0,
+      0
     ]
   },
   {
@@ -1184,16 +1184,16 @@
     "EffectType": "AddLifeUp",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": "NoRole",
-    "Polarity": 1.0,
+    "Polarity": 1,
     "MountKinds": "指示物,可以作为连接光环,不可随机",
     "Tags": "换区清除型",
     "ManaList": [
       0.5,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0
+      0,
+      0,
+      0,
+      0,
+      0
     ]
   },
   {
@@ -1203,16 +1203,16 @@
     "EffectType": "AddLifeDown",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": "NoRole",
-    "Polarity": -1.0,
+    "Polarity": -1,
     "MountKinds": "指示物,可以作为连接光环,不可随机",
     "Tags": "换区清除型",
     "ManaList": [
       0.5,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0
+      0,
+      0,
+      0,
+      0,
+      0
     ]
   },
   {
@@ -1222,16 +1222,16 @@
     "EffectType": "AddPlusOne",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": "NoRole",
-    "Polarity": 1.0,
+    "Polarity": 1,
     "MountKinds": "指示物,可以作为连接光环,不可随机",
     "Tags": "换区清除型",
     "ManaList": [
-      1.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0
+      1,
+      0,
+      0,
+      0,
+      0,
+      0
     ]
   },
   {
@@ -1241,16 +1241,16 @@
     "EffectType": "AddMinusOne",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": "NoRole",
-    "Polarity": -1.0,
+    "Polarity": -1,
     "MountKinds": "指示物,可以作为连接光环,不可随机",
     "Tags": "换区清除型",
     "ManaList": [
-      1.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0
+      1,
+      0,
+      0,
+      0,
+      0,
+      0
     ]
   },
   {
@@ -1260,16 +1260,16 @@
     "EffectType": "AddPermanentPlusOne",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": "NoRole",
-    "Polarity": 1.0,
+    "Polarity": 1,
     "MountKinds": "不可作为连接光环,不可随机",
     "Tags": "",
     "ManaList": [
-      3.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0
+      3,
+      0,
+      0,
+      0,
+      0,
+      0
     ]
   },
   {
@@ -1279,16 +1279,16 @@
     "EffectType": "AddPermanentMinusOne",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": "NoRole",
-    "Polarity": -1.0,
+    "Polarity": -1,
     "MountKinds": "不可作为连接光环,不可随机",
     "Tags": "",
     "ManaList": [
-      3.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0
+      3,
+      0,
+      0,
+      0,
+      0,
+      0
     ]
   },
   {
@@ -1298,16 +1298,16 @@
     "EffectType": "GrantToughness",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": null,
-    "Polarity": 1.0,
+    "Polarity": 1,
     "MountKinds": "指示物",
     "Tags": "生效自减型",
     "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      2.0,
-      0.0,
-      0.0
+      0,
+      0,
+      0,
+      2,
+      0,
+      0
     ]
   },
   {
@@ -1317,16 +1317,16 @@
     "EffectType": "AddArmor",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": null,
-    "Polarity": 1.0,
+    "Polarity": 1,
     "MountKinds": "指示物",
     "Tags": "生效自减型",
     "ManaList": [
-      0.0,
-      0.0,
-      0.0,
+      0,
+      0,
+      0,
       0.5,
-      0.0,
-      0.0
+      0,
+      0
     ]
   },
   {
@@ -1336,16 +1336,16 @@
     "EffectType": "AddToxin",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": null,
-    "Polarity": -1.0,
+    "Polarity": -1,
     "MountKinds": "指示物",
     "Tags": "生效自减型",
     "ManaList": [
-      0.0,
-      0.0,
-      0.0,
+      0,
+      0,
+      0,
       0.5,
-      0.0,
-      0.0
+      0,
+      0
     ]
   },
   {
@@ -1355,16 +1355,16 @@
     "EffectType": "GrantRetaliation",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": null,
-    "Polarity": 1.0,
+    "Polarity": 1,
     "MountKinds": "指示物",
     "Tags": "生效自减型",
     "ManaList": [
-      0.0,
-      1.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0
+      0,
+      1,
+      0,
+      0,
+      0,
+      0
     ]
   },
   {
@@ -1374,16 +1374,16 @@
     "EffectType": "Silence",
     "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位",
     "TargetFilter": null,
-    "Polarity": -1.0,
+    "Polarity": -1,
     "MountKinds": "指示物",
     "Tags": "换区清除型",
     "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      2.0
+      0,
+      0,
+      0,
+      0,
+      0,
+      2
     ]
   },
   {
@@ -1393,16 +1393,16 @@
     "EffectType": "AddNullify",
     "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位",
     "TargetFilter": "NoRole",
-    "Polarity": -1.0,
+    "Polarity": -1,
     "MountKinds": "指示物",
     "Tags": "换区清除型",
     "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      2.0
+      0,
+      0,
+      0,
+      0,
+      0,
+      2
     ]
   },
   {
@@ -1412,16 +1412,16 @@
     "EffectType": "Freeze",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": "NoRole",
-    "Polarity": -1.0,
+    "Polarity": -1,
     "MountKinds": "指示物",
     "Tags": "衰退型",
     "ManaList": [
-      0.0,
-      0.0,
-      1.0,
-      0.0,
-      0.0,
-      0.0
+      0,
+      0,
+      1,
+      0,
+      0,
+      0
     ]
   },
   {
@@ -1431,15 +1431,15 @@
     "EffectType": "RushSickness",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": null,
-    "Polarity": -1.0,
+    "Polarity": -1,
     "MountKinds": "指示物",
     "Tags": "衰退型",
     "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
+      0,
+      0,
+      0,
+      0,
+      0,
       0.5
     ]
   },
@@ -1450,16 +1450,16 @@
     "EffectType": "AddVulnerable",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": null,
-    "Polarity": -1.0,
+    "Polarity": -1,
     "MountKinds": "指示物",
     "Tags": "生效自减型",
     "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      1.0
+      0,
+      0,
+      0,
+      0,
+      0,
+      1
     ]
   },
   {
@@ -1469,16 +1469,16 @@
     "EffectType": "GrantDepravity",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": null,
-    "Polarity": -1.0,
+    "Polarity": -1,
     "MountKinds": "指示物",
     "Tags": "生效自减型",
     "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      2.0
+      0,
+      0,
+      0,
+      0,
+      0,
+      2
     ]
   },
   {
@@ -1488,16 +1488,16 @@
     "EffectType": "GrantReplay",
     "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位",
     "TargetFilter": null,
-    "Polarity": 1.0,
+    "Polarity": 1,
     "MountKinds": "指示物",
     "Tags": "生效自减型",
     "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      4.0,
-      0.0
+      0,
+      0,
+      0,
+      0,
+      4,
+      0
     ]
   },
   {
@@ -1507,16 +1507,16 @@
     "EffectType": "GrantTemporary",
     "TargetKinds": "己方手牌,对方手牌,己方牌库,对方牌库,己方墓地,对方墓地,己方除外区,对方除外区",
     "TargetFilter": "",
-    "Polarity": -1.0,
+    "Polarity": -1,
     "MountKinds": "指示物",
     "Tags": "生效自减型",
     "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      2.0,
-      0.0
+      0,
+      0,
+      0,
+      0,
+      2,
+      0
     ]
   },
   {
@@ -1526,187 +1526,187 @@
     "EffectType": "Sleep",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": "NoRole",
-    "Polarity": -1.0,
+    "Polarity": -1,
     "MountKinds": "指示物",
     "Tags": "衰退型",
     "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      3.0
+      0,
+      0,
+      0,
+      0,
+      0,
+      3
     ]
   },
   {
-    "ID": "afaab664",
+    "ID": "301a29ba",
     "EnumName": "三相仪典",
-    "DisplayName": "规则光环：己方回合中，自己每消耗3点同色纯元素，获得红/蓝/绿各1",
+    "DisplayName": "己方回合中，自己每消耗3点同色纯元素，获得红/蓝/绿各1",
     "EffectType": "ModifyGameRule",
     "TargetKinds": null,
     "TargetFilter": null,
-    "Polarity": 1.0,
+    "Polarity": 1,
     "MountKinds": "规则光环",
     "Tags": null,
     "ManaList": [
-      0.0,
-      0.0,
-      12.0,
-      0.0,
-      0.0,
-      0.0
+      0,
+      0,
+      12,
+      0,
+      0,
+      0
     ]
   },
   {
-    "ID": "22973c66",
+    "ID": "74bd19a2",
     "EnumName": "苦痛仪典",
-    "DisplayName": "规则光环：己方回合中，角色受到的伤害改由对手角色承担",
+    "DisplayName": "己方回合中，角色受到的伤害改由对手角色承担",
     "EffectType": "ModifyGameRule",
     "TargetKinds": null,
     "TargetFilter": null,
-    "Polarity": 1.0,
+    "Polarity": 1,
     "MountKinds": "规则光环",
     "Tags": null,
     "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      12.0
+      0,
+      0,
+      0,
+      0,
+      0,
+      12
     ]
   },
   {
-    "ID": "05fa2989",
+    "ID": "cf64a958",
     "EnumName": "丰盈仪典",
-    "DisplayName": "规则光环：回复生命的溢出转化为生命上限+1",
+    "DisplayName": "回复生命的溢出转化为生命上限+1",
     "EffectType": "ModifyGameRule",
     "TargetKinds": null,
     "TargetFilter": null,
-    "Polarity": 1.0,
+    "Polarity": 1,
     "MountKinds": "规则光环",
     "Tags": null,
     "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      6.0,
-      0.0
+      0,
+      0,
+      0,
+      0,
+      6,
+      0
     ]
   },
   {
-    "ID": "2f525db4",
+    "ID": "c752bd98",
     "EnumName": "离散仪典",
-    "DisplayName": "规则光环：单次伤害超过5时改为5，低于5时改为3",
+    "DisplayName": "单次伤害超过5时改为5，低于5时改为3",
     "EffectType": "ModifyGameRule",
     "TargetKinds": null,
     "TargetFilter": null,
-    "Polarity": 0.0,
+    "Polarity": 0,
     "MountKinds": "规则光环",
     "Tags": null,
     "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      6.0,
-      0.0
+      0,
+      0,
+      0,
+      0,
+      6,
+      0
     ]
   },
   {
-    "ID": "001cdfb8",
+    "ID": "901149d9",
     "EnumName": "窥渊仪典",
-    "DisplayName": "规则光环：回合结束时，随机展示对手一张手牌，并附加持续一回合的锁定指示物",
+    "DisplayName": "回合结束时，随机展示对手一张手牌，并附加持续一回合的锁定指示物",
     "EffectType": "ModifyGameRule",
     "TargetKinds": null,
     "TargetFilter": null,
-    "Polarity": 1.0,
+    "Polarity": 1,
     "MountKinds": "规则光环",
     "Tags": null,
     "ManaList": [
-      0.0,
-      0.0,
-      8.0,
-      0.0,
-      0.0,
-      0.0
+      0,
+      0,
+      8,
+      0,
+      0,
+      0
     ]
   },
   {
-    "ID": "8387b77b",
+    "ID": "499a49e2",
     "EnumName": "归土仪典",
-    "DisplayName": "规则光环：每回合一次，可从自己墓地使用一张牌（视为手牌中使用）",
+    "DisplayName": "每回合一次，可从自己墓地使用一张牌（视为手牌中使用）",
     "EffectType": "ModifyGameRule",
     "TargetKinds": null,
     "TargetFilter": null,
-    "Polarity": 1.0,
+    "Polarity": 1,
     "MountKinds": "规则光环",
     "Tags": null,
     "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      8.0,
-      0.0,
-      0.0
+      0,
+      0,
+      0,
+      8,
+      0,
+      0
     ]
   },
   {
-    "ID": "eed6d1f7",
+    "ID": "cabffbe4",
     "EnumName": "疾风仪典",
-    "DisplayName": "规则光环：受光环影响的卡的主动效果，发动速度+1",
+    "DisplayName": "受光环影响的卡的主动效果，发动速度+1",
     "EffectType": "ModifyGameRule",
     "TargetKinds": null,
     "TargetFilter": null,
-    "Polarity": 1.0,
+    "Polarity": 1,
     "MountKinds": "规则光环",
     "Tags": null,
     "ManaList": [
-      0.0,
-      0.0,
-      6.0,
-      0.0,
-      0.0,
-      0.0
+      0,
+      0,
+      6,
+      0,
+      0,
+      0
     ]
   },
   {
-    "ID": "7461cec1",
+    "ID": "a1551467",
     "EnumName": "时光仪典",
-    "DisplayName": "规则光环：回合结束时获得额外回合，额外回合不触发此效果",
+    "DisplayName": "回合结束时获得额外回合，额外回合不触发此效果",
     "EffectType": "ModifyGameRule",
     "TargetKinds": null,
     "TargetFilter": null,
-    "Polarity": 1.0,
+    "Polarity": 1,
     "MountKinds": "规则光环",
     "Tags": null,
     "ManaList": [
-      0.0,
-      0.0,
-      12.0,
-      0.0,
-      0.0,
-      0.0
+      0,
+      0,
+      12,
+      0,
+      0,
+      0
     ]
   },
   {
-    "ID": "1b257704",
+    "ID": "1738ec58",
     "EnumName": "纳川仪典",
-    "DisplayName": "规则光环：手牌上限提升至15，且免疫抽牌疲劳",
+    "DisplayName": "手牌上限提升至15，且免疫抽牌疲劳",
     "EffectType": "ModifyGameRule",
     "TargetKinds": null,
     "TargetFilter": null,
-    "Polarity": 1.0,
+    "Polarity": 1,
     "MountKinds": "规则光环",
     "Tags": null,
     "ManaList": [
-      0.0,
-      0.0,
-      6.0,
-      0.0,
-      0.0,
-      0.0
+      0,
+      0,
+      6,
+      0,
+      0,
+      0
     ]
   },
   {
@@ -1716,16 +1716,16 @@
     "EffectType": "ModifyGameRule",
     "TargetKinds": null,
     "TargetFilter": null,
-    "Polarity": -1.0,
+    "Polarity": -1,
     "MountKinds": "规则光环",
     "Tags": null,
     "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      6.0,
-      0.0,
-      0.0
+      0,
+      0,
+      0,
+      6,
+      0,
+      0
     ]
   },
   {
@@ -1735,16 +1735,16 @@
     "EffectType": "ModifyGameRule",
     "TargetKinds": null,
     "TargetFilter": null,
-    "Polarity": -1.0,
+    "Polarity": -1,
     "MountKinds": "规则光环",
     "Tags": null,
     "ManaList": [
-      0.0,
-      0.0,
-      6.0,
-      0.0,
-      0.0,
-      0.0
+      0,
+      0,
+      6,
+      0,
+      0,
+      0
     ]
   },
   {
@@ -1754,35 +1754,35 @@
     "EffectType": "ModifyGameRule",
     "TargetKinds": null,
     "TargetFilter": null,
-    "Polarity": -1.0,
+    "Polarity": -1,
     "MountKinds": "规则光环",
     "Tags": null,
     "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      12.0
+      0,
+      0,
+      0,
+      0,
+      0,
+      12
     ]
   },
   {
-    "ID": "9dfed4f8",
+    "ID": "79ef61f3",
     "EnumName": "惩戒仪典",
-    "DisplayName": "规则光环：受光环影响一方的单位与角色受到的治疗改写为等量伤害",
+    "DisplayName": "受光环影响一方的单位与角色受到的治疗改写为等量伤害",
     "EffectType": "ModifyGameRule",
     "TargetKinds": null,
     "TargetFilter": null,
-    "Polarity": -1.0,
+    "Polarity": -1,
     "MountKinds": "规则光环",
     "Tags": null,
     "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      6.0,
-      0.0
+      0,
+      0,
+      0,
+      0,
+      6,
+      0
     ]
   },
   {
@@ -1792,16 +1792,16 @@
     "EffectType": "RevealCard",
     "TargetKinds": "己方手牌,对方手牌,己方牌库,对方牌库",
     "TargetFilter": null,
-    "Polarity": 0.0,
+    "Polarity": 0,
     "MountKinds": "系统,指示物",
     "Tags": "换区清除型",
     "ManaList": [
-      0.0,
-      0.0,
+      0,
+      0,
       0.5,
-      0.0,
-      0.0,
-      0.0
+      0,
+      0,
+      0
     ]
   },
   {
@@ -1811,7 +1811,7 @@
     "EffectType": "Attack",
     "TargetKinds": "对方单位",
     "TargetFilter": null,
-    "Polarity": -1.0,
+    "Polarity": -1,
     "MountKinds": "系统",
     "Tags": null,
     "ManaList": null
@@ -1823,7 +1823,7 @@
     "EffectType": "Guard",
     "TargetKinds": "",
     "TargetFilter": null,
-    "Polarity": 0.0,
+    "Polarity": 0,
     "MountKinds": "系统",
     "Tags": null,
     "ManaList": null
@@ -1835,7 +1835,7 @@
     "EffectType": "SetPower",
     "TargetKinds": "",
     "TargetFilter": "",
-    "Polarity": 0.0,
+    "Polarity": 0,
     "MountKinds": "系统",
     "Tags": null,
     "ManaList": null
@@ -1847,7 +1847,7 @@
     "EffectType": "SetLife",
     "TargetKinds": "",
     "TargetFilter": "",
-    "Polarity": 0.0,
+    "Polarity": 0,
     "MountKinds": "系统",
     "Tags": null,
     "ManaList": null
@@ -1859,7 +1859,7 @@
     "EffectType": "SetCost",
     "TargetKinds": "己方手牌,对方手牌",
     "TargetFilter": null,
-    "Polarity": 0.0,
+    "Polarity": 0,
     "MountKinds": "系统",
     "Tags": null,
     "ManaList": null
@@ -1871,7 +1871,7 @@
     "EffectType": "DeclareVictory",
     "TargetKinds": "",
     "TargetFilter": null,
-    "Polarity": 0.0,
+    "Polarity": 0,
     "MountKinds": "系统",
     "Tags": null,
     "ManaList": null
@@ -1883,7 +1883,7 @@
     "EffectType": "EngineCountdown",
     "TargetKinds": null,
     "TargetFilter": null,
-    "Polarity": 0.0,
+    "Polarity": 0,
     "MountKinds": "引擎主干",
     "Tags": null,
     "ManaList": null
@@ -1895,7 +1895,7 @@
     "EffectType": "EngineLuckRoll",
     "TargetKinds": null,
     "TargetFilter": null,
-    "Polarity": 0.0,
+    "Polarity": 0,
     "MountKinds": "引擎主干",
     "Tags": null,
     "ManaList": null
@@ -1907,7 +1907,7 @@
     "EffectType": "EngineClash",
     "TargetKinds": null,
     "TargetFilter": null,
-    "Polarity": 0.0,
+    "Polarity": 0,
     "MountKinds": "引擎主干",
     "Tags": null,
     "ManaList": null
@@ -1919,31 +1919,31 @@
     "EffectType": "EngineDeathToll",
     "TargetKinds": null,
     "TargetFilter": null,
-    "Polarity": 0.0,
+    "Polarity": 0,
     "MountKinds": "引擎主干",
     "Tags": null,
     "ManaList": null
   },
   {
-    "ID": "aa15df99",
+    "ID": "dd548e6f",
     "EnumName": "元素充盈",
     "DisplayName": "自由分支·元素充盈：仅对手回合，对手使用卡牌结算后，双方剩余元素的差恰等于x，则触发奖励（仅自动，差额上限为6）",
     "EffectType": "EngineManaSurplus",
     "TargetKinds": null,
     "TargetFilter": null,
-    "Polarity": 0.0,
+    "Polarity": 0,
     "MountKinds": "引擎主干",
     "Tags": null,
     "ManaList": null
   },
   {
-    "ID": "52c1ce3f",
+    "ID": "83c150f2",
     "EnumName": "团结",
     "DisplayName": "自由分支·团结：与此卡相邻的单位数量（生物/结界/角色/非空地牌格各算一）达到 x 时触发奖励（最大值6）",
     "EffectType": "EngineUnity",
     "TargetKinds": null,
     "TargetFilter": null,
-    "Polarity": 0.0,
+    "Polarity": 0,
     "MountKinds": "引擎主干",
     "Tags": null,
     "ManaList": null
@@ -1955,7 +1955,7 @@
     "EffectType": "EngineCurseOnDraw",
     "TargetKinds": null,
     "TargetFilter": null,
-    "Polarity": -1.0,
+    "Polarity": -1,
     "MountKinds": "引擎主干",
     "Tags": "生效自减型",
     "ManaList": null
@@ -1967,7 +1967,7 @@
     "EffectType": "EngineBlessingOnDraw",
     "TargetKinds": null,
     "TargetFilter": null,
-    "Polarity": 1.0,
+    "Polarity": 1,
     "MountKinds": "引擎主干",
     "Tags": "生效自减型",
     "ManaList": null
@@ -1979,7 +1979,7 @@
     "EffectType": "SituationGate",
     "TargetKinds": "",
     "TargetFilter": null,
-    "Polarity": 0.0,
+    "Polarity": 0,
     "MountKinds": "有限分支",
     "Tags": "有限分支",
     "ManaList": null,
@@ -1993,7 +1993,7 @@
     "EffectType": "SituationGate",
     "TargetKinds": "",
     "TargetFilter": null,
-    "Polarity": 0.0,
+    "Polarity": 0,
     "MountKinds": "有限分支",
     "Tags": "有限分支",
     "ManaList": null,
@@ -2007,7 +2007,7 @@
     "EffectType": "SituationGate",
     "TargetKinds": "",
     "TargetFilter": null,
-    "Polarity": 0.0,
+    "Polarity": 0,
     "MountKinds": "有限分支",
     "Tags": "有限分支",
     "ManaList": null,
@@ -2021,7 +2021,7 @@
     "EffectType": "SituationGate",
     "TargetKinds": "",
     "TargetFilter": null,
-    "Polarity": 0.0,
+    "Polarity": 0,
     "MountKinds": "有限分支",
     "Tags": "有限分支",
     "ManaList": null,
@@ -2035,7 +2035,7 @@
     "EffectType": "SituationGate",
     "TargetKinds": "",
     "TargetFilter": null,
-    "Polarity": 0.0,
+    "Polarity": 0,
     "MountKinds": "有限分支",
     "Tags": "有限分支",
     "ManaList": null,
@@ -2049,7 +2049,7 @@
     "EffectType": "SituationGate",
     "TargetKinds": "",
     "TargetFilter": null,
-    "Polarity": 0.0,
+    "Polarity": 0,
     "MountKinds": "有限分支",
     "Tags": "有限分支",
     "ManaList": null,
@@ -2063,7 +2063,7 @@
     "EffectType": "SituationGate",
     "TargetKinds": "",
     "TargetFilter": null,
-    "Polarity": 0.0,
+    "Polarity": 0,
     "MountKinds": "有限分支",
     "Tags": "有限分支",
     "ManaList": null,
@@ -2077,7 +2077,7 @@
     "EffectType": "SituationGate",
     "TargetKinds": "",
     "TargetFilter": null,
-    "Polarity": 0.0,
+    "Polarity": 0,
     "MountKinds": "有限分支",
     "Tags": "有限分支",
     "ManaList": null,
@@ -2091,7 +2091,7 @@
     "EffectType": "SituationGate",
     "TargetKinds": "",
     "TargetFilter": null,
-    "Polarity": 0.0,
+    "Polarity": 0,
     "MountKinds": "有限分支",
     "Tags": "有限分支",
     "ManaList": null,
@@ -2105,7 +2105,7 @@
     "EffectType": "SituationGate",
     "TargetKinds": "",
     "TargetFilter": null,
-    "Polarity": 0.0,
+    "Polarity": 0,
     "MountKinds": "有限分支",
     "Tags": "有限分支",
     "ManaList": null,
@@ -2119,7 +2119,7 @@
     "EffectType": "SituationGate",
     "TargetKinds": "",
     "TargetFilter": null,
-    "Polarity": 0.0,
+    "Polarity": 0,
     "MountKinds": "有限分支",
     "Tags": "有限分支",
     "ManaList": null,
