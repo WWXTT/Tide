@@ -37,15 +37,24 @@ namespace SynergyUI
         public const int OppTimeCol = 5;    // 对手剩余操作时间格：tile-5-3
         public const int EndTurnCol = 6;    // 结束回合格：tile-6-3（画面右端，贴己方右手边——原 x0 放反已纠）
 
-        private static readonly Color EndTurnTint = new Color(0.42f, 0.66f, 0.46f);
-        private static readonly Color StatusTint = new Color(0.30f, 0.34f, 0.42f);
+        // v6（2026-10-23 §11.2）+ 21:35 DSH 修订：**长驻格面不再满格实心亮黄**——回合结束/时间格
+        // 常驻=中立暖灰 #3A3630 + 暗金角标（#6B5930 小方标，持有方亮标）；鎏金 #C6A24B 只做
+        // 阶段转换 1s 短闪（「或只在选中/悬停时短暂出现」口径）。平贴文字=米白 #E6E0D4 a=0.92
+        //（对比 ≥4.5:1 修订：底格压光后更暗，提 alpha 补偿）。
+        private static readonly Color EndTurnTint = new Color(0.227f, 0.212f, 0.188f);   // 常驻=中立（角标担识别）
+        private static readonly Color StatusTint = new Color(0.227f, 0.212f, 0.188f);
+        private static readonly Color FlatTextColor = new Color(0.902f, 0.878f, 0.831f, 0.92f);
+        private static readonly Color PhaseFlashGold = new Color(0.776f, 0.635f, 0.294f); // 鎏金：仅短时闪
+        private static readonly Color MarkColor = new Color(0.42f, 0.35f, 0.19f);        // 暗金角标 #6B5930
 
-        // 时间格优先权联动高亮（2026-10-14 MD 式）：持有方时间格亮蓝/红，与半场环境光同源同切
-        private static readonly Color TimeSelfHot = new Color(0.26f, 0.48f, 0.72f);
-        private static readonly Color TimeOppHot = new Color(0.72f, 0.30f, 0.26f);
+        // 时间格优先权联动（2026-10-14 MD 式 → 21:35 修订）：持有方=亮暗金角标（格面恒中立灰，
+        // 与半场蜂窝亮金同源对齐——蜂窝仍是优先权主显示）。
         private static Material _selfTimeTint, _oppTimeTint; // 两时间格 tint 材质实例（Mount 捕获）
-        private static Material _phaseTint;                  // 阶段格 tint 材质实例（阶段转换蓝高亮用）
+        private static Material _phaseTint;                  // 阶段格 tint 材质实例（阶段转换金短闪用）
         private static int _phaseFlashSerial;                // 高亮计时代次（防旧计时还原新一次高亮）
+        private static Material _markMat;                    // 角标共享材质实例（Unmount 销毁）
+        private static Mesh _markMesh;                       // 角标小方面片（Unmount 销毁）
+        private static readonly Dictionary<int, GameObject> _marks = new Dictionary<int, GameObject>(); // key=列
 
         private sealed class HudTile
         {
@@ -78,6 +87,9 @@ namespace SynergyUI
                 {
                     _labels.Clear();
                     _headers.Clear();
+                    _marks.Clear();
+                    _markMat = null;
+                    _markMesh = null;
                     EndTurnTile = null;
                     _phaseLabel = null;
                     _selfTimeTint = _oppTimeTint = null; // 材质实例随旧棋盘销毁
@@ -91,9 +103,10 @@ namespace SynergyUI
                 return;
             }
 
-            // 结束回合落 x6（镜像修正后画面右端=己方右手边，原 x0 放反）+ 平贴【回合结束】
+            // 结束回合落 x6（镜像修正后画面右端=己方右手边，原 x0 放反）+ 平贴【回合结束】+ 暗金角标
             EndTurnTile = ClaimTile(boardRoot.transform, "hud-tile-end-turn", EndTurnCol, EndTurnTint);
             AttachFlatLabel(EndTurnTile, EndTurnCol, "【回合结束】", 3.5f);
+            AttachMark(EndTurnTile, EndTurnCol, active: true);
             // 阶段显示落 x0（原结束回合格位改役）：平贴【己方准备阶段】式当前阶段（SetPhase 喂文）
             _phaseLabel = AttachFlatLabel(ClaimTile(boardRoot.transform, "hud-tile-phase", PhaseCol, StatusTint), PhaseCol, _phaseText, 2.6f);
             AttachLabel(ClaimTile(boardRoot.transform, "hud-tile-self-time", SelfTimeCol, StatusTint), SelfTimeCol, "己方时间");
@@ -103,7 +116,10 @@ namespace SynergyUI
             AttachLabel(ClaimTile(boardRoot.transform, "hud-tile-opp-time", OppTimeCol, StatusTint), OppTimeCol, "对手时间");
             _selfTimeTint = TintMatOf("hud-tile-self-time"); // 优先权联动高亮用（材质实例随格留存）
             _oppTimeTint = TintMatOf("hud-tile-opp-time");
-            _phaseTint = TintMatOf("hud-tile-phase"); // 阶段转换高亮用（2026-10-16）
+            _phaseTint = TintMatOf("hud-tile-phase"); // 阶段转换金短闪用（2026-10-16→21:35 改金）
+            // 时间格角标常建默认熄，持有方亮标（SetTimePriority 对账切换）
+            AttachMark(TileOf("hud-tile-self-time"), SelfTimeCol, active: false);
+            AttachMark(TileOf("hud-tile-opp-time"), OppTimeCol, active: false);
             Debug.Log("[BattleHudRow][PASS] 中线状态行：hud-tile-end-turn @tile-" + EndTurnCol + "-" + BoardLayout.MiddleZ
                       + "（贴己方右手·平贴【回合结束】）+ 阶段显示@" + PhaseCol
                       + " + 状态格 己方时间@" + SelfTimeCol + "/己方临时@" + SelfTempCol
@@ -119,12 +135,15 @@ namespace SynergyUI
             return null;
         }
 
-        /// <summary>时间格随优先权（扳机）切换高亮（BattleFieldView.Apply 对账调用，与半场环境光同切；
-        /// holderSeat 0=己方亮蓝 1=对手亮红，其它=双暗。棋盘未就绪/缺件静默）。</summary>
+        /// <summary>时间格随优先权（扳机）切换（BattleFieldView.Apply 对账调用，与半场蜂窝同切；
+        /// 21:35 修订：格面恒中立灰，持有方亮**暗金角标**——不再满格实心亮黄；其它=双暗。
+        /// 棋盘未就绪/缺件静默）。</summary>
         public static void SetTimePriority(int holderSeat)
         {
-            if (_selfTimeTint != null) _selfTimeTint.color = holderSeat == 0 ? TimeSelfHot : StatusTint;
-            if (_oppTimeTint != null) _oppTimeTint.color = holderSeat == 1 ? TimeOppHot : StatusTint;
+            if (_selfTimeTint != null) _selfTimeTint.color = StatusTint;
+            if (_oppTimeTint != null) _oppTimeTint.color = StatusTint;
+            SetMarkActive(SelfTimeCol, holderSeat == 0);
+            SetMarkActive(OppTimeCol, holderSeat == 1);
         }
 
         /// <summary>拆台（BattleStageDirector.DismountBoard 调）：还原格名/原分区材质，销毁 tint 材质实例与数字条。</summary>
@@ -145,10 +164,67 @@ namespace SynergyUI
                 if (kv.Value != null) Object.Destroy(kv.Value.gameObject); // 数字条挂 tile 下随盘销毁，此处防御重装台残留
             _labels.Clear();
             _headers.Clear();
+            _marks.Clear(); // 角标挂 tile 下随盘销毁，此处清索引
+            if (_markMat != null) Object.Destroy(_markMat);
+            if (_markMesh != null) Object.Destroy(_markMesh);
+            _markMat = null;
+            _markMesh = null;
             _phaseLabel = null;
             _selfTimeTint = _oppTimeTint = null; // 材质实例随 _claimed 销毁，清引用
             _phaseTint = null;
             EndTurnTile = null;
+        }
+
+        /// <summary>认领格名 → Transform（时间格角标挂载用）。</summary>
+        private static Transform TileOf(string tileName)
+        {
+            foreach (var h in _claimed)
+                if (h != null && h.Tile != null && h.Tile.name == tileName) return h.Tile;
+            return null;
+        }
+
+        /// <summary>暗金角标（21:35 修订）：格角小方片 0.3×0.3（未缩格空间，随格 0.82 缩=世界 ~0.25），
+        /// 暗金 #6B5930、无碰撞体、共享材质/网格实例随 Unmount 销毁；active 由持有方逻辑切换。</summary>
+        private static void AttachMark(Transform tile, int col, bool active)
+        {
+            if (tile == null) return;
+            if (_markMat == null)
+            {
+                var shader = Shader.Find("Universal Render Pipeline/Lit");
+                if (shader == null) return;
+                _markMat = new Material(shader) { color = MarkColor };
+                _markMat.SetFloat("_Smoothness", 0.3f);
+                _markMat.SetFloat("_Metallic", 0f);
+            }
+            if (_markMesh == null)
+            {
+                _markMesh = new Mesh { name = "hud-mark-quad" };
+                _markMesh.vertices = new[]
+                {
+                    new Vector3(-0.5f, 0f, -0.5f), new Vector3(0.5f, 0f, -0.5f),
+                    new Vector3(0.5f, 0f, 0.5f), new Vector3(-0.5f, 0f, 0.5f)
+                };
+                _markMesh.uv = new[] { new Vector2(0, 0), new Vector2(1, 0), new Vector2(1, 1), new Vector2(0, 1) };
+                _markMesh.normals = new[] { Vector3.up, Vector3.up, Vector3.up, Vector3.up };
+                _markMesh.triangles = new[] { 0, 2, 1, 0, 3, 2 };
+            }
+            var go = new GameObject("hud-mark");
+            go.transform.SetParent(tile, false);
+            go.transform.localPosition = new Vector3(0.46f, 0.012f, 0.46f); // 格角（未缩格半径 1 空间·内收）
+            go.transform.localScale = Vector3.one * 0.3f;
+            var mf = go.AddComponent<MeshFilter>();
+            mf.sharedMesh = _markMesh;
+            var mr = go.AddComponent<MeshRenderer>();
+            mr.sharedMaterial = _markMat;
+            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            go.SetActive(active);
+            _marks[col] = go;
+        }
+
+        /// <summary>角标亮/熄（缺件静默——缺列=未建）。</summary>
+        private static void SetMarkActive(int col, bool active)
+        {
+            if (_marks.TryGetValue(col, out var go) && go != null) go.SetActive(active);
         }
 
         /// <summary>认领中线行格：改名 hud-tile-{key} + 原位换 tint 材质实例（记原始名/材质供还原）。</summary>
@@ -200,14 +276,14 @@ namespace SynergyUI
             }
         }
 
-        /// <summary>阶段转换蓝高亮：亮 TimeSelfHot 1 秒后还原 StatusTint。
-        /// serial 守卫防旧计时还原新一次高亮（回合开始 准备→主要 连续两跳=后跳重置计时）；
+        /// <summary>阶段转换金短闪（21:35 修订：鎏金只在短时出现）：亮 PhaseFlashGold 1 秒后还原
+        /// StatusTint。serial 守卫防旧计时还原新一次高亮（回合开始 准备→主要 连续两跳=后跳重置计时）；
         /// 拆台后 _phaseTint 已清/材质已销毁（Unity fake-null）静默退出。装台首次落字不经
         /// SetPhase（AttachFlatLabel 直填），天然不闪。</summary>
         private static void FlashPhase()
         {
             if (_phaseTint == null) return;
-            _phaseTint.color = TimeSelfHot;
+            _phaseTint.color = PhaseFlashGold;
             int serial = ++_phaseFlashSerial;
             Cysharp.Threading.Tasks.UniTask.Void(async () =>
             {
@@ -230,7 +306,7 @@ namespace SynergyUI
             var label = go.AddComponent<TextMeshPro>();
             label.fontSize = fontSize;
             label.alignment = TextAlignmentOptions.Center;
-            label.color = Color.white;
+            label.color = FlatTextColor;
             label.rectTransform.sizeDelta = new Vector2(2.6f, 1.2f);
             label.text = text;
             _labels[col] = label;
@@ -252,7 +328,7 @@ namespace SynergyUI
             var label = go.AddComponent<TextMeshPro>();
             label.fontSize = 3.5f;
             label.alignment = TextAlignmentOptions.Center;
-            label.color = Color.white;
+            label.color = FlatTextColor;
             label.rectTransform.sizeDelta = new Vector2(2.4f, 1.4f);
             label.text = header + "\n—";
             _labels[col] = label;

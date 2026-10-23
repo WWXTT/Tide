@@ -52,9 +52,9 @@ namespace SynergyUI
 
         // 生物可行动高光=扩散波（2026-10-13 晚用户定案：菲涅尔侧壁太弱，改格心向外扩散光波；
         // 波参数全局调在 BattleTile_Fresnel.mat，此处只给色+波模式；
-        // 2026-10-17 分色：己方=淡蓝不动，对手=红色）
-        private static readonly Color UnitGlowColor = new Color(0.45f, 0.72f, 1.00f);
-        private static readonly Color UnitGlowColorOpp = new Color(1.00f, 0.35f, 0.28f);
+        // 2026-10-23 v6 §11.2：己方/选中=唯一鎏金强调 #C6A24B；对手=压暗锈红（与鎏金拉开、同对方格族））
+        private static readonly Color UnitGlowColor = new Color(0.776f, 0.635f, 0.294f);
+        private static readonly Color UnitGlowColorOpp = new Color(0.60f, 0.37f, 0.31f);
 
         private static readonly string[] ElemMatNames = { "Gray", "Red", "Blue", "Green", "White", "Black" };
         private static readonly Material[] _elemMats = new Material[6]; // 元素图标面片材质（下标=ManaType 序）

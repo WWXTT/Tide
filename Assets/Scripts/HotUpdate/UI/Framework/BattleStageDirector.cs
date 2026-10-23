@@ -32,6 +32,26 @@ namespace SynergyUI
         private const float BattleLightX = 45f;     // ④ 战场高角
         private const float LightUpSeconds = 1.2f;  // ④ 日出时长
 
+        // ---- v6 双读数视角（2026-10-23 §11.1 定案）：战斗机位=棋盘正上方直下（pitch 90°）----
+        // 菜单仍是场景手摆机位（黑洞是相机子物体、随相机取景，不受影响）；装台快照→应用战斗位，
+        // 拆台还原。高度以「棋盘占画面纵向 ~60%、四周留出碗形环境」为准。
+        private const float BattleCamX = 7.35f;   // 盘心（棋盘世界包围盒中心）
+        private const float BattleCamZ = 3.75f;
+        private const float BattleCamH = 12.5f;  // 定档：盘面≈51%宽×62%高（aspect 1.778 实测反推）
+        private const float BattleCamPitch = 90f; // 正俯视：六边形正形读作 90°
+        // v6 21:35 DSH 修订·压光：主光 6→2.5 + 环境光压暗——渲染值贴近材质值（棋盘 60~72/环境 40~55/
+        // 整帧 mean≤65）。菜单态快照还原，与机位同链。
+        private const float BattleLightIntensity = 2.5f;
+        private static readonly Color BattleAmbient = new Color(0.19f, 0.195f, 0.205f); // 量图回调（环境 40~55·背光坡托底）
+        private static readonly Color BattleClear = new Color(0.043f, 0.039f, 0.035f); // #0B0A09 兜底
+        private static Pose _camSnapshot;                  // 装台时场景（菜单）位姿快照
+        private static CameraClearFlags _camClearSnapshot; // 同上：清屏方式
+        private static Color _camBgSnapshot;               // 同上：清屏色
+        private static float _lightIntensitySnapshot;      // 同上：主光强度
+        private static UnityEngine.Rendering.AmbientMode _ambientModeSnapshot; // 同上：环境光模式/颜色
+        private static Color _ambientColorSnapshot;
+        private static bool _camPosed;                     // 战斗机位在途（拆台还原后清）
+
         private static readonly int HorizonId = Shader.PropertyToID("_HorizonScale");
 
         private static Renderer _blackHole;          // 相机下的黑洞球体（MeshRenderer）
@@ -65,6 +85,7 @@ namespace SynergyUI
             _mapOwned = false;
             _swallowing = false;
             _mounting = false;
+            _camPosed = false;
         }
 
         // ======================================== 舞台分发（UIManager.Activate 挂点） ========================================
@@ -195,6 +216,11 @@ namespace SynergyUI
                     BattleBoardAssemble.PlayAsync(_boardRoot.transform, _worldCam).Forget();
                 }
 
+                // v6 双读数视角：战斗机位=正俯视直下（§11.1）。菜单位姿在 ApplyBattlePose 快照、
+                // 拆台还原——黑洞是相机子物体随相机取景，菜单视觉不受影响。浮起演出 v3 起逐格轻落
+                // 不用相机（cam 兼容保留参数），正俯视机位下安全。
+                ApplyBattlePose();
+
                 // ④ 战场日出：主光源 x -20° → 45°
                 await TweenLightX(BattleLightX, LightUpSeconds);
             }
@@ -210,6 +236,7 @@ namespace SynergyUI
         /// 由各持有方自毁（棋盘根在此、BattleFieldView 在 Dispose），Map 只做挂载点。</summary>
         public static void DismountBoard()
         {
+            RestoreMenuPose(); // v6：还原菜单（场景手摆）机位——先于销毁，防中途异常漏还原
             BattleTileFx.Unmount(); // 特效对象挂 tile 下随根销毁，此处只清索引
             BattleZoneProps.Unmount(); // 特殊格道具同口径（卡堆/漩涡随根销毁，运行时 mesh 显式销毁）
             BattleHudRow.Unmount(); // 功能地块行（独立根+运行时材质实例显式销毁）
@@ -302,8 +329,55 @@ namespace SynergyUI
             }
         }
 
-        /// <summary>战场相机：2026-10-23 v4 用户定案=**场景控制**（Main.unity 手摆机位），代码不再
-        /// 设置位姿（原 (7,8,-2)/(60,0,0)→(7,10,-1.9)/(65,0,0) 定档链与菜单位姿还原随帧取景一起退役）。
-        /// 装台/吞屏只经 WorldCam 只读引用取相机。</summary>
+        /// <summary>v6 战斗机位（§11.1）+压光（21:35 修订）：棋盘正上方直下 + 主光 2.5 + 环境光压暗。
+        /// 装台应用、拆台还原；重复装台只快照一次。</summary>
+        private static void ApplyBattlePose()
+        {
+            if (!ResolveScene() || _worldCam == null) return;
+            if (!_camPosed)
+            {
+                _camSnapshot = new Pose(_worldCam.transform.position, _worldCam.transform.rotation);
+                _camClearSnapshot = _worldCam.clearFlags;
+                _camBgSnapshot = _worldCam.backgroundColor;
+                _lightIntensitySnapshot = _light != null ? _light.GetComponent<Light>().intensity : 6f;
+                _ambientModeSnapshot = RenderSettings.ambientMode;
+                _ambientColorSnapshot = RenderSettings.ambientLight;
+                _camPosed = true;
+            }
+            _worldCam.transform.SetPositionAndRotation(
+                new Vector3(BattleCamX, BattleCamH, BattleCamZ), Quaternion.Euler(BattleCamPitch, 0f, 0f));
+            _worldCam.clearFlags = CameraClearFlags.SolidColor;
+            _worldCam.backgroundColor = BattleClear; // #0B0A09：碗沿外不应可见，防御漏视
+            if (_light != null)
+            {
+                var l = _light.GetComponent<Light>();
+                if (l != null) l.intensity = BattleLightIntensity;
+            }
+            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat; // 压暗环境光（菜单快照还原）
+            RenderSettings.ambientLight = BattleAmbient;
+        }
+
+        /// <summary>v6 拆台还原菜单态（机位/清屏/主光强度/环境光——黑洞随相机子物体同走）。</summary>
+        private static void RestoreMenuPose()
+        {
+            if (!_camPosed) return;
+            if (_worldCam != null)
+            {
+                _worldCam.transform.SetPositionAndRotation(_camSnapshot.position, _camSnapshot.rotation);
+                _worldCam.clearFlags = _camClearSnapshot;
+                _worldCam.backgroundColor = _camBgSnapshot;
+            }
+            if (_light != null)
+            {
+                var l = _light.GetComponent<Light>();
+                if (l != null) l.intensity = _lightIntensitySnapshot;
+            }
+            RenderSettings.ambientMode = _ambientModeSnapshot;
+            RenderSettings.ambientLight = _ambientColorSnapshot;
+            _camPosed = false;
+        }
+
+        /// <summary>战场相机：2026-10-23 v4=场景控制（菜单态沿用）；v6 §11.1 起**战斗位**由本类
+        /// 定档（正俯视直下+清屏 #0B0A09），装台应用/拆台还原（ApplyBattlePose/RestoreMenuPose）。</summary>
     }
 }

@@ -107,6 +107,7 @@ namespace SynergyUI
                 Object.Destroy(col); // 红线：环境零碰撞体
                 stripped++;
             }
+            BattleStageCurve.Bend(_root); // v5 凸面台地（回落态同视觉）
 
             // 计数行（deliverable：每类件摆放计数；bounds 汇总见装载期 [P0'件bounds] 日志）
             var sb = new System.Text.StringBuilder("[BattleArenaStage][PASS] 地编装台：");
@@ -122,6 +123,7 @@ namespace SynergyUI
         /// 与材质实例；Attach 态（prefab）物件随 stage 根销毁，只清引用。</summary>
         public static void Unmount()
         {
+            BattleStageCurve.Unwind(); // v5：销毁弯曲克隆网格（先于根销毁，台账清空）
             if (_owned)
             {
                 if (_root != null) Object.Destroy(_root.gameObject);
@@ -150,6 +152,8 @@ namespace SynergyUI
             if (_stairsRoot != null)
                 foreach (var col in _stairsRoot.GetComponentsInChildren<Collider>(true))
                 { Object.Destroy(col); stripped++; }
+            BattleStageCurve.Bend(_root);          // v5 凸面台地：Env 顶点弯曲（K=0 可一键关）
+            if (_stairsRoot != null) BattleStageCurve.Bend(_stairsRoot);
             Debug.Log($"[BattleArenaStage] 预制体 Env 挂载：Env子件={ChildCount(_root)} Stairs子件={ChildCount(_stairsRoot)} 剥碰撞体={stripped}");
         }
 

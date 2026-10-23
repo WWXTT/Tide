@@ -89,8 +89,10 @@ namespace SynergyUI
         /// <summary>施放占格节点名前缀（BattleScreen.PollFieldPointer 射线命中路由——cast-{RuntimeId}）。</summary>
         public const string CastingCardPrefix = "cast-";
 
-        private static readonly Color P1UnitColor = new Color(0.29f, 0.50f, 0.83f);
-        private static readonly Color P2UnitColor = new Color(0.83f, 0.35f, 0.35f);
+        // v6 §11.2（2026-10-23）：阵营色换低饱和族并拉开亮度（原蓝红等亮度对撞）——
+        // 己方=青蓝族 #5E7E94（luma≈121）·对方=锈红族 #8A5148（luma≈96），差≥20
+        private static readonly Color P1UnitColor = new Color(0.369f, 0.494f, 0.580f);
+        private static readonly Color P2UnitColor = new Color(0.541f, 0.318f, 0.282f);
 
         // 死亡退场（2026-10-17 定案：砍掉滚墓与墓上自旋两段，退场不再去墓地格）——
         // 生物=碎裂散落原地停 DeathRestSeconds 沉降即收；无 rig 单位（结界等）暂无碎裂，
