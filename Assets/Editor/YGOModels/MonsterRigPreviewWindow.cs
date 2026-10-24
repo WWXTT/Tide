@@ -10,7 +10,8 @@ namespace YGOImport
     /// <summary>
     /// 生物程序动画预览窗口（2026-10-12 美术待办§二）：edit mode 下用
     /// EditorApplication.update 驱动 MonsterRigAnimator（与游戏内同一套 RigDriver 纯核心）。
-    /// 验收口径=数据层（层级/姿态读数），窗口仅供人眼调参；正式断言在 MonsterRigVerifier。
+    /// 验收口径=数据层（层级/姿态读数），窗口仅供人眼调参（MonsterRigVerifier 断言已随
+    /// 2026-10-24 怪兽动画验收定案退役——预览窗口保留，只读不写资产）。
     ///
     /// 用法：Tools/YGO模型/5 动画预览 → 「一排体型代表」或手选模型名生成 → 播放；
     /// 或「全量预览（按类别）」铺开一类（/全部）模型，动作按钮统一驱动（视线不处理）。
@@ -391,9 +392,9 @@ namespace YGOImport
             for (int i = 0; i < _entries.Count; i++) a(_entries[i].Anim);
         }
 
-        // ================= 验证器冒烟入口 =================
+        // ================= 验证器冒烟入口（MonsterRigVerifier 已退役 2026-10-24，方法保留可手调） =================
 
-        /// <summary>程序化冒烟（MonsterRigVerifier S6 调用）：生成代表 → 泵 N 帧 →
+        /// <summary>程序化冒烟（原 MonsterRigVerifier S6 调用）：生成代表 → 泵 N 帧 →
         /// 返回各实例「有动作的骨骼数」（数据层证据，不依赖人眼）。调用后窗口自行关闭清理。</summary>
         public List<string> TestSpawnAndTick(int frames)
         {
@@ -427,7 +428,7 @@ namespace YGOImport
             return report;
         }
 
-        /// <summary>程序化标记跟随测试（MonsterRigVerifier S6b）：生成代表 → 标记模式 →
+        /// <summary>程序化标记跟随测试（原 MonsterRigVerifier S6b 调用）：生成代表 → 标记模式 →
         /// 逐个代表把标记放到其正右/正左各泵帧 → 报告头部左右姿态差（应显著&gt;8°）。
         /// 标记须相对各代表自身换侧（排位靠后的代表看公共标记左右位置方向几乎不变）。
         /// 窗口自行关闭。</summary>

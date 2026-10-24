@@ -107,8 +107,10 @@ namespace SynergyUI
 
         // ---- 中栏卡面（2026-10-16 prefab 二次重做：卡面即编辑器 + 单槽模板制） ----
         private RectTransform _cardFace;
+        private RectTransform _formContent; // v3：表单区滚动内容（form-scroll/viewport/content）——槽行克隆/清理挂这里
         private RectTransform _typeZone, _attributeZone, _costZone, _effectZone, _passivesZone, _keysZone;
         private Image _typeBg, _maskImg, _artImg;
+        private TMP_Text _artHint; // v3：立绘空位提示（art 下 art-hint——无图显「点左侧立绘选择」，有图即隐）
         private TMP_Text _typeCostText;   // type 区 "CostSquares " 文本节点：卡费文字公式（方格已随 prefab 重做退役）
         private UInputField _nameInput, _attackInput, _lifeInput, _durabilityInput;
         private readonly Dictionary<CardKind, UnityEngine.UI.Button> _kindButtons = new Dictionary<CardKind, UnityEngine.UI.Button>();
@@ -428,6 +430,7 @@ namespace SynergyUI
             _typeBg = FindImageUnder(_typeZone, "bg");
             _maskImg = FindImageUnder(_typeZone, "mask");
             _artImg = FindImageUnder(_typeZone, "art");
+            _artHint = UiKit.FindDeep(_typeZone, "art-hint")?.GetComponent<TMP_Text>(); // v3：空位提示（prefab 烤入）
             // 费用公式文本节点（v2：随表单网格「费用」行移出 type 区；节点名带尾空格 "CostSquares "）——
             // 按名前缀深扫防尾空格丢失；开启自动换行（公式长于行宽）
             _typeCostText = FindCostFormulaText(_cardFace);
@@ -900,6 +903,10 @@ namespace SynergyUI
                 }
                 else if (_artImg.sprite != null) _artImg.sprite = null;
             }
+
+            // v3：立绘空位提示——无图=深色占位上显指引，选了立绘即隐
+            if (_artHint != null)
+                _artHint.gameObject.SetActive(_artImg == null || _artImg.sprite == null);
 
             // type 区 "CostSquares " 文本节点=卡费文字公式（2026-10-16 二次改版：方格退役，
             // 口式参考效果组合界面费用公式——逐项「标签＝值」＋折扣＋合计/分布）
@@ -1528,7 +1535,7 @@ namespace SynergyUI
                     _selIndex = -1;
                 }
             }
-            ClearRuntimeChildren(_cardFace);
+            ClearRuntimeChildren(FormContent());
             BuildSlots(ZoneId.Cost);
             BuildSlots(ZoneId.Effect);
             BuildSlots(ZoneId.Passives);
@@ -1550,11 +1557,20 @@ namespace SynergyUI
             for (int e = 0; e < empties; e++) MakeSlotRow(id, tpl, -1, ordinal++);
         }
 
+        /// <summary>中栏表单滚动内容（v3：卡面常驻，表单/槽区入 form-scroll）——槽模板与克隆行的共同父。</summary>
+        private RectTransform FormContent()
+        {
+            if (_formContent == null && _cardFace != null)
+                _formContent = _cardFace.Find("form-scroll/viewport/content") as RectTransform;
+            return _formContent;
+        }
+
         /// <summary>单槽行（克隆模板）：text=序号标题、des=效果全文/关键词/代价文案（空槽=操作提示）、
         /// delete=删除（已填删数据/空槽删占位）；行点击=选中该槽（右栏按槽类型过滤，点选候选填入）。</summary>
         private void MakeSlotRow(ZoneId id, RectTransform tpl, int dataIndex, int ordinal)
         {
-            var row = UiKit.CloneTemplateFrom(_cardFace, tpl.name, _cardFace);
+            var formCt = FormContent();
+            var row = formCt != null ? UiKit.CloneTemplateFrom(formCt, tpl.name, formCt) : null;
             if (row == null) return;
             row.name = "rt-slot";
             // 紧跟同类型模板之后排布（四类分组：cost→effect→passives→keys，add-slot 恒末位）

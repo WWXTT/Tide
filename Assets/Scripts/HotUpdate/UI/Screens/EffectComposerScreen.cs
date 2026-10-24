@@ -25,7 +25,7 @@ namespace SynergyUI
         /// 仅赋予类（关键词/指示物原子）显示；代码生成 dd-dur 与光环槽持续回合数行退役。
         /// 2026-10-07 光环条目迁入槽下作卡（aura-entry-card——克隆 atom-card，编辑走卡内 editor）；
         /// 条目列表区就地编辑与面板 aura-cost 费用预览退役（费用顶栏同源独占）。
-        /// 2026-10-07 兜底构建全退（全屏统一）：缺节点只 LogError 不代码创建（槽/奖励区/条目卡/gate-row/
+        /// 2026-10-07 兜底构建全退（全屏统一）：缺节点只 LogError 不代码创建（槽/奖励区/条目卡/
         /// row 模板/guide-frame/描述条）；复合检索退役（BindDropdown 单名 TMP、BindableButton 单名、
         /// row 模板单名、FillRowParts 按名不按位、费用/计数不再父级回退）。
         /// 2026-10-08 右栏行定案不显示名字：FillRowParts 只填 meta 单列（name 节点绑定与 title 形参退役）。
@@ -213,14 +213,13 @@ namespace SynergyUI
         private readonly List<TableRowData> _effectItems = new List<TableRowData>();
 
         /// <summary>右栏列表条目（原子行/光环行/效果行共用形态；IsHint=提示行）。
-        /// 2026-10-23 行模板化：Name/Tag/Btn 三列上首行（名称14+标签12+操作钮），
+        /// 2026-10-24 改版：行尾操作钮退役——整行点击即装载；首行=费用方格+名称(18)+标签(16 右对齐)，
         /// Meta 降为次行单行小字（悬浮整行经描述条看全文）。</summary>
         private sealed class TableRowData
         {
             public bool IsHint;
             public string Name;
             public string Tag;
-            public string Btn;
             public string Meta;
             public Color Dot;
             public ElementCost Costs;   // null=清空方格
@@ -353,7 +352,8 @@ namespace SynergyUI
 
         protected override void Build()
         {
-            // ---- 顶栏 ----
+            // ---- 顶栏（2026-10-24 三行重排：行1=返回+标题；行2=效果名；行3=费用预览——
+            // 保存挪左栏组合侧、删除挪右栏切换钮旁，均校验/载入态驱动显隐） ----
             UiKit.Described(BindButton("btn-back", () => Manager.Back()),
                 "返回：回到上一界面，这里正在编辑的内容不会保存。");
             _nameLabel = FindText("lbl-effect-name");
@@ -388,12 +388,15 @@ namespace SynergyUI
                 "切换右栏显示：原子库 ↔ 效果表（效果表里点击一条可载入继续编辑）。");
             _tableToggleLabel = UiKit.FindDeep(Root, "btn-switch-table")?.GetComponentInChildren<TMP_Text>(true);
             _saveBtn = BindButton("btn-save", OnSave);
+            _saveBtn?.gameObject.SetActive(false); // 校验全合规才出现（ValidateZones 驱动；Build 先隐藏）
             UiKit.Described(_saveBtn,
                 "保存：编辑卡牌时写回这张卡的效果；从效果库进入则存回效果库。"
-                + "存在不合规设置时不可点——按红框提示调整后再保存。");
-            // 删除按钮：仅"从效果表载入的库效果"可删（卡编辑/新建态禁用）——prefab 烘焙 btn-delete 优先
+                + "按钮在必填内容填齐、校验通过后才会出现。");
+            // 删除按钮：仅"从效果表载入的库效果"可删（卡编辑/新建态隐藏）——2026-10-24 挪到
+            // 右栏「切换效果表」旁；prefab 烘焙 btn-delete 优先
             _deleteBtn = UiKit.BindableButton("btn-delete", Root, "删除", OnDeleteEffect,
                 UiStyle.BtnDanger, UiStyle.White);
+            _deleteBtn?.gameObject.SetActive(false);
             UiKit.Described(_deleteBtn,
                 "删除：删掉效果库里的这条效果（只在编辑效果库条目时可用；编辑卡牌效果的保存不受影响）。");
 
@@ -702,6 +705,7 @@ namespace SynergyUI
                     RefreshName(); // 作用次数影响计价——费用预览随改随刷
                 },
                 "作用次数：自动效果每回合最多能生效几次——点选项看各档说明。",
+                labelOf: v => v == -1 ? "无限" : v.ToString(),
                 optionDesc: v => v switch
                 {
                     1 => "每回合最多 1 次（基础价）。",
@@ -1133,11 +1137,16 @@ namespace SynergyUI
             RefreshName();
         }
 
-        /// <summary>删除按钮可用性：仅"从效果表载入的库效果"（卡编辑/新建态禁用）。</summary>
+        /// <summary>删除按钮显隐（2026-10-24 改版）：仅"从效果表载入的库效果"显示——
+        /// 按钮已挪到右栏「切换效果表」旁，卡编辑/新建态直接隐藏。</summary>
         private void UpdateDeleteState()
         {
             if (_deleteBtn != null)
-                _deleteBtn.interactable = _editingCard == null && !string.IsNullOrEmpty(_loadedFromLibraryId);
+            {
+                bool loaded = _editingCard == null && !string.IsNullOrEmpty(_loadedFromLibraryId);
+                _deleteBtn.gameObject.SetActive(loaded);
+                _deleteBtn.interactable = loaded;
+            }
         }
 
         /// <summary>删除当前载入的库效果（btn-delete）：按源 id 清档后重置为新建空效果。
@@ -1612,12 +1621,6 @@ namespace SynergyUI
                 var card = tpl.Find("atom-card");
                 if (card != null) card.gameObject.SetActive(false);
             }
-            var gateRow = content.Find("gate-row");
-            if (gateRow != null)
-            {
-                gateRow.name = "tpl-gate-row"; // 限定分支门槛行（dd-trunk=条件下拉）
-                gateRow.gameObject.SetActive(false);
-            }
             var rewardSlot = content.Find("reward-slot");
             if (rewardSlot != null)
             {
@@ -1671,7 +1674,7 @@ namespace SynergyUI
 
         private static void MakeHint(RectTransform parent, string text)
         {
-            var hint = UiKit.Label("hint", parent, text, UiStyle.SmallSize, UiStyle.TextHint, wrap: true);
+            var hint = UiKit.Label("hint", parent, text, RowSmallSize, UiStyle.TextHint, wrap: true);
             UiKit.Size(hint, fw: 1f);
         }
 
@@ -1697,6 +1700,7 @@ namespace SynergyUI
             if (text == null) Debug.LogError("[EffectComposer] atom-card 缺 text 摘要文本——检查 EffectUI.prefab");
             if (text != null)
             {
+                // 2026-10-24 定案：换行/溢出表现归预制体（Text Wrapping Mode 在 prefab 上改）——代码只填字
                 text.text = (expanded ? "▼ " : "▶ ") + AtomText.RenderAtomEntry(atom, _graph.header);
                 UiKit.Size(text, fw: 1f);
             }
@@ -2239,7 +2243,7 @@ namespace SynergyUI
             var text = UiKit.Label("text", badge, step.kind == 2
                 ? $"抉择（{step.choices?.Count ?? 0} 模式）——卡组成阶段编辑，此处只读"
                 : $"步骤 kind={step.kind}（只读）",
-                UiStyle.SmallSize, UiStyle.TextBody, wrap: true);
+                RowSmallSize, UiStyle.TextBody, wrap: true);
             UiKit.Size(text, fw: 1f);
         }
 
@@ -2844,7 +2848,6 @@ namespace SynergyUI
                     Meta = AtomText.RenderEffectSummary(captured), // 完整效果描述（2026-10-03 定案：不再简写）
                     Dot = DotColor(ColorFilter.OfTagsCsv(parts.FirstOrDefault()?.Tags)),
                     Costs = captured.header?.AnchorCost,
-                    Btn = "载入",
                     OnClick = () => LoadEffectFromLibrary(captured),
                     H = TableRowH,
                 });
@@ -3073,7 +3076,6 @@ namespace SynergyUI
                         Meta = ComposerCatalog.GateLabel(captured),
                         Dot = DotColor(UIColor.All),
                         Costs = null, // 门槛行无费用方格
-                        Btn = "填入",
                         OnClick = () => ApplySituationGate(captured),
                         H = TableRowH,
                     });
@@ -3116,7 +3118,6 @@ namespace SynergyUI
                     Meta = payload.Cfg.Description + CounterClearSuffix(payload.Cfg.Tags), // 2026-10-13 定案：指示物类行统一追加清除方式
                     Dot = DotColor(ColorFilter.OfTagsCsv(payload.Cfg.Tags)),
                     Costs = AtomCosts(payload.Cfg),
-                    Btn = "填入",
                     OnClick = () => QuickAdd(payload),
                     H = TableRowH,
                 });
@@ -3148,7 +3149,10 @@ namespace SynergyUI
 
         // ---- 右栏行工厂/绑定（2026-10-21 回收式虚拟化；行视觉以模板为单一来源） ----
 
-        private const float TableRowH = 44f; // 行高=模板行（2026-10-23 行模板化：60→44 双行紧凑）
+        // 2026-10-24 观感改版：字号阶梯下两档 14→18、12→16（行模板/提示行同口径），
+        // 行高随字号 44→64、提示行量高用本常量——不动 UiStyle 全局档（仅本屏）
+        private const float TableRowH = 64f;
+        private const int RowSmallSize = 16; // 提示行/次行小字（原 UiStyle.SmallSize=12）
 
         /// <summary>提示条目装配（量高：按内容宽测 preferred 高）。</summary>
         private static void AddTableHint(List<TableRowData> items, UiKit.Scroll list, string text) =>
@@ -3156,7 +3160,7 @@ namespace SynergyUI
             {
                 IsHint = true,
                 Meta = text,
-                H = UiKit.MeasureTextHeight(text, list.Content.rect.width - 16f, UiStyle.SmallSize) + 8f,
+                H = UiKit.MeasureTextHeight(text, list.Content.rect.width - 16f, RowSmallSize) + 12f,
             });
 
         /// <summary>右栏行工厂路由（kind 分池：0 数据行 / 1 提示行）。两列表行结构同构——闭包区分父级。</summary>
@@ -3186,11 +3190,11 @@ namespace SynergyUI
             return tpl;
         }
 
-        /// <summary>提示行结构：12 号·暗色·自动换行（原子表侧）。</summary>
+        /// <summary>提示行结构：16 号·暗色·自动换行（原子表侧）。</summary>
         private RectTransform MakeTableHintRow()
         {
             var rt = UiKit.Node("hint", _libraryList.Content);
-            var lbl = UiKit.Label("lbl", rt, "", UiStyle.SmallSize, UiStyle.TextHint, wrap: true);
+            var lbl = UiKit.Label("lbl", rt, "", RowSmallSize, UiStyle.TextHint, wrap: true);
             UiKit.StretchInset(lbl.rectTransform, 4f, 4f);
             return rt;
         }
@@ -3199,7 +3203,7 @@ namespace SynergyUI
         private RectTransform MakeTableHintRowEx()
         {
             var rt = UiKit.Node("hint", _effectsList.Content);
-            var lbl = UiKit.Label("lbl", rt, "", UiStyle.SmallSize, UiStyle.TextHint, wrap: true);
+            var lbl = UiKit.Label("lbl", rt, "", RowSmallSize, UiStyle.TextHint, wrap: true);
             UiKit.StretchInset(lbl.rectTransform, 4f, 4f);
             return rt;
         }
@@ -3210,8 +3214,9 @@ namespace SynergyUI
         /// <summary>右栏行绑定（效果表侧）。</summary>
         private void BindEffectRow(RectTransform row, int index) => BindTableRow(row, _effectItems[index]);
 
-        /// <summary>右栏行绑定共用（2026-10-23 行模板化改版）：首行=费用方格(26)+名称(14)+标签(12)+操作钮，
-        /// 次行=meta 单行小字（溢出省略）；悬浮整行经描述条看全文。行点击与操作钮同源 OnClick。</summary>
+        /// <summary>右栏行绑定共用（2026-10-24 改版）：首行=费用方格(32)+名称(18)+标签(16 右对齐)，
+        /// 次行=meta 单行小字（溢出省略）；悬浮整行经描述条看全文。行尾操作钮已退役——
+        /// 整行点击即装载（与原按钮同源 OnClick）；行宽绑定时钉到列宽（左右对齐有稳定右缘）。</summary>
         private void BindTableRow(RectTransform row, TableRowData item)
         {
             if (item.IsHint)
@@ -3221,6 +3226,8 @@ namespace SynergyUI
                 return;
             }
 
+            // 固定行宽=预制体侧（list content VLG childForceExpandWidth——行模板被拉伸至列宽），
+            // 代码不再钉宽（2026-10-24 定案：UI 表现归预制体，好手改）
             var nameT = UiKit.FindDeep(row, "name")?.GetComponent<TMP_Text>();
             if (nameT == null)
                 Debug.LogError("[EffectComposer] row 模板缺 name 文本——本行名称丢失；检查 EffectUI.prefab");
@@ -3251,24 +3258,6 @@ namespace SynergyUI
             tbtn.onClick.RemoveAllListeners();
             tbtn.onClick.AddListener(() => { Debug.Log("[UI点击] 库行"); onClick?.Invoke(); });
             UiKit.Described(tbtn, item.Meta); // 悬浮行=完整描述（指示物清除方式等后缀全量）上描述条
-
-            var actNode = UiKit.FindDeep(row, "btn-act");
-            if (actNode == null)
-                Debug.LogError("[EffectComposer] row 模板缺 btn-act 操作钮——行尾操作不可用；检查 EffectUI.prefab");
-            else
-            {
-                var actLbl = actNode.GetComponentInChildren<TMP_Text>(true);
-                if (actLbl != null) actLbl.text = string.IsNullOrEmpty(item.Btn) ? "填入" : item.Btn;
-                var actBtn = actNode.GetComponent<Button>();
-                if (actBtn == null)
-                {
-                    actBtn = actNode.gameObject.AddComponent<Button>();
-                    actBtn.transition = Selectable.Transition.None;
-                    actBtn.targetGraphic = actNode.GetComponent<Image>();
-                }
-                actBtn.onClick.RemoveAllListeners();
-                actBtn.onClick.AddListener(() => { Debug.Log("[UI点击] 库行操作钮"); onClick?.Invoke(); });
-            }
         }
 
         private static void SetPartColor(RectTransform row, string child, Color color)
@@ -3302,7 +3291,6 @@ namespace SynergyUI
                     Name = title,
                     Meta = meta,
                     Dot = DotColor(color),
-                    Btn = "填入",
                     OnClick = onAdd,
                     H = TableRowH,
                 });
@@ -3466,7 +3454,7 @@ namespace SynergyUI
 
         /// <summary>主干落槽（2026-10-05 晚间定案）：引擎主干行→自动建引擎载荷（settle=3；派生门槛引擎
         /// 门槛=Then 锚价推导、参数恒 0，倒计时 0=按奖励推导费换算，运势/附加诅咒·祝福按区间下限）；
-        /// 通常原子→无分支（有限分支默认无门槛——条件由槽内 gate-row 手选）。关键词形态沿用。</summary>
+        /// 通常原子→无分支（有限分支默认无门槛——条件由槽内门槛卡手选）。关键词形态沿用。</summary>
         private static AtomicEffectEntry InferredTrunkEntry(LibPayload payload)
         {
             var entry = EntryForEffectSlot(payload);
@@ -4044,7 +4032,9 @@ namespace SynergyUI
                 _zoneErrShown = false;
                 SetDescStrip("");
             }
-            if (_saveBtn != null) _saveBtn.interactable = !any;
+            // 保存显隐（2026-10-24 改版）：按钮在左栏组合侧——校验全合规才出现（出现即可点；
+            // 空组合本就被「效果为空/主干为空」红框拦下，天然涵盖"必要填充完成"口径）
+            if (_saveBtn != null) _saveBtn.gameObject.SetActive(!any);
             return !any;
         }
 
@@ -4393,7 +4383,7 @@ namespace SynergyUI
             ///（kinds=GrantTargetKinds 覆写 {1..8}；持续由 CounterSpec 承载，无关键词 id/头部惯例）。</summary>
             public bool IsCounterAtom => Cfg != null && Mounts.Contains(MountKind.Counter);
 
-            /// <summary>引擎主干行（位 5）：填入槽即自由分支（无 gate-row，引擎参数+奖励槽直出）；
+            /// <summary>引擎主干行（位 5）：填入槽即自由分支（引擎参数+奖励槽直出）；
             /// 仅进第一槽（2026-10-09 互斥——分支与第二槽不可兼得）；零锚价零域，不参与主序列执行。</summary>
             public bool IsEngineTrunk => Mounts.Contains(MountKind.EngineTrunk);
 

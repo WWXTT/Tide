@@ -40,23 +40,27 @@ namespace SynergyUI
         private const float RingLift = 0.006f; // 顶面之上 6mm（菲涅尔壳 0.004 与图标 0.008 之间）
 
         // 地牌锁色配色（描边环，兼旧菲涅尔壳口径）：下标=ManaType 序 [灰,红,蓝,绿,白,黑,任意]；
-        // 黑=additive 黑不发光，以紫罗兰替代；任意=万能货币用鎏金（与战场 v6 强调色同族——六色皆可替）
+        // 2026-10-24 七组配色定案：底色单源=UiStyle.ManaBlock*（与 CostSquares 费用块同源——
+        // 深调压饱和，常驻环光不刺眼）；黑=该底色在 additive 环不发光，仍以紫罗兰替代（介质约束）；
+        // 任意=万能货币鎏金压深档（与战场 v6 强调色同族——六色皆可替）
         private static readonly Color[] GlowColors =
         {
-            new Color(0.62f, 0.64f, 0.70f), // 灰
-            new Color(1.00f, 0.28f, 0.20f), // 红
-            new Color(0.25f, 0.50f, 1.00f), // 蓝
-            new Color(0.30f, 0.95f, 0.40f), // 绿
-            new Color(0.95f, 0.95f, 0.88f), // 白
-            new Color(0.62f, 0.38f, 0.95f), // 黑（紫替代）
-            new Color(0.90f, 0.76f, 0.30f), // 任意（鎏金）
+            UiStyle.ManaBlockGray,          // 灰
+            UiStyle.ManaBlockRed,           // 红
+            UiStyle.ManaBlockBlue,          // 蓝
+            UiStyle.ManaBlockGreen,         // 绿
+            UiStyle.ManaBlockWhite,         // 白
+            new Color(0.62f, 0.38f, 0.95f), // 黑（additive 黑不发光→紫罗兰替代）
+            UiStyle.ManaBlockAny,           // 任意（鎏金压深）
         };
 
         // 生物可行动高光=扩散波（2026-10-13 晚用户定案：菲涅尔侧壁太弱，改格心向外扩散光波；
         // 波参数全局调在 BattleTile_Fresnel.mat，此处只给色+波模式；
-        // 2026-10-23 v6 §11.2：己方/选中=唯一鎏金强调 #C6A24B；对手=压暗锈红（与鎏金拉开、同对方格族））
-        private static readonly Color UnitGlowColor = new Color(0.776f, 0.635f, 0.294f);
-        private static readonly Color UnitGlowColorOpp = new Color(0.60f, 0.37f, 0.31f);
+        // 2026-10-24 用户定案改回蓝红：己方=淡蓝、对手=红（v6 §11.2 鎏金/压暗锈红退役——
+        // 与阵营低饱和青蓝/锈红分属两套：阵营色管单位本体，本高光管可行动性提示；
+        // 公开=BattleHudRow 阶段光圈同色复用——蓝红提示色单源）
+        public static readonly Color UnitGlowColor = new Color(0.45f, 0.72f, 1.00f);
+        public static readonly Color UnitGlowColorOpp = new Color(1.00f, 0.35f, 0.28f);
 
         private static readonly string[] ElemMatNames = { "Gray", "Red", "Blue", "Green", "White", "Black", "Any" };
         private static readonly Material[] _elemMats = new Material[7]; // 元素图标面片材质（下标=ManaType 序；含 Any 万能货币）
@@ -294,6 +298,12 @@ namespace SynergyUI
             if (_ringMesh == null) _ringMesh = BuildRingMesh(_hexMesh);
             return _ringMesh != null;
         }
+
+        /// <summary>描边环网格/材质共享单源出口（2026-10-24 阶段光圈复用——BattleHudRow 阶段格
+        /// 光圈扩散同网格同 shader，MPB 按件覆色互不干扰；缺件=null 调用方降级不显示）。</summary>
+        public static Mesh SharedRingMesh => EnsureRingDeps() ? _ringMesh : null;
+        /// <summary>同上（材质件）。</summary>
+        public static Material SharedRingMat => EnsureRingDeps() ? _ringMat : null;
 
         /// <summary>顶面六边形描边环网格：轮廓直接取 BattleHex 顶面外缘顶点（绕序/朝向零假设），
         /// 内外双环成带平铺 y=0（GO 负责抬高）。顶面若有扇形中心点（半径近 0）按最远点半径滤除；

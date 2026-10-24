@@ -616,6 +616,617 @@
         "631B76A9"
       ],
       "speedBonus": 2
+    },
+    {
+      "id": "C_AF8295C2",
+      "cardName": "预组·1·副本",
+      "supertype": "Creature",
+      "power": 3,
+      "life": 2,
+      "costList": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeRedClash"
+      ],
+      "noGuard": true
+    },
+    {
+      "id": "C_28211672",
+      "cardName": "预组·2·副本",
+      "supertype": "Creature",
+      "power": 4,
+      "life": 2,
+      "costList": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeRedClash"
+      ],
+      "noGuard": true
+    },
+    {
+      "id": "C_F12EA97F",
+      "cardName": "预组·3·副本",
+      "supertype": "Creature",
+      "power": 4,
+      "life": 3,
+      "costList": [
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeRedClash"
+      ],
+      "noGuard": true
+    },
+    {
+      "id": "C_AC2C8E5B",
+      "cardName": "预组·4·副本",
+      "supertype": "Creature",
+      "power": 4,
+      "life": 2,
+      "costList": [
+        3.0,
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeRedClash"
+      ],
+      "effectIds": [
+        "1E9B3BDE"
+      ],
+      "noGuard": true,
+      "payloads": [
+        {
+          "refId": "bf06d56b",
+          "kinds": [
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C_F60B41B2",
+      "cardName": "预组·5·副本",
+      "supertype": "Creature",
+      "power": 4,
+      "life": 2,
+      "costList": [
+        3.0,
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeRedClash"
+      ],
+      "effectIds": [
+        "6371FBD3"
+      ],
+      "noGuard": true,
+      "payloads": [
+        {
+          "refId": "bf06d56b",
+          "kinds": [
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C_16F0DDB2",
+      "cardName": "预组·6·副本",
+      "supertype": "Creature",
+      "power": 4,
+      "life": 2,
+      "costList": [
+        2.0,
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeRedClash"
+      ],
+      "effectIds": [
+        "073f18c7"
+      ],
+      "noGuard": true,
+      "payloads": [
+        {
+          "refId": "bf06d56b",
+          "kinds": [
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C_D025A210",
+      "cardName": "预组·7·副本",
+      "supertype": "Creature",
+      "power": 5,
+      "life": 2,
+      "costList": [
+        3.0,
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeRedClash"
+      ],
+      "effectIds": [
+        "5269CB2C"
+      ],
+      "noGuard": true,
+      "payloads": [
+        {
+          "refId": "bf06d56b",
+          "kinds": [
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C_58B03DE4",
+      "cardName": "预组·8·副本",
+      "supertype": "Creature",
+      "power": 4,
+      "life": 2,
+      "costList": [
+        3.0,
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeRedClash"
+      ],
+      "effectIds": [
+        "C33B9907"
+      ],
+      "noGuard": true,
+      "payloads": [
+        {
+          "refId": "bf06d56b",
+          "kinds": [
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C_F53E3509",
+      "cardName": "预组·9·副本",
+      "supertype": "Creature",
+      "power": 5,
+      "life": 2,
+      "costList": [
+        3.0,
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeRedClash"
+      ],
+      "effectIds": [
+        "E72D83F7"
+      ],
+      "noGuard": true,
+      "payloads": [
+        {
+          "refId": "bf06d56b",
+          "kinds": [
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C_C93C9DB0",
+      "cardName": "预组·10·副本",
+      "supertype": "Creature",
+      "power": 5,
+      "life": 2,
+      "costList": [
+        3.0,
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeRedClash"
+      ],
+      "effectIds": [
+        "AF4D057E"
+      ],
+      "noGuard": true,
+      "payloads": [
+        {
+          "refId": "bf06d56b",
+          "kinds": [
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C_A3C44F76",
+      "cardName": "预组·11·副本",
+      "supertype": "Creature",
+      "power": 6,
+      "life": 2,
+      "costList": [
+        3.0,
+        3.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeRedClash"
+      ],
+      "effectIds": [
+        "66EC9B48"
+      ],
+      "noGuard": true,
+      "payloads": [
+        {
+          "refId": "bf06d56b",
+          "kinds": [
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C_546A2DA7",
+      "cardName": "预组·12·副本",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeRedClash"
+      ],
+      "effectIds": [
+        "886E275E"
+      ],
+      "speedBonus": 2,
+      "payloads": [
+        {
+          "refId": "bf06d56b",
+          "kinds": [
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C_3B51CD1F",
+      "cardName": "预组·13·副本",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeRedClash"
+      ],
+      "effectIds": [
+        "0F69B9FA"
+      ],
+      "speedBonus": 2,
+      "payloads": [
+        {
+          "refId": "bf06d56b",
+          "kinds": [
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C_BCD28E0A",
+      "cardName": "预组·14·副本",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeRedClash"
+      ],
+      "effectIds": [
+        "1AF47825"
+      ],
+      "speedBonus": 2,
+      "payloads": [
+        {
+          "refId": "bf06d56b",
+          "kinds": [
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C_BB507504",
+      "cardName": "预组·15·副本",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeRedClash"
+      ],
+      "effectIds": [
+        "B663AB71"
+      ],
+      "speedBonus": 2,
+      "payloads": [
+        {
+          "refId": "bf06d56b",
+          "kinds": [
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C_696891DB",
+      "cardName": "预组·16·副本",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeRedClash"
+      ],
+      "effectIds": [
+        "2566E6B9"
+      ],
+      "speedBonus": 2,
+      "payloads": [
+        {
+          "refId": "bf06d56b",
+          "kinds": [
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C_5B37DD07",
+      "cardName": "预组·17·副本",
+      "supertype": "Creature",
+      "power": 1,
+      "life": 3,
+      "costList": [
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeBlueSurplus"
+      ],
+      "effectIds": [
+        "A0EAF9BB"
+      ]
+    },
+    {
+      "id": "C_AD59ECB1",
+      "cardName": "预组·18·副本",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 2,
+      "costList": [
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeBlueSurplus"
+      ],
+      "effectIds": [
+        "A74C29A8"
+      ]
+    },
+    {
+      "id": "C_16EFC093",
+      "cardName": "预组·19·副本",
+      "supertype": "Enchantment",
+      "costList": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeBlueSurplus"
+      ],
+      "effectIds": [
+        "E35825C2"
+      ],
+      "durability": 2
+    },
+    {
+      "id": "C_B70A5E62",
+      "cardName": "预组·20·副本",
+      "supertype": "Enchantment",
+      "costList": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeBlueSurplus"
+      ],
+      "effectIds": [
+        "B6B4C57B"
+      ],
+      "durability": 2
+    },
+    {
+      "id": "C_5EECB529",
+      "cardName": "预组·21·副本",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeBlueSurplus"
+      ],
+      "effectIds": [
+        "977AB6FC"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_7850DBA3",
+      "cardName": "预组·22·副本",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeBlueSurplus"
+      ],
+      "effectIds": [
+        "F9AA3B87"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_C4E1163F",
+      "cardName": "预组·23·副本",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeBlueSurplus"
+      ],
+      "effectIds": [
+        "9DD21C35"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_A9B627E2",
+      "cardName": "预组·24·副本",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeBlueSurplus"
+      ],
+      "effectIds": [
+        "977AB6FC",
+        "73DB24E3"
+      ],
+      "speedBonus": 1
+    },
+    {
+      "id": "C_DE20F8F6",
+      "cardName": "预组·25·副本",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeBlueSurplus"
+      ],
+      "effectIds": [
+        "E2565876"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_AD99E161",
+      "cardName": "预组·26·副本",
+      "supertype": "Creature",
+      "life": 5,
+      "costList": [
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeBlueSurplus"
+      ]
+    },
+    {
+      "id": "C_7BB8C195",
+      "cardName": "预组·27·副本",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 4,
+      "costList": [
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeBlueSurplus"
+      ]
+    },
+    {
+      "id": "C_48C88B9A",
+      "cardName": "预组·28·副本",
+      "supertype": "Creature",
+      "power": 4,
+      "life": 5,
+      "costList": [
+        4.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeBlueSurplus"
+      ]
     }
   ],
   "deckConfig": {

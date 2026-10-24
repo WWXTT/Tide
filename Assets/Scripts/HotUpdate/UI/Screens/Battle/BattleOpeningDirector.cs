@@ -161,7 +161,7 @@ namespace SynergyUI
         }
 
         /// <summary>段四：候选卡组建堆 → 双选两轮/教学三单轮+倒计时；返回卡组名（null=随机）。
-        /// 木桩局（2026-10-23 用户改案）不走 3D 卡堆——掷币后弹 DummyDeckPanel（双方卡组循环选
+        /// 木桩局（2026-10-23 用户改案）不走 3D 卡堆——掷币后弹 DummyDeckPanel（双方卡组下拉选
         /// +对手难度木桩/脚本/AI），难度经 BattleEntry.DummyDifficulty 带给段五 Engage。</summary>
         private async UniTask<(string myName, string aiName)> DeckPickStageAsync()
         {
@@ -278,8 +278,9 @@ namespace SynergyUI
     /// <summary>
     /// 木桩测试选项面板（2026-10-22；2026-10-23 预制体化）：预制体 Assets/Art/Prefab/dummy-options
     ///（用户从初版代码面板提取）——结构=全屏遮罩+居中盒（lbl-title/lbl-hint+先后手/卡组洗牌/元素池
-    /// 三行循环选钮+btn-start/btn-back）。文本与按钮接线运行时写入（预制体只烤结构与样式，
-    /// 文案以代码为唯一正本）。循环选钮=点击换档（LobbyScreen 选卡组钮先例）。
+    /// 三行循环选钮+btn-start/btn-back）。版式（锚点/字号/字重）以预制体为正本（2026-10-24 用户
+    /// 手调定案，代码不再改写）；运行时只写文案内容与按钮接线（文案以代码为唯一正本）。
+    /// 循环选钮=点击换档（LobbyScreen 选卡组钮先例）。
     /// ShowAsync 返回 Options?=null=返回主菜单（dead 拆屏同判）。
     /// </summary>
     public sealed class DummyOptionsPanel
@@ -340,16 +341,16 @@ namespace SynergyUI
             inst.name = "dummy-options";
             _root = (RectTransform)inst.transform;
             _root.SetAsLastSibling();
-            UiKit.Stretch(_root); // 模态层铺满屏（防预制体锚点漂移）
 
-            // 文案正本在代码：标题/提示/三行题栏逐名回写（循环钮文案由 Refresh 统一）
-            SetText("lbl-title", "木桩测试设置", 20, TMPro.FontStyles.Bold);
-            SetText("lbl-hint", HintText, 13);
-            SetText("lbl-row-order", "先后手", 15);
-            SetText("lbl-row-shuffle", "卡组洗牌", 15);
-            SetText("lbl-row-pool", "元素池", 15);
-            SetText("btn-start", "开始", -1);
-            SetText("btn-back", "返回主菜单", -1);
+            // 文案正本在代码：标题/提示/三行题栏逐名回写（循环钮文案由 Refresh 统一）；
+            // 字号/字重=预制体手调值，代码不碰（2026-10-24 版式定案）
+            SetText("lbl-title", "木桩测试设置");
+            SetText("lbl-hint", HintText);
+            SetText("lbl-row-order", "先后手");
+            SetText("lbl-row-shuffle", "卡组洗牌");
+            SetText("lbl-row-pool", "元素池");
+            SetText("btn-start", "开始");
+            SetText("btn-back", "返回主菜单");
 
             WireCycle("btn-row-order", 0);
             WireCycle("btn-row-shuffle", 1);
@@ -394,9 +395,9 @@ namespace SynergyUI
         /// <summary>循环钮文案刷新（三行钮逐名深找回写）。</summary>
         private void Refresh()
         {
-            SetText("btn-row-order", OrderLabels[_idx[0]], -1);
-            SetText("btn-row-shuffle", ShuffleLabels[_idx[1]], -1);
-            SetText("btn-row-pool", PoolLabels[_idx[2]], -1);
+            SetText("btn-row-order", OrderLabels[_idx[0]]);
+            SetText("btn-row-shuffle", ShuffleLabels[_idx[1]]);
+            SetText("btn-row-pool", PoolLabels[_idx[2]]);
         }
 
         private UnityEngine.UI.Button ButtonOf(string name)
@@ -405,8 +406,8 @@ namespace SynergyUI
             return node != null ? node.GetComponentInChildren<UnityEngine.UI.Button>(true) : null;
         }
 
-        /// <summary>按名深找 TMP 回写文案（size&lt;0=不动字号；style 仅题栏用）。</summary>
-        private void SetText(string name, string text, int size, TMPro.FontStyles style = default)
+        /// <summary>按名深找 TMP 回写文案（字号/字重=预制体值，代码只写内容）。</summary>
+        private void SetText(string name, string text)
         {
             var node = _root != null ? UiKit.FindDeep(_root, name) : null;
             var t = node != null ? node.GetComponentInChildren<TMPro.TMP_Text>(true) : null;
@@ -416,8 +417,6 @@ namespace SynergyUI
                 return;
             }
             t.text = text;
-            if (size > 0) t.fontSize = size;
-            t.fontStyle = style;
         }
 
         public void Dispose()
@@ -431,11 +430,12 @@ namespace SynergyUI
     }
 
     /// <summary>
-    /// 木桩测试·选卡组弹窗（2026-10-23 用户改案，替 3D 卡堆）：掷币（或固定先后手跳过）后弹出——
-    /// 我方卡组（玩家存档+三套预组）与对方卡组（仅三套主题预组，10-22 定案）两个循环选，
-    /// 对手难度=木桩（全让过）/脚本（剧本挂载位·暂同木桩）/AI（正式对手）。
-    /// 纯代码构建（DummyOptionsPanel 预制体化同款结构——dim 遮罩+居中盒+行循环钮），美术换皮
-    /// 提取预制体时文案以代码回写口径平移。开战=确认；返回主菜单=Cancelled（导演回调退屏）。
+    /// 木桩测试·选卡组弹窗（2026-10-23 替 3D 卡堆；2026-10-24 预制体化+下拉改版）：预制体
+    /// Assets/Art/Prefab/dummy-deck（用户手调，版式/下拉模板以预制体为正本，代码只绑文案与事件）——
+    /// row-my/row-ai 各一 TMP_Dropdown（卡组会很多，循环钮退役、下拉可滚，全量列出不封顶）、
+    /// row-diff 循环钮（难度三档）、btn-start/btn-back。对方卡组选项随难度分化（2026-10-24 定案）：
+    /// 木桩/脚本=仅三套主题预组；AI=玩家牌库+预组皆可选（换列表同名保值）。
+    /// 开战=确认；返回主菜单=Cancelled（导演回调退屏）。
     /// </summary>
     public sealed class DummyDeckPanel
     {
@@ -455,16 +455,18 @@ namespace SynergyUI
             }
         }
 
-        public static readonly string[] DifficultyLabels = { "木桩（全让过）", "脚本（剧本位·暂同木桩）", "AI（正式对手）" };
+        public static readonly string[] DifficultyLabels = { "木桩（全让过）", "脚本（预组打法）", "AI（正式对手）" };
 
         private RectTransform _root;
         private Pick? _result;
         private bool _cancelled;
-        private readonly List<string> _myNames = new List<string>();
-        private readonly List<string> _aiNames = new List<string>();
-        private readonly List<string> _myLabels = new List<string>();
-        private readonly List<string> _aiLabels = new List<string>();
-        private readonly int[] _idx = new int[3]; // 0=我方 1=对方 2=难度（数组槽位闭包保值）
+        private readonly List<string> _openNames = new List<string>();  // 玩家牌库+预组（我方与 AI 档对方共用）
+        private readonly List<string> _openLabels = new List<string>();
+        private readonly List<string> _presetNames = new List<string>(); // 仅三套预组（木桩/脚本档对方）
+        private readonly List<string> _presetLabels = new List<string>();
+        private TMPro.TMP_Dropdown _drpMy; // row-my 下拉
+        private TMPro.TMP_Dropdown _drpAi; // row-ai 下拉（选项随难度分化）
+        private int _diff;                 // 难度档（0=木桩 1=脚本 2=AI）
 
         /// <summary>弹窗并等结果（dead=已死该退出；Cancelled=true=返回主菜单）。</summary>
         public static async UniTask<Pick> ShowAsync(Func<bool> dead, RectTransform parent)
@@ -484,85 +486,154 @@ namespace SynergyUI
 
         private DummyDeckPanel(RectTransform parent)
         {
-            // 候选：我方=玩家存档+三套预组（限量同 3D 口径）；对方=仅三套主题预组。
+            // 候选：玩家牌库（存档卡组，全量不封顶——下拉可滚）与三套主题预组。
             var all = DeckCatalog.LoadAll()
                 .Where(d => d != null && !string.IsNullOrEmpty(d.name))
                 .ToList();
             var presets = all.Where(d => DeckCatalog.IsPreset(d.name)).ToList();
-            var players = all.Where(d => !DeckCatalog.IsPreset(d.name))
-                .Take(Math.Max(0, 5 - presets.Count))
-                .ToList();
+            var players = all.Where(d => !DeckCatalog.IsPreset(d.name)).ToList();
             foreach (var d in players.Concat(presets))
             {
-                _myNames.Add(d.name);
-                _myLabels.Add(DeckCatalog.DisplayNameOf(d));
+                _openNames.Add(d.name);
+                _openLabels.Add(DeckCatalog.DisplayNameOf(d));
             }
             foreach (var d in presets)
             {
-                _aiNames.Add(d.name);
-                _aiLabels.Add(DeckCatalog.DisplayNameOf(d));
+                _presetNames.Add(d.name);
+                _presetLabels.Add(DeckCatalog.DisplayNameOf(d));
             }
-            if (_aiNames.Count == 0)
+            if (_presetNames.Count == 0)
             {
                 Debug.LogError("[木桩] 三套主题预组缺失（TutorialData）——选卡窗弹不出，退回主菜单");
                 _cancelled = true;
                 return;
             }
-            _idx[1] = 0;
 
-            _root = UiKit.Overlay("dummy-deck", parent);
-            var dim = _root.gameObject.AddComponent<Image>();
-            dim.color = new Color(0f, 0f, 0f, 0.55f); // 模态遮罩：拦棋盘点击
-            dim.raycastTarget = true;
-
-            var box = UiKit.Panel("dummy-deck-box", _root, pad: 20f, spacing: 12f);
-            box.anchorMin = box.anchorMax = box.pivot = new Vector2(0.5f, 0.5f);
-            box.anchoredPosition = Vector2.zero;
-            box.sizeDelta = new Vector2(660f, 0f);
-            var fitter = box.gameObject.AddComponent<ContentSizeFitter>();
-            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-
-            UiKit.Label("lbl-title", box, "木桩测试 · 选卡组", 20, align: TextAnchor.MiddleCenter, style: FontStyle.Bold);
-            UiKit.Label("lbl-hint", box, "对手难度：木桩=全让过；脚本=剧本驱动（挂载位，暂同木桩）；AI=正式对手。",
-                13, align: TextAnchor.MiddleLeft);
-
-            CycleRow(box, "row-my", "我方卡组", 0);
-            CycleRow(box, "row-ai", "对方卡组", 1);
-            CycleRow(box, "row-diff", "对手难度", 2);
-
-            var btns = UiKit.Row("row-btns", box, spacing: 14f, align: TextAnchor.MiddleCenter);
-            UiKit.Size(UiKit.Button("btn-fight", btns, "开战", () => _result = new Pick(
-                _myNames.Count > 0 ? _myNames[_idx[0]] : null,
-                _aiNames[_idx[1]], _idx[2], false), UiStyle.BtnPrimary), w: 200f);
-            UiKit.Button("btn-back", btns, "返回主菜单", () => _cancelled = true);
-        }
-
-        /// <summary>一行「题栏+循环选钮」：点击轮换第 slot 槣位并刷新（列表空=只显题栏不建钮）。</summary>
-        private void CycleRow(RectTransform parent, string rowName, string caption, int slot)
-        {
-            var labels = slot == 0 ? _myLabels : slot == 1 ? _aiLabels : null;
-            var diff = slot == 2;
-            var count = diff ? DifficultyLabels.Length : labels != null ? labels.Count : 0;
-            var row = UiKit.Row(rowName, parent);
-            UiKit.Label("lbl-" + rowName, row, caption, 15);
-            if (count == 0) return;
-            UiKit.Size(UiKit.Button("btn-" + rowName, row, CurrentLabel(slot), () =>
+            var prefab = Tide.HotUpdate.HotUpdateAssets.Load<GameObject>(
+                "dummy-deck", UiKit.PrefabPath("dummy-deck")); // 屏预制体同口（Yoo 地址+编辑器兜底）
+            if (prefab == null)
             {
-                _idx[slot] = (_idx[slot] + 1) % count;
-                SetCycleText("btn-" + rowName, CurrentLabel(slot));
-            }), w: 380f);
+                Debug.LogError("[木桩] dummy-deck 预制体缺失（Assets/Art/Prefab/dummy-deck.prefab）——选卡窗弹不出，退回主菜单");
+                _cancelled = true;
+                return;
+            }
+            var inst = UnityEngine.Object.Instantiate(prefab, parent, false);
+            inst.name = "dummy-deck";
+            _root = (RectTransform)inst.transform;
+            _root.SetAsLastSibling();
+
+            // 文案正本在代码；版式（锚点/字号/下拉模板/模态遮罩）=预制体手调值，代码不碰
+            SetText("lbl-title", "木桩测试 · 选卡组");
+            SetText("lbl-hint", "对手难度：木桩=全让过；脚本=按所选预组的主题打法出牌（行为随驱动自身）；AI=正式对手。"
+                + "木桩/脚本对方限三套预组；AI 对方可选任意牌库。");
+            SetText("lbl-row-my", "我方卡组");
+            SetText("lbl-row-ai", "对方卡组");
+            SetText("lbl-row-diff", "对手难度");
+            SetText("btn-start", "开战");
+            SetText("btn-back", "返回主菜单");
+            SetText("btn-row-diff", DifficultyLabels[_diff]);
+
+            _drpMy = DropdownOf("row-my");
+            if (_drpMy != null)
+            {
+                _drpMy.ClearOptions();
+                _drpMy.AddOptions(_openLabels);
+                _drpMy.SetValueWithoutNotify(0);
+                _drpMy.onValueChanged.RemoveAllListeners();
+                _drpMy.onValueChanged.AddListener(_ => Debug.Log("[UI点击] drp-my=" + _drpMy.value));
+            }
+            else Debug.LogWarning("[木桩] 预制体缺下拉节点：row-my");
+
+            _drpAi = DropdownOf("row-ai");
+            if (_drpAi == null) Debug.LogWarning("[木桩] 预制体缺下拉节点：row-ai");
+            else
+            {
+                _drpAi.onValueChanged.RemoveAllListeners();
+                _drpAi.onValueChanged.AddListener(_ => Debug.Log("[UI点击] drp-ai=" + _drpAi.value));
+            }
+            RebuildAiOptions(null);
+
+            var diff = ButtonOf("btn-row-diff");
+            if (diff != null)
+            {
+                diff.onClick.RemoveAllListeners();
+                diff.onClick.AddListener(() =>
+                {
+                    Debug.Log("[UI点击] btn-row-diff");
+                    string keep = AiSelectionName(); // 旧列表选中名（换列表同名保值）
+                    _diff = (_diff + 1) % DifficultyLabels.Length;
+                    SetText("btn-row-diff", DifficultyLabels[_diff]);
+                    RebuildAiOptions(keep);
+                });
+            }
+
+            var fight = ButtonOf("btn-start");
+            if (fight != null)
+            {
+                fight.onClick.RemoveAllListeners();
+                fight.onClick.AddListener(() =>
+                {
+                    Debug.Log("[UI点击] btn-start");
+                    var aiNames = CurrentAiNames();
+                    _result = new Pick(
+                        _drpMy != null && _drpMy.value >= 0 && _drpMy.value < _openNames.Count
+                            ? _openNames[_drpMy.value] : null,
+                        aiNames[_drpAi != null ? Mathf.Clamp(_drpAi.value, 0, aiNames.Count - 1) : 0],
+                        _diff, false);
+                });
+            }
+
+            var back = ButtonOf("btn-back");
+            if (back != null)
+            {
+                back.onClick.RemoveAllListeners();
+                back.onClick.AddListener(() => { Debug.Log("[UI点击] btn-back"); _cancelled = true; });
+            }
         }
 
-        private string CurrentLabel(int slot)
-            => slot == 0 ? _myLabels[_idx[0]]
-                : slot == 1 ? _aiLabels[_idx[1]]
-                : DifficultyLabels[_idx[2]];
+        /// <summary>对方卡组候选随难度分化：木桩/脚本=仅三套预组；AI=玩家牌库+预组（2026-10-24 定案）。</summary>
+        private List<string> CurrentAiNames() => _diff == 2 ? _openNames : _presetNames;
 
-        private void SetCycleText(string btnName, string text)
+        private List<string> CurrentAiLabels() => _diff == 2 ? _openLabels : _presetLabels;
+
+        /// <summary>重建对方下拉选项；keepName 在新列表中同名保值、否则回 0。</summary>
+        private void RebuildAiOptions(string keepName)
         {
-            var node = UiKit.FindDeep(_root, btnName);
+            if (_drpAi == null) return;
+            _drpAi.ClearOptions();
+            _drpAi.AddOptions(CurrentAiLabels());
+            int idx = keepName != null ? CurrentAiNames().IndexOf(keepName) : -1;
+            _drpAi.SetValueWithoutNotify(idx >= 0 ? idx : 0);
+        }
+
+        private string AiSelectionName()
+            => _drpAi != null && _drpAi.value >= 0 && _drpAi.value < CurrentAiNames().Count
+                ? CurrentAiNames()[_drpAi.value] : null;
+
+        private UnityEngine.UI.Button ButtonOf(string name)
+        {
+            var node = _root != null ? UiKit.FindDeep(_root, name) : null;
+            return node != null ? node.GetComponentInChildren<UnityEngine.UI.Button>(true) : null;
+        }
+
+        /// <summary>行节点下深找下拉（row-my/row-ai 的 Dropdown 同名，按行找）。</summary>
+        private TMPro.TMP_Dropdown DropdownOf(string rowName)
+        {
+            var row = _root != null ? UiKit.FindDeep(_root, rowName) : null;
+            return row != null ? row.GetComponentInChildren<TMPro.TMP_Dropdown>(true) : null;
+        }
+
+        /// <summary>按名深找 TMP 回写文案（字号/字重=预制体值，代码只写内容）。</summary>
+        private void SetText(string name, string text)
+        {
+            var node = _root != null ? UiKit.FindDeep(_root, name) : null;
             var t = node != null ? node.GetComponentInChildren<TMPro.TMP_Text>(true) : null;
-            if (t != null) t.text = text;
+            if (t == null)
+            {
+                Debug.LogWarning("[木桩] 预制体缺文本节点：" + name);
+                return;
+            }
+            t.text = text;
         }
 
         public void Dispose()

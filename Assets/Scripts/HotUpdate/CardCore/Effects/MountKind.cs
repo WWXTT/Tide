@@ -65,6 +65,12 @@ namespace CardCore
         /// 判定谓词仍由 BranchConditionEvaluator 代码注册。挂本位的行不作主干/奖励
         /// （CanBeTrunkRow/CanBeRewardRow 排除），不挂处理器、不入主序列执行。</summary>
         SituationGate = 10,
+        /// <summary>动态费用行（2026-10-24 定案）：费用在结算时按局内动态情况决定——现值临摹/变形赋予
+        ///（补差=max(0, 变形后声明费总点−变形前声明费总点)，挂被变形卡的主动发动，MorphSystem.Surcharge）。
+        /// 挂本位 = **不可作 Then 奖励**（CanBeRewardRow 排除——奖励入价锚定在构筑期，动态费用无法锚定）；
+        /// 主干资格不受影响（主动/触发照旧）。与已删位 9「主动发动」不同：本位只约束奖励挂载，不改发动方式
+        ///（召唤衍生物同为动态计价但不挂本位——照旧可作奖励）。</summary>
+        DynamicCost = 11,
     }
 
     /// <summary>MountKinds CSV 解析/判定辅助（AtomicEffectTable 与装载校验共用）。</summary>
@@ -85,6 +91,7 @@ namespace CardCore
             "不可作为连接光环", // 8 NoLinkAura（2026-10-07 晚：消耗型关键词黑名单）
             "",         // 9 ActivatedOnly「主动发动」（2026-10-13 删——空串占位保下标=枚举值，不复用）
             "有限分支", // 10 SituationGate（2026-10-23 入表——门槛行身份/挂载/预算位）
+            "动态费用", // 11 DynamicCost（2026-10-24——动态计价行不可作 Then 奖励）
         };
 
         /// <summary>成员中文名（越界回退枚举名）。</summary>

@@ -28,7 +28,7 @@ Material:
     m_Floats:
     - _BinaryPeriod: 80
     - _BinaryPhase: 0
-    - _BinarySeparation: 8
+    - _BinarySeparation: 10
     - _BudgetCut: 1
     - _DiskBrightness: 7.9
     - _DiskDetail: 1
@@ -37,10 +37,10 @@ Material:
     - _DiskOuterRadius: 5.07
     - _DiskRotationSpeed: 1
     - _DopplerStrength: 0
-    - _HorizonScale: 0.02
+    - _HorizonScale: 0.0067
     - _ParticleIntensity: 0
     - _ParticleThreshold: 0
-    - _SecondaryDiskScale: 0.615
+    - _SecondaryDiskScale: 0.6
     - _SecondaryDiskTilt: 0
     - _SecondaryHorizonScale: 0.7
     - _StepCount: 64

@@ -11,7 +11,10 @@ namespace SynergyUI
     /// 只列可用项（攻击/守卫/发动 + 关闭）；可用位图沿用 BattleScreen.ReconcileTileButtons
     /// 现有逻辑（攻击=我方主阶段未横置生物攻&gt;0 / 发动=主动效果或待发奖励 / 守卫=守卫窗口候选）。
     /// 定位=单位世界坐标投影到屏幕、贴上方；靠边自动翻边/钳位（边距 16px、底部让位手牌扇区
-    /// 32% 屏高、顶边 8px）。关闭=点空白（BattleScreen 点击路由兜）/执行动作/阶段或回合变化/
+    /// 32% 屏高、顶边 8px）。关闭（2026-10-24 定案：显式关闭钮退役）=**收到任意其他战场 3D
+    /// 点击事件**（BattleScreen 点击泵两分支统一收口：常态 HandleFieldClick / 守卫窗
+    /// HandlePointer，点击照常透传原路由——换点单位即换弹窗、点结束回合格关弹窗+结束、点攻击
+    /// 者确认守卫；面板底图/文字不挡射线，点面板空白处也落 3D 点击）/执行动作/阶段或回合变化/
     /// 进入选目标/网络局（均由 BattleScreen 驱动调 Close）。
     /// 纯代码 UI（UiKit.Panel/Button），随 BattleScreen 根创建、离屏销毁。
     /// </summary>
@@ -19,6 +22,7 @@ namespace SynergyUI
     {
         public enum Kind { Attack, Guard, Activate }
 
+        private RectTransform _root;       // 弹层根=可见性开关（含捕手）——DestroyUI 整树销毁
         private RectTransform _panel;      // 惰建（Canvas 直挂——世界锚点投影按 canvas 系换算）
         private GameObject _attack, _guard, _activate;
         private TMP_Text _title;
@@ -38,7 +42,7 @@ namespace SynergyUI
             _activate.SetActive(activate);
             _handler = onAction;
             IsOpen = true;
-            _panel.gameObject.SetActive(true);
+            _root.gameObject.SetActive(true);
             Place(worldAnchor);
             Debug.Log($"[UnitActionPopup] 开：{title}（攻击={attack} 守卫={guard} 发动={activate}）");
         }
@@ -47,7 +51,7 @@ namespace SynergyUI
         {
             if (!IsOpen) return;
             IsOpen = false;
-            _panel.gameObject.SetActive(false);
+            _root.gameObject.SetActive(false);
             Debug.Log("[UnitActionPopup] 关");
         }
 
@@ -55,10 +59,11 @@ namespace SynergyUI
         public void DestroyUI()
         {
             IsOpen = false;
-            if (_panel != null)
+            if (_root != null)
             {
-                if (Application.isPlaying) UnityEngine.Object.Destroy(_panel.gameObject);
-                else UnityEngine.Object.DestroyImmediate(_panel.gameObject);
+                if (Application.isPlaying) UnityEngine.Object.Destroy(_root.gameObject);
+                else UnityEngine.Object.DestroyImmediate(_root.gameObject);
+                _root = null;
                 _panel = null;
             }
         }
@@ -67,10 +72,10 @@ namespace SynergyUI
 
         private void Ensure(RectTransform screenRoot)
         {
-            if (_panel != null) return;
+            if (_root != null) return;
             var canvasRt = screenRoot.GetComponentInParent<Canvas>().transform as RectTransform;
-            var overlay = UiKit.Overlay("unit-action-popup", canvasRt);
-            _panel = UiKit.Panel("panel", overlay, pad: 8f, spacing: 6f);
+            _root = UiKit.Overlay("unit-action-popup", canvasRt);
+            _panel = UiKit.Panel("panel", _root, pad: 8f, spacing: 6f);
             var fitter = _panel.gameObject.AddComponent<ContentSizeFitter>();
             fitter.horizontalFit = ContentSizeFitter.FitMode.MinSize;
             fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
@@ -83,8 +88,7 @@ namespace SynergyUI
                                   UiStyle.BtnBg, UiStyle.TextBody, 126f).gameObject;
             _activate = UiKit.Button("btn-activate", _panel, "发动", () => Fire(Kind.Activate),
                                      UiStyle.BtnBg, UiStyle.TextBody, 126f).gameObject;
-            UiKit.MiniButton("btn-close", _panel, "关闭", Close);
-            _panel.gameObject.SetActive(false);
+            _root.gameObject.SetActive(false);
         }
 
         private void Fire(Kind kind)

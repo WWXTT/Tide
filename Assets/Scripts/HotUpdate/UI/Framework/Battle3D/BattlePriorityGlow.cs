@@ -22,10 +22,11 @@ namespace SynergyUI
     /// </summary>
     public static class BattlePriorityGlow
     {
-        /// <summary>优先权高亮=v6 唯一鎏金强调 #C6A24B（2026-10-23 §11.2）：持有方亮金、非持有方
-        /// 暗置 12%（DimK 亮暗对调语义不变）；归属由亮起的半场/时间格位置读出，不再红蓝分色。</summary>
-        public static readonly Color SelfColor = new Color(0.776f, 0.635f, 0.294f);
-        public static readonly Color OppColor = new Color(0.776f, 0.635f, 0.294f);
+        /// <summary>优先权高亮=红蓝分色（2026-10-24 用户定案改回，v6 鎏金单色 2026-10-23 §11.2 退役）：
+        /// 己方持有=蓝（近 BattleFieldView.P1UnitColor 提亮作发光用）、对手持有=红（近 P2UnitColor 提亮）；
+        /// 非持有方暗置 12%（DimK 亮暗对调语义不变）。</summary>
+        public static readonly Color SelfColor = new Color(0.30f, 0.55f, 1.00f);
+        public static readonly Color OppColor = new Color(1.00f, 0.32f, 0.26f);
 
         /// <summary>非持有方暗置系数：面片仍在场可读归属，扳机切换=亮暗对调。</summary>
         private const float DimK = 0.12f;

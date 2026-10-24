@@ -174,6 +174,9 @@ namespace SynergyUI
             var go = new GameObject($"deck-stack-{(owner == 0 ? "self" : "opp")}");
             go.transform.SetParent(tile, false);
             go.transform.localPosition = new Vector3(0f, LiftY, 0f);
+            // 建堆即隐藏：默认 scale(1,1,1)=1m 是未对账的假高度（起手抽完后首次 Apply 才有真实张数，
+            // 若可见会出现"抽6张高度减半"的错觉——2026-10-24）。SetDeckCount 首次对账以真值点亮。
+            go.SetActive(false);
             // 卡背竖版 v=1 朝 +Z（己方远端）；对方(P2)半场旋转 180° 使卡面朝向其玩家侧
             go.transform.localRotation = Quaternion.Euler(0f, owner == 0 ? 0f : 180f, 0f);
             go.AddComponent<MeshFilter>().sharedMesh = BuildStackMesh();

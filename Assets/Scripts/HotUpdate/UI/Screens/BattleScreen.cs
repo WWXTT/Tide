@@ -1182,9 +1182,11 @@ namespace SynergyUI
             else if (BattleEntry.DummyTest)
                 // 木桩测试局（2026-10-22；2026-10-23 选卡组弹窗+难度三档）：双方卡组由掷币后弹窗选定
                 //（我方=玩家档+三套预组；木桩侧限三套主题预组；null=随机在此解析——场景管线的
-                // hand/deck 引用须与卡组同源）。对手难度（BattleEntry.DummyDifficulty）：0=木桩/1=脚本
-                //（ScriptedAi 无剧本口径，脚本=剧本挂载位）、2=AI（MakePacedAi+AutoMatch 正式对手）；
-                // 被动响应器（守卫/连锁永不反制）只给木桩/脚本。洗牌关=锁牌库序（可复现）；
+                // hand/deck 引用须与卡组同源）。对手难度（BattleEntry.DummyDifficulty）：0=木桩（全让过
+                // 不出牌）/1=脚本（2026-10-24 接入预组控制脚本：AutoMatch 主题策略——红·快攻→红快攻、
+                // 蓝·控制→蓝控制、绿·慢速→绿慢速，预组卡全带各自 Theme 标签精确命中；出牌打法随预组，
+                // 响应行为归驱动自身内置启发，不加外部约束）、2=AI（MakePacedAi+AutoMatch 正式对手）；
+                // 被动响应器（响应窗全让过）只给木桩。洗牌关=锁牌库序（可复现）；
                 // 元素池充满=按所选卡组组「地牌充满」预设（素材缺失回落常规开局）。
                 // 不注入后手护甲（纯测试床，与正式局差异从简）。
             {
@@ -1195,7 +1197,8 @@ namespace SynergyUI
                 string myDummySkill = matchSkill ?? myRandomSkill;
                 string aiDummySkill = aiSkill ?? aiRandomSkill;
                 bool aiOpponent = BattleEntry.DummyDifficulty == 2;
-                IAiTurnDriver dummyDriver = aiOpponent
+                bool scriptedOpponent = BattleEntry.DummyDifficulty == 1; // 脚本档：预组打法（行为随驱动自身）
+                IAiTurnDriver dummyDriver = (aiOpponent || scriptedOpponent)
                     ? (IAiTurnDriver)MakePacedAi(AiStrategy.AutoMatch(aiDummy))
                     : MakeScriptedDummyAi();
                 if (BattleEntry.DummyFullPool
@@ -1207,8 +1210,8 @@ namespace SynergyUI
                     _ctrl.StartNewGame(myDummy, aiDummy, dummyDriver,
                         lockDeckOrder: !BattleEntry.DummyShuffle,
                         mySkillCardId: myDummySkill, aiSkillCardId: aiDummySkill, playerFirst: playerFirst);
-                if (!aiOpponent)
-                    _ctrl.EnablePassiveAiResponder(); // 木桩/脚本：响应窗全让过；AI 档走内置启发
+                if (BattleEntry.DummyDifficulty == 0)
+                    _ctrl.EnablePassiveAiResponder(); // 仅木桩：响应窗全让过；脚本/AI 档行为归驱动自身
             }
             else if (matchDeck != null || forceMatch)
                 // 对局准备流程（2026-10-19 挪入战场五段式开局：掷币+选卡组结果段五注入，旧
@@ -1388,9 +1391,9 @@ namespace SynergyUI
         }
 
 
-        /// <summary>木桩脚本驱动（2026-10-23 用户改案，替代 DummyAi）：ScriptedAi 无剧本口径
-        ///（跳产元素→排干栈→让过——每回合行为与旧木桩一致），PacingWait 与 MakePacedAi 同拍
-        ///（后续喂 TutorialConfig 剧本时动作间等演出播完）；静默无剧本告警（教学缺剧本才该吵）。</summary>
+        /// <summary>木桩驱动（2026-10-23 替 DummyAi；2026-10-24 起仅难度 0 木桩档使用——脚本档已接
+        /// 预组主题策略见 EngageLocalBattle 木桩分支）：ScriptedAi 无剧本口径（跳产元素→排干栈→让过
+        /// ——每回合行为与旧木桩一致），PacingWait 与 MakePacedAi 同拍；静默无剧本告警。</summary>
         private ScriptedAi MakeScriptedDummyAi()
             => new ScriptedAi(null)
             {
@@ -1518,7 +1521,7 @@ namespace SynergyUI
             FillBar(d.Opp, opp: true);
             FillBar(d.Self, opp: false);
             if (_lblPhase != null) _lblPhase.text = d.PhaseText;
-            BattleHudRow.SetPhase(PhaseTileText(d)); // 阶段显示格（中线 x0 平贴文字）同频喂文
+            BattleHudRow.SetPhase(PhaseTileText(d), d.MyTurn); // 阶段显示格（中线 x0 平贴文字）同频喂文（myTurn=光圈蓝/红）
             _hudTicker.RefreshChainSpeed();                 // 连锁速度格（中线 x3）=引擎记速器实值（2026-10-15 接线）
             if (_lblStack != null) _lblStack.text = string.Join(" ｜ ", d.StackLines);
             if (_lblPriority != null)
@@ -1619,7 +1622,7 @@ namespace SynergyUI
 
             // 中栏（2026-10-13 基础教学：极简 prefab 无中栏节点——null 判空，缺件零炸）
             if (_lblPhase != null) _lblPhase.text = d.PhaseText;
-            BattleHudRow.SetPhase(PhaseTileText(d)); // 阶段显示格（中线 x0 平贴文字）同频喂文
+            BattleHudRow.SetPhase(PhaseTileText(d), d.MyTurn); // 阶段显示格（中线 x0 平贴文字）同频喂文（myTurn=光圈蓝/红）
             _hudTicker.RefreshChainSpeed();                 // 连锁速度格（中线 x3）=引擎记速器实值（2026-10-15 接线）
             if (_lblStack != null) _lblStack.text = string.Join(" ｜ ", d.StackLines);
             if (_lblPriority != null)
@@ -2426,10 +2429,12 @@ namespace SynergyUI
             var hitCollider = hasHit ? hit.collider : null;
             var hitName = hitCollider != null ? hitCollider.gameObject.name : "";
             // 守卫窗口：点守卫者/角色/攻击者全归决策中枢——可守卫的己方格先弹动作弹窗（守卫钮=选守卫者，
-            // v4 §10.2 两段式），攻击者/无动作格原口直进（悬停帧 btnKind 空照常路由）
+            // v4 §10.2 两段式），攻击者/无动作格原口直进（悬停帧 btnKind 空照常路由）。
+            // 弹窗开着时其他 3D 点击（点攻击者确认等）同口径先收弹窗（2026-10-24 关闭钮退役定案）
             if (_decision != null && _decision.GuardWindowOpen)
             {
                 if (BattlePointer.ConfirmPressed && TryPopupCell(hitName)) return;
+                if (BattlePointer.ConfirmPressed) _unitPopup.Close();
                 _decision.HandlePointer(hitName, cam);
                 return;
             }

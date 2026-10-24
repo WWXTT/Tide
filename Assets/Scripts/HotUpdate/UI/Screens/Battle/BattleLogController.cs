@@ -26,6 +26,8 @@ namespace SynergyUI
         private readonly List<(string text, string cls)> _standbyDeferred = new(); // 挂起的回合自然抽牌行（待〔准备阶段〕行落定，2026-10-17）
         private RectTransform _logListRect;        // log-list 高度动画目标（0↔700）
         private float _logListTarget;
+        private int _activeLineCount;               // 在役行数（池化口径：trim 按活动行计，池中 inactive 不算——childCount 含 inactive 不可用）
+        private readonly Stack<TMP_Text> _linePool = new(); // 回收行池（2026-10-24 对象池定案：超限行回收复用不再 Destroy）
 
         private const float LogListOpenHeight = 700f; // 展开定高（2026-10-16 晚改版：固定 0↔700，超出在面板内滚动）
         private const float LogListSpeed = 3500f; // px/s（700px≈0.2s 展开）
@@ -38,6 +40,16 @@ namespace SynergyUI
         {
             _logList = logList;
             _logListRect = logListRect;
+            // 在役行数点账（池化配套）：跨 Mount 存留的旧活动行入账——trim/池化都以「活动行」为口径
+            _activeLineCount = 0;
+            if (_logList?.Content != null)
+            {
+                for (int i = 0; i < _logList.Content.childCount; i++)
+                {
+                    var ch = _logList.Content.GetChild(i);
+                    if (ch.gameObject.activeSelf && ch.name == "lbl") _activeLineCount++;
+                }
+            }
             if (_logListRect != null)
             {
                 _logListRect.gameObject.AddComponent<ClickSwallow>();
@@ -176,24 +188,54 @@ namespace SynergyUI
                 "log-line--system" => (UiStyle.LogSystem, FontStyle.Normal),
                 _ => (UiStyle.LogBase, FontStyle.Normal),
             };
-            var lineGo = UnityEngine.Object.Instantiate(_logLineTemplate.gameObject, _logList.Content, false);
-            lineGo.name = "lbl";
-            lineGo.SetActive(true);
-            var label = lineGo.GetComponent<TMP_Text>();
+            var label = TakeLine();
+            if (label == null) return;
+            _activeLineCount++;
             label.text = text;
             label.color = color;
             label.fontStyle = (FontStyles)style; // 枚举位同值（Normal/Bold）
 
-            while (_logList.Content.childCount > 300)
-            {
-                var first = _logList.Content.GetChild(0);
-                if ((RectTransform)first == _logLineTemplate)
-                    first = _logList.Content.childCount > 1 ? _logList.Content.GetChild(1) : null;
-                if (first == null) break;
-                first.SetParent(null);
-                UnityEngine.Object.Destroy(first.gameObject);
-            }
+            while (_activeLineCount > MaxActiveLines) RecycleOldestLine();
             _logList.ScrollToBottom(); // 新增即滚底（2026-10-16 晚改版：行高由 VLG+CSF 自适应，见 prefab log-list content）
+        }
+
+        private const int MaxActiveLines = 300; // 在役行上限（同旧口径 300：超出回收最旧行）
+
+        /// <summary>取一行（2026-10-24 对象池）：优先出池复用（回队尾+重激活），池空才克隆模板；
+        /// 池中 fake-null（Content 重建随毁）逐个丢弃。复用行文本/色/字形由调用方全覆盖写。</summary>
+        private TMP_Text TakeLine()
+        {
+            while (_linePool.Count > 0)
+            {
+                var pooled = _linePool.Pop();
+                if (pooled == null) continue; // Unity fake-null：随 Content 销毁的僵尸丢弃
+                var go = pooled.gameObject;
+                go.name = "lbl"; // 回役复名（池化期名 lbl#pool——防模板扫描误中）
+                go.transform.SetAsLastSibling(); // 池行保留旧层级位——VLG 按层级排版，复用必须回队尾
+                go.SetActive(true);
+                return pooled;
+            }
+            var lineGo = UnityEngine.Object.Instantiate(_logLineTemplate.gameObject, _logList.Content, false);
+            lineGo.name = "lbl";
+            lineGo.SetActive(true);
+            return lineGo.GetComponent<TMP_Text>();
+        }
+
+        /// <summary>回收最旧活动行入池（改名 lbl#pool+熄活；模板/池行跳过；无行可回收=计数漂移就地清零防死循环）。</summary>
+        private void RecycleOldestLine()
+        {
+            var content = _logList.Content;
+            for (int i = 0; i < content.childCount; i++)
+            {
+                var ch = content.GetChild(i);
+                if (!ch.gameObject.activeSelf) continue;          // 模板/池行（inactive 不占 VLG 行序）
+                ch.gameObject.name = "lbl#pool";
+                ch.gameObject.SetActive(false);
+                _activeLineCount--;
+                _linePool.Push(ch.GetComponent<TMP_Text>());
+                return;
+            }
+            _activeLineCount = 0; // 实物与计数漂移（理论不可达）——校正退出
         }
 
         /// <summary>btn-log 切换面板高度目标。</summary>

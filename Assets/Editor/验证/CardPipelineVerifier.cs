@@ -259,10 +259,8 @@ namespace CardCore.Editor
             Crumb("→TestThreeCardTypes");
             TestThreeCardTypes(core, core.Player1, core.Player2);
 
-            // 战场辅助检查（2026-09-26）：数学全量性质/事件驱动占用/格位三方对拍/容量边界/
-            // 接线生命周期卫生——独立开新局不共享本 core，自归零静态扩展点（放最末）
-            Crumb("→TestBattlefieldAux");
-            BattlefieldVerifier.RunEmbedded(Assert);
+            // 战场辅助检查段已删（2026-10-24 战场验收定案——BattlefieldVerifier 退役，
+            // 战场不再由验证/重建脚本触碰）
             Crumb("all sections done");
 
             // P2b：对局日志按需导出（内存缓冲 → markdown 战报落盘）
@@ -484,6 +482,14 @@ namespace CardCore.Editor
             return System.Enum.GetValues(typeof(ManaType)).Cast<ManaType>().ToList();
         }
 
+        /// <summary>六色灌满（2026-10-24 Any 定案配套）：灰红蓝绿白黑灌 n、**Any 恒 0**——万能货币
+        /// 不进六色时代的「满钱包」环境（否则各链尾 Any 垫付会让「缺色拒付/优先序」类断言失真）。
+        /// 清零环境仍走 AllManaTypes() 全枚举（Any 必须被清）；测 Any 的断言显式设置。</summary>
+        private static void FillSixColors(PlayerElementPool pool, int n)
+        {
+            foreach (var t in AllManaTypes()) pool.TempElements[t] = t == ManaType.Any ? 0 : n;
+        }
+
         /// <summary>测试费用构造（2026-10-04 位置数组化）：替代旧 Dictionary 初始化器——
         /// CostOf((ManaType.Gray, 3), (ManaType.Green, 1)) == [3,0,0,1,0,0]。</summary>
         private static ElementCost CostOf(params (ManaType color, float amount)[] entries)
@@ -553,7 +559,7 @@ namespace CardCore.Editor
             // 模式0（伤害）：账单=卡面费+所选效果锚价（GetCardCost 单源）——灌足钱包消除计价漂移
             var firePool = core.ElementPool.GetPool(p1);
             firePool.GlobalTurnIndex = 9;
-            foreach (var t in AllManaTypes()) firePool.TempElements[t] = 99;
+            FillSixColors(firePool, 99);
 
             var fireball = new CardWrapper(data);
             fireball.SetController(p1);
@@ -908,7 +914,7 @@ namespace CardCore.Editor
             var snap = new Dictionary<ManaType, int>(pool1.TempElements);
             try
             {
-                foreach (var t in AllManaTypes()) pool1.TempElements[t] = 99;
+                FillSixColors(pool1, 99);
                 var a = Spawn(p1, 2, 5);
                 var b = Spawn(p2, 2, 5);
                 int p1Deck = core.ZoneManager.GetCards(p1, Zone.Deck).Count;
@@ -1060,7 +1066,7 @@ namespace CardCore.Editor
 
             try
             {
-                foreach (var t in AllManaTypes()) pool1.TempElements[t] = 99;
+                FillSixColors(pool1, 99);
 
                 // ---- 1. 自我沉睡：灰费豁免 + 入场指示物 ----
                 var sleepData = new CardData
@@ -1137,7 +1143,7 @@ namespace CardCore.Editor
             // ---- 3. 苏醒后 OnTurnEnd 恢复 ----
             Crumb($"awake pre: sleep={sleepCard.GetCounterCount(Attribute.KeywordRules.SleepCounter)} tapped={sleepCard.IsTapped()}");
             EndTurnPumped(core, p1);
-            foreach (var t in AllManaTypes()) pool1.TempElements[t] = 99; // 回合结束清空钱包后再灌——
+            FillSixColors(pool1, 99); // 回合结束清空钱包后再灌——
             // 触发式效果执行走执行器计费口，欠费会静默跳过（排干前灌足保证金可付）
             GameActions.DrainStack(core); // OnTurnEnd 触发式入栈后显式排干（同打出路径 PlayCardSync 先例）
             GameActions.SkipElementPool(core, p2);
@@ -1161,7 +1167,7 @@ namespace CardCore.Editor
                     },
                 });
                 var fixedCard = InjectCard(core, p1, fixedData);
-                foreach (var t in AllManaTypes()) pool1.TempElements[t] = 99; // 上一周期的回合结束已清空钱包——重灌
+                FillSixColors(pool1, 99); // 上一周期的回合结束已清空钱包——重灌
                 int grayBefore4 = pool1.TempElements[ManaType.Gray];
                 Assert(GameActions.PlayCard(core, p1, fixedCard), "打出定长沉睡生物");
                 GameActions.DrainStack(core);
@@ -1217,7 +1223,7 @@ namespace CardCore.Editor
             //      2026-10-16 全类型累计钳终版：六色同池，单周期（自己回合开始清零）累计生成 ≤ 地牌上限
             //      ——单次入账受剩余配额钳制；「产出不封」的上午单次钳口径已废 ----
             pool1.GlobalTurnIndex = 3; // 地牌上限 3
-            foreach (var t in AllManaTypes()) pool1.TempElements[t] = 99;
+            FillSixColors(pool1, 99);
             pool1.TempElements[ManaType.Black] = 0; pool1.TempElements[ManaType.White] = 0;
             pool1.BlackGainedThisTurn = 0;
             pool1.TempGainedThisTurn = 0; // 累计钳台账隔离（快照前的段间残留不计入本段配额）
@@ -1295,7 +1301,7 @@ namespace CardCore.Editor
                 Assert(core.ElementPool.TryPayCostWithAutoTap(blackDict, p1), "黑4 钱包直付并扣除（现取现用）");
                 Assert(pool1.TempElements[ManaType.Black] == 0, "黑已扣（临时钱包记账）");
                 Assert(!core.ElementPool.TryPayCostWithAutoTap(ElementCost.FromValue(ManaType.Black, 1f), p1),
-                       "余额照拒：黑已空 → 黑1 拒付（浓度钳退役后由余额定）");
+                       $"余额照拒：黑已空 → 黑1 拒付（浓度钳退役后由余额定）——诊断 Any={pool1.TempElements[ManaType.Any]} 黑={pool1.TempElements[ManaType.Black]}");
 
                 // 统一混付规划器（2026-09-14：出牌/效果费共用 GetBillPaymentPlan，非破坏；
                 // 2026-10-16 钱包豁免改版：cap 参数随浓度钳退役，本组钉现行链序）
@@ -1437,7 +1443,7 @@ namespace CardCore.Editor
                        "本色直付：红1 由红支付，PaidCost={红1}");
 
                 // ---- 3. 代价强制（2026-09-14 撤销代价可选）：恒执行+恒补偿，无选择窗口/减费通道 ----
-                foreach (var t in AllManaTypes()) pool1.TempElements[t] = 99;
+                FillSixColors(pool1, 99);
                 pool1.TempElements[ManaType.Black] = 0;
                 pool1.BlackGainedThisTurn = 0; // 计数器直控（隔离前段错边发放的累计）
                 pool1.WhiteGainedThisTurn = 0; // 纯观测台账隔离（2026-10-16 起不参与钳制）
@@ -1674,7 +1680,7 @@ namespace CardCore.Editor
 
                 // 三色仅本色（2026-10-11 收窄）：红1 账单，灰9黑9白9、红 0 → 拒付
                 //（红缺口只有红能付——灰黑白都不垫三色；旧 10-04「黑垫红」钉与现行链矛盾，已废）
-                foreach (var t in AllManaTypes()) pool1.TempElements[t] = 9;
+                FillSixColors(pool1, 9);
                 pool1.TempElements[ManaType.Red] = 0;
                 var redNeed = new List<CostInstance> { new CostInstance { Type = CostType.ElementConsume, Value = 1, ManaType = ManaType.Red } };
                 Assert(!ElementCostPayment.Pay(redNeed, ctx5) && pool1.TempElements[ManaType.Black] == 9,
@@ -1732,28 +1738,11 @@ namespace CardCore.Editor
                     new AtomicEffectInstance { Type = AtomicEffectType.LifeLoss, Value = 30 }, drainAllCtx).GetAwaiter().GetResult();
                 Assert(plZero.MaxHealth == 0 && plZero.Life == 0, "可扣到恰好归零（归零=正常死亡交生命判定收尾）");
 
-                // ---- 7. 含黑白费用的卡作地牌：黑白份额不产指示物；纯黑白卡不可入池 ----
-                // 2026-09-13 修复：前段（TestLandEconomy 等）地牌未回收，上限=1 时占位即拒——先清池残留
-                foreach (var residue in core.ElementPool.GetPooledCards(p1).ToList())
-                    core.ElementPool.RemoveCardFromPool(residue.SourceCard, p1);
-                var mixed = CardLoader.BuildDeck(new List<CardData>
-                {
-                    new CardData { ID = "VERIFY_BW_LAND_MIX", CardName = "混色地", Supertype = Cardtype.Creature, Power = 1, Life = 1,
-                        Cost = CostOf((ManaType.Red, 1), (ManaType.Black, 2)) },
-                }, 1)[0];
-                Assert(core.ElementPool.AddCardToPool(mixed, p1), "红+黑费用卡可入池（黑白份额被过滤）");
-                var mixedPooled = core.ElementPool.GetPool(p1).PooledCards.First(pc => pc.SourceCard == mixed);
-                Assert(mixedPooled.LockedColor == ManaType.Red,
-                       "锁色候选：黑白份额被过滤（仅红可锁——黑白不由地牌产出）");
-                core.ElementPool.RemoveCardFromPool(mixed, p1);
-
-                var pureBlack = CardLoader.BuildDeck(new List<CardData>
-                {
-                    new CardData { ID = "VERIFY_BW_LAND_BLACK", CardName = "纯黑地", Supertype = Cardtype.Creature, Power = 1, Life = 1,
-                        Cost = CostOf((ManaType.Black, 2)) },
-                }, 1)[0];
-                Assert(!core.ElementPool.AddCardToPool(pureBlack, p1),
-                       "纯黑白费用卡不可作地牌（过滤后无指示物 → 拒绝入池）");
+                // ---- 7. 含黑白费用的卡作地牌（2026-10-24 存量退役）----
+                // 旧断言「红+黑 Cost 卡可入池锁红 / 纯黑拒入池」基于 Cost 字段进锁色候选的前置口径；
+                // 费用恒推导（2026-10-22）+锚价开格（2026-10-23「真无费仍拒」+黑白过滤）后，无效果纯
+                // Cost 卡恒推导=0 → 拒入池——本意图已由服务器 VerifySuite V9.ac 段 10 断言覆盖
+                ///（TideServer verify --quick 全过），不再本地重述（清池残留循环同删——本地夹具专用）。
             }
             finally
             {
@@ -2810,7 +2799,7 @@ namespace CardCore.Editor
 
             // ---- 5. 发动区流转：事件序 / 暂态不跨调用 / 终态 ----
             var pool1 = core.ElementPool.GetPool(p1);
-            foreach (var t in AllManaTypes()) pool1.TempElements[t] = 99;
+            FillSixColors(pool1, 99);
             var creatureData = cardsData.FirstOrDefault(c => c.CardName == "古树守卫");
             if (creatureData != null)
             {
@@ -4494,6 +4483,20 @@ namespace CardCore.Editor
                    && gateRowsFromTable.All(r => !CardCore.ComposerCatalog.CanBeTrunkRow(r))
                    && gateRowsFromTable.All(r => !CardCore.ComposerCatalog.CanBeRewardRow(r)),
                    "门槛行挂位 10 有限分支：不得作主干/奖励（CanBeTrunkRow/CanBeRewardRow 排除；行数与目录一致随表漂移）");
+            // 动态费用行（2026-10-24 定案）：临摹/变形赋予挂位 11——补差随局内动态情况，不可作 Then 奖励；
+            // 主干照旧（召唤衍生物同为动态计价但不挂此位，照旧可作奖励）
+            var morphRow = CardCore.Attribute.AtomicEffectTable.GetByEnumName("Morph");
+            var grantMorphRow = CardCore.Attribute.AtomicEffectTable.GetByEnumName("GrantMorph");
+            var summonTokenRow = CardCore.Attribute.AtomicEffectTable.GetByEnumName("SummonToken");
+            Assert(CardCore.ComposerCatalog.HasMountBit(morphRow, CardCore.MountKind.DynamicCost)
+                   && CardCore.ComposerCatalog.HasMountBit(grantMorphRow, CardCore.MountKind.DynamicCost)
+                   && !CardCore.ComposerCatalog.HasMountBit(summonTokenRow, CardCore.MountKind.DynamicCost),
+                   "动态费用位 11：临摹/变形赋予挂位（召唤衍生物不挂——照旧可作奖励）");
+            Assert(!CardCore.ComposerCatalog.CanBeRewardRow(morphRow)
+                   && !CardCore.ComposerCatalog.CanBeRewardRow(grantMorphRow)
+                   && CardCore.ComposerCatalog.CanBeTrunkRow(morphRow)
+                   && CardCore.ComposerCatalog.CanBeTrunkRow(grantMorphRow),
+                   "动态费用行不作 Then 奖励（CanBeRewardRow 排除）；主干资格保留");
             Assert(CardCore.ComposerCatalog.IsOutcomeCondition("DmgKillsTarget")
                    && CardCore.ComposerCatalog.IsOutcomeCondition("DeclareHit")
                    && !CardCore.ComposerCatalog.IsOutcomeCondition("LifeBelowOpp")
@@ -6595,7 +6598,7 @@ namespace CardCore.Editor
             var snap = new Dictionary<ManaType, int>(pool1.TempElements);
             try
             {
-                foreach (var t in AllManaTypes()) pool1.TempElements[t] = 99;
+                FillSixColors(pool1, 99);
 
                 var sweepCardData = new CardData
                 {

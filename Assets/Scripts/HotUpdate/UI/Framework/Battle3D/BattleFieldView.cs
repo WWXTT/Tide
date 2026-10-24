@@ -38,6 +38,7 @@ namespace SynergyUI
         private readonly Transform _root;
         private readonly Dictionary<uint, UnitVisual> _units = new Dictionary<uint, UnitVisual>();
         private readonly Dictionary<int, HeroVisual> _heroes = new Dictionary<int, HeroVisual>(); // key=归属 0/1
+        private readonly Material[] _heroMats = new Material[2]; // 每方着色克隆唯一实例（建柱即上色+对账收养共用，随 Dispose 销毁）
         private readonly HashSet<int> _fatigueBusy = new HashSet<int>(); // 疲劳演出在途 owner（重入只补浮字，2026-10-17）
         private readonly Dictionary<long, TextMeshPro> _landCounts = new Dictionary<long, TextMeshPro>(); // key=格(x<<32|z)：地牌格「可用/上限」计数
         // 演出持有（2026-10-13 战斗编舞）——引用计数（2026-10-18 并行演出修复）：同一单位可同时
@@ -156,6 +157,7 @@ namespace SynergyUI
                     else Object.DestroyImmediate(h.Mat);
                 }
             _heroes.Clear(); // 角色柱随 _root 销毁；着色克隆实例（HeroPillar_*）逐柱自清（2026-10-18）
+            _heroMats[0] = null; _heroMats[1] = null; // 缓存引用随实例销毁同步清（防 fake-null 复用）
             foreach (var l in _landCounts.Values)
                 if (l != null)
                 {
@@ -1051,6 +1053,16 @@ namespace SynergyUI
                 pillar.transform.SetParent(_root, false);
             }
             pillar.name = "hero-" + (owner == 0 ? "self" : "opp");
+            // 建柱即上阵营色（2026-10-24 用户定案）：我方恒蓝/对方恒红·各自视角相对——开场段二柱
+            // 升起时即带色，不待掷先后手（旧链=首次对账才着色，掷币后突兀变色）。与 ReconcileHero
+            // 收养共用 HeroPillarMaterial 每方唯一实例，不重复克隆。
+            var rend = pillar.GetComponent<Renderer>();
+            if (rend != null)
+            {
+                var mat = HeroPillarMaterial(owner);
+                if (mat != null) rend.sharedMaterial = mat;
+                else rend.material.color = owner == 0 ? P1UnitColor : P2UnitColor; // 模板缺件兜底（同对账口径）
+            }
             return pillar;
         }
 
@@ -1084,9 +1096,11 @@ namespace SynergyUI
 
         /// <summary>角色柱着色（2026-10-18 出包粉红修复）：分区格材质资产（URP Lit·已入 artstatic
         /// bundle·棋盘出包验证可渲染）克隆实例 + _BaseColor 按 owner 上色——CreatePrimitive/
-        /// 内置默认材质链整退。实例存 HeroVisual.Mat，随 Dispose 销毁（同 _castTypeMats 口径）。</summary>
+        /// 内置默认材质链整退。2026-10-24 起建柱即上色（我方恒蓝/对方恒红·各自视角相对，不待
+        /// 掷先后手）：每方克隆唯一实例缓存于 _heroMats，建柱与对账收养共用；随 Dispose 销毁。</summary>
         private Material HeroPillarMaterial(int owner)
         {
+            if (_heroMats[owner] != null) return _heroMats[owner];
             var template = Tide.HotUpdate.HotUpdateAssets.Load<Material>(
                 "BattleTile_Zone02", "Assets/Art/Battle3D/Materials/BattleTile_Zone02_P1Unit.mat");
             if (template == null)
@@ -1096,6 +1110,7 @@ namespace SynergyUI
             }
             var m = new Material(template) { name = "HeroPillar_" + (owner == 0 ? "P1" : "P2") };
             m.SetColor("_BaseColor", owner == 0 ? P1UnitColor : P2UnitColor); // URP Lit 主色属性名，显式写免 .color 回退歧义
+            _heroMats[owner] = m;
             return m;
         }
 

@@ -354,10 +354,13 @@ namespace CardCore
         /// 派生主干资格 ∩ 非引擎行（引擎行=条件载体零域，不作奖励）。
         /// 预算/可逆转/非错边过滤在调用点照旧。
         /// 2026-10-23 有限分支入表：门槛行随主干排除一并出局（位 10）。
-        /// （2026-10-13 晚「主动发动」位已删：动态计价原子（召唤衍生物/临摹/变形赋予）触发式预付
-        /// 与主动现付同额同源（ResolveTemplate→ContentPriceOf），奖励入价在构筑期——主动/自动自由选择。）</summary>
+        /// 2026-10-24 动态费用位：临摹/变形赋予挂位 11 排除出奖励——补差随局内动态情况，
+        /// 奖励入价锚定在构筑期无法覆盖；主干照旧（召唤衍生物同为动态计价但不挂位 11，照旧可作奖励）。
+        /// （2026-10-13 晚「主动发动」位已删：动态计价原子触发式预付与主动现付同额同源
+        ///（ResolveTemplate→ContentPriceOf）——主动/自动自由选择。）</summary>
         public static bool CanBeRewardRow(Attribute.AtomicEffectConfig row)
-            => CanBeTrunkRow(row) && !HasMountBit(row, MountKind.EngineTrunk);
+            => CanBeTrunkRow(row) && !HasMountBit(row, MountKind.EngineTrunk)
+               && !HasMountBit(row, MountKind.DynamicCost);
 
         /// <summary>关键词型 Grant 判定（2026-10-02 定案）：Grant 行且表行目标域恰为 {Self}（纯自指）。
         /// 关键词型原子 = 关键词的挂载形态（卡面印刷/登场/触发式如"自我沉睡"），**不得作为主动

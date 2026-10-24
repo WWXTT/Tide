@@ -17,12 +17,13 @@ namespace CardCore.Editor.Tests
     /// </summary>
     public static class BattleDeckSources
     {
-        /// <summary>主题 key → 卡组名（与三套主题构建器 DeckName 常量同序：red/green/blue）。</summary>
+        /// <summary>主题 key → 卡组名（2026-10-24：三套主题构建器已删——预组禁脚本重建，
+        /// 卡组名改字面量，与 TutorialData/*.json 文件名一致）。</summary>
         public static readonly (string key, string deckName)[] ThemeKeys =
         {
-            ("red", RedClashDeckBuilder.DeckName),
-            ("green", GreenCountdownDeckBuilder.DeckName),
-            ("blue", BlueSurplusDeckBuilder.DeckName),
+            ("red", "红·快攻"),
+            ("green", "绿·慢速"),
+            ("blue", "蓝·控制"),
         };
 
         /// <summary>Cards.json 全池（CardCatalog 静态缓存；编辑器内改表后 Invalidate 再取）。</summary>

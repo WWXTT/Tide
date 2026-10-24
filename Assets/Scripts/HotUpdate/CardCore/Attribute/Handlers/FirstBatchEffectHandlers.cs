@@ -90,28 +90,88 @@ namespace CardCore.Attribute.Handlers
     // ---------------- 卡牌移动 / 牌库操作 ----------------
 
     /// <summary>
-    /// 弃牌：被弃方从手牌中自选弃掉 {value} 张牌（P1 启发式代选：AI=按价值升序弃最差）。
+    /// 弃牌：被弃方从手牌中自选弃掉 {value} 张牌（2026-10-24 自选落地：人类被弃方经
+    /// TargetSelectionService 弹窗自选——代价栏 Payload 强制执行同样自选，强制只免「是否支付」
+    /// 不免「弃哪张」；AI/无头维持启发式代选：价值升序弃最差；手牌数 ≤ 弃数无选择余地直接全弃）。
     /// 被弃方判定（2026-09-14 代价原子化）：目标中的 Player > 目标手牌卡的控制者 > 控制者的对手——
     /// 双域 {5,6} 效果栏用法=指向谁弃谁（原「恒对手」口径废除，与域模型对齐）；
     /// 代价栏 Payload 锁己方 {5}（解析出己方手牌卡）→ 弃自己 = 资源支付语义。
+    /// 交互目标解析层已由被弃方本人（=效果控制者）钉选的手牌**真子集**视为已自选沿用，防双弹；
+    /// 全量候选（代价付费步/域填充）不视为钉选，照常弹窗。
     /// </summary>
     public class DiscardCardHandler : AtomicEffectHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.DiscardCard;
 
+        /// <summary>同步兼容口（现无调用方——注册表 ExecuteEffect 未被使用）：无 UI，自动策略。</summary>
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
+            var (victim, hand, count) = Resolve(effect, context);
+            if (victim == null) return;
+            DiscardCards(context, victim, AutoPicks(hand, count));
+        }
+
+        public override async UniTask ExecuteAsync(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            var (victim, hand, count) = Resolve(effect, context);
+            if (victim == null) return;
+
+            // 交互目标解析层已钉选的手牌卡（效果栏 {5} 自弃——声明/结算弹选即被弃方本人自选）
+            var pinnedCards = context.Targets.OfType<Card>().Where(c => hand.Contains(c)).ToList();
+
+            List<Card> picks;
+            if (hand.Count <= count)
+            {
+                picks = hand; // 无选择余地：全弃（同 ShouldAutoTake「操作越省越好」口径）
+            }
+            else if (victim == context.Controller && pinnedCards.Count >= count && pinnedCards.Count < hand.Count)
+            {
+                picks = pinnedCards.Take(count).ToList(); // 真子集=本人钉选：沿用防双弹；全量=域填充照常问
+            }
+            else if (victim.IsAI || TargetSelectionService.Current == null)
+            {
+                picks = AutoPicks(hand, count); // AI/无头：启发式代选——价值升序弃最差
+            }
+            else
+            {
+                var chosen = await TargetSelectionService.RequestAsync(new TargetSelectionRequest
+                {
+                    Candidates = hand.Cast<Entity>().ToList(),
+                    MinCount = count,
+                    MaxCount = count,
+                    Chooser = victim,
+                    Title = $"从手牌中自选弃掉 {count} 张牌",
+                    AllowCancel = false,
+                    PromptSource = (Entity)context.CastCard ?? context.Source,
+                });
+                picks = chosen.OfType<Card>().ToList();
+                if (picks.Count == 0) picks = AutoPicks(hand, count); // 超时兜底双保险（Service 已代选）
+            }
+
+            DiscardCards(context, victim, picks);
+        }
+
+        private (Player victim, List<Card> hand, int count) Resolve(
+            AtomicEffectInstance effect, EffectExecutionContext context)
+        {
             int count = context.GetValueAfterModifiers(effect.Value);
-            if (context.ZoneManager == null || context.Controller == null) return;
+            if (context.ZoneManager == null || context.Controller == null || count <= 0)
+                return (null, null, count);
 
             var victim = context.Targets.OfType<Player>().FirstOrDefault()
                 ?? context.Targets.OfType<Card>().Select(c => c.GetController()).FirstOrDefault(c => c != null)
                 ?? context.Controller.Opponent;
-            if (victim == null) return;
+            if (victim == null) return (null, null, count);
 
-            var hand = context.ZoneManager.GetCards(victim, Zone.Hand).ToList();
-            // 自选启发式（代弃方视角）：价值升序弃最差——费用低→攻击低 优先
-            var picks = hand.OrderBy(c => c.GetCost()).ThenBy(c => c.GetPower()).Take(count);
+            return (victim, context.ZoneManager.GetCards(victim, Zone.Hand).ToList(), count);
+        }
+
+        /// <summary>启发式代选（代弃方视角）：价值升序弃最差——费用低→攻击低 优先。</summary>
+        private static List<Card> AutoPicks(List<Card> hand, int count)
+            => hand.OrderBy(c => c.GetCost()).ThenBy(c => c.GetPower()).Take(count).ToList();
+
+        private void DiscardCards(EffectExecutionContext context, Player victim, List<Card> picks)
+        {
             foreach (var card in picks)
             {
                 context.ZoneManager.GetZoneContainer(victim).Move(card, Zone.Hand, Zone.Graveyard);

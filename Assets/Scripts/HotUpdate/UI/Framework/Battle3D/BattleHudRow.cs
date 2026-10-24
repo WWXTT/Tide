@@ -38,22 +38,35 @@ namespace SynergyUI
         public const int EndTurnCol = 6;    // 结束回合格：tile-6-3（画面右端，贴己方右手边——原 x0 放反已纠）
 
         // v6（2026-10-23 §11.2）+ 21:35 DSH 修订：**长驻格面不再满格实心亮黄**——回合结束/时间格
-        // 常驻=中立暖灰 #3A3630 + 暗金角标（#6B5930 小方标，持有方亮标）；鎏金 #C6A24B 只做
-        // 阶段转换 1s 短闪（「或只在选中/悬停时短暂出现」口径）。平贴文字=米白 #E6E0D4 a=0.92
+        // 常驻=中立暖灰 #3A3630 + 暗金角标（#6B5930 小方标，持有方亮标）。平贴文字=米白 #E6E0D4 a=0.92
         //（对比 ≥4.5:1 修订：底格压光后更暗，提 alpha 补偿）。
+        // 2026-10-24：阶段转换表现=光圈扩散一次 0.5s（己方蓝/对方红，色源 BattleTileFx.UnitGlow*，
+        // 网格/shader 复用 BattleTileRing）——鎏金 1s 短闪（PhaseFlashGold）退役。
         private static readonly Color EndTurnTint = new Color(0.227f, 0.212f, 0.188f);   // 常驻=中立（角标担识别）
         private static readonly Color StatusTint = new Color(0.227f, 0.212f, 0.188f);
         private static readonly Color FlatTextColor = new Color(0.902f, 0.878f, 0.831f, 0.92f);
-        private static readonly Color PhaseFlashGold = new Color(0.776f, 0.635f, 0.294f); // 鎏金：仅短时闪
         private static readonly Color MarkColor = new Color(0.42f, 0.35f, 0.19f);        // 暗金角标 #6B5930
 
         // 时间格优先权联动（2026-10-14 MD 式 → 21:35 修订）：持有方=亮暗金角标（格面恒中立灰，
         // 与半场蜂窝亮金同源对齐——蜂窝仍是优先权主显示）。
         private static Material _selfTimeTint, _oppTimeTint; // 两时间格 tint 材质实例（Mount 捕获）
-        private static Material _phaseTint;                  // 阶段格 tint 材质实例（阶段转换金短闪用）
-        private static int _phaseFlashSerial;                // 高亮计时代次（防旧计时还原新一次高亮）
         private static Material _markMat;                    // 角标共享材质实例（Unmount 销毁）
         private static Mesh _markMesh;                       // 角标小方面片（Unmount 销毁）
+
+        // ==== 阶段转换光圈（2026-10-24 用户定案：金短闪退役→光圈扩散一次 0.5s，己方蓝/对方红） ====
+        // 节流口径：表现层串行排队，最小间隔=单次播放时长（0.5s）——引擎侧连续阶段跳变
+        //（对手结束→己方准备→己方主要等瞬翻）按序逐拍播出，「刚结束一下又到自己」不再瞬切。
+        private const float PhaseRingSeconds = 0.5f;   // 光圈扩散时长=两次播放的最小间隔
+        private const float PhaseRingExpand = 2.6f;    // 扩散终值倍率（格轮廓→外扩约 2.6 格径）
+        private const float PhaseRingPeak = 1.8f;      // 起始强度（additive，线性淡出到 0）
+        private const int PhaseQueueCap = 8;           // 待播队列上限（超长丢最旧——极端连跳防积压）
+        private static MeshRenderer _phaseRing;        // 阶段光圈件（挂 hud-tile-phase 下，建一次复用）
+        private static MaterialPropertyBlock _phaseMpb;
+        private static readonly int RingColorId = Shader.PropertyToID("_RingColor");       // BattleTileRing.shader
+        private static readonly int RingIntensityId = Shader.PropertyToID("_RingIntensity");
+        private static readonly Queue<(string text, bool myTurn)> _phasePending = new();
+        private static bool _phaseRingBusy;            // 在播（队头占用——串行节流的闸）
+        private static int _phaseEpoch;                // 作废代次（Unmount++：在播循环/接链守卫）
         private static readonly Dictionary<int, GameObject> _marks = new Dictionary<int, GameObject>(); // key=列
 
         private sealed class HudTile
@@ -93,6 +106,7 @@ namespace SynergyUI
                     EndTurnTile = null;
                     _phaseLabel = null;
                     _selfTimeTint = _oppTimeTint = null; // 材质实例随旧棋盘销毁
+                    ResetPhaseRingState(); // 光圈件随旧棋盘销毁+待播队列作废（防跨局旧账续播）
                 }
             }
             if (_claimed.Count > 0) return;
@@ -116,7 +130,6 @@ namespace SynergyUI
             AttachLabel(ClaimTile(boardRoot.transform, "hud-tile-opp-time", OppTimeCol, StatusTint), OppTimeCol, "对手时间");
             _selfTimeTint = TintMatOf("hud-tile-self-time"); // 优先权联动高亮用（材质实例随格留存）
             _oppTimeTint = TintMatOf("hud-tile-opp-time");
-            _phaseTint = TintMatOf("hud-tile-phase"); // 阶段转换金短闪用（2026-10-16→21:35 改金）
             // 时间格角标常建默认熄，持有方亮标（SetTimePriority 对账切换）
             AttachMark(TileOf("hud-tile-self-time"), SelfTimeCol, active: false);
             AttachMark(TileOf("hud-tile-opp-time"), OppTimeCol, active: false);
@@ -171,8 +184,21 @@ namespace SynergyUI
             _markMesh = null;
             _phaseLabel = null;
             _selfTimeTint = _oppTimeTint = null; // 材质实例随 _claimed 销毁，清引用
-            _phaseTint = null;
+            ResetPhaseRingState(); // 光圈作废（代次++杀在播循环）+队列清空+件销毁（挂 tile 下随盘销毁，防御重装台残留）
             EndTurnTile = null;
+        }
+
+        /// <summary>光圈态清算（Unmount/僵尸全清调）：代次++作废在播循环与接链，队列清空，光圈件销毁。</summary>
+        private static void ResetPhaseRingState()
+        {
+            _phaseEpoch++;
+            _phaseRingBusy = false;
+            _phasePending.Clear();
+            if (_phaseRing != null)
+            {
+                Object.Destroy(_phaseRing.gameObject);
+                _phaseRing = null;
+            }
         }
 
         /// <summary>认领格名 → Transform（时间格角标挂载用）。</summary>
@@ -263,33 +289,89 @@ namespace SynergyUI
         }
 
         /// <summary>阶段显示格喂文（【己方主要阶段】式，BattleScreen.RefreshBars/RefreshView 同频调；
-        /// 装台前先存文本，Mount 时落字；重写只变更动——变更时阶段格蓝高亮 1 秒（2026-10-16 用户定案：
-        /// 双方回合三个阶段转换的可见提示，替代回合阶段停顿）。</summary>
-        public static void SetPhase(string text)
+        /// myTurn=行方观侧（光圈配色）。变更即入待播队列：平贴文字**随演出节拍翻**（不瞬切），
+        /// 每次变更播一轮光圈扩散（0.5s 蓝/红）串行节流——2026-10-24 定案替金短闪。
+        /// 未装台（_phaseLabel=null）只记账不播（Mount 落字口径不变）。</summary>
+        public static void SetPhase(string text, bool myTurn)
         {
-            if (string.IsNullOrEmpty(text)) return;
+            if (string.IsNullOrEmpty(text) || _phaseText == text) return;
             _phaseText = text;
-            if (_phaseLabel != null && _phaseLabel.text != text)
-            {
-                _phaseLabel.text = text;
-                FlashPhase();
-            }
+            if (_phaseLabel == null) return; // 未装台：只存文本（Mount 时 AttachFlatLabel 直填）
+            _phasePending.Enqueue((text, myTurn));
+            while (_phasePending.Count > PhaseQueueCap) _phasePending.Dequeue(); // 丢最旧
+            PumpPhaseRing();
         }
 
-        /// <summary>阶段转换金短闪（21:35 修订：鎏金只在短时出现）：亮 PhaseFlashGold 1 秒后还原
-        /// StatusTint。serial 守卫防旧计时还原新一次高亮（回合开始 准备→主要 连续两跳=后跳重置计时）；
-        /// 拆台后 _phaseTint 已清/材质已销毁（Unity fake-null）静默退出。装台首次落字不经
-        /// SetPhase（AttachFlatLabel 直填），天然不闪。</summary>
-        private static void FlashPhase()
+        /// <summary>队头开播（串行闸 _phaseRingBusy）：取出队条目——文字随拍落字+光圈起播；
+        /// 在播期后续条目排队（最小间隔=PhaseRingSeconds，播毕接链下一条）。</summary>
+        private static void PumpPhaseRing()
         {
-            if (_phaseTint == null) return;
-            _phaseTint.color = PhaseFlashGold;
-            int serial = ++_phaseFlashSerial;
-            Cysharp.Threading.Tasks.UniTask.Void(async () =>
+            if (_phaseRingBusy || _phasePending.Count == 0) return;
+            var (text, myTurn) = _phasePending.Dequeue();
+            if (_phaseLabel != null && _phaseLabel.text != text) _phaseLabel.text = text;
+            _phaseRingBusy = true;
+            PlayPhaseRingAsync(myTurn, _phaseEpoch).Forget();
+        }
+
+        /// <summary>光圈扩散一次（0.5s）：BattleTileRing 描边环网格复用（BattleTileFx 单源），
+        /// 己方蓝/对方红（BattleTileFx.UnitGlow* 同色族），ease-out 外扩+additive 线性淡出。
+        /// 依赖缺件降级=不显示但节拍照走（Delay 0.5s——文字仍按最小间隔翻页）。
+        /// epoch 守卫：Unmount/僵尸清算作废在播循环（不再接链）。</summary>
+        private static async Cysharp.Threading.Tasks.UniTaskVoid PlayPhaseRingAsync(bool myTurn, int epoch)
+        {
+            var rend = EnsurePhaseRing();
+            if (rend != null)
             {
-                await Cysharp.Threading.Tasks.UniTask.Delay(1000);
-                if (serial == _phaseFlashSerial && _phaseTint != null) _phaseTint.color = StatusTint;
-            });
+                rend.enabled = true;
+                if (_phaseMpb == null) _phaseMpb = new MaterialPropertyBlock();
+                _phaseMpb.SetColor(RingColorId, myTurn ? BattleTileFx.UnitGlowColor : BattleTileFx.UnitGlowColorOpp);
+                float t = 0f;
+                while (t < PhaseRingSeconds && epoch == _phaseEpoch)
+                {
+                    float k = t / PhaseRingSeconds;
+                    float ease = 1f - (1f - k) * (1f - k); // ease-out：起扩快、收尾缓
+                    float s = Mathf.Lerp(1f, PhaseRingExpand, ease);
+                    rend.transform.localScale = new Vector3(s, 1f, s);
+                    _phaseMpb.SetFloat(RingIntensityId, PhaseRingPeak * (1f - k)); // additive 淡出
+                    rend.SetPropertyBlock(_phaseMpb);
+                    await Cysharp.Threading.Tasks.UniTask.Yield();
+                    t += Time.deltaTime;
+                }
+                if (rend != null) // fake-null：播途中拆台=件已随棋盘销毁，不再触碰
+                {
+                    rend.transform.localScale = Vector3.one; // 还原（复用件下次起播同基）
+                    rend.enabled = false;
+                }
+            }
+            else
+            {
+                await Cysharp.Threading.Tasks.UniTask.Delay((int)(PhaseRingSeconds * 1000f));
+            }
+            if (epoch != _phaseEpoch) return; // 作废：不接链（防拆台后旧协程再拉起队列）
+            _phaseRingBusy = false;
+            PumpPhaseRing(); // 播毕接链（下一条最早此刻起播=最小间隔达标）
+        }
+
+        /// <summary>阶段光圈件惰性建（挂 hud-tile-phase 下；网格/材质=BattleTileFx 共享单源，
+        /// 色与强度走 MPB 本件覆写；缺件/未认领=null 降级）。建=熄，起播时点亮。</summary>
+        private static MeshRenderer EnsurePhaseRing()
+        {
+            if (_phaseRing != null) return _phaseRing; // fake-null 判死重建
+            var mesh = BattleTileFx.SharedRingMesh;
+            var mat = BattleTileFx.SharedRingMat;
+            var tile = TileOf("hud-tile-phase");
+            if (mesh == null || mat == null || tile == null) return null;
+            var go = new GameObject("fx-phase-ring");
+            go.transform.SetParent(tile, false);
+            go.transform.localPosition = new Vector3(0f, mesh.bounds.max.y + 0.006f, 0f); // 顶面上 6mm（同地牌描边环口径）
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            var rend = go.AddComponent<MeshRenderer>();
+            rend.sharedMaterial = mat;
+            rend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            rend.receiveShadows = false;
+            rend.enabled = false;
+            _phaseRing = rend;
+            return rend;
         }
 
         /// <summary>格面平贴单行文字（2026-10-14 定案：同地牌计数条口径不朝相机——

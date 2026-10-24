@@ -444,7 +444,7 @@
     "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位",
     "TargetFilter": "NotRole",
     "Polarity": 0,
-    "MountKinds": "",
+    "MountKinds": "动态费用",
     "Tags": "换区清除型",
     "ManaList": [
       0,
@@ -482,7 +482,7 @@
     "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位",
     "TargetFilter": "NotRole",
     "Polarity": 0,
-    "MountKinds": "",
+    "MountKinds": "动态费用",
     "Tags": "换区清除型",
     "ManaList": [
       0,

@@ -40,7 +40,7 @@ namespace SynergyUI
         private static void ResetStatics() { _pillarTemplate = null; _triedLoad = false; }
 
         /// <summary>掷币演出（~2.7s+驻留）：restPos=落定点（棋盘中心上方），返回 playerFirst
-        ///（true=我方先手——红面朝上）。拆台/异常兜底=不演直接返回随机结果。</summary>
+        ///（true=我方先手——蓝面朝上，v3 对调后口径）。拆台/异常兜底=不演直接返回随机结果。</summary>
         public static async UniTask<bool> PlayAsync(Vector3 restPos, Func<bool> skipRequested)
         {
             bool playerFirst = UnityEngine.Random.value < 0.5f; // 结果先定后演（与旧 PreMatch 同源 50/50）
@@ -85,9 +85,16 @@ namespace SynergyUI
 
                 // ---- 落地装饰：金爆点 + 结果浮字（先色后文：面已可读，浮字点题） ----
                 BattleEffectFx.PlayImpact(rest - Vector3.up * 0.45f, ImpactGold);
-                BattleFieldView.ShowFloatText(coin.transform, 1.1f,
+                // 浮字挂直立 holder 而非币体（2026-10-24 修复）：对方先手局币终态绕 X 翻转 180°，
+                // 挂币体局部 (0,1.1,0) 会把字按到板面之下、且「上浮」随翻转朝地心（实测三连对方
+                // 先手局结果字全埋地下）。holder 直立=世界系上浮；朝向归 StatsBillboard 恒看相机。
+                var textHolder = new GameObject("coin-result-text");
+                textHolder.transform.SetParent(coin.transform.parent, false);
+                textHolder.transform.position = rest;
+                BattleFieldView.ShowFloatText(textHolder.transform, 1.1f,
                     playerFirst ? "我方先手！" : "对方先手·我方 +5 护甲",
                     playerFirst ? SelfFaceColor : OppFaceColor);
+                Object.Destroy(textHolder, 1.2f); // 浮字 0.9s 寿终后收 holder（holder 不随币体销毁）
                 Debug.Log($"[BattleCoinToss] 掷币落定：playerFirst={playerFirst}（蓝面我方/红面对方·v3 对调）");
                 t0 = Time.realtimeSinceStartup;
                 while (Time.realtimeSinceStartup - t0 < HoldSeconds)

@@ -139,7 +139,12 @@ Shader "Tide/YGOMonster"
                 Light mainLight = GetMainLight();
                 half3 n = normalize(IN.normalWS) * (isFrontFace ? 1.0h : -1.0h);
                 half ndl = saturate(dot(n, mainLight.direction));
-                half3 col = tex.rgb * (mainLight.color * ndl + SampleSH(n));
+                // 压亮 1/π（2026-10-24 用户定案：同光照下 YGO 模型恒亮于 Lit 台面，压到 Lit 同亮）。
+                // 依据=dbdrp 源码：Lit 漫反射直射（DeferredLighting.compute DisneyDiffuse）与间接
+                //（diffuseFGD·SH）均带 1/π，本 shader 原为裸 Lambert 缺此因子故偏亮 ~π 倍。
+                // RT 探针字节域配平数值随战斗光照阶段漂移（延迟管线编码污染读数，不可作锚），
+                // 观感校准=肉眼：仍偏亮则下调本常数（曾测 0.16~0.32 区间），单点只改这一处。
+                half3 col = tex.rgb * (mainLight.color * ndl + SampleSH(n)) * INV_PI;
                 // 消融边淡光：紧贴线下沿的噪声亮带（元素色；默认黑 a=0=无）
                 col += _DissolveEdgeColor.rgb * (edge * _DissolveEdgeColor.a);
                 col = MixFog(col, IN.fogCoord);
