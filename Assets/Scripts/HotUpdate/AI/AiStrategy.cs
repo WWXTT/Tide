@@ -305,8 +305,8 @@ namespace CardCore.AI
                                             AtomicEffectType.GrantLifelink))
                 score += 400f;
 
-            // 攒费/休眠（苏醒=灰费转沉睡攒大生物；光合/采掘=额外元素）
-            if (CardHasAtom(core, card, AtomicEffectType.Sleep, AtomicEffectType.AdditionalEnergy))
+            // 攒费/休眠（苏醒=灰费转沉睡攒大生物；旧光合/采掘加费轴已随 2026-10-11/23 资源重做退役）
+            if (CardHasAtom(core, card, AtomicEffectType.Sleep))
                 score += 100f;
 
             // 大生物终结（6 费+）能付即最优先——碾压 AOE 的载体

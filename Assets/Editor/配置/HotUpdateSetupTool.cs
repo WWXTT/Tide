@@ -1,5 +1,6 @@
 // 热更管线（HybridCLR+YooAsset）解除期：由 TIDE_HYBRID_YOO 宏整体启停；恢复=开宏+HybridCLR enable+补包三步（见 查缺补漏.md「待办总账」第 1 条；编辑器菜单 Tools/热更/1-5）
 #if TIDE_HYBRID_YOO
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using HybridCLR.Editor;
@@ -32,11 +33,15 @@ namespace Tide.HotUpdateTools
         {
             var settings = HybridCLRSettings.LoadOrCreate();
             settings.enable = true; // 2026-10-18 热更管线恢复：处理流程整体打开
-            settings.hotUpdateAssemblies = new[] { HotUpdateLoader.HotAssemblyName };
+            // 2026-10-24 TapTap 预编译隔离：第二热更程序集 Tide.TapTap（源码目录在=联机风味全量；
+            // 本地单机风味源码被藏（~ 目录）=只列主程序集。风味切换菜单在 YooPackBuilder 同步改写此处）
+            settings.hotUpdateAssemblies = Directory.Exists("Assets/Scripts/TapTap")
+                ? new[] { HotUpdateLoader.HotAssemblyName, HotUpdateLoader.OptionalTapAssemblyName }
+                : new[] { HotUpdateLoader.HotAssemblyName };
             settings.patchAOTAssemblies = HotUpdateLoader.PatchAotAssemblies;
             HybridCLRSettings.Save();
             AssetDatabase.SaveAssets();
-            Debug.Log($"[热更配置] HybridCLR：hotUpdateAssemblies=[{HotUpdateLoader.HotAssemblyName}] patchAOTAssemblies=[{string.Join(",", HotUpdateLoader.PatchAotAssemblies)}]");
+            Debug.Log($"[热更配置] HybridCLR：hotUpdateAssemblies=[{string.Join(",", settings.hotUpdateAssemblies)}] patchAOTAssemblies=[{string.Join(",", HotUpdateLoader.PatchAotAssemblies)}]");
 
             if (!Directory.Exists(SettingsUtil.LocalIl2CppDir))
                 Debug.LogWarning("[热更配置] HybridCLR 本地 il2cpp 未安装：请执行菜单 HybridCLR/Installer → Install（打包前置与真机构建必需）");
@@ -115,6 +120,26 @@ namespace Tide.HotUpdateTools
                 return;
             }
             CopyAsBytes(hotSrc, HotDllFolder, HotUpdateLoader.HotAssemblyName + ".dll.bytes");
+
+            // 可选热更程序集（2026-10-24 TapTap 预编译隔离）：产出即拷（联机风味）；
+            // 未产出（本地单机风味——源码被藏/SDK 被摘）时下方的陈旧清扫会删掉旧 .bytes，
+            // 防止单机包经 HotUpdateDll 组带出上一轮的 TapTap DLL。
+            string tapSrc = Path.Combine(hotSrcDir, HotUpdateLoader.OptionalTapAssemblyName + ".dll");
+            bool tapProduced = File.Exists(tapSrc);
+            if (tapProduced)
+                CopyAsBytes(tapSrc, HotDllFolder, HotUpdateLoader.OptionalTapAssemblyName + ".dll.bytes");
+
+            // 陈旧清扫：HotUpdateDll 目录里凡不在本轮预期集的 .dll.bytes 一律删
+            //（单机风味删 Tide.TapTap.dll.bytes；退役/改名程序集残影同防）
+            var expected = new HashSet<string> { HotUpdateLoader.HotAssemblyName + ".dll.bytes" };
+            if (tapProduced) expected.Add(HotUpdateLoader.OptionalTapAssemblyName + ".dll.bytes");
+            foreach (string bytesFile in Directory.GetFiles(HotDllFolder, "*.dll.bytes"))
+            {
+                string fileName = Path.GetFileName(bytesFile);
+                if (expected.Contains(fileName)) continue;
+                AssetDatabase.DeleteAsset(HotDllFolder + "/" + fileName);
+                Debug.Log($"[热更编译] 清理陈旧热更 DLL：{fileName}（不在本轮产出集）");
+            }
 
             string aotSrcDir = Path.Combine(SettingsUtil.AssembliesPostIl2CppStripDir, target.ToString());
             foreach (string aotName in HotUpdateLoader.PatchAotAssemblies)

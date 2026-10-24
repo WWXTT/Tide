@@ -4,7 +4,6 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using CardCore;
-using CloudSave;
 using Cysharp.Threading.Tasks;
 using Tide.HotUpdate;
 
@@ -27,18 +26,6 @@ namespace SynergyUI
         private RectTransform _battleNode;
         private RectTransform _matchNode;
         private RectTransform[] _comboNodes = new RectTransform[3]; // 卡组/卡面/效果三组合界面
-
-        // 云存档入口/面板（2026-10-23 预制体化：视觉烘焙在 CloudSaveEntry/CloudSavePanel.prefab，
-        // 本屏只加载实例化+绑定；状态刷新只写文本/可点性）
-        private Button _cloudButton;
-        private TMP_Text _cloudStatusLabel;
-        private GameObject _cloudPanel; // 面板实例（打开时建、关闭即毁——TipPanel 同款）
-        private TMP_Text _cloudStatusLine;
-        private TMP_Text _cloudAccountLine;
-        private Button _cloudLoginButton; // 文案随登录态换「登录/退出登录」
-
-        private static GameObject _cloudEntryPrefab; // 进程级预制体句柄保活（同 TipPromptHost 口径）
-        private static GameObject _cloudPanelPrefab;
 
         protected override void Build()
         {
@@ -87,38 +74,23 @@ namespace SynergyUI
             var teachingLabel = _teachingNode != null ? FindUnder(_teachingNode, "label") : null;
             _teachingLabel = teachingLabel != null ? teachingLabel.GetComponentInChildren<TMP_Text>(true) : null;
 
-            // TapTap 登录徽章（2026-10-23 登录接入·预制体化）：右上角 TapLoginBadge.prefab 实例化；
-            // 编辑器/未配置时 Attach 内 IsSupported 闸直接不实例化（徽章缺席=正确态）。
-            TapLoginBadge.Attach(Root);
-
-            // 云存档入口（2026-10-23 接入）：右下角常驻（不受教学门禁——进度同步对新手同样有价值；
-            // 未启用平台/未配置凭证时置灰只读展示状态）。
-            BuildCloudEntry();
+            // TapTap 挂件（2026-10-24 预编译隔离）：登录徽章 + 云存档入口经桥装段挂接
+            //（TapBridge.Module 由 HotUpdateEntry.Start 扫域安装；本地单机风味无 Tide.TapTap
+            // 程序集=Module null，徽章与云存档入口整体缺席，主菜单只剩本地方案）。
+            TapBridge.Module?.OnMainMenuBuilt(this);
         }
 
         public override void OnEnter()
         {
             TutorialProgressManager.Instance.OnProgressChanged += RefreshTutorialGates;
             RefreshTutorialGates();
-            SynergyUI.Online.TapAccountService.Warmup(); // 静默续登（有缓存账号无感登录；编辑器/未配置=no-op）
-
-            CloudSyncService.OnStateChanged += RefreshCloudEntry;
-            CloudSyncService.OnRestoreSuggested += OnCloudRestoreSuggested;
-            CloudSyncService.OnRestored += OnCloudRestored;
-            CloudSave.TapAccountService.OnAccountChanged += RefreshCloudEntry;
-            RefreshCloudEntry();
-            if (CloudSyncService.PendingRestorePrompt) OnCloudRestoreSuggested(); // 启动链询问时主菜单未就绪——进场补问
+            TapBridge.Module?.OnMainMenuEnter(this); // 静默续登 + 云存档事件订阅（单机风味 no-op）
         }
 
         public override void OnExit()
         {
             TutorialProgressManager.Instance.OnProgressChanged -= RefreshTutorialGates;
-
-            CloudSyncService.OnStateChanged -= RefreshCloudEntry;
-            CloudSyncService.OnRestoreSuggested -= OnCloudRestoreSuggested;
-            CloudSyncService.OnRestored -= OnCloudRestored;
-            CloudSave.TapAccountService.OnAccountChanged -= RefreshCloudEntry;
-            CloseCloudPanel();
+            TapBridge.Module?.OnMainMenuExit(this); // 云存档退订 + 关面板（单机风味 no-op）
         }
 
         /// <summary>教学↔本地对战换装（2026-10-19 三课制定案）：教学未整体完成=btn-teaching 在、
@@ -126,8 +98,8 @@ namespace SynergyUI
         /// 卡组；考验三未胜不换装=依旧不给用）。btn-match 不外露（与 btn-battle 同目的地）。
         /// 三个组合界面按钮（2026-10-21 提前）：教学二（advanced）完成即显示——供自组卡组备战，
         /// 此前隐藏。btn-teaching 文案按进度显示：基础教学一/二/三；教学三内容尚未完成——按钮
-        /// 置灰不可进。</summary>
-        private void RefreshTutorialGates()
+        /// 置灰不可进。public=云存档控制器跨程序集（Tide.TapTap）重订调用。</summary>
+        public void RefreshTutorialGates()
         {
             var p = TutorialProgressManager.Instance;
             bool done = p.IsTutorialDone;
@@ -184,165 +156,16 @@ namespace SynergyUI
             SwallowToBattle();
         }
 
-        // ======================================== 云存档（2026-10-23 接入） ========================================
+        // ======================================== 云存档还原回调（UI 实现住 Tide.TapTap 的 CloudSaveMenuController） ========================================
 
-        /// <summary>右下角云存档入口：CloudSaveEntry.prefab 实例化+绑定（视觉/锚点烘焙在预制体）。
-        /// 未启用平台/未配置凭证时置灰——状态文本仍可见（编辑器冒烟=「编辑器/PC 未启用」态）。</summary>
-        private void BuildCloudEntry()
-        {
-            if (_cloudEntryPrefab == null)
-                _cloudEntryPrefab = HotUpdateAssets.Load<GameObject>("CloudSaveEntry", UiKit.PrefabPath("CloudSaveEntry"));
-            if (_cloudEntryPrefab == null)
-            {
-                Debug.LogError("[MainMenu] CloudSaveEntry.prefab 加载失败——云存档入口不显示"
-                               + "（检查 Assets/Art/Prefab/CloudSaveEntry.prefab 与 Yoo UI 组收集）");
-                return;
-            }
-            var entry = UnityEngine.Object.Instantiate(_cloudEntryPrefab, Root, false);
-            entry.name = "cloud-entry"; // 锚点/尺寸烘焙在预制体根（右下 -16,12）
-            var rt = (RectTransform)entry.transform;
-            var btnNode = UiKit.FindDeep(rt, "btn-cloud");
-            _cloudButton = btnNode != null ? btnNode.GetComponentInChildren<Button>(true) : null;
-            if (_cloudButton != null) _cloudButton.onClick.AddListener(OpenCloudPanel);
-            var statusNode = UiKit.FindDeep(rt, "lbl-status");
-            _cloudStatusLabel = statusNode != null ? statusNode.GetComponentInChildren<TMP_Text>(true) : null;
-        }
-
-        /// <summary>入口状态行+可点性刷新（OnStateChanged/OnAccountChanged/进场触发；面板开着同步刷）。</summary>
-        private void RefreshCloudEntry()
-        {
-            if (_cloudStatusLabel != null) _cloudStatusLabel.text = CloudSyncService.StatusText;
-            if (_cloudButton != null)
-                _cloudButton.interactable = TapSdkConfig.CloudSaveSupported && TapSdkConfig.IsCredentialsReady;
-            if (_cloudPanel != null) RefreshCloudPanel();
-        }
-
-        /// <summary>云存档面板：CloudSavePanel.prefab 实例化+接线（打开时建、关闭即毁）。
-        /// 状态/账号行 + 上传/恢复/登录/关闭。</summary>
-        private void OpenCloudPanel()
-        {
-            CloseCloudPanel();
-            CloudSyncService.EnsureHost(); // 首次交互保底宿主（自动上传轮询常驻）
-            if (_cloudPanelPrefab == null)
-                _cloudPanelPrefab = HotUpdateAssets.Load<GameObject>("CloudSavePanel", UiKit.PrefabPath("CloudSavePanel"));
-            if (_cloudPanelPrefab == null)
-            {
-                Debug.LogError("[MainMenu] CloudSavePanel.prefab 加载失败——云存档面板打不开"
-                               + "（检查 Assets/Art/Prefab/CloudSavePanel.prefab 与 Yoo UI 组收集）");
-                return;
-            }
-            var panel = UnityEngine.Object.Instantiate(_cloudPanelPrefab, Root, false);
-            panel.name = "cloud-panel";
-            _cloudPanel = panel;
-            var rt = (RectTransform)panel.transform;
-            var statusNode = UiKit.FindDeep(rt, "lbl-status");
-            _cloudStatusLine = statusNode != null ? statusNode.GetComponentInChildren<TMP_Text>(true) : null;
-            var accountNode = UiKit.FindDeep(rt, "lbl-account");
-            _cloudAccountLine = accountNode != null ? accountNode.GetComponentInChildren<TMP_Text>(true) : null;
-            BindPanelButton(rt, "btn-upload", () => CloudSyncService.UploadAsync("manual").Forget());
-            BindPanelButton(rt, "btn-restore", ConfirmCloudRestore);
-            _cloudLoginButton = BindPanelButton(rt, "btn-login", ToggleCloudLogin);
-            BindPanelButton(rt, "btn-close", CloseCloudPanel);
-            RefreshCloudPanel();
-        }
-
-        /// <summary>面板按钮绑定：找节点→清监听→挂回调；缺节点 LogError（不静默）。</summary>
-        private Button BindPanelButton(RectTransform panel, string name, Action onClick)
-        {
-            var node = UiKit.FindDeep(panel, name);
-            var btn = node != null ? node.GetComponentInChildren<Button>(true) : null;
-            if (btn == null)
-            {
-                Debug.LogError($"[MainMenu] 云存档面板缺按钮：{name}（检查 CloudSavePanel.prefab）");
-                return null;
-            }
-            btn.onClick.RemoveAllListeners();
-            btn.onClick.AddListener(() => onClick());
-            return btn;
-        }
-
-        private void RefreshCloudPanel()
-        {
-            if (_cloudPanel == null) return;
-            if (_cloudStatusLine != null) _cloudStatusLine.text = CloudSyncService.StatusText;
-            if (_cloudAccountLine != null) _cloudAccountLine.text = CloudAccountText();
-            if (_cloudLoginButton != null)
-            {
-                var lbl = _cloudLoginButton.GetComponentInChildren<TMP_Text>(true);
-                if (lbl != null) lbl.text = CloudSave.TapAccountService.LoggedIn ? "退出登录" : "登录";
-            }
-        }
-
-        private void CloseCloudPanel()
-        {
-            if (_cloudPanel != null)
-            {
-                UnityEngine.Object.Destroy(_cloudPanel);
-                _cloudPanel = null;
-            }
-            _cloudStatusLine = null;
-            _cloudAccountLine = null;
-            _cloudLoginButton = null;
-        }
-
-        private static string CloudAccountText()
-        {
-            var account = CloudSave.TapAccountService.Current;
-            if (account == null) return "未登录——云存档需要 TapTap 账号（登录不影响本地游玩）";
-            string openId = account.openId ?? "";
-            return $"已登录（openId {(openId.Length > 8 ? openId.Substring(0, 8) + "…" : openId)}）";
-        }
-
-        private void ToggleCloudLogin()
-        {
-            if (CloudSave.TapAccountService.LoggedIn)
-            {
-                CloudSave.TapAccountService.Logout();
-            }
-            else
-            {
-                CloudSave.TapAccountService.LoginFromUiAsync().Forget();
-            }
-            RefreshCloudEntry();
-        }
-
-        /// <summary>手动「从云端恢复」：二次确认后执行（覆盖本地进度属破坏性操作）。</summary>
-        private void ConfirmCloudRestore()
-        {
-            if (!CloudSyncService.HasCloudArchive)
-            {
-                if (_cloudStatusLine != null) _cloudStatusLine.text = "云端暂无存档——先「上传到云端」";
-                return;
-            }
-            UiKit.ConfirmBox(Root, "从云端恢复",
-                "将用云端存档覆盖本机进度（教程/挑战/元素解锁/卡组与自建卡）。确认恢复？",
-                "覆盖恢复", () => CloudSyncService.RestoreFromCloudAsync().Forget(),
-                "取消", null, danger: true);
-        }
-
-        /// <summary>启动同步发现云端较新（启动时主菜单未就绪则进场补问）——询问是否恢复。</summary>
-        private void OnCloudRestoreSuggested(long cloudSavedAt = 0)
-        {
-            UiKit.ConfirmBox(Root, "云端有更新的存档",
-                $"云端存档（{FormatCloudTime(CloudSyncService.SuggestedCloudSavedAt)}）比本机新。"
-                + "是否恢复到本机？本机当前进度将被覆盖。",
-                "恢复云端", () => CloudSyncService.AnswerRestorePrompt(true),
-                "暂不恢复", () => CloudSyncService.AnswerRestorePrompt(false), danger: true);
-        }
-
-        /// <summary>云存档已还原：教学管理器单例已重建——重订事件+刷新门槛，并轻提示。</summary>
-        private void OnCloudRestored()
+        /// <summary>云存档还原后重订教学事件（还原会重建 TutorialProgressManager 单例——旧实例
+        /// 订阅随实例消亡，须向新实例补订并刷新门槛；云存档控制器在 OnRestored 时跨程序集调用）。</summary>
+        public void RebindTutorialProgressEvents()
         {
             TutorialProgressManager.Instance.OnProgressChanged -= RefreshTutorialGates; // 新实例上 no-op 兜底
             TutorialProgressManager.Instance.OnProgressChanged += RefreshTutorialGates;
             RefreshTutorialGates();
-            CloseCloudPanel();
-            UiKit.ConfirmBox(Root, "云存档", "云端存档已恢复，进度已刷新。", "好的", null, "关闭", null, danger: false);
         }
-
-        private static string FormatCloudTime(long unixSeconds)
-            => unixSeconds <= 0 ? "时间未知"
-                : DateTimeOffset.FromUnixTimeSeconds(unixSeconds).ToLocalTime().ToString("MM-dd HH:mm");
 
         private void SwallowToBattle()
             => BattleStageDirector.SwallowToBattleAsync(() => Manager.Show<BattleScreen>()).Forget();

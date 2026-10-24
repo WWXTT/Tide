@@ -2089,6 +2089,21 @@ namespace CardCore
             AtomicEffectType.EngineCurseOnDraw,
             AtomicEffectType.EngineBlessingOnDraw,
             AtomicEffectType.EngineUnity, // 团结（2026-10-20 效果序位换轴·复用其表行 83c150f2）
+
+            // 退役枚举墓碑位补登（2026-10-24，真机 E2E 首跑发现 VerifyHandlerCoverage 漏警告）：
+            // 以下皆为「handler+表行同批删除」的历史退役原子（墓碑注释见 AtomicEffects.cs 各枚举位），
+            // 枚举值因 AEI_Type 按 int 位序序列化不可删而留洞；全仓卡牌/教学/效果表零引用。
+            AtomicEffectType.ScryCards,              // 刺探（2026-10-08 并入占卜 LookAtTopCards）
+            AtomicEffectType.GrantCannotBeTargeted,  // 扰魔（2026-10-13 整体退役）
+            AtomicEffectType.GrantPoisonSting,       // 毒刺（2026-10-15 退役；毒素指示物=AddToxin）
+            AtomicEffectType.AdditionalEnergy,       // 额外元素（2026-10-11 退役；接替=GainAnyElement）
+            AtomicEffectType.Annihilate,             // 湮灭（2026-10-13 退役；DeathCause.Annihilate 引擎层仍活）
+            AtomicEffectType.Mine,                   // 采掘（2026-10-11 资源重做退役）
+            AtomicEffectType.Abandon,                // 摒弃（2026-10-09 并入牺牲 Sacrifice）
+            AtomicEffectType.GrantIceCrystal,        // 冰晶（2026-10-15 退役；冻结指示物=Freeze）
+            AtomicEffectType.GrantNightmare,         // 梦魇（2026-10-13 退役；沉睡指示物=Sleep）
+            AtomicEffectType.GrantPhotosynthesis,    // 光合作用（2026-10-23 退役；表行 42e883b2 改挂 GainAnyElement）
+            AtomicEffectType.SituationGate,          // 有限分支门槛行身份枚举（2026-10-23 入表定案：仅表行身份，永不挂处理器）
         };
 
         private static void VerifyHandlerCoverage()

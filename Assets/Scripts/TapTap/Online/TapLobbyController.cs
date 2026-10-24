@@ -34,7 +34,7 @@ namespace SynergyUI.Online
         public static async UniTask<string> EnsureLoginAndConnectAsync()
         {
             if (!TapOnlineConfig.IsConfigured)
-                return "TapTap 联机未配置：请在 HotUpdate/Online/TapTap/TapOnlineConfig.cs 填入开发者后台 ClientId/ClientToken";
+                return "TapTap 联机未配置：请在 Scripts/TapTap/Online/TapOnlineConfig.cs 填入开发者后台 ClientId/ClientToken";
             if (IsServiceConnected) return null;
             if (_busy) return "正在登录 TapTap，请稍候…";
             _busy = true;

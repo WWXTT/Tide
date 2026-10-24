@@ -19,6 +19,7 @@ MonoBehaviour:
   hotUpdateAssemblyDefinitions: []
   hotUpdateAssemblies:
   - Tide.HotUpdate
+  - Tide.TapTap
   preserveHotUpdateAssemblies: []
   hotUpdateDllCompileOutputRootDir: HybridCLRData/HotUpdateDlls
   externalHotUpdateAssembliyDirs: []
@@ -27,7 +28,6 @@ MonoBehaviour:
   - mscorlib
   - System
   - System.Core
-  - netstandard
   outputLinkFile: Scripts/HotUpdate/link.xml
   outputAOTGenericReferenceFile: Scripts/HotUpdate/AOTGenericReferences.cs
   maxGenericReferenceIteration: 10

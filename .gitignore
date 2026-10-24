@@ -74,3 +74,7 @@ __pycache__/
 # SD-UI-Kit：生成的候选图不入库，脚本与 manifests 仍入库
 /SD-UI-Kit/output/
 /SD-UI-Kit/__pycache__/
+
+
+# ---------------- TapTap 预编译隔离（2026-10-24）：单机风味期间源码目录隐藏处 ----------------
+/Assets/Scripts/TapTap~/

@@ -6,9 +6,8 @@ using System.Net.Sockets;
 using CardCore;
 using CardCore.Network;
 using Cysharp.Threading.Tasks;
-using SynergyUI.Online;
 using TMPro;
-using TapSDK.OnlineBattle;
+using Tide.HotUpdate;
 using UnityEngine;
 
 namespace SynergyUI
@@ -39,11 +38,10 @@ namespace SynergyUI
         private TMP_Text _statusLabel, _addressLabel, _deckPickLabel;
         private RectTransform _addAiNode;
 
-        // TapTap 联机（2026-10-23）：登录/建房/房间列表浏览加入——局域网两面板原样保留
-        private TMP_Text _tapStatusLabel;
-        private RectTransform _tapRoomListNode;
-        private List<RoomBasicInfo> _tapRooms;
-        private bool _tapBusy;
+        // TapTap 联机段（2026-10-24 预编译隔离迁 Tide.TapTap 程序集）：段对象与面板 RectTransform
+        // 经桥装缝接回（RegisterTapPanel/换页助手）；本地单机风味 Module=null——无 TapTap 入口钮，
+        // 本屏只剩局域网建房/加入两路径。
+        private ITapLobbySection _tapSection;
 
         private NetGameClient _client;
         private NetSessionServer _server; // 房主侧（自建自管，OnExit/离开时停机）
@@ -72,7 +70,10 @@ namespace SynergyUI
             var entryBtns = UiKit.Row("row-entry-btns", _panelEntry);
             UiKit.Button("btn-host", entryBtns, "创建房间（房主）", null, UiStyle.BtnPrimary);
             UiKit.Button("btn-join", entryBtns, "加入房间（客人）");
-            UiKit.Button("btn-taptap", entryBtns, "TapTap 联机（房间列表）");
+            // TapTap 联机入口钮（插在加入与返回之间，按钮序与原版一致）；本地单机风味桥装段缺席——
+            // 无此钮，面板集里也无 panel-taptap。
+            _tapSection = TapBridge.Module?.CreateLobbySection(this);
+            _tapSection?.Build(Root, entryBtns);
             UiKit.Button("btn-lobby-back", entryBtns, "返回主菜单");
 
             // ---- 房主面板 ----
@@ -94,16 +95,6 @@ namespace SynergyUI
             UiKit.Button("btn-join-connect", _panelJoin, "连接", ConnectGuest, UiStyle.BtnPrimary);
             UiKit.Button("btn-join-back", _panelJoin, "返回");
 
-            // ---- TapTap 联机面板（2026-10-23：进面板自动登录；建房=房主，房间列表=客人加入） ----
-            _panelTap = UiKit.Column("panel-taptap", Root);
-            _tapStatusLabel = UiKit.Label("lbl-tap-status", _panelTap, "进入即自动登录 TapTap…", 13, wrap: true);
-            var tapBtns = UiKit.Row("row-tap-btns", _panelTap);
-            UiKit.Button("btn-tap-create", tapBtns, "创建房间（房主）", null, UiStyle.BtnPrimary);
-            UiKit.Button("btn-tap-refresh", tapBtns, "刷新房间列表");
-            UiKit.Button("btn-tap-back", tapBtns, "返回");
-            UiKit.Label("lbl-tap-rooms", _panelTap, "公开房间（点条目加入；空=暂无，可自己创建）：", 13);
-            _tapRoomListNode = UiKit.ScrollColumn("list-tap-rooms", _panelTap).Content;
-
             // ---- 房间面板 ----
             _panelRoom = UiKit.Column("panel-room", Root);
             _addressLabel = UiKit.Label("lbl-address", _panelRoom, "", 13, wrap: true);
@@ -122,10 +113,6 @@ namespace SynergyUI
             BindButton("btn-host-back", () => ShowPanel(_panelEntry));
             BindButton("btn-join", () => ShowPanel(_panelJoin));
             BindButton("btn-join-back", () => ShowPanel(_panelEntry));
-            BindButton("btn-taptap", () => { ShowPanel(_panelTap); RefreshTapRooms().Forget(); });
-            BindButton("btn-tap-back", () => ShowPanel(_panelEntry));
-            BindButton("btn-tap-create", () => StartTapHost().Forget());
-            BindButton("btn-tap-refresh", () => RefreshTapRooms().Forget());
         }
 
         public override void OnEnter()
@@ -164,17 +151,9 @@ namespace SynergyUI
                 return;
             }
 
-            _isHost = true;
-            _server = server;
-            ShowPanel(_panelRoom);
-            if (_addAiNode != null) _addAiNode.gameObject.SetActive(true);
-            if (_addressLabel != null)
-                _addressLabel.text =
-                    $"本机地址（告诉对手）：{string.Join(" / ", LocalIpv4Addresses().Select(ip => $"{ip}:{server.Port}"))}";
-            SetStatus("房间已创建，等待对手加入…");
-
-            // 房主回环入座（Connect 同步口在后台线程跑，避免 UI 卡帧）
-            ConnectAsync("127.0.0.1", server.Port, wantSeat: 0).Forget();
+            BeginHostSession(server,
+                $"本机地址（告诉对手）：{string.Join(" / ", LocalIpv4Addresses().Select(ip => $"{ip}:{server.Port}"))}");
+            ConnectLoopback(server.Port); // 房主回环入座（后台线程连接，避免 UI 卡帧）
         }
 
         /// <summary>客人加入：直连房主 IP:端口（任意空位）。</summary>
@@ -187,10 +166,7 @@ namespace SynergyUI
                 return;
             }
             int port = ParsePort(_port2Input, DefaultPort);
-            _isHost = false;
-            ShowPanel(_panelRoom);
-            if (_addressLabel != null) _addressLabel.text = $"目标：{ip}:{port}";
-            if (_addAiNode != null) _addAiNode.gameObject.SetActive(false);
+            BeginGuestSession($"目标：{ip}:{port}");
             ConnectAsync(ip, port, wantSeat: -1).Forget();
         }
 
@@ -224,8 +200,8 @@ namespace SynergyUI
         }
 
         /// <summary>客户端就位：接管连接 → 发协议 JoinRoom（首条消息——分座由 NetRoom 定）。
-        /// TCP 直连与 TapTap 传输（已就绪再构造）两路共用。</summary>
-        private void AdoptClientAndJoin(NetGameClient client, int wantSeat, string nickname)
+        /// TCP 直连与 TapTap 传输（已就绪再构造）两路共用。public=Tide.TapTap 联机段跨程序集同路调用。</summary>
+        public void AdoptClientAndJoin(NetGameClient client, int wantSeat, string nickname)
         {
             _client = client;
             WireClientEvents(client);
@@ -239,134 +215,49 @@ namespace SynergyUI
             SetStatus("已连接，等待进房…");
         }
 
-        /// <summary>昵称解析：输入框 → TapTap 登录名 → 随机（局域网/TapTap 两路共用）。</summary>
-        private string ResolveNickname()
+        /// <summary>昵称解析：输入框 → TapTap 登录名（桥装段兜底） → 随机（局域网/TapTap 两路共用）。
+        /// public=Tide.TapTap 联机段跨程序集同路调用。</summary>
+        public string ResolveNickname()
         {
             var nickname = _nickInput != null ? _nickInput.text.Trim() : "";
-            if (string.IsNullOrEmpty(nickname)) nickname = TapLobbyController.LoginName;
+            var fallback = _tapSection?.FallbackNickname();
+            if (string.IsNullOrEmpty(nickname) && !string.IsNullOrEmpty(fallback)) nickname = fallback;
             if (string.IsNullOrEmpty(nickname)) nickname = $"玩家{UnityEngine.Random.Range(1000, 9999)}";
             _lastNickname = nickname;
             return nickname;
         }
 
-        // ============================================================ TapTap 联机（2026-10-23） ============================================================
+        // ============================================================ TapTap 桥装段与跨程序集会话助手（Tide.TapTap 的 TapLobbySection 经此驱动本屏；跨程序集须 public） ============================================================
 
-        /// <summary>TapTap 建房（房主）：登录 → CreateRoom → 组合传输（TCP 回环 + TapTap 客人腿）
-        /// → 本进程 NetSessionServer（权威）→ 回环入座椅位 0（与局域网开房同一路径）。</summary>
-        private async UniTaskVoid StartTapHost()
+        /// <summary>TapTap 面板 RectTransform 登记（桥装段 Build 时交回——纳入 ShowPanel 换页集）。</summary>
+        public void RegisterTapPanel(RectTransform panel) => _panelTap = panel;
+
+        /// <summary>房主会话就位（LAN/TapTap 建房共用尾段）：登记服务器→房间面板→加 AI 可用→地址展示。</summary>
+        public void BeginHostSession(NetSessionServer server, string addressText)
         {
-            if (_tapBusy) { SetTapStatus("处理中，请稍候…"); return; }
-            _tapBusy = true;
-            try
-            {
-                SetTapStatus("TapTap 登录中…");
-                var err = await TapLobbyController.EnsureLoginAndConnectAsync();
-                if (err != null) { SetTapStatus(err); return; }
-
-                var nickname = ResolveNickname();
-                var room = await TapLobbyController.CreateRoomAsync(
-                    string.IsNullOrEmpty(nickname) ? "潮汐对战房" : $"{nickname}的房间");
-                if (room == null) { SetTapStatus("创建 TapTap 房间失败（详见 Console）"); return; }
-
-                // 组合传输：TCP 腿=127.0.0.1 回环（房主自己 + AI 填位，现有路径零改动）；
-                // TapTap 腿=远端客人（定向消息，快照按座位过滤后送达）
-                var server = new NetSessionServer("taptap", msg => Debug.Log(msg),
-                    host: new CompositeTransportHost(new NetTcpHost(), new TapBattleTransportHost()));
-                try { server.Start(0); }
-                catch (Exception ex)
-                {
-                    SetTapStatus($"本地会话服务器启动失败：{ex.Message}");
-                    await TapLobbyController.LeaveAndDisconnectAsync();
-                    return;
-                }
-
-                _isHost = true;
-                _server = server;
-                ShowPanel(_panelRoom);
-                if (_addAiNode != null) _addAiNode.gameObject.SetActive(true);
-                if (_addressLabel != null)
-                    _addressLabel.text = $"TapTap 房间「{room.name}」已创建——对手在「TapTap 联机」的房间列表点选加入";
-                SetStatus("房间已创建，等待对手加入…");
-
-                // 房主回环入座（Connect 同步口在后台线程跑，避免 UI 卡帧）
-                ConnectAsync("127.0.0.1", server.Port, wantSeat: 0).Forget();
-            }
-            finally { _tapBusy = false; }
+            _isHost = true;
+            _server = server;
+            ShowPanel(_panelRoom);
+            if (_addAiNode != null) _addAiNode.gameObject.SetActive(true);
+            if (_addressLabel != null) _addressLabel.text = addressText;
+            SetStatus("房间已创建，等待对手加入…");
         }
 
-        /// <summary>刷新 TapTap 公开房间列表（RoomType 过滤本游戏房间）。</summary>
-        private async UniTaskVoid RefreshTapRooms()
+        /// <summary>客人会话就位（LAN 直连/TapTap 加入共用尾段）：房间面板→地址展示→加 AI 收起。</summary>
+        public void BeginGuestSession(string addressText)
         {
-            if (_tapBusy) { SetTapStatus("处理中，请稍候…"); return; }
-            _tapBusy = true;
-            try
-            {
-                SetTapStatus("登录并拉取房间列表…");
-                var err = await TapLobbyController.EnsureLoginAndConnectAsync();
-                if (err != null) { SetTapStatus(err); return; }
-                var rooms = await TapLobbyController.GetRoomListAsync();
-                if (rooms == null) { SetTapStatus("拉取房间列表失败（详见 Console）"); return; }
-                _tapRooms = rooms;
-                RebuildTapRoomList();
-                SetTapStatus(rooms.Count == 0
-                    ? "暂无公开房间——可点「创建房间」当房主"
-                    : $"共 {rooms.Count} 个房间（点条目加入；满员房不显示）");
-            }
-            finally { _tapBusy = false; }
+            _isHost = false;
+            ShowPanel(_panelRoom);
+            if (_addressLabel != null) _addressLabel.text = addressText;
+            if (_addAiNode != null) _addAiNode.gameObject.SetActive(false);
         }
 
-        /// <summary>加入指定 TapTap 房间（客人）：JoinRoom 成功 → TapClientTransport（对端=房主）
-        /// → 协议 JoinRoom 进房分座。</summary>
-        private async UniTaskVoid JoinTapRoom(RoomBasicInfo room)
-        {
-            if (_tapBusy || room == null || string.IsNullOrEmpty(room.id)) return;
-            _tapBusy = true;
-            try
-            {
-                SetTapStatus($"加入「{room.name}」…");
-                var err = await TapLobbyController.EnsureLoginAndConnectAsync();
-                if (err != null) { SetTapStatus(err); return; }
-                var joined = await TapLobbyController.JoinRoomAsync(room.id);
-                if (joined == null) { SetTapStatus("加入失败：房间可能已满或已开局"); return; }
-                if (string.IsNullOrEmpty(joined.ownerId)) { SetTapStatus("房间数据异常（无房主）"); return; }
+        /// <summary>房主回环入座（127.0.0.1，后台线程连接避免 UI 卡帧；TapTap 建房同路）。</summary>
+        public void ConnectLoopback(int port) => ConnectAsync("127.0.0.1", port, wantSeat: 0).Forget();
 
-                _isHost = false;
-                var transport = new TapClientTransport(joined.ownerId, TapLobbyController.SelfPlayerId);
-                var client = new NetGameClient();
-                client.Connect(transport); // 传输就绪（JoinRoom 已成功）——后续统一走协议 JoinRoom
-                ShowPanel(_panelRoom);
-                if (_addressLabel != null) _addressLabel.text = $"TapTap 房间「{joined.name}」";
-                if (_addAiNode != null) _addAiNode.gameObject.SetActive(false);
-                AdoptClientAndJoin(client, wantSeat: -1, ResolveNickname());
-            }
-            finally { _tapBusy = false; }
-        }
-
-        /// <summary>重建房间列表行（刷新时整组重排——条目≤20 无虚拟化必要；满员房跳过）。</summary>
-        private void RebuildTapRoomList()
-        {
-            if (_tapRoomListNode == null) return;
-            for (int i = _tapRoomListNode.childCount - 1; i >= 0; i--)
-                UnityEngine.Object.Destroy(_tapRoomListNode.GetChild(i).gameObject);
-            var rooms = _tapRooms ?? new List<RoomBasicInfo>();
-            int row = 0;
-            foreach (var r in rooms)
-            {
-                if (r == null || string.IsNullOrEmpty(r.id)) continue;
-                if (r.maxPlayerCount > 0 && r.playerCount >= r.maxPlayerCount) continue; // 满员
-                var captured = r;
-                UiKit.Button($"btn-tap-room-{row}", _tapRoomListNode,
-                    $"{captured.name}（{captured.playerCount}/{captured.maxPlayerCount}）",
-                    () => JoinTapRoom(captured).Forget());
-                row++;
-            }
-        }
-
-        private void SetTapStatus(string text)
-        {
-            if (_tapStatusLabel != null) _tapStatusLabel.text = text;
-            Debug.Log($"[Lobby·TapTap] {text}");
-        }
+        public void ShowEntryPanel() => ShowPanel(_panelEntry);
+        public void ShowRoomPanel() => ShowPanel(_panelRoom);
+        public void ShowTapPanel() => ShowPanel(_panelTap);
 
         /// <summary>下行事件接线（Pump 在主线程分派——回调里直接碰 UI 安全）。</summary>
         private void WireClientEvents(NetGameClient client)
@@ -557,11 +448,7 @@ namespace SynergyUI
             _aiFiller?.Stop();
             _aiFiller = null;
             StopHostServer();
-            // TapTap：退房+断服务（对局移交后不走这里——战斗屏接管期间保持连接）
-            if (TapLobbyController.IsServiceConnected || _tapBusy)
-                TapLobbyController.LeaveAndDisconnectAsync().Forget();
-            _tapRooms = null;
-            _tapBusy = false;
+            _tapSection?.Teardown(); // TapTap 段收口：退房+断对战服务（对局移交后不走这里；单机风味无段=no-op）
             _deckSubmitted = false;
             _roomState = null;
         }
@@ -585,7 +472,8 @@ namespace SynergyUI
             if (_panelRoom != null) _panelRoom.gameObject.SetActive(ReferenceEquals(panel, _panelRoom));
         }
 
-        private void SetStatus(string text)
+        /// <summary>状态行刷新（Tide.TapTap 联机段共用）。public=跨程序集同路调用。</summary>
+        public void SetStatus(string text)
         {
             if (_statusLabel != null) _statusLabel.text = text;
             Debug.Log($"[Lobby] {text}");

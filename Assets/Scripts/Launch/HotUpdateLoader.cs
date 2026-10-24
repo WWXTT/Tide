@@ -22,10 +22,22 @@ namespace Tide.Launch
         /// <summary>
         /// 需要补 AOT 泛型元数据的程序集列表。
         /// 必须与编辑器工具写入 HybridCLRSettings.patchAOTAssemblies 的列表一致（HotUpdateSetupTool 同步读取此处）。
+        /// 2026-10-24 移除 netstandard：工程 API 档位=.NET Framework，il2cpp 裁剪产物里根本没有
+        /// netstandard 门面 dll（拷贝步骤 File.Exists 恒 miss，真机端只落一条 YooAsset 内部 LogError
+        /// + 兜底 Warn）——四件套原本照 HybridCLR 文档（.NET Standard 档示例）抄来，本档位补它无意义。
+        /// 若未来切 .NET Standard 2.1 档再把它加回（届时裁剪产物会自动产出）。
         /// </summary>
-        public static readonly string[] PatchAotAssemblies = { "mscorlib", "System", "System.Core", "netstandard" };
+        public static readonly string[] PatchAotAssemblies = { "mscorlib", "System", "System.Core" };
 
         public const string HotAssemblyName = "Tide.HotUpdate";
+
+        /// <summary>
+        /// 可选热更程序集（2026-10-24 TapTap 预编译隔离）：联机（TapTap）风味随包打进、
+        /// 在主程序集之后加载（Tide.TapTap 引用 Tide.HotUpdate，先装依赖再装本体；只装域——
+        /// HotUpdateEntry 里 TapBridge 扫域发现 TapModule）。本地单机风味不打包=缺席，
+        /// IsLocationValid 探测后静默跳过——联机/云存档/登录功能整体退位，玩法不受影响。
+        /// </summary>
+        public const string OptionalTapAssemblyName = "Tide.TapTap";
 
         // AOT 泛型预实例化兜底（2026-10-18 真机实录）：热更侧 BattleScreen.ShowTipPromptAsync 为
         // async UniTask<bool?>，HybridCLR 泛型分析器对 AsyncUniTaskMethodBuilder<Nullable<bool>> 漏扫
@@ -48,6 +60,9 @@ namespace Tide.Launch
         /// <summary>资源寻址地址（.dll.bytes 文件经 AddressByFileName 规则保留 .dll 段）</summary>
         public const string HotDllLocation = "Tide.HotUpdate.dll";
 
+        /// <summary>可选热更程序集地址（Tide.TapTap.dll.bytes，同上寻址规则）。</summary>
+        public const string TapDllLocation = "Tide.TapTap.dll";
+
 #if UNITY_EDITOR
         public static bool InvokeEditorEntry()
         {
@@ -66,6 +81,14 @@ namespace Tide.Launch
             // 1. AOT 泛型补充：缺失不致命（只影响未实例化过的泛型组合），逐个尝试
             foreach (string aotName in PatchAotAssemblies)
             {
+                // 前置静默探测（2026-10-24）：地址不在包内直接跳过——IsLocationValid 不落日志，
+                // 直接 LoadAssetAsync 会对无效地址打内部 LogError（同 HotUpdateAssets.LoadViaYoo 口径，
+                // 防热更/4 拷贝空窗期等缺件场景再产噪音）
+                if (!package.IsLocationValid(aotName + ".dll"))
+                {
+                    PatchConsole.Warn($"AOT 补充 {aotName} 未入包，跳过（迁移大量泛型代码前务必补齐）");
+                    continue;
+                }
                 AssetHandle aotHandle = package.LoadAssetAsync<TextAsset>(aotName + ".dll");
                 while (!aotHandle.IsDone)
                     await UniTask.Yield();
@@ -92,6 +115,30 @@ namespace Tide.Launch
             }
             Assembly hotAssembly = Assembly.Load(((TextAsset)dllHandle.AssetObject).bytes);
             dllHandle.Dispose();
+
+            // 2.5 可选热更程序集（Tide.TapTap）：联机风味加载（供 TapBridge 扫域安装），
+            // 单机风味不打包=缺席静默跳过。地址探测用 IsLocationValid（防无效地址内部 LogError）
+            if (package.IsLocationValid(TapDllLocation))
+            {
+                AssetHandle tapHandle = package.LoadAssetAsync<TextAsset>(TapDllLocation);
+                while (!tapHandle.IsDone)
+                    await UniTask.Yield();
+                if (tapHandle.Status == EOperationStatus.Succeeded)
+                {
+                    Assembly.Load(((TextAsset)tapHandle.AssetObject).bytes);
+                    PatchConsole.Info("可选热更程序集 Tide.TapTap 已加载（TapTap 联机风味）");
+                }
+                else
+                {
+                    PatchConsole.Warn("Tide.TapTap.dll 在包内但加载失败——联机/云存档将缺席");
+                }
+                tapHandle.Dispose();
+            }
+            else
+            {
+                PatchConsole.Info("Tide.TapTap 未打包（本地单机风味）——TapTap 登录/云存档/联机面板缺席");
+            }
+
             return InvokeEntry(hotAssembly);
         }
 #endif

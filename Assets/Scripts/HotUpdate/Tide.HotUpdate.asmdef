@@ -8,11 +8,7 @@
         "YooAsset",
         "UniTask",
         "UnityEngine.UI",
-        "Unity.TextMeshPro",
-        "TapSDK.Core.Runtime",
-        "TapSDK.Login.Runtime",
-        "TapSDK.CloudSave.Runtime",
-        "TapSDK.OnlineBattle.Runtime"
+        "Unity.TextMeshPro"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

@@ -68,6 +68,9 @@ namespace SynergyUI
 
             if (_manager == null || _manager.Current == null)
             {
+                // 同意弹窗在途（域重载/重编译再使能路径）：不重建不旁路——主菜单必须等同意裁决
+                if (PrivacyConsentDialog.IsOpen) return;
+
                 // 域重载/重编译防护：热重载会丢 _manager 引用但孤儿屏实例仍在根下
                 // （根下只可能有运行时屏实例，无烘焙内容）——重建前清一次再回主菜单。
                 var rootRect = (RectTransform)transform;
@@ -75,7 +78,21 @@ namespace SynergyUI
                     Destroy(rootRect.GetChild(i).gameObject);
 
                 _manager = new UIManager(rootRect);
-                _manager.Show<MainMenuScreen>();
+                if (PrivacyConsent.IsGranted)
+                {
+                    _manager.Show<MainMenuScreen>();
+                }
+                else
+                {
+                    // 隐私同意闸（2026-10-24 TapTap 上架）：任何功能界面之前强制弹窗。
+                    // 同意→Grant+补发 TapTap 模块初始化（HotUpdateEntry 闸的延后段）+进主菜单；
+                    // 拒绝→退出应用。文本与线上政策页逐字一致（Assets/Resources/PrivacyPolicy.txt）。
+                    PrivacyConsentDialog.Open(rootRect, () =>
+                    {
+                        Tide.HotUpdate.TapBridge.Module?.InitOnStartup();
+                        _manager.Show<MainMenuScreen>();
+                    });
+                }
             }
 
             // backdrop 画框兜底确保（常态由 SafeAreaFitter.FrameBackdrop/UIScreen.Mount 惰性维护；
