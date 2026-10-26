@@ -45,6 +45,11 @@ namespace SynergyUI
         private readonly Action<ClashResolvedEvent> _onClashResolved; // 拼点演出（2026-10-20：差值浮字+成败粒子——成败两态都发）
         private readonly Action<LuckRolledEvent> _onLuckRoll;         // 运势掷骰浮字（2026-10-20 定案：不搞特效——TMP 文本「投掷结果 d1+d2，效果通过/不通过」·结构化事件成败都发）
         private readonly Func<bool> _logHeld;                         // 日志缓冲在途探针（2026-10-20「UI 真相源=日志」：HP 读数按日志可见性走——见 On<LifeChangeEvent>）
+        private readonly Action<PhaseStartEvent> _onPhaseAnnounced;   // 阶段播报（2026-10-26 阶段字事件序喂数定案）：相位事件载荷
+        // 同步直喂 BattleHudRow 阶段队列——状态对账合帧只读到引擎终态，同帧瞬态（准备阶段）会被吞掉；
+        // 订阅回调在引擎发布时同步执行，入队序==引擎事件序
+        private readonly Action<CounterChangedEvent> _onDeckMark;     // 诅咒/祝福牌库标记钩子（2026-10-26）：
+        // 施加（Amount>0）→卡堆顶爆发+脉冲；消层（Amount=0·抽到发作）→屏侧刷新牌库预览条
 
         private readonly List<Action> _unsubscribers = new List<Action>();
         private int _lastCoreNullLogFrame = -999; // 核心未就绪跳过的节流日志帧
@@ -72,7 +77,9 @@ namespace SynergyUI
             Action<EffectFlightEvent, (int x, int z)?> onEffectFlight = null,
             Action<ClashResolvedEvent> onClashResolved = null,
             Action<LuckRolledEvent> onLuckRoll = null,
-            Func<bool> logHeld = null)
+            Func<bool> logHeld = null,
+            Action<PhaseStartEvent> onPhaseAnnounced = null,
+            Action<CounterChangedEvent> onDeckMark = null)
         {
             _core = core;
             _ctrl = ctrl;
@@ -98,6 +105,8 @@ namespace SynergyUI
             _onClashResolved = onClashResolved;
             _onLuckRoll = onLuckRoll;
             _logHeld = logHeld;
+            _onPhaseAnnounced = onPhaseAnnounced;
+            _onDeckMark = onDeckMark;
         }
 
         // ==== 订阅（唯一订阅点） ====
@@ -149,6 +158,11 @@ namespace SynergyUI
             On<StackEmptyEvent>(e => { _onRoundStackEmpty?.Invoke(e); QueueField(); }); // 栈清空=一批结算完成的全量对账兜底
             On<CounterChangedEvent>(e => // 指示物→对手卡翻面/攻生→头顶数值；属性族附浮字（白名单外零成本直返）
             {
+                // 诅咒/祝福牌库标记（2026-10-26）：施加与消层（抽到发作 Amount=0）都过此钩——
+                // 屏侧按 Amount 分流（爆发只在施加时播；预览条随施加/消层实时重建）
+                if (_onDeckMark != null && e != null
+                    && (e.CounterType == CounterRules.CurseCounter || e.CounterType == CounterRules.BlessingCounter))
+                    DeferOrRun(() => _onDeckMark(e));
                 if (_onCounterFloat != null) DeferOrRun(() => _onCounterFloat(e));
                 QueueFans(); QueueField();
             });
@@ -156,7 +170,12 @@ namespace SynergyUI
             // 棋盘数字条：黑白钱包与地牌横置跨回合清零（TurnStart）、角色生命（LifeChange）、
             // 钱包入账/支付（ElementPool 两事件）——RefreshField 全量对账覆盖
             On<TurnStartEvent>(_ => { _clearPendingPins(); QueueField(); }); // 出牌选格残单随回合清
-            On<PhaseStartEvent>(_ => QueueField()); // TurnStart 先于切阶段发布：缺此订阅 View.Phase 滞留上回合 End（回合≥2 点单位被误拒）
+            On<PhaseStartEvent>(e => // TurnStart 先于切阶段发布：缺此订阅 View.Phase 滞留上回合 End（回合≥2 点单位被误拒）；
+            {                     // 2026-10-26 阶段字事件序喂数：相位事件载荷同步直喂阶段队列（引擎发布序=入队序，
+                                  // 同帧瞬态 Standby 不再被合帧对账吞掉）——对账置脏照旧（网络局不 Wire，快照喂数不变）
+                QueueField();
+                _onPhaseAnnounced?.Invoke(e);
+            });
             On<LifeChangeEvent>(e => // 角色HP读数·日志即真相源（2026-10-20 用户定案）：引擎同帧瞬达、
             {                       // 步进快照只带终值——中间值（宣言帧拼点奖励 30→24 等）只能靠"日志行
                                     // 可见"时刻的事件态同步对账上屏；帧首 Flush 会被同帧后续结算+抑制

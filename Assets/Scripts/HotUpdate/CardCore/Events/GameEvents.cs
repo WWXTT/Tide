@@ -123,6 +123,29 @@ namespace CardCore
     }
 
     /// <summary>
+    /// 准备阶段重置明细（2026-10-26 战报可见性定案）：回合开始自动化（GameCore.OnTurnStarted）的
+    /// 重置账目——地牌/单位解横置数、技能解横置、地牌槽上限推进。发布时点=自动化完成后、回合抽牌前；
+    /// 跳过自动化路径（StandbySkippedEvent）不发本事件。
+    /// 战报〔准备阶段〕行由本事件承载：引擎发布序=自动化先于 PhaseStartEvent（2026-09-24 回合推进
+    /// 口径，保持不动——ResourceLedger 开行/触发承接都钉在现序上），行序语义在 MatchLogRenderer
+    /// 唯一映射层收口——重置账目与抽牌呈现为准备阶段内容。
+    /// </summary>
+    public class StandbyResetEvent : GameEventBase
+    {
+        public Player Player { get; set; }
+        /// <summary>解横置的地牌张数（元素池——恢复可用支付容量）。</summary>
+        public int UntappedLands { get; set; }
+        /// <summary>解横置的战场单位数（恢复可攻击/行动）。</summary>
+        public int UntappedUnits { get; set; }
+        /// <summary>英雄技能卡是否解横置（恢复可发动）。</summary>
+        public bool SkillReset { get; set; }
+        /// <summary>本回合地牌槽上限（推进后值）。</summary>
+        public int LandCap { get; set; }
+        /// <summary>上限是否较上回合推进（封顶后恒 false——推进才入账）。</summary>
+        public bool LandCapAdvanced { get; set; }
+    }
+
+    /// <summary>
     /// 使用卡牌事件（使用宣言时点，付费前——OnCardPlayed/OnSpellCast 锚点）
     /// </summary>
     public class CardPlayEvent : GameEventBase
@@ -549,11 +572,14 @@ namespace CardCore
     }
 
     /// <summary>
-    /// 横置恢复事件
+    /// 横置恢复事件。IsTurnStartReset=true=回合开始自动化的批量重置（GameCore.OnTurnStarted——
+    /// 战报不出逐单位行，由 StandbyResetEvent 汇总承载，2026-10-26）；false=效果驱动的解横置
+    /// （Untap 原子等，照常出行）。
     /// </summary>
     public class UntapEvent : GameEventBase
     {
         public Entity UntappedEntity { get; set; }
+        public bool IsTurnStartReset { get; set; }
     }
 
     /// <summary>

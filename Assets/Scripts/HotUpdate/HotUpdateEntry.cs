@@ -23,13 +23,13 @@ namespace Tide.HotUpdate
             // 不打包该程序集——登录/云存档/联机 TapTap 面板整体缺席）。云存档链路
             // Init→静默登录(basic_info)→启动同步全链旁路（仅 Android 真机），失败不阻断本地玩法。
             TapBridge.InstallFromLoadedAssemblies();
-            // 隐私合规闸（2026-10-24 TapTap 上架）：未同意隐私政策前不初始化任何第三方 SDK。
-            // 首启同意弹窗在 UIBootstrap（主场景）裁决，同意回调补发 InitOnStartup——两处单点收口，
-            // Module=null（单机风味/编辑器）天然空转。政策版本升级即全体重弹（PrivacyConsent）。
-            if (SynergyUI.PrivacyConsent.IsGranted)
-                TapBridge.Module?.InitOnStartup();
-            else
-                Debug.Log("[PrivacyConsent] 首启未同意隐私政策——TapTap 模块初始化延后至同意弹窗裁决");
+            // 隐私合规闸（2026-10-24 TapTap 上架）：仅联机风味有第三方 SDK 初始化；
+            // 本地单机（Module=null）不涉及个人信息采集，不参与同意流程。
+            if (TapBridge.HasModule)
+            {
+                if (SynergyUI.PrivacyConsent.IsGranted) TapBridge.Module?.InitOnStartup();
+                else Debug.Log("[PrivacyConsent] 首启未同意隐私政策——TapTap 模块初始化延后至同意弹窗裁决");
+            }
 
             Debug.Log($"[HotUpdate] Tide.HotUpdate v{Version} 启动（程序集入口调用成功，热更链路可用）");
         }

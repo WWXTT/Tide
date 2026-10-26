@@ -866,7 +866,7 @@ namespace SynergyUI
             { Cardtype.Enchantment, ("barrier", "mask_circle") },
         };
         private static readonly Dictionary<string, Sprite> SpriteCache = new();
-        private static string SpritePath(string name) => $"Assets/Art/Battle3D/Icons/{name}.png";
+        private static string SpritePath(string name) => $"Assets/Art/Icons/{name}.png";
 
         private void SetTypeVisuals(Cardtype type)
         {

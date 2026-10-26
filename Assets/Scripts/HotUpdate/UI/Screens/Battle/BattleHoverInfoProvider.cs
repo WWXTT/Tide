@@ -93,7 +93,7 @@ namespace SynergyUI
 
         /// <summary>悬停展示：功能地块/特殊格=信息文本；单位格（生物+结界，双方）与角色格（角色+技能卡）
         /// =四段悬停信息（CardHoverInfo：主动/自动/关键词/状态）。（2026-10-23 v4 §10.2：格前三键退役，
-        /// 键解说口随删——动作可用性改由点单位弹 BattleUnitActionPopup 表达。）</summary>
+        /// 键解说口随删——动作可用性 2026-10-26 起由点单位弹头顶 3D 钮组 BattleUnitActionButtons 表达。）</summary>
         internal void Handle(string hitName)
         {
             if (string.IsNullOrEmpty(hitName)) { Clear(); return; }
@@ -365,8 +365,15 @@ namespace SynergyUI
                 }
                 case CellRole.Deck:
                 {
-                    // 点击门槛同款（2026-10-17）：有被展示的卡才可点开列表，否则只有本悬停提示
+                    // 点击门槛同款（2026-10-17）：有被展示的卡才可点开列表，否则只有本悬停提示；
+                    // 2026-10-26 标记补充：诅咒/祝福标记在库时报计数（点击开预览条——优先于被展示口径）
                     int n = pv?.DeckCount ?? ZoneCountOf(Core, owner, Zone.Deck);
+                    var marked = MarkedDeckCardsOf(Core, owner);
+                    if (marked.Count > 0)
+                    {
+                        int curse = marked.Count(c => c.GetCounterCount(CounterRules.CurseCounter) > 0);
+                        return $"{who}卡组 · 剩 {n} 张（含诅咒 {curse} · 祝福 {marked.Count - curse}，点击查看）";
+                    }
                     int exposed = ExposedDeckCardsOf(Core, owner).Count;
                     return exposed > 0
                         ? $"{who}卡组 · 剩 {n} 张（被展示 {exposed} 张，点击查看）"
@@ -453,6 +460,24 @@ namespace SynergyUI
         /// 换区清除）。卡组 Region 面板的列卡内容与点击门槛共用此口。</summary>
         internal static List<Card> ExposedDeckCardsOf(GameCore core, Player owner)
             => core != null ? RevealRules.GetExposedCards(core.ZoneManager, owner, Zone.Deck) : new List<Card>();
+
+        /// <summary>卡组中被诅咒/祝福标记的卡（2026-10-26 显示层补充）：牌库区卡按 Curse/Blessing
+        /// 层数>0 直读引擎态（诅咒在前祝福在后）。牌库预览条/点击门槛/悬停计数共用此单源。</summary>
+        internal static List<Card> MarkedDeckCardsOf(GameCore core, Player owner)
+        {
+            var r = new List<Card>();
+            var cards = core != null && owner != null ? core.ZoneManager.GetCards(owner, Zone.Deck) : null;
+            if (cards == null) return r;
+            List<Card> blessed = null;
+            foreach (var c in cards)
+            {
+                if (c == null) continue;
+                if (c.GetCounterCount(CounterRules.CurseCounter) > 0) r.Add(c);
+                else if (c.GetCounterCount(CounterRules.BlessingCounter) > 0) (blessed ??= new List<Card>()).Add(c);
+            }
+            if (blessed != null) r.AddRange(blessed);
+            return r;
+        }
 
         /// <summary>地牌格悬停信息（2026-10-14 晚固定元素格）：格身份=LandCellElementOrder 序（灰红蓝绿黑白）；
         /// 计数报「可用/上限」（可用=未横置+钱包该色；黑白=钱包余额；

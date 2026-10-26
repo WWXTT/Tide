@@ -51,13 +51,19 @@ namespace SynergyUI
         public Action OnCastStageEnd;
 
         /// <summary>节奏等待：等门放行 + 最小动作间隔（未注入 PacingWait 时同步直通，
-        /// 无头 TakeTurn 同步路径不受影响）。</summary>
+        /// 无头 TakeTurn 同步路径不受影响）。Delay 分流：Unity=UniTask.Delay（player loop 计时）；
+        /// netstandard（TideServer deckstats 编译）无 Delay 成员——Task.Delay 等价，且该分支
+        /// 仅在 PacingWait 非空（人类在场局）才可达，无头恒不走。</summary>
         private async Cysharp.Threading.Tasks.UniTask PaceAsync()
         {
             var wait = PacingWait;
             if (wait == null) return;
             await wait();
+#if UNITY_EDITOR || UNITY_2020_1_OR_NEWER
             await Cysharp.Threading.Tasks.UniTask.Delay(PacingMinimumMs);
+#else
+            await System.Threading.Tasks.Task.Delay(PacingMinimumMs);
+#endif
         }
 
         /// <summary>舞台保持原语：PresentationHold 拦住帧泵自动双 Pass（GameLoopController
@@ -73,7 +79,11 @@ namespace SynergyUI
             try
             {
                 await wait();
+#if UNITY_EDITOR || UNITY_2020_1_OR_NEWER
                 await Cysharp.Threading.Tasks.UniTask.Delay(CastStageMs);
+#else
+                await System.Threading.Tasks.Task.Delay(CastStageMs); // 同 PaceAsync：无头不可达
+#endif
             }
             finally { core.ReleasePresentationHold(); }
         }

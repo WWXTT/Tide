@@ -430,104 +430,6 @@
       ]
     },
     {
-      "id": "A0EAF9BB",
-      "name": "对手回合对手使用卡牌结算后，若己方剩余元素比对手多1，对对方单位造成1点伤害",
-      "limit": 1,
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "dd548e6f",
-            "branch": {
-              "settle": 3,
-              "engine": 5,
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "A74C29A8",
-      "name": "对手回合对手使用卡牌结算后，若己方剩余元素比对手多2，抽1张卡",
-      "limit": 1,
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "dd548e6f",
-            "branch": {
-              "settle": 3,
-              "engine": 5,
-              "then": [
-                {
-                  "refId": "e5e2e116"
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "E35825C2",
-      "name": "对手回合对手使用卡牌结算后，若己方剩余元素比对手多2，对对方单位造成2点伤害",
-      "limit": 1,
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "dd548e6f",
-            "branch": {
-              "settle": 3,
-              "engine": 5,
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "value": 2,
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "B6B4C57B",
-      "name": "对手回合对手使用卡牌结算后，若己方剩余元素比对手多1，冻结一个对方单位",
-      "limit": 1,
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "dd548e6f",
-            "branch": {
-              "settle": 3,
-              "engine": 5,
-              "then": [
-                {
-                  "refId": "30d0e234",
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
       "id": "977AB6FC",
       "name": "冻结一个对方单位",
       "timing": 19,
@@ -687,6 +589,338 @@
             "kinds": [
               1
             ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "9164BC9E",
+      "name": "倒计时3：归零时为己方单位回复6点生命（重挂）",
+      "timing": 33,
+      "activation": 1,
+      "limit": 1,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "24194dca",
+            "branch": {
+              "settle": 3,
+              "engine": 1,
+              "engineParam": 3,
+              "then": [
+                {
+                  "refId": "599fcc9a",
+                  "value": 6,
+                  "kinds": [
+                    1
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "5B012D05",
+      "name": "倒计时3：归零时为己方单位添加6层护甲（重挂）",
+      "timing": 33,
+      "activation": 1,
+      "limit": 1,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "24194dca",
+            "branch": {
+              "settle": 3,
+              "engine": 1,
+              "engineParam": 3,
+              "then": [
+                {
+                  "refId": "ff8922af",
+                  "value": 6,
+                  "kinds": [
+                    1
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "11A77A85",
+      "name": "倒计时4：归零时对对方单位造成4点伤害（重挂）",
+      "timing": 33,
+      "activation": 1,
+      "limit": 1,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "24194dca",
+            "branch": {
+              "settle": 3,
+              "engine": 1,
+              "engineParam": 4,
+              "then": [
+                {
+                  "refId": "a4b823fc",
+                  "value": 4,
+                  "kinds": [
+                    2
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "44E81E46",
+      "name": "苏醒：灰、绿费全免，转为入场沉睡层数（睡完才继续倒计时）",
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "bfa4a758",
+            "value": 0,
+            "kinds": [
+              0
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "2FC34B20",
+      "name": "施放时给对手牌库随机2张卡附加诅咒；抽到时获得2层毒素（自动）",
+      "timing": 19,
+      "activation": 2,
+      "cost": [
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "90ba9782",
+            "branch": {
+              "settle": 3,
+              "engine": 8,
+              "engineParam": 2,
+              "tactivate": 1,
+              "then": [
+                {
+                  "refId": "3d68a8bf",
+                  "value": 2,
+                  "kinds": [
+                    2
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "98C4AF96",
+      "name": "施放时给对手牌库随机2张卡附加诅咒；抽到时失去2点生命（自动）",
+      "timing": 19,
+      "activation": 2,
+      "cost": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "90ba9782",
+            "branch": {
+              "settle": 3,
+              "engine": 8,
+              "engineParam": 2,
+              "tactivate": 1,
+              "then": [
+                {
+                  "refId": "d3d792bb",
+                  "value": 2,
+                  "kinds": [
+                    2
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "A2FEA4F2",
+      "name": "施放时给自己牌库随机2张卡附加祝福；抽到时回复4点生命（自动）",
+      "timing": 19,
+      "activation": 2,
+      "cost": [
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "e829f7af",
+            "branch": {
+              "settle": 3,
+              "engine": 9,
+              "engineParam": 2,
+              "tactivate": 1,
+              "then": [
+                {
+                  "refId": "599fcc9a",
+                  "value": 4,
+                  "kinds": [
+                    1
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "A29CBC11",
+      "name": "施放时给自己牌库随机2张卡附加祝福；抽到时地牌上限+1（自动）",
+      "timing": 19,
+      "activation": 2,
+      "cost": [
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "e829f7af",
+            "branch": {
+              "settle": 3,
+              "engine": 9,
+              "engineParam": 2,
+              "tactivate": 1,
+              "then": [
+                {
+                  "refId": "20a1549f"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "22127205",
+      "name": "为一个己方单位回复4点生命",
+      "timing": 19,
+      "activation": 2,
+      "selection": 0,
+      "count": 1,
+      "cost": [
+        0.0,
+        0.0,
+        0.0,
+        2.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "599fcc9a",
+            "value": 4,
+            "kinds": [
+              1
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "1AE291B0",
+      "name": "为一个己方单位添加2层护甲",
+      "timing": 19,
+      "activation": 2,
+      "selection": 0,
+      "count": 1,
+      "cost": [
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "ff8922af",
+            "value": 2,
+            "kinds": [
+              1
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "65B7FDB1",
+      "name": "地牌上限+1",
+      "timing": 19,
+      "activation": 2,
+      "cost": [
+        0.0,
+        0.0,
+        0.0,
+        2.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "20a1549f"
           }
         }
       ]

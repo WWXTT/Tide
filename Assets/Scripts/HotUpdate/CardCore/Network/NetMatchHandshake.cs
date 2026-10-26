@@ -128,7 +128,8 @@ namespace CardCore.Network
 
         // ======================================== 服务器侧 ========================================
 
-        /// <summary>校验客户端卡组提交：卡表全命中 + 卡组不重复 + 效果/原子引用闭环 +
+        /// <summary>校验客户端卡组提交：卡表全命中 + 唯一键卡每卡组限 1 张（同名卡可重复——
+        /// 2026-10-11 构筑规则③）+ 效果/原子引用闭环 +
         /// 提交方摘要与服务器按同一卡组计算的摘要一致。失败返回 false，reason 为拒绝文案
         /// （Error 帧载荷）；成功 reason=null。</summary>
         public static bool ValidateDeckSubmit(MsgDeckSubmit submit, out string reason)
@@ -141,10 +142,25 @@ namespace CardCore.Network
 
             var problems = new List<string>();
 
-            // 卡组不重复（README 铁律：卡组构成不重复，每张卡唯一）
-            var dup = submit.CardIds.GroupBy(i => i).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
-            if (dup.Count > 0)
-                problems.Add($"卡组含重复卡 ×{dup.Count}（如 {dup[0]}）");
+            // 构筑唯一键（规则②，2026-10-11）：唯一门/同名仪典每卡组限 1 张——与
+            // DeckBuilderScreen 添加口/保存口同口径（ComposerCatalog.DeckUniqueSlots 单源）。
+            // 旧「卡组不重复」铁律已随 2026-10-11 构筑规则③（30-60 张、同名可重复）废止——
+            // 2026-10-26 修复：预组副本类卡组（同名多册合法、构筑界全绿可保存）曾在此被拒，
+            // 表现为「保存通过但联机提交不可用」的口径断裂。
+            var seenSlots = new HashSet<string>();
+            var slotExamples = new List<string>();
+            foreach (var id in submit.CardIds)
+            {
+                var card = CardCatalog.GetById(id);
+                if (card == null) continue; // 缺卡另报
+                foreach (var slot in ComposerCatalog.DeckUniqueSlots(card))
+                {
+                    if (seenSlots.Add(slot.Key)) continue;
+                    if (!slotExamples.Contains(slot.Display)) slotExamples.Add(slot.Display);
+                }
+            }
+            if (slotExamples.Count > 0)
+                problems.Add($"卡组含超额唯一卡 ×{slotExamples.Count}（如 {slotExamples[0]}——唯一门/同名仪典每卡组限 1 张）");
 
             // 卡表命中（服务器本地 CardCatalog 解析）
             var missingCards = submit.CardIds.Where(id => CardCatalog.GetById(id) == null).Distinct().ToList();

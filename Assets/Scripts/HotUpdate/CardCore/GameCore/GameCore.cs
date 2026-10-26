@@ -301,7 +301,8 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 回合开始（准备阶段）：重置栈优先权与每回合使用计数 → 重置元素池（地牌重置）→ 随从横置恢复（定案：地牌之后）→ 抽1张
+        /// 回合开始（2026-10-26 精准切分：**纯系统区**——只有时钟簿记；游戏自动化已迁
+        /// RunStandbyAutomation 在准备阶段内执行）：栈优先权/每回合限流翻章/全局回合计数推进/技能解横置。
         /// </summary>
         private void OnTurnStarted(TurnStartEvent e)
         {
@@ -317,30 +318,49 @@ namespace CardCore
                 return;
 
             // 英雄技能回合重置（2026-10-15 改版：技能=法术、每回合一次=横置闸）：
-            // 回合开始解横置即可再发动；耐久池/回充整体退役；引用丢失时 lazy 回填。
-            HeroSkillSystem.ResetSkillForTurn(this, player);
+            // 时钟口径——跳过准备阶段也执行（位置同旧 RechargeSkill），故留系统区；
+            // 解横置结果记账，供准备阶段重置账目（StandbyResetEvent.SkillReset）携带。
+            _skillResetAtTurnStart = HeroSkillSystem.ResetSkillForTurn(this, player);
+        }
 
-            // 规则扩展点（OCP）：回合开始自动化拦截（ITurnStartInterceptor 声明跳过准备阶段——
-            // 抽牌、地牌槽（元素浓度上限）推进、横置重置、场上卡准备阶段结算全跳；
-            // 引擎簿记（栈优先权/全局回合计数/每回合一次计数）不在跳过范围——那是时钟不是结算）。
-            // 2026-10-02 D2：SkipTurn 原子的 "Standby" 档（相位级跳过，代码侧表达）同口接入。
+        /// <summary>系统区技能解横置记账（OnTurnStarted 写、RunStandbyAutomation 读——同一次 StartNewTurn 流内）。</summary>
+        private bool _skillResetAtTurnStart;
+
+        /// <summary>
+        /// 准备阶段自动化（2026-10-26 回合精准切分：自 TurnStartEvent 订阅迁入准备阶段——由
+        /// TurnEngine.StartNewTurn 在相位对象先行后、PhaseStartEvent(Standby) 发布前调用；合成
+        /// TurnStartEvent 的验证器夹具须显式补调本口）。对外事件流序与旧实现一致。
+        /// 跳过闸（ITurnStartInterceptor / SkipTurn「Standby」档）在内：命中发 StandbySkippedEvent 并整段跳过
+        /// ——跳过的推进量（地牌槽/横置/抽牌/倒计时）由注入方自行预置（教学直入 PrepareScenarioStart 契约）。
+        /// </summary>
+        public void RunStandbyAutomation(Player player, int turnNumber)
+        {
+            if (player == null) return;
+
             if (RuleHooks.ShouldSkipTurnStartAutomation(player)
                 || (TurnEngine != null && TurnEngine.ConsumePendingStandbySkip(player)))
             {
-                PublishEvent(new StandbySkippedEvent { Player = player, TurnNumber = e.TurnNumber });
+                PublishEvent(new StandbySkippedEvent { Player = player, TurnNumber = turnNumber });
                 return;
             }
 
             // 重置元素池：地牌槽曲线按全局回合数推进 + 回合玩家地牌解除横置（准备阶段）
-            ElementPool.OnTurnStart(player, e.TurnNumber);
+            int capBefore = ElementPool.GetLandCap(player);
+            int untappedLands = ElementPool.OnTurnStart(player, turnNumber);
+            int capAfter = ElementPool.GetLandCap(player);
+
+            // 资源台账开行（原 TurnStartEvent 订阅随迁——「开行时上限已是本回合新值」契约保持：
+            // 开行读数=个人回合数/上限/钱包期初/未横置地牌数，均不依赖其后的单位循环与抽牌）
+            ResourceLedger?.OpenTurnRow(player);
 
             // 随从重置（定案：在地牌重置之后跟着重置）——战斗状态/关键词维护/横置恢复
+            int untappedUnits = 0;
             foreach (var card in ZoneManager.GetCards(player, Zone.Battlefield))
             {
                 // 攻击台账清零（纯统计——横置即上限，唯一动作门槛是横置态本身）
                 card.AttacksThisTurn = 0;
 
-                // 再生（2026-09-13 定案）：回合开始恢复**全部**生命（原固定 +2）
+                // 再生（2026-09-13 定案；2026-10-26 文案定稿「己方准备阶段恢复自身全部生命值」）
                 if (card.IsAlive && card.HasKeyword(KeywordRules.Regeneration) && card.GetLife() < card.GetMaxLife())
                 {
                     int regenAmount = card.GetMaxLife() - card.GetLife();
@@ -358,15 +378,52 @@ namespace CardCore
                 else if (card.IsTapped())
                 {
                     card.Untap();
-                    PublishEvent(new UntapEvent { UntappedEntity = card });
+                    PublishEvent(new UntapEvent { UntappedEntity = card, IsTurnStartReset = true });
+                    untappedUnits++;
                 }
             }
 
             // 再生角色侧通道已删（2026-10-13 裁定：再生=生物关键词，不可作为光环——
             // 表行 MountKinds 本就拉黑光环投递，物化授予休眠通道随之退役）；卡侧关键词行为保留。
 
-            // 抽一张牌（回合抽 = 本回合首次抽牌，抽卡时点对触发可见）
+            // 准备阶段重置账目（2026-10-26 战报可见性）：先于回合抽牌发布——〔准备阶段〕行与重置明细
+            // 由此事件承载，抽牌行随之呈现为准备阶段内容。
+            PublishEvent(new StandbyResetEvent
+            {
+                Player = player,
+                UntappedLands = untappedLands,
+                UntappedUnits = untappedUnits,
+                SkillReset = _skillResetAtTurnStart,
+                LandCap = capAfter,
+                LandCapAdvanced = capAfter > capBefore,
+            });
+
+            // 抽一张牌（回合抽 = 本回合首次抽牌，抽卡时点对触发可见；CurseSystem 祝福/诅咒挂载随行）
             ZoneManagerExtensions.DrawCard(ZoneManager, player, firstDrawOfTurn: true);
+
+            // 倒计时引擎（2026-10-26 随迁准备阶段——推翻 2026-10-20「钉回合开始」定案：倒计时归零发奖
+            // 是可触发效果时点的游戏内容；递减→归零发奖→重挂+发射账翻章，保持在抽牌之后的现行序）
+            BranchEngines.RunCountdownTick(player);
+        }
+
+        // ======================================== 回合起点快照（池子边界） ========================================
+
+        /// <summary>最近一次回合起点快照（StartNewTurn 采集；重开本回合【未做】的边界基准）。</summary>
+        public TurnStartSnapshot CurrentTurnStartSnapshot { get; private set; }
+
+        /// <summary>快照环形历史容量（近 N 个回合起点——按序可追）。</summary>
+        public const int TurnStartSnapshotHistoryCapacity = 8;
+
+        private readonly Queue<TurnStartSnapshot> _turnStartSnapshotHistory = new Queue<TurnStartSnapshot>();
+
+        /// <summary>采集回合起点全量快照（TurnEngine.StartNewTurn 边界调用；纯只读零事件）。</summary>
+        public void CaptureTurnStartSnapshot()
+        {
+            CurrentTurnStartSnapshot = TurnStartSnapshot.Capture(this);
+            if (CurrentTurnStartSnapshot == null) return;
+            _turnStartSnapshotHistory.Enqueue(CurrentTurnStartSnapshot);
+            while (_turnStartSnapshotHistory.Count > TurnStartSnapshotHistoryCapacity)
+                _turnStartSnapshotHistory.Dequeue();
         }
 
         #region 游戏生命周期

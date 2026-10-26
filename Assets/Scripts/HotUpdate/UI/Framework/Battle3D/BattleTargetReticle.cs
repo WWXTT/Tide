@@ -29,8 +29,8 @@ namespace SynergyUI
     public static class BattleTargetReticle
     {
         private const string ElementPrefabPath = "Assets/Art/Prefab/Element.prefab";
-        private const string SourceMatPath = "Assets/Art/Battle3D/Materials/BattleCardBack_Elem_White_Mat.asset";
-        private const string AimTexPath = "Assets/Art/Battle3D/Icons/Aim.png";
+        private const string SourceMatPath = "Assets/Art/Materials/BattleCardBack_Elem_White_Mat.asset";
+        private const string AimTexPath = "Assets/Art/Icons/Aim.png";
 
         private const float QuadSize = 1.28f;  // 面片边长（2026-10-18 晚 ×0.8 定稿——1.6 用户反馈太大；格外接径 2m/对边距 1.73m）
         private const float TileLift = 0.016f; // 抬高：格面平贴文字(0.014)之上

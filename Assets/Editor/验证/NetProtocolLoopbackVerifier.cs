@@ -19,7 +19,8 @@ namespace CardCore.Editor
     /// 网络协议回环验证（M1）：进程内 SimpleAI vs SimpleAI 一局，验证协议三件套自洽——
     /// ① 事件投影（NetEventProjector）产出完整无损；② 快照（NetSnapshotBuilder）与活体对账；
     /// ③ intent 通道（NetworkIntentApplier）与直调 GameActions 等价；④ 反问回环（ITargetSelectorEx）；
-    /// ⑤ 开局握手（NetMatchHandshake：卡组引用闭包校验——缺卡/重复/原子行摘要漂移/回显篡改拒绝）。
+    /// ⑤ 开局握手（NetMatchHandshake：卡组引用闭包校验——缺卡/唯一键超额/原子行摘要漂移/回显篡改拒绝；
+    ///   同名卡重复=2026-10-11 构筑规则③合法，2026-10-26 对齐后须通过）。
     /// 全部走真实序列化路径：MemoryPack DTO → NetworkSerializer 信封 → FrameCodec 4B 前缀帧 →
     /// 流式解码（半包/粘包切分）→ 反序列化 → 逐字段深度比较。
     /// 菜单：Tools/网络协议回环验证。
@@ -662,16 +663,33 @@ namespace CardCore.Editor
                    && ghostReason.Contains("卡表缺失"),
                 $"缺卡提交被拒（reason 含\"卡表缺失\"：{ghostReason}）");
 
-            // ---- 5c. 反例：重复卡拒绝（README 铁律：卡组构成不重复） ----
-            var withDup = new MsgDeckSubmit
+            // ---- 5c. 正例：同名卡重复合法（2026-10-11 构筑规则③；旧「每张卡唯一」铁律废止）----
+            // 2026-10-26 修复回归：预组副本类卡组（同名多册、构筑界全绿）此前在此被拒——
+            // 联机与构筑口径断裂。现重复卡提交须通过；唯一键超额拦截见 ValidateDeckSubmit
+            //（ComposerCatalog.DeckUniqueSlots，唯一门/同名仪典每卡组限 1 张）。
+            // 重复样本取首张无唯一键卡（带唯一键卡重复属 5c 反向语义，池序不稳）。
+            string dupSample = null;
+            foreach (var id in deckIds)
             {
-                DeckName = "重复卡组",
-                CardIds = deckIds.Concat(new[] { deckIds[0] }).ToArray(),
-                Digest = digest,
-            };
-            Assert(!NetMatchHandshake.ValidateDeckSubmit(withDup, out var dupReason)
-                   && dupReason.Contains("重复"),
-                $"重复卡提交被拒（reason 含\"重复\"：{dupReason}）");
+                var c = SynergyUI.CardCatalog.GetById(id);
+                if (c != null && CardCore.ComposerCatalog.DeckUniqueSlots(c).Count == 0) { dupSample = id; break; }
+            }
+            if (dupSample != null)
+            {
+                var withDup = new MsgDeckSubmit
+                {
+                    DeckName = "重复卡组",
+                    CardIds = deckIds.Concat(new[] { dupSample }).ToArray(),
+                    Digest = NetMatchHandshake.ComputeDeckDigest(deckIds.Concat(new[] { dupSample }).ToArray()),
+                };
+                string dupReason;
+                bool dupOk = NetMatchHandshake.ValidateDeckSubmit(withDup, out dupReason);
+                Assert(dupOk, $"同名重复卡组提交应通过（2026-10-11 构筑规则③对齐）：{dupReason}");
+            }
+            else
+            {
+                Assert(false, "卡池无任何不带唯一键的卡——5c 重复样本缺失");
+            }
 
             // ---- 5d. 反例：闭包原子行摘要漂移 / 缺失 ----
             var driftSubmit = new MsgDeckSubmit

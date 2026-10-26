@@ -10,7 +10,7 @@ namespace SynergyUI
     /// TutorialProgressManager/TutorialCreationFlow，不自持流程状态。
     /// 流程（2026-10-19 三课制定案）：教学按钮纯进度路由，无任何询问/跳过——按 CourseOrder
     /// 逐课推进（basics 攻防 → advanced 进阶机制 → lunzhuan 末日降临 Boss）；三课全胜=教学整体完成
-    /// （主菜单教学按钮换装本地对战按钮→对局准备双选卡组）。
+    /// （2026-10-25 起主菜单教学按钮隐藏，战斗入口=联机+木桩测试；本地对战按钮当日退役）。
     /// （旧「最后一课镜像局」环节 2026-10-19 随三课制整删——StartFinalChallenge/
     ///   FinalChallengeActive/裁决枚举全链退役；测试一律走 btn-teststart/TestStartFlow。）
     /// </summary>
@@ -27,8 +27,8 @@ namespace SynergyUI
                 : tutorialId;
             if (string.IsNullOrEmpty(id))
             {
-                // 三课已全完成（IsTutorialDone，按钮已换装本地对战）——兜底回落 basics
-                TideLog.Warn("[TutorialFlow] 新手课程已全部完成，无课可开——回落 basics（教学按钮应已换装）");
+                // 三课已全完成（IsTutorialDone，主菜单教学按钮已隐藏）——兜底回落 basics
+                TideLog.Warn("[TutorialFlow] 新手课程已全部完成，无课可开——回落 basics（教学按钮应已隐藏）");
                 id = TutorialProgressManager.BasicsId;
             }
             BattleEntry.Mode = BattleMode.Tutorial;

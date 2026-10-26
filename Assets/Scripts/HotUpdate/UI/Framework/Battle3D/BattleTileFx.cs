@@ -23,7 +23,7 @@ namespace SynergyUI
 /// </summary>
     public static class BattleTileFx
     {
-        private const string FresnelMatPath = "Assets/Art/Battle3D/Materials/BattleTile_Fresnel.mat";
+        private const string FresnelMatPath = "Assets/Art/Materials/BattleTile_Fresnel.mat";
         private const string HexMeshPath = "Assets/Art/Battle3D/BattleHex.asset";
         private const string ElementPrefabPath = "Assets/Art/Prefab/Element.prefab";
         private const string RingShaderPath = "Assets/Art/Shaders/BattleTileRing.shader";
@@ -354,7 +354,7 @@ namespace SynergyUI
             if (_elemMats[lockedColor] != null) return _elemMats[lockedColor];
             _elemMats[lockedColor] = HotUpdateAssets.Load<Material>(
                 "Elem_" + ElemMatNames[lockedColor],
-                "Assets/Art/Battle3D/Materials/BattleCardBack_Elem_" + ElemMatNames[lockedColor] + "_Mat.asset");
+                "Assets/Art/Materials/BattleCardBack_Elem_" + ElemMatNames[lockedColor] + "_Mat.asset");
             return _elemMats[lockedColor];
         }
 

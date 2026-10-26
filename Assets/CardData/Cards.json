@@ -427,7 +427,7 @@
         "ThemeBlueSurplus"
       ],
       "effectIds": [
-        "A0EAF9BB"
+        "A3A57507"
       ]
     },
     {
@@ -448,7 +448,7 @@
         "ThemeBlueSurplus"
       ],
       "effectIds": [
-        "A74C29A8"
+        "78B0D3FE"
       ]
     },
     {
@@ -467,7 +467,7 @@
         "ThemeBlueSurplus"
       ],
       "effectIds": [
-        "E35825C2"
+        "E9CCA56D"
       ],
       "durability": 2
     },
@@ -487,7 +487,7 @@
         "ThemeBlueSurplus"
       ],
       "effectIds": [
-        "B6B4C57B"
+        "2070586F"
       ],
       "durability": 2
     },
@@ -1044,7 +1044,7 @@
         "ThemeBlueSurplus"
       ],
       "effectIds": [
-        "A0EAF9BB"
+        "A3A57507"
       ]
     },
     {
@@ -1066,7 +1066,7 @@
         "ThemeBlueSurplus"
       ],
       "effectIds": [
-        "A74C29A8"
+        "78B0D3FE"
       ]
     },
     {
@@ -1086,7 +1086,7 @@
         "ThemeBlueSurplus"
       ],
       "effectIds": [
-        "E35825C2"
+        "E9CCA56D"
       ],
       "durability": 2
     },
@@ -1107,7 +1107,7 @@
         "ThemeBlueSurplus"
       ],
       "effectIds": [
-        "B6B4C57B"
+        "2070586F"
       ],
       "durability": 2
     },
@@ -1226,6 +1226,362 @@
       ],
       "tags": [
         "ThemeBlueSurplus"
+      ]
+    },
+    {
+      "id": "C_DFE2275E",
+      "cardName": "预组·29·副本",
+      "supertype": "Creature",
+      "power": 4,
+      "life": 4,
+      "costList": [
+        3.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeGreenCountdown",
+        "衍生物"
+      ]
+    },
+    {
+      "id": "C_1DBF77BC",
+      "cardName": "预组·30·副本",
+      "supertype": "Creature",
+      "power": 7,
+      "life": 7,
+      "costList": [
+        5.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeGreenCountdown",
+        "衍生物"
+      ]
+    },
+    {
+      "id": "C_DB859732",
+      "cardName": "预组·32·副本",
+      "supertype": "Creature",
+      "life": 5,
+      "costList": [
+        3.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeGreenCountdown"
+      ],
+      "effectIds": [
+        "9164BC9E"
+      ]
+    },
+    {
+      "id": "C_64E870CC",
+      "cardName": "预组·33·副本",
+      "supertype": "Enchantment",
+      "costList": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeGreenCountdown"
+      ],
+      "effectIds": [
+        "5B012D05"
+      ],
+      "durability": 2
+    },
+    {
+      "id": "C_02FE13DF",
+      "cardName": "预组·34·副本",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 5,
+      "costList": [
+        4.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeGreenCountdown"
+      ],
+      "effectIds": [
+        "11A77A85"
+      ]
+    },
+    {
+      "id": "C_5881E49E",
+      "cardName": "预组·38·副本",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeGreenCountdown"
+      ],
+      "effectIds": [
+        "2FC34B20"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_F1C7AD18",
+      "cardName": "预组·39·副本",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeGreenCountdown"
+      ],
+      "effectIds": [
+        "98C4AF96"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_694F912A",
+      "cardName": "预组·40·副本",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeGreenCountdown"
+      ],
+      "effectIds": [
+        "A2FEA4F2"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_9DA2B099",
+      "cardName": "预组·41·副本",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeGreenCountdown"
+      ],
+      "effectIds": [
+        "A29CBC11"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_171AA6F6",
+      "cardName": "预组·42·副本",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeGreenCountdown"
+      ],
+      "effectIds": [
+        "22127205"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_A3CF9A76",
+      "cardName": "预组·43·副本",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeGreenCountdown"
+      ],
+      "effectIds": [
+        "1AE291B0"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_CF4C9335",
+      "cardName": "预组·44·副本",
+      "supertype": "Creature",
+      "life": 6,
+      "costList": [
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeGreenCountdown"
+      ]
+    },
+    {
+      "id": "C_F3C4D06B",
+      "cardName": "预组·45·副本",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 6,
+      "costList": [
+        3.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeGreenCountdown"
+      ]
+    },
+    {
+      "id": "C_E761378C",
+      "cardName": "预组·46·副本",
+      "supertype": "Creature",
+      "power": 4,
+      "life": 8,
+      "costList": [
+        4.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeGreenCountdown"
+      ]
+    },
+    {
+      "id": "C_F737B4AA",
+      "cardName": "预组·47·副本",
+      "supertype": "Creature",
+      "life": 6,
+      "costList": [
+        2.0,
+        0.0,
+        0.0,
+        2.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeGreenCountdown"
+      ],
+      "effectIds": [
+        "c2565884"
+      ]
+    },
+    {
+      "id": "C_E095E06D",
+      "cardName": "成长·副本",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeGreenCountdown"
+      ],
+      "effectIds": [
+        "65B7FDB1"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_4E8C7606",
+      "cardName": "预组·31·副本",
+      "supertype": "Creature",
+      "power": 1,
+      "life": 4,
+      "costList": [
+        3.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeGreenCountdown"
+      ],
+      "effectIds": [
+        "A308B3EB"
+      ]
+    },
+    {
+      "id": "C_7FDC6B58",
+      "cardName": "预组·35·副本",
+      "supertype": "Enchantment",
+      "costList": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeGreenCountdown"
+      ],
+      "effectIds": [
+        "C718A964"
+      ],
+      "durability": 2
+    },
+    {
+      "id": "C_06845C62",
+      "cardName": "预组·36·副本",
+      "supertype": "Creature",
+      "power": 4,
+      "life": 5,
+      "costList": [
+        5.0,
+        0.0,
+        0.0,
+        2.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeGreenCountdown"
+      ],
+      "effectIds": [
+        "44E81E46",
+        "974089EE",
+        "4cf22304"
+      ]
+    },
+    {
+      "id": "C_1D975A59",
+      "cardName": "预组·37·副本",
+      "supertype": "Creature",
+      "power": 5,
+      "life": 7,
+      "costList": [
+        6.0,
+        0.0,
+        0.0,
+        2.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeGreenCountdown"
+      ],
+      "effectIds": [
+        "44E81E46",
+        "3674559E",
+        "c2565884"
       ]
     }
   ],

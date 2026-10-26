@@ -41,7 +41,7 @@ namespace SynergyUI
             if (_zoneMats.TryGetValue(zone, out var mat) && mat != null) return mat; // fake-null 判死重载
             mat = HotUpdateAssets.Load<Material>(
                 "BattleTile_Zone" + zone.ToString("00"),
-                $"Assets/Art/Battle3D/Materials/BattleTile_Zone{zone:00}_{BattleBoardZones.ZoneFileLabel(zone)}.mat");
+                $"Assets/Art/Materials/BattleTile_Zone{zone:00}_{BattleBoardZones.ZoneFileLabel(zone)}.mat");
             if (mat != null) _zoneMats[zone] = mat; // 未生成不入缓存（生成后下次装载即命中）
             return mat; // null=资产未生成：回落预制体自带材质
         }

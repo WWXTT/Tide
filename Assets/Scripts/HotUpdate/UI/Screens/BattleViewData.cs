@@ -77,6 +77,10 @@ namespace SynergyUI
         public bool MyTurn;       // 行动方=我（本地=P1 回合；网络=ActiveSeat==viewerSeat）
         public bool MyPriority;   // 优先权在我（网络响应窗口；本地=栈优先权持有者）
         public bool StackNotEmpty;
+        public int StackTopOwnerSeat = -1; // 栈顶效果归属方（观察者相对 0=己方 1=对手；-1=空栈/网络快照未携带）。
+                                          // 2026-10-26 扳机锚侧定案：半场光条亮**发动方**（对手触发的效果亮对手侧——
+                                          // 人机 AI 同帧让过持有者恒翻己方，旧「可响应方」锚法恒误亮）；时间格角标与
+                                          //「优先权在我」仍锚可响应方（MyPriority）。网络快照未携带恒 -1=回落旧口径
         public int ChainSpeed = -1; // 记速器当前值（2026-10-15 战场接线）：本地=StackEngine.SpeedCounter.CurrentSpeed；
                                     // -1=网络快照未承载（快照协议无此字段）→战场占位「—」
         public bool ChainResolving; // 记速器结算中（连锁结算中禁止新的速度发动入栈）
@@ -225,6 +229,12 @@ namespace SynergyUI
                 MyPriority = core.StackEngine?.CurrentPriorityHolder == self,
                 StackNotEmpty = core.StackEngine != null && core.StackEngine.StackSize > 0,
             };
+
+            // 栈顶归属（2026-10-26 扳机锚侧定案）：EffectInstance.Controller——各入栈路径（速度发动/触发/挂起）
+            // 均赋值；空栈/取不到保持 -1（消费侧回落旧持有方口径）
+            var stackTop = core.StackEngine?.PeekStack();
+            if (stackTop != null && stackTop.Controller != null)
+                d.StackTopOwnerSeat = stackTop.Controller == self ? 0 : 1;
 
             // 记速器（2026-10-15 战场接线）：连锁速度格的实值源——当前连锁已发动的最高速度
             var speedCounter = core.StackEngine?.SpeedCounter;

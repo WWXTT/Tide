@@ -54,7 +54,15 @@ namespace Tide.Launch
             _ = Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<int>.Create();
             _ = Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<int?>.Create();
             _ = Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.Create();
+            // (string,string) 元组（2026-10-24 木桩面板缺陷排查）：DeckPickStageAsync/PickAsync 为
+            // async UniTask<(string,string)>——ValueTuple 是值类型不共享，此前无锚、分析器清单亦未记
+            //（旧包可用疑为 il2cpp 隐式覆盖，无显式保障），开局段四必经路径显式锚定兜底（无害冗余原则同上）。
+            _ = Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<(string, string)>.Create();
             _ = new Cysharp.Threading.Tasks.UniTaskCompletionSource<object>();
+            // AOT 类型保留锚（2026-10-24 Local 风味 TypeLoad 实录）：热更侧 PrivacyConsent 等用 PlayerPrefs，
+            // Local 风味摘 TapSDK 后 AOT 闭包无引擎类型引用则被裁（真机 TypeLoadException 卡启动屏）——
+            // 此行显式引用兜底，与 stripEngineCode=0 双保险。
+            _ = UnityEngine.PlayerPrefs.HasKey("tide.aot.type.anchor");
         }
 
         /// <summary>资源寻址地址（.dll.bytes 文件经 AddressByFileName 规则保留 .dll 段）</summary>

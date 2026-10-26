@@ -497,11 +497,40 @@ namespace CardCore
         private Dictionary<Zone, List<Card>> zones = new Dictionary<Zone, List<Card>>();
 
         // 可重定种子（2026-09-10）：验证器/无头对拍需要同种子复现（M3 联网里程碑同款要求）；
-        // 默认时间种子不变，Reseed 后同种子 → 同洗牌序列
+        // 默认时间种子不变，Reseed 后同种子 → 同洗牌序列。
+        // 2026-10-26 检查点口（回合快照前置，同 GameRng 口径）：静态洗牌流调用计数 + Capture/Restore。
         private static System.Random _rng = new System.Random();
+        private static int _shuffleSeed;
+        private static int _shuffleCalls;
+        private static bool _shuffleSeeded;
 
         /// <summary>重定洗牌随机种子（验证器固定种子复现 / 对拍用）；影响全部 ZoneContainer。</summary>
-        public static void Reseed(int seed) => _rng = new System.Random(seed);
+        public static void Reseed(int seed)
+        {
+            _rng = new System.Random(seed);
+            _shuffleSeed = seed;
+            _shuffleCalls = 0;
+            _shuffleSeeded = true;
+        }
+
+        /// <summary>洗牌流检查点（回合快照采集用）。</summary>
+        public static RngCheckpoint CaptureShuffle() => new RngCheckpoint(_shuffleSeeded, _shuffleSeed, _shuffleCalls);
+
+        /// <summary>恢复洗牌流检查点（预留口，重开本回合接线；未钉种子流不动作）。</summary>
+        public static void RestoreShuffle(RngCheckpoint cp)
+        {
+            if (!cp.Seeded) return;
+            Reseed(cp.Seed);
+            for (int i = 0; i < cp.Calls; i++)
+                _rng.Next(int.MaxValue); // 与被计数的调用同款：每次消耗一个流位
+        }
+
+        /// <summary>静态洗牌流取数（计数经此口，外部注入 rng 的 Shuffle 不计——它不在重播流上）。</summary>
+        private static int ShuffleNext(int maxExclusive)
+        {
+            _shuffleCalls++;
+            return _rng.Next(maxExclusive);
+        }
 
         public ZoneContainer(Player owner)
         {
@@ -672,13 +701,12 @@ namespace CardCore
         /// </summary>
         public void Shuffle(Zone zone, System.Random rng = null)
         {
-            rng ??= _rng;
             var list = zones[zone];
             int n = list.Count;
             while (n > 1)
             {
                 n--;
-                int k = rng.Next(n + 1);
+                int k = rng != null ? rng.Next(n + 1) : ShuffleNext(n + 1);
                 (list[k], list[n]) = (list[n], list[k]);
             }
         }
@@ -715,7 +743,7 @@ namespace CardCore
                     list.Insert(0, card);
                     break;
                 case DeckPosition.Random:
-                    list.Insert(_rng.Next(list.Count + 1), card);
+                    list.Insert(ShuffleNext(list.Count + 1), card);
                     break;
                 case DeckPosition.Bottom:
                 default:

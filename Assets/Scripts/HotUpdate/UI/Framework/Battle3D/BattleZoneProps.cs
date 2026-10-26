@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using CardCore;
 using Cysharp.Threading.Tasks;
 using GameBoard;
 using Tide.HotUpdate;
@@ -21,10 +22,10 @@ namespace SynergyUI
     /// </summary>
     public static class BattleZoneProps
     {
-        private const string SideMatPath = "Assets/Art/Battle3D/Materials/BattleCardStack_Side.mat";
-        private const string TopMatPath = "Assets/Art/Battle3D/Materials/BattleCardBack_Back_Mat.asset";
-        private const string VortexGraveMatPath = "Assets/Art/Battle3D/Materials/BattleTile_Vortex_Grave.mat";
-        private const string VortexExileMatPath = "Assets/Art/Battle3D/Materials/BattleTile_Vortex_Exile.mat";
+        private const string SideMatPath = "Assets/Art/Materials/BattleCardStack_Side.mat";
+        private const string TopMatPath = "Assets/Art/Materials/BattleCardBack_Back_Mat.asset";
+        private const string VortexGraveMatPath = "Assets/Art/Materials/BattleTile_Vortex_Grave.mat";
+        private const string VortexExileMatPath = "Assets/Art/Materials/BattleTile_Vortex_Exile.mat";
 
         public const int MaxCards = 60;             // 高度映射上限（>60 钳制）
         private const float CardThickness = 0.02f;  // 每张卡 2cm（与侧面 shader 默认 _CardHeight 一致）
@@ -34,6 +35,7 @@ namespace SynergyUI
         private const float LiftY = 0.004f;         // 抬离地块顶面（顶面 y=0，防叠面闪，同菲涅尔壳）
 
         private static readonly Transform[] _stacks = new Transform[2]; // 下标=归属 0/1
+        private static readonly Transform[,] _markAuras = new Transform[2, 2]; // 牌库标记常驻氛围 [owner, 0=诅咒/1=祝福]（2026-10-26）
         private static readonly Dictionary<long, Transform> _vortexes = new Dictionary<long, Transform>();
         private static Mesh _stackMesh;
         private static Material _sideMat, _topMat, _graveMat, _exileMat, _litTemplate;
@@ -84,6 +86,39 @@ namespace SynergyUI
             return true;
         }
 
+        /// <summary>牌库标记常驻氛围对账（2026-10-26 诅咒/祝福显示层）：牌库中存在被标记卡=对应
+        /// 氛围件常亮（诅咒=黑 Buff 光球/祝福=绿 Buff 光环——BattleVfxCatalog Buff 档），抽走/消层
+        /// 由下一次对账熄灭。幂等直写（件已在不重建，仅 SetActive）；懒建——无标记零开销。
+        /// 挂 tile 下保世界位：不继承卡堆 Y 缩放（堆高随张数伸缩，氛围件不跟着变形）。</summary>
+        public static void SetDeckMarks(int owner, bool curse, bool bless)
+        {
+            if (owner < 0 || owner > 1) return;
+            ReconcileMarkAura(owner, 0, curse, ManaType.Black, MarkCurseLiftY, "fx-deck-mark-curse");
+            ReconcileMarkAura(owner, 1, bless, ManaType.Green, MarkBlessLiftY, "fx-deck-mark-bless");
+        }
+
+        private const float MarkCurseLiftY = 0.3f;   // 诅咒光球浮离地面（球体件中心锚）
+        private const float MarkBlessLiftY = 0.02f;  // 祝福光环贴地（地面法阵件）
+
+        private static void ReconcileMarkAura(int owner, int kind, bool on, ManaType color, float liftY, string name)
+        {
+            var aura = _markAuras[owner, kind];
+            if (aura != null)
+            {
+                if (aura.gameObject.activeSelf != on) aura.gameObject.SetActive(on);
+                return;
+            }
+            if (!on) return; // 懒建：无标记不建件
+            var cell = DeckCell(owner);
+            var tile = TileOf(cell.x, cell.z);
+            if (tile == null) return;
+            var go = BattleVfxFx.TrySpawnPersistent(color, VfxRole.Buff, tile.position + Vector3.up * liftY, 1f);
+            if (go == null) return; // catalog 缺件/降级=无氛围（施加爆发不受影响）
+            go.name = name;
+            go.transform.SetParent(tile, true); // 保世界位挂 tile（随棋盘生命周期）
+            _markAuras[owner, kind] = go.transform;
+        }
+
         /// <summary>卡堆抽牌脉冲（2026-10-17 抽卡演出）：XZ 0.25s 1→1.12→1 正弦，Y 每帧取对账
         /// 现值（与 SetDeckCount 直写共存不打架）；fire-and-forget 纯装饰不占视觉门。</summary>
         public static void PulseDeck(int owner)
@@ -114,6 +149,7 @@ namespace SynergyUI
         {
             _stacks[0] = null;
             _stacks[1] = null;
+            for (int o = 0; o < 2; o++) for (int k = 0; k < 2; k++) _markAuras[o, k] = null; // 氛围件随 tile 树亡
             _vortexes.Clear();
             if (_stackMesh != null)
             {
@@ -129,6 +165,7 @@ namespace SynergyUI
         {
             _stacks[0] = null;
             _stacks[1] = null;
+            for (int o = 0; o < 2; o++) for (int k = 0; k < 2; k++) _markAuras[o, k] = null;
             _vortexes.Clear();
             _stackMesh = null;
             _sideMat = null;
@@ -223,7 +260,7 @@ namespace SynergyUI
             {
                 if (_litTemplate == null)
                     _litTemplate = HotUpdateAssets.Load<Material>(
-                        "BattleTile_Zone02", "Assets/Art/Battle3D/Materials/BattleTile_Zone02_P1Unit.mat");
+                        "BattleTile_Zone02", "Assets/Art/Materials/BattleTile_Zone02_P1Unit.mat");
                 return _litTemplate;
             }
         }

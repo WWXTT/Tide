@@ -11,9 +11,12 @@ namespace SynergyUI
     ///（BattleHex 顶面六角实测角点），合并成一张 mesh；相邻格边贴边，被 0.82 缩格地块
     /// 盖住的部分自然不可见——从 0.31m 地缝看下去是蜂窝面而非整块平板。
     /// 梯度=Tide/BattlePriorityPanel 按 UV 归一（u=(x-x0)/14.7、v=己方 (z+1.7)/5 / 对手
-    /// (9.5-z)/5——对手片翻转烘进 UV，亮边在各自外侧、向中线衰减到 0，footprint 与原
-    /// 14.7×5 Quad 版一致）；持有方本色、非持有方暗置 12%（扳机切换=亮暗对调）；
-    /// holderSeat 由 BattleViewData 复合推导（栈非空=持有方，栈空=回合方）。
+    /// (9.5-z)/5——对手片翻转烘进 UV，亮边在各自外侧；**2026-10-26 灭线修复**：shader 旧式
+    /// (0.5-v)·2 在 v=0.5（世界 z≈0.8=己方第 1/2 行间）就夹断，中线实际 z≈3.75——光只亮
+    /// 半场前 1/3、后 2/3 mesh 全黑。改 saturate(1-v) 后 0→1 全跨度衰减、面板内缘贴中线
+    /// 缝处归 0（本类 UV 本就铺满 footprint，无需改）；footprint 与原 14.7×5 Quad 版一致；
+    /// 亮方本色、另一方暗置 12%（2026-10-26 扳机锚侧定案：亮**发动方**——栈非空=栈顶效果归属侧，
+    /// 对手触发的效果亮对手侧；空栈=回合方；seat 由 BattleFieldView.GlowSeatOf 复合推导）。
     ///
     /// 面片高度=世界 y=PanelY（-0.2 → -0.77 让位地编 → v4 §10.1 抬到 -0.30：高于地形顶
     /// ≈-0.78、低于缩格地块底 ≈-0.164，地缝视线里蜂窝位于地面之上、地块之下）。
@@ -31,7 +34,9 @@ namespace SynergyUI
         /// <summary>非持有方暗置系数：面片仍在场可读归属，扳机切换=亮暗对调。</summary>
         private const float DimK = 0.12f;
 
-        private const string PanelMatPath = "Assets/Art/Battle3D/Materials/BattlePriorityPanel.mat";
+        // 2026-10-26 资源重组迁移：Battle3D/Materials → Art/Materials（旧路径文件已删，
+        // 指旧路径=材质加载空=面板整组不建——「场景里找不到了」根因）。
+        private const string PanelMatPath = "Assets/Art/Materials/BattlePriorityPanel.mat";
         private static readonly int PanelColorId = Shader.PropertyToID("_PanelColor");
 
         // 摆位（Map 恒 identity=世界系；面板中心沿用原 Quad footprint 中心：14.7×5、中线留缝）
@@ -87,13 +92,13 @@ namespace SynergyUI
             _selfPanel = _oppPanel = null;
         }
 
-        /// <summary>扳机切换对账（BattleFieldView.Apply 调用，幂等）：持有方面片本色、非持有方暗置
-        /// （holderSeat&lt;0=双方暗置，如终局/未知）。</summary>
-        public static void Apply(int holderSeat)
+        /// <summary>扳机切换对账（BattleFieldView.Apply 调用，幂等）：seat 侧面片本色、另一侧暗置
+        ///（2026-10-26 锚侧定案：seat=发动方座位——栈顶效果归属；seat&lt;0=双方暗置，如终局/未知）。</summary>
+        public static void Apply(int seat)
         {
             EnsurePanels();
-            Paint(_selfPanel, SelfColor, holderSeat == 0);
-            Paint(_oppPanel, OppColor, holderSeat == 1);
+            Paint(_selfPanel, SelfColor, seat == 0);
+            Paint(_oppPanel, OppColor, seat == 1);
         }
 
         // ======================================== 内部 ========================================

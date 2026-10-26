@@ -168,6 +168,27 @@ namespace SynergyUI
         public static bool TryPlayHeal(ManaType color, Vector3 at, float scale)
             => PlayOneShot(color, VfxRole.Heal, at, scale);
 
+        /// <summary>常驻实例（2026-10-26 牌库标记氛围）：查表实例化+调校，但**不占并发槽、不自动
+        /// 销毁**——生命周期归调用方（BattleZoneProps 随装台建/随拆台亡；与 PlayOneShot 一次性
+        /// 口径分离）。缺条目/未启用/异常返回 null（调用方降级为无常驻件，不回退一次性件）。</summary>
+        public static GameObject TrySpawnPersistent(ManaType color, VfxRole role, Vector3 at, float scale)
+        {
+            if (!Enabled || !Ready) return null;
+            try
+            {
+                var e = _catalog.Find(color, role);
+                if (e == null) return null;
+                var go = Spawn(e, at, scale, Quaternion.identity);
+                Tune(go, DensityFor(color));
+                return go;
+            }
+            catch (Exception ex)
+            {
+                LogFailureOnce(ex);
+                return null;
+            }
+        }
+
         /// <summary>弹体飞行段：easeIn 加速冲向目标（缓动公式同 BattleEffectFx.PlayOrbAsync），
         /// 到达即毁（prefab 弹体=一次性移动件，非 MagicOrb 持续发射——无需尾焰驻留）。
         /// 拆台/场景卸载（go 已销）按已播返 true——调用方照常走命中节点，不触发双兜底。</summary>

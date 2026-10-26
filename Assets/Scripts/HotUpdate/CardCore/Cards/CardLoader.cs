@@ -41,7 +41,7 @@ namespace CardCore
         public int power;
         public int life;
 
-        // 立绘名（2026-10-13 ACard 六区）：Assets/Art/Battle3D/Icons/{illustration}.png；
+        // 立绘名（2026-10-13 ACard 六区）：Assets/Art/Icons/{illustration}.png；
         // 空/缺省 = 预制体占位图（ACardView.TrySetArt 加载失败保持占位同口径）
         public string illustration;
 

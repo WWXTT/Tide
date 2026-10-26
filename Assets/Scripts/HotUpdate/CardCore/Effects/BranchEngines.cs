@@ -82,9 +82,9 @@ namespace CardCore
             if (_registered) return;
             _registered = true;
             EventManager.Instance.Subscribe<CardPutToBattlefieldEvent>(OnEnterBattlefield);
-            EventManager.Instance.Subscribe<TurnStartEvent>(OnTurnStarted);
             EventManager.Instance.Subscribe<CardDestroyEvent>(OnCreatureDestroyed);
             EventManager.Instance.Subscribe<AttackDeclarationEvent>(OnAttackDeclared); // 拼点（2026-10-09 触发改版）
+            // 倒计时 tick 已随 2026-10-26 精准切分迁 GameCore.RunStandbyAutomation 显式调用（原 TurnStartEvent 订阅退役）
         }
 
         /// <summary>卡上全部指定引擎的槽级载荷（两槽定案：def.Effects 主干原子的 Branch 载荷）。
@@ -118,10 +118,14 @@ namespace CardCore
             }
         }
 
-        private static void OnTurnStarted(TurnStartEvent e)
+        /// <summary>
+        /// 倒计时引擎回合 tick（2026-10-26 回合精准切分随迁准备阶段——推翻 2026-10-20「钉回合开始」定案：
+        /// 归零发奖是可触发效果时点的游戏内容，不属系统区；由 GameCore.RunStandbyAutomation 在回合抽牌后
+        /// 调用——相对序与旧 TurnStartEvent 订阅期一致（自动化+抽牌之后）。发射账翻章随本口（每回合一次）。
+        /// </summary>
+        public static void RunCountdownTick(Player player)
         {
             _engineRewardFires.Clear(); // 单回合上限翻章（2026-10-20）：任一回合开始都算新周期
-            var player = e?.TurnPlayer;
             var core = GameCore.Instance;
             var zm = core?.ZoneManager;
             if (player == null || zm == null) return;

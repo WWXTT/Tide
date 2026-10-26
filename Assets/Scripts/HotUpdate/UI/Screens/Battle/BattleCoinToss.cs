@@ -10,7 +10,8 @@ namespace SynergyUI
     /// 开场掷硬币演出（2026-10-19 掷币演出挪战场定案·方案B：代码动画网格本体+现成 VFX 装饰）。
     ///
     /// 硬币=运行时拼装（圆柱银边+上下双色圆盘——蓝面=我方先手/红面=对方先手（v3 对调），落定浮字明示），
-    /// 结果先定后演（Random.value&lt;0.5 与旧 PreMatch 同源 50/50），自旋终角按结果钉死胜方面朝上；
+    /// 结果先定后演（Random.value&lt;0.5 与旧 PreMatch 同源 50/50），自旋终角按结果钉死胜方面朝上
+    /// （2026-10-26 定案：终态平躺落格 0.1 高、翻转 0/180、去 -32° 镜头微倾不朝向相机）；
     /// 落地装饰=Impact 爆点（金）+ world 浮字（BattleFieldView.FloatTextAsync 公开转发）。
     /// 纯演出件：发生在引擎开局前，不接投影器/DeferOrRun/视觉门；物件不带 Collider（不扰棋盘射线）。
     /// 动画风格对齐 BattleBoardAssemble：realtimeSinceStartup 计时+缓动+终态钉死，skipRequested
@@ -18,15 +19,15 @@ namespace SynergyUI
     /// </summary>
     public static class BattleCoinToss
     {
-        private const string PillarMatPath = "Assets/Art/Battle3D/Materials/BattleTile_Zone02_P1Unit.mat";
+        // 2026-10-26 资源重组迁移：Battle3D/Materials → Art/Materials（旧路径已删，指旧路径=模板空=内置材质兜底真机粉）。
+        private const string PillarMatPath = "Assets/Art/Materials/BattleTile_Zone02_P1Unit.mat";
 
-        private const float RestY = 0.6f;      // 落定悬停高度（板心上方，不落格面）
+        private const float RestY = 0.1f;      // 落定高度（2026-10-26 用户定案：贴格面平躺，币厚 0.1）
         private const float ApexY = 3.3f;      // 抛起顶点
         private const float FlightSeconds = 1.35f;
         private const float BounceSeconds = 0.3f;
         private const float HoldSeconds = 1.0f; // 落定驻留（≥浮字 0.9s——浮字挂硬币下，父亡即殁）
-        private const float TiltDegrees = 32f;  // 落定后向镜头微倾（-z 俯拍机位可正面读面）
-        private const int SpinTurns = 4;        // 自旋整圈数（终角=整圈+按结果 0/180°）
+        private const int SpinTurns = 4;        // 自旋整圈数（终角=整圈+按结果 0/180°，平躺无倾角）
 
         private static readonly Color SelfFaceColor = new Color(0.30f, 0.55f, 1.00f);  // 蓝面=我方先手（2026-10-23 v3 对调）
         private static readonly Color OppFaceColor = new Color(0.92f, 0.28f, 0.24f);   // 红面=对方先手
@@ -65,9 +66,9 @@ namespace SynergyUI
                     await UniTask.Yield();
                 }
 
-                // ---- 落定段：小弹跳 + 微倾贴镜头可读面 ----
-                var finalRot = Quaternion.Euler(-TiltDegrees, 0f, 0f)
-                    * Quaternion.AngleAxis(targetSpin, Vector3.right);
+                // ---- 落定段：小弹跳 + 平躺落格（2026-10-26 用户定案：去 -32° 镜头微倾，
+                // 终态=纯自旋角（按结果 0/180° 翻面）平躺格面，不朝向相机） ----
+                var finalRot = Quaternion.AngleAxis(targetSpin, Vector3.right);
                 t0 = Time.realtimeSinceStartup;
                 while (Time.realtimeSinceStartup - t0 < BounceSeconds)
                 {
@@ -76,15 +77,14 @@ namespace SynergyUI
                     float k = (Time.realtimeSinceStartup - t0) / BounceSeconds;
                     float bounce = Mathf.Sin(k * Mathf.PI) * 0.35f; // 一次小弹跳
                     coin.transform.position = rest + Vector3.up * bounce;
-                    coin.transform.rotation = Quaternion.Slerp(
-                        Quaternion.AngleAxis(targetSpin, Vector3.right), finalRot, k);
+                    coin.transform.rotation = finalRot;
                     await UniTask.Yield();
                 }
                 coin.transform.position = rest; // 终态钉死（消浮点残差）
                 coin.transform.rotation = finalRot;
 
                 // ---- 落地装饰：金爆点 + 结果浮字（先色后文：面已可读，浮字点题） ----
-                BattleEffectFx.PlayImpact(rest - Vector3.up * 0.45f, ImpactGold);
+                BattleEffectFx.PlayImpact(rest - Vector3.up * 0.05f, ImpactGold); // 币底贴格面（2026-10-26 随 RestY 0.1 同步）
                 // 浮字挂直立 holder 而非币体（2026-10-24 修复）：对方先手局币终态绕 X 翻转 180°，
                 // 挂币体局部 (0,1.1,0) 会把字按到板面之下、且「上浮」随翻转朝地心（实测三连对方
                 // 先手局结果字全埋地下）。holder 直立=世界系上浮；朝向归 StatsBillboard 恒看相机。

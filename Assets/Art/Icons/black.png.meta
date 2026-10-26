@@ -1,0 +1,3367 @@
+fileFormatVersion: 2
+guid: f7997728d5f587f4a93a731e8046f272
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: 8658220083525448001
+    second: elem_black_ming_dn0.60_v2_0
+  - first:
+      213: -8399710789322947556
+    second: elem_black_ming_dn0.60_v2_1
+  - first:
+      213: 7626713398122134410
+    second: elem_black_ming_dn0.60_v2_2
+  - first:
+      213: -7882503259860349834
+    second: elem_black_ming_dn0.60_v2_3
+  - first:
+      213: -6756845877200974978
+    second: elem_black_ming_dn0.60_v2_4
+  - first:
+      213: 5641977824273392652
+    second: elem_black_ming_dn0.60_v2_5
+  - first:
+      213: -6881620465345718186
+    second: elem_black_ming_dn0.60_v2_6
+  - first:
+      213: -5030944811056125226
+    second: elem_black_ming_dn0.60_v2_7
+  - first:
+      213: 5506525145639854915
+    second: elem_black_ming_dn0.60_v2_8
+  - first:
+      213: 854626665061478686
+    second: elem_black_ming_dn0.60_v2_9
+  - first:
+      213: 6771487143991462979
+    second: elem_black_ming_dn0.60_v2_10
+  - first:
+      213: 3970942092646375441
+    second: elem_black_ming_dn0.60_v2_11
+  - first:
+      213: 9083526734705693916
+    second: elem_black_ming_dn0.60_v2_12
+  - first:
+      213: -8732836360720664726
+    second: elem_black_ming_dn0.60_v2_13
+  - first:
+      213: 8199882657748399037
+    second: elem_black_ming_dn0.60_v2_14
+  - first:
+      213: -5734940207248606824
+    second: elem_black_ming_dn0.60_v2_15
+  - first:
+      213: -955356803476103360
+    second: elem_black_ming_dn0.60_v2_16
+  - first:
+      213: 8941268226925136417
+    second: elem_black_ming_dn0.60_v2_17
+  - first:
+      213: -5977129090577111631
+    second: elem_black_ming_dn0.60_v2_18
+  - first:
+      213: 7555952166414489661
+    second: elem_black_ming_dn0.60_v2_19
+  - first:
+      213: 286015722436326986
+    second: elem_black_ming_dn0.60_v2_20
+  - first:
+      213: 4048861056143969844
+    second: elem_black_ming_dn0.60_v2_21
+  - first:
+      213: -8936202513169516085
+    second: elem_black_ming_dn0.60_v2_22
+  - first:
+      213: -1238593427287207019
+    second: elem_black_ming_dn0.60_v2_23
+  - first:
+      213: 1614071989497291370
+    second: elem_black_ming_dn0.60_v2_24
+  - first:
+      213: -8957262631393028051
+    second: elem_black_ming_dn0.60_v2_25
+  - first:
+      213: 3219732254216990702
+    second: elem_black_ming_dn0.60_v2_26
+  - first:
+      213: -4334944701110842737
+    second: elem_black_ming_dn0.60_v2_27
+  - first:
+      213: 653063418870125331
+    second: elem_black_ming_dn0.60_v2_28
+  - first:
+      213: -925210465075419822
+    second: elem_black_ming_dn0.60_v2_29
+  - first:
+      213: -4580552180807087195
+    second: elem_black_ming_dn0.60_v2_30
+  - first:
+      213: 5002422065474324565
+    second: elem_black_ming_dn0.60_v2_31
+  - first:
+      213: 2828867988048686049
+    second: elem_black_ming_dn0.60_v2_32
+  - first:
+      213: -219861026553405351
+    second: elem_black_ming_dn0.60_v2_33
+  - first:
+      213: -5531854595663792817
+    second: elem_black_ming_dn0.60_v2_34
+  - first:
+      213: 1381699777336820409
+    second: elem_black_ming_dn0.60_v2_35
+  - first:
+      213: 1315431095971900122
+    second: elem_black_ming_dn0.60_v2_36
+  - first:
+      213: -7665354090891091166
+    second: elem_black_ming_dn0.60_v2_37
+  - first:
+      213: -6161769657627403856
+    second: elem_black_ming_dn0.60_v2_38
+  - first:
+      213: -3984576764170528362
+    second: elem_black_ming_dn0.60_v2_39
+  - first:
+      213: -8138811493029441792
+    second: elem_black_ming_dn0.60_v2_40
+  - first:
+      213: -2095967987487047214
+    second: elem_black_ming_dn0.60_v2_41
+  - first:
+      213: -5239120207592482026
+    second: elem_black_ming_dn0.60_v2_42
+  - first:
+      213: -3753499832918865208
+    second: elem_black_ming_dn0.60_v2_43
+  - first:
+      213: -3358247723275407155
+    second: elem_black_ming_dn0.60_v2_44
+  - first:
+      213: -4206723320700836405
+    second: elem_black_ming_dn0.60_v2_45
+  - first:
+      213: -8045849481896096489
+    second: elem_black_ming_dn0.60_v2_46
+  - first:
+      213: 6349354009732343330
+    second: elem_black_ming_dn0.60_v2_47
+  - first:
+      213: -5330307897534910324
+    second: elem_black_ming_dn0.60_v2_48
+  - first:
+      213: -7256538729074099693
+    second: elem_black_ming_dn0.60_v2_49
+  - first:
+      213: -4501290766685666613
+    second: elem_black_ming_dn0.60_v2_50
+  - first:
+      213: 1108224224364528503
+    second: elem_black_ming_dn0.60_v2_51
+  - first:
+      213: 7023392549049137564
+    second: elem_black_ming_dn0.60_v2_52
+  - first:
+      213: 2021619165516795380
+    second: elem_black_ming_dn0.60_v2_53
+  - first:
+      213: -3789011953018519473
+    second: elem_black_ming_dn0.60_v2_54
+  - first:
+      213: 1938379122884369048
+    second: elem_black_ming_dn0.60_v2_55
+  - first:
+      213: 8769338336425929045
+    second: elem_black_ming_dn0.60_v2_56
+  - first:
+      213: 7595996978403207431
+    second: elem_black_ming_dn0.60_v2_57
+  - first:
+      213: -2743644124884018029
+    second: elem_black_ming_dn0.60_v2_58
+  - first:
+      213: -8049877401661019380
+    second: elem_black_ming_dn0.60_v2_59
+  - first:
+      213: 5433636063283323487
+    second: elem_black_ming_dn0.60_v2_60
+  - first:
+      213: -4084184471268348749
+    second: elem_black_ming_dn0.60_v2_61
+  - first:
+      213: 1706099042171670957
+    second: elem_black_ming_dn0.60_v2_62
+  - first:
+      213: 241272554033976537
+    second: elem_black_ming_dn0.60_v2_63
+  - first:
+      213: 4837264584773433207
+    second: elem_black_ming_dn0.60_v2_64
+  - first:
+      213: -1680501397989126307
+    second: elem_black_ming_dn0.60_v2_65
+  - first:
+      213: -7233442729600185466
+    second: elem_black_ming_dn0.60_v2_66
+  - first:
+      213: -6752193010240994380
+    second: elem_black_ming_dn0.60_v2_67
+  - first:
+      213: 493066294199515349
+    second: elem_black_ming_dn0.60_v2_68
+  - first:
+      213: 4589783613797459297
+    second: elem_black_ming_dn0.60_v2_69
+  - first:
+      213: -8718897810384741008
+    second: elem_black_ming_dn0.60_v2_70
+  - first:
+      213: -6582556121180272035
+    second: elem_black_ming_dn0.60_v2_71
+  - first:
+      213: 2171918976866837333
+    second: elem_black_ming_dn0.60_v2_72
+  - first:
+      213: -2965400922973437742
+    second: elem_black_ming_dn0.60_v2_73
+  - first:
+      213: -160664758341011286
+    second: elem_black_ming_dn0.60_v2_74
+  - first:
+      213: -7457268397505564317
+    second: elem_black_ming_dn0.60_v2_75
+  - first:
+      213: -8784745816708123337
+    second: elem_black_ming_dn0.60_v2_76
+  - first:
+      213: 8273686951440276072
+    second: elem_black_ming_dn0.60_v2_77
+  - first:
+      213: 5411174517964801847
+    second: elem_black_ming_dn0.60_v2_78
+  - first:
+      213: -520930059449730553
+    second: elem_black_ming_dn0.60_v2_79
+  - first:
+      213: 7419459496874455530
+    second: elem_black_ming_dn0.60_v2_80
+  - first:
+      213: -2709444519930608279
+    second: elem_black_ming_dn0.60_v2_81
+  - first:
+      213: -3265508397930252961
+    second: elem_black_ming_dn0.60_v2_82
+  - first:
+      213: 3792346759892385551
+    second: elem_black_ming_dn0.60_v2_83
+  - first:
+      213: -2128986423487488187
+    second: elem_black_ming_dn0.60_v2_84
+  - first:
+      213: -760031465321974706
+    second: elem_black_ming_dn0.60_v2_85
+  - first:
+      213: -8655785846147479534
+    second: elem_black_ming_dn0.60_v2_86
+  - first:
+      213: 2288607875450962406
+    second: elem_black_ming_dn0.60_v2_87
+  - first:
+      213: 6792748453645845137
+    second: elem_black_ming_dn0.60_v2_88
+  - first:
+      213: 3876383613588534104
+    second: elem_black_ming_dn0.60_v2_89
+  - first:
+      213: -3409894487816507687
+    second: elem_black_ming_dn0.60_v2_90
+  - first:
+      213: 3030801326819956938
+    second: elem_black_ming_dn0.60_v2_91
+  - first:
+      213: 1054636402346518688
+    second: elem_black_ming_dn0.60_v2_92
+  - first:
+      213: 8231792661958804308
+    second: elem_black_ming_dn0.60_v2_93
+  - first:
+      213: -7891486377894120846
+    second: elem_black_ming_dn0.60_v2_94
+  - first:
+      213: -3542017452937867916
+    second: elem_black_ming_dn0.60_v2_95
+  - first:
+      213: -4408692736317164005
+    second: elem_black_ming_dn0.60_v2_96
+  - first:
+      213: 8353602855161026348
+    second: elem_black_ming_dn0.60_v2_97
+  - first:
+      213: -1246834003336315988
+    second: elem_black_ming_dn0.60_v2_98
+  - first:
+      213: -3552603494171485951
+    second: elem_black_ming_dn0.60_v2_99
+  - first:
+      213: -4334203028629099445
+    second: elem_black_ming_dn0.60_v2_100
+  - first:
+      213: 6762653319045427193
+    second: elem_black_ming_dn0.60_v2_101
+  - first:
+      213: -5140596127391751828
+    second: elem_black_ming_dn0.60_v2_102
+  - first:
+      213: 9217478424931030682
+    second: elem_black_ming_dn0.60_v2_103
+  - first:
+      213: -8184870519089658553
+    second: elem_black_ming_dn0.60_v2_104
+  - first:
+      213: -353994401668644750
+    second: elem_black_ming_dn0.60_v2_105
+  - first:
+      213: 3984066541138863245
+    second: elem_black_ming_dn0.60_v2_106
+  - first:
+      213: -6406804614499475091
+    second: elem_black_ming_dn0.60_v2_107
+  - first:
+      213: -274011894613834454
+    second: elem_black_ming_dn0.60_v2_108
+  - first:
+      213: 1230813804006828836
+    second: elem_black_ming_dn0.60_v2_109
+  - first:
+      213: -6067834372390219573
+    second: elem_black_ming_dn0.60_v2_110
+  - first:
+      213: -7425193541256035884
+    second: elem_black_ming_dn0.60_v2_111
+  - first:
+      213: -1646860422099037836
+    second: elem_black_ming_dn0.60_v2_112
+  - first:
+      213: -5622491910372192981
+    second: elem_black_ming_dn0.60_v2_113
+  - first:
+      213: -6054640962520284783
+    second: elem_black_ming_dn0.60_v2_114
+  - first:
+      213: 2996592391081753054
+    second: elem_black_ming_dn0.60_v2_115
+  - first:
+      213: -3287921862556307546
+    second: elem_black_ming_dn0.60_v2_116
+  - first:
+      213: 2048907568727419802
+    second: elem_black_ming_dn0.60_v2_117
+  - first:
+      213: 3606419636516256384
+    second: elem_black_ming_dn0.60_v2_118
+  - first:
+      213: 3494456902339519687
+    second: elem_black_ming_dn0.60_v2_119
+  - first:
+      213: -4979143209382754720
+    second: elem_black_ming_dn0.60_v2_120
+  - first:
+      213: 5068580104811150843
+    second: elem_black_ming_dn0.60_v2_121
+  - first:
+      213: -1513941786203996999
+    second: elem_black_ming_dn0.60_v2_122
+  - first:
+      213: 7146166726067913097
+    second: elem_black_ming_dn0.60_v2_123
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 1
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: iOS
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 274
+        width: 25
+        height: 16
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 141ffa1fa4d282870800000000000000
+      internalID: 8658220083525448001
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_1
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 156
+        height: 285
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c14c36a6a8b3e6b80800000000000000
+      internalID: -8399710789322947556
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_2
+      rect:
+        serializedVersion: 2
+        x: 17
+        y: 276
+        width: 8
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a8b38c27d6787d960800000000000000
+      internalID: 7626713398122134410
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_3
+      rect:
+        serializedVersion: 2
+        x: 22
+        y: 283
+        width: 12
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 67c4a276c09bb9290800000000000000
+      internalID: -7882503259860349834
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_4
+      rect:
+        serializedVersion: 2
+        x: 27
+        y: 280
+        width: 7
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e7b8f57597cda32a0800000000000000
+      internalID: -6756845877200974978
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_5
+      rect:
+        serializedVersion: 2
+        x: 32
+        y: 284
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c04627e40f45c4e40800000000000000
+      internalID: 5641977824273392652
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_6
+      rect:
+        serializedVersion: 2
+        x: 36
+        y: 282
+        width: 13
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 658920ca5a29f70a0800000000000000
+      internalID: -6881620465345718186
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_7
+      rect:
+        serializedVersion: 2
+        x: 47
+        y: 282
+        width: 12
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6daa764795e7e2ab0800000000000000
+      internalID: -5030944811056125226
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_8
+      rect:
+        serializedVersion: 2
+        x: 51
+        y: 275
+        width: 9
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 343ae94f17b1b6c40800000000000000
+      internalID: 5506525145639854915
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_9
+      rect:
+        serializedVersion: 2
+        x: 58
+        y: 281
+        width: 33
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e11f0928c6e3cdb00800000000000000
+      internalID: 854626665061478686
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_10
+      rect:
+        serializedVersion: 2
+        x: 80
+        y: 281
+        width: 7
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 34c4cba3ea729fd50800000000000000
+      internalID: 6771487143991462979
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_11
+      rect:
+        serializedVersion: 2
+        x: 87
+        y: 282
+        width: 33
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 11065d75bce9b1730800000000000000
+      internalID: 3970942092646375441
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_12
+      rect:
+        serializedVersion: 2
+        x: 120
+        y: 281
+        width: 10
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cd495e9407b2f0e70800000000000000
+      internalID: 9083526734705693916
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_13
+      rect:
+        serializedVersion: 2
+        x: 129
+        y: 278
+        width: 20
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a6731a5399bbec680800000000000000
+      internalID: -8732836360720664726
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_14
+      rect:
+        serializedVersion: 2
+        x: 145
+        y: 277
+        width: 8
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: db3baf615d5dbc170800000000000000
+      internalID: 8199882657748399037
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_15
+      rect:
+        serializedVersion: 2
+        x: 146
+        y: 280
+        width: 10
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 89977da34466960b0800000000000000
+      internalID: -5734940207248606824
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_16
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 264
+        width: 20
+        height: 14
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 04fdd078c04edb2f0800000000000000
+      internalID: -955356803476103360
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_17
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 252
+        width: 16
+        height: 16
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 12a0c5b5414c51c70800000000000000
+      internalID: 8941268226925136417
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_18
+      rect:
+        serializedVersion: 2
+        x: 3
+        y: 272
+        width: 9
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1b56f73a2c8fc0da0800000000000000
+      internalID: -5977129090577111631
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_19
+      rect:
+        serializedVersion: 2
+        x: 16
+        y: 266
+        width: 9
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d389af256722cd860800000000000000
+      internalID: 7555952166414489661
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_20
+      rect:
+        serializedVersion: 2
+        x: 143
+        y: 260
+        width: 9
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a467effb8c128f300800000000000000
+      internalID: 286015722436326986
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_21
+      rect:
+        serializedVersion: 2
+        x: 147
+        y: 268
+        width: 9
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 43ecf54cda1703830800000000000000
+      internalID: 4048861056143969844
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_22
+      rect:
+        serializedVersion: 2
+        x: 13
+        y: 257
+        width: 12
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: bc9f399092b3cf380800000000000000
+      internalID: -8936202513169516085
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_23
+      rect:
+        serializedVersion: 2
+        x: 136
+        y: 258
+        width: 8
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 593996917d1afcee0800000000000000
+      internalID: -1238593427287207019
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_24
+      rect:
+        serializedVersion: 2
+        x: 143
+        y: 254
+        width: 6
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a62e4e73ce5566610800000000000000
+      internalID: 1614071989497291370
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_25
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 223
+        width: 13
+        height: 34
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d2810f7281961b380800000000000000
+      internalID: -8957262631393028051
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_26
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 216
+        width: 7
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: eefa8742d69ceac20800000000000000
+      internalID: 3219732254216990702
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_27
+      rect:
+        serializedVersion: 2
+        x: 1
+        y: 236
+        width: 15
+        height: 14
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f8a835903ce27d3c0800000000000000
+      internalID: -4334944701110842737
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_28
+      rect:
+        serializedVersion: 2
+        x: 14
+        y: 218
+        width: 8
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3135e8928b5201900800000000000000
+      internalID: 653063418870125331
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_29
+      rect:
+        serializedVersion: 2
+        x: 15
+        y: 233
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 255a4b6ebfdf823f0800000000000000
+      internalID: -925210465075419822
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_30
+      rect:
+        serializedVersion: 2
+        x: 18
+        y: 247
+        width: 7
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5ab4ad37f0c9e60c0800000000000000
+      internalID: -4580552180807087195
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_31
+      rect:
+        serializedVersion: 2
+        x: 20
+        y: 242
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5584c255d5c2c6540800000000000000
+      internalID: 5002422065474324565
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_32
+      rect:
+        serializedVersion: 2
+        x: 138
+        y: 218
+        width: 11
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1ebad187278224720800000000000000
+      internalID: 2828867988048686049
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_33
+      rect:
+        serializedVersion: 2
+        x: 143
+        y: 234
+        width: 7
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 950e45caf85e2fcf0800000000000000
+      internalID: -219861026553405351
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_34
+      rect:
+        serializedVersion: 2
+        x: 146
+        y: 228
+        width: 9
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f45f854ed87ea33b0800000000000000
+      internalID: -5531854595663792817
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_35
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 206
+        width: 6
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9b2c56e70a8cc2310800000000000000
+      internalID: 1381699777336820409
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_36
+      rect:
+        serializedVersion: 2
+        x: 3
+        y: 211
+        width: 7
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ada68e1cc99514210800000000000000
+      internalID: 1315431095971900122
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_37
+      rect:
+        serializedVersion: 2
+        x: 12
+        y: 210
+        width: 9
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 22369de21113f9590800000000000000
+      internalID: -7665354090891091166
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_38
+      rect:
+        serializedVersion: 2
+        x: 151
+        y: 216
+        width: 5
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0b99651942ffc7aa0800000000000000
+      internalID: -6161769657627403856
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_39
+      rect:
+        serializedVersion: 2
+        x: 137
+        y: 208
+        width: 9
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 699175f4b80f3b8c0800000000000000
+      internalID: -3984576764170528362
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_40
+      rect:
+        serializedVersion: 2
+        x: 5
+        y: 192
+        width: 7
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 00f0d1081122d0f80800000000000000
+      internalID: -8138811493029441792
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_41
+      rect:
+        serializedVersion: 2
+        x: 9
+        y: 195
+        width: 9
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2d18e356830a9e2e0800000000000000
+      internalID: -2095967987487047214
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_42
+      rect:
+        serializedVersion: 2
+        x: 19
+        y: 192
+        width: 8
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 61b11e2ede7ea47b0800000000000000
+      internalID: -5239120207592482026
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_43
+      rect:
+        serializedVersion: 2
+        x: 141
+        y: 196
+        width: 10
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8ca0262f9c3e8ebc0800000000000000
+      internalID: -3753499832918865208
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_44
+      rect:
+        serializedVersion: 2
+        x: 145
+        y: 190
+        width: 7
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: dc0b76a0d7b1561d0800000000000000
+      internalID: -3358247723275407155
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_45
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 188
+        width: 9
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: bc566419d67be95c0800000000000000
+      internalID: -4206723320700836405
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_46
+      rect:
+        serializedVersion: 2
+        x: 9
+        y: 185
+        width: 7
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 71d82536686675090800000000000000
+      internalID: -8045849481896096489
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_47
+      rect:
+        serializedVersion: 2
+        x: 136
+        y: 187
+        width: 8
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2266c4fd4df6d1850800000000000000
+      internalID: 6349354009732343330
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_48
+      rect:
+        serializedVersion: 2
+        x: 142
+        y: 188
+        width: 8
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c80f8f75531f606b0800000000000000
+      internalID: -5330307897534910324
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_49
+      rect:
+        serializedVersion: 2
+        x: 150
+        y: 186
+        width: 6
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 31a7ca209789b4b90800000000000000
+      internalID: -7256538729074099693
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_50
+      rect:
+        serializedVersion: 2
+        x: 6
+        y: 174
+        width: 7
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: bc284f485e33881c0800000000000000
+      internalID: -4501290766685666613
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_51
+      rect:
+        serializedVersion: 2
+        x: 10
+        y: 176
+        width: 10
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7730bb87f04316f00800000000000000
+      internalID: 1108224224364528503
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_52
+      rect:
+        serializedVersion: 2
+        x: 17
+        y: 172
+        width: 7
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c99f234df4a187160800000000000000
+      internalID: 7023392549049137564
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_53
+      rect:
+        serializedVersion: 2
+        x: 18
+        y: 177
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4fd00c78beb3e0c10800000000000000
+      internalID: 2021619165516795380
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_54
+      rect:
+        serializedVersion: 2
+        x: 137
+        y: 178
+        width: 8
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f404f9a24b9ba6bc0800000000000000
+      internalID: -3789011953018519473
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_55
+      rect:
+        serializedVersion: 2
+        x: 147
+        y: 166
+        width: 9
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 89a5e83da8186ea10800000000000000
+      internalID: 1938379122884369048
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_56
+      rect:
+        serializedVersion: 2
+        x: 5
+        y: 168
+        width: 10
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 559e1e941c2f2b970800000000000000
+      internalID: 8769338336425929045
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_57
+      rect:
+        serializedVersion: 2
+        x: 16
+        y: 164
+        width: 6
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 709e9aca1076a6960800000000000000
+      internalID: 7595996978403207431
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_58
+      rect:
+        serializedVersion: 2
+        x: 140
+        y: 165
+        width: 7
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 39c5332743e9ce9d0800000000000000
+      internalID: -2743644124884018029
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_59
+      rect:
+        serializedVersion: 2
+        x: 142
+        y: 170
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c0bec8c3727194090800000000000000
+      internalID: -8049877401661019380
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_60
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 161
+        width: 7
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f5221cef537286b40800000000000000
+      internalID: 5433636063283323487
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_61
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 156
+        width: 6
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3bc22e0ccdf0257c0800000000000000
+      internalID: -4084184471268348749
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_62
+      rect:
+        serializedVersion: 2
+        x: 5
+        y: 156
+        width: 7
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: da1d6402a084da710800000000000000
+      internalID: 1706099042171670957
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_63
+      rect:
+        serializedVersion: 2
+        x: 10
+        y: 158
+        width: 8
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9d41f3d0c1c295300800000000000000
+      internalID: 241272554033976537
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_64
+      rect:
+        serializedVersion: 2
+        x: 17
+        y: 158
+        width: 9
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7777ffbc28a612340800000000000000
+      internalID: 4837264584773433207
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_65
+      rect:
+        serializedVersion: 2
+        x: 143
+        y: 155
+        width: 7
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d5f8f48d1e8ada8e0800000000000000
+      internalID: -1680501397989126307
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_66
+      rect:
+        serializedVersion: 2
+        x: 148
+        y: 156
+        width: 8
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 68b8c0f6926ad9b90800000000000000
+      internalID: -7233442729600185466
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_67
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 141
+        width: 8
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4b3c5b95b346b42a0800000000000000
+      internalID: -6752193010240994380
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_68
+      rect:
+        serializedVersion: 2
+        x: 11
+        y: 152
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5d8fa74ae29b7d600800000000000000
+      internalID: 493066294199515349
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_69
+      rect:
+        serializedVersion: 2
+        x: 16
+        y: 148
+        width: 8
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1656e4801ef22bf30800000000000000
+      internalID: 4589783613797459297
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_70
+      rect:
+        serializedVersion: 2
+        x: 148
+        y: 146
+        width: 8
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 07d161bd2a0400780800000000000000
+      internalID: -8718897810384741008
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_71
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 136
+        width: 8
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d5a0afa651016a4a0800000000000000
+      internalID: -6582556121180272035
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_72
+      rect:
+        serializedVersion: 2
+        x: 6
+        y: 140
+        width: 13
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 553e3195dc4342e10800000000000000
+      internalID: 2171918976866837333
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_73
+      rect:
+        serializedVersion: 2
+        x: 7
+        y: 138
+        width: 6
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2d08d896297c8d6d0800000000000000
+      internalID: -2965400922973437742
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_74
+      rect:
+        serializedVersion: 2
+        x: 139
+        y: 138
+        width: 13
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: aa8f827e04435cdf0800000000000000
+      internalID: -160664758341011286
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_75
+      rect:
+        serializedVersion: 2
+        x: 4
+        y: 132
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3613feb17e5728890800000000000000
+      internalID: -7457268397505564317
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_76
+      rect:
+        serializedVersion: 2
+        x: 137
+        y: 126
+        width: 8
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 73573092930561680800000000000000
+      internalID: -8784745816708123337
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_77
+      rect:
+        serializedVersion: 2
+        x: 146
+        y: 132
+        width: 9
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 86ad16b427a02d270800000000000000
+      internalID: 8273686951440276072
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_78
+      rect:
+        serializedVersion: 2
+        x: 148
+        y: 128
+        width: 8
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 73700f0fd8a581b40800000000000000
+      internalID: 5411174517964801847
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_79
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 124
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 70afca5fed845c8f0800000000000000
+      internalID: -520930059449730553
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_80
+      rect:
+        serializedVersion: 2
+        x: 1
+        y: 120
+        width: 8
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ae1b9983a1737f660800000000000000
+      internalID: 7419459496874455530
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_81
+      rect:
+        serializedVersion: 2
+        x: 15
+        y: 120
+        width: 9
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 96548ea709e166ad0800000000000000
+      internalID: -2709444519930608279
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_82
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 108
+        width: 13
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f55ff4ad9659ea2d0800000000000000
+      internalID: -3265508397930252961
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_83
+      rect:
+        serializedVersion: 2
+        x: 15
+        y: 103
+        width: 10
+        height: 14
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f0f3d70194f11a430800000000000000
+      internalID: 3792346759892385551
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_84
+      rect:
+        serializedVersion: 2
+        x: 16
+        y: 116
+        width: 9
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 54f1660b0225472e0800000000000000
+      internalID: -2128986423487488187
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_85
+      rect:
+        serializedVersion: 2
+        x: 140
+        y: 108
+        width: 6
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e443d5bb863d375f0800000000000000
+      internalID: -760031465321974706
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_86
+      rect:
+        serializedVersion: 2
+        x: 139
+        y: 100
+        width: 12
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 218868c12a870e780800000000000000
+      internalID: -8655785846147479534
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_87
+      rect:
+        serializedVersion: 2
+        x: 144
+        y: 108
+        width: 6
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6e18a66bcb4c2cf10800000000000000
+      internalID: 2288607875450962406
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_88
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 90
+        width: 7
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1920524aab0b44e50800000000000000
+      internalID: 6792748453645845137
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_89
+      rect:
+        serializedVersion: 2
+        x: 3
+        y: 96
+        width: 11
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 853f61dcb5eabc530800000000000000
+      internalID: 3876383613588534104
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_90
+      rect:
+        serializedVersion: 2
+        x: 10
+        y: 97
+        width: 11
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9de622c970f9da0d0800000000000000
+      internalID: -3409894487816507687
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_91
+      rect:
+        serializedVersion: 2
+        x: 13
+        y: 94
+        width: 9
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ac8d2e5bfb19f0a20800000000000000
+      internalID: 3030801326819956938
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_92
+      rect:
+        serializedVersion: 2
+        x: 148
+        y: 88
+        width: 6
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0a86f016832d2ae00800000000000000
+      internalID: 1054636402346518688
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_93
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 75
+        width: 9
+        height: 16
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 453c8b8efc33d3270800000000000000
+      internalID: 8231792661958804308
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_94
+      rect:
+        serializedVersion: 2
+        x: 14
+        y: 88
+        width: 9
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 27279cf33fecb7290800000000000000
+      internalID: -7891486377894120846
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_95
+      rect:
+        serializedVersion: 2
+        x: 20
+        y: 90
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 47d876994e938dec0800000000000000
+      internalID: -3542017452937867916
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_96
+      rect:
+        serializedVersion: 2
+        x: 135
+        y: 77
+        width: 9
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b1678f7805d21d2c0800000000000000
+      internalID: -4408692736317164005
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_97
+      rect:
+        serializedVersion: 2
+        x: 144
+        y: 81
+        width: 7
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c27df889985fde370800000000000000
+      internalID: 8353602855161026348
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_98
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 64
+        width: 8
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cabb249741b52bee0800000000000000
+      internalID: -1246834003336315988
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_99
+      rect:
+        serializedVersion: 2
+        x: 5
+        y: 60
+        width: 12
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 109d81ec1fd92bec0800000000000000
+      internalID: -3552603494171485951
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_100
+      rect:
+        serializedVersion: 2
+        x: 9
+        y: 65
+        width: 9
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b4ce32e1f41d9d3c0800000000000000
+      internalID: -4334203028629099445
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_101
+      rect:
+        serializedVersion: 2
+        x: 146
+        y: 70
+        width: 7
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9ffa1d41d55c9dd50800000000000000
+      internalID: 6762653319045427193
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_102
+      rect:
+        serializedVersion: 2
+        x: 148
+        y: 65
+        width: 8
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c61e015ee0fe8a8b0800000000000000
+      internalID: -5140596127391751828
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_103
+      rect:
+        serializedVersion: 2
+        x: 19
+        y: 62
+        width: 6
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a9657da8acf0bef70800000000000000
+      internalID: 9217478424931030682
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_104
+      rect:
+        serializedVersion: 2
+        x: 145
+        y: 57
+        width: 9
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7450811d0af796e80800000000000000
+      internalID: -8184870519089658553
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_105
+      rect:
+        serializedVersion: 2
+        x: 15
+        y: 49
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 270401c97fb561bf0800000000000000
+      internalID: -353994401668644750
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_106
+      rect:
+        serializedVersion: 2
+        x: 20
+        y: 51
+        width: 10
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d84e912296f3a4730800000000000000
+      internalID: 3984066541138863245
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_107
+      rect:
+        serializedVersion: 2
+        x: 134
+        y: 41
+        width: 13
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d61ec67d5257617a0800000000000000
+      internalID: -6406804614499475091
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_108
+      rect:
+        serializedVersion: 2
+        x: 144
+        y: 52
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a258f4532a3823cf0800000000000000
+      internalID: -274011894613834454
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_109
+      rect:
+        serializedVersion: 2
+        x: 147
+        y: 48
+        width: 9
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 42b697432aab41110800000000000000
+      internalID: 1230813804006828836
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_110
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 43
+        width: 5
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: bc096cd79c8bacba0800000000000000
+      internalID: -6067834372390219573
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_111
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 24
+        width: 5
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4d1c8e880d964f890800000000000000
+      internalID: -7425193541256035884
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_112
+      rect:
+        serializedVersion: 2
+        x: 3
+        y: 24
+        width: 9
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 471132aeb2d2529e0800000000000000
+      internalID: -1646860422099037836
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_113
+      rect:
+        serializedVersion: 2
+        x: 15
+        y: 30
+        width: 9
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b2d02c19565e8f1b0800000000000000
+      internalID: -5622491910372192981
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_114
+      rect:
+        serializedVersion: 2
+        x: 136
+        y: 24
+        width: 8
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 191037a9f1899fba0800000000000000
+      internalID: -6054640962520284783
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_115
+      rect:
+        serializedVersion: 2
+        x: 139
+        y: 24
+        width: 14
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ed9f01f27e8069920800000000000000
+      internalID: 2996592391081753054
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_116
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 18
+        width: 8
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6af27157c74fe52d0800000000000000
+      internalID: -3287921862556307546
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_117
+      rect:
+        serializedVersion: 2
+        x: 5
+        y: 17
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a9b6b93049e2f6c10800000000000000
+      internalID: 2048907568727419802
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_118
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 10
+        width: 8
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 08a7b814d839c0230800000000000000
+      internalID: 3606419636516256384
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_119
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 2
+        width: 10
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7c4ebdac90ece7030800000000000000
+      internalID: 3494456902339519687
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_120
+      rect:
+        serializedVersion: 2
+        x: 15
+        y: 10
+        width: 9
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 06641f6b1a786eab0800000000000000
+      internalID: -4979143209382754720
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_121
+      rect:
+        serializedVersion: 2
+        x: 138
+        y: 10
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: bfd71e630c6375640800000000000000
+      internalID: 5068580104811150843
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_122
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 8
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9bcb0b677f56dfae0800000000000000
+      internalID: -1513941786203996999
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: elem_black_ming_dn0.60_v2_123
+      rect:
+        serializedVersion: 2
+        x: 7
+        y: 0
+        width: 10
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9818efc76c84c2360800000000000000
+      internalID: 7146166726067913097
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 5e97eb03825dee720800000000000000
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      elem_black_ming_dn0.60_v2_0: 8658220083525448001
+      elem_black_ming_dn0.60_v2_1: -8399710789322947556
+      elem_black_ming_dn0.60_v2_10: 6771487143991462979
+      elem_black_ming_dn0.60_v2_100: -4334203028629099445
+      elem_black_ming_dn0.60_v2_101: 6762653319045427193
+      elem_black_ming_dn0.60_v2_102: -5140596127391751828
+      elem_black_ming_dn0.60_v2_103: 9217478424931030682
+      elem_black_ming_dn0.60_v2_104: -8184870519089658553
+      elem_black_ming_dn0.60_v2_105: -353994401668644750
+      elem_black_ming_dn0.60_v2_106: 3984066541138863245
+      elem_black_ming_dn0.60_v2_107: -6406804614499475091
+      elem_black_ming_dn0.60_v2_108: -274011894613834454
+      elem_black_ming_dn0.60_v2_109: 1230813804006828836
+      elem_black_ming_dn0.60_v2_11: 3970942092646375441
+      elem_black_ming_dn0.60_v2_110: -6067834372390219573
+      elem_black_ming_dn0.60_v2_111: -7425193541256035884
+      elem_black_ming_dn0.60_v2_112: -1646860422099037836
+      elem_black_ming_dn0.60_v2_113: -5622491910372192981
+      elem_black_ming_dn0.60_v2_114: -6054640962520284783
+      elem_black_ming_dn0.60_v2_115: 2996592391081753054
+      elem_black_ming_dn0.60_v2_116: -3287921862556307546
+      elem_black_ming_dn0.60_v2_117: 2048907568727419802
+      elem_black_ming_dn0.60_v2_118: 3606419636516256384
+      elem_black_ming_dn0.60_v2_119: 3494456902339519687
+      elem_black_ming_dn0.60_v2_12: 9083526734705693916
+      elem_black_ming_dn0.60_v2_120: -4979143209382754720
+      elem_black_ming_dn0.60_v2_121: 5068580104811150843
+      elem_black_ming_dn0.60_v2_122: -1513941786203996999
+      elem_black_ming_dn0.60_v2_123: 7146166726067913097
+      elem_black_ming_dn0.60_v2_13: -8732836360720664726
+      elem_black_ming_dn0.60_v2_14: 8199882657748399037
+      elem_black_ming_dn0.60_v2_15: -5734940207248606824
+      elem_black_ming_dn0.60_v2_16: -955356803476103360
+      elem_black_ming_dn0.60_v2_17: 8941268226925136417
+      elem_black_ming_dn0.60_v2_18: -5977129090577111631
+      elem_black_ming_dn0.60_v2_19: 7555952166414489661
+      elem_black_ming_dn0.60_v2_2: 7626713398122134410
+      elem_black_ming_dn0.60_v2_20: 286015722436326986
+      elem_black_ming_dn0.60_v2_21: 4048861056143969844
+      elem_black_ming_dn0.60_v2_22: -8936202513169516085
+      elem_black_ming_dn0.60_v2_23: -1238593427287207019
+      elem_black_ming_dn0.60_v2_24: 1614071989497291370
+      elem_black_ming_dn0.60_v2_25: -8957262631393028051
+      elem_black_ming_dn0.60_v2_26: 3219732254216990702
+      elem_black_ming_dn0.60_v2_27: -4334944701110842737
+      elem_black_ming_dn0.60_v2_28: 653063418870125331
+      elem_black_ming_dn0.60_v2_29: -925210465075419822
+      elem_black_ming_dn0.60_v2_3: -7882503259860349834
+      elem_black_ming_dn0.60_v2_30: -4580552180807087195
+      elem_black_ming_dn0.60_v2_31: 5002422065474324565
+      elem_black_ming_dn0.60_v2_32: 2828867988048686049
+      elem_black_ming_dn0.60_v2_33: -219861026553405351
+      elem_black_ming_dn0.60_v2_34: -5531854595663792817
+      elem_black_ming_dn0.60_v2_35: 1381699777336820409
+      elem_black_ming_dn0.60_v2_36: 1315431095971900122
+      elem_black_ming_dn0.60_v2_37: -7665354090891091166
+      elem_black_ming_dn0.60_v2_38: -6161769657627403856
+      elem_black_ming_dn0.60_v2_39: -3984576764170528362
+      elem_black_ming_dn0.60_v2_4: -6756845877200974978
+      elem_black_ming_dn0.60_v2_40: -8138811493029441792
+      elem_black_ming_dn0.60_v2_41: -2095967987487047214
+      elem_black_ming_dn0.60_v2_42: -5239120207592482026
+      elem_black_ming_dn0.60_v2_43: -3753499832918865208
+      elem_black_ming_dn0.60_v2_44: -3358247723275407155
+      elem_black_ming_dn0.60_v2_45: -4206723320700836405
+      elem_black_ming_dn0.60_v2_46: -8045849481896096489
+      elem_black_ming_dn0.60_v2_47: 6349354009732343330
+      elem_black_ming_dn0.60_v2_48: -5330307897534910324
+      elem_black_ming_dn0.60_v2_49: -7256538729074099693
+      elem_black_ming_dn0.60_v2_5: 5641977824273392652
+      elem_black_ming_dn0.60_v2_50: -4501290766685666613
+      elem_black_ming_dn0.60_v2_51: 1108224224364528503
+      elem_black_ming_dn0.60_v2_52: 7023392549049137564
+      elem_black_ming_dn0.60_v2_53: 2021619165516795380
+      elem_black_ming_dn0.60_v2_54: -3789011953018519473
+      elem_black_ming_dn0.60_v2_55: 1938379122884369048
+      elem_black_ming_dn0.60_v2_56: 8769338336425929045
+      elem_black_ming_dn0.60_v2_57: 7595996978403207431
+      elem_black_ming_dn0.60_v2_58: -2743644124884018029
+      elem_black_ming_dn0.60_v2_59: -8049877401661019380
+      elem_black_ming_dn0.60_v2_6: -6881620465345718186
+      elem_black_ming_dn0.60_v2_60: 5433636063283323487
+      elem_black_ming_dn0.60_v2_61: -4084184471268348749
+      elem_black_ming_dn0.60_v2_62: 1706099042171670957
+      elem_black_ming_dn0.60_v2_63: 241272554033976537
+      elem_black_ming_dn0.60_v2_64: 4837264584773433207
+      elem_black_ming_dn0.60_v2_65: -1680501397989126307
+      elem_black_ming_dn0.60_v2_66: -7233442729600185466
+      elem_black_ming_dn0.60_v2_67: -6752193010240994380
+      elem_black_ming_dn0.60_v2_68: 493066294199515349
+      elem_black_ming_dn0.60_v2_69: 4589783613797459297
+      elem_black_ming_dn0.60_v2_7: -5030944811056125226
+      elem_black_ming_dn0.60_v2_70: -8718897810384741008
+      elem_black_ming_dn0.60_v2_71: -6582556121180272035
+      elem_black_ming_dn0.60_v2_72: 2171918976866837333
+      elem_black_ming_dn0.60_v2_73: -2965400922973437742
+      elem_black_ming_dn0.60_v2_74: -160664758341011286
+      elem_black_ming_dn0.60_v2_75: -7457268397505564317
+      elem_black_ming_dn0.60_v2_76: -8784745816708123337
+      elem_black_ming_dn0.60_v2_77: 8273686951440276072
+      elem_black_ming_dn0.60_v2_78: 5411174517964801847
+      elem_black_ming_dn0.60_v2_79: -520930059449730553
+      elem_black_ming_dn0.60_v2_8: 5506525145639854915
+      elem_black_ming_dn0.60_v2_80: 7419459496874455530
+      elem_black_ming_dn0.60_v2_81: -2709444519930608279
+      elem_black_ming_dn0.60_v2_82: -3265508397930252961
+      elem_black_ming_dn0.60_v2_83: 3792346759892385551
+      elem_black_ming_dn0.60_v2_84: -2128986423487488187
+      elem_black_ming_dn0.60_v2_85: -760031465321974706
+      elem_black_ming_dn0.60_v2_86: -8655785846147479534
+      elem_black_ming_dn0.60_v2_87: 2288607875450962406
+      elem_black_ming_dn0.60_v2_88: 6792748453645845137
+      elem_black_ming_dn0.60_v2_89: 3876383613588534104
+      elem_black_ming_dn0.60_v2_9: 854626665061478686
+      elem_black_ming_dn0.60_v2_90: -3409894487816507687
+      elem_black_ming_dn0.60_v2_91: 3030801326819956938
+      elem_black_ming_dn0.60_v2_92: 1054636402346518688
+      elem_black_ming_dn0.60_v2_93: 8231792661958804308
+      elem_black_ming_dn0.60_v2_94: -7891486377894120846
+      elem_black_ming_dn0.60_v2_95: -3542017452937867916
+      elem_black_ming_dn0.60_v2_96: -4408692736317164005
+      elem_black_ming_dn0.60_v2_97: 8353602855161026348
+      elem_black_ming_dn0.60_v2_98: -1246834003336315988
+      elem_black_ming_dn0.60_v2_99: -3552603494171485951
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

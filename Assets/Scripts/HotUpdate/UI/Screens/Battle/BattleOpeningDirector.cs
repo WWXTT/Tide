@@ -153,10 +153,15 @@ namespace SynergyUI
         }
 
         /// <summary>段三：BattleCoinToss 掷币（结果即 startingPlayer）。2026-10-23 13:00 v3：
-        /// 推近板心与还原机位两段 Tween 整删——机位全程保持定档 (7,8,-2)/(60,0,0)。</summary>
+        /// 推近板心与还原机位两段 Tween 整删——机位全程保持定档 (7,8,-2)/(60,0,0)。
+        /// 2026-10-26：落点改中央连锁速度格（hud-tile-chain-speed=中线正中 tile-3-3 正上方）——
+        /// 用户定案「旋转最后准确落到那一格上」（原=棋盘几何中心，与中线行格心有错位）。
+        /// 中线行未装台回落板心。</summary>
         private async UniTask<bool> CoinStageAsync()
         {
-            var playerFirst = await BattleCoinToss.PlayAsync(BoardCenterWorld(), () => _skip);
+            var tile = BattleHudRow.ChainSpeedTile;
+            var rest = tile != null ? tile.position : BoardCenterWorld();
+            var playerFirst = await BattleCoinToss.PlayAsync(rest, () => _skip);
             return playerFirst;
         }
 
@@ -281,12 +286,17 @@ namespace SynergyUI
     /// 三行循环选钮+btn-start/btn-back）。版式（锚点/字号/字重）以预制体为正本（2026-10-24 用户
     /// 手调定案，代码不再改写）；运行时只写文案内容与按钮接线（文案以代码为唯一正本）。
     /// 循环选钮=点击换档（LobbyScreen 选卡组钮先例）。
-    /// ShowAsync 返回 Options?=null=返回主菜单（dead 拆屏同判）。
+    /// ShowAsync 返回 Options：null=取消/返回主菜单（dead 拆屏同判）。
     /// </summary>
     public sealed class DummyOptionsPanel
     {
-        /// <summary>面板结果：PlayerFirst=null=掷硬币；Shuffle=false=锁牌库序；FullPool=true=充满预设。</summary>
-        public readonly struct Options
+        /// <summary>面板结果：PlayerFirst=null=掷硬币；Shuffle=false=锁牌库序；FullPool=true=充满预设。
+        /// 须为引用类型（2026-10-24 真机实录）：UniTask 泛型参=热更 struct 时，async 状态机的
+        /// AsyncUniTaskMethodBuilder 属「AOT 泛型×热更值类型」组合——AOT 侧编不出也锚不住
+        /// （锚点程序集看不见热更类型），真机首个 await 前即 MissingMethodException（木桩面板
+        /// 弹不出即此）。引用类型走已锚的 UniTask&lt;object&gt; 共享形态（HotUpdateLoader 静态构造）。
+        /// 热更域 UniTask 泛型返回一律照此，勿再用热更 struct。</summary>
+        public sealed class Options
         {
             public readonly bool? PlayerFirst;
             public readonly bool Shuffle;
@@ -305,14 +315,14 @@ namespace SynergyUI
         private const string HintText = "掷硬币后弹窗选定双方卡组与对手难度（木桩/脚本/AI）；对手卡组限三套主题卡组。";
 
         private RectTransform _root;
-        private Options? _result;
+        private Options _result;
         private bool _cancelled;
         private readonly int[] _idx = new int[3]; // 0=先后手 1=洗牌 2=元素池（数组槽位可被闭包安全捕获）
 
         /// <summary>弹面板并等结果（dead=已死该退出判定；返回 null=取消/拆屏——调用方退回主菜单）。
         /// 2026-10-22 根因注记：dead 语义与 BattleOpeningDirector._running（内部取反）相反，
         /// 调用方必须传「!运行中」——传反=面板当帧判死退出（木桩进不去的根因，已修）。</summary>
-        public static async UniTask<Options?> ShowAsync(Func<bool> dead, RectTransform parent)
+        public static async UniTask<Options> ShowAsync(Func<bool> dead, RectTransform parent)
         {
             var panel = new DummyOptionsPanel(parent);
             try
@@ -439,8 +449,9 @@ namespace SynergyUI
     /// </summary>
     public sealed class DummyDeckPanel
     {
-        /// <summary>弹窗结果：卡组名（DeckCatalog 原名，段五 BuildDeckOf 消费）+难度档（BattleEntry 口径）。</summary>
-        public readonly struct Pick
+        /// <summary>弹窗结果（引用类型=刻意，AOT 约束同 DummyOptionsPanel.Options·2026-10-24）：
+        /// 卡组名（DeckCatalog 原名，段五 BuildDeckOf 消费）+难度档（BattleEntry 口径）。</summary>
+        public sealed class Pick
         {
             public readonly string MyDeckName;
             public readonly string AiDeckName;
@@ -458,7 +469,7 @@ namespace SynergyUI
         public static readonly string[] DifficultyLabels = { "木桩（全让过）", "脚本（预组打法）", "AI（正式对手）" };
 
         private RectTransform _root;
-        private Pick? _result;
+        private Pick _result;
         private bool _cancelled;
         private readonly List<string> _openNames = new List<string>();  // 玩家牌库+预组（我方与 AI 档对方共用）
         private readonly List<string> _openLabels = new List<string>();

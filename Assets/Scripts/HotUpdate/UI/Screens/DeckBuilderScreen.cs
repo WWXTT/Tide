@@ -16,21 +16,24 @@ namespace SynergyUI
     /// 左 648=当前卡组（名称行/汇总/卡表滚动 452/统计区**非滚动** 356——构成检测+曲线/颜色双列+类型行）；
     /// 中 392=只读卡面（SlotBg 底板 240×432 居中）+ 异常提示 + 英雄技能栏；
         /// 右 824=卡池（色/型 chips 固定面板内不滚动 + 搜索 + 滚动填充剩余高度）+ 卡组库（预组 3 只读可复制
-        /// + 我的卡组，固定 260 贴底）。中栏卡面可点击放大（全屏遮罩+360×648，独立 Zoom 绑定）。
+        /// + 我的卡组，固定 260 贴底）。中栏卡面可点击放大（全屏遮罩+600×1080，独立 Zoom 绑定）。
     ///
     /// 视觉全部走 prefab 烘焙模板（DeckUI.prefab 各面板 templates 根下 tpl-*，隐藏约定见
     /// UiKit.CloneTemplateFrom）：行/chip/统计块/分区标题/空态一律克隆模板 + 绑文本/显隐/onClick，
     /// 代码不再现搭视觉节点。色 chips 预制体烘焙（带色），卡型 chips 由 tpl-chip 克隆进 facet-kind
     /// 一次、刷新只切选中态（Outline 烘焙 disabled，只切 enabled）。
     ///
-    /// 构筑规则（2026-10-11 定案）：① 必须标记英雄技能（资格=HeroSkillSystem.CanBeSkillCard
-    /// ——法术且 1~3 个主动效果），技能栏空则不可保存；② 唯一效果（唯一门/同名仪典）每卡组
-    /// 限 1 张——添加口+保存口双拦；③ 卡组 30-60 张、卡可重复任意张。
-    /// 主题双色约束（2026-10-15）：红/绿/蓝开头卡组拒加主题外颜色卡（出牌费+主动锚价两面）。
-    ///
+        /// 构筑规则（2026-10-11 定案）：① 必须标记英雄技能（资格=HeroSkillSystem.CanBeSkillCard
+        /// ——法术且 1~3 个主动效果），技能栏空=构成约束不过、不可保存；② 唯一效果（唯一门/同名
+        /// 仪典）每卡组限 1 张——添加口+保存口双拦；③ 卡组 30-60 张、卡可重复任意张。
+        /// 黑白代价覆盖（2026-10-26 定案）：需黑/白元素的卡须至少带 1 张对应补偿色的代价卡
+        /// （数量不限）——构成约束不过、不可保存。
+        /// 主题双色约束已删（2026-10-26 用户定案）：预组构建期的临时检查，不面向玩家。
+        ///
         /// 异常卡口径（2026-10-16 全局对齐定案）：断链卡（卡表无此 ID）无法展示——仅可
-        /// 删除；形状违规/主题违色卡可展示但红字标记；整套含任一异常即不可保存，卡组列表/挑战/
-    /// 对战入口按 DeckCompositionValidator.UnusableTag 同源标记（单源 Usable）。
+        /// 删除；形状违规卡可展示但红字标记；断链/形状任一即不可保存，卡组列表/挑战/
+        /// 对战入口按 DeckCompositionValidator.UnusableTag 同源标记（单源 Usable）。
+        /// 地源不足（2026-10-26）：仅构成检测块提示「无法释放」，不拦保存。
     ///
     /// 编辑跳转：卡池行「编辑」→ CardComposerScreen.PendingEditCardId（UIManager.Show 无法
     /// 传参，仿 ComposerSession 静态会话）→ Show&lt;CardComposerScreen&gt;；返回本屏 OnEnter
@@ -118,12 +121,8 @@ namespace SynergyUI
             // ---- 左栏：卡组名 / 新建 / 保存 / 当前卡组 / 统计 ----
             _nameField = FindInput("field-deck-name");
             if (_nameField != null)
-                // 主题约束随卡组名实时换算（构成检测块）；名缓存供跳编辑返回恢复
-                _nameField.onValueChanged.AddListener(v =>
-                {
-                    _currentDeckName = v;
-                    RefreshStats();
-                });
+                // 名缓存供跳卡牌编辑返回恢复（主题约束已删——改名不再触统计区重建）
+                _nameField.onValueChanged.AddListener(v => _currentDeckName = v);
             BindButton("btn-new", OnNewDeck);
             BindButton("btn-save", OnSave);
             _summary = FindText("lbl-summary");
@@ -439,20 +438,6 @@ namespace SynergyUI
                         return;
                     }
                 }
-                // 主题双色约束：红/绿/蓝开头的卡组拒加主题外颜色卡（两层费用同检测器口径）
-                var theme = CurrentTheme();
-                if (theme != null)
-                {
-                    var foreign = DeckCompositionValidator.CheckCard(card, theme.Value);
-                    if (foreign.Count > 0)
-                    {
-                        var v = foreign[0];
-                        ShowToast($"「{NameOf(card)}」{v.Surface} 含" +
-                                  $"{DeckCompositionValidator.ColorZh(v.Color)}{v.Amount:0.#}——" +
-                                  $"{DeckCompositionValidator.ColorZh(theme.Value)}+灰卡组不可添加");
-                        return;
-                    }
-                }
             }
             _deckCardIds.Add(id);
             RefreshAll();
@@ -482,12 +467,11 @@ namespace SynergyUI
 
         /// <summary>左栏当前卡组（同卡聚合 ×册数，保序=首次入组序）：行=[费用徽标|卡名×N|异常
         /// 标记|删除]（tpl-row-deck 克隆，行点击=中栏预览）。断链卡（卡表无此 ID）无法展示——
-        /// 仅可删除；形状违规/主题违色卡行尾红字标记。衍生物模板与效果引用的外部卡排在
+        /// 仅可删除；形状违规卡行尾红字标记。衍生物模板与效果引用的外部卡排在
         /// 「衍生物 / 引用卡」分区之后（验收6；汇总张数口径不变——衍生物不计 30-60）。</summary>
         private void RefreshDeckList()
         {
             ClearContent(_deckList.Content);
-            var theme = CurrentTheme();
 
             // 同卡聚合（保序）
             var ids = new List<string>();
@@ -520,7 +504,7 @@ namespace SynergyUI
             for (int i = 0; i < ids.Count; i++)
             {
                 if (IsTokenTemplateId(ids[i])) tokenRows.Add(i);
-                else MakeDeckRow(ids[i], CardCatalog.GetById(ids[i]), counts[i], theme);
+                else MakeDeckRow(ids[i], CardCatalog.GetById(ids[i]), counts[i]);
             }
 
             // 分区：衍生物模板（卡组条目，可删照旧）+ 卡组效果引用的外部卡（只读可预览）
@@ -529,13 +513,13 @@ namespace SynergyUI
             {
                 MakeSectionHeader("衍生物 / 引用卡", _deckList.Content);
                 foreach (int i in tokenRows)
-                    MakeDeckRow(ids[i], CardCatalog.GetById(ids[i]), counts[i], theme);
+                    MakeDeckRow(ids[i], CardCatalog.GetById(ids[i]), counts[i]);
                 foreach (var refId in externalRefs)
                     MakeReferenceRow(refId);
             }
         }
 
-        private void MakeDeckRow(string cardId, CardData card, int copies, ManaType? theme)
+        private void MakeDeckRow(string cardId, CardData card, int copies)
         {
             var row = Clone(_deckTemplates, "tpl-row-deck", _deckList.Content);
             if (row == null) return;
@@ -557,7 +541,7 @@ namespace SynergyUI
             BindCost(row, card);
             SetText(row, "name", NameOf(card) + (copies > 1 ? $" ×{copies}" : ""));
 
-            var flags = CardFlags(card, theme);
+            var flags = CardFlags(card);
             SetVisible(row, "flag", flags.Count > 0);
             if (flags.Count > 0)
                 SetText(row, "flag", "✘" + string.Join("/", flags), UiStyle.DotRed);
@@ -596,8 +580,9 @@ namespace SynergyUI
 
         /// <summary>卡组效果引用的外部卡枚举（验收6）：SummonToken.str（召唤衍生物模板）与
         /// GrantMorph.str（变形赋予目标）两原子的 str=卡 ID——其余原子 str 语义不同（宣言卡名等）
-        /// 不收。遍历口径与 DeckCopyService.RewriteCardReferences 同构（步骤/扁平原子/分支奖励/
-        /// 代价载荷）；已在卡组内的 id 不收（在组模板行已在分区内、在组普通卡留在普通区）。</summary>
+        /// 不收。遍历口径=效果步骤/扁平原子/分支奖励/代价载荷全量（2026-10-26 起同构旧例
+        /// DeckCopyService.RewriteCardReferences 已随复制零效果定案删除）；
+        /// 已在卡组内的 id 不收（在组模板行已在分区内、在组普通卡留在普通区）。</summary>
         private List<string> CollectExternalReferences()
         {
             var seen = new HashSet<string>(_deckCardIds);
@@ -650,12 +635,11 @@ namespace SynergyUI
             result.Add(atom.str);
         }
 
-        /// <summary>单卡异常标记（左栏行尾红字/中栏 note，短词）：形状违规 / 主题违色。</summary>
-        private static List<string> CardFlags(CardData card, ManaType? theme)
+        /// <summary>单卡异常标记（左栏行尾红字/中栏 note，短词）：形状违规。</summary>
+        private static List<string> CardFlags(CardData card)
         {
             var flags = new List<string>();
             if (DeckCompositionValidator.CheckShape(card).Count > 0) flags.Add("形状");
-            if (theme != null && DeckCompositionValidator.CheckCard(card, theme.Value).Count > 0) flags.Add("违色");
             return flags;
         }
 
@@ -687,7 +671,7 @@ namespace SynergyUI
         }
 
         /// <summary>中栏卡面：FromCardDataFull 六区静态快照（与手牌/合成器同族，去运行态）；
-        /// 点卡面放大全屏（验收2）；异常卡在 note 行给出首条明细（形状违规人读串 / 违色 Detail）。</summary>
+        /// 点卡面放大全屏（验收2）；形状违规卡在 note 行给出首条明细。</summary>
         private void BuildPreview()
         {
             _previewBindings.Clear();
@@ -707,23 +691,11 @@ namespace SynergyUI
                 OnClick = () => OpenZoom(captured), // 点卡面=放大（空态无卡实例天然不可点）
             });
 
-            string note = "";
             var shapeErrs = DeckCompositionValidator.CheckShape(card);
-            if (shapeErrs.Count > 0)
-                note = "⚠ " + shapeErrs[0];
-            else
-            {
-                var theme = CurrentTheme();
-                if (theme != null)
-                {
-                    var vs = DeckCompositionValidator.CheckCard(card, theme.Value);
-                    if (vs.Count > 0) note = "⚠ 主题违色——" + vs[0].Detail;
-                }
-            }
-            _previewNote.text = note; // 空=无异常（卡面下方留白）
+            _previewNote.text = shapeErrs.Count > 0 ? "⚠ " + shapeErrs[0] : ""; // 空=无异常（卡面下方留白）
         }
 
-        /// <summary>放大中栏卡面（验收2）：全屏遮罩 + 360×648 放大卡居中。独立 Key="Zoom" 与
+        /// <summary>放大中栏卡面（验收2）：全屏遮罩 + 600×1080 放大卡居中。独立 Key="Zoom" 与
         /// card-slot 预览并存（Bind 同键只挂一处，异键双挂互不冲突）；放大卡本体不接 OnClick——
         /// 点遮罩/空白还原。尺寸口径=战场手牌悬停同款：ACard 六区按 200×360 设计矩形由根 VLG
         /// 固定排版（不控制子尺寸），槽位拉伸只会放大背板——放大卡走 200×360 槽 + 实例
@@ -751,8 +723,8 @@ namespace SynergyUI
             RebindCardLayer();
         }
 
-        /// <summary>卡面整体缩放（手牌悬停同款口径）：200×360 设计矩形 ×1.8 = 360×648。</summary>
-        private const float ZoomCardScale = 1.8f;
+        /// <summary>卡面整体缩放：200×360 设计矩形 ×3 = 600×1080。</summary>
+        private const float ZoomCardScale = 3f;
 
         /// <summary>UGUI 卡面层全量重绑：中栏预览 + 放大态（如开着）合并一次 Bind
         ///（池化全量换绑成本低，两态互不抢占）。绑定后逐槽归一缩放——放大卡 = 设计尺寸槽 +
@@ -890,14 +862,10 @@ namespace SynergyUI
         private static TMP_Text StatBodyLabel(RectTransform block)
             => UiKit.FindDeep(UiKit.FindDeep(block, "body"), "label")?.GetComponent<TMP_Text>();
 
-        /// <summary>当前卡组名主题色（红/绿/蓝首字；其余 null=无约束）——
-        /// 添加口/保存口/统计区检测块/行内标记共用。</summary>
-        private ManaType? CurrentTheme()
-            => DeckCompositionValidator.ThemeColorOf(
-                _nameField != null ? _nameField.text : _currentDeckName);
-
-        /// <summary>构成检测块（统计区首块常显）：主题双色约束结果+断链+形状——加卡/删卡/改名
-        /// 实时刷新。违色在添加口已拦，此处兜底旧档载入与卡数据热改；口径=DeckCompositionValidator。</summary>
+        /// <summary>构成检测块（统计区首块常显）：硬约束=断链/形状/技能/黑白代价（任一不过不可
+        /// 保存）+ 地源（advisory 不拦保存——施放费须有足够可放地的卡，整卡全施放面不可付才报
+        /// 「无法释放」）——加卡/删卡实时刷新；口径=DeckCompositionValidator（主题违色已随主题
+        /// 约束删除——2026-10-26）。</summary>
         private void BuildCompositionCheck()
         {
             var block = CloneStat("构成检测", 150f, null, false);
@@ -908,46 +876,49 @@ namespace SynergyUI
 
             var report = DeckCompositionValidator.Check(
                 _nameField != null ? _nameField.text : _currentDeckName, _deckCardIds);
+            var landShort = DeckCompositionValidator.CheckLandSupport(_deckCardIds);
+            var bwGaps = DeckCompositionValidator.CheckBWCostCoverage(_deckCardIds);
+            bool skillOk = !string.IsNullOrEmpty(_skillCardId);
 
             var lines = new List<string>();
-            if (report.ThemeColor == null)
-            {
-                lines.Add($"<color=#{ColorUtility.ToHtmlStringRGB(UiStyle.TextHint)}>" +
-                          "无主题约束（卡组名以 红/绿/蓝 开头才启用「主题色+灰」双色检测）</color>");
-            }
-            else
-            {
-                lines.Add($"<color=#{ColorUtility.ToHtmlStringRGB(UiStyle.TextSecondary)}>" +
-                          $"主题约束：{DeckCompositionValidator.ColorZh(report.ThemeColor.Value)}+灰</color>");
-            }
+            string red = ColorUtility.ToHtmlStringRGB(UiStyle.DotRed);
+            string green = ColorUtility.ToHtmlStringRGB(UiStyle.DotGreen);
 
-            if (report.Ok)
+            // ---- 硬约束（任一不过=不可保存）----
+            if (report.CardCount > 0 && report.Ok && skillOk && bwGaps.Count == 0)
+                lines.Add($"<color=#{green}>✔ 构成约束通过（断链/形状/技能/黑白代价）" +
+                          (landShort.Count == 0 ? "·地源足" : "") + "</color>");
+            else if (report.CardCount == 0)
+                lines.Add($"<color=#{ColorUtility.ToHtmlStringRGB(UiStyle.TextHint)}>" +
+                          "（空卡组——右侧卡池点「添加」入组）</color>");
+
+            foreach (var id in report.MissingIds)
+                lines.Add($"<color=#{red}>✘ 断链卡 {id}——卡表中无此 ID（该卡可能已被删除），请移除</color>");
+            foreach (var err in report.ShapeErrors)
+                lines.Add($"<color=#{red}>✘ {err}</color>");
+            if (!skillOk)
+                lines.Add($"<color=#{red}>✘ 未设置英雄技能（中栏技能栏——右侧选主动技能卡点「技能」填入）——无法保存</color>");
+            foreach (var gap in bwGaps)
+                lines.Add($"<color=#{red}>✘ {gap.CardName} 等卡施放需{DeckCompositionValidator.ColorZh(gap.Color)}元素，" +
+                          $"卡组没有能补偿{DeckCompositionValidator.ColorZh(gap.Color)}的代价卡（至少带 1 张）——无法保存</color>");
+
+            // ---- 地源不足（advisory，不拦保存；区块放不下——两行折叠）----
+            const int maxLandRows = 2;
+            int landShown = 0;
+            foreach (var s in landShort)
             {
-                lines.Add($"<color=#{ColorUtility.ToHtmlStringRGB(UiStyle.DotGreen)}>" +
-                          (report.CardCount == 0 ? "（空卡组）" : "✔ 通过——无主题外颜色、无断链") + "</color>");
+                if (landShown++ >= maxLandRows) break;
+                lines.Add($"<color=#{red}>✘ {s.CardName} ×{s.Copies}｜{s.Surface}｜{s.Detail}——无法释放</color>");
             }
-            else
-            {
-                const int maxRows = 8; // 超出折叠计数——违例长列表区块放不下
-                int shown = 0;
-                var red = ColorUtility.ToHtmlStringRGB(UiStyle.DotRed);
-                foreach (var v in report.Violations)
-                {
-                    if (shown++ >= maxRows) break;
-                    lines.Add($"<color=#{red}>✘ {v.CardName} ×{v.Copies}｜{v.Surface}｜" +
-                              $"{DeckCompositionValidator.ColorZh(v.Color)}{v.Amount:0.#}</color>");
-                }
-                if (report.Violations.Count > maxRows)
-                    lines.Add($"<color=#{red}>……另有 {report.Violations.Count - maxRows} 项违色</color>");
-                foreach (var err in report.ShapeErrors)
-                    lines.Add($"<color=#{red}>✘ {err}</color>");
-                foreach (var id in report.MissingIds)
-                    lines.Add($"<color=#{red}>✘ 断链卡 {id}——卡表中无此 ID</color>");
-            }
+            if (landShort.Count > maxLandRows)
+                lines.Add($"<color=#{red}>……另有 {landShort.Count - maxLandRows} 张卡地源不足无法释放</color>");
             body.text = string.Join("\n", lines);
         }
 
-        /// <summary>费用曲线：1-9 档（>9 并入 9+）条形分布（tpl-stat-bar ×9 克隆进 body）。</summary>
+        /// <summary>费用曲线：1-9 档（>9 并入 9+）条形分布（tpl-stat-bar ×9 克隆进 body）。
+        /// 列内序 bar/tier/count（2026-10-26 顶歪修复）：tier=费用档贴柱底一行（x 轴），count=张数值
+        /// 挪到最底且挂固定高度 LE（模板烘焙 17）——旧序 count 夹在柱与档位间，空值 TMP 高 0 vs
+        /// 有值 16 → 柱底基线错 16px；现空值恒占行，基线/x 轴/数值行三线恒齐。</summary>
         private void BuildCostCurve(List<CardData> cards)
         {
             var block = CloneStat("费用曲线", 170f, 308f, false);
@@ -980,7 +951,12 @@ namespace SynergyUI
             }
         }
 
-        /// <summary>颜色分布：六色计数（彩点+数字，富文本单行——色值取 UiStyle.Dot* 令牌）。</summary>
+        /// <summary>颜色分布：六色计数（彩点+数字，富文本——色值取 UiStyle.Dot* 令牌）。
+        /// 两行制（2026-10-26 修复）：单行六组在运行时标签宽约 284px（块308−VLG边距16，曲线+颜色
+        /// 双列均分 608 内宽）下，第 4 组（灰）恰落断行边界——TMP 按空格断行会把「●」留在上行尾、
+        /// 色字挪下行（图标和文字不在一行）。显式两行（红蓝绿/灰黑白）消除断行歧义：三组/行
+        /// 最宽形态（两位数计数）约 221px，余量 60px+。组内串含空格，勿再回并单行。
+        /// 字体 PZD 无 U+00A0 字形——不可用不换行空格方案（会渲染缺字形）。</summary>
         private void BuildColorDistribution(List<CardData> cards)
         {
             var block = CloneStat("颜色分布", 170f, 308f, false);
@@ -988,16 +964,17 @@ namespace SynergyUI
             var body = StatBodyLabel(block);
             if (body == null) return;
 
-            var parts = new List<string>();
-            foreach (var pair in new[] {
+            var pairs = new[] {
                 (UIColor.Red, UiStyle.DotRed, "红"), (UIColor.Blue, UiStyle.DotBlue, "蓝"),
                 (UIColor.Green, UiStyle.DotGreen, "绿"), (UIColor.Gray, UiStyle.DotGray, "灰"),
-                (UIColor.Black, UiStyle.DotBlack, "黑"), (UIColor.White, UiStyle.DotWhite, "白") })
+                (UIColor.Black, UiStyle.DotBlack, "黑"), (UIColor.White, UiStyle.DotWhite, "白") };
+            var lines = new List<string>[] { new List<string>(), new List<string>() };
+            for (int i = 0; i < pairs.Length; i++)
             {
-                int count = cards.Count(c => CardSorter.HasCostColor(c, pair.Item1));
-                parts.Add($"<color=#{ColorUtility.ToHtmlStringRGB(pair.Item2)}>●</color> {pair.Item3} {count}");
+                int count = cards.Count(c => CardSorter.HasCostColor(c, pairs[i].Item1));
+                lines[i / 3].Add($"<color=#{ColorUtility.ToHtmlStringRGB(pairs[i].Item2)}>●</color> {pairs[i].Item3} {count}");
             }
-            body.text = string.Join("   ", parts);
+            body.text = string.Join("   ", lines[0]) + "\n" + string.Join("   ", lines[1]);
         }
 
         /// <summary>类型比例：生物/法术/结界计数（单行无标题形态——header 显隐切换）。</summary>
@@ -1021,7 +998,7 @@ namespace SynergyUI
         /// <summary>卡组列表刷新（2026-10-22 预组分栏·2026-10-23 模板化）：上方独立
         /// 「预组卡组（只读）」区块——预组不可载入编辑（防改名另存出引用教学 id 的脆弱浅拷贝），
         /// 改只能复制成玩家副本；下方「我的卡组」玩家档区块，行=[卡组名|张数·不可用标记|✕删除]，
-        /// 行点击=载入左栏编辑。不可用口径=DeckCompositionValidator.UnusableTag（断链/形状/违色
+        /// 行点击=载入左栏编辑。不可用口径=DeckCompositionValidator.UnusableTag（断链/形状
         /// 任一即不可用，与挑战/对战入口全局同源——2026-10-16 对齐定案）。</summary>
         private void RefreshDecksList()
         {
@@ -1286,7 +1263,8 @@ namespace SynergyUI
                 }
             }
 
-            // 异常卡硬门槛（2026-10-16 全局对齐）：断链/形状违规/主题违色任一即不可保存
+            // 异常卡硬门槛（2026-10-16 全局对齐；主题违色已随主题约束删除——2026-10-26）：
+            // 断链/形状违规任一即不可保存
             var composition = DeckCompositionValidator.Check(name, _deckCardIds);
             if (composition.MissingIds.Count > 0)
             {
@@ -1298,12 +1276,14 @@ namespace SynergyUI
                 ShowToast($"卡组含 {composition.ShapeErrors.Count} 项类型形状违规（首项：{composition.ShapeErrors[0]}）——不可保存");
                 return;
             }
-            if (composition.Violations.Count > 0)
+
+            // 黑白代价覆盖（2026-10-26 定案）：需黑/白元素的卡须至少带 1 张对应补偿色的代价卡
+            var bwGaps = DeckCompositionValidator.CheckBWCostCoverage(_deckCardIds);
+            if (bwGaps.Count > 0)
             {
-                var v0 = composition.Violations[0];
-                ShowToast($"主题约束 {DeckCompositionValidator.ColorZh(composition.ThemeColor.Value)}+灰：" +
-                          $"{composition.Violations.Count} 项违色（首项 {v0.CardName}｜{v0.Surface}｜" +
-                          $"{DeckCompositionValidator.ColorZh(v0.Color)}{v0.Amount:0.#}）——不可保存");
+                var g0 = bwGaps[0];
+                ShowToast($"卡组有卡施放需{DeckCompositionValidator.ColorZh(g0.Color)}元素（如 {g0.CardName}），" +
+                          $"但没有能补偿{DeckCompositionValidator.ColorZh(g0.Color)}的代价卡——至少带 1 张对应代价卡才可保存");
                 return;
             }
 

@@ -62,7 +62,7 @@ namespace SynergyUI
         private static bool _backPrefabTried;
         private readonly List<string> _lastKeyChips = new List<string>();   // 芯片差量快照（FillChips 短路用）
         private readonly List<string> _lastStatChips = new List<string>();
-        private static string SpritePath(string name) => $"Assets/Art/Battle3D/Icons/{name}.png";
+        private static string SpritePath(string name) => $"Assets/Art/Icons/{name}.png";
         private string _artLoaded; // 已加载立绘名（防同图重复加载；空=保持预制体占位）
         // 立绘（type/mask/art）按名称两级回落：UI Sprites → YGOMonstersRig 模型预览图（CardArtLibrary，
         // 2026-10-13 立绘随卡类型定案——生物卡 Illustration=模型名；2026-10-15 法术/结界定案=无合适

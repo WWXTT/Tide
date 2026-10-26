@@ -118,34 +118,72 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 开始新回合
+        /// 开始新回合（2026-10-26 回合精准切分定案）：
+        /// ① 置位回合玩家/回合号
+        /// ② 快照：GameCore 采集回合起点全量快照（池子边界——跳过阶段装配/新回合/重开本回合【未做】的基准）
+        /// ③ 发布 TurnStartEvent（**纯系统区**：栈优先权重置/每回合限流翻章/全局回合计数推进/
+        ///    英雄技能解横置等时钟簿记——可能触发效果时点的内容一律不在此）
+        /// ④ 进入准备阶段：相位对象先行（自动化在其内执行，CurrentPhase=Standby），PhaseStartEvent 后发
+        /// ⑤ GameCore.RunStandbyAutomation（跳过闸→地牌/单位重置→重置账目→抽牌→倒计时引擎）
+        /// ⑥ 发布 PhaseStartEvent(Standby)——#33 准备阶段时点锚：保持在自动化+抽牌**之后**，
+        ///    现有准备阶段时点卡（含运势引擎路由）零语义翻转；战报〔准备阶段〕行由 StandbyResetEvent 承载
+        /// ⑦ AdvanceFromStandby（准备→主自动推进保留 2026-09-24 口径；主→结束仅 IntentEndTurn 驱动）
+        /// 对外事件流序与旧实现完全一致（TurnStartEvent → 自动化事件流 → PhaseStart(Standby) → Main）。
         /// </summary>
         public void StartNewTurn(Player player)
         {
             _turnPlayer = player;
             _turnNumber++;
 
-            // 触发回合开始事件
+            // ① 快照（池子边界）：纯只读；未接线 GameCore（独立测试）跳过
+            _gameCore?.CaptureTurnStartSnapshot();
+
+            // ② 系统区：发布回合开始事件（时钟簿记订阅者在此同步跑完）
             PublishEvent(new TurnStartEvent
             {
                 TurnPlayer = player,
                 TurnNumber = _turnNumber
             });
 
-            // 开始第一个阶段（准备阶段）
-            StartPhase(PhaseType.Standby);
+            // ③④ 准备阶段：相位对象先行，自动化在其内执行（#33 锚=自动化后的事件发布，见类注）
+            EnterPhase(PhaseType.Standby, announce: false);
+            if (_gameCore != null)
+                _gameCore.RunStandbyAutomation(player, _turnNumber);
+            AnnounceCurrentPhase();
 
-            // 2026-09-24 回合推进口径定案：准备阶段纯自动、完成即推进主阶段——
-            // 原"停等玩家 IntentSkipStandby"口径废除（跳过准备阶段改走 ITurnStartInterceptor
-            // 声明，不占相位窗口）；主要→结束仅由 IntentEndTurn（未来加操作超时）驱动，
-            // 驱动器不得自由滑相位（GameLoopController 已收敛为仅 End 折返）。
+            // 2026-09-24 回合推进口径（保留）：准备阶段纯自动、完成即推进主阶段——
+            // 原"停等玩家 IntentSkipStandby"口径废除（跳过准备阶段改走跳过闸，不占相位窗口）；
+            // 主要→结束仅由 IntentEndTurn（未来加操作超时）驱动，驱动器不得自由滑相位。
             AdvanceFromStandby();
         }
 
+        /// <summary>回合快照导出（internal：TurnStartSnapshot 采集用）——额外回合计数与三组跳过标记按座位。</summary>
+        internal (int extraTurns, int[] whole, int[] standby, int[] main) CaptureTurnState(GameCore core)
+        {
+            int[] SeatsOf(System.Collections.Generic.HashSet<Player> set)
+            {
+                var seats = new System.Collections.Generic.List<int>(set.Count);
+                foreach (var p in set)
+                {
+                    if (ReferenceEquals(p, core?.Player1)) seats.Add(0);
+                    else if (ReferenceEquals(p, core?.Player2)) seats.Add(1);
+                }
+                return seats.ToArray();
+            }
+            return (_extraTurnsForCurrent, SeatsOf(_skipNextTurn), SeatsOf(_skipNextStandby), SeatsOf(_skipNextMain));
+        }
+
         /// <summary>
-        /// 开始指定阶段
+        /// 开始指定阶段（标准口径：进入即发布 PhaseStartEvent——Main/End 及普通流沿用）
         /// </summary>
-        public void StartPhase(PhaseType phaseType)
+        public void StartPhase(PhaseType phaseType) => EnterPhase(phaseType, announce: true);
+
+        /// <summary>
+        /// 进入阶段：相位对象先行建立（CurrentPhase 即时生效）；announce=false 时不发 PhaseStartEvent——
+        /// 2026-10-26 精准切分口径：准备阶段自动化在相位内、事件后发（AnnounceCurrentPhase 补发），
+        /// #33 时点锚保持在自动化之后。事件与 OnPhaseStarted 钩子的发布序与旧 StartPhase 一致。
+        /// </summary>
+        private void EnterPhase(PhaseType phaseType, bool announce)
         {
             _currentPhase = new PhaseInfo
             {
@@ -154,16 +192,22 @@ namespace CardCore
                 StartTime = DateTime.Now,
                 State = PhaseState.Active
             };
+            if (announce)
+                AnnounceCurrentPhase();
+        }
 
+        /// <summary>发布当前阶段的开始事件 + 阶段开始钩子（EnterPhase(announce:false) 的补发口）。</summary>
+        private void AnnounceCurrentPhase()
+        {
             // 触发阶段开始事件
             PublishEvent(new PhaseStartEvent
             {
-                Phase = phaseType,
+                Phase = _currentPhase.Phase,
                 ActivePlayer = _turnPlayer
             });
 
             // 根据阶段类型执行特定逻辑
-            OnPhaseStarted(phaseType);
+            OnPhaseStarted(_currentPhase.Phase);
         }
 
         /// <summary>
@@ -187,8 +231,9 @@ namespace CardCore
 
         /// <summary>
         /// 准备阶段：纯自动阶段，无玩家操作。
-        /// 横置恢复 / 抽 1 张 / 元素池与「每回合一次」计数重置由 GameCore.OnTurnStarted 统一处理
-        /// （订阅 TurnStartEvent，在准备阶段开始前完成）。
+        /// 2026-10-26 精准切分：地牌/单位重置、重置账目、抽 1 张、倒计时引擎由
+        /// GameCore.RunStandbyAutomation 在相位对象先行后执行（StartNewTurn ④⑤），PhaseStartEvent
+        /// 在其完成后发布（#33 锚）。
         /// 推进：StartNewTurn 末尾直调 AdvanceFromStandby（2026-09-24 口径：准备→主自动推进）；
         /// GameActions.SkipElementPool 走同一条入口，现仅为兼容保留（此时相位已不在 Standby，守卫直接返回）。
         /// </summary>

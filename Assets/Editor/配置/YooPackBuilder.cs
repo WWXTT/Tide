@@ -296,6 +296,9 @@ namespace Tide.HotUpdateTools
             //（防在单机环境下用联机菜单把联机快照覆盖成脏包，反之亦然）
             if (!CheckFlavorConsistency(flavor)) return false;
 
+            // DSH 沙箱 Low 标签防护（2026-10-24 出包三连败根因，详见 EnsureBurstToolchainWritable 注释）
+            if (!EnsureBurstToolchainWritable()) return false;
+
             // 安卓风味守卫：单机=兜底摘净 taptap maven 行；联机=缺行即拦（缺原生依赖装机登录必坏）
             var target = EditorUserBuildSettings.activeBuildTarget;
             if (target == BuildTarget.Android)
@@ -346,6 +349,87 @@ namespace Tide.HotUpdateTools
             }
             Debug.LogError("[出包] 失败：" + report.summary.result + "（详见 Editor.log）");
             return false;
+        }
+
+        // ── DSH 沙箱 Low 完整性标签防护（2026-10-24 定案）────────────────────────────
+        // 根因：DeepSeek Harness（DSH）把工程目录设为工作区时，其 Windows 沙箱（app.asar 内
+        // runner.js）给整棵工程树写三条可继承 ACE：Low 强制完整性标签 + S-1-4-* 能力 SID 写授权 +
+        // Everyone 防删 DENY，且每次 DSH 会话重新刷写（USN 日志实测一次 19.7 万条 ACL 变更）。
+        // 后果：Library/PackageCache/com.unity.burst@*/.Runtime/bcl.exe 继承 Low 标签 →
+        // Burst AOT 编译器以 Low 完整性进程运行 → 写不进 Medium 标签的 %TEMP%（lld 响应文件）→
+        // 出包末段 AsyncPluginsFromLinker 步骤必败：
+        // "Burst internal compiler error: System.UnauthorizedAccessException: 对路径的访问被拒绝"
+        //（该步在构建收尾处，白跑约 20 分钟才报错，故出包入口先行拦截）。
+        // 修法（O(1)，不动系统 %TEMP% 全局标签）：把 .Runtime 下各 exe 的完整性标签提回 Medium。
+        // 写 SACL 需管理员权限：编辑器提权时自动修复；未提权则自动修复失败——给出手动命令并中止出包。
+        // 手动等价（管理员终端，<hash> 为 burst 包哈希）：
+        //   icacls "Library\PackageCache\com.unity.burst@<hash>\.Runtime\*.exe" /setintegritylevel medium
+        // 撤销本防护 = 删掉 BuildPlayerPackageCore 开头的调用即可。
+        private static bool EnsureBurstToolchainWritable()
+        {
+            var pkgRoot = Path.Combine(Directory.GetCurrentDirectory(), "Library", "PackageCache");
+            if (!Directory.Exists(pkgRoot)) return true; // 异常环境无 PackageCache：不拦出包
+            var broken = new List<string>();
+            foreach (var runtimeDir in Directory.GetDirectories(pkgRoot, "com.unity.burst@*")
+                         .Select(d => Path.Combine(d, ".Runtime")).Where(Directory.Exists))
+            {
+                foreach (var exe in Directory.GetFiles(runtimeDir, "*.exe"))
+                {
+                    if (!HasLowIntegrityLabel(exe)) continue;
+                    if (TrySetIntegrityLevel(exe, "medium")) continue; // 已提回 Medium：放行
+                    broken.Add(exe);
+                }
+            }
+            if (broken.Count == 0) return true;
+            Debug.LogError("[出包] Burst 编译器带 DSH 沙箱的 Low 完整性标签（Low 进程写不进 %TEMP%，"
+                + "构建末段必败于 AsyncPluginsFromLinker）。自动修复需管理员权限未成功——"
+                + "请在管理员终端执行以下命令后重试出包：\n"
+                + string.Join("\n", broken.Select(p => $"icacls \"{p}\" /setintegritylevel medium")));
+            return false;
+        }
+
+        /// <summary>icacls 读完整性标签（读免权限；本机 zh-CN 下标签行仍是英文 "Mandatory Label\Low…"，
+        /// 若极端本地化则 ASCII 匹配失效=放行不拦，最坏回到无防护的旧行为）</summary>
+        private static bool HasLowIntegrityLabel(string path)
+        {
+            var (code, output) = RunIcacls($"\"{path}\"");
+            if (code != 0) return false; // 读不到标签：检测故障不应阻断出包
+            return output.Split('\n').Any(l => l.IndexOf("Mandatory", StringComparison.OrdinalIgnoreCase) >= 0
+                && l.IndexOf("Low", StringComparison.OrdinalIgnoreCase) >= 0);
+        }
+
+        private static bool TrySetIntegrityLevel(string path, string level)
+        {
+            var (code, output) = RunIcacls($"\"{path}\" /setintegritylevel {level}");
+            if (code == 0) return true;
+            Debug.LogWarning($"[出包] icacls /setintegritylevel {level} 失败（exit {code}，多半编辑器未提权）：{output}");
+            return false;
+        }
+
+        private static (int code, string output) RunIcacls(string args)
+        {
+            try
+            {
+                var psi = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "icacls",
+                    Arguments = args,
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true,
+                };
+                using (var p = System.Diagnostics.Process.Start(psi))
+                {
+                    var output = p.StandardOutput.ReadToEnd() + p.StandardError.ReadToEnd();
+                    p.WaitForExit(10000);
+                    return (p.ExitCode, output);
+                }
+            }
+            catch (Exception e)
+            {
+                return (-1, e.Message);
+            }
         }
 
         // ── 出包风味（2026-10-24 TapTap 预编译隔离定案）──────────────────────────────

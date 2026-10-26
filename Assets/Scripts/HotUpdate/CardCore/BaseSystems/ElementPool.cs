@@ -584,10 +584,11 @@ namespace CardCore
         /// 2. 台账清零：全类型累计钳台账**只清回合玩家**（2026-10-16 用户定案：周期=自己回合开始，
         ///    跨对方回合保留——对方回合内的获得沿用本周期剩余配额）；黑白分色观测台账全体清（沿用旧口径）
         /// 3. 回合玩家（准备阶段）地牌全部解除横置
+        /// 返回值=本次解横置的地牌张数（2026-10-26 战报重置账目：StandbyResetEvent 数据源）。
         /// </summary>
-        public void OnTurnStart(Player turnPlayer, int globalTurnNumber)
+        public int OnTurnStart(Player turnPlayer, int globalTurnNumber)
         {
-            if (turnPlayer == null) return;
+            if (turnPlayer == null) return 0;
 
             var turnPool = GetPool(turnPlayer);
             turnPool.PersonalTurnIndex++;
@@ -602,8 +603,10 @@ namespace CardCore
                 pool.WhiteGainedThisTurn = 0;
             }
 
+            int untapped = 0;
             foreach (var pc in turnPool.PooledCards)
-                pc.IsTapped = false;
+                if (pc != null && pc.IsTapped) { pc.IsTapped = false; untapped++; }
+            return untapped;
         }
 
         /// <summary>

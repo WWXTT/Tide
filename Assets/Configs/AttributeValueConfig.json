@@ -116,7 +116,7 @@
   {
     "ID": "e5e2e116",
     "EnumName": "抽卡",
-    "DisplayName": "从卡组顶部抽{value}张卡",
+    "DisplayName": "抽{value}张卡",
     "EffectType": "DrawCard",
     "TargetKinds": "己方牌库",
     "TargetFilter": null,
@@ -553,7 +553,7 @@
   {
     "ID": "ad76d8b0",
     "EnumName": "召唤衍生物",
-    "DisplayName": "召唤{value}层衍生物至指定落区，并赋予一层遗忘指示物（{衍生物}=字符串参数指向一张真实生物卡，实例=该卡全参数复制）",
+    "DisplayName": "召唤{value}个衍生物至指定落区，并赋予一层遗忘指示物（{衍生物}=字符串参数指向一张真实生物卡，实例=该卡全参数复制）",
     "EffectType": "SummonToken",
     "TargetKinds": null,
     "TargetFilter": null,
@@ -914,7 +914,7 @@
   {
     "ID": "c2565884",
     "EnumName": "再生",
-    "DisplayName": "获得再生：回合开始时恢复自身全部生命值",
+    "DisplayName": "获得再生：己方准备阶段恢复自身全部生命值",
     "EffectType": "GrantRegeneration",
     "TargetKinds": "自己",
     "TargetFilter": "NoRole",

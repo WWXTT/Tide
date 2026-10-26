@@ -47,6 +47,25 @@ namespace CardCore
                 case TurnStartEvent t:
                     return new Line($"—— 回合 {t.TurnNumber}：{Who(t.TurnPlayer, isSelf)}{AiTag(t.TurnPlayer)} ——",
                         "log-line--turn");
+                // 准备阶段行=重置账目行（2026-10-26 行序收口）：引擎发布序=回合自动化（重置+抽牌）先于
+                // PhaseStartEvent（2026-09-24 回合推进口径，ResourceLedger/触发承接钉在现序），相位行语义
+                // 在本映射层收口——〔准备阶段〕由本事件承载，重置明细与抽牌行随之呈现为准备阶段内容。
+                case StandbyResetEvent r:
+                {
+                    var parts = new List<string>(4);
+                    if (r.UntappedLands > 0) parts.Add($"地牌 {r.UntappedLands} 张解横置");
+                    if (r.UntappedUnits > 0) parts.Add($"单位 {r.UntappedUnits} 个解横置");
+                    if (r.SkillReset) parts.Add("技能就绪");
+                    if (r.LandCapAdvanced) parts.Add($"地牌槽上限→{r.LandCap}");
+                    string body = parts.Count == 0 ? "无变化" : string.Join("、", parts);
+                    return new Line($"〔{PhaseZh(PhaseType.Standby)}阶段〕{Who(r.Player, isSelf)}重置：{body}",
+                        "log-line--phase");
+                }
+                case StandbySkippedEvent s: // 跳过自动化（教学直入/相位级跳过）：不发 StandbyResetEvent，本事件兜行
+                    return new Line($"〔{PhaseZh(PhaseType.Standby)}阶段〕{Who(s.Player, isSelf)}跳过（无重置/抽牌）",
+                        "log-line--phase");
+                case PhaseStartEvent p when p.Phase == PhaseType.Standby:
+                    return Empty; // 准备阶段行由 StandbyResetEvent 承载（见上注——自动化先于相位事件发布）
                 case PhaseStartEvent p:
                     return new Line($"〔{PhaseZh(p.Phase)}阶段〕", "log-line--phase");
 
@@ -87,6 +106,8 @@ namespace CardCore
                 // ==== 横置/重置经济学（B1 补缺：付费自动横置/回合开始重置可见） ====
                 case TapEvent tap:
                     return new Line($"{EntityName(tap.TappedEntity, isSelf)} {(tap.IsUntapping ? "重置" : "横置")}", "");
+                case UntapEvent untap when untap.IsTurnStartReset:
+                    return Empty; // 回合开始批量重置：逐单位行由 StandbyResetEvent 汇总（2026-10-26 防与账目行双记）
                 case UntapEvent untap:
                     return new Line($"{EntityName(untap.UntappedEntity, isSelf)} 重置", "");
 

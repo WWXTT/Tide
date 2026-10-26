@@ -34,13 +34,13 @@ namespace CardCore
 
     /// <summary>
     /// 资源台账：资源行为的实证度量（P0c）。
-    /// 订阅元素池事件 + 回合事件，逐回合记录双方资源行为。
+    /// 订阅元素池事件 + 回合结束事件，逐回合记录双方资源行为。
     /// 地牌槽利用率（TapsTaken/LandCap）是场地维护与用牌节奏的实测数据，
     /// 供 P3 平衡模拟、卡组编辑器软提示与后续 UI 使用。
     ///
-    /// 注意：创建时机必须在 GameCore 订阅 TurnStart/TurnEnd 之后，
-    /// 以保证开行时读到的回合数/地牌槽上限已是本回合新值，
-    /// 且封行前已收到本核心结束阶段的自动产灰事件。
+    /// 2026-10-26 回合精准切分：开行自 TurnStartEvent 订阅改为显式口 OpenTurnRow——由
+    /// GameCore.RunStandbyAutomation 在地牌槽上限推进后直调（原「订阅序保证上限已是新值」契约
+    /// 改为调用点保证；TurnEnd 封行订阅不变）。
     /// </summary>
     public class ResourceLedger
     {
@@ -55,7 +55,6 @@ namespace CardCore
             _elementPool = elementPool ?? throw new ArgumentNullException(nameof(elementPool));
 
             var em = EventManager.Instance;
-            em.Subscribe<TurnStartEvent>(OnTurnStart);
             em.Subscribe<TurnEndEvent>(OnTurnEnd);
             em.Subscribe<ElementPoolGainEvent>(OnPoolGain);
             em.Subscribe<ElementPoolPayEvent>(OnPoolPay);
@@ -80,9 +79,9 @@ namespace CardCore
 
         // ======================================== 事件处理 ========================================
 
-        private void OnTurnStart(TurnStartEvent e)
+        /// <summary>开本回合资源行（GameCore.RunStandbyAutomation 在地牌槽上限推进后调用）。</summary>
+        public void OpenTurnRow(Player player)
         {
-            var player = e.TurnPlayer;
             if (player == null) return;
 
             // 上一行已在上次 TurnEnd 封存；防御性再关一次（跳过的回合等边缘）

@@ -2,7 +2,8 @@
 //   地牌=边缘菲涅尔（_WaveWeight=0）；生物可行动=顶面从格心向外扩散的淡蓝光波（_WaveWeight=1，MPB 覆写）。
 // 叠加发光（Blend One One）只增不遮——套在 BattleHex 六棱柱外侧（C# 抬 4mm + 侧壁微外扩防叠面闪）。
 // 波形：dist=片元到格心的水平距离（object space xz），环半径 r=frac(_Time·speed)·MaxR 循环推进，
-// 三角脉冲锐化成环、随半径外扩衰减——顶面读作同心水波，侧壁在环扫过边缘时整圈亮（dist≈内切半径）。
+// 三角脉冲锐化成环、随半径外扩衰减——顶面读作同心水波。波按法线朝上分量遮罩在顶面内：
+// 到六边形顶边即止不流侧壁（2026-10-26 用户定案：侧壁整圈亮不好看；菲涅尔档不受遮罩）。
 // 颜色由 C# MaterialPropertyBlock 按格覆写 _FresnelColor；材质资产（BattleTile_Fresnel.mat）
 // 承载全局手感参数——Inspector 调参即改全盘。
 Shader "Tide/BattleTileFresnel"
@@ -67,6 +68,7 @@ Shader "Tide/BattleTileFresnel"
                 half3 normalWS : TEXCOORD0;
                 half3 viewDirWS : TEXCOORD1;
                 half centerDist : TEXCOORD2; // 片元到格心水平距离（object space xz；六边形角=1）
+                half topFace : TEXCOORD3;    // 顶面遮罩：顶面=1 / 侧壁=0（object space 法线 y；碗形倾斜不影响）
             };
 
             Varyings vert(Attributes IN)
@@ -77,6 +79,7 @@ Shader "Tide/BattleTileFresnel"
                 float3 positionWS = TransformObjectToWorld(IN.positionOS.xyz);
                 OUT.viewDirWS = GetWorldSpaceViewDir(positionWS); // 未归一化，片元里归一
                 OUT.centerDist = length(IN.positionOS.xz);
+                OUT.topFace = smoothstep(0.2, 0.6, IN.normalOS.y);
                 return OUT;
             }
 
@@ -91,7 +94,7 @@ Shader "Tide/BattleTileFresnel"
                 half ring = saturate(1.0 - abs(IN.centerDist - ringR) / _WaveWidth);
                 ring *= ring; // pow2 锐化
                 half fade = 1.0 - saturate(ringR / _WaveMaxR) * 0.7; // 近强远淡
-                half wave = ring * fade * _WaveIntensity;
+                half wave = ring * fade * _WaveIntensity * IN.topFace; // 波止于顶边：侧壁遮没
 
                 half k = lerp(rim, wave, _WaveWeight);
                 return half4(_FresnelColor.rgb * k, 1);

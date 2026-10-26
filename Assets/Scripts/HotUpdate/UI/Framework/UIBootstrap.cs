@@ -78,15 +78,13 @@ namespace SynergyUI
                     Destroy(rootRect.GetChild(i).gameObject);
 
                 _manager = new UIManager(rootRect);
-                if (PrivacyConsent.IsGranted)
-                {
-                    _manager.Show<MainMenuScreen>();
-                }
+                // 隐私同意闸（2026-10-24 TapTap 上架）：仅联机（TapTap）风味需要。
+                // 判据=运行时风味（Tide.TapTap 热更程序集是否在场）——本地单机包无第三方 SDK、
+                // 不采集个人信息，按合规口径不出同意弹窗，直接进主菜单。
+                bool needConsent = Tide.HotUpdate.TapBridge.HasModule && !PrivacyConsent.IsGranted;
+                if (!needConsent) { _manager.Show<MainMenuScreen>(); }
                 else
                 {
-                    // 隐私同意闸（2026-10-24 TapTap 上架）：任何功能界面之前强制弹窗。
-                    // 同意→Grant+补发 TapTap 模块初始化（HotUpdateEntry 闸的延后段）+进主菜单；
-                    // 拒绝→退出应用。文本与线上政策页逐字一致（Assets/Resources/PrivacyPolicy.txt）。
                     PrivacyConsentDialog.Open(rootRect, () =>
                     {
                         Tide.HotUpdate.TapBridge.Module?.InitOnStartup();

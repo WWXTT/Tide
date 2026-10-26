@@ -62,9 +62,12 @@ namespace SynergyUI
         private enum RightMode { Atoms, Effects }
 
         /// <summary>由数据推断组合形态（2026-10-23 五分类，先光环后分支）：
-        /// ①箭头/连接条目→连接光环；②规则光环步→规则光环；③首原子引擎（行身份∪branch.settle）
-        /// →自由分支；④首原子 Gate/历史 Outcome 载荷→有限分支（产出条件不再新建，载入只读保留）；
-        /// ⑤其余→并列。</summary>
+        /// ①箭头/连接条目→连接光环；②规则光环步→规则光环；③首原子引擎主干行→自由分支；
+        /// ④首原子 Gate/历史 Outcome 载荷→有限分支（产出条件不再新建，载入只读保留）；
+        /// ⑤非引擎行挂引擎载荷→并列单行只读（2026-10-26 定案：五分类前旧形状——现值=关键词获得
+        /// 「自由分支·拼点→奖励」三条；自由分支主干已收窄为引擎行，此形状入自由分支必报
+        /// 「主干必须是引擎行」——改按并列单行展示不报错，载荷不拆（摘要照显奖励段，保存原样往返））；
+        /// ⑥其余→并列。</summary>
         public static ComposeMode InferMode(EffectGraphData g)
         {
             if (g?.header == null) return ComposeMode.Parallel;
@@ -74,9 +77,10 @@ namespace SynergyUI
             var first = g.steps?.FirstOrDefault(s => s?.kind == 0 && s.atomic != null)?.atomic;
             if (first != null)
             {
-                if (ComposerCatalog.IsEngineTrunkRow(AtomicEffectTable.GetByHashId(first.refId))
-                    || (first.branch != null && (BranchSettleKind)first.branch.settle == BranchSettleKind.Engine))
+                if (ComposerCatalog.IsEngineTrunkRow(AtomicEffectTable.GetByHashId(first.refId)))
                     return ComposeMode.FreeBranch;
+                if (first.branch != null && (BranchSettleKind)first.branch.settle == BranchSettleKind.Engine)
+                    return ComposeMode.Parallel; // 引擎载荷只配引擎主干行——非引擎行的旧载荷按并列单行展示
                 if (first.branch != null && !BranchEntryRules.IsPhantom(first.branch))
                     return ComposeMode.LimitedBranch;
             }
@@ -229,8 +233,8 @@ namespace SynergyUI
         private RectTransform _modeBar, _timingRow;
         private TMP_Text _nameLabel;
         private TMP_Text _costLabel; // 顶栏费用文本 lbl-effect-cost（2026-10-23 改版：只装一行摘要——公式链明细悬浮进描述条）
-        private RectTransform _costBadgeNode; // 费用徽标 cost-badge（2026-10-23 改版：Circle32 徽标=合计数值；无费用隐藏）
-        private TMP_Text _costBadgeLabel;
+        private RectTransform _costBadgeNode; // 费用徽标 cost-badge（2026-10-26 改版：Circle32 合计徽标退役——公用 CostSquares 预制体实例逐色块展示；无费用隐藏）
+        private CostSquaresView _costBadgeView;
         private Button _deleteBtn;            // 删除当前库效果（仅效果表载入态可用）
         private UInputField _filterName;
         private UiKit.Dropdown _timingDropdown, _activationDropdown;
@@ -247,7 +251,7 @@ namespace SynergyUI
         // 筛选状态（2026-10-13 分类下拉退役：dropdown-filter-type 节点已删，pool-filter 颜色行接管）：
         // 颜色=单选（选色即筛费用含该色的原子，默认「全部」；激活态=chip Outline 开关）。
         // 近似搜索（2026-10-13 多词AND+语料扩展）：
-        // 原子库=名∪描述∪Tags∪MountKinds∪TargetKinds；效果表=名∪id∪组成简称∪摘要全文；光环库=标题∪meta
+        // 原子库=名∪描述∪Tags∪MountKinds∪TargetKinds；效果表=名∪id∪组成简称∪摘要全文∪引用卡(ID·名·2026-10-26)；光环库=标题∪meta
         private UIColor _colorFilter = UIColor.All;
         private readonly Dictionary<UIColor, Button> _filterChips = new Dictionary<UIColor, Button>();
         private RectTransform _poolFilter; // 颜色行容器（chip-{Color} 预制体烘焙，Build 一次接线）
@@ -364,11 +368,12 @@ namespace SynergyUI
                 UiKit.Described(_costLabel,
                     "费用预览：合计费用＋黑白获得；悬浮此处看完整费用构成（逐原子公式链）。"
                     + "分支 Then 奖励免费（不计合计）；奖励超出可实现费用时按槽区红框提示调整后才能保存。");
-            // 费用徽标（2026-10-23 改版）：合计数值常驻顶栏——0/无效组合隐藏
+            // 费用徽标（2026-10-26 改版）：prefab 侧=公用 CostSquares 预制体实例（根挂 CostSquaresView）——
+            // 逐色块展示合计费用（与右栏行/卡面费用方格同构），0/无效组合隐藏
             _costBadgeNode = Find("cost-badge") as RectTransform;
-            _costBadgeLabel = _costBadgeNode != null ? _costBadgeNode.GetComponentInChildren<TMP_Text>(true) : null;
-            if (_costBadgeLabel == null)
-                Debug.LogError("[EffectComposer] 顶栏缺 cost-badge 费用徽标——检查 EffectUI.prefab");
+            _costBadgeView = _costBadgeNode != null ? _costBadgeNode.GetComponentInChildren<CostSquaresView>(true) : null;
+            if (_costBadgeView == null)
+                Debug.LogError("[EffectComposer] 顶栏缺 cost-badge 费用徽标（CostSquares 实例）——检查 EffectUI.prefab");
             // 发动参数（2026-10-09 prefab 重排）：activate-bar 静态组（way/timing/take-effect，
             // 每组=标签+子节点 dropdown；speed 组 2026-10-15 随发动速度退役删除）；原 root 级
             // dropdown-activation/dropdown-timing/timing-row 与设置盒 speed/limit 随设置盒拆除退役
@@ -846,11 +851,13 @@ namespace SynergyUI
                 var costTag = _costLabel.GetComponent<UiKit.DescTag>();
                 if (costTag != null) costTag.Text = EffectCostText();
             }
-            if (_costBadgeLabel != null)
+            if (_costBadgeView != null)
             {
-                float badgeTotal = CostBadgeTotal();
-                _costBadgeLabel.text = Mathf.RoundToInt(badgeTotal).ToString();
-                if (_costBadgeNode != null) _costBadgeNode.gameObject.SetActive(badgeTotal > 0f);
+                var badgeCost = CostBadgeCost();
+                bool hasCost = badgeCost != null && !badgeCost.IsZero;
+                if (hasCost) _costBadgeView.SetCosts(badgeCost);
+                else _costBadgeView.Clear();
+                if (_costBadgeNode != null) _costBadgeNode.gameObject.SetActive(hasCost);
             }
         }
 
@@ -904,26 +911,28 @@ namespace SynergyUI
             }
         }
 
-        /// <summary>费用徽标数值=合计各色份额总和（无效组合/无费用=0——徽标隐藏）。</summary>
-        private float CostBadgeTotal()
+        /// <summary>费用徽标费用（2026-10-26 改版：逐色 ElementCost 喂 CostSquares——口径与旧合计数值同源：
+        /// 光环=条目合计；并列=推导合计，非生物镜像 CostSummaryText 的 TriggerLimitPerTurn=1）。
+        /// 无效组合/无费用=null——徽标隐藏。</summary>
+        private ElementCost CostBadgeCost()
         {
             try
             {
                 if (IsAuraMode(_mode))
                 {
                     var (total, n) = AuraCostTotal();
-                    return n > 0 ? SumCost(total) : 0f;
+                    return n > 0 ? total : null;
                 }
-                if (!ZonesAllValid()) return 0f;
+                if (!ZonesAllValid()) return null;
                 var def = CardEffectConverter.ConvertOne(BuildCardEffect(), "COMPOSER_COST_PREVIEW");
-                if (def == null) return 0f;
+                if (def == null) return null;
                 if (_editingCard != null && _editingCard.Supertype != Cardtype.Creature)
                     def.TriggerLimitPerTurn = 1;
-                return SumCost(CostDerivationService.DeriveElementCosts(def, 0));
+                return CostDerivationService.DeriveElementCosts(def, 0);
             }
             catch
             {
-                return 0f;
+                return null;
             }
         }
 
@@ -939,14 +948,6 @@ namespace SynergyUI
                 else total[(int)ManaType.Gray] += l.Value;
             }
             return (total, lines.Count);
-        }
-
-        private static float SumCost(ElementCost cost)
-        {
-            if (cost == null) return 0f;
-            float s = 0f;
-            foreach (var c in cost.NonzeroColors()) s += cost[c];
-            return s;
         }
 
         /// <summary>分支段文本（2026-10-09 定案）：引擎/其余分支只声明「分支（奖励免费）」；**附加诅咒/祝福
@@ -2691,16 +2692,19 @@ namespace SynergyUI
             }
         }
 
-        /// <summary>当前效果引擎种类（首主干 branch 载荷∪行身份——与 InferMode 同口径；null=无引擎）。</summary>
+        /// <summary>当前效果引擎种类（与 InferMode 同口径：**仅引擎主干行**算引擎在案——行身份∪其槽级
+        /// 引擎载荷；非引擎行挂的旧引擎载荷按并列单行展示（2026-10-26 定案），不再触发效果头锁定。
+        /// null=无引擎）。</summary>
         private BranchEngineKind? EngineKindOfGraph()
         {
             var atom = _graph?.steps?.FirstOrDefault(s => s?.kind == 0 && s.atomic != null)?.atomic;
             if (atom == null) return null;
+            var cfg = AtomicEffectTable.GetByHashId(atom.refId);
+            if (!ComposerCatalog.IsEngineTrunkRow(cfg)) return null;
             if (atom.branch != null && (BranchSettleKind)atom.branch.settle == BranchSettleKind.Engine
                 && Enum.IsDefined(typeof(BranchEngineKind), atom.branch.engine))
                 return (BranchEngineKind)atom.branch.engine;
-            var cfg = AtomicEffectTable.GetByHashId(atom.refId); // 行身份兜底（引擎行落槽即挂载荷——双保险）
-            if (cfg != null && Enum.TryParse<AtomicEffectType>(cfg.EnumName, out var t))
+            if (cfg != null && Enum.TryParse<AtomicEffectType>(cfg.EnumName, out var t)) // 行身份兜底（引擎行落槽即挂载荷——双保险）
             {
                 var k = ComposerCatalog.EngineKindOf(t);
                 if (k != BranchEngineKind.None) return k;
@@ -2824,6 +2828,22 @@ namespace SynergyUI
                 return;
             }
             string q = _filterName.text;
+            // 卡 hash 反查语料（2026-10-26）：效果表语料此前只有效果自身 id——输卡 ID（如
+            // C_1DBF77BC）或卡名查不到"这张卡用了哪些效果行"。此处把「引用本效果的卡（ID·名）」
+            // 并入语料补齐反向（卡池侧 CorpusOf 已含卡 ID，hash 搜卡那边本就通）。LoadAll 带缓存，
+            // 每刷重建小映射开销可忽略；教学卡同入（教学表 effectIds 同样解析到库行）。
+            var effectUsers = new Dictionary<string, List<string>>();
+            foreach (var c in CardCatalog.LoadAll())
+            {
+                if (c?.Effects == null || c.Effects.Count == 0) continue;
+                string label = string.IsNullOrEmpty(c.CardName) ? c.ID : c.ID + "·" + c.CardName;
+                foreach (var fx in c.Effects)
+                {
+                    if (fx == null || string.IsNullOrEmpty(fx.Id)) continue;
+                    if (!effectUsers.TryGetValue(fx.Id, out var list)) effectUsers[fx.Id] = list = new List<string>();
+                    if (!list.Contains(label)) list.Add(label);
+                }
+            }
             foreach (var fx in effects)
             {
                 var captured = fx;
@@ -2832,12 +2852,13 @@ namespace SynergyUI
                 // 颜色筛选：任一组成部分费用含选中色即入选（不计价效果仅「全部」下出现）
                 if (_colorFilter != UIColor.All && !parts.Any(c => AtomMatchesColor(c, _colorFilter))) continue;
 
-                // 近似检索（2026-10-13 语料扩展+多词 AND）：名∪id∪组成简称∪完整摘要文本
+                // 近似检索（2026-10-13 语料扩展+多词 AND）：名∪id∪组成简称∪完整摘要文本∪引用卡
                 if (SearchQuery.IsActive(q))
                 {
                     string abbr = string.Concat(parts.Select(c => c?.DisplayName ?? ""));
                     string corpus = string.Join("\n", captured.name, captured.id, abbr,
-                        AtomText.RenderEffectSummary(captured));
+                        AtomText.RenderEffectSummary(captured),
+                        effectUsers.TryGetValue(captured.id, out var refs) ? string.Join("\n", refs) : "");
                     if (!SearchQuery.Match(corpus, q)) continue;
                 }
 

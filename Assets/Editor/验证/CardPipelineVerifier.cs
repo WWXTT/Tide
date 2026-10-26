@@ -3688,13 +3688,14 @@ namespace CardCore.Editor
             Assert(plEdge.MaxHealth == 0 && plEdge.Life == 0,
                    "流失原子：可扣到恰好归零（归零=正常死亡交生命判定收尾）");
 
-            // ---- 16. 再生（2026-09-13 全额定案：回合开始恢复全部生命；成长 2026-10-08 机制删除） ----
+            // ---- 16. 再生（2026-09-13 全额定案：己方准备阶段恢复全部生命；成长 2026-10-08 机制删除） ----
             for (int i = 0; i < 3; i++) core.ZoneManager.GetZoneContainer(p1).Add(new Card { ID = "VERIFY_KW_DECK" }, Zone.Deck);
             var regrow = Make(p1, 2, 4, "Regeneration");
             CardCore.Attribute.KeywordRules.ApplyDamage(p2, regrow, 2, false);
             EventManager.Instance.Publish(new TurnStartEvent { TurnPlayer = p1, TurnNumber = 300 });
+            core.RunStandbyAutomation(p1, 300); // 2026-10-26 精准切分：自动化迁准备阶段——合成事件须显式补调
             Assert(regrow.GetLife() == 4 && regrow.GetPower() == 2,
-                   "再生恢复全部生命（2→满4）——回合开始维护");
+                   "再生恢复全部生命（2→满4）——准备阶段维护");
 
             // ---- 17. 法术护盾（效果指定）（辟邪断言已随 2026-10-13 扰魔整体退役删除——
             //      原 EffectTargetValidator 为死基建从未接通，断言测的是死代码） ----
@@ -4111,7 +4112,7 @@ namespace CardCore.Editor
             HygieneBank(pool1, ManaType.Gray, 3);
             Assert(PlayCardSync(core, p1, pricey), "增费：bank 灰3 过（层后费全额支付）");
 
-            // ---- 23. 再生·角色侧（2026-10-08 引擎统一）：回合玩家角色回合开始恢复全部生命 ----
+            // ---- 23. 再生·角色侧（2026-10-08 引擎统一）：回合玩家角色准备阶段恢复全部生命 ----
             // 物化授予（Setting 轨）：光环通道被 NoRole 门拦（再生=仅生物行），本段锚物化通道行为。
             p2.AddKeyword(CardCore.Attribute.KeywordRules.Regeneration, CardCore.KeywordLane.Setting, p2);
             Assert(p2.HasKeyword(CardCore.Attribute.KeywordRules.Regeneration), "再生·角色侧：物化授予落到角色");
@@ -7120,13 +7121,16 @@ namespace CardCore.Editor
             RuleHooks.RegisterTurnStartInterceptor(cdShield);
             try
             {
-                EventManager.Instance.Publish(new TurnStartEvent { TurnPlayer = p1, TurnNumber = 400 });
+                // 2026-10-26 精准切分：回合自动化（含回合抽牌）已迁 RunStandbyAutomation——合成
+                // TurnStartEvent 不再触发抽牌，倒计时 tick 显式调用（隔离盾随之只挡显式自动化路径；
+                // 新语义=跳过闸连倒计时一并跳，本段隔离口径已由显式 tick 取代）
+                CardCore.BranchEngines.RunCountdownTick(p1);
                 GameActions.DrainStack(core);
                 Crumb($"cd after t1: counter={cdCard.GetCounterCount(CardCore.Attribute.CounterRules.CountdownCounter)} deckNow={core.ZoneManager.GetCards(p1, Zone.Deck).Count}");
                 Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckBefore
                        && cdCard.GetCounterCount(CardCore.Attribute.CounterRules.CountdownCounter) == 1,
-                       "倒计时：首回合 2→1 未归零不发奖（回合自动化被隔离，牌库只受引擎影响）");
-                EventManager.Instance.Publish(new TurnStartEvent { TurnPlayer = p1, TurnNumber = 401 });
+                       "倒计时：首回合 2→1 未归零不发奖（tick 显式调用，牌库只受引擎影响）");
+                CardCore.BranchEngines.RunCountdownTick(p1);
                 GameActions.DrainStack(core);
             }
             finally { RuleHooks.UnregisterTurnStartInterceptor(cdShield); }

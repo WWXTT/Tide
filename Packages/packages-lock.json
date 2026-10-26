@@ -63,38 +63,6 @@
       },
       "hash": "473683f9c4e2aff5f99ad8618376c605eac3ff92"
     },
-    "com.taptap.sdk.cloudsave": {
-      "version": "file:../tapsdk-dist/CloudSave",
-      "depth": 0,
-      "source": "local",
-      "dependencies": {
-        "com.taptap.sdk.core": "4.11.0",
-        "com.taptap.sdk.login": "4.11.0"
-      }
-    },
-    "com.taptap.sdk.core": {
-      "version": "file:../tapsdk-dist/Core",
-      "depth": 0,
-      "source": "local",
-      "dependencies": {}
-    },
-    "com.taptap.sdk.login": {
-      "version": "file:../tapsdk-dist/Login",
-      "depth": 0,
-      "source": "local",
-      "dependencies": {
-        "com.taptap.sdk.core": "4.11.0"
-      }
-    },
-    "com.taptap.sdk.onlinebattle": {
-      "version": "file:../tapsdk-dist/OnlineBattle",
-      "depth": 0,
-      "source": "local",
-      "dependencies": {
-        "com.taptap.sdk.core": "4.11.0",
-        "com.taptap.sdk.login": "4.11.0"
-      }
-    },
     "com.tuyoogame.yooasset": {
       "version": "https://github.com/tuyoogame/YooAsset.git?path=Assets/YooAsset#3.0.6",
       "depth": 0,

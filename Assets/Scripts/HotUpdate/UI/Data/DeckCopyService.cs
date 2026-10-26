@@ -7,8 +7,7 @@ namespace SynergyUI
 {
     /// <summary>
     /// 预组卡组复制服务（2026-10-22 预组只读配套）：把只读预组（TutorialData）深拷贝成玩家自有副本——
-    /// 卡组引用的卡（含衍生物模板与技能卡）逐张深克隆进玩家主表、引用的组合效果随
-    /// CardConfigSerializer.Save 的效果 upsert 链落进玩家 Effects.json，副本卡组另存新名后随意修改，
+    /// 卡组引用的卡（含衍生物模板与技能卡）逐张深克隆进玩家主表，副本卡组另存新名后随意修改，
     /// 预组原件零触碰。
     ///
     /// id 分叉口径（内容哈希机制决定，见 ContentHasher）：
@@ -16,12 +15,15 @@ namespace SynergyUI
     ///   主表会按 MergeTutorialCards「保正式表」遮蔽教学原件，之后改动会让预组断链。因此复制时
     ///   逐卡 `CardName += CopySuffix` 强制分叉出新 id（最小且不污染功能内容的唯一分叉点）。
     ///   ⚠ 后缀不可去掉：复原名字会把 id 撞回教学原件再次触发遮蔽；改成其他名字没问题。
-    /// - 效果行是内容寻址共享行：副本卡效果与原件相同→同效果 id→玩家表 upsert 同 id 同内容条目
-    ///   （合并视图零重复）；玩家日后改效果自然分叉新 id，副本与预组互不影响。
+    /// - 效果行是内容寻址共享行（2026-10-26 复制零写入定案）：**复制不重写效果、不落效果库**——
+    ///   副本卡 effectIds 与原件同 id 直引（主∪教学合并视图均可解析；EffectIdsOf 见同内容条目即
+    ///   跳过落盘）。玩家日后在合成器改副本效果时按内容寻址自然分叉新 id，副本与预组互不影响。
     /// - 「教学」tag 剥除（副本进玩家卡池可编辑可添加）；「衍生物」tag 保留（模板照常开局摘额外区、
     ///   不计构筑张数、不进卡池）。
-    /// - 卡内跨引用 str（SummonToken/GrantMorph 的模板卡 id 等）按 旧id→新id 映射整体重写——
-    ///   副本的倒计时召唤指向副本自己的模板卡，玩家改模板后召唤物跟随。
+    /// - 卡内跨引用 str（SummonToken/GrantMorph 的模板卡 id 等）**照抄原件不再重写**（2026-10-26
+    ///   定案取代 10-22 旧案）：旧案重写 str→副本模板会让效果内容变→新效果 id→玩家 Effects.json
+    ///   落分叉行（实测绿套复制即产生 4 条倒计时分叉）。代价：副本的召唤/变形仍指预组原件模板卡，
+    ///   玩家改副本组内克隆模板不影响召唤物——要改召唤物请直接改副本卡效果（自然分叉）。
     /// </summary>
     public static class DeckCopyService
     {
@@ -75,18 +77,11 @@ namespace SynergyUI
                 clones.Add(clone);
             }
 
-            // ---- ③ 旧id→新id 映射（两段·2026-10-22 修正）：先用克隆初步 id 重写卡内跨引用
-            //（SummonToken.str 等换成副本引用）；str 重写改变效果内容→效果 id 变→卡 id 变
-            //（HashCard FX 段传导）——重写后必须重算终版 id 再建映射，卡组引用/技能查找一律用终版
-            //（单段映射的 bug：带模板引用的卡落盘 id 与卡组引用 id 不一致=断链 5 条，绿套实测）。
-            var prelimMap = new Dictionary<string, string>(uniqueIds.Count);
-            for (int i = 0; i < uniqueIds.Count; i++)
-                prelimMap[uniqueIds[i]] = "C_" + ContentHasher.HashCard(clones[i]);
-            foreach (var clone in clones)
-                RewriteCardReferences(clone, prelimMap);
+            // ---- ③ 旧id→新id 映射（单段——2026-10-26 复制零效果定案：不再重写卡内跨引用，
+            // 克隆即终版，一次哈希即终版 id；卡组引用/技能查找同用）----
             var idMap = new Dictionary<string, string>(uniqueIds.Count);
             for (int i = 0; i < uniqueIds.Count; i++)
-                idMap[uniqueIds[i]] = "C_" + ContentHasher.HashCard(clones[i]); // 终版（含重写后的效果）
+                idMap[uniqueIds[i]] = "C_" + ContentHasher.HashCard(clones[i]);
 
             // ---- ④ 技能卡资格（名后缀不影响 CanBeSkillCard；失败=副本不带技能照常可用）----
             string newSkillId = null;
@@ -129,47 +124,5 @@ namespace SynergyUI
 
         private static bool NameTaken(string name)
             => DeckCatalog.IsPreset(name) || DeckSerializer.Load(name) != null;
-
-        /// <summary>
-        /// 重写卡内跨引用 str（SummonToken/GrantMorph 的卡 id 等）：遍历全部效果步骤/扁平原子/
-        /// 分支奖励与代价载荷，str 命中映射才替换——映射键全是本卡组被拷贝的卡 id，无误伤面；
-        /// SearchDeck 按卡名宣言与副本改名天然失配（现网三套无此原子，记录不处理）。
-        /// </summary>
-        private static void RewriteCardReferences(CardData card, Dictionary<string, string> idMap)
-        {
-            if (card.Effects == null) return;
-            foreach (var fx in card.Effects)
-            {
-                if (fx == null) continue;
-                if (fx.Steps != null)
-                    foreach (var step in fx.Steps)
-                    {
-                        if (step == null) continue;
-                        RewriteAtom(step.atomic, idMap);
-                        RewriteAtoms(step.thenSteps, idMap);
-                        RewriteAtoms(step.elseSteps, idMap);
-                    }
-                RewriteAtoms(fx.AtomicEffects, idMap);
-                if (fx.Costs != null)
-                    foreach (var cost in fx.Costs)
-                        RewriteAtoms(cost?.AllPayloads(), idMap);
-            }
-            RewriteAtoms(card.PayloadCost?.AllPayloads(), idMap);
-        }
-
-        private static void RewriteAtoms(List<AtomicEffectEntry> atoms, Dictionary<string, string> idMap)
-        {
-            if (atoms == null) return;
-            foreach (var atom in atoms) RewriteAtom(atom, idMap);
-        }
-
-        private static void RewriteAtom(AtomicEffectEntry atom, Dictionary<string, string> idMap)
-        {
-            if (atom == null) return;
-            if (!string.IsNullOrEmpty(atom.str) && idMap.TryGetValue(atom.str, out var mapped))
-                atom.str = mapped;
-            if (atom.branch?.then != null)
-                RewriteAtoms(atom.branch.then, idMap); // 奖励原子列（倒计时召唤模板在此）
-        }
     }
 }

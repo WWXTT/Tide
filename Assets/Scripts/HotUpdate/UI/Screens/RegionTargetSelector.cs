@@ -41,6 +41,10 @@ namespace SynergyUI
         ///（不依赖 UniTask.Delay——在途 await 链孤悬时面板自身的 60s 超时同样不会触发）。</summary>
         public float OpenSinceRealtime { get; private set; }
 
+        /// <summary>牌库预览条进行中（2026-10-26 诅咒/祝福显示层）：选择态（IsOpen/_busy）之外
+        /// 的只读探针——真实选择（Run）或外部 ClosePreview 收起。</summary>
+        public bool PreviewOpen => _previewActive;
+
         private readonly RectTransform _region;
         private readonly GameObject _labelNumNode; // label-num 面板本体（TMP 在子节点 label 上——显隐须控面板）
         private readonly TMP_Text _labelNum;
@@ -68,6 +72,11 @@ namespace SynergyUI
         private bool _busy;
         private UniTaskCompletionSource<List<int>> _activeTcs; // 在途选择收口口（Cancel 用）
 
+        // ==== 牌库标记预览态（2026-10-26 诅咒/祝福显示层）：复用选择条的非交互显示面 ====
+        private bool _previewActive;                                  // 预览进行中（与 _busy 选择态互斥）
+        private bool _previewRegionWasActive;                         // 进预览前 Region 节点活跃态（关时还原）
+        private List<KeyValuePair<GameObject, bool>> _previewHidden;  // 预览压掉的浏览三件（title/lines/cards 原显隐）
+
         /// <summary>外部收口在途选择（2026-10-16 响应窗口让过/守卫先定）：空表完成——
         /// Run 侧空表≠null 不触发超时代选，调用方按「未选」语义消费（响应窗=让过）。
         /// 未在途=无操作。</summary>
@@ -79,6 +88,7 @@ namespace SynergyUI
         /// 静默 AutoPick。此处不等收尾链，直接把三态钉回空闲（幂等，正常路径无操作）。</summary>
         public void ForceIdle()
         {
+            ClosePreview(); // 预览态一并钉回（2026-10-26）
             _activeTcs?.TrySetResult(new List<int>());
             _activeTcs = null;
             _busy = false;
@@ -186,6 +196,7 @@ namespace SynergyUI
                 && _content != null && _template != null && items.Count > 0 && max > 0;
             if (!usable || _busy) return AutoPick(items.Count, min); // 缺节点/重入：退化自动选
 
+            if (_previewActive) ClosePreview(); // 真实目标选择开窗——「渲染目标选择」自动让位（2026-10-26 用户定案）
             _busy = true;
             IsOpen = true;
             OpenSinceRealtime = Time.realtimeSinceStartup;
@@ -265,6 +276,71 @@ namespace SynergyUI
             _prompt = null;
             _onCancelAvailable?.Invoke(false); // 关窗收取消键（仅本屏亮出的才收——2026-10-16 定案沿用）
             return result;
+        }
+
+        // ==================== 牌库标记预览（2026-10-26 诅咒/祝福·复用选择条的非交互显示面） ====================
+
+        /// <summary>开牌库预览条（宿主=BattleScreen.OpenDeckPreview）：label-num 写标题（无 (x/y)
+        /// 计数）、viewport 列全卡面、btn-select 恒藏——非交互展示，即用户口径的「渲染目标选择」。
+        /// 与真实选择互斥：_busy 选择在身时静默不开；重复开=先清旧再装配。压浏览三件/Region
+        /// 活跃态记忆还原与 Run 同款；真实选择 Run() 开窗时自动让位收起。</summary>
+        public void ShowPreview(string title, IReadOnlyList<CardOverlayItem> items)
+        {
+            if (_region == null || _labelNum == null || _viewport == null || _content == null
+                || _template == null || _btnSelect == null) return;
+            if (_busy || items == null || items.Count == 0) return; // 真实选择在身/空表不开
+            ClosePreview();
+
+            _previewActive = true;
+            _previewRegionWasActive = _region.gameObject.activeSelf;
+            _previewHidden = new List<KeyValuePair<GameObject, bool>>();
+            foreach (var kid in new[] { "title", "lines", "cards" })
+            {
+                var t = _region.Find(kid);
+                if (t != null)
+                {
+                    _previewHidden.Add(new KeyValuePair<GameObject, bool>(t.gameObject, t.gameObject.activeSelf));
+                    t.gameObject.SetActive(false);
+                }
+            }
+            _labelNumNode.SetActive(true);
+            _labelNum.text = string.IsNullOrWhiteSpace(title) ? "牌库 · 被标记的卡" : title;
+            _viewport.gameObject.SetActive(true);
+            _btnSelect.gameObject.SetActive(false); // 预览无确认语义——确定键恒藏
+            _region.gameObject.SetActive(true);
+            if (_region.GetComponent<ScrollRect>() is { } scroll)
+                scroll.horizontalNormalizedPosition = 0f; // 与 Run 同拍从最左起
+            ClearInstances();
+            for (int i = 0; i < items.Count; i++) BuildPreviewCard(i, items[i]);
+        }
+
+        /// <summary>收预览条：清实例+还原浏览三件与 Region 活跃态。未开=无操作（幂等）。</summary>
+        public void ClosePreview()
+        {
+            if (!_previewActive) return;
+            _previewActive = false;
+            ClearInstances();
+            if (_previewHidden != null)
+            {
+                foreach (var kv in _previewHidden) kv.Key.SetActive(kv.Value);
+                _previewHidden = null;
+            }
+            _region.gameObject.SetActive(_previewRegionWasActive);
+        }
+
+        /// <summary>预览卡面：BuildCard 去交互版——无选中框/无点击 Button（纯展示）。</summary>
+        private void BuildPreviewCard(int idx, CardOverlayItem item)
+        {
+            var rt = UnityEngine.Object.Instantiate(_template, _content, false);
+            rt.gameObject.SetActive(true);
+            rt.name = "preview-" + idx;
+            var cost = rt.Find("cost");
+            if (cost != null) cost.gameObject.SetActive(false);
+            var btnLayer = rt.Find("btn");
+            if (btnLayer != null) btnLayer.gameObject.SetActive(false);
+            var face = rt.gameObject.AddComponent<ACardView>();
+            face.Bind();
+            face.Apply(item, CardOverlayLayout.Full);
         }
 
         /// <summary>实例化一张候选卡：去 cost 费用行/btn 层，ACardView 全卡面 + 根 Button 点击切换。</summary>

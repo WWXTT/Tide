@@ -16,18 +16,21 @@ namespace SynergyUI
     /// 本地/网络同轨）做幂等全量对账（键=引擎卡 RuntimeId，手牌扇同口径）。
     ///
     /// 摆位形态：单位区卡（生物/结界/衍生物）→ MonsterRig 模型站格
-    /// （结构=wrapper[位姿/头顶数值] → 模型根[MonsterRigAnimator]——wrapper 承载位移，
+    /// （结构=wrapper[位姿] → 模型根[MonsterRigAnimator]——wrapper 承载位移，
     /// 不触发 Recapture）；死亡→倒地散落、复活→Revive；横置→仅脚下光波熄灭表达
     ///（2026-10-15 定案：呼吸不随横置停止，可行动性只看 BattleTileFx 光波）。
+    /// 数值读数（2026-10-26 迁格定案）：不再上头顶——格面三槽平贴数据格 tile，
+    /// 槽位=旧格前三键位（生物=左攻/右血两侧、结界=中间耐久；中槽对生物暂无第三读数留着），
+    /// 节拍（冻结/滚动）/属性配色（低于印刷红·高于绿）随迁不变，箭头同口径钉格随迁。
     /// 地牌→无实体（2026-10-13 卡背退役定案；2026-10-14 按色叠格）：同色叠一格——格面元素图标+
     /// 「可用/上限」计数条（可用=未横置+钱包该色；上限=红蓝绿灰该色已放入地牌张数、黑白=地牌槽上限），
     /// 可用&gt;0 点亮锁色菲涅尔（BattleTileFx）；
     /// 黑白格计数=钱包余额/生成上限；技能格=技能名数字条（无技能空格）（均 BattleFieldView 对账）。
     /// 可行动性（生物未横置）与地牌状态均由脚下地块表达（BattleTileFx 同日改版）。
     /// 角色→占位立柱+生命值（2026-10-16：常态只显 HP，护甲缀「(+x)」、获得攻击力追加「Ac:x」；
-    /// 结界等无生命单位头顶只显耐久值）；模型映射走 MonsterModelResolver（同名→稳定哈希→占位胶囊）。
+    /// 角色读数仍在柱顶——迁格仅单位；模型映射走 MonsterModelResolver（同名→稳定哈希→占位胶囊）。
     /// 体型=已按模块数分档烘进资产几何（MonsterRigSizeScaler：&lt;5块→0.7/5~10块→1/&gt;10块→1.5，
-    /// 2026-10-14 用户定案取代 10-13 全 1+属性放大）；运行时不再缩放，头顶数值按实际包围盒顶。
+    /// 2026-10-14 用户定案取代 10-13 全 1+属性放大）；运行时不再缩放，头顶锚高（浮字/动作按钮）按实际包围盒顶。
     ///
     /// 生命周期：BattleScreen.OnEnter 创建、OnExit Dispose。棋盘未就绪
     /// （BattleBoardGrid.Ready=false）跳过本次对账（节流日志），装台后下一事件即补刷。
@@ -62,8 +65,9 @@ namespace SynergyUI
         private int _lastSkipLogFrame = -1;
 
         //（2026-10-15 深夜改版）单位【发动效果】头顶按钮退役：单位本体退出射线检测，
-        // 攻击/守卫/发动入口走格前（2026-10-23 v4 §10.2 起为点单位弹 BattleUnitActionPopup），
-        // 本类不再持有可点 3D 件。
+        // 攻击/守卫/发动入口走格前 →（2026-10-23 v4 §10.2 点单位弹 BattleUnitActionPopup）
+        // →（2026-10-26 定案）动作入口回归头顶 3D：BattleUnitActionButtons 竖直按钮组落
+        // 旧读数位（本类只供 StatsAnchorOf 头顶锚），本类仍不持有可点 3D 件。
 
         // 施放占格类型图标（2026-10-15 发动格拆除：整个 2×6 兼任发动区；2026-10-17 两改：
         // 立绘立牌→程序描边边框→Element 预制体平贴图标）：Element.prefab 面朝上平躺贴格面，
@@ -115,9 +119,6 @@ namespace SynergyUI
         private const float ClashFontSize = 2.25f;
         private const float LuckRollFontSize = 3f;
 
-        private static string FormatStats(int power, int life, int? basePower, int? baseLife)
-            => StatSpan(power, basePower) + "/" + StatSpan(life, baseLife);
-
         private static string StatSpan(int value, int? baseValue)
         {
             if (!baseValue.HasValue) return value.ToString();
@@ -149,6 +150,7 @@ namespace SynergyUI
                     else Object.DestroyImmediate(a.Inst);
                 }
             _creatureArrows.Clear(); // 钉在 tile 上不随 _root 销毁，须自清
+            foreach (var v in _units.Values) v.DestroyStatLabels(); // 格面读数三槽钉 tile，同口径自清（2026-10-26 迁格）
             _units.Clear();
             foreach (var h in _heroes.Values)
                 if (h != null && h.Mat != null)
@@ -206,10 +208,11 @@ namespace SynergyUI
             BattleTileFx.ClearAll();
 
             // ---- 优先权（扳机）指示（2026-10-15 半场逐格泛光退役——与地格玩法高光共用壳互相覆盖）：
-            //      战场底部两根长方条随扳机切换亮暗（左=己方蓝/右=对手红）；中线行时间格同步切高亮 ----
-            int holderSeat = PrioritySeatOf(d);
-            BattlePriorityGlow.Apply(holderSeat);
-            BattleHudRow.SetTimePriority(holderSeat);
+            //      2026-10-26 锚侧定案双口径：半场光条亮**发动方**（栈顶效果归属——对手触发的效果亮对手侧，
+            //      人机 AI 同帧让过持有者恒翻己方致旧锚法恒误亮）；中线行时间格角标仍亮**可响应方**
+            //      （轮到谁响应/行动）——两信息并存；空栈/网络快照未携带（-1）=光条回落旧口径 ----
+            BattlePriorityGlow.Apply(GlowSeatOf(d));
+            BattleHudRow.SetTimePriority(PrioritySeatOf(d));
 
             // ---- 单位区（生物/结界/衍生物） ----
             // 教学介绍段单位闸（2026-10-19 教学二「生物出场」）：闸上=单位不出场（seen 空→存量全清，
@@ -260,7 +263,12 @@ namespace SynergyUI
             return true;
         }
 
-        /// <summary>当前优先权（扳机）持有方（观察者视角 seat：0=己方 1=对手）：栈非空=优先权
+        /// <summary>半场光条座位（2026-10-26 扳机锚侧定案）：栈非空=栈顶效果归属方（**发动方**——
+        /// 对手触发的效果亮对手侧）；空栈/网络快照未携带（-1）=沿用旧口径（持有方/回合方）。</summary>
+        private static int GlowSeatOf(BattleViewData d)
+            => d.StackTopOwnerSeat >= 0 ? d.StackTopOwnerSeat : PrioritySeatOf(d);
+
+        /// <summary>时间格角标座位（可响应方，2026-10-14 旧语义保持）：栈非空=优先权
         /// 持有方（MyPriority 观察者相对口径），栈空=回合方——对账数据单源推导，本地/网络同式。</summary>
         private static int PrioritySeatOf(BattleViewData d)
             => d.StackNotEmpty ? (d.MyPriority ? 0 : 1) : (d.MyTurn ? 0 : 1);
@@ -272,7 +280,11 @@ namespace SynergyUI
             public Transform Wrapper;
             public GameObject Model;
             public MonsterRigAnimator Anim;   // 占位胶囊时 null
-            public TextMeshPro Stats;
+            // 格面三槽读数（2026-10-26 头顶数值迁格定案）：生物=左攻/右血两槽（旧 Attack/Defense
+            // 键位）、无生命单位（结界）=中槽耐久（旧 Activate 键位）——三槽钉 tile 平贴格面，
+            // 随对账数据格迁移（箭头同口径），死亡隐藏/复活恢复
+            public TextMeshPro StatAtk, StatLife, StatMid;
+            public float StatsHeightY = 1.35f; // 头顶锚高（包围盒顶+余量·旧读数位）：浮字基线/动作按钮锚用
             public int X, Z;
             public bool Dead;
             public bool DeathExitStarted;    // 碎裂退场已开演（2026-10-20 时序定案：效果伤害受击判据——
@@ -295,7 +307,7 @@ namespace SynergyUI
             public int? BasePower, BaseLife;
             public int StatsVersion;
             public bool StatsHeld;            // 战斗演出数值冻结：命中节拍释放并滚动落值
-            public bool DurabilityOnly;       // 无生命单位（结界，2026-10-16）：头顶只显耐久值，不显 攻/血 对
+            public bool DurabilityOnly;       // 无生命单位（结界，2026-10-16）：只显耐久值（中槽），不显 攻/血 对（侧槽）
 
             /// <summary>对账写入口：冻结期只更新目标值；否则值变化滚动过渡（0.4s 缓出，逐格推进）。</summary>
             public void SetStatsValues(int power, int life, int armor, int? basePower, int? baseLife)
@@ -333,7 +345,7 @@ namespace SynergyUI
                 int fromP = ShownPower, fromL = ShownLife, fromA = ShownArmor;
                 const float dur = 0.4f;
                 float t0 = Time.realtimeSinceStartup;
-                while (Stats != null && StatsVersion == ver)
+                while (Wrapper != null && StatsVersion == ver)
                 {
                     float t = Mathf.Clamp01((Time.realtimeSinceStartup - t0) / dur);
                     float e = 1f - (1f - t) * (1f - t); // 缓出：命中落值后减速收尾
@@ -348,19 +360,43 @@ namespace SynergyUI
 
             private void WriteStats(int p, int l, int a)
             {
-                if (Stats == null) return;
-                // 无生命单位（结界）：Life 即耐久，只显耐久值（2026-10-16）；生物照旧 攻/血 对
-                Stats.text = DurabilityOnly
-                    ? StatSpan(l, BaseLife) + ArmorSuffix(a)
-                    : FormatStats(p, l, BasePower, BaseLife) + ArmorSuffix(a);
+                // 无生命单位（结界）：Life 即耐久层数，写中槽；生物攻/血写左右侧槽（2026-10-26 迁格）
+                if (DurabilityOnly)
+                {
+                    if (StatMid != null) StatMid.text = StatSpan(l, BaseLife) + ArmorSuffix(a);
+                }
+                else
+                {
+                    if (StatAtk != null) StatAtk.text = StatSpan(p, BasePower);
+                    if (StatLife != null) StatLife.text = StatSpan(l, BaseLife) + ArmorSuffix(a);
+                }
             }
 
-            /// <summary>头顶数值显隐：死亡碎裂同帧即隐，复活由对账恢复（2026-10-16）。
+            /// <summary>格面读数显隐：死亡碎裂同帧即隐，复活由对账恢复（2026-10-16 口径随迁）。
             /// 隐期间 WriteStats 照常写 text（组件在失活 GO 上仍可写），恢复显示即最新值。</summary>
             public void SetStatsVisible(bool on)
             {
-                if (Stats != null && Stats.gameObject.activeSelf != on)
-                    Stats.gameObject.SetActive(on);
+                if (StatAtk != null && StatAtk.gameObject.activeSelf != on) StatAtk.gameObject.SetActive(on);
+                if (StatLife != null && StatLife.gameObject.activeSelf != on) StatLife.gameObject.SetActive(on);
+                if (StatMid != null && StatMid.gameObject.activeSelf != on) StatMid.gameObject.SetActive(on);
+            }
+
+            /// <summary>数据格迁移：三槽重钉新 tile（演出 hold 只锁 wrapper 位姿——读数与箭头同口径
+            /// 不等演出；已在目标 tile=幂等无操作；tile null=跳过待下轮对账）。</summary>
+            public void ReparentStats(Transform tile)
+            {
+                if (tile == null) return;
+                if (StatAtk != null && StatAtk.transform.parent != tile) StatAtk.transform.SetParent(tile, false);
+                if (StatLife != null && StatLife.transform.parent != tile) StatLife.transform.SetParent(tile, false);
+                if (StatMid != null && StatMid.transform.parent != tile) StatMid.transform.SetParent(tile, false);
+            }
+
+            /// <summary>销毁格面读数件（RemoveStale/RetireUnit/Dispose：三槽钉 tile 不随 wrapper 销毁，须自清）。</summary>
+            public void DestroyStatLabels()
+            {
+                if (StatAtk != null) { Object.Destroy(StatAtk.gameObject); StatAtk = null; }
+                if (StatLife != null) { Object.Destroy(StatLife.gameObject); StatLife = null; }
+                if (StatMid != null) { Object.Destroy(StatMid.gameObject); StatMid = null; }
             }
         }
 
@@ -401,6 +437,8 @@ namespace SynergyUI
                 }
                 // 演出持有（2026-10-13 战斗编舞）：位姿归编舞器独占——不写位置也不改记账，
                 // 释放后对账按差量重新落笔
+                // 格面读数钉格不跟 wrapper（箭头同口径）：数据格已迁即重钉，不等演出
+                v.ReparentStats(BattleTileFx.TileOf(card.X, card.Z));
             }
 
             // 朝向架构（2026-10-15 用户定案·二次修订）：模型层持对敌朝向（己方0/对手180）、stats 自
@@ -431,12 +469,12 @@ namespace SynergyUI
             else if (!card.IsDead && v.Dead)
             {
                 v.Dead = false;
-                v.SetStatsVisible(true); // 死亡碎裂时隐去的头顶数值随复活恢复
+                v.SetStatsVisible(true); // 死亡碎裂时隐去的格面读数随复活恢复（2026-10-26 迁格）
                 v.Anim?.Revive();
                 v.Anim?.Play(MonsterAction.Breath);
             }
 
-            if (v.Stats != null && card.Runtime != null)
+            if (card.Runtime != null)
             {
                 // 无生命单位（结界/装备，DurabilityOnly 同口径）：生命位喂耐久层数——_life 恒 0，
                 // 耐久真源=指示物（2026-10-16 修；持续型结界无层=显 0）
@@ -446,6 +484,7 @@ namespace SynergyUI
                 v.SetStatsValues(card.Runtime.Power, statLife, card.Armor, card.BasePower, card.BaseLife);
             }
                 // 数值节拍（2026-10-15）：不再直写——冻结期缓冲、命中节拍释放、变化滚动过渡
+                //（2026-10-26 迁格：节拍数学不变，落笔对象=格面三槽）
         }
 
         private UnitVisual CreateUnit(BattleCardView card, int owner)
@@ -519,6 +558,13 @@ namespace SynergyUI
                 model.GetComponent<Renderer>().material.color = owner == 0 ? P1UnitColor : P2UnitColor;
             }
 
+            // 生物模型不投真影（2026-10-26 用户定案：光追阴影闪烁收口）——RTAS/阴影图双路按
+            // shadowCastingMode=Off 自动排除；脚下以 UnitBlobShadow 贴地软圆片代替（结界/
+            // 角色柱/卡堆不动，仅生物——占位胶囊同为生物占位一并处理）
+            foreach (var r in model.GetComponentsInChildren<Renderer>(true))
+                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            UnitBlobShadow.Attach(wrapper.transform, card.X, card.Z);
+
             // 头顶数值高度=实际包围盒顶+余量（2026-10-14 体型分档后各模型高低不一，不能再按统一基准估算）
             var uv = FinishUnit(card, wrapper.transform, model, anim, owner);
             uv.ModelYaw = FacingYaw(owner);
@@ -544,8 +590,9 @@ namespace SynergyUI
                 () => { }); // 模型消融自显——回调仅节拍通知（保留契约供外部观察）
         }
 
-        /// <summary>单位装配收尾（结界/生物两路汇流）：头顶数值高度=实际包围盒顶+余量
-        /// （2026-10-14 体型分档后各模型高低不一，不能再按统一基准估算）；生物挂头注视供应商
+        /// <summary>单位装配收尾（结界/生物两路汇流）：格面读数三槽钉数据格 tile（2026-10-26 迁格：
+        /// 生物=左攻/右血·结界=中槽耐久，槽位=旧格前三键位）；头顶锚高=实际包围盒顶+余量
+        /// （体型分档后各模型高低不一——浮字基线/动作按钮锚仍按头顶口径）；生物挂头注视供应商
         /// （2026-10-15 战场接线：待机=最近敌方生物→对方角色，战斗注视钉优先——见 ResolveGazeOf）。</summary>
         private UnitVisual FinishUnit(BattleCardView card, Transform wrapper, GameObject model,
             MonsterRigAnimator anim, int owner)
@@ -573,10 +620,51 @@ namespace SynergyUI
                 IsCreature = card.Type != Cardtype.Enchantment,
                 DurabilityOnly = card.Type != Cardtype.Creature, // 无生命单位（结界/装备）只显耐久（2026-10-16）
                 LookHeight = lookY,
+                StatsHeightY = textY,
             };
-            v.Stats = CreateStatsText(wrapper, textY);
+            CreateStatSlotLabels(card, v);
             anim?.SetLookTarget(() => ResolveGazeOf(v)); // 供应商在组件层持有，驱动重建自动重挂
             return v;
+        }
+
+        // ---- 格面读数三槽（2026-10-26 头顶数值迁格定案）：槽位=旧格前三键位 ----
+        //（BattleHex.prefab 三键子件 2026-10-23 退役时实测局部值：Attack 左(-0.6,0.02,-0.45) /
+        //  Defense 右(0.6,0.02,-0.45) / Activate 中(0.003,0.02,-0.657)——生物攻/血占两侧、
+        //  结界耐久占中间；中槽对生物暂无第三读数，位子留着（用户口径：三个用完·暂时没啥可显））
+        private static readonly Vector3 AtkSlotLocal = new Vector3(-0.6f, 0.02f, -0.45f);
+        private static readonly Vector3 LifeSlotLocal = new Vector3(0.6f, 0.02f, -0.45f);
+        private static readonly Vector3 MidSlotLocal = new Vector3(0.003f, 0.02f, -0.657f);
+
+        /// <summary>按单位类型建槽（结界=中槽耐久；生物=左攻右血；tile 缺失/字体缺失=空挂，对账照写 null 安全）。</summary>
+        private void CreateStatSlotLabels(BattleCardView card, UnitVisual v)
+        {
+            var tile = BattleTileFx.TileOf(card.X, card.Z);
+            if (tile == null) return;
+            if (v.DurabilityOnly)
+                v.StatMid = CreateFlatStatLabel(tile, "stat-mid", MidSlotLocal);
+            else
+            {
+                v.StatAtk = CreateFlatStatLabel(tile, "stat-atk", AtkSlotLocal);
+                v.StatLife = CreateFlatStatLabel(tile, "stat-life", LifeSlotLocal);
+            }
+        }
+
+        /// <summary>格面平贴读数槽（EnsureFlatCellLabel 同口径：面朝上·读向 +x·可读面朝相机——
+        /// 正解=LookRotation(down, forward)；1/TileScale 反缩保原字号；y=0.02 在箭头/图标/计数条之上）。</summary>
+        private static TextMeshPro CreateFlatStatLabel(Transform tile, string name, Vector3 local)
+        {
+            if (!EnsureTmpFont()) return null;
+            var go = new GameObject(name);
+            go.transform.SetParent(tile, false);
+            go.transform.localPosition = local;
+            go.transform.localRotation = Quaternion.LookRotation(Vector3.down, Vector3.forward);
+            go.transform.localScale = Vector3.one / BattleBoardGrid.TileScale; // P0 缩格补偿（同地牌计数条）
+            var tmp = go.AddComponent<TextMeshPro>();
+            tmp.fontSize = 4.2f;
+            tmp.alignment = TextAlignmentOptions.Center;
+            tmp.color = Color.white;
+            tmp.rectTransform.sizeDelta = new Vector2(1.2f, 0.9f);
+            return tmp;
         }
 
         // ======================================== 施放占格类型图标（2026-10-15 发动格拆除） ========================================
@@ -803,9 +891,9 @@ namespace SynergyUI
                         : t == Cardtype.Creature ? "biology"
                         : "spell";
             var template = Tide.HotUpdate.HotUpdateAssets.Load<Material>(
-                "BattleCardBack_Elem_White", "Assets/Art/Battle3D/Materials/BattleCardBack_Elem_White_Mat.asset");
+                "BattleCardBack_Elem_White", "Assets/Art/Materials/BattleCardBack_Elem_White_Mat.asset");
             var tex = Tide.HotUpdate.HotUpdateAssets.Load<Texture2D>(
-                icon, $"Assets/Art/Battle3D/Icons/{icon}.png");
+                icon, $"Assets/Art/Icons/{icon}.png");
             if (template == null || tex == null)
             {
                 Debug.LogWarning($"[BattleField] 施放类型图标缺件：{(template == null ? "Elem_White 模板" : icon + ".png")}——该类型降级预制体默认材质");
@@ -1102,7 +1190,7 @@ namespace SynergyUI
         {
             if (_heroMats[owner] != null) return _heroMats[owner];
             var template = Tide.HotUpdate.HotUpdateAssets.Load<Material>(
-                "BattleTile_Zone02", "Assets/Art/Battle3D/Materials/BattleTile_Zone02_P1Unit.mat");
+                "BattleTile_Zone02", "Assets/Art/Materials/BattleTile_Zone02_P1Unit.mat");
             if (template == null)
             {
                 Debug.LogWarning("[BattleField] 分区格材质模板缺失（BattleTile_Zone02_P1Unit.mat）——角色柱走旧着色兜底");
@@ -1173,11 +1261,12 @@ namespace SynergyUI
             var go = new GameObject("stats");
             go.transform.SetParent(parent, false);
             go.transform.localPosition = new Vector3(0f, height, 0f);
-            // 朝向归 stats 自己（2026-10-15 用户定案）：挂 billboard 每帧对相机——wrapper/模型层的
-            // 朝向、横置侧倾、走位旋转都不再带歪文字；初始朝向仅作相机未就绪时的兜底
+            // 朝向归 stats 自己（2026-10-15 定案）与父层旋转解耦；2026-10-26 用户定案改竖直：
+            // 不再俯仰对相机（45° 俯拍机位下 billboard 文字斜躺），只按相机方位角定 yaw——
+            // 竖直面直立可读；初始朝向仅作相机未就绪时的兜底。
             var cam = BattleStageDirector.WorldCam;
             if (cam != null)
-                go.transform.rotation = Quaternion.LookRotation(go.transform.position - cam.transform.position);
+                go.transform.rotation = StatsBillboard.UprightFacing(go.transform.position, cam.transform.position);
             else
                 go.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
             go.AddComponent<StatsBillboard>();
@@ -1188,15 +1277,27 @@ namespace SynergyUI
             return tmp;
         }
 
-        /// <summary>头顶数值 billboard（2026-10-15 定案）：每帧自转朝世界相机——旋转是 stats 自己的
-        /// 事，与 wrapper（位移/演出旋转）/模型层（对敌朝向）解耦。</summary>
+        /// <summary>头顶文本竖直朝向（2026-10-15 billboard 定案 → 2026-10-26 用户改竖直·不朝向
+        /// 相机）：每帧只按相机方位角回正 yaw、俯仰恒 0——文字始终竖立可读；旋转仍是 stats 自己
+        /// 的事，与 wrapper（位移/演出旋转）/模型层（对敌朝向）解耦。</summary>
         private sealed class StatsBillboard : MonoBehaviour
         {
             private void LateUpdate()
             {
                 var cam = BattleStageDirector.WorldCam;
                 if (cam == null) return;
-                transform.rotation = Quaternion.LookRotation(transform.position - cam.transform.position);
+                transform.rotation = UprightFacing(transform.position, cam.transform.position);
+            }
+
+            /// <summary>竖直朝向：可读面（TMP 本地 -Z）背向相机方位（与旧 billboard 同口径，仅
+            /// 抹平俯仰分量），退化（正上方）时兜底 180°。</summary>
+            public static Quaternion UprightFacing(Vector3 fromPos, Vector3 camPos)
+            {
+                var flat = fromPos - camPos;
+                flat.y = 0f;
+                return flat.sqrMagnitude < 1e-6f
+                    ? Quaternion.Euler(0f, 180f, 0f)
+                    : Quaternion.LookRotation(flat.normalized);
             }
         }
 
@@ -1217,6 +1318,7 @@ namespace SynergyUI
                 // 中断整次对账）：fake-null 视为已退场，只清字典并留痕（owner/模型名供定位来源）。
                 if (v.Wrapper != null) Object.Destroy(v.Wrapper.gameObject);
                 else Debug.LogWarning($"[BattleField] 对账发现单位 {id % 10000}（owner={v.Owner} model={v.Model?.name}）的 wrapper 已被外部销毁——仅移出字典");
+                v.DestroyStatLabels(); // 格面读数钉 tile 不随 wrapper 销毁，须自清（2026-10-26 迁格）
                 map.Remove(id);
                 removed++;
             }
@@ -1242,6 +1344,19 @@ namespace SynergyUI
 
         /// <summary>是否仍被任一持有方 hold（引用计数&gt;0）。</summary>
         private bool IsHeld(uint id) => _heldUnits.TryGetValue(id, out var n) && n > 0;
+
+        /// <summary>单位头顶锚点世界位（2026-10-26 读数迁格后=模型头顶高+0.25：单位动作 3D 按钮组
+        /// 取位——按钮落旧读数正上方）。未建/已退场/拆件=null（调用方自行回落）。</summary>
+        public Vector3? StatsAnchorOf(uint runtimeId)
+            => _units.TryGetValue(runtimeId, out var v) && v.Wrapper != null
+                ? v.Wrapper.position + Vector3.up * (v.StatsHeightY + 0.25f)
+                : (Vector3?)null;
+
+        /// <summary>角色柱头顶数值锚点世界位（同 StatsAnchorOf 口径；未建柱/拆件=null）。</summary>
+        public Vector3? HeroStatsAnchor(int owner)
+            => _heroes.TryGetValue(owner, out var h) && h.Stats != null
+                ? h.Stats.transform.position + Vector3.up * 0.25f
+                : (Vector3?)null;
 
         // ======================================== 头注视（2026-10-15 战场接线） ========================================
 
@@ -1382,13 +1497,14 @@ namespace SynergyUI
             return _heroes.TryGetValue(owner, out var v) && v.Root != null && (root = v.Root) != null;
         }
 
-        /// <summary>单位退场（吸走演出收尾）：销毁 wrapper+出字典+清 hold（幂等）。</summary>
+        /// <summary>单位退场（吸走演出收尾）：销毁 wrapper+格面读数件+出字典+清 hold（幂等）。</summary>
         public void RetireUnit(uint id)
         {
             _heldUnits.Remove(id);
             if (_units.TryGetValue(id, out var v))
             {
                 if (v.Wrapper != null) Object.Destroy(v.Wrapper.gameObject);
+                v.DestroyStatLabels();
                 _units.Remove(id);
             }
         }
@@ -1540,7 +1656,7 @@ namespace SynergyUI
                 v.DeathExitStarted = true; // 退场开演（效果受击判据让位——战斗/兜底路径同置位）
                 HoldUnit(id); // 防 RemoveStale 抢销毁
 
-            // 头顶数值同帧消失（中途复活由对账分支恢复显示）
+            // 格面读数同帧消失（中途复活由对账分支恢复显示；2026-10-26 迁格——原头顶数值同款时序）
             v.SetStatsVisible(false);
             bool finished;
             if (v.Anim != null)
@@ -1714,7 +1830,7 @@ namespace SynergyUI
             {
                 if (!_units.TryGetValue(tc.RuntimeId, out var uv) || uv.Wrapper == null) return null;
                 var et = new EffectTarget { Unit = uv, FloatParent = uv.Wrapper };
-                et.FloatHeight = uv.Stats != null ? uv.Stats.transform.localPosition.y + 0.55f : 1.9f;
+                et.FloatHeight = uv.StatsHeightY + 0.55f; // 头顶锚高之上（2026-10-26 迁格后按锚高推算，不再取 stats 件位）
                 et.ImpactAnchor = uv.Wrapper.position + Vector3.up * uv.LookHeight; // 胸口（同注视点口径）
                 return et;
             }
@@ -1886,6 +2002,46 @@ namespace SynergyUI
 
         /// <summary>火花色（回复/增益共用）：StatUpColor 向白提亮一档——纯绿粒子自发光观感偏暗。</summary>
         private static readonly Color SparkUpColor = Color.Lerp(new Color(0.42f, 1f, 0.45f), Color.white, 0.25f);
+
+        /// <summary>诅咒回落火花色：黑→紫直映（同粒子色直映射口径）。</summary>
+        private static readonly Color DeckMarkCurseColor = new Color(0.38f, 0.32f, 0.55f);
+
+        /// <summary>诅咒/祝福施加到牌库的演出（2026-10-26 CounterChangedEvent Amount>0 钩子）：
+        /// 卡堆顶一次性爆发+卡堆脉冲——诅咒=黑 ShadowExplosion（Black Hit）、祝福=白 HealNova
+        ///（White Heal）；catalog 未路由回落 PlaySpark（同回复链降级纪律）。目标卡在牌库**无视图
+        /// 单位**：锚=BattleZoneProps.DeckTopWorldPosition（不走 ResolveEffectTarget），归属=卡
+        /// Owner/Controller 经 ownerOf 映射。不占视觉门、无浮字（施加语义战报行已有）。</summary>
+        public UniTask PlayDeckMarkAsync(Entity target, Func<Player, int> ownerOf, bool blessing)
+        {
+            if (target is Card c && ownerOf != null)
+            {
+                var ownerPlayer = c.GetOwner() ?? c.GetController();
+                if (ownerPlayer != null)
+                {
+                    int owner = ownerOf(ownerPlayer);
+                    if (BattleZoneProps.DeckTopWorldPosition(owner, out var top))
+                    {
+                        BattleZoneProps.PulseDeck(owner);
+                        Vector3 at = top + Vector3.up * 0.3f; // 堆顶之上的小抬升（低于 SparkLift——堆顶已抬空）
+                        var color = blessing ? ManaType.White : ManaType.Black;
+                        bool played = false;
+                        if (BattleVfxFx.Enabled)
+                        {
+                            try
+                            {
+                                played = blessing
+                                    ? BattleVfxFx.TryPlayHeal(color, at, 1f)
+                                    : BattleVfxFx.TryPlayHit(color, at, 1f);
+                            }
+                            catch (Exception ex) { BattleVfxFx.NoteFailure(ex); }
+                        }
+                        if (!played)
+                            BattleEffectFx.PlaySpark(at, blessing ? SparkUpColor : DeckMarkCurseColor);
+                    }
+                }
+            }
+            return UniTask.CompletedTask;
+        }
 
         /// <summary>拼点演出（ClashResolvedEvent·2026-10-20 教学二表现接入）：攻击宣言期双方手牌展示
         /// 最高攻生物（扇区同拍翻面），本演出在**引擎卡**头顶出结果句「己方x，对方x，成功/失败」

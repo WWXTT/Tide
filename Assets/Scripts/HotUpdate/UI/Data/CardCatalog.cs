@@ -46,7 +46,13 @@ namespace SynergyUI
         /// 计价按既定 fallback 回落数量口径，装载完成后恢复正解。</summary>
         public static List<CardData> LoadAll()
         {
-            if (_cache != null && CacheIsStale())
+            // 装载中禁 Invalidate（2026-10-26 首切效果表 NRE 修复，10-22 分账修复漏堵的口）：
+            // _tutorialStampUtc 在教学表解析成功后才记账（坏 JSON 重试语义），解析途中回调
+            // GetById 的盯盘必见「tutorial mtime ≠ MinValue」判过期 → 重入 LoadAll 走本行
+            // Invalidate 把在用 _byId 置空 → 外层 MergeTutorialCards 的 _byId.ContainsKey NRE。
+            // 重入路径 _cache 非空直接返回旧值（比旧口径"返回空表"信息更多），外层装载继续，
+            // 完成后下次调用自然换新。
+            if (_cache != null && CacheIsStale() && !_loading)
             {
                 Invalidate();
             }

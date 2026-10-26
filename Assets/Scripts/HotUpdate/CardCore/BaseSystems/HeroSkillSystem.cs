@@ -264,12 +264,14 @@ namespace CardCore
         /// <summary>
         /// 回合开始技能重置（2026-10-15 改版：每回合一次=横置闸）：解横置即可发动。
         /// 接线：GameCore.OnTurnStarted（引擎簿记区——跳过准备阶段也执行，位置同旧 RechargeSkill）。
+        /// 返回是否真实解横置（2026-10-26 战报重置账目：StandbyResetEvent.SkillReset 数据源）。
         /// </summary>
-        public static void ResetSkillForTurn(GameCore core, Player player)
+        public static bool ResetSkillForTurn(GameCore core, Player player)
         {
             var skillCard = ResolveSkillCard(core, player);
-            if (skillCard == null || !skillCard.IsTapped()) return;
+            if (skillCard == null || !skillCard.IsTapped()) return false;
             skillCard.Untap();
+            return true;
         }
     }
 

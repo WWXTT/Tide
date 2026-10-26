@@ -86,8 +86,11 @@ namespace SynergyUI
             File.WriteAllText(path, EffectSlim.EmitCompact(wrapper.items)); // 删除重写=顺带压缩存量全量条目
         }
 
-        /// <summary>效果列表 → 引用 id 列表（逐个 upsert 落库后取 id）。供卡表保存写 effectIds。
-        /// tutorial=true 时效果行写教学表（2026-10-22 教学卡引用不跨表）。</summary>
+        /// <summary>效果列表 → 引用 id 列表。供卡表保存写 effectIds。
+        /// tutorial=true 时效果行写教学表（2026-10-22 教学卡引用不跨表）。
+        /// 2026-10-26 复制零写入定案：id 在合并视图（主∪教学，EffectsLibrary.Get 同源）已可解析=
+        /// 同内容条目已存在——只取引用不落盘（预组复制/卡组合保存引用教学表同内容行时不再跨表
+        /// upsert 出重复条目）；内容有变（新 id）才写。</summary>
         public static List<string> EffectIdsOf(List<CardEffectData> effects, bool tutorial = false)
         {
             var ids = new List<string>();
@@ -96,13 +99,14 @@ namespace SynergyUI
             {
                 if (fx == null) continue;
                 var graph = new EffectGraphData(fx.DisplayName) { header = fx, steps = fx.Steps ?? new List<EffectStepData>() };
-                Save(graph, tutorial);
+                graph.id = ContentHasher.HashEffect(graph);
+                if (EffectsLibrary.Get(graph.id) == null) Save(graph, tutorial);
                 ids.Add(graph.id);
             }
             return ids;
         }
 
-        /// <summary>卡牌保存链路：批量落库（EffectIdsOf 的底层共用口）。</summary>
+        /// <summary>卡牌保存链路：批量落库（EffectIdsOf 的底层共用口；同 2026-10-26 已存在不重写口径）。</summary>
         public static void EnsureEffectsSaved(List<CardEffectData> effects, bool tutorial = false)
         {
             if (effects == null) return;
@@ -110,7 +114,8 @@ namespace SynergyUI
             {
                 if (fx == null) continue;
                 var graph = new EffectGraphData(fx.DisplayName) { header = fx, steps = fx.Steps ?? new List<EffectStepData>() };
-                Save(graph, tutorial);
+                graph.id = ContentHasher.HashEffect(graph);
+                if (EffectsLibrary.Get(graph.id) == null) Save(graph, tutorial);
             }
         }
 

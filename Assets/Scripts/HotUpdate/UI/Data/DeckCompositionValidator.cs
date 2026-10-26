@@ -6,48 +6,36 @@ using CardCore;
 namespace SynergyUI
 {
     /// <summary>
-    /// 卡组构成检测（2026-10-15）：单源校验「主题卡组=主题色+灰」的双色纯度。编辑器侧
-    /// （三套主题构建器落盘自检；原「Tools/卡组构成检测」菜单已移除）与卡组构筑界面
-    /// （DeckBuilderScreen 添加口/保存口/统计区）共用本验证器——同一口径，改一处两边生效。
+    /// 卡组构成检测：断链/形状/黑白代价覆盖（硬约束——不过不可保存）+ 地源（advisory 提示）。
+    /// 卡组构筑界面（DeckBuilderScreen 统计区/保存口）与挑战/对战入口（Usable/UnusableTag）
+    /// 共用本验证器——同一口径，改一处两边生效。
     ///
-    /// 主题识别=卡组名首字（红→红+灰、绿→绿+灰、蓝→蓝+灰）；非红/绿/蓝开头=无颜色约束，
-    /// 仅统计构成与断链（玩家自构筑多色卡组不受限）。
+    /// 主题双色约束已删（2026-10-26 用户定案）：那是三套主题预组卡组构建期的临时检查，
+    /// 不面向玩家——玩家自构筑多色卡组不受限（旧档载入/挑战/对战入口不再按卡组名首字判违色）。
     ///
-    /// 费用两层口径（与 2026-10-15 教学卡组人工复查同源）：
-    /// ① 出牌费 card.Cost——EnsureCost 已刷新为推导费（恒推导定案：身材灰桶/关键词 K/效果锚价 E/
-    ///    代价槽费烘焙后的推导分布，全量在此）；
-    /// ② 主动效果的运行时锚价（CostDerivationService.DeriveElementCosts）——构筑期不占
-    ///    卡费、发动时现付（CardCostService.E 桶跳过项），须单独检测。
-    /// 断链（cardIds 在 Cards.json 无此 ID）单列——主题卡组重建期 0/30 断链的历史坑。
+    /// 费用口径：出牌费 card.Cost=恒推导（EnsureCost 刷新；法术施放账单=卡面费+锚价并入，
+    /// 见 BuildCastSurfaces）；主动效果运行时锚价构筑期不占卡费。
+    /// 断链（cardIds 在 Cards.json 无此 ID）单列——卡被强删后卡组引用悬空的历史坑。
+    ///
+    /// 黑白代价覆盖（2026-10-26 定案，硬约束）：CheckBWCostCoverage——需黑/白元素的卡
+    /// 须至少带 1 张对应补偿色的代价卡（数量不限）。
+    /// 地源检查（2026-10-26，advisory）：CheckLandSupport——施放费是否有足够可放地的卡支撑
+    /// （红3 需 ≥3 张可产红的卡），只提示不拦保存（Ok/UnusableTag 不含）。
     /// </summary>
     public static class DeckCompositionValidator
     {
-        public sealed class Violation
-        {
-            public string CardName;
-            public string CardId;
-            public string Surface;   // 「出牌费」/「发动费:效果名」
-            public ManaType Color;   // 主题外颜色
-            public float Amount;
-            public string Detail;    // 人读明细（含该面费用全串）
-            public int Copies;       // 卡组内册数（同卡多册聚合为一项）
-        }
-
         public sealed class Report
         {
             public string DeckName;
-            public ManaType? ThemeColor; // null=无主题约束（仅统计+断链）
-            public List<Violation> Violations = new List<Violation>();
             public List<string> MissingIds = new List<string>();
-            /// <summary>类型×形状违规（2026-10-15 深夜改版：生物禁连接光环/结界禁主动/法术形状）——
-            /// 与主题违色分列（不属颜色约束，任何卡组都报）。</summary>
+            /// <summary>类型×形状违规（2026-10-15 深夜改版：生物禁连接光环/结界禁主动/法术形状）。</summary>
             public List<string> ShapeErrors = new List<string>();
             /// <summary>含该色的册数（出牌费口径，与统计区色点行同语义）。</summary>
             public Dictionary<ManaType, int> CardsByColor = new Dictionary<ManaType, int>();
             /// <summary>该色费点合计（出牌费口径）。</summary>
             public Dictionary<ManaType, float> PipsByColor = new Dictionary<ManaType, float>();
             public int CardCount;
-            public bool Ok => Violations.Count == 0 && MissingIds.Count == 0 && ShapeErrors.Count == 0;
+            public bool Ok => MissingIds.Count == 0 && ShapeErrors.Count == 0;
         }
 
         // 展示序=CostSquaresView.DisplayOrder 同款（红蓝绿黑白灰）
@@ -56,34 +44,21 @@ namespace SynergyUI
             ManaType.Red, ManaType.Blue, ManaType.Green, ManaType.Black, ManaType.White, ManaType.Gray,
         };
 
-        /// <summary>卡组名首字 → 主题色；其余（含空名）null=无约束。</summary>
-        public static ManaType? ThemeColorOf(string deckName)
-        {
-            if (string.IsNullOrEmpty(deckName)) return null;
-            switch (deckName.Trim()[0])
-            {
-                case '红': return ManaType.Red;
-                case '绿': return ManaType.Green;
-                case '蓝': return ManaType.Blue;
-                default: return null;
-            }
-        }
-
         /// <summary>整套卡组检测（DeckData 口径）。</summary>
         public static Report Check(DeckData deck)
             => deck == null ? new Report() : Check(deck.name, deck.cardIds);
 
-        /// <summary>整套卡组检测：去重逐卡解析，出牌费入统计、两层费用对照主题约束、断链单列。</summary>
+        /// <summary>整套卡组检测：去重逐卡解析，出牌费入统计；断链/形状单列（主题违色已随
+        /// 主题约束删除——2026-10-26）。deckName 仅入报告（Describe 用），不再参与判定。</summary>
         public static Report Check(string deckName, IEnumerable<string> cardIds)
         {
             var report = new Report
             {
                 DeckName = deckName ?? "",
-                ThemeColor = ThemeColorOf(deckName),
             };
             if (cardIds == null) return report;
 
-            // 同卡多册聚合（统计按册计；违例按「卡×面×色」去重记册数）
+            // 同卡多册聚合（统计按册计）
             var copiesById = new Dictionary<string, int>();
             foreach (var id in cardIds)
             {
@@ -119,34 +94,8 @@ namespace SynergyUI
                         report.PipsByColor[color] = p + amount * kv.Value;
                     }
                 }
-
-                if (report.ThemeColor == null) continue;
-                foreach (var v in CheckCard(card, report.ThemeColor.Value))
-                {
-                    v.Copies = kv.Value;
-                    report.Violations.Add(v);
-                }
             }
             return report;
-        }
-
-        /// <summary>单卡两面检测（添加口拦截用；theme=null 由调用方回避）：
-        /// 出牌费 + 各主动效果运行时锚价。</summary>
-        public static List<Violation> CheckCard(CardData card, ManaType themeColor)
-        {
-            var list = new List<Violation>();
-            if (card == null) return list;
-            AddForeign(list, card, "出牌费", card.Cost, themeColor);
-
-            var defs = CardEffectConverter.ConvertAll(card.Effects, card.ID);
-            foreach (var def in defs)
-            {
-                if (def == null || !def.IsActivatedEffect) continue;
-                var anchor = CostDerivationService.DeriveElementCosts(def);
-                string fxName = string.IsNullOrEmpty(def.DisplayName) ? def.Id : def.DisplayName;
-                AddForeign(list, card, "发动费:" + fxName, anchor, themeColor);
-            }
-            return list;
         }
 
         /// <summary>类型×形状校验（2026-10-15 深夜三类卡改版，与 CardLoader.ValidateSpellShape/
@@ -198,26 +147,293 @@ namespace SynergyUI
             return errors;
         }
 
-        private static void AddForeign(List<Violation> list, CardData card, string surface,
-            ElementCost cost, ManaType themeColor)
+        // ======================================== 黑白代价覆盖（2026-10-26 硬约束） ========================================
+
+        /// <summary>黑白代价缺口（不过=不可保存）：需该色的卡组没有任何对应补偿色的代价卡。</summary>
+        public sealed class BWGap
         {
-            if (cost == null || cost.IsZero) return;
-            string cardName = string.IsNullOrEmpty(card.CardName) ? card.ID : card.CardName;
-            foreach (var color in cost.NonzeroColors())
+            public ManaType Color;   // 黑/白
+            public string CardName;  // 首例需求卡（人读示例）
+        }
+
+        /// <summary>黑白代价覆盖检查（2026-10-26 定案）：施放费带黑/白元素的卡，卡组须至少带 1 张
+        /// 「对应颜色的代价卡」——数量不限（代价按全价补偿入账，一张即可起步），但没有则构成约束
+        /// 不过、不可保存。
+        /// · 需求侧=BuildCastSurfaces 任一面含该色（法术锚价并入施放账单同口径；永久物主动效果
+        ///   发动费不属「释放」门槛，不查——与地源检查同界）。
+        /// · 供给侧=卡级 PayloadCost ∪ 效果级 Costs 的代价原子（CollectExternalReferences 同遍历）；
+        ///   补偿色单源=CostCompensationService.PayloadGrantColor（极性非零有害黑/有益白，
+        ///   零极性对方域锁白、其余黑）。
+        /// · 自举口径：代价补偿在付费步**之后**到账且垫不了本卡（2026-10-16 定案）、钱包任一回合
+        ///   末清空——补偿色卡自身须有任一「不含该色」的施放面才算有效源（先免该色施放它收补偿，
+        ///   同回合再施放需求卡）；全部施放面都含该色的卡无法自举。
+        /// 黑白另有钱包来源（错边转化/光合作用/任意元素合成等效果路径），本检查按定案只认代价卡。</summary>
+        public static List<BWGap> CheckBWCostCoverage(IEnumerable<string> cardIds)
+        {
+            var result = new List<BWGap>();
+            if (cardIds == null) return result;
+
+            var cards = new List<CardData>();
+            foreach (var id in cardIds)
             {
-                float amount = cost[color];
-                if (amount <= 0f) continue;
-                if (color == themeColor || color == ManaType.Gray) continue;
-                list.Add(new Violation
-                {
-                    CardName = cardName,
-                    CardId = card.ID,
-                    Surface = surface,
-                    Color = color,
-                    Amount = amount,
-                    Detail = $"{cardName}｜{surface}｜{ColorZh(color)}{amount:0.#}（全串 {FormatCost(cost)}）",
-                });
+                if (string.IsNullOrEmpty(id)) continue;
+                var card = CardCatalog.GetById(id);
+                if (card != null && !card.IsTokenTemplate) cards.Add(card); // 断链另报；衍生物模板不施放
             }
+
+            bool demandBlack = false, demandWhite = false;
+            string blackExample = null, whiteExample = null;
+            bool provideBlack = false, provideWhite = false;
+            foreach (var card in cards)
+            {
+                string name = string.IsNullOrEmpty(card.CardName) ? card.ID : card.CardName;
+                bool hasBlackFreeSurface = false, hasWhiteFreeSurface = false;
+                foreach (var surface in BuildCastSurfaces(card))
+                {
+                    var b = ElementPaymentValidator.NormalizeBill(surface.Bill);
+                    int bk; if (!b.TryGetValue(ManaType.Black, out bk)) bk = 0;
+                    int w; if (!b.TryGetValue(ManaType.White, out w)) w = 0;
+                    if (bk > 0) { demandBlack = true; if (blackExample == null) blackExample = name; }
+                    else hasBlackFreeSurface = true;
+                    if (w > 0) { demandWhite = true; if (whiteExample == null) whiteExample = name; }
+                    else hasWhiteFreeSurface = true;
+                }
+
+                bool cardBlack = false, cardWhite = false;
+                foreach (var atom in PayloadAtomsOf(card))
+                {
+                    var inst = CardEffectConverter.ConvertAtomForUI(atom);
+                    if (inst == null) continue;
+                    var color = CostCompensationService.PayloadGrantColor(inst);
+                    if (color == ManaType.Black) cardBlack = true;
+                    else if (color == ManaType.White) cardWhite = true;
+                }
+                if (cardBlack && hasBlackFreeSurface) provideBlack = true;
+                if (cardWhite && hasWhiteFreeSurface) provideWhite = true;
+            }
+
+            if (demandBlack && !provideBlack)
+                result.Add(new BWGap { Color = ManaType.Black, CardName = blackExample });
+            if (demandWhite && !provideWhite)
+                result.Add(new BWGap { Color = ManaType.White, CardName = whiteExample });
+            return result;
+        }
+
+        /// <summary>卡的代价原子枚举：卡级 PayloadCost ∪ 各效果 Costs（CollectExternalReferences 同遍历）。</summary>
+        private static IEnumerable<AtomicEffectEntry> PayloadAtomsOf(CardData card)
+        {
+            if (card.PayloadCost != null)
+                foreach (var atom in card.PayloadCost.AllPayloads())
+                    if (atom != null) yield return atom;
+            if (card.Effects != null)
+                foreach (var fx in card.Effects)
+                {
+                    if (fx == null || fx.Costs == null) continue;
+                    foreach (var cost in fx.Costs)
+                    {
+                        if (cost == null) continue;
+                        foreach (var atom in cost.AllPayloads())
+                            if (atom != null) yield return atom;
+                    }
+                }
+        }
+
+        // ======================================== 地源检查（2026-10-26） ========================================
+
+        /// <summary>地源不足项（advisory 提示：不进 Ok/UnusableTag、不拦保存——只提示「完全没有可能释放」的卡）。</summary>
+        public sealed class LandShortage
+        {
+            public string CardName;
+            public string CardId;
+            public int Copies;
+            public string Surface; // 施放面（「出牌费 {费用串}」）
+            public string Detail;  // 人读明细（缺哪种源/差多少）
+        }
+
+        /// <summary>单个不满足的地源条件（null=可付）。</summary>
+        private sealed class LandFail
+        {
+            public string Detail;
+        }
+
+        /// <summary>一张卡的一个施放账单面（抉择/多效果卡=多面，任一面可付即整卡可用）。</summary>
+        private sealed class CastSurface
+        {
+            public ElementCost Bill;
+        }
+
+        /// <summary>地源检查（2026-10-26）：卡组内是否有足够「可放地」的卡支撑每张卡的**施放**账单
+        /// （如加一张红3，至少还需 3 张可产红的卡放地才能释放）。advisory——不拦保存。
+        /// · 账单口径=GetCardCost 静态镜像：法术=卡面费+所选效果锚价（逐主动效果一面，次数坍缩×1，
+        ///   SpellCastAnchor 同参）；抉择永久物=逐模式卡面费；其余=单面卡面费。费用指示物/苏醒豁免
+        ///   属运行态不计；永久物主动效果的发动费不属「释放」门槛，不查。
+        /// · 支付口径=地牌静态最优（支付链同源）：红/蓝/绿仅同色地牌可付、灰任意地牌可付；黑白/任意
+        ///   不由地牌产出（获取=代价补偿/元素合成等结算路径，卡组面无法判定）——对应需求不判。
+        /// · 供给=除手中待释放的一册外全部册数可放地（放地不限次；同卡多册可留场作地）；
+        ///   锁色候选=ElementPoolSystem.GetLandColorChoices 非空。地牌槽自然上限 10 可被「成长」
+        ///   无限抬高，故不设上限闸（只查卡组源的色量）。
+        /// · Hall 子集校验：多色账单与多候选源卡（一卡只能锁一色）须全子集满足，防「红池蓝池各自
+        ///   够、合起来不够」的漏报。
+        /// 整卡全部施放面均不可付才入列（抉择/多效果卡有任一面可付=可用）。</summary>
+        public static List<LandShortage> CheckLandSupport(IEnumerable<string> cardIds)
+        {
+            var result = new List<LandShortage>();
+            if (cardIds == null) return result;
+
+            // 同卡多册聚合（统计按册计；判定=整卡全部施放面不可付）
+            var copiesById = new Dictionary<string, int>();
+            foreach (var id in cardIds)
+            {
+                if (string.IsNullOrEmpty(id)) continue;
+                copiesById.TryGetValue(id, out var n);
+                copiesById[id] = n + 1;
+            }
+
+            // 源池：锁色候选非空的册才可放地。subsetPool[mask]=候选∩mask≠∅ 的册数（mask 位 0/1/2=红/蓝/绿）
+            var landColors = new[] { ManaType.Red, ManaType.Blue, ManaType.Green };
+            var subsetPool = new int[8];
+            int landCapableTotal = 0;
+            var candCache = new Dictionary<string, List<ManaType>>();
+            foreach (var kv in copiesById)
+            {
+                var card = CardCatalog.GetById(kv.Key);
+                var cands = card != null ? ElementPoolSystem.GetLandColorChoices(card) : new List<ManaType>();
+                candCache[kv.Key] = cands;
+                if (cands.Count == 0) continue;
+                landCapableTotal += kv.Value;
+                int mask = 0;
+                for (int i = 0; i < landColors.Length; i++)
+                    if (cands.Contains(landColors[i])) mask |= 1 << i;
+                for (int sub = 1; sub < 8; sub++)
+                    if ((sub & mask) != 0) subsetPool[sub] += kv.Value;
+            }
+
+            foreach (var kv in copiesById)
+            {
+                var card = CardCatalog.GetById(kv.Key);
+                if (card == null || card.IsTokenTemplate) continue; // 断链另报；衍生物模板落额外区不施放
+                var surfaces = BuildCastSurfaces(card);
+                if (surfaces.Count == 0) continue;
+
+                LandShortage worst = null; // 全部面不可付才报——记录首面明细
+                foreach (var surface in surfaces)
+                {
+                    var fail = FirstLandFail(surface.Bill, candCache[kv.Key], subsetPool, landCapableTotal);
+                    if (fail == null) { worst = null; break; } // 任一面可付=整卡可用
+                    if (worst == null)
+                        worst = new LandShortage
+                        {
+                            CardName = string.IsNullOrEmpty(card.CardName) ? card.ID : card.CardName,
+                            CardId = card.ID,
+                            Surface = "出牌费 " + FormatCost(surface.Bill),
+                            Detail = fail.Detail,
+                        };
+                }
+                if (worst != null)
+                {
+                    worst.Copies = kv.Value;
+                    result.Add(worst);
+                }
+            }
+            return result;
+        }
+
+        /// <summary>施放账单面枚举（GetCardCost 镜像）：法术=卡面费+逐主动效果锚价（施放时择一效果，
+        /// 每效果一面；modeIndex 传效果序同 GetCardCost 实参）；抉择永久物=逐模式费；其余=单面卡面费。</summary>
+        private static List<CastSurface> BuildCastSurfaces(CardData card)
+        {
+            var list = new List<CastSurface>();
+            if (card.Supertype == Cardtype.Spell)
+            {
+                var actives = new List<EffectDefinition>();
+                foreach (var def in CardEffectConverter.ConvertAll(card.Effects, card.ID))
+                    if (def != null && def.IsActivatedEffect) actives.Add(def);
+                if (actives.Count == 0) // 无主动效果（形状违规另报）——退单面卡面费
+                {
+                    list.Add(new CastSurface { Bill = CardCostService.GetRuntimeCost(card, 0) });
+                    return list;
+                }
+                for (int e = 0; e < actives.Count; e++)
+                {
+                    actives[e].TriggerLimitPerTurn = 1; // 次数坍缩——SpellCastAnchor 同口径
+                    var bill = CardCostService.GetRuntimeCost(card, e);
+                    var anchor = CostDerivationService.DeriveElementCosts(actives[e], 0);
+                    if (anchor != null)
+                        foreach (var color in anchor.NonzeroColors())
+                            bill[color] = bill[color] + anchor[color];
+                    list.Add(new CastSurface { Bill = bill });
+                }
+                return list;
+            }
+            if (CostDerivationService.HasChoiceEffect(card))
+            {
+                int modeCount = CostDerivationService.GetModeCount(card);
+                for (int m = 0; m < modeCount; m++)
+                    list.Add(new CastSurface { Bill = CardCostService.GetModeCost(card, m) });
+                return list;
+            }
+            list.Add(new CastSurface { Bill = CardCostService.GetRuntimeCost(card, 0) });
+            return list;
+        }
+
+        /// <summary>单账单的地源可付性（null=可付）：彩池按 Hall 子集（子集需求 ≤ 候选并集册数 −
+        /// 待释放一册）；灰+彩合计 ≤ 可放地总册数（灰任意地可付）。黑白/任意需求地牌付不了也不判。</summary>
+        private static LandFail FirstLandFail(ElementCost bill, List<ManaType> selfCands,
+            int[] subsetPool, int landCapableTotal)
+        {
+            var b = ElementPaymentValidator.NormalizeBill(bill);
+            int r = b.TryGetValue(ManaType.Red, out var rv) ? rv : 0;
+            int bl = b.TryGetValue(ManaType.Blue, out var bv) ? bv : 0;
+            int g = b.TryGetValue(ManaType.Green, out var gv) ? gv : 0;
+            int y = b.TryGetValue(ManaType.Gray, out var yv) ? yv : 0;
+            if (r == 0 && bl == 0 && g == 0 && y == 0) return null; // 无地牌可判需求（黑白/任意/零费）
+
+            var landColors = new[] { ManaType.Red, ManaType.Blue, ManaType.Green };
+            var demands = new[] { r, bl, g };
+            int selfMask = 0; // 待释放一册占用的候选位（在场作地的供给要扣掉它）
+            for (int i = 0; i < landColors.Length; i++)
+                if (selfCands.Contains(landColors[i])) selfMask |= 1 << i;
+
+            // 子集序：单色（红/蓝/绿）先行给最直白的「差几源」文案，再双色、后三色
+            int[] subsetOrder = { 1, 2, 4, 3, 5, 6, 7 };
+            foreach (int sub in subsetOrder)
+            {
+                int demand = 0;
+                for (int i = 0; i < 3; i++)
+                    if ((sub & (1 << i)) != 0) demand += demands[i];
+                if (demand == 0) continue;
+                int pool = subsetPool[sub] - ((selfMask & sub) != 0 ? 1 : 0);
+                if (demand > pool)
+                    return new LandFail { Detail = SubsetDetail(sub, landColors, demands, pool) };
+            }
+
+            int total = r + bl + g + y;
+            int poolAll = landCapableTotal - (selfCands.Count > 0 ? 1 : 0);
+            if (total > poolAll)
+            {
+                string grayPart = y > 0 ? $"（含灰{y}·任意地可付）" : "";
+                return new LandFail { Detail = $"可放地的卡仅 {poolAll} 张，需 {total} 张同时供费{grayPart}" };
+            }
+            return null;
+        }
+
+        /// <summary>子集缺口文案：单色=「红源不足：可产红的卡仅 N 张，需 M 张」；
+        /// 多色=「可产红/蓝的卡仅 N 张，需 M 张（红2+蓝2）」。</summary>
+        private static string SubsetDetail(int sub, ManaType[] landColors, int[] demands, int pool)
+        {
+            var names = new List<string>();
+            var parts = new List<string>();
+            int demand = 0;
+            for (int i = 0; i < 3; i++)
+                if ((sub & (1 << i)) != 0)
+                {
+                    names.Add(ColorZh(landColors[i]));
+                    parts.Add($"{ColorZh(landColors[i])}{demands[i]}");
+                    demand += demands[i];
+                }
+            return names.Count == 1
+                ? $"{names[0]}源不足：可产{names[0]}的卡仅 {pool} 张，需 {demand} 张"
+                : $"可产{string.Join("/", names)}的卡仅 {pool} 张，需 {demand} 张（{string.Join("+", parts)}）";
         }
 
         public static string ColorZh(ManaType m)
@@ -242,8 +458,7 @@ namespace SynergyUI
                 .Select(c => $"{ColorZh(c)}{cost[c]:0.#}"));
         }
 
-        /// <summary>报告单行摘要（编辑器日志/toast 共用）：
-        /// 名（张数）：构成统计；主题约束——通过/违色断链计数。</summary>
+        /// <summary>报告单行摘要（编辑器日志/toast 共用）：名（张数）：构成统计；通过/断链形状计数。</summary>
         public static string Describe(Report report)
         {
             if (report == null) return "(空报告)";
@@ -252,21 +467,18 @@ namespace SynergyUI
                 : string.Join(" · ", DisplayOrder
                     .Where(report.CardsByColor.ContainsKey)
                     .Select(c => $"{ColorZh(c)}{report.CardsByColor[c]}卡/{report.PipsByColor[c]:0.#}点"));
-            string theme = report.ThemeColor == null
-                ? "无主题约束"
-                : $"主题约束 {ColorZh(report.ThemeColor.Value)}+灰";
             string verdict = report.Ok
                 ? "✔ 通过"
-                : $"✘ 违色{report.Violations.Count}项/断链{report.MissingIds.Count}张/形状{report.ShapeErrors.Count}项";
-            return $"{report.DeckName}（{report.CardCount}张）：{stats}；{theme}——{verdict}";
+                : $"✘ 断链{report.MissingIds.Count}张/形状{report.ShapeErrors.Count}项";
+            return $"{report.DeckName}（{report.CardCount}张）：{stats}——{verdict}";
         }
 
-        /// <summary>卡组可用性单源（2026-10-16 全局对齐定案）：断链/形状违规/主题违色任一即
-        /// 不可用——卡组界面（列表标记/保存拦截）、挑战入口（标记+开战回落）、对战入口
-        /// （下拉标记+提交拦截）共用本判定。</summary>
+        /// <summary>卡组可用性单源（2026-10-16 全局对齐定案；2026-10-26 主题违色随主题约束删除）：
+        /// 断链/形状违规任一即不可用——卡组界面（列表标记/保存拦截）、挑战入口（标记+开战回落）、
+        /// 对战入口（下拉标记+提交拦截）共用本判定。</summary>
         public static bool Usable(DeckData deck) => Check(deck).Ok;
 
-        /// <summary>不可用标签（三入口列表/下拉共用文案）："断链2/形状1/违色3·不可用"；可用=""。</summary>
+        /// <summary>不可用标签（三入口列表/下拉共用文案）："断链2/形状1·不可用"；可用=""。</summary>
         public static string UnusableTag(DeckData deck)
         {
             if (deck == null) return "";
@@ -275,7 +487,6 @@ namespace SynergyUI
             var parts = new List<string>();
             if (r.MissingIds.Count > 0) parts.Add("断链" + r.MissingIds.Count);
             if (r.ShapeErrors.Count > 0) parts.Add("形状" + r.ShapeErrors.Count);
-            if (r.Violations.Count > 0) parts.Add("违色" + r.Violations.Count);
             return string.Join("/", parts) + "·不可用";
         }
     }
