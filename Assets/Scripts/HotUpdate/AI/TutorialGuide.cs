@@ -703,8 +703,6 @@ namespace SynergyUI
                 case ManaType.Red: return "红";
                 case ManaType.Blue: return "蓝";
                 case ManaType.Green: return "绿";
-                case ManaType.White: return "白";
-                case ManaType.Black: return "黑";
                 default: return "灰";
             }
         }

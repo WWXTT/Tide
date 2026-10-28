@@ -245,24 +245,22 @@ namespace CardCore
             {
                 foreach (var costEntry in data.Costs)
                 {
-                    // 效果型代价（2026-09-11）：付费步强制执行的原子（执行与补偿在 CostCompensationService）。
-                    // 内容契约：代价只能挂对自己有害 / 对对手有益——p≠0 必须错边；p=0 须单侧域锁定（方向随域）。
-                    // 双侧域/无域 = 中性，既非代价也非收益 → 拒。
-                    // 2026-10-04 定案：任意单向效果不限价（09-21「等价1」退役）——合成器放置口经
-                    // CostDerivationService.PayloadCostDomain 逆转选择范围（双侧收窄/正确侧镜像），
-                    // 镜像域可超出表行域；装载期只校验上述错边契约（对镜像域天然成立），不再限价。
+                    // 效果型代价（2026-09-11）：付费步强制执行的原子（执行在 CostCompensationService.PayPayloadsAsync）。
+                    // 内容契约（2026-10-28 P1b 定案）：代价收 **p≠0 且锁在受益方反面** 的原子——
+                    // p<0（有害）锁己方（自伤）、p>0（有益）锁对方（资敌）；p=0（中性）一律 Error 剔除。
+                    // 合成器放置口经 CostDerivationService.PayloadCostDomain 收窄/镜像（双侧域→锁定侧），
+                    // 装载期按条目有效域校验（存储 kinds 已收窄——表行默认域为双侧）。
                     // 空 payload（refId 为空——非 Payload 代价的占位/迁移残留）不作 Payload 处理
                     if (costEntry.payload != null && !string.IsNullOrEmpty(costEntry.payload.refId))
                     {
                         var payloadAtom = ConvertAtomicEffect(costEntry.payload, allowWrongSide: true);
-                        bool wrongSide = payloadAtom != null && payloadAtom.Polarity != 0f
-                            && CostDerivationService.WrongSide(payloadAtom.Polarity, payloadAtom.TargetKinds);
-                        bool sideLockedNeutral = payloadAtom != null && payloadAtom.Polarity == 0f
-                            && CostDerivationService.SideLock(payloadAtom.TargetKinds) != 0;
-                        if (payloadAtom == null || !(wrongSide || sideLockedNeutral))
+                        int requiredSide = CostDerivationService.PayloadCostRequiredSideLock(payloadAtom?.Polarity ?? 0f);
+                        bool contractHeld = payloadAtom != null && requiredSide != 0
+                            && CostDerivationService.SideLock(payloadAtom.TargetKinds) == requiredSide;
+                        if (payloadAtom == null || !contractHeld)
                         {
                             TideLog.Error($"[CardEffectConverter] 卡 {sourceCardId} 代价栏 Payload 违反内容契约：" +
-                                           "代价只能挂对自己有害或对对手有益的原子（错边），应当剔除该代价");
+                                           "代价只能挂 p≠0 且锁在受益方反面的原子（p<0 锁己方 / p>0 锁对方，2026-10-28 P1b），应当剔除该代价");
                             continue;
                         }
                         def.Costs.Add(new CostInstance
@@ -579,10 +577,20 @@ namespace CardCore
             return payload.Then.Count > 0 ? payload : null; // 无 Then 的条件空转——折叠为无分支
         }
 
-        /// <summary>构筑期显示用：代价栏 Payload 条目 → 原子实例（允许错边——契约校验在代价转换处；
-        /// 供 CardCostService 计算"获得白16"显示行）。</summary>
+        /// <summary>代价栏 Payload 条目 → 原子实例（2026-10-28 P1b 契约同步：p≠0 且锁在受益方反面——
+        /// p<0 锁己方 / p>0 锁对方；p=0 与锁错侧条目 Error 剔除返回 null，与 ConvertOne 代价转换同口径；
+        /// 表行缺失同 null）。
+        /// 消费面：CardCostService.SumPayloadPrice（代价抵扣）/ GameActions.CollectCardSpecialCosts（付费步）。</summary>
         public static AtomicEffectInstance ConvertPayloadForDisplay(AtomicEffectEntry entry)
-            => entry == null ? null : ConvertAtomicEffect(entry, allowWrongSide: true);
+        {
+            var atom = entry == null ? null : ConvertAtomicEffect(entry, allowWrongSide: true);
+            if (atom == null) return null;
+            int requiredSide = CostDerivationService.PayloadCostRequiredSideLock(atom.Polarity);
+            if (requiredSide != 0 && CostDerivationService.SideLock(atom.TargetKinds) == requiredSide) return atom;
+            TideLog.Error($"[CardEffectConverter] 代价栏 Payload 原子 {atom.Type} 违反内容契约" +
+                           "（2026-10-28 P1b：代价只收 p≠0 且锁在受益方反面——p<0 锁己方 / p>0 锁对方）——已剔除");
+            return null;
+        }
 
         /// <summary>
         /// 组合域预计算：效果级作用范围声明优先（2026-10-04 相同目标定案——并列全体原子共享）；

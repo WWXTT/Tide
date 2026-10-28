@@ -71,15 +71,17 @@ namespace SynergyUI
         // 右栏卡组列表选中名（null=新建态）；保存成功后指向保存名（行高亮对账）。
         private string _selectedDeckName;
 
-        // 中栏只读卡面绑定（CardOverlayController 把 ACard 挂进 card-slot 拉伸铺满）。
-        private readonly List<CardOverlayBinding> _previewBindings = new List<CardOverlayBinding>();
-        private CardData _previewCard;
+        // 中栏预览（2026-10-28 preview-panel 重构）：烘焙 ACard（preview-stage/ACard 360×648 原尺寸）
+        // 直挂 ACardView——不再经 CardOverlayController 填 card-slot；费用=烘焙 CostSquares 直填。
+        private CardData _previewCard;      // 当前预览卡（数据源；null=空态藏卡）
+        private ACardView _previewView;     // 烘焙卡面 View（Build 挂一次，幂等）
 
         // 放大态绑定（验收2）：独立 Key="Zoom" 与 card-slot 的 "Preview" 并存——Bind 同键只挂一处，
         // 异键双挂互不冲突；遮罩/放大卡槽烘焙在 overlay/zoom-overlay（默认隐藏，点卡面开启）。
         private readonly List<CardOverlayBinding> _zoomBindings = new List<CardOverlayBinding>();
         private RectTransform _zoomOverlay;
         private RectTransform _zoomSlot;
+        private CostSquaresView _previewCost;  // 烘焙费用条（preview-stage/CostSquares）
 
         // 两套过滤（2026-10-23 v2）：色 chips（预制体烘焙 facet-color）+ 卡型 chips（tpl-chip 克隆进
         // facet-kind 一次，固定面板内不随列表滚动；刷新只切选中态）。
@@ -94,7 +96,6 @@ namespace SynergyUI
         private UiKit.Scroll _deckList;
         private UiKit.Scroll _decksList;
         private RectTransform _statsZone;   // v2：非滚动统计容器（常驻 stats-row 行）
-        private RectTransform _cardSlot;
         private RectTransform _overlay;
         private RectTransform _catalogFilter; // facet-color（v2 改名，旧 catalog-filter）
         private RectTransform _facetKind;     // 卡型 chips 固定容器
@@ -102,7 +103,6 @@ namespace SynergyUI
         private RectTransform _catTemplates;  // catalog-panel/templates
         private TMP_Text _summary;
         private TMP_Text _toast;
-        private TMP_Text _previewNote;
         private TMP_Text _skillLabel;
         private TMP_Text _skillCostLabel;
         private TMP_Text _deckCount;    // hdr-deck 右侧「N 种 / M 张」
@@ -131,9 +131,26 @@ namespace SynergyUI
             _statsZone = Find("stats-zone"); // v2 非滚动（RectMask 都不再需要——纯容器）
             _deckCount = FindUnder(Find("hdr-deck"), "count")?.GetComponentInChildren<TMP_Text>(true);
 
-            // ---- 中栏：只读卡面 + 英雄技能栏 ----
-            _cardSlot = Find("card-slot");
-            _previewNote = FindText("preview-note");
+            // ---- 中栏：只读卡面 + 英雄技能栏（2026-10-28 preview-panel 重构：烘焙 ACard 360×648
+            // 原尺寸直挂 ACardView，点卡面放大=运行时补 Button；费用=preview-stage/CostSquares 直填） ----
+            var bakedCard = Find("ACard") as RectTransform;
+            if (bakedCard != null)
+            {
+                _previewView = bakedCard.GetComponent<ACardView>() ?? bakedCard.gameObject.AddComponent<ACardView>();
+                _previewView.Bind();
+                var previewBtn = bakedCard.GetComponent<UButton>();
+                if (previewBtn == null)
+                {
+                    previewBtn = bakedCard.gameObject.AddComponent<UButton>();
+                    previewBtn.transition = UButton.Transition.None;
+                }
+                previewBtn.onClick.AddListener(() => { if (_previewCard != null) OpenZoom(_previewCard); });
+            }
+            else Debug.LogError("[DeckBuilder] preview-stage 缺烘焙 ACard 卡面——检查 DeckUI.prefab");
+            var bakedCost = Find("CostSquares") as RectTransform;
+            _previewCost = bakedCost != null ? bakedCost.GetComponentInChildren<CostSquaresView>(true) : null;
+            if (_previewCost == null)
+                Debug.LogError("[DeckBuilder] preview-stage 缺烘焙 CostSquares 费用条——检查 DeckUI.prefab");
             _skillLabel = FindText("lbl-skill");
             _skillCostLabel = FindText("lbl-skill-cost");
             _skillClearBtn = BindButton("btn-skill-clear", OnClearSkill);
@@ -307,11 +324,37 @@ namespace SynergyUI
             }
         }
 
+        /// <summary>构筑卡池源（2026-10-27 纯引用副本配套）：玩家卡池 ∪ 被任意玩家卡组引用的卡
+        /// （含技能卡，剔除衍生物模板）。预组原件带「教学」tag 被 LoadPlayPool 过滤——不并入则
+        /// 纯引用副本可删不可加回、技能卡无法重新标记。某卡从所有卡组删净并保存后会从卡池消失
+        /// （重新复制预组即可找回）。随机组卡/卡牌编辑器等其余 LoadPlayPool 消费点不受此口径影响。</summary>
+        private static List<CardData> PlayPoolWithDeckReferenced()
+        {
+            var pool = CardCatalog.LoadPlayPool(); // 教学专用卡不进构筑卡池（副本引用卡并入见下）
+            var poolIds = new HashSet<string>();
+            foreach (var c in pool) poolIds.Add(c.ID);
+            var referenced = new HashSet<string>();
+            foreach (var d in DeckSerializer.LoadAll())
+            {
+                if (d?.cardIds == null) continue;
+                foreach (var id in d.cardIds) referenced.Add(id);
+                if (!string.IsNullOrEmpty(d.skillCardId)) referenced.Add(d.skillCardId);
+            }
+            var extra = CardCatalog.LoadAll()
+                .Where(c => referenced.Contains(c.ID) && !poolIds.Contains(c.ID) && !CardCatalog.IsTokenCard(c))
+                .ToList();
+            if (extra.Count == 0) return pool;
+            var result = new List<CardData>(pool.Count + extra.Count);
+            result.AddRange(pool);
+            result.AddRange(extra);
+            return result;
+        }
+
         private void RefreshCatalog()
         {
             ClearContent(_catalogList.Content);
 
-            IEnumerable<CardData> cards = CardCatalog.LoadPlayPool(); // 教学专用卡不进构筑卡池
+            IEnumerable<CardData> cards = PlayPoolWithDeckReferenced();
             if (_colorFilter != UIColor.All)
                 cards = cards.Where(c => CardSorter.HasCostColor(c, _colorFilter));
             if (_kindFilterZh != null)
@@ -670,36 +713,42 @@ namespace SynergyUI
             RebindCardLayer();
         }
 
-        /// <summary>中栏卡面：FromCardDataFull 六区静态快照（与手牌/合成器同族，去运行态）；
-        /// 点卡面放大全屏（验收2）；形状违规卡在 note 行给出首条明细。</summary>
+        /// <summary>中栏卡面（2026-10-28 preview-panel 重构）：烘焙 ACard 直挂 View——
+        /// FromCardDataFull 六区静态快照（与手牌/合成器同族，去运行态），360×648 原尺寸不缩放；
+        /// 空卡=藏卡；点卡面放大全屏（Button 在 Build 接线）。</summary>
         private void BuildPreview()
         {
-            _previewBindings.Clear();
             var card = _previewCard;
-            if (_previewNote == null) return;
             if (card == null)
             {
-                _previewNote.text = "点击左右列表的行，在此显示卡面";
+                if (_previewView != null) _previewView.gameObject.SetActive(false);
+                RefreshPreviewCost(null);
                 return;
             }
-            var captured = card;
-            _previewBindings.Add(new CardOverlayBinding
+            var item = CardOverlayItem.FromCardDataFull(card, "Preview");
+            if (_previewView != null)
             {
-                Slot = _cardSlot,
-                Item = CardOverlayItem.FromCardDataFull(card, "Preview"),
-                Layout = CardOverlayLayout.Full,
-                OnClick = () => OpenZoom(captured), // 点卡面=放大（空态无卡实例天然不可点）
-            });
-
-            var shapeErrs = DeckCompositionValidator.CheckShape(card);
-            _previewNote.text = shapeErrs.Count > 0 ? "⚠ " + shapeErrs[0] : ""; // 空=无异常（卡面下方留白）
+                _previewView.gameObject.SetActive(true);
+                _previewView.Apply(item, CardOverlayLayout.Full);
+            }
+            RefreshPreviewCost(item);
+            // 形状校验提示行（preview-note）已随 2026-10-28 preview-panel 重构退役——
+            // 违规明细仍由构成块/保存拦截展示（DeckCompositionValidator.CheckShape 单源不变）
         }
 
-        /// <summary>放大中栏卡面（验收2）：全屏遮罩 + 600×1080 放大卡居中。独立 Key="Zoom" 与
-        /// card-slot 预览并存（Bind 同键只挂一处，异键双挂互不冲突）；放大卡本体不接 OnClick——
-        /// 点遮罩/空白还原。尺寸口径=战场手牌悬停同款：ACard 六区按 200×360 设计矩形由根 VLG
-        /// 固定排版（不控制子尺寸），槽位拉伸只会放大背板——放大卡走 200×360 槽 + 实例
-        /// localScale（见 RebindCardLayer）。</summary>
+        /// <summary>预览卡费条（2026-10-28 preview-panel 重构）：preview-stage/CostSquares 烘焙
+        /// 实例直填——空卡/零费=Clear 清空（条本体常驻，prefab 布局恒定）。</summary>
+        private void RefreshPreviewCost(CardOverlayItem item)
+        {
+            if (_previewCost == null) return;
+            if (item != null && item.Costs != null && !item.Costs.IsZero) _previewCost.SetCosts(item.Costs);
+            else _previewCost.Clear();
+        }
+
+        /// <summary>放大预览卡（验收2）：全屏遮罩 + 600×1080 放大卡居中（仍走卡面层池化——
+        /// 2026-10-28 重构后中栏预览=烘焙 ACard 直挂，控制器只剩放大卡一职）；放大卡本体不接
+        /// OnClick——点遮罩/空白还原。尺寸口径（2026-10-28 新卡 360×648 分数锚替换）：zoom-card
+        /// 槽位尺寸直接驱动（见 RebindCardLayer），不再实例 localScale ×3。</summary>
         private void OpenZoom(CardData card)
         {
             if (card == null || _zoomOverlay == null || _zoomSlot == null) return;
@@ -714,7 +763,7 @@ namespace SynergyUI
             RebindCardLayer();
         }
 
-        /// <summary>还原放大态：关遮罩+清放大绑定，卡面层重绑回中栏预览。</summary>
+        /// <summary>还原放大态：关遮罩+清放大绑定（卡面层回收放大卡实例）。</summary>
         private void CloseZoom()
         {
             if (_zoomBindings.Count == 0) return;
@@ -723,22 +772,28 @@ namespace SynergyUI
             RebindCardLayer();
         }
 
-        /// <summary>卡面整体缩放：200×360 设计矩形 ×3 = 600×1080。</summary>
-        private const float ZoomCardScale = 3f;
+        /// <summary>放大卡缩放（2026-10-28 晚用户定案回退：整体一起放大——文字随 localScale
+        /// 同比渲染，版式恒同比；600×1080 视觉=设计矩形 360×648 × 5/3）。字号三档烘在 prefab：
+        /// 名称 25（18-25 自动缩号）/关键词行 18/效果文本 16——缩放不改字号。</summary>
+        private const float ZoomCardScale = 1080f / 648f;
 
-        /// <summary>UGUI 卡面层全量重绑：中栏预览 + 放大态（如开着）合并一次 Bind
-        ///（池化全量换绑成本低，两态互不抢占）。绑定后逐槽归一缩放——放大卡 = 设计尺寸槽 +
-        /// localScale（ACard 根 VLG 不控制六区尺寸，槽位拉伸只放大背板=「卡背放大」缺陷）；
-        /// 预览槽恒 scale 1（防池复用把放大 scale 带回中栏）。</summary>
+        /// <summary>放大卡槽=设计矩形（每次重绑前归位；prefab 内 zoom-card 旧值不作数）。</summary>
+        private static readonly Vector2 ZoomCardDesignSize = new Vector2(360f, 648f);
+
+        /// <summary>UGUI 卡面层重绑（preview-panel 重构后=放大卡专属；中栏预览=烘焙 ACard 直挂
+        /// 不经控制器）。放大=设计矩形槽 + 实例 localScale×ZoomCardScale（整体同比放大，
+        /// 2026-10-28 晚回退定案——文字随变换缩放，字号三档恒定不动态改）。</summary>
         private void RebindCardLayer()
         {
-            var all = new List<CardOverlayBinding>(_previewBindings.Count + _zoomBindings.Count);
-            all.AddRange(_previewBindings);
+            if (_zoomSlot != null)
+            {
+                _zoomSlot.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, ZoomCardDesignSize.x);
+                _zoomSlot.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, ZoomCardDesignSize.y);
+            }
+            var all = new List<CardOverlayBinding>(_zoomBindings.Count);
             all.AddRange(_zoomBindings);
             CardOverlayController.Instance.Bind(all);
 
-            if (_cardSlot != null && _cardSlot.childCount > 0)
-                ((RectTransform)_cardSlot.GetChild(0)).localScale = Vector3.one;
             if (_zoomSlot != null && _zoomSlot.childCount > 0)
                 ((RectTransform)_zoomSlot.GetChild(0)).localScale = Vector3.one * ZoomCardScale;
         }
@@ -1105,8 +1160,8 @@ namespace SynergyUI
         private void ConfirmCopyPreset(string presetName)
             => ConfirmCopyPresetAsync(presetName).Forget();
 
-        /// <summary>复制预组确认（TipPanel 双键）：文案注明复制范围（卡/衍生物模板/技能卡/引用效果），
-        /// 确认后走 DeckCopyService 深拷贝并载入副本。</summary>
+        /// <summary>复制预组确认（TipPanel 双键）：文案注明引用复制口径（卡/衍生物模板/技能卡
+        /// 直引预组原件，卡与效果本体不重复落表），确认后走 DeckCopyService 引用复制并载入副本。</summary>
         private async UniTaskVoid ConfirmCopyPresetAsync(string presetName)
         {
             var deck = DeckCatalog.Load(presetName);
@@ -1120,7 +1175,7 @@ namespace SynergyUI
             string skillPart = string.IsNullOrEmpty(deck.skillCardId) ? "" : "、技能卡";
             if (await Tips.ShowAsync(
                     $"复制预组「{presetName}」为可修改副本？\n" +
-                    $"将复制 {main} 张卡（含 {tokens} 张衍生物模板）{skillPart}及引用的全部组合效果。",
+                    $"副本将直接引用卡组中的 {main} 张卡（含 {tokens} 张衍生物模板）{skillPart}，卡与效果本体不重复复制。",
                     "复制", "取消") != true)
                 return;
             var newName = DeckCopyService.CopyPreset(presetName, out var error);

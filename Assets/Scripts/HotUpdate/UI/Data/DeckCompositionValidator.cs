@@ -38,10 +38,10 @@ namespace SynergyUI
             public bool Ok => MissingIds.Count == 0 && ShapeErrors.Count == 0;
         }
 
-        // 展示序=CostSquaresView.DisplayOrder 同款（红蓝绿黑白灰）
+        // 展示序=CostSquaresView.DisplayOrder 同款（红蓝绿灰；白/黑席位已删 2026-10-28 P2）
         private static readonly ManaType[] DisplayOrder =
         {
-            ManaType.Red, ManaType.Blue, ManaType.Green, ManaType.Black, ManaType.White, ManaType.Gray,
+            ManaType.Red, ManaType.Blue, ManaType.Green, ManaType.Gray,
         };
 
         /// <summary>整套卡组检测（DeckData 口径）。</summary>
@@ -156,87 +156,15 @@ namespace SynergyUI
             public string CardName;  // 首例需求卡（人读示例）
         }
 
-        /// <summary>黑白代价覆盖检查（2026-10-26 定案）：施放费带黑/白元素的卡，卡组须至少带 1 张
-        /// 「对应颜色的代价卡」——数量不限（代价按全价补偿入账，一张即可起步），但没有则构成约束
-        /// 不过、不可保存。
-        /// · 需求侧=BuildCastSurfaces 任一面含该色（法术锚价并入施放账单同口径；永久物主动效果
-        ///   发动费不属「释放」门槛，不查——与地源检查同界）。
-        /// · 供给侧=卡级 PayloadCost ∪ 效果级 Costs 的代价原子（CollectExternalReferences 同遍历）；
-        ///   补偿色单源=CostCompensationService.PayloadGrantColor（极性非零有害黑/有益白，
-        ///   零极性对方域锁白、其余黑）。
-        /// · 自举口径：代价补偿在付费步**之后**到账且垫不了本卡（2026-10-16 定案）、钱包任一回合
-        ///   末清空——补偿色卡自身须有任一「不含该色」的施放面才算有效源（先免该色施放它收补偿，
-        ///   同回合再施放需求卡）；全部施放面都含该色的卡无法自举。
-        /// 黑白另有钱包来源（错边转化/光合作用/任意元素合成等效果路径），本检查按定案只认代价卡。</summary>
+        /// <summary>黑白代价覆盖检查【已退役 2026-10-28 P1】：代价只执行、不产出元素
+        ///（黑白获得经济删除）——「需黑/白元素的卡须带对应补偿色代价卡」的硬约束失去基础，
+        /// 恒返回空表。调用面（DeckBuilderScreen 两处）零改动；文案/显示清理归 P4。</summary>
         public static List<BWGap> CheckBWCostCoverage(IEnumerable<string> cardIds)
         {
-            var result = new List<BWGap>();
-            if (cardIds == null) return result;
-
-            var cards = new List<CardData>();
-            foreach (var id in cardIds)
-            {
-                if (string.IsNullOrEmpty(id)) continue;
-                var card = CardCatalog.GetById(id);
-                if (card != null && !card.IsTokenTemplate) cards.Add(card); // 断链另报；衍生物模板不施放
-            }
-
-            bool demandBlack = false, demandWhite = false;
-            string blackExample = null, whiteExample = null;
-            bool provideBlack = false, provideWhite = false;
-            foreach (var card in cards)
-            {
-                string name = string.IsNullOrEmpty(card.CardName) ? card.ID : card.CardName;
-                bool hasBlackFreeSurface = false, hasWhiteFreeSurface = false;
-                foreach (var surface in BuildCastSurfaces(card))
-                {
-                    var b = ElementPaymentValidator.NormalizeBill(surface.Bill);
-                    int bk; if (!b.TryGetValue(ManaType.Black, out bk)) bk = 0;
-                    int w; if (!b.TryGetValue(ManaType.White, out w)) w = 0;
-                    if (bk > 0) { demandBlack = true; if (blackExample == null) blackExample = name; }
-                    else hasBlackFreeSurface = true;
-                    if (w > 0) { demandWhite = true; if (whiteExample == null) whiteExample = name; }
-                    else hasWhiteFreeSurface = true;
-                }
-
-                bool cardBlack = false, cardWhite = false;
-                foreach (var atom in PayloadAtomsOf(card))
-                {
-                    var inst = CardEffectConverter.ConvertAtomForUI(atom);
-                    if (inst == null) continue;
-                    var color = CostCompensationService.PayloadGrantColor(inst);
-                    if (color == ManaType.Black) cardBlack = true;
-                    else if (color == ManaType.White) cardWhite = true;
-                }
-                if (cardBlack && hasBlackFreeSurface) provideBlack = true;
-                if (cardWhite && hasWhiteFreeSurface) provideWhite = true;
-            }
-
-            if (demandBlack && !provideBlack)
-                result.Add(new BWGap { Color = ManaType.Black, CardName = blackExample });
-            if (demandWhite && !provideWhite)
-                result.Add(new BWGap { Color = ManaType.White, CardName = whiteExample });
-            return result;
+            return new List<BWGap>();
         }
 
-        /// <summary>卡的代价原子枚举：卡级 PayloadCost ∪ 各效果 Costs（CollectExternalReferences 同遍历）。</summary>
-        private static IEnumerable<AtomicEffectEntry> PayloadAtomsOf(CardData card)
-        {
-            if (card.PayloadCost != null)
-                foreach (var atom in card.PayloadCost.AllPayloads())
-                    if (atom != null) yield return atom;
-            if (card.Effects != null)
-                foreach (var fx in card.Effects)
-                {
-                    if (fx == null || fx.Costs == null) continue;
-                    foreach (var cost in fx.Costs)
-                    {
-                        if (cost == null) continue;
-                        foreach (var atom in cost.AllPayloads())
-                            if (atom != null) yield return atom;
-                    }
-                }
-        }
+        // PayloadAtomsOf（卡的代价原子枚举）已随 CheckBWCostCoverage 退役删除（2026-10-28 P1）。
 
         // ======================================== 地源检查（2026-10-26） ========================================
 
@@ -443,13 +371,11 @@ namespace SynergyUI
                 case ManaType.Red: return "红";
                 case ManaType.Blue: return "蓝";
                 case ManaType.Green: return "绿";
-                case ManaType.Black: return "黑";
-                case ManaType.White: return "白";
                 default: return "灰";
             }
         }
 
-        /// <summary>费用串「红2+蓝0.5+灰1」（展示序红蓝绿黑白灰）；空/全零=「0」。</summary>
+        /// <summary>费用串「红2+蓝0.5+灰1」（展示序红蓝绿灰）；空/全零=「0」。</summary>
         public static string FormatCost(ElementCost cost)
         {
             if (cost == null || cost.IsZero) return "0";

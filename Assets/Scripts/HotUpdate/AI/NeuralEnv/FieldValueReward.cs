@@ -144,12 +144,13 @@ namespace CardCore.AI.NeuralEnv
             // 1) 生命
             value += player.GetLife() * LifeWeight;
 
-            // 2) 临时钱包（2026-10-11 现取现用：bank 退役；黑白只垫灰，按 WildManaWeight 估值）
+            // 2) 临时钱包（2026-10-11 现取现用：bank 退役；万能货币 Any 按 WildManaWeight 估值
+            //    ——白/黑席位已随 2026-10-28 P2 收缩删除）
             var pool = core.ElementPool.GetPool(player);
             if (pool != null)
             {
                 foreach (var kv in pool.TempElements)
-                    value += kv.Value * (kv.Key == ManaType.Black || kv.Key == ManaType.White
+                    value += kv.Value * (kv.Key == ManaType.Any
                         ? WildManaWeight : ManaWeight);
             }
 

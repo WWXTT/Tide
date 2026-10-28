@@ -15,9 +15,10 @@ namespace SynergyUI
     /// 整链退役（材质实例会被 Unity 在域边界销毁而静态字典跨边界残留 fake-null，重开工程后
     /// 全盘粉红；资产材质引用永生）。分区配色（BattleBoardZones 15 区）待材质资产化方案回归。
     ///
-    /// 规格=全盘 8×7（2026-10-14 中线加行 9×7 → 当晚缩盘）：BoardLayout 全盘 56 格位实拼 55 tile
-    /// （中线状态行 x7 槽=缺口不拼）——双方可用带 + 中线行 7 格 + 两侧列特殊格（发动/卡组/墓地/除外/角色/技能）
-    /// 全部入盘拼装，角色柱不再悬空。BoardLayout 常量重映射后拼装自动跟随（遍历全盘常量而非硬编码坐标）。
+    /// 规格=全盘 8×7 盘形 7876787（2026-10-28 元素缩编收边）：BoardLayout 全盘实拼 50 tile
+    /// （中线状态行 6 格 x0..x5 + 四角缺口 (0,0)/(0,2)/(7,4)/(7,6) 不拼）——双方可用带 + 中线行 6 格 +
+    /// 两侧列特殊格（卡组/墓地/除外/角色）+ 地盘行备用/万能格全部入盘拼装，角色柱不再悬空。
+    /// BoardLayout 常量重映射后拼装自动跟随（遍历全盘常量而非硬编码坐标）。
     ///
     /// 通路：BattleStageDirector 装台③ → Build() → BattleBoardGrid.Mount；
     /// 格心公式单一事实源=BattleBoardGrid.CellCenterLocal。
@@ -28,7 +29,7 @@ namespace SynergyUI
         private const string TilePrefabPath = "Assets/Art/Prefab/BattleHex.prefab";
 
         // v3 预制体化（2026-10-23 13:00）：战场=可编辑资产 BattleStage.prefab
-        //（Board 55 格+Env+Stairs 预烘焙——生成：Tools/战场/生成战场预制体）
+        //（Board 50 格+Env+Stairs 预烘焙——盘形随 BoardLayout 定案手工维护/编辑器内改）
         private const string StagePrefabAddress = "BattleStage";
         private const string StagePrefabPath = "Assets/Art/Battle3D/Prefab/BattleStage.prefab";
 
@@ -91,7 +92,7 @@ namespace SynergyUI
             for (int z = 0; z < BoardLayout.Height; z++)
                 for (int x = 0; x < BoardLayout.Width; x++)
                 {
-                    if (BoardLayout.NoTileAt(x, z)) continue; // 中线状态行缺口（x7 槽）：不拼格
+                    if (BoardLayout.NoTileAt(x, z)) continue; // 缺口（中线 x6/x7 + 四角）不拼格
                     var tile = Object.Instantiate(prefab, root.transform, false);
                     tile.name = $"tile-{x}-{z}";
                     tile.transform.localPosition = BattleBoardGrid.CellCenterLocal(x, z);
@@ -128,7 +129,7 @@ namespace SynergyUI
                     count++;
                 }
 
-            Debug.Log($"[BattleHexBoard] 拼装 {BoardLayout.Width}×{BoardLayout.Height}（中线缺口1）：{count} 格"
+            Debug.Log($"[BattleHexBoard] 拼装 {BoardLayout.Width}×{BoardLayout.Height}（盘形7876787·缺口6）：{count} 格"
                       + $"（BattleHex.prefab 实例，分区配色 {zoned}/{count}"
                       + "，未配格=预制体自带材质；root (+0.866,-0.75) 居中）");
             return root;

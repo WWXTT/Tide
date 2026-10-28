@@ -26,7 +26,8 @@ KNOWN_W=(
   "Failed to map location to asset path: 'netstandard.dll'"    # netstandard 家族
   "The referenced script on this Behaviour"                    # Main 场景 Camera 丢脚本引用（2026-10-24 发现，待修）
   "No action required on overwrite installation."              # 2026-10-24 入册：覆盖安装提示（包重复安装时框架打印，良性，见 CHECKLIST W-6）
-  "[EffectsLibrary] 效果引用缺失"                                # 2026-10-24 入册：effectIds 三路解析（效果表→教学表→原子表）首路 miss 告警；073f18c7=先攻行在原子表有定义（引用卡 C_D706FDA0），回落原子表解析成功，勿误判悬空（同 2026-10-21 教学表分家定案）。F 段进卡组编辑器首现
+  "[EffectsLibrary] 效果引用缺失"                                # 2026-10-24 入册：effectIds 三路解析（效果表→教学表→原子表）首路 miss 告警；073f18c7=先攻行在原子表有定义（引用卡 C_D706FDA0），回落原子表解析成功，勿误判悬空（同 2026-10-21 教学表分家定案）。F 段进卡组编辑器首现。2026-10-27 主表清空后 miss 面扩大（91535cec/c2565884/4cf22304 等同族），仍回落原子表解析，良性
+  "UnityEngine.Events.UnityEvent:I"                             # 2026-10-28 入册：EffectsLibrary 效果引用缺失告警的 W 级调用栈被 logcat 长行拆条后的栈帧碎片（宿主告警已入上一条），非独立噪音源
   "[CardCostService] 卡 "                                      # 2026-10-24 入册：费用恒推导定案（2026-10-22）自愈告警——存档费与推导费不一致时按推导刷新显示缓存；教学表卡带手写费触发，重存卡表可消。F 段进卡组编辑器首现
   "[CardEffectConverter]"                                      # 2026-10-24 入册：时机归一告警——「回合开始」2026-10-20 起系统专用，转换器自动归一为准备阶段并留痕（自愈设计）。F 段进卡组编辑器首现
   "was not found in the [PZD] font asset"                      # 2026-10-24 入册：PZD 静态字库缺字形（砺\u783A→□ 替换占位）——字集缺口用户自理（同 2026-10-20 功/败/胜缺字家族）。F 段进卡组编辑器首现

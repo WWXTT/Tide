@@ -32,6 +32,10 @@ namespace CardCore.Network
         private readonly List<NetEvent> _events = new List<NetEvent>();
         private volatile bool _stop;
         private bool _disconnected;
+        private bool _readySent;   // 就绪层（2026-10-28）：入座即准备（一次性）
+        private bool _startSent;   // 就绪层：落在椅位0 时替房主开局（一次性；p2pcheck 双 AI 拓扑）
+        private bool _submitSent;  // 卡组提交一次性（2026-10-28 刷屏修复）：提交→manifest 到达有空窗，
+                                   // 旧逻辑空窗内每 20ms 重发→服务器回「本座位已提交过卡组」Error 刷屏
 
         /// <summary>回环线程句柄（Stop 后由 GC 回收；IsAlive 可观测）。</summary>
         public Thread Thread { get; private set; }
@@ -49,16 +53,19 @@ namespace CardCore.Network
             _digest = NetMatchHandshake.ComputeDeckDigest(deckIds);
         }
 
-        /// <summary>便捷工厂：卡池前 30 张非重复 + 自动挑技能卡（验证器 DeckIds 同口径——
-        /// LoadAll 前 30 过 DeckSubmit 闭包校验；LoadPlayPool 滤池含效果断链卡会被拒）。</summary>
+        /// <summary>便捷工厂：随机预组一套（NetPresetDecks 三选一，恒过校验；2026-10-28「不选=随机」同源）。
+        /// 预组全缺回落全池前 30 + 自动挑技能卡（LoadAll 教学卡已并入全池，闭包校验可过）。</summary>
         public static NetAiFiller FromPlayPool(string nickname)
         {
+            var deckIds = NetPresetDecks.RandomPreset(out var skill);
+            if (deckIds != null)
+                return new NetAiFiller(nickname, deckIds, skill);
             // 2026-10-22 三套主题卡组迁教学：本类在 TideServer 共享编译（CardCore 目录），
             // 不能引用 UI 层 DeckCatalog——统一用 CardCatalog.LoadAll（教学卡已并入全池）。
             var pool = SynergyUI.CardCatalog.LoadAll();
-            var deckIds = pool.Select(c => c.ID).Distinct().Take(30).ToArray();
-            if (deckIds.Length == 0) return null;
-            return new NetAiFiller(nickname, deckIds, HeroSkillSystem.AutoPickSkillCard(pool));
+            var fallback = pool.Select(c => c.ID).Distinct().Take(30).ToArray();
+            if (fallback.Length == 0) return null;
+            return new NetAiFiller(nickname, fallback, HeroSkillSystem.AutoPickSkillCard(pool));
         }
 
         public void Start(int port)
@@ -101,8 +108,12 @@ namespace CardCore.Network
                 while (!_stop && !_disconnected && !Done)
                 {
                     Receive(20);
-                    if (_manifest == null && _roomState?.Phase == (int)NetRoomPhase.DeckSubmit)
-                        Send(NetworkMessageType.DeckSubmit, submit); // 重复提交被拒无妨（一次性即成功）
+                    PumpRoomReadiness();
+                    if (!_submitSent && _manifest == null && _roomState?.Phase == (int)NetRoomPhase.DeckSubmit)
+                    {
+                        _submitSent = true; // 一次性：随机预组恒过校验，被拒也不重发（防空窗重发刷 Error）
+                        Send(NetworkMessageType.DeckSubmit, submit);
+                    }
                     _brain.Think(this, _turnCap);
                 }
             }
@@ -114,6 +125,35 @@ namespace CardCore.Network
             {
                 try { _stream?.Close(); } catch (Exception) { }
                 try { _tcp.Close(); } catch (Exception) { }
+            }
+        }
+
+        /// <summary>就绪层自动机（2026-10-28 开局流程改版）：入座即准备；
+        /// 落在椅位0（房主位）且双方就座+客人已备时替房主开局——p2pcheck 双 AI 拓扑由先入座者扮房主；
+        /// 真人房主房中 AI 恒在椅位1，只准备。</summary>
+        private void PumpRoomReadiness()
+        {
+            if (_roomState == null || _roomState.Phase != (int)NetRoomPhase.Waiting || _roomState.Players == null)
+                return;
+            int mySeat = -1;
+            for (int i = 0; i < _roomState.Players.Length; i++)
+                if (_roomState.Players[i] != null && _roomState.Players[i].Connected
+                    && _roomState.Players[i].Nickname == _nickname) { mySeat = i; break; }
+            if (mySeat < 0) return;
+
+            if (!_readySent)
+            {
+                _readySent = true;
+                Send(NetworkMessageType.RoomReady, new MsgRoomReady { Ready = true });
+            }
+
+            bool bothSeated = _roomState.Players.Length == 2
+                && _roomState.Players[0] != null && _roomState.Players[0].Connected
+                && _roomState.Players[1] != null && _roomState.Players[1].Connected;
+            if (mySeat == 0 && !_startSent && bothSeated && _roomState.GuestReady)
+            {
+                _startSent = true;
+                Send(NetworkMessageType.RoomStart, (object)null);
             }
         }
 

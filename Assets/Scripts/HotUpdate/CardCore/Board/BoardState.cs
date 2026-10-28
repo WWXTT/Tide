@@ -178,8 +178,8 @@ namespace GameBoard
             }
         }
 
-        /// <summary>地牌固定元素格（2026-10-14 晚定案）：第 i 格元素身份=BoardLayout.LandCellElementOrder[i]
-        ///（灰红蓝绿黑白）——颜色直接落自己的格（同色全部叠进同一格），黑白永不入池=格常空。
+        /// <summary>地牌固定元素格（2026-10-14 晚定案·2026-10-28 元素缩编）：第 i 格元素身份=
+        /// BoardLayout.LandCellElementOrder[i]（灰红蓝绿）——颜色直接落自己的格（同色全部叠进同一格）。
         /// 无锁色映射的异常卡按灰聚拢。旧「首现序占格+地牌钉优先」随定案退役：固定映射天然稳定
         ///（Resync 幂等），_pinnedCells 只剩单位格路径消费。
         /// 旧「每格两层叠放」（2026-10-09）更早已退役：IsStackedLand/_stackOccupant 已删。</summary>

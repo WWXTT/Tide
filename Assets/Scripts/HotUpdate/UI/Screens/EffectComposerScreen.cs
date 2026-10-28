@@ -175,6 +175,24 @@ namespace SynergyUI
         // 从效果表载入的源效果 id（编辑换内容=换 id——保存后清旧档防重复；null=非效果表载入）
         private string _loadedFromLibraryId;
 
+        // 预设效果只读载入源（2026-10-28 定案）：从效果表「预设卡组效果」段载入时记源 id——
+        // 保存恒另存新条目（同内容拦存防跨表同 id 冗余）、源教学表不可覆盖不可删
+        //（删除钮随 _loadedFromLibraryId=null 隐藏；首次成功保存后才转为常规库条目可改可删）
+        private string _presetSourceId;
+
+        // 预设载入快照（2026-10-28）：无文名内容哈希——DisplayName 载入后会被 OnSave 重渲
+        //（老预设文案模板 vs 新渲染口径天然漂移），身份比对须剔除名字段防「未改也判改」
+        private string _presetSnapshotHash;
+
+        /// <summary>预设内容指纹：header 克隆后清 DisplayName 再哈希——载入/保存两次同口径，
+        /// 文案重渲漂移不参与「是否修改」判定。</summary>
+        private static string PresetContentHash(EffectGraphData g)
+        {
+            var header = JsonUtility.FromJson<CardEffectData>(JsonUtility.ToJson(g.header));
+            header.DisplayName = "";
+            return ContentHasher.HashEffect(new EffectGraphData("") { header = header, steps = g.steps ?? new List<EffectStepData>() });
+        }
+
         private TipPromptHost _tips; // TipPanel 提示弹窗宿主（2026-10-18 统一定案；惰性建——字段初始化器不能引用实例 Root）
         private TipPromptHost Tips => _tips ??= new TipPromptHost(() => Root);
 
@@ -496,6 +514,8 @@ namespace SynergyUI
                     out var note);
                 NormalizeLimitForHost(); // 宿主非生物：次数档隐藏前先归一落盘值（旧数据可能带 2/3/-1）
                 _loadedFromLibraryId = null;
+                _presetSourceId = null;
+                _presetSnapshotHash = null;
                 string msg = index >= 0 ? $"编辑效果 #{index + 1}（保存写回卡牌）" : "新建效果（保存追加到卡牌）";
                 if (note != null) msg += $"——载入归一化：{note}"; // 两槽定案：遗留门步骤折叠/主干截断可见化
                 ShowToast(msg);
@@ -509,6 +529,8 @@ namespace SynergyUI
                 _editingIndex = -1;
                 _graph = CardEffectToGraph(null, out _);
                 _loadedFromLibraryId = null;
+                _presetSourceId = null;
+                _presetSnapshotHash = null;
                 _expandedAtoms.Clear();
                 _expandedRewards.Clear();
             }
@@ -901,8 +923,7 @@ namespace SynergyUI
                 if (_editingCard != null && _editingCard.Supertype != Cardtype.Creature)
                     def.TriggerLimitPerTurn = 1; // 镜像 ParallelCostText 非生物口径
                 var text = $"合计 {CostZh(CostDerivationService.DeriveElementCosts(def, 0))}";
-                var grants = CostDerivationService.DeriveElementGrants(def, 0);
-                if (grants != null && !grants.IsZero) text += $"｜获得 {CostZh(grants)}";
+                // 黑白获得显示已删（2026-10-28 P1：代价/错边不再产出元素——DeriveElementGrants 退役）
                 return branch.Length == 0 ? text : text + "｜" + branch;
             }
             catch
@@ -1024,10 +1045,7 @@ namespace SynergyUI
             }
             var text = parts.Count == 0 ? "" : "费用：" + string.Join("＋", parts) + $"｜合计 {CostZh(total)}";
 
-            // 错边原子出计价转黑白获得（构筑期口径；运行时按实际命中发放）
-            var grants = CostDerivationService.DeriveElementGrants(def, 0);
-            if (grants != null && !grants.IsZero)
-                text = (text.Length > 0 ? text + "｜" : "费用：") + $"获得 {CostZh(grants)}";
+            // 黑白获得尾注已删（2026-10-28 P1：错边/代价不再产出元素——DeriveElementGrants 退役）
             return text;
         }
 
@@ -1120,8 +1138,6 @@ namespace SynergyUI
             ManaType.Blue => "蓝",
             ManaType.Green => "绿",
             ManaType.Gray => "灰",
-            ManaType.Black => "黑",
-            ManaType.White => "白",
             _ => m.ToString(),
         };
 
@@ -1201,6 +1217,8 @@ namespace SynergyUI
         {
             EffectLibrarySerializer.DeleteById(removed);
             _loadedFromLibraryId = null;
+            _presetSourceId = null;
+                _presetSnapshotHash = null;
             _graph = CardEffectToGraph(null, out _);
             _mode = InferMode(_graph);
             _expandedAtoms.Clear();
@@ -2821,13 +2839,6 @@ namespace SynergyUI
             EffectsLibrary.Reload(); // 外部可能直改 Effects.json——进效果表即重读
             var effects = EffectLibrarySerializer.LoadAll();
             _effectItems.Clear();
-            if (effects.Count == 0)
-            {
-                AddTableHint(_effectItems, _effectsList, "效果库为空——左侧编辑后「保存」即入库");
-                _effectRows.SetItems(_effectItems.Count, i => _effectItems[i].H);
-                return;
-            }
-            string q = _filterName.text;
             // 卡 hash 反查语料（2026-10-26）：效果表语料此前只有效果自身 id——输卡 ID（如
             // C_1DBF77BC）或卡名查不到"这张卡用了哪些效果行"。此处把「引用本效果的卡（ID·名）」
             // 并入语料补齐反向（卡池侧 CorpusOf 已含卡 ID，hash 搜卡那边本就通）。LoadAll 带缓存，
@@ -2844,6 +2855,15 @@ namespace SynergyUI
                     if (!list.Contains(label)) list.Add(label);
                 }
             }
+            if (effects.Count == 0)
+            {
+                // 2026-10-28：主库空不再短路——预设卡组效果段照列（主表被清理/新装档常态为空）
+                AddTableHint(_effectItems, _effectsList, "效果库为空——左侧编辑后「保存」即入库；下方列出预设卡组使用的组合效果");
+                AppendPresetEffectRows(effects, effectUsers);
+                _effectRows.SetItems(_effectItems.Count, i => _effectItems[i].H);
+                return;
+            }
+            string q = _filterName.text;
             foreach (var fx in effects)
             {
                 var captured = fx;
@@ -2873,7 +2893,107 @@ namespace SynergyUI
                     H = TableRowH,
                 });
             }
+            AppendPresetEffectRows(effects, effectUsers);
             _effectRows.SetItems(_effectItems.Count, i => _effectItems[i].H);
+        }
+
+        /// <summary>预设卡组用到的组合效果段（2026-10-28 定案）：教学效果表只读展示——
+        /// DeckCatalog 预组 → 卡 → 效果 id 引用集；主表已含同 id（玩家另存过同内容副本）不重复列。
+        /// 行点击载入左栏（LoadPresetEffect）——修改保存=另存新条目，源档不可覆盖不可删。</summary>
+        private void AppendPresetEffectRows(List<EffectGraphData> mainEffects, Dictionary<string, List<string>> effectUsers)
+        {
+            // 预组卡组 → 引用效果 id → 卡组名（Tag 展示「预设·卡组名」）
+            var presetRefs = new Dictionary<string, List<string>>();
+            foreach (var deck in DeckCatalog.LoadPresets())
+            {
+                if (deck?.cardIds == null) continue;
+                foreach (var cardId in deck.cardIds)
+                {
+                    var card = CardCatalog.GetById(cardId);
+                    if (card?.Effects == null) continue;
+                    foreach (var fx in card.Effects)
+                    {
+                        if (fx == null || string.IsNullOrEmpty(fx.Id)) continue;
+                        if (!presetRefs.TryGetValue(fx.Id, out var decks)) presetRefs[fx.Id] = decks = new List<string>();
+                        if (!decks.Contains(deck.name)) decks.Add(deck.name);
+                    }
+                }
+            }
+            if (presetRefs.Count == 0) return;
+
+            var mainIds = new HashSet<string>();
+            foreach (var f in mainEffects)
+                if (f != null && !string.IsNullOrEmpty(f.id)) mainIds.Add(f.id);
+
+            string q = _filterName.text;
+            int shown = 0;
+            foreach (var fx in EffectLibrarySerializer.LoadAll(true))
+            {
+                var captured = fx;
+                if (captured == null || string.IsNullOrEmpty(captured.id)) continue;
+                if (!presetRefs.ContainsKey(captured.id)) continue; // 只列预组真正用到的
+                if (mainIds.Contains(captured.id)) continue;        // 玩家已另存同内容副本——主表行为准
+                var parts = EffectAtomCfgs(captured);
+
+                // 颜色筛选/近似检索与主表行同口径：名∪id∪组成简称∪摘要∪卡组名∪引用卡
+                if (_colorFilter != UIColor.All && !parts.Any(c => AtomMatchesColor(c, _colorFilter))) continue;
+                if (SearchQuery.IsActive(q))
+                {
+                    string abbr = string.Concat(parts.Select(c => c?.DisplayName ?? ""));
+                    string corpus = string.Join("\n", captured.name, captured.id, abbr,
+                        AtomText.RenderEffectSummary(captured),
+                        string.Join("\n", presetRefs[captured.id]),
+                        effectUsers.TryGetValue(captured.id, out var refs) ? string.Join("\n", refs) : "");
+                    if (!SearchQuery.Match(corpus, q)) continue;
+                }
+
+                if (shown == 0)
+                    AddTableHint(_effectItems, _effectsList,
+                        "以下为预设卡组使用的组合效果（只读）——点击载入查看；修改后保存会另存为新效果，原效果不可改删");
+                shown++;
+                _effectItems.Add(new TableRowData
+                {
+                    Name = captured.name,
+                    Tag = "预设·" + string.Join("·", presetRefs[captured.id]),
+                    Meta = AtomText.RenderEffectSummary(captured) + "（预设效果——保存另存为新效果，不可删除）",
+                    Dot = DotColor(ColorFilter.OfTagsCsv(parts.FirstOrDefault()?.Tags)),
+                    Costs = captured.header?.AnchorCost,
+                    OnClick = () => LoadPresetEffect(captured),
+                    H = TableRowH,
+                });
+            }
+        }
+
+        /// <summary>点击预设效果行 → 载入左栏编辑（2026-10-28 定案）：保存恒另存新条目（同内容拦存）、
+        /// 源教学表不可覆盖不可删——删除钮随 _loadedFromLibraryId=null 隐藏（UpdateDeleteState）。</summary>
+        private void LoadPresetEffect(EffectGraphData fx)
+        {
+            if (_editingCard != null)
+            {
+                ShowToast("卡编辑模式不可载入预设效果（先保存或返回）");
+                return;
+            }
+            _graph = fx;
+            _graph.header ??= new CardEffectData();
+            _graph.steps ??= new List<EffectStepData>();
+            _loadedFromLibraryId = null;
+            _presetSourceId = _graph.id;
+            var note = NormalizeLoadedGraph(_graph);
+
+            _mode = InferMode(_graph);
+            _expandedAtoms.Clear();
+            _expandedRewards.Clear();
+            EnsureDefaultSelection();
+            SyncTimingDropdown();
+            _activationDropdown?.SetIndex(ActivationIndex(_graph.header.ActivationType));
+            SyncActivationVisibility();
+            RefreshAll();
+            UpdateDeleteState(); // 预设载入=删除钮隐藏
+            // 快照在归一化/效果头对齐（RefreshAll 链内 SyncActivationVisibility 等可能钉时机）全部落定后拍
+            _presetSnapshotHash = PresetContentHash(_graph);
+            ShowToast(note != null
+                ? $"已载入预设效果：{_graph.name}（修改保存=另存新效果）——{note}"
+                : $"已载入预设效果：{_graph.name}（修改保存=另存新效果，原预设不可改删）");
         }
 
         /// <summary>点击效果表条目 → 载入左侧编辑（保存覆盖原名，自动改名清旧档）。
@@ -2889,6 +3009,8 @@ namespace SynergyUI
             _graph.header ??= new CardEffectData();
             _graph.steps ??= new List<EffectStepData>();
             _loadedFromLibraryId = _graph.id;
+            _presetSourceId = null;
+                _presetSnapshotHash = null; // 常规库条目接管——预设只读态退出
             var note = NormalizeLoadedGraph(_graph);
 
             _mode = InferMode(_graph);
@@ -2967,9 +3089,7 @@ namespace SynergyUI
                 case UIColor.Red: return ManaType.Red;
                 case UIColor.Blue: return ManaType.Blue;
                 case UIColor.Green: return ManaType.Green;
-                case UIColor.White: return ManaType.White;
-                case UIColor.Black: return ManaType.Black;
-                default: return ManaType.Gray;
+                default: return ManaType.Gray; // 白/黑 chip（UI 遗留）落灰
             }
         }
 
@@ -3277,7 +3397,7 @@ namespace SynergyUI
             }
             var onClick = item.OnClick;
             tbtn.onClick.RemoveAllListeners();
-            tbtn.onClick.AddListener(() => { Debug.Log("[UI点击] 库行"); onClick?.Invoke(); });
+            tbtn.onClick.AddListener(() => onClick?.Invoke()); // 2026-10-28 修复：行点击装载（整行曾被误删致右栏不可选）
             UiKit.Described(tbtn, item.Meta); // 悬浮行=完整描述（指示物清除方式等后缀全量）上描述条
         }
 
@@ -4099,6 +4219,15 @@ namespace SynergyUI
             // 会把上一条独立库效果误删（1点伤害↔1点穿透互相覆盖根因）。删毕即闭链，不再重新武装。
             // 2026-10-16 强制删除机制：旧版仍被卡引用时弹窗二选一——「保留旧版」新旧共存（引用卡
             // 不受影响）/「删除旧版」引用卡断链（同删效果口径）。
+            // 预设效果只读载入（2026-10-28 定案）：与载入快照同内容（无文名指纹）→拦存，
+            // 防把预设原样拷进主表造语义重复条目；内容有变=新 id 自然落主表为独立新效果
+            bool fromPreset = !string.IsNullOrEmpty(_presetSourceId);
+            if (fromPreset && PresetContentHash(_graph) == _presetSnapshotHash)
+            {
+                ShowToast("内容未修改——预设效果只读；调整内容后再保存会另存为新效果");
+                return;
+            }
+
             var path = EffectLibrarySerializer.Save(_graph); // Save 内计算/回填 graph.id
             string replacedId = null;
             if (!string.IsNullOrEmpty(_loadedFromLibraryId) && _loadedFromLibraryId != _graph.id)
@@ -4120,6 +4249,17 @@ namespace SynergyUI
                 }
             }
             if (path != null) TutorialCreationFlow.NotifyEffectsChanged(); // 第三课走查步检测（未开课零行为）
+            if (fromPreset && path != null)
+            {
+                // 首次另存成功：预设只读态闭链——已落玩家库的新条目转为常规库条目（后续可改可删）
+                _loadedFromLibraryId = _graph.id;
+                _presetSourceId = null;
+                _presetSnapshotHash = null;
+                ShowToast($"已另存为新效果：{_graph.name}（{_graph.id}）——原预设不变");
+                if (_rightMode == RightMode.Effects) RefreshEffectsList();
+                UpdateDeleteState();
+                return;
+            }
             ShowToast(path == null ? "保存失败"
                 : replacedId != null ? $"已保存：{_graph.name}（{_graph.id}）——旧版 {replacedId} 已被替代"
                 : $"已保存：{_graph.name}（{_graph.id}）");
@@ -4418,7 +4558,8 @@ namespace SynergyUI
             public bool CanBeBranchReward => ComposerCatalog.CanBeRewardRow(Cfg);
 
             /// <summary>错边原子（内容契约：只能进代价栏）——p≠0 且表级域锁错侧，或 p=0 单侧域锁。
-            /// 与 CardEffectConverter 代价校验同口径。</summary>
+            /// 与 CardEffectConverter 代价校验同口径（2026-10-28 P1：WrongSide 删除——侧别判定内联，
+            /// 行为等价；代价栏合法载体=p<0 锁己方，其余形态 UI 处置归 P4）。</summary>
             public bool IsWrongSideOnly
             {
                 get
@@ -4426,8 +4567,10 @@ namespace SynergyUI
                     if (Cfg == null) return false;
                     float p = UnityEngine.Mathf.Clamp(Cfg.Polarity, -1f, 1f);
                     var kinds = Cfg.GetTargetKindList();
-                    if (p != 0f) return CostDerivationService.WrongSide(p, kinds);
-                    return CostDerivationService.SideLock(kinds) != 0;
+                    int side = CostDerivationService.SideLock(kinds);
+                    if (p > 0f) return side == 1;   // 有益锁对方（对对手有益）
+                    if (p < 0f) return side == -1;  // 有害锁己方（自伤——代价合法载体）
+                    return side != 0;               // 零极性单侧锁
                 }
             }
 

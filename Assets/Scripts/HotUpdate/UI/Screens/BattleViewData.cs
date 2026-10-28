@@ -57,8 +57,6 @@ namespace SynergyUI
         public string Name = "";
         public int Life, MaxHealth, DeckCount, HandCount, GraveyardCount, FatigueCount, LandCap;
         public string BankText = "—";
-        public int TempGainedThisTurn; // 本周期临时元素累计产出（全类型合计——生成钳配额消耗量；
-                                       // 中线产量格数据源；网络快照未承载（联机复活随协议补））
         public int[] WalletByColor = new int[ElementCost.Length]; // 临时钱包逐色余额（2026-10-14 上盘：
                                                                   // 地牌格「剩余」并入钱包该色、技能格黑白数字源）
         public BattleCardView Skill; // 英雄技能卡（FieldZone）
@@ -124,8 +122,8 @@ namespace SynergyUI
         private static readonly Dictionary<ManaType, string> ManaNames = new Dictionary<ManaType, string>
         {
             { ManaType.Gray, "灰" }, { ManaType.Red, "红" }, { ManaType.Blue, "蓝" },
-            { ManaType.Green, "绿" }, { ManaType.White, "白" }, { ManaType.Black, "黑" },
-            { ManaType.Any, "任意" }, // 万能货币（2026-10-23）：钱包串显示「任意N」
+            { ManaType.Green, "绿" },
+            { ManaType.Any, "任意" }, // 万能货币（2026-10-23）：钱包串显示「任意N」（白/黑已删 2026-10-28 P2）
         };
 
         public static string PhaseZh(PhaseType p) => CardCore.MatchLogRenderer.PhaseZh(p);
@@ -302,7 +300,6 @@ namespace SynergyUI
             v.FatigueCount = p.FatigueCount;
             v.LandCap = core.ElementPool.GetLandCap(p);
             v.BankText = BankTextLocal(core, p);
-            v.TempGainedThisTurn = core.ElementPool.GetTempGainedThisTurn(p);
             foreach (ManaType m in Enum.GetValues(typeof(ManaType)))
                 v.WalletByColor[(int)m] = core.ElementPool.GetAvailableManaCount(m, p);
             v.HeroAttack = p.GetPower(); // Player 分支=弹药层数钳非负（EntityEffectExtensions）
@@ -470,12 +467,45 @@ namespace SynergyUI
             // 服务器 BoardState.Resync 是绝对坐标（seat1 己方=z1/2）——若直接填绝对坐标，
             // 1 号座位观察者的整片战场（双方单位+地牌）都落不进渲染行、恒空白（2026-09-30 修复）。
             // 列表序与服务器 AssignCells first-free 逐格对应，观察者侧仅做半场归一。
+            // 2026-10-28 网络选格：快照不承载坐标（位置权威=客户端表现层）——己方单位先落
+            // NetCellPins 钉格（出牌/放地选格时写入），其余按格序 first-free 避开已占钉格。
             var units = ZoneCardsNet(snap, seat, Zone.Battlefield);
             var cells = BoardLayout.UnitCells(ownerIsOpponent ? 1 : 0);
+            var used = new HashSet<int>();
+            int CellKey(int x, int z) => x * 100 + z;
+            if (!ownerIsOpponent)
+            {
+                // 钉格持久（同 BoardState._pinnedCells 语义：卡在场上每次重建优先回钉格）；
+                // 离场卡（快照战场区无此 RuntimeId）钉子随之修剪
+                NetCellPins.PruneTo(units);
+                for (int i = 0; i < units.Length; i++)
+                {
+                    if (units[i] != null && NetCellPins.TryGet(units[i].RuntimeId, out var pin)
+                        && cells.Any(c => c.x == pin.x && c.z == pin.z))
+                        used.Add(CellKey(pin.x, pin.z));
+                }
+            }
+            int next = 0;
             for (int i = 0; i < units.Length; i++)
             {
                 var view = FromRuntime(units[i], null, ownerIsOpponent);
-                if (i < cells.Count) { view.X = cells[i].x; view.Z = cells[i].z; }
+                if (!ownerIsOpponent && NetCellPins.TryGet(units[i].RuntimeId, out var pinned)
+                    && cells.Any(c => c.x == pinned.x && c.z == pinned.z))
+                {
+                    view.X = pinned.x;
+                    view.Z = pinned.z;
+                }
+                else
+                {
+                    while (next < cells.Count && used.Contains(CellKey(cells[next].x, cells[next].z))) next++;
+                    if (next < cells.Count)
+                    {
+                        view.X = cells[next].x;
+                        view.Z = cells[next].z;
+                        used.Add(CellKey(cells[next].x, cells[next].z));
+                        next++;
+                    }
+                }
                 list.Add(view);
             }
         }
@@ -533,5 +563,40 @@ namespace SynergyUI
             if (string.IsNullOrEmpty(effectId)) return "?";
             return effectId.Length <= 10 ? effectId : effectId.Substring(0, 8) + "…";
         }
+    }
+
+    /// <summary>
+    /// 网络局选格钉（2026-10-28 放地/永久物出牌选格）：快照不承载棋盘坐标（位置权威=客户端
+    /// 表现层），本表登记本端为卡选定的落格，BuildNet/FillUnitsNet 消费（钉格须属己方单位区，
+    /// 否则按无钉 first-free——与本地 BoardState._pinnedCells 同语义）。卡离场随快照修剪；
+    /// 跨局残留由 BattleScreen.OnEnter（网络局）ClearAll 收口（RuntimeId 每局重起，防串号）。
+    /// </summary>
+    public static class NetCellPins
+    {
+        private static readonly Dictionary<uint, (int x, int z)> Pins = new Dictionary<uint, (int x, int z)>();
+
+        public static void Pin(uint runtimeId, int x, int z)
+        {
+            if (runtimeId == 0) return;
+            Pins[runtimeId] = (x, z);
+        }
+
+        public static bool TryGet(uint runtimeId, out (int x, int z) cell)
+            => Pins.TryGetValue(runtimeId, out cell);
+
+        /// <summary>修剪到当前战场快照（离场卡钉子清除）。</summary>
+        public static void PruneTo(SerializableRuntimeCardState[] onBoard)
+        {
+            if (Pins.Count == 0) return;
+            var alive = new HashSet<uint>();
+            if (onBoard != null)
+                foreach (var s in onBoard)
+                    if (s != null) alive.Add(s.RuntimeId);
+            if (alive.Count == 0) { Pins.Clear(); return; }
+            var dead = Pins.Keys.Where(k => !alive.Contains(k)).ToList();
+            foreach (var k in dead) Pins.Remove(k);
+        }
+
+        public static void ClearAll() => Pins.Clear();
     }
 }

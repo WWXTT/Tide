@@ -17,8 +17,7 @@ namespace CardCore
         /// <summary>是否可用任意颜色支付（灰色效果）</summary>
         public bool IsGeneric => PrimaryColor == ManaType.Gray;
 
-        /// <summary>是否为黑白（2026-09-11 转正为真实颜色：获取=卡结算产生，不由地牌产出）</summary>
-        public bool IsSpecialColor => PrimaryColor == ManaType.Black || PrimaryColor == ManaType.White;
+        // IsSpecialColor（黑白专属色判定）已随 2026-10-28 P2 席位收缩删除——白/黑枚举退役。
 
         /// <summary>创建单色倾向</summary>
         public static ElementAffinity Single(ManaType color) => new ElementAffinity { PrimaryColor = color };
@@ -37,8 +36,6 @@ namespace CardCore
                 ManaType.Blue => "蓝",
                 ManaType.Green => "绿",
                 ManaType.Gray => "通用",
-                ManaType.White => "白",
-                ManaType.Black => "黑",
                 ManaType.Any => "任意",
                 _ => PrimaryColor.ToString()
             };
@@ -50,8 +47,8 @@ namespace CardCore
     /// （ElementCostPayment）共用同一算法。2026-10-11 现取现用重做：主规划器移驻
     /// ElementPool.PlanBill（钱包+地牌横置合成模型），本类保留纯函数账单规划（钱包口径）
     /// 供预检/校验复用，链定义同源。
-    /// 支付链（2026-10-11 收窄定案）：红/蓝/绿**仅本色**；灰=[灰,黑,白,红,蓝,绿]
-    /// （黑白只垫灰、三色垫灰沿用；黑先于白，确定性）。单向：红蓝绿灰不可付黑白费。
+    /// 支付链（2026-10-28 四色重构定案）：红/蓝/绿=本色→任意；灰=通用费，红/蓝/绿/任意
+    /// 都能付（黑白不再垫灰——P2 删除枚举成员）；彩色不可由灰替代（单向沿用）。
     /// 浓度上限（2026-10-16 临时元素超上限改版）：本类纯钱包口径——钱包贡献**不受浓度钳**
     /// （获取=对应地块可用+1、可用可超上限），旧「每货币贡献 ≤ cap / 纯色需求超帽拒付」
     /// 随 cap 参数一并退役；地牌侧的浓度钳在 ElementPool.PlanBill 单独保留。
@@ -92,10 +89,10 @@ namespace CardCore
             return bill;
         }
 
-        /// <summary>填链：需求色的候选货币按支付序排列（2026-10-11 收窄定案；2026-10-23 任意元素）：
-        /// 红/蓝/绿=[本色,任意]（黑白不再垫三色、灰本就不垫三色——三色缺口只有本色或任意元素能付）；
-        /// 灰=[灰,黑,白,红,蓝,绿,任意]（黑白只垫灰；三色垫灰沿用；黑先于白，确定性）；
-        /// 黑/白=[本色,任意]（单向不变：其余色仍补不了黑白本色费）；
+        /// <summary>填链：需求色的候选货币按支付序排列（2026-10-28 四色重构；2026-10-23 任意元素）：
+        /// 红/蓝/绿=[本色,任意]（三色缺口只有本色或任意元素能付——灰不垫三色）；
+        /// 灰=通用费：红/蓝/绿/任意都能付（黑白删除后不再垫灰）；
+        /// 黑/白（过渡态——P2 删除枚举成员后不再出现）落 `_` 默认=[本色]；
         /// 任意=万能货币（42e883b2 元素合成生成），恒处链**末位**垫付——链内前序耗尽才消耗，
         /// 保留其万能性（本色优先消耗）。
         /// 公开给 ElementPool.PlanBill——横置产色候选须沿同一填链评估（地牌锁色不含任意，
@@ -105,16 +102,16 @@ namespace CardCore
             ManaType.Red => new[] { ManaType.Red, ManaType.Any },
             ManaType.Blue => new[] { ManaType.Blue, ManaType.Any },
             ManaType.Green => new[] { ManaType.Green, ManaType.Any },
-            ManaType.Gray => new[] { ManaType.Gray, ManaType.Black, ManaType.White, ManaType.Red, ManaType.Blue, ManaType.Green, ManaType.Any },
-            ManaType.Black => new[] { ManaType.Black, ManaType.Any },
-            ManaType.White => new[] { ManaType.White, ManaType.Any },
+            // 灰 = 通用费：红/蓝/绿/万能都能付（黑白删除后不再垫灰）
+            ManaType.Gray => new[] { ManaType.Gray, ManaType.Red, ManaType.Blue, ManaType.Green, ManaType.Any },
             _ => new[] { need },
         };
 
         /// <summary>
         /// 整账单支付规划（非破坏——不改 availableMana；纯钱包口径，地牌横置参与的综合规划在
-        /// ElementPool.PlanBill）。处理序：黑→白（仅本色）**先行预留**（否则贪心会吃掉黑白本色费
-        /// 所需的货币），再按固定序处理红蓝绿灰，每需求沿填链扣减。钱包贡献不受浓度钳
+        /// ElementPool.PlanBill）。处理序：按固定序处理红蓝绿灰，每需求沿填链扣减；黑白等
+        /// 非四色需求（P2 删枚举成员前的过渡态）垫后沿本色链处理——灰链已不含黑白，
+        /// 四色贪心动不到黑白货币，无需先行预留（2026-10-28 四色重构）。钱包贡献不受浓度钳
         /// （2026-10-16 超上限改版——cap 参数随旧口径退役）。
         /// </summary>
         /// <returns>实际扣款组合（货币→数量）；null = 不可付。</returns>
@@ -128,25 +125,6 @@ namespace CardCore
             foreach (ManaType c in Enum.GetValues(typeof(ManaType)))
                 if (!working.ContainsKey(c)) working[c] = 0;
 
-            // 黑白本色费先行预留（黑白只来自钱包、不受浓度钳——余额定生死；
-            // 2026-10-23 任意元素：沿 ChainFor(黑白) 链扣——任意元素可垫黑白，本色优先）
-            foreach (var bw in new[] { ManaType.Black, ManaType.White })
-            {
-                if (!bill.TryGetValue(bw, out var bwNeed) || bwNeed <= 0) continue;
-                foreach (var currency in ChainFor(bw))
-                {
-                    if (bwNeed <= 0) break;
-                    int have = working[currency];
-                    if (have <= 0) continue;
-                    int take = Math.Min(have, bwNeed);
-                    if (take <= 0) continue;
-                    working[currency] = have - take;
-                    plan[currency] = plan.TryGetValue(currency, out var prev) ? prev + take : take;
-                    bwNeed -= take;
-                }
-                if (bwNeed > 0) return null;
-            }
-
             foreach (var need in FourColorOrder)
             {
                 if (!bill.TryGetValue(need, out var remaining) || remaining <= 0) continue;
@@ -156,6 +134,26 @@ namespace CardCore
                     int have = working[currency];
                     if (have <= 0) continue;
                     int take = Math.Min(have, remaining); // 钱包无浓度钳（可超上限直付）
+                    if (take <= 0) continue;
+                    working[currency] = have - take;
+                    plan[currency] = plan.TryGetValue(currency, out var prev) ? prev + take : take;
+                    remaining -= take;
+                }
+                if (remaining > 0) return null;
+            }
+
+            // 黑白等非四色需求（过渡态——P2 删除枚举成员后不再出现）：沿各自填链（本色）扣。
+            // 灰链已不含黑白，四色贪心动不到黑白货币，无需先行预留。
+            foreach (var need in bill.Keys)
+            {
+                if (Array.IndexOf(FourColorOrder, need) >= 0) continue;
+                if (!bill.TryGetValue(need, out var remaining) || remaining <= 0) continue;
+                foreach (var currency in ChainFor(need))
+                {
+                    if (remaining <= 0) break;
+                    int have = working[currency];
+                    if (have <= 0) continue;
+                    int take = Math.Min(have, remaining);
                     if (take <= 0) continue;
                     working[currency] = have - take;
                     plan[currency] = plan.TryGetValue(currency, out var prev) ? prev + take : take;

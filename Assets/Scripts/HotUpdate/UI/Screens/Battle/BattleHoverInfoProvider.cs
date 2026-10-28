@@ -59,17 +59,8 @@ namespace SynergyUI
             _hoverInfo.gameObject.SetActive(false);
         }
 
-        /// <summary>临时元素产量双格悬停（2026-10-16 全类型累计钳）：周期口径+双方读数。</summary>
-        private string TempGainTileInfo(bool self)
-        {
-            var pv = self ? View?.Self : View?.Opp;
-            int gained = pv?.TempGainedThisTurn ?? 0;
-            int cap = pv?.LandCap ?? 0;
-            return $"{(self ? "己方" : "对方")}临时元素产出\n"
-                 + $"本周期（自己回合开始清零，跨对方回合保留）累计 {gained}/{cap}\n"
-                 + "全类型六色同池共一配额：代价补偿黑白、错边转化、生物产色等一切临时元素生成都计入；"
-                 + "配额耗尽后再生成不入账（支付不受影响——钱包照付）";
-        }
+        // 临时元素产量双格悬停（TempGainTileInfo）随临时上限概念退役拆除（2026-10-28 元素缩编——
+        // 中线 x2/x4 双格已拆，格名 hud-tile-*-temp 不再存在）
 
         /// <summary>时间双格悬停（2026-10-17 定案；2026-10-18 网络簇整删后恒人机=恒不限时）。</summary>
         private string TimeTileInfo(bool self)
@@ -106,8 +97,6 @@ namespace SynergyUI
             if (hitName == "hud-tile-phase") { SetHoverInfo(PhaseTileInfo()); return; }
             if (hitName == "hud-tile-opp-time") { SetHoverInfo(TimeTileInfo(false)); return; }
             if (hitName == "hud-tile-chain-speed") { SetHoverInfo(ChainSpeedTileInfo()); return; }
-            if (hitName == "hud-tile-self-temp") { SetHoverInfo(TempGainTileInfo(true)); return; }
-            if (hitName == "hud-tile-opp-temp") { SetHoverInfo(TempGainTileInfo(false)); return; }
             if (hitName == "hud-tile-self-time") { SetHoverInfo(TimeTileInfo(true)); return; }
 
             // 施放占格类型图标（2026-10-15 发动格拆除）：发动中的卡=公开信息——四段卡信息直出
@@ -479,20 +468,19 @@ namespace SynergyUI
             return r;
         }
 
-        /// <summary>地牌格悬停信息（2026-10-14 晚固定元素格）：格身份=LandCellElementOrder 序（灰红蓝绿黑白）；
-        /// 计数报「可用/上限」（可用=未横置+钱包该色；黑白=钱包余额；
-        /// 上限=红蓝绿灰该色已放入地牌张数、黑白格只显余量——2026-10-16 全类型累计钳改案）。</summary>
+        /// <summary>地牌格悬停信息（2026-10-14 晚固定元素格·2026-10-28 元素缩编）：格身份=LandCellElementOrder
+        /// 序（灰红蓝绿——黑白格已随元素缩编退役）；计数报「可用/上限」（可用=未横置+钱包该色；
+        /// 上限=该色已放入地牌张数）。</summary>
         private string LandCellInfo(int x, int z, int ownerIdx)
         {
             var pv = ownerIdx == 0 ? View?.Self : View?.Opp;
             var lands = ownerIdx == 0 ? View?.SelfLands : View?.OppLands;
-            // 固定元素身份（玩家视角左→右 灰红蓝绿黑白）
+            // 固定元素身份（玩家视角左→右 灰红蓝绿）
             var cells = BoardLayout.LandCells(ownerIdx);
             ManaType element = ManaType.Gray;
             for (int i = 0; i < cells.Count && i < BoardLayout.LandCellElementOrder.Length; i++)
                 if (cells[i].x == x && cells[i].z == z)
                     element = BoardLayout.LandCellElementOrder[i];
-            bool isBw = element == ManaType.White || element == ManaType.Black;
             string head = $"{(ownerIdx == 0 ? "我方" : "对手")}地牌 · {BattleView.ManaZh(element)}元素格";
             var toks = new List<string>();
             if (lands != null)
@@ -508,10 +496,6 @@ namespace SynergyUI
             }
             // 地牌上限显示迁移（2026-10-14 晚：上限格退役）——地牌格悬停就地报上限（本批措辞定案：【】值域）
             string capLine = $"当前地牌上限【{pv?.LandCap ?? 0}】（每回合开始双方同步加一，封顶10；效果可再提升）";
-            if (isBw)
-                return $"{head}（黑白不产地牌，只进钱包）\n使用对自己有害的代价产生\n"
-                     + $"全类型累计生成钳：所有颜色临时元素每周期（自己回合开始清零）合计不超过当前地牌上限【{pv?.LandCap ?? 0}】——产量看中线「己方/对方临时」格\n"
-                     + $"钱包余额 {(pv != null ? pv.WalletByColor[(int)element] : 0)}（黑白格面数字=余量，不显上限）";
             return toks.Count == 0
                 ? $"{head}（暂无该色地牌）\n{capLine}"
                 : $"{head}\n{string.Join("\n", toks)}\n可用=未横置+钱包该色，上限=该色地牌张数；付费时自动横置\n{capLine}";

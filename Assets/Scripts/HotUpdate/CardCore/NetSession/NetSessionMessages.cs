@@ -7,9 +7,11 @@ namespace CardCore.Network
     // 会话层消息（M2，2026-09-23 定案）：房间状态机 + intent 拒绝/Error 载荷。
     // 会话语义见根目录 网络协议.md §12；线格式仍走 NetworkMessage 信封 + FrameCodec 帧。
     //
-    // 流程：
-    //   连接后第一条上行必须是 JoinRoom(112)（分座/观战登记）；
-    //   双玩家位就绪 → 服务器广播 RoomState(126, DeckSubmit)；
+    // 流程（2026-10-28 开局流程改版：房间就绪 → 房主开局 → 战场内选卡组 → 握手 → 开战）：
+    //   连接后第一条上行必须是 JoinRoom(112)（分座/观战登记；椅位0=房主）；
+    //   Waiting：房主 RoomSettings(136) 配模式（先后手方式+洗牌）·客人 RoomReady(137) 准备 toggle；
+    //   房主 RoomStart(138)（门槛=双方就座+客人已准备）→ 先手按模式确定 → 广播 RoomState(126, DeckSubmit)
+    //   + 30s 选卡组倒计时（DeckPickSecondsLeft 整秒推送；超时服务器替落随机预组）；
     //   双座位 DeckSubmit(111) 校验通过 → MatchManifest(125) 下发（OwnSeat=本局引擎座位）→ 开局。
     //
     // 座位口径（易混淆处钉死）：
@@ -51,7 +53,8 @@ namespace CardCore.Network
 
     /// <summary>下行：房间全量状态（任何成员变化/阶段迁移时广播）。
     /// Phase 取 NetRoomPhase 值；Players 恒为 2 元素（椅子位视角，未入座 Connected=false）；
-    /// FirstSeatThisMatch 仅 Playing/Finished 有意义（-1=未开局）。</summary>
+    /// FirstSeatThisMatch 自选卡组相位起有意义（-1=未开局）。
+    /// 2026-10-28 就绪层改版：+模式两项/客人准备态/选卡组倒计时剩秒。</summary>
     [MemoryPackable]
     public partial class MsgRoomState
     {
@@ -69,6 +72,42 @@ namespace CardCore.Network
 
         [MemoryPackOrder(TagTable.MRS_FirstSeatThisMatch)]
         public int FirstSeatThisMatch;
+
+        /// <summary>先后手方式（0=掷币 1=房主先手 2=客人先手；椅位0=房主）。</summary>
+        [MemoryPackOrder(TagTable.MRS_FirstMoveMode)]
+        public int FirstMoveMode;
+
+        /// <summary>洗牌模式（0=随机 1=固定牌序）。</summary>
+        [MemoryPackOrder(TagTable.MRS_ShuffleMode)]
+        public int ShuffleMode;
+
+        /// <summary>客人（椅位1）准备态——房主「开始」的门槛。</summary>
+        [MemoryPackOrder(TagTable.MRS_GuestReady)]
+        public bool GuestReady;
+
+        /// <summary>选卡组倒计时剩秒（DeckSubmit 相位；-1=非倒计时）。服务器权威，整秒推送。</summary>
+        [MemoryPackOrder(TagTable.MRS_DeckPickSecondsLeft)]
+        public int DeckPickSecondsLeft;
+    }
+
+    /// <summary>上行：房主配置房间模式（136）。仅椅位0（房主）、仅 Waiting 相位；
+    /// 先后手 0=掷币/1=房主先手/2=客人先手；洗牌 0=随机/1=固定牌序。</summary>
+    [MemoryPackable]
+    public partial class MsgRoomSettings
+    {
+        [MemoryPackOrder(TagTable.MRSet_FirstMoveMode)]
+        public int FirstMoveMode;
+
+        [MemoryPackOrder(TagTable.MRSet_ShuffleMode)]
+        public int ShuffleMode;
+    }
+
+    /// <summary>上行：准备 toggle（137，Waiting 相位；客人侧 UI。房主不准备——开局权在房主）。</summary>
+    [MemoryPackable]
+    public partial class MsgRoomReady
+    {
+        [MemoryPackOrder(TagTable.MRReady_Ready)]
+        public bool Ready;
     }
 
     /// <summary>房间椅子位信息（RoomState.Players 元素）。</summary>

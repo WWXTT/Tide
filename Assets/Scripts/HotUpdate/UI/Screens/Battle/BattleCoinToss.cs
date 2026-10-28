@@ -41,10 +41,12 @@ namespace SynergyUI
         private static void ResetStatics() { _pillarTemplate = null; _triedLoad = false; }
 
         /// <summary>掷币演出（~2.7s+驻留）：restPos=落定点（棋盘中心上方），返回 playerFirst
-        ///（true=我方先手——蓝面朝上，v3 对调后口径）。拆台/异常兜底=不演直接返回随机结果。</summary>
-        public static async UniTask<bool> PlayAsync(Vector3 restPos, Func<bool> skipRequested)
+        ///（true=我方先手——蓝面朝上，v3 对调后口径）。forcedResult=联机局注入服务器权威结果
+        ///（2026-10-28 先手前移定案；null=本地先定后演 50/50）。skipRequested 恒真=固定先后手模式
+        /// 快进演出（飞行段瞬断、落定+结果浮字照发）。拆台/异常兜底=不演直接返回结果。</summary>
+        public static async UniTask<bool> PlayAsync(Vector3 restPos, Func<bool> skipRequested, bool? forcedResult = null)
         {
-            bool playerFirst = UnityEngine.Random.value < 0.5f; // 结果先定后演（与旧 PreMatch 同源 50/50）
+            bool playerFirst = forcedResult ?? UnityEngine.Random.value < 0.5f; // 结果先定后演（forced=网络局服务器权威）
             var rest = restPos + Vector3.up * RestY;
             GameObject coin = null;
             try

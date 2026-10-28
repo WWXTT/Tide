@@ -217,23 +217,10 @@ namespace Tide.HotUpdateTools
             l.Add(new Spec(ManaType.Green, VfxRole.Shield, $"{etf}/Combat/Magic/Shield/MagicShieldGreen.prefab"));
             l.Add(new Spec(ManaType.Green, VfxRole.Area, $"{hov}/Glowing orb 24.prefab"));
 
-            // ---- 白·光（Epic Toon + Hovl 光球作增益浮游）----
-            l.Add(new Spec(ManaType.White, VfxRole.Cast, $"{etf}/Combat/Magic/Circle/MagicCircleYellow.prefab"));
-            l.Add(new Spec(ManaType.White, VfxRole.Projectile, $"{etf}/Combat/Missiles/Mystic/MysticMissileWhite.prefab"));
-            l.Add(new Spec(ManaType.White, VfxRole.Hit, $"{etf}/Combat/Explosions/MysticExplosion/MysticExplosionWhite.prefab"));
-            l.Add(new Spec(ManaType.White, VfxRole.Area, $"{etf}/Combat/Explosions/SparkleExplosion/SparkleExplosionYellow.prefab"));
-            l.Add(new Spec(ManaType.White, VfxRole.Heal, $"{etf}/Interactive/Healing/HealNova.prefab"));
-            l.Add(new Spec(ManaType.White, VfxRole.Shield, $"{etf}/Combat/Magic/Shield/MagicShieldYellow.prefab"));
-            l.Add(new Spec(ManaType.White, VfxRole.Buff, $"{hov}/Glowing orb 21.prefab"));
-
-            // ---- 黑·暗（Cast=MysticExplosionDark 起手爆；弹体首条 MysticMissileDark——ShadowMissile
-            // 0.3s 采样无粒子（nativeR=0），留作次选由不可见守卫自动跳过并告警）----
-            l.Add(new Spec(ManaType.Black, VfxRole.Cast, $"{etf}/Combat/Explosions/MysticExplosion/MysticExplosionDark.prefab"));
-            l.Add(new Spec(ManaType.Black, VfxRole.Projectile, $"{etf}/Combat/Missiles/Mystic/MysticMissileDark.prefab"));
-            l.Add(new Spec(ManaType.Black, VfxRole.Projectile, $"{etf}/Combat/Missiles/Shadow/ShadowMissile.prefab")); // 次选（预期被守卫跳过）
-            l.Add(new Spec(ManaType.Black, VfxRole.Hit, $"{etf}/Combat/Explosions/ShadowExplosion/ShadowExplosion.prefab"));
-            l.Add(new Spec(ManaType.Black, VfxRole.Area, $"{etf}/Combat/Explosions/MysticExplosion/MysticExplosionDark.prefab"));
-            l.Add(new Spec(ManaType.Black, VfxRole.Buff, $"{hov}/Glowing orb 23.prefab"));
+            // ---- 白·光 / 黑·暗 两段已随 2026-10-28 P2 席位收缩删除（白/黑枚举成员退役）----
+            // 原条目（白：MagicCircleYellow/MysticMissileWhite/MysticExplosionWhite/SparkleExplosionYellow/
+            // HealNova/MagicShieldYellow/orb21；黑：MysticExplosionDark/MysticMissileDark/ShadowMissile/
+            // ShadowExplosion/orb23）如需复用，等新色席位定档后再入表。重跑本菜单即可重建 catalog prefab。
 
             // ---- 灰·中性（Synty 主体 + Epic 中性魔法爆 + Hovl 光球弹体；石击/通用爆为次选）----
             l.Add(new Spec(ManaType.Gray, VfxRole.Cast, $"{syn}/FX_MagicBlast_02.prefab"));

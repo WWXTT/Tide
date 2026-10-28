@@ -18,9 +18,11 @@ namespace SynergyUI
         /// name/text、cost/text（代价行=PayloadCost 产黑白元素等）、
         /// effect/(text|cost 下 CostSquaresView=发动消耗)、passives/text、keys/text（芯片模板）、
         /// stats/text（芯片模板）、back（伏面，节点已退役=空转）。
-        /// 固定尺寸卡面（2026-10-14 定案，晚间用户改版 200×360/type80、各区定高以 prefab 为准）：
-        /// effect/passives 换行+自动缩号+省略号兜底，keys/stats 芯片最多 2 行（超出并「+N」芯片、
-        /// 块高随行数回写）；用户 btn 悬浮层（地牌/使用按钮）ignoreLayout 不参与竖排。
+        /// 卡面结构（2026-10-28 新卡 360×648 分数锚替换 ACard.prefab 定案）：type/name 分数锚 +
+        /// form-scroll 行区（cost/effect/passives/keys 行=text 标题+des 内容；des 定号 16+Overflow
+        /// 超高滚动，行 prefab 默认 inactive、Apply 按内容点亮）；attribute/stats/效果发动费暂无
+        /// 节点=空转。放大=localScale 整卡同比（2026-10-28 晚回退定案——文字随变换缩放）。
+        /// 用户 btn 悬浮层（地牌/使用按钮）不参与卡面结构。
         /// prefab 保持无脚本（CardOverlayController/HandFanView 加载后 AddComponent）。
     /// 非 Full 形态=保底显示 type/name/费用（战场实体卡面另案，不做设计投入）。
     /// </summary>
@@ -30,12 +32,12 @@ namespace SynergyUI
         private Image _typeBg, _mask, _art;
         private RectTransform _typeBlock;
         private CostSquaresView _typeCost;
-        private TMP_Text _nameText, _effectText, _passivesText, _attributeText, _costText;
+        private TMP_Text _nameText, _effectText, _passivesText, _attributeText, _costText, _keysText;
+        private TMP_Text _costTitle, _effectTitle, _passivesTitle, _keysTitle; // 新卡行标题（行=text 标题 + des 内容）
         private RectTransform _attrIconRow;             // B6 攻/血图标行（attribute 块内运行时建，仿 FillChips 行构建）
         private TMP_Text _attrPowerText, _attrLifeText; // 图标行数字（字体/色取 attribute/text 同源）
         private RectTransform _effectBlock, _effectCostRow, _passivesBlock, _keysBlock, _statsBlock, _attributeBlock, _costBlock;
         private CostSquaresView _effectCost;
-        private RectTransform _keysTemplate, _statsTemplate;
         private GameObject _back;
         private GameObject _actionLayer;
         private CanvasGroup _group;
@@ -60,8 +62,6 @@ namespace SynergyUI
         private static readonly Dictionary<string, Sprite> SpriteCache = new();
         private static GameObject _backPrefab;   // ACardBack prefab 静态缓存（EnsureBackPrefab 单次 Load）
         private static bool _backPrefabTried;
-        private readonly List<string> _lastKeyChips = new List<string>();   // 芯片差量快照（FillChips 短路用）
-        private readonly List<string> _lastStatChips = new List<string>();
         private static string SpritePath(string name) => $"Assets/Art/Icons/{name}.png";
         private string _artLoaded; // 已加载立绘名（防同图重复加载；空=保持预制体占位）
         // 立绘（type/mask/art）按名称两级回落：UI Sprites → YGOMonstersRig 模型预览图（CardArtLibrary，
@@ -86,22 +86,23 @@ namespace SynergyUI
             _mask = FindImage("type/mask");
             _art = FindImage("type/mask/art");
             _typeCost = FindComponent<CostSquaresView>("type");
-            _nameText = FindText("name/text");
-            _effectBlock = Rt("effect");
-            _effectText = FindText("effect/text");
+            // 新卡（2026-10-28 360×648 分数锚）：name 即 TMP；四行区嵌在 form-scroll/viewport/content
+            // 下（行=text 标题 + des 内容，des 定号 16+滚动）；attribute/stats/效果发动费暂无节点空转
+            _nameText = FindText("name/text") ?? FindText("name");
+            _costBlock = ZoneBlock("cost", out _costTitle, out _costText);
+            _effectBlock = ZoneBlock("effect", out _effectTitle, out _effectText);
             _effectCost = FindComponent<CostSquaresView>("effect");
             // cost 行=预留 effect/cost 容器，缺省回落 CostSquares 实例根本体（隐藏即藏费用行）
             _effectCostRow = Rt("effect/cost") ?? (_effectCost != null ? (RectTransform)_effectCost.transform : null);
-            _passivesBlock = Rt("passives");
-            _passivesText = FindText("passives/text");
-            _keysBlock = Rt("keys");
-            _keysTemplate = Rt("keys/text");
+            _passivesBlock = ZoneBlock("passives", out _passivesTitle, out _passivesText);
+            _keysBlock = ZoneBlock("keys", out _keysTitle, out _keysText);
             _statsBlock = Rt("stats");
-            _statsTemplate = Rt("stats/text");
             _attributeBlock = Rt("attribute");
             _attributeText = FindText("attribute/text");
-            _costBlock = Rt("cost");
-            _costText = FindText("cost/text");
+            SetText(_costTitle, "代价：");
+            SetText(_effectTitle, "效果：");
+            SetText(_passivesTitle, "被动：");
+            SetText(_keysTitle, "关键词：");
             _back = transform.Find("ACardBack")?.gameObject ?? transform.Find("back")?.gameObject;
             // 用户 btn 悬浮层（放置/发动按钮，2026-10-14）：默认全实例隐藏——只有手牌扇宿主
             //（HandFanCard）按悬停条件显式开启；预览卡/合成器卡面/对手扇一律不可见
@@ -110,18 +111,8 @@ namespace SynergyUI
             _group = gameObject.GetComponent<CanvasGroup>();
             if (_group == null) _group = gameObject.AddComponent<CanvasGroup>();
 
-            // keys/stats 的占位文本退役为芯片模板（Clone 源，本体隐藏）
-            if (_keysTemplate != null) _keysTemplate.gameObject.SetActive(false);
-            if (_statsTemplate != null) _statsTemplate.gameObject.SetActive(false);
-
-            // TMP 兜底（防实例属性漂移；prefab 已同值）：固定格内缩号+省略号
-            // 2026-10-22 B7：name/cost/attribute 三档上调（玩家反馈牌面底部信息太小/攻血不醒目）——
-            // effect/passives 长文本维持（放大=更多省略截断，得不偿失）
-            ConfigureText(_nameText, 9, 13);
-            ConfigureText(_costText, 9, 13);
-            ConfigureText(_attributeText, 9, 12);
-            ConfigureText(_effectText, 8, 11);
-            ConfigureText(_passivesText, 8, 11);
+            // 字号口径（2026-10-28 新卡）：三档全由 prefab 定——名称 25（18-25 自动缩号）/
+            // 关键词行 18/效果文本 16；放大=localScale 同比渲染，View 不改字号
             _bound = true;
         }
 
@@ -210,19 +201,12 @@ namespace SynergyUI
             SetActive(_passivesBlock, hasPassives);
             if (hasPassives) SetText(_passivesText, string.Join("\n", item.PassiveLines));
 
-            // keys / stats 芯片区（无内容整块隐藏）
-            if (full)
-            {
-                FillChips(_keysBlock, _keysTemplate, ChipLabels(item.KeywordChips), _lastKeyChips);
-                FillChips(_statsBlock, _statsTemplate, StatLabels(item.CounterChips), _lastStatChips);
-            }
-            else
-            {
-                SetActive(_keysBlock, false);
-                SetActive(_statsBlock, false);
-                _lastKeyChips.Clear(); // 形态收起=缓存失效（下次 Full 重建）
-                _lastStatChips.Clear();
-            }
+            // keys 区（2026-10-28 新卡行式文本）：关键词并一行入 des；stats 新卡无节点=空转
+            //（指示物层数暂无宿主行，待卡面补节点后恢复）
+            bool hasKeys = full && item.KeywordChips != null && item.KeywordChips.Count > 0;
+            SetActive(_keysBlock, hasKeys);
+            if (hasKeys) SetText(_keysText, string.Join("　", item.KeywordChips));
+            SetActive(_statsBlock, false);
 
             if (_group != null) _group.alpha = item.IsTapped ? 0.62f : 1f;
 
@@ -439,105 +423,22 @@ namespace SynergyUI
             return s;
         }
 
-        // ==================== keys / stats 芯片区 ====================
-
-        private static List<string> ChipLabels(List<string> chips) => chips;
-
-        private static List<string> StatLabels(List<(string Name, int Layers)> counters)
+        /// <summary>行区解析（2026-10-28 新卡口径）：块=form-scroll/viewport/content/<zone>（回落根级
+        /// 旧行）；title=行 text 节点、content=行 des 节点（旧行无 des 时内容写 text 本体）。</summary>
+        private RectTransform ZoneBlock(string zone, out TMP_Text title, out TMP_Text content)
         {
-            if (counters == null || counters.Count == 0) return null;
-            var labels = new List<string>(counters.Count);
-            foreach (var c in counters) labels.Add($"{c.Name}×{c.Layers}");
-            return labels;
+            var block = Rt("form-scroll/viewport/content/" + zone) ?? Rt(zone);
+            title = TextOf(block, "text");
+            content = TextOf(block, "des") ?? TextOf(block, "text");
+            return block;
         }
 
-        /// <summary>芯片流式排布：按 preferredWidth 累计分行（行=HLG，块内 VLG 纵排）——uGUI 无现成 wrap 布局。
-        /// 固定尺寸卡面口径（2026-10-14）：最多 2 行，丢弃的芯片并成末行「+N」；行宽预算取 sizeDelta（定宽，
-        /// 不依赖布局时机）；块高=6+行数×15 回写（1 行=21、2 行=36）。labels 空=整块隐藏。
-        /// template=芯片克隆源（字体随预制体），本体隐藏。
-        /// lastLabels=上次填充快照（2026-10-18 性能）：事件级刷新常见值未变——同标签直退，
-        /// 免整组行销毁重建（卡池复用/扇区全量重绘的主要构造成本）。</summary>
-        private void FillChips(RectTransform block, RectTransform template, List<string> labels, List<string> lastLabels)
+        private static TMP_Text TextOf(RectTransform block, string child)
         {
-            if (block == null) return;
-            if (labels == null || labels.Count == 0)
-            {
-                block.gameObject.SetActive(false);
-                lastLabels.Clear();
-                return;
-            }
-            block.gameObject.SetActive(true);
-
-            // 差量短路：标签序列未变（含池复用同卡重绘）→ 行/芯片/块高全部保持
-            if (labels.Count == lastLabels.Count)
-            {
-                bool same = true;
-                for (int i = 0; i < labels.Count; i++)
-                    if (!string.Equals(labels[i], lastLabels[i], System.StringComparison.Ordinal)) { same = false; break; }
-                if (same) return;
-            }
-
-            // 清旧芯片行（模板之外全毁；编辑态探针走 DestroyImmediate）
-            for (int i = block.childCount - 1; i >= 0; i--)
-                if (!ReferenceEquals(block.GetChild(i), template))
-                    DestroyObj(block.GetChild(i).gameObject);
-
-            var vlg = block.GetComponent<VerticalLayoutGroup>();
-            float budget = block.sizeDelta.x - (vlg != null ? vlg.padding.horizontal : 0) - 1f;
-            HorizontalLayoutGroup row = null;
-            float used = 0f;
-            int rows = 0, dropped = 0;
-            const int maxRows = 2;
-            foreach (var label in labels)
-            {
-                var chip = Instantiate(template, block);
-                chip.gameObject.SetActive(true);
-                var t = chip.GetComponent<TMP_Text>();
-                if (t != null)
-                {
-                    t.text = label;
-                    t.fontSize = 11;
-                }
-                float w = t != null ? t.preferredWidth : 30f;
-                if (row == null || used + w > budget)
-                {
-                    if (rows == maxRows) { dropped++; DestroyObj(chip.gameObject); continue; } // 超行数上限：丢弃计数
-                    var rowGo = new GameObject("row", typeof(RectTransform));
-                    rowGo.transform.SetParent(block, false);
-                    row = rowGo.AddComponent<HorizontalLayoutGroup>();
-                    row.spacing = 2f;
-                    row.childAlignment = TextAnchor.UpperLeft;
-                    row.childControlWidth = true;
-                    row.childControlHeight = true;
-                    row.childForceExpandWidth = false;
-                    row.childForceExpandHeight = false;
-                    used = 0f;
-                    rows++;
-                }
-                chip.SetParent(row.transform, false);
-                used += w + row.spacing;
-            }
-            if (dropped > 0 && row != null)
-            {
-                var overflowChip = Instantiate(template, row.transform);
-                overflowChip.gameObject.SetActive(true);
-                var ot = overflowChip.GetComponent<TMP_Text>();
-                if (ot != null)
-                {
-                    ot.text = "+" + dropped;
-                    ot.fontSize = 11;
-                }
-            }
-
-            // 块高随行数（固定卡内的局部弹性；根 VLG 重排下方区块）
-            block.sizeDelta = new Vector2(block.sizeDelta.x, 6f + rows * 15f);
-
-            // 快照收口（差量短路比对源）
-            lastLabels.Clear();
-            lastLabels.AddRange(labels);
+            if (block == null) return null;
+            var t = block.Find(child);
+            return t != null ? t.GetComponent<TMP_Text>() : null;
         }
-
-        // ==================== 小工具 ====================
 
         private RectTransform Rt(string path) => _faceRoot.Find(path) as RectTransform;
 
@@ -562,17 +463,6 @@ namespace SynergyUI
         private static void SetText(TMP_Text t, string value)
         {
             if (t != null) t.text = value ?? "";
-        }
-
-        /// <summary>固定格文本兜底：自动缩号 + 省略号（值与 prefab 一致，防实例漂移）。</summary>
-        private static void ConfigureText(TMP_Text t, int min, int max)
-        {
-            if (t == null) return;
-            t.enableAutoSizing = true;
-            t.fontSizeMin = min;
-            t.fontSizeMax = max;
-            t.overflowMode = TextOverflowModes.Ellipsis;
-            t.enableWordWrapping = true;
         }
 
         /// <summary>编辑态（探针/预制体预览）Destroy 分流，防 edit-mode 报错。</summary>

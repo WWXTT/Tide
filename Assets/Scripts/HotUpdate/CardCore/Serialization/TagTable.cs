@@ -83,12 +83,8 @@ namespace CardCore.Serialization
         public const int RCS_IsNegated = 2118117958;
         public const int RCS_IsNullified = 364844435;
         public const int RCS_Zone = 204131997;
-        // RCS_TargetFlags 已删（2026-10-13 EffectTargeting 死基建清理——DTO 字段随删，tag 位留洞保序）
         public const int RCS_Keywords = 804741910;
         public const int RCS_Counters = 292357109;
-        // 2026-10-11 资源重做：WasDepletedAsLand/RemainingLandTokens 两字段退役，
-        // 换地牌锁定产色（-1=非地牌/未锁色；地牌权威态在 PooledCard 包装，快照侧覆盖）
-        public const int RCS_LockedColor = 233742023;
 
         // ---- CounterEntryDTO ----
         public const int CounterEntryDTO_Key = 524926912;
@@ -241,8 +237,6 @@ namespace CardCore.Serialization
         public const int MsgIntentPlayCard_FromZone = 933788219;
         public const int MsgIntentPlayCard_ModeIndex = 1969366828;
 
-        // ---- MsgIntentTapForElement 常量已删（DTO 2026-10-11 退役；tag 2026-10-22 同批移除）----
-
         // ---- MsgIntentAddToElementPool ----
         public const int MsgIntentAddToElementPool_CardRuntimeId = 713270002;
 
@@ -260,7 +254,7 @@ namespace CardCore.Serialization
         public const int MsgIntentActivateEffect_Targets = 795110869;
         public const int MsgIntentActivateEffect_PaidBoost = 1309359023;
 
-        // ---- MsgIntentActivateHeroSkill（2026-10-21 协议补课）----
+        // ---- MsgIntentActivateHeroSkill ----
         public const int MsgIntentActivateHeroSkill_EffectIndex = 1738103103;
 
         // ---- MsgSelectRequest ----
@@ -317,11 +311,22 @@ namespace CardCore.Serialization
         public const int MRS_Players = 1958229836;
         public const int MRS_SpectatorCount = 1394321412;
         public const int MRS_FirstSeatThisMatch = 1986740545;
+        public const int MRS_FirstMoveMode = 945073816;
+        public const int MRS_ShuffleMode = 796602489;
+        public const int MRS_GuestReady = 1593869558;
+        public const int MRS_DeckPickSecondsLeft = 1036775331;
 
         // ---- MsgRoomSeatInfo ----
         public const int MRSI_Seat = 914327639;
         public const int MRSI_Nickname = 807757571;
         public const int MRSI_Connected = 531597507;
+
+        // ---- MsgRoomSettings ----
+        public const int MRSet_FirstMoveMode = 142664050;
+        public const int MRSet_ShuffleMode = 535227049;
+
+        // ---- MsgRoomReady ----
+        public const int MRReady_Ready = 1268044497;
 
         // ---- MsgLobbyHello ----
         public const int MLH_Nickname = 1532381561;
@@ -353,7 +358,8 @@ namespace CardCore.Serialization
         public const int MsgIntentAddToElementPool_ModeIndex = 713270003; // MsgIntentAddToElementPool.ModeIndex（抉择放地）
         public const int MGSS_RevealedZoneCards = 612847093; // MsgGameStateSync.RevealedZoneCards（展示卡·信息轴 2026-10-02）
         public const int MDS_SkillCardId = 1739402857; // MsgDeckSubmit.SkillCardId（英雄技能标记卡 2026-10-07 卡牌化；不参与 Digest）
+        public const int RCS_LockedColor = 233742023; // RuntimeCardState.LockedColor（2026-10-11 资源重做：地牌锁定产色）
 
-        // 共 241 个标签（含 4 个手工定值保留位）
+        // 共 245 个标签（含 5 个手工定值保留位）
     }
 }

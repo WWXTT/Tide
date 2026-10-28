@@ -52,6 +52,10 @@ namespace SynergyUI
     /// 中 800=卡面 360×648 只读预览+表单两列网格（名称/类别/费用｜攻/血/耐久 带图标输入）+
     /// 追加四钮 88×32/右 568=行模板（44 高·26 圆片费标·f14 名称·右侧 meta 标签·操作钮）；
     /// 行描述全部走 desc-strip 悬停（行内不再塞全文）；chips 选中=ChipActive 底+描边。
+    ///
+    /// 2026-10-27 三栏占比重定（prefab 手改 400/800/650 配套）：左 400=图库两列 184 格（内容区 376=2×184+8 恰满）/
+    /// 右 650=字阶对齐 DeckUI v2 三档（25=按钮·chips/18=行名·输入框/16=meta·提示·费用数字），
+    /// 行规格同步（行高 56·列表间距 4·表头行 44 容纳 25 号切换钮·chips 72×40）。
     /// </summary>
     public sealed class CardComposerScreen : UIScreen
     {
@@ -139,6 +143,10 @@ namespace SynergyUI
         private UiKit.RecycledList _libRows;    // list-library=效果库
         private readonly List<PoolRowData> _poolItems = new List<PoolRowData>();
         private readonly List<LibRowData> _libItems = new List<LibRowData>();
+        // 数据签名（2026-10-27 点选回顶修复）：条目序列未变（点选载入只改选中高亮）→只重绑可见行，
+        // 不走 SetItems 整表重置（换数据才回顶重铺）。引擎 Count 并查防"重挂新引擎仍跳过铺行"。
+        private string _poolSig;
+        private string _libSig;
 
         /// <summary>卡池条目（卡行/提示/清筛选钮——kind 决定行结构分池）。</summary>
         private sealed class PoolRowData
@@ -1015,8 +1023,13 @@ namespace SynergyUI
 
         // ChipColors/Rgb（关键词 chip 配色）随 tpl-kwchip 退役删除——关键词槽行走统一模板视觉。
 
-        private const float PoolRowH = 44f;   // v2 卡行高=模板行（44·圆片费标+名称+右侧标签）
-        private const float PoolBtnH = 36f;   // 空态按钮行高
+        // 2026-10-27 字阶对齐 DeckUI v2 三档——本屏局部常量（其他屏共用 UiStyle，不动全局）：
+        // 25=按钮/chips、18=行名·输入框（行名字号烤在 prefab 模板）、16=meta·提示·费用数字。
+        private const int RowMetaSize = 16;
+        private const int BtnTextSize = 25;
+
+        private const float PoolRowH = 56f;   // 卡行高=模板行（56·圆片费标+名称+右侧标签，2026-10-27 对齐 DeckUI 行规格）
+        private const float PoolBtnH = 40f;   // 空态按钮行高
         private HashSet<string> _poolLibIds;  // 本轮刷新的库效果 id 集（断链标记，bind 时消费）
         private Color _poolRowBgDefault = Color.white; // 卡行模板底色（选中态还原基准，工厂首次捕获）
 
@@ -1048,6 +1061,13 @@ namespace SynergyUI
                 foreach (var c in sorted.Where(c => c.Supertype != Cardtype.Creature))
                     _poolItems.Add(new PoolRowData { Kind = 1, Card = c, H = PoolRowH });
             }
+            string poolSig = string.Join("|", _poolItems.Select(x => x.Card != null ? x.Card.ID : x.Kind + ":" + x.Text));
+            if (_poolItems.Count > 0 && poolSig == _poolSig && _poolRows.Count == _poolItems.Count)
+            {
+                _poolRows.RebindVisible(); // 数据未变（点选载入仅选中高亮变）：不回顶重铺
+                return;
+            }
+            _poolSig = poolSig;
             _poolRows.SetItems(_poolItems.Count, i => _poolItems[i].H);
         }
 
@@ -1062,20 +1082,20 @@ namespace SynergyUI
             }
         }
 
-        /// <summary>提示行结构（工厂）：12 号·暗色·自动换行。</summary>
+        /// <summary>提示行结构（工厂）：16 号·暗色·自动换行。</summary>
         private RectTransform MakePoolHintRow()
         {
             var rt = UiKit.Node("hint", _poolList.Content);
-            var lbl = UiKit.Label("lbl", rt, "", UiStyle.SmallSize, UiStyle.TextHint, wrap: true);
+            var lbl = UiKit.Label("lbl", rt, "", RowMetaSize, UiStyle.TextHint, wrap: true);
             UiKit.StretchInset(lbl.rectTransform, 4f, 4f);
             return rt;
         }
 
-        /// <summary>清筛选钮行结构（工厂）：左置迷你按钮（清颜色+搜索词，空态用）。</summary>
+        /// <summary>清筛选钮行结构（工厂）：左置按钮（清颜色+搜索词，空态用；25 号字·DeckUI 按钮档）。</summary>
         private RectTransform MakePoolClearRow()
         {
             var rt = UiKit.Node("clr", _poolList.Content);
-            var btn = UiKit.MiniButton("btn", rt, "清除全部", null);
+            var btn = UiKit.Button("btn", rt, "清除全部", null, null, null, 110f, PoolBtnH, BtnTextSize);
             var brt = (RectTransform)btn.transform;
             brt.anchorMin = brt.anchorMax = brt.pivot = new Vector2(0f, 0.5f);
             brt.anchoredPosition = new Vector2(4f, 0f);
@@ -1121,7 +1141,7 @@ namespace SynergyUI
                 }
             }
 
-            // ---- 卡行（v2 行模板：f14 名称+右侧 f12 标签+26 圆片费标；详情走悬浮） ----
+            // ---- 卡行（2026-10-27 行模板：f18 名称+右侧 f16 标签+26 圆片费标；详情走悬浮） ----
             var card = item.Card;
             bool selected = !string.IsNullOrEmpty(_editingOriginalId) && card.ID == _editingOriginalId;
             bool broken = (card.Effects ?? new List<CardEffectData>())
@@ -1254,7 +1274,7 @@ namespace SynergyUI
         }
 
         private static readonly UIColor[] FilterColorOrder =
-            { UIColor.Gray, UIColor.Red, UIColor.Blue, UIColor.Green, UIColor.White, UIColor.Black };
+            { UIColor.Gray, UIColor.Red, UIColor.Blue, UIColor.Green }; // 白/黑已随 2026-10-28 P2 席位收缩移除
 
         /// <summary>颜色多选子集语义：费用所用色集 ⊆ 选中集；0 费/无费用数据仅在未选任何色时显示。</summary>
         private static bool CostColorsWithin(CardData card, HashSet<UIColor> selected) =>
@@ -1275,9 +1295,7 @@ namespace SynergyUI
                 case UIColor.Red: return ManaType.Red;
                 case UIColor.Blue: return ManaType.Blue;
                 case UIColor.Green: return ManaType.Green;
-                case UIColor.White: return ManaType.White;
-                case UIColor.Black: return ManaType.Black;
-                default: return ManaType.Gray;
+                default: return ManaType.Gray; // 白/黑 chip（UI 遗留）落灰
             }
         }
 
@@ -1292,7 +1310,7 @@ namespace SynergyUI
                 _poolItems.Add(new PoolRowData
                 {
                     Kind = 2, Text = t,
-                    H = UiKit.MeasureTextHeight(t, _poolList.Content.rect.width - 16f, UiStyle.SmallSize) + 8f,
+                    H = UiKit.MeasureTextHeight(t, _poolList.Content.rect.width - 16f, RowMetaSize) + 8f,
                 });
                 return;
             }
@@ -1307,7 +1325,7 @@ namespace SynergyUI
             _poolItems.Add(new PoolRowData
             {
                 Kind = 2, Text = text,
-                H = UiKit.MeasureTextHeight(text, _poolList.Content.rect.width - 16f, UiStyle.SmallSize) + 8f,
+                H = UiKit.MeasureTextHeight(text, _poolList.Content.rect.width - 16f, RowMetaSize) + 8f,
             });
             if (constraints.Count > 0)
                 _poolItems.Add(new PoolRowData { Kind = 3, Text = "清除全部", H = PoolBtnH });
@@ -1902,23 +1920,12 @@ namespace SynergyUI
             return total;
         }
 
-        /// <summary>代价槽 des 后缀（2026-10-16 用户定案格式）：「，获得N个黑/白元素」——
-        /// 逐原子全价+极性色聚合（混合图黑白并列「，获得1黑1白元素」）；解析失败兜底回旧文案。
-        /// 2026-10-21 改 public：卡面代价栏（CardOverlayItem.PayloadTextOf）同源复用。</summary>
+        /// <summary>代价槽 des 后缀（2026-10-16 用户定案格式曾为「，获得N个黑/白元素」）。
+        /// 2026-10-28 P1：黑白获得经济退役——代价只执行不产出，本口恒空串
+        ///（调用面 CardOverlayItem.PayloadTextOf/本屏代价文案零改动；显示改版归 P4）。</summary>
         public static string PayloadGrantText(List<CardCore.AtomicEffectEntry> entries)
         {
-            int black = 0, white = 0;
-            foreach (var e in entries ?? new List<CardCore.AtomicEffectEntry>())
-            {
-                var inst = CardEffectConverter.ConvertPayloadForDisplay(e);
-                int amount = inst != null ? CostDerivationService.PayloadUnitGrant(inst) : 0;
-                if (inst == null || amount <= 0) continue;
-                if (CostCompensationService.PayloadGrantColor(inst) == ManaType.White) white += amount;
-                else black += amount;
-            }
-            if (black == 0 && white == 0) return "，生效后补偿黑/白";
-            if (black > 0 && white > 0) return $"，获得{black}黑{white}白元素";
-            return black > 0 ? $"，获得{black}个黑元素" : $"，获得{white}个白元素";
+            return "";
         }
 
         // ======================================== 关键词（keys 槽；生物专属） ========================================
@@ -1960,7 +1967,7 @@ namespace SynergyUI
 
         private const float LibHeaderH = 28f;    // 表头行高
         private const float LibNewBtnH = 40f;    // 「新建效果」钮行高
-        private const float LibRowH = 44f;       // v2 效果/候选行高=模板行（44）
+        private const float LibRowH = 56f;       // 效果/候选行高=模板行（56，2026-10-27 对齐 DeckUI 行规格）
 
         /// <summary>效果库刷新（2026-10-16 二次改版）：选中槽 → 按槽类型过滤候选——cost=代价单原子图（一般主动/赋予·2026-10-21 简化定案）/
         /// effect=主动图 / passives=光环+自动图（结界分组）/ keys=关键词目录（唯一原子表直加口）；未选槽=全量效果图。
@@ -1982,6 +1989,13 @@ namespace SynergyUI
                     case ZoneId.Keys: BuildLibraryKeywordsView(); break;
                 }
             }
+            string libSig = string.Join("|", _libItems.Select(x => x.Kind + ":" + x.Text + ":" + (x.Tag ?? "")));
+            if (_libItems.Count > 0 && libSig == _libSig && _libRows.Count == _libItems.Count)
+            {
+                _libRows.RebindVisible(); // 数据未变：不回顶重铺（与卡池同口径）
+                return;
+            }
+            _libSig = libSig;
             _libRows.SetItems(_libItems.Count, i => _libItems[i].H);
         }
 
@@ -1995,7 +2009,7 @@ namespace SynergyUI
             {
                 Kind = 1,
                 Text = text,
-                H = UiKit.MeasureTextHeight(text, _libraryList.Content.rect.width - 16f, UiStyle.SmallSize) + 8f,
+                H = UiKit.MeasureTextHeight(text, _libraryList.Content.rect.width - 16f, RowMetaSize) + 8f,
             });
 
         private void LibNewBtn() =>
@@ -2147,26 +2161,26 @@ namespace SynergyUI
         private RectTransform MakeLibHintRow()
         {
             var rt = UiKit.Node("hint", _libraryList.Content);
-            var lbl = UiKit.Label("lbl", rt, "", UiStyle.SmallSize, UiStyle.TextHint, wrap: true);
+            var lbl = UiKit.Label("lbl", rt, "", RowMetaSize, UiStyle.TextHint, wrap: true);
             UiKit.StretchInset(lbl.rectTransform, 4f, 4f);
             return rt;
         }
 
-        /// <summary>「新建效果」钮行结构：满宽主按钮（监听 bind 时挂）。</summary>
+        /// <summary>「新建效果」钮行结构：满宽主按钮（监听 bind 时挂；25 号字·DeckUI 按钮档）。</summary>
         private RectTransform MakeLibNewBtnRow()
         {
             var rt = UiKit.Node("newbtn", _libraryList.Content);
-            var btn = UiKit.Button("btn", rt, "＋ 新建效果（挂到当前卡）", null);
+            var btn = UiKit.Button("btn", rt, "＋ 新建效果（挂到当前卡）", null, null, null, null, LibNewBtnH, BtnTextSize);
             UiKit.Stretch((RectTransform)btn.transform);
             return rt;
         }
 
-        /// <summary>效果行结构：list-library 模板克隆 + 行内「编辑」小按钮（锚右居中，原口径）。</summary>
+        /// <summary>效果行结构：list-library 模板克隆 + 行内「编辑」按钮（锚右居中；64×40·25 号字，DeckUI 行内钮规格）。</summary>
         private RectTransform MakeLibEffectRowStruct()
         {
             var row = CloneRow(_libraryList);
             if (row == null) return UiKit.Node("row-miss", _libraryList.Content);
-            var edit = UiKit.MiniButton("edit", row, "编辑", null);
+            var edit = UiKit.Button("edit", row, "编辑", null, null, null, 64f, 40f, BtnTextSize);
             var ert = (RectTransform)edit.transform;
             ert.anchorMin = ert.anchorMax = ert.pivot = new Vector2(1f, 0.5f);
             ert.anchoredPosition = new Vector2(-8f, 0f);
@@ -2495,7 +2509,7 @@ namespace SynergyUI
             if (_galleryCount != null)
                 _galleryCount.text = _kind != CardKind.Creature ? "无"
                     : (_artNames.Count == 0 ? "0" : (_artNames.Count - 1).ToString()) + " 张";
-            _galleryList.SetGrid(_artNames.Count); // 格几何（160×160·间8·3 列）由 Attach 从 GLG 吸收
+            _galleryList.SetGrid(_artNames.Count); // 格几何（184×184·间8·2 列）由 Attach 从 GLG 吸收（2026-10-27 左栏 400 两列化）
         }
 
         /// <summary>生物立绘可选名（=模型名，与战场 MonsterModelResolver 同源：StreamingAssets bundle
@@ -2507,7 +2521,7 @@ namespace SynergyUI
             return Tide.HotUpdate.MonsterRigAssets.Names();
         }
 
-        /// <summary>贴片结构（v2 工厂，只建一次）：160×160 满格=Rounded6 底板+统一方形缩略（preserveAspect）
+        /// <summary>贴片结构（v2 工厂，只建一次）：184×184 满格=Rounded6 底板+统一方形缩略（preserveAspect）
         /// +底部半透明名称条（f12 覆盖在缩略下部）+按钮+金框选中描边。内部无布局组（GLG 控格）。</summary>
         private RectTransform MakeArtTile()
         {
@@ -2520,7 +2534,7 @@ namespace SynergyUI
             var thumb = UiKit.Node("thumb", tile);
             var img = thumb.gameObject.AddComponent<Image>();
             img.raycastTarget = false;
-            UiKit.Stretch(thumb); // 160×160 满格（GLG 定格）
+            UiKit.Stretch(thumb); // 184×184 满格（GLG 定格）
 
             var labelBg = UiKit.Node("label-bg", thumb).gameObject.AddComponent<Image>();
             labelBg.color = new Color(0f, 0f, 0f, 0.55f);

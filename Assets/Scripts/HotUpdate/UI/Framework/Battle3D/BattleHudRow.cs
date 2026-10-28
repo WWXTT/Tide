@@ -7,13 +7,13 @@ using UnityEngine;
 namespace SynergyUI
 {
     /// <summary>
-    /// 中线状态行（2026-10-13 按钮上盘 → 10-14 中线行落格 → 当晚 8×7 状态行 → 本批镜像纠正+阶段格 →
-    /// 10-16 临时元素产量双格）：中线行（z3）7 格 x0..x6——画面左→右（画面左=x0，镜像修正后口径）：
-    /// 阶段显示(x0) / 己方剩余操作时间(x1) / 己方临时产出(x2) / 连锁速度(x3) / 对方临时产出(x4) /
-    /// 对手剩余操作时间(x5) / 回合结束(x6，贴己方右手边——原 x0 放反，2026-10-14 用户纠正)；
-    /// x7 槽=odd-r 居中缺口（BoardLayout.NoTileAt，无实体格）。
+    /// 中线状态行（2026-10-13 按钮上盘 → 10-14 中线行落格 → 10-16 临时元素产量双格 →
+    /// 2026-10-28 元素缩编：临时产量双格随临时上限概念退役，行缩 6 格）：中线行（z3）6 格 x0..x5——
+    /// 画面左→右（画面左=x0，镜像修正后口径）：
+    /// 阶段显示(x0) / 己方剩余操作时间(x1) / 空(x2·备用) / 连锁速度(x3) / 对手剩余操作时间(x4) /
+    /// 回合结束(x5，贴己方右手边)；x6/x7 槽=缺口（BoardLayout.NoTileAt，无实体格）。
     /// 认领 BattleHexBoard 拼好的 tile-{col}-3 改名 hud-tile-{key} + 原位换 tint 材质实例（不增删格，
-    /// 55 格口径不变，浮起拼装动画随行同走）；中线行文字**全部平贴格面**（同地牌计数条口径不朝相机：
+    /// 50 格口径不变，浮起拼装动画随行同走）；中线行文字**全部平贴格面**（同地牌计数条口径不朝相机：
     /// LookRotation(down, forward) 字向正——相机 (7,8,-4)/(50,0,0) 实测）；阶段格=当前阶段
     /// 【己方主要阶段】式动态文字（SetPhase 喂文）、结束回合格=【回合结束】；状态三格第二行数值
     /// 由 BattleScreen 经 SetStatusValue 喂文（操作计时 2026-10-14 已接：真人对战 MatchClock 掉秒 /
@@ -27,15 +27,13 @@ namespace SynergyUI
     /// </summary>
     public static class BattleHudRow
     {
-        // 中线状态行落位（2026-10-14 晚定案·本批镜像纠正：画面左=x0 → 画面右=x6）
+        // 中线状态行落位（2026-10-28 元素缩编：临时产量双格退役，行缩 6 格 x0..x5）
         public const int PhaseCol = 0;      // 阶段显示格：tile-0-3（画面左端——平贴当前阶段文字，SetPhase 喂文）
         public const int SelfTimeCol = 1;   // 己方剩余操作时间格：tile-1-3
-        public const int SelfTempCol = 2;   // 己方临时元素产量格：tile-2-3（2026-10-16 全类型累计钳记录——
-                                            // 本周期累计产出/地牌上限，自己回合开始清零；贴己方计时侧）
-        public const int ChainSpeedCol = 3; // 连锁速度格：tile-3-3
-        public const int OppTempCol = 4;    // 对方临时元素产量格：tile-4-3（同上——贴对方计时侧）
-        public const int OppTimeCol = 5;    // 对手剩余操作时间格：tile-5-3
-        public const int EndTurnCol = 6;    // 结束回合格：tile-6-3（画面右端，贴己方右手边——原 x0 放反已纠）
+                                            // x2=空（备用格，不认领——原己方临时产量格随临时上限概念退役）
+        public const int ChainSpeedCol = 3; // 连锁速度格：tile-3-3（掷币落点，世界位与旧版重合）
+        public const int OppTimeCol = 4;    // 对手剩余操作时间格：tile-4-3（原 x5 左移一格）
+        public const int EndTurnCol = 5;    // 结束回合格：tile-5-3（画面右端，贴己方右手边——原 x6 左移一格）
 
         // v6（2026-10-23 §11.2）+ 21:35 DSH 修订：**长驻格面不再满格实心亮黄**——回合结束/时间格
         // 常驻=中立暖灰 #3A3630 + 暗金角标（#6B5930 小方标，持有方亮标）。平贴文字=米白 #E6E0D4 a=0.92
@@ -122,16 +120,14 @@ namespace SynergyUI
                 return;
             }
 
-            // 结束回合落 x6（镜像修正后画面右端=己方右手边，原 x0 放反）+ 平贴【回合结束】+ 暗金角标
+            // 结束回合落 x5（2026-10-28 行缩后画面右端=己方右手边）+ 平贴【回合结束】+ 暗金角标
             EndTurnTile = ClaimTile(boardRoot.transform, "hud-tile-end-turn", EndTurnCol, EndTurnTint);
             AttachFlatLabel(EndTurnTile, EndTurnCol, "【回合结束】", 3.5f);
             AttachMark(EndTurnTile, EndTurnCol, active: true);
             // 阶段显示落 x0（原结束回合格位改役）：平贴【己方准备阶段】式当前阶段（SetPhase 喂文）
             _phaseLabel = AttachFlatLabel(ClaimTile(boardRoot.transform, "hud-tile-phase", PhaseCol, StatusTint), PhaseCol, _phaseText, 2.6f);
             AttachLabel(ClaimTile(boardRoot.transform, "hud-tile-self-time", SelfTimeCol, StatusTint), SelfTimeCol, "己方时间");
-            AttachLabel(ClaimTile(boardRoot.transform, "hud-tile-self-temp", SelfTempCol, StatusTint), SelfTempCol, "己方临时");
             AttachLabel(ClaimTile(boardRoot.transform, "hud-tile-chain-speed", ChainSpeedCol, StatusTint), ChainSpeedCol, "连锁速度");
-            AttachLabel(ClaimTile(boardRoot.transform, "hud-tile-opp-temp", OppTempCol, StatusTint), OppTempCol, "对方临时");
             AttachLabel(ClaimTile(boardRoot.transform, "hud-tile-opp-time", OppTimeCol, StatusTint), OppTimeCol, "对手时间");
             _selfTimeTint = TintMatOf("hud-tile-self-time"); // 优先权联动高亮用（材质实例随格留存）
             _oppTimeTint = TintMatOf("hud-tile-opp-time");
@@ -140,9 +136,9 @@ namespace SynergyUI
             AttachMark(TileOf("hud-tile-opp-time"), OppTimeCol, active: false);
             Debug.Log("[BattleHudRow][PASS] 中线状态行：hud-tile-end-turn @tile-" + EndTurnCol + "-" + BoardLayout.MiddleZ
                       + "（贴己方右手·平贴【回合结束】）+ 阶段显示@" + PhaseCol
-                      + " + 状态格 己方时间@" + SelfTimeCol + "/己方临时@" + SelfTempCol
-                      + "/连锁速度@" + ChainSpeedCol + "/对方临时@" + OppTempCol + "/对手时间@" + OppTimeCol
-                      + "（操作计时+连锁速度+临时产量已接：m:ss/∞·记速器实值·全类型累计钳 N/上限）");
+                      + " + 状态格 己方时间@" + SelfTimeCol
+                      + "/连锁速度@" + ChainSpeedCol + "/对手时间@" + OppTimeCol
+                      + "（操作计时+连锁速度已接：m:ss/∞·记速器实值；x2=空备用，临时产量双格已随临时上限退役）");
         }
 
         /// <summary>认领格名 → tint 材质实例（时间格优先权联动用；未认领=null）。</summary>

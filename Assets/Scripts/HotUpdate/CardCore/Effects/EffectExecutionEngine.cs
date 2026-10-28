@@ -308,16 +308,16 @@ namespace CardCore
 
                 if (specialCosts.Count > 0 && !effect.ElementCostPrepaid)
                 {
-                    if (!await CostCompensationService.PayWithCompensationAsync(specialCosts, costContext))
+                    if (!await CostCompensationService.PayPayloadsAsync(specialCosts, costContext))
                     {
                         TideLog.Warn($"[EffectExecutor] 效果 {effect.Id} 特殊代价付不出——空转（不回滚不断链）");
                         instance.IsResolved = true;
                         return;
                     }
-                    // [代价] 取证（2026-10-21 教学二破釜沉舟「代价未执行/无黑元素」排查）：主动效果的
-                    // 效果级代价唯一真付费点（cast 付费步按设计跳过主动效果）——此行发出即证明
+                    // [代价] 取证（2026-10-21 教学二破釜沉舟排查；2026-10-28 P1：只执行不补偿）：主动效果的
+                    // 效果级代价唯一真执行点（cast 付费步按设计跳过主动效果）——此行发出即证明
                     // 装载（EffectsLibrary）→转换（CardEffectConverter）→执行链全通；不发=数据层未带上。
-                    TideLog.Info($"[代价] 效果 {effect.Id} 特殊代价已付并补偿（{specialCosts.Count} 条）");
+                    TideLog.Info($"[代价] 效果 {effect.Id} 特殊代价已执行（{specialCosts.Count} 条·不产出元素）");
                 }
             }
 
@@ -486,7 +486,6 @@ namespace CardCore
                 if (HasOutcome(atomicEffect))
                 {
                     // 产出条件（自由分支·Outcome）：per-target 执行 + 逐目标评估（LastOutcome 按目标重置）
-                    var wrongHits = new Dictionary<AtomicEffectInstance, int>();
                     var loopTargets = effect.PerAtomTargets
                         ? (ownTargets.Count > 0 ? ownTargets : new List<Entity> { null }) // 空解析=单次 null 自结算
                         : compositionTargets;
@@ -494,20 +493,14 @@ namespace CardCore
                     {
                         context.Targets = target != null ? new List<Entity> { target } : new List<Entity>();
                         context.LastOutcome.Reset();
-                        bool wasAlive = target == null || target is Player || target.IsAlive;
 
                         PublishPhase(atomicEffect, AtomicEffectPhase.StartApplying, context);
-                        var healInverted = SnapshotHealInverted(atomicEffect, context.Targets);
                         await EffectHandlerRegistry.ExecuteEffectAsync(atomicEffect, context);
                         CaptureDescription(atomicEffect, context, fragments);
                         PublishPhase(atomicEffect, AtomicEffectPhase.ResolutionComplete, context);
 
-                        if (wasAlive)
-                            CollectWrongSideHits(atomicEffect, context.Controller, context.Targets, wrongHits, healInverted);
-
                         await ApplyOutcomeRewardsAsync(payload, context, fragments);
                     }
-                    FlushWrongSideGrants(wrongHits, effect, context);
                 }
                 else
                 {
@@ -515,13 +508,8 @@ namespace CardCore
                     context.Targets = effect.PerAtomTargets
                         ? new List<Entity>(ownTargets)
                         : new List<Entity>(originalTargets); // 恢复原始目标（产出条件原子可能改写）
-                    var flatInverted = SnapshotHealInverted(atomicEffect, context.Targets);
                     await EffectHandlerRegistry.ExecuteEffectAsync(atomicEffect, context);
                     CaptureDescription(atomicEffect, context, fragments);
-                    // 错边黑白发放（2026-09-11 定案）：原子结算后按实际命中侧别判定，每原子一次发放事件
-                    var flatHits = new Dictionary<AtomicEffectInstance, int>();
-                    CollectWrongSideHits(atomicEffect, context.Controller, context.Targets, flatHits, flatInverted);
-                    FlushWrongSideGrants(flatHits, effect, context);
 
                     if (payload != null && payload.Settle == BranchSettleKind.Gate)
                         await ApplySituationGateAsync(payload, context, fragments);
@@ -592,10 +580,6 @@ namespace CardCore
                         ? steps[i + 1]
                         : null;
 
-                // 错边黑白发放（2026-09-11 定案）：逐目标累计命中（执行前存活才算命中），
-                // 整原子=一次发放事件，循环后统一封顶发放（见 FlushWrongSideGrants）。
-                var wrongHits = new Dictionary<AtomicEffectInstance, int>();
-
                 // 逐原子目标制（2026-10-09）：该原子按自身极性过滤域独立解析（弹窗/AI 代选落结算期）；
                 // 声明期预选目标经有序队列归属消费（2026-10-20）；空解析=单次 null 目标自结算。
                 var stepTargets = compositionTargets;
@@ -610,113 +594,24 @@ namespace CardCore
                 {
                     context.Targets = target != null ? new List<Entity> { target } : new List<Entity>();
                     context.LastOutcome.Reset();
-                    bool wasAlive = target == null || target is Player || target.IsAlive;
 
                     PublishPhase(atomic, AtomicEffectPhase.Activation, context);
                     PublishPhase(atomic, AtomicEffectPhase.StartApplying, context);
-                    var stepInverted = SnapshotHealInverted(atomic, context.Targets);
                     await EffectHandlerRegistry.ExecuteEffectAsync(atomic, context);
                     CaptureDescription(atomic, context, fragments);
                     PublishPhase(atomic, AtomicEffectPhase.ResolutionComplete, context);
 
-                    if (wasAlive)
-                        CollectWrongSideHits(atomic, context.Controller, context.Targets, wrongHits, stepInverted);
-
                     if (gate != null)
                         await ApplyGateRewardsAsync(gate, context, fragments);
                 }
-
-                FlushWrongSideGrants(wrongHits, effect, context);
 
                 if (gate != null)
                     i++; // 消费已配对的分支步骤
             }
         }
 
-        // ======================================== 错边黑白发放（2026-09-11 定案） ========================================
-
-        /// <summary>
-        /// 错边命中累计（含子效果递归，同构筑期 AccumulateElementGrant 口径）：
-        /// 有害原子(p&lt;0)命中己方目标 / 有益原子(p&gt;0)命中对方目标 计一次命中。
-        /// 以实际解析目标判侧别（双域卡实际打错边同样计入）；无目标/中性不计。
-        /// healInverted（2026-10-09 反疗豁免）：执行前快照的"命中反疗改写"目标集——被改写为
-        /// 伤害的治疗命中=攻击语义，跳过不计（不送施法者白色元素）。
-        /// </summary>
-        private static void CollectWrongSideHits(AtomicEffectInstance atom, Player controller,
-            List<Entity> executedTargets, Dictionary<AtomicEffectInstance, int> hits,
-            HashSet<Entity> healInverted = null)
-        {
-            if (atom == null) return;
-            float polarity = atom.Polarity;
-            if (polarity != 0f && executedTargets != null)
-            {
-                int n = 0;
-                foreach (var t in executedTargets)
-                {
-                    if (healInverted != null && healInverted.Contains(t)) continue; // 反疗改写命中不计错边
-                    int side = TargetSide(t, controller);
-                    if ((polarity > 0f && side == 1) || (polarity < 0f && side == -1))
-                        n++;
-                }
-                if (n > 0)
-                {
-                    hits.TryGetValue(atom, out var prev);
-                    hits[atom] = prev + n;
-                }
-            }
-
-            if (atom.SubEffects == null) return;
-            foreach (var sub in atom.SubEffects)
-                CollectWrongSideHits(sub, controller, executedTargets, hits, healInverted);
-        }
-
-        /// <summary>反疗命中快照（执行**前**取——改写消耗反疗层在先，执行后查不回）：
-        /// 当前目标中命中反疗改写（RuleAuraComponents.IsHealInverted）的实体集合；
-        /// 非 Heal 原子或无命中返回 null（零开销）。</summary>
-        private static HashSet<Entity> SnapshotHealInverted(AtomicEffectInstance atom, List<Entity> targets)
-        {
-            if (atom == null || atom.Type != AtomicEffectType.Heal || targets == null) return null;
-            HashSet<Entity> set = null;
-            foreach (var t in targets)
-                if (t != null && RuleAuraComponents.IsHealInverted(t))
-                    (set ??= new HashSet<Entity>()).Add(t);
-            return set;
-        }
-
-        /// <summary>
-        /// 按发放事件发放黑白：每个原子（含子效果各自）一次事件，
-        /// 量 = 单价 × 错边命中数——**每回合获得封顶=地牌槽上限/色**（与代价补偿全来源累计，
-        /// 钳制在 ElementPool.AddMana 统一执行，余数不补）。
-        /// </summary>
-        private void FlushWrongSideGrants(Dictionary<AtomicEffectInstance, int> hits, EffectDefinition def,
-            EffectExecutionContext context)
-        {
-            if (hits == null || hits.Count == 0) return;
-            if (context?.Controller == null || _elementPool == null) return;
-
-            foreach (var kv in hits)
-            {
-                var atom = kv.Key;
-                int unit = CostDerivationService.ComputeAtomUnitGrant(atom, def);
-                if (unit <= 0 || kv.Value <= 0) continue;
-
-                _elementPool.AddMana(context.Controller,
-                    CostDerivationService.PolarityGrantColor(atom.Polarity),
-                    context.Source as Card, unit * kv.Value);
-            }
-        }
-
-        /// <summary>实际目标的侧别：-1=施放者己方 / +1=对方 / 0=无主或中性（不计错边）。</summary>
-        private static int TargetSide(Entity target, Player controller)
-        {
-            if (target == null || controller == null) return 0;
-            if (target is Player p)
-                return p == controller ? -1 : (p == controller.Opponent ? 1 : 0);
-
-            var owner = target.GetOwner();
-            if (owner == null) return 0;
-            return owner == controller ? -1 : (owner == controller.Opponent ? 1 : 0);
-        }
+        // 错边黑白发放（CollectWrongSideHits/FlushWrongSideGrants/SnapshotHealInverted/TargetSide）
+        // 已随黑白获得经济整体删除（2026-10-28 P1 定案：代价=构筑期抵扣，不再产出元素）。
 
         /// <summary>
         /// [遗留步骤路径专用] 评估产出条件并执行对应的 then/else 奖励（免费、各自解析目标）。

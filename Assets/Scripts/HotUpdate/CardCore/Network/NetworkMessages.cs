@@ -61,12 +61,19 @@ namespace CardCore.Network
         LobbyJoinRoom = 133,         // 上行：从房间列表加入（MsgLobbyJoinRoom）→ 内部走 JoinRoom 分座
         LobbyAutoMatch = 134,        // 上行：自动匹配排队/取消（空载荷；重复发送 = 取消排队）
         LobbyAddAi = 135,            // 上行：AI 填位（MsgLobbyAddAi）——服务器本机回环 NetClientBrain 入座
+
+        // ---- 房间就绪层（2026-10-28 开局流程改版：房主配模式+客人准备+房主开局；见 网络协议.md §12.2）----
+        RoomSettings = 136,          // 上行：房主配置模式（MsgRoomSettings：先后手方式+洗牌；仅椅位0、仅 Waiting）
+        RoomReady = 137,             // 上行：准备 toggle（MsgRoomReady；Waiting 相位）
+        RoomStart = 138,             // 上行：房主开始（空载荷；校验双方就座+客人已准备 → 进选卡组相位）
     }
 
-    /// <summary>协议版本常量。信封 ProtocolVersion 读到 0 视为 legacy（无版本草稿期数据）。</summary>
+    /// <summary>协议版本常量。信封 ProtocolVersion 读到 0 视为 legacy（无版本草稿期数据）。
+    /// v2（2026-10-28 P2 元素席位收缩）：ManaType 白/黑退役、Any 6→4，位置数组 7→5 重排——
+    /// 裸 int 色号/数组布局全线漂移，新旧端互拒不兼容（无兼容层）。</summary>
     public static class NetworkProtocol
     {
-        public const ushort Version = 1;
+        public const ushort Version = 2;
     }
 
     [MemoryPackable]

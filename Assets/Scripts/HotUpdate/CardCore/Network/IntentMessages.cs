@@ -12,7 +12,9 @@ namespace CardCore.Network
 
     /// <summary>出牌三路合一：FromZone=Hand（主阶段出牌）/ Graveyard（墓地视手牌）。
     /// 服务器按"栈非空且请求者持优先权"分派 PlayCardInResponse（响应出牌，来源限手牌），
-    /// 否则走 PlayCard（主阶段+回合玩家门禁）。ModeIndex=抉择模式（宣言即公开）。</summary>
+    /// 否则走 PlayCard（主阶段+回合玩家门禁）。ModeIndex=抉择模式（宣言即公开）。
+    /// 永久物落格（2026-10-28）：快照不承载棋盘坐标（位置权威=客户端表现层）——选格钉在
+    /// 客户端 NetCellPins（BuildNet 消费），无需协议带格。</summary>
     [MemoryPackable]
     public partial class MsgIntentPlayCard
     {

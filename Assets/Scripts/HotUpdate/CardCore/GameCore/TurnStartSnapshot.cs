@@ -82,9 +82,6 @@ namespace CardCore
             public int PersonalTurnIndex;
             public int LandCapBonus;
             public int TapsThisTurn;
-            public int BlackGainedThisTurn;
-            public int WhiteGainedThisTurn;
-            public int TempGainedThisTurn;
             public string CurveTypeName; // 观测口径（恢复经 SetCurve 重建，非反序列化）
 
             public sealed class PooledCardEntry
@@ -166,9 +163,6 @@ namespace CardCore
             ps.Pool.PersonalTurnIndex = pool.PersonalTurnIndex;
             ps.Pool.LandCapBonus = pool.LandCapBonus;
             ps.Pool.TapsThisTurn = pool.TapsThisTurn;
-            ps.Pool.BlackGainedThisTurn = pool.BlackGainedThisTurn;
-            ps.Pool.WhiteGainedThisTurn = pool.WhiteGainedThisTurn;
-            ps.Pool.TempGainedThisTurn = pool.TempGainedThisTurn;
             ps.Pool.CurveTypeName = pool.Curve?.GetType().Name;
             foreach (var pc in pool.PooledCards)
                 ps.Pool.Pooled.Add(new PoolSnapshot.PooledCardEntry

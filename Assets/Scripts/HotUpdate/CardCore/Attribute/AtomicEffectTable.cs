@@ -107,9 +107,10 @@ namespace CardCore.Attribute
                 // EnumName(中文短名) → DisplayName；DisplayName(模板) → Description
                 config.DisplayName = entry.EnumName;
                 config.Description = entry.DisplayName;
-                // 费用构成（2026-09-14 EffectColor+BaseCost 两列合并定案；2026-10-04 位置数组迁移完成）：
-                // 下标 = ManaType 枚举序号 [灰,红,蓝,绿,白,黑]；旧两列与兜底合成（2f0fcf4 解析器先迁、
-                // 数据未迁的过渡态）已随全表数据迁移删除。null/空 = 不计价行。
+                // 费用构成（2026-09-14 EffectColor+BaseCost 两列合并定案；2026-10-04 位置数组迁移完成；
+                // 2026-10-28 P2 席位收缩后下标序 = [灰,红,蓝,绿,任意]（5 位，表内现行 4 位补零）：
+                // 旧两列与兜底合成（2f0fcf4 解析器先迁、数据未迁的过渡态）已随全表数据迁移删除。
+                // null/空 = 不计价行。
                 config.ManaList = ParsePositionalMana(entry.ManaList);
 
                 // 表 Tags 列（2026-10-06 产出族迁表 + 中文化）先入，表色随后追加（逗号连接）——
@@ -151,14 +152,13 @@ namespace CardCore.Attribute
             return config;
         }
 
-        /// <summary>位置数组解析（2026-10-04）：null/空 → null（不计价行）；短数组补零、
-        /// 长数组截断并告警（长度 = ManaType 枚举成员数，扩色自动跟随）。</summary>
+        /// <summary>位置数组解析（2026-10-04；2026-10-28 P2 席位收缩）：null/空 → null（不计价行）；
+        /// 长度交给 ElementCost 构造器统一迁移——4 位（现行表格式）补零、5 位原样、
+        /// 6/7 位旧档重排（白/黑非零记 Error 丢弃，new[4]=old[6]——禁止截断）。</summary>
         private static ElementCost ParsePositionalMana(List<float> list)
         {
             if (list == null || list.Count == 0) return null;
-            if (list.Count > ElementCost.Length)
-                TideLog.Warn($"[AtomicEffectTable] ManaList 长度 {list.Count} 超过元素色数 {ElementCost.Length}，超出部分截断");
-            var arr = new float[Math.Min(list.Count, ElementCost.Length)];
+            var arr = new float[list.Count];
             for (int i = 0; i < arr.Length; i++) arr[i] = list[i];
             return new ElementCost(arr);
         }
@@ -252,9 +252,9 @@ namespace CardCore.Attribute
             public string EnumName;       // 中文短名（造成伤害）
             public string DisplayName;    // 展示模板（对{target}造成{value}点伤害）
 
-            // 费用构成（2026-09-14 两列合并定案；2026-10-04 位置数组迁移完成）：
-            // 下标 = ManaType 枚举序号 [灰,红,蓝,绿,白,黑]，长度 = 枚举成员数（扩色自动加长）；
-            // null/空 = 不计价行。旧 EffectColor/BaseCost 两列与死列 EffectTier 已随数据迁移删除。
+            // 费用构成（2026-09-14 两列合并定案；2026-10-04 位置数组迁移完成；2026-10-28 P2 席位收缩）：
+            // 下标 = ManaType 枚举序号 [灰,红,蓝,绿,任意]（表内现行 4 位，读侧补零；旧 6/7 位档
+            // 由 ElementCost 构造器重排迁移）；null/空 = 不计价行。旧 EffectColor/BaseCost 两列与死列 EffectTier 已随数据迁移删除。
             public List<float> ManaList;
             public string EffectType;     // 英文枚举名（DealDamage）→ AtomicEffectType
 

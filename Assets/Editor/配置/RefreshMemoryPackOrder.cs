@@ -75,6 +75,9 @@ namespace CardCore.Tools
             // 被一次重生成冲掉触发 CS0117——现按原值登记透传）
             ("MGSS_RevealedZoneCards", 612847093, "MsgGameStateSync.RevealedZoneCards（展示卡·信息轴 2026-10-02）"),
             ("MDS_SkillCardId", 1739402857, "MsgDeckSubmit.SkillCardId（英雄技能标记卡 2026-10-07 卡牌化；不参与 Digest）"),
+            // 2026-10-28 对账找回（同 10-10 先例）：地牌锁色字段手工加在 TagTable 手改区未登记，
+            // 旧工具再生成冲掉触发 CS0117——按原值登记透传
+            ("RCS_LockedColor", 233742023, "RuntimeCardState.LockedColor（2026-10-11 资源重做：地牌锁定产色）"),
         };
 
         private static (string className, string propName, int tag)[] GetTagDefinitions()
@@ -122,9 +125,11 @@ namespace CardCore.Tools
                 ("RuntimeCardState", "Armor"), ("RuntimeCardState", "DamagePrevention"),
                 ("RuntimeCardState", "IsTapped"), ("RuntimeCardState", "IsFrozen"),
                 ("RuntimeCardState", "IsNegated"), ("RuntimeCardState", "IsNullified"),
-                ("RuntimeCardState", "Zone"), ("RuntimeCardState", "TargetFlags"),
+                ("RuntimeCardState", "Zone"),
+                // TargetFlags 已删（2026-10-13）·WasDepletedAsLand/RemainingLandTokens 已删
+                //（2026-10-11 资源重做退役）——2026-10-28 回写工具：此前历届手改 TagTable 未回写，
+                // 旧工具再生成会复活退役常量并冲掉手工值（本次 TagTable 回滚+工具对齐定案）
                 ("RuntimeCardState", "Keywords"), ("RuntimeCardState", "Counters"),
-                ("RuntimeCardState", "WasDepletedAsLand"), ("RuntimeCardState", "RemainingLandTokens"),
 
                 // ---- CounterEntryDTO ----
                 ("CounterEntryDTO", "Key"), ("CounterEntryDTO", "Value"),
@@ -263,8 +268,14 @@ namespace CardCore.Tools
                 ("MsgRoomState", "RoomId"), ("MsgRoomState", "Phase"),
                 ("MsgRoomState", "Players"), ("MsgRoomState", "SpectatorCount"),
                 ("MsgRoomState", "FirstSeatThisMatch"),
+                ("MsgRoomState", "FirstMoveMode"), ("MsgRoomState", "ShuffleMode"),
+                ("MsgRoomState", "GuestReady"), ("MsgRoomState", "DeckPickSecondsLeft"),
                 ("MsgRoomSeatInfo", "Seat"), ("MsgRoomSeatInfo", "Nickname"),
                 ("MsgRoomSeatInfo", "Connected"),
+
+                // ---- 房间就绪层（2026-10-28 开局流程改版：房主配模式+客人准备+房主开局）----
+                ("MsgRoomSettings", "FirstMoveMode"), ("MsgRoomSettings", "ShuffleMode"),
+                ("MsgRoomReady", "Ready"),
 
                 // ---- 大厅层（L1，2026-09-24：房间列表/自动匹配/AI 填位，见 网络协议.md §13）----
                 ("MsgLobbyHello", "Nickname"),
@@ -354,6 +365,8 @@ namespace CardCore.Tools
                 "MsgJoinRoom" => "MJR",
                 "MsgRoomState" => "MRS",
                 "MsgRoomSeatInfo" => "MRSI",
+                "MsgRoomSettings" => "MRSet",
+                "MsgRoomReady" => "MRReady",
                 "MsgLobbyHello" => "MLH",
                 "MsgLobbyState" => "MLS",
                 "MsgLobbyRoomInfo" => "MLRI",

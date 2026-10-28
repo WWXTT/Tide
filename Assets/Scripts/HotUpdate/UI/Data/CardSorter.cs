@@ -79,7 +79,7 @@ namespace SynergyUI
 
         private static readonly ManaType[] RankOrder =
         {
-            ManaType.Red, ManaType.Blue, ManaType.Green, ManaType.Black, ManaType.White,
+            ManaType.Red, ManaType.Blue, ManaType.Green,
         };
 
         private static UIColor UiOf(ManaType mana)
@@ -89,8 +89,6 @@ namespace SynergyUI
                 case ManaType.Red: return UIColor.Red;
                 case ManaType.Blue: return UIColor.Blue;
                 case ManaType.Green: return UIColor.Green;
-                case ManaType.Black: return UIColor.Black;
-                case ManaType.White: return UIColor.White;
                 default: return UIColor.Gray;
             }
         }
@@ -102,9 +100,7 @@ namespace SynergyUI
                 case UIColor.Red: return ManaType.Red;
                 case UIColor.Blue: return ManaType.Blue;
                 case UIColor.Green: return ManaType.Green;
-                case UIColor.Black: return ManaType.Black;
-                case UIColor.White: return ManaType.White;
-                default: return ManaType.Gray;
+                default: return ManaType.Gray; // 白/黑 chip（UI 遗留）落灰
             }
         }
     }

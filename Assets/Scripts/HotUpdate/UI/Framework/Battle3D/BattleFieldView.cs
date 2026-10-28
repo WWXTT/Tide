@@ -233,7 +233,7 @@ namespace SynergyUI
             // ---- 施放占格类型图标（2026-10-15 发动格拆除：发动区占位卡 × 单位区空格） ----
             ReconcileCasting(d.CastingCards);
 
-            // ---- 地牌（固定元素格；2026-10-14 晚定案：6 格固定元素身份 灰红蓝绿黑白） ----
+            // ---- 地牌（固定元素格；2026-10-28 元素缩编：4 格固定元素身份 灰红蓝绿——黑白退役） ----
             ReconcileLands(d.SelfLands, d.Self, 0);
             ReconcileLands(d.OppLands, d.Opp, 1);
 
@@ -256,8 +256,8 @@ namespace SynergyUI
                       + $" 牌库 己{d.Self.DeckCount}/敌{d.Opp.DeckCount}"
                       + $" 生命 己{d.Self.Life}/敌{d.Opp.Life}"
                       + $" 地牌上限 己{d.Self.LandCap}/敌{d.Opp.LandCap}"
-                      + $" 钱包(白黑) 己{d.Self.WalletByColor[(int)ManaType.White]}/{d.Self.WalletByColor[(int)ManaType.Black]}"
-                      + $" 敌{d.Opp.WalletByColor[(int)ManaType.White]}/{d.Opp.WalletByColor[(int)ManaType.Black]}");
+                      + $" 钱包(任意) 己{d.Self.WalletByColor[(int)ManaType.Any]}/敌{d.Opp.WalletByColor[(int)ManaType.Any]}");
+// 白/黑钱包读段已随 2026-10-28 P2 席位收缩删除（数组现 5 位）
 #endif
             _gazeVersion++; // 待机注视缓存作废：单位集合/位次可能已变（事件级重扫）
             return true;
@@ -943,13 +943,11 @@ namespace SynergyUI
 
         // ======================================== 地牌（固定元素格） ========================================
 
-        /// <summary>地牌固定元素格对账（2026-10-14 晚定案）：6 格按 BoardLayout.LandCellElementOrder
-        ///（灰红蓝绿黑白，玩家视角左→右）固定元素身份——图标常驻（空格也亮身份）；
-        /// 计数=「可用/上限」（2026-10-14 表述定案，当晚上限语义修正）：可用=未横置张+钱包该色余额
-        ///（黑白无地牌=钱包余额）；上限=红蓝绿灰该色已放入地牌张数（含横置）；**黑白格只显余量不显上限**
-        ///（2026-10-16 全类型累计钳改案：黑白的生成上限语义移交中线产量双格「累计/地牌上限」，
-            /// 六色同池后黑白格不再单独挂上限数字）；可用&gt;0 点亮顶面锁色描边环
-            /// （2026-10-17 定案：整块菲涅尔壳颜色压住格面文字/图标退役，见 BattleTileFx）。
+        /// <summary>地牌固定元素格对账（2026-10-14 晚定案·2026-10-28 元素缩编）：4 格按 BoardLayout.LandCellElementOrder
+        ///（灰红蓝绿，玩家视角左→右）固定元素身份——图标常驻（空格也亮身份）；
+        /// 计数=「可用/上限」：可用=未横置张+钱包该色余额；上限=该色已放入地牌张数（含横置）；
+        /// 可用&gt;0 点亮顶面锁色描边环（2026-10-17 定案：整块菲涅尔壳颜色压住格面文字/图标退役，
+            /// 见 BattleTileFx；黑白格与中线产量双格已随 2026-10-28 元素缩编退役）。
             /// 计数条=格面平铺 TMP（不看向相机——平贴地块，见 EnsureFlatCellLabel）。</summary>
         private void ReconcileLands(List<BattleCardView> lands, BattlePlayerView pv, int owner)
         {
@@ -984,26 +982,21 @@ namespace SynergyUI
                 int wallet = pv != null && element >= 0 && element < pv.WalletByColor.Length
                     ? pv.WalletByColor[element] : 0;
                 byColor.TryGetValue(element, out var g);
-                bool isBw = element == (int)ManaType.White || element == (int)ManaType.Black;
-                int remaining = isBw ? wallet : (g != null ? g.Untapped : 0) + wallet; // 黑白：可用即钱包（无地牌）
+                int remaining = (g != null ? g.Untapped : 0) + wallet;
                 if (remaining > 0) BattleTileFx.SetLandGlow(cell.x, cell.z, element);
                 var label = EnsureFlatCellLabel(((long)cell.x << 32) | (uint)cell.z, cell.x, cell.z,
                     selfSide ? 0.35f : -0.42f);
                 if (label != null)
                 {
                     label.gameObject.SetActive(true);
-                    // 红蓝绿灰=「可用/上限」（上限=该色已放入地牌张数，含横置）；
-                    // 黑白只显余量（2026-10-16 全类型累计钳：上限语义移交中线产量双格，黑白格不挂上限数字）
-                    if (isBw)
-                        label.text = remaining.ToString();
-                    else
-                        label.text = $"{remaining}/{(g != null ? g.Total : 0)}";
+                    // 「可用/上限」（上限=该色已放入地牌张数，含横置；黑白格已随 2026-10-28 元素缩编退役）
+                    label.text = $"{remaining}/{(g != null ? g.Total : 0)}";
                 }
             }
 
-            // 任意元素格（2026-10-23）：展示在地牌行靠角色端的端格（BoardLayout.AnyElementCell=
-            // 额外区格位 (0,0)/(7,6)，此前视觉空闲）——图标常驻+余额数字+余额>0 描边环（黑白同款
-            //「可用即钱包」口径：Any 不由地牌产出，永不叠地牌卡）；格角色仍是 Extra（点击行为不变）
+            // 万能元素格（2026-10-23 定案·2026-10-28 右移两格迁位 (2,0)/(5,6)）：图标常驻+余额数字+
+            // 余额>0 描边环（「可用即钱包」口径：Any 不由地牌产出，永不叠地牌卡）；格角色=Extra
+            //（点击开额外区面板——沿用旧万能格即额外区格口径，迁位后行为不变）
             var anyCell = BoardLayout.AnyElementCell(owner);
             float anyIconZ = owner == 0 ? -0.42f : 0.35f;
             BattleTileFx.AddElement(anyCell.x, anyCell.z, (int)ManaType.Any, new Vector2(0f, anyIconZ));
@@ -1015,7 +1008,7 @@ namespace SynergyUI
             if (anyLabel != null)
             {
                 anyLabel.gameObject.SetActive(true);
-                anyLabel.text = anyWallet.ToString(); // 只显余量（黑白同款——不挂上限数字）
+                anyLabel.text = anyWallet.ToString(); // 只显余量（不挂上限数字）
             }
         }
 
@@ -2007,8 +2000,9 @@ namespace SynergyUI
         private static readonly Color DeckMarkCurseColor = new Color(0.38f, 0.32f, 0.55f);
 
         /// <summary>诅咒/祝福施加到牌库的演出（2026-10-26 CounterChangedEvent Amount>0 钩子）：
-        /// 卡堆顶一次性爆发+卡堆脉冲——诅咒=黑 ShadowExplosion（Black Hit）、祝福=白 HealNova
-        ///（White Heal）；catalog 未路由回落 PlaySpark（同回复链降级纪律）。目标卡在牌库**无视图
+        /// 卡堆顶一次性爆发+卡堆脉冲——原黑 ShadowExplosion/白 HealNova 路由已随 2026-10-28 P2
+        /// 白/黑席位删除退役，现恒灰查表未命中 → PlaySpark 兜底（祝福/诅咒色由 SparkUpColor/
+        /// DeckMarkCurseColor 区分；VFX 重路由待用户重拍）。目标卡在牌库**无视图
         /// 单位**：锚=BattleZoneProps.DeckTopWorldPosition（不走 ResolveEffectTarget），归属=卡
         /// Owner/Controller 经 ownerOf 映射。不占视觉门、无浮字（施加语义战报行已有）。</summary>
         public UniTask PlayDeckMarkAsync(Entity target, Func<Player, int> ownerOf, bool blessing)
@@ -2023,7 +2017,9 @@ namespace SynergyUI
                     {
                         BattleZoneProps.PulseDeck(owner);
                         Vector3 at = top + Vector3.up * 0.3f; // 堆顶之上的小抬升（低于 SparkLift——堆顶已抬空）
-                        var color = blessing ? ManaType.White : ManaType.Black;
+                        // 白/黑席位已删（2026-10-28 P2）：查表恒用灰→catalog 灰 Heal 缺配未命中，
+                        // 落 Spark 兜底（祝福/诅咒色由 SparkUpColor/DeckMarkCurseColor 区分——表现待用户重拍）
+                        var color = ManaType.Gray;
                         bool played = false;
                         if (BattleVfxFx.Enabled)
                         {

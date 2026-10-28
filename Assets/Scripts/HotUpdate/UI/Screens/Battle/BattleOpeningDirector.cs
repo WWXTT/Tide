@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using CardCore;
+using CardCore.Network;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UI;
@@ -32,10 +33,21 @@ namespace SynergyUI
         private readonly RectTransform _overlayParent;  // 木桩段四弹窗挂载父（BattleScreen.Root）
         private readonly Action _onCancelled;      // 木桩段四弹窗取消（返回主菜单）
 
+        // 联机五段式（2026-10-28 开局流程改版）：段三掷币结果=服务器权威注入（掷币模式照常演出/
+        // 固定先后手模式快进直出浮字），段四=NetworkDeckPanel（30s 服务器权威倒计时+各自选卡组），
+        // 段五=netEngage(cardIds, skill) 发 DeckSubmit 握手（UI 关闭后、对局开始前——用户定案时序）。
+        private readonly bool _network;
+        private readonly bool _netPlayerFirst;       // 服务器先手结果（FirstSeatThisMatch 对 own seat）
+        private readonly bool _netCoinAnimation;     // true=掷币模式（演出）；false=固定先后手（快进）
+        private readonly Action<string[], string> _netEngage;
+
         private BattleDeckPickStage _pickStage;
         private bool _deckPicking;        // 段四输入期（点击归卡堆，不作跳过）
         private bool _skip;               // 演出快进旗标（点击置位，各段动画消费后自复位）
         private bool _disposed;
+
+        /// <summary>网络段四面板（BattleScreen.NetOnRoomState 转发倒计时/manifest 强制收口用）。</summary>
+        internal NetworkDeckPanel NetDeckPanel { get; private set; }
 
         /// <summary>开场在途（BattleScreen.PollFieldPointer 顶部闸——开场期点击不进游戏分支）。</summary>
         public bool Active { get; private set; }
@@ -43,7 +55,9 @@ namespace SynergyUI
         public BattleOpeningDirector(Func<bool> running, BattleFieldView field, bool lunzhuan,
             Action<List<CardData>, string, List<CardData>, string, bool?> engage,
             bool? fixedPlayerFirst = null, bool dummy = false,
-            RectTransform overlayParent = null, Action onCancelled = null)
+            RectTransform overlayParent = null, Action onCancelled = null,
+            bool network = false, bool netPlayerFirst = false, bool netCoinAnimation = true,
+            Action<string[], string> netEngage = null)
         {
             _running = running;
             _field = field;
@@ -53,6 +67,10 @@ namespace SynergyUI
             _dummy = dummy;
             _overlayParent = overlayParent;
             _onCancelled = onCancelled;
+            _network = network;
+            _netPlayerFirst = netPlayerFirst;
+            _netCoinAnimation = netCoinAnimation;
+            _netEngage = netEngage;
         }
 
         private bool Dead => _disposed || _field == null || !_running();
@@ -78,7 +96,14 @@ namespace SynergyUI
 
                 // ---- 段三：硬币先后手（固定先后手=跳过掷币——木桩测试选项；镜头推近属掷币演出一并省） ----
                 bool playerFirst;
-                if (_fixedPlayerFirst.HasValue)
+                if (_network)
+                {
+                    // 联机（2026-10-28）：先手=服务器权威（选卡组相位进入时已定）。掷币模式照常演出
+                    //（结果注入）；固定先后手=快进演出直出结果浮字。
+                    playerFirst = await CoinStageForcedAsync(_netPlayerFirst, _netCoinAnimation);
+                    Debug.Log("[BattleOpening] 段三（网络）先后手落定 playerFirst=" + playerFirst + "（服务器权威）");
+                }
+                else if (_fixedPlayerFirst.HasValue)
                 {
                     playerFirst = _fixedPlayerFirst.Value;
                     Debug.Log("[BattleOpening] 段三 先后手已固定 playerFirst=" + playerFirst + "（跳过掷币）");
@@ -87,6 +112,13 @@ namespace SynergyUI
                 {
                     playerFirst = await CoinStageAsync();
                     Debug.Log("[BattleOpening] 段三 硬币落定 playerFirst=" + playerFirst);
+                }
+
+                // ---- 段四+段五（联机分支）：网络选卡组面板（30s 倒计时）→ 确认后发 DeckSubmit 握手 ----
+                if (_network)
+                {
+                    await NetworkDeckPickAsync();
+                    return; // 段五=握手提交（netEngage 内），对局开始=manifest→首快照（BattleScreen 收口）
                 }
 
                 // ---- 段四：战场选卡组 ----
@@ -165,6 +197,54 @@ namespace SynergyUI
             return playerFirst;
         }
 
+        /// <summary>段三（网络）：服务器权威结果注入掷币演出；animate=false（固定先后手）=快进直出浮字。</summary>
+        private async UniTask<bool> CoinStageForcedAsync(bool playerFirst, bool animate)
+        {
+            var tile = BattleHudRow.ChainSpeedTile;
+            var rest = tile != null ? tile.position : BoardCenterWorld();
+            return await BattleCoinToss.PlayAsync(rest, animate ? (Func<bool>)(() => _skip) : () => true, playerFirst);
+        }
+
+        /// <summary>段四+段五（网络，2026-10-28）：NetworkDeckPanel 各自选卡组（30s 服务器权威倒计时）
+        /// → 确认即关 UI、发 DeckSubmit 握手（卡组数据交换在对局开始前完成——用户定案时序）。
+        /// 服务器超时代提/握手已完成（manifest 强制收口）=不发本地提交，直接等 manifest 开战。</summary>
+        private async UniTask NetworkDeckPickAsync()
+        {
+            NetDeckPanel = new NetworkDeckPanel(_overlayParent);
+            _deckPicking = true; // 点击不作快进（面板为 uGUI，指针闸同时屏蔽棋盘误触）
+            var pick = await NetDeckPanel.WaitAsync(() => Dead);
+            _deckPicking = false;
+            var panel = NetDeckPanel;
+            NetDeckPanel = null;
+            panel?.Dispose();
+            if (Dead || pick == null || pick.ServerClosed) return; // 服务器已代提——不再重复提交
+
+            string[] cardIds;
+            string skill;
+            if (pick.DeckName == null)
+            {
+                cardIds = NetPresetDecks.RandomPreset(out skill);
+                if (cardIds == null)
+                {
+                    Debug.LogError("[BattleOpening]（网络）随机预组不可读——等待服务器超时代提");
+                    return;
+                }
+            }
+            else
+            {
+                var data = DeckCatalog.Load(pick.DeckName);
+                if (data?.cardIds == null || data.cardIds.Count == 0)
+                {
+                    Debug.LogError($"[BattleOpening]（网络）卡组 {pick.DeckName} 缺失——等待服务器超时代提");
+                    return;
+                }
+                cardIds = data.cardIds.ToArray();
+                skill = data.skillCardId;
+            }
+            Debug.Log($"[BattleOpening] 段五（网络）确认卡组「{pick.DeckName ?? "随机预组"}」（{cardIds.Length}张）——提交握手");
+            _netEngage?.Invoke(cardIds, skill);
+        }
+
         /// <summary>段四：候选卡组建堆 → 双选两轮/教学三单轮+倒计时；返回卡组名（null=随机）。
         /// 木桩局（2026-10-23 用户改案）不走 3D 卡堆——掷币后弹 DummyDeckPanel（双方卡组下拉选
         /// +对手难度木桩/脚本/AI），难度经 BattleEntry.DummyDifficulty 带给段五 Engage。</summary>
@@ -239,6 +319,8 @@ namespace SynergyUI
             Active = false;
             _pickStage?.Dispose();
             _pickStage = null;
+            NetDeckPanel?.Dispose(); // 网络段四面板兜底拆（正常路径 NetworkDeckPickAsync 已自拆）
+            NetDeckPanel = null;
         }
 
         // ======================================== 内部 ========================================
@@ -471,6 +553,7 @@ namespace SynergyUI
         private RectTransform _root;
         private Pick _result;
         private bool _cancelled;
+        private TMPro.TMP_Text _countLabel; // 30s 倒计时角标（2026-10-28，ShowAsync 驱动）
         private readonly List<string> _openNames = new List<string>();  // 玩家牌库+预组（我方与 AI 档对方共用）
         private readonly List<string> _openLabels = new List<string>();
         private readonly List<string> _presetNames = new List<string>(); // 仅三套预组（木桩/脚本档对方）
@@ -479,20 +562,55 @@ namespace SynergyUI
         private TMPro.TMP_Dropdown _drpAi; // row-ai 下拉（选项随难度分化）
         private int _diff;                 // 难度档（0=木桩 1=脚本 2=AI）
 
-        /// <summary>弹窗并等结果（dead=已死该退出；Cancelled=true=返回主菜单）。</summary>
+        /// <summary>弹窗并等结果（dead=已死该退出；Cancelled=true=返回主菜单）。
+        /// 2026-10-28 统一开局节奏：30s 倒计时（面板右上角），到点自动以当前对方卡组+随机我方卡组开战
+        ///（用户定案：不选=随机卡组；本地无服务器，超时兜底在客户端）。</summary>
         public static async UniTask<Pick> ShowAsync(Func<bool> dead, RectTransform parent)
         {
             var panel = new DummyDeckPanel(parent);
             try
             {
+                float deadline = Time.realtimeSinceStartup + 30f;
+                panel.ShowCountdown(30);
+                float lastSecondShown = 30f;
                 while (!dead() && panel._result == null && !panel._cancelled)
+                {
+                    float left = deadline - Time.realtimeSinceStartup;
+                    if (left <= 0f)
+                    {
+                        var aiName = panel.AiSelectionName();
+                        Debug.Log($"[木桩] 选卡组 30s 超时——我方随机卡组开战（对方={aiName ?? "默认"}）");
+                        panel._result = new Pick(null, aiName, panel._diff, false); // 我方 null=随机（段五 RandomDeck 兜底）
+                        break;
+                    }
+                    int sec = Mathf.CeilToInt(left);
+                    if (sec != lastSecondShown) { lastSecondShown = sec; panel.ShowCountdown(sec); }
                     await UniTask.Yield();
+                }
                 return panel._result ?? new Pick(null, null, 0, true); // dead/取消=取消口径
             }
             finally
             {
                 panel.Dispose();
             }
+        }
+
+        /// <summary>倒计时角标刷新（右上角，ShowAsync 驱动；文本节点由 EnsureCountdownLabel 惰性建）。</summary>
+        private void ShowCountdown(int secondsLeft)
+        {
+            if (_countLabel == null && _root != null)
+            {
+                _countLabel = UiKit.Label("lbl-countdown", _root, "", 24,
+                    new Color(0.95f, 0.76f, 0.30f), TextAnchor.UpperRight, FontStyle.Bold);
+                // 注：UiKit.Label 返回 TMP_Text（文件未 using TMPro——此行类型随赋值目标协变）
+                var rt = _countLabel.rectTransform;
+                rt.anchorMin = rt.anchorMax = new Vector2(1f, 1f);
+                rt.pivot = new Vector2(1f, 1f);
+                rt.anchoredPosition = new Vector2(-36f, -28f);
+                rt.sizeDelta = new Vector2(200f, 40f);
+            }
+            if (_countLabel != null)
+                _countLabel.text = secondsLeft > 10 ? $"{secondsLeft}s" : $"倒计时 {secondsLeft}s";
         }
 
         private DummyDeckPanel(RectTransform parent)
@@ -645,6 +763,160 @@ namespace SynergyUI
                 return;
             }
             t.text = text;
+        }
+
+        public void Dispose()
+        {
+            if (_root != null)
+            {
+                UnityEngine.Object.Destroy(_root.gameObject);
+                _root = null;
+            }
+        }
+    }
+
+    /// <summary>
+    /// 联机选卡组面板（2026-10-28 开局流程改版·五段式段四网络版）：纯代码构建（美术换皮后置）。
+    /// 30s 倒计时=服务器权威（RoomState.DeckPickSecondsLeft 整秒推送校准 + 本地每秒走字平滑显示）
+    /// + 卡组循环选（随机预组/玩家档/预组）+「确认出战」。超时未确认=服务器替落随机预组
+    /// （manifest 到达强制收口，客户端不再发本地提交——Pick.ServerClosed 口径）。
+    /// Pick 为引用类型（AOT 约束同 DummyDeckPanel.Pick·2026-10-24 定案：热更 struct 泛型 UniTask 禁用）。
+    /// </summary>
+    public sealed class NetworkDeckPanel
+    {
+        public sealed class Pick
+        {
+            public readonly string DeckName;     // null=随机预组
+            public readonly bool ServerClosed;   // 服务器已代提/握手已完成——不再发本地 DeckSubmit
+            public Pick(string deckName, bool serverClosed)
+            {
+                DeckName = deckName;
+                ServerClosed = serverClosed;
+            }
+        }
+
+        private RectTransform _root;
+        private TMPro.TMP_Text _countText;
+        private TMPro.TMP_Text _pickLabel;
+        private readonly List<string> _deckNames = new List<string>(); // 玩家档+预组（DeckCatalog 原名）
+        private readonly List<string> _deckLabels = new List<string>();
+        private int _idx = -1;                // -1=随机预组（循环头位）；0..N-1=卡组
+        private Pick _result;
+        private int _serverSeconds = -1;      // 服务器权威剩秒（-1=未收到，本地 30 起跳）
+        private float _localSeconds = 30f;
+
+        public NetworkDeckPanel(RectTransform parent)
+        {
+            _root = UiKit.Overlay("net-deck-panel", parent);
+            var dim = _root.gameObject.AddComponent<UnityEngine.UI.Image>();
+            dim.color = new Color(0f, 0f, 0f, 0.72f); // 模态遮罩：拦棋盘点击
+            dim.raycastTarget = true;
+
+            var box = UiKit.Panel("net-deck-box", _root, pad: 18, spacing: 12);
+            var brt = box;
+            brt.anchorMin = brt.anchorMax = new Vector2(0.5f, 0.5f);
+            brt.pivot = new Vector2(0.5f, 0.5f);
+            brt.anchoredPosition = Vector2.zero;
+            brt.sizeDelta = new Vector2(660f, 430f);
+
+            UiKit.Label("lbl-title", box, "选卡组出战", 26, align: TextAnchor.MiddleCenter, style: FontStyle.Bold);
+            _countText = UiKit.Label("lbl-count", box, "30s", 30, new Color(0.95f, 0.76f, 0.30f),
+                TextAnchor.MiddleCenter, FontStyle.Bold);
+            UiKit.Label("lbl-hint", box,
+                "倒计时结束未确认将随机出战一套预组。确认后等待对手与开局。", 14, wrap: true);
+
+            var pickRow = UiKit.Row("row-pick", box);
+            UiKit.Label("lbl-pick-title", pickRow, "我的卡组：");
+            var pickBtn = UiKit.Button("btn-pick", pickRow, "卡组：随机", null);
+            _pickLabel = pickBtn != null ? pickBtn.GetComponentInChildren<TMPro.TMP_Text>(true) : null;
+            if (pickBtn != null)
+                pickBtn.onClick.AddListener(() =>
+                {
+                    Debug.Log("[UI点击] btn-pick");
+                    _idx = _idx + 1 >= _deckNames.Count ? -1 : _idx + 1; // -1=随机 ↔ 0..N-1 循环
+                    RefreshPickLabel();
+                });
+
+            LoadDeckCandidates();
+            RefreshPickLabel();
+
+            var fight = UiKit.Button("btn-confirm", box, "确认出战", null, UiStyle.BtnPrimary);
+            if (fight != null)
+                fight.onClick.AddListener(() =>
+                {
+                    Debug.Log("[UI点击] btn-confirm");
+                    _result = new Pick(_idx < 0 ? null : _deckNames[_idx], false);
+                });
+        }
+
+        /// <summary>候选=玩家存档+只读预组（DeckCatalog 合并口，同 DummyDeckPanel 口径）。</summary>
+        private void LoadDeckCandidates()
+        {
+            foreach (var d in DeckCatalog.LoadAll())
+            {
+                if (d == null || string.IsNullOrEmpty(d.name)) continue;
+                _deckNames.Add(d.name);
+                _deckLabels.Add(DeckCatalog.DisplayNameOf(d));
+            }
+        }
+
+        private void RefreshPickLabel()
+        {
+            if (_pickLabel == null) return;
+            _pickLabel.text = _idx < 0 ? "卡组：随机（预组三选一）"
+                : $"卡组：{_deckLabels[_idx]}";
+        }
+
+        /// <summary>服务器权威剩秒校准（BattleScreen.NetOnRoomState 转发；-1=非倒计时）。</summary>
+        public void OnServerSeconds(int secondsLeft)
+        {
+            if (secondsLeft < 0) return;
+            _serverSeconds = secondsLeft;
+            _localSeconds = secondsLeft; // 整秒校准
+            RefreshCountdown();
+        }
+
+        /// <summary>manifest 已到（握手完成/服务器代提）——强制收口：ServerClosed=true，不再本地提交。</summary>
+        public void ForceClose()
+        {
+            if (_result == null)
+                _result = new Pick(_idx < 0 ? null : _deckNames[_idx], true);
+        }
+
+        /// <summary>等待结果（dead=拆屏判定）。本地每秒走字（服务器整秒推送校准）。</summary>
+        public async UniTask<Pick> WaitAsync(Func<bool> dead)
+        {
+            float lastWhole = -1f;
+            while (!dead() && _result == null)
+            {
+                _localSeconds -= Time.deltaTime;
+                float shown = Mathf.Max(0f, _serverSeconds >= 0 ? _serverSeconds : _localSeconds);
+                if (Mathf.FloorToInt(shown) != lastWhole)
+                {
+                    lastWhole = shown;
+                    RefreshCountdown();
+                }
+                await UniTask.Yield();
+            }
+            return _result;
+        }
+
+        private void RefreshCountdown()
+        {
+            if (_countText == null) return;
+            float shown = Mathf.Max(0f, _serverSeconds >= 0 ? _serverSeconds : _localSeconds);
+            if (shown <= 0f)
+            {
+                _countText.text = "时间到";
+                _countText.color = new Color(0.95f, 0.30f, 0.24f);
+            }
+            else
+            {
+                _countText.text = $"{Mathf.FloorToInt(shown)}s";
+                _countText.color = shown <= 10f
+                    ? new Color(0.95f, 0.30f, 0.24f)
+                    : new Color(0.95f, 0.76f, 0.30f);
+            }
         }
 
         public void Dispose()

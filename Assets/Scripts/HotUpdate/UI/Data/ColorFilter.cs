@@ -4,8 +4,9 @@ using CardCore.Attribute;
 
 namespace SynergyUI
 {
-    /// <summary>UI 颜色过滤维度（红蓝绿灰黑白 + 全部）。内部英文，展示中文。
-    /// 黑白 2026-09-14 补（错边经济后原子表 EffectColor 含 Black/White 行——此前并入灰 chip）。</summary>
+    /// <summary>UI 颜色过滤维度（红蓝绿灰 + 全部）。内部英文，展示中文。
+    /// White/Black 成员为黑白经济时代遗留（2026-10-28 P2 白/黑 ManaType 席位已删）——
+    /// 现无数据可命中，仅存量 chip/颜色分布 UI 引用；收口归 P4（净费显示与色序）。</summary>
     public enum UIColor
     {
         All,
@@ -81,9 +82,7 @@ namespace SynergyUI
                 ManaType.Red => UIColor.Red,
                 ManaType.Blue => UIColor.Blue,
                 ManaType.Green => UIColor.Green,
-                ManaType.Black => UIColor.Black,
-                ManaType.White => UIColor.White,
-                _ => UIColor.Gray,
+                _ => UIColor.Gray, // 白/黑 ManaType 席位已删（2026-10-28 P2）——UIColor 白黑 chip 仅剩 UI 遗留
             };
         }
 

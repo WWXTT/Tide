@@ -35,7 +35,8 @@ namespace SynergyUI
 
         private RectTransform _panelEntry, _panelHost, _panelJoin, _panelRoom, _panelTap;
         private TMP_InputField _nickInput, _portInput, _ipInput, _port2Input;
-        private TMP_Text _statusLabel, _addressLabel, _deckPickLabel;
+        private TMP_Text _statusLabel, _addressLabel, _modesLabel, _modeFirstLabel, _modeShuffleLabel;
+        private UnityEngine.UI.Button _startBtn, _readyBtn, _modeFirstBtn, _modeShuffleBtn;
         private RectTransform _addAiNode;
 
         // TapTap 联机段（2026-10-24 预编译隔离迁 Tide.TapTap 程序集）：段对象与面板 RectTransform
@@ -47,13 +48,27 @@ namespace SynergyUI
         private NetSessionServer _server; // 房主侧（自建自管，OnExit/离开时停机）
         private NetAiFiller _aiFiller;
         private bool _isHost;
-        private bool _deckSubmitted;
         private bool _handedOver; // 已移交战斗屏：OnExit 不拆连接
         private MsgRoomState _roomState;
+
+        // 就绪层模式镜像（2026-10-28：0先后手=掷币/1房主先/2客先；0洗牌=随机/1固定）——
+        // 房主循环钮本地换档即发 RoomSettings，服务端 RoomState 回显为权威展示源
+        private int _modeFirst;
+        private int _modeShuffle;
 
         // 卡组选择（循环制）：0=随机卡组，1..N=已保存卡组
         private List<DeckData> _savedDecks;
         private int _deckIndex;
+
+        // 局域网自动发现（2026-10-28 加入流改造）：房主信标 + 客人扫描，唯一房间自动直入
+        private LanRoomBeacon _beacon;
+        private volatile string _beaconPayload = "";
+        private LanRoomScanner _scanner;
+        private bool _scanLoopRunning;
+        private bool _autoJoinArmed;
+        private string _scanSignature;
+        private TMP_Text _scanLabel;
+        private RectTransform _roomList;
 
         protected override void Build()
         {
@@ -84,10 +99,13 @@ namespace SynergyUI
             UiKit.Button("btn-host-start", _panelHost, "开房", StartHostRoom, UiStyle.BtnPrimary);
             UiKit.Button("btn-host-back", _panelHost, "返回");
 
-            // ---- 加入面板 ----
+            // ---- 加入面板（2026-10-28 局域网自动发现：进面板即扫描，唯一房间自动直入；手输 IP 降为兜底） ----
             _panelJoin = UiKit.Column("panel-join", Root);
+            _scanLabel = UiKit.Label("lbl-scan", _panelJoin, "正在搜索局域网房间…", 14, wrap: true);
+            _roomList = UiKit.Column("room-list", _panelJoin);
+            UiKit.Button("btn-rescan", _panelJoin, "重新扫描", RestartScan);
             var ipRow = UiKit.Row("row-ip", _panelJoin);
-            UiKit.Label("lbl-ip", ipRow, "房主 IP：");
+            UiKit.Label("lbl-ip", ipRow, "房主 IP（手动）：");
             _ipInput = UiKit.InputField("input-ip", ipRow, "例如 192.168.1.100", width: 240f);
             var port2Row = UiKit.Row("row-port2", _panelJoin);
             UiKit.Label("lbl-port2", port2Row, "端口：");
@@ -95,14 +113,18 @@ namespace SynergyUI
             UiKit.Button("btn-join-connect", _panelJoin, "连接", ConnectGuest, UiStyle.BtnPrimary);
             UiKit.Button("btn-join-back", _panelJoin, "返回");
 
-            // ---- 房间面板 ----
+            // ---- 房间面板（2026-10-28 就绪层改版：模式配置/准备/开始取代房内选卡组——选卡组挪战场五段式）----
             _panelRoom = UiKit.Column("panel-room", Root);
             _addressLabel = UiKit.Label("lbl-address", _panelRoom, "", 13, wrap: true);
             _statusLabel = UiKit.Label("lbl-status", _panelRoom, "", 14, UiStyle.ToastGreen, wrap: true);
-            var deckRow = UiKit.Row("row-deck", _panelRoom);
-            var deckPick = UiKit.Button("btn-deck-pick", deckRow, "卡组：随机卡组", CycleDeckPick);
-            _deckPickLabel = deckPick != null ? deckPick.GetComponentInChildren<TMP_Text>(true) : null;
-            UiKit.Button("btn-deck-submit", deckRow, "提交卡组", SubmitDeck, UiStyle.BtnPrimary);
+            _modesLabel = UiKit.Label("lbl-modes", _panelRoom, "模式：先后手：掷硬币 · 洗牌：随机", 14, wrap: true);
+            var modeRow = UiKit.Row("row-mode", _panelRoom);
+            _modeFirstBtn = UiKit.Button("btn-mode-first", modeRow, "先后手：掷硬币", CycleFirstMoveMode);
+            _modeFirstLabel = _modeFirstBtn != null ? _modeFirstBtn.GetComponentInChildren<TMP_Text>(true) : null;
+            _modeShuffleBtn = UiKit.Button("btn-mode-shuffle", modeRow, "洗牌：随机", CycleShuffleMode);
+            _modeShuffleLabel = _modeShuffleBtn != null ? _modeShuffleBtn.GetComponentInChildren<TMP_Text>(true) : null;
+            _startBtn = UiKit.Button("btn-room-start", _panelRoom, "开始对战", HostStartMatch, UiStyle.BtnPrimary);
+            _readyBtn = UiKit.Button("btn-ready", _panelRoom, "准备", ToggleReady);
             var roomBtns = UiKit.Row("row-room-btns", _panelRoom);
             var addAi = UiKit.Button("btn-add-ai", roomBtns, "加AI对手", AddAiOpponent);
             _addAiNode = addAi != null ? (RectTransform)addAi.transform : null;
@@ -118,13 +140,11 @@ namespace SynergyUI
         public override void OnEnter()
         {
             _handedOver = false;
-            _deckSubmitted = false;
-            _deckIndex = 0;
-            _savedDecks = null;
+            _modeFirst = 0;
+            _modeShuffle = 0;
             ShowPanel(_panelEntry);
             SetStatus("输入昵称后创建或加入房间");
             if (_nickInput != null && !string.IsNullOrEmpty(_lastNickname)) _nickInput.text = _lastNickname;
-            RefreshDeckPickLabel();
         }
 
         public override void OnExit()
@@ -154,11 +174,13 @@ namespace SynergyUI
             BeginHostSession(server,
                 $"本机地址（告诉对手）：{string.Join(" / ", LocalIpv4Addresses().Select(ip => $"{ip}:{server.Port}"))}");
             ConnectLoopback(server.Port); // 房主回环入座（后台线程连接，避免 UI 卡帧）
+            StartBeacon(); // 局域网信标：开房即可被发现；绑定失败不阻塞建房（手输 IP 兜底）
         }
 
         /// <summary>客人加入：直连房主 IP:端口（任意空位）。</summary>
         private void ConnectGuest()
         {
+            StopScan(); // 手动路径出加入面板前收掉扫描线程
             string ip = _ipInput != null ? _ipInput.text.Trim() : "";
             if (string.IsNullOrEmpty(ip))
             {
@@ -227,6 +249,119 @@ namespace SynergyUI
             return nickname;
         }
 
+        // ============================================================ 局域网自动发现（2026-10-28：房主 LanRoomBeacon 应答 + 客人 LanRoomScanner 探测） ============================================================
+
+        /// <summary>房主侧：开局域网信标（payload 快照由主线程在开房/房间态变化时刷新，信标线程只读）。</summary>
+        private void StartBeacon()
+        {
+            ResolveNickname(); // 确保昵称快照在案（空则随机）
+            UpdateBeaconPayload();
+            _beacon = new LanRoomBeacon(() => _beaconPayload);
+            _beacon.Start(); // UDP/TCP 全绑定失败也继续建房——手输 IP 路径不受影响
+        }
+
+        /// <summary>信标 payload 快照刷新（主线程调用；格式 ver|roomId|hostNick|tcpPort|seats|phase）。</summary>
+        private void UpdateBeaconPayload()
+        {
+            if (_server == null) return;
+            var phase = _roomState == null
+                ? nameof(NetRoomPhase.Waiting)
+                : ((NetRoomPhase)_roomState.Phase).ToString();
+            int seated = 0;
+            if (_roomState?.Players != null)
+                foreach (var pl in _roomState.Players)
+                    if (pl != null && pl.Connected) seated++;
+            _beaconPayload = $"1|p2p|{_lastNickname}|{_server.Port}|{seated}/2|{phase}";
+        }
+
+        /// <summary>客人侧：进加入面板即扫描；唯一房间自动直入（加入不应自己找房主——2026-10-28 定案）。</summary>
+        private void StartScan()
+        {
+            if (_scanner == null) _scanner = new LanRoomScanner();
+            _scanner.StartScan();
+            _autoJoinArmed = true;
+            _scanSignature = null;
+            if (_scanLabel != null) _scanLabel.text = "正在搜索局域网房间…";
+            RefreshRoomRows(new List<LanRoomEntry>());
+            RunScanLoopAsync().Forget();
+        }
+
+        private void RestartScan()
+        {
+            if (_scanner == null) return;
+            _scanner.StartScan();
+            _autoJoinArmed = true;
+            _scanSignature = null;
+            if (_scanLabel != null) _scanLabel.text = "正在搜索局域网房间…";
+        }
+
+        private void StopScan()
+        {
+            _scanLoopRunning = false;
+            _scanner?.StopScan();
+        }
+
+        /// <summary>扫描刷新循环（主线程 UniTask 轮询；面板离开/StopScan 即退，重入由 _scanLoopRunning 挡）。</summary>
+        private async UniTaskVoid RunScanLoopAsync()
+        {
+            if (_scanLoopRunning) return;
+            _scanLoopRunning = true;
+            while (_scanLoopRunning && _panelJoin != null && _panelJoin.gameObject.activeSelf)
+            {
+                var rooms = _scanner != null ? _scanner.Snapshot() : new List<LanRoomEntry>();
+                UpdateScanUi(rooms);
+                await UniTask.Delay(400);
+            }
+            _scanLoopRunning = false;
+        }
+
+        private void UpdateScanUi(List<LanRoomEntry> rooms)
+        {
+            if (_scanLabel == null || _roomList == null) return;
+            var sig = string.Join(";", rooms.Select(r => $"{r.Key}|{r.Seats}|{r.Phase}"));
+            if (sig != _scanSignature)
+            {
+                _scanSignature = sig;
+                RefreshRoomRows(rooms);
+            }
+
+            string label;
+            if (rooms.Count == 1) label = $"发现房间（{rooms[0].HostNick}，{rooms[0].Seats}）——正在加入…";
+            else if (rooms.Count > 1) label = $"发现 {rooms.Count} 个房间——点选加入";
+            else if (_scanner != null && !_scanner.Scanning && Environment.TickCount - _scanner.StartedAtMs > 5000)
+                label = "未发现房间——确认房主已开房后「重新扫描」，或在下方手动输入 IP";
+            else label = "正在搜索局域网房间…";
+            if (_scanLabel.text != label) _scanLabel.text = label;
+
+            if (rooms.Count == 1 && _autoJoinArmed)
+            {
+                _autoJoinArmed = false; // 唯一房间直接进入
+                var only = rooms[0];
+                ConnectToRoom(only.Host, only.TcpPort, only.HostNick);
+            }
+        }
+
+        private void RefreshRoomRows(List<LanRoomEntry> rooms)
+        {
+            for (int i = _roomList.childCount - 1; i >= 0; i--)
+                UnityEngine.Object.Destroy(_roomList.GetChild(i).gameObject);
+            for (int i = 0; i < rooms.Count; i++)
+            {
+                var entry = rooms[i];
+                UiKit.Button("room-" + i, _roomList, $"加入 {entry.HostNick} 的房间（{entry.Seats}）",
+                    () => ConnectToRoom(entry.Host, entry.TcpPort, entry.HostNick), UiStyle.BtnPrimary);
+            }
+        }
+
+        /// <summary>按发现结果直连（与手动 ConnectGuest 同尾段，免去手输 IP）。</summary>
+        private void ConnectToRoom(string host, int port, string hostNick)
+        {
+            StopScan();
+            SetStatus($"发现房间（{(string.IsNullOrEmpty(hostNick) ? host : hostNick)}），正在加入 {host}:{port} …");
+            BeginGuestSession($"目标（自动发现）：{host}:{port}");
+            ConnectAsync(host, port, wantSeat: -1).Forget();
+        }
+
         // ============================================================ TapTap 桥装段与跨程序集会话助手（Tide.TapTap 的 TapLobbySection 经此驱动本屏；跨程序集须 public） ============================================================
 
         /// <summary>TapTap 面板 RectTransform 登记（桥装段 Build 时交回——纳入 ShowPanel 换页集）。</summary>
@@ -241,6 +376,7 @@ namespace SynergyUI
             if (_addAiNode != null) _addAiNode.gameObject.SetActive(true);
             if (_addressLabel != null) _addressLabel.text = addressText;
             SetStatus("房间已创建，等待对手加入…");
+            RefreshRoomUi(); // 就绪层初刷（模式钮=房主可见、开始钮未就绪置灰）
         }
 
         /// <summary>客人会话就位（LAN 直连/TapTap 加入共用尾段）：房间面板→地址展示→加 AI 收起。</summary>
@@ -250,6 +386,7 @@ namespace SynergyUI
             ShowPanel(_panelRoom);
             if (_addressLabel != null) _addressLabel.text = addressText;
             if (_addAiNode != null) _addAiNode.gameObject.SetActive(false);
+            RefreshRoomUi(); // 就绪层初刷（准备钮=客人可见）
         }
 
         /// <summary>房主回环入座（127.0.0.1，后台线程连接避免 UI 卡帧；TapTap 建房同路）。</summary>
@@ -263,110 +400,113 @@ namespace SynergyUI
         private void WireClientEvents(NetGameClient client)
         {
             client.OnRoomState += OnRoomState;
-            client.OnManifest += OnManifest;
             client.OnError += OnServerError;
             client.OnDisconnected += OnDisconnected;
+            // OnManifest 归战斗屏（2026-10-28：选卡组相位即移交，manifest 在战场内校验收口）
         }
 
         private void UnwireClientEvents(NetGameClient client)
         {
             client.OnRoomState -= OnRoomState;
-            client.OnManifest -= OnManifest;
             client.OnError -= OnServerError;
             client.OnDisconnected -= OnDisconnected;
         }
 
-        // ============================================================ 房间态 ============================================================
+        // ============================================================ 房间态（2026-10-28 就绪层改版） ============================================================
+
+        private static readonly string[] FirstMoveLabels = { "先后手：掷硬币", "先后手：房主先手", "先后手：客人先手" };
+        private static readonly string[] ShuffleLabels = { "洗牌：随机", "洗牌：固定牌序" };
 
         private void OnRoomState(MsgRoomState room)
         {
             _roomState = room;
-            var phaseText = room.Phase == (int)NetRoomPhase.Waiting ? "等待就座"
-                : room.Phase == (int)NetRoomPhase.DeckSubmit ? "选卡组"
-                : room.Phase == (int)NetRoomPhase.Playing ? "对战中"
-                : "已结束";
-            var opp = room.Players != null ? room.Players.FirstOrDefault(p => p != null && p.Seat == 1) : null;
-            string oppText = opp == null ? "" : opp.Connected ? $"对手：{opp.Nickname}" : "对手未就座";
-            SetStatus($"[{phaseText}] {oppText}");
+            UpdateBeaconPayload(); // 座位/阶段变化刷新信标快照（主线程）
 
-            if (room.Phase == (int)NetRoomPhase.DeckSubmit && !_deckSubmitted)
-                EnsureSavedDecks();
-        }
-
-        /// <summary>已保存卡组懒加载（进选卡阶段时刷新一次；空列表也有"随机卡组"兜底）。
-        /// 2026-10-22 三套主题卡组迁教学：列表=玩家存档 + 只读预组（DeckCatalog 合并口）。</summary>
-        private void EnsureSavedDecks()
-        {
-            if (_savedDecks != null) return;
-            _savedDecks = DeckCatalog.LoadAll();
-            if (_deckIndex > _savedDecks.Count) _deckIndex = 0;
-            RefreshDeckPickLabel();
-        }
-
-        /// <summary>循环选卡组：随机 → 存档1 → 存档2 → … → 随机。</summary>
-        private void CycleDeckPick()
-        {
-            EnsureSavedDecks();
-            _deckIndex = (_deckIndex + 1) % (_savedDecks.Count + 1);
-            RefreshDeckPickLabel();
-        }
-
-        private void RefreshDeckPickLabel()
-        {
-            if (_deckPickLabel == null) return;
-            string name = _deckIndex == 0 || _savedDecks == null || _savedDecks.Count == 0
-                ? "随机卡组"
-                : DeckCatalog.DisplayNameOf(_savedDecks[_deckIndex - 1]); // 预组带「·预组」后缀（与其他口一致）
-            _deckPickLabel.text = $"卡组：{name}";
-        }
-
-        private void SubmitDeck()
-        {
-            if (_client == null || _client.Disconnected) return;
-            if (_roomState != null && _roomState.Phase != (int)NetRoomPhase.DeckSubmit)
+            // 房主开局 → 选卡组相位（先手已定+30s 倒计时）：双方移交战场走五段式（掷币+选卡组+握手）
+            if (room.Phase == (int)NetRoomPhase.DeckSubmit && !_handedOver)
             {
-                SetStatus("等双方就座后才能提交卡组");
+                HandOverToBattle(room);
                 return;
             }
-            EnsureSavedDecks();
 
-            string[] cardIds;
-            string skillCardId;
-            string deckName;
-            if (_deckIndex == 0 || _savedDecks.Count == 0)
-            {
-                // LoadAll 前 30（验证器 DeckIds 同口径——LoadPlayPool 滤池含效果断链卡，DeckSubmit 闭包校验会拒）
-                var pool = CardCatalog.LoadAll();
-                cardIds = pool.Select(c => c.ID).Distinct().Take(30).ToArray();
-                skillCardId = HeroSkillSystem.AutoPickSkillCard(pool);
-                deckName = "随机卡组";
-            }
-            else
-            {
-                var deck = _savedDecks[_deckIndex - 1];
-                if (deck == null || deck.cardIds == null || deck.cardIds.Count == 0)
-                {
-                    SetStatus("所选卡组为空——换一套或先在卡组界面保存");
-                    return;
-                }
-                cardIds = deck.cardIds.ToArray();
-                skillCardId = string.IsNullOrEmpty(deck.skillCardId) ? null : deck.skillCardId;
-                deckName = deck.name;
-            }
-
-            _deckSubmitted = true;
-            _deckSubmittedDeckIds = cardIds;
-            _client.Send(NetworkMessageType.DeckSubmit, new MsgDeckSubmit
-            {
-                DeckName = deckName,
-                CardIds = cardIds,
-                Digest = NetMatchHandshake.ComputeDeckDigest(cardIds),
-                SkillCardId = skillCardId,
-            });
-            SetStatus($"已提交卡组「{deckName}」，等待对手与开局…");
+            var phaseText = room.Phase == (int)NetRoomPhase.Waiting ? "等待就座"
+                : room.Phase == (int)NetRoomPhase.Playing ? "对战中" : "已结束";
+            int mySeat = MySeatOf(room);
+            var opp = room.Players != null ? room.Players.FirstOrDefault(p => p != null && p.Seat != mySeat) : null;
+            string oppText = "";
+            if (opp != null && opp.Seat >= 0)
+                oppText = opp.Connected ? $"对手：{opp.Nickname}" + (room.GuestReady ? "（已准备）" : "（未准备）") : "对手未就座";
+            SetStatus($"[{phaseText}] {oppText}");
+            RefreshRoomUi();
         }
 
-        /// <summary>房主加 AI 对手（回环填位，测试用——对房间就是普通客户端）。</summary>
+        /// <summary>房间面板就绪层刷新：模式展示（服务器回显权威）/房主开始钮门槛/客人准备钮。</summary>
+        private void RefreshRoomUi()
+        {
+            if (_roomState == null) return;
+            int first = ((_roomState.FirstMoveMode % 3) + 3) % 3;
+            int shuffle = ((_roomState.ShuffleMode % 2) + 2) % 2;
+            if (_modesLabel != null)
+                _modesLabel.text = $"模式：{FirstMoveLabels[first].Replace("先后手：", "")} · {ShuffleLabels[shuffle].Replace("洗牌：", "")}";
+            if (_modeFirstLabel != null) _modeFirstLabel.text = FirstMoveLabels[first];
+            if (_modeShuffleLabel != null) _modeShuffleLabel.text = ShuffleLabels[shuffle];
+
+            if (_modeFirstBtn != null) _modeFirstBtn.gameObject.SetActive(_isHost);
+            if (_modeShuffleBtn != null) _modeShuffleBtn.gameObject.SetActive(_isHost);
+            if (_startBtn != null)
+            {
+                _startBtn.gameObject.SetActive(_isHost);
+                int mySeat = MySeatOf(_roomState);
+                var opp = _roomState.Players != null
+                    ? _roomState.Players.FirstOrDefault(p => p != null && p.Seat != mySeat && p.Seat >= 0) : null;
+                _startBtn.interactable = opp != null && opp.Connected && _roomState.GuestReady;
+            }
+            if (_readyBtn != null)
+            {
+                _readyBtn.gameObject.SetActive(!_isHost);
+                var lbl = _readyBtn.GetComponentInChildren<TMP_Text>(true);
+                if (lbl != null) lbl.text = _roomState.GuestReady ? "取消准备" : "准备";
+            }
+        }
+
+        private void CycleFirstMoveMode()
+        {
+            if (!_isHost) return;
+            _modeFirst = (_modeFirst + 1) % 3;
+            SendRoomSettings();
+        }
+
+        private void CycleShuffleMode()
+        {
+            if (!_isHost) return;
+            _modeShuffle = (_modeShuffle + 1) % 2;
+            SendRoomSettings();
+        }
+
+        private void SendRoomSettings()
+        {
+            if (_client == null) return;
+            _client.Send(NetworkMessageType.RoomSettings, new MsgRoomSettings
+            {
+                FirstMoveMode = _modeFirst,
+                ShuffleMode = _modeShuffle,
+            });
+            RefreshRoomUi(); // 乐观刷新（服务器回显随后校正）
+        }
+
+        private void ToggleReady()
+        {
+            if (_client == null || _roomState == null || _roomState.Phase != (int)NetRoomPhase.Waiting) return;
+            _client.Send(NetworkMessageType.RoomReady, new MsgRoomReady { Ready = !_roomState.GuestReady });
+        }
+
+        private void HostStartMatch()
+        {
+            if (_client == null || _roomState == null || _roomState.Phase != (int)NetRoomPhase.Waiting) return;
+            _client.Send(NetworkMessageType.RoomStart, (object)null);
+        }
+
+        /// <summary>房主加 AI 对手（回环填位——对房间就是普通客户端；就绪层下 AI 自动准备，房主即可开局）。</summary>
         private void AddAiOpponent()
         {
             if (!_isHost || _server == null) return;
@@ -386,28 +526,37 @@ namespace SynergyUI
             SetStatus("AI 对手正在入座…");
         }
 
+        /// <summary>本端椅位（昵称对账；-1=未命中——回环客户端未就座完成等瞬态）。</summary>
+        private static int MySeatOf(MsgRoomState room)
+        {
+            if (room?.Players == null) return -1;
+            foreach (var p in room.Players)
+                if (p != null && p.Connected && p.Nickname == _lastNickname) return p.Seat;
+            return -1;
+        }
+
         // ============================================================ 开局移交 / 收尾 ============================================================
 
-        private string[] _deckSubmittedDeckIds; // 提交时的卡组（清单回显对账用）
-
-        private void OnManifest(MsgMatchManifest manifest)
+        /// <summary>选卡组相位到达（房主已开局）：双方移交战场走五段式（掷币演出+战场选卡组+握手开战）。
+        /// 先手表现参数在此解析：掷币模式=照常 3D 演出（结果=服务器权威注入）；固定先后手=快进直出浮字。</summary>
+        private void HandOverToBattle(MsgRoomState room)
         {
             if (_client == null) return;
-            if (!NetMatchHandshake.VerifyMatchManifest(manifest, _deckSubmittedDeckIds, out var reason))
-            {
-                // 己方回显/摘要对不上：本地中止（服务器不可信——防御分支，正常链路不达）
-                SetStatus($"开局清单校验失败：{reason}");
-                TideLog.Error($"[Lobby] MatchManifest 校验失败：{reason}");
-                QuitRoom();
-                return;
-            }
-
             _handedOver = true;
-            UnwireClientEvents(_client); // 战斗屏接手下行事件
+            UnwireClientEvents(_client); // 战斗屏接手下行事件（含 manifest 校验——选卡组确认后到）
+            int mySeat = MySeatOf(room);
+            bool coinMode = room.FirstMoveMode == 0;
+            bool playerFirst = coinMode
+                ? room.FirstSeatThisMatch == mySeat
+                : room.FirstMoveMode == 1 ? mySeat == 0 : mySeat == 1;
             BattleEntry.Mode = BattleMode.Network;
             BattleEntry.Client = _client;
             BattleEntry.Nickname = _lastNickname;
-            BattleEntry.StagedOpening = false; // 网络局走战斗屏网络分支（非本地五段式）
+            BattleEntry.StagedOpening = true; // 网络五段式（2026-10-28：掷币+战场选卡组）
+            BattleEntry.NetCoinToss = coinMode;
+            BattleEntry.NetPlayerFirst = playerFirst;
+            SetStatus("房主已开局——进入战场（掷币+选卡组）");
+            TideLog.Info($"[Lobby] 移交战场：mySeat={mySeat} 先手椅位={room.FirstSeatThisMatch} 掷币演出={coinMode} playerFirst={playerFirst}");
             BattleStageDirector.SwallowToBattleAsync(() => Manager.Show<BattleScreen>()).Forget();
         }
 
@@ -430,7 +579,6 @@ namespace SynergyUI
 
         private void ResetToEntry()
         {
-            _deckSubmitted = false;
             _roomState = null;
             ShowPanel(_panelEntry);
         }
@@ -447,15 +595,18 @@ namespace SynergyUI
             }
             _aiFiller?.Stop();
             _aiFiller = null;
+            _scanLoopRunning = false;
+            try { _scanner?.StopScan(); } catch (Exception) { }
             StopHostServer();
             _tapSection?.Teardown(); // TapTap 段收口：退房+断对战服务（对局移交后不走这里；单机风味无段=no-op）
-            _deckSubmitted = false;
             _roomState = null;
         }
 
         private void StopHostServer()
         {
             if (_server == null) return;
+            _beacon?.Dispose(); // 先停信标再停服务器（扫描端即刻探测不到）
+            _beacon = null;
             _server.Stop();
             _server = null;
             _isHost = false;
@@ -470,6 +621,10 @@ namespace SynergyUI
             if (_panelJoin != null) _panelJoin.gameObject.SetActive(ReferenceEquals(panel, _panelJoin));
             if (_panelTap != null) _panelTap.gameObject.SetActive(ReferenceEquals(panel, _panelTap));
             if (_panelRoom != null) _panelRoom.gameObject.SetActive(ReferenceEquals(panel, _panelRoom));
+
+            // 加入面板进出即扫描起停（2026-10-28 局域网自动发现）
+            if (ReferenceEquals(panel, _panelJoin)) StartScan();
+            else StopScan();
         }
 
         /// <summary>状态行刷新（Tide.TapTap 联机段共用）。public=跨程序集同路调用。</summary>

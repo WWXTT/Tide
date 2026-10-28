@@ -7,9 +7,10 @@ namespace CardCore
     /// <summary>
     /// 费用的全链唯一表示（2026-10-04 定案：**位置数组**，下标 = ManaType 枚举序号）。
     ///
-    /// 下标序 = 现行枚举序 [灰,红,蓝,绿,白,黑]（Gray=0 … Black=5，不重排——已序列化的 int 色键
-    /// 全部保序）。例：碾压红3 = [0,3,0,0,0,0]。扩色 = 枚举加成员，Length 随枚举自动加长，
-    /// 表示层零改动；新色默认份额 0，旧数据语义不变。
+    /// 下标序 = 现行枚举序 [灰,红,蓝,绿,任意]（Gray=0 … Any=4，共 5 位）。2026-10-28 P2 席位收缩：
+    /// White（旧 4）/ Black（旧 5）退役，Any 6→4；旧六/七长数组读入走**重排**迁移
+    ///（new[0..3]=old[0..3]、new[4]=old[6]，白/黑位非零记 Error 后丢弃——直接截断会把旧
+    /// 「白」错当新「任意」，禁止）。例：碾压红3 = [0,3,0,0,0]。
     ///
     /// 落盘形态统一为 float 位置数组（原子表 ManaList / Cards.json costList / Effects.json cost 同款）；
     /// 边界适配（FromLegacyDict/ToLegacyDict）供网络快照、事件 DTO 等仍持 Dictionary&lt;int,float&gt;
@@ -17,8 +18,12 @@ namespace CardCore
     /// </summary>
     public sealed class ElementCost
     {
-        /// <summary>数组长度 = ManaType 成员数（扩色只改枚举，这里自动跟随）。</summary>
+        /// <summary>数组长度 = ManaType 成员数（扩缩色只改枚举，这里自动跟随；现行 = 5）。</summary>
         public static readonly int Length;
+
+        /// <summary>旧枚举序位（重排迁移用）：白/黑退役前的席位号，4/5 永久留空不回收。</summary>
+        public const int RetiredWhiteSlot = 4;
+        public const int RetiredBlackSlot = 5;
 
         static ElementCost()
         {
@@ -33,13 +38,42 @@ namespace CardCore
             v = new float[Length];
         }
 
-        /// <summary>从位置数组构建（null → 空费用；短数组补零，长数组截断——解析容错在调用侧告警）。</summary>
+        /// <summary>从位置数组构建（null → 空费用）。2026-10-28 P2 席位收缩迁移：
+        /// 长度 4（原子表新格式）→ 补零到 5；长度 5 → 原样；长度 6/7（旧档）→ **重排**
+        /// new[0..3]=old[0..3]、new[4]=old[6]（六长无 Any 位则补 0）——old[4]/old[5]（白/黑）
+        /// 非零记 Error 并按 0 处理（无兼容层，白黑已无处可去）；其它长度 → Error + 置零。</summary>
         public ElementCost(float[] source)
         {
             v = new float[Length];
             if (source == null) return;
-            int n = Math.Min(Length, source.Length);
-            for (int i = 0; i < n; i++) v[i] = source[i];
+            switch (source.Length)
+            {
+                case int n when n == Length:
+                    for (int i = 0; i < n; i++) v[i] = source[i];
+                    break;
+                case int n when n >= 0 && n < Length:
+                    // 短数组（4=原子表新格式等）补零
+                    for (int i = 0; i < n; i++) v[i] = source[i];
+                    break;
+                case 6:
+                case 7:
+                    // 旧档 [灰,红,蓝,绿,白,黑,(任意)] → 重排，禁止截断（截断会把旧白位错当新任意位）
+                    WarnRetiredSlots(source);
+                    for (int i = 0; i < 4; i++) v[i] = source[i];
+                    v[4] = source.Length > 6 ? source[6] : 0f;
+                    break;
+                default:
+                    TideLog.Error($"[ElementCost] 位置数组长度 {source.Length} 非法（合法 0~7），已置零");
+                    break;
+            }
+        }
+
+        private static void WarnRetiredSlots(float[] source)
+        {
+            if (source[RetiredWhiteSlot] != 0f || source[RetiredBlackSlot] != 0f)
+                TideLog.Error($"[ElementCost] 旧 {source.Length} 长位置数组含白/黑份额 " +
+                              $"[白={source[RetiredWhiteSlot]},黑={source[RetiredBlackSlot]}]——席位已退役（2026-10-28），" +
+                              "按 0 处理丢弃（无兼容层）");
         }
 
         /// <summary>单色便捷构造（如兜底行 Gray1）。</summary>
@@ -180,7 +214,8 @@ namespace CardCore
     /// **表列词表统一用本表的「灰」**。</summary>
     public static class ManaTypeNames
     {
-        /// <summary>中文名（下标=枚举序 [灰,红,蓝,绿,白,黑,任意]，扩色须同步补名）。
+        /// <summary>中文名（下标=枚举序 [灰,红,蓝,绿,任意]；白/黑已随 2026-10-28 P2 席位收缩退役，
+        /// 词表同步删除——TryParseZh 反查「白」「黑」将返回 false，不再静默落旧席位）。
         /// 「任意」=Any 万能货币（2026-10-23）——表色追加/反查场景不应出现（费用不使用 Any），
         /// 进词表仅为展示完备。</summary>
         private static readonly string[] ZhNames =
@@ -189,8 +224,6 @@ namespace CardCore
             "红", // Red
             "蓝", // Blue
             "绿", // Green
-            "白", // White
-            "黑", // Black
             "任意", // Any（万能货币，非地牌锁色色）
         };
 

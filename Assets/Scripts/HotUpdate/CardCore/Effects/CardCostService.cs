@@ -56,9 +56,8 @@ namespace CardCore
         /// <summary>符合规则一 ⟺ D ≤ C（2026-09-11 简化定案：代价当量抵扣下线，补偿改发黑/白元素）。</summary>
         public bool Conformant;
 
-        /// <summary>黑白元素获得量（2026-09-11 定案）：域锁错边原子出计价转化的获得
-        ///（黑=对自己负面 / 白=对对手正面，构筑期显示；运行时按实际命中发放并封顶地牌上限）。
-        /// 按模式0（最高消耗档）口径汇总。</summary>
+        /// <summary>【已废弃 2026-10-28 P1】黑白元素获得经济退役：代价=构筑期抵扣（P 行），不再产出元素。
+        /// 本字段恒空——消费引用清理归 P4。</summary>
         public ElementCost Grants = new ElementCost();
 
         /// <summary>逐行明细（S / K 逐关键词 / E 逐效果 / f / d(C) / Req / G）。</summary>
@@ -195,6 +194,17 @@ namespace CardCore
             var mounted = ApportionMounted(effBuckets, kwBuckets, kwMultiplier, factor, statGray);
             ApplyChassis(card, mounted);
 
+            // ---- 5b) 代价抵扣（2026-10-28 P1 定案）：代价 = 构筑期抵扣，不再产出任何元素 ----
+            // 卡层 PayloadCost（legacy 效果级 Costs 兜底）逐原子 PayloadUnitGrant 求和，
+            // ReduceBuckets 先灰后最高费用色、每色下限 0（溢出丢弃）。衍生物内容全价不抵扣（ContentPrice*）。
+            int payloadPoints = SumPayloadPrice(card);
+            if (payloadPoints > 0)
+            {
+                CardCompositionCost.ReduceBuckets(mounted, payloadPoints);
+                result.Breakdown.Add(new CostBreakdownLine("P",
+                    $"代价抵扣 −{payloadPoints}（先灰后最高费用色）", -payloadPoints));
+            }
+
             foreach (var kv in mounted)
             {
                 result.DerivedCost[kv.Key] = kv.Value;
@@ -206,61 +216,14 @@ namespace CardCore
             result.DerivedTotal = (int)result.DerivedCost.Total;
 
             // ---- 6) 规则一（2026-09-11 简化定案沿用）：D ≤ Ĉ 直判 ----
-            // 代价当量抵扣通道下线——代价补偿改发黑/白元素（运行时）。恒推导下 D 通常 ≤ Ĉ（d≤1）；
-            // 超槽加价不吃折，仍可把 D 顶出 Ĉ（Req>0=真超模，代价栏应补）。
+            // 代价当量抵扣通道下线——恒推导下 D 通常 ≤ Ĉ（d≤1）；超槽加价不吃折，仍可把 D 顶出 Ĉ
+            //（Req>0=真超模，代价栏应补）。代价抵扣（5b）先于本判——净费参与 D≤Ĉ。
             result.OffsetRequirement = Math.Max(0, result.DerivedTotal - result.DerivedTier);
             result.Conformant = result.OffsetRequirement == 0;
             result.Breakdown.Add(new CostBreakdownLine("Req", $"规则一 D{result.DerivedTotal} ≤ Ĉ{result.DerivedTier}", result.OffsetRequirement));
 
-            // ---- 6b) 黑白获得（2026-09-11 定案）----
-            // 内容契约下效果栏无错边原子，获得主要来自代价栏（付代价=得黑/白）；效果栏 grant 保留兜底口径。
-            foreach (var def in effectDefs)
-            {
-                if (def == null || def.IsActivatedEffect) continue;
-                var defGrants = CostDerivationService.DeriveElementGrants(def, 0);
-                foreach (var color in defGrants.NonzeroColors())
-                {
-                    var amount = (int)defGrants[color];
-                    if (amount <= 0) continue;
-                    result.Grants[color] = result.Grants[color] + amount;
-                }
-            }
-            // 代价栏：卡层 PayloadCost（2026-09-23 上移卡组合层）为正式口；legacy 效果级 Costs 兜底
-            //（卡层已填时跳过 legacy——防双收）。Payload **按全价获得**（2026-10-04 定案：任意单向效果
-            // 不限价、逆转选择范围——Grants 不再恒 ≤1；产出不封·使用侧受支付浓度上限约束。
-            // 2026-10-16 组装效果代价：卡层为原子序列，逐原子全价/极性色累计 Grants——可黑白混合。
-            // 本轮追加：代价栏占 1 效果槽（结构项经 CountEffectSlots 计入），全价另作地牌门槛——见 GameActions.EvaluatePayloadGate）。
-            var payloadEntries = new List<AtomicEffectEntry>();
-            if (card.PayloadCost != null)
-            {
-                payloadEntries.AddRange(card.PayloadCost.AllPayloads());
-            }
-            if (payloadEntries.Count == 0 && card.Effects != null)
-            {
-                foreach (var eff in card.Effects)
-                {
-                    if (eff?.Costs == null) continue;
-                    foreach (var ce in eff.Costs)
-                    {
-                        if (ce?.payload == null || string.IsNullOrEmpty(ce.payload.refId)) continue;
-                        payloadEntries.Add(ce.payload);
-                    }
-                }
-            }
-            foreach (var pe in payloadEntries)
-            {
-                var payload = CardEffectConverter.ConvertPayloadForDisplay(pe);
-                int amount = CostDerivationService.PayloadUnitGrant(payload);
-                if (amount <= 0) continue;
-                var gColor = CostCompensationService.PayloadGrantColor(payload);
-                result.Grants[gColor] = result.Grants[gColor] + amount;
-            }
-            foreach (var color in result.Grants.NonzeroColors())
-            {
-                result.Breakdown.Add(new CostBreakdownLine("G",
-                    $"获得{ElementAffinity.Single(color).GetColorName()}{(int)result.Grants[color]}（打出/发动时全量发放；2026-10-04 起黑白产出不封，使用侧受支付浓度上限约束）",
-                    (int)result.Grants[color], color));
-            }
+            // ---- 6b) 黑白获得汇总已删（2026-10-28 P1 定案）：代价=构筑期抵扣（5b），不再发放任何元素；
+            // Grants 字段留空不填（引用清理 P4 处理）----
             return result;
         }
 
@@ -482,6 +445,10 @@ namespace CardCore
                 float kwMultiplier = cc.KeywordsShareDelayDiscount ? factor : 1f;
                 var mounted = ApportionMounted(modeBuckets[m], kwBuckets, kwMultiplier, factor, grayAdd);
                 ApplyChassis(card, mounted); // 底盘（2026-10-10 可支配）：超槽加价入灰 / 剩余抵价（先灰后最高色）
+                // 代价抵扣（2026-10-28 P1）：抉择卡逐模式吃同一笔卡层代价（先灰后最高费用色）
+                int payloadPoints = SumPayloadPrice(card);
+                if (payloadPoints > 0)
+                    CardCompositionCost.ReduceBuckets(mounted, payloadPoints);
                 result.Add(ToElementCost(mounted));
             }
             return result;
@@ -548,6 +515,38 @@ namespace CardCore
             foreach (var kv in dict)
                 if (kv.Value != 0) c[kv.Key] = kv.Value;
             return c;
+        }
+
+        /// <summary>卡层代价价合计（2026-10-28 P1）：PayloadCost（卡层正式口）逐原子 PayloadUnitGrant 求和；
+        /// 缺失时回落 legacy（card.Effects[].Costs[].payload，与旧 Grants 汇总同口径）。
+        /// 供 Derive / DeriveModeCosts 的代价抵扣（ReduceBuckets 先灰后最高费用色）。
+        /// 契约过滤（p&lt;0 锁己方）在 ConvertPayloadForDisplay——违约原子不计价（转换返回 null）。</summary>
+        private static int SumPayloadPrice(CardData card)
+        {
+            if (card == null) return 0;
+            var entries = new List<AtomicEffectEntry>();
+            if (card.PayloadCost != null)
+                entries.AddRange(card.PayloadCost.AllPayloads());
+            if (entries.Count == 0 && card.Effects != null)
+            {
+                foreach (var eff in card.Effects)
+                {
+                    if (eff?.Costs == null) continue;
+                    foreach (var ce in eff.Costs)
+                    {
+                        if (ce?.payload == null || string.IsNullOrEmpty(ce.payload.refId)) continue;
+                        entries.Add(ce.payload);
+                    }
+                }
+            }
+            int total = 0;
+            foreach (var pe in entries)
+            {
+                var inst = CardEffectConverter.ConvertPayloadForDisplay(pe);
+                if (inst == null) continue; // 表行缺失/代价契约违约（p≥0）：不折价（装载口另有 Error 日志）
+                total += CostDerivationService.PayloadUnitGrant(inst);
+            }
+            return total;
         }
 
         // ======================================== 内部 ========================================
@@ -747,8 +746,6 @@ namespace CardCore
             ManaType.Blue => "蓝",
             ManaType.Green => "绿",
             ManaType.Gray => "灰",
-            ManaType.Black => "黑",
-            ManaType.White => "白",
             _ => m.ToString(),
         };
 

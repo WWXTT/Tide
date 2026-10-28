@@ -39,6 +39,12 @@ namespace SynergyUI
         /// <summary>本端昵称（网络局房间展示/战报口径；空=战斗屏按座位兜底）。</summary>
         public static string Nickname = "";
 
+        /// <summary>网络局先手掷币演出参数（2026-10-28 开局流程改版·一次性消费，StartNetFan 读取）：
+        /// NetCoinToss=true=掷币模式（照常 3D 演出，结果注入）；false=固定先后手（快进直出浮字）。
+        /// NetPlayerFirst=服务器权威结果（FirstSeatThisMatch 对本端椅位）。</summary>
+        public static bool NetCoinToss = true;
+        public static bool NetPlayerFirst;
+
         /// <summary>教学局关卡 id（TutorialLibrary 条目；缺省 "basics" 基础教学）。
         /// 入口方接线：BattleEntry.Mode = BattleMode.Tutorial 后 Show&lt;BattleScreen&gt;。</summary>
         public static string TutorialId = "basics";

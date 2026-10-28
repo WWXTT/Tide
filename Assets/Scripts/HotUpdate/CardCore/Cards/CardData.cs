@@ -78,8 +78,9 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 费用（2026-10-04 位置数组定案：ElementCost，下标=ManaType 枚举序号 [灰,红,蓝,绿,白,黑]；
-        /// 落盘 _costJson = 位置数组 JSON，如 "[0,3,0,0,0,0]"）。
+        /// 费用（2026-10-04 位置数组定案：ElementCost，下标=ManaType 枚举序号
+        /// [灰,红,蓝,绿,任意]（2026-10-28 P2 席位收缩后 5 位）；
+        /// 落盘 _costJson = 位置数组 JSON，如 "[0,3,0,0,0]"）。
         /// 2026-10-22 恒推导定案：本字段降级为**显示缓存**——运行时支付价恒经 CardCostService 推导
         ///（GetRuntimeCost），装载时由 EnsureCost 刷新为推导值（抉择卡=最大模式费）；
         /// 编辑器对存档值与推导不一致仅告警，不参与运行时。
@@ -155,8 +156,8 @@ namespace CardCore
 
         /// <summary>
         /// 代价栏（2026-09-23 定案：上移卡组合层）：单卡单条 Payload——错边原子引用，
-        /// cast 付费步强制执行并按全价补偿黑/白。效果级 CardEffectData.Costs 为 legacy 兜底
-        /// （旧数据仍读取；卡层已填时以卡层为准，防双收）。
+        /// p&lt;0 锁己方（自伤）/ p&gt;0 锁对方（资敌，2026-10-28 P1b）。效果级 CardEffectData.Costs
+        /// 为 legacy 兜底（旧数据仍读取；卡层已填时以卡层为准，防双收）。
         /// </summary>
         [TideSerialized]
         private global::CardCore.CostEntry _payloadCost;
@@ -350,7 +351,7 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 费用位置数组序列化（"[0,3,0,0,0,0]"——下标=ManaType 枚举序号，长度=枚举成员数）
+        /// 费用位置数组序列化（"[0,3,0,0,0]"——下标=ManaType 枚举序号，长度=枚举成员数）
         /// </summary>
         private string CostToJson()
         {

@@ -39,18 +39,16 @@ namespace SynergyUI
         private const float RingInnerScale = 0.85f;
         private const float RingLift = 0.006f; // 顶面之上 6mm（菲涅尔壳 0.004 与图标 0.008 之间）
 
-        // 地牌锁色配色（描边环，兼旧菲涅尔壳口径）：下标=ManaType 序 [灰,红,蓝,绿,白,黑,任意]；
-        // 2026-10-24 七组配色定案：底色单源=UiStyle.ManaBlock*（与 CostSquares 费用块同源——
-        // 深调压饱和，常驻环光不刺眼）；黑=该底色在 additive 环不发光，仍以紫罗兰替代（介质约束）；
-        // 任意=万能货币鎏金压深档（与战场 v6 强调色同族——六色皆可替）
+        // 地牌锁色配色（描边环，兼旧菲涅尔壳口径）：下标=ManaType 序 [灰,红,蓝,绿,任意]；
+        // 2026-10-24 配色定案（底色单源=UiStyle.ManaBlock*，与 CostSquares 费用块同源——深调压饱和，
+        // 常驻环光不刺眼）；2026-10-28 P2 席位收缩删白/黑两位（黑紫罗兰替代色随之退役）；
+        // 任意=万能货币鎏金压深档（与战场 v6 强调色同族——四色皆可替）
         private static readonly Color[] GlowColors =
         {
             UiStyle.ManaBlockGray,          // 灰
             UiStyle.ManaBlockRed,           // 红
             UiStyle.ManaBlockBlue,          // 蓝
             UiStyle.ManaBlockGreen,         // 绿
-            UiStyle.ManaBlockWhite,         // 白
-            new Color(0.62f, 0.38f, 0.95f), // 黑（additive 黑不发光→紫罗兰替代）
             UiStyle.ManaBlockAny,           // 任意（鎏金压深）
         };
 
@@ -62,8 +60,8 @@ namespace SynergyUI
         public static readonly Color UnitGlowColor = new Color(0.45f, 0.72f, 1.00f);
         public static readonly Color UnitGlowColorOpp = new Color(1.00f, 0.35f, 0.28f);
 
-        private static readonly string[] ElemMatNames = { "Gray", "Red", "Blue", "Green", "White", "Black", "Any" };
-        private static readonly Material[] _elemMats = new Material[7]; // 元素图标面片材质（下标=ManaType 序；含 Any 万能货币）
+        private static readonly string[] ElemMatNames = { "Gray", "Red", "Blue", "Green", "Any" };
+        private static readonly Material[] _elemMats = new Material[5]; // 元素图标面片材质（下标=ManaType 序 [灰,红,蓝,绿,任意]；白/黑席位已删 2026-10-28 P2）
 
         private static Material _fresnelMat;
         private static Mesh _hexMesh;

@@ -215,5 +215,15 @@ namespace SynergyUI
                 return;
             GameCore.Instance?.Update();
         }
+
+        /// <summary>
+        /// 编辑器退 Play 泄漏口（2026-10-28 实证）：Stop 按钮不走屏 OnExit，房主 NetSessionServer
+        /// 监听+静态登记残留（下次开房报端口被占）。真机进程死亡自然回收；此处兜编辑器与域重载禁用场景。
+        /// </summary>
+        private void OnDestroy()
+        {
+            try { CardCore.Network.NetSessionServer.Current?.Stop(); } catch (System.Exception) { }
+            if (NetClientRuntime.Active != null) NetClientRuntime.Unbind(NetClientRuntime.Active);
+        }
     }
 }

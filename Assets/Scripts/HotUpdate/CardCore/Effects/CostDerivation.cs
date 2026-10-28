@@ -76,27 +76,6 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 推导一个效果定义的黑白元素获得量（2026-09-11 定案：错边原子出计价改发元素）。
-        /// 有害原子(p&lt;0)锁己方域 → 黑；有益原子(p&gt;0)锁对方域 → 白；双侧域/无目标构筑期不记
-        /// （运行时按实际命中错边目标照发，见 EffectExecutionEngine）。
-        /// 数量与原错边折价一致：×|p|（当前表 |p|=1 即全额）；固定数量 ×N 同计费口径。
-        /// 动态数量原子构筑期不可知，不记（运行时实判）。
-        /// </summary>
-        public static ElementCost DeriveElementGrants(EffectDefinition effect, int modeIndex = 0)
-        {
-            var grants = new Dictionary<ManaType, int>();
-            if (effect != null)
-            {
-                VisitBillableAtoms(effect, modeIndex,
-                    (atom, domain) => AccumulateElementGrant(atom, effect, domain, grants));
-            }
-            var result = new ElementCost();
-            foreach (var kv in grants)
-                if (kv.Value > 0) result[kv.Key] = kv.Value;
-            return result;
-        }
-
-        /// <summary>
         /// 计费原子遍历（费用与黑白获得共用同一口径，防漂移）：
         /// 节点化：仅主序列原子（Kind==Atomic）计费；分支 then/else 奖励一律免费。
         /// 退化：未配 Steps 的旧卡仍按扁平 Effects 线性计费（向后兼容）。
@@ -419,13 +398,8 @@ namespace CardCore
             float amount = ComputeAtomBaseAmount(atom, def, cfg);
             if (amount <= 0f) return 0f;
 
-            // 错边拆分（2026-09-11 定案，取代错边折价）：有益原子(p>0)锁对方域 / 有害原子(p<0)锁己方域
-            // → 计费份额 ×(1−|p|)（当前表 |p|=1 即全额出计价），grant 份额 ×|p| 改发黑/白元素
-            //（构筑期显示 DeriveElementGrants / 运行时结算发放见 EffectExecutionEngine）。
-            // 双侧域=玩家可选按最优边全价；无目标/p=0 不拆。
-            float polarity = atom.Polarity;
-            if (polarity != 0f && !IsSelfSleepExempt(atom.Type, domain) && WrongSide(polarity, domain))
-                amount *= 1f - Math.Abs(polarity);
+            // 错边拆分已删（2026-10-28 P1 定案）：黑白获得经济退役——极性不再参与计价拆分，
+            // 有害原子锁己方域照常全价计费（自缚设计的代价语义由代价栏抵扣承担）。
 
             // 目标数量计价（2026-10-05 档位化，表 PricingTier：1:1 / 2:1.5 / 3:2 / 全部:3；
             // 2026-10-09 每原子下沉——按该原子有效数量档计）；
@@ -536,8 +510,8 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 原子基础量（错边拆分/×N/抽牌缺陷之前的单价）：检索按筛选维度档，其余通用公式。
-        /// 计费（ComputeAtomCost）与黑白获得（ComputeAtomUnitGrant）共用，保证同源不漂移。
+        /// 原子基础量（数量档/抽牌缺陷之前的单价）：检索按筛选维度档，其余通用公式。
+        /// 计费（ComputeAtomCost）与代价全价（PayloadUnitGrant）共用，保证同源不漂移。
         /// 2026-10-12 起本口与 ComputeAtomCost 全程不取整（内部真值带小数，如 回复生命 锚 0.5绿/点）
         /// ——出口取整见 DeriveElementCosts 头注（2026-10-18 效果合成阶段逐色取整）。
         /// </summary>
@@ -720,8 +694,9 @@ namespace CardCore
         /// 「基准1红×5×数量档1.5」）：数值真源仍是 ComputeAtomCost，本口只展开显示构成——
         /// 基准量＋逐段系数链（系数=1 不列），分档判定复用同一批 primitives
         ///（BaseExprOf 各分档 / QuantityFactor / TriggerCostFactor /
-        /// IsSymmetricBothSides / WrongSide），不另立计价口径。系数顺序与 ComputeAtomCost
-        /// 管线一致：基准内系（量级/表乘数/持续/控制/赋予档）→错边→数量档→触发档→双方减半。
+        /// IsSymmetricBothSides），不另立计价口径。系数顺序与 ComputeAtomCost
+        /// 管线一致：基准内系（量级/表乘数/持续/控制/赋予档）→数量档→触发档→双方减半
+        ///（错边拆分已随黑白获得经济删除，2026-10-28 P1）。
         /// 基准内的乘法在数值侧折叠为一次 round（ComputeAtomBaseAmount），展开链只作显示——
         /// 末端结果由调用方取 DeriveElementCosts 实值，不重算。</summary>
         public static (string baseExpr, List<string> factorExprs) AtomCostFormula(
@@ -732,10 +707,8 @@ namespace CardCore
 
             string baseExpr = BaseExprOf(atom, def, ResolvePricingConfig(atom), factors);
 
-            // 管线系数（ComputeAtomCost 同序同条件；速度档已随速度计价退役 2026-10-19）
-            float polarity = atom.Polarity;
-            if (polarity != 0f && !IsSelfSleepExempt(atom.Type, domain) && WrongSide(polarity, domain))
-                AddFactor(factors, "错边", 1f - Math.Abs(polarity));
+            // 管线系数（ComputeAtomCost 同序同条件；速度档已随速度计价退役 2026-10-19；
+            // 错边拆分已随黑白获得经济删除 2026-10-28 P1）
             float n = QuantityFactor(atom, def);
             if ((domain == null || domain.Count == 0) && n > 1f) n = 1f; // 无目标域不乘数量（同 ComputeAtomCost）
             AddFactor(factors, "数量档", n);
@@ -851,91 +824,58 @@ namespace CardCore
             ManaType.Blue => "蓝",
             ManaType.Green => "绿",
             ManaType.Gray => "灰",
-            ManaType.Black => "黑",
-            ManaType.White => "白",
             _ => m.ToString(),
         };
 
-        // ======================================== 黑白元素获得（2026-09-11 定案） ========================================
-        /// <summary>错边判定的极性→获得颜色：有害原子(p&lt;0)命中己方→黑；有益原子(p&gt;0)命中对方→白。</summary>
-        public static ManaType PolarityGrantColor(float polarity)
-            => polarity < 0f ? ManaType.Black : ManaType.White;
+        // ======================================== 代价栏有效域（2026-10-28 P1b：自伤 + 资敌双臂） ========================================
 
-        /// <summary>错边判定：极性与域侧别冲突（p&gt;0 且对方锁 / p&lt;0 且己方锁）。双侧/无目标不判错边。</summary>
-        public static bool WrongSide(float polarity, List<int> domain)
-        {
-            int side = SideLock(domain);
-            return (polarity > 0f && side == 1) || (polarity < 0f && side == -1);
-        }
-
-        /// <summary>代价栏有效域计算（2026-10-04 定案：任意单向效果·放入代价栏后逆转选择范围）。
-        /// p≠0 强制错误侧（p&lt;0→己方 / p&gt;0→对方）：表域双侧→收窄到错误侧成员；表域恰为整侧→免写(null)；
-        /// 表域无错误侧成员（单侧在正确侧）→<see cref="TargetKindRules.MirrorDomain"/> 镜像逆转；
-        /// 镜像后仍不满足装载契约（如 p&gt;0 纯 {Self} 域——Self 无对侧）= 不可入。
-        /// p=0 中性须表域单侧锁定（双侧/无目标=既非代价也非收益，拒）。
+        /// <summary>代价栏有效域计算（2026-10-28 P1b 定案：代价收 p≠0 且锁在**受益方反面**的原子）。
+        /// p&lt;0（有害）→ 锁己方（自伤）；p&gt;0（有益）→ 锁对方（资敌：给对手回血/增益/防护/送牌）；
+        /// p=0（中性）不可作代价（null,false）。
+        /// 双臂同构：表域双侧→收窄到锁定侧成员；表域恰为整侧（=锁定侧）→免写(null)；
+        /// 表域纯反面侧→ <see cref="TargetKindRules.MirrorDomain"/> 镜像逆转到锁定侧；
+        /// 镜像后仍非纯锁定侧锁（Self 无对侧等）= 不可入。
         /// 返回 (kinds, eligible)：kinds=null 表示免写（表默认域同效）；合成器放置口与候选过滤共用本口。</summary>
         public static (List<int> kinds, bool eligible) PayloadCostDomain(AtomicEffectConfig cfg)
             => PayloadCostDomain(cfg, cfg?.GetTargetKindList());
 
-        /// <summary>组装效果代价版（2026-10-16）：域判定按条目**有效域**（组合期已解析的 entry.kinds，null 回落表默认）——
-        /// 「对敌方单位造成伤害」（kinds=[2]）整体镜像到 [1] 打自己，而非按表默认多值域收窄
-        /// （表默认收窄丢组合解析，名次回落泛称「目标」——翻转在文案上不可见）。
-        /// 免写(null)=有效域本就整侧匹配/单侧锁定——调用方保持条目原 kinds 不动。</summary>
+        /// <summary>组装效果代价版（2026-10-16）：域判定按条目**有效域**（组合期已解析的 entry.kinds，null 回落表默认）。
+        /// 免写(null)=有效域本就整侧匹配——调用方保持条目原 kinds 不动。</summary>
         public static (List<int> kinds, bool eligible) PayloadCostDomain(AtomicEffectConfig cfg, List<int> effectiveKinds)
         {
             if (cfg == null) return (null, false);
             var kinds = effectiveKinds;
             float p = Math.Clamp(cfg.Polarity, -1f, 1f);
-            if (p == 0f)
-                return SideLock(kinds) != 0 ? (null, true) : (null, false);
+            if (p == 0f) return (null, false); // p=0 不可作代价（2026-10-28 P1b）
 
-            bool wantEnemy = p > 0f;
+            bool wantEnemy = p > 0f; // 锁定侧 = 受益方反面：p<0 锁己方 / p>0 锁对方（资敌臂恢复）
             var side = kinds.Where(k => TargetKindRules.IsEnemySide(k) == wantEnemy).ToList();
             if (side.Count > 0)
                 return side.Count == kinds.Count ? (null, true) : (side, true);
 
-            var mirrored = TargetKindRules.MirrorDomain(kinds); // 正确侧单向 → 逆转
-            return WrongSide(p, mirrored) ? (mirrored, true) : (null, false);
+            var mirrored = TargetKindRules.MirrorDomain(kinds); // 纯反面侧 → 逆转到锁定侧
+            return SideLock(mirrored) == (wantEnemy ? 1 : -1) ? (mirrored, true) : (null, false);
         }
 
-        /// <summary>自我沉睡豁免（2026-10-02 苏醒退役配套）：Sleep 原子收窄域恰为 {Self} 不作错边——
-        /// 沉睡行合并后极性 -1，自我沉睡实例（豁免时长/定长两模式）是既定效果栏机制，
-        /// 其"对自己有害"的代价语义由豁免费（GameActions.HasSelfSleepEffect：灰+绿份额剥离转时长）
-        /// 替代承担——契约剔除与错边转化（计价 ×(1−|p|) 出计价 / 黑获得）双双跳过，
-        /// 自我沉睡按全价计、支付时剥离灰+绿份额。消费点：CardEffectConverter 契约、
-        /// ComputeAtomCost 错边拆分、AccumulateElementGrant 黑白获得。</summary>
-        public static bool IsSelfSleepExempt(AtomicEffectType type, List<int> domain)
-            => type == AtomicEffectType.Sleep
-               && domain != null && domain.Count == 1 && domain[0] == (int)TargetKind.Self;
+        /// <summary>代价契约要求的侧锁（2026-10-28 P1b）：p&lt;0 → −1（锁己方·自伤）；
+        /// p&gt;0 → +1（锁对方·资敌）；p=0 → 0（不可作代价）。与 <see cref="SideLock"/> 同尺，
+        /// 转换器契约校验（ConvertOne / ConvertPayloadForDisplay）与验证器共用。</summary>
+        public static int PayloadCostRequiredSideLock(float polarity)
+        {
+            float p = Math.Clamp(polarity, -1f, 1f);
+            return p < 0f ? -1 : p > 0f ? 1 : 0;
+        }
 
         /// <summary>
-        /// 原子错边黑白获得量——**单目标份额**（未 ×N、未封顶；数量与原错边折价一致 = 单价×|p|）。
-        /// 运行时结算发放用：单价 × 实际错边命中数，再按发放事件封顶（地牌上限）。
-        /// 实际侧别由调用方按已解析目标判定（非域锁），双域卡实际打错边同样适用。
+        /// Payload 效果型代价的全价（单目标，未封顶）：按 Once/单目标/战场落区的合成组合层计价
+        ///（2026-10-28 P1：黑白获得经济退役——本值不再用于补偿发放，只作代价抵扣（SumPayloadPrice）
+        /// 与构筑期计价锚；极性乘子删除，全价直出）。
         /// </summary>
-        public static int ComputeAtomUnitGrant(AtomicEffectInstance atom, EffectDefinition def)
-        {
-            if (atom == null || def == null) return 0;
-            float polarity = atom.Polarity;
-            if (polarity == 0f) return 0;
-
-            var cfg = ResolvePricingConfig(atom); // 行身份（2026-10-03）：变体行按 RowHashId 取锚
-            // 2026-10-12 小数直通：基准不取整，末尾一次性约等于（发放是整数元素）
-            float baseAmount = ComputeAtomBaseAmount(atom, def, cfg);
-            if (baseAmount <= 0f) return 0;
-            return (int)Math.Round(baseAmount * Math.Abs(polarity), MidpointRounding.AwayFromZero);
-        }
-
-        /// <summary>Payload 效果型代价的全价（单目标，未封顶）：按 Once/单目标/战场落区的合成组合层计价。
-        /// 零极性原子（无错边概念的代价）按全基础量计——代价本身即牺牲，颜色按域侧判（见补偿服务）。</summary>
         public static int PayloadUnitGrant(AtomicEffectInstance atom)
         {
             if (atom == null) return 0;
-            if (atom.Polarity != 0f)
-                return ComputeAtomUnitGrant(atom, PayloadGrantDef);
-
             var cfg = ResolvePricingConfig(atom); // 行身份（2026-10-03）：变体行按 RowHashId 取锚
-            return (int)Math.Round(ComputeAtomBaseAmount(atom, PayloadGrantDef, cfg), MidpointRounding.AwayFromZero); // 2026-10-12 小数直通：末尾一次约等于
+            return (int)Math.Round(ComputeAtomBaseAmount(atom, PayloadGrantDef, cfg), MidpointRounding.AwayFromZero); // 小数直通：末尾一次约等于
         }
 
         /// <summary>Payload 计价合成组合层（Duration=Once、TargetCount=1）。</summary>
@@ -946,39 +886,7 @@ namespace CardCore
             TargetCount = 1,
         };
 
-        /// <summary>构筑期 grant 累计（DeriveElementGrants 的访问器）：域锁错边原子入桶，子效果同口径递归。</summary>
-        private static void AccumulateElementGrant(AtomicEffectInstance atom, EffectDefinition def, List<int> domain,
-            Dictionary<ManaType, int> grants)
-        {
-            // 动态数量：构筑期不可知（计费同口径为 0），运行时按实际命中发放。
-            if (atom.EffectiveTargetCount(def) == -1) return;
-
-            float polarity = atom.Polarity;
-            if (polarity != 0f && !IsSelfSleepExempt(atom.Type, domain) && WrongSide(polarity, domain))
-            {
-                int unit = ComputeAtomUnitGrant(atom, def);
-                if (unit > 0)
-                {
-                    // 固定数量同计费口径（2026-10-05 档位化 / 触发档位——与 ComputeAtomCost 同口径）
-                    float n = QuantityFactor(atom, def);
-                    if (n > 1f) unit = (int)Math.Round(unit * n, MidpointRounding.AwayFromZero);
-                    float gtf = TriggerCostFactor(def);
-                    if (gtf > 1f) unit = (int)Math.Round(unit * gtf, MidpointRounding.AwayFromZero);
-
-                    var color = PolarityGrantColor(polarity);
-                    grants.TryGetValue(color, out var prev);
-                    grants[color] = prev + unit;
-                }
-            }
-
-            // 元/复合效果的子效果同样判定（同 AccumulateSubEffects 口径）。
-            if (atom.SubEffects == null) return;
-            foreach (var sub in atom.SubEffects)
-            {
-                if (sub == null) continue;
-                AccumulateElementGrant(sub, def, domain, grants);
-            }
-        }
+        /// <summary>构筑期 grant 累计（DeriveElementGrants 的访问器）已删（2026-10-28 P1：黑白获得经济退役）。</summary>
 
         private static int FilterPrecisionCost(AtomicEffectInstance atom)
         {

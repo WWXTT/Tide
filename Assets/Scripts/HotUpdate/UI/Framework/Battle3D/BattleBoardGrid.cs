@@ -68,7 +68,7 @@ namespace SynergyUI
 
             // 格心公式抽样对拍（BoardLayout 常量格，独立复算口径与 CellCenterLocal 同式）
             int spotBad = 0;
-            foreach (var (x, z) in new[] { (0, 0), (7, 6), (3, 3), (7, 5), (0, 1) })
+            foreach (var (x, z) in new[] { (1, 0), (2, 0), (3, 3), (7, 5), (0, 1) })
             {
                 var expect = new Vector3((x + (z & 1) * 0.5f) * InnerRadius * 2f, 0f, z * OuterRadius * 1.5f);
                 if ((WorldPositionOf(x, z) - (Root != null ? Root.TransformPoint(expect) : expect)).sqrMagnitude > 1e-6f)
@@ -77,7 +77,8 @@ namespace SynergyUI
             sb.Append($" 公式抽拍异常={spotBad}");
             if (spotBad > 0) ok = false;
 
-            // 拼装规格（2026-10-14 晚 8×7）：全盘 56 格位实拼 55 tile（中线 x7 槽缺口），逐 tile 须带 MeshFilter/sharedMesh
+            // 拼装规格（2026-10-28 盘形 7876787）：全盘实拼 50 tile（中线 6 格 x0..x5 +
+            // 四角缺口 (0,0)/(0,2)/(7,4)/(7,6)），逐 tile 须带 MeshFilter/sharedMesh
             int tiles = 0, tileBad = 0;
             if (Root != null)
                 foreach (Transform child in Root)
@@ -86,8 +87,8 @@ namespace SynergyUI
                     var f = child.GetComponent<MeshFilter>();
                     if (f == null || f.sharedMesh == null) tileBad++;
                 }
-            sb.Append($" 格数={tiles}(期望55) 缺mesh格={tileBad}");
-            if (tiles != 55 || tileBad > 0) ok = false;
+            sb.Append($" 格数={tiles}(期望50) 缺mesh格={tileBad}");
+            if (tiles != 50 || tileBad > 0) ok = false;
 
             Debug.Log(ok ? $"[PASS]{sb}" : $"[FAIL]{sb}");
             return ok;

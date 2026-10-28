@@ -97,26 +97,18 @@ namespace CardCore
                 }
             }
 
-            // 产色落**临时钱包**（任一回合结束清空）；受全类型累计钳（2026-10-16 改案：六色同池，
-            // 配额=地牌上限−本周期累计——amount=1 常过钳，配额耗尽时实发 0）。事件走 core.PublishEvent
-            // 路由路径（Trigger/Layer 引擎可见——AddMana 直发 EventManager 会绕开，故不换路）；
-            // 台账经 CommitGainLedger 与 AddMana 单源。
-            var pool = core.ElementPool.GetPool(player);
-
+            // 产色落**临时钱包**（任一回合结束清空）；2026-10-28 P3b：全类型累计钳删除，直接入账。
+            // 事件走 core.PublishEvent 路由路径（Trigger/Layer 引擎可见——AddMana 直发 EventManager
+            // 会绕开，故不换路）。
             creature.Tap();
-            int allowed = core.ElementPool.PreviewGrantAmount(player, type, 1);
-            if (allowed > 0)
+            core.ElementPool.GetPool(player).TempElements[type] += 1;
+            core.PublishEvent(new ElementPoolGainEvent
             {
-                ElementPoolSystem.CommitGainLedger(pool, type, allowed);
-                pool.TempElements[type] += allowed;
-                core.PublishEvent(new ElementPoolGainEvent
-                {
-                    Player = player,
-                    GainedType = type,
-                    FromCard = creature,
-                    Amount = allowed,
-                });
-            }
+                Player = player,
+                GainedType = type,
+                FromCard = creature,
+                Amount = 1,
+            });
             RuleHooks.OnTutorialCreatureTapped?.Invoke(player, creature);
             return true;
         }
@@ -398,18 +390,13 @@ namespace CardCore
                 return;
 
             // 2. 付费（响应窗口之后）——抉择卡按声明期选定的模式付费（cast.ModeIndex）。
-            // 顺序（2026-10-16 恢复 2026-10-04 旧序——回调 10-11「补偿先付垫本卡」定案：
-            // 代价补偿黑/白不预计算垫本卡，须本卡发动成功、代价强制执行完成后才入账）：
+            // 顺序（2026-10-28 P1 定案：代价=构筑期抵扣、不再产出元素）：
             // ① 代价目标存活校验——预选目标响应窗口内全灭/离场/不可指定 → 发动失败，
-            //    卡回退声明来源区（手牌路径回手牌），不付费、不执行、走不到代价黑白元素生成；
-            // ② 先扣卡费——现取现用（钱包优先消耗+系统自动横置地牌补足，2026-09-30 定案），
-            //    将生成的代价黑白不提前计入（声明期 CanAffordCast 与此处实际支付同口径：
-            //    新生成黑白不能垫本卡）；付不出 → 入墓不回卷（失败点在代价前——代价未执行、
-            //    无补偿入账）；
-            // ③ 代价强制执行+补偿入池（2026-09-14 撤销「代价可选」；快照在执行前取：
-            //    Payload 执行会膨胀模板身价，09-13 护栏维持）——卡费已付清，生成的黑/白
-            //    落临时钱包留待后续消费（本卡支付已闭合）。
-            // 被「效果无效」只跳效果、已付代价与补偿不回卷；被「发动无效」则全免（上方 1 已拦）。
+            //    卡回退声明来源区（手牌路径回手牌），不付费、不执行；
+            // ② 先扣卡费（净费=推导费−代价抵扣，已并入 GetCardCost）——现取现用
+            //    （钱包优先消耗+系统自动横置地牌补足）；付不出 → 入墓不回卷；
+            // ③ 代价强制执行（只执行、不发放）。
+            // 被「效果无效」只跳效果、已付代价不回卷；被「发动无效」则全免（上方 1 已拦）。
             var specialCosts = CollectCardSpecialCosts(card);
             var cost = GetCardCost(card, cast.ModeIndex);
             var preselected = card._pendingCostTargets;
@@ -432,8 +419,8 @@ namespace CardCore
                 return;
             }
 
-            // ③ 代价强制执行 + 补偿入临时钱包（PayWithCompensationAsync 内部：快照全价 → 执行 → 发放；
-            //    AddMana 黑白单次钳：单次 ≤ 地牌上限）
+            // ③ 代价强制执行（2026-10-28 P1 定案：只执行、不发放——黑白补偿经济退役，
+            //    代价价值已在构筑期抵扣〔CardCostService P 行〕）
             var costCtx = new CostContext
             {
                 Payer = player,
@@ -442,7 +429,7 @@ namespace CardCore
                 Source = player, // 来源=角色（来源归因定案 2026-09-09）
                 PreselectedCostTargets = preselected, // 出牌两阶段（2026-10-04）：声明期预选代价目标沿用
             };
-            if (!await CostCompensationService.PayWithCompensationAsync(specialCosts, costCtx))
+            if (!await CostCompensationService.PayPayloadsAsync(specialCosts, costCtx))
             {
                 CastAbortToGraveyard(core, card, player, "代价流程异常（付费步失败，不回卷）");
                 return;
@@ -1099,10 +1086,10 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 出牌两阶段·第一阶段（2026-10-04 定案）：有代价的卡声明期先算代价——预选代价目标。
-        /// 代价也是完整效果：按其自身域以**支付者视角**解析候选（与结算期 ExecutePayloadAsync 同口径），
-        /// 候选存 <see cref="Card._pendingCostTargets"/> 供 cast 付费步沿用（响应窗口内不重选）。
-        /// 代价全价过地牌门槛（2026-10-04 本轮定案）：全价 &gt; 地牌槽上限 → 整卡不可使用（走不到代价发动）；
+        /// 出牌两阶段·第一阶段（2026-10-04 定案；2026-10-28 P1 改版）：有代价的卡声明期先算代价——
+        /// 预选代价目标。代价也是完整效果：按其自身域以**支付者视角**解析候选（与结算期
+        /// ExecutePayloadAsync 同口径），候选存 <see cref="Card._pendingCostTargets"/> 供 cast 付费步沿用
+        /// （响应窗口内不重选）。可支付闸（CostPayability：手牌/生命/牌库/候选）不可过 → 整卡不可用；
         /// 代价无目标（无法执行）→ 返回 false，卡的发动无效。无代价卡直接放行（只走费用门禁）。
         /// </summary>
         private static bool TryPrepareCardCostTargets(GameCore core, Player player, Card card, out string rejectReason)
@@ -1129,10 +1116,12 @@ namespace CardCore
             => EvaluatePayloadGate(core, player, card, out _, out _);
 
         /// <summary>
-        /// 代价门槛评估（2026-10-04 本轮定案，声明期与 AI 枚举同口；2026-10-16 组装效果代价逐原子化）：
-        /// ① 全价门槛——代价全价（逐原子 PayloadUnitGrant 求和，与补偿同锚、不受减免）&gt; 地牌槽上限 → 整卡不可使用；
+        /// 代价门槛评估（2026-10-28 P1 定案，声明期与 AI 枚举同口；组装效果代价逐原子化）：
+        /// ① 可支付门槛——CostPayability.AllPayable/RejectReason（弃牌→手牌数、流失生命→生命、
+        ///    磨牌→牌库、有域原子→候选非空）；代价不可支付 → 整卡不可用（声明期闸）。
+        ///    旧「全价过地牌槽上限」门槛已删（免费卡合法——净费 0 与本闸无关）。
         /// ② 目标门槛——有域原子逐个以支付者视角解析候选（剔除本卡），任一无候选 → 发动无效。
-        /// 全无域原子则两门槛中只过①（可发动，结算按无目标执行）。
+        /// 全无域原子则只过①（可发动，结算按无目标执行）。
         /// </summary>
         private static string EvaluatePayloadGate(GameCore core, Player player, Card card,
             out CostInstance payloadCost, out List<List<Entity>> candidates)
@@ -1145,13 +1134,16 @@ namespace CardCore
                 if (c != null && c.Type == CostType.Payload && c.Payloads != null && c.Payloads.Count > 0) { payloadCost = c; break; }
             if (payloadCost == null) return null; // 无代价：两阶段退化为一阶段（费用门禁）
 
-            // ① 全价门槛：全价不并入卡费、装载不受减免——使用时单独过地牌门槛（例：上限3、全价4 → 整卡卡死）
-            int fullPrice = 0;
-            foreach (var atom in payloadCost.Payloads)
-                if (atom != null) fullPrice += CostDerivationService.PayloadUnitGrant(atom);
-            int landCap = core.ElementPool.GetLandCap(player);
-            if (fullPrice > landCap)
-                return $"代价全价 {fullPrice} 超过当前地牌槽上限 {landCap}——整卡无法使用（走不到代价发动）";
+            // ① 可支付门槛（声明期闸——与 CanAffordCast 同口径）：不可支付返回拒绝原因（UI/AI 直读）
+            var costCtx = new CostContext
+            {
+                Payer = player,
+                ZoneManager = core.ZoneManager,
+                ElementPool = core.ElementPool,
+                Source = player,
+            };
+            var payReject = CostPayability.RejectReason(specialCosts, costCtx);
+            if (payReject != null) return payReject;
 
             // ② 目标门槛：按支付者视角逐原子解析候选（与结算期 ExecutePayloadAtomAsync 同口径）
             bool anyDomain = false;
@@ -1579,16 +1571,28 @@ namespace CardCore
             => CanAfford(core?.ElementPool, cost, player, GetPendingCastCosts(core, player));
 
         /// <summary>
-        /// 出一张卡的可付性：CanAfford（卡费+同玩家 pending 声明承诺统一混付规划）。
-        /// 代价补偿黑/白**不预计算垫本卡**（2026-10-16 恢复 10-04 旧序——回调 10-11「补偿先付
-        /// 垫本卡」定案）：补偿须本卡发动成功、代价强制执行完成后才入账，声明期不虚拟并入。
-        /// 出牌声明预检（PlayCard/PlayCardInResponse）与 AI 枚举（LegalActionEnumerator）共用单源。
+        /// 出一张卡的可付性（2026-10-28 P1 定案）：净费可付 ∧ 代价可支付。
+        /// 净费=CanAfford（卡费〔已含代价抵扣〕+同玩家 pending 声明承诺统一混付规划）；
+        /// 代价可支付=CostPayability.AllPayable（与 EvaluatePayloadGate 同口径，两处单源）。
+        /// 出牌声明预检（PlayCard/PlayCardInResponse）与 AI 枚举（LegalActionEnumerator）共用。
         /// </summary>
         public static bool CanAffordCast(GameCore core, Player player, Card card, int modeIndex)
         {
             if (core == null || player == null || card == null) return false;
-            return CanAfford(core.ElementPool, GetCardCost(card, modeIndex), player,
-                GetPendingCastCosts(core, player));
+            if (!CanAfford(core.ElementPool, GetCardCost(card, modeIndex), player,
+                    GetPendingCastCosts(core, player)))
+                return false;
+
+            // 代价可支付闸（声明期——整卡不可用，非结算期失败）
+            var specialCosts = CollectCardSpecialCosts(card);
+            if (specialCosts == null || specialCosts.Count == 0) return true;
+            return CostPayability.AllPayable(specialCosts, new CostContext
+            {
+                Payer = player,
+                ZoneManager = core.ZoneManager,
+                ElementPool = core.ElementPool,
+                Source = player,
+            });
         }
 
         private static bool CanAfford(ElementPoolSystem elementPool, ElementCost cost, Player player,
@@ -1622,7 +1626,7 @@ namespace CardCore
             var untapped = core.ElementPool.GetPool(player).PooledCards.Count(pc => !pc.IsTapped);
             return $"元素不足——需 {CostText(cost)}，临时元素：{(string.IsNullOrEmpty(bankText) ? "空" : bankText)}，"
                 + $"未横置地牌 {untapped} 张（现取现用：付费时系统自动横置）"
-                + "（代价补偿黑/白须发动成功后才到账，不预先计入）";
+                + "（代价=构筑期抵扣已并入净费，不产出元素）";
         }
 
         private static string CostText(ElementCost cost)
@@ -1639,8 +1643,6 @@ namespace CardCore
             ManaType.Red => "红",
             ManaType.Blue => "蓝",
             ManaType.Green => "绿",
-            ManaType.White => "白",
-            ManaType.Black => "黑",
             ManaType.Any => "任意",
             _ => "灰",
         };

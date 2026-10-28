@@ -77,14 +77,13 @@ namespace SynergyUI
         public static readonly Color ManaBlockBlack = Rgb(24, 24, 32);
         public static readonly Color ManaBlockAny = Rgb(160, 120, 48);
 
-        /// <summary>ManaType → 元素色块底色（七组=六色+任意；灰及未来扩色回退灰组）。</summary>
+        /// <summary>ManaType → 元素色块底色（2026-10-28 P2 后五组=四色+任意；灰及未来扩色回退灰组）。
+        /// 白/黑 case 已随 ManaType 席位收缩删除；ManaBlockWhite/Black 色值字段保留（battle 侧遗留消费）。</summary>
         public static Color ManaBlockColor(ManaType m) => m switch
         {
             ManaType.Red => ManaBlockRed,
             ManaType.Blue => ManaBlockBlue,
             ManaType.Green => ManaBlockGreen,
-            ManaType.White => ManaBlockWhite,
-            ManaType.Black => ManaBlockBlack,
             ManaType.Any => ManaBlockAny,
             _ => ManaBlockGray,
         };

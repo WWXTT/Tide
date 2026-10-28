@@ -45,7 +45,8 @@ namespace CardCore
         // 空/缺省 = 预制体占位图（ACardView.TrySetArt 加载失败保持占位同口径）
         public string illustration;
 
-        // 费用（2026-10-04 位置数组化）：下标=ManaType 枚举序号 [灰,红,蓝,绿,白,黑]，长度=枚举成员数；
+        // 费用（2026-10-04 位置数组化；2026-10-28 P2 席位收缩）：下标=ManaType 枚举序号
+        // [灰,红,蓝,绿,任意]（5 位；旧 6/7 位档由 ElementCost 构造器重排迁移）；
         // 旧 [{manaType,amount}] 对列表形态已随全表重推退役。
         public List<float> costList;
         public List<string> keywords;
@@ -700,9 +701,8 @@ namespace CardCore
         /// </summary>
         private static CardData CreateCardData(CardConfigEntry entry)
         {
-            // 黑白关键词照旧印制（2026-09-14 撤销「转主动」定案）：参杂黑白的生物可作地牌，
-            // 地牌只是不从黑白份额产指示物（ElementPool.GetCardCostAsTokens 过滤）——
-            // 黑白获取通道不变（=卡结算：错边/Payload 补偿），费用侧照常计价。
+            // 黑白关键词/费用份额已随 2026-10-28 P2 席位收缩退役（元素经济四色+万能货币）；
+            // 旧档 costList 白/黑位非零由 ElementCost 构造器记 Error 丢弃。
             var cardData = new CardData
             {
                 ID = entry.id,

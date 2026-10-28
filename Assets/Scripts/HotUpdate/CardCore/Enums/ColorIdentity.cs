@@ -54,33 +54,17 @@ namespace CardCore
             !left.Equals(right);
 
         // ===== HS 职业颜色映射 =====
-
-        /// <summary>圣骑士：白色（秩序）+ 绿色（成长）</summary>
-        public static ColorIdentity Paladin => new ColorIdentity(ManaType.White, ManaType.Green);
-
-        /// <summary>牧师：白色（治疗）+ 黑色（操控）</summary>
-        public static ColorIdentity Priest => new ColorIdentity(ManaType.White, ManaType.Black);
+        // 2026-10-28 P2 席位收缩：含白/黑的职业映射（圣骑士/牧师/潜行者/术士/死亡骑士/恶魔猎手）
+        // 与光/暗属性映射已随白/黑席位退役删除（2026-10-28 P2；全部无消费方）。
 
         /// <summary>法师：蓝色（知识）</summary>
         public static ColorIdentity Mage => new ColorIdentity(ManaType.Blue);
-
-        /// <summary>潜行者：蓝色（操控）+ 黑色（暗杀）</summary>
-        public static ColorIdentity Rogue => new ColorIdentity(ManaType.Blue, ManaType.Black);
-
-        /// <summary>术士：黑色（代价）+ 红色（破坏）</summary>
-        public static ColorIdentity Warlock => new ColorIdentity(ManaType.Black, ManaType.Red);
-
-        /// <summary>死亡骑士：黑色（死亡）+ 白色（秩序）</summary>
-        public static ColorIdentity DeathKnight => new ColorIdentity(ManaType.Black, ManaType.White);
 
         /// <summary>战士：红色（攻击）+ 绿色（坚韧）</summary>
         public static ColorIdentity Warrior => new ColorIdentity(ManaType.Red, ManaType.Green);
 
         /// <summary>猎人：红色（攻击）+ 绿色（野兽）</summary>
         public static ColorIdentity Hunter => new ColorIdentity(ManaType.Red, ManaType.Green);
-
-        /// <summary>恶魔猎手：红色（攻击）+ 黑色（恶魔）</summary>
-        public static ColorIdentity DemonHunter => new ColorIdentity(ManaType.Red, ManaType.Black);
 
         /// <summary>德鲁伊：绿色（成长）+ 蓝色（变形）</summary>
         public static ColorIdentity Druid => new ColorIdentity(ManaType.Green, ManaType.Blue);
@@ -92,12 +76,7 @@ namespace CardCore
         public static ColorIdentity Neutral => new ColorIdentity(ManaType.Gray);
 
         // ===== YGO 属性 → 颜色映射 =====
-
-        /// <summary>光 → 白色（秩序、保护）</summary>
-        public static ColorIdentity Light => new ColorIdentity(ManaType.White);
-
-        /// <summary>暗 → 黑色（牺牲、坟墓场）</summary>
-        public static ColorIdentity Dark => new ColorIdentity(ManaType.Black);
+        // 光（白）/暗（黑）已随 2026-10-28 P2 席位收缩退役删除。
 
         /// <summary>火 → 红色（攻击性、伤害）</summary>
         public static ColorIdentity Fire => new ColorIdentity(ManaType.Red);

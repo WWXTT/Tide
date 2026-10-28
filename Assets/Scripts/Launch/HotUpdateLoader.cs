@@ -63,6 +63,11 @@ namespace Tide.Launch
             // Local 风味摘 TapSDK 后 AOT 闭包无引擎类型引用则被裁（真机 TypeLoadException 卡启动屏）——
             // 此行显式引用兜底，与 stripEngineCode=0 双保险。
             _ = UnityEngine.PlayerPrefs.HasKey("tide.aot.type.anchor");
+            // AOT 类型锚（2026-10-28 LAN 发现实录）：热更侧 LanRoomBeacon/LanRoomScanner 首用 UdpClient——
+            // AOT 侧零引用被裁，真机 Assembly.Load(热更DLL) 即 TypeLoadException（from netstandard）杀启动。
+            // typeof 显式锚保类型加载；方法族由 link.xml System.Net.Sockets 命名空间保全。
+            _ = typeof(System.Net.Sockets.UdpClient);
+            _ = typeof(System.Net.Sockets.TcpListener);
         }
 
         /// <summary>资源寻址地址（.dll.bytes 文件经 AddressByFileName 规则保留 .dll 段）</summary>

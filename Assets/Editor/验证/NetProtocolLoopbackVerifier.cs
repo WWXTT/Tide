@@ -775,9 +775,17 @@ namespace CardCore.Editor
                 b.Send(NetworkMessageType.JoinRoom, new MsgJoinRoom { RoomId = "verify", WantSeat = 1, Nickname = "B" });
                 spec.Send(NetworkMessageType.JoinRoom, new MsgJoinRoom { RoomId = "verify", AsSpectator = true, Nickname = "S" });
                 PumpAndReceive(server, 300, a, b, spec);
-                Assert(a.LastRoomState != null && a.LastRoomState.Phase == (int)NetRoomPhase.DeckSubmit
+                Assert(a.LastRoomState != null && a.LastRoomState.Phase == (int)NetRoomPhase.Waiting
                     && a.LastRoomState.Players[1].Connected && a.LastRoomState.SpectatorCount == 1,
-                    "双玩家位满 → DeckSubmit（观战 1 人）");
+                    "双玩家位满仍 Waiting（就绪层 2026-10-28：等准备+房主开局；观战 1 人）");
+
+                // 就绪层（2026-10-28）：B 准备 → A（房主椅0）开局 → DeckSubmit（先手已定+倒计时起算）
+                b.Send(NetworkMessageType.RoomReady, new MsgRoomReady { Ready = true });
+                a.Send(NetworkMessageType.RoomStart, new object());
+                for (int i = 0; i < 100 && (a.LastRoomState == null || a.LastRoomState.Phase != (int)NetRoomPhase.DeckSubmit); i++)
+                    PumpAndReceive(server, 30, a, b, spec);
+                Assert(a.LastRoomState != null && a.LastRoomState.Phase == (int)NetRoomPhase.DeckSubmit,
+                    "客人准备+房主开局 → DeckSubmit");
 
                 // ---- 6b. 握手（真实 socket 驱动 §11 消息流）----
                 a.Send(NetworkMessageType.DeckSubmit, submit);
@@ -1180,9 +1188,11 @@ namespace CardCore.Editor
                 a.Connect(server.Port);
                 b.Connect(server.Port);
 
-                // 进房（先双方就座 → DeckSubmit 阶段，再提交——防提交赶在阶段迁移前被拒）
+                // 进房（就绪层 2026-10-28：双方就座 → B 准备 → A 开局 → DeckSubmit，再提交）
                 a.Send(NetworkMessageType.JoinRoom, new MsgJoinRoom { RoomId = "m3", WantSeat = 0, Nickname = "A" });
                 b.Send(NetworkMessageType.JoinRoom, new MsgJoinRoom { RoomId = "m3", WantSeat = 1, Nickname = "B" });
+                b.Send(NetworkMessageType.RoomReady, new MsgRoomReady { Ready = true });
+                a.Send(NetworkMessageType.RoomStart, new object());
                 for (int i = 0; i < 200 && !(a.LastRoomState?.Phase == (int)NetRoomPhase.DeckSubmit
                     && b.LastRoomState?.Phase == (int)NetRoomPhase.DeckSubmit); i++)
                 {

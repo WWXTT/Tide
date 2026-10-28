@@ -25,10 +25,10 @@ namespace CardCore.Network
         private readonly System.Action<string> _log;
 
         public NetSessionServer(string roomId, System.Action<string> log = null, int? seed = null,
-            INetTransportHost host = null)
+            INetTransportHost host = null, bool autoStartWhenAllReady = false)
         {
             _host = host ?? new NetTcpHost();
-            _room = new NetRoom(roomId, seed);
+            _room = new NetRoom(roomId, seed, autoStartWhenAllReady);
             _log = log;
         }
 

@@ -1047,10 +1047,15 @@ namespace SynergyUI
                 if (Application.isPlaying) _loop.RefillCells();
             }
 
-            /// <summary>条数/高度不变、数据内容变：只重绑当前激活行（如选中态变化）。</summary>
+            /// <summary>条数/高度不变、数据内容变：只重绑当前激活行（如选中态变化）。
+            /// 2026-10-27 点选回顶修复：RefreshCells 内 UpdateBounds 重排版会把滚动窗口吸回顶
+            /// （卡池/图库点选载入场景实测），重绑前后保存/还原 content 滚动位兜底。</summary>
             public void RebindVisible()
             {
-                if (_loop != null && Application.isPlaying) _loop.RefreshCells();
+                if (_loop == null || !Application.isPlaying) return;
+                Vector2 scrollPos = _content != null ? _content.anchoredPosition : Vector2.zero;
+                _loop.RefreshCells();
+                if (_content != null) _content.anchoredPosition = scrollPos;
             }
 
             /// <summary>滚回顶重铺（SetItems/SetGrid 已内含——外部显式复位用）。</summary>

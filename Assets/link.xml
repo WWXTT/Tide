@@ -71,4 +71,12 @@
   <assembly fullname="YooAsset" preserve="all"/>
   <assembly fullname="MemoryPack.Core" preserve="all"/>
   <assembly fullname="Newtonsoft.Json" preserve="all"/>
+  <!-- 2026-10-28 联机 LAN 发现实录：热更侧 LanRoomBeacon/LanRoomScanner 首用 UdpClient（AOT 侧零引用，
+       Assembly.Load 热更DLL 即 TypeLoadException from netstandard 杀启动）；TcpClient.BeginConnect/Dns 等
+       方法级亦无既有引用面。typeof 锚（HotUpdateLoader 静态构造）保类型加载，本处命名空间保全保方法族
+       （NetTcpHost 已锚 TcpClient/TcpListener 基础用法，此处补首用面）。 -->
+  <assembly fullname="System">
+    <type fullname="System.Net.Sockets.*" preserve="all"/>
+    <type fullname="System.Net.Dns" preserve="all"/>
+  </assembly>
 </linker>

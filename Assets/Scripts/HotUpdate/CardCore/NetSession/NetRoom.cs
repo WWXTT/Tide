@@ -10,11 +10,14 @@ namespace CardCore.Network
     /// <summary>
     /// 单房间状态机（M2 会话层，2026-09-23；设计见 网络协议.md §12）：
     /// Waiting → DeckSubmit → Playing → Finished，全员断开后回 Waiting（单房间单进程定案）。
+    /// 2026-10-28 开局流程改版：Waiting 不再「就座即迁 DeckSubmit」，改为就绪层——
+    /// 房主（椅位0）配模式（先后手方式+洗牌）/客人（椅位1）准备 toggle/房主 RoomStart 开局；
+    /// 开局时先手按模式确定（掷币/房主先/客先）+ 起 30s 选卡组倒计时（超时服务器替落随机预组）。
     ///
-    /// - 分座：JoinRoom 占椅位（0/1/观战）；双玩家位满 → DeckSubmit。
+    /// - 分座：JoinRoom 占椅位（0/1/观战）；房主开局（或 autoStart 房双座满）→ DeckSubmit。
     /// - 握手驱动（§11 消息流接线）：DeckSubmit → NetMatchHandshake.ValidateDeckSubmit →
     ///   双座位通过 → BuildMatchManifest 各发各座 → 开局。
-    /// - 换先手（训练桥先例）：随机选本局先手椅位，其卡组进 Player1（引擎座位恒 0 先手）——
+    /// - 换先手（训练桥先例）：先手椅位其卡组进 Player1（引擎座位恒 0 先手）——
     ///   零引擎改动；椅位↔引擎座位映射 = MatchManifest.OwnSeat 权威 + RoomState.FirstSeatThisMatch。
     /// - 观战：全信息（2026-09-23 定案）——事件流不滤、快照走 fullInfo 视角；随时可进。
     /// - 断线：Waiting/DeckSubmit 退位回 Waiting；Playing 玩家断线 → 对局作废（重连留 M4）。
@@ -22,9 +25,13 @@ namespace CardCore.Network
     /// </summary>
     public sealed class NetRoom
     {
+        /// <summary>选卡组倒计时时长（秒；2026-10-28 用户定案 30s，服务器权威）。</summary>
+        public const int DeckPickSeconds = 30;
+
         private readonly string _roomId;
         private readonly Random _rng;
         private readonly int? _seed;
+        private readonly bool _autoStartWhenAllReady; // 无真人房主（无头房主）拓扑：双座满即自动开局（默认模式掷币+随机）
 
         private NetRoomPhase _phase = NetRoomPhase.Waiting;
         private readonly INetChannel[] _chairs = new INetChannel[2];
@@ -38,16 +45,25 @@ namespace CardCore.Network
         private bool _roomStateDirty = true;  // RoomState 待广播
         private bool _gameOver;
 
+        // 就绪层状态（2026-10-28）：模式（0先后手/1洗牌）+ 按椅位准备态 + 选卡组倒计时
+        private int _settingsFirstMove;       // 0=掷币 1=房主(椅0)先 2=客人(椅1)先
+        private int _settingsShuffle;         // 0=随机洗牌 1=固定牌序
+        private readonly bool[] _ready = new bool[2];
+        private DateTime? _pickDeadlineUtc;   // 选卡组倒计时截止（DeckSubmit 相位；null=未在倒计时）
+        private int _lastPickSecond = -1;     // 上次广播的剩秒（整秒去重）
+
         // 对局接线（搬 TideHeadlessDriver.ResetCore 骨架）
         private BoardState _board;
         private NetworkTargetSelector _selector;
 
-        /// <summary>seed=null 用时间随机（生产）；钉种子（M3 对拍）时先手椅位与引擎随机流均确定。</summary>
-        public NetRoom(string roomId, int? seed = null)
+        /// <summary>seed=null 用时间随机（生产）；钉种子（M3 对拍）时先手椅位与引擎随机流均确定。
+        /// autoStartWhenAllReady=无头房主（MatchHost 等）：双座满即开局（跳过准备/房主确认）。</summary>
+        public NetRoom(string roomId, int? seed = null, bool autoStartWhenAllReady = false)
         {
             _roomId = roomId ?? "";
             _seed = seed;
             _rng = seed.HasValue ? new Random(seed.Value) : new Random();
+            _autoStartWhenAllReady = autoStartWhenAllReady;
         }
 
         public NetRoomPhase Phase => _phase;
@@ -88,6 +104,18 @@ namespace CardCore.Network
 
                     case NetworkMessageType.SelectResponse:
                         HandleSelectResponse(conn, msg);
+                        break;
+
+                    case NetworkMessageType.RoomSettings:
+                        HandleRoomSettings(conn, msg);
+                        break;
+
+                    case NetworkMessageType.RoomReady:
+                        HandleRoomReady(conn, msg);
+                        break;
+
+                    case NetworkMessageType.RoomStart:
+                        HandleRoomStart(conn);
                         break;
 
                     case NetworkMessageType.Ping:
@@ -152,13 +180,60 @@ namespace CardCore.Network
             conn.MatchSeat = -1;
             conn.Nickname = string.IsNullOrEmpty(join.Nickname) ? $"玩家{seat + 1}" : join.Nickname;
             _chairs[seat] = conn;
+            _ready[seat] = false; // 新入座者未准备（重进房/换人：准备态不继承）
             _roomStateDirty = true;
 
-            if (_chairs[0] != null && _chairs[1] != null)
-            {
-                _phase = NetRoomPhase.DeckSubmit;
-                _roomStateDirty = true;
-            }
+            // 2026-10-28 就绪层：真人房主房等待 RoomStart；无头房主房（autoStart）双座满即开局
+            if (_autoStartWhenAllReady && _chairs[0] != null && _chairs[1] != null)
+                BeginDeckPickPhase();
+        }
+
+        // ============================================================ 就绪层（2026-10-28 开局流程改版） ============================================================
+
+        /// <summary>房主配置模式（仅椅位0=房主、仅 Waiting 相位）。</summary>
+        private void HandleRoomSettings(INetChannel conn, NetworkMessage msg)
+        {
+            if (conn.ChairSeat != 0) { SendError(conn, "只有房主能配置模式", "RoomSettings"); return; }
+            if (_phase != NetRoomPhase.Waiting) { SendError(conn, "开局后不能再改模式", "RoomSettings"); return; }
+            var s = NetworkSerializer.DeserializePayload<MsgRoomSettings>(msg);
+            if (s == null) { SendError(conn, "RoomSettings 载荷损坏", "RoomSettings"); return; }
+            if (s.FirstMoveMode < 0 || s.FirstMoveMode > 2 || s.ShuffleMode < 0 || s.ShuffleMode > 1)
+            { SendError(conn, "模式取值非法", "RoomSettings"); return; }
+            _settingsFirstMove = s.FirstMoveMode;
+            _settingsShuffle = s.ShuffleMode;
+            _roomStateDirty = true;
+        }
+
+        /// <summary>准备 toggle（Waiting 相位；椅位1=客人的准备是房主开局门槛；椅位0 房主自身无意义但不禁）。</summary>
+        private void HandleRoomReady(INetChannel conn, NetworkMessage msg)
+        {
+            if (conn.ChairSeat != 0 && conn.ChairSeat != 1) { SendError(conn, "非玩家座位不能准备", "RoomReady"); return; }
+            if (_phase != NetRoomPhase.Waiting) { SendError(conn, "当前阶段不能改准备状态", "RoomReady"); return; }
+            var r = NetworkSerializer.DeserializePayload<MsgRoomReady>(msg);
+            if (r == null) { SendError(conn, "RoomReady 载荷损坏", "RoomReady"); return; }
+            _ready[conn.ChairSeat] = r.Ready;
+            _roomStateDirty = true;
+        }
+
+        /// <summary>房主开始（门槛：双方就座+客人已准备）→ 进入选卡组相位：先手按模式确定 + 30s 倒计时起算。</summary>
+        private void HandleRoomStart(INetChannel conn)
+        {
+            if (conn.ChairSeat != 0) { SendError(conn, "只有房主能开始", "RoomStart"); return; }
+            if (_phase != NetRoomPhase.Waiting) { SendError(conn, "当前阶段不能开始", "RoomStart"); return; }
+            if (_chairs[0] == null || _chairs[1] == null) { SendError(conn, "双方就座后才能开始", "RoomStart"); return; }
+            if (!_ready[1]) { SendError(conn, "对手还未准备", "RoomStart"); return; }
+            BeginDeckPickPhase();
+        }
+
+        /// <summary>进入选卡组相位（房主 RoomStart / autoStart 双座满共用）：先手确定 + 倒计时起算 + 广播。</summary>
+        private void BeginDeckPickPhase()
+        {
+            _firstSeat = _settingsFirstMove == 1 ? 0 : _settingsFirstMove == 2 ? 1 : _rng.Next(2);
+            _pickDeadlineUtc = DateTime.UtcNow.AddSeconds(DeckPickSeconds);
+            _lastPickSecond = -1;
+            _phase = NetRoomPhase.DeckSubmit;
+            _roomStateDirty = true;
+            TideLog.Info($"[NetRoom] 开局：先手椅位 {_firstSeat}（模式 {_settingsFirstMove}/{_settingsShuffle}），选卡组倒计时 {DeckPickSeconds}s");
         }
 
         private void HandleDeckSubmit(INetChannel conn, NetworkMessage msg)
@@ -184,7 +259,10 @@ namespace CardCore.Network
             _deckIds[conn.ChairSeat] = submit.CardIds;
             _skillIds[conn.ChairSeat] = SanitizeSkillCardId(submit.SkillCardId, submit.CardIds, conn.ChairSeat);
             if (_deckIds[0] != null && _deckIds[1] != null)
+            {
+                _pickDeadlineUtc = null; // 双方确认完毕：倒计时退役
                 StartMatch();
+            }
         }
 
         /// <summary>技能标记宽松校验（2026-10-15 改版：技能=任选一张法术，**不要求在卡组内**）：
@@ -230,11 +308,11 @@ namespace CardCore.Network
 
         // ============================================================ 开局 / 终局 ============================================================
 
-        /// <summary>双座位卡组就绪 → 开局。换先手 = 谁的卡组进 Player1（引擎座位 0 恒先手）。</summary>
+        /// <summary>双座位卡组就绪 → 开局。换先手 = 谁的卡组进 Player1（引擎座位 0 恒先手）。
+        /// 先手椅位已在 BeginDeckPickPhase 按模式确定（2026-10-28 前移）；洗牌模式=固定牌序时锁卡组序。</summary>
         private void StartMatch()
         {
             var core = GameCore.Instance;
-            _firstSeat = _rng.Next(2);
 
             // 组合根注入 + 引擎初始化（镜像 TideHeadlessDriver.ResetCore；InitGame 内含 Reset→
             // NetEventProjector.ClearAll（GameCore.Reset 接线）→ 洗牌 → 起手 → StartGame）。
@@ -244,6 +322,7 @@ namespace CardCore.Network
             var deckFirst = BuildDeck(_deckIds[_firstSeat]);
             var deckSecond = BuildDeck(_deckIds[1 - _firstSeat]);
             core.InitGame(CardLoader.BuildDeck(deckFirst, 1), CardLoader.BuildDeck(deckSecond, 1), _seed,
+                lockDeckOrder: _settingsShuffle == 1,
                 skillCardId1: _skillIds[_firstSeat], skillCardId2: _skillIds[1 - _firstSeat]);
             core.Player1.IsAI = false; // 人类在环：反问走 NetworkTargetSelector
             core.Player2.IsAI = false;
@@ -359,14 +438,20 @@ namespace CardCore.Network
             switch (_phase)
             {
                 case NetRoomPhase.Waiting:
+                    _ready[conn.ChairSeat] = false; // 退位即取消准备
                     break; // 未满员：退位即可
 
                 case NetRoomPhase.DeckSubmit:
-                    // 缺员退回等进房：另一座位的提交作废（卡组对局必须双座位同批提交）
+                    // 缺员退回等进房：另一座位的提交作废（卡组对局必须双座位同批提交）；
+                    // 就绪层状态复位（先手/倒计时作废、准备清空——重新走准备→开局）
                     _deckIds[0] = null;
                     _deckIds[1] = null;
                     _skillIds[0] = null;
                     _skillIds[1] = null;
+                    _pickDeadlineUtc = null;
+                    _firstSeat = -1;
+                    _ready[0] = false;
+                    _ready[1] = false;
                     _phase = NetRoomPhase.Waiting;
                     break;
 
@@ -384,7 +469,7 @@ namespace CardCore.Network
             _roomStateDirty = true;
         }
 
-        /// <summary>全员离场 → 房间回 Waiting（重开 = 重新进房+重新提交）。</summary>
+        /// <summary>全员离场 → 房间回 Waiting（重开 = 重新进房+重新提交）。模式设置保留（房主重进可续用）。</summary>
         public void ResetIfEmpty()
         {
             if (!IsEmpty || _phase != NetRoomPhase.Finished) return;
@@ -395,6 +480,9 @@ namespace CardCore.Network
             _skillIds[0] = null;
             _skillIds[1] = null;
             _firstSeat = -1;
+            _pickDeadlineUtc = null;
+            _ready[0] = false;
+            _ready[1] = false;
             _gameOver = false;
             _roomStateDirty = false; // 无成员：无需广播
         }
@@ -437,6 +525,8 @@ namespace CardCore.Network
         /// <summary>下行出队：RoomState 广播 → 事件流（按座位过滤，观战全信息）→ 静默点快照。</summary>
         public void FlushDownlink(GameCore core)
         {
+            PumpDeckPickCountdown();
+
             if (_roomStateDirty)
             {
                 _roomStateDirty = false;
@@ -501,6 +591,43 @@ namespace CardCore.Network
             }
         }
 
+        /// <summary>选卡组倒计时泵（每 tick，FlushDownlink 头部）：整秒变化→广播 RoomState；
+        /// 归零→未提交座位替落随机预组（用户定案 2026-10-28：不选=随机卡组）。</summary>
+        private void PumpDeckPickCountdown()
+        {
+            if (_phase != NetRoomPhase.DeckSubmit || !_pickDeadlineUtc.HasValue) return;
+            int left = (int)Math.Ceiling((_pickDeadlineUtc.Value - DateTime.UtcNow).TotalSeconds);
+            if (left > 0)
+            {
+                if (left != _lastPickSecond)
+                {
+                    _lastPickSecond = left;
+                    _roomStateDirty = true; // 整秒推送（客户端倒计时显示校准）
+                }
+                return;
+            }
+
+            _pickDeadlineUtc = null;
+            for (int seat = 0; seat < 2; seat++)
+            {
+                if (_chairs[seat] == null || _deckIds[seat] != null) continue;
+                var ids = NetPresetDecks.RandomPreset(out var skill);
+                if (ids == null)
+                {
+                    // 预组全缺（数据异常）：不开局，广播错误等手动提交兜底
+                    BroadcastError("选卡组超时且随机预组不可用（预组文件缺失）——请手动提交卡组");
+                    _roomStateDirty = true;
+                    return;
+                }
+                _deckIds[seat] = ids;
+                _skillIds[seat] = SanitizeSkillCardId(skill, ids, seat);
+                TideLog.Info($"[NetRoom] 座位 {seat}（{_chairs[seat].Nickname}）选卡组超时——已替落随机预组");
+            }
+            _roomStateDirty = true;
+            if (_deckIds[0] != null && _deckIds[1] != null)
+                StartMatch();
+        }
+
         // ============================================================ 杂项 ============================================================
 
         private IEnumerable<INetChannel> AllMembers()
@@ -540,6 +667,12 @@ namespace CardCore.Network
                 Players = players,
                 SpectatorCount = _spectators.Count,
                 FirstSeatThisMatch = _firstSeat,
+                FirstMoveMode = _settingsFirstMove,
+                ShuffleMode = _settingsShuffle,
+                GuestReady = _ready[1],
+                DeckPickSecondsLeft = _phase == NetRoomPhase.DeckSubmit && _pickDeadlineUtc.HasValue
+                    ? Math.Max(0, (int)Math.Ceiling((_pickDeadlineUtc.Value - DateTime.UtcNow).TotalSeconds))
+                    : -1,
             };
         }
 

@@ -175,8 +175,10 @@ namespace CardCore.Editor
                 TestTargetDomainModel(core, p1, p2, cardsData);
                 Crumb("→TestPerAtomTargeting");
                 TestPerAtomTargeting(core, p1, p2);
-                Crumb("→TestBlackWhiteEconomy");
-                TestBlackWhiteEconomy(core, p1, p2);
+                Crumb("→TestCostDeductionAndPayability");
+                TestCostDeductionAndPayability(core, p1, p2);
+                Crumb("→TestBenefitEnemyCostArm");
+                TestBenefitEnemyCostArm(core, p1, p2);
                 Crumb("→TestSleep");
                 TestSleep(core, p1, p2);
                 Crumb("→TestBoard");
@@ -188,6 +190,8 @@ namespace CardCore.Editor
             // 分支条件目录 + 信息族（宣言/预言）引擎流：不依赖卡表（合成卡驱动）
             Crumb("→TestCostAnchors");
             TestCostAnchors();
+            Crumb("→TestManaSeatShrink");
+            TestManaSeatShrink();
             Crumb("→TestComposerModel");
             TestComposerModel();
             // 分支目录层已于 2026-10-22 彻底删除（2026-09-10 曾以 5397a3f 暂时下架，本次定案不再恢复：
@@ -387,8 +391,8 @@ namespace CardCore.Editor
             // 锁色定案（2026-10-11）：入池锁定主色（费用份额最多色）；显式非法色拒绝
             var choices1 = CardCore.ElementPoolSystem.GetLandColorChoices(land1);
             Assert(choices1.Count > 0 && pooled1[0].LockedColor == choices1[0], "地牌入池锁定主色（份额最多色）");
-            Assert(!core.ElementPool.AddCardToPool(land1, p1, ManaType.White),
-                   "显式非法锁色拒绝（黑白不可锁）——直接调池校验口");
+            Assert(!core.ElementPool.AddCardToPool(land1, p1, ManaType.Any),
+                   "显式非法锁色拒绝（Any 万能货币不可锁——候选恒不含 Any；2026-10-28 P2 后白/黑席位已删）——直接调池校验口");
 
             // 现取现用：无手动横置——付费时系统按账单自动横置（每地牌每回合一次）
             // 2026-10-16 口径：地牌上限只限元素产出（入池张数），不限使用——钱包无钳、
@@ -482,8 +486,8 @@ namespace CardCore.Editor
             return System.Enum.GetValues(typeof(ManaType)).Cast<ManaType>().ToList();
         }
 
-        /// <summary>六色灌满（2026-10-24 Any 定案配套）：灰红蓝绿白黑灌 n、**Any 恒 0**——万能货币
-        /// 不进六色时代的「满钱包」环境（否则各链尾 Any 垫付会让「缺色拒付/优先序」类断言失真）。
+        /// <summary>全色灌满（2026-10-24 Any 定案配套；2026-10-28 P2 后=灰红蓝绿四色）：**Any 恒 0**——
+        /// 万能货币不进「满钱包」环境（否则各链尾 Any 垫付会让「缺色拒付/优先序」类断言失真）。
         /// 清零环境仍走 AllManaTypes() 全枚举（Any 必须被清）；测 Any 的断言显式设置。</summary>
         private static void FillSixColors(PlayerElementPool pool, int n)
         {
@@ -491,7 +495,7 @@ namespace CardCore.Editor
         }
 
         /// <summary>测试费用构造（2026-10-04 位置数组化）：替代旧 Dictionary 初始化器——
-        /// CostOf((ManaType.Gray, 3), (ManaType.Green, 1)) == [3,0,0,1,0,0]。</summary>
+        /// CostOf((ManaType.Gray, 3), (ManaType.Green, 1)) == [3,0,0,1,0]（5 位，P2 席位收缩后）。</summary>
         private static ElementCost CostOf(params (ManaType color, float amount)[] entries)
         {
             var c = new ElementCost();
@@ -500,9 +504,9 @@ namespace CardCore.Editor
             return c;
         }
 
-        /// <summary>混付定案（2026-09-14）后，红/蓝/绿账单可由 [本色,灰,黑,白] 垫付、灰由 [灰,黑,白] 垫付
-        /// （ElementAffinity.ChainFor）。「精确同色占用即拒」类断言须清空全色 bank 只留被测色，
-        /// 否则黑/白万用残留会替第二张账单垫付，导致应拒变放行。</summary>
+        /// <summary>混付定案（2026-09-14；2026-10-28 四色重构）：红/蓝/绿账单可由 [本色,任意] 垫付、
+        /// 灰由 [灰,任意] 垫付（ElementAffinity.ChainFor）。「精确同色占用即拒」类断言须清空全色
+        /// bank 只留被测色，否则任意货币残留会替第二张账单垫付，导致应拒变放行。</summary>
         private static void HygieneBank(PlayerElementPool pool, ManaType keep, int amount)
         {
             foreach (var t in AllManaTypes()) pool.TempElements[t] = 0;
@@ -805,8 +809,7 @@ namespace CardCore.Editor
             float rightCost = CostDerivationService.DeriveElementCosts(rightDef).Total;
             Assert(rightCost > 0f, $"Heal(p=+1) 锁己方域 → 全价（实际 {rightCost}）");
             Assert(wrongDef.Effects.Count == 0 && CostDerivationService.DeriveElementCosts(wrongDef).IsZero,
-                   "内容契约：错边原子在效果栏被剔除（只能进代价栏——Payload 路径见 TestBlackWhiteEconomy）");
-            Assert(CostDerivationService.DeriveElementGrants(rightDef).IsZero, "正侧原子无黑白获得");
+                   "内容契约：错边原子在效果栏被剔除（对对手有益只能进代价栏——代价契约见 TestCostDeductionAndPayability）");
             var bothDef = CardEffectConverter.ConvertOne(new CardEffectData
             {
                 Id = "VERIFY_POL_B",
@@ -816,7 +819,7 @@ namespace CardCore.Editor
                 },
             }, "VERIFY_POL_B");
             Assert(System.Math.Abs(CostDerivationService.DeriveElementCosts(bothDef).Total - rightCost) < 1e-4f,
-                "双侧域构筑期全价（实际打错边照发——运行时口径，结算发放见 TestBlackWhiteEconomy）");
+                "双侧域构筑期全价（错边拆分已删——2026-10-28 P1：极性不再参与计价）");
 
             // g) TargetKind 重排（2026-09-11 Self 找回）：Self=0 / 单位 1-4 / 卡域 5-16；关键词域={Self}
             Assert((int)CardCore.TargetKind.Self == 0
@@ -828,10 +831,10 @@ namespace CardCore.Editor
             Assert(tauntKinds != null && tauntKinds.Count == 1 && tauntKinds[0] == (int)CardCore.TargetKind.Self,
                    "关键词（嘲讽）表域 = {Self}（关键词只能作用于自己）");
 
-            // h) 生物黑白关键词照旧印制计价（2026-09-14 撤销「转主动」定案）：参杂黑白的生物
-            //    可作地牌——地牌不从黑白份额产指示物（入池口径见 TestBlackWhiteEconomy 第 7 段），
-            //    黑白获取通道不变（=卡结算：错边/Payload 补偿），费用侧照常计价。
-            var bwJson = "{\"cards\":[{\"id\":\"VERIFY_BW_KW\",\"cardName\":\"黑白关键词验证\","
+            // h) 多关键词印制计价（原「黑白关键词」块，2026-10-28 P2 白/黑席位删除后改口径）：
+            //    关键词照旧印制（不转主动）——原「黑白份额进费用」断言已随枚举退役删除，
+            //    计价色随 P2a 原子表改面漂移（表为单一来源，不钉色）。
+            var bwJson = "{\"cards\":[{\"id\":\"VERIFY_BW_KW\",\"cardName\":\"多关键词印制验证\","
                        + "\"supertype\":\"Creature\",\"power\":2,\"life\":2,"
                        + "\"keywords\":[\"DivineShield\",\"Lifesteal\",\"Taunt\",\"Armor\"]}]}";
             var bwCards = CardLoader.LoadCardsFromText(bwJson);
@@ -839,10 +842,10 @@ namespace CardCore.Editor
                    && bwCards[0].Keywords.Count == 4
                    && (bwCards[0].Effects ?? new List<CardEffectData>())
                        .TrueForAll(e => e.TriggerTiming != (int)CardCore.TriggerTiming.Activate_Active),
-                   "黑白关键词保留印制（不转主动；无合成 ACT_ 自赋予效果）");
+                   "多关键词保留印制（不转主动；无合成 ACT_ 自赋予效果）");
             CardCostService.EnsureCost(bwCards[0]);
-            Assert(bwCards[0].Cost[ManaType.White] > 0f || bwCards[0].Cost[ManaType.Black] > 0f,
-                   "生物建议费用含黑白份额（黑白进费用列表；地牌侧由入池过滤兜住，不从黑白产元素）");
+            Assert(bwCards[0].Cost != null && !bwCards[0].Cost.IsZero && bwCards[0].Cost.v.Length == 5,
+                   "多关键词生物建议费用非零且位置数组 5 位（P2 席位收缩口径）");
         }
 
         // ======================================== 逐原子目标制（2026-10-09 定案） ========================================
@@ -1186,578 +1189,355 @@ namespace CardCore.Editor
             }
         }
 
-        // ======================================== 黑白元素经济（2026-09-11 定案） ========================================
+        // ======================================== 代价抵扣与可支付闸（2026-10-28 P1 定案） ========================================
 
         /// <summary>
-        /// 黑白元素经济端到端：①错边原子出计价+结算发放（产出不封，2026-10-04）②黑白支付侧
-        /// （本色费/浓度上限/**统一混付规划器**：同色→灰→黑→白，灰也入浓度上限，实发组合事件）
-        /// ③代价强制（2026-09-14 撤销代价可选：Payload 恒执行+恒补偿，无减费通道）
-        /// ④Payload 效果型代价（对手召唤+得白）⑤元素支付（万用填充/灰帽/真负例）
-        /// ⑥流失改扣 MaxHealth ⑦含黑白费用卡作地牌不产黑白指示物
-        /// ⑧2026-10-04 本轮新规：全价过地牌门槛/代价栏计效果槽/无有效目标回手/先扣卡费·补偿后置/生命恢复 Damaged 目标。
+        /// P1 计价内核回归（2026-10-28 定案：代价=构筑期抵扣不再产出元素；可支付=声明期闸）：
+        /// ① 净费 = 推导费 − 代价价（先灰后最高费用色，每色 ≥0，溢出丢弃）——同卡有无代价对照 + 手工复算；
+        /// ② 净费 0 的卡可付（免费卡合法，空钱包放行）；
+        /// ③ 手牌 0 张 → 带弃牌代价的卡不可用（CanAffordCast=false + 拒绝原因「手牌不足」）；
+        /// ④ 灰费可由红/蓝/绿支付（支付链回归，不因 P3 未做而删）；
+        /// ⑤ 付完代价钱包元素总量不变（代价不再产出）。
         /// </summary>
-        private static void TestBlackWhiteEconomy(GameCore core, Player p1, Player p2)
+        private static void TestCostDeductionAndPayability(GameCore core, Player p1, Player p2)
         {
             EnsureMainPhase(core, p1);
-
             var pool1 = core.ElementPool.GetPool(p1);
-            var snapBank = new Dictionary<ManaType, int>(pool1.TempElements);
-            int snapTurnIdx = pool1.GlobalTurnIndex;
-            int snapBlackGained = pool1.BlackGainedThisTurn, snapWhiteGained = pool1.WhiteGainedThisTurn;
-            int snapGainedLedger = pool1.TempGainedThisTurn; // 全类型累计钳台账（2026-10-16）——随段快照
-            int snapMax = p1.MaxHealth, snapLife = p1.Life;
+            var snapWallet = new Dictionary<ManaType, int>(pool1.TempElements);
 
-            CardData SpellData(string id, string name, params AtomicEffectEntry[] atoms) => new CardData
+            // 弃牌代价条目（p<0 锁己方手牌 {5}——新代价契约合法载体；表行默认双侧域不可裸用）
+            AtomicEffectEntry DiscardPayload(int value = 1)
+                => Atom(AtomicEffectType.DiscardCard, value: value, kinds: new List<int> { (int)CardCore.TargetKind.OwnHand });
+            int PayloadPrice(int value = 1)
             {
-                ID = id, CardName = name, Supertype = Cardtype.Spell,
-                Effects = new List<CardEffectData>
+                var inst = CardEffectConverter.ConvertPayloadForDisplay(DiscardPayload(value));
+                return inst != null ? CostDerivationService.PayloadUnitGrant(inst) : 0;
+            }
+
+            // 测试内手工复算「先灰后最高费用色、每色下限0」（独立于 CardCompositionCost.ReduceBuckets 的第二实现）
+            Dictionary<ManaType, int> ManualReduce(Dictionary<ManaType, int> buckets, int points)
+            {
+                var r = new Dictionary<ManaType, int>(buckets);
+                for (int i = 0; i < points; i++)
                 {
-                    new CardEffectData { Id = id + "_EFF", AtomicEffects = new List<AtomicEffectEntry>(atoms) },
-                },
-            };
-            // 局部 Atom 已收敛到类级助手（引用化适配）；本段语义不变
+                    if (r.TryGetValue(ManaType.Gray, out var g) && g >= 1) { r[ManaType.Gray] = g - 1; continue; }
+                    var best = default(ManaType); int bestV = 0; bool has = false;
+                    foreach (var kv in r)
+                        if (kv.Key != ManaType.Gray && kv.Value > bestV) { bestV = kv.Value; best = kv.Key; has = true; }
+                    if (!has || bestV <= 0) break;
+                    r[best] = bestV - 1;
+                }
+                foreach (var k in r.Where(x => x.Value <= 0).Select(x => x.Key).ToList()) r.Remove(k);
+                return r;
+            }
 
             try
             {
-            // ---- 1. 错边结算发放（双域实际打错边）：DealDamage(p=−1) 双域全价打出、实际命中自己 → 得黑
-            //      2026-10-16 全类型累计钳终版：六色同池，单周期（自己回合开始清零）累计生成 ≤ 地牌上限
-            //      ——单次入账受剩余配额钳制；「产出不封」的上午单次钳口径已废 ----
-            pool1.GlobalTurnIndex = 3; // 地牌上限 3
-            FillSixColors(pool1, 99);
-            pool1.TempElements[ManaType.Black] = 0; pool1.TempElements[ManaType.White] = 0;
-            pool1.BlackGainedThisTurn = 0;
-            pool1.TempGainedThisTurn = 0; // 累计钳台账隔离（快照前的段间残留不计入本段配额）
-
-                int UnitGrantOf(AtomicEffectType type, int value)
+                // ---- ① 净费 = 推导费 − 代价价（先灰后最高色，每色 ≥0）----
+                CardData CostCard(string id, int discardValue)
                 {
-                    var def = CardEffectConverter.ConvertOne(new CardEffectData
+                    var d = new CardData
                     {
-                        Id = "VERIFY_BW_UNITPROBE",
-                        AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(type, value: value) },
-                    }, "VERIFY_BW_UNITPROBE");
-                    return CostDerivationService.ComputeAtomUnitGrant(def.Effects[0], def);
-                }
-
-                // 内容契约下效果栏不可锁错边——双域原子（全价）实际打错边是效果侧唯一错边入口
-                var selfHarm = InjectCard(core, p1, SpellData("VERIFY_BW_SELFHARM", "验证自伤",
-                    Atom(AtomicEffectType.DealDamage.ToString(), 4))); // 表默认双域 {0,1}
-                var selfHarmDef = CardEffectConverter.ConvertOne(((CardWrapper)selfHarm).GetData().Effects[0], "VERIFY_BW_SELFHARM");
-                Assert(CostDerivationService.DeriveElementCosts(selfHarmDef).Total > 0,
-                       "双域原子构筑期全价（无 grant 记录——运行时实判）");
-                Assert(CostDerivationService.DeriveElementGrants(selfHarmDef).IsZero,
-                       "双域原子构筑期无黑白获得记录");
-
-                int bwCap = core.ElementPool.GetLandCap(p1);
-                int dmg4Unit = UnitGrantOf(AtomicEffectType.DealDamage, 4);
-                int expectBlack1 = System.Math.Min(dmg4Unit, bwCap); // 首次：配额全额（cap3）
-                int lifeBefore = p1.Life;
-                Assert(GameActions.PlayCard(core, p1, selfHarm, new List<Entity> { p1 }), "打出自伤法术（双域指自己=实际错边）");
-                GameActions.DrainStack(core);
-                Assert(p1.Life == lifeBefore - 4, "自伤结算：扣 4 当前生命");
-                Assert(pool1.TempElements[ManaType.Black] == expectBlack1 && pool1.BlackGainedThisTurn == expectBlack1,
-                       $"结算发放：得黑 {expectBlack1}（单价{dmg4Unit}·cap{bwCap}；实际 {pool1.TempElements[ManaType.Black]}）");
-
-                // 同回合二次施放：受**全类型累计钳**（2026-10-16 终版）——配额=cap−本周期已得
-                var selfHarm2 = InjectCard(core, p1, SpellData("VERIFY_BW_SELFHARM2", "验证自伤2",
-                    Atom(AtomicEffectType.DealDamage.ToString(), 1)));
-                int quotaLeft = System.Math.Max(0, bwCap - expectBlack1);
-                int gain2 = System.Math.Min(UnitGrantOf(AtomicEffectType.DealDamage, 1), quotaLeft);
-                int expectBlack2 = expectBlack1 + gain2;
-                Assert(GameActions.PlayCard(core, p1, selfHarm2, new List<Entity> { p1 }), "同回合再打一张自伤");
-                GameActions.DrainStack(core);
-                Assert(pool1.TempElements[ManaType.Black] == expectBlack2 && pool1.BlackGainedThisTurn == expectBlack2,
-                       $"累计钳：二次实发 {gain2} = Min(单价, 剩余配额 {quotaLeft})（黑 {expectBlack1}→{expectBlack2}——同周期六色同池累计 ≤ cap{bwCap}）");
-
-                // 翻回合：累计钳台账清零（周期=自己回合开始），新周期配额重计
-                core.ElementPool.OnTurnStart(p1, pool1.GlobalTurnIndex + 1);
-                Assert(pool1.BlackGainedThisTurn == 0 && pool1.WhiteGainedThisTurn == 0
-                       && pool1.TempGainedThisTurn == 0, "回合开始：获得台账清零（新周期配额重计）");
-                pool1.GlobalTurnIndex = 3; // 钉回 cap 3（全局口径下翻回合已推到 4——本段「黑4超帽拒付」探针需确定 cap）
-                int dmg2Unit = UnitGrantOf(AtomicEffectType.DealDamage, 2);
-                int capNew = core.ElementPool.GetLandCap(p1);
-                int gain3 = System.Math.Min(dmg2Unit, capNew);
-                int expectBlack3 = expectBlack2 + gain3;
-                var selfHarm3 = InjectCard(core, p1, SpellData("VERIFY_BW_SELFHARM3", "验证自伤3",
-                    Atom(AtomicEffectType.DealDamage.ToString(), 2)));
-                Assert(GameActions.PlayCard(core, p1, selfHarm3, new List<Entity> { p1 }), "新周期再打自伤");
-                GameActions.DrainStack(core);
-                Assert(pool1.TempElements[ManaType.Black] == expectBlack3,
-                       $"新周期配额重置：+{gain3} 黑（cap{capNew}·bank 累计 {expectBlack3}；实际 {pool1.TempElements[ManaType.Black]}）");
-
-                // ---- 2. 黑白支付侧：本色费 / 浓度上限 / 灰混付 ----
-                var drainDef = CardEffectConverter.ConvertOne(new CardEffectData
-                {
-                    Id = "VERIFY_BW_DRAIN",
-                    AtomicEffects = new List<AtomicEffectEntry> { Atom(AtomicEffectType.DrainLife.ToString(), 2) },
-                }, "VERIFY_BW_DRAIN");
-                var drainCosts = CostDerivationService.DeriveElementCosts(drainDef);
-                Assert(drainCosts[ManaType.Black] > 0,
-                       "DrainLife（表色 Black）正确侧计价落黑（不再归一为灰）");
-
-                pool1.TempElements[ManaType.Black] = 4; pool1.TempElements[ManaType.Gray] = 0;
-                var blackDict = ElementCost.FromValue(ManaType.Black, 4f);
-                Assert(core.ElementPool.CanPayCostWithAutoTap(blackDict, p1),
-                       "钱包豁免（2026-10-16）：黑4 > 地牌上限 3 → 钱包足额仍可付（临时元素超上限）");
-                Assert(core.ElementPool.TryPayCostWithAutoTap(blackDict, p1), "黑4 钱包直付并扣除（现取现用）");
-                Assert(pool1.TempElements[ManaType.Black] == 0, "黑已扣（临时钱包记账）");
-                Assert(!core.ElementPool.TryPayCostWithAutoTap(ElementCost.FromValue(ManaType.Black, 1f), p1),
-                       $"余额照拒：黑已空 → 黑1 拒付（浓度钳退役后由余额定）——诊断 Any={pool1.TempElements[ManaType.Any]} 黑={pool1.TempElements[ManaType.Black]}");
-
-                // 统一混付规划器（2026-09-14：出牌/效果费共用 GetBillPaymentPlan，非破坏；
-                // 2026-10-16 钱包豁免改版：cap 参数随浓度钳退役，本组钉现行链序）
-                Dictionary<ManaType, int> Bank(params (ManaType t, int n)[] cells)
-                {
-                    var d = new Dictionary<ManaType, int>();
-                    foreach (var c in cells) d[c.t] = c.n;
+                        ID = id, CardName = "验证代价卡" + id, Supertype = Cardtype.Creature,
+                        Power = 2, Life = 2,
+                        Effects = new List<CardEffectData>
+                        {
+                            new CardEffectData
+                            {
+                                Id = id + "_EFF",
+                                AtomicEffects = new List<AtomicEffectEntry>
+                                    { Atom(AtomicEffectType.DealDamage, value: 1, kinds: new List<int> { (int)CardCore.TargetKind.EnemyLivingUnit }) },
+                            },
+                        },
+                    };
+                    if (discardValue > 0)
+                        d.PayloadCost = new CostEntry { payloads = new List<AtomicEffectEntry> { DiscardPayload(discardValue) } };
                     return d;
                 }
 
-                // 万用序（2026-10-11 链序）：灰2 账单，灰1+红1+黑1+白1 → {灰1, 黑1}
-                //（链序 灰→黑→白→红→蓝→绿：黑白垫灰先于三色——旧 10-04「黑白不垫灰」钉已废）
-                var wildPlan = CardCore.ElementPaymentValidator.GetBillPaymentPlan(
-                    new Dictionary<ManaType, int> { { ManaType.Gray, 2 } },
-                    Bank((ManaType.Gray, 1), (ManaType.Red, 1), (ManaType.Black, 1), (ManaType.White, 1)));
-                Assert(wildPlan != null
-                       && wildPlan.GetValueOrDefault(ManaType.Gray) == 1
-                       && wildPlan.GetValueOrDefault(ManaType.Black) == 1
-                       && !wildPlan.ContainsKey(ManaType.Red)
-                       && !wildPlan.ContainsKey(ManaType.White),
-                       "万用序（现行链）：灰2 = 灰1+黑1（黑白垫灰先于三色）");
+                var r0 = CardCostService.Derive(CostCard("VERIFY_COST_BASE", 0));
+                int price = PayloadPrice(1);
+                Assert(price > 0, $"弃1手牌代价价 > 0（实际 {price}）");
+                var r1 = CardCostService.Derive(CostCard("VERIFY_COST_DISC", 1));
 
-                // 同色优先：红2 账单，红2+黑9+白9 → 只扣红2（灰不在红链）
-                var samePlan = CardCore.ElementPaymentValidator.GetBillPaymentPlan(
-                    new Dictionary<ManaType, int> { { ManaType.Red, 2 } },
-                    Bank((ManaType.Red, 2), (ManaType.Gray, 9), (ManaType.Black, 9)));
-                Assert(samePlan != null && samePlan.Count == 1
-                       && samePlan.GetValueOrDefault(ManaType.Red) == 2,
-                       "同色优先：红2 有红付红（灰黑不动——灰不垫三色）");
+                var d0 = new Dictionary<ManaType, int>();
+                foreach (var c in r0.DerivedCost.NonzeroColors()) d0[c] = (int)r0.DerivedCost[c];
+                var expect = ManualReduce(d0, price);
+                var d1 = new Dictionary<ManaType, int>();
+                foreach (var c in r1.DerivedCost.NonzeroColors()) d1[c] = (int)r1.DerivedCost[c];
+                Assert(d1.Count == expect.Count && !d1.Except(expect).Any(),
+                       $"净费=推导费−代价价（先灰后最高色）：无代价 {string.Join(",", d0.Select(kv => kv.Key + "" + kv.Value))}"
+                       + $" − {price} → 期望 {string.Join(",", expect.Select(kv => kv.Key + "" + kv.Value))}"
+                       + $"，实际 {string.Join(",", d1.Select(kv => kv.Key + "" + kv.Value))}");
+                Assert(d1.Values.All(v => v >= 0), "净费每色 ≥ 0（下限 0，溢出丢弃）");
+                Assert(r1.Breakdown.Any(l => l.Stage == "P") && r0.Breakdown.All(l => l.Stage != "P"),
+                       "P 行明细：有代价才出现（代价抵扣行）");
+                // 无代价卡 → 净费 = 推导费（对照恒等：同数据重推导稳定）
+                var r0b = CardCostService.Derive(CostCard("VERIFY_COST_BASE", 0));
+                Assert(System.Math.Abs(r0b.DerivedTotal - r0.DerivedTotal) < 1e-4f, "无代价卡净费=推导费（蓝/绿套不变——恒推导稳定）");
 
-                // 黑白预留序：灰1+黑1 账单，红1+黑1 → 黑先留给本色费，灰由红垫（贪心不串色）
-                var reservePlan = CardCore.ElementPaymentValidator.GetBillPaymentPlan(
-                    new Dictionary<ManaType, int> { { ManaType.Gray, 1 }, { ManaType.Black, 1 } },
-                    Bank((ManaType.Black, 1), (ManaType.Red, 1)));
-                Assert(reservePlan != null
-                       && reservePlan.GetValueOrDefault(ManaType.Black) == 1
-                       && reservePlan.GetValueOrDefault(ManaType.Red) == 1,
-                       "黑白本色费先行预留：三色不贪吃黑（灰1 由红垫）");
-
-                // 单向性：黑费四色/白补不了；白费黑补不了
-                Assert(CardCore.ElementPaymentValidator.GetBillPaymentPlan(
-                           new Dictionary<ManaType, int> { { ManaType.Black, 1 } },
-                           Bank((ManaType.Red, 9), (ManaType.Gray, 9), (ManaType.White, 9))) == null,
-                       "单向：黑费只能黑付（红蓝绿灰白都补不了）");
-                Assert(CardCore.ElementPaymentValidator.GetBillPaymentPlan(
-                           new Dictionary<ManaType, int> { { ManaType.White, 1 } },
-                           Bank((ManaType.Black, 9))) == null,
-                       "单向：白费黑补不了");
-
-                // 钱包豁免（2026-10-16 临时元素超上限改版）：灰3 账单 bank 灰9 → {灰3} 直付
-                //（旧「灰浓度帽 cap1=灰1+红1+蓝1 分摊」随浓度钳退役——钱包可用可超上限）
-                pool1.GlobalTurnIndex = 1;
-                var grayCapPlan = CardCore.ElementPaymentValidator.GetBillPaymentPlan(
-                    new Dictionary<ManaType, int> { { ManaType.Gray, 3 } },
-                    Bank((ManaType.Gray, 9), (ManaType.Red, 9), (ManaType.Blue, 9), (ManaType.Green, 9)));
-                Assert(grayCapPlan != null
-                       && grayCapPlan.Count == 1
-                       && grayCapPlan.GetValueOrDefault(ManaType.Gray) == 3,
-                       "钱包豁免：灰3（旧cap1）= 灰3 直付（超上限不分摊）");
-                // 黑白垫灰（2026-10-11 链序复证）：灰3 账单 bank 只有余黑 → {黑3}（黑白只垫灰）
-                var bwPadGrayPlan = CardCore.ElementPaymentValidator.GetBillPaymentPlan(
-                    new Dictionary<ManaType, int> { { ManaType.Gray, 3 } },
-                    Bank((ManaType.Black, 9)));
-                Assert(bwPadGrayPlan != null
-                       && bwPadGrayPlan.Count == 1
-                       && bwPadGrayPlan.GetValueOrDefault(ManaType.Black) == 3,
-                       "黑白垫灰：灰3 由黑3 垫付（黑白只垫灰、链序同源）");
-
-                // 任意元素（2026-10-23 定案，42e883b2 元素合成）：Any=万能货币，各链末位垫付
-                //（含黑白本色费）；本色优先消耗、Any 保留（链序末端）
-                var anyPadRedPlan = CardCore.ElementPaymentValidator.GetBillPaymentPlan(
-                    new Dictionary<ManaType, int> { { ManaType.Red, 1 } },
-                    Bank((ManaType.Any, 1)));
-                Assert(anyPadRedPlan != null
-                       && anyPadRedPlan.Count == 1
-                       && anyPadRedPlan.GetValueOrDefault(ManaType.Any) == 1,
-                       "任意元素垫三色：红1 = Any1（红缺由任意垫付）");
-                var anyPadBlackPlan = CardCore.ElementPaymentValidator.GetBillPaymentPlan(
-                    new Dictionary<ManaType, int> { { ManaType.Black, 1 } },
-                    Bank((ManaType.Any, 1)));
-                Assert(anyPadBlackPlan != null
-                       && anyPadBlackPlan.Count == 1
-                       && anyPadBlackPlan.GetValueOrDefault(ManaType.Any) == 1,
-                       "任意元素垫黑白本色费：黑1 = Any1（单向性不拦 Any）");
-                var anyKeepPlan = CardCore.ElementPaymentValidator.GetBillPaymentPlan(
-                    new Dictionary<ManaType, int> { { ManaType.Red, 1 } },
-                    Bank((ManaType.Red, 1), (ManaType.Any, 1)));
-                Assert(anyKeepPlan != null
-                       && anyKeepPlan.GetValueOrDefault(ManaType.Red) == 1
-                       && !anyKeepPlan.ContainsKey(ManaType.Any),
-                       "本色优先：红1 有红付红（Any 保留在链尾不消耗）");
-                var anyGrayTailPlan = CardCore.ElementPaymentValidator.GetBillPaymentPlan(
-                    new Dictionary<ManaType, int> { { ManaType.Gray, 1 } },
-                    Bank((ManaType.Any, 1)));
-                Assert(anyGrayTailPlan != null
-                       && anyGrayTailPlan.GetValueOrDefault(ManaType.Any) == 1,
-                       "灰链尾任意垫付：灰1 = Any1（六色全零后 Any 兜底）");
-                Assert(CardCore.ElementPaymentValidator.GetBillPaymentPlan(
-                           new Dictionary<ManaType, int> { { ManaType.Gray, 1 }, { ManaType.Blue, 1 } },
-                           Bank((ManaType.Any, 1))) == null,
-                       "Any 单份不重复垫两色：灰1+蓝1 只有 Any1 → 拒付");
-
-                pool1.GlobalTurnIndex = 3;
-
-                // 任意元素端到端（PlanBill 综合规划器 + AddMana 入账，2026-10-23）：隔离遗留地牌后
-                // 钱包只 Any1 → 蓝1 账单由 Any 直付并扣除；AddMana(Any) 入账受全类型累计钳同口径
-                pool1.PooledCards.Clear(); // 隔离：防遗留锁色地横置垫付污染 Any 直付断言
-                pool1.TempGainedThisTurn = 0; // 累计钳台账隔离（前段黑白补偿探针已耗配额——配额重置按全价入账）
-                foreach (ManaType t in System.Enum.GetValues(typeof(ManaType)))
-                    pool1.TempElements[t] = 0;
-                pool1.TempElements[ManaType.Any] = 1;
-                Assert(core.ElementPool.TryPayCostWithAutoTap(ElementCost.FromValue(ManaType.Blue, 1f), p1)
-                       && pool1.TempElements[ManaType.Any] == 0,
-                       "任意元素端到端：蓝1 由钱包 Any1 直付并扣除（地牌清场）");
-                Assert(core.ElementPool.AddMana(p1, ManaType.Any, null, 2) == 2
-                       && pool1.TempElements[ManaType.Any] == 2,
-                       "任意元素入账：AddMana(Any) 落临时钱包（全类型累计钳同口径）");
-                pool1.TempElements[ManaType.Any] = 0;
-
-                // 支付链收窄（2026-10-11）：三色仅本色——黑不再垫红；红缺=拒付（先证）
-                pool1.TempElements[ManaType.Red] = 0;
-                pool1.TempElements[ManaType.Gray] = 0;
-                pool1.TempElements[ManaType.Black] = 2;
-                Assert(!core.ElementPool.TryPayCostWithAutoTap(ElementCost.FromValue(ManaType.Red, 1f), p1)
-                       && pool1.TempElements[ManaType.Black] == 2,
-                       "支付链收窄：黑不垫红（红缺拒付、黑不动）");
-                // 本色直付 + 实发组合事件：PaidCost=实际货币组合（Trinity/台账读真值）
-                ElementPoolPayEvent captured = null;
-                void OnPayEvt(ElementPoolPayEvent e) { if (e.Player == p1) captured = e; }
-                EventManager.Instance.Subscribe<ElementPoolPayEvent>(OnPayEvt);
-                pool1.TempElements[ManaType.Red] = 1;
-                bool wildPaid = core.ElementPool.TryPayCostWithAutoTap(ElementCost.FromValue(ManaType.Red, 1f), p1);
-                EventManager.Instance.Unsubscribe<ElementPoolPayEvent>(OnPayEvt);
-                Assert(wildPaid && pool1.TempElements[ManaType.Red] == 0
-                       && pool1.TempElements[ManaType.Black] == 2
-                       && captured != null
-                       && System.Math.Abs(captured.PaidCost.GetValueOrDefault((int)ManaType.Red) - 1f) < 1e-4
-                       && !captured.PaidCost.ContainsKey((int)ManaType.Black),
-                       "本色直付：红1 由红支付，PaidCost={红1}");
-
-                // ---- 3. 代价强制（2026-09-14 撤销代价可选）：恒执行+恒补偿，无选择窗口/减费通道 ----
-                FillSixColors(pool1, 99);
-                pool1.TempElements[ManaType.Black] = 0;
-                pool1.BlackGainedThisTurn = 0; // 计数器直控（隔离前段错边发放的累计）
-                pool1.WhiteGainedThisTurn = 0; // 纯观测台账隔离（2026-10-16 起不参与钳制）
-                pool1.TempGainedThisTurn = 0;  // 全类型累计钳台账同隔离（配额重置——补偿按全价入账）
-                var optCtx = new CostContext
+                // ---- ② 净费 0 的卡可付（免费卡合法）----
+                var freeData = new CardData { ID = "VERIFY_FREE_COST", CardName = "免费代价卡", Supertype = Cardtype.Spell,
+                    PayloadCost = new CostEntry { payloads = new List<AtomicEffectEntry> { DiscardPayload(1) } } };
+                CardCostService.EnsureCost(freeData);
+                Assert(freeData.Cost.IsZero, "无内容卡+代价 → 净费 0（免费卡合法，抵扣溢出丢弃）");
+                var freeCard = InjectCard(core, p1, freeData);
+                var keepHand = new List<Card>(core.ZoneManager.GetCards(p1, Zone.Hand));
+                try
                 {
-                    Payer = p1, ZoneManager = core.ZoneManager, ElementPool = core.ElementPool, Source = p1,
-                };
-
-                // 3a. e2e：无头也不再有"默认不付"——代价恒执行（弃1张）+恒补偿（按全价，受地牌上限钳）
-                // （2026-09-14 代价原子化：弃牌代价=DiscardCard 原子锁己方手牌域 {5} 的 Payload）
-                var discardCostCard = InjectCard(core, p1, SpellData("VERIFY_BW_DISC", "验证弃牌代价"));
-                ((CardWrapper)discardCostCard).GetData().Effects[0].Costs =
-                    new List<CostEntry>
-                    {
-                        new CostEntry
-                        {
-                            CostType = (int)CostType.Payload, Value = 1,
-                            payload = AtomRefs.New(AtomicEffectType.DiscardCard, value: 1, kinds: new List<int> { 5 }),
-                        },
-                    };
-                int discGrant = CostDerivationService.PayloadUnitGrant(CardEffectConverter.ConvertPayloadForDisplay(
-                    AtomRefs.New(AtomicEffectType.DiscardCard, value: 1, kinds: new List<int> { 5 })));
-                int discExpect = discGrant; // cap3 下单次钳不缩量：实发=全价（台账不参与钳制——2026-10-16 口径）
-                int handBefore = core.ZoneManager.GetCards(p1, Zone.Hand).Count;
-                Assert(GameActions.PlayCard(core, p1, discardCostCard, new List<Entity>()), "打出带弃牌代价的卡");
-                GameActions.DrainStack(core);
-                Assert(core.ZoneManager.GetCards(p1, Zone.Hand).Count == handBefore - 2,
-                       "代价强制：少打出本体+弃1张（代价恒执行，无'不付'选项）");
-                Assert(pool1.TempElements[ManaType.Black] == discExpect && pool1.BlackGainedThisTurn == discExpect,
-                       $"代价强制补偿：+{discExpect} 黑（弃1张 Payload 全价{discGrant}·生效后立即发放；实际 {pool1.TempElements[ManaType.Black]}）");
-
-                // 3a-2. 出牌两阶段（2026-10-04 定案）：有代价的卡声明期先算代价——
-                //      代价目标预选（本卡自身不作代价目标）；代价无目标 → 卡的发动无效（拒发）
-                var loneCostCardData = SpellData("VERIFY_BW_LONE", "孤注代价");
-                loneCostCardData.Effects[0].Costs = new List<CostEntry>
+                    foreach (var c in keepHand.Where(c => !ReferenceEquals(c, freeCard)).ToList())
+                        core.ZoneManager.MoveCard(c, p1, Zone.Hand, Zone.Graveyard); // 只留免费卡自身
+                    InjectCard(core, p1, new CardData { ID = "VERIFY_FREE_FILLER", CardName = "填充手牌", Supertype = Cardtype.Spell });
+                    foreach (var kv in pool1.TempElements.ToList()) pool1.TempElements[kv.Key] = 0; // 空钱包
+                    Assert(GameActions.CanAffordCast(core, p1, freeCard, 0),
+                           "净费 0 可付（免费卡合法——空钱包+代价可支付〔手牌有填充〕→ CanAffordCast=true）");
+                }
+                finally
                 {
-                    new CostEntry
-                    {
-                        CostType = (int)CostType.Payload, Value = 1,
-                        payload = AtomRefs.New(AtomicEffectType.DiscardCard, value: 1, kinds: new List<int> { 5 }),
-                    },
-                };
-                // 排空 p1 手牌（代价域 {5}=己方手牌，预选剔除本卡后无候选 → 拒发）
-                var handSave3a2 = core.ZoneManager.GetCards(p1, Zone.Hand).ToList();
-                var hzone3a2 = core.ZoneManager.GetZoneContainer(p1);
-                foreach (var h in handSave3a2) hzone3a2.Move(h, Zone.Hand, Zone.Deck);
-                var loneCostCard = InjectCard(core, p1, loneCostCardData); // 手牌=仅本卡
-                bool lonePlayed = GameActions.PlayCard(core, p1, loneCostCard, new List<Entity>(), Zone.Hand, 0, out var loneReject);
-                Assert(!lonePlayed && loneReject != null && loneReject.Contains("代价无目标")
-                       && loneCostCard.GetZone() == Zone.Hand,
-                       $"两阶段拒发：代价（弃1张）无目标 → 卡的发动无效（拒因：{loneReject}，卡留手牌）");
-                foreach (var h in handSave3a2) hzone3a2.Move(h, Zone.Deck, Zone.Hand); // 还原手牌
-                core.ZoneManager.GetZoneContainer(p1).Remove(loneCostCard, Zone.Hand); // 清理探针
-
-                // 3b. 直测唯一付费路径 PayWithCompensationAsync（原三选一入口已删——无账单参数，减费通道不存在）
-                pool1.BlackGainedThisTurn = 0;
-                pool1.WhiteGainedThisTurn = 0; // 纯观测台账隔离（不参与钳制）
-                pool1.TempGainedThisTurn = 0;  // 累计钳台账同隔离
-                int hand3b = core.ZoneManager.GetCards(p1, Zone.Hand).Count;
-                var discCosts = new List<CostInstance>
-                {
-                    new CostInstance
-                    {
-                        Type = CostType.Payload,
-                        Payloads = new List<CardCore.AtomicEffectInstance>
-                        {
-                            CardEffectConverter.ConvertPayloadForDisplay(AtomRefs.New(AtomicEffectType.DiscardCard, value: 1, kinds: new List<int> { 5 })),
-                        },
-                    },
-                };
-                Assert(CostCompensationService.PayWithCompensationAsync(discCosts, optCtx).GetAwaiter().GetResult(),
-                       "PayWithCompensationAsync 执行（cast 付费步/主动共用唯一路径）");
-                Assert(core.ZoneManager.GetCards(p1, Zone.Hand).Count == hand3b - 1, "强制路径：代价执行（弃1张）");
-                Assert(pool1.TempElements[ManaType.Black] == discExpect + discExpect,
-                       $"强制路径补偿：再 +{discExpect} 黑（快照全价 {discGrant}·生效后立即发放；实际 {pool1.TempElements[ManaType.Black]}）");
-
-                // ---- 4. Payload 效果型代价：恒执行（对手召唤）+恒补偿（得白） ----
-                // 模板身价入 Cost（2026-10-07 表价清零定案：召唤全价随模板费——零费模板=零补偿）
-                var tpl = new CardData
-                {
-                    ID = "VERIFY_BW_TPL", CardName = "验证白衍生物", Supertype = Cardtype.Creature, Power = 30, Life = 30,
-                    Cost = CardCore.ElementCost.FromValue(ManaType.White, 5),
-                };
-                CardCore.Attribute.Handlers.SummonTokenHandler.ResolveTemplate = id => id == tpl.ID ? tpl : null;
-                pool1.TempElements[ManaType.White] = 0;
-                pool1.WhiteGainedThisTurn = 0;
-                var payloadCard = InjectCard(core, p1, SpellData("VERIFY_BW_PAY", "验证代价效果"));
-                ((CardWrapper)payloadCard).GetData().Effects[0].Costs = new List<CostEntry>
-                {
-                    new CostEntry
-                    {
-                        CostType = (int)CostType.Payload,
-                        payload = AtomRefs.New(AtomicEffectType.SummonToken, value: 1, kinds: new List<int> { 2 }, str: tpl.ID), // 锁对方域（EnemyLivingUnit）→ 受惠侧=对手执行
-                    },
-                };
-                var payDerive = CardCostService.Derive(((CardWrapper)payloadCard).GetData());
-                Assert(payDerive.Grants[ManaType.White] >= 1 && payDerive.Grants[ManaType.Black] == 0,
-                       "构筑显示：Payload 代价 →「获得白≥1」（CardCostResult.Grants，模式0口径）");
-
-                // 2026-10-09 清理：4a/4b（打出/直测 Payload 恒执行+补偿）两段删除——高费代价卡在低地牌上限
-                // 下被全价门槛拦截（2026-10-04 使用侧定案，4c 正例专测该门槛），打出路径搭场过时；
-                // 代价恒执行/补偿语义在 TideServer V9.n（代价栏：产出不封·补偿后置）有现行覆盖
-                core.ZoneManager.GetZoneContainer(p1).Remove(payloadCard, Zone.Hand); // 清理探针
-
-                // ---- 4c.（2026-10-04 本轮新规镜像）全价门槛 / 代价栏计槽 / 无有效目标回手 / 先扣卡费 ----
-                pool1.GlobalTurnIndex = 3; // 上限 3（钉回——门槛探针需要确定 cap）
-                // ① 全价过地牌门槛：全价 > 地牌槽上限 → 整卡拒发留手（走不到代价发动）
-                var gateCardData = SpellData("VERIFY_BW_GATE", "门槛代价卡");
-                gateCardData.Effects[0].Costs = new List<CostEntry>
-                {
-                    new CostEntry
-                    {
-                        CostType = (int)CostType.Payload, Value = 1,
-                        payload = AtomRefs.New(AtomicEffectType.LifeLoss, value: 8, kinds: new List<int> { 1 }),
-                    },
-                };
-                var gateCard = InjectCard(core, p1, gateCardData);
-                int gateGrant = CostDerivationService.PayloadUnitGrant(CardEffectConverter.ConvertPayloadForDisplay(
-                    AtomRefs.New(AtomicEffectType.LifeLoss, value: 8, kinds: new List<int> { 1 })));
-                Assert(gateGrant > 3, $"前置：门槛探针全价 > 上限3（实际 {gateGrant}）");
-                Assert(!GameActions.PlayCard(core, p1, gateCard, new List<Entity>(), Zone.Hand, 0, out var gateReject)
-                       && gateReject != null && gateReject.Contains("地牌槽上限")
-                       && gateCard.GetZone() == Zone.Hand,
-                       $"全价门槛：全价 {gateGrant} > 上限 3 → 整卡拒发留手（拒因：{gateReject}）");
-                core.ZoneManager.GetZoneContainer(p1).Remove(gateCard, Zone.Hand); // 清理探针
-
-                // ② 代价栏计 1 效果槽（代价也是效果栏，不是特殊判）
-                var slotProbe = SpellData("VERIFY_BW_SLOT", "槽位探针");
-                Assert(CostDerivationService.CountEffectSlots(slotProbe) == 1, "槽位：1 效果 = 1 槽");
-                slotProbe.PayloadCost = new CostEntry
-                {
-                    CostType = (int)CostType.Payload, Value = 1,
-                    payload = AtomRefs.New(AtomicEffectType.LifeLoss, value: 1, kinds: new List<int> { 1 }),
-                };
-                Assert(CostDerivationService.CountEffectSlots(slotProbe) == 2, "槽位：+代价栏 = 2 槽（底盘 3 灰同口径扣槽）");
-
-                // ③ 无有效目标回手（手牌域 {5}——非战场域按域重解析，防战场判区误杀）
-                pool1.TempElements[ManaType.Gray] = 1; // 恰好够灰1——回退则分文未扣
-                var backCardData = SpellData("VERIFY_BW_BACK", "回手代价卡");
-                backCardData.Cost = ElementCost.FromValue(ManaType.Gray, 1);
-                backCardData.Effects[0].Costs = new List<CostEntry>
-                {
-                    new CostEntry
-                    {
-                        CostType = (int)CostType.Payload, Value = 1,
-                        payload = AtomRefs.New(AtomicEffectType.DiscardCard, value: 1, kinds: new List<int> { 5 }),
-                    },
-                };
-                var backCard = InjectCard(core, p1, backCardData);
-                var backOthers = core.ZoneManager.GetCards(p1, Zone.Hand).Where(h => h != backCard).ToList();
-                Assert(backOthers.Count >= 1 && GameActions.PlayCard(core, p1, backCard, new List<Entity>()),
-                       "前置：手牌有弃牌目标——声明成功");
-                foreach (var h in backOthers) core.ZoneManager.GetZoneContainer(p1).Move(h, Zone.Hand, Zone.Deck); // 窗口内排空
-                GameActions.DrainStack(core);
-                Assert(backCard.GetZone() == Zone.Hand && pool1.TempElements[ManaType.Gray] == 1,
-                       "手牌域代价无有效目标：发动失败回退手牌（不付费不补偿）");
-                foreach (var h in backOthers) core.ZoneManager.GetZoneContainer(p1).Move(h, Zone.Deck, Zone.Hand); // 还原
-
-                // ④ 先扣卡费（2026-10-16 恢复 10-04 旧序——10-11「补偿先付垫本卡」回调退役）：窗口内池恶化 →
-                //    卡费付不出 → 入墓不回卷、代价未执行（上限不变）、无补偿入账（黑白不互垫——黑3 只黑付）
-                var orderCardData = SpellData("VERIFY_BW_ORDER", "顺序代价卡");
-                orderCardData.Cost = ElementCost.FromValue(ManaType.Black, 3);
-                orderCardData.PayloadCost = new CostEntry
-                {
-                    CostType = (int)CostType.Payload, Value = 1,
-                    payload = AtomRefs.New(AtomicEffectType.LifeLoss, value: 1, kinds: new List<int> { 1 }),
-                };
-                var orderCard = InjectCard(core, p1, orderCardData);
-                pool1.BlackGainedThisTurn = 0; pool1.WhiteGainedThisTurn = 0; // 新回合模拟：台账清零隔离观测
-                pool1.TempElements[ManaType.Black] = 3; // 声明期池够（黑3 只黑付——现有钱包足额、不靠补偿垫）
-                int orderMaxBefore = p1.MaxHealth;
-                Assert(GameActions.PlayCard(core, p1, orderCard, new List<Entity>()), "前置：黑3 池够——声明成功");
-                pool1.TempElements[ManaType.Black] = 0; // 响应窗口内元素被耗尽
-                GameActions.DrainStack(core);
-                Assert(orderCard.GetZone() == Zone.Graveyard && p1.MaxHealth == orderMaxBefore
-                       && pool1.TempElements[ManaType.Black] == 0,
-                       $"先扣卡费：池恶化付不出 → 入墓不回卷、代价未执行（上限不变）、无补偿入账（补偿须发动成功代价执行后才到账）");
-
-                // ⑤ 生命恢复目标须受伤（Damaged 动态判定 hp<上限——复用既有 DamagedFilter，无标志位）
-                var healRow4c = CardCore.Attribute.AtomicEffectTable.GetByType(AtomicEffectType.Heal);
-                Assert(healRow4c != null && healRow4c.TargetFilter == "Damaged",
-                       "表行单源：回复生命 TargetFilter=Damaged（动态判定）");
-                var healCtx4c = new EffectExecutionContext
-                {
-                    Controller = p1, Source = p1, ZoneManager = core.ZoneManager, ElementPool = core.ElementPool,
-                };
-                int p1Life4c = p1.Life;
-                var candidatesFull = CardCore.Attribute.EffectHandlerRegistry.ResolveCandidates(
-                    healRow4c.GetTargetKindList(), healRow4c.TargetFilter, healCtx4c);
-                bool p1Damaged4c = p1.Life < p1.MaxHealth;
-                Assert((candidatesFull != null && candidatesFull.Contains(p1)) == p1Damaged4c,
-                       $"Damaged 动态判定：角色现伤={p1Damaged4c} 与候选一致（hp{p1Life4c}/{p1.MaxHealth}）");
-                if (!p1Damaged4c)
-                {
-                    CardCore.Attribute.KeywordRules.ApplyDamage(p2, p1, 2, isCombat: false);
-                    var candidatesHurt = CardCore.Attribute.EffectHandlerRegistry.ResolveCandidates(
-                        healRow4c.GetTargetKindList(), healRow4c.TargetFilter, healCtx4c);
-                    Assert(candidatesHurt != null && candidatesHurt.Contains(p1), "受伤后入候选（hp<上限 动态生效）");
+                    foreach (var c in keepHand) core.ZoneManager.MoveCard(c, p1, Zone.Graveyard, Zone.Hand);
                 }
 
-                // ---- 5. 元素支付（统一混付）：链序垫付 / 钱包超上限直付 / 三色仅本色 ----
-                foreach (var t in AllManaTypes()) pool1.TempElements[t] = 0;
-                pool1.GlobalTurnIndex = 1; // 上限 1（地牌侧浓度钳；钱包 2026-10-16 起豁免）
-                pool1.PooledCards.Clear(); // 隔离：前段遗留锁色地牌（灰锁地会替灰账单横置垫付，污染链序断言）
-                var ctx5 = new CostContext
+                // ---- ③ 手牌 0 张 → 带弃牌代价的卡不可用（拒绝原因）----
+                var costCard = InjectCard(core, p1, CostCard("VERIFY_COST_GATE", 1));
+                var hand2 = new List<Card>(core.ZoneManager.GetCards(p1, Zone.Hand));
+                try
+                {
+                    foreach (var c in hand2) core.ZoneManager.MoveCard(c, p1, Zone.Hand, Zone.Graveyard); // 手牌清空（含被测卡——纯预检不要求在手）
+                    foreach (var kv in pool1.TempElements.ToList()) pool1.TempElements[kv.Key] = 99; // 净费侧充足：只考代价闸
+                    Assert(!GameActions.CanAffordCast(core, p1, costCard, 0),
+                           "手牌 0 → 带弃牌代价的卡不可用（CanAffordCast=false——净费可付 ∧ 代价可支付，后者失守）");
+                    string reject = GameActions.GetPayloadGateReject(core, p1, costCard);
+                    Assert(reject != null && reject.Contains("手牌不足"),
+                           $"拒绝原因含「手牌不足」（实际：{reject}）");
+                }
+                finally
+                {
+                    foreach (var c in hand2) core.ZoneManager.MoveCard(c, p1, Zone.Graveyard, Zone.Hand);
+                }
+
+                // ---- ④ 灰费可由红/蓝/绿支付（支付链回归，不因 P3 未做而删）----
+                var gray2 = ElementCost.FromValue(ManaType.Gray, 2);
+                foreach (var kv in pool1.TempElements.ToList()) pool1.TempElements[kv.Key] = 0;
+                pool1.TempElements[ManaType.Red] = 2;
+                Assert(core.ElementPool.CanPayCostWithAutoTap(gray2, p1), "灰2 账单 · 钱包红2 → 可付（灰=可替代费）");
+                foreach (var kv in pool1.TempElements.ToList()) pool1.TempElements[kv.Key] = 0;
+                pool1.TempElements[ManaType.Blue] = 1;
+                pool1.TempElements[ManaType.Green] = 1;
+                Assert(core.ElementPool.CanPayCostWithAutoTap(gray2, p1), "灰2 账单 · 钱包蓝1+绿1 → 可付（灰=可替代费）");
+
+                // ---- ⑤ 付完代价钱包元素总量不变（代价不再产出）----
+                foreach (var kv in pool1.TempElements.ToList()) pool1.TempElements[kv.Key] = 0;
+                pool1.TempElements[ManaType.Red] = 3;
+                InjectCard(core, p1, new CardData { ID = "VERIFY_PAY_FILLER", CardName = "代价执行填充", Supertype = Cardtype.Spell });
+                int walletBefore = pool1.TempElements.Values.Sum();
+                int handBefore = core.ZoneManager.GetCards(p1, Zone.Hand).Count;
+                var costCtx = new CostContext
                 {
                     Payer = p1, ZoneManager = core.ZoneManager, ElementPool = core.ElementPool, Source = p1,
                 };
-
-                // 灰费混付（现行链）：灰2 账单，灰1+红1 → 可付（黑白缺位时三色垫灰）
-                foreach (var t in AllManaTypes()) pool1.TempElements[t] = 0;
-                pool1.TempElements[ManaType.Gray] = 1;
-                pool1.TempElements[ManaType.Red] = 1;
-                var grayNeed = new List<CostInstance> { new CostInstance { Type = CostType.ElementConsume, Value = 2, ManaType = ManaType.Gray } };
-                bool paidGray = ElementCostPayment.Pay(grayNeed, ctx5);
-                Assert(paidGray && pool1.TempElements[ManaType.Gray] == 0 && pool1.TempElements[ManaType.Red] == 0,
-                       "灰费混付（现行链）：灰1+红1 付灰2（三色垫灰）");
-
-                // 钱包超上限直付（2026-10-16 临时元素超上限改版）：灰2 账单（旧cap1）灰 bank 2 → 直付
-                //（旧「灰贡献 1 后拒付」灰浓度帽随钱包豁免退役）
-                pool1.TempElements[ManaType.Gray] = 2;
-                pool1.TempElements[ManaType.Red] = 0;
-                var gray2 = new List<CostInstance> { new CostInstance { Type = CostType.ElementConsume, Value = 2, ManaType = ManaType.Gray } };
-                Assert(ElementCostPayment.Pay(gray2, ctx5) && pool1.TempElements[ManaType.Gray] == 0,
-                       "钱包豁免：灰2（旧cap1）灰 bank 2 → 直付（可用可超上限）");
-
-                // 黑白垫灰（2026-10-11 链序）：灰2 账单，灰0+黑9 → 黑垫可付（黑白只垫灰；
-                // 旧 10-04「黑白不垫灰」钉与现行链矛盾，已废）
-                pool1.TempElements[ManaType.Gray] = 0;
-                pool1.TempElements[ManaType.Black] = 9;
-                Assert(ElementCostPayment.Pay(gray2, ctx5) && pool1.TempElements[ManaType.Black] == 7,
-                       "黑白垫灰：灰2 由黑2 垫付（黑白只垫灰）");
-
-                // 三色仅本色（2026-10-11 收窄）：红1 账单，灰9黑9白9、红 0 → 拒付
-                //（红缺口只有红能付——灰黑白都不垫三色；旧 10-04「黑垫红」钉与现行链矛盾，已废）
-                FillSixColors(pool1, 9);
-                pool1.TempElements[ManaType.Red] = 0;
-                var redNeed = new List<CostInstance> { new CostInstance { Type = CostType.ElementConsume, Value = 1, ManaType = ManaType.Red } };
-                Assert(!ElementCostPayment.Pay(redNeed, ctx5) && pool1.TempElements[ManaType.Black] == 9,
-                       "三色仅本色：红1 · 灰9黑9白9 → 拒付（黑不动——红链=[红]）");
-
-                // 自动横置补足正例（2026-09-30 定案）：bank 全空但未横置地牌可产红 → 自动横置支付
-                pool1.PooledCards.Clear();
-                var autoTapLand = new PooledCard(core.ZoneManager.GetCards(p1, Zone.Deck)[0], ManaType.Red);
-                pool1.PooledCards.Add(autoTapLand);
-                foreach (var t in AllManaTypes()) pool1.TempElements[t] = 0;
-                var redAuto = new List<CostInstance> { new CostInstance { Type = CostType.ElementConsume, Value = 1, ManaType = ManaType.Red } };
-                Assert(ElementCostPayment.Pay(redAuto, ctx5) && autoTapLand.IsTapped
-                       && pool1.TempElements[ManaType.Red] == 0,
-                       "自动横置补足：红费 bank 空+未横置红地 → 横置产红支付");
-
-                // 真负例（2026-09-30 自动横置口径更新）：红费全空 bank + **无未横置地牌可产** → 拒付
-                //（旧口径只清 bank——前段遗留地牌在新口径下会被自动横置垫付，负例不再是负例；
-                //  故清空地牌池保持「无地可产 → 拒付」的原意图）
-                pool1.PooledCards.Clear();
-                foreach (var t in AllManaTypes()) pool1.TempElements[t] = 0;
-                Assert(!ElementCostPayment.Pay(redNeed, ctx5),
-                       "真负例：红费且红灰黑白全空+无未横置地 → 拒付");
-
-                // ---- 6. 流失改扣 MaxHealth：满血裁剪 / 受伤只扣上限 / 归零正常死亡 ----
-                var pl = new Player("VERIFY_BW_MAXHP", 30);
-                pl.DecreaseMaxHealth(2);
-                Assert(pl.MaxHealth == 28 && pl.Life == 28, "满血扣上限：30/30 → 28/28（超出当前血一起裁）");
-                pl.DecreaseMaxHealth(2);
-                Assert(pl.MaxHealth == 26 && pl.Life == 26, "连续满血扣：28/28 → 26/26（每次裁到新上限）");
-                var pl2 = new Player("VERIFY_BW_MAXHP2", 30);
-                pl2.Life = 20;
-                pl2.DecreaseMaxHealth(2);
-                Assert(pl2.MaxHealth == 28 && pl2.Life == 20, "已受伤（20/30）扣 2 → 20/28（只扣上限）");
-                // 流失原子（2026-09-14 代价原子化：LifeLoss=支付载体）——目标=自己 → 扣上限 + 发支付事件
-                int evtSum = 0;
-                void OnLifePay(LifePaymentCostEvent e) { if (e.Player == pl2) evtSum += e.Amount; }
-                EventManager.Instance.Subscribe<LifePaymentCostEvent>(OnLifePay);
-                var drainAtom = new AtomicEffectInstance { Type = AtomicEffectType.LifeLoss, Value = 8 };
-                var drainCtx = new EffectExecutionContext
+                var payloadCostInst = new CostInstance
                 {
-                    Controller = pl2, Source = pl2,
-                    Targets = new List<Entity> { pl2 },
+                    Type = CostType.Payload,
+                    Payloads = new List<CardCore.AtomicEffectInstance>
+                        { CardEffectConverter.ConvertPayloadForDisplay(DiscardPayload(1)) },
                 };
-                CardCore.Attribute.EffectHandlerRegistry.ExecuteEffectAsync(drainAtom, drainCtx).GetAwaiter().GetResult();
-                EventManager.Instance.Unsubscribe<LifePaymentCostEvent>(OnLifePay);
-                Assert(pl2.MaxHealth == 20 && pl2.Life == 20 && evtSum == 8,
-                       $"流失原子：20/28 扣 8 → 20/20（只降上限）+ LifePaymentCostEvent 8（实际 {pl2.MaxHealth}/{pl2.Life}，事件 {evtSum}）");
-                var plZero = new Player("VERIFY_BW_MAXHP3", 30);
-                var drainAllCtx = new EffectExecutionContext
-                {
-                    Controller = plZero, Source = plZero,
-                    Targets = new List<Entity> { plZero },
-                };
-                CardCore.Attribute.EffectHandlerRegistry.ExecuteEffectAsync(
-                    new AtomicEffectInstance { Type = AtomicEffectType.LifeLoss, Value = 30 }, drainAllCtx).GetAwaiter().GetResult();
-                Assert(plZero.MaxHealth == 0 && plZero.Life == 0, "可扣到恰好归零（归零=正常死亡交生命判定收尾）");
-
-                // ---- 7. 含黑白费用的卡作地牌（2026-10-24 存量退役）----
-                // 旧断言「红+黑 Cost 卡可入池锁红 / 纯黑拒入池」基于 Cost 字段进锁色候选的前置口径；
-                // 费用恒推导（2026-10-22）+锚价开格（2026-10-23「真无费仍拒」+黑白过滤）后，无效果纯
-                // Cost 卡恒推导=0 → 拒入池——本意图已由服务器 VerifySuite V9.ac 段 10 断言覆盖
-                ///（TideServer verify --quick 全过），不再本地重述（清池残留循环同删——本地夹具专用）。
+                Assert(CostCompensationService.PayPayloadsAsync(
+                           new List<CostInstance> { payloadCostInst }, costCtx).GetAwaiter().GetResult(),
+                       "PayPayloadsAsync 执行（代价只执行、不发放）");
+                Assert(pool1.TempElements.Values.Sum() == walletBefore,
+                       $"付完代价钱包总量不变（{walletBefore} → {pool1.TempElements.Values.Sum()}——代价不再产出元素）");
+                Assert(core.ZoneManager.GetCards(p1, Zone.Hand).Count == handBefore - 1,
+                       "代价执行真发生（弃 1 手牌——填充卡离手）");
             }
             finally
             {
-                foreach (var kv in snapBank) pool1.TempElements[kv.Key] = kv.Value;
-                pool1.GlobalTurnIndex = snapTurnIdx;
-                pool1.BlackGainedThisTurn = snapBlackGained;
-                pool1.WhiteGainedThisTurn = snapWhiteGained;
-                pool1.TempGainedThisTurn = snapGainedLedger;
-                // 生命/上限不逐点恢复（后续段落自建夹具；MaxHealth 只在本段被扣，恢复到快照）
-                if (p1.MaxHealth != snapMax || p1.Life != snapLife)
+                foreach (var kv in snapWallet) pool1.TempElements[kv.Key] = kv.Value;
+                foreach (var c in core.ZoneManager.GetCards(p1, Zone.Hand)
+                             .Where(c => ((CardWrapper)c).GetData()?.ID.StartsWith("VERIFY_") == true).ToList())
+                    core.ZoneManager.MoveCard(c, p1, Zone.Hand, Zone.Graveyard);
+            }
+        }
+
+        // ======================================== 代价资敌臂（2026-10-28 P1b：p>0 锁对方） ========================================
+
+        /// <summary>
+        /// P1b 资敌臂回归（2026-10-28 定案：代价收 p≠0 且锁在受益方反面——p<0 自伤 / p>0 资敌）：
+        /// ① 契约三向：资敌治疗 / +1/+1（p>0 锁对方）转换通过；p=0 拒；有益原子未锁对方拒（ConvertPayloadForDisplay=null）；
+        /// ② 净费 = 无代价版 − 代价价（治疗2 → 价1、+1/+1 → 价1，各净费 −1）；
+        /// ③ 对手满血 → 资敌治疗卡不可用（可支付闸拦，拒绝原因「资敌」）；对手受伤 → 可用；
+        /// ④ 对手无单位 → +1/+1 资敌卡不可用；有单位 → 可用；
+        /// ⑤ 防护白嫖拦截：对方全部目标已持圣盾 → GrantDivineShield 资敌代价不可付（拒绝原因「已持有」）；
+        /// ⑥ 自伤臂回归：弃牌代价价与净费抵扣不因 P1b 漂移；
+        /// ⑦ 资敌代价执行不产任何元素（钱包总量不变）+ 真发生（对手受伤角色回血）。
+        /// </summary>
+        private static void TestBenefitEnemyCostArm(GameCore core, Player p1, Player p2)
+        {
+            EnsureMainPhase(core, p1);
+            var pool1 = core.ElementPool.GetPool(p1);
+            var snapWallet = new Dictionary<ManaType, int>(pool1.TempElements);
+            var snapP2Life = p2.Life;
+            var snapP2Field = new List<Card>(core.ZoneManager.GetCards(p2, Zone.Battlefield));
+
+            // 前置：资敌候选行极性在表（Heal/AddPlusOne/GrantDivineShield p>0）
+            Assert(Cfg(AtomicEffectType.Heal).Polarity > 0, "前置：Heal 行 p>0（资敌候选存在）");
+            Assert(Cfg(AtomicEffectType.AddPlusOne).Polarity > 0, "前置：AddPlusOne 行 p>0（资敌候选存在）");
+            Assert(Cfg(AtomicEffectType.SetPower).Polarity == 0, "前置：SetPower 行 p=0（中性反例存在）");
+
+            // 资敌条目（p>0 锁对方 {2}——契约合法载体；表行默认双侧域不可裸用）
+            var healFoe = Atom(AtomicEffectType.Heal, value: 2, kinds: new List<int> { (int)CardCore.TargetKind.EnemyLivingUnit });
+            var plusOneFoe = Atom(AtomicEffectType.AddPlusOne, value: 1, kinds: new List<int> { (int)CardCore.TargetKind.EnemyLivingUnit });
+            var shieldFoe = Atom(AtomicEffectType.GrantDivineShield, value: 1, kinds: new List<int> { (int)CardCore.TargetKind.EnemyLivingUnit });
+            var neutralFoe = Atom(AtomicEffectType.SetPower, value: 1, kinds: new List<int> { (int)CardCore.TargetKind.EnemyLivingUnit });
+            var healWrongSide = Atom(AtomicEffectType.Heal, value: 2, kinds: new List<int> { (int)CardCore.TargetKind.OwnLivingUnit });
+
+            int FoePrice(AtomicEffectEntry e)
+            {
+                var inst = CardEffectConverter.ConvertPayloadForDisplay(e);
+                return inst != null ? CostDerivationService.PayloadUnitGrant(inst) : 0;
+            }
+
+            CardData FoeCard(string id, AtomicEffectEntry payload)
+            {
+                var d = new CardData
                 {
-                    // 通过反射无法直写——用 IncreaseMaxHealth 补差 + 直调 Life 恢复
-                    if (snapMax > p1.MaxHealth) p1.IncreaseMaxHealth(snapMax - p1.MaxHealth);
-                    p1.Life = System.Math.Min(snapLife, p1.MaxHealth);
-                }
+                    ID = id, CardName = "验证资敌卡" + id, Supertype = Cardtype.Creature,
+                    Power = 2, Life = 2,
+                    Effects = new List<CardEffectData>
+                    {
+                        new CardEffectData
+                        {
+                            Id = id + "_EFF",
+                            AtomicEffects = new List<AtomicEffectEntry>
+                                { Atom(AtomicEffectType.DealDamage, value: 1, kinds: new List<int> { (int)CardCore.TargetKind.EnemyLivingUnit }) },
+                        },
+                    },
+                };
+                if (payload != null)
+                    d.PayloadCost = new CostEntry { payloads = new List<AtomicEffectEntry> { payload } };
+                return d;
+            }
+
+            int NetTotal(CardData d) => (int)System.Math.Round((double)CardCostService.Derive(d).DerivedTotal);
+
+            try
+            {
+                // 战场清空（双方角色外无干扰目标；结束后还原）
+                foreach (var c in snapP2Field) core.ZoneManager.MoveCard(c, p2, Zone.Battlefield, Zone.Graveyard);
+
+                // ---- ① 契约三向：p>0 锁对方过；p=0 / 有益未锁对方拒 ----
+                Assert(CardEffectConverter.ConvertPayloadForDisplay(healFoe) != null,
+                       "契约：资敌治疗（Heal·p>0·锁对方）转换通过");
+                Assert(CardEffectConverter.ConvertPayloadForDisplay(plusOneFoe) != null,
+                       "契约：资敌 +1/+1（AddPlusOne·p>0·锁对方）转换通过");
+                Assert(CardEffectConverter.ConvertPayloadForDisplay(shieldFoe) != null,
+                       "契约：资敌圣盾（GrantDivineShield·p>0·锁对方）转换通过");
+                Assert(CardEffectConverter.ConvertPayloadForDisplay(neutralFoe) == null,
+                       "契约：p=0（SetPower）作代价直接拒（ConvertPayloadForDisplay=null）");
+                Assert(CardEffectConverter.ConvertPayloadForDisplay(healWrongSide) == null,
+                       "契约：有益原子未锁对方（Heal·p>0·域=己方）拒");
+
+                // ---- ② 净费 = 无代价版 − 代价价（治疗2/+1+1 各 −1）----
+                int baseNet = NetTotal(FoeCard("VERIFY_FOE_BASE", null));
+                int healPrice = FoePrice(healFoe);
+                Assert(healPrice == 1, $"资敌治疗2的代价价=1（实际 {healPrice}——Heal 锚 0.5绿×2）");
+                Assert(NetTotal(FoeCard("VERIFY_FOE_HEAL", healFoe)) == baseNet - healPrice,
+                       $"资敌治疗代价净费 −{healPrice}（推导费 {baseNet} → 净费 {baseNet - healPrice}）");
+                int buffPrice = FoePrice(plusOneFoe);
+                Assert(buffPrice == 1, $"资敌 +1/+1 的代价价=1（实际 {buffPrice}）");
+                Assert(NetTotal(FoeCard("VERIFY_FOE_BUFF", plusOneFoe)) == baseNet - buffPrice,
+                       $"资敌 +1/+1 代价净费 −{buffPrice}（推导费 {baseNet} → 净费 {baseNet - buffPrice}）");
+
+                foreach (var kv in pool1.TempElements.ToList()) pool1.TempElements[kv.Key] = 99; // 净费侧充足：只考代价闸
+
+                // ---- ③ 对手满血 → 资敌治疗卡不可用；受伤 → 可用 ----
+                var healCard = InjectCard(core, p1, FoeCard("VERIFY_FOE_HEAL_GATE", healFoe));
+                int p2Max = p2.GetMaxLife();
+                p2.Life = p2Max; // 满血
+                Assert(!GameActions.CanAffordCast(core, p1, healCard, 0),
+                       "对手满血 → 资敌治疗卡不可用（CanAffordCast=false——治疗满血=白嫖，可支付闸拦住）");
+                string healReject = GameActions.GetPayloadGateReject(core, p1, healCard);
+                Assert(healReject != null && healReject.Contains("资敌"),
+                       $"拒绝原因含「资敌」（实际：{healReject}）");
+                p2.Life = p2Max - 2; // 受伤
+                Assert(GameActions.CanAffordCast(core, p1, healCard, 0),
+                       "对手受伤 → 资敌治疗卡可用（有会被改变的目标）");
+                core.ZoneManager.MoveCard(healCard, p1, Zone.Hand, Zone.Graveyard);
+
+                // ---- ④ 对手无单位 → +1/+1 资敌卡不可用；有单位 → 可用 ----
+                var buffCard = InjectCard(core, p1, FoeCard("VERIFY_FOE_BUFF_GATE", plusOneFoe));
+                Assert(!GameActions.CanAffordCast(core, p1, buffCard, 0),
+                       "对手无单位 → +1/+1 资敌卡不可用（候选空——NoRole 滤后角色不入候选）");
+                string buffReject = GameActions.GetPayloadGateReject(core, p1, buffCard);
+                Assert(buffReject != null && buffReject.Contains("资敌"),
+                       $"拒绝原因含「资敌」（实际：{buffReject}）");
+                var foeUnit = InjectCard(core, p2, new CardData
+                {
+                    ID = "VERIFY_FOE_UNIT", CardName = "资敌靶单位", Supertype = Cardtype.Creature, Power = 1, Life = 1,
+                });
+                core.ZoneManager.MoveCard(foeUnit, p2, Zone.Hand, Zone.Battlefield);
+                Assert(GameActions.CanAffordCast(core, p1, buffCard, 0),
+                       "对手有单位 → +1/+1 资敌卡可用");
+                core.ZoneManager.MoveCard(buffCard, p1, Zone.Hand, Zone.Graveyard);
+
+                // ---- ⑤ 防护白嫖拦截：对方全部目标已持圣盾 → 不可付 ----
+                var shieldCard = InjectCard(core, p1, FoeCard("VERIFY_FOE_SHIELD_GATE", shieldFoe));
+                Assert(GameActions.CanAffordCast(core, p1, shieldCard, 0),
+                       "对方有未持圣盾目标 → 资敌圣盾卡可用（前置态）");
+                foeUnit.AddCounters(CardCore.Attribute.CounterRules.DivineShieldCounter, 1, p2);
+                p2.AddCounters(CardCore.Attribute.CounterRules.DivineShieldCounter, 1, p2); // 域含角色：须全部持有才拦
+                Assert(!GameActions.CanAffordCast(core, p1, shieldCard, 0),
+                       "对方单位+角色均已持圣盾 → 资敌圣盾不可付（再赋圣盾=白嫖）");
+                string shieldReject = GameActions.GetPayloadGateReject(core, p1, shieldCard);
+                Assert(shieldReject != null && shieldReject.Contains("已持有"),
+                       $"拒绝原因含「已持有」（实际：{shieldReject}）");
+                foeUnit.RemoveCounters(CardCore.Attribute.CounterRules.DivineShieldCounter, 1);
+                p2.RemoveCounters(CardCore.Attribute.CounterRules.DivineShieldCounter, 1);
+                core.ZoneManager.MoveCard(shieldCard, p1, Zone.Hand, Zone.Graveyard);
+                core.ZoneManager.MoveCard(foeUnit, p2, Zone.Battlefield, Zone.Graveyard);
+
+                // ---- ⑥ 自伤臂回归：弃牌代价价与净费抵扣不因 P1b 漂移 ----
+                var discPayload = Atom(AtomicEffectType.DiscardCard, value: 1,
+                    kinds: new List<int> { (int)CardCore.TargetKind.OwnHand });
+                int discPrice = FoePrice(discPayload);
+                Assert(discPrice > 0, $"自伤弃1代价价 > 0（实际 {discPrice}——P1 结果不漂移）");
+                Assert(NetTotal(FoeCard("VERIFY_FOE_DISC", discPayload)) == baseNet - discPrice,
+                       $"自伤代价净费仍=推导费−代价价（{baseNet}−{discPrice}，P1 口径不漂移）");
+
+                // ---- ⑦ 资敌代价执行不产任何元素 + 真发生（对手受伤角色回血）----
+                foreach (var kv in pool1.TempElements.ToList()) pool1.TempElements[kv.Key] = 0;
+                pool1.TempElements[ManaType.Red] = 3;
+                p2.Life = p2Max - 3;
+                int walletBefore = pool1.TempElements.Values.Sum();
+                var foeCostInst = new CostInstance
+                {
+                    Type = CostType.Payload,
+                    Payloads = new List<CardCore.AtomicEffectInstance>
+                        { CardEffectConverter.ConvertPayloadForDisplay(healFoe) },
+                };
+                var foeCtx = new CostContext
+                {
+                    Payer = p1, ZoneManager = core.ZoneManager, ElementPool = core.ElementPool, Source = p1,
+                };
+                Assert(CostCompensationService.PayPayloadsAsync(
+                           new List<CostInstance> { foeCostInst }, foeCtx).GetAwaiter().GetResult(),
+                       "PayPayloadsAsync 执行资敌治疗代价");
+                Assert(pool1.TempElements.Values.Sum() == walletBefore,
+                       $"资敌代价执行后钱包总量不变（{walletBefore} → {pool1.TempElements.Values.Sum()}——资敌不产任何元素）");
+                Assert(p2.Life == p2Max - 1,
+                       $"资敌代价真发生（对手 {p2Max - 3} → {p2.Life}，回复 2 生命）");
+            }
+            finally
+            {
+                foreach (var kv in snapWallet) pool1.TempElements[kv.Key] = kv.Value;
+                p2.Life = snapP2Life;
+                // 本段注入物清理（资敌靶单位/验证卡），还原段首清空的战场
+                foreach (var c in core.ZoneManager.GetCards(p2, Zone.Battlefield)
+                             .Where(c => ((CardWrapper)c).GetData()?.ID.StartsWith("VERIFY_FOE") == true).ToList())
+                    core.ZoneManager.MoveCard(c, p2, Zone.Battlefield, Zone.Graveyard);
+                foreach (var c in core.ZoneManager.GetCards(p1, Zone.Hand)
+                             .Where(c => ((CardWrapper)c).GetData()?.ID.StartsWith("VERIFY_FOE") == true).ToList())
+                    core.ZoneManager.MoveCard(c, p1, Zone.Hand, Zone.Graveyard);
+                foreach (var c in snapP2Field) core.ZoneManager.MoveCard(c, p2, Zone.Graveyard, Zone.Battlefield);
             }
         }
 
@@ -2713,21 +2493,24 @@ namespace CardCore.Editor
                         default: special++; break;
                     }
                 }
-            Assert(edge == 5 && unit == 24 && land == 12 && special == 15,
-                   $"布局计数 56 = 边缘{edge}（中线缺口 + 原发动格位×2 与原技能格位×2 回落） + 单位{unit} + 地牌{land} + 特殊{special}（含中线行7；发动格拆除 2026-10-15、技能格撤销 2026-10-16）");
+            Assert(edge == 6 && unit == 24 && land == 8 && special == 18,
+                   $"布局计数 56 = 边缘{edge}（中线 x6/x7 缺口 + 四角收边 (0,0)/(0,2)/(7,4)/(7,6)） + 单位{unit} + 地牌{land}（四色带×2） + 特殊{special}（含中线行6、备用/万能格×4；2026-10-28 盘形 7876787）");
 
             // 特殊格（2026-10-14 晚镜像修正后口径：画面左=x0 列、底边=z0 贴玩家——
             // P1 角色落左列 (0,1)，除外/墓地/卡组落右列 x7；P2 = Rotate180 逐一对应。
             // 发动格 2026-10-15 拆除、技能格 2026-10-16 撤销：四格位回落边缘装饰格=Edge·归属-1）
             Assert(BoardLayout.RoleOf(7, 4) == CellRole.Edge && BoardLayout.OwnerOf(7, 4) == -1, "原发动格 (7,4) 拆除后回落边缘装饰格（2026-10-15）");
             Assert(BoardLayout.RoleOf(0, 1) == CellRole.Character && BoardLayout.OwnerOf(0, 1) == 0, "P1 角色格 = (0,1)（镜像修正：左列中间）");
-            Assert(BoardLayout.RoleOf(7, 6) == CellRole.Edge && BoardLayout.OwnerOf(7, 6) == -1, "原技能格 (7,6) 撤销后回落边缘装饰格（2026-10-16）");
+            Assert(BoardLayout.RoleOf(7, 6) == CellRole.Edge && BoardLayout.OwnerOf(7, 6) == -1, "旧额外区角 (7,6) 收边为缺口（2026-10-28 元素缩编迁位后无格）");
             Assert(BoardLayout.RoleOf(7, 2) == CellRole.Exile && BoardLayout.OwnerOf(7, 2) == 0, "P1 除外格 = (7,2)");
             Assert(BoardLayout.RoleOf(7, 1) == CellRole.Graveyard && BoardLayout.OwnerOf(7, 1) == 0, "P1 墓地格 = (7,1)");
             Assert(BoardLayout.RoleOf(7, 0) == CellRole.Deck && BoardLayout.OwnerOf(7, 0) == 0, "P1 卡组格 = (7,0)");
             Assert(BoardLayout.RoleOf(0, 2) == CellRole.Edge && BoardLayout.OwnerOf(0, 2) == -1, "原发动格 (0,2) 拆除后回落边缘装饰格（2026-10-15）");
             Assert(BoardLayout.RoleOf(7, 5) == CellRole.Character && BoardLayout.OwnerOf(7, 5) == 1, "P2 角色格 = (7,5)");
-            Assert(BoardLayout.RoleOf(0, 0) == CellRole.Edge && BoardLayout.OwnerOf(0, 0) == -1, "原技能格 (0,0) 撤销后回落边缘装饰格（2026-10-16）");
+            Assert(BoardLayout.RoleOf(0, 0) == CellRole.Edge && BoardLayout.OwnerOf(0, 0) == -1, "旧额外区角 (0,0) 收边为缺口（2026-10-28 备用格迁 (1,0) 后无格）");
+            Assert(BoardLayout.RoleOf(1, 0) == CellRole.Extra && BoardLayout.OwnerOf(1, 0) == 0
+                   && BoardLayout.RoleOf(2, 0) == CellRole.Extra && BoardLayout.OwnerOf(2, 0) == 0,
+                   "地盘行左端 = 备用格(1,0)+万能展示格(2,0)（均 Extra 角色，2026-10-28 元素缩编迁位）");
             Assert(BoardLayout.RoleOf(0, 4) == CellRole.Exile && BoardLayout.OwnerOf(0, 4) == 1, "P2 除外格 = (0,4)");
             Assert(BoardLayout.RoleOf(0, 5) == CellRole.Graveyard && BoardLayout.OwnerOf(0, 5) == 1, "P2 墓地格 = (0,5)");
             Assert(BoardLayout.RoleOf(0, 6) == CellRole.Deck && BoardLayout.OwnerOf(0, 6) == 1, "P2 卡组格 = (0,6)");
@@ -2737,7 +2520,7 @@ namespace CardCore.Editor
                 var expect = x < BoardLayout.MiddleCellCount ? CellRole.Middle : CellRole.Edge;
                 if (BoardLayout.RoleOf(x, 3) != expect || BoardLayout.OwnerOf(x, 3) != -1) middleOk = false;
             }
-            Assert(middleOk, "中线行 z3 = 7 格 Middle（x0..x6）+ x7 缺口 Edge·归属-1（2026-10-14 状态行）");
+            Assert(middleOk, "中线行 z3 = 6 格 Middle（x0..x5）+ x6/x7 缺口 Edge·归属-1（2026-10-28 临时产量双格退役缩行）");
 
             bool symmetric = true;
             for (int z = 0; z < BoardMath.Height && symmetric; z++)
@@ -2753,8 +2536,10 @@ namespace CardCore.Editor
             Assert(BoardLayout.UnitCellsPerPlayer == ZoneManager.BattlefieldCapacityPerPlayer,
                    "单位格数 12 = 核心战场容量 12（计数与格子天然一致）");
             Assert(BoardLayout.UnitCellsPerPlayer == (BoardLayout.ColMax - BoardLayout.ColMin + 1) * 2
-                   && BoardLayout.LandCellsPerPlayer == BoardLayout.ColMax - BoardLayout.ColMin + 1,
-                   "容量与几何一致（单位 2×6、地牌 6 格=可用列 6——一元素一格，配置漂移即红）");
+                   && BoardLayout.LandCellsPerPlayer == 4
+                   && BoardLayout.LandBandStartX + BoardLayout.LandCellsPerPlayer - 1 <= BoardLayout.ColMax
+                   && BoardLayout.LandCells(0)[0].Item1 == BoardLayout.LandBandStartX,
+                   "容量与几何一致（单位 2×6；地牌四色带 x3..x6——2026-10-28 元素缩编，黑白退役，配置漂移即红）");
 
             // ---- 2. 六边形数学（手算向量表，odd-r 奇偶约定） ----
             Assert(BoardMath.Neighbor(2, 4, BoardDirection.NE) == (2, 5), "偶行 NE 邻居 = (x, z+1)");
@@ -4201,7 +3986,7 @@ namespace CardCore.Editor
 
         /// <summary>
         /// 统一计价锚点验证（纯函数，不依赖卡表/对局）：
-        /// 表值（GrantTaunt White / d(C) 分段曲线）、身材 1费=2属性、法术同折、回2命=0费、
+        /// 表值（GrantTaunt Green——2026-10-28 P2a 改色 / d(C) 分段曲线）、身材 1费=2属性、法术同折、回2命=0费、
         /// 卡层组合费用（可支配底盘 2026-10-10：超槽加价+剩余抵价/提速/结界二向——原「选发额外折」
         /// 与「剩余作废」均已废）、构筑代价抵消（无"超模"态）、关键词同享 d(C)、缺省档位 Ĉ。
         /// </summary>
@@ -4655,12 +4440,67 @@ namespace CardCore.Editor
                    "哈希口径：有无 branch 载荷 → HashEffect 不同（载荷是功能字段）");
         }
 
+        /// <summary>元素席位收缩断言（2026-10-28 P2）：ManaType 白/黑退役、Any 6→4——
+        /// ① Length==5；② 7 位旧数组重排（new[4]=old[6]，禁止截断）；③ 旧白/黑位非零 → Error+丢弃；
+        /// ④ 原子表 120 行全部可解析、无悬空（计价行全部落 5 位）。</summary>
+        private static void TestManaSeatShrink()
+        {
+            // ① 枚举席位口径
+            Assert(ManaType.Gray == (ManaType)0 && ManaType.Any == (ManaType)4
+                   && System.Enum.GetNames(typeof(ManaType)).Length == 5
+                   && ElementCost.Length == 5,
+                   "席位收缩：ManaType=[灰,红,蓝,绿,任意] 5 席、Any=4、ElementCost.Length==5（白4/黑5 留空不回收）");
+
+            // ② 7 位旧档重排（不是截断——截断会把旧白位错当新任意位）
+            var r1 = new ElementCost(new float[] { 0, 1, 0, 0, 0, 0, 0 });
+            Assert(r1.v.Length == 5 && r1.v[0] == 0 && r1.v[1] == 1 && r1.v[2] == 0 && r1.v[3] == 0 && r1.v[4] == 0,
+                   "重排①：7 位 [0,1,0,0,0,0,0] → [0,1,0,0,0]（红份额保持红位）");
+            var r2 = new ElementCost(new float[] { 0, 0, 0, 0, 0, 0, 3 });
+            Assert(r2.v.Length == 5 && r2.v[0] == 0 && r2.v[1] == 0 && r2.v[2] == 0 && r2.v[3] == 0 && r2.v[4] == 3,
+                   "重排②：7 位 [0,0,0,0,0,0,3] → [0,0,0,0,3]（旧 Any 位 6 → 新位 4，不截断丢弃）");
+            // 4 位（原子表现行格式）补零 / 5 位原样
+            var r3 = new ElementCost(new float[] { 0, 5, 0, 0 });
+            Assert(r3.v.Length == 5 && r3.v[1] == 5 && r3.v[4] == 0, "补零：4 位原子表格式 → 5 位（缺省任意补 0）");
+
+            // ③ 旧白/黑位非零 → 记 Error 并按 0 处理（无兼容层）
+            int errCount = 0;
+            var prevSink = CardCore.TideLog.Sink;
+            CardCore.TideLog.Sink = (level, text) =>
+            {
+                if (level == CardCore.TideLogLevel.Error && text != null && text.Contains("白/黑")) errCount++;
+                prevSink?.Invoke(level, text);
+            };
+            ElementCost r4;
+            try { r4 = new ElementCost(new float[] { 0, 0, 0, 0, 2, 1, 0 }); }
+            finally { CardCore.TideLog.Sink = prevSink; }
+            Assert(errCount == 1 && r4.v.Length == 5
+                   && r4.v[0] == 0 && r4.v[1] == 0 && r4.v[2] == 0 && r4.v[3] == 0 && r4.v[4] == 0,
+                   "旧白/黑非零被拒：[0,0,0,0,白2,黑1,0] → 记 1 条 Error、份额丢弃置零（其余位不受染）");
+
+            // ④ 原子表全行可解析、无悬空（计价行全部 5 位——6/7 位残档会经重排/报错露出）
+            int rows = 0, priced = 0, badRows = 0;
+            foreach (var row in CardCore.Attribute.AtomicEffectTable.GetAll())
+            {
+                if (row == null) { badRows++; continue; }
+                rows++;
+                if (!System.Enum.TryParse<CardCore.AtomicEffectType>(row.EnumName, out _)) badRows++;
+                if (row.ManaList != null)
+                {
+                    priced++;
+                    if (row.ManaList.v.Length != ElementCost.Length) badRows++;
+                    if (row.ManaList.v.Any(f => f < 0f)) badRows++;
+                }
+            }
+            Assert(rows == 120 && badRows == 0,
+                   $"原子表 120 行全部可解析、无悬空（实际 {rows} 行/坏 {badRows} 行；计价行 {priced} 全 5 位）");
+        }
+
         private static void TestCostAnchors()
         {
             // ---- 表值 ----
             // 2026-10-09 清理：Heal TotalUnitCost=0.4 钉价断言删除——表价已迁绿0.5（表为单一来源，测试不钉价）
-            Assert(ElementAffinities.GetAffinityForEffect(AtomicEffectType.GrantTaunt).PrimaryColor == ManaType.White,
-                   "计价锚：GrantTaunt 表 White（2026-09-13 用户改表——白色防御系，与守护/禁魔石同族；锚原按 Green 已过期）");
+            Assert(ElementAffinities.GetAffinityForEffect(AtomicEffectType.GrantTaunt).PrimaryColor == ManaType.Green,
+                   "计价锚：GrantTaunt 表 Green（2026-10-28 P2a 席位收缩改色——白/黑退役，原白色防御系迁绿）");
             var dd = ValueSystemConfigManager.Instance.GetOrCreateConfig().DelayDiscountConfig;
             Assert(System.Math.Abs(dd.At(1) - 1f) < 1e-4 && System.Math.Abs(dd.At(3) - 1f) < 1e-4
                    && System.Math.Abs(dd.At(5) - 0.93333f) < 1e-3
@@ -4802,7 +4642,7 @@ namespace CardCore.Editor
             Assert(ov2.DerivedTotal == ov.DerivedTotal + 1 && !ov2.Conformant,
                    "计价锚（2026-10-04 本轮定案）：挂弃4张 Payload 代价 → 代价栏占 1 效果槽（底盘再加价 1 灰 → D+1=7>Ĉ6，Req=1 真超模）；锚价仍不并入卡费（当量抵扣下线维持——全价只作地牌门槛与补偿基准）");
 
-            // 2026-10-09 清理：关键词计价两锚（嘲讽绿桶时代口径）删除——表色已迁 White（上方现行断言已锚），
+            // 2026-10-09 清理：关键词计价两锚（嘲讽绿桶时代口径）删除——表色现锚 Green（P2a 白→绿，上方现行断言），
             // 关键词计价现行=行锚×max(1,层数)（2026-10-08 关键词不叠加定案）
 
             // ---- 推导档（恒推导定案）：5/5 挂 3伤（1 效果底盘恰耗尽）→ Ĉ=round(5+2.4)=7 → f=d(7)=0.8667，
@@ -6653,8 +6493,8 @@ namespace CardCore.Editor
             Assert(cfg != null && cfg.TotalUnitCost == 5f && cfg.Polarity == -1f
                    && cfg.GetTargetKindList().SequenceEqual(new[] { 1, 2 })
                    && (cfg.TargetFilter ?? "") == "Player"
-                   && ElementAffinities.GetAffinityForEffect(AtomicEffectType.Sacrifice).PrimaryColor == ManaType.Black,
-                   "牺牲表行：黑5 Pol=-1 域={1,2} filter=Player（仅角色；域随表收窄——无生命域已剔，2026-10-09 舍弃并档调价 3→5）");
+                   && ElementAffinities.GetAffinityForEffect(AtomicEffectType.Sacrifice).PrimaryColor == ManaType.Red,
+                   "牺牲表行：红5 Pol=-1 域={1,2} filter=Player（2026-10-28 P2a 黑→红改色；仅角色域——无生命域已剔，2026-10-09 舍弃并档调价 3→5）");
 
             // ---- 2. 候选域=仅角色（Player 过滤激活；域=战场四单位类） ----
             var ctx = new EffectExecutionContext

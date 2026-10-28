@@ -34,11 +34,11 @@ namespace SynergyUI
         private readonly List<int> _squareMana = new List<int>();  // 与 _squares 平行的块色（ManaType 序号）
         private readonly List<int> _squareValue = new List<int>(); // 与 _squares 平行的块上数量
 
-        /// <summary>色块生成序（2026-10-15）：三色红蓝绿优先、灰垫底；黑白沿用 CardSorter 的黑先白后。
+        /// <summary>色块生成序（2026-10-15；2026-10-28 P2 席位收缩后无黑白）：三色红蓝绿优先、灰垫底。
         /// 未知色与灰同档排末尾。</summary>
         private static readonly ManaType[] DisplayOrder =
         {
-            ManaType.Red, ManaType.Blue, ManaType.Green, ManaType.Black, ManaType.White,
+            ManaType.Red, ManaType.Blue, ManaType.Green,
         };
 
         private static int DisplayRank(ManaType m)
@@ -47,17 +47,16 @@ namespace SynergyUI
             return i >= 0 ? i : DisplayOrder.Length; // 灰及未来扩色恒排最后
         }
 
-        /// <summary>数量数字色（六组配色共用两档）：非白块共用柔和近白，白块反转深字。</summary>
+        /// <summary>数量数字色（共用柔和近白一档——白块反转档已随白席位删除）。</summary>
         private static readonly Color DigitLight = new Color(238f / 255f, 241f / 255f, 246f / 255f);
-        private static readonly Color DigitDark = new Color(34f / 255f, 38f / 255f, 48f / 255f);
 
-        /// <summary>色块底色（2026-10-24 七组配色定案，单源=UiStyle.ManaBlock*——与战场3D 地牌
+        /// <summary>色块底色（2026-10-24 配色定案，单源=UiStyle.ManaBlock*——与战场3D 地牌
         /// 锁色环同源共用）：Dot* 是深底小圆点的提亮饱和版，直接作大色块底承数字对比不足
-        /// （白字对 DotGreen 仅约 2.2:1）且高饱和刺眼——深调压饱和底色：六色色相保持可辨、
-        /// 深底不刺眼，数字对比全组 ≥4.5:1；白块配对反转浅底深字（DigitColor）。</summary>
+        /// （白字对 DotGreen 仅约 2.2:1）且高饱和刺眼——深调压饱和底色：四色色相保持可辨、
+        /// 深底不刺眼，数字对比全组 ≥4.5:1。</summary>
         private static Color BlockColor(ManaType m) => UiStyle.ManaBlockColor(m);
 
-        private static Color DigitColor(ManaType m) => m == ManaType.White ? DigitDark : DigitLight;
+        private static Color DigitColor(ManaType m) => DigitLight;
 
         /// <summary>挂载：① parent 子树已有组件实例（引用者直接拖入公用预制体，拖入名=CostSquares）
         /// → 直接复用；② 同名烘焙节点（cost-squares）→ 补组件复用；③ 实例化公用预制体
@@ -181,6 +180,10 @@ namespace SynergyUI
 
         /// <summary>根 RectTransform 尺寸变化（引用者 Band/锚点拉伸/缩放后）→ 重新均布。</summary>
         private void OnRectTransformDimensionsChange() => Relayout();
+
+        /// <summary>对外显式重排口：引用者改根尺寸后显式补调一次（非拉伸锚实例收不到
+        /// OnRectTransformDimensionsChange；ACardZoom 退役后暂无调用方，留作通用口）。</summary>
+        public void RefreshLayout() => Relayout();
 
         /// <summary>自读根 rect 宽高，把已生成色块单行均布（2026-10-24 改版：仅横向）：
         /// cell=宽/块数×高，色块锚 cell 中心、尺寸默认=模板尺寸、拥挤时等比缩到 cell

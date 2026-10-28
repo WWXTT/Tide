@@ -485,19 +485,17 @@ namespace SynergyUI
             return bestV > 0.0001f ? ManaColor(best) : ManaColor(ManaType.Gray);
         }
 
-        /// <summary>六色→粒子色（UiStyle 方格色直映；2026-10-20 用户定案：**不做白化 lerp**——
+        /// <summary>四色+灰→粒子色（UiStyle 方格色直映；2026-10-20 用户定案：**不做白化 lerp**——
         /// VFX 图侧对传入色忠实渲染（外部设纯红=渲染纯红），白化只会把 G/B 抬浑致观感偏紫；
-        /// 黑=纯黑粒子不可见→直映紫 (0.38,0.32,0.55)）。
-        /// 2026-10-19 起公开=粒子色单源：BattleEffectFx 六色弹体/爆点同口径复用。</summary>
+        /// 白/黑直映分支已随 2026-10-28 P2 席位收缩删除——黑→紫直映 (0.38,0.32,0.55) 退役）。
+        /// 2026-10-19 起公开=粒子色单源：BattleEffectFx 弹体/爆点同口径复用。</summary>
         public static Color ManaColor(ManaType m)
         {
             switch (m)
             {
-                case ManaType.Black: return new Color(0.38f, 0.32f, 0.55f); // 黑→紫直映（lerp 链退役）
                 case ManaType.Red: return UiStyle.DotRed;
                 case ManaType.Blue: return UiStyle.DotBlue;
                 case ManaType.Green: return UiStyle.DotGreen;
-                case ManaType.White: return UiStyle.DotWhite;
                 default: return UiStyle.DotGray;
             }
         }
