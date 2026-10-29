@@ -74,6 +74,10 @@ namespace CardCore
         // 结界耐久（2026-09-24 定案：结界=耐久体，被攻击每次仅损失 1 点，归零销毁；0=无）——生物不使用
         public int durability;
 
+        // 场地标记（2026-10-29 P8 定案）：场地=结界+场地标记——打出固定落己方场地格（每方一张、
+        // 只能被自己顶替）。仅结界可标；装载端非结界 Error+降级（CardLoader.CreateCardData）。
+        public bool isField;
+
         // 代价栏（2026-10-04 持久化链）：卡层 Payload 原子引用——CostType 恒 Payload、Value 恒 1，
         // 装载时按规范常量重建 CostEntry；逆转后的镜像域存于 payload.kinds（可超出表行域）。
         // refId 空/字段缺省 = 无代价（旧档兼容——JsonUtility 空对象回落同样由此守卫拦下）。
@@ -270,16 +274,17 @@ namespace CardCore
                         if (atom == null || atomType == null) continue;
                         // 守护（2026-10-07 仅可转换）：收为仅连接光环节点，不再作登场 Grant 原子
                         // ——宿主属性校验随之退役；结界守护走耐久、生物守护走生命（伤害改写天然分叉）。
-                        // 引用卡ID 校验（2026-10-13 定案）：召唤衍生物（须生物）与变形赋予
-                        //（须生物或结界）共用 SummonTokenHandler.ResolveTemplate 解析器。
+                        // 引用卡ID 校验（2026-10-13 定案；P9b 2026-10-29 空槽口径）：召唤衍生物
+                        // （须生物）与变形赋予（须生物或结界）共用 SummonTokenHandler.ResolveTemplate
+                        // 解析器。空 str = 卡组期绑定槽（P9b——效果留空槽，卡组绑定，运行时按卡实例
+                        // 解析），不再是装载错误；非空 str = 固定绑定（旧数据/教程），照旧校验自指/类型。
                         if (atomType == AtomicEffectType.SummonToken || atomType == AtomicEffectType.GrantMorph)
                         {
                             bool isMorphRef = atomType == AtomicEffectType.GrantMorph;
                             string kindZh = isMorphRef ? "变形赋予" : "召唤衍生物";
                             if (string.IsNullOrEmpty(atom.str))
                             {
-                                TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})："
-                                             + $"{kindZh}的字符串参数为空——必须指向一张真实{(isMorphRef ? "生物/结界" : "生物")}卡，构筑期拦截");
+                                // 卡组期绑定槽：无装载校验（绑定完整性在卡组保存口/联机握手拦截）
                             }
                             else if (atom.str == card.ID)
                             {
@@ -679,9 +684,12 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 从 CardData 列表构建卡组（卡组不重复：copiesPerCard=1 为规则默认）
+        /// 从 CardData 列表构建卡组（卡组不重复：copiesPerCard=1 为规则默认）。
+        /// tokenBindings（P9b 2026-10-29）：卡组期衍生物槽绑定随装载盖到卡实例
+        /// （DeckTokenSupport.Apply——效果序号→模板 ID）；null/空=无绑定（旧数据走原子 str 固定绑定）。
         /// </summary>
-        public static List<Card> BuildDeck(List<CardData> cardsData, int copiesPerCard)
+        public static List<Card> BuildDeck(List<CardData> cardsData, int copiesPerCard,
+            List<SynergyUI.DeckTokenBinding> tokenBindings = null)
         {
             var deck = new List<Card>();
             foreach (var data in cardsData)
@@ -691,6 +699,7 @@ namespace CardCore
                     deck.Add(new CardWrapper(data));
                 }
             }
+            SynergyUI.DeckTokenSupport.Apply(deck, tokenBindings);
             return deck;
         }
 
@@ -760,7 +769,7 @@ namespace CardCore
             cardData.AggregateEffectAuras(false);
 
             // 战斗底盘（2026-09-10 攻/守效果化）+ 卡型默认分配（2026-10-15）：
-            // 法术速度=3−槽数动态算（KindSpeedBonusOf 单源）——speedBonus 字段退役只读不消费；
+            // 法术速度=5−槽数动态算（2026-10-29 P6c；KindSpeedBonusOf 单源）——speedBonus 字段退役只读不消费；
             // surplusToDurability 已退役按未知字段忽略。
             cardData.NoAttack = entry.noAttack;
             cardData.NoGuard = entry.noGuard;
@@ -768,6 +777,13 @@ namespace CardCore
 
             // 结界耐久（2026-09-24 定案）：战斗侧已实装（CounterRules.LoseDurability + 零坚韧 SBA，TideServer V9.c 全流程回归）——本行只做数据采集
             cardData.Durability = entry.durability;
+
+            // 场地标记（2026-10-29 P8）：仅结界可标——脏数据（非结界带 isField）记 Error 并降级为普通结界
+            if (entry.isField)
+            {
+                if (cardData.Supertype == Cardtype.Enchantment) cardData.IsField = true;
+                else TideLog.Error($"[CardLoader] {entry.id}：isField 只属结界（当前 {cardData.Supertype}）——已降级为普通卡");
+            }
 
             // 代价栏（2026-10-04 持久化链）：payload 原子引用 → 卡层 PayloadCost（正式口；
             // legacy 效果级 Costs 兜底不变——卡层已填时 CollectCardSpecialCosts 跳过 legacy 防双收）。

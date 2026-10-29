@@ -27,6 +27,13 @@ namespace CardCore.Network
         /// <summary>按卡组计算引用闭包的原子行摘要（双方各用本地数据算同一卡组，比对即可）。
         /// 闭包 = cardIds → 卡表条目 → effectIds → 效果步内/代价 payload/奖励的全部原子 refId。</summary>
         public static NetDeckDigest ComputeDeckDigest(IReadOnlyList<string> cardIds)
+            => ComputeDeckDigest(cardIds, null, null);
+
+        /// <summary>同上并计入衍生物区/槽绑定（P9b v5）：TokenSig = 区列表 + 绑定三元组（排序后哈希）
+        /// ——效果 ID 不含绑定，同卡表不同绑定的两套牌在此摘要上分叉（互不同步）。
+        /// null 与空等价（归一化后参与哈希——两侧口径恒一致）。</summary>
+        public static NetDeckDigest ComputeDeckDigest(IReadOnlyList<string> cardIds,
+            IReadOnlyList<string> tokenCardIds, IReadOnlyList<DeckTokenBinding> tokenBindings)
         {
             var refIds = new HashSet<string>(StringComparer.Ordinal);
             if (cardIds != null)
@@ -46,12 +53,37 @@ namespace CardCore.Network
                 .OrderBy(s => s, StringComparer.Ordinal)
                 .ToList();
 
+            // 衍生物区 + 绑定签名（P9b）：区原序即卡组语义（展示序）——排序后哈希防同内容异序误判
+            var tokenLines = new List<string>();
+            foreach (var id in (tokenCardIds ?? new List<string>()).Where(t => !string.IsNullOrEmpty(t)))
+                tokenLines.Add("T:" + id);
+            foreach (var b in (tokenBindings ?? new List<DeckTokenBinding>())
+                         .Where(b => b != null && !string.IsNullOrEmpty(b.cardId))
+                         .Select(b => $"B:{b.cardId}|{b.effectIndex}|{b.templateId ?? ""}")
+                         .OrderBy(s => s, StringComparer.Ordinal))
+                tokenLines.Add(b);
+
             return new NetDeckDigest
             {
                 AtomicRowsHash = MurmurHash3.Hash32(string.Join("\n", sigs)).ToString("X8"),
                 AtomicRowCount = sigs.Count,
+                TokenSig = MurmurHash3.Hash32(string.Join("\n", tokenLines)).ToString("X8"),
             };
         }
+
+        /// <summary>绑定条目本地形态（DeckTokenBinding）→ 线形态（MsgDeckTokenBinding）；null/空=空数组。</summary>
+        public static MsgDeckTokenBinding[] ToWireBindings(IReadOnlyList<DeckTokenBinding> bindings)
+            => (bindings ?? new List<DeckTokenBinding>())
+                .Where(b => b != null && !string.IsNullOrEmpty(b.cardId))
+                .Select(b => new MsgDeckTokenBinding { CardId = b.cardId, EffectIndex = b.effectIndex, TemplateId = b.templateId })
+                .ToArray();
+
+        /// <summary>线形态 → 本地形态；null=空表。</summary>
+        public static List<DeckTokenBinding> FromWireBindings(MsgDeckTokenBinding[] bindings)
+            => (bindings ?? Array.Empty<MsgDeckTokenBinding>())
+                .Where(b => b != null && !string.IsNullOrEmpty(b.CardId))
+                .Select(b => new DeckTokenBinding(b.CardId, b.EffectIndex, b.TemplateId))
+                .ToList();
 
         /// <summary>原子行内容指纹（行 ID 稳定，内容是平衡层可变——必须哈希内容本身）。
         /// 覆盖费用构成/极性/目标域/可装载域/模板文案（客户端本地重渲染依赖文案，文案漂移也要拦）。
@@ -181,16 +213,25 @@ namespace CardCore.Network
                 problems.Add($"效果/原子/引用卡缺失 ×{missingRefs.Count}（如 {sample}——Effects.json、原子表或引用卡（Cards.json）缺行）");
             }
 
-            // 原子行摘要比对（仅卡组引用闭包内的行——不做全池对比）
+            // 衍生物区/槽绑定（P9b v5）：与卡组保存口（DeckTokenSupport.ValidateDeck）同源——
+            // 区容量/重复/模板类型 + 带槽效果须绑定、绑定值 ∈ 区且类型合规。空槽不再是引用闭环错误。
+            var tokenCardIds = submit.TokenCardIds ?? Array.Empty<string>();
+            var tokenBindings = FromWireBindings(submit.TokenBindings);
+            problems.AddRange(SynergyUI.DeckTokenSupport.ValidateDeck(
+                submit.CardIds.ToList(), tokenCardIds.ToList(), tokenBindings));
+
+            // 原子行摘要比对（仅卡组引用闭包内的行——不做全池对比）+ 绑定摘要（TokenSig，P9b v5）
             if (submit.Digest == null)
             {
                 problems.Add("客户端未随提交携带原子行摘要");
             }
             else
             {
-                var serverDigest = ComputeDeckDigest(submit.CardIds);
+                var serverDigest = ComputeDeckDigest(submit.CardIds, tokenCardIds, tokenBindings);
                 if (submit.Digest.AtomicRowsHash != serverDigest.AtomicRowsHash)
                     problems.Add($"原子行摘要不一致（服务器 {serverDigest.AtomicRowCount} 行 / 提交方 {submit.Digest.AtomicRowCount} 行）——卡组引用的原子表内容漂移");
+                if ((submit.Digest.TokenSig ?? "") != serverDigest.TokenSig)
+                    problems.Add("衍生物绑定摘要不一致（TokenSig）——卡组衍生物区/槽绑定与提交摘要不匹配");
             }
 
             if (problems.Count > 0)
@@ -266,15 +307,13 @@ namespace CardCore.Network
             }
 
             // 引用卡ID 闭环（2026-10-13 定案）：召唤衍生物（须生物）/变形赋予（须生物或结界）的
-            // atom.str 须能解析到服务器端真实卡且类型合规——与 CardLoader 构筑校验同口径
+            // atom.str 须能解析到服务器端真实卡且类型合规——与 CardLoader 构筑校验同口径。
+            // P9b（2026-10-29）：空 str = 卡组期绑定槽——不再是闭环错误，绑定完整性走
+            // DeckTokenSupport.ValidateDeck（ValidateDeckSubmit 上方同批校验）。
             if (!System.Enum.TryParse<AtomicEffectType>(row.EnumName, out var type)) return;
             if (type != AtomicEffectType.SummonToken && type != AtomicEffectType.GrantMorph) return;
             bool isMorphRef = type == AtomicEffectType.GrantMorph;
-            if (string.IsNullOrEmpty(atom.str))
-            {
-                missing.Add($"引用卡ID为空（原子行 {row.DisplayName ?? atom.refId}）");
-                return;
-            }
+            if (string.IsNullOrEmpty(atom.str)) return;
             var referenced = CardCatalog.GetById(atom.str);
             if (referenced == null)
             {
@@ -292,23 +331,31 @@ namespace CardCore.Network
         // ======================================== 下发/客户端侧 ========================================
 
         /// <summary>构造对局清单下发（双座位提交均通过后，按各座位视角各发一份；
-        /// 摘要由服务器按该座位卡组计算）。</summary>
+        /// 摘要由服务器按该座位卡组计算——含 P9b 衍生物区/绑定 TokenSig）。</summary>
         public static MsgMatchManifest BuildMatchManifest(int ownSeat, IReadOnlyList<string> ownCardIds,
-            int opponentCardCount)
+            int opponentCardCount,
+            IReadOnlyList<string> ownTokenCardIds = null, IReadOnlyList<DeckTokenBinding> ownTokenBindings = null)
         {
             return new MsgMatchManifest
             {
                 OwnSeat = ownSeat,
                 OwnCardIds = ownCardIds?.ToArray() ?? Array.Empty<string>(),
                 OpponentCardCount = opponentCardCount,
-                OwnDeckDigest = ComputeDeckDigest(ownCardIds),
+                OwnDeckDigest = ComputeDeckDigest(ownCardIds, ownTokenCardIds, ownTokenBindings),
             };
         }
 
         /// <summary>客户端校验对局清单：己方卡组回显对账 + 服务器摘要与本地按同一卡组计算的摘要一致
-        /// （双向握手）。失败即本地中止进局（reason 供 UI 展示）。</summary>
+        /// （双向握手；摘要含 P9b TokenSig——绑定不同即不一致）。失败即本地中止进局（reason 供 UI 展示）。</summary>
         public static bool VerifyMatchManifest(MsgMatchManifest manifest,
             IReadOnlyList<string> submittedCardIds, out string reason)
+            => VerifyMatchManifest(manifest, submittedCardIds, null, null, out reason);
+
+        /// <summary>同上并核对衍生物区/槽绑定（P9b v5）。</summary>
+        public static bool VerifyMatchManifest(MsgMatchManifest manifest,
+            IReadOnlyList<string> submittedCardIds,
+            IReadOnlyList<string> submittedTokenCardIds, IReadOnlyList<DeckTokenBinding> submittedTokenBindings,
+            out string reason)
         {
             if (manifest == null)
             {
@@ -341,10 +388,15 @@ namespace CardCore.Network
                 reason = "服务器未携带原子行摘要";
                 return false;
             }
-            var localDigest = ComputeDeckDigest(submittedCardIds);
+            var localDigest = ComputeDeckDigest(submittedCardIds, submittedTokenCardIds, submittedTokenBindings);
             if (manifest.OwnDeckDigest.AtomicRowsHash != localDigest.AtomicRowsHash)
             {
                 reason = $"服务器与本端对卡组引用的原子行摘要不一致（{manifest.OwnDeckDigest.AtomicRowCount} 行 vs {localDigest.AtomicRowCount} 行）";
+                return false;
+            }
+            if ((manifest.OwnDeckDigest.TokenSig ?? "") != localDigest.TokenSig)
+            {
+                reason = "服务器与本端的衍生物绑定摘要不一致（TokenSig）——服务器装载的绑定与提交不符";
                 return false;
             }
 

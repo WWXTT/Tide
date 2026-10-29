@@ -41,6 +41,13 @@ namespace CardCore.Network
         //（须 ∈ CardIds 且 HeroSkillSystem.CanBeSkillCard——否则置 null 按无技能开局，不拒握手）
         private readonly string[] _skillIds = new string[2];
 
+        // 衍生物区/槽绑定（P9b 2026-10-29 协议 v5）：按椅位随卡组提交存；开局组卡时模板随组入局
+        //（落额外区）+ 绑定盖到卡实例（DeckTokenSupport.Apply）。随机预组代提=两块空（模板在
+        // CardIds 内、固定绑定走原子 str）。
+        private readonly string[][] _deckTokens = new string[2][];
+        private readonly List<SynergyUI.DeckTokenBinding>[] _deckTokenBindings =
+            new List<SynergyUI.DeckTokenBinding>[2];
+
         private int _firstSeat = -1;          // 本局先手椅位（未开局 -1）
         private bool _roomStateDirty = true;  // RoomState 待广播
         private bool _gameOver;
@@ -258,6 +265,8 @@ namespace CardCore.Network
 
             _deckIds[conn.ChairSeat] = submit.CardIds;
             _skillIds[conn.ChairSeat] = SanitizeSkillCardId(submit.SkillCardId, submit.CardIds, conn.ChairSeat);
+            _deckTokens[conn.ChairSeat] = submit.TokenCardIds ?? Array.Empty<string>();
+            _deckTokenBindings[conn.ChairSeat] = NetMatchHandshake.FromWireBindings(submit.TokenBindings);
             if (_deckIds[0] != null && _deckIds[1] != null)
             {
                 _pickDeadlineUtc = null; // 双方确认完毕：倒计时退役
@@ -319,9 +328,12 @@ namespace CardCore.Network
             // 钉种子（M3 对拍）：_seed 同时进 InitGame——GameRng 与洗牌流（ZoneContainer）双流重播。
             // 引用卡ID 解析器（2026-10-13 临摹退役：原 MorphSystem.ResolveMorphTarget 迁 SummonToken）
             Attribute.Handlers.SummonTokenHandler.ResolveTemplate = CardCatalog.GetById;
-            var deckFirst = BuildDeck(_deckIds[_firstSeat]);
-            var deckSecond = BuildDeck(_deckIds[1 - _firstSeat]);
-            core.InitGame(CardLoader.BuildDeck(deckFirst, 1), CardLoader.BuildDeck(deckSecond, 1), _seed,
+            // P9b：卡组期绑定盖到卡实例（效果序号→模板 ID；空表=固定绑定走原子 str）；
+            // 衍生物区模板随组入局（IsTokenTemplate 分流落 Zone.Extra）
+            var deckFirst = BuildDeck(_deckIds[_firstSeat], _deckTokens[_firstSeat]);
+            var deckSecond = BuildDeck(_deckIds[1 - _firstSeat], _deckTokens[1 - _firstSeat]);
+            core.InitGame(CardLoader.BuildDeck(deckFirst, 1, _deckTokenBindings[_firstSeat]),
+                CardLoader.BuildDeck(deckSecond, 1, _deckTokenBindings[1 - _firstSeat]), _seed,
                 lockDeckOrder: _settingsShuffle == 1,
                 skillCardId1: _skillIds[_firstSeat], skillCardId2: _skillIds[1 - _firstSeat]);
             core.Player1.IsAI = false; // 人类在环：反问走 NetworkTargetSelector
@@ -364,13 +376,14 @@ namespace CardCore.Network
                 spec.SnapshotDirty = true;
             }
 
-            // 对局清单：各座位视角各发一份（OwnSeat=引擎座位权威；摘要按该座位卡组计算）
+            // 对局清单：各座位视角各发一份（OwnSeat=引擎座位权威；摘要按该座位卡组计算——含 P9b TokenSig）
             for (int chair = 0; chair < 2; chair++)
             {
                 var conn = _chairs[chair];
                 if (conn == null) continue;
                 conn.SendPayload(NetworkMessageType.MatchManifest, NetMatchHandshake.BuildMatchManifest(
-                    conn.MatchSeat, _deckIds[chair], _deckIds[1 - chair].Length));
+                    conn.MatchSeat, _deckIds[chair], _deckIds[1 - chair].Length,
+                    _deckTokens[chair], _deckTokenBindings[chair]));
             }
 
             _gameOver = false;
@@ -409,13 +422,20 @@ namespace CardCore.Network
         /// TeardownMatch 幂等，与 ResetIfEmpty 重复调用无副作用。</summary>
         public void TeardownIfActive() => TeardownMatch();
 
-        private static List<CardData> BuildDeck(string[] cardIds)
+        private static List<CardData> BuildDeck(string[] cardIds, string[] tokenCardIds)
         {
             var deck = new List<CardData>(cardIds.Length);
             foreach (var id in cardIds)
             {
                 var card = CardCatalog.GetById(id);
                 if (card != null) deck.Add(card);
+            }
+            // P9b 衍生物区模板随组入局（落 Zone.Extra）；缺失 id 记警告跳过（同上口径）
+            foreach (var id in tokenCardIds ?? Array.Empty<string>())
+            {
+                var card = CardCatalog.GetById(id);
+                if (card != null) deck.Add(card);
+                else TideLog.Warn($"[NetRoom] 衍生物区模板 {id} 不在卡表——已跳过");
             }
             return deck;
         }
@@ -448,6 +468,10 @@ namespace CardCore.Network
                     _deckIds[1] = null;
                     _skillIds[0] = null;
                     _skillIds[1] = null;
+                    _deckTokens[0] = null;
+                    _deckTokens[1] = null;
+                    _deckTokenBindings[0] = null;
+                    _deckTokenBindings[1] = null;
                     _pickDeadlineUtc = null;
                     _firstSeat = -1;
                     _ready[0] = false;
@@ -479,6 +503,10 @@ namespace CardCore.Network
             _deckIds[1] = null;
             _skillIds[0] = null;
             _skillIds[1] = null;
+            _deckTokens[0] = null;
+            _deckTokens[1] = null;
+            _deckTokenBindings[0] = null;
+            _deckTokenBindings[1] = null;
             _firstSeat = -1;
             _pickDeadlineUtc = null;
             _ready[0] = false;

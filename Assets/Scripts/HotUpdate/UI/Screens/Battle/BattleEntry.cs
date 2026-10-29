@@ -80,6 +80,10 @@ namespace SynergyUI
         /// 一次性消费；null=无技能。AI 侧随机卡组在 StartLocalFan 自动挑合格结界。</summary>
         public static string ChallengeSkillCardId;
 
+        /// <summary>挑战模式玩家卡组的衍生物槽绑定（P9b 2026-10-29）：与 ChallengeDeck 成对
+        /// 一次性消费（StartLocalFan 开局即置空）；null/空=无绑定（固定绑定走原子 str）。</summary>
+        public static List<DeckTokenBinding> ChallengeTokenBindings;
+
         // 对局准备流程五字段（MatchDeck/MatchSkillCardId/AiDeck/AiSkillCardId/FirstPlayerIsPlayer）
         // 已随 2026-10-19 掷币演出挪战场整删：掷币+选卡组改在战场五段式开局内发生（BattleOpeningDirector），
         // 结果经 EngageStagedBattle 直喂 EngageLocalBattle 参数——不再经静态入口传递。

@@ -30,12 +30,15 @@ namespace SynergyUI
             public List<string> MissingIds = new List<string>();
             /// <summary>类型×形状违规（2026-10-15 深夜改版：生物禁连接光环/结界禁主动/法术形状）。</summary>
             public List<string> ShapeErrors = new List<string>();
+            /// <summary>衍生物区/槽绑定违规（P9b 2026-10-29：空槽未绑定/绑定不在区/类型不符/区超容
+            /// 或重复——不过不可保存）。仅 Check(DeckData) 口径（绑定数据随 DeckData 携带）。</summary>
+            public List<string> TokenErrors = new List<string>();
             /// <summary>含该色的册数（出牌费口径，与统计区色点行同语义）。</summary>
             public Dictionary<ManaType, int> CardsByColor = new Dictionary<ManaType, int>();
             /// <summary>该色费点合计（出牌费口径）。</summary>
             public Dictionary<ManaType, float> PipsByColor = new Dictionary<ManaType, float>();
             public int CardCount;
-            public bool Ok => MissingIds.Count == 0 && ShapeErrors.Count == 0;
+            public bool Ok => MissingIds.Count == 0 && ShapeErrors.Count == 0 && TokenErrors.Count == 0;
         }
 
         // 展示序=CostSquaresView.DisplayOrder 同款（红蓝绿灰；白/黑席位已删 2026-10-28 P2）
@@ -44,9 +47,16 @@ namespace SynergyUI
             ManaType.Red, ManaType.Blue, ManaType.Green, ManaType.Gray,
         };
 
-        /// <summary>整套卡组检测（DeckData 口径）。</summary>
+        /// <summary>整套卡组检测（DeckData 口径）——含 P9b 衍生物区/槽绑定（deck.tokenCardIds/
+        /// tokenBindings 参与；硬约束——不过不可用/不可保存，校验单源 DeckTokenSupport.ValidateDeck）。</summary>
         public static Report Check(DeckData deck)
-            => deck == null ? new Report() : Check(deck.name, deck.cardIds);
+        {
+            if (deck == null) return new Report();
+            var report = Check(deck.name, deck.cardIds);
+            report.TokenErrors.AddRange(DeckTokenSupport.ValidateDeck(
+                deck.cardIds, deck.tokenCardIds, deck.tokenBindings));
+            return report;
+        }
 
         /// <summary>整套卡组检测：去重逐卡解析，出牌费入统计；断链/形状单列（主题违色已随
         /// 主题约束删除——2026-10-26）。deckName 仅入报告（Describe 用），不再参与判定。</summary>
@@ -392,19 +402,19 @@ namespace SynergyUI
                 ? "无费用"
                 : string.Join(" · ", DisplayOrder
                     .Where(report.CardsByColor.ContainsKey)
-                    .Select(c => $"{ColorZh(c)}{report.CardsByColor[c]}卡/{report.PipsByColor[c]:0.#}点"));
+                    .Select(c => $"{ColorZh(c)} {report.CardsByColor[c]}卡/{report.PipsByColor[c]:0.#}点"));
             string verdict = report.Ok
                 ? "✔ 通过"
-                : $"✘ 断链{report.MissingIds.Count}张/形状{report.ShapeErrors.Count}项";
+                : $"✘ 断链{report.MissingIds.Count}张/形状{report.ShapeErrors.Count}项/衍生物{report.TokenErrors.Count}项";
             return $"{report.DeckName}（{report.CardCount}张）：{stats}——{verdict}";
         }
 
-        /// <summary>卡组可用性单源（2026-10-16 全局对齐定案；2026-10-26 主题违色随主题约束删除）：
-        /// 断链/形状违规任一即不可用——卡组界面（列表标记/保存拦截）、挑战入口（标记+开战回落）、
-        /// 对战入口（下拉标记+提交拦截）共用本判定。</summary>
+        /// <summary>卡组可用性单源（2026-10-16 全局对齐定案；2026-10-26 主题违色随主题约束删除；
+        /// P9b 2026-10-29 增衍生物绑定）：断链/形状违规/绑定缺失任一即不可用——卡组界面（列表标记/
+        /// 保存拦截）、挑战入口（标记+开战回落）、对战入口（下拉标记+提交拦截）共用本判定。</summary>
         public static bool Usable(DeckData deck) => Check(deck).Ok;
 
-        /// <summary>不可用标签（三入口列表/下拉共用文案）："断链2/形状1·不可用"；可用=""。</summary>
+        /// <summary>不可用标签（三入口列表/下拉共用文案）："断链2/形状1/衍生物1·不可用"；可用=""。</summary>
         public static string UnusableTag(DeckData deck)
         {
             if (deck == null) return "";
@@ -413,6 +423,7 @@ namespace SynergyUI
             var parts = new List<string>();
             if (r.MissingIds.Count > 0) parts.Add("断链" + r.MissingIds.Count);
             if (r.ShapeErrors.Count > 0) parts.Add("形状" + r.ShapeErrors.Count);
+            if (r.TokenErrors.Count > 0) parts.Add("衍生物" + r.TokenErrors.Count);
             return string.Join("/", parts) + "·不可用";
         }
     }

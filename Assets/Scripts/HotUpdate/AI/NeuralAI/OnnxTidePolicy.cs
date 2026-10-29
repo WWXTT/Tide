@@ -8,10 +8,10 @@ namespace CardCore.AI.NeuralEnv
     /// ONNX 单步策略推理器（Sentis，包名 com.unity.ai.inference，命名空间 Unity.InferenceEngine）。
     ///
     /// 图契约（tide_rl/export_onnx.py 导出，batch 已脱皮）：
-    ///   输入 float32：rstate(512) cards(92×116) global(50) actions(512×8)
+    ///   输入 float32：rstate(512) cards(86×115) global(50) actions(512×8)
     ///   输出 float32：rstate_next(512) logits(512) value(1)
-    /// v3 布局（2026-10-14 动作空间契约，docs/action_space_v3_contract.md）：卡槽 46/人（92 总，
-    /// 容量精确对齐引擎）、卡特征 116 维（v4 原子槽 6→12，2026-10-16）、globals 50 维（+放逐计数/弹药，
+    /// v6 布局（2026-10-29 P11 盘面重塑：卡槽 43/人（86 总，战场 12→9））、卡特征 115 维（v5 删苏醒立约位；
+    /// v4 原子槽 6→12，2026-10-16）、globals 50 维（+放逐计数/弹药，
     /// 归一化）、动作类型 0..13、枚举器侧 MaxActions=512 守卫——旧 onnx/fixture 全部作废，
     /// 需重跑 export_onnx.py 重导出后使用本推理器。
     /// 非法动作在图内已掩 -1e9（actions[:,0]==0），Select 直接 argmax；
@@ -32,7 +32,7 @@ namespace CardCore.AI.NeuralEnv
         // 与 tide_rl/tide_features.py 对齐（模型图内写死，改维度必须重导出）
         public const int RnnChannels = 512;
         public const int MaxActions = 512; // v2 契约第 4 节 128→512（逐目标展开后动作行变多；EndTurn/Pass 恒排末位保截断兜底）
-        private const int MaxCards = TideObservation.MaxCardsTotal; // 92（v3：46/人×2，随 TideObservation 常量派生）
+        private const int MaxCards = TideObservation.MaxCardsTotal; // 86（v6：43/人×2，随 TideObservation 常量派生）
 
         private readonly IE.Worker _worker;
         private readonly float[] _rstate = new float[RnnChannels];

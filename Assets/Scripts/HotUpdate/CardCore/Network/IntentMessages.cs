@@ -13,6 +13,8 @@ namespace CardCore.Network
     /// <summary>出牌三路合一：FromZone=Hand（主阶段出牌）/ Graveyard（墓地视手牌）。
     /// 服务器按"栈非空且请求者持优先权"分派 PlayCardInResponse（响应出牌，来源限手牌），
     /// 否则走 PlayCard（主阶段+回合玩家门禁）。ModeIndex=抉择模式（宣言即公开）。
+    /// AwakenCast（2026-10-29 P6 苏醒改版，协议 v3 新增）：苏醒施放——仅主阶段 PlayCard
+    /// 分支生效（响应出牌忽略），生物免净费灰份额转入场沉睡层数（P6c：只免灰，彩色含绿照付）。
     /// 永久物落格（2026-10-28）：快照不承载棋盘坐标（位置权威=客户端表现层）——选格钉在
     /// 客户端 NetCellPins（BuildNet 消费），无需协议带格。</summary>
     [MemoryPackable]
@@ -29,6 +31,9 @@ namespace CardCore.Network
 
         [MemoryPackOrder(TagTable.MsgIntentPlayCard_ModeIndex)]
         public int ModeIndex;
+
+        [MemoryPackOrder(TagTable.MsgIntentPlayCard_AwakenCast)]
+        public bool AwakenCast;
     }
 
     // MsgIntentTapForElement 已删（2026-10-11 现取现用：无手动横置意图）——枚举值 101 留洞
@@ -93,6 +98,20 @@ namespace CardCore.Network
     {
         [MemoryPackOrder(TagTable.MsgIntentActivateHeroSkill_EffectIndex)]
         public int EffectIndex;
+    }
+
+    /// <summary>建造（2026-10-29 P7，协议 v4 新增）：主阶段对手牌结界逐色预付——每次消耗
+    /// 元素池 1 点 Color 色元素，减免该卡卡费中该色 1 点（已建额&lt;该色卡费才可建；不限次数/回合，
+    /// 跨回合保留，离手作废、元素不退）。Color=ManaType 枚举值（四色；任意位服务器拒绝）。
+    /// 可用性单源 GameActions.CanBuild——UI 置灰/AI 枚举/引擎终审同口径。</summary>
+    [MemoryPackable]
+    public partial class MsgIntentBuildCard
+    {
+        [MemoryPackOrder(TagTable.MsgIntentBuildCard_CardRuntimeId)]
+        public uint CardRuntimeId;
+
+        [MemoryPackOrder(TagTable.MsgIntentBuildCard_Color)]
+        public int Color;
     }
 
     // ============================================================

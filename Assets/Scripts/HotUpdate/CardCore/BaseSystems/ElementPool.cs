@@ -220,9 +220,9 @@ namespace CardCore
             return new List<ManaType>(result);
         }
 
-        /// <summary>入池预检（UI/AI 共用单点）：资格由 CanServeAsLand 另查；这里只看各自上限余位。</summary>
+        /// <summary>入池预检（UI/AI 共用单点）：资格由 CanServeAsLand 另查；这里看禁地令与各自上限余位。</summary>
         public bool CanAddLand(Player owner)
-            => GetPool(owner).PooledCards.Count < GetLandCap(owner);
+            => !RuleAuraSystem.ScopeHits(RuleAuraComponents.NoLandAura, owner) && GetPool(owner).PooledCards.Count < GetLandCap(owner);
 
         /// <summary>
         /// 将手牌作为地牌放入元素池（主阶段调用，可用/未横置状态入场，不限张数/次数）。
@@ -233,6 +233,9 @@ namespace CardCore
         public bool AddCardToPool(Card card, Player owner, ManaType? colorChoice = null)
         {
             if (card == null || owner == null) return false;
+
+            // 禁地令（2026-10-29）：受光环影响的一方不能将手牌作为地牌放置（权威校验，UI 预检之外兜底）
+            if (RuleAuraSystem.ScopeHits(RuleAuraComponents.NoLandAura, owner)) return false;
 
             // 地牌资格：卡组正式三型（衍生物/临时复制卡不可）
             if (!CanServeAsLand(card))

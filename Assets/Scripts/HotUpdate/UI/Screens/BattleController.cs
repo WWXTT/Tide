@@ -47,12 +47,15 @@ namespace SynergyUI
         /// 挑战模式（2026-10-06）：aiLandCapBonus/aiExtraOpeningDraws 直通 InitGame（P2 曲线上移+起手加抽）。
         /// 对局准备流程（2026-10-17）：playerFirst=硬币先手（null=现状 P1 先）；secondArmorBonus&gt;0=
         /// StartGame 后给后手角色加护甲指示物（InitGame 开头 Reset 清角色指示物——注入必须在 StartGame 后）。
+        /// myTokenBindings/aiTokenBindings（P9b 2026-10-29）：卡组期衍生物槽绑定随装载盖到
+        /// 双方卡实例（教程/镜像/随机预组无绑定=固定绑定走原子 str）。
         /// </summary>
         public void StartNewGame(List<CardData> myDeck = null, List<CardData> aiDeck = null,
             IAiTurnDriver aiDriver = null, bool lockDeckOrder = false, int? rngSeed = null,
             TutorialScenario scenario = null, int aiLandCapBonus = 0, int aiExtraOpeningDraws = 0,
             string mySkillCardId = null, string aiSkillCardId = null,
-            bool? playerFirst = null, int secondArmorBonus = 0)
+            bool? playerFirst = null, int secondArmorBonus = 0,
+            List<DeckTokenBinding> myTokenBindings = null, List<DeckTokenBinding> aiTokenBindings = null)
         {
             var catalog = CardCatalog.LoadAll();
             // 变形目标形态解析器：组合根注入（CardCore 不依赖 UI 层）
@@ -72,7 +75,8 @@ namespace SynergyUI
             {
                 GameCore.Instance.InitGame(myDeck, aiDeck, rngSeed: rngSeed, lockDeckOrder: true,
                     skipOpeningDraw: true, deferStart: true,
-                    skillCardId1: mySkill, skillCardId2: aiSkill);
+                    skillCardId1: mySkill, skillCardId2: aiSkill,
+                    tokenBindings1: myTokenBindings, tokenBindings2: aiTokenBindings);
                 // 标记 P2 为 AI：目标选择器对 AI 跳过弹窗、即时自动选择。
                 if (GameCore.Instance.Player2 != null)
                     GameCore.Instance.Player2.IsAI = true;
@@ -89,7 +93,8 @@ namespace SynergyUI
             var first = playerFirst == false ? GameCore.Instance.Player2 : null;
             GameCore.Instance.InitGame(myDeck, aiDeck, rngSeed: rngSeed, lockDeckOrder: lockDeckOrder,
                 p2LandCapBonus: aiLandCapBonus, p2ExtraOpeningDraws: aiExtraOpeningDraws,
-                skillCardId1: mySkill, skillCardId2: aiSkill, startingPlayer: first);
+                skillCardId1: mySkill, skillCardId2: aiSkill, startingPlayer: first,
+                tokenBindings1: myTokenBindings, tokenBindings2: aiTokenBindings);
             // 标记 P2 为 AI：目标选择器对 AI 跳过弹窗、即时自动选择。
             if (GameCore.Instance.Player2 != null)
                 GameCore.Instance.Player2.IsAI = true;
@@ -135,7 +140,9 @@ namespace SynergyUI
             return RandomDeck(out _);
         }
 
-        /// <summary>同上并回传预组自带英雄技能（预组缺失回落随机时为 null）。</summary>
+        /// <summary>同上并回传预组自带英雄技能（预组缺失回落随机时为 null）。
+        /// P9b：预组经 DeckTokenSupport.BuildCardList 组卡——衍生物区模板随组入局落额外区
+        /// （预组为固定绑定，无绑定条目）。</summary>
         public static List<CardData> RandomDeck(out string skillCardId)
         {
             skillCardId = null;
@@ -144,7 +151,7 @@ namespace SynergyUI
             {
                 int idx = (int)((uint)Guid.NewGuid().GetHashCode() % (uint)presets.Count);
                 var preset = presets[idx];
-                var deck = TutorialLibrary.BuildDeck(preset.cardIds);
+                var deck = DeckTokenSupport.BuildCardList(preset);
                 if (deck.Count > 0)
                 {
                     skillCardId = preset.skillCardId;

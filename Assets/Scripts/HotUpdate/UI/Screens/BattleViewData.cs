@@ -489,6 +489,17 @@ namespace SynergyUI
             for (int i = 0; i < units.Length; i++)
             {
                 var view = FromRuntime(units[i], null, ownerIsOpponent);
+                // 场地卡（2026-10-29 P8）：落位恒为己方场地格（确定性映射，无需钉格——
+                // 与服务器 BoardState.AssignCells 的 FieldCell 分支同构；不占单位区格位）
+                var fdata = CardCatalog.GetByInstanceId(units[i].ID);
+                if (fdata != null && fdata.IsField)
+                {
+                    var fc = BoardLayout.FieldCell(ownerIsOpponent ? 1 : 0);
+                    view.X = fc.x;
+                    view.Z = fc.z;
+                    list.Add(view);
+                    continue;
+                }
                 if (!ownerIsOpponent && NetCellPins.TryGet(units[i].RuntimeId, out var pinned)
                     && cells.Any(c => c.x == pinned.x && c.z == pinned.z))
                 {

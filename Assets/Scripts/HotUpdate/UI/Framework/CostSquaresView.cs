@@ -12,16 +12,15 @@ namespace SynergyUI
     /// 费用色块视图（2026-10-24 改版：不再按数量展开小方格——每色生成一个色块，
     /// 块上 TMP 文本显示数量；模板 tpl-square=色块 Image+数量文本，公用预制体手改已备，
     /// 旧烘焙模板无文本时自愈补建）。仅横向排布（竖向/田字 Fill 随按数量方格一并退役）：
-    /// 非零色按 DisplayRank 定案序（红蓝绿黑白灰）单行均布，块尺寸默认=模板尺寸、
+    /// 非零色按 DisplayRank 定案序（红蓝绿灰万能）单行均布，块尺寸默认=模板尺寸、
     /// 拥挤时等比收缩到 cell（数量文本字号同比例缩放，块再小数字仍嵌在块内）；
     /// SetCosts / 根尺寸变化时自动重排。
-    /// 底色=UiStyle.ManaBlock* 七组配色单源（六色+任意；与战场3D 地牌锁色环同源共用），
-    /// 数字色=DigitColor 配对（深调压饱和底+柔和近白数字、白块反转浅底深字，
-    /// 对比度全组 ≥4.5:1——不刺眼且能看清）。
+    /// 底色=UiStyle.ManaBlock* 五组配色单源（四色+任意；与战场3D 地牌锁色环同源共用），
+    /// 数字色=DigitColor 配对（深调压饱和底+柔和近白数字，对比度全组 ≥4.5:1——不刺眼且能看清）。
     /// 根上有 LayoutGroup 时跳过重排（排布仍归引用者烘焙，2026-10-03 旧契约保留）。
     /// 自愈三兜底：无模板→代码自建 tpl-square；无预制体→Mount 纯代码节点；引用者烘焙
     /// 同名节点→直接复用（不实例化）。
-    /// 2026-10-15 生成序定案沿用：红蓝绿黑白灰（三色优先、灰垫底——组件内排序，调用方传入序不保留）。
+    /// 2026-10-29 P4 五类定案沿用：红→蓝→绿→灰→万能（组件内排序，调用方传入序不保留）。
     /// </summary>
     public sealed class CostSquaresView : MonoBehaviour
     {
@@ -34,17 +33,17 @@ namespace SynergyUI
         private readonly List<int> _squareMana = new List<int>();  // 与 _squares 平行的块色（ManaType 序号）
         private readonly List<int> _squareValue = new List<int>(); // 与 _squares 平行的块上数量
 
-        /// <summary>色块生成序（2026-10-15；2026-10-28 P2 席位收缩后无黑白）：三色红蓝绿优先、灰垫底。
-        /// 未知色与灰同档排末尾。</summary>
+        /// <summary>色块生成序（2026-10-29 P4 五类定案：红→蓝→绿→灰→万能；此前任意与灰同档）。
+        /// 未知色与万能同档排末尾。</summary>
         private static readonly ManaType[] DisplayOrder =
         {
-            ManaType.Red, ManaType.Blue, ManaType.Green,
+            ManaType.Red, ManaType.Blue, ManaType.Green, ManaType.Gray, ManaType.Any,
         };
 
         private static int DisplayRank(ManaType m)
         {
             int i = Array.IndexOf(DisplayOrder, m);
-            return i >= 0 ? i : DisplayOrder.Length; // 灰及未来扩色恒排最后
+            return i >= 0 ? i : DisplayOrder.Length; // 未知色恒排最后
         }
 
         /// <summary>数量数字色（共用柔和近白一档——白块反转档已随白席位删除）。</summary>
@@ -89,7 +88,7 @@ namespace SynergyUI
         }
 
         /// <summary>费用主口径（2026-10-04 位置数组：ElementCost，下标=ManaType 枚举序号）。
-        /// 全零/空则清空。色块生成序=DisplayRank 定案序（红蓝绿黑白灰），非枚举序。</summary>
+        /// 全零/空则清空。色块生成序=DisplayRank 定案序（红蓝绿灰万能），非枚举序。</summary>
         public void SetCosts(ElementCost costs)
         {
             if (costs == null || costs.IsZero) { Clear(); return; }
@@ -100,7 +99,7 @@ namespace SynergyUI
 
         /// <summary>瘦引用口径（ElementCostRef 列表）。空则清空。
         /// 2026-10-24 改版：每色一个色块+块上数量文本（同色多条目合并数量，数量恒显示）；
-        /// 生成前按 DisplayRank 排序（三色优先、灰垫底，调用方传入序不保留）；
+        /// 生成前按 DisplayRank 排序（红蓝绿灰万能——调用方传入序不保留）；
         /// 根上有 LayoutGroup 的烘焙实例排布归引用者，本组件不越权。</summary>
         public void SetCosts(IEnumerable<ElementCostRef> costs)
         {

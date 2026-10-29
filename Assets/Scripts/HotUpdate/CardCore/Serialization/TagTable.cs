@@ -236,6 +236,7 @@ namespace CardCore.Serialization
         public const int MsgIntentPlayCard_Targets = 1450138392;
         public const int MsgIntentPlayCard_FromZone = 933788219;
         public const int MsgIntentPlayCard_ModeIndex = 1969366828;
+        public const int MsgIntentPlayCard_AwakenCast = 1025809165; // StableTag 同式手算（已登记 GetTagDefinitions，重生成同值；2026-10-29 P6）
 
         // ---- MsgIntentAddToElementPool ----
         public const int MsgIntentAddToElementPool_CardRuntimeId = 713270002;
@@ -256,6 +257,10 @@ namespace CardCore.Serialization
 
         // ---- MsgIntentActivateHeroSkill ----
         public const int MsgIntentActivateHeroSkill_EffectIndex = 1738103103;
+
+        // ---- MsgIntentBuildCard ----
+        public const int MsgIntentBuildCard_CardRuntimeId = 77691148; // StableTag 同式手算（已登记 GetTagDefinitions，重生成同值；2026-10-29 P7）
+        public const int MsgIntentBuildCard_Color = 2040733387; // 同上（2026-10-29 P7 建造）
 
         // ---- MsgSelectRequest ----
         public const int MSelR_RequestId = 1404564517;
@@ -279,15 +284,24 @@ namespace CardCore.Serialization
         // ---- RuntimeCardState ----
         public const int RCS_RuntimeId = 1598792242;
         public const int RCS_ControllerSeat = 1105098362;
+        public const int RCS_BuildPaid = 81947996; // StableTag 同式手算（已登记 GetTagDefinitions，重生成同值；2026-10-29 P7 建造已建额）
 
         // ---- NetDeckDigest ----
         public const int NDD_AtomicRowsHash = 1017044835;
         public const int NDD_AtomicRowCount = 1928083177;
+        public const int NDD_TokenSig = 571524600; // P9b 衍生物区/槽绑定摘要（协议 v5；StableTag 同式手算已登记）
 
         // ---- MsgDeckSubmit ----
         public const int MDS_DeckName = 1095059584;
         public const int MDS_CardIds = 339936047;
         public const int MDS_Digest = 216745245;
+        public const int MDS_TokenCardIds = 1248031784; // P9b 衍生物区（协议 v5；StableTag 同式手算已登记）
+        public const int MDS_TokenBindings = 1711324094; // P9b 衍生物槽绑定（协议 v5；同上）
+
+        // ---- MsgDeckTokenBinding ----
+        public const int MTB_CardId = 1865613195;
+        public const int MTB_EffectIndex = 865932852;
+        public const int MTB_TemplateId = 1023722011;
 
         // ---- MsgMatchManifest ----
         public const int MMM_OwnSeat = 2014680492;
@@ -360,6 +374,6 @@ namespace CardCore.Serialization
         public const int MDS_SkillCardId = 1739402857; // MsgDeckSubmit.SkillCardId（英雄技能标记卡 2026-10-07 卡牌化；不参与 Digest）
         public const int RCS_LockedColor = 233742023; // RuntimeCardState.LockedColor（2026-10-11 资源重做：地牌锁定产色）
 
-        // 共 245 个标签（含 5 个手工定值保留位）
+        // 共 248 个标签（含 5 个手工定值保留位）
     }
 }

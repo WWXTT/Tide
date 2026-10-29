@@ -56,6 +56,8 @@ namespace SynergyUI
             sb.Append("P:").Append(card.Power ?? 0).Append('|');
             sb.Append("L:").Append(card.Life ?? 0).Append('|');
             sb.Append("AR:").Append((int)card.ArrowDirections).Append('|');
+            // 场地标记（2026-10-29 P8）：卡面定义参与身份——改标记=换卡 ID；false 不写段（存量卡 id 零漂移）
+            if (card.IsField) sb.Append("FLD:1|");
 
             sb.Append("KW:");
             foreach (var kw in (card.Keywords ?? new List<string>()).OrderBy(k => k))

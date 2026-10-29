@@ -161,6 +161,10 @@ namespace SynergyUI
                 : card.Name;
             var sections = new List<string> { title };
 
+            // 场地段（2026-10-29 P8）：场地卡（结界+场地标记）专属——落位固定+顶替语义提示
+            if (data != null && data.IsField)
+                sections.Add("【场地】\n场地·每方一张——落位固定己方场地格；再打场地=顶替（旧场地入墓）");
+
             var executor = card.CoreCard != null && GameCore.Instance != null
                 ? GameCore.Instance.StackEngine.GetExecutor() : null;
 
@@ -301,7 +305,10 @@ namespace SynergyUI
             x = z = -1;
             if (string.IsNullOrEmpty(hitName) || !hitName.StartsWith("tile-")) return false;
             var parts = hitName.Split('-');
-            return parts.Length == 3 && int.TryParse(parts[1], out x) && int.TryParse(parts[2], out z);
+            // 盘内界内校验（2026-10-29 P11 缩盘 7×7）：BattleStage.prefab 尚未重烘焙时残留的
+            // 旧宽 tile（如 tile-7-0）按名可解析但已出界——拦下防坐标串位（点击无行为）
+            return parts.Length == 3 && int.TryParse(parts[1], out x) && int.TryParse(parts[2], out z)
+                   && GameBoard.BoardMath.InBounds(x, z);
         }
 
         /// <summary>格位反查战场单位（双方）。</summary>
@@ -369,17 +376,28 @@ namespace SynergyUI
                         : $"{who}卡组 · 剩 {n} 张（隐藏）";
                 }
                 // CellRole.Skill 已随技能格撤销（2026-10-16）退役：技能介绍=己方【发动】键悬停（对手=角色格悬停）
-                case CellRole.Extra:
+                // CellRole.Extra 已随额外区格整删（2026-10-29 P11）——旧两段文案中的额外区行随之退役
+                case CellRole.Any:
                 {
-                    // 任意元素格叠展于此（2026-10-23：BoardLayout.AnyElementCell）——余额读数随悬停补齐；
-                    // 额外区入口文案顺带补上（此前该格悬停无文案）
+                    // 万能元素展示格（Any·只做展示）：余额读数随悬停补齐
                     int anyN = pv != null && (int)ManaType.Any < pv.WalletByColor.Length
                         ? pv.WalletByColor[(int)ManaType.Any] : 0;
-                    int extraN = ZoneCountOf(Core, owner, Zone.Extra);
-                    string anyLine = $"任意元素 · 钱包余额 {anyN}（可代替任何元素支付，回合结束消失；不由地牌产出）";
-                    return extraN > 0
-                        ? $"{who}格 · {anyLine}\n{who}额外区 · 衍生物模板 {extraN} 张（点击查看）"
-                        : $"{who}格 · {anyLine}";
+                    return $"{who}格 · 任意元素 · 钱包余额 {anyN}（可代替任何元素支付，回合结束消失；不由地牌产出）";
+                }
+                case CellRole.Field:
+                {
+                    // 场地格（2026-10-29 P8 规则接入）：有场地卡=卡名+耐久+顶替引导；空=占位说明。
+                    // 落位权威=BoardState.AssignCells（FieldCell 单源），此处按格反查视图卡。
+                    var fcell = BoardLayout.FieldCell(ownerIdx);
+                    var unit = UnitAt(fcell.x, fcell.z);
+                    var fdata = unit != null ? _dataOf(unit) : null;
+                    if (unit != null && fdata != null && fdata.IsField)
+                    {
+                        int dur = unit.Runtime?.Counters?
+                            .FirstOrDefault(c => c.Key == CardCore.Attribute.CounterRules.DurabilityCounter)?.Value ?? 0;
+                        return $"{who}场地：{unit.Name} · 耐久 {dur}\n场地·每方一张（再打场地=顶替，旧场地入墓）";
+                    }
+                    return $"{who}场地格 · 空\n场地卡打出即落此格——每方一张，只能被自己顶替";
                 }
                 case CellRole.Middle:
                     return null; // 中线格全数认领为功能格（2026-10-16 产量双格补 lx2/lx4 后无空格）——已改名 hud-tile-*，走各自悬停分支

@@ -7,18 +7,17 @@ using UnityEngine;
 namespace SynergyUI
 {
     /// <summary>
-    /// 中线状态行（2026-10-13 按钮上盘 → 10-14 中线行落格 → 10-16 临时元素产量双格 →
-    /// 2026-10-28 元素缩编：临时产量双格随临时上限概念退役，行缩 6 格）：中线行（z3）6 格 x0..x5——
+    /// 中线状态行（2026-10-29 P11 盘面重塑：5 格居中 x1..x5）——
     /// 画面左→右（画面左=x0，镜像修正后口径）：
-    /// 阶段显示(x0) / 己方剩余操作时间(x1) / 空(x2·备用) / 连锁速度(x3) / 对手剩余操作时间(x4) /
-    /// 回合结束(x5，贴己方右手边)；x6/x7 槽=缺口（BoardLayout.NoTileAt，无实体格）。
+    /// 阶段显示(x1) / 可用时间(x2·当前操作方合一格) / 连锁速度(x3) / 空(x4·不认领) /
+    /// 回合结束(x5，贴己方右手边)；x0/x6 槽=缺口（BoardLayout.NoTileAt，无实体格）。
+    /// 可用时间一格（P11 合并定案）：旧己方/对手两时间格合一——显示**当前正在操作玩家**的
+    /// 剩余时间，文案随优先权/回合方切换翻转（SetTimePriority 对账驱动）。
     /// 认领 BattleHexBoard 拼好的 tile-{col}-3 改名 hud-tile-{key} + 原位换 tint 材质实例（不增删格，
-    /// 50 格口径不变，浮起拼装动画随行同走）；中线行文字**全部平贴格面**（同地牌计数条口径不朝相机：
-    /// LookRotation(down, forward) 字向正——相机 (7,8,-4)/(50,0,0) 实测）；阶段格=当前阶段
-    /// 【己方主要阶段】式动态文字（SetPhase 喂文）、结束回合格=【回合结束】；状态三格第二行数值
-    /// 由 BattleScreen 经 SetStatusValue 喂文（操作计时 2026-10-14 已接：真人对战 MatchClock 掉秒 /
-    /// 人机 ∞；连锁速度 2026-10-15 已接：引擎记速器实值，网络快照未承载时占位「—」）。
-    /// 返回主菜单地块本行退役（7 格无空位）——改由 BattleScreen.Build 代码补建画布按钮。
+    /// 43 格口径不变，浮起拼装动画随行同走）；中线行文字**全部平贴格面**（同地牌计数条口径不朝相机：
+    /// LookRotation(down, forward) 字向正）；阶段格=当前阶段【己方主要阶段】式动态文字（SetPhase 喂文）、
+    /// 结束回合格=【回合结束】；状态格第二行数值由 BattleScreen 经 SetStatusValue 喂文（操作计时：
+    /// 真人对战 MatchClock 掉秒 / 人机 ∞；连锁速度：引擎记速器实值，网络快照未承载时占位「—」）。
     ///
     /// 纯表现层：引擎 BoardLayout/BoardState 不感知本行归属（中线行角色=Middle）。
     /// 地块名 hud-tile-{key}（前缀区别于 tile-{x}-{z} 棋盘格），点击/悬停由 BattleScreen.PollFieldPointer
@@ -27,29 +26,30 @@ namespace SynergyUI
     /// </summary>
     public static class BattleHudRow
     {
-        // 中线状态行落位（2026-10-28 元素缩编：临时产量双格退役，行缩 6 格 x0..x5）
-        public const int PhaseCol = 0;      // 阶段显示格：tile-0-3（画面左端——平贴当前阶段文字，SetPhase 喂文）
-        public const int SelfTimeCol = 1;   // 己方剩余操作时间格：tile-1-3
-                                            // x2=空（备用格，不认领——原己方临时产量格随临时上限概念退役）
+        // 中线状态行落位（P11：5 格居中 x1..x5）
+        public const int PhaseCol = 1;      // 阶段显示格：tile-1-3（画面左端——平贴当前阶段文字，SetPhase 喂文）
+        public const int TimeCol = 2;       // 可用时间格：tile-2-3（当前操作方合一格——文案随 SetTimePriority 翻转）
+                                            // x3=连锁速度（见 ChainSpeedCol）
         public const int ChainSpeedCol = 3; // 连锁速度格：tile-3-3（掷币落点，世界位与旧版重合）
-        public const int OppTimeCol = 4;    // 对手剩余操作时间格：tile-4-3（原 x5 左移一格）
-        public const int EndTurnCol = 5;    // 结束回合格：tile-5-3（画面右端，贴己方右手边——原 x6 左移一格）
+        public const int EndTurnCol = 5;    // 结束回合格：tile-5-3（画面右端，贴己方右手边）
+        // x4=空（不认领——P11 备用位取消，纯空格）
 
-        // v6（2026-10-23 §11.2）+ 21:35 DSH 修订：**长驻格面不再满格实心亮黄**——回合结束/时间格
-        // 常驻=中立暖灰 #3A3630 + 暗金角标（#6B5930 小方标，持有方亮标）。平贴文字=米白 #E6E0D4 a=0.92
+        // v6（2026-10-23 §11.2）+ 21:35 DSH 修订：**长驻格面不再满格实心亮黄**——回合结束格
+        // 常驻=中立暖灰 #3A3630 + 暗金角标（#6B5930 小方标）。平贴文字=米白 #E6E0D4 a=0.92
         //（对比 ≥4.5:1 修订：底格压光后更暗，提 alpha 补偿）。
         // 2026-10-26：阶段转换表现改内收（10-24 外扩版退役）：光圈自外向内收拢 0.5s → 停顿 0.5s
         // → 才翻阶段文字（己方蓝/对方红，色源 BattleTileFx.UnitGlow*，网格/shader 复用 BattleTileRing）。
+        // 2026-10-29 P11：己方/对手时间两格合一（可用时间格）——时间角标联动退役（文案即操作方指示），
+        // 优先权主显示仍归半场蜂窝（BattlePriorityGlow）。
         private static readonly Color EndTurnTint = new Color(0.227f, 0.212f, 0.188f);   // 常驻=中立（角标担识别）
         private static readonly Color StatusTint = new Color(0.227f, 0.212f, 0.188f);
         private static readonly Color FlatTextColor = new Color(0.902f, 0.878f, 0.831f, 0.92f);
         private static readonly Color MarkColor = new Color(0.42f, 0.35f, 0.19f);        // 暗金角标 #6B5930
 
-        // 时间格优先权联动（2026-10-14 MD 式 → 21:35 修订）：持有方=亮暗金角标（格面恒中立灰，
-        // 与半场蜂窝亮金同源对齐——蜂窝仍是优先权主显示）。
-        private static Material _selfTimeTint, _oppTimeTint; // 两时间格 tint 材质实例（Mount 捕获）
         private static Material _markMat;                    // 角标共享材质实例（Unmount 销毁）
         private static Mesh _markMesh;                       // 角标小方面片（Unmount 销毁）
+        private static string _timeHeader = "可用时间";       // 可用时间格标题（SetTimePriority 翻转·Mount 前先存）
+        private static string _timeValue = "—";              // 可用时间格数值行（SetStatusValue 缓存，标题翻转时重组）
 
         // ==== 阶段转换光圈（2026-10-26 用户定案：自外向内收拢 0.5s → 停顿 0.5s → 才翻阶段字，替 10-24 外扩版） ====
         // 节流口径：表现层串行排队，最小间隔=收拢+停顿（1.0s）——引擎侧连续阶段跳变
@@ -108,7 +108,8 @@ namespace SynergyUI
                     _markMesh = null;
                     EndTurnTile = null;
                     _phaseLabel = null;
-                    _selfTimeTint = _oppTimeTint = null; // 材质实例随旧棋盘销毁
+                    _timeHeader = "可用时间"; // 文案态跨局复位（材质实例随旧棋盘销毁）
+                    _timeValue = "—";
                     ResetPhaseRingState(); // 光圈件随旧棋盘销毁+待播队列作废（防跨局旧账续播）
                 }
             }
@@ -120,44 +121,33 @@ namespace SynergyUI
                 return;
             }
 
-            // 结束回合落 x5（2026-10-28 行缩后画面右端=己方右手边）+ 平贴【回合结束】+ 暗金角标
+            // 结束回合落 x5（画面右端=己方右手边）+ 平贴【回合结束】+ 暗金角标
             EndTurnTile = ClaimTile(boardRoot.transform, "hud-tile-end-turn", EndTurnCol, EndTurnTint);
             AttachFlatLabel(EndTurnTile, EndTurnCol, "【回合结束】", 3.5f);
             AttachMark(EndTurnTile, EndTurnCol, active: true);
-            // 阶段显示落 x0（原结束回合格位改役）：平贴【己方准备阶段】式当前阶段（SetPhase 喂文）
+            // 阶段显示落 x1：平贴【己方准备阶段】式当前阶段（SetPhase 喂文）
             _phaseLabel = AttachFlatLabel(ClaimTile(boardRoot.transform, "hud-tile-phase", PhaseCol, StatusTint), PhaseCol, _phaseText, 2.6f);
-            AttachLabel(ClaimTile(boardRoot.transform, "hud-tile-self-time", SelfTimeCol, StatusTint), SelfTimeCol, "己方时间");
+            // 可用时间落 x2（P11 合一格）：标题行=当前操作方（SetTimePriority 对账翻转），数值行=计时喂文
+            AttachLabel(ClaimTile(boardRoot.transform, "hud-tile-time", TimeCol, StatusTint), TimeCol, _timeHeader);
             AttachLabel(ClaimTile(boardRoot.transform, "hud-tile-chain-speed", ChainSpeedCol, StatusTint), ChainSpeedCol, "连锁速度");
-            AttachLabel(ClaimTile(boardRoot.transform, "hud-tile-opp-time", OppTimeCol, StatusTint), OppTimeCol, "对手时间");
-            _selfTimeTint = TintMatOf("hud-tile-self-time"); // 优先权联动高亮用（材质实例随格留存）
-            _oppTimeTint = TintMatOf("hud-tile-opp-time");
-            // 时间格角标常建默认熄，持有方亮标（SetTimePriority 对账切换）
-            AttachMark(TileOf("hud-tile-self-time"), SelfTimeCol, active: false);
-            AttachMark(TileOf("hud-tile-opp-time"), OppTimeCol, active: false);
             Debug.Log("[BattleHudRow][PASS] 中线状态行：hud-tile-end-turn @tile-" + EndTurnCol + "-" + BoardLayout.MiddleZ
                       + "（贴己方右手·平贴【回合结束】）+ 阶段显示@" + PhaseCol
-                      + " + 状态格 己方时间@" + SelfTimeCol
-                      + "/连锁速度@" + ChainSpeedCol + "/对手时间@" + OppTimeCol
-                      + "（操作计时+连锁速度已接：m:ss/∞·记速器实值；x2=空备用，临时产量双格已随临时上限退役）");
+                      + " + 可用时间@" + TimeCol + "（当前操作方合一格·文案随切换翻转）"
+                      + "/连锁速度@" + ChainSpeedCol
+                      + "（P11 五格居中：x4=空·备用位取消；x0/x6 槽=缺口）");
         }
 
-        /// <summary>认领格名 → tint 材质实例（时间格优先权联动用；未认领=null）。</summary>
-        private static Material TintMatOf(string tileName)
-        {
-            foreach (var h in _claimed)
-                if (h != null && h.Tile != null && h.Tile.name == tileName) return h.TintMat;
-            return null;
-        }
-
-        /// <summary>时间格随优先权（扳机）切换（BattleFieldView.Apply 对账调用，与半场蜂窝同切；
-        /// 21:35 修订：格面恒中立灰，持有方亮**暗金角标**——不再满格实心亮黄；其它=双暗。
-        /// 棋盘未就绪/缺件静默）。</summary>
+        /// <summary>可用时间格随操作方切换（BattleFieldView.Apply 对账调用，PrioritySeatOf 单源；
+        /// P11 合一格定案：旧己方/对手双格双角标联动退役——标题文案即操作方指示
+        ///（己方时间/对手时间），数值行不受影响；优先权主显示仍归半场蜂窝。棋盘未就绪/缺件静默）。</summary>
         public static void SetTimePriority(int holderSeat)
         {
-            if (_selfTimeTint != null) _selfTimeTint.color = StatusTint;
-            if (_oppTimeTint != null) _oppTimeTint.color = StatusTint;
-            SetMarkActive(SelfTimeCol, holderSeat == 0);
-            SetMarkActive(OppTimeCol, holderSeat == 1);
+            string header = holderSeat == 1 ? "对手时间" : "己方时间";
+            if (_timeHeader == header) return;
+            _timeHeader = header;
+            _headers[TimeCol] = header;
+            if (_labels.TryGetValue(TimeCol, out var label) && label != null)
+                label.text = header + "\n" + _timeValue;
         }
 
         /// <summary>拆台（BattleStageDirector.DismountBoard 调）：还原格名/原分区材质，销毁 tint 材质实例与数字条。</summary>
@@ -184,7 +174,8 @@ namespace SynergyUI
             _markMat = null;
             _markMesh = null;
             _phaseLabel = null;
-            _selfTimeTint = _oppTimeTint = null; // 材质实例随 _claimed 销毁，清引用
+            _timeHeader = "可用时间"; // 文案态复位（下一局 Mount 按对账重建）
+            _timeValue = "—";
             ResetPhaseRingState(); // 光圈作废（代次++杀在播循环）+队列清空+件销毁（挂 tile 下随盘销毁，防御重装台残留）
             EndTurnTile = null;
         }
@@ -248,11 +239,7 @@ namespace SynergyUI
             _marks[col] = go;
         }
 
-        /// <summary>角标亮/熄（缺件静默——缺列=未建）。</summary>
-        private static void SetMarkActive(int col, bool active)
-        {
-            if (_marks.TryGetValue(col, out var go) && go != null) go.SetActive(active);
-        }
+        // SetMarkActive 已随 P11 时间格合一退役（旧己方/对手双角标联动唯一消费方；结束回合格角标常亮）
 
         /// <summary>认领中线行格：改名 hud-tile-{key} + 原位换 tint 材质实例（记原始名/材质供还原）。</summary>
         private static Transform ClaimTile(Transform boardRoot, string name, int col, Color tint)
@@ -284,6 +271,7 @@ namespace SynergyUI
         /// 连锁速度 2026-10-15：引擎记速器实值）。未装台/缺格静默（装台晚于本屏——调用方周期重写直至就绪）。</summary>
         public static void SetStatusValue(int col, string value)
         {
+            if (col == TimeCol) _timeValue = value; // 标题翻转（SetTimePriority）时按缓存重组整行
             if (!_labels.TryGetValue(col, out var label) || label == null) return;
             _headers.TryGetValue(col, out var header);
             label.text = (header ?? "") + "\n" + value;

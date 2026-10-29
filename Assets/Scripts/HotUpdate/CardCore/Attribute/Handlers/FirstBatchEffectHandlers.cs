@@ -242,6 +242,9 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
+            // 禁寻令（2026-10-29 1b）：受光环影响的一方不能检索牌库
+            if (RuleAuraSystem.ScopeHits(RuleAuraComponents.NoSearchAura, context.Controller)) return;
+
             if (context.ZoneManager == null || context.Controller == null) return;
 
             string declared = effect.StringValue;

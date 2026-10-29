@@ -5,8 +5,8 @@ using CardCore.Attribute;
 namespace SynergyUI
 {
     /// <summary>UI 颜色过滤维度（红蓝绿灰 + 全部）。内部英文，展示中文。
-    /// White/Black 成员为黑白经济时代遗留（2026-10-28 P2 白/黑 ManaType 席位已删）——
-    /// 现无数据可命中，仅存量 chip/颜色分布 UI 引用；收口归 P4（净费显示与色序）。</summary>
+    /// 白/黑成员已删（2026-10-29 P4 色序清尾——2026-10-28 P2 白/黑 ManaType 席位删除后
+    /// 无数据可命中）；预制体残烘的 chip-Black/chip-White 节点由两屏 Bind 时失活。</summary>
     public enum UIColor
     {
         All,
@@ -14,8 +14,6 @@ namespace SynergyUI
         Blue,
         Green,
         Gray,
-        Black,
-        White,
     }
 
     /// <summary>
@@ -63,8 +61,6 @@ namespace SynergyUI
                 UIColor.Blue => "蓝",
                 UIColor.Green => "绿",
                 UIColor.Gray => "灰",
-                UIColor.Black => "黑",
-                UIColor.White => "白",
                 _ => color.ToString(),
             };
         }
@@ -82,7 +78,7 @@ namespace SynergyUI
                 ManaType.Red => UIColor.Red,
                 ManaType.Blue => UIColor.Blue,
                 ManaType.Green => UIColor.Green,
-                _ => UIColor.Gray, // 白/黑 ManaType 席位已删（2026-10-28 P2）——UIColor 白黑 chip 仅剩 UI 遗留
+                _ => UIColor.Gray, // 灰/任意及未来扩色落灰（白/黑席位已删——2026-10-29 P4 成员随删）
             };
         }
 
@@ -111,7 +107,7 @@ namespace SynergyUI
             {
                 return FromManaType(mana);
             }
-            // 中文色名（完整六色——2026-10-06 前只认红/蓝/绿，白/黑/灰静默落灰的隐患已修）。
+            // 中文色名（五席全词表——2026-10-06 修复只认红蓝绿的隐患；白/黑席位已删随之失效）。
             // 词表外（如族标签「伤害产出族」）落 Gray。
             return CardCore.ManaTypeNames.TryParseZh(colorName, out var zh)
                 ? FromManaType(zh)

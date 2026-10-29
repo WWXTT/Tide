@@ -183,6 +183,7 @@ namespace SynergyUI
                     ? new List<LinkAuraData>(card.LinkAuras)
                     : null, // 空表不写列（向后兼容旧 JSON）
                 durability = card.Durability,
+                isField = card.IsField, // 场地标记（2026-10-29 P8）：结界专属——发射端只写偏离默认（true 才落列）
                 speedBonus = card.SpeedBonus, // 卡型速度：法术提速份额（2026-10-15 缺省 2=剩余全投提速；结界/生物恒 0）
                 // 攻/守 opt-out（2026-10-22 红套 NoGuard 定案）：CardConfigEntry 有列但 ToEntry 此前漏拷——
                 // 不写回则 Save 后 noGuard 永远 false，结构项/属性换算全错。

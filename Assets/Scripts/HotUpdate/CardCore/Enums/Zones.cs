@@ -410,7 +410,7 @@ namespace CardCore
     public class ZoneManager
     {
         /// <summary>
-        /// 每玩家战场容量上限（= 单位区 2×6=12；2026-10-14 晚 8×7 缩盘定案）。
+        /// 每玩家战场容量上限（= 单位区 4+5=9；2026-10-29 P11 盘面重塑 6-7-6）。
         /// 计数语义，与棋盘格子无关——棋盘只是核心状态的派生表现层
         ///（BoardLayout.UnitCellsPerPlayer 已改单源引用本值，2026-10-13；
         /// 数值迁表：ValueSystemConfig GameRules.BattlefieldCapacityPerPlayer）。
@@ -432,11 +432,12 @@ namespace CardCore
             }
         }
 
-        /// <summary>战场是否还有空位（手动出牌预检与结算时入场的容量闸门）</summary>
+        /// <summary>战场是否还有空位（手动出牌预检与结算时入场的容量闸门）。
+        /// 场地卡（2026-10-29 P8）不计单位容量：落己方场地格（每方一格），容量口径=非场地卡数。</summary>
         public bool HasBattlefieldSpace(Player player)
         {
             return playerZones.TryGetValue(player, out var container)
-                   && container.GetCount(Zone.Battlefield) < BattlefieldCapacityPerPlayer;
+                   && container.NonFieldBattlefieldCount() < BattlefieldCapacityPerPlayer;
         }
 
         /// <summary>
@@ -577,7 +578,10 @@ namespace CardCore
             bool viaActivationStaging = to == Zone.Activation
                                         || (from == Zone.Activation && to == Zone.Hand);
             if (from != to && !viaActivationStaging)
+            {
                 CardCore.Attribute.CounterRules.ClearAll(card); // 攻/血指示物离场消失、费用指示物离手消失
+                GameActions.ClearBuildPaid(card); // 建造已建额离手作废（2026-10-29 P7：预付元素不退；cast 付费步同豁免存活）
+            }
 
             if (to == Zone.Hand && from != Zone.Hand)
             {
@@ -678,6 +682,16 @@ namespace CardCore
         public int GetCount(Zone zone)
         {
             return zones[zone].Count;
+        }
+
+        /// <summary>战场非场地卡数（2026-10-29 P8）：场地卡落场地格（每方一格）不计单位区容量 9
+        ///——HasBattlefieldSpace 容量口径单源。</summary>
+        public int NonFieldBattlefieldCount()
+        {
+            int n = 0;
+            foreach (var card in zones[Zone.Battlefield])
+                if (card == null || !card.IsFieldCard()) n++;
+            return n;
         }
 
         /// <summary>
@@ -797,6 +811,10 @@ namespace CardCore
         public static Card DrawCard(this ZoneManager zm, Player player, bool firstDrawOfTurn = false)
         {
             if (zm == null || player == null) return null;
+
+            // 禁抽令（2026-10-29 1b）：双方每回合至多抽 1 张（自然抽/效果抽同口；
+            // 被拦的抽不发事件、不疲劳——先于空库疲劳判定）。
+            if (!RuleAuraComponents.TryConsumeDraw(player)) return null;
 
             var container = zm.GetZoneContainer(player);
             if (container == null) return null;
@@ -943,7 +961,12 @@ namespace CardCore
             var container = zm.GetZoneContainer(controller);
             if (container == null) return false;
 
-            if (!zm.HasBattlefieldSpace(controller))
+            // 场地卡（2026-10-29 P8）：不占单位容量——落己方场地格恒可入；先送旧场地入墓再落新卡
+            //（只能被自己顶替：只查己方战场区，对手场地不受影响）。
+            bool isField = card.IsFieldCard();
+            if (isField) ReplaceExistingField(zm, controller, card);
+
+            if (!isField && !zm.HasBattlefieldSpace(controller))
             {
                 if (fromZone != Zone.Graveyard)
                     container.Move(card, fromZone, Zone.Graveyard);
@@ -1004,6 +1027,24 @@ namespace CardCore
         }
 
         /// <summary>
+        /// 场地顶替（2026-10-29 P8 定案）：己方战场区已有场地卡 → 旧场地**入墓**（不是回手），
+        /// 新卡就位。只查己方战场区=「只能被自己顶替」的结构保证（对手的场地卡不在此列）。
+        /// 顶替≠摧毁：不发 CardDestroyEvent（死亡触发不因顶替发动），换区事件照常
+        ///（OnCardMoved 顺带清已建额——P7b 已建额随实例，顶替即作废）。
+        /// </summary>
+        private static void ReplaceExistingField(ZoneManager zm, Player controller, Card entering)
+        {
+            Card old = null;
+            var cards = zm.GetCards(controller, Zone.Battlefield);
+            foreach (var c in cards)
+                if (c != null && c != entering && c.IsFieldCard()) { old = c; break; }
+            if (old == null) return;
+            zm.MoveCard(old, controller, Zone.Battlefield, Zone.Graveyard);
+            TideLog.Info($"[P8] 场地顶替：{(old as IHasName)?.CardName ?? old.ID} 入墓，"
+                + $"{(entering as IHasName)?.CardName ?? entering.ID} 就位");
+        }
+
+        /// <summary>
         /// 尝试把新建卡牌（衍生物/副本——尚未在任何区域）加入战场：
         /// 满则进墓地并发失败事件（保持与在场卡同一"满则入墓"规则）。
         /// 成功路径发布 CardPutToBattlefieldEvent（时点接线定案：token 进场同样触发
@@ -1015,7 +1056,11 @@ namespace CardCore
             var container = zm.GetZoneContainer(controller);
             if (container == null) return false;
 
-            if (!zm.HasBattlefieldSpace(controller))
+            // 场地卡（2026-10-29 P8）：同 TryMoveToBattlefield——不占单位容量、入场先顶替旧场地
+            bool isField = card.IsFieldCard();
+            if (isField) ReplaceExistingField(zm, controller, card);
+
+            if (!isField && !zm.HasBattlefieldSpace(controller))
             {
                 container.Add(card, Zone.Graveyard);
                 PublishEntryEvent(new CardActivationFailedEvent

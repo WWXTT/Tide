@@ -5,7 +5,8 @@ namespace GameBoard
     /// <summary>
     /// 玩家半场地形数据（玩家自编辑、可存档、开战时拼合成整场）。
     ///
-    /// 半场 = 8×3 = 24 格（玩家自身视角，非旋转；2026-10-14 晚缩盘：9×3→8×3，覆盖整幅盘宽含两侧特殊格列）：
+    /// 半场 = 7×3 = 21 格（玩家自身视角，非旋转；2026-10-29 P11 盘面重塑 7×7：半场覆盖整幅盘宽，
+    /// 含无 tile 的缺口槽位——地形值对缺口/特殊格无玩法影响）：
     /// ly0 = 远端（近中线）/ ly2 = 贴己方边缘；lx0 = 自己左手边。
     /// 每格两个 int：Elevation（落差，战棋距离预留）+ TerrainIndex（地形类型，增益预留）。
     ///
@@ -16,7 +17,7 @@ namespace GameBoard
     [Serializable]
     public class HalfFieldData
     {
-        public const int Width = BoardMath.Width; // 8（整幅盘宽——单一事实源随缩盘自动跟随）
+        public const int Width = BoardMath.Width; // 7（整幅盘宽——单一事实源随盘形自动跟随）
         public const int Height = 3;
 
         /// <summary>噪声种子（视觉高程扰动的复现凭据；拼场时随半场带入，见 HexMap 约定）</summary>
@@ -50,9 +51,9 @@ namespace GameBoard
     }
 
     /// <summary>
-    /// 双方半场拼合后的整场地形（56 格位，row-major；2026-10-14 晚缩盘 8×7）。
-    /// 双方半场各覆盖己方 3 行（P1=z4-6、P2=z0-2，8×3×2=48 格），中线行 z3 恒 0
-    /// （状态行无玩法，地形值无意义）——地形值对特殊格同样无玩法影响。
+    /// 双方半场拼合后的整场地形（49 格位，row-major；2026-10-29 P11 盘面重塑 7×7）。
+    /// 双方半场各覆盖各自 3 行（P1=z4-6、P2=z0-2，7×3×2=42 格），中线行 z3 恒 0
+    /// （状态行无玩法，地形值无意义）——地形值对特殊格/缺口槽位同样无玩法影响。
     /// </summary>
     public class ComposedField
     {

@@ -49,6 +49,14 @@ namespace CardCore.Serialization
         [MemoryPackOrder(TagTable.RCS_LockedColor)]
         public int LockedColor = -1;
 
+        /// <summary>建造已建额（2026-10-29 P7：结界手牌逐色预付）——[灰,红,蓝,绿,任意]（任意位恒 0）。
+        /// FromCard 从卡实例 CardWrapper.BuildPaid 导出（P7b 返工：实例级——同名副本/跨玩家互不共享，
+        /// 快照按 runtime card id 各自携带）；可见性随所在区走现有规则（手牌区只进持有者/观战全信息
+        /// 快照——对手端不携带）。ApplyToCard 回灌（客户端卡表副本 UI 数据口/TurnStartSnapshot 恢复同源）；
+        /// null（旧端载荷）=无信息不动。</summary>
+        [MemoryPackOrder(TagTable.RCS_BuildPaid)]
+        public float[] BuildPaid;
+
         // ---- M1 网络快照扩展（2026-09-10）：单向导出字段，ApplyToCard 不回灌 ----
         // RuntimeId 只读（Entity 构造期分配）；ControllerSeat 经 SetController 走 Player 对象（DTO 无核心上下文）；
         // IsFrozen 是计算值（FreezeCounter>0），回灌须走指示物写入——三者均为快照展示/对账口径。
@@ -81,6 +89,10 @@ namespace CardCore.Serialization
                 IsFrozen = card.IsFrozen(),
                 LockedColor = -1, // 地牌锁色权威态在 PooledCard 包装——快照侧 BuildZone 覆盖
             };
+
+            // 建造已建额（2026-10-29 P7b：卡实例导出——非 CardWrapper=全零，快照展示口径）
+            var buildPaid = (card as CardWrapper)?.BuildPaid;
+            dto.BuildPaid = buildPaid != null ? (float[])buildPaid.Clone() : new float[ElementCost.Length];
 
             dto.Keywords = card._keywords?.ToArray() ?? Array.Empty<string>();
             dto.Counters = card._counters?.Select(kvp => new CounterEntryDTO { Key = kvp.Key, Value = kvp.Value }).ToArray()
@@ -125,6 +137,16 @@ namespace CardCore.Serialization
                 card._counters.Clear();
                 foreach (var c in Counters)
                     card._counters[c.Key] = c.Value;
+            }
+
+            // 建造已建额回灌（2026-10-29 P7b：写回卡实例）；null（旧端载荷）=无信息不动；
+            // 短数组只覆写前段（防御，长度恒=5）
+            var buildCard = card as CardWrapper;
+            if (buildCard != null && BuildPaid != null)
+            {
+                var target = buildCard.BuildPaid;
+                for (int i = 0; i < target.Length && i < BuildPaid.Length; i++)
+                    target[i] = BuildPaid[i];
             }
         }
     }

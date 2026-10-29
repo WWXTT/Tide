@@ -25,8 +25,8 @@
             {
               "card": "C_2E341806",
               "tapped": false,
-              "x": 4,
-              "z": 3
+              "x": 1,
+              "z": 2
             }
           ],
           "hand": [
@@ -219,74 +219,56 @@
             {
               "card": "C_7E5A100F",
               "tapped": false,
-              "x": 4,
-              "z": 4
-            },
-            {
-              "card": "C_7E5A100B",
-              "tapped": false,
               "x": 1,
-              "z": 4
+              "z": 2
             },
             {
               "card": "C_7E5A100B",
               "tapped": false,
               "x": 2,
-              "z": 4
+              "z": 2
             },
             {
               "card": "C_7E5A100B",
               "tapped": false,
               "x": 3,
-              "z": 4
-            },
-            {
-              "card": "C_7E5A100B",
-              "tapped": false,
-              "x": 5,
-              "z": 4
-            },
-            {
-              "card": "C_7E5A100B",
-              "tapped": false,
-              "x": 6,
-              "z": 4
-            },
-            {
-              "card": "C_7E5A100B",
-              "tapped": false,
-              "x": 7,
-              "z": 4
-            },
-            {
-              "card": "C_4A88A165",
-              "tapped": false,
-              "x": 1,
-              "z": 3
-            },
-            {
-              "card": "C_4A88A165",
-              "tapped": false,
-              "x": 2,
-              "z": 3
-            },
-            {
-              "card": "C_4A88A165",
-              "tapped": false,
-              "x": 3,
-              "z": 3
+              "z": 2
             },
             {
               "card": "C_7E5A100B",
               "tapped": false,
               "x": 4,
-              "z": 3
+              "z": 2
             },
             {
               "card": "C_7E5A100B",
               "tapped": false,
+              "x": 1,
+              "z": 1
+            },
+            {
+              "card": "C_7E5A100B",
+              "tapped": false,
+              "x": 2,
+              "z": 1
+            },
+            {
+              "card": "C_7E5A100B",
+              "tapped": false,
+              "x": 3,
+              "z": 1
+            },
+            {
+              "card": "C_4A88A165",
+              "tapped": false,
+              "x": 4,
+              "z": 1
+            },
+            {
+              "card": "C_4A88A165",
+              "tapped": false,
               "x": 5,
-              "z": 3
+              "z": 1
             }
           ],
           "hand": [],
@@ -309,38 +291,38 @@
             {
               "card": "C_7E5A100E",
               "tapped": false,
-              "x": 3,
-              "z": 2
+              "x": 5,
+              "z": 4
             },
             {
               "card": "C_7E5A100E",
               "tapped": false,
-              "x": 5,
-              "z": 2
+              "x": 4,
+              "z": 4
+            },
+            {
+              "card": "C_7E5A100D",
+              "tapped": false,
+              "x": 3,
+              "z": 4
             },
             {
               "card": "C_7E5A100D",
               "tapped": false,
               "x": 2,
-              "z": 2
-            },
-            {
-              "card": "C_7E5A100D",
-              "tapped": false,
-              "x": 6,
-              "z": 2
-            },
-            {
-              "card": "C_7E5A100B",
-              "tapped": false,
-              "x": 3,
-              "z": 1
+              "z": 4
             },
             {
               "card": "C_7E5A100B",
               "tapped": false,
               "x": 5,
-              "z": 1
+              "z": 5
+            },
+            {
+              "card": "C_7E5A100B",
+              "tapped": false,
+              "x": 4,
+              "z": 5
             }
           ],
           "hand": [],

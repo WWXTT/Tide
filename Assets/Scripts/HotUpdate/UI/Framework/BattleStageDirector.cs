@@ -148,9 +148,10 @@ namespace SynergyUI
 
         // ======================================== 战场装台 ③④（棋盘 + 日出） ========================================
 
-        /// <summary>装台③④：BattleHexBoard 运行时拼装核心带棋盘（2026-10-28 盘形 7876787 实拼 50 tile
-        /// ——8×7 域、缺口 6（中线 x6/x7+四角）；同步即就绪）→ 棋格画外浮起拼装（≤2s，与日出并行）→
-        /// 主光源 -20°→45° 日出。mesh 缺失只报错不阻塞日出。</summary>
+        /// <summary>装台③④：BattleHexBoard 运行时拼装核心带棋盘（2026-10-29 P11 盘形 6765676 实拼 43 tile
+        /// ——7×7 域、缺口 6（六格行尾格+中线两端）；同步即就绪）→ 棋格画外浮起拼装（≤2s，与日出并行）→
+        /// 主光源 -20°→45° 日出。mesh 缺失只报错不阻塞日出。
+        /// P11 过渡态：BattleStage.prefab 重烘焙前 Board 仍为旧 50 格（SelfCheck 红属预期，重烘焙归用户）。</summary>
         public static async UniTaskVoid MountBoardAndDawnAsync()
         {
             if (_mounting) return;

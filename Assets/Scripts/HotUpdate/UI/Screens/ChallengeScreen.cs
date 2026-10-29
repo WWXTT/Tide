@@ -122,12 +122,12 @@ namespace SynergyUI
                 _deckRows[deck.name] = rowBtn;
         }
 
-        /// <summary>卡组张数文案（2026-10-22 额外区配套）：正卡数+衍生物M——模板卡开局摘额外区不计张数。</summary>
+        /// <summary>卡组张数文案（2026-10-22 额外区配套）：正卡数+衍生物M——模板卡开局摘额外区不计张数。
+        /// P9b：模板自 tokenCardIds 取（旧档读取时已规范化迁出 cardIds）。</summary>
         private static string DeckCountText(DeckData deck)
         {
-            int total = deck?.cardIds?.Count ?? 0;
-            int tokens = deck?.cardIds?.Count(id => CardCatalog.GetById(id)?.IsTokenTemplate == true) ?? 0;
-            int main = total - tokens;
+            int main = deck?.cardIds?.Count ?? 0;
+            int tokens = deck?.tokenCardIds?.Count ?? 0;
             return tokens > 0 ? $"{main} 张+衍生物{tokens}" : $"{main} 张";
         }
 
@@ -166,13 +166,14 @@ namespace SynergyUI
         {
             List<CardData> deck = null;
             string skillCardId = null; // 玩家卡组的英雄技能标记（2026-10-07 卡牌化；随机兜底=null）
+            List<DeckTokenBinding> tokenBindings = null; // P9b 衍生物槽绑定（随机兜底=null）
             if (_selectedDeckName != null)
             {
                 var data = DeckCatalog.Load(_selectedDeckName); // 玩家存档 / 只读预组（2026-10-22）
                 // 2026-10-16 全局对齐：构成校验未过（断链/形状/违色）与缺卡/张数不足同判不可用
                 bool usable = data?.cardIds != null && DeckCompositionValidator.Usable(data);
                 if (usable)
-                    deck = TutorialLibrary.BuildDeck(data.cardIds);
+                    deck = DeckTokenSupport.BuildCardList(data); // P9b：含衍生物区模板（落额外区）
                 if (deck == null || deck.Count < GameCore.OpeningHandSize)
                 {
                     TideLog.Warn($"[ChallengeScreen] 卡组 {_selectedDeckName} 不可用" +
@@ -180,7 +181,11 @@ namespace SynergyUI
                     deck = null;
                 }
                 else
+                {
                     skillCardId = data.skillCardId;
+                    if (data.tokenBindings != null && data.tokenBindings.Count > 0)
+                        tokenBindings = data.tokenBindings;
+                }
             }
 
             BattleEntry.Mode = BattleMode.Challenge;
@@ -189,6 +194,7 @@ namespace SynergyUI
             BattleEntry.ChallengeDifficulty = _difficulty;
             BattleEntry.ChallengeDeck = deck; // null=StartLocalFan 兜底随机
             BattleEntry.ChallengeSkillCardId = skillCardId;
+            BattleEntry.ChallengeTokenBindings = tokenBindings; // P9b：与 ChallengeDeck 成对消费
             BattleStageDirector.SwallowToBattleAsync(() => Manager.Show<BattleScreen>()).Forget();
         }
 

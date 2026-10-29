@@ -28,18 +28,21 @@ namespace SynergyUI
         private readonly BattleFieldView _field;
         private readonly bool _lunzhuan;
         private readonly bool _dummy;          // 木桩测试局（2026-10-23）：段四改掷币后弹 UI 选卡窗
-        private readonly Action<List<CardData>, string, List<CardData>, string, bool?> _engage;
+        private readonly Action<List<CardData>, string, List<CardData>, string, bool?,
+            List<DeckTokenBinding>, List<DeckTokenBinding>> _engage;
         private readonly bool? _fixedPlayerFirst; // 木桩测试固定先后手（null=照常掷币）
         private readonly RectTransform _overlayParent;  // 木桩段四弹窗挂载父（BattleScreen.Root）
         private readonly Action _onCancelled;      // 木桩段四弹窗取消（返回主菜单）
 
         // 联机五段式（2026-10-28 开局流程改版）：段三掷币结果=服务器权威注入（掷币模式照常演出/
         // 固定先后手模式快进直出浮字），段四=NetworkDeckPanel（30s 服务器权威倒计时+各自选卡组），
-        // 段五=netEngage(cardIds, skill) 发 DeckSubmit 握手（UI 关闭后、对局开始前——用户定案时序）。
+        // 段五=netEngage(cardIds, skill, tokenCardIds, tokenBindings) 发 DeckSubmit 握手（UI 关闭后、
+        // 对局开始前——用户定案时序）。token 两块=P9b 衍生物区/槽绑定（随机预组=null——模板仍在
+        // cardIds 内随组直提）。
         private readonly bool _network;
         private readonly bool _netPlayerFirst;       // 服务器先手结果（FirstSeatThisMatch 对 own seat）
         private readonly bool _netCoinAnimation;     // true=掷币模式（演出）；false=固定先后手（快进）
-        private readonly Action<string[], string> _netEngage;
+        private readonly Action<string[], string, string[], List<DeckTokenBinding>> _netEngage;
 
         private BattleDeckPickStage _pickStage;
         private bool _deckPicking;        // 段四输入期（点击归卡堆，不作跳过）
@@ -53,11 +56,12 @@ namespace SynergyUI
         public bool Active { get; private set; }
 
         public BattleOpeningDirector(Func<bool> running, BattleFieldView field, bool lunzhuan,
-            Action<List<CardData>, string, List<CardData>, string, bool?> engage,
+            Action<List<CardData>, string, List<CardData>, string, bool?,
+                List<DeckTokenBinding>, List<DeckTokenBinding>> engage,
             bool? fixedPlayerFirst = null, bool dummy = false,
             RectTransform overlayParent = null, Action onCancelled = null,
             bool network = false, bool netPlayerFirst = false, bool netCoinAnimation = true,
-            Action<string[], string> netEngage = null)
+            Action<string[], string, string[], List<DeckTokenBinding>> netEngage = null)
         {
             _running = running;
             _field = field;
@@ -130,9 +134,12 @@ namespace SynergyUI
                 var aiDeck = _lunzhuan ? myDeck : BuildDeckOf(aiName, "对方"); // 教学三镜像
                 var mySkill = myDeck != null ? SkillOf(myName) : null;
                 var aiSkill = _lunzhuan ? mySkill : (aiDeck != null ? SkillOf(aiName) : null);
+                // P9b 衍生物槽绑定随组交班（镜像局双方同用；随机/预组=固定绑定 → null）
+                var myTokens = myDeck != null ? TokenBindingsOf(myName) : null;
+                var aiTokens = _lunzhuan ? myTokens : (aiDeck != null ? TokenBindingsOf(aiName) : null);
                 Debug.Log($"[BattleOpening] 段五 交班开战：我方={myName ?? "随机"}({myDeck?.Count ?? 0}张) "
                     + $"对方={aiName ?? "随机"}({aiDeck?.Count ?? 0}张) playerFirst={playerFirst}");
-                _engage(myDeck, mySkill, aiDeck, aiSkill, playerFirst);
+                _engage(myDeck, mySkill, aiDeck, aiSkill, playerFirst, myTokens, aiTokens);
             }
             catch (Exception ex)
             {
@@ -221,6 +228,8 @@ namespace SynergyUI
 
             string[] cardIds;
             string skill;
+            string[] tokenIds = null;                  // P9b 衍生物区（随机预组=null——模板仍在 cardIds 内）
+            List<DeckTokenBinding> tokenBindings = null; // P9b 槽绑定（预组固定绑定=null）
             if (pick.DeckName == null)
             {
                 cardIds = NetPresetDecks.RandomPreset(out skill);
@@ -240,9 +249,13 @@ namespace SynergyUI
                 }
                 cardIds = data.cardIds.ToArray();
                 skill = data.skillCardId;
+                if (data.tokenCardIds != null && data.tokenCardIds.Count > 0)
+                    tokenIds = data.tokenCardIds.ToArray();
+                if (data.tokenBindings != null && data.tokenBindings.Count > 0)
+                    tokenBindings = data.tokenBindings;
             }
             Debug.Log($"[BattleOpening] 段五（网络）确认卡组「{pick.DeckName ?? "随机预组"}」（{cardIds.Length}张）——提交握手");
-            _netEngage?.Invoke(cardIds, skill);
+            _netEngage?.Invoke(cardIds, skill, tokenIds, tokenBindings);
         }
 
         /// <summary>段四：候选卡组建堆 → 双选两轮/教学三单轮+倒计时；返回卡组名（null=随机）。
@@ -331,13 +344,14 @@ namespace SynergyUI
                 : Vector3.zero;
 
         /// <summary>卡组名→开局卡组（旧 PreMatchScreen.OnStart 口径平移：BuildDeck 断链容忍，
-        /// 张数≥起手才用，不足回落随机=null；skill 随卡组标记，卡组弃用则同弃）。</summary>
+        /// 张数≥起手才用，不足回落随机=null；skill 随卡组标记，卡组弃用则同弃）。
+        /// P9b：组卡走 DeckTokenSupport.BuildCardList——衍生物区模板随组入局（落额外区）。</summary>
         private static List<CardData> BuildDeckOf(string deckName, string side)
         {
             if (deckName == null) return null;
             var data = DeckCatalog.Load(deckName); // 玩家存档 / 只读预组（2026-10-22 统一口）
             if (data?.cardIds == null) return null;
-            var built = TutorialLibrary.BuildDeck(data.cardIds);
+            var built = DeckTokenSupport.BuildCardList(data);
             if (built != null && built.Count >= GameCore.OpeningHandSize) return built;
             TideLog.Warn($"[BattleOpening] {side}卡组 {deckName} 缺卡/张数不足（{built?.Count ?? 0}）——回落随机");
             return null;
@@ -347,6 +361,15 @@ namespace SynergyUI
         {
             var data = deckName != null ? DeckCatalog.Load(deckName) : null;
             return data?.skillCardId;
+        }
+
+        /// <summary>卡组名→衍生物槽绑定（P9b）：无绑定条目返回 null（固定绑定/预组/随机）。</summary>
+        private static List<DeckTokenBinding> TokenBindingsOf(string deckName)
+        {
+            var data = deckName != null ? DeckCatalog.Load(deckName) : null;
+            return data?.tokenBindings != null && data.tokenBindings.Count > 0
+                ? data.tokenBindings
+                : null;
         }
 
         /// <summary>节拍停顿（skip 点击即缩短至收）。</summary>

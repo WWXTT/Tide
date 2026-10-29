@@ -90,6 +90,8 @@ namespace CardCore.Attribute.Handlers
             foreach (var target in context.Targets)
             {
                 if (!(target is Player holder)) continue; // 作用对象=角色
+                // 禁祭令（2026-10-29 1b）：受光环影响的一方不能牺牲单位
+                if (RuleAuraSystem.ScopeHits(RuleAuraComponents.NoSacrificeAura, holder)) continue;
                 var board = BoardUnits(holder, context);
                 if (board.Count == 0) continue; // 空场空转
                 SendToGrave(board[0], context);
@@ -101,6 +103,8 @@ namespace CardCore.Attribute.Handlers
             foreach (var target in context.Targets)
             {
                 if (!(target is Player holder)) continue; // 作用对象=角色
+                // 禁祭令（2026-10-29 1b）：受光环影响的一方不能牺牲单位
+                if (RuleAuraSystem.ScopeHits(RuleAuraComponents.NoSacrificeAura, holder)) continue;
                 var board = BoardUnits(holder, context);
                 if (board.Count == 0) continue; // 空场空转
 
@@ -436,6 +440,9 @@ namespace CardCore.Attribute.Handlers
 
         public override async UniTask ExecuteAsync(AtomicEffectInstance effect, EffectExecutionContext context)
         {
+            // 禁寻令（2026-10-29 1b）：受光环影响的一方不能检索牌库（发现=检索族同门）
+            if (RuleAuraSystem.ScopeHits(RuleAuraComponents.NoSearchAura, context.Controller)) return;
+
             var controller = context.Controller;
             var zm = context.ZoneManager;
             if (controller == null || zm == null) return;

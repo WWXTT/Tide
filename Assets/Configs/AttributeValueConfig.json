@@ -1389,7 +1389,7 @@
     "ManaList": [
       0,
       0,
-      12,
+      6,
       0
     ]
   },
@@ -1404,7 +1404,7 @@
     "MountKinds": "规则光环",
     "Tags": null,
     "ManaList": [
-      12,
+      6,
       0,
       0,
       0
@@ -1421,7 +1421,7 @@
     "MountKinds": "规则光环",
     "Tags": null,
     "ManaList": [
-      6,
+      3,
       0,
       0,
       0
@@ -1438,7 +1438,7 @@
     "MountKinds": "规则光环",
     "Tags": null,
     "ManaList": [
-      6,
+      3,
       0,
       0,
       0
@@ -1457,7 +1457,7 @@
     "ManaList": [
       0,
       0,
-      8,
+      3,
       0
     ]
   },
@@ -1475,7 +1475,7 @@
       0,
       0,
       0,
-      8
+      3
     ]
   },
   {
@@ -1491,7 +1491,7 @@
     "ManaList": [
       0,
       0,
-      6,
+      3,
       0
     ]
   },
@@ -1508,7 +1508,7 @@
     "ManaList": [
       0,
       0,
-      12,
+      6,
       0
     ]
   },
@@ -1525,7 +1525,7 @@
     "ManaList": [
       0,
       0,
-      6,
+      3,
       0
     ]
   },
@@ -1935,5 +1935,185 @@
     "ManaList": null,
     "GateId": "LifeLe7",
     "Budget": 2
+  },
+  {
+    "ID": "107256b7",
+    "EnumName": "禁攻令",
+    "DisplayName": "受光环影响的单位与角色不能宣言攻击",
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": -1,
+    "MountKinds": "规则光环",
+    "Tags": null,
+    "ManaList": [0, 0, 12, 0]
+  },
+  {
+    "ID": "b07c1ee5",
+    "EnumName": "禁守令",
+    "DisplayName": "受光环影响的单位与角色不能进行守卫拦截",
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": -1,
+    "MountKinds": "规则光环",
+    "Tags": null,
+    "ManaList": [0, 0, 6, 0]
+  },
+  {
+    "ID": "684b9b0e",
+    "EnumName": "禁发令",
+    "DisplayName": "受光环影响的单位与角色不能发动主动效果",
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": -1,
+    "MountKinds": "规则光环",
+    "Tags": null,
+    "ManaList": [0, 0, 12, 0]
+  },
+  {
+    "ID": "eb99b6c3",
+    "EnumName": "禁地令",
+    "DisplayName": "受光环影响的一方不能将手牌作为地牌放置",
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": -1,
+    "MountKinds": "规则光环",
+    "Tags": null,
+    "ManaList": [12, 0, 0, 0]
+  },
+  {
+    "ID": "10e82c49",
+    "EnumName": "禁疗令",
+    "DisplayName": "双方的角色与单位不能回复生命",
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": -1,
+    "MountKinds": "规则光环",
+    "Tags": null,
+    "ManaList": [6, 0, 0, 0]
+  },
+  {
+    "ID": "e3ea22eb",
+    "EnumName": "禁寻令",
+    "DisplayName": "双方不能检索牌库",
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": -1,
+    "MountKinds": "规则光环",
+    "Tags": null,
+    "ManaList": [0, 0, 6, 0]
+  },
+  {
+    "ID": "baafac0b",
+    "EnumName": "禁祭令",
+    "DisplayName": "双方不能牺牲单位",
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": -1,
+    "MountKinds": "规则光环",
+    "Tags": null,
+    "ManaList": [6, 0, 0, 0]
+  },
+  {
+    "ID": "e5c6755b",
+    "EnumName": "禁魔令",
+    "DisplayName": "双方不能施放法术牌",
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": -1,
+    "MountKinds": "规则光环",
+    "Tags": null,
+    "ManaList": [0, 0, 12, 0]
+  },
+  {
+    "ID": "5edb6b3a",
+    "EnumName": "禁召令",
+    "DisplayName": "双方不能施放生物牌",
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": -1,
+    "MountKinds": "规则光环",
+    "Tags": null,
+    "ManaList": [0, 0, 12, 0]
+  },
+  {
+    "ID": "3b1ae3c7",
+    "EnumName": "禁抽令",
+    "DisplayName": "双方每回合至多抽1张牌",
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": -1,
+    "MountKinds": "规则光环",
+    "Tags": null,
+    "ManaList": [0, 0, 12, 0]
+  },
+  {
+    "ID": "01a2a3a9",
+    "EnumName": "禁低费令",
+    "DisplayName": "双方不能施放费用不超过3的卡",
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": -1,
+    "MountKinds": "规则光环",
+    "Tags": null,
+    "ManaList": [0, 0, 12, 0]
+  },
+  {
+    "ID": "1dcf9aa9",
+    "EnumName": "禁高费令",
+    "DisplayName": "双方不能施放费用超过对手地牌数的卡",
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": -1,
+    "MountKinds": "规则光环",
+    "Tags": null,
+    "ManaList": [0, 0, 6, 0]
+  },
+  {
+    "ID": "1e475397",
+    "EnumName": "禁非生物令",
+    "DisplayName": "双方不能施放非生物牌",
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": -1,
+    "MountKinds": "规则光环",
+    "Tags": null,
+    "ManaList": [0, 0, 12, 0]
+  },
+  {
+    "ID": "799ee57d",
+    "EnumName": "禁时机令",
+    "DisplayName": "双方不能在自己回合以外施放卡牌",
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": -1,
+    "MountKinds": "规则光环",
+    "Tags": null,
+    "ManaList": [0, 0, 12, 0]
+  },
+  {
+    "ID": "24409db4",
+    "EnumName": "禁指示物令",
+    "DisplayName": "除系统指示物外，双方不能放置指示物",
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": -1,
+    "MountKinds": "规则光环",
+    "Tags": null,
+    "ManaList": [12, 0, 0, 0]
   }
 ]

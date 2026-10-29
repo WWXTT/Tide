@@ -51,6 +51,15 @@ namespace SynergyUI
         // 当前正在构筑的卡组（卡牌 ID 列表，同卡多册多条目）。
         private readonly List<string> _deckCardIds = new List<string>();
 
+        // ---- 衍生物区/槽绑定（P9b 2026-10-29：临摹/变形空槽在卡组期绑定模板）----
+        // 区=模板卡 ID（容量 DeckTokenSupport.TokenZoneCapacity=6，入局落额外区）；
+        // 绑定=(卡ID, 效果序号)→模板 ID——同名副本共享（不给每张副本单独选）。
+        private readonly List<string> _tokenCardIds = new List<string>();
+        private readonly List<DeckTokenBinding> _tokenBindings = new List<DeckTokenBinding>();
+
+        /// <summary>绑定面板弹层根（P9b：UiKit 代码搭——本屏 prefab 无对应模板；null=关）。</summary>
+        private RectTransform _tokenPopup;
+
         /// <summary>衍生物模板卡判定（2026-10-22 额外区配套）：入组开局落 Zone.Extra 不进牌库——
         /// 不计入 30-60 构筑张数（添加口/汇总/保存口三处同口径）。</summary>
         private static bool IsTokenTemplateId(string id)
@@ -82,6 +91,13 @@ namespace SynergyUI
         private RectTransform _zoomOverlay;
         private RectTransform _zoomSlot;
         private CostSquaresView _previewCost;  // 烘焙费用条（preview-stage/CostSquares）
+
+        // ---- P4 §2（2026-10-29）衍生物选中才展开：预览区右下角展开宿主 + 第二张卡绑定 ----
+        private RectTransform _previewStage;      // Build 期捕获（=烘焙 ACard 的父；null=缺宿主降级）
+        private RectTransform _tokenExpansion;    // 展开区根（preview-stage 内运行时建；隐藏=无槽卡）
+        private RectTransform _tokenSlot;         // 第二张卡槽（360×648·localScale 0.5 → 180×324）
+        private CardOverlayBinding _tokenBinding; // 第二张卡绑定（卡面层池化；null=未绑定/失效）
+        private RectTransform _zoomTokenSlot;     // 放大态第二张卡槽（zoom-overlay 内运行时建·懒建）
 
         // 两套过滤（2026-10-23 v2）：色 chips（预制体烘焙 facet-color）+ 卡型 chips（tpl-chip 克隆进
         // facet-kind 一次，固定面板内不随列表滚动；刷新只切选中态）。
@@ -136,6 +152,7 @@ namespace SynergyUI
             var bakedCard = Find("ACard") as RectTransform;
             if (bakedCard != null)
             {
+                _previewStage = bakedCard.parent as RectTransform; // P4 §2：衍生物展开宿主（缺=降级不展开）
                 _previewView = bakedCard.GetComponent<ACardView>() ?? bakedCard.gameObject.AddComponent<ACardView>();
                 _previewView.Bind();
                 var previewBtn = bakedCard.GetComponent<UButton>();
@@ -191,10 +208,12 @@ namespace SynergyUI
 
         public override void OnExit()
         {
-            // UGUI 卡牌层回收（中栏卡面独立池化，切屏必须显式清）；放大绑定随清——
+            // UGUI 卡牌层回收（中栏卡面独立池化，切屏必须显式清）；放大/衍生物展开绑定随清——
             // 遮罩节点随屏销毁，残留绑定会在下一屏 Bind 时往已毁槽位挂卡
             _zoomBindings.Clear();
+            _tokenBinding = null; // P4 §2：第二卡绑定同清（token-expansion 节点随屏销毁）
             CardOverlayController.ClearActive();
+            CloseTokenPopup(); // P9b 绑定面板弹层（纯代码节点，切屏显式拆）
             Tips.Close(); // 在途提示弹窗清理
         }
 
@@ -261,6 +280,13 @@ namespace SynergyUI
         {
             if (_catalogFilter != null)
             {
+                // 白/黑 chip 失活（2026-10-29 P4 色序清尾）：UIColor 白/黑成员已删，
+                // 预制体残烘的 chip-Black/chip-White 不再接线——显式失活防「可见但点不动」
+                foreach (var legacy in new[] { "chip-Black", "chip-White" })
+                {
+                    var dead = UiKit.FindDeep(_catalogFilter, legacy);
+                    if (dead != null) dead.gameObject.SetActive(false);
+                }
                 foreach (UIColor color in Enum.GetValues(typeof(UIColor)))
                 {
                     var captured = color;
@@ -339,6 +365,7 @@ namespace SynergyUI
                 if (d?.cardIds == null) continue;
                 foreach (var id in d.cardIds) referenced.Add(id);
                 if (!string.IsNullOrEmpty(d.skillCardId)) referenced.Add(d.skillCardId);
+                foreach (var id in d.tokenCardIds ?? new List<string>()) referenced.Add(id); // P9b 衍生物区
             }
             var extra = CardCatalog.LoadAll()
                 .Where(c => referenced.Contains(c.ID) && !poolIds.Contains(c.ID) && !CardCatalog.IsTokenCard(c))
@@ -410,7 +437,8 @@ namespace SynergyUI
             RefreshCatalog();
         }
 
-        /// <summary>色名中文（空结果解释行用——chips 文案烘焙在预制体，这里补中文映射）。</summary>
+        /// <summary>色名中文（空结果解释行用——chips 文案烘焙在预制体，这里补中文映射；
+        /// 白/黑已随 2026-10-29 P4 色序清尾删除）。</summary>
         private static string ColorZh(UIColor color)
         {
             switch (color)
@@ -418,8 +446,6 @@ namespace SynergyUI
                 case UIColor.Red: return "红";
                 case UIColor.Blue: return "蓝";
                 case UIColor.Green: return "绿";
-                case UIColor.Black: return "黑";
-                case UIColor.White: return "白";
                 default: return "灰";
             }
         }
@@ -509,9 +535,10 @@ namespace SynergyUI
         }
 
         /// <summary>左栏当前卡组（同卡聚合 ×册数，保序=首次入组序）：行=[费用徽标|卡名×N|异常
-        /// 标记|删除]（tpl-row-deck 克隆，行点击=中栏预览）。断链卡（卡表无此 ID）无法展示——
-        /// 仅可删除；形状违规卡行尾红字标记。衍生物模板与效果引用的外部卡排在
-        /// 「衍生物 / 引用卡」分区之后（验收6；汇总张数口径不变——衍生物不计 30-60）。</summary>
+        /// 标记|删除]（tpl-row-deck 克隆）。断链卡（卡表无此 ID）无法展示——仅可删除；形状违规卡
+        /// 行尾红字标记；带槽卡（P9b）flag 显示槽绑定状态、行点击=绑定面板（其余行点击=中栏预览）。
+        /// 「衍生物区 / 引用卡」分区：P9b 衍生物区（模板可删+管理入口，容量计数在分区标题）+
+        /// 卡组效果固定绑定引用的外部卡（只读可预览）。</summary>
         private void RefreshDeckList()
         {
             ClearContent(_deckList.Content);
@@ -542,24 +569,19 @@ namespace SynergyUI
                 return;
             }
 
-            // 普通卡行在前；衍生物模板卡行挪进分区（保序）
-            var tokenRows = new List<int>();
+            // 普通卡行（P9b：模板不进 cardIds——区独立于卡表行）
             for (int i = 0; i < ids.Count; i++)
-            {
-                if (IsTokenTemplateId(ids[i])) tokenRows.Add(i);
-                else MakeDeckRow(ids[i], CardCatalog.GetById(ids[i]), counts[i]);
-            }
+                MakeDeckRow(ids[i], CardCatalog.GetById(ids[i]), counts[i]);
 
-            // 分区：衍生物模板（卡组条目，可删照旧）+ 卡组效果引用的外部卡（只读可预览）
+            // 分区：衍生物区（P9b 模板，可删+管理）+ 卡组效果固定绑定引用的外部卡（只读可预览）
             var externalRefs = CollectExternalReferences();
-            if (tokenRows.Count > 0 || externalRefs.Count > 0)
-            {
-                MakeSectionHeader("衍生物 / 引用卡", _deckList.Content);
-                foreach (int i in tokenRows)
-                    MakeDeckRow(ids[i], CardCatalog.GetById(ids[i]), counts[i]);
-                foreach (var refId in externalRefs)
-                    MakeReferenceRow(refId);
-            }
+            MakeSectionHeader(
+                $"衍生物区 {_tokenCardIds.Count}/{DeckTokenSupport.TokenZoneCapacity} · 引用卡", _deckList.Content);
+            foreach (var id in _tokenCardIds)
+                MakeTokenZoneRow(id);
+            MakeZoneManageRow();
+            foreach (var refId in externalRefs)
+                MakeReferenceRow(refId);
         }
 
         private void MakeDeckRow(string cardId, CardData card, int copies)
@@ -584,14 +606,82 @@ namespace SynergyUI
             BindCost(row, card);
             SetText(row, "name", NameOf(card) + (copies > 1 ? $" ×{copies}" : ""));
 
+            // 异常/槽位标记：形状违规红字优先；带槽卡（P9b）显示「衍生物槽N·缺M」（缺=红/全绑=灰）
             var flags = CardFlags(card);
-            SetVisible(row, "flag", flags.Count > 0);
+            var slots = DeckTokenSupport.EnumerateSlots(card).Where(s => s.NeedsBinding).ToList();
+            int missing = slots.Count(s => BindingOf(s.CardId, s.EffectIndex) == null);
             if (flags.Count > 0)
+            {
+                SetVisible(row, "flag", true);
                 SetText(row, "flag", "✘" + string.Join("/", flags), UiStyle.DotRed);
+            }
+            else if (slots.Count > 0)
+            {
+                SetVisible(row, "flag", true);
+                SetText(row, "flag",
+                    missing > 0 ? $"衍生物槽{slots.Count}·缺{missing}" : $"衍生物槽{slots.Count}✓",
+                    missing > 0 ? UiStyle.DotRed : UiStyle.TextHint);
+            }
+            else SetVisible(row, "flag", false);
 
             BindRowButton(row, "btn-del", () => RemoveCopy(cardId));
+            // P4 §2（2026-10-29）：带槽卡行点击=中栏预览并展开衍生物（读当前卡组绑定）；
+            // 绑定面板改经预览区「绑定…」钮 / 管理行进入（原行点击直达入口迁移）
             if (rowBtn != null)
+            {
                 rowBtn.onClick.AddListener(() => ShowPreview(captured));
+            }
+        }
+
+        /// <summary>衍生物区模板行（P9b）：可删（绑定点它失效由校验标红），行点击=预览。</summary>
+        private void MakeTokenZoneRow(string id)
+        {
+            var row = Clone(_deckTemplates, "tpl-row-deck", _deckList.Content);
+            if (row == null) return;
+            var card = CardCatalog.GetById(id);
+            var rowBtn = row.GetComponent<UButton>();
+            if (rowBtn != null) rowBtn.onClick.RemoveAllListeners();
+
+            if (card == null)
+            {
+                SetVisible(row, "cost", false);
+                SetText(row, "name", "[断链] " + id, UiStyle.DotRed);
+                SetVisible(row, "flag", false);
+            }
+            else
+            {
+                BindCost(row, card);
+                SetText(row, "name", NameOf(card));
+                SetText(row, "flag", "模板·额外区", UiStyle.TextHint);
+                if (rowBtn != null)
+                {
+                    var captured = card;
+                    rowBtn.onClick.AddListener(() => ShowPreview(captured));
+                }
+            }
+            BindRowButton(row, "btn-del", () =>
+            {
+                _tokenCardIds.Remove(id);
+                RefreshAll();
+            });
+        }
+
+        /// <summary>衍生物区管理入口行（P9b）：打开绑定/区管理弹层。</summary>
+        private void MakeZoneManageRow()
+        {
+            var row = Clone(_deckTemplates, "tpl-row-deck", _deckList.Content);
+            if (row == null) return;
+            var rowBtn = row.GetComponent<UButton>();
+            if (rowBtn != null) rowBtn.onClick.RemoveAllListeners();
+            SetVisible(row, "cost", false);
+            SetVisible(row, "flag", false);
+            SetText(row, "name",
+                _tokenCardIds.Count > 0 ? "管理衍生物区 / 绑定…" : "＋ 添加衍生物模板（绑定临摹/变形槽）",
+                UiStyle.TextHint);
+            if (rowBtn != null)
+                rowBtn.onClick.AddListener(OpenZoneManager);
+            BindRowButton(row, "btn-del", null); // 管理行无删除
+            SetVisible(row, "btn-del", false);
         }
 
         /// <summary>引用卡行（验收6）：卡组效果引用但不在卡组内的卡（SummonToken/GrantMorph 目标）——
@@ -629,6 +719,7 @@ namespace SynergyUI
         private List<string> CollectExternalReferences()
         {
             var seen = new HashSet<string>(_deckCardIds);
+            foreach (var id in _tokenCardIds) seen.Add(id); // 区内模板不重复列（P9b）
             var result = new List<string>();
             foreach (var id in _deckCardIds)
             {
@@ -696,7 +787,7 @@ namespace SynergyUI
             }
             if (_summary != null)
             {
-                int tokens = _deckCardIds.Count(IsTokenTemplateId);
+                int tokens = _tokenCardIds.Count; // P9b：区独立于 cardIds
                 _summary.text = $"卡数 {DeckBuildCount}（需 {MinDeckCards}-{MaxDeckCards}）"
                                 + (tokens > 0 ? $" + 衍生物{tokens}（额外区）" : "")
                                 + $" · 合计费用 {(int)totalCost}";
@@ -715,7 +806,8 @@ namespace SynergyUI
 
         /// <summary>中栏卡面（2026-10-28 preview-panel 重构）：烘焙 ACard 直挂 View——
         /// FromCardDataFull 六区静态快照（与手牌/合成器同族，去运行态），360×648 原尺寸不缩放；
-        /// 空卡=藏卡；点卡面放大全屏（Button 在 Build 接线）。</summary>
+        /// 空卡=藏卡；点卡面放大全屏（Button 在 Build 接线）。
+        /// P4 §2（2026-10-29）：选中带槽卡 → 预览区右下展开衍生物（BuildTokenExpansion）。</summary>
         private void BuildPreview()
         {
             var card = _previewCard;
@@ -723,6 +815,7 @@ namespace SynergyUI
             {
                 if (_previewView != null) _previewView.gameObject.SetActive(false);
                 RefreshPreviewCost(null);
+                SetTokenExpansion(null, null);
                 return;
             }
             var item = CardOverlayItem.FromCardDataFull(card, "Preview");
@@ -732,12 +825,14 @@ namespace SynergyUI
                 _previewView.Apply(item, CardOverlayLayout.Full);
             }
             RefreshPreviewCost(item);
+            BuildTokenExpansion(card);
             // 形状校验提示行（preview-note）已随 2026-10-28 preview-panel 重构退役——
             // 违规明细仍由构成块/保存拦截展示（DeckCompositionValidator.CheckShape 单源不变）
         }
 
         /// <summary>预览卡费条（2026-10-28 preview-panel 重构）：preview-stage/CostSquares 烘焙
-        /// 实例直填——空卡/零费=Clear 清空（条本体常驻，prefab 布局恒定）。</summary>
+        /// 实例直填——空卡/零费=Clear 清空（条本体常驻，prefab 布局恒定）。
+        /// P4 §1（2026-10-29）：item.Costs 已是净费口径（CardNetCost.NetCostOf 实时推导）。</summary>
         private void RefreshPreviewCost(CardOverlayItem item)
         {
             if (_previewCost == null) return;
@@ -745,10 +840,110 @@ namespace SynergyUI
             else _previewCost.Clear();
         }
 
+        // ======================================== P4 §2：衍生物选中才展开（2026-10-29） ========================================
+
+        /// <summary>选中卡的衍生物展开（P4 §2）：绑定读**当前卡组**的 tokenBindings（P9b）——
+        /// 换卡组同卡可显示不同衍生物；固定槽（原子 str 直书）按槽解析。
+        /// 绑定成功且模板可解析 → 右下半尺寸第二张卡 + 逐槽明细行；未绑定/绑定失效 →
+        /// 占位行+原因（不静默消失）；无槽卡 → 整个展开区隐藏（卡列表/牌库只显示本体）。</summary>
+        private void BuildTokenExpansion(CardData card)
+        {
+            var slots = DeckTokenSupport.EnumerateSlots(card);
+            if (slots.Count == 0) { SetTokenExpansion(null, null); return; }
+
+            var rows = new List<string>();
+            CardData firstBound = null;
+            foreach (var g in slots.GroupBy(s => s.EffectIndex).OrderBy(g => g.Key))
+            {
+                var s0 = g.First();
+                string kind = s0.IsMorph ? "变形" : "衍生物";
+                string label = $"效果{s0.EffectIndex + 1}（{s0.EffectDisplayName ?? "?"}）{kind}槽";
+                string templateId = s0.NeedsBinding ? BindingOf(card.ID, s0.EffectIndex) : s0.FixedTemplateId;
+                if (string.IsNullOrEmpty(templateId))
+                {
+                    rows.Add($"{label} · 未绑定");
+                    continue;
+                }
+                var tpl = CardCatalog.GetById(templateId);
+                if (tpl == null)
+                {
+                    rows.Add($"{label} · 绑定失效：模板 {templateId} 在卡表查不到");
+                    continue;
+                }
+                rows.Add($"{label} → {NameOf(tpl)}");
+                if (firstBound == null) firstBound = tpl;
+            }
+            SetTokenExpansion(rows, firstBound);
+        }
+
+        /// <summary>展开区落值：rows=null → 整区隐藏并撤第二卡绑定；否则常驻明细行 +
+        ///（有可解析模板时）第二张卡挂 token-expansion/slot（半尺寸叠卡右下）。</summary>
+        private void SetTokenExpansion(List<string> rows, CardData boundCard)
+        {
+            var host = EnsureTokenExpansionHost();
+            if (host == null) { _tokenBinding = null; return; }
+            if (rows == null || rows.Count == 0)
+            {
+                host.gameObject.SetActive(false);
+                _tokenBinding = null;
+                RebindCardLayer();
+                return;
+            }
+            host.gameObject.SetActive(true);
+            var body = UiKit.FindDeep(host, "rows")?.GetComponentInChildren<TMP_Text>(true);
+            if (body != null) body.text = string.Join("\n", rows);
+            if (_tokenSlot != null) _tokenSlot.gameObject.SetActive(boundCard != null);
+            _tokenBinding = boundCard != null && _tokenSlot != null
+                ? new CardOverlayBinding
+                {
+                    Slot = _tokenSlot,
+                    Item = CardOverlayItem.FromCardDataFull(boundCard, "TokenPreview"),
+                    Layout = CardOverlayLayout.Full,
+                }
+                : null;
+            RebindCardLayer();
+        }
+
+        /// <summary>展开区宿主（preview-stage 内运行时建，一次）：右下角叠卡位 + 明细行 + 绑定入口。
+        /// 缺 preview-stage（烘焙 ACard 缺父）→ null 降级（数据仍走校验行，不崩）。</summary>
+        private RectTransform EnsureTokenExpansionHost()
+        {
+            if (_tokenExpansion != null) return _tokenExpansion;
+            if (_previewStage == null) return null;
+
+            var host = new GameObject("token-expansion", typeof(RectTransform)).transform as RectTransform;
+            host.SetParent(_previewStage, false);
+            host.anchorMin = host.anchorMax = new Vector2(1f, 0f);
+            host.pivot = new Vector2(1f, 0f);
+            host.anchoredPosition = new Vector2(-2f, 2f);
+            host.sizeDelta = new Vector2(200f, 350f);
+
+            // 第二张卡槽：设计矩形 360×648 · 半尺寸呈现（卡面层子实例 Stretch 铺满槽）
+            var slotGo = new GameObject("slot", typeof(RectTransform));
+            _tokenSlot = (RectTransform)slotGo.transform;
+            _tokenSlot.SetParent(host, false);
+            _tokenSlot.anchorMin = _tokenSlot.anchorMax = new Vector2(0.5f, 0.5f);
+            _tokenSlot.pivot = new Vector2(0.5f, 0.5f);
+            _tokenSlot.sizeDelta = new Vector2(360f, 648f);
+            _tokenSlot.localScale = Vector2.one * 0.52f; // → 约 187×337，叠在预览卡右下角
+
+            // 标题 + 明细行（占位行/绑定去向都在此，不静默消失）
+            UiKit.Label("head", host, "衍生物", 13, UiStyle.TextSecondary);
+            UiKit.Label("rows", host, "", 12, UiStyle.TextHint);
+
+            // 绑定入口（原行点击直达绑定面板的等价入口——P4 后行点击=选中展开）
+            UiKit.Button("btn-bind", host, "绑定…", () =>
+            {
+                if (_previewCard != null) OpenTokenBindingPanel(_previewCard);
+            }, height: 24f, fontSize: 12);
+            return _tokenExpansion = host;
+        }
+
         /// <summary>放大预览卡（验收2）：全屏遮罩 + 600×1080 放大卡居中（仍走卡面层池化——
         /// 2026-10-28 重构后中栏预览=烘焙 ACard 直挂，控制器只剩放大卡一职）；放大卡本体不接
         /// OnClick——点遮罩/空白还原。尺寸口径（2026-10-28 新卡 360×648 分数锚替换）：zoom-card
-        /// 槽位尺寸直接驱动（见 RebindCardLayer），不再实例 localScale ×3。</summary>
+        /// 槽位尺寸直接驱动（见 RebindCardLayer），不再实例 localScale ×3。
+        /// P4 §2（2026-10-29）：带绑定槽卡放大=主卡右侧并排第二张衍生物卡。</summary>
         private void OpenZoom(CardData card)
         {
             if (card == null || _zoomOverlay == null || _zoomSlot == null) return;
@@ -759,6 +954,37 @@ namespace SynergyUI
                 Item = CardOverlayItem.FromCardDataFull(card, "Zoom"),
                 Layout = CardOverlayLayout.Full,
             });
+            // 第二张衍生物卡（首个可解析绑定；槽懒建一次，CloseZoom 隐藏）
+            var slots = DeckTokenSupport.EnumerateSlots(card);
+            CardData boundToken = null;
+            foreach (var g in slots.GroupBy(s => s.EffectIndex).OrderBy(g => g.Key))
+            {
+                var s0 = g.First();
+                var templateId = s0.NeedsBinding ? BindingOf(card.ID, s0.EffectIndex) : s0.FixedTemplateId;
+                var tpl = string.IsNullOrEmpty(templateId) ? null : CardCatalog.GetById(templateId);
+                if (tpl != null) { boundToken = tpl; break; }
+            }
+            if (boundToken != null)
+            {
+                if (_zoomTokenSlot == null)
+                {
+                    var go = new GameObject("zoom-token-card", typeof(RectTransform));
+                    _zoomTokenSlot = (RectTransform)go.transform;
+                    _zoomTokenSlot.SetParent(_zoomOverlay, false);
+                    _zoomTokenSlot.anchorMin = _zoomTokenSlot.anchorMax = new Vector2(0.5f, 0.5f);
+                    _zoomTokenSlot.pivot = new Vector2(0.5f, 0.5f);
+                    _zoomTokenSlot.anchoredPosition = new Vector2(640f, 0f);
+                    _zoomTokenSlot.sizeDelta = new Vector2(360f, 648f);
+                }
+                _zoomTokenSlot.gameObject.SetActive(true);
+                _zoomBindings.Add(new CardOverlayBinding
+                {
+                    Slot = _zoomTokenSlot,
+                    Item = CardOverlayItem.FromCardDataFull(boundToken, "ZoomToken"),
+                    Layout = CardOverlayLayout.Full,
+                });
+            }
+            else if (_zoomTokenSlot != null) _zoomTokenSlot.gameObject.SetActive(false);
             _zoomOverlay.gameObject.SetActive(true);
             RebindCardLayer();
         }
@@ -768,6 +994,7 @@ namespace SynergyUI
         {
             if (_zoomBindings.Count == 0) return;
             _zoomBindings.Clear();
+            if (_zoomTokenSlot != null) _zoomTokenSlot.gameObject.SetActive(false);
             if (_zoomOverlay != null) _zoomOverlay.gameObject.SetActive(false);
             RebindCardLayer();
         }
@@ -780,9 +1007,10 @@ namespace SynergyUI
         /// <summary>放大卡槽=设计矩形（每次重绑前归位；prefab 内 zoom-card 旧值不作数）。</summary>
         private static readonly Vector2 ZoomCardDesignSize = new Vector2(360f, 648f);
 
-        /// <summary>UGUI 卡面层重绑（preview-panel 重构后=放大卡专属；中栏预览=烘焙 ACard 直挂
-        /// 不经控制器）。放大=设计矩形槽 + 实例 localScale×ZoomCardScale（整体同比放大，
-        /// 2026-10-28 晚回退定案——文字随变换缩放，字号三档恒定不动态改）。</summary>
+        /// <summary>UGUI 卡面层重绑（preview-panel 重构后=放大卡+衍生物第二卡；中栏预览=烘焙 ACard
+        /// 直挂不经控制器）。放大=设计矩形槽 + 实例 localScale×ZoomCardScale（整体同比放大，
+        /// 2026-10-28 晚回退定案——文字随变换缩放，字号三档恒定不动态改）；
+        /// 预览区第二卡=token-expansion/slot 自带 localScale 0.52（槽级缩放，子实例随之）。</summary>
         private void RebindCardLayer()
         {
             if (_zoomSlot != null)
@@ -790,12 +1018,15 @@ namespace SynergyUI
                 _zoomSlot.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, ZoomCardDesignSize.x);
                 _zoomSlot.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, ZoomCardDesignSize.y);
             }
-            var all = new List<CardOverlayBinding>(_zoomBindings.Count);
+            var all = new List<CardOverlayBinding>(_zoomBindings.Count + 1);
             all.AddRange(_zoomBindings);
+            if (_tokenBinding != null) all.Add(_tokenBinding); // P4 §2：预览区第二张衍生物卡
             CardOverlayController.Instance.Bind(all);
 
             if (_zoomSlot != null && _zoomSlot.childCount > 0)
-                ((RectTransform)_zoomSlot.GetChild(0)).localScale = Vector3.one * ZoomCardScale;
+                ((RectTransform)_zoomSlot.GetChild(0)).localScale = Vector2.one * ZoomCardScale;
+            if (_zoomTokenSlot != null && _zoomTokenSlot.gameObject.activeSelf && _zoomTokenSlot.childCount > 0)
+                ((RectTransform)_zoomTokenSlot.GetChild(0)).localScale = Vector2.one * ZoomCardScale;
         }
 
         /// <summary>技能栏刷新：已设置=卡名+发动费区间+取消钮；未设置=空态提示（保存口必选拦截）。</summary>
@@ -933,6 +1164,7 @@ namespace SynergyUI
                 _nameField != null ? _nameField.text : _currentDeckName, _deckCardIds);
             var landShort = DeckCompositionValidator.CheckLandSupport(_deckCardIds);
             var bwGaps = DeckCompositionValidator.CheckBWCostCoverage(_deckCardIds);
+            var tokenErrors = DeckTokenSupport.ValidateDeck(_deckCardIds, _tokenCardIds, _tokenBindings); // P9b
             bool skillOk = !string.IsNullOrEmpty(_skillCardId);
 
             var lines = new List<string>();
@@ -940,8 +1172,8 @@ namespace SynergyUI
             string green = ColorUtility.ToHtmlStringRGB(UiStyle.DotGreen);
 
             // ---- 硬约束（任一不过=不可保存）----
-            if (report.CardCount > 0 && report.Ok && skillOk && bwGaps.Count == 0)
-                lines.Add($"<color=#{green}>✔ 构成约束通过（断链/形状/技能/黑白代价）" +
+            if (report.CardCount > 0 && report.Ok && skillOk && bwGaps.Count == 0 && tokenErrors.Count == 0)
+                lines.Add($"<color=#{green}>✔ 构成约束通过（断链/形状/技能/黑白代价/衍生物绑定）" +
                           (landShort.Count == 0 ? "·地源足" : "") + "</color>");
             else if (report.CardCount == 0)
                 lines.Add($"<color=#{ColorUtility.ToHtmlStringRGB(UiStyle.TextHint)}>" +
@@ -956,6 +1188,15 @@ namespace SynergyUI
             foreach (var gap in bwGaps)
                 lines.Add($"<color=#{red}>✘ {gap.CardName} 等卡施放需{DeckCompositionValidator.ColorZh(gap.Color)}元素，" +
                           $"卡组没有能补偿{DeckCompositionValidator.ColorZh(gap.Color)}的代价卡（至少带 1 张）——无法保存</color>");
+            // 衍生物绑定（P9b 硬约束——最多显两行，明细走绑定面板）
+            int tokenShown = 0;
+            foreach (var err in tokenErrors)
+            {
+                if (tokenShown++ >= 2) break;
+                lines.Add($"<color=#{red}>✘ {err}</color>");
+            }
+            if (tokenErrors.Count > 2)
+                lines.Add($"<color=#{red}>……另有 {tokenErrors.Count - 2} 项衍生物区/绑定问题</color>");
 
             // ---- 地源不足（advisory，不拦保存；区块放不下——两行折叠）----
             const int maxLandRows = 2;
@@ -1006,12 +1247,11 @@ namespace SynergyUI
             }
         }
 
-        /// <summary>颜色分布：六色计数（彩点+数字，富文本——色值取 UiStyle.Dot* 令牌）。
-        /// 两行制（2026-10-26 修复）：单行六组在运行时标签宽约 284px（块308−VLG边距16，曲线+颜色
-        /// 双列均分 608 内宽）下，第 4 组（灰）恰落断行边界——TMP 按空格断行会把「●」留在上行尾、
-        /// 色字挪下行（图标和文字不在一行）。显式两行（红蓝绿/灰黑白）消除断行歧义：三组/行
-        /// 最宽形态（两位数计数）约 221px，余量 60px+。组内串含空格，勿再回并单行。
-        /// 字体 PZD 无 U+00A0 字形——不可用不换行空格方案（会渲染缺字形）。</summary>
+        /// <summary>颜色分布：四色计数（彩点+数字，富文本——色值取 UiStyle.Dot* 令牌）。
+        /// 两行制沿用（2026-10-26 修复；2026-10-29 P4 色序清尾后黑白删除=四组）：单行多组在运行时
+        /// 标签宽约 284px（块308−VLG边距16）下有断行歧义——TMP 按空格断行会把「●」留在上行尾、
+        /// 色字挪下行。显式两行（红蓝绿/灰）三组/行最宽形态（两位数计数）约 221px，余量 60px+。
+        /// 组内串含空格，勿再回并单行。字体 PZD 无 U+00A0 字形——不可用不换行空格方案。</summary>
         private void BuildColorDistribution(List<CardData> cards)
         {
             var block = CloneStat("颜色分布", 170f, 308f, false);
@@ -1021,8 +1261,7 @@ namespace SynergyUI
 
             var pairs = new[] {
                 (UIColor.Red, UiStyle.DotRed, "红"), (UIColor.Blue, UiStyle.DotBlue, "蓝"),
-                (UIColor.Green, UiStyle.DotGreen, "绿"), (UIColor.Gray, UiStyle.DotGray, "灰"),
-                (UIColor.Black, UiStyle.DotBlack, "黑"), (UIColor.White, UiStyle.DotWhite, "白") };
+                (UIColor.Green, UiStyle.DotGreen, "绿"), (UIColor.Gray, UiStyle.DotGray, "灰") };
             var lines = new List<string>[] { new List<string>(), new List<string>() };
             for (int i = 0; i < pairs.Length; i++)
             {
@@ -1127,12 +1366,12 @@ namespace SynergyUI
             UiKit.Size(header, fw: 1f);
         }
 
-        /// <summary>卡组张数文案口径（预组/玩家档通用）：正卡数+衍生物M（模板不计张数——额外区配套）。</summary>
+        /// <summary>卡组张数文案口径（预组/玩家档通用）：正卡数+衍生物M（模板不计张数——额外区配套；
+        /// P9b：模板自 tokenCardIds 取，读取时旧档已规范化迁出 cardIds）。</summary>
         private static string DeckCountText(DeckData deck)
         {
-            int total = deck?.cardIds?.Count ?? 0;
-            int tokens = deck?.cardIds?.Count(IsTokenTemplateId) ?? 0;
-            int main = total - tokens;
+            int main = deck?.cardIds?.Count ?? 0;
+            int tokens = deck?.tokenCardIds?.Count ?? 0;
             return tokens > 0 ? $"{main} 张+衍生物{tokens}" : $"{main} 张";
         }
 
@@ -1170,8 +1409,8 @@ namespace SynergyUI
                 ShowToast("预组读取失败");
                 return;
             }
-            int tokens = deck.cardIds.Count(IsTokenTemplateId);
-            int main = deck.cardIds.Count - tokens;
+            int tokens = deck.tokenCardIds?.Count ?? 0; // P9b：区独立（读取已规范化）
+            int main = deck.cardIds.Count;
             string skillPart = string.IsNullOrEmpty(deck.skillCardId) ? "" : "、技能卡";
             if (await Tips.ShowAsync(
                     $"复制预组「{presetName}」为可修改副本？\n" +
@@ -1213,6 +1452,8 @@ namespace SynergyUI
                 _selectedDeckName = null;
                 _deckCardIds.Clear();
                 _skillCardId = null;
+                _tokenCardIds.Clear();
+                _tokenBindings.Clear();
                 _previewCard = null;
                 RefreshAll();
             }
@@ -1221,6 +1462,7 @@ namespace SynergyUI
         }
 
         /// <summary>载入卡组到左栏编辑：技能标记读取+自愈（旧档 null/资格失效→清）。
+        /// 衍生物区/槽绑定随档读取（P9b；绑定自愈=清掉卡组里已无该卡的条目）。
         /// 未保存改动会被直接覆盖（与旧下拉载入同语义，toast 提示）。</summary>
         private void LoadDeck(string name)
         {
@@ -1240,6 +1482,12 @@ namespace SynergyUI
             {
                 _skillCardId = deck.skillCardId;
             }
+            _tokenCardIds.Clear();
+            if (deck.tokenCardIds != null)
+                _tokenCardIds.AddRange(deck.tokenCardIds.Where(id => !string.IsNullOrEmpty(id)));
+            _tokenBindings.Clear();
+            if (deck.tokenBindings != null)
+                _tokenBindings.AddRange(deck.tokenBindings.Where(b => b != null && !string.IsNullOrEmpty(b.cardId)));
             _selectedDeckName = name;
             _currentDeckName = deck.name;
             if (_nameField != null)
@@ -1250,11 +1498,13 @@ namespace SynergyUI
             ShowToast($"已载入：{deck.name}（改动须点「保存」生效）");
         }
 
-        /// <summary>新建空卡组：清卡组/技能/卡组列表选中/卡名（未保存改动直接放弃——先保存再新建）。</summary>
+        /// <summary>新建空卡组：清卡组/技能/衍生物区与绑定/卡组列表选中/卡名（未保存改动直接放弃——先保存再新建）。</summary>
         private void OnNewDeck()
         {
             _deckCardIds.Clear();
             _skillCardId = null;
+            _tokenCardIds.Clear();
+            _tokenBindings.Clear();
             _selectedDeckName = null;
             _currentDeckName = "";
             _previewCard = null;
@@ -1337,8 +1587,17 @@ namespace SynergyUI
             if (bwGaps.Count > 0)
             {
                 var g0 = bwGaps[0];
-                ShowToast($"卡组有卡施放需{DeckCompositionValidator.ColorZh(g0.Color)}元素（如 {g0.CardName}），" +
-                          $"但没有能补偿{DeckCompositionValidator.ColorZh(g0.Color)}的代价卡——至少带 1 张对应代价卡才可保存");
+                ShowToast($"卡组有卡施放需{DeckCompositionValidator.ColorZh(g0.Color)}元素（如 {g0.CardName}），"
+                          + $"但没有能补偿{DeckCompositionValidator.ColorZh(g0.Color)}的代价卡——至少带 1 张对应代价卡才可保存");
+                return;
+            }
+
+            // 衍生物区/槽绑定（P9b 硬约束）：带槽效果须绑定、绑定值 ∈ 区、模板类型合规、
+            // 区容量 ≤6 无重复——首错直达具体卡与槽
+            var tokenErrors = DeckTokenSupport.ValidateDeck(_deckCardIds, _tokenCardIds, _tokenBindings);
+            if (tokenErrors.Count > 0)
+            {
+                ShowToast(tokenErrors[0] + (tokenErrors.Count > 1 ? $"（共 {tokenErrors.Count} 项）" : "") + "——无法保存");
                 return;
             }
 
@@ -1362,6 +1621,11 @@ namespace SynergyUI
             {
                 cardIds = new List<string>(_deckCardIds),
                 skillCardId = _skillCardId,
+                tokenCardIds = new List<string>(_tokenCardIds), // P9b 衍生物区随组落盘
+                tokenBindings = _tokenBindings
+                    .Where(b => b != null && _deckCardIds.Contains(b.cardId)) // P9b 绑定（剔卡组外陈旧条目）
+                    .Select(b => new DeckTokenBinding(b.cardId, b.effectIndex, b.templateId))
+                    .ToList(),
             };
             var path = DeckSerializer.Save(deck);
             if (path != null) TutorialCreationFlow.NotifyDecksChanged(); // 第三课走查步检测（未开课零行为）
@@ -1371,6 +1635,187 @@ namespace SynergyUI
             _selectedDeckName = name;
             _currentDeckName = name;
             RefreshDecksList(); // 保存行高亮对账
+        }
+
+        // ======================================== 衍生物区 / 槽绑定面板（P9b·代码搭弹层） ========================================
+
+        /// <summary>槽绑定读值：null=未绑定。</summary>
+        private string BindingOf(string cardId, int effectIndex)
+        {
+            foreach (var b in _tokenBindings)
+                if (b.cardId == cardId && b.effectIndex == effectIndex)
+                    return b.templateId;
+            return null;
+        }
+
+        /// <summary>槽绑定写值：templateId=null=解绑（条目移除）。</summary>
+        private void SetBinding(string cardId, int effectIndex, string templateId)
+        {
+            for (int i = _tokenBindings.Count - 1; i >= 0; i--)
+                if (_tokenBindings[i].cardId == cardId && _tokenBindings[i].effectIndex == effectIndex)
+                    _tokenBindings.RemoveAt(i);
+            if (!string.IsNullOrEmpty(templateId))
+                _tokenBindings.Add(new DeckTokenBinding(cardId, effectIndex, templateId));
+        }
+
+        /// <summary>模板预览串（身材/类型+关键词前三）：绑定面板与区管理的 meta 行。</summary>
+        private static string TemplatePreview(CardData card)
+        {
+            if (card == null) return "?";
+            var kws = (card.Keywords ?? new List<string>()).Where(k => !string.IsNullOrEmpty(k)).Take(3).ToList();
+            return TypeStatLine(card) + (kws.Count > 0 ? "·" + string.Join("/", kws) : "");
+        }
+
+        /// <summary>关绑定/区管理弹层（在途面板拆毁）。</summary>
+        private void CloseTokenPopup()
+        {
+            if (_tokenPopup == null) return;
+            UnityEngine.Object.Destroy(_tokenPopup.gameObject);
+            _tokenPopup = null;
+        }
+
+        /// <summary>（重）建弹层：全屏压暗+居中面板+标题/关闭行，返回滚动内容容器（视图自行填充）。</summary>
+        private RectTransform BeginTokenPopup(string title)
+        {
+            CloseTokenPopup();
+            var overlay = UiKit.Overlay("token-popup", _overlay);
+            var dim = overlay.gameObject.AddComponent<Image>();
+            dim.color = new Color(0f, 0f, 0f, 0.72f); // 压暗+拦截点击
+            var dimBtn = overlay.gameObject.AddComponent<UButton>();
+            dimBtn.transition = UButton.Transition.None;
+            dimBtn.onClick.AddListener(CloseTokenPopup);
+
+            var panel = UiKit.Panel("panel", overlay, pad: 10f, spacing: 6f);
+            panel.anchorMin = panel.anchorMax = panel.pivot = new Vector2(0.5f, 0.5f);
+            panel.sizeDelta = new Vector2(680f, 660f);
+
+            var header = UiKit.Row("header", panel, spacing: 8f);
+            UiKit.Size(UiKit.Label("title", header, title, 16, UiStyle.TextSecondary, style: FontStyle.Bold), fw: 1f);
+            UiKit.Button("btn-close", header, "关闭", CloseTokenPopup, height: 30f, fontSize: 13);
+
+            var body = UiKit.ScrollColumn("list", panel, spacing: 4f, pad: 6f);
+            UiKit.Size(body.Rect, fh: 1f); // 滚动列占满面板剩余高度
+            _tokenPopup = overlay;
+            return body.Content;
+        }
+
+        /// <summary>绑定面板（P9b §6）：列出该卡的带槽效果，逐槽显示当前绑定，选择模板/管理区。</summary>
+        private void OpenTokenBindingPanel(CardData card)
+        {
+            var slotted = DeckTokenSupport.SlottedEffects(card);
+            if (slotted.Count == 0)
+            {
+                ShowToast("该卡没有需要绑定的衍生物/变形槽");
+                return;
+            }
+            var content = BeginTokenPopup($"衍生物槽绑定——{NameOf(card)}");
+            UiKit.Label("hint", content,
+                "同名副本共享绑定（按卡+效果序绑定，不给每张副本单独选）；模板须先入衍生物区。",
+                12, UiStyle.TextHint);
+            foreach (var (effectIndex, effectName, slotCount) in slotted)
+            {
+                var idx = effectIndex;
+                var row = UiKit.Row("slot-" + idx, content, spacing: 8f);
+                UiKit.Size(UiKit.Label("effect", row, $"效果{idx + 1}·{effectName}（{slotCount} 槽）", 13), w: 250f);
+                var bound = BindingOf(card.ID, idx);
+                var boundCard = bound != null ? CardCatalog.GetById(bound) : null;
+                UiKit.Size(UiKit.Label("state", row,
+                    bound != null
+                        ? (boundCard != null ? $"已绑：{NameOf(boundCard)}（{TemplatePreview(boundCard)}）" : $"已绑：{bound}（断链）")
+                        : "未绑定",
+                    13, bound != null ? UiStyle.TextBody : UiStyle.DotRed), fw: 1f);
+                UiKit.Button("btn-pick", row, "选择模板", () => OpenTemplatePicker(card, idx), height: 30f, fontSize: 13);
+            }
+            var footer = UiKit.Row("footer", content, spacing: 8f);
+            UiKit.Size(UiKit.Label("note", footer, "衍生物区（模板池，上限 6）", 13, UiStyle.TextHint), fw: 1f);
+            UiKit.Button("btn-zone", footer, "管理衍生物区", OpenZoneManager, height: 30f, fontSize: 13);
+        }
+
+        /// <summary>模板选择视图：从衍生物区选一张绑到指定槽；区空引导去管理。</summary>
+        private void OpenTemplatePicker(CardData card, int effectIndex)
+        {
+            var content = BeginTokenPopup($"选择模板——{NameOf(card)}·效果{effectIndex + 1}");
+            if (_tokenCardIds.Count == 0)
+            {
+                UiKit.Label("empty", content, "（衍生物区为空——先添加模板再回来绑定）", 13, UiStyle.TextHint);
+                UiKit.Button("btn-zone", content, "去管理衍生物区", OpenZoneManager, height: 32f);
+                return;
+            }
+            foreach (var id in _tokenCardIds)
+            {
+                var templateId = id;
+                var tpl = CardCatalog.GetById(templateId);
+                var row = UiKit.Row("tpl-" + templateId, content, spacing: 8f);
+                UiKit.Size(UiKit.Label("name", row, tpl != null ? NameOf(tpl) : "[断链] " + templateId, 13,
+                    tpl != null ? UiStyle.TextBody : UiStyle.DotRed), w: 180f);
+                UiKit.Size(UiKit.Label("meta", row, tpl != null ? TemplatePreview(tpl) : "卡表查不到", 12, UiStyle.TextFaint), fw: 1f);
+                var current = BindingOf(card.ID, effectIndex) == templateId;
+                UiKit.Button("btn-bind", row, current ? "已绑 ✓" : "绑定",
+                    () =>
+                    {
+                        SetBinding(card.ID, effectIndex, templateId);
+                        RefreshDeckList();
+                        RefreshStats();
+                        BuildPreview(); // P4 §2：选中展开区随绑定即时对账（第二卡/占位行）
+                        OpenTokenBindingPanel(card); // 回槽视图刷新状态
+                    },
+                    bg: current ? UiStyle.SelectedRowBg : null, height: 30f, fontSize: 13);
+            }
+            UiKit.Label("back", content, "← 返回槽列表请点「关闭」后重开卡行（或先管理区）", 12, UiStyle.TextHint);
+        }
+
+        /// <summary>衍生物区管理视图（P9b §6）：容量计数、移除、候选添加（全表生物，剔除教学专用与区内在册）。</summary>
+        private void OpenZoneManager()
+        {
+            var content = BeginTokenPopup($"衍生物区管理 {_tokenCardIds.Count}/{DeckTokenSupport.TokenZoneCapacity}");
+            UiKit.Label("hint", content, "模板=任意生物卡：入区后可在带槽卡的绑定面板选用；随组入局落额外区（不占 30-60 张）。", 12, UiStyle.TextHint);
+
+            UiKit.Label("zone-title", content, "已入区", 13, UiStyle.TextSecondary);
+            if (_tokenCardIds.Count == 0)
+                UiKit.Label("zone-empty", content, "（空——从下方列表添加）", 12, UiStyle.TextHint);
+            foreach (var id in _tokenCardIds.ToList())
+            {
+                var templateId = id;
+                var tpl = CardCatalog.GetById(templateId);
+                var row = UiKit.Row("zone-" + templateId, content, spacing: 8f);
+                UiKit.Size(UiKit.Label("name", row, tpl != null ? NameOf(tpl) : "[断链] " + templateId, 13), w: 180f);
+                UiKit.Size(UiKit.Label("meta", row, tpl != null ? TemplatePreview(tpl) : "卡表查不到", 12, UiStyle.TextFaint), fw: 1f);
+                UiKit.Button("btn-del", row, "移除", () =>
+                {
+                    _tokenCardIds.Remove(templateId);
+                    RefreshAll();
+                    OpenZoneManager(); // 自刷新（绑定失效由校验标红）
+                }, bg: UiStyle.BtnDanger, height: 30f, fontSize: 13);
+            }
+
+            UiKit.Label("add-title", content, "添加模板（生物）", 13, UiStyle.TextSecondary);
+            bool full = _tokenCardIds.Count >= DeckTokenSupport.TokenZoneCapacity;
+            if (full)
+                UiKit.Label("zone-full", content, $"（区已满 {DeckTokenSupport.TokenZoneCapacity}——先移除再添加）", 12, UiStyle.DotRed);
+            var inZone = new HashSet<string>(_tokenCardIds);
+            var candidates = CardSorter.Sort(CardCatalog.LoadAll()
+                .Where(c => c != null && c.Supertype == Cardtype.Creature
+                            && !CardCatalog.IsTeachingCard(c) && !inZone.Contains(c.ID)))
+                .ToList();
+            foreach (var tpl in candidates)
+            {
+                var card = tpl;
+                var row = UiKit.Row("add-" + card.ID, content, spacing: 8f);
+                UiKit.Size(UiKit.Label("cost", row, ((int)card.TotalCost).ToString(), 13, UiStyle.TextFaint), w: 30f);
+                UiKit.Size(UiKit.Label("name", row, NameOf(card), 13), w: 170f);
+                UiKit.Size(UiKit.Label("meta", row, TemplatePreview(card), 12, UiStyle.TextFaint), fw: 1f);
+                UiKit.Button("btn-add", row, full ? "区满" : "添加", () =>
+                {
+                    if (_tokenCardIds.Count >= DeckTokenSupport.TokenZoneCapacity)
+                    {
+                        ShowToast($"衍生物区已满（上限 {DeckTokenSupport.TokenZoneCapacity}）");
+                        return;
+                    }
+                    _tokenCardIds.Add(card.ID);
+                    RefreshAll();
+                    OpenZoneManager();
+                }, height: 30f, fontSize: 13);
+            }
         }
 
         // ======================================== 小件 ========================================

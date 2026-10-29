@@ -19,16 +19,15 @@ namespace SynergyUI
 
         public BattleHudTicker(Func<BattleViewData> view) => _view = view;
 
-        /// <summary>每帧驱动（Updater 转发）：4Hz 到点重写两组格子。</summary>
+        /// <summary>每帧驱动（Updater 转发）：4Hz 到点重写各功能格。</summary>
         public void Tick()
         {
             _accum += Time.deltaTime;
             if (_accum < 0.25f) return;
             _accum = 0;
             RefreshChainSpeed(); // 记速器 4Hz 兜底重写（格装台晚于本屏/栈事件间隙同周期覆盖）
-            // 人机对局：时间无限（不建钟不掉秒）
-            BattleHudRow.SetStatusValue(BattleHudRow.SelfTimeCol, "∞");
-            BattleHudRow.SetStatusValue(BattleHudRow.OppTimeCol, "∞");
+            // 人机对局：时间无限（不建钟不掉秒）——可用时间一格（P11 合一）显示当前操作方，恒 ∞
+            BattleHudRow.SetStatusValue(BattleHudRow.TimeCol, "∞");
         }
 
         /// <summary>连锁速度格（中线 x3）喂文（2026-10-15 接线）：本地引擎记速器实值——

@@ -6,15 +6,15 @@ using CardCore;
 namespace SynergyUI
 {
     /// <summary>
-    /// 卡池全局排序（2026-09-24 定案：颜色灰→红→蓝→绿→黑→白，再按费用小→大，全局统一口径）。
-    /// 卡牌合成/卡组构建等界面共用；过滤延续效果组合界面（颜色 chip + 谓词）。
+    /// 卡池全局排序（2026-09-24 定案沿用，2026-10-29 P4 五类定案：颜色灰→红→蓝→绿，再按费用小→大，
+    /// 全局统一口径）。卡牌合成/卡组构建等界面共用；过滤延续效果组合界面（颜色 chip + 谓词）。
     ///
-    /// 卡主色判定：非灰费用额最高者（并列取红→蓝→绿→黑→白序——同额时靠前的色优先）；
+    /// 卡主色判定：非灰费用额最高者（并列取红→蓝→绿序——同额时靠前的色优先）；
     /// 无彩色费用（纯灰/零费）归灰。过滤口径与排序口径分离：过滤看费用构成是否含该色。
     /// </summary>
     public static class CardSorter
     {
-        /// <summary>排序色序（灰红蓝绿黑白定案序；All 不参与排序）。</summary>
+        /// <summary>排序色序（灰红蓝绿定案序；All 不参与排序；白/黑已随 2026-10-29 P4 色序清尾删除）。</summary>
         public static int ColorRank(UIColor color)
         {
             switch (color)
@@ -23,13 +23,11 @@ namespace SynergyUI
                 case UIColor.Red: return 1;
                 case UIColor.Blue: return 2;
                 case UIColor.Green: return 3;
-                case UIColor.Black: return 4;
-                case UIColor.White: return 5;
                 default: return 0;
             }
         }
 
-        /// <summary>卡主色（排序/分组口径）：非灰费用额最高者，并列取红→蓝→绿→黑→白序；无彩色=灰。</summary>
+        /// <summary>卡主色（排序/分组口径）：非灰费用额最高者，并列取红→蓝→绿序；无彩色=灰。</summary>
         public static UIColor PrimaryColor(CardData card)
         {
             if (card == null || card.Cost == null || card.Cost.IsZero) return UIColor.Gray;
@@ -55,7 +53,7 @@ namespace SynergyUI
             return card.Cost[ToMana(color)] > 0f;
         }
 
-        /// <summary>全局统一排序：颜色（灰红蓝绿黑白）→ 费用小→大 → 名称（当前文化序）。</summary>
+        /// <summary>全局统一排序：颜色（灰红蓝绿）→ 费用小→大 → 名称（当前文化序）。</summary>
         public static IEnumerable<CardData> Sort(IEnumerable<CardData> cards)
         {
             return cards
@@ -64,10 +62,11 @@ namespace SynergyUI
                 .ThenBy(c => c.CardName ?? "", System.StringComparer.CurrentCulture);
         }
 
-        /// <summary>类型中文（卡池分组/预览行）：生物 / 法术 / 结界，其他超类回退枚举名
+        /// <summary>类型中文（卡池分组/预览行）：生物 / 法术 / 结界，场地结界（P8 IsField）单列「场地」
         ///（2026-10-10 改口定案：原「瞬间」——2026-10-15 速度定案后法术速度来自卡型免费额度，不再叫瞬间）。</summary>
         public static string TypeName(CardData card)
         {
+            if (card?.Supertype == Cardtype.Enchantment && card.IsField) return "场地";
             switch (card?.Supertype)
             {
                 case Cardtype.Creature: return "生物";
@@ -100,7 +99,7 @@ namespace SynergyUI
                 case UIColor.Red: return ManaType.Red;
                 case UIColor.Blue: return ManaType.Blue;
                 case UIColor.Green: return ManaType.Green;
-                default: return ManaType.Gray; // 白/黑 chip（UI 遗留）落灰
+                default: return ManaType.Gray; // All/灰落灰（白/黑 chip 已随 2026-10-29 P4 删除）
             }
         }
     }

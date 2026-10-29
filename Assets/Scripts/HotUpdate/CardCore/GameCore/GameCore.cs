@@ -547,16 +547,20 @@ namespace CardCore
 
         /// <summary>
         /// 从CardData列表初始化游戏
+        /// tokenBindings1/2（P9b 2026-10-29）：卡组期衍生物槽绑定随装载盖到双方卡实例
+        /// （CardLoader.BuildDeck→DeckTokenSupport.Apply）；null=无绑定（旧数据固定绑定/教程）。
         /// </summary>
         public void InitGame(List<CardData> deck1Data, List<CardData> deck2Data, int copiesPerCard = 1,
             int? rngSeed = null, bool lockDeckOrder = false,
             bool skipOpeningDraw = false, bool deferStart = false,
             int p2LandCapBonus = 0, int p2ExtraOpeningDraws = 0,
             string skillCardId1 = null, string skillCardId2 = null,
-            Player startingPlayer = null)
+            Player startingPlayer = null,
+            List<SynergyUI.DeckTokenBinding> tokenBindings1 = null,
+            List<SynergyUI.DeckTokenBinding> tokenBindings2 = null)
         {
-            var deck1 = CardLoader.BuildDeck(deck1Data, copiesPerCard);
-            var deck2 = CardLoader.BuildDeck(deck2Data, copiesPerCard);
+            var deck1 = CardLoader.BuildDeck(deck1Data, copiesPerCard, tokenBindings1);
+            var deck2 = CardLoader.BuildDeck(deck2Data, copiesPerCard, tokenBindings2);
             InitGame(deck1, deck2, rngSeed, lockDeckOrder, skipOpeningDraw, deferStart,
                 p2LandCapBonus, p2ExtraOpeningDraws, skillCardId1, skillCardId2, startingPlayer);
         }

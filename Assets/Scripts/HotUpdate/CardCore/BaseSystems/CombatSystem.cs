@@ -144,6 +144,11 @@ namespace CardCore
                     return false;
             }
 
+            // 禁攻令（2026-10-29）：受光环影响方不能宣言攻击——单位按控制者、角色按宣言方判命中
+            if (RuleAuraSystem.ScopeHits(RuleAuraComponents.NoAttackAura,
+                    attacker is Card atkCard ? atkCard.GetController() : controller))
+                return false;
+
             // 检查是否已横置（宣言期已横置不可再宣；结算期横置在 ResolveAttackDeclaration 支付）
             if (attacker.IsTapped())
                 return false;
@@ -213,6 +218,12 @@ namespace CardCore
             {
                 return;
             }
+
+            // 重检（2026-10-29 禁守令）：卡牌守卫者失守卫能力 / 角色守卫者被禁守光环覆盖 → 拦截落空
+            if (guarder is Card gCard && !gCard.HasGuardAbility())
+                return;
+            if (guarder is Player gp && RuleAuraSystem.ScopeHits(RuleAuraComponents.NoGuardAura, gp))
+                return;
 
             // 攻击目标变更：改写攻击宣言对象的目标（攻击结算时按改写后目标走 CanAttackTarget 重检）
             attack.Targets[0] = guarder;

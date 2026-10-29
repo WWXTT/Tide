@@ -14,7 +14,7 @@ namespace GameBoard
     }
 
     /// <summary>
-    /// 对战棋盘的六边形数学（9×6，纯 C#，无 Unity 依赖）。
+    /// 对战棋盘的六边形数学（7×7·2026-10-29 P11 盘形 6765676，纯 C#，无 Unity 依赖）。
     ///
     /// 【奇偶约定（odd-r，钉死不改）】尖顶六边形、水平行排列、奇数行向右偏移半格
     /// ——（单一事实源）cell 世界坐标 x = (offsetX + z*0.5 - z/2) × 内径×2，奇数行 +0.5；
@@ -25,9 +25,9 @@ namespace GameBoard
     /// </summary>
     public static class BoardMath
     {
-        public const int Width = 8;   // 2026-10-14 晚缩盘定案：9→8（地牌一元素一格只需 6 格，
-                                      // 地牌行让出上限格，两侧特殊格列随之收拢一列）
-        public const int Height = 7;  // 2026-10-14 中线加行定案：6→7（z3 中线状态行 7 格）
+        public const int Width = 7;   // 2026-10-29 P11 盘面重塑 6-7-6 定案：8→7（行格数 6/7/6 每半场，
+                                      // 中线 5 格居中——全盘 6765676 共 43 格）
+        public const int Height = 7;  // 2026-10-14 中线加行定案：6→7（z3 中线状态行）
 
         /// <summary>row-major 一维索引（row-major 惯例：index = z * Width + x）</summary>
         public static int Index(int x, int z) => z * Width + x;

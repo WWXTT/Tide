@@ -59,26 +59,21 @@ namespace SynergyUI
         public static readonly Color DotBlue = Rgb(84, 138, 242);
         public static readonly Color DotGreen = Rgb(74, 200, 108);
         public static readonly Color DotGray = Rgb(148, 154, 166);
-        public static readonly Color DotBlack = Rgb(20, 21, 26);
-        public static readonly Color DotWhite = Rgb(240, 243, 248);
         public static readonly Color DotBorder = new Color(0.92f, 0.94f, 0.96f, 0.45f);
 
         // ---------- 元素色块（2026-10-24 七组配色定案：CostSquares 费用块底色与战场3D 地牌锁色环共用单源） ----------
         // Dot* 是深底小圆点的提亮饱和版——作大块底/常驻发光环时高饱和刺眼，且白字承数字对比不足
-        // （对 DotGreen 仅约 2.2:1）；本组=同语义深调压饱和色，六色色相保持可辨。
+        // （对 DotGreen 仅约 2.2:1）；本组=同语义深调压饱和色，五组色相保持可辨。
         // 任意=万能货币鎏金压深档（战斗侧槽位专用——费用不使用 Any）。
-        // 黑为深近黑（UI 块配浅字用）；additive 发光环/粒子介质渲染不出黑——消费侧保留紫罗兰替代
-        // （介质约束，非配色分歧）。
+        // 白/黑两组的色点与色块字段（Dot/ManaBlock 共四个）已随 2026-10-29 P4 色序清尾删除
+        //（白/黑 ManaType 席位 2026-10-28 P2 删后全仓零引用）。
         public static readonly Color ManaBlockGray = Rgb(98, 104, 118);
         public static readonly Color ManaBlockRed = Rgb(172, 64, 64);
         public static readonly Color ManaBlockBlue = Rgb(62, 104, 170);
         public static readonly Color ManaBlockGreen = Rgb(56, 122, 78);
-        public static readonly Color ManaBlockWhite = Rgb(226, 231, 239);
-        public static readonly Color ManaBlockBlack = Rgb(24, 24, 32);
         public static readonly Color ManaBlockAny = Rgb(160, 120, 48);
 
-        /// <summary>ManaType → 元素色块底色（2026-10-28 P2 后五组=四色+任意；灰及未来扩色回退灰组）。
-        /// 白/黑 case 已随 ManaType 席位收缩删除；ManaBlockWhite/Black 色值字段保留（battle 侧遗留消费）。</summary>
+        /// <summary>ManaType → 元素色块底色（2026-10-29 P4 后五组=四色+任意；灰及未来扩色回退灰组）。</summary>
         public static Color ManaBlockColor(ManaType m) => m switch
         {
             ManaType.Red => ManaBlockRed,

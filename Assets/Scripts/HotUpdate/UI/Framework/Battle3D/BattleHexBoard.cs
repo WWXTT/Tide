@@ -15,10 +15,13 @@ namespace SynergyUI
     /// 整链退役（材质实例会被 Unity 在域边界销毁而静态字典跨边界残留 fake-null，重开工程后
     /// 全盘粉红；资产材质引用永生）。分区配色（BattleBoardZones 15 区）待材质资产化方案回归。
     ///
-    /// 规格=全盘 8×7 盘形 7876787（2026-10-28 元素缩编收边）：BoardLayout 全盘实拼 50 tile
-    /// （中线状态行 6 格 x0..x5 + 四角缺口 (0,0)/(0,2)/(7,4)/(7,6) 不拼）——双方可用带 + 中线行 6 格 +
-    /// 两侧列特殊格（卡组/墓地/除外/角色）+ 地盘行备用/万能格全部入盘拼装，角色柱不再悬空。
+    /// 规格=全盘 7×7 盘形 6765676（2026-10-29 P11 盘面重塑）：BoardLayout 全盘实拼 43 tile
+    /// （每半场行格数 6/7/6 + 中线 5 格居中；缺口 6=六格行尾格 z0/z2 的 x6、z4/z6 的 x0 +
+    /// 中线两端 (0,3)/(6,3)）——双方可用带 + 中线行 + 两侧特殊格（角色/场地/墓地/除外/卡组/万能）
+    /// 全部入盘拼装，角色柱不再悬空。
     /// BoardLayout 常量重映射后拼装自动跟随（遍历全盘常量而非硬编码坐标）。
+    /// 注意（P11 过渡态）：BattleStage.prefab 内 Board 为旧 50 格预烘焙——重烘焙前 Build() 的
+    /// prefab 路径与 BoardLayout 不符（SelfCheck 红属预期），重烘焙归用户。
     ///
     /// 通路：BattleStageDirector 装台③ → Build() → BattleBoardGrid.Mount；
     /// 格心公式单一事实源=BattleBoardGrid.CellCenterLocal。
@@ -83,16 +86,15 @@ namespace SynergyUI
             }
 
             var root = new GameObject("BattleBoardRoot");
-            // 2026-10-14 中线加行（9×7）：新盘世界 z 0..9 中心 4.5，整体偏移 −0.75 复位旧盘中心 3.75——
-            // 保住定档相机取景（FrameBoardCamera 固定机位不重算；10-14 晚改档 (7,8,-4)/(50,0,0)）。
-            // 当晚缩盘 8×7：偶行世界 x 0..7 中心 3.5，再偏移 +0.866（半格内径）复位旧盘中心 4——
+            // 2026-10-29 P11 盘面重塑（7×7）：偶行世界 x 0..6、奇行 +0.5 至 6.5——盘面 x 中心 3.25，
+            // 偏移 +0.75 复位定档盘心 x=4；z 向 0..9 中心 4.5，偏移 −0.75 复位 3.75（沿用 10-14 口径）。
             // 双偏移后盘心仍落 (4, 3.75)，定档相机取景不动。
-            root.transform.position = new Vector3(0.866f, 0f, -0.75f);
+            root.transform.position = new Vector3(0.75f, 0f, -0.75f);
             int count = 0, zoned = 0;
             for (int z = 0; z < BoardLayout.Height; z++)
                 for (int x = 0; x < BoardLayout.Width; x++)
                 {
-                    if (BoardLayout.NoTileAt(x, z)) continue; // 缺口（中线 x6/x7 + 四角）不拼格
+                    if (BoardLayout.NoTileAt(x, z)) continue; // 缺口（六格行尾格 + 中线两端）不拼格
                     var tile = Object.Instantiate(prefab, root.transform, false);
                     tile.name = $"tile-{x}-{z}";
                     tile.transform.localPosition = BattleBoardGrid.CellCenterLocal(x, z);
@@ -129,9 +131,9 @@ namespace SynergyUI
                     count++;
                 }
 
-            Debug.Log($"[BattleHexBoard] 拼装 {BoardLayout.Width}×{BoardLayout.Height}（盘形7876787·缺口6）：{count} 格"
+            Debug.Log($"[BattleHexBoard] 拼装 {BoardLayout.Width}×{BoardLayout.Height}（盘形6765676·缺口6）：{count} 格"
                       + $"（BattleHex.prefab 实例，分区配色 {zoned}/{count}"
-                      + "，未配格=预制体自带材质；root (+0.866,-0.75) 居中）");
+                      + "，未配格=预制体自带材质；root (+0.75,-0.75) 居中）");
             return root;
         }
     }

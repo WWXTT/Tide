@@ -420,7 +420,8 @@ namespace SynergyUI
             return card;
         }
 
-        /// <summary>显式落位格是否在该玩家的单位区格集内（P1 行 3/4、P2 行 2/1，列 1..7；2026-10-13 缩盘后口径）。</summary>
+        /// <summary>显式落位格是否在该玩家的单位区格集内（P1 行 1/2、P2 行 4/5；2026-10-29 P11
+        /// 盘面重塑后口径——近中线行 4 格、近己方行 5 格，配置钉随盘形同步改）。</summary>
         private static bool IsUnitCell(Player owner, int x, int z)
         {
             var cells = BoardLayout.UnitCells(owner == GameCore.Instance.Player1 ? 0 : 1);

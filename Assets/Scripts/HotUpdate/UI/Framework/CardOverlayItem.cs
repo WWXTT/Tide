@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using CardCore;
+using CardCore.Attribute;
 
 namespace SynergyUI
 {
@@ -22,7 +23,7 @@ namespace SynergyUI
         public string Key;              // 池化/增量刷新键（对战=RuntimeId；构筑=CardId）
         public string Name = "";
         public string CostText = "";    // 如「红2 灰1」（文本兜底——方格缺数据时卡面仍可显示）
-        public ElementCost Costs;       // 费用明细（2026-10-04 位置数组口径——卡面费用方格显示）
+        public ElementCost Costs;       // 费用明细（净费口径——CardNetCost.NetCostOf 实时推导，P4 2026-10-29）
         public string StatsText = "";   // 如「3/2」「耐久2」
         public string TypeText = "";    // 生物/法术/结界…
         public string KeywordsText = "";
@@ -86,7 +87,8 @@ namespace SynergyUI
             var it = new CardOverlayItem { Key = key };
             if (d == null) return it;
             it.Name = string.IsNullOrEmpty(d.CardName) ? d.ID : d.CardName;
-            if (d.Cost != null && !d.Cost.IsZero) it.Costs = d.Cost;
+            var net = CardNetCost.NetCostOf(d); // 净费实时推导（P4 2026-10-29）——不读 costList 显示缓存
+            if (!net.IsZero) it.Costs = net;
             it.Supertype = d.Supertype;
             it.Illustration = d.Illustration ?? "";
             it.AttributeText = AttributeTextOf(d);
@@ -110,7 +112,7 @@ namespace SynergyUI
                     if (string.IsNullOrEmpty(text)) continue;
                     if (isActive && string.IsNullOrEmpty(it.ActiveEffectText))
                     {
-                        it.ActiveEffectText = text;
+                        it.ActiveEffectText = WithActiveNetFormula(text, fx);
                         it.ActiveEffectCost = fx.AnchorCost;
                         continue;
                     }
@@ -118,6 +120,15 @@ namespace SynergyUI
                 }
             }
             return it;
+        }
+
+        /// <summary>主动效果全文 + 净费公式内联（P4 §1.3·2026-10-29）：带效果级代价的主动效果
+        /// 追加「（发动费 X → 抵扣 Y → 净费 Z）」——与两合成器（P5）同源单口 CardComposerScreen.
+        /// ActiveEffectNetFeeFormula（EffectActivationGate.NetBill 只读不重算）；无代价行原样返回。</summary>
+        private static string WithActiveNetFormula(string text, CardEffectData fx)
+        {
+            var formula = CardComposerScreen.ActiveEffectNetFeeFormula(fx);
+            return formula == null ? text : $"{text}（{formula}）";
         }
 
         /// <summary>手牌全信息卡面 → 显示模型（2026-10-13，ACardView 专用）。
@@ -139,7 +150,11 @@ namespace SynergyUI
             if (data != null)
             {
                 if (string.IsNullOrEmpty(it.Name)) it.Name = string.IsNullOrEmpty(data.CardName) ? data.ID : data.CardName;
-                if (it.Costs == null && data.Cost != null && !data.Cost.IsZero) it.Costs = data.Cost;
+                if (it.Costs == null)
+                {
+                    var net = CardNetCost.NetCostOf(data); // 净费实时推导（P4 2026-10-29）——不读 costList 显示缓存
+                    if (!net.IsZero) it.Costs = net;
+                }
                 it.Supertype = data.Supertype;
                 it.Illustration = data.Illustration ?? "";
                 it.AttributeText = AttributeTextOf(data);
@@ -180,7 +195,7 @@ namespace SynergyUI
                     if (string.IsNullOrEmpty(text)) continue;
                     if (isActive && string.IsNullOrEmpty(it.ActiveEffectText))
                     {
-                        it.ActiveEffectText = text;
+                        it.ActiveEffectText = WithActiveNetFormula(text, fx); // P4 §1.3：净费公式内联
                         it.ActiveEffectCost = fx.AnchorCost;
                         continue;
                     }
@@ -223,9 +238,12 @@ namespace SynergyUI
             if (data == null) return;
             if (string.IsNullOrEmpty(it.Name))
                 it.Name = string.IsNullOrEmpty(data.CardName) ? data.ID : data.CardName;
-            if (string.IsNullOrEmpty(it.CostText)) it.CostText = BattleView.CostTextOf(data.Cost);
-            if (it.Costs == null && data.Cost != null && !data.Cost.IsZero)
-                it.Costs = data.Cost;
+            if (string.IsNullOrEmpty(it.CostText)) it.CostText = BattleView.CostTextOf(CardNetCost.NetCostOf(data));
+            if (it.Costs == null)
+            {
+                var net = CardNetCost.NetCostOf(data); // 净费实时推导（P4 2026-10-29）
+                if (!net.IsZero) it.Costs = net;
+            }
             if (string.IsNullOrEmpty(it.TypeText)) it.TypeText = BattleView.SupertypeZh(data.Supertype);
             // 立绘（2026-10-15 接线修复）：FromBattle/FromCardData 消费面（手牌初始构建/预览/列卡/构筑列表）
             // 此前漏填——ACardView 占位图"全同卡面"根因；与 FromHand/FromCardDataFull 同口径合并。
@@ -262,7 +280,7 @@ namespace SynergyUI
                 parts.Add($"生命{d.Life ?? 0}");
             }
             else if (d.Supertype == Cardtype.Enchantment)
-                parts.Add($"耐久{CardCompositionCost.TotalDurabilityOf(d)}");
+                parts.Add((d.IsField ? "场地·" : "") + $"耐久{CardCompositionCost.TotalDurabilityOf(d)}"); // P4 §1.5：场地结界加「场地·」前缀（与合成器卡面摘要同措辞）
             return parts.Count == 0 ? "" : string.Join(" ", parts);
         }
 
@@ -289,27 +307,102 @@ namespace SynergyUI
             return string.Join("\n", lines);
         }
 
-        /// <summary>代价行（2026-10-16 组装效果代价；2026-10-21 补效果级 costs）：原子序列以「＋」连接
-        /// （legacy 单条折入同口）；效果级 Costs 的 payload 原子并入——主动效果的代价由执行器现付同源
-        ///（破釜沉舟：自伤1→获得1黑），此前只读卡层 PayloadCost 导致 ACard 卡面 cost 行恒空；
-        /// 补偿后缀与合成器同源（CardComposerScreen.PayloadGrantText）。null=无代价行。</summary>
+        /// <summary>代价行（2026-10-16 组装效果代价；2026-10-21 补效果级 costs；2026-10-29 P4 §1.1/1.4
+        /// 改版）：原子按极性分两臂标注——「代价（自伤）：…」（p&lt;0 锁己方）/「代价（资敌）：…」
+        ///（p&gt;0 锁对方，CostPayability 同判定），臂内以「＋」连接；行尾接三段式净费公式
+        /// 「推导 X − 代价抵扣 Y = 净费 Z」（CardNetCost.NetCostFormulaOf——有抵扣才显示）。
+        /// 效果级 Costs 的 payload 原子并入（主动效果的代价由执行器现付同源）。null=无代价行。</summary>
         private static string PayloadTextOf(CardData d)
         {
-            var parts = new List<string>();
+            var selfParts = new List<string>();   // 自伤臂（p<0 锁己方）
+            var enemyParts = new List<string>();  // 资敌臂（p≥0 表侧——p=0 为契约违例原子，按资敌位展示由校验另行标红）
             var atoms = new List<AtomicEffectEntry>();
-            foreach (var a in d?.PayloadCost?.AllPayloads() ?? new List<AtomicEffectEntry>())
-                if (a != null && !string.IsNullOrEmpty(a.refId)) { parts.Add(AtomText.RenderAtomEntry(a)); atoms.Add(a); }
+            void Collect(AtomicEffectEntry a)
+            {
+                if (a == null || string.IsNullOrEmpty(a.refId)) return;
+                var text = AtomText.RenderAtomEntry(a);
+                (AtomicEffectTable.GetByHashId(a.refId)?.Polarity < 0f ? selfParts : enemyParts).Add(text);
+                atoms.Add(a);
+            }
+            foreach (var a in d?.PayloadCost?.AllPayloads() ?? new List<AtomicEffectEntry>()) Collect(a);
             if (d?.Effects != null)
                 foreach (var fx in d.Effects)
                 {
                     if (fx?.Costs == null) continue;
                     foreach (var c in fx.Costs)
-                        foreach (var a in c?.AllPayloads() ?? new List<AtomicEffectEntry>())
-                            if (a != null && !string.IsNullOrEmpty(a.refId))
-                            { parts.Add(AtomText.RenderAtomEntry(a)); atoms.Add(a); }
+                        foreach (var a in c?.AllPayloads() ?? new List<AtomicEffectEntry>()) Collect(a);
                 }
-            if (parts.Count == 0) return null;
-            return "代价：" + string.Join("＋", parts) + CardComposerScreen.PayloadGrantText(atoms);
+            if (selfParts.Count == 0 && enemyParts.Count == 0) return null;
+            var arms = new List<string>();
+            if (selfParts.Count > 0) arms.Add("代价（自伤）：" + string.Join("＋", selfParts));
+            if (enemyParts.Count > 0) arms.Add("代价（资敌）：" + string.Join("＋", enemyParts));
+            var formula = CardNetCost.NetCostFormulaOf(d); // 三段式（有代价抵扣才非空）
+            return string.Join("｜", arms) + CardComposerScreen.PayloadGrantText(atoms)
+                   + (formula == null ? "" : "｜" + formula);
+        }
+    }
+
+    // ======================================== 净费单源（P4 §1 2026-10-29） ========================================
+
+    /// <summary>卡面净费口径单源（P4 净费显示）：玩家实付=推导费 − 代价抵扣（战斗态另有建造预付/
+    /// 苏醒免灰/费用指示物层，各有专属展示口——本类只管「推导 − 代价抵扣」两层）。
+    /// 与本文件同收口：新文件进不了已生成的 csproj 是老坑（SearchQuery 先例）。
+    /// 全部实时推导（CardCostService.GetRuntimeCost / GetPrePayloadCost——Derive 内
+    /// PrePayloadCost→ReduceBuckets(代价价)→DerivedCost，三段自洽由引擎构造保证），不读 costList 缓存。</summary>
+    public static class CardNetCost
+    {
+        /// <summary>公式行内费用分布序（P4 五类定案：红蓝绿灰万能）。</summary>
+        private static readonly ManaType[] RuneOrder =
+        {
+            ManaType.Red, ManaType.Blue, ManaType.Green, ManaType.Gray, ManaType.Any,
+        };
+
+        /// <summary>净费（费用区口径·实时推导）：非抉择=GetRuntimeCost；抉择=净总额最大的模式费
+        ///（与装载期 costList「最大模式费」显示口径一致——未选模式前展示保守上界）。全零=免费。</summary>
+        public static ElementCost NetCostOf(CardData card)
+        {
+            if (card == null) return new ElementCost();
+            if (!CostDerivationService.HasChoiceEffect(card))
+                return CardCostService.GetRuntimeCost(card, 0);
+            return CardCostService.GetModeCost(card, MaxNetModeOf(card));
+        }
+
+        /// <summary>三段式公式行（P4 §1.1）：「推导 2红3灰 − 代价抵扣 2 = 净费 2红1灰」。
+        /// 无代价抵扣（Y=0）→ null（费用区净费即推导费，无差可显）。X/Y/Z 同模式取数自洽。</summary>
+        public static string NetCostFormulaOf(CardData card)
+        {
+            if (card == null) return null;
+            int mode = CostDerivationService.HasChoiceEffect(card) ? MaxNetModeOf(card) : 0;
+            CardCostService.GetPrePayloadCost(card, mode, out var pre, out var points);
+            if (points <= 0) return null;
+            var net = CostDerivationService.HasChoiceEffect(card)
+                ? CardCostService.GetModeCost(card, mode)
+                : CardCostService.GetRuntimeCost(card, mode);
+            return $"推导 {CostRunes(pre)} − 代价抵扣 {points} = 净费 {CostRunes(net)}";
+        }
+
+        /// <summary>费用分布文本：非零色按五类序拼「N色」（如「2红3灰」）；全零=「0」。</summary>
+        public static string CostRunes(ElementCost cost)
+        {
+            if (cost == null || cost.IsZero) return "0";
+            var parts = new List<string>();
+            foreach (var c in RuneOrder)
+                if (cost[c] > 0f) parts.Add(cost[c].ToString("0.##") + ManaTypeNames.ZhNameOf(c));
+            return parts.Count == 0 ? "0" : string.Join("", parts);
+        }
+
+        /// <summary>净总额最大的模式序（抉择卡专用；非抉择/异常=0）。</summary>
+        private static int MaxNetModeOf(CardData card)
+        {
+            int modes = CostDerivationService.GetModeCount(card);
+            int best = 0;
+            float bestTotal = -1f;
+            for (int i = 0; i < modes; i++)
+            {
+                float total = CardCostService.GetModeCost(card, i).Total;
+                if (total > bestTotal) { bestTotal = total; best = i; }
+            }
+            return best;
         }
     }
 }

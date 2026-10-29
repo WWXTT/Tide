@@ -424,11 +424,19 @@ namespace CardCore.Attribute.Handlers
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
             var resolver = SummonTokenHandler.ResolveTemplate; // 引用卡ID 解析器（组合根注入；临摹不占此口）
-            if (resolver == null || string.IsNullOrEmpty(effect.StringValue)) return;
-            var form = resolver(effect.StringValue);
+            if (resolver == null) return;
+            // P9b：模板 ID 先走卡实例绑定（卡组期），空槽无绑定回落原子 str；两者皆空=显性 Error
+            string refId = SummonTokenHandler.ResolveBoundTemplateId(effect, context);
+            if (string.IsNullOrEmpty(refId))
+            {
+                TideLog.Error($"[GrantMorphHandler] 变形槽未绑定——本局卡组未提供模板且效果无固定绑定，空转"
+                              + "（装载期校验应已拦截，此处运行时兜底）");
+                return;
+            }
+            var form = resolver(refId);
             if (form == null)
             {
-                TideLog.Warn($"[GrantMorphHandler] 引用卡 {effect.StringValue} 解析失败——空转");
+                TideLog.Error($"[GrantMorphHandler] 引用卡 {refId} 解析失败——空转");
                 return;
             }
 
@@ -436,7 +444,7 @@ namespace CardCore.Attribute.Handlers
             var supertype = form is IHasSupertype ht ? ht.Supertype : form.Supertype;
             if (supertype != Cardtype.Creature && supertype != Cardtype.Enchantment)
             {
-                TideLog.Warn($"[GrantMorphHandler] 引用卡 {effect.StringValue} 不是生物/结界，跳过");
+                TideLog.Warn($"[GrantMorphHandler] 引用卡 {refId} 不是生物/结界，跳过");
                 return;
             }
 

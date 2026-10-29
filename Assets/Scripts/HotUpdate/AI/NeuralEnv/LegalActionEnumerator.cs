@@ -11,10 +11,12 @@ namespace CardCore.AI.NeuralEnv
     /// 与对方回合响应窗口（守卫/响应出牌/响应发动/让过）的决策点；
     /// 指向性目标 = 同表逐目标展开（动作行=(卡,模式,目标)，与攻击动作同构，单步 argmax）。
     /// v3（2026-10-14 契约）：补漏的两个主阶段决策点——TapCreature(12) 横置地牌特性生物产元素、
-    /// CommitAwaken(13) 苏醒立约（对账报告 D10/D11）。</summary>
+    /// CommitAwaken(13) 苏醒立约（对账报告 D10/D11）。
+    /// v4（2026-10-29 P6 苏醒改版）：CommitAwaken(13) 退役（立约决策删除）——苏醒并入
+    /// PlayCard 的 awaken 变体行（动作行=(卡,模式,目标,awaken)，免灰净费份额转入场沉睡层数；P6c 只免灰）。</summary>
     public enum TideActionType : int
     {
-        PlayCard = 0,            // 手牌打出（含抉择模式 + 指向目标展开）
+        PlayCard = 0,            // 手牌打出（含抉择模式 + 指向目标展开 + 苏醒施放变体 AwakenCast）
         PlayLand = 1,            // 手牌放入元素池（当地产元素）
         Activate = 3,            // 效果发动：战场卡的主动（Activate_*）能力（含目标展开）
         Attack = 4,              // 攻击宣言（attacker → 对方随从 / 对方玩家）
@@ -26,10 +28,11 @@ namespace CardCore.AI.NeuralEnv
         RespondActivate = 10,    // 响应发动（主动；镜像 NetworkIntentApplier.ActivateWithTargets）
         Guard = 11,              // 守卫宣言（拦截栈上的攻击宣言对象）
         TapCreature = 12,        // 横置带地牌特性(LandTrait)的生物产 1 元素进临时钱包（主阶段；产色自动=费用首色）
-        CommitAwaken = 13,       // 苏醒立约（主阶段；手牌+豁免时长自我沉睡+未立约+未锁定——灰/绿份额免付转沉睡层数）
         // 2 = 墓地出牌（已移除 2026-09-09）：RL 标准池不含可从墓地打出的来源卡，
         //     枚举出的动作引擎必拒（口径漂移白耗动作配额）。引擎侧 GameActions.PlayCardFromGraveyard
         //     保留（引擎能力/UI 走它），只是不再进动作空间。
+        // 13 = CommitAwaken 苏醒立约（已移除 2026-10-29 P6 苏醒改版）：立约退役，苏醒并入
+        //     PlayCard 的 awaken 变体（AwakenCast 布尔列）。序号不回收、勿复用（旧契约/模型留档）。
     }
 
     /// <summary>一个可执行动作：模型输出离散下标 → 桥接按此结构调用 GameActions.*。</summary>
@@ -55,6 +58,9 @@ namespace CardCore.AI.NeuralEnv
         public bool HeroAttacker;
         /// <summary>响应窗口动作（签名区分上下文：同一动作在 Main 与响应窗口不互相摘除）。</summary>
         public bool ResponseContext;
+        /// <summary>苏醒施放变体（2026-10-29 P6；P6c 只免灰）：PlayCard 专属——免净费灰份额转入场沉睡层数、
+        /// 横置登场（与普通施放同行不同签名；其余动作类型恒 false）。</summary>
+        public bool AwakenCast;
 
         public override string ToString()
         {
@@ -63,8 +69,9 @@ namespace CardCore.AI.NeuralEnv
         }
 
         /// <summary>
-        /// 动作签名（Type|来源卡|效果Id|目标集|模式|上下文）：跨枚举稳定（EffectDefinition 每次枚举都是新对象，
+        /// 动作签名（Type|来源卡|效果Id|目标集|模式|上下文|苏醒）：跨枚举稳定（EffectDefinition 每次枚举都是新对象，
         /// 引用判等不可用；Id 是转换自卡表的稳定键）。供「本回合摘除无效动作」判重。
+        /// 苏醒位列（2026-10-29 P6）：同卡同模式同目标的普通/苏醒施放是两行不同签名。
         /// </summary>
         public string Signature
         {
@@ -72,7 +79,8 @@ namespace CardCore.AI.NeuralEnv
             {
                 string t = TargetsKey();
                 string ctx = ResponseContext ? "R" : "M";
-                return $"{(int)Type}|{Card?.ID ?? "-"}|{Effect?.Id ?? "-"}|{t}|{ModeIndex}|{ctx}";
+                string awaken = AwakenCast ? "A" : "-";
+                return $"{(int)Type}|{Card?.ID ?? "-"}|{Effect?.Id ?? "-"}|{t}|{ModeIndex}|{ctx}|{awaken}";
             }
         }
 
@@ -157,7 +165,6 @@ namespace CardCore.AI.NeuralEnv
             EnumerateHeroSkill(core, me);
             EnumerateVoluntaryTriggers(core, me);
             EnumerateTapCreatures(core, me, zm);
-            EnumerateCommitAwakens(core, me, zm);
             Actions.Add(EndTurnAction());
 
             EnforceActionCap(TideActionType.EndTurn);
@@ -237,7 +244,7 @@ namespace CardCore.AI.NeuralEnv
             switch (a.Type)
             {
                 case TideActionType.PlayCard:
-                    return GameActions.PlayCard(core, me, a.Card, a.Targets, Zone.Hand, a.ModeIndex);
+                    return GameActions.PlayCard(core, me, a.Card, a.Targets, Zone.Hand, a.ModeIndex, a.AwakenCast);
                 case TideActionType.PlayLand:
                     // ModeIndex 复用为锁色选择（2026-10-11：-1=缺省主色，否则=ManaType 枚举值）
                     return GameActions.AddToElementPool(core, me, a.Card,
@@ -266,8 +273,6 @@ namespace CardCore.AI.NeuralEnv
                         && core.StackEngine.PushGuardDeclaration(a.Card, a.AttackInstance, me);
                 case TideActionType.TapCreature:
                     return GameActions.TapCreatureForElement(core, me, a.Card);
-                case TideActionType.CommitAwaken:
-                    return GameActions.CommitAwaken(core, me, a.Card);
                 default:
                     return false;
             }
@@ -292,7 +297,7 @@ namespace CardCore.AI.NeuralEnv
                 if (GameActions.GetPayloadGateReject(core, p, c) != null) continue; // 代价门槛镜像（2026-10-04：全价过地牌上限/代价无目标）
                 if (!engine.SpeedCounter.CanActivate(
                         SpeedCalculator.GetCardCastSpeed(c), EffectActivationType.Voluntary, engine.IsEmpty)) continue;
-                if (!IsSpell(c) && !zm.HasBattlefieldSpace(p)) continue;
+                if (!IsSpell(c) && !c.IsFieldCard() && !zm.HasBattlefieldSpace(p)) continue; // 场地卡落场地格不计容量（P8）
                 int modes = ModeCount(c);
                 for (int m = 0; m < modes; m++)
                     if (GameActions.CanAffordCast(core, p, c, m)) return true;
@@ -400,13 +405,21 @@ namespace CardCore.AI.NeuralEnv
                 int modes = ModeCount(c);
                 for (int m = 0; m < modes; m++)
                 {
-                    if (!GameActions.CanAffordCast(core, me, c, m)) continue;
-                    if (!IsSpell(c) && !zm.HasBattlefieldSpace(me)) continue;
+                    if (!IsSpell(c) && !c.IsFieldCard() && !zm.HasBattlefieldSpace(me)) continue; // 场地卡落场地格不计容量（P8）
                     if (!TargetDomainService.HasPlayableTargets(core, me, c, m)) continue; // 域空不可出（镜像 PlayCard 预检）
 
                     int src = TideObservation.CardIndex(me, me, Zone.Hand, i);
-                    foreach (var targets in ExpandCardTargets(core, me, c, m))
-                        Actions.Add(BuildTargetedRow(TideActionType.PlayCard, c, m, src, targets));
+                    // 普通行：全净费可付（苏醒可付但全价付不起时只出苏醒变体——穷时先醒的通路）
+                    if (GameActions.CanAffordCast(core, me, c, m))
+                        foreach (var targets in ExpandCardTargets(core, me, c, m))
+                            Actions.Add(BuildTargetedRow(TideActionType.PlayCard, c, m, src, targets));
+
+                    // 苏醒施放变体（2026-10-29 P6；P6c 只免灰）：生物净费灰份额 ≥1 → 同目标展开各加一行
+                    //（免灰转入场沉睡层数、横置登场、彩色含绿照付；灰=0 不提供——无免可免不给白睡）
+                    if (GameActions.GetAwakenSleepLayers(c, m) > 0
+                        && GameActions.CanAffordCast(core, me, c, m, awakenCast: true))
+                        foreach (var targets in ExpandCardTargets(core, me, c, m))
+                            Actions.Add(BuildTargetedRow(TideActionType.PlayCard, c, m, src, targets, awaken: true));
                 }
             }
         }
@@ -594,28 +607,8 @@ namespace CardCore.AI.NeuralEnv
             }
         }
 
-        /// <summary>苏醒立约行（v3 契约 §1 CommitAwaken=13）：手牌中带豁免时长自我沉睡效果的卡
-        /// 预立约——此后施放灰、绿份额全免转沉睡层数（2026-10-22 扩灰+绿）。资格镜像
-        /// GameActions.CommitAwaken 守卫（HasSelfSleepEffect 已公开化复用，含 CardData 结果缓存）。</summary>
-        private void EnumerateCommitAwakens(GameCore core, Player me, ZoneManager zm)
-        {
-            var hand = zm.GetCards(me, Zone.Hand);
-            for (int i = 0; i < hand.Count; i++)
-            {
-                var c = hand[i];
-                if (c.AwakenCommitted) continue;
-                if (c.GetCounterCount(Attribute.CounterRules.LockCounter) > 0) continue;
-                var data = (c as CardWrapper)?.GetData();
-                if (data == null || !GameActions.HasSelfSleepEffect(data)) continue;
-                Actions.Add(new TideAction
-                {
-                    Type = TideActionType.CommitAwaken,
-                    Card = c,
-                    SourceIndex = TideObservation.CardIndex(me, me, Zone.Hand, i),
-                    TargetIndex = -1,
-                });
-            }
-        }
+        // EnumerateCommitAwakens 已删（2026-10-29 P6 苏醒改版）：苏醒立约动作退役——
+        // 苏醒决策并入 EnumeratePlayCard 的 awaken 变体行（TideAction.AwakenCast）。
 
         // ===================================================== 响应窗口枚举辅助 =====================================================
 
@@ -668,7 +661,7 @@ namespace CardCore.AI.NeuralEnv
                 if (GameActions.GetPayloadGateReject(core, me, c) != null) continue; // 代价门槛镜像（2026-10-04：全价过地牌上限/代价无目标）
                 int castSpeed = SpeedCalculator.GetCardCastSpeed(c);
                 if (!engine.SpeedCounter.CanActivate(castSpeed, EffectActivationType.Voluntary, engine.IsEmpty)) continue;
-                if (!IsSpell(c) && !core.ZoneManager.HasBattlefieldSpace(me)) continue;
+                if (!IsSpell(c) && !c.IsFieldCard() && !core.ZoneManager.HasBattlefieldSpace(me)) continue; // 场地卡落场地格不计容量（P8）
 
                 int modes = ModeCount(c);
                 for (int m = 0; m < modes; m++)
@@ -684,9 +677,9 @@ namespace CardCore.AI.NeuralEnv
         }
 
         /// <summary>带目标组合的动作行构造（PlayCard/RespondPlay/Activate/RespondActivate）：
-        /// 填 Target 兼容别名、槽位与目标类别特征。</summary>
+        /// 填 Target 兼容别名、槽位与目标类别特征。awaken（2026-10-29 P6）：PlayCard 苏醒施放变体行。</summary>
         private TideAction BuildTargetedRow(TideActionType type, Card card, int modeIndex, int sourceSlot,
-            List<Entity> targets, bool response = false, EffectDefinition effect = null)
+            List<Entity> targets, bool response = false, EffectDefinition effect = null, bool awaken = false)
         {
             var a = new TideAction
             {
@@ -697,6 +690,7 @@ namespace CardCore.AI.NeuralEnv
                 Effect = effect,
                 SourceIndex = sourceSlot,
                 ResponseContext = response,
+                AwakenCast = awaken,
             };
             if (targets != null && targets.Count > 0)
             {
@@ -823,7 +817,7 @@ namespace CardCore.AI.NeuralEnv
                 var a = Actions[k];
                 int b = k * TideObservation.NAction;
                 Features[b + 0] = 1f;                                        // valid
-                Features[b + 1] = (int)a.Type;                               // type 0..13
+                Features[b + 1] = (int)a.Type;                               // type 0..12（13 已退役）
                 Features[b + 2] = a.SourceIndex;                             // cards_ 槽下标（-1=无）
                 Features[b + 3] = a.TargetIndex;                             // cards_ 槽下标（-1=无/玩家目标）
                 Features[b + 4] = a.ModeIndex;                               // 抉择模式 / HeroSkill=skillId
@@ -841,7 +835,7 @@ namespace CardCore.AI.NeuralEnv
             {
                 case TideActionType.PlayCard:
                 case TideActionType.RespondPlay:
-                    return GameActions.GetCardCost(a.Card, a.ModeIndex).Total;
+                    return GameActions.GetCardCost(a.Card, a.ModeIndex, a.AwakenCast).Total; // 苏醒变体=豁免后账单
                 case TideActionType.Activate:
                 case TideActionType.RespondActivate:
                 case TideActionType.VoluntaryTrigger:

@@ -567,10 +567,12 @@ namespace SynergyUI
         /// 不走起手/摸牌序列断言，TutorialScenarioSeeder 直入起跳回合。
         /// 教学二（2026-10-18 真实对局流程版）：entryPlayerDeck/entryAiDeck=对局准备流程注入的
         /// 自选卡组+镜像（缺省回落 deckFile）；entryPlayerFirst=硬币先后手（后手+5 护甲同真实流程）；
-        /// entryMySkill/entryAiSkill=卡组标记技能。</summary>
+        /// entryMySkill/entryAiSkill=卡组标记技能；entryTokenBindings（P9b 2026-10-29）=注入卡组的
+        /// 衍生物槽绑定（教学自带卡组无绑定——固定绑定走原子 str）。</summary>
         public bool StartGame(BattleController ctrl,
             List<CardData> entryPlayerDeck = null, List<CardData> entryAiDeck = null,
-            bool? entryPlayerFirst = null, string entryMySkill = null, string entryAiSkill = null)
+            bool? entryPlayerFirst = null, string entryMySkill = null, string entryAiSkill = null,
+            List<DeckTokenBinding> entryMyTokenBindings = null, List<DeckTokenBinding> entryAiTokenBindings = null)
         {
             var tutorial = TutorialLibrary.Get(BattleEntry.TutorialId);
             if (tutorial == null)
@@ -638,7 +640,8 @@ namespace SynergyUI
             ctrl.StartNewGame(playerDeck, aiDeck, MakePacedScriptedAi(tutorial),
                 lockDeckOrder: true, rngSeed: matchSeed,
                 mySkillCardId: entryMySkill, aiSkillCardId: entryAiSkill,
-                playerFirst: entryPlayerFirst, secondArmorBonus: entryPlayerFirst.HasValue ? 5 : 0);
+                playerFirst: entryPlayerFirst, secondArmorBonus: entryPlayerFirst.HasValue ? 5 : 0,
+                myTokenBindings: entryMyTokenBindings, aiTokenBindings: entryAiTokenBindings);
             EnableTutorialAiResponder(ctrl, tutorial); // AI 响应：默认让过+aiGuard 守卫演示窗（2026-10-17 剧本）
             TutorialGuide.Begin(tutorial);
             InTrialSegment = false;

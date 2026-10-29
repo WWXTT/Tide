@@ -157,7 +157,7 @@ namespace SynergyUI
                     // 串行动作，正常路径此处恒空栈零开销；DrainStack 幂等。
                     GameActions.DrainStack(core);
                     bool ok = GameActions.PlayCard(core, me, card, ResolveTargets(core, me, action.targets),
-                        Zone.Hand, action.mode, out var reason);
+                        Zone.Hand, action.mode, false, out var reason); // awakenCast=false（剧本无苏醒）
                     if (!ok) return LogResult(action, false, $"出牌被拒：{reason}");
                     GameActions.DrainStack(core); // cast 已上栈：双 Pass 结算付费（AI 无响应；
                                                    // 付费步系统自动横置地牌——2026-10-11 现取现用）

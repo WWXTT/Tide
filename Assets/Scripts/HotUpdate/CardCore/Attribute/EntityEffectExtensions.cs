@@ -35,10 +35,12 @@ namespace CardCore
             => card is CardWrapper w && w.GetData() is CardData d
                && d.Supertype == Cardtype.Creature && !d.NoAttack;
 
-        /// <summary>守卫能力（速度1响应拦截，2026-09-16）：生物默认自带；守卫拦截入口按此过滤。</summary>
+        /// <summary>守卫能力（速度1响应拦截，2026-09-16）：生物默认自带；守卫拦截入口按此过滤。
+        /// 2026-10-29 禁守令：受禁守光环影响的控制者一侧，其生物守卫能力一并失效。</summary>
         public static bool HasGuardAbility(this Card card)
             => card is CardWrapper w && w.GetData() is CardData d
-               && d.Supertype == Cardtype.Creature && !d.NoGuard;
+               && d.Supertype == Cardtype.Creature && !d.NoGuard
+               && !RuleAuraSystem.ScopeHits(RuleAuraComponents.NoGuardAura, card.GetController());
 
         /// <summary>获取生命值（含连接光环加成；伤害扣 _life 原值，断链自动回落）</summary>
         public static int GetLife(this Entity entity)
@@ -90,6 +92,11 @@ namespace CardCore
         /// </summary>
         public static void Heal(this Entity entity, int amount)
         {
+            // 禁疗令（2026-10-29 1b）：受光环影响一方的角色与单位不能回复生命——咽喉最前拦截
+            //（先于反疗改写/丰盈溢出；治疗五入口全经此口，一处收口全覆盖）。
+            var healSide = entity is Player healPlayer ? healPlayer : (entity as Card)?.GetController();
+            if (healSide != null && RuleAuraSystem.ScopeHits(RuleAuraComponents.NoHealAura, healSide)) return;
+
             // 反疗改写（2026-10-09 暗牧仪典+反疗指示物，先于丰盈溢出判定）：治疗改写为等量伤害
             //——改写口/重入闸/光源归因见 RuleAuraComponents.TryRewriteHealAsDamage；
             // 治疗五入口（Heal 原子/吸血/吸取/再生双路）全经此咽喉，一处收口全覆盖。
@@ -380,6 +387,18 @@ namespace CardCore
         public static void AddCounters(this Entity entity, string counterType, int amount, Entity source = null)
         {
             if (entity == null) return;
+
+            // 禁指示物令（2026-10-29 阶段2）：除系统指示物（CounterClass.System——引擎主干内部驱动）
+            // 外，受光环影响的一方不能放置指示物——负量（移除）不拦；所有加层入口（引擎/关键词/
+            // 效果 handler）全经此咽喉。卡侧判控制者、无控制者回落拥有者；角色直取自身。
+            if (amount > 0)
+            {
+                var side = entity is Player p ? p : (entity as Card)?.GetController() ?? (entity as Card)?.GetOwner();
+                var spec = Attribute.CounterRules.Find(counterType);
+                if (side != null && (spec == null || spec.Class != Attribute.CounterClass.System)
+                    && RuleAuraSystem.ScopeHits(RuleAuraComponents.NoCounterAura, side)) return;
+            }
+
             if (!entity._counters.ContainsKey(counterType))
                 entity._counters[counterType] = 0;
             entity._counters[counterType] += amount;
@@ -536,12 +555,11 @@ namespace CardCore
         // 回到手牌（任何来源）即重置为未展示。
         internal bool _isRevealed = false;
 
-        // 豁免费转沉睡时长（2026-09-11 定案；2026-10-22 扩灰+绿）：自我沉睡卡打出时灰、绿份额
-        // 不扣（GetCardCost 剥离），剥离量暂存于此，登场 Sleep 原子据此赋沉睡指示物（消费后清零）。
-        // 运行时瞬态，不序列化。
-        internal int _pendingSleepLayers = 0;
-        /// <summary>自我沉睡的豁免费量（灰+绿，支付时剥离→入场转沉睡指示物数）。</summary>
-        public int PendingSleepLayers => _pendingSleepLayers;
+        // 苏醒施放声明标记（2026-10-29 P6 苏醒改版，替代旧立约 AwakenCommitted+豁免暂存
+        // _pendingSleepLayers）：PlayCard 声明成功整体覆写（响应出牌恒 false），cast 结算
+        //（ResolveCardCastAsync）一次性消费清空——付费按苏醒净费（P6c：只免灰份额、彩色含绿照付），入场等量
+        // 转沉睡指示物（ResolvePermanentEntry 直接挂层，不经卡面 Sleep 原子）。运行时瞬态，不序列化。
+        internal bool _awakenCastPending = false;
 
         // 出牌两阶段（2026-10-04 定案）：带代价的卡声明期先算代价——预选代价目标暂存于此，
         // cast 结算付费步经 CostContext.PreselectedCostTargets 消费（响应窗口内不重选；消费后清空）。
@@ -587,10 +605,8 @@ namespace CardCore
         /// 运行时标记不入序列化（身份/观测/计价全走真实卡数据——快照无需区分）。</summary>
         public bool IsToken { get; set; } = false;
 
-        /// <summary>苏醒已发动（2026-10-03 苏醒改造）：在手牌中预立约后为 true——
-        /// 施放费用的灰色份额全免（转入场沉睡层数，GameActions.GetCardCost 闸门）；
-        /// 未发动=照常全价。修复旧「使用时生效」死循环（付不起→用不出→无减免）。</summary>
-        public bool AwakenCommitted { get; set; } = false;
+        // AwakenCommitted（苏醒已立约）已删（2026-10-29 P6 苏醒改版）：立约决策退役，
+        // 苏醒随施放声明即时表达（Card._awakenCastPending 瞬态标记，见上）。
 
         // ===== 地牌状态三件套已删（2026-10-11 资源重做：指示物/耗竭/回手余量随锁色定案退役）——
         // 地牌权威态只在 ElementPool.PooledCard（LockedColor+IsTapped），卡上无持久字段 =====

@@ -5,8 +5,8 @@ namespace CardCore.Attribute.Handlers
     /// <summary>
     /// 规则光环投放原子（规则轴路线 B，2026-10-03 定案；ModifyGameRule 转正；2026-10-07 作用范围化）：
     /// str=规则短名（RuleAuraComponents 常量——与原子表规则光环族行一一对应），
-    /// Value=作用范围序（RuleAuraScope：0=己方/1=双方（缺省）/2=对方——合成器按表行 Polarity 门控可选项，
-    /// 计价双方档 ×0.5 单侧全价）。挂在结界卡登场效果上——载体（CastCard）入场结算时
+    /// Value=作用范围序（RuleAuraScope：0=己方/1=双方（缺省）/2=对方——合成器按表行 Polarity 门控可选项；
+    /// 2026-10-29 起固定双方规则忽略 value 恒 Both，计价去对称让利=表价即实价）。挂在结界卡登场效果上——载体（CastCard）入场结算时
     /// 激活 RuleAuraSystem：持续永久、全局唯一（新换旧送墓）、载体离场失效、
     /// 无方向箭头（非连接光环）。效果/指示物分离定案延续：本原子只负责投放，
     /// 规则体由 RuleAuraSystem/RuleHooks/ReplacementEngine 承载。
@@ -31,7 +31,10 @@ namespace CardCore.Attribute.Handlers
                 return;
             }
 
-            RuleAuraSystem.Activate(ruleId, carrier, context.Controller, effect.Value);
+            // 固定双方规则（2026-10-29 1b 定案）：许可/禁止族 UI 不提供单侧选择——忽略实例 value 恒 Both；
+            // 改写族照走原子步 value（RuleAuraScope 序）。
+            int scope = RuleAuraComponents.IsFixedBothRule(ruleId) ? (int)RuleAuraScope.Both : effect.Value;
+            RuleAuraSystem.Activate(ruleId, carrier, context.Controller, scope);
         }
 
         protected override string DescribeTemplate(AtomicEffectInstance effect)

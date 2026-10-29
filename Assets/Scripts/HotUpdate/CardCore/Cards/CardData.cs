@@ -264,6 +264,15 @@ namespace CardCore
         /// <summary>初始耐久（0=无耐久档——持续型装备）；归零=销毁入墓。</summary>
         public int Durability { get => _durability; set => _durability = value; }
 
+        // 场地卡标记（2026-10-29 P8 定案）：场地 = 结界 + 场地标记，不新开 Cardtype——复用耐久全套
+        // 管线（计价/受伤/摧毁/建造）。落位恒为己方场地格（每方一格，BoardLayout.FieldCell），
+        // 只能被自己顶替（新场地入场=旧场地入墓）。属于卡面定义**进内容哈希**（改标记=换卡 ID，
+        // ContentHasher.HashCard FLD 段）；仅结界可标（装载校验非结界 Error+降级）。
+        [TideSerialized]
+        private bool _isField;
+        /// <summary>场地卡标记（P8）：结界专属——打出固定落己方场地格，每方一张，自顶替。</summary>
+        public bool IsField { get => _isField; set => _isField = value; }
+
         /// <summary>法术发动速度加成（2026-10-15 卡型默认分配定案）：免费额度剩余全投提速——
         /// 缺省 2（OnNewCard/ApplyKindToCard/CardLoader 存量迁移三处落），玩家可下调换抵价；
         /// 有效值钳制到剩余（KindSpeedBonusOf 单源），运行时与全部效果 BaseSpeed **加和**
@@ -806,6 +815,50 @@ namespace CardCore
         /// 获取原始数据
         /// </summary>
         public CardData GetData() => _data;
+
+        // 建造已建额（2026-10-29 P7b 返工：从 CardData 迁到卡实例——P7 挂在卡面定义上令同名
+        // 副本共享进度（一施放清空全部副本）、镜像局跨玩家泄漏账单/进度，返工到实例层与
+        // 指示物/关键词同层）：下标=ManaType 枚举序 [灰,红,蓝,绿,任意]（任意位恒 0——Any 非色
+        // 不可建）。玩家资产非缓存：跨回合保留；离开手牌按真实换区清空（ZoneContainer.OnCardMoved
+        // 发动区豁免，清空口 GameActions.ClearBuildPaid）。克隆/变形/复制出的新实例从全零开始
+        //（不随定义复制）。[NonSerialized]+属性形态不入卡数据序列化（快照走
+        // RuntimeCardState.RCS_BuildPaid，按 runtime card id 回灌本实例）。
+        [NonSerialized]
+        private float[] _buildPaid;
+        public float[] BuildPaid => _buildPaid ??= new float[ElementCost.Length];
+
+        /// <summary>清空已建额（离手/结算清空口，P7 §2——预付元素不退，作废即归零）。</summary>
+        public void ResetBuildPaid()
+        {
+            var a = BuildPaid; // 惰性建（未建过=已是全零新数组，归零幂等）
+            for (int i = 0; i < a.Length; i++) a[i] = 0f;
+        }
+
+        // 衍生物槽绑定（P9b 2026-10-29，卡组期绑定 → 卡实例）：效果序号（CardData.Effects
+        // 下标）→ 模板卡 ID，由卡组装载器写入（DeckTokenSupport.Apply——本地 GameCore.InitGame
+        // 与联机 NetRoom.StartMatch 同口）；同名副本共享同一绑定（逐实例都盖）。
+        // 与 BuildPaid 同层=玩家/卡组资产不进卡数据序列化；[NonSerialized] 字段+属性形态。
+        // 解析口 SummonTokenHandler.ResolveBoundTemplateId：实例绑定 → 回落原子 str（旧数据
+        // 固定绑定）→ 都无 Error 空转。绑定所属卡 ID 随盖登记——变形/复制后 GetData() 换源，
+        // ID 对不上即视为无绑定（回落 str），防「A 卡绑定套到变形后 B 卡效果序号上」的错配。
+        [NonSerialized]
+        private Dictionary<int, string> _tokenBindings;
+        [NonSerialized]
+        private string _tokenBindingsCardId;
+
+        /// <summary>本实例的槽绑定表（效果序号→模板卡 ID；惰性建，只读判空用 HasTokenBindings）。</summary>
+        public Dictionary<int, string> TokenBindings => _tokenBindings ??= new Dictionary<int, string>();
+
+        /// <summary>绑定所属卡 ID（盖章时登记；GetData().ID 与之不符=绑定失效回落 str）。</summary>
+        public string TokenBindingsCardId
+        {
+            get => _tokenBindingsCardId;
+            set => _tokenBindingsCardId = value;
+        }
+
+        /// <summary>是否有可用实例绑定（有序号表且所属卡 ID 已登记非空）。</summary>
+        public bool HasTokenBindings
+            => _tokenBindings != null && _tokenBindings.Count > 0 && !string.IsNullOrEmpty(_tokenBindingsCardId);
 
         /// <summary>费用合计（int 截断）作为内部 _baseCost（用于 GetCost/ModifyCost 原语）</summary>
         private static int ComputeBaseCost(ElementCost cost)

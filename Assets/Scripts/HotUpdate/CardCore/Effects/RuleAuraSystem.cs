@@ -20,7 +20,8 @@ namespace CardCore
     /// <summary>规则光环作用范围（2026-10-07 极性门控定案）：存 ModifyGameRule 原子步 entry.value；
     /// 己方=仅光环控制者一侧，对方=仅其对手一侧，双方=两侧（缺省 1=双方，兼容存量仪典步 value=1）。
     /// 合成器选项按表行 Polarity 门控：+1 只 {己方,双方}、-1 只 {对方,双方}、0 三选；
-    /// 计价沿用双方让利口径（CostDerivation.IsSymmetricBothSides）：双方 ×0.5、单侧全价。</summary>
+    /// 2026-10-29 定案：固定双方规则（IsFixedBothRule——许可 5 条+禁止 10 条）UI 不提供单侧选择，
+    /// 改写族保留三档；计价去对称让利（规则光环表价即实价，不再 ×0.5）。</summary>
     public enum RuleAuraScope
     {
         Own = 0,      // 仅己方（光环控制者一侧）
@@ -67,6 +68,11 @@ namespace CardCore
             => !string.IsNullOrEmpty(ruleId)
                && _active.TryGetValue(ruleId, out var s) && Matches(s, ruleId);
 
+        /// <summary>槽位被活载体占据（忽略缄默——缄默只是压制，不释放唯一性）。</summary>
+        private static bool SlotOccupied(string ruleId)
+            => _active.TryGetValue(ruleId, out var s) && s.Carrier != null && s.Carrier.IsAlive
+               && s.Carrier.GetZone() == Zone.Battlefield;
+
         /// <summary>作用范围命中（2026-10-07 范围化）：规则活跃且 p 一侧在生效范围内。
         /// 各规则消费点按「规则作用于谁」传对应玩家——三相=支付者、轮回=回合玩家、
         /// 离散/丰盈=受击/受疗方、血偿=受伤回合方、疾风=场上主动行为主、负面光环族=受咒方。</summary>
@@ -102,10 +108,9 @@ namespace CardCore
             if (dead != null)
                 foreach (var k in dead) _active.Remove(k);
 
-            if (IsActive(ruleId))
+            if (SlotOccupied(ruleId))
             {
-                TideLog.Warn($"[RuleAuraSystem] 同名规则光环已在场（{ruleId}）——不重复激活"
-                             + "（2026-10-07 唯一性定案：同名禁止、异名共存，不再送墓替换）");
+                TideLog.Warn($"[RuleAuraSystem] 同一规则全局唯一（双方不能各挂一份；载体被缄默也不释放槽位）：{ruleId}");
                 return;
             }
 
@@ -132,10 +137,10 @@ namespace CardCore
                 if (fx == null) continue;
                 if (fx.AtomicEffects != null)
                     foreach (var a in fx.AtomicEffects)
-                        if (a != null && IsActive(a.str)) return true;
+                        if (a != null && SlotOccupied(a.str)) return true;
                 if (fx.Steps != null)
                     foreach (var s in fx.Steps)
-                        if (s?.kind == 0 && s.atomic != null && IsActive(s.atomic.str)) return true;
+                        if (s?.kind == 0 && s.atomic != null && SlotOccupied(s.atomic.str)) return true;
             }
             return false;
         }
@@ -215,11 +220,43 @@ namespace CardCore
         // 共用 IsHealInverted/TryRewriteHealAsDamage。----
         public const string HealInversion = "HealInversion";         // 暗牧仪典（治疗转伤害）
 
+        // ---- 禁令族（2026-10-29）：行为限制，受光环影响方按 ScopeHits 判命中 ----
+        public const string NoAttackAura = "NoAttackAura";     // 禁攻令
+        public const string NoGuardAura = "NoGuardAura";       // 禁守令
+        public const string NoActivateAura = "NoActivateAura"; // 禁发令
+        public const string NoLandAura = "NoLandAura";         // 禁地令
+        public const string NoHealAura = "NoHealAura";           // 禁疗令
+        public const string NoSearchAura = "NoSearchAura";       // 禁寻令
+        public const string NoSacrificeAura = "NoSacrificeAura"; // 禁祭令
+        public const string NoSpellAura = "NoSpellAura";         // 禁魔令
+        public const string NoCreatureAura = "NoCreatureAura";   // 禁召令
+        public const string NoDrawAura = "NoDrawAura";           // 禁抽令
+
+        // ---- 语料原生禁令族（2026-10-29 阶段2：MTG 出处的行为限制全局化） ----
+        public const string NoLowCostAura = "NoLowCostAura";       // 禁低费令（梦魇异音布瑟拉：mana value ≤3）
+        public const string NoHighCostAura = "NoHighCostAura";     // 禁高费令（俄佐立变节者拉温妮改版：费用>对手地牌数不能施放）
+        public const string NoNonCreatureAura = "NoNonCreatureAura"; // 禁非生物令（权限遭拒）
+        public const string OwnTurnCastAura = "OwnTurnCastAura";   // 禁时机令（龙王卓茉卡/胜利歌手：非回合方不能施放）
+        public const string NoCounterAura = "NoCounterAura";       // 禁指示物令（花瓣裹身/梅梨莱护卫 的全局版·System 豁免）
+
         /// <summary>是否三负面光环族（毒/冻/眠）。缺省范围与极性驱动（负→对方）；
         /// 运行时判定走 ScopeHits，不再读本口（保留供展示/分类）。</summary>
         public static bool IsHolderScoped(string ruleId)
             => ruleId == CombatToxin || ruleId == CombatFreeze
                || ruleId == CombatSleep;
+
+        /// <summary>固定双方规则（2026-10-29 定案；阶段2 扩至语料原生族）：许可（5 条）+
+        /// 禁止（15 条）——UI 不提供 己方/对方 选择。
+        /// 改写族（苦痛/丰盈/离散/窥渊/毒蚀/霜蚀/眠蚀/惩戒）保留三档。</summary>
+        public static bool IsFixedBothRule(string ruleId)
+            => ruleId == ElementConversion || ruleId == GraveyardPlay
+            || ruleId == CastSpeedUp || ruleId == DoubleTurn || ruleId == HandLimitNoFatigue
+            || ruleId == NoAttackAura || ruleId == NoGuardAura || ruleId == NoActivateAura
+            || ruleId == NoLandAura || ruleId == NoHealAura || ruleId == NoSearchAura
+            || ruleId == NoSacrificeAura || ruleId == NoSpellAura || ruleId == NoCreatureAura
+            || ruleId == NoDrawAura
+            || ruleId == NoLowCostAura || ruleId == NoHighCostAura || ruleId == NoNonCreatureAura
+            || ruleId == OwnTurnCastAura || ruleId == NoCounterAura;
 
         private static bool _registered;
 
@@ -235,6 +272,9 @@ namespace CardCore
         // 疾风：连击跟踪（最近回合玩家 + 其连续回合数）
         private static Player _doubleTurnLastPlayer;
         private static int _doubleTurnConsecutive;
+        // 禁抽令：按「玩家 × 全局回合」计数的抽牌闸（自然抽/效果抽同口）
+        private static readonly Dictionary<Player, int> _drawTurn = new Dictionary<Player, int>();
+        private static readonly Dictionary<Player, int> _drawCounts = new Dictionary<Player, int>();
 
         /// <summary>卡是否被锁定（不可使用）——出牌限制与 UI 共用查询口。
         /// 2026-10-04 原子化：读锁定指示物（LockCounter&gt;0）——不再要求光环活跃
@@ -255,6 +295,22 @@ namespace CardCore
             return RuleAuraSystem.ScopeHits(CastSpeedUp, card.GetController()) ? 1 : 0;
         }
 
+        /// <summary>禁抽令：每回合至多 1 张（自然抽/效果抽同口；被拦的抽不发事件、不疲劳）。</summary>
+        public static bool TryConsumeDraw(Player player)
+        {
+            if (player == null) return true;
+            int turn = GameCore.Instance?.TurnEngine?.TurnNumber ?? 0;
+            if (!_drawTurn.TryGetValue(player, out var t) || t != turn)
+            {
+                _drawTurn[player] = turn;
+                _drawCounts[player] = 0;
+            }
+            _drawCounts.TryGetValue(player, out var n);
+            if (RuleAuraSystem.ScopeHits(NoDrawAura, player) && n >= 1) return false;
+            _drawCounts[player] = n + 1;
+            return true;
+        }
+
         public static void EnsureRegistered()
         {
             if (_registered) return;
@@ -269,6 +325,13 @@ namespace CardCore
             RuleHooks.RegisterPlaySource(new GraveyardPlaySource());
             // 窥渊：锁定经出牌限制钩子接入 PlayCard/PlayCardInResponse
             RuleHooks.RegisterPlayRestriction(new LockedCardRestriction());
+            // 禁魔/禁召令（2026-10-29 1b）：出牌类型闸（同批注册——PlayCard/PlayCardInResponse 同门）
+            RuleHooks.RegisterPlayRestriction(new NoSpellPlayRestriction());
+            RuleHooks.RegisterPlayRestriction(new NoCreaturePlayRestriction());
+            // 语料原生禁令（2026-10-29 阶段2）：低费/高费/非生物 三道出牌闸
+            RuleHooks.RegisterPlayRestriction(new NoLowCostPlayRestriction());
+            RuleHooks.RegisterPlayRestriction(new NoHighCostPlayRestriction());
+            RuleHooks.RegisterPlayRestriction(new NoNonCreaturePlayRestriction());
             // 纳川：手牌上限 7→15（修改链，实时查询）
             RuleHooks.RegisterHandLimitModifier(new HandLimitModifier());
             // 三负面光环（2026-10-07 负面化定案）：毒蚀走 DamageEvent 分流、
@@ -406,6 +469,8 @@ namespace CardCore
             _graveQuotaUsed.Clear();
             _doubleTurnLastPlayer = null;
             _doubleTurnConsecutive = 0;
+            _drawTurn.Clear();
+            _drawCounts.Clear();
         }
 
         /// <summary>光环切换（Activate 转发）：疾风连击计数从头数（激活当下所在回合=该玩家第 1 回合）。</summary>
@@ -577,6 +642,55 @@ namespace CardCore
         {
             public bool CanPlay(GameCore core, Player player, Card card, Zone fromZone)
                 => card == null || card.GetCounterCount(Attribute.CounterRules.LockCounter) == 0;
+        }
+
+        // ============ 禁魔/禁召令（2026-10-29 1b）：出牌类型闸——受光环影响的一方不能施放法术/生物牌 ============
+
+        private sealed class NoSpellPlayRestriction : IPlayRestriction
+        {
+            public bool CanPlay(GameCore core, Player player, Card card, Zone fromZone)
+                => !(RuleAuraSystem.ScopeHits(NoSpellAura, player)
+                     && card is CardWrapper w && w.GetData() is CardData d && d.Supertype == Cardtype.Spell);
+        }
+
+        private sealed class NoCreaturePlayRestriction : IPlayRestriction
+        {
+            public bool CanPlay(GameCore core, Player player, Card card, Zone fromZone)
+                => !(RuleAuraSystem.ScopeHits(NoCreatureAura, player)
+                     && card is CardWrapper w2 && w2.GetData() is CardData d2 && d2.Supertype == Cardtype.Creature);
+        }
+
+        // ============ 语料原生禁令（2026-10-29 阶段2）：低费/高费/非生物 三道出牌闸 ============
+        // 模式费取 mode 0 运行时推导费（多模式卡近似——先按首模式判；后续要精确再改 PlayCard 的 modeIndex 口）。
+
+        private sealed class NoLowCostPlayRestriction : IPlayRestriction
+        {
+            public bool CanPlay(GameCore core, Player player, Card card, Zone fromZone)
+            {
+                if (!RuleAuraSystem.ScopeHits(NoLowCostAura, player)) return true;
+                if (!(card is CardWrapper w) || !(w.GetData() is CardData d)) return true;
+                return CardCostService.GetRuntimeCost(d, 0).Total > 3f;
+            }
+        }
+
+        private sealed class NoHighCostPlayRestriction : IPlayRestriction
+        {
+            public bool CanPlay(GameCore core, Player player, Card card, Zone fromZone)
+            {
+                if (!RuleAuraSystem.ScopeHits(NoHighCostAura, player)) return true;
+                if (!(card is CardWrapper w) || !(w.GetData() is CardData d)) return true;
+                // 2026-10-29 修正口径：阈值=对手池内地牌张数（不限非生物、不看己方地数——拉温妮改版）
+                var opp = player?.Opponent;
+                int oppLands = opp != null ? (core?.ElementPool?.GetPool(opp)?.PooledCards?.Count ?? 0) : 0;
+                return CardCostService.GetRuntimeCost(d, 0).Total <= oppLands;
+            }
+        }
+
+        private sealed class NoNonCreaturePlayRestriction : IPlayRestriction
+        {
+            public bool CanPlay(GameCore core, Player player, Card card, Zone fromZone)
+                => !(RuleAuraSystem.ScopeHits(NoNonCreatureAura, player)
+                     && card is CardWrapper w3 && w3.GetData() is CardData d3 && d3.Supertype != Cardtype.Creature);
         }
 
         // ============ 纳川仪典：手牌上限 15 ============

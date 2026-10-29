@@ -391,10 +391,10 @@ namespace CardCore.Editor.TideHeadless
             return JsonUtility.ToJson(resp);
         }
 
-        /// <summary>动作空间布局版本（v3 = 2026-10-14 契约 docs/action_space_v3_contract.md：
-        /// 68 维卡特征 / 92 卡槽 / 50 维 globals / 8 维动作特征 / 512 动作容量 / 类型 0..13）。
+        /// <summary>动作空间布局版本（v6 = 2026-10-29 P11 盘面重塑：战场槽 12→9、卡槽 92→86；
+        /// v5 = P6 苏醒改版 NCard 116→115）。
         /// 与 TideObservation.LayoutVersion 单源同步。</summary>
-        private const int LayoutVersion = 4;
+        private const int LayoutVersion = 6;
 
         private static List<float> ToList(float[] a)
         {

@@ -165,7 +165,8 @@ namespace CardCore
 
         // ============ 状态原子（2026-09-11 沉睡改造） ============
         /// <summary>沉睡（绿1 中性）：赋予目标沉睡指示物——沉睡期间无法重置、效果无效。
-        /// 自我沉睡（登场 SelectionMode=Self）走豁免费：打出不扣灰/绿费，指示物数量=豁免的元素数（灰+绿）。
+        /// （旧「自我沉睡走豁免费转时长」已随 2026-10-29 P6/P6c 苏醒改版退役——苏醒施放的沉睡层数
+        /// 由 ResolvePermanentEntry 入场直挂=免灰份额，不经本原子；本原子 Value 未显式兜底 1 层。）
         /// 效果/指示物分离定案：效果=赋予指示物，指示物本身承载持续规则。枚举只可尾部追加。</summary>
         Sleep,
         // 微缩/放大已删（2026-10-10 照抄炉石机制退役）：GrantMiniature / GrantMagnify 两成员
@@ -501,6 +502,12 @@ namespace CardCore
         /// 魔法卡效果 Source=角色（来源归因定案），状态门（如「本回合第一张抽到的卡」）
         /// 需要卡身份时先读本字段、退回 Source as Card。仅 GameActions 施放路径填充。</summary>
         public Card CastCard { get; set; }
+
+        /// <summary>正在结算的效果定义（P9b 2026-10-29）：EffectExecutor.ExecuteAsync 填——
+        /// 引用卡槽（临摹/变形）按 (来源卡ID, 效果序号) 解析卡组期绑定时，用它对位宿主卡
+        /// CardData.Effects 的下标（转换器保序保 Id）。旁路上下文（预检/描述）可为 null，
+        /// 消费方（SummonTokenHandler.ResolveBoundTemplateId）判空回落。</summary>
+        public EffectDefinition ResolvingEffect { get; set; }
 
         /// <summary>上一步原子效果的产出结果（per-target，由分支步骤读取）</summary>
         public EffectOutcome LastOutcome { get; set; } = new EffectOutcome();

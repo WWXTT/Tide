@@ -71,6 +71,7 @@ namespace CardCore
             if (c.noGuard) o["noGuard"] = true;
             if (c.speedBonus != 0) o["speedBonus"] = c.speedBonus;
             if (c.durability != 0) o["durability"] = c.durability;
+            if (c.isField) o["isField"] = true; // 场地标记（2026-10-29 P8）：false 省略——读侧缺字段回落默认
             // 代价栏（2026-10-16 组装效果代价）：payloads 原子数组（同源原子口径，refId 空行不写）；
             // 单原子也走数组——装载端 payloads 优先、旧 payload 单对象列继续可读
             if (c.payloads != null && c.payloads.Count > 0)

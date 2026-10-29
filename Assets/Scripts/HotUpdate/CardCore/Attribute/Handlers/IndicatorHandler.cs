@@ -273,8 +273,8 @@ namespace CardCore.Attribute.Handlers
     /// <summary>
     /// 锁定原子（2026-10-04 窥渊仪典原子化定案，蓝2）：为一张手牌挂「锁定」指示物×{value}回合——
     /// 层数=剩余回合，持有者回合结束 −1（手牌区与场上同样倒数），归零解锁；
-    /// 持有期间无法进入发动区和地牌区（打出/响应出牌/苏醒立约/放地入池同门——
-    /// LockedCardRestriction + CommitAwaken + CanServeAsLand 三口封锁）。
+    /// 持有期间无法进入发动区和地牌区（打出/响应出牌/放地入池同门——
+    /// LockedCardRestriction + CanServeAsLand 两口封锁；苏醒立约口已随 2026-10-29 P6 退役）。
     /// </summary>
     public class LockCardHandler : AtomicEffectHandlerBase
     {
@@ -678,8 +678,9 @@ namespace CardCore.Attribute.Handlers
     /// 层=持续回合数，持有者回合末 −1、归零解除（无法重置+效果无效期间持续）。
     /// 效果/指示物分离原则：本原子只负责**赋予指示物**——持续规则由指示物自身承载
     ///（CounterRules.OnTurnEnd ③块倒数；TriggerEngine/CanActivate 拦效果）。
-    /// 自我沉睡的豁免费转时长（2026-10-22 扩灰+绿）：目标=来源卡自身且 Value 未显式 →
-    /// 数量=PendingSleepLayers（打出时灰、绿份额豁免量，GetCardCost 剥离暂存，消费即清）。
+    /// 旧「豁免费转时长」消费口已删（2026-10-29 P6 苏醒改版）：苏醒施放的沉睡层数由
+    /// ResolvePermanentEntry 在入场时直接挂层（不经卡面 Sleep 原子）；本原子 Value 未显式
+    /// 时一律兜底 1 层。
     /// </summary>
     public class SleepHandler : AtomicEffectHandlerBase
     {
@@ -691,13 +692,8 @@ namespace CardCore.Attribute.Handlers
             {
                 if (target == null || !target.IsAlive) continue;
 
-                // 2026-09-13 数值随机：层数掷值（每目标独立）；缺省 0 层走豁免费/兜底 1
+                // 2026-09-13 数值随机：层数掷值（每目标独立）；缺省（名义无层数）兜底 1 层
                 int amount = context.GetValueAfterModifiers(effect.GetRolledValue());
-                if (amount <= 0 && context.Source is Card src && target == src && src.PendingSleepLayers > 0)
-                {
-                    amount = src.PendingSleepLayers; // 豁免费转时长（自我沉睡，灰+绿合计）
-                    src._pendingSleepLayers = 0;     // 消费即清（一次性）
-                }
                 if (amount <= 0)
                 {
                     // 显式掷值到 ≤0 = 空过（不横置不挂层）；缺省（名义无层数）兜底 1 层
@@ -721,6 +717,6 @@ namespace CardCore.Attribute.Handlers
         }
 
         protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => effect.Value > 0 ? $"赋予{effect.Value}层沉睡（无法重置、效果无效）" : "赋予沉睡（豁免费量=持续回合）";
+            => effect.Value > 0 ? $"赋予{effect.Value}层沉睡（无法重置、效果无效）" : "赋予沉睡（缺省 1 层——无法重置、效果无效）";
     }
 }

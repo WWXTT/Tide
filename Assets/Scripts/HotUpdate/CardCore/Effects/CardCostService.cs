@@ -60,6 +60,14 @@ namespace CardCore
         /// 本字段恒空——消费引用清理归 P4。</summary>
         public ElementCost Grants = new ElementCost();
 
+        /// <summary>代价抵扣（P 行）**前**的逐色推导费（2026-10-29 P7 建造配套）：
+        /// ReduceBuckets(payload) 作用前的 mounted（含底盘调整）。建造（BuildPaid）的
+        /// 「每色卡费」账单基数与建额上限单源——预付先扣、代价后扣的重放起点。</summary>
+        public ElementCost PrePayloadCost = new ElementCost();
+
+        /// <summary>卡层代价价合计（P 行点数；与 5b 抵扣量同值）——P7 建造账单重放用。</summary>
+        public int PayloadPrice;
+
         /// <summary>逐行明细（S / K 逐关键词 / E 逐效果 / f / d(C) / Req / G）。</summary>
         public List<CostBreakdownLine> Breakdown = new List<CostBreakdownLine>();
     }
@@ -198,6 +206,8 @@ namespace CardCore
             // 卡层 PayloadCost（legacy 效果级 Costs 兜底）逐原子 PayloadUnitGrant 求和，
             // ReduceBuckets 先灰后最高费用色、每色下限 0（溢出丢弃）。衍生物内容全价不抵扣（ContentPrice*）。
             int payloadPoints = SumPayloadPrice(card);
+            result.PrePayloadCost = ToElementCost(mounted); // P7：抵扣前留影（建造账单基数/上限单源）
+            result.PayloadPrice = payloadPoints;
             if (payloadPoints > 0)
             {
                 CardCompositionCost.ReduceBuckets(mounted, payloadPoints);
@@ -218,9 +228,13 @@ namespace CardCore
             // ---- 6) 规则一（2026-09-11 简化定案沿用）：D ≤ Ĉ 直判 ----
             // 代价当量抵扣通道下线——恒推导下 D 通常 ≤ Ĉ（d≤1）；超槽加价不吃折，仍可把 D 顶出 Ĉ
             //（Req>0=真超模，代价栏应补）。代价抵扣（5b）先于本判——净费参与 D≤Ĉ。
-            result.OffsetRequirement = Math.Max(0, result.DerivedTotal - result.DerivedTier);
+            // 对照值 Ĉ₁=max(1, round(S+E+K)) 上不钳 MaxTier（2026-10-29）：档位钳只作用折扣曲线 d(C)
+            // 取值——若照钳后档判，rawTotal>MaxTier 的卡 Ĉ 恒钉在上限而 D 随内容 ×f 增长，D≤Ĉ
+            // 结构性不可满足（教学三 Boss 末日降临 rawTotal34→档14/D26 即此）；下钳 1 与档位口径一致。
+            int ruleTier = rawTotal > 0f ? Math.Max(1, TideMath.RoundToInt(rawTotal)) : 0;
+            result.OffsetRequirement = Math.Max(0, result.DerivedTotal - ruleTier);
             result.Conformant = result.OffsetRequirement == 0;
-            result.Breakdown.Add(new CostBreakdownLine("Req", $"规则一 D{result.DerivedTotal} ≤ Ĉ{result.DerivedTier}", result.OffsetRequirement));
+            result.Breakdown.Add(new CostBreakdownLine("Req", $"规则一 D{result.DerivedTotal} ≤ Ĉ{ruleTier}", result.OffsetRequirement));
 
             // ---- 6b) 黑白获得汇总已删（2026-10-28 P1 定案）：代价=构筑期抵扣（5b），不再发放任何元素；
             // Grants 字段留空不填（引用清理 P4 处理）----
@@ -367,8 +381,10 @@ namespace CardCore
         /// 两遍式：第一遍取各模式效果锚桶（未折未取整）——「模式0=最高消耗」契约按原始锚价判；
         /// 第二遍组装（S 入灰桶，与效果同吃 d(Ĉ_m)——整卡最后折；档位逐模式自决，不读存档 costList）。
         /// 无抉择卡返回空表。
+        /// prePayloadOut（2026-10-29 P7 建造配套）：非 null 时逐模式追加**代价抵扣前**的费用
+        ///（与返回表同序同长——GetPrePayloadCost 抉择分支消费）。
         /// </summary>
-        public static List<ElementCost> DeriveModeCosts(CardData card)
+        public static List<ElementCost> DeriveModeCosts(CardData card, List<ElementCost> prePayloadOut = null)
         {
             var result = new List<ElementCost>();
             int modeCount = CostDerivationService.GetModeCount(card);
@@ -445,6 +461,7 @@ namespace CardCore
                 float kwMultiplier = cc.KeywordsShareDelayDiscount ? factor : 1f;
                 var mounted = ApportionMounted(modeBuckets[m], kwBuckets, kwMultiplier, factor, grayAdd);
                 ApplyChassis(card, mounted); // 底盘（2026-10-10 可支配）：超槽加价入灰 / 剩余抵价（先灰后最高色）
+                if (prePayloadOut != null) prePayloadOut.Add(ToElementCost(mounted)); // P7：抵扣前留影
                 // 代价抵扣（2026-10-28 P1）：抉择卡逐模式吃同一笔卡层代价（先灰后最高费用色）
                 int payloadPoints = SumPayloadPrice(card);
                 if (payloadPoints > 0)
@@ -506,6 +523,38 @@ namespace CardCore
             }
             return best?.Clone() ?? new ElementCost();
         }
+
+        /// <summary>
+        /// 代价抵扣（P 行）**前**的逐色卡费 + 代价点数（2026-10-29 P7 建造单源）：
+        /// 建造（BuildPaid）的账单基数与建额上限同口——预付先扣、代价后扣的重放起点。
+        /// 抉择卡返回所选模式；无缓存直推导（仅已建额非零的卡走此口——冷路径，不做记忆化，
+        /// 与 GetRuntimeCost 的热路径隔离）。
+        /// </summary>
+        public static void GetPrePayloadCost(CardData card, int modeIndex, out ElementCost preCost, out int payloadPoints)
+        {
+            preCost = new ElementCost();
+            payloadPoints = 0;
+            if (card == null) return;
+
+            if (CostDerivationService.HasChoiceEffect(card))
+            {
+                var pre = new List<ElementCost>();
+                DeriveModeCosts(card, pre);
+                if (pre.Count > 0)
+                {
+                    preCost = pre[Math.Clamp(modeIndex, 0, pre.Count - 1)];
+                    payloadPoints = PayloadPriceOf(card);
+                    return;
+                }
+                // 单模式退化（HasChoiceEffect 而 GetModeCount≤1——防御）：走整卡推导
+            }
+            var result = Derive(card);
+            preCost = result.PrePayloadCost;
+            payloadPoints = result.PayloadPrice;
+        }
+
+        /// <summary>卡层代价价合计公开口（P7 建造账单重放 ReduceBuckets 消费；SumPayloadPrice 单源包装）。</summary>
+        public static int PayloadPriceOf(CardData card) => card == null ? 0 : SumPayloadPrice(card);
 
         /// <summary>计价内部 int 桶 → ElementCost（组合层机械的边界口）。</summary>
         private static ElementCost ToElementCost(Dictionary<ManaType, int> dict)

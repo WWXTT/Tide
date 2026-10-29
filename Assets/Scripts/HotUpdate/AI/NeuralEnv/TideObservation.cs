@@ -15,13 +15,13 @@ namespace CardCore.AI.NeuralEnv
     /// v3 契约（2026-10-14，tide_rl/docs/action_space_v3_contract.md，对账依据=仓库根
     /// AI训练准备_v3对账报告_2026-10-14.md）：
     ///
-    /// 槽位分配（每玩家 46 槽，共 92 槽；容量=引擎真值精确对齐）：
-    ///   [0..11]  战场 Battlefield (12 = BattlefieldCapacityPerPlayer，单位区 2×6)
-    ///   [12..25] 元素池 ElementPool (14 = 地牌槽编码容量护栏——2026-10-15 规则硬顶退役后仅编码上限；按色叠格)
-    ///   [26..37] 手牌 Hand (12 = 回合中溢出护栏；回合末上限 7 由 globals 表达)
-    ///   [38..41] 墓地 Graveyard (4，新死优先：slot38=最新入墓；更早只进计数)
-    ///   [42..44] 发动区 Activation (3，公开区/反制指向点；第 4+ 张不可编码)
-    ///   [45]     场地区 FieldZone (1，英雄技能卡)
+    /// 槽位分配（每玩家 43 槽，共 86 槽；容量=引擎真值精确对齐）：
+    ///   [0..8]   战场 Battlefield (9 = BattlefieldCapacityPerPlayer，单位区 4+5；P11 盘面重塑)
+    ///   [9..22]  元素池 ElementPool (14 = 地牌槽编码容量护栏——2026-10-15 规则硬顶退役后仅编码上限；按色叠格)
+    ///   [23..34] 手牌 Hand (12 = 回合中溢出护栏；回合末上限 7 由 globals 表达)
+    ///   [35..38] 墓地 Graveyard (4，新死优先：slot35=最新入墓；更早只进计数)
+    ///   [39..41] 发动区 Activation (3，公开区/反制指向点；第 4+ 张不可编码)
+    ///   [42]     场地区 FieldZone (1，英雄技能卡)
     /// 牌库/放逐 v3 仅以计数入 globals（放逐计数为本版新增）。
     /// 对方手牌是隐藏信息：只写 valid+controller（不开图），张数在 globals g[6]。
     ///
@@ -33,8 +33,13 @@ namespace CardCore.AI.NeuralEnv
     public sealed class TideObservation
     {
         // ---- 维度常量（Python 侧只改这些，模型不动）----
-        public const int LayoutVersion = 4;
-        public const int MaxCardsPerPlayer = 46;
+        // v6（2026-10-29 P11 盘面重塑）：战场槽 12→9（单位区 4+5）——每玩家 46→43 槽、
+        // 后续区域槽位整体前移 3；位置特征归一化分母随 BoardLayout.Width 8→7。
+        // 旧模型权重作废（python LAYOUT_VERSION 同步升 6）。
+        // v5（2026-10-29 P6 苏醒改版）：删卡特征 [113] AwakenCommitted（立约退役）——
+        // NCard 116→115、N_GLOBAL 不变。
+        public const int LayoutVersion = 6;
+        public const int MaxCardsPerPlayer = 43;
         public const int MaxCardsTotal = MaxCardsPerPlayer * 2;
         // 卡特征布局（内容身份三通路，[15..] 由 CardIdentityService 推导；槽位下标全部由
         // AtomIdSlots 派生——扩容只改 AtomIdSlots 一处，python N_CARD_FEATURES 同步）：
@@ -46,8 +51,9 @@ namespace CardCore.AI.NeuralEnv
         //   [28]     关键词/tag/光环组合哈希下标
         //   [29..40] 原子 EffectType 下标（原子表内排名，参数无关）
         //   [41..112] 原子参数浮点块（12 槽 × CardIdentityService.AtomParamDim 维）
-        //   [113]    AwakenCommitted（苏醒已立约——CommitAwaken 决策相关）
-        //   [114][115] 格坐标 x/Width、z/Height（未落格 = -1）
+        //   [113][114] 格坐标 x/Width、z/Height（未落格 = -1）
+        //   （旧 [113] AwakenCommitted 苏醒立约位已删——2026-10-29 P6 苏醒改版：立约决策退役，
+        //     苏醒并入 PlayCard 变体行；卡特征 116→115 维，旧模型权重作废，LAYOUT_VERSION 升 5）
         // 精确哈希 = 冻结的查表身份；类型 + 参数 = 泛化通路。0 = 无该成分 / token / 未登记。
         public const int HashIdStart = 15;
         public const int AtomIdSlots = 12; // 2026-10-16 6→12（正式卡满配9+余量3）
@@ -55,15 +61,14 @@ namespace CardCore.AI.NeuralEnv
         public const int CompositionSlot = StructureSlot + 1;                  // [28] 关键词/tag/光环组合哈希
         public const int TypeIdStart = CompositionSlot + 1;                    // [29..40] 类型下标槽
         public const int ParamStart = TypeIdStart + AtomIdSlots;               // [41..] 参数块
-        public const int AwakenSlot = ParamStart + AtomIdSlots * CardIdentityService.AtomParamDim; // [113]
-        public const int PosXSlot = AwakenSlot + 1;
-        public const int PosZSlot = AwakenSlot + 2;
-        public const int NCard = PosZSlot + 1; // v4：68→116（原子槽 6→12）；python N_CARD_FEATURES 同步
+        public const int PosXSlot = ParamStart + AtomIdSlots * CardIdentityService.AtomParamDim; // [113]
+        public const int PosZSlot = PosXSlot + 1;                              // [114]
+        public const int NCard = PosZSlot + 1; // v5：116→115（删苏醒立约位）；python N_CARD_FEATURES 同步
         // globals v3（50 维，契约 §5——重排序+归一化+放逐计数+弹药维；v2 g[48] 冗余删除）：
         //   g[0..16] 双方生命/30、回合/40、相位、座次、各区计数（墓地/30、牌库/60、放逐新）；
         //   g[17..28] 临时钱包 12 维；g[29] 栈占用；g[30..31] 势能 Φ/30；g[32..33] 地牌上限/14；
         //   g[34..37] 黑白已获得/14；g[38..45] 双方英雄技能块（P1 绝对序）[has,tapped,uses/10,弹药/5]；
-        //   g[46..48] 栈深度/16、栈顶来源/92、栈顶 effectIdentity/1024；g[49] 决策上下文。
+        //   g[46..48] 栈深度/16、栈顶来源/86（=MaxCardsTotal·v6）、栈顶 effectIdentity/1024；g[49] 决策上下文。
         public const int NGlobal = 50;
         public const int NAction = 8; // 动作特征槽：valid/type/sourceIndex/targetIndex/modeIndex/actionCost/effectIdentity/targetKind
 
@@ -132,8 +137,8 @@ namespace CardCore.AI.NeuralEnv
             return -1;
         }
 
-        /// <summary>区域 → (槽位基址, 容量)（未编码区返回 false）。v3 精确对齐引擎容量（契约 §3）：
-        /// 战场 12=BattlefieldCapacityPerPlayer、元素池 14=地牌槽编码容量护栏（2026-10-15 规则硬顶退役后
+        /// <summary>区域 → (槽位基址, 容量)（未编码区返回 false）。v6 对齐引擎容量（P11 盘面重塑）：
+        /// 战场 9=BattlefieldCapacityPerPlayer（单位区 4+5）、元素池 14=地牌槽编码容量护栏（2026-10-15 规则硬顶退役后
         /// 仅编码上限，超出部分照常参与规则只是不可编码）、手牌 12=回合中溢出护栏
         ///（回合末上限 7 由 globals 表达；第 13+ 张动作仍可执行，只是来源槽不可编码——防串区）、
         /// 墓地 4（新死优先）、发动区 3、场地区 1（技能卡）。容量变更须先改契约文档再改这里。</summary>
@@ -141,12 +146,12 @@ namespace CardCore.AI.NeuralEnv
         {
             switch (zone)
             {
-                case Zone.Battlefield: offset = 0; cap = 12; return true;
-                case Zone.ElementPool: offset = 12; cap = 14; return true;
-                case Zone.Hand: offset = 26; cap = 12; return true;
-                case Zone.Graveyard: offset = 38; cap = 4; return true;
-                case Zone.Activation: offset = 42; cap = 3; return true;
-                case Zone.FieldZone: offset = 45; cap = 1; return true;
+                case Zone.Battlefield: offset = 0; cap = 9; return true;
+                case Zone.ElementPool: offset = 9; cap = 14; return true;
+                case Zone.Hand: offset = 23; cap = 12; return true;
+                case Zone.Graveyard: offset = 35; cap = 4; return true;
+                case Zone.Activation: offset = 39; cap = 3; return true;
+                case Zone.FieldZone: offset = 42; cap = 1; return true;
                 default: offset = -1; cap = 0; return false;
             }
         }
@@ -268,7 +273,6 @@ namespace CardCore.AI.NeuralEnv
             for (int e = 0; e < nParams; e++)
                 for (int p = 0; p < dim; p++)
                     Cards[b + ParamStart + e * dim + p] = atomParams[e * dim + p];
-            Cards[b + AwakenSlot] = c.AwakenCommitted ? 1f : 0f;
             Cards[b + PosXSlot] = posX;
             Cards[b + PosZSlot] = posZ;
         }

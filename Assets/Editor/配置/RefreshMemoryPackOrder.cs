@@ -233,6 +233,8 @@ namespace CardCore.Tools
                 // ---- 上行 intent ----
                 ("MsgIntentPlayCard", "CardRuntimeId"), ("MsgIntentPlayCard", "Targets"),
                 ("MsgIntentPlayCard", "FromZone"), ("MsgIntentPlayCard", "ModeIndex"),
+                ("MsgIntentPlayCard", "AwakenCast"), // 2026-10-29 P6 苏醒施放字段（协议 v3）
+                ("MsgIntentBuildCard", "CardRuntimeId"), ("MsgIntentBuildCard", "Color"), // 2026-10-29 P7 建造（协议 v4）
                 // MsgIntentTapForElement 已删（2026-10-11 现取现用：无手动横置）——两个 tag 常量同批移除（2026-10-22）
                 ("MsgIntentAddToElementPool", "CardRuntimeId"),
                 ("MsgIntentDeclareAttack", "Attacker"), ("MsgIntentDeclareAttack", "Target"),
@@ -254,10 +256,15 @@ namespace CardCore.Tools
 
                 // ---- RuntimeCardState 快照补齐 ----
                 ("RuntimeCardState", "RuntimeId"), ("RuntimeCardState", "ControllerSeat"),
+                ("RuntimeCardState", "BuildPaid"), // 2026-10-29 P7 建造已建额（协议 v4 快照手牌卡状态）
 
                 // ---- 开局握手（2026-09-22：DeckSubmit/MatchManifest + 卡组闭包原子行摘要）----
                 ("NetDeckDigest", "AtomicRowsHash"), ("NetDeckDigest", "AtomicRowCount"),
+                ("NetDeckDigest", "TokenSig"), // 2026-10-29 P9b 衍生物区/槽绑定摘要（协议 v5）
                 ("MsgDeckSubmit", "DeckName"), ("MsgDeckSubmit", "CardIds"), ("MsgDeckSubmit", "Digest"),
+                ("MsgDeckSubmit", "TokenCardIds"), ("MsgDeckSubmit", "TokenBindings"), // P9b 两块（协议 v5）
+                ("MsgDeckTokenBinding", "CardId"), ("MsgDeckTokenBinding", "EffectIndex"),
+                ("MsgDeckTokenBinding", "TemplateId"), // P9b 绑定条目（协议 v5）
                 ("MsgMatchManifest", "OwnSeat"), ("MsgMatchManifest", "OwnCardIds"),
                 ("MsgMatchManifest", "OpponentCardCount"), ("MsgMatchManifest", "OwnDeckDigest"),
 
@@ -360,6 +367,7 @@ namespace CardCore.Tools
                 "MsgNetEventBatch" => "MNEB",
                 "NetDeckDigest" => "NDD",
                 "MsgDeckSubmit" => "MDS",
+                "MsgDeckTokenBinding" => "MTB",
                 "MsgMatchManifest" => "MMM",
                 "MsgError" => "MErr",
                 "MsgJoinRoom" => "MJR",

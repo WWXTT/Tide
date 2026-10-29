@@ -43,6 +43,7 @@ namespace CardCore.Network
                     // 响应出牌分派：栈上有待响应对象、非结算中、优先权在请求者手、来源限手牌
                     // （与 PlayCardInResponse 自身门禁一致——此处预分派只是让"同一个消息类型"
                     //   覆盖两种出牌时点；引擎入口仍有全部校验，分派错误只会得到 false）。
+                    // AwakenCast（2026-10-29 P6）：苏醒施放仅主阶段 PlayCard 分支——响应路径无苏醒变体。
                     if (fromZone == Zone.Hand
                         && !core.StackEngine.IsEmpty && !core.StackEngine.IsResolving
                         && core.StackEngine.CurrentPriorityHolder == player)
@@ -51,7 +52,7 @@ namespace CardCore.Network
                             respReason, out error);
                     }
 
-                    return Ok(GameActions.PlayCard(core, player, card, targets, fromZone, intent.ModeIndex, out var reason),
+                    return Ok(GameActions.PlayCard(core, player, card, targets, fromZone, intent.ModeIndex, intent.AwakenCast, out var reason),
                         reason, out error);
                 }
 
@@ -69,6 +70,19 @@ namespace CardCore.Network
                     // ModeIndex 字段复用为锁色选择（2026-10-11：-1=缺省主色，否则=ManaType 枚举值）
                     var colorChoice = intent.ModeIndex >= 0 ? (ManaType?)intent.ModeIndex : null;
                     return Ok(GameActions.AddToElementPool(core, player, card, colorChoice), out error);
+                }
+
+                case NetworkMessageType.IntentBuildCard:
+                {
+                    var intent = MemoryPackSerializer.Deserialize<MsgIntentBuildCard>(msg.Payload);
+                    if (intent == null) { error = "IntentBuildCard 载荷损坏"; return false; }
+
+                    var card = NetEntityDirectory.ResolveCard(core, intent.CardRuntimeId);
+                    if (card == null) { error = $"卡不存在 RuntimeId={intent.CardRuntimeId}"; return false; }
+
+                    // 拒绝文案直读 CanBuild 门禁（上限/色资格/元素余量等逐项可读——Ok(bool,reason) 出口）
+                    return Ok(GameActions.BuildCard(core, player, card, (ManaType)intent.Color, out var buildReason),
+                        buildReason, out error);
                 }
 
                 case NetworkMessageType.IntentSkipStandby:

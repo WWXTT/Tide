@@ -30,15 +30,22 @@ namespace CardCore
             _usageTracker = new EffectUsageTracker();
         }
 
-        /// <summary>触发上限闸门（2026-09-13 定案；2026-10-03 键修正）：触发式效果本回合触发数是否已达上限——
-        /// 触发式在 ProcessTriggeredEffects 入栈即记账（RecordQueuedActivation，防同批出队时
-        /// 第 1 个未结算导致第 2 个漏拦）；主动结算记账走既有 RecordActivation。
+        /// <summary>触发上限闸门（2026-09-13 定案；2026-10-03 键修正；**2026-10-29 P9 次数档软删**）：
+        /// 玩家不再声明作用次数——触发式恒「每回合 1 次」（用量台账同时是自愿触发节流与防循环兜底；
+        /// 旧档 limit=2/3/-1 读入一律按 1，字段保留仅作数据兼容）。两个系统通道照旧不叠闸：
+        /// · 结界耐久经济（UsesDurabilityEconomy——耐久即次数池，触发即 −1 耐久，一回合可烧多点）；
+        /// · 引擎载荷效果（CostDerivationService.HasEnginePayload——主干部署单发、奖励发射由
+        ///   BranchEngines 每卡每回合 1 次全局规则自限）。
         /// 键 = **来源实例 + effect.Id**（2026-10-03 修正：此前全局按 Id——同 Id 不同实例互吞：
         /// 回响临时复制与本体同回合各自 OnPlay 被吞、同名卡同回合打第二张同样被吞；
         /// 现按卡实例独立限流，"同一张卡的同一效果每回合 N 次"语义不变）。</summary>
         public bool TriggerCapReached(EffectDefinition effect, Entity source = null)
-            => effect != null && effect.TriggerLimitPerTurn > 0
-               && _usageTracker.GetTurnUsage(UsageKey(effect, source)) >= effect.TriggerLimitPerTurn;
+        {
+            if (effect == null) return false;
+            if (source is Card host && Attribute.CounterRules.UsesDurabilityEconomy(host)) return false;
+            if (CostDerivationService.HasEnginePayload(effect)) return false;
+            return _usageTracker.GetTurnUsage(UsageKey(effect, source)) >= 1;
+        }
 
         /// <summary>触发式入栈即记账（2026-09-13 修复：结算期记账在同批多触发下查账恒滞后一轮，
         /// "一回合一次"闸门失效）；结算处对触发式跳过 RecordActivation 防双记。</summary>
@@ -104,6 +111,11 @@ namespace CardCore
             if (source != null && source.GetCounterCount(Attribute.CounterRules.SilenceCounter) > 0)
                 return false;
 
+            // 0.55 禁发令光环（2026-10-29）：受光环影响方的单位与角色不能发动主动效果
+            //（主动能力路径；硬闸在 GameActions.ActivateEffect/ActivateEffectInResponse——网络 intent 不经此）。
+            if (source != null && RuleAuraSystem.ScopeHits(RuleAuraComponents.NoActivateAura, source.GetController()))
+                return false;
+
             // 0.6 沉睡指示物（2026-09-11 定案）：沉睡期间效果无效——主动同样不可发动
             //（触发式在 TriggerEngine.FindMatchingEffects 拦，双口合流）。
             if (source != null && source.GetCounterCount(Attribute.KeywordRules.SleepCounter) > 0)
@@ -157,12 +169,23 @@ namespace CardCore
                     ElementPool = _elementPool,
                     Source = source
                 };
-                // 特殊代价：必须可原子支付
-                if (specialCosts.Count > 0 && !CostHandlerRegistry.CanPayAll(specialCosts, costContext))
-                    return false;
-                // 元素代价：当前 bank 可付（浓度上限口径；黑白获取只经卡结算，无兑换通道）
-                if (!elementCosts.IsZero && !ElementCostPayment.CanPay(elementCosts, costContext))
-                    return false;
+                // P5（2026-10-29）：主动效果带效果级代价行 → 发动闸接管费用预检
+                //（净费=发动费−Σ代价价可付 ∧ CostPayability 代价可支付——资敌白嫖/手牌不足在此拦）；
+                // 技能栏不开放（IsSkillSource 分流回既有路径——ActivationBill 不套抵扣）。
+                if (EffectActivationGate.Applies(effect, source, specialCosts))
+                {
+                    if (EffectActivationGate.RejectReason(effect, source, elementCosts, specialCosts, costContext) != null)
+                        return false;
+                }
+                else
+                {
+                    // 特殊代价：必须可原子支付
+                    if (specialCosts.Count > 0 && !CostHandlerRegistry.CanPayAll(specialCosts, costContext))
+                        return false;
+                    // 元素代价：当前 bank 可付（浓度上限口径；黑白获取只经卡结算，无兑换通道）
+                    if (!elementCosts.IsZero && !ElementCostPayment.CanPay(elementCosts, costContext))
+                        return false;
+                }
             }
 
             // 5. 目标有效性检查（2026-09-10 目标域模型：组合域候选空 → 不可发动；
@@ -250,6 +273,7 @@ namespace CardCore
                 TriggerLimitPerTurn = effect.TriggerLimitPerTurn, // 次数档随授予传入关键词台账（2026-10-07 深夜）
                 SummonDropZone = effect.SummonDropZone,
                 CastCard = instance.CastCard, // 施放链路宿主卡（状态门 DrawnInStandbyThisTurn 用）
+                ResolvingEffect = effect, // P9b：引用卡槽按 (来源卡ID, 效果序号) 解析卡组期绑定
             };
 
             // 代价支付：元素代价由配置表自动推导（费用唯一权威），经 ElementCostPayment 纯支付
@@ -276,6 +300,14 @@ namespace CardCore
                 ? effect.Costs.Where(c => c.Type != CostType.ElementConsume).ToList()
                 : new List<CostInstance>();
 
+            // P5（2026-10-29）：主动效果代价行=发动期抵扣——净费 = 发动费 − Σ代价价
+            //（ReduceBuckets 先灰后最高费用色、逐色 ≥0、可归零；只读不改推导费）。
+            // 净费先付、代价后执行（与卡层 cast 同序）；技能栏不套抵扣（ActivationBill 原样付）、
+            // 触发式（ElementCostPrepaid）不经此段、法术 cast（skipElementCost）元素费已在卡费扣讫。
+            var payBill = elementCosts;
+            if (EffectActivationGate.Applies(effect, instance.Source, specialCosts))
+                payBill = EffectActivationGate.NetBill(elementCosts, specialCosts);
+
             if (!elementCosts.IsZero || specialCosts.Count > 0)
             {
                 var costContext = new CostContext
@@ -299,7 +331,7 @@ namespace CardCore
                 //（入栈期已过滤可付性，此处失败=窗口内状态变化；已付不退，结算链继续）——
                 // 旧 EffectResolutionException 会中断整条 ResolveStack，已退役。
                 if (!skipElementCost && !effect.ElementCostPrepaid && !elementCosts.IsZero &&
-                    !ElementCostPayment.Pay(elementCosts, costContext))
+                    !ElementCostPayment.Pay(payBill, costContext))
                 {
                     TideLog.Warn($"[EffectExecutor] 效果 {effect.Id} 元素费付不出——空转（不回滚不断链）");
                     instance.IsResolved = true;
@@ -1201,7 +1233,8 @@ namespace CardCore
             if (guarder is Card guardCard)
                 guardOk = guardCard.HasGuardAbility() && guardCard.IsAlive && !guardCard.IsTapped();
             else if (guarder is Player heroGuard)
-                guardOk = heroGuard.IsAlive && heroGuard.GetPower() > 0;
+                guardOk = heroGuard.IsAlive && heroGuard.GetPower() > 0
+                          && !RuleAuraSystem.ScopeHits(RuleAuraComponents.NoGuardAura, heroGuard);
             else
                 guardOk = false;
             if (!guardOk) return false;

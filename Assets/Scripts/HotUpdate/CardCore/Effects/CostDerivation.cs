@@ -336,20 +336,17 @@ namespace CardCore
             => param > 0 ? param
             : Math.Max(1, (int)Math.Ceiling(RewardDerivedCost(then)));
 
-        /// <summary>触发上限计价系数（2026-10-05 档位化，表 PricingTier：1:1 / 2:1.5 / 3:2 / 无上限:4；
-        /// 原 1.2^(N-1) 连乘 / ×1.2³ 口径退役）。N&gt;3 视同无上限；N=1 / 非触发式（主动现付、光环静态）不乘。
-        /// 只对触发式生效（IsTriggeredEffect 守卫）。</summary>
-        public static float TriggerCostFactor(EffectDefinition def)
-        {
-            if (def == null || !def.IsTriggeredEffect) return 1f;
-            if (HasEnginePayload(def)) return 1f; // 引擎载荷效果：重复性属引擎通道（Then 自平衡门槛付费），主干部署单发不乘次数档
-            return Tiers.TriggerLimitFactor(def.TriggerLimitPerTurn);
-        }
+        /// <summary>触发上限计价系数——**次数档软删**（2026-10-29 P9 定案）：玩家不再声明作用次数，
+        /// 旧 2:×1.5 / 3:×2 / 无上限:×4 溢价档全部退役（TriggerLimitPerTurn 运行时恒系统常量 1——
+        /// 见 EffectExecutor.TriggerCapReached；PricingTierConfig.TriggerLimit2/3/Infinite 字段仅存档兼容，
+        /// 不再有消费方）。恒返回 1（不乘）——方法与调用点保留防断链，验证器断言恒 1。</summary>
+        public static float TriggerCostFactor(EffectDefinition def) => 1f;
 
         /// <summary>效果是否携带引擎载荷（settle=Engine——扁平 Effects 与节点化 Steps 双扫）。
         /// 引擎效果头被 EngineHeaderPresetOf 归一为无限档（-1），但主干原子部署单发、奖励由引擎
-        /// 自平衡付费——触发上限系数（无限=×4）不适用，防非引擎行主干被重定价（2026-10-09 修复）。</summary>
-        private static bool HasEnginePayload(EffectDefinition def)
+        /// 自平衡付费——次数档/防循环闸不适用（2026-10-09 修复；2026-10-29 P9 起兼供
+        /// EffectExecutor.TriggerCapReached 引擎豁免——奖励发射由 BranchEngines 每卡每回合 1 次全局规则自限）。</summary>
+        internal static bool HasEnginePayload(EffectDefinition def)
         {
             bool Of(AtomicEffectInstance a) => a?.Branch != null && a.Branch.Settle == BranchSettleKind.Engine;
             if (def.Effects != null)
@@ -428,10 +425,9 @@ namespace CardCore
 
             // 发动速度计价已退役（2026-10-19：速度特化法术专属=类特性非溢价——旧 ×1.5/×2 档随拆）。
 
-            // 双方同时作用减半（2026-10-03 用户定案；2026-10-07 规则光环范围化）：效果同时作用于双方——
-            // 双侧域 + 全取档/显式多目标（双方全体恢复/双方各消灭一生物），或规则光环的作用范围=双方
-            //（ModifyGameRule 的 Value=RuleAuraScope.Both）——计费 ×0.5（对称面让利）；
-            // 规则光环选己方/对方单侧=单侧锁口径不減；双侧域单体任选一侧同不減。
+            // 双方同时作用减半（2026-10-03 用户定案）：效果同时作用于双方——
+            // 双侧域 + 全取档/显式多目标（双方全体恢复/双方各消灭一生物）——计费 ×0.5（对称面让利）；
+            // 规则光环不在此列（2026-10-29 去对称让利：表价即实价，无论作用范围）；双侧域单体任选一侧不減。
             if (IsSymmetricBothSides(atom, def, domain))
                 amount *= SymmetricDiscountFactor;
 
@@ -442,14 +438,14 @@ namespace CardCore
         public static float SymmetricDiscountFactor => ValueSystemConfigManager.Instance.GetOrCreateConfig().CardCostConfig.SymmetricDiscountFactor;
 
         /// <summary>
-        /// 是否「同时作用双方」（2026-10-03 用户定案减半口径；2026-10-07 规则光环范围化；
-        /// 2026-10-09 逐原子目标制修订）：
-        /// - 无目标域 + ModifyGameRule（规则光环）——仅当作用范围=双方（Value==RuleAuraScope.Both；
-        ///   己方/对方单侧=单侧锁口径全价）；
+        /// 是否「同时作用双方」（2026-10-03 用户定案减半口径；2026-10-09 逐原子目标制修订；
+        /// 2026-10-29 去对称让利——规则光环臂整删，表价即实价）：
         /// - 双侧域（SideLock=0 且域非空）且 全取档（SelectionModeRules.IsTakeAll）——域内全收
         ///   必然覆盖双方，让利成立；
         /// - 旧共享目标数据（PerAtomTargets=false，header 声明作用范围）保留显式多目标减半臂
         ///   （有效数量≥2——「双方各一」语义）。
+        /// 规则光环（ModifyGameRule·无目标域）不再参与（2026-10-29 定案：对称仪典表价直接落
+        /// 实价 3/6 档——对称面让利在表侧兑现，计价侧恒全价）；无目标域的其余原子恒 false。
         /// 逐原子目标制（PerAtomTargets=true，2026-10-09）数量 1/2/3=弹窗任选 N 个——是否跨侧
         /// 运行时才知，**不再按数量≥2 判对称减半**（旧口径曾令双侧域伤害 1/2/3 档经 ×1.5/×2 再 ×0.5
         /// 后费用全等——目标数量计价失效根因）。
@@ -457,9 +453,6 @@ namespace CardCore
         /// </summary>
         public static bool IsSymmetricBothSides(AtomicEffectInstance atom, EffectDefinition def, List<int> domain)
         {
-            if (atom != null && atom.Type == AtomicEffectType.ModifyGameRule
-                && (domain == null || domain.Count == 0))
-                return atom.Value == (int)RuleAuraScope.Both;
             if (domain == null || domain.Count == 0) return false;
             if (SideLock(domain) != 0) return false;
             if (SelectionModeRules.IsTakeAll(def != null ? def.SelectionMode : 0)) return true;
@@ -601,8 +594,8 @@ namespace CardCore
                 return 0f;
 
             // 规则光环（2026-10-07 范围化）：Value=作用范围序（RuleAuraScope）非量级——不乘 magnitude，
-            // 恒单价×成本乘数×持续档（与旧口径 value=1 等价）；双方让利由 IsSymmetricBothSides 统一裁决
-            //（含负面光环——2026-10-07 改写降级回滚，改写族箭头计价口径退役；舍身 2026-10-16 关键词化出族）。
+            // 恒单价×成本乘数×持续档（与旧口径 value=1 等价）；不吃对称让利（2026-10-29 去对称让利——
+            // 表价即实价；含负面光环——2026-10-07 改写降级回滚，改写族箭头计价口径退役；舍身 2026-10-16 关键词化出族）。
             if (atom.Type == AtomicEffectType.ModifyGameRule)
             {
                 float ruleMult = cfg.CostMultiplier > 0f ? cfg.CostMultiplier : 1f;
@@ -972,43 +965,62 @@ namespace CardCore
         /// 主动占用的只是底盘免费额度抵扣位，元素锚价仍构筑期全免（运行时现付）。
         /// 代价栏计 1 槽（2026-10-04 定案：代价也是效果栏，不是特殊判——使用代价栏要单独为
         /// 效果栏付 1 费，底盘 3 灰预算同口径扣槽，超出加价；全价不并入卡费，仅作门槛与补偿基准）。
-        /// 卡层 PayloadCost 与 legacy 效果级 Costs 同卡只计 1 槽（单卡单条契约）。
+        /// 卡层 PayloadCost 计 1 槽；**主动效果的代价行各计 1 槽**（2026-10-29 P5：主动效果可带
+        /// 一条效果级代价——每个带代价的主动效果 +1，与卡层代价栏同口径；空行不占）；
+        /// 非主动效果的 legacy 效果级 Costs 兜底仍单卡合计 1 槽（单卡单条契约）。
         /// </summary>
         public static int CountEffectSlots(CardData card)
         {
             if (card == null) return 0;
             int slots = 0;
+            bool legacyCostRow = card.PayloadCost != null && card.PayloadCost.AllPayloads().Count > 0;
             if (card.Effects != null)
             {
                 foreach (var eff in card.Effects)
                 {
                     if (eff == null) continue;
                     slots += 1;
-                    if (eff.Steps == null) continue;
-                    foreach (var step in eff.Steps)
+                    if (eff.Steps != null)
                     {
-                        if (step?.choices != null && step.choices.Count > 1)
-                            slots += step.choices.Count - 1;
+                        foreach (var step in eff.Steps)
+                        {
+                            if (step?.choices != null && step.choices.Count > 1)
+                                slots += step.choices.Count - 1;
+                        }
                     }
+                    if (!EffectCostFilled(eff)) continue;
+                    if (IsActivatedEffectData(eff)) slots += 1; // P5：主动效果代价行（每效果 +1）
+                    else legacyCostRow = true;                   // 非主动 legacy 兜底（单卡合计 1）
                 }
             }
-            if (HasPayloadEntry(card)) slots += 1;
+            if (legacyCostRow) slots += 1;
             return slots;
         }
 
-        /// <summary>卡上是否填装了代价（卡层 PayloadCost 正式口〔组装原子序列，2026-10-16〕/ legacy 效果级 Costs 兜底，任一即真）。</summary>
-        private static bool HasPayloadEntry(CardData card)
+        /// <summary>效果级代价行是否已填（与 CardEffectConverter 装载同口：payload.refId 非空才算 Payload 条目）。</summary>
+        private static bool EffectCostFilled(CardEffectData eff)
         {
-            if (card.PayloadCost != null && card.PayloadCost.AllPayloads().Count > 0)
-                return true;
-            if (card.Effects == null) return false;
-            foreach (var eff in card.Effects)
-            {
-                if (eff?.Costs == null) continue;
-                foreach (var ce in eff.Costs)
-                    if (ce?.payload != null && !string.IsNullOrEmpty(ce.payload.refId)) return true;
-            }
+            if (eff?.Costs == null) return false;
+            foreach (var ce in eff.Costs)
+                if (ce?.payload != null && !string.IsNullOrEmpty(ce.payload.refId)) return true;
             return false;
+        }
+
+        /// <summary>数据级主动判定（镜像 CardEffectConverter.ConvertOne 的时机解析：Activate_* 三档时机，
+        /// 或 Voluntary 声明——双向钉死规则下后者也被钉回 Activate_*）。槽位计数等构筑期口径专用；
+        /// 运行时以转换后 def.IsActivatedEffect 为准。</summary>
+        private static bool IsActivatedEffectData(CardEffectData eff)
+        {
+            int t = eff.TriggerTiming;
+            TriggerTiming timing;
+            if (t >= 0 && Enum.IsDefined(typeof(TriggerTiming), t)) timing = (TriggerTiming)t;
+            else if (t < 0) timing = TriggerTiming.Activate_Active; // 未声明哨兵（converter 同口径回落主动）
+            else timing = TriggerTiming.OnPlay;                      // 越界回退（converter 告警口径）
+            if (timing == TriggerTiming.OnTurnStart) timing = TriggerTiming.OnStandbyPhase; // 系统专用归一
+            bool timingActive = timing == TriggerTiming.Activate_Active
+                                || timing == TriggerTiming.Activate_Instant
+                                || timing == TriggerTiming.Activate_Response;
+            return timingActive || eff.ActivationType == (int)EffectActivationType.Voluntary;
         }
     }
 }

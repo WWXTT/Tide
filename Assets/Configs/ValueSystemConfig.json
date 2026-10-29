@@ -236,8 +236,8 @@
   {
     "Category": "GameRules",
     "Key": "BattlefieldCapacityPerPlayer",
-    "Value": 12.0,
-    "Des": "每玩家战场单位容量（=单位区 2×6，2026-10-14 晚 8×7 缩盘；计数语义与棋盘格无关；BoardLayout.UnitCellsPerPlayer 单源引用本值；控制权变更不受此闸）"
+    "Value": 9.0,
+    "Des": "每玩家战场单位容量（=单位区 4+5，2026-10-29 P11 盘面重塑 6-7-6；计数语义与棋盘格无关；BoardLayout.UnitCellsPerPlayer 单源引用本值；控制权变更不受此闸）"
   },
   {
     "Category": "GameRules",

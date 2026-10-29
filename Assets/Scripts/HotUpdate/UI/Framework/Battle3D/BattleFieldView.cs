@@ -994,9 +994,9 @@ namespace SynergyUI
                 }
             }
 
-            // 万能元素格（2026-10-23 定案·2026-10-28 右移两格迁位 (2,0)/(5,6)）：图标常驻+余额数字+
-            // 余额>0 描边环（「可用即钱包」口径：Any 不由地牌产出，永不叠地牌卡）；格角色=Extra
-            //（点击开额外区面板——沿用旧万能格即额外区格口径，迁位后行为不变）
+            // 万能元素格（P11 迁位 (0,0)/(6,6)·Any 角色只做展示）：图标常驻+余额数字+
+            // 余额>0 描边环（「可用即钱包」口径：Any 不由地牌产出，永不叠地牌卡）；
+            // 无点击行为（旧「点击开额外区面板」已随 P11 额外区格整删退役）
             var anyCell = BoardLayout.AnyElementCell(owner);
             float anyIconZ = owner == 0 ? -0.42f : 0.35f;
             BattleTileFx.AddElement(anyCell.x, anyCell.z, (int)ManaType.Any, new Vector2(0f, anyIconZ));

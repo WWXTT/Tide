@@ -32,8 +32,7 @@ namespace SynergyUI
         /// <summary>教学三选卡组倒计时秒数（旧 PreMatchScreen.Teaching3PickSeconds 同值平移）。</summary>
         private const float LunzhuanPickSeconds = 10f;
 
-        private const int RowZ = 2;          // 摆放行：P1 单位区近中线行（BoardLayout 单位行）
-        private const int FirstX = 1;        // 起始列（x1..xN，两侧特殊格列不占）
+        private const int RowZ = 2;          // 摆放行：P1 单位区近中线行（BoardLayout 单位行；P11 后 4 格 x1..x4）
         private const float StackLiftY = 0.02f;
         private const float RingY = 0.012f;  // 色环贴格面（菲涅尔 0.004/图标 0.008 之上）
 
@@ -69,11 +68,13 @@ namespace SynergyUI
             _root = new GameObject("deckpick-root").transform;
             if (BattleStageDirector.MapRoot != null) _root.SetParent(BattleStageDirector.MapRoot, true);
 
-            int count = Mathf.Min(_entries.Count, 6); // z2 行 x1..x6 六格上限
+            // 摆堆格集=BoardLayout 单源（P11 后近中线行缩 4 格 x1..x4——场地/除外格让位，不再写死列带）
+            var rowCells = BoardLayout.UnitCells(0).Where(c => c.z == RowZ).ToList();
+            int count = Mathf.Min(_entries.Count, rowCells.Count);
             for (int i = 0; i < count; i++)
             {
                 var entry = _entries[i];
-                var cell = BattleBoardGrid.WorldPositionOf(FirstX + i, RowZ);
+                var cell = BattleBoardGrid.WorldPositionOf(rowCells[i].x, rowCells[i].z);
                 var pile = new GameObject("deckpick-" + i);
                 pile.transform.SetParent(_root, false);
                 pile.transform.position = cell + Vector3.up * StackLiftY;

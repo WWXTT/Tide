@@ -52,8 +52,9 @@ namespace GameBoard
         // 卡离场（不再落格）钉子在 Resync 尾自动清除。
         private readonly Dictionary<Card, int> _pinnedCells = new Dictionary<Card, int>();
 
-        // 施放占格（2026-10-15 发动格拆除定案：施放中的卡=发动区占位期，落在该玩家 2×6 单位区
-        // 空格上呈现——整个单位区兼任发动区；永久物=玩家所选钉格原地转正，法术/响应施放=first-free）。
+        // 施放占格（2026-10-15 发动格拆除定案：施放中的卡=发动区占位期，落在该玩家单位区空格上
+        // 呈现——整个单位区兼任发动区（P11 后 4+5=9 格）；永久物=玩家所选钉格原地转正，
+        // 法术/响应施放=first-free）。
         // 与战场占用**分离存放**：施放卡不进 _cellOf（TryGetCell=false——光环 TryGetCellOf、
         // 攻击距离、邻接查询不视其为战场单位），CardAt 合并可见（出牌选格/呈现层需要占用真值）。
         // Enter/Leave/Failed 事件钩子已引全量 Resync，本表由 Resync 纯重建（钉优先→first-free）。
@@ -117,6 +118,33 @@ namespace GameBoard
 
             var cards = SafeGetCards(player, zone);
             if (cards == null) return;
+
+            // 场地卡（2026-10-29 P8）：战场批先摘出——固定落己方场地格（BoardLayout.FieldCell 单源），
+            // 不进单位区分配（钉子/粘滞/first-free 全不适用）。正常流每方至多一张（顶替先旧后新，
+            // Zones 入场口）；异常多张（效果直加等）=首张占格、其余容量外告警不落格。
+            if (zone == Zone.Battlefield)
+            {
+                bool anyField = false;
+                foreach (var c in cards)
+                    if (c != null && c.IsFieldCard()) { anyField = true; break; }
+                if (anyField)
+                {
+                    Card firstField = null;
+                    var nonField = new List<Card>();
+                    foreach (var c in cards)
+                    {
+                        if (c == null || !c.IsFieldCard()) { nonField.Add(c); continue; }
+                        if (firstField == null) firstField = c;
+                        else TideLog.Warn($"[BoardState] 场地卡 {c.ID} 容量外未落格（每方一格，已有 {firstField.ID} 在格）");
+                    }
+                    var fc = BoardLayout.FieldCell(PlayerIndex(player));
+                    int fIdx = BoardMath.Index(fc.x, fc.z);
+                    _occupant[fIdx] = firstField;
+                    _cellOf[firstField] = fIdx;
+                    cards = nonField;
+                    if (cards.Count == 0) return; // 本批全是场地卡：单位区分配无事可做
+                }
+            }
 
             // 落位钉子优先：本批带合法钉的卡占住钉格；其余卡先回自己上轮的格（位置粘滞，
             // 2026-10-16 死亡不挪位：同批死亡/离场只让出自己的格，其余单位不再顺移补空），
@@ -230,6 +258,23 @@ namespace GameBoard
             return cell.x < 0 ? null : ((int x, int z)?)cell;
         }
 
+        // ---- 场地格查询（2026-10-29 P8：每方一格·自顶替）----
+        // 直读战场区列表（Resync 前亦可用）：该玩家战场区中的场地卡即格上卡——
+        // 落位权威=AssignCells 的 FieldCell 分支，两处同源恒一致。
+
+        /// <summary>玩家的场地卡（己方场地格上的占用者；无场地=null）。异常多张取首张。</summary>
+        public Card FieldCardOf(Player player)
+        {
+            var cards = SafeGetCards(player, Zone.Battlefield);
+            if (cards == null) return null;
+            foreach (var c in cards)
+                if (c != null && c.IsFieldCard()) return c;
+            return null;
+        }
+
+        /// <summary>己方场地格是否已有场地卡（P8：每方一张——新场地打出=顶替）。</summary>
+        public bool FieldOccupied(Player player) => FieldCardOf(player) != null;
+
         /// <summary>教学落位钉子（2026-10-06 教学直入）：钉住一张卡的 Resync 落位格——
         /// 该卡之后每次重建优先回到钉格（须属其所在区格集，否则按无钉顺延）；卡离场钉子
         /// 自动清除。供 TutorialScenarioSeeder 预设场面、出牌选格（声明成功即钉）用。</summary>
@@ -257,6 +302,19 @@ namespace GameBoard
             foreach (var card in cards)
             {
                 if (card == null) continue;
+                // 场地卡（2026-10-29 P8）：施放立牌恒在己方场地格（与入场落位同格）——旧场地
+                // 仍占格时不立牌（顶替在 cast 结算才发生，防同格双卡重叠），空则落格预告位。
+                if (card.IsFieldCard())
+                {
+                    var fc = BoardLayout.FieldCell(pIdx);
+                    int fIdx = BoardMath.Index(fc.x, fc.z);
+                    if (!_occupant.ContainsKey(fIdx) && !_castingOccupant.ContainsKey(fIdx))
+                    {
+                        _castingCellOf[card] = fIdx;
+                        _castingOccupant[fIdx] = card;
+                    }
+                    continue;
+                }
                 int placed = -1;
                 if (_pinnedCells.TryGetValue(card, out int pin)
                     && cellIndex.Contains(pin)

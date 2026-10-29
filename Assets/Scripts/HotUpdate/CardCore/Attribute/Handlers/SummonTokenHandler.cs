@@ -29,6 +29,42 @@ namespace CardCore.Attribute.Handlers
         /// <summary>token 模板解析器：StringValue（模板卡 ID）→ CardData。由组合根注入；null 时静默跳过。</summary>
         public static Func<string, CardData> ResolveTemplate;
 
+        /// <summary>引用卡槽的生效模板 ID（P9b 2026-10-29 卡组期绑定，召唤/变形两 handler 共用）。
+        /// 解析序：① 卡实例绑定——来源卡（Source，法术归因时退 CastCard）持绑定表且绑定所属卡 ID
+        /// 与当前数据一致（变形/复制换源即失效），按 context.ResolvingEffect.Id 对位宿主卡
+        /// CardData.Effects 下标查表（转换器保序保 Id，装载器按下标盖章——两侧同序）；
+        /// ② 回落原子 str（旧数据/教程固定绑定）；③ 都无 → null（调用方记 Error 空转，不静默白板）。
+        /// 限制：同卡同效果 ID 出现多序时取首序（绑定粒度=效果序号，见 P9b 汇报）。</summary>
+        public static string ResolveBoundTemplateId(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            var host = context?.Source as CardWrapper ?? context?.CastCard as CardWrapper;
+            if (host != null && host.HasTokenBindings && context.ResolvingEffect != null)
+            {
+                var data = host.GetData();
+                var effects = data?.Effects;
+                if (effects != null && data.ID == host.TokenBindingsCardId)
+                {
+                    var defId = context.ResolvingEffect.Id;
+                    for (int i = 0; i < effects.Count; i++)
+                    {
+                        if (effects[i] == null || effects[i].Id != defId) continue;
+                        if (host.TokenBindings.TryGetValue(i, out var bound) && !string.IsNullOrEmpty(bound))
+                            return bound;
+                        break; // 命中效果而该槽未绑 → 落回固定绑定
+                    }
+                }
+            }
+            return effect?.StringValue;
+        }
+
+        /// <summary>来源可读名（Error 文案用）。</summary>
+        private static string NameOf(EffectExecutionContext context)
+        {
+            var card = context?.Source as CardWrapper ?? context?.CastCard as CardWrapper;
+            var data = card?.GetData();
+            return data != null && !string.IsNullOrEmpty(data.CardName) ? data.CardName : data?.ID ?? "?";
+        }
+
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.SummonToken;
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
@@ -38,10 +74,20 @@ namespace CardCore.Attribute.Handlers
             var resolver = ResolveTemplate; // 引用卡ID 唯一解析器（2026-10-13 临摹退役后不再回退变形解析器）
             if (resolver == null) return;
 
-            string templateId = effect.StringValue;
-            if (string.IsNullOrEmpty(templateId)) return;
+            // P9b：模板 ID 先走卡实例绑定（卡组期），空槽无绑定回落原子 str；两者皆空=显性 Error
+            string templateId = ResolveBoundTemplateId(effect, context);
+            if (string.IsNullOrEmpty(templateId))
+            {
+                TideLog.Error($"[SummonTokenHandler] 衍生物槽未绑定（来源 {NameOf(context)}）——"
+                              + "本局卡组未提供模板且效果无固定绑定，空转（装载期校验应已拦截，此处运行时兜底）");
+                return;
+            }
             var template = resolver(templateId);
-            if (template == null) return;
+            if (template == null)
+            {
+                TideLog.Error($"[SummonTokenHandler] 衍生物模板 {templateId} 解析失败（来源 {NameOf(context)}）——空转");
+                return;
+            }
 
             // 2026-09-11 定案：{衍生物} = 指向一张真实生物卡——任何衍生物都是某张真实卡的实例，
             // 身份/观测/计价全走真实卡数据。模板非生物卡 → 拒绝（构筑校验另有拦截，此处运行时兜底）。

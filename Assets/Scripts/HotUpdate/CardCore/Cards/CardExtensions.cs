@@ -153,5 +153,13 @@ namespace CardCore
         public static bool IsNonLivingUnit(this Card card)
             => card is IHasSupertype t && t.Supertype != Cardtype.Creature
                && card.GetZone() == Zone.Battlefield;
+
+        /// <summary>
+        /// 场地卡（2026-10-29 P8 定案）：结界 + 场地标记——落位恒为己方场地格（BoardLayout.FieldCell，
+        /// 每方一张），只能被自己顶替（新场地入场=旧场地入墓，Zones.ReplaceExistingField）。
+        /// 判定单源=卡面定义 CardData.IsField（CardWrapper 数据面）；容量口径：不计单位区容量 9。
+        /// </summary>
+        public static bool IsFieldCard(this Card card)
+            => card is CardWrapper w && w.GetData() != null && w.GetData().IsField;
     }
 }

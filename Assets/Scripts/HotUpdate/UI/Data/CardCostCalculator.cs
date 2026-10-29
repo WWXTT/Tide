@@ -46,6 +46,13 @@ namespace SynergyUI
             /// 卡组合界面费用恒取本值回写 _card.Cost。</summary>
             public ElementCost SuggestedCost = new ElementCost();
 
+            /// <summary>代价抵扣（P 行）**前**的逐色推导费（P4 2026-10-29：合成器净费三段式 X 段）。
+            /// 无代价抵扣时与 SuggestedCost 相同。</summary>
+            public ElementCost PrePayloadCost = new ElementCost();
+
+            /// <summary>卡层代价价合计（P4 2026-10-29：合成器净费三段式 Y 段——先灰后最高色）。</summary>
+            public int PayloadPrice;
+
             public readonly List<BreakdownLine> Breakdown = new List<BreakdownLine>();
         }
 
@@ -60,6 +67,8 @@ namespace SynergyUI
                 Grants = r.Grants.ToColorDictInt().ToDictionary(kv => (int)kv.Key, kv => kv.Value),
                 CostDict = r.DerivedCost.Clone(),
                 SuggestedCost = r.DerivedCost.Clone(),
+                PrePayloadCost = r.PrePayloadCost?.Clone() ?? r.DerivedCost.Clone(),
+                PayloadPrice = r.PayloadPrice,
             };
 
             foreach (var line in r.Breakdown)

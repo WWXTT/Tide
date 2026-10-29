@@ -23,7 +23,9 @@ namespace CardCore.Network
     // ============================================================
 
     /// <summary>卡组引用闭包的原子行摘要：闭包内全部 refId 对应表行内容（排序后哈希）。
-    /// 行数仅供拒绝文案诊断。卡/效果层无需内容摘要——ID 即内容哈希，命中即一致。</summary>
+    /// 行数仅供拒绝文案诊断。卡/效果层无需内容摘要——ID 即内容哈希，命中即一致。
+    /// TokenSig（2026-10-29 P9b 协议 v5）：衍生物区 + 槽绑定摘要（排序后哈希）——效果 ID 不含绑定
+    ///（同一临摹效果在不同卡组指向不同衍生物），同卡表不同绑定的两套牌摘要必须不同。</summary>
     [MemoryPackable]
     public partial class NetDeckDigest
     {
@@ -32,12 +34,33 @@ namespace CardCore.Network
 
         [MemoryPackOrder(TagTable.NDD_AtomicRowCount)]
         public int AtomicRowCount;
+
+        [MemoryPackOrder(TagTable.NDD_TokenSig)]
+        public string TokenSig;
+    }
+
+    /// <summary>衍生物槽绑定条目（P9b 协议 v5）：(卡ID, 效果序号) → 模板卡 ID。
+    /// 效果序号 = 提交卡组该卡 CardData.Effects 下标（客户端绑定面板与服务器装载同序）。</summary>
+    [MemoryPackable]
+    public partial class MsgDeckTokenBinding
+    {
+        [MemoryPackOrder(TagTable.MTB_CardId)]
+        public string CardId;
+
+        [MemoryPackOrder(TagTable.MTB_EffectIndex)]
+        public int EffectIndex;
+
+        [MemoryPackOrder(TagTable.MTB_TemplateId)]
+        public string TemplateId;
     }
 
     /// <summary>上行：卡组提交（对局开始前）。CardIds 为 Cards.json 卡 ID（C_ 前缀内容哈希）；
     /// Digest 为提交方本地按同一卡组计算的原子行摘要，服务器与自身计算结果比对。
     /// SkillCardId（2026-10-07 卡牌化）：英雄技能标记卡 ID——服务器宽松校验（须 ∈ CardIds
-    /// 且为合格技能结界，否则按无技能开局），不参与 Digest 摘要口径。</summary>
+    /// 且为合格技能结界，否则按无技能开局），不参与 Digest 摘要口径。
+    /// TokenCardIds/TokenBindings（2026-10-29 P9b 协议 v5）：衍生物区与槽绑定——参与 Digest
+    /// 摘要（TokenSig）并由服务器校验（槽须绑定、绑定值 ∈ 区、模板类型合规；详见
+    /// NetMatchHandshake.ValidateDeckSubmit）。随机预组直提时两块为空数组（模板仍在 CardIds 内）。</summary>
     [MemoryPackable]
     public partial class MsgDeckSubmit
     {
@@ -52,6 +75,12 @@ namespace CardCore.Network
 
         [MemoryPackOrder(TagTable.MDS_SkillCardId)]
         public string SkillCardId;
+
+        [MemoryPackOrder(TagTable.MDS_TokenCardIds)]
+        public string[] TokenCardIds;
+
+        [MemoryPackOrder(TagTable.MDS_TokenBindings)]
+        public MsgDeckTokenBinding[] TokenBindings;
     }
 
     /// <summary>下行：对局清单（双座位 DeckSubmit 校验通过后下发）。

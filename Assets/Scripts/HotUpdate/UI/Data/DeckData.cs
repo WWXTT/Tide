@@ -23,6 +23,17 @@ namespace SynergyUI
         /// 抽出落技能栏。null/空 = 对局无英雄技能。旧档缺省 null 天然兼容。</summary>
         public string skillCardId;
 
+        /// <summary>衍生物区（P9b 2026-10-29）：一组模板卡 ID，容量上限
+        /// DeckTokenSupport.TokenZoneCapacity（6）。随组入局落 Zone.Extra（GameCore 按
+        /// IsTokenTemplate 分流）。旧档（模板混在 cardIds 内）由 DeckSerializer 读取时
+        /// 规范化迁入本字段——保存后 cardIds 不再携带模板。null=无。</summary>
+        public List<string> tokenCardIds;
+
+        /// <summary>衍生物槽绑定（P9b）：（卡ID, 效果序号）→ 模板卡 ID——效果里只留空槽
+        /// （原子 str 空），卡组里选模板绑定，运行时按卡实例解析（CardWrapper.TokenBindings）。
+        /// 绑定不进效果哈希、不进 CardData。null=无（无槽卡组/旧档）。</summary>
+        public List<DeckTokenBinding> tokenBindings;
+
         public DeckData() { }
 
         public DeckData(string name)

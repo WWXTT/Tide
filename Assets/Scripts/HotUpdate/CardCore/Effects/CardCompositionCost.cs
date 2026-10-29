@@ -9,10 +9,12 @@ namespace CardCore
     /// · 规则一（CardCostService.Derive）：声明档位推导 D(C) 与代价抵扣校验；
     /// · 本层：只对「卡的结构性弹性」收额外费——玩家为灵活性付费，与效果本身的强度无关。
     ///
- /// 当前规则（2026-10-15 卡型默认分配定案 + 2026-10-15 深夜三类卡改版）：
+ /// 当前规则（2026-10-15 卡型默认分配定案 + 2026-10-15 深夜三类卡改版；速度口径 2026-10-29 P6c 修订）：
  /// 效果组合界面不再能设置发动速度；三个免费额度（底盘 = 显性三万能色：入组 1 + 抽牌 2）按卡型默认分配：
- /// · 法术 = 槽位从速度扣（用户定案）：免费 3 点 = 效果槽数 N + 发动速度(3−N)——1 槽=速2、
- ///   2 槽=速1、3 槽=速0，动态计算不落字段（KindSpeedBonusOf 单源；SpeedBonus 字段退役）。
+ /// · 法术 = 速度 5−槽数（2026-10-29 P6c 定案，旧 3−N 退役）：1 槽=速4、2 槽=速3、3 槽=速2、
+ ///   4 槽=速1（槽含抉择分支与代价行——「1 效果+1 代价」=2 槽=速3，代价行刻意稍压速度；
+ ///   速度不收钱、卡费一分不变，只变速度门），动态计算不落字段（KindSpeedBonusOf 单源；
+ ///   SpeedBonus 字段退役）。
  ///   法术只挂 1~3 个主动效果（发动时弹窗抉择其一）：出牌费不含效果锚价，
  ///   发动=现付所选效果锚价（cast 结算步并入账单），无额外费用。
  ///   效果发动速度=卡的发动速度（法术专享通道）；从手牌打出即按此速度过门（GetCardCastSpeed）。
@@ -105,17 +107,20 @@ namespace CardCore
             return SurplusOf(card);
         }
 
-        /// <summary>卡型速度加成单源（2026-10-15 定案：速度归卡型免费额度默认分配）：
-        /// 法术 = 剩余免费点全额（槽位从速度扣——1 槽=速2、2 槽=速1、3 槽=速0；动态计算不落字段，
+        /// <summary>卡型速度加成单源（2026-10-15 定案：速度归卡型免费额度默认分配；
+        /// 2026-10-29 P6c 修订：法术 5−槽数，脱离免费点分配）：
+        /// 法术 = max(0, 5 − 效果槽数)（CountEffectSlots 含抉择分支与代价行——1 槽=速4、2 槽=速3、
+        /// 3 槽=速2、4 槽=速1；速度不收钱，卡费不变只变速度门；动态计算不落字段，
         /// SpeedBonus 字段已退役不再消费）；结界/生物/地牌 = 0（结界禁主动后速度通道整体退役；
         /// 生物/结界从手牌使用恒 0 速）。
+        /// 注意：**不动 SurplusOf**——免费点仍管生物属性抵扣 / 结界耐久 / 地牌抵价（改它会连带改价）。
         /// 消费口：GameActions.GetCardEffectDefinitions（效果 BaseSpeed 加和）、
         /// SpeedCalculator.GetCardCastSpeed（法术整卡施放速度门）、AtomText.ActivationPrefix（句首显示）。</summary>
         public static int KindSpeedBonusOf(CardData card)
         {
             if (card == null) return 0;
             if (card.Supertype == Cardtype.Spell)
-                return SurplusOf(card);
+                return Math.Max(0, 5 - CostDerivationService.CountEffectSlots(card));
             return 0;
         }
 

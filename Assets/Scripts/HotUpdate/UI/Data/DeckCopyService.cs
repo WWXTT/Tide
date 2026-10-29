@@ -59,6 +59,12 @@ namespace SynergyUI
                 skillCardId = deck.skillCardId,
             };
             copy.cardIds.AddRange(deck.cardIds);
+            // 衍生物区/槽绑定随组引用复制（P9b 2026-10-29）：预组是固定绑定（原子 str 直书），
+            // 正常无绑定条目——留空即天然兼容；有则原样带走。
+            if (deck.tokenCardIds != null && deck.tokenCardIds.Count > 0)
+                copy.tokenCardIds = new List<string>(deck.tokenCardIds);
+            if (deck.tokenBindings != null && deck.tokenBindings.Count > 0)
+                copy.tokenBindings = deck.tokenBindings.Select(b => new DeckTokenBinding(b.cardId, b.effectIndex, b.templateId)).ToList();
             DeckSerializer.Save(copy);
             return newName;
         }

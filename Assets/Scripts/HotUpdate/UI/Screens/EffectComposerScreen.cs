@@ -110,14 +110,34 @@ namespace SynergyUI
             { "眠蚀仪典", RuleAuraComponents.CombatSleep },
             // 舍身仪典已删（2026-10-16 关键词化：舍身改 GrantMartyrdom 关键词——关键词族投放，不在仪典目录）
             { "暗牧仪典", RuleAuraComponents.HealInversion },  // 2026-10-09 治疗转伤害（受光环影响一方的治疗改写为等量伤害；黑8 表行 79ef61f3；用户命名——初拟「反疗仪典」）
+            // 禁令族（2026-10-29）：行为限制光环——受光环影响方按 ScopeHits 判命中（单位/角色同门）
+            { "禁攻令", RuleAuraComponents.NoAttackAura },
+            { "禁守令", RuleAuraComponents.NoGuardAura },
+            { "禁发令", RuleAuraComponents.NoActivateAura },
+            { "禁地令", RuleAuraComponents.NoLandAura },
+            // 禁令族 1b 扩充（2026-10-29）：六条新禁令（禁疗/禁寻/禁祭/禁魔/禁召/禁抽）
+            { "禁疗令", RuleAuraComponents.NoHealAura },
+            { "禁寻令", RuleAuraComponents.NoSearchAura },
+            { "禁祭令", RuleAuraComponents.NoSacrificeAura },
+            { "禁魔令", RuleAuraComponents.NoSpellAura },
+            { "禁召令", RuleAuraComponents.NoCreatureAura },
+            { "禁抽令", RuleAuraComponents.NoDrawAura },
+            // 语料原生禁令族（2026-10-29 阶段2）：低费/高费/非生物/时机/指示物
+            { "禁低费令", RuleAuraComponents.NoLowCostAura },
+            { "禁高费令", RuleAuraComponents.NoHighCostAura },
+            { "禁非生物令", RuleAuraComponents.NoNonCreatureAura },
+            { "禁时机令", RuleAuraComponents.OwnTurnCastAura },
+            { "禁指示物令", RuleAuraComponents.NoCounterAura },
         };
 
         /// <summary>规则光环默认范围中文（行级——右栏库行说明用）：改写仪典=仅己方（落槽缺省）、
+        /// 固定双方规则（2026-10-29 IsFixedBothRule——许可+禁止族）=对双方（UI 不提供单侧选择）、
         /// 其余=对双方。实际生效范围逐步存于仪典步 entry.value（AutoName/设置盒按步读取，2026-10-07）。
         /// 键=DisplayName（中文短名——装载后 EnumName 列落在 DisplayName，英文枚举名在 EnumName）。</summary>
         private static string RuleAuraScopeOf(AtomicEffectConfig cfg)
             => cfg != null && RuleAuraIds.TryGetValue(cfg.DisplayName, out var rid)
-                ? RuleAuraSystem.RuleAuraScopeZh(rid) : "对双方生效";
+                ? (RuleAuraComponents.IsFixedBothRule(rid) ? "对双方生效" : RuleAuraSystem.RuleAuraScopeZh(rid))
+                : "对双方生效";
 
         /// <summary>规则光环行识别（2026-10-05 统一标记定案）：原子表 MountKinds 位 RuleAura 驱动——
         /// 9 行双方仪典 + 3 行改写仪典（毒蚀/霜蚀/眠蚀；疫蚀 2026-10-09 随剧毒指示物删除退役）；RuleAuraIds 字典只剩 str 短名映射职责。</summary>
@@ -256,13 +276,18 @@ namespace SynergyUI
         private Button _deleteBtn;            // 删除当前库效果（仅效果表载入态可用）
         private UInputField _filterName;
         private UiKit.Dropdown _timingDropdown, _activationDropdown;
-        // 发动参数（2026-10-09 prefab 重排·activate-bar 静态组 way/timing/take-effect——speed 组
-        // 2026-10-15 随发动速度退役删除，BaseSpeed 恒 0 不可改）：节点常驻不随克隆重建——
-        // 写入走当前 _graph.header，值对齐见 SyncActivateBarValues；
-        // 生效次数组显隐随 SyncActivationVisibility 联动
+        // 发动参数（2026-10-09 prefab 重排·activate-bar 静态组 way/timing——speed 组
+        // 2026-10-15 随发动速度退役删除，BaseSpeed 恒 0 不可改；**take-effect 次数组 2026-10-29 P9
+        // 次数档软删除役**——节点常驻 prefab 不动、整组隐藏）：节点常驻不随克隆重建——
+        // 写入走当前 _graph.header，值对齐见 SyncActivateBarValues
         private RectTransform _activateBar, _wayGroup;
-        private RectTransform _limitGroup;
-        private TMP_Dropdown _ddLimit;
+        private RectTransform _limitGroup; // P9：仅剩「隐藏 take-effect 组」职责（次数下拉/参数行已删）
+        // P5 主动效果代价行（2026-10-29）：activate-bar 第二行（代码建组——prefab 未烘焙）；
+        // 数据口=_graph.header.Costs（单条 CostEntry.payload——效果级装载口）；空行不占槽、不显示费
+        private RectTransform _effectCostRow;
+        private UiKit.Dropdown _ddEffectCost;
+        private UInputField _effectCostValue;
+        private readonly List<AtomicEffectConfig> _effectCostCandidates = new List<AtomicEffectConfig>();
         private TMP_Text _tableToggleLabel;      // 合并表切换按钮的标签（原 btn-reload-atoms/btn-load-effects）
         private List<TriggerTiming> _timings;
 
@@ -347,7 +372,8 @@ namespace SynergyUI
         //（引擎 0 速语义完备见 SpeedSystem；速度>0 只剩法术提速份额与存量数据）
         // 同日新定案已落地：速度由卡型免费额度默认分配（法术2/结界装主动1/生物与结界手牌使用恒0）
         //——CardCompositionCost.KindSpeedBonusOf 单源；效果库单效果预览句首显示裸 BaseSpeed
-        private static readonly int[] LimitTiers = { 1, 2, 3, -1 };
+        // 2026-10-29 P9 次数档软删：LimitTiers {1,2,3,-1} 下拉档退役——TriggerLimitPerTurn 恒系统常量 1
+        //（引擎预设/结界宿主归一为系统写，见 ApplyOnceTimingLimitLock），不再由玩家产出
         private static readonly int[] CountTiers = { 1, 2, 3 };
 
         // 描述条文案（原子/奖励原子两处共用——面向新玩家白话口径，不谈名义值/锚点等内部概念）
@@ -403,7 +429,11 @@ namespace SynergyUI
                 ActivationChoices.Select(c => c.label).ToList(), 0);
             _timingDropdown = BindActivateBarDropdown("timing", new List<string> { "—" }, 0);
             _timingRow = UiKit.FindDeep(_activateBar, "timing") as RectTransform;
-            BindTakeEffectTier(); // 生效次数（静态一次绑定——写入走当前 _graph.header）
+            // P9（2026-10-29）次数档软删：take-effect 组整组隐藏（prefab 节点不动）——
+            // 次数下拉与参数行退役，落盘恒系统常量 1（见 ApplyOnceTimingLimitLock）
+            _limitGroup = UiKit.FindDeep(_activateBar, "take-effect") as RectTransform;
+            if (_limitGroup != null) _limitGroup.gameObject.SetActive(false);
+            BindEffectCostRow(); // P5 主动效果代价行（activate-bar 第二行——代码建组，写入 _graph.header.Costs）
             // 表切换按钮（原 btn-reload-atoms/btn-load-effects 两钮合并）：按下在 原子库↔效果表 间切换，
             // 标签常显"将切到哪边"。烘焙节点名 btn-switch-table（prefab 接管后删旧两钮）。
             UiKit.Described(UiKit.BindableButton("btn-switch-table", Root, "切换效果表", SwitchTable,
@@ -559,17 +589,30 @@ namespace SynergyUI
             // ——OnAtomicEffect* 三段/OnSummon 召唤进场/OnPhase* 阶段开始结束/OnGameStart 游戏开始，
             // 2026-10-09 定案不开放玩家选择；**回合开始 2026-10-20 起同样收归系统专用**——
             // 自动抽牌/倒计时递减等系统行为专属，效果时点改挂「准备阶段」）
-            _timings = TimingZh.Keys.Where(t => t != TriggerTiming.OnTurnStart).ToList();
-            var labels = _timings.Select(t => TimingZh[t]).ToList();
+            //
+            // P9（2026-10-29）时机两档分组：按预期发射次数分「一次性（×0.8）/ 反复（×1）」两组
+            // 前缀展示、一次性在前——分类单源=CostDerivationService.FiresOncePerPaidLifetime（不另造表）。
+            // TMP 下拉无组头行——前缀即分组；选反复组时顶栏「适用」实时只剩可挂卡型
+            //（多数反复时机仅结界可挂——EffectEligibility 单源推导，攻/守/横置族横置锚例外仍可挂生物）。
+            _timings = TimingZh.Keys.Where(t => t != TriggerTiming.OnTurnStart)
+                .OrderBy(t => CostDerivationService.FiresOncePerPaidLifetime(t) ? 0 : 1) // LINQ 稳定排序——组内维持表序
+                .ToList();
+            var labels = _timings
+                .Select(t => (CostDerivationService.FiresOncePerPaidLifetime(t) ? "一次性·" : "反复·") + TimingZh[t])
+                .ToList();
             _timingDropdown.SetOptions(labels, 0);
             SyncTimingDropdown();
             _timingDropdown.Changed += (idx, _) =>
             {
                 if (idx >= 0 && idx < _timings.Count) _graph.header.TriggerTiming = (int)_timings[idx];
-                ApplyOnceTimingLimitLock(); // 切到必然单发时机：作用次数即时锁 1 禁改
+                ApplyOnceTimingLimitLock(); // 次数常量钉（引擎/结界例外内判）
+                RefreshName();              // P9：时机换组——顶栏「适用」卡型实时重推导
             };
             _timingDropdown.Describe(
-                "触发时机：自动效果在什么时候生效；主动发动的效果由你手动发动，不选时机。",
+                "触发时机（两档）：一次性＝登场/死亡/离场等整个生命期望一发（计价 ×0.8——「登场」非严格一次，"
+                + "弹回再入场会再触发，×0.8 是近似）；反复＝抽牌/伤害/阶段等可重复时点（计价 ×1，"
+                + "多数仅结界可挂——攻/守/横置族有横置锚仍可挂生物；反复触发挂结界每发 −1 耐久，"
+                + "高频时机建议耐久配 2～3）。点选项看各时机说明。",
                 idx => idx >= 0 && idx < _timings.Count ? TimingDescZh(_timings[idx]) : null);
         }
 
@@ -680,16 +723,16 @@ namespace SynergyUI
             ApplyOnceTimingLimitLock();  // 方式切换钉时机后重裁必然单发锁（主动档隐藏时机=不生效）
         }
 
-        /// <summary>发动行显隐（2026-10-05 定案；2026-10-09 activate-bar 迁移；速度组 2026-10-15 退役）：
-        /// 主动=次数组隐，非主动（自动/系统）次数组显；光环形态全隐（无发动概念——设置盒拆除口径并轨）。</summary>
+        /// <summary>发动行显隐（2026-10-05 定案；2026-10-09 activate-bar 迁移；速度组 2026-10-15 退役；
+        /// **生效次数组 2026-10-29 P9 次数档软删整删**——take-effect 常驻隐藏，落盘恒系统常量 1）：
+        /// 光环形态全隐（无发动概念——设置盒拆除口径并轨）。
+        /// P5 主动效果代价行：仅主动档可见（触发式不开放；光环无发动概念）。</summary>
         private void SyncSettingsRowVisibility()
         {
             bool aura = IsAuraMode(_mode);
             bool voluntary = !aura && _graph.header.ActivationType == (int)EffectActivationType.Voluntary;
-            // 次数轴归宿主（2026-10-10 发数经济）：非生物宿主（结界=耐久即次数池/法术=一次性）的
-            // 次数档不参与卡价——下拉隐藏、落盘值由 NormalizeLimitForHost 归一；效果库模式无宿主保持可编辑
-            bool limitHosted = _editingCard == null || _editingCard.Supertype == Cardtype.Creature;
-            if (_limitGroup != null) _limitGroup.gameObject.SetActive(!aura && !voluntary && limitHosted);
+            // P5 主动效果代价行：仅主动档可见（触发式不开放；光环无发动概念）
+            if (_effectCostRow != null) _effectCostRow.gameObject.SetActive(!aura && voluntary);
         }
 
         /// <summary>作用次数宿主归一（2026-10-10 发数经济）：非生物卡型——结界归 -1（耐久即次数池，
@@ -718,40 +761,156 @@ namespace SynergyUI
             return new UiKit.Dropdown(tmp, options, index, null);
         }
 
-        /// <summary>生效次数静态绑定（2026-10-09 设置盒拆除迁入 activate-bar；速度组 2026-10-15
-        /// 随发动速度退役删除——新组合 BaseSpeed 恒 0）：档位与描述沿 2026-10-05 定案；
-        /// 写入走当前 _graph.header（图更换不失效），值对齐见 SyncActivateBarValues（静态节点不随克隆重建）。</summary>
-        private void BindTakeEffectTier()
+        /// <summary>生效次数下拉已随 2026-10-29 P9 次数档软删整删（BindTakeEffectTier 退役——
+        /// 次数不再由玩家声明：触发式恒每回合 1 次〔EffectExecutor.TriggerCapReached 台账〕，
+        /// 结界宿主落盘 -1=耐久即次数池〔NormalizeLimitForHost〕，计价恒 1×〔CostDerivationService.TriggerCostFactor〕）。</summary>
+
+        // ======================================== 主动效果代价行（2026-10-29 P5） ========================================
+
+        /// <summary>代价行静态绑定（activate-bar 第二行——prefab 未烘焙，代码建组：标签+下拉+参数输入）。
+        /// 候选集走 <see cref="CostDerivationService.PayloadCostDomain"/>（双臂：p&lt;0 自伤 / p&gt;0 资敌；
+        /// 系统内部/关键词行出局）。数据口=_graph.header.Costs（单条 CostEntry.payload——效果级装载口）：
+        /// 每次发动=先付净费（发动费−Σ代价价，先灰后最高费用色）再执行代价原子（不产元素）；
+        /// 空行不占效果槽、不显示费。显隐随 SyncSettingsRowVisibility（仅主动档可见）。</summary>
+        private void BindEffectCostRow()
         {
             if (_activateBar == null) return;
-            _limitGroup = UiKit.FindDeep(_activateBar, "take-effect") as RectTransform;
-            _ddLimit = BindTierDropdown(_limitGroup, LimitTiers, _graph.header.TriggerLimitPerTurn,
-                v =>
-                {
-                    _graph.header.TriggerLimitPerTurn = v;
-                    RefreshName(); // 作用次数影响计价——费用预览随改随刷
-                },
-                "作用次数：自动效果每回合最多能生效几次——点选项看各档说明。",
-                labelOf: v => v == -1 ? "无限" : v.ToString(),
-                optionDesc: v => v switch
-                {
-                    1 => "每回合最多 1 次（基础价）。",
-                    2 => "每回合最多 2 次（费用 1.5 倍）。",
-                    3 => "每回合最多 3 次（费用 2 倍）。",
-                    _ => "不限次数（费用 4 倍）；回合开始/结束等必然单发时机会被系统锁 1 不可改。",
-                });
+            _effectCostCandidates.Clear();
+            foreach (var cfg in AtomicEffectTable.GetAll())
+            {
+                if (cfg == null || string.IsNullOrEmpty(cfg.HashId)) continue;
+                if (ComposerCatalog.HasMountBit(cfg, MountKind.SystemInternal)) continue;
+                if (ComposerCatalog.HasMountBit(cfg, MountKind.Keyword)) continue;
+                if (CostDerivationService.PayloadCostDomain(cfg).eligible) _effectCostCandidates.Add(cfg);
+            }
+
+            _effectCostRow = UiKit.Row("cost-row", _activateBar);
+            UiKit.Label("label", _effectCostRow, "代价（可选）", UiStyle.SmallSize, UiStyle.TextDim);
+            _ddEffectCost = new UiKit.Dropdown("dd-effect-cost", _effectCostRow, Root,
+                EffectCostRowOptions(), 0, (idx, _) => OnEffectCostPicked(idx), width: 230f);
+            _ddEffectCost.Describe(
+                "代价（可选）：主动效果可带一条代价——每次发动先付净费（发动费−代价价，先灰后最高费用色抵扣），"
+                + "再执行代价原子（不产任何元素）；净费或代价不可付时该效果不可发动。空行=不占效果槽、不显示费。");
+            _effectCostValue = UiKit.IntField("cost-value", _effectCostRow, "参数", 1, OnEffectCostValueChanged, width: 70f);
+            UiKit.Described(_effectCostValue, "代价参数：代价原子的数值（弃 1 张 / 回复 2 点…）——文案与计价按此值实时重算。");
+            _effectCostRow.gameObject.SetActive(false);
+            SyncEffectCostRow(); // 载入图已带代价行时回显
         }
 
-        /// <summary>activate-bar 值对齐（静态节点——图更换/形态切换后重显真值；速度组已退役）。</summary>
-        private void SyncActivateBarValues()
+        /// <summary>候选下拉选项：首项「（无）」+ 逐候选「臂·名（价 N）」（价=PayloadUnitGrant 同源锚）。</summary>
+        private List<string> EffectCostRowOptions()
+        {
+            var opts = new List<string> { "（无）" };
+            foreach (var cfg in _effectCostCandidates)
+            {
+                var probe = CardEffectConverter.ConvertPayloadForDisplay(ProbeCostEntry(cfg, 1));
+                int price = probe != null ? CostDerivationService.PayloadUnitGrant(probe) : 0;
+                string arm = cfg.Polarity < 0f ? "自伤" : "资敌";
+                opts.Add($"{arm}·{cfg.DisplayName}（价{price}）");
+            }
+            return opts;
+        }
+
+        /// <summary>候选 → 代价原子条目（域经 PayloadCostDomain 收窄/镜像写 kinds——与卡层代价槽同口）。</summary>
+        private static AtomicEffectEntry ProbeCostEntry(AtomicEffectConfig cfg, int value)
+        {
+            var (kinds, _) = CostDerivationService.PayloadCostDomain(cfg);
+            return new AtomicEffectEntry { refId = cfg.HashId, value = value, kinds = kinds };
+        }
+
+        /// <summary>重选：idx=0 清空（空行不占槽）；否则整条替换 Costs（单条契约——主动效果一条代价）。</summary>
+        private void OnEffectCostPicked(int idx)
         {
             var h = _graph?.header;
             if (h == null) return;
-            if (_ddLimit != null)
+            if (idx <= 0)
             {
-                _ddLimit.SetValueWithoutNotify(Mathf.Max(0, Array.IndexOf(LimitTiers, h.TriggerLimitPerTurn)));
-                _ddLimit.RefreshShownValue();
+                h.Costs = null;
             }
+            else if (idx - 1 < _effectCostCandidates.Count)
+            {
+                var cfg = _effectCostCandidates[idx - 1];
+                var current = CurrentEffectCostPayload();
+                int value = current != null && current.refId == cfg.HashId
+                    ? Mathf.Max(1, current.value) // 重选同原子沿用已填参数（单参数效果口径）
+                    : 1;
+                h.Costs = new List<CostEntry>
+                {
+                    new CostEntry { CostType = (int)CostType.Payload, Value = 1, payload = ProbeCostEntry(cfg, value) },
+                };
+                ShowToast("已挂代价行——每次发动各扣一次净费、各执行一次代价（不产元素）");
+            }
+            SyncEffectCostRow();
+            RefreshName(); // 费用预览随代价行刷新（净费段）
+        }
+
+        /// <summary>代价参数变更：写回当前 payload.value（文案/计价实时重算，不整刷行防丢焦点）。</summary>
+        private void OnEffectCostValueChanged(int v)
+        {
+            var pe = CurrentEffectCostPayload();
+            if (pe == null) return;
+            pe.value = Mathf.Max(1, v);
+            RefreshName();
+        }
+
+        /// <summary>当前效果级代价原子（header.Costs 首个带 payload 的条目；无=null）。</summary>
+        private AtomicEffectEntry CurrentEffectCostPayload()
+        {
+            var costs = _graph?.header?.Costs;
+            if (costs == null) return null;
+            foreach (var ce in costs)
+                if (ce?.payload != null && !string.IsNullOrEmpty(ce.payload.refId)) return ce.payload;
+            return null;
+        }
+
+        /// <summary>代价行值对齐（图更换/形态切换后）：下拉按 refId 定位候选（未识别 legacy 落「（无）」），
+        /// 参数输入回显原子 value。</summary>
+        private void SyncEffectCostRow()
+        {
+            if (_ddEffectCost == null) return;
+            var pe = CurrentEffectCostPayload();
+            int idx = 0;
+            if (pe != null)
+            {
+                for (int i = 0; i < _effectCostCandidates.Count; i++)
+                    if (_effectCostCandidates[i].HashId == pe.refId) { idx = i + 1; break; }
+            }
+            _ddEffectCost.SetIndex(idx);
+            if (_effectCostValue != null)
+            {
+                bool filled = idx > 0 && pe != null;
+                _effectCostValue.gameObject.SetActive(filled);
+                if (filled) _effectCostValue.SetTextWithoutNotify(Mathf.Max(1, pe.value).ToString());
+            }
+        }
+
+        /// <summary>P5 代价段文案（主动效果带代价行才非空）：「代价（自伤）：弃牌 1（价2）→ 净费 0」——
+        /// 发动费在合计段（前缀），此处接抵扣与净费；空行不显示。</summary>
+        private static string EffectCostFeeText(EffectDefinition def)
+        {
+            if (def == null || !def.IsActivatedEffect) return null;
+            var special = def.Costs != null
+                ? def.Costs.Where(c => c != null && c.Type != CostType.ElementConsume).ToList()
+                : null;
+            if (special == null || special.Count == 0) return null;
+            int pts = EffectActivationGate.DeductionPoints(special);
+            if (pts <= 0) return null;
+            var net = EffectActivationGate.NetBill(CostDerivationService.DeriveElementCosts(def, 0), special);
+            var atom = special.SelectMany(c => c.Payloads ?? new List<CardCore.AtomicEffectInstance>())
+                .FirstOrDefault(a => a != null);
+            string arm = atom != null && atom.Polarity < 0f ? "自伤" : "资敌";
+            string name = atom != null
+                ? (AtomicEffectTable.GetByType(atom.Type)?.DisplayName ?? atom.Type.ToString())
+                : "代价";
+            int val = atom != null ? Math.Max(1, atom.Value) : 1;
+            return $"代价（{arm}）：{name} {val}（价{pts}）→ 净费 {CostZh(net)}";
+        }
+
+        /// <summary>activate-bar 值对齐（静态节点——图更换/形态切换后重显真值；速度组已退役；
+        /// 次数下拉已随 P9 删除——次数钉 1 由 ApplyOnceTimingLimitLock 承担）。</summary>
+        private void SyncActivateBarValues()
+        {
+            SyncEffectCostRow(); // P5 代价行——图更换后重显真值
             ApplyOnceTimingLimitLock();
         }
 
@@ -871,7 +1030,14 @@ namespace SynergyUI
             {
                 _costLabel.text = CostSummaryText();
                 var costTag = _costLabel.GetComponent<UiKit.DescTag>();
-                if (costTag != null) costTag.Text = EffectCostText();
+                if (costTag != null)
+                {
+                    // P9（2026-10-29）：悬浮=费用构成＋逐卡型适用原因（不可用卡型的 RejectReason 单源）
+                    string cost = EffectCostText();
+                    string elig = EligibilityHoverText();
+                    costTag.Text = elig == null ? cost
+                        : (string.IsNullOrEmpty(cost) ? elig : cost + "\n" + elig);
+                }
             }
             if (_costBadgeView != null)
             {
@@ -906,23 +1072,30 @@ namespace SynergyUI
         }
 
         /// <summary>顶栏费用一行摘要（2026-10-23 改版：顶栏=费用徽标＋一行；公式链明细悬浮费用区进描述条）：
-        /// 并列=「合计 X｜获得 Y｜分支（…）」；光环=「合计 X（N 条目）」。无效组合只留分支段。</summary>
+        /// 并列=「合计 X｜适用：…｜获得 Y｜分支（…）」；光环=「合计 X（N 条目）｜适用：…」。无效组合只留分支段。
+        /// P9（2026-10-29）：合计段后插「适用」段（EffectEligibility 实时推导——不可用卡型置灰）。</summary>
         private string CostSummaryText()
         {
             try
             {
+                var elig = EligibilityText(); // P9 适用段（独立容错——推导异常不拖费用显示）
                 if (IsAuraMode(_mode))
                 {
                     var (total, n) = AuraCostTotal();
-                    return n > 0 ? $"合计 {CostZh(total)}（{n} 条目）" : "";
+                    var auraText = n > 0 ? $"合计 {CostZh(total)}（{n} 条目）" : "";
+                    return AppendSummarySeg(auraText, elig);
                 }
                 string branch = BranchCostText();
-                if (!ZonesAllValid()) return branch;
+                if (!ZonesAllValid()) return AppendSummarySeg(branch, elig);
                 var def = CardEffectConverter.ConvertOne(BuildCardEffect(), "COMPOSER_COST_PREVIEW");
-                if (def == null) return branch;
+                if (def == null) return AppendSummarySeg(branch, elig);
                 if (_editingCard != null && _editingCard.Supertype != Cardtype.Creature)
                     def.TriggerLimitPerTurn = 1; // 镜像 ParallelCostText 非生物口径
                 var text = $"合计 {CostZh(CostDerivationService.DeriveElementCosts(def, 0))}";
+                // P5（2026-10-29）：主动效果代价行——合计（发动费）后接「代价（自伤/资敌）… → 净费」段
+                var costSeg = EffectCostFeeText(def);
+                if (costSeg != null) text += "｜" + costSeg;
+                text = AppendSummarySeg(text, elig);
                 // 黑白获得显示已删（2026-10-28 P1：代价/错边不再产出元素——DeriveElementGrants 退役）
                 return branch.Length == 0 ? text : text + "｜" + branch;
             }
@@ -931,6 +1104,62 @@ namespace SynergyUI
                 return "";
             }
         }
+
+        /// <summary>摘要段拼接（空段透传——适用段缺席时不留空「｜」）。</summary>
+        private static string AppendSummarySeg(string text, string seg)
+            => string.IsNullOrEmpty(seg) ? text : (string.IsNullOrEmpty(text) ? seg : text + "｜" + seg);
+
+        /// <summary>P9（2026-10-29）顶栏「适用」段：EffectEligibility 单源实时推导——三卡型恒列，
+        /// 可挂正常色、不可用置灰（TMP rich text）。主动三档/推导失败（无据可拒）＝三卡型全开。</summary>
+        private string EligibilityText()
+        {
+            try
+            {
+                var def = CardEffectConverter.ConvertOne(BuildCardEffect(), "COMPOSER_ELIGIBILITY");
+                bool aura = IsAuraMode(_mode);
+                var parts = new List<string>();
+                foreach (var host in EffectEligibility.AllHosts)
+                {
+                    parts.Add(EffectEligibility.RejectReason(host, def, aura) == null
+                        ? HostZh(host)
+                        : $"<color=#7f8a96>{HostZh(host)}</color>");
+                }
+                return "适用：" + string.Join(" ", parts);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        /// <summary>P9 逐卡型悬浮说明（不可用带 RejectReason 原因——与置灰显示同源）。</summary>
+        private string EligibilityHoverText()
+        {
+            try
+            {
+                var def = CardEffectConverter.ConvertOne(BuildCardEffect(), "COMPOSER_ELIGIBILITY");
+                bool aura = IsAuraMode(_mode);
+                var lines = new List<string>();
+                foreach (var host in EffectEligibility.AllHosts)
+                {
+                    var reason = EffectEligibility.RejectReason(host, def, aura);
+                    lines.Add(reason == null ? $"{HostZh(host)}＝可挂" : $"{HostZh(host)}＝{reason}");
+                }
+                return "适用卡型：" + string.Join("；", lines);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static string HostZh(Cardtype host) => host switch
+        {
+            Cardtype.Creature => "生物",
+            Cardtype.Enchantment => "结界",
+            Cardtype.Spell => "法术",
+            _ => host.ToString(),
+        };
 
         /// <summary>费用徽标费用（2026-10-26 改版：逐色 ElementCost 喂 CostSquares——口径与旧合计数值同源：
         /// 光环=条目合计；并列=推导合计，非生物镜像 CostSummaryText 的 TriggerLimitPerTurn=1）。
@@ -949,7 +1178,15 @@ namespace SynergyUI
                 if (def == null) return null;
                 if (_editingCard != null && _editingCard.Supertype != Cardtype.Creature)
                     def.TriggerLimitPerTurn = 1;
-                return CostDerivationService.DeriveElementCosts(def, 0);
+                var badge = CostDerivationService.DeriveElementCosts(def, 0);
+                // P5（2026-10-29）：带代价行的主动效果——徽标显示净费（发动费−代价抵扣＝实际支付）
+                var special = def.Costs != null
+                    ? def.Costs.Where(c => c != null && c.Type != CostType.ElementConsume).ToList()
+                    : null;
+                if (def.IsActivatedEffect && special != null && special.Count > 0
+                    && EffectActivationGate.DeductionPoints(special) > 0)
+                    badge = EffectActivationGate.NetBill(badge, special);
+                return badge;
             }
             catch
             {
@@ -2678,35 +2915,22 @@ namespace SynergyUI
             return dd;
         }
 
-        /// <summary>时机是否必然一回合至多触发一次（2026-10-05 晚间定案）：
-        /// 回合开始/结束（每回合各一发）、游戏开始/角色死亡（每局一发）——结构上不可能同回合二次触发。
-        /// 阶段开始/结束（一回合多阶段可多发）、事件族（抽牌/伤害/攻击/宣言等可重复）、
-        /// 自我换区族（回手/复活环可再造）均不锁。2026-10-16 修订：时机轴已接入计价
-        ///（CostDerivation.TimingCostFactor 一发时机 ×0.8）——本锁仍只管次数下拉的钉 1，与计价无关。</summary>
-        private static bool TimingFiresOncePerTurn(TriggerTiming t)
-            => t == TriggerTiming.OnTurnStart || t == TriggerTiming.OnTurnEnd
-               || t == TriggerTiming.OnGameStart || t == TriggerTiming.OnRoleDeath;
-
-        /// <summary>必然单发时机的作用次数锁：值钉 1（计价 1×——更高档对必然单发是纯付费无收益）、下拉禁用。
-        /// 消费点：activate-bar 绑定后（SyncActivateBarValues）、时机下拉变更、发动方式钉时机后（SyncActivationVisibility）。</summary>
+        /// <summary>作用次数系统常量钉 1（2026-10-29 P9 次数档软删）：玩家不再声明次数——
+        /// 落盘恒 1；两个系统写例外照旧：引擎锁定态走 EngineHeaderPreset.Limit（ApplyEngineHeaderLock）、
+        /// 结界宿主归一 -1=耐久即次数池（NormalizeLimitForHost 同口径）。
+        /// 旧档 2/3/-1 载入后在首个同步点归拢（不再写出）。消费点：SyncActivateBarValues、
+        /// 时机下拉变更、发动方式钉时机后（SyncActivationVisibility）。</summary>
         private void ApplyOnceTimingLimitLock()
         {
-            var h = _graph.header;
-            // 引擎锁定态豁免（2026-10-09 自由分支九项定案）：倒计时/运势=回合开始但无限循环
-            //（倒计时归零重挂/运势每回合独立判定）——次数钉引擎预设「无限」，不锁 1
-            bool engineLocked = EngineKindOfGraph() != null;
-            bool once = TimingFiresOncePerTurn((TriggerTiming)h.TriggerTiming) && !engineLocked;
-            if (once && h.TriggerLimitPerTurn != 1)
+            var h = _graph?.header;
+            if (h == null) return;
+            if (EngineKindOfGraph() != null) return; // 引擎锁定态：预设 Limit 照旧（系统写）
+            bool enchant = _editingCard != null && _editingCard.Supertype == Cardtype.Enchantment;
+            int pinned = enchant ? -1 : 1;
+            if (h.TriggerLimitPerTurn != pinned)
             {
-                h.TriggerLimitPerTurn = 1;
-                RefreshName(); // 计价回落 1×——费用预览随改随刷
-            }
-            if (_ddLimit == null) return;
-            _ddLimit.interactable = !once && !engineLocked; // 必然单发/引擎锁定均不可改（引擎态由 ApplyEngineHeaderLock 统一禁用）
-            if (once)
-            {
-                _ddLimit.SetValueWithoutNotify(0); // 首档=1
-                _ddLimit.RefreshShownValue();
+                h.TriggerLimitPerTurn = pinned;
+                RefreshName(); // 计价口径变（旧档溢价归 1×）——费用预览随改随刷
             }
         }
 
@@ -2776,13 +3000,12 @@ namespace SynergyUI
             SyncActivateBarValues();
 
             // 禁用面（2026-10-20 倒计时退钉死后发动方式恒锁——发动下拉对全部引擎锁定）：
-            // 时机——FreeTiming 组（仅运势）解锁；速度组已退役无控件；生效次数恒钉引擎预设。
+            // 时机——FreeTiming 组（仅运势）解锁；速度组已退役无控件；次数下拉已随 P9 删除。
             if (_activationDropdown != null)
                 _activationDropdown.Interactable = !locked;
             if (_timingDropdown != null)
                 _timingDropdown.Interactable = !locked || freeTiming;
-            if (locked) _ddLimit.interactable = false;
-            else ApplyOnceTimingLimitLock(); // 引擎移除——必然单发锁恢复对次数下拉的管辖
+            if (!locked) ApplyOnceTimingLimitLock(); // 引擎移除——次数常量钉恢复管辖
         }
 
         /// <summary>费用减少指示物（AddCostDown）行判定——奖励槽数量钉 1 定案配套（BindAtomTargetRow）。</summary>
@@ -3451,10 +3674,13 @@ namespace SynergyUI
             // 不占 LinkAura 连接位（无箭头）。新选即整组替换
             void AddRuleAura(AtomicEffectConfig cfg)
             {
+                var rid = RuleAuraIds.TryGetValue(cfg.DisplayName, out var r) ? r : cfg.DisplayName;
+                bool fixedBoth = RuleAuraComponents.IsFixedBothRule(rid); // 固定双方行不提供单侧选择（2026-10-29）
                 _graph.steps = new List<EffectStepData> { new EffectStepData { kind = 0,
                     atomic = new AtomicEffectEntry { refId = cfg.HashId,
-                        value = cfg.Polarity <= -0.5f ? (int)RuleAuraScope.Opponent : (int)RuleAuraScope.Both,
-                        str = RuleAuraIds.TryGetValue(cfg.DisplayName, out var r) ? r : cfg.DisplayName } } };
+                        value = fixedBoth ? (int)RuleAuraScope.Both
+                            : (cfg.Polarity <= -0.5f ? (int)RuleAuraScope.Opponent : (int)RuleAuraScope.Both),
+                        str = rid } } };
                 _graph.header.LinkAuras = null;
                 _graph.header.ArrowDirections = 0; // 规则级无箭头（MakeAuraPanel 范围面分支同置——落位即写一致）
                 RefreshSlots();
@@ -3481,7 +3707,7 @@ namespace SynergyUI
 
             // 属性光环（2026-10-07 深夜改源；2026-10-08 库行细分定案）：一般效果「属性增加/属性减少」
             //（原子表位 3 行）的光环化——每源行拆 攻/生/属性 三行（卡面种类下拉已随 actuating-range
-            // 改版退役，种类=库行结构即语义）；计价按符号取源行（白1/黑1）走通用光环化公式。
+            // 改版退役，种类=库行结构即语义）；计价按符号取源行走通用光环化公式。
             foreach (var r in AllTableRows())
             {
                 var cfg = r;
@@ -3490,8 +3716,9 @@ namespace SynergyUI
                 int sign; UIColor color;
                 switch (st)
                 {
-                    case AtomicEffectType.AddPlusOne: sign = 1; color = UIColor.White; break;
-                    case AtomicEffectType.AddMinusOne: sign = -1; color = UIColor.Black; break;
+                    // 色取表行派生单源（2026-10-29 P4 色序清尾：白/黑 UIColor 成员已删，±1 行表色=灰）
+                    case AtomicEffectType.AddPlusOne: sign = 1; color = ColorFilter.OfAtomic(st); break;
+                    case AtomicEffectType.AddMinusOne: sign = -1; color = ColorFilter.OfAtomic(st); break;
                     default: continue; // 位 3 非属性行不进光环面
                 }
                 foreach (var (statZh, statId) in new[]
@@ -3894,7 +4121,14 @@ namespace SynergyUI
             var range = UiKit.FindDeep(card, "actuating-range") as RectTransform;
             var rangeDd = range != null ? UiKit.FindDeep(range, "aura-kinds")?.GetComponent<TMP_Dropdown>() : null;
             var rcfg = AtomicEffectTable.GetByHashId(atom?.refId);
-            if (range == null || rangeDd == null || rcfg == null)
+            if (RuleAuraComponents.IsFixedBothRule(atom?.str))
+            {
+                // 固定双方规则（2026-10-29 1b 定案）：许可/禁止族 UI 不提供单侧选择——
+                // 实例 value 恒写 Both、隐藏作用范围下拉行（改写族照旧走下拉）
+                atom.value = (int)RuleAuraScope.Both;
+                if (range != null) range.gameObject.SetActive(false);
+            }
+            else if (range == null || rangeDd == null || rcfg == null)
             {
                 Debug.LogError("[EffectComposer] 仪典卡缺 actuating-range/aura-kinds 或表行——作用范围不可编；检查 EffectUI.prefab");
             }
@@ -4485,10 +4719,7 @@ namespace SynergyUI
                 UIColor.Red => UiStyle.DotRed,
                 UIColor.Blue => UiStyle.DotBlue,
                 UIColor.Green => UiStyle.DotGreen,
-                UIColor.Gray => UiStyle.DotGray,
-                UIColor.Black => UiStyle.DotBlack,
-                UIColor.White => UiStyle.DotWhite,
-                _ => UiStyle.DotGray, // All
+                _ => UiStyle.DotGray, // Gray/All（白/黑已随 2026-10-29 P4 色序清尾删除）
             };
         }
 

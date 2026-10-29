@@ -40,8 +40,16 @@ namespace SynergyUI
 
         // 2026-10-22 衍生物额外区追加（分区号只增不改）：23/24=额外区格（原技能格位回收——
         // 衍生物模板卡开局落 Zone.Extra，点击格子弹区域面板识别）。
+        // 2026-10-29 P11：CellRole.Extra 随额外区格整删——23/24 改挂**万能展示格**（CellRole.Any·
+        // 只做展示）：分区号/材质资产沿用不回收（FileLabel 仍 P1Extra/P2Extra——与已落盘
+        // BattleTile_Zone23/24_*.mat 文件名对应），中文语义已随迁万能格。
         public const byte P1Extra = 23;
         public const byte P2Extra = 24;
+
+        // 2026-10-29 P11 盘面重塑追加（分区号只增不改）：25/26=场地格（CellRole.Field 空角色位
+        // ——规则归 P8；材质资产未生成，ZoneMaterial 回落预制体自带材质，生成后自动上色）。
+        public const byte P1Field = 25;
+        public const byte P2Field = 26;
 
         private static readonly string[] Labels =
         {
@@ -50,7 +58,8 @@ namespace SynergyUI
             "对方单位区", "对方地牌行", "对方卡组", "对方墓地", "对方除外", "对方角色", "对方发动",
             "己方临时元素", "对方临时元素",
             "己方技能格", "对方技能格", "中线行", "己方地牌上限", "对方地牌上限",
-            "己方额外区", "对方额外区",
+            "己方万能格", "对方万能格",
+            "己方场地格", "对方场地格",
         };
 
         private static readonly string[] FileLabels =
@@ -61,11 +70,13 @@ namespace SynergyUI
             "P1Temp", "P2Temp",
             "P1Skill", "P2Skill", "Middle", "P1LandCap", "P2LandCap",
             "P1Extra", "P2Extra",
+            "P1Field", "P2Field",
         };
 
         // 生成器默认色板（材质资产落盘后由用户在 Inspector 调色，此处仅首建初值）
         // 2026-10-22 E1 玩家反馈「场地做成绿的/草地」：公共底盘三分区（Backdrop/Edge/Middle）
         // 换草绿系；双方单位/地牌等功能区保留敌我辨识色不动语义。
+        // 2026-10-29 P11 追加：25/26 场地格首建初值（土棕系——区别于四色地牌行与草绿底盘）。
         private static readonly Color[] DefaultColors =
         {
             new Color(0.045f, 0.085f, 0.045f), new Color(0.13f, 0.24f, 0.10f),
@@ -81,6 +92,7 @@ namespace SynergyUI
             new Color(0.19f, 0.31f, 0.13f),
             new Color(0.20f, 0.24f, 0.14f), new Color(0.26f, 0.20f, 0.10f),
             new Color(0.05f, 0.27f, 0.30f), new Color(0.31f, 0.10f, 0.27f),
+            new Color(0.24f, 0.19f, 0.11f), new Color(0.28f, 0.15f, 0.09f),
         };
 
         /// <summary>分区 id → 中文名（日志/自检用）。</summary>
@@ -98,13 +110,15 @@ namespace SynergyUI
         /// <summary>角色×归属 → 分区 id（越界/未知组合回落边缘环）。
         /// LandCap 分支已退役（2026-10-14 晚缩盘：地牌上限格不再存在，角色成墓碑永不命中）；
         /// Activation 分支同口径退役（2026-10-15 发动格拆除，角色成墓碑永不命中）；
-        /// Skill 分支同口径退役（2026-10-16 技能格撤销，角色成墓碑永不命中）。
-        /// Extra 分支（2026-10-22）：格位=原技能格位回收，分区号新增 23/24（退役编号不回收）。</summary>
+        /// Skill 分支同口径退役（2026-10-16 技能格撤销，角色成墓碑永不命中）；
+        /// Extra 分支已随 CellRole.Extra 整删（2026-10-29 P11）——23/24 改挂万能展示格（Any）；
+        /// Field 分支（P11）：25/26 新增，材质资产未生成回落预制体自带材质。</summary>
         public static byte ZoneOf(CellRole role, int owner)
         {
             if (role == CellRole.Edge) return EdgeRing;
             if (role == CellRole.Middle) return MiddleRow;
-            if (role == CellRole.Extra) return owner == 0 ? P1Extra : P2Extra;
+            if (role == CellRole.Any) return owner == 0 ? P1Extra : P2Extra; // 万能格（沿用 23/24 材质资产）
+            if (role == CellRole.Field) return owner == 0 ? P1Field : P2Field;
             int slot;
             switch (role)
             {

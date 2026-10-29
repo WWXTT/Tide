@@ -54,7 +54,7 @@ namespace SynergyUI
 
             foreach (var file in Directory.GetFiles(DeckDir, "*.json"))
             {
-                var deck = JsonUtility.FromJson<DeckData>(File.ReadAllText(file));
+                var deck = NormalizeTokens(JsonUtility.FromJson<DeckData>(File.ReadAllText(file)));
                 // 同目录混住 Cards.json/Effects.json（2026-09-21 数据分层定案）——
                 // 它们解析出的 DeckData name 为空，跳过；只认真实卡组文件
                 // 预组同名档不列（2026-10-22）：预组只读，旧安装残留的玩家侧同名档一律隐藏。
@@ -79,7 +79,7 @@ namespace SynergyUI
             {
                 return null;
             }
-            return JsonUtility.FromJson<DeckData>(File.ReadAllText(path));
+            return NormalizeTokens(JsonUtility.FromJson<DeckData>(File.ReadAllText(path)));
         }
 
         /// <summary>删除卡组文件（按名）。返回是否存在且已删除。</summary>
@@ -122,12 +122,38 @@ namespace SynergyUI
             if (string.IsNullOrEmpty(deckName)) return null;
             string path = Path.Combine(PresetDeckDir, SanitizeFileName(deckName) + ".json");
             if (!File.Exists(path)) return null;
-            try { return JsonUtility.FromJson<DeckData>(File.ReadAllText(path)); }
+            try { return NormalizeTokens(JsonUtility.FromJson<DeckData>(File.ReadAllText(path))); }
             catch (System.Exception ex)
             {
                 Debug.LogWarning($"[DeckSerializer] 预组卡组读取失败：{deckName}：{ex.Message}");
                 return null;
             }
+        }
+
+        /// <summary>旧档衍生物区规范化（P9b 2026-10-29）：P9b 前模板卡直接混在 cardIds 内
+        /// （IsTokenTemplate 标记、不计张数）——读取时统一迁入 tokenCardIds（去重保序），
+        /// 保存后即新档形态。内存态规范化不写回文件；卡表查不到的 id 不动（断链另报）。
+        /// 超容量只告警不截断（只读预组兜底；玩家侧由保存口校验拦截）。</summary>
+        private static DeckData NormalizeTokens(DeckData deck)
+        {
+            if (deck?.cardIds == null || deck.cardIds.Count == 0) return deck;
+            List<string> moved = null;
+            for (int i = deck.cardIds.Count - 1; i >= 0; i--)
+            {
+                var id = deck.cardIds[i];
+                if (CardCatalog.GetById(id)?.IsTokenTemplate != true) continue;
+                deck.cardIds.RemoveAt(i);
+                (moved ??= new List<string>()).Insert(0, id); // 倒序前插=保持原相对序
+            }
+            if (moved == null) return deck;
+            deck.tokenCardIds ??= new List<string>();
+            foreach (var id in moved)
+                if (!deck.tokenCardIds.Contains(id))
+                    deck.tokenCardIds.Add(id);
+            if (deck.tokenCardIds.Count > DeckTokenSupport.TokenZoneCapacity)
+                Debug.LogWarning($"[DeckSerializer] 卡组「{deck.name}」衍生物区 {deck.tokenCardIds.Count} 个"
+                                 + $"超上限 {DeckTokenSupport.TokenZoneCapacity}（旧档照读；玩家侧保存口会拦截）");
+            return deck;
         }
 
         /// <summary>预组卡组文件是否存在。</summary>
