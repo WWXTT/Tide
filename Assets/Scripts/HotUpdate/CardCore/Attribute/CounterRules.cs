@@ -168,7 +168,7 @@ namespace CardCore.Attribute
         public const string ToughnessCounter = "Toughness";
         /// <summary>
         /// 报复（2026-10-16 新增，红1/层，表行/GrantRetaliation）：持有者**实际受到伤害**（防护层后
-        /// 仍有剩余落定——完全挡住/舍身转投不触发；穿透伤害照常触发）时，对伤害来源造成等于层数的
+        /// 仍有剩余落定——完全挡住/战斗法师散射改写（原舍身转投，2026-10-30 改版）不触发；穿透伤害照常触发）时，对伤害来源造成等于层数的
         /// 伤害（非战斗伤害，来源=持有者），生效后层数减半（向下取整）。自伤（来源=自身）不触发；
         /// 双方互带时先减半再反击=层数几何衰减，天然封死无限互弹。
         /// Entity 级；换区不清（生效自减档）、净化可清。施加口=GrantRetaliationHandler；
@@ -228,8 +228,19 @@ namespace CardCore.Attribute
         public const string LifeDownCounter = "LifeDown";
         /// <summary>费用增加指示物（每层 +1 费，仅手牌，离手消失）</summary>
         public const string CostUpCounter = "CostUp";
-        /// <summary>费用减少指示物（每层 −1 费，仅手牌，离手消失）</summary>
+        /// <summary>费用减少指示物（每层 −1 费，仅手牌，离手消失）——legacy 恒灰档
+        ///（2026-10-31 P12 四色扩容前唯一形态，AddCostDown 原子与存档继续落此 id）。</summary>
         public const string CostDownCounter = "CostDown";
+        /// <summary>四色费用降低（2026-10-31 P12 充能定案）：灰/红/蓝/绿各一类，每层只减对应
+        /// 颜色的费用（GetCardCost 逐色套层、逐色钳 0 不串色）；充能投放、换区清除
+        ///（Resident 同旧 CostDown 口径）。充能上限与净费预览读 GameActions.GetHandCardChargeInfo。</summary>
+        public const string CostDownGrayCounter = "CostDownGray";
+        /// <summary>费用降低（红）——每层红费 −1。</summary>
+        public const string CostDownRedCounter = "CostDownRed";
+        /// <summary>费用降低（蓝）——每层蓝费 −1。</summary>
+        public const string CostDownBlueCounter = "CostDownBlue";
+        /// <summary>费用降低（绿）——每层绿费 −1。</summary>
+        public const string CostDownGreenCounter = "CostDownGreen";
         /// <summary>技能发动计数（2026-09-22 升级=抉择式条件分支定案）：挂在技能卡上，每发动 +1；
         /// 升级门读它（此前已发动 ≥7 次 → 走升级档）。常驻——随技能卡存续，
         /// 换技能卡=新卡计数归零；净化可清（极端交互，接受）。</summary>
@@ -269,6 +280,16 @@ namespace CardCore.Attribute
         ///（打出/响应出牌/苏醒立约/放地入池同门，LockedCardRestriction+CommitAwaken+CanServeAsLand）。
         /// 归零解锁。</summary>
         public const string LockCounter = "Lock";
+
+        /// <summary>保护三档（2026-10-30 指示物化定案，GrantProtection 原子 3 行族挂载；衰退类）：
+        /// 层=持续到自己第 N 个回合结束（挂上即生效——持有期间不分回合侧；1 层=只在自己回合生效，
+        /// 2 层=自己+对手+再自己），**持有者回合结束 −1 归零消失**，换区清；Entity 级（角色可持有）。
+        /// 施加口=GrantProtectionHandler（目标=己方单位含角色——全体档已删 2026-10-30：指示物
+        /// 只作用于挂载单位）；改写口=ProtectionRules.ModifyDamage（KeywordRules.ApplyDamage）
+        /// 与 ClampLife（落血三路）。</summary>
+        public const string HalveShieldCounter = "HalveShield"; // 减半：持有期间受到的伤害减半（向上取整 3→2）
+        public const string NullShieldCounter = "NullShield";   // 全免：持有期间受到的伤害变为 0
+        public const string LifeFloorCounter = "LifeFloor";     // 生命锁：持有期间生命值不会低于 1
         /// <summary>
         /// 反疗（2026-10-09，黑2，表行 6b9c4b90/GrantDepravity；原名堕落·仅角色，同日用户改名放开）：
         /// 任意有生命单位（生物+角色，双方）可持——该目标下一次受到的治疗改写为等量伤害并消耗 1 层
@@ -368,6 +389,12 @@ namespace CardCore.Attribute
             // 进发动区不清（发动区豁免），结算离开发动区与离手时清除。
             Register(new CounterSpec { Id = CostUpCounter, Polarity = CounterPolarity.Negative, Class = CounterClass.Resident, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.None, DisplayName = "费用增加", StatKind = StatCounterKind.CostUp });
             Register(new CounterSpec { Id = CostDownCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.Resident, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.None, DisplayName = "费用减少", StatKind = StatCounterKind.CostDown });
+            // 四色费用降低（2026-10-31 P12 充能投放）：同 CostDown 档位（Positive/Resident/换区清），
+            // StatKind 共用 CostDown——_costModifier 只是历史聚合读数，主路径读各色计数器
+            Register(new CounterSpec { Id = CostDownGrayCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.Resident, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.None, DisplayName = "费用降低（灰）", StatKind = StatCounterKind.CostDown });
+            Register(new CounterSpec { Id = CostDownRedCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.Resident, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.None, DisplayName = "费用降低（红）", StatKind = StatCounterKind.CostDown });
+            Register(new CounterSpec { Id = CostDownBlueCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.Resident, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.None, DisplayName = "费用降低（蓝）", StatKind = StatCounterKind.CostDown });
+            Register(new CounterSpec { Id = CostDownGreenCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.Resident, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.None, DisplayName = "费用降低（绿）", StatKind = StatCounterKind.CostDown });
             // 技能发动计数（2026-09-22）：常驻（随技能卡存续；换技能卡=新卡归零）
             Register(new CounterSpec { Id = SkillUseCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.Resident, LayerRole = CounterLayerRole.Reading, TickPolicy = CounterTickPolicy.None, DisplayName = "技能发动计数" });
             // 展示：负面（信息暴露/使用限制挂点）；换区清（离开当前区域即失效）
@@ -387,6 +414,11 @@ namespace CardCore.Attribute
             //（易损 2026-10-09 迁入 Exception 生效自减——受伤放大后层数减半，见上区块）
             // 锁定：层=剩余回合，手牌区同样倒数（窥渊只锁手牌——被锁卡无法打出故不换区，与换区清无冲突）
             Register(new CounterSpec { Id = LockCounter, Polarity = CounterPolarity.Negative, Class = CounterClass.Decay, LayerRole = CounterLayerRole.Clock, TickPolicy = CounterTickPolicy.TurnEndTickDown, DisplayName = "锁定" });
+            // 保护三档（2026-10-30 指示物化）：层=持续到自己第 N 个回合结束；Entity 级（角色可持有——
+            // ③块倒数域随之通用化到 Entity；现有 Decay 指示物从不挂角色，扩域零行为变化）
+            Register(new CounterSpec { Id = HalveShieldCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.Decay, LayerRole = CounterLayerRole.Clock, TickPolicy = CounterTickPolicy.TurnEndTickDown, DisplayName = "减半护盾" });
+            Register(new CounterSpec { Id = NullShieldCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.Decay, LayerRole = CounterLayerRole.Clock, TickPolicy = CounterTickPolicy.TurnEndTickDown, DisplayName = "全免护盾" });
+            Register(new CounterSpec { Id = LifeFloorCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.Decay, LayerRole = CounterLayerRole.Clock, TickPolicy = CounterTickPolicy.TurnEndTickDown, DisplayName = "生命锁" });
 
             // ---- 系统（System：引擎主干投放/消耗，不给玩家用；换区清——引擎重挂/重计兜底）----
             Register(new CounterSpec { Id = CountdownCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.System, LayerRole = CounterLayerRole.Clock, TickPolicy = CounterTickPolicy.External, DisplayName = "倒计时" });
@@ -477,6 +509,38 @@ namespace CardCore.Attribute
                : new CounterSpec { Id = id, Polarity = CounterPolarity.Positive, DisplayName = id };
 
         public static bool IsNegative(string id) => Find(id).Polarity == CounterPolarity.Negative;
+
+        // ==================== 四色费用降低工具口（2026-10-31 P12 充能定案） ====================
+
+        /// <summary>颜色 → 对应费用降低指示物 id（灰/红/蓝/绿四色；Any 与越界返回 null——
+        /// 万能货币不是颜色，不可充能/不可减费）。旧 CostDown 不在本口（恒灰档，legacy）。</summary>
+        public static string CostDownCounterFor(ManaType color)
+        {
+            switch (color)
+            {
+                case ManaType.Gray: return CostDownGrayCounter;
+                case ManaType.Red: return CostDownRedCounter;
+                case ManaType.Blue: return CostDownBlueCounter;
+                case ManaType.Green: return CostDownGreenCounter;
+                default: return null;
+            }
+        }
+
+        /// <summary>是否四色费用降低指示物（不含 legacy CostDown——它经 StatCounterKind.CostDown
+        /// 老路径读，充能侧只认四色新 id）。</summary>
+        public static bool IsCostDownCounter(string id)
+            => id == CostDownGrayCounter || id == CostDownRedCounter
+            || id == CostDownBlueCounter || id == CostDownGreenCounter;
+
+        /// <summary>四色费用降低指示物 → 颜色；非本族（含 legacy CostDown）返回 null。</summary>
+        public static ManaType? CostDownColorOf(string id)
+        {
+            if (id == CostDownGrayCounter) return ManaType.Gray;
+            if (id == CostDownRedCounter) return ManaType.Red;
+            if (id == CostDownBlueCounter) return ManaType.Blue;
+            if (id == CostDownGreenCounter) return ManaType.Green;
+            return null;
+        }
 
         // ==================== 属性指示物（加时回写 / 清时反写） ====================
 
@@ -733,15 +797,17 @@ namespace CardCore.Attribute
             }
 
             // ── ③ 衰退族逐层倒数（spec 驱动）：TickPolicy=TurnEndTickDown（=Decay 类），
-            //    层=剩余回合，持有者回合结束 −1，归零解除（新同类指示物=登记即用） ──
+            //    层=剩余回合，持有者回合结束 −1，归零解除（新同类指示物=登记即用）。
+            //    2026-10-30 倒数域通用化到 Entity（保护三档可挂角色；现有 Decay 指示物不挂角色，
+            //    AllEntities 本就含回合玩家——扩域零行为变化） ──
             var tickDownIds = _registry.Values
                 .Where(s => s.TickPolicy == CounterTickPolicy.TurnEndTickDown)
                 .Select(s => (s.Id, s.DisplayName))
                 .ToList();
-            foreach (var card in AllEntities(turnPlayer, zoneManager).OfType<Card>())
+            foreach (var entity in AllEntities(turnPlayer, zoneManager))
             {
                 foreach (var (id, displayName) in tickDownIds)
-                    TickLayeredCounter(card, id, displayName);
+                    TickLayeredCounter(entity, id, displayName);
             }
         }
 
@@ -766,15 +832,16 @@ namespace CardCore.Attribute
             });
         }
 
-        /// <summary>层=剩余回合计数的衰退指示物通用倒数（持有者回合结束 −1，归零解除并播报）。</summary>
-        private static void TickLayeredCounter(Card card, string counterId, string displayName)
+        /// <summary>层=剩余回合计数的衰退指示物通用倒数（持有者回合结束 −1，归零解除并播报；
+        /// Entity 级——2026-10-30 保护三档可挂角色，Card 参数随③块扩域通用化）。</summary>
+        private static void TickLayeredCounter(Entity entity, string counterId, string displayName)
         {
-            int layers = card.GetCounterCount(counterId);
+            int layers = entity.GetCounterCount(counterId);
             if (layers <= 0) return;
-            card.AddCounters(counterId, -1);
+            entity.AddCounters(counterId, -1);
             EventManager.Instance.Publish(new KeywordAppliedEvent
             {
-                Target = card,
+                Target = entity,
                 Keyword = counterId,
                 Detail = layers - 1 > 0
                     ? $"{displayName}倒数（持有者回合结束，余 {layers - 1} 回合）"

@@ -55,15 +55,22 @@ namespace CardCore.Attribute
         //（GrantDivineShieldHandler 挂层；挡下口=ApplyPreventionLayers 第 1 层，每层挡一次消耗一层）
         // 毒刺（PoisonSting）/冰晶（IceCrystal）已删（2026-10-15 整体退役）：表行 2026-10-02 已先退
         //（改写走分支组合），遗留的印刷关键词路径（改写链臂/Grant 映射/两张试作卡）同批清除——
-        // 战斗改写仅余舍身关键词（2026-10-16 关键词化，MartyrdomRules 配对）；毒素/冻结指示物由各自施加原子独立保留。
+        // 战斗改写仅余战斗法师关键词（原舍身 2026-10-30 改版，散射内联无配对表）；毒素/冻结指示物由各自施加原子独立保留。
         // 梦魇（Nightmare，战斗伤害改沉睡）已删（2026-10-13）：改写链行为+常量+Grant 映射整体退役
         //——表行 2026-10-02 已先退，沉睡指示物（Sleep 行 a62a2df1）独立保留。
         /// <summary>剧毒（2026-10-08 指示物转关键词定案，落定追加式）：受到其战斗伤害的生物被消灭
         ///（战斗伤害照常结算，实际落定 &gt;0 且目标为生物 → DeathRules.TryKill 消灭口径，不灭可拦；
         /// 对角色照常落血）。表行 20c06d52（原 Poison 原子行）改挂 GrantVenom。</summary>
         public const string Venom = "Venom";
-        /// <summary>禁魔石（2026-09-13 改写定案，白3）：受到的非战斗伤害变为 0</summary>
+        /// <summary>无实体（原禁魔石，2026-10-31 改版更名，绿6）：每次受到的伤害固定变为 1
+        ///（战斗+非战斗同口，穿透照钳——改写类与旧归零同口径，非防护层；改写口=ApplyDamage
+        /// 守护改写之后、延时保护/易损/防护层之前）。运行时 id 仍 Spellban
+        ///（更名只改中文文案，同辟邪→扰魔/嘲讽→帷幕先例）。</summary>
         public const string Spellban = "Spellban";
+        /// <summary>绝缘体（2026-10-31，绿3 表行 764236ed）：持有单位不受指示物的效果影响——
+        /// 正面指示物加不上（拦截口=EntityEffectExtensions.AddCounters 咽喉，紧随禁指示物令之后；
+        /// 含己方自上，文案无己/敌豁免）；负量（移除）不拦；系统指示物豁免同禁指示物令口径。</summary>
+        public const string Insulator = "Insulator";
         /// <summary>地牌特性（2026-09-13 英雄技能·培育）：持有者可横置产 1 元素（色随自身费用构成）。
         /// GameActions.TapCreatureForElement 是横置口。</summary>
         public const string LandTrait = "LandTrait";
@@ -96,10 +103,17 @@ namespace CardCore.Attribute
         /// <summary>守护（2026-10-08 配对制改版）：登场选目标，其受伤改写为守护者承受（GuardianRules 配对表；无限次直到守护者离场）。</summary>
         public const string Guardian = "Guardian";
 
-        /// <summary>舍身（2026-10-16 关键词化——原舍身仪典规则光环退役；守护的进攻向对偶）：
-        /// 登场选一个对方目标，自己造成的战斗伤害改写为对目标的效果伤害（MartyrdomRules 配对表；
-        /// 无限次直到持有者离场；效果伤害=非战斗路径——禁魔石可清零、不触发战斗反击链）。</summary>
-        public const string Martyrdom = "Martyrdom";
+        /// <summary>战斗法师（原舍身，2026-10-30 改版——登场弹选转投整套退役，改随机散射）：
+        /// 自己造成的战斗伤害改写为对随机目标造成 1 点效果伤害，重复发动次数=自身攻击力
+        ///（无状态关键词——无配对表无入场钩子，散射在 ApplyDamage 咽喉内联；效果伤害=非战斗路径
+        /// ——无实体持有者照受 1 点（原禁魔石清零口已随 2026-10-31 改版退役）、不触发战斗反击链）。</summary>
+        public const string BattleMage = "BattleMage";
+
+        /// <summary>苏醒（2026-10-31 P12 关键词化）：卡面关键词含 Awaken 的生物才有「苏醒施放」
+        ///（数值沿用 P6c——只免净费灰份额、绿照付、免掉的灰等量转入场沉睡层数、横置登场；
+        /// 无此关键词的生物不再有特殊使用方式）。授予原子=GrantAwaken（表行 3df00ac7），
+        /// 闸门查询口=GameActions.HasAwakenKeyword。</summary>
+        public const string Awaken = "Awaken";
 
         // ---- 一次性关键词概念已彻底删除（2026-09-08 定案：错误设计）----
         // 关键词都是持续性特征，无「一次性生效后消失/重新入场刷新」的说法：
@@ -262,14 +276,6 @@ namespace CardCore.Attribute
                 if (amount <= 0) return 0;
             }
 
-            // 禁魔石（2026-09-13 改写定案，白3）：受到的**非战斗伤害**变为 0（战斗伤害照常）
-            if (!isCombat && target.HasKeyword(Spellban))
-            {
-                EventManager.Instance.Publish(new KeywordAppliedEvent
-                { Target = target, Keyword = Spellban, Detail = "禁魔石：非战斗伤害变为 0", Source = source });
-                return 0;
-            }
-
             // 守护改写（2026-10-08 配对制改版，替代旧箭头光环/扫场护角色两形态）：登场时选定目标的
             // 受伤改写为配对守护者承受（GuardianRules.FindGuardian 活性实时校验——存活/在场/未被无效；
             // 无限次直到守护者死亡/离场，次数闸对守护作废）。单跳（guardRerouted 防链式改写）；
@@ -290,6 +296,25 @@ namespace CardCore.Attribute
                     return ApplyDamage(source, guardian, amount, isCombat, pierce, guardRerouted: true);
                 }
             }
+
+            // 无实体（原禁魔石 2026-10-31 改版更名，绿6）：每次受到的伤害固定变为 1——战斗+非战斗
+            // 同口。守护改写**之后**生效：伤害真正落到持有者头上才钳 1（守护者承受的仍是原额，
+            // 不沾持有者减免）；替代引擎之后（伤害封顶类替代件先算，本口后钳）。
+            // 钳后照走延时保护/易损放大/防护层/落血（易损可把 1 放大回抬——层效果照计；护甲/圣盾
+            // 照常吸收钳后余量）。穿透伤害同样受钳（改写类关键词与旧禁魔石归零同口径，非防护层）。
+            if (amount > 1 && target.HasKeyword(Spellban))
+            {
+                amount = 1;
+                EventManager.Instance.Publish(new KeywordAppliedEvent
+                { Target = target, Keyword = Spellban, Detail = "无实体：受到的伤害固定为 1", Source = source });
+            }
+
+            // 延时保护（2026-10-30 指示物化，GrantProtection 原子族——读护盾指示物层改写）：
+            // 守护改写之后、易损/防护层之前——HalveShield=ceil(amount/2)、NullShield=0（全免提前出管线：
+            // 击杀/吸血/系命/报复/剧毒全链不触发）；穿透伤害照挡（「伤害」语义，任务书 §3.4）。
+            // LifeFloor（生命锁）不在此口——落血位钳（本方法 Player 分支与 LifeLossHandler 同口）。
+            amount = ProtectionRules.ModifyDamage(target, amount);
+            if (amount <= 0) return 0;
 
             // 0. 易损指示物（2026-10-09 生效自减定案，同毒素档）：受到伤害时每层使受到的伤害 +1，
             //    生效后层数减半（floor，1 层生效一次即清零）——替代结算后、防护层前生效
@@ -317,32 +342,49 @@ namespace CardCore.Attribute
 
             // 战斗伤害改写（**防护层之后、落血之前**——只有"将要成功造成的伤害"才改写：圣盾/护甲/
             // 坚韧完全挡住 → 不触发；部分吸收后仍有剩余 → 剩余改写，不再落血）。
-            // 唯一改写=舍身关键词（2026-10-16 关键词化，原舍身仪典 CombatRedirect 光环退役）——持有者
-            // 造成战斗伤害时，改为对**登场时选定的对方目标**等量**效果伤害**（非战斗路径递归：不再触发
-            // 舍身；被禁魔石清零/走易损与防护层——与旧仪典转投同口径）。
-            // 改写只对活体/角色生效——无生命单位（结界）不是状态宿主，改写命中等价"伤害被无效化"，
-            // 故跳过改写走耐久管线。穿透伤害不经防护层，恒可改写。转投目标失效（死亡/离场）或恰为
-            // 原目标时不改写（战斗伤害照常结算）。持有者被「缄默」压制的活性校验在 FindVictim。
+            // 唯一改写=战斗法师关键词（原舍身 2026-10-30 改版——登场弹选转投退役，改随机散射）：
+            // 持有者造成战斗伤害时原目标免受，改为对随机目标造成 1 点**效果伤害**、重复发动次数=
+            // 自身攻击力（GetPower 含光环成分，散射时活读）。散射=非战斗路径递归（不再触发战斗法师；
+            // 被无实体钳 1（单发本就 1 点=无感）/走易损与防护层——与旧舍身转投同口径）；候选域=对方存活战场单位+对方角色
+            //（同旧舍身弹选域；随机绕过潜行/不经帷幕收窄——与组合层 RandomTarget 绕选择口径一致）；
+            // 逐发独立抽取、每发重取候选——中途死亡出局、对手全灭即余发空转。
+            // 改写只对活体/角色的原目标生效——无生命单位（结界）受击走耐久管线跳过改写（同旧舍身
+            // 口径：攻击结界不被散射化为无效）。穿透伤害不经防护层，恒可改写。持有者被「缄默」压制
+            // 时不改写（战斗伤害照常结算——原 FindVictim 活性校验内联）。
             //（毒刺/冰晶关键词改写已随 2026-10-15 整体退役删除；梦魇 2026-10-13、病原体 2026-10-08 先后退役；
             //  剧毒=落定追加式消灭，见管线尾部。）
             if (isCombat && source != null && source.IsAlive
                 && !(target is Card rwCard && rwCard.IsNonLivingUnit())
-                && source is Card martyrCard
-                && martyrCard.HasKeyword(Martyrdom))
+                && source is Card mageCard
+                && mageCard.HasKeyword(BattleMage)
+                && mageCard.GetCounterCount(CounterRules.NullifyCounter) == 0) // 「缄默」压制口
             {
-                var victim = MartyrdomRules.FindVictim(martyrCard);
-                if (victim != null && !ReferenceEquals(victim, target))
+                var foe = mageCard.GetController()?.Opponent;
+                int hits = Math.Max(0, mageCard.GetPower());
+                var zm = CardCore.GameCore.Instance?.ZoneManager;
+                int scattered = 0;
+                for (int i = 0; i < hits; i++)
                 {
-                    EventManager.Instance.Publish(new KeywordAppliedEvent
+                    var pool = new List<Entity>();
+                    if (foe != null)
                     {
-                        Target = martyrCard,
-                        Keyword = Martyrdom,
-                        Detail = $"舍身：{EffectText.Name(martyrCard)} 的战斗伤害转投 {EffectText.Name(victim)}（原目标免受 {amount} 点）",
-                        Source = martyrCard,
-                    });
-                    ApplyDamage(martyrCard, victim, amount, isCombat: false);
-                    return 0;
+                        if (zm != null)
+                            foreach (var c in zm.GetCards(foe, Zone.Battlefield))
+                                if (c != null && c.IsAlive) pool.Add(c);
+                        if (foe.IsAlive) pool.Add(foe);
+                    }
+                    if (pool.Count == 0) break;
+                    ApplyDamage(mageCard, pool[GameRng.Next(0, pool.Count)], 1, isCombat: false);
+                    scattered++;
                 }
+                EventManager.Instance.Publish(new KeywordAppliedEvent
+                {
+                    Target = mageCard,
+                    Keyword = BattleMage,
+                    Detail = $"战斗法师：{EffectText.Name(mageCard)} 的战斗伤害化作 {scattered} 道魔法弹（原目标免受 {amount} 点）",
+                    Source = mageCard,
+                });
+                return 0;
             }
 
             // 4. 落血（Card 到 0 标记死亡；Player 直接扣）。
@@ -365,6 +407,20 @@ namespace CardCore.Attribute
                 else
                 {
                     card._life -= amount;
+                    // 生命锁（2026-10-29 阶段3b Floor 档）：单位落血同口钳——生命不低于 1
+                    //（钳后致死判定自然不过；只钳生命，不拦消灭/摧毁——非落血路径）
+                    int cardLocked = ProtectionRules.ClampLife(card, card._life);
+                    if (cardLocked != card._life)
+                    {
+                        card._life = cardLocked;
+                        EventManager.Instance.Publish(new KeywordAppliedEvent
+                        {
+                            Target = card,
+                            Keyword = "延时保护",
+                            Detail = $"生命锁：{EffectText.Name(card)} 生命值锁定不低于 1",
+                            Source = source
+                        });
+                    }
                     int auraLife = GameBoard.LinkAuraSystem.GetLifeBonus(card);
                     if (card._life + auraLife <= 0)
                     {
@@ -380,6 +436,20 @@ namespace CardCore.Attribute
             else if (target is Player player)
             {
                 player.Life -= amount;
+                // 生命锁（2026-10-29 阶段3b Floor 档）：落血后生命不低于 1（战斗/效果两路同口；
+                // LifeLoss 流失在 LifeLossHandler 同口钳）——只钳生命，不拦消灭/摧毁（非落血路径）。
+                int locked = ProtectionRules.ClampLife(player, player.Life);
+                if (locked != player.Life)
+                {
+                    player.Life = locked;
+                    EventManager.Instance.Publish(new KeywordAppliedEvent
+                    {
+                        Target = player,
+                        Keyword = "延时保护",
+                        Detail = $"生命锁：{EffectText.Name(player)} 生命值锁定不低于 1",
+                        Source = source
+                    });
+                }
             }
 
             // 潜行受伤失效（2026-10-04 弱化定案；2026-10-08 指示物化；2026-10-19 Entity 级——角色受伤

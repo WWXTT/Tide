@@ -676,7 +676,7 @@ namespace SynergyUI
             SetVisible(row, "cost", false);
             SetVisible(row, "flag", false);
             SetText(row, "name",
-                _tokenCardIds.Count > 0 ? "管理衍生物区 / 绑定…" : "＋ 添加衍生物模板（绑定临摹/变形槽）",
+                _tokenCardIds.Count > 0 ? "管理衍生物区 / 绑定…" : "＋ 添加衍生物模板（绑定模拟/变形槽）",
                 UiStyle.TextHint);
             if (rowBtn != null)
                 rowBtn.onClick.AddListener(OpenZoneManager);

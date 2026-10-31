@@ -4,7 +4,7 @@ using System.Linq;
 namespace CardCore
 {
     /// <summary>
-    /// 可装载范围（2026-09-11 定案；2026-10-05 两槽改版全量重排）：
+    /// 可装载范围（2026-09-11 定案；2026-10-05 两槽改版全量重排）。
     /// 原子表 MountKinds 列（CSV 多选，同 TargetKinds 惯例）。
     ///
     /// 2026-10-07 晚「可以→仅可」全面转换（语义由可并集白名单转为分类位）：
@@ -15,18 +15,20 @@ namespace CardCore
     /// - RandomMount（随机幅度）语义翻转为 NoRandom（不可随机）黑名单：
     ///   含 {value} 的原子默认可随机（数值随机滑条），标此位禁随机；无 {value} 模板天然无滑条。
     /// - 守护/坚韧曾收为仅连接光环——2026-10-08 双双退出：坚韧指示物化（ToughnessCounter）、
-    ///   守护改配对制关键词（位 8 拉黑）；关键词行=印刷/效果栏授予与光环条目两条通道。
-    /// 余位按序重排为 0..6；关键词默认可作连接光环（位 8 黑名单拉黑，名单在表）/
-    /// 位 3 可以作为连接光环=一般效果行光环化源（属性增加/减少，属性条目表驱动来源）；
-    /// 位 7 仅可已删（枚举留空缺防旧数字数据误读）；
+    ///   守护改配对制关键词（位 7 拉黑）；关键词行=印刷/效果栏授予与光环条目两条通道。
+    /// 2026-10-31 墓碑清理：原「位 7 仅可作为连接光环」与「位 9 主动发动」两处历史空洞已删，
+    /// 余位紧凑重排为 0..9；表数据 MountKinds 列一律写中文名，数字轨仅验证器夹具兼容——
+    /// 全仓无存量数字依赖（2026-10-31 已核 JSON/教程表）。
+    /// 关键词默认可作连接光环（位 7 黑名单拉黑，名单在表）/ 位 3 可以作为连接光环=
+    /// 一般效果行光环化源（属性增加/减少，属性条目表驱动来源）；
     /// 指示物与一般效果（未标位 3）不可（CanMountAsAura 统一判定）。
     /// </summary>
     public enum MountKind
     {
         /// <summary>关键词行（仅可）：卡面印刷+授予双通道，目标侧仅生物（表行 TargetFilter=NoRole 表达）；
         /// 授予形态入效果栏由派生主干资格承载，落槽域由 GrantTargetKinds 覆写为双方生物。
-        /// 2026-10-07 晚定案：关键词**默认可作连接光环**（ComposerCatalog.CanMountAsAura），
-        /// 黑名单走位 8（名单在表：守护/再生/禁魔石——与光环 live-query 持续语义冲突）。</summary>
+        /// 关键词**默认可作连接光环**（ComposerCatalog.CanMountAsAura），
+        /// 黑名单走位 7（名单在表：守护/再生/无实体/绝缘体——与光环 live-query 持续语义冲突）。</summary>
         Keyword = 0,
         /// <summary>指示物行（2026-10-07 与关键词同型定案）：效果作用自身（表行 TargetKinds 存储态="自己"），
         /// 赋予语义可赋予任意卡（合成器落槽域统一=双方单位/手牌/牌库 {1..8}）；
@@ -36,7 +38,7 @@ namespace CardCore
         NoRandom = 2,
         /// <summary>可以作为连接光环（一般效果行的**光环化源**标记，2026-10-07 深夜定案）：属性增加/
         /// 属性减少两行声明此位（自指示物类重分类）——光环模式属性条目的来源（RefreshAuraLibrary 表驱动）。
-        /// 设置攻击力/设置生命值/设置费用=纯系统行不标；关键词行不声明此位（默认可，拉黑走位 8）。</summary>
+        /// 设置攻击力/设置生命值/设置费用=纯系统行不标；关键词行不声明此位（默认可，拉黑走位 7）。</summary>
         LinkAura = 3,
         /// <summary>系统内部用：声明该位的行**移出玩家合成器全部选择面**
         /// （效果合成器原子库/分类、卡合成器代价候选）——引擎执行/计价代表原子/装载照常运转。
@@ -51,33 +53,29 @@ namespace CardCore
         RuleAura = 6,
         /// <summary>不可作为连接光环（黑名单，2026-10-07 晚定案；名单随指示物化持续刷新）：
         /// 声明此位 = 永不可作光环条目（CanMountAsAura 一票否决）。名单在表不在代码——
-        /// 现值：守护（配对制弹选目标）/再生/禁魔石。
+        /// 现值：守护（配对制弹选目标）/再生/无实体/绝缘体。
         /// 潜行/圣盾/复生（2026-10-08）、法术护盾（2026-10-09）已指示物化退出关键词族，
-        /// 不再经本位拉黑；隐密无移除口=持续型，不拉黑（默认可）。
-        /// 历史注：位 7「仅可以作为连接光环」已删（2026-10-07 深夜，枚举留空缺防旧数字数据误读）。</summary>
-        NoLinkAura = 8,
-        // 历史：位 9「主动发动」（2026-10-13 定案，动态计价原子强制主动）当日晚间删除——
-        // 触发式预付与主动现付同额同源、变形补价挂在被变形卡的主动发动上与原子挂法无关，
-        // 类别不产生额外计价保护；主动/自动由玩家自由选择。位 9 不得复用（ZhNames 留空串占位）。
+        /// 不再经本位拉黑；隐密无移除口=持续型，不拉黑（默认可）。</summary>
+        NoLinkAura = 7,
         /// <summary>有限分支门槛行（2026-10-23 入表定案）：原子表门槛行的身份/挂载/预算位——
         /// 表行承载身份（GateId）、挂载（本位）、预算（Budget 列），目录与预算由表派生
         /// （ComposerCatalog.SituationGates / CostDerivationService.BuildGatePremium）；
         /// 判定谓词仍由 BranchConditionEvaluator 代码注册。挂本位的行不作主干/奖励
         /// （CanBeTrunkRow/CanBeRewardRow 排除），不挂处理器、不入主序列执行。</summary>
-        SituationGate = 10,
+        SituationGate = 8,
         /// <summary>动态费用行（2026-10-24 定案）：费用在结算时按局内动态情况决定——现值临摹/变形赋予
         ///（补差=max(0, 变形后声明费总点−变形前声明费总点)，挂被变形卡的主动发动，MorphSystem.Surcharge）。
         /// 挂本位 = **不可作 Then 奖励**（CanBeRewardRow 排除——奖励入价锚定在构筑期，动态费用无法锚定）；
-        /// 主干资格不受影响（主动/触发照旧）。与已删位 9「主动发动」不同：本位只约束奖励挂载，不改发动方式
-        ///（召唤衍生物同为动态计价但不挂本位——照旧可作奖励）。</summary>
-        DynamicCost = 11,
+        /// 主干资格不受影响（主动/触发照旧；本位只约束奖励挂载，不改发动方式——召唤衍生物同为动态计价
+        /// 但不挂本位，照旧可作奖励）。</summary>
+        DynamicCost = 9,
     }
 
     /// <summary>MountKinds CSV 解析/判定辅助（AtomicEffectTable 与装载校验共用）。</summary>
     public static class MountKindExtensions
     {
         /// <summary>成员中文名（2026-10-06 表列中文化定案：原子表开放给玩家，MountKinds 列写中文 CSV；
-        /// 下标=枚举序，与枚举成员一一对应，新增成员须同步补名）。</summary>
+        /// 下标=枚举序，与枚举成员一一对应，**不得留空串/已删项占位**——新增成员尾部追加）。</summary>
         private static readonly string[] ZhNames =
         {
             "关键词",   // 0 Keyword
@@ -86,12 +84,10 @@ namespace CardCore
             "可以作为连接光环", // 3 LinkAura（2026-10-07 晚自「连接光环」改名——多通道之一）
             "系统",     // 4 SystemInternal
             "引擎主干", // 5 EngineTrunk
-            "规则光环", // 6 RuleAura
-            "仅可以作为连接光环", // 7 LinkAuraOnly（已删——坚韧/守护回归关键词族，占位保索引对齐）
-            "不可作为连接光环", // 8 NoLinkAura（2026-10-07 晚：消耗型关键词黑名单）
-            "",         // 9 ActivatedOnly「主动发动」（2026-10-13 删——空串占位保下标=枚举值，不复用）
-            "有限分支", // 10 SituationGate（2026-10-23 入表——门槛行身份/挂载/预算位）
-            "动态费用", // 11 DynamicCost（2026-10-24——动态计价行不可作 Then 奖励）
+            "场地光环", // 6 RuleAura（2026-10-30 用户改名——原「规则光环」；ParseCsv 兼容旧名）
+            "不可作为连接光环", // 7 NoLinkAura（2026-10-07 晚：消耗型关键词黑名单）
+            "有限分支", // 8 SituationGate（2026-10-23 入表——门槛行身份/挂载/预算位）
+            "动态费用", // 9 DynamicCost（2026-10-24——动态计价行不可作 Then 奖励）
         };
 
         /// <summary>成员中文名（越界回退枚举名）。</summary>
@@ -107,7 +103,7 @@ namespace CardCore
                 kinds.Distinct().OrderBy(k => k).Select(ZhNameOf));
 
         /// <summary>解析 CSV（双轨：中文优先，序号数字回退——表数据为中文，数字轨供
-        /// 验证器夹具/过渡数据兼容）。"关键词,连接光环" 或 "0,3" → {Keyword, LinkAura}；
+        /// 验证器夹具/过渡数据兼容）。"关键词,可以作为连接光环" 或 "0,3" → {Keyword, LinkAura}；
         /// 空串=空集=普通行（无特殊位，主干/奖励资格走派生），消费方自行兜底。</summary>
         public static System.Collections.Generic.HashSet<MountKind> ParseCsv(string csv)
         {
@@ -117,6 +113,7 @@ namespace CardCore
             {
                 var t = tok.Trim();
                 if (t.Length == 0) continue;
+                if (t == "规则光环") { set.Add(MountKind.RuleAura); continue; } // 旧名兼容（2026-10-30 改名「场地光环」前的表数据/夹具）
                 int zh = System.Array.IndexOf(ZhNames, t);
                 if (zh >= 0 && Enum.IsDefined(typeof(MountKind), zh))
                 {

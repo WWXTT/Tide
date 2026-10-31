@@ -49,12 +49,14 @@ namespace CardCore
     }
 
     /// <summary>效果锚价条目（2026-09-23 定案：效果组合阶段=纯表累加、无减免抵消——
-    /// 合成期实时推导随效果落盘；派生数据，不入内容哈希）。</summary>
+    /// 合成期实时推导随效果落盘；派生数据，不入内容哈希）。
+    /// value=float（2026-10-30 真实小数定案——效果费保留真值，展示直通、支付终点进1；
+    /// 唯一消费方 CostSquaresView）。</summary>
     [Serializable]
     public class ElementCostRef
     {
-        public int mana;   // ManaType
-        public int value;  // 元素数
+        public int mana;     // ManaType
+        public float value;  // 元素数（真实小数）
     }
 
     /// <summary>代价引用：type=7(Payload) 时 payload 为错边原子引用。</summary>
@@ -77,7 +79,7 @@ namespace CardCore
         public int timing;             // TriggerTiming
         public int activation;         // 0=强制 1=自动 2=主动
         public int speed;              // BaseSpeed
-        public int limit;              // TriggerLimitPerTurn
+        public int limit;              // TriggerLimitPerTurn（历史列·无消费方；保留存档/哈希稳定）
         public int duration;           // DurationType
         public int selection = -1;     // SelectionMode（-1=None；0-5=六值定案 2026-09-16）——初始值=省略哨兵
         public int count = -2;         // TargetCount（>0=N；0=全部；-1=任意[玩家自选数量=0费]；-2=未声明）——初始值=省略哨兵

@@ -166,7 +166,6 @@ namespace SynergyUI
             public int Kind;               // 0=表头 1=提示 2=新建钮 3=效果行 4=候选行 5=隐藏计数行 6=隐藏明细行（P9）
             public string Text;
             public EffectGraphData Graph;
-            public Action<EffectGraphData> Click;
             public string SummaryOverride;
             public Action ClickAction;
             public string Tag;             // v2：右侧类型标签（代价/主动/光环/自动/关键词…）
@@ -373,8 +372,8 @@ namespace SynergyUI
                 Describe(btn, captured switch
                 {
                     CardKind.Creature => "生物：有攻击/生命可参战，可挂自动效果（禁连接光环）",
-                    CardKind.Spell => "法术：挂 1~3 个主动效果（施放时弹窗抉择其一），速度=3−槽数动态算",
-                    _ => "结界：耐久体，只挂自动效果与连接光环（免费点全投耐久）",
+                    CardKind.Spell => "法术：挂 1~3 个主动效果（施放时择一发动），速度=3−槽数动态算",
+                    _ => "结界：耐久体，挂自动效果与连接光环（主动槽只收「充能」——P12）",
                 });
                 _kindButtons[captured] = btn;
             }
@@ -567,9 +566,9 @@ namespace SynergyUI
         private void BindAddSlotButtons()
         {
             BindAddSlot(ZoneId.Cost, "addcost", "添加代价",
-                "新建一个空代价槽（三类卡通用·至多 1）：右栏列出效果库中可作代价的组装图（纯线性·逐原子可逆转）·逐原子全价·生效后补偿黑/白");
+                "新建一个空代价槽（三类卡通用·至多 1）：右栏直列原子表·一般效果行——单原子引用·抵扣只作用于该原子可产出色的卡费·至多将该色费用清零");
             BindAddSlot(ZoneId.Effect, "addeffect", "添加主动效果",
-                "新建空主动槽（生物×1 / 法术×1~3·施放时抉择其一·速度加成=3−槽数 / 结界无）");
+                "新建空主动槽（生物×1 / 法术×1~3·施放时择一发动·可另带充能×1 / 结界×1·只收充能——P12）");
             BindAddSlot(ZoneId.Passives, "addpassives", "添加自动效果",
                 "新建空自动槽（生物=自动×1；结界=光环恰好 1〔必填〕+自动×2；法术无）");
             BindAddSlot(ZoneId.Keys, "addkeys", "添加关键词",
@@ -731,7 +730,9 @@ namespace SynergyUI
         private bool TypeEnabledForKind(ZoneId id) => id switch
         {
             ZoneId.Cost => true,
-            ZoneId.Effect => _kind != CardKind.Enchantment,
+            // P12（2026-10-31）：结界主动槽合法（只收充能图——FillSelectedSlot 形状闸过滤）；
+            // 法术主动槽含充能位（总 4 = 非充能 1~3 + 充能 1，保存闸约束组成）
+            ZoneId.Effect => true,
             ZoneId.Passives => _kind != CardKind.Spell,
             _ => _kind == CardKind.Creature,
         };
@@ -846,7 +847,17 @@ namespace SynergyUI
 
         // ---- 容量与效果分型（单源：保存闸/槽行/右栏过滤共用） ----
 
-        private int ActiveSlotCapacity => _kind == CardKind.Spell ? 3 : (_kind == CardKind.Creature ? 1 : 0);
+        // P12（2026-10-31）：结界主动槽 0→1——只收「充能」图（充能=手牌发动的主动效果，
+        // 与场上耐久经济无关）；法术主动槽 = 4（非充能 1~3 + 充能最多 1——与 CardLoader
+        // 「总效果数 ≤4」同口径，保存闸约束组成；充能照常计 1 槽压速度）。
+        private int ActiveSlotCapacity => _kind == CardKind.Spell ? 4 : (_kind == CardKind.Creature ? 1 : 1);
+
+        /// <summary>效果图是否含充能原子（P12：结界主动槽只收充能图——快照前置判定）。
+        /// 判定委托 ComposerCatalog（与装载/枚举同源）。</summary>
+        private static bool EffectGraphContainsCharge(EffectGraphData g)
+            => g != null
+               && (ComposerCatalog.IsChargeEffect(g.header)
+                   || ComposerCatalog.IsChargeEffect(new CardEffectData { Steps = g.steps }));
         private int AutoSlotCapacity => _kind == CardKind.Enchantment ? 2 : (_kind == CardKind.Creature ? 1 : 0);
         private int AuraSlotCapacity => _kind == CardKind.Enchantment ? 1 : 0;
 
@@ -1840,7 +1851,7 @@ namespace SynergyUI
                 if (des != null) des.text = SlotDesText(ZoneId.Cost, dataIndex);
                 Recalculate();
             });
-            Describe(field, "代价参数：使用时强制发动的数值——描述与计价按此值和所选原子自动生成");
+            Describe(field, "代价参数：使用时强制发动的数值——抵扣只作用于该原子可产出色的卡费，至多将该色费用清零（超出生成面无效）");
         }
 
         private static string SlotTitle(ZoneId id, int ordinal) =>
@@ -1861,7 +1872,15 @@ namespace SynergyUI
                 foreach (var a in atoms)
                     if (a != null && !string.IsNullOrEmpty(a.refId)) parts.Add(AtomText.RenderAtomEntry(a));
                 // 文案自动生成（2026-10-21 单参数定案）：generate 值代入所选原子模板 + 固定「使用时强制发动」前缀
-                body = "使用时强制发动：" + string.Join("＋", parts) + PayloadGrantText(atoms);
+                body = "使用时强制发动：" + string.Join("＋", parts);
+                // 抵扣读数（2026-10-31 色锁定案）：只抵该原子可产出色的卡费，至多将该色清零
+                var calc = CardCostCalculator.Calculate(_card);
+                if (calc.PayloadPrice > 0)
+                {
+                    int cap = CardCostService.PayloadCapacity(calc.PrePayloadCost, _card);
+                    body += $"\n代价抵扣：只抵{calc.PayloadScopeZh}色卡费·实抵 {calc.PayloadApplied}/{cap}"
+                        + (calc.PayloadApplied < calc.PayloadPrice ? $"（全价 {calc.PayloadPrice}·超上限部分无效）" : "");
+                }
             }
             else if (id == ZoneId.Keys)
             {
@@ -1886,7 +1905,7 @@ namespace SynergyUI
             ? $"选中这个空{TypeZh(id)}槽：右栏自动按「{TypeZh(id)}」过滤候选，点选填入此槽"
             : id switch
             {
-                ZoneId.Cost => "代价槽：选中后右栏列出可作代价的组装图（点选=替换）",
+                ZoneId.Cost => "代价槽：选中后右栏直列原子表·一般效果行（点选=替换；抵扣只作用于该原子可产出色的卡费）",
                 ZoneId.Keys => "关键词槽：选中后右栏列出关键词目录（点选=替换）",
                 _ => "效果槽：选中后右栏列出对应形态的效果（点选=整实例替换此槽）",
             };
@@ -1942,19 +1961,26 @@ namespace SynergyUI
 
         // ======================================== 代价栏（cost 槽·三类卡通用） ========================================
 
-        /// <summary>填装代价槽（2026-10-21 代价简化定案：候选=效果库**单原子**图——一般主动/赋予，
-        /// 组合图（多原子并列/原子带分支）出局；关键词仍是唯一保留原子表直加的槽类型）。
-        /// 填入的原子按代价语义执行/计价/补偿。</summary>
-        private void FillPayloadCost(EffectGraphData graph)
+        /// <summary>填装代价槽（2026-10-31 代价槽改版定案：候选=原子表**一般效果**行直引——
+        /// 不再经由效果库组装图；关键词/代价成为原子表直加的两个槽类型）。
+        /// 填入=单原子引用（refId=行 ID），按代价语义执行/计价；抵扣只作用于该行可产出色的卡费，
+        /// 至多将该色费用清零。</summary>
+        private void FillPayloadCost(CardCore.Attribute.AtomicEffectConfig cfg)
         {
-            var atoms = CostEligibleAtoms(graph, out var reject);
-            if (atoms == null)
+            if (!CostEligibleRow(cfg, out var reject))
             {
                 ShowToast(reject);
                 return;
             }
-            if (_costParamValue.HasValue && atoms.Count > 0)
-                atoms[0].value = _costParamValue.Value; // 换选原子沿用 generate 已填参数（单参数效果：参数不随原子走）
+            var entry = new CardCore.AtomicEffectEntry
+            {
+                refId = cfg.HashId,
+                value = _costParamValue ?? 1, // generate 已填=换原子沿用（单参数定案：参数不随原子走）
+            };
+            // 代价域收窄/镜像（PayloadCostDomain：p<0 锁己方·p>0 锁对方）——与旧组装图填装同口径
+            var (kinds, _) = CostDerivationService.PayloadCostDomain(cfg);
+            if (kinds != null) entry.kinds = kinds;
+            var atoms = new List<CardCore.AtomicEffectEntry> { entry };
             _card.PayloadCost = new CostEntry
             {
                 CostType = (int)CostType.Payload,
@@ -1966,111 +1992,60 @@ namespace SynergyUI
             RefreshSlots();
             Recalculate();
             int totalPrice = PayloadTotalGrant(atoms);
-            ShowToast($"已填装代价（全价 {totalPrice}·占1槽）——全价超过地牌槽上限时整卡不可用");
+            var calc = CardCostCalculator.Calculate(_card);
+            int cap = CardCostService.PayloadCapacity(calc.PrePayloadCost, _card);
+            ShowToast($"已填装代价「{cfg.DisplayName}」（全价 {totalPrice}·只抵{calc.PayloadScopeZh}色卡费"
+                + $"·实抵 {calc.PayloadApplied}/{cap}·占1槽）——至多把{calc.PayloadScopeZh}色费用清零");
         }
 
-        /// <summary>代价资格（2026-10-21 代价简化定案）：只收**单原子**效果（一般主动/赋予）——
-        /// 恰好 1 个 kind:0 原子步骤、原子自身不带 branch（条件奖励/引擎分支的组装图出局），
-        /// 且该原子可作代价（非关键词/非系统内部 + PayloadCostDomain 逆转域收窄写 kinds）。
-        /// null=不可作代价（reject 带原因）；返回的单原子序列直接入 CostEntry.payloads。</summary>
-        private static List<CardCore.AtomicEffectEntry> CostEligibleAtoms(EffectGraphData graph, out string reject)
+        /// <summary>代价行资格（2026-10-31 代价槽改版定案）：只收原子表**一般效果**行
+        ///（来源文件判定，TableCategory——关键词/指示物/光环/系统行出局）且行有计价色
+        ///（ManaList 非空非全零——无产出色=无抵扣面）+ 可逆转到错误一侧（PayloadCostDomain：
+        /// p&lt;0 锁己方自伤 / p&gt;0 锁对方资敌）。false=不可作代价（reject 带原因）。</summary>
+        private static bool CostEligibleRow(CardCore.Attribute.AtomicEffectConfig cfg, out string reject)
         {
             reject = null;
-            var steps = graph?.steps;
-            if (steps == null || steps.Count == 0)
+            if (cfg == null || string.IsNullOrEmpty(cfg.HashId))
             {
-                reject = "空效果（无原子步骤）不可作代价";
-                return null;
+                reject = "原子表引用缺失——无法作代价";
+                return false;
             }
-            if (steps.Count > 1)
+            if (cfg.TableCategory != CardCore.Attribute.AtomicEffectTable.CategoryGeneral)
             {
-                reject = $"组合效果（{steps.Count} 原子并列）不可作代价——代价只收单原子效果（一般主动/赋予）";
-                return null;
+                reject = $"「{cfg.DisplayName}」非一般效果行（关键词/指示物/光环/系统不可作代价）";
+                return false;
             }
-            var atoms = new List<CardCore.AtomicEffectEntry>();
-            foreach (var s in steps)
+            if (cfg.ManaList == null || cfg.ManaList.IsZero)
             {
-                if (s == null || s.kind != 0 || s.atomic == null || string.IsNullOrEmpty(s.atomic.refId))
-                {
-                    reject = "组合效果（含条件分支/抉择步骤）不可作代价——代价只收单原子效果（一般主动/赋予）";
-                    return null;
-                }
-                if (s.atomic.branch != null)
-                {
-                    reject = $"组合效果（「{graph.name}」原子带条件奖励/引擎分支）不可作代价——代价只收单原子效果（一般主动/赋予）";
-                    return null;
-                }
-                atoms.Add(s.atomic);
+                reject = $"「{cfg.DisplayName}」无计价色（不计价行没有可抵扣的颜色）——不可作代价";
+                return false;
             }
-            foreach (var entry in atoms)
+            var (_, eligible) = CostDerivationService.PayloadCostDomain(cfg);
+            if (!eligible)
             {
-                var cfg = AtomicEffectTable.GetByHashId(entry.refId);
-                if (cfg == null)
-                {
-                    reject = "原子表引用缺失——无法作代价";
-                    return null;
-                }
-                if (ComposerCatalog.HasMountBit(cfg, MountKind.SystemInternal))
-                {
-                    reject = $"「{cfg.DisplayName}」系统内部原子不可作代价";
-                    return null;
-                }
-                if (ComposerCatalog.HasMountBit(cfg, MountKind.Keyword))
-                {
-                    reject = $"「{cfg.DisplayName}」关键词类原子不可作代价（关键词走专属槽）";
-                    return null;
-                }
-                // 有效域=组合期已解析的 entry.kinds（「对敌方单位造成伤害」kinds=[2]），空表/null 回落表默认——
-                // 按有效域整体镜像到错误侧，防表默认多值域收窄丢组合解析（名次回落泛称「目标」）；
-                // 注意 kinds 可能是 DTO 往返物化的**空列表**（非 null）——空=未声明，须显式回落
-                var (kinds, eligible) = CostDerivationService.PayloadCostDomain(
-                    cfg, entry.kinds != null && entry.kinds.Count > 0 ? entry.kinds : cfg.GetTargetKindList());
-                if (!eligible)
-                {
-                    reject = $"「{cfg.DisplayName}」无法逆转到错误一侧（纯自身域有益/中性双侧域）——不可作代价";
-                    return null;
-                }
-                entry.kinds = kinds ?? entry.kinds; // 收窄/镜像写回；null=免写（保持组合解析/表默认，幂等）
+                reject = $"「{cfg.DisplayName}」无法逆转到错误一侧（纯自身域有益/中性双侧域）——不可作代价";
+                return false;
             }
-            return atoms;
+            return true;
         }
 
-        /// <summary>代价候选行预览（2026-10-16 用户反馈补）：按**代价语义**渲染整图——逐原子
-        /// 翻转/收窄后的文案（克隆条目解析，不动库对象）＋黑/白补偿后缀。
-        /// 组合原文案（效果库口径）不含代价翻转，此口让填入前的列表就看到真实执行文本。</summary>
-        private static string CostPreviewText(EffectGraphData graph)
+        /// <summary>代价候选行预览（2026-10-31 表行直引版）：按**代价语义**渲染该行——
+        /// 域收窄/镜像后的文案（克隆条目解析，不动表对象）＋抵扣色说明。
+        /// value 取当前 generate 已填参数（未填=1，预览默认值口径）。</summary>
+        private string CostRowPreview(CardCore.Attribute.AtomicEffectConfig cfg)
         {
-            var steps = graph?.steps;
-            if (steps == null || steps.Count == 0) return "";
-            var parts = new List<string>();
-            var clones = new List<CardCore.AtomicEffectEntry>();
-            foreach (var s in steps)
+            if (cfg == null) return "";
+            var clone = new CardCore.AtomicEffectEntry
             {
-                if (s == null || s.kind != 0 || s.atomic == null || string.IsNullOrEmpty(s.atomic.refId)) return "";
-                var src = s.atomic;
-                var clone = new CardCore.AtomicEffectEntry
-                {
-                    refId = src.refId,
-                    value = src.value,
-                    str = src.str,
-                    amp = src.amp,
-                    count = src.count,
-                    rand = src.rand,
-                    defer = src.defer,
-                    kinds = src.kinds != null ? new List<int>(src.kinds) : null,
-                    branch = src.branch,
-                };
-                var cfg = AtomicEffectTable.GetByHashId(clone.refId);
-                if (cfg != null)
-                {
-                    var (kinds, _) = CostDerivationService.PayloadCostDomain(
-                        cfg, clone.kinds != null && clone.kinds.Count > 0 ? clone.kinds : cfg.GetTargetKindList());
-                    if (kinds != null) clone.kinds = kinds; // null=免写：保持组合解析（空表=未声明同免写）
-                }
-                clones.Add(clone);
-                parts.Add(AtomText.RenderAtomEntry(clone));
-            }
-            return string.Join("＋", parts) + PayloadGrantText(clones);
+                refId = cfg.HashId,
+                value = _costParamValue ?? 1,
+            };
+            var (kinds, _) = CostDerivationService.PayloadCostDomain(cfg);
+            if (kinds != null) clone.kinds = kinds; // null=免写：表默认域本就整侧匹配
+            var colorsZh = string.Concat(new[] { ManaType.Gray, ManaType.Red, ManaType.Blue, ManaType.Green }
+                .Where(c => cfg.ManaList != null && cfg.ManaList[c] > 0f)
+                .Select(ManaTypeNames.ZhNameOf));
+            return AtomText.RenderAtomEntry(clone) + $"（抵扣色：{colorsZh}）";
         }
 
         /// <summary>代价全价合计（逐原子 PayloadUnitGrant 求和——门槛/补偿同锚）。</summary>
@@ -2083,14 +2058,6 @@ namespace SynergyUI
                 if (inst != null) total += CostDerivationService.PayloadUnitGrant(inst);
             }
             return total;
-        }
-
-        /// <summary>代价槽 des 后缀（2026-10-16 用户定案格式曾为「，获得N个黑/白元素」）。
-        /// 2026-10-28 P1：黑白获得经济退役——代价只执行不产出，本口恒空串
-        ///（调用面 CardOverlayItem.PayloadTextOf/本屏代价文案零改动；显示改版归 P4）。</summary>
-        public static string PayloadGrantText(List<CardCore.AtomicEffectEntry> entries)
-        {
-            return "";
         }
 
         // ======================================== 关键词（keys 槽；生物专属） ========================================
@@ -2134,8 +2101,9 @@ namespace SynergyUI
         private const float LibNewBtnH = 40f;    // 「新建效果」钮行高
         private const float LibRowH = 56f;       // 效果/候选行高=模板行（56，2026-10-27 对齐 DeckUI 行规格）
 
-        /// <summary>效果库刷新（2026-10-16 二次改版）：选中槽 → 按槽类型过滤候选——cost=代价单原子图（一般主动/赋予·2026-10-21 简化定案）/
-        /// effect=主动图 / passives=光环+自动图（结界分组）/ keys=关键词目录（唯一原子表直加口）；未选槽=全量效果图。
+        /// <summary>效果库刷新（2026-10-16 二次改版）：选中槽 → 按槽类型过滤候选——cost=原子表一般效果行直引
+        ///（2026-10-31 代价槽改版：单原子引用·色锁抵扣）/ effect=主动图 / passives=光环+自动图（结界分组）/
+        /// keys=关键词目录；未选槽=全量效果图。代价与关键词是两个原子表直加口。
         /// 颜色多选+模糊串搜索两列表通用（类别 chips 已退役）。2026-10-21 虚拟化：装配条目+SetItems，
         /// 行结构建一次（LibRowFactory）、数据反复绑（BindLibRow）。</summary>
         private void RefreshLibrary()
@@ -2180,17 +2148,15 @@ namespace SynergyUI
         private void LibNewBtn() =>
             _libItems.Add(new LibRowData { Kind = 2, H = LibNewBtnH });
 
-        private void LibEffect(EffectGraphData graph, Action<EffectGraphData> onClick = null,
-            string summaryOverride = null, string tag = null)
+        private void LibEffect(EffectGraphData graph, string summaryOverride = null, string tag = null)
         {
             var name = string.IsNullOrEmpty(graph.name) ? "(未命名)" : graph.name;
             var summary = summaryOverride ?? AtomText.RenderEffectSummary(graph);
             if (!RowPassFilters(name + "\n" + summary, graph.header?.AnchorCost)) return;
             _libItems.Add(new LibRowData
             {
-                Kind = 3, Graph = graph, Text = name, SummaryOverride = summary,
-                Click = onClick, H = LibRowH,
-                // v2 右侧标签：显式指定（代价/关键词视图）优先，否则按形态推导
+                Kind = 3, Graph = graph, Text = name, SummaryOverride = summary, H = LibRowH,
+                // v2 右侧标签：显式指定优先，否则按形态推导
                 Tag = tag ?? (EffectComposerScreen.IsAuraMode(EffectComposerScreen.InferMode(graph)) ? "光环"
                     : (IsActiveGraph(graph) ? "主动" : "自动")),
             });
@@ -2201,8 +2167,8 @@ namespace SynergyUI
             if (!RowPassFilters(title + "\n" + (summary ?? ""), null)) return;
             _libItems.Add(new LibRowData
             {
-                Kind = 4, Text = title, // v2：单行显示（summary 只参与过滤/悬浮口径由调用方 Describe）
-                ClickAction = onClick, Tag = tag, H = LibRowH,
+                Kind = 4, Text = title, // v2：单行显示（summary 参与过滤；悬浮经 SummaryOverride 展示）
+                ClickAction = onClick, Tag = tag, SummaryOverride = summary, H = LibRowH,
             });
         }
 
@@ -2220,24 +2186,31 @@ namespace SynergyUI
                 LibEffect(graph);
         }
 
-        /// <summary>代价视图（2026-10-21 代价简化定案）：候选=效果库**单原子**图（一般主动/赋予）
-        /// 且该原子可作代价——组合图（多原子并列/原子带条件奖励/引擎分支）出局；
-        /// 代价槽不直列原子表（关键词是唯一原子表直加的槽类型）。行文案=**翻转后预览**
-        /// （CostPreviewText：原子按代价语义镜像/收窄＋黑/白补偿——组合原文案不含翻转）。
-        /// 点击=填入代价槽。</summary>
+        /// <summary>代价视图（2026-10-31 代价槽改版定案）：候选=原子表**一般效果**行直引
+        ///（GetGeneralRows——按装载序）且行可作代价（有计价色 + PayloadCostDomain 可逆转）；
+        /// 关键词/指示物/光环/系统行出局，效果库组装图不再进代价面。行文案=**翻转后预览**
+        ///（CostRowPreview：按代价语义镜像/收窄＋抵扣色说明）。点击=填入代价槽（抵扣只作用于
+        /// 该行可产出色的卡费·至多将该色清零）。</summary>
         private void BuildLibraryPayloadView()
         {
-            var graphs = EffectLibrarySerializer.LoadAll()
-                .Where(g => CostEligibleAtoms(g, out _) != null)
+            var rows = CardCore.Attribute.AtomicEffectTable.GetGeneralRows()
+                .Where(r => CostEligibleRow(r, out _))
                 .ToList();
-            LibHeader($"代价效果（{graphs.Count}）——只收单原子效果（一般主动/赋予）·点击=填入代价槽（文案=翻转后执行语义·生效后补偿黑/白）");
-            if (graphs.Count == 0)
+            LibHeader($"代价原子（{rows.Count}）——只收原子表·一般效果行·点击=填入代价槽（抵扣只作用于该原子可产出色的卡费·至多将该色清零）");
+            if (rows.Count == 0)
             {
-                LibHint("效果库没有可作代价的单原子效果——须为单原子（无并列组合·无分支奖励）且原子可逆转到错误一侧；可先在效果组合界面做单原子效果");
+                LibHint("一般效果表没有可作代价的行——须有计价色（ManaList 非空）且可逆转到错误一侧（自伤/资敌）");
                 return;
             }
-            foreach (var graph in graphs)
-                LibEffect(graph, FillPayloadCost, CostPreviewText(graph), "代价");
+            foreach (var row in rows)
+            {
+                var captured = row;
+                var colorsZh = string.Concat(new[] { ManaType.Gray, ManaType.Red, ManaType.Blue, ManaType.Green }
+                    .Where(c => captured.ManaList != null && captured.ManaList[c] > 0f)
+                    .Select(ManaTypeNames.ZhNameOf));
+                LibCandidate(captured.DisplayName, CostRowPreview(captured),
+                    () => FillPayloadCost(captured), "代价·抵" + colorsZh);
+            }
         }
 
         private void BuildLibraryActiveView()
@@ -2248,14 +2221,22 @@ namespace SynergyUI
             var graphs = EffectLibrarySerializer.LoadAll()
                 .Where(g => !EffectComposerScreen.IsAuraMode(EffectComposerScreen.InferMode(g)) && IsActiveGraph(g))
                 .ToList();
+            // P12（2026-10-31）：结界主动槽只收充能图（非充能主动行不列——形状闸同款过滤前置）
+            if (_kind == CardKind.Enchantment)
+                graphs = graphs.Where(EffectGraphContainsCharge).ToList();
             PartitionByHost(graphs, host, out var eligible);
             graphs = eligible;
-            LibHeader(_kind == CardKind.Spell
-                ? $"主动效果（{graphs.Count}）——点击=填入主动槽（1~3 个·施放抉择·速度加成=3−槽数）"
-                : $"主动效果（{graphs.Count}）——点击=填入主动槽（生物×1）");
+            LibHeader(_kind switch
+            {
+                CardKind.Spell => $"主动效果（{graphs.Count}）——点击=填入主动槽（非充能 1~3·施放时择一 + 充能最多 1·总 4 槽）",
+                CardKind.Enchantment => $"主动效果（{graphs.Count}）——点击=填入主动槽（×1·只收「充能」）",
+                _ => $"主动效果（{graphs.Count}）——点击=填入主动槽（生物×1·可收充能）",
+            });
             if (graphs.Count == 0)
             {
-                LibHint("库中没有主动形态的效果——「新建效果」在效果合成器里做主动效果");
+                LibHint(_kind == CardKind.Enchantment
+                    ? "库中没有充能效果——「新建效果」在效果合成器里放一个「充能」原子（单原子·主动·速度 0）"
+                    : "库中没有主动形态的效果——「新建效果」在效果合成器里做主动效果");
             }
             foreach (var graph in graphs)
                 LibEffect(graph);
@@ -2496,7 +2477,8 @@ namespace SynergyUI
                         btn.onClick.RemoveAllListeners();
                         btn.onClick.AddListener(() => { Debug.Log("[UI点击] 候选行 " + title); act?.Invoke(); });
                     }
-                    Describe(row, $"点击=填入当前选中区/槽：{title}");
+                    Describe(row, $"点击=填入当前选中区/槽：{title}"
+                        + (string.IsNullOrEmpty(item.SummaryOverride) ? "" : "\n" + item.SummaryOverride));
                     return;
                 }
                 case 5:
@@ -2558,18 +2540,14 @@ namespace SynergyUI
             var rowBtn = row.GetComponent<UnityEngine.UI.Button>();
             if (rowBtn != null)
             {
-                var click = item.Click;
                 rowBtn.onClick.RemoveAllListeners();
                 rowBtn.onClick.AddListener(() =>
                 {
                     Debug.Log("[UI点击] 效果库行 " + name);
-                    if (click != null) click(graph);
-                    else FillSelectedSlot(graph);
+                    FillSelectedSlot(graph);
                 });
             }
-            Describe(row, (item.Click != null
-                    ? $"点击=把「{name}」整图填入代价槽（逐原子全价·生效后补偿黑/白）"
-                    : $"点击=把「{name}」填入中间选中槽位（未选槽=追加到末尾）")
+            Describe(row, $"点击=把「{name}」填入中间选中槽位（未选槽=追加到末尾）"
                 + (string.IsNullOrEmpty(summary) ? "" : "\n" + summary));
             var editBtn = UiKit.FindDeep(row, "edit")?.GetComponent<UnityEngine.UI.Button>();
             if (editBtn != null)
@@ -2629,21 +2607,22 @@ namespace SynergyUI
             {
                 ShowToast(_kind == CardKind.Creature
                     ? "生物不可挂连接光环（2026-10-15 改版——光环专属结界）"
-                    : "法术只挂主动效果（施放时抉择其一），不可挂光环");
+                    : "法术只挂主动效果（施放时择一发动），不可挂光环");
                 return;
             }
-            // 时机形态闸：法术只收主动（Active/Instant）；结界禁一切主动
+            // 时机形态闸：法术只收主动（Active/Instant）；结界主动只收「充能」（P12——其余主动仍拒）
             int t = graph?.header?.TriggerTiming ?? -1;
             bool activated = t == (int)TriggerTiming.Activate_Active || t == (int)TriggerTiming.Activate_Instant
                              || t == (int)TriggerTiming.Activate_Response;
-            if (_kind == CardKind.Enchantment && activated)
+            bool chargeGraph = graph != null && EffectGraphContainsCharge(graph);
+            if (_kind == CardKind.Enchantment && activated && !chargeGraph)
             {
-                ShowToast("结界只挂自动/光环——主动效果已随 2026-10-15 改版退役");
+                ShowToast("结界主动槽只收「充能」效果（P12 充能改版）——其余主动效果仍不收");
                 return;
             }
             if (_kind == CardKind.Spell && !activated)
             {
-                ShowToast("法术只挂主动效果（施放时弹窗抉择其一）——自动/触发/响应式不收");
+                ShowToast("法术只挂主动效果（施放时择一发动）——自动/触发/响应式不收");
                 return;
             }
 
@@ -2937,10 +2916,10 @@ namespace SynergyUI
                 + (factor < 1f ? "×f" + factor.ToString("0.###") : "");
             if (r.PayloadPrice > 0)
             {
-                // P4 §1.2（2026-10-29）：带代价抵扣 → 三段式显净费（S/K/A/E 构成合计=抵扣前推导费；
-                // 明细行「[P] 代价抵扣 −N（先灰后最高色）」在费用区悬浮构成里）。
+                // P4 §1.2 + 2026-10-31 色锁定案：三段式显净费（构成合计=抵扣前推导费；实抵 N=min(全价,可产出色容量)，
+                // 只作用于代价原子可产出色——明细行「[P] 代价抵扣 −N（限X·至多清零该色）」在费用区悬浮构成里）。
                 text += "＝D" + ((int)r.PrePayloadCost.Total).ToString("0") + "（" + CostZh(r.PrePayloadCost) + "）"
-                        + $" − 代价抵扣 {r.PayloadPrice}"
+                        + $" − 代价抵扣 {r.PayloadApplied}（限{r.PayloadScopeZh}）"
                         + " ＝ 净费 D" + r.Total.ToString("0") + "（" + CostZh(r.SuggestedCost) + "）";
             }
             else
@@ -2999,36 +2978,52 @@ namespace SynergyUI
             ApplyTextLists();
             EnsureCardLists();
 
-            // 形状拦截（2026-10-15 深夜三类卡改版）：法术=1~3 个主动效果；结界=禁一切主动。
+            // 形状拦截（2026-10-15 深夜三类卡改版；2026-10-31 P12 充能修订）：
+            // 法术=非充能主动 1~3 + 充能最多 1（总 ≤4）；结界=主动只收充能（最多 1），其余主动仍拒。
             if (_kind == CardKind.Spell)
             {
                 int count = _card.Effects?.Count ?? 0;
-                if (count < 1 || count > 3)
+                int chargeCount = 0, activeCount = 0;
+                foreach (var e in _card.Effects ?? new List<CardEffectData>())
                 {
-                    ShowToast($"法术须挂 1~3 个主动效果（现 {count} 个——施放时弹窗抉择其一）");
-                    return;
-                }
-                foreach (var e in _card.Effects)
-                {
+                    if (ComposerCatalog.IsChargeEffect(e)) { chargeCount++; continue; }
                     int t = e?.TriggerTiming ?? -1;
                     if (t != (int)TriggerTiming.Activate_Active && t != (int)TriggerTiming.Activate_Instant)
                     {
                         ShowToast($"法术效果「{e.DisplayName ?? e.Id}」须为主动效果（法术只挂主动，自动/触发/响应式不收）");
                         return;
                     }
+                    activeCount++;
+                }
+                if (count < 1 || count > 4 || activeCount < 1 || activeCount > 3)
+                {
+                    ShowToast($"法术须挂 1~3 个非充能主动效果 + 充能最多 1（现非充能 {activeCount} + 充能 {chargeCount}——施放时择一发动）");
+                    return;
+                }
+                if (chargeCount > 1)
+                {
+                    ShowToast($"法术充能效果最多 1 个（现 {chargeCount}）");
+                    return;
                 }
             }
             else if (_kind == CardKind.Enchantment)
             {
+                int chargeCount = 0;
                 foreach (var e in _card.Effects ?? new List<CardEffectData>())
                 {
+                    if (ComposerCatalog.IsChargeEffect(e)) { chargeCount++; continue; }
                     int t = e?.TriggerTiming ?? -1;
                     if (t == (int)TriggerTiming.Activate_Active || t == (int)TriggerTiming.Activate_Instant
                         || t == (int)TriggerTiming.Activate_Response)
                     {
-                        ShowToast($"结界效果「{e.DisplayName ?? e.Id}」为主动效果——结界只挂自动/光环（2026-10-15 改版）");
+                        ShowToast($"结界效果「{e.DisplayName ?? e.Id}」为主动效果——结界只挂自动/光环/充能（2026-10-31 P12）");
                         return;
                     }
+                }
+                if (chargeCount > 1)
+                {
+                    ShowToast($"结界充能效果最多 1 个（现 {chargeCount}）");
+                    return;
                 }
             }
 

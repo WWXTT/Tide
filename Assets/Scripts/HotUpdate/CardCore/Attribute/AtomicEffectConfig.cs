@@ -14,6 +14,11 @@ namespace CardCore.Attribute
         /// <summary>效果行序号（装载序）</summary>
         public int Id;
 
+        /// <summary>来源表类别（2026-10-30 五分表；装载期由来源文件写入——见 AtomicEffectTable.Category* 常量）。
+        /// 与文件一一对应、非 MountKinds 派生：2026-10-31 代价槽改版起，合成器「一般效果」筛选
+        ///（代价原子只收一般效果行）以本字段为判定源——改行归属=挪文件，装载自动跟随。</summary>
+        public int TableCategory;
+
         /// <summary>表首列 ID（8-hex 描述哈希——2026-09-14 原子引用化的引用键；
         /// 空=行缺失该列，不可被 AtomRef 引用）。</summary>
         public string HashId;
@@ -65,8 +70,8 @@ namespace CardCore.Attribute
         /// <summary>默认发动条件（逗号分隔）</summary>
         public string DefaultConditions;
 
-        /// <summary>是否可叠加</summary>
-        public bool Stackable;
+        // Stackable（是否可叠加）字段已删（2026-10-31 指示物定案）：指示物默认恒可叠加，
+        // 无非叠加档、零读者——叠加不再作为效果文本/配置面描述。
 
         /// <summary>结算优先级（0-100，值越高越先结算）</summary>
         public int Priority;

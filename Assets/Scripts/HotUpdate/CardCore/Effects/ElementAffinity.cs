@@ -61,29 +61,30 @@ namespace CardCore
             { ManaType.Red, ManaType.Blue, ManaType.Green, ManaType.Gray };
 
         /// <summary>int/float 账单归一为 ManaType→int（跳过 ≤0 项）。
-        /// 2026-10-12 小数直通定案：效果级费用带小数（如锚 0.6绿），此处=支付终点——
-        /// 四舍五入（约等于），原 (int) 截断会把 0.x 账单变成免费。</summary>
+        /// 2026-10-30 支付进1定案（取代 10-12 四舍五入）：效果费真实小数（DeriveElementCosts 不再
+        /// 合成期取整），此处=支付终点——逐色向上取整（大于 0 也消耗 1）；
+        /// 1e-4f 护尾噪防把 1.0000001 顶成 2。</summary>
         public static Dictionary<ManaType, int> NormalizeBill(Dictionary<int, float> cost)
         {
             var bill = new Dictionary<ManaType, int>();
             if (cost == null) return bill;
             foreach (var kv in cost)
             {
-                int amount = (int)Math.Round(kv.Value, MidpointRounding.AwayFromZero);
+                int amount = (int)Math.Ceiling(kv.Value - 1e-4f);
                 if (amount > 0) bill[(ManaType)kv.Key] = amount;
             }
             return bill;
         }
 
         /// <summary>ElementCost 账单归一为 ManaType→int（2026-10-04 位置数组化主入口；跳过 ≤0 项）。
-        /// 取整口径同上——支付终点约等于。</summary>
+        /// 取整口径同上——支付终点逐色进1。</summary>
         public static Dictionary<ManaType, int> NormalizeBill(ElementCost cost)
         {
             var bill = new Dictionary<ManaType, int>();
             if (cost == null) return bill;
             foreach (var color in cost.NonzeroColors())
             {
-                int amount = (int)Math.Round(cost[color], MidpointRounding.AwayFromZero);
+                int amount = (int)Math.Ceiling(cost[color] - 1e-4f);
                 if (amount > 0) bill[color] = amount;
             }
             return bill;
@@ -172,7 +173,7 @@ namespace CardCore
 
     /// <summary>
     /// 预定义的元素倾向（仅红蓝绿灰）
-    /// 颜色来源：配置表 AttributeValueConfig.json 的 ManaList 主色（首个非零下标色）——
+    /// 颜色来源：原子表（五分文件）的 ManaList 主色（首个非零下标色）——
     /// AtomicEffectTable.BuildConfig 装载时把中文色名追加到 Tags，本类扫 Tags 取色；
     /// 旧 EffectColor 列已随 2026-10-04 位置数组迁移删除（Tags 现=产出族标签+色名）。
     /// </summary>

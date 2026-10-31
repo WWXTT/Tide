@@ -78,6 +78,9 @@ namespace CardCore.Tools
             // 2026-10-28 对账找回（同 10-10 先例）：地牌锁色字段手工加在 TagTable 手改区未登记，
             // 旧工具再生成冲掉触发 CS0117——按原值登记透传
             ("RCS_LockedColor", 233742023, "RuntimeCardState.LockedColor（2026-10-11 资源重做：地牌锁定产色）"),
+            // 2026-10-29 阶段3b：延迟死亡标记（StableTag 同式手算=Hash32("RuntimeCardState.DelayedDeath")，
+            // seed 0x53796E67——RCS_BuildPaid 先例同法）
+            ("RCS_DelayedDeath", 747753030, "RuntimeCardState.DelayedDeath（2026-10-29 阶段3b 延迟死亡标记）"),
         };
 
         private static (string className, string propName, int tag)[] GetTagDefinitions()

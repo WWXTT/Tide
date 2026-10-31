@@ -221,10 +221,20 @@ namespace CardCore
             // 对手的要等对手回合末；突袭的"不能以玩家为目标"限制随自己回合末解除
             Attribute.CounterRules.OnTurnEnd(e.TurnPlayer, ZoneManager);
 
+            // 延迟死亡（2026-10-29 阶段3b）：到点条目执行死亡（指示物倒数之后——毒素等回合末
+            // 死亡同轮登记的条目ScheduledTurn=本回合，须等下个回合末；离开战场/已死的条目撤销）
+            Attribute.DeathRules.OnTurnEndDelayedDeaths(e.TurnNumber);
+
+            // 延时保护（2026-10-30 指示物化）：回合末−1 层走 CounterRules ③块通用倒数，无独立清口
+
             // 窥渊仪典（2026-10-04 时机改版：回合开始→回合结束）：随机展示+锁定必须排在
             // 指示物倒数之后——同回合末新挂的锁不被 ③ 块吞层。组合根显式调（不走事件订阅：
             // 订阅序相对本方法随局数漂移，先后无保证）。
             RuleAuraSystem.RevealAndLockAtTurnEnd(e.TurnPlayer);
+
+            // 归土仪典（2026-10-30 改版：墓地视手牌→回合末复活）：回合结束时从自己墓地复活一张
+            // 费用≤己方绿色地牌数的生物。排延迟死亡/窥渊之后——同回合末刚入墓的生物可被复活。
+            RuleAuraSystem.ReviveAtTurnEnd(e.TurnPlayer);
 
             // Temp 轨关键词回合末到期（2026-09-13 定案：生物赋予的关键词固定持续 1 回合——
             // 魔法 Setting 轨与光环照旧不经此口）：每个回合末清双方战场 Temp 授予
@@ -246,6 +256,12 @@ namespace CardCore
         /// <summary>初始手牌总量（2026-10-13 迁表：ValueSystemConfig GameRules.OpeningHandSize）。</summary>
         public static int OpeningHandSize
             => (int)ValueSystemConfigManager.Instance.GetOrCreateConfig().GameRulesConfig.OpeningHandSize;
+
+        /// <summary>后手开局护甲补偿层数（2026-10-30 迁表：ValueSystemConfig GameRules.SecondPlayerArmorBonus；
+        /// 后手角色开局 +N 层护甲指示物。注入点=开局流程层（BattleController/NetRoom——InitGame 内含
+        /// Reset 清角色指示物，注入必须在 StartGame 之后），引擎本体不自动给）。</summary>
+        public static int SecondPlayerArmorBonus
+            => (int)ValueSystemConfigManager.Instance.GetOrCreateConfig().GameRulesConfig.SecondPlayerArmorBonus;
 
         /// <summary>装备入场接线委托（2026-09-24：Reset 重订阅用缓存实例——lambda 无法退订，
         /// 每局 new 会随 SubscribeCore 累积，装备入场效果同进程多局重复触发）。</summary>
@@ -755,15 +771,16 @@ namespace CardCore
             RuleAuraSystem.Reset();
             RuleAuraSystem.OnGameReset();
 
+            // 延时保护（2026-10-30 指示物化）：无独立局重置口——指示物随 CounterRules 清；延迟死亡待死条目同批清
+            Attribute.DeathRules.ResetDelayedDeaths();
+
             // 守护配对（2026-10-08 配对制改版）：入场弹选保护目标/离场断链——组合根登记（幂等，
             // 先退再订防多局重复订阅）+ 配对表跨局不残留（被守护者引用跨局失效）
             Attribute.GuardianRules.EnsureSubscribed();
             Attribute.GuardianRules.Reset();
 
-            // 舍身配对（2026-10-16 关键词化，镜像守护）：入场弹选转投目标/离场断链——
-            // 组合根登记（幂等）+ 配对表跨局不残留（转投目标引用跨局失效）
-            Attribute.MartyrdomRules.EnsureSubscribed();
-            Attribute.MartyrdomRules.Reset();
+            // 舍身配对接线已删（2026-10-30 战斗法师改版）：无状态关键词——散射内联
+            // KeywordRules.ApplyDamage 咽喉，MartyrdomRules 配对表/订阅/跨局清档整套退役。
 
             // 装备入场耐久初始化（2026-09-13 起；2026-10-07 武器反伤扩展口随武器系统退役删除，
             // 角色参战改走 HeroAttackCounter 弹药原子）——组合根（幂等）

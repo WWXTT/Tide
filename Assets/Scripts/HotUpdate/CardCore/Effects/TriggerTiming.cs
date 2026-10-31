@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 
@@ -95,6 +95,12 @@ namespace CardCore
         /// 玩家可选的「回合开始档」语义由本值承接（同一回合窗口、紧随系统处理，可观察行为等价）。
         /// 枚举只尾部追加不重排。</summary>
         OnStandbyPhase = 33,
+
+        /// <summary>占卜时（2026-10-29 阶段3c 信息轴）：任一玩家结算占卜（LookAtTopCards 发布
+        /// ScryEvent）——观察者时点，双方占卜都触发（百闻牌百目鬼「每当占卜时投射1伤」同源）；
+        /// 侧别限定交给 TriggerConditions。载荷过滤不设 case（默认放行=每次占卜一发）。
+        /// 枚举只尾部追加不重排。</summary>
+        OnScry = 34,
     }
 
     /// <summary>
@@ -109,7 +115,7 @@ namespace CardCore
         /// <summary>是否可选触发</summary>
         public bool IsOptional { get; }
 
-        /// <summary>每回合触发次数限制（0=无限）</summary>
+        /// <summary>历史每回合触发次数（0=无限）——该类当前无构造点；次数上限已于 2026-10-30 整删。</summary>
         public int PerTurnLimit { get; }
 
         /// <summary>效果描述</summary>

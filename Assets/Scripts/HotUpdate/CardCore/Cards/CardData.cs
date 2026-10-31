@@ -439,7 +439,7 @@ namespace CardCore
 
     /// <summary>
     /// 原子效果条目（2026-09-14 彻底引用化定案）——**原子 = 表行引用 + 增量**，全链唯一表示：
-    /// refId 指向原子表行（AttributeValueConfig.json 首列 8-hex）；枚举名/默认域/Filter/极性/
+    /// refId 指向原子表行（原子表五分文件首列 8-hex）；枚举名/默认域/Filter/极性/
     /// MountKinds 一律装载时经 AtomicEffectTable.GetByHashId(refId) 从行解析（消费方自行查表）。
     /// 增量仅四项：value（唯一数值，模板含 {value} 才有语义）/ str（字符串参数：token 模板、
     /// 关键词 id、宣言卡名）/ amp（数值随机幅度 0..1）/ kinds（实例域收窄，null=表行默认域）。
@@ -591,7 +591,8 @@ namespace CardCore
         public int conditionParam;                    // 数值参数（如门槛）
         public string conditionStringParam;           // 字符串参数（如预言类型）
 
-        // kind==2：选发模式列表（≥2）。包装类见 EffectChoiceData 注释。
+        // kind==2：选发模式列表（≥2）。**2026-10-31 P12 起废弃**：抉择=法术多主动效果施放时择一，
+        // 内嵌分支不再生成/读取（converter 告警跳过）——字段仅存档兼容（防序列化断裂），勿写新数据。
         public List<EffectChoiceData> choices;
     }
 
@@ -615,7 +616,7 @@ namespace CardCore
         /// 由 AggregateEffectAuras 迁移盖戳。</summary>
         public int scope;
         // 逐条目「是否包含角色」已退役（2026-10-09 裁定）：关键词光环一律可作用角色——不能用光环
-        // 表达的行（守护/再生/禁魔石）由表「不可作为连接光环」位拉黑；属性条目仍恒仅生物。
+        // 表达的行（守护/再生/无实体/绝缘体等）由表「不可作为连接光环」位拉黑；属性条目仍恒仅生物。
     }
 
     /// <summary>
@@ -646,8 +647,8 @@ namespace CardCore
         // 效果级作用范围（2026-10-04 相同目标定案）：并列原子作用域交集内的统一选择——效果内
         // 全部原子共享同一份选中目标；null=未声明→回落原子域交集推导（存量兼容）。
         public List<int> TargetKinds;
-        // 触发式每回合触发上限（2026-09-13）：0=未声明→默认 1；>0=每回合 N 次；-1=显式无限。
-        // 仅对触发式生效。（恒无限覆写位 TriggerCapImmutable 已于 2026-10-07 删除——坚韧族光环化。）
+        // 历史字段·无运行时/计价消费方（2026-10-30 定案：效果不再有每回合生效次数上限）。
+        // 保留只为存档/内容哈希稳定；自由分支引擎奖励的每卡每回合 1 次由 BranchEngines 自限。
         public int TriggerLimitPerTurn;
         // 动态分支引擎头字段（EngineKind/EngineParam）已随 2026-10-05 两槽定案载荷化退役——
         // 引擎条件挂槽级原子 branch 载荷（BranchEntryData.engine/engineParam）。
@@ -816,23 +817,9 @@ namespace CardCore
         /// </summary>
         public CardData GetData() => _data;
 
-        // 建造已建额（2026-10-29 P7b 返工：从 CardData 迁到卡实例——P7 挂在卡面定义上令同名
-        // 副本共享进度（一施放清空全部副本）、镜像局跨玩家泄漏账单/进度，返工到实例层与
-        // 指示物/关键词同层）：下标=ManaType 枚举序 [灰,红,蓝,绿,任意]（任意位恒 0——Any 非色
-        // 不可建）。玩家资产非缓存：跨回合保留；离开手牌按真实换区清空（ZoneContainer.OnCardMoved
-        // 发动区豁免，清空口 GameActions.ClearBuildPaid）。克隆/变形/复制出的新实例从全零开始
-        //（不随定义复制）。[NonSerialized]+属性形态不入卡数据序列化（快照走
-        // RuntimeCardState.RCS_BuildPaid，按 runtime card id 回灌本实例）。
-        [NonSerialized]
-        private float[] _buildPaid;
-        public float[] BuildPaid => _buildPaid ??= new float[ElementCost.Length];
-
-        /// <summary>清空已建额（离手/结算清空口，P7 §2——预付元素不退，作废即归零）。</summary>
-        public void ResetBuildPaid()
-        {
-            var a = BuildPaid; // 惰性建（未建过=已是全零新数组，归零幂等）
-            for (int i = 0; i < a.Length; i++) a[i] = 0f;
-        }
+        // 建造已建额已删（2026-10-31 P12：建造→充能改版——预付账本整体退役，充能进度改挂
+        // 四色费用降低指示物 CostDownGray/Red/Blue/Green（Resident 换区清，ClearAll 统一口；
+        // 快照经 CounterEntryDTO 可见）。实例级诉求（同名副本/跨玩家隔离）由指示物天然满足。）
 
         // 衍生物槽绑定（P9b 2026-10-29，卡组期绑定 → 卡实例）：效果序号（CardData.Effects
         // 下标）→ 模板卡 ID，由卡组装载器写入（DeckTokenSupport.Apply——本地 GameCore.InitGame

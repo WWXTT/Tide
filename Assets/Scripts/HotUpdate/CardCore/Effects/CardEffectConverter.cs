@@ -138,24 +138,17 @@ namespace CardCore
                 }
             }
 
-            // 转换节点化步骤（遗留路径）。含抉择（kind==2）→ 保留 Steps 结构（执行引擎步骤遍历）；
-            // 纯原子/分支步骤 → 平铺折叠进 def.Effects（kind=1 门折入前一个原子的 Branch 载荷——
-            // 产出条件族归 Outcome、局面门归 Gate；光环形态的规则光环原子步同样平铺执行）。
+            // 转换节点化步骤（遗留路径）。内嵌抉择（kind==2）已随 2026-10-31 P12 抉择默认化退役：
+            // 法术模式=非充能主动效果数（GetCastableEffects），遗留 choices 数据→告警跳过
+            //（不再生成 RuntimeStepKind.Choice）；纯原子/分支步骤 → 平铺折叠进 def.Effects
+            //（kind=1 门折入前一个原子的 Branch 载荷——产出条件族归 Outcome、局面门归 Gate；
+            // 光环形态的规则光环原子步同样平铺执行）。
             if (stepsOwnMainSequence)
             {
                 if (data.Steps.Any(s => s != null && s.kind == 2))
-                {
-                    foreach (var step in data.Steps)
-                    {
-                        var runtimeStep = ConvertStep(step);
-                        if (runtimeStep != null)
-                            def.Steps.Add(runtimeStep);
-                    }
-                }
-                else
-                {
-                    FoldBranchSteps(data.Steps, def, sourceCardId);
-                }
+                    TideLog.Warn($"[CardEffectConverter] 卡 {sourceCardId} 效果 {data.Id} 含内嵌抉择分支（kind==2）" +
+                                 "——2026-10-31 P12 退役：抉择=法术多主动效果默认择一，内嵌分支已忽略");
+                FoldBranchSteps(data.Steps, def, sourceCardId);
             }
 
             // 倒计时载荷换算（Steps/扁平两通道统一，2026-10-22 修复）：初值=Then 推导费 1费=1回合
@@ -191,8 +184,8 @@ namespace CardCore
                 }
             }
 
-            // 触发上限解析（2026-09-13 定案）：未声明(0)=1（一回合一次，组合期可改）。
-            //（恒无限覆写位 TriggerCapImmutable 已于 2026-10-07 删除——坚韧族光环化后表内零声明行。）
+            // 历史字段解析（2026-10-30 起无运行时/计价消费方）：未声明(0)=1、显式值原样透传——
+            // 只为 EffectSlim 往返/内容哈希稳定保留（效果 ID 含本列），不再产生任何闸门。
             def.TriggerLimitPerTurn = data.TriggerLimitPerTurn == 0 ? 1 : data.TriggerLimitPerTurn;
 
             def.TargetCount = data.TargetCount != -2 ? data.TargetCount : FallbackTargetCount(def);
@@ -335,18 +328,65 @@ namespace CardCore
                 }
                 else
                 {
-                    def.ActivationType = ehp.Activation;
-                    def.TriggerTiming = ehp.Activation == EffectActivationType.Voluntary
-                        ? TriggerTiming.Activate_Active : ehp.Timing;
+                    // 2026-10-30 双选组（除倒计时/元素充盈外——EngineActivationFree）：发动方式玩家可声明
+                    //（合成器下拉双选）——声明主动（2）合法保留、时机归主动钉档；声明自动/未声明照预设归一
+                    //（预设为主动钉档的诅咒/祝福被改自动时，时机回落 OnPlay）。钉死组照旧一律预设。
+                    if (ComposerCatalog.EngineActivationFree(engineKind)
+                        && def.ActivationType == EffectActivationType.Voluntary)
+                    {
+                        def.TriggerTiming = def.IsActivatedEffect ? def.TriggerTiming : TriggerTiming.Activate_Active;
+                    }
+                    else if (ComposerCatalog.EngineActivationFree(engineKind))
+                    {
+                        def.ActivationType = EffectActivationType.Automatic;
+                        var et = ehp.Timing;
+                        if (et == TriggerTiming.Activate_Active || et == TriggerTiming.Activate_Instant
+                            || et == TriggerTiming.Activate_Response)
+                            et = TriggerTiming.OnPlay;
+                        def.TriggerTiming = def.IsTriggeredEffect
+                            && TriggerTimingDefaults.GetEventType(def.TriggerTiming) != null
+                            ? def.TriggerTiming : et;
+                    }
+                    else
+                    {
+                        def.ActivationType = ehp.Activation;
+                        def.TriggerTiming = ehp.Activation == EffectActivationType.Voluntary
+                            ? TriggerTiming.Activate_Active : ehp.Timing;
+                    }
                 }
                 def.BaseSpeed = ehp.Speed;
-                // 单回合触发上限（2026-10-20 教学卡配置化定案）：效果行**显式声明**（limit>0）优先——
-                // 引擎奖励结算点（BranchEngines）按此收口反复触发；预设的无限档（-1）只兜底未声明行，
-                // 现行卡表行为不变（缺省无限）。教学引擎卡（充盈/团结等）行内声明 limit:1。
+                // 历史字段归一（2026-10-30 起无消费方）：引擎预设兜底仍保留存档值（哈希稳定）。
+                // 自由分支每卡每回合 1 次由 BranchEngines 自限，不再读本列。
                 def.TriggerLimitPerTurn = data.TriggerLimitPerTurn > 0 ? data.TriggerLimitPerTurn : ehp.Limit;
                 def.ElementCostPrepaid = !(def.TriggerTiming == TriggerTiming.Activate_Active
                                            || def.TriggerTiming == TriggerTiming.Activate_Instant
                                            || def.TriggerTiming == TriggerTiming.Activate_Response);
+            }
+
+            // 充能形态契约（2026-10-31 P12：建造→充能）：充能效果=单 Charge 原子、无分支、无目标域；
+            // 违规（混原子/带门/带域）→ 告警并**丢弃整个效果**（构筑期拦截——充能不能与其它内容组合）。
+            // 合规者效果头钉档：主动 / Activate_Active / 速度 0（充能入口只能从手牌发动，
+            // 1 点元素由 handler 结算期按所选色现扣——效果锚价恒 0，表行 ManaList 全 0）。
+            if (ComposerCatalog.IsChargeEffect(def))
+            {
+                bool shapeOk = (def.Steps == null || def.Steps.Count == 0)
+                    && def.Effects.Count == 1
+                    && def.Effects[0] != null && def.Effects[0].Type == AtomicEffectType.Charge
+                    && def.Effects[0].Branch == null
+                    && (def.Effects[0].TargetKinds == null || def.Effects[0].TargetKinds.Count == 0)
+                    && (data.TargetKinds == null || data.TargetKinds.Count == 0);
+                if (!shapeOk)
+                {
+                    TideLog.Warn($"[CardEffectConverter] 卡 {sourceCardId} 效果 {def.Id} 充能形态违规" +
+                                 "（充能=单原子、无分支、无目标域），已丢弃该效果——构筑期拦截");
+                    return null;
+                }
+                def.ActivationType = EffectActivationType.Voluntary;
+                def.TriggerTiming = TriggerTiming.Activate_Active;
+                def.BaseSpeed = 0;
+                def.ElementCostPrepaid = false;
+                def.TargetDomain = new List<int>();
+                def.TargetFilter = "";
             }
 
             return def;
@@ -606,22 +646,8 @@ namespace CardCore
             def.TargetDomain = DomainOfMode(def, 0, headerKinds);
             def.TargetFilter = CombinedFilterOfMode(def, 0);
 
-            // 抉择卡：per-mode 域（与 Choices 平行）；无 Choice 时 ChoiceDomains 保持 null
-            int modeCount = 0;
-            foreach (var step in def.Steps)
-            {
-                if (step?.Kind == RuntimeStepKind.Choice && step.Choices != null)
-                {
-                    modeCount = step.Choices.Count;
-                    break;
-                }
-            }
-            if (modeCount > 0)
-            {
-                def.ChoiceDomains = new List<int>[modeCount];
-                for (int m = 0; m < modeCount; m++)
-                    def.ChoiceDomains[m] = DomainOfMode(def, m, headerKinds);
-            }
+            // ChoiceDomains 已随 2026-10-31 P12 抉择退役恒 null（运行时不再生成 RuntimeStepKind.Choice；
+            // 遗留字段仅存档兼容，无读写消费方）
         }
 
         /// <summary>某模式的主序列原子（Steps 非空走步骤枚举，否则扁平 Effects）。</summary>
@@ -771,7 +797,7 @@ namespace CardCore
         private static RuntimeEffectStep ConvertStep(EffectStepData step)
         {            if (step == null) return null;
 
-            // kind: 0=原子, 1=条件分支, 2=抉择
+            // kind: 0=原子, 1=条件分支（2=抉择已随 2026-10-31 P12 退役——遗留数据告警跳过）
             if (step.kind == 0)
             {
                 var atomic = step.atomic != null ? ConvertAtomicEffect(step.atomic) : null;
@@ -783,43 +809,11 @@ namespace CardCore
                 };
             }
 
-            // 抉择（Choice）：≥2 选发模式，每模式=原子+紧邻分支的子序列（不可嵌套）。
-            // 容错定案：choices 缺失/有效模式 <2 → 整步跳过（等价不存在），费用按无抉择推导。
             if (step.kind == 2)
             {
-                if (step.choices == null || step.choices.Count < 2)
-                {
-                    TideLog.Warn("[CardEffectConverter] 抉择步骤 choices 缺失或 <2，跳过该步骤");
-                    return null;
-                }
-
-                var choice = new RuntimeEffectStep { Kind = RuntimeStepKind.Choice };
-                choice.Choices = new List<List<RuntimeEffectStep>>();
-                foreach (var c in step.choices)
-                {
-                    var seq = new List<RuntimeEffectStep>();
-                    if (c?.steps != null)
-                    {
-                        foreach (var s in c.steps)
-                        {
-                            var rs = ConvertStep(s); // 复用：原子/紧邻分支照旧转换
-                            if (rs == null) continue;
-                            if (rs.Kind == RuntimeStepKind.Choice)
-                            {
-                                TideLog.Warn("[CardEffectConverter] 抉择不可嵌套，跳过内层抉择");
-                                continue;
-                            }
-                            seq.Add(rs);
-                        }
-                    }
-                    choice.Choices.Add(seq);
-                }
-                if (choice.Choices.Count < 2)
-                {
-                    TideLog.Warn("[CardEffectConverter] 抉择步骤有效模式 <2，跳过该步骤");
-                    return null;
-                }
-                return choice;
+                TideLog.Warn("[CardEffectConverter] 抉择步骤（kind==2）已随 2026-10-31 P12 退役——整步跳过"
+                             + "（法术多主动效果在施放时择一，内嵌分支不再支持）");
+                return null;
             }
 
             // 条件分支（OutcomeGate）：then/else 为扁平原子列表（单层）

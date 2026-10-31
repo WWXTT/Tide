@@ -136,6 +136,7 @@ namespace SynergyUI
             var go = Object.Instantiate(_template, _chainRect, false);
             go.name = "chain-card";
             go.SetActive(true);
+            HandFanView.ApplyBattleFaceScale((RectTransform)go.transform); // 2026-10-30：链卡按 AHandCard 战场尺寸渲染
             var slot = new ChainSlot
             {
                 Rect = (RectTransform)go.transform,

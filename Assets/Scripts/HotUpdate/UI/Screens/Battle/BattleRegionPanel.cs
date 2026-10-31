@@ -73,7 +73,10 @@ namespace SynergyUI
             UiKit.Size(_lines, fw: 1f, fh: 1f);
             _lines.gameObject.SetActive(false);
 
-            _grid = UiKit.ScrollGrid("cards", _panel, cellW: 232f, cellH: 296f, spacing: 10f);
+            // 2026-10-30：列卡纵横比随 AHandCard 战场尺寸单源（cellW=232 固定，cellH=等比）——
+            // 旧 296 高把 360×648 卡面压扁失真
+            float cellH = 232f * HandFanView.BattleFaceSize.y / HandFanView.BattleFaceSize.x;
+            _grid = UiKit.ScrollGrid("cards", _panel, cellW: 232f, cellH: cellH, spacing: 10f);
             UiKit.Size(_grid.Rect.transform, fw: 1f, fh: 1f);
 
             // 选择三件（label-num/btn-select/viewport）不参与浏览态 VLG 排版（保持 prefab 摆位；

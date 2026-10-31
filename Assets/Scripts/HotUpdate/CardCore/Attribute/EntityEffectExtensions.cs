@@ -397,6 +397,22 @@ namespace CardCore
                 var spec = Attribute.CounterRules.Find(counterType);
                 if (side != null && (spec == null || spec.Class != Attribute.CounterClass.System)
                     && RuleAuraSystem.ScopeHits(RuleAuraComponents.NoCounterAura, side)) return;
+
+                // 绝缘体（2026-10-31，绿3 关键词表行 764236ed）：持有单位不受指示物的效果影响——
+                // 正面指示物加不上（含己方自上，文案无己/敌豁免）；负量（移除）不拦；系统指示物
+                //（CounterClass.System——引擎主干内部驱动，如耐久）豁免同禁指示物令口径。
+                // 排在铭刻放大之前——被拦层不进铭刻 +1。
+                if (entity is Card insCard
+                    && insCard.HasKeyword(Attribute.KeywordRules.Insulator)
+                    && (spec == null || spec.Class != Attribute.CounterClass.System)) return;
+
+                // 铭刻（2026-10-31）：受光环影响一方的**单位**（战场卡——生物+结界；角色/手牌不沾）
+                // 被添加指示物时层数+1。排在上文禁指示物令之后——被禁侧本就加不上，无叠加次序问题；
+                // 系统指示物同沾（文本未排除）。调用方 CounterChangedEvent 沿用自报量，与禁令令
+                // 咽喉内拦截同款既有口径（卡面层数读实体状态，展示浮字不随放大改写）。
+                if (entity is Card unit && unit.GetZone() == Zone.Battlefield && side != null
+                    && RuleAuraSystem.ScopeHits(RuleAuraComponents.InscriptionAura, side))
+                    amount += 1;
             }
 
             if (!entity._counters.ContainsKey(counterType))
@@ -576,6 +592,11 @@ namespace CardCore
         // DamageLethal→伤害来源；LifeLoss→效果来源；null=减益/状态动作（无来源）。
         internal Attribute.DeathCause? _pendingDeathCause = null;
         internal Entity _pendingDeathSource = null;
+
+        // 延迟死亡标记（2026-10-29 阶段3b，DelayedDeathAura 改写光环）：本命已用一次延迟改写——
+        // 到点 TryKill 不再改写（防无限延迟）；换区/真实死亡清（DeathRules.OnZoneChanged/TryKill）。
+        // 进网络快照（SerializableRuntimeCardState.DelayedDeath——回放/对拍确定性）。
+        internal bool _delayedDeath = false;
 
         /// <summary>是否已被宣言确认翻开（已展示；入手时重置）</summary>
         public bool IsRevealed => _isRevealed;

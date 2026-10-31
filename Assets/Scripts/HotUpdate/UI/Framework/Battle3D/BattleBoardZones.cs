@@ -46,8 +46,9 @@ namespace SynergyUI
         public const byte P1Extra = 23;
         public const byte P2Extra = 24;
 
-        // 2026-10-29 P11 盘面重塑追加（分区号只增不改）：25/26=场地格（CellRole.Field 空角色位
-        // ——规则归 P8；材质资产未生成，ZoneMaterial 回落预制体自带材质，生成后自动上色）。
+        // 2026-10-29 P11 追加（分区号只增不改）：25/26=场地格（CellRole.Field 空角色位
+        // ——规则归 P8）。材质资产已生成（黑色地块·2026-10-29 用户定案：
+        // BattleTile_Zone25/26_*.mat，首建初值黑色，落盘后归 Inspector 管）。
         public const byte P1Field = 25;
         public const byte P2Field = 26;
 
@@ -76,7 +77,8 @@ namespace SynergyUI
         // 生成器默认色板（材质资产落盘后由用户在 Inspector 调色，此处仅首建初值）
         // 2026-10-22 E1 玩家反馈「场地做成绿的/草地」：公共底盘三分区（Backdrop/Edge/Middle）
         // 换草绿系；双方单位/地牌等功能区保留敌我辨识色不动语义。
-        // 2026-10-29 P11 追加：25/26 场地格首建初值（土棕系——区别于四色地牌行与草绿底盘）。
+        // 2026-10-29 P11 追加：25/26 场地格首建初值=黑色地块（用户定案——区别于四色地牌行与
+        // 草绿底盘；近乎纯黑留一丝蓝防暗场读成空洞，落盘后归 Inspector 调色）。
         private static readonly Color[] DefaultColors =
         {
             new Color(0.045f, 0.085f, 0.045f), new Color(0.13f, 0.24f, 0.10f),
@@ -92,7 +94,7 @@ namespace SynergyUI
             new Color(0.19f, 0.31f, 0.13f),
             new Color(0.20f, 0.24f, 0.14f), new Color(0.26f, 0.20f, 0.10f),
             new Color(0.05f, 0.27f, 0.30f), new Color(0.31f, 0.10f, 0.27f),
-            new Color(0.24f, 0.19f, 0.11f), new Color(0.28f, 0.15f, 0.09f),
+            new Color(0.05f, 0.05f, 0.055f), new Color(0.05f, 0.05f, 0.055f),
         };
 
         /// <summary>分区 id → 中文名（日志/自检用）。</summary>

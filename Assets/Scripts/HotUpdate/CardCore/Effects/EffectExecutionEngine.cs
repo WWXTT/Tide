@@ -30,25 +30,32 @@ namespace CardCore
             _usageTracker = new EffectUsageTracker();
         }
 
-        /// <summary>触发上限闸门（2026-09-13 定案；2026-10-03 键修正；**2026-10-29 P9 次数档软删**）：
-        /// 玩家不再声明作用次数——触发式恒「每回合 1 次」（用量台账同时是自愿触发节流与防循环兜底；
-        /// 旧档 limit=2/3/-1 读入一律按 1，字段保留仅作数据兼容）。两个系统通道照旧不叠闸：
-        /// · 结界耐久经济（UsesDurabilityEconomy——耐久即次数池，触发即 −1 耐久，一回合可烧多点）；
-        /// · 引擎载荷效果（CostDerivationService.HasEnginePayload——主干部署单发、奖励发射由
-        ///   BranchEngines 每卡每回合 1 次全局规则自限）。
-        /// 键 = **来源实例 + effect.Id**（2026-10-03 修正：此前全局按 Id——同 Id 不同实例互吞：
-        /// 回响临时复制与本体同回合各自 OnPlay 被吞、同名卡同回合打第二张同样被吞；
-        /// 现按卡实例独立限流，"同一张卡的同一效果每回合 N 次"语义不变）。</summary>
-        public bool TriggerCapReached(EffectDefinition effect, Entity source = null)
+        /// <summary>自馈闸门（2026-10-30 用户定案：循环效果上限 30 次）：同一来源实例 + effect.Id
+        /// 每回合最多入栈 N 次（表 GameRules.MaxTriggersPerTurnPerEffect，默认 30）——常规触发远低于此，
+        /// 只截断自循环（抽牌时抽牌/受伤时造成伤害等）。引擎载荷不叠闸（BranchEngines 每卡每回合 1 次）；
+        /// 结界耐久经济不叠闸（耐久即次数池，耗尽自毁）。记账走既有效果用量台账（回合开始清零）。</summary>
+        public bool TriggerLoopGuardReached(EffectDefinition effect, Entity source = null)
         {
             if (effect == null) return false;
             if (source is Card host && Attribute.CounterRules.UsesDurabilityEconomy(host)) return false;
             if (CostDerivationService.HasEnginePayload(effect)) return false;
-            return _usageTracker.GetTurnUsage(UsageKey(effect, source)) >= 1;
+            return _usageTracker.GetTurnUsage(UsageKey(effect, source)) >= TriggerLoopGuardLimit;
         }
 
-        /// <summary>触发式入栈即记账（2026-09-13 修复：结算期记账在同批多触发下查账恒滞后一轮，
-        /// "一回合一次"闸门失效）；结算处对触发式跳过 RecordActivation 防双记。</summary>
+        /// <summary>自馈闸门上限（表 GameRules.MaxTriggersPerTurnPerEffect；下限 1）。</summary>
+        public static int TriggerLoopGuardLimit
+        {
+            get
+            {
+                float n = ValueSystemConfigManager.Instance.GetOrCreateConfig()
+                    .GameRulesConfig.MaxTriggersPerTurnPerEffect;
+                return Math.Max(1, (int)Math.Round(n, MidpointRounding.AwayFromZero));
+            }
+        }
+
+        /// <summary>触发式入栈即记账（2026-09-13 修复：结算期记账在同批多触发下读账滞后）；
+        /// 2026-10-30 起台账只作读数 + 自馈闸门计数（不再有「一回合一次」限制——
+        /// 唯一保留的每回合 1 次是自由分支引擎奖励，BranchEngines 自限）。</summary>
         public void RecordQueuedActivation(EffectDefinition effect, Entity source = null)
             => RecordUse(effect, source);
 
@@ -90,6 +97,15 @@ namespace CardCore
             PhaseType currentPhase,
             int turnNumber)
         {
+            // 0-charge 充能效果（2026-10-31 P12）：**只能从手牌发动**——源必须是手牌卡；
+            // 战场/技能栏/其它区一律 false（充能入口=GameActions.ActivateCharge，此处为通用闸镜像）。
+            // 不要求横置、不走耐久；下方沉默/沉睡/禁发令等通用闸照旧。费用不经此段
+            //（充能锚价恒 0，1 点元素由 ChargeHandler 结算期按所选色现扣）。
+            if (ComposerCatalog.IsChargeEffect(effect))
+            {
+                if (!(source is Card chargeCard) || chargeCard.GetZone() != Zone.Hand) return false;
+            }
+
             // 0. 发动代价预检（仅主动）：按宿主分货币（2026-10-15 深夜三类卡改版）——
             //    结界（战场/技能栏）= **拒绝**——结界禁主动效果，只挂自动/光环（运行时临摹/变形
             //    塞进来的主动行也在此拦）；其余（生物/技能区法术=英雄技能载体）= 未横置
@@ -146,6 +162,9 @@ namespace CardCore
 
             // 4. 费用检查：元素代价自动推导（含抵消可达性），特殊代价走原子预检
             var elementCosts = CostDerivationService.DeriveElementCosts(effect);
+            // 充能（2026-10-31 P12）：效果锚价不参与预检（表行 0 费 + 手写钉价防御清零）——
+            // 1 点元素由 ChargeHandler 结算期按所选色现扣
+            if (ComposerCatalog.IsChargeEffect(effect)) elementCosts = new ElementCost();
             // 技能发动费（2026-10-18 深夜修订：技能可反复用，不与同名法术同免费）：
             // 免元素锚价；多效果（抉择）技能每次发动另收 1 灰（ActivationBill 单源）；
             // 特殊代价（牺牲等效果机制）不属「费用」，照收
@@ -274,6 +293,7 @@ namespace CardCore
                 SummonDropZone = effect.SummonDropZone,
                 CastCard = instance.CastCard, // 施放链路宿主卡（状态门 DrawnInStandbyThisTurn 用）
                 ResolvingEffect = effect, // P9b：引用卡槽按 (来源卡ID, 效果序号) 解析卡组期绑定
+                ChargeColor = instance.ChargeColor, // 充能色（P12）：ChargeHandler 结算期消费
             };
 
             // 代价支付：元素代价由配置表自动推导（费用唯一权威），经 ElementCostPayment 纯支付
@@ -282,6 +302,9 @@ namespace CardCore
             // 卡牌的 effect.Costs 仅保留非元素的特殊代价（Payload 原子），走付费步异步执行+补偿。
             // 抉择卡按所选模式推导（per-mode 独立计价定案）。
             var elementCosts = CostDerivationService.DeriveElementCosts(effect, instance.ModeIndex);
+            // 充能（2026-10-31 P12）：跳过通用元素锚价（表行 0 费钉死；手写钉价同款防御清零）——
+            // 1 点元素由 ChargeHandler 按所选色现扣；源不在手牌/色非法时 handler 空转（不扣不加）
+            if (ComposerCatalog.IsChargeEffect(effect)) elementCosts = new ElementCost();
             // 技能发动费（2026-10-18 深夜修订）：免元素锚价 + 抉择技能每次 1 灰
             //（ActivationBill 单源，与 CanActivate 预检同口径）
             if (HeroSkillSystem.IsSkillSource(instance.Source))
@@ -495,13 +518,19 @@ namespace CardCore
                 if (atomicEffect == null) continue;
                 if (IsEngineTrunk(atomicEffect))
                 {
-                    // 主动运势一步点击（2026-10-20 定案：点击→选目标→执行期掷骰，达标则分支效果
-                    // 作用于已选目标）：两段式（掷骰入待发+二次发动）已废——第一次点击（主动发动）
-                    // 横置源卡，待发奖励再发动被 CanActivate 横置检查拒。其余引擎仍条件载体跳过
-                    //（自动运势走 BranchEngines.OnRoutedEvent 事件驱动；倒计时钉死组直发）。
-                    if (effect.ActivationType == EffectActivationType.Voluntary
-                        && atomicEffect.Branch?.EngineKind == BranchEngineKind.LuckRoll)
-                        await ApplyActiveLuckTrunkAsync(atomicEffect.Branch, context, fragments);
+                    // 主动引擎主干（2026-10-20 运势一步点击定案；2026-10-30 双选组主动路径泛化）：
+                    // 主动声明 + 双选引擎（除倒计时/元素充盈——仅自动）→ 点击即评估引擎条件、达标发奖。
+                    // 两段式（入待发+二次发动）已废——第一次点击（主动发动）横置源卡，待发奖励再发动
+                    // 被 CanActivate 横置检查拒。自动声明仍条件载体跳过（BranchEngines 事件驱动；
+                    // 倒计时钉死组直发）。
+                    if (effect.ActivationType == EffectActivationType.Voluntary)
+                    {
+                        var activeKind = atomicEffect.Branch?.EngineKind ?? BranchEngineKind.None;
+                        if (activeKind == BranchEngineKind.LuckRoll)
+                            await ApplyActiveLuckTrunkAsync(atomicEffect.Branch, context, fragments);
+                        else if (ComposerCatalog.EngineActivationFree(activeKind))
+                            await ApplyActiveEngineTrunkAsync(atomicEffect.Branch, activeKind, context, fragments);
+                    }
                     continue;
                 }
                 var payload = atomicEffect.Branch;
@@ -753,6 +782,47 @@ namespace CardCore
                 D1 = d1, D2 = d2, Threshold = x, Success = hit,
             });
             if (!hit) return;
+            await ApplyThenToSharedTargetsAsync(payload, context, fragments);
+        }
+
+        /// <summary>主动引擎主干（2026-10-30 双选组主动路径——拼点/死亡计数/团结/附加诅咒·祝福；
+        /// 运势走掷骰专用口 ApplyActiveLuckTrunkAsync）：点击 → 立即评估引擎条件
+        ///（BranchEngines.EvaluateActiveCondition——副作用与自动路径同源：拼点照常展示比攻/发
+        /// ClashResolvedEvent，死亡计数只读不清，团结读注入邻接数）→ 达标发放 Then 奖励
+        ///（组合目标逐个适用，无组合目标回落奖励弹选），未达标落空播报。
+        /// 附加诅咒·祝福=施放时已部署（OnCardCastResolved），手动发动为提示性空转（不重复部署）。
+        /// 不走每卡每回合引擎发射账——主动发动受横置/次数档自理（运势主动同口径）。</summary>
+        private static async UniTask ApplyActiveEngineTrunkAsync(BranchPayload payload, BranchEngineKind kind,
+            EffectExecutionContext context, List<string> fragments)
+        {
+            if (payload?.Then == null || payload.Then.Count == 0) return;
+            string zh = ComposerCatalog.EngineZhOf(kind);
+            if (kind == BranchEngineKind.CurseOnDraw || kind == BranchEngineKind.BlessingOnDraw)
+            {
+                EventManager.Instance.Publish(new KeywordAppliedEvent
+                {
+                    Target = context.Source, Keyword = zh,
+                    Detail = $"{zh}在施放时已部署（抽到挂载卡时自动执行）——手动发动无额外效果",
+                });
+                return;
+            }
+            bool hit = BranchEngines.EvaluateActiveCondition(kind, payload,
+                context.Source as Card, context.Controller, out var detail);
+            EventManager.Instance.Publish(new KeywordAppliedEvent
+            {
+                Target = context.Source, Keyword = zh,
+                Detail = hit ? $"{detail}：分支效果适用" : $"{detail}：未达标",
+            });
+            if (!hit) return;
+            await ApplyThenToSharedTargetsAsync(payload, context, fragments);
+        }
+
+        /// <summary>主动引擎达标后的奖励适用（运势/通用主动主干共用尾段）：组合目标非空→逐目标适用
+        ///（效果级作用范围在结算期首已弹选共享）；空→ExecuteThenRewardsAsync 弹选口径。执行完恢复
+        /// 原目标列表。奖励原子免费（卡价收讫，同 FireRewards 口径）。</summary>
+        private static async UniTask ApplyThenToSharedTargetsAsync(BranchPayload payload,
+            EffectExecutionContext context, List<string> fragments)
+        {
             if (context.Targets == null || context.Targets.Count == 0)
             {
                 await ExecuteThenRewardsAsync(payload.Then, context, fragments);
@@ -988,20 +1058,25 @@ namespace CardCore
             {
                 var next = _pendingQueue.GetNextEffect();
                 if (next == null) break;
+                if (next.Effect == null) continue; // 无定义条目丢弃（防记账空引用；旧闸门同口径兜底）
 
-                // 触发上限闸门（2026-09-13 定案；2026-10-03 键修正=来源实例+Id）：达到上限的触发式静默丢弃
-                //（GetNextEffect 已出队——丢弃即不回插；不可修改原子恒 -1 不受限）。
-                // 登场族（OnPlay）豁免（2026-10-03 定案）：上限的自然单位是**施放**——弹回重打/
-                // 墓地收回重打每次施放都应触发登场效果，不走每回合上限闸门（记账照常，仅显示用）。
-                if (next.Effect == null || next.Effect.TriggerTiming != TriggerTiming.OnPlay)
-                    if (_executor.TriggerCapReached(next.Effect, next.Source)) continue;
+                // 自馈闸门（2026-10-30）：同一效果每回合超 30 次视为自循环，静默丢弃。
+                // 不是「一回合一次」限制——常规触发远低于上限；引擎/耐久另有天然上限。
+                if (_executor.TriggerLoopGuardReached(next.Effect, next.Source))
+                {
+                    TideLog.Warn($"[LoopGuard] 自循环截断：effect={next.Effect.Id} source={next.Source?.RuntimeId} "
+                                 + $"已达每回合 {EffectExecutor.TriggerLoopGuardLimit} 次");
+                    continue;
+                }
 
+                // 触发式无每回合生效次数上限（2026-10-30 定案）：满足时点的每次触发都入栈。
+                // 唯一的每回合 1 次保留在自由分支引擎奖励——由 BranchEngines 按卡自限，不在此闸。
                 var instance = EffectInstance.FromPendingEffect(next);
                 _stack.Push(instance);
                 next.IsOnStack = true;
 
-                // 触发上限记账提前到入栈时（2026-09-13 修复）：同批多个触发出队时，
-                // 结算期记账会让第 2 个及以后的触发绕过"一回合一次"闸门
+                // 入栈即记账（2026-09-13 修复；2026-10-30 起仅作读数——条件计数/卡面统计，无闸门）：
+                // 同批多个触发出队时，结算期记账会让读数滞后。
                 _executor.RecordQueuedActivation(next.Effect, next.Source);
 
                 // 结界被动触发消耗（2026-10-10 耐久即次数池定案）：战场结界的触发式效果
@@ -1840,6 +1915,8 @@ namespace CardCore
                 new DealDamageHandler(),
                 // 敌方全体伤害（2026-10-09 全体对象独立原子）：无域自结算，杀数聚合（击杀门槛一次结算）
                 new DealDamageAllEnemiesHandler(),
+                // 全体消灭（2026-10-29 阶段3a）：对方全体生物效果死亡——无域自结算（同上款全体口径）
+                new DevourAllEnemiesHandler(),
                 new DrawCardHandler(),
                 // 回响（2026-10-07 关键词→普通效果改版）：复制施放卡入手（完全复制，连锁保留）
                 new EchoCopyHandler(),
@@ -1868,6 +1945,8 @@ namespace CardCore
                 new BounceToBottomHandler(),
                 new ReturnFromGraveyardHandler(),
                 new RecoverToHandHandler(),
+                // 除外回收（2026-10-29 阶段3a）：除外区目标卡返回手牌（域=己方除外区）
+                new RecoverFromExileHandler(),
                 new LookAtTopCardsHandler(),
 
                 // 第一批补齐 — 状态变更
@@ -1879,10 +1958,12 @@ namespace CardCore
                 new SetCostHandler(),
                 new ModifyCostHandler(),
 
-                // 信息族 — 宣言（即时验证）/ 预言（隐藏押注，延迟验证）
+                // 信息族 — 强夺（宣言卡名夺对手手牌）/ 窃取（宣言卡名夺对手牌库·2026-10-31）/
+                // 预言（隐秘类别押注·命中发动无效）/ 卡名预言（引擎主干，延迟验证）
+                // ——箭头宣言 2026-10-30 退役（表行/handler/枚举位同批删除）
                 new DeclareHandHandler(),
+                new DeclareDeckHandler(),
                 new DeclareDeckTopHandler(),
-                new DeclareArrowHandler(),
                 new ProphecyNextCardHandler(),
 
                 // 指示物原子（护甲/坚韧/毒素——Entity 级，角色可持有；坚韧 2026-10-08 指示物化：
@@ -1920,6 +2001,10 @@ namespace CardCore
                 new AddPermanentMinusOneHandler(),
                 new AddCostUpHandler(),
                 new AddCostDownHandler(),
+
+                // 充能（2026-10-31 P12：建造→充能）：手牌主动效果、速度 0——结算期扣 1 点所选色
+                // 元素 + 放 1 层同色费用降低指示物 + 展示（发动口 GameActions.ActivateCharge）
+                new ChargeHandler(),
 
                 // 角色攻击弹药（2026-10-07 角色参战定案，Entity 级）：给角色附加攻击指示物，
                 // 攻击/反击结算后烧除（CounterRules.RemoveHeroAttackAmmo）
@@ -1960,9 +2045,16 @@ namespace CardCore
                 new GuardHandler(),
 
                 // 信息轴（2026-10-02 定案）：展示（挂展示指示物，双方可查看）/ 附加诅咒
-                // （对手抽到该卡时 CurseSystem 自动执行载荷分支并消层）
+                // （对手抽到该卡时 CurseSystem 自动执行载荷分支效果并消层）
                 new RevealCardHandler(),
                 new AddCurseHandler(),
+                // 筛选展示（2026-10-29 阶段3c 信息轴）：按宣言维度（str="维度:值"）展示手牌中
+                // 全部命中的牌——与 RevealCard（随机一张）相对的按维度圈定全集
+                new RevealByDimensionHandler(),
+
+                // 延时保护（2026-10-29 阶段3b，12 行族）：挂 ProtectionRules 跨回合状态
+                //（str=Mode|Role|Timing；改写口=KeywordRules.ApplyDamage 与角色落血三路）
+                new GrantProtectionHandler(),
 
                 // 规则轴（2026-10-03 定案，路线 B 转正）：规则光环投放（str=规则短名，
                 // 载体入场激活 RuleAuraSystem——对双方生效/全局唯一/载体离场失效）
@@ -2002,10 +2094,6 @@ namespace CardCore
         /// </summary>
         private static readonly HashSet<AtomicEffectType> _intentionallyUnimplemented = new HashSet<AtomicEffectType>
         {
-            // 反规则效果残部：ModifyGameRule 已于 2026-10-03 转正（规则光环投放，见 RuleAuraSystem）；
-            // OverrideRestriction 仍暂不实现（规则轴提案 §6：可能被 ModifyGameRule(str) 完全覆盖）
-            AtomicEffectType.OverrideRestriction,
-
             // 引擎主干行（2026-10-05 回表；2026-10-08 附加诅咒/附加祝福入列；2026-10-20 效果序位换轴为团结）：条件载体非效果——
             // 主序列执行按 Branch.Settle==Engine 跳过，引擎条件由 BranchEngines 事件驱动，无需（也不应有）处理器
             AtomicEffectType.EngineCountdown,
@@ -2013,24 +2101,13 @@ namespace CardCore
             AtomicEffectType.EngineClash,
             AtomicEffectType.EngineDeathToll,
             AtomicEffectType.EngineManaSurplus,
-            AtomicEffectType.EngineNthHandCard, // 已退役（2026-10-19 效果序位改案）——枚举值位保留，表行已改挂 EngineUnity
             AtomicEffectType.EngineCurseOnDraw,
             AtomicEffectType.EngineBlessingOnDraw,
             AtomicEffectType.EngineUnity, // 团结（2026-10-20 效果序位换轴·复用其表行 83c150f2）
 
-            // 退役枚举墓碑位补登（2026-10-24，真机 E2E 首跑发现 VerifyHandlerCoverage 漏警告）：
-            // 以下皆为「handler+表行同批删除」的历史退役原子（墓碑注释见 AtomicEffects.cs 各枚举位），
-            // 枚举值因 AEI_Type 按 int 位序序列化不可删而留洞；全仓卡牌/教学/效果表零引用。
-            AtomicEffectType.ScryCards,              // 刺探（2026-10-08 并入占卜 LookAtTopCards）
-            AtomicEffectType.GrantCannotBeTargeted,  // 扰魔（2026-10-13 整体退役）
-            AtomicEffectType.GrantPoisonSting,       // 毒刺（2026-10-15 退役；毒素指示物=AddToxin）
-            AtomicEffectType.AdditionalEnergy,       // 额外元素（2026-10-11 退役；接替=GainAnyElement）
-            AtomicEffectType.Annihilate,             // 湮灭（2026-10-13 退役；DeathCause.Annihilate 引擎层仍活）
-            AtomicEffectType.Mine,                   // 采掘（2026-10-11 资源重做退役）
-            AtomicEffectType.Abandon,                // 摒弃（2026-10-09 并入牺牲 Sacrifice）
-            AtomicEffectType.GrantIceCrystal,        // 冰晶（2026-10-15 退役；冻结指示物=Freeze）
-            AtomicEffectType.GrantNightmare,         // 梦魇（2026-10-13 退役；沉睡指示物=Sleep）
-            AtomicEffectType.GrantPhotosynthesis,    // 光合作用（2026-10-23 退役；表行 42e883b2 改挂 GainAnyElement）
+            // 退役枚举墓碑位于 2026-10-30 枚举收拢时随成员一并删除（刺探/扰魔/毒刺/额外元素/
+            // 湮灭原子/采掘/摒弃/冰晶/梦魇/光合作用/手牌序位——全仓卡牌/教学/效果表零引用，
+            // 原子按 refId 字符串引用，枚举 int 不进存储/线格式）。剩余白名单：
             AtomicEffectType.SituationGate,          // 有限分支门槛行身份枚举（2026-10-23 入表定案：仅表行身份，永不挂处理器）
         };
 

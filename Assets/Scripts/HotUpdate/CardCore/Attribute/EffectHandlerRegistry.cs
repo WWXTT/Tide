@@ -140,14 +140,8 @@ namespace CardCore.Attribute
         {
             if (def == null || context == null) return new List<Entity>();
 
+            // per-mode 域（ChoiceDomains）已随 2026-10-31 P12 抉择退役恒 null——统一 def.TargetDomain
             var domain = def.TargetDomain;
-            if (def.ChoiceDomains != null && context.ModeIndex >= 0
-                && context.ModeIndex < def.ChoiceDomains.Length
-                && def.ChoiceDomains[context.ModeIndex] != null
-                && def.ChoiceDomains[context.ModeIndex].Count > 0)
-            {
-                domain = def.ChoiceDomains[context.ModeIndex];
-            }
             // 无目标效果（区域自结算类：抽卡/磨牌/看顶等，2026-09-11 语义修正）——
             // 域非空也不解析候选、不弹选（牌库是隐藏信息；handler 按域自结算）
             // 相同目标定案（2026-10-04）：None 但组合域含**可见区**且调用方未预选目标（触发式）不再早退——
@@ -602,12 +596,8 @@ namespace CardCore.Attribute
         private static async UniTask<List<Entity>> AskCompositionDeclarationAsync(
             EffectDefinition def, EffectExecutionContext context, string title)
         {
+            // ChoiceDomains 已随 2026-10-31 P12 退役恒 null——统一 def.TargetDomain
             var domain = def.TargetDomain;
-            if (def.ChoiceDomains != null && context.ModeIndex >= 0
-                && context.ModeIndex < def.ChoiceDomains.Length
-                && def.ChoiceDomains[context.ModeIndex] != null
-                && def.ChoiceDomains[context.ModeIndex].Count > 0)
-                domain = def.ChoiceDomains[context.ModeIndex];
             if (domain == null || domain.Count == 0
                 || (def.SelectionMode == SelectionMode.None && TargetKindRules.AllHiddenZone(domain))
                 || SelectionModeRules.IsTakeAll(def.SelectionMode)

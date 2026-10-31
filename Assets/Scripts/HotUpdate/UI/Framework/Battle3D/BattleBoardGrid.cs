@@ -9,20 +9,36 @@ namespace SynergyUI
     /// 战场=BattleHex 单枚 mesh 运行时拼装 8×7 全盘（2026-10-14 中线加行 9×7 → 当晚缩盘），见 BattleHexBoard）。
     ///
     /// 8×7 odd-r 六角格心公式（单一事实源，与 BoardMath 邻居规则配套）：
-    /// local = ((x + (z&amp;1)·0.5) × InnerRadius·2, 0, z × OuterRadius·1.5)，OuterRadius = 1m。
+    /// local = ((x + (z&amp;1)·0.5) × InnerRadius·2, 0, z × OuterRadius·1.5)。
+    /// 2026-10-30 格距 ×1.1 定案（地块 mesh×1.2 后缝仅 ~7.5%——放大格距给操作高光留表现空间，
+    /// 缝回到 ~16%）。正/逆公式（BattleRevealDirector）、SelfCheck、LocalBounds、蜂窝面全走本组
+    /// 常量自动一致；BattleStage.prefab 烘焙摆位须同步重摆（绕盘心等比扩，世界盘心不动）。
     /// 生命周期：BattleStageDirector 装台 Mount(实例根)/拆台 Unmount；
     /// BattleFieldView 摆位、取景、BoardMountSmoke 冒烟统一消费 WorldPositionOf。
     /// </summary>
     public static class BattleBoardGrid
     {
-        public const float OuterRadius = 1f;
-        public const float InnerRadius = 0.866025404f;
+        public const float OuterRadius = 1.1f;           // 格距 ×1.1（2026-10-30 前为 1）
+        public const float InnerRadius = 0.952627944f;   // = √3/2 × OuterRadius（前 0.866025404）
 
         /// <summary>地块视觉缩格比例（2026-10-23 战场美化 P0：整盘统一缩小露缝，缝下见祭坛台面）。
         /// 格心/点选面积不变——拼装设 localScale=TileScale，BattleHexBoard 加同名反缩拾取代理
         /// （预制体根实况=MeshCollider 非简报所记 BoxCollider）；挂格子的平贴文字（中线行/
         /// 地牌计数条）按 1/TileScale 反缩保原尺寸。单一来源勿写魔数。</summary>
         public const float TileScale = 0.82f;
+
+        /// <summary>地块 mesh 几何放大系数（2026-10-30 用户定案：地块大小在 TileScale 视觉基础上
+        /// 整体 ×1.2——直接改 BattleHex.asset 顶点而非 localScale）。本常量只作单源备注：
+        /// 格面挂件（壳/拾取代理）的缩放补偿统一走 CellFillScale。</summary>
+        public const float HexMeshScale = 1.2f;
+
+        /// <summary>整格填充缩放（2026-10-30 高光连成一片定案）：tile 子件铺满整格到格界——
+        /// 世界外接=OuterRadius，相邻格边贴边：菲涅尔壳高光连成一片无暗缝（shader Cull Back
+        /// 互剔共格界墙面，无叠面闪），拾取代理点击无死区。
+        /// = OuterRadius / (mesh 原外接 0.94 × HexMeshScale × TileScale) ≈ 1.18925。
+        /// 消费：BattleTileFx.EnsureGlow（菲涅尔壳 xz）、BattleHexBoard.BuildLegacy（拾取代理）；
+        /// BattleStage.prefab 已同步烘焙（38 代理）。</summary>
+        public const float CellFillScale = 1.18925f;
 
         /// <summary>棋盘实例根（装台后非 null；null=未装台）。</summary>
         public static Transform Root { get; private set; }
@@ -77,8 +93,8 @@ namespace SynergyUI
             sb.Append($" 公式抽拍异常={spotBad}");
             if (spotBad > 0) ok = false;
 
-            // 拼装规格（2026-10-29 P11 盘形 6765676）：全盘实拼 43 tile（每半场行格数 6/7/6 +
-            // 中线 5 格居中；缺口 6=六格行尾格 + 中线两端），逐 tile 须带 MeshFilter/sharedMesh
+            // 拼装规格（2026-10-29 P11 盘形 6765676→当晚对座镜像修订）：全盘实拼 43 tile
+            //（每半场行格数 6/7/6 + 中线 5 格居中；缺口 6=x0 列四格 + 中线两端），逐 tile 须带 MeshFilter/sharedMesh
             int tiles = 0, tileBad = 0;
             if (Root != null)
                 foreach (Transform child in Root)

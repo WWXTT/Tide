@@ -182,18 +182,18 @@ namespace SynergyUI
 
         private static (int x, int z) DeckCell(int owner)
             => owner == 0 ? (BoardLayout.P1DeckX, BoardLayout.P1DeckZ)
-                          : BoardLayout.Rotate180(BoardLayout.P1DeckX, BoardLayout.P1DeckZ);
+                          : BoardLayout.MirrorSeat(BoardLayout.P1DeckX, BoardLayout.P1DeckZ);
 
         private static (int x, int z) GraveCell(int owner)
             => owner == 0 ? (BoardLayout.P1GraveX, BoardLayout.P1GraveZ)
-                          : BoardLayout.Rotate180(BoardLayout.P1GraveX, BoardLayout.P1GraveZ);
+                          : BoardLayout.MirrorSeat(BoardLayout.P1GraveX, BoardLayout.P1GraveZ);
 
         /// <summary>墓地格（公开访问，2026-10-13 战斗编舞）：死亡漩涡吸走演出取吸入口世界坐标。</summary>
         public static (int x, int z) GraveCellOf(int owner) => GraveCell(owner);
 
         private static (int x, int z) ExileCell(int owner)
             => owner == 0 ? (BoardLayout.P1ExileX, BoardLayout.P1ExileZ)
-                          : BoardLayout.Rotate180(BoardLayout.P1ExileX, BoardLayout.P1ExileZ);
+                          : BoardLayout.MirrorSeat(BoardLayout.P1ExileX, BoardLayout.P1ExileZ);
 
         private static long Key(int x, int z) => ((long)x << 32) | (uint)z;
 

@@ -25,7 +25,7 @@ Material:
     m_TexEnvs: []
     m_Ints: []
     m_Floats:
-    - _GradPow: 1.4
+    - _GradPow: 2.4
     m_Colors:
     - _PanelColor: {r: 0.2980392, g: 0.54901963, b: 1, a: 1}
   m_BuildTextureStacks: []

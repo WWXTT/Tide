@@ -235,7 +235,7 @@ namespace CardCore
                     }
                     else if (step.Kind == RuntimeStepKind.Choice)
                     {
-                        TideLog.Warn($"[CurseSystem] 载荷 {payload.EffectId} 含抉择步骤——抽牌时点自动执行不支持玩家选择，跳过");
+                        // 已随 2026-10-31 P12 抉择退役死分支（converter 不再生成 Choice 步）——保留防御跳过
                     }
                 }
                 return;

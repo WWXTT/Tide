@@ -216,16 +216,8 @@ namespace SynergyUI
                     return LogResult(action, GameActions.TapCreatureForElement(core, me, creature),
                         "生物产色被拒（横置/无地牌特性/引导闸）");
                 }
-                case "playgrave":
-                {
-                    // 墓地视手牌中使用（归土仪典轮转核心——PlayCard FromZone=Graveyard 走配额）
-                    var card = FindInZone(core, me, Zone.Graveyard, action.card);
-                    if (card == null) return LogResult(action, false, $"墓地无 {action.card}");
-                    bool ok = GameActions.PlayCardFromGraveyard(core, me, card, ResolveTargets(core, me, action.targets));
-                    if (!ok) return LogResult(action, false, "墓地使用被拒（配额/费用/目标）");
-                    GameActions.DrainStack(core);
-                    return true;
-                }
+                // "playgrave" 已随 2026-10-30 归土改版整删（墓地视手牌使用退役——归土=回合末自动复活；
+                // 无存量教学脚本引用该动作）
                 case "phantom":
                 {
                     // 幻卡清算（2026-10-18 教学二·末日降临挑战）：AI 第一回合签名动作——烧空己方
@@ -264,8 +256,9 @@ namespace SynergyUI
         // ======================================== 幻卡清算（教学二） ========================================
 
         /// <summary>幻卡清算（2026-10-18 教学二·末日降临挑战·AI 第一回合签名动作）。字段口径——
-        /// card=末日降临卡 id（正主 C_791FE42E）、target=仪典载体卡 id（纳川仪典 C_57A3ADD6）、
-        /// targets=仪典规则光环 id（HandLimitNoFatigue=免疲劳——镜像卡组烧空后 AI 空牌库抽牌
+        /// card=末日降临卡 id（正主 C_791FE42E）、target=仪典载体卡 id（涌泉仪典 C_57A3ADD6——
+        /// 2026-10-30 纳川改版剥离疲劳免疫后教学载体随切）、
+        /// targets=仪典规则光环 id（FatigueImmunity=免疲劳——镜像卡组烧空后 AI 空牌库抽牌
         /// 不再疲劳自伤）、mode=紊乱层数（RushSickness：boss 暂不可攻击角色、每它回合末−1）。
         /// 实现：烧空=TutorialScenarioSeeder.ClearSide 同款抹除口径（容器直删+CardMoveEvent
         /// To=None，不走死亡/换区结算）；造卡=CardCatalog→CardLoader（Seeder SpawnToDeck 同源）；

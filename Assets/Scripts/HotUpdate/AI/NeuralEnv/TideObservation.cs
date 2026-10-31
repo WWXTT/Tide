@@ -33,12 +33,14 @@ namespace CardCore.AI.NeuralEnv
     public sealed class TideObservation
     {
         // ---- 维度常量（Python 侧只改这些，模型不动）----
+        // v7（2026-10-29 对座镜像修订）：盘面坐标轴平移——双方六格行同列带 x1..x6、P2 改
+        // 上下镜像像（槽位数/容量与 v6 一致，位置特征 posX/posZ 分布位移；python LAYOUT_VERSION 同步升 7）。
         // v6（2026-10-29 P11 盘面重塑）：战场槽 12→9（单位区 4+5）——每玩家 46→43 槽、
         // 后续区域槽位整体前移 3；位置特征归一化分母随 BoardLayout.Width 8→7。
         // 旧模型权重作废（python LAYOUT_VERSION 同步升 6）。
         // v5（2026-10-29 P6 苏醒改版）：删卡特征 [113] AwakenCommitted（立约退役）——
         // NCard 116→115、N_GLOBAL 不变。
-        public const int LayoutVersion = 6;
+        public const int LayoutVersion = 7;
         public const int MaxCardsPerPlayer = 43;
         public const int MaxCardsTotal = MaxCardsPerPlayer * 2;
         // 卡特征布局（内容身份三通路，[15..] 由 CardIdentityService 推导；槽位下标全部由
@@ -250,7 +252,11 @@ namespace CardCore.AI.NeuralEnv
             Cards[b + 9] = c.GetCounterCount(CounterRules.ToxinCounter);   // 毒素层数
             Cards[b + 10] = c.GetCounterCount(CounterRules.SilenceCounter) > 0 ? 1f : 0f;
             Cards[b + 11] = c.GetCounterCount(CounterRules.CostUpCounter)
-                          - c.GetCounterCount(CounterRules.CostDownCounter); // 费用层净量
+                          - (c.GetCounterCount(CounterRules.CostDownCounter)      // legacy 恒灰档
+                          + c.GetCounterCount(CounterRules.CostDownGrayCounter)   // 2026-10-31 P12 四色
+                          + c.GetCounterCount(CounterRules.CostDownRedCounter)    // 充能投放，逐色只减对应费
+                          + c.GetCounterCount(CounterRules.CostDownBlueCounter)
+                          + c.GetCounterCount(CounterRules.CostDownGreenCounter)); // 费用层净量（合计）
             Cards[b + 12] = c.HasKeyword(KeywordRules.Taunt) ? 1f : 0f;
             Cards[b + 13] = (c.GetCounterCount(CounterRules.StealthCounter) > 0 || c.HasKeyword(KeywordRules.Concealed)) ? 1f : 0f; // 潜行
             Cards[b + 14] = c.HasKeyword(KeywordRules.LandTrait) ? 1f : 0f; // 地牌特性（v3：TapCreature 资格）
@@ -300,10 +306,12 @@ namespace CardCore.AI.NeuralEnv
             g[14] = zm.GetCards(opp, Zone.Deck).Count / 60f;
             g[15] = zm.GetCards(me, Zone.Exile).Count;  // v3 新增：放逐计数（v2 完全缺失）
             g[16] = zm.GetCards(opp, Zone.Exile).Count;
-            // g[17..28] 临时钱包（现取现用：效果授予元素，回合末清空）——固定六色向量（维度 v3 冻结）：
+            // g[17..28] 临时钱包（现取现用：效果授予元素，回合末清空）——原六色块（维度 v3 冻结）：
+            // 2026-10-28 P2 席位收缩删白/黑后实际四色（Gray/Red/Blue/Green=枚举 0..3），
+            // g[21][22]/g[27][28] 死位恒 0（同 g[34..37] 口径）；
             // Any 任意元素（2026-10-23）不进观测，AI 感知其支付力走 CanAfford 规则口（PlanBill 含链尾 Any）
-            for (int i = 0; i < 6; i++) g[17 + i] = ep.GetPool(me).TempElements[(ManaType)i];
-            for (int i = 0; i < 6; i++) g[23 + i] = ep.GetPool(opp).TempElements[(ManaType)i];
+            for (int i = 0; i <= (int)ManaType.Green; i++) g[17 + i] = ep.GetPool(me).TempElements[(ManaType)i];
+            for (int i = 0; i <= (int)ManaType.Green; i++) g[23 + i] = ep.GetPool(opp).TempElements[(ManaType)i];
             g[29] = core.StackEngine.IsEmpty ? 0f : 1f; // 栈占用（二值）
             g[30] = FieldValueReward.TotalValue(core, me) / 30f;  // 己方全资源价值（观测口径含手牌；归一化只为数值健康）
             g[31] = FieldValueReward.TotalValue(core, opp) / 30f;

@@ -105,9 +105,10 @@ namespace CardCore
         public bool RandomTarget;
         /// <summary>动态数量：运行时玩家自选个数（0..候选数）；费用计 0（2026-09-21 定案：不关联地牌资格）。</summary>
         public bool DynamicTargetCount;
-        /// <summary>触发式每回合触发上限（2026-09-13 定案）：&gt;0=每回合最多 N 次；-1=无限。
-        /// 未声明=1（一回合一次），组合期可改 N 或 -1。主动不消费本字段（费用现付自限）。
-        ///（恒 -1 覆写位 TriggerCapImmutable 已于 2026-10-07 删除——坚韧族光环化后零声明行。）</summary>
+        /// <summary>**历史字段·无运行时/计价消费方**（2026-10-30 定案：效果不再有每回合生效次数上限）：
+        /// 旧语义 &gt;0=每回合 N 次、-1=无限、未声明=1。字段保留只为存档/内容哈希稳定（EffectSlim
+        /// 往返与效果 ID 都含本列）；唯一保留的「每回合 1 次」是自由分支引擎奖励（BranchEngines 按卡自限，
+        /// 不读本字段）。新效果写成 0 也不影响行为。</summary>
         public int TriggerLimitPerTurn = -1;
         // 动态分支引擎 def 级字段（EngineKind/EngineParam/RewardAtoms/CountdownTurns）已随 2026-10-05
         // 两槽定案载荷化退役——引擎条件与 Then 奖励挂槽级原子 Branch 载荷（见 AtomicEffectInstance.Branch）。
@@ -178,6 +179,11 @@ namespace CardCore
         public List<Entity> SelectedTargets { get; set; } = new List<Entity>();
         public int PaidSpeedBoost { get; set; }
         public bool IsOnStack { get; set; }
+
+        /// <summary>充能色（2026-10-31 P12）：充能发动时玩家选定的颜色（灰/红/蓝/绿）——
+        /// 沿出队→入栈→执行链透传给 ChargeHandler（扣 1 点该色 + 放同色费用降低层）；
+        /// 非充能效果恒 null。</summary>
+        public ManaType? ChargeColor { get; set; }
 
         /// <summary>
         /// 创建待发效果
@@ -412,6 +418,9 @@ namespace CardCore
                 TriggerTiming.OnTap => typeof(TapEvent),
                 TriggerTiming.OnUntap => typeof(UntapEvent),
 
+                // 信息轴（2026-10-29 阶段3c）：占卜结算观察——LookAtTopCards 同步/异步两路发布
+                TriggerTiming.OnScry => typeof(ScryEvent),
+
                 // 原子三阶段 + 被指定为目标（场上效果发动的可观察时点）
                 TriggerTiming.OnAtomicEffectActivation => typeof(AtomicEffectPhaseEvent),
                 TriggerTiming.OnAtomicEffectStartApplying => typeof(AtomicEffectPhaseEvent),
@@ -563,25 +572,23 @@ namespace CardCore
         /// ——己方与对手的差（封顶 6）**恰好等于** x 即执行奖励（==x：差每+1踩一档各一次）；奖励恒直发，
         /// 目标由控制者结算期弹选；门槛=Then 锚价推导。</summary>
         ManaSurplus = 5,
-        // 值 6（手牌序位引擎）已随 2026-10-19 效果序位改案整体退役；效果序位又在 2026-10-20 换轴为
-        // 团结（空间轴，值 10 复用改名）——值位保留防 CurseOnDraw=8/附加祝福=9 的 branch.engine int
-        // 载荷漂移（无存量卡引用旧引擎，原子表行 83c150f2 已改挂 EngineUnity）。
-        // 值 7（Grant 赋予引擎）已随 2026-10-05 两槽定案解体实删——"无条件主干"化为无分支槽原子+效果级
-        // 持续档计价（Grant 梯沿用），枚举尾删安全（无存量 int 序列化依赖）。
+        // 2026-10-31 墓碑清理：原位 6（手牌序位·2026-10-19 退役）与位 7（Grant 赋予引擎·2026-10-05 解体）
+        // 两处空洞已删，余位紧凑重排；`branch.engine` int 载荷已同步迁移（TutorialEffects.json 7 处：
+        // 8/9/10 → 6/7/8），全仓无旧值引用。
         /// <summary>附加诅咒（2026-10-08 自由分支化，自有限分支 CurseOnDraw 门接棒）：此卡施放结算时
         /// 给对手牌库随机 x 张卡挂「诅咒」指示物+登记 Then 载荷（CurseSystem）——对手抽到该卡时执行
         /// 奖励并消层（一次性；触发与引擎卡去向无关）。x∈[1,3]=附加张数；延迟与不确定性即代价（预算不设上限）。</summary>
-        CurseOnDraw = 8,
+        CurseOnDraw = 6,
         /// <summary>附加祝福（2026-10-08）：同 CurseOnDraw，作用面=自己牌库、指示物=「祝福」——
         /// 抽到该卡时执行祝福分支效果并消层（一次性）。x∈[1,3]。</summary>
-        BlessingOnDraw = 9,
+        BlessingOnDraw = 7,
         /// <summary>团结（2026-10-20 效果序位换轴定案·第6种改空间轴）：与此卡**相邻的单位数** ≥ x 时执行
         /// 奖励——计数口径：生物/结界占格各 1、角色格恒 1（角色无卡实体按格计）、非空地牌格 1
         ///（同色组首张占格=非空；空地牌格不计）；施放占位卡非在场单位不计（同战斗邻接口径）；六邻天然
         /// 封顶 6。评估口=己方每次出牌施放结算完成后（OnCardCastSettled，与元素充盈同拍）——只观察己方
         /// 场上引擎卡（手牌无格），每次达标都触发；x∈[1,6] 手填。核心不绑棋盘（架构铁律）——邻接计数经
         /// UnityAdjacentCountOf 注入（宿主接线 BoardState.AdjacentOccupantCount）。</summary>
-        Unity = 10,
+        Unity = 8,
     }
 
     public class AtomicEffectInstance

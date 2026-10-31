@@ -339,6 +339,13 @@ namespace CardCore.Network
             core.Player1.IsAI = false; // 人类在环：反问走 NetworkTargetSelector
             core.Player2.IsAI = false;
 
+            // 后手开局护甲补偿（2026-10-30 补齐：本地局同规则——引擎座位 1 恒后手〔换先手=换卡组
+            // 进 Player1〕；InitGame 内含 Reset→StartGame，注入时点在 Reset 清角色指示物之后，
+            // 时序镜像 BattleController.StartNewGame。注入先于 EventCursor=0 对齐——首帧事件/
+            // 快照都带护甲，客户端 PlayerState.Counters 直接可见）。
+            core.Player2.AddCounters(KeywordRules.ArmorCounter, GameCore.SecondPlayerArmorBonus, core.Player2);
+            TideLog.Info($"[NetRoom] 后手 {core.Player2.Name} 开局护甲 +{GameCore.SecondPlayerArmorBonus}（先后手补偿）");
+
             // 棋盘占用层接线（碾压邻接 + 连接光环；核心不绑棋盘，宿主接线——静态扩展点惯例）
             _board?.Dispose();
             GameBoard.LinkAuraSystem.Detach();

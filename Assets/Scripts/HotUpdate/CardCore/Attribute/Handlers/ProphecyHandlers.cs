@@ -7,18 +7,25 @@ namespace CardCore.Attribute.Handlers
 {
     // ================================================================
     // 信息族（蓝色）：宣言（当前猜当前验证）/ 预言（隐藏押注，延迟验证）
-    // 宣言对象必须是有限明确范围的枚举域——类型/颜色/费用奇偶/费用精确值/箭头方向；
-    // 卡名等开放集不可作为宣言对象（用户定案）。
-    // StringValue 编码 "维度:值"，如 Type:Creature / Color:Red / CostParity:Odd / CostExact:3 / LinkArrow:NE。
+    // 宣言对象两类（2026-10-29 阶段3c 定案）：类别=有限明确枚举域（生物/法术/结界 3 选 1）；
+    // 卡名=开放集（Name 维度，奖励预算随之放大——类别 ≤1 费、卡名 ≤3 费）。
+    //（旧「卡名等开放集不可作为宣言对象」定案随之退役。）
+    // 2026-10-30 族改版：箭头宣言（DeclareArrow）整体退役（表行、handler、枚举位同批删除）；
+    // DeclareHand 改「强夺」——宣言卡名，从对手手牌获得该卡；DeclareDeckTop 改「预言」——
+    // 隐秘宣言类别，对手下回合首张同类卡发动无效（复用 ProphecySystem 延迟验证，
+    // 命中奖励=内置发动无效原子）。两枚举名承袭旧槽位，语义以表行/handler 为准。
+    // StringValue 编码 "维度:值"，如 Type:Creature / Name:青眼白龙 / Color:Red /
+    // CostParity:Odd / CostExact:3 / LinkArrow:NE。
     // ================================================================
 
     /// <summary>
     /// 宣言维度注册表：维度名 + 域校验 + 对卡匹配置值。
-    /// 新增维度 = 加一段 case（域必须有限可枚举）；卡名维度被明确排除。
+    /// 新增维度 = 加一段 case（类别等有限域必须有限可枚举；Name 为开放集——任意非空卡名）。
     /// </summary>
     public static class ProphecyDimension
     {
-        public const string Type = "Type";                 // Cardtype（Creature/Spell/...）
+        public const string Type = "Type";                 // Cardtype 三类（2026-10-29 收紧：Creature/Spell/Enchantment）
+        public const string Name = "Name";                 // 卡名（开放集，2026-10-29 阶段3c 解禁——比 CardName/ID）
         public const string Color = "Color";               // ManaType（Red/Blue/Green/Gray）
         public const string CostParity = "CostParity";     // Odd / Even
         public const string CostExact = "CostExact";       // 0..7（费用受曲线封顶，天然有限）
@@ -38,13 +45,19 @@ namespace CardCore.Attribute.Handlers
             return dimension.Length > 0 && value.Length > 0;
         }
 
-        /// <summary>值是否属于该维度的有限域（目录/UI 下拉与运行时共用）</summary>
+        /// <summary>值是否属于该维度的有限域（目录/UI 下拉与运行时共用；Name=开放集恒真）</summary>
         public static bool IsValidValue(string dimension, string value)
         {
             switch (dimension)
             {
                 case Type:
-                    return Enum.TryParse<Cardtype>(value, true, out _);
+                    // 2026-10-29 阶段3c 收紧：类别猜法=生物/法术/结界 3 选 1
+                    //（Artifact/Land 等超类型不入宣言域——猜中概率与奖励预算按 3 类校准）
+                    return value.Equals(nameof(Cardtype.Creature), StringComparison.OrdinalIgnoreCase)
+                           || value.Equals(nameof(Cardtype.Spell), StringComparison.OrdinalIgnoreCase)
+                           || value.Equals(nameof(Cardtype.Enchantment), StringComparison.OrdinalIgnoreCase);
+                case Name:
+                    return !string.IsNullOrWhiteSpace(value); // 开放集：任意非空卡名
                 case Color:
                     return Enum.TryParse<ManaType>(value, true, out _);
                 case CostParity:
@@ -70,6 +83,12 @@ namespace CardCore.Attribute.Handlers
             {
                 case Type:
                     return card is IHasSupertype st && st.Supertype == ParseEnum<Cardtype>(value);
+
+                case Name:
+                    // 卡名精确匹配（CardName 或卡 ID——合成器引用卡双写口径同源）
+                    return card is IHasName named
+                           && (string.Equals(named.CardName, value, StringComparison.Ordinal)
+                               || string.Equals(card.ID, value, StringComparison.Ordinal));
 
                 case Color:
                     if (!(card is IHasCost hasCost) || hasCost.Cost == null) return false;
@@ -111,14 +130,12 @@ namespace CardCore.Attribute.Handlers
     }
 
     /// <summary>
-    /// 宣言·确认手牌（2026-09-03 重设计，替代旧的"确认对手全手牌"）：
-    /// 宣言一个类型（ProphecyDimension 有限域，StringValue 构筑期预置），宣言者**指定对手一张
-    /// 未展示的手牌卡位**翻开验证——符合宣言 = DeclareHit，不符合 = DeclareMiss（宣言分支照挂）。
-    /// 翻开的卡永久标记已展示（IsRevealed），未展示卡不可重复确认；已展示卡不可再被指定——
-    /// **不展示全部**，重复宣言逐张递进揭示。每确认一张发 RevealHandEvent。
-    /// 卡位选择经 TargetSelectionService 单漏斗（M2 异步化，2026-09-23）：无注册/AI → AutoSelect
-    /// 首个未展示位（M1 缺省行为不变）；UI → 弹窗；网络 → MsgSelectRequest 反问（协议位已预留）。
-    /// 静态委托 PositionPicker 保留为测试/驱动层注入口（注入时走同步旧路径——验证器零改动）。
+    /// 强夺（2026-10-30 改版，承旧「宣言·确认手牌」槽位）：宣言一个卡名（StringValue 构筑期
+    /// 预置，ProphecyDimension.Name 编码——卡名或卡 ID 双写口径同源），从对手手牌获得该卡。
+    /// 命中 = 匹配卡跨玩家迁移进己方手牌并**永久改写持有者**（ChangeOwner 同款定案：此后
+    /// 弹回/洗回进新主卡组手牌、死亡去新主墓地）；未命中（对手手牌无该卡/空手/非法编码）=
+    /// 空手而归，DeclareHit=false 供紧邻分支判定。宣言与夺取结果公开（DeclareResolvedEvent
+    /// 全量回执）。旧「系统随机翻牌验证/逐张递进揭示/Exposed 展示态」链路随改版整体退役。
     /// </summary>
     public class DeclareHandHandler : AtomicEffectHandlerBase
     {
@@ -127,114 +144,160 @@ namespace CardCore.Attribute.Handlers
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
             context.LastOutcome.Declaration = effect.StringValue;
+            var me = context.Controller;
+            var opponent = me?.Opponent;
             var hand = ProphecyHandlerUtil.OpponentHand(context);
-            if (hand == null || hand.Count == 0)
+
+            // 宣言域校验：强夺只收卡名档（Name:开放集）；其余编码按未命中处理
+            Card found = null;
+            if (!ProphecyDimension.TryParse(effect.StringValue, out var dim, out var val)
+                || dim != ProphecyDimension.Name || !ProphecyDimension.IsValidValue(dim, val))
             {
-                context.LastOutcome.DeclareHit = false; // 无手牌可验 = 未命中
-                return;
+                TideLog.Warn(
+                    $"[强夺] 非法宣言编码 '{effect.StringValue}'（强夺只收卡名 Name:卡名），作未命中处理");
+            }
+            else if (hand != null)
+            {
+                foreach (var c in hand)
+                    if (ProphecyDimension.Matches(c, dim, val)) { found = c; break; }
             }
 
-            // 宣言者指定一个未展示卡位（驱动层注入的选位器；缺省取首个未展示位）
-            var candidates = hand.Where(c => !c.IsRevealed).ToList();
-            if (candidates.Count == 0)
-            {
-                context.LastOutcome.DeclareHit = false; // 全部已展示 = 无可验证对象
-                return;
-            }
-            var picked = ProphecyHandlerUtil.PositionPicker != null
-                ? ProphecyHandlerUtil.PositionPicker(context.Controller, candidates)
-                : candidates[0];
-            if (picked == null || picked.IsRevealed) picked = candidates[0];
+            bool hit = found != null;
+            context.LastOutcome.DeclareHit = hit;
 
-            Reveal(effect, context, picked);
-        }
-
-        /// <summary>
-        /// 异步路径（M2 网络化，2026-09-23）：委托已注入（验证器/驱动层）走同步旧路径零改动；
-        /// 未注入 → TargetSelectionService.RequestAsync 单漏斗（min=max=1，候选=未展示卡位）——
-        /// AI/无头回落 AutoSelect 首个、UI 弹窗、网络反问（SelectResponse 协议位）。
-        /// </summary>
-        public override async Cysharp.Threading.Tasks.UniTask ExecuteAsync(
-            AtomicEffectInstance effect, EffectExecutionContext context)
-        {
-            if (ProphecyHandlerUtil.PositionPicker != null)
+            if (!hit)
             {
-                Execute(effect, context);
-                return;
-            }
-
-            context.LastOutcome.Declaration = effect.StringValue;
-            var hand = ProphecyHandlerUtil.OpponentHand(context);
-            if (hand == null || hand.Count == 0)
-            {
-                context.LastOutcome.DeclareHit = false;
-                return;
-            }
-            var candidates = hand.Where(c => !c.IsRevealed).ToList();
-            if (candidates.Count == 0)
-            {
-                context.LastOutcome.DeclareHit = false;
-                return;
-            }
-
-            var chosen = await TargetSelectionService.RequestAsync(new TargetSelectionRequest
-            {
-                Candidates = candidates.Cast<Entity>().ToList(),
-                MinCount = 1,
-                MaxCount = 1,
-                Chooser = context.Controller,
-                Title = "宣言·指定卡位",
-                Hint = $"从对手 {hand.Count} 张手牌的未展示卡位中指定一张翻开验证",
-                AllowCancel = false,
-            });
-            var picked = chosen.FirstOrDefault() as Card;
-            if (picked == null || picked.IsRevealed) picked = candidates[0];
-
-            Reveal(effect, context, picked);
-        }
-
-        /// <summary>翻开验证公共尾段：永久已展示 + 按张发布 + 命中判定（同步/异步两路径共用）。</summary>
-        private void Reveal(AtomicEffectInstance effect, EffectExecutionContext context, Card picked)
-        {
-            // 翻开：永久已展示 + 按张发布（订阅方按张计数）
-            picked._isRevealed = true;
-            // 2026-10-09 展示链路统一：翻开的卡同时挂 Exposed 当前展示态（换区清）——两态分工：
-            // _isRevealed=宣言族永久记忆（防重复确认自用）；Exposed=UI 快照/窥渊锁定/TargetFilter/
-            // 点名预选共用的公开口径。窥渊①「未展示」筛选从此看见宣言翻过的卡，不再重复翻
-            if (picked.GetCounterCount(CounterRules.ExposedCounter) == 0)
-            {
-                picked.AddCounters(CounterRules.ExposedCounter, 1, context.Source);
-                EventManager.Instance.Publish(new CounterChangedEvent
+                PublishEvent(new DeclareResolvedEvent
                 {
-                    Target = picked,
-                    CounterType = CounterRules.ExposedCounter,
-                    Amount = 1,
-                    Source = context.Source,
+                    Declaration = effect.StringValue,
+                    Hit = false,
+                    Controller = me,
+                    RevealedCards = null,
+                    Sampled = false,
+                });
+                return;
+            }
+
+            // 夺取：跨玩家手牌直移（ChangeControl 同款容器 Remove/Add 范式，不经 OnCardMoved）
+            if (context.ZoneManager != null && opponent != null)
+            {
+                context.ZoneManager.GetZoneContainer(opponent)?.Remove(found, Zone.Hand);
+                found.SetController(me);
+                found._owner = me;             // 永久获得：归属随迁（弹回/洗回/死亡归新主）
+                found._isRevealed = false;     // 入手重置宣言已展示标记（OnCardMoved 同款）
+                context.ZoneManager.GetZoneContainer(me)?.Add(found, Zone.Hand);
+                PublishEvent(new CardEnterHandEvent
+                {
+                    Player = me,
+                    Card = found,
+                    FromZone = Zone.Hand,      // 跨玩家手牌迁移——区域枚举无侧别，源=手牌
+                    IsDraw = false,
                 });
             }
-            EventManager.Instance.Publish(new RevealHandEvent
-            {
-                Player = context.Controller?.Opponent,
-                Cards = new List<Card> { picked },
-                Source = context.Source
-            });
 
-            bool hit = ProphecyHandlerUtil.MatchesDeclaration(effect.StringValue, picked);
-            context.LastOutcome.DeclareHit = hit;
             PublishEvent(new DeclareResolvedEvent
             {
                 Declaration = effect.StringValue,
-                Hit = hit,
-                Controller = context.Controller,
-                RevealedCards = new List<Card> { picked },
+                Hit = true,
+                Controller = me,
+                RevealedCards = new List<Card> { found }, // 夺取即公开（卡离开对手手牌）
                 Sampled = false,
             });
         }
 
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => $"宣言{effect.StringValue}并验证对手一张未展示的手牌";
+        protected override string DescribeTemplate(AtomicEffectInstance effect)
+            => $"宣言{effect.StringValue}，从对手手牌获得该卡";
     }
 
-    /// <summary>宣言·验牌库顶（即时验证：展示己方牌库顶比对；展示 = 公开）</summary>
+    /// <summary>
+    /// 窃取（2026-10-31 新增）：宣言一个卡名（StringValue 构筑期预置，ProphecyDimension.Name
+    /// 编码——卡名或卡 ID 双写口径同源），从对手**牌库**获得该卡。与强夺（DeclareHand）同构、
+    /// 源区换牌库：牌库为隐蔽有序区，按宣言卡名全库检索（顺序无意义），命中即跨玩家迁移进
+    /// 己方手牌并永久改写持有者（_owner 随迁，同强夺定案）；未命中（牌库无该卡/空库/非法编码）
+    /// = 空手而归，DeclareHit=false 供紧邻分支判定。宣言与窃取结果公开（DeclareResolvedEvent
+    /// 全量回执——离开牌库即公开，同强夺口径）。
+    /// </summary>
+    public class DeclareDeckHandler : AtomicEffectHandlerBase
+    {
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.DeclareDeck;
+
+        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            context.LastOutcome.Declaration = effect.StringValue;
+            var me = context.Controller;
+            var opponent = me?.Opponent;
+            var deck = ProphecyHandlerUtil.OpponentDeck(context);
+
+            // 宣言域校验：窃取只收卡名档（Name:开放集）；其余编码按未命中处理
+            Card found = null;
+            if (!ProphecyDimension.TryParse(effect.StringValue, out var dim, out var val)
+                || dim != ProphecyDimension.Name || !ProphecyDimension.IsValidValue(dim, val))
+            {
+                TideLog.Warn(
+                    $"[窃取] 非法宣言编码 '{effect.StringValue}'（窃取只收卡名 Name:卡名），作未命中处理");
+            }
+            else if (deck != null)
+            {
+                foreach (var c in deck)
+                    if (ProphecyDimension.Matches(c, dim, val)) { found = c; break; }
+            }
+
+            bool hit = found != null;
+            context.LastOutcome.DeclareHit = hit;
+
+            if (!hit)
+            {
+                PublishEvent(new DeclareResolvedEvent
+                {
+                    Declaration = effect.StringValue,
+                    Hit = false,
+                    Controller = me,
+                    RevealedCards = null,
+                    Sampled = false,
+                });
+                return;
+            }
+
+            // 窃取：跨玩家牌库→手牌直移（强夺同款容器 Remove/Add 范式，不经 OnCardMoved）
+            if (context.ZoneManager != null && opponent != null)
+            {
+                context.ZoneManager.GetZoneContainer(opponent)?.Remove(found, Zone.Deck);
+                found.SetController(me);
+                found._owner = me;             // 永久获得：归属随迁（弹回/洗回/死亡归新主）
+                found._isRevealed = false;     // 牌库隐蔽无展示态，入手归零（强夺同款）
+                context.ZoneManager.GetZoneContainer(me)?.Add(found, Zone.Hand);
+                PublishEvent(new CardEnterHandEvent
+                {
+                    Player = me,
+                    Card = found,
+                    FromZone = Zone.Deck,      // 跨玩家牌库迁移——区域枚举无侧别，源=牌库
+                    IsDraw = false,
+                });
+            }
+
+            PublishEvent(new DeclareResolvedEvent
+            {
+                Declaration = effect.StringValue,
+                Hit = true,
+                Controller = me,
+                RevealedCards = new List<Card> { found }, // 窃取即公开（卡离开对手牌库）
+                Sampled = false,
+            });
+        }
+
+        protected override string DescribeTemplate(AtomicEffectInstance effect)
+            => $"宣言{effect.StringValue}，从对手牌库获得该卡";
+    }
+
+    /// <summary>
+    /// 预言（2026-10-30 改版，承旧「宣言·验牌库顶」槽位）：隐秘宣言一个类别（StringValue 构筑期
+    /// 预置，ProphecyDimension.Type 编码——生物/法术/结界 3 选 1），押注经 ProphecySystem 延迟
+    /// 验证：对手下回合**首张**出牌与宣言类别一致 → 该卡发动无效；不一致或整回合未出牌 = 落空。
+    /// 命中奖励=内置发动无效原子（CardPlayEvent 时点被验证卡尚在发动区——施放路径送墓即
+    /// cast 消费点中止，不付费不结算）。押注隐藏（ProphecyRegisteredEvent 不含宣言内容，
+    /// 对手只知道"预言已立"；验证时刻 ProphecyResolvedEvent 公开）。非法编码照常登记，
+    /// 验证时刻按未命中结算（与卡名预言同口径——组装期垃圾不卡死结算）。
+    /// </summary>
     public class DeclareDeckTopHandler : AtomicEffectHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.DeclareDeckTop;
@@ -243,69 +306,32 @@ namespace CardCore.Attribute.Handlers
         {
             context.LastOutcome.Declaration = effect.StringValue;
 
-            var deck = context.ZoneManager?.GetCards(context.Controller, Zone.Deck);
-            if (deck == null || deck.Count == 0)
+            if (!ProphecyDimension.TryParse(effect.StringValue, out var dim, out var val)
+                || dim != ProphecyDimension.Type || !ProphecyDimension.IsValidValue(dim, val))
             {
-                context.LastOutcome.DeclareHit = false; // 无牌可验 = 未命中
-                return;
+                TideLog.Warn(
+                    $"[预言] 非法宣言编码 '{effect.StringValue}'（预言只收类别 Type:Creature/Spell/Enchantment），将按未命中结算");
             }
 
-            var top = deck[0]; // index 0 = 牌库顶（ZoneContainer 约定）
-            bool hit = ProphecyHandlerUtil.MatchesDeclaration(effect.StringValue, top);
-            context.LastOutcome.DeclareHit = hit;
-            PublishEvent(new DeclareResolvedEvent
+            // 押注登记（复用 ProphecySystem 延迟验证）：命中 → 内置发动无效（Targets=被验证首张卡）；
+            // 未命中 → Else 空 = 落空。紧邻的 ProphecyHit/Miss 分支若存在则由执行引擎另行打包登记。
+            ProphecySystem.Register(new PendingProphecy
             {
+                Declarer = context.Controller,
+                Source = context.Source,
                 Declaration = effect.StringValue,
-                Hit = hit,
-                Controller = context.Controller,
-                RevealedCards = new List<Card> { top }, // 展示牌库顶
-                Sampled = false,
-            });
-        }
-
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => $"宣言{effect.StringValue}并展示己方牌库顶";
-    }
-
-    /// <summary>宣言·箭头（2026-09-13 修订：额外卡组退役——改读**对手战场卡**的箭头声明。
-    /// 即时验证：对手战场上是否存在带该方向箭头的连接生物，内容不公开（私密确认）。</summary>
-    public class DeclareArrowHandler : AtomicEffectHandlerBase
-    {
-        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.DeclareArrow;
-
-        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
-        {
-            context.LastOutcome.Declaration = effect.StringValue;
-
-            // 链接生物现在活在战场上（ArrowDirections 卡面数据）——箭头宣言读战场而非额外卡组
-            var opp = context.Controller?.Opponent;
-            var field = context.ZoneManager?.GetCards(opp, Zone.Battlefield);
-            bool hit = false;
-            if (field != null)
-            {
-                foreach (var c in field)
+                ConditionId = "ProphecyHit",
+                Then = new List<AtomicEffectInstance>
                 {
-                    if (!(c is CardWrapper w)) continue;
-                    var arrows = w.GetData()?.ArrowDirections ?? HexDirection.None;
-                    if (arrows == HexDirection.None) continue;
-                    if (System.Enum.TryParse<HexDirection>(effect.StringValue, out var declared)
-                        && (arrows & declared) != 0) { hit = true; break; }
-                    // 宣言文本也兼容直接匹配卡名/ID（MatchesDeclaration 同族口径）
-                    if (ProphecyHandlerUtil.MatchesDeclaration(effect.StringValue, c)) { hit = true; break; }
-                }
-            }
-
-            context.LastOutcome.DeclareHit = hit;
-            PublishEvent(new DeclareResolvedEvent
-            {
-                Declaration = effect.StringValue,
-                Hit = hit,
-                Controller = context.Controller,
-                RevealedCards = null, // 私密确认：不揭示卡面
-                Sampled = false,
+                    new AtomicEffectInstance { Type = AtomicEffectType.NegateActivation },
+                },
+                ZoneManager = context.ZoneManager,
+                ElementPool = context.ElementPool,
             });
         }
 
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => $"宣言{effect.StringValue}箭头并确认对手战场";
+        protected override string DescribeTemplate(AtomicEffectInstance effect)
+            => $"隐秘宣言{effect.StringValue}，对手下回合首张同类卡发动无效";
     }
 
     /// <summary>
@@ -336,20 +362,23 @@ namespace CardCore.Attribute.Handlers
 
     // ---------------- 共用小工具 ----------------
 
-    /// <summary>宣言族共用小工具（public：选位器供驱动层/验证器注入——组合根注入惯例）</summary>
+    /// <summary>宣言族共用小工具（PositionPicker 注入点已随 2026-10-30 强夺改版删除——
+    /// 强夺按宣言卡名定位，无选位语义）</summary>
     public static class ProphecyHandlerUtil
     {
-        /// <summary>
-        /// 宣言确认手牌的选位器（宣言者视角：从对手未展示卡位中指定一张验证）。
-        /// 驱动层注入（AI 启发式 / 人类 UI 弹窗）；缺省 = 首个未展示卡位。
-        /// </summary>
-        public static Func<Player, List<Card>, Card> PositionPicker;
-
         internal static List<Card> OpponentHand(EffectExecutionContext context)
         {
             var opponent = context.Controller?.Opponent;
             if (opponent == null || context.ZoneManager == null) return null;
             try { return context.ZoneManager.GetCards(opponent, Zone.Hand); }
+            catch (KeyNotFoundException) { return null; }
+        }
+
+        internal static List<Card> OpponentDeck(EffectExecutionContext context)
+        {
+            var opponent = context.Controller?.Opponent;
+            if (opponent == null || context.ZoneManager == null) return null;
+            try { return context.ZoneManager.GetCards(opponent, Zone.Deck); }
             catch (KeyNotFoundException) { return null; }
         }
 

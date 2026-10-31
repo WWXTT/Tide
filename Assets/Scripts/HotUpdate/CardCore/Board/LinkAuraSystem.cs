@@ -174,7 +174,7 @@ namespace GameBoard
         // 不再经关键词光环投递（表行 a8f7f476 MountKinds=指示物，CanMountAsAura 位 1 硬拒）。
 
         // 守护光环源查询（GetGuardianAuraSources）已随 2026-10-08 配对制改版退役——
-        // 守护退出连接光环族（表行 MountKinds 位 8 拉黑），改写走 GuardianRules 配对表（KeywordRules.ApplyDamage）。
+        // 守护退出连接光环族（表行 MountKinds 位 7 拉黑），改写走 GuardianRules 配对表（KeywordRules.ApplyDamage）。
 
         /// <summary>方向档命中·生物（2026-10-07）：beneficiary 一侧是否在 source 光环方向内
         ///（1=己方：源控制者一侧；2=双方；3=对方：源控制者的对手一侧）。</summary>
@@ -302,6 +302,31 @@ namespace GameBoard
             foreach (var player in new[] { core.Player1, core.Player2 })
             {
                 if (player == null) continue;
+
+                // 场地光环源（2026-10-30 属性降低入场地光环）：FieldZone 的场地卡只投放
+                // 条目级作用面（scope>0）条目——场地卡无格无箭头，箭头档不适用；
+                // 双方各一份互不排斥、与战场光环源同链累加（双方可叠加）
+                var fieldZone = zoneManager.GetCards(player, Zone.FieldZone);
+                for (int i = 0; i < fieldZone.Count; i++)
+                {
+                    var source = fieldZone[i];
+                    if (source == null || !source.IsAlive || ReferenceEquals(source, beneficiary)) continue;
+                    var dataF = (source as CardWrapper)?.GetData();
+                    if (dataF?.LinkAuras == null || dataF.LinkAuras.Count == 0) continue;
+                    if (source.GetCounterCount(CounterRules.NullifyCounter) > 0) continue;
+                    foreach (var aura in dataF.LinkAuras)
+                    {
+                        if (aura == null || aura.scope <= 0) continue;
+                        if (keywordsOnly)
+                        {
+                            if (beneficiary is Player pr && ScopeHitRole(source, pr, aura.scope))
+                                yield return (source, aura);
+                        }
+                        else if (beneficiary is Card bCardF && ScopeHit(source, bCardF, aura.scope))
+                            yield return (source, aura);
+                    }
+                }
+
                 var battlefield = zoneManager.GetCards(player, Zone.Battlefield);
                 for (int i = 0; i < battlefield.Count; i++)
                 {
@@ -316,7 +341,7 @@ namespace GameBoard
                     // 角色=落格即本方角色格）；作用面档（1=己方/2=双方/3=对方）按侧别命中。旧卡级方向档已由
                     // AggregateEffectAuras 迁移盖戳到条目，此处不再读 data.AuraScope。
                     // 角色通道（2026-10-09 裁定）：关键词光环**一律可作用角色**——不能用光环表达的行
-                    //（守护/再生/禁魔石）已由表「不可作为连接光环」位拉黑，通道不再设防；逐条目 role 声明
+                    //（守护/再生/无实体/绝缘体等）已由表「不可作为连接光环」位拉黑，通道不再设防；逐条目 role 声明
                     // 与 NoRole 硬闸（RoleChannelBlocked）整体退役；属性条目恒仅生物（2026-10-07 定案不变）。
                     var arrows = data.ArrowDirections;
                     bool geoComputed = false, geoHit = false; // 惰性：存在箭头档条目才算几何

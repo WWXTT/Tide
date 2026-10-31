@@ -19,6 +19,7 @@ namespace CardCore
         public DelayDiscountConfig DelayDiscountConfig = new DelayDiscountConfig();
         public CardCompositionConfig CardCompositionConfig = new CardCompositionConfig();
         public PricingTierConfig PricingTierConfig = new PricingTierConfig();
+        public TimingFactorConfig TimingFactorConfig = new TimingFactorConfig();
         public GameRulesConfig GameRulesConfig = new GameRulesConfig();
     }
 
@@ -45,13 +46,14 @@ namespace CardCore
     }
 
     /// <summary>
-    /// 计价档位系数（表 Category=PricingTier，2026-10-05 用户定案）——目标数量/作用次数/发动时机的增量系数统一：
-    /// 数量 1:1 / 2:1.5 / 3:2 / 全部:3；次数 1:1 / 2:1.5 / 3:2 / 无上限:4；
-    /// 一发时机 0.8（2026-10-16 时机轴接入计价：登场/死亡等整个生命期望=1 的触发时机减免）。
-    /// 消费方 CostDerivation（QuantityFactor / TriggerCostFactor / TimingCostFactor）；
+    /// 计价档位系数（表 Category=PricingTier，2026-10-05 用户定案）——只保留目标数量的增量系数：
+    /// 数量 1:1 / 2:1.5 / 3:2 / 全部:3。消费方 CostDerivation.QuantityFactor。
+    /// **作用次数档已退役**（2026-10-30 定案）：效果不再有每回合生效次数上限，
+    /// TriggerLimit1/2/3/Infinite 与 TriggerLimitFactor 整删（此前已零消费，TriggerCostFactor 恒 1）。
+    /// **发动时机系数已迁出本段**：2026-10-30 起按「期望触发次数」逐时机配在 Category=TimingFactor
+    /// （见 TimingFactorConfig），旧 TimingOnceFactor×0.8 / TimingRepeatFactor×1 两档删除。
     /// 速度档已随 2026-10-19 速度计价退役整删——三类卡分类把发动速度特化为法术专属类特性
     ///（速度=3−槽数、其余主动默认 0），不再是可购溢价轴。
-    /// 原 整数×N/期望4/1.2 连乘口径退役。
     /// </summary>
     [Serializable]
     public class PricingTierConfig
@@ -60,12 +62,6 @@ namespace CardCore
         public float TargetCount2 = 1.5f;        // 目标数量 2
         public float TargetCount3 = 2.0f;        // 目标数量 3
         public float TargetCountAll = 3.0f;      // 目标数量 全部（0=域内全取；-1 任意同此档）
-        public float TriggerLimit1 = 1.0f;       // 作用次数 1：基准（未声明 0 亦按此）
-        public float TriggerLimit2 = 1.5f;       // 作用次数 2
-        public float TriggerLimit3 = 2.0f;       // 作用次数 3
-        public float TriggerLimitInfinite = 4.0f; // 作用次数 无上限（-1；N>3 视同此档）
-        public float TimingOnceFactor = 0.8f;    // 一发时机减免：整个生命期望=1 的触发时机（登场/死亡/游戏开始/
-                                                // 角色死亡/破坏/除外/离场/墓地回场）×0.8（2026-10-16 入价定案）
 
         /// <summary>目标数量→计价系数。越界口径：N&gt;3 视同全部；-1（任意·运行时自选）同全部；-2/其他未声明=单目标基准。</summary>
         public float TargetCountFactor(int count)
@@ -80,33 +76,71 @@ namespace CardCore
                 default: return count > 3 ? TargetCountAll : TargetCount1;
             }
         }
+    }
 
-        /// <summary>作用次数→计价系数。N&gt;3 视同无上限；0（未声明=一回合一次）=基准。</summary>
-        public float TriggerLimitFactor(int limit)
-        {
-            switch (limit)
-            {
-                case 1: return TriggerLimit1;
-                case 2: return TriggerLimit2;
-                case 3: return TriggerLimit3;
-                case -1: return TriggerLimitInfinite;
-                default: return limit > 3 ? TriggerLimitInfinite : TriggerLimit1;
-            }
-        }
+    /// <summary>
+    /// 发动时机系数（表 Category=TimingFactor，2026-10-30 用户定案）——**系数 = 这张卡付清后
+    /// 该时机的期望触发次数**（不是折扣）：付费后只能触发一次的时机（登场/死亡/破坏/除外/离场/
+    /// 墓地回场/游戏开始/角色死亡/召唤进场）=1；随生物存活期望（假设 1.5 回合）复现的回合/阶段/
+    /// 抽牌/横置=1.5；攻击/受伤/造成伤害/事件观察族等期望未标定，暂定 2（可直接改本表逐时机调）。
+    /// 主动发动（Activate_*）恒 1（发动时现付，不乘表）；引擎载荷不乘（奖励发射由 BranchEngines
+    /// 每卡每回合 1 次自限，主干部署单发）。消费方 CostDerivation.TimingCostFactor[Of]；
+    /// 合成器时机下拉尾缀「×N」与本段同源（改表即同步计价与展示）。
+    /// </summary>
+    [Serializable]
+    public class TimingFactorConfig
+    {
+        // ---- 付费后只能触发一次：期望 1 ----
+        public float OnPlay = 1f;                     // 登场
+        public float OnDeath = 1f;                    // 死亡
+        public float OnDestroy = 1f;                  // 破坏（死因）
+        public float OnExile = 1f;                    // 除外
+        public float OnLeaveBattlefield = 1f;         // 离场
+        public float OnReturnFromGraveyard = 1f;      // 墓地回场（每次回场由另一笔支付带来）
+        public float OnGameStart = 1f;                // 游戏开始（每局一次）
+        public float OnRoleDeath = 1f;                // 角色死亡（每局一次）
+        public float OnSummon = 1f;                   // 召唤进场（登场超集；复活/效果召唤由他卡付费）
+
+        // ---- 随存活期望复现：期望 1.5（2026-10-30 假设生物在场存活 1.5 回合）----
+        public float OnTurnStart = 1.5f;              // 回合开始（系统专用）
+        public float OnTurnEnd = 1.5f;                // 回合结束
+        public float OnStandbyPhase = 1.5f;           // 准备阶段
+        public float OnPhaseStart = 1.5f;             // 阶段开始（系统专用）
+        public float OnPhaseEnd = 1.5f;               // 阶段结束（系统专用）
+        public float OnDraw = 1.5f;                   // 抽牌
+        public float OnTap = 1.5f;                    // 横置
+        public float OnUntap = 1.5f;                  // 重置
+
+        // ---- 攻防/伤害/事件族：期望未标定，暂定 2（实测后逐行调表）----
+        public float OnAttack = 2f;                   // 攻击宣言（期望未标定）
+        public float OnAttacked = 2f;                 // 被攻击
+        public float OnBlockDeclare = 2f;             // 阻拦宣言
+        public float OnDealDamage = 2f;               // 造成伤害
+        public float OnTakeDamage = 2f;               // 受到伤害
+        public float OnTargeted = 2f;                 // 被指定为目标
+        public float OnOtherCreatureEnter = 2f;       // 其他生物进场（观察者）
+        public float OnOtherCreatureDeath = 2f;       // 其他生物死亡（观察者）
+        public float OnSpellCast = 2f;                // 施放法术
+        public float OnCardPlayed = 2f;               // 使用卡牌
+        public float OnScry = 2f;                     // 占卜
+        public float OnAtomicEffectActivation = 2f;   // 原子效果发动（系统观察）
+        public float OnAtomicEffectStartApplying = 2f;// 原子效果开始作用（系统观察）
+        public float OnAtomicEffectResolution = 2f;   // 原子效果结算完成（系统观察）
     }
 
     // 注：TimingModifier / CostValue / EffectValue / TriggerValue / CardTypeValue 五类配置
     // 已于 2026-10-05 删除——全仓无消费方（时机轴未接入计价、EffectValue 委托原子表后无人调用、
     // CardTypeValue 对应的卡型价值未使用）；ValueSystemConfig.json 同批清理 33 行死行。
-    // 2026-10-16 修订：时机轴已接入计价——但走 PricingTierConfig.TimingOnceFactor 单值（一发时机 ×0.8，
-    // 消费方 CostDerivation.TimingCostFactor），未复活按时机逐项配系数的 TimingModifier 旧结构。
+    // 2026-10-16 修订：时机轴已接入计价——走 PricingTierConfig.TimingOnceFactor 单值（一发时机 ×0.8）。
+    // 2026-10-30 再修订：两档合表改为逐时机期望触发次数（TimingFactorConfig，Category=TimingFactor），
+    // 旧 TimingModifier 的「逐时机结构」以更简形态回归；TimingOnce/Repeat 两行同日删除。
 
     /// <summary>
     /// 开局/全局规则数值（表 Category=GameRules，2026-10-13 迁表定案：逻辑不动、数值出代码——
     /// 审计裁定硬编码数值不留在引擎）。消费方：GameCore（InitialLife/OpeningHandSize）、
     /// RuleHooks（DefaultHandLimit）、ZoneManager（BattlefieldCapacityPerPlayer）、
-    /// ElementPool/ResourceCurveModel（LandCurveCap=自然上限）。MaxStackedLandCap 已删
-    /// （2026-10-15：成长叠加无封顶）。
+    /// ElementPool/ResourceCurveModel（LandCurveCap=自然上限）、EffectExecutor（MaxTriggersPerTurnPerEffect=
+    /// 自馈闸门）。MaxStackedLandCap 已删（2026-10-15：成长叠加无封顶）。
     /// </summary>
     [Serializable]
     public class GameRulesConfig
@@ -116,6 +150,11 @@ namespace CardCore
         public float DefaultHandLimit = 7f;              // 手牌上限基值（回合末选弃；IHandLimitModifier 修改链之上叠加）
         public float BattlefieldCapacityPerPlayer = 9f;  // 每玩家战场单位容量（=单位区 4+5；P11 盘面重塑；BoardLayout.UnitCellsPerPlayer 单源引用）
         public float LandCurveCap = 10f;                 // 标准地牌槽曲线自然封顶 [1..cap]（2026-10-15：7→10，每次回合开始双方同步 +1；成长等效果增加在此之外无限制）
+        public float SecondPlayerArmorBonus = 5f;        // 后手开局护甲补偿（2026-10-30 迁表：后手角色 +N 层护甲指示物；本地木桩/联机/教学开局注入共用 GameCore.SecondPlayerArmorBonus 单口）
+        /// <summary>自馈闸门（2026-10-30 用户定案）：同一来源实例+效果 Id 每回合最多触发次数——
+        /// 效果已无「一回合一次」限制，本值只用于截断自循环（抽牌时抽牌/受伤时造成伤害等）。
+        /// 常规触发远低于 30；引擎载荷与结界耐久经济不叠闸（各自天然上限）。</summary>
+        public float MaxTriggersPerTurnPerEffect = 30f;
     }
 
     /// <summary>
@@ -181,6 +220,9 @@ namespace CardCore
         /// <summary>耐久单价：0.5 灰/点（2026-10-16 回调定案——受击伤害撤钳 1 改全额扣耐久，
         /// 燃料按伤害计量重估；2026-10-10 的 1 灰/点口径退役）。</summary>
         public float DurabilityUnitCost = 0.5f;
+        /// <summary>场地光环（原规则光环）单侧溢价系数（2026-10-30 定案）：极性 ±1 仪典作用面收窄单侧
+        ///（+1 仅己方 / −1 仅对方）后，表价（按对称双方校准）× 本系数；双方档仍 ×1。具体值用户可调。</summary>
+        public float RuleAuraSingleSideFactor = 1.5f;
     }
 
     /// <summary>

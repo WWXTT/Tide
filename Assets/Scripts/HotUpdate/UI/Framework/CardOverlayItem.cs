@@ -38,8 +38,10 @@ namespace SynergyUI
         public Cardtype Supertype;                       // type 区：底图+遮罩形状映射
         public string Illustration = "";                 // type 区立绘资源名（空=保持预制体占位）
         public string AttributeText = "";                // attribute 区：攻击/生命/耐久（空=藏区；发动速度归效果句首）
-        public int? AttrPower, AttrLife;                 // attribute 区图标数字（2026-10-22 B6：生物攻/血改图标+数字；
-                                                          // null=非生物。AttributeText 保留全词=图标素材缺失时的回落档）
+        public int? AttrPower, AttrLife;                 // 上半徽章数字（2026-10-30 美术定档：生物 Atc/Hea 烘焙徽章；
+                                                          // null=非生物）
+        public int? AttrDurability;                      // 上半徽章数字：结界耐久（Hea 徽章；TotalDurabilityOf 派生
+                                                          // 单源，与 AttributeText 同口径；null=非结界）
         public string PayloadText = "";                  // cost 区：代价行（PayloadCost 产黑白元素等；空=藏区）
         public List<string> KeywordChips;                // keys 区：关键词中文简称芯片（null/空=藏区）
         public List<(string Name, int Layers)> CounterChips; // stats 区：指示物简称+层数（空=藏区）
@@ -93,6 +95,7 @@ namespace SynergyUI
             it.Illustration = d.Illustration ?? "";
             it.AttributeText = AttributeTextOf(d);
             if (d.Supertype == Cardtype.Creature) { it.AttrPower = d.Power ?? 0; it.AttrLife = d.Life ?? 0; }
+            else if (d.Supertype == Cardtype.Enchantment) it.AttrDurability = CardCompositionCost.TotalDurabilityOf(d);
             it.PayloadText = PayloadTextOf(d);
 
             // keys 芯片：印刷关键词（合成期无运行态，无授予/净化合并）
@@ -133,8 +136,7 @@ namespace SynergyUI
 
         /// <summary>手牌全信息卡面 → 显示模型（2026-10-13，ACardView 专用）。
         /// 三源合并：BattleCardView（名称/费用/横置）+ 卡表（类型/效果拆分/立绘）+ 运行态快照（关键词/指示物）。
-        /// 被动 (x/y)：y=TriggerLimitPerTurn 归一（0→1，-1=无限不带后缀）；x=本回合已作用次数
-        /// （只读查询口 EffectExecutor.GetTurnUsageOf；网络模式无引擎对象→不带后缀）。幂等可重查。</summary>
+        /// 被动效果不再带 (x/y) 次数后缀（2026-10-30 无次数上限定案：没有上限可显示）。幂等可重查。</summary>
         public static CardOverlayItem FromHand(BattleCardView v)
         {
             var it = new CardOverlayItem
@@ -159,6 +161,7 @@ namespace SynergyUI
                 it.Illustration = data.Illustration ?? "";
                 it.AttributeText = AttributeTextOf(data);
                 if (data.Supertype == Cardtype.Creature) { it.AttrPower = data.Power ?? 0; it.AttrLife = data.Life ?? 0; }
+                else if (data.Supertype == Cardtype.Enchantment) it.AttrDurability = CardCompositionCost.TotalDurabilityOf(data);
                 it.PayloadText = PayloadTextOf(data);
             }
 
@@ -184,8 +187,6 @@ namespace SynergyUI
             // 其余全部归被动（含 Activate_Response——按被动展示）
             if (data?.Effects != null)
             {
-                var executor = v.CoreCard != null && GameCore.Instance != null
-                    ? GameCore.Instance.StackEngine.GetExecutor() : null;
                 foreach (var fx in data.Effects)
                 {
                     if (fx == null) continue;
@@ -199,21 +200,10 @@ namespace SynergyUI
                         it.ActiveEffectCost = fx.AnchorCost;
                         continue;
                     }
-                    (it.PassiveLines ??= new List<string>()).Add(text + UsageSuffix(fx, executor, v.CoreCard));
+                    (it.PassiveLines ??= new List<string>()).Add(text);
                 }
             }
             return it;
-        }
-
-        /// <summary>被动次数后缀：y=归一上限（-1=无限→不带后缀）；x 仅本地模式可查（网络无引擎对象→整段不带）。
-        /// prefix=悬停文案用的量纲前缀（如「本回合 」；卡面调用不带——保持「（0/1）」短形态）。</summary>
-        public static string UsageSuffix(CardEffectData fx, EffectExecutor executor, Card source, string prefix = "")
-        {
-            int y = fx.TriggerLimitPerTurn == 0 ? 1 : fx.TriggerLimitPerTurn; // 0=未声明→按 1（转换器同口径）
-            if (y < 0) return "";                                             // -1=显式无限
-            if (executor == null) return "";
-            int x = executor.GetTurnUsageOf(fx.Id, source);
-            return $"（{prefix}{x}/{y}）";
         }
 
         /// <summary>引擎活卡 → 手牌显示模型（View 刷新专用）：重快照运行态 + 卡表静态面合并，
@@ -316,13 +306,11 @@ namespace SynergyUI
         {
             var selfParts = new List<string>();   // 自伤臂（p<0 锁己方）
             var enemyParts = new List<string>();  // 资敌臂（p≥0 表侧——p=0 为契约违例原子，按资敌位展示由校验另行标红）
-            var atoms = new List<AtomicEffectEntry>();
             void Collect(AtomicEffectEntry a)
             {
                 if (a == null || string.IsNullOrEmpty(a.refId)) return;
                 var text = AtomText.RenderAtomEntry(a);
                 (AtomicEffectTable.GetByHashId(a.refId)?.Polarity < 0f ? selfParts : enemyParts).Add(text);
-                atoms.Add(a);
             }
             foreach (var a in d?.PayloadCost?.AllPayloads() ?? new List<AtomicEffectEntry>()) Collect(a);
             if (d?.Effects != null)
@@ -337,8 +325,7 @@ namespace SynergyUI
             if (selfParts.Count > 0) arms.Add("代价（自伤）：" + string.Join("＋", selfParts));
             if (enemyParts.Count > 0) arms.Add("代价（资敌）：" + string.Join("＋", enemyParts));
             var formula = CardNetCost.NetCostFormulaOf(d); // 三段式（有代价抵扣才非空）
-            return string.Join("｜", arms) + CardComposerScreen.PayloadGrantText(atoms)
-                   + (formula == null ? "" : "｜" + formula);
+            return string.Join("｜", arms) + (formula == null ? "" : "｜" + formula);
         }
     }
 
@@ -348,7 +335,8 @@ namespace SynergyUI
     /// 苏醒免灰/费用指示物层，各有专属展示口——本类只管「推导 − 代价抵扣」两层）。
     /// 与本文件同收口：新文件进不了已生成的 csproj 是老坑（SearchQuery 先例）。
     /// 全部实时推导（CardCostService.GetRuntimeCost / GetPrePayloadCost——Derive 内
-    /// PrePayloadCost→ReduceBuckets(代价价)→DerivedCost，三段自洽由引擎构造保证），不读 costList 缓存。</summary>
+    /// PrePayloadCost→代价抵扣（色锁：只扣代价原子可产出色）→DerivedCost，三段自洽由引擎构造保证），
+    /// 不读 costList 缓存。</summary>
     public static class CardNetCost
     {
         /// <summary>公式行内费用分布序（P4 五类定案：红蓝绿灰万能）。</summary>
@@ -367,18 +355,19 @@ namespace SynergyUI
             return CardCostService.GetModeCost(card, MaxNetModeOf(card));
         }
 
-        /// <summary>三段式公式行（P4 §1.1）：「推导 2红3灰 − 代价抵扣 2 = 净费 2红1灰」。
-        /// 无代价抵扣（Y=0）→ null（费用区净费即推导费，无差可显）。X/Y/Z 同模式取数自洽。</summary>
+        /// <summary>三段式公式行（P4 §1.1；2026-10-31 色锁口径）：「推导 2红3灰 − 代价抵扣 2（限红）= 净费 3灰」。
+        /// 无代价抵扣（实抵 0）→ null（费用区净费即推导费，无差可显）。X/Y/Z 同模式取数自洽。</summary>
         public static string NetCostFormulaOf(CardData card)
         {
             if (card == null) return null;
             int mode = CostDerivationService.HasChoiceEffect(card) ? MaxNetModeOf(card) : 0;
-            CardCostService.GetPrePayloadCost(card, mode, out var pre, out var points);
-            if (points <= 0) return null;
+            CardCostService.GetPrePayloadCost(card, mode, out var pre, out var applied);
+            if (applied <= 0) return null;
             var net = CostDerivationService.HasChoiceEffect(card)
                 ? CardCostService.GetModeCost(card, mode)
                 : CardCostService.GetRuntimeCost(card, mode);
-            return $"推导 {CostRunes(pre)} − 代价抵扣 {points} = 净费 {CostRunes(net)}";
+            var scope = CardCostService.PayloadScopeZh(card);
+            return $"推导 {CostRunes(pre)} − 代价抵扣 {applied}（限{scope}）= 净费 {CostRunes(net)}";
         }
 
         /// <summary>费用分布文本：非零色按五类序拼「N色」（如「2红3灰」）；全零=「0」。</summary>

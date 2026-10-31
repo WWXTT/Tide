@@ -33,9 +33,9 @@ namespace CardCore
             if (effect != null && effect.AnchorCostPinned)
                 return effect.AnchorCostPin != null ? effect.AnchorCostPin.Clone() : new ElementCost();
 
-            // 2026-10-18 效果合成阶段取整（取代 10-12 小数直通）：效果级费用逐色四舍五入（AwayFromZero）
-            // ——出账即整数（原支付终点 NormalizeBill 的取整规则前移到合成点，支付侧保留为兼容兜底）；
-            // 卡级挂载折扣（d(C) 小数）后的整卡取整仍在 CardCostService.ApportionMounted（L3）。
+            // 逐色累加（float 全程不取整——2026-10-30 真实小数定案，10-18「合成期取整出整数」退役：
+            // 舍入只在支付终点 NormalizeBill 向上取整；卡级挂载折扣 d(C) 小数后的整卡取整仍在
+            // CardCostService.ApportionMounted（L3））。
             var byColor = new Dictionary<ManaType, float>();
             if (effect != null)
             {
@@ -65,12 +65,13 @@ namespace CardCore
             }
 
             // 2026-10-04 费用位置数组化：输出统一为 ElementCost（序数序天然确定，非零即入）——
-            // 逐色取整（2026-10-18 效果合成阶段定案：效果费用以整数出账）
+            // 真实小数出账（2026-10-30 定案，逆转 10-18 合成期取整）：效果费保留真值小数（如 0.6绿），
+            // 展示层直通；舍入只发生在支付终点（ElementPaymentValidator.NormalizeBill 向上取整——
+            // 大于 0 也消耗 1）。卡级底盘取整（ApportionMounted L3）不在此处。
             var result = new ElementCost();
             foreach (var kv in byColor)
             {
-                int amount = (int)Math.Round(kv.Value, MidpointRounding.AwayFromZero);
-                if (amount > 0) result[kv.Key] = amount;
+                if (kv.Value > 0f) result[kv.Key] = kv.Value;
             }
             return result;
         }
@@ -185,8 +186,8 @@ namespace CardCore
         // 固有全域原子（SweepDamage/SweepHeal）2026-09-21 退役——全域语义由组合期
         // TargetKinds+全取档表达，计价统一走"全部"档系数，无 ×1 特判。
 
-        /// <summary>计价档位系数（表 Category=PricingTier，ValueSystemConfig.json）——目标数量/作用次数
-        /// 增量系数统一配置（2026-10-05 档位化：数量 1:1/2:1.5/3:2/全部:3；次数 1:1/2:1.5/3:2/无上限:4）；
+        /// <summary>计价档位系数（表 Category=PricingTier，ValueSystemConfig.json）——目标数量增量系数
+        ///（2026-10-05 档位化：数量 1:1/2:1.5/3:2/全部:3；作用次数档 2026-10-30 整删）；
         /// 文件缺失/未灌入走字段初始化器默认（与表同值）。</summary>
         private static PricingTierConfig Tiers =>
             ValueSystemConfigManager.Instance.GetOrCreateConfig().PricingTierConfig;
@@ -268,9 +269,9 @@ namespace CardCore
         }
 
         /// <summary>奖励原子的推导费合计（2026-09-14 自 CardEffectConverter 上移——倒计时回合换算与
-        /// 合成器【奖励x】预算校验共用同一口径）：单次/单目标锚价——Once、TargetCount=1、
-        /// TriggerLimitPerTurn=1 的 shim（防字段默认 -1 被 TriggerCostFactor 当"无上限"档、
-        /// TargetCount=0 落"全部"档的膨胀——2026-09-13 修复口径固化于此）。</summary>
+        /// 合成器【奖励x】预算校验共用同一口径）：单次/单目标锚价——Once、TargetCount=1 的 shim
+        ///（防 TargetCount=0 落"全部"档的膨胀——2026-09-13 修复口径固化于此；
+        /// 次数档已随 2026-10-30 无上限定案整删）。</summary>
         public static float RewardDerivedCost(List<AtomicEffectInstance> atoms)
             => RewardDerivedCostByColor(atoms).Total;
 
@@ -280,10 +281,10 @@ namespace CardCore
         {
             if (atoms == null || atoms.Count == 0) return new ElementCost();
             var shim = new EffectDefinition { Id = "REWARD_SHIM", Duration = DurationType.Once,
-                TriggerLimitPerTurn = 1, TargetCount = 1,
-                // 时机钉非触发式（2026-10-16 时机系数配套）：裸默认 OnPlay 会被 TimingCostFactor
-                // 当一发时机 ×0.8——奖励按单次面值估值（门槛/换算/附加费/召唤补偿四口共用），
-                // 无自身触发时机，不吃时机减免。
+                TargetCount = 1,
+                // 时机钉非触发式（2026-10-16 配套；2026-10-30 后仍必要）：裸默认 OnPlay 会吃
+                // TimingFactor 的登场系数——奖励按单次面值估值（门槛/换算/附加费/召唤补偿四口共用），
+                // 无自身触发时机，不乘时机系数。
                 TriggerTiming = TriggerTiming.Activate_Active };
             shim.Effects = atoms;
             return DeriveElementCosts(shim);
@@ -336,16 +337,10 @@ namespace CardCore
             => param > 0 ? param
             : Math.Max(1, (int)Math.Ceiling(RewardDerivedCost(then)));
 
-        /// <summary>触发上限计价系数——**次数档软删**（2026-10-29 P9 定案）：玩家不再声明作用次数，
-        /// 旧 2:×1.5 / 3:×2 / 无上限:×4 溢价档全部退役（TriggerLimitPerTurn 运行时恒系统常量 1——
-        /// 见 EffectExecutor.TriggerCapReached；PricingTierConfig.TriggerLimit2/3/Infinite 字段仅存档兼容，
-        /// 不再有消费方）。恒返回 1（不乘）——方法与调用点保留防断链，验证器断言恒 1。</summary>
-        public static float TriggerCostFactor(EffectDefinition def) => 1f;
-
         /// <summary>效果是否携带引擎载荷（settle=Engine——扁平 Effects 与节点化 Steps 双扫）。
         /// 引擎效果头被 EngineHeaderPresetOf 归一为无限档（-1），但主干原子部署单发、奖励由引擎
-        /// 自平衡付费——次数档/防循环闸不适用（2026-10-09 修复；2026-10-29 P9 起兼供
-        /// EffectExecutor.TriggerCapReached 引擎豁免——奖励发射由 BranchEngines 每卡每回合 1 次全局规则自限）。</summary>
+        /// 自平衡付费——不适用触发限流（2026-10-09 修复；2026-10-30 起仅供时机系数豁免——
+        /// 奖励发射由 BranchEngines 每卡每回合 1 次全局规则自限）。</summary>
         internal static bool HasEnginePayload(EffectDefinition def)
         {
             bool Of(AtomicEffectInstance a) => a?.Branch != null && a.Branch.Settle == BranchSettleKind.Engine;
@@ -362,21 +357,65 @@ namespace CardCore
         ///——速度=3−槽数是法术的类特性而非可购溢价，旧规给速 2 效果 ×2 属历史遗留多收；
         /// 其余主动效果速度已全归默认 0。SpeedFactor/SpeedTier 配置位同批整删。）</summary>
 
-        /// <summary>发动时机计价系数（2026-10-16 定案，表 PricingTier.TimingOnceFactor，取代 2026-10-05
-        /// 「时机轴不接计价」口径）：整个生命期望固定=1 的触发时机（付费后基本只能触发一次、不会有
-        /// 第二次机会）×0.8 减免；期望&gt;1 的时机（抽牌/伤害/攻防宣言/阶段/回合开始结束/事件观察族）恒 ×1。
-        /// 引擎载荷豁免（与 TriggerCostFactor 同口径）：重复性属引擎通道，效果头时机=奖励发射窗，
-        /// 不代表主干发射次数。非触发式（主动现付）不乘。</summary>
+        /// <summary>发动时机计价系数（2026-10-30 定案，表 Category=TimingFactor 逐时机行）：
+        /// **系数 = 这张卡付清后该时机的期望触发次数**，不是折扣——登场/死亡等一次性时机 ×1；
+        /// 随生物存活期望（假设 1.5 回合）复现的回合/阶段/抽牌/横置族 ×1.5；攻击/受伤/造成伤害/
+        /// 事件观察族等期望未标定，表内暂定 2（逐行可调）。
+        /// 引擎载荷豁免：重复性属引擎通道，效果头时机=奖励发射窗，不代表主干发射次数；
+        /// 非触发式（主动现付）不乘（恒 1）。</summary>
         public static float TimingCostFactor(EffectDefinition def)
         {
             if (def == null || !def.IsTriggeredEffect) return 1f;
             if (HasEnginePayload(def)) return 1f;
-            return FiresOncePerPaidLifetime(def.TriggerTiming) ? Tiers.TimingOnceFactor : 1f;
+            return TimingCostFactorOf(def.TriggerTiming);
         }
 
-        /// <summary>一发时机分类（2026-10-16 时机系数定案）：付费后整个生命期望=1——
-        /// 登场（用户点名）/死亡（用户点名）/游戏开始·角色死亡（每局一发）/破坏·除外·离场·墓地回场
-        /// （付费后基本一次，复活环罕见按「基本」口径入档）。
+        /// <summary>时机系数单口（计价 TimingCostFactor 与时机下拉尾缀「×N」展示同源）：
+        /// 表 Category=TimingFactor 逐时机取值（字段名=TriggerTiming 枚举名）——改表即同步改计价与展示。
+        /// 主动三档恒 1（发动时现付，不乘表；表内也不设行）。</summary>
+        public static float TimingCostFactorOf(TriggerTiming timing)
+        {
+            var f = ValueSystemConfigManager.Instance.GetOrCreateConfig().TimingFactorConfig;
+            return timing switch
+            {
+                TriggerTiming.OnPlay => f.OnPlay,
+                TriggerTiming.OnDeath => f.OnDeath,
+                TriggerTiming.OnDraw => f.OnDraw,
+                TriggerTiming.OnDealDamage => f.OnDealDamage,
+                TriggerTiming.OnTakeDamage => f.OnTakeDamage,
+                TriggerTiming.OnTurnStart => f.OnTurnStart,
+                TriggerTiming.OnTurnEnd => f.OnTurnEnd,
+                TriggerTiming.OnAttack => f.OnAttack,
+                TriggerTiming.OnAttacked => f.OnAttacked,
+                TriggerTiming.OnSummon => f.OnSummon,
+                TriggerTiming.OnTargeted => f.OnTargeted,
+                TriggerTiming.OnOtherCreatureEnter => f.OnOtherCreatureEnter,
+                TriggerTiming.OnSpellCast => f.OnSpellCast,
+                TriggerTiming.OnTap => f.OnTap,
+                TriggerTiming.OnUntap => f.OnUntap,
+                TriggerTiming.OnDestroy => f.OnDestroy,
+                TriggerTiming.OnExile => f.OnExile,
+                TriggerTiming.OnReturnFromGraveyard => f.OnReturnFromGraveyard,
+                TriggerTiming.OnLeaveBattlefield => f.OnLeaveBattlefield,
+                TriggerTiming.OnPhaseStart => f.OnPhaseStart,
+                TriggerTiming.OnPhaseEnd => f.OnPhaseEnd,
+                TriggerTiming.OnBlockDeclare => f.OnBlockDeclare,
+                TriggerTiming.OnCardPlayed => f.OnCardPlayed,
+                TriggerTiming.OnGameStart => f.OnGameStart,
+                TriggerTiming.OnAtomicEffectActivation => f.OnAtomicEffectActivation,
+                TriggerTiming.OnAtomicEffectStartApplying => f.OnAtomicEffectStartApplying,
+                TriggerTiming.OnAtomicEffectResolution => f.OnAtomicEffectResolution,
+                TriggerTiming.OnOtherCreatureDeath => f.OnOtherCreatureDeath,
+                TriggerTiming.OnRoleDeath => f.OnRoleDeath,
+                TriggerTiming.OnStandbyPhase => f.OnStandbyPhase,
+                TriggerTiming.OnScry => f.OnScry,
+                _ => 1f, // 主动三档/未定义：发动时现付，不乘
+            };
+        }
+
+        /// <summary>一发时机分类（2026-10-16 入档；2026-10-30 与计价解耦——只用于卡型适用性
+        /// 〔法术合法性〕与合成器时机排序，不再映射计价系数）：付费后整个生命期望=1——
+        /// 登场/死亡/游戏开始·角色死亡（每局一发）/破坏·除外·离场·墓地回场（付费后基本一次）。
         /// OnSummon 进场**不入档**：OnPlay 超集（token/复活/换主控可不付二次费再触发），有真实二次机会。
         /// 事件观察族（OnOtherCreature* 等）与每回合可复现时机（攻防/横置/阶段/抽牌/伤害）期望&gt;1 不入档。</summary>
         public static bool FiresOncePerPaidLifetime(TriggerTiming timing)
@@ -410,15 +449,10 @@ namespace CardCore
             if (n > 1f)
                 amount *= n;
 
-            // 触发上限计价（2026-10-05 档位化，表 PricingTier：1:1 / 2:1.5 / 3:2 / 无上限:4；
-            // 原 1.2 连乘口径退役）；N=1 / 非触发式 / 光环不乘。
-            float triggerFactor = TriggerCostFactor(def);
-            if (triggerFactor > 1f)
-                amount *= triggerFactor;
-
-            // 发动时机计价（2026-10-16 定案，表 PricingTier.TimingOnceFactor）：一发时机（登场/死亡等
-            // 整个生命期望=1）×0.8 减免；引擎载荷/非触发式/多频时机恒 ×1（TimingCostFactor 内判）。
-            // 减免 &lt;1——判 ≠1 而非 &gt;1。
+            // 发动时机计价（2026-10-30 定案，表 Category=TimingFactor）：系数=该时机的**期望触发次数**——
+            // 付清后只能触发一次的时机 ×1；随存活期望（假设 1.5 回合）复现的回合/阶段/抽牌/横置族 ×1.5；
+            // 攻防/伤害/事件观察族暂定 2（逐时机可调）。引擎载荷/非触发式恒 ×1（TimingCostFactor 内判）。
+            // 系数可 &lt;1 也可 &gt;1——判 ≠1 即乘。
             float timingFactor = TimingCostFactor(def);
             if (Math.Abs(timingFactor - 1f) > 0.001f)
                 amount *= timingFactor;
@@ -554,10 +588,10 @@ namespace CardCore
             if (statTier > 0f)
                 return statTier * Math.Abs(atom.Value);
 
-            // 指示物统一计价（2026-10-08 层改造定案）：**基础费用 × 赋予层数**（线性，砍档位梯）——
-            // 基础费用=表行 ManaList 锚（即 1 层价，量级回归表行）；层数=max(1,|value|)
-            //（未开放 value 的行统一按 1 层计）。判定=表行 Tags 行为三型（衰退型/换区清除型/生效自减型，
-            // 与 CounterSpec.Class 同源）——原属性指示物锚梯（StatCounterTierPrice 1.5/层）随之退役。
+            // 指示物统一计价（2026-10-08 层改造定案；2026-10-31 指示物定案收窄）：**基础费用 × 层数**——
+            // 表行已全量去 {value}（每次发动恒加 1 层），恒按 1 层价=表行 ManaList 锚计
+            //（max(1,|value|) 钳仅服务存量多层数据的旧卡显示，不产生新多层）。
+            // 判定=表行 Tags 行为三型（衰退型/换区清除型/生效自减型，与 CounterSpec.Class 同源）。
             if (IsCounterAtom(cfg))
                 return cfg.TotalUnitCost * Math.Max(1, Math.Abs(atom.Value));
 
@@ -595,12 +629,19 @@ namespace CardCore
 
             // 规则光环（2026-10-07 范围化）：Value=作用范围序（RuleAuraScope）非量级——不乘 magnitude，
             // 恒单价×成本乘数×持续档（与旧口径 value=1 等价）；不吃对称让利（2026-10-29 去对称让利——
-            // 表价即实价；含负面光环——2026-10-07 改写降级回滚，改写族箭头计价口径退役；舍身 2026-10-16 关键词化出族）。
+            // 表价即实价；含负面光环——2026-10-07 改写降级回滚，改写族箭头计价口径退役；舍身（2026-10-30 改版战斗法师）2026-10-16 关键词化出族）。
+            // 2026-10-30 单侧溢价：极性 ±1 行作用面收窄单侧（+1 仅己方/−1 仅对方，UI 不再提供双方档），
+            // 表价按对称双方校准 → 单侧档 ×RuleAuraSingleSideFactor（CardCostConfig，默认 1.5——具体值用户调）；
+            // 固定双方行（IsFixedBothRule）与存量 value=Both 数据恒 ×1。
             if (atom.Type == AtomicEffectType.ModifyGameRule)
             {
                 float ruleMult = cfg.CostMultiplier > 0f ? cfg.CostMultiplier : 1f;
                 var ruleAttr = ValueSystemConfigManager.Instance.GetOrCreateConfig().AttributeValueConfig;
-                return cfg.TotalUnitCost * ruleMult
+                var scope = (RuleAuraScope)atom.Value;
+                float sideFactor = scope == RuleAuraScope.Own || scope == RuleAuraScope.Opponent
+                    ? ValueSystemConfigManager.Instance.GetOrCreateConfig().CardCostConfig.RuleAuraSingleSideFactor
+                    : 1f;
+                return cfg.TotalUnitCost * ruleMult * sideFactor
                        * ruleAttr.GetDurationDiscount(def.Duration)
                        / ruleAttr.GetDurationDiscount(DurationType.Once);
             }
@@ -684,12 +725,12 @@ namespace CardCore
             => PricingDomain(effect, atom, ResolveVisitDomain(effect, modeIndex));
 
         /// <summary>单原子计价公式展开（效果合成器顶栏费用预览——把参与变量写全，如
-        /// 「基准1红×5×数量档1.5」）：数值真源仍是 ComputeAtomCost，本口只展开显示构成——
+        /// 「基准1红×5×数量档1.5×时机档2」）：数值真源仍是 ComputeAtomCost，本口只展开显示构成——
         /// 基准量＋逐段系数链（系数=1 不列），分档判定复用同一批 primitives
-        ///（BaseExprOf 各分档 / QuantityFactor / TriggerCostFactor /
+        ///（BaseExprOf 各分档 / QuantityFactor / TimingCostFactor /
         /// IsSymmetricBothSides），不另立计价口径。系数顺序与 ComputeAtomCost
-        /// 管线一致：基准内系（量级/表乘数/持续/控制/赋予档）→数量档→触发档→双方减半
-        ///（错边拆分已随黑白获得经济删除，2026-10-28 P1）。
+        /// 管线一致：基准内系（量级/表乘数/持续/控制/赋予档）→数量档→时机档→双方减半
+        ///（触发档已随 2026-10-30 无上限定案删除；错边拆分已随黑白获得经济删除，2026-10-28 P1）。
         /// 基准内的乘法在数值侧折叠为一次 round（ComputeAtomBaseAmount），展开链只作显示——
         /// 末端结果由调用方取 DeriveElementCosts 实值，不重算。</summary>
         public static (string baseExpr, List<string> factorExprs) AtomCostFormula(
@@ -705,7 +746,6 @@ namespace CardCore
             float n = QuantityFactor(atom, def);
             if ((domain == null || domain.Count == 0) && n > 1f) n = 1f; // 无目标域不乘数量（同 ComputeAtomCost）
             AddFactor(factors, "数量档", n);
-            AddFactor(factors, "触发档", TriggerCostFactor(def));
             AddFactor(factors, "时机档", TimingCostFactor(def));
             if (IsSymmetricBothSides(atom, def, domain))
                 AddFactor(factors, "双方减半", SymmetricDiscountFactor);
@@ -790,6 +830,11 @@ namespace CardCore
             if (atom.Type == AtomicEffectType.ModifyGameRule)
             {
                 AddFactor(factors, "表乘数", cfg.CostMultiplier > 0f ? cfg.CostMultiplier : 1f);
+                // 单侧溢价（2026-10-30）：与 ComputeAtomBaseAmount 同源——±1 行单侧档 ×系数，双方档 ×1
+                var scope = (RuleAuraScope)atom.Value;
+                if (scope == RuleAuraScope.Own || scope == RuleAuraScope.Opponent)
+                    AddFactor(factors, "单侧",
+                        ValueSystemConfigManager.Instance.GetOrCreateConfig().CardCostConfig.RuleAuraSingleSideFactor);
                 AddFactor(factors, "持续档", durationFactor);
                 return $"基准{AnchorZh(cfg.ManaList)}";
             }
@@ -931,30 +976,41 @@ namespace CardCore
             return AtomicEffectTable.GetByType(atom.Type);
         }
 
-        /// <summary>卡牌是否含抉择（Choice）步骤（任一效果的 Steps 含 kind==2 且 choices≥2）。</summary>
+        /// <summary>卡是否多模式（2026-10-31 P12 抉择默认化：仅法术可 &gt;1——模式=非充能主动效果数；
+        /// 旧「内嵌 Choice 步骤」整链退役，本口=GetModeCount&gt;1 语义不变）。</summary>
         public static bool HasChoiceEffect(CardData card)
         {
             return GetModeCount(card) > 1;
         }
 
         /// <summary>
-        /// 抉择模式数（所有 Choice 步骤的最大 choices 数；无抉择返回 1）。
-        /// 同卡多个 Choice 步骤共享卡级 ModeIndex，数量不一致时各自 Clamp + 装载警告。
+        /// 法术模式数（2026-10-31 P12 定案：抉择=默认使用方式）：法术=**非充能**主动效果数
+        ///（1~3；充能效果最多 1 个且不进模式列表——充能走特殊使用入口），Math.Max(1, n)；
+        /// 单主动法术=1（跳过模式窗直放）。非法术恒 1（生物/结界无模式；旧 Choice 步骤通道退役）。
+        /// 不再扫描 EffectStepData.choices。
         /// </summary>
         public static int GetModeCount(CardData card)
         {
-            int max = 1;
-            if (card?.Effects == null) return max;
-            foreach (var eff in card.Effects)
-            {
-                if (eff?.Steps == null) continue;
-                foreach (var step in eff.Steps)
-                {
-                    if (step?.choices != null && step.choices.Count > max)
-                        max = step.choices.Count;
-                }
-            }
-            return max;
+            if (card?.Effects == null) return 1;
+            if (card.Supertype != Cardtype.Spell) return 1;
+            int n = 0;
+            foreach (var fx in card.Effects)
+                if (fx != null && !ComposerCatalog.IsChargeEffect(fx)) n++;
+            return Math.Max(1, n);
+        }
+
+        /// <summary>法术可施放效果列表（P12 C1：过滤充能效果、序=Effects 声明序——模式序号
+        /// modeIndex 索引本列表；SpellCastAnchor/ResolveSpellEffects/模式窗/AI 全消费面同源）。
+        /// 非法术返回原列表（含充能——非施放通道消费）；空表安全。</summary>
+        public static List<CardEffectData> GetCastableEffects(CardData card)
+        {
+            var list = card?.Effects;
+            if (list == null) return new List<CardEffectData>();
+            if (card.Supertype != Cardtype.Spell) return list;
+            var castable = new List<CardEffectData>();
+            foreach (var fx in list)
+                if (fx != null && !ComposerCatalog.IsChargeEffect(fx)) castable.Add(fx);
+            return castable;
         }
 
         /// <summary>
@@ -979,15 +1035,7 @@ namespace CardCore
                 foreach (var eff in card.Effects)
                 {
                     if (eff == null) continue;
-                    slots += 1;
-                    if (eff.Steps != null)
-                    {
-                        foreach (var step in eff.Steps)
-                        {
-                            if (step?.choices != null && step.choices.Count > 1)
-                                slots += step.choices.Count - 1;
-                        }
-                    }
+                    slots += 1; // 每效果 1 槽（含充能效果——P12：充能照常计槽；Choice 分支计槽已随 kind==2 退役删除）
                     if (!EffectCostFilled(eff)) continue;
                     if (IsActivatedEffectData(eff)) slots += 1; // P5：主动效果代价行（每效果 +1）
                     else legacyCostRow = true;                   // 非主动 legacy 兜底（单卡合计 1）

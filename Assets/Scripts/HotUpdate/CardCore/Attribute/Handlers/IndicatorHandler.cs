@@ -2,6 +2,9 @@ using CardCore.Attribute;
 
 namespace CardCore.Attribute.Handlers
 {
+    // 2026-10-31 指示物定案（用户）：指示物效果每次发动恒加一层——数量参数（Value）退役，
+    // 叠加为默认行为、不再在效果文本中描述（原子表_指示物文案已全量去 {value}层/【可叠加】）。
+    // 例外：弹药原子 AddHeroAttack（表行仍带 {value}）层数照读 Value。
     /// <summary>
     /// 护甲原子（生效自减类）：为目标添加 {value} 层护甲指示物（KeywordRules.ArmorCounter，Entity 级——
     /// 角色可持有）。伤害结算时先逐点吸收护甲（每层 1 点，吸收即消耗），再走坚韧指示物减免、最后扣生命。
@@ -13,8 +16,8 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            int amount = context.GetValueAfterModifiers(effect.Value);
-            if (amount <= 0) amount = 1; // 未声明层数=统一 1 层（2026-10-08 定案，与计价 max(1,|value|) 同口径）
+            // 2026-10-31 指示物定案：每次发动恒加一层（数量参数退役——叠加靠重复发动/多行）
+            int amount = 1;
 
             foreach (var target in context.Targets)
             {
@@ -31,7 +34,7 @@ namespace CardCore.Attribute.Handlers
         }
 
         protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => $"添加{(effect.Value > 0 ? effect.Value : 1)}层护甲指示物";
+            => "添加一层护甲指示物";
     }
 
     /// <summary>
@@ -48,8 +51,8 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            int stacks = context.GetValueAfterModifiers(effect.Value);
-            if (stacks <= 0) stacks = 1;
+            // 2026-10-31 指示物定案：每次发动恒加一层（数量参数退役——叠加靠重复发动/多行）
+            int stacks = 1;
 
             foreach (var target in context.Targets)
             {
@@ -66,7 +69,7 @@ namespace CardCore.Attribute.Handlers
         }
 
         protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => $"附加{effect.Value}层坚韧指示物（每次受到的伤害减{effect.Value}，生效后层数减半，可叠加）";
+            => "附加一层坚韧指示物（每次受到的伤害每层减1，生效后层数减半）";
     }
 
     /// <summary>
@@ -83,8 +86,8 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            int stacks = context.GetValueAfterModifiers(effect.Value);
-            if (stacks <= 0) stacks = 1;
+            // 2026-10-31 指示物定案：每次发动恒加一层（数量参数退役——叠加靠重复发动/多行）
+            int stacks = 1;
 
             foreach (var target in context.Targets)
             {
@@ -101,7 +104,7 @@ namespace CardCore.Attribute.Handlers
         }
 
         protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => $"附加{effect.Value}层圣盾指示物（每层抵挡一次任意伤害后消耗）";
+            => "附加一层圣盾指示物（抵挡一次任意伤害后消耗）";
     }
 
     /// <summary>
@@ -117,8 +120,8 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            int stacks = context.GetValueAfterModifiers(effect.Value);
-            if (stacks <= 0) stacks = 1;
+            // 2026-10-31 指示物定案：每次发动恒加一层（数量参数退役——叠加靠重复发动/多行）
+            int stacks = 1;
 
             foreach (var target in context.Targets)
             {
@@ -135,7 +138,7 @@ namespace CardCore.Attribute.Handlers
         }
 
         protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => $"附加{effect.Value}层复生指示物（每层死亡时以1生命留场复活一次）";
+            => "附加一层复生指示物（死亡时以1生命留场复活一次）";
     }
 
     /// <summary>
@@ -151,8 +154,8 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            int stacks = context.GetValueAfterModifiers(effect.Value);
-            if (stacks <= 0) stacks = 1;
+            // 2026-10-31 指示物定案：每次发动恒加一层（数量参数退役——叠加靠重复发动/多行）
+            int stacks = 1;
 
             foreach (var target in context.Targets)
             {
@@ -169,7 +172,7 @@ namespace CardCore.Attribute.Handlers
         }
 
         protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => $"附加{effect.Value}层潜行指示物（不可被攻击和效果指定；攻击、发动效果或受到伤害后消耗1层）";
+            => "附加一层潜行指示物（不可被攻击和效果指定；攻击、发动效果或受到伤害后消耗1层）";
     }
 
     /// <summary>
@@ -185,8 +188,8 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            int stacks = context.GetValueAfterModifiers(effect.Value);
-            if (stacks <= 0) stacks = 1;
+            // 2026-10-31 指示物定案：每次发动恒加一层（数量参数退役——叠加靠重复发动/多行）
+            int stacks = 1;
 
             foreach (var target in context.Targets)
             {
@@ -203,7 +206,7 @@ namespace CardCore.Attribute.Handlers
         }
 
         protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => $"附加{effect.Value}层法术护盾指示物（成为对手效果目标时抵消该效果并消耗1层）";
+            => "附加一层法术护盾指示物（成为对手效果目标时抵消该效果并消耗1层）";
     }
 
     /// <summary>
@@ -217,8 +220,8 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            int stacks = context.GetValueAfterModifiers(effect.Value);
-            if (stacks <= 0) stacks = 1;
+            // 2026-10-31 指示物定案：每次发动恒加一层（数量参数退役——叠加靠重复发动/多行）
+            int stacks = 1;
 
             foreach (var target in context.Targets)
             {
@@ -234,7 +237,7 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => "附加{value}层毒素指示物（每回合结束受到等于层数的伤害后减半，无持续时间）";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "附加一层毒素指示物（每回合结束受到等于层数的伤害，生效后层数减半）";
     }
 
     /// <summary>
@@ -249,8 +252,8 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            int stacks = context.GetValueAfterModifiers(effect.Value);
-            if (stacks <= 0) stacks = 1;
+            // 2026-10-31 指示物定案：每次发动恒加一层（数量参数退役——叠加靠重复发动/多行）
+            int stacks = 1;
 
             foreach (var target in context.Targets)
             {
@@ -267,7 +270,7 @@ namespace CardCore.Attribute.Handlers
         }
 
         protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => $"附加{effect.Value}层报复指示物（受到伤害时对伤害来源造成等于层数的伤害，生效后层数减半）";
+            => "附加一层报复指示物（受到伤害时对伤害来源造成等于层数的伤害，生效后层数减半）";
     }
 
     /// <summary>
@@ -282,9 +285,8 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            // Value≤0 = 1 回合（缺省档，窥渊仪典按 1 回合赋予）
-            int turns = context.GetValueAfterModifiers(effect.Value);
-            if (turns <= 0) turns = 1;
+            // 2026-10-31 指示物定案：每次发动恒加一层（=1 回合锁定，叠加=延长）
+            int turns = 1;
 
             foreach (var target in context.Targets)
             {
@@ -300,7 +302,7 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => "附加{value}层锁定指示物（无法进入发动区和地牌区，持有者回合结束−1层）";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "附加一层锁定指示物（无法进入发动区和地牌区，持有者回合结束−1层）";
     }
 
     /// <summary>
@@ -317,11 +319,8 @@ namespace CardCore.Attribute.Handlers
             foreach (var target in context.Targets)
             {
                 if (target == null || !target.IsAlive) continue;
-                // 层数=持续回合数：Value>0 时掷值（每目标独立，掷到 ≤0 = 空过），缺省 1 层
-                int layers = effect.Value > 0
-                    ? context.GetValueAfterModifiers(effect.GetRolledValue())
-                    : 1;
-                if (layers <= 0) continue;
+                // 2026-10-31 指示物定案：每次发动恒加一层（层=持续回合数，叠加=延长）
+                int layers = 1;
                 target.AddCounters(KeywordRules.RushSicknessCounter, layers, context.Source);
                 PublishEvent(new CounterChangedEvent
                 {
@@ -333,7 +332,7 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => "附加{value}回合紊乱指示物（期间不能以玩家为目标，持有者回合末倒数）";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "附加一层紊乱指示物（期间不能以玩家为目标，持有者回合结束时倒数）";
     }
 
     /// <summary>
@@ -347,8 +346,8 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            int stacks = context.GetValueAfterModifiers(effect.Value);
-            if (stacks <= 0) stacks = 1;
+            // 2026-10-31 指示物定案：每次发动恒加一层（数量参数退役——叠加靠重复发动/多行）
+            int stacks = 1;
 
             foreach (var target in context.Targets)
             {
@@ -364,7 +363,7 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => "附加{value}层易损指示物（每次受到伤害每层+1，生效后层数减半）";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "附加一层易损指示物（每次受到伤害每层+1，生效后层数减半）";
     }
 
     /// <summary>
@@ -378,8 +377,8 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            int stacks = context.GetValueAfterModifiers(effect.Value);
-            if (stacks <= 0) stacks = 1;
+            // 2026-10-31 指示物定案：每次发动恒加一层（数量参数退役——叠加靠重复发动/多行）
+            int stacks = 1;
 
             foreach (var target in context.Targets)
             {
@@ -394,7 +393,7 @@ namespace CardCore.Attribute.Handlers
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddPowerUp;
         protected override string CounterId => CounterRules.PowerUpCounter;
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => $"添加{effect.Value}个攻击力增加指示物";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "添加一层攻击力增加指示物";
     }
 
     /// <summary>
@@ -411,6 +410,7 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
+            // 弹药原子不在指示物一族（表行仍带 {value}）：层数照读 Value
             int stacks = context.GetValueAfterModifiers(effect.Value);
             if (stacks <= 0) stacks = 1;
 
@@ -445,8 +445,8 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            int stacks = context.GetValueAfterModifiers(effect.Value);
-            if (stacks <= 0) stacks = 1;
+            // 2026-10-31 指示物定案：每次发动恒加一层（数量参数退役——叠加靠重复发动/多行）
+            int stacks = 1;
 
             foreach (var target in context.Targets)
             {
@@ -463,7 +463,7 @@ namespace CardCore.Attribute.Handlers
         }
 
         protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => $"附加{effect.Value}层反疗指示物（下一次受到的治疗改写为等量伤害并消耗一层）";
+            => "附加一层反疗指示物（下一次受到的治疗改写为等量伤害并消耗一层）";
     }
 
     /// <summary>
@@ -479,8 +479,8 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            int stacks = context.GetValueAfterModifiers(effect.Value);
-            if (stacks <= 0) stacks = 1;
+            // 2026-10-31 指示物定案：每次发动恒加一层（数量参数退役——叠加靠重复发动/多行）
+            int stacks = 1;
 
             foreach (var target in context.Targets)
             {
@@ -497,7 +497,7 @@ namespace CardCore.Attribute.Handlers
         }
 
         protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => $"附加{effect.Value}层重放指示物（效果发动结算后自动消耗一层再次发动，重放不触发重放）";
+            => "附加一层重放指示物（效果发动结算后自动消耗一层再次发动，重放不触发重放）";
     }
 
     /// <summary>
@@ -515,8 +515,8 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            int stacks = context.GetValueAfterModifiers(effect.Value);
-            if (stacks <= 0) stacks = 1;
+            // 2026-10-31 指示物定案：每次发动恒加一层（数量参数退役——叠加靠重复发动/多行）
+            int stacks = 1;
 
             foreach (var target in context.Targets)
             {
@@ -533,7 +533,7 @@ namespace CardCore.Attribute.Handlers
         }
 
         protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => $"附加{effect.Value}层临时指示物（持有者回合结束时不在战场则从游戏中移除）";
+            => "附加一层遗忘指示物（持有者回合结束时不在战场则从游戏中移除）";
     }
 
     /// <summary>
@@ -567,7 +567,7 @@ namespace CardCore.Attribute.Handlers
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddPowerDown;
         protected override string CounterId => CounterRules.PowerDownCounter;
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => $"添加{effect.Value}个攻击力减少指示物";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "添加一层攻击力减少指示物";
     }
 
     /// <summary>生命值增加指示物（每层 +1 上限与当前）</summary>
@@ -575,7 +575,7 @@ namespace CardCore.Attribute.Handlers
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddLifeUp;
         protected override string CounterId => CounterRules.LifeUpCounter;
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => $"添加{effect.Value}个生命值增加指示物";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "添加一层生命值增加指示物";
     }
 
     /// <summary>生命值减少指示物（每层 −1 上限，归零标死交 SBA）</summary>
@@ -583,7 +583,7 @@ namespace CardCore.Attribute.Handlers
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddLifeDown;
         protected override string CounterId => CounterRules.LifeDownCounter;
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => $"添加{effect.Value}个生命值减少指示物";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "添加一层生命值减少指示物";
     }
 
     /// <summary>属性增加指示物（每层 +1/+1，换区清除型）</summary>
@@ -591,7 +591,7 @@ namespace CardCore.Attribute.Handlers
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddPlusOne;
         protected override string CounterId => CounterRules.PlusOneCounter;
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => $"添加{effect.Value}个属性增加指示物（+1/+1）";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "添加一层属性增加指示物（+1/+1）";
     }
 
     /// <summary>属性减少指示物（-1/-1）</summary>
@@ -599,7 +599,7 @@ namespace CardCore.Attribute.Handlers
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddMinusOne;
         protected override string CounterId => CounterRules.MinusOneCounter;
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => $"添加{effect.Value}个属性减少指示物（-1/-1）";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "添加一层属性减少指示物（-1/-1）";
     }
 
     /// <summary>虚弱：对{target}施加 {value} 个属性减少（= -1/-1 层 ×{value}）</summary>
@@ -607,7 +607,7 @@ namespace CardCore.Attribute.Handlers
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.Weaken;
         protected override string CounterId => CounterRules.MinusOneCounter;
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => $"施加{effect.Value}个属性减少（-1/-1）";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "施加一层属性减少（-1/-1）";
     }
 
     /// <summary>鼓舞：对{target}施加 {value} 个属性增加（= +1/+1 层 ×{value}）</summary>
@@ -615,7 +615,7 @@ namespace CardCore.Attribute.Handlers
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.Inspire;
         protected override string CounterId => CounterRules.PlusOneCounter;
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => $"施加{effect.Value}个属性增加（+1/+1）";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "施加一层属性增加（+1/+1）";
     }
 
     /// <summary>费用增加指示物（每层 +1 费，仅手牌生效，离手消失）</summary>
@@ -623,7 +623,7 @@ namespace CardCore.Attribute.Handlers
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddCostUp;
         protected override string CounterId => CounterRules.CostUpCounter;
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => $"添加{effect.Value}个费用增加指示物";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "添加一层费用增加指示物";
     }
 
     /// <summary>费用减少指示物（每层 −1 费，仅手牌生效，离手消失）</summary>
@@ -631,7 +631,7 @@ namespace CardCore.Attribute.Handlers
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddCostDown;
         protected override string CounterId => CounterRules.CostDownCounter;
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => $"添加{effect.Value}个费用减少指示物";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "添加一层费用减少指示物";
     }
 
     /// <summary>
@@ -650,8 +650,7 @@ namespace CardCore.Attribute.Handlers
             foreach (var target in context.Targets)
             {
                 if (target == null || !target.IsAlive) continue;
-                int amount = context.GetValueAfterModifiers(effect.Value);
-                if (amount <= 0) amount = 1;
+                int amount = 1; // 2026-10-31 指示物定案：每次发动恒加一层
                 target.AddCounters(CounterRules.NullifyCounter, amount, context.Source);
                 PublishEvent(new CounterChangedEvent
                 {
@@ -692,14 +691,8 @@ namespace CardCore.Attribute.Handlers
             {
                 if (target == null || !target.IsAlive) continue;
 
-                // 2026-09-13 数值随机：层数掷值（每目标独立）；缺省（名义无层数）兜底 1 层
-                int amount = context.GetValueAfterModifiers(effect.GetRolledValue());
-                if (amount <= 0)
-                {
-                    // 显式掷值到 ≤0 = 空过（不横置不挂层）；缺省（名义无层数）兜底 1 层
-                    if (effect.Value > 0 && effect.RandomAmplitude > 0f) continue;
-                    amount = 1;
-                }
+                // 2026-10-31 指示物定案：每次发动恒加一层（掷值档随之退役）
+                int amount = 1;
 
                 // 沉睡=横置进沉睡（横置即上限：不能攻击/守卫；重置被指示物拦）。
                 // 不走 ShouldTap（警戒 2026-09-10 已重定义为「横置也能反击」，无横置抵扣）。
@@ -717,6 +710,6 @@ namespace CardCore.Attribute.Handlers
         }
 
         protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => effect.Value > 0 ? $"赋予{effect.Value}层沉睡（无法重置、效果无效）" : "赋予沉睡（缺省 1 层——无法重置、效果无效）";
+            => "赋予一层沉睡（横置无法重置，自动效果无效）";
     }
 }

@@ -451,8 +451,8 @@ namespace SynergyUI
                     v.Model.transform.localRotation = Quaternion.Euler(0f, v.ModelYaw, 0f);
             }
 
-            // 可行动高光（2026-10-13 卡背退役定案·晚改扩散波·2026-10-17 分色）：未横置未死亡=脚下地块
-            // 扩散波，己方淡蓝 / 对手红；横置/死亡即熄
+            // 可行动高光（2026-10-13 卡背退役定案·晚改扩散波·2026-10-17 分色·2026-10-31 还原——
+            // 10-30 描边环版退役）：未横置未死亡=脚下地块扩散波，己方淡蓝 / 对手红；横置/死亡即熄
             if (!card.IsTapped && !card.IsDead)
                 BattleTileFx.SetUnitGlow(card.X, card.Z, owner == 1);
 
@@ -630,10 +630,11 @@ namespace SynergyUI
         // ---- 格面读数三槽（2026-10-26 头顶数值迁格定案）：槽位=旧格前三键位 ----
         //（BattleHex.prefab 三键子件 2026-10-23 退役时实测局部值：Attack 左(-0.6,0.02,-0.45) /
         //  Defense 右(0.6,0.02,-0.45) / Activate 中(0.003,0.02,-0.657)——生物攻/血占两侧、
-        //  结界耐久占中间；中槽对生物暂无第三读数，位子留着（用户口径：三个用完·暂时没啥可显））
-        private static readonly Vector3 AtkSlotLocal = new Vector3(-0.6f, 0.02f, -0.45f);
-        private static readonly Vector3 LifeSlotLocal = new Vector3(0.6f, 0.02f, -0.45f);
-        private static readonly Vector3 MidSlotLocal = new Vector3(0.003f, 0.02f, -0.657f);
+        //  结界耐久占中间；中槽对生物暂无第三读数，位子留着（用户口径：三个用完·暂时没啥可显）。
+        //  2026-10-30 地块 mesh×1.2 联动：三槽局部值同步 ×1.2，与格面相对位置不变）
+        private static readonly Vector3 AtkSlotLocal = new Vector3(-0.72f, 0.02f, -0.54f);
+        private static readonly Vector3 LifeSlotLocal = new Vector3(0.72f, 0.02f, -0.54f);
+        private static readonly Vector3 MidSlotLocal = new Vector3(0.0036f, 0.02f, -0.7884f);
 
         /// <summary>按单位类型建槽（结界=中槽耐久；生物=左攻右血；tile 缺失/字体缺失=空挂，对账照写 null 安全）。</summary>
         private void CreateStatSlotLabels(BattleCardView card, UnitVisual v)
@@ -973,11 +974,12 @@ namespace SynergyUI
             {
                 int element = (int)BoardLayout.LandCellElementOrder[i];
                 var cell = cells[i];
-                // 元素标识常驻（空格也亮身份）。对手（owner=1）=图标 +z 0.35 靠格上缘、数字 -z 0.42
+                // 元素标识常驻（空格也亮身份）。对手（owner=1）=图标 +z 0.42 靠格上缘、数字 -z 0.504
                 // 靠下缘；己方（owner=0）2026-10-21 调换定案：底部手牌收缩态压住格下缘——
-                // 数字上移 +z 0.35、图标下沉 -z 0.42（被手牌遮的只剩图标，读数不再被挡）
+                // 数字上移 +z 0.42、图标下沉 -z 0.504（被手牌遮的只剩图标，读数不再被挡）。
+                // 2026-10-30 地块 mesh×1.2 联动：图标/数字 z 偏移同步 ×1.2（原 ±0.35/0.42）。
                 bool selfSide = owner == 0;
-                float iconZ = selfSide ? -0.42f : 0.35f;
+                float iconZ = selfSide ? -0.504f : 0.42f;
                 BattleTileFx.AddElement(cell.x, cell.z, element, new Vector2(0f, iconZ));
                 int wallet = pv != null && element >= 0 && element < pv.WalletByColor.Length
                     ? pv.WalletByColor[element] : 0;
@@ -985,7 +987,7 @@ namespace SynergyUI
                 int remaining = (g != null ? g.Untapped : 0) + wallet;
                 if (remaining > 0) BattleTileFx.SetLandGlow(cell.x, cell.z, element);
                 var label = EnsureFlatCellLabel(((long)cell.x << 32) | (uint)cell.z, cell.x, cell.z,
-                    selfSide ? 0.35f : -0.42f);
+                    selfSide ? 0.42f : -0.504f);
                 if (label != null)
                 {
                     label.gameObject.SetActive(true);
@@ -994,17 +996,17 @@ namespace SynergyUI
                 }
             }
 
-            // 万能元素格（P11 迁位 (0,0)/(6,6)·Any 角色只做展示）：图标常驻+余额数字+
+            // 万能元素格（2026-10-29 对座镜像迁位 (1,0)/(6,6)·Any 角色只做展示）：图标常驻+余额数字+
             // 余额>0 描边环（「可用即钱包」口径：Any 不由地牌产出，永不叠地牌卡）；
             // 无点击行为（旧「点击开额外区面板」已随 P11 额外区格整删退役）
             var anyCell = BoardLayout.AnyElementCell(owner);
-            float anyIconZ = owner == 0 ? -0.42f : 0.35f;
+            float anyIconZ = owner == 0 ? -0.504f : 0.42f; // 2026-10-30 地块×1.2 联动（原 ±0.42/0.35）
             BattleTileFx.AddElement(anyCell.x, anyCell.z, (int)ManaType.Any, new Vector2(0f, anyIconZ));
             int anyWallet = pv != null && (int)ManaType.Any < pv.WalletByColor.Length
                 ? pv.WalletByColor[(int)ManaType.Any] : 0;
             if (anyWallet > 0) BattleTileFx.SetLandGlow(anyCell.x, anyCell.z, (int)ManaType.Any);
             var anyLabel = EnsureFlatCellLabel(((long)anyCell.x << 32) | (uint)anyCell.z, anyCell.x, anyCell.z,
-                owner == 0 ? 0.35f : -0.42f);
+                owner == 0 ? 0.42f : -0.504f);
             if (anyLabel != null)
             {
                 anyLabel.gameObject.SetActive(true);
@@ -1202,11 +1204,12 @@ namespace SynergyUI
         /// ——正解=LookRotation(down, forward)=Euler(90,0,0)，相机 (7,8,-4)/(50,0,0) 自 -z 俯拍实测
         /// （旧 LookRotation(up,…) 三项全反：字镜像且读向右到左，中文整句一眼翻反、1/1 回文数漏检）。
         /// 贴格顶面 y=0.014（顶面 y=0、菲涅尔 0.004、图标 0.008 之上），zOffset=格心 z 向偏移
-        ///（默认 -0.42=视角前缘靠下缘；己方 2026-10-21 调换=+0.35 与图标换位——缓存复用路径
-        /// 同步校位，防实例跨局残留旧 z）。key=格(x&lt;&lt;32|z)。
+        ///（默认 -0.504=视角前缘靠下缘；己方 2026-10-21 调换=+0.42 与图标换位——缓存复用路径
+        /// 同步校位，防实例跨局残留旧 z。2026-10-30 地块 mesh×1.2 联动：z 偏移整体 ×1.2，原 ±0.35/0.42）。
+        /// key=格(x&lt;&lt;32|z)。
         /// 2026-10-17 改挂 tile 子物体（原挂 _root）：教学介绍段独占显隐按 tile SetActive 收格，
         /// 文字不再悬空留在盘面上（与元素图标/HudRow 认领件同口径）。</summary>
-        private TextMeshPro EnsureFlatCellLabel(long key, int x, int z, float zOffset = -0.42f)
+        private TextMeshPro EnsureFlatCellLabel(long key, int x, int z, float zOffset = -0.504f)
         {
             if (!EnsureTmpFont()) return null;
             if (_landCounts.TryGetValue(key, out var label) && label != null)

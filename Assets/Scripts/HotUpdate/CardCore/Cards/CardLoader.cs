@@ -120,7 +120,7 @@ namespace CardCore
 
         /// <summary>
         /// 加载关键词定义 —— 关键词本身即原子效果（GrantXxx，作用默认指向自身），不单独开表：
-        /// 直接从原子效果表（AtomicEffectTable ← AttributeValueConfig.json）的 Grant* 条目合成。
+        /// 直接从原子效果表（AtomicEffectTable ← 原子表五分文件）的 Grant* 条目合成。
         /// 中文名/描述/颜色取自表内字段；id 取 GrantKeywordHandlerFactory 登记的运行时关键词 id
         /// （与写入 IHasKeywords 的字符串同源，如 GrantReborn → Reborn）。
         /// 未登记 Specs 的 Grant 行**跳过**（2026-10-08 坚韧指示物化：GrantToughness 行已非关键词——
@@ -204,13 +204,11 @@ namespace CardCore
             return result;
         }
 
-        /// <summary>法术形态校验（2026-10-15 深夜三类卡改版：法术=1~3 个主动效果，
-        /// 施放时弹窗抉择其一执行——旧「恰好 1 个非主动」口径整体翻转）：
-        /// ① 效果数 1..3（0=白板法术无意义；>3 超抉择上限）；
+        /// <summary>法术形态校验（2026-10-15 深夜三类卡改版；2026-10-31 P12 修订）：
+        /// ① 非充能主动效果 1..3（0=白板法术无意义；>3 超抉择上限）、充能最多 1 个、总效果数 ≤4；
         /// ② 全部为主动（Activate_Active/Activate_Instant——响应式 Activate_Response 不算，
-        ///    法术施放走整卡 cast 通道没有响应发动口）；
-        /// ③ 效果内禁嵌抉择分支（step.choices）：modeIndex 通道已复用为「效果抉择」
-        ///    （声明期选定、随 CardPlayEvent 公开），内嵌分支会与其撞车。
+        ///    法术施放走整卡 cast 通道没有响应发动口；充能也算主动）。
+        /// 内嵌抉择分支检查已删（2026-10-31 P12：kind==2 整链退役——法术模式=非充能主动效果数）。
         /// 可见不炸——坏卡点名。</summary>
         private static void ValidateSpellShape(List<CardData> cards)
         {
@@ -218,39 +216,47 @@ namespace CardCore
             {
                 if (card?.Supertype != Cardtype.Spell || card.Effects == null) continue;
                 int count = card.Effects.Count;
-                if (count < 1 || count > 3)
-                    TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：法术须挂 1~3 个主动效果" +
-                                  $"（现 {count} 个——施放时弹窗三选一）——构筑期拦截");
+                if (count < 1 || count > 4)
+                    TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：法术须挂 1~4 个主动效果" +
+                                  $"（现 {count} 个——非充能 1~3 + 充能最多 1）——构筑期拦截");
+                int chargeCount = 0, activeCount = 0;
                 foreach (var e in card.Effects)
                 {
+                    if (ComposerCatalog.IsChargeEffect(e)) { chargeCount++; continue; }
                     int t = e?.TriggerTiming ?? -1;
                     if (t != (int)TriggerTiming.Activate_Active && t != (int)TriggerTiming.Activate_Instant)
                         TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：法术效果 {e.Id} 须为主动" +
                                       "（主阶段/瞬间——法术只挂主动效果，自动/触发/响应档不收）——构筑期拦截");
-                    if (e?.Steps != null)
-                        foreach (var s in e.Steps)
-                            if (s?.choices != null && s.choices.Count > 1)
-                                TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：法术效果 {e.Id} 内嵌抉择分支" +
-                                              "（modeIndex 通道已复用为施放时的效果抉择，二层级撞车）——构筑期拦截");
+                    else activeCount++;
                 }
+                if (chargeCount > 1)
+                    TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：法术充能效果最多 1 个（现 {chargeCount}）——构筑期拦截");
+                if (activeCount < 1 || activeCount > 3)
+                    TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：法术非充能主动效果须 1~3 个" +
+                                  $"（现 {activeCount}——施放时择一发动）——构筑期拦截");
             }
         }
 
-        /// <summary>结界形态校验（2026-10-15 深夜三类卡改版：结界只挂自动/光环——禁一切主动）：
-        /// 耐久语义保留（受击−1/被动触发−1），主动发动−1 通道整体退役。</summary>
+        /// <summary>结界形态校验（2026-10-15 深夜三类卡改版；2026-10-31 P12 修订）：
+        /// 只挂自动/光环 + **充能主动最多 1 个**（充能=手牌发动的主动效果，与场上耐久经济无关
+        /// ——原「结界禁一切主动」对充能放开）；其余主动仍拒。耐久语义保留（受击−1/被动触发−1）。</summary>
         private static void ValidateEnchantShape(List<CardData> cards)
         {
             foreach (var card in cards)
             {
                 if (card?.Supertype != Cardtype.Enchantment || card.Effects == null) continue;
+                int chargeCount = 0;
                 foreach (var e in card.Effects)
                 {
+                    if (ComposerCatalog.IsChargeEffect(e)) { chargeCount++; continue; }
                     int t = e?.TriggerTiming ?? -1;
                     if (t == (int)TriggerTiming.Activate_Active || t == (int)TriggerTiming.Activate_Instant
                         || t == (int)TriggerTiming.Activate_Response)
                         TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：结界效果 {e.Id} 为主动" +
-                                      "（结界只挂自动/光环，主动效果已退役）——构筑期拦截");
+                                      "（结界只挂自动/光环/充能，其余主动效果已退役）——构筑期拦截");
                 }
+                if (chargeCount > 1)
+                    TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：结界充能效果最多 1 个（现 {chargeCount}）——构筑期拦截");
             }
         }
 
@@ -323,8 +329,8 @@ namespace CardCore
                     && card.ArrowDirections == HexDirection.None)
                     TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：声明了连接光环但未配箭头（arrows 为空）——构筑期拦截（生物/结界同规）");
 
-                // 光环关键词条目须可挂（2026-10-07 晚终版：关键词默认可−位 8 黑名单拉黑）：
-                // 名单在表（现值：守护/再生/禁魔石）——与光环 live-query 持续语义冲突
+                // 光环关键词条目须可挂（2026-10-07 晚终版：关键词默认可−位 7 黑名单拉黑）：
+                // 名单在表（现值：守护/再生/无实体/绝缘体）——与光环 live-query 持续语义冲突
                 //（守护=配对制弹选；法术护盾 2026-10-09 指示物化退出关键词族，目录不收）
                 if (card.LinkAuras != null)
                 {
@@ -333,7 +339,7 @@ namespace CardCore
                         if (aura == null || string.IsNullOrEmpty(aura.keyword)) continue;
                         if (!ComposerCatalog.IsAuraMountableKeyword(aura.keyword))
                             TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：光环关键词「{aura.keyword}」"
-                                         + "不可作光环（原子表 Grant 行标「不可作为连接光环」位 8 黑名单——"
+                                         + "不可作光环（原子表 Grant 行标「不可作为连接光环」位 7 黑名单——"
                                          + "与光环 live-query 持续语义冲突）——构筑期拦截");
                     }
                 }
@@ -553,7 +559,7 @@ namespace CardCore
                                 var row = Attribute.AtomicEffectTable.GetByHashId(r.refId);
                                 if (!ComposerCatalog.CanBeRewardRow(row))
                                     TideLog.Warn($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id} 原子 {atom.refId}({where})："
-                                                   + $"Then 奖励原子 {r.refId} 无派生奖励资格（规则光环/仅连接光环/引擎行不可作奖励）");
+                                                   + $"Then 奖励原子 {r.refId} 无派生奖励资格（场地光环/仅连接光环/引擎行不可作奖励）");
                             }
                         }
                         if ((BranchSettleKind)b.settle == BranchSettleKind.Engine)
@@ -769,7 +775,7 @@ namespace CardCore
             cardData.AggregateEffectAuras(false);
 
             // 战斗底盘（2026-09-10 攻/守效果化）+ 卡型默认分配（2026-10-15）：
-            // 法术速度=5−槽数动态算（2026-10-29 P6c；KindSpeedBonusOf 单源）——speedBonus 字段退役只读不消费；
+            // 法术速度=3−槽数动态算（2026-10-31 P12 回归；KindSpeedBonusOf 单源）——speedBonus 字段退役只读不消费；
             // surplusToDurability 已退役按未知字段忽略。
             cardData.NoAttack = entry.noAttack;
             cardData.NoGuard = entry.noGuard;

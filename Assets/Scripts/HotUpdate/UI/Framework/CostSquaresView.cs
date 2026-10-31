@@ -12,9 +12,9 @@ namespace SynergyUI
     /// 费用色块视图（2026-10-24 改版：不再按数量展开小方格——每色生成一个色块，
     /// 块上 TMP 文本显示数量；模板 tpl-square=色块 Image+数量文本，公用预制体手改已备，
     /// 旧烘焙模板无文本时自愈补建）。仅横向排布（竖向/田字 Fill 随按数量方格一并退役）：
-    /// 非零色按 DisplayRank 定案序（红蓝绿灰万能）单行均布，块尺寸默认=模板尺寸、
-    /// 拥挤时等比收缩到 cell（数量文本字号同比例缩放，块再小数字仍嵌在块内）；
-    /// SetCosts / 根尺寸变化时自动重排。
+    /// 非零色按 DisplayRank 定案序（红蓝绿灰万能）单行均布，块尺寸=cell 内切方最大填充
+    ///（2026-10-30 定案：等比放大到可用空间，模板尺寸退为比例/字号基准，拥挤时收缩），
+    /// 数量文本字号同比例缩放；SetCosts / 根尺寸变化时自动重排。
     /// 底色=UiStyle.ManaBlock* 五组配色单源（四色+任意；与战场3D 地牌锁色环同源共用），
     /// 数字色=DigitColor 配对（深调压饱和底+柔和近白数字，对比度全组 ≥4.5:1——不刺眼且能看清）。
     /// 根上有 LayoutGroup 时跳过重排（排布仍归引用者烘焙，2026-10-03 旧契约保留）。
@@ -31,7 +31,7 @@ namespace SynergyUI
         private TMP_Text _templateText; // 模板数量文本（实例字号缩放基准；模板无文本时自愈补建）
         private readonly List<RectTransform> _squares = new List<RectTransform>(); // 本视图生成的色块（Destroy 帧末生效，定位不看 childCount）
         private readonly List<int> _squareMana = new List<int>();  // 与 _squares 平行的块色（ManaType 序号）
-        private readonly List<int> _squareValue = new List<int>(); // 与 _squares 平行的块上数量
+        private readonly List<float> _squareValue = new List<float>(); // 与 _squares 平行的块上数量（真实小数）
 
         /// <summary>色块生成序（2026-10-29 P4 五类定案：红→蓝→绿→灰→万能；此前任意与灰同档）。
         /// 未知色与万能同档排末尾。</summary>
@@ -88,13 +88,14 @@ namespace SynergyUI
         }
 
         /// <summary>费用主口径（2026-10-04 位置数组：ElementCost，下标=ManaType 枚举序号）。
-        /// 全零/空则清空。色块生成序=DisplayRank 定案序（红蓝绿灰万能），非枚举序。</summary>
+        /// 全零/空则清空。色块生成序=DisplayRank 定案序（红蓝绿灰万能），非枚举序。
+        /// 数量=真实小数直通（2026-10-30 定案——块上文本 0.## 直显，支付终点才进1）。</summary>
         public void SetCosts(ElementCost costs)
         {
             if (costs == null || costs.IsZero) { Clear(); return; }
             SetCosts(costs.NonzeroColors()
-                .Select(c => new ElementCostRef { mana = (int)c, value = (int)costs[c] })
-                .Where(r => r.value > 0));
+                .Select(c => new ElementCostRef { mana = (int)c, value = costs[c] })
+                .Where(r => r.value > 0f));
         }
 
         /// <summary>瘦引用口径（ElementCostRef 列表）。空则清空。
@@ -105,10 +106,10 @@ namespace SynergyUI
         {
             EnsureTemplate();
 
-            var merged = new Dictionary<int, int>(); // 每色一块：同色多条目合并数量
+            var merged = new Dictionary<int, float>(); // 每色一块：同色多条目合并数量（真实小数）
             if (costs != null)
                 foreach (var c in costs)
-                    if (c != null && c.value > 0)
+                    if (c != null && c.value > 0f)
                         merged[c.mana] = merged.TryGetValue(c.mana, out var prev) ? prev + c.value : c.value;
             var list = merged
                 .Select(kv => (mana: kv.Key, value: kv.Value))
@@ -116,12 +117,12 @@ namespace SynergyUI
                 .ToList();
 
             // 差量短路（2026-10-18 性能）：卡面事件级刷新极常见值未变——同「色序+数量」直退，
-            // 免整组销毁重建（Instantiate/Destroy+布局脏）与重排
+            // 免整组销毁重建（Instantiate/Destroy+布局脏）与重排（小数带容差比——推导值浮点尾噪不触发重建）
             if (list.Count == _squares.Count)
             {
                 bool same = true;
                 for (int i = 0; i < list.Count; i++)
-                    if (list[i].mana != _squareMana[i] || list[i].value != _squareValue[i]) { same = false; break; }
+                    if (list[i].mana != _squareMana[i] || Mathf.Abs(list[i].value - _squareValue[i]) > 1e-4f) { same = false; break; }
                 if (same) return;
             }
 
@@ -129,7 +130,7 @@ namespace SynergyUI
             int overlap = Mathf.Min(list.Count, _squares.Count);
             for (int i = 0; i < overlap; i++)
             {
-                if (list[i].mana == _squareMana[i] && list[i].value == _squareValue[i]) continue;
+                if (list[i].mana == _squareMana[i] && Mathf.Abs(list[i].value - _squareValue[i]) <= 1e-4f) continue;
                 _squareMana[i] = list[i].mana;
                 _squareValue[i] = list[i].value;
                 ApplySquare(_squares[i], list[i].mana, list[i].value);
@@ -158,8 +159,9 @@ namespace SynergyUI
         public void Clear() => SetCosts((IEnumerable<ElementCostRef>)null);
 
         /// <summary>色块落值：Image 染块底色 + 数量文本写数（单行不折行、不吃射线）；
-        /// 底色/数字色=六组配色定案（BlockColor/DigitColor，覆盖模板文本默认色）。</summary>
-        private void ApplySquare(RectTransform sq, int mana, int value)
+        /// 底色/数字色=六组配色定案（BlockColor/DigitColor，覆盖模板文本默认色）。
+        /// 数量=真实小数（2026-10-30）：0.## 直显（2 →「2」、0.5 →「0.5」、2.4 →「2.4」）。</summary>
+        private void ApplySquare(RectTransform sq, int mana, float value)
         {
             var img = sq.GetComponent<Image>();
             if (img != null)
@@ -169,7 +171,7 @@ namespace SynergyUI
             }
             var t = sq.GetComponentInChildren<TMP_Text>(true);
             if (t == null) return;
-            t.text = value.ToString();
+            t.text = value.ToString("0.##");
             t.textWrappingMode = TextWrappingModes.NoWrap; // 数量恒单行（多位数不让模板折行设置折成两行）
             t.raycastTarget = false;
             t.color = DigitColor((ManaType)mana);
@@ -185,8 +187,8 @@ namespace SynergyUI
         public void RefreshLayout() => Relayout();
 
         /// <summary>自读根 rect 宽高，把已生成色块单行均布（2026-10-24 改版：仅横向）：
-        /// cell=宽/块数×高，色块锚 cell 中心、尺寸默认=模板尺寸、拥挤时等比缩到 cell
-        /// （数量文本字号按同一比例缩放）——色块再多也整体落在根 rect 内。
+        /// cell=宽/块数×高，色块锚 cell 中心、尺寸=cell 内切方最大填充（2026-10-30 定案：
+        /// 等比放大/收缩，保持正方形；数量文本字号按同一比例缩放）——色块整体落在根 rect 内。
         /// 根上有 LayoutGroup / 宽高未就绪 / 无色块时跳过。</summary>
         private void Relayout()
         {
@@ -203,10 +205,11 @@ namespace SynergyUI
             if (n == 0) return;
 
             float cellW = rect.width / n, cellH = rect.height;
-            var tplSize = _template.sizeDelta; // 烘焙模板=作者定的色块默认尺寸（拥挤时的上限）
+            var tplSize = _template.sizeDelta; // 模板尺寸=比例/字号基准（不再是块尺寸上限）
             bool tplValid = tplSize.x > 0f && tplSize.y > 0f;
-            // 等比钳制：默认=模板尺寸；色块过多时按 cell 收缩（保持正方形不变形），永远不超根范围
-            float k = tplValid ? Mathf.Min(1f, cellW / tplSize.x, cellH / tplSize.y) : 0f;
+            // 最大填充（2026-10-30 用户定案）：色块等比放大到 cell 内切方（行有富余不再留白），
+            // 拥挤时照旧按 cell 收缩——保持正方形不变形，永远不超根范围
+            float k = tplValid ? Mathf.Min(cellW / tplSize.x, cellH / tplSize.y) : 0f;
             var sqSize = tplValid
                 ? new Vector2(tplSize.x * k, tplSize.y * k)
                 : new Vector2(Mathf.Min(cellW, cellH), Mathf.Min(cellW, cellH)); // 模板尺寸非法兜底=cell 内切方

@@ -317,7 +317,7 @@ namespace SynergyUI
                     .Select(fx => CostDerivationService.DeriveElementCosts(fx)?.Total ?? 0f)
                     .Where(t => t >= 0f).ToList();
                 if (anchors.Count == 0) v.Skill.CostText = "0";
-                else if (anchors.Count == 1) v.Skill.CostText = CostTextOf(ElementCost.FromValue(ManaType.Gray, (int)System.Math.Round(anchors[0])));
+                else if (anchors.Count == 1) v.Skill.CostText = CostTextOf(ElementCost.FromValue(ManaType.Gray, anchors[0])); // 真实小数直显（2026-10-30）
                 else v.Skill.CostText = $"{anchors.Min():0.#}~{anchors.Max():0.#}";
             }
         }

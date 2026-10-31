@@ -382,9 +382,33 @@ namespace CardCore.Attribute.Handlers
         protected override string DescribeTemplate(AtomicEffectInstance effect) => "从墓地回收到手牌";
     }
 
+    /// <summary>除外回收（2026-10-29 阶段3a，蓝3——表行 e301f1af）：将所选目标卡从除外区返回
+    /// 其持有者手牌（域=己方除外区；目标不在除外区则跳过该目标——防域外交错引用）。</summary>
+    public class RecoverFromExileHandler : AtomicEffectHandlerBase
+    {
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.RecoverFromExile;
+
+        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            foreach (var target in context.Targets)
+            {
+                if (!(target is Card card) || card.GetZone() != Zone.Exile) continue;
+                var owner = card.GetOwner() ?? card.GetController();
+                if (context.ZoneManager == null || owner == null) continue;
+                context.ZoneManager.MoveCard(card, owner, Zone.Exile, Zone.Hand);
+                PublishEvent(new CardReturnToHandEvent { Card = card, Source = context.Source });
+            }
+        }
+
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "将目标卡从除外区返回手牌";
+    }
+
     /// <summary>
     /// 占卜（2026-09-11 排列实现；2026-10-08 并入刺探为单行）：查看牌库顶 {value} 张并任意排列——
     /// 域锁对方(8)看对手牌库，其余（7/双域默认）看自己（排列者恒为发动方）。
+    /// 占卜加成（2026-10-29 阶段3c）：ScryBonusAura 生效且发动方一侧在范围内 → 实际查看数+1
+    ///（按控制者判——谁发动占卜谁吃加成，与百闻牌「己方占卜效果+1」同口径；只叠加读取数，
+    /// 不改 effect 本体）。
     /// 主路径 ExecuteAsync：排列交互逐张单选（先选的在最顶），整段写回新顶序；
     /// AI/无头/超时自动取剩余首张 = 维持原序（训练确定性）。
     /// 同步 Execute 仅查看播报（旧同步/触发路径兼容，不弹排列）。
@@ -393,10 +417,14 @@ namespace CardCore.Attribute.Handlers
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.LookAtTopCards;
 
+        /// <summary>占卜加成外补数（光环实时查询——不落 effect/value，计价与描述不受影响）。</summary>
+        private static int ScryBonus(EffectExecutionContext context)
+            => RuleAuraSystem.ScopeHits(RuleAuraComponents.ScryBonusAura, context.Controller) ? 1 : 0;
+
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
             var owner = DeckArrangeHelper.ResolveDeckOwner(effect, context);
-            var top = DeckArrangeHelper.PeekTop(effect, context, owner);
+            var top = DeckArrangeHelper.PeekTop(effect, context, owner, ScryBonus(context));
             if (top.Count > 0)
                 PublishEvent(new ScryEvent { Player = owner, Cards = top, Source = context.Source });
         }
@@ -404,7 +432,7 @@ namespace CardCore.Attribute.Handlers
         public override async UniTask ExecuteAsync(AtomicEffectInstance effect, EffectExecutionContext context)
         {
             var owner = DeckArrangeHelper.ResolveDeckOwner(effect, context);
-            var top = DeckArrangeHelper.PeekTop(effect, context, owner);
+            var top = DeckArrangeHelper.PeekTop(effect, context, owner, ScryBonus(context));
             if (top.Count == 0) return;
 
             var final = top;
@@ -424,8 +452,8 @@ namespace CardCore.Attribute.Handlers
         protected override string DescribeTemplate(AtomicEffectInstance effect) => $"占卜：查看牌库顶 {effect.Value} 张并任意排列（域锁对方则看对手）";
     }
 
-    // 展示手牌原子已删除（2026-09-03 原子表整体修正）——
-    // 手牌可见性收敛为宣言确认手牌的单张验证（ProphecyHandlers.DeclareHandHandler，按张发 RevealHandEvent）。
+    // 展示手牌原子已删除（2026-09-03 原子表整体修正）——手牌可见性口径：对手手牌内容
+    // 只经强夺（DeclareHand 夺取，2026-10-30）/筛选展示（RevealByDimension）间接可见。
 
     // ---------------- 状态变更 ----------------
 

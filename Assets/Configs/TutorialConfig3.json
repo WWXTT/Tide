@@ -4,7 +4,7 @@
       "id": "lunzhuan",
       "name": "资源流转·末日降临",
       "rngSeed": 20261018,
-      "_说明": "第三课·末日降临 Boss 挑战（2026-10-18 真实对局流程定案；2026-10-19 三课制挪入第三课位，课序挪位不改 id——旧档存档兼容）：走对局准备界面教学三变体（PreMatchScreen.Teaching3：硬币定先后+10 秒倒计时从正式卡组文件夹选卡组，AI 卡组=镜像玩家所选）。AI 第一回合幻卡清算（ScriptedAi phantom 动作）：烧空己方镜像卡组→末日降临正主 C_791FE42E（30/30·再生=其准备阶段回满·攻宣+1/+1）入场+紊乱 RushSickness×12→纳川仪典 C_57A3ADD6 入场直挂 HandLimitNoFatigue（免疲劳——镜像卡组烧空后 AI 空牌库抽牌不自伤，覆盖双方）。heroLockCard=boss 存活期间玩家不可攻击对方角色（先解决拦路巨兽）。解法=一回合总伤≥30 打空（磨血被再生抹掉）→解锁打脸（AI 生命 30）。紊乱×12=AI 回合 1-12 安全窗口（每它回合末−1），turn13 起 boss 打脸（30 攻≈判负时钟）。引导=intro 语音卡（lunzhuan_01..05 文字占位待配音，mp3 后补即播——语音文件名沿用 lunzhuan 前缀）+宽松 element 放地复习步+ victory 自由挑战。教学卡零注入。胜负语义：胜=MarkTutorialCompleted 过课=三课全胜教学整体完成；负=只记 LunzhuanAttempted（组合界面三按钮解锁判据）重挑直到胜（败局弹窗 Back 回 PreMatchScreen 重选卡组）。lockDeckOrder+rngSeed=同卡组重挑战同局、换卡组=新局。",
+      "_说明": "第三课·末日降临 Boss 挑战（2026-10-18 真实对局流程定案；2026-10-19 三课制挪入第三课位，课序挪位不改 id——旧档存档兼容）：走对局准备界面教学三变体（PreMatchScreen.Teaching3：硬币定先后+10 秒倒计时从正式卡组文件夹选卡组，AI 卡组=镜像玩家所选）。AI 第一回合幻卡清算（ScriptedAi phantom 动作）：烧空己方镜像卡组→末日降临正主 C_791FE42E（30/30·再生=其准备阶段回满·攻宣+1/+1）入场+紊乱 RushSickness×12→纳川仪典改涌泉仪典 C_57A3ADD6 入场直挂 FatigueImmunity（免疲劳——镜像卡组烧空后 AI 空牌库抽牌不自伤，覆盖双方；2026-10-30 纳川改版剥离疲劳免疫后教学载体随切）。heroLockCard=boss 存活期间玩家不可攻击对方角色（先解决拦路巨兽）。解法=一回合总伤≥30 打空（磨血被再生抹掉）→解锁打脸（AI 生命 30）。紊乱×12=AI 回合 1-12 安全窗口（每它回合末−1），turn13 起 boss 打脸（30 攻≈判负时钟）。引导=intro 语音卡（lunzhuan_01..05 文字占位待配音，mp3 后补即播——语音文件名沿用 lunzhuan 前缀）+宽松 element 放地复习步+ victory 自由挑战。教学卡零注入。胜负语义：胜=MarkTutorialCompleted 过课=三课全胜教学整体完成；负=只记 LunzhuanAttempted（组合界面三按钮解锁判据）重挑直到胜（败局弹窗 Back 回 PreMatchScreen 重选卡组）。lockDeckOrder+rngSeed=同卡组重挑战同局、换卡组=新局。",
       "heroLockCard": "C_791FE42E",
       "guide": [
         {
@@ -55,7 +55,7 @@
               "type": "phantom",
               "card": "C_791FE42E",
               "target": "C_57A3ADD6",
-              "targets": "HandLimitNoFatigue",
+              "targets": "FatigueImmunity",
               "mode": 12
             }
           ]

@@ -149,7 +149,7 @@ namespace SynergyUI
         }
 
         /// <summary>场上卡悬停信息（2026-10-15 定案，ACard 预览随 prefab 节点删除退役）：只展示四段——
-        /// 主动效果（带发动费用）/自动效果（带本回合生效次数）/关键词（带完整解说）/状态（指示物完整解说
+        /// 主动效果（带发动费用）/自动效果（2026-10-30 起不再带次数读数）/关键词（带完整解说）/状态（指示物完整解说
         /// +受到的连接光环清单），空段整段省略。数据口径与手牌卡面（CardOverlayItem.FromHand）同链：
         /// 主动=TriggerTiming∈{Activate_Active, Activate_Instant}，其余（含响应式）归自动；
         /// 解说=KeywordEffectMapper/CounterText；光环=LinkAuraSystem.GetApplicableAuras 反查。</summary>
@@ -164,9 +164,6 @@ namespace SynergyUI
             // 场地段（2026-10-29 P8）：场地卡（结界+场地标记）专属——落位固定+顶替语义提示
             if (data != null && data.IsField)
                 sections.Add("【场地】\n场地·每方一张——落位固定己方场地格；再打场地=顶替（旧场地入墓）");
-
-            var executor = card.CoreCard != null && GameCore.Instance != null
-                ? GameCore.Instance.StackEngine.GetExecutor() : null;
 
             List<string> actives = null, autos = null;
             if (data?.Effects != null)
@@ -185,8 +182,7 @@ namespace SynergyUI
                     }
                     else
                     {
-                        (autos ??= new List<string>())
-                            .Add(text + CardOverlayItem.UsageSuffix(fx, executor, card.CoreCard, "本回合 "));
+                        (autos ??= new List<string>()).Add(text);
                     }
                 }
             }
@@ -213,15 +209,14 @@ namespace SynergyUI
             //（2026-10-15 补：live-query 反查来源，与加成计算同判定链；光环关键词不物化不入 _keywords，
             // 故与上方关键词段不重复；同源同增益叠加计 ×N——箭头叠加计数语义）
             var statusLines = new List<string>();
-            // 守护/舍身配对（2026-10-16 定案）：发动结成后在状态段书写当前绑定对象——
-            // 守护=FindWard 正查（配对在即展示，被守护者死亡不清链）；舍身=FindVictim 活性口
-            //（目标死亡期间伤害不改写，状态同样不报，复活即复显）。
+            // 守护配对（2026-10-16 定案）：发动结成后在状态段书写当前绑定对象——
+            // 守护=FindWard 正查（配对在即展示，被守护者死亡不清链）。
+            //（舍身配对行已删——2026-10-30 战斗法师改版：无状态关键词，散射无固定绑定对象，
+            //  关键词段 GetNameZh/GetDescription 已覆盖解说。）
             if (card.CoreCard != null)
             {
                 var ward = GuardianRules.FindWard(card.CoreCard);
                 if (ward != null) statusLines.Add("当前在守护：" + HoverEntityName(ward));
-                var victim = MartyrdomRules.FindVictim(card.CoreCard);
-                if (victim != null) statusLines.Add("当前在舍身：" + HoverEntityName(victim));
             }
             if (card.Runtime?.Counters != null)
             {

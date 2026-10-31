@@ -106,7 +106,7 @@ namespace SynergyUI
     ///           宣动后开响应窗等人类玩家连锁/让过，不立即排干栈）；
     /// phantom——幻卡清算（2026-10-18 教学二·AI 第一回合签名动作）：烧空己方全部区域（镜像卡组），
     ///           凭空召唤 card（末日降临，mode=紊乱 RushSickness 层数）+ target 仪典载体入场并直挂
-    ///           targets 规则光环（如 HandLimitNoFatigue）。实现见 ScriptedAi.ExecutePhantom。
+    ///           targets 规则光环（如 FatigueImmunity）。实现见 ScriptedAi.ExecutePhantom。
     /// wallet——钱包灌入（2026-10-20 段六充盈钱包制）：给 side（"player"/"ai"，缺省 ai）的临时钱包
     ///           加 mode 个 target 色（颜色名缺省 Gray）元素——走 AddMana 官方口（事件可观测、
     ///           生成钳同口径）。用途：钱包任一回合结束清空，场景播种的 bank 跨不过回合边界——

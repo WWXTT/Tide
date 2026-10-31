@@ -20,7 +20,8 @@ namespace CardCore.Attribute.Handlers
     /// <summary>送墓（原名"磨牌"；牌库顶 N 张 → 坟墓场）。牌库归属按目标域解析（2026-09-14 代价原子化）：
     /// 域锁对方（{8}）磨对手牌库（干扰向），其余（含默认双域 {7,8}）磨自己牌库——
     /// 磨**自己**=「送墓」资源代价语义（代价栏 Payload 锁 {7}，付费步执行+错边补偿黑），
-    /// 批量发 MillDeckCostEvent（MatchStats/归土进度照常）；磨对手只发逐张 CardMillEvent。</summary>
+    /// 批量发 MillDeckCostEvent（MatchStats 照常——归土改墓地复活后墓量仍是对局量）；
+    /// 磨对手只发逐张 CardMillEvent。</summary>
     public class MillCardHandler : AtomicEffectHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.MillCard;
@@ -52,9 +53,8 @@ namespace CardCore.Attribute.Handlers
         protected override string DescribeTemplate(AtomicEffectInstance effect) => $"送墓：牌库顶 {effect.Value} 张入墓地";
     }
 
-    // ScryCardsHandler 已删（2026-10-08 无墓碑清理）：占卜/刺探合并后唯一活跃路径=
-    // LookAtTopCardsHandler（对手侧=实例域锁 {8}），本 handler 无表行无调用者——
-    // 枚举槽位保序保留（见 AtomicEffects.cs）。
+    // ScryCardsHandler 已删（2026-10-08）：占卜/刺探合并后唯一活跃路径=
+    // LookAtTopCardsHandler（对手侧=实例域锁 {8}）——枚举位亦已随 2026-10-30 枚举收拢删除。
 
     /// <summary>改写持有者（2026-09-13 定案升级，黑2 锚 ×3.0）：永久换手 + owner 改写——
     /// 经 HandlerHelpers.ChangeControl(permanent:true) 迁场换控并改写 owner；
@@ -90,8 +90,6 @@ namespace CardCore.Attribute.Handlers
             foreach (var target in context.Targets)
             {
                 if (!(target is Player holder)) continue; // 作用对象=角色
-                // 禁祭令（2026-10-29 1b）：受光环影响的一方不能牺牲单位
-                if (RuleAuraSystem.ScopeHits(RuleAuraComponents.NoSacrificeAura, holder)) continue;
                 var board = BoardUnits(holder, context);
                 if (board.Count == 0) continue; // 空场空转
                 SendToGrave(board[0], context);
@@ -103,8 +101,6 @@ namespace CardCore.Attribute.Handlers
             foreach (var target in context.Targets)
             {
                 if (!(target is Player holder)) continue; // 作用对象=角色
-                // 禁祭令（2026-10-29 1b）：受光环影响的一方不能牺牲单位
-                if (RuleAuraSystem.ScopeHits(RuleAuraComponents.NoSacrificeAura, holder)) continue;
                 var board = BoardUnits(holder, context);
                 if (board.Count == 0) continue; // 空场空转
 
@@ -187,8 +183,30 @@ namespace CardCore.Attribute.Handlers
         protected override string DescribeTemplate(AtomicEffectInstance effect) => "消灭目标生物（效果死亡；不灭可拦、复生可替代）";
     }
 
-    /// <summary>【墓碑 2026-10-13】湮灭处理器已删——表行已删、处理器不可达；
-    /// DeathCause.Annihilate 枚举与 DeathRules 内湮灭臂保留防位序重编号（复活=重写表行+本处理器）。</summary>
+    /// <summary>全体消灭（2026-10-29 阶段3a，红12·无目标行）：消灭对方全体生物——逐个效果死亡
+    ///（DestroyEffect 死因，与消灭同口径：不灭拦/复生可替代由 TryKill 决策表承担）。
+    /// 无域原子（表行 TargetKinds 空）——handler 自结算：遍历对手战场存活的生物（Cardtype.Creature），
+    /// 单次执行、无目标解析。</summary>
+    public class DevourAllEnemiesHandler : AtomicEffectHandlerBase
+    {
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.DevourAllEnemies;
+
+        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            var opp = context.Controller?.Opponent;
+            if (opp == null || context.ZoneManager == null) return;
+
+            foreach (var card in context.ZoneManager.GetCards(opp, Zone.Battlefield))
+            {
+                if (card == null || !card.IsAlive) continue;
+                if (!(card is IHasSupertype ht) || ht.Supertype != Cardtype.Creature) continue;
+                DeathRules.TryKill(card, DeathCause.DestroyEffect, context.Source, context.ZoneManager);
+            }
+        }
+    }
+
+    // 湮灭处理器 2026-10-13 删除（表行已删、处理器不可达）；DeathCause.Annihilate 保留
+    //（引擎层死因仍活——复活=重写表行+本处理器）；同名原子枚举位已随 2026-10-30 枚举收拢删除。
 
     /// <summary>
     /// 摧毁（黑5）：与"消灭"的区别——作用于**无生命值单位**（地牌/结界）。
@@ -515,7 +533,152 @@ namespace CardCore.Attribute.Handlers
             $"发现：从牌库随机展示 {Math.Max(1, effect.Value)} 张，选一张加入手牌";
     }
 
+    // ---------------- 参照族（2026-10-31：以己方单位为参照读攻/血——参照目标是弹选的表域目标，
+    // 产出作用面由 handler 自定：迸发打随机对手、活体护甲给己方角色） ----------------
+
+    /// <summary>
+    /// 迸发（2026-10-31，红3 表行 6a17079d）：以{target}（己方单位）为参照——对**随机**对手单位
+    ///（对方存活生物+对方角色，GameRng 单次抽取——随机绕过潜行，战斗法师散射同口径）
+    /// 造成等同参照单位当前攻击力的**效果伤害**（GetPower 活读含光环成分；非战斗伤害——
+    /// TakeDamage 关键词管线照常：护甲/坚韧/圣盾吸收、易损放大）。受害者域空或攻击力≤0=空转。
+    /// 伤害产出族：LastOutcome.RecordDamage 记账——「消灭目标时」产出条件可挂。
+    /// </summary>
+    public class BurstDamageHandler : AtomicEffectHandlerBase
+    {
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.BurstDamage;
+
+        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            var reference = context.PrimaryTarget;
+            if (reference == null || !reference.IsAlive) return;
+
+            int dmg = Math.Max(0, reference.GetPower());
+            if (dmg <= 0) return;
+
+            var foe = context.Controller?.Opponent;
+            var pool = new List<Entity>();
+            if (foe != null)
+            {
+                if (context.ZoneManager != null)
+                    foreach (var c in context.ZoneManager.GetCards(foe, Zone.Battlefield))
+                        if (c != null && c.IsAlive && !c.IsNonLivingUnit()) pool.Add(c); // 域=对方单位（有生命）
+                if (foe.IsAlive) pool.Add(foe); // 角色=有生命单位（世界观定案）
+            }
+            if (pool.Count == 0) return;
+
+            var victim = pool[GameRng.Next(0, pool.Count)];
+            int lifeBefore = victim.GetLife();
+            victim.TakeDamage(dmg, context.Source);
+            int actual = Math.Max(0, lifeBefore - victim.GetLife());
+            context.LastOutcome.RecordDamage(victim, lifeBefore, actual);
+            PublishEvent(new AtomicDamageEvent
+            {
+                Source = context.Source,
+                Target = victim,
+                Damage = dmg,
+                IsCombatDamage = false,
+                EffectTint = effect.AnchorTint()
+            });
+        }
+
+        protected override string DescribeTemplate(AtomicEffectInstance effect)
+            => "以己方单位为参照，对随机对手单位造成等同其攻击力的伤害";
+    }
+
+    /// <summary>
+    /// 活体护甲（2026-10-31，绿3 表行 508a4975）：以{target}（己方单位）为参照——**己方角色**
+    ///（=效果控制者）获得等同参照单位当前生命的护甲（ArmorCounter 层数，GetLife 活读含光环成分
+    ///——每层吸收 1 点伤害、生效自减；Entity 级角色可持有，后手护甲补偿同款指示物）。
+    /// 参照生命≤0=空转。参照目标选的是单位本体，护甲落点恒为角色（表域承担"以己方单位为目标"）。
+    /// </summary>
+    public class LivingArmorHandler : AtomicEffectHandlerBase
+    {
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.LivingArmor;
+
+        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            var reference = context.PrimaryTarget;
+            var hero = context.Controller;
+            if (reference == null || hero == null) return;
+
+            int stacks = Math.Max(0, reference.GetLife());
+            if (stacks <= 0) return;
+
+            hero.AddCounters(KeywordRules.ArmorCounter, stacks, context.Source);
+            PublishEvent(new CounterChangedEvent
+            {
+                Target = hero,
+                CounterType = KeywordRules.ArmorCounter,
+                Amount = stacks,
+                Source = context.Source,
+            });
+        }
+
+        protected override string DescribeTemplate(AtomicEffectInstance effect)
+            => "以己方单位为参照，己方角色获得等同其生命的护甲";
+    }
+
     /// <summary>第三批 handler 工厂</summary>
+    /// <summary>
+    /// 移动（2026-10-31 场面轴3c，灰2 表行 c69e2b96·位置族）：将{target}移动到空格。
+    /// 表域=己方单位（结算期反问选目标——敌方单位不可选由表域承担）；落格合法性/执行=
+    /// GameBoard.MoveUnitRules 单源（己方单位区空格·非原地·PinCard+Resync——邻接（碾压）/
+    /// 箭头连接光环/攻击距离按新格即时派生）。选格经 CellSelectionService 反问桥由 UI 弹格
+    /// （与召唤生物选格同交互）。AI/无头/联机（无桥或 Chooser.IsAI）：安全空转+Warn——
+    /// 发动代价照旧由 ActivateEffect 结算（横置/耐久/费用），移动本身不收额外资源；
+    /// LegalActionEnumerator 本阶段不枚举本原子（防 AI 白付代价）。
+    /// </summary>
+    public class MoveUnitHandler : AtomicEffectHandlerBase
+    {
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.MoveUnit;
+
+        /// <summary>同步路径（引擎非交互结算/兜底）：无选格交互——安全空转。</summary>
+        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            TideLog.Warn("[MoveUnit] 无选格交互（AI/无头/联机）——移动空转");
+        }
+
+        public override async UniTask ExecuteAsync(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            var chooser = context.Controller;
+            foreach (var target in context.Targets)
+            {
+                if (!(target is Card unit) || !unit.IsAlive) continue;
+                // 非己方单位拒绝（表域外兜底——直构上下文/AI 代选错侧时在此拦）
+                var owner = unit.GetController() ?? unit.GetOwner();
+                if (owner == null || !ReferenceEquals(owner, chooser)) continue;
+
+                var cells = GameBoard.MoveUnitRules.LegalDestinations(unit);
+                if (cells.Count == 0)
+                {
+                    TideLog.Warn($"[MoveUnit] {unit.ID} 无合法空格（单位区满/全占）——空转");
+                    continue;
+                }
+
+                var ask = CellSelectionService.Current;
+                if (ask == null || chooser == null || chooser.IsAI)
+                {
+                    TideLog.Warn("[MoveUnit] 无选格交互（AI/无头/联机）——移动空转");
+                    continue;
+                }
+
+                int pick = await ask(unit, cells, $"移动 {EffectText.Name(unit)}：选择一个空格");
+                if (pick < 0 || pick >= cells.Count) continue; // 取消/放弃：不动盘面
+                if (!GameBoard.MoveUnitRules.TryMove(unit, cells[pick].x, cells[pick].z)) continue;
+
+                PublishEvent(new KeywordAppliedEvent
+                {
+                    Target = unit,
+                    Keyword = "移动",
+                    Detail = $"移动：{EffectText.Name(unit)} → 空格 ({cells[pick].x},{cells[pick].z})",
+                    Source = context.CastCard ?? context.Source,
+                });
+            }
+        }
+
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "将目标移动到己方单位区的空格";
+    }
+
     public static class ThirdBatchHandlerFactory
     {
         public static IAtomicEffectHandler[] CreateAll()
@@ -542,6 +705,13 @@ namespace CardCore.Attribute.Handlers
                 new NegateActivationHandler(),
                 new NegateEffectHandler(),
                 new SilenceHandler(),
+
+                // 移动（2026-10-31 场面轴3c）：将目标移动到空格（结算期选格反问）
+                new MoveUnitHandler(),
+
+                // 参照族（2026-10-31）：迸发=参照攻击力打随机对手；活体护甲=参照生命给己方角色
+                new BurstDamageHandler(),
+                new LivingArmorHandler(),
             };
         }
     }

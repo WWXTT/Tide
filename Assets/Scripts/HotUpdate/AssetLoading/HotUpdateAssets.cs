@@ -93,7 +93,7 @@ namespace Tide.HotUpdate
 #endif
 
         /// <summary>文本配置（Configs）加载：YooAsset TextAsset → 编辑器 File 直读。
-        /// editorJsonRelativePath 为 dataPath 相对路径（如 "Configs/AttributeValueConfig.json"）；
+        /// editorJsonRelativePath 为 dataPath 相对路径（如 "Configs/原子表_一般效果.json"）；
         /// 不走资产缓存，保持"直改 JSON 后 Reload 免重启"的直读语义。</summary>
         public static string LoadText(string address, string editorJsonRelativePath)
         {

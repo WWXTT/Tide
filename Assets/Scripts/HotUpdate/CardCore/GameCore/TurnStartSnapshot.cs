@@ -24,7 +24,7 @@ namespace CardCore
     /// - RNG 双流：GameRng.Restore / ZoneContainer.RestoreShuffle（同种子重播+按调用数快进）。
     /// - 区域与卡态：卡实例不重建（保注册表引用图）——ApplyToCard 回灌 + 区域容器按有序清单静默重排
     ///  （不发区域事件——Zones.cs 区域真源注释已为快照恢复预留静默重建例外）。
-    /// - 注册表/台账类（触发注册·层效果·持续时长·延迟效果·守护·舍身配对·预言待验证·规则光环·引擎载荷）：
+    /// - 注册表/台账类（触发注册·层效果·持续时长·延迟效果·守护·预言待验证·规则光环·引擎载荷）：
     ///   派生态不逐表快照——恢复=清空 + 按战场卡确定性重注册（注册口幂等），回合作用域台账随边界重建。
     /// </summary>
     public sealed class TurnStartSnapshot
@@ -43,6 +43,7 @@ namespace CardCore
         public int[] SkipWholeSeats = Array.Empty<int>();
         public int[] SkipStandbySeats = Array.Empty<int>();
         public int[] SkipMainSeats = Array.Empty<int>();
+        public int[] SkipEndSeats = Array.Empty<int>();   // 跳过结束阶段档（2026-10-29 阶段3a）
 
         // ---- 双方 ----
         public PlayerSnapshot P1;
@@ -89,6 +90,8 @@ namespace CardCore
                 public uint SourceRuntimeId;
                 public int LockedColor;
                 public bool IsTapped;
+                /// <summary>冻地层数（2026-10-29 阶段3a）：剩余回合数——池内包装态，与锁色/横置同源采集。</summary>
+                public int FreezeLayers;
             }
         }
 
@@ -117,6 +120,7 @@ namespace CardCore
                 snap.SkipWholeSeats = markers.whole;
                 snap.SkipStandbySeats = markers.standby;
                 snap.SkipMainSeats = markers.main;
+                snap.SkipEndSeats = markers.end;
             }
 
             snap.P1 = CapturePlayer(core, core.Player1, 0);
@@ -170,6 +174,7 @@ namespace CardCore
                     SourceRuntimeId = pc.SourceCard.RuntimeId,
                     LockedColor = (int)pc.LockedColor,
                     IsTapped = pc.IsTapped,
+                    FreezeLayers = pc.FreezeLayers,
                 });
             foreach (var kvp in pool.TempElements)
                 if (kvp.Value != 0) ps.Pool.TempElements[(int)kvp.Key] = kvp.Value;

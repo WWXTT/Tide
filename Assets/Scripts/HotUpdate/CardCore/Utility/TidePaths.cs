@@ -8,7 +8,7 @@ namespace CardCore
     /// streamingAssetsPath / persistentDataPath 直引。
     ///
     /// - Unity 侧由 TideUnityRuntime 装配真实路径（编辑器与玩家构建均覆盖）。
-    /// - 未装配时自定位：从程序集目录向上探测仓库布局（Assets/Configs/AttributeValueConfig.json）——
+    /// - 未装配时自定位：从程序集目录向上探测仓库布局（Assets/Configs 目录）——
     ///   编辑器（Library/ScriptAssemblies → 上溯项目根）与 TideServer（TideServer/bin → 上溯仓库根）同一布局。
     /// - PersistentDataPath 无装配时回落 StreamingAssets（服务器只读仓库数据，与 CardDataPaths
     ///   玩家分支指向种子数据一致）；玩家构建必须经装配才有真实持久目录。
@@ -63,8 +63,9 @@ namespace CardCore
             var dir = new DirectoryInfo(AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
             for (int i = 0; i < 8 && dir != null; i++, dir = dir.Parent)
             {
-                var probe = Path.Combine(dir.FullName, "Assets", "Configs", "AttributeValueConfig.json");
-                if (File.Exists(probe))
+                // 2026-10-30 起探目录不探具体表文件（原子表已拆五文件，避免文件名再耦合此处）
+                var probe = Path.Combine(dir.FullName, "Assets", "Configs");
+                if (Directory.Exists(probe))
                     return Path.Combine(dir.FullName, "Assets");
             }
             return Directory.GetCurrentDirectory(); // 兜底：宿主应显式 SetRoots

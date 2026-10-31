@@ -328,12 +328,14 @@ namespace SynergyUI
             _region.gameObject.SetActive(_previewRegionWasActive);
         }
 
-        /// <summary>预览卡面：BuildCard 去交互版——无选中框/无点击 Button（纯展示）。</summary>
+        /// <summary>预览卡面：BuildCard 去交互版——无选中框/无点击 Button（纯展示）。
+        /// 2026-10-30：候选卡按 AHandCard 战场尺寸渲染（ApplyBattleFaceScale 单源）。</summary>
         private void BuildPreviewCard(int idx, CardOverlayItem item)
         {
             var rt = UnityEngine.Object.Instantiate(_template, _content, false);
             rt.gameObject.SetActive(true);
             rt.name = "preview-" + idx;
+            HandFanView.ApplyBattleFaceScale(rt);
             var cost = rt.Find("cost");
             if (cost != null) cost.gameObject.SetActive(false);
             var btnLayer = rt.Find("btn");
@@ -343,12 +345,14 @@ namespace SynergyUI
             face.Apply(item, CardOverlayLayout.Full);
         }
 
-        /// <summary>实例化一张候选卡：去 cost 费用行/btn 层，ACardView 全卡面 + 根 Button 点击切换。</summary>
+        /// <summary>实例化一张候选卡：去 cost 费用行/btn 层，ACardView 全卡面 + 根 Button 点击切换。
+        /// 2026-10-30：按 AHandCard 战场尺寸渲染（ApplyBattleFaceScale 单源）。</summary>
         private void BuildCard(int idx, CardOverlayItem item, UniTaskCompletionSource<List<int>> tcs)
         {
             var rt = UnityEngine.Object.Instantiate(_template, _content, false);
             rt.gameObject.SetActive(true);
             rt.name = "pick-" + idx;
+            HandFanView.ApplyBattleFaceScale(rt);
             var cost = rt.Find("cost");
             if (cost != null) cost.gameObject.SetActive(false);
             var btnLayer = rt.Find("btn");

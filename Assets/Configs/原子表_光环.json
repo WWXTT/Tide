@@ -1,0 +1,512 @@
+[
+  {
+    "ID": "301a29ba",
+    "EnumName": "三相仪典",
+    "DisplayName": "己方回合中，自己每消耗3点同色纯元素，获得红/蓝/绿各1",
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": 1,
+    "MountKinds": "场地光环",
+    "Tags": null,
+    "ManaList": [
+      0,
+      0,
+      0,
+      6
+    ]
+  },
+  {
+    "ID": "74bd19a2",
+    "EnumName": "苦痛仪典",
+    "DisplayName": "己方回合中，角色受到的伤害改由对手角色承担",
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": 1,
+    "MountKinds": "场地光环",
+    "Tags": null,
+    "ManaList": [
+      6,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ID": "cf64a958",
+    "EnumName": "丰盈仪典",
+    "DisplayName": "回复生命的溢出转化为生命上限+1",
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": 1,
+    "MountKinds": "场地光环",
+    "Tags": null,
+    "ManaList": [
+      0,
+      0,
+      0,
+      3
+    ]
+  },
+  {
+    "ID": "c752bd98",
+    "EnumName": "离散仪典",
+    "DisplayName": "单次伤害超过5时改为5，低于5时改为3",
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": 0,
+    "MountKinds": "场地光环",
+    "Tags": null,
+    "ManaList": [
+      0,
+      0,
+      0,
+      3
+    ]
+  },
+  {
+    "ID": "901149d9",
+    "EnumName": "窥渊仪典",
+    "DisplayName": "回合结束时，随机展示对手一张手牌，并附加持续一回合的锁定指示物",
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": 1,
+    "MountKinds": "场地光环",
+    "Tags": null,
+    "ManaList": [
+      0,
+      0,
+      3,
+      0
+    ]
+  },
+  {
+    "ID": "7e8d4aa8",
+    "EnumName": "归土仪典",
+    "DisplayName": "回合结束时，从自己墓地复活一张费用不大于己方绿色地牌数量的生物",
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": 1,
+    "MountKinds": "场地光环",
+    "Tags": null,
+    "ManaList": [
+      0,
+      0,
+      0,
+      6
+    ]
+  },
+  {
+    "ID": "4f9918f2",
+    "EnumName": "疾风仪典",
+    "DisplayName": "场上的卡的主动效果，发动速度+1",
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": 1,
+    "MountKinds": "场地光环",
+    "Tags": null,
+    "ManaList": [
+      0,
+      0,
+      3,
+      0
+    ]
+  },
+  {
+    "ID": "0df10778",
+    "EnumName": "纳川仪典",
+    "DisplayName": "手牌上限增加自己蓝色地牌的数量",
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": 1,
+    "MountKinds": "场地光环",
+    "Tags": null,
+    "ManaList": [
+      0,
+      0,
+      2,
+      0
+    ]
+  },
+  {
+    "ID": "f3a7489e",
+    "EnumName": "毒蚀仪典",
+    "DisplayName": "受光环影响的生物受到伤害后叠加一层毒素指示物",
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": -1,
+    "MountKinds": "场地光环",
+    "Tags": null,
+    "ManaList": [
+      0,
+      0,
+      0,
+      3
+    ]
+  },
+  {
+    "ID": "cd0c8c25",
+    "EnumName": "霜蚀仪典",
+    "DisplayName": "受光环影响的生物攻击后附加一层冻结指示物",
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": -1,
+    "MountKinds": "场地光环",
+    "Tags": null,
+    "ManaList": [
+      0,
+      0,
+      3,
+      0
+    ]
+  },
+  {
+    "ID": "efc537ba",
+    "EnumName": "眠蚀仪典",
+    "DisplayName": "受光环影响的生物的发动效果时，附加一层沉睡指示物",
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": -1,
+    "MountKinds": "场地光环",
+    "Tags": null,
+    "ManaList": [
+      0,
+      0,
+      5,
+      0
+    ]
+  },
+  {
+    "ID": "79ef61f3",
+    "EnumName": "放血仪典",
+    "DisplayName": "受光环影响一方的单位与角色受到的治疗改写为等量伤害",
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": -1,
+    "MountKinds": "场地光环",
+    "Tags": null,
+    "ManaList": [
+      3,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ID": "107256b7",
+    "EnumName": "禁攻令",
+    "DisplayName": "受光环影响的单位与角色不能宣言攻击",
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": -1,
+    "MountKinds": "场地光环",
+    "Tags": null,
+    "ManaList": [
+      0,
+      0,
+      6,
+      0
+    ]
+  },
+  {
+    "ID": "b07c1ee5",
+    "EnumName": "禁守令",
+    "DisplayName": "受光环影响的单位与角色不能进行守卫拦截",
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": -1,
+    "MountKinds": "场地光环",
+    "Tags": null,
+    "ManaList": [
+      0,
+      0,
+      6,
+      0
+    ]
+  },
+  {
+    "ID": "684b9b0e",
+    "EnumName": "禁发令",
+    "DisplayName": "受光环影响的单位与角色不能发动主动效果",
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": -1,
+    "MountKinds": "场地光环",
+    "Tags": null,
+    "ManaList": [
+      0,
+      0,
+      6,
+      0
+    ]
+  },
+  {
+    "ID": "eb99b6c3",
+    "EnumName": "禁地令",
+    "DisplayName": "受光环影响的一方不能将手牌作为地牌放置",
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": -1,
+    "MountKinds": "场地光环",
+    "Tags": null,
+    "ManaList": [
+      6,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ID": "c7b29f6c",
+    "EnumName": "禁疗令",
+    "DisplayName": "受光环影响一方的角色与单位不能回复生命",
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": -1,
+    "MountKinds": "场地光环",
+    "Tags": null,
+    "ManaList": [
+      6,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ID": "b8c9e648",
+    "EnumName": "禁寻令",
+    "DisplayName": "受光环影响一方不能检索牌库",
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": -1,
+    "MountKinds": "场地光环",
+    "Tags": null,
+    "ManaList": [
+      0,
+      0,
+      3,
+      0
+    ]
+  },
+  {
+    "ID": "1c82a7e8",
+    "EnumName": "禁魔令",
+    "DisplayName": "受光环影响一方不能施放法术牌",
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": -1,
+    "MountKinds": "场地光环",
+    "Tags": null,
+    "ManaList": [
+      0,
+      0,
+      6,
+      0
+    ]
+  },
+  {
+    "ID": "4340e70e",
+    "EnumName": "禁召令",
+    "DisplayName": "受光环影响一方不能施放生物牌",
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": -1,
+    "MountKinds": "场地光环",
+    "Tags": null,
+    "ManaList": [
+      0,
+      0,
+      6,
+      0
+    ]
+  },
+  {
+    "ID": "37de45b9",
+    "EnumName": "禁抽令",
+    "DisplayName": "受光环影响一方每回合至多抽1张牌",
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": -1,
+    "MountKinds": "场地光环",
+    "Tags": null,
+    "ManaList": [
+      0,
+      0,
+      6,
+      0
+    ]
+  },
+  {
+    "ID": "a123a922",
+    "EnumName": "禁低费令",
+    "DisplayName": "受光环影响一方不能施放费用不超过3的卡",
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": -1,
+    "MountKinds": "场地光环",
+    "Tags": null,
+    "ManaList": [
+      0,
+      0,
+      6,
+      0
+    ]
+  },
+  {
+    "ID": "c8f63d17",
+    "EnumName": "禁高费令",
+    "DisplayName": "受光环影响一方不能施放费用超过对手地牌数的卡",
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": -1,
+    "MountKinds": "场地光环",
+    "Tags": null,
+    "ManaList": [
+      0,
+      0,
+      6,
+      0
+    ]
+  },
+  {
+    "ID": "1bb1ea6d",
+    "EnumName": "禁扰令",
+    "DisplayName": "受光环影响一方不能在对手回合施放卡牌",
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": -1,
+    "MountKinds": "场地光环",
+    "Tags": null,
+    "ManaList": [
+      0,
+      0,
+      3,
+      0
+    ]
+  },
+  {
+    "ID": "d436b741",
+    "EnumName": "禁指示物令",
+    "DisplayName": "除系统指示物外，受光环影响一方不能放置指示物",
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": -1,
+    "MountKinds": "场地光环",
+    "Tags": null,
+    "ManaList": [
+      3,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ID": "02b3c2e4",
+    "EnumName": "占卜加成",
+    "DisplayName": "受光环影响一方的占卜数量+1",
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": 1,
+    "MountKinds": "场地光环",
+    "Tags": null,
+    "ManaList": [
+      0,
+      0,
+      1,
+      0
+    ]
+  },
+  {
+    "ID": "e9394839",
+    "EnumName": "灵视",
+    "DisplayName": "对手使用已展示的手牌时，其角色受到2点伤害且你的角色回复2点生命",
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": -1,
+    "MountKinds": "场地光环",
+    "Tags": null,
+    "ManaList": [
+      0,
+      0,
+      4,
+      0
+    ]
+  },
+  {
+    "ID": "977f31ca",
+    "EnumName": "延迟死亡",
+    "DisplayName": "受光环影响的单位死亡时，改为在下个回合结束时死亡",
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": 1,
+    "MountKinds": "场地光环",
+    "Tags": null,
+    "ManaList": [
+      6,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ID": "5d1a7907",
+    "EnumName": "牌库顶当手牌",
+    "DisplayName": "受光环影响的一方可以将牌库顶的卡当作手牌使用",
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": 1,
+    "MountKinds": "场地光环",
+    "Tags": null,
+    "ManaList": [
+      0,
+      0,
+      6,
+      0
+    ]
+  },
+  {
+    "ID": "759e17c5",
+    "EnumName": "铭刻",
+    "DisplayName": "受光环影响一方的单位被添加指示物时，该指示物的层数+1",
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": 0,
+    "MountKinds": "场地光环",
+    "Tags": null,
+    "ManaList": [
+      0,
+      0,
+      0,
+      6
+    ]
+  }
+]

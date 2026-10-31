@@ -1,0 +1,286 @@
+[
+  {
+    "ID": "f7119394",
+    "EnumName": "吸血",
+    "DisplayName": "获得吸血：造成伤害时，为自身恢复等量生命",
+    "EffectType": "GrantLifesteal",
+    "TargetKinds": "自己",
+    "TargetFilter": "NoRole",
+    "Polarity": 1,
+    "MountKinds": "关键词",
+    "Tags": null,
+    "ManaList": [
+      0,
+      0,
+      0,
+      3
+    ]
+  },
+  {
+    "ID": "ed308353",
+    "EnumName": "隐密",
+    "DisplayName": "获得隐密：不会成为攻击和效果的目标",
+    "EffectType": "GrantConcealed",
+    "TargetKinds": "自己",
+    "TargetFilter": "NoRole",
+    "Polarity": 1,
+    "MountKinds": "关键词",
+    "Tags": null,
+    "ManaList": [
+      0,
+      0,
+      5,
+      0
+    ]
+  },
+  {
+    "ID": "91535cec",
+    "EnumName": "守护",
+    "DisplayName": "获得守护：登场时选择一个目标，其受到伤害时改写为自己受到等量伤害",
+    "EffectType": "GrantGuardian",
+    "TargetKinds": "自己",
+    "TargetFilter": null,
+    "Polarity": 1,
+    "MountKinds": "关键词,不可作为连接光环",
+    "Tags": null,
+    "ManaList": [
+      0,
+      0,
+      0,
+      2
+    ]
+  },
+  {
+    "ID": "f1bd9a67",
+    "EnumName": "碾压",
+    "DisplayName": "获得碾压：战斗伤害结算时，对目标以及目标相邻左右侧生物造成相同的战斗伤害",
+    "EffectType": "GrantOverwhelm",
+    "TargetKinds": "自己",
+    "TargetFilter": "NoRole",
+    "Polarity": 1,
+    "MountKinds": "关键词",
+    "Tags": null,
+    "ManaList": [
+      0,
+      3,
+      0,
+      0
+    ]
+  },
+  {
+    "ID": "4cf22304",
+    "EnumName": "警戒",
+    "DisplayName": "获得警戒：战斗结算时，横置状态也会触发战斗伤害",
+    "EffectType": "GrantVigilance",
+    "TargetKinds": "自己",
+    "TargetFilter": "NoRole",
+    "Polarity": 1,
+    "MountKinds": "关键词",
+    "Tags": null,
+    "ManaList": [
+      0,
+      0,
+      0,
+      2
+    ]
+  },
+  {
+    "ID": "073f18c7",
+    "EnumName": "先攻",
+    "DisplayName": "获得先攻：战斗结算时，先造成战斗伤害，如果目标死亡，则无法反击",
+    "EffectType": "GrantFirstStrike",
+    "TargetKinds": "自己",
+    "TargetFilter": "NoRole",
+    "Polarity": 1,
+    "MountKinds": "关键词",
+    "Tags": null,
+    "ManaList": [
+      0,
+      2,
+      0,
+      0
+    ]
+  },
+  {
+    "ID": "fe714786",
+    "EnumName": "不灭",
+    "DisplayName": "获得不灭：不受消灭效果影响",
+    "EffectType": "GrantIndestructible",
+    "TargetKinds": "自己",
+    "TargetFilter": "NoRole",
+    "Polarity": 1,
+    "MountKinds": "关键词",
+    "Tags": null,
+    "ManaList": [
+      0,
+      0,
+      0,
+      2
+    ]
+  },
+  {
+    "ID": "1e60cb92",
+    "EnumName": "系命",
+    "DisplayName": "获得系命：造成伤害时，为角色恢复等量生命",
+    "EffectType": "GrantLifelink",
+    "TargetKinds": "自己",
+    "TargetFilter": "NoRole",
+    "Polarity": 1,
+    "MountKinds": "关键词",
+    "Tags": null,
+    "ManaList": [
+      0,
+      0,
+      0,
+      3
+    ]
+  },
+  {
+    "ID": "ea1df378",
+    "EnumName": "再生",
+    "DisplayName": "获得再生：己方准备阶段恢复自身全部生命值",
+    "EffectType": "GrantRegeneration",
+    "TargetKinds": "自己",
+    "TargetFilter": "NoRole",
+    "Polarity": 1,
+    "MountKinds": "关键词,不可作为连接光环",
+    "Tags": null,
+    "ManaList": [
+      0,
+      0,
+      0,
+      3
+    ]
+  },
+  {
+    "ID": "c253788f",
+    "EnumName": "缴械",
+    "DisplayName": "获得缴械：攻击时被攻击单位无法反击",
+    "EffectType": "GrantDisarm",
+    "TargetKinds": "自己",
+    "TargetFilter": "NoRole",
+    "Polarity": 1,
+    "MountKinds": "关键词",
+    "Tags": null,
+    "ManaList": [
+      0,
+      2,
+      0,
+      0
+    ]
+  },
+  {
+    "ID": "407eb771",
+    "EnumName": "帷幕",
+    "DisplayName": "获得帷幕：敌方效果只能指定帷幕单位",
+    "EffectType": "GrantTaunt",
+    "TargetKinds": "自己",
+    "TargetFilter": "NoRole",
+    "Polarity": 1,
+    "MountKinds": "关键词",
+    "Tags": null,
+    "ManaList": [
+      0,
+      0,
+      0,
+      3
+    ]
+  },
+  {
+    "ID": "6a486d99",
+    "EnumName": "无实体",
+    "DisplayName": "获得无实体：每次受到的伤害变为1",
+    "EffectType": "GrantSpellban",
+    "TargetKinds": "自己",
+    "TargetFilter": "NoRole",
+    "Polarity": 1,
+    "MountKinds": "关键词,不可作为连接光环",
+    "Tags": null,
+    "ManaList": [
+      0,
+      0,
+      0,
+      6
+    ]
+  },
+  {
+    "ID": "8c988c18",
+    "EnumName": "连击",
+    "DisplayName": "获得连击：先额外造成一次战斗伤害，再进行正常的战斗结算",
+    "EffectType": "GrantDoubleStrike",
+    "TargetKinds": "自己",
+    "TargetFilter": "NoRole",
+    "Polarity": 1,
+    "MountKinds": "关键词",
+    "Tags": null,
+    "ManaList": [
+      0,
+      3,
+      0,
+      0
+    ]
+  },
+  {
+    "ID": "20c06d52",
+    "EnumName": "剧毒",
+    "DisplayName": "获得剧毒：受到其战斗伤害的生物被消灭",
+    "EffectType": "GrantVenom",
+    "TargetKinds": "自己",
+    "TargetFilter": "NoRole",
+    "Polarity": 1,
+    "MountKinds": "关键词",
+    "Tags": null,
+    "ManaList": [
+      0,
+      0,
+      0,
+      3
+    ]
+  },
+  {
+    "ID": "c3112c0b",
+    "EnumName": "战斗法师",
+    "DisplayName": "获得战斗法师：自己造成的战斗伤害改写为对随机目标造成1点伤害，此效果重复发动自身攻击力的次数",
+    "EffectType": "GrantBattleMage",
+    "TargetKinds": "自己",
+    "TargetFilter": null,
+    "Polarity": 0,
+    "MountKinds": "关键词,不可作为连接光环",
+    "Tags": null,
+    "ManaList": [
+      0,
+      3,
+      0,
+      0
+    ]
+  },
+  {
+    "ID": "3df00ac7",
+    "EnumName": "苏醒",
+    "DisplayName": "获得苏醒：可支付净费中的灰份额进行苏醒施放（免灰，入场横置并沉睡等量层数）",
+    "EffectType": "GrantAwaken",
+    "TargetKinds": "自己",
+    "TargetFilter": "NoRole",
+    "Polarity": 1,
+    "MountKinds": "关键词,不可作为连接光环",
+    "Tags": null,
+    "ManaList": [0, 0, 0, 0]
+  },
+  {
+    "ID": "764236ed",
+    "EnumName": "绝缘体",
+    "DisplayName": "获得绝缘体：不受指示物的效果影响",
+    "EffectType": "GrantInsulator",
+    "TargetKinds": "自己",
+    "TargetFilter": "NoRole",
+    "Polarity": 1,
+    "MountKinds": "关键词,不可作为连接光环",
+    "Tags": null,
+    "ManaList": [
+      0,
+      0,
+      0,
+      3
+    ]
+  }
+]

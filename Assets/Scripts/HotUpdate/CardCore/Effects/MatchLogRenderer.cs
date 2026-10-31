@@ -201,7 +201,7 @@ namespace CardCore
                     return new Line("　→ " + text, "log-line--effect");
                 }
                 case KeywordAppliedEvent kw when kw.Keyword == KeywordRules.Guardian
-                                                 || kw.Keyword == KeywordRules.Martyrdom
+                                                 || kw.Keyword == KeywordRules.BattleMage // 战斗法师散射播报（原舍身，2026-10-30 改版）
                                                  || kw.Keyword == "运势": // 主动运势两段式（2026-10-20）：掷骰结果须玩家可见（成败都播报；自动路径同享）
                 {
                     if (string.IsNullOrEmpty(kw.Detail)) return Empty;

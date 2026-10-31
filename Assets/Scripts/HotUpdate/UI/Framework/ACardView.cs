@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
@@ -12,32 +13,30 @@ namespace SynergyUI
     /// ACard.prefab 手牌全信息卡面 View（2026-10-13，取代 CardOverlayCard 的 Full 形态）。
     /// MVC 口径：只消费 CardOverlayItem 显示模型，运行态刷新=只读重查（FromLiveCard 重快照），
     /// 绝不改游戏数据；事件面经 EventManager 订阅（按 RuntimeId 过滤命中才重绘，幂等全量）。
-        /// 节点约定（与 Assets/Art/Prefab/ACard.prefab 同名，缺节点各区空转不崩）：
-        /// type/(bg|mask|mask/art) + type 下 CostSquaresView（卡费）、attribute/text（属性区=根级
-        /// 独立区，2026-10-15 接线：曾短暂挪入 type 区又改回根级——勿再写 type/attribute 旧路径）、
-        /// name/text、cost/text（代价行=PayloadCost 产黑白元素等）、
-        /// effect/(text|cost 下 CostSquaresView=发动消耗)、passives/text、keys/text（芯片模板）、
-        /// stats/text（芯片模板）、back（伏面，节点已退役=空转）。
-        /// 卡面结构（2026-10-28 新卡 360×648 分数锚替换 ACard.prefab 定案）：type/name 分数锚 +
-        /// form-scroll 行区（cost/effect/passives/keys 行=text 标题+des 内容；des 定号 16+Overflow
-        /// 超高滚动，行 prefab 默认 inactive、Apply 按内容点亮）；attribute/stats/效果发动费暂无
-        /// 节点=空转。放大=localScale 整卡同比（2026-10-28 晚回退定案——文字随变换缩放）。
-        /// 用户 btn 悬浮层（地牌/使用按钮）不参与卡面结构。
+        /// 节点约定（2026-10-30 美术定档：全部美术烘死在 prefab——底图/遮罩/徽章底/行样式代码不再
+        /// 控制，只按类型点亮整块+填数据；缺节点各区空转不崩）：
+        /// biology/barrier/spell 三个类型整块（prefab 默认 off，Apply 按卡类型单开：生物=biology、
+        /// 结界=barrier、法术=spell，Hero=角色占位卡三块全关）；立绘=块内 mask/art（按 Illustration
+        /// 换图，空/未命中回落预制体占位防池复用串图）；上半数字徽章=块内 Atc/Hea TMP（生物=攻/血
+        /// 双徽章、结界=耐久 Hea、法术无徽章）；name（TMP 直挂）；行区 form-scroll/viewport/content/
+        /// {effect,passives,keys,states}=烘焙标题 text + des 内容（按内容点亮；states=指示物行，
+        /// 2026-10-30 prefab 补节点后接线）。
+        /// 已随 2026-10-30 定档退役：type 区换底图（TypeAssets/SpriteCache）、type/effect 费用方格
+        /// （CostSquaresView——卡费另觅宿主）、cost 代价行、attribute 区与 B6 运行时攻/血图标行、
+        /// back 内嵌节点（伏面=ACardBack 整卡实例，保留）。
+        /// 用户 btn 悬浮层（AHandCard 兄弟节点，非本 prefab）不参与卡面结构。
         /// prefab 保持无脚本（CardOverlayController/HandFanView 加载后 AddComponent）。
-    /// 非 Full 形态=保底显示 type/name/费用（战场实体卡面另案，不做设计投入）。
+    /// 非 Full 形态=保底显示类型块/name（战场实体卡面另案，不做设计投入）。
     /// </summary>
     public sealed class ACardView : MonoBehaviour
     {
-        // ---- 节点缓存（Bind 一次解析） ----
-        private Image _typeBg, _mask, _art;
-        private RectTransform _typeBlock;
-        private CostSquaresView _typeCost;
-        private TMP_Text _nameText, _effectText, _passivesText, _attributeText, _costText, _keysText;
-        private TMP_Text _costTitle, _effectTitle, _passivesTitle, _keysTitle; // 新卡行标题（行=text 标题 + des 内容）
-        private RectTransform _attrIconRow;             // B6 攻/血图标行（attribute 块内运行时建，仿 FillChips 行构建）
-        private TMP_Text _attrPowerText, _attrLifeText; // 图标行数字（字体/色取 attribute/text 同源）
-        private RectTransform _effectBlock, _effectCostRow, _passivesBlock, _keysBlock, _statsBlock, _attributeBlock, _costBlock;
-        private CostSquaresView _effectCost;
+        // ---- 节点缓存（Bind 一次解析；美术定档后只解析数据宿主，无换图控件） ----
+        private RectTransform _bioBlock, _barrierBlock, _spellBlock;   // 类型整块（美术全烘，默认 off）
+        private Image _bioArt, _barrierArt, _spellArt;                 // 块内立绘（mask/art）
+        private Sprite _bioArtBaked, _barrierArtBaked, _spellArtBaked; // 立绘预制体占位（未命中回落）
+        private TMP_Text _bioAtc, _bioHea, _barrierHea;                // 上半数字徽章（生物攻/血·结界耐久）
+        private TMP_Text _nameText, _effectText, _passivesText, _keysText, _statesText;
+        private RectTransform _effectBlock, _passivesBlock, _keysBlock, _statesBlock;
         private GameObject _back;
         private GameObject _actionLayer;
         private CanvasGroup _group;
@@ -52,21 +51,8 @@ namespace SynergyUI
         private Action<EffectUsageChangedEvent> _onUsage;
         private Action<TurnStartEvent> _onTurn;
 
-        // ---- 类型 → 底图/遮罩形状（2026-10-13 用户定案：生物=方·法术=三角·结界=圆） ----
-        private static readonly Dictionary<Cardtype, (string bg, string mask)> TypeAssets = new()
-        {
-            { Cardtype.Creature, ("biology", "mask_square") },
-            { Cardtype.Spell, ("spell", "mask_triangle") },
-            { Cardtype.Enchantment, ("barrier", "mask_circle") },
-        };
-        private static readonly Dictionary<string, Sprite> SpriteCache = new();
         private static GameObject _backPrefab;   // ACardBack prefab 静态缓存（EnsureBackPrefab 单次 Load）
         private static bool _backPrefabTried;
-        private static string SpritePath(string name) => $"Assets/Art/Icons/{name}.png";
-        private string _artLoaded; // 已加载立绘名（防同图重复加载；空=保持预制体占位）
-        // 立绘（type/mask/art）按名称两级回落：UI Sprites → YGOMonstersRig 模型预览图（CardArtLibrary，
-        // 2026-10-13 立绘随卡类型定案——生物卡 Illustration=模型名；2026-10-15 法术/结界定案=无合适
-        // 立绘，缺省空白不放图——Apply 清 sprite，不走找图链）
 
         /// <summary>手牌无移除角标（构筑区旧功能随 CardOverlayCard 退役；控制器接线自动跳过）。</summary>
         public GameObject RemoveButton => null;
@@ -81,28 +67,26 @@ namespace SynergyUI
             // 独立 ACard prefab（选目标 Region 面板/合成器预览/悬停卡）六区直挂卡根。
             _faceRoot = transform.Find("ACard");
             if (_faceRoot == null) _faceRoot = transform;
-            _typeBlock = Rt("type");
-            _typeBg = FindImage("type/bg");
-            _mask = FindImage("type/mask");
-            _art = FindImage("type/mask/art");
-            _typeCost = FindComponent<CostSquaresView>("type");
-            // 新卡（2026-10-28 360×648 分数锚）：name 即 TMP；四行区嵌在 form-scroll/viewport/content
-            // 下（行=text 标题 + des 内容，des 定号 16+滚动）；attribute/stats/效果发动费暂无节点空转
+            // 类型整块（2026-10-30 美术定档）：bg/mask/徽章底全烘死——代码只点亮对应块+填数；
+            // 立绘占位按块缓存（Illustration 未命中时回落，防卡池复用串上一张的图）
+            _bioBlock = Rt("biology");
+            _barrierBlock = Rt("barrier");
+            _spellBlock = Rt("spell");
+            _bioArt = ArtOf(_bioBlock);
+            _barrierArt = ArtOf(_barrierBlock);
+            _spellArt = ArtOf(_spellBlock);
+            _bioArtBaked = _bioArt != null ? _bioArt.sprite : null;
+            _barrierArtBaked = _barrierArt != null ? _barrierArt.sprite : null;
+            _spellArtBaked = _spellArt != null ? _spellArt.sprite : null;
+            _bioAtc = DeepText(_bioBlock, "Atc");
+            _bioHea = DeepText(_bioBlock, "Hea");
+            _barrierHea = DeepText(_barrierBlock, "Hea");
+            // name 直挂 TMP；四行区嵌在 form-scroll/viewport/content 下（text=烘焙标题、des=内容）
             _nameText = FindText("name/text") ?? FindText("name");
-            _costBlock = ZoneBlock("cost", out _costTitle, out _costText);
-            _effectBlock = ZoneBlock("effect", out _effectTitle, out _effectText);
-            _effectCost = FindComponent<CostSquaresView>("effect");
-            // cost 行=预留 effect/cost 容器，缺省回落 CostSquares 实例根本体（隐藏即藏费用行）
-            _effectCostRow = Rt("effect/cost") ?? (_effectCost != null ? (RectTransform)_effectCost.transform : null);
-            _passivesBlock = ZoneBlock("passives", out _passivesTitle, out _passivesText);
-            _keysBlock = ZoneBlock("keys", out _keysTitle, out _keysText);
-            _statsBlock = Rt("stats");
-            _attributeBlock = Rt("attribute");
-            _attributeText = FindText("attribute/text");
-            SetText(_costTitle, "代价：");
-            SetText(_effectTitle, "效果：");
-            SetText(_passivesTitle, "被动：");
-            SetText(_keysTitle, "关键词：");
+            _effectBlock = ZoneBlock("effect", out _, out _effectText);
+            _passivesBlock = ZoneBlock("passives", out _, out _passivesText);
+            _keysBlock = ZoneBlock("keys", out _, out _keysText);
+            _statesBlock = ZoneBlock("states", out _, out _statesText);
             _back = transform.Find("ACardBack")?.gameObject ?? transform.Find("back")?.gameObject;
             // 用户 btn 悬浮层（放置/发动按钮，2026-10-14）：默认全实例隐藏——只有手牌扇宿主
             //（HandFanCard）按悬停条件显式开启；预览卡/合成器卡面/对手扇一律不可见
@@ -110,103 +94,66 @@ namespace SynergyUI
             if (_actionLayer != null && _actionLayer.activeSelf) _actionLayer.SetActive(false);
             _group = gameObject.GetComponent<CanvasGroup>();
             if (_group == null) _group = gameObject.AddComponent<CanvasGroup>();
-
-            // 字号口径（2026-10-28 新卡）：三档全由 prefab 定——名称 25（18-25 自动缩号）/
-            // 关键词行 18/效果文本 16；放大=localScale 同比渲染，View 不改字号
             _bound = true;
         }
 
-        /// <summary>全量重绘（幂等）：Full=六区全开；其余形态保底 type/name/费用。</summary>
+        /// <summary>全量重绘（幂等）：Full=全信息；其余形态保底类型块/name。</summary>
         public void Apply(CardOverlayItem item, CardOverlayLayout layout)
         {
             if (!_bound) Bind();
             if (item == null) return;
             bool full = layout == CardOverlayLayout.Full;
 
-            // type 区：底图+遮罩随类型换（Sprite 有缓存，重绑幂等）；卡费方格。
-            // Hero=角色占位卡（选目标面板的 Player 候选，2026-10-16）：非卡实体无底图/遮罩/立绘
-            // ——整区隐藏（根 VLG 收拢，只剩卡名【己方/对方角色】）
+            // 类型整块：按卡类型单开（美术全烘，代码只管点亮/熄灭）；Hero=角色占位卡（选目标
+            // 面板的 Player 候选）无类型块——三块全关，只剩卡名【己方/对方角色】
             bool rolePlaceholder = item.Supertype == Cardtype.Hero;
-            SetActive(_typeBlock, !rolePlaceholder);
-            if (rolePlaceholder)
+            bool isBio = !rolePlaceholder && item.Supertype == Cardtype.Creature;
+            bool isBarrier = !rolePlaceholder && item.Supertype == Cardtype.Enchantment;
+            bool isSpell = !rolePlaceholder && item.Supertype == Cardtype.Spell;
+            SetActive(_bioBlock, isBio);
+            SetActive(_barrierBlock, isBarrier);
+            SetActive(_spellBlock, isSpell);
+
+            // 立绘：按 Illustration 换图（两级找图 CardArtLibrary，miss 亦有缓存）；
+            // 空/未命中回落预制体占位（三块各自缓存，池复用不串图）
+            var art = isBio ? _bioArt : isBarrier ? _barrierArt : isSpell ? _spellArt : null;
+            if (art != null)
             {
-                if (_art != null && _art.sprite != null) { _art.sprite = null; _artLoaded = null; }
+                var baked = isBio ? _bioArtBaked : isBarrier ? _barrierArtBaked : _spellArtBaked;
+                var sprite = string.IsNullOrEmpty(item.Illustration) ? null : CardArtLibrary.Load(item.Illustration);
+                art.sprite = sprite != null ? sprite : baked;
             }
-            else
+
+            // 上半数字徽章（2026-10-30 定档）：生物=攻/血、结界=耐久、法术无徽章
+            if (isBio)
             {
-                SetTypeVisuals(item.Supertype);
-                // 立绘（2026-10-15 定案）：法术/结界无合适立绘——缺省空白不放图（清 sprite，
-                // 卡实例池复用防上一张生物的图串位）；生物=按名两级找图，空/未命中保持预制体占位
-                bool artless = item.Supertype == Cardtype.Spell || item.Supertype == Cardtype.Enchantment;
-                if (_art != null)
-                {
-                    if (artless)
-                    {
-                        if (_art.sprite != null) { _art.sprite = null; _artLoaded = null; }
-                    }
-                    else if (!string.IsNullOrEmpty(item.Illustration) && item.Illustration != _artLoaded)
-                        TrySetArt(item.Illustration);
-                }
-                if (_typeCost != null)
-                {
-                    if (item.Costs != null && !item.Costs.IsZero) _typeCost.SetCosts(item.Costs);
-                    else _typeCost.Clear();
-                }
+                SetText(_bioAtc, (item.AttrPower ?? 0).ToString());
+                SetText(_bioHea, (item.AttrLife ?? 0).ToString());
             }
+            else if (isBarrier)
+                SetText(_barrierHea, (item.AttrDurability ?? 0).ToString());
 
             SetText(_nameText, item.Name);
-
-            // cost 区：代价行（PayloadCost=产黑白元素等；空=藏块）
-            bool hasPayload = full && !string.IsNullOrEmpty(item.PayloadText);
-            SetActive(_costBlock, hasPayload);
-            if (hasPayload) SetText(_costText, item.PayloadText);
-
-            // attribute 区（2026-10-22 B6 图标化）：生物=剑/心图标+数字（FightIcon/HeartIcon 双就绪才走
-            // 图标档——缺素材回落全词文本，AttributeText 恒为回落源）；结界=耐久纯文本；空=藏块
-            var atkIcon = LoadSprite("FightIcon");
-            var hpIcon = LoadSprite("HeartIcon");
-            bool iconMode = full && item.AttrPower.HasValue && item.AttrLife.HasValue
-                            && atkIcon != null && hpIcon != null;
-            bool hasAttr = full && (iconMode || !string.IsNullOrEmpty(item.AttributeText));
-            SetActive(_attributeBlock, hasAttr);
-            if (hasAttr)
-            {
-                if (iconMode) FillAttributeIcons(item, atkIcon, hpIcon);
-                else
-                {
-                    if (_attrIconRow != null && _attrIconRow.gameObject.activeSelf)
-                        _attrIconRow.gameObject.SetActive(false); // 池复用回落文本档
-                    SetActive(_attributeText, true);               // 还显全词文本（图标档曾藏）
-                    SetText(_attributeText, item.AttributeText);
-                }
-            }
 
             // effect 区：无主动效果整块隐藏（根 VLG 自动收拢）
             bool hasActive = full && !string.IsNullOrEmpty(item.ActiveEffectText);
             SetActive(_effectBlock, hasActive);
-            if (hasActive)
-            {
-                SetText(_effectText, item.ActiveEffectText);
-                bool hasCost = item.ActiveEffectCost != null && !item.ActiveEffectCost.IsZero;
-                SetActive(_effectCostRow, hasCost);
-                if (_effectCost != null)
-                {
-                    if (hasCost) _effectCost.SetCosts(item.ActiveEffectCost);
-                    else _effectCost.Clear();
-                }
-            }
+            if (hasActive) SetText(_effectText, item.ActiveEffectText);
 
             // passives 区
             bool hasPassives = full && item.PassiveLines != null && item.PassiveLines.Count > 0;
             SetActive(_passivesBlock, hasPassives);
             if (hasPassives) SetText(_passivesText, string.Join("\n", item.PassiveLines));
 
-            // keys 区（2026-10-28 新卡行式文本）：关键词并一行入 des；stats 新卡无节点=空转
-            //（指示物层数暂无宿主行，待卡面补节点后恢复）
+            // keys 区（行式文本）：关键词并一行入 des
             bool hasKeys = full && item.KeywordChips != null && item.KeywordChips.Count > 0;
             SetActive(_keysBlock, hasKeys);
             if (hasKeys) SetText(_keysText, string.Join("　", item.KeywordChips));
-            SetActive(_statsBlock, false);
+
+            // states 区（指示物行——2026-10-30 prefab 补节点后接线）：名称×层数并一行
+            bool hasCounters = full && item.CounterChips != null && item.CounterChips.Count > 0;
+            SetActive(_statesBlock, hasCounters);
+            if (hasCounters) SetText(_statesText, string.Join("　", item.CounterChips.Select(c => c.Name + "×" + c.Layers)));
 
             if (_group != null) _group.alpha = item.IsTapped ? 0.62f : 1f;
 
@@ -321,106 +268,22 @@ namespace SynergyUI
             Apply(CardOverlayItem.FromLiveCard(_runtimeCard), CardOverlayLayout.Full);
         }
 
-        // ==================== attribute 图标行（2026-10-22 B6 玩家反馈：攻/血一行数字不醒目） ====================
+        // ==================== 类型块解析助手 ====================
 
-        /// <summary>攻/血图标+数字行：剑图标+攻数字+心图标+血数字（玩家建议 ❤:3 🗡:5 式）。
-        /// 行在 attribute 块内运行时构建（块高 20 保持不动——根 VLG 下游零位移）；数字字号 12
-        /// 固定（高于文本档 max 10，突出主数值）；字体/颜色取 attribute/text 同源。
-        /// 图标档激活期藏全词文本；池复用回落文本档由 Apply 侧负责还显。</summary>
-        private void FillAttributeIcons(CardOverlayItem item, Sprite atkIcon, Sprite hpIcon)
+        /// <summary>块内立绘节点（block/mask/art；缺块/缺 art=null 空转）。</summary>
+        private static Image ArtOf(RectTransform block)
         {
-            if (_attributeBlock == null || _attributeText == null) return;
-            if (_attrIconRow == null) BuildAttrIconRow(atkIcon, hpIcon);
-            if (_attrIconRow == null) return; // 构建异常兜底：保持上一帧（极端缺组件不崩）
-            _attributeText.gameObject.SetActive(false); // 图标档藏全词文本
-            _attrIconRow.gameObject.SetActive(true);
-            _attrPowerText.text = item.AttrPower.Value.ToString();
-            _attrLifeText.text = item.AttrLife.Value.ToString();
+            var t = block != null ? block.Find("mask/art") : null;
+            return t != null ? t.GetComponent<Image>() : null;
         }
 
-        private void BuildAttrIconRow(Sprite atkIcon, Sprite hpIcon)
+        /// <summary>块内按名深找 TMP（徽章 Atc/Hea 挂在同名徽章底 Image 下，路径不定长）。</summary>
+        private static TMP_Text DeepText(RectTransform block, string nodeName)
         {
-            var rowGo = new GameObject("icon-row", typeof(RectTransform));
-            var row = (RectTransform)rowGo.transform;
-            row.SetParent(_attributeBlock, false);
-            row.anchorMin = Vector2.zero;
-            row.anchorMax = Vector2.one;
-            row.offsetMin = row.offsetMax = Vector2.zero;
-            var hlg = rowGo.AddComponent<HorizontalLayoutGroup>();
-            hlg.spacing = 5f;
-            hlg.childAlignment = TextAnchor.MiddleLeft;
-            hlg.padding = new RectOffset(8, 4, 0, 0);
-            hlg.childControlWidth = true;
-            hlg.childControlHeight = true;
-            hlg.childForceExpandWidth = false;
-            hlg.childForceExpandHeight = false;
-
-            Image IconNode(string name, Sprite sprite)
-            {
-                var go = new GameObject(name, typeof(RectTransform));
-                go.transform.SetParent(row, false);
-                var img = go.AddComponent<Image>();
-                img.sprite = sprite;
-                img.preserveAspect = true;
-                img.raycastTarget = false;
-                var le = go.AddComponent<LayoutElement>();
-                le.preferredWidth = 13f;
-                le.preferredHeight = 13f;
-                return img;
-            }
-
-            TMP_Text NumNode(string name)
-            {
-                var go = new GameObject(name, typeof(RectTransform));
-                go.transform.SetParent(row, false);
-                var t = go.AddComponent<TextMeshProUGUI>();
-                if (_attributeText != null)
-                {
-                    t.font = _attributeText.font;
-                    t.color = _attributeText.color;
-                }
-                t.fontSize = 12f;
-                t.fontStyle = FontStyles.Bold;
-                t.alignment = TextAlignmentOptions.MidlineLeft;
-                t.enableWordWrapping = false;
-                t.raycastTarget = false;
-                return t;
-            }
-
-            IconNode("atk-icon", atkIcon);
-            _attrPowerText = NumNode("atk-num");
-            IconNode("hp-icon", hpIcon);
-            _attrLifeText = NumNode("hp-num");
-            _attrIconRow = row;
-        }
-
-        // ==================== type 区 ====================
-
-        private void SetTypeVisuals(Cardtype type)
-        {
-            if (!TypeAssets.TryGetValue(type, out var assets))
-                assets = ("biology", "mask_square"); // 其他类型兜底生物底（手牌不常见）
-            var bg = LoadSprite(assets.bg);
-            if (_typeBg != null && bg != null) _typeBg.sprite = bg;
-            var mask = LoadSprite(assets.mask);
-            if (_mask != null && mask != null) _mask.sprite = mask;
-        }
-
-        private void TrySetArt(string illustration)
-        {
-            var sp = CardArtLibrary.Load(illustration);
-            if (sp == null) return;
-            if (_art != null) _art.sprite = sp;
-            _artLoaded = illustration;
-        }
-
-        private static Sprite LoadSprite(string name)
-        {
-            if (string.IsNullOrEmpty(name)) return null;
-            if (SpriteCache.TryGetValue(name, out var s)) return s;
-            s = Tide.HotUpdate.HotUpdateAssets.Load<Sprite>(name, SpritePath(name));
-            SpriteCache[name] = s; // 加载失败也缓存 null，避免逐卡重试
-            return s;
+            if (block == null) return null;
+            foreach (var tmp in block.GetComponentsInChildren<TMP_Text>(true))
+                if (tmp.name == nodeName) return tmp;
+            return null;
         }
 
         /// <summary>行区解析（2026-10-28 新卡口径）：块=form-scroll/viewport/content/<zone>（回落根级
@@ -442,34 +305,15 @@ namespace SynergyUI
 
         private RectTransform Rt(string path) => _faceRoot.Find(path) as RectTransform;
 
-        private Image FindImage(string path)
-        {
-            var t = _faceRoot.Find(path);
-            return t != null ? t.GetComponent<Image>() : null;
-        }
-
         private TMP_Text FindText(string path)
         {
             var t = _faceRoot.Find(path);
             return t != null ? t.GetComponent<TMP_Text>() : null;
         }
 
-        private T FindComponent<T>(string path) where T : Component
-        {
-            var t = _faceRoot.Find(path);
-            return t != null ? t.GetComponentInChildren<T>(true) : null;
-        }
-
         private static void SetText(TMP_Text t, string value)
         {
             if (t != null) t.text = value ?? "";
-        }
-
-        /// <summary>编辑态（探针/预制体预览）Destroy 分流，防 edit-mode 报错。</summary>
-        private static void DestroyObj(GameObject go)
-        {
-            if (Application.isPlaying) Destroy(go);
-            else DestroyImmediate(go);
         }
 
         private static void SetActive(Component c, bool active)

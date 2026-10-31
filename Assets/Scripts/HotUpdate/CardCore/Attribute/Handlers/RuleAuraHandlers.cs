@@ -20,7 +20,7 @@ namespace CardCore.Attribute.Handlers
             var ruleId = effect.StringValue;
             if (string.IsNullOrEmpty(ruleId))
             {
-                TideLog.Warn("[ModifyGameRuleHandler] 缺少规则短名（str 应为规则光环 id），空转");
+                TideLog.Warn("[ModifyGameRuleHandler] 缺少规则短名（str 应为场地光环 id），空转");
                 return;
             }
 
@@ -38,6 +38,6 @@ namespace CardCore.Attribute.Handlers
         }
 
         protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => $"规则光环：{effect.StringValue}（{RuleAuraSystem.RuleAuraScopeZh(effect.Value)}，载体离场失效）";
+            => $"场地光环：{effect.StringValue}（{RuleAuraSystem.RuleAuraScopeZh(effect.Value)}，载体离场失效）";
     }
 }

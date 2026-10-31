@@ -42,7 +42,7 @@ namespace CardCore.Attribute.Handlers
     }
 
     // 固有全域原子（SweepDamage/SweepHeal）2026-09-21 退役——全域改由组合期 TargetKinds+全取档表达；
-    // Handler 与注册已删（枚举槽位保留作序列化墓碑，见 AtomicEffects.cs）。
+    // Handler、注册与枚举位均已删（2026-10-05 墓碑清理）。
     // 2026-10-09 复归改道：全体对象不再走「全取档」（选取歧义），改独立原子——见 DealDamageAllEnemiesHandler。
 
     /// <summary>
@@ -204,11 +204,28 @@ namespace CardCore.Attribute.Handlers
                 // 冻结（衰退类，2026-10-08 层即持续定案）：层=持续回合数——强制横置 + 持有期间无法重置
                 //（BlocksUntap），持有者回合末 −1、归零解除（叠加=延长）。效果级持续档不参与
                 //（旧 duration 死参数已随层即持续定案删除）。
-                // 指示物数量随机：Value>0 时本次层数（=回合数）掷值（每目标独立，≤0 = 空过），缺省 1 层
-                int layers = effect.Value > 0
-                    ? context.GetValueAfterModifiers(effect.GetRolledValue())
-                    : 1;
-                if (layers <= 0) continue;
+                // 2026-10-31 指示物定案：每次发动恒加一层（层=持续回合数，叠加=延长；掷值档退役）
+                int layers = 1;
+                // 冻地（2026-10-29 阶段3a 冻结扩展到元素池）：目标为元素池中的地牌卡——不挂指示物
+                //（地牌不是 Entity），改写池内包装：强制横置 + 冻结层叠加（层=剩余回合，持有者回合末
+                // −1、层>0 不重置、归零后下个回合开始恢复——ElementPool.OnTurnStart/OnTurnEnd 同口径）。
+                if (target is Card poolCard && poolCard.GetZone() == Zone.ElementPool)
+                {
+                    var poolOwner = poolCard.GetOwner() ?? poolCard.GetController();
+                    var pooled = context.ElementPool?.GetPool(poolOwner)?.PooledCards
+                        .FirstOrDefault(pc => pc != null && pc.SourceCard == poolCard);
+                    if (pooled != null)
+                    {
+                        pooled.IsTapped = true;
+                        pooled.FreezeLayers += layers;
+                        PublishEvent(new FreezeEvent
+                        {
+                            Target = poolCard,
+                            Source = context.Source
+                        });
+                    }
+                    continue;
+                }
                 target.Freeze(layers, context.Source);
                 PublishEvent(new FreezeEvent
                 {
@@ -409,7 +426,7 @@ namespace CardCore.Attribute.Handlers
         }
 
         protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => "临摹目标：以其文本效果取代自身（跳过其规则光环），附加一层变形指示物，解除时还原；发动主动效果按变形前后费差以任意元素补差";
+            => "模拟目标：以其文本效果取代自身（跳过其场地光环），附加一层变形指示物，解除时还原；发动主动效果按变形前后费差以任意元素补差";
     }
 
     /// <summary>变形赋予（2026-10-13 新增，引用卡ID 形式·行价 0·同临摹后付）：
@@ -456,7 +473,7 @@ namespace CardCore.Attribute.Handlers
         }
 
         protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => "将目标变成引用卡（复制其身份/属性/文本效果，跳过其规则光环），附加一层变形指示物，解除时还原；发动主动效果按变形前后费差以任意元素补差";
+            => "将目标变成引用卡（复制其身份/属性/文本效果，跳过其场地光环），附加一层变形指示物，解除时还原；发动主动效果按变形前后费差以任意元素补差";
     }
 
     // ============ 战斗底盘（2026-09-10 攻击/守卫效果化） ============

@@ -7,6 +7,36 @@
 2026-10-29 禁令族四行（禁攻/禁守/禁发/禁地）
 2026-10-29 1b：去对称让利、对称仪典 3/6、六条禁令（禁疗/禁寻/禁祭/禁魔/禁召/禁抽）
 2026-10-29 阶段2：五条语料原生禁令（禁低费/禁高费/禁非生物/禁时机/禁指示物）
+2026-10-29 阶段3a：多轴单原子六行（全体消灭 17da98ae/除外回收 e301f1af/额外回合 7da143c9/
+  跳过三阶段 bb69eaf0/837e72dc/096d449c——SkipTurn str=End/Standby/Main 相位档）；冻结行 30d0e234
+  扩域「对方元素池」（冻地：池内横置+层计数，不挂指示物）；时光仪典 a1551467 删除（额外回合改
+  TakeExtraTurn 原子行，DoubleTurn 常量/映射/结算块同批退役）
+2026-10-29 阶段3c：信息轴 P0 七行（占卜加成 02b3c2e4/筛选展示 3aa1fc98/灵视 b240208c +
+  随机手牌宣言 b4d07877/牌库顶宣言 a2c4530d/卡名预言 a59e901d/箭头宣言 42453a25——
+  预言族四行回表；筛选展示 ID 因模板去「{target}手牌」重名词改写重推，与任务书草案 b46b60e6 不同）；
+  配套：TriggerTiming.OnScry=34、ProphecyDimension.Type 收紧三类+Name 维度解禁、
+  DeclareHand 改系统随机（PositionPicker 退役）、DeclareDeckTop 改对手牌库顶
+2026-10-29 阶段3b：延时保护 12 行（GrantProtection——减半3/全免6/生命锁5 绿 × 角色/单位 × 己/敌
+  回合，28b6e142..253797a6；str=Mode|Role|Timing 档由合成器 ProtectionIds 写入——表行不带 str）+
+  延迟死亡 977f31ca（灰6 改写光环——DeathRules.TryKill 改写+GameCore.OnTurnEnd 消费，
+  _delayedDeath 标记进快照 RCS_DelayedDeath=747753030）+ 牌库顶当手牌 5d1a7907（蓝12 改写光环——
+  TopDeckPlaySource/IPlaySource 授权 Deck 来源出牌，本地局手牌扇末尾虚拟手牌）
+2026-10-30 信息族改版：箭头宣言 42453a25 删除（表行删、handler 删、枚举墓碑保位）；随机手牌宣言
+  b4d07877 改「强夺」（宣言卡名，从对手手牌获得该卡——命中=跨玩家手牌直移+持有者永久改写
+  （ChangeOwner 同款：弹回/洗回/死亡归新主），未命中=空手而归；旧系统随机翻牌/递进揭示/Exposed
+  链路退役，PositionPicker 注入点删除）；牌库顶宣言 a2c4530d 改「预言」（隐秘宣言类别
+  Type:Creature/Spell/Enchantment 三选一，对手下回合首张同类卡=内置发动无效——延迟验证复用
+  ProphecySystem（PendingProphecy Then=合成 NegateActivation 原子），CardPlayEvent 时点卡在
+  发动区送墓=cast 消费点中止不付费不结算）。两行 EffectType 枚举名承袭旧槽位
+ （DeclareHand/DeclareDeckTop），语义以 handler 为准；合成器宣言输入行提示按行分化。
+2026-10-30 归土仪典改版（表行 499a49e2·DisplayName 换新文案·ID/价绿3 承袭不动）：回合结束时从
+  自己墓地复活一张费用≤己方绿色地牌数的生物（短名 GraveyardPlay 承袭；旧「每回合一次墓地视
+  手牌中使用」IPlaySource 配额链整删——GraveyardPlaySource/PlayCardFromGraveyard/UI 墓地使用
+  按钮/SimpleAI·ScriptedAi 墓地出牌臂同批退役；新结算=RuleAuraComponents.ReviveAtTurnEnd，
+  GameCore.OnTurnEnded 于窥渊之后显式调，自动取费用最高合格生物，容量满留墓地）
+2026-10-30 保护指示物全体档退役（用户定案：指示物没有全体的说法，只作用于挂载单位）：合成器
+  ProtectionIds 删「减半/全免/生命锁·全体」三键，GrantProtectionHandler 删 Mode|All 分支（旧 str
+  多余段忽略按单体降级）；表本就只 3 行单体（a1e88b04/f7e69a25/e5c9d4b0·己方单位域），表零改
 
 ━━ 2026-10-08 大改定案总注（本版基准）━━━━━━━━━━━━━━━━━━━━━━━━
 ① 指示物四分类（CounterRules.CounterClass 为唯一真相源，表 Tags 三型与之间接同源）：
@@ -27,28 +57,56 @@
    （两文件当前清空待重做，重建时按新 ID 书写）。
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-当前表共 135 行（2026-10-09 舍弃并档牺牲、疫蚀仪典随剧毒指示物删除后；2026-10-29 禁令族四行随更；
-2026-10-29 1b 六条禁令随更；2026-10-29 阶段2 五条语料原生禁令随更）。同枚举可多行=域/模板变体：洗牌×2（洗回/洗入）、
-ModifyGameRule×28（规则光环族，实例 str=规则短名各自取锚）。
+当前表共 161 行（2026-10-09 舍弃并档牺牲、疫蚀仪典随剧毒指示物删除后；2026-10-29 禁令族四行随更；
+2026-10-29 1b 六条禁令随更；2026-10-29 阶段2 五条语料原生禁令随更；2026-10-29 阶段3a +6 行/
+删时光仪典 −1 随更；2026-10-29 阶段3c 信息轴 +7 行/光环 +2 随更；2026-10-29 阶段3b 延时保护
++12 行/改写光环 +2 随更）。同枚举可多行=域/模板变体：
+洗牌×2（洗回/洗入）、SkipTurn×4（整回合/End/Standby/Main 相位档）、ModifyGameRule×31（规则光环族，
+实例 str=规则短名各自取锚）、GrantProtection×12（延时保护——str=Mode|Role|Timing 档）。
 
 【EffectType 族谱（按 MountKinds 分组的当前实测）】
-普通行（MountKinds 空串 x33）: 造成伤害 回复生命 穿透伤害 吸取 角色攻击力增加 抽卡 弹回
+普通行（MountKinds 空串 x42）: 造成伤害 回复生命 穿透伤害 吸取 角色攻击力增加 抽卡 弹回
     回收 除外 洗回 洗入 检索 苏生 激励(Untap) 生命流失 获得控制 发动无效 效果无效 净化
     跳过回合 减益解除(新,2026-10-13) 消灭 摧毁 采掘 回响 牺牲 改写持有者 弹回牌库顶 弹回牌库底
     召唤衍生物 临摹(原变形) 变形赋予（主动发动位 2026-10-13 当日立删——触发式预付与启动式现付
     同额同源、变形补价挂被变形卡启动式发动与原子挂法无关，主动/自动由玩家自由选择）
+    + 全体消灭 除外回收 额外回合 跳过三阶段（End/Standby/Main 相位档——2026-10-29 阶段3a 六行：
+    全体消灭=DevourAllEnemies 无域自结算；除外回收=RecoverFromExile 域己方除外区；额外回合=
+    TakeExtraTurn 表行补齐（蓝9 可叠加）；跳过三阶段=SkipTurn str 相位档，合成器 SkipTurnIds
+    按 EnumName 写 str，整回合行 str 空=Whole 档）
+    + 信息轴宣言族（2026-10-29 阶段3c 回表、2026-10-30 改版两行：强夺 b4d07877=DeclareHand
+    宣言卡名从对手手牌获得该卡（str 恒 Name:卡名——命中跨玩家手牌直移+持有者永久改写）、
+    预言 a2c4530d=DeclareDeckTop 隐秘宣言类别押注（str 恒 Type:Creature/Spell/Enchantment 三选一
+    ——对手下回合首张同类卡发动无效，延迟验证复用 ProphecySystem）；箭头宣言 42453a25 已删
+    （枚举 DeclareArrow 墓碑）；合成器 derivative 输入行编 str、提示按行分化）+ 筛选展示（RevealByDimension 蓝3——按维度展示{target}手牌
+    全部命中卡，与「展示」随机一张相对；维度全量 Type/Name/Color/CostParity/CostExact/LinkArrow）
 关键词行: 吸血 隐密 碾压 警戒 先攻 不灭 系命 缴械 帷幕 连击 剧毒(GrantVenom)（扰魔 2026-10-13 删除）
     + 位8拉黑: 守护 法术护盾 再生 禁魔石 （微缩/放大已删 2026-10-10）
 指示物行 x21: 潜行 圣盾 复生 坚韧(GrantToughness) 护甲 毒素 沉默 迟钝 冻结 紊乱 易损 沉睡 展示
     + 属性六行(位3光环化源+不可随机): 攻击力增加/减少 生命值增加/减少 属性增加/减少
     + 费用增加/减少(不可随机)
-规则光环 x28: 三相 苦痛(原血偿) 丰盈 离散(原蚕褪) 窥渊 归土 疾风 时光(原轮回) 纳川
+规则光环 x31: 三相 苦痛(原血偿) 丰盈 离散(原蚕褪) 窥渊 归土 疾风 纳川
+    （时光/轮回仪典已删 2026-10-29 阶段3a——DoubleTurn 双人连两回合整体退役，额外回合改走
+    TakeExtraTurn 原子行 7da143c9；表行/常量/RuleAuraIds 映射/OnTurnEnd 结算块同批删除）
     + 三负面: 毒蚀 霜蚀 眠蚀 + 惩戒（原舍身仪典已关键词化出族，2026-10-16）（EffectType 全为 ModifyGameRule；范围化 value=RuleAuraScope，
     表价即实价（2026-10-29 去对称让利）；对称仪典 3/6 档；载体=结界登场效果，RuleAuraSystem：全局唯一新换旧送墓/载体离场失效/无箭头）
     + 禁令族：禁攻/禁守/禁发/禁地（2026-10-29 四行）+ 禁疗/禁寻/禁祭/禁魔/禁召/禁抽（2026-10-29 1b 六行，固定双方）
     + 禁令族·语料原生：禁低费/禁高费/禁非生物/禁时机/禁指示物（2026-10-29 阶段2 五行，固定双方·System 指示物豁免）
-引擎主干 x8: 倒计时 运势 拼点 死亡计数 元素充盈 手牌序位 附加诅咒 附加祝福
-    （EngineCountdown/LuckRoll/Clash/DeathToll/ManaSurplus/NthHandCard/CurseOnDraw/BlessingOnDraw；
+    + 信息轴改写族（2026-10-29 阶段3c 两行，改写族三档范围不入固定双方名单）：占卜加成
+    （ScryBonusAura——受影响一方占卜数量+1，消费口=LookAtTopCardsHandler/PeekTop extra，
+    按控制者判）/ 灵视（RevealedPunishAura——使用已展示手牌者受2伤且其对手回2，
+    CardPlayEvent 订阅=使用宣言时点付费前）
+    + 阶段3b 改写族（2026-10-29 两行，改写族三档范围不入固定双方名单）：延迟死亡
+    （DelayedDeathAura 977f31ca 灰6——受影响单位死亡改写为下个回合结束时死亡：
+    DeathRules.TryKill 头部改写+_delayedDeath 标记（防无限延迟，进快照）+GameCore.OnTurnEnd
+    消费到点条目；换区=不再待死）/ 牌库顶当手牌（TopDeckAsHandAura 5d1a7907 蓝12——受影响
+    一方可将牌库顶的卡当手牌使用：TopDeckPlaySource/IPlaySource 授权 PlayCard(fromZone=Deck)
+    不限额；本地局手牌扇末尾虚拟手牌=只可打出、不计上限、不可弃/放地、对手不可见；网络局快照
+    不承载牌库序暂不显示）
+引擎主干 x9: 倒计时 运势 拼点 死亡计数 元素充盈 手牌序位 附加诅咒 附加祝福 卡名预言
+    （EngineCountdown/LuckRoll/Clash/DeathToll/ManaSurplus/NthHandCard/CurseOnDraw/BlessingOnDraw/
+    ProphecyNextCard——2026-10-29 阶段3c 回表：零锚价、延迟验证经 ProphecySystem（Outcome 分支
+    ProphecyHit/Miss 拦截为 PendingProphecy），Then 奖励预算随猜法=类别 1/卡名 3（RewardCapOf）；
     诅咒/祝福指示物归系统，倒计时同；零锚价零域，填槽即自由分支）
 系统 x6: 攻击 守卫 设置攻击力 设置生命值 设置费用 对手胜利
     （移出玩家合成器全部选择面——引擎执行/计价代表原子照常运转）
@@ -56,15 +114,16 @@ ModifyGameRule×28（规则光环族，实例 str=规则短名各自取锚）。
     ——含 {value} 的行默认可随机，标此位禁随机。
 
 枚举有、表无行——有意留白（写进表才生效）: DealCombatDamage Tap Weaken Inspire RedirectTarget
-        DeclareHand DeclareDeckTop DeclareArrow ProphecyNextCard（宣告/预言族）
+        （宣言/预言族四行已于 2026-10-29 阶段3c 回表；2026-10-30 箭头宣言行删，DeclareArrow
+        枚举 2026-10-31 实删；DeclareHand/DeclareDeckTop/ProphecyNextCard 三行在表）
         ModifyPower ModifyLife ModifyCost（数值修改原语——系统侧计价，档价硬编码）
-        OverrideRestriction（被 ModifyGameRule(str) 覆盖，维持墓碑）
         GrantPoisonSting GrantIceCrystal GrantNightmare（印刷关键词路径保留，无表行）
-        TakeExtraTurn AdditionalEnergy（handler 保留代码侧）AddCurse（legacy 兼容 handler 保留）
-        ScryCards（枚举保序墓碑；handler 已删 2026-10-08）Annihilate（湮灭走牺牲族外专用）
-表行退役墓碑（枚举位保留勿删）: SweepDamage SweepHeal（固有全域 2026-09-21）GrantGrowth（成长
-        2026-10-08 机制删除）ScryCards（2026-10-08 并入占卜）Poison（→GrantVenom 2026-10-08）
-        Abandon（2026-10-09 舍弃并档牺牲——池并入、直送非死亡）
+        AdditionalEnergy（handler 保留代码侧）AddCurse（legacy 兼容 handler 保留）
+        Annihilate（湮灭走牺牲族外专用）
+        （TakeExtraTurn 已于 2026-10-29 阶段3a 补表行 7da143c9，移出本名单）
+2026-10-31 墓碑清理：退役成员在表行与枚举两侧全部实删，不再保留任何占位编号——
+        SweepDamage SweepHeal GrantGrowth ScryCards Poison Abandon DeclareArrow OverrideRestriction
+        （原「枚举位保留勿删」口径作废；原子引用键为 refId 字符串，枚举 int 不进存储/线格式）。
 
 【EffectType】解析键——**每行必填**：必须与 AtomicEffectType 枚举名完全一致（英文）。
   LoadFromJson 做 Enum.TryParse，失败=整行跳过并告警。装载后 config.EnumName = 该英文枚举名
@@ -83,18 +142,20 @@ ModifyGameRule×28（规则光环族，实例 str=规则短名各自取锚）。
   AoE 不用专用原子：TargetKinds 定域 + 全取档 = 分区全体（波及语义）；
   计价按档位因子（数量 1/1.5/2/全部3——原「期望 4 目标」口径已退役）。
 
-【MountKinds】MountKind.cs 9 值布局（2026-10-07 仅可转换+深夜终版；中文 CSV，双轨解析）：
-  0 关键词 Keyword        关键词行：卡面印刷+授予双通道；默认可作连接光环（黑名单走位 8）
+【MountKinds】MountKind.cs 10 值布局 0..9（2026-10-07 仅可转换+深夜终版；2026-10-31 墓碑清理：
+  原 7/9 空洞删除、紧凑重排；中文 CSV，双轨解析）：
+  0 关键词 Keyword        关键词行：卡面印刷+授予双通道；默认可作连接光环（黑名单走位 7）
   1 指示物 Counter        指示物行：效果作用自身（存储态 TargetKinds=自己），赋予域可覆写任意卡；
                           持续与计价由 CounterSpec 四分类承载，效果级持续档不生效
   2 不可随机 NoRandom     黑名单：标此位禁数值随机；未标且含 {value} 默认可随机
   3 可以作为连接光环 LinkAura 一般效果行的光环化源（属性±六行声明；关键词行不声明=默认可）
   4 系统 SystemInternal   移出玩家合成器全部选择面
   5 引擎主干 EngineTrunk  引擎条件载体：零锚零域不入主序列，填槽即自由分支
-  6 规则光环 RuleAura     仪典行：走 steps 原子步，不占连接位无箭头
-  7 （空缺——原「仅连接光环」已删，枚举位保留防旧数字误读）
-  8 不可作为连接光环 NoLinkAura 光环黑名单（一票否决）：守护(配对制弹选)/法术护盾(真消耗型)/
-                          再生/禁魔石——名单在表不在代码
+  6 场地光环 RuleAura     仪典行：走 steps 原子步，不占连接位无箭头
+  7 不可作为连接光环 NoLinkAura 光环黑名单（一票否决）：守护(配对制弹选)/再生/无实体/绝缘体
+                          ——名单在表不在代码
+  8 有限分支 SituationGate 门槛行身份/挂载/预算位（判定谓词在代码）
+  9 动态费用 DynamicCost  临摹/变形赋予：不可作 Then 奖励（主干照旧）
   空串 = 普通行（主干/奖励资格走派生谓词 ComposerCatalog.CanBeTrunkRow/CanBeRewardRow）。
   旧值 主动/分支奖励/随机幅度(正向)/上限锁定 已删（2026-10-07 派生化/翻转）。
   MountKinds 不进表指纹——改它不触发卡身份换血，只影响装载校验与合成器可挂范围。
@@ -104,8 +165,8 @@ ModifyGameRule×28（规则光环族，实例 str=规则短名各自取锚）。
     衰退型（Decay：层=剩余回合，回合末 −1）/ 换区清除型（Resident 常驻）/ 生效自减型
     （Exception：触发自减一层、换区不清）。计价 = 行锚 × max(1,|value|)。
   · 产出族（产出条件挂载）：伤害产出族（造成/穿透/吸取——挂「消灭目标时」条件）。
-  装载时 BuildConfig 在列末追加表色中文色名（灰/红/蓝/绿/白/黑）——ElementAffinity/圆点取色。
-  null = 无标签。
+  装载时 BuildConfig 在列末追加表色中文色名（灰/红/蓝/绿，2026-10-28 白/黑席位退役）
+  ——ElementAffinity/圆点取色。null = 无标签。
 
 【TargetFilter】域内属性细化（逗号组合 = AND；null/空 = 无过滤）：
   NoRole=仅生物 Stealth=仅潜行中（Untargetable 已随 2026-10-13 扰魔删除退役）
@@ -116,12 +177,14 @@ ModifyGameRule×28（规则光环族，实例 str=规则短名各自取锚）。
 【费用构成 ManaList（2026-10-04 位置数组定案——唯一费用列；2026-10-28 P2a 收缩 4 位）】
   float 位置数组：下标 = 色序（0=灰 1=红 2=蓝 3=绿，长度=4）。白/黑席位 2026-10-28 退役：
   原含白/黑份额 33 行按语义改色（伤害/弃牌/磨牌/除外/夺控/改写控制权→红；沉默/缄默/紊乱/
-  费用增加/易损/放血/沉睡→蓝；回复/防护/复生/净化/解除负面/重放/费用减少→绿；属性增减/
+  费用增加/易损/放血/沉睡→蓝；回复/防护/复生/净化/解除负面/重放/费用减少→绿（注：费用降低指示物
+  已扩四类 CostDownGray/Red/Blue/Green——每层只减对应色费用，充能投放，旧 CostDown 视为灰）；属性增减/
   资源/规则/无归类→灰），份额数值原样保留只换位置。
   例：灰1=[1,0,0,0]。混合色=多位非零；null/空 = 不计价行（引擎主干行）。
   计价 = 各色份额 × 档位因子；首个非零下标色即主色。
-  落盘同款：Cards.json costList / Effects.json cost 位置数组（两处暂仍 6 位，待 P2 代码侧随
-  ManaType 席位删除同步收缩）；运行时统一 ElementCost。
+  落盘同款：Cards.json costList / Effects.json cost 仍为 **6 位旧布局**（[灰,红,蓝,绿,白,黑]，
+  末两位为退役席位、全量数据恒 0）——读取经 ElementCost 迁移（长度 6 → 取前 4 + 任意位）；
+  运行时统一 ElementCost（5 位，任意位不进卡费）。
   旧 EffectColor+BaseCost+EffectTier 三列已删（墓碑）。
 
 【其它字段】

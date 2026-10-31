@@ -7,7 +7,7 @@ namespace CardCore.Attribute
 {
     /// <summary>
     /// 原子效果属性表
-    /// 运行时唯一真相源：从 Assets/Configs/AttributeValueConfig.json（由 Attribute.xlsm 导出）加载完整配置，
+    /// 运行时唯一真相源：从 Assets/Configs 原子表五分文件加载完整配置，
     /// 含展示/费用与 targeting/持续/发动，全部由配置驱动。
     /// </summary>
     public static class AtomicEffectTable
@@ -15,7 +15,30 @@ namespace CardCore.Attribute
         // 配置寻址（2026-09-30 合并定案）：共享源统一走 TidePaths.ReadConfigText（相对 dataPath 路径）。
         // 服务器/编辑器=文件直读（直改 JSON 后 Reload 免重启）；真机由宿主装配 YooAsset 热更包
         // （HotUpdateEntry 装钩子，地址=文件名 AddressByFileName）。
-        private const string ConfigRelativePath = "Configs/AttributeValueConfig.json";
+        //
+        // 2026-10-30 五分表定案：原单表 AttributeValueConfig.json 按 MountKinds 主类别拆五文件
+        // （一般效果/关键词/指示物/光环/系统，行内容零改动）。装载=按下表序拼接：装载序 Id 跨文件
+        // 连续自增；同 EffectType 多行族（SkipTurn/ModifyGameRule/SituationGate/GrantProtection）
+        // 已核全落单文件桶内、桶内保原相对序——GetByType/关键词目录的「末行覆盖」语义不变。
+        // 行引用键仍是 ID 列 8-hex（内容哈希，与行序无关）；卡身份指纹按 EnumName 排序，均不受拆表影响。
+        // 编辑器 ID 重推（CardPipelineVerifier.RegenAtomicTableIds）共用本清单——单一事实源。
+        public static readonly string[] TableFiles =
+        {
+            "Configs/原子表_一般效果.json",
+            "Configs/原子表_关键词.json",
+            "Configs/原子表_指示物.json",
+            "Configs/原子表_光环.json",
+            "Configs/原子表_系统.json",
+        };
+
+        // 来源类别常量（2026-10-31）：下标与 TableFiles 一一对应，装载期写进 config.TableCategory——
+        // 行归属的真相源是「在哪份文件」而非 MountKinds 派生（派生口径会随位语义漂移）。
+        // 消费口：卡组合界面代价槽（代价原子只收一般效果行）。
+        public const int CategoryGeneral = 0;
+        public const int CategoryKeyword = 1;
+        public const int CategoryCounter = 2;
+        public const int CategoryAura = 3;
+        public const int CategorySystem = 4;
 
         private static Dictionary<int, AtomicEffectConfig> _idMap;
         private static Dictionary<string, AtomicEffectConfig> _hashIdMap;
@@ -41,55 +64,59 @@ namespace CardCore.Attribute
             }
             catch (Exception e)
             {
-                TideLog.Warn($"[AtomicEffectTable] 加载 {ConfigRelativePath} 失败: {e.Message}");
+                TideLog.Warn($"[AtomicEffectTable] 加载原子表五分文件失败: {e.Message}");
             }
 
             if (loaded == 0)
-                TideLog.Warn($"[AtomicEffectTable] 未从 JSON 加载到任何条目（配置缺失或解析失败）");
+                TideLog.Warn("[AtomicEffectTable] 未从 JSON 加载到任何条目（配置缺失或解析失败）");
         }
 
         /// <summary>强制重读表（2026-09-14 合成器「读取原子表」按钮——外部直改 JSON 后免重启刷新；
         /// 重读重建三张映射，运行中已取出的 config 引用不回填）。</summary>
         public static void Reload() => Initialize();
 
-        /// <summary>从 JSON 薄配置加载并与引擎默认值合并，返回成功合入的条目数</summary>
+        /// <summary>从 JSON 薄配置加载并与引擎默认值合并（五分文件按 TableFiles 序拼接装载），返回成功合入的条目数</summary>
         private static int LoadFromJson()
         {
-            string raw = TidePaths.ReadConfigText(ConfigRelativePath);
-            if (string.IsNullOrEmpty(raw))
-            {
-                TideLog.Warn($"[AtomicEffectTable] 配置不可读：{ConfigRelativePath}");
-                return 0;
-            }
-            var entries = ParseEntries(raw);
-            if (entries == null) return 0;
-
             int count = 0;
             int nextId = 1;
-            foreach (var entry in entries)
+            for (int fileIdx = 0; fileIdx < TableFiles.Length; fileIdx++)
             {
-                if (entry == null || string.IsNullOrEmpty(entry.EffectType)) continue;
-                if (!Enum.TryParse<AtomicEffectType>(entry.EffectType, out var type))
+                var file = TableFiles[fileIdx];
+                string raw = TidePaths.ReadConfigText(file);
+                if (string.IsNullOrEmpty(raw))
                 {
-                    TideLog.Warn($"[AtomicEffectTable] 无法解析 EffectType='{entry.EffectType}'（EnumName={entry.EnumName}），已跳过");
+                    TideLog.Warn($"[AtomicEffectTable] 配置不可读：{file}");
                     continue;
                 }
+                var entries = ParseEntries(raw);
+                if (entries == null) continue;
 
-                AddConfig(BuildConfig(nextId++, type, entry));
-                count++;
+                foreach (var entry in entries)
+                {
+                    if (entry == null || string.IsNullOrEmpty(entry.EffectType)) continue;
+                    if (!Enum.TryParse<AtomicEffectType>(entry.EffectType, out var type))
+                    {
+                        TideLog.Warn($"[AtomicEffectTable] 无法解析 EffectType='{entry.EffectType}'（EnumName={entry.EnumName}），已跳过");
+                        continue;
+                    }
+
+                    AddConfig(BuildConfig(nextId++, type, entry, fileIdx));
+                    count++;
+                }
             }
             return count;
         }
 
         /// <summary>由 JSON 薄配置（含 targeting）构建完整 AtomicEffectConfig；字段解析失败用安全兜底</summary>
-        private static AtomicEffectConfig BuildConfig(int id, AtomicEffectType type, AttributeValueConfigEntry entry)
+        private static AtomicEffectConfig BuildConfig(int id, AtomicEffectType type, AttributeValueConfigEntry entry, int tableCategory)
         {
             var config = new AtomicEffectConfig
             {
                 Id = id,
+                TableCategory = tableCategory, // 来源文件类别（装载期唯一写入点）
                 EnumName = type.ToString(),                 // 英文枚举名 → AddConfig 据此填 _typeMap
                 CostMultiplier = 1.0f,
-                Stackable = true,
                 Priority = 50,
                 // ---- 安全兜底（仅当 entry 缺失或字段解析失败时生效）----
                 TargetKinds = "己方单位,对方单位",           // 双方有生命单位（最宽域）
@@ -239,6 +266,18 @@ namespace CardCore.Attribute
         public static IEnumerable<AtomicEffectConfig> GetAll()
         {
             return _idMap.Values;
+        }
+
+        /// <summary>一般效果行（2026-10-31 代价槽直引定案：代价原子只收本类别行）——
+        /// 按装载序（Id）稳定输出；消费口=卡组合界面代价槽候选。空 HashId 行不可被引用，一并滤除。</summary>
+        public static List<AtomicEffectConfig> GetGeneralRows()
+        {
+            var rows = new List<AtomicEffectConfig>();
+            foreach (var cfg in _idMap.Values)
+                if (cfg != null && cfg.TableCategory == CategoryGeneral && !string.IsNullOrEmpty(cfg.HashId))
+                    rows.Add(cfg);
+            rows.Sort((a, b) => a.Id.CompareTo(b.Id));
+            return rows;
         }
 
         /// <summary>已加载的配置总数（供诊断/验证用）</summary>

@@ -88,7 +88,7 @@ namespace CardCore
         }
 
         /// <summary>卡上全部指定引擎的槽级载荷（两槽定案：def.Effects 主干原子的 Branch 载荷）。
-        /// 2026-10-20 起连带 def（单回合上限读 def.TriggerLimitPerTurn——显式声明&gt;0 才收口）。</summary>
+        /// def 仅为求值/日志上下文——单回合上限已统一按卡（_engineRewardFires），不读效果行次数。</summary>
         private static IEnumerable<(EffectDefinition def, BranchPayload payload)> EnginePayloadsOf(Card card, BranchEngineKind kind)
         {
             foreach (var def in DefsOf(card))
@@ -403,6 +403,65 @@ namespace CardCore
                     RecordEngineFire(card, def);
                     break;
                 }
+            }
+        }
+
+        /// <summary>主动发动条件评估（2026-10-30 双选组主动路径——EffectExecutionEngine.ApplyActiveEngineTrunkAsync
+        /// 消费）：主动发动时**立即**评估引擎条件，返回达标与否；副作用与自动路径完全同源——
+        /// 拼点=双方手牌展示攻击力最高生物（挂「展示」指示物+发 ClashResolvedEvent 表现口，口径同
+        /// OnAttackDeclared）；死亡计数=读计数 ≥ 门槛（**不清零**——换区才清，同自动路径）；团结=注入
+        /// 邻接计数（未接线=0 恒不达标）。detail=成败播报文案（调用方负责 KeywordAppliedEvent 发布）。
+        /// 运势（掷骰）/倒计时/元素充盈（仅自动）/附加诅咒·祝福（施放时部署）不经本口。</summary>
+        public static bool EvaluateActiveCondition(BranchEngineKind kind, BranchPayload payload, Card card,
+            Player player, out string detail)
+        {
+            detail = null;
+            var core = GameCore.Instance;
+            switch (kind)
+            {
+                case BranchEngineKind.Clash:
+                {
+                    if (player == null || core?.ZoneManager == null) return false;
+                    var zm = core.ZoneManager;
+                    var minePick = RevealBestCreatureInHand(player, zm, card);
+                    var theirsPick = RevealBestCreatureInHand(player.Opponent, zm, card);
+                    int mine = PowerOf(minePick), theirs = PowerOf(theirsPick);
+                    int threshold = CostDerivationService.RewardThreshold(payload.Then); // 公式与自动路径/UI 同源
+                    bool success = mine - theirs >= threshold;
+                    EventManager.Instance.Publish(new ClashResolvedEvent // 成败两态必发（表现观察口——同自动路径）
+                    {
+                        EngineCard = card,
+                        AttackingPlayer = player,
+                        MyReveal = minePick,
+                        TheirReveal = theirsPick,
+                        MyPower = mine,
+                        TheirPower = theirs,
+                        Threshold = threshold,
+                        Success = success,
+                    });
+                    detail = $"拼点 {mine} vs {theirs}（我方展示{NameOf(minePick)}／对方展示{NameOf(theirsPick)}，"
+                           + $"差额 {mine - theirs}{(success ? " ≥ " : " < ")}门槛 {threshold}）";
+                    return success;
+                }
+                case BranchEngineKind.DeathToll:
+                {
+                    int count = card != null ? card.GetCounterCount(Attribute.CounterRules.DeathTollCounter) : 0;
+                    int x = CostDerivationService.RewardThreshold(payload.Then);
+                    bool success = count >= x;
+                    detail = $"死亡计数 {count}{(success ? " ≥ " : " < ")}{x}（满值 {DeathTollCap}，触发不清零，使用后清零）";
+                    return success;
+                }
+                case BranchEngineKind.Unity:
+                {
+                    ComposerCatalog.EngineParamRange(BranchEngineKind.Unity, out int uMin, out int uMax);
+                    int x = Math.Max(uMin, Math.Min(uMax, payload.EngineParam));
+                    int n = card != null && UnityAdjacentCountOf != null ? UnityAdjacentCountOf(card) : 0;
+                    bool success = n >= x;
+                    detail = $"相邻单位 {n}{(success ? " ≥ " : " < ")}{x}（生物/结界/角色/非空地牌格各算一）";
+                    return success;
+                }
+                default:
+                    return false;
             }
         }
 

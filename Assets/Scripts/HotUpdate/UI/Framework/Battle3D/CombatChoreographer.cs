@@ -45,6 +45,7 @@ namespace SynergyUI
         private const int ImpactDelayMs = 180;       // 攻击前扑到命中节拍
         private const int AttackBeatMs = 520;        // 一次攻击完整节拍（含缓冲）
         private const float GuardCoverOffset = 0.7f; // 守卫挡位偏移：原目标格心向攻击侧挪——与被保护者错开身位
+        private const float GuardCoverCenterPull = 0.5f; // 2026-10-30：闪现点再向盘心（屏幕中心）提半格——两侧对称收拢
         // 24° 横置侧倾（TiltTapped）2026-10-15 退役：wrapper 恒零；横置当晚再裁=呼吸也不停，只由光波熄表达
 
         private readonly BattleFieldView _field;
@@ -961,13 +962,20 @@ namespace SynergyUI
 
         /// <summary>守卫挡位终点（闪现即到·2026-10-21 飞行/闪现改版）：原目标格心向攻击者
         /// 终点方向偏移 GuardCoverOffset——挡在被保护者身前，与其模型错开不重合。
-        /// 攻击者无飞段（已相邻/路径空）=取其当前位定偏移向。</summary>
+        /// 2026-10-30 定案：闪现点再向盘心（=屏幕中心投影）提 GuardCoverCenterPull——两边
+        /// 守卫赴挡对称收拢居中。攻击者无飞段（已相邻/路径空）=取其当前位定偏移向。</summary>
         private static Vector3 GuardCoverPoint((int x, int z) victim, Vector3 attFinal)
         {
             Vector3 cover = ToWorldAnchor(victim);
             Vector3 dir = attFinal - cover;
             dir.y = 0f;
             if (dir.sqrMagnitude > 1e-4f) cover += dir.normalized * GuardCoverOffset;
+            if (BattleBoardGrid.Ready)
+            {
+                var toCenter = BattleBoardGrid.Root.position + BattleBoardGrid.LocalBounds().center - cover;
+                toCenter.y = 0f;
+                if (toCenter.sqrMagnitude > 1e-4f) cover += toCenter.normalized * GuardCoverCenterPull;
+            }
             return cover;
         }
 

@@ -153,14 +153,15 @@ namespace SynergyUI
             return -1;
         }
 
-        /// <summary>候选格高亮：色档>=0=锁色描边环档（放地候选色，2026-10-17 起环样式），-1=波纹档（单位空格）。</summary>
+        /// <summary>候选格高亮：色档>=0=锁色描边环档（放地候选色，2026-10-17 起环样式），
+        /// -1=蓝环档（单位空格候选，2026-10-30 起逐格波纹壳退役、环为逐格提示统一载体）。</summary>
         private void HighlightCandidates()
         {
             for (int i = 0; i < _options.Count; i++)
             {
                 var o = _options[i];
                 if (o.ColorIndex >= 0) BattleTileFx.SetLandGlow(o.X, o.Z, o.ColorIndex);
-                else BattleTileFx.SetUnitGlow(o.X, o.Z);
+                else BattleTileFx.SetCellRing(o.X, o.Z, BattleTileFx.UnitGlowColor);
             }
         }
 

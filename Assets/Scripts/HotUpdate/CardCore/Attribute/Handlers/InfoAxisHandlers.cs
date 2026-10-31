@@ -132,4 +132,76 @@ namespace CardCore.Attribute.Handlers
         protected override string DescribeTemplate(AtomicEffectInstance effect)
             => $"附加诅咒（抽到该卡时执行分支效果：{effect.StringValue}）";
     }
+
+    /// <summary>
+    /// 筛选展示（信息轴·维度筛选，2026-10-29 阶段3c，百闻牌读心参考）：按宣言维度
+    /// （StringValue="维度:值"，ProphecyDimension 编码）展示{target}手牌中**所有命中**的牌——
+    /// 命中者挂「展示」指示物（ExposedCounter，当前展示态，换区清）并按张发布
+    /// CounterChangedEvent + RevealCardsEvent（RevealCardHandler 同款口径，二值不叠层）。
+    /// 与 RevealCard（随机一张）的分野：本原子按维度圈定全集（"展示对方手牌中所有生物"）。
+    /// 维度全量可用（Type/Color/CostParity/CostExact/LinkArrow/Name——Name=卡名精确匹配，
+    /// 读心「展示某式神全部专属牌」的载体）；str 空/非法 → 空转并告警。
+    /// 域=隐藏区手牌（5/6）：None 自结算不弹选——按原子域取对应侧手牌全量筛选。
+    /// </summary>
+    public class RevealByDimensionHandler : AtomicEffectHandlerBase
+    {
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.RevealByDimension;
+
+        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            if (context.ZoneManager == null || context.Controller == null) return;
+
+            if (!ProphecyDimension.TryParse(effect.StringValue, out var dim, out var val)
+                || !ProphecyDimension.IsValidValue(dim, val))
+            {
+                TideLog.Warn(
+                    $"[RevealByDimension] 非法筛选编码 '{effect.StringValue}'（应为 维度:值，且值在该维度域内），空转");
+                return;
+            }
+
+            foreach (var target in ResolveTargets(effect, context))
+            {
+                if (!(target is Card card) || !card.IsAlive) continue;
+                if (!ProphecyDimension.Matches(card, dim, val)) continue;
+                if (card.GetCounterCount(CounterRules.ExposedCounter) > 0) continue; // 已展示不叠层（二值状态）
+
+                card.AddCounters(CounterRules.ExposedCounter, 1, context.Source);
+                PublishEvent(new CounterChangedEvent
+                {
+                    Target = card,
+                    CounterType = CounterRules.ExposedCounter,
+                    Amount = 1,
+                    Source = context.Source,
+                });
+                PublishEvent(new RevealCardsEvent
+                {
+                    Player = card.GetController(),
+                    Cards = new List<Card> { card },
+                    Source = context.Source,
+                });
+            }
+        }
+
+        /// <summary>目标解析：预选目标沿用（点名已展示卡等信息轴联动）；None 模式按原子域自结算
+        ///——手牌域取对应侧全量（隐藏区不给施放者选择权，维度筛选即全部结果）。</summary>
+        private static IEnumerable<Entity> ResolveTargets(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            if (context.Targets != null && context.Targets.Count > 0) return context.Targets;
+
+            var picked = new List<Entity>();
+            var kinds = effect.TargetKinds ?? new List<int>();
+            foreach (var kind in kinds)
+            {
+                var (zone, own) = TargetKindRules.ZoneOf(kind);
+                if (zone != Zone.Hand) continue; // 筛选展示=手牌信息原子（表行域=对方手牌；其他域跳过）
+                var player = own ? context.Controller : context.Controller.Opponent;
+                var cards = context.ZoneManager.GetCards(player, zone);
+                if (cards != null) picked.AddRange(cards);
+            }
+            return picked;
+        }
+
+        protected override string DescribeTemplate(AtomicEffectInstance effect)
+            => $"展示{{target}}手牌中所有符合「{effect.StringValue}」的牌";
+    }
 }

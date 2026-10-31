@@ -29,9 +29,8 @@ namespace CardCore
         /// 文本变更：文本变化触发
         /// </summary>
         TextChange,
-
-        /// <summary>【墓碑 2026-10-13】特征变更（±1/+1 成对湮灭）——枚举位保留防位序重编号。</summary>
-        CharacteristicChange
+        // 特征变更（CharacteristicChange，±1/+1 成对湮灭）2026-10-13 用户裁定退役——湮灭会丢失
+        // 效果来源，两类计数层允许混挂；枚举位已随 2026-10-30 枚举收拢删除。
     }
 
     /// <summary>
@@ -204,7 +203,7 @@ namespace CardCore
                 case SBAActionType.TextChange:
                     ExecuteTextChange(action);
                     break;
-                // CharacteristicChange 臂已删（2026-10-13 成对湮灭退役——枚举位保留防位序重编号）
+                // CharacteristicChange 臂已删（2026-10-13 成对湮灭退役——枚举位已随 2026-10-30 枚举收拢删除）
             }
 
             action.Executed = true;
@@ -289,9 +288,7 @@ namespace CardCore
         private void ExecuteTextChange(SBAActionRecord action)
         {
         }
-
-        /// <summary>【墓碑 2026-10-13】成对湮灭执行器已删——用户裁定：湮灭丢失效果来源，
-        /// ±1/+1 计数层允许混挂（挂层时 P/T 已各自直改，混挂不产生数值问题）。</summary>
+        // 成对湮灭执行器（特征变更）已随 2026-10-13 用户裁定删除——同 SBACheckers.cs 尾注。
 
         /// <summary>
         /// 发布事件：优先经由 GameCore 统一路由（使 Trigger/Layer 引擎能观察到 SBA 产生的

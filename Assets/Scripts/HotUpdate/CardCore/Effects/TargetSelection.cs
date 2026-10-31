@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Cysharp.Threading.Tasks;
@@ -270,5 +271,19 @@ namespace CardCore
             if (e is Card c) return c.ID;
             return e.ToString();
         }
+    }
+
+    /// <summary>
+    /// 选格反问桥（2026-10-31 场面轴3c MoveUnit）：引擎侧原子 handler 结算期弹格用——
+    /// 参数=待移动单位 + 合法落格（MoveUnitRules 单源筛得的候选）+ 提示语，
+    /// 返回选中格在候选表中的**索引**（-1=取消/放弃；索引制沿用 RequestOneIndexAsync 口径，
+    /// UniTask&lt;int&gt; 避开热更 struct AOT 坑）。
+    /// UI（BattleScreen）注入 BattleCellPicker 实现（与召唤生物选格同交互）；
+    /// null=无选格交互（AI/无头/服务器）——调用方安全空转 + TideLog.Warn。
+    /// 联机 TODO：协议不承载选格，联机局不注入本桥（移动恒空转）。
+    /// </summary>
+    public static class CellSelectionService
+    {
+        public static Func<Card, IReadOnlyList<(int x, int z)>, string, UniTask<int>> Current { get; set; }
     }
 }

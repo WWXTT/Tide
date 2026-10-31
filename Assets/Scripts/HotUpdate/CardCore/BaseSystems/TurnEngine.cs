@@ -44,13 +44,17 @@ namespace CardCore
     /// <summary>
     /// 跳过档位（2026-10-02 D2 定案）：Whole=整回合作废顺延对手；Standby=只跳准备阶段自动化
     /// （抽牌/横置重置/地牌槽推进，与 ITurnStartInterceptor 同口径）；Main=只跳主要阶段
-    /// （准备阶段后直进结束阶段，无出牌/攻击窗口）。相位级跳过在代码侧表达（SkipTurn 原子 str 参数），不占原子表行。
+    /// （准备阶段后直进结束阶段，无出牌/攻击窗口）；End=只跳结束阶段（2026-10-29 阶段3a：
+    /// 进入结束阶段即直接折返下一回合——不发 TurnEndEvent，该阶段系统行为一并跳过）。
+    /// 相位级跳过在代码侧表达（SkipTurn 原子 str 参数），不占原子表行——2026-10-29 阶段3a
+    /// 起三相位行入表（str 由合成器按行 DisplayName 写入）。
     /// </summary>
     public enum TurnSkipMode
     {
         Whole,
         Standby,
-        Main
+        Main,
+        End
     }
 
     /// <summary>
@@ -73,6 +77,8 @@ namespace CardCore
         // 相位级跳过（2026-10-02 D2）：待定标记一次性消费
         private readonly HashSet<Player> _skipNextStandby = new HashSet<Player>();
         private readonly HashSet<Player> _skipNextMain = new HashSet<Player>();
+        // 跳过结束阶段档（2026-10-29 阶段3a）：OnEndPhaseStarted 消费——进入即折返下一回合
+        private readonly HashSet<Player> _skipNextEnd = new HashSet<Player>();
         private List<PhaseType> _phaseOrder = new List<PhaseType>
         {
             PhaseType.Standby,
@@ -157,8 +163,8 @@ namespace CardCore
             AdvanceFromStandby();
         }
 
-        /// <summary>回合快照导出（internal：TurnStartSnapshot 采集用）——额外回合计数与三组跳过标记按座位。</summary>
-        internal (int extraTurns, int[] whole, int[] standby, int[] main) CaptureTurnState(GameCore core)
+        /// <summary>回合快照导出（internal：TurnStartSnapshot 采集用）——额外回合计数与四组跳过标记按座位。</summary>
+        internal (int extraTurns, int[] whole, int[] standby, int[] main, int[] end) CaptureTurnState(GameCore core)
         {
             int[] SeatsOf(System.Collections.Generic.HashSet<Player> set)
             {
@@ -170,7 +176,8 @@ namespace CardCore
                 }
                 return seats.ToArray();
             }
-            return (_extraTurnsForCurrent, SeatsOf(_skipNextTurn), SeatsOf(_skipNextStandby), SeatsOf(_skipNextMain));
+            return (_extraTurnsForCurrent, SeatsOf(_skipNextTurn), SeatsOf(_skipNextStandby),
+                SeatsOf(_skipNextMain), SeatsOf(_skipNextEnd));
         }
 
         /// <summary>
@@ -271,9 +278,19 @@ namespace CardCore
 
         /// <summary>
         /// 结束阶段：SBA检查 → 手牌上限 → 清理临时效果 → 切换玩家
+        /// 跳过结束阶段档（2026-10-29 阶段3a）：待定标记一次性消费——进入即直接 GoToNextPhase
+        /// 折返下一回合（End→Standby 折返的回合轮换/额外回合/整回合跳过照常结算），
+        /// **不发布 TurnEndEvent**（指示物倒数、弃牌上限、结束触发、终局检查等该阶段系统行为一并跳过；
+        /// PhaseStartEvent(End) 已由 EnterPhase 照发——表现层可见阶段闪过）。
         /// </summary>
         private void OnEndPhaseStarted()
         {
+            if (_turnPlayer != null && _skipNextEnd.Remove(_turnPlayer))
+            {
+                GoToNextPhase();
+                return;
+            }
+
             // 由 GameCore 调用 SBA 检查和清理
             // 这里只发布事件和推进
 
@@ -405,9 +422,10 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 标记某玩家跳过其下一个回合的指定档位（2026-10-02 D2：Whole/Standby/Main）。
+        /// 标记某玩家跳过其下一个回合的指定档位（2026-10-02 D2：Whole/Standby/Main；2026-10-29 阶段3a：End）。
         /// Standby 档由 GameCore.OnTurnStarted 经 ConsumePendingStandbySkip 消费（跳准备阶段自动化）；
-        /// Main 档在 AdvanceFromStandby 消费（准备阶段后直进结束阶段）。
+        /// Main 档在 AdvanceFromStandby 消费（准备阶段后直进结束阶段）；
+        /// End 档在 OnEndPhaseStarted 消费（进入即折返，不发 TurnEndEvent）。
         /// </summary>
         public void SkipNextTurnFor(Player player, TurnSkipMode mode)
         {
@@ -416,6 +434,7 @@ namespace CardCore
             {
                 case TurnSkipMode.Standby: _skipNextStandby.Add(player); break;
                 case TurnSkipMode.Main: _skipNextMain.Add(player); break;
+                case TurnSkipMode.End: _skipNextEnd.Add(player); break;
                 default: _skipNextTurn.Add(player); break;
             }
         }

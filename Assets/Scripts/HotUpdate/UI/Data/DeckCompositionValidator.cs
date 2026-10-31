@@ -293,7 +293,6 @@ namespace SynergyUI
                 }
                 for (int e = 0; e < actives.Count; e++)
                 {
-                    actives[e].TriggerLimitPerTurn = 1; // 次数坍缩——SpellCastAnchor 同口径
                     var bill = CardCostService.GetRuntimeCost(card, e);
                     var anchor = CostDerivationService.DeriveElementCosts(actives[e], 0);
                     if (anchor != null)

@@ -911,7 +911,7 @@
     },
     {
       "id": "C_57A3ADD6",
-      "cardName": "纳川仪典",
+      "cardName": "涌泉仪典",
       "supertype": "Enchantment",
       "costList": [
         0.0,
@@ -924,9 +924,7 @@
       "tags": [
         "教学"
       ],
-      "effectIds": [
-        "CCA478E6"
-      ]
+      "effectIds": []
     },
     {
       "id": "C_1F977068",

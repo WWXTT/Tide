@@ -49,13 +49,17 @@ namespace CardCore.Serialization
         [MemoryPackOrder(TagTable.RCS_LockedColor)]
         public int LockedColor = -1;
 
-        /// <summary>建造已建额（2026-10-29 P7：结界手牌逐色预付）——[灰,红,蓝,绿,任意]（任意位恒 0）。
-        /// FromCard 从卡实例 CardWrapper.BuildPaid 导出（P7b 返工：实例级——同名副本/跨玩家互不共享，
-        /// 快照按 runtime card id 各自携带）；可见性随所在区走现有规则（手牌区只进持有者/观战全信息
-        /// 快照——对手端不携带）。ApplyToCard 回灌（客户端卡表副本 UI 数据口/TurnStartSnapshot 恢复同源）；
-        /// null（旧端载荷）=无信息不动。</summary>
+        /// <summary>建造已建额（2026-10-29 P7）——**恒空 legacy 字段**（2026-10-31 P12 建造→充能退役：
+        /// 卡实例 BuildPaid 已删，FromCard 恒写全零、ApplyToCard 不再回灌；保留字段防协议断裂，
+        /// 充能进度经 Counters（CostDownGray/Red/Blue/Green + Exposed）承载，CounterEntryDTO 已覆盖）。</summary>
         [MemoryPackOrder(TagTable.RCS_BuildPaid)]
         public float[] BuildPaid;
+
+        /// <summary>延迟死亡标记（2026-10-29 阶段3b，DelayedDeathAura 改写光环）：本命已用一次延迟
+        /// 改写——到点 TryKill 不再改写（防无限延迟）；换区/真实死亡由引擎清（OnZoneChanged/TryKill）。
+        /// FromCard 从卡实例 _delayedDeath 导出；ApplyToCard 回灌（回放/对拍确定性——任务书 §4）。</summary>
+        [MemoryPackOrder(TagTable.RCS_DelayedDeath)]
+        public bool DelayedDeath;
 
         // ---- M1 网络快照扩展（2026-09-10）：单向导出字段，ApplyToCard 不回灌 ----
         // RuntimeId 只读（Entity 构造期分配）；ControllerSeat 经 SetController 走 Player 对象（DTO 无核心上下文）；
@@ -88,11 +92,11 @@ namespace CardCore.Serialization
                 ControllerSeat = SeatOfController(card),
                 IsFrozen = card.IsFrozen(),
                 LockedColor = -1, // 地牌锁色权威态在 PooledCard 包装——快照侧 BuildZone 覆盖
+                DelayedDeath = card._delayedDeath,
             };
 
-            // 建造已建额（2026-10-29 P7b：卡实例导出——非 CardWrapper=全零，快照展示口径）
-            var buildPaid = (card as CardWrapper)?.BuildPaid;
-            dto.BuildPaid = buildPaid != null ? (float[])buildPaid.Clone() : new float[ElementCost.Length];
+            // 建造已建额 legacy（2026-10-31 P12）：恒写全零（卡实例 BuildPaid 已删；充能进度走 Counters）
+            dto.BuildPaid = new float[ElementCost.Length];
 
             dto.Keywords = card._keywords?.ToArray() ?? Array.Empty<string>();
             dto.Counters = card._counters?.Select(kvp => new CounterEntryDTO { Key = kvp.Key, Value = kvp.Value }).ToArray()
@@ -124,6 +128,7 @@ namespace CardCore.Serialization
             card._isNegated = IsNegated;
             card._isNullified = IsNullified;
             card._zone = (Zone)Zone;
+            card._delayedDeath = DelayedDeath;
 
             if (Keywords != null)
             {
@@ -139,15 +144,8 @@ namespace CardCore.Serialization
                     card._counters[c.Key] = c.Value;
             }
 
-            // 建造已建额回灌（2026-10-29 P7b：写回卡实例）；null（旧端载荷）=无信息不动；
-            // 短数组只覆写前段（防御，长度恒=5）
-            var buildCard = card as CardWrapper;
-            if (buildCard != null && BuildPaid != null)
-            {
-                var target = buildCard.BuildPaid;
-                for (int i = 0; i < target.Length && i < BuildPaid.Length; i++)
-                    target[i] = BuildPaid[i];
-            }
+            // 建造已建额回灌已删（2026-10-31 P12：卡实例 BuildPaid 已删——legacy 字段不再读写，
+            // 旧端载荷中非零值静默丢弃；充能进度经上方 Counters 回灌）
         }
     }
 

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace CardCore
@@ -39,18 +40,33 @@ namespace CardCore
         }
 
         /// <summary>每次发动的净费账单（发动费 − 代价抵扣；先灰后最高费用色、逐色 ≥0、可归零）。
-        /// 只读不改入参；无代价/零抵扣 → 原费克隆。</summary>
+        /// 只读不改入参；无代价/零抵扣 → 原费克隆。
+        /// 2026-10-30 真实小数定案：抵扣直接在 float 桶上逐点进行（每点至多减 1.0、下限 0、
+        /// ≤1e-4 视为空桶），净费保留真值小数——取整只在支付终点 NormalizeBill（逐色进1）；
+        /// 不再先归一成 int 桶（旧口径会在抵扣前把 2.4红 抹成 2，丢失亚点）。
+        /// 与卡层 ReduceBuckets 同序：先灰、灰尽后最高费用色（并列取枚举序靠前者）。</summary>
         public static ElementCost NetBill(ElementCost elementCosts, List<CostInstance> specialCosts)
         {
             var net = elementCosts?.Clone() ?? new ElementCost();
             int points = DeductionPoints(specialCosts);
-            if (points <= 0) return net;
-            var buckets = ElementPaymentValidator.NormalizeBill(net);
-            CardCompositionCost.ReduceBuckets(buckets, points);
-            var result = new ElementCost();
-            foreach (var kv in buckets)
-                result[kv.Key] = kv.Value;
-            return result;
+            for (int i = 0; i < points; i++)
+            {
+                if (net[ManaType.Gray] > 1e-4f)
+                {
+                    net[ManaType.Gray] = Math.Max(0f, net[ManaType.Gray] - 1f);
+                    continue;
+                }
+                ManaType best = ManaType.Gray; float bestV = 0f;
+                for (int c = 0; c <= (int)ManaType.Any; c++)
+                {
+                    var color = (ManaType)c;
+                    if (color == ManaType.Gray) continue;
+                    if (net[color] > bestV + 1e-4f) { bestV = net[color]; best = color; }
+                }
+                if (bestV <= 0f) break; // 全桶空（可归零，不退费不穿底）
+                net[best] = Math.Max(0f, net[best] - 1f);
+            }
+            return net;
         }
 
         /// <summary>可用性（引擎预检/UI 灰显共用）：净费可付 ∧ 代价可支付。

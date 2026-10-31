@@ -4,13 +4,13 @@ using System.Linq;
 namespace CardCore
 {
     /// <summary>
-    /// 效果适用卡型单源（2026-10-29 P9 定案）：输入效果定义（激活方式 + 触发时机 + 原子构成），
-    /// 输出可挂载的卡型集合与逐卡型拒绝原因。判定表与已定案承载规则同源：
+    /// 效果适用卡型单源（2026-10-29 P9 定案；2026-10-30 无次数上限定案修订）：输入效果定义
+    ///（激活方式 + 触发时机 + 原子构成），输出可挂载的卡型集合与逐卡型拒绝原因。判定表与已定案承载规则同源：
     /// · 关键词（表行 Keyword 挂位 ∪ Grant* 域恰 {Self}）：生物✓ 结界✓ 法术✗；
     /// · 一次性触发（FiresOncePerPaidLifetime 单源——不另造表）：生物✓ 结界✓；
     ///   法术仅「登场」通过（法术=施放即结算的一次性形态），死亡/离场等驻场时点无从触发；
-    /// · 反复触发（抽牌/伤害/阶段/事件观察族）：生物✗（无耐久无横置锚——无限循环入口，
-    ///   删次数档的前置保险，硬拒）结界✓（耐久即次数）法术✗；
+    /// · 反复触发（抽牌/伤害/阶段/事件观察族）：**生物✓（2026-10-30 放开——次数上限删除后由
+    ///   期望触发次数计价承担平衡，不再以卡型硬拒）** 结界✓（耐久即次数）法术✗（法术不驻场）；
     /// · 绑横置触发（攻击/守卫/横置族）：生物✓（横置锚天然限频）结界✗（不横置）法术✗；
     /// · 主动效果（Activate_*）：生物✓（横置发动）结界✗（禁主动——2026-10-15 改版）
     ///   法术✓（抉择槽 1~3 即主动形态——与宿主钉值/主动槽同口径）；
@@ -19,9 +19,9 @@ namespace CardCore
     /// 注意：本类只判「能不能挂」，不管槽位容量与保存闸——既有形状闸（FillSelectedSlot）与
     /// 宿主钉值（SyncActivationVisibility）仍在调用侧前置。
     ///
-    /// 不做但记档（P9 §5）：
-    /// · 「登场」不是严格一次（弹回再入场会再触发），×0.8 是近似计价——不加机制，只在注释写清；
-    /// · 耐久档重排：反复触发的结界一回合可能烧 2～3 点耐久，现有默认耐久偏厚——本次不改数值，
+    /// 不做但记档：
+    /// · 「登场」不是严格一次（弹回再入场会再触发），时机系数 1 是近似计价——不加机制，只在注释写清；
+    /// · 耐久档重排：反复触发的结界一回合可能烧多点耐久，现有默认耐久偏厚——本次不改数值，
     ///   内容侧建议高频时机（抽牌/伤害）耐久配 2～3。
     /// </summary>
     public static class EffectEligibility
@@ -42,8 +42,8 @@ namespace CardCore
             if (host == Cardtype.Spell)
             {
                 if (HasKeywordAtom(def)) return "法术无关键词载体（关键词=生物/结界印刷位）";
-                if (auraShape) return "连接光环专属结界载体（法术只挂主动效果）";
-                if (HasRuleAuraAtom(def)) return "规则光环专属结界载体（全局唯一、驻场生效）";
+                if (auraShape) return "光环（连接/场地）专属结界载体（法术只挂主动效果）";
+                if (HasRuleAuraAtom(def)) return "场地光环专属结界载体（全局唯一、驻场生效）";
                 if (def.IsTriggeredEffect)
                 {
                     if (CostDerivationService.FiresOncePerPaidLifetime(def.TriggerTiming))
@@ -62,12 +62,9 @@ namespace CardCore
                     return "结界不横置——绑横置触发（攻击/守卫）无从锚定";
                 return null; // 一次性/反复触发=耐久即次数池（2026-10-10 发数经济）
             }
-            // 生物
-            if (HasRuleAuraAtom(def)) return "规则光环专属结界（全局唯一、驻场生效）";
-            if (def.IsTriggeredEffect
-                && !CostDerivationService.FiresOncePerPaidLifetime(def.TriggerTiming)
-                && !IsTapAnchoredTiming(def.TriggerTiming))
-                return "生物无耐久无横置锚——反复触发是无限循环入口，只能上结界（删次数档前置保险）";
+            // 生物：反复触发自 2026-10-30 起可挂（次数上限删除，平衡由时机期望系数承担——
+            // 回合/阶段/抽牌/横置 ×1.5、攻防/伤害/事件族暂定 ×2，见 CostDerivation.TimingCostFactor）。
+            if (HasRuleAuraAtom(def)) return "场地光环专属结界（全局唯一、驻场生效）";
             return null;
         }
 

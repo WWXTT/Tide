@@ -186,34 +186,190 @@
     "Des": "目标数量全部（0=域内全取；-1任意同此档）：×3"
   },
   {
-    "Category": "PricingTier",
-    "Key": "TriggerLimit1",
+    "Category": "TimingFactor",
+    "Key": "OnPlay",
     "Value": 1.0,
-    "Des": "作用次数1：计价基准（未声明0亦按此；CostDerivation.TriggerCostFactor 消费）"
+    "Des": "登场：为这张卡付费后只能触发一次（弹回重打=新付费）——期望1（2026-10-30 时机系数=期望触发次数定案）"
   },
   {
-    "Category": "PricingTier",
-    "Key": "TriggerLimit2",
+    "Category": "TimingFactor",
+    "Key": "OnDeath",
+    "Value": 1.0,
+    "Des": "死亡：付费后只能触发一次——期望1"
+  },
+  {
+    "Category": "TimingFactor",
+    "Key": "OnDestroy",
+    "Value": 1.0,
+    "Des": "破坏（死因=破坏）：付费后一次——期望1"
+  },
+  {
+    "Category": "TimingFactor",
+    "Key": "OnExile",
+    "Value": 1.0,
+    "Des": "除外：付费后一次——期望1"
+  },
+  {
+    "Category": "TimingFactor",
+    "Key": "OnLeaveBattlefield",
+    "Value": 1.0,
+    "Des": "离场：每次在场→离场一次（再入场=新付费）——期望1"
+  },
+  {
+    "Category": "TimingFactor",
+    "Key": "OnReturnFromGraveyard",
+    "Value": 1.0,
+    "Des": "墓地回场：每次回场由另一笔支付带来——本卡期望1"
+  },
+  {
+    "Category": "TimingFactor",
+    "Key": "OnGameStart",
+    "Value": 1.0,
+    "Des": "游戏开始：每局一次——期望1"
+  },
+  {
+    "Category": "TimingFactor",
+    "Key": "OnRoleDeath",
+    "Value": 1.0,
+    "Des": "角色死亡：每局一次——期望1"
+  },
+  {
+    "Category": "TimingFactor",
+    "Key": "OnSummon",
+    "Value": 1.0,
+    "Des": "召唤进场（登场超集）：本卡付费后通常一次；复活/效果召唤由他卡付费——期望1"
+  },
+  {
+    "Category": "TimingFactor",
+    "Key": "OnTurnStart",
     "Value": 1.5,
-    "Des": "作用次数2：×1.5"
+    "Des": "回合开始（系统专用）：生物存活期望1.5回合 → 1.5"
   },
   {
-    "Category": "PricingTier",
-    "Key": "TriggerLimit3",
+    "Category": "TimingFactor",
+    "Key": "OnTurnEnd",
+    "Value": 1.5,
+    "Des": "回合结束：存活期望1.5回合 → 1.5"
+  },
+  {
+    "Category": "TimingFactor",
+    "Key": "OnStandbyPhase",
+    "Value": 1.5,
+    "Des": "准备阶段：每回合一次，存活期望1.5回合 → 1.5"
+  },
+  {
+    "Category": "TimingFactor",
+    "Key": "OnPhaseStart",
+    "Value": 1.5,
+    "Des": "阶段开始（系统专用）：存活期内阶段数，暂按存活期望1.5"
+  },
+  {
+    "Category": "TimingFactor",
+    "Key": "OnPhaseEnd",
+    "Value": 1.5,
+    "Des": "阶段结束（系统专用）：暂按存活期望1.5"
+  },
+  {
+    "Category": "TimingFactor",
+    "Key": "OnDraw",
+    "Value": 1.5,
+    "Des": "抽牌：己方每回合自然抽1，存活期望1.5回合 → 1.5（效果抽牌另计，实测后上调）"
+  },
+  {
+    "Category": "TimingFactor",
+    "Key": "OnTap",
+    "Value": 1.5,
+    "Des": "横置：每回合一次，存活期望1.5回合 → 1.5"
+  },
+  {
+    "Category": "TimingFactor",
+    "Key": "OnUntap",
+    "Value": 1.5,
+    "Des": "重置：每回合一次，存活期望1.5回合 → 1.5"
+  },
+  {
+    "Category": "TimingFactor",
+    "Key": "OnAttack",
     "Value": 2.0,
-    "Des": "作用次数3：×2"
+    "Des": "攻击宣言：己方每回合至多一次；期望未标定，暂定2"
   },
   {
-    "Category": "PricingTier",
-    "Key": "TriggerLimitInfinite",
-    "Value": 4.0,
-    "Des": "作用次数无上限（-1；N>3视同此档）：×4"
+    "Category": "TimingFactor",
+    "Key": "OnAttacked",
+    "Value": 2.0,
+    "Des": "被攻击：对手每回合至多一次；期望未标定，暂定2"
   },
   {
-    "Category": "PricingTier",
-    "Key": "TimingOnceFactor",
-    "Value": 0.8,
-    "Des": "一发时机减免（2026-10-16 时机轴接入计价）：登场/死亡/游戏开始/角色死亡/破坏/除外/离场/墓地回场等整个生命期望=1的触发时机 ×0.8；抽牌/伤害/攻防宣言/回合开始结束/事件观察族等期望>1的时机不变；引擎载荷与非触发式不乘（CostDerivation.TimingCostFactor 消费）"
+    "Category": "TimingFactor",
+    "Key": "OnBlockDeclare",
+    "Value": 2.0,
+    "Des": "阻拦宣言：每回合一次；期望未标定，暂定2"
+  },
+  {
+    "Category": "TimingFactor",
+    "Key": "OnDealDamage",
+    "Value": 2.0,
+    "Des": "造成伤害：攻击+效果伤害；期望未标定，暂定2（实测后改本行）"
+  },
+  {
+    "Category": "TimingFactor",
+    "Key": "OnTakeDamage",
+    "Value": 2.0,
+    "Des": "受到伤害：期望未标定，暂定2（实测后改本行）"
+  },
+  {
+    "Category": "TimingFactor",
+    "Key": "OnTargeted",
+    "Value": 2.0,
+    "Des": "被指定为目标：期望未标定，暂定2（实测后改本行）"
+  },
+  {
+    "Category": "TimingFactor",
+    "Key": "OnOtherCreatureEnter",
+    "Value": 2.0,
+    "Des": "其他生物进场（观察者时点）：期望未标定，暂按2"
+  },
+  {
+    "Category": "TimingFactor",
+    "Key": "OnOtherCreatureDeath",
+    "Value": 2.0,
+    "Des": "其他生物死亡（观察者时点）：期望未标定，暂按2"
+  },
+  {
+    "Category": "TimingFactor",
+    "Key": "OnSpellCast",
+    "Value": 2.0,
+    "Des": "施放法术：双方每回合都可能多次；期望未标定，暂按2"
+  },
+  {
+    "Category": "TimingFactor",
+    "Key": "OnCardPlayed",
+    "Value": 2.0,
+    "Des": "使用卡牌：双方每回合多次；期望未标定，暂按2"
+  },
+  {
+    "Category": "TimingFactor",
+    "Key": "OnScry",
+    "Value": 2.0,
+    "Des": "占卜：双方占卜都触发；期望未标定，暂按2"
+  },
+  {
+    "Category": "TimingFactor",
+    "Key": "OnAtomicEffectActivation",
+    "Value": 2.0,
+    "Des": "原子效果发动（系统观察时点）：高频未知，暂按2"
+  },
+  {
+    "Category": "TimingFactor",
+    "Key": "OnAtomicEffectStartApplying",
+    "Value": 2.0,
+    "Des": "原子效果开始作用（系统观察时点）：高频未知，暂按2"
+  },
+  {
+    "Category": "TimingFactor",
+    "Key": "OnAtomicEffectResolution",
+    "Value": 2.0,
+    "Des": "原子效果结算完成（系统观察时点）：高频未知，暂按2"
   },
   {
     "Category": "GameRules",
@@ -231,7 +387,7 @@
     "Category": "GameRules",
     "Key": "DefaultHandLimit",
     "Value": 7.0,
-    "Des": "手牌上限基值（仅回合末强制选弃，抽牌时不截断；IHandLimitModifier 修改链之上叠加，纳川仪典光环→15）"
+    "Des": "手牌上限基值（仅回合末强制选弃，抽牌时不截断；IHandLimitModifier 修改链之上叠加，纳川仪典光环→+自己蓝色地牌数〔2026-10-30 改版，原固定15〕）"
   },
   {
     "Category": "GameRules",
@@ -244,5 +400,17 @@
     "Key": "LandCurveCap",
     "Value": 10.0,
     "Des": "标准地牌槽曲线自然封顶 [1..10]（2026-10-15：7→10，每次回合开始双方同步 +1——先后手无差；成长等效果增加在此之外无限制；=曲线末端=ElementPool 池钳 MAX_POOL_SIZE 同源）"
+  },
+  {
+    "Category": "GameRules",
+    "Key": "SecondPlayerArmorBonus",
+    "Value": 5.0,
+    "Des": "后手开局护甲补偿（2026-10-30 迁表：后手角色 +N 层护甲指示物 ArmorCounter——本地木桩局/联机 NetRoom/教学固定先后手开局注入共用 GameCore.SecondPlayerArmorBonus 单口；改表即改数值）"
+  },
+  {
+    "Category": "GameRules",
+    "Key": "MaxTriggersPerTurnPerEffect",
+    "Value": 30.0,
+    "Des": "自馈闸门（2026-10-30 定案）：同一来源实例+效果Id每回合最多触发次数——常规触发远低于30，只截断自循环；引擎载荷/结界耐久不叠闸"
   }
 ]

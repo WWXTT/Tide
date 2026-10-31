@@ -640,7 +640,7 @@ namespace SynergyUI
             ctrl.StartNewGame(playerDeck, aiDeck, MakePacedScriptedAi(tutorial),
                 lockDeckOrder: true, rngSeed: matchSeed,
                 mySkillCardId: entryMySkill, aiSkillCardId: entryAiSkill,
-                playerFirst: entryPlayerFirst, secondArmorBonus: entryPlayerFirst.HasValue ? 5 : 0,
+                playerFirst: entryPlayerFirst, secondArmorBonus: entryPlayerFirst.HasValue ? GameCore.SecondPlayerArmorBonus : 0,
                 myTokenBindings: entryMyTokenBindings, aiTokenBindings: entryAiTokenBindings);
             EnableTutorialAiResponder(ctrl, tutorial); // AI 响应：默认让过+aiGuard 守卫演示窗（2026-10-17 剧本）
             TutorialGuide.Begin(tutorial);

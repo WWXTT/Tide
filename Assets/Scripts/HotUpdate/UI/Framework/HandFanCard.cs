@@ -12,7 +12,8 @@ namespace SynergyUI
     /// （同 CardOverlayCard 的挂载模式——prefab 本体不带脚本）。承担四件事：
     /// ① IPointerEnter/Exit 悬停上报，转发给所属 HandFanView 重排目标；
     /// ② 布局 tween 状态（当前值/目标值），由 HandFanView.Tick 统一推进；
-    /// ③ 悬停显隐「放置/发动」按钮层（ACard/btn，2026-10-14 手牌出牌接线）：
+    /// ③ 悬停显隐按钮层（btn：放置/使用/特殊使用+费用方格，2026-10-14 手牌出牌接线、
+    ///    2026-10-30 SpUse/CostSquares 改版）：
     ///    条件由宿主屏注入的交互钩子（FanInteractions）评估；指针从卡面移到按钮上
     ///    （子孙物体）不收悬停态——Exit 事件按射线落点是否本卡子孙判留；
     /// ④ 可发动边缘雾光（AHandCard/Flowing 节点，2026-10-15 雾气改版）：Flowing 是用户在
@@ -31,11 +32,19 @@ namespace SynergyUI
         /// <summary>卡面渲染（Create 时回填）。</summary>
         [System.NonSerialized] public ACardView Face;
 
-        /// <summary>发动按钮（ACard/btn/Use，prefab 用户摆位，Create 时接线）。</summary>
+        /// <summary>发动按钮（btn/Use，prefab 用户摆位，Create 时接线）。</summary>
         [System.NonSerialized] public Button UseButton;
 
-        /// <summary>放置按钮（ACard/btn/Place——作为地牌放入元素池）。</summary>
+        /// <summary>放置按钮（btn/Place——作为地牌放入元素池）。</summary>
         [System.NonSerialized] public Button PlaceButton;
+
+        /// <summary>特殊使用按钮（btn/SpUse，2026-10-30）：语义按卡类型——生物=苏醒召唤（P6）、
+        /// 法术=多主动抉择（&gt;1 主动时取代使用钮）、结界=建造预付（P7）。文案随 SetHandChrome
+        /// 按类型写，显隐=宿主 CanSpUse 钩子。</summary>
+        [System.NonSerialized] public Button SpUseButton;
+
+        /// <summary>手牌费用方格（btn/CostSquares，2026-10-30 定档：卡费只在手牌展示——卡面无费用）。</summary>
+        [System.NonSerialized] public CostSquaresView CostSquares;
 
         // ---- tween 状态（anchoredPosition / z 角 / 等比缩放） ----
         public Vector2 Pos;
@@ -183,6 +192,7 @@ namespace SynergyUI
         /// <summary>按交互钩子条件刷新按钮层显隐（悬停进入/扇区对账后触发；无钩子=对手扇常态隐藏）。</summary>
         public void RefreshActionButtons()
         {
+            EnsureChromeRefs();
             var hooks = Fan?.Hooks;
             if (hooks == null || Face == null)
             {
@@ -191,22 +201,61 @@ namespace SynergyUI
             }
             bool canUse = hooks.CanUse != null && hooks.CanUse(this);
             bool canPlace = hooks.CanPlaceLand != null && hooks.CanPlaceLand(this);
-            Face.SetActionLayerVisible(canUse || canPlace);
+            bool canSpUse = hooks.CanSpUse != null && hooks.CanSpUse(this);
+            Face.SetActionLayerVisible(canUse || canPlace || canSpUse);
             if (UseButton != null && UseButton.gameObject.activeSelf != canUse)
                 UseButton.gameObject.SetActive(canUse);
             if (PlaceButton != null && PlaceButton.gameObject.activeSelf != canPlace)
                 PlaceButton.gameObject.SetActive(canPlace);
+            if (SpUseButton != null && SpUseButton.gameObject.activeSelf != canSpUse)
+                SpUseButton.gameObject.SetActive(canSpUse);
+        }
+
+        /// <summary>btn 层件惰性解析兜底（2026-10-30）：Play 中域重载（Recompile-And-Continue）
+        /// 会清空 NonSerialized 引用与运行时 onClick 监听、且不重跑 Create——旧卡实例字段全 null
+        /// =费用方格不赋值/按钮全灭（现场：AHandCard CostSquares 空）。任一引用缺失时重解析+补
+        /// 监听（监听随域重载同亡，不会叠加）；Create 正常接线过的实例短路。</summary>
+        private void EnsureChromeRefs()
+        {
+            if (UseButton != null && PlaceButton != null && SpUseButton != null && CostSquares != null) return;
+            var useBtn = transform.Find("btn/Use")?.GetComponent<Button>();
+            var placeBtn = transform.Find("btn/Place")?.GetComponent<Button>();
+            var spBtn = transform.Find("btn/SpUse")?.GetComponent<Button>();
+            var squares = (transform.Find("btn/NowCost/CostSquares") ?? transform.Find("btn/CostSquares"))
+                ?.GetComponent<CostSquaresView>();
+            if (UseButton == null && useBtn != null) { UseButton = useBtn; UseButton.onClick.AddListener(OnUseClicked); }
+            if (PlaceButton == null && placeBtn != null) { PlaceButton = placeBtn; PlaceButton.onClick.AddListener(OnPlaceClicked); }
+            if (SpUseButton == null && spBtn != null) { SpUseButton = spBtn; SpUseButton.onClick.AddListener(OnSpUseClicked); }
+            if (CostSquares == null) CostSquares = squares;
         }
 
         /// <summary>收起按钮层（出扇/复用/发起流程时）。</summary>
         public void HideActionButtons() => Face?.SetActionLayerVisible(false);
 
-        /// <summary>手牌按钮文字（2026-10-23 术语定案）：生物=召唤，法术/结界=发动；地牌键恒「放置」。</summary>
-        public void SetUseLabel(CardOverlayItem item)
+        /// <summary>手牌卡按钮文案+费用方格（2026-10-30 定案）：卡费只在手牌展示（btn/CostSquares，
+        /// SetCards 对账时刷新）；使用钮=生物召唤/法术使用/结界发动；特殊使用钮（SpUse）=
+        /// 生物苏醒/法术抉择/结界建造。按钮显隐不在此处——RefreshActionButtons 按钩子逐钮评估。</summary>
+        public void SetHandChrome(CardOverlayItem item)
         {
-            if (UseButton == null || item == null) return;
-            var lbl = UseButton.GetComponentInChildren<TMP_Text>(true);
-            if (lbl != null) lbl.text = item.Supertype == Cardtype.Creature ? "召唤" : "发动";
+            if (item == null) return;
+            EnsureChromeRefs(); // 域重载僵尸件自愈（字段 null=费用方格不赋值）
+            var type = item.Supertype;
+            SetButtonLabel(UseButton, type == Cardtype.Creature ? "召唤"
+                : type == Cardtype.Spell ? "使用" : "发动");
+            SetButtonLabel(SpUseButton, type == Cardtype.Creature ? "苏醒"
+                : type == Cardtype.Spell ? "抉择" : "建造");
+            if (CostSquares != null)
+            {
+                if (item.Costs != null && !item.Costs.IsZero) CostSquares.SetCosts(item.Costs);
+                else CostSquares.Clear();
+            }
+        }
+
+        private static void SetButtonLabel(Button button, string text)
+        {
+            if (button == null) return;
+            var lbl = button.GetComponentInChildren<TMP_Text>(true);
+            if (lbl != null) lbl.text = text;
         }
 
         /// <summary>按钮点击（Button.onClick 接线）：先收按钮再交宿主屏接管（宿主会隐藏手牌扇）。</summary>
@@ -220,6 +269,12 @@ namespace SynergyUI
         {
             HideActionButtons();
             Fan?.Hooks?.OnPlaceLand?.Invoke(this);
+        }
+
+        public void OnSpUseClicked()
+        {
+            HideActionButtons();
+            Fan?.Hooks?.OnSpUse?.Invoke(this);
         }
 
         // ---- 可发动边缘雾光 ----
@@ -295,9 +350,11 @@ namespace SynergyUI
                 return;
             }
 
-            // 卡面真值：嵌套 ACard 实例（缺=卡根，与 ACardView.Bind 同回落链）；布局未就绪的异常尺寸回落卡根
+            // 卡面真值：嵌套 ACard 实例（缺=卡根，与 ACardView.Bind 同回落链）；布局未就绪的异常尺寸回落卡根。
+            // 2026-10-30 AHandCard 改版：嵌套 ACard 带 0.6 缩放——几何须取「卡根系内视觉尺寸」
+            //（rect × 本级 localScale），否则按 360×648 原尺寸铺画布=卡四周大片溢出
             var face = transform.Find("ACard") as RectTransform ?? (RectTransform)transform;
-            Vector2 faceSize = face.rect.size;
+            Vector2 faceSize = Vector2.Scale(face.rect.size, face.localScale);
             if (faceSize.x < 1f || faceSize.y < 1f) faceSize = ((RectTransform)transform).rect.size;
 
             const float margin = 36f; // 雾气外扩边距（shader 在 quad 边前强制归零，完整雾尾不留切口）
@@ -389,7 +446,8 @@ namespace SynergyUI
             }
 
             var face = transform.Find("ACard") as RectTransform ?? (RectTransform)transform;
-            Vector2 faceSize = face.rect.size;
+            // 同雾光口径（2026-10-30）：嵌套 ACard 0.6 缩放须并入——消融层按视觉卡面外扩 8px
+            Vector2 faceSize = Vector2.Scale(face.rect.size, face.localScale);
             if (faceSize.x < 1f || faceSize.y < 1f) faceSize = ((RectTransform)transform).rect.size;
 
             const float margin = 8f;

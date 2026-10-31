@@ -174,6 +174,7 @@ namespace SynergyUI
             CombatSystem.RoleAdjacentResolver = _board.FlankNeighborsOfRole; // 碾压攻角色=角色格左右邻格（2026-10-16 改版）
             BranchEngines.UnityAdjacentCountOf = _board.AdjacentOccupantCount; // 团结=六邻单位数（2026-10-20 效果序位换轴）
             GameBoard.LinkAuraSystem.Attach(_board); // 连接光环（三轨制）：箭头指向格占据者享受 linkAuras
+            GameBoard.MoveUnitRules.Attach(_board); // 移动原子（2026-10-31 场面轴3c）：合法性/落位单源——未装配局移动恒空转
         }
 
         /// <summary>
@@ -211,6 +212,7 @@ namespace SynergyUI
             CombatSystem.RoleAdjacentResolver = null;
             BranchEngines.UnityAdjacentCountOf = null; // 团结邻接注入随棋盘归零（静态委托防跨局指向过期占用层）
             GameBoard.LinkAuraSystem.Detach();
+            GameBoard.MoveUnitRules.Detach();
         }
 
         // ======================================== 攻击与响应窗口（2026-09-16 逐攻击开窗） ========================================

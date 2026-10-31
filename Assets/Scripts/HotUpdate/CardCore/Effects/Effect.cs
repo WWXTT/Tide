@@ -235,6 +235,11 @@ namespace CardCore
         /// </summary>
         public int ModeIndex { get; set; }
 
+        /// <summary>充能色（2026-10-31 P12，FromPendingEffect 透传）：充能发动时玩家选定的颜色
+        ///（灰/红/蓝/绿）——执行器复制进 context.ChargeColor，ChargeHandler 消费；
+        /// 非充能效果恒 null。</summary>
+        public ManaType? ChargeColor { get; set; }
+
         /// <summary>
         /// 创建时间
         /// </summary>
@@ -310,6 +315,7 @@ namespace CardCore
                 TriggeringEvent = pending.TriggeringEvent,
                 TimestampInfo = pending.TimestampInfo,
                 CreatedAt = pending.TimestampInfo.DateTime,
+                ChargeColor = pending.ChargeColor, // 充能色透传（2026-10-31 P12）
                 IsResolved = false
             };
         }

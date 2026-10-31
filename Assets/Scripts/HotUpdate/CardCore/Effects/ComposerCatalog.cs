@@ -39,12 +39,12 @@ namespace CardCore
             }
         }
 
-        /// <summary>表行是否引擎主干行（MountKinds 位 7）。</summary>
+        /// <summary>表行是否引擎主干行（MountKinds 位 5）。</summary>
         public static bool IsEngineTrunkRow(Attribute.AtomicEffectConfig row)
             => HasMountBit(row, MountKind.EngineTrunk);
 
         /// <summary>组合内限重复行（2026-10-09 全局唯一定案 → 2026-10-19 放开修订）：仅引擎主干
-        /// （位 7，倒计时等引擎状态按卡单台账共槽）与规则光环仪典（位 6，运行时同名一槽）维持
+        /// （位 5，倒计时等引擎状态按卡单台账共槽）与规则光环仪典（位 6，运行时同名一槽）维持
         /// 「同一效果一个组合中只出现一次（并列与奖励均计入）」；其余行放开可重复——逐原子目标制下
         /// 按实例独立解析/独立计价，重复=双倍价双倍效。合成期隐藏口径与构筑期兜底共用此单源。
         /// null 行（断链）不拦——断链另有断链告警。</summary>
@@ -102,10 +102,23 @@ namespace CardCore
             _ => false,
         };
 
+        /// <summary>引擎发动方式双选组（2026-10-30 用户定案）：除倒计时/元素充盈（仅自动钉死）外，
+        /// 其余引擎 自动/主动 均可声明——预设 Activation 降级为落槽缺省，声明主动（2）合法保留
+        ///（合成器 ApplyEngineHeaderLock 不再钉值；CardEffectConverter 归一放行声明值）。
+        /// 主动路径运行时已接（EffectExecutionEngine.ApplyActiveEngineTrunkAsync/ApplyActiveLuckTrunkAsync：
+        /// 点击即评估条件、达标发奖；附加诅咒·祝福=施放时已部署、手动发动提示性空转）。
+        /// 模拟/变形动态主干=仅主动（非引擎预设，合成器另行钉死，不经本口）。</summary>
+        public static bool EngineActivationFree(BranchEngineKind kind)
+            => kind != BranchEngineKind.None
+               && kind != BranchEngineKind.Countdown
+               && kind != BranchEngineKind.ManaSurplus;
+
         /// <summary>引擎效果头固定档（2026-10-09 自由分支九项定案）：引擎=单原子形态效果，发动方式/时机/
         /// 速度/生效次数由引擎内生触发事件决定——效果头四值按引擎钉死：合成器锁定不可改（ApplyEngineHeaderLock），
         /// 转换期（ConvertOne）对旧数据/手写数据兜底归一。引擎运行时本就无视效果头（BranchEngines 自订阅
         /// 事件）——此表保证显示/计价/数据三面与引擎真实语义一致。
+        /// 2026-10-30 注：Limit 已无运行时消费方（效果无次数上限；自由分支每卡每回合 1 次由 BranchEngines
+        /// 自限），保留仅为引擎效果头存档值/内容哈希稳定。
         /// 2026-10-16 解绑定案：运势 FreeTiming=true——时机不再钉死（掷骰随声明时机判定），表内
         /// Timing/Activation 退化为**缺省值**，合成器解锁时机可改，转换期声明值优先、未声明回落此缺省。
         /// 2026-10-20 倒计时固定触发定案：倒计时退回钉死组（自动·回合开始——归零直接触发奖励，
@@ -115,9 +128,9 @@ namespace CardCore
             public readonly EffectActivationType Activation;
             public readonly TriggerTiming Timing;
             public readonly int Speed;
-            public readonly int Limit; // 生效次数：-1=无限
+            public readonly int Limit; // 历史成效次数（-1=无限）——2026-10-30 起无消费方，仅供存档/哈希稳定
             /// <summary>自由时机引擎（2026-10-16 解绑）：true=时机可自由声明，
-            /// 表内 Activation/Timing 为缺省而非钉死值；速度/生效次数仍钉。</summary>
+            /// 表内 Activation/Timing 为缺省而非钉死值；速度仍钉。</summary>
             public readonly bool FreeTiming;
 
             public EngineHeaderPreset(EffectActivationType activation, TriggerTiming timing, int speed, int limit,
@@ -212,7 +225,7 @@ namespace CardCore
         /// 达标→Then 奖励，不达标→不奖励也不惩罚（2026-10-09 定案，纯条件奖励）。
         /// 2026-10-23 入表定案：目录**每次从原子表派生**（表重读即生效，不做永久缓存——11 行开销可忽略）：
         /// 取 MountKinds 含「有限分支」位（MountKind.SituationGate）的行，顺序=表序（装载序号）；
-        /// 行承载身份（GateId）/挂载（位 10）/预算（Budget 列），判定谓词仍由 BranchConditionEvaluator 代码注册。
+        /// 行承载身份（GateId）/挂载（位 8）/预算（Budget 列），判定谓词仍由 BranchConditionEvaluator 代码注册。
         /// 诅咒门（CurseOnDraw）不在列——诅咒通道=引擎主干行 EngineCurseOnDraw（2026-10-08 接棒）。</summary>
         public static GateSpec[] SituationGates => Attribute.AtomicEffectTable.GetAll()
             .Where(r => r != null && HasMountBit(r, MountKind.SituationGate) && !string.IsNullOrEmpty(r.GateId))
@@ -330,9 +343,9 @@ namespace CardCore
             => HasFilterToken(row, "NoRole");
 
         /// <summary>行级「可否作连接光环条目」统一判定（2026-10-07 深夜终版：光环库/装载拦截/保存校验共用）：
-        /// 位 8 不可作为连接光环（消耗型黑名单）一票否决 → 位 1 指示物硬拒（永不可无例外——防误标；
+        /// 位 7 不可作为连接光环（消耗型黑名单）一票否决 → 位 1 指示物硬拒（永不可无例外——防误标；
         /// 坚韧 2026-10-08 指示物化即经此位退出光环族）→ 位 0 关键词默认可 → 其余看位 3 可以作为连接光环
-        ///（一般效果行光环化源——属性增加/减少）。位 7 仅可已删（IsAuraOnlyRow 随之退役）。</summary>
+        ///（一般效果行光环化源——属性增加/减少）。原位 7「仅可」已删（IsAuraOnlyRow 随之退役）。</summary>
         public static bool CanMountAsAura(Attribute.AtomicEffectConfig row)
         {
             if (row == null) return false;
@@ -343,24 +356,90 @@ namespace CardCore
         }
 
         /// <summary>主干槽可落资格（2026-10-07 位 0「入效果栏」删除后派生，合成器 LibPayload 与装载校验共用）：
-        /// 非规则光环即可（位 7 仅可已删）。引擎行经 EngineTrunk
+        /// 非规则光环即可（原位 7「仅可」已删）。引擎行经 EngineTrunk
         /// 位进主干槽（填槽即自由分支）；系统/攻守行有资格但被合成器库过滤隐藏；关键词/指示物行以授予形态落槽。
-        /// 2026-10-23 有限分支入表：门槛行（位 10）不得作主干——表行只承载门槛身份/挂载/预算，
-        /// 防门槛行漏进原子库与卡组合。</summary>
+        /// 2026-10-23 有限分支入表：门槛行（位 8）不得作主干——表行只承载门槛身份/挂载/预算，
+        /// 防门槛行漏进原子库与卡组合。
+        /// 2026-10-31 P12 充能：充能行可作主干（主动效果形态——手牌充能入口的唯一载体）。</summary>
         public static bool CanBeTrunkRow(Attribute.AtomicEffectConfig row)
             => row != null && !HasMountBit(row, MountKind.RuleAura) && !HasMountBit(row, MountKind.SituationGate);
 
         /// <summary>槽内 Then 奖励资格（2026-10-07 位 3「分支奖励」删除后派生）：
         /// 派生主干资格 ∩ 非引擎行（引擎行=条件载体零域，不作奖励）。
         /// 预算/可逆转/非错边过滤在调用点照旧。
-        /// 2026-10-23 有限分支入表：门槛行随主干排除一并出局（位 10）。
-        /// 2026-10-24 动态费用位：临摹/变形赋予挂位 11 排除出奖励——补差随局内动态情况，
-        /// 奖励入价锚定在构筑期无法覆盖；主干照旧（召唤衍生物同为动态计价但不挂位 11，照旧可作奖励）。
+        /// 2026-10-23 有限分支入表：门槛行随主干排除一并出局（位 8）。
+        /// 2026-10-24 动态费用位：临摹/变形赋予挂位 9 排除出奖励——补差随局内动态情况，
+        /// 奖励入价锚定在构筑期无法覆盖；主干照旧（召唤衍生物同为动态计价但不挂位 9，照旧可作奖励）。
+        /// 2026-10-31 P12 充能：充能行排除出奖励——充能=手牌主动效果专用形态（颜色在结算期决定，
+        /// 作奖励无意义且绕过手牌闸）。
         /// （2026-10-13 晚「主动发动」位已删：动态计价原子触发式预付与主动现付同额同源
         ///（ResolveTemplate→ContentPriceOf）——主动/自动自由选择。）</summary>
         public static bool CanBeRewardRow(Attribute.AtomicEffectConfig row)
             => CanBeTrunkRow(row) && !HasMountBit(row, MountKind.EngineTrunk)
-               && !HasMountBit(row, MountKind.DynamicCost);
+               && !HasMountBit(row, MountKind.DynamicCost) && !IsChargeRow(row);
+
+        // ======================================== 充能（2026-10-31 P12：建造→充能） ========================================
+
+        /// <summary>原子类型是否充能（表行 afa24bf3「充能」——主动效果、速度 0、只能从手牌发动）。</summary>
+        public static bool IsChargeAtom(AtomicEffectType type) => type == AtomicEffectType.Charge;
+
+        /// <summary>表行是否充能行（EnumName 解析——行级判定，合成器奖励过滤与装载校验共用）。</summary>
+        public static bool IsChargeRow(Attribute.AtomicEffectConfig row)
+            => row != null && Enum.TryParse<AtomicEffectType>(row.EnumName, out var t) && IsChargeAtom(t);
+
+        /// <summary>卡面效果条目是否充能效果（效果树内任意原子为 Charge 即是——正常只允许单原子；
+        /// 形态违规由 CardEffectConverter 告警丢弃，此处只做识别）。</summary>
+        public static bool IsChargeEffect(CardEffectData fx)
+        {
+            if (fx == null) return false;
+            if (ContainsChargeEntry(fx.AtomicEffects)) return true;
+            return StepsContainCharge(fx.Steps);
+        }
+
+        private static bool ContainsChargeEntry(List<AtomicEffectEntry> atoms)
+        {
+            if (atoms == null) return false;
+            foreach (var a in atoms)
+                if (a != null && IsChargeRow(Attribute.AtomicEffectTable.GetByHashId(a.refId))) return true;
+            return false;
+        }
+
+        private static bool StepsContainCharge(List<EffectStepData> steps)
+        {
+            if (steps == null) return false;
+            foreach (var s in steps)
+            {
+                if (s == null) continue;
+                if (IsChargeRow(Attribute.AtomicEffectTable.GetByHashId(s.atomic?.refId))) return true;
+                if (ContainsChargeEntry(s.thenSteps) || ContainsChargeEntry(s.elseSteps)) return true;
+                if (s.choices == null) continue;
+                foreach (var c in s.choices)
+                    if (StepsContainCharge(c?.steps)) return true;
+            }
+            return false;
+        }
+
+        /// <summary>运行时效果定义是否充能效果（主序列含 Charge 原子——转换后形态；枚举/AI/引擎闸共用）。</summary>
+        public static bool IsChargeEffect(EffectDefinition def)
+        {
+            if (def == null) return false;
+            if (def.Effects != null)
+                foreach (var a in def.Effects)
+                    if (a != null && IsChargeAtom(a.Type)) return true;
+            if (def.Steps != null)
+                foreach (var s in def.Steps)
+                    if (s?.Atomic != null && IsChargeAtom(s.Atomic.Type)) return true;
+            return false;
+        }
+
+        /// <summary>卡是否有充能效果（卡面定义扫描——UI 入口闸/AI 枚举共用；生物/法术/结界全类别）。</summary>
+        public static bool HasChargeEffect(CardData data)
+        {
+            if (data?.Effects == null) return false;
+            foreach (var fx in data.Effects)
+                if (IsChargeEffect(fx)) return true;
+            return false;
+        }
 
         /// <summary>关键词型 Grant 判定（2026-10-02 定案）：Grant 行且表行目标域恰为 {Self}（纯自指）。
         /// 关键词型原子 = 关键词的挂载形态（卡面印刷/登场/触发式如"自我沉睡"），**不得作为主动
@@ -379,7 +458,7 @@ namespace CardCore
 
         /// <summary>关键词 id 是否可作连接光环条目（2026-09-23 定案·数据驱动；2026-10-07 晚默认翻转）：
         /// 经关键词定义 → Grant 原子表行 → CanMountAsAura——关键词**默认可**，
-        /// 黑名单表标位 8（现值：守护/再生/禁魔石——与光环 live-query 持续语义冲突）——名单在表不在代码。
+        /// 黑名单表标位 7（现值：守护/再生/无实体/绝缘体——与光环 live-query 持续语义冲突）——名单在表不在代码。
         /// 指示物化关键词（圣盾/潜行/复生 2026-10-08、法术护盾 10-09）已退出关键词目录，恒 false。</summary>
         public static bool IsAuraMountableKeyword(string keywordId)
         {

@@ -12,8 +12,12 @@ namespace SynergyUI
     {
         public Func<HandFanCard, bool> CanUse;
         public Func<HandFanCard, bool> CanPlaceLand;
+        /// <summary>特殊使用（2026-10-30 btn/SpUse）：语义按类型——生物=苏醒召唤（P6）/
+        /// 法术=多主动抉择（&gt;1 时取代使用钮）/结界=建造预付（P7）。显隐规则见宿主实现。</summary>
+        public Func<HandFanCard, bool> CanSpUse;
         public Action<HandFanCard> OnUse;
         public Action<HandFanCard> OnPlaceLand;
+        public Action<HandFanCard> OnSpUse;
     }
     /// <summary>手牌扇区的一条数据：对账键=引擎卡 RuntimeId；FaceUp=false 只显示卡背（内容被 back 覆盖）。</summary>
     public sealed class HandFanCardData
@@ -118,6 +122,42 @@ namespace SynergyUI
         /// <summary>扇区当前卡数。</summary>
         public int Count => _cards.Count;
 
+        // ---- 战场卡面尺寸单源（2026-10-30 AHandCard 230×414 定档） ----
+        private static Vector2? _battleFaceSize;
+
+        /// <summary>战场卡面视觉尺寸单源（2026-10-30 定档：AHandCard 根 230×414，嵌套 ACard 0.6）：
+        /// 战场侧卡渲染（连锁台/选目标面板克隆 ACard）统一缩放到本尺寸——用户改 AHandCard 根尺寸
+        /// 即全量生效，不用再逐处调。加载失败回落 (230, 414)。</summary>
+        public static Vector2 BattleFaceSize
+        {
+            get
+            {
+                if (_battleFaceSize is Vector2 cached) return cached;
+                var prefab = Tide.HotUpdate.HotUpdateAssets.Load<GameObject>(PrefabName, UiKit.PrefabPath(PrefabName));
+                var size = prefab != null ? ((RectTransform)prefab.transform).sizeDelta : Vector2.zero;
+                if (size.x < 1f || size.y < 1f) size = new Vector2(230f, 414f);
+                _battleFaceSize = size;
+                return size;
+            }
+        }
+
+        /// <summary>ACard 克隆按战场卡面尺寸缩放（2026-10-30）：视觉=localScale 按宽比缩放
+        ///（当前 230/360≈0.639）；布局=LayoutElement preferred 覆写为缩后尺寸——LayoutGroup
+        /// 按缩后 rect 占位不留旧尺寸空档。连锁台/选目标面板克隆 ACard 后调用
+        ///（烘焙模板保持 360×648 不动，prefab 归用户管）。幂等（重复调用同值）。</summary>
+        public static void ApplyBattleFaceScale(RectTransform card)
+        {
+            if (card == null) return;
+            var size = card.sizeDelta;
+            if (size.x < 1f || size.y < 1f) return;
+            float k = BattleFaceSize.x / size.x;
+            card.localScale = Vector3.one * k;
+            var le = card.GetComponent<LayoutElement>();
+            if (le == null) le = card.gameObject.AddComponent<LayoutElement>();
+            le.preferredWidth = size.x * k;
+            le.preferredHeight = size.y * k;
+        }
+
         /// <summary>抽卡飞入起点注入（世界坐标口径，2026-10-17）：卡堆顶世界点 → 本扇挂载层
         /// 本地坐标（与 Config.Center 同系；Canvas 按 renderMode 自取相机，Overlay 传 null）。
         /// 下一次对账新建的卡从该点弧线飞入扇位（单次消费）。转换失败静默返回 false
@@ -186,7 +226,7 @@ namespace SynergyUI
                         }
                     }
                     card.Face.Apply(d.Item, CardOverlayLayout.Full);
-                    card.SetUseLabel(d.Item);
+                    card.SetHandChrome(d.Item);
                     card.Face.SetFaceUp(d.FaceUp);
                     card.HideActionButtons(); // 池复用重置（悬停卡随后重评估）
                     card.SetPlayable(false);  // 可用性由宿主屏对账后重设
@@ -405,25 +445,19 @@ namespace SynergyUI
             card.Face = face;
             card.Fan = this;
             card.WireFlowing(); // 可用流光层接线（AHandCard/Flowing；缺节点=无流光不报错）
-            // 触摸垫片（2026-10-22 玩家反馈 B2「点卡牌连着下面的一起会点到」）：卡根矩形外扩
-            // 8px 的全透明可射线 Image——封住卡间缝隙/下沉半卡的漏点，不再被 3D 棋盘点击
-            // 误裁决（漏点曾命中地牌行/结束回合格）。事件冒泡到卡根=悬停/按钮行为不变；
-            // 悬停放大/下沉均随卡根 transform，覆盖恒贴合。
-            var shield = new GameObject("touch-shield", typeof(RectTransform));
-            var shieldRt = (RectTransform)shield.transform;
-            shieldRt.SetParent(go.transform, false);
-            shieldRt.anchorMin = Vector2.zero;
-            shieldRt.anchorMax = Vector2.one;
-            shieldRt.offsetMin = new Vector2(-8f, -8f);
-            shieldRt.offsetMax = new Vector2(8f, 8f);
-            var shieldImg = shield.AddComponent<Image>();
-            shieldImg.color = new Color(1f, 1f, 1f, 0f); // alpha 0 不参与绘制；raycastTarget 默认不做 alpha 阈值测试
-            shieldImg.raycastTarget = true;
-            // 放置/发动按钮接线（prefab 用户摆位，m_OnClick 空）：点击交宿主屏钩子接管
+            // 触摸垫片（2026-10-22 B2 防漏点）随 2026-10-30 定档烘进 AHandCard prefab（touch-shield
+            // 拉伸贴根·alpha 0·可射线）——运行时生成段退役
+            // 放置/使用/特殊使用按钮+费用方格接线（prefab 用户摆位，m_OnClick 空）：点击交宿主屏钩子接管
             card.UseButton = go.transform.Find("btn/Use")?.GetComponent<Button>();
             card.PlaceButton = go.transform.Find("btn/Place")?.GetComponent<Button>();
+            card.SpUseButton = go.transform.Find("btn/SpUse")?.GetComponent<Button>();
+            // 费用方格宿主（2026-10-30 用户改版）：btn/NowCost 费用行底板下的 CostSquares
+            //（旧 btn/CostSquares 直挂路径回落兼容）
+            card.CostSquares = (go.transform.Find("btn/NowCost/CostSquares") ?? go.transform.Find("btn/CostSquares"))
+                ?.GetComponent<CostSquaresView>();
             if (card.UseButton != null) card.UseButton.onClick.AddListener(card.OnUseClicked);
             if (card.PlaceButton != null) card.PlaceButton.onClick.AddListener(card.OnPlaceClicked);
+            if (card.SpUseButton != null) card.SpUseButton.onClick.AddListener(card.OnSpUseClicked);
             return card;
         }
     }

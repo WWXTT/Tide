@@ -100,11 +100,8 @@ namespace CardCore
         /// </summary>
         Combat,
 
-        /// <summary>
-        /// 【墓碑 2026-10-09】祭祀——牺牲转直送非死亡（不发 CardDestroyEvent），本值无生产方；
-        /// 枚举位保留防位序重编号。
-        /// </summary>
-        Sacrificed,
+        // 祭祀（Sacrificed）/摒弃（Abandoned）两死因 2026-10-09 随「牺牲/摒弃转直送非死亡」退役
+        //（零生产方）——枚举位已随 2026-10-30 枚举收拢删除。
 
         /// <summary>
         /// 湮灭（彻底移除，直送除外区，不可复活）
@@ -115,11 +112,6 @@ namespace CardCore
         /// 摧毁（作用于无生命值单位：地牌/结界——不经死亡决策表，直送墓地）
         /// </summary>
         Smashed,
-
-        /// <summary>
-        /// 【墓碑 2026-10-09】摒弃——舍弃并档牺牲后无生产方（牺牲直送不发本事件）；枚举位保留防位序重编号。
-        /// </summary>
-        Abandoned,
 
         /// <summary>
         /// 传说规则（同名卡）
@@ -168,9 +160,8 @@ namespace CardCore
         /// </summary>
         LifeZero,
 
-        /// <summary>【墓碑 2026-10-13】牌库耗尽败因——零生产方（空库抽牌走疲劳），
-        /// 早期游戏王式 DeckOut 设想未实装；枚举位保留防序列化位序重编号。</summary>
-        DeckOut,
+        // 牌库耗尽败因（DeckOut）2026-10-13 退役——零生产方（空库抽牌走疲劳），早期游戏王式
+        // 设想未实装；枚举位已随 2026-10-30 枚举收拢删除。
 
         /// <summary>
         /// 认输
@@ -579,8 +570,9 @@ namespace CardCore
                                         || (from == Zone.Activation && to == Zone.Hand);
             if (from != to && !viaActivationStaging)
             {
-                CardCore.Attribute.CounterRules.ClearAll(card); // 攻/血指示物离场消失、费用指示物离手消失
-                GameActions.ClearBuildPaid(card); // 建造已建额离手作废（2026-10-29 P7：预付元素不退；cast 付费步同豁免存活）
+                // 攻/血指示物离场消失、费用指示物离手消失；充能进度（四色费用降低层，2026-10-31 P12）
+                // 同款在此清除——建造 BuildPaid 账本已随改版退役，ClearAll 覆盖全部清除面
+                CardCore.Attribute.CounterRules.ClearAll(card);
             }
 
             if (to == Zone.Hand && from != Zone.Hand)
@@ -598,6 +590,13 @@ namespace CardCore
             // 同受发动区豁免约束（cast 付费期间临时层存活）。
             if (from != to && !viaActivationStaging)
                 CardCore.Attribute.KeywordRules.ClearZoneKeywords(card);
+
+            // 延迟死亡（2026-10-29 阶段3b）：离开战场即不再待死（同受发动区豁免约束——cast 付费期间状态存活）；
+            // 延时保护（2026-10-30 指示物化）：换区清走 CounterRules.ClearAll 通用口，无独立钩子
+            if (from != to && !viaActivationStaging)
+            {
+                CardCore.Attribute.DeathRules.OnZoneChanged(card);
+            }
         }
 
         /// <summary>

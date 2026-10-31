@@ -44,7 +44,7 @@ namespace CardCore.Network
         DeckSubmit = 111,            // 开局握手：卡组提交（MsgDeckSubmit，见 网络协议.md §11）
         JoinRoom = 112,              // 会话层：进房分座/观战登记（MsgJoinRoom，见 网络协议.md §12）
         IntentActivateHeroSkill = 113, // 英雄技能发动（MsgIntentActivateHeroSkill——2026-10-21 协议补课：技能格 10-15 加入后首个新 intent；离散位在会话层消息之后）
-        IntentBuildCard = 114,       // 建造：结界手牌逐色预付（MsgIntentBuildCard——2026-10-29 P7，协议 v4）
+        IntentBuildCard = 114,       // 充能（原建造，2026-10-31 P12 改义）：手牌带充能效果的卡逐色充能（MsgIntentBuildCard——2026-10-29 P7 协议 v4 入列，消息号不变）
 
         // ---- 下行（服务器→客户端）----
         SelectRequest = 120,         // 反问请求（MsgSelectRequest）
@@ -74,7 +74,7 @@ namespace CardCore.Network
     /// 裸 int 色号/数组布局全线漂移，新旧端互拒不兼容（无兼容层）。
     /// v3（2026-10-29 P6 苏醒施放字段）：MsgIntentPlayCard 新增 AwakenCast 布尔——
     /// MemoryPack 载荷布局变更，新旧端互拒（无兼容层）。
-    /// v4（2026-10-29 P7 建造）：上行新增 MsgIntentBuildCard（卡+色），
+    /// v4（2026-10-29 P7 建造→2026-10-31 P12 改义充能）：上行 MsgIntentBuildCard（卡+色）语义换为充能，
     /// 下行快照 RuntimeCardState 新增 BuildPaid（手牌卡已建额——只随持有者手牌区下发）——
     /// MemoryPack 载荷布局变更，新旧端互拒（无兼容层）。
     /// v5（2026-10-29 P9b 衍生物槽绑定入卡组）：MsgDeckSubmit 新增 TokenCardIds/TokenBindings、

@@ -44,7 +44,7 @@ namespace SynergyUI
         private readonly BattleToastHub _toast = new BattleToastHub(); // toast 双层横幅+error-tip（2026-10-18 拆分·Battle/BattleToastHub.cs）
         private BattleLogController _log;                              // 战报控制器（2026-10-18 拆分·Battle/BattleLogController.cs；Build 惰性建存留跨局）
         private TMP_Text _lblPhase, _lblStack, _lblPriority;
-        private Button _btnGrave, _btnConcede;
+        private Button _btnConcede;
         // 英雄区/临时元素（2026-10-16 技能格撤销定案）：技能格退役——技能发动=角色格【发动】键
         //（OnClickHeroZone 链路）、技能介绍=己方【发动】键悬停（对手无键→对手角色格悬停兜底）、角色生命/弹药=
         // 角色格悬停与格前三键（黑白元素格已随 2026-10-28 元素缩编退役）。
@@ -335,8 +335,8 @@ namespace SynergyUI
             _lblPriority = FindTextOptional("lbl-priority");
             // lbl-activation（发动区文本摘要）已随 2026-10-15 发动格拆除退役：施放中卡改类型图标上盘
             //（BattleFieldView 施放占格）；prefab 本无此节点，写入点先前即静默空转
-            if (UiKit.FindDeep(Root, "btn-grave-play") != null)
-                _btnGrave = BindButton("btn-grave-play", () => OnGraveyardPlay().Forget());
+            // btn-grave-play 绑定已随 2026-10-30 归土改版整删退役（墓地视手牌使用→回合末自动复活，
+            // 无出牌入口；prefab 本无此节点，先前绑定即静默空转）
             // btn-pass-priority 绑定已随 2026-10-18 网络簇整删退役（让优先权=网络模式专属；prefab 节点留置不接线）
             _btnConcede = BindButton("btn-concede", () => OnConcede().Forget());
 
@@ -513,13 +513,14 @@ namespace SynergyUI
             // 仅在仍是本界面注册时解除，避免覆盖其它界面的注册
             if (TargetSelectionService.Current is RegionTargetSelector)
                 TargetSelectionService.Current = null;
+            CellSelectionService.Current = null; // 移动选格反问桥同卸（静态残留口径同上——2026-10-31 场面轴3c）
             _regionSelector = null;
             if (_decision != null && ResponseWindowService.HumanResponder == _decision.ShowResponseAsync)
                 ResponseWindowService.HumanResponder = null;
         }
 
         /// <summary>免弹自动取目标反馈（2026-10-22 玩家反馈 B5「单目标自动选定无感知」）：
-        /// toast 报目标名 + 目标格 0.7s 扩散波脉冲（单格 ClearGlow 收口不动对账态）。
+        /// toast 报目标名 + 目标格 0.7s 阵营色描边环脉冲（单格 ClearGlow 收口不动对账态）。
         /// 仅己方为 chooser 时提示——AI 结算自动取不弹（刷屏）。</summary>
         private void OnAutoTargetTaken(Player chooser, List<Entity> targets)
         {
@@ -529,7 +530,8 @@ namespace SynergyUI
             PulseAutoTargetGlowAsync(targets).Forget();
         }
 
-        /// <summary>B5 脉冲高亮：目标实体落格（角色等无格实体跳过）短亮后单格熄灭。</summary>
+        /// <summary>B5 脉冲高亮：目标实体落格（角色等无格实体跳过）短亮后单格熄灭
+        ///（2026-10-30 起逐格提示走描边环，波纹壳随半场面板定案退役）。</summary>
         private async UniTaskVoid PulseAutoTargetGlowAsync(List<Entity> targets)
         {
             var board = _ctrl?.Board;
@@ -540,7 +542,8 @@ namespace SynergyUI
                         cells.Add((x, z));
             if (cells.Count == 0) return;
             foreach (var (x, z) in cells)
-                BattleTileFx.SetUnitGlow(x, z, BoardLayout.OwnerOf(x, z) == 1);
+                BattleTileFx.SetCellRing(x, z, BoardLayout.OwnerOf(x, z) == 1
+                    ? BattleTileFx.UnitGlowColorOpp : BattleTileFx.UnitGlowColor);
             await UniTask.Delay(700, ignoreTimeScale: true);
             foreach (var (x, z) in cells)
                 BattleTileFx.ClearGlow(x, z);
@@ -578,8 +581,10 @@ namespace SynergyUI
             {
                 CanUse = NetFanCanUse,
                 CanPlaceLand = NetFanCanPlaceLand,
+                CanSpUse = NetFanCanSpUse,
                 OnUse = NetOnFanUse,
                 OnPlaceLand = NetOnFanPlaceLand,
+                OnSpUse = NetOnFanSpUse,
             });
 
             _netClient.OnSnapshot += NetOnSnapshot;
@@ -711,6 +716,20 @@ namespace SynergyUI
         private bool NetFanCanUse(HandFanCard fan)
             => NetFanGate() && NetCardCastableNet(NetHandViewOf(fan));
 
+        /// <summary>网络「特殊使用」条件（2026-10-31 P12：充能+苏醒）：
+        /// 充能=任意卡型带充能效果（颜色余量服务器 CanCharge 终审，客户端不预闸）；
+        /// 生物苏醒=**卡面带 Awaken 关键词**才持续显示（点击 intent 上行，服务器终审）。</summary>
+        private bool NetFanCanSpUse(HandFanCard fan)
+        {
+            if (!NetFanGate()) return false;
+            var card = NetHandViewOf(fan);
+            var data = DataOf(card);
+            if (data == null) return false;
+            if (ComposerCatalog.HasChargeEffect(data)) return true; // 充能（P12：协议 114 改义承载）
+            if (data.Supertype == Cardtype.Creature) return GameActions.HasAwakenKeyword(data);
+            return false;
+        }
+
         /// <summary>网络逐卡可发动（2026-10-28 可用性精确化，取代「主阶段全亮」近似）：
         /// 费用任一模式可付（快照每色可用量）+ 永久物另需单位区空格——同本地 CardCastableNow
         /// 口径；数据源=快照（WalletByColor/单位占用），服务器仍真校验（Error+toast 兜底）。
@@ -786,14 +805,83 @@ namespace SynergyUI
                 if (card != null && !_gameEnded && _view != null && !_view.MyTurn) _toast.Show("对手回合，暂不可操作");
                 return;
             }
-            NetUseCardAsync(card).Forget();
+            NetUseCardAsync(card, awakenCast: false).Forget();
         }
 
-        /// <summary>网络出牌：模式抉择（Region）→ 苏醒抉择（生物，P6 2026-10-29）→ 永久物（生物/结界）
+        /// <summary>网络「特殊使用」点击（2026-10-31 P12）：充能=IntentBuildCard（协议 114 改义）
+        /// 上行（选色：单色直发/多色 Region 择一；服务器 CanCharge 终审）；生物苏醒=AwakenCast=true
+        /// 直行；双入口并存（带充能+带苏醒）=Region 二选一。</summary>
+        private void NetOnFanSpUse(HandFanCard fan)
+        {
+            var card = NetHandViewOf(fan);
+            if (card == null || !NetFanGate()) return;
+            var data = DataOf(card);
+            if (data == null) return;
+            bool canCharge = ComposerCatalog.HasChargeEffect(data);
+            bool canAwaken = data.Supertype == Cardtype.Creature && GameActions.HasAwakenKeyword(data);
+            if (canCharge && canAwaken)
+            {
+                NetSpUsePickAsync(card).Forget();
+                return;
+            }
+            if (canCharge)
+            {
+                NetChargeAsync(card).Forget();
+                return;
+            }
+            if (canAwaken)
+                NetUseCardAsync(card, awakenCast: true).Forget();
+        }
+
+        /// <summary>网络特殊使用方式二选一（带充能+带苏醒的生物）。</summary>
+        private async UniTaskVoid NetSpUsePickAsync(BattleCardView card)
+        {
+            int? picked = await PickRegionOptionAsync("选择特殊使用方式",
+                new List<string> { "充能（付 1 点元素·减同色费用）", "苏醒召唤（免灰转沉睡·横置登场）" });
+            if (picked == null) return;
+            if (picked == 0) NetChargeAsync(card).Forget();
+            else NetUseCardAsync(card, awakenCast: true).Forget();
+        }
+
+        /// <summary>网络充能：充能色=代价抵扣前卡费非零色（单色直发/多色 Region 择一）→
+        /// IntentBuildCard（协议 114，P12 改义充能——服务器 ActivateCharge 终审）。</summary>
+        private async UniTaskVoid NetChargeAsync(BattleCardView card)
+        {
+            var data = DataOf(card);
+            if (data == null || _netClient == null) return;
+            CardCostService.GetPrePayloadCost(data, 0, out var preCost, out _);
+            var colors = new List<ManaType>();
+            foreach (var c in preCost.NonzeroColors())
+                if (c != ManaType.Any && preCost[c] > 0f) colors.Add(c);
+            if (colors.Count == 0) { _toast.Show("该卡卡费无可充颜色"); return; }
+
+            ManaType color;
+            if (colors.Count == 1) color = colors[0];
+            else
+            {
+                var options = new List<string>();
+                foreach (var c in colors)
+                    options.Add($"充能 {ManaTypeNames.ZhNameOf(c)}（现付 1 点该色元素）");
+                int? picked = await PickRegionOptionAsync("选择充能颜色", options);
+                if (picked == null) return;
+                color = colors[picked.Value];
+            }
+
+            _netClient.Send(NetworkMessageType.IntentBuildCard, new MsgIntentBuildCard
+            {
+                CardRuntimeId = card.RuntimeId,
+                Color = (int)color,
+            });
+            _toast.Show($"充能 +1{ManaTypeNames.ZhNameOf(color)} 已发动（服务器终审）");
+        }
+
+        /// <summary>网络出牌：模式抉择（Region）→ 永久物（生物/结界）
         /// 棋盘选格（光圈候选，同本地交互——钉 NetCellPins 随快照生效）→ IntentPlayCard
         ///（目标 null=结算期反问回弹）。法术恒自动落位（B4 定案）；选格钉=客户端表现层权威
-        ///（快照不承载坐标）。AwakenCast=苏醒施放（P6c 只免灰转沉睡层数，服务器终审）。</summary>
-        private async UniTaskVoid NetUseCardAsync(BattleCardView card)
+        ///（快照不承载坐标）。AwakenCast=苏醒施放（P6c 只免灰转沉睡层数，服务器终审）——
+        /// 2026-10-30 SpUse 改版：召唤方式由按钮直定（使用=false / 特殊使用苏醒=true），
+        /// 二选弹窗与本地同步退役。</summary>
+        private async UniTaskVoid NetUseCardAsync(BattleCardView card, bool awakenCast)
         {
             var data = DataOf(card);
             if (data == null) return;
@@ -802,9 +890,7 @@ namespace SynergyUI
             if (GetModeCount(card) >= 2)
             {
                 var labels = data.Supertype == Cardtype.Spell ? SpellEffectLabels(data) : FindChoiceLabels(data);
-                int modeCount = data.Supertype == Cardtype.Spell
-                    ? Math.Max(2, data.Effects?.Count ?? 1)
-                    : Math.Max(2, CostDerivationService.GetModeCount(data));
+                int modeCount = Math.Max(2, CostDerivationService.GetModeCount(data)); // P12：非充能主动效果数
                 var options = new List<string>();
                 for (int i = 0; i < modeCount; i++)
                 {
@@ -815,16 +901,6 @@ namespace SynergyUI
                     data.Supertype == Cardtype.Spell ? "选择要发动的效果" : "选择模式", options);
                 if (picked == null) return; // 取消/缺 Region：本次不出牌
                 modeIndex = picked.Value;
-            }
-
-            // 苏醒施放抉择（2026-10-29 P6；P6c 只免灰）：生物净费灰份额 ≥1 → 召唤方式二选
-            //（苏醒=免灰转入场沉睡层数、横置登场、彩色含绿照付；预览价按 CardData 推导，服务器终审）
-            bool awakenCast = false;
-            if (data.Supertype == Cardtype.Creature)
-            {
-                var awaken = await PickSummonKindAsync(card, modeIndex);
-                if (awaken == null) return; // 取消/缺 Region：本次不出牌
-                awakenCast = awaken.Value;
             }
 
             // 场地卡（2026-10-29 P8）：落位恒为己方场地格——视图确定性映射（FillUnitsNet），
@@ -843,7 +919,7 @@ namespace SynergyUI
                 CardRuntimeId = card.RuntimeId,
                 FromZone = (int)Zone.Hand,
                 ModeIndex = modeIndex,
-                AwakenCast = awakenCast, // 苏醒施放（2026-10-29 P6 协议 v3）
+                AwakenCast = awakenCast, // 苏醒施放（2026-10-29 P6 协议 v3；按钮直定）
                 Targets = null, // 声明期目标不预收：结算期经 SelectRequest 反问（服务器候选集权威）
             });
         }
@@ -1423,7 +1499,7 @@ namespace SynergyUI
                     _ctrl.StartNewGame(matchDeck, aiDeck,
                         MakePacedAi(aiDeck != null ? AiStrategy.AutoMatch(aiDeck) : null),
                         mySkillCardId: matchSkill, aiSkillCardId: aiSkill,
-                        playerFirst: playerFirst, secondArmorBonus: 5,
+                        playerFirst: playerFirst, secondArmorBonus: GameCore.SecondPlayerArmorBonus,
                         myTokenBindings: myTokenBindings, aiTokenBindings: aiTokenBindings);
                 }
             }
@@ -1436,7 +1512,10 @@ namespace SynergyUI
                 // 响应行为归驱动自身内置启发，不加外部约束）、2=AI（MakePacedAi+AutoMatch 正式对手）；
                 // 被动响应器（响应窗全让过）只给木桩。洗牌关=锁牌库序（可复现）；
                 // 元素池充满=按所选卡组组「地牌充满」预设（素材缺失回落常规开局）。
-                // 不注入后手护甲（纯测试床，与正式局差异从简）。
+                // 后手护甲补偿（2026-10-30 修正）：本入口 2026-10-25 起承载正式本地对战（打AI 归
+                // 木桩难度档），旧「纯测试床与正式局差异从简」口径作废——掷币/固定先后手的后手
+                // 角色 +5 护甲（GameRules.SecondPlayerArmorBonus 迁表单源），与联机/教学同规则。
+                // 例外：地牌充满预设走 scenario 分支（起跳场面自钉），维持测试预设从简不注入。
             {
                 // 随机兜底=三套预组随机其一（2026-10-22；玩家池已空）——技能随预组回传
                 string myRandomSkill = null, aiRandomSkill = null;
@@ -1458,6 +1537,7 @@ namespace SynergyUI
                     _ctrl.StartNewGame(myDummy, aiDummy, dummyDriver,
                         lockDeckOrder: !BattleEntry.DummyShuffle,
                         mySkillCardId: myDummySkill, aiSkillCardId: aiDummySkill, playerFirst: playerFirst,
+                        secondArmorBonus: GameCore.SecondPlayerArmorBonus,
                         myTokenBindings: myTokenBindings, aiTokenBindings: aiTokenBindings);
                 if (BattleEntry.DummyDifficulty == 0)
                     _ctrl.EnablePassiveAiResponder(); // 仅木桩：响应窗全让过；脚本/AI 档行为归驱动自身
@@ -1470,7 +1550,7 @@ namespace SynergyUI
                 _ctrl.StartNewGame(matchDeck, aiDeck,
                     MakePacedAi(aiDeck != null ? AiStrategy.AutoMatch(aiDeck) : null),
                     mySkillCardId: matchSkill, aiSkillCardId: aiSkill,
-                    playerFirst: playerFirst, secondArmorBonus: 5,
+                    playerFirst: playerFirst, secondArmorBonus: GameCore.SecondPlayerArmorBonus,
                     myTokenBindings: myTokenBindings, aiTokenBindings: aiTokenBindings);
             else if (mirrorDeck != null)
                 // 测试镜像局（TestStartFlow btn-teststart 专用载体，2026-10-19 结业镜像局退役后唯一
@@ -1530,13 +1610,15 @@ namespace SynergyUI
         /// 演出期无引擎请求在途）；非 staged 局保持原位（StartNewGame 后）调用。</summary>
         private void WireLocalUi()
         {
-            // 手牌扇交互接线（2026-10-14）：悬停显「放置/发动」按钮+可发动流光（对手扇不注入=无按钮）
+            // 手牌扇交互接线（2026-10-14）：悬停显「放置/使用/特殊使用」按钮+可发动流光（对手扇不注入=无按钮）
             _selfFan?.SetInteractions(new FanInteractions
             {
                 CanUse = FanCanUse,
                 CanPlaceLand = FanCanPlaceLand,
+                CanSpUse = FanCanSpUse,
                 OnUse = OnFanUse,
                 OnPlaceLand = OnFanPlaceLand,
+                OnSpUse = OnFanSpUse,
             });
 
             // 通用目标选择器（效果引擎结算期反问）：Region 面板选卡（2026-10-15 用户定案）。
@@ -1553,6 +1635,10 @@ namespace SynergyUI
                 ? new RegionTargetSelector(_regionPanelCtl.PanelNode, BoardCellOf, p => p == P1, RoleCellOf, BuildSelectPrompt, _decision.OnSelectCancel)
                 : null;
             TargetSelectionService.Current = _regionSelector;
+
+            // 移动原子选格反问桥（2026-10-31 场面轴3c）：结算期 MoveUnit handler 经此弹格——
+            // 与召唤选格同交互；卸载随本界面清理段（AI/无头无桥=安全空转）
+            CellSelectionService.Current = PickMoveDestinationAsync;
 
             // 响应窗口（2026-10-14 接回）：守卫候选走棋盘箭头交互（效果类候选回落弹窗）
             ResponseWindowService.HumanResponder = _decision.ShowResponseAsync;
@@ -1740,9 +1826,35 @@ namespace SynergyUI
                 });
             }
 
+            // 牌库顶当手牌（2026-10-29 阶段3b）：光环命中己方且牌库非空 → 手牌扇末尾显示牌库顶
+            // 虚拟手牌（真实卡实例——出牌走 fromZone=Deck 授权路径；打出后顶牌自动换新。
+            // 不计 7 张上限/不可弃/不可放地——放地按钮经 FanCanPlaceLand 手牌区限定；
+            // 对手扇不显示=天然对手不可见）。
+            var deckTop = TopDeckVirtualCard();
+            if (deckTop != null)
+                self.Add(new HandFanCardData
+                {
+                    RuntimeId = deckTop.RuntimeId,
+                    Item = CardOverlayItem.FromHand(BattleView.FromRuntime(
+                        SerializableRuntimeCardState.FromCard(deckTop), deckTop, ownerIsOpponent: false)),
+                    FaceUp = true,
+                });
+
             _selfFan?.SetCards(self);
             _oppFan?.SetCards(opp);
             EvaluateFanPlayability(); // 可发动流光随对账刷新（费用/上限/阶段变化即时反映）
+        }
+
+        /// <summary>牌库顶虚拟手牌（2026-10-29 阶段3b，本地局）：TopDeckAsHandAura 命中己方且
+        /// 牌库非空 → 牌库顶卡（列表 index0——牌库序=牌库顶）；null=不显示（光环未开/牌库空/
+        /// 网络局——快照不承载牌库序，联机侧暂不显示，随协议补字段接 BuildNet）。</summary>
+        private Card TopDeckVirtualCard()
+        {
+            if (NetActive || Core?.ZoneManager == null || P1 == null) return null;
+            if (!CardCore.RuleAuraSystem.ScopeHits(CardCore.RuleAuraComponents.TopDeckAsHandAura, P1))
+                return null;
+            var deck = Core.ZoneManager.GetCards(P1, Zone.Deck);
+            return deck != null && deck.Count > 0 ? deck[0] : null;
         }
 
         /// <summary>背面卡的空内容（Key 仅为口径完整；文字被 back 覆盖不可见）。</summary>
@@ -1932,8 +2044,7 @@ namespace SynergyUI
         {
             bool myMain = d.MyTurn && d.Phase == PhaseType.Main && !_gameEnded;
 
-            // 网络局：墓地视手牌使用暂不开放（本地链依赖引擎配额口，随协议补；2026-10-21 MVP）
-            if (_btnGrave != null) _btnGrave.interactable = !NetActive && myMain && d.Self.GraveyardCount > 0;
+            // _btnGrave 已随 2026-10-30 归土改版整删（墓地视手牌使用退役）
             // _btnSkill/_btnPass 已随 2026-10-18 网络簇整删退役（技能键早已无节点恒 null；让优先权=网络专属）
             // 认输键终局后仍可点=返回主菜单出口（2026-10-16 弹窗退役：旧弹窗取消键职责迁移至此）
             if (_btnConcede != null) _btnConcede.interactable = true;
@@ -1963,9 +2074,8 @@ namespace SynergyUI
         {
             var data = DataOf(card);
             if (data == null) return 1;
-            // 法术（2026-10-15 改版）：modeIndex=施放时效果抉择——模式数=效果数（1~3 主动）
-            if (data.Supertype == Cardtype.Spell)
-                return Math.Max(1, data.Effects?.Count ?? 1);
+            // P12 抉择默认化：法术模式数=非充能主动效果数（充能不进模式）——CostDerivationService 单源；
+            // 永久物模式已随内嵌 Choice 退役恒 1（多模式生物/结界不再存在）
             return CostDerivationService.GetModeCount(data);
         }
 
@@ -1980,13 +2090,13 @@ namespace SynergyUI
         /// 法术（2026-10-15 改版）：modeIndex=施放时效果抉择——选项=各主动效果显示名+现付费用
         ///（GetCardCost 单源含所选效果锚价），标题「选择要发动的效果」。
         /// 2026-10-16 弹窗退役：选项=Region 面板卡牌列表（PickRegionOptionAsync，min=1 强制选）。</summary>
-        private async UniTaskVoid PromptModeThenPlay(BattleCardView card, bool fromGrave)
+        private async UniTaskVoid PromptModeThenPlay(BattleCardView card)
         {
             var data = DataOf(card);
             bool isSpell = data?.Supertype == Cardtype.Spell;
             var labels = isSpell ? SpellEffectLabels(data) : FindChoiceLabels(data);
             int modeCount = isSpell
-                ? Math.Max(2, data.Effects?.Count ?? 1)
+                ? Math.Max(2, CostDerivationService.GetModeCount(data)) // P12：非充能主动效果数
                 : Math.Max(2, CostDerivationService.GetModeCount(data));
 
             var options = new List<string>();
@@ -2011,23 +2121,22 @@ namespace SynergyUI
                 return;
             }
 
-            // 法术：手牌/墓地路径均自动落位（B4）直入声明流；永久物抉择照旧直出选格
+            // 法术：自动落位（B4）直入声明流；永久物抉择照旧直出选格
             if (isSpell)
-            {
-                if (fromGrave) SpellDeclarationFlow(card, idx, fromGrave: true).Forget();
-                else BeginSpellCastAutoPlace(card, card.CoreCard, idx);
-            }
+                BeginSpellCastAutoPlace(card, card.CoreCard, idx);
             else
-                PlayCardFinal(card, null, idx, fromGrave);
+                PlayCardFinal(card, null, idx);
         }
 
         /// <summary>法术各效果的显示名（抉择窗选项；DisplayName 空=「作用 N」）。</summary>
+        /// <summary>法术各可施放效果的显示名（模式窗选项；P12：过滤充能效果——充能走特殊使用入口，
+        /// 不算法术模式；DisplayName 空=「作用 N」）。</summary>
         private static List<string> SpellEffectLabels(CardData data)
         {
             var labels = new List<string>();
             if (data?.Effects == null) return labels;
             int i = 1;
-            foreach (var eff in data.Effects)
+            foreach (var eff in CostDerivationService.GetCastableEffects(data))
             {
                 labels.Add(string.IsNullOrEmpty(eff?.DisplayName) ? $"作用 {i}" : eff.DisplayName);
                 i++;
@@ -2050,7 +2159,7 @@ namespace SynergyUI
         /// awakenCast（2026-10-29 P6）：苏醒施放——仅手牌路径（墓地视手牌使用无苏醒变体）。
         /// 返回声明成败——法术流的乐观 UI（藏卡+转正贴片）由调用方按 false 清理（拒绝无引擎事件，
         /// 扇区/贴片不会随后续对账自愈）。</summary>
-        private bool PlayCardFinal(BattleCardView card, List<Entity> targets, int modeIndex, bool fromGrave, bool awakenCast = false)
+        private bool PlayCardFinal(BattleCardView card, List<Entity> targets, int modeIndex, bool awakenCast = false)
         {
             var core = Core;
             if (core == null || P1 == null) return false;
@@ -2060,9 +2169,11 @@ namespace SynergyUI
             // defer 原子（效果处理时选）结算期反问（必须选）；牌库等隐藏区/区域自结算类效果
             // 不弹选直接结算（引擎 None 模式早退单源）。
             string reject = null;
-            bool ok = fromGrave
-                ? GameActions.PlayCardFromGraveyard(core, P1, card.CoreCard, targets, modeIndex)
-                : GameActions.PlayCard(core, P1, card.CoreCard, targets, Zone.Hand, modeIndex, awakenCast, out reject);
+            // 出牌来源区（2026-10-29 阶段3b 牌库顶当手牌）：牌库顶虚拟手牌打出走 fromZone=Deck
+            //（TopDeckPlaySource/IPlaySource 授权）；其余路径恒手牌（墓地施放已随 2026-10-30 归土改版退役）。
+            bool ok = GameActions.PlayCard(core, P1, card.CoreCard, targets,
+                card.CoreCard != null && card.CoreCard.GetZone() == Zone.Deck ? Zone.Deck : Zone.Hand,
+                modeIndex, awakenCast, out reject);
             if (ok)
             {
                 // 出牌选格钉提前到声明成功即转 BoardState（2026-10-15 发动格拆除）：施放类型图标=玩家所选格，
@@ -2075,7 +2186,7 @@ namespace SynergyUI
             {
                 _pendingPins.Remove(card.RuntimeId); // 声明失败：选格单作废
                 // 精确拒因直读（同网络 Error 帧口径——通用文案无法区分 费用/目标/代价，2026-09-26）
-                _toast.Show(fromGrave ? "无法使用（配额已用或不可支付）" : $"无法打出（{reject ?? "费用/条件不满足"}）");
+                _toast.Show($"无法打出（{reject ?? "费用/条件不满足"}）");
             }
             RefreshLocal();
             return ok;
@@ -2112,7 +2223,7 @@ namespace SynergyUI
             _pendingPins[card.RuntimeId] = picked;
             Debug.Log($"[HandPlay] 法术自动落位：{view.Name} → ({picked.x},{picked.z})（B4 免手选发动区）");
             _toast.Show("已自动落位发动区");
-            SpellDeclarationFlow(view, modeIndex, fromGrave: false, pickedX: picked.x, pickedZ: picked.z).Forget();
+            SpellDeclarationFlow(view, modeIndex, pickedX: picked.x, pickedZ: picked.z).Forget();
         }
 
         /// <summary>法术发动声明流：发动位/模式/费用已过 → 预览态（贴片预览——手牌路径=玩家所选格，
@@ -2122,7 +2233,7 @@ namespace SynergyUI
         /// 钉所选格）→ SettleResponseWindow（连锁检测=引擎现状；无连锁结算期扣费+粒子+效果表现）。
         /// 无交互原子（全取/随机/全 defer）：收集器同步完成空表——预览同帧转正零可见闪烁
         ///（UniTask 同步前缀保证）。</summary>
-        private async UniTaskVoid SpellDeclarationFlow(BattleCardView view, int modeIndex, bool fromGrave,
+        private async UniTaskVoid SpellDeclarationFlow(BattleCardView view, int modeIndex,
             int pickedX = -1, int pickedZ = -1)
         {
             var core = Core;
@@ -2130,14 +2241,14 @@ namespace SynergyUI
             if (core == null || P1 == null || card == null) return;
 
             // 教学闸预检（声明期先验——防选完目标才被引擎拒；PlayCard 内终审保留同口径）
-            if (!fromGrave && RuleHooks.TutorialPlayGate?.Invoke(P1, card) is string gateReject)
+            if (RuleHooks.TutorialPlayGate?.Invoke(P1, card) is string gateReject)
             {
                 _pendingPins.Remove(card.RuntimeId); // 选位单作废（手选发动位路径）
                 _toast.Show($"教学引导：{gateReject}");
                 return;
             }
 
-            // 落格：手牌路径=玩家所选格（选格单已登记）；墓地路径自动 first-free 镜像
+            // 落格：手牌路径=玩家所选格（选格单已登记）；无选格单自动 first-free 落位
             var (cellX, cellZ) = pickedX >= 0 ? (pickedX, pickedZ) : PreviewCastingCell();
             _field?.ShowCastingPreview(card, cellX, cellZ);
             _selfFan?.SetCardActive(card.RuntimeId, false);
@@ -2158,7 +2269,7 @@ namespace SynergyUI
 
                 // 确认：预览贴片转正（选格单经 PlayCardFinal 声明成功 PinCard——PlaceCasting 钉优先落同格）
                 _field?.PromoteCastingPreview(card, cellX, cellZ);
-                if (!PlayCardFinal(view, targets, modeIndex, fromGrave))
+                if (!PlayCardFinal(view, targets, modeIndex))
                 {
                     // 声明被引擎终审拒（如弃牌代价·手牌无目标）：镜像取消路径清理。转正件已进
                     // _castings 正片表，HideCastingPreview 够不着——走 InterruptCasting 即清口
@@ -2221,13 +2332,16 @@ namespace SynergyUI
 
         // ======================================== 手牌扇出牌接线（2026-10-14 放置/发动按钮 + 箭头选格） ========================================
 
-        /// <summary>扇区卡 → 引擎手牌卡（RuntimeId 对账；不在手=已过态返回 null）。</summary>
+        /// <summary>扇区卡 → 引擎手牌卡（RuntimeId 对账；不在手=已过态返回 null）。
+        /// 牌库顶虚拟手牌（2026-10-29 阶段3b）：手牌对账落空再查牌库顶（RuntimeId 同键——
+        /// 「只可打出」的出牌链由此找到卡实例）。</summary>
         private Card FanCardOf(HandFanCard fan)
         {
             if (fan == null || Core == null || P1 == null) return null;
             foreach (var c in Core.ZoneManager.GetCards(P1, Zone.Hand))
                 if (c != null && c.RuntimeId == fan.RuntimeId) return c;
-            return null;
+            var top = TopDeckVirtualCard();
+            return top != null && top.RuntimeId == fan.RuntimeId ? top : null;
         }
 
         /// <summary>GateFanMyMain 静默版（按钮/流光逐帧评估用——不弹 toast）。</summary>
@@ -2239,21 +2353,51 @@ namespace SynergyUI
         }
 
         /// <summary>「放置」按钮条件：可作地牌（正式三型/非衍生物/非临时/非锁定）+ 有可锁产色
-        /// + 地牌池有余位（各自上限口径：PooledCards.Count &lt; GetLandCap）。</summary>
+        /// + 地牌池有余位（各自上限口径：PooledCards.Count &lt; GetLandCap）。
+        /// 牌库顶虚拟手牌（2026-10-29 阶段3b）「只可打出」——限手牌区，不放地。</summary>
         private bool FanCanPlaceLand(HandFanCard fan)
         {
             if (!FanGateQuiet()) return false;
             var card = FanCardOf(fan);
-            if (card == null || Core?.ElementPool == null) return false;
+            if (card == null || card.GetZone() != Zone.Hand || Core?.ElementPool == null) return false;
             return ElementPoolSystem.CanServeAsLand(card)
                 && ElementPoolSystem.GetLandColorChoices(card).Count > 0
                 && Core.ElementPool.CanAddLand(P1);
         }
 
-        /// <summary>「发动」按钮条件：任一模式 CanAffordCast（含声明承诺 pending——代价补偿
-        /// 黑/白不预计算垫本卡，2026-10-16 恢复旧序）；永久物另需单位区空格（满场不可出）。</summary>
+        /// <summary>「使用」按钮条件：任一模式 CanAffordCast（含声明承诺 pending——代价补偿
+        /// 黑/白不预计算垫本卡，2026-10-16 恢复旧序）；永久物另需单位区空格（满场不可出）。
+        /// 法术多主动（2026-10-31 P12 抉择默认化）：「使用」承载模式窗——多主动法术也走使用钮
+        ///（GetModeCount&gt;1 时 OnFanUse 弹「选择要发动的效果」；单主动直放）。</summary>
         private bool FanCanUse(HandFanCard fan)
-            => FanGateQuiet() && CardCastableNow(FanCardOf(fan));
+        {
+            if (!FanGateQuiet()) return false;
+            var card = FanCardOf(fan);
+            if (card == null) return false;
+            return CardCastableNow(card);
+        }
+
+        /// <summary>「特殊使用」按钮条件（2026-10-31 P12：充能+苏醒两入口）：
+        /// 充能=任意卡型、卡上有充能效果且在手牌（GetHandCardChargeInfo.PayableNow 任一可付色——
+        /// 点击时 CanCharge 终审）；
+        /// 生物苏醒=仅卡面带 Awaken 关键词（P12 关键词化；双钮持续显示，点击时 CanAffordCast 验费，不预闸）。
+        /// 法术不再有「特殊使用=抉择」——多主动法术由「使用」钮进入模式窗（C 段）。</summary>
+        private bool FanCanSpUse(HandFanCard fan)
+        {
+            if (!FanGateQuiet()) return false;
+            var card = FanCardOf(fan);
+            var data = (card as CardWrapper)?.GetData();
+            if (data == null) return false;
+            // 充能（P12）：任意 supertype——有充能效果且当前有可付颜色即亮
+            if (card.GetZone() == Zone.Hand && ComposerCatalog.HasChargeEffect(data))
+            {
+                var info = GameActions.GetHandCardChargeInfo(Core, P1, card);
+                foreach (var payable in info.PayableNow.Values)
+                    if (payable) return true;
+            }
+            if (data.Supertype == Cardtype.Creature) return GameActions.HasAwakenKeyword(card);
+            return false;
+        }
 
         /// <summary>卡当前可发动（无主阶段闸——闸由调用方外置）；法术=可付即可，永久物另需空格。
         /// 场地卡（2026-10-29 P8）不占单位容量：落己方场地格恒可入（旧场地在位=顶替），免空格判定。</summary>
@@ -2289,6 +2433,14 @@ namespace SynergyUI
             {
                 bool castable = gate && CardCastableNow(card);
                 _selfFan.SetPlayable(card.RuntimeId, castable, castable && GateArmedNow(card));
+            }
+
+            // 牌库顶虚拟手牌（2026-10-29 阶段3b）：发动流光随对账刷新（打出后顶牌换新即重评）
+            var deckTop = TopDeckVirtualCard();
+            if (deckTop != null)
+            {
+                bool castable = gate && CardCastableNow(deckTop);
+                _selfFan.SetPlayable(deckTop.RuntimeId, castable, castable && GateArmedNow(deckTop));
             }
         }
 
@@ -2458,11 +2610,9 @@ namespace SynergyUI
             return null;
         }
 
-        /// <summary>「发动」点击（2026-10-14 定案；2026-10-20 手选发动位改案）：
-        /// 法术=模式窗（多作用）→费用/教学预检→**箭头手选发动区落格**（手牌使用规范=必须先到
-        /// 发动区）→SpellDeclarationFlow（贴片预览+声明期选目标，可取消撤销）；
-        /// 永久物（生物/结界）=模式窗（多模式）→箭头选己方单位区空格（所选格=最终落位，
-        /// 入场后补钉）→确认出牌。取消恢复手牌。</summary>
+        /// <summary>「使用」点击（2026-10-14 定案；2026-10-30 SpUse 改版——召唤方式二选弹窗退役，
+        /// 生物苏醒走 SpUse 按钮）：法术（单主动）=费用预检后直入声明流；多主动法术=「抉择」
+        /// 钮承载（本口不可达，防御保留）；永久物=模式窗（多模式）→选格→确认出牌（恒普通召唤）。</summary>
         private void OnFanUse(HandFanCard fan)
         {
             if (NetActive) { NetOnFanUse(fan); return; } // 网络局：模式抉择+intent 上行（目标结算期反问）
@@ -2477,7 +2627,8 @@ namespace SynergyUI
             {
                 // 2026-10-15 改版：>1 个作用弹抉择窗（选择要发动的效果）；单作用费用预检后直入选位。
                 // 2026-10-20 改版：手选发动位→声明流（预选+贴片预览+可取消撤销）
-                if (GetModeCount(view) >= 2) PromptModeThenPlay(view, fromGrave: false).Forget();
+                // 2026-10-30 SpUse 改版：>1 主动=「抉择」钮承载，本口只达单主动（防御保留多主动分支）
+                if (GetModeCount(view) >= 2) PromptModeThenPlay(view).Forget();
                 else
                 {
                     // 费用预检（与模式窗同口径——防选完位置目标才被引擎拒）
@@ -2496,63 +2647,117 @@ namespace SynergyUI
                 PromptModeThenPickCell(view, card).Forget();
                 return;
             }
-            SummonFlowAsync(view, card, 0).Forget();
+            SummonFlow(view, card, 0, awakenCast: false);
         }
 
-        /// <summary>召唤方式抉择 + 选格出牌（2026-10-29 P6 苏醒改版；P6c 只免灰）：生物净费灰份额 ≥1 时弹
-        ///「召唤 / 苏醒召唤」二选（苏醒=免灰份额转入场沉睡层数、横置登场、彩色含绿照付——文案写明层数与横置），
-        /// 选后按所选账单验费（CanAffordCast 全口径，含声明承诺）→ 选格 → PlayCardFinal。
-        /// 非生物/无可免份额直通普通召唤（不弹选——单按钮语义）。</summary>
-        private async UniTaskVoid SummonFlowAsync(BattleCardView view, Card card, int modeIndex)
+        /// <summary>「特殊使用」点击（2026-10-31 P12：充能+苏醒两入口分流）：
+        /// 充能=任意卡型带充能效果（ChargeCardAsync——选色→ActivateCharge 速度 0 主动效果入栈）；
+        /// 生物苏醒=仅 Awaken 关键词（免灰转入场沉睡层数·横置登场，P6c——按钮即抉择，弹窗退役）；
+        /// 两入口并存（带充能+带苏醒的生物）=Region 二选一。法术无特殊使用（多主动走「使用」模式窗）。</summary>
+        private void OnFanSpUse(HandFanCard fan)
         {
-            var awaken = await PickSummonKindAsync(view, modeIndex);
-            if (awaken == null) return; // 取消/缺 Region：本次不出牌
-            if (Core == null || !GameActions.CanAffordCast(Core, P1, card, modeIndex, awaken.Value))
+            if (NetActive) { NetOnFanSpUse(fan); return; } // 网络局：充能/苏醒 intent 上行
+            if (!GateFanMyMain()) return;
+            var card = FanCardOf(fan);
+            if (card == null) return;
+            var data = (card as CardWrapper)?.GetData();
+            if (data == null) return;
+            var view = BattleView.FromRuntime(SerializableRuntimeCardState.FromCard(card), card, false);
+
+            bool canCharge = card.GetZone() == Zone.Hand && ComposerCatalog.HasChargeEffect(data);
+            bool canAwaken = data.Supertype == Cardtype.Creature && GameActions.HasAwakenKeyword(card);
+            if (canCharge && canAwaken)
             {
-                _toast.Show(awaken.Value ? "费用不足——苏醒召唤不可发动" : "费用不足——该分支不可发动");
+                PickSpUseModeAsync(view, card).Forget(); // 双入口并存：Region 二选一
                 return;
             }
-            BeginUseCellPicking(view, card, modeIndex, awaken.Value);
+            if (canCharge)
+            {
+                ChargeCardAsync(card).Forget();
+                return;
+            }
+            if (!canAwaken) return; // P12：无充能/无苏醒关键词的卡不响应（防御——按钮已闸）
+            if (CostDerivationService.GetModeCount(data) >= 2)
+            {
+                PromptModeThenPickCell(view, card, awakenCast: true).Forget();
+                return;
+            }
+            SummonFlow(view, card, 0, awakenCast: true);
         }
 
-        /// <summary>召唤方式二选（Region 面板）：返回 null=取消；false=普通召唤；true=苏醒召唤。
-        /// 可免灰份额=0（非生物/净费无灰）返回 false 不弹选。本地局=引擎净费精确口径；
-        /// 网络局（无引擎卡实例）=CardData 恒推导预览，账单以服务器终审为准。</summary>
-        private async UniTask<bool?> PickSummonKindAsync(BattleCardView view, int modeIndex)
+        /// <summary>特殊使用方式二选一（带充能+带苏醒的生物）：充能 / 苏醒召唤。</summary>
+        private async UniTaskVoid PickSpUseModeAsync(BattleCardView view, Card card)
         {
-            var data = DataOf(view);
-            int layers = view.CoreCard != null
-                ? GameActions.GetAwakenSleepLayers(view.CoreCard, modeIndex)
-                : GameActions.GetAwakenSleepLayers(data, modeIndex);
-            if (layers <= 0) return false;
-
-            ElementCost full, waived;
-            if (view.CoreCard != null)
+            int? picked = await PickRegionOptionAsync("选择特殊使用方式",
+                new List<string> { "充能（付 1 点元素·减同色费用）", "苏醒召唤（免灰转沉睡·横置登场）" });
+            if (picked == null) return;
+            if (picked == 0)
             {
-                full = GameActions.GetCardCost(view.CoreCard, modeIndex);
-                waived = GameActions.GetCardCost(view.CoreCard, modeIndex, awakenCast: true);
+                ChargeCardAsync(card).Forget();
+                return;
             }
+            var data = (card as CardWrapper)?.GetData();
+            if (CostDerivationService.GetModeCount(data) >= 2)
+                PromptModeThenPickCell(view, card, awakenCast: true).Forget();
+            else
+                SummonFlow(view, card, 0, awakenCast: true);
+        }
+
+        /// <summary>召唤出牌（验费→选格→PlayCardFinal；2026-10-30 SpUse 改版：awakenCast 由按钮
+        /// 直定——使用=普通召唤 false / 特殊使用=苏醒 true，召唤方式弹选退役）。
+        /// 按 CanAffordCast 全口径验费（含声明承诺；苏醒按免灰账单）。</summary>
+        private void SummonFlow(BattleCardView view, Card card, int modeIndex, bool awakenCast)
+        {
+            if (Core == null || !GameActions.CanAffordCast(Core, P1, card, modeIndex, awakenCast))
+            {
+                _toast.Show(awakenCast ? "费用不足——苏醒召唤不可发动" : "费用不足——该分支不可发动");
+                return;
+            }
+            BeginUseCellPicking(view, card, modeIndex, awakenCast);
+        }
+
+        /// <summary>充能（2026-10-31 P12：建造→充能）：可充色=卡费有该色且余量&gt;0 且现可付 1 点
+        ///（GetHandCardChargeInfo 数据口）；多色=Region 择一（附余量/充后净费预览）；单色直发。
+        /// ActivateCharge 把充能效果作为速度 0 主动效果入栈（响应窗口后结算：现付 1 点该色元素、
+        /// 放 1 层同色费用降低指示物并展示此卡），卡留手牌——净费随 RefreshLocal 回写。</summary>
+        private async UniTaskVoid ChargeCardAsync(Card card)
+        {
+            var info = GameActions.GetHandCardChargeInfo(Core, P1, card);
+            var colors = new List<ManaType>();
+            foreach (var kv in info.PayableNow)
+                if (kv.Value && info.RemainingByColor.TryGetValue(kv.Key, out var remain) && remain > 0)
+                    colors.Add(kv.Key);
+            if (colors.Count == 0) { _toast.Show("无对应元素可充（每点充能=现付 1 点该色元素）"); return; }
+
+            ManaType color;
+            if (colors.Count == 1) color = colors[0];
             else
             {
-                full = CardCostService.GetRuntimeCost(data, modeIndex);
-                waived = CardCostService.GetRuntimeCost(data, modeIndex);
-                waived[ManaType.Gray] = 0f; // P6c：只免灰——彩色（含绿）照付
+                var options = new List<string>();
+                foreach (var c in colors)
+                {
+                    int remain = info.RemainingByColor.TryGetValue(c, out var r) ? r : 0;
+                    string after = info.NetCostAfterCharge.TryGetValue(c, out var nc) ? CostText(nc) : "—";
+                    options.Add($"充能 {ManaTypeNames.ZhNameOf(c)}（余{remain}点 · 充后净费 {after}）");
+                }
+                int? picked = await PickRegionOptionAsync("选择充能颜色", options);
+                if (picked == null) return; // 取消/缺 Region：本次不充
+                color = colors[picked.Value];
             }
-            var options = new List<string>
-            {
-                $"召唤（费用 {CostText(full)}）",
-                $"苏醒召唤（费用 {CostText(waived)} · 免{(int)full[ManaType.Gray]}灰 · 沉睡{layers}层·横置入场）",
-            };
-            int? picked = await PickRegionOptionAsync("选择召唤方式", options);
-            if (picked == null) return null;
-            return picked.Value == 1;
+
+            if (GameActions.ActivateCharge(Core, P1, card, color, out var reason))
+                _toast.Show($"充能 +1{ManaTypeNames.ZhNameOf(color)} 已发动（响应窗口后结算）");
+            else
+                _toast.Show($"充能失败：{reason}");
+            RefreshLocal();
         }
 
-        /// <summary>模式窗变体（永久物出牌）：选完模式进入召唤方式抉择（生物，2026-10-29 P6）→
-        /// 选格——文案口径同 PromptModeThenPlay，验费用 CanAffordCast 全口径（含声明承诺；
+        /// <summary>模式窗变体（永久物出牌）：选完模式进入召唤出牌（生物 2026-10-30 SpUse 改版：
+        /// awakenCast 由入口按钮直定——使用=false 普通召唤 / 特殊使用=true 苏醒，召唤方式弹选退役）
+        /// →选格——文案口径同 PromptModeThenPlay，验费用 CanAffordCast 全口径（含声明承诺；
         /// 代价补偿不预计算——2026-10-16 恢复旧序；苏醒按所选账单）。
         /// 2026-10-16 弹窗退役：选项=Region 面板卡牌列表。</summary>
-        private async UniTaskVoid PromptModeThenPickCell(BattleCardView view, Card card)
+        private async UniTaskVoid PromptModeThenPickCell(BattleCardView view, Card card, bool awakenCast = false)
         {
             var data = DataOf(view);
             var labels = FindChoiceLabels(data);
@@ -2566,7 +2771,7 @@ namespace SynergyUI
             int? picked = await PickRegionOptionAsync("选择模式", options);
             if (picked == null) return;
             int idx = picked.Value;
-            SummonFlowAsync(view, card, idx).Forget();
+            SummonFlow(view, card, idx, awakenCast);
         }
 
         /// <summary>永久物出牌选格：候选=己方单位区空格（占用=BoardState 现值，含施放占格卡）；
@@ -2589,7 +2794,7 @@ namespace SynergyUI
                 bool replacing = board.FieldOccupied(P1);
                 Debug.Log($"[HandPlay] 场地卡直接落位：{view.Name} → ({fc.x},{fc.z}){(replacing ? "（顶替旧场地入墓）" : "")}");
                 _toast.Show(replacing ? "场地就位——将顶替己方现有场地（旧场地入墓）" : "场地就位（己方场地格）");
-                PlayCardFinal(view, null, modeIndex, fromGrave: false, awakenCast: awakenCast);
+                PlayCardFinal(view, null, modeIndex, awakenCast: awakenCast);
                 return;
             }
 
@@ -2607,8 +2812,36 @@ namespace SynergyUI
                 RestoreFan();
                 _pendingPins[card.RuntimeId] = (opt.X, opt.Z);
                 Debug.Log($"[HandPlay] 永久物出牌选格：{view.Name} → ({opt.X},{opt.Z})（声明成功即钉{(awakenCast ? "·苏醒施放" : "")}）");
-                PlayCardFinal(view, null, modeIndex, fromGrave: false, awakenCast: awakenCast);
+                PlayCardFinal(view, null, modeIndex, awakenCast: awakenCast);
             }, RestoreFan);
+        }
+
+        /// <summary>移动原子选格（2026-10-31 场面轴3c MoveUnit）：CellSelectionService 反问桥实现——
+        /// 与永久物出牌选格同交互（BattleCellPicker 箭头+候选空格），箭头自待移动单位当前格拉出
+        ///（未落格回落角色格）。返回候选表索引（-1=取消）；候选/合法性由 MoveUnitRules 单源筛得。</summary>
+        private async UniTask<int> PickMoveDestinationAsync(Card unit, IReadOnlyList<(int x, int z)> cells, string title)
+        {
+            var options = new List<BattleCellPicker.CellOption>();
+            foreach (var c in cells)
+                options.Add(new BattleCellPicker.CellOption { X = c.x, Z = c.z, ColorIndex = -1 });
+
+            _choreo?.CancelTargeting();
+            _selfFan?.SetVisible(false);
+            var origin = BoardLayout.CharacterCell(0);
+            if (unit != null && _ctrl?.Board != null && _ctrl.Board.TryGetCell(unit, out int ux, out int uz))
+                origin = (ux, uz);
+            if (!string.IsNullOrEmpty(title)) _toast.Show(title);
+
+            var done = new UniTaskCompletionSource<int>();
+            _cellPicker.Begin(BattleBoardGrid.WorldPositionOf(origin.x, origin.z), options, opt =>
+            {
+                RestoreFan();
+                int idx = -1;
+                for (int i = 0; i < cells.Count; i++)
+                    if (cells[i].x == opt.X && cells[i].z == opt.Z) { idx = i; break; }
+                done.TrySetResult(idx);
+            }, () => { RestoreFan(); done.TrySetResult(-1); });
+            return await done.Task;
         }
 
         /// <summary>点我方地牌（2026-10-11 现取现用 → 2026-10-14 按色叠格）：全自动结算口径不变——
@@ -3425,46 +3658,8 @@ namespace SynergyUI
         // （跳过准备阶段按钮已删：准备阶段纯自动推进——TurnEngine.StartNewTurn 内
         //   AdvanceFromStandby 直调，2026-09-24 定案；UI 不再有停等入口。）
 
-        /// <summary>墓地使用（2026-10-16 弹窗退役：旧列表弹窗→Region 真卡面选牌，单选强制）。
-        /// 选后多模式卡续接 PromptModeThenPlay（同 Region 择一），单模式直出。</summary>
-        private async UniTaskVoid OnGraveyardPlay()
-        {
-            if (!GateMyMain()) return;
-
-            var grave = Core.ZoneManager.GetCards(P1, Zone.Graveyard);
-            if (grave == null || grave.Count == 0) { _toast.Show("墓地为空"); return; }
-            if (_regionSelector == null) { _toast.Show("Region 面板缺失——墓地使用不可用"); return; }
-
-            var req = new TargetSelectionRequest
-            {
-                Candidates = grave.Cast<Entity>().ToList(),
-                MinCount = 1,
-                MaxCount = 1,
-                Chooser = P1,
-                Title = "墓地使用（视为手牌中使用，每回合一次）",
-            };
-            var labels = new List<string>(grave.Count);
-            foreach (var c in grave) labels.Add(CardDisplayName(c));
-            var picked = await _regionSelector.SelectAsync(req, labels, 60f);
-            if (picked == null || picked.Count == 0) return;
-
-            var gc = grave[picked[0]];
-            var view = new BattleCardView
-            {
-                CardId = gc.ID,
-                CoreCard = gc,
-                Runtime = SerializableRuntimeCardState.FromCard(gc),
-                Name = CardDisplayName(gc),
-            };
-            var data = (gc as CardWrapper)?.GetData();
-            if (data != null)
-            {
-                view.CostText = BattleView.CostTextOf(data.Cost);
-                view.SupertypeText = BattleView.SupertypeZh(data.Supertype);
-            }
-            if (GetModeCount(view) >= 2) PromptModeThenPlay(view, fromGrave: true).Forget();
-            else SpellDeclarationFlow(view, 0, fromGrave: true).Forget();
-        }
+        // 墓地使用入口（OnGraveyardPlay）已随 2026-10-30 归土改版整删：墓地视手牌使用退役，
+        // 归土=回合末自动复活（引擎 RuleAuraSystem.ReviveAtTurnEnd，无 UI 交互）。
 
         // 技能=一回合一次重复用的法术（2026-10-18 深夜修订）：与同名法术**不同速不同费**——
         // 发动速度恒 0（不吃法术槽位盈余）；免元素锚价，但多效果（抉择）技能每次发动另收 1 灰。

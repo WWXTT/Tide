@@ -22,6 +22,11 @@ namespace CardCore
         /// <summary>本回合周期已横置（已为某次支付贡献过 1 个元素）。己方回合开始时恢复（解除横置）。</summary>
         public bool IsTapped { get; set; }
 
+        /// <summary>冻地层数（2026-10-29 阶段3a 冻结扩展到元素池）：层=剩余回合数——冻结原子横置地牌
+        /// 并叠层（不挂指示物——地牌不是 Entity）；持有者回合末 −1，层&gt;0 时回合开始不解除横置，
+        /// 归零后的下个回合开始恢复。叠加=延长（与单位冻结同口径）。</summary>
+        public int FreezeLayers { get; set; }
+
         public PooledCard(Card card, ManaType lockedColor)
         {
             SourceCard = card;
@@ -87,7 +92,8 @@ namespace CardCore
     ///    本就有界，钳为双保险），临时钱包贡献不受钳（获取=对应地块可用+1、可用可超上限——
     ///    纯色需求超帽部分由钱包覆盖即付）。
         /// 5. 临时钱包：效果授予元素的唯一归宿，任一回合结束清空；生成无上限（2026-10-28 P3b 定案：
-        ///    全类型累计钳删除——代价已不产元素、发电机受每卡每回合次数（TriggerLimitPerTurn）约束）。
+        ///    全类型累计钳删除——代价已不产元素；2026-10-30 起效果无每回合次数上限，
+        ///    发电机节奏由卡自身时机期望系数与付费约束承担）。
     /// 6. 黑白不由地牌产出（锁定色不含黑白）；获取通道=代价补偿/错边转化等卡结算路径。
     /// 7. 发动无效与地牌零交互（净零靠付费在响应窗之后，本就无退款路径）；地牌的交互面只有摧毁/抹除。
     /// </summary>
@@ -199,7 +205,6 @@ namespace CardCore
             foreach (var def in CardEffectConverter.ConvertAll(data.Effects, data.ID))
             {
                 if (def == null || !def.IsActivatedEffect) continue;
-                def.TriggerLimitPerTurn = 1; // 次数轴坍缩——同 Derive/SpellCastAnchor 主入口口径
                 for (int m = 0; m < anchorModes; m++)
                     Add(CostDerivationService.DeriveElementCosts(def, m));
             }
@@ -207,7 +212,8 @@ namespace CardCore
             var pairs = new List<(ManaType color, int amount)>();
             foreach (var type in total.NonzeroColors())
             {
-                int amount = (int)total[type];
+                // 支付进1口径（2026-10-30）：0.5 锚价色对战也要付 1——不再 (int) 截断丢色，按向上取整入排序
+                int amount = (int)Math.Ceiling(total[type] - 1e-4f);
                 if (amount > 0 && type != ManaType.Any) // 白/黑席位已删（2026-10-28 P2），无需再滤
                     pairs.Add((type, amount));
             }
@@ -564,13 +570,15 @@ namespace CardCore
 
             int untapped = 0;
             foreach (var pc in turnPool.PooledCards)
-                if (pc != null && pc.IsTapped) { pc.IsTapped = false; untapped++; }
+                if (pc != null && pc.IsTapped && pc.FreezeLayers <= 0) { pc.IsTapped = false; untapped++; }
             return untapped;
         }
 
         /// <summary>
         /// 回合结束（GameCore.OnTurnEnded 调用）：**临时钱包清空**（2026-10-11 定案：任一回合结束，
         /// 未消耗的效果授予元素即逝——现取现用）。地牌无耗竭清理（旧自动产色/耗尽送墓已随指示物退役）。
+        /// 冻地衰减（2026-10-29 阶段3a）：**持有者**回合末层 −1（与单位冻结的持有者侧结算域同口径）
+        /// ——归零后的下个回合开始恢复横置（OnTurnStart 的层&gt;0 不重置闸）。
         /// </summary>
         public void OnTurnEnd(Player turnPlayer)
         {
@@ -580,6 +588,10 @@ namespace CardCore
                 foreach (ManaType mana in Enum.GetValues(typeof(ManaType)))
                     pool.TempElements[mana] = 0;
             }
+
+            var holderPool = GetPool(turnPlayer);
+            foreach (var pc in holderPool.PooledCards)
+                if (pc != null && pc.FreezeLayers > 0) pc.FreezeLayers--;
         }
 
         // ======================================== 查询 ========================================
@@ -666,16 +678,6 @@ namespace CardCore
         public ManaType LockedColor { get; set; }
     }
 
-    /// <summary>元素入账来源：缺省=效果发放（AddMana 临时钱包路径）。
-    /// Tap 位保留枚举序兼容——付费系统横置不发 GainEvent（实付组合走 ElementPoolPayEvent.PaidCost）。</summary>
-    public enum GainSource
-    {
-        /// <summary>效果发放（代价补偿/错边/光合作用/生物特性产色等 AddMana 路径）——缺省值</summary>
-        Grant = 0,
-        /// <summary>地牌横置产出（2026-10-11 退役：现取现用，横置直接支付不发本事件）</summary>
-        Tap = 1,
-    }
-
     public class ElementPoolGainEvent : GameEventBase
     {
         public Player Player { get; set; }
@@ -683,8 +685,6 @@ namespace CardCore
         public Card FromCard { get; set; }
         /// <summary>本次产出数量。</summary>
         public int Amount { get; set; } = 1;
-        /// <summary>入账来源：缺省 Grant（临时钱包路径）。</summary>
-        public GainSource Source { get; set; } = GainSource.Grant;
     }
 
     public class ElementPoolPayEvent : GameEventBase

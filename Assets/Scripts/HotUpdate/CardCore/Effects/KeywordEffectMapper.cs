@@ -6,7 +6,7 @@ namespace CardCore
     /// <summary>
     /// 关键词效果映射器
     /// 将关键词 ID 转换为可执行的运行时效果。
-    /// 数据唯一真相源：原子效果表（AttributeValueConfig.json，经 CardLoader.LoadKeywords
+    /// 数据唯一真相源：原子效果表（原子表五分文件，经 CardLoader.LoadKeywords
     /// 从 Grant* 条目合成关键词定义；关键词不单独开表）。
     ///
     /// 关键词分两类：

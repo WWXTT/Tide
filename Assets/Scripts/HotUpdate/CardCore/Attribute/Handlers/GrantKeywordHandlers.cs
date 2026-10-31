@@ -48,10 +48,8 @@ namespace CardCore.Attribute.Handlers
                 //（印刷入场走 GuardianRules.OnEnterBattlefield 入场事件，不经此口——无双选）。
                 if (_keywordId == KeywordRules.Guardian && target is Card grantedCard)
                     GuardianRules.OnGrantedInPlay(grantedCard);
-                // 舍身授予即选（2026-10-16 定案，镜像守护）：落到已在场的卡立即弹选转投目标
-                //（印刷入场走 MartyrdomRules.OnEnterBattlefield 入场事件，不经此口——无双选）。
-                if (_keywordId == KeywordRules.Martyrdom && target is Card martyrCard)
-                    MartyrdomRules.OnGrantedInPlay(martyrCard);
+                // 战斗法师（原舍身 2026-10-30 改版）：无状态关键词——无授予即选/无入场钩子
+                //（散射在 KeywordRules.ApplyDamage 咽喉内联，MartyrdomRules 配对表整套退役）。
                 PublishEvent(new KeywordEvent
                 {
                     Target = target,
@@ -103,7 +101,7 @@ namespace CardCore.Attribute.Handlers
             // 法术护盾已移出关键词族（2026-10-09 指示物化）：GrantSpellShield 原子改由 GrantSpellShieldHandler
             // 执行（挂 SpellShieldCounter 层，EffectExecutionEngine 指示物原子区注册）——refId 已重推
             // a3ad6a04→7270df35（2026-10-09 指示物化随文案换号）
-            // 扰魔（GrantCannotBeTargeted/Untargetable）映射已删（2026-10-13 整体退役：表行+关键词+滤 token 同批）
+            // 扰魔（GrantCannotBeTargeted/Untargetable）映射与枚举位已删（2026-10-13 整体退役；枚举收拢 2026-10-30）
 
             // 绿色 - 续航
             (AtomicEffectType.GrantLifesteal, "Lifesteal", "获得吸血"),
@@ -112,27 +110,35 @@ namespace CardCore.Attribute.Handlers
             // 坚韧已移出关键词族（2026-10-08 指示物化）：GrantToughness 原子（原 GrantArmor 同日更名）
             // 改由 GrantToughnessHandler 执行（挂 ToughnessCounter 层，EffectExecutionEngine 指示物原子区注册）
             //——refId 迁移 05485f65→a312b8b0→758a74e0（同日哈希对齐）→2b1e3700（2026-10-09 生效自减改版随文案换号）→a8f7f476（现行号）
-            // 守护（2026-10-08 配对制改版，退出连接光环族——表行位 8 拉黑）：登场/授予时弹选一个
+            // 守护（2026-10-08 配对制改版，退出连接光环族——表行位 7 拉黑）：登场/授予时弹选一个
             // 己方目标（单位或角色），其受伤改写为守护者承受（GuardianRules 配对表；无限次直到守护者离场）
             (AtomicEffectType.GrantGuardian, "Guardian", "获得守护"),
-            // 舍身（2026-10-16 关键词化——原舍身仪典规则光环退役，退出连接光环族同守护）：登场/授予时
-            // 弹选一个**对方**目标（单位或角色），自己造成的战斗伤害改写为对目标的效果伤害
-            //（MartyrdomRules 配对表；无限次直到持有者离场；与守护的己方域对偶）
-            (AtomicEffectType.GrantMartyrdom, "Martyrdom", "获得舍身"),
+            // 战斗法师（原舍身，2026-10-30 改版——弹选转投退役改随机散射；关键词族位不变）：
+            // 自己造成的战斗伤害改写为对随机目标造成 1 点效果伤害，重复发动次数=自身攻击力
+            //（无状态关键词——散射内联在 KeywordRules.ApplyDamage 咽喉，无配对表）
+            (AtomicEffectType.GrantBattleMage, "BattleMage", "获得战斗法师"),
             // 圣盾已移出关键词族（2026-10-08 指示物化）：GrantDivineShield 原子改由 GrantDivineShieldHandler
             // 执行（挂 DivineShieldCounter 层）——refId 已重推 feab5d3b→c8624e6a（2026-10-08 全量 ID 重推）
             (AtomicEffectType.GrantTaunt, "Taunt", "获得帷幕"),
             // 毒刺（PoisonSting）/冰晶（IceCrystal）映射已删（2026-10-15 整体退役）：表行 2026-10-02
             // 已先退（改写走分支组合），遗留的印刷关键词路径（改写链臂/两张试作卡）同批清除——
             // 毒素/冻结指示物由各自施加原子独立保留，不经关键词。
-            // GrantNightmare（梦魇）映射已删（2026-10-13 引擎行为退役——改写链臂/常量/枚举墓碑同批）
+            // GrantNightmare（梦魇）映射与枚举位已删（2026-10-13 引擎行为退役；枚举收拢 2026-10-30）
             // 剧毒（2026-10-08 指示物转关键词·落定追加式）：受到其战斗伤害的生物被消灭；
             // 表行 20c06d52（原 Poison 原子）改挂 GrantVenom——病原体（改写挂剧毒指示物）随之退役
             (AtomicEffectType.GrantVenom, "Venom", "获得剧毒（受到其战斗伤害的生物被消灭）"),
-            (AtomicEffectType.GrantSpellban, "Spellban", "获得禁魔石（非战斗伤害为0）"),
+            (AtomicEffectType.GrantSpellban, "Spellban", "获得无实体（每次受到的伤害变为1）"),
+            // 绝缘体（2026-10-31，绿3）：持有单位不受指示物的效果影响——正面指示物加不上
+            //（拦截口=EntityEffectExtensions.AddCounters 咽喉；含己方自上；负量移除不拦；
+            // 系统指示物豁免同禁指示物令口径）。表行 MountKinds 带「不可作为连接光环」
+            //（免疫洞防线，同无实体/守护）。
+            (AtomicEffectType.GrantInsulator, "Insulator", "获得绝缘体（不受指示物的效果影响）"),
             // 复生已移出关键词族（2026-10-08 指示物化）：GrantReborn 原子改由 GrantRebornHandler
             // 执行（挂 RebornCounter 层）——refId 已重推 502be10d→94f6a32d（2026-10-08 全量 ID 重推）
             (AtomicEffectType.GrantIndestructible, "Indestructible", "获得不灭"),
+            // 苏醒（2026-10-31 P12 关键词化）：卡面带 Awaken 的生物才有「苏醒施放」——
+            // 数值闸门在 GameActions.HasAwakenKeyword/GetAwakenSleepLayers，处理器只写关键词 id
+            (AtomicEffectType.GrantAwaken, "Awaken", "获得苏醒"),
         };
 
         /// <summary>

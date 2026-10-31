@@ -57,177 +57,159 @@ namespace CardCore
         // 强制动作（无速度交互），不再有玩家手动产色操作；产色口收敛到
         // ElementPool.TryPayCostWithAutoTap / TryPayBillWithAutoTap。
 
-        // ======================================== 建造（2026-10-29 P7：结界在手牌的逐色预付） ========================================
+        // ======================================== 充能（2026-10-31 P12：建造→充能；主动效果、速度 0、只能从手牌发动） ========================================
 
         /// <summary>
-        /// 建造可用性单源（P7 §3）：UI 置灰 / AI 枚举 / 引擎终审三步同口径——BuildCard 内部先过本口。
-        /// 门禁序：回合方 → 主阶段 → 卡在手牌 → 结界 → 色合法（非任意）→ 该色卡费&gt;0 →
-        /// 该色已建额&lt;该色卡费（跨回合保留、逐色以**代价抵扣前**卡费为上限）→ 元素池可付 1 点该色
-        ///（CanPayCostWithAutoTap 单色 1 点——临时钱包优先/未横置地牌自动横置）。
-        /// 建造不消耗行动次数、不限次数/回合：只要还有「可通过此方式减免的元素」就能继续建
-        ///（唯一约束=元素池与卡费上限，2026-10-29 用户确认）。
+        /// 充能可用性单源（P12 §B2）：UI 置灰 / AI 枚举 / 引擎终审三步同口径——ActivateCharge 内部先过本口。
+        /// 门禁序：回合方 → 主阶段 → 卡在手牌 → 卡有充能效果（ComposerCatalog.HasChargeEffect——
+        /// 生物/法术/结界全类别）→ 色合法（灰/红/蓝/绿，Any 拒）→ 该色「代价抵扣前卡费」&gt;0 →
+        /// 该色已充层数 &lt; 该色上限（进度=四色费用降低指示物层数，GetPrePayloadCost 逐色）→
+        /// 元素池可付 1 点该色（CanPayCostWithAutoTap 现取现用）。
+        /// 充能不消耗行动次数、不限次数/回合：还有可通过此方式减免的元素就能继续充。
         /// </summary>
-        public static bool CanBuild(GameCore core, Player player, Card card, ManaType color, out string reason)
+        public static bool CanCharge(GameCore core, Player player, Card card, ManaType color, out string reason)
         {
             reason = null;
             if (core == null || player == null || card == null) { reason = "内部错误：空参数"; return false; }
-            if (core.TurnEngine.TurnPlayer != player) { reason = "建造只能在自己的回合"; return false; }
+            if (core.TurnEngine.TurnPlayer != player) { reason = "充能只能在自己的回合"; return false; }
             if (core.TurnEngine.CurrentPhase?.Phase != PhaseType.Main)
-            { reason = $"建造只能在主阶段（当前：{core.TurnEngine.CurrentPhase?.Phase}）"; return false; }
+            { reason = $"充能只能在主阶段（当前：{core.TurnEngine.CurrentPhase?.Phase}）"; return false; }
 
             var hand = core.ZoneManager.GetCards(player, Zone.Hand);
-            if (!hand.Contains(card)) { reason = "建造对象必须在手牌"; return false; }
+            if (!hand.Contains(card)) { reason = "充能对象必须在手牌"; return false; }
 
-            var w = card as CardWrapper;
-            var data = w?.GetData();
-            if (data == null || data.Supertype != Cardtype.Enchantment)
-            { reason = "建造对象必须是手牌结界"; return false; }
+            var data = (card as CardWrapper)?.GetData();
+            if (data == null || !ComposerCatalog.HasChargeEffect(data))
+            { reason = "该卡没有充能效果（充能入口只对带「充能」效果的卡开放）"; return false; }
 
-            if (color == ManaType.Any || (int)color < 0 || (int)color >= ElementCost.Length)
-            { reason = "任意元素是万用货币不是颜色，不可建造"; return false; }
+            if (Attribute.CounterRules.CostDownCounterFor(color) == null)
+            { reason = "任意元素是万用货币不是颜色，不可充能"; return false; }
 
-            // 上限口径=代价抵扣前逐色卡费（与账单基数同源，GetPrePayloadCost 单口）
+            // 上限口径=代价抵扣前逐色卡费（旧建造同源，GetPrePayloadCost 单口）；
+            // 进度=同色费用降低指示物层数（Resident 换区清——实例级，同名副本/跨玩家互不共享）。
+            // 法术补差（P12 落地）：卡费基数不含施放锚价（主动效果运行时现付——法术出牌费≈0），
+            // 并入模式 0 锚价（数据契约「模式0=最高消耗」；层在 GetCardCost 于锚价合并后套算、
+            // 逐色钳 0——对低锚模式最多折到 0，无白赚）。
             CardCostService.GetPrePayloadCost(data, 0, out var preCost, out _);
             float costColor = preCost[color];
+            if (data.Supertype == Cardtype.Spell)
+                costColor += SpellCastAnchor(card, 0)[color];
             if (costColor <= 0f)
-            { reason = $"该卡卡费中没有{ManaZh(color)}——只能建卡费里确实有的色"; return false; }
-            if (w.BuildPaid[(int)color] >= costColor)
+            { reason = $"该卡卡费中没有{ManaZh(color)}——只能充卡费里确实有的色"; return false; }
+            int charged = card.GetCounterCount(Attribute.CounterRules.CostDownCounterFor(color));
+            if (charged >= costColor)
             {
-                reason = $"{ManaZh(color)}已建满（已建 {w.BuildPaid[(int)color]:0.#}/{costColor:0.#}）——该色无剩余可建额度";
+                reason = $"{ManaZh(color)}已充能满（已充 {charged}/{costColor:0.#}）——该色无剩余可充额度";
                 return false;
             }
 
             if (!core.ElementPool.CanPayCostWithAutoTap(ElementCost.FromValue(color, 1), player))
-            { reason = $"元素不足——建造需现付 1 {ManaZh(color)}（临时钱包优先，不足则系统自动横置地牌）"; return false; }
+            { reason = $"元素不足——充能需现付 1 {ManaZh(color)}（临时钱包优先，不足则系统自动横置地牌）"; return false; }
             return true;
         }
 
         /// <summary>
-        /// 建造（P7 §1/§3）：主阶段重复动作，对象=手牌结界。每次消耗元素池 1 点 color 色元素
-        ///（现取现用），该色已建额 +1（记在卡实例 CardWrapper.BuildPaid，跨回合保留——P7b 返工：
-        /// 同名副本/对手同名卡互不可见）。施放时账单=每色 max(0, 卡费−已建额) 再套代价抵扣
-        ///（GetCardCost 重放，预付先扣）；施放成功/离手即作废（ZoneContainer 换区清空，元素不退）。
-        /// 设计后果（定案接受）：给回合末清零开了定向口子——本回合用不完的元素可埋进手牌结界
-        /// 跨回合攒「大牌」，UI 经 GetHandCardBuildInfo 可见进度。
+        /// 充能发动（P12 §B2）：把该卡的充能效果作为**速度 0 的主动效果**推入自愿桶
+        ///（PlayerActivateVoluntary → 响应窗口 → ChargeHandler 结算：现付 1 点所选色 +
+        /// 放 1 层同色费用降低指示物 + 展示 + CardChargedEvent）。不横置、不消耗耐久、不换区
+        /// ——卡留在手牌；入栈失败（速度门）不改状态。ChargeColor 随 PendingEffect →
+        /// EffectInstance → context 透传到执行期。
         /// </summary>
-        public static bool BuildCard(GameCore core, Player player, Card card, ManaType color, out string reason)
+        public static bool ActivateCharge(GameCore core, Player player, Card card, ManaType color, out string reason)
         {
-            if (!CanBuild(core, player, card, color, out reason)) return false;
+            if (!CanCharge(core, player, card, color, out reason)) return false;
 
-            // 扣元素（付费步同款：钱包消耗+系统自动横置；失败不动状态）
-            if (!core.ElementPool.TryPayCostWithAutoTap(ElementCost.FromValue(color, 1), player,
-                    $"建造:{(card as IHasName)?.CardName}"))
-            { reason = $"元素不足（付费步规划失败——1 {ManaZh(color)}）"; return false; }
-
-            var paid = ((CardWrapper)card).BuildPaid;
-            paid[(int)color] += 1f;
-
-            core.PublishEvent(new CardBuiltEvent
+            EffectDefinition chargeDef = null;
+            foreach (var def in GetCardEffectDefinitions(card))
             {
-                Player = player,
-                Card = card,
-                Color = color,
-                PaidOnColor = (int)Math.Round(paid[(int)color]),
-            });
-            return true;
-        }
-
-        /// <summary>离手/结算清空口（P7 §2）：ZoneContainer.OnCardMoved 换区清理调用——与费用指示物
-        /// 同款发动区豁免（cast 声明 Hand→Activation 与声明失败回退 Activation→Hand 不清，
-        /// 付费步存活；其余真实换区一律作废，预付元素不退）。P7b：清的是卡实例（非卡面定义）。</summary>
-        internal static void ClearBuildPaid(Card card)
-        {
-            if (card is CardWrapper w) w.ResetBuildPaid();
-        }
-
-        /// <summary>已建额非零判定（数组级——任意位恒 0 也一并扫，防御回灌脏值）。</summary>
-        private static bool HasBuildPaid(float[] buildPaid)
-        {
-            if (buildPaid == null) return false;
-            for (int i = 0; i < buildPaid.Length; i++)
-                if (buildPaid[i] != 0f) return true;
-            return false;
-        }
-
-        /// <summary>
-        /// 预付先扣账单重放（P7 §1 施放时账单）：base = 代价抵扣前逐色卡费 − 已建额（每色下限 0）
-        /// → 再走现有 ReduceBuckets(base, 代价价)。与「代价先吃原费再减已建」数值不同
-        ///（已建额清零的色腾出的空间让代价抵扣改吃剩余色），按定案取本序。派生桶逐色取整
-        ///（推导链全整数，减法不产生小数——Round 只是回灌脏值防御）。
-        /// </summary>
-        private static ElementCost ApplyBuildPrepaid(CardData data, int modeIndex, float[] buildPaid)
-        {
-            CardCostService.GetPrePayloadCost(data, modeIndex, out var preCost, out var payloadPoints);
-            var mounted = new Dictionary<ManaType, int>();
-            foreach (var color in preCost.NonzeroColors())
-            {
-                int remain = (int)Math.Max(0f, Math.Round(preCost[color] - (color == ManaType.Any ? 0f : buildPaid[(int)color])));
-                if (remain > 0) mounted[color] = remain;
+                if (def != null && ComposerCatalog.IsChargeEffect(def)) { chargeDef = def; break; }
             }
-            if (payloadPoints > 0)
-                CardCompositionCost.ReduceBuckets(mounted, payloadPoints);
-            var c = new ElementCost();
-            foreach (var kv in mounted)
-                if (kv.Value != 0) c[kv.Key] = kv.Value;
-            return c;
+            if (chargeDef == null)
+            { reason = "该卡没有充能效果（效果转换后缺失——数据异常）"; return false; }
+
+            var pending = PendingEffect.Create(
+                chargeDef, card, player, core.TurnEngine.TurnPlayer,
+                core.TurnEngine.CurrentPhase?.Phase ?? PhaseType.Main);
+            pending.ActivationSpeed = 0; // 充能恒 0 速（主动效果——主阶段空栈首动豁免内）
+            pending.ActivationType = EffectActivationType.Voluntary;
+            pending.ChargeColor = color;
+
+            if (!core.StackEngine.PlayerActivateVoluntary(pending))
+            { reason = "充能入栈失败（速度门——栈上有待响应对象）"; return false; }
+            return true;
         }
 
-        /// <summary>手牌卡建造数据口（P7 §5：给数据不做画面——战场/手牌怎么画归用户）。
-        /// 消费面：本地对局=引擎卡直读；联机客户端=快照 DTO（RCS_BuildPaid）回灌后的卡表副本。</summary>
-        public sealed class HandCardBuildInfo
+        /// <summary>手牌卡充能数据口（P12 §B3：给数据不做画面——战场/手牌怎么画归用户）。
+        /// 消费面：本地对局=引擎卡直读；联机客户端=快照计数器（CounterEntryDTO 已覆盖四色层）。</summary>
+        public sealed class HandCardChargeInfo
         {
-            /// <summary>已建额副本 [灰,红,蓝,绿,任意]（任意位恒 0；跨回合保留、离手作废）。</summary>
-            public float[] BuildPaid;
-            /// <summary>时点窗口总闸：回合方+主阶段+手牌+结界（不含颜色/余量——UI 置灰第一层）。</summary>
+            /// <summary>已充层数 [灰,红,蓝,绿,任意]（任意位恒 0；换区清零、跨回合保留）。</summary>
+            public int[] ChargedByColor;
+            /// <summary>时点窗口总闸：回合方+主阶段+手牌+有充能效果（不含颜色/余量——UI 置灰第一层）。</summary>
             public bool WindowOpen;
-            /// <summary>当前净费（GetCardCost 同源——已含已建额扣减与代价抵扣）。</summary>
+            /// <summary>当前净费（GetCardCost 同源——已含四色费用降低层与代价抵扣）。</summary>
             public ElementCost NetCostNow;
-            /// <summary>可建色 → 还能建几点（卡费上限口径；0=建满仍列出便于置灰）。</summary>
+            /// <summary>可充色 → 还能充几点（代价抵扣前卡费上限口径；0=充满仍列出便于置灰）。</summary>
             public Dictionary<ManaType, int> RemainingByColor = new Dictionary<ManaType, int>();
-            /// <summary>可建色 → 元素池现在能否再付 1 点（CanBuild 余量判定同口径）。</summary>
+            /// <summary>可充色 → 元素池现在能否再付 1 点（CanCharge 余量判定同口径）。</summary>
             public Dictionary<ManaType, bool> PayableNow = new Dictionary<ManaType, bool>();
-            /// <summary>可建色 → 再建 1 点该色后的净费预览（不动卡状态的账单重放；建满色=当前净费）。</summary>
-            public Dictionary<ManaType, ElementCost> NetCostAfterBuild = new Dictionary<ManaType, ElementCost>();
+            /// <summary>可充色 → 再充 1 点该色后的净费预览（当前净费该色 −1 下限 0——不动卡状态；充满色=当前净费）。</summary>
+            public Dictionary<ManaType, ElementCost> NetCostAfterCharge = new Dictionary<ManaType, ElementCost>();
         }
 
         /// <summary>
-        /// 手牌卡建造数据（P7 §5）：BuildPaid / 可建颜色列表（每色还能建几点）/ 建造后净费预览。
-        /// 非结界/异常入参 → 空信息（WindowOpen=false、空表）——UI 按总闸隐藏建造入口即可。
-        /// modeIndex 仅抉择结界有意义（缺省 0 与 CanBuild 上限口径一致）。
+        /// 手牌卡充能数据（P12 §B3）：已充层数 / 可充颜色列表（每色还能充几点）/ 充能后净费预览。
+        /// 无充能效果/异常入参 → 空信息（WindowOpen=false、空表）——UI 按总闸隐藏充能入口即可。
+        /// modeIndex 仅抉择卡有意义（缺省 0 与 CanCharge 上限口径一致）。
         /// </summary>
-        public static HandCardBuildInfo GetHandCardBuildInfo(GameCore core, Player player, Card card, int modeIndex = 0)
+        public static HandCardChargeInfo GetHandCardChargeInfo(GameCore core, Player player, Card card, int modeIndex = 0)
         {
-            var info = new HandCardBuildInfo();
-            var w = card as CardWrapper;
-            var data = w?.GetData();
-            var paid = w?.BuildPaid;
-            info.BuildPaid = paid != null ? (float[])paid.Clone() : new float[ElementCost.Length];
+            var info = new HandCardChargeInfo();
+            var data = (card as CardWrapper)?.GetData();
+            info.ChargedByColor = new int[ElementCost.Length];
+            if (card != null)
+            {
+                info.ChargedByColor[(int)ManaType.Gray] = card.GetCounterCount(Attribute.CounterRules.CostDownGrayCounter);
+                info.ChargedByColor[(int)ManaType.Red] = card.GetCounterCount(Attribute.CounterRules.CostDownRedCounter);
+                info.ChargedByColor[(int)ManaType.Blue] = card.GetCounterCount(Attribute.CounterRules.CostDownBlueCounter);
+                info.ChargedByColor[(int)ManaType.Green] = card.GetCounterCount(Attribute.CounterRules.CostDownGreenCounter);
+            }
             info.NetCostNow = card != null ? GetCardCost(card, modeIndex) : new ElementCost();
             info.WindowOpen = core != null && player != null && card != null && data != null
-                && data.Supertype == Cardtype.Enchantment
+                && ComposerCatalog.HasChargeEffect(data)
                 && core.TurnEngine.TurnPlayer == player
                 && core.TurnEngine.CurrentPhase?.Phase == PhaseType.Main
                 && core.ZoneManager.GetCards(player, Zone.Hand).Contains(card);
-            if (data == null || data.Supertype != Cardtype.Enchantment) return info;
+            if (data == null || !ComposerCatalog.HasChargeEffect(data)) return info;
 
             CardCostService.GetPrePayloadCost(data, modeIndex, out var preCost, out _);
+            // 法术补差（P12，与 CanCharge 同口径）：上限并入模式 0 施放锚价（卡费基数不含锚）
+            if (data.Supertype == Cardtype.Spell)
+            {
+                var anchor0 = SpellCastAnchor(card, 0);
+                foreach (var color in anchor0.NonzeroColors())
+                    if (color != ManaType.Any) preCost[color] = preCost[color] + anchor0[color];
+            }
             foreach (var color in preCost.NonzeroColors())
             {
                 if (color == ManaType.Any) continue;
+                string cid = Attribute.CounterRules.CostDownCounterFor(color);
+                if (cid == null) continue;
                 int cap = (int)Math.Round(preCost[color]);
                 if (cap <= 0) continue;
-                int paidColor = (int)Math.Round(w.BuildPaid[(int)color]);
-                info.RemainingByColor[color] = Math.Max(0, cap - paidColor);
+                int charged = card.GetCounterCount(cid);
+                info.RemainingByColor[color] = Math.Max(0, cap - charged);
                 info.PayableNow[color] = core != null && player != null
                     && core.ElementPool.CanPayCostWithAutoTap(ElementCost.FromValue(color, 1), player);
-                if (paidColor < cap)
+                // 充能后净费预览：当前净费读数已含进度层，手动 −1 该色（下限 0）即可，不动卡状态
+                if (charged < cap)
                 {
-                    var hypo = (float[])w.BuildPaid.Clone();
-                    hypo[(int)color] += 1f;
-                    info.NetCostAfterBuild[color] = CardCostWithBuild(card, modeIndex, false, hypo);
+                    var after = info.NetCostNow.Clone();
+                    after[color] = Math.Max(0f, after[color] - 1f);
+                    info.NetCostAfterCharge[color] = after;
                 }
                 else
-                    info.NetCostAfterBuild[color] = info.NetCostNow.Clone();
+                    info.NetCostAfterCharge[color] = info.NetCostNow.Clone();
             }
             return info;
         }
@@ -386,16 +368,23 @@ namespace CardCore
             // 同名仪典唯一闸（2026-10-07 定案：异名共存、同名禁止——同名规则光环在场（不分敌我、
             // 不同范围也算同名）时不可再打出；直投/直调路径由 RuleAuraSystem.Activate 拒绝兜底）
             if (RuleAuraSystem.BlocksDuplicatePlay(card))
-            { rejectReason = "场上已存在同名规则光环（同名仪典不可重复——载体离场前不能再打出）"; return false; }
+            { rejectReason = "场上已存在同名场地光环（同名仪典不可重复——载体离场前不能再打出）"; return false; }
 
             // 检查卡牌在来源区
             var sourceZone = core.ZoneManager.GetCards(player, fromZone);
             if (!sourceZone.Contains(card)) { rejectReason = $"卡不在{fromZone}（快照过期？请重试）"; return false; }
 
-            // 苏醒施放闸（2026-10-29 P6 定案；P6c 修订只免灰）：仅生物且净费灰份额 ≥1（=入场沉睡层数）；
-            // 灰=0 无可免不该白给沉睡——不提供苏醒选项（UI/AI 枚举同判，此处终审）。
+            // 苏醒施放闸（2026-10-29 P6 定案；P6c 修订只免灰；2026-10-31 P12 关键词化）：
+            // 仅卡面带 Awaken 关键词的生物且净费灰份额 ≥1（=入场沉睡层数，GetAwakenSleepLayers 单源闸
+            //——关键词闸在彼口内）；灰=0 无可免不该白给沉睡——不提供苏醒选项（UI/AI 枚举同判，此处终审）。
             if (awakenCast && GetAwakenSleepLayers(card, modeIndex) <= 0)
-            { rejectReason = "该卡无可苏醒施放的灰份额（非生物，或净费中灰为 0）"; return false; }
+            {
+                var dataAw = card is CardWrapper wAw ? wAw.GetData() : null;
+                rejectReason = dataAw != null && dataAw.Supertype == Cardtype.Creature && HasAwakenKeyword(card)
+                    ? "净费中灰为 0，无可苏醒"
+                    : "该卡没有苏醒关键词（仅带「苏醒」的生物可苏醒施放）";
+                return false;
+            }
 
             // 规则扩展点（OCP）：出牌限制（如信息轴锁定）经注册表询问
             if (!RuleHooks.CanPlay(core, player, card, fromZone))
@@ -452,7 +441,7 @@ namespace CardCore
             if (!core.StackEngine.PushCardCast(card, player, targets, modeIndex))
             {
                 // 理论不可达（声明预检已过）；保守回退：卡退回来源区，声明失败不付费
-                core.ZoneManager.MoveCard(card, player, Zone.Activation, fromZone);
+                CastReturnToOrigin(core, card, player, fromZone);
                 rejectReason = "栈机器拒入（结算中或速度门）";
                 return false;
             }
@@ -493,11 +482,11 @@ namespace CardCore
             if (core.StackEngine.CurrentPriorityHolder != player)
             { rejectReason = "响应出牌需要优先权在手"; return false; }                   // 优先权在手
 
-            // 禁时机令（2026-10-29 阶段2）：双方不能在自己回合以外施放卡牌——
-            // 只拦响应出牌（PlayCard 本身已要求回合方，不加）；主动效果/守卫不受限。
+            // 禁扰令（2026-10-29 阶段2；2026-10-30 更名·改单侧）：受光环影响一方不能在对手回合
+            // 施放卡牌——只拦响应出牌（PlayCard 本身已要求回合方，不加）；主动效果/守卫不受限。
             if (player != core.TurnEngine.TurnPlayer
                 && RuleAuraSystem.ScopeHits(RuleAuraComponents.OwnTurnCastAura, player))
-            { rejectReason = "禁时机令：只能在自己回合施放"; return false; }
+            { rejectReason = "禁扰令：不能在对手回合施放"; return false; }
 
             var hand = core.ZoneManager.GetCards(player, Zone.Hand);
             if (!hand.Contains(card)) { rejectReason = "卡不在手牌（快照过期？请重试）"; return false; }
@@ -508,7 +497,7 @@ namespace CardCore
 
             // 同名仪典唯一闸（同 PlayCard——响应出牌同门，2026-10-07 唯一性定案）
             if (RuleAuraSystem.BlocksDuplicatePlay(card))
-            { rejectReason = "场上已存在同名规则光环（同名仪典不可重复——载体离场前不能再打出）"; return false; }
+            { rejectReason = "场上已存在同名场地光环（同名仪典不可重复——载体离场前不能再打出）"; return false; }
 
             // 出牌两阶段（2026-10-04 定案）：有代价先算代价——响应出牌同门（代价无目标→拒发）
             if (!TryPrepareCardCostTargets(core, player, card, out var costGateReject))
@@ -557,11 +546,14 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 主阶段：从墓地使用一张牌，视为手牌中使用（引擎通用能力，经 IPlaySource 扩展点授权/计配额）。
-        /// 法术结算后照常入墓、永久物入场。
+        /// 主阶段：将牌库顶的卡当手牌使用（2026-10-29 阶段3b，TopDeckAsHandAura 光环授权——
+        /// TopDeckPlaySource/IPlaySource 放行、不限额；声明失败回退回牌库**顶**原位）。
+        /// 打出后牌库顶自动前移（换新虚拟手牌）；结算/入墓/入场照常。
+        /// （旧 PlayCardFromGraveyard 墓地出牌口已随 2026-10-30 归土改版整删——
+        /// 归土不再授权墓地施放，IPlaySource 墓地来源无注册即恒拒。）
         /// </summary>
-        public static bool PlayCardFromGraveyard(GameCore core, Player player, Card card, List<Entity> targets = null, int modeIndex = 0)
-            => PlayCard(core, player, card, targets, Zone.Graveyard, modeIndex);
+        public static bool PlayCardFromDeckTop(GameCore core, Player player, Card card, List<Entity> targets = null, int modeIndex = 0, bool awakenCast = false)
+            => PlayCard(core, player, card, targets, Zone.Deck, modeIndex, awakenCast);
 
         // ======================================== 整卡施放结算（使用时点消费点） ========================================
 
@@ -684,7 +676,7 @@ namespace CardCore
         /// <summary>施放卡声明期收集（效果无效 fizz 场景的飞行色）：所选模式首个原子的行基准主色。</summary>
         private static ManaType? FirstAtomTint(Card card, int modeIndex)
         {
-            var defs = GetCardEffectDefinitions(card);
+            var defs = GetCastableEffectDefinitions(card); // P12：模式序号索引非充能列表
             if (defs == null || defs.Count == 0) return null;
             var chosen = defs[Math.Clamp(modeIndex, 0, defs.Count - 1)];
             if (chosen?.Effects == null) return null;
@@ -717,10 +709,20 @@ namespace CardCore
         /// cast 结算中止·回退声明来源区（2026-10-04 本轮定案：代价无有效目标 → 发动失败回手牌——
         /// 手牌出牌路径即回手牌；墓地视手牌使用路径原路回墓地，不白赚挪区）。发生在扣费前：不付费、不补偿。
         /// </summary>
+        /// <summary>声明失败回退原区（2026-10-29 阶段3b 牌库顶当手牌来源）：牌库来源回牌库**顶**
+        ///（原位——MoveCard 默认追加末尾=牌库底，白送换牌）；其余来源常规回退。</summary>
+        private static void CastReturnToOrigin(GameCore core, Card card, Player player, Zone fromZone)
+        {
+            if (fromZone == Zone.Deck)
+                core.ZoneManager.GetZoneContainer(player).Move(card, Zone.Activation, Zone.Deck, DeckPosition.Top);
+            else
+                core.ZoneManager.MoveCard(card, player, Zone.Activation, fromZone);
+        }
+
         private static void CastAbortToOrigin(GameCore core, Card card, Player player, Zone fromZone, string reason)
         {
             if (fromZone == Zone.None || fromZone == Zone.Activation) fromZone = Zone.Hand;
-            core.ZoneManager.MoveCard(card, player, Zone.Activation, fromZone);
+            CastReturnToOrigin(core, card, player, fromZone);
             core.PublishEvent(new CardActivationFailedEvent
             {
                 Card = card,
@@ -1000,7 +1002,7 @@ namespace CardCore
             {
                 foreach (var c in core.ZoneManager.GetCards(p, Zone.Hand) ?? new List<Card>())
                 {
-                    // 禁时机令（2026-10-29 阶段2）：非回合方不能施放——手牌响应候选跳过
+                    // 禁扰令（2026-10-29 阶段2）：非回合方不能施放——手牌响应候选跳过
                     //（与 PlayCardInResponse 硬闸同口径；守卫/主动效果候选不受限）
                     if (p != core.TurnEngine.TurnPlayer
                         && RuleAuraSystem.ScopeHits(RuleAuraComponents.OwnTurnCastAura, p)) continue;
@@ -1190,7 +1192,7 @@ namespace CardCore
             var core = GameCore.Instance;
             if (card == null || caster == null || core?.ZoneManager == null) return new List<Entity>();
 
-            var defs = GetCardEffectDefinitions(card);
+            var defs = GetCastableEffectDefinitions(card); // P12：模式序号索引非充能列表
             if (defs == null || defs.Count == 0) return new List<Entity>();
             var chosen = defs[Math.Clamp(modeIndex, 0, defs.Count - 1)];
             if (chosen == null) return new List<Entity>();
@@ -1217,7 +1219,7 @@ namespace CardCore
         private static async Cysharp.Threading.Tasks.UniTask ResolveSpellEffectsAsync(
             GameCore core, Player player, Card card, List<Entity> targets, int modeIndex = 0)
         {
-            var defs = GetCardEffectDefinitions(card);
+            var defs = GetCastableEffectDefinitions(card); // P12：模式序号索引非充能列表
             EffectDefinition chosen = null;
             if (defs != null && defs.Count > 0)
                 chosen = defs[Math.Clamp(modeIndex, 0, defs.Count - 1)];
@@ -1650,32 +1652,16 @@ namespace CardCore
         ///（含绿）照付、混付口径照旧走 ElementPool。非生物传 true 无效；灰=0 无免可免
 ///（退化回原净费，调用方不应提供苏醒选项）。预检/付费/pending/AI 特征/UI 预览均经本口
 ///——全消费面同口径。
-/// 建造（2026-10-29 P7；同日 P7b 返工）：手牌结界的逐色预付（卡实例 CardWrapper.BuildPaid——
-/// 同名副本/跨玩家互不共享）在本口内先于代价抵扣扣减（CardCostWithBuild 重放）——全消费面
-/// 自动同口径，UI 预览经 GetHandCardBuildInfo。
-/// </summary>
-        public static ElementCost GetCardCost(Card card, int modeIndex = 0, bool awakenCast = false)
-            => CardCostWithBuild(card, modeIndex, awakenCast, null);
-
-        /// <summary>
-        /// GetCardCost 统一实现（P7 2026-10-29 建造改造）：buildPaidOverride=null 读卡上真实已建额；
-        /// UI 净费预览口传假设值（GetHandCardBuildInfo——不动卡状态的重放）。已建额非零时按
-        /// §1「预付先扣、代价后扣」重放账单：base = 代价抵扣前逐色卡费 − 已建额（每色下限 0）→
-        /// 再走现有 ReduceBuckets(base, 代价价)。已建额全零时与推导净费逐位相等（重放退化为恒等，
-        /// 热路径行为不变）。其余层（法术锚价/费用指示物/苏醒豁免）照旧叠加在重放结果上。
+        /// 出牌费用单源（2026-10-31 P12：建造 BuildPaid 重放整链退役——充能进度改挂四色费用降低
+        /// 指示物，在下方指示物层统一套算）。层序恒定：恒推导基价 → 法术锚价 → 四色费用指示物层 →
+        /// 苏醒豁免；预检/扣费/pending/UI 预览全消费面共用本口，不另开口径。
         /// </summary>
-        private static ElementCost CardCostWithBuild(Card card, int modeIndex, bool awakenCast, float[] buildPaidOverride)
+        public static ElementCost GetCardCost(Card card, int modeIndex = 0, bool awakenCast = false)
         {
             ElementCost cost;
-            var wrapper = card as CardCore.CardWrapper;
-            var data = wrapper?.GetData();
+            var data = (card as CardCore.CardWrapper)?.GetData();
             if (data != null)
-            {
-                cost = CardCostService.GetRuntimeCost(data, modeIndex); // 恒推导（抉择=所选模式；副本供指示物层叠加）
-                var buildPaid = buildPaidOverride ?? wrapper.BuildPaid;
-                if (HasBuildPaid(buildPaid))
-                    cost = ApplyBuildPrepaid(data, modeIndex, buildPaid);
-            }
+                cost = CardCostService.GetRuntimeCost(data, modeIndex); // 恒推导（抉择=所选模式）
             else
                 cost = ElementCost.FromValue(ManaType.Gray, 1); // 防御默认：无卡数据按灰1（正常链路不达）
 
@@ -1687,21 +1673,29 @@ namespace CardCore
                     cost[color] = cost[color] + anchor[color];
             }
 
-            // 费用指示物层（P1 恒灰）：灰 += CostUp − CostDown，下限 0
+            // 费用指示物层（P1 恒灰 → 2026-10-31 P12 四色扩容）：灰 += CostUp − CostDown − CostDownGray
+            //（旧 CostDown 恒灰 legacy）；红/蓝/绿各吃对应色 CostDown* 层。逐色单独钳 0，不串色。
             int costUp = card.GetCounterCount(Attribute.CounterRules.CostUpCounter);
-            int costDown = card.GetCounterCount(Attribute.CounterRules.CostDownCounter);
-            if (costUp != 0 || costDown != 0)
+            int grayDown = card.GetCounterCount(Attribute.CounterRules.CostDownCounter)
+                         + card.GetCounterCount(Attribute.CounterRules.CostDownGrayCounter);
+            int redDown = card.GetCounterCount(Attribute.CounterRules.CostDownRedCounter);
+            int blueDown = card.GetCounterCount(Attribute.CounterRules.CostDownBlueCounter);
+            int greenDown = card.GetCounterCount(Attribute.CounterRules.CostDownGreenCounter);
+            if (costUp != 0 || grayDown != 0 || redDown != 0 || blueDown != 0 || greenDown != 0)
             {
-                int gray = (int)cost[ManaType.Gray] + costUp - costDown;
-                cost[ManaType.Gray] = Math.Max(0, gray);
+                cost[ManaType.Gray] = Math.Max(0f, cost[ManaType.Gray] + costUp - grayDown);
+                cost[ManaType.Red] = Math.Max(0f, cost[ManaType.Red] - redDown);
+                cost[ManaType.Blue] = Math.Max(0f, cost[ManaType.Blue] - blueDown);
+                cost[ManaType.Green] = Math.Max(0f, cost[ManaType.Green] - greenDown);
             }
 
-            // 苏醒施放豁免（2026-10-29 P6；同日 P6c 修订：只免灰，绿照付）：
+            // 苏醒施放豁免（2026-10-29 P6；同日 P6c 修订：只免灰，绿照付；2026-10-31 P12 关键词化：
+            // 仅卡面带 Awaken 关键词的生物可免——无双保险也不该给免）：
             // 免净费中的灰份额（先扣代价再算苏醒——上方 cost 已是「推导费−代价抵扣」的净费）。
             // 设计后果：灰=身材费——苏醒实际是「用沉睡抵身材费」（身体买得到、效果买不到）；
             // 绿重（效果费高）的生物几乎用不上苏醒，这是预期。豁免量不在此暂存
             //（旧 PendingSleepLayers 退役）——入场层数由 GetAwakenSleepLayers 同口径重取，与账单同刻推导。
-            if (awakenCast && data != null && data.Supertype == Cardtype.Creature)
+            if (awakenCast && data != null && data.Supertype == Cardtype.Creature && HasAwakenKeyword(data))
             {
                 cost[ManaType.Gray] = 0f;
             }
@@ -1709,9 +1703,10 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 苏醒施放可免的灰净费份额 = 入场沉睡层数（2026-10-29 P6 定案；同日 P6c 修订：只免灰，绿照付）：
+        /// 苏醒施放可免的灰净费份额 = 入场沉睡层数（2026-10-29 P6 定案；同日 P6c 修订：只免灰，绿照付；
+        /// 2026-10-31 P12 关键词化：**先判 Awaken 关键词**——没有该关键词的生物直接 0，不提供苏醒选项）：
         /// 苏醒施放免掉净费中的灰（先扣代价后算苏醒——GetCardCost 返回的已是净费），等量转沉睡指示物
-        /// 并横置入场；层数=0（非生物 / 净费灰=0）不提供苏醒选项（没有可免的，不该白给一个沉睡）。
+        /// 并横置入场；层数=0（非生物 / 无关键词 / 净费灰=0）不提供苏醒选项（没有可免的，不该白给一个沉睡）。
         /// 绿是效果色，不在豁免面——绿重生物用不上苏醒属预期（灰=身材费，苏醒=用沉睡抵身材费）。
         /// 与 <see cref="GetCardCost(Card,int,bool)"/> 的豁免块同口径单源（本值=豁免块清零的量）。
         /// </summary>
@@ -1719,6 +1714,7 @@ namespace CardCore
         {
             var data = card is CardWrapper wrapper ? wrapper.GetData() : null;
             if (data == null || data.Supertype != Cardtype.Creature) return 0;
+            if (!HasAwakenKeyword(card)) return 0; // P12 关键词闸：卡面（印刷/光环/授予轨）不带 Awaken 即无苏醒
             var cost = GetCardCost(card, modeIndex);
             int layers = (int)Math.Round(cost[ManaType.Gray]);
             return layers > 0 ? layers : 0;
@@ -1726,29 +1722,40 @@ namespace CardCore
 
         /// <summary>苏醒层数预览（CardData 版——网络客户端无引擎卡实例时用）：按恒推导净费取灰
         ///（P6c：只灰，绿不计），不含费用指示物层（Card 实例态）。服务器终审以 Card 重载为准；
-        /// 预览漂移只影响文案不影响账单。</summary>
+        /// 预览漂移只影响文案不影响账单。P12 关键词闸同 Card 重载：无 Awaken 关键词恒 0。</summary>
         public static int GetAwakenSleepLayers(CardData data, int modeIndex = 0)
         {
             if (data == null || data.Supertype != Cardtype.Creature) return 0;
+            if (!HasAwakenKeyword(data)) return 0; // P12：网络预览同闸（印刷关键词口径——运行时授予轨不可见于 CardData）
             var cost = CardCostService.GetRuntimeCost(data, modeIndex);
             int layers = (int)Math.Round(cost[ManaType.Gray]);
             return layers > 0 ? layers : 0;
         }
 
+        // ==================== 苏醒关键词闸（2026-10-31 P12 关键词化） ====================
+
+        /// <summary>卡是否有「苏醒」关键词（印刷/Setting/Temp 轨 + 连接光环投递 + 缄默失效
+        ///——HasKeyword 全口径）。P12 定案：只有带 Awaken 的生物才有「苏醒施放」入口。</summary>
+        public static bool HasAwakenKeyword(Card card)
+            => card != null && card.HasKeyword(Attribute.KeywordRules.Awaken);
+
+        /// <summary>卡面定义是否含「苏醒」关键词（网络客户端无引擎卡实例时的同闸——印刷口径）。</summary>
+        public static bool HasAwakenKeyword(CardData data)
+            => data != null && data.Keywords != null && data.Keywords.Contains(Attribute.KeywordRules.Awaken);
+
         /// <summary>
         /// 法术施放锚价（2026-10-15 深夜三类卡改版：法术只挂 1~3 个主动效果，出牌费不含锚价——
         /// 施放时抉择其一，锚价并入 cast 账单现付，无额外费用）。modeIndex=效果序号（GetCardCost 单源消费）。
-        /// 与 CardCostService.Derive 同口径：法术宿主次数分量坍缩 ×1。非法术/无效果返回空。
+        /// 与 CardCostService.Derive 同口径。非法术/无效果返回空。
         /// </summary>
         public static ElementCost SpellCastAnchor(Card card, int effectIndex)
         {
             var data = card is CardWrapper wrapper ? wrapper.GetData() : null;
             if (data == null || data.Supertype != Cardtype.Spell) return new ElementCost();
-            var defs = GetCardEffectDefinitions(card);
+            var defs = GetCastableEffectDefinitions(card); // P12：模式序号索引非充能列表
             if (defs == null || defs.Count == 0) return new ElementCost();
             var def = defs[Math.Clamp(effectIndex, 0, defs.Count - 1)];
             if (def == null) return new ElementCost();
-            def.TriggerLimitPerTurn = 1; // 次数轴坍缩（法术=整卡一次施放）——同 Derive 主入口口径
             return CostDerivationService.DeriveElementCosts(def, 0) ?? new ElementCost();
         }
 
@@ -1824,7 +1831,9 @@ namespace CardCore
         /// </summary>
         private static string CostRejectText(GameCore core, Player player, ElementCost cost)
         {
-            int total = (int)Math.Ceiling(cost.Total);
+            // 支付进1口径（2026-10-30）：逐色向上取整求和（与实付同账）——总额 Ceiling 会把
+            // 0.5红+0.5绿 报成 1 点（实付 2 点）
+            int total = ElementPaymentValidator.NormalizeBill(cost).Values.Sum();
             int cap = core.ElementPool.GetLandCap(player);
             if (total > cap)
                 return $"费用 {CostText(cost)} 共 {total} 点，超过当前地牌槽上限 {cap}——地牌单货币贡献封顶上限，超出部分须临时元素垫付且当前不足（临时元素可超上限：攒钱包即可出）";
@@ -1868,7 +1877,7 @@ namespace CardCore
                 var cardData = wrapper.GetData();
                 var defs = CardEffectConverter.ConvertAll(cardData.Effects, cardData.ID);
                 // 卡型速度加成（2026-10-15 深夜改版：KindSpeedBonusOf 单源）：
-                // 法术 = 5−槽数（2026-10-29 P6c：1槽=速4/2槽=速3/3槽=速2/4槽=速1，动态不落字段）；
+                // 法术 = 3−槽数（2026-10-31 P12 回归：1槽=速2/2槽=速1/3槽=速0，动态不落字段）；
                 // 结界/生物/地牌 = 0（结界禁主动后速度通道退役）。
                 int kindSpeed = CardCompositionCost.KindSpeedBonusOf(cardData);
                 if (kindSpeed != 0)
@@ -1878,19 +1887,32 @@ namespace CardCore
             }
             return new List<EffectDefinition>();
         }
+
+        /// <summary>法术可施放效果定义（P12 C1：过滤充能效果、序=Effects 声明序）——
+        /// 模式序号 modeIndex 索引本列表（SpellCastAnchor/目标收集/结算/VFX 色调全消费面同源；
+        /// 与 CostDerivationService.GetCastableEffects(CardData) 同序——转换保序）。</summary>
+        public static List<EffectDefinition> GetCastableEffectDefinitions(Card card)
+        {
+            var defs = GetCardEffectDefinitions(card);
+            var castable = new List<EffectDefinition>();
+            foreach (var def in defs)
+                if (def != null && !ComposerCatalog.IsChargeEffect(def)) castable.Add(def);
+            return castable;
+        }
     }
 
     /// <summary>
-    /// 建造事件（2026-10-29 P7 §3）：每次建造成功发布——UI/AI 可观测的进度变化信号
-    ///（元素实付组合另见 ElementPoolPayEvent，SourceNote="建造:卡名"）。
+    /// 充能事件（2026-10-31 P12：建造→充能，原 CardBuiltEvent 更名）：每次充能结算发布——
+    /// UI/AI 可观测的进度变化信号（元素实付组合另见 ElementPoolPayEvent，SourceNote="充能:卡名"；
+    /// 进度本身=四色费用降低指示物层数，换区清除随 CounterChangedEvent/快照可见）。
     /// </summary>
-    public class CardBuiltEvent : GameEventBase
+    public class CardChargedEvent : GameEventBase
     {
         public Player Player { get; set; }
         public Card Card { get; set; }
-        /// <summary>本次建造的颜色（四色之一——任意不可建）。</summary>
+        /// <summary>本次充能的颜色（四色之一——任意不可充）。</summary>
         public ManaType Color { get; set; }
-        /// <summary>本次建造后该卡该色累计已建额。</summary>
+        /// <summary>本次充能后该卡该色累计已充层数（=同色费用降低指示物层数）。</summary>
         public int PaidOnColor { get; set; }
     }
 

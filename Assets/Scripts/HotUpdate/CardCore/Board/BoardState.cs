@@ -574,4 +574,67 @@ namespace GameBoard
             public void Dispose() => EventManager.Instance.Unsubscribe(_handler);
         }
     }
+
+    /// <summary>
+    /// 移动原子规则单源（2026-10-31 场面轴3c MoveUnit）：合法性判定与执行。
+    /// 执行=PinCard 钉格 + Resync 幂等全量重建——占用/邻接（碾压 FlankNeighbors）/箭头连接光环
+    /// （LinkAuraSystem 活查）/攻击距离全部按新格即时派生；**不新增坐标系统、不写新状态字段**
+    /// （Card 零坐标字段的架构铁律不变）。
+    /// 装配同 LinkAuraSystem 范式：宿主（BattleController.AttachBoard）Attach；未装配=无棋盘
+    /// 环境（服务器早期/纯核心测试），TryMove 恒 false、LegalDestinations 恒空。
+    /// 联机 TODO（2026-10-31）：联机快照不承载坐标，本阶段只保证单机/本地对局——协议承载
+    /// 选格参数后由双端各自 Apply，NetRoom 暂不 Attach 本类（移动在联机局恒走空转支路）。
+    /// </summary>
+    public static class MoveUnitRules
+    {
+        private static BoardState _board;
+
+        /// <summary>宿主装配（AttachBoard 调；幂等换挂）。</summary>
+        public static void Attach(BoardState board) => _board = board;
+
+        /// <summary>宿主卸载（DetachBoard 调——静态不清理会指向过期占用层，S5 口径）。</summary>
+        public static void Detach() => _board = null;
+
+        /// <summary>单位归属半场格集判定的属主（控制者优先、回落拥有者——与 AddCounters 咽喉同口径）。</summary>
+        private static Player OwnerOf(Card unit) => unit?.GetController() ?? unit?.GetOwner();
+
+        /// <summary>
+        /// 合法落格：该单位所在方单位区内 · 空格（无单位/无施放占位——CardAt 占用真值）· 非原地。
+        /// 未装配/无属主/未落格单位照常返回其半场空格（未落格无原地排除）。
+        /// </summary>
+        public static List<(int x, int z)> LegalDestinations(Card unit)
+        {
+            var result = new List<(int x, int z)>();
+            var board = _board;
+            var owner = OwnerOf(unit);
+            if (board == null || owner == null) return result;
+            board.TryGetCell(unit, out int ux, out int uz);
+            foreach (var cell in BoardLayout.UnitCells(board.PlayerIndex(owner)))
+            {
+                if (cell.x == ux && cell.z == uz) continue;         // 原地不可
+                if (board.CardAt(cell.x, cell.z) != null) continue; // 占用真值（含施放占格卡）
+                result.Add((cell.x, cell.z));
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// 执行移动：终检（己方单位区格集内 · 空格 · 非原地）后 PinCard（内含 Resync）。
+        /// 通过返回 true；任何不合法返回 false 不动盘面。
+        /// </summary>
+        public static bool TryMove(Card unit, int x, int z)
+        {
+            var board = _board;
+            var owner = OwnerOf(unit);
+            if (board == null || owner == null || !BoardMath.InBounds(x, z)) return false;
+            if (board.TryGetCell(unit, out int ux, out int uz) && ux == x && uz == z) return false; // 原地
+            bool inZone = false;
+            foreach (var c in BoardLayout.UnitCells(board.PlayerIndex(owner)))
+                if (c.x == x && c.z == z) { inZone = true; break; }
+            if (!inZone) return false;                              // 须属该方单位区
+            if (board.CardAt(x, z) != null) return false;           // 空格（含施放占位）
+            board.PinCard(unit, x, z);
+            return true;
+        }
+    }
 }

@@ -156,8 +156,8 @@ namespace CardCore.Attribute
             EventManager.Instance.Publish(new KeywordAppliedEvent
             {
                 Target = self,
-                Keyword = "临摹",
-                Detail = $"临摹为 {clone.CardName}（跳过其规则光环；发动主动效果按变形前后费差以任意元素补差 {surcharge}）",
+                Keyword = "模拟",
+                Detail = $"模拟为 {clone.CardName}（跳过其场地光环；发动主动效果按变形前后费差以任意元素补差 {surcharge}）",
                 Source = source,
             });
 
@@ -211,7 +211,7 @@ namespace CardCore.Attribute
             EventManager.Instance.Publish(new KeywordAppliedEvent
             {
                 Target = card,
-                Keyword = "临摹",
+                Keyword = "模拟",
                 Detail = $"变形解除——还原原形态 {snap.CardName}（纯回滚：状态/横置/文本效果恢复，无入场刷新）",
                 Source = null,
             });

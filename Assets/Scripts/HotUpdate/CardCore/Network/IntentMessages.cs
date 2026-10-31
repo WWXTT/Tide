@@ -100,10 +100,11 @@ namespace CardCore.Network
         public int EffectIndex;
     }
 
-    /// <summary>建造（2026-10-29 P7，协议 v4 新增）：主阶段对手牌结界逐色预付——每次消耗
-    /// 元素池 1 点 Color 色元素，减免该卡卡费中该色 1 点（已建额&lt;该色卡费才可建；不限次数/回合，
-    /// 跨回合保留，离手作废、元素不退）。Color=ManaType 枚举值（四色；任意位服务器拒绝）。
-    /// 可用性单源 GameActions.CanBuild——UI 置灰/AI 枚举/引擎终审同口径。</summary>
+    /// <summary>充能（2026-10-29 P7 建造入协议 v4；2026-10-31 P12 建造→充能只换语义，消息名/号不动）：
+    /// 主阶段对手牌「带充能效果的卡」逐色充能——服务器 GameActions.ActivateCharge（速度 0 主动效果
+    /// 入栈，结算时现付 1 点 Color 色元素 + 放 1 层同色费用降低指示物 + 展示这张卡；上限=该色
+    /// 代价抵扣前卡费；不限次数/回合，跨回合保留，换区清除、元素不退）。Color=ManaType 枚举值
+    ///（四色；任意位服务器拒绝）。可用性单源 GameActions.CanCharge——UI 置灰/AI 枚举/引擎终审同口径。</summary>
     [MemoryPackable]
     public partial class MsgIntentBuildCard
     {

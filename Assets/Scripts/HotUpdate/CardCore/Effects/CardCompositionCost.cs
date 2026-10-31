@@ -9,10 +9,10 @@ namespace CardCore
     /// · 规则一（CardCostService.Derive）：声明档位推导 D(C) 与代价抵扣校验；
     /// · 本层：只对「卡的结构性弹性」收额外费——玩家为灵活性付费，与效果本身的强度无关。
     ///
- /// 当前规则（2026-10-15 卡型默认分配定案 + 2026-10-15 深夜三类卡改版；速度口径 2026-10-29 P6c 修订）：
+ /// 当前规则（2026-10-15 卡型默认分配定案 + 2026-10-15 深夜三类卡改版；速度口径 2026-10-31 P12 回归）：
  /// 效果组合界面不再能设置发动速度；三个免费额度（底盘 = 显性三万能色：入组 1 + 抽牌 2）按卡型默认分配：
- /// · 法术 = 速度 5−槽数（2026-10-29 P6c 定案，旧 3−N 退役）：1 槽=速4、2 槽=速3、3 槽=速2、
- ///   4 槽=速1（槽含抉择分支与代价行——「1 效果+1 代价」=2 槽=速3，代价行刻意稍压速度；
+ /// · 法术 = 速度 3−槽数（2026-10-31 P12 回归，P6c 5−N 退役）：1 槽=速2、2 槽=速1、3 槽=速0、
+ ///   4 槽=速0（槽含代价行与充能效果——充能照常计 1 槽；
  ///   速度不收钱、卡费一分不变，只变速度门），动态计算不落字段（KindSpeedBonusOf 单源；
  ///   SpeedBonus 字段退役）。
  ///   法术只挂 1~3 个主动效果（发动时弹窗抉择其一）：出牌费不含效果锚价，
@@ -108,10 +108,10 @@ namespace CardCore
         }
 
         /// <summary>卡型速度加成单源（2026-10-15 定案：速度归卡型免费额度默认分配；
-        /// 2026-10-29 P6c 修订：法术 5−槽数，脱离免费点分配）：
-        /// 法术 = max(0, 5 − 效果槽数)（CountEffectSlots 含抉择分支与代价行——1 槽=速4、2 槽=速3、
-        /// 3 槽=速2、4 槽=速1；速度不收钱，卡费不变只变速度门；动态计算不落字段，
-        /// SpeedBonus 字段已退役不再消费）；结界/生物/地牌 = 0（结界禁主动后速度通道整体退役；
+        /// 2026-10-29 P6c 曾改 5−槽数，**2026-10-31 P12 回归 3−槽数**）：
+        /// 法术 = max(0, 3 − 效果槽数)（CountEffectSlots 含代价行与充能效果——充能照常计 1 槽；
+        /// 1 槽=速2、2 槽=速1、3 槽=速0、4 槽=速0；速度不收钱，卡费不变只变速度门，动态计算不落字段，
+        /// SpeedBonus 字段已退役不再消费）；结界/生物/地牌 = 0（结界主动只收充能（P12）且充能恒 0 速；
         /// 生物/结界从手牌使用恒 0 速）。
         /// 注意：**不动 SurplusOf**——免费点仍管生物属性抵扣 / 结界耐久 / 地牌抵价（改它会连带改价）。
         /// 消费口：GameActions.GetCardEffectDefinitions（效果 BaseSpeed 加和）、
@@ -120,7 +120,7 @@ namespace CardCore
         {
             if (card == null) return 0;
             if (card.Supertype == Cardtype.Spell)
-                return Math.Max(0, 5 - CostDerivationService.CountEffectSlots(card));
+                return Math.Max(0, 3 - CostDerivationService.CountEffectSlots(card));
             return 0;
         }
 
@@ -178,6 +178,39 @@ namespace CardCore
                 if (bestV <= 0) break;
                 mounted[best] = bestV - 1;
             }
+        }
+
+        /// <summary>代价抵扣逐点扣桶·色锁版（2026-10-31 代价槽改版定案）：只在代价原子**可产出色**
+        ///（allowed=引用行 ManaList 非零色）内扣——扣序同 <see cref="ReduceBuckets"/>（先灰后最高费用色，
+        /// 并列取枚举序靠前者），每色下限 0、溢出丢弃、不穿底到他色。allowed 空=无抵扣面（分文不扣）。
+        /// 返回实际扣减点数：生成面超出可抵色容量即失效——「单个代价至多将这张卡对应色费用完全清零」
+        /// 由下限 0+不溢出他色两条共同保证。消费口：CardCostService.ApplyPayloadDeduction 单源。</summary>
+        public static int ReduceBucketsLocked(Dictionary<ManaType, int> mounted, int points, HashSet<ManaType> allowed)
+        {
+            if (allowed == null || allowed.Count == 0) return 0;
+            int applied = 0;
+            for (int i = 0; i < points; i++)
+            {
+                if (allowed.Contains(ManaType.Gray)
+                    && mounted.TryGetValue(ManaType.Gray, out var g) && g >= 1)
+                {
+                    mounted[ManaType.Gray] = g - 1;
+                    applied++;
+                    continue;
+                }
+                ManaType best = default;
+                int bestV = 0;
+                foreach (var kv in mounted)
+                    if (allowed.Contains(kv.Key) && kv.Key != ManaType.Gray && kv.Value > bestV)
+                    {
+                        bestV = kv.Value;
+                        best = kv.Key;
+                    }
+                if (bestV <= 0) break;
+                mounted[best] = bestV - 1;
+                applied++;
+            }
+            return applied;
         }
 
         // 抉择价差溢价已废（2026-09-21）——抉择分支计槽 + 地牌按所选模式产元素承担防套利。

@@ -58,6 +58,7 @@ namespace SynergyUI
             { TriggerTiming.OnAtomicEffectResolution, "原子效果结算完成时" },
             { TriggerTiming.OnOtherCreatureDeath, "其他生物死亡时" },
             { TriggerTiming.OnRoleDeath, "角色死亡时" },
+            { TriggerTiming.OnScry, "占卜时" }, // 2026-10-29 阶段3c 信息轴：占卜结算观察（双方占卜都触发）
         };
 
         /// <summary>TargetKind → 中文名（2026-10-06 单一来源迁 CardCore：TargetKindRules.ZhNameOf——
@@ -262,7 +263,13 @@ namespace SynergyUI
         private static string ActivationPrefix(CardEffectData h, CardData owner)
         {
             if (h.ActivationType == (int)EffectActivationType.Voluntary)
+            {
+                // 充能（P12 2026-10-31）：恒 0 速（ActivateCharge 强制）——不吃法术卡型提速，
+                // 防显示成「发动速度2/1」
+                if (ComposerCatalog.IsChargeEffect(h))
+                    return "发动速度0，";
                 return $"发动速度{h.BaseSpeed + (owner != null ? CardCompositionCost.KindSpeedBonusOf(owner) : 0)}，";
+            }
             return TimingZh.TryGetValue((TriggerTiming)h.TriggerTiming, out var zh) ? zh + "，" : "";
         }
 

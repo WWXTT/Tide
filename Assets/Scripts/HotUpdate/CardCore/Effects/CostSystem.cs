@@ -12,8 +12,8 @@ namespace CardCore
     /// <summary>
     /// 代价类型（2026-09-14 代价原子化定案：资源类特殊代价——弃牌/生命/沉睡/送墓/自紊乱/对手增益——
     /// 全部退役，由**代价栏 Payload 原子**承载（流失生命=LifeLoss、弃手牌=DiscardCard、送墓=MillCard
-    /// 等，付费步执行——2026-10-28 P1：只执行、不发放）。中间枚举值已删但 **Payload 显式保留 =7**
-    ///（EffectCostEntry 按 int 序列化，防旧档错位）；编号整体重排留到训练前统一处理（同 Zone 枚举口径）。
+    /// 等，付费步执行——2026-10-28 P1：只执行、不发放）。2026-10-31 墓碑清理：原中段值已删、
+    /// Payload 由保号 =7 重排为 =1；全仓数据同步迁移（仅 TutorialEffects.json 一处 cost.type）。
     /// </summary>
     public enum CostType
     {
@@ -21,9 +21,8 @@ namespace CardCore
         ElementConsume = 0,
         /// <summary>效果型代价（2026-09-11 定案）：代价栏装载的强制原子效果（如「弃自己 2 张手牌」
         ///「流失 2 点生命上限」），付费步执行（2026-10-28 P1：只执行、不发放——价值在构筑期抵扣）。
-        /// Payload 字段承载原子。显式 =7：原中段值（DiscardCard/LifePayment/Sleep/MillDeck/
-        /// SelfSickness/OpponentBuff）已删，保号防序列化错位。</summary>
-        Payload = 7,
+        /// Payload 字段承载原子。</summary>
+        Payload = 1,
     }
 
     /// <summary>

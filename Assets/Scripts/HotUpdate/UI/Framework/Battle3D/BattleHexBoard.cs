@@ -15,13 +15,13 @@ namespace SynergyUI
     /// 整链退役（材质实例会被 Unity 在域边界销毁而静态字典跨边界残留 fake-null，重开工程后
     /// 全盘粉红；资产材质引用永生）。分区配色（BattleBoardZones 15 区）待材质资产化方案回归。
     ///
-    /// 规格=全盘 7×7 盘形 6765676（2026-10-29 P11 盘面重塑）：BoardLayout 全盘实拼 43 tile
-    /// （每半场行格数 6/7/6 + 中线 5 格居中；缺口 6=六格行尾格 z0/z2 的 x6、z4/z6 的 x0 +
-    /// 中线两端 (0,3)/(6,3)）——双方可用带 + 中线行 + 两侧特殊格（角色/场地/墓地/除外/卡组/万能）
-    /// 全部入盘拼装，角色柱不再悬空。
+    /// 规格=全盘 7×7 盘形 6765676（2026-10-29 P11 盘面重塑→当晚对座镜像修订）：BoardLayout
+    /// 全盘实拼 43 tile（每半场行格数 6/7/6——六格行同列带 x1..x6 + 中线 5 格居中；
+    /// 缺口 6=x0 列四格（z0/z2/z4/z6 行首）+ 中线两端 (0,3)/(6,3)）——双方可用带 + 中线行 +
+    /// 两侧特殊格（角色/场地/墓地/除外/卡组/万能）全部入盘拼装，角色柱不再悬空。
     /// BoardLayout 常量重映射后拼装自动跟随（遍历全盘常量而非硬编码坐标）。
-    /// 注意（P11 过渡态）：BattleStage.prefab 内 Board 为旧 50 格预烘焙——重烘焙前 Build() 的
-    /// prefab 路径与 BoardLayout 不符（SelfCheck 红属预期），重烘焙归用户。
+    /// 2026-10-29 BattleStage.prefab 已重烘焙对齐（43 格·对座镜像盘形，场地格 Zone25/26 黑色）；
+    /// 再改盘形须同步重烘焙（编辑器侧反射 BoardLayout 单源拼装，勿手摆格子）。
     ///
     /// 通路：BattleStageDirector 装台③ → Build() → BattleBoardGrid.Mount；
     /// 格心公式单一事实源=BattleBoardGrid.CellCenterLocal。
@@ -86,10 +86,9 @@ namespace SynergyUI
             }
 
             var root = new GameObject("BattleBoardRoot");
-            // 2026-10-29 P11 盘面重塑（7×7）：偶行世界 x 0..6、奇行 +0.5 至 6.5——盘面 x 中心 3.25，
-            // 偏移 +0.75 复位定档盘心 x=4；z 向 0..9 中心 4.5，偏移 −0.75 复位 3.75（沿用 10-14 口径）。
-            // 双偏移后盘心仍落 (4, 3.75)，定档相机取景不动。
-            root.transform.position = new Vector3(0.75f, 0f, -0.75f);
+            // 2026-10-30 格距×1.1：绕盘心等比扩、世界盘心不动（与 BattleStage.prefab 烘焙口径一致）——
+            // 新盘面 x 0..12.383 中心 6.192，root 0.187 复位旧盘心 x=6.379；z 0..9.9 中心 4.95，root −1.2 复位 3.75。
+            root.transform.position = new Vector3(0.1871f, 0f, -1.2f);
             int count = 0, zoned = 0;
             for (int z = 0; z < BoardLayout.Height; z++)
                 for (int x = 0; x < BoardLayout.Width; x++)
@@ -101,7 +100,8 @@ namespace SynergyUI
                     // P0 缩格（2026-10-23 战场美化）：格心不变，视觉缩 0.82 露缝。
                     // 点选补偿（红线：拾取=单发 Physics.Raycast 认 tile- 名）：预制体根实况=六边形
                     // MeshCollider（非 BoxCollider——随根缩会缩水 18%，BoxCollider.size 补偿不适用）。
-                    // 方案=同名子代理反缩 1/TileScale，逐点复刻原六边形拾取面（形状/面积与基线一致）；
+                    // 方案=同名子代理缩放 CellFillScale（铺满整格到格界：2026-10-30 连成一片定案，
+                    // 点击无死区；相邻格代理边贴边共格界，无重叠歧义）；
                     // 根 MeshCollider 销毁防双份。代理与格同名 tile-{x}-{z}，射线名字路由无感。
                     // 中线功能行（z3）例外：不加代理不毁根碰撞体——BattleHudRow 认领改名 hud-tile-*
                     // 后仍靠根碰撞体路由点击（结束回合/悬停），其面积随视觉缩属预期。
@@ -115,7 +115,7 @@ namespace SynergyUI
                             var pick = new GameObject(tile.name); // 与格同名：名字路由零改动
                             pick.transform.SetParent(tile.transform, false);
                             pick.transform.localPosition = Vector3.zero;
-                            pick.transform.localScale = Vector3.one / BattleBoardGrid.TileScale;
+                            pick.transform.localScale = Vector3.one * BattleBoardGrid.CellFillScale;
                             var mc = pick.AddComponent<MeshCollider>();
                             mc.sharedMesh = mf.sharedMesh;
                             mc.convex = ((MeshCollider)rootCol).convex;

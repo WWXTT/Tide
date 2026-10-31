@@ -50,8 +50,14 @@ namespace SynergyUI
             /// 无代价抵扣时与 SuggestedCost 相同。</summary>
             public ElementCost PrePayloadCost = new ElementCost();
 
-            /// <summary>卡层代价价合计（P4 2026-10-29：合成器净费三段式 Y 段——先灰后最高色）。</summary>
+            /// <summary>卡层代价价合计（P4 2026-10-29：合成器净费三段式 Y 段——生成面，可能大于实抵）。</summary>
             public int PayloadPrice;
+
+            /// <summary>实际抵扣点数（2026-10-31 色锁定案）：净费公式显示值 = min(价合计, 可产出色容量)。</summary>
+            public int PayloadApplied;
+
+            /// <summary>抵扣色中文名（如「红」；无代价/无抵扣面=空串）。</summary>
+            public string PayloadScopeZh = "";
 
             public readonly List<BreakdownLine> Breakdown = new List<BreakdownLine>();
         }
@@ -69,6 +75,8 @@ namespace SynergyUI
                 SuggestedCost = r.DerivedCost.Clone(),
                 PrePayloadCost = r.PrePayloadCost?.Clone() ?? r.DerivedCost.Clone(),
                 PayloadPrice = r.PayloadPrice,
+                PayloadApplied = r.PayloadApplied,
+                PayloadScopeZh = r.PayloadScopeZh ?? "",
             };
 
             foreach (var line in r.Breakdown)

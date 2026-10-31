@@ -285,6 +285,7 @@ namespace CardCore.Serialization
         public const int RCS_RuntimeId = 1598792242;
         public const int RCS_ControllerSeat = 1105098362;
         public const int RCS_BuildPaid = 81947996; // StableTag 同式手算（已登记 GetTagDefinitions，重生成同值；2026-10-29 P7 建造已建额）
+        public const int RCS_DelayedDeath = 747753030; // StableTag 同式手算=Hash32("RuntimeCardState.DelayedDeath")（已登记 GetRawTagDefinitions，重生成同值；2026-10-29 阶段3b 延迟死亡标记）
 
         // ---- NetDeckDigest ----
         public const int NDD_AtomicRowsHash = 1017044835;

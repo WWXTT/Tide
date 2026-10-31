@@ -140,12 +140,10 @@ namespace Tide.验证
             float tagGap = tc != null ? rc[2].x - tc[2].x : -1f; // 行右缘-标签右缘（世界系）
             if (!Check($"①标签右对齐（右缘距行右={tagGap:0.#}，应 0~20）",
                     tagGap >= -0.5f && tagGap <= 20f)) return false;
-            // 生效次数档位文案（2026-10-24 定案：-1=「无限」非「全部」）
+            // 生效次数选项已整删（2026-10-30 无次数上限定案）：take-effect 组常驻隐藏、不再可操作。
             var takeGroup = Find(root, "take-effect");
-            var ddLimit = takeGroup != null ? takeGroup.GetComponentInChildren<TMPro.TMP_Dropdown>(true) : null;
-            var opts = ddLimit != null ? ddLimit.options.Select(o => o.text).ToList() : null;
-            if (!Check("①生效次数档=[" + (opts != null ? string.Join("/", opts) : "缺") + "]（应 1/2/3/无限·无「全部」）",
-                    opts != null && opts.Contains("无限") && !opts.Contains("全部") && opts.Count == 4)) return false;
+            if (!Check("①生效次数组已隐藏（效果无每回合次数上限）",
+                    takeGroup == null || !takeGroup.gameObject.activeInHierarchy)) return false;
             return true;
         }
 

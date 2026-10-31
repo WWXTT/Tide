@@ -117,11 +117,14 @@ namespace CardCore.Attribute.Handlers
             return context.Controller;
         }
 
-        /// <summary>读取牌库顶 N 张（不移除；数量兜底至少 1——表定案：模板无 {value} 固定 1）。</summary>
-        internal static List<Card> PeekTop(AtomicEffectInstance effect, EffectExecutionContext context, Player owner)
+        /// <summary>读取牌库顶 N 张（不移除；数量兜底至少 1——表定案：模板无 {value} 固定 1）。
+        /// extra=占卜加成外补数（2026-10-29 阶段3c ScryBonusAura：受影响一方占卜数量+1，
+        /// 只叠加读取数不改 effect 本体——计价/描述仍按表行 value 走）。</summary>
+        internal static List<Card> PeekTop(AtomicEffectInstance effect, EffectExecutionContext context, Player owner,
+            int extra = 0)
         {
             if (context?.ZoneManager == null || owner == null) return new List<Card>();
-            int count = context.GetValueAfterModifiers(effect.Value);
+            int count = context.GetValueAfterModifiers(effect.Value) + extra;
             if (count < 1) count = 1;
             return context.ZoneManager.GetTopCards(owner, count);
         }
@@ -194,10 +197,9 @@ namespace CardCore.Attribute.Handlers
 
     // ======================= 资源转化 =======================
 
-    // 采掘（Mine）已删（2026-10-11 资源重做：指示物退役，「去 3 指示物换 1 元素」语义无载体）——
-    // 枚举位 AtomicEffectType.Mine 留洞保序，表行 4fd4c954 同批删除；接替者=光合作用（下）。
-    // 光合作用（GrantPhotosynthesisHandler）亦于 2026-10-23 退役：表行 42e883b2「元素合成」改挂
-    // GainAnyElement（生成任意元素——非关键词族），枚举位同样留洞保序；接替者=下 handler。
+    // 采掘（Mine）2026-10-11 资源重做退役（表行 4fd4c954 同批删除）；光合作用
+    //（GrantPhotosynthesis）2026-10-23 退役：表行 42e883b2「元素合成」改挂 GainAnyElement
+    //（生成任意元素——非关键词族）。两者 handler 与枚举位均删（枚举收拢 2026-10-30）。
 
     /// <summary>
     /// 元素合成/生成任意元素（2026-10-23 定案，白3·无目标资源行，表行 42e883b2）：控制者获得
@@ -352,6 +354,19 @@ namespace CardCore.Attribute.Handlers
                 if (target is Card card)
                 {
                     card._life -= amount;
+                    // 生命锁（2026-10-29 阶段3b Floor 档）：单位流失落血同口钳——生命不低于 1
+                    int cardLocked = ProtectionRules.ClampLife(card, card._life);
+                    if (cardLocked != card._life)
+                    {
+                        card._life = cardLocked;
+                        PublishEvent(new KeywordAppliedEvent
+                        {
+                            Target = card,
+                            Keyword = "延时保护",
+                            Detail = $"生命锁：{EffectText.Name(card)} 生命值锁定不低于 1",
+                            Source = context.Source
+                        });
+                    }
                     if (card._life <= 0)
                     {
                         card._life = 0;
@@ -366,6 +381,20 @@ namespace CardCore.Attribute.Handlers
                     // 代价流失恢复常规路径——流失自己=支付、扣自己上限）。
                     int oldLife = player.Life;
                     player.DecreaseMaxHealth(amount);
+                    // 生命锁（2026-10-29 阶段3b Floor 档）：流失落血同口钳——生命不低于 1
+                    //（ApplyDamage 角色分支同口；只钳生命，上限照扣）。
+                    int locked = ProtectionRules.ClampLife(player, player.Life);
+                    if (locked != player.Life)
+                    {
+                        player.Life = locked;
+                        PublishEvent(new KeywordAppliedEvent
+                        {
+                            Target = player,
+                            Keyword = "延时保护",
+                            Detail = $"生命锁：{EffectText.Name(player)} 生命值锁定不低于 1",
+                            Source = context.Source
+                        });
+                    }
                     PublishEvent(new LifeChangeEvent
                     {
                         Player = player,
@@ -398,8 +427,9 @@ namespace CardCore.Attribute.Handlers
 
     // ======================= 特殊 =======================
 
-    /// <summary>额外回合（**表行暂缺**：原子表当前无 TakeExtraTurn 行，故不可配置；2026-10-22 用户裁定
-    /// 「未来可能重启，先留着」——handler 与 TurnEngine.GrantExtraTurn 一并保留，重启时补表行即可）</summary>
+    /// <summary>额外回合（2026-10-29 阶段3a 表行补齐 7da143c9——蓝9「额外回合」，此前长期能力侧
+    /// 无表行不可配置）：TurnEngine.GrantExtraTurn 只对当前回合玩家叠加额外回合计数
+    ///（额外接额外成立，End→Standby 折返时逐个消耗），非当前回合玩家静默忽略。</summary>
     public class TakeExtraTurnHandler : AtomicEffectHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.TakeExtraTurn;
@@ -417,9 +447,11 @@ namespace CardCore.Attribute.Handlers
         protected override string DescribeTemplate(AtomicEffectInstance effect) => "获得额外回合";
     }
 
-    /// <summary>跳过回合（2026-10-02 D2 裁决：相位档位走代码侧 str 参数，表行只留整回合一档）：
+    /// <summary>跳过回合（2026-10-02 D2 裁决：相位档位走代码侧 str 参数，表行只留整回合一档；
+    /// 2026-10-29 阶段3a 起三相位行入表——str 由合成器 SkipTurnIds 按行写入）：
     /// str=""（默认）整回合作废顺延；str="Standby" 只跳其下回合准备阶段自动化（抽牌/重置/地牌推进，
-    /// 与 ITurnStartInterceptor 同口）；str="Main" 只跳主要阶段（准备后直进结束，无出牌/攻击窗口）。</summary>
+    /// 与 ITurnStartInterceptor 同口）；str="Main" 只跳主要阶段（准备后直进结束，无出牌/攻击窗口）；
+    /// str="End" 只跳结束阶段（进入即折返下一回合，不发 TurnEndEvent）。</summary>
     public class SkipTurnHandler : AtomicEffectHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.SkipTurn;
@@ -436,6 +468,7 @@ namespace CardCore.Attribute.Handlers
             {
                 case "Standby": engine.SkipNextTurnFor(player, TurnSkipMode.Standby); break;
                 case "Main": engine.SkipNextTurnFor(player, TurnSkipMode.Main); break;
+                case "End": engine.SkipNextTurnFor(player, TurnSkipMode.End); break;
                 default: engine.SkipNextTurnFor(player); break;
             }
             PublishEvent(new SkipTurnEvent { Player = player, Source = context.Source });

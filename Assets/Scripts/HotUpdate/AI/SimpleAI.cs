@@ -178,14 +178,18 @@ namespace SynergyUI
             for (int i = 0; i < MaxActionRounds && !core.IsGameOver; i++)
             {
                 // 出牌/技能源已 async 化（含出牌舞台等待）；`|` 非短路——每轮仍全试一遍再判进展
+                //（墓地出牌臂已随 2026-10-30 归土改版整删——归土=回合末自动复活，无 AI 动作位）
                 bool progress = DrainVoluntaryQueue(core)
                               | ActivateBattlefieldAbilities(core, me)
                               | await PlayBestAffordableCardAsync(core, me)
-                              | await TryGraveyardPlayAsync(core, me)
                               | await UseHeroSkillAsync(core, me);
                 if (!progress) break;
                 await PaceAsync(); // 人机节奏：本轮动作落地后等表现层演完再做下一个动作
             }
+
+            // 2.5 充能（2026-10-31 P12 低优先级）：动作耗尽后把手牌充能卡逐色充到上限
+            //     （富余元素跨回合留存——同旧建造「攒大招」策略；CanCharge 单源闸含余量/上限）。
+            ChargeIdleElements(core, me);
 
             // 3. 战前排干栈：让本回合发动/触发的效果先落地（增益类才影响攻击结算）
             SettleStack(core);
@@ -218,6 +222,27 @@ namespace SynergyUI
         }
 
         // ======================================== 资源准备 ========================================
+
+        /// <summary>充能（2026-10-31 P12：建造→充能，低优先级）：主循环无进展后，把手牌带充能效果的卡
+        /// 逐色充到上限（速度 0 入栈→即排干；元素富余跨回合留存）。CanCharge 单源闸含色资格/上限/余量，
+        /// 失败即静默跳过——不阻塞回合推进。</summary>
+        private static void ChargeIdleElements(GameCore core, Player me)
+        {
+            if (core.TurnEngine.TurnPlayer != me
+                || core.TurnEngine.CurrentPhase?.Phase != PhaseType.Main) return;
+            var hand = core.ZoneManager.GetCards(me, Zone.Hand) ?? new List<Card>();
+            foreach (var card in hand)
+            {
+                var data = (card as CardWrapper)?.GetData();
+                if (data == null || !ComposerCatalog.HasChargeEffect(data)) continue;
+                foreach (ManaType color in new[] { ManaType.Gray, ManaType.Red, ManaType.Blue, ManaType.Green })
+                {
+                    int guard = 0;
+                    while (guard++ < 12 && GameActions.ActivateCharge(core, me, card, color, out _))
+                        SettleStack(core);
+                }
+            }
+        }
 
         /// <summary>
         /// 补地（定案策略）：只放"暂时打不出来"的生物（能付起的留手打出）——
@@ -327,26 +352,7 @@ namespace SynergyUI
             return false;
         }
 
-        /// <summary>墓地出牌（经 IPlaySource 授权；预检后再调，避免 TryBeginUse 先烧配额）。
-        /// 出完同样先舞台后排干。</summary>
-        private async Cysharp.Threading.Tasks.UniTask<bool> TryGraveyardPlayAsync(GameCore core, Player me)
-        {
-            var graveyard = core.ZoneManager.GetCards(me, Zone.Graveyard) ?? new List<Card>();
-            foreach (var card in graveyard)
-            {
-                if (!CanPlayCard(core, me, card, Zone.Graveyard)) continue;
-                int mode = ChooseMode(core, me, card);
-                if (mode < 0) continue;
-                var targets = ChooseTargets(core, me, card, mode);
-                if (GameActions.PlayCardFromGraveyard(core, me, card, targets, mode))
-                {
-                    await StageCastAsync(core, card, targets);
-                    SettleStack(core);
-                    return true;
-                }
-            }
-            return false;
-        }
+        // 墓地出牌（TryGraveyardPlayAsync）已随 2026-10-30 归土改版整删——归土=回合末自动复活，无出牌动作位。
 
         // ======================================== 出牌辅助 ========================================
 
@@ -492,12 +498,10 @@ namespace SynergyUI
             return null;
         }
 
-        /// <summary>def 在指定模式的组合域（抉择 per-mode 优先，回落主序列域）。</summary>
+        /// <summary>def 的组合域（ChoiceDomains 已随 2026-10-31 P12 抉择退役恒 null——恒 TargetDomain）。</summary>
         private static List<int> DomainOfMode(EffectDefinition def, int modeIndex)
         {
-            return def.ChoiceDomains != null && modeIndex >= 0 && modeIndex < def.ChoiceDomains.Length
-                ? def.ChoiceDomains[modeIndex]
-                : def.TargetDomain;
+            return def.TargetDomain;
         }
 
         /// <summary>该卡第一个带域原子（仅作有害/有益目标偏好的参考；域/数量/模式判定已由
@@ -568,16 +572,7 @@ namespace SynergyUI
                     if (step == null) continue;
                     if (step.Kind == RuntimeStepKind.Atomic && step.Atomic != null
                         && HarmfulAtoms.Contains(step.Atomic.Type)) return true;
-                    if (step.Kind == RuntimeStepKind.Choice && step.Choices != null)
-                    {
-                        foreach (var seq in step.Choices)
-                        {
-                            if (seq == null) continue;
-                            foreach (var s in seq)
-                                if (s != null && s.Kind == RuntimeStepKind.Atomic && s.Atomic != null
-                                    && HarmfulAtoms.Contains(s.Atomic.Type)) return true;
-                        }
-                    }
+                    // Choice 步骤扫描已随 2026-10-31 P12 抉择退役删除（converter 不再生成）
                 }
             }
             return false;
