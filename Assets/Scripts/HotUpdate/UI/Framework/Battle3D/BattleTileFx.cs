@@ -165,6 +165,14 @@ namespace SynergyUI
             if (_rings.TryGetValue(Key(x, z), out var r) && r != null) r.enabled = false;
         }
 
+        /// <summary>单格熄可行动扩散波（2026-11-01 Region 候选波收口）：只熄本格波壳，不波及
+        /// 描边环/对账态——选择窗关合撤候选提示用；被熄的格若单位本回合真可行动，随后首个
+        /// 事件对账（Apply 开头 ClearAll→重刷）即复原合法波，不产生永久误伤。</summary>
+        public static void ClearUnitGlow(int x, int z)
+        {
+            if (_glows.TryGetValue(Key(x, z), out var r) && r != null) r.enabled = false;
+        }
+
         /// <summary>地牌色组仍有未横置张：顶面锁色描边环（lockedColor&lt;0 按灰；2026-10-14 按色叠格后每格恒单色）。</summary>
         public static void SetLandGlow(int x, int z, int lockedColor)
         {

@@ -99,7 +99,8 @@ namespace CardCore.Editor.Tests
         /// </summary>
         public BattleRunResult RunFullGame(List<CardData> deck1, List<CardData> deck2, int maxTurns,
             AiBrain brain1, AiBrain brain2, OnnxTidePolicy policy,
-            AiStrategy strategy1 = null, AiStrategy strategy2 = null)
+            AiStrategy strategy1 = null, AiStrategy strategy2 = null,
+            string skillCardId1 = null, string skillCardId2 = null)
         {
             var result = new BattleRunResult();
             var announcer = new ConsoleAnnouncer();
@@ -139,7 +140,8 @@ namespace CardCore.Editor.Tests
                 // 静默空转——"打召唤法术只付费无衍生物"）：接 CardCatalog
                 //（2026-10-13 临摹退役：原变形解析器 MorphSystem.ResolveMorphTarget 已并入本口）
                 CardCore.Attribute.Handlers.SummonTokenHandler.ResolveTemplate = CardCatalog.GetById;
-                core.InitGame(CardLoader.BuildDeck(deck1, 1), CardLoader.BuildDeck(deck2, 1));
+                core.InitGame(CardLoader.BuildDeck(deck1, 1), CardLoader.BuildDeck(deck2, 1),
+                    skillCardId1: skillCardId1, skillCardId2: skillCardId2);
                 core.Player1.IsAI = true; // 选择全自动
                 core.Player2.IsAI = true;
 

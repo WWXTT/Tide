@@ -7,17 +7,14 @@ namespace SynergyUI
 {
     /// <summary>手牌扇交互钩子（宿主屏注入，2026-10-14 手牌出牌接线）：条件评估与点击接管
     /// 全在宿主屏完成（UI Framework 不耦合引擎）；null 钩子或 null 委托=该项不可用。
-    /// 未注入钩子的扇区（对手扇常态）不显示按钮层。</summary>
+    /// 未注入钩子的扇区（对手扇常态）不显示按钮层。SpUse 钩子已随 2026-11-01 苏醒/充能上卡
+    /// 改版退役——苏醒/充能=卡面效果行选中经 Use 钮分流，可用性并入 CanUse。</summary>
     public sealed class FanInteractions
     {
         public Func<HandFanCard, bool> CanUse;
         public Func<HandFanCard, bool> CanPlaceLand;
-        /// <summary>特殊使用（2026-10-30 btn/SpUse）：语义按类型——生物=苏醒召唤（P6）/
-        /// 法术=多主动抉择（&gt;1 时取代使用钮）/结界=建造预付（P7）。显隐规则见宿主实现。</summary>
-        public Func<HandFanCard, bool> CanSpUse;
         public Action<HandFanCard> OnUse;
         public Action<HandFanCard> OnPlaceLand;
-        public Action<HandFanCard> OnSpUse;
     }
     /// <summary>手牌扇区的一条数据：对账键=引擎卡 RuntimeId；FaceUp=false 只显示卡背（内容被 back 覆盖）。</summary>
     public sealed class HandFanCardData
@@ -447,17 +444,16 @@ namespace SynergyUI
             card.WireFlowing(); // 可用流光层接线（AHandCard/Flowing；缺节点=无流光不报错）
             // 触摸垫片（2026-10-22 B2 防漏点）随 2026-10-30 定档烘进 AHandCard prefab（touch-shield
             // 拉伸贴根·alpha 0·可射线）——运行时生成段退役
-            // 放置/使用/特殊使用按钮+费用方格接线（prefab 用户摆位，m_OnClick 空）：点击交宿主屏钩子接管
+            // 放置/使用按钮+费用方格接线（prefab 用户摆位，m_OnClick 空）：点击交宿主屏钩子接管
+            //（SpUse 钮随 2026-11-01 苏醒/充能上卡改版从 prefab 删除——事件全走 Use）
             card.UseButton = go.transform.Find("btn/Use")?.GetComponent<Button>();
             card.PlaceButton = go.transform.Find("btn/Place")?.GetComponent<Button>();
-            card.SpUseButton = go.transform.Find("btn/SpUse")?.GetComponent<Button>();
             // 费用方格宿主（2026-10-30 用户改版）：btn/NowCost 费用行底板下的 CostSquares
             //（旧 btn/CostSquares 直挂路径回落兼容）
             card.CostSquares = (go.transform.Find("btn/NowCost/CostSquares") ?? go.transform.Find("btn/CostSquares"))
                 ?.GetComponent<CostSquaresView>();
             if (card.UseButton != null) card.UseButton.onClick.AddListener(card.OnUseClicked);
             if (card.PlaceButton != null) card.PlaceButton.onClick.AddListener(card.OnPlaceClicked);
-            if (card.SpUseButton != null) card.SpUseButton.onClick.AddListener(card.OnSpUseClicked);
             return card;
         }
     }

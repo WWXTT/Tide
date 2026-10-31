@@ -12,8 +12,8 @@ namespace CardCore
     /// · 反复触发（抽牌/伤害/阶段/事件观察族）：**生物✓（2026-10-30 放开——次数上限删除后由
     ///   期望触发次数计价承担平衡，不再以卡型硬拒）** 结界✓（耐久即次数）法术✗（法术不驻场）；
     /// · 绑横置触发（攻击/守卫/横置族）：生物✓（横置锚天然限频）结界✗（不横置）法术✗；
-    /// · 主动效果（Activate_*）：生物✓（横置发动）结界✗（禁主动——2026-10-15 改版）
-    ///   法术✓（抉择槽 1~3 即主动形态——与宿主钉值/主动槽同口径）；
+    /// · 主动效果（Activate_*）：生物✓（横置发动）结界仅充能✓（P12：充能=手牌主动——其余禁，
+    ///   2026-10-15 改版）法术✓（抉择槽 1~3 即主动形态——与宿主钉值/主动槽同口径）；
     /// · 连接光环：生物✓（属性±类）结界✓ 法术✗；规则光环：生物✗ 结界✓ 法术✗。
     /// 消费方：效果合成器顶栏「适用」实时推导、卡组合候选过滤（不静默隐藏——计数行+原因+跳转）。
     /// 注意：本类只判「能不能挂」，不管槽位容量与保存闸——既有形状闸（FillSelectedSlot）与
@@ -56,7 +56,10 @@ namespace CardCore
             }
             if (host == Cardtype.Enchantment)
             {
-                if (def.IsActivatedEffect) return "结界禁主动效果（2026-10-15 改版——只挂自动/光环）";
+                // P12 充能豁免（2026-10-31）：充能=手牌发动的主动效果（发动口 GameActions.ActivateCharge），
+                // 与场上耐久经济无关——结界可挂（装载 ValidateEnchantShape/保存闸同口径：最多 1）。
+                if (def.IsActivatedEffect && !ComposerCatalog.IsChargeEffect(def))
+                    return "结界禁主动效果（2026-10-15 改版——只挂自动/光环；充能除外——P12 手牌主动）";
                 if (def.IsTriggeredEffect && !CostDerivationService.FiresOncePerPaidLifetime(def.TriggerTiming)
                     && IsTapAnchoredTiming(def.TriggerTiming))
                     return "结界不横置——绑横置触发（攻击/守卫）无从锚定";

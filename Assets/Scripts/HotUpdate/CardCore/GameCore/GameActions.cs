@@ -386,11 +386,13 @@ namespace CardCore
                 return false;
             }
 
-            // 苏醒地牌门槛（2026-10-31）：可免灰份额（=沉睡层数）> 施放者当前地牌槽上限 → 拒
-            //（AwakenExceedsLandCap 单源——LAE 枚举同判；UI 按钮随关键词常显，点击被此处终审拒）。
-            if (awakenCast && AwakenExceedsLandCap(core, player, card, modeIndex))
+            // 苏醒灰地门槛（2026-10-31 统一化定案，原「地牌槽总上限」口径退役）：可免灰份额
+            //（=沉睡层数）> 施放者灰地数（元素池 LockedColor==Gray 计数）→ 拒（等于放行）。
+            //（AwakenExceedsGrayLands 单源——LAE 枚举同判；UI 按钮随关键词常显，点击被此处终审拒。
+            //  代价槽的同色地牌门槛统一在 EvaluatePayloadGate ③——两类代价同一把尺。）
+            if (awakenCast && AwakenExceedsGrayLands(core, player, card, modeIndex))
             {
-                rejectReason = $"灰色费用 {GetAwakenSleepLayers(card, modeIndex)} 大于当前地牌上限 {core.ElementPool.GetLandCap(player)}，不可苏醒施放";
+                rejectReason = $"灰色费用 {GetAwakenSleepLayers(card, modeIndex)} 大于当前灰地 {CountLands(core, player, ManaType.Gray)}，不可苏醒施放";
                 return false;
             }
 
@@ -404,7 +406,7 @@ namespace CardCore
 
             // 出牌两阶段（2026-10-04 定案）：有代价的卡**先算代价**——声明期预选代价目标并验证可执行；
             // 代价无目标 → 卡的发动无效（拒发）。无代价卡照常只过费用门禁。
-            if (!TryPrepareCardCostTargets(core, player, card, out var costGateReject))
+            if (!TryPrepareCardCostTargets(core, player, card, modeIndex, out var costGateReject))
             { rejectReason = costGateReject; return false; }
 
             // 规则扩展点（OCP）：非手牌来源须经注册的 IPlaySource 授权（无授权即拒——
@@ -503,7 +505,7 @@ namespace CardCore
             { rejectReason = "场上已存在同名场地光环（同名仪典不可重复——载体离场前不能再打出）"; return false; }
 
             // 出牌两阶段（2026-10-04 定案）：有代价先算代价——响应出牌同门（代价无目标→拒发）
-            if (!TryPrepareCardCostTargets(core, player, card, out var costGateReject))
+            if (!TryPrepareCardCostTargets(core, player, card, modeIndex, out var costGateReject))
             { rejectReason = costGateReject; return false; }
 
             bool isSpell = card.IsSpellCard();
@@ -771,6 +773,10 @@ namespace CardCore
                 var current = Attribute.EffectHandlerRegistry.ResolveCandidates(atom.TargetKinds, atom.Filter, resolveCtx);
                 if (current != null) current.RemoveAll(e => ReferenceEquals(e, card)); // 本卡已在发动区：不作代价目标
                 if (current == null || current.Count == 0) return true; // 该原子域已空：必然全灭
+                // 单位域代价（2026-10-31 定案）：声明期不预选（该位恒 null）——无预选目标可验；
+                // 域空（连一个可指定单位都没有，域非空检查已在上方）才判全灭（发动失败回退原区）。
+                if (CostPayability.IsUnitDomainCost(atom))
+                    continue;
                 var picked = i < preselected.Count ? preselected[i] : null;
                 if (picked == null) return true; // 预选缺该原子位——防御性判全灭
                 bool anyAlive = false;
@@ -1273,46 +1279,51 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 收集一张卡的卡级特殊代价（2026-09-11：代价栏单卡单条定案——整卡效果声明的
-        /// 非元素代价在 cast 付费步统一执行并补偿；主动能力的代价不在此列，发动时现付）。
-        /// 2026-09-23 代价栏上移卡组合层：CardData.PayloadCost 为唯一正式口（合成器在卡层填装，
-        /// 错侧改写已在放置口完成）；效果级 def.Costs 降为 legacy 兜底——卡层已填时跳过，防双收。
+        /// 收集一张卡的**施放期**特殊代价（2026-10-31 代价指向化定案）：
+        /// = 卡级代价行（PayloadCosts 逐行，TargetAttr 任指——整卡 legacy / 攻血 / 耐久 / 速度）
+        /// + **非主动**效果的效果级代价行（自动效果行——随卡施放在 cast 付费步统一执行）。
+        /// 主动效果行不在此列：发动时经 EffectActivationGate 现付（净费+执行）；法术施放=使用
+        /// 所选主动效果——其代价行在 GetCardCost 锚价净费落账、执行器结算时执行。
         /// </summary>
         private static List<CostInstance> CollectCardSpecialCosts(Card card)
         {
             var result = new List<CostInstance>();
 
-            // 卡层代价栏（2026-09-23；2026-10-16 组装效果代价）：Payload 原子序列——逐条同口径转换后入列
+            // 卡级代价行：逐行转换（行序=声明序；行内原子序列整行转换）
             if (card is CardWrapper wrapper)
             {
-                var pc = wrapper.GetData()?.PayloadCost;
-                var pcAtoms = pc?.AllPayloads();
-                if (pcAtoms != null && pcAtoms.Count > 0)
+                var rows = wrapper.GetData()?.PayloadCosts;
+                if (rows != null)
                 {
-                    var payloadAtoms = new List<AtomicEffectInstance>();
-                    bool allOk = true;
-                    foreach (var pe in pcAtoms)
+                    foreach (var row in rows)
                     {
-                        var inst = CardEffectConverter.ConvertPayloadForDisplay(pe);
-                        if (inst == null) { allOk = false; break; }
-                        payloadAtoms.Add(inst);
-                    }
-                    if (allOk)
-                    {
+                        var atoms = row?.AllPayloads();
+                        if (atoms == null || atoms.Count == 0) continue;
+                        var payloadAtoms = new List<AtomicEffectInstance>();
+                        bool allOk = true;
+                        foreach (var pe in atoms)
+                        {
+                            var inst = CardEffectConverter.ConvertPayloadForDisplay(pe);
+                            if (inst == null) { allOk = false; break; }
+                            payloadAtoms.Add(inst);
+                        }
+                        if (!allOk)
+                        {
+                            TideLog.Warn("[CardActions] 卡级代价行 Payload 转换失败（表行缺失/契约违约）——该行按无代价处理");
+                            continue;
+                        }
                         result.Add(new CostInstance
                         {
                             Type = CostType.Payload,
-                            Value = pc.Value,
-                            ManaType = (ManaType)pc.ManaType,
+                            Value = row.Value,
+                            ManaType = (ManaType)row.ManaType,
                             Payloads = payloadAtoms,
                         });
-                        return result; // 卡层已填——legacy 效果级代价不再收集（单卡单条）
                     }
-                    TideLog.Warn("[CardActions] 卡层代价栏 Payload 转换失败（表行缺失？）——按无代价处理");
                 }
             }
 
-            // legacy 兜底：效果级 Costs（旧数据——代价曾随效果合成）
+            // 效果级行：非主动（自动）效果——cast 付费步执行；主动跳过（发动时现付）
             var defs = GetCardEffectDefinitions(card);
             if (defs == null) return result;
             foreach (var def in defs)
@@ -1335,15 +1346,16 @@ namespace CardCore
         /// （响应窗口内不重选）。可支付闸（CostPayability：手牌/生命/牌库/候选）不可过 → 整卡不可用；
         /// 代价无目标（无法执行）→ 返回 false，卡的发动无效。无代价卡直接放行（只走费用门禁）。
         /// </summary>
-        private static bool TryPrepareCardCostTargets(GameCore core, Player player, Card card, out string rejectReason)
+        private static bool TryPrepareCardCostTargets(GameCore core, Player player, Card card, int modeIndex,
+            out string rejectReason)
         {
-            rejectReason = EvaluatePayloadGate(core, player, card, out var payloadCost, out var candidatesByAtom);
+            rejectReason = EvaluatePayloadGate(core, player, card, modeIndex, out var payloadCosts, out var candidatesByAtom);
             if (rejectReason != null)
             {
                 card._pendingCostTargets = null;
                 return false;
             }
-            if (payloadCost == null)
+            if (payloadCosts == null || payloadCosts.Count == 0)
             {
                 card._pendingCostTargets = null; // 无代价：两阶段退化为一阶段（费用门禁）
                 return true;
@@ -1354,28 +1366,36 @@ namespace CardCore
             return true;
         }
 
-        /// <summary>代价门槛纯检（AI LegalActionEnumerator 共用，不动卡状态）：null=通过，非 null=拒绝原因。</summary>
-        public static string GetPayloadGateReject(GameCore core, Player player, Card card)
-            => EvaluatePayloadGate(core, player, card, out _, out _);
+        /// <summary>代价门槛纯检（AI LegalActionEnumerator 共用，不动卡状态）：null=通过，非 null=拒绝原因。
+        /// modeIndex 缺省 0：多模式法术按模式 0 近似（现网效果级代价行均为单模式 legacy——分账差异面为零）。</summary>
+        public static string GetPayloadGateReject(GameCore core, Player player, Card card, int modeIndex = 0)
+            => EvaluatePayloadGate(core, player, card, modeIndex, out _, out _);
 
         /// <summary>
-        /// 代价门槛评估（2026-10-28 P1 定案，声明期与 AI 枚举同口；组装效果代价逐原子化）：
+        /// 代价门槛评估（2026-10-28 P1 定案，声明期与 AI 枚举同口；组装效果代价逐原子化；
+        /// 2026-10-31 代价指向化：多行代价+按使用口分账）：
         /// ① 可支付门槛——CostPayability.AllPayable/RejectReason（弃牌→手牌数、流失生命→生命、
-        ///    磨牌→牌库、有域原子→候选非空）；代价不可支付 → 整卡不可用（声明期闸）。
+        ///    磨牌→牌库张数、有域原子→候选非空）；代价不可支付 → 整卡不可用（声明期闸）。
         ///    旧「全价过地牌槽上限」门槛已删（免费卡合法——净费 0 与本闸无关）。
-        /// ② 目标门槛——有域原子逐个以支付者视角解析候选（剔除本卡），任一无候选 → 发动无效。
-        /// 全无域原子则只过①（可发动，结算按无目标执行）。
+        /// ② 目标门槛——全部施放期代价行逐原子以支付者视角解析候选（剔除本卡），任一无候选 → 发动无效。
+        /// ③ 地牌门槛（2026-10-31 代价地牌统一定案+指向化分账）——**使用卡只算主动效果以外的代价行**
+        ///    （卡级行+非主动效果行，CardCostService.PayloadGrantByColor 单源）；法术施放=使用所选
+        ///    主动效果，「使用主动效果时同理」——所选模式（modeIndex）效果的效果级代价行一并计入
+        ///    （与 GetCardCost 锚价净费同口径）。每色代价合计 > 施放者该色地牌数 → 发动无效（等于放行）。
+        /// 全无域原子则只过①③（可发动，结算按无目标执行）。
         /// </summary>
-        private static string EvaluatePayloadGate(GameCore core, Player player, Card card,
-            out CostInstance payloadCost, out List<List<Entity>> candidates)
+        private static string EvaluatePayloadGate(GameCore core, Player player, Card card, int modeIndex,
+            out List<CostInstance> payloadCosts, out List<List<Entity>> candidates)
         {
-            payloadCost = null;
+            payloadCosts = null;
             candidates = null;
 
             var specialCosts = CollectCardSpecialCosts(card);
+            payloadCosts = new List<CostInstance>();
             foreach (var c in specialCosts)
-                if (c != null && c.Type == CostType.Payload && c.Payloads != null && c.Payloads.Count > 0) { payloadCost = c; break; }
-            if (payloadCost == null) return null; // 无代价：两阶段退化为一阶段（费用门禁）
+                if (c != null && c.Type == CostType.Payload && c.Payloads != null && c.Payloads.Count > 0)
+                    payloadCosts.Add(c);
+            if (payloadCosts.Count == 0) { payloadCosts = null; return null; } // 无代价：两阶段退化为一阶段（费用门禁）
 
             // ① 可支付门槛（声明期闸——与 CanAffordCast 同口径）：不可支付返回拒绝原因（UI/AI 直读）
             var costCtx = new CostContext
@@ -1388,31 +1408,71 @@ namespace CardCore
             var payReject = CostPayability.RejectReason(specialCosts, costCtx);
             if (payReject != null) return payReject;
 
-            // ② 目标门槛：按支付者视角逐原子解析候选（与结算期 ExecutePayloadAtomAsync 同口径）
+            // ③ 地牌门槛（2026-10-31 代价地牌统一定案+指向化分账）：施放口只算非主动行；
+            //    法术施放=使用所选主动效果——模式效果行同尺并入（GetCardCost 锚价净费同口径）。
+            //    苏醒灰份额（=沉睡层数）不在此口——它在 PlayCard 苏醒臂按灰地对齐（AwakenExceedsGrayLands）。
+            var gateData = card is CardWrapper gw ? gw.GetData() : null;
+            if (gateData != null)
+            {
+                var grantByColor = CardCostService.PayloadGrantByColor(gateData);
+                if (gateData.Supertype == Cardtype.Spell)
+                {
+                    var defs = GetCastableEffectDefinitions(card);
+                    var modeDef = defs != null && defs.Count > 0
+                        ? defs[Math.Clamp(modeIndex, 0, defs.Count - 1)] : null;
+                    foreach (var kv in CardCostService.PayloadGrantByColor(modeDef?.Costs))
+                    {
+                        grantByColor.TryGetValue(kv.Key, out var v);
+                        grantByColor[kv.Key] = v + kv.Value;
+                    }
+                }
+                foreach (var kv in grantByColor)
+                {
+                    int landsOfColor = CountLands(core, player, kv.Key);
+                    if (kv.Value > landsOfColor)
+                        return $"{ManaTypeNames.ZhNameOf(kv.Key)}色代价 {kv.Value} 大于当前{ManaTypeNames.ZhNameOf(kv.Key)}地 {landsOfColor}——卡的发动无效";
+                }
+            }
+
+            // ② 目标门槛：全部代价行逐原子按支付者视角解析候选（与结算期 ExecutePayloadAtomAsync 同口径）
             bool anyDomain = false;
             var byAtom = new List<List<Entity>>();
-            foreach (var atom in payloadCost.Payloads)
+            foreach (var payloadCost in payloadCosts)
             {
-                if (atom == null || atom.TargetKinds == null || atom.TargetKinds.Count == 0)
+                foreach (var atom in payloadCost.Payloads)
                 {
-                    byAtom.Add(null); // 无域原子（无目标语义）：可发动
-                    continue;
+                    if (atom == null || atom.TargetKinds == null || atom.TargetKinds.Count == 0)
+                    {
+                        byAtom.Add(null); // 无域原子（无目标语义）：可发动
+                        continue;
+                    }
+                    anyDomain = true;
+                    var resolveCtx = new EffectExecutionContext
+                    {
+                        Controller = player,
+                        Source = player,
+                        ZoneManager = core.ZoneManager,
+                        ElementPool = core.ElementPool,
+                    };
+                    var resolved = Attribute.EffectHandlerRegistry.ResolveCandidates(atom.TargetKinds, atom.Filter, resolveCtx);
+                    // 出牌两阶段（2026-10-04 定案）原文：代价也是一个完整效果，先选定其目标；代价无法执行（无目标）→ 发动无效。
+                    if (resolved != null) resolved.RemoveAll(e => ReferenceEquals(e, card)); // 声明期本卡尚在手：不作代价目标
+                    var list = resolved ?? new List<Entity>();
+                    // 单位域代价（2026-10-31 用户定案：禁全域）：不预选目标列表——付费步经
+                    // TargetSelectionService 现选**单个**单位（本地弹选/联机反问/AI 代选）；
+                    // 可付性=能指定一个目标即可（无数值门槛，量级限制归数据侧），
+                    // 域空（连一个可指定单位都没有）→ 发动无效。
+                    if (CostPayability.IsUnitDomainCost(atom))
+                    {
+                        if (list.Count == 0)
+                            return "代价无目标（无法执行）——卡的发动无效";
+                        byAtom.Add(null); // 单位域：预选位恒空（结算期现选单目标）
+                        continue;
+                    }
+                    if (list.Count == 0)
+                        return "代价无目标（无法执行）——卡的发动无效";
+                    byAtom.Add(list);
                 }
-                anyDomain = true;
-                var resolveCtx = new EffectExecutionContext
-                {
-                    Controller = player,
-                    Source = player,
-                    ZoneManager = core.ZoneManager,
-                    ElementPool = core.ElementPool,
-                };
-                var resolved = Attribute.EffectHandlerRegistry.ResolveCandidates(atom.TargetKinds, atom.Filter, resolveCtx);
-                // 出牌两阶段（2026-10-04 定案）原文：代价也是一个完整效果，先选定其目标；代价无法执行（无目标）→ 发动无效。
-                if (resolved != null) resolved.RemoveAll(e => ReferenceEquals(e, card)); // 声明期本卡尚在手：不作代价目标
-                var list = resolved ?? new List<Entity>();
-                if (list.Count == 0)
-                    return "代价无目标（无法执行）——卡的发动无效";
-                byAtom.Add(list);
             }
             candidates = anyDomain ? byAtom : new List<List<Entity>>();
             return null;
@@ -1680,12 +1740,28 @@ namespace CardCore
             else
                 cost = ElementCost.FromValue(ManaType.Gray, 1); // 防御默认：无卡数据按灰1（正常链路不达）
 
-            // 法术锚价并入（改版定案：发动按效果费用支付，无额外费用——见 SpellCastAnchor）
+            // 法术锚价并入（改版定案：发动按效果费用支付，无额外费用——见 SpellCastAnchor）。
+            // 2026-10-31 代价指向化：法术施放=使用所选主动效果，两层代价净费在此单源落账：
+            // ① 所选模式效果的效果级代价行 → 对锚价净费（EffectActivationGate.NetBill——与
+            //    生物/结界主动技能发动同算法；定案「主动效果不计入卡费，其代价同理」——不碰基价桶）；
+            // ② 施放期代价行（卡级行+非主动效果行）→ Derive 桶对法术不预扣（见 Derive 5b），
+            //    在此对「基价+锚价」整笔施放账单色锁补扣（法术施放账单=整笔，不拆基价/锚价容量）。
             if (data != null && data.Supertype == Cardtype.Spell)
             {
                 var anchor = SpellCastAnchor(card, modeIndex);
+                var modeDefs = GetCastableEffectDefinitions(card);
+                var modeDef = modeDefs != null && modeDefs.Count > 0
+                    ? modeDefs[Math.Clamp(modeIndex, 0, modeDefs.Count - 1)] : null;
+                var modeCosts = modeDef?.Costs != null
+                    ? modeDef.Costs.Where(c => c != null && c.Type != CostType.ElementConsume).ToList()
+                    : null;
+                if (modeCosts != null && modeCosts.Count > 0)
+                    anchor = EffectActivationGate.NetBill(anchor, modeCosts);
                 foreach (var color in anchor.NonzeroColors())
                     cost[color] = cost[color] + anchor[color];
+
+                // 施放期代价行（卡级行+非主动效果行）逐行色锁补扣（单个代价=抵扣单位）
+                CardCostService.ApplyCastDeduction(cost, data);
             }
 
             // 费用指示物层（P1 恒灰 → 2026-10-31 P12 四色减扩容 → 同日通用增减四色化）：
@@ -1755,15 +1831,21 @@ namespace CardCore
 
         // ==================== 苏醒关键词闸（2026-10-31 P12 关键词化） ====================
 
-        /// <summary>苏醒地牌门槛（2026-10-31 定案）：可免灰份额（=沉睡层数，净费口径）> 施放者当前
-        /// 地牌槽上限 → 不可苏醒施放（等于放行）。灰全出自灰地而灰地张数被地牌上限封顶——超上限的
-        /// 身材费靠苏醒也永远补不回，不提供苏醒选项。PlayCard 终审闸与 LAE 苏醒枚举臂同判本口；
-        /// UI 按钮随关键词常显（P12 惯例），点击被终审拒并 toast 原因。限制文案进关键词表行。</summary>
-        public static bool AwakenExceedsLandCap(GameCore core, Player player, Card card, int modeIndex = 0)
+        /// <summary>苏醒灰地门槛（2026-10-31 统一化定案，替代早版「地牌槽总上限」口径）：可免灰份额
+        ///（=沉睡层数，净费口径）> 施放者当前**灰地数**（元素池 LockedColor==Gray 计数——灰份额
+        /// 全出自灰地，补不回的超额不提供苏醒选项）→ 不可苏醒施放（等于放行）。与代价槽地牌门槛
+        ///（EvaluatePayloadGate ③）同尺：代价面按色对齐同色地牌数。PlayCard 终审闸与 LAE 苏醒
+        /// 枚举臂同判本口；UI 按钮随关键词常显（P12 惯例），点击被终审拒并 toast 原因。限制文案进关键词表行。</summary>
+        public static bool AwakenExceedsGrayLands(GameCore core, Player player, Card card, int modeIndex = 0)
         {
             int layers = GetAwakenSleepLayers(card, modeIndex); // 内含关键词/生物/灰≥1 闸——0 恒不超限
-            return layers > 0 && layers > (core?.ElementPool?.GetLandCap(player) ?? 0);
+            return layers > 0 && layers > CountLands(core, player, ManaType.Gray);
         }
+
+        /// <summary>元素池内指定色地牌数（LockedColor 计数，横置与否不计=持有口径，非可用口径；
+        /// 同禁召灰地/纳川蓝地/归土绿地）。苏醒灰地门槛与代价地牌门槛（EvaluatePayloadGate ③）共用。</summary>
+        public static int CountLands(GameCore core, Player player, ManaType color)
+            => core?.ElementPool?.GetPool(player)?.PooledCards?.Count(pc => pc != null && pc.LockedColor == color) ?? 0;
 
         /// <summary>卡是否有「苏醒」关键词（印刷/Setting/Temp 轨 + 连接光环投递 + 缄默失效
         ///——HasKeyword 全口径）。P12 定案：只有带 Awaken 的生物才有「苏醒施放」入口。</summary>

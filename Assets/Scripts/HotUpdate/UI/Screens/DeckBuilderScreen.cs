@@ -741,7 +741,7 @@ namespace SynergyUI
                         foreach (var cost in fx.Costs)
                             CollectRefAtoms(cost != null ? cost.AllPayloads() : null, seen, result);
                 }
-                CollectRefAtoms(card.PayloadCost != null ? card.PayloadCost.AllPayloads() : null, seen, result);
+                CollectRefAtoms(card != null ? card.AllCostRowPayloads() : null, seen, result);
             }
             return result;
         }
@@ -1768,7 +1768,7 @@ namespace SynergyUI
         private void OpenZoneManager()
         {
             var content = BeginTokenPopup($"衍生物区管理 {_tokenCardIds.Count}/{DeckTokenSupport.TokenZoneCapacity}");
-            UiKit.Label("hint", content, "模板=任意生物卡：入区后可在带槽卡的绑定面板选用；随组入局落额外区（不占 30-60 张）。", 12, UiStyle.TextHint);
+            UiKit.Label("hint", content, "模板=任意生物卡（费用须 ≥1、不可携带代价——2026-10-31 两限制）：入区后可在带槽卡的绑定面板选用；随组入局落额外区（不占 30-60 张）。", 12, UiStyle.TextHint);
 
             UiKit.Label("zone-title", content, "已入区", 13, UiStyle.TextSecondary);
             if (_tokenCardIds.Count == 0)
@@ -1795,7 +1795,8 @@ namespace SynergyUI
             var inZone = new HashSet<string>(_tokenCardIds);
             var candidates = CardSorter.Sort(CardCatalog.LoadAll()
                 .Where(c => c != null && c.Supertype == Cardtype.Creature
-                            && !CardCatalog.IsTeachingCard(c) && !inZone.Contains(c.ID)))
+                            && !CardCatalog.IsTeachingCard(c) && !inZone.Contains(c.ID)
+                            && DeckTokenSupport.TemplateRestrictionsOk(c))) // 两限制（2026-10-31）：0 费/带代价不进候选
                 .ToList();
             foreach (var tpl in candidates)
             {

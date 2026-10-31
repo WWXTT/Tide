@@ -36,7 +36,8 @@ namespace CardCore.Network
         public bool AwakenCast;
     }
 
-    // MsgIntentTapForElement 已删（2026-10-11 现取现用：无手动横置意图）——枚举值 101 留洞
+    // MsgIntentTapForElement 已删（2026-10-11 现取现用：无手动横置意图）——原 101 空位已随
+    // 2026-10-31 阶段D 全量重排闭合（AddToElementPool 顶入 101，后续连续无空号）。
 
     /// <summary>放地进元素池（主阶段，不限次数，各自地牌槽上限约束）。
     /// 2026-10-11 锁色定案：ModeIndex 复用为锁色选择（-1=缺省主色，否则=ManaType 枚举值）。</summary>

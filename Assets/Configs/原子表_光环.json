@@ -119,7 +119,7 @@
     ]
   },
   {
-    "ID": "f3a7489e",
+    "ID": "94fd364a",
     "EnumName": "毒蚀仪典",
     "DisplayName": "受光环影响的生物受到伤害后附加一层毒素指示物",
     "EffectType": "ModifyGameRule",
@@ -289,7 +289,7 @@
     ]
   },
   {
-    "ID": "4340e70e",
+    "ID": "bc397c9e",
     "EnumName": "禁召令",
     "DisplayName": "受光环影响一方不能施放攻击或生命大于己方灰色地牌数量的生物牌",
     "EffectType": "ModifyGameRule",
@@ -392,7 +392,7 @@
     ]
   },
   {
-    "ID": "977f31ca",
+    "ID": "0e815e0d",
     "EnumName": "延迟死亡",
     "DisplayName": "受光环影响的单位死亡时，改为在下个回合结束时死亡（不会延迟此效果结算的死亡）",
     "EffectType": "ModifyGameRule",
@@ -426,7 +426,7 @@
     ]
   },
   {
-    "ID": "759e17c5",
+    "ID": "a4f67cf5",
     "EnumName": "铭刻",
     "DisplayName": "受光环影响一方的场上单位被添加指示物时，该指示物的层数+1",
     "EffectType": "ModifyGameRule",

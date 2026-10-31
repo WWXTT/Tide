@@ -17,10 +17,11 @@ namespace Tide.HotUpdateTools
     /// 绝对目标尺寸，调用点恒传 1f（勿双重缩放）。nativeR≈0（不可见件如 ShadowMissile 0.3s
     /// 无粒子）跳过并告警，不入表。
     ///
-    /// 角色映射：六色主链 Cast/Projectile/Hit + Area/Heal + Buff/Shield（Phase 2 预留）；
-    /// Beam 三件无角色仍不入表。同 (color,role) 多条=首条为主（调序换件）。
-    /// 黑·Cast 用 MysticExplosionDark（Synty 大暗爆 257 单位已废弃）；黑·弹体首条 MysticMissileDark。
-    /// 缺件 Debug.LogError 跳过——Find 视 null prefab 为缺配自动降级 BattleEffectFx。
+        /// 角色映射：四色主链 Cast/Projectile/Hit + Area/Heal + Buff/Shield；
+        /// Beam 三件无角色仍不入表。同 (color,role) 多条=首条为主（调序换件）。
+        /// 2026-11-01 释放件重分配（黑白退役收尾）：四色 Heal/Hit 全配位（赋予爆发 8 种=极性2×颜色4），
+        /// 原白/黑两系 11 件移入四色空位（明细见 BuildSpecs 分组注释）。
+        /// 缺件 Debug.LogError 跳过——Find 视 null prefab 为缺配自动降级 BattleEffectFx。
     /// </summary>
     public static class BattleVfxCatalogBuilder
     {
@@ -196,16 +197,22 @@ namespace Tide.HotUpdateTools
             const string hov = "Assets/Packages/Hovl Studio/Glowing orbs Vol 3/Prefabs";
             var l = new List<Spec>();
 
-            // ---- 红·火（PixPlays 独占）----
+            // ---- 红·火（PixPlays 主体；Heal/Buff/Shield=2026-11-01 释放件重分配·原白系暖色件）----
             l.Add(new Spec(ManaType.Red, VfxRole.Cast, $"{pix}/ElementalProjectiles/Fireball/Version_URP/FireballCast/FireballCast.prefab"));
+            l.Add(new Spec(ManaType.Red, VfxRole.Cast, $"{etf}/Combat/Magic/Circle/MagicCircleYellow.prefab")); // 次选（原白）
             l.Add(new Spec(ManaType.Red, VfxRole.Projectile, $"{pix}/ElementalProjectiles/Fireball/Version_URP/FireballProjectile/Fireball.prefab"));
             l.Add(new Spec(ManaType.Red, VfxRole.Hit, $"{pix}/ElementalProjectiles/Fireball/Version_URP/FireballHit/FireballHit.prefab"));
+            l.Add(new Spec(ManaType.Red, VfxRole.Heal, $"{etf}/Combat/Explosions/SparkleExplosion/SparkleExplosionYellow.prefab")); // 增益爆发（原白暖黄闪烁爆→红）
+            l.Add(new Spec(ManaType.Red, VfxRole.Buff, $"{hov}/Glowing orb 21.prefab")); // 氛围件（原白暖白光球→红）
+            l.Add(new Spec(ManaType.Red, VfxRole.Shield, $"{etf}/Combat/Magic/Shield/MagicShieldYellow.prefab")); // 原白黄盾→红
             l.Add(new Spec(ManaType.Red, VfxRole.Area, $"{pix}/ElementalAOE/FireAOE/Version_URP/FireAoeVFX.prefab"));
 
-            // ---- 蓝·水（PixPlays 独占）----
+            // ---- 蓝·水（PixPlays 主体；Heal=2026-11-01 释放件重分配·原白白亮爆）----
             l.Add(new Spec(ManaType.Blue, VfxRole.Cast, $"{pix}/ElementalProjectiles/Waterball/Version_URP/WaterballCast/WaterballCast.prefab"));
             l.Add(new Spec(ManaType.Blue, VfxRole.Projectile, $"{hov}/Glowing orb 33.prefab"));
+            l.Add(new Spec(ManaType.Blue, VfxRole.Projectile, $"{etf}/Combat/Missiles/Mystic/MysticMissileWhite.prefab")); // 次选（原白）
             l.Add(new Spec(ManaType.Blue, VfxRole.Hit, $"{pix}/ElementalProjectiles/Waterball/Version_URP/WaterExplosion/WaterballHit.prefab"));
+            l.Add(new Spec(ManaType.Blue, VfxRole.Heal, $"{etf}/Combat/Explosions/MysticExplosion/MysticExplosionWhite.prefab")); // 增益爆发（原白白亮魔法爆→蓝）
             l.Add(new Spec(ManaType.Blue, VfxRole.Area, $"{pix}/ElementalAOE/WaterAOE/Version_URP/WaterAoeVFX.prefab"));
 
             // ---- 绿·木（Epic Toon + Hovl 光球作范围标记）----
@@ -217,17 +224,22 @@ namespace Tide.HotUpdateTools
             l.Add(new Spec(ManaType.Green, VfxRole.Shield, $"{etf}/Combat/Magic/Shield/MagicShieldGreen.prefab"));
             l.Add(new Spec(ManaType.Green, VfxRole.Area, $"{hov}/Glowing orb 24.prefab"));
 
-            // ---- 白·光 / 黑·暗 两段已随 2026-10-28 P2 席位收缩删除（白/黑枚举成员退役）----
-            // 原条目（白：MagicCircleYellow/MysticMissileWhite/MysticExplosionWhite/SparkleExplosionYellow/
-            // HealNova/MagicShieldYellow/orb21；黑：MysticExplosionDark/MysticMissileDark/ShadowMissile/
-            // ShadowExplosion/orb23）如需复用，等新色席位定档后再入表。重跑本菜单即可重建 catalog prefab。
+            // ---- 白·光 / 黑·暗 已随 2026-10-28 P2 席位收缩删除（枚举退役）——原两系 11 件
+            // 于 2026-11-01 重新分配至四色空位（用户定案）：白系暖件→红/蓝 Heal·Shield·Buff，
+            // HealNova→灰 Heal（祝福施加爆发回旧观感）、ShadowExplosion→灰 Hit 主条目（诅咒施加
+            // 爆发回旧观感）、orb23→灰 Buff（诅咒牌库常驻光球复活）、暗系弹体/爆→灰蓝次选档。----
 
             // ---- 灰·中性（Synty 主体 + Epic 中性魔法爆 + Hovl 光球弹体；石击/通用爆为次选）----
             l.Add(new Spec(ManaType.Gray, VfxRole.Cast, $"{syn}/FX_MagicBlast_02.prefab"));
             l.Add(new Spec(ManaType.Gray, VfxRole.Projectile, $"{hov}/Glowing orb 37.prefab"));
-            l.Add(new Spec(ManaType.Gray, VfxRole.Hit, $"{etf}/Combat/Explosions/MagicExplosion/MagicExplosionBlue.prefab"));
+            l.Add(new Spec(ManaType.Gray, VfxRole.Projectile, $"{etf}/Combat/Missiles/Mystic/MysticMissileDark.prefab")); // 次选（原黑）
+            l.Add(new Spec(ManaType.Gray, VfxRole.Hit, $"{etf}/Combat/Explosions/ShadowExplosion/ShadowExplosion.prefab")); // 主（原黑转正 2026-11-01——诅咒施加爆发旧观感回归）
+            l.Add(new Spec(ManaType.Gray, VfxRole.Hit, $"{etf}/Combat/Explosions/MagicExplosion/MagicExplosionBlue.prefab")); // 次选（原主降位）
             l.Add(new Spec(ManaType.Gray, VfxRole.Hit, $"{syn}/FX_Impact_Stone_01.prefab")); // 次选
+            l.Add(new Spec(ManaType.Gray, VfxRole.Heal, $"{etf}/Interactive/Healing/HealNova.prefab")); // 增益爆发（原白祝福施加件→灰）
+            l.Add(new Spec(ManaType.Gray, VfxRole.Buff, $"{hov}/Glowing orb 23.prefab")); // 氛围件（原黑诅咒牌库光球→灰，2026-11-01 复活）
             l.Add(new Spec(ManaType.Gray, VfxRole.Area, $"{syn}/FX_ShardRock_Explosion_01.prefab"));
+            l.Add(new Spec(ManaType.Gray, VfxRole.Area, $"{etf}/Combat/Explosions/MysticExplosion/MysticExplosionDark.prefab")); // 次选（原黑）
             l.Add(new Spec(ManaType.Gray, VfxRole.Area, $"{syn}/FX_Explosion_01.prefab")); // 次选
 
             return l;

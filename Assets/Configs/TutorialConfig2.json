@@ -21,17 +21,17 @@
           "lands": [],
           "units": [],
           "hand": [
-            "C_62154923",
-            "C_DE67CAC7",
-            "C_61CE70CE"
+            "C_F4C4DFFD",
+            "C_8A584784",
+            "C_F1258717"
           ],
           "deck": [
-            "C_7E5A100B",
-            "C_7E5A100B",
-            "C_7E5A100B",
-            "C_7E5A100B",
-            "C_7E5A100B",
-            "C_7E5A100B"
+            "C_E98E60F2",
+            "C_E98E60F2",
+            "C_E98E60F2",
+            "C_E98E60F2",
+            "C_E98E60F2",
+            "C_E98E60F2"
           ],
           "grave": []
         },
@@ -49,35 +49,35 @@
           "lands": [],
           "units": [
             {
-              "card": "C_CA794022",
+              "card": "C_EA311EB8",
               "x": 3,
               "z": 4
             },
             {
-              "card": "C_7F4A73BE",
+              "card": "C_925E315C",
               "x": 4,
               "z": 4
             },
             {
-              "card": "C_63272F1B",
+              "card": "C_6AB9B73A",
               "x": 5,
               "z": 4
             }
           ],
           "hand": [],
           "deck": [
-            "C_4A88A165",
-            "C_4A88A165",
-            "C_4A88A165",
-            "C_4A88A165",
-            "C_4A88A165",
-            "C_4A88A165",
-            "C_4A88A165",
-            "C_4A88A165",
-            "C_4A88A165",
-            "C_4A88A165",
-            "C_4A88A165",
-            "C_4A88A165"
+            "C_DA499FAE",
+            "C_DA499FAE",
+            "C_DA499FAE",
+            "C_DA499FAE",
+            "C_DA499FAE",
+            "C_DA499FAE",
+            "C_DA499FAE",
+            "C_DA499FAE",
+            "C_DA499FAE",
+            "C_DA499FAE",
+            "C_DA499FAE",
+            "C_DA499FAE"
           ],
           "grave": []
         }
@@ -100,19 +100,19 @@
           "lands": [],
           "units": [
             {
-              "card": "C_CA720FD5",
+              "card": "C_98F6E41B",
               "x": 1,
               "z": 2
             }
           ],
           "hand": [],
           "deck": [
-            "C_7E5A100B",
-            "C_7E5A100B",
-            "C_7E5A100B",
-            "C_7E5A100B",
-            "C_7E5A100B",
-            "C_7E5A100B"
+            "C_E98E60F2",
+            "C_E98E60F2",
+            "C_E98E60F2",
+            "C_E98E60F2",
+            "C_E98E60F2",
+            "C_E98E60F2"
           ],
           "grave": []
         },
@@ -131,12 +131,12 @@
           "units": [],
           "hand": [],
           "deck": [
-            "C_4A88A165",
-            "C_4A88A165",
-            "C_4A88A165",
-            "C_4A88A165",
-            "C_4A88A165",
-            "C_4A88A165"
+            "C_DA499FAE",
+            "C_DA499FAE",
+            "C_DA499FAE",
+            "C_DA499FAE",
+            "C_DA499FAE",
+            "C_DA499FAE"
           ],
           "grave": []
         }
@@ -211,7 +211,7 @@
         },
         {
           "type": "attack",
-          "attacker": "C_D915D58E",
+          "attacker": "C_7ED41034",
           "target": "hero",
           "hint": "用【教学·10】攻击对方角色——宣言的瞬间，拼点结算"
         },
@@ -269,12 +269,12 @@
         },
         {
           "type": "play",
-          "card": "C_35A53D34",
+          "card": "C_B35F5591",
           "hint": "发动【教学·11】（费用 5 红）"
         },
         {
           "type": "play",
-          "card": "C_BEE512DB",
+          "card": "C_6ECCF727",
           "hint": "发动【教学·12】（费用 5 绿）"
         },
         {
@@ -292,7 +292,7 @@
         },
         {
           "type": "play",
-          "card": "C_DF350591",
+          "card": "C_B3F95B21",
           "hint": "发动亮着金框的【教学·13】——你 8 血、对手 18 血，「生命低于对手」成立：1 点伤害变成 2 点。"
         },
         {
@@ -349,27 +349,27 @@
             },
             {
               "type": "play",
-              "card": "C_3D470EE8"
+              "card": "C_94DA8F61"
             },
             {
               "type": "play",
-              "card": "C_3D470EE8#2"
+              "card": "C_94DA8F61#2"
             },
             {
               "type": "play",
-              "card": "C_3D470EE8#3"
+              "card": "C_94DA8F61#3"
             },
             {
               "type": "play",
-              "card": "C_3D470EE8#4"
+              "card": "C_94DA8F61#4"
             },
             {
               "type": "play",
-              "card": "C_3D470EE8#5"
+              "card": "C_94DA8F61#5"
             },
             {
               "type": "play",
-              "card": "C_3D470EE8#6"
+              "card": "C_94DA8F61#6"
             }
           ]
         },
@@ -433,44 +433,44 @@
             "lands": [],
             "units": [
               {
-                "card": "C_2FA0E93E",
+                "card": "C_2E00FB6A",
                 "x": 1,
                 "z": 2
               },
               {
-                "card": "C_43782189",
+                "card": "C_052EB2FB",
                 "x": 2,
                 "z": 2
               },
               {
-                "card": "C_1A67BE43",
+                "card": "C_2D6E5BFB",
                 "x": 3,
                 "z": 2
               },
               {
-                "card": "C_CCC6BD2F",
+                "card": "C_B5C0296B",
                 "x": 4,
                 "z": 2
               },
               {
-                "card": "C_ED2C6F51",
+                "card": "C_D04CC69F",
                 "x": 1,
                 "z": 1
               },
               {
-                "card": "C_F2B9055A",
+                "card": "C_E2122348",
                 "x": 2,
                 "z": 1
               }
             ],
             "hand": [],
             "deck": [
-              "C_7E5A100B",
-              "C_7E5A100B",
-              "C_7E5A100B",
-              "C_7E5A100B",
-              "C_7E5A100B",
-              "C_7E5A100B"
+              "C_E98E60F2",
+              "C_E98E60F2",
+              "C_E98E60F2",
+              "C_E98E60F2",
+              "C_E98E60F2",
+              "C_E98E60F2"
             ],
             "grave": []
           },
@@ -489,10 +489,10 @@
             "units": [],
             "hand": [],
             "deck": [
-              "C_4A88A165",
-              "C_4A88A165",
-              "C_4A88A165",
-              "C_4A88A165"
+              "C_DA499FAE",
+              "C_DA499FAE",
+              "C_DA499FAE",
+              "C_DA499FAE"
             ],
             "grave": []
           }
@@ -515,18 +515,18 @@
             "lands": [],
             "units": [
               {
-                "card": "C_D915D58E",
+                "card": "C_7ED41034",
                 "x": 1,
                 "z": 2
               }
             ],
             "hand": [
-              "C_7E5A100F"
+              "C_C3D7138E"
             ],
             "deck": [
-              "C_7E5A100B",
-              "C_7E5A100B",
-              "C_7E5A100B"
+              "C_E98E60F2",
+              "C_E98E60F2",
+              "C_E98E60F2"
             ],
             "grave": []
           },
@@ -545,8 +545,8 @@
             "units": [],
             "hand": [],
             "deck": [
-              "C_62154923",
-              "C_62154923"
+              "C_F4C4DFFD",
+              "C_F4C4DFFD"
             ],
             "grave": []
           }
@@ -569,30 +569,30 @@
             "lands": [],
             "units": [
               {
-                "card": "C_47366FDF",
+                "card": "C_E84B9F8A",
                 "x": 1,
                 "z": 2
               },
               {
-                "card": "C_7E5A100B",
+                "card": "C_E98E60F2",
                 "x": 2,
                 "z": 2
               },
               {
-                "card": "C_7E5A100B",
+                "card": "C_E98E60F2",
                 "x": 3,
                 "z": 2
               },
               {
-                "card": "C_7E5A100B",
+                "card": "C_E98E60F2",
                 "x": 4,
                 "z": 2
               }
             ],
             "hand": [],
             "deck": [
-              "C_7E5A100B",
-              "C_7E5A100B"
+              "C_E98E60F2",
+              "C_E98E60F2"
             ],
             "grave": []
           },
@@ -610,25 +610,25 @@
             "lands": [],
             "units": [
               {
-                "card": "C_7E5A100B",
+                "card": "C_E98E60F2",
                 "x": 5,
                 "z": 4
               },
               {
-                "card": "C_7E5A100B",
+                "card": "C_E98E60F2",
                 "x": 4,
                 "z": 4
               },
               {
-                "card": "C_7E5A100B",
+                "card": "C_E98E60F2",
                 "x": 3,
                 "z": 4
               }
             ],
             "hand": [],
             "deck": [
-              "C_62154923",
-              "C_62154923"
+              "C_F4C4DFFD",
+              "C_F4C4DFFD"
             ],
             "grave": []
           }
@@ -651,40 +651,40 @@
             "lands": [],
             "units": [
               {
-                "card": "C_37590ABA",
+                "card": "C_96610366",
                 "x": 1,
                 "z": 2
               },
               {
-                "card": "C_E5B9B439",
+                "card": "C_5EAB2F1B",
                 "x": 2,
                 "z": 2
               },
               {
-                "card": "C_B5CB770F",
+                "card": "C_0C94B65F",
                 "x": 3,
                 "z": 2
               },
               {
-                "card": "C_D5F53D47",
+                "card": "C_0E166CA4",
                 "x": 4,
                 "z": 2
               },
               {
-                "card": "C_4EAE4725",
+                "card": "C_AE964832",
                 "x": 1,
                 "z": 1
               },
               {
-                "card": "C_BCA1D9C8",
+                "card": "C_A9ED8C5A",
                 "x": 2,
                 "z": 1
               }
             ],
             "hand": [],
             "deck": [
-              "C_7E5A100B",
-              "C_7E5A100B"
+              "C_E98E60F2",
+              "C_E98E60F2"
             ],
             "grave": []
           },
@@ -702,16 +702,16 @@
             "lands": [],
             "units": [],
             "hand": [
-              "C_3D470EE8",
-              "C_3D470EE8",
-              "C_3D470EE8",
-              "C_3D470EE8",
-              "C_3D470EE8",
-              "C_3D470EE8"
+              "C_94DA8F61",
+              "C_94DA8F61",
+              "C_94DA8F61",
+              "C_94DA8F61",
+              "C_94DA8F61",
+              "C_94DA8F61"
             ],
             "deck": [
-              "C_62154923",
-              "C_62154923"
+              "C_F4C4DFFD",
+              "C_F4C4DFFD"
             ],
             "grave": []
           }
@@ -719,7 +719,7 @@
         {
           "startTurn": 10,
           "firstPlayer": "P1",
-          "_s6b": "段六b·团结（第6种，2026-10-20 效果序位换轴·空间轴）：与此卡相邻的单位数（生物/结界占格、角色格、非空地牌格各算一；施放占位卡不计）≥x 触发（OnCardCastSettled 己方出牌结算后评估，每次达标都触发；x=engineParam手填钳1..6；邻接计数=BoardState.AdjacentOccupantCount 注入）。场面=灰地1(占(1,0)格)+红地2(垫1费出团结兽)+直伤兽C_C18EE5C3@(2,1)+@(1,2)；团结兽C_9A2961C5(团结4→对目标6伤)在手牌，玩家手选出牌位——唯一解(1,1)=角色格(0,1)+灰格(1,0)+两直伤=4；摆错可出C_7E5A100B(2红)贴邻补数自愈。hint 已按团结场景重写（2026-10-20 排演修复）；jinjie09/09b 语音仍为旧序位文案待重录。",
+          "_s6b": "段六b·团结（第6种，2026-10-20 效果序位换轴·空间轴）：与此卡相邻的单位数（生物/结界占格、角色格、非空地牌格各算一；施放占位卡不计）≥x 触发（OnCardCastSettled 己方出牌结算后评估，每次达标都触发；x=engineParam手填钳1..6；邻接计数=BoardState.AdjacentOccupantCount 注入）。场面=灰地1(占(1,0)格)+红地2(垫1费出团结兽)+直伤兽C_6E58021B@(2,1)+@(1,2)；团结兽C_BD0822E9(团结4→对目标6伤)在手牌，玩家手选出牌位——唯一解(1,1)=角色格(0,1)+灰格(1,0)+两直伤=4；摆错可出C_E98E60F2(2红)贴邻补数自愈。hint 已按团结场景重写（2026-10-20 排演修复）；jinjie09/09b 语音仍为旧序位文案待重录。",
           "player": {
             "life": 30,
             "fatigue": 0,
@@ -733,36 +733,36 @@
             ],
             "lands": [
               {
-                "card": "C_7F5ADCE4",
+                "card": "C_4FCB2164",
                 "tokenType": "Gray"
               },
               {
-                "card": "C_7F5ADCE4",
+                "card": "C_4FCB2164",
                 "tokenType": "Red"
               },
               {
-                "card": "C_7F5ADCE4",
+                "card": "C_4FCB2164",
                 "tokenType": "Red"
               }
             ],
             "units": [
               {
-                "card": "C_C18EE5C3",
+                "card": "C_6E58021B",
                 "x": 2,
                 "z": 1
               },
               {
-                "card": "C_C18EE5C3",
+                "card": "C_6E58021B",
                 "x": 1,
                 "z": 2
               }
             ],
             "hand": [
-              "C_9A2961C5"
+              "C_BD0822E9"
             ],
             "deck": [
-              "C_7E5A100B",
-              "C_7E5A100B"
+              "C_E98E60F2",
+              "C_E98E60F2"
             ],
             "grave": []
           },
@@ -781,8 +781,8 @@
             "units": [],
             "hand": [],
             "deck": [
-              "C_62154923",
-              "C_62154923"
+              "C_F4C4DFFD",
+              "C_F4C4DFFD"
             ],
             "grave": []
           }
@@ -805,53 +805,53 @@
             ],
             "lands": [
               {
-                "card": "C_7F5ADCE4",
+                "card": "C_4FCB2164",
                 "tokenType": "Red"
               },
               {
-                "card": "C_7F5ADCE4",
+                "card": "C_4FCB2164",
                 "tokenType": "Red"
               },
               {
-                "card": "C_7F5ADCE4",
+                "card": "C_4FCB2164",
                 "tokenType": "Red"
               },
               {
-                "card": "C_7F5ADCE4",
+                "card": "C_4FCB2164",
                 "tokenType": "Red"
               },
               {
-                "card": "C_7F5ADCE4",
+                "card": "C_4FCB2164",
                 "tokenType": "Red"
               },
               {
-                "card": "C_7F5ADCE4",
+                "card": "C_4FCB2164",
                 "tokenType": "Green"
               },
               {
-                "card": "C_7F5ADCE4",
+                "card": "C_4FCB2164",
                 "tokenType": "Green"
               },
               {
-                "card": "C_7F5ADCE4",
+                "card": "C_4FCB2164",
                 "tokenType": "Green"
               },
               {
-                "card": "C_7F5ADCE4",
+                "card": "C_4FCB2164",
                 "tokenType": "Green"
               },
               {
-                "card": "C_7F5ADCE4",
+                "card": "C_4FCB2164",
                 "tokenType": "Green"
               }
             ],
             "units": [],
             "hand": [
-              "C_35A53D34",
-              "C_BEE512DB"
+              "C_B35F5591",
+              "C_6ECCF727"
             ],
             "deck": [
-              "C_7E5A100B"
+              "C_E98E60F2"
             ],
             "grave": []
           },
@@ -870,7 +870,7 @@
             "units": [],
             "hand": [],
             "deck": [
-              "C_4A88A165"
+              "C_DA499FAE"
             ],
             "grave": []
           }
@@ -878,7 +878,7 @@
         {
           "startTurn": 10,
           "firstPlayer": "P1",
-          "_s7b": "段七b·有限分支实操（2026-10-23 v2）：金圈 20 秒实操段。玩家 8 血/AI 18 血/空场；手牌=以弱搏强 C_DF350591（1红·1伤+LifeBelowOpp 再1）+居高临下 C_0E021A0D（1红·1伤+LifeAboveOpp 再1）；bank 2 红=打完金卡后第二张仍付得起（绿圈对比不被「付不起」污染）；牌库双方各 2 张填充（教学生物11/12）防换场后回合开始空库疲劳——HP 须保持 8/18 与 hint 数字一致（spec 写「无牌库」会两边各吃 1 点疲劳）。段内不翻回合：end#2 换场落回合翻转前，AI 剧本回合照走（script 全 end，行为同构），玩家段内回合连过 intro/play/intro 后由考验过场卡直接换场段 9（回合中段重铺，无 aiTurnOnConfirm——正片路径玩家考验回合无准备抽牌，命运之牌留牌库；JumpTo/补偿逻辑零改动，重置与 T 键路径语义与改前一致）。",
+          "_s7b": "段七b·有限分支实操（2026-10-23 v2）：金圈 20 秒实操段。玩家 8 血/AI 18 血/空场；手牌=以弱搏强 C_B3F95B21（1红·1伤+LifeBelowOpp 再1）+居高临下 C_D78B3E37（1红·1伤+LifeAboveOpp 再1）；bank 2 红=打完金卡后第二张仍付得起（绿圈对比不被「付不起」污染）；牌库双方各 2 张填充（教学生物11/12）防换场后回合开始空库疲劳——HP 须保持 8/18 与 hint 数字一致（spec 写「无牌库」会两边各吃 1 点疲劳）。段内不翻回合：end#2 换场落回合翻转前，AI 剧本回合照走（script 全 end，行为同构），玩家段内回合连过 intro/play/intro 后由考验过场卡直接换场段 9（回合中段重铺，无 aiTurnOnConfirm——正片路径玩家考验回合无准备抽牌，命运之牌留牌库；JumpTo/补偿逻辑零改动，重置与 T 键路径语义与改前一致）。",
           "player": {
             "life": 8,
             "fatigue": 0,
@@ -893,12 +893,12 @@
             "lands": [],
             "units": [],
             "hand": [
-              "C_DF350591",
-              "C_0E021A0D"
+              "C_B3F95B21",
+              "C_D78B3E37"
             ],
             "deck": [
-              "C_7E5A100B",
-              "C_7E5A100B"
+              "C_E98E60F2",
+              "C_E98E60F2"
             ],
             "grave": []
           },
@@ -917,8 +917,8 @@
             "units": [],
             "hand": [],
             "deck": [
-              "C_4A88A165",
-              "C_4A88A165"
+              "C_DA499FAE",
+              "C_DA499FAE"
             ],
             "grave": []
           }
@@ -941,71 +941,71 @@
             ],
             "lands": [
               {
-                "card": "C_7F5ADCE4",
+                "card": "C_4FCB2164",
                 "tokenType": "Red"
               },
               {
-                "card": "C_7F5ADCE4",
+                "card": "C_4FCB2164",
                 "tokenType": "Red"
               },
               {
-                "card": "C_7F5ADCE4",
+                "card": "C_4FCB2164",
                 "tokenType": "Red"
               },
               {
-                "card": "C_7F5ADCE4",
+                "card": "C_4FCB2164",
                 "tokenType": "Red"
               },
               {
-                "card": "C_7F5ADCE4",
+                "card": "C_4FCB2164",
                 "tokenType": "Red"
               },
               {
-                "card": "C_7F5ADCE4",
+                "card": "C_4FCB2164",
                 "tokenType": "Red"
               },
               {
-                "card": "C_7F5ADCE4",
+                "card": "C_4FCB2164",
                 "tokenType": "Red"
               },
               {
-                "card": "C_7F5ADCE4",
+                "card": "C_4FCB2164",
                 "tokenType": "Red"
               },
               {
-                "card": "C_7F5ADCE4",
+                "card": "C_4FCB2164",
                 "tokenType": "Red"
               },
               {
-                "card": "C_7F5ADCE4",
+                "card": "C_4FCB2164",
                 "tokenType": "Red"
               },
               {
-                "card": "C_7F5ADCE4",
+                "card": "C_4FCB2164",
                 "tokenType": "Red"
               },
               {
-                "card": "C_7F5ADCE4",
+                "card": "C_4FCB2164",
                 "tokenType": "Red"
               }
             ],
             "units": [],
             "hand": [
-              "C_DC33C804",
-              "C_AE6B683B",
-              "C_E640E61F",
-              "C_D3385C0C",
-              "C_DF350591",
-              "C_19FC3189",
-              "C_1D537FE9",
-              "C_DC84250C",
-              "C_0E021A0D",
-              "C_09BAF20F"
+              "C_655C063A",
+              "C_86771FC7",
+              "C_E1256CFE",
+              "C_A1AE2226",
+              "C_B3F95B21",
+              "C_0A0BAC14",
+              "C_1F9D64E0",
+              "C_D824053B",
+              "C_D78B3E37",
+              "C_0E5F4B96"
             ],
             "deck": [
-              "C_368ECF31",
-              "C_1489CC0B",
-              "C_DE1F1C8B"
+              "C_CA42AAF8",
+              "C_C6AE5B2C",
+              "C_260F2CCE"
             ],
             "grave": []
           },
@@ -1023,19 +1023,19 @@
             "lands": [],
             "units": [
               {
-                "card": "C_295C5E0F",
+                "card": "C_CD92D2A2",
                 "x": 5,
                 "z": 4
               },
               {
-                "card": "C_2E341806",
+                "card": "C_95DC98E5",
                 "x": 4,
                 "z": 4
               }
             ],
             "hand": [],
             "deck": [
-              "C_4A88A165"
+              "C_DA499FAE"
             ],
             "grave": []
           }

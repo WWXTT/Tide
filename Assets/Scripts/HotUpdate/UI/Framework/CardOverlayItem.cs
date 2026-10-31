@@ -13,6 +13,15 @@ namespace SynergyUI
         Land,
     }
 
+    /// <summary>手牌特殊效果行种类（2026-11-01 苏醒/充能上卡改版，SpUse 钮退役）：苏醒=生物限定
+    ///（Awaken 关键词·P12 限制延续）、充能=任意卡型（Charge 原子效果）。行交互（选中/再点取消）
+    /// 与 Use 钮分流见 HandFanCard/BattleScreen。</summary>
+    public enum SpEffectKind
+    {
+        Awaken = 0,
+        Charge = 1,
+    }
+
     /// <summary>
     /// UGUI 卡牌层显示模型（2026-09-30 方案2 定案：卡面改 UGUI SSO Canvas 整层压 UITK）。
     /// 对战 BattleCardView 与构筑 CardData 在此合并为同一口径——卡面 prefab 只认本模型，
@@ -48,6 +57,23 @@ namespace SynergyUI
         public string ActiveEffectText = "";             // effect 区：唯一主动效果全文（空=藏区）
         public ElementCost ActiveEffectCost;             // effect 区发动消耗（AnchorCost 快照；全零=藏费用行）
         public List<string> PassiveLines;                // passives 区：被动行（已拼 (x/y) 后缀；无限/无对局不带）
+        /// <summary>多主动法术逐效果行（2026-11-01 抉择上卡改版）：法术可施放主动 ≥2 时 FromHand 按
+        /// GetCastableEffects 序填充（下标=引擎 modeIndex 对位，含空文案行防错位）——ACardView 克隆
+        /// effect 行逐行渲染，手牌端点击行直选施放模式；此时这些效果不再占 ActiveEffectText/PassiveLines。</summary>
+        public List<string> ActiveEffectLines;
+        /// <summary>效果行标题（与 ActiveEffectLines 平行）：DisplayName 空=「作用 N」。</summary>
+        public List<string> ActiveEffectLabels;
+        /// <summary>效果行现付费用（与 ActiveEffectLines 平行；GetRuntimeCost 按模式推导）——
+        /// 手牌 CostSquares 随选中行联动显示。</summary>
+        public List<ElementCost> ActiveEffectCosts;
+        /// <summary>特殊效果行（2026-11-01 苏醒/充能上卡）：苏醒（生物+Awaken 关键词）/充能（有 Charge
+        /// 原子效果，任意卡型）各一行，渲染在效果模式行之后——手牌端点行选中（再点同行取消），
+        /// Use 钮文案随选中变「苏醒/充能」并按此分流施放（SpUse 钮退役）。四表平行等长。</summary>
+        public List<string> SpEffectLabels;
+        public List<string> SpEffectLines;
+        public List<SpEffectKind> SpEffectKinds;
+        /// <summary>特殊行费用（苏醒=数据级免灰账单 Gray=0；充能=null——现付 1 点待选色，施放时才定）。</summary>
+        public List<ElementCost> SpEffectCosts;
         public Card RuntimeCard;                         // 事件刷新锚（本地模式引擎对象；null=不订阅）
 
         /// <summary>对战卡视图 → 显示模型。keepRuntimeStats=战场单位（光环加减后的实时 P/L 权威）。</summary>
@@ -134,6 +160,38 @@ namespace SynergyUI
             return formula == null ? text : $"{text}（{formula}）";
         }
 
+        /// <summary>法术效果行标题（2026-11-01 抉择上卡·承袭原模式窗选项文案口径）：
+        /// DisplayName 空=「作用 N」。</summary>
+        private static string SpellEffectLabel(CardEffectData fx, int index)
+            => string.IsNullOrEmpty(fx?.DisplayName) ? $"作用 {index + 1}" : fx.DisplayName;
+
+        /// <summary>苏醒行文案（2026-11-01 上卡）：关键词表描述剥「获得苏醒：」授予前缀；
+        /// 缺表回落引擎免灰口径的固定文案。</summary>
+        private static string AwakenRowText()
+        {
+            var def = CardLoader.GetKeywordDefinition(KeywordRules.Awaken);
+            var desc = def?.description;
+            if (!string.IsNullOrEmpty(desc))
+            {
+                const string prefix = "获得苏醒：";
+                return desc.StartsWith(prefix) ? desc.Substring(prefix.Length) : desc;
+            }
+            return "支付费用时的灰色元素免除，入场横置并附加等同免除费用的等量层数的沉睡";
+        }
+
+        /// <summary>充能行文案（2026-11-01 上卡）：首个充能效果渲染全文（含「发动速度0，」前缀）；
+        /// 无可渲染文本回落表行模板口径。</summary>
+        private static string ChargeRowText(CardData data)
+        {
+            foreach (var fx in data.Effects)
+            {
+                if (fx == null || !ComposerCatalog.IsChargeEffect(fx)) continue;
+                var text = AtomText.RenderEffectSummary(new EffectGraphData(fx.DisplayName) { header = fx, steps = fx.Steps }, data);
+                if (!string.IsNullOrEmpty(text)) return text;
+            }
+            return "支付1点对应颜色元素，为此手牌放置1层同色费用降低指示物（展示这张卡；换区清除）";
+        }
+
         /// <summary>压制层数快照读数（沉默/失效/沉睡）——FromHand 与战场悬停面板
         /// 共用行级划线判定，与引擎 SuppressRules 计数原语同源。</summary>
         public static (int silence, int nullify, int sleep) SuppressionOf(
@@ -216,12 +274,65 @@ namespace SynergyUI
             }
 
             // effect / passives 拆分：主动=TriggerTiming∈{Activate_Active, Activate_Instant}（与 CardData.HasActiveEffect 同源），
-            // 其余全部归被动（含 Activate_Response——按被动展示）
+            // 其余全部归被动（含 Activate_Response——按被动展示）。
+            // 多主动法术（2026-11-01 抉择上卡改版）：可施放主动按 GetCastableEffects 序逐效果成行
+            //（ActiveEffectLines——ACardView 克隆 effect 行渲染，手牌端点行切换施放模式），
+            // 这些效果不再并入 ActiveEffectText/PassiveLines；行序=引擎 modeIndex 严格对位。
+            var castable = data != null && data.Supertype == Cardtype.Spell
+                ? CostDerivationService.GetCastableEffects(data) : null;
+            var rowSet = castable != null && castable.Count >= 2 ? new HashSet<CardEffectData>(castable) : null;
+            if (rowSet != null)
+            {
+                it.ActiveEffectLines = new List<string>();
+                it.ActiveEffectLabels = new List<string>();
+                it.ActiveEffectCosts = new List<ElementCost>();
+                for (int i = 0; i < castable.Count; i++)
+                {
+                    var fx = castable[i];
+                    var text = AtomText.RenderEffectSummary(new EffectGraphData(fx.DisplayName) { header = fx, steps = fx.Steps }, data);
+                    it.ActiveEffectLabels.Add(SpellEffectLabel(fx, i));
+                    it.ActiveEffectLines.Add(string.IsNullOrEmpty(text)
+                        ? "" : SuppressedText(WithActiveNetFormula(text, fx), activeSuppressed));
+                    it.ActiveEffectCosts.Add(CardCostService.GetRuntimeCost(data, i));
+                }
+            }
+            // 特殊效果行（2026-11-01 苏醒/充能上卡，SpUse 退役）：苏醒=生物+Awaken 关键词（P12 生物
+            // 限定延续；判定走 CoreCard 全口径——含光环投递/授予轨，与旧 SpUse 按钮闸一致；网络视图
+            // 无引擎实例回落印刷口径）、充能=有 Charge 原子效果（任意卡型）；渲染在模式行之后，
+            // 充能效果不再进单行/被动区（行替代防双显）。
+            bool hasAwaken = data != null && data.Supertype == Cardtype.Creature
+                && (v.CoreCard != null ? GameActions.HasAwakenKeyword(v.CoreCard)
+                                       : GameActions.HasAwakenKeyword(data));
+            bool hasCharge = data != null && ComposerCatalog.HasChargeEffect(data);
+            if (hasAwaken || hasCharge)
+            {
+                it.SpEffectLabels = new List<string>();
+                it.SpEffectLines = new List<string>();
+                it.SpEffectKinds = new List<SpEffectKind>();
+                it.SpEffectCosts = new List<ElementCost>();
+                if (hasAwaken)
+                {
+                    it.SpEffectLabels.Add("苏醒");
+                    it.SpEffectLines.Add(AwakenRowText());
+                    it.SpEffectKinds.Add(SpEffectKind.Awaken);
+                    var bill = CardCostService.GetRuntimeCost(data, 0); // 数据级免灰账单（与引擎 GetCardCost 免灰层同口径）
+                    bill[ManaType.Gray] = 0f;
+                    it.SpEffectCosts.Add(bill);
+                }
+                if (hasCharge)
+                {
+                    it.SpEffectLabels.Add("充能");
+                    it.SpEffectLines.Add(ChargeRowText(data));
+                    it.SpEffectKinds.Add(SpEffectKind.Charge);
+                    it.SpEffectCosts.Add(null); // 现付 1 点待选色（施放期选色），无固定账单
+                }
+            }
             if (data?.Effects != null)
             {
                 foreach (var fx in data.Effects)
                 {
-                    if (fx == null) continue;
+                    if (fx == null || rowSet != null && rowSet.Contains(fx)) continue;
+                    if (hasCharge && ComposerCatalog.IsChargeEffect(fx)) continue; // 充能行替代，不进单行/被动区
                     var timing = (TriggerTiming)fx.TriggerTiming;
                     var isActive = timing == TriggerTiming.Activate_Active || timing == TriggerTiming.Activate_Instant;
                     var text = AtomText.RenderEffectSummary(new EffectGraphData(fx.DisplayName) { header = fx, steps = fx.Steps }, data);
@@ -345,7 +456,7 @@ namespace SynergyUI
                 var text = AtomText.RenderAtomEntry(a);
                 (AtomicEffectTable.GetByHashId(a.refId)?.Polarity < 0f ? selfParts : enemyParts).Add(text);
             }
-            foreach (var a in d?.PayloadCost?.AllPayloads() ?? new List<AtomicEffectEntry>()) Collect(a);
+            foreach (var a in d?.AllCostRowPayloads() ?? new List<AtomicEffectEntry>()) Collect(a);
             if (d?.Effects != null)
                 foreach (var fx in d.Effects)
                 {

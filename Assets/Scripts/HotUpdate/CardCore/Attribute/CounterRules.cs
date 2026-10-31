@@ -573,7 +573,8 @@ namespace CardCore.Attribute
         /// 加时即写、清除（换区/净化）时反向回写——数值=字段+指示物，战斗直读字段的路径零改动。
         /// source = 施加方（指示物来源定案）：随计数登记，削减类归零标死时作为死亡来源归因。
         /// </summary>
-        public static void AddStatCounter(Card card, string id, int amount, Entity source = null)
+        public static void AddStatCounter(Card card, string id, int amount, Entity source = null,
+            ManaType? effectTint = null)
         {
             if (card == null || amount == 0) return;
             var spec = Find(id);
@@ -590,6 +591,9 @@ namespace CardCore.Attribute
                 CounterType = id,
                 Amount = actual,
                 Source = source,
+                // 赋予粒子（2026-11-01）：属性族 handler 传原子行基准主色；非赋予调用方（设置轨直写等）
+                // 恒 null——表现层以非 null 识别「这是一次赋予」
+                EffectTint = effectTint,
             });
         }
 

@@ -428,7 +428,8 @@ namespace CardCore.Attribute.Handlers
                     Target = target,
                     CounterType = CounterRules.SilenceCounter,
                     Amount = actualDelta,
-                    Source = context.Source
+                    Source = context.Source,
+                    EffectTint = effect.AnchorTint() // 赋予粒子（2026-11-01）
                 });
                 PublishEvent(new KeywordAppliedEvent
                 {
@@ -613,6 +614,7 @@ namespace CardCore.Attribute.Handlers
                 CounterType = KeywordRules.ArmorCounter,
                 Amount = actualDelta,
                 Source = context.Source,
+                EffectTint = effect.AnchorTint(), // 赋予粒子（2026-11-01）
             });
         }
 

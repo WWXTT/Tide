@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Cysharp.Threading.Tasks;
@@ -126,6 +126,16 @@ namespace CardCore.Attribute
                     effect.TargetCount != -2 ? effect.TargetCount : 1);
         }
 
+        /// <summary>效果首个作用原子类型（AI 候选排序提示，2026-11-01；无原子=null）。
+        /// 组合层共用域多原子时取首原子——策略只按"这类目标选谁"排序，取首足够。</summary>
+        private static AtomicEffectType? PromptAtomOf(EffectDefinition def)
+        {
+            if (def?.Effects == null) return null;
+            foreach (var a in def.Effects)
+                if (a != null) return a.Type;
+            return null;
+        }
+
         /// <summary>
         /// 组合效果的目标选择（执行引擎统一入口，2026-09-10 目标域模型）：
         /// 域 = def 预计算交集（per-mode）；按 SelectionMode 六值（2026-09-16 定案）三维出目标——
@@ -205,6 +215,7 @@ namespace CardCore.Attribute
                     MaxCount = 1,
                     Chooser = context.Controller,
                     Title = "选择目标",
+                    PromptAtom = PromptAtomOf(def), // AI 候选排序（2026-11-01）
                 });
             }
 
@@ -218,6 +229,7 @@ namespace CardCore.Attribute
                     MaxCount = candidates.Count,
                     Chooser = context.Controller,
                     Title = "选择目标（任意数量）",
+                    PromptAtom = PromptAtomOf(def), // AI 候选排序（2026-11-01）
                 });
             }
             int need = noneAsSingle ? 1 : (def.TargetCount > 0 ? def.TargetCount : candidates.Count);
@@ -234,6 +246,7 @@ namespace CardCore.Attribute
                 MaxCount = need,
                 Chooser = context.Controller,
                 Title = "选择目标",
+                PromptAtom = PromptAtomOf(def), // AI 候选排序（2026-11-01）
             });
         }
 
@@ -314,6 +327,7 @@ namespace CardCore.Attribute
                 Chooser = context.Controller,
                 Title = title,
                 PromptSource = (Entity)context.CastCard ?? context.Source, // 奖励落点选择同报宿主（2026-10-16 lbl-toast 定案）
+                PromptAtom = reward.Type, // AI 候选排序（2026-11-01）
             });
         }
 
@@ -360,6 +374,7 @@ namespace CardCore.Attribute
                 Chooser = context.Controller,
                 Title = "选择目标",
                 PromptSource = (Entity)context.CastCard ?? context.Source, // 免编排路径同报宿主（2026-10-16 lbl-toast 定案）
+                PromptAtom = effect.Type, // AI 候选排序（2026-11-01）
             });
         }
 
@@ -465,6 +480,7 @@ namespace CardCore.Attribute
                     // lbl-toast 定案（2026-10-16）：宿主+效果 Id 供 UI 渲染完整效果文说明「选目标来干嘛」
                     PromptSource = (Entity)context.CastCard ?? context.Source,
                     PromptEffectId = def.Id,
+                    PromptAtom = atom.Type, // AI 候选排序（2026-11-01）
                     AllowCancel = allowCancelDecl,
                 });
             }
@@ -481,6 +497,7 @@ namespace CardCore.Attribute
                     Title = title + "（任意数量）",
                     PromptSource = (Entity)context.CastCard ?? context.Source,
                     PromptEffectId = def.Id,
+                    PromptAtom = atom.Type, // AI 候选排序（2026-11-01）
                     AllowCancel = allowCancelDecl,
                 });
             }
@@ -498,6 +515,7 @@ namespace CardCore.Attribute
                 Title = title,
                 PromptSource = (Entity)context.CastCard ?? context.Source,
                 PromptEffectId = def.Id,
+                PromptAtom = atom.Type, // AI 候选排序（2026-11-01）
                 AllowCancel = allowCancelDecl,
             });
         }
@@ -621,6 +639,7 @@ namespace CardCore.Attribute
                     Chooser = context.Controller, Title = t,
                     PromptSource = (Entity)context.CastCard ?? context.Source,
                     PromptEffectId = def.Id,
+                    PromptAtom = PromptAtomOf(def), // AI 候选排序（2026-11-01）
                     AllowCancel = true, // 预选可取消=撤销发动
                 };
 

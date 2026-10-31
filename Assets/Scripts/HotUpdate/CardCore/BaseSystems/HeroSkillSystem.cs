@@ -15,9 +15,10 @@ namespace CardCore
     ///   开局 InitGame 从卡池生成实例直接放入 FieldZone（英雄技能栏）；
     /// - **发动经济**：每回合限 1 次（横置闸——发动成功经 ActivateEffect 通用路径横置，
     ///   回合开始 ResetSkillForTurn 解横置；接替旧耐久池−1/归零休眠/+1回充，耐久层整体退役）；
-    ///   费用=免元素锚价（ActivationBill 单源），多效果（抉择）技能每次发动另收 1 灰；
-    ///   发动速度恒 0（2026-10-18 深夜修订：技能每回合都能重复用，不与同名法术同速同免费）；
-    ///   卡费(出牌费)不付；
+    ///   费用=**锚价现付**（2026-11-01 定案，推翻 2026-10-18「免锚价+抉择另收1灰」口径）：
+    ///   与法术施放/主动效果同一价源（CostDerivationService.DeriveElementCosts），
+    ///   多效果（抉择）技能按所选效果锚价付（UI 技能栏费用显示本就是锚价口径——两端口径就此合流）；
+    ///   发动速度恒 0（不吃法术槽位盈余）；卡费(出牌费)不付；
     /// - **抉择**：挂 >1 效果时发动同样弹窗三选一（UI 侧 ShowChoiceOverlay；effectIndex 参数传递）；
     /// - **发动**：走通用主动路径（GameActions.ActivateEffect）：声明→入栈→可被响应/两层无效。
     /// 接线：GameActions.ActivateHeroSkill（声明口，签名扩展 effectIndex——AI/脚本/UI 兼容缺省 0）。
@@ -27,7 +28,9 @@ namespace CardCore
         // ======================================== 资格与解析 ========================================
 
         /// <summary>技能卡资格（构筑标记门槛 + InitGame 落位守卫共用）：
-        /// 法术 && 1~3 个效果 && 全部为主动效果（19/20，响应式不算）。
+        /// 法术 && 1~3 个效果 && 全部为主动效果（19/20，响应式不算）
+        /// && **不带代价**（2026-11-01 定案，与「主动效果禁代价」同口径——技能栏不开放
+        /// EffectActivationGate 净费闸，代价行在技能发动路径不会被正确执行/抵扣）。
         /// 与法术形状校验（CardLoader.ValidateSpellShape）同口径。</summary>
         public static bool CanBeSkillCard(CardData data)
         {
@@ -40,6 +43,7 @@ namespace CardCore
                     && timing != (int)TriggerTiming.Activate_Instant)
                     return false;
             }
+            if (CardCostService.HasPayloadCost(data)) return false;
             return true;
         }
 
@@ -56,6 +60,7 @@ namespace CardCore
                 if (timing != (int)TriggerTiming.Activate_Active && timing != (int)TriggerTiming.Activate_Instant)
                     return "技能卡的效果必须全部为主动效果（不能是被动/触发/响应式）";
             }
+            if (CardCostService.HasPayloadCost(data)) return "技能卡不能带代价（主动效果禁代价同理）";
             return null;
         }
 
@@ -70,25 +75,13 @@ namespace CardCore
                 ?? new List<EffectDefinition>();
 
         /// <summary>技能源判定：技能栏（FieldZone）里的法术卡。
-        /// 消费口=发动费豁免（EffectExecutor 预检/结算两付费点走 ActivationBill）与发动速度
-        /// （PendingEffect.Create：技能源基速恒 0——法术宿主效果 BaseSpeed 含槽位盈余烘焙，技能口不取）。</summary>
+        /// 消费口=发动速度（PendingEffect.Create：技能源基速恒 0——法术宿主效果 BaseSpeed
+        /// 含槽位盈余烘焙，技能口不取）。费用不再经此判（2026-11-01 锚价现付定案：
+        /// EffectExecutor 两付费点对技能源走通用 DeriveElementCosts，无专属豁免）。</summary>
         public static bool IsSkillSource(Entity source)
             => source is Card c
                && c.GetZone() == Zone.FieldZone
                && (c as CardWrapper)?.GetData()?.Supertype == Cardtype.Spell;
-
-        /// <summary>技能发动的元素账单（2026-10-18 深夜修订，推翻当晚早些「速度天然对齐+全免」口径）：
-        /// 技能每回合都能重复用，不能与同名法术享受相同待遇——单效果技能=免费（横置即定价）；
-        /// 多效果（抉择）技能=每次发动另收 1 灰（抉择弹窗的附加定价）。
-        /// 消费口=EffectExecutor 两付费点（CanActivate 预检/ExecuteAsync 现付）与
-        /// AI 费用特征（LegalActionEnumerator.ActionCost）——三处同源，勿各自现推。</summary>
-        public static ElementCost ActivationBill(Entity source)
-        {
-            if (!IsSkillSource(source)) return new ElementCost();
-            return SkillEffectsOf((Card)source).Count > 1
-                ? ElementCost.FromValue(ManaType.Gray, 1)
-                : new ElementCost();
-        }
 
         /// <summary>单效果便捷口（构筑期 UI 预览/费用显示用）：恰好一个主动效果时返回它；
         /// 0 个或多个（需弹窗抉择）返回 null。</summary>

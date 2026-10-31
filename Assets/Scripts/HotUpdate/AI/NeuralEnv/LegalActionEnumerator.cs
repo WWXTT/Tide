@@ -410,7 +410,7 @@ namespace CardCore.AI.NeuralEnv
             {
                 var c = hand[i];
                 if (!RuleHooks.CanPlay(core, me, c, Zone.Hand)) continue;
-                if (GameActions.GetPayloadGateReject(core, me, c) != null) continue; // 代价门槛镜像（2026-10-04：全价过地牌上限/代价无目标）
+                if (GameActions.GetPayloadGateReject(core, me, c) != null) continue; // 代价门槛镜像（①可支付②无目标③按色地牌——2026-10-31 代价地牌统一定案）
 
                 int modes = ModeCount(c);
                 for (int m = 0; m < modes; m++)
@@ -428,9 +428,10 @@ namespace CardCore.AI.NeuralEnv
                     // GetAwakenSleepLayers 内含 Awaken 关键词闸——**无关键词生物不出苏醒行**，此处不另判）
                     //：生物净费灰份额 ≥1 → 同目标展开各加一行
                     //（免灰转入场沉睡层数、横置登场、彩色含绿照付；灰=0 不提供——无免可免不给白睡；
-                    // 2026-10-31 地牌门槛镜像 PlayCard 终审——灰份额>当前地牌上限不出苏醒行）
+                    // 2026-10-31 灰地门槛镜像 PlayCard 终审——灰份额>当前灰地数不出苏醒行〔统一定案：
+                    // 原地牌槽总上限口径退役，与代价槽按色地牌门槛同一把尺〕）
                     if (GameActions.GetAwakenSleepLayers(c, m) > 0
-                        && !GameActions.AwakenExceedsLandCap(core, me, c, m)
+                        && !GameActions.AwakenExceedsGrayLands(core, me, c, m)
                         && GameActions.CanAffordCast(core, me, c, m, awakenCast: true))
                         foreach (var targets in ExpandCardTargets(core, me, c, m))
                             Actions.Add(BuildTargetedRow(TideActionType.PlayCard, c, m, src, targets, awaken: true));
@@ -717,7 +718,7 @@ namespace CardCore.AI.NeuralEnv
             {
                 var c = hand[i];
                 if (!RuleHooks.CanPlay(core, me, c, Zone.Hand)) continue;
-                if (GameActions.GetPayloadGateReject(core, me, c) != null) continue; // 代价门槛镜像（2026-10-04：全价过地牌上限/代价无目标）
+                if (GameActions.GetPayloadGateReject(core, me, c) != null) continue; // 代价门槛镜像（①可支付②无目标③按色地牌——2026-10-31 代价地牌统一定案）
                 int castSpeed = SpeedCalculator.GetCardCastSpeed(c);
                 if (!engine.SpeedCounter.CanActivate(castSpeed, EffectActivationType.Voluntary, engine.IsEmpty)) continue;
                 if (!IsSpell(c) && !c.IsFieldCard() && !core.ZoneManager.HasBattlefieldSpace(me)) continue; // 场地卡落场地格不计容量（P8）
@@ -898,11 +899,8 @@ namespace CardCore.AI.NeuralEnv
                 case TideActionType.Activate:
                 case TideActionType.RespondActivate:
                 case TideActionType.VoluntaryTrigger:
+                case TideActionType.HeroSkill: // 技能发动费（2026-11-01 锚价现付定案）：与主动效果同价源现推
                     return CostDerivationService.DeriveElementCosts(a.Effect, 0).Total; // 效果费现推（主动/自愿桶发动时现付——L1 现推口径）
-                case TideActionType.HeroSkill:
-                    // 技能发动费（2026-10-18 深夜修订口径）：免锚价 + 抉择技能每次 1 灰——
-                    // ActivationBill 单源（效果锚价已不是技能实付口径，勿再按锚价现推）
-                    return HeroSkillSystem.ActivationBill(a.Card).Total;
                 case TideActionType.Charge:
                     return 1f; // 充能（P12）：现付 1 点所选色元素（ChargeHandler 结算期扣）
                 default:

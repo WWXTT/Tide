@@ -16,10 +16,9 @@ namespace CardCore.Tools
         public static void GenerateTagTable()
         {
             var tags = GetTagDefinitions();
-            var rawTags = GetRawTagDefinitions();
-            var generated = GenerateCode(tags, rawTags);
+            var generated = GenerateCode(tags);
 
-            // 检测碰撞（哈希条目 + 手工定值条目合并查重）
+            // 检测碰撞（全部哈希标签查重）
             var usedTags = new System.Collections.Generic.Dictionary<int, string>();
             bool hasCollision = false;
 
@@ -35,18 +34,6 @@ namespace CardCore.Tools
                     usedTags[tag] = $"{className}.{propName}";
                 }
             }
-            foreach (var (constName, value, _) in rawTags)
-            {
-                if (usedTags.TryGetValue(value, out var existing))
-                {
-                    Debug.LogError($"Tag collision: 手工定值 {constName} vs {existing} = {value}");
-                    hasCollision = true;
-                }
-                else
-                {
-                    usedTags[value] = constName;
-                }
-            }
 
             if (hasCollision)
             {
@@ -56,32 +43,8 @@ namespace CardCore.Tools
 
             File.WriteAllText(OUTPUT_PATH, generated);
             AssetDatabase.Refresh();
-            Debug.Log($"TagTable.cs 已生成，共 {tags.Length + rawTags.Length} 个标签（含 {rawTags.Length} 个手工定值保留位）");
+            Debug.Log($"TagTable.cs 已生成，共 {tags.Length} 个标签（纯哈希口径——手工定值段已随 2026-10-31 阶段D 全量重排退役）");
         }
-
-        /// <summary>
-        /// 手工定值条目（2026-09-23 增设）：历史上手工分配、哈希公式推不出的标签值——
-        /// **改值=线格式字段 ID 变更**，一律原值保留。曾因只存在于 TagTable.cs 手改区，
-        /// 被一次"刷新属性排序"整体重生成冲掉（编译 CS0117 事故）——现统一登记在此，
-        /// 生成器按原值透传，重生成不再丢条目。新增此类条目：这里加一行 + TagTable.cs 同步。
-        /// </summary>
-        private static (string constName, int value, string note)[] GetRawTagDefinitions() => new[]
-        {
-            // SerializableAtomicEffectEntry.amp 专用（复用 AEI_ 前缀命名；2026-09-13 数值随机）
-            ("AEI_Amplitude", 1052954154, "SerializableAtomicEffectEntry.amp（数值随机 RandomAmplitude）"),
-            // 抉择卡放地模式（2026-09-21：与出牌同口径），紧邻 CardRuntimeId=713270002 手工递增
-            ("MsgIntentAddToElementPool_ModeIndex", 713270003, "MsgIntentAddToElementPool.ModeIndex（抉择放地）"),
-            // 手工定值追补（2026-10-10 对账找回：此前只写进 TagTable.cs 手改区未登记，
-            // 被一次重生成冲掉触发 CS0117——现按原值登记透传）
-            ("MGSS_RevealedZoneCards", 612847093, "MsgGameStateSync.RevealedZoneCards（展示卡·信息轴 2026-10-02）"),
-            ("MDS_SkillCardId", 1739402857, "MsgDeckSubmit.SkillCardId（英雄技能标记卡 2026-10-07 卡牌化；不参与 Digest）"),
-            // 2026-10-28 对账找回（同 10-10 先例）：地牌锁色字段手工加在 TagTable 手改区未登记，
-            // 旧工具再生成冲掉触发 CS0117——按原值登记透传
-            ("RCS_LockedColor", 233742023, "RuntimeCardState.LockedColor（2026-10-11 资源重做：地牌锁定产色）"),
-            // 2026-10-29 阶段3b：延迟死亡标记（StableTag 同式手算=Hash32("RuntimeCardState.DelayedDeath")，
-            // seed 0x53796E67——RCS_BuildPaid 先例同法）
-            ("RCS_DelayedDeath", 747753030, "RuntimeCardState.DelayedDeath（2026-10-29 阶段3b 延迟死亡标记）"),
-        };
 
         private static (string className, string propName, int tag)[] GetTagDefinitions()
         {
@@ -152,6 +115,7 @@ namespace CardCore.Tools
                 // Drawbacks 标签已随减费归入代价体系退役 2026-09-16）
                 ("AtomicEffectInstance", "TargetKinds"),
                 ("AtomicEffectInstance", "ManaList"),
+                ("SerializableAtomicEffectEntry", "Amplitude"), // amp 数值随机（2026-10-31 阶段D：手工定值退役并入哈希）
                 ("SerializableManaAmount", "manaType"),
                 ("SerializableManaAmount", "amount"),
 
@@ -219,6 +183,7 @@ namespace CardCore.Tools
                 ("MsgGameStateSync", "ViewerSeat"), ("MsgGameStateSync", "ActiveSeat"),
                 ("MsgGameStateSync", "PrioritySeat"), ("MsgGameStateSync", "ZoneCards"),
                 ("MsgGameStateSync", "Hands"), ("MsgGameStateSync", "StackV2"),
+                ("MsgGameStateSync", "RevealedZoneCards"), // 展示卡·信息轴（2026-10-31 阶段D：手工定值退役并入哈希）
 
                 // ---- StackItemDTO（栈条目：EffectInstance 投影。EffectDisplayName/旧 Stack 字段
                 //      已删（2026-09-22 线上去文本，墓碑 2026-10-10 清理）；显示名客户端按 EffectId 查表）----
@@ -240,6 +205,7 @@ namespace CardCore.Tools
                 ("MsgIntentBuildCard", "CardRuntimeId"), ("MsgIntentBuildCard", "Color"), // 2026-10-29 P7 建造（协议 v4）
                 // MsgIntentTapForElement 已删（2026-10-11 现取现用：无手动横置）——两个 tag 常量同批移除（2026-10-22）
                 ("MsgIntentAddToElementPool", "CardRuntimeId"),
+                ("MsgIntentAddToElementPool", "ModeIndex"), // 抉择放地模式（2026-10-31 阶段D：手工定值退役并入哈希）
                 ("MsgIntentDeclareAttack", "Attacker"), ("MsgIntentDeclareAttack", "Target"),
                 ("MsgIntentDeclareBlock", "Blocker"), ("MsgIntentDeclareBlock", "Attacker"),
                 ("MsgIntentActivateEffect", "SourceCardRuntimeId"), ("MsgIntentActivateEffect", "EffectId"),
@@ -264,11 +230,14 @@ namespace CardCore.Tools
                 // ---- RuntimeCardState 快照补齐 ----
                 ("RuntimeCardState", "RuntimeId"), ("RuntimeCardState", "ControllerSeat"),
                 ("RuntimeCardState", "BuildPaid"), // 2026-10-29 P7 建造已建额（协议 v4 快照手牌卡状态）
+                ("RuntimeCardState", "LockedColor"), // 地牌锁色（2026-10-31 阶段D：手工定值退役并入哈希）
+                ("RuntimeCardState", "DelayedDeath"), // 延迟死亡标记（2026-10-31 阶段D：手工定值退役并入哈希）
 
                 // ---- 开局握手（2026-09-22：DeckSubmit/MatchManifest + 卡组闭包原子行摘要）----
                 ("NetDeckDigest", "AtomicRowsHash"), ("NetDeckDigest", "AtomicRowCount"),
                 ("NetDeckDigest", "TokenSig"), // 2026-10-29 P9b 衍生物区/槽绑定摘要（协议 v5）
                 ("MsgDeckSubmit", "DeckName"), ("MsgDeckSubmit", "CardIds"), ("MsgDeckSubmit", "Digest"),
+                ("MsgDeckSubmit", "SkillCardId"), // 英雄技能标记卡（2026-10-31 阶段D：手工定值退役并入哈希；不参与 Digest）
                 ("MsgDeckSubmit", "TokenCardIds"), ("MsgDeckSubmit", "TokenBindings"), // P9b 两块（协议 v5）
                 ("MsgDeckTokenBinding", "CardId"), ("MsgDeckTokenBinding", "EffectIndex"),
                 ("MsgDeckTokenBinding", "TemplateId"), // P9b 绑定条目（协议 v5）
@@ -308,13 +277,12 @@ namespace CardCore.Tools
             return result;
         }
 
-        private static string GenerateCode((string className, string propName, int tag)[] tags,
-            (string constName, int value, string note)[] rawTags)
+        private static string GenerateCode((string className, string propName, int tag)[] tags)
         {
             var sb = new StringBuilder();
             sb.AppendLine("// 此文件由 Tools/刷新属性排序（新增序列化字段时使用）自动生成，请勿手动修改");
             sb.AppendLine("// 如需添加新属性，请修改 RefreshMemoryPackOrder.cs 中的 GetTagDefinitions()");
-            sb.AppendLine("// 手工定值标签登记 GetRawTagDefinitions()（只改 TagTable.cs 的手改区会被下次重生成冲掉）");
+            sb.AppendLine("// 纯哈希口径（2026-10-31 阶段D 全量重排：手工定值段退役，无保留位概念）");
             sb.AppendLine();
             sb.AppendLine("namespace CardCore.Serialization");
             sb.AppendLine("{");
@@ -335,14 +303,8 @@ namespace CardCore.Tools
                 sb.AppendLine($"        public const int {varPrefix}_{propName} = {tag};");
             }
 
-            // 手工定值保留位（原值透传——见 GetRawTagDefinitions 的注释）
             sb.AppendLine();
-            sb.AppendLine("        // ---- 手工定值保留位（历史手工分配的值，哈希公式推不出；改值=线格式字段 ID 变更，勿动）----");
-            foreach (var (constName, value, note) in rawTags)
-                sb.AppendLine($"        public const int {constName} = {value}; // {note}");
-
-            sb.AppendLine();
-            sb.AppendLine($"        // 共 {tags.Length + rawTags.Length} 个标签（含 {rawTags.Length} 个手工定值保留位）");
+            sb.AppendLine($"        // 共 {tags.Length} 个标签（纯哈希口径）");
             sb.AppendLine("    }");
             sb.AppendLine("}");
 
@@ -355,6 +317,7 @@ namespace CardCore.Tools
             {
                 "RuntimeCardState" => "RCS",
                 "AtomicEffectInstance" => "AEI",
+                "SerializableAtomicEffectEntry" => "AEI", // 沿用 AEI_ 前缀（旧线格式命名承袭，2026-10-31 阶段D 起哈希生成）
                 "CostInstance" => "CI",
                 "ActivationCondition" => "AC",
                 "EffectDefinition" => "ED",

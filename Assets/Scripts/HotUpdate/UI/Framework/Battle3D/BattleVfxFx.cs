@@ -8,8 +8,10 @@ namespace SynergyUI
 {
     /// <summary>
     /// 战斗颜色路由 VFX 播放器（Phase 1 2026-10-23）：按颜色+角色查 BattleVfxCatalog 播
-    /// Cast/弹体/Hit（Area/Heal 可选）。三包分工——红火/蓝水=PixPlays，绿/白/黑=Epic Toon FX
-    ///（黑混 Synty 爆炸），灰=Synty+Hovl 光球；全部走 prefab 粒子，不染 VFXGraph。
+    /// Cast/弹体/Hit（Area/Heal/Buff/Shield 同表）。四包分工——红火/蓝水=PixPlays，
+    /// 绿=Epic Toon FX，灰=Synty+Epic（Hit 主条目 ShadowExplosion）+Hovl 光球；
+    /// 2026-11-01 释放件重分配后四色 Heal/Hit 全配位（灰 Heal=HealNova/红=SparkleExplosionYellow/
+    /// 蓝=MysticExplosionWhite；赋予爆发 8 种按极性×颜色查此表）。全部走 prefab 粒子，不染 VFXGraph。
     /// 降级纪律（与 BattleEffectFx 同口径）：catalog 缺失/条目未配/并发超限/异常——一律返回
     /// false 由调用方回退 BattleEffectFx 的 MagicOrb+Impact，绝不悬挂演出态、不空引用、
     /// 不双系统同播。召唤演出 BattleCastArrival 独立体系不经本类。
@@ -164,7 +166,8 @@ namespace SynergyUI
         public static bool TryPlayArea(ManaType color, Vector3 at, float scale)
             => PlayOneShot(color, VfxRole.Area, at, scale);
 
-        /// <summary>回复节点（Phase 1 可选：绿 HealBig/白 HealNova）。</summary>
+        /// <summary>回复节点（四色全配：绿 HealBig/灰 HealNova/红 SparkleExplosionYellow/蓝 MysticExplosionWhite——
+        /// 增益族赋予爆发与回复演出共用）。</summary>
         public static bool TryPlayHeal(ManaType color, Vector3 at, float scale)
             => PlayOneShot(color, VfxRole.Heal, at, scale);
 

@@ -2917,6 +2917,9 @@ namespace SynergyUI
         private void OpenCardRefPicker(AtomicEffectEntry atom, bool creatureOnly, Action onPicked)
         {
             if (_cardRefModal != null) { _cardRefModal.Close(); _cardRefModal = null; } // 重复点开=换卡窗
+            // 召唤/变形槽原子（2026-10-31 三条过滤）：候选叠加费≥1·无代价·不嵌套（与卡面衍生物槽
+            // 选卡器同源 DeckTokenSupport.TokenTemplateCandidateOk——两入口口径一致；诅咒/祝福载荷不动）
+            bool tokenSlotAtom = IsSummonTokenEntry(atom) || IsGrantMorphEntry(atom);
             var rowName = AtomicEffectTable.GetByHashId(atom?.refId)?.DisplayName ?? "引用卡";
             var modal = UiKit.ModalBox(Root, $"选择卡牌——{rowName}{(creatureOnly ? "（仅生物）" : "（生物/结界）")}",
                 width: 660f, height: 600f);
@@ -2942,6 +2945,7 @@ namespace SynergyUI
                 string key = (searchField.text ?? "").Trim();
                 var candidates = CardSorter.Sort(CardCatalog.LoadAll()
                         .Where(c => CardRefCandidateOk(c, creatureOnly))
+                        .Where(c => !tokenSlotAtom || DeckTokenSupport.TokenTemplateCandidateOk(c, creatureOnly))
                         .Where(c => string.IsNullOrEmpty(key)
                                     || (c.CardName ?? "").Contains(key, StringComparison.OrdinalIgnoreCase)
                                     || (c.ID ?? "").Contains(key, StringComparison.OrdinalIgnoreCase)))

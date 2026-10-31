@@ -155,16 +155,52 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 代价栏（2026-09-23 定案：上移卡组合层）：单卡单条 Payload——错边原子引用，
-        /// p&lt;0 锁己方（自伤）/ p&gt;0 锁对方（资敌，2026-10-28 P1b）。效果级 CardEffectData.Costs
-        /// 为 legacy 兜底（旧数据仍读取；卡层已填时以卡层为准，防双收）。
+        /// 代价栏（2026-10-31 代价指向化定案：从「卡级单条」改为**逐行指向**）：
+        /// 每行 = 一个代价（原子序列 payloads，整行 1 槽），TargetAttr 指向本卡基础属性
+        ///（1=攻击血量 / 2=耐久 / 3=速度；0=legacy 整卡行——存量数据迁移形态，行为同施放期代价）。
+        /// 指向单个**效果**的代价不落本表——直接挂 CardEffectData.Costs（该效果即目标，
+        /// 主动=发动期净费/发动期执行；自动=施放期抵扣/施放期执行，与卡行同口径）。
+        /// 内容契约：错边原子引用，p&lt;0 锁己方（自伤）/ p&gt;0 锁对方（资敌，2026-10-28 P1b）。
+        /// 收集/计价/门槛单源见 CardCostService（施放期 vs 发动期两桶）。
         /// </summary>
         [TideSerialized]
-        private global::CardCore.CostEntry _payloadCost;
+        private List<global::CardCore.CostEntry> _payloadCosts;
+        public List<global::CardCore.CostEntry> PayloadCosts
+        {
+            get => _payloadCosts ??= new List<global::CardCore.CostEntry>();
+            set => _payloadCosts = value;
+        }
+
+        /// <summary>全部卡级代价行的原子展平（哈希/网络闭环收集用；空行跳过，行序敏感）。</summary>
+        public List<AtomicEffectEntry> AllCostRowPayloads()
+        {
+            var atoms = new List<AtomicEffectEntry>();
+            if (_payloadCosts == null) return atoms;
+            foreach (var row in _payloadCosts)
+                if (row != null) atoms.AddRange(row.AllPayloads());
+            return atoms;
+        }
+
+        /// <summary>整卡行（TargetAttr=0）读写垫片（2026-10-31 代价指向化）：合成器单代价槽与
+        /// legacy 装载继续按单条整卡行读写；逻辑层新口径一律走 PayloadCosts 全行。
+        /// get=首个整卡行（无则 null）；set=替换全部整卡行（null=清空整卡行，不动指向行）。</summary>
         public global::CardCore.CostEntry PayloadCost
         {
-            get => _payloadCost;
-            set => _payloadCost = value;
+            get
+            {
+                if (_payloadCosts == null) return null;
+                foreach (var row in _payloadCosts)
+                    if (row != null && row.TargetAttr == (int)CostAttrTarget.WholeCard) return row;
+                return null;
+            }
+            set
+            {
+                _payloadCosts ??= new List<global::CardCore.CostEntry>();
+                for (int i = _payloadCosts.Count - 1; i >= 0; i--)
+                    if (_payloadCosts[i] != null && _payloadCosts[i].TargetAttr == (int)CostAttrTarget.WholeCard)
+                        _payloadCosts.RemoveAt(i);
+                if (value != null) _payloadCosts.Add(value);
+            }
         }
 
 
@@ -508,11 +544,27 @@ namespace CardCore
     // ManaAmountEntry 已删除（2026-10-04 费用位置数组化）：原子表 ManaList 与卡 costList
     // 统一为 ElementCost/float 位置数组，{manaType, amount} 对列表形态全链退役。
 
+    /// <summary>代价指向（2026-10-31 代价指向化定案）：卡级代价行的目标=基础属性；
+    /// 效果级代价（CardEffectData.Costs）不读本枚举——所在效果即目标。</summary>
+    public enum CostAttrTarget
+    {
+        /// <summary>legacy 整卡行（存量迁移形态：施放期抵扣/执行，与属性行同桶）。</summary>
+        WholeCard = 0,
+        /// <summary>攻击血量（生物 Power/Life 身材）。</summary>
+        PowerLife = 1,
+        /// <summary>耐久（结界/装备 Durability）。</summary>
+        Durability = 2,
+        /// <summary>速度（法术施放速度/效果发动速度）。</summary>
+        Speed = 3,
+    }
+
     /// <summary>
     /// 代价条目 —— 卡牌效果的费用配置。
     /// 定案（2026-09-11）：一张卡只有一个代价栏、只能填一个代价（整卡 Costs 条目合计 ≤1，无法像效果那样组合）。
     /// 2026-10-16 组装效果代价：一条代价=一张纯线性组装图的原子序列（payloads），
     /// 逐原子执行/计价/补偿（可黑白混合）；payload 保留为旧档单原子读入口（装载折入 payloads）。
+    /// 2026-10-31 代价指向化：**「单卡单条」退役**——代价逐行挂目标（卡级行=TargetAttr 指向基础属性；
+    /// 效果级行=挂 CardEffectData.Costs），每行仍=一张线性组装图、各占 1 效果槽。
     /// </summary>
     [Serializable]
     public class CostEntry
@@ -521,6 +573,10 @@ namespace CardCore
         public int Value;              // 代价数值
         public int ManaType;           // 元素消耗的 ManaType
         public int TurnDuration;       // 沉睡回合数
+
+        /// <summary>卡级行指向（CostAttrTarget；效果级行不读——所在效果即目标）。
+        /// 缺省 0=legacy 整卡行（存量数据，行为与属性行同=施放期代价）。</summary>
+        public int TargetAttr;
 
         /// <summary>legacy 单原子代价（2026-09-11~10-16）：新写走 payloads；读侧经 AllPayloads 折入。</summary>
         public AtomicEffectEntry payload;

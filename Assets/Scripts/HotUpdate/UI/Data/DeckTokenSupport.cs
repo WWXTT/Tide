@@ -59,6 +59,8 @@ namespace SynergyUI
             /// <summary>原子 str 直书的固定模板 ID（旧数据/教程）；空 = 卡组期绑定槽。</summary>
             public string FixedTemplateId;
             public bool NeedsBinding => string.IsNullOrEmpty(FixedTemplateId);
+            /// <summary>槽所在的原子实例（合成期直选通道：卡面衍生物槽直写 str 用）。</summary>
+            public AtomicEffectEntry Atom;
         }
 
         /// <summary>枚举卡的全部引用卡槽原子（效果序内；分支奖励 then / 抉择子序列一并下钻——
@@ -126,6 +128,7 @@ namespace SynergyUI
                 EffectDisplayName = fx != null && !string.IsNullOrEmpty(fx.DisplayName) ? fx.DisplayName : fx?.Id,
                 IsMorph = type == AtomicEffectType.GrantMorph,
                 FixedTemplateId = atom.str,
+                Atom = atom,
             });
         }
 
@@ -141,8 +144,33 @@ namespace SynergyUI
 
         // ======================================== 卡组校验（P9b §4 硬约束） ========================================
 
+        /// <summary>衍生物模板两限制（2026-10-31 代价系统放行 0 费生物后收紧）：费用（支付价单源
+        /// GetRuntimeCost 推导）须 ≥1，且不得携带代价（PayloadCost/legacy Costs——衍生物不经手牌
+        /// 支付链，带代价与 0 费都会绕过代价折价平衡）。ValidateDeck 与区管理候选过滤共用。</summary>
+        public static bool TemplateRestrictionsOk(CardData tpl)
+            => tpl != null
+               && CardCostService.GetRuntimeCost(tpl).Total >= 1f - 1e-4f
+               && !CardCostService.HasPayloadCost(tpl);
+
+        /// <summary>合成期衍生物模板候选过滤（2026-10-31 用户定案三条）：①费用 ≥1 且不带代价
+        /// （TemplateRestrictionsOk 同源——与卡组期校验同口径）；②不嵌套——候选自身不得再含
+        /// 引用卡槽原子（SummonToken/GrantMorph，衍生物套衍生物禁）；③卡型——召唤槽仅生物
+        /// （creatureOnly）、变形槽生物/结界。另剔衍生物模板与教学卡（同 CardRef 选卡口径）。
+        /// 卡面衍生物槽选卡器与效果组合界面 CardRef 选卡器（召唤/变形原子）共用。</summary>
+        public static bool TokenTemplateCandidateOk(CardData tpl, bool creatureOnly)
+            => tpl != null
+               && !string.IsNullOrEmpty(tpl.ID)
+               && !tpl.IsTokenTemplate
+               && !CardCatalog.IsTeachingCard(tpl)
+               && (creatureOnly
+                   ? tpl.Supertype == Cardtype.Creature
+                   : tpl.Supertype == Cardtype.Creature || tpl.Supertype == Cardtype.Enchantment)
+               && TemplateRestrictionsOk(tpl)
+               && EnumerateSlots(tpl).Count == 0;
+
         /// <summary>整套卡组衍生物区/绑定校验：返回人读错误串（空=通过）。
         /// · 区容量 ≤ TokenZoneCapacity、无重复、每项可解析且为 Cardtype.Creature；
+        /// · 模板两限制（2026-10-31）：费用 ≥1、不携带代价——区内与固定 str 引用同口径；
         /// · 每个带槽效果（有空 str 槽）都有绑定，绑定值 ∈ 衍生物区且类型合规
         ///   （召唤须生物；变形须生物/结界——结界模板现阶段进不了区=实际仅生物，见汇报）。</summary>
         public static List<string> ValidateDeck(List<string> cardIds, List<string> tokenCardIds,
@@ -166,6 +194,10 @@ namespace SynergyUI
                     errors.Add($"衍生物区模板 {id} 在卡表查不到（断链）——请移除后重新添加");
                 else if (SupertypeOf(tpl) != Cardtype.Creature)
                     errors.Add($"衍生物区模板 {NameOf(id)} 不是生物卡——衍生物区只收生物模板");
+                else if (CardCostService.GetRuntimeCost(tpl).Total < 1f - 1e-4f)
+                    errors.Add($"衍生物区模板 {NameOf(id)} 费用为 0——衍生物费用须 ≥1（0 费生物不可作模板）");
+                else if (CardCostService.HasPayloadCost(tpl))
+                    errors.Add($"衍生物区模板 {NameOf(id)} 携带代价——衍生物不能携带代价（请改卡移除代价栏）");
             }
             if (zone.Count(id => !string.IsNullOrEmpty(id)) > TokenZoneCapacity)
                 errors.Add($"衍生物区超容量（{zone.Count} 个 > 上限 {TokenZoneCapacity}）——请先移除多余模板");
@@ -209,6 +241,20 @@ namespace SynergyUI
                     if (!typeOk)
                         errors.Add($"「{slot.CardName}」效果{slot.EffectIndex + 1} 绑定的 {NameOf(templateId)}"
                                    + $" 类型不符（{(slot.IsMorph ? "变形模板须为生物/结界" : "衍生物模板须为生物")}）");
+                }
+
+                // 固定引用模板（原子 str 直书——旧数据/教学倒计时召唤）同受两限制（2026-10-31）：
+                // 断链不在此报（装载/验证器口径），只查费用与代价两限。
+                foreach (var slot in EnumerateSlots(card).Where(s => !s.NeedsBinding))
+                {
+                    var fixedTpl = CardCatalog.GetById(slot.FixedTemplateId);
+                    if (fixedTpl == null) continue;
+                    if (CardCostService.GetRuntimeCost(fixedTpl).Total < 1f - 1e-4f)
+                        errors.Add($"「{slot.CardName}」效果{slot.EffectIndex + 1} 固定引用的 {NameOf(slot.FixedTemplateId)}"
+                                   + $" 费用为 0——{(slot.IsMorph ? "变形" : "衍生物")}模板费用须 ≥1");
+                    if (CardCostService.HasPayloadCost(fixedTpl))
+                        errors.Add($"「{slot.CardName}」效果{slot.EffectIndex + 1} 固定引用的 {NameOf(slot.FixedTemplateId)}"
+                                   + $" 携带代价——{(slot.IsMorph ? "变形" : "衍生物")}模板不能携带代价");
                 }
             }
             return errors;

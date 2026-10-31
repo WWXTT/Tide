@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace CardCore
 {
@@ -11,8 +12,9 @@ namespace CardCore
     /// · 顺序不回退：净费先付、代价后执行（与卡层 cast 同序）；
     /// · 可用性 = 净费可付 ∧ 代价可支付（<see cref="CostPayability"/>——资敌白嫖/手牌不足在此拦，
     ///   不可付 → 效果不可发动：引擎 CanActivate 拒 + UI 灰显）。
-    /// 不开放的口：技能栏（HeroSkillSystem.ActivationBill 不挂代价、不套抵扣——调用方按
-    /// IsSkillSource 分流回既有路径）；触发式（ElementCostPrepaid，不经引擎现付段）。
+    /// 不开放的口：技能栏（技能卡禁带代价——资格闸 CanBeSkillCard 拦，见 HeroSkillSystem；
+    /// IsSkillSource 分流保底：技能源效果即便带代价也不套本闸抵扣）；触发式（ElementCostPrepaid，
+    /// 不经引擎现付段）。
     /// 消费口：EffectExecutor.CanActivate 预检 / ExecuteAsync 现付段 / 两个合成器净费显示 / 验证器。
     /// </summary>
     public static class EffectActivationGate
@@ -69,9 +71,12 @@ namespace CardCore
             return net;
         }
 
-        /// <summary>可用性（引擎预检/UI 灰显共用）：净费可付 ∧ 代价可支付。
-        /// 可用返回 null；不可用返回拒绝原因（净费段/代价段各口径）。
-        /// 前置：Applies 为真（非本闸管辖的组合返回 null，调用方走既有路径）。</summary>
+        /// <summary>可用性（引擎预检/UI 灰显共用）：净费可付 ∧ 代价可支付 ∧ 代价地牌门槛。
+        /// 可用返回 null；不可用返回拒绝原因（净费段/代价段/地牌段各口径）。
+        /// 前置：Applies 为真（非本闸管辖的组合返回 null，调用方走既有路径）。
+        /// 地牌门槛（2026-10-31 代价指向化：「使用主动效果时同理」）——只算**本效果**挂的
+        /// 代价行：按色生成面 > 施放者该色地牌数（元素池 LockedColor 计数，与施放口
+        /// EvaluatePayloadGate ③ 同尺；等于放行）。</summary>
         public static string RejectReason(EffectDefinition effect, Entity source,
             ElementCost elementCosts, List<CostInstance> specialCosts, CostContext ctx)
         {
@@ -79,7 +84,22 @@ namespace CardCore
             var net = NetBill(elementCosts, specialCosts);
             if (!net.IsZero && !ElementCostPayment.CanPay(net, ctx))
                 return $"净费不可付（发动费 {elementCosts} − 代价抵扣后余额不足）";
-            return CostPayability.RejectReason(specialCosts, ctx);
+            var payReject = CostPayability.RejectReason(specialCosts, ctx);
+            if (payReject != null) return payReject;
+
+            // ③ 地牌门槛（发动口分账）：本效果代价行按色对齐同色地牌数
+            if (ctx?.Payer != null && ctx.ElementPool != null)
+            {
+                foreach (var kv in CardCostService.PayloadGrantByColor(specialCosts))
+                {
+                    int lands = ctx.ElementPool.GetPool(ctx.Payer)?.PooledCards?
+                        .Count(pc => pc != null && pc.LockedColor == kv.Key) ?? 0;
+                    if (kv.Value > lands)
+                        return $"{ManaTypeNames.ZhNameOf(kv.Key)}色代价 {kv.Value} 大于当前"
+                             + $"{ManaTypeNames.ZhNameOf(kv.Key)}地 {lands}——效果不可发动";
+                }
+            }
+            return null;
         }
     }
 }

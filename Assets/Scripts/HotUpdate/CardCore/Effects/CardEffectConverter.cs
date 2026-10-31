@@ -238,32 +238,41 @@ namespace CardCore
             {
                 foreach (var costEntry in data.Costs)
                 {
-                    // 效果型代价（2026-09-11）：付费步强制执行的原子（执行在 CostCompensationService.PayPayloadsAsync）。
+                    if (costEntry == null) continue;
+                    // 效果型代价（2026-09-11；2026-10-31 代价指向化：效果级行=指向本效果，主动/自动同构）：
+                    // 付费步强制执行的原子序列（执行在 CostCompensationService.PayPayloadsAsync）。
                     // 内容契约（2026-10-28 P1b 定案）：代价收 **p≠0 且锁在受益方反面** 的原子——
-                    // p<0（有害）锁己方（自伤）、p>0（有益）锁对方（资敌）；p=0（中性）一律 Error 剔除。
+                    // p<0（有害）锁己方（自伤）、p>0（有益）锁对方（资敌）；p=0（中性）一律剔除。
                     // 合成器放置口经 CostDerivationService.PayloadCostDomain 收窄/镜像（双侧域→锁定侧），
                     // 装载期按条目有效域校验（存储 kinds 已收窄——表行默认域为双侧）。
                     // 空 payload（refId 为空——非 Payload 代价的占位/迁移残留）不作 Payload 处理
-                    if (costEntry.payload != null && !string.IsNullOrEmpty(costEntry.payload.refId))
+                    var payloadList = costEntry.AllPayloads();
+                    if (payloadList.Count > 0)
                     {
-                        var payloadAtom = ConvertAtomicEffect(costEntry.payload, allowWrongSide: true);
-                        int requiredSide = CostDerivationService.PayloadCostRequiredSideLock(payloadAtom?.Polarity ?? 0f);
-                        bool contractHeld = payloadAtom != null && requiredSide != 0
-                            && CostDerivationService.SideLock(payloadAtom.TargetKinds) == requiredSide;
-                        if (payloadAtom == null || !contractHeld)
+                        var payloadAtoms = new List<AtomicEffectInstance>();
+                        foreach (var pe in payloadList)
                         {
-                            TideLog.Error($"[CardEffectConverter] 卡 {sourceCardId} 代价栏 Payload 违反内容契约：" +
-                                           "代价只能挂 p≠0 且锁在受益方反面的原子（p<0 锁己方 / p>0 锁对方，2026-10-28 P1b），应当剔除该代价");
-                            continue;
+                            // 逐原子契约过滤（ConvertPayloadForDisplay 单源——违约原子剔除不炸行）
+                            var payloadAtom = ConvertPayloadForDisplay(pe);
+                            if (payloadAtom == null)
+                            {
+                                TideLog.Error($"[CardEffectConverter] 卡 {sourceCardId} 代价栏 Payload 违反内容契约：" +
+                                               "代价只能挂 p≠0 且锁在受益方反面的原子（p<0 锁己方 / p>0 锁对方，2026-10-28 P1b），已剔除该原子");
+                                continue;
+                            }
+                            payloadAtoms.Add(payloadAtom);
                         }
-                        def.Costs.Add(new CostInstance
+                        if (payloadAtoms.Count > 0)
                         {
-                            Type = CostType.Payload, // 带 payload 原子的条目恒为效果型代价（声明值不参与）
-                            Value = costEntry.Value,
-                            ManaType = (ManaType)costEntry.ManaType,
-                            Payloads = new List<AtomicEffectInstance> { payloadAtom }, // legacy 效果级单原子（组装代价在卡层）
-                        });
-                        continue;
+                            def.Costs.Add(new CostInstance
+                            {
+                                Type = CostType.Payload, // 带 payload 原子的条目恒为效果型代价（声明值不参与）
+                                Value = costEntry.Value,
+                                ManaType = (ManaType)costEntry.ManaType,
+                                Payloads = payloadAtoms, // 行内原子序列（legacy 单原子经 AllPayloads 折入同口径）
+                            });
+                        }
+                        continue; // 有 payload 的条目：全原子违约=空行（不落元素代价透传）
                     }
 
                     // 2026-09-14 代价原子化：仅剩 ElementConsume/Payload 两值——无 payload 的条目按元素代价透传

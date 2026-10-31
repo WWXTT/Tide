@@ -248,6 +248,22 @@ namespace SynergyUI
             }
             string joined = string.Join("；", parts);
             if (joined.Length == 0) return "";
+            // 代价后缀（2026-10-31 代价指向化定案：代价描述文本附加进文字表述）：
+            // 效果级代价行=指向本效果的代价——正文追加「，代价：…」；行内多原子以「＋」连接
+            //（与合成器代价文案同口径）；原子按自身域渲染（代价独立执行，不随主干目标）。
+            if (h.Costs != null)
+            {
+                var costParts = new List<string>();
+                foreach (var ce in h.Costs)
+                {
+                    if (ce == null) continue;
+                    foreach (var pa in ce.AllPayloads())
+                        if (pa != null && !string.IsNullOrEmpty(pa.refId))
+                            costParts.Add(RenderAtomEntry(pa));
+                }
+                if (costParts.Count > 0)
+                    joined = joined + "，代价：" + string.Join("＋", costParts);
+            }
             // 引擎主干卡（自由分支·2026-10-20 用户定案）：不加时机/发动前缀——引擎身份+参数即正文首
             //（"自由分支·倒计时2，【奖励】…"）；常规效果照旧前缀。
             bool hasEngineTrunk = false;
@@ -257,6 +273,34 @@ namespace SynergyUI
                         && (BranchSettleKind)s.atomic.branch.settle == BranchSettleKind.Engine)
                     { hasEngineTrunk = true; break; }
             return hasEngineTrunk ? joined : ActivationPrefix(h, owner) + joined;
+        }
+
+        /// <summary>卡级代价行的文字表述（2026-10-31 代价指向化定案：代价描述附加进文字表述——
+        /// 卡级行按目标属性冠名）。每行一条：「代价（攻击血量/耐久/速度）：原子＋原子」；
+        /// 整卡 legacy 行（TargetAttr=0）=「代价：…」。空表返回空列表。
+        /// 消费口：卡面文字/合成器槽行（UI 层后续接线——逻辑层先行单源）。</summary>
+        public static List<string> CardCostLines(CardData card)
+        {
+            var lines = new List<string>();
+            if (card?.PayloadCosts == null) return lines;
+            foreach (var row in card.PayloadCosts)
+            {
+                var atoms = row?.AllPayloads();
+                if (atoms == null || atoms.Count == 0) continue;
+                var parts = new List<string>();
+                foreach (var a in atoms)
+                    if (a != null && !string.IsNullOrEmpty(a.refId)) parts.Add(RenderAtomEntry(a));
+                if (parts.Count == 0) continue;
+                string label = row.TargetAttr switch
+                {
+                    (int)CostAttrTarget.PowerLife => "代价（攻击血量）",
+                    (int)CostAttrTarget.Durability => "代价（耐久）",
+                    (int)CostAttrTarget.Speed => "代价（速度）",
+                    _ => "代价",
+                };
+                lines.Add(label + "：" + string.Join("＋", parts));
+            }
+            return lines;
         }
 
         /// <summary>效果描述开头前缀（2026-10-15 晚措辞改版+卡型速度接线）：主动=「发动速度x，」

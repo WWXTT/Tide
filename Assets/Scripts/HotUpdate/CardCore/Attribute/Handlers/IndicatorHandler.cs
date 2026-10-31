@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using CardCore.Attribute;
 
 namespace CardCore.Attribute.Handlers
@@ -29,6 +30,7 @@ namespace CardCore.Attribute.Handlers
                     CounterType = KeywordRules.ArmorCounter,
                     Amount = actualDelta,
                     Source = context.Source,
+                    EffectTint = effect.AnchorTint(), // 赋予粒子（2026-11-01）：表现层以非 null 识别「赋予」并按极性×颜色播爆发
                 });
             }
         }
@@ -64,6 +66,7 @@ namespace CardCore.Attribute.Handlers
                     CounterType = CounterRules.ToughnessCounter,
                     Amount = actualDelta,
                     Source = context.Source,
+                    EffectTint = effect.AnchorTint(), // 赋予粒子（2026-11-01）：表现层以非 null 识别「赋予」并按极性×颜色播爆发
                 });
             }
         }
@@ -99,6 +102,7 @@ namespace CardCore.Attribute.Handlers
                     CounterType = CounterRules.DivineShieldCounter,
                     Amount = actualDelta,
                     Source = context.Source,
+                    EffectTint = effect.AnchorTint(), // 赋予粒子（2026-11-01）：表现层以非 null 识别「赋予」并按极性×颜色播爆发
                 });
             }
         }
@@ -133,6 +137,7 @@ namespace CardCore.Attribute.Handlers
                     CounterType = CounterRules.RebornCounter,
                     Amount = actualDelta,
                     Source = context.Source,
+                    EffectTint = effect.AnchorTint(), // 赋予粒子（2026-11-01）：表现层以非 null 识别「赋予」并按极性×颜色播爆发
                 });
             }
         }
@@ -167,6 +172,7 @@ namespace CardCore.Attribute.Handlers
                     CounterType = CounterRules.StealthCounter,
                     Amount = actualDelta,
                     Source = context.Source,
+                    EffectTint = effect.AnchorTint(), // 赋予粒子（2026-11-01）：表现层以非 null 识别「赋予」并按极性×颜色播爆发
                 });
             }
         }
@@ -201,6 +207,7 @@ namespace CardCore.Attribute.Handlers
                     CounterType = CounterRules.SpellShieldCounter,
                     Amount = actualDelta,
                     Source = context.Source,
+                    EffectTint = effect.AnchorTint(), // 赋予粒子（2026-11-01）：表现层以非 null 识别「赋予」并按极性×颜色播爆发
                 });
             }
         }
@@ -233,6 +240,7 @@ namespace CardCore.Attribute.Handlers
                     CounterType = CounterRules.ToxinCounter,
                     Amount = actualDelta,
                     Source = context.Source,
+                    EffectTint = effect.AnchorTint(), // 赋予粒子（2026-11-01）：表现层以非 null 识别「赋予」并按极性×颜色播爆发
                 });
             }
         }
@@ -265,6 +273,7 @@ namespace CardCore.Attribute.Handlers
                     CounterType = CounterRules.RetaliationCounter,
                     Amount = actualDelta,
                     Source = context.Source,
+                    EffectTint = effect.AnchorTint(), // 赋予粒子（2026-11-01）：表现层以非 null 识别「赋予」并按极性×颜色播爆发
                 });
             }
         }
@@ -298,6 +307,7 @@ namespace CardCore.Attribute.Handlers
                     CounterType = CounterRules.LockCounter,
                     Amount = actualDelta,
                     Source = context.Source,
+                    EffectTint = effect.AnchorTint(), // 赋予粒子（2026-11-01）：表现层以非 null 识别「赋予」并按极性×颜色播爆发
                 });
             }
         }
@@ -328,6 +338,7 @@ namespace CardCore.Attribute.Handlers
                     CounterType = KeywordRules.RushSicknessCounter,
                     Amount = actualDelta,
                     Source = context.Source,
+                    EffectTint = effect.AnchorTint(), // 赋予粒子（2026-11-01）：表现层以非 null 识别「赋予」并按极性×颜色播爆发
                 });
             }
         }
@@ -359,6 +370,7 @@ namespace CardCore.Attribute.Handlers
                     CounterType = CounterRules.VulnerableCounter,
                     Amount = actualDelta,
                     Source = context.Source,
+                    EffectTint = effect.AnchorTint(), // 赋予粒子（2026-11-01）：表现层以非 null 识别「赋予」并按极性×颜色播爆发
                 });
             }
         }
@@ -383,7 +395,7 @@ namespace CardCore.Attribute.Handlers
             foreach (var target in context.Targets)
             {
                 if (!(target is Card card) || !card.IsAlive) continue;
-                CounterRules.AddStatCounter(card, CounterId, stacks, context.Source);
+                CounterRules.AddStatCounter(card, CounterId, stacks, context.Source, effect.AnchorTint()); // tint=赋予粒子（2026-11-01）
             }
         }
     }
@@ -424,6 +436,7 @@ namespace CardCore.Attribute.Handlers
                     CounterType = CounterRules.HeroAttackCounter,
                     Amount = actualDelta,
                     Source = context.Source,
+                    EffectTint = effect.AnchorTint(), // 赋予粒子（2026-11-01）：表现层以非 null 识别「赋予」并按极性×颜色播爆发
                 });
             }
         }
@@ -458,6 +471,7 @@ namespace CardCore.Attribute.Handlers
                     CounterType = CounterRules.DepravityCounter,
                     Amount = actualDelta,
                     Source = context.Source,
+                    EffectTint = effect.AnchorTint(), // 赋予粒子（2026-11-01）：表现层以非 null 识别「赋予」并按极性×颜色播爆发
                 });
             }
         }
@@ -492,6 +506,7 @@ namespace CardCore.Attribute.Handlers
                     CounterType = CounterRules.ReplayCounter,
                     Amount = actualDelta,
                     Source = context.Source,
+                    EffectTint = effect.AnchorTint(), // 赋予粒子（2026-11-01）：表现层以非 null 识别「赋予」并按极性×颜色播爆发
                 });
             }
         }
@@ -528,6 +543,7 @@ namespace CardCore.Attribute.Handlers
                     CounterType = CounterRules.TempCounter,
                     Amount = actualDelta,
                     Source = context.Source,
+                    EffectTint = effect.AnchorTint(), // 赋予粒子（2026-11-01）：表现层以非 null 识别「赋予」并按极性×颜色播爆发
                 });
             }
         }
@@ -538,9 +554,13 @@ namespace CardCore.Attribute.Handlers
 
     /// <summary>
     /// 「成长」原子（2026-10-11 资源重做定案：灵气复苏 ×2 翻倍改成长 +1，绿3，资源族；
-    /// 2026-10-15：封顶退役）：效果控制者的地牌槽上限 +1（各自池生效不共享），可无限重复使用
+    /// 2026-10-15：封顶退役）：① 效果控制者的地牌槽上限 +1（各自池生效不共享），可无限重复使用
     /// （ElementPool.AddLandCapBonus → GetLandCap 单点：地牌张数/支付浓度/出牌费用门槛/黑白钳同随）。
-    /// 无目标原子（作用=效果控制者）。
+    /// ② 2026-10-31 改版：从自己牌库随机将一张**带绿色费用**的卡横置加入元素池（锁定产色=绿）。
+    /// 「带绿色费用」=GetLandColorChoices 含绿（卡面/各模式费 ∪ 主动效果锚价——单源，绿锚价法术同入）；
+    /// 上限加值先行（+1 腾出的槽位正好容纳本次入池）；禁地令/地牌资格/上限余位由 AddCardToPool
+    /// 权威闸兜底——任一被拒或牌库无绿费卡=只 +1 不加牌。横置入场=本回合周期不再产色
+    /// （PooledCard.IsTapped，己方回合开始解除）。无目标原子（作用=效果控制者）。
     /// </summary>
     public class IncreaseLandCapHandler : AtomicEffectHandlerBase
     {
@@ -556,10 +576,33 @@ namespace CardCore.Attribute.Handlers
                 return;
             }
             pool.AddLandCapBonus(player);
+
+            // ② 牌库随机取一张绿费卡横置入池（GameRng 种子可复播——网络对拍/回放确定性同发现原子）
+            var zm = context.ZoneManager;
+            var deck = zm?.GetCards(player, Zone.Deck);
+            if (deck == null || deck.Count == 0) return;
+
+            var candidates = new List<Card>();
+            foreach (var card in deck)
+            {
+                if (card != null && ElementPoolSystem.GetLandColorChoices(card).Contains(ManaType.Green))
+                    candidates.Add(card);
+            }
+            if (candidates.Count == 0) return;
+
+            var pick = candidates[GameRng.Next(0, candidates.Count)];
+            if (!pool.AddCardToPool(pick, player, ManaType.Green)) return;
+
+            // 横置入场：先改池内包装态（经入池事件读到的观察者即见已横置），再做区域移动+发事件
+            var pooled = pool.GetPool(player).PooledCards.Find(pc => pc != null && pc.SourceCard == pick);
+            if (pooled != null) pooled.IsTapped = true;
+
+            zm.MoveCard(pick, player, Zone.Deck, Zone.ElementPool);
+            pool.PublishPoolAdd(pick, player);
         }
 
         protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => "地牌上限+1（可重复使用，无上限）";
+            => "地牌上限+1（无上限），并从卡组随机将一张带绿色费用的卡横置加入元素池";
     }
 
     /// <summary>攻击力减少指示物（每层 −1 攻）</summary>
@@ -703,7 +746,8 @@ namespace CardCore.Attribute.Handlers
                     Target = target,
                     CounterType = CounterRules.NullifyCounter,
                     Amount = actualDelta,
-                    Source = context.Source
+                    Source = context.Source,
+                    EffectTint = effect.AnchorTint() // 赋予粒子（2026-11-01）：表现层以非 null 识别「赋予」并按极性×颜色播爆发
                 });
                 PublishEvent(new KeywordAppliedEvent
                 {
@@ -749,7 +793,8 @@ namespace CardCore.Attribute.Handlers
                     Target = target,
                     CounterType = KeywordRules.SleepCounter,
                     Amount = actualDelta,
-                    Source = context.Source
+                    Source = context.Source,
+                    EffectTint = effect.AnchorTint() // 赋予粒子（2026-11-01）：表现层以非 null 识别「赋予」并按极性×颜色播爆发
                 });
             }
         }

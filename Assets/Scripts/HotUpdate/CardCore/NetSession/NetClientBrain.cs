@@ -163,7 +163,7 @@ namespace CardCore.Network
             }
 
             // ④-2.5 英雄技能（2026-10-21 协议补课后 bot 可用）：FieldZone 技能卡未横置即发动
-            //（effectIndex=0——单效果技能免锚价；多效果择一收 1 灰，付不起被拒走 tried 闸防风暴）。
+            //（effectIndex=0；2026-11-01 锚价现付定案——付不出锚价被拒，走 tried 闸防风暴）。
             // 失败（无目标/沉默/费用）本回合不重试——与 _triedPlayThisTurn 同口径。
             if (!_skillTriedThisTurn)
             {

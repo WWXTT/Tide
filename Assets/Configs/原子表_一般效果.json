@@ -341,7 +341,7 @@
     ]
   },
   {
-    "ID": "4147e3a7",
+    "ID": "22f33a1a",
     "EnumName": "驱散",
     "DisplayName": "移除{target}全部指示物以及临时赋予的关键词",
     "EffectType": "Purify",
@@ -436,8 +436,8 @@
     "MountKinds": "",
     "Tags": null,
     "ManaList": [
-      0,
       6,
+      0,
       0,
       0
     ]
@@ -450,20 +450,20 @@
     "TargetKinds": null,
     "TargetFilter": null,
     "Polarity": 1,
-    "MountKinds": "",
+    "MountKinds": "动态费用",
     "Tags": null,
     "参数": "CardRef",
     "ManaList": [
-      0,
+      2,
       0,
       0,
       0
     ]
   },
   {
-    "ID": "20a1549f",
+    "ID": "8e11494b",
     "EnumName": "成长",
-    "DisplayName": "地牌上限+1（可重复使用，无上限）",
+    "DisplayName": "地牌上限+1（无上限），并从卡组随机将一张带绿色费用的卡横置加入元素池",
     "EffectType": "IncreaseLandCap",
     "TargetKinds": null,
     "TargetFilter": null,
@@ -474,7 +474,7 @@
       0,
       0,
       0,
-      2
+      3
     ]
   },
   {
@@ -624,7 +624,7 @@
     "MountKinds": "不可作为连接光环,不可随机",
     "Tags": "",
     "ManaList": [
-      3,
+      2,
       0,
       0,
       0
@@ -641,7 +641,7 @@
     "MountKinds": "不可作为连接光环,不可随机",
     "Tags": "",
     "ManaList": [
-      3,
+      2,
       0,
       0,
       0
@@ -826,9 +826,9 @@
     "EnumName": "移动",
     "DisplayName": "将{target}移动到空格",
     "EffectType": "MoveUnit",
-    "TargetKinds": "己方单位",
+    "TargetKinds": "己方单位,对方单位",
     "TargetFilter": null,
-    "Polarity": 1,
+    "Polarity": 0,
     "MountKinds": "",
     "Tags": "位置族",
     "ManaList": [
@@ -880,8 +880,13 @@
     "TargetKinds": null,
     "TargetFilter": null,
     "Polarity": 0,
-    "MountKinds": "不可作为连接光环",
+    "MountKinds": "系统",
     "Tags": null,
-    "ManaList": [ 0, 0, 0, 0 ]
+    "ManaList": [
+      0,
+      0,
+      0,
+      0
+    ]
   }
 ]

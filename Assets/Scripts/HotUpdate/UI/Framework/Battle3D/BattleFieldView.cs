@@ -2003,9 +2003,9 @@ namespace SynergyUI
         private static readonly Color DeckMarkCurseColor = new Color(0.38f, 0.32f, 0.55f);
 
         /// <summary>诅咒/祝福施加到牌库的演出（2026-10-26 CounterChangedEvent Amount>0 钩子）：
-        /// 卡堆顶一次性爆发+卡堆脉冲——原黑 ShadowExplosion/白 HealNova 路由已随 2026-10-28 P2
-        /// 白/黑席位删除退役，现恒灰查表未命中 → PlaySpark 兜底（祝福/诅咒色由 SparkUpColor/
-        /// DeckMarkCurseColor 区分；VFX 重路由待用户重拍）。目标卡在牌库**无视图
+        /// 卡堆顶一次性爆发+卡堆脉冲。2026-11-01 catalog 释放件重分配后恒灰查表命中——
+        /// 祝福=灰 Heal（HealNova·原白新星位）/诅咒=灰 Hit（ShadowExplosion·原黑爆位），
+        /// 旧观感回归；未命中仍回落 PlaySpark 兜底。目标卡在牌库**无视图
         /// 单位**：锚=BattleZoneProps.DeckTopWorldPosition（不走 ResolveEffectTarget），归属=卡
         /// Owner/Controller 经 ownerOf 映射。不占视觉门、无浮字（施加语义战报行已有）。</summary>
         public UniTask PlayDeckMarkAsync(Entity target, Func<Player, int> ownerOf, bool blessing)
@@ -2020,9 +2020,7 @@ namespace SynergyUI
                     {
                         BattleZoneProps.PulseDeck(owner);
                         Vector3 at = top + Vector3.up * 0.3f; // 堆顶之上的小抬升（低于 SparkLift——堆顶已抬空）
-                        // 白/黑席位已删（2026-10-28 P2）：查表恒用灰→catalog 灰 Heal 缺配未命中，
-                        // 落 Spark 兜底（祝福/诅咒色由 SparkUpColor/DeckMarkCurseColor 区分——表现待用户重拍）
-                        var color = ManaType.Gray;
+                        var color = ManaType.Gray; // 灰档（祝福 Heal/诅咒 Hit 同灰，极性分色系）
                         bool played = false;
                         if (BattleVfxFx.Enabled)
                         {
@@ -2039,6 +2037,43 @@ namespace SynergyUI
                     }
                 }
             }
+            return UniTask.CompletedTask;
+        }
+
+        /// <summary>赋予爆发粒子（KeywordEvent/CounterChangedEvent·2026-11-01「极性×颜色 8 种」定案）：
+        /// 赋予原子落地在目标锚点播一次性爆发——减益=Hit 族 / 增益=Heal 族（参照旧诅咒/祝福施加
+        /// 爆发的单爆点形态），颜色=原子行基准主色（effectTint）无基准回落来源卡费用主色
+        ///（同伤害演出口径）。无弹体/无浮字（战报行已有）；单位目标入串行链（同伤害/回复
+        /// 防同单位叠拍）；目标不在视图（手牌/牌库/墓地等）静默返回；不占视觉门。</summary>
+        public async UniTask PlayGrantBurstAsync(Entity target, Entity source, Func<Player, int> ownerOf,
+            ManaType? effectTint, bool debuff)
+        {
+            var et = ResolveEffectTarget(target, ownerOf);
+            if (et == null) return;
+            if (target is Card tc)
+                await RunUnitFxAsync(tc.RuntimeId, () => GrantBurstCoreAsync(et, source, effectTint, debuff));
+            else
+                await GrantBurstCoreAsync(et, source, effectTint, debuff);
+        }
+
+        /// <summary>赋予爆发本体（串行链内执行）：8 种=极性 2（Hit/Heal）×颜色 4（灰红蓝绿）——
+        /// catalog 2026-11-01 重分配后四色 Heal/Hit 全配位；未命中回落效果色 Spark。</summary>
+        private UniTask GrantBurstCoreAsync(EffectTarget et, Entity source, ManaType? effectTint, bool debuff)
+        {
+            var mana = effectTint ?? DominantCostMana(source);
+            Vector3 at = et.ImpactAnchor + Vector3.up * SparkLift; // 抬升防六棱柱地块遮挡（同回复火花口径）
+            bool played = false;
+            if (BattleVfxFx.Enabled)
+            {
+                try { played = debuff ? BattleVfxFx.TryPlayHit(mana, at, 1f) : BattleVfxFx.TryPlayHeal(mana, at, 1f); }
+                catch (Exception ex) { BattleVfxFx.NoteFailure(ex); }
+            }
+            if (!played)
+                BattleEffectFx.PlaySpark(at, BattleCastArrival.ManaColor(mana));
+#if UNITY_EDITOR
+            Debug.Log($"[GrantFx] 赋予爆发：{(debuff ? "减益Hit" : "增益Heal")} 色={mana}" // 演出取证口（构建不打）
+                      + $" 路由={(played ? "VFX" : "Spark兜底")}{(effectTint == null ? "（无基准·回落来源主色）" : "")}");
+#endif
             return UniTask.CompletedTask;
         }
 

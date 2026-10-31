@@ -556,9 +556,10 @@ namespace CardCore
             if (atom.Type == AtomicEffectType.SearchDeck)
                 return FilterPrecisionCost(atom);
 
-            // 召唤衍生物（2026-10-07 表价清零定案）：单价随模板，表行 ManaList 已清零不再携带锚价
-            //（置于零价守卫之前，恒出模板价）。模板不可解析/零费=0（构筑期校验拦截、运行时 handler 兜底拒绝）；
-            // 数量/持续档不乘（量级即最终口径），触发档仍由外层统一乘。
+            // 召唤衍生物（2026-10-31 动态费用改版，逆转 2026-10-07 表价清零）：总价 = 表行锚价（效果
+            // 本体费·表行 MountKinds 已标「动态费用」）＋模板段×数量。本体锚价恒收——未绑引用卡/
+            // 模板不可解析时只剩本体费（卡组合界面绑定引用卡 ID 后才见完整费，构筑期校验拦未绑）；
+            // 模板零费桶同样只剩本体费。数量/持续档不乘（量级即最终口径），触发档仍由外层统一乘。
             // 内容全价（2026-10-10 无底盘定案，取代同日早间「声明费+ChassisAdjust 回加」案）：
             // 衍生物没走「入组 1+抽牌 2」，吃不到 3 点底盘——单价 = 模板内容全价
             //（S含耐久+K+E，不乘 d(C)）+ 结构费全额（攻/守/槽×1，无预算抵扣）= ContentPriceOf。
@@ -570,13 +571,14 @@ namespace CardCore
             {
                 var resolver = Attribute.Handlers.SummonTokenHandler.ResolveTemplate; // 引用卡ID 唯一解析器
                 var template = string.IsNullOrEmpty(atom.StringValue) ? null : resolver?.Invoke(atom.StringValue);
-                if (template == null) return 0f;
+                float anchor = cfg != null ? cfg.TotalUnitCost : 0f; // 本体费=表行锚价（恒收）
+                if (template == null) return anchor;
                 float unit = 0f;
                 foreach (var kv in SummonCompensatedBuckets(template, out _))
                     unit += kv.Value;
-                if (unit <= 0f) return 0f;
+                if (unit <= 0f) return anchor;
                 int count = Math.Max(1, atom.Value);
-                return unit * count;
+                return anchor + unit * count;
             }
 
             // 属性价梯（2026-09-13 定案：攻/血同锚 0.5/+1，按持续档定价——取代通用公式与持续折扣）：
@@ -664,7 +666,8 @@ namespace CardCore
         /// （ComputeAtomCost——含梯价/错边拆分/数量期望/触发连乘/缺陷减费/落区全部规则，一字不改），
         /// 再按表行费用构成份额**比例拆分**到各色（序数序）。单色行=行为与旧口径完全一致；
         /// 混合色行=总价不变、构成按份额分布（余数归序数序末个非零色保总额）。
-        /// 例外：召唤衍生物（2026-10-07 表价清零）构成随模板卡费用，表行不再携带份额。
+        /// 例外：召唤衍生物（2026-10-31 动态费用改版）两段落色——本体段按表行锚价份额、
+        /// 模板段按补偿后逐色桶（2026-10-07 表价清零口径已随锚价复收逆转）。
         /// </summary>
         public static Dictionary<ManaType, float> ComputeAtomCostByColor(AtomicEffectInstance atom, EffectDefinition def,
             List<int> domain, AtomicEffectConfig cfg)
@@ -674,9 +677,9 @@ namespace CardCore
             var result = new Dictionary<ManaType, float>();
             float total = ComputeAtomCost(atom, def, domain, cfg);
             var cost = cfg?.ManaList;
-            // 召唤衍生物（2026-10-07 表价清零）：分色不走通用比例分摊——**补偿后逐色桶**直出
-            //（2026-10-12 裁决按色落位：白色锚优先扣模板白分量、无白转扣灰——落位单源
-            // SummonCompensatedBuckets）；外层系数（触发/速度等）按比例缩放各桶，总额与标量口径一致。
+            // 召唤衍生物（2026-10-31 动态费用改版）：分色不走通用比例分摊——本体段（表行锚价）
+            // 按行 ManaList 份额、模板段照旧**补偿后逐色桶**直出（落位单源 SummonCompensatedBuckets）；
+            // 外层系数（触发等）按未缩放构成占比等比缩放两段（总额与标量口径一致）。
             if (atom.Type == AtomicEffectType.SummonToken)
             {
                 var resolver = Attribute.Handlers.SummonTokenHandler.ResolveTemplate; // 引用卡ID 唯一解析器
@@ -688,8 +691,19 @@ namespace CardCore
                     foreach (var kv in unitBuckets) bucketSum += kv.Value;
                     if (bucketSum > 0f && total > 0f)
                     {
-                        // 逐桶缩放入 result（保总额==total）
-                        float scale = total / bucketSum;
+                        float anchor = cfg != null ? cfg.TotalUnitCost : 0f;
+                        int count = Math.Max(1, atom.Value);
+                        float raw = anchor + bucketSum * count; // 未缩放构成（外层系数前）
+                        float anchorPart = raw > 0f ? total * (anchor / raw) : 0f;
+                        float anchorSum = cost != null ? cost.Total : 0f;
+                        if (anchorPart > 0f && anchorSum > 0f)
+                            foreach (var color in cost.NonzeroColors())
+                            {
+                                result.TryGetValue(color, out var prev);
+                                result[color] = prev + anchorPart * (cost[color] / anchorSum);
+                            }
+                        // 模板段逐桶缩放（两段合计保总额==total）
+                        float scale = (total - anchorPart) / bucketSum;
                         foreach (var kv in unitBuckets)
                         {
                             if (kv.Value <= 0f) continue;
@@ -699,7 +713,7 @@ namespace CardCore
                         return result;
                     }
                 }
-                return result;
+                // 模板不可解析/零费桶：只剩本体锚价段——落通用路径按行 ManaList 份额拆（同口径）
             }
             if (total <= 0f || cost == null || cost.IsZero) return result;
 
@@ -773,17 +787,19 @@ namespace CardCore
             {
                 var resolver = Attribute.Handlers.SummonTokenHandler.ResolveTemplate; // 引用卡ID 唯一解析器
                 var template = string.IsNullOrEmpty(atom.StringValue) ? null : resolver?.Invoke(atom.StringValue);
-                // 2026-10-12 句式改版：按个计显式化——单价构成入【】、数量恒列（用户要点：
-                // （模板【x】−负面指示物补偿【1】）×召唤数量【x】）。模板解析不到时明示，
-                // 不再展示误导性的「模板全价0」。
-                factors.Add($"召唤数量【{Math.Max(1, atom.Value)}】");
+                // 2026-10-31 动态费用改版句式：基准【表行锚价】（效果本体·恒收）＋模板段按个计
+                //（2026-10-12 句式：单价构成入【】——（模板【x】−负面指示物补偿【1】）×召唤数量【x】，
+                // 数量只乘模板段不乘本体基准，故并入基准句不另列系数）。模板解析不到时明示「计0」、
+                // 本体费照列（卡组合界面绑定引用卡后才见完整费）。
+                float anchorTotal = cfg != null ? cfg.TotalUnitCost : 0f;
+                string anchorZh = anchorTotal > 0f ? $"基准{AnchorZh(cfg.ManaList)}＋" : "";
                 if (template == null)
-                    return "（模板【未解析·计0】）"; // 数值在 ComputeAtomBaseAmount（unit=0）
+                    return $"{anchorZh}（模板【未解析·计0】）"; // 数值在 ComputeAtomBaseAmount（模板段=0）
                 var content = new ElementCost();
                 foreach (var kv in CardCostService.ContentPriceByColor(template))
                     if (kv.Value != 0) content[kv.Key] = kv.Value;
                 SummonCompensatedBuckets(template, out string compZh); // 落位单源：白优先白、无白转灰（显示实际落位色）
-                return $"（模板【{AnchorZh(content)}】−负面补偿【{compZh}】）"; // −遗忘行单层锚价/只（按色落位，数值在 ComputeAtomBaseAmount）
+                return $"{anchorZh}（模板【{AnchorZh(content)}】−负面补偿【{compZh}】）×召唤数量【{Math.Max(1, atom.Value)}】"; // −遗忘行单层锚价/只（按色落位，数值在 ComputeAtomBaseAmount）
             }
 
             float statTier = StatTierPrice(atom.Type, def);
@@ -1021,45 +1037,46 @@ namespace CardCore
         /// 主动照常计槽（2026-10-02 用户定案：「不占费用，占技能挂载」维持——效果槽是 AI 侧
         /// 每卡最大原子数限制的可见性锚，免槽会让 AI 看不见超限的主动堆叠）；
         /// 主动占用的只是底盘免费额度抵扣位，元素锚价仍构筑期全免（运行时现付）。
-        /// 代价栏计 1 槽（2026-10-04 定案：代价也是效果栏，不是特殊判——使用代价栏要单独为
-        /// 效果栏付 1 费，底盘 3 灰预算同口径扣槽，超出加价；全价不并入卡费，仅作门槛与补偿基准）。
-        /// 卡层 PayloadCost 计 1 槽；**主动效果的代价行各计 1 槽**（2026-10-29 P5：主动效果可带
-        /// 一条效果级代价——每个带代价的主动效果 +1，与卡层代价栏同口径；空行不占）；
-        /// 非主动效果的 legacy 效果级 Costs 兜底仍单卡合计 1 槽（单卡单条契约）。
+        /// 代价=**一个代价一个槽位**（2026-10-31 代价指向化定案）：每条已填代价行各计 1 槽——
+        /// 卡级行（PayloadCosts 逐行，TargetAttr 任指）与效果级行（每个效果的每条已填 Costs 行，
+        /// 主动/自动同口径）不分主次逐行计数；空行不占。底盘 3 灰预算同口径扣槽，超出加价。
         /// </summary>
         public static int CountEffectSlots(CardData card)
         {
             if (card == null) return 0;
             int slots = 0;
-            bool legacyCostRow = card.PayloadCost != null && card.PayloadCost.AllPayloads().Count > 0;
+            if (card.PayloadCosts != null)
+            {
+                foreach (var row in card.PayloadCosts)
+                    if (row != null && row.AllPayloads().Count > 0) slots += 1; // 每条卡级代价行 1 槽
+            }
             if (card.Effects != null)
             {
                 foreach (var eff in card.Effects)
                 {
                     if (eff == null) continue;
                     slots += 1; // 每效果 1 槽（含充能效果——P12：充能照常计槽；Choice 分支计槽已随 kind==2 退役删除）
-                    if (!EffectCostFilled(eff)) continue;
-                    if (IsActivatedEffectData(eff)) slots += 1; // P5：主动效果代价行（每效果 +1）
-                    else legacyCostRow = true;                   // 非主动 legacy 兜底（单卡合计 1）
+                    slots += FilledCostRows(eff); // 效果级代价行：每条已填行 1 槽（主动/自动同口径）
                 }
             }
-            if (legacyCostRow) slots += 1;
             return slots;
         }
 
-        /// <summary>效果级代价行是否已填（与 CardEffectConverter 装载同口：payload.refId 非空才算 Payload 条目）。</summary>
-        private static bool EffectCostFilled(CardEffectData eff)
+        /// <summary>效果级已填代价行数（payload 原子非空的 Costs 条目——与 CardEffectConverter
+        /// 装载同口：refId 非空才算 Payload 条目；空行不占槽）。</summary>
+        private static int FilledCostRows(CardEffectData eff)
         {
-            if (eff?.Costs == null) return false;
+            if (eff?.Costs == null) return 0;
+            int n = 0;
             foreach (var ce in eff.Costs)
-                if (ce?.payload != null && !string.IsNullOrEmpty(ce.payload.refId)) return true;
-            return false;
+                if (ce != null && ce.AllPayloads().Count > 0) n++;
+            return n;
         }
 
         /// <summary>数据级主动判定（镜像 CardEffectConverter.ConvertOne 的时机解析：Activate_* 三档时机，
-        /// 或 Voluntary 声明——双向钉死规则下后者也被钉回 Activate_*）。槽位计数等构筑期口径专用；
-        /// 运行时以转换后 def.IsActivatedEffect 为准。</summary>
-        private static bool IsActivatedEffectData(CardEffectData eff)
+        /// 或 Voluntary 声明——双向钉死规则下后者也被钉回 Activate_*）。槽位计数/施放期代价分桶
+        ///（CardCostService.CollectCostEntries）等构筑期口径专用；运行时以转换后 def.IsActivatedEffect 为准。</summary>
+        public static bool IsActivatedEffectData(CardEffectData eff)
         {
             int t = eff.TriggerTiming;
             TriggerTiming timing;

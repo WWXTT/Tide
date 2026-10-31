@@ -21,7 +21,8 @@ namespace CardCore.Attribute
         /// 替代引擎（光环层）→ 圣盾指示物（每层挡一次任意伤害，消耗 1 层）→
         /// 护甲指示物（逐点吸收）→ 坚韧指示物（每层 −1，生效后层数减半）→ 落血；
         /// 吸血（恢复随从自身）/系命（回复角色）→ 报复指示物（2026-10-16 新增：受伤落定后
-        /// 对来源反噬=层数的伤害、生效后减半——先减半再反击，互带几何衰减防互弹）。
+        /// 对来源反噬=层数的伤害、生效后减半——先减半再反击，互带几何衰减防互弹）
+        /// → 病原体关键词（2026-10-31 复活改版：受伤落定后对来源附加 1 层毒素）。
         /// 【穿透伤害已删（2026-10-31 定案）】「绕过防护」的生态位由既有的生命值上限降低
         ///（LifeDown——非伤害路径直降上限，天然不经防护层）承担，伤害族不再分穿透档。
     /// 【剧毒 Venom】2026-10-08 指示物转关键词（落定追加式）：受到其战斗伤害的生物在结算后被消灭
@@ -76,6 +77,12 @@ namespace CardCore.Attribute
         ///（回写账目不漂移）；④System 指示物豁免；⑤压制面限战场单位（手牌卡不拦费用指示物）。
         /// 苏醒入场沉睡（EntryCost 档）豁免（入场时序定案：沉睡先落压住后生效的绝缘体）。</summary>
         public const string Insulator = "Insulator";
+        /// <summary>病原体（2026-10-31 复活改版，绿5 表行「病原体」）：持有者**实际受到伤害**时
+        /// 对伤害来源附加 1 层毒素指示物（CounterRules.ToxinCounter——来源回合末发作：
+        /// 受到=层数的伤害后减半）。触发口=ApplyDamage 管线尾段（报复后、剧毒前——实际落定才触发，
+        /// 完全挡住不触发；null 来源无从感染）。旧病原体（战斗伤害改写挂剧毒指示物）
+        /// 2026-10-08 已退役，本位=全新语义复活（运行时 id 复用 Pathogen）。</summary>
+        public const string Pathogen = "Pathogen";
         /// <summary>地牌特性（2026-09-13 英雄技能·培育）：持有者可横置产 1 元素（色随自身费用构成）。
         /// GameActions.TapCreatureForElement 是横置口。</summary>
         public const string LandTrait = "LandTrait";
@@ -563,6 +570,33 @@ namespace CardCore.Attribute
                     });
                     ApplyDamage(target, source, retaliation, isCombat: false);
                 }
+            }
+
+            // 6.6 病原体（2026-10-31 复活改版，绿5 关键词）：持有者**实际受到伤害**（同报复/潜行失效
+            //     口径——圣盾/护甲/坚韧完全挡住不触发；dealt=0 不触发）时，对伤害来源附加 1 层毒素
+            //     指示物（ToxinCounter——来源回合末发作掉血+减半，见 CounterRules.ProcessToxinException）。
+            //     附加不出伤害、无递归链；与报复同持有时：报复反噬造伤可再触发受害侧病原体（正常
+            //     交叉感染）。null 来源（毒素发作等）无从感染；来源已死不感染（同吸血/系命门）；
+            //     自伤照染（来源=自身——字面口径，附加计数无递归风险）。持有者被本次伤害打死仍触发
+            //     （濒死感染，同报复门）；沉睡/失效期间 HasKeyword 读假=不触发（本体关键词统一压制口）。
+            //     绝缘体来源：毒素层照常落账、发作走效果口径读数（2026-10-31 绝缘体裁定自动覆盖）。
+            if (dealt > 0 && source != null && source.IsAlive && target.HasKeyword(Pathogen))
+            {
+                int pathogenDelta = source.AddCounters(CounterRules.ToxinCounter, 1, target);
+                EventManager.Instance.Publish(new CounterChangedEvent
+                {
+                    Target = source,
+                    CounterType = CounterRules.ToxinCounter,
+                    Amount = pathogenDelta,
+                    Source = target,
+                });
+                EventManager.Instance.Publish(new KeywordAppliedEvent
+                {
+                    Target = source,
+                    Keyword = Pathogen,
+                    Detail = $"病原体：{EffectText.Name(target)} 受到伤害，{EffectText.Name(source)} 感染 {pathogenDelta} 层毒素",
+                    Source = target
+                });
             }
 
             // 7. 剧毒（2026-10-08 指示物转关键词·落定追加式）：受到其战斗伤害的**生物**被消灭——

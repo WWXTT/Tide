@@ -38,6 +38,7 @@ namespace CardCore.Attribute.Handlers
                     CounterType = counterId,
                     Amount = actualDelta,
                     Source = context.Source,
+                    EffectTint = effect.AnchorTint(), // 赋予粒子（2026-11-01）
                 });
             }
         }

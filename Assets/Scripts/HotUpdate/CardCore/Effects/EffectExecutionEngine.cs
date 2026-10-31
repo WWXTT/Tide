@@ -166,11 +166,9 @@ namespace CardCore
             // 充能（2026-10-31 P12）：效果锚价不参与预检（表行 0 费 + 手写钉价防御清零）——
             // 1 点元素由 ChargeHandler 结算期按所选色现扣
             if (ComposerCatalog.IsChargeEffect(effect)) elementCosts = new ElementCost();
-            // 技能发动费（2026-10-18 深夜修订：技能可反复用，不与同名法术同免费）：
-            // 免元素锚价；多效果（抉择）技能每次发动另收 1 灰（ActivationBill 单源）；
-            // 特殊代价（牺牲等效果机制）不属「费用」，照收
-            if (HeroSkillSystem.IsSkillSource(source))
-                elementCosts = HeroSkillSystem.ActivationBill(source);
+            // 技能发动费（2026-11-01 定案，推翻 2026-10-18「免锚价+抉择另收1灰」）：
+            // 技能源照走锚价预检（与法术施放/主动效果同价源；UI 技能栏费用显示同为锚价口径）；
+            // 特殊代价（牺牲等效果机制）不属「费用」，照收——技能卡禁带代价由资格闸拦（CanBeSkillCard）
             // 临摹/变形发动补价（2026-10-23 开放元素限制——并入灰档=任意元素可补差；灰档支付链六色皆可垫付）：
             // 被变形卡的主动效果按变形前后声明费差额补差——预检与 ExecuteAsync 现付段同口径（付不出=不可发动）
             {
@@ -191,7 +189,7 @@ namespace CardCore
                 };
                 // P5（2026-10-29）：主动效果带效果级代价行 → 发动闸接管费用预检
                 //（净费=发动费−Σ代价价可付 ∧ CostPayability 代价可支付——资敌白嫖/手牌不足在此拦）；
-                // 技能栏不开放（IsSkillSource 分流回既有路径——ActivationBill 不套抵扣）。
+                // 技能栏不开放（IsSkillSource 分流保底；技能卡禁带代价由资格闸 CanBeSkillCard 拦）。
                 if (EffectActivationGate.Applies(effect, source, specialCosts))
                 {
                     if (EffectActivationGate.RejectReason(effect, source, elementCosts, specialCosts, costContext) != null)
@@ -307,10 +305,8 @@ namespace CardCore
             // 充能（2026-10-31 P12）：跳过通用元素锚价（表行 0 费钉死；手写钉价同款防御清零）——
             // 1 点元素由 ChargeHandler 按所选色现扣；源不在手牌/色非法时 handler 空转（不扣不加）
             if (ComposerCatalog.IsChargeEffect(effect)) elementCosts = new ElementCost();
-            // 技能发动费（2026-10-18 深夜修订）：免元素锚价 + 抉择技能每次 1 灰
-            //（ActivationBill 单源，与 CanActivate 预检同口径）
-            if (HeroSkillSystem.IsSkillSource(instance.Source))
-                elementCosts = HeroSkillSystem.ActivationBill(instance.Source);
+            // 技能发动费（2026-11-01 定案）：锚价现付——照走通用 DeriveElementCosts（无专属豁免），
+            // 与 CanActivate 预检同口径；抉择技能 instance.ModeIndex=所选效果序号，per-mode 计价天然成立
             //（结界发动费抵扣臂已随 2026-10-15 拆分定案退役：免费点固定拆「速1+其余入耐久」，
             // 不再二选一抵每次发动费——DurabilityBonusOf/EnchantSpeedBonusOf 两向落位。）
             // 临摹/变形发动补价（2026-10-23 开放元素限制——并入灰档=任意元素可补差，落在底盘抵扣之后——底盘属原卡，
@@ -327,8 +323,9 @@ namespace CardCore
 
             // P5（2026-10-29）：主动效果代价行=发动期抵扣——净费 = 发动费 − Σ代价价
             //（ReduceBuckets 先灰后最高费用色、逐色 ≥0、可归零；只读不改推导费）。
-            // 净费先付、代价后执行（与卡层 cast 同序）；技能栏不套抵扣（ActivationBill 原样付）、
-            // 触发式（ElementCostPrepaid）不经此段、法术 cast（skipElementCost）元素费已在卡费扣讫。
+            // 净费先付、代价后执行（与卡层 cast 同序）；技能栏不套抵扣（IsSkillSource 分流保底；
+            // 技能卡禁带代价由资格闸拦——2026-11-01）、触发式（ElementCostPrepaid）不经此段、
+            // 法术 cast（skipElementCost）元素费已在卡费扣讫。
             var payBill = elementCosts;
             if (EffectActivationGate.Applies(effect, instance.Source, specialCosts))
                 payBill = EffectActivationGate.NetBill(elementCosts, specialCosts);

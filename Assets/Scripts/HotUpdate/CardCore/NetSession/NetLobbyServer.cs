@@ -16,8 +16,8 @@ namespace CardCore.Network
     /// （Finished + 全员离开 → ResetIfEmpty 回 Waiting）后队列自动补位。真并发多局需专用服务器
     /// 构建（每局一进程，后置里程碑）。
     ///
-    /// 消息路由：大厅消息（130-135）在本层处理；JoinRoom/DeckSubmit/intent/反问等原样转房间——
-    /// 直连 JoinRoom(112) 的 M2 路径完全兼容。
+    /// 消息路由：大厅消息（LobbyHello..LobbyAddAi，2026-10-31 阶段D 重排后 124..129 连续段）在本层
+    /// 处理；JoinRoom/DeckSubmit/intent/反问等原样转房间——直连 JoinRoom(111) 的 M2 路径完全兼容。
     ///
     /// AI 填位：服务器向自身回环（127.0.0.1:Port）发起 NetClientBrain 客户端连接（独立线程），
     /// 对房间而言就是一个普通 TCP 客户端——走完整 JoinRoom/DeckSubmit/锁步链路，零特殊逻辑。

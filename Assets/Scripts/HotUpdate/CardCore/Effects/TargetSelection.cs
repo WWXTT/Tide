@@ -30,6 +30,12 @@ namespace CardCore
         /// <summary>发起本次选择的效果 Id（对应卡表 CardData.Effects[].Id——UI 查卡表渲染完整效果文；
         /// 空=未知效果，UI 只报卡名+标题）。</summary>
         public string PromptEffectId;
+        /// <summary>发起本次选择的原子类型（AI 候选排序用，2026-11-01）：代价=该代价原子类型、
+        /// 效果=首个作用原子类型。null=未标注（AI 保持原序）。</summary>
+        public AtomicEffectType? PromptAtom;
+        /// <summary>本次选择是否为「代价目标」（2026-11-01）：AI 排序按本标记判代价语义，
+        /// 不依赖中文标题文案。</summary>
+        public bool IsCostTarget;
         /// <summary>是否允许取消（取消返回空列表）。</summary>
         public bool AllowCancel = false;
         /// <summary>超时秒数。0 或负数时由 Service 按回合数自动算出。</summary>
@@ -82,6 +88,12 @@ namespace CardCore
         /// <summary>UI 实现。null 时所有请求自动选择（headless/测试）。</summary>
         public static ITargetSelector Current { get; set; }
 
+        /// <summary>AI 候选排序钩子（2026-11-01）：仅 AI/无头自动选择路径生效——AutoSelect 取前 N 前
+        /// 先由钩子重排候选（策略决定：解横置选最高攻、代价选低攻/已横置、加攻集中同一生物……）。
+        /// 由 SimpleAI 在自己回合开始时注入（闭包到当回合策略）；null=保持原序（旧行为）。
+        /// 返回 null/空 = 不改动。</summary>
+        public static Func<TargetSelectionRequest, List<Entity>> AiOrder { get; set; }
+
         /// <summary>超时下限（回合 1）。</summary>
         private const float BaseTimeout = 10f;
         /// <summary>每回合增量。</summary>
@@ -110,9 +122,17 @@ namespace CardCore
 
             GameActions.Crumb($"target-select cands={req.Candidates.Count} min={req.MinCount} chooser={req.Chooser?.Name} ui={(Current != null ? Current.GetType().Name : "null→auto")}");
 
-            // AI / 无头 → 即时自动选择（取前 MinCount 个）
+            // AI / 无头 → 即时自动选择（取前 MinCount 个）；策略排序钩子先重排候选
             if (Current == null || (req.Chooser != null && req.Chooser.IsAI))
+            {
+                var order = AiOrder;
+                if (order != null)
+                {
+                    var ordered = order(req);
+                    if (ordered != null && ordered.Count > 0) req.Candidates = ordered;
+                }
                 return AutoSelect(req.Candidates, req.MinCount);
+            }
 
             float timeout = req.TimeoutSeconds > 0f ? req.TimeoutSeconds : ComputeTimeout();
 

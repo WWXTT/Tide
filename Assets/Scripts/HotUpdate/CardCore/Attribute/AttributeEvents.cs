@@ -41,6 +41,10 @@ namespace CardCore.Attribute
         public string CounterType { get; set; }
         public int Amount { get; set; }
         public Entity Source { get; set; }
+        /// <summary>效果基础色（2026-11-01 赋予粒子定案）：**只有赋予原子 handler 发布时填写**
+        /// （原子行费用基准主色 effect.AnchorTint()）——回合末衰减/护甲吸收/引擎投放等其余发布点
+        /// 恒 null，表现层以非 null 为「这是一次赋予」的判据（赋予爆发粒子的触发口）。</summary>
+        public ManaType? EffectTint { get; set; }
     }
 
     // ==================== 卡牌操作事件 ====================
@@ -149,6 +153,13 @@ namespace CardCore.Attribute
         public string Keyword { get; set; }
         public bool IsAdd { get; set; }
         public Entity Source { get; set; }
+        /// <summary>效果基础色（2026-11-01 赋予粒子定案）：发布方 GrantKeywordHandler 填原子行
+        /// 费用基准主色（effect.AnchorTint()）；null=无基准（表现层回落来源卡费用主色）。</summary>
+        public ManaType? EffectTint { get; set; }
+        /// <summary>落点为减益（2026-11-01 赋予粒子极性）：GrantKeywordHandlerFactory.IsDebuffKeyword
+        /// 单源（当前仅缴械；与指示物 CounterPolarity 的「对落点增益/减益」同视角，非表级 Polarity
+        /// 的施放方受益口径）——表现层据此分流 Heal/Hit 两族粒子。</summary>
+        public bool IsDebuff { get; set; }
     }
 
     /// <summary>冻结事件</summary>

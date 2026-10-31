@@ -12,8 +12,8 @@ namespace SynergyUI
     /// （同 CardOverlayCard 的挂载模式——prefab 本体不带脚本）。承担四件事：
     /// ① IPointerEnter/Exit 悬停上报，转发给所属 HandFanView 重排目标；
     /// ② 布局 tween 状态（当前值/目标值），由 HandFanView.Tick 统一推进；
-    /// ③ 悬停显隐按钮层（btn：放置/使用/特殊使用+费用方格，2026-10-14 手牌出牌接线、
-    ///    2026-10-30 SpUse/CostSquares 改版）：
+    /// ③ 悬停显隐按钮层（btn：放置/使用+费用方格；2026-11-01 SpUse 退役——苏醒/充能并入
+    ///    卡面效果行选中、事件全走 Use 钮）：
     ///    条件由宿主屏注入的交互钩子（FanInteractions）评估；指针从卡面移到按钮上
     ///    （子孙物体）不收悬停态——Exit 事件按射线落点是否本卡子孙判留；
     /// ④ 可发动边缘雾光（AHandCard/Flowing 节点，2026-10-15 雾气改版）：Flowing 是用户在
@@ -32,19 +32,28 @@ namespace SynergyUI
         /// <summary>卡面渲染（Create 时回填）。</summary>
         [System.NonSerialized] public ACardView Face;
 
-        /// <summary>发动按钮（btn/Use，prefab 用户摆位，Create 时接线）。</summary>
+        /// <summary>发动按钮（btn/Use，prefab 用户摆位，Create 时接线）——SpUse 钮退役后唯一出牌口
+        ///（2026-11-01 苏醒/充能上卡）：普通=召唤/使用/发动，特殊行选中=苏醒/充能（文案随选切换）。</summary>
         [System.NonSerialized] public Button UseButton;
 
         /// <summary>放置按钮（btn/Place——作为地牌放入元素池）。</summary>
         [System.NonSerialized] public Button PlaceButton;
 
-        /// <summary>特殊使用按钮（btn/SpUse，2026-10-30）：语义按卡类型——生物=苏醒召唤（P6）、
-        /// 法术=多主动抉择（&gt;1 主动时取代使用钮）、结界=建造预付（P7）。文案随 SetHandChrome
-        /// 按类型写，显隐=宿主 CanSpUse 钩子。</summary>
-        [System.NonSerialized] public Button SpUseButton;
-
         /// <summary>手牌费用方格（btn/CostSquares，2026-10-30 定档：卡费只在手牌展示——卡面无费用）。</summary>
         [System.NonSerialized] public CostSquaresView CostSquares;
+
+        /// <summary>多主动法术当前选中效果行（2026-11-01 抉择上卡）：默认 0；点击卡面效果行切换
+        ///（SelectEffectMode——Outline 选中边框+CostSquares 费用联动），「使用」按此模式直入施放
+        ///（本地/网络的「选择要发动的效果」模式窗退役）。池复用换卡（对账键变更）归零。</summary>
+        public int SelectedEffectMode;
+
+        /// <summary>特殊效果行选中（2026-11-01 苏醒/充能上卡）：-1=未选（普通使用）；≥0=SpEffectRows
+        /// 对位行序——Use 钮文案随选变「苏醒/充能」并按此分流施放；**再点选中行=取消**回普通使用。
+        /// 与 SelectedEffectMode 互斥单向：选模式行清特殊选中；取消特殊后回退到原选中模式行。</summary>
+        public int SelectedSpEffect = -1;
+
+        private string _chromeKey;            // 上次 SetHandChrome 绑定的对账键——变更=池复用换卡，选行复位
+        private CardOverlayItem _chromeItem;  // 行费用联动数据源（SelectEffectMode 重刷 CostSquares 用）
 
         // ---- tween 状态（anchoredPosition / z 角 / 等比缩放） ----
         public Vector2 Pos;
@@ -189,7 +198,8 @@ namespace SynergyUI
 
         // ---- 按钮层（放置/发动） ----
 
-        /// <summary>按交互钩子条件刷新按钮层显隐（悬停进入/扇区对账后触发；无钩子=对手扇常态隐藏）。</summary>
+        /// <summary>按交互钩子条件刷新按钮层显隐（悬停进入/扇区对账后触发；无钩子=对手扇常态隐藏）。
+        /// SpUse 钮退役（2026-11-01）：苏醒/充能可用性并入 CanUse（宿主屏合并口径），此处只剩放置/使用两钮。</summary>
         public void RefreshActionButtons()
         {
             EnsureChromeRefs();
@@ -201,14 +211,11 @@ namespace SynergyUI
             }
             bool canUse = hooks.CanUse != null && hooks.CanUse(this);
             bool canPlace = hooks.CanPlaceLand != null && hooks.CanPlaceLand(this);
-            bool canSpUse = hooks.CanSpUse != null && hooks.CanSpUse(this);
-            Face.SetActionLayerVisible(canUse || canPlace || canSpUse);
+            Face.SetActionLayerVisible(canUse || canPlace);
             if (UseButton != null && UseButton.gameObject.activeSelf != canUse)
                 UseButton.gameObject.SetActive(canUse);
             if (PlaceButton != null && PlaceButton.gameObject.activeSelf != canPlace)
                 PlaceButton.gameObject.SetActive(canPlace);
-            if (SpUseButton != null && SpUseButton.gameObject.activeSelf != canSpUse)
-                SpUseButton.gameObject.SetActive(canSpUse);
         }
 
         /// <summary>btn 层件惰性解析兜底（2026-10-30）：Play 中域重载（Recompile-And-Continue）
@@ -217,38 +224,151 @@ namespace SynergyUI
         /// 监听（监听随域重载同亡，不会叠加）；Create 正常接线过的实例短路。</summary>
         private void EnsureChromeRefs()
         {
-            if (UseButton != null && PlaceButton != null && SpUseButton != null && CostSquares != null) return;
+            if (UseButton != null && PlaceButton != null && CostSquares != null) return;
             var useBtn = transform.Find("btn/Use")?.GetComponent<Button>();
             var placeBtn = transform.Find("btn/Place")?.GetComponent<Button>();
-            var spBtn = transform.Find("btn/SpUse")?.GetComponent<Button>();
             var squares = (transform.Find("btn/NowCost/CostSquares") ?? transform.Find("btn/CostSquares"))
                 ?.GetComponent<CostSquaresView>();
             if (UseButton == null && useBtn != null) { UseButton = useBtn; UseButton.onClick.AddListener(OnUseClicked); }
             if (PlaceButton == null && placeBtn != null) { PlaceButton = placeBtn; PlaceButton.onClick.AddListener(OnPlaceClicked); }
-            if (SpUseButton == null && spBtn != null) { SpUseButton = spBtn; SpUseButton.onClick.AddListener(OnSpUseClicked); }
             if (CostSquares == null) CostSquares = squares;
         }
 
         /// <summary>收起按钮层（出扇/复用/发起流程时）。</summary>
         public void HideActionButtons() => Face?.SetActionLayerVisible(false);
 
-        /// <summary>手牌卡按钮文案+费用方格（2026-10-30 定案）：卡费只在手牌展示（btn/CostSquares，
-        /// SetCards 对账时刷新）；使用钮=生物召唤/法术使用/结界发动；特殊使用钮（SpUse）=
-        /// 生物苏醒/法术抉择/结界建造。按钮显隐不在此处——RefreshActionButtons 按钩子逐钮评估。</summary>
+        /// <summary>手牌卡按钮文案+费用方格（2026-10-30 定案；2026-11-01 抉择上卡+SpUse 退役）：
+        /// 卡费只在手牌展示（btn/CostSquares，SetCards 对账时刷新；多主动法术=当前选中效果行费用、
+        /// 苏醒行选中=免灰账单）；使用钮文案=普通（召唤/使用/发动）或特殊行选中（苏醒/充能）。
+        /// 按钮显隐不在此处——RefreshActionButtons 按钩子逐钮评估。效果行接线（点击切选/边框）同拍完成。</summary>
         public void SetHandChrome(CardOverlayItem item)
         {
             if (item == null) return;
             EnsureChromeRefs(); // 域重载僵尸件自愈（字段 null=费用方格不赋值）
-            var type = item.Supertype;
-            SetButtonLabel(UseButton, type == Cardtype.Creature ? "召唤"
-                : type == Cardtype.Spell ? "使用" : "发动");
-            SetButtonLabel(SpUseButton, type == Cardtype.Creature ? "苏醒"
-                : type == Cardtype.Spell ? "抉择" : "建造");
-            if (CostSquares != null)
+            if (_chromeKey != item.Key)
             {
-                if (item.Costs != null && !item.Costs.IsZero) CostSquares.SetCosts(item.Costs);
-                else CostSquares.Clear();
+                SelectedEffectMode = 0;   // 池复用换卡：选行复位（默认第一模式行）
+                SelectedSpEffect = -1;    // 特殊行未选（普通使用）
+                _chromeKey = item.Key;
             }
+            _chromeItem = item;
+            UpdateUseLabel();
+            WireEffectRows();
+            UpdateEffectCost();
+        }
+
+        /// <summary>使用钮文案（2026-11-01 SpUse 退役·事件全走 Use）：特殊行选中=苏醒/充能；
+        /// 否则按卡型 召唤/使用/发动。SetHandChrome 与切行共用。</summary>
+        private void UpdateUseLabel()
+        {
+            if (_chromeItem == null) return;
+            string text;
+            var spKind = SelectedSpKind;
+            if (spKind == SpEffectKind.Awaken) text = "苏醒";
+            else if (spKind == SpEffectKind.Charge) text = "充能";
+            else
+            {
+                var type = _chromeItem.Supertype;
+                text = type == Cardtype.Creature ? "召唤"
+                    : type == Cardtype.Spell ? "使用" : "发动";
+            }
+            SetButtonLabel(UseButton, text);
+        }
+
+        /// <summary>当前选中特殊行种类（null=未选/越界）——宿主屏（BattleScreen）Use 钮分流消费。</summary>
+        public SpEffectKind? SelectedSpKind
+        {
+            get
+            {
+                var kinds = _chromeItem?.SpEffectKinds;
+                if (SelectedSpEffect < 0 || kinds == null || SelectedSpEffect >= kinds.Count) return null;
+                return kinds[SelectedSpEffect];
+            }
+        }
+
+        /// <summary>效果行接线（SetHandChrome 对账拍）：模式行点击=切换施放模式（清特殊选中）；
+        /// 特殊行点击=选中（**再点同行=取消**回普通使用）。Outline 互斥：特殊选中时只在特殊行，
+        /// 否则在选中模式行。ACardView.Apply 克隆/复用行对象，此处每拍 RemoveAllListeners 再挂
+        ///（防对账叠加；prefab onClick 本空），行序=Item 平行表序。</summary>
+        private void WireEffectRows()
+        {
+            var rows = Face != null ? Face.ActiveEffectRows : null;
+            var spRows = Face != null ? Face.SpEffectRows : null;
+            int modeCount = rows != null ? rows.Count : 0;
+            int selMode = modeCount > 0 ? Mathf.Clamp(SelectedEffectMode, 0, modeCount - 1) : 0;
+            for (int i = 0; i < modeCount; i++)
+            {
+                if (rows[i] == null) continue;
+                int idx = i; // 闭包捕获
+                WireRow(rows[i], () => SelectEffectMode(idx), SelectedSpEffect < 0 && i == selMode);
+            }
+            int spCount = spRows != null ? spRows.Count : 0;
+            for (int i = 0; i < spCount; i++)
+            {
+                if (spRows[i] == null) continue;
+                int idx = i;
+                WireRow(spRows[i], () => SelectSpEffect(idx), SelectedSpEffect == idx);
+            }
+        }
+
+        private void WireRow(RectTransform row, UnityEngine.Events.UnityAction click, bool outlined)
+        {
+            var btn = row.GetComponent<Button>();
+            if (btn != null)
+            {
+                btn.onClick.RemoveAllListeners();
+                btn.onClick.AddListener(click);
+            }
+            var outline = row.GetComponent<Outline>();
+            if (outline != null) outline.enabled = outlined;
+        }
+
+        /// <summary>切换选中效果行（模式行点击入口）：边框/费用/使用钮文案联动（费用=该模式现付费）。
+        /// 与特殊行互斥——选中模式行即退出苏醒/充能特殊态。纯 UI 态，不设回合/阶段闸（出牌闸在「使用」链上）。</summary>
+        public void SelectEffectMode(int index)
+        {
+            var rows = Face != null ? Face.ActiveEffectRows : null;
+            int n = rows != null && rows.Count > 0 ? rows.Count
+                : (_chromeItem?.ActiveEffectCosts?.Count ?? 0);
+            if (n <= 1) return;
+            SelectedEffectMode = Mathf.Clamp(index, 0, n - 1);
+            SelectedSpEffect = -1;
+            WireEffectRows();
+            UpdateUseLabel();
+            UpdateEffectCost();
+        }
+
+        /// <summary>特殊行点击（苏醒/充能，2026-11-01 上卡）：选中→Use 钮文案/边框/费用切换为该特殊态；
+        /// **再点选中行=取消**回普通使用（回落原选中模式行）。无特殊行数据空转。</summary>
+        public void SelectSpEffect(int index)
+        {
+            int n = _chromeItem?.SpEffectKinds?.Count ?? 0;
+            if (n == 0) return;
+            SelectedSpEffect = SelectedSpEffect == index ? -1 : Mathf.Clamp(index, 0, n - 1);
+            WireEffectRows();
+            UpdateUseLabel();
+            UpdateEffectCost();
+        }
+
+        /// <summary>费用方格刷新（对账/切行共用）：特殊行选中且带账单（苏醒=免灰）优先；
+        /// 多主动法术=选中行 ActiveEffectCosts；其余=卡净费 Costs（旧口径）。充能行无固定账单
+        ///（现付 1 点待选色）→维持当前模式费显示。</summary>
+        private void UpdateEffectCost()
+        {
+            if (CostSquares == null || _chromeItem == null) return;
+            ElementCost cost = _chromeItem.Costs;
+            var spCosts = _chromeItem.SpEffectCosts;
+            if (SelectedSpEffect >= 0 && spCosts != null && SelectedSpEffect < spCosts.Count
+                && spCosts[SelectedSpEffect] != null)
+                cost = spCosts[SelectedSpEffect];
+            else
+            {
+                var modeCosts = _chromeItem.ActiveEffectCosts;
+                if (modeCosts != null && modeCosts.Count > 1)
+                    cost = modeCosts[Mathf.Clamp(SelectedEffectMode, 0, modeCosts.Count - 1)];
+            }
+            if (cost != null && !cost.IsZero) CostSquares.SetCosts(cost);
+            else CostSquares.Clear();
         }
 
         private static void SetButtonLabel(Button button, string text)
@@ -269,12 +389,6 @@ namespace SynergyUI
         {
             HideActionButtons();
             Fan?.Hooks?.OnPlaceLand?.Invoke(this);
-        }
-
-        public void OnSpUseClicked()
-        {
-            HideActionButtons();
-            Fan?.Hooks?.OnSpUse?.Invoke(this);
         }
 
         // ---- 可发动边缘雾光 ----

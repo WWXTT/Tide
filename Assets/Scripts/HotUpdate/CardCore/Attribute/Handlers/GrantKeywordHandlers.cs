@@ -50,12 +50,16 @@ namespace CardCore.Attribute.Handlers
                     GuardianRules.OnGrantedInPlay(grantedCard);
                 // 战斗法师（原舍身 2026-10-30 改版）：无状态关键词——无授予即选/无入场钩子
                 //（散射在 KeywordRules.ApplyDamage 咽喉内联，MartyrdomRules 配对表整套退役）。
+                // EffectTint/IsDebuff（2026-11-01 赋予粒子定案）：原子行基准主色+落点极性——
+                // 表现层据此在目标锚点播「极性×颜色」8 种赋予爆发粒子（Heal/Hit 两族）。
                 PublishEvent(new KeywordEvent
                 {
                     Target = target,
                     Keyword = _keywordId,
                     IsAdd = true,
-                    Source = context.Source
+                    Source = context.Source,
+                    EffectTint = effect.AnchorTint(),
+                    IsDebuff = GrantKeywordHandlerFactory.IsDebuffKeyword(_keywordId)
                 });
             }
         }
@@ -134,6 +138,10 @@ namespace CardCore.Attribute.Handlers
             //（时序互压/账目安全），系统指示物豁免。表行 MountKinds 带
             //「不可作为连接光环」（免疫洞防线，同无实体/守护）。
             (AtomicEffectType.GrantInsulator, "Insulator", "获得绝缘体（不受指示物的效果影响）"),
+            // 病原体（2026-10-31 复活改版，绿5）：受到伤害时对伤害来源附加 1 层毒素——
+            // 触发口=KeywordRules.ApplyDamage 管线尾段（实际落定才触发，同报复/潜行失效口径；
+            // 旧病原体=战斗伤害改写挂剧毒，2026-10-08 退役，本位全新语义复活·id 复用）
+            (AtomicEffectType.GrantPathogen, "Pathogen", "获得病原体（受到伤害时，对伤害来源附加一层毒素）"),
             // 复生已移出关键词族（2026-10-08 指示物化）：GrantReborn 原子改由 GrantRebornHandler
             // 执行（挂 RebornCounter 层）——refId 已重推 502be10d→94f6a32d（2026-10-08 全量 ID 重推）
             (AtomicEffectType.GrantIndestructible, "Indestructible", "获得不灭"),
@@ -141,6 +149,12 @@ namespace CardCore.Attribute.Handlers
             // 数值闸门在 GameActions.HasAwakenKeyword/GetAwakenSleepLayers，处理器只写关键词 id
             (AtomicEffectType.GrantAwaken, "Awaken", "获得苏醒"),
         };
+
+        /// <summary>落点为减益的关键词（2026-11-01 赋予粒子极性单源）：与指示物 CounterPolarity
+        /// 同视角（对落点是增益还是减益，非表级 Polarity 的施放方受益口径）。当前仅缴械——
+        /// 授予敌方单位的削弱类关键词入表；表现层据此分流 Heal/Hit 两族赋予粒子。</summary>
+        internal static bool IsDebuffKeyword(string keywordId)
+            => keywordId == "Disarm";
 
         /// <summary>
         /// 创建所有关键词授予处理器

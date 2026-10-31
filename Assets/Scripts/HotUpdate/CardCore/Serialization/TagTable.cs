@@ -1,6 +1,6 @@
 // 此文件由 Tools/刷新属性排序（新增序列化字段时使用）自动生成，请勿手动修改
 // 如需添加新属性，请修改 RefreshMemoryPackOrder.cs 中的 GetTagDefinitions()
-// 手工定值标签登记 GetRawTagDefinitions()（只改 TagTable.cs 的手改区会被下次重生成冲掉）
+// 纯哈希口径（2026-10-31 阶段D 全量重排：手工定值段退役，无保留位概念）
 
 namespace CardCore.Serialization
 {
@@ -109,6 +109,9 @@ namespace CardCore.Serialization
         public const int AEI_TargetKinds = 1052954153;
         public const int AEI_ManaList = 902140877;
 
+        // ---- SerializableAtomicEffectEntry ----
+        public const int AEI_Amplitude = 1647853197;
+
         // ---- SerializableManaAmount ----
         public const int SerializableManaAmount_manaType = 549926884;
         public const int SerializableManaAmount_amount = 433477152;
@@ -211,6 +214,7 @@ namespace CardCore.Serialization
         public const int MGSS_ZoneCards = 1095299921;
         public const int MGSS_Hands = 1371201158;
         public const int MGSS_StackV2 = 1464117104;
+        public const int MGSS_RevealedZoneCards = 2054002893;
 
         // ---- StackItemDTO ----
         public const int SID_Source = 887547856;
@@ -236,10 +240,15 @@ namespace CardCore.Serialization
         public const int MsgIntentPlayCard_Targets = 1450138392;
         public const int MsgIntentPlayCard_FromZone = 933788219;
         public const int MsgIntentPlayCard_ModeIndex = 1969366828;
-        public const int MsgIntentPlayCard_AwakenCast = 1025809165; // StableTag 同式手算（已登记 GetTagDefinitions，重生成同值；2026-10-29 P6）
+        public const int MsgIntentPlayCard_AwakenCast = 1025809165;
+
+        // ---- MsgIntentBuildCard ----
+        public const int MsgIntentBuildCard_CardRuntimeId = 77691148;
+        public const int MsgIntentBuildCard_Color = 2040733387;
 
         // ---- MsgIntentAddToElementPool ----
         public const int MsgIntentAddToElementPool_CardRuntimeId = 713270002;
+        public const int MsgIntentAddToElementPool_ModeIndex = 408308435;
 
         // ---- MsgIntentDeclareAttack ----
         public const int MsgIntentDeclareAttack_Attacker = 439144961;
@@ -258,10 +267,6 @@ namespace CardCore.Serialization
         // ---- MsgIntentActivateHeroSkill ----
         public const int MsgIntentActivateHeroSkill_EffectIndex = 1738103103;
 
-        // ---- MsgIntentBuildCard ----
-        public const int MsgIntentBuildCard_CardRuntimeId = 77691148; // StableTag 同式手算（已登记 GetTagDefinitions，重生成同值；2026-10-29 P7）
-        public const int MsgIntentBuildCard_Color = 2040733387; // 同上（2026-10-29 P7 建造）
-
         // ---- MsgSelectRequest ----
         public const int MSelR_RequestId = 1404564517;
         public const int MSelR_ChooserSeat = 499080371;
@@ -278,13 +283,15 @@ namespace CardCore.Serialization
         public const int MSelP_RequestId = 1596262577;
         public const int MSelP_Indices = 2029117393;
 
-        // ---- MsgTextRequest / MsgTextResponse（2026-10-31 阶段C 文本反问；StableTag 同式手算，已登记 GetTagDefinitions）----
+        // ---- MsgTextRequest ----
         public const int MTxtR_RequestId = 34353602;
         public const int MTxtR_ChooserSeat = 532063247;
         public const int MTxtR_Title = 1682907019;
         public const int MTxtR_Default = 698403013;
         public const int MTxtR_MaxLen = 1059541441;
         public const int MTxtR_TimeoutSeconds = 718083082;
+
+        // ---- MsgTextResponse ----
         public const int MTxtP_RequestId = 898162932;
         public const int MTxtP_Text = 1765521786;
 
@@ -294,20 +301,22 @@ namespace CardCore.Serialization
         // ---- RuntimeCardState ----
         public const int RCS_RuntimeId = 1598792242;
         public const int RCS_ControllerSeat = 1105098362;
-        public const int RCS_BuildPaid = 81947996; // StableTag 同式手算（已登记 GetTagDefinitions，重生成同值；2026-10-29 P7 建造已建额）
-        public const int RCS_DelayedDeath = 747753030; // StableTag 同式手算=Hash32("RuntimeCardState.DelayedDeath")（已登记 GetRawTagDefinitions，重生成同值；2026-10-29 阶段3b 延迟死亡标记）
+        public const int RCS_BuildPaid = 81947996;
+        public const int RCS_LockedColor = 1684315828;
+        public const int RCS_DelayedDeath = 747753030;
 
         // ---- NetDeckDigest ----
         public const int NDD_AtomicRowsHash = 1017044835;
         public const int NDD_AtomicRowCount = 1928083177;
-        public const int NDD_TokenSig = 571524600; // P9b 衍生物区/槽绑定摘要（协议 v5；StableTag 同式手算已登记）
+        public const int NDD_TokenSig = 571524600;
 
         // ---- MsgDeckSubmit ----
         public const int MDS_DeckName = 1095059584;
         public const int MDS_CardIds = 339936047;
         public const int MDS_Digest = 216745245;
-        public const int MDS_TokenCardIds = 1248031784; // P9b 衍生物区（协议 v5；StableTag 同式手算已登记）
-        public const int MDS_TokenBindings = 1711324094; // P9b 衍生物槽绑定（协议 v5；同上）
+        public const int MDS_SkillCardId = 1834786867;
+        public const int MDS_TokenCardIds = 1248031784;
+        public const int MDS_TokenBindings = 1711324094;
 
         // ---- MsgDeckTokenBinding ----
         public const int MTB_CardId = 1865613195;
@@ -378,13 +387,6 @@ namespace CardCore.Serialization
         public const int MLAA_RoomId = 97705085;
         public const int MLAA_Nickname = 1153192151;
 
-        // ---- 手工定值保留位（历史手工分配的值，哈希公式推不出；改值=线格式字段 ID 变更，勿动）----
-        public const int AEI_Amplitude = 1052954154; // SerializableAtomicEffectEntry.amp（数值随机 RandomAmplitude）
-        public const int MsgIntentAddToElementPool_ModeIndex = 713270003; // MsgIntentAddToElementPool.ModeIndex（抉择放地）
-        public const int MGSS_RevealedZoneCards = 612847093; // MsgGameStateSync.RevealedZoneCards（展示卡·信息轴 2026-10-02）
-        public const int MDS_SkillCardId = 1739402857; // MsgDeckSubmit.SkillCardId（英雄技能标记卡 2026-10-07 卡牌化；不参与 Digest）
-        public const int RCS_LockedColor = 233742023; // RuntimeCardState.LockedColor（2026-10-11 资源重做：地牌锁定产色）
-
-        // 共 248 个标签（含 5 个手工定值保留位）
+        // 共 264 个标签（纯哈希口径）
     }
 }

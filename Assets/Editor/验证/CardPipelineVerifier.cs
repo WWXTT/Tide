@@ -2106,7 +2106,9 @@ namespace CardCore.Editor
         /// ③ 连发两次（发动费 2 灰·弃 1 价 2 → 净费 0）：两次各执行一次代价（手牌各 −1）、钱包全程不变（代价不产元素）；
         /// ④ 资敌闸（发动费 2 红·为对手回复 2 价 1 → 净费 1 红）：对手满血 → CanActivate=false（可支付闸拦）；
         ///    受伤 → 可发动，扣恰 1 红、对手回复 2；
-        /// ⑤ 技能不开放：技能源（FieldZone 法术）效果带代价 → ActivationBill 照付（1 灰，不套抵扣），代价仍执行。
+        /// ⑤ 技能不开放：技能源（FieldZone 法术）效果带代价 → 锚价照付（2026-11-01 锚价现付定案；
+        ///   不套净费闸抵扣——若误入闸会按代价价抵成 0），代价仍执行。技能卡禁带代价由资格闸拦（CanBeSkillCard），
+        ///   本段为 legacy 通道保底探针（合成注入绕过资格闸）。
         /// </summary>
         private static void TestActiveEffectCost(GameCore core, Player p1, Player p2)
         {
@@ -2296,24 +2298,25 @@ namespace CardCore.Editor
                 Assert(p2.Life == p2Max - 1,
                     $"资敌代价真发生（对手 {p2Max - 3}→{p2.Life}，回复 2）");
 
-                // ---- ⑤ 技能不开放：技能源效果带代价 → ActivationBill 照付（不套抵扣） ----
+                // ---- ⑤ 技能不开放（legacy 保底）：技能源效果带代价 → 锚价照付（不套净费闸抵扣） ----
                 var skillData = new CardData
                 {
                     ID = "VERIFY_P5_SKILL", CardName = "P5技能探针", Supertype = Cardtype.Spell,
-                    Effects = new List<CardEffectData> { ActiveEff("P5_SK_E1", cost: DiscardCost()), ActiveEff("P5_SK_E2") },
+                    Effects = new List<CardEffectData> { ActiveEff("P5_SK_E1", gray: 2, cost: DiscardCost()), ActiveEff("P5_SK_E2") },
                 };
                 var skillCard = InjectCard(core, p1, skillData);
                 core.ZoneManager.MoveCard(skillCard, p1, Zone.Hand, Zone.FieldZone);
                 var skillDefs = GameActions.GetCardEffectDefinitions(skillCard)
                     .Where(d => d != null && d.IsActivatedEffect).ToList();
-                Assert(skillDefs.Count == 2, "技能装载：双主动效果（多效果技能=每次发动 1 灰 ActivationBill）");
+                Assert(skillDefs.Count == 2, "技能装载：双主动效果（锚价现付——资格闸禁带代价，本段为 legacy 通道探针）");
+                pool1.TempElements[ManaType.Gray] = 4; // 灰充足（净费闸若误入：2灰−弃1价2=0 会扣 0——错侧可辨）
                 int grayBefore = (int)pool1.TempElements[ManaType.Gray];
                 int skillHandBefore = core.ZoneManager.GetCards(p1, Zone.Hand).Count;
                 Assert(GameActions.ActivateEffect(core, p1, skillDefs[0], skillCard),
-                    "技能：声明入栈成功（效果带代价不影响技能通道）");
+                    "技能：声明入栈成功（legacy 效果带代价不影响技能通道）");
                 GameActions.DrainStack(core);
-                Assert((int)pool1.TempElements[ManaType.Gray] == grayBefore - 1,
-                    $"技能发动费不受影响：扣恰 1 灰（ActivationBill 不套抵扣——若误抵会扣 0；{grayBefore}→{(int)pool1.TempElements[ManaType.Gray]}）");
+                Assert((int)pool1.TempElements[ManaType.Gray] == grayBefore - 2,
+                    $"技能锚价照付：扣恰 2 灰（不套净费闸抵扣——若误抵会扣 0；{grayBefore}→{(int)pool1.TempElements[ManaType.Gray]}）");
                 Assert(core.ZoneManager.GetCards(p1, Zone.Hand).Count == skillHandBefore - 1,
                     "技能：效果级代价仍执行（弃 1——技能不抵扣但代价照付）");
             }
@@ -3346,7 +3349,9 @@ namespace CardCore.Editor
                 for (int x = 0; x < BoardMath.Width && symmetric; x++)
                 {
                     if (z == BoardLayout.MiddleZ) continue; // 中线状态行=刻意豁免（表现层，玩法归属恒 -1）
-                    var (rx, rz) = BoardLayout.MirrorSeat(x, z);
+                    // 缺口格（x0 列/中线两端）不在六格行带 x1..x6 内——MirrorSeat 的 x→7−x 只对
+                    // 带内有定义（x0 会映到 7 越界）；缺口的对座像=同列 z 翻转（x0 列缺口两侧自对称）
+                    var (rx, rz) = BoardLayout.NoTileAt(x, z) ? (x, BoardMath.Height - 1 - z) : BoardLayout.MirrorSeat(x, z);
                     if (BoardLayout.RoleOf(rx, rz) != BoardLayout.RoleOf(x, z)) symmetric = false;
                     int o = BoardLayout.OwnerOf(x, z);
                     if (o != -1 && BoardLayout.OwnerOf(rx, rz) != 1 - o) symmetric = false;
@@ -5239,19 +5244,21 @@ namespace CardCore.Editor
                    && gateRowsFromTable.All(r => !CardCore.ComposerCatalog.CanBeTrunkRow(r))
                    && gateRowsFromTable.All(r => !CardCore.ComposerCatalog.CanBeRewardRow(r)),
                    "门槛行挂位 8 有限分支：不得作主干/奖励（CanBeTrunkRow/CanBeRewardRow 排除；行数与目录一致随表漂移）");
-            // 动态费用行（2026-10-24 定案）：临摹/变形赋予挂位 9——补差随局内动态情况，不可作 Then 奖励；
-            // 主干照旧（召唤衍生物同为动态计价但不挂此位，照旧可作奖励）
+            // 动态费用行（2026-10-24 定案；2026-10-31 召唤衍生物入列）：临摹/变形赋予/召唤衍生物挂位 9
+            // ——费用随局内动态情况（补差/模板费随引用卡绑定浮动），不可作 Then 奖励；主干照旧
             var morphRow = CardCore.Attribute.AtomicEffectTable.GetByEnumName("Morph");
             var grantMorphRow = CardCore.Attribute.AtomicEffectTable.GetByEnumName("GrantMorph");
             var summonTokenRow = CardCore.Attribute.AtomicEffectTable.GetByEnumName("SummonToken");
             Assert(CardCore.ComposerCatalog.HasMountBit(morphRow, CardCore.MountKind.DynamicCost)
                    && CardCore.ComposerCatalog.HasMountBit(grantMorphRow, CardCore.MountKind.DynamicCost)
-                   && !CardCore.ComposerCatalog.HasMountBit(summonTokenRow, CardCore.MountKind.DynamicCost),
-                   "动态费用位 9：临摹/变形赋予挂位（召唤衍生物不挂——照旧可作奖励）");
+                   && CardCore.ComposerCatalog.HasMountBit(summonTokenRow, CardCore.MountKind.DynamicCost),
+                   "动态费用位 9：临摹/变形赋予/召唤衍生物挂位（模板费随引用卡绑定浮动，不可作奖励）");
             Assert(!CardCore.ComposerCatalog.CanBeRewardRow(morphRow)
                    && !CardCore.ComposerCatalog.CanBeRewardRow(grantMorphRow)
+                   && !CardCore.ComposerCatalog.CanBeRewardRow(summonTokenRow)
                    && CardCore.ComposerCatalog.CanBeTrunkRow(morphRow)
-                   && CardCore.ComposerCatalog.CanBeTrunkRow(grantMorphRow),
+                   && CardCore.ComposerCatalog.CanBeTrunkRow(grantMorphRow)
+                   && CardCore.ComposerCatalog.CanBeTrunkRow(summonTokenRow),
                    "动态费用行不作 Then 奖励（CanBeRewardRow 排除）；主干资格保留");
             Assert(CardCore.ComposerCatalog.IsOutcomeCondition("DmgKillsTarget")
                    && CardCore.ComposerCatalog.IsOutcomeCondition("DeclareHit")
@@ -6649,8 +6656,9 @@ namespace CardCore.Editor
                 Assert(core.ZoneManager.GetCards(p1, Zone.Graveyard).Count == gy0 + 1, "满场 token 落墓");
                 RetireCards(core, p1, filler.ToArray());
 
-                // ⑤ 计价随模板（2026-10-12 终版：单价=模板内容全价（S+K+E，不乘 d(C)）−遗忘补偿按色落位；
-                //    模板不可解析=0；线性 ×数量。单价随表漂移不锚——只钉线性与可解析性）
+                // ⑤ 计价随模板（2026-10-31 动态费用改版：总价=本体锚价（表行·恒收）＋模板单价×数量，
+                //    单价=模板内容全价（S+K+E，不乘 d(C)）−遗忘补偿按色落位；模板不可解析=只剩本体锚价）。
+                //    锚价/单价随表漂移不锚——只钉结构（锚价+线性）与可解析性）
                 template.Cost = CardCore.ElementCost.FromValue(ManaType.Red, 3);
                 CardCore.ElementCost CostOf(int count, string tplId)
                 {
@@ -6666,12 +6674,18 @@ namespace CardCore.Editor
                     };
                     return CostDerivationService.DeriveElementCosts(def);
                 }
+                var c1 = CostOf(1, template.ID);
                 var c2 = CostOf(2, template.ID);
                 var c10 = CostOf(10, template.ID);
                 var cMiss = CostOf(2, "VERIFY_TOKEN_MISSING");
-                Assert(c2.Total > 0 && System.Math.Abs(c10.Total - c2.Total * 5f) < 0.05f,
-                       $"计价=单价×数量（线性）：×2={c2.Total:0.##}、×10={c10.Total:0.##}（单价=模板内容全价−遗忘补偿，随表漂移不锚）");
-                Assert(cMiss.Total == 0, "模板不可解析=0（构筑期拦截/运行时兜底同口径）");
+                float summonAnchor = CardCore.Attribute.AtomicEffectTable.GetByEnumName("SummonToken").TotalUnitCost;
+                // 2026-10-31 动态费用改版：总价=本体锚价（表行·恒收）＋单价×数量——模板段仍线性
+                //（c(n)=A+U·n → c10−c2=8U、c2−c1=U），锚价/单价随表漂移不锚，只钉结构与线性
+                Assert(c1.Total > summonAnchor && c2.Total > c1.Total
+                       && System.Math.Abs((c10.Total - c2.Total) - (c2.Total - c1.Total) * 8f) < 0.05f,
+                       $"计价=本体锚价＋模板单价×数量：A={summonAnchor:0.##}、×1={c1.Total:0.##}、×2={c2.Total:0.##}、×10={c10.Total:0.##}（模板段线性·随表漂移不锚）");
+                Assert(System.Math.Abs(cMiss.Total - summonAnchor) < 0.001f,
+                       $"模板不可解析=只剩本体锚价（{summonAnchor:0.##}·构筑期拦未绑/运行时兜底同口径）");
             }
             finally
             {
@@ -6805,6 +6819,9 @@ namespace CardCore.Editor
         /// 装载端静默剔原子）。
         /// 2026-10-20：教学副表只跟换原子 id（RemapTutorialAtomRefs）——不重推费用、不换卡/效果
         /// id（教学卡按剧本钉死，允许不符计价标准）；教学卡组文件只引卡 id，无需跟换。
+        /// 2026-11-01：预组+教学纳入重推（RegenTutorialAndPresetTables，用户定案）——教学效果 id
+        ///（HashEffect）/卡 id（C_+HashCard）/费用快照（EnsureCost）同批重推改写，卡组 json 与
+        /// TutorialConfig 的卡 id 引用跟换；旧「只跟原子 id」保守口径作废。
         /// </summary>
         [MenuItem("Tools/重推导测试卡表费用与ID")]
         public static void RegenerateTestTableCosts()
@@ -6823,8 +6840,12 @@ namespace CardCore.Editor
             // 原子表必须先行——效果/卡里的 refId 按 id 引用表行（GetByHashId），原子 id 后推会引用断链
             var atomRenames = RegenAtomicTableIds();
 
-            if (RegenOneDeck(path, atomRenames))
-                RemapTutorialAtomRefs(atomRenames); // 教学副表只跟换原子 id（不重推费用——允许不符计价标准）
+            // 2026-11-01 门闸改版：正式表 2026-10-27 起恒空（主表清空回设计态）——RegenOneDeck 空表
+            // 返回 false 不再阻断下游（旧口径下教学跟换同样从未真正执行过）。正式段与教学段各带
+            // 悬空守卫互不连坐：正式悬空只中止正式重写，教学段照常（两表独立文件）。
+            RegenOneDeck(path, atomRenames);
+            RemapTutorialAtomRefs(atomRenames); // 教学副表原子 refId 跟换（重推前置——效果/卡 id 依赖原子行 id）
+            RegenTutorialAndPresetTables();     // 2026-11-01 预组+教学纳入费用/ID 重推+引用跟换
         }
 
         /// <summary>仅重写卡表费用（2026-09-20）：跳过 RegenAtomicTableIds——ID 全不动，只做
@@ -7118,6 +7139,237 @@ namespace CardCore.Editor
                    { Formatting = Newtonsoft.Json.Formatting.Indented, IndentChar = ' ', Indentation = 2 })
                 token.WriteTo(jw);
             File.WriteAllText(path, sb.ToString() + "\n");
+        }
+
+        // ======================================== 预组+教学副表重推导（2026-11-01 用户定案） ========================================
+
+        /// <summary>原子行跨表迁移台账（旧 id → 现行 id；一次性历史映射）。现行表内 DisplayName 换号由
+        /// RegenAtomicTableIds 自动收口；跨表迁行旧 id 在现行表无迹可循、工具无法自推，发现孤儿引用时
+        /// 逐条记入本台账接回。2026-10-31 指示物族迁表：指示物原子自一般效果表迁原子表_指示物并按新
+        /// 文案重铸 ID——正式表当年已跟，教学侧因正式表恒空门闸（2026-11-01 才修）漏跟成 13 处悬空
+        ///（蓝控 8 槽位/绿慢 10 槽位/进阶教学 1 张，装载端静默剔原子即内容缺失）。</summary>
+        private static readonly Dictionary<string, string> AtomMigrationLedger = new Dictionary<string, string>
+        {
+            { "bf3f8fb9", "c770c18f" }, // 失效
+            { "655a7e5b", "2addfe0c" }, // 潜行
+            { "a948c9f3", "973884b1" }, // 冻结
+            { "cd8bfa7e", "d3d792bb" }, // 生命值减少
+            { "ff8922af", "9ff1954d" }, // 护甲
+            { "6d003e66", "38c8c978" }, // 沉睡
+            { "23e6f45e", "3d68a8bf" }, // 毒素
+        };
+
+        /// <summary>
+        /// 预组与教学副表纳入重推导+改写（旧 2026-10-20「教学只跟原子 id、不重推费用/ID」口径作废）。
+        /// 由 Tools/重推导测试卡表费用与ID 统一入口调用，须在 RegenAtomicTableIds + RemapTutorialAtomRefs
+        /// 之后（原子 refId 已换到位——效果/卡 id 依赖链自底向上）：
+        /// ① TutorialEffects 迁移台账自愈（跨表迁行孤儿引用接回现行行）→ 悬空守卫（同正式池：中止
+        ///   不落盘——防装载端剔原子后清档重写坐实丢内容）→ 逐条 id 重推（Save 内 HashEffect 单源）
+        ///   + 锚价快照刷新（清档重写防旧 id 条目残留）；
+        /// ② TutorialCards：effectIds 跟换新效果号 + 台账自愈 payload refId → 装载重推费用快照
+        ///   （EnsureCost——费用不参与卡哈希，改费不换号）→ 卡 id 重推（"C_"+ContentHasher.HashCard
+        ///   单源——内容变才变）；
+        /// ③ 引用跟换：预组三件 + 教学/AI 卡组 + 测试卡组（cardIds/skillCardId/tokenCardIds/tokenBindings）
+        ///   按新卡 id 重指；TutorialConfig 三件 C_ 文本引用同批跟换；CardData 目录玩家档（复制预组=
+        ///   纯引用卡 id）一并重指——ID 换血后包外旧档/训练基线吊死属预期，不在本口。
+        /// </summary>
+        private static void RegenTutorialAndPresetTables()
+        {
+            string fxPath = SynergyUI.CardDataPaths.TutorialFileIn("TutorialEffects.json");
+            string cardsPath = SynergyUI.CardDataPaths.TutorialFileIn("TutorialCards.json");
+            if (!File.Exists(fxPath) || !File.Exists(cardsPath))
+            {
+                Debug.LogError($"[Regen] 教学副表缺失：{fxPath} / {cardsPath}——跳过预组+教学重推");
+                return;
+            }
+
+            // ---------- ① 效果表：迁移台账自愈 → 悬空守卫 → 清档重写（Save 内重算 id/锚价快照） ----------
+            var validAtomIds = new HashSet<string>(
+                CardCore.Attribute.AtomicEffectTable.GetAll()
+                    .Where(c => c != null && !string.IsNullOrEmpty(c.HashId))
+                    .Select(c => c.HashId));
+            var fxRoot = Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(fxPath));
+            int healedFx = HealDanglingAtomRefs(fxRoot, validAtomIds, fxPath);
+            var dangling = new List<string>();
+            foreach (var prop in fxRoot.Descendants().OfType<Newtonsoft.Json.Linq.JProperty>()
+                     .Where(p => p.Name == "refId" && p.Value.Type == Newtonsoft.Json.Linq.JTokenType.String).ToList())
+            {
+                string rid = (string)prop.Value;
+                if (!validAtomIds.Contains(rid)) dangling.Add(rid);
+            }
+            if (dangling.Count > 0)
+            {
+                Debug.LogError($"[Regen] TutorialEffects.json 悬空原子引用 {dangling.Count} 处——预组+教学重推中止不落盘" +
+                               $"（与正式池同守卫；台账外孤儿引用请核对后记入 AtomMigrationLedger）：{string.Join("，", dangling.Distinct())}");
+                return;
+            }
+
+            var graphs = SynergyUI.EffectLibrarySerializer.LoadAll(true);
+            var fxRenames = new Dictionary<string, string>();
+            if (graphs.Count > 0)
+            {
+                File.WriteAllText(fxPath, "{\"items\":[]}"); // 清档重写：防旧 id 条目残留（upsert 不删旧行）
+                foreach (var g in graphs)
+                {
+                    if (g == null) continue;
+                    string oldId = g.id;
+                    SynergyUI.EffectLibrarySerializer.Save(g, true); // Save 内重算 id（HashEffect）+ 锚价快照
+                    if (!string.IsNullOrEmpty(oldId) && oldId != g.id) fxRenames[oldId] = g.id;
+                }
+            }
+            Debug.Log($"[Regen] 教学效果表 id 重推：{graphs.Count} 条（换号 {fxRenames.Count} 条）→ {fxPath}");
+            CardCore.EffectsLibrary.Reload(); // 新效果号生效：卡表 effectIds 解析/费用推导按新库
+
+            // ---------- ② 卡表：台账自愈 payload refId + effectIds 跟换 → 装载 → 费用快照 + 卡 id 重推 ----------
+            var cardsRoot = Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(cardsPath));
+            HealDanglingAtomRefs(cardsRoot, validAtomIds, cardsPath); // payload.refId 跨表迁移孤儿接回
+            var cardsArr = cardsRoot["cards"] as Newtonsoft.Json.Linq.JArray;
+            int idsRemapped = 0;
+            if (cardsArr != null)
+                foreach (var card in cardsArr.OfType<Newtonsoft.Json.Linq.JObject>())
+                {
+                    var idsArr = card["effectIds"] as Newtonsoft.Json.Linq.JArray;
+                    if (idsArr == null) continue;
+                    for (int i = 0; i < idsArr.Count; i++)
+                    {
+                        if (idsArr[i].Type != Newtonsoft.Json.Linq.JTokenType.String) continue;
+                        if (fxRenames.TryGetValue((string)idsArr[i], out var ne)) { idsArr[i] = ne; idsRemapped++; }
+                    }
+                }
+            if (idsRemapped > 0)
+                WriteJTokenIndented(cardsPath, cardsRoot); // 先落 effectIds 跟换再装载（解析按新效果号）
+
+            var loaded = CardLoader.LoadCardsFromText(File.ReadAllText(cardsPath));
+            if (loaded == null || loaded.Count == 0)
+            {
+                Debug.LogError($"[Regen] 教学卡表装载为空/失败（effectIds 跟换后解析断裂？）——中止，卡表未换号");
+                return;
+            }
+            if (cardsArr != null && loaded.Count != cardsArr.Count)
+                Debug.LogWarning($"[Regen] 教学卡表装载 {loaded.Count} 张 ≠ 文件 {cardsArr.Count} 条（坏行被剔除？）——按装载序回写，请人工核对");
+
+            var cardRenames = new Dictionary<string, string>();
+            int costRewritten = 0;
+            for (int i = 0; i < loaded.Count && cardsArr != null && i < cardsArr.Count; i++)
+            {
+                var card = loaded[i];
+                var obj = cardsArr[i] as Newtonsoft.Json.Linq.JObject;
+                if (card == null || obj == null) continue;
+                card.ResetCache();
+                CardCostService.EnsureCost(card); // 恒推导：costList 显示快照重刷（费用不参与卡哈希）
+                var r = CardCostService.Derive(card);
+                string costStr = card.Cost != null && !card.Cost.IsZero ? card.Cost.ToString() : "(D=0 空 Cost)";
+                if (obj["cardName"] != null)
+                    Debug.Log($"[Regen] {obj["cardName"]} S={r.S} K={r.K} E={r.EAnchor} D={r.DerivedTotal} 档位Ĉ={r.DerivedTier}：{costStr}");
+                obj["costList"] = new Newtonsoft.Json.Linq.JArray(
+                    card.Cost[CardCore.ManaType.Gray], card.Cost[CardCore.ManaType.Red],
+                    card.Cost[CardCore.ManaType.Blue], card.Cost[CardCore.ManaType.Green]);
+                costRewritten++;
+                string oldId = card.ID;
+                string nid = "C_" + SynergyUI.ContentHasher.HashCard(card);
+                if (!string.IsNullOrEmpty(oldId) && oldId != nid)
+                {
+                    cardRenames[oldId] = nid;
+                    obj["id"] = nid;
+                }
+            }
+            WriteJTokenIndented(cardsPath, cardsRoot);
+            Debug.Log($"[Regen] 教学卡表：费用快照重写 {costRewritten} 张（id 换号 {cardRenames.Count} 张·effectIds 跟换 {idsRemapped} 条）→ {cardsPath}");
+
+            // ---------- ③ 引用跟换：卡组 json + TutorialConfig + CardData 玩家档 ----------
+            if (cardRenames.Count > 0)
+            {
+                // 预组三件（名=文件名——补 .json 后缀：2026-11-01 修复，裸名 File.Exists 恒 false，
+                // 三预组 skillCardId/cardIds 曾被静默跳过不跟换）
+                var deckFiles = new List<string>(
+                    SynergyUI.CardDataPaths.PresetDeckNames.Select(n => n + ".json"));
+                deckFiles.AddRange(new[] { "basics.json", "basics_ai.json", "jinjie.json", "jinjie_ai.json", "测试卡组.json" });
+                // 教学效果表 str 段的卡 id 引用（召唤衍生物模板指向模板卡——值=卡 id，RemapDeckCardRefs
+                // 的全字符串字段扫描天然覆盖）也须跟换，防模板悬空
+                RemapDeckCardRefs(fxPath, cardRenames);
+                foreach (var f in deckFiles)
+                {
+                    string p = SynergyUI.CardDataPaths.TutorialFileIn(f);
+                    if (File.Exists(p)) RemapDeckCardRefs(p, cardRenames);
+                }
+                try
+                {
+                    foreach (var p in Directory.GetFiles(SynergyUI.CardDataPaths.CardDir, "*.json"))
+                    {
+                        string fn = Path.GetFileName(p);
+                        if (fn == "Cards.json" || fn == "Effects.json") continue;
+                        RemapDeckCardRefs(p, cardRenames); // 玩家档（复制预组=纯引用）——换号防吊死
+                    }
+                }
+                catch (System.Exception ex) { Debug.LogWarning($"[Regen] 玩家卡组档扫描失败（跳过）：{ex.Message}"); }
+                for (int ci = 1; ci <= 3; ci++)
+                {
+                    string cfgPath = Path.Combine(Application.dataPath, "Configs",
+                        ci == 1 ? "TutorialConfig.json" : $"TutorialConfig{ci}.json");
+                    if (!File.Exists(cfgPath)) continue;
+                    string text = File.ReadAllText(cfgPath);
+                    string orig = text;
+                    foreach (var kv in cardRenames) text = text.Replace(kv.Key, kv.Value);
+                    if (text != orig)
+                    {
+                        File.WriteAllText(cfgPath, text);
+                        Debug.Log($"[Regen] TutorialConfig 卡 id 跟换 → {cfgPath}");
+                    }
+                }
+            }
+            Debug.Log($"[Regen] 预组+教学重推完成：效果换号 {fxRenames.Count} · 卡换号 {cardRenames.Count}" +
+                      (cardRenames.Count > 0 ? "（卡组/TutorialConfig/玩家档引用已跟换）" : "（卡 id 无漂移——卡组无需跟换）"));
+        }
+
+        /// <summary>迁移台账自愈（AtomMigrationLedger）：JToken 深扫 refId，命中台账且目标行现存则接回，
+        /// 有接回才写盘。返回接回处数。目标行缺失=台账过期——不接（留给悬空守卫按孤儿引用报错）。</summary>
+        private static int HealDanglingAtomRefs(Newtonsoft.Json.Linq.JContainer root, HashSet<string> validAtomIds, string path)
+        {
+            int healed = 0;
+            var pairs = new List<string>();
+            foreach (var prop in root.Descendants().OfType<Newtonsoft.Json.Linq.JProperty>()
+                     .Where(p => p.Name == "refId" && p.Value.Type == Newtonsoft.Json.Linq.JTokenType.String).ToList())
+            {
+                string rid = (string)prop.Value;
+                if (AtomMigrationLedger.TryGetValue(rid, out var nid) && validAtomIds.Contains(nid))
+                {
+                    prop.Value = nid;
+                    healed++;
+                    pairs.Add($"{rid}→{nid}");
+                }
+            }
+            if (healed > 0)
+            {
+                WriteJTokenIndented(path, root);
+                Debug.Log($"[Regen] 迁移台账自愈：{Path.GetFileName(path)} 接回悬空原子引用 {healed} 处（{string.Join("，", pairs.Distinct())}）");
+            }
+            return healed;
+        }
+
+        /// <summary>卡组 json 卡 id 跟换（值等于卡 id 的字符串字段全覆盖：cardIds/skillCardId/
+        /// tokenCardIds/tokenBindings 模板位；带 #N 实例后缀同跟）。无命中不写盘。</summary>
+        private static void RemapDeckCardRefs(string path, Dictionary<string, string> renames)
+        {
+            var root = Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(path));
+            int n = 0;
+            foreach (var prop in root.Descendants().OfType<Newtonsoft.Json.Linq.JProperty>()
+                     .Where(p => p.Value.Type == Newtonsoft.Json.Linq.JTokenType.String).ToList())
+            {
+                string s = (string)prop.Value;
+                if (string.IsNullOrEmpty(s)) continue;
+                int hash = s.IndexOf('#');
+                string baseId = hash > 0 ? s.Substring(0, hash) : s;
+                if (renames.TryGetValue(baseId, out var nid) && nid != baseId)
+                {
+                    prop.Value = hash > 0 ? nid + s.Substring(hash) : nid;
+                    n++;
+                }
+            }
+            if (n > 0)
+            {
+                WriteJTokenIndented(path, root);
+                Debug.Log($"[Regen] 卡组卡 id 跟换 {n} 处 → {path}");
+            }
         }
 
         // ======================================== 两个随机（2026-09-13 定案） ========================================

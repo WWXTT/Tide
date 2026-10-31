@@ -27,6 +27,9 @@ namespace SynergyUI
     /// boardCellOf（BattleScreen→BattleFieldView.TryGetOnBoardCell）定位；角色候选经
     /// roleCellOf（BattleScreen→BoardState.CharacterCell）定位角色格——选中角色地块同样出面片。
     /// 关窗单口清（ClearAll）。
+    /// 候选扩散波（2026-11-01 用户定案）：开窗期对候选地块逐帧补点亮生物可行动同款扩散波
+    ///（SetUnitGlow 己方蓝口径——对账 ClearAll 会清波故逐帧回补，同 BattleCellPicker 先例）；
+    /// 关窗随面片一并逐格 ClearUnitGlow。候选提示=波、选中标记=红面片，两层各管各。
     /// 角色候选（2026-10-16）：Player 实体→卡名【己方/对方角色】的 Hero 型占位卡（注入
     /// isLocalPlayer 判侧；ACardView 对 Hero 藏 type 区=不带生物立绘槽）。
     /// </summary>
@@ -294,7 +297,7 @@ namespace SynergyUI
             {
                 int onBoard = 0;
                 for (int i = 0; i < _reticles.Length; i++) if (_reticles[i].HasValue) onBoard++;
-                Debug.Log($"[RegionTarget] 选择窗开：候选{items.Count} 其中带地块{onBoard}——瞄准面片选中才上盘（现 {BattleTargetReticle.Count}）");
+                Debug.Log($"[RegionTarget] 选择窗开：候选{items.Count} 其中带地块{onBoard}——瞄准面片选中才上盘（现 {BattleTargetReticle.Count}），候选波逐帧补点亮（现 GlowOn={BattleTileFx.GlowOn}）");
             }
 
             var tcs = new UniTaskCompletionSource<List<int>>();
@@ -310,19 +313,31 @@ namespace SynergyUI
             float seconds = timeoutSeconds > 0f ? timeoutSeconds : 60f;
             var timeoutTask = UniTask.Delay(TimeSpan.FromSeconds(seconds))
                 .ContinueWith(() => (List<int>)null);
+            // 候选波逐帧补点亮（2026-11-01 用户定案：可选区域候选提示沿用生物可行动同款扩散波）：
+            // 逐帧原因同 BattleCellPicker——对账 Apply 开头 BattleTileFx.ClearAll 会清波，须持续回补；
+            // 候选等同己方蓝口径（SetUnitGlow 默认档），选中标记仍走红瞄准贴片两不冲突
+            while (!tcs.Task.Status.IsCompleted() && !timeoutTask.Status.IsCompleted())
+            {
+                PaintCandidateWaves();
+                await UniTask.Yield();
+            }
             var (win, uiResult, timeoutResult) = await UniTask.WhenAny(tcs.Task, timeoutTask);
             List<int> result = win == 0 ? uiResult : null;
             if (result == null)
                 result = _picked.Count >= _min && _picked.Count <= _max
                     ? Sorted() : AutoPick(items.Count, _min);
 
-            // 收尾：清实例+清面片+还原浏览三件+Region 复位进入前活跃态
+            // 收尾：清实例+清面片+清候选波+还原浏览三件+Region 复位进入前活跃态
             _btnSelect.onClick.RemoveAllListeners();
             ClearInstances();
             _frames.Clear();
             if (_reticles != null) // 按登记逐 id 撤（2026-10-18 改：ClearAll 会连坐攻击链瞄准贴片——
                 for (int i = 0; i < _reticles.Length; i++) // 连锁响应开窗时 CombatChoreographer 的贴片不受本窗关合影响）
-                    if (_reticles[i].HasValue) BattleTargetReticle.Hide(_reticles[i].Value.id);
+                    if (_reticles[i].HasValue)
+                    {
+                        BattleTargetReticle.Hide(_reticles[i].Value.id);
+                        BattleTileFx.ClearUnitGlow(_reticles[i].Value.x, _reticles[i].Value.z); // 撤候选波（2026-11-01）——真可行动单位随下个对账自动复原
+                    }
             _reticles = null;
             foreach (var kv in hidden) kv.Key.SetActive(kv.Value);
             _region.gameObject.SetActive(regionWasActive);
@@ -476,6 +491,17 @@ namespace SynergyUI
                     if (_picked.Contains(i)) BattleTargetReticle.Show(r.id, r.x, r.z);
                     else BattleTargetReticle.Hide(r.id);
                 }
+        }
+
+        /// <summary>候选地块扩散波补点亮（2026-11-01 开窗期逐帧·生物可行动同款）：_reticles 有值的
+        /// 候选=场上单位格/角色格（单位经 boardCellOf、角色经 roleCellOf 注入定位）；纯选项路径
+        ///（_reticles==null）无实体不画。</summary>
+        private void PaintCandidateWaves()
+        {
+            if (_reticles == null) return;
+            for (int i = 0; i < _reticles.Length; i++)
+                if (_reticles[i].HasValue)
+                    BattleTileFx.SetUnitGlow(_reticles[i].Value.x, _reticles[i].Value.z);
         }
 
         /// <summary>按候选数定长拷贝（防外部数组复用跨窗串号；越界截断）。</summary>

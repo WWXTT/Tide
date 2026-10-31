@@ -109,6 +109,7 @@ namespace CardCore
                         else if (atom.Type != AtomicEffectType.Sleep || !IsSelfDomain(atom)) // 自我沉睡恒可付
                         {
                             // 有域原子：候选空 → 无合法目标
+                            //（单位域同口径——2026-10-31 定案：指定一个目标即可发动，无数值门槛）
                             if (HasDomain(atom) && !HasCandidates(atom, payer, zm, ctx))
                                 return $"代价无合法目标（{atom.Type}）——卡的发动无效";
                         }
@@ -208,6 +209,17 @@ namespace CardCore
         }
 
         // ======================================== 内部 ========================================
+
+        // ---- 单位域代价（2026-10-31 用户定案：代价支付禁用全域） ----
+        // 代价原子指向战场单位（TargetKind 1-4）时只作用于**一个**单位（结算期经
+        // TargetSelectionService 现选：本地弹选/联机反问/AI 自动代选），不再全域逐目标结算。
+        // 可付性=能指定一个目标即可（无数值门槛；1/1 指定扣成 -1/-1 亦成立，死亡照常）——
+        // 代价量级限制归数据侧，不在引擎闸。
+
+        /// <summary>单位域代价原子（TargetKinds 含战场单位种类 1-4）。</summary>
+        public static bool IsUnitDomainCost(AtomicEffectInstance atom)
+            => atom != null && atom.TargetKinds != null
+               && atom.TargetKinds.Any(k => TargetKindRules.IsUnitKind(k));
 
         private static bool HasDomain(AtomicEffectInstance atom)
             => atom.TargetKinds != null && atom.TargetKinds.Count > 0;

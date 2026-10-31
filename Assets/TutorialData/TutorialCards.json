@@ -1,13 +1,13 @@
 {
   "cards": [
     {
-      "id": "C_4A88A165",
+      "id": "C_DA499FAE",
       "cardName": "教学·3",
       "supertype": "Creature",
       "power": 1,
       "life": 1,
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -17,7 +17,7 @@
       ]
     },
     {
-      "id": "C_62DD963D",
+      "id": "C_3D10E1A5",
       "cardName": "教学·1",
       "supertype": "Creature",
       "power": 2,
@@ -33,7 +33,7 @@
       ]
     },
     {
-      "id": "C_159D9AD0",
+      "id": "C_C279F399",
       "cardName": "教学·5",
       "supertype": "Creature",
       "power": 3,
@@ -49,14 +49,14 @@
       ]
     },
     {
-      "id": "C_7E5A100B",
+      "id": "C_E98E60F2",
       "cardName": "教学·7",
       "supertype": "Creature",
       "illustration": "PetitAngel",
       "power": 2,
       "life": 2,
       "costList": [
-        2.0,
+        1.0,
         0.0,
         0.0,
         0.0
@@ -66,14 +66,14 @@
       ]
     },
     {
-      "id": "C_7E5A100D",
+      "id": "C_03E4B181",
       "cardName": "教学·8",
       "supertype": "Creature",
       "illustration": "DragonessTheWickedKnight",
       "power": 7,
       "life": 7,
       "costList": [
-        2.0,
+        6.0,
         0.0,
         0.0,
         0.0
@@ -83,14 +83,14 @@
       ]
     },
     {
-      "id": "C_7E5A100E",
+      "id": "C_8C47525E",
       "cardName": "教学·9",
       "supertype": "Creature",
       "illustration": "Kojikocy",
       "power": 8,
       "life": 8,
       "costList": [
-        2.0,
+        7.0,
         0.0,
         0.0,
         0.0
@@ -100,14 +100,14 @@
       ]
     },
     {
-      "id": "C_7E5A100F",
+      "id": "C_C3D7138E",
       "cardName": "教学·6",
       "supertype": "Creature",
       "illustration": "DarkPrisoner",
       "power": 6,
       "life": 1,
       "costList": [
-        2.0,
+        3.0,
         0.0,
         0.0,
         0.0
@@ -117,47 +117,65 @@
       ]
     },
     {
-      "id": "C_62154923",
+      "id": "C_F4C4DFFD",
       "cardName": "教学·14",
       "supertype": "Spell",
       "tags": [
         "教学"
       ],
       "effectIds": [
-        "3C1041AC"
+        "C31BC96E"
+      ],
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
       ]
     },
     {
-      "id": "C_DE67CAC7",
+      "id": "C_8A584784",
       "cardName": "教学·15",
       "supertype": "Spell",
       "tags": [
         "教学"
       ],
       "effectIds": [
-        "0489681E"
+        "8418A414"
+      ],
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
       ]
     },
     {
-      "id": "C_61CE70CE",
+      "id": "C_F1258717",
       "cardName": "教学·16",
       "supertype": "Spell",
       "tags": [
         "教学"
       ],
       "effectIds": [
-        "8DD071F9"
+        "44231DE4"
+      ],
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
       ]
     },
     {
-      "id": "C_CA794022",
+      "id": "C_EA311EB8",
       "cardName": "教学·17",
       "supertype": "Creature",
       "illustration": "Kojikocy",
       "power": 8,
       "life": 9,
       "costList": [
-        3.0,
+        8.0,
         0.0,
         0.0,
         0.0
@@ -167,17 +185,17 @@
       ]
     },
     {
-      "id": "C_7F4A73BE",
+      "id": "C_925E315C",
       "cardName": "教学·18",
       "supertype": "Creature",
       "illustration": "MukaMuka",
       "power": 3,
       "life": 3,
       "costList": [
-        3.0,
+        2.0,
         0.0,
         0.0,
-        0.0
+        2.0
       ],
       "keywords": [
         "Indestructible"
@@ -187,14 +205,14 @@
       ]
     },
     {
-      "id": "C_63272F1B",
+      "id": "C_6AB9B73A",
       "cardName": "教学·19",
       "supertype": "Creature",
       "illustration": "DarkPrisoner",
       "power": 2,
       "life": 2,
       "costList": [
-        2.0,
+        1.0,
         0.0,
         0.0,
         0.0
@@ -207,149 +225,221 @@
       ]
     },
     {
-      "id": "C_DC33C804",
+      "id": "C_655C063A",
       "cardName": "教学·39",
       "supertype": "Spell",
       "tags": [
         "教学"
       ],
       "effectIds": [
-        "5B9B45C5"
+        "CA231AA6"
+      ],
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
       ]
     },
     {
-      "id": "C_AE6B683B",
+      "id": "C_86771FC7",
       "cardName": "教学·40",
       "supertype": "Spell",
       "tags": [
         "教学"
       ],
       "effectIds": [
-        "91FCF40A"
+        "7430B0C8"
+      ],
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
       ]
     },
     {
-      "id": "C_E640E61F",
+      "id": "C_E1256CFE",
       "cardName": "教学·41",
       "supertype": "Spell",
       "tags": [
         "教学"
       ],
       "effectIds": [
-        "0DEC4CDA"
+        "478E74DF"
+      ],
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
       ]
     },
     {
-      "id": "C_D3385C0C",
+      "id": "C_A1AE2226",
       "cardName": "教学·42",
       "supertype": "Spell",
       "tags": [
         "教学"
       ],
       "effectIds": [
-        "BB69AEA6"
+        "7F858933"
+      ],
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
       ]
     },
     {
-      "id": "C_DF350591",
+      "id": "C_B3F95B21",
       "cardName": "教学·13",
       "supertype": "Spell",
       "tags": [
         "教学"
       ],
       "effectIds": [
-        "23FB3BC4"
+        "CE3728AD"
+      ],
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
       ]
     },
     {
-      "id": "C_19FC3189",
+      "id": "C_0A0BAC14",
       "cardName": "教学·43",
       "supertype": "Spell",
       "tags": [
         "教学"
       ],
       "effectIds": [
-        "F3ADA5C6"
+        "21736229"
+      ],
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
       ]
     },
     {
-      "id": "C_368ECF31",
+      "id": "C_CA42AAF8",
       "cardName": "教学·46",
       "supertype": "Spell",
       "tags": [
         "教学"
       ],
       "effectIds": [
-        "ACDF1245"
+        "503DC7F3"
+      ],
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
       ]
     },
     {
-      "id": "C_1D537FE9",
+      "id": "C_1F9D64E0",
       "cardName": "教学·44",
       "supertype": "Spell",
       "tags": [
         "教学"
       ],
       "effectIds": [
-        "E3E2EE1B"
+        "DDFF50FA"
+      ],
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
       ]
     },
     {
-      "id": "C_DC84250C",
+      "id": "C_D824053B",
       "cardName": "教学·45",
       "supertype": "Spell",
       "tags": [
         "教学"
       ],
       "effectIds": [
-        "8ECC5F8B"
+        "48E35C22"
+      ],
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
       ]
     },
     {
-      "id": "C_0E021A0D",
+      "id": "C_D78B3E37",
       "cardName": "教学·38",
       "supertype": "Spell",
       "tags": [
         "教学"
       ],
       "effectIds": [
-        "11043BA0"
+        "3640488D"
+      ],
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
       ]
     },
     {
-      "id": "C_1489CC0B",
+      "id": "C_C6AE5B2C",
       "cardName": "教学·47",
       "supertype": "Spell",
       "tags": [
         "教学"
       ],
       "effectIds": [
-        "745280CE"
+        "84B5E921"
+      ],
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
       ]
     },
     {
-      "id": "C_DE1F1C8B",
+      "id": "C_260F2CCE",
       "cardName": "教学·48",
       "supertype": "Spell",
       "tags": [
         "教学"
       ],
       "effectIds": [
-        "ABFAF65D"
+        "7ADFF2C0"
+      ],
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
       ]
     },
     {
-      "id": "C_295C5E0F",
+      "id": "C_CD92D2A2",
       "cardName": "教学·49",
       "supertype": "Creature",
       "illustration": "MukaMuka",
       "power": 2,
       "life": 7,
       "costList": [
-        3.0,
+        4.0,
         0.0,
         0.0,
-        0.0
+        2.0
       ],
       "tags": [
         "教学"
@@ -359,32 +449,12 @@
       ]
     },
     {
-      "id": "C_2E341806",
+      "id": "C_95DC98E5",
       "cardName": "教学·2",
       "supertype": "Creature",
       "illustration": "PetitAngel",
       "power": 1,
       "life": 2,
-      "costList": [
-        1.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "9C3F18D7"
-      ]
-    },
-    {
-      "id": "C_CA720FD5",
-      "cardName": "教学·20",
-      "supertype": "Creature",
-      "illustration": "MukaMuka",
-      "power": 2,
-      "life": 3,
       "costList": [
         2.0,
         0.0,
@@ -395,18 +465,38 @@
         "教学"
       ],
       "effectIds": [
-        "AC0306F3"
+        "F660BB7F"
       ]
     },
     {
-      "id": "C_2FA0E93E",
+      "id": "C_98F6E41B",
+      "cardName": "教学·20",
+      "supertype": "Creature",
+      "illustration": "MukaMuka",
+      "power": 2,
+      "life": 3,
+      "costList": [
+        3.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "教学"
+      ],
+      "effectIds": [
+        "331411EF"
+      ]
+    },
+    {
+      "id": "C_2E00FB6A",
       "cardName": "教学·21",
       "supertype": "Creature",
       "illustration": "PetitAngel",
       "power": 1,
       "life": 2,
       "costList": [
-        1.0,
+        2.0,
         0.0,
         0.0,
         0.0
@@ -415,18 +505,18 @@
         "教学"
       ],
       "effectIds": [
-        "C5DDE357"
+        "D720488A"
       ]
     },
     {
-      "id": "C_43782189",
+      "id": "C_052EB2FB",
       "cardName": "教学·22",
       "supertype": "Creature",
       "illustration": "DragonessTheWickedKnight",
       "power": 1,
       "life": 2,
       "costList": [
-        1.0,
+        2.0,
         0.0,
         0.0,
         0.0
@@ -435,18 +525,18 @@
         "教学"
       ],
       "effectIds": [
-        "D4531AA1"
+        "31CB0894"
       ]
     },
     {
-      "id": "C_1A67BE43",
+      "id": "C_2D6E5BFB",
       "cardName": "教学·23",
       "supertype": "Creature",
       "illustration": "Kojikocy",
       "power": 1,
       "life": 2,
       "costList": [
-        1.0,
+        2.0,
         0.0,
         0.0,
         0.0
@@ -455,18 +545,18 @@
         "教学"
       ],
       "effectIds": [
-        "322D145C"
+        "7CB6BE78"
       ]
     },
     {
-      "id": "C_CCC6BD2F",
+      "id": "C_B5C0296B",
       "cardName": "教学·24",
       "supertype": "Creature",
       "illustration": "DarkPrisoner",
       "power": 1,
       "life": 2,
       "costList": [
-        1.0,
+        2.0,
         0.0,
         0.0,
         0.0
@@ -475,18 +565,18 @@
         "教学"
       ],
       "effectIds": [
-        "D7B81DDC"
+        "EB6D5464"
       ]
     },
     {
-      "id": "C_ED2C6F51",
+      "id": "C_D04CC69F",
       "cardName": "教学·25",
       "supertype": "Creature",
       "illustration": "MukaMuka",
       "power": 1,
       "life": 2,
       "costList": [
-        1.0,
+        2.0,
         0.0,
         0.0,
         0.0
@@ -495,18 +585,18 @@
         "教学"
       ],
       "effectIds": [
-        "2CD9048A"
+        "12DB0232"
       ]
     },
     {
-      "id": "C_F2B9055A",
+      "id": "C_E2122348",
       "cardName": "教学·26",
       "supertype": "Creature",
       "illustration": "Griffore",
       "power": 1,
       "life": 2,
       "costList": [
-        1.0,
+        2.0,
         0.0,
         0.0,
         0.0
@@ -515,11 +605,11 @@
         "教学"
       ],
       "effectIds": [
-        "8E367535"
+        "3617EA1A"
       ]
     },
     {
-      "id": "C_D915D58E",
+      "id": "C_7ED41034",
       "cardName": "教学·10",
       "supertype": "Creature",
       "illustration": "DragonessTheWickedKnight",
@@ -535,18 +625,18 @@
         "教学"
       ],
       "effectIds": [
-        "A6975E5D"
+        "77844DDB"
       ]
     },
     {
-      "id": "C_47366FDF",
+      "id": "C_E84B9F8A",
       "cardName": "教学·27",
       "supertype": "Creature",
       "illustration": "DarkPrisoner",
       "power": 1,
       "life": 2,
       "costList": [
-        1.0,
+        2.0,
         0.0,
         0.0,
         0.0
@@ -555,18 +645,18 @@
         "教学"
       ],
       "effectIds": [
-        "3BE52030"
+        "D5A420C0"
       ]
     },
     {
-      "id": "C_37590ABA",
+      "id": "C_96610366",
       "cardName": "教学·28",
       "supertype": "Creature",
       "illustration": "PetitAngel",
       "power": 1,
       "life": 2,
       "costList": [
-        1.0,
+        2.0,
         0.0,
         0.0,
         0.0
@@ -575,18 +665,18 @@
         "教学"
       ],
       "effectIds": [
-        "BF69F534"
+        "81086F80"
       ]
     },
     {
-      "id": "C_E5B9B439",
+      "id": "C_5EAB2F1B",
       "cardName": "教学·29",
       "supertype": "Creature",
       "illustration": "PetitAngel",
       "power": 1,
       "life": 2,
       "costList": [
-        1.0,
+        2.0,
         0.0,
         0.0,
         0.0
@@ -595,18 +685,18 @@
         "教学"
       ],
       "effectIds": [
-        "A628AC66"
+        "471C192E"
       ]
     },
     {
-      "id": "C_B5CB770F",
+      "id": "C_0C94B65F",
       "cardName": "教学·30",
       "supertype": "Creature",
       "illustration": "PetitAngel",
       "power": 1,
       "life": 2,
       "costList": [
-        1.0,
+        2.0,
         0.0,
         0.0,
         0.0
@@ -615,18 +705,18 @@
         "教学"
       ],
       "effectIds": [
-        "6C28CDF3"
+        "1B3BFDE4"
       ]
     },
     {
-      "id": "C_D5F53D47",
+      "id": "C_0E166CA4",
       "cardName": "教学·31",
       "supertype": "Creature",
       "illustration": "PetitAngel",
       "power": 1,
       "life": 2,
       "costList": [
-        1.0,
+        2.0,
         0.0,
         0.0,
         0.0
@@ -635,18 +725,18 @@
         "教学"
       ],
       "effectIds": [
-        "981112BA"
+        "B218F773"
       ]
     },
     {
-      "id": "C_4EAE4725",
+      "id": "C_AE964832",
       "cardName": "教学·32",
       "supertype": "Creature",
       "illustration": "PetitAngel",
       "power": 1,
       "life": 2,
       "costList": [
-        1.0,
+        2.0,
         0.0,
         0.0,
         0.0
@@ -655,18 +745,18 @@
         "教学"
       ],
       "effectIds": [
-        "60852B8F"
+        "42B8A0B4"
       ]
     },
     {
-      "id": "C_BCA1D9C8",
+      "id": "C_A9ED8C5A",
       "cardName": "教学·33",
       "supertype": "Creature",
       "illustration": "PetitAngel",
       "power": 1,
       "life": 2,
       "costList": [
-        1.0,
+        2.0,
         0.0,
         0.0,
         0.0
@@ -675,11 +765,11 @@
         "教学"
       ],
       "effectIds": [
-        "B0280213"
+        "8CEE78CB"
       ]
     },
     {
-      "id": "C_3D470EE8",
+      "id": "C_94DA8F61",
       "cardName": "教学·34",
       "supertype": "Creature",
       "illustration": "Kojikocy",
@@ -689,43 +779,55 @@
         0.0,
         0.0,
         0.0,
-        1.0
+        0.0
       ],
       "tags": [
         "教学"
       ]
     },
     {
-      "id": "C_35A53D34",
+      "id": "C_B35F5591",
       "cardName": "教学·11",
       "supertype": "Spell",
       "tags": [
         "教学"
       ],
       "effectIds": [
-        "5E6839AA"
+        "4AA54BF4"
+      ],
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
       ]
     },
     {
-      "id": "C_BEE512DB",
+      "id": "C_6ECCF727",
       "cardName": "教学·12",
       "supertype": "Spell",
       "tags": [
         "教学"
       ],
       "effectIds": [
-        "2DEAFA89"
+        "744AE728"
+      ],
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
       ]
     },
     {
-      "id": "C_9A2961C5",
+      "id": "C_BD0822E9",
       "cardName": "教学·37",
       "supertype": "Creature",
       "illustration": "MukaMuka",
       "power": 1,
       "life": 2,
       "costList": [
-        1.0,
+        2.0,
         0.0,
         0.0,
         0.0
@@ -734,18 +836,18 @@
         "教学"
       ],
       "effectIds": [
-        "D9C996F2"
+        "5E000966"
       ]
     },
     {
-      "id": "C_C18EE5C3",
+      "id": "C_6E58021B",
       "cardName": "教学·36",
       "supertype": "Creature",
       "illustration": "Kojikocy",
       "power": 1,
       "life": 2,
       "costList": [
-        1.0,
+        2.0,
         0.0,
         0.0,
         0.0
@@ -754,18 +856,18 @@
         "教学"
       ],
       "effectIds": [
-        "E1D84E55"
+        "540FB6C9"
       ]
     },
     {
-      "id": "C_09BAF20F",
+      "id": "C_0E5F4B96",
       "cardName": "教学·4",
       "supertype": "Creature",
       "illustration": "Kojikocy",
       "power": 1,
       "life": 1,
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -775,7 +877,7 @@
       ]
     },
     {
-      "id": "C_7F5ADCE4",
+      "id": "C_4FCB2164",
       "cardName": "教学·35",
       "supertype": "Creature",
       "illustration": "Morinphen",
@@ -794,11 +896,11 @@
         "教学"
       ],
       "effectIds": [
-        "a3c78f52"
+        "BA30A8EB"
       ]
     },
     {
-      "id": "C_50E2F45D",
+      "id": "C_848C977F",
       "cardName": "试作·元素井",
       "supertype": "Creature",
       "illustration": "Morinphen",
@@ -817,47 +919,11 @@
         "教学"
       ],
       "effectIds": [
-        "a3c78f52"
+        "BA30A8EB"
       ]
     },
     {
-      "id": "C_791FE42E",
-      "cardName": "末日降临",
-      "supertype": "Creature",
-      "illustration": "AirEater",
-      "power": 30,
-      "life": 30,
-      "costList": [
-        24.0,
-        0.0,
-        0.0,
-        2.0
-      ],
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "6136F558",
-        "c2565884"
-      ]
-    },
-    {
-      "id": "C_57A3ADD6",
-      "cardName": "涌泉仪典",
-      "supertype": "Enchantment",
-      "costList": [
-        0.0,
-        0.0,
-        5.0,
-        0.0
-      ],
-      "tags": [
-        "教学"
-      ],
-      "effectIds": []
-    },
-    {
-      "id": "C_1F977068",
+      "id": "C_A76CA555",
       "cardName": "预组·17",
       "supertype": "Creature",
       "power": 1,
@@ -873,11 +939,11 @@
         "教学"
       ],
       "effectIds": [
-        "A3A57507"
+        "A41193C6"
       ]
     },
     {
-      "id": "C_B61F1A73",
+      "id": "C_11D5653E",
       "cardName": "预组·18",
       "supertype": "Creature",
       "power": 2,
@@ -893,11 +959,11 @@
         "教学"
       ],
       "effectIds": [
-        "78B0D3FE"
+        "D7FFFE64"
       ]
     },
     {
-      "id": "C_A9D3C4BF",
+      "id": "C_EF25C2FD",
       "cardName": "预组·19",
       "supertype": "Enchantment",
       "costList": [
@@ -911,12 +977,12 @@
         "教学"
       ],
       "effectIds": [
-        "E9CCA56D"
+        "AD02702A"
       ],
       "durability": 2
     },
     {
-      "id": "C_C2C0FA05",
+      "id": "C_4B282868",
       "cardName": "预组·20",
       "supertype": "Enchantment",
       "costList": [
@@ -930,12 +996,12 @@
         "教学"
       ],
       "effectIds": [
-        "2070586F"
+        "DC7F2BA0"
       ],
       "durability": 2
     },
     {
-      "id": "C_A4B3AF6D",
+      "id": "C_D0AF2ABB",
       "cardName": "预组·21",
       "supertype": "Spell",
       "tags": [
@@ -943,12 +1009,18 @@
         "教学"
       ],
       "effectIds": [
-        "977AB6FC"
+        "37833543"
       ],
-      "speedBonus": 2
+      "speedBonus": 2,
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
     },
     {
-      "id": "C_554D8515",
+      "id": "C_B19375C1",
       "cardName": "预组·22",
       "supertype": "Spell",
       "tags": [
@@ -956,12 +1028,18 @@
         "教学"
       ],
       "effectIds": [
-        "F9AA3B87"
+        "972C6301"
       ],
-      "speedBonus": 2
+      "speedBonus": 2,
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
     },
     {
-      "id": "C_A6864DC8",
+      "id": "C_A65D04BF",
       "cardName": "预组·23",
       "supertype": "Spell",
       "tags": [
@@ -971,10 +1049,16 @@
       "effectIds": [
         "9DD21C35"
       ],
-      "speedBonus": 2
+      "speedBonus": 2,
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
     },
     {
-      "id": "C_B635B3DD",
+      "id": "C_0AD56075",
       "cardName": "预组·24",
       "supertype": "Spell",
       "tags": [
@@ -982,13 +1066,19 @@
         "教学"
       ],
       "effectIds": [
-        "977AB6FC",
+        "37833543",
         "73DB24E3"
       ],
-      "speedBonus": 1
+      "speedBonus": 1,
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
     },
     {
-      "id": "C_2E69189D",
+      "id": "C_AD521F40",
       "cardName": "预组·25",
       "supertype": "Spell",
       "tags": [
@@ -996,12 +1086,18 @@
         "教学"
       ],
       "effectIds": [
-        "E2565876"
+        "F0E98164"
       ],
-      "speedBonus": 2
+      "speedBonus": 2,
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
     },
     {
-      "id": "C_F4C2186D",
+      "id": "C_66CE6354",
       "cardName": "预组·26",
       "supertype": "Creature",
       "life": 5,
@@ -1017,7 +1113,7 @@
       ]
     },
     {
-      "id": "C_5AC4A93E",
+      "id": "C_BD167F51",
       "cardName": "预组·27",
       "supertype": "Creature",
       "power": 2,
@@ -1034,7 +1130,7 @@
       ]
     },
     {
-      "id": "C_563CD6A2",
+      "id": "C_FFF2FD83",
       "cardName": "预组·28",
       "supertype": "Creature",
       "power": 4,
@@ -1051,7 +1147,7 @@
       ]
     },
     {
-      "id": "C_0AB79D0F",
+      "id": "C_5A083E37",
       "cardName": "隐匿",
       "supertype": "Spell",
       "tags": [
@@ -1059,416 +1155,18 @@
         "教学"
       ],
       "effectIds": [
-        "631B76A9"
-      ],
-      "speedBonus": 2
-    },
-    {
-      "id": "C_872DA59C",
-      "cardName": "预组·1",
-      "supertype": "Creature",
-      "power": 3,
-      "life": 2,
-      "costList": [
-        1.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeRedClash",
-        "教学"
-      ],
-      "noGuard": true
-    },
-    {
-      "id": "C_35C5EE76",
-      "cardName": "预组·2",
-      "supertype": "Creature",
-      "power": 4,
-      "life": 2,
-      "costList": [
-        1.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeRedClash",
-        "教学"
-      ],
-      "noGuard": true
-    },
-    {
-      "id": "C_6FDF5F8F",
-      "cardName": "预组·3",
-      "supertype": "Creature",
-      "power": 4,
-      "life": 3,
-      "costList": [
-        2.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeRedClash",
-        "教学"
-      ],
-      "noGuard": true
-    },
-    {
-      "id": "C_CCD21FFD",
-      "cardName": "预组·4",
-      "supertype": "Creature",
-      "power": 4,
-      "life": 2,
-      "costList": [
-        3.0,
-        2.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeRedClash",
-        "教学"
-      ],
-      "effectIds": [
-        "1E9B3BDE"
-      ],
-      "noGuard": true,
-      "payloads": [
-        {
-          "refId": "bf06d56b",
-          "kinds": [
-            5
-          ]
-        }
-      ]
-    },
-    {
-      "id": "C_6D1F28D9",
-      "cardName": "预组·5",
-      "supertype": "Creature",
-      "power": 4,
-      "life": 2,
-      "costList": [
-        3.0,
-        2.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeRedClash",
-        "教学"
-      ],
-      "effectIds": [
-        "6371FBD3"
-      ],
-      "noGuard": true,
-      "payloads": [
-        {
-          "refId": "bf06d56b",
-          "kinds": [
-            5
-          ]
-        }
-      ]
-    },
-    {
-      "id": "C_D706FDA0",
-      "cardName": "预组·6",
-      "supertype": "Creature",
-      "power": 4,
-      "life": 2,
-      "costList": [
-        2.0,
-        2.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeRedClash",
-        "教学"
-      ],
-      "effectIds": [
-        "073f18c7"
-      ],
-      "noGuard": true,
-      "payloads": [
-        {
-          "refId": "bf06d56b",
-          "kinds": [
-            5
-          ]
-        }
-      ]
-    },
-    {
-      "id": "C_63D508CA",
-      "cardName": "预组·7",
-      "supertype": "Creature",
-      "power": 5,
-      "life": 2,
-      "costList": [
-        3.0,
-        2.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeRedClash",
-        "教学"
-      ],
-      "effectIds": [
-        "5269CB2C"
-      ],
-      "noGuard": true,
-      "payloads": [
-        {
-          "refId": "bf06d56b",
-          "kinds": [
-            5
-          ]
-        }
-      ]
-    },
-    {
-      "id": "C_64C9DEFC",
-      "cardName": "预组·8",
-      "supertype": "Creature",
-      "power": 4,
-      "life": 2,
-      "costList": [
-        3.0,
-        2.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeRedClash",
-        "教学"
-      ],
-      "effectIds": [
-        "C33B9907"
-      ],
-      "noGuard": true,
-      "payloads": [
-        {
-          "refId": "bf06d56b",
-          "kinds": [
-            5
-          ]
-        }
-      ]
-    },
-    {
-      "id": "C_806CEB98",
-      "cardName": "预组·9",
-      "supertype": "Creature",
-      "power": 5,
-      "life": 2,
-      "costList": [
-        3.0,
-        2.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeRedClash",
-        "教学"
-      ],
-      "effectIds": [
-        "E72D83F7"
-      ],
-      "noGuard": true,
-      "payloads": [
-        {
-          "refId": "bf06d56b",
-          "kinds": [
-            5
-          ]
-        }
-      ]
-    },
-    {
-      "id": "C_EB930092",
-      "cardName": "预组·10",
-      "supertype": "Creature",
-      "power": 5,
-      "life": 2,
-      "costList": [
-        3.0,
-        2.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeRedClash",
-        "教学"
-      ],
-      "effectIds": [
-        "AF4D057E"
-      ],
-      "noGuard": true,
-      "payloads": [
-        {
-          "refId": "bf06d56b",
-          "kinds": [
-            5
-          ]
-        }
-      ]
-    },
-    {
-      "id": "C_1909E57D",
-      "cardName": "预组·11",
-      "supertype": "Creature",
-      "power": 6,
-      "life": 2,
-      "costList": [
-        3.0,
-        3.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeRedClash",
-        "教学"
-      ],
-      "effectIds": [
-        "66EC9B48"
-      ],
-      "noGuard": true,
-      "payloads": [
-        {
-          "refId": "bf06d56b",
-          "kinds": [
-            5
-          ]
-        }
-      ]
-    },
-    {
-      "id": "C_E722F3B6",
-      "cardName": "预组·12",
-      "supertype": "Spell",
-      "tags": [
-        "ThemeRedClash",
-        "教学"
-      ],
-      "effectIds": [
-        "886E275E"
+        "04B8A5D0"
       ],
       "speedBonus": 2,
-      "payloads": [
-        {
-          "refId": "bf06d56b",
-          "kinds": [
-            5
-          ]
-        }
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
       ]
     },
     {
-      "id": "C_72FBE469",
-      "cardName": "预组·13",
-      "supertype": "Spell",
-      "tags": [
-        "ThemeRedClash",
-        "教学"
-      ],
-      "effectIds": [
-        "0F69B9FA"
-      ],
-      "speedBonus": 2,
-      "payloads": [
-        {
-          "refId": "bf06d56b",
-          "kinds": [
-            5
-          ]
-        }
-      ]
-    },
-    {
-      "id": "C_9D3326D1",
-      "cardName": "预组·14",
-      "supertype": "Spell",
-      "tags": [
-        "ThemeRedClash",
-        "教学"
-      ],
-      "effectIds": [
-        "1AF47825"
-      ],
-      "speedBonus": 2,
-      "payloads": [
-        {
-          "refId": "bf06d56b",
-          "kinds": [
-            5
-          ]
-        }
-      ]
-    },
-    {
-      "id": "C_33EA1360",
-      "cardName": "预组·15",
-      "supertype": "Spell",
-      "tags": [
-        "ThemeRedClash",
-        "教学"
-      ],
-      "effectIds": [
-        "B663AB71"
-      ],
-      "speedBonus": 2,
-      "payloads": [
-        {
-          "refId": "bf06d56b",
-          "kinds": [
-            5
-          ]
-        }
-      ]
-    },
-    {
-      "id": "C_2338F1EE",
-      "cardName": "预组·16",
-      "supertype": "Spell",
-      "tags": [
-        "ThemeRedClash",
-        "教学"
-      ],
-      "effectIds": [
-        "2566E6B9"
-      ],
-      "speedBonus": 2,
-      "payloads": [
-        {
-          "refId": "bf06d56b",
-          "kinds": [
-            5
-          ]
-        }
-      ]
-    },
-    {
-      "id": "C_CFBD7C10",
-      "cardName": "激励",
-      "supertype": "Spell",
-      "tags": [
-        "ThemeRedClash",
-        "教学"
-      ],
-      "effectIds": [
-        "F4A0440D"
-      ],
-      "speedBonus": 2
-    },
-    {
-      "id": "C_079E718B",
+      "id": "C_0DE55E3F",
       "cardName": "预组·29",
       "supertype": "Creature",
       "power": 4,
@@ -1486,13 +1184,13 @@
       ]
     },
     {
-      "id": "C_C934C965",
+      "id": "C_891C7364",
       "cardName": "预组·30",
       "supertype": "Creature",
       "power": 7,
       "life": 7,
       "costList": [
-        5.0,
+        6.0,
         0.0,
         0.0,
         0.0
@@ -1504,7 +1202,7 @@
       ]
     },
     {
-      "id": "C_7D1BF1B4",
+      "id": "C_97EC8CE3",
       "cardName": "预组·31",
       "supertype": "Creature",
       "power": 1,
@@ -1520,11 +1218,11 @@
         "教学"
       ],
       "effectIds": [
-        "A308B3EB"
+        "7AB991A1"
       ]
     },
     {
-      "id": "C_C4013195",
+      "id": "C_E220ABAA",
       "cardName": "预组·32",
       "supertype": "Creature",
       "life": 5,
@@ -1539,11 +1237,11 @@
         "教学"
       ],
       "effectIds": [
-        "9164BC9E"
+        "FD075D69"
       ]
     },
     {
-      "id": "C_0BB1F76F",
+      "id": "C_A988ABB2",
       "cardName": "预组·33",
       "supertype": "Enchantment",
       "costList": [
@@ -1557,12 +1255,12 @@
         "教学"
       ],
       "effectIds": [
-        "5B012D05"
+        "7968F3FA"
       ],
       "durability": 2
     },
     {
-      "id": "C_27098D09",
+      "id": "C_0C0969E8",
       "cardName": "预组·34",
       "supertype": "Creature",
       "power": 2,
@@ -1578,11 +1276,11 @@
         "教学"
       ],
       "effectIds": [
-        "11A77A85"
+        "A43AACCC"
       ]
     },
     {
-      "id": "C_46EF2B75",
+      "id": "C_8185B326",
       "cardName": "预组·35",
       "supertype": "Enchantment",
       "costList": [
@@ -1596,38 +1294,16 @@
         "教学"
       ],
       "effectIds": [
-        "C718A964"
+        "C243F88E"
       ],
       "durability": 2
     },
     {
-      "id": "C_BDC2E758",
+      "id": "C_B5077F18",
       "cardName": "预组·36",
       "supertype": "Creature",
       "power": 4,
       "life": 5,
-      "costList": [
-        5.0,
-        0.0,
-        0.0,
-        2.0
-      ],
-      "tags": [
-        "ThemeGreenCountdown",
-        "教学"
-      ],
-      "effectIds": [
-        "44E81E46",
-        "974089EE",
-        "4cf22304"
-      ]
-    },
-    {
-      "id": "C_937E43DB",
-      "cardName": "预组·37",
-      "supertype": "Creature",
-      "power": 5,
-      "life": 7,
       "costList": [
         6.0,
         0.0,
@@ -1639,13 +1315,35 @@
         "教学"
       ],
       "effectIds": [
-        "44E81E46",
-        "3674559E",
+        "92A20B4B",
+        "742A0333",
+        "4cf22304"
+      ]
+    },
+    {
+      "id": "C_36F06A14",
+      "cardName": "预组·37",
+      "supertype": "Creature",
+      "power": 5,
+      "life": 7,
+      "costList": [
+        7.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeGreenCountdown",
+        "教学"
+      ],
+      "effectIds": [
+        "92A20B4B",
+        "CBE3C210",
         "c2565884"
       ]
     },
     {
-      "id": "C_5D73FF7F",
+      "id": "C_3D232421",
       "cardName": "预组·38",
       "supertype": "Spell",
       "tags": [
@@ -1653,12 +1351,18 @@
         "教学"
       ],
       "effectIds": [
-        "2FC34B20"
+        "C3F9A0E5"
       ],
-      "speedBonus": 2
+      "speedBonus": 2,
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
     },
     {
-      "id": "C_48A11B22",
+      "id": "C_D4467C23",
       "cardName": "预组·39",
       "supertype": "Spell",
       "tags": [
@@ -1666,12 +1370,18 @@
         "教学"
       ],
       "effectIds": [
-        "98C4AF96"
+        "1B2516CF"
       ],
-      "speedBonus": 2
+      "speedBonus": 2,
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
     },
     {
-      "id": "C_C825490B",
+      "id": "C_BA0E817A",
       "cardName": "预组·40",
       "supertype": "Spell",
       "tags": [
@@ -1679,12 +1389,18 @@
         "教学"
       ],
       "effectIds": [
-        "A2FEA4F2"
+        "455CD217"
       ],
-      "speedBonus": 2
+      "speedBonus": 2,
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
     },
     {
-      "id": "C_EF4154EB",
+      "id": "C_20CDFD9D",
       "cardName": "预组·41",
       "supertype": "Spell",
       "tags": [
@@ -1692,12 +1408,18 @@
         "教学"
       ],
       "effectIds": [
-        "A29CBC11"
+        "4CB46294"
       ],
-      "speedBonus": 2
+      "speedBonus": 2,
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
     },
     {
-      "id": "C_8DD331C4",
+      "id": "C_49BB8CAA",
       "cardName": "预组·42",
       "supertype": "Spell",
       "tags": [
@@ -1707,10 +1429,16 @@
       "effectIds": [
         "22127205"
       ],
-      "speedBonus": 2
+      "speedBonus": 2,
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
     },
     {
-      "id": "C_666B36DF",
+      "id": "C_7AB034AD",
       "cardName": "预组·43",
       "supertype": "Spell",
       "tags": [
@@ -1718,12 +1446,18 @@
         "教学"
       ],
       "effectIds": [
-        "1AE291B0"
+        "38CF932F"
       ],
-      "speedBonus": 2
+      "speedBonus": 2,
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
     },
     {
-      "id": "C_B91D1C1B",
+      "id": "C_DF81C142",
       "cardName": "预组·44",
       "supertype": "Creature",
       "life": 6,
@@ -1739,7 +1473,7 @@
       ]
     },
     {
-      "id": "C_30D84105",
+      "id": "C_298BDC28",
       "cardName": "预组·45",
       "supertype": "Creature",
       "power": 2,
@@ -1756,13 +1490,13 @@
       ]
     },
     {
-      "id": "C_EB1553F2",
+      "id": "C_3F95916B",
       "cardName": "预组·46",
       "supertype": "Creature",
       "power": 4,
       "life": 8,
       "costList": [
-        4.0,
+        5.0,
         0.0,
         0.0,
         0.0
@@ -1773,7 +1507,7 @@
       ]
     },
     {
-      "id": "C_4E1B6FE3",
+      "id": "C_B698C684",
       "cardName": "预组·47",
       "supertype": "Creature",
       "life": 6,
@@ -1781,7 +1515,7 @@
         2.0,
         0.0,
         0.0,
-        2.0
+        0.0
       ],
       "tags": [
         "ThemeGreenCountdown",
@@ -1792,7 +1526,7 @@
       ]
     },
     {
-      "id": "C_0CF72B98",
+      "id": "C_BEFE7041",
       "cardName": "成长",
       "supertype": "Spell",
       "tags": [
@@ -1800,9 +1534,176 @@
         "教学"
       ],
       "effectIds": [
-        "65B7FDB1"
+        "8D3E99C1"
       ],
-      "speedBonus": 2
+      "speedBonus": 2,
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "id": "C_172400E3",
+      "cardName": "火灵",
+      "supertype": "Creature",
+      "costList": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeRedClash",
+        "教学"
+      ],
+      "effectIds": [
+        "F0634CD9"
+      ],
+      "power": 1,
+      "life": 1,
+      "noGuard": true
+    },
+    {
+      "id": "C_44193C93",
+      "cardName": "火炬",
+      "supertype": "Creature",
+      "costList": [
+        2.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeRedClash",
+        "教学"
+      ],
+      "effectIds": [],
+      "power": 9,
+      "life": 1,
+      "noGuard": true,
+      "payloads": [
+        {
+          "refId": "e5da6dd9",
+          "value": 1,
+          "str": null,
+          "amp": 0.0,
+          "kinds": [
+            1
+          ],
+          "count": -2,
+          "rand": -1,
+          "defer": 0,
+          "branch": null
+        }
+      ]
+    },
+    {
+      "id": "C_1FBC3E60",
+      "cardName": "激励",
+      "supertype": "Spell",
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeRedClash",
+        "教学"
+      ],
+      "effectIds": [
+        "08CA1F6D"
+      ]
+    },
+    {
+      "id": "C_94A14528",
+      "cardName": "消灭",
+      "supertype": "Spell",
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeRedClash",
+        "教学"
+      ],
+      "effectIds": [
+        "54A47231"
+      ]
+    },
+    {
+      "id": "C_E6C976BF",
+      "cardName": "火种",
+      "supertype": "Creature",
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeRedClash",
+        "教学"
+      ],
+      "effectIds": [],
+      "power": 3,
+      "life": 1,
+      "noGuard": true
+    },
+    {
+      "id": "C_BC63E951",
+      "cardName": "血偿",
+      "supertype": "Spell",
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeRedClash",
+        "教学"
+      ],
+      "effectIds": [
+        "7D523822"
+      ],
+      "payloads": [
+        {
+          "refId": "a4b823fc",
+          "value": 3,
+          "str": null,
+          "amp": 0.0,
+          "kinds": [
+            1
+          ],
+          "count": -2,
+          "rand": -1,
+          "defer": 0,
+          "branch": null
+        }
+      ]
+    },
+    {
+      "id": "C_B493F3A3",
+      "cardName": "重整",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeRedClash",
+        "教学"
+      ],
+      "effectIds": [
+        "1A0448E3"
+      ],
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
     }
   ]
 }

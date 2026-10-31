@@ -134,7 +134,8 @@ namespace CardCore.Network
                         break;
 
                     default:
-                        // intent 段=100..109 连续段 + 离散位（113 IntentActivateHeroSkill 在会话层消息之后）
+                        // intent 段=IntentPlayCard..IntentConcede 连续段（2026-10-31 阶段D 重排后 100..108 九连无洞）
+                        // + 离散位（IntentActivateHeroSkill=112 在会话层消息 SelectResponse/DeckSubmit/JoinRoom 之后）
                         bool isIntent = (msg.Type >= NetworkMessageType.IntentPlayCard
                                             && msg.Type <= NetworkMessageType.IntentConcede)
                                         || msg.Type == NetworkMessageType.IntentActivateHeroSkill;

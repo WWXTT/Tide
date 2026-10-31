@@ -312,13 +312,14 @@ namespace SynergyUI
             {
                 v.Skill = FromRuntime(SerializableRuntimeCardState.FromCard(skill), skill, core.Player2 == p);
                 // 技能栏费用=各主动效果的派生发动价（2026-10-15 改版：技能=法术可挂 1~3 效果——
-                // 多效果显示「最低~最高」区间，发动时弹窗择一现付；单效果只显示该价）
-                var anchors = HeroSkillSystem.SkillEffectsOf(skill)
-                    .Select(fx => CostDerivationService.DeriveElementCosts(fx)?.Total ?? 0f)
-                    .Where(t => t >= 0f).ToList();
-                if (anchors.Count == 0) v.Skill.CostText = "0";
-                else if (anchors.Count == 1) v.Skill.CostText = CostTextOf(ElementCost.FromValue(ManaType.Gray, anchors[0])); // 真实小数直显（2026-10-30）
-                else v.Skill.CostText = $"{anchors.Min():0.#}~{anchors.Max():0.#}";
+                // 多效果显示「最低~最高」区间，发动时弹窗择一现付；单效果只显示该价）。
+                // 2026-11-01 锚价现付定案：引擎发动扣费同源此价——单效果直显逐色实价（不再折灰总额）
+                var anchorCosts = HeroSkillSystem.SkillEffectsOf(skill)
+                    .Select(CostDerivationService.DeriveElementCosts)
+                    .Where(c => c != null).ToList();
+                if (anchorCosts.Count == 0) v.Skill.CostText = "0";
+                else if (anchorCosts.Count == 1) v.Skill.CostText = CostTextOf(anchorCosts[0]);
+                else v.Skill.CostText = $"{anchorCosts.Min(c => c.Total):0.#}~{anchorCosts.Max(c => c.Total):0.#}";
             }
         }
 

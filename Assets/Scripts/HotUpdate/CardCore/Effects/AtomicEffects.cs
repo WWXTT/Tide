@@ -512,6 +512,14 @@ namespace CardCore
         AuraDelayedDeath,      // 延迟死亡（DelayedDeathAura）
         AuraTopDeckAsHand,     // 牌库顶当手牌（TopDeckAsHandAura）
         AuraInscription,       // 铭刻（InscriptionAura）
+
+        /// <summary>病原体（2026-10-31 复活改版，绿5 表行「病原体」·关键词表）：授予「病原体」
+        /// 关键词——持有者受到实际伤害（防护层后落定——完全挡住不触发）时，对伤害来源附加
+        /// 1 层毒素指示物（ToxinCounter：来源回合末受到=层数的伤害、随后减半）。
+        /// 触发口=KeywordRules.ApplyDamage 管线尾段（报复后、剧毒前）。旧病原体
+        /// （2026-10-08 退役·战斗伤害改写挂剧毒指示物）为不同语义，运行时 id 复用 Pathogen。
+        /// GrantKeywordHandler 通用路径（GrantKeywordHandlerFactory.Specs 登记）。</summary>
+        GrantPathogen,
     }
 
     /// <summary>

@@ -50,6 +50,10 @@ namespace SynergyUI
         // 订阅回调在引擎发布时同步执行，入队序==引擎事件序
         private readonly Action<CounterChangedEvent> _onDeckMark;     // 诅咒/祝福牌库标记钩子（2026-10-26）：
         // 施加（Amount>0）→卡堆顶爆发+脉冲；消层（Amount=0·抽到发作）→屏侧刷新牌库预览条
+        private readonly Action<KeywordEvent> _onKeywordGranted;      // 赋予关键词爆发粒子（2026-11-01）：
+        // KeywordEvent(IsAdd) 全仓唯一发布点=GrantKeywordHandler——事件即「一次赋予落地」
+        private readonly Action<CounterChangedEvent> _onCounterGranted; // 赋予指示物爆发粒子（2026-11-01）：
+        // EffectTint!=null 为判据（仅赋予 handler 填）——衰减/吸收/引擎投放天然排除
 
         private readonly List<Action> _unsubscribers = new List<Action>();
         private int _lastCoreNullLogFrame = -999; // 核心未就绪跳过的节流日志帧
@@ -79,7 +83,9 @@ namespace SynergyUI
             Action<LuckRolledEvent> onLuckRoll = null,
             Func<bool> logHeld = null,
             Action<PhaseStartEvent> onPhaseAnnounced = null,
-            Action<CounterChangedEvent> onDeckMark = null)
+            Action<CounterChangedEvent> onDeckMark = null,
+            Action<KeywordEvent> onKeywordGranted = null,
+            Action<CounterChangedEvent> onCounterGranted = null)
         {
             _core = core;
             _ctrl = ctrl;
@@ -107,6 +113,8 @@ namespace SynergyUI
             _logHeld = logHeld;
             _onPhaseAnnounced = onPhaseAnnounced;
             _onDeckMark = onDeckMark;
+            _onKeywordGranted = onKeywordGranted;
+            _onCounterGranted = onCounterGranted;
         }
 
         // ==== 订阅（唯一订阅点） ====
@@ -163,8 +171,15 @@ namespace SynergyUI
                 if (_onDeckMark != null && e != null
                     && (e.CounterType == CounterRules.CurseCounter || e.CounterType == CounterRules.BlessingCounter))
                     DeferOrRun(() => _onDeckMark(e));
+                else if (_onCounterGranted != null && e != null && e.EffectTint != null && e.Amount > 0)
+                    DeferOrRun(() => _onCounterGranted(e)); // 赋予指示物爆发粒子（2026-11-01）：EffectTint!=null=赋予 handler 发布
                 if (_onCounterFloat != null) DeferOrRun(() => _onCounterFloat(e));
                 QueueFans(); QueueField();
+            });
+            On<KeywordEvent>(e => // 赋予关键词爆发粒子（2026-11-01）：IsAdd 全仓唯一发布点=GrantKeywordHandler
+            {                            //——印刷关键词入轨走 AddKeyword 纯状态口不发事件，钩子天然只捕「赋予落地」
+                if (e != null && e.IsAdd && _onKeywordGranted != null)
+                    DeferOrRun(() => _onKeywordGranted(e));
             });
             On<RevealCardsEvent>(_ => QueueFans());
             // 棋盘数字条：黑白钱包与地牌横置跨回合清零（TurnStart）、角色生命（LifeChange）、

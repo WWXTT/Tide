@@ -12,8 +12,9 @@ namespace SynergyUI
     /// 缺省 GeneralAiStrategy = 本类原通用行为；红快攻/绿慢速/蓝控制见 AiStrategy 派生。
     /// 每回合穷举可用动作并执行，直到无进展——费用花完、手牌打空、无可攻击单位、无可发动效果。
     /// 所有动作都走 GameActions / BattleController 既有入口；可行性由引擎校验（失败即静默跳过，卡留手不付费）。
-    /// 清理对手场面作为通用目标偏好（非针对特定卡组）：攻击优先击杀对方随从（优换 > 换子），
-    /// 无击杀机会才打脸（打脸被守卫拦由引擎守卫转移承担——帷幕不拦攻击）；有害类原子的目标也优先对方单位
+    /// 清理对手场面作为通用目标偏好（非针对特定卡组）：攻击按解场收益决策（2026-11-01）——
+    /// 单位价值=(攻+血)/2、攻击成本按 1 费，收益 &gt; 0 的换子无条件做；不赚再按策略倾向分化
+    /// （红=打脸 / 绿=留守卫 / 蓝=看情况）。有害类原子的目标也优先对方单位
     /// （威胁降序——解场优先，2026-09-13 用户裁决）、有益类优先己方；无偏好回落引擎自动解析（targets=null）。
     /// 当前回合玩家即可驱动（AI 对 AI 验证用；BattleScreen 仍只对 P2 调用）。
     /// </summary>
@@ -170,6 +171,11 @@ namespace SynergyUI
             var me = ctrl.TurnPlayer;
             if (core == null || me == null || me != core.TurnEngine.TurnPlayer) return;
 
+            // AI 目标排序钩子（2026-11-01）：本回合的自动目标选择按策略排序
+            //（解横置选最高攻 / 代价选低攻或已横置 / 加攻集中同一生物——红快攻专用）。
+            // 不还原：AI 轮次串行，下一回合由下一个 AI 覆盖；人类 chooser 不走该分支。
+            TargetSelectionService.AiOrder = req => _strategy.OrderTargetCandidates(core, req?.Chooser ?? me, req);
+
             // 0. 准备阶段：跳过产元素阶段进入主阶段
             GameActions.SkipElementPool(core, me);
 
@@ -202,19 +208,19 @@ namespace SynergyUI
             if (!core.IsGameOver)
                 await DoCombatAsync(core, me);
 
-            // 4.5 战斗间补牌（2026-09-21 激励时机修复）：激励（Untap·filter=Tapped）只有在攻击者
-            //     横置后打出才有候选——第一波攻击完打出激励（红策略指向攻击力最高者）解横置，
-            //     随后第二波攻击让被激励者再动一次（CanDeclareAttack 只放行已解横置者）。
+            // 4.5 战斗间再动（2026-09-21 激励时机修复 + 2026-11-01 技能优先）：
+            //     先发动英雄技能（红=重整：解最高攻攻击者的横置，立刻再打一波），再补牌
+            //     （激励/火灵等只有在攻击者横置后才有候选）；随后第二波攻击让解横置者再动一次。
             if (!core.IsGameOver)
             {
-                bool playedAfterCombat = false;
+                bool actedAfterCombat = await UseHeroSkillAsync(core, me);
                 for (int i = 0; i < 3; i++)
                 {
                     if (!await PlayBestAffordableCardAsync(core, me)) break;
-                    playedAfterCombat = true;
+                    actedAfterCombat = true;
                     await PaceAsync(); // 人机节奏：战后补牌逐张可读
                 }
-                if (playedAfterCombat)
+                if (actedAfterCombat)
                     await DoCombatAsync(core, me);
             }
 
@@ -254,13 +260,15 @@ namespace SynergyUI
         /// 缺省锁主色）。全部付得起时不放（保护手里的关键词/高费随从上场面）。
         /// 地牌资格（正式三型，非衍生物/临时卡）由引擎权威校验，此处预检跳过无效尝试。
         /// </summary>
-        private static void PlayLands(GameCore core, Player me)
+        private void PlayLands(GameCore core, Player me)
         {
             var lands = (core.ZoneManager.GetCards(me, Zone.Hand) ?? new List<Card>())
                 .Where(ElementPoolSystem.CanServeAsLand)
                 .ToList();
+            // 打不出的卡按策略地牌优先级排序（红：血偿等直伤打不出去时直接当地占坑；
+            // 默认=总费用降序——原口径）
             var unaffordable = lands.Where(c => !CanPlayCard(core, me, c, Zone.Hand))
-                                    .OrderByDescending(TotalCost)
+                                    .OrderByDescending(c => _strategy.LandPriority(core, me, c, TotalCost))
                                     .ToList();
             // 兜底：手牌有生物但全部付得起——不放（留手打出，最大化场面交互）
             if (unaffordable.Count == 0) return;
@@ -338,6 +346,7 @@ namespace SynergyUI
             var hand = core.ZoneManager.GetCards(me, Zone.Hand) ?? new List<Card>();
             var ordered = hand
                 .Where(c => CanPlayCard(core, me, c, Zone.Hand))
+                .Where(c => !_strategy.ShouldHold(core, me, c)) // 攒牌闸（2026-10-31 红快攻斩杀线）：刻意留手
                 .OrderByDescending(c => _strategy.CardPlayScore(core, me, c, ContainsHarmfulAtom, TotalCost))
                 .ToList();
             foreach (var card in ordered)
@@ -601,19 +610,23 @@ namespace SynergyUI
 
         // ======================================== 战斗（2026-09-16 逐攻击开窗） ========================================
 
-        /// <summary>逐攻击开窗：每个可攻击单位按策略选目标宣言（通用=清场优先；速度0上栈）→
-        /// 响应窗口（SettleResponseWindowAsync：对方人类=发动弹窗/AI=守卫启发/无头=自动双 Pass）
+        /// <summary>逐攻击开窗：每个可攻击单位按策略选目标宣言（解场收益优先，见 AiStrategy.PickAttackTarget；
+        /// 速度0上栈）→ 响应窗口（SettleResponseWindowAsync：对方人类=发动弹窗/AI=守卫启发/无头=自动双 Pass）
         /// → 结算 → 下一攻。攻击资格由引擎权威判定（横置/零攻/NoAttack）。</summary>
         private async Cysharp.Threading.Tasks.UniTask DoCombatAsync(GameCore core, Player me)
         {
             var opp = me.Opponent;
             if (opp == null) return;
             var battlefield = new List<Card>(core.ZoneManager.GetCards(me, Zone.Battlefield) ?? new List<Card>());
+            // 攻击顺序（2026-11-01 解场定案）：按单位价值「(攻+血)/2」升序——便宜单位先动，
+            // 正收益换子优先由它吃下（少亏身材），贵单位留给打脸/斩杀；小单位先撞守卫也能让
+            // 拦截者先横置（守卫拦截后横置，后续攻击不再被同一守卫拦）。
+            battlefield.Sort((a, b) => AttackOrderValue(core, a).CompareTo(AttackOrderValue(core, b)));
             foreach (var unit in battlefield)
             {
                 if (core.IsGameOver) return;
                 if (!core.CombatSystem.CanDeclareAttack(unit, me)) continue;
-                var target = _strategy.PickAttackTarget(core, me, unit, opp); // 攻击决策经策略（通用=清场优先）
+                var target = _strategy.PickAttackTarget(core, me, unit, opp); // 攻击决策经策略
                 if (target == null) continue;
                 if (!GameActions.DeclareAttack(core, me, unit, target)) continue;
                 await GameActions.SettleResponseWindowAsync(core); // 窗口+结算（含级联触发/SBA 轮）
@@ -632,6 +645,11 @@ namespace SynergyUI
                 }
             }
         }
+
+        /// <summary>攻击顺序估值（升序用）：与 AiStrategy.UnitValue 同口径（不除 2，比较等价）——
+        /// 便宜单位先出手，先吃正收益换子（2026-11-01）。</summary>
+        private static float AttackOrderValue(GameCore core, Card unit)
+            => core.LayerEngine.CalculatePower(unit) + unit.GetLife();
 
         /// <summary>角色攻击目标（镜像 PickAttackTarget 清场口径，弹药一次烧光的简化版）：
         /// 致死打脸 ＞ 弹药打得死的最高威胁随从（打不死不白送）＞ 打脸兜底。</summary>

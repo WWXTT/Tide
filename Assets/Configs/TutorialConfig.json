@@ -4,7 +4,7 @@
       "id": "basics",
       "name": "基础教学",
       "rngSeed": 20261002,
-      "_说明": "教学一·两段式第三版修订（2026-10-17 晚·考验重铸）：介绍段=7 段配音卡片+语音联动地块独占显隐（reveal 指令 Solo）；操作段=宽松步+AI 守卫演示（attack 步 aiGuard=true——宣言帧不推进，结算探针才算完成，解说卡 basics_14 文字占位待配音、由 UI 等战斗表现收尾后弹出）；basics_12 过场（aiTurnOnConfirm）显示时 midTransition 全清重铺（阶段一生物不保留），确定后直接把回合交给对手=对手进攻回合；考验=玩家 6/1 主将+8×2/2+3×1/1 对 8/8×2+7/7×2+2/2×2（2026-10-17 真实白板卡定案：同属性共用一张卡 C_7E5A100B~100E+100F=6/1 主将专用，units 数值覆写退役；当晚再改=前排三只 2/2 换 1/1 加难），AI 打法=四只大怪无脑打脸（hero）、两只 2/2 首选打玩家 6/1（target=100F，fallback=hero——6/1 死后转攻角色），victory 自由挑战（打赢过/打输重来）。阶段一生物=玩家召唤 1/1（教学生物12）·AI 铺 3/2（教学生物24）——回合 2 玩家再攻时 AI 守卫挡刀并反杀（basics_14 解说，横置不反击同段讲授）。语音=StreamingAssets/TutorialAudio/basics_01..13 到货+basics_14 待录。跳过机制 guideSkip=[victory]/skipScenario（firstPlayer=P2 直入即对手进攻回合，ScriptedAi turnOffset=1 对位 turn2）。。卡组引用文件化（2026-10-17）：playerDeckFile/aiDeckFile → StreamingAssets/Tutorial/basics.json+basics_ai.json（DeckData 格式，id 引用即是卡组、可重复）；当晚改版=玩家起手=1/1 召唤卡×2（教学生物12 固定两张上手——防垫地耗尽后无生物可召）+考验上场卡填充（2/2×3+6/1，抽牌亦 2/2）、AI=剧本 3 张（垫地×2+3/2）+其考验怪填充（8/8×2+7/7×2+2/2）；2/2 白板费 1→2 保「费用最低那张」唯一指向 1/1（考验段摆场不付费无影响）；教学卡表同批清剿无引用废卡（39→7，100C=6/6 一并退役）；教学卡表/效果表均在 StreamingAssets/Tutorial/，正式卡池 Card/ 不再混放教学卡。2026-10-23 v4 重规划：段零改 scenario 确定性开局（2 地→2 只 1/1→攻击→AI 3/2 冲脸→玩家守卫→打横置 3/1 白吃），guide 13 步；skipScenario/aiScript turn2+/victory 原样不动，考验未改。2026-10-23 晚：介绍段 7 步（basics_01..07·reveal 地块独占显隐）自 v4 前版本（abfabce33）回插 guide 头部，v4 操作步后移（用户定案：旧场地介绍+配音加回）；basics_06 文案为 10-22 重写版、mp3（10-17）仍旧稿待重录",
+      "_说明": "教学一·两段式第三版修订（2026-10-17 晚·考验重铸）：介绍段=7 段配音卡片+语音联动地块独占显隐（reveal 指令 Solo）；操作段=宽松步+AI 守卫演示（attack 步 aiGuard=true——宣言帧不推进，结算探针才算完成，解说卡 basics_14 文字占位待配音、由 UI 等战斗表现收尾后弹出）；basics_12 过场（aiTurnOnConfirm）显示时 midTransition 全清重铺（阶段一生物不保留），确定后直接把回合交给对手=对手进攻回合；考验=玩家 6/1 主将+8×2/2+3×1/1 对 8/8×2+7/7×2+2/2×2（2026-10-17 真实白板卡定案：同属性共用一张卡 C_E98E60F2~100E+100F=6/1 主将专用，units 数值覆写退役；当晚再改=前排三只 2/2 换 1/1 加难），AI 打法=四只大怪无脑打脸（hero）、两只 2/2 首选打玩家 6/1（target=100F，fallback=hero——6/1 死后转攻角色），victory 自由挑战（打赢过/打输重来）。阶段一生物=玩家召唤 1/1（教学生物12）·AI 铺 3/2（教学生物24）——回合 2 玩家再攻时 AI 守卫挡刀并反杀（basics_14 解说，横置不反击同段讲授）。语音=StreamingAssets/TutorialAudio/basics_01..13 到货+basics_14 待录。跳过机制 guideSkip=[victory]/skipScenario（firstPlayer=P2 直入即对手进攻回合，ScriptedAi turnOffset=1 对位 turn2）。。卡组引用文件化（2026-10-17）：playerDeckFile/aiDeckFile → StreamingAssets/Tutorial/basics.json+basics_ai.json（DeckData 格式，id 引用即是卡组、可重复）；当晚改版=玩家起手=1/1 召唤卡×2（教学生物12 固定两张上手——防垫地耗尽后无生物可召）+考验上场卡填充（2/2×3+6/1，抽牌亦 2/2）、AI=剧本 3 张（垫地×2+3/2）+其考验怪填充（8/8×2+7/7×2+2/2）；2/2 白板费 1→2 保「费用最低那张」唯一指向 1/1（考验段摆场不付费无影响）；教学卡表同批清剿无引用废卡（39→7，100C=6/6 一并退役）；教学卡表/效果表均在 StreamingAssets/Tutorial/，正式卡池 Card/ 不再混放教学卡。2026-10-23 v4 重规划：段零改 scenario 确定性开局（2 地→2 只 1/1→攻击→AI 3/2 冲脸→玩家守卫→打横置 3/1 白吃），guide 13 步；skipScenario/aiScript turn2+/victory 原样不动，考验未改。2026-10-23 晚：介绍段 7 步（basics_01..07·reveal 地块独占显隐）自 v4 前版本（abfabce33）回插 guide 头部，v4 操作步后移（用户定案：旧场地介绍+配音加回）；basics_06 文案为 10-22 重写版、mp3（10-17）仍旧稿待重录",
       "scenario": {
         "startTurn": 2,
         "firstPlayer": "P1",
@@ -23,20 +23,20 @@
           "lands": [],
           "units": [
             {
-              "card": "C_2E341806",
+              "card": "C_95DC98E5",
               "tapped": false,
               "x": 1,
               "z": 2
             }
           ],
           "hand": [
-            "C_62DD963D",
-            "C_4A88A165",
-            "C_09BAF20F"
+            "C_3D10E1A5",
+            "C_DA499FAE",
+            "C_0E5F4B96"
           ],
           "deck": [
-            "C_7E5A100F",
-            "C_7E5A100F"
+            "C_C3D7138E",
+            "C_C3D7138E"
           ],
           "grave": []
         },
@@ -54,13 +54,13 @@
           "lands": [],
           "units": [],
           "hand": [
-            "C_7E5A100B",
-            "C_7E5A100D",
-            "C_159D9AD0"
+            "C_E98E60F2",
+            "C_03E4B181",
+            "C_C279F399"
           ],
           "deck": [
-            "C_7E5A100E",
-            "C_7E5A100E"
+            "C_8C47525E",
+            "C_8C47525E"
           ],
           "grave": []
         }
@@ -116,31 +116,31 @@
         },
         {
           "type": "element",
-          "card": "C_62DD963D",
+          "card": "C_3D10E1A5",
           "audio": "basics_09",
           "hint": "放置地牌，点击【教学1】→点击【放置】→从亮起的地牌格中选择一个，放入后它成为地牌，地牌每回合产生一个对应放入区域颜色的元素。"
         },
         {
           "type": "activate",
-          "card": "C_2E341806",
+          "card": "C_95DC98E5",
           "audio": "basics_10",
           "hint": "点击场上的生物【教学2】→点击【发动】→使用它的主动效果元素合成，生成一点临时彩元素。"
         },
         {
           "type": "play",
-          "card": "C_4A88A165",
+          "card": "C_DA499FAE",
           "audio": "basics_11",
           "hint": "点击【教学3】→点击【召唤】→选择己方空闲的发动区，元素池会按照召唤的生物对费用的需要，自动付费，优先消耗临时元素。"
         },
         {
           "type": "play",
-          "card": "C_09BAF20F",
+          "card": "C_0E5F4B96",
           "audio": "basics_12",
           "hint": "点击【教学4】→点击【召唤】→选择己方空闲的发动区，这次元素池横置了地牌，使用的是地牌生成的元素，地牌的横置在下个回合准备阶段恢复。"
         },
         {
           "type": "attack",
-          "attacker": "C_4A88A165",
+          "attacker": "C_DA499FAE",
           "target": "hero",
           "audio": "basics_13",
           "hint": "生物召唤的回合就能行动，光圈是可用的标志，点击【教学3】→点击【攻击】→选择对方角色。"
@@ -157,8 +157,8 @@
         },
         {
           "type": "guard",
-          "attacker": "C_159D9AD0",
-          "guarder": "C_09BAF20F",
+          "attacker": "C_C279F399",
+          "guarder": "C_0E5F4B96",
           "audio": "basics_16",
           "hint": "对手召唤了属性为3-2的生物，对你的角色发起了攻击，此时游戏暂停了，因为你场上具有可以行动的生物，系统在等待你的回应。点击【教学4】→点击【守卫】，再选择对手发起攻击的生物。"
         },
@@ -169,8 +169,8 @@
         },
         {
           "type": "attack",
-          "attacker": "C_4A88A165",
-          "target": "C_159D9AD0",
+          "attacker": "C_DA499FAE",
+          "target": "C_C279F399",
           "audio": "basics_18",
           "hint": "对手结束了回合，又到了我们的回合，地牌和生物的可用状态恢复了。点击【教学3】→点击【攻击】→选择对方生物。"
         },
@@ -202,7 +202,7 @@
       "skipScenario": {
         "startTurn": 3,
         "firstPlayer": "P2",
-        "_说明": "考验场面（2026-10-17 真实白板卡定案；当晚改版：玩家主将 6/6→6/1、AI 双 6/6→双 2/2 且首选打 6/1）：玩家=6/1 主将+8×2/2 卒+3×1/1 炮灰（教学生物12，前排 z3 左三；midTransition 全清重铺，阶段一生物不保留）；AI=8/8×2+7/7×2+2/2×2，生命 10/20（玩家 10——当晚加难第二刀，挨两记大怪不守卫即出局）。全部引用 TutorialCards 真实白板卡：C_7E5A100B=2/2（费 2）、100F=6/1（主将专用）、100D=7/7、100E=8/8——100C=6/6 已随当晚卡表清剿删除——同属性生物共用同一张卡，units 数值覆写口已退役。id 引用即是卡组：同 id 多张由 Seeder 摆场唯一化为衍生物式实例 ID（首张裸 id、第 2 张起 id#N，按 P1→P2 units 序）；aiScript turn2-10：四只大怪（100E/100E#2/100D/100D#2）全打 hero，两只 2/2 写实例 ID 100B#9/100B#10（玩家 8 只 2/2 占掉裸 id~#8），target=100F 首选打玩家 6/1 主将、6/1 死亡后 fallback=hero 转攻角色（首只 2/2 与 6/1 互换阵亡，第二只回落打角色）。firstPlayer=P2=直入即对手进攻回合。旧 1001~100A 覆写底板卡已删（临时课不作数，2026-10-17 用户定案）",
+        "_说明": "考验场面（2026-10-17 真实白板卡定案；当晚改版：玩家主将 6/6→6/1、AI 双 6/6→双 2/2 且首选打 6/1）：玩家=6/1 主将+8×2/2 卒+3×1/1 炮灰（教学生物12，前排 z3 左三；midTransition 全清重铺，阶段一生物不保留）；AI=8/8×2+7/7×2+2/2×2，生命 10/20（玩家 10——当晚加难第二刀，挨两记大怪不守卫即出局）。全部引用 TutorialCards 真实白板卡：C_E98E60F2=2/2（费 2）、100F=6/1（主将专用）、100D=7/7、100E=8/8——100C=6/6 已随当晚卡表清剿删除——同属性生物共用同一张卡，units 数值覆写口已退役。id 引用即是卡组：同 id 多张由 Seeder 摆场唯一化为衍生物式实例 ID（首张裸 id、第 2 张起 id#N，按 P1→P2 units 序）；aiScript turn2-10：四只大怪（100E/100E#2/100D/100D#2）全打 hero，两只 2/2 写实例 ID 100B#9/100B#10（玩家 8 只 2/2 占掉裸 id~#8），target=100F 首选打玩家 6/1 主将、6/1 死亡后 fallback=hero 转攻角色（首只 2/2 与 6/1 互换阵亡，第二只回落打角色）。firstPlayer=P2=直入即对手进攻回合。旧 1001~100A 覆写底板卡已删（临时课不作数，2026-10-17 用户定案）",
         "player": {
           "life": 10,
           "fatigue": 0,
@@ -217,55 +217,55 @@
           "lands": [],
           "units": [
             {
-              "card": "C_7E5A100F",
+              "card": "C_C3D7138E",
               "tapped": false,
               "x": 1,
               "z": 2
             },
             {
-              "card": "C_7E5A100B",
+              "card": "C_E98E60F2",
               "tapped": false,
               "x": 2,
               "z": 2
             },
             {
-              "card": "C_7E5A100B",
+              "card": "C_E98E60F2",
               "tapped": false,
               "x": 3,
               "z": 2
             },
             {
-              "card": "C_7E5A100B",
+              "card": "C_E98E60F2",
               "tapped": false,
               "x": 4,
               "z": 2
             },
             {
-              "card": "C_7E5A100B",
+              "card": "C_E98E60F2",
               "tapped": false,
               "x": 1,
               "z": 1
             },
             {
-              "card": "C_7E5A100B",
+              "card": "C_E98E60F2",
               "tapped": false,
               "x": 2,
               "z": 1
             },
             {
-              "card": "C_7E5A100B",
+              "card": "C_E98E60F2",
               "tapped": false,
               "x": 3,
               "z": 1
             },
             {
-              "card": "C_4A88A165",
+              "card": "C_DA499FAE",
               "tapped": false,
               "x": 4,
               "z": 1
             },
             {
-              "card": "C_4A88A165",
+              "card": "C_DA499FAE",
               "tapped": false,
               "x": 5,
               "z": 1
@@ -289,37 +289,37 @@
           "lands": [],
           "units": [
             {
-              "card": "C_7E5A100E",
+              "card": "C_8C47525E",
               "tapped": false,
               "x": 5,
               "z": 4
             },
             {
-              "card": "C_7E5A100E",
+              "card": "C_8C47525E",
               "tapped": false,
               "x": 4,
               "z": 4
             },
             {
-              "card": "C_7E5A100D",
+              "card": "C_03E4B181",
               "tapped": false,
               "x": 3,
               "z": 4
             },
             {
-              "card": "C_7E5A100D",
+              "card": "C_03E4B181",
               "tapped": false,
               "x": 2,
               "z": 4
             },
             {
-              "card": "C_7E5A100B",
+              "card": "C_E98E60F2",
               "tapped": false,
               "x": 5,
               "z": 5
             },
             {
-              "card": "C_7E5A100B",
+              "card": "C_E98E60F2",
               "tapped": false,
               "x": 4,
               "z": 5
@@ -336,19 +336,19 @@
           "actions": [
             {
               "type": "element",
-              "card": "C_7E5A100B"
+              "card": "C_E98E60F2"
             },
             {
               "type": "element",
-              "card": "C_7E5A100D"
+              "card": "C_03E4B181"
             },
             {
               "type": "play",
-              "card": "C_159D9AD0"
+              "card": "C_C279F399"
             },
             {
               "type": "attack",
-              "attacker": "C_159D9AD0",
+              "attacker": "C_C279F399",
               "target": "hero"
             }
           ]
@@ -358,34 +358,34 @@
           "actions": [
             {
               "type": "attack",
-              "attacker": "C_7E5A100E",
+              "attacker": "C_8C47525E",
               "target": "hero"
             },
             {
               "type": "attack",
-              "attacker": "C_7E5A100E#2",
+              "attacker": "C_8C47525E#2",
               "target": "hero"
             },
             {
               "type": "attack",
-              "attacker": "C_7E5A100D",
+              "attacker": "C_03E4B181",
               "target": "hero"
             },
             {
               "type": "attack",
-              "attacker": "C_7E5A100D#2",
+              "attacker": "C_03E4B181#2",
               "target": "hero"
             },
             {
               "type": "attack",
-              "attacker": "C_7E5A100B#9",
-              "target": "C_7E5A100F",
+              "attacker": "C_E98E60F2#9",
+              "target": "C_C3D7138E",
               "fallback": "hero"
             },
             {
               "type": "attack",
-              "attacker": "C_7E5A100B#10",
-              "target": "C_7E5A100F",
+              "attacker": "C_E98E60F2#10",
+              "target": "C_C3D7138E",
               "fallback": "hero"
             }
           ]
@@ -395,34 +395,34 @@
           "actions": [
             {
               "type": "attack",
-              "attacker": "C_7E5A100E",
+              "attacker": "C_8C47525E",
               "target": "hero"
             },
             {
               "type": "attack",
-              "attacker": "C_7E5A100E#2",
+              "attacker": "C_8C47525E#2",
               "target": "hero"
             },
             {
               "type": "attack",
-              "attacker": "C_7E5A100D",
+              "attacker": "C_03E4B181",
               "target": "hero"
             },
             {
               "type": "attack",
-              "attacker": "C_7E5A100D#2",
+              "attacker": "C_03E4B181#2",
               "target": "hero"
             },
             {
               "type": "attack",
-              "attacker": "C_7E5A100B#9",
-              "target": "C_7E5A100F",
+              "attacker": "C_E98E60F2#9",
+              "target": "C_C3D7138E",
               "fallback": "hero"
             },
             {
               "type": "attack",
-              "attacker": "C_7E5A100B#10",
-              "target": "C_7E5A100F",
+              "attacker": "C_E98E60F2#10",
+              "target": "C_C3D7138E",
               "fallback": "hero"
             }
           ]
@@ -432,34 +432,34 @@
           "actions": [
             {
               "type": "attack",
-              "attacker": "C_7E5A100E",
+              "attacker": "C_8C47525E",
               "target": "hero"
             },
             {
               "type": "attack",
-              "attacker": "C_7E5A100E#2",
+              "attacker": "C_8C47525E#2",
               "target": "hero"
             },
             {
               "type": "attack",
-              "attacker": "C_7E5A100D",
+              "attacker": "C_03E4B181",
               "target": "hero"
             },
             {
               "type": "attack",
-              "attacker": "C_7E5A100D#2",
+              "attacker": "C_03E4B181#2",
               "target": "hero"
             },
             {
               "type": "attack",
-              "attacker": "C_7E5A100B#9",
-              "target": "C_7E5A100F",
+              "attacker": "C_E98E60F2#9",
+              "target": "C_C3D7138E",
               "fallback": "hero"
             },
             {
               "type": "attack",
-              "attacker": "C_7E5A100B#10",
-              "target": "C_7E5A100F",
+              "attacker": "C_E98E60F2#10",
+              "target": "C_C3D7138E",
               "fallback": "hero"
             }
           ]
@@ -469,34 +469,34 @@
           "actions": [
             {
               "type": "attack",
-              "attacker": "C_7E5A100E",
+              "attacker": "C_8C47525E",
               "target": "hero"
             },
             {
               "type": "attack",
-              "attacker": "C_7E5A100E#2",
+              "attacker": "C_8C47525E#2",
               "target": "hero"
             },
             {
               "type": "attack",
-              "attacker": "C_7E5A100D",
+              "attacker": "C_03E4B181",
               "target": "hero"
             },
             {
               "type": "attack",
-              "attacker": "C_7E5A100D#2",
+              "attacker": "C_03E4B181#2",
               "target": "hero"
             },
             {
               "type": "attack",
-              "attacker": "C_7E5A100B#9",
-              "target": "C_7E5A100F",
+              "attacker": "C_E98E60F2#9",
+              "target": "C_C3D7138E",
               "fallback": "hero"
             },
             {
               "type": "attack",
-              "attacker": "C_7E5A100B#10",
-              "target": "C_7E5A100F",
+              "attacker": "C_E98E60F2#10",
+              "target": "C_C3D7138E",
               "fallback": "hero"
             }
           ]
@@ -506,34 +506,34 @@
           "actions": [
             {
               "type": "attack",
-              "attacker": "C_7E5A100E",
+              "attacker": "C_8C47525E",
               "target": "hero"
             },
             {
               "type": "attack",
-              "attacker": "C_7E5A100E#2",
+              "attacker": "C_8C47525E#2",
               "target": "hero"
             },
             {
               "type": "attack",
-              "attacker": "C_7E5A100D",
+              "attacker": "C_03E4B181",
               "target": "hero"
             },
             {
               "type": "attack",
-              "attacker": "C_7E5A100D#2",
+              "attacker": "C_03E4B181#2",
               "target": "hero"
             },
             {
               "type": "attack",
-              "attacker": "C_7E5A100B#9",
-              "target": "C_7E5A100F",
+              "attacker": "C_E98E60F2#9",
+              "target": "C_C3D7138E",
               "fallback": "hero"
             },
             {
               "type": "attack",
-              "attacker": "C_7E5A100B#10",
-              "target": "C_7E5A100F",
+              "attacker": "C_E98E60F2#10",
+              "target": "C_C3D7138E",
               "fallback": "hero"
             }
           ]
@@ -543,34 +543,34 @@
           "actions": [
             {
               "type": "attack",
-              "attacker": "C_7E5A100E",
+              "attacker": "C_8C47525E",
               "target": "hero"
             },
             {
               "type": "attack",
-              "attacker": "C_7E5A100E#2",
+              "attacker": "C_8C47525E#2",
               "target": "hero"
             },
             {
               "type": "attack",
-              "attacker": "C_7E5A100D",
+              "attacker": "C_03E4B181",
               "target": "hero"
             },
             {
               "type": "attack",
-              "attacker": "C_7E5A100D#2",
+              "attacker": "C_03E4B181#2",
               "target": "hero"
             },
             {
               "type": "attack",
-              "attacker": "C_7E5A100B#9",
-              "target": "C_7E5A100F",
+              "attacker": "C_E98E60F2#9",
+              "target": "C_C3D7138E",
               "fallback": "hero"
             },
             {
               "type": "attack",
-              "attacker": "C_7E5A100B#10",
-              "target": "C_7E5A100F",
+              "attacker": "C_E98E60F2#10",
+              "target": "C_C3D7138E",
               "fallback": "hero"
             }
           ]
@@ -580,34 +580,34 @@
           "actions": [
             {
               "type": "attack",
-              "attacker": "C_7E5A100E",
+              "attacker": "C_8C47525E",
               "target": "hero"
             },
             {
               "type": "attack",
-              "attacker": "C_7E5A100E#2",
+              "attacker": "C_8C47525E#2",
               "target": "hero"
             },
             {
               "type": "attack",
-              "attacker": "C_7E5A100D",
+              "attacker": "C_03E4B181",
               "target": "hero"
             },
             {
               "type": "attack",
-              "attacker": "C_7E5A100D#2",
+              "attacker": "C_03E4B181#2",
               "target": "hero"
             },
             {
               "type": "attack",
-              "attacker": "C_7E5A100B#9",
-              "target": "C_7E5A100F",
+              "attacker": "C_E98E60F2#9",
+              "target": "C_C3D7138E",
               "fallback": "hero"
             },
             {
               "type": "attack",
-              "attacker": "C_7E5A100B#10",
-              "target": "C_7E5A100F",
+              "attacker": "C_E98E60F2#10",
+              "target": "C_C3D7138E",
               "fallback": "hero"
             }
           ]
@@ -617,34 +617,34 @@
           "actions": [
             {
               "type": "attack",
-              "attacker": "C_7E5A100E",
+              "attacker": "C_8C47525E",
               "target": "hero"
             },
             {
               "type": "attack",
-              "attacker": "C_7E5A100E#2",
+              "attacker": "C_8C47525E#2",
               "target": "hero"
             },
             {
               "type": "attack",
-              "attacker": "C_7E5A100D",
+              "attacker": "C_03E4B181",
               "target": "hero"
             },
             {
               "type": "attack",
-              "attacker": "C_7E5A100D#2",
+              "attacker": "C_03E4B181#2",
               "target": "hero"
             },
             {
               "type": "attack",
-              "attacker": "C_7E5A100B#9",
-              "target": "C_7E5A100F",
+              "attacker": "C_E98E60F2#9",
+              "target": "C_C3D7138E",
               "fallback": "hero"
             },
             {
               "type": "attack",
-              "attacker": "C_7E5A100B#10",
-              "target": "C_7E5A100F",
+              "attacker": "C_E98E60F2#10",
+              "target": "C_C3D7138E",
               "fallback": "hero"
             }
           ]
@@ -654,34 +654,34 @@
           "actions": [
             {
               "type": "attack",
-              "attacker": "C_7E5A100E",
+              "attacker": "C_8C47525E",
               "target": "hero"
             },
             {
               "type": "attack",
-              "attacker": "C_7E5A100E#2",
+              "attacker": "C_8C47525E#2",
               "target": "hero"
             },
             {
               "type": "attack",
-              "attacker": "C_7E5A100D",
+              "attacker": "C_03E4B181",
               "target": "hero"
             },
             {
               "type": "attack",
-              "attacker": "C_7E5A100D#2",
+              "attacker": "C_03E4B181#2",
               "target": "hero"
             },
             {
               "type": "attack",
-              "attacker": "C_7E5A100B#9",
-              "target": "C_7E5A100F",
+              "attacker": "C_E98E60F2#9",
+              "target": "C_C3D7138E",
               "fallback": "hero"
             },
             {
               "type": "attack",
-              "attacker": "C_7E5A100B#10",
-              "target": "C_7E5A100F",
+              "attacker": "C_E98E60F2#10",
+              "target": "C_C3D7138E",
               "fallback": "hero"
             }
           ]

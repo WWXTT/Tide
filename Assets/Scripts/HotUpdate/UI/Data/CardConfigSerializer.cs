@@ -189,12 +189,15 @@ namespace SynergyUI
                 // 不写回则 Save 后 noGuard 永远 false，结构项/属性换算全错。
                 noAttack = card.NoAttack,
                 noGuard = card.NoGuard,
-                // 代价栏（2026-10-16 组装效果代价）：统一走 AllPayloads——单原子也装进 payloads
-                //（装载端 payloads 优先、旧单条折入；payload 列只承接历史档不再新写）
+                // 代价栏（2026-10-16 组装效果代价；2026-10-31 代价指向化）：整卡行（TargetAttr=0）
+                // 统一走 AllPayloads 写 payloads 列（单原子也装进——装载端 payloads 优先、旧单条折入；
+                // payload 列只承接历史档不再新写）——列格式不变，存量卡 id 零漂移；
+                // 指向行（攻血/耐久/速度）写 costRows 新列。
                 payloads = card.PayloadCost != null
                     ? card.PayloadCost.AllPayloads()
                     : new List<CardCore.AtomicEffectEntry>(),
                 payload = null,
+                costRows = BuildCostRows(card),
             };
 
             if (card.Cost != null)
@@ -204,6 +207,30 @@ namespace SynergyUI
                     entry.costList.Add(card.Cost.v[i]);
             }
             return entry;
+        }
+
+        /// <summary>指向化代价行（2026-10-31 代价指向化）：TargetAttr∈{攻血,耐久,速度} 的卡级行
+        /// → costRows 列（target+原子序列）；整卡行（TargetAttr=0）不在此——走 payloads 列。
+        /// 空表=null（列不落盘，存量档零漂移）。</summary>
+        private static List<CardCostRowEntry> BuildCostRows(CardData card)
+        {
+            List<CardCostRowEntry> rows = null;
+            if (card.PayloadCosts != null)
+            {
+                foreach (var row in card.PayloadCosts)
+                {
+                    if (row == null || row.TargetAttr == (int)CardCore.CostAttrTarget.WholeCard) continue;
+                    var atoms = row.AllPayloads();
+                    if (atoms.Count == 0) continue;
+                    rows ??= new List<CardCostRowEntry>();
+                    rows.Add(new CardCostRowEntry
+                    {
+                        target = row.TargetAttr,
+                        payloads = atoms,
+                    });
+                }
+            }
+            return rows;
         }
 
         private static TestCardsConfigWrapper ReadWrapper(string path)

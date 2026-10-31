@@ -105,10 +105,11 @@ namespace CardCore.Network
             => v.ToString("R", System.Globalization.CultureInfo.InvariantCulture);
 
         /// <summary>卡级 refId 收集（与闭环校验同一走法——步内 kind 0/1/2、代价 payload、引擎奖励）。
-        /// 2026-10-16 组装效果代价：卡层 PayloadCost 原子序列入握手（此前只查效果级 legacy CostRef——卡级为既有缺口）。</summary>
+        /// 2026-10-16 组装效果代价：卡层 PayloadCost 原子序列入握手（此前只查效果级 legacy CostRef——卡级为既有缺口）。
+        /// 2026-10-31 代价指向化：卡级=全部代价行（整卡 legacy 行+指向行）原子展平（AllCostRowPayloads）。</summary>
         private static void CollectCardRefIds(CardData card, HashSet<string> refIds)
         {
-            foreach (var pa in card.PayloadCost?.AllPayloads() ?? new List<CardCore.AtomicEffectEntry>())
+            foreach (var pa in card.AllCostRowPayloads())
                 if (!string.IsNullOrEmpty(pa?.refId)) refIds.Add(pa.refId);
             if (card.Effects == null) return;
             foreach (var fx in card.Effects)
@@ -247,7 +248,7 @@ namespace CardCore.Network
         /// 旧内嵌路径效果（EFF_ 前缀回退 ID）不经效果库，跳过库命中检查。</summary>
         private static void CheckCardClosure(CardData card, List<string> missing)
         {
-            foreach (var pa in card.PayloadCost?.AllPayloads() ?? new List<CardCore.AtomicEffectEntry>())
+            foreach (var pa in card.AllCostRowPayloads())
                 if (!string.IsNullOrEmpty(pa?.refId)) CheckAtom(pa, missing);
             if (card.Effects == null) return;
             foreach (var fx in card.Effects)

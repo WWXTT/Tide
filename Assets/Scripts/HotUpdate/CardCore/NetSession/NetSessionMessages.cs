@@ -8,11 +8,11 @@ namespace CardCore.Network
     // 会话语义见根目录 网络协议.md §12；线格式仍走 NetworkMessage 信封 + FrameCodec 帧。
     //
     // 流程（2026-10-28 开局流程改版：房间就绪 → 房主开局 → 战场内选卡组 → 握手 → 开战）：
-    //   连接后第一条上行必须是 JoinRoom(112)（分座/观战登记；椅位0=房主）；
-    //   Waiting：房主 RoomSettings(136) 配模式（先后手方式+洗牌）·客人 RoomReady(137) 准备 toggle；
-    //   房主 RoomStart(138)（门槛=双方就座+客人已准备）→ 先手按模式确定 → 广播 RoomState(126, DeckSubmit)
+    //   连接后第一条上行必须是 JoinRoom(111)（分座/观战登记；椅位0=房主）；
+    //   Waiting：房主 RoomSettings(130) 配模式（先后手方式+洗牌）·客人 RoomReady(131) 准备 toggle；
+    //   房主 RoomStart(132)（门槛=双方就座+客人已准备）→ 先手按模式确定 → 广播 RoomState(121, DeckSubmit)
     //   + 30s 选卡组倒计时（DeckPickSecondsLeft 整秒推送；超时服务器替落随机预组）；
-    //   双座位 DeckSubmit(111) 校验通过 → MatchManifest(125) 下发（OwnSeat=本局引擎座位）→ 开局。
+    //   双座位 DeckSubmit(110) 校验通过 → MatchManifest(120) 下发（OwnSeat=本局引擎座位）→ 开局。
     //
     // 座位口径（易混淆处钉死）：
     //   JoinRoom.WantSeat = "椅子位"（进房占位，房间生命周期内稳定）；
@@ -139,8 +139,8 @@ namespace CardCore.Network
 
     // ============================================================
     // 大厅层（L1，2026-09-24 定案）：房间列表 + 自动匹配 + AI 填位，见 网络协议.md §13。
-    // 连接后可先 LobbyHello(130) 进大厅浏览房间，再 LobbyCreateRoom/LobbyJoinRoom/
-    // LobbyAutoMatch 入房；也可直接 JoinRoom(112) 跳过大厅（M2 兼容路径）。
+    // 连接后可先 LobbyHello(124) 进大厅浏览房间，再 LobbyCreateRoom/LobbyJoinRoom/
+    // LobbyAutoMatch 入房；也可直接 JoinRoom(111) 跳过大厅（M2 兼容路径）。
     // 单房串行：GameCore 进程单例 → 一个进程同时只一局；房间占用期间创建/配对排队等待，
     // 房间回收（Finished + 全员离开 → Waiting）后队列自动补位。真并发多局需专用服务器构建（后置）。
     // ============================================================

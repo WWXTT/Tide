@@ -37,6 +37,15 @@ namespace SynergyUI
         private TMP_Text _bioAtc, _bioHea, _barrierHea;                // 上半数字徽章（生物攻/血·结界耐久）
         private TMP_Text _nameText, _effectText, _passivesText, _keysText, _statesText;
         private RectTransform _effectBlock, _passivesBlock, _keysBlock, _statesBlock;
+        private readonly List<RectTransform> _effectRowClones = new List<RectTransform>(); // 多主动效果行克隆（SyncEffectRows 增删）
+        private readonly List<RectTransform> _spRowClones = new List<RectTransform>();      // 特殊效果行克隆（苏醒/充能，SyncSpEffectRows 增删）
+        /// <summary>多主动法术效果行（2026-11-01 抉择上卡）：ActiveEffectLines≥2 时 Apply 填充——
+        /// 模板行（effect）+ 克隆行，顺序=效果序（引擎 modeIndex 对位）。交互（点击切选/Outline 选中
+        /// 边框/CostSquares 费用联动）由手牌宿主 HandFanCard 接线；非手牌消费面（连锁台/预览卡）纯展示。</summary>
+        public readonly List<RectTransform> ActiveEffectRows = new List<RectTransform>();
+        /// <summary>特殊效果行（2026-11-01 苏醒/充能上卡）：SpEffectLines≥1 时 Apply 填充——
+        /// 全为克隆行（模板行留给单行/首模式行），追加在模式行之后、passives 之前；交互同上。</summary>
+        public readonly List<RectTransform> SpEffectRows = new List<RectTransform>();
         private GameObject _back;
         private GameObject _actionLayer;
         private CanvasGroup _group;
@@ -135,10 +144,25 @@ namespace SynergyUI
 
             SetText(_nameText, item.Name);
 
-            // effect 区：无主动效果整块隐藏（根 VLG 自动收拢）
-            bool hasActive = full && !string.IsNullOrEmpty(item.ActiveEffectText);
-            SetActive(_effectBlock, hasActive);
-            if (hasActive) SetText(_effectText, item.ActiveEffectText);
+            // effect 区：多主动法术逐效果成行（2026-11-01 抉择上卡）+ 特殊行（同日苏醒/充能上卡，
+            // 追加在模式行之后）——克隆烘焙 effect 行（Button+Outline 已烘在 prefab，交宿主接线）；
+            // 两者皆无时保持单行 ActiveEffectText 原口径（克隆行回收、行列表清空）。
+            bool effectRows = full && item.ActiveEffectLines != null && item.ActiveEffectLines.Count > 1;
+            bool spRows = full && item.SpEffectLines != null && item.SpEffectLines.Count > 0;
+            if (effectRows || spRows)
+            {
+                SetActive(_effectBlock, true);
+                if (effectRows) SyncEffectRows(item);
+                else ResetSingleRow(item);   // 只有特殊行的卡：模板行回落单行口径（无文案=藏行）
+                SyncSpEffectRows(item);
+            }
+            else
+            {
+                ClearEffectRows();
+                bool hasActive = full && !string.IsNullOrEmpty(item.ActiveEffectText);
+                SetActive(_effectBlock, hasActive);
+                if (hasActive) SetText(_effectText, item.ActiveEffectText);
+            }
 
             // passives 区
             bool hasPassives = full && item.PassiveLines != null && item.PassiveLines.Count > 0;
@@ -266,6 +290,128 @@ namespace SynergyUI
         {
             if (_runtimeCard == null) return;
             Apply(CardOverlayItem.FromLiveCard(_runtimeCard), CardOverlayLayout.Full);
+        }
+
+        // ==================== 多主动效果行（2026-11-01 抉择上卡） ====================
+
+        /// <summary>效果行同步（Apply 多行口径）：模板行（effect）承担第 1 行，克隆行按需增删
+        ///（实例化自模板——Button/Outline/HLG 布局随克隆携带；池复用换卡自动收敛），
+        /// 逐行填 标题=效果显示名、内容=效果全文（净费公式内联已在 Item 侧拼好）。
+        /// 克隆行插在模板行之后、passives 行之前（VLG 顺序即行序）。</summary>
+        private void SyncEffectRows(CardOverlayItem item)
+        {
+            var parent = _effectBlock.parent;
+            int need = item.ActiveEffectLines.Count - 1; // 克隆行数（模板行=第 1 行）
+            while (_effectRowClones.Count < need)
+            {
+                var clone = Instantiate(_effectBlock.gameObject, parent, false).transform as RectTransform;
+                clone.name = "effect" + (_effectRowClones.Count + 2); // effect2、effect3…（名字不参与 Bind 解析）
+                clone.SetSiblingIndex(_effectBlock.GetSiblingIndex() + _effectRowClones.Count + 1);
+                _effectRowClones.Add(clone);
+            }
+            for (int i = _effectRowClones.Count - 1; i >= need; i--) // 多余克隆回收（换绑行数减少）
+            {
+                if (_effectRowClones[i] != null) Destroy(_effectRowClones[i].gameObject);
+                _effectRowClones.RemoveAt(i);
+            }
+
+            ActiveEffectRows.Clear();
+            for (int i = 0; i < item.ActiveEffectLines.Count; i++)
+            {
+                var row = i == 0 ? _effectBlock : _effectRowClones[i - 1];
+                if (row == null) continue; // 极端缺件（模板被美术改名等）：跳行不断链，宿主按行序对位
+                SetActive(row, true);
+                SetText(TextOf(row, "text"), i < item.ActiveEffectLabels.Count ? item.ActiveEffectLabels[i] : null);
+                SetText(TextOf(row, "des"), item.ActiveEffectLines[i]);
+                ActiveEffectRows.Add(row);
+            }
+        }
+
+        /// <summary>效果行收起（单行/非 Full 口径）：模式+特殊克隆全回收、对外行列表清空
+        ///（模板行显隐由调用方管）。</summary>
+        private void ClearEffectRows()
+        {
+            ActiveEffectRows.Clear();
+            SpEffectRows.Clear();
+            for (int i = _effectRowClones.Count - 1; i >= 0; i--)
+            {
+                if (_effectRowClones[i] != null) Destroy(_effectRowClones[i].gameObject);
+                _effectRowClones.RemoveAt(i);
+            }
+            for (int i = _spRowClones.Count - 1; i >= 0; i--)
+            {
+                if (_spRowClones[i] != null) Destroy(_spRowClones[i].gameObject);
+                _spRowClones.RemoveAt(i);
+            }
+        }
+
+        /// <summary>模板行回落单行口径（只有特殊行、无模式行的卡）：模式克隆回收，
+        /// ActiveEffectText 照旧渲染（空=藏行，effect 区只剩特殊行）。</summary>
+        private void ResetSingleRow(CardOverlayItem item)
+        {
+            ActiveEffectRows.Clear();
+            for (int i = _effectRowClones.Count - 1; i >= 0; i--)
+            {
+                if (_effectRowClones[i] != null) Destroy(_effectRowClones[i].gameObject);
+                _effectRowClones.RemoveAt(i);
+            }
+            bool hasActive = !string.IsNullOrEmpty(item.ActiveEffectText);
+            SetActive(_effectBlock, hasActive);
+            if (hasActive) SetText(_effectText, item.ActiveEffectText);
+        }
+
+        /// <summary>特殊效果行同步（苏醒/充能，2026-11-01 上卡）：克隆模板行，兄弟序恒排在
+        /// 最后一个 effect 行（模板/模式克隆）之后、passives 之前——行序=Item 平行表序。
+        /// 无特殊行（含 SpEffectLines=null——纯多主动法术）清空回收。</summary>
+        private void SyncSpEffectRows(CardOverlayItem item)
+        {
+            int need = item?.SpEffectLines?.Count ?? 0;
+            if (need == 0)
+            {
+                SpEffectRows.Clear();
+                for (int i = _spRowClones.Count - 1; i >= 0; i--)
+                {
+                    if (_spRowClones[i] != null) Destroy(_spRowClones[i].gameObject);
+                    _spRowClones.RemoveAt(i);
+                }
+                return;
+            }
+            var parent = _effectBlock.parent;
+            while (_spRowClones.Count < need)
+            {
+                var clone = Instantiate(_effectBlock.gameObject, parent, false).transform as RectTransform;
+                clone.name = "effect-sp" + (_spRowClones.Count + 1); // effect-sp1、effect-sp2…（特殊行）
+                _spRowClones.Add(clone);
+            }
+            for (int i = _spRowClones.Count - 1; i >= need; i--) // 多余克隆回收（换绑行数减少）
+            {
+                if (_spRowClones[i] != null) Destroy(_spRowClones[i].gameObject);
+                _spRowClones.RemoveAt(i);
+            }
+            int lastEffectSibling = LastEffectSiblingIndex();
+            for (int i = 0; i < _spRowClones.Count; i++)
+                if (_spRowClones[i] != null)
+                    _spRowClones[i].SetSiblingIndex(lastEffectSibling + 1 + i);
+
+            SpEffectRows.Clear();
+            for (int i = 0; i < need; i++)
+            {
+                var row = _spRowClones[i];
+                if (row == null) continue;
+                SetActive(row, true);
+                SetText(TextOf(row, "text"), i < item.SpEffectLabels.Count ? item.SpEffectLabels[i] : null);
+                SetText(TextOf(row, "des"), item.SpEffectLines[i]);
+                SpEffectRows.Add(row);
+            }
+        }
+
+        /// <summary>最后一个 effect 行的兄弟序（最后的模式克隆；无克隆=模板行自身）。</summary>
+        private int LastEffectSiblingIndex()
+        {
+            var last = _effectBlock;
+            for (int i = 0; i < _effectRowClones.Count; i++)
+                if (_effectRowClones[i] != null) last = _effectRowClones[i];
+            return last.GetSiblingIndex();
         }
 
         // ==================== 类型块解析助手 ====================

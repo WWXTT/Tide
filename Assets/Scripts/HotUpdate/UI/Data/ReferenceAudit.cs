@@ -47,8 +47,11 @@ namespace SynergyUI
         }
 
         /// <summary>效果库现存 id 集（卡池行⚠断链标记与孤儿检测共用）。</summary>
+        /// <summary>效果库可达 id 集（主库∪教学表——2026-10-31 与装载真实口径对齐：
+        /// 卡池断链⚠判定用；预组卡效果引用教学效果表，只收主库会全体误报）。</summary>
         public static HashSet<string> LibraryEffectIds() => new HashSet<string>(
             EffectLibrarySerializer.LoadAll()
+                .Concat(EffectLibrarySerializer.LoadAll(true))
                 .Where(g => !string.IsNullOrEmpty(g.id))
                 .Select(g => g.id));
     }

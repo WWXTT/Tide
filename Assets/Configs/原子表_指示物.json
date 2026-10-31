@@ -1,6 +1,6 @@
 [
   {
-    "ID": "e3fafbd8",
+    "ID": "a2116019",
     "EnumName": "法术护盾",
     "DisplayName": "对{target}附加{value}层法术护盾指示物，成为对手效果目标时抵消该效果对自身的作用并消耗1层",
     "EffectType": "GrantSpellShield",
@@ -17,7 +17,7 @@
     ]
   },
   {
-    "ID": "aa431b19",
+    "ID": "2b5fb180",
     "EnumName": "复生",
     "DisplayName": "对{target}附加{value}层复生指示物，每层在死亡结算时以1生命留场复活一次（不进墓地）",
     "EffectType": "GrantReborn",
@@ -34,7 +34,7 @@
     ]
   },
   {
-    "ID": "84783302",
+    "ID": "98f36a22",
     "EnumName": "圣盾",
     "DisplayName": "对{target}附加{value}层圣盾指示物，抵挡一次任意伤害（伤害变为0）后消耗{value}层",
     "EffectType": "GrantDivineShield",
@@ -51,7 +51,7 @@
     ]
   },
   {
-    "ID": "655a7e5b",
+    "ID": "2addfe0c",
     "EnumName": "潜行",
     "DisplayName": "对{target}附加{value}层潜行指示物，持有期间不可被攻击和效果指定，攻击、发动效果或受到伤害后消耗1层",
     "EffectType": "GrantStealth",
@@ -68,7 +68,7 @@
     ]
   },
   {
-    "ID": "ffb58b5a",
+    "ID": "010ec5f4",
     "EnumName": "费用增加（灰）",
     "DisplayName": "为{target}添加{value}层灰色费用增加指示物",
     "EffectType": "AddCostUpGray",
@@ -78,14 +78,14 @@
     "MountKinds": "指示物,不可随机",
     "Tags": "换区清除型",
     "ManaList": [
-      2,
+      1,
       0,
       0,
       0
     ]
   },
   {
-    "ID": "3883280f",
+    "ID": "64639418",
     "EnumName": "费用增加（红）",
     "DisplayName": "为{target}添加{value}层红色费用增加指示物",
     "EffectType": "AddCostUpRed",
@@ -96,13 +96,13 @@
     "Tags": "换区清除型",
     "ManaList": [
       0,
-      2,
+      1,
       0,
       0
     ]
   },
   {
-    "ID": "559bb810",
+    "ID": "a4a9518b",
     "EnumName": "费用增加（蓝）",
     "DisplayName": "为{target}添加{value}层蓝色费用增加指示物",
     "EffectType": "AddCostUpBlue",
@@ -114,12 +114,12 @@
     "ManaList": [
       0,
       0,
-      2,
+      1,
       0
     ]
   },
   {
-    "ID": "5a90c0e7",
+    "ID": "e85b93ef",
     "EnumName": "费用增加（绿）",
     "DisplayName": "为{target}添加{value}层绿色费用增加指示物",
     "EffectType": "AddCostUpGreen",
@@ -132,11 +132,11 @@
       0,
       0,
       0,
-      2
+      1
     ]
   },
   {
-    "ID": "6c55dff3",
+    "ID": "75cec969",
     "EnumName": "费用减少（灰）",
     "DisplayName": "为{target}添加{value}层灰色费用减少指示物",
     "EffectType": "AddCostDownGray",
@@ -146,14 +146,14 @@
     "MountKinds": "指示物,不可随机",
     "Tags": "换区清除型",
     "ManaList": [
-      2,
+      1,
       0,
       0,
       0
     ]
   },
   {
-    "ID": "78449cca",
+    "ID": "2c4eeac9",
     "EnumName": "费用减少（红）",
     "DisplayName": "为{target}添加{value}层红色费用减少指示物",
     "EffectType": "AddCostDownRed",
@@ -164,13 +164,13 @@
     "Tags": "换区清除型",
     "ManaList": [
       0,
-      2,
+      1,
       0,
       0
     ]
   },
   {
-    "ID": "3ee9fc5b",
+    "ID": "18247a42",
     "EnumName": "费用减少（蓝）",
     "DisplayName": "为{target}添加{value}层蓝色费用减少指示物",
     "EffectType": "AddCostDownBlue",
@@ -182,12 +182,12 @@
     "ManaList": [
       0,
       0,
-      2,
+      1,
       0
     ]
   },
   {
-    "ID": "16a9b26d",
+    "ID": "48083c16",
     "EnumName": "费用减少（绿）",
     "DisplayName": "为{target}添加{value}层绿色费用减少指示物",
     "EffectType": "AddCostDownGreen",
@@ -200,11 +200,11 @@
       0,
       0,
       0,
-      2
+      1
     ]
   },
   {
-    "ID": "efa0a546",
+    "ID": "39a3106c",
     "EnumName": "攻击力增加",
     "DisplayName": "为{target}添加{value}层攻击力增加指示物",
     "EffectType": "AddPowerUp",
@@ -214,14 +214,14 @@
     "MountKinds": "指示物,可以作为连接光环,不可随机",
     "Tags": "换区清除型",
     "ManaList": [
-      0.5,
       0,
+      0.5,
       0,
       0
     ]
   },
   {
-    "ID": "67d671a4",
+    "ID": "d00b4a7d",
     "EnumName": "攻击力减少",
     "DisplayName": "为{target}添加{value}层攻击力减少指示物",
     "EffectType": "AddPowerDown",
@@ -238,7 +238,7 @@
     ]
   },
   {
-    "ID": "db997126",
+    "ID": "7a97f666",
     "EnumName": "生命值增加",
     "DisplayName": "为{target}添加{value}层生命值增加指示物",
     "EffectType": "AddLifeUp",
@@ -248,14 +248,14 @@
     "MountKinds": "指示物,可以作为连接光环,不可随机",
     "Tags": "换区清除型",
     "ManaList": [
-      0.5,
       0,
       0,
-      0
+      0,
+      0.5
     ]
   },
   {
-    "ID": "cd8bfa7e",
+    "ID": "d3d792bb",
     "EnumName": "生命值减少",
     "DisplayName": "为{target}添加{value}层生命值减少指示物",
     "EffectType": "AddLifeDown",
@@ -272,7 +272,7 @@
     ]
   },
   {
-    "ID": "4f250e01",
+    "ID": "8bc5b925",
     "EnumName": "属性增加",
     "DisplayName": "为{target}添加{value}层属性增加指示物（+1/+1）",
     "EffectType": "AddPlusOne",
@@ -289,7 +289,7 @@
     ]
   },
   {
-    "ID": "6983635d",
+    "ID": "9864d6df",
     "EnumName": "属性减少",
     "DisplayName": "为{target}添加{value}层属性减少指示物（-1/-1）",
     "EffectType": "AddMinusOne",
@@ -306,7 +306,7 @@
     ]
   },
   {
-    "ID": "3634cdc1",
+    "ID": "977df9e1",
     "EnumName": "坚韧",
     "DisplayName": "对{target}附加{value}层坚韧指示物，每次受到伤害每层使伤害减1，生效后层数减半（向下取整）",
     "EffectType": "GrantToughness",
@@ -323,7 +323,7 @@
     ]
   },
   {
-    "ID": "ff8922af",
+    "ID": "9ff1954d",
     "EnumName": "护甲",
     "DisplayName": "为{target}添加护甲指示物，受到伤害时每吸收一点伤害消耗{value}层护甲",
     "EffectType": "AddArmor",
@@ -340,7 +340,7 @@
     ]
   },
   {
-    "ID": "23e6f45e",
+    "ID": "3d68a8bf",
     "EnumName": "毒素",
     "DisplayName": "对{target}附加{value}层毒素指示物，每回合结束受到等于层数的伤害，生效后层数减半（向下取整）",
     "EffectType": "AddToxin",
@@ -357,7 +357,7 @@
     ]
   },
   {
-    "ID": "069054a4",
+    "ID": "7b796d9e",
     "EnumName": "报复",
     "DisplayName": "对{target}附加{value}层报复指示物，受到伤害时对伤害来源造成等于层数的伤害，生效后层数减半（向下取整）",
     "EffectType": "GrantRetaliation",
@@ -374,7 +374,7 @@
     ]
   },
   {
-    "ID": "7518f494",
+    "ID": "c8802397",
     "EnumName": "沉默",
     "DisplayName": "对{target}附加{value}层沉默指示物（不可发动主动效果）",
     "EffectType": "Silence",
@@ -392,7 +392,7 @@
     "特殊裁定": "拦主动效果的发动，包括攻击和守卫，这两个动作也是主动效果"
   },
   {
-    "ID": "bf3f8fb9",
+    "ID": "c770c18f",
     "EnumName": "失效",
     "DisplayName": "对{target}附加{value}层失效指示物（不可发动自动效果）",
     "EffectType": "AddNullify",
@@ -410,7 +410,7 @@
     "特殊裁定": "自动效果是指固定时机发动的效果，包含：本体和指示物赋予的关键词，不包含光环赋予的效果"
   },
   {
-    "ID": "a948c9f3",
+    "ID": "973884b1",
     "EnumName": "冻结",
     "DisplayName": "冻结{target}：横置并放置{value}层冻结指示物，冻结期间无法重置，持有者回合结束时自动解除{value}层冻结",
     "EffectType": "Freeze",
@@ -428,7 +428,7 @@
     "特殊裁定": "持有期间无法重置"
   },
   {
-    "ID": "eacec12f",
+    "ID": "13beeec8",
     "EnumName": "紊乱",
     "DisplayName": "对{target}附加{value}层紊乱指示物，期间不能以玩家为攻击目标，持有者回合结束时自动解除{value}层紊乱",
     "EffectType": "RushSickness",
@@ -446,7 +446,7 @@
     "特殊裁定": "攻击与效果都不能以玩家为目标"
   },
   {
-    "ID": "7aa28b21",
+    "ID": "86e0fa7c",
     "EnumName": "易损",
     "DisplayName": "对{target}附加{value}层易损指示物，受到伤害时，每层使受到的最终伤害加1，生效后层数减半（向下取整）",
     "EffectType": "AddVulnerable",
@@ -463,7 +463,7 @@
     ]
   },
   {
-    "ID": "9eda9441",
+    "ID": "08a9fbf6",
     "EnumName": "放血",
     "DisplayName": "对{target}附加{value}层放血指示物，其下一次受到的治疗改写为等量伤害并消耗{value}层",
     "EffectType": "GrantDepravity",
@@ -480,7 +480,7 @@
     ]
   },
   {
-    "ID": "ca7a5f8f",
+    "ID": "93648aa7",
     "EnumName": "重放",
     "DisplayName": "对{target}附加{value}层重放指示物，该单位效果结算后自动消耗{value}层并再生效一次（重放不触发重放）",
     "EffectType": "GrantReplay",
@@ -497,7 +497,7 @@
     ]
   },
   {
-    "ID": "d0ed3461",
+    "ID": "1ccc9649",
     "EnumName": "遗忘",
     "DisplayName": "对{target}附加{value}层遗忘指示物，持有者回合结束时，不存在于战场，则从游戏中移除",
     "EffectType": "GrantTemporary",
@@ -514,7 +514,7 @@
     ]
   },
   {
-    "ID": "6d003e66",
+    "ID": "38c8c978",
     "EnumName": "沉睡",
     "DisplayName": "赋予{target}{value}层沉睡，沉睡期间横置无法重置，自动效果无效，持有者回合结束时自动解除{value}层沉睡",
     "EffectType": "Sleep",
@@ -549,7 +549,7 @@
     ]
   },
   {
-    "ID": "d0cb21db",
+    "ID": "83fb707d",
     "EnumName": "减半",
     "DisplayName": "对{target}附加{value}层减半护盾指示物，持有期间受到的伤害减半（向上取整），自己回合结束自动解除{value}层",
     "EffectType": "GrantProtection",
@@ -566,7 +566,7 @@
     ]
   },
   {
-    "ID": "7f734495",
+    "ID": "a0bf076a",
     "EnumName": "免疫",
     "DisplayName": "对{target}附加{value}层全免护盾指示物，持有期间受到的伤害变为0，自己回合结束自动解除{value}层",
     "EffectType": "GrantProtection",
@@ -583,7 +583,7 @@
     ]
   },
   {
-    "ID": "d6436016",
+    "ID": "8c4fcd9b",
     "EnumName": "生命锁",
     "DisplayName": "对{target}附加{value}层生命锁指示物，持有期间生命值不会低于1，自己回合结束自动解除{value}层",
     "EffectType": "GrantProtection",

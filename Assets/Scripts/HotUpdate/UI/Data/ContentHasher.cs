@@ -83,6 +83,8 @@ namespace SynergyUI
             // 代价栏（2026-10-04 持久化配套）：卡层 Payload 是功能字段——原子引用+逆转域参与卡身份；
             // 空代价不写段（存量卡 id 零漂移）。费用 costList 不入哈希的定案不涉及——代价栏是功能内容非费用推导。
             // 2026-10-16 组装效果代价：逐原子追加，原子间以 ';' 分隔——n=1 与旧格式字节一致（存量卡 id 零漂移）。
+            // 2026-10-31 代价指向化：本段只收**整卡行**（TargetAttr=0——shim 读侧同口径，格式字节不变）；
+            // 指向行（攻血/耐久/速度）走下方 PCR 段——同一原子挂不同属性=不同卡。
             var payloadAtoms = card.PayloadCost != null ? card.PayloadCost.AllPayloads() : null;
             if (payloadAtoms != null && payloadAtoms.Count > 0)
             {
@@ -93,6 +95,25 @@ namespace SynergyUI
                     AppendAtomic(sb, payloadAtoms[i]);
                 }
                 sb.Append('|');
+            }
+
+            // 指向化代价行（2026-10-31 代价指向化）：TargetAttr≠0 的卡级行——目标+原子序列+行序均参与
+            // 身份；空行跳过、无指向行不写段（存量卡 id 零漂移）。
+            if (card.PayloadCosts != null)
+            {
+                foreach (var row in card.PayloadCosts)
+                {
+                    if (row == null || row.TargetAttr == (int)CostAttrTarget.WholeCard) continue;
+                    var atoms = row.AllPayloads();
+                    if (atoms.Count == 0) continue;
+                    sb.Append("PCR:").Append(row.TargetAttr).Append('=');
+                    for (int i = 0; i < atoms.Count; i++)
+                    {
+                        if (i > 0) sb.Append(';');
+                        AppendAtomic(sb, atoms[i]);
+                    }
+                    sb.Append('|');
+                }
             }
 
             // FX 段 = 效果 id 序列（推导链中间层）：效果文本/参数/原子引用变更 → 效果 id 变 → 卡 id 变

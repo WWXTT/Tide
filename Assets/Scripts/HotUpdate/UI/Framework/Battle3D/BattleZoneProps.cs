@@ -90,8 +90,8 @@ namespace SynergyUI
         /// 氛围件常亮（祝福=绿 Buff 光环——BattleVfxCatalog Buff 档），抽走/消层
         /// 由下一次对账熄灭。幂等直写（件已在不重建，仅 SetActive）；懒建——无标记零开销。
         /// 挂 tile 下保世界位：不继承卡堆 Y 缩放（堆高随张数伸缩，氛围件不跟着变形）。
-        /// 2026-10-28 P2：诅咒原黑 Buff 光球——黑席位删除后暂查灰（灰无 Buff 档→无氛围件，
-        /// 仅剩施加爆发；诅咒氛围表现待用户重拍）。</summary>
+        /// 2026-11-01 释放件重分配：诅咒=灰 Buff 光球（Glowing orb 23·原黑席位件）——灰 Buff
+        /// 配位后光球复活，代码零改即恢复旧观感。</summary>
         public static void SetDeckMarks(int owner, bool curse, bool bless)
         {
             if (owner < 0 || owner > 1) return;

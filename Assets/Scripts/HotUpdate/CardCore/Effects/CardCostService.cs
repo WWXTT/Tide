@@ -196,14 +196,17 @@ namespace CardCore
             var mounted = ApportionMounted(effBuckets, kwBuckets, statGray);
             ApplyChassis(card, mounted);
 
-            // ---- 5b) 代价抵扣（2026-10-28 P1 定案：代价 = 构筑期抵扣；2026-10-31 色锁定案） ----
-            // 卡层 PayloadCost（legacy 效果级 Costs 兜底）逐原子 PayloadUnitGrant 求和，
+            // ---- 5b) 代价抵扣（2026-10-28 P1 定案：代价 = 构筑期抵扣；2026-10-31 色锁定案+指向化） ----
+            // 施放期代价行（卡级行任指 + 非主动效果行）逐原子 PayloadUnitGrant 求和，
             // 只在代价原子可产出色（行 ManaList 非零色）内逐点扣、每色下限 0（溢出丢弃）——
             // 单个代价至多把对应色费用清零，不溢出到他色。衍生物内容全价不抵扣（ContentPrice*）。
             int payloadPoints = SumPayloadPrice(card);
             result.PrePayloadCost = ToElementCost(mounted); // P7：抵扣前留影（建造账单基数/上限单源）
             result.PayloadPrice = payloadPoints;
-            if (payloadPoints > 0)
+            // 法术不在此桶预扣（2026-10-31 代价指向化）：施放期代价对「基价+锚价」整笔施放账单
+            // 色锁净费——单源在 GameActions.GetCardCost 法术分支（在此预扣会造成锚价合并后双扣）。
+            // 纯法术 Derive 桶本就恒空（效果全主动不入 E 桶），实际差异面=带非主动内容的法术。
+            if (payloadPoints > 0 && card.Supertype != Cardtype.Spell)
             {
                 result.PayloadApplied = ApplyPayloadDeduction(mounted, card);
                 result.PayloadScopeZh = PayloadScopeZh(card);
@@ -315,19 +318,9 @@ namespace CardCore
             // 混入原子表指纹——表冻结则身份稳定；此处先于一切分支，保证所有装载/重生成路径都推导。
             CardIdentityService.EnsureIdentity(card);
 
-            // 代价栏单卡单条（2026-09-11 定案；2026-09-23 上移卡层；2026-10-16 组装效果代价=一条序列）：
-            // PayloadCost(卡层) + 效果级 Costs(legacy) 合计 ≤1——一张卡只有一个代价栏（序列算一条）。
-            // 违约仅警告不纠正（支付/补偿按真实数据执行）。
-            int costEntryCount = card.PayloadCost != null && card.PayloadCost.AllPayloads().Count > 0 ? 1 : 0;
-            if (card.Effects != null)
-            {
-                foreach (var eff in card.Effects)
-                {
-                    if (eff?.Costs != null) costEntryCount += eff.Costs.Count;
-                }
-            }
-            if (costEntryCount > 1)
-                TideLog.Warn($"[CardCostService] 卡 {card.ID} 代价栏 {costEntryCount} 条——违反「单卡单条」定案（应只填一个代价）");
+            // 代价栏契约已随 2026-10-31 代价指向化退役：不再「单卡单条」——代价逐行挂目标
+            //（卡级行 TargetAttr 指向基础属性 / 效果级行挂所在效果），每行各占 1 槽、各算各的
+            //（施放期 vs 发动期两桶见 CollectCostEntries）。
 
             if (CostDerivationService.HasChoiceEffect(card))
             {
@@ -449,9 +442,10 @@ namespace CardCore
                 var mounted = ApportionMounted(modeBuckets[m], kwBuckets, grayAdd);
                 ApplyChassis(card, mounted); // 底盘（2026-10-10 可支配）：超槽加价入灰 / 剩余抵价（先灰后最高色）
                 if (prePayloadOut != null) prePayloadOut.Add(ToElementCost(mounted)); // P7：抵扣前留影
-                // 代价抵扣（2026-10-31 色锁定案）：抉择卡逐模式吃同一笔卡层代价（色锁单源——
-                // 只扣可产出色；各模式容量不同，实抵随模式自决，不回填 result 级字段）
-                if (SumPayloadPrice(card) > 0)
+                // 代价抵扣（2026-10-31 色锁定案+指向化）：抉择卡逐模式吃同一笔施放期代价
+                //（色锁单源——只扣可产出色；主动效果行不在此桶，各模式容量不同，实抵随模式自决）。
+                // 法术跳过——施放账单净费单源在 GetCardCost（整笔=基价+锚价，防双扣）。
+                if (SumPayloadPrice(card) > 0 && card.Supertype != Cardtype.Spell)
                     ApplyPayloadDeduction(mounted, card);
                 result.Add(ToElementCost(mounted));
             }
@@ -545,6 +539,10 @@ namespace CardCore
         /// <summary>卡层代价价合计公开口（P7 建造账单重放 ReduceBuckets 消费；SumPayloadPrice 单源包装）。</summary>
         public static int PayloadPriceOf(CardData card) => card == null ? 0 : SumPayloadPrice(card);
 
+        /// <summary>是否携带代价（2026-10-31 衍生物两限制配套）：任意代价行（卡级行 + 全部
+        /// 效果级行，含主动）有 payload 原子即 true。衍生物模板禁带代价（DeckTokenSupport.ValidateDeck 消费）。</summary>
+        public static bool HasPayloadCost(CardData card) => CollectCostEntries(card, includeActiveEffects: true).Count > 0;
+
         /// <summary>计价内部 int 桶 → ElementCost（组合层机械的边界口）。</summary>
         private static ElementCost ToElementCost(Dictionary<ManaType, int> dict)
         {
@@ -555,37 +553,105 @@ namespace CardCore
             return c;
         }
 
-        /// <summary>代价原子条目收集（卡层正式口 + legacy 兜底单源）：PayloadCost（卡层正式口）优先；
-        /// 缺失时回落 legacy（card.Effects[].Costs[].payload，与旧 Grants 汇总同口径）。
-        /// 价合计（SumPayloadPrice）与抵扣色集合（PayloadDeductColors）共用本收集，防口径漂移。</summary>
-        private static List<AtomicEffectEntry> CollectPayloadEntries(CardData card)
+        /// <summary>代价原子条目收集单源（2026-10-31 代价指向化定案）：
+        /// · **施放期桶**（includeActiveEffects=false）= 卡级行（TargetAttr 任指——整卡 legacy /
+        ///   攻击血量 / 耐久 / 速度）+ **非主动**效果的效果级行——随卡施放：抵扣卡费（Derive 色锁）、
+        ///   cast 付费步执行、施放地牌门槛（EvaluatePayloadGate ③）；
+        /// · 全量桶（true）另含主动效果级行——身份/限制口径（HasPayloadCost）用。
+        /// 主动效果行**永不入施放期桶**（2026-10-31 用户定案：主动效果不计入卡费，其代价同理——
+        /// 只在该效果发动时净费抵扣/执行/过门槛，见 EffectActivationGate 与 GetCardCost 法术分支）。
+        /// 价合计（SumPayloadPrice）/抵扣色集合（PayloadDeductColors）/按色生成面（PayloadGrantByColor）
+        /// 共用本收集，防口径漂移。</summary>
+        private static List<AtomicEffectEntry> CollectCostEntries(CardData card, bool includeActiveEffects)
         {
             var entries = new List<AtomicEffectEntry>();
             if (card == null) return entries;
-            if (card.PayloadCost != null)
-                entries.AddRange(card.PayloadCost.AllPayloads());
-            if (entries.Count == 0 && card.Effects != null)
+            foreach (var row in card.PayloadCosts)
+            {
+                if (row == null) continue;
+                entries.AddRange(row.AllPayloads());
+            }
+            if (card.Effects != null)
             {
                 foreach (var eff in card.Effects)
                 {
                     if (eff?.Costs == null) continue;
+                    if (CostDerivationService.IsActivatedEffectData(eff) && !includeActiveEffects) continue;
                     foreach (var ce in eff.Costs)
                     {
-                        if (ce?.payload == null || string.IsNullOrEmpty(ce.payload.refId)) continue;
-                        entries.Add(ce.payload);
+                        if (ce == null) continue;
+                        entries.AddRange(ce.AllPayloads());
                     }
                 }
             }
             return entries;
         }
 
-        /// <summary>卡层代价价合计（2026-10-28 P1；2026-10-31 色锁前置）：逐原子 PayloadUnitGrant 求和
-        ///（=生成面）。供 Derive / DeriveModeCosts / ApplyPayloadDeduction 消费。
+        /// <summary>施放期代价行枚举（cast 口径：卡级行 + 非主动效果行）——**保留行结构**，
+        /// 供逐行色锁抵扣（2026-10-31 色锁定案单位=「单个代价」：每行只扣自己可产出色的卡费）。</summary>
+        private static List<CostEntry> CastCostRows(CardData card)
+        {
+            var rows = new List<CostEntry>();
+            if (card == null) return rows;
+            foreach (var row in card.PayloadCosts)
+                if (row != null && row.AllPayloads().Count > 0) rows.Add(row);
+            if (card.Effects != null)
+            {
+                foreach (var eff in card.Effects)
+                {
+                    if (eff?.Costs == null) continue;
+                    if (CostDerivationService.IsActivatedEffectData(eff)) continue; // 主动行=发动期桶
+                    foreach (var ce in eff.Costs)
+                        if (ce != null && ce.AllPayloads().Count > 0) rows.Add(ce);
+                }
+            }
+            return rows;
+        }
+
+        /// <summary>施放期代价原子（cast 口径单源：只含卡级行+非主动效果行）。</summary>
+        private static List<AtomicEffectEntry> CastCostEntries(CardData card)
+        {
+            var entries = new List<AtomicEffectEntry>();
+            foreach (var row in CastCostRows(card)) entries.AddRange(row.AllPayloads());
+            return entries;
+        }
+
+        /// <summary>单行代价价合计（契约过滤：ConvertPayloadForDisplay 违约原子不计价）。</summary>
+        private static int RowPayloadPrice(CostEntry row)
+        {
+            int total = 0;
+            foreach (var pe in row.AllPayloads())
+            {
+                var inst = CardEffectConverter.ConvertPayloadForDisplay(pe);
+                if (inst == null) continue;
+                total += CostDerivationService.PayloadUnitGrant(inst);
+            }
+            return total;
+        }
+
+        /// <summary>单行可产出色集合（行内原子行 ManaList 非零色并集；行缺失=无抵扣面）。</summary>
+        private static HashSet<ManaType> RowDeductColors(CostEntry row)
+        {
+            var colors = new HashSet<ManaType>();
+            foreach (var pe in row.AllPayloads())
+            {
+                if (pe == null || string.IsNullOrEmpty(pe.refId)) continue;
+                var ml = Attribute.AtomicEffectTable.GetByHashId(pe.refId)?.ManaList;
+                if (ml == null) continue;
+                foreach (var c in ml.NonzeroColors())
+                    if (c != ManaType.Any) colors.Add(c);
+            }
+            return colors;
+        }
+
+        /// <summary>施放期代价价合计（2026-10-28 P1；2026-10-31 色锁前置+指向化：只收卡级行+非主动
+        /// 效果行）：逐原子 PayloadUnitGrant 求和（=生成面）。供 Derive / DeriveModeCosts /
+        /// ApplyPayloadDeduction 消费。主动效果行不在此（发动期经 EffectActivationGate 净费）。
         /// 契约过滤（p&lt;0 锁己方）在 ConvertPayloadForDisplay——违约原子不计价（转换返回 null）。</summary>
         private static int SumPayloadPrice(CardData card)
         {
             int total = 0;
-            foreach (var pe in CollectPayloadEntries(card))
+            foreach (var pe in CastCostEntries(card))
             {
                 var inst = CardEffectConverter.ConvertPayloadForDisplay(pe);
                 if (inst == null) continue; // 表行缺失/代价契约违约（p≥0）：不折价（装载口另有 Error 日志）
@@ -598,12 +664,12 @@ namespace CardCore
         // 代价=对原子表·一般效果行的单原子引用；抵扣只作用于该原子**可产出色**（行 ManaList 非零色）
         // 的卡费——不溢出他色、不穿底为负；生成面超出可抵色容量即丢弃（=单个代价至多将对应色费用清零）。
 
-        /// <summary>代价原子可产出色集合：逐原子行 ManaList 非零色取并集（与 SumPayloadPrice 同源收集）；
-        /// 行缺失/不计价（ManaList null/全零）= 该原子无抵扣面。</summary>
+        /// <summary>施放期代价原子可产出色集合：逐原子行 ManaList 非零色取并集（与 SumPayloadPrice
+        /// 同源收集）；行缺失/不计价（ManaList null/全零）= 该原子无抵扣面。</summary>
         public static HashSet<ManaType> PayloadDeductColors(CardData card)
         {
             var colors = new HashSet<ManaType>();
-            foreach (var pe in CollectPayloadEntries(card))
+            foreach (var pe in CastCostEntries(card))
             {
                 if (pe == null || string.IsNullOrEmpty(pe.refId)) continue;
                 var ml = Attribute.AtomicEffectTable.GetByHashId(pe.refId)?.ManaList;
@@ -636,13 +702,124 @@ namespace CardCore
             return cap;
         }
 
+        /// <summary>施放期代价生成面按色合计（2026-10-31 代价地牌门槛定案+指向化：只收卡级行+非主动
+        /// 效果行——主动效果行的门槛在发动口，见 EffectActivationGate）：逐原子 PayloadUnitGrant
+        /// 记入该原子可产出色（行 ManaList 非零色——与 PayloadDeductColors 同收集同并集口径，
+        /// 现表全单色行）。不同类型代价在同一张卡上按色加算；与 SumPayloadPrice 同源
+        ///（CastCostEntries——契约违约原子 p≥0 同口径不计）。
+        /// 消费口：GameActions.EvaluatePayloadGate ③ 地牌门槛——代价按色需等量同色地牌。</summary>
+        public static Dictionary<ManaType, int> PayloadGrantByColor(CardData card)
+        {
+            var byColor = new Dictionary<ManaType, int>();
+            if (card == null) return byColor;
+            foreach (var pe in CastCostEntries(card))
+            {
+                if (pe == null || string.IsNullOrEmpty(pe.refId)) continue;
+                var inst = CardEffectConverter.ConvertPayloadForDisplay(pe);
+                if (inst == null) continue; // 表行缺失/代价契约违约（p≥0）：不折价同口径不进门
+                int grant = CostDerivationService.PayloadUnitGrant(inst);
+                if (grant <= 0) continue;
+                var ml = Attribute.AtomicEffectTable.GetByHashId(pe.refId)?.ManaList;
+                if (ml == null) continue;
+                foreach (var c in ml.NonzeroColors())
+                {
+                    if (c == ManaType.Any) continue;
+                    byColor.TryGetValue(c, out var v);
+                    byColor[c] = v + grant;
+                }
+            }
+            return byColor;
+        }
+
+        /// <summary>发动期代价生成面按色（2026-10-31 代价指向化：「使用主动效果时同理」）：
+        /// 运行时 CostInstance 形态（效果级行——转换后 Payload 原子），PayloadUnitGrant 记入
+        /// 原子可产出色。消费口：EffectActivationGate 发动地牌门槛 + 施放口法术所选模式分支
+        ///（法术施放=使用该主动效果）。</summary>
+        public static Dictionary<ManaType, int> PayloadGrantByColor(List<CostInstance> costs)
+        {
+            var byColor = new Dictionary<ManaType, int>();
+            if (costs == null) return byColor;
+            foreach (var c in costs)
+            {
+                if (c == null || c.Type != CostType.Payload || c.Payloads == null) continue;
+                foreach (var atom in c.Payloads)
+                {
+                    if (atom == null) continue;
+                    int grant = CostDerivationService.PayloadUnitGrant(atom);
+                    if (grant <= 0) continue;
+                    var ml = Attribute.AtomicEffectTable.GetByHashId(atom.RowHashId)?.ManaList;
+                    if (ml == null) continue;
+                    foreach (var col in ml.NonzeroColors())
+                    {
+                        if (col == ManaType.Any) continue;
+                        byColor.TryGetValue(col, out var v);
+                        byColor[col] = v + grant;
+                    }
+                }
+            }
+            return byColor;
+        }
+
         /// <summary>代价抵扣单源（Derive / DeriveModeCosts / GameActions 建造重放三口共用）：
-        /// 色锁扣桶（只扣代价原子可产出色），返回实际抵扣点数（生成面超出容量即丢弃）。</summary>
+        /// **逐行色锁扣桶**（2026-10-31 色锁定案单位=单个代价：每行只扣该行原子可产出色，
+        /// 行序=声明序；行与行不共享抵扣面——红原子的代价点数不能清灰费），返回实际抵扣点数。</summary>
         public static int ApplyPayloadDeduction(Dictionary<ManaType, int> mounted, CardData card)
         {
-            int price = SumPayloadPrice(card);
-            if (price <= 0) return 0;
-            return CardCompositionCost.ReduceBucketsLocked(mounted, price, PayloadDeductColors(card));
+            int applied = 0;
+            foreach (var row in CastCostRows(card))
+            {
+                int price = RowPayloadPrice(row);
+                if (price <= 0) continue;
+                applied += CardCompositionCost.ReduceBucketsLocked(mounted, price, RowDeductColors(row));
+            }
+            return applied;
+        }
+
+        /// <summary>ElementCost 色锁抵扣（float 桶版，2026-10-31 代价指向化配套）：
+        /// 与 <see cref="CardCompositionCost.ReduceBucketsLocked"/> 同序同锁——只扣 allowed 色
+        ///（先灰后最高费用色，每点减 1.0、下限 0、溢出丢弃），返回实际抵扣点数。
+        /// 消费口：ApplyCastDeduction（法术施放账单逐行补扣）。</summary>
+        public static int ApplyLockedDeduction(ElementCost bill, int points, HashSet<ManaType> allowed)
+        {
+            if (bill == null || allowed == null || allowed.Count == 0 || points <= 0) return 0;
+            int applied = 0;
+            for (int i = 0; i < points; i++)
+            {
+                if (allowed.Contains(ManaType.Gray) && bill[ManaType.Gray] > 1e-4f)
+                {
+                    bill[ManaType.Gray] = Math.Max(0f, bill[ManaType.Gray] - 1f);
+                    applied++;
+                    continue;
+                }
+                ManaType best = ManaType.Gray;
+                float bestV = 0f;
+                for (int c = 0; c <= (int)ManaType.Any; c++)
+                {
+                    var color = (ManaType)c;
+                    if (color == ManaType.Gray || !allowed.Contains(color)) continue;
+                    if (bill[color] > bestV + 1e-4f) { bestV = bill[color]; best = color; }
+                }
+                if (bestV <= 0f) break;
+                bill[best] = Math.Max(0f, bill[best] - 1f);
+                applied++;
+            }
+            return applied;
+        }
+
+        /// <summary>施放期代价对 ElementCost 账单**逐行色锁补扣**（2026-10-31 代价指向化）：
+        /// 每行只扣该行可产出色（与 ApplyPayloadDeduction 同「单个代价」单位，行序=声明序）。
+        /// 消费口：GameActions.GetCardCost 法术分支——Derive 桶对法术不预扣，施放期代价在
+        /// 「基价+锚价」整笔账单上一次性落账（法术施放=使用该主动效果）。</summary>
+        public static int ApplyCastDeduction(ElementCost bill, CardData card)
+        {
+            int applied = 0;
+            foreach (var row in CastCostRows(card))
+            {
+                int price = RowPayloadPrice(row);
+                if (price <= 0) continue;
+                applied += ApplyLockedDeduction(bill, price, RowDeductColors(row));
+            }
+            return applied;
         }
 
         // ======================================== 内部 ========================================

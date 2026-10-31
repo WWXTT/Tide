@@ -359,9 +359,11 @@ namespace CardCore
             => PayPayloadsAsync(costs, ctx);
 
         /// <summary>执行单个 Payload 原子：按其自身域解析目标，无域以无目标执行（2026-10-28 P1：只执行、不发放）。
+        /// 单位域原子（2026-10-31 定案）只作用于一个单位：存活候选唯一直接用/多个现选
+        /// （TargetSelectionService，不可取消）；域空 → false。
         /// 受惠侧执行：对方域锁定的 payload 以**对手**为控制者执行——产出型原子（SummonToken 等）
         /// 落在控制者侧；己方/双侧以支付者执行。
-        /// atomIndex=组装代价的原子序（声明期预选目标按序沿用）。
+        /// atomIndex=组装代价的原子序（声明期预选目标按序沿用；单位域声明期不预选=恒现选）。
         /// 返回是否**作用于有效目标**：有域而目标为空 → false（该原子不执行）；
         /// 无域（无目标语义）/正常执行 → true。</summary>
         private static async Cysharp.Threading.Tasks.UniTask<bool> ExecutePayloadAtomAsync(
@@ -392,6 +394,45 @@ namespace CardCore
             if (!hasDomain)
             {
                 targets = new List<Entity>(); // 无域代价（无目标语义）：按无目标执行、照常补偿
+            }
+            else if (CostPayability.IsUnitDomainCost(atom))
+            {
+                // 单位域代价（2026-10-31 用户定案：代价支付禁用全域）——只作用于**一个**单位：
+                // 按**支付者视角**解析存活候选——唯一 → 直接用；多个 → TargetSelectionService
+                // 现选一个（本地弹选/联机反问/AI 代选，不可取消）；域空 → 本原子不执行（false）。
+                // 可付性=能指定一个目标即可（无数值门槛；全额扣减可致属性为负/死亡，量级限制归数据侧）。
+                if (preselected != null && preselected.Count > 0)
+                {
+                    targets = new List<Entity> { preselected[0] }; // 显式预选路径：只取首个（恒单目标）
+                }
+                else
+                {
+                    var resolveCtx = new EffectExecutionContext
+                    {
+                        Controller = ctx.Payer,
+                        Source = ctx.Payer,
+                        ZoneManager = ctx.ZoneManager,
+                        ElementPool = ctx.ElementPool,
+                    };
+                    var candidates = EffectHandlerRegistry.ResolveCandidates(atom.TargetKinds, atom.Filter, resolveCtx)
+                        ?? new List<Entity>();
+                    candidates.RemoveAll(e => e == null || !e.IsAlive);
+                    if (candidates.Count == 0) return false; // 无可指定单位：不执行（声明期闸已拦，此处兜底响应窗口内恶化）
+                    targets = candidates.Count == 1 ? candidates
+                        : await TargetSelectionService.RequestAsync(new TargetSelectionRequest
+                        {
+                            Candidates = candidates,
+                            MinCount = 1,
+                            MaxCount = 1,
+                            Chooser = ctx.Payer, // 选择权=支付者（资敌域也是付代价方选）
+                            Title = "选择代价目标",
+                            Hint = "代价只作用于一个单位",
+                            PromptAtom = atom.Type, // AI 候选排序：代价原子类型（2026-11-01）
+                            IsCostTarget = true, // AI 排序按标记判代价语义（不依赖中文标题）
+                            AllowCancel = false, // 强制效果口径：必须选
+                        });
+                    if (targets == null || targets.Count == 0) return false;
+                }
             }
             else if (preselected != null)
             {
