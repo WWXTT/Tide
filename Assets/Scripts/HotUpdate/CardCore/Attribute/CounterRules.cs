@@ -145,12 +145,13 @@ namespace CardCore.Attribute
         /// <summary>沉默：持有者不可发动主动效果（换区清）</summary>
         public const string SilenceCounter = "Silence";
         /// <summary>
-        /// 缄默（2026-09-09 定案蓝3；2026-10-19 规格定名「缄默」，运行时 id 沿用 Nullify）：
-        /// 持有者的**自动效果**失效——拦全部触发式（含登场 OnPlay）+ 拦本体关键词
-        ///（HasKeyword 收口，先攻/剧毒/守护/再生等一概失效）+ 拦光环（作为连接光环来源
-        /// LinkAuraSystem / 作为规则光环载体 RuleAuraSystem——缄默光环本体才让光环无效，
-        /// 打在受益者身上不除光环）。指示物能力（圣盾/坚韧/潜行/报复）不归此管——由净化/减益解除清除。
-        /// 与沉默对称：沉默拦主动（CanActivate）、缄默拦自动。换区清除。
+        /// 失效（2026-09-09 定案蓝3；2026-10-19 规格定名「缄默」，2026-10-31 改名「失效」，
+        /// 运行时 id 沿用 Nullify）：持有者的**自动效果**失效——拦全部触发式（含登场 OnPlay）
+        /// + 拦本体关键词（HasKeyword 收口，先攻/剧毒/守护/再生等一概失效）。
+        /// 【2026-10-31 改名定案：光环域整体退出】不再压光环——连接光环来源（LinkAuraSystem）/
+        /// 规则光环载体（RuleAuraSystem）被失效照常生效，打在受益者身上同样不除光环（光环不物化）。
+        /// 指示物能力（圣盾/坚韧/潜行/报复）不归此管——由净化/减益解除清除。
+        /// 与沉默对称：沉默拦主动（CanActivate）、失效拦自动。换区清除。
         /// </summary>
         public const string NullifyCounter = "Nullify";
         /// <summary>
@@ -168,7 +169,7 @@ namespace CardCore.Attribute
         public const string ToughnessCounter = "Toughness";
         /// <summary>
         /// 报复（2026-10-16 新增，红1/层，表行/GrantRetaliation）：持有者**实际受到伤害**（防护层后
-        /// 仍有剩余落定——完全挡住/战斗法师散射改写（原舍身转投，2026-10-30 改版）不触发；穿透伤害照常触发）时，对伤害来源造成等于层数的
+        /// 仍有剩余落定——完全挡住/战斗法师散射改写（原舍身转投，2026-10-30 改版）不触发）时，对伤害来源造成等于层数的
         /// 伤害（非战斗伤害，来源=持有者），生效后层数减半（向下取整）。自伤（来源=自身）不触发；
         /// 双方互带时先减半再反击=层数几何衰减，天然封死无限互弹。
         /// Entity 级；换区不清（生效自减档）、净化可清。施加口=GrantRetaliationHandler；
@@ -178,7 +179,7 @@ namespace CardCore.Attribute
         /// <summary>
         /// 圣盾（2026-10-08 指示物化，表行 c8624e6a/GrantDivineShield）：每层抵挡一次任意伤害
         ///（战斗+效果，吸收的是易损放大后的量）并消耗 1 层；可叠加（每层一份）。
-        /// Entity 级（角色可持有）；穿透伤害全越（KeywordRules.ApplyPreventionLayers 三层一并跳过）。
+        /// Entity 级（角色可持有）；一切伤害照挡（穿透档已删 2026-10-31）。
         /// 挡下口=ApplyPreventionLayers 第 1 层；换区不清（生效自减档）、净化可清。
         /// </summary>
         public const string DivineShieldCounter = "DivineShield";
@@ -229,7 +230,7 @@ namespace CardCore.Attribute
         /// <summary>费用增加指示物（每层 +1 费，仅手牌，离手消失）</summary>
         public const string CostUpCounter = "CostUp";
         /// <summary>费用减少指示物（每层 −1 费，仅手牌，离手消失）——legacy 恒灰档
-        ///（2026-10-31 P12 四色扩容前唯一形态，AddCostDown 原子与存档继续落此 id）。</summary>
+        ///（2026-10-31 P12 四色扩容前唯一形态；同日通用增减四色化后表原子已退役，存档继续落此 id）。</summary>
         public const string CostDownCounter = "CostDown";
         /// <summary>四色费用降低（2026-10-31 P12 充能定案）：灰/红/蓝/绿各一类，每层只减对应
         /// 颜色的费用（GetCardCost 逐色套层、逐色钳 0 不串色）；充能投放、换区清除
@@ -241,6 +242,16 @@ namespace CardCore.Attribute
         public const string CostDownBlueCounter = "CostDownBlue";
         /// <summary>费用降低（绿）——每层绿费 −1。</summary>
         public const string CostDownGreenCounter = "CostDownGreen";
+        /// <summary>四色费用增加（2026-10-31 通用费用增减四色化）：灰/红/蓝/绿各一类，每层只加
+        /// 对应颜色的费用（GetCardCost 逐色套层，与四色减同口）；表原子 AddCostUpGray..Green 投放、
+        /// 换区清除（Resident 同口径）。</summary>
+        public const string CostUpGrayCounter = "CostUpGray";
+        /// <summary>费用增加（红）——每层红费 +1。</summary>
+        public const string CostUpRedCounter = "CostUpRed";
+        /// <summary>费用增加（蓝）——每层蓝费 +1。</summary>
+        public const string CostUpBlueCounter = "CostUpBlue";
+        /// <summary>费用增加（绿）——每层绿费 +1。</summary>
+        public const string CostUpGreenCounter = "CostUpGreen";
         /// <summary>技能发动计数（2026-09-22 升级=抉择式条件分支定案）：挂在技能卡上，每发动 +1；
         /// 升级门读它（此前已发动 ≥7 次 → 走升级档）。常驻——随技能卡存续，
         /// 换技能卡=新卡计数归零；净化可清（极端交互，接受）。</summary>
@@ -377,7 +388,7 @@ namespace CardCore.Attribute
             Register(new CounterSpec { Id = PlusOneCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.Resident, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.None, DisplayName = "+1/+1", StatKind = StatCounterKind.PlusOnePlusOne });
             Register(new CounterSpec { Id = MinusOneCounter, Polarity = CounterPolarity.Negative, Class = CounterClass.Resident, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.None, DisplayName = "-1/-1", StatKind = StatCounterKind.MinusOneMinusOne });
             Register(new CounterSpec { Id = SilenceCounter, Polarity = CounterPolarity.Negative, Class = CounterClass.Resident, LayerRole = CounterLayerRole.Display, TickPolicy = CounterTickPolicy.None, DisplayName = "沉默" });
-            Register(new CounterSpec { Id = NullifyCounter, Polarity = CounterPolarity.Negative, Class = CounterClass.Resident, LayerRole = CounterLayerRole.Display, TickPolicy = CounterTickPolicy.None, DisplayName = "缄默" });
+            Register(new CounterSpec { Id = NullifyCounter, Polarity = CounterPolarity.Negative, Class = CounterClass.Resident, LayerRole = CounterLayerRole.Display, TickPolicy = CounterTickPolicy.None, DisplayName = "失效" });
             // 耐久（2026-09-13 装备系统）：常驻层——使用消耗（EquipRules.LoseDurability），归零销毁
             Register(new CounterSpec { Id = DurabilityCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.Resident, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.External, DisplayName = "耐久" });
             Register(new CounterSpec { Id = PowerUpCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.Resident, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.None, DisplayName = "攻击力增加", StatKind = StatCounterKind.PowerUp });
@@ -395,6 +406,12 @@ namespace CardCore.Attribute
             Register(new CounterSpec { Id = CostDownRedCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.Resident, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.None, DisplayName = "费用降低（红）", StatKind = StatCounterKind.CostDown });
             Register(new CounterSpec { Id = CostDownBlueCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.Resident, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.None, DisplayName = "费用降低（蓝）", StatKind = StatCounterKind.CostDown });
             Register(new CounterSpec { Id = CostDownGreenCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.Resident, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.None, DisplayName = "费用降低（绿）", StatKind = StatCounterKind.CostDown });
+            // 四色费用增加（2026-10-31 通用费用增减四色化）：同 CostUp 档位（Negative/Resident/换区清），
+            // StatKind 共用 CostUp——_costModifier 只是历史聚合读数，主路径读各色计数器（对称四色减口径）
+            Register(new CounterSpec { Id = CostUpGrayCounter, Polarity = CounterPolarity.Negative, Class = CounterClass.Resident, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.None, DisplayName = "费用增加（灰）", StatKind = StatCounterKind.CostUp });
+            Register(new CounterSpec { Id = CostUpRedCounter, Polarity = CounterPolarity.Negative, Class = CounterClass.Resident, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.None, DisplayName = "费用增加（红）", StatKind = StatCounterKind.CostUp });
+            Register(new CounterSpec { Id = CostUpBlueCounter, Polarity = CounterPolarity.Negative, Class = CounterClass.Resident, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.None, DisplayName = "费用增加（蓝）", StatKind = StatCounterKind.CostUp });
+            Register(new CounterSpec { Id = CostUpGreenCounter, Polarity = CounterPolarity.Negative, Class = CounterClass.Resident, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.None, DisplayName = "费用增加（绿）", StatKind = StatCounterKind.CostUp });
             // 技能发动计数（2026-09-22）：常驻（随技能卡存续；换技能卡=新卡归零）
             Register(new CounterSpec { Id = SkillUseCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.Resident, LayerRole = CounterLayerRole.Reading, TickPolicy = CounterTickPolicy.None, DisplayName = "技能发动计数" });
             // 展示：负面（信息暴露/使用限制挂点）；换区清（离开当前区域即失效）
@@ -508,6 +525,12 @@ namespace CardCore.Attribute
             => _registry.TryGetValue(id, out var spec) ? spec
                : new CounterSpec { Id = id, Polarity = CounterPolarity.Positive, DisplayName = id };
 
+        /// <summary>加层口统一层数解析（2026-10-31 晚定案）：系统指示物（Class=System，
+        /// 引擎主干内部驱动，如倒计时）恒 1 层不叠加；其余指示物一次发动按 value 给层
+        ///（≤0 或未填兜底 1 层——叠加为默认行为，表文案已回 {value}层口径）。</summary>
+        public static int ResolveLayers(string counterId, int value)
+            => Find(counterId).Class == CounterClass.System ? 1 : Math.Max(1, value);
+
         public static bool IsNegative(string id) => Find(id).Polarity == CounterPolarity.Negative;
 
         // ==================== 四色费用降低工具口（2026-10-31 P12 充能定案） ====================
@@ -555,13 +578,17 @@ namespace CardCore.Attribute
             if (card == null || amount == 0) return;
             var spec = Find(id);
             if (spec.StatKind == StatCounterKind.None) return;
-            card.AddCounters(id, amount, source);
-            ApplyStatDelta(card, spec.StatKind, amount, source);
+            // 实际增量单源（2026-10-31）：计数层（铭刻 +1/绝缘体无效）、统计回写、事件三层
+            // 同读 AddCounters 返回值——无效添加层不落、统计不回写、事件报 0 不出战报行，
+            // 保持「数值=字段+指示物」不漂移。
+            int actual = card.AddCounters(id, amount, source);
+            if (actual == 0) return;
+            ApplyStatDelta(card, spec.StatKind, actual, source);
             EventManager.Instance.Publish(new CounterChangedEvent
             {
                 Target = card,
                 CounterType = id,
-                Amount = amount,
+                Amount = actual,
                 Source = source,
             });
         }
@@ -819,7 +846,9 @@ namespace CardCore.Attribute
         /// </summary>
         private static void ProcessToxinException(Entity entity)
         {
-            int layers = entity.GetCounterCount(ToxinCounter);
+            // 效果口径读数（2026-10-31 绝缘体裁定）：毒素层对绝缘体单位不生效——不造伤、
+            // 不减半（未生效），账面层保留（「不拦指示物添加」）
+            int layers = entity.GetEffectiveCounterCount(ToxinCounter);
             if (layers <= 0 || !entity.IsAlive) return;
             KeywordRules.ApplyDamage(null, entity, layers, false);
             int halved = layers / 2; // 向下取整（0.5 → 0）
@@ -910,7 +939,10 @@ namespace CardCore.Attribute
 
         public bool BlocksUntap(Card card)
             => card != null
-               && card._counters.Any(kv => kv.Value > 0 && CounterRules.Find(kv.Key).BlocksUntap);
+               // 效果口径读数（2026-10-31 绝缘体裁定）：冻结层对绝缘体单位不挡重置
+               //（沉睡=压制型，绝缘体生效期间添加即清零，账面即真相）
+               && card._counters.Any(kv => card.GetEffectiveCounterCount(kv.Key) > 0
+                                           && CounterRules.Find(kv.Key).BlocksUntap);
 
         public void OnUntapBlocked(GameCore core, Card card)
         {

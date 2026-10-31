@@ -200,6 +200,7 @@ namespace CardCore
             ValidateRandomParams(result);
             ValidateSpellShape(result);
             ValidateEnchantShape(result);
+            ValidateAtomParams(result);
 
             return result;
         }
@@ -256,9 +257,57 @@ namespace CardCore
                                       "（结界只挂自动/光环/充能，其余主动效果已退役）——构筑期拦截");
                 }
                 if (chargeCount > 1)
-                    TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：结界充能效果最多 1 个（现 {chargeCount}）——构筑期拦截");
+                    TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：结界充能效果最多 1 个（现 {chargeCount} 个）——构筑期拦截");
             }
         }
+
+        /// <summary>
+        /// 装载期参数校验（2026-10-31 阶段B 原子表「参数」列配套，可见不炸——坏行点名）：
+        /// 参数≠None 的行，实例 str 为空 → Error 指出行名——取代运行时静默空转/计价退回默认档
+        ///（GrantMorph/强夺 等 handler 的空转兜底、CostDerivation 的 str 空回落默认计价，
+        /// 提前到装载期暴露；P9b 卡组期空槽绑定随之收口为装载错误）。
+        /// CardRef 的 str 须在卡库解析到该卡 ID（本批卡 ids ∪ SummonTokenHandler.ResolveTemplate
+        /// 注入的卡目录——与 ValidateMountHosts 同一解析器）。
+        /// 豁免：引擎主干行（附加诅咒/附加祝福）的载荷通道=branch.then——实例带 then 载荷即不缺参，
+        /// str 通道对这两行不适用（AddCurse 兼容 handler 的 str=载荷效果 id 属无表行手写数据，不经本口）。
+        /// </summary>
+        private static void ValidateAtomParams(List<CardData> cards)
+        {
+            var ids = new HashSet<string>();
+            foreach (var c in cards)
+                if (!string.IsNullOrEmpty(c?.ID)) ids.Add(c.ID);
+
+            foreach (var card in cards)
+            {
+                if (card?.Effects == null) continue;
+                foreach (var eff in card.Effects)
+                {
+                    if (eff == null) continue;
+                    foreach (var atom in EnumerateAtomEntries(eff))
+                    {
+                        var row = Attribute.AtomicEffectTable.GetByHashId(atom?.refId);
+                        if (row == null || row.Param == Attribute.AtomicParamKind.None) continue;
+                        if (ComposerCatalog.IsEngineTrunkRow(row)
+                            && atom.branch?.then != null && atom.branch.then.Count > 0)
+                            continue; // 引擎主干行：载荷走 branch.then（附加诅咒/附加祝福）
+                        if (string.IsNullOrEmpty(atom.str))
+                        {
+                            TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}："
+                                          + $"原子行「{row.DisplayName}」声明参数（{row.Param}）但实例字符串参数为空"
+                                          + "——装载期拦截（不再静默空转/退回默认档）");
+                            continue;
+                        }
+                        if (row.Param == Attribute.AtomicParamKind.CardRef
+                            && !ids.Contains(atom.str)
+                            && Attribute.Handlers.SummonTokenHandler.ResolveTemplate?.Invoke(atom.str) == null)
+                            TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}："
+                                          + $"原子行「{row.DisplayName}」的引用卡 '{atom.str}' 未能在卡库解析到该卡 ID"
+                                          + "——装载期拦截");
+                    }
+                }
+            }
+        }
+
 
         /// <summary>
         /// 构筑期装载宿主校验（2026-09-11 MountKinds 定案配套的硬约束，可见不炸——坏卡点名）：
@@ -360,8 +409,10 @@ namespace CardCore
                 ? t : (AtomicEffectType?)null;
         }
 
-        /// <summary>枚举效果内全部原子条目（Steps 含抉择/分支嵌套 + 扁平 AtomicEffects 兜底）。</summary>
-        private static IEnumerable<AtomicEffectEntry> EnumerateAtomEntries(CardEffectData eff)
+        /// <summary>枚举效果内全部原子条目（Steps 含抉择/分支嵌套 + 扁平 AtomicEffects 兜底）。
+        /// 2026-10-31 阶段C 起公开：卡牌合成保存闸（CardComposerScreen CardRef 拦截）与
+        /// 装载校验共用同一嵌套枚举，避免两处口径漂移。</summary>
+        public static IEnumerable<AtomicEffectEntry> EnumerateAtomEntries(CardEffectData eff)
         {
             if (eff.Steps != null)
             {
@@ -652,6 +703,7 @@ namespace CardCore
             ValidateRandomParams(result);
             ValidateSpellShape(result);
             ValidateEnchantShape(result);
+            ValidateAtomParams(result);
 
             return result;
         }

@@ -4,14 +4,13 @@ using System.Collections.Generic;
 namespace CardCore.Attribute.Handlers
 {
     /// <summary>
-    /// 保护投放（GrantProtection 原子，2026-10-30 指示物化定案后的 3 行族）：
-    /// str="Mode"（目标=己方单位含角色，数量档 1/N/全 由效果级 SelectionMode 承载）。
+    /// 保护投放（延时保护 3 行族；2026-10-31 阶段D EffectType 唯一化）：**档位改从行类型派生**
+    /// ——每档一型（ProtectionHalve/ProtectionNull/ProtectionLifeFloor → ProtectionMode），
+    /// str=Mode 解析口径退役（表 EffectType 列未翻新期间行仍=GrantProtection，按 str 回落过渡；
+    /// 旧卡带 str 新链路忽略）。（目标=己方单位含角色，数量档 1/N/全 由效果级 SelectionMode 承载。）
     /// 施加=对目标附加 {value} 层保护指示物（层=持续到自己第 N 个回合结束，持有者回合结束 −1
     /// 归零，换区清；Entity 级角色可持有）——同档叠加层数延长持续（AddCounters 累计）。
-    /// 表行不带 str——合成器 EffectComposerScreen.ProtectionIds 按 EnumName 写入；
-    /// 手写 Effects.json 须显式写 str。效果/指示物分离定案延续。
-    /// （全体档「Mode|All」已删〔2026-10-30 用户定案：指示物没有全体的说法，只作用于挂载单位〕——
-    /// 旧 str 段多余部分忽略，按单体档降级结算。）
+    /// 效果/指示物分离定案延续。（全体档「Mode|All」已删〔2026-10-30〕——旧 str 段多余部分忽略。）
     /// </summary>
     public class GrantProtectionHandler : AtomicEffectHandlerBase
     {
@@ -19,32 +18,44 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            if (!TryParse(effect.StringValue, out var mode))
+            if (!TryResolveMode(effect, out var mode))
             {
-                TideLog.Warn($"[GrantProtectionHandler] str 非法（应为 Mode，实得 '{effect.StringValue}'），空转");
+                TideLog.Warn($"[GrantProtectionHandler] 档位不可解析（类型 {effect.Type}，str '{effect.StringValue}'），空转");
                 return;
             }
 
-            // 2026-10-31 指示物定案：每次发动恒加一层（层=持续回合；叠加=延长）
-            int layers = 1;
             var counterId = ProtectionRules.CounterIdOf(mode);
+            // 2026-10-31 晚定案：一次发动按 value 给层（层=持续回合，≤0/未填=1）
+            int layers = CounterRules.ResolveLayers(counterId, context.GetValueAfterModifiers(effect.Value));
 
             foreach (var target in context.Targets)
             {
                 if (target == null || !target.IsAlive) continue;
-                target.AddCounters(counterId, layers, context.Source);
+                int actualDelta = target.AddCounters(counterId, layers, context.Source);
                 PublishEvent(new CounterChangedEvent
                 {
                     Target = target,
                     CounterType = counterId,
-                    Amount = layers,
+                    Amount = actualDelta,
                     Source = context.Source,
                 });
             }
         }
 
-        /// <summary>str 解析（模式段非法即 false——空转告警由调用方统一发；
-        /// 段多余部分（旧「|All」全体段）忽略——2026-10-30 全体档退役按单体降级）。</summary>
+        /// <summary>档位解析（阶段D：类型派生优先；旧共享型 GrantProtection 回落 str=Mode——
+        /// 段多余部分（旧「|All」全体段）忽略，按单体降级）。</summary>
+        internal static bool TryResolveMode(AtomicEffectInstance effect, out ProtectionMode mode)
+        {
+            switch (effect.Type)
+            {
+                case AtomicEffectType.ProtectionHalve: mode = ProtectionMode.Halve; return true;
+                case AtomicEffectType.ProtectionNull: mode = ProtectionMode.Null; return true;
+                case AtomicEffectType.ProtectionLifeFloor: mode = ProtectionMode.Floor; return true;
+                default: return TryParse(effect.StringValue, out mode);
+            }
+        }
+
+        /// <summary>旧 str 解析（仅未翻新行/旧实例数据走到；模式段非法即 false）。</summary>
         internal static bool TryParse(string str, out ProtectionMode mode)
         {
             mode = default;
@@ -54,7 +65,7 @@ namespace CardCore.Attribute.Handlers
         }
 
         protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => TryParse(effect.StringValue, out var mode)
+            => TryResolveMode(effect, out var mode)
                 ? $"附加一层{ProtectionRules.ModeZh(mode)}指示物（持有者回合结束−1）"
                 : "延时保护";
     }

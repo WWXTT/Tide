@@ -145,12 +145,12 @@ namespace CardCore.Attribute
             }
 
             // 变形指示物（中性 Resident，层恒 1）：解除口=换区/净化清（ClearCounters 钩子）
-            self.AddCounters(CounterRules.MorphStateCounter, 1, source);
+            int actualDelta = self.AddCounters(CounterRules.MorphStateCounter, 1, source);
             EventManager.Instance.Publish(new CounterChangedEvent
             {
                 Target = self,
                 CounterType = CounterRules.MorphStateCounter,
-                Amount = 1,
+                Amount = actualDelta,
                 Source = source,
             });
             EventManager.Instance.Publish(new KeywordAppliedEvent
@@ -289,12 +289,14 @@ namespace CardCore.Attribute
                     e.branch.then.RemoveAll(a => a != null && IsRuleAuraEntry(a));
         }
 
-        /// <summary>原子条目是否规则光环步：refId → 表行 EnumName（英文 EffectType）== ModifyGameRule
-        /// （合成器 IsRitualStepRow 同口径——EffectType 单一来源）。</summary>
+        /// <summary>原子条目是否规则光环步（2026-10-31 阶段D：行类型派生——Aura* 新型经
+        /// RuleAuraComponents.IsAuraLike（含未翻新旧共享型 ModifyGameRule）；
+        /// 合成器 IsRitualStepRow 同口径）。</summary>
         private static bool IsRuleAuraEntry(AtomicEffectEntry entry)
         {
             var enumName = AtomicEffectTable.GetByHashId(entry?.refId)?.EnumName;
-            return enumName == nameof(AtomicEffectType.ModifyGameRule);
+            return Enum.TryParse<AtomicEffectType>(enumName ?? "", out var t)
+                   && RuleAuraComponents.IsAuraLike(t);
         }
     }
 }

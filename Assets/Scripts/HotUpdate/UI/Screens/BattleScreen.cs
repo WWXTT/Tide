@@ -590,6 +590,7 @@ namespace SynergyUI
             _netClient.OnSnapshot += NetOnSnapshot;
             _netClient.OnEventBatch += NetOnEvents;
             _netClient.OnSelectRequest += NetOnSelectRequest;
+            _netClient.OnTextRequest += NetOnTextRequest;
             _netClient.OnRoomState += NetOnRoomState;
             _netClient.OnManifest += NetOnManifest;
             _netClient.OnError += e => _toast.Show($"被拒（{e?.Context}）：{e?.Reason}");
@@ -1255,6 +1256,30 @@ namespace SynergyUI
             });
         }
 
+        // ---- 网络局文本反问（2026-10-31 阶段C：TextRequest → 模态输入窗 → TextResponse）----
+
+        private void NetOnTextRequest(MsgTextRequest req)
+        {
+            if (req == null || !NetActive) return;
+            NetTextAsync(req).Forget();
+        }
+
+        private async UniTaskVoid NetTextAsync(MsgTextRequest req)
+        {
+            // 本地局同款模态输入窗（RegionTargetSelector.PromptTextAsync——中文输入法随 TMP）；
+            // null=取消（Text=null 应答），服务器侧再按长度/座位校验收口
+            string text = _regionSelector != null
+                ? await _regionSelector.PromptTextAsync(
+                    req.Title, req.Default, req.MaxLen, req.TimeoutSeconds > 0f ? req.TimeoutSeconds : 120f)
+                : null;
+            if (!NetActive) return; // 断线后不再应答
+            _netClient.Send(NetworkMessageType.TextResponse, new MsgTextResponse
+            {
+                RequestId = req.RequestId,
+                Text = text,
+            });
+        }
+
         // ---- 网络局下行事件（表现 MVP：终局+战报轻日志） ----
 
         private void NetOnEvents(NetEvent[] events)
@@ -1346,6 +1371,7 @@ namespace SynergyUI
                 _netClient.OnSnapshot -= NetOnSnapshot;
                 _netClient.OnEventBatch -= NetOnEvents;
                 _netClient.OnSelectRequest -= NetOnSelectRequest;
+                _netClient.OnTextRequest -= NetOnTextRequest;
                 _netClient.OnRoomState -= NetOnRoomState;
                 _netClient.OnManifest -= NetOnManifest;
                 _netClient.OnDisconnected -= NetOnDisconnected;
@@ -2902,7 +2928,7 @@ namespace SynergyUI
         {
             var guide = RuleHooks.TutorialAttackGate?.Invoke(P1, attacker, target);
             if (guide != null) return guide;
-            if (target is Card tc && (tc.GetCounterCount(CardCore.Attribute.CounterRules.StealthCounter) > 0
+            if (target is Card tc && (tc.GetEffectiveCounterCount(CardCore.Attribute.CounterRules.StealthCounter) > 0
                                       || tc.HasKeyword(KeywordRules.Concealed)))
                 return "目标具有潜行/隐密——不可被指定为攻击目标";
             return "无法对该目标攻击";

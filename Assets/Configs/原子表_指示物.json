@@ -2,7 +2,7 @@
   {
     "ID": "e3fafbd8",
     "EnumName": "法术护盾",
-    "DisplayName": "对{target}附加一层法术护盾指示物，成为对手效果目标时抵消该效果对自身的作用并消耗1层",
+    "DisplayName": "对{target}附加{value}层法术护盾指示物，成为对手效果目标时抵消该效果对自身的作用并消耗1层",
     "EffectType": "GrantSpellShield",
     "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位",
     "TargetFilter": "",
@@ -19,7 +19,7 @@
   {
     "ID": "aa431b19",
     "EnumName": "复生",
-    "DisplayName": "对{target}附加一层复生指示物，每层在死亡结算时以1生命留场复活一次（不进墓地）",
+    "DisplayName": "对{target}附加{value}层复生指示物，每层在死亡结算时以1生命留场复活一次（不进墓地）",
     "EffectType": "GrantReborn",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": null,
@@ -36,7 +36,7 @@
   {
     "ID": "84783302",
     "EnumName": "圣盾",
-    "DisplayName": "对{target}附加一层圣盾指示物，抵挡一次任意伤害（伤害变为0）后消耗一层",
+    "DisplayName": "对{target}附加{value}层圣盾指示物，抵挡一次任意伤害（伤害变为0）后消耗{value}层",
     "EffectType": "GrantDivineShield",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": null,
@@ -53,7 +53,7 @@
   {
     "ID": "655a7e5b",
     "EnumName": "潜行",
-    "DisplayName": "对{target}附加一层潜行指示物，持有期间不可被攻击和效果指定，攻击、发动效果或受到伤害后消耗1层",
+    "DisplayName": "对{target}附加{value}层潜行指示物，持有期间不可被攻击和效果指定，攻击、发动效果或受到伤害后消耗1层",
     "EffectType": "GrantStealth",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": null,
@@ -68,10 +68,44 @@
     ]
   },
   {
-    "ID": "4eb3a848",
-    "EnumName": "费用增加",
-    "DisplayName": "为{target}添加一层费用增加指示物",
-    "EffectType": "AddCostUp",
+    "ID": "ffb58b5a",
+    "EnumName": "费用增加（灰）",
+    "DisplayName": "为{target}添加{value}层灰色费用增加指示物",
+    "EffectType": "AddCostUpGray",
+    "TargetKinds": "己方手牌,对方手牌",
+    "TargetFilter": null,
+    "Polarity": -1,
+    "MountKinds": "指示物,不可随机",
+    "Tags": "换区清除型",
+    "ManaList": [
+      2,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ID": "3883280f",
+    "EnumName": "费用增加（红）",
+    "DisplayName": "为{target}添加{value}层红色费用增加指示物",
+    "EffectType": "AddCostUpRed",
+    "TargetKinds": "己方手牌,对方手牌",
+    "TargetFilter": null,
+    "Polarity": -1,
+    "MountKinds": "指示物,不可随机",
+    "Tags": "换区清除型",
+    "ManaList": [
+      0,
+      2,
+      0,
+      0
+    ]
+  },
+  {
+    "ID": "559bb810",
+    "EnumName": "费用增加（蓝）",
+    "DisplayName": "为{target}添加{value}层蓝色费用增加指示物",
+    "EffectType": "AddCostUpBlue",
     "TargetKinds": "己方手牌,对方手牌",
     "TargetFilter": null,
     "Polarity": -1,
@@ -85,10 +119,78 @@
     ]
   },
   {
-    "ID": "2f5dd95d",
-    "EnumName": "费用减少",
-    "DisplayName": "为{target}添加一层费用减少指示物",
-    "EffectType": "AddCostDown",
+    "ID": "5a90c0e7",
+    "EnumName": "费用增加（绿）",
+    "DisplayName": "为{target}添加{value}层绿色费用增加指示物",
+    "EffectType": "AddCostUpGreen",
+    "TargetKinds": "己方手牌,对方手牌",
+    "TargetFilter": null,
+    "Polarity": -1,
+    "MountKinds": "指示物,不可随机",
+    "Tags": "换区清除型",
+    "ManaList": [
+      0,
+      0,
+      0,
+      2
+    ]
+  },
+  {
+    "ID": "6c55dff3",
+    "EnumName": "费用减少（灰）",
+    "DisplayName": "为{target}添加{value}层灰色费用减少指示物",
+    "EffectType": "AddCostDownGray",
+    "TargetKinds": "己方手牌,对方手牌",
+    "TargetFilter": null,
+    "Polarity": 1,
+    "MountKinds": "指示物,不可随机",
+    "Tags": "换区清除型",
+    "ManaList": [
+      2,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ID": "78449cca",
+    "EnumName": "费用减少（红）",
+    "DisplayName": "为{target}添加{value}层红色费用减少指示物",
+    "EffectType": "AddCostDownRed",
+    "TargetKinds": "己方手牌,对方手牌",
+    "TargetFilter": null,
+    "Polarity": 1,
+    "MountKinds": "指示物,不可随机",
+    "Tags": "换区清除型",
+    "ManaList": [
+      0,
+      2,
+      0,
+      0
+    ]
+  },
+  {
+    "ID": "3ee9fc5b",
+    "EnumName": "费用减少（蓝）",
+    "DisplayName": "为{target}添加{value}层蓝色费用减少指示物",
+    "EffectType": "AddCostDownBlue",
+    "TargetKinds": "己方手牌,对方手牌",
+    "TargetFilter": null,
+    "Polarity": 1,
+    "MountKinds": "指示物,不可随机",
+    "Tags": "换区清除型",
+    "ManaList": [
+      0,
+      0,
+      2,
+      0
+    ]
+  },
+  {
+    "ID": "16a9b26d",
+    "EnumName": "费用减少（绿）",
+    "DisplayName": "为{target}添加{value}层绿色费用减少指示物",
+    "EffectType": "AddCostDownGreen",
     "TargetKinds": "己方手牌,对方手牌",
     "TargetFilter": null,
     "Polarity": 1,
@@ -104,7 +206,7 @@
   {
     "ID": "efa0a546",
     "EnumName": "攻击力增加",
-    "DisplayName": "为{target}添加一层攻击力增加指示物",
+    "DisplayName": "为{target}添加{value}层攻击力增加指示物",
     "EffectType": "AddPowerUp",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": "NoRole",
@@ -121,7 +223,7 @@
   {
     "ID": "67d671a4",
     "EnumName": "攻击力减少",
-    "DisplayName": "为{target}添加一层攻击力减少指示物",
+    "DisplayName": "为{target}添加{value}层攻击力减少指示物",
     "EffectType": "AddPowerDown",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": "NoRole",
@@ -138,7 +240,7 @@
   {
     "ID": "db997126",
     "EnumName": "生命值增加",
-    "DisplayName": "为{target}添加一层生命值增加指示物",
+    "DisplayName": "为{target}添加{value}层生命值增加指示物",
     "EffectType": "AddLifeUp",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": "NoRole",
@@ -155,7 +257,7 @@
   {
     "ID": "cd8bfa7e",
     "EnumName": "生命值减少",
-    "DisplayName": "为{target}添加一层生命值减少指示物",
+    "DisplayName": "为{target}添加{value}层生命值减少指示物",
     "EffectType": "AddLifeDown",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": "NoRole",
@@ -172,7 +274,7 @@
   {
     "ID": "4f250e01",
     "EnumName": "属性增加",
-    "DisplayName": "为{target}添加一层属性增加指示物（+1/+1）",
+    "DisplayName": "为{target}添加{value}层属性增加指示物（+1/+1）",
     "EffectType": "AddPlusOne",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": "NoRole",
@@ -189,7 +291,7 @@
   {
     "ID": "6983635d",
     "EnumName": "属性减少",
-    "DisplayName": "为{target}添加一层属性减少指示物（-1/-1）",
+    "DisplayName": "为{target}添加{value}层属性减少指示物（-1/-1）",
     "EffectType": "AddMinusOne",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": "NoRole",
@@ -206,7 +308,7 @@
   {
     "ID": "3634cdc1",
     "EnumName": "坚韧",
-    "DisplayName": "对{target}附加一层坚韧指示物，每次受到伤害每层使伤害减1，生效后层数减半（向下取整）",
+    "DisplayName": "对{target}附加{value}层坚韧指示物，每次受到伤害每层使伤害减1，生效后层数减半（向下取整）",
     "EffectType": "GrantToughness",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": null,
@@ -223,7 +325,7 @@
   {
     "ID": "ff8922af",
     "EnumName": "护甲",
-    "DisplayName": "为{target}添加护甲指示物，受到伤害时每吸收一点伤害消耗一层护甲",
+    "DisplayName": "为{target}添加护甲指示物，受到伤害时每吸收一点伤害消耗{value}层护甲",
     "EffectType": "AddArmor",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": null,
@@ -240,7 +342,7 @@
   {
     "ID": "23e6f45e",
     "EnumName": "毒素",
-    "DisplayName": "对{target}附加一层毒素指示物，每回合结束受到等于层数的伤害，生效后层数减半（向下取整）",
+    "DisplayName": "对{target}附加{value}层毒素指示物，每回合结束受到等于层数的伤害，生效后层数减半（向下取整）",
     "EffectType": "AddToxin",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": null,
@@ -257,7 +359,7 @@
   {
     "ID": "069054a4",
     "EnumName": "报复",
-    "DisplayName": "对{target}附加一层报复指示物，受到伤害时对伤害来源造成等于层数的伤害，生效后层数减半（向下取整）",
+    "DisplayName": "对{target}附加{value}层报复指示物，受到伤害时对伤害来源造成等于层数的伤害，生效后层数减半（向下取整）",
     "EffectType": "GrantRetaliation",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": null,
@@ -274,41 +376,43 @@
   {
     "ID": "7518f494",
     "EnumName": "沉默",
-    "DisplayName": "对{target}附加一层沉默指示物（不可发动主动效果）",
+    "DisplayName": "对{target}附加{value}层沉默指示物（不可发动主动效果）",
     "EffectType": "Silence",
-    "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位",
+    "TargetKinds": "己方单位,对方单位",
     "TargetFilter": null,
     "Polarity": -1,
     "MountKinds": "指示物",
-    "Tags": "换区清除型",
+    "Tags": "衰退型",
     "ManaList": [
       0,
       0,
       2,
       0
-    ]
+    ],
+    "特殊裁定": "拦主动效果的发动，包括攻击和守卫，这两个动作也是主动效果"
   },
   {
     "ID": "bf3f8fb9",
-    "EnumName": "缄默",
-    "DisplayName": "对{target}附加一层缄默指示物（不可发动自动效果）",
+    "EnumName": "失效",
+    "DisplayName": "对{target}附加{value}层失效指示物（不可发动自动效果）",
     "EffectType": "AddNullify",
     "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位",
     "TargetFilter": "NoRole",
     "Polarity": -1,
     "MountKinds": "指示物",
-    "Tags": "换区清除型",
+    "Tags": "衰退型",
     "ManaList": [
       0,
       0,
       2,
       0
-    ]
+    ],
+    "特殊裁定": "自动效果是指固定时机发动的效果，包含：本体和指示物赋予的关键词，不包含光环赋予的效果"
   },
   {
     "ID": "a948c9f3",
     "EnumName": "冻结",
-    "DisplayName": "冻结{target}：横置并放置一层冻结指示物，持有者回合结束时自动解除一层冻结",
+    "DisplayName": "冻结{target}：横置并放置{value}层冻结指示物，冻结期间无法重置，持有者回合结束时自动解除{value}层冻结",
     "EffectType": "Freeze",
     "TargetKinds": "己方单位,对方单位,对方元素池",
     "TargetFilter": "NoRole",
@@ -320,12 +424,13 @@
       0,
       1,
       0
-    ]
+    ],
+    "特殊裁定": "持有期间无法重置"
   },
   {
     "ID": "eacec12f",
     "EnumName": "紊乱",
-    "DisplayName": "对{target}附加一层紊乱指示物，期间不能以玩家为攻击目标，持有者回合结束时自动解除一层紊乱",
+    "DisplayName": "对{target}附加{value}层紊乱指示物，期间不能以玩家为攻击目标，持有者回合结束时自动解除{value}层紊乱",
     "EffectType": "RushSickness",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": null,
@@ -335,14 +440,15 @@
     "ManaList": [
       0,
       0,
-      0.5,
+      1,
       0
-    ]
+    ],
+    "特殊裁定": "攻击与效果都不能以玩家为目标"
   },
   {
     "ID": "7aa28b21",
     "EnumName": "易损",
-    "DisplayName": "对{target}附加一层易损指示物，每次受到伤害每层使受到的伤害加1，生效后层数减半（向下取整）",
+    "DisplayName": "对{target}附加{value}层易损指示物，受到伤害时，每层使受到的最终伤害加1，生效后层数减半（向下取整）",
     "EffectType": "AddVulnerable",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": null,
@@ -359,7 +465,7 @@
   {
     "ID": "9eda9441",
     "EnumName": "放血",
-    "DisplayName": "对{target}附加一层放血指示物，其下一次受到的治疗改写为等量伤害并消耗一层",
+    "DisplayName": "对{target}附加{value}层放血指示物，其下一次受到的治疗改写为等量伤害并消耗{value}层",
     "EffectType": "GrantDepravity",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": null,
@@ -376,7 +482,7 @@
   {
     "ID": "ca7a5f8f",
     "EnumName": "重放",
-    "DisplayName": "对{target}附加一层重放指示物，该单位效果结算后自动消耗一层并再生效一次（重放不触发重放）",
+    "DisplayName": "对{target}附加{value}层重放指示物，该单位效果结算后自动消耗{value}层并再生效一次（重放不触发重放）",
     "EffectType": "GrantReplay",
     "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位",
     "TargetFilter": null,
@@ -393,7 +499,7 @@
   {
     "ID": "d0ed3461",
     "EnumName": "遗忘",
-    "DisplayName": "对{target}附加一层遗忘指示物，持有者回合结束时，不存在于战场，则从游戏中移除",
+    "DisplayName": "对{target}附加{value}层遗忘指示物，持有者回合结束时，不存在于战场，则从游戏中移除",
     "EffectType": "GrantTemporary",
     "TargetKinds": "己方手牌,对方手牌,己方牌库,对方牌库,己方墓地,对方墓地,己方除外区,对方除外区",
     "TargetFilter": "",
@@ -410,7 +516,7 @@
   {
     "ID": "6d003e66",
     "EnumName": "沉睡",
-    "DisplayName": "赋予{target}一层沉睡，沉睡期间横置无法重置，自动效果无效，持有者回合结束时自动解除一层沉睡",
+    "DisplayName": "赋予{target}{value}层沉睡，沉睡期间横置无法重置，自动效果无效，持有者回合结束时自动解除{value}层沉睡",
     "EffectType": "Sleep",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": "NoRole",
@@ -422,7 +528,8 @@
       0,
       3,
       0
-    ]
+    ],
+    "特殊裁定": "禁主动效果、自动效果，禁重置；只能以生物为目标"
   },
   {
     "ID": "842f2a26",
@@ -444,7 +551,7 @@
   {
     "ID": "d0cb21db",
     "EnumName": "减半",
-    "DisplayName": "对{target}附加一层减半护盾指示物，持有期间受到的伤害减半（向上取整），自己回合结束自动解除一层",
+    "DisplayName": "对{target}附加{value}层减半护盾指示物，持有期间受到的伤害减半（向上取整），自己回合结束自动解除{value}层",
     "EffectType": "GrantProtection",
     "TargetKinds": "己方单位",
     "TargetFilter": null,
@@ -461,7 +568,7 @@
   {
     "ID": "7f734495",
     "EnumName": "免疫",
-    "DisplayName": "对{target}附加一层全免护盾指示物，持有期间受到的伤害变为0，自己回合结束自动解除一层",
+    "DisplayName": "对{target}附加{value}层全免护盾指示物，持有期间受到的伤害变为0，自己回合结束自动解除{value}层",
     "EffectType": "GrantProtection",
     "TargetKinds": "己方单位",
     "TargetFilter": null,
@@ -478,7 +585,7 @@
   {
     "ID": "d6436016",
     "EnumName": "生命锁",
-    "DisplayName": "对{target}附加一层生命锁指示物，持有期间生命值不会低于1，自己回合结束自动解除一层",
+    "DisplayName": "对{target}附加{value}层生命锁指示物，持有期间生命值不会低于1，自己回合结束自动解除{value}层",
     "EffectType": "GrantProtection",
     "TargetKinds": "己方单位",
     "TargetFilter": null,

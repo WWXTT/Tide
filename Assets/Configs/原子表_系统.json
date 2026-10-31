@@ -81,6 +81,7 @@
     "Polarity": 0,
     "MountKinds": "引擎主干,动态费用",
     "Tags": "换区清除型",
+    "参数": "CardRef",
     "ManaList": [
       0,
       0,
@@ -98,6 +99,7 @@
     "Polarity": 0,
     "MountKinds": "引擎主干,动态费用",
     "Tags": "换区清除型",
+    "参数": "CardRef",
     "ManaList": [
       0,
       0,
@@ -187,6 +189,7 @@
     "Polarity": -1,
     "MountKinds": "引擎主干",
     "Tags": "生效自减型",
+    "参数": "CardRef",
     "ManaList": null
   },
   {
@@ -199,6 +202,7 @@
     "Polarity": 1,
     "MountKinds": "引擎主干",
     "Tags": "生效自减型",
+    "参数": "CardRef",
     "ManaList": null
   },
   {
@@ -365,6 +369,7 @@
     "Polarity": 1,
     "MountKinds": "引擎主干",
     "Tags": null,
+    "参数": "Dimension",
     "ManaList": null
   }
 ]

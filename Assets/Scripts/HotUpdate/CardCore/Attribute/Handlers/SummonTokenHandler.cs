@@ -117,12 +117,12 @@ namespace CardCore.Attribute.Handlers
 
                 // 遗忘 1 层（2026-10-12 表行文案兑现）：在场按生物规则，离场后于持有者回合末
                 // 从游戏中移除（CounterRules.OnTurnEnd ② 例程——与回响临时复制同一指示物）
-                token.AddCounters(CounterRules.TempCounter, 1);
+                int actualDelta = token.AddCounters(CounterRules.TempCounter, 1);
                 PublishEvent(new CounterChangedEvent
                 {
                     Target = token,
                     CounterType = CounterRules.TempCounter,
-                    Amount = 1,
+                    Amount = actualDelta,
                     Source = context.Source,
                 });
 

@@ -128,10 +128,11 @@ namespace CardCore.Attribute.Handlers
             // 表行 20c06d52（原 Poison 原子）改挂 GrantVenom——病原体（改写挂剧毒指示物）随之退役
             (AtomicEffectType.GrantVenom, "Venom", "获得剧毒（受到其战斗伤害的生物被消灭）"),
             (AtomicEffectType.GrantSpellban, "Spellban", "获得无实体（每次受到的伤害变为1）"),
-            // 绝缘体（2026-10-31，绿3）：持有单位不受指示物的效果影响——正面指示物加不上
-            //（拦截口=EntityEffectExtensions.AddCounters 咽喉；含己方自上；负量移除不拦；
-            // 系统指示物豁免同禁指示物令口径）。表行 MountKinds 带「不可作为连接光环」
-            //（免疫洞防线，同无实体/守护）。
+            // 绝缘体（2026-10-31，绿3）：持有单位不受指示物的效果影响——特殊裁定改版
+            //（同日「不拦指示物添加」）：层照常落账+效果走 GetEffectiveCounterCount 读数压制；
+            // 沉睡/缄默（压制型）与 StatKind 属性类（回写式）在 AddCounters 咽喉清零
+            //（时序互压/账目安全），系统指示物豁免。表行 MountKinds 带
+            //「不可作为连接光环」（免疫洞防线，同无实体/守护）。
             (AtomicEffectType.GrantInsulator, "Insulator", "获得绝缘体（不受指示物的效果影响）"),
             // 复生已移出关键词族（2026-10-08 指示物化）：GrantReborn 原子改由 GrantRebornHandler
             // 执行（挂 RebornCounter 层）——refId 已重推 502be10d→94f6a32d（2026-10-08 全量 ID 重推）

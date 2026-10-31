@@ -17,6 +17,8 @@ namespace CardCore.Network
     ///   网络环境下的超时代打策略即"引擎 AutoSelect 兜底"，M4 再做服务器侧主动代打。
     /// - 线程：M1/M2 定案服务器单逻辑线程驱动，无锁；跨线程化前须加同步（届时随 M2 收口）。
     /// - 越界/超量索引：不在本类校验——RequestAsync 的 MapIndices 与兜底已按引擎口径处理。
+    /// - 文本反问（2026-10-31 阶段C）：同构第二条通道 MsgTextRequest/MsgTextResponse
+    ///   （_pendingText；卡名宣言等开放集输入），超时/取消=null=效果不结算。
     /// </summary>
     public sealed class NetworkTargetSelector : ITargetSelectorEx
     {
@@ -24,8 +26,17 @@ namespace CardCore.Network
         private readonly Dictionary<int, UniTaskCompletionSource<List<int>>> _pending =
             new Dictionary<int, UniTaskCompletionSource<List<int>>>();
 
+        /// <summary>文本反问在途表（2026-10-31 阶段C）：RequestId → (TCS, MaxLen, ChooserSeat)——
+        /// MaxLen/ChooserSeat 随表携带，供 TryCompleteText 做服务端校验（长度超限/错座应答拒绝，
+        /// 按取消 null 收口——效果不结算）。</summary>
+        private readonly Dictionary<int, (UniTaskCompletionSource<string> tcs, int maxLen, int chooserSeat)> _pendingText =
+            new Dictionary<int, (UniTaskCompletionSource<string>, int, int)>();
+
         /// <summary>反问请求发送通道（宿主注入）。抛异常视为本轮反问失败——引擎兜底 AutoSelect。</summary>
         public Func<MsgSelectRequest, UniTask> SendAsync { get; set; }
+
+        /// <summary>文本反问请求发送通道（宿主注入）。null=宿主未接线——回落 defaultValue（AI 口径）。</summary>
+        public Func<MsgTextRequest, UniTask> SendTextAsync { get; set; }
 
         /// <summary>挂载到引擎（TargetSelectionService.Current = 本实例）。装/卸由宿主管理。</summary>
         public void Attach() => TargetSelectionService.Current = this;
@@ -48,19 +59,40 @@ namespace CardCore.Network
             return true;
         }
 
+        /// <summary>会话层收到 MsgTextResponse 后调用（2026-10-31 阶段C）：
+        /// 校验应答座位与长度（fromSeat&lt;0=观战/未知座位直拒）——不合法一律按取消 null 收口。
+        /// 返回是否命中在途条目（false=迟到/未知 RequestId，会话层给可诊断回执）。</summary>
+        public bool TryCompleteText(MsgTextResponse response, int fromSeat)
+        {
+            if (response == null) return false;
+            if (!_pendingText.TryGetValue(response.RequestId, out var entry)) return false;
+            _pendingText.Remove(response.RequestId);
+            string text = response.Text?.Trim();
+            if (fromSeat >= 0 && entry.chooserSeat >= 0 && fromSeat != entry.chooserSeat)
+                text = null; // 错座应答：按取消（防对手代答宣言）
+            if (text != null && entry.maxLen > 0 && text.Length > entry.maxLen)
+                text = null; // 超长拒绝：按取消（长度合法性服务端校验）
+            entry.tcs.TrySetResult(string.IsNullOrEmpty(text) ? null : text);
+            return true;
+        }
+
         /// <summary>是否有未决反问（M2 服务器快照静默检查：非静默点不取样——半完成结算不快照）。
-        /// 与 _pending 全部访问同在逻辑线程（单逻辑线程定案），无锁。</summary>
-        public bool HasPending => _pending.Count > 0;
+        /// 与 _pending 全部访问同在逻辑线程（单逻辑线程定案），无锁。文本反问计入同一口径。</summary>
+        public bool HasPending => _pending.Count > 0 || _pendingText.Count > 0;
 
         /// <summary>作废全部未决反问（M2 断线收口）：空索引集完成 → 引擎按空应答回落 AutoSelect，
-        /// 防止断线连接的反问永远悬住泵。返回作废条数。逻辑线程调用。</summary>
+        /// 防止断线连接的反问永远悬住泵。文本在途一并按取消 null 收口。返回作废条数。逻辑线程调用。</summary>
         public int AbortPending()
         {
-            int count = _pending.Count;
+            int count = _pending.Count + _pendingText.Count;
             var aborted = _pending.Values.ToList();
             _pending.Clear();
             foreach (var tcs in aborted)
                 tcs.TrySetResult(new List<int>());
+            var abortedText = _pendingText.Values.ToList();
+            _pendingText.Clear();
+            foreach (var entry in abortedText)
+                entry.tcs.TrySetResult(null);
             return count;
         }
 
@@ -138,6 +170,48 @@ namespace CardCore.Network
                 return idx >= 0 && idx < options.Count ? idx : -1;
             }
             return -1;
+        }
+
+        /// <summary>文本反问（2026-10-31 阶段C）：MsgTextRequest 定向下发 ChooserSeat，await 文本应答。
+        /// 超时自持自清理（同 SelectAsync 竞速归属）；无发送通道/发送失败 → defaultValue（AI 口径兜底，
+        /// 效果照结算——比取消温和，防宿主未接线卡死泵）。null=取消（效果不结算、费用不退）。</summary>
+        public async UniTask<string> SelectTextAsync(Player chooser, string title, string defaultValue,
+            int maxLen, float timeoutSeconds)
+        {
+            var msg = new MsgTextRequest
+            {
+                RequestId = ++_nextRequestId,
+                ChooserSeat = NetEntityMapper.SeatOf(chooser),
+                Title = title,
+                Default = defaultValue,
+                MaxLen = maxLen > 0 ? maxLen : 32,
+                TimeoutSeconds = timeoutSeconds,
+            };
+
+            var tcs = new UniTaskCompletionSource<string>();
+            _pendingText[msg.RequestId] = (tcs, msg.MaxLen, msg.ChooserSeat);
+
+            if (SendTextAsync == null)
+            {
+                _pendingText.Remove(msg.RequestId);
+                return defaultValue; // 未接线：AI 口径兜底
+            }
+
+            try
+            {
+                await SendTextAsync(msg);
+            }
+            catch
+            {
+                _pendingText.Remove(msg.RequestId);
+                return defaultValue; // 发送失败：兜底（非取消——网络层故障不罚玩家）
+            }
+
+            var timeoutTask = TideDelay.After(TimeSpan.FromSeconds(timeoutSeconds + GraceSeconds))
+                .ContinueWith(() => (string)null);
+            var (winIndex, uiResult, _) = await UniTask.WhenAny(tcs.Task, timeoutTask);
+            _pendingText.Remove(msg.RequestId);
+            return winIndex == 0 ? uiResult : null;
         }
 
         /// <summary>超时宽限（对齐 TargetSelectionService.GraceSeconds——客户端倒计时先于此到期）。</summary>

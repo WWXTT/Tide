@@ -278,6 +278,16 @@ namespace CardCore.Serialization
         public const int MSelP_RequestId = 1596262577;
         public const int MSelP_Indices = 2029117393;
 
+        // ---- MsgTextRequest / MsgTextResponse（2026-10-31 阶段C 文本反问；StableTag 同式手算，已登记 GetTagDefinitions）----
+        public const int MTxtR_RequestId = 34353602;
+        public const int MTxtR_ChooserSeat = 532063247;
+        public const int MTxtR_Title = 1682907019;
+        public const int MTxtR_Default = 698403013;
+        public const int MTxtR_MaxLen = 1059541441;
+        public const int MTxtR_TimeoutSeconds = 718083082;
+        public const int MTxtP_RequestId = 898162932;
+        public const int MTxtP_Text = 1765521786;
+
         // ---- MsgNetEventBatch ----
         public const int MNEB_Events = 1087901504;
 

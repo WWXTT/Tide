@@ -98,6 +98,17 @@ namespace CardCore.Attribute
         /// <summary>设计备注</summary>
         public string Notes;
 
+        /// <summary>特殊声明（2026-10-31 阶段B 表「特殊」列）：文案没说、但引擎实际这么做的规则
+        ///（中文短句）——纯展示层追加（AtomText.RenderCore 单点，合成器效果描述/卡面 tooltip 共用），
+        /// 不改 DisplayName 模板、不改行 ID（ID=sha256(DisplayName)，动模板=全链换号）。</summary>
+        public string Special;
+
+        /// <summary>实例级字符串参数声明（2026-10-31 阶段B 表「参数」列）：本行实例需要什么 str。
+        /// None=不需要；CardRef=引用卡 ID（装载期须在卡库解析到该卡）；CardName=宣言卡名；
+        /// Dimension=「维度:值」编码。装载校验口=CardLoader.ValidateAtomParams（空 str 报错点名行名，
+        /// 不再静默空转/退回默认档）。</summary>
+        public AtomicParamKind Param;
+
         /// <summary>
         /// 获取关联效果类型列表
         /// </summary>
@@ -148,6 +159,17 @@ namespace CardCore.Attribute
         /// </summary>
         public List<int> GetTargetKindList()
             => CardCore.TargetKindRules.Parse(TargetKinds);
+    }
+
+    /// <summary>原子行实例级字符串参数声明（2026-10-31 阶段B 表「参数」列）：
+    /// None=不需要 str；CardRef=引用卡 ID；CardName=宣言卡名；Dimension=维度:值 编码。
+    /// 缺省（表内不写键）= None。</summary>
+    public enum AtomicParamKind
+    {
+        None,
+        CardRef,
+        CardName,
+        Dimension,
     }
 
     #region 属性枚举定义

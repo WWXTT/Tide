@@ -186,7 +186,7 @@ namespace CardCore.AI
         {
             var skillCard = HeroSkillSystem.ResolveSkillCard(core, me);
             if (skillCard == null || skillCard.IsTapped()) return false;
-            if (skillCard.GetCounterCount(CounterRules.SilenceCounter) > 0) return false;
+            if (skillCard.GetEffectiveCounterCount(CounterRules.SilenceCounter) > 0) return false;
             foreach (var effect in HeroSkillSystem.SkillEffectsOf(skillCard))
             {
                 var cost = CostDerivationService.DeriveElementCosts(effect);

@@ -38,6 +38,7 @@ namespace CardCore.Network
         public MsgRoomState RoomState;
         public MsgGameStateSync Snapshot;
         public readonly List<MsgSelectRequest> PendingSelects = new List<MsgSelectRequest>();
+        public readonly List<MsgTextRequest> PendingTexts = new List<MsgTextRequest>(); // 文本反问（2026-10-31 阶段C）
         public int SnapshotsSeen;
         public int ErrorsSeen;
         public int ConcedeCount;
@@ -78,6 +79,19 @@ namespace CardCore.Network
             }
 
             // ① 反问优先——服务器在等应答，不受锁步限制
+            //   文本反问（2026-10-31 阶段C）：确定性回默认值（无默认=null=取消空转——
+            //   与引擎侧 AI/无头「defaultValue 即结果」口径一致，M3 同种子对拍不发散）
+            if (PendingTexts.Count > 0)
+            {
+                var textReq = PendingTexts[0];
+                PendingTexts.RemoveAt(0);
+                channel.Send(NetworkMessageType.TextResponse, new MsgTextResponse
+                {
+                    RequestId = textReq.RequestId,
+                    Text = string.IsNullOrWhiteSpace(textReq.Default) ? null : textReq.Default.Trim(),
+                });
+                return;
+            }
             if (PendingSelects.Count > 0)
             {
                 var req = PendingSelects[0];

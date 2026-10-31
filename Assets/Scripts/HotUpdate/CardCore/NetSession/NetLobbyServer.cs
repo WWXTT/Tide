@@ -420,6 +420,9 @@ namespace CardCore.Network
                     case NetworkMessageType.SelectRequest:
                         _brain.PendingSelects.Add(NetworkSerializer.DeserializePayload<MsgSelectRequest>(msg));
                         break;
+                    case NetworkMessageType.TextRequest: // 文本反问（2026-10-31 阶段C）：bot 回默认值
+                        _brain.PendingTexts.Add(NetworkSerializer.DeserializePayload<MsgTextRequest>(msg));
+                        break;
                     case NetworkMessageType.Error:
                         _brain.ErrorsSeen++;
                         break;

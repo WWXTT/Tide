@@ -253,6 +253,10 @@ namespace CardCore.Tools
                 ("MsgSelectRequest", "Min"), ("MsgSelectRequest", "Max"),
                 ("MsgSelectRequest", "Labels"), ("MsgSelectRequest", "Candidates"),
                 ("MsgSelectResponse", "RequestId"), ("MsgSelectResponse", "Indices"),
+                ("MsgTextRequest", "RequestId"), ("MsgTextRequest", "ChooserSeat"),
+                ("MsgTextRequest", "Title"), ("MsgTextRequest", "Default"),
+                ("MsgTextRequest", "MaxLen"), ("MsgTextRequest", "TimeoutSeconds"),
+                ("MsgTextResponse", "RequestId"), ("MsgTextResponse", "Text"),
 
                 // ---- MsgNetEventBatch（事件流批次下行）----
                 ("MsgNetEventBatch", "Events"),
@@ -367,6 +371,8 @@ namespace CardCore.Tools
                 "CardHandInfo" => "CHI",
                 "MsgSelectRequest" => "MSelR",
                 "MsgSelectResponse" => "MSelP",
+                "MsgTextRequest" => "MTxtR",
+                "MsgTextResponse" => "MTxtP",
                 "MsgNetEventBatch" => "MNEB",
                 "NetDeckDigest" => "NDD",
                 "MsgDeckSubmit" => "MDS",

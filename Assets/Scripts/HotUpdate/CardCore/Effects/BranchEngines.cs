@@ -323,12 +323,12 @@ namespace CardCore
 
             if (best.GetCounterCount(Attribute.CounterRules.ExposedCounter) == 0)
             {
-                best.AddCounters(Attribute.CounterRules.ExposedCounter, 1, engineCard);
+                int actualDelta = best.AddCounters(Attribute.CounterRules.ExposedCounter, 1, engineCard);
                 EventManager.Instance.Publish(new CounterChangedEvent
                 {
                     Target = best,
                     CounterType = Attribute.CounterRules.ExposedCounter,
-                    Amount = 1,
+                    Amount = actualDelta,
                     Source = engineCard,
                 });
                 EventManager.Instance.Publish(new RevealCardsEvent
@@ -576,13 +576,13 @@ namespace CardCore
                 {
                     var target = deck[GameRng.Next(0, deck.Count)];
                     TideLog.Info($"[OnDrawDeploy] {keyword}附加 → {target.ID}（{deckOwner?.Name} 牌库 {deck.Count} 张随机取）");
-                    target.AddCounters(counterId, 1, player);
+                    int actualDelta = target.AddCounters(counterId, 1, player);
                     CurseSystem.AttachEngine(target, counterId, payload.Then, player, card);
                     EventManager.Instance.Publish(new Attribute.CounterChangedEvent
                     {
                         Target = target,
                         CounterType = counterId,
-                        Amount = 1,
+                        Amount = actualDelta,
                         Source = player,
                     });
                     EventManager.Instance.Publish(new KeywordAppliedEvent

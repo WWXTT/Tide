@@ -386,6 +386,14 @@ namespace CardCore
                 return false;
             }
 
+            // 苏醒地牌门槛（2026-10-31）：可免灰份额（=沉睡层数）> 施放者当前地牌槽上限 → 拒
+            //（AwakenExceedsLandCap 单源——LAE 枚举同判；UI 按钮随关键词常显，点击被此处终审拒）。
+            if (awakenCast && AwakenExceedsLandCap(core, player, card, modeIndex))
+            {
+                rejectReason = $"灰色费用 {GetAwakenSleepLayers(card, modeIndex)} 大于当前地牌上限 {core.ElementPool.GetLandCap(player)}，不可苏醒施放";
+                return false;
+            }
+
             // 规则扩展点（OCP）：出牌限制（如信息轴锁定）经注册表询问
             if (!RuleHooks.CanPlay(core, player, card, fromZone))
             { rejectReason = "出牌受限（规则锁定）"; return false; }
@@ -399,12 +407,13 @@ namespace CardCore
             if (!TryPrepareCardCostTargets(core, player, card, out var costGateReject))
             { rejectReason = costGateReject; return false; }
 
-            // 规则扩展点（OCP）：非手牌来源（如墓地视手牌使用）经注册表取得并占用配额
+            // 规则扩展点（OCP）：非手牌来源须经注册的 IPlaySource 授权（无授权即拒——
+            // 2026-10-30 归土改版后墓地出牌退役，当前无注册来源，恒走拒绝臂）
             if (fromZone != Zone.Hand)
             {
                 var playSource = RuleHooks.GetPlaySource(fromZone);
                 if (playSource == null || !playSource.TryBeginUse(player))
-                { rejectReason = $"{fromZone}使用配额已用尽（每回合一次）"; return false; }
+                { rejectReason = "该区域不可作为出牌来源"; return false; }
             }
 
             bool isSpell = card.IsSpellCard();
@@ -481,12 +490,6 @@ namespace CardCore
             { rejectReason = "响应窗口已关闭（无可响应对象或结算中）"; return false; }
             if (core.StackEngine.CurrentPriorityHolder != player)
             { rejectReason = "响应出牌需要优先权在手"; return false; }                   // 优先权在手
-
-            // 禁扰令（2026-10-29 阶段2；2026-10-30 更名·改单侧）：受光环影响一方不能在对手回合
-            // 施放卡牌——只拦响应出牌（PlayCard 本身已要求回合方，不加）；主动效果/守卫不受限。
-            if (player != core.TurnEngine.TurnPlayer
-                && RuleAuraSystem.ScopeHits(RuleAuraComponents.OwnTurnCastAura, player))
-            { rejectReason = "禁扰令：不能在对手回合施放"; return false; }
 
             var hand = core.ZoneManager.GetCards(player, Zone.Hand);
             if (!hand.Contains(card)) { rejectReason = "卡不在手牌（快照过期？请重试）"; return false; }
@@ -785,6 +788,10 @@ namespace CardCore
         /// 保证入场卡自己的 OnPlay/OnSummon 能吃到自己的入场事件。）
         /// sleepLayers（2026-10-29 P6 苏醒施放；P6c 只免灰）：入场成功后等量挂沉睡指示物并横置登场——
         /// 复用沉睡指示物既有语义（无法重置+效果无效、持有者回合末 −1 归零解除），不新造状态。
+        /// 入场时序（2026-10-31 定案）：入场事件 → Tap → 沉睡——苏醒沉睡属入场代价，
+        /// 经 CounterGrantKind.EntryCost 显式投放（跳过绝缘体压制闸，吃铭刻 +1）；
+        /// CounterChangedEvent 发 AddCounters 返回的实际增量（铭刻放大含在内），
+        /// 并补发战报行「入场代价：沉睡 N 层」。
         /// </summary>
         private static void ResolvePermanentEntry(GameCore core, Player player, Card card, int sleepLayers = 0)
         {
@@ -795,13 +802,25 @@ namespace CardCore
             if (sleepLayers > 0)
             {
                 card.Tap();
-                card.AddCounters(Attribute.KeywordRules.SleepCounter, sleepLayers, player);
+                // 入场代价沉睡（2026-10-31 入场时序定案）：EntryCost 档显式投放——生物进场沉睡
+                // 先落下、绝缘体后生效，这层沉睡是入场代价，不吃绝缘体对沉睡的清零闸
+                //（压制闸跳过）；但仍是正常指示物层：吃铭刻 +1、
+                // 登记来源、回合末正常倒数。
+                int actualLayers = card.AddCounters(Attribute.KeywordRules.SleepCounter, sleepLayers, player,
+                    Attribute.CounterGrantKind.EntryCost);
                 core.PublishEvent(new TapEvent { TappedEntity = card, IsUntapping = false });
                 core.PublishEvent(new Attribute.CounterChangedEvent
                 {
                     Target = card,
                     CounterType = Attribute.KeywordRules.SleepCounter,
-                    Amount = sleepLayers,
+                    Amount = actualLayers, // 实际增量（铭刻 +1 放大含在内）——2026-10-31 起不再自报 N
+                    Source = player,
+                });
+                core.PublishEvent(new KeywordAppliedEvent
+                {
+                    Target = card,
+                    Keyword = Attribute.KeywordRules.SleepCounter,
+                    Detail = $"入场代价：沉睡 {actualLayers} 层（不受获得闸）",
                     Source = player,
                 });
             }
@@ -942,7 +961,7 @@ namespace CardCore
             //    主动效果此前只经待发队列瞬态（从不入队=从不进窗），现按场上来源枚举：
             //    战场+技能栏卡的 IsActivatedEffect 定义（含 Activate_Response 响应档——构筑
             //    体系注释本就写明「归响应窗口」，本次接上）。逐效果：PendingEffect.Create
-            //    单源算速（BaseSpeed+疾风 OnBoardActiveSpeedBonus）→ 速度门 →
+            //    单源算速（BaseSpeed）→ 速度门 →
             //    executor.CanActivate 可发动性全检（结界禁主动/横置/沉默/沉睡/条件/费用/目标域
             //    ——这些是「可发动性」过滤，不是连锁条件）。阶段走 TurnEngine 真值
             //    （StackEngine.CurrentPhase 是死字段勿读）。
@@ -1002,10 +1021,6 @@ namespace CardCore
             {
                 foreach (var c in core.ZoneManager.GetCards(p, Zone.Hand) ?? new List<Card>())
                 {
-                    // 禁扰令（2026-10-29 阶段2）：非回合方不能施放——手牌响应候选跳过
-                    //（与 PlayCardInResponse 硬闸同口径；守卫/主动效果候选不受限）
-                    if (p != core.TurnEngine.TurnPlayer
-                        && RuleAuraSystem.ScopeHits(RuleAuraComponents.OwnTurnCastAura, p)) continue;
                     if (c == null || !RuleHooks.CanPlay(core, p, c, Zone.Hand)) continue;
                     if (RuleAuraSystem.BlocksDuplicatePlay(c)) continue;
                     if (GetPayloadGateReject(core, p, c) != null) continue;
@@ -1673,20 +1688,26 @@ namespace CardCore
                     cost[color] = cost[color] + anchor[color];
             }
 
-            // 费用指示物层（P1 恒灰 → 2026-10-31 P12 四色扩容）：灰 += CostUp − CostDown − CostDownGray
-            //（旧 CostDown 恒灰 legacy）；红/蓝/绿各吃对应色 CostDown* 层。逐色单独钳 0，不串色。
-            int costUp = card.GetCounterCount(Attribute.CounterRules.CostUpCounter);
+            // 费用指示物层（P1 恒灰 → 2026-10-31 P12 四色减扩容 → 同日通用增减四色化）：
+            // 灰 += CostUp + CostUpGray − CostDown − CostDownGray（旧通用 CostUp/CostDown 恒灰 legacy）；
+            // 红/蓝/绿各吃对应色 CostUp* − CostDown* 层（增减同色对冲）。逐色单独钳 0，不串色。
+            int costUp = card.GetCounterCount(Attribute.CounterRules.CostUpCounter)
+                       + card.GetCounterCount(Attribute.CounterRules.CostUpGrayCounter);
             int grayDown = card.GetCounterCount(Attribute.CounterRules.CostDownCounter)
                          + card.GetCounterCount(Attribute.CounterRules.CostDownGrayCounter);
+            int redUp = card.GetCounterCount(Attribute.CounterRules.CostUpRedCounter);
+            int blueUp = card.GetCounterCount(Attribute.CounterRules.CostUpBlueCounter);
+            int greenUp = card.GetCounterCount(Attribute.CounterRules.CostUpGreenCounter);
             int redDown = card.GetCounterCount(Attribute.CounterRules.CostDownRedCounter);
             int blueDown = card.GetCounterCount(Attribute.CounterRules.CostDownBlueCounter);
             int greenDown = card.GetCounterCount(Attribute.CounterRules.CostDownGreenCounter);
-            if (costUp != 0 || grayDown != 0 || redDown != 0 || blueDown != 0 || greenDown != 0)
+            if (costUp != 0 || grayDown != 0 || redUp != 0 || blueUp != 0 || greenUp != 0
+                || redDown != 0 || blueDown != 0 || greenDown != 0)
             {
                 cost[ManaType.Gray] = Math.Max(0f, cost[ManaType.Gray] + costUp - grayDown);
-                cost[ManaType.Red] = Math.Max(0f, cost[ManaType.Red] - redDown);
-                cost[ManaType.Blue] = Math.Max(0f, cost[ManaType.Blue] - blueDown);
-                cost[ManaType.Green] = Math.Max(0f, cost[ManaType.Green] - greenDown);
+                cost[ManaType.Red] = Math.Max(0f, cost[ManaType.Red] + redUp - redDown);
+                cost[ManaType.Blue] = Math.Max(0f, cost[ManaType.Blue] + blueUp - blueDown);
+                cost[ManaType.Green] = Math.Max(0f, cost[ManaType.Green] + greenUp - greenDown);
             }
 
             // 苏醒施放豁免（2026-10-29 P6；同日 P6c 修订：只免灰，绿照付；2026-10-31 P12 关键词化：
@@ -1733,6 +1754,16 @@ namespace CardCore
         }
 
         // ==================== 苏醒关键词闸（2026-10-31 P12 关键词化） ====================
+
+        /// <summary>苏醒地牌门槛（2026-10-31 定案）：可免灰份额（=沉睡层数，净费口径）> 施放者当前
+        /// 地牌槽上限 → 不可苏醒施放（等于放行）。灰全出自灰地而灰地张数被地牌上限封顶——超上限的
+        /// 身材费靠苏醒也永远补不回，不提供苏醒选项。PlayCard 终审闸与 LAE 苏醒枚举臂同判本口；
+        /// UI 按钮随关键词常显（P12 惯例），点击被终审拒并 toast 原因。限制文案进关键词表行。</summary>
+        public static bool AwakenExceedsLandCap(GameCore core, Player player, Card card, int modeIndex = 0)
+        {
+            int layers = GetAwakenSleepLayers(card, modeIndex); // 内含关键词/生物/灰≥1 闸——0 恒不超限
+            return layers > 0 && layers > (core?.ElementPool?.GetLandCap(player) ?? 0);
+        }
 
         /// <summary>卡是否有「苏醒」关键词（印刷/Setting/Temp 轨 + 连接光环投递 + 缄默失效
         ///——HasKeyword 全口径）。P12 定案：只有带 Awaken 的生物才有「苏醒施放」入口。</summary>

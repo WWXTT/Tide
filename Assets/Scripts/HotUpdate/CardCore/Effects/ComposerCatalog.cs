@@ -187,7 +187,7 @@ namespace CardCore
         }
 
         /// <summary>产出族标签词表（2026-10-06 迁表+中文化：族成员名单由原子表 Tags 列维护，代码不再持有数组；
-        /// 词表中文、可多标签逗号并列）：伤害族=造成/穿透/吸取；诅咒族=附加诅咒；
+        /// 词表中文、可多标签逗号并列）：伤害族=造成/吸取（穿透档已删 2026-10-31）；诅咒族=附加诅咒；
         /// 宣言族/预言族原子尚未入表（枚举先行）——行入表时带标签即生效。</summary>
         public const string DamageProducerTag = "伤害产出族";
         public const string DeclareProducerTag = "宣言产出族";
@@ -221,16 +221,48 @@ namespace CardCore
 
         // ======================================== 有限分支（局面状态门）目录 ========================================
 
+        /// <summary>门槛行新型 → GateId 静态映射（2026-10-31 阶段D EffectType 唯一化：原
+        /// SituationGate 11 行共享拆型，身份改从类型派生）。值=BranchConditionEvaluator
+        /// 判定谓词注册 id（卡数据 branch.gateId / IsUniqueGate 同键——不随拆型漂移）；
+        /// 表 GateId 列保留作显示/兼容（未翻新行回落读列）。</summary>
+        private static readonly System.Collections.Generic.Dictionary<AtomicEffectType, string> _gateIdOfTypes
+            = new System.Collections.Generic.Dictionary<AtomicEffectType, string>
+        {
+            { AtomicEffectType.GateFirstDrawOfTurn, "DrawnInStandbyThisTurn" }, // 命运一抽【唯一】
+            { AtomicEffectType.GateLifeBelow, "LifeBelowOpp" },
+            { AtomicEffectType.GateLifeAbove, "LifeAboveOpp" },
+            { AtomicEffectType.GateDeckBelow, "DeckBelowOpp" },
+            { AtomicEffectType.GateDeckAbove, "DeckAboveOpp" },
+            { AtomicEffectType.GateCreatureBelow, "CreaturesBelowOpp" },
+            { AtomicEffectType.GateCreatureAbove, "CreaturesAboveOpp" },
+            { AtomicEffectType.GateFirstCardOfTurn, "FirstCardThisTurn" },
+            { AtomicEffectType.GateLandsAtLeast7, "LandsGe7" },
+            { AtomicEffectType.GateHandEmpty, "HandEmpty" },
+            { AtomicEffectType.GateLifeAtMost7, "LifeLe7" },
+        };
+
+        /// <summary>是否门槛行新型。</summary>
+        public static bool IsGateType(AtomicEffectType type) => _gateIdOfTypes.ContainsKey(type);
+
         /// <summary>有限分支条件全集（局面状态族）：不读主干产出、任意原子可挂，效果结算时评估一次——
         /// 达标→Then 奖励，不达标→不奖励也不惩罚（2026-10-09 定案，纯条件奖励）。
-        /// 2026-10-23 入表定案：目录**每次从原子表派生**（表重读即生效，不做永久缓存——11 行开销可忽略）：
+        /// 2026-10-23 入表定案 + 2026-10-31 阶段D：目录**每次从原子表派生**（表重读即生效）：
         /// 取 MountKinds 含「有限分支」位（MountKind.SituationGate）的行，顺序=表序（装载序号）；
-        /// 行承载身份（GateId）/挂载（位 8）/预算（Budget 列），判定谓词仍由 BranchConditionEvaluator 代码注册。
+        /// 身份 Id 从行类型派生（_gateIdOfTypes——EffectType 唯一化），表 EffectType 列未翻新行
+        /// （仍=SituationGate）回落 GateId 列；判定谓词仍由 BranchConditionEvaluator 代码注册。
         /// 诅咒门（CurseOnDraw）不在列——诅咒通道=引擎主干行 EngineCurseOnDraw（2026-10-08 接棒）。</summary>
         public static GateSpec[] SituationGates => Attribute.AtomicEffectTable.GetAll()
             .Where(r => r != null && HasMountBit(r, MountKind.SituationGate) && !string.IsNullOrEmpty(r.GateId))
             .OrderBy(r => r.Id)
-            .Select(r => new GateSpec { Id = r.GateId, DisplayName = r.DisplayName, Budget = r.Budget, ProducerTag = null })
+            .Select(r => new GateSpec
+            {
+                Id = Enum.TryParse<AtomicEffectType>(r.EnumName, out var t) && _gateIdOfTypes.TryGetValue(t, out var gid)
+                    ? gid
+                    : r.GateId,
+                DisplayName = r.DisplayName,
+                Budget = r.Budget,
+                ProducerTag = null,
+            })
             .ToArray();
 
         /// <summary>是否局面状态门 id（converter 折叠遗留门步骤时按此归类 Gate）。</summary>
@@ -308,8 +340,15 @@ namespace CardCore
             if (b != null && (BranchSettleKind)b.settle == BranchSettleKind.Gate && IsUniqueGate(b.gateId))
                 AddDeckUniqueSlot(slots, "gate:" + b.gateId, UniqueGateDisplayName(b.gateId));
             var row = AtomicEffectTable.GetByHashId(atom.refId);
-            if (!string.IsNullOrEmpty(atom.str) && HasMountBit(row, MountKind.RuleAura))
-                AddDeckUniqueSlot(slots, "aura:" + atom.str, row?.DisplayName ?? atom.str);
+            // 阶段D（2026-10-31）：规则 id 从行类型派生（RuleAuraComponents 映射）优先——
+            // 表 EffectType 翻新后合成器不再写 str；未翻新行回落 str=规则短名（过渡）
+            if (!HasMountBit(row, MountKind.RuleAura)) return;
+            var rid = Enum.TryParse<AtomicEffectType>(row?.EnumName ?? "", out var t)
+                ? RuleAuraComponents.RuleIdOfType(t)
+                  ?? (t == AtomicEffectType.ModifyGameRule ? atom.str : null)
+                : atom.str;
+            if (!string.IsNullOrEmpty(rid))
+                AddDeckUniqueSlot(slots, "aura:" + rid, row?.DisplayName ?? rid);
         }
 
         private static void AddDeckUniqueSlot(List<DeckUniqueSlot> slots, string key, string display)

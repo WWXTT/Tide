@@ -257,7 +257,8 @@ namespace SynergyUI
 
         /// <summary>幻卡清算（2026-10-18 教学二·末日降临挑战·AI 第一回合签名动作）。字段口径——
         /// card=末日降临卡 id（正主 C_791FE42E）、target=仪典载体卡 id（涌泉仪典 C_57A3ADD6——
-        /// 2026-10-30 纳川改版剥离疲劳免疫后教学载体随切）、
+        /// 2026-10-30 纳川改版剥离疲劳免疫后教学载体随切；2026-10-31 涌泉表行退役后该卡保留为
+        /// 教学幻卡载体、effectIds 已空——Boss 免疲劳全靠下方 RuleAuraSystem.Activate 直挂）、
         /// targets=仪典规则光环 id（FatigueImmunity=免疲劳——镜像卡组烧空后 AI 空牌库抽牌
         /// 不再疲劳自伤）、mode=紊乱层数（RushSickness：boss 暂不可攻击角色、每它回合末−1）。
         /// 实现：烧空=TutorialScenarioSeeder.ClearSide 同款抹除口径（容器直删+CardMoveEvent

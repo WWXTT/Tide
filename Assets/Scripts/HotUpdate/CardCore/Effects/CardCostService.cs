@@ -25,7 +25,7 @@ namespace CardCore
     /// <summary>统一计价结果 —— 规则一·平衡的完整输出。</summary>
     public sealed class CardCostResult
     {
-        /// <summary>推导档位 Ĉ = 取整前推导总额（S+E+K）所在档（f=d(Ĉ) 的输入；0=无内容）。
+        /// <summary>推导档位 Ĉ = 取整前推导总额（S+E+K）所在档（0=无内容；UI 卡面费数字）。
         /// 2026-10-22 恒推导定案：不读存档 costList——档位由推导总额自决，无「声明」概念。</summary>
         public int DerivedTier;
 
@@ -40,9 +40,6 @@ namespace CardCore
 
         /// <summary>效果锚价 E（DeriveElementCosts 口径合计）。</summary>
         public int EAnchor;
-
-        /// <summary>挂载折扣因子 f = d(Ĉ)（三类卡型统一，2026-10-02 定案；Ĉ=推导总额所在档）。</summary>
-        public float Factor;
 
         /// <summary>挂载效果定义数 N_active。</summary>
         public int ActiveEffectCount;
@@ -75,7 +72,7 @@ namespace CardCore
         /// <summary>抵扣色中文名（如「红」；无代价/无抵扣面=空串）——代价原子可产出色集合的显示形态。</summary>
         public string PayloadScopeZh = "";
 
-        /// <summary>逐行明细（S / K 逐关键词 / E 逐效果 / f / d(C) / Req / G）。</summary>
+        /// <summary>逐行明细（S / K 逐关键词 / E 逐效果 / C 结构 / P 代价 / D 推导费 / Req）。</summary>
         public List<CostBreakdownLine> Breakdown = new List<CostBreakdownLine>();
     }
 
@@ -84,19 +81,20 @@ namespace CardCore
     ///
     ///   锚价（即时价，法术定价）= CostDerivationService.DeriveElementCosts（原样复用，含持续折扣）。
     ///   身材费 S(灰)  = (攻+血) / StatUnit（StatUnit=2：1费=2属性）。
-    ///   关键词费 K    = Σ 关键词对应 Grant 原子的 BaseCost（固定费，颜色=原子亲和；黑白原子落本色，2026-09-11）。
-    ///   挂载折扣 f    = d(C) 三类卡型统一（2026-10-02 定案：法术不再豁免）——落地时间（费用C=最早第C回合落地，延迟C−1）按延迟贬值。
-    ///                  （原 ExtraActivationSlope×(N_active−1) 存活期望折已删——与卡层挂载口计价重复。）
-    ///   卡层组合费用  = CardCompositionCost（第三层：抉择价差溢价 / 效果挂载口 ±灰，不参与 f）。
-    ///   D(Ĉ) = S灰 + 挂载包×f + 卡层调整（减免发生在组合层：包总额一次取整，最大余数法分色）；D 只算一次，不迭代。
-    ///   档位 Ĉ = round(S+E+K)（取整前、未折的推导总额）所在档，f=d(Ĉ)（2026-10-22 恒推导定案：
-    ///   不读存档 costList，无循环依赖、无「声明」）；支付/地牌锁色/UI/召唤门槛全走推导值——
-    ///   costList 仅为显示缓存（EnsureCost 装载时刷新，与推导不一致仅告警）。
-    ///   抵扣需求 Req = max(0, D_total − Ĉ)（超槽加价不吃折，可把 D 顶出 Ĉ——此时仍非零）。
+    ///   关键词费 K    = Σ 关键词对应 Grant 原子的 BaseCost（固定费，颜色=原子亲和）。
+    ///   卡层组合费用  = CardCompositionCost（底盘预算：超槽加价 / 剩余抵价，不参与锚价）。
+    ///   D(Ĉ) = S灰 + 挂载包 + 卡层调整（减免发生在组合层：包总额一次取整，最大余数法分色）；D 只算一次，不迭代。
+    ///   档位 Ĉ = round(S+E+K)（取整前推导总额）所在档（2026-10-22 恒推导定案：不读存档 costList，
+    ///   无循环依赖、无「声明」）；支付/地牌锁色/UI/召唤门槛全走推导值——costList 仅为显示缓存
+    ///   （EnsureCost 装载时刷新，与推导不一致仅告警）。
+    ///   **阶梯减价/延迟折已整删（2026-10-31 用户定案：f=d(Ĉ) 退役——无前中后期卡组概念，
+    ///   所有卡组开局即榨取整体能力上限，高费卡不再按额度打折，S+E+K 全额计价）。**
+    ///   抵扣需求 Req = max(0, D_total − (Ĉ + 结构费))（结构加价计入锚——支付不超「内容+结构」；
+    ///   Req>0 只可能来自取整漂移，规则一巡检兜底用）。
     /// </summary>
     public static class CardCostService
     {
-        /// <summary>主入口：由卡内容推导完整结果（档位 Ĉ=推导总额所在档，f=d(Ĉ)——不读存档 costList）。</summary>
+        /// <summary>主入口：由卡内容推导完整结果（档位 Ĉ=推导总额所在档——不读存档 costList）。</summary>
         public static CardCostResult Derive(CardData card)
         {
             var result = new CardCostResult();
@@ -104,9 +102,8 @@ namespace CardCore
 
             var cfg = ValueSystemConfigManager.Instance.GetOrCreateConfig();
             var cc = cfg.CardCostConfig;
-            var dd = cfg.DelayDiscountConfig;
 
-            // ---- 1) 身材费 S（灰桶——经 ApportionMounted 整卡折同吃 d(C)，2026-09-07 整卡最后折定案）----
+            // ---- 1) 身材费 S（灰桶）----
             float statValue = ComputeStatValue(card, cc, result.Breakdown);
 
             // ---- 2) 关键词费 K（Grant 原子固定费，无 value 缩放）----
@@ -114,7 +111,7 @@ namespace CardCore
             var kwBuckets = ComputeKeywordBuckets(card, result.Breakdown, out keywordTotal);
 
             // ---- 2b) 连接光环费 A（三轨制 2026-09-09；2026-10-12 持续折算退役：光环默认存在
-            //即持续——不在这里收持续费），并入关键词桶同级参与挂载折扣与取整 ----
+            //即持续——不在这里收持续费），并入关键词桶同级参与取整 ----
             float auraTotal;
             var auraBuckets = ComputeLinkAuraBuckets(card, result.Breakdown, out auraTotal);
             foreach (var kv in auraBuckets)
@@ -156,21 +153,14 @@ namespace CardCore
                 result.Breakdown.Add(new CostBreakdownLine("E", $"效果 {def.DisplayName ?? def.Id} (锚价)", defTotal));
             }
 
-            // ---- 4) 挂载折扣 f（2026-10-22 恒推导定案）：档位=推导总额所在档 Ĉ=round(S+E+K)
-            //（取整前、未折），f=d(Ĉ)——不读存档 costList，无声明、无循环依赖。
-            // 三类卡型统一 d(C)（2026-10-02 定案维持）。----
+            // ---- 4) 推导档位 Ĉ（2026-10-22 恒推导定案）：round(S+E+K) 所在档——
+            // 延迟折 f=d(Ĉ) 已整删（2026-10-31 定案），档位仅作 UI 卡面费数字，不再参与计价。----
             float rawTotal = statValue + keywordTotal + effectTotal;
             result.DerivedTier = rawTotal > 0f ? Math.Clamp(TideMath.RoundToInt(rawTotal), 1, cc.MaxTier) : 0;
-            float factor = result.DerivedTier > 0 ? Math.Max(0f, dd.At(result.DerivedTier)) : 1f;
-            result.Factor = factor;
-            result.Breakdown.Add(new CostBreakdownLine("f",
-                $"挂载折扣 f（Ĉ={rawTotal:0.##}→档{result.DerivedTier}，d({result.DerivedTier})={factor:0.###}）", factor));
 
-            // ---- 5) L2 组合完成 + L3 整卡延迟折（2026-09-07 定案：d(C) 对完成的卡最后一步打折）----
-            // L2：E/K 汇桶 + S 入灰桶；L3：整卡（S+E+K）×f 一次取整，最大余数法分色。
+            // ---- 5) L2 组合：E/K 汇桶 + S 入灰桶，总额一次取整，最大余数法分色（无延迟折）----
             // 底盘预算（2026-09-10 攻/守效果化，取代旧挂载口曲线）：取整后落位——
             // 退费先灰后最高色（法术常无灰分量），加价入灰。
-            var kwMultiplier = cc.KeywordsShareDelayDiscount ? factor : 1f;
             int statGray = (int)Math.Round(statValue, MidpointRounding.AwayFromZero);
             // 底盘（2026-10-22 最终定案，取代 10-15 生物按槽加价）：结构项=攻/守+效果槽，
             // 结构项>3 差额入灰（生物/非生物同式）；免费点按卡型：生物→属性（灰桶 S）、法术→提速、
@@ -178,7 +168,7 @@ namespace CardCore
             int surcharge = CardCompositionCost.StructuralSurcharge(card);
             if (surcharge > 0)
                 result.Breakdown.Add(new CostBreakdownLine("C",
-                    $"结构项 {CardCompositionCost.ChassisItems(card)} − 预算3 → +{surcharge} 入灰（不吃 d(C)）",
+                    $"结构项 {CardCompositionCost.ChassisItems(card)} − 预算3 → +{surcharge} 入灰",
                     surcharge, ManaType.Gray));
             int surplus = CardCompositionCost.SurplusOf(card);
             if (surplus > 0)
@@ -203,7 +193,7 @@ namespace CardCore
                         $"免费点 {surplus} → 抵价 {surplus}（先灰后最高色）", -surplus));
             }
 
-            var mounted = ApportionMounted(effBuckets, kwBuckets, kwMultiplier, factor, statGray);
+            var mounted = ApportionMounted(effBuckets, kwBuckets, statGray);
             ApplyChassis(card, mounted);
 
             // ---- 5b) 代价抵扣（2026-10-28 P1 定案：代价 = 构筑期抵扣；2026-10-31 色锁定案） ----
@@ -231,16 +221,16 @@ namespace CardCore
             result.EAnchor = (int)Math.Round(effectTotal, MidpointRounding.AwayFromZero);
             result.DerivedTotal = (int)result.DerivedCost.Total;
 
-            // ---- 6) 规则一（2026-09-11 简化定案沿用）：D ≤ Ĉ 直判 ----
-            // 代价当量抵扣通道下线——恒推导下 D 通常 ≤ Ĉ（d≤1）；超槽加价不吃折，仍可把 D 顶出 Ĉ
-            //（Req>0=真超模，代价栏应补）。代价抵扣（5b）先于本判——净费参与 D≤Ĉ。
-            // 对照值 Ĉ₁=max(1, round(S+E+K)) 上不钳 MaxTier（2026-10-29）：档位钳只作用折扣曲线 d(C)
-            // 取值——若照钳后档判，rawTotal>MaxTier 的卡 Ĉ 恒钉在上限而 D 随内容 ×f 增长，D≤Ĉ
-            // 结构性不可满足（教学三 Boss 末日降临 rawTotal34→档14/D26 即此）；下钳 1 与档位口径一致。
+            // ---- 6) 规则一：D ≤ Ĉ + 结构费 直判（2026-10-31 阶梯减价删除后锚含结构费）----
+            // 延迟折删除后 D = round(S+E+K) + 结构加价 − 底盘抵价：结构加价是「内容+结构」锚内的
+            // 真实费用（超槽=多占预算），不再视为超模；Req>0 只可能来自取整漂移——巡检兜底用。
+            // 代价抵扣（5b）先于本判——净费参与。对照值 Ĉ₁=max(1, round(S+E+K)) 上不钳 MaxTier
+            //（2026-10-29）：若照钳后档判，rawTotal>MaxTier 的卡 Ĉ 恒钉上限而 D 随内容增长，
+            // D≤Ĉ 结构性不可满足（教学三 Boss 末日降临 rawTotal34→档14/D26 即此）；下钳 1 与档位口径一致。
             int ruleTier = rawTotal > 0f ? Math.Max(1, TideMath.RoundToInt(rawTotal)) : 0;
-            result.OffsetRequirement = Math.Max(0, result.DerivedTotal - ruleTier);
+            result.OffsetRequirement = Math.Max(0, result.DerivedTotal - ruleTier - surcharge);
             result.Conformant = result.OffsetRequirement == 0;
-            result.Breakdown.Add(new CostBreakdownLine("Req", $"规则一 D{result.DerivedTotal} ≤ Ĉ{ruleTier}", result.OffsetRequirement));
+            result.Breakdown.Add(new CostBreakdownLine("Req", $"规则一 D{result.DerivedTotal} ≤ Ĉ{ruleTier}+结构{surcharge}", result.OffsetRequirement));
 
             // ---- 6b) 黑白获得汇总已删（2026-10-28 P1 定案）：代价=构筑期抵扣（5b），不再发放任何元素；
             // Grants 字段留空不填（引用清理 P4 处理）----
@@ -250,7 +240,7 @@ namespace CardCore
         // ======================================== 衍生物内容全价（2026-10-10 无底盘定案） ========================================
 
         /// <summary>
-        /// 衍生物内容全价（总量）：S（含耐久）+ K + E 逐色口径**不乘 d(C)**，再 + 结构费全额
+        /// 衍生物内容全价（总量）：S（含耐久）+ K + E 逐色口径全额，再 + 结构费全额
         /// （攻/守/槽 × ChassisItemRate，无 3 点预算抵扣）——衍生物没走「入组 1 + 抽牌 2」通道，
         /// 吃不到底盘，SummonToken 单价 = 本值（CostDerivation 消费）。
         /// 口径与 Derive 同源：主动不进 E 桶
@@ -295,9 +285,9 @@ namespace CardCore
                 }
             }
 
-            // f=1（不乘 d(C)）+ 结构费全额入灰——不走 ApplyChassis（衍生物无底盘，无剩余可支配）
+            // 全额计价 + 结构费全额入灰——不走 ApplyChassis（衍生物无底盘，无剩余可支配）
             int statGray = (int)Math.Round(statValue, MidpointRounding.AwayFromZero);
-            var mounted = ApportionMounted(effBuckets, kwBuckets, 1f, 1f, statGray);
+            var mounted = ApportionMounted(effBuckets, kwBuckets, statGray);
             int structureFee = CardCompositionCost.StructureFeeFull(card);
             if (structureFee > 0)
             {
@@ -382,9 +372,10 @@ namespace CardCore
         // ======================================== 抉择 per-mode 计价 ========================================
 
         /// <summary>
-        /// 构筑期推导全部模式费用（与 Derive 同口径：L1 原子锚价 → L2 组合含挂载口 → L3 整卡延迟折）。
-        /// 两遍式：第一遍取各模式效果锚桶（未折未取整）——「模式0=最高消耗」契约按原始锚价判；
-        /// 第二遍组装（S 入灰桶，与效果同吃 d(Ĉ_m)——整卡最后折；档位逐模式自决，不读存档 costList）。
+        /// 构筑期推导全部模式费用（与 Derive 同口径：L1 原子锚价 → L2 组合含挂载口 → 整卡取整分色；
+        /// 延迟折已删，2026-10-31）。
+        /// 两遍式：第一遍取各模式效果锚桶（未取整）——「模式0=最高消耗」契约按原始锚价判；
+        /// 第二遍组装（S 入灰桶——档位逐模式自决，不读存档 costList）。
         /// 无抉择卡返回空表。
         /// prePayloadOut（2026-10-29 P7 建造配套）：非 null 时逐模式追加**代价抵扣前**的费用
         ///（与返回表同序同长——GetPrePayloadCost 抉择分支消费）。
@@ -397,7 +388,6 @@ namespace CardCore
 
             var cfg = ValueSystemConfigManager.Instance.GetOrCreateConfig();
             var cc = cfg.CardCostConfig;
-            var dd = cfg.DelayDiscountConfig;
 
             // 模式无关三块（与 Derive 共用助手，防口径漂移；无 breakdown 记录）
             float statValue = ComputeStatValue(card, cc, null);
@@ -452,16 +442,11 @@ namespace CardCore
             // 抉择的弹性费在结构项计槽（每分支一个效果槽，CountEffectSlots），对模式均匀。
             float grayAdd = statGray;
 
-            // ---- 第二遍：L2 组合 + L3 整卡折（与 Derive 的 ApportionMounted 同口径）----
-            // 档位逐模式自决（2026-10-22 恒推导定案）：Ĉ_m = round(S+K+E_m) 所在档 → f_m = d(Ĉ_m)
-            //——支付按所选模式，各模式的延迟折随各自总额（与 Derive 主入口同规则，不读存档 costList）。
+            // ---- 第二遍：L2 组合 + 整卡取整（与 Derive 的 ApportionMounted 同口径）----
+            // 支付按所选模式（延迟折已删，各模式费随各自总额全额，不读存档 costList）。
             for (int m = 0; m < modeCount; m++)
             {
-                float rawTotal = statValue + keywordTotal + rawTotals[m];
-                int tier = rawTotal > 0f ? Math.Clamp(TideMath.RoundToInt(rawTotal), 1, cc.MaxTier) : 0;
-                float factor = tier > 0 ? Math.Max(0f, dd.At(tier)) : 1f;
-                float kwMultiplier = cc.KeywordsShareDelayDiscount ? factor : 1f;
-                var mounted = ApportionMounted(modeBuckets[m], kwBuckets, kwMultiplier, factor, grayAdd);
+                var mounted = ApportionMounted(modeBuckets[m], kwBuckets, grayAdd);
                 ApplyChassis(card, mounted); // 底盘（2026-10-10 可支配）：超槽加价入灰 / 剩余抵价（先灰后最高色）
                 if (prePayloadOut != null) prePayloadOut.Add(ToElementCost(mounted)); // P7：抵扣前留影
                 // 代价抵扣（2026-10-31 色锁定案）：抉择卡逐模式吃同一笔卡层代价（色锁单源——
@@ -746,7 +731,7 @@ namespace CardCore
         /// ×max(1,|value|)；keyword 行经关键词目录反查 Grant 原子固定费。
         /// 箭头费（条目级作用面）累乘在条目（明细显示为 目标系数【×N】）：选择己方/对方＝按箭头×4、
         /// 全体＝箭头×2、关键词条目恒含角色＝箭头×5；箭头档＝卡面箭头位数（×1.2^(n−1) 累乘）。
-        /// 返回桶并入关键词桶（Derive 2b / DeriveModeCosts），参与挂载折扣与 L2/L3 取整。
+        /// 返回桶并入关键词桶（Derive 2b / DeriveModeCosts），参与组合层取整。
         /// </summary>
         private static Dictionary<ManaType, float> ComputeLinkAuraBuckets(CardData card,
             List<CostBreakdownLine> breakdown, out float auraTotal)
@@ -861,11 +846,11 @@ namespace CardCore
         };
 
         // ComputeMountFactor / FindSuggestedTier / BuildCostAtTier 已删（2026-10-22 恒推导定案：
-        // 档位 Ĉ=round(S+E+K) 所在档直取，无搜索；f 内联于 Derive / DeriveModeCosts 两处同式）。
+        // 档位 Ĉ=round(S+E+K) 所在档直取，无搜索）；f=d(Ĉ) 延迟折已随 2026-10-31 阶梯减价删除整链退役。
         // OffsetProvided 已删（2026-09-11 规则一简化：代价当量抵扣下线，D≤C 直判；
         // 当量表转由 CostCompensationService 消费——付代价=得黑/白元素）。
 
-        /// <summary>底盘落位（取整后，2026-10-15 卡型默认分配定案）：超槽 → 加价入灰（不吃 d(C)）；
+        /// <summary>底盘落位（取整后，2026-10-15 卡型默认分配定案）：超槽 → 加价入灰；
         /// 生物免费点 → 只减灰桶（StatOffsetOf，不溢出彩色——不干扰三色费用梯度）；
         /// 其余 → 抵价（PriceOffsetOf：法术扣除提速份额、结界 0=速1+耐久、地牌全额；
         /// ReduceBuckets 先灰后最高色）。与 Derive/DeriveModeCosts 两处共用，防口径漂移。</summary>
@@ -875,7 +860,7 @@ namespace CardCore
             if (surcharge > 0)
             {
                 mounted.TryGetValue(ManaType.Gray, out var g);
-                mounted[ManaType.Gray] = g + surcharge; // 加价入灰（取整后，不吃 d(C)）
+                mounted[ManaType.Gray] = g + surcharge; // 加价入灰（取整后）
             }
             int statOffset = CardCompositionCost.StatOffsetOf(card);
             if (statOffset > 0)
@@ -889,29 +874,29 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 组合层计价（L3 整卡折口径）：效果桶×f + 关键词桶×kwMultiplier + 灰桶（S+卡层调整）×f
-        /// 汇总为总额——一次 AwayFromZero 取整（减免发生在组合层，不做逐效果取整），
+        /// 组合层计价（整卡取整口径）：效果桶 + 关键词桶 + 灰桶（S）汇总为总额——
+        /// 一次 AwayFromZero 取整（减免发生在组合层，不做逐效果取整），
         /// 最大余数法把整数实付分摊回颜色（余数大者优先，并列取桶值大者，再并列按枚举序）。
-        /// grayAdd：身材费与卡层组合调整之和——整卡最后折定案下与效果同吃 d(C)。
+        /// grayAdd：身材费（结构费/抵价由 ApplyChassis 在取整后另行落位）。
         /// </summary>
         private static Dictionary<ManaType, int> ApportionMounted(Dictionary<ManaType, float> effBuckets,
-            Dictionary<ManaType, float> kwBuckets, float kwMultiplier, float factor, float grayAdd = 0f)
+            Dictionary<ManaType, float> kwBuckets, float grayAdd = 0f)
         {
             var mounted = new Dictionary<ManaType, float>();
             foreach (var kv in effBuckets)
             {
                 mounted.TryGetValue(kv.Key, out var prev);
-                mounted[kv.Key] = prev + kv.Value * factor;
+                mounted[kv.Key] = prev + kv.Value;
             }
             foreach (var kv in kwBuckets)
             {
                 mounted.TryGetValue(kv.Key, out var prev);
-                mounted[kv.Key] = prev + kv.Value * kwMultiplier;
+                mounted[kv.Key] = prev + kv.Value;
             }
             if (grayAdd != 0f)
             {
                 mounted.TryGetValue(ManaType.Gray, out var prev);
-                mounted[ManaType.Gray] = prev + grayAdd * factor; // 整卡折：S/卡层调整同吃 d(C)
+                mounted[ManaType.Gray] = prev + grayAdd;
             }
 
             float total = 0f;

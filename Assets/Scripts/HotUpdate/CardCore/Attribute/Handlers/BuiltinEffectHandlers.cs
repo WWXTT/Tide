@@ -204,8 +204,8 @@ namespace CardCore.Attribute.Handlers
                 // 冻结（衰退类，2026-10-08 层即持续定案）：层=持续回合数——强制横置 + 持有期间无法重置
                 //（BlocksUntap），持有者回合末 −1、归零解除（叠加=延长）。效果级持续档不参与
                 //（旧 duration 死参数已随层即持续定案删除）。
-                // 2026-10-31 指示物定案：每次发动恒加一层（层=持续回合数，叠加=延长；掷值档退役）
-                int layers = 1;
+                // 2026-10-31 晚定案：一次发动按 value 给层（层=持续回合数，≤0/未填=1）
+                int layers = CounterRules.ResolveLayers(KeywordRules.FreezeCounter, context.GetValueAfterModifiers(effect.Value));
                 // 冻地（2026-10-29 阶段3a 冻结扩展到元素池）：目标为元素池中的地牌卡——不挂指示物
                 //（地牌不是 Entity），改写池内包装：强制横置 + 冻结层叠加（层=剩余回合，持有者回合末
                 // −1、层>0 不重置、归零后下个回合开始恢复——ElementPool.OnTurnStart/OnTurnEnd 同口径）。

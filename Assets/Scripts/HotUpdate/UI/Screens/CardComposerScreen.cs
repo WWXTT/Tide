@@ -3079,6 +3079,16 @@ namespace SynergyUI
                 return;
             }
 
+            // 参数列 CardRef 选择闸（2026-10-31 阶段C）：变形/模拟/召唤衍生物等引用卡原子未选卡
+            // → 拦截保存——与装载期 ValidateAtomParams 同口径（引擎主干行带 then 载荷豁免：
+            // 附加诅咒/附加祝福的载荷通道=branch.then，不收 str）。
+            string missing = CardRefMissingMessage();
+            if (missing != null)
+            {
+                ShowToast(missing);
+                return;
+            }
+
             // 名称缺省（2026-10-16 槽位化）：留空=用生成的卡 ID 当卡名；
             // ToEntry 随后按新卡名重算正式 id——名称/ID 自洽，卡池行优先显卡名
             bool nameFromId = string.IsNullOrWhiteSpace(_card.CardName);
@@ -3122,6 +3132,29 @@ namespace SynergyUI
         {
             _card.CardName = string.IsNullOrWhiteSpace(_nameInput?.text) ? null : _nameInput.text.Trim(); // null=保存时缺省成 ID
             // 标签输入已退役（2026-10-16 prefab 重做）：_card.Tags 载入/保存透传，不再从输入框覆写
+        }
+
+        /// <summary>CardRef 未选检查（2026-10-31 阶段C 保存闸）：枚举全效果原子（与装载期
+        /// ValidateAtomParams 同一嵌套枚举），参数列=CardRef 且 str 为空 → 返回拦截文案；
+        /// null=全齐可存。引擎主干行带 then 载荷豁免（附加诅咒/附加祝福——载荷通道=branch.then）。</summary>
+        private string CardRefMissingMessage()
+        {
+            foreach (var eff in _card.Effects ?? new List<CardEffectData>())
+            {
+                if (eff == null) continue;
+                foreach (var atom in CardLoader.EnumerateAtomEntries(eff))
+                {
+                    var row = AtomicEffectTable.GetByHashId(atom?.refId);
+                    if (row == null || row.Param != AtomicParamKind.CardRef) continue;
+                    if (ComposerCatalog.IsEngineTrunkRow(row)
+                        && atom.branch?.then != null && atom.branch.then.Count > 0)
+                        continue; // 引擎主干行：载荷走 branch.then（同装载期豁免）
+                    if (string.IsNullOrEmpty(atom.str))
+                        return $"效果「{eff.DisplayName ?? eff.Id}」的原子「{row.DisplayName}」未选择引用卡"
+                               + "——进效果组合点该原子的「选择卡牌」后再保存";
+                }
+            }
+            return null;
         }
 
         /// <summary>操作反馈（2026-10-16 toast 退役定案）：Console 必落，desc-strip 尽力显示

@@ -447,11 +447,13 @@ namespace CardCore.Attribute.Handlers
         protected override string DescribeTemplate(AtomicEffectInstance effect) => "获得额外回合";
     }
 
-    /// <summary>跳过回合（2026-10-02 D2 裁决：相位档位走代码侧 str 参数，表行只留整回合一档；
-    /// 2026-10-29 阶段3a 起三相位行入表——str 由合成器 SkipTurnIds 按行写入）：
-    /// str=""（默认）整回合作废顺延；str="Standby" 只跳其下回合准备阶段自动化（抽牌/重置/地牌推进，
-    /// 与 ITurnStartInterceptor 同口）；str="Main" 只跳主要阶段（准备后直进结束，无出牌/攻击窗口）；
-    /// str="End" 只跳结束阶段（进入即折返下一回合，不发 TurnEndEvent）。</summary>
+    /// <summary>跳过回合（2026-10-29 阶段3a 三相位行入表；2026-10-31 阶段D EffectType 唯一化）：
+    /// **相位档改从行类型派生**——SkipTurn（整回合档，沿用原名）/SkipTurnStandby/SkipTurnMain/
+    /// SkipTurnEnd → TurnSkipMode，StringValue 相位分派退役（表 EffectType 列未翻新期间行仍
+    /// =SkipTurn，按 str 回落过渡；旧卡带 str=End/Standby/Main 新链路忽略）。
+    /// 整回合作废顺延；Standby 只跳其下回合准备阶段自动化（抽牌/重置/地牌推进，
+    /// 与 ITurnStartInterceptor 同口）；Main 只跳主要阶段（准备后直进结束，无出牌/攻击窗口）；
+    /// End 只跳结束阶段（进入即折返下一回合，不发 TurnEndEvent）。</summary>
     public class SkipTurnHandler : AtomicEffectHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.SkipTurn;
@@ -464,14 +466,32 @@ namespace CardCore.Attribute.Handlers
             if (player == null) return;
             var engine = CardCore.GameCore.Instance?.TurnEngine;
             if (engine == null) return;
-            switch (effect.StringValue)
-            {
-                case "Standby": engine.SkipNextTurnFor(player, TurnSkipMode.Standby); break;
-                case "Main": engine.SkipNextTurnFor(player, TurnSkipMode.Main); break;
-                case "End": engine.SkipNextTurnFor(player, TurnSkipMode.End); break;
-                default: engine.SkipNextTurnFor(player); break;
-            }
+            engine.SkipNextTurnFor(player, ModeOf(effect));
             PublishEvent(new SkipTurnEvent { Player = player, Source = context.Source });
+        }
+
+        /// <summary>相位档解析（阶段D：类型派生优先；旧共享型 SkipTurn 回落 str 相位档）。</summary>
+        internal static TurnSkipMode ModeOf(AtomicEffectInstance effect)
+        {
+            switch (effect.Type)
+            {
+                case AtomicEffectType.SkipTurnEnd: return TurnSkipMode.End;
+                case AtomicEffectType.SkipTurnStandby: return TurnSkipMode.Standby;
+                case AtomicEffectType.SkipTurnMain: return TurnSkipMode.Main;
+                default: return effect.Type == AtomicEffectType.SkipTurn ? LegacyModeOf(effect.StringValue) : TurnSkipMode.Whole;
+            }
+        }
+
+        /// <summary>旧 str 相位档（仅未翻新行/旧实例数据走到）。</summary>
+        private static TurnSkipMode LegacyModeOf(string str)
+        {
+            switch (str)
+            {
+                case "Standby": return TurnSkipMode.Standby;
+                case "Main": return TurnSkipMode.Main;
+                case "End": return TurnSkipMode.End;
+                default: return TurnSkipMode.Whole;
+            }
         }
 
         protected override string DescribeTemplate(AtomicEffectInstance effect) => "跳过回合";
@@ -504,6 +524,10 @@ namespace CardCore.Attribute.Handlers
                 // 特殊
                 new TakeExtraTurnHandler(),
                 new SkipTurnHandler(),
+                // 阶段D（2026-10-31）EffectType 唯一化：跳过三相位新型别名注册（同一 handler 分派）
+                new SkipTurnHandler { OverrideEffectType = AtomicEffectType.SkipTurnEnd },
+                new SkipTurnHandler { OverrideEffectType = AtomicEffectType.SkipTurnStandby },
+                new SkipTurnHandler { OverrideEffectType = AtomicEffectType.SkipTurnMain },
             };
         }
     }

@@ -14,8 +14,9 @@ namespace GameBoard
     ///
     /// 失效口径（live-query 天然成立，无物化状态可失联）：
     /// - 来源须持续在场：离场/未落格自然无贡献（断链即失效）；
-        /// - 来源被「缄默」指示物压制（唯一能压光环的口——净化/沉默不压箭头：箭头是卡面数据）；
-    /// - 受益者不可被干扰：光环不物化、不入 _keywords/_counters——净化/沉默/无效打在受益者
+    /// - 光环域整体退出压制（2026-10-31 失效改名定案）：来源被「失效」（原缄默，id 仍 Nullify）
+    ///   不压光环——净化/沉默/失效都不能影响箭头与条目（箭头是卡面数据）；
+    /// - 受益者不可被干扰：光环不物化、不入 _keywords/_counters——净化/沉默/失效打在受益者
     ///   身上都不能影响光环（读数经 EntityEffectExtensions.GetPower/GetLife/HasKeyword 并入）。
     ///
     /// 接线（CombatSystem.AdjacentResolver 同惯例）：组合根 Attach(BoardState) 注入占用查询
@@ -292,7 +293,7 @@ namespace GameBoard
         }
 
         /// <summary>受益者视角逐条枚举命中的光环条目（加成计算 AccumulateSources 与展示查询
-        /// GetApplicableAuras 共用的单源判定链：源在场存活/非自身/未被无效压制/条目作用面或箭头几何命中）。</summary>
+        /// GetApplicableAuras 共用的单源判定链：源在场存活/非自身/条目作用面或箭头几何命中）。</summary>
         private static IEnumerable<(Card source, LinkAuraData aura)> EnumerateApplicable(
             Entity beneficiary, (int x, int z) bCell, bool keywordsOnly)
         {
@@ -313,7 +314,6 @@ namespace GameBoard
                     if (source == null || !source.IsAlive || ReferenceEquals(source, beneficiary)) continue;
                     var dataF = (source as CardWrapper)?.GetData();
                     if (dataF?.LinkAuras == null || dataF.LinkAuras.Count == 0) continue;
-                    if (source.GetCounterCount(CounterRules.NullifyCounter) > 0) continue;
                     foreach (var aura in dataF.LinkAuras)
                     {
                         if (aura == null || aura.scope <= 0) continue;
@@ -335,7 +335,7 @@ namespace GameBoard
 
                     var data = (source as CardWrapper)?.GetData();
                     if (data?.LinkAuras == null || data.LinkAuras.Count == 0) continue;
-                    if (source.GetCounterCount(CounterRules.NullifyCounter) > 0) continue; // 无效=唯一能压光环的口
+                    // 2026-10-31 失效改名定案：光环域整体退出压制——来源被失效不拦（旧 NullifyCounter 来源闸已删）
 
                     // 条目级作用面（2026-10-08 actuating-range 定案）：scope==0 随卡面箭头几何（生物=占据者同一/
                     // 角色=落格即本方角色格）；作用面档（1=己方/2=双方/3=对方）按侧别命中。旧卡级方向档已由

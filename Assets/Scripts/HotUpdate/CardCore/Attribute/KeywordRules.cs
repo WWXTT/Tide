@@ -17,13 +17,13 @@ namespace CardCore.Attribute
     ///（GrantToughnessHandler）：每次受到的伤害每层 −1、实际拦到即生效——生效后层数减半（floor）、可叠加；
     /// 角色可持有（旧关键词形态 is Card 死线消解）；换区不清（生效自减档）、净化可清。
     ///
-    /// 伤害管线（效果 TakeDamage 与战斗 CombatSystem 两条路径都经 ApplyDamage）：
-    /// 替代引擎（光环层——穿透伤害也受其限制）→ 圣盾指示物（每层挡一次任意伤害，消耗 1 层）→
-    /// 护甲指示物（逐点吸收）→ 坚韧指示物（每层 −1，生效后层数减半）→ 落血；
-    /// 吸血（恢复随从自身）/系命（回复角色）→ 报复指示物（2026-10-16 新增：受伤落定后
-    /// 对来源反噬=层数的伤害、生效后减半——先减半再反击，互带几何衰减防互弹）。
-    /// 【穿透伤害（pierce=true）】越过关键词和指示物计算伤害——跳过圣盾/护甲/坚韧三层，
-    /// 替代引擎与落血/事件链/吸血照走。
+        /// 伤害管线（效果 TakeDamage 与战斗 CombatSystem 两条路径都经 ApplyDamage）：
+        /// 替代引擎（光环层）→ 圣盾指示物（每层挡一次任意伤害，消耗 1 层）→
+        /// 护甲指示物（逐点吸收）→ 坚韧指示物（每层 −1，生效后层数减半）→ 落血；
+        /// 吸血（恢复随从自身）/系命（回复角色）→ 报复指示物（2026-10-16 新增：受伤落定后
+        /// 对来源反噬=层数的伤害、生效后减半——先减半再反击，互带几何衰减防互弹）。
+        /// 【穿透伤害已删（2026-10-31 定案）】「绕过防护」的生态位由既有的生命值上限降低
+        ///（LifeDown——非伤害路径直降上限，天然不经防护层）承担，伤害族不再分穿透档。
     /// 【剧毒 Venom】2026-10-08 指示物转关键词（落定追加式）：受到其战斗伤害的生物在结算后被消灭
     ///（见管线尾部 TryKill 消灭口径；对角色照常落血）。
     /// 事件链统一在管线尾部按时序发布：DamageEvent（触发器）→ CombatDamageEvent（战斗）→
@@ -68,8 +68,13 @@ namespace CardCore.Attribute
         ///（更名只改中文文案，同辟邪→扰魔/嘲讽→帷幕先例）。</summary>
         public const string Spellban = "Spellban";
         /// <summary>绝缘体（2026-10-31，绿3 表行 764236ed）：持有单位不受指示物的效果影响——
-        /// 正面指示物加不上（拦截口=EntityEffectExtensions.AddCounters 咽喉，紧随禁指示物令之后；
-        /// 含己方自上，文案无己/敌豁免）；负量（移除）不拦；系统指示物豁免同禁指示物令口径。</summary>
+        /// 特殊裁定改版（同日「不拦指示物添加」）：①层照常落账（毒素/冻结/沉默/护甲/圣盾/保护…
+        /// UI 可见、铭刻同沾、事件报真实增量），效果判定走效果口径读数
+        /// EntityEffectExtensions.GetEffectiveCounterCount（绝缘体单位=0）；②沉睡/缄默=压制型，
+        /// 时序互压——绝缘体生效期间后加即清零（「反过来压制」），先在的压住绝缘体（HasKeyword
+        /// 实时读假，无循环）；③StatKind 属性类（攻/血/±1，加时回写式）添加即清零=属性变化不发生
+        ///（回写账目不漂移）；④System 指示物豁免；⑤压制面限战场单位（手牌卡不拦费用指示物）。
+        /// 苏醒入场沉睡（EntryCost 档）豁免（入场时序定案：沉睡先落压住后生效的绝缘体）。</summary>
         public const string Insulator = "Insulator";
         /// <summary>地牌特性（2026-09-13 英雄技能·培育）：持有者可横置产 1 元素（色随自身费用构成）。
         /// GameActions.TapCreatureForElement 是横置口。</summary>
@@ -131,9 +136,10 @@ namespace CardCore.Attribute
         public const string RushSicknessCounter = "RushSickness";
         // 长档紊乱 id "RushSicknessSustained" 已删（2026-10-08 层即持续统一：同一机制不同量，并入 RushSickness）
 
-        /// <summary>是否处于突袭紊乱（负面指示物存在期间不能以玩家为目标；持有者回合末逐层倒数）。</summary>
+        /// <summary>是否处于突袭紊乱（负面指示物存在期间不能以玩家为目标；持有者回合末逐层倒数）。
+        /// 效果口径读数（2026-10-31 绝缘体裁定）：紊乱层对绝缘体单位不生效。</summary>
         public static bool HasRushSickness(Entity entity)
-            => entity is Card c && c.GetCounterCount(RushSicknessCounter) > 0;
+            => entity is Card c && c.GetEffectiveCounterCount(RushSicknessCounter) > 0;
 
         // ==================== 关键词轨别台账（三轨制定案 2026-09-09） ====================
 
@@ -194,12 +200,12 @@ namespace CardCore.Attribute
                     || kw == CounterRules.SpellShieldCounter)
                 {
                     if (card.GetCounterCount(kw) > 0) continue;
-                    card.AddCounters(kw, 1);
+                    int actualDelta = card.AddCounters(kw, 1);
                     EventManager.Instance.Publish(new CounterChangedEvent
                     {
                         Target = card,
                         CounterType = kw,
-                        Amount = 1,
+                        Amount = actualDelta,
                         Source = null,
                     });
                     continue;
@@ -248,10 +254,12 @@ namespace CardCore.Attribute
         /// <summary>
         /// 统一伤害结算：修正并施加伤害，返回实际造成的伤害量。
         /// 只改状态不发事件——DamageEvent/CombatDamageEvent 等由调用方按路径发布。
-        /// pierce=true 为穿透伤害：越过关键词和指示物（跳过圣盾/护甲/坚韧），
-        /// 但受光环限制——替代引擎/层效果照走，事件链与吸血照常。
+        /// （穿透档已删 2026-10-31：一切伤害照走防护层；绕过伤害的需求走 LifeDown 降上限。）
+        /// dealt 口径（2026-10-31 阶段B）：实际扣除的生命/耐久——生命锁钳后、防护层与改写之后、
+        /// 满血溢出概念之前；角色与单位同式，结界=实际扣掉的耐久。DamageEvent/吸血/系命/报复/剧毒
+        /// 与返回值统一按 dealt 结算，不再用钳前 amount（生命锁兜住时五者全按 0）。
         /// </summary>
-        public static int ApplyDamage(Entity source, Entity target, int amount, bool isCombat, bool pierce = false, bool guardRerouted = false)
+        public static int ApplyDamage(Entity source, Entity target, int amount, bool isCombat, bool guardRerouted = false)
         {
             if (amount <= 0 || target == null || !target.IsAlive) return 0;
 
@@ -260,7 +268,6 @@ namespace CardCore.Attribute
 
             // 规则修改类效果（OCP）：伤害实例先经替代引擎取最终值（如伤害封顶），再走关键词管线。
             // 替代效果经 GameCore.ReplacementEngine 注册（状态无关、实时查询光环），本管线不点名任何具体系统。
-            // 穿透伤害同样经此层（"受光环限制"）。
             // 2026-10-04：替代件可改写**承受者**（Target）——血偿仪典「己方回合角色受伤→对手承担」先例；
             // 改写后整条管线（防护层/落血/事件链）按新承受者走，DamageEvent 发布也用新目标。
             var routedEvent = new DamageEvent { Source = source, Target = target, Amount = amount };
@@ -293,7 +300,7 @@ namespace CardCore.Attribute
                             Detail = $"守护改写：{EffectText.Name(target)} 受到的伤害转由 {EffectText.Name(guardian)} 承受",
                             Source = guardian,
                         });
-                    return ApplyDamage(source, guardian, amount, isCombat, pierce, guardRerouted: true);
+                    return ApplyDamage(source, guardian, amount, isCombat, guardRerouted: true);
                 }
             }
 
@@ -301,7 +308,7 @@ namespace CardCore.Attribute
             // 同口。守护改写**之后**生效：伤害真正落到持有者头上才钳 1（守护者承受的仍是原额，
             // 不沾持有者减免）；替代引擎之后（伤害封顶类替代件先算，本口后钳）。
             // 钳后照走延时保护/易损放大/防护层/落血（易损可把 1 放大回抬——层效果照计；护甲/圣盾
-            // 照常吸收钳后余量）。穿透伤害同样受钳（改写类关键词与旧禁魔石归零同口径，非防护层）。
+            // 照常吸收钳后余量。改写类关键词与旧禁魔石归零同口径，非防护层）。
             if (amount > 1 && target.HasKeyword(Spellban))
             {
                 amount = 1;
@@ -311,15 +318,15 @@ namespace CardCore.Attribute
 
             // 延时保护（2026-10-30 指示物化，GrantProtection 原子族——读护盾指示物层改写）：
             // 守护改写之后、易损/防护层之前——HalveShield=ceil(amount/2)、NullShield=0（全免提前出管线：
-            // 击杀/吸血/系命/报复/剧毒全链不触发）；穿透伤害照挡（「伤害」语义，任务书 §3.4）。
+            // 击杀/吸血/系命/报复/剧毒全链不触发）。
             // LifeFloor（生命锁）不在此口——落血位钳（本方法 Player 分支与 LifeLossHandler 同口）。
             amount = ProtectionRules.ModifyDamage(target, amount);
             if (amount <= 0) return 0;
 
             // 0. 易损指示物（2026-10-09 生效自减定案，同毒素档）：受到伤害时每层使受到的伤害 +1，
             //    生效后层数减半（floor，1 层生效一次即清零）——替代结算后、防护层前生效
-            //   （圣盾/护甲吸收的是放大后的量；穿透伤害同样被放大——凡放大即生效，毒素同口径）。
-            int vulnerable = target.GetCounterCount(CounterRules.VulnerableCounter);
+            //   （圣盾/护甲吸收的是放大后的量——凡放大即生效，毒素同口径）。
+            int vulnerable = target.GetEffectiveCounterCount(CounterRules.VulnerableCounter);
             if (vulnerable > 0)
             {
                 amount += vulnerable;
@@ -334,11 +341,8 @@ namespace CardCore.Attribute
                 });
             }
 
-            if (!pierce)
-            {
-                ApplyPreventionLayers(source, target, ref amount);
-                if (amount <= 0) return 0;
-            }
+            ApplyPreventionLayers(source, target, ref amount);
+            if (amount <= 0) return 0;
 
             // 战斗伤害改写（**防护层之后、落血之前**——只有"将要成功造成的伤害"才改写：圣盾/护甲/
             // 坚韧完全挡住 → 不触发；部分吸收后仍有剩余 → 剩余改写，不再落血）。
@@ -349,15 +353,16 @@ namespace CardCore.Attribute
             //（同旧舍身弹选域；随机绕过潜行/不经帷幕收窄——与组合层 RandomTarget 绕选择口径一致）；
             // 逐发独立抽取、每发重取候选——中途死亡出局、对手全灭即余发空转。
             // 改写只对活体/角色的原目标生效——无生命单位（结界）受击走耐久管线跳过改写（同旧舍身
-            // 口径：攻击结界不被散射化为无效）。穿透伤害不经防护层，恒可改写。持有者被「缄默」压制
-            // 时不改写（战斗伤害照常结算——原 FindVictim 活性校验内联）。
+            // 口径：攻击结界不被散射化为无效）。持有者沉睡/被「失效」（原缄默，2026-10-31 改名）
+            // 压制时不改写（战斗伤害照常结算——原 FindVictim 活性校验内联；2026-10-31 沉睡并入
+            // 统一压制口 SuppressRules）。
             //（毒刺/冰晶关键词改写已随 2026-10-15 整体退役删除；梦魇 2026-10-13、病原体 2026-10-08 先后退役；
             //  剧毒=落定追加式消灭，见管线尾部。）
             if (isCombat && source != null && source.IsAlive
                 && !(target is Card rwCard && rwCard.IsNonLivingUnit())
                 && source is Card mageCard
                 && mageCard.HasKeyword(BattleMage)
-                && mageCard.GetCounterCount(CounterRules.NullifyCounter) == 0) // 「缄默」压制口
+                && !SuppressRules.IsAutoSuppressed(mageCard)) // 沉睡/失效=自动效果压制口（2026-10-31 并口）
             {
                 var foe = mageCard.GetController()?.Opponent;
                 int hits = Math.Max(0, mageCard.GetPower());
@@ -393,19 +398,23 @@ namespace CardCore.Attribute
             //    三轨制（2026-09-09）：归零判定按**有效生命**（_life + 连接光环加成）——
             //    生命光环垫着的单位要先吃穿光环加成才死；断链回落由 SBA 收尾。
             int oldLife = (target as Player)?.Life ?? 0; // 生命变化播报用
+            int dealt = 0; // 实际扣除量（2026-10-31 阶段B）：事件链/吸血/系命/报复/剧毒/返回值统一口径
             if (target is Card card)
             {
                 // 无生命单位（战场结界，2026-10-02 定案）：伤害不落血——受击按伤害**全额**扣耐久
                 //（2026-10-16 撤「有效伤害钳 1」：战斗/法术伤害同口径，与替代/防护层串行：
                 // 完全挡住=不受击）；归零直送墓在 LoseDurability 内收口（Smashed 直毁，
-                // 不经死亡决策表；超扣按剩余钳 0）。DamageEvent/吸血/系命/返回值=实际伤害额同源。
+                // 不经死亡决策表；超扣按剩余钳 0）。dealt=耐久层实际扣掉量（2026-10-31 阶段B）。
                 if (card.IsNonLivingUnit())
                 {
+                    int durBefore = card.GetCounterCount(CounterRules.DurabilityCounter);
                     CounterRules.LoseDurability(CardCore.GameCore.Instance, card, amount,
                         isCombat ? "战斗伤害" : "效果伤害");
+                    dealt = Math.Max(0, durBefore - card.GetCounterCount(CounterRules.DurabilityCounter));
                 }
                 else
                 {
+                    int cardLifeBefore = card._life;
                     card._life -= amount;
                     // 生命锁（2026-10-29 阶段3b Floor 档）：单位落血同口钳——生命不低于 1
                     //（钳后致死判定自然不过；只钳生命，不拦消灭/摧毁——非落血路径）
@@ -421,6 +430,7 @@ namespace CardCore.Attribute
                             Source = source
                         });
                     }
+                    dealt = Math.Max(0, cardLifeBefore - card._life);
                     int auraLife = GameBoard.LinkAuraSystem.GetLifeBonus(card);
                     if (card._life + auraLife <= 0)
                     {
@@ -450,13 +460,14 @@ namespace CardCore.Attribute
                         Source = source
                     });
                 }
+                dealt = Math.Max(0, oldLife - player.Life);
             }
 
             // 潜行受伤失效（2026-10-04 弱化定案；2026-10-08 指示物化；2026-10-19 Entity 级——角色受伤
             // 同样消耗）：伤害**实际落定**（替代/改写/防护层之后仍有剩余到达落血/耐久）才算「受到伤害」
             // ——圣盾/护甲/坚韧完全挡住、舍身转投改写（return 0）不触发；触发即消耗 1 层潜行指示物
             // （逐份撤口径）。隐密（Concealed）不失效——不因受伤掉正是它的定价理由（蓝5 vs 蓝1）。
-            if (target.GetCounterCount(CounterRules.StealthCounter) > 0)
+            if (target.GetEffectiveCounterCount(CounterRules.StealthCounter) > 0)
             {
                 target.AddCounters(CounterRules.StealthCounter, -1);
                 EventManager.Instance.Publish(new KeywordAppliedEvent
@@ -473,7 +484,8 @@ namespace CardCore.Attribute
             // → CombatDamageEvent（战斗路径表现）→ LifeChangeEvent（角色生命变化）
             // → 吸血/系命（伤害的后果最后结算——观察伤害事件的触发器不应看到回复已发生）。
             // 统一由本方法发布，调用方不再事后补发（战斗/效果两条路径同口径）。
-            var damageEvent = new DamageEvent { Source = source, Target = target, Amount = amount };
+            // dealt 口径（2026-10-31 阶段B）：两事件均报实际扣除量——生命锁兜住/耐久见底时为 0。
+            var damageEvent = new DamageEvent { Source = source, Target = target, Amount = dealt };
             if (GameCore.Instance != null)
                 GameCore.Instance.PublishEventRouted(damageEvent, replacementsApplied: true);
             else
@@ -485,7 +497,7 @@ namespace CardCore.Attribute
                 {
                     Attacker = source,
                     Defender = target,
-                    Damage = amount
+                    Damage = dealt
                 });
             }
             if (target is Player hurt)
@@ -500,42 +512,44 @@ namespace CardCore.Attribute
             }
 
             // 6. 吸血（恢复随从自身）/ 系命（回复角色）——伤害事件的后果，按实际造成的伤害结算
-            if (source != null && source.IsAlive)
+            //（2026-10-31 阶段B dealt 口径：生命锁兜住时实际扣除 0 → 不回复也不播报）
+            if (dealt > 0 && source != null && source.IsAlive)
             {
                 if (source.HasKeyword(Lifesteal) && source is Card stealer)
                 {
-                    stealer.Heal(amount);
+                    stealer.Heal(dealt);
                     EventManager.Instance.Publish(new KeywordAppliedEvent
                     {
                         Target = stealer,
                         Keyword = Lifesteal,
-                        Detail = $"吸血回复 {amount} 生命",
+                        Detail = $"吸血回复 {dealt} 生命",
                         Source = target
                     });
                 }
                 if (source.HasKeyword(Lifelink) && source.GetController() is Player owner)
                 {
-                    owner.Life += amount;
+                    owner.Life += dealt;
                     EventManager.Instance.Publish(new KeywordAppliedEvent
                     {
                         Target = owner,
                         Keyword = Lifelink,
-                        Detail = $"系命回复 {amount} 生命",
+                        Detail = $"系命回复 {dealt} 生命",
                         Source = source
                     });
                 }
             }
 
             // 6.5 报复指示物（2026-10-16 新增，红1/层）：持有者**实际受到伤害**（防护层后仍有剩余
-            //     落定——圣盾/护甲/坚韧完全挡住、舍身转投改写不触发；穿透伤害照常落定照常触发；
+            //     落定——圣盾/护甲/坚韧完全挡住、战斗法师散射改写不触发；
             //     与潜行受伤失效同口径）时，对伤害来源造成等于层数的伤害（非战斗伤害、来源=持有者
             //     ——可被来源侧守护/圣盾/护甲/坚韧正常拦截），生效后层数减半（floor）。
             //     **先减半再反击**：双方互带报复时层数几何衰减，天然封死无限互弹；自伤（来源=自身）
             //     不触发——报复对象须为外部伤害来源；毒素等 null 来源无从反噬（同吸血/系命门）。
             //     持有者被本次伤害打死仍触发（伤害已落定为唯一门——濒死反咬一口）。
-            if (source != null && source.IsAlive && !ReferenceEquals(source, target))
+            //     2026-10-31 阶段B dealt 口径：实际扣除 0（生命锁兜住）不触发。
+            if (dealt > 0 && source != null && source.IsAlive && !ReferenceEquals(source, target))
             {
-                int retaliation = target.GetCounterCount(CounterRules.RetaliationCounter);
+                int retaliation = target.GetEffectiveCounterCount(CounterRules.RetaliationCounter);
                 if (retaliation > 0)
                 {
                     int retaliateHalved = retaliation / 2;
@@ -552,10 +566,11 @@ namespace CardCore.Attribute
             }
 
             // 7. 剧毒（2026-10-08 指示物转关键词·落定追加式）：受到其战斗伤害的**生物**被消灭——
-            //    伤害照常结算（圣盾/护甲/坚韧正常吸收，实际落定 amount>0 才触发；改写式 return 0
-            //    早已出管线）；对角色照常落血不消灭（Deathtouch 口径）；无生命单位走耐久不是生物。
+            //    伤害照常结算（圣盾/护甲/坚韧正常吸收，实际落定才触发；改写式 return 0 早已出管线；
+            //    2026-10-31 阶段B dealt 口径：生命锁兜住=未实际落定，不触发）；对角色照常落血不消灭
+            //（Deathtouch 口径）；无生命单位走耐久不是生物。
             //    消灭走 TryKill 消灭口径（不灭经 DeathRules 裁决拦截）；伤害本身已致死的不再重复。
-            if (isCombat && amount > 0 && source != null && source.IsAlive
+            if (isCombat && dealt > 0 && source != null && source.IsAlive
                 && target is Card venomTarget && venomTarget.IsAlive && !venomTarget.IsNonLivingUnit()
                 && source.HasKeyword(Venom))
             {
@@ -563,7 +578,7 @@ namespace CardCore.Attribute
                     CardCore.GameCore.Instance?.ZoneManager);
             }
 
-            return amount;
+            return dealt;
         }
 
         // 改写施加共用口（ApplyRewriteCounter）与战斗改写审计文案（CombatRewriteDetail）已删
@@ -571,15 +586,15 @@ namespace CardCore.Attribute
         //（2026-10-16 关键词化），其转投逻辑内联在 ApplyDamage 改写块）。
 
         /// <summary>
-        /// 防护层（非穿透伤害）：圣盾指示物（每层挡一次任意伤害，消耗 1 层）→ 护甲指示物（逐点吸收）→
+        /// 防护层：圣盾指示物（每层挡一次任意伤害，消耗 1 层）→ 护甲指示物（逐点吸收）→
         /// 坚韧指示物（每层 −1，实际拦到即生效——生效后层数减半 floor）。
-        /// amount 按 ref 递减；归零即全部挡下。穿透伤害跳过本方法全部三层。
+        /// amount 按 ref 递减；归零即全部挡下。（穿透档已删 2026-10-31——一切伤害照走本层。）
         /// </summary>
         private static void ApplyPreventionLayers(Entity source, Entity target, ref int amount)
         {
             // 1. 圣盾指示物（2026-10-08 指示物化）：每层挡下一次任意伤害（战斗+效果），消耗 1 层
             //    （Entity 级——角色可持有）；多层并存=逐层各挡一次。
-            int shieldLayers = target.GetCounterCount(CounterRules.DivineShieldCounter);
+            int shieldLayers = target.GetEffectiveCounterCount(CounterRules.DivineShieldCounter);
             if (shieldLayers > 0)
             {
                 target.AddCounters(CounterRules.DivineShieldCounter, -1);
@@ -597,7 +612,7 @@ namespace CardCore.Attribute
             // 2. 护甲指示物：逐点吸收（AddArmor 原子写入的 counter 池）。
             //    2026-10-17 放开为 Entity 级（对齐圣盾/坚韧两层——文档口径"角色可持有"本就如此，
             //    旧 is Card 过滤=实现漂移；对局准备流程"后手角色 +5 护甲"依赖本口吸收）。
-            int armor = target.GetCounterCount(ArmorCounter);
+            int armor = target.GetEffectiveCounterCount(ArmorCounter);
             if (armor > 0)
             {
                 int absorbed = Math.Min(armor, amount);
@@ -619,9 +634,9 @@ namespace CardCore.Attribute
 
             // 3. 坚韧指示物（2026-10-09 生效自减改版）：每层使本次受到的伤害 −1，实际拦到伤害即生效
             //    ——生效后层数减半（floor，易损的正面镜像）；可叠加；Entity 级——角色读数同走此口。
-            //    圣盾/护甲全挡提前 return（坚韧未触及→不减半）；穿透跳过防护层同理不减半。
+            //    圣盾/护甲全挡提前 return（坚韧未触及→不减半）。
             //    施加口=GrantToughnessHandler（GrantToughness 原子，表行 a8f7f476）；换区不清、净化可清。
-            int toughness = target.GetCounterCount(CounterRules.ToughnessCounter);
+            int toughness = target.GetEffectiveCounterCount(CounterRules.ToughnessCounter);
             if (toughness > 0)
             {
                 amount = Math.Max(0, amount - toughness);
@@ -659,7 +674,7 @@ namespace CardCore.Attribute
         /// </summary>
         public static bool TryReborn(Entity entity)
         {
-            int layers = entity?.GetCounterCount(CounterRules.RebornCounter) ?? 0;
+            int layers = entity?.GetEffectiveCounterCount(CounterRules.RebornCounter) ?? 0;
             if (layers <= 0) return false;
 
             entity.AddCounters(CounterRules.RebornCounter, -1);
@@ -707,7 +722,7 @@ namespace CardCore.Attribute
                 var targetController = shielded.GetController();
                 if (sourceController == null || targetController == null || sourceController == targetController)
                     continue;
-                int layers = shielded.GetCounterCount(CounterRules.SpellShieldCounter);
+                int layers = shielded.GetEffectiveCounterCount(CounterRules.SpellShieldCounter);
                 if (layers <= 0) continue;
 
                 shielded.AddCounters(CounterRules.SpellShieldCounter, -1);

@@ -18,8 +18,9 @@ namespace CardCore
         DealCombatDamage,
         LifeLoss,
         Heal,
-        PierceDamage,
         DrainLife,
+        // 穿透伤害（PierceDamage）已删（2026-10-31 定案）：「绕过防护」生态位由 LifeDown
+        // 生命上限降低（非伤害路径）承担——伤害族不再分穿透档，枚举位随惯例直接移除。
 
         // ============ 卡牌移动 ============
         DrawCard,
@@ -127,8 +128,8 @@ namespace CardCore
         AddLifeDown,
         AddPlusOne,
         AddMinusOne,
-        AddCostUp,
-        AddCostDown,
+        // AddCostUp/AddCostDown（通用费用增减指示物）2026-10-31 四色化退役——表行随批换 8 行
+        //（AddCostUpGray..Green / AddCostDownGray..Green），枚举位直接删（int 不进存储）。
 
         // ============ 死亡原子（DeathRules 死因已有，补原子层；牺牲 2026-10-09 转直送非死亡——见 SacrificeHandler） ============
         Sacrifice,
@@ -190,7 +191,7 @@ namespace CardCore
         /// 造成 1 点**效果伤害**，重复发动次数=自身攻击力（GetPower 含光环成分）。非战斗路径：无实体钳 1
         ///（单发本就 1 点=无感，原禁魔石清零口已随 2026-10-31 改版退役）/
         /// 走易损与防护层/不触发战斗反击链/不递归改写；原目标免受。改写在 KeywordRules.ApplyDamage 咽喉
-        ///（防护层后落血前——完全挡住不触发，有剩余才散射）；持有者被「缄默」压制时不改写（战斗伤害照常）。
+        ///（防护层后落血前——完全挡住不触发，有剩余才散射）；持有者被「失效」（原缄默）压制时不改写（战斗伤害照常）。
         /// 无状态关键词——无配对表/无入场钩子（原 MartyrdomRules 整套随改版退役）。</summary>
         GrantBattleMage,
         // 固有全域原子（SweepDamage/SweepHeal）已随 2026-10-05 墓碑清理实删——
@@ -198,8 +199,8 @@ namespace CardCore
         // 摒弃（Abandon）2026-10-09 并入牺牲退役；冰晶（GrantIceCrystal）/梦魇（GrantNightmare）
         // 分别 2026-10-15/13 印刷关键词路径退役——三者枚举位已随 2026-10-30 枚举收拢删除。
         /// <summary>无实体（原禁魔石，2026-10-31 改版更名，绿6）：每次受到的伤害固定变为 1
-        ///（战斗+非战斗同口；改写口=KeywordRules.ApplyDamage 守护改写之后、延时保护/易损/防护层之前，
-        /// 穿透照钳——改写类与旧禁魔石归零同口径）。运行时关键词 id 仍 Spellban
+        ///（战斗+非战斗同口；改写口=KeywordRules.ApplyDamage 守护改写之后、延时保护/易损/防护层之前
+        ///——改写类与旧禁魔石归零同口径，非防护层）。运行时关键词 id 仍 Spellban
         ///（更名只改中文文案，同辟邪→扰魔/嘲讽→帷幕先例）。</summary>
         GrantSpellban,
 
@@ -384,7 +385,7 @@ namespace CardCore
         ///（目标=己方单位含角色——表行不带 str，合成器
         /// ProtectionIds 按 EnumName 写入；手写 Effects.json 须显式写 str）。
         /// 全体档 Mode|All 已删（2026-10-30：指示物只作用于挂载单位——旧 str 多余段忽略按单体降级）。
-        /// 改写口=KeywordRules.ApplyDamage（守护改写之后、易损/护盾/护甲/坚韧之前；穿透照挡）
+        /// 改写口=KeywordRules.ApplyDamage（守护改写之后、易损/护盾/护甲/坚韧之前）
         /// 与落血三路（Floor 钳 1）。</summary>
         GrantProtection,
 
@@ -424,11 +425,93 @@ namespace CardCore
         Charge,
 
         /// <summary>绝缘体（2026-10-31 新增，绿3 表行「绝缘体」764236ed·关键词表）：持有单位不受
-        /// 指示物的效果影响——正面指示物加不上（拦截口=EntityEffectExtensions.AddCounters 咽喉，
-        /// 紧随禁指示物令之后；含己方自上，文案无己/敌豁免）；负量（移除）不拦；系统指示物
-        ///（CounterClass.System——引擎主干内部驱动，如耐久）豁免同禁指示物令口径。
+        /// 指示物的效果影响——特殊裁定改版（同日「不拦指示物添加」）：层照常落账，效果判定走
+        /// GetEffectiveCounterCount 效果口径读数（绝缘体单位=0）；沉睡/缄默（压制型·时序互压：
+        /// 生效期间后加即清零）与 StatKind 属性类（回写式）在 AddCounters 咽喉清零；
+        /// 负量（移除）不拦；系统指示物（CounterClass.System——引擎主干内部驱动，如耐久）豁免。
+        /// 苏醒入场沉睡（EntryCost 档）不吃清零闸。
         /// 表行 MountKinds=关键词,不可作为连接光环（免疫洞防线，同无实体/守护）。</summary>
         GrantInsulator,
+
+        /// ============ 四色费用指示物（2026-10-31：通用费用增加/减少拆四色，增减各 4 行共 8 行表行） ============
+        /// 每层 ±1 对应色净费分量（GetCardCost 逐色套层钳 0，不串色）；仅手牌生效，换区清除
+        ///（Resident）；计数器 id=CostUpGray..Green / 复用充能已投放的 CostDownGray..Green。
+        /// _costModifier 只是 StatKind 聚合读数（主路径读各色计数器，同 P12 四色减口径）。
+        AddCostUpGray,
+        AddCostUpRed,
+        AddCostUpBlue,
+        AddCostUpGreen,
+        AddCostDownGray,
+        AddCostDownRed,
+        AddCostDownBlue,
+        AddCostDownGreen,
+
+        // ============ 阶段D·EffectType 唯一化（2026-10-31）：每行一型，行固定参数从枚举名派生 ============
+        // 原四组共享 EffectType 的行族（SkipTurn×4 / GrantProtection×3 / SituationGate×11 /
+        // ModifyGameRule×29）逐行拆独立枚举；str 只保留给真正的实例参数（CardRef/CardName/Dimension）。
+        // 枚举 int 不进存储（refId 引用惯例不变）；旧共享成员（SkipTurn 除外——整回合行沿用）在
+        // 表 EffectType 列翻新后成为无行死名，可按墓碑惯例删除。
+        // 过渡兼容（表列未翻新期间）：handler/计价/识别口对旧共享类型保留 str 回落，行翻新即自动走类型派生。
+
+        /// <summary>跳过回合·整回合档——沿用原名（str 空=Whole，历史行为不变）。</summary>
+        SkipTurnEnd,
+        /// <summary>跳过回合·只跳结束阶段（进入即折返下一回合，不发 TurnEndEvent）。</summary>
+        SkipTurnStandby,
+        /// <summary>跳过回合·只跳准备阶段自动化（抽牌/重置/地牌推进——与 ITurnStartInterceptor 同口）。</summary>
+        SkipTurnMain,
+
+        /// <summary>延时保护·减半（HalveShield——伤害减半取整向上；原 GrantProtection str=Halve 行）。</summary>
+        ProtectionHalve,
+        /// <summary>延时保护·免疫（NullShield——伤害归 0；原 str=Null 行）。</summary>
+        ProtectionNull,
+        /// <summary>延时保护·生命锁（LifeFloor——落血后生命不低于 1；原 str=Floor 行）。</summary>
+        ProtectionLifeFloor,
+
+        /// ============ 有限分支门槛行（原 SituationGate 11 行共享——身份改从类型派生，
+        /// GateId 列保留作显示/兼容；判定谓词仍由 BranchConditionEvaluator 按 GateId 注册） ============
+        GateFirstDrawOfTurn,   // 命运一抽【唯一】（DrawnInStandbyThisTurn）
+        GateLifeBelow,         // 生命值低于对手（LifeBelowOpp）
+        GateLifeAbove,         // 生命值高于对手（LifeAboveOpp）
+        GateDeckBelow,         // 卡组剩余低于对手（DeckBelowOpp）
+        GateDeckAbove,         // 卡组剩余高于对手（DeckAboveOpp）
+        GateCreatureBelow,     // 场上生物低于对手（CreaturesBelowOpp）
+        GateCreatureAbove,     // 场上生物高于对手（CreaturesAboveOpp）
+        GateFirstCardOfTurn,   // 本回合使用的第一张卡（FirstCardThisTurn）
+        GateLandsAtLeast7,     // 操控地数量≥7（LandsGe7）
+        GateHandEmpty,         // 手牌数量为0（HandEmpty）
+        GateLifeAtMost7,       // 生命值≤7（LifeLe7）
+
+        /// ============ 场地光环行（原 ModifyGameRule 29 行共享——类型→规则 id 静态映射
+        /// 见 RuleAuraComponents；禁指示物令（NoCounterAura）2026-10-31 用户定案整链删除，
+        /// 不设型。枚举名与规则短名/中文行名对应见映射处注释） ============
+        AuraTriPhase,          // 三相仪典（ElementConversion）
+        AuraSharedPain,        // 苦痛仪典（BloodPact）
+        AuraOverflowLife,      // 丰盈仪典（HealOverflow）
+        AuraDamageClamp,       // 离散仪典（DamageCap）
+        AuraPeekLock,          // 窥渊仪典（LockRevealed）
+        AuraGraveRevive,       // 归土仪典（GraveyardPlay）
+        // 疾风仪典（AuraSpeed/CastSpeedUp）2026-10-31 整链删除
+        AuraHandLimit,         // 纳川仪典（HandLimitNoFatigue）
+        AuraToxin,             // 毒蚀仪典（CombatToxin）
+        AuraFreeze,            // 霜蚀仪典（CombatFreeze）
+        // 眠蚀仪典（AuraSleep/CombatSleep）2026-10-31 整链删除
+        AuraBleed,             // 放血仪典（HealInversion）
+        AuraNoAttack,          // 禁攻令（NoAttackAura）
+        AuraNoGuard,           // 禁守令（NoGuardAura）
+        AuraNoActivate,        // 禁发令（NoActivateAura）
+        AuraNoLand,            // 禁地令（NoLandAura）
+        AuraNoHeal,            // 禁疗令（NoHealAura）
+        AuraNoSearch,          // 禁寻令（NoSearchAura）
+        AuraNoSpell,           // 禁魔令（NoSpellAura）
+        AuraNoSummon,          // 禁召令（NoCreatureAura）
+        AuraNoDraw,            // 禁抽令（NoDrawAura）
+        AuraNoLowCost,         // 禁低费令（NoLowCostAura）
+        AuraNoHighCost,        // 禁高费令（NoHighCostAura）
+        AuraScryBonus,         // 占卜加成（ScryBonusAura）
+        AuraRevealPunish,      // 灵视（RevealedPunishAura）
+        AuraDelayedDeath,      // 延迟死亡（DelayedDeathAura）
+        AuraTopDeckAsHand,     // 牌库顶当手牌（TopDeckAsHandAura）
+        AuraInscription,       // 铭刻（InscriptionAura）
     }
 
     /// <summary>

@@ -16,7 +16,6 @@ namespace CardCore
     {
         public AttributeValueConfig AttributeValueConfig = new AttributeValueConfig();
         public CardCostConfig CardCostConfig = new CardCostConfig();
-        public DelayDiscountConfig DelayDiscountConfig = new DelayDiscountConfig();
         public CardCompositionConfig CardCompositionConfig = new CardCompositionConfig();
         public PricingTierConfig PricingTierConfig = new PricingTierConfig();
         public TimingFactorConfig TimingFactorConfig = new TimingFactorConfig();
@@ -205,8 +204,7 @@ namespace CardCore
     public class CardCostConfig
     {
         public float StatUnit = 2f;                     // 1费=StatUnit点属性（攻血各 1/StatUnit 元素，灰）
-        public bool KeywordsShareDelayDiscount = true;  // 关键词是否同享挂载折扣（关键词=Grant原子=挂载效果）
-        public int MaxTier = 14;                        // 档位上限（2026-10-13 缩盘对齐地牌槽封顶 14：>9 带可达）
+        public int MaxTier = 14;                        // 档位上限（2026-10-13 缩盘对齐地牌槽封顶 14：>9 带可达；现仅钳 UI 显示档）
         /// <summary>属性锚：+1 攻/+1 生命 = 0.5（攻血同锚；2026-10-05 自 CostDerivation 常量迁表）。</summary>
         public float StatAnchor = 0.5f;
         /// <summary>修改族持续档乘数：换区移除/条件持续 = 锚×3（=1.5/+1）；连接光环档同此乘数。</summary>
@@ -226,38 +224,10 @@ namespace CardCore
     }
 
     /// <summary>
-    /// 挂载延迟折扣配置（表 Category=DelayDiscount；2026-09-07 第三层重定案）。
-    /// d(C)：费用 C=最早第 C 回合落地 → 按落地延迟对**整卡**（S+E+K）在组合完成后**最后一步**打折。
-    /// 2026-10-10 分段曲线定案：C 1-3 不折扣（f=1）；C 4-9 线性 1→0.8（f=1−(C−3)/30）；
-    /// C≥10 恒 0.75（新增地牌上限带——地牌槽封顶 14 使 >9 费可达，9→10 存在 0.05 阶梯为照字面定案）。
-    /// 取代旧 C1..C9 线性 1→0.75 曲线（1−0.25×(C−1)/8）。
-    /// 三类卡型统一适用（2026-10-02 定案：法术不豁免）。
+    /// 挂载延迟折扣 d(C) 已整删（2026-10-31 用户定案：阶梯性减价退役——无前中后期卡组概念，
+    /// 所有卡组开局即榨取整体能力上限，S+E+K 全额计价不再按额度打折；DelayDiscountConfig 类、
+    /// ValueSystemConfig.json DelayDiscount 行、CardCost.KeywordsShareDelayDiscount 行同步移除）。
     /// </summary>
-    [Serializable]
-    public class DelayDiscountConfig
-    {
-        public float C1 = 1.00000f;   // d(1)=全价（几乎即时）
-        public float C2 = 1.00000f;   // 1-3 档不折扣（2026-10-10 分段定案）
-        public float C3 = 1.00000f;
-        public float C4 = 0.96667f;   // 4-9 线性 1→0.8：f=1−(C−3)/30
-        public float C5 = 0.93333f;
-        public float C6 = 0.90000f;
-        public float C7 = 0.86667f;
-        public float C8 = 0.83333f;
-        public float C9 = 0.80000f;   // d(9)=0.8
-        /// <summary>C≥10 恒 0.75（新增地牌上限带；9→10 有 0.05 阶梯——分段定案照字面）。</summary>
-        public float C10Plus = 0.75000f;
-
-        public float At(int tier)
-        {
-            if (tier >= 10) return C10Plus;
-            return tier switch
-            {
-                1 => C1, 2 => C2, 3 => C3, 4 => C4, 5 => C5,
-                6 => C6, 7 => C7, 8 => C8, _ => C9 // 9 钳 C9；<1 退 C9（上游三口已 Clamp 1..MaxTier）
-            };
-        }
-    }
 
     /// <summary>
     /// 价值系统配置管理器 - 单例。
@@ -328,7 +298,8 @@ namespace CardCore
             int applied = ApplyEntries(raw, config);
 
             // CostOffsetConfig.json 已删（2026-09-14 代价原子化）：CardCost 三行（StatUnit/
-            // KeywordsShareDelayDiscount/MaxTier）已回迁本表；机制行与当量行随抵消系统退役。
+            // KeywordsShareDelayDiscount/MaxTier）已回迁本表；DelayDiscount 行与 KeywordsShareDelayDiscount
+            // 已随 2026-10-31 阶梯减价删除整链退役；机制行与当量行随抵消系统退役。
             if (applied == 0)
                 TideLog.Warn($"[ValueSystemConfigManager] 未从 {ConfigRelativePath} 灌入任何条目");
             return config;

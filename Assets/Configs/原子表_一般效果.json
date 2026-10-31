@@ -51,23 +51,6 @@
     ]
   },
   {
-    "ID": "828060dd",
-    "EnumName": "穿透伤害",
-    "DisplayName": "对{target}造成{value}点穿透伤害（无视关键词与指示物）",
-    "EffectType": "PierceDamage",
-    "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位",
-    "TargetFilter": null,
-    "Polarity": -1,
-    "MountKinds": "",
-    "Tags": "伤害产出族",
-    "ManaList": [
-      0,
-      1.5,
-      0,
-      0
-    ]
-  },
-  {
     "ID": "af7bd26e",
     "EnumName": "吸取",
     "DisplayName": "吸取{target}{value}点生命（造成伤害并回复生命）",
@@ -213,6 +196,7 @@
     "Polarity": 1,
     "MountKinds": "",
     "Tags": null,
+    "参数": "CardName",
     "ManaList": [
       0,
       0,
@@ -359,11 +343,28 @@
   {
     "ID": "4147e3a7",
     "EnumName": "驱散",
-    "DisplayName": "移除{target}全部指示物",
+    "DisplayName": "移除{target}全部指示物以及临时赋予的关键词",
     "EffectType": "Purify",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": "NoRole",
     "Polarity": 0,
+    "MountKinds": "",
+    "Tags": null,
+    "ManaList": [
+      0,
+      0,
+      0,
+      3
+    ]
+  },
+  {
+    "ID": "ea2c9eb3",
+    "EnumName": "净化",
+    "DisplayName": "解除目标全部负面(极性-1)的指示物",
+    "EffectType": "RemoveDebuffs",
+    "TargetKinds": "己方单位",
+    "TargetFilter": "NoRole",
+    "Polarity": 1,
     "MountKinds": "",
     "Tags": null,
     "ManaList": [
@@ -388,23 +389,6 @@
       0,
       9,
       0
-    ]
-  },
-  {
-    "ID": "ea2c9eb3",
-    "EnumName": "净化",
-    "DisplayName": "解除目标全部负面(极性-1)的指示物",
-    "EffectType": "RemoveDebuffs",
-    "TargetKinds": "己方单位",
-    "TargetFilter": "NoRole",
-    "Polarity": 1,
-    "MountKinds": "",
-    "Tags": null,
-    "ManaList": [
-      0,
-      0,
-      0,
-      5
     ]
   },
   {
@@ -468,6 +452,7 @@
     "Polarity": 1,
     "MountKinds": "",
     "Tags": null,
+    "参数": "CardRef",
     "ManaList": [
       0,
       0,
@@ -774,6 +759,7 @@
     "Polarity": -1,
     "MountKinds": "",
     "Tags": null,
+    "参数": "Dimension",
     "ManaList": [
       0,
       0,
@@ -791,6 +777,7 @@
     "Polarity": 1,
     "MountKinds": "",
     "Tags": null,
+    "参数": "CardName",
     "ManaList": [
       0,
       0,
@@ -808,6 +795,7 @@
     "Polarity": 1,
     "MountKinds": "",
     "Tags": null,
+    "参数": "CardName",
     "ManaList": [
       0,
       0,
@@ -825,6 +813,7 @@
     "Polarity": 1,
     "MountKinds": "",
     "Tags": null,
+    "参数": "Dimension",
     "ManaList": [
       0,
       0,
@@ -893,6 +882,6 @@
     "Polarity": 0,
     "MountKinds": "不可作为连接光环",
     "Tags": null,
-    "ManaList": [0, 0, 0, 0]
+    "ManaList": [ 0, 0, 0, 0 ]
   }
 ]

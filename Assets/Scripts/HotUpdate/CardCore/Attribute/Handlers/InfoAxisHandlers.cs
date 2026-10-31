@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using CardCore.Attribute;
+using Cysharp.Threading.Tasks;
 
 namespace CardCore.Attribute.Handlers
 {
@@ -26,12 +27,12 @@ namespace CardCore.Attribute.Handlers
                 if (!(target is Card card) || !card.IsAlive) continue;
                 if (card.GetCounterCount(CounterRules.ExposedCounter) > 0) continue; // 已展示不叠层（二值状态）
 
-                card.AddCounters(CounterRules.ExposedCounter, 1, context.Source);
+                int actualDelta = card.AddCounters(CounterRules.ExposedCounter, 1, context.Source);
                 PublishEvent(new CounterChangedEvent
                 {
                     Target = card,
                     CounterType = CounterRules.ExposedCounter,
-                    Amount = 1,
+                    Amount = actualDelta,
                     Source = context.Source,
                 });
                 PublishEvent(new RevealCardsEvent
@@ -110,13 +111,13 @@ namespace CardCore.Attribute.Handlers
             foreach (var card in targets)
             {
                 if (card == null || !card.IsAlive) continue;
-                card.AddCounters(CounterRules.CurseCounter, 1, context.Controller);
+                int actualDelta = card.AddCounters(CounterRules.CurseCounter, 1, context.Controller);
                 CurseSystem.Attach(card, payloadId, context.Controller, sourceCard);
                 PublishEvent(new CounterChangedEvent
                 {
                     Target = card,
                     CounterType = CounterRules.CurseCounter,
-                    Amount = 1,
+                    Amount = actualDelta,
                     Source = context.Controller,
                 });
                 PublishEvent(new KeywordAppliedEvent
@@ -147,6 +148,17 @@ namespace CardCore.Attribute.Handlers
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.RevealByDimension;
 
+        /// <summary>结算期宣言反问（2026-10-31 阶段C）：弹维度选择（全量维度——ProphecyDimension
+        /// 合法域，卡名项链文本输入）替换构筑期预置；取消（卡名链取消）=本次效果不结算。</summary>
+        public override async UniTask ExecuteAsync(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            var encoded = await ProphecyHandlerUtil.AskDimensionAsync(effect, context,
+                "筛选展示：选择宣言维度（展示对手手牌中所有命中的牌）", typeOnly: false);
+            if (encoded == null) return;
+            effect.StringValue = encoded;
+            Execute(effect, context);
+        }
+
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
             if (context.ZoneManager == null || context.Controller == null) return;
@@ -165,12 +177,12 @@ namespace CardCore.Attribute.Handlers
                 if (!ProphecyDimension.Matches(card, dim, val)) continue;
                 if (card.GetCounterCount(CounterRules.ExposedCounter) > 0) continue; // 已展示不叠层（二值状态）
 
-                card.AddCounters(CounterRules.ExposedCounter, 1, context.Source);
+                int actualDelta = card.AddCounters(CounterRules.ExposedCounter, 1, context.Source);
                 PublishEvent(new CounterChangedEvent
                 {
                     Target = card,
                     CounterType = CounterRules.ExposedCounter,
-                    Amount = 1,
+                    Amount = actualDelta,
                     Source = context.Source,
                 });
                 PublishEvent(new RevealCardsEvent

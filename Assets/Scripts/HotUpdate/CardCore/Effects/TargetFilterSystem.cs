@@ -359,7 +359,7 @@ namespace CardCore
                 if (controller == null) return true;
                 var side = c is Card card ? card.GetController() : c as Player;
                 return side == null || side == controller
-                    || !(c.GetCounterCount(Attribute.CounterRules.StealthCounter) > 0
+                    || !(c.GetEffectiveCounterCount(Attribute.CounterRules.StealthCounter) > 0
                          || c.HasKeyword(KeywordRules.Concealed));
             }).ToList();
         }

@@ -23,6 +23,7 @@ namespace CardCore.Network
         public event Action<MsgGameStateSync> OnSnapshot;
         public event Action<NetEvent[]> OnEventBatch;
         public event Action<MsgSelectRequest> OnSelectRequest;
+        public event Action<MsgTextRequest> OnTextRequest; // 文本反问（2026-10-31 阶段C：卡名宣言输入窗）
         public event Action<MsgError> OnError;
         public event Action OnDisconnected;
 
@@ -89,6 +90,10 @@ namespace CardCore.Network
 
                 case NetworkMessageType.SelectRequest:
                     OnSelectRequest?.Invoke(NetworkSerializer.DeserializePayload<MsgSelectRequest>(msg));
+                    break;
+
+                case NetworkMessageType.TextRequest:
+                    OnTextRequest?.Invoke(NetworkSerializer.DeserializePayload<MsgTextRequest>(msg));
                     break;
 
                 case NetworkMessageType.Error:

@@ -188,9 +188,9 @@ namespace CardCore
         /// <summary>
         /// 创建待发效果
         /// 条件发动 speed=Max 绕过速度检查
-        /// 速度发动 = BaseSpeed + 疾风场上加成（2026-10-16：场上源卡主动效果+1）+ paidBoost（2026-09-13：无基础速度）。
+        /// 速度发动 = BaseSpeed + paidBoost（2026-09-13：无基础速度；疾风场上加成 2026-10-31 整链删除）。
         /// 技能栏法术源（英雄技能）基速恒 0（2026-10-18 深夜修订：技能可反复发动，不吃法术槽位
-        /// 盈余——转换器烘焙进 BaseSpeed 的加成整体不取；场上增益/付费提速照常叠加）。
+        /// 盈余——转换器烘焙进 BaseSpeed 的加成整体不取；付费提速照常叠加）。
         /// </summary>
         public static PendingEffect Create(
             EffectDefinition effect,
@@ -204,8 +204,7 @@ namespace CardCore
             int speed = (effect.ActivationType != EffectActivationType.Voluntary)
                 ? int.MaxValue
                 : SpeedCalculator.CalculateSpeed(
-                    (HeroSkillSystem.IsSkillSource(source) ? 0 : effect.BaseSpeed)
-                    + RuleAuraComponents.OnBoardActiveSpeedBonus(source), paidBoost);
+                    (HeroSkillSystem.IsSkillSource(source) ? 0 : effect.BaseSpeed), paidBoost);
 
             return new PendingEffect
             {

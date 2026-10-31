@@ -102,14 +102,16 @@ namespace SynergyUI
         /// <summary>有害类原子：目标偏好对方单位 &gt; 对方玩家（解场优先——2026-09-13 用户裁决，原削血优先反转）</summary>
         private static readonly HashSet<AtomicEffectType> HarmfulAtoms = new HashSet<AtomicEffectType>
         {
-            // 伤害族（穿透伤害也偏好打脸——越过多层防护直击）
+            // 伤害族（解场优先——穿透档已删 2026-10-31）
             AtomicEffectType.DealDamage, AtomicEffectType.DealCombatDamage, AtomicEffectType.LifeLoss,
-            AtomicEffectType.DrainLife, AtomicEffectType.PierceDamage,
+            AtomicEffectType.DrainLife,
             // 指示物妨害族（毒素：回合末持续毒伤；易损：受伤+1/层；剧毒已转关键词 GrantVenom）
             AtomicEffectType.GrantVenom, AtomicEffectType.AddToxin, AtomicEffectType.AddVulnerable,
-            // 单向属性削弱（攻击力/生命值/±1/费用增加——目标偏好对方）
+            // 单向属性削弱（攻击力/生命值/±1/费用增加四色——目标偏好对方）
             AtomicEffectType.AddPowerDown, AtomicEffectType.AddLifeDown, AtomicEffectType.AddMinusOne,
-            AtomicEffectType.AddCostUp, AtomicEffectType.Weaken, AtomicEffectType.RushSickness,
+            AtomicEffectType.AddCostUpGray, AtomicEffectType.AddCostUpRed,
+            AtomicEffectType.AddCostUpBlue, AtomicEffectType.AddCostUpGreen,
+            AtomicEffectType.Weaken, AtomicEffectType.RushSickness,
             // 破坏/移除族
             AtomicEffectType.Exile, AtomicEffectType.DiscardCard, AtomicEffectType.MillCard,
             AtomicEffectType.BounceToTop, AtomicEffectType.BounceToBottom,
@@ -139,7 +141,9 @@ namespace SynergyUI
             // 设置系复活（2026-09-09 三轨制重建）——有益直改
             AtomicEffectType.SetPower, AtomicEffectType.SetLife, AtomicEffectType.SetCost,
             AtomicEffectType.AddPowerUp, AtomicEffectType.AddLifeUp, AtomicEffectType.AddPlusOne,
-            AtomicEffectType.AddCostDown, AtomicEffectType.Inspire,
+            AtomicEffectType.AddCostDownGray, AtomicEffectType.AddCostDownRed,
+            AtomicEffectType.AddCostDownBlue, AtomicEffectType.AddCostDownGreen,
+            AtomicEffectType.Inspire,
             AtomicEffectType.GrantDoubleStrike,
             AtomicEffectType.GrantSpellShield,
             AtomicEffectType.GrantLifesteal,

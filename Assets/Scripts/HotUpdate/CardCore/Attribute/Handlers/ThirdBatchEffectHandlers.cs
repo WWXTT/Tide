@@ -407,9 +407,9 @@ namespace CardCore.Attribute.Handlers
     }
 
     /// <summary>
-    /// 沉默指示物（定案，原"无效效果"改名改语义）：对目标附加沉默指示物——
+    /// 沉默指示物（定案，原"无效效果"改名改语义）：对目标附加 {value} 层沉默指示物——
     /// 持有者不可发动主动效果（主动能力，挂 EffectExecutionEngine.CanActivate 第 0 步）；
-    /// 未写持续时间 = 换区清除。
+    /// 换区清除（表 Tags 2026-10-31 改衰退型）。
     /// </summary>
     public class SilenceHandler : AtomicEffectHandlerBase
     {
@@ -417,15 +417,17 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
+            // 2026-10-31 晚定案：一次发动按 value 给层（≤0/未填=1）
+            int amount = CounterRules.ResolveLayers(CounterRules.SilenceCounter, context.GetValueAfterModifiers(effect.Value));
             foreach (var target in context.Targets)
             {
                 if (target == null || !target.IsAlive) continue;
-                target.AddCounters(CounterRules.SilenceCounter, 1, context.Source);
+                int actualDelta = target.AddCounters(CounterRules.SilenceCounter, amount, context.Source);
                 PublishEvent(new CounterChangedEvent
                 {
                     Target = target,
                     CounterType = CounterRules.SilenceCounter,
-                    Amount = 1,
+                    Amount = actualDelta,
                     Source = context.Source
                 });
                 PublishEvent(new KeywordAppliedEvent
@@ -486,12 +488,12 @@ namespace CardCore.Attribute.Handlers
             foreach (var card in shown)
             {
                 if (card.GetCounterCount(CounterRules.ExposedCounter) > 0) continue; // 二值不叠层
-                card.AddCounters(CounterRules.ExposedCounter, 1, context.Source);
+                int actualDelta = card.AddCounters(CounterRules.ExposedCounter, 1, context.Source);
                 PublishEvent(new CounterChangedEvent
                 {
                     Target = card,
                     CounterType = CounterRules.ExposedCounter,
-                    Amount = 1,
+                    Amount = actualDelta,
                     Source = context.Source,
                 });
             }
@@ -604,12 +606,12 @@ namespace CardCore.Attribute.Handlers
             int stacks = Math.Max(0, reference.GetLife());
             if (stacks <= 0) return;
 
-            hero.AddCounters(KeywordRules.ArmorCounter, stacks, context.Source);
+            int actualDelta = hero.AddCounters(KeywordRules.ArmorCounter, stacks, context.Source);
             PublishEvent(new CounterChangedEvent
             {
                 Target = hero,
                 CounterType = KeywordRules.ArmorCounter,
-                Amount = stacks,
+                Amount = actualDelta,
                 Source = context.Source,
             });
         }

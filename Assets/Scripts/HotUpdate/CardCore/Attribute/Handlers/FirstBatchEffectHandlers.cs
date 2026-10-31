@@ -12,37 +12,8 @@ namespace CardCore.Attribute.Handlers
 
     // ---------------- 伤害类 ----------------
 
-    /// <summary>
-    /// 穿透伤害（定案，原"不可防止伤害"改名）：越过关键词和指示物计算伤害——
-    /// 跳过圣盾/护甲指示物/坚韧，但受光环限制（替代引擎/层效果照走），事件链/吸血照常。
-    /// </summary>
-    public class PierceDamageHandler : AtomicEffectHandlerBase
-    {
-        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.PierceDamage;
-
-        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
-        {
-            foreach (var target in context.Targets)
-            {
-                // 2026-09-13 数值随机：每目标独立掷（掷值在修饰链前）
-                int dmg = context.GetValueAfterModifiers(effect.GetRolledValue());
-                int lifeBefore = target.GetLife();
-                int actual = KeywordRules.ApplyDamage(context.Source, target, dmg, false, pierce: true);
-                context.LastOutcome.RecordDamage(target, lifeBefore, actual);
-                PublishEvent(new AtomicDamageEvent
-                {
-                    Source = context.Source,
-                    Target = target,
-                    Damage = actual,
-                    IsCombatDamage = false,
-                    DamageType = DamageType.Normal,
-                    EffectTint = effect.AnchorTint()
-                });
-            }
-        }
-
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => $"造成 {effect.Value} 点穿透伤害（无视关键词与指示物）";
-    }
+    // 穿透伤害 handler（PierceDamageHandler）已删（2026-10-31 定案）：穿透档整体退役——
+    // 一切伤害照走防护层，「绕过伤害」的需求由 LifeDown 生命上限降低（非伤害路径）承担。
 
     /// <summary>吸取生命（对目标造成伤害，控制者回复等量生命）</summary>
     public class DrainLifeHandler : AtomicEffectHandlerBase
@@ -239,6 +210,17 @@ namespace CardCore.Attribute.Handlers
     public class SearchDeckHandler : AtomicEffectHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.SearchDeck;
+
+        /// <summary>结算期宣言反问（2026-10-31 阶段C）：弹卡名输入窗替换构筑期预置（裸卡名/卡 ID
+        /// 匹配——编码契约与强夺的 Name: 前缀不同，nameEncoded:false）；取消/超时=本次效果不结算
+        ///（已付费用不退）。AI/无头=预置即结果（无预置空转=旧「未预置宣言名不检索」行为）。</summary>
+        public override async UniTask ExecuteAsync(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            if (!await ProphecyHandlerUtil.AskCardNameAsync(effect, context,
+                    "检索：宣言一个卡名（从己方牌库检索该卡入手）", nameEncoded: false))
+                return;
+            Execute(effect, context);
+        }
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
@@ -597,7 +579,7 @@ namespace CardCore.Attribute.Handlers
 
     /// <summary>
     /// 修改费用（2026-10-08 来源分轨退役）：经 StatGrantRouter 直改 _baseCost（跨区保留，
-    /// 与「设置费用」同口径）；仅手牌生效的临时轨用 AddCostUp/AddCostDown 指示物族。
+    /// 与「设置费用」同口径）；仅手牌生效的临时轨用四色费用指示物族（CostUp*/CostDown*）。
     /// 目标门禁=手牌（表过滤承担）。
     /// </summary>
     public class ModifyCostHandler : AtomicEffectHandlerBase

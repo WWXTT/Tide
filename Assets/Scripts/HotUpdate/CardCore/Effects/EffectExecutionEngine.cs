@@ -124,7 +124,8 @@ namespace CardCore
 
             // 0.5 沉默指示物（定案）：持有者不可发动主动效果（主动能力路径；
             //     PlayCard 出牌不受限——那是"打出"而非"发动"）。换区清除。
-            if (source != null && source.GetCounterCount(Attribute.CounterRules.SilenceCounter) > 0)
+            //     效果口径读数（2026-10-31 绝缘体裁定）：沉默层对绝缘体单位不生效。
+            if (source != null && source.GetEffectiveCounterCount(Attribute.CounterRules.SilenceCounter) > 0)
                 return false;
 
             // 0.55 禁发令光环（2026-10-29）：受光环影响方的单位与角色不能发动主动效果
@@ -261,7 +262,8 @@ namespace CardCore
             }
 
             // 潜行：发动效果后消耗 1 层（2026-10-08 指示物化；攻击后的消耗在 CombatSystem.ResolveAttackDeclaration）
-            if (instance.Source is Card sourceCard && sourceCard.GetCounterCount(Attribute.CounterRules.StealthCounter) > 0)
+            // 效果口径读数（2026-10-31 绝缘体裁定）：潜行层对绝缘体单位无效果、不消耗
+            if (instance.Source is Card sourceCard && sourceCard.GetEffectiveCounterCount(Attribute.CounterRules.StealthCounter) > 0)
             {
                 sourceCard.AddCounters(Attribute.CounterRules.StealthCounter, -1);
                 EventManager.Instance.Publish(new KeywordAppliedEvent
@@ -399,7 +401,7 @@ namespace CardCore
             // 重放指示物（2026-10-09，白4 表行 b70a8a42）：效果发动结算后，来源单位在场存活且持
             // 重放层 → 消耗 1 层、同效果**再发动一次**（共享口径重解析组合目标；PerAtomTargets 各原子
             // 循环内自解析）。重放轮不再消耗层（「重放不触发重放」）——每次真实发动至多重放一次，
-            // 多层=留给后续发动。循环体只含目标重置+原子序列执行：费用/潜行/记账/眠蚀/结算事件
+            // 多层=留给后续发动。循环体只含目标重置+原子序列执行：费用/潜行/记账/结算事件
             // 全在外层，保持只走一次；重放轮 fragments 续加（战报可见两次发动）。
             bool replayed = false;
             // 片段收集（2026-09-16 描述接口化）：逐原子在执行后经 handler.GetDescription(atom, context)
@@ -456,12 +458,7 @@ namespace CardCore
             if (instance.TriggeringEvent == null)
                 RecordUse(effect, instance.Source);
 
-            // 眠蚀光环（2026-10-07 负面化定案）：受光环影响的生物**主动主动发动**结算后叠一层沉睡
-            //（仅主动——触发式/登场不算，用户定案；沉睡层自身拦截后续主动+跳过重置）
-            if (instance.TriggeringEvent == null
-                && instance.ActivationType == EffectActivationType.Voluntary
-                && instance.Source is Card sleepSrc && sleepSrc.IsAlive)
-                RuleAuraComponents.OnActivatedForSleepAura(sleepSrc);
+            // 眠蚀光环主动结算点直调块已删（2026-10-31 整链退役——见 RuleAuraSystem 墓碑注）
 
             // 触发效果结算事件（关联来源 Effect 与解析上下文）
             EventManager.Instance.Publish(new EffectResolveEvent
@@ -926,7 +923,7 @@ namespace CardCore
         {
             if (!(instance?.Source is Card src) || !src.IsAlive) return false;
             if (src.GetZone() != Zone.Battlefield) return false;
-            if (src.GetCounterCount(Attribute.CounterRules.ReplayCounter) <= 0) return false;
+            if (src.GetEffectiveCounterCount(Attribute.CounterRules.ReplayCounter) <= 0) return false;
 
             src.RemoveCounters(Attribute.CounterRules.ReplayCounter, 1);
             EventManager.Instance.Publish(new KeywordAppliedEvent
@@ -1250,15 +1247,14 @@ namespace CardCore
         /// 攻击宣言入栈（逐攻击开窗，2026-09-16 定案）。速度门=标准口径（0 ≥ 计数器），
         /// 栈非空（连锁中）不可宣；宣言期零支付；发 AttackDeclarationEvent（宣言时点，触发器可见）；
         /// 防守方先获响应机会。结算消费见 ResolveStack 的 IsAttackDeclaration 分支。
-        /// 疾风仪典 2026-10-16 改版：场上攻击者（生物）宣言速度+1——攻击宣言**仍不抬计数器**
-        ///（守卫照常 1 速拦截；+1 只改门槛与记录值）；角色攻击（Player 攻击者，非卡）不加。
+        ///（疾风仪典宣言速度+1 已随 2026-10-31 整链删除。）
         /// </summary>
         public bool PushAttackDeclaration(Entity attacker, Entity target, Player controller)
         {
             if (attacker == null || target == null || controller == null) return false;
             if (_stack.Count > 0) return false; // 连锁中不可宣（速度门 0≥计数器的等价直查）
             SyncActivePlayerFromTurn();
-            int speed = AttackStackSpeed + RuleAuraComponents.OnBoardActiveSpeedBonus(attacker);
+            int speed = AttackStackSpeed;
             if (!_speedCounter.CanActivate(speed, EffectActivationType.Voluntary, _stack.Count == 0))
                 return false;
 
@@ -1267,7 +1263,7 @@ namespace CardCore
                 IsAttackDeclaration = true,
                 Source = attacker,
                 Controller = controller,
-                ActivationSpeed = speed, // 基速0（+疾风场上加成）——攻击宣言不抬计数器（无 RaiseTo 调用）
+                ActivationSpeed = speed, // 基速0——攻击宣言不抬计数器（无 RaiseTo 调用）
                 Targets = new List<Entity> { target },
                 OriginalAttackTarget = target, // 原目标存档（2026-10-16 碾压改版：守卫改写后溅射枢轴仍取原目标）
             };
@@ -1811,20 +1807,15 @@ namespace CardCore
                         continue;
                 }
 
-                // 缄默指示物（2026-09-09 定案；2026-10-19 定名缄默/关键词=自动效果）：拦全部触发式
-                // （事件匹配后、上栈前）——含登场 OnPlay 族触发；只拦「注册来源自身」的能力。
-                // 与沉默（拦主动，CanActivate）对称。本体关键词另经 HasKeyword 收口同被缄默压制
-                // （再生=GameCore 直连，读数走 HasKeyword 一并失效）；伤害管线被动
-                // （坚韧/圣盾/护甲——指示物，走 ApplyDamage 管线）不归缄默管，天然不拦。
+                // 自动效果压制（2026-09-09 缄默定案·2026-10-31 改名「失效」；沉睡同日并入=
+                // SuppressRules 统一读数）：
+                // 拦全部触发式（事件匹配后、上栈前）——含登场 OnPlay 族触发；只拦「注册来源自身」的能力。
+                // 与沉默（拦主动，CanActivate）对称——缄默不拦主动，沉睡另在 CanActivate 0.6 拦主动。
+                // 本体关键词另经 HasKeyword 收口同被压制（再生=GameCore 直连，读数走 HasKeyword 一并失效）；
+                // 伤害管线被动（坚韧/圣盾/护甲——指示物，走 ApplyDamage 管线）不归此管，天然不拦。
+                // 入场窗口自身的 OnPlay 不受影响（入场事件发布先于苏醒沉睡挂层——匹配先于挂层）。
                 if (registered.Source != null
-                    && registered.Source.GetCounterCount(CardCore.Attribute.CounterRules.NullifyCounter) > 0)
-                    continue;
-
-                // 沉睡（2026-09-11 定案）：沉睡期间**效果无效**——拦触发式（与无效同口）；
-                // 主动在 CanActivate 拦（与沉默同口）。入场窗口自身的 OnPlay 不受影响
-                //（指示物在结算中才落下，匹配先于结算）。
-                if (registered.Source != null
-                    && registered.Source.GetCounterCount(Attribute.KeywordRules.SleepCounter) > 0)
+                    && SuppressRules.IsAutoSuppressed(registered.Source))
                     continue;
 
                 // 检查触发条件（intervening "if" 条件）：仅在已注入区域系统时校验。
@@ -1931,8 +1922,7 @@ namespace CardCore
                 // 终局原子（2026-09-15：宣告胜利——亡语「对手获得胜利」载体）
                 new DeclareVictoryHandler(),
 
-                // 第一批补齐 — 伤害类
-                new PierceDamageHandler(),
+                // 第一批补齐 — 伤害类（PierceDamageHandler 已删 2026-10-31：穿透档整体退役）
                 new DrainLifeHandler(),
                 // PoisonHandler 已删（2026-10-08 剧毒转关键词 GrantVenom）
 
@@ -1999,8 +1989,15 @@ namespace CardCore
                 // 永久属性原子（2026-10-08 来源分轨退役）：±X/±X 直写字段——跨区保留、净化不清
                 new AddPermanentPlusOneHandler(),
                 new AddPermanentMinusOneHandler(),
-                new AddCostUpHandler(),
-                new AddCostDownHandler(),
+                // 四色费用指示物（2026-10-31 通用费用增减四色化——增减各 4 行，每层 ±1 对应色净费）
+                new AddCostUpGrayHandler(),
+                new AddCostUpRedHandler(),
+                new AddCostUpBlueHandler(),
+                new AddCostUpGreenHandler(),
+                new AddCostDownGrayHandler(),
+                new AddCostDownRedHandler(),
+                new AddCostDownBlueHandler(),
+                new AddCostDownGreenHandler(),
 
                 // 充能（2026-10-31 P12：建造→充能）：手牌主动效果、速度 0——结算期扣 1 点所选色
                 // 元素 + 放 1 层同色费用降低指示物 + 展示（发动口 GameActions.ActivateCharge）
@@ -2052,16 +2049,26 @@ namespace CardCore
                 // 全部命中的牌——与 RevealCard（随机一张）相对的按维度圈定全集
                 new RevealByDimensionHandler(),
 
-                // 延时保护（2026-10-29 阶段3b，12 行族）：挂 ProtectionRules 跨回合状态
-                //（str=Mode|Role|Timing；改写口=KeywordRules.ApplyDamage 与角色落血三路）
+                // 延时保护（2026-10-30 指示物化定案，3 行族）：档位从行类型派生
+                //（ProtectionHalve/Null/LifeFloor——2026-10-31 阶段D；改写口=KeywordRules.ApplyDamage 与角色落血三路）
                 new GrantProtectionHandler(),
 
-                // 规则轴（2026-10-03 定案，路线 B 转正）：规则光环投放（str=规则短名，
-                // 载体入场激活 RuleAuraSystem——对双方生效/全局唯一/载体离场失效）
+                // 规则轴（2026-10-03 定案，路线 B 转正）：场地光环投放——规则 id 从行类型派生
+                //（AuraTriPhase..AuraInscription 静态映射——2026-10-31 阶段D；载体入场激活 RuleAuraSystem）
                 new ModifyGameRuleHandler(),
             };
             foreach (var handler in handlers)
                 EffectHandlerRegistry.Register(handler);
+
+            // 阶段D（2026-10-31）EffectType 唯一化：共享族新型别名注册（同一 handler 按类型分派）
+            foreach (var t in new[]
+                     {
+                         AtomicEffectType.ProtectionHalve, AtomicEffectType.ProtectionNull,
+                         AtomicEffectType.ProtectionLifeFloor,
+                     })
+                EffectHandlerRegistry.Register(new GrantProtectionHandler { OverrideEffectType = t });
+            foreach (var t in RuleAuraComponents.AuraTypes)
+                EffectHandlerRegistry.Register(new ModifyGameRuleHandler { OverrideEffectType = t });
 
             // 注册所有关键词授予处理器
             foreach (var handler in GrantKeywordHandlerFactory.CreateAll())
@@ -2109,6 +2116,20 @@ namespace CardCore
             // 湮灭原子/采掘/摒弃/冰晶/梦魇/光合作用/手牌序位——全仓卡牌/教学/效果表零引用，
             // 原子按 refId 字符串引用，枚举 int 不进存储/线格式）。剩余白名单：
             AtomicEffectType.SituationGate,          // 有限分支门槛行身份枚举（2026-10-23 入表定案：仅表行身份，永不挂处理器）
+
+            // 阶段D（2026-10-31）EffectType 唯一化：门槛行新型（原 SituationGate 11 行共享拆型）——
+            // 同为表行身份载体，永不挂处理器（判定谓词在 BranchConditionEvaluator，按 GateId 注册）
+            AtomicEffectType.GateFirstDrawOfTurn,
+            AtomicEffectType.GateLifeBelow,
+            AtomicEffectType.GateLifeAbove,
+            AtomicEffectType.GateDeckBelow,
+            AtomicEffectType.GateDeckAbove,
+            AtomicEffectType.GateCreatureBelow,
+            AtomicEffectType.GateCreatureAbove,
+            AtomicEffectType.GateFirstCardOfTurn,
+            AtomicEffectType.GateLandsAtLeast7,
+            AtomicEffectType.GateHandEmpty,
+            AtomicEffectType.GateLifeAtMost7,
         };
 
         private static void VerifyHandlerCoverage()

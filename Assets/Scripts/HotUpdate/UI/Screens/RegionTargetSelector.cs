@@ -71,6 +71,8 @@ namespace SynergyUI
         private string _prompt; // 选择/响应提示全文（Run 写入·RefreshLabel 与计数合并渲染）
         private bool _busy;
         private UniTaskCompletionSource<List<int>> _activeTcs; // 在途选择收口口（Cancel 用）
+        private UniTaskCompletionSource<string> _activeTextTcs; // 在途文本输入窗收口口（ForceIdle 清算用）
+        private UiKit.Modal _activeTextModal;                   // 在途文本输入窗本体（同上）
 
         // ==== 牌库标记预览态（2026-10-26 诅咒/祝福显示层）：复用选择条的非交互显示面 ====
         private bool _previewActive;                                  // 预览进行中（与 _busy 选择态互斥）
@@ -91,6 +93,10 @@ namespace SynergyUI
             ClosePreview(); // 预览态一并钉回（2026-10-26）
             _activeTcs?.TrySetResult(new List<int>());
             _activeTcs = null;
+            _activeTextTcs?.TrySetResult(null); // 在途文本输入窗一并按取消收口（2026-10-31 阶段C）
+            _activeTextTcs = null;
+            _activeTextModal?.Close();
+            _activeTextModal = null;
             _busy = false;
             IsOpen = false;
             OpenSinceRealtime = 0f;
@@ -183,6 +189,57 @@ namespace SynergyUI
         {
             var picked = await SelectIndicesAsync(options, 1, 1, title, "", false, timeoutSeconds);
             return picked != null && picked.Count > 0 ? picked[0] : 0;
+        }
+
+        // ==================== 文本反问（2026-10-31 阶段C：卡名宣言等开放集输入） ====================
+
+        /// <summary>ITargetSelectorEx 文本口：模态输入窗（标题+输入框+确认/取消），中文输入法随
+        /// TMP_InputField 标准内容类型可用。超时自持（Ex 契约）——到点按取消收口返回 null
+        ///（TargetSelectionService 口径：取消/超时=效果不结算、费用不退）。</summary>
+        public async UniTask<string> SelectTextAsync(Player chooser, string title, string defaultValue,
+            int maxLen, float timeoutSeconds)
+        {
+            return await PromptTextAsync(title, defaultValue, maxLen, timeoutSeconds);
+        }
+
+        /// <summary>模态文本输入窗（网络客户端反问复用同一实现——BattleScreen.NetOnTextRequest）。
+        /// 返回玩家输入（原样，收口在 RequestTextAsync/TryCompleteText）；null=取消/超时。
+        /// 独立于 Region 选择面（不动 _busy/IsOpen——输入窗可与选择条共存，先问文本再选目标）；
+        /// 在途态入 _activeText* 记账，ForceIdle 跨局清算一并收口。</summary>
+        public async UniTask<string> PromptTextAsync(string title, string defaultValue, int maxLen, float timeoutSeconds)
+        {
+            if (_region == null) return null; // 无宿主（极端：屏已拆）：按取消收口
+            var canvas = _region.GetComponentInParent<Canvas>();
+            if (canvas == null) return null;
+            var host = (RectTransform)canvas.transform; // 根画布：置顶兄弟序盖全场
+
+            var modal = UiKit.ModalBox(host, string.IsNullOrWhiteSpace(title) ? "请输入" : title, width: 520f);
+            UiKit.Size(UiKit.Label("hint", modal.Panel,
+                "输入卡名后点「确认」；点「取消」或留空则本次效果不结算（已支付的费用不退）。",
+                13, UiStyle.TextHint, wrap: true), fw: 1f);
+            var input = UiKit.InputField("input", modal.Panel, "请输入卡名（支持中文输入法）",
+                defaultValue ?? "", width: 480f);
+            if (maxLen > 0) input.characterLimit = maxLen;
+
+            var tcs = new UniTaskCompletionSource<string>();
+            var bar = UiKit.Row("bar", modal.Panel, spacing: 10f);
+            bar.GetComponent<HorizontalLayoutGroup>().childAlignment = TextAnchor.MiddleRight;
+            UiKit.Button("btn-cancel", bar, "取消", () => tcs.TrySetResult(null));
+            UiKit.Button("btn-ok", bar, "确认", () => tcs.TrySetResult(input.text),
+                bg: UiStyle.BtnPrimary, fg: UiStyle.White);
+            _activeTextTcs = tcs;
+            _activeTextModal = modal;
+
+            input.ActivateInputField(); // 直接落焦——免一次点击（IME 随激活拉起）
+
+            float seconds = timeoutSeconds > 0f ? timeoutSeconds : 120f;
+            var timeoutTask = UniTask.Delay(TimeSpan.FromSeconds(seconds))
+                .ContinueWith(() => (string)null);
+            var (win, uiResult, _) = await UniTask.WhenAny(tcs.Task, timeoutTask);
+            _activeTextTcs = null;
+            _activeTextModal = null;
+            modal.Close();
+            return win == 0 ? uiResult : null; // 超时=取消（TargetSelectionService 口径）
         }
 
         // ==================== 选择面装配与驱动 ====================

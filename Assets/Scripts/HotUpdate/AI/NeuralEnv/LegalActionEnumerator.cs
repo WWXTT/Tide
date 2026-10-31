@@ -427,8 +427,10 @@ namespace CardCore.AI.NeuralEnv
                     // 苏醒施放变体（2026-10-29 P6；P6c 只免灰；2026-10-31 P12 关键词化：
                     // GetAwakenSleepLayers 内含 Awaken 关键词闸——**无关键词生物不出苏醒行**，此处不另判）
                     //：生物净费灰份额 ≥1 → 同目标展开各加一行
-                    //（免灰转入场沉睡层数、横置登场、彩色含绿照付；灰=0 不提供——无免可免不给白睡）
+                    //（免灰转入场沉睡层数、横置登场、彩色含绿照付；灰=0 不提供——无免可免不给白睡；
+                    // 2026-10-31 地牌门槛镜像 PlayCard 终审——灰份额>当前地牌上限不出苏醒行）
                     if (GameActions.GetAwakenSleepLayers(c, m) > 0
+                        && !GameActions.AwakenExceedsLandCap(core, me, c, m)
                         && GameActions.CanAffordCast(core, me, c, m, awakenCast: true))
                         foreach (var targets in ExpandCardTargets(core, me, c, m))
                             Actions.Add(BuildTargetedRow(TideActionType.PlayCard, c, m, src, targets, awaken: true));
@@ -604,7 +606,7 @@ namespace CardCore.AI.NeuralEnv
             if (skillCard == null) return;                        // 不在场（未标记/被摧毁/弹回）→ 无技能
             if (!core.ZoneManager.GetCards(me, Zone.FieldZone).Contains(skillCard)) return;
             if (skillCard.IsTapped()) return;                     // 每回合一次闸（回合开始 ResetSkillForTurn 解横置）
-            if (skillCard.GetCounterCount(CounterRules.SilenceCounter) > 0) return; // 沉默不可发动主动效果
+            if (skillCard.GetEffectiveCounterCount(CounterRules.SilenceCounter) > 0) return; // 沉默不可发动主动效果（效果口径读数——绝缘体同引擎口径）
             var effects = HeroSkillSystem.SkillEffectsOf(skillCard);
             if (effects.Count == 0) return;
 

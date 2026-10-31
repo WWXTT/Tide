@@ -177,6 +177,10 @@ namespace SynergyUI
                     if (rand) body = body.Insert(idx + (side != null ? side.Length : 0), "随机");
                 }
             }
+            // 特殊列（2026-10-31 阶段B）：文案没说、但引擎实际这么做的规则——括注追加在描述后。
+            // 纯展示层（本渲染口=合成器效果描述/卡面 tooltip/挂载预览共用），不动模板与行 ID。
+            if (!string.IsNullOrEmpty(cfg?.Special))
+                body = body + "（" + cfg.Special.TrimEnd('。') + "）";
             return body;
         }
 

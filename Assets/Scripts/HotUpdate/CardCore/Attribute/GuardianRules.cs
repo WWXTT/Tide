@@ -12,7 +12,7 @@ namespace CardCore.Attribute
     /// - 无限次改写直到守护者死亡/离场——离场即清配对（死亡/弹回/流放/牺牲统一口）；
     ///   墓地复活=新入场事件→重新选择（旧关系必然不存在，2026-10-08 用户定案）；
     ///   复生 Reborn=原地留场不离场→配对保持（不经换区出口）；
-    /// - 查询时活性实时校验（存活 && 在场 && 未被「缄默」压制）——RuleAuraSystem.Matches 同款，
+    /// - 查询时活性实时校验（存活 && 在场 && 未被自动效果压制——沉睡/失效，统一口 SuppressRules），
     ///   无事件注销、懒清扫；
     /// - 被守护者死亡不清配对：苏生复活同实例（runtimeId 不变）保护延续——断链判据只有守护者侧。
     /// - 选目标走 TargetSelectionService：UI 弹选 / AI 与无头自动取首候选；候选=己方战场单位
@@ -69,7 +69,7 @@ namespace CardCore.Attribute
                 if (!ReferenceEquals(bond.ward, ward)) continue;
                 var g = bond.guardian;
                 if (g == null || !g.IsAlive || g.GetZone() != Zone.Battlefield) continue;
-                if (g.GetCounterCount(CounterRules.NullifyCounter) > 0) continue; // 「缄默」=压制口（沿旧形态口径）
+                if (SuppressRules.IsAutoSuppressed(g)) continue; // 沉睡/失效=自动效果压制口（2026-10-31 统一读数）
                 return g;
             }
             return null;

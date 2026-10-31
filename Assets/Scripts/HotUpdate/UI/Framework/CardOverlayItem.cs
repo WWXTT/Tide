@@ -134,6 +134,31 @@ namespace SynergyUI
             return formula == null ? text : $"{text}（{formula}）";
         }
 
+        /// <summary>压制层数快照读数（沉默/失效/沉睡）——FromHand 与战场悬停面板
+        /// 共用行级划线判定，与引擎 SuppressRules 计数原语同源。</summary>
+        public static (int silence, int nullify, int sleep) SuppressionOf(
+            CardCore.Serialization.SerializableRuntimeCardState runtime)
+        {
+            int silence = 0, nullify = 0, sleep = 0;
+            if (runtime?.Counters != null)
+            {
+                foreach (var c in runtime.Counters)
+                {
+                    if (c.Key == CardCore.Attribute.CounterRules.SilenceCounter) silence = c.Value;
+                    else if (c.Key == CardCore.Attribute.CounterRules.NullifyCounter) nullify = c.Value;
+                    else if (c.Key == CardCore.Attribute.KeywordRules.SleepCounter) sleep = c.Value;
+                }
+            }
+            return (silence, nullify, sleep);
+        }
+
+        /// <summary>压制行样式（2026-10-31 定案）：被压的效果/关键词行删除线+灰字——TMP 富文本
+        ///（ACard 四行区 des 与战场悬停面板均已开富文本）。suppressed=false 原样返回。</summary>
+        public static string SuppressedText(string text, bool suppressed)
+            => suppressed && !string.IsNullOrEmpty(text)
+                ? $"<s><color=#7f7f7f>{text}</color></s>"
+                : text;
+
         /// <summary>手牌全信息卡面 → 显示模型（2026-10-13，ACardView 专用）。
         /// 三源合并：BattleCardView（名称/费用/横置）+ 卡表（类型/效果拆分/立绘）+ 运行态快照（关键词/指示物）。
         /// 被动效果不再带 (x/y) 次数后缀（2026-10-30 无次数上限定案：没有上限可显示）。幂等可重查。</summary>
@@ -165,10 +190,17 @@ namespace SynergyUI
                 it.PayloadText = PayloadTextOf(data);
             }
 
-            // keys 芯片：运行态关键词优先（含授予/净化），回落印刷
+            // 压制态（2026-10-31 删除线定案）：沉默/失效/沉睡层数 → 主动/被动行与本体关键词芯片划线灰显
+            var sup = SuppressionOf(v.Runtime);
+            bool activeSuppressed = CardCore.Attribute.SuppressRules.IsActiveSuppressed(sup.silence, sup.sleep);
+            bool autoSuppressed = CardCore.Attribute.SuppressRules.IsAutoSuppressed(sup.nullify, sup.sleep);
+
+            // keys 芯片：运行态关键词优先（含授予/净化），回落印刷；本体关键词被压（沉睡/失效）
+            // → 芯片划线灰显（与引擎 HasKeyword 读假同口：SuppressRules.IsAutoSuppressed）
             var keywords = v.Runtime?.Keywords ?? data?.Keywords?.ToArray();
             if (keywords != null && keywords.Length > 0)
-                it.KeywordChips = keywords.Where(k => !string.IsNullOrEmpty(k)).Select(KeywordZh).ToList();
+                it.KeywordChips = keywords.Where(k => !string.IsNullOrEmpty(k))
+                    .Select(k => SuppressedText(KeywordZh(k), autoSuppressed)).ToList();
 
             // stats 芯片：运行态指示物（层数≠0 且非内部读数层）
             if (v.Runtime?.Counters != null)
@@ -196,11 +228,12 @@ namespace SynergyUI
                     if (string.IsNullOrEmpty(text)) continue;
                     if (isActive && string.IsNullOrEmpty(it.ActiveEffectText))
                     {
-                        it.ActiveEffectText = WithActiveNetFormula(text, fx); // P4 §1.3：净费公式内联
+                        // P4 §1.3：净费公式内联；被压（沉默/沉睡拦主动）整行划线灰显
+                        it.ActiveEffectText = SuppressedText(WithActiveNetFormula(text, fx), activeSuppressed);
                         it.ActiveEffectCost = fx.AnchorCost;
                         continue;
                     }
-                    (it.PassiveLines ??= new List<string>()).Add(text);
+                    (it.PassiveLines ??= new List<string>()).Add(SuppressedText(text, autoSuppressed));
                 }
             }
             return it;

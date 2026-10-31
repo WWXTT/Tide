@@ -161,6 +161,12 @@ namespace SynergyUI
                 : card.Name;
             var sections = new List<string> { title };
 
+            // 压制态（2026-10-31 删除线定案）：沉默/失效/沉睡 → 主动/自动段行与本体关键词行
+            // 划线灰显（TMP 富文本 Bind 处已开；状态段=压制本身的解说不划）
+            var sup = CardOverlayItem.SuppressionOf(card.Runtime);
+            bool activeSuppressed = SuppressRules.IsActiveSuppressed(sup.silence, sup.sleep);
+            bool autoSuppressed = SuppressRules.IsAutoSuppressed(sup.nullify, sup.sleep);
+
             // 场地段（2026-10-29 P8）：场地卡（结界+场地标记）专属——落位固定+顶替语义提示
             if (data != null && data.IsField)
                 sections.Add("【场地】\n场地·每方一张——落位固定己方场地格；再打场地=顶替（旧场地入墓）");
@@ -178,11 +184,12 @@ namespace SynergyUI
                     {
                         string cost = fx.AnchorCost != null && !fx.AnchorCost.IsZero
                             ? "（费用 " + BattleView.CostTextOf(fx.AnchorCost) + "）" : "";
-                        (actives ??= new List<string>()).Add(text + cost);
+                        (actives ??= new List<string>())
+                            .Add(CardOverlayItem.SuppressedText(text + cost, activeSuppressed));
                     }
                     else
                     {
-                        (autos ??= new List<string>()).Add(text);
+                        (autos ??= new List<string>()).Add(CardOverlayItem.SuppressedText(text, autoSuppressed));
                     }
                 }
             }
@@ -198,9 +205,10 @@ namespace SynergyUI
                 {
                     if (string.IsNullOrEmpty(kw)) continue;
                     string desc = KeywordEffectMapper.GetDescription(kw);
-                    lines.Add(string.IsNullOrEmpty(desc)
+                    string line = string.IsNullOrEmpty(desc)
                         ? KeywordEffectMapper.GetNameZh(kw)
-                        : $"{KeywordEffectMapper.GetNameZh(kw)}：{desc}");
+                        : $"{KeywordEffectMapper.GetNameZh(kw)}：{desc}";
+                    lines.Add(CardOverlayItem.SuppressedText(line, autoSuppressed)); // 本体关键词被压（沉睡/失效）
                 }
                 if (lines.Count > 0) sections.Add("【关键词】\n" + string.Join("\n", lines));
             }

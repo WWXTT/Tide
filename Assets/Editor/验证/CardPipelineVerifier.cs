@@ -130,22 +130,23 @@ namespace CardCore.Editor
 
             if (cardsData.Count > 0)
             {
-                // 统一计价：全表规则一巡检（2026-09-11 简化口径 D≤C；2026-10-22 恒推导定案后 C=推导档 Ĉ）。
+                // 统一计价：全表规则一巡检（2026-09-11 简化口径；2026-10-31 阶梯减价删除后
+                // 锚=Ĉ+结构费——结构加价计入锚，Req>0 只可能来自取整漂移）。
                 Crumb("→规则一巡检 derive");
                 var offenders = cardsData
                     .Where(c => !CardCostService.Derive(c).Conformant)
                     .ToList();
-                // 不符明细（一次性诊断输出：定位 S/K/E/f/挂载口/D/G 哪一环口径漂了）
+                // 不符明细（一次性诊断输出：定位 S/K/E/结构/挂载口/D 哪一环口径漂了）
                 foreach (var o in offenders)
                 {
                     var r = CardCostService.Derive(o);
                     Debug.LogError($"[规则一明细] {o.CardName}({o.ID}) 推导档Ĉ={r.DerivedTier} S={r.S} K={r.K} "
-                        + $"E={r.EAnchor} f={r.Factor:0.###} D={r.DerivedTotal} "
+                        + $"E={r.EAnchor} D={r.DerivedTotal} "
                         + $"Req={r.OffsetRequirement} G=[{r.Grants}]\n  "
                         + string.Join("\n  ", r.Breakdown.Select(l => $"[{l.Stage}] {l.Label} = {l.Value}")));
                 }
                 Assert(offenders.Count == 0,
-                       $"规则一巡检：全表 {cardsData.Count} 张 D≤Ĉ（不符 {offenders.Count}：{string.Join(",", offenders.Select(o => o.ID))}）");
+                       $"规则一巡检：全表 {cardsData.Count} 张 D≤Ĉ+结构费（不符 {offenders.Count}：{string.Join(",", offenders.Select(o => o.ID))}）");
 
                 // 双表装载（2026-09-14 引用化管线）：正式池非空 + effectIds 解析产物就绪
                 Assert(catalogCount > 0,
@@ -1076,6 +1077,37 @@ namespace CardCore.Editor
                    && sleepKinds.Contains(0) == false && sleepKinds.Contains(1) && sleepKinds.Contains(2),
                    "沉睡域 = {1,2}（表授予域=双方单位——「存储态=自己」口径已随表改面退役，自我沉睡经实例收窄 kinds={0} 表达）");
             Assert(sleepCfg?.TargetFilter == "NoRole", "沉睡域滤 NoRole（角色不可沉睡）");
+
+            // ---- 0b. 域兜底断言（2026-10-31 沉睡只能以生物为目标定案）：结界=无生命建筑，词义上不可沉睡。
+            // 目标域由表保证（沉睡行只列双方有生命单位 {1,2}+NoRole，无「无生命单位」{3,4}）——
+            // 此处只做现场解析断言，不加代码特判：用沉睡表行 kinds+filter 解析候选，
+            // 结界与角色不得在列、生物在列（正向对照防候选空转伪绿）。
+            {
+                var probeCreature = InjectCard(core, p1, new CardData
+                {
+                    ID = "VERIFY_SLEEP_PROBE_CR", CardName = "验证沉睡域生物", Supertype = Cardtype.Creature, Power = 1, Life = 1,
+                });
+                var probeEnchant = InjectCard(core, p1, new CardData
+                {
+                    ID = "VERIFY_SLEEP_PROBE_ENCH", CardName = "验证沉睡域结界", Supertype = Cardtype.Enchantment,
+                });
+                core.ZoneManager.TryMoveToBattlefield(probeCreature, p1, Zone.Hand);
+                core.ZoneManager.TryMoveToBattlefield(probeEnchant, p1, Zone.Hand);
+                Assert(core.ZoneManager.IsCardInZone(probeCreature, p1, Zone.Battlefield)
+                       && core.ZoneManager.IsCardInZone(probeEnchant, p1, Zone.Battlefield),
+                       "沉睡域前置：对照生物与结界均已入场");
+                var domainCtx = new EffectExecutionContext
+                {
+                    Controller = p1, Source = p1, ZoneManager = core.ZoneManager, ElementPool = core.ElementPool,
+                };
+                var domain = Attribute.EffectHandlerRegistry.ResolveCandidates(sleepKinds, sleepCfg.TargetFilter, domainCtx);
+                Assert(domain != null && domain.Contains(probeCreature), "沉睡域正向对照：生物在候选内");
+                Assert(domain.All(e => !(e is Card c && c.IsNonLivingUnit())),
+                       "沉睡域不含无生命单位（结界不可沉睡——2026-10-31 定案）");
+                Assert(domain.All(e => !(e is Player)), "沉睡域不含角色（NoRole 现场解析）");
+                core.ZoneManager.MoveCard(probeCreature, p1, Zone.Battlefield, Zone.Graveyard);
+                core.ZoneManager.MoveCard(probeEnchant, p1, Zone.Battlefield, Zone.Graveyard);
+            }
 
             var pool1 = core.ElementPool.GetPool(p1);
             var snapBank = new Dictionary<ManaType, int>(pool1.TempElements);
@@ -3131,25 +3163,26 @@ namespace CardCore.Editor
                 Assert(core.LayerEngine.CalculatePower(ben) == 5,
                        "战斗读数可见：LayerEngine.CalculatePower 基值含光环（战斗/SBA 同源）");
 
-                // ---- 3. 受益者豁免：净化/沉默/无效打在受益者身上，光环不变 ----
+                // ---- 3. 受益者豁免：净化/沉默/失效打在受益者身上，光环不变 ----
                 CardCore.Attribute.KeywordRules.PurifyKeywords(ben);
                 ben.AddCounters(CardCore.Attribute.CounterRules.SilenceCounter, 1);
                 ben.AddCounters(CardCore.Attribute.CounterRules.NullifyCounter, 1);
                 GameBoard.LinkAuraSystem.InvalidateCache();
                 Assert(ben.GetPower() == 5 && ben.HasKeyword("Taunt"),
-                       "受益者不可被干扰：净化/沉默/无效都不压光环（只有作用于来源才有效）");
+                       "受益者不可被干扰：净化/沉默/失效都不压光环（光环不物化、不读持有者状态）");
                 ben.RemoveCounters(CardCore.Attribute.CounterRules.SilenceCounter, 1);
                 ben.RemoveCounters(CardCore.Attribute.CounterRules.NullifyCounter, 1);
 
-                // ---- 4. 无效压制来源（唯一能压光环的口）；净化不压箭头（箭头=卡面数据）----
+                // ---- 4. 失效不压来源（2026-10-31 失效改名定案：光环域整体退出压制——
+                //      来源被失效（原缄默，id 仍 Nullify）光环照常投递）；净化不压箭头（箭头=卡面数据）----
                 src.AddCounters(CardCore.Attribute.CounterRules.NullifyCounter, 1, p1);
                 GameBoard.LinkAuraSystem.InvalidateCache();
-                Assert(ben.GetPower() == 3 && !ben.HasKeyword("Taunt"),
-                       "无效压制来源：光环熄灭（无效=唯一能压光环的指示物）");
-                CardCore.Attribute.CounterRules.PurgeAll(src); // 净化口径清掉无效（含全部指示物）
+                Assert(ben.GetPower() == 5 && ben.HasKeyword("Taunt"),
+                       "失效不压光环来源：加成照常（2026-10-31 定案——失效只压关键词与触发式）");
+                src.RemoveCounters(CardCore.Attribute.CounterRules.NullifyCounter, 1);
                 GameBoard.LinkAuraSystem.InvalidateCache();
                 Assert(ben.GetPower() == 5 && ben.HasKeyword("Taunt"),
-                       "净化来源不压箭头：无效被清后光环恢复（箭头是卡面数据，净化只清状态）");
+                       "对照：解除后光环仍常（上断言非偶然；净化也不压箭头——箭头是卡面数据）");
 
                 // ---- 4c. 属性光环负值（Power）：LayerEngine 战斗读数同减。
                 //      2026-10-09 清理：Life 负值/Both（六类属性光环方案）未实施——两断言删除，待方案落地再回锚 ----
@@ -3535,14 +3568,14 @@ namespace CardCore.Editor
                    "窃取入表（ID 5d05c712·蓝3）+ 强夺改价蓝5（2026-10-31）");
             Assert(CardCore.Attribute.EffectHandlerRegistry.TryGetHandler(CardCore.AtomicEffectType.DeclareDeck, out _),
                    "窃取 handler 已注册（DeclareDeckHandler）");
-            // 剧毒（2026-10-08 转关键词 GrantVenom）与毒素/沉默/净化/穿透同链入表
+            // 剧毒（2026-10-08 转关键词 GrantVenom）与毒素/沉默/净化同链入表
+            //（穿透伤害行已删 2026-10-31 定案——绕过伤害生态位由 LifeDown 降上限承担）
             Assert(CardCore.Attribute.AtomicEffectTable.GetByEnumName("GrantVenom") != null
                    && CardCore.Attribute.AtomicEffectTable.GetByEnumName("AddToxin") != null
                    && CardCore.Attribute.AtomicEffectTable.GetByEnumName("Silence") != null
                    && CardCore.Attribute.AtomicEffectTable.GetByEnumName("Purify") != null
-                   && CardCore.Attribute.AtomicEffectTable.GetByEnumName("PierceDamage") != null
                    && CardCore.Attribute.AtomicEffectTable.GetByEnumName("SetCost") != null,
-                   "新语义六原子已入表（剧毒关键词/毒素/沉默/净化/穿透/设置费用）");
+                   "新语义五原子已入表（剧毒关键词/毒素/沉默/净化/设置费用）");
             // 三轨制同期（2026-09-09）：无效指示物（蓝3）入表 + 设置系三原子 handler 已注册复活
             Assert(CardCore.Attribute.AtomicEffectTable.GetByEnumName("AddNullify") != null,
                    "无效指示物原子已入表（蓝3，非主动能力无法发动）");
@@ -4124,19 +4157,12 @@ namespace CardCore.Editor
             Assert(loneWolf.AttacksThisTurn == 2 && p2.Life == p2Life7 - 2,
                    "激励再动：两次宣言都结算（台账计数 2、玩家共受 2 伤）");
 
-            // ---- 7b. 穿透伤害（原"不可防止伤害"改名）：越过关键词与指示物，替代层照走 ----
+            // ---- 7b. 穿透档已删（2026-10-31 定案）：一切伤害照走防护层——圣盾挡下一次并消耗 ----
             var wardedTank = Make(p2, 1, 20, CardCore.Attribute.CounterRules.DivineShieldCounter);
-            wardedTank.AddCounters(CardCore.Attribute.KeywordRules.ArmorCounter, 3);
-            wardedTank.AddCounters(CardCore.Attribute.CounterRules.ToughnessCounter, 1); // 坚韧 1 层
-            CardCore.Attribute.KeywordRules.ApplyDamage(p1, wardedTank, 5, false, pierce: true);
-            Assert(wardedTank.IsAlive && wardedTank.GetLife() == 15
-                   && wardedTank.GetCounterCount(CardCore.Attribute.CounterRules.DivineShieldCounter) == 1
-                   && wardedTank.GetCounterCount(CardCore.Attribute.KeywordRules.ArmorCounter) == 3,
-                   "穿透：圣盾/护甲/坚韧全被越过（20−5=15，防护层不消耗）");
-            CardCore.Attribute.KeywordRules.ApplyDamage(p1, wardedTank, 5, false); // 普通路径对照
-            Assert(wardedTank.GetLife() == 15
+            CardCore.Attribute.KeywordRules.ApplyDamage(p1, wardedTank, 5, false);
+            Assert(wardedTank.IsAlive && wardedTank.GetLife() == 20
                    && wardedTank.GetCounterCount(CardCore.Attribute.CounterRules.DivineShieldCounter) == 0,
-                   "普通伤害对照：圣盾挡下一次并消耗（层数归零）");
+                   "穿透退役回归：伤害照走防护层——圣盾挡下一次并消耗（不再有绕防护的伤害档）");
 
             // ---- 8. 先攻：目标死亡不反击 ----
             var first = Make(p1, 5, 3, "FirstStrike");
@@ -5110,10 +5136,10 @@ namespace CardCore.Editor
                 .Where(r => r != null && CardCore.ComposerCatalog.HasMountBit(r, CardCore.MountKind.NoRandom)).ToList();
             Assert(noRandomRows.Count >= 1,
                    $"不可随机黑名单非空（实际 {noRandomRows.Count} 行——名单内容随表漂移不锚）");
-            string[] randomable = { "DealDamage", "PierceDamage", "DrainLife", "Heal", "LifeLoss", "RushSickness", "Sleep" };
+            string[] randomable = { "DealDamage", "DrainLife", "Heal", "LifeLoss", "RushSickness", "Sleep" };
             Assert(randomable.All(n => !CardCore.ComposerCatalog.HasMountBit(
                        CardCore.Attribute.AtomicEffectTable.GetByEnumName(n), CardCore.MountKind.NoRandom)),
-                   "七个可随机行未标黑名单（翻转后默认可随机——滑条按 {value} 出现）");
+                   "六个可随机行未标黑名单（穿透档已删 2026-10-31；翻转后默认可随机——滑条按 {value} 出现）");
             Assert(!(CardCore.Attribute.AtomicEffectTable.GetByEnumName("Freeze")?.Description ?? "").Contains("{value}"),
                    "冻结行无 {value} 模板——天然无滑条（旧错位「随机幅度」声明已删）");
 
@@ -5443,20 +5469,17 @@ namespace CardCore.Editor
         {
             // ---- 表值 ----
             // 2026-10-09 清理：Heal TotalUnitCost=0.4 钉价断言删除——表价已迁绿0.5（表为单一来源，测试不钉价）
+            // 2026-10-31 阶梯减价删除：DelayDiscountConfig 整链退役（d(C) 分段曲线断言随之删除——
+            // 无前中后期卡组概念，S+E+K 全额计价不按额度打折）
             Assert(ElementAffinities.GetAffinityForEffect(AtomicEffectType.GrantTaunt).PrimaryColor == ManaType.Green,
                    "计价锚：GrantTaunt 表 Green（2026-10-28 P2a 席位收缩改色——白/黑退役，原白色防御系迁绿）");
-            var dd = ValueSystemConfigManager.Instance.GetOrCreateConfig().DelayDiscountConfig;
-            Assert(System.Math.Abs(dd.At(1) - 1f) < 1e-4 && System.Math.Abs(dd.At(3) - 1f) < 1e-4
-                   && System.Math.Abs(dd.At(5) - 0.93333f) < 1e-3
-                   && System.Math.Abs(dd.At(9) - 0.8f) < 1e-4 && System.Math.Abs(dd.At(12) - 0.75f) < 1e-4,
-                   "计价锚：d(C) 分段折 d(1)=d(3)=1（C1-3 不折）/ d(5)=0.9333（4-9 线性1→0.8）/ d(9)=0.8 / ≥10 恒0.75（2026-10-10 分段定案）");
 
             // ---- 身材：1费 = 2点属性（灰）；2026-10-15 卡型默认分配：免费点（属性1+攻/守opt-out）
             //      只减灰桶 S（不溢出彩色）——白板生物减 1，总额与旧口径一致 ----
-            Assert(DeriveTotal(MakeCostCard(Cardtype.Creature, 1, 1)) == 0, "计价锚：1/1 白板 D=0（S1×0.75→1 − 免费点1减灰桶）");
+            Assert(DeriveTotal(MakeCostCard(Cardtype.Creature, 1, 1)) == 0, "计价锚：1/1 白板 D=0（S1 − 免费点1减灰桶）");
             Assert(DeriveTotal(MakeCostCard(Cardtype.Creature, 0, 2)) == 0, "计价锚：0/2 白板 D=0（同上）");
-            Assert(DeriveTotal(MakeCostCard(Cardtype.Creature, 2, 2)) == 1, "计价锚：2/2 白板 D=1（S2×0.75→2 − 减1）");
-            Assert(DeriveTotal(MakeCostCard(Cardtype.Creature, 3, 2)) == 1, "计价锚：3/2 白板 D=1（S2.5→3 ×0.75→2 − 减1）");
+            Assert(DeriveTotal(MakeCostCard(Cardtype.Creature, 2, 2)) == 1, "计价锚：2/2 白板 D=1（S2 − 减1）");
+            Assert(DeriveTotal(MakeCostCard(Cardtype.Creature, 3, 2)) == 2, "计价锚：3/2 白板 D=2（S2.5→取整3 − 减1；2026-10-31 阶梯减价删除后无延迟折，旧 d(3)=0.75 口径的 D=1 断言已废）");
 
             // ---- 底盘纯函数（2026-10-15 卡型默认分配定案）：SurplusOf=免费点（生物=3−攻守→属性1+opt-out；
             //      非生物=3−效果槽）；StructuralSurcharge=超槽加价（生物=每槽；非生物=结构项>3 差额）----
@@ -5519,62 +5542,61 @@ namespace CardCore.Editor
                    && CardCompositionCost.KindSpeedBonusOf(choiceSlotData) == 2,
                    "计价锚：法术 1 槽（遗留 Choice 不计槽）→ 速度 2（3−槽数回归）");
 
-            // ---- 法术同折（2026-10-02 定案）+ 槽位从速度扣（2026-10-15 改版：无抵价通道）----
+            // ---- 法术全额计价（2026-10-31 阶梯减价删除：S+E+K 不再打折）+ 槽位从速度扣（2026-10-15 改版）----
             // 恒推导（2026-10-22 定案；2026-10-30 时机系数改期望次数——OnDeath ×1）：
-            // Ĉ=E=红4.0+蓝2.0（现表锚价——Draw/伤害均吃同档时机）=6→档6 → f=d(6)=0.9，
-            // 红3.6+蓝1.8=5.4→5 取整 → 红3蓝2；免费点全投提速不抵价。
+            // Ĉ=E=红4.0+蓝2.0（现表锚价——Draw/伤害均吃同档时机）=6→档6，
+            // 全额 红4+蓝2=6 分色 → 红4蓝2；免费点全投提速不抵价。
             var fbEffect = MakeEffect("DealDamage", 4);
             fbEffect.AtomicEffects.Add(AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1));
             var fb = CardCostService.Derive(MakeCostCard(Cardtype.Spell, null, null, fbEffect));
-            Assert((int)fb.DerivedCost[ManaType.Red] == 3 && (int)fb.DerivedCost[ManaType.Blue] == 2,
-                   $"计价锚：法术 4伤+1抽 = 红3+蓝2（2026-10-30 真实小数：E=红4.0+蓝2.0→Ĉ=6→档6，×0.9→5.4→5 分色）");
-            Assert(fb.DerivedTier == 6 && System.Math.Abs(fb.Factor - 0.9f) < 1e-4f,
-                   "计价锚：法术档位随总额自决 Ĉ=6（f=d(6)=0.9——恒推导定案，旧「未声明档=d(MaxTier)」口径已废）");
+            Assert((int)fb.DerivedCost[ManaType.Red] == 4 && (int)fb.DerivedCost[ManaType.Blue] == 2,
+                   $"计价锚：法术 4伤+1抽 = 红4+蓝2（2026-10-31 无延迟折：E=红4.0+蓝2.0→Ĉ=6 全额 6 分色）");
+            Assert(fb.DerivedTier == 6,
+                   "计价锚：法术档位随总额自决 Ĉ=6（恒推导定案，旧「未声明档」口径已废；档位现仅作 UI 费数字）");
             var fbSpeedCard = MakeCostCard(Cardtype.Spell, null, null, fbEffect);
             fbSpeedCard.SpeedBonus = 2; // 字段退役——脏数据不得影响
             var fbSpeed = CardCostService.Derive(fbSpeedCard);
-            Assert((int)fbSpeed.DerivedCost[ManaType.Red] == 3 && (int)fbSpeed.DerivedCost[ManaType.Blue] == 2,
-                   $"计价锚：法术无抵价恒红3+蓝2（SpeedBonus 字段退役写值无效）");
+            Assert((int)fbSpeed.DerivedCost[ManaType.Red] == 4 && (int)fbSpeed.DerivedCost[ManaType.Blue] == 2,
+                   $"计价锚：法术无抵价恒红4+蓝2（SpeedBonus 字段退役写值无效）");
             Assert(DeriveTotal(MakeCostCard(Cardtype.Spell, null, null, MakeEffect("Heal", 2))) == 1,
-                   "计价锚：回2命 = 1费（锚价→档1 f=d(1)=1 取整 1；法术无抵价通道——2026-10-15 改版翻转旧「−抵价2→0」）");
+                   "计价锚：回2命 = 1费（锚价→档1 取整 1；法术无抵价通道——2026-10-15 改版翻转旧「−抵价2→0」）");
 
-            // ---- 整卡最后折：档位随总额自决 Ĉ=round(S+E)=round(9+2)=11 → f=d(11)=0.75（恒推导定案）----
+            // ---- 全额计价：档位随总额自决 Ĉ=round(S+E)=round(9+3)=12（延迟折已删——高费卡不再打折）----
             var bigBody = MakeCostCard(Cardtype.Creature, 9, 9, MakeEffect("DealDamage", 3));
             bigBody.Cost[(int)ManaType.Gray] = 9; // 存档快照（显示缓存）——不参与推导
             var big = CardCostService.Derive(bigBody);
-            Assert(System.Math.Abs(big.Factor - 0.75f) < 1e-4 && big.DerivedTotal == 9 && big.OffsetRequirement == 0,
-                   $"计价锚：9/9 挂3伤 → 2026-10-30 E=红3.0→Ĉ=round(12)=12→f=d(12)=0.75，折后 9→D=9（灰7红2）");
+            Assert(big.DerivedTotal == 12 && big.OffsetRequirement == 0,
+                   $"计价锚：9/9 挂3伤 → 2026-10-31 无延迟折：Ĉ=round(12)=12 全额 → D=12（灰9红3）");
             var midTier = MakeCostCard(Cardtype.Creature, 9, 9, MakeEffect("DealDamage", 3));
             midTier.Cost[(int)ManaType.Gray] = 5; // 同内容、不同存档快照
             var mid = CardCostService.Derive(midTier);
-            Assert(mid.DerivedTotal == big.DerivedTotal && System.Math.Abs(mid.Factor - big.Factor) < 1e-6f,
+            Assert(mid.DerivedTotal == big.DerivedTotal,
                    "计价锚：存档费用快照不参与推导——同内容不同 costList 推导全同（恒推导定案回归锚）");
 
-            // ---- 两效果=超 1 槽（结构项4>3 加灰）；f=d(Ĉ) ----
-            // Ĉ=S2+E(红3.0+蓝2.0 现表)=7→档7 → f=d(7)=0.8667，整卡×0.8667=6.07→6，超1槽+1灰 → D=7
+            // ---- 两效果=超 1 槽（结构项4>3 加灰）；全额后结构加价计入规则一锚 ----
+            // Ĉ=S2+E(红3.0+蓝2.0 现表)=7，全额 7 + 超1槽1灰 → D=8；Req=max(0, 8−(7+1))=0
             var chooser = MakeCostCard(Cardtype.Creature, 2, 2, MakeEffect("DealDamage", 3), MakeEffect("DrawCard", 1));
             chooser.Cost[(int)ManaType.Gray] = 4; // 存档快照不参与
             var ch = CardCostService.Derive(chooser);
-            Assert(System.Math.Abs(ch.Factor - 0.86667f) < 1e-4 && ch.DerivedTotal == 7 && ch.OffsetRequirement == 0,
-                   $"计价锚：两效果 Ĉ=7→档7 f=d(7)=0.8667 整卡(S2+E5)×0.8667=6.07→6，超1槽+1灰 → D=7（E=红3.0+蓝2.0 现表锚价）");
+            Assert(ch.DerivedTotal == 8 && ch.OffsetRequirement == 0,
+                   $"计价锚：两效果 Ĉ=7 全额(S2+E5)=7，超1槽+1灰 → D=8（灰3红3蓝2；结构费计入规则一锚 → Req=0）");
 
-            // ---- 超槽加价入灰（1-1 挂三效果：Ĉ=S1+E(3×蓝2.0 现表)=7→档7 → f=d(7)=0.8667，
-            //      蓝5.2+灰0.87=6.07→6，超2槽+2灰 → D=8 灰3蓝5）----
+            // ---- 超槽加价入灰（1-1 挂三效果：Ĉ=S1+E(3×蓝2.0 现表)=7，
+            //      全额 7 + 超2槽+2灰 → D=9 灰3蓝6；结构费入锚 → Req=0）----
             var tripleMount = MakeCostCard(Cardtype.Creature, 1, 1,
                 MakeEffect("DrawCard", 1), MakeEffect("DrawCard", 1), MakeEffect("DrawCard", 1));
             tripleMount.Cost[(int)ManaType.Gray] = 9; // 存档快照不参与
             var tm = CardCostService.Derive(tripleMount);
-            Assert(tm.DerivedTotal == 8,
-                   $"计价锚：1/1 挂三效果 2026-10-30 真实小数 E=3×蓝2.0=6→Ĉ=round(7)=7→f=d(7)=0.8667，折后 6.07→6，超2槽+2灰 → D=8（灰3蓝5，Req=1）");
+            Assert(tm.DerivedTotal == 9,
+                   $"计价锚：1/1 挂三效果 全额 E=3×蓝2.0=6→Ĉ=round(7)=7，+超2槽2灰 → D=9（灰3蓝6，Req=0——结构费计入锚）");
 
-            // ---- 规则一简化（2026-09-11 沿用）：D≤Ĉ 直判，代价不再提供抵扣当量 ----
-            // 恒推导（2026-10-22）：与上方同内容 → 推导全同（D=6=Ĉ 恰符）；旧「低声明→缺口」口径退役，
-            // 真超模只能来自不吃折的加价（↓ 代价栏占槽）。
+            // ---- 规则一（2026-10-31 阶梯减价删除后）：D≤Ĉ+结构费 直判 ----
+            // 与上方同内容 → 推导全同（D=8=Ĉ7+结构1 恰符）；旧「低声明→缺口」口径退役。
             var overBaseline = MakeCostCard(Cardtype.Creature, 2, 2, MakeEffect("DealDamage", 3), MakeEffect("DrawCard", 1));
             overBaseline.Cost[(int)ManaType.Gray] = 3; // 低存档快照：不改变推导
             var ov = CardCostService.Derive(overBaseline);
             Assert(ov.DerivedTotal == ch.DerivedTotal && ov.Conformant,
-                   "计价锚：低存档快照不改变推导（同内容 D=6=Ĉ 恰符规则一——无「声明缺口」概念）");
+                   "计价锚：低存档快照不改变推导（同内容 D=8=Ĉ7+结构1 恰符规则一——无「声明缺口」概念）");
             overBaseline.Effects[0].Costs = new List<CostEntry>
             {
                 new CostEntry
@@ -5584,18 +5606,18 @@ namespace CardCore.Editor
                 },
             };
             var ov2 = CardCostService.Derive(overBaseline);
-            Assert(ov2.DerivedTotal == ov.DerivedTotal + 1 && !ov2.Conformant,
-                   "计价锚（2026-10-04 本轮定案）：挂弃4张 Payload 代价 → 代价栏占 1 效果槽（底盘再加价 1 灰 → D+1=8>Ĉ7，Req=1 真超模）；锚价仍不并入卡费（当量抵扣下线维持——全价只作地牌门槛与补偿基准）");
+            Assert(ov2.Conformant,
+                   "计价锚（2026-10-31 更新）：挂弃4张 Payload 代价 → 代价栏占 1 效果槽（结构加价 +1 计入锚）+ 代价色锁抵扣——净费与 D≤Ĉ+结构费 恒符（旧「Req=1 真超模」断言随延迟折/旧 payload 计价退役）");
 
             // 2026-10-09 清理：关键词计价两锚（嘲讽绿桶时代口径）删除——表色现锚 Green（P2a 白→绿，上方现行断言），
             // 关键词计价现行=行锚×max(1,层数)（2026-10-08 关键词不叠加定案）
 
-            // ---- 推导档（恒推导定案）：5/5 挂 3伤（1 效果底盘恰耗尽）→ Ĉ=round(5+3)=8 → f=d(8)=0.8333，
-            //      整卡×f=6.67→D=7——支付价=推导分布，无差额补灰（旧 Ĉ 搜索+补灰口径已废）----
+            // ---- 推导档（恒推导定案）：5/5 挂 3伤（1 效果底盘恰耗尽）→ Ĉ=round(5+3)=8，
+            //      全额 D=8——支付价=推导分布，无差额补灰（旧 Ĉ 搜索+补灰口径已废）----
             var noCost = MakeCostCard(Cardtype.Creature, 5, 5, MakeEffect("DealDamage", 3));
             var nc = CardCostService.Derive(noCost);
-            Assert(nc.DerivedTier == 8 && nc.DerivedTotal == 7,
-                   $"计价锚：无存档费推导档 Ĉ=8、D=7（f=d(8)=0.8333；实际 Ĉ={nc.DerivedTier} D={nc.DerivedTotal}）");
+            Assert(nc.DerivedTier == 8 && nc.DerivedTotal == 8,
+                   $"计价锚：无存档费推导档 Ĉ=8、全额 D=8（实际 Ĉ={nc.DerivedTier} D={nc.DerivedTotal}）");
 
             // ---- 跨边当量锚点已删（2026-09-10：改由 Polarity 错边折价承担，见 TestTargetDomainModel f 段）----
 
@@ -6293,7 +6315,8 @@ namespace CardCore.Editor
 
         /// <summary>
         /// 三类卡型定案回归（2026-10-02，与 TideServer verify V9 段同口径）：
-        /// ①法术同折——f=d(Ĉ)（推导总额所在档，2026-10-22 恒推导）对法术不再豁免（旧「打出即生效 f≡1」已废）；
+        /// ①法术全额计价——延迟折 f=d(Ĉ) 已随 2026-10-31 阶梯减价删除整链退役（旧「法术同折/法术豁免」
+        ///   两代口径均废；S+E+K 全额，三类卡型同价式）；
         /// ②域数据——伤害族开放无生命域 3,4（法术伤害可消耐久）；冻结域收紧 1,2（对结界无效）；
         /// ③结界耐久战斗侧——入场初始化耐久、受击（战斗/法术同管线）恒 -1 不落血、
         ///   归零直送墓（Smashed 直毁不经死亡决策表）、SBA 生命管线不扫无生命单位；
@@ -6302,29 +6325,28 @@ namespace CardCore.Editor
         /// </summary>
         private static void TestThreeCardTypes(GameCore core, Player p1, Player p2)
         {
-            // ---- ① 法术同折（纯函数；2026-10-22 恒推导定案：档位=推导总额所在档 Ĉ，不经存档 costList）----
+            // ---- ① 法术/生物全额计价（纯函数；2026-10-22 恒推导定案：档位=推导总额所在档 Ĉ，不经存档 costList）----
             CardCore.CardCostResult Probe(Cardtype type, int dmg)
             {
-                var d = new CardData { ID = $"TT_probe_{type}_{dmg}", CardName = "三类定案折扣探针", Supertype = type };
+                var d = new CardData { ID = $"TT_probe_{type}_{dmg}", CardName = "三类定案计价探针", Supertype = type };
                 if (type == Cardtype.Creature) { d.Power = 2; d.Life = 2; }
                 d.Effects.Add(new CardEffectData
                 {
                     Id = "TT_probe_onplay",
                     TriggerTiming = (int)TriggerTiming.OnPlay,
                     // 档位由内容自决：E=红 dmg×1（登场时机系数=期望次数1）→ Ĉ=round(E[+S]) 所在档
-                    //（放大锚距保住「高档折更深」的严格性）
                     AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.DealDamage, value: dmg) },
                 });
                 return CardCore.CardCostService.Derive(d);
             }
-            var spellCheap = Probe(Cardtype.Spell, 1);   // Ĉ=E1→档1 → f=d(1)=1
-            var spell9 = Probe(Cardtype.Spell, 9);       // Ĉ=E9→档9 → f=d(9)=0.8
-            var creature9 = Probe(Cardtype.Creature, 9); // Ĉ=S2+E9=11→档11 → f=d(11)=0.75
-            Assert(Mathf.Approximately(spellCheap.Factor, 1f), $"三类定案：法术低档 f=d(Ĉ1)={spellCheap.Factor:0.###}=1");
-            Assert(spell9.Factor < 0.99f && spell9.Factor > 0.7f,
-                   $"三类定案：法术高档同折 f=d(Ĉ9)={spell9.Factor:0.###}（旧 f≡1 豁免已废；恒推导下档位随内容自决）");
-            Assert(Mathf.Abs(creature9.Factor - 0.75f) < 1e-4f && creature9.Factor < spell9.Factor,
-                   $"三类定案：生物同折且随总额升档 f=d(Ĉ11)={creature9.Factor:0.###}<d(Ĉ9)（生物 S 计入 Ĉ）");
+            var spellCheap = Probe(Cardtype.Spell, 1);   // Ĉ=E1→档1
+            var spell9 = Probe(Cardtype.Spell, 9);       // Ĉ=E9→档9
+            var creature9 = Probe(Cardtype.Creature, 9); // Ĉ=S2+E9=11→档11
+            Assert(spellCheap.DerivedTotal == 1, $"三类定案：法术低档全额 D(1伤)={spellCheap.DerivedTotal}=1");
+            Assert(spell9.DerivedTotal == 9,
+                   $"三类定案：法术高档全额 D(9伤)={spell9.DerivedTotal}=9（2026-10-31 阶梯减价删除——不再 ×d(Ĉ) 打折）");
+            Assert(creature9.DerivedTotal == 11 && creature9.DerivedTier == 11,
+                   $"三类定案：生物全额 D(2/2+9伤)={creature9.DerivedTotal}=11（S2 计入 Ĉ；实际 D={creature9.DerivedTotal} Ĉ={creature9.DerivedTier}）");
             Assert(spell9.DerivedTotal > spellCheap.DerivedTotal,
                    $"三类定案：内容决定价 D(9伤)={spell9.DerivedTotal} > D(1伤)={spellCheap.DerivedTotal}");
 
@@ -6339,7 +6361,6 @@ namespace CardCore.Editor
                        $"{what}：TargetKinds=[{string.Join(",", kinds)}]");
             }
             AssertKinds(AtomicEffectType.DealDamage, new[] { 1, 2, 3, 4 }, "伤害族开放无生命域·造成伤害");
-            AssertKinds(AtomicEffectType.PierceDamage, new[] { 1, 2, 3, 4 }, "伤害族开放无生命域·穿透");
             AssertKinds(AtomicEffectType.DrainLife, new[] { 1, 2, 3, 4 }, "伤害族开放无生命域·吸取");
             AssertKinds(AtomicEffectType.Freeze, new[] { 1, 2 },
                 "冻结域（表授予域=双方单位 1,2——对结界/角色无效；「存储态=自己」口径已随表改面退役）");
@@ -6918,7 +6939,7 @@ namespace CardCore.Editor
                 string costStr = card.Cost != null && !card.Cost.IsZero
                     ? card.Cost.ToString()
                     : "(空 Cost——D=0 或效果全被内容契约剔除)";
-                Debug.Log($"[Regen] {card.CardName} S={r.S} K={r.K} E={r.EAnchor} f={r.Factor:0.###} D={r.DerivedTotal} → 档位Ĉ={r.DerivedTier}：{costStr}");
+                Debug.Log($"[Regen] {card.CardName} S={r.S} K={r.K} E={r.EAnchor} D={r.DerivedTotal} → 档位Ĉ={r.DerivedTier}：{costStr}");
             }
 
             // 清文件后逐张 Save：CardConfigSerializer 单源回写（C_+HashCard id / costList / effectIds+效果库 upsert）

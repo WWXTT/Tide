@@ -2,9 +2,9 @@ using CardCore.Attribute;
 
 namespace CardCore.Attribute.Handlers
 {
-    // 2026-10-31 指示物定案（用户）：指示物效果每次发动恒加一层——数量参数（Value）退役，
-    // 叠加为默认行为、不再在效果文本中描述（原子表_指示物文案已全量去 {value}层/【可叠加】）。
-    // 例外：弹药原子 AddHeroAttack（表行仍带 {value}）层数照读 Value。
+    // 2026-10-31 晚改定（用户）：指示物一次发动按原子 value 给层（≤0 或未填兜底 1）——
+    // 原子表_指示物文案已回 {value}层 口径；系统指示物（CounterClass.System）恒 1 层不叠加
+    //（CounterRules.ResolveLayers 单源）。例外：弹药原子 AddHeroAttack 层数照读 Value。
     /// <summary>
     /// 护甲原子（生效自减类）：为目标添加 {value} 层护甲指示物（KeywordRules.ArmorCounter，Entity 级——
     /// 角色可持有）。伤害结算时先逐点吸收护甲（每层 1 点，吸收即消耗），再走坚韧指示物减免、最后扣生命。
@@ -16,18 +16,18 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            // 2026-10-31 指示物定案：每次发动恒加一层（数量参数退役——叠加靠重复发动/多行）
-            int amount = 1;
+            // 2026-10-31 晚定案：一次发动按 value 给层（≤0/未填=1；CounterRules.ResolveLayers）
+            int amount = CounterRules.ResolveLayers(KeywordRules.ArmorCounter, context.GetValueAfterModifiers(effect.Value));
 
             foreach (var target in context.Targets)
             {
                 if (target == null || !target.IsAlive) continue;
-                target.AddCounters(KeywordRules.ArmorCounter, amount, context.Source);
+                int actualDelta = target.AddCounters(KeywordRules.ArmorCounter, amount, context.Source);
                 PublishEvent(new CounterChangedEvent
                 {
                     Target = target,
                     CounterType = KeywordRules.ArmorCounter,
-                    Amount = amount,
+                    Amount = actualDelta,
                     Source = context.Source,
                 });
             }
@@ -51,18 +51,18 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            // 2026-10-31 指示物定案：每次发动恒加一层（数量参数退役——叠加靠重复发动/多行）
-            int stacks = 1;
+            // 2026-10-31 晚定案：一次发动按 value 给层（≤0/未填=1；CounterRules.ResolveLayers）
+            int stacks = CounterRules.ResolveLayers(CounterRules.ToughnessCounter, context.GetValueAfterModifiers(effect.Value));
 
             foreach (var target in context.Targets)
             {
                 if (target == null || !target.IsAlive) continue;
-                target.AddCounters(CounterRules.ToughnessCounter, stacks, context.Source);
+                int actualDelta = target.AddCounters(CounterRules.ToughnessCounter, stacks, context.Source);
                 PublishEvent(new CounterChangedEvent
                 {
                     Target = target,
                     CounterType = CounterRules.ToughnessCounter,
-                    Amount = stacks,
+                    Amount = actualDelta,
                     Source = context.Source,
                 });
             }
@@ -86,18 +86,18 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            // 2026-10-31 指示物定案：每次发动恒加一层（数量参数退役——叠加靠重复发动/多行）
-            int stacks = 1;
+            // 2026-10-31 晚定案：一次发动按 value 给层（≤0/未填=1；CounterRules.ResolveLayers）
+            int stacks = CounterRules.ResolveLayers(CounterRules.DivineShieldCounter, context.GetValueAfterModifiers(effect.Value));
 
             foreach (var target in context.Targets)
             {
                 if (target == null || !target.IsAlive) continue;
-                target.AddCounters(CounterRules.DivineShieldCounter, stacks, context.Source);
+                int actualDelta = target.AddCounters(CounterRules.DivineShieldCounter, stacks, context.Source);
                 PublishEvent(new CounterChangedEvent
                 {
                     Target = target,
                     CounterType = CounterRules.DivineShieldCounter,
-                    Amount = stacks,
+                    Amount = actualDelta,
                     Source = context.Source,
                 });
             }
@@ -120,18 +120,18 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            // 2026-10-31 指示物定案：每次发动恒加一层（数量参数退役——叠加靠重复发动/多行）
-            int stacks = 1;
+            // 2026-10-31 晚定案：一次发动按 value 给层（≤0/未填=1；CounterRules.ResolveLayers）
+            int stacks = CounterRules.ResolveLayers(CounterRules.RebornCounter, context.GetValueAfterModifiers(effect.Value));
 
             foreach (var target in context.Targets)
             {
                 if (target == null || !target.IsAlive) continue;
-                target.AddCounters(CounterRules.RebornCounter, stacks, context.Source);
+                int actualDelta = target.AddCounters(CounterRules.RebornCounter, stacks, context.Source);
                 PublishEvent(new CounterChangedEvent
                 {
                     Target = target,
                     CounterType = CounterRules.RebornCounter,
-                    Amount = stacks,
+                    Amount = actualDelta,
                     Source = context.Source,
                 });
             }
@@ -154,18 +154,18 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            // 2026-10-31 指示物定案：每次发动恒加一层（数量参数退役——叠加靠重复发动/多行）
-            int stacks = 1;
+            // 2026-10-31 晚定案：一次发动按 value 给层（≤0/未填=1；CounterRules.ResolveLayers）
+            int stacks = CounterRules.ResolveLayers(CounterRules.StealthCounter, context.GetValueAfterModifiers(effect.Value));
 
             foreach (var target in context.Targets)
             {
                 if (target == null || !target.IsAlive) continue;
-                target.AddCounters(CounterRules.StealthCounter, stacks, context.Source);
+                int actualDelta = target.AddCounters(CounterRules.StealthCounter, stacks, context.Source);
                 PublishEvent(new CounterChangedEvent
                 {
                     Target = target,
                     CounterType = CounterRules.StealthCounter,
-                    Amount = stacks,
+                    Amount = actualDelta,
                     Source = context.Source,
                 });
             }
@@ -188,18 +188,18 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            // 2026-10-31 指示物定案：每次发动恒加一层（数量参数退役——叠加靠重复发动/多行）
-            int stacks = 1;
+            // 2026-10-31 晚定案：一次发动按 value 给层（≤0/未填=1；CounterRules.ResolveLayers）
+            int stacks = CounterRules.ResolveLayers(CounterRules.SpellShieldCounter, context.GetValueAfterModifiers(effect.Value));
 
             foreach (var target in context.Targets)
             {
                 if (target == null || !target.IsAlive) continue;
-                target.AddCounters(CounterRules.SpellShieldCounter, stacks, context.Source);
+                int actualDelta = target.AddCounters(CounterRules.SpellShieldCounter, stacks, context.Source);
                 PublishEvent(new CounterChangedEvent
                 {
                     Target = target,
                     CounterType = CounterRules.SpellShieldCounter,
-                    Amount = stacks,
+                    Amount = actualDelta,
                     Source = context.Source,
                 });
             }
@@ -220,18 +220,18 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            // 2026-10-31 指示物定案：每次发动恒加一层（数量参数退役——叠加靠重复发动/多行）
-            int stacks = 1;
+            // 2026-10-31 晚定案：一次发动按 value 给层（≤0/未填=1；CounterRules.ResolveLayers）
+            int stacks = CounterRules.ResolveLayers(CounterRules.ToxinCounter, context.GetValueAfterModifiers(effect.Value));
 
             foreach (var target in context.Targets)
             {
                 if (target == null || !target.IsAlive) continue;
-                target.AddCounters(CounterRules.ToxinCounter, stacks, context.Source);
+                int actualDelta = target.AddCounters(CounterRules.ToxinCounter, stacks, context.Source);
                 PublishEvent(new CounterChangedEvent
                 {
                     Target = target,
                     CounterType = CounterRules.ToxinCounter,
-                    Amount = stacks,
+                    Amount = actualDelta,
                     Source = context.Source,
                 });
             }
@@ -252,18 +252,18 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            // 2026-10-31 指示物定案：每次发动恒加一层（数量参数退役——叠加靠重复发动/多行）
-            int stacks = 1;
+            // 2026-10-31 晚定案：一次发动按 value 给层（≤0/未填=1；CounterRules.ResolveLayers）
+            int stacks = CounterRules.ResolveLayers(CounterRules.RetaliationCounter, context.GetValueAfterModifiers(effect.Value));
 
             foreach (var target in context.Targets)
             {
                 if (target == null || !target.IsAlive) continue;
-                target.AddCounters(CounterRules.RetaliationCounter, stacks, context.Source);
+                int actualDelta = target.AddCounters(CounterRules.RetaliationCounter, stacks, context.Source);
                 PublishEvent(new CounterChangedEvent
                 {
                     Target = target,
                     CounterType = CounterRules.RetaliationCounter,
-                    Amount = stacks,
+                    Amount = actualDelta,
                     Source = context.Source,
                 });
             }
@@ -285,18 +285,18 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            // 2026-10-31 指示物定案：每次发动恒加一层（=1 回合锁定，叠加=延长）
-            int turns = 1;
+            // 2026-10-31 晚定案：一次发动按 value 给层（层=锁定回合数，≤0/未填=1）
+            int turns = CounterRules.ResolveLayers(CounterRules.LockCounter, context.GetValueAfterModifiers(effect.Value));
 
             foreach (var target in context.Targets)
             {
                 if (target == null || !target.IsAlive) continue;
-                target.AddCounters(CounterRules.LockCounter, turns, context.Source);
+                int actualDelta = target.AddCounters(CounterRules.LockCounter, turns, context.Source);
                 PublishEvent(new CounterChangedEvent
                 {
                     Target = target,
                     CounterType = CounterRules.LockCounter,
-                    Amount = turns,
+                    Amount = actualDelta,
                     Source = context.Source,
                 });
             }
@@ -316,17 +316,17 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
+            // 2026-10-31 晚定案：一次发动按 value 给层（层=持续回合数，≤0/未填=1）
+            int layers = CounterRules.ResolveLayers(KeywordRules.RushSicknessCounter, context.GetValueAfterModifiers(effect.Value));
             foreach (var target in context.Targets)
             {
                 if (target == null || !target.IsAlive) continue;
-                // 2026-10-31 指示物定案：每次发动恒加一层（层=持续回合数，叠加=延长）
-                int layers = 1;
-                target.AddCounters(KeywordRules.RushSicknessCounter, layers, context.Source);
+                int actualDelta = target.AddCounters(KeywordRules.RushSicknessCounter, layers, context.Source);
                 PublishEvent(new CounterChangedEvent
                 {
                     Target = target,
                     CounterType = KeywordRules.RushSicknessCounter,
-                    Amount = layers,
+                    Amount = actualDelta,
                     Source = context.Source,
                 });
             }
@@ -346,18 +346,18 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            // 2026-10-31 指示物定案：每次发动恒加一层（数量参数退役——叠加靠重复发动/多行）
-            int stacks = 1;
+            // 2026-10-31 晚定案：一次发动按 value 给层（≤0/未填=1；CounterRules.ResolveLayers）
+            int stacks = CounterRules.ResolveLayers(CounterRules.VulnerableCounter, context.GetValueAfterModifiers(effect.Value));
 
             foreach (var target in context.Targets)
             {
                 if (target == null || !target.IsAlive) continue;
-                target.AddCounters(CounterRules.VulnerableCounter, stacks, context.Source);
+                int actualDelta = target.AddCounters(CounterRules.VulnerableCounter, stacks, context.Source);
                 PublishEvent(new CounterChangedEvent
                 {
                     Target = target,
                     CounterType = CounterRules.VulnerableCounter,
-                    Amount = stacks,
+                    Amount = actualDelta,
                     Source = context.Source,
                 });
             }
@@ -377,8 +377,8 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            // 2026-10-31 指示物定案：每次发动恒加一层（数量参数退役——叠加靠重复发动/多行）
-            int stacks = 1;
+            // 2026-10-31 晚定案：一次发动按 value 给层（≤0/未填=1；系统指示物恒 1——ResolveLayers 单源）
+            int stacks = CounterRules.ResolveLayers(CounterId, context.GetValueAfterModifiers(effect.Value));
 
             foreach (var target in context.Targets)
             {
@@ -417,12 +417,12 @@ namespace CardCore.Attribute.Handlers
             foreach (var target in context.Targets)
             {
                 if (!(target is Player role) || !role.IsAlive) continue;
-                role.AddCounters(CounterRules.HeroAttackCounter, stacks, context.Source);
+                int actualDelta = role.AddCounters(CounterRules.HeroAttackCounter, stacks, context.Source);
                 PublishEvent(new CounterChangedEvent
                 {
                     Target = role,
                     CounterType = CounterRules.HeroAttackCounter,
-                    Amount = stacks,
+                    Amount = actualDelta,
                     Source = context.Source,
                 });
             }
@@ -445,18 +445,18 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            // 2026-10-31 指示物定案：每次发动恒加一层（数量参数退役——叠加靠重复发动/多行）
-            int stacks = 1;
+            // 2026-10-31 晚定案：一次发动按 value 给层（≤0/未填=1；CounterRules.ResolveLayers）
+            int stacks = CounterRules.ResolveLayers(CounterRules.DepravityCounter, context.GetValueAfterModifiers(effect.Value));
 
             foreach (var target in context.Targets)
             {
                 if (target == null || !target.IsAlive) continue;
-                target.AddCounters(CounterRules.DepravityCounter, stacks, context.Source);
+                int actualDelta = target.AddCounters(CounterRules.DepravityCounter, stacks, context.Source);
                 PublishEvent(new CounterChangedEvent
                 {
                     Target = target,
                     CounterType = CounterRules.DepravityCounter,
-                    Amount = stacks,
+                    Amount = actualDelta,
                     Source = context.Source,
                 });
             }
@@ -479,18 +479,18 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            // 2026-10-31 指示物定案：每次发动恒加一层（数量参数退役——叠加靠重复发动/多行）
-            int stacks = 1;
+            // 2026-10-31 晚定案：一次发动按 value 给层（≤0/未填=1；CounterRules.ResolveLayers）
+            int stacks = CounterRules.ResolveLayers(CounterRules.ReplayCounter, context.GetValueAfterModifiers(effect.Value));
 
             foreach (var target in context.Targets)
             {
                 if (!(target is Card unit) || !unit.IsAlive) continue;
-                unit.AddCounters(CounterRules.ReplayCounter, stacks, context.Source);
+                int actualDelta = unit.AddCounters(CounterRules.ReplayCounter, stacks, context.Source);
                 PublishEvent(new CounterChangedEvent
                 {
                     Target = unit,
                     CounterType = CounterRules.ReplayCounter,
-                    Amount = stacks,
+                    Amount = actualDelta,
                     Source = context.Source,
                 });
             }
@@ -515,18 +515,18 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            // 2026-10-31 指示物定案：每次发动恒加一层（数量参数退役——叠加靠重复发动/多行）
-            int stacks = 1;
+            // 2026-10-31 晚定案：一次发动按 value 给层（≤0/未填=1；CounterRules.ResolveLayers）
+            int stacks = CounterRules.ResolveLayers(CounterRules.TempCounter, context.GetValueAfterModifiers(effect.Value));
 
             foreach (var target in context.Targets)
             {
                 if (!(target is Card card)) continue; // 墓地/手牌卡可中；角色非卡跳过（IsAlive 不查——墓地卡合法落点）
-                card.AddCounters(CounterRules.TempCounter, stacks, context.Source);
+                int actualDelta = card.AddCounters(CounterRules.TempCounter, stacks, context.Source);
                 PublishEvent(new CounterChangedEvent
                 {
                     Target = card,
                     CounterType = CounterRules.TempCounter,
-                    Amount = stacks,
+                    Amount = actualDelta,
                     Source = context.Source,
                 });
             }
@@ -618,28 +618,73 @@ namespace CardCore.Attribute.Handlers
         protected override string DescribeTemplate(AtomicEffectInstance effect) => "施加一层属性增加（+1/+1）";
     }
 
-    /// <summary>费用增加指示物（每层 +1 费，仅手牌生效，离手消失）</summary>
-    public class AddCostUpHandler : StatCounterAtomHandlerBase
+    /// <summary>
+    /// 四色费用指示物（2026-10-31 通用费用增减四色化——增减各 4 行表行，每层 ±1 对应色净费分量，
+    /// GetCardCost 逐色套层钳 0；仅手牌生效、换区清除）。减四色复用充能已投放的
+    /// CostDownGray/Red/Blue/Green 计数器；增四色为 CostUpGray/Red/Blue/Green（同档对称）。
+    /// </summary>
+    public class AddCostUpGrayHandler : StatCounterAtomHandlerBase
     {
-        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddCostUp;
-        protected override string CounterId => CounterRules.CostUpCounter;
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => "添加一层费用增加指示物";
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddCostUpGray;
+        protected override string CounterId => CounterRules.CostUpGrayCounter;
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "添加一层灰色费用增加指示物";
     }
 
-    /// <summary>费用减少指示物（每层 −1 费，仅手牌生效，离手消失）</summary>
-    public class AddCostDownHandler : StatCounterAtomHandlerBase
+    public class AddCostUpRedHandler : StatCounterAtomHandlerBase
     {
-        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddCostDown;
-        protected override string CounterId => CounterRules.CostDownCounter;
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => "添加一层费用减少指示物";
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddCostUpRed;
+        protected override string CounterId => CounterRules.CostUpRedCounter;
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "添加一层红色费用增加指示物";
+    }
+
+    public class AddCostUpBlueHandler : StatCounterAtomHandlerBase
+    {
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddCostUpBlue;
+        protected override string CounterId => CounterRules.CostUpBlueCounter;
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "添加一层蓝色费用增加指示物";
+    }
+
+    public class AddCostUpGreenHandler : StatCounterAtomHandlerBase
+    {
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddCostUpGreen;
+        protected override string CounterId => CounterRules.CostUpGreenCounter;
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "添加一层绿色费用增加指示物";
+    }
+
+    public class AddCostDownGrayHandler : StatCounterAtomHandlerBase
+    {
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddCostDownGray;
+        protected override string CounterId => CounterRules.CostDownGrayCounter;
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "添加一层灰色费用减少指示物";
+    }
+
+    public class AddCostDownRedHandler : StatCounterAtomHandlerBase
+    {
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddCostDownRed;
+        protected override string CounterId => CounterRules.CostDownRedCounter;
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "添加一层红色费用减少指示物";
+    }
+
+    public class AddCostDownBlueHandler : StatCounterAtomHandlerBase
+    {
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddCostDownBlue;
+        protected override string CounterId => CounterRules.CostDownBlueCounter;
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "添加一层蓝色费用减少指示物";
+    }
+
+    public class AddCostDownGreenHandler : StatCounterAtomHandlerBase
+    {
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddCostDownGreen;
+        protected override string CounterId => CounterRules.CostDownGreenCounter;
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "添加一层绿色费用减少指示物";
     }
 
     /// <summary>
-    /// 缄默指示物（2026-09-09 定案蓝3；2026-10-19 规格定名「缄默」，运行时 id 沿用 Nullify）：
-    /// 持有者的自动效果失效——拦全部触发式（含登场 OnPlay，挂 TriggerEngine.FindMatchingEffects）
-    /// + 拦本体关键词（EntityEffectExtensions.HasKeyword 收口）+ 拦光环（连接箭头来源
-    /// LinkAuraSystem / 规则光环载体 RuleAuraSystem——唯一能压光环的指示物；缄默光环本体才无效，
-    /// 打在受益者身上不除光环；净化/沉默不压箭头：箭头是卡面数据）。与沉默对称：沉默拦主动、缄默拦自动。
+    /// 失效指示物（2026-09-09 定案蓝3；2026-10-19 定名「缄默」，2026-10-31 改名「失效」，
+    /// 运行时 id 沿用 Nullify）：持有者的自动效果失效——拦全部触发式（含登场 OnPlay，
+    /// 挂 TriggerEngine.FindMatchingEffects）+ 拦本体关键词（EntityEffectExtensions.HasKeyword 收口）。
+    /// 2026-10-31 改名定案：光环域整体退出——不压连接光环来源/规则光环载体（受益者侧本就不除光环）。
+    /// 与沉默对称：沉默拦主动、失效拦自动。
     /// </summary>
     public class AddNullifyHandler : AtomicEffectHandlerBase
     {
@@ -647,29 +692,30 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
+            // 2026-10-31 晚定案：一次发动按 value 给层（≤0/未填=1）
+            int amount = CounterRules.ResolveLayers(CounterRules.NullifyCounter, context.GetValueAfterModifiers(effect.Value));
             foreach (var target in context.Targets)
             {
                 if (target == null || !target.IsAlive) continue;
-                int amount = 1; // 2026-10-31 指示物定案：每次发动恒加一层
-                target.AddCounters(CounterRules.NullifyCounter, amount, context.Source);
+                int actualDelta = target.AddCounters(CounterRules.NullifyCounter, amount, context.Source);
                 PublishEvent(new CounterChangedEvent
                 {
                     Target = target,
                     CounterType = CounterRules.NullifyCounter,
-                    Amount = amount,
+                    Amount = actualDelta,
                     Source = context.Source
                 });
                 PublishEvent(new KeywordAppliedEvent
                 {
                     Target = target,
-                    Keyword = "缄默",
-                    Detail = "缄默：持有者的自动效果（触发式/关键词/光环来源）失效",
+                    Keyword = "失效",
+                    Detail = "失效：持有者的自动效果（触发式与本体关键词）失效——不影响光环",
                     Source = context.Source
                 });
             }
         }
 
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => "附加缄默指示物（自动效果无法发动）";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "附加失效指示物（自动效果无法发动）";
     }
 
     /// <summary>
@@ -687,23 +733,22 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
+            // 2026-10-31 晚定案：一次发动按 value 给层（≤0/未填=1——苏醒施放层另行直挂不走本口）
+            int amount = CounterRules.ResolveLayers(KeywordRules.SleepCounter, context.GetValueAfterModifiers(effect.Value));
             foreach (var target in context.Targets)
             {
                 if (target == null || !target.IsAlive) continue;
 
-                // 2026-10-31 指示物定案：每次发动恒加一层（掷值档随之退役）
-                int amount = 1;
-
                 // 沉睡=横置进沉睡（横置即上限：不能攻击/守卫；重置被指示物拦）。
                 // 不走 ShouldTap（警戒 2026-09-10 已重定义为「横置也能反击」，无横置抵扣）。
                 target.Tap();
-                target.AddCounters(KeywordRules.SleepCounter, amount, context.Source);
+                int actualDelta = target.AddCounters(KeywordRules.SleepCounter, amount, context.Source);
                 PublishEvent(new TapEvent { TappedEntity = target, IsUntapping = false });
                 PublishEvent(new CounterChangedEvent
                 {
                     Target = target,
                     CounterType = KeywordRules.SleepCounter,
-                    Amount = amount,
+                    Amount = actualDelta,
                     Source = context.Source
                 });
             }

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using CardCore.Attribute;
+using Cysharp.Threading.Tasks;
 
 namespace CardCore.Attribute.Handlers
 {
@@ -141,6 +142,16 @@ namespace CardCore.Attribute.Handlers
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.DeclareHand;
 
+        /// <summary>结算期宣言反问（2026-10-31 阶段C）：弹卡名输入窗替换构筑期预置；
+        /// 取消/超时=本次效果不结算（已付费用不退）。AI/无头=预置即结果（无预置空转）。</summary>
+        public override async UniTask ExecuteAsync(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            if (!await ProphecyHandlerUtil.AskCardNameAsync(effect, context,
+                    "强夺：宣言一个卡名（命中则从对手手牌获得该卡）", nameEncoded: true))
+                return;
+            Execute(effect, context);
+        }
+
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
             context.LastOutcome.Declaration = effect.StringValue;
@@ -220,6 +231,16 @@ namespace CardCore.Attribute.Handlers
     public class DeclareDeckHandler : AtomicEffectHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.DeclareDeck;
+
+        /// <summary>结算期宣言反问（2026-10-31 阶段C，同强夺）：弹卡名输入窗替换构筑期预置；
+        /// 取消/超时=本次效果不结算（费用不退）。AI/无头=预置即结果。</summary>
+        public override async UniTask ExecuteAsync(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            if (!await ProphecyHandlerUtil.AskCardNameAsync(effect, context,
+                    "窃取：宣言一个卡名（命中则从对手牌库获得该卡）", nameEncoded: true))
+                return;
+            Execute(effect, context);
+        }
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
@@ -302,6 +323,18 @@ namespace CardCore.Attribute.Handlers
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.DeclareDeckTop;
 
+        /// <summary>结算期宣言反问（2026-10-31 阶段C）：弹类别三选一（生物/法术/结界——定案只收
+        /// 类别档）替换构筑期预置。隐秘性：押注内容只进 ProphecySystem（ProphecyRegisteredEvent
+        /// 不含宣言）+ 请求只下发宣告方座位（MsgSelectRequest 定向），对手不可见。</summary>
+        public override async UniTask ExecuteAsync(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            var encoded = await ProphecyHandlerUtil.AskDimensionAsync(effect, context,
+                "预言：隐秘押注对手下回合首张出牌的类别", typeOnly: true);
+            if (encoded == null) return;
+            effect.StringValue = encoded;
+            Execute(effect, context);
+        }
+
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
             context.LastOutcome.Declaration = effect.StringValue;
@@ -344,6 +377,18 @@ namespace CardCore.Attribute.Handlers
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.ProphecyNextCard;
 
+        /// <summary>结算期宣言反问（2026-10-31 阶段C）：弹维度选择（全量维度——类别/颜色/费用/
+        /// 箭头/卡名，卡名项链文本输入）替换构筑期预置；押注隐秘（ProphecyRegisteredEvent 不含
+        /// 宣言内容）。维度行无取消键（封闭选项），卡名输入取消=效果不结算。</summary>
+        public override async UniTask ExecuteAsync(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            var encoded = await ProphecyHandlerUtil.AskDimensionAsync(effect, context,
+                "卡名预言：押注对手下回合首张出牌的类别或卡名", typeOnly: false);
+            if (encoded == null) return;
+            effect.StringValue = encoded;
+            Execute(effect, context);
+        }
+
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
             // 校验宣言域；非法宣言也照常登记（验证时刻按未命中结算，避免组装期垃圾卡死结算）
@@ -363,9 +408,15 @@ namespace CardCore.Attribute.Handlers
     // ---------------- 共用小工具 ----------------
 
     /// <summary>宣言族共用小工具（PositionPicker 注入点已随 2026-10-30 强夺改版删除——
-    /// 强夺按宣言卡名定位，无选位语义）</summary>
+    /// 强夺按宣言卡名定位，无选位语义）。
+    /// 2026-10-31 阶段C：新增结算期宣言反问两口（原子表「参数」列接 UI 的引擎侧载体）——
+    /// AskCardNameAsync（CardName 行：检索/强夺/窃取）与 AskDimensionAsync（Dimension 行：
+    /// 筛选展示/预言/卡名预言）。取消语义=效果不结算、已付费用不退（TargetSelectionService 定案）。</summary>
     public static class ProphecyHandlerUtil
     {
+        /// <summary>卡名输入长度上限（输入窗 characterLimit 与网络 MaxLen 同源）。</summary>
+        internal const int MaxCardNameLength = 32;
+
         internal static List<Card> OpponentHand(EffectExecutionContext context)
         {
             var opponent = context.Controller?.Opponent;
@@ -386,6 +437,100 @@ namespace CardCore.Attribute.Handlers
         {
             return ProphecyDimension.TryParse(encoded, out var dim, out var val)
                    && ProphecyDimension.Matches(card, dim, val);
+        }
+
+        /// <summary>卡名宣言反问（CardName 行共用，2026-10-31 阶段C）：结算期弹文本输入窗，
+        /// 玩家输入替换 StringValue（不再读构筑期预置）。默认值=旧预置（Name: 前缀按需解码/
+        /// 裸名原样——检索旧口径），玩家清空=取消。AI/无头=默认值即结果（无默认 null 空转=旧行为）。
+        /// 返回 true=已写回可继续结算；false=取消/超时（效果不结算、费用不退）。</summary>
+        internal static async UniTask<bool> AskCardNameAsync(AtomicEffectInstance effect,
+            EffectExecutionContext context, string title, bool nameEncoded)
+        {
+            if (effect == null || context == null || context.Controller == null) return false;
+
+            string preset = effect.StringValue;
+            string def = preset;
+            if (nameEncoded && ProphecyDimension.TryParse(preset, out var dim, out var val)
+                && dim == ProphecyDimension.Name)
+                def = val; // 旧预置 "Name:卡名" → 输入窗只回填卡名本体
+
+            string input = await TargetSelectionService.RequestTextAsync(
+                context.Controller, title, def, MaxCardNameLength);
+            if (input == null) return false;
+
+            effect.StringValue = nameEncoded ? ProphecyDimension.Name + ":" + input : input;
+            return true;
+        }
+
+        /// <summary>维度宣言反问（Dimension 行共用，2026-10-31 阶段C）：封闭维度走既有纯选项
+        /// 反问（RequestOneIndexAsync——本地 Region 卡牌列表/网络 SelectRequest/无头 AI 自动取 0）；
+        /// Name 开放集选项链文本反问（取消=整体取消）。合法预置 str 排位 0（默认/AI/超时兜底恒取）。
+        /// typeOnly=true 只给类别三项（预言定案：Creature/Spell/Enchantment 三选一）。
+        /// 返回 "维度:值" 编码；null=取消（效果不结算）。</summary>
+        internal static async UniTask<string> AskDimensionAsync(AtomicEffectInstance effect,
+            EffectExecutionContext context, string title, bool typeOnly)
+        {
+            if (effect == null || context == null || context.Controller == null) return null;
+
+            var options = DimensionOptions(typeOnly);
+            string preset = effect.StringValue;
+            string presetName = null;
+            if (ProphecyDimension.TryParse(preset, out var dim, out var val)
+                && ProphecyDimension.IsValidValue(dim, val))
+            {
+                if (dim == ProphecyDimension.Name) presetName = val;
+                else
+                {
+                    // 预置合法 → 挪到首位（默认值位；非法编码不排——按第一个合法值起）
+                    string encoded = dim + ":" + val;
+                    int idx = options.FindIndex(o => o.encoded == encoded);
+                    if (idx > 0) { var hit = options[idx]; options.RemoveAt(idx); options.Insert(0, hit); }
+                }
+            }
+
+            int pick = await TargetSelectionService.RequestOneIndexAsync(
+                context.Controller, options.Select(o => o.label).ToList(), title);
+            if (pick < 0 || pick >= options.Count) pick = 0; // 越界兜底（Service 已钳，双保险）
+
+            if (options[pick].isNameEntry)
+            {
+                string name = await TargetSelectionService.RequestTextAsync(
+                    context.Controller, title + "——输入卡名", presetName, MaxCardNameLength);
+                return name == null ? null : ProphecyDimension.Name + ":" + name;
+            }
+            return options[pick].encoded;
+        }
+
+        /// <summary>封闭维度选项目录（编码+显示名；Name 以特殊项出现——开放集链文本输入）。</summary>
+        private static List<(string encoded, string label, bool isNameEntry)> DimensionOptions(bool typeOnly)
+        {
+            var list = new List<(string, string, bool)>();
+            if (typeOnly)
+            {
+                list.Add(("Type:Creature", "类别：生物", false));
+                list.Add(("Type:Spell", "类别：法术", false));
+                list.Add(("Type:Enchantment", "类别：结界", false));
+                return list;
+            }
+            list.Add(("Type:Creature", "类别：生物", false));
+            list.Add(("Type:Spell", "类别：法术", false));
+            list.Add(("Type:Enchantment", "类别：结界", false));
+            list.Add(("Color:Red", "颜色：红", false));
+            list.Add(("Color:Blue", "颜色：蓝", false));
+            list.Add(("Color:Green", "颜色：绿", false));
+            list.Add(("Color:Gray", "颜色：灰", false));
+            list.Add(("CostParity:Odd", "费用：奇数", false));
+            list.Add(("CostParity:Even", "费用：偶数", false));
+            for (int n = 0; n <= 7; n++)
+                list.Add(("CostExact:" + n, $"费用：恰为 {n}", false));
+            list.Add(("LinkArrow:Up", "箭头：上", false));
+            list.Add(("LinkArrow:Down", "箭头：下", false));
+            list.Add(("LinkArrow:UpperLeft", "箭头：左上", false));
+            list.Add(("LinkArrow:UpperRight", "箭头：右上", false));
+            list.Add(("LinkArrow:LowerLeft", "箭头：左下", false));
+            list.Add(("LinkArrow:LowerRight", "箭头：右下", false));
+            list.Add((ProphecyDimension.Name + ":", "卡名：手动输入…", true));
+            return list;
         }
     }
 }

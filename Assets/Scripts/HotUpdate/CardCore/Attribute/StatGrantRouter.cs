@@ -59,7 +59,7 @@ namespace CardCore.Attribute
 
         /// <summary>
         /// 费用赋予：直改 _baseCost（跨区保留——与「设置费用」同口径；仅手牌生效的临时轨
-        /// 是 AddCostUp/AddCostDown 指示物族）。手牌门禁由 handler 的表过滤承担。
+        /// 是四色费用指示物族 CostUp*/CostDown*）。手牌门禁由 handler 的表过滤承担。
         /// </summary>
         public static void ModifyCost(Card target, int amount, Entity source)
         {

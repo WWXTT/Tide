@@ -361,14 +361,15 @@ namespace CardCore
         /// <summary>检查是否有关键词（连接光环关键词=光环期间视为持有，
         /// 不进 _keywords、不参与 GetKeywordCount 重复叠加计数）。角色同走连接光环读数
         /// （2026-10-07 定案：关键词光环可经箭头指向角色格投递；属性光环钉死生物专用）。
-        /// 缄默压制（2026-10-19 关键词=自动效果定案）：本体关键词（印刷/Setting/Temp 轨）在
-        /// 持有者被缄默（NullifyCounter）期间失效；光环投递轨不受受益者缄默影响——
-        /// 光环只认来源侧缄默（LinkAuraSystem.EnumerateApplicable 来源闸）。</summary>
+        /// 自动效果压制（2026-10-19 关键词=自动效果定案；2026-10-31 沉睡并入同口）：本体关键词
+        /// （印刷/Setting/Temp 轨）在持有者沉睡或被失效（原缄默）期间**读取为假**（统一读数=
+        /// SuppressRules.IsAutoSuppressed，实时状态读）；光环投递轨不受压制影响——
+        /// 光环域整体退出压制（2026-10-31 失效改名定案：来源/受益者两侧都不压）。</summary>
         public static bool HasKeyword(this Entity entity, string keyword)
         {
             if (entity == null) return false;
             if (entity._keywords.Contains(keyword)
-                && entity.GetCounterCount(CardCore.Attribute.CounterRules.NullifyCounter) == 0) return true;
+                && !Attribute.SuppressRules.IsAutoSuppressed(entity)) return true;
             if (entity is Card card) return GameBoard.LinkAuraSystem.HasAuraKeyword(card, keyword);
             if (entity is Player player) return GameBoard.LinkAuraSystem.HasAuraKeyword(player, keyword);
             return false;
@@ -381,36 +382,53 @@ namespace CardCore
         /// <summary>
         /// 添加指示物（Entity 级：角色/卡牌同构）。amount 可为负（攻/血/费指示物带符号）。
         /// source = 施加方（指示物来源定案：正量登记，净量归零丢弃；GetCounterSource 查询）。
+        /// kind = 投放档（2026-10-31 沉睡/免疫时序定案，CounterGrantKind 显式命名——压制闸豁免
+        /// 只认此传参）：Effect=常规投放（默认，过绝缘体压制闸）；EntryCost=入场代价投放（苏醒沉睡
+        /// ——只跳过绝缘体压制闸，铭刻 +1/来源登记照旧）。
+        /// 返回实际落账增量（铭刻 +1 含在内；被绝缘体清零=0；负量移除返回负值）——调用方
+        /// CounterChangedEvent 一律发此返回值（2026-10-31 实际增量子单源定案：战报/浮字/卡面
+        /// 三层读数不漂移）。
         /// 回合时钟重载已删（2026-10-08 死路径清理）：限时持续由 CounterSpec 的
         /// Duration/TickPolicy 声明驱动，不再随施加传 turns。
         /// </summary>
-        public static void AddCounters(this Entity entity, string counterType, int amount, Entity source = null)
+        public static int AddCounters(this Entity entity, string counterType, int amount, Entity source = null,
+            Attribute.CounterGrantKind kind = Attribute.CounterGrantKind.Effect)
         {
-            if (entity == null) return;
+            if (entity == null) return 0;
 
-            // 禁指示物令（2026-10-29 阶段2）：除系统指示物（CounterClass.System——引擎主干内部驱动）
-            // 外，受光环影响的一方不能放置指示物——负量（移除）不拦；所有加层入口（引擎/关键词/
-            // 效果 handler）全经此咽喉。卡侧判控制者、无控制者回落拥有者；角色直取自身。
             if (amount > 0)
             {
                 var side = entity is Player p ? p : (entity as Card)?.GetController() ?? (entity as Card)?.GetOwner();
                 var spec = Attribute.CounterRules.Find(counterType);
-                if (side != null && (spec == null || spec.Class != Attribute.CounterClass.System)
-                    && RuleAuraSystem.ScopeHits(RuleAuraComponents.NoCounterAura, side)) return;
 
-                // 绝缘体（2026-10-31，绿3 关键词表行 764236ed）：持有单位不受指示物的效果影响——
-                // 正面指示物加不上（含己方自上，文案无己/敌豁免）；负量（移除）不拦；系统指示物
-                //（CounterClass.System——引擎主干内部驱动，如耐久）豁免同禁指示物令口径。
-                // 排在铭刻放大之前——被拦层不进铭刻 +1。
-                if (entity is Card insCard
+                // 绝缘体压制闸（2026-10-31 特殊裁定改版：「不拦指示物添加」）：只作用于 Effect 档
+                //（EntryCost=苏醒入场沉睡，入场时序定案——沉睡先落下压住后生效的绝缘体，豁免只认
+                // kind 传参）与战场单位（「持有单位」——手牌卡（含印刷绝缘体）不拦费用指示物投放）。
+                // 清零面收窄为两类：①沉睡/缄默=压制型，与绝缘体时序互压——绝缘体生效期间后加
+                // =被压制（裁定「反过来压制沉睡/缄默」；先在的沉睡/缄默则压住绝缘体=HasKeyword
+                // 实时读假，本闸自然放行，无循环）；②StatKind 属性类=加时回写式（层只是账目），
+                // 清零=属性变化不发生（回写/反写账目不漂移）。其余指示物（毒素/冻结/沉默/护甲/
+                // 圣盾/保护…）**层照常落账**（铭刻 +1 同沾、事件报真实增量），效果走读数压制
+                //（GetEffectiveCounterCount）。负量（移除）不拦；系统指示物（CounterClass.System
+                // ——引擎主干内部驱动，如耐久）豁免。绝缘体本体关键词经 HasKeyword 收口：沉睡/
+                // 失效期间读取为假=绝缘体失效（2026-10-31 实时状态读定案）。
+                if (kind == Attribute.CounterGrantKind.Effect
+                    && entity is Card insCard
+                    && insCard.GetZone() == Zone.Battlefield
                     && insCard.HasKeyword(Attribute.KeywordRules.Insulator)
-                    && (spec == null || spec.Class != Attribute.CounterClass.System)) return;
+                    && (spec == null || spec.Class != Attribute.CounterClass.System)
+                    && (counterType == Attribute.KeywordRules.SleepCounter
+                        || counterType == Attribute.CounterRules.NullifyCounter
+                        || (spec != null && spec.StatKind != Attribute.StatCounterKind.None)))
+                    return 0;
 
-                // 铭刻（2026-10-31）：受光环影响一方的**单位**（战场卡——生物+结界；角色/手牌不沾）
-                // 被添加指示物时层数+1。排在上文禁指示物令之后——被禁侧本就加不上，无叠加次序问题；
-                // 系统指示物同沾（文本未排除）。调用方 CounterChangedEvent 沿用自报量，与禁令令
-                // 咽喉内拦截同款既有口径（卡面层数读实体状态，展示浮字不随放大改写）。
+                // 铭刻（2026-10-31）：只作用于**场上单位**（战场卡——生物+结界）：受光环影响一方的
+                // 场上单位被添加指示物时层数+1；角色/手牌/牌库的指示物不受影响。排在绝缘体压制闸
+                // 之后——被清零的投放（沉睡/缄默/属性类）不进铭刻 +1，其余照常；EntryCost 档同沾（入场代价沉睡吃铭刻 +1
+                //——2026-10-31 定案）；系统指示物不加深（特殊裁定终稿：系统指示物不受影响——
+                // 倒计时/死亡计数等引擎主干层不沾）。
                 if (entity is Card unit && unit.GetZone() == Zone.Battlefield && side != null
+                    && (spec == null || spec.Class != Attribute.CounterClass.System)
                     && RuleAuraSystem.ScopeHits(RuleAuraComponents.InscriptionAura, side))
                     amount += 1;
             }
@@ -424,6 +442,8 @@ namespace CardCore
                 entity._counterSources[counterType] = source;
             else if (entity._counters[counterType] <= 0)
                 entity._counterSources.Remove(counterType);
+
+            return amount;
         }
 
         /// <summary>查询指示物施加方（最后施加的来源；无来源/未登记返回 null）</summary>
@@ -436,6 +456,28 @@ namespace CardCore
             if (entity != null && entity._counters.TryGetValue(counterType, out var count))
                 return count;
             return 0;
+        }
+
+        /// <summary>
+        /// 效果口径读数（2026-10-31 绝缘体特殊裁定改版）：指示物**效果生效**判定一律走此口——
+        /// 绝缘体单位（战场卡且绝缘体未被沉睡/缄默压）读数为 0=效果不生效；系统指示物
+        /// （CounterClass.System——耐久/倒计时等引擎主干）豁免照读。账面层不受影响：UI 层数
+        /// 显示、回合末衰减倒数、清除反写、AI 观察、来源生命周期仍读 GetCounterCount——
+        /// 「不拦指示物添加」=层照常落账可见，只有效果被压。角色（Player）无绝缘体（表
+        /// TargetFilter NoRole+连接光环拉黑），恒读账面。
+        /// </summary>
+        public static int GetEffectiveCounterCount(this Entity entity, string counterType)
+        {
+            int raw = entity.GetCounterCount(counterType);
+            if (raw <= 0) return 0;
+            if (entity is Card card
+                && card.GetZone() == Zone.Battlefield
+                && card.HasKeyword(Attribute.KeywordRules.Insulator))
+            {
+                var spec = Attribute.CounterRules.Find(counterType);
+                if (spec == null || spec.Class != Attribute.CounterClass.System) return 0;
+            }
+            return raw;
         }
 
         /// <summary>移除指示物（计数下限 0）</summary>
@@ -466,10 +508,10 @@ namespace CardCore
             }
         }
 
-        /// <summary>是否冻结（冻结指示物 &gt; 0）</summary>
+        /// <summary>是否冻结（冻结指示物 &gt; 0；效果口径读数——绝缘体单位冻结层不生效）</summary>
         public static bool IsFrozen(this Entity entity)
         {
-            return entity is Card card && card.GetCounterCount(Attribute.KeywordRules.FreezeCounter) > 0;
+            return entity is Card card && card.GetEffectiveCounterCount(Attribute.KeywordRules.FreezeCounter) > 0;
         }
 
         /// <summary>移除所有减益：清空全部负面指示物（CounterRules 极性口径；横置不在此恢复）。
@@ -631,5 +673,47 @@ namespace CardCore
 
         // ===== 地牌状态三件套已删（2026-10-11 资源重做：指示物/耗竭/回手余量随锁色定案退役）——
         // 地牌权威态只在 ElementPool.PooledCard（LockedColor+IsTapped），卡上无持久字段 =====
+    }
+}
+
+namespace CardCore.Attribute
+{
+    /// <summary>指示物投放档（2026-10-31 沉睡/免疫时序定案）：显式命名投放性质——压制闸豁免
+    /// 只认本枚举传参，禁止藏在 AddCounters 咽喉里认瞬态标记的静默特判。
+    /// Effect=效果/关键词常规投放（过全部压制闸）；EntryCost=入场代价投放（苏醒施放的沉睡：
+    /// 入场时序=生物进场沉睡先落下、绝缘体后生效，这层沉睡是入场代价，不吃绝缘体对沉睡
+    /// 的清零闸——只跳过该闸；铭刻 +1、来源登记、事件发布照旧）。</summary>
+    public enum CounterGrantKind
+    {
+        /// <summary>常规投放（默认档）：过全部获得闸</summary>
+        Effect,
+        /// <summary>入场代价投放（苏醒沉睡）：跳过绝缘体获得闸，其余照旧</summary>
+        EntryCost,
+    }
+
+    /// <summary>自动效果压制统一读数口（2026-10-31 定案）：沉睡与失效（原缄默，id 仍 Nullify）
+    /// 同为自动效果压制源——持有期间本体关键词与触发式全部**读取为假**（实时状态读，
+    /// 非施加时锁死）：HasKeyword、TriggerEngine.FindMatchingEffects、GuardianRules.FindGuardian、
+    /// KeywordRules 战斗法师改写口同读此处。分工差异不并入本口：光环域整体退出压制
+    ///（2026-10-31 失效改名定案——沉睡/失效都不压光环来源/载体/受益者）；沉睡另拦主动发动
+    ///（CanActivate 0.6）与重置（SleepCounter.BlocksUntap）；失效不拦主动
+    ///（与沉默对称：沉默拦主动、失效拦自动）。计数原语供 UI 快照读数（CardOverlayItem/
+    /// BattleHoverInfoProvider 压制行删除线）与实体口同源，防两处口径漂移。</summary>
+    public static class SuppressRules
+    {
+        /// <summary>主动效果是否被压（沉默&gt;0 或 沉睡&gt;0）——镜像 CanActivate 闸
+        ///（沉默只拦主动不进自动口；沉睡两口都压）</summary>
+        public static bool IsActiveSuppressed(int silence, int sleep)
+            => silence > 0 || sleep > 0;
+
+        /// <summary>自动效果/本体关键词是否被压（沉睡&gt;0 或 失效&gt;0）——计数原语</summary>
+        public static bool IsAutoSuppressed(int nullify, int sleep)
+            => nullify > 0 || sleep > 0;
+
+        /// <summary>是否被自动效果压制（沉睡&gt;0 或 失效&gt;0）</summary>
+        public static bool IsAutoSuppressed(Entity entity)
+            => entity != null
+               && IsAutoSuppressed(entity.GetCounterCount(CounterRules.NullifyCounter),
+                   entity.GetCounterCount(KeywordRules.SleepCounter));
     }
 }

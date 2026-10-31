@@ -37,7 +37,7 @@ namespace CardCore
                         Description = "至少需要一个原子效果作为主要效果",
                         SuggestedEffectTypes = new List<string>
                         {
-                            "DealDamage", "PierceDamage", "DrawCard", "Heal"
+                            "DealDamage", "DrawCard", "Heal"
                         }
                     },
                     new EffectTemplateSlot

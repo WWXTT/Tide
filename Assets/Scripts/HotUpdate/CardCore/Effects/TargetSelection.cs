@@ -64,6 +64,12 @@ namespace CardCore
 
         /// <summary>纯选项反问（RequestOneIndexAsync：抉择/mode 选择，无实体）+ 决策窗口（秒）；负索引=取消/超时。</summary>
         UniTask<int> SelectOneAsync(Player chooser, IReadOnlyList<string> options, string title, float timeoutSeconds);
+
+        /// <summary>文本反问（2026-10-31 阶段C：卡名宣言等开放集输入）：模态输入窗（标题+输入框+
+        /// 确认/取消，中文输入法可用）。返回玩家输入文本（两侧空白已由 RequestTextAsync 收口）；
+        /// null=取消/超时——效果不结算、已付费用不退（调用方口径）。超时竞速同 2026-09-24 定案：
+        /// 实现内部自持自清理。</summary>
+        UniTask<string> SelectTextAsync(Player chooser, string title, string defaultValue, int maxLen, float timeoutSeconds);
     }
 
     /// <summary>
@@ -203,6 +209,44 @@ namespace CardCore
                 PendingRequests--;
             }
         }
+
+        /// <summary>
+        /// 文本反问（2026-10-31 阶段C：卡名宣言等开放集输入的单漏斗口）。
+        /// AI/无头（Current==null 或 chooser.IsAI）→ 即时返回 defaultValue（无默认 null=取消空转，
+        /// 与旧「未预置宣言名不检索」行为一致；封闭选项类默认值由调用方按「第一个合法值」预排）。
+        /// 人类 → Ex 实现弹模态输入窗（本地 RegionTargetSelector / 网络 MsgTextRequest 反问）；
+        /// 档位口径同 RequestAsync：Ex+人类 → 网络人类档 120s（本地局同为实现方自持超时）。
+        /// 返回值两侧空白收口，空串=取消 → null。取消/超时语义=效果不结算、费用不退（调用方）。
+        /// PendingRequests 计数与 RequestAsync 同口径（End→Standby 折返门消费）。
+        /// </summary>
+        public static async UniTask<string> RequestTextAsync(Player chooser, string title,
+            string defaultValue, int maxLen, float timeoutSeconds = 0f)
+        {
+            if (maxLen <= 0) maxLen = 32;
+
+            // AI / 无头 / 非 Ex 实现（基接口无文本口，防退化卡死）：默认值即结果
+            if (Current == null || (chooser != null && chooser.IsAI) || !(Current is ITargetSelectorEx ex))
+                return NormalizeText(defaultValue);
+
+            float timeout = timeoutSeconds > 0f ? timeoutSeconds : NetworkHumanTimeoutSeconds;
+
+            GameActions.Crumb($"text-inquire title='{title}' default='{defaultValue}' chooser={chooser?.Name} ui={Current.GetType().Name}");
+
+            PendingRequests++;
+            try
+            {
+                var input = await ex.SelectTextAsync(chooser, title, defaultValue, maxLen, timeout);
+                return NormalizeText(input);
+            }
+            finally
+            {
+                PendingRequests--;
+            }
+        }
+
+        /// <summary>文本收口：去两侧空白，空串归一 null（=取消）。</summary>
+        private static string NormalizeText(string s)
+            => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 
         /// <summary>回合数递增超时：min(10 + 5×(回合−1), 60)。</summary>
         private static float ComputeTimeout()

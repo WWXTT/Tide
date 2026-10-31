@@ -1322,6 +1322,34 @@ namespace CardCore.Editor
                 float timeoutSeconds)
                 => UniTask.FromResult(0);
 
+            /// <summary>文本反问（2026-10-31 阶段C）：走完整协议栈往返（去程 TextRequest 帧 →
+            /// 模拟客户端回默认值 → 回程 TextResponse 帧），与 SelectAsync 同款回环口径。</summary>
+            public UniTask<string> SelectTextAsync(Player chooser, string title, string defaultValue,
+                int maxLen, float timeoutSeconds)
+            {
+                var msg = new MsgTextRequest
+                {
+                    RequestId = Seen.Count + 1000, // 与 Select 序列错开（Seen 只记选择请求）
+                    ChooserSeat = NetEntityMapper.SeatOf(chooser),
+                    Title = title,
+                    Default = defaultValue,
+                    MaxLen = maxLen,
+                    TimeoutSeconds = timeoutSeconds,
+                };
+                var wire = NetworkSerializer.SerializeMessage(NetworkMessageType.TextRequest, msg);
+                var decoded = NetworkSerializer.DeserializePayload<MsgTextRequest>(
+                    NetworkSerializer.DeserializeEnvelope(wire));
+                var resp = new MsgTextResponse
+                {
+                    RequestId = decoded.RequestId,
+                    Text = string.IsNullOrWhiteSpace(decoded.Default) ? null : decoded.Default.Trim(),
+                };
+                var respWire = NetworkSerializer.SerializeMessage(NetworkMessageType.TextResponse, resp);
+                var decodedResp = NetworkSerializer.DeserializePayload<MsgTextResponse>(
+                    NetworkSerializer.DeserializeEnvelope(respWire));
+                return UniTask.FromResult(decodedResp.Text);
+            }
+
             public UniTask<List<int>> SelectIndicesAsync(IReadOnlyList<string> labels,
                 int min, int max, string title, string hint, bool allowCancel, float timeoutSeconds)
                 => throw new NotSupportedException("回环选择器只经 Ex 路径消费");

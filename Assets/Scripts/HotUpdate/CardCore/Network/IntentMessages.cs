@@ -170,6 +170,44 @@ namespace CardCore.Network
         public int[] Indices;
     }
 
+    /// <summary>文本反问请求（2026-10-31 阶段C，下行 127）：卡名宣言等开放集输入——
+    /// 定向下发 ChooserSeat 座位连接（预言类隐秘宣言不出现在 Title/Default 明文之外，
+    /// 请求本体即只有宣告方可见；观战连接不收反问、经快照全信息观战）。
+    /// Default=旧构筑期预置值（输入窗默认回填，玩家清空=取消）；MaxLen=长度上限。</summary>
+    [MemoryPackable]
+    public partial class MsgTextRequest
+    {
+        [MemoryPackOrder(TagTable.MTxtR_RequestId)]
+        public int RequestId;
+
+        [MemoryPackOrder(TagTable.MTxtR_ChooserSeat)]
+        public int ChooserSeat;
+
+        [MemoryPackOrder(TagTable.MTxtR_Title)]
+        public string Title;
+
+        [MemoryPackOrder(TagTable.MTxtR_Default)]
+        public string Default;
+
+        [MemoryPackOrder(TagTable.MTxtR_MaxLen)]
+        public int MaxLen;
+
+        [MemoryPackOrder(TagTable.MTxtR_TimeoutSeconds)]
+        public float TimeoutSeconds;
+    }
+
+    /// <summary>文本反问应答（上行 115）：Text=null/空=取消（效果不结算、费用不退）。
+    /// 服务端校验长度（超限拒绝按取消收口）与编码合法性（handler 侧 ProphecyDimension 口径）。</summary>
+    [MemoryPackable]
+    public partial class MsgTextResponse
+    {
+        [MemoryPackOrder(TagTable.MTxtP_RequestId)]
+        public int RequestId;
+
+        [MemoryPackOrder(TagTable.MTxtP_Text)]
+        public string Text;
+    }
+
     // 注意：MsgIntentSkipStandby / MsgIntentPassPriority / MsgIntentEndTurn / MsgIntentConcede
     // 无载荷——空 Payload 即语义，不设 DTO 类（NetworkIntentApplier 直接分派）。
 }

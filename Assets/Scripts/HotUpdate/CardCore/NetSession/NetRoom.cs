@@ -113,6 +113,10 @@ namespace CardCore.Network
                         HandleSelectResponse(conn, msg);
                         break;
 
+                    case NetworkMessageType.TextResponse:
+                        HandleTextResponse(conn, msg);
+                        break;
+
                     case NetworkMessageType.RoomSettings:
                         HandleRoomSettings(conn, msg);
                         break;
@@ -300,6 +304,18 @@ namespace CardCore.Network
             SendError(conn, $"反问应答未知 RequestId={resp.RequestId}（迟到或已作废）", "SelectResponse");
         }
 
+        /// <summary>文本反问应答（2026-10-31 阶段C）：座位+长度校验在 TryCompleteText 内
+        ///（不合法按取消 null 收口——效果不结算、费用不退）；迟到/未知 RequestId 给可诊断回执。</summary>
+        private void HandleTextResponse(INetChannel conn, NetworkMessage msg)
+        {
+            if (_phase != NetRoomPhase.Playing || _selector == null) return;
+            var resp = NetworkSerializer.DeserializePayload<MsgTextResponse>(msg);
+            if (resp == null) return;
+            if (_selector.TryCompleteText(resp, conn.MatchSeat)) return;
+
+            SendError(conn, $"文本反问应答未知 RequestId={resp.RequestId}（迟到或已作废）", "TextResponse");
+        }
+
         private void HandleIntent(GameCore core, INetChannel conn, NetworkMessage msg)
         {
             if (_phase != NetRoomPhase.Playing)
@@ -356,7 +372,8 @@ namespace CardCore.Network
             CombatSystem.RoleAdjacentResolver = _board.FlankNeighborsOfRole; // 碾压攻角色=角色格左右邻格（2026-10-16 改版）
             GameBoard.LinkAuraSystem.Attach(_board);
 
-            // 反问桥：SendAsync = 按 ChooserSeat 定向出队（返回已完成任务——实际字节由泵的出队段写）
+            // 反问桥：SendAsync = 按 ChooserSeat 定向出队（返回已完成任务——实际字节由泵的出队段写）；
+            // 文本反问同构第二条通道（2026-10-31 阶段C：预言类隐秘宣言只在 Chooser 座位连接下发）
             _selector?.Detach();
             _selector = new NetworkTargetSelector
             {
@@ -364,6 +381,12 @@ namespace CardCore.Network
                 {
                     var target = SeatConnection(request.ChooserSeat);
                     target?.SendPayload(NetworkMessageType.SelectRequest, request);
+                    return Cysharp.Threading.Tasks.UniTask.CompletedTask;
+                },
+                SendTextAsync = request =>
+                {
+                    var target = SeatConnection(request.ChooserSeat);
+                    target?.SendPayload(NetworkMessageType.TextRequest, request);
                     return Cysharp.Threading.Tasks.UniTask.CompletedTask;
                 },
             };

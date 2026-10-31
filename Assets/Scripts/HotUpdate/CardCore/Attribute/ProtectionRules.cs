@@ -20,7 +20,7 @@ namespace CardCore.Attribute
     ///
     /// 消费口（签名承袭状态机版，调用方零改动）：
     /// · KeywordRules.ApplyDamage（守护改写之后、易损/防护层之前）——Halve/Null 改写伤害，
-    ///   穿透伤害照挡（「伤害」语义）；Null 归 0 提前出管线；多档并挂取最强（Null 压 Halve）。
+    ///   Null 归 0 提前出管线；多档并挂取最强（Null 压 Halve）。
     /// · 落血三路（ApplyDamage 角色分支 / LifeLossHandler 流失）——Floor 落血后钳 1。
     /// 施加口=GrantProtectionHandler（目标=己方单位含角色；2026-10-31 指示物定案：每次发动恒加一层、
     /// 叠加=延长；全体档已删 2026-10-30——指示物只作用于挂载单位）。
@@ -34,19 +34,19 @@ namespace CardCore.Attribute
              : CounterRules.LifeFloorCounter;
 
         /// <summary>伤害改写（NullShield→0、HalveShield→ceil(amount/2)；Floor/无层原样返回。
-        /// 多档并挂取最强：免疫压减半）。</summary>
+        /// 多档并挂取最强：免疫压减半。效果口径读数（2026-10-31 绝缘体裁定）：保护层对绝缘体单位不生效）。</summary>
         public static int ModifyDamage(Entity target, int amount)
         {
             if (amount <= 0 || target == null) return amount;
-            if (target.GetCounterCount(CounterRules.NullShieldCounter) > 0) return 0;
-            if (target.GetCounterCount(CounterRules.HalveShieldCounter) > 0)
+            if (target.GetEffectiveCounterCount(CounterRules.NullShieldCounter) > 0) return 0;
+            if (target.GetEffectiveCounterCount(CounterRules.HalveShieldCounter) > 0)
                 return (amount + 1) / 2; // 取整向上：3→2、1→1
             return amount;
         }
 
         /// <summary>生命钳（LifeFloor=max(1, life)；无层原样返回）。</summary>
         public static int ClampLife(Entity target, int life)
-            => target != null && target.GetCounterCount(CounterRules.LifeFloorCounter) > 0
+            => target != null && target.GetEffectiveCounterCount(CounterRules.LifeFloorCounter) > 0
                 ? Math.Max(1, life)
                 : life;
 

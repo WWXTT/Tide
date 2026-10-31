@@ -97,9 +97,10 @@ namespace SynergyUI
         // 引擎合约=ModifyGameRule 原子挂载体登场效果（str=规则短名），不占 LinkAura 连接位、不写 arrows） ----
 
         /// <summary>仪典表行 EnumName → 规则短名（RuleAuraComponents 常量，与原子表规则光环族行一一对应；
-        /// 2026-10-04 光环改造：丰盈→HealOverflow、蚕褪承接 DamageCap、疾风→CastSpeedUp；
+        /// 2026-10-04 光环改造：丰盈→HealOverflow、蚕褪承接 DamageCap；
         /// 蚕褪→离散改名（2026-10-04 伤害二值离散化，短名承袭）；舍身仪典 2026-10-16 关键词化出族；
-        /// 时光仪典（原轮回，DoubleTurn）2026-10-29 阶段3a 删除——额外回合改 TakeExtraTurn 原子行）。</summary>
+        /// 时光仪典（原轮回，DoubleTurn）2026-10-29 阶段3a 删除——额外回合改 TakeExtraTurn 原子行）。
+        /// 疾风仪典 2026-10-31 整链删除。</summary>
         private static readonly Dictionary<string, string> RuleAuraIds = new Dictionary<string, string>
         {
             { "三相仪典", RuleAuraComponents.ElementConversion },
@@ -108,13 +109,13 @@ namespace SynergyUI
             { "离散仪典", RuleAuraComponents.DamageCap },
             { "窥渊仪典", RuleAuraComponents.LockRevealed },
             { "归土仪典", RuleAuraComponents.GraveyardPlay },
-            { "疾风仪典", RuleAuraComponents.CastSpeedUp },
+            // 疾风仪典已删（2026-10-31 整链退役——常量/枚举位/算速口同批）
             { "纳川仪典", RuleAuraComponents.HandLimitNoFatigue },
             // 涌泉仪典（疲劳免疫）2026-10-30 表行删除——常量代码侧保留专供教学直挂，不在合成器投放
             // 战斗改写仪典（2026-10-05 定案迁唯一光环；2026-10-07 降级连接光环——条目库投放+方向档）
             { "毒蚀仪典", RuleAuraComponents.CombatToxin },
             { "霜蚀仪典", RuleAuraComponents.CombatFreeze },
-            { "眠蚀仪典", RuleAuraComponents.CombatSleep },
+            // 眠蚀仪典已删（2026-10-31 整链退役——常量/枚举位/钩子同批）
             // 舍身仪典已删（2026-10-16 关键词化：舍身改关键词族投放（GrantBattleMage——2026-10-30 战斗法师改版），不在仪典目录）
             { "放血仪典", RuleAuraComponents.HealInversion },  // 2026-10-09 治疗转伤害（受光环影响一方的治疗改写为等量伤害；表行 79ef61f3；2026-10-30 用户更名——历名暗牧仪典/惩戒仪典）
             // 禁令族（2026-10-29）：行为限制光环——受光环影响方按 ScopeHits 判命中（单位/角色同门）
@@ -131,8 +132,8 @@ namespace SynergyUI
             // 语料原生禁令族（2026-10-29 阶段2；禁非生物令 2026-10-30 表行删除）
             { "禁低费令", RuleAuraComponents.NoLowCostAura },
             { "禁高费令", RuleAuraComponents.NoHighCostAura },
-            { "禁扰令", RuleAuraComponents.OwnTurnCastAura },
-            { "禁指示物令", RuleAuraComponents.NoCounterAura },
+            // 禁指示物令已删（2026-10-31 用户定案：指示物承载了大部分游戏规则，不能禁止）
+            // 禁扰令已删（2026-10-31 用户定案：弃改版整链退役）
             // 信息轴光环（2026-10-29 阶段3c，改写族——范围三档可选，不入固定双方名单）
             { "占卜加成", RuleAuraComponents.ScryBonusAura },   // 受影响一方占卜数量+1（消费口=LookAtTopCardsHandler）
             { "灵视", RuleAuraComponents.RevealedPunishAura },  // 使用已展示手牌者受2伤且其对手回2
@@ -165,7 +166,7 @@ namespace SynergyUI
         };
 
         /// <summary>规则光环默认范围中文（行级——右栏库行说明用）：固定双方规则
-        /// （IsFixedBothRule——三相/归土/疾风/纳川+禁攻/禁守/禁发/禁地）=对双方（UI 不提供单侧选择）；
+        /// （IsFixedBothRule——三相/归土/纳川+禁攻/禁守/禁发/禁地）=对双方（UI 不提供单侧选择）；
         /// 其余禁令族=仅对方（极性 -1 钉单侧，2026-10-30 起受光环影响的一方）；改写族按三档缺省对双方。
         /// 实际生效范围逐步存于仪典步 entry.value（AutoName/设置盒按步读取，2026-10-07）。
         /// 键=DisplayName（中文短名——装载后 EnumName 列落在 DisplayName，英文枚举名在 EnumName）。</summary>
@@ -177,7 +178,8 @@ namespace SynergyUI
         }
 
         /// <summary>规则光环行识别（2026-10-05 统一标记定案）：原子表 MountKinds 位 RuleAura 驱动——
-        /// 9 行双方仪典 + 3 行改写仪典（毒蚀/霜蚀/眠蚀；疫蚀 2026-10-09 随剧毒指示物删除退役）；RuleAuraIds 字典只剩 str 短名映射职责。</summary>
+        /// 9 行双方仪典 + 2 行改写仪典（毒蚀/霜蚀；疫蚀 2026-10-09 随剧毒指示物删除退役；
+        /// 眠蚀 2026-10-31 整链删除）；RuleAuraIds 字典只剩 str 短名映射职责。</summary>
         private static bool IsRuleAuraRow(AtomicEffectConfig cfg)
             => ComposerCatalog.HasMountBit(cfg, MountKind.RuleAura);
 
@@ -194,10 +196,13 @@ namespace SynergyUI
             return false;
         }
 
-        /// <summary>光环投放步行识别（仪典+改写）：EffectType=ModifyGameRule 的全部表行
-        ///（2026-10-07 改写降级后 MountKinds 两族分裂，行识别不再可靠——EffectType 单一来源）。</summary>
+        /// <summary>光环投放步行识别（仪典+改写；2026-10-31 阶段D：行类型派生——
+        /// Aura* 新型 ∪ 未翻新旧共享型 ModifyGameRule，RuleAuraComponents.IsAuraLike 单源；
+        /// MorphSystem.IsRuleAuraEntry 同口径）。</summary>
         private static bool IsRitualStepRow(AtomicEffectConfig cfg)
-            => cfg != null && cfg.EnumName == nameof(AtomicEffectType.ModifyGameRule);
+            => cfg != null
+               && Enum.TryParse<AtomicEffectType>(cfg.EnumName ?? "", out var t)
+               && RuleAuraComponents.IsAuraLike(t);
 
         // ---- 状态 ----
         private EffectGraphData _graph = new EffectGraphData("新效果");
@@ -2275,7 +2280,7 @@ namespace SynergyUI
             BindAtomDes(area, rewardCfg);
             if (free && reward != null)
             {
-                // 费用减少指示物（AddCostDown）奖励数量钉 1（2026-10-09 定案，见 BindAtomTargetRow）
+                // 费用指示物（四色增减 8 行）奖励数量钉 1（2026-10-09 定案，见 BindAtomTargetRow/IsAddCostDownRow）
                 BindAtomTargetRow(area, reward, RefreshText, pinCountOne: IsAddCostDownRow(rewardCfg));
                 BindAtomDerivativeRow(area, reward);
 
@@ -2800,13 +2805,12 @@ namespace SynergyUI
                 tg.onValueChanged.AddListener(on => ddDefer.interactable = !hiddenDomain && !on);
         }
 
-        /// <summary>每原子引用卡行（derivative：InputField=引用卡ID str、num=召唤数量 1-3 value）——
-        /// 2026-10-13 定案：召唤衍生物与变形赋予共用「引用卡ID」（召唤可选数量 1-3、模板须生物；
-        /// 变形数量恒 1、引用卡须生物或结界）。槽卡与奖励卡共用。
-        /// 2026-10-29 阶段3c 信息轴：宣言/预言/筛选展示行共用本行 InputField 编 str
-        ///（"维度:值"，ProphecyDimension 编码；2026-10-30 族改版后四行——箭头宣言退役，
-        /// 强夺只收卡名、预言只收类别，提示按行分化见 DeclarationStrDomainHint。
-        /// P0 先开输入行，维度下拉随信息轴卡面一起后续补）。</summary>
+        /// <summary>每原子引用卡行（derivative）——2026-10-31 阶段C 按原子表「参数」列分流：
+        /// CardRef（变形/模拟/召唤衍生物/附加诅咒/附加祝福）＝「选择卡牌」控件（点按开
+        /// 搜索+列表弹层，仅真实生物/结界卡——召唤只列生物），选中写卡 ID 进 str、已选显卡名缩略；
+        /// CardName/Dimension（检索/强夺/窃取/筛选展示/预言/卡名预言）＝战斗期弹窗接管
+        ///（本行隐藏；旧预置 str 保留兼容＝战斗弹窗默认值，不再在此输入）。
+        /// 召唤衍生物保留 num 数量下拉（1-3）。槽卡与奖励卡共用。</summary>
         private void BindAtomDerivativeRow(RectTransform host, AtomicEffectEntry atom)
         {
             var row = UiKit.FindDeep(host, "derivative");
@@ -2816,56 +2820,28 @@ namespace SynergyUI
                 return;
             }
             bool isSummon = IsSummonTokenEntry(atom);
-            bool isGrantMorph = IsGrantMorphEntry(atom);
+            var cfg = AtomicEffectTable.GetByHashId(atom?.refId);
+            bool isCardRef = cfg != null && cfg.Param == AtomicParamKind.CardRef;
             bool isDeclareStr = IsDeclarationStrEntry(atom);
-            // 变形赋予（2026-10-30 定案）：引用卡ID 不在效果组合期设置——归属卡牌合成界面
-            //（选中后显示卡牌列表，不带衍生物的卡均可选——卡合成改版时落地；存量 str 作固定
-            // 绑定回落，空 str 走 P9b 卡组绑定兜底）。行隐藏、数量恒 1 归一（无输入面）
-            if (isGrantMorph)
-            {
-                row.gameObject.SetActive(false);
-                atom.value = 1;
-                return;
-            }
-            bool show = isSummon || isDeclareStr;
-            row.gameObject.SetActive(show);
-            if (!show) return;
 
-            var idField = UiKit.FindDeep(row, "InputField")?.GetComponentInChildren<TMP_InputField>(true);
-            if (idField == null) Debug.LogError("[EffectComposer] derivative 行缺 InputField——引用卡ID不可编；检查 EffectUI.prefab");
-            else if (isDeclareStr)
+            if (isCardRef)
             {
-                // 宣言编码（str="维度:值"）：输入域按行分化（2026-10-30 族改版）
-                idField.SetTextWithoutNotify(atom.str ?? "");
-                idField.onEndEdit.RemoveAllListeners();
-                idField.onEndEdit.AddListener(_ =>
-                {
-                    atom.str = idField.text.Trim();
-                    RefreshSlots(); // 摘要与装载校验随写刷新
-                });
-                UiKit.Described(idField, DeclarationStrDomainHint(atom));
+                row.gameObject.SetActive(true);
+                BindCardRefField(row, atom, isSummon);
             }
             else
             {
-                idField.SetTextWithoutNotify(atom.str ?? "");
-                idField.onEndEdit.RemoveAllListeners();
-                idField.onEndEdit.AddListener(_ =>
-                {
-                    atom.str = idField.text.Trim();
-                    RefreshSlots(); // 摘要（{衍生物}/{引用卡}→模板卡名）与装载校验随写刷新
-                });
-                // isGrantMorph 已在行首早退（引用卡改卡牌合成界面选）——此分支仅召唤衍生物可达
-                UiKit.Described(idField,
-                    "引用卡ID（召唤衍生物）：指向一张真实生物卡——实例=该卡全参数复制、恒落战场（白板模板如 "
-                    + "token_0_1/token_1_1/token_2_2/token_3_3）。填不存在的 ID 装载时构筑期拦截。");
+                // CardName/Dimension 行（2026-10-31 阶段C）：合成器停用输入——战斗结算期弹窗
+                //（卡名文本窗/维度选择窗）；旧 str 只作默认值保留。非参数行照旧隐藏。
+                row.gameObject.SetActive(false);
             }
 
             var numNode = UiKit.FindDeep(row, "num");
-            // 数量下拉仅召唤显示（2026-10-13 变形赋予恒 1；2026-10-29 宣言行无数量——隐藏）
-            if (numNode != null) numNode.gameObject.SetActive(isSummon);
+            // 数量下拉仅召唤显示（2026-10-13 变形赋予恒 1；宣言/维度行无数量——隐藏）
+            if (numNode != null) numNode.gameObject.SetActive(isCardRef && isSummon);
             if (!isSummon)
             {
-                atom.value = 1;
+                if (isCardRef) atom.value = 1; // 变形/模拟恒 1（原口径）
                 return;
             }
 
@@ -2895,6 +2871,130 @@ namespace SynergyUI
                 UiKit.Described(numDd, "召唤数量（1-3）：一次召唤几个衍生物——每个都是独立实例，战场满位时后续入墓。");
             }
         }
+
+        /// <summary>CardRef 行选择控件（2026-10-31 阶段C）：InputField 退化为只读显示位
+        ///（已选=卡名缩略+ID，未选=占位提示），点按本体开卡牌选择弹层。</summary>
+        private void BindCardRefField(RectTransform row, AtomicEffectEntry atom, bool creatureOnly)
+        {
+            var idField = UiKit.FindDeep(row, "InputField")?.GetComponentInChildren<TMP_InputField>(true);
+            if (idField == null)
+            {
+                Debug.LogError("[EffectComposer] derivative 行缺 InputField——引用卡不可选；检查 EffectUI.prefab");
+                return;
+            }
+            idField.interactable = false;
+            idField.readOnly = true;
+            RefreshCardRefField(idField, atom.str, creatureOnly);
+            var btn = idField.gameObject.GetComponent<Button>();
+            if (btn == null) btn = idField.gameObject.AddComponent<Button>();
+            btn.onClick.RemoveAllListeners();
+            btn.onClick.AddListener(() => OpenCardRefPicker(atom, creatureOnly,
+                () => RefreshCardRefField(idField, atom.str, creatureOnly)));
+            UiKit.Described(idField, creatureOnly
+                ? "选择卡牌（召唤衍生物）：指向一张真实生物卡——实例=该卡全参数复制、恒落战场。"
+                  + "未选则保存被拦（与装载期校验同口径）。"
+                : "选择卡牌（变形/模拟/诅咒/祝福载荷）：指向一张真实生物或结界卡——选中写卡 ID 进原子。"
+                  + "未选则保存被拦（与装载期校验同口径）。");
+        }
+
+        /// <summary>引用卡显示位刷新：已选=卡名缩略（ID 备查·断链照实报）；未选=占位提示。</summary>
+        private static void RefreshCardRefField(TMP_InputField field, string str, bool creatureOnly)
+        {
+            CardData picked = string.IsNullOrEmpty(str) ? null : CardCatalog.GetById(str);
+            field.SetTextWithoutNotify(picked != null
+                ? $"已选：{(string.IsNullOrEmpty(picked.CardName) ? picked.ID : picked.CardName)}"
+                : "");
+            if (field.placeholder is TMP_Text ph)
+                ph.text = string.IsNullOrEmpty(str)
+                    ? (creatureOnly ? "（未选——点此选择生物卡）" : "（未选——点此选择生物/结界卡）")
+                    : (picked == null ? $"[断链] {str}" : $"（点此重选·现 {str}）");
+        }
+
+        /// <summary>卡牌选择弹层（2026-10-31 阶段C）：搜索 + 列表（仅真实生物/结界卡——
+        /// 剔除衍生物模板与教学卡；召唤只列生物）。选中写 atom.str 并刷新槽位摘要。</summary>
+        private UiKit.Modal _cardRefModal;
+
+        private void OpenCardRefPicker(AtomicEffectEntry atom, bool creatureOnly, Action onPicked)
+        {
+            if (_cardRefModal != null) { _cardRefModal.Close(); _cardRefModal = null; } // 重复点开=换卡窗
+            var rowName = AtomicEffectTable.GetByHashId(atom?.refId)?.DisplayName ?? "引用卡";
+            var modal = UiKit.ModalBox(Root, $"选择卡牌——{rowName}{(creatureOnly ? "（仅生物）" : "（生物/结界）")}",
+                width: 660f, height: 600f);
+            _cardRefModal = modal;
+
+            var searchRow = UiKit.Row("search", modal.Panel, spacing: 8f);
+            UiKit.Size(UiKit.Label("lbl", searchRow, "搜索：", 13, UiStyle.TextSecondary), w: 40f);
+            var searchField = UiKit.InputField("input", searchRow, "卡名 / ID 关键词", "",
+                width: 400f);
+            UiKit.Button("btn-close", searchRow, "关闭", () =>
+            {
+                _cardRefModal?.Close();
+                _cardRefModal = null;
+            }, height: 30f, fontSize: 13);
+
+            var scroll = UiKit.ScrollColumn("list", modal.Panel);
+            UiKit.Size(scroll.Rect, fw: 1f, fh: 1f);
+
+            void Rebuild()
+            {
+                for (int i = scroll.Content.childCount - 1; i >= 0; i--)
+                    UnityEngine.Object.Destroy(scroll.Content.GetChild(i).gameObject);
+                string key = (searchField.text ?? "").Trim();
+                var candidates = CardSorter.Sort(CardCatalog.LoadAll()
+                        .Where(c => CardRefCandidateOk(c, creatureOnly))
+                        .Where(c => string.IsNullOrEmpty(key)
+                                    || (c.CardName ?? "").Contains(key, StringComparison.OrdinalIgnoreCase)
+                                    || (c.ID ?? "").Contains(key, StringComparison.OrdinalIgnoreCase)))
+                    .ToList();
+                const int cap = 150;
+                int shown = 0;
+                foreach (var card in candidates)
+                {
+                    if (shown++ >= cap) break;
+                    var pick = card;
+                    var line = UiKit.Row("card-" + pick.ID, scroll.Content, spacing: 8f);
+                    UiKit.Size(UiKit.Label("cost", line, ((int)pick.TotalCost).ToString(), 13, UiStyle.TextFaint), w: 30f);
+                    UiKit.Size(UiKit.Label("name", line,
+                        string.IsNullOrEmpty(pick.CardName) ? pick.ID : pick.CardName, 13), w: 200f);
+                    UiKit.Size(UiKit.Label("meta", line, CardRefMetaOf(pick), 12, UiStyle.TextFaint), fw: 1f);
+                    bool current = atom.str == pick.ID;
+                    UiKit.Button("btn-pick", line, current ? "已选 ✓" : "选择", () =>
+                    {
+                        atom.str = pick.ID;
+                        RefreshSlots(); // 摘要（{引用卡}→卡名）与装载校验随写刷新
+                        onPicked?.Invoke();
+                        _cardRefModal?.Close();
+                        _cardRefModal = null;
+                    }, bg: current ? UiStyle.SelectedRowBg : null, height: 30f, fontSize: 13);
+                }
+                UiKit.Label("count", scroll.Content,
+                    candidates.Count == 0
+                        ? "（无匹配卡——换关键词）"
+                        : shown < candidates.Count ? $"共 {candidates.Count} 张，仅列前 {cap} 张——用搜索缩小范围"
+                        : $"共 {candidates.Count} 张", 12, UiStyle.TextHint);
+            }
+
+            searchField.onValueChanged.RemoveAllListeners();
+            searchField.onValueChanged.AddListener(_ => Rebuild());
+            Rebuild();
+        }
+
+        /// <summary>选择器候选资格（2026-10-31 阶段C）：真实生物/结界卡——剔除衍生物模板
+        ///（IsTokenTemplate）与教学卡；召唤衍生物只收生物（装载期 ValidateMountHosts 同口径）。</summary>
+        private static bool CardRefCandidateOk(CardData card, bool creatureOnly)
+        {
+            if (card == null || string.IsNullOrEmpty(card.ID) || card.IsTokenTemplate) return false;
+            if (CardCatalog.IsTeachingCard(card)) return false;
+            return creatureOnly
+                ? card.Supertype == Cardtype.Creature
+                : card.Supertype == Cardtype.Creature || card.Supertype == Cardtype.Enchantment;
+        }
+
+        /// <summary>候选行 meta 文本：类型 + 攻/血（生物，缺项显 ?）或类型标注。</summary>
+        private static string CardRefMetaOf(CardData card)
+            => card.Supertype == Cardtype.Creature
+                ? $"生物 {(card.Power.HasValue ? card.Power.Value.ToString() : "?")}/{(card.Life.HasValue ? card.Life.Value.ToString() : "?")}"
+                : card.Supertype == Cardtype.Enchantment ? "结界" : card.Supertype.ToString();
 
         /// <summary>极性→合法作用面方向码（2026-10-30 收窄定案）：+1→{己方}；-1→{对方}；
         /// 0→{己方,双方,对方} 三选（中性改写行保留双方档）。仅仪典卡作用面下拉消费
@@ -3040,10 +3140,14 @@ namespace SynergyUI
                 _timingDropdown.Interactable = !locked || freeTiming;
         }
 
-        /// <summary>费用减少指示物（AddCostDown）行判定——奖励槽数量钉 1 定案配套（BindAtomTargetRow）。</summary>
+        /// <summary>费用指示物行判定（四色增减 8 行，2026-10-31 四色化）——奖励槽数量钉 1 定案配套
+        ///（BindAtomTargetRow；handler 恒 1 层，数量档对全族无效）。</summary>
         private static bool IsAddCostDownRow(AtomicEffectConfig cfg)
             => cfg != null && Enum.TryParse<AtomicEffectType>(cfg.EnumName, out var t)
-               && t == AtomicEffectType.AddCostDown;
+               && (t == AtomicEffectType.AddCostUpGray || t == AtomicEffectType.AddCostUpRed
+                   || t == AtomicEffectType.AddCostUpBlue || t == AtomicEffectType.AddCostUpGreen
+                   || t == AtomicEffectType.AddCostDownGray || t == AtomicEffectType.AddCostDownRed
+                   || t == AtomicEffectType.AddCostDownBlue || t == AtomicEffectType.AddCostDownGreen);
 
         /// <summary>prefab 静态下拉取件（节点在而组件缺=数据层可见错误，不静默）。</summary>
         private static TMP_Dropdown DdOf(RectTransform node)
@@ -3709,7 +3813,12 @@ namespace SynergyUI
             // 不占 LinkAura 连接位（无箭头）。新选即整组替换（属性降低条目同槽互斥）
             void AddRuleAura(AtomicEffectConfig cfg)
             {
-                var rid = RuleAuraIds.TryGetValue(cfg.DisplayName, out var r) ? r : cfg.DisplayName;
+                // 阶段D（2026-10-31）：规则 id 从行类型派生（RuleAuraComponents 映射单源）——
+                // 新型行不再写 str（投放/同名闸/构筑唯一槽全走类型）；表 EffectType 未翻新行
+                //（仍=ModifyGameRule）回落 RuleAuraIds 显示名映射并写 str（handler 过渡回落）
+                Enum.TryParse<AtomicEffectType>(cfg.EnumName ?? "", out var rt);
+                var rid = RuleAuraComponents.RuleIdOfType(rt)
+                          ?? (RuleAuraIds.TryGetValue(cfg.DisplayName, out var r) ? r : cfg.DisplayName);
                 bool fixedBoth = RuleAuraComponents.IsFixedBothRule(rid); // 固定双方行不提供单侧选择（2026-10-29）
                 _graph.steps = new List<EffectStepData> { new EffectStepData { kind = 0,
                     atomic = new AtomicEffectEntry { refId = cfg.HashId,
@@ -3717,7 +3826,7 @@ namespace SynergyUI
                             : (cfg.Polarity <= -0.5f ? (int)RuleAuraScope.Opponent
                             : cfg.Polarity >= 0.5f ? (int)RuleAuraScope.Own
                             : (int)RuleAuraScope.Both),
-                        str = rid } } };
+                        str = rt == AtomicEffectType.ModifyGameRule ? rid : null } } };
                 _graph.header.LinkAuras = null; // 仪典与属性降低条目同槽互斥——落仪典清条目
                 _graph.header.ArrowDirections = 0; // 规则级无箭头（MakeAuraPanel 范围面分支同置——落位即写一致）
                 RefreshSlots();
@@ -4207,7 +4316,12 @@ namespace SynergyUI
             var range = UiKit.FindDeep(card, "actuating-range") as RectTransform;
             var rangeDd = range != null ? UiKit.FindDeep(range, "aura-kinds")?.GetComponent<TMP_Dropdown>() : null;
             var rcfg = AtomicEffectTable.GetByHashId(atom?.refId);
-            if (RuleAuraComponents.IsFixedBothRule(atom?.str))
+            // 阶段D（2026-10-31）：规则 id 从行类型派生优先（RuleAuraComponents 映射）——
+            // 新型行不写 str；未翻新行回落 atom.str
+            var rrid = Enum.TryParse<AtomicEffectType>(rcfg?.EnumName ?? "", out var rt)
+                ? RuleAuraComponents.RuleIdOfType(rt) ?? atom.str
+                : atom.str;
+            if (RuleAuraComponents.IsFixedBothRule(rrid))
             {
                 // 固定双方规则（2026-10-29 1b 定案）：许可/禁止族 UI 不提供单侧选择——
                 // 实例 value 恒写 Both、隐藏作用范围下拉行（改写族照旧走下拉）

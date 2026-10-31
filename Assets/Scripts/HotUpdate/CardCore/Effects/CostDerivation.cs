@@ -627,13 +627,15 @@ namespace CardCore
             if (cfg == null || cfg.TotalUnitCost <= 0f)
                 return 0f;
 
-            // 规则光环（2026-10-07 范围化）：Value=作用范围序（RuleAuraScope）非量级——不乘 magnitude，
+            // 规则光环（2026-10-07 范围化；2026-10-31 阶段D：判定改行类型——Aura* 新型 ∪
+            // 未翻新旧共享型 ModifyGameRule，单源=RuleAuraComponents.IsAuraLike）：Value=作用范围序
+            //（RuleAuraScope）非量级——不乘 magnitude，
             // 恒单价×成本乘数×持续档（与旧口径 value=1 等价）；不吃对称让利（2026-10-29 去对称让利——
             // 表价即实价；含负面光环——2026-10-07 改写降级回滚，改写族箭头计价口径退役；舍身（2026-10-30 改版战斗法师）2026-10-16 关键词化出族）。
             // 2026-10-30 单侧溢价：极性 ±1 行作用面收窄单侧（+1 仅己方/−1 仅对方，UI 不再提供双方档），
             // 表价按对称双方校准 → 单侧档 ×RuleAuraSingleSideFactor（CardCostConfig，默认 1.5——具体值用户调）；
             // 固定双方行（IsFixedBothRule）与存量 value=Both 数据恒 ×1。
-            if (atom.Type == AtomicEffectType.ModifyGameRule)
+            if (RuleAuraComponents.IsAuraLike(atom.Type))
             {
                 float ruleMult = cfg.CostMultiplier > 0f ? cfg.CostMultiplier : 1f;
                 var ruleAttr = ValueSystemConfigManager.Instance.GetOrCreateConfig().AttributeValueConfig;
@@ -827,7 +829,7 @@ namespace CardCore
             var attrCfg = ValueSystemConfigManager.Instance.GetOrCreateConfig().AttributeValueConfig;
             float durationFactor = attrCfg.GetDurationDiscount(def.Duration)
                                    / attrCfg.GetDurationDiscount(DurationType.Once);
-            if (atom.Type == AtomicEffectType.ModifyGameRule)
+            if (RuleAuraComponents.IsAuraLike(atom.Type)) // 阶段D：行类型判定（Aura* ∪ 未翻新 ModifyGameRule）
             {
                 AddFactor(factors, "表乘数", cfg.CostMultiplier > 0f ? cfg.CostMultiplier : 1f);
                 // 单侧溢价（2026-10-30）：与 ComputeAtomBaseAmount 同源——±1 行单侧档 ×系数，双方档 ×1

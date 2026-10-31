@@ -196,8 +196,7 @@ namespace CardCore
         /// 裸 Card（衍生物/临时卡，非 CardWrapper）恒为 0。
         /// 2026-10-15 深夜改版：法术效果发动速度=卡的发动速度——免费点=槽数+速度(3−N)
         ///（KindSpeedBonusOf 动态单源）计入本口；生物/结界从手牌使用恒 0 速（结界禁主动后速度通道退役）。
-        /// 疾风仪典 2026-10-16 改版：光环只作用场上卡（攻击宣言/主动效果）——手牌施放不再+1，
-        /// 加成口见 RuleAuraComponents.OnBoardActiveSpeedBonus。
+        ///（疾风仪典场上加速 2026-10-31 整链删除。）
         /// </summary>
         public static int GetCardCastSpeed(Card card)
         {

@@ -168,6 +168,19 @@ namespace CardCore.Attribute
                 // 与预算（BuildGatePremium）从表派生，判定谓词仍在 BranchConditionEvaluator
                 config.GateId = entry.GateId;
                 config.Budget = entry.Budget;
+
+                // 特殊/参数两列（2026-10-31 阶段B）：特殊=引擎实况声明（展示层只读）；参数=实例 str
+                // 需求声明（装载校验口 CardLoader.ValidateAtomParams）。缺键=None/不声明。
+                // 参数列非法值告警回落 None（表内只应出现四值，拼错在装载期点名）。
+                config.Special = entry.特殊;
+                if (!string.IsNullOrEmpty(entry.参数))
+                {
+                    if (Enum.TryParse<AtomicParamKind>(entry.参数, out var paramKind))
+                        config.Param = paramKind;
+                    else
+                        TideLog.Warn($"[AtomicEffectTable] 参数列非法值 '{entry.参数}'（EnumName={entry.EnumName}，"
+                                     + "应为 None/CardRef/CardName/Dimension），回落 None");
+                }
             }
             else
             {
@@ -280,8 +293,26 @@ namespace CardCore.Attribute
             return rows;
         }
 
-        /// <summary>已加载的配置总数（供诊断/验证用）</summary>
+        /// <summary>已加载的配置总数（供诊断/验证用；= 唯一 EffectType 数——阶段D 唯一化后与行数一致）</summary>
         public static int Count => _typeMap?.Count ?? 0;
+
+        /// <summary>已装载行数（含同 EffectType 多行——阶段D 前的共享族；与 Count 的差=共享行富余）。</summary>
+        public static int RowCount => _idMap?.Count ?? 0;
+
+        /// <summary>当前被多行共享的 EffectType 清单（2026-10-31 阶段D 唯一化验收口：
+        /// 表 EffectType 列翻新后应为空；未翻新期间四族共享（SkipTurn/GrantProtection/
+        /// SituationGate/ModifyGameRule）属预期过渡态——只作读数，不告警不拦截装载）。</summary>
+        public static List<AtomicEffectType> DuplicateTypes()
+        {
+            var seen = new HashSet<AtomicEffectType>();
+            var dup = new HashSet<AtomicEffectType>();
+            foreach (var cfg in _idMap.Values)
+            {
+                if (cfg == null || !Enum.TryParse<AtomicEffectType>(cfg.EnumName, out var t)) continue;
+                if (!seen.Add(t)) dup.Add(t);
+            }
+            return dup.ToList();
+        }
 
         // ======================================== JSON DTO（薄 5+1 列）========================================
 
@@ -312,6 +343,10 @@ namespace CardCore.Attribute
             public string GateId;        // 门槛语义 id（如 LifeBelowOpp）——ComposerCatalog.SituationGates 派生源，
                                          // 与 BranchConditionEvaluator 判定谓词注册 id 对齐
             public int Budget;           // 奖励锚价上限（BuildGatePremium 派生源；0=无门槛语义）
+
+            // ---- 阶段B 新列（2026-10-31）：只在有值的行写键，其余行缺省（不写键）----
+            public string 特殊;          // 特殊声明：文案没说、但引擎实际这么做的规则（中文短句；展示层追加）
+            public string 参数;          // 实例级字符串参数声明：None/CardRef/CardName/Dimension（缺省 None）
         }
 
         [Serializable]

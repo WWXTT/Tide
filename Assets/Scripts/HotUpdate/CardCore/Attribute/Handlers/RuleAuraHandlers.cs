@@ -3,8 +3,11 @@ using CardCore.Attribute;
 namespace CardCore.Attribute.Handlers
 {
     /// <summary>
-    /// 规则光环投放原子（规则轴路线 B，2026-10-03 定案；ModifyGameRule 转正；2026-10-07 作用范围化）：
-    /// str=规则短名（RuleAuraComponents 常量——与原子表规则光环族行一一对应），
+    /// 场地光环投放原子（规则轴路线 B，2026-10-03 定案；ModifyGameRule 转正；2026-10-07 作用范围化；
+    /// 2026-10-31 阶段D EffectType 唯一化）：**规则 id 改从行类型派生**——每条光环一型
+    ///（AuraTriPhase..AuraInscription，29 型），类型→规则短名静态映射=
+    /// RuleAuraComponents.RuleIdOfType（源=RuleAuraComponents 常量），str=规则短名口径彻底退役
+    ///（表 EffectType 列未翻新期间行仍=ModifyGameRule，按 str 回落过渡；旧卡带 str 新链路忽略）。
     /// Value=作用范围序（RuleAuraScope：0=己方/1=双方（缺省）/2=对方——合成器按表行 Polarity 门控可选项；
     /// 2026-10-29 起固定双方规则忽略 value 恒 Both，计价去对称让利=表价即实价）。挂在结界卡登场效果上——载体（CastCard）入场结算时
     /// 激活 RuleAuraSystem：持续永久、全局唯一（新换旧送墓）、载体离场失效、
@@ -17,10 +20,10 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            var ruleId = effect.StringValue;
+            var ruleId = RuleIdOf(effect);
             if (string.IsNullOrEmpty(ruleId))
             {
-                TideLog.Warn("[ModifyGameRuleHandler] 缺少规则短名（str 应为场地光环 id），空转");
+                TideLog.Warn("[ModifyGameRuleHandler] 规则 id 缺失（行类型不在光环映射且 str 空），空转");
                 return;
             }
 
@@ -38,6 +41,15 @@ namespace CardCore.Attribute.Handlers
         }
 
         protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => $"场地光环：{effect.StringValue}（{RuleAuraSystem.RuleAuraScopeZh(effect.Value)}，载体离场失效）";
+        {
+            var ruleId = RuleIdOf(effect);
+            return $"场地光环：{ruleId}（{RuleAuraSystem.RuleAuraScopeZh(effect.Value)}，载体离场失效）";
+        }
+
+        /// <summary>规则 id 解析：行新型经 RuleAuraComponents.RuleIdOfType（单源映射）；
+        /// 旧共享型 ModifyGameRule（表 EffectType 列未翻新行/旧实例数据）回落 str=规则短名。</summary>
+        internal static string RuleIdOf(AtomicEffectInstance effect)
+            => RuleAuraComponents.RuleIdOfType(effect.Type)
+               ?? (effect.Type == AtomicEffectType.ModifyGameRule ? effect.StringValue : null);
     }
 }

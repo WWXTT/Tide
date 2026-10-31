@@ -102,23 +102,6 @@
     ]
   },
   {
-    "ID": "4f9918f2",
-    "EnumName": "疾风仪典",
-    "DisplayName": "场上的卡的主动效果，发动速度+1",
-    "EffectType": "ModifyGameRule",
-    "TargetKinds": null,
-    "TargetFilter": null,
-    "Polarity": 1,
-    "MountKinds": "场地光环",
-    "Tags": null,
-    "ManaList": [
-      0,
-      0,
-      3,
-      0
-    ]
-  },
-  {
     "ID": "0df10778",
     "EnumName": "纳川仪典",
     "DisplayName": "手牌上限增加自己蓝色地牌的数量",
@@ -138,7 +121,7 @@
   {
     "ID": "f3a7489e",
     "EnumName": "毒蚀仪典",
-    "DisplayName": "受光环影响的生物受到伤害后叠加一层毒素指示物",
+    "DisplayName": "受光环影响的生物受到伤害后附加一层毒素指示物",
     "EffectType": "ModifyGameRule",
     "TargetKinds": null,
     "TargetFilter": null,
@@ -166,23 +149,6 @@
       0,
       0,
       3,
-      0
-    ]
-  },
-  {
-    "ID": "efc537ba",
-    "EnumName": "眠蚀仪典",
-    "DisplayName": "受光环影响的生物的发动效果时，附加一层沉睡指示物",
-    "EffectType": "ModifyGameRule",
-    "TargetKinds": null,
-    "TargetFilter": null,
-    "Polarity": -1,
-    "MountKinds": "场地光环",
-    "Tags": null,
-    "ManaList": [
-      0,
-      0,
-      5,
       0
     ]
   },
@@ -325,7 +291,7 @@
   {
     "ID": "4340e70e",
     "EnumName": "禁召令",
-    "DisplayName": "受光环影响一方不能施放生物牌",
+    "DisplayName": "受光环影响一方不能施放攻击或生命大于己方灰色地牌数量的生物牌",
     "EffectType": "ModifyGameRule",
     "TargetKinds": null,
     "TargetFilter": null,
@@ -335,9 +301,10 @@
     "ManaList": [
       0,
       0,
-      6,
+      3,
       0
-    ]
+    ],
+    "特殊裁定": "攻击或生命等于灰色地牌数量时可以施放；灰色地牌=元素池内锁灰的地牌"
   },
   {
     "ID": "37de45b9",
@@ -386,41 +353,7 @@
     "ManaList": [
       0,
       0,
-      6,
-      0
-    ]
-  },
-  {
-    "ID": "1bb1ea6d",
-    "EnumName": "禁扰令",
-    "DisplayName": "受光环影响一方不能在对手回合施放卡牌",
-    "EffectType": "ModifyGameRule",
-    "TargetKinds": null,
-    "TargetFilter": null,
-    "Polarity": -1,
-    "MountKinds": "场地光环",
-    "Tags": null,
-    "ManaList": [
-      0,
-      0,
       3,
-      0
-    ]
-  },
-  {
-    "ID": "d436b741",
-    "EnumName": "禁指示物令",
-    "DisplayName": "除系统指示物外，受光环影响一方不能放置指示物",
-    "EffectType": "ModifyGameRule",
-    "TargetKinds": null,
-    "TargetFilter": null,
-    "Polarity": -1,
-    "MountKinds": "场地光环",
-    "Tags": null,
-    "ManaList": [
-      3,
-      0,
-      0,
       0
     ]
   },
@@ -461,7 +394,7 @@
   {
     "ID": "977f31ca",
     "EnumName": "延迟死亡",
-    "DisplayName": "受光环影响的单位死亡时，改为在下个回合结束时死亡",
+    "DisplayName": "受光环影响的单位死亡时，改为在下个回合结束时死亡（不会延迟此效果结算的死亡）",
     "EffectType": "ModifyGameRule",
     "TargetKinds": null,
     "TargetFilter": null,
@@ -495,7 +428,7 @@
   {
     "ID": "759e17c5",
     "EnumName": "铭刻",
-    "DisplayName": "受光环影响一方的单位被添加指示物时，该指示物的层数+1",
+    "DisplayName": "受光环影响一方的场上单位被添加指示物时，该指示物的层数+1",
     "EffectType": "ModifyGameRule",
     "TargetKinds": null,
     "TargetFilter": null,
@@ -507,6 +440,7 @@
       0,
       0,
       6
-    ]
+    ],
+    "特殊裁定": "系统指示物不受影响；手牌和牌库的指示物不受影响；只作用于场上单位"
   }
 ]

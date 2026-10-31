@@ -51,12 +51,12 @@ namespace CardCore.Attribute
         // 临时标记=1 层临时指示物（回合末口径=CounterRules.OnTurnEnd ②块：
         // 不在战场从游戏中移除、在战场不生效也不倒数——2026-10-12 生效自减改稿，转正退役；
         // 不可作地牌=CanServeAsLand 读同一指示物——挂标永不自消，复制体无入池窗口）
-            card.AddCounters(CounterRules.TempCounter, 1);
+            int actualDelta = card.AddCounters(CounterRules.TempCounter, 1);
             Publish(new CounterChangedEvent
             {
                 Target = card,
                 CounterType = CounterRules.TempCounter,
-                Amount = 1,
+                Amount = actualDelta,
                 Source = null,
             });
 

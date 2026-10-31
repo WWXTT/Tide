@@ -45,6 +45,7 @@ namespace CardCore.Network
         JoinRoom = 112,              // 会话层：进房分座/观战登记（MsgJoinRoom，见 网络协议.md §12）
         IntentActivateHeroSkill = 113, // 英雄技能发动（MsgIntentActivateHeroSkill——2026-10-21 协议补课：技能格 10-15 加入后首个新 intent；离散位在会话层消息之后）
         IntentBuildCard = 114,       // 充能（原建造，2026-10-31 P12 改义）：手牌带充能效果的卡逐色充能（MsgIntentBuildCard——2026-10-29 P7 协议 v4 入列，消息号不变）
+        TextResponse = 115,          // 文本反问应答（MsgTextResponse——2026-10-31 阶段C：卡名宣言开放集输入）
 
         // ---- 下行（服务器→客户端）----
         SelectRequest = 120,         // 反问请求（MsgSelectRequest）
@@ -54,6 +55,7 @@ namespace CardCore.Network
         Pong = 124,
         MatchManifest = 125,         // 开局握手：对局清单（MsgMatchManifest，见 网络协议.md §11）
         RoomState = 126,             // 会话层：房间全量状态广播（MsgRoomState，见 网络协议.md §12）
+        TextRequest = 127,           // 文本反问请求（MsgTextRequest——2026-10-31 阶段C；按 ChooserSeat 定向下发，预言类隐秘宣言不下发对手）
 
         // ---- 大厅层（L1，2026-09-24：房间列表 + 自动匹配 + AI 填位，见 网络协议.md §13）----
         LobbyHello = 130,            // 上行：进大厅（MsgLobbyHello）→ 服务器回 LobbyState
@@ -79,10 +81,13 @@ namespace CardCore.Network
     /// MemoryPack 载荷布局变更，新旧端互拒（无兼容层）。
     /// v5（2026-10-29 P9b 衍生物槽绑定入卡组）：MsgDeckSubmit 新增 TokenCardIds/TokenBindings、
     /// 新消息 MsgDeckTokenBinding、NetDeckDigest 新增 TokenSig——卡组摘要口径扩展
-    /// （同卡表不同绑定=不同摘要），MemoryPack 载荷布局变更，新旧端互拒（无兼容层）。</summary>
+    /// （同卡表不同绑定=不同摘要），MemoryPack 载荷布局变更，新旧端互拒不兼容（无兼容层）。
+    /// v6（2026-10-31 阶段C 文本反问）：新消息 MsgTextRequest（下行 127）/MsgTextResponse（上行 115）
+    /// ——卡名宣言等开放集输入（检索/强夺/窃取结算期反问）。纯新增消息、存量载荷布局零改；
+    /// 升版防旧端（不识别两消息）与新端互连半开死等。</summary>
     public static class NetworkProtocol
     {
-        public const ushort Version = 5;
+        public const ushort Version = 6;
     }
 
     [MemoryPackable]
