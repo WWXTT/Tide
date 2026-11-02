@@ -1067,15 +1067,37 @@
       ]
     },
     {
-      "id": "44CC30B6",
+      "id": "8E446A92",
       "name": "训练·诅咒烙印",
       "timing": 19,
       "activation": 2,
+      "cost": [
+        0.0,
+        2.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "steps": [
         {
           "kind": 0,
           "atom": {
-            "refId": "90ba9782"
+            "refId": "90ba9782",
+            "branch": {
+              "settle": 3,
+              "engine": 6,
+              "engineParam": 1,
+              "tactivate": 2,
+              "then": [
+                {
+                  "refId": "a4b823fc",
+                  "value": 4,
+                  "kinds": [
+                    2
+                  ]
+                }
+              ]
+            }
           }
         }
       ]

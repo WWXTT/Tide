@@ -484,7 +484,7 @@ namespace SynergyUI
             CloseTipPrompt(); // TipPanel 提示弹窗防跨屏残留（2026-10-17）
             _unitButtons.Dispose(); // 单位动作 3D 按钮组防跨屏残留（2026-10-26 替弹窗）
             BattleRevealDirector.End(); // 语音联动显隐全恢复防跨屏残留（2026-10-17）
-            _tutorial?.UninstallResponder(); // 教学守卫应答器卸载（null=回落内置启发）
+            //（教学守卫应答器卸载 2026-11-02 随教学三连战改版整删——_tutorialResponder 链退役）
             _toast.Hide();
 
             // 手牌扇区实例回收（自持实例池，随挂载层销毁亦安全——显式清防重入）
@@ -1417,14 +1417,43 @@ namespace SynergyUI
                     StartDummyOpeningAsync().Forget();
                     return;
                 }
-                _opening = new BattleOpeningDirector(() => _running, _field,
-                    BattleEntry.Mode == BattleMode.Tutorial && BattleEntry.TutorialId == TutorialProgressManager.LunzhuanId,
-                    EngageStagedBattle);
+                if (BattleEntry.Mode == BattleMode.Tutorial
+                    && BattleEntry.TutorialId == TutorialProgressManager.LunzhuanId)
+                {
+                    // 教学三毕业连战（2026-11-02 改版）：首场战前规则说明弹窗后走五段式开场
+                    StartGauntletOpeningAsync().Forget();
+                    return;
+                }
+                _opening = new BattleOpeningDirector(() => _running, _field, false, EngageStagedBattle);
                 _opening.RunAsync().Forget();
                 return;
             }
 
             EngageLocalBattle(mirrorDeck, mirrorSkill, challengeDeck, challengeSkill, testScenario);
+        }
+
+        /// <summary>教学三毕业连战开局（2026-11-02 改版：末日降临 Boss 战退役）：首场（未选过
+        /// 卡组）先弹规则说明（TipPanel 双键：开始连战/返回主菜单）；确认或后续场次（Picked=true
+        /// ——场间弹窗「继续挑战」与败局「再战」均经 Manager.Replace 重入，不再打扰）直接走五段式
+        /// 开场（段四首场单轮选我方卡组、后续沿用已选；段五对手=LunzhuanGauntlet.OpponentName
+        /// 预组序列）。取消/拆屏=退回主菜单（连战态由下次主菜单入口 Begin 作废）。</summary>
+        private async UniTaskVoid StartGauntletOpeningAsync()
+        {
+            if (!LunzhuanGauntlet.Picked)
+            {
+                var ok = await ShowTipPromptAsync(
+                    "教学三·毕业连战：用你的卡组（或直接选一套预组）依次击败三套预组——红·快攻、蓝·控制、绿·慢速。\n"
+                    + "三场全胜即完成教学；任一场失败可保留胜场，重整旗鼓再战当前对手。",
+                    "开始连战", "返回主菜单");
+                if (!_running) return; // 拆屏（面板随 Root 销毁自清）
+                if (ok != true)
+                {
+                    Manager.Back();
+                    return;
+                }
+            }
+            _opening = new BattleOpeningDirector(() => _running, _field, true, EngageStagedBattle);
+            _opening.RunAsync().Forget();
         }
 
         /// <summary>staged 局段五交班（BattleOpeningDirector 回调）：掷币/选卡组结果直喂
@@ -1493,7 +1522,21 @@ namespace SynergyUI
             // 抽卡飞入（时序红线——先于 StartNewGame，详见 BattleProjector.WireEarly 注释）
             _projector.WireEarly();
 
-            if (BattleEntry.Mode == BattleMode.Tutorial)
+            if (BattleEntry.Mode == BattleMode.Tutorial
+                && BattleEntry.TutorialId == TutorialProgressManager.LunzhuanId)
+                // 教学三毕业连战（2026-11-02 改版）：不走教学装配（引导/课规/剧本 AI/锁牌库/被动
+                // 响应器全不装）——AI 正式对手（MakePacedAi+AutoMatch 按预组 Theme 标签映主题策略，
+                // 木桩难度 2 同款；响应行为归驱动自身内置启发），常规洗牌常规开局（不钉种子——
+                // 同对手重战不复现同局）。胜负不直接落档：TutorialFlow 连战拦截 + 终局弹窗链
+                //（LunzhuanGauntlet.ReportWin，三场全胜才 MarkTutorialCompleted）。
+            {
+                _ctrl.StartNewGame(matchDeck, aiDeck,
+                    MakePacedAi(aiDeck != null ? AiStrategy.AutoMatch(aiDeck) : null),
+                    mySkillCardId: matchSkill, aiSkillCardId: aiSkill,
+                    playerFirst: playerFirst, secondArmorBonus: GameCore.SecondPlayerArmorBonus,
+                    myTokenBindings: myTokenBindings, aiTokenBindings: aiTokenBindings);
+            }
+            else if (BattleEntry.Mode == BattleMode.Tutorial)
             {
                 // 教学局（2026-10-18 教学二含对局准备流程注入的 matchDeck/aiDeck/硬币先手/技能——
                 // 必须先于普通 matchDeck 分支接管，否则教学装配（引导+课规+剧本 AI）被匹配分支抢吞）；
@@ -1501,8 +1544,7 @@ namespace SynergyUI
                 // Tutorial 标记，ReportBattleResult 会把这场无引导普通局的胜利误记成过课
                 // （真机实录：热更配置档解析失败→Get(basics)=null→随机卡组白板局→打赢即
                 // MarkTutorialCompleted，存档污染后教学按钮路由直跳教学二「教学一已通过」）。
-                if (!_tutorial.StartGame(_ctrl, matchDeck, aiDeck, playerFirst, matchSkill, aiSkill,
-                    myTokenBindings, aiTokenBindings))
+                if (!_tutorial.StartGame(_ctrl))
                 {
                     BattleEntry.Mode = BattleMode.LocalAI; // 回落局不计教学进度（胜负都不落档）
                     _ctrl.StartNewGame(matchDeck, aiDeck,

@@ -5603,7 +5603,7 @@ namespace CardCore.Editor
         /// <summary>
         /// 减费三选一（2026-11-02 定案）：① 同一效果只能三选一（有限分支/自由分支/代价）；
         /// ② 并列添加两个效果禁挂代价；③ 光环类（结界的场地光环/仪典行）禁挂代价；
-        /// ④ 代价行全价 ≤4；⑤ 分支减费=Then 奖励费值——有限分支 1~3、自由分支 1~6（原 1-5 同批放宽）。
+        /// ④ 代价行全价 ≤3（2026-11-02 自 4 收紧）；⑤ 分支减费=Then 奖励费值——有限分支 1~3、自由分支 1~6（原 1-5 同批放宽）。
         /// 判定单源=SynergyUI.EffectComposerScreen（DiscountConflictOf / BranchRewardCapViolationOf——
         /// 卡组合保存闸 / addcost 闸 / 效果合成器形态闸与本段共用）。夹具全内存合成，不动卡表。
         /// </summary>
@@ -5665,19 +5665,20 @@ namespace CardCore.Editor
             Assert(rAura != null && rAura.Contains("光环类"),
                    $"光环卡+代价 → 报错（实际：{rAura ?? "未报"}）");
 
-            // ---- ③ 代价 5 点 → 超上限（≤4） ----
-            var cardCost5 = SpellOf(ParallelFx(Atom(AtomicEffectType.DrawCard, 1)));
-            SetCost(cardCost5, Atom(AtomicEffectType.DealDamage, 5)); // 伤害 1红/点 → 5 点
-            float price5 = SynergyUI.EffectComposerScreen.CostRowPrice(cardCost5.PayloadCost);
-            string rCost5 = SynergyUI.EffectComposerScreen.DiscountConflictOf(cardCost5);
-            Assert(price5 > 4f && rCost5 != null && rCost5.Contains("超上限"),
-                   $"代价 {price5:0.#} 点 → 超上限报错（实际：{rCost5 ?? "未报"}）");
-            // 反例：代价 4 点 → 合规
+            // ---- ③ 代价 4 点 → 超上限（≤3，2026-11-02 自 4 收紧） ----
             var cardCost4 = SpellOf(ParallelFx(Atom(AtomicEffectType.DrawCard, 1)));
-            SetCost(cardCost4, Atom(AtomicEffectType.DealDamage, 4));
+            SetCost(cardCost4, Atom(AtomicEffectType.DealDamage, 4)); // 伤害 1红/点 → 4 点
             float price4 = SynergyUI.EffectComposerScreen.CostRowPrice(cardCost4.PayloadCost);
-            Assert(price4 <= 4f && SynergyUI.EffectComposerScreen.DiscountConflictOf(cardCost4) == null,
-                   $"代价 {price4:0.#} 点（≤4）→ 合规");
+            string rCost4 = SynergyUI.EffectComposerScreen.DiscountConflictOf(cardCost4);
+            Assert(price4 > SynergyUI.EffectComposerScreen.CostDiscountCap && rCost4 != null && rCost4.Contains("超上限"),
+                   $"代价 {price4:0.#} 点 → 超上限报错（实际：{rCost4 ?? "未报"}）");
+            // 反例：代价 3 点 → 合规（恰在上限）
+            var cardCost3 = SpellOf(ParallelFx(Atom(AtomicEffectType.DrawCard, 1)));
+            SetCost(cardCost3, Atom(AtomicEffectType.DealDamage, 3));
+            float price3 = SynergyUI.EffectComposerScreen.CostRowPrice(cardCost3.PayloadCost);
+            Assert(price3 <= SynergyUI.EffectComposerScreen.CostDiscountCap
+                   && SynergyUI.EffectComposerScreen.DiscountConflictOf(cardCost3) == null,
+                   $"代价 {price3:0.#} 点（≤{SynergyUI.EffectComposerScreen.CostDiscountCap}）→ 合规");
 
             // ---- ④ 有限分支 4 点 → 超区间（1~3） ----
             var gate4 = ParallelFx(GateAtom(AtomicEffectType.DealDamage, 1, "FirstCardThisTurn",
@@ -7470,99 +7471,11 @@ namespace CardCore.Editor
                 cards.AddRange(CardLoader.LoadCardsFromText(File.ReadAllText(tutPath)));
 
             var kwMap = KeywordSpecColors();
-            var cardBad = new List<string>();
-            int checkedCards = 0;
-            foreach (var card in cards)
-            {
-                if (card == null) continue;
-                card.ResetCache();
-                var r = CardCostService.Derive(card);
-                int tier = r.DerivedTier;
-                // 内容色构成：代价抵扣前逐色推导费，剔除身材轴色（2026-11-02 基地红绿：攻红/血绿/耐久灰
-                //——StatBucketsOf 单源）与结构加价灰。剔除量须复算免费点（ApplyChassis 先红后绿同序——
-                // PrePayload 为抵后值，直接扣全额桶会过剔 1~2 点致本家色边缘翻转）
-                var comp = r.PrePayloadCost.Clone();
-                var statStrip = CardCostService.StatBucketsOf(card,
-                    CardCore.ValueSystemConfigManager.Instance.GetOrCreateConfig().CardCostConfig);
-                int statOff = CardCompositionCost.StatOffsetOf(card);
-                for (int i = statOff; i > 0; i--)
-                {
-                    if (statStrip.TryGetValue(CardCore.ManaType.Red, out var sr) && sr > 0f)
-                    { statStrip[CardCore.ManaType.Red] = sr - 1f; continue; }
-                    if (statStrip.TryGetValue(CardCore.ManaType.Green, out var sg) && sg > 0f)
-                    { statStrip[CardCore.ManaType.Green] = sg - 1f; continue; }
-                    break;
-                }
-                foreach (var kv in statStrip)
-                    comp[kv.Key] = System.Math.Max(0f, comp[kv.Key] - kv.Value);
-                comp[CardCore.ManaType.Gray] = System.Math.Max(0f,
-                    comp[CardCore.ManaType.Gray] - CardCompositionCost.StructuralSurcharge(card));
-                float total = comp.Total;
-                if (tier <= 0 || total <= 0f) continue; // D=0 / 纯身材白板（万能色口径）不适用三档
-                checkedCards++;
-
-                // 本家主色 = 内容色最大份额色（平手取序数在前：灰红蓝绿）
-                var home = CardCore.ManaType.Gray;
-                float best = -1f;
-                for (int i = 0; i <= (int)CardCore.ManaType.Green; i++)
-                {
-                    var mt = (CardCore.ManaType)i;
-                    if (comp[mt] > best) { best = comp[mt]; home = mt; }
-                }
-                var homeF = SpecOf(home);
-
-                var mainAtoms = new List<string>();   // 主效果（非 Then）原子——「原子名(色)」
-                var thenAtoms = new List<string>();   // Then 奖励原子（引擎奖励=3-6 档唯一合法借用位）
-                foreach (var fx in card.Effects)
-                {
-                    if (fx?.Steps == null) continue;
-                    foreach (var st in fx.Steps) WalkColorStep(st, mainAtoms, thenAtoms);
-                }
-                foreach (var kw in card.Keywords)
-                    if (kwMap.TryGetValue(kw, out var kc) && kc != SpecColor.None)
-                        mainAtoms.Add($"{kw}({ColorZh(kc)})");
-                if (card.LinkAuras != null)
-                    foreach (var la in card.LinkAuras)
-                    {
-                        if (la == null) continue;
-                        if (!string.IsNullOrEmpty(la.stat))
-                        {
-                            var c = la.stat == "Power" ? SpecColor.Red
-                                : la.stat == "Life" ? SpecColor.Green
-                                : SpecColor.Red | SpecColor.Green; // Both=±1/±1
-                            mainAtoms.Add($"光环{la.stat}({ColorZh(c)})");
-                        }
-                        else if (!string.IsNullOrEmpty(la.keyword) && kwMap.TryGetValue(la.keyword, out var kc2))
-                            mainAtoms.Add($"光环{la.keyword}({ColorZh(kc2)})");
-                    }
-
-                // 异色原子 = 色集含本家外任一色（DistinctOff 结构化判）
-                if (tier <= 2)
-                {
-                    float offAmt = total - comp[home];
-                    if (offAmt > total * 0.5f + 1e-4f)
-                        cardBad.Add($"{card.CardName}({card.ID}) Ĉ={tier} 本家{ColorZh(homeF)}：异色分量 {offAmt:0.##}/{total:0.##} 超总费 50%");
-                }
-                else if (tier <= 6)
-                {
-                    var bad = DistinctOff(mainAtoms, homeF);
-                    if (bad.Count > 0)
-                        cardBad.Add($"{card.CardName}({card.ID}) Ĉ={tier} 本家{ColorZh(homeF)}：主效果异色 {string.Join("、", bad)}");
-                }
-                else
-                {
-                    var bad = DistinctOff(mainAtoms.Concat(thenAtoms), homeF);
-                    if (bad.Count > 0)
-                        cardBad.Add($"{card.CardName}({card.ID}) Ĉ={tier} 本家{ColorZh(homeF)}：7-9 档任何异色 {string.Join("、", bad)}");
-                }
-            }
-            foreach (var v in cardBad)
-                Debug.LogWarning($"[颜色][卡级] {v}");
 
             Debug.Log("[颜色校验] 原子符合 " + atomOk + " / 不符合 " + atomBad.Count +
-                      "（前 10 条：" + (atomBad.Count == 0 ? "无" : string.Join("；", atomBad.Take(10))) + "）；" +
-                      "卡级违规 " + cardBad.Count + " 张（前 10 张：" + (cardBad.Count == 0 ? "无" : string.Join("；", cardBad.Take(10))) +
-                      "）——扫卡 " + checkedCards + " 张；只报不改，改色由人决定");
+                      "（前 10 条：" + (atomBad.Count == 0 ? "无" : string.Join("；", atomBad.Take(10))) +
+                      "）——只报不改，改色由人决定。卡级分色校验已于 2026-11-02 删除：没有「本家色」，" +
+                      "卡可带任意颜色效果，可用性由卡组校验负责");
         }
 
         /// <summary>步骤递归收集原子行色：kind=0 主干入主效果、branch.then 入 Then 奖励；

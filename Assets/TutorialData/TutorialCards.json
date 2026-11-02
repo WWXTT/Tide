@@ -786,14 +786,14 @@
       ]
     },
     {
-      "id": "C_243F6F88",
+      "id": "C_C330A1C4",
       "cardName": "教学·11",
       "supertype": "Spell",
       "tags": [
         "教学"
       ],
       "effectIds": [
-        "5F0665FB"
+        "B335ADA6"
       ],
       "costList": [
         0.0,
@@ -803,14 +803,14 @@
       ]
     },
     {
-      "id": "C_E3A7A535",
+      "id": "C_78A966FC",
       "cardName": "教学·12",
       "supertype": "Spell",
       "tags": [
         "教学"
       ],
       "effectIds": [
-        "DEEC3C8C"
+        "02B75103"
       ],
       "costList": [
         0.0,

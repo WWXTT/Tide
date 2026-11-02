@@ -33,6 +33,11 @@ namespace CardCore
         private Player _player1;
         private Player _player2;
 
+        // 入局卡表快照（2026-11-02 v9 牌库双通道）：InitGame 装载点留存的洗牌/抽牌前原始
+        // CardData 列表——观测层对方开局标签（TideObservation g[50..57]）与验证器构成对账共用。
+        private List<CardData> _originalDeck1;
+        private List<CardData> _originalDeck2;
+
         #region 公共属性 — 子系统访问
 
         public GameState State => _stateManager.CurrentState;
@@ -59,6 +64,14 @@ namespace CardCore
 
         /// <summary>对局史计数服务（P2a）：卡条件 Custom / AI 共用查询</summary>
         public MatchStatsService MatchStats => _subSystems.Get<MatchStatsService>();
+
+        /// <summary>某玩家的入局卡表快照（随卡组创建保留：InitGame 装载点留存、洗牌/抽牌前的
+        /// CardData 列表，token 模板卡走额外区不入册；每次 InitGame 整组覆写）。非对局玩家或
+        /// 未初始化返回 null。观测 g[50..57] 对方开局标签与验证器对账共用（契约 v9 §5）。</summary>
+        public IReadOnlyList<CardData> OriginalDeckOf(Player player)
+            => ReferenceEquals(player, _player1) ? _originalDeck1
+             : ReferenceEquals(player, _player2) ? _originalDeck2
+             : null;
 
         #endregion
 
@@ -534,10 +547,15 @@ namespace CardCore
 
             // 将卡牌加入牌库区域，设置控制者（2026-10-22 额外区配套：tags 含「衍生物」的模板卡
             // 摘出落 Zone.Extra——照英雄技能卡摘出先例，不进牌库不会被抽到，纯识别/引用面）
+            // v9（2026-11-02 牌库双通道）：同步留存入局卡表快照（洗牌/抽牌前、与牌库实际内容
+            // 同口径——token 模板卡不入册），见 OriginalDeckOf。
+            _originalDeck1 = new List<CardData>(deck1.Count);
+            _originalDeck2 = new List<CardData>(deck2.Count);
             foreach (var card in deck1)
             {
                 card.SetController(_player1);
                 var data1 = card is CardWrapper wrapper1 ? wrapper1.GetData() : null;
+                if (data1 != null && !data1.IsTokenTemplate) _originalDeck1.Add(data1);
                 ZoneManager.GetZoneContainer(_player1)
                     .Add(card, data1 != null && data1.IsTokenTemplate ? Zone.Extra : Zone.Deck);
             }
@@ -545,6 +563,7 @@ namespace CardCore
             {
                 card.SetController(_player2);
                 var data2 = card is CardWrapper wrapper2 ? wrapper2.GetData() : null;
+                if (data2 != null && !data2.IsTokenTemplate) _originalDeck2.Add(data2);
                 ZoneManager.GetZoneContainer(_player2)
                     .Add(card, data2 != null && data2.IsTokenTemplate ? Zone.Extra : Zone.Deck);
             }

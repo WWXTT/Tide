@@ -74,9 +74,9 @@ namespace SynergyUI
     /// 教学引导状态机（纯逻辑层——暂停引导的高亮/弹窗 UI 后续接）：
     /// 步骤未完成时把对局"钉住"（暂停语义）——
     /// · 攻击闸：attack 步骤只放行「引导攻击者×引导目标」；guard 步骤期间生物保留待命；
-    ///   end 步骤期间强制结束回合；**课规 heroLockCard（第二课）：该卡存活期间玩家不可攻击对方角色**
-    ///   （步骤完成后仍然生效——boss 亡即解锁；法术直伤不在此列）；intro 步骤期间攻击全拒（讲解中）；
+    ///   end 步骤期间强制结束回合；intro 步骤期间攻击全拒（讲解中）；
     ///   victory 步骤攻击全放行（自由挑战收尾）；
+    ///   （课规 heroLockCard——锁卡存活期间禁攻对方角色——2026-11-02 随教学三连战改版整链退役）
     /// · 结束回合闸：attack 步骤未完成禁走（intro/资源步骤同理；guard/victory 放行）；
     /// · 守卫候选过滤：guard 步骤只留引导守卫者，非引导攻击者的窗口置空自动放行；
     /// · 资源闸（第二课）：element/tap/tapcreature/play 步骤分别钉住放地/产色/生物产色/出牌
@@ -85,7 +85,7 @@ namespace SynergyUI
     /// · respond（2026-10-19 第二课连锁教学）：无闸纯等待步——AI 宣动后响应窗交到玩家（连锁/让过）
     ///   即完成（OnTutorialHumanResponded 探针）；窗口没开时由对手回合结束兜底（Missed 推进）；
     /// · victory（同上）：闸全放行，GameCore 终局发布探针（OnTutorialGameOver）玩家胜时推进=引导完成。
-    /// 步骤完成即推进；全部完成后步骤闸退场（Active=false），仅课规（heroLock）随钩子留存到 End()。
+    /// 步骤完成即推进；全部完成后步骤闸退场（Active=false，钩子留存到 End() 才拆除）。
     /// 漏守兜底：guard 步骤对应的攻击结算/取消而未被拦截 → 步骤记 Missed 完成并推进（不因漏守死锁）。
     /// 安装：BattleScreen.StartTutorialGame（配置含 guide 时 Begin）/ OnExit 与 Shutdown 同口径 End。
     /// </summary>
@@ -94,7 +94,8 @@ namespace SynergyUI
         private static readonly List<TutorialGuideStepSpec> _steps = new List<TutorialGuideStepSpec>();
         private static readonly List<bool> _missed = new List<bool>();
         private static int _index = -1;
-        private static string _heroLockCard;
+        // 课规 heroLockCard（锁卡存活期间禁攻对方角色）2026-11-02 随教学三连战改版整链退役——
+        // 唯一配置引用=lunzhuan 旧 boss 战（heroLockCard 字段/TutorialConfig 同批删除）。
         /// <summary>玩家胜利已发生（多段尾段追赶：击杀先于 victory 步到达时由 Advance 补结算）。</summary>
         private static bool _victorySeen;
         /// <summary>end 步等待中（waitTurnStart，2026-10-20 倒计时段）：已点结束回合，
@@ -118,7 +119,7 @@ namespace SynergyUI
         /// 消费即清 + Begin/JumpTo 清零。</summary>
         private static bool _luckKillFired;
 
-        /// <summary>引导步骤是否仍在进行（全部完成后=false，但课规钩子留存到 End）。</summary>
+        /// <summary>引导步骤是否仍在进行（全部完成后=false，钩子留存到 End）。</summary>
         public static bool Active { get; private set; }
 
         /// <summary>当前步骤序号（0 起；=Steps.Count 表示全部完成；-1=未开始）。</summary>
@@ -139,7 +140,7 @@ namespace SynergyUI
 
         // ======================================== 生命周期 ========================================
 
-        /// <summary>按教学配置装闸启动引导（guide 为空/全空步骤=只装课规（heroLockCard）或直接返回；
+        /// <summary>按教学配置装闸启动引导（guide 为空/全空步骤=直接返回不占钩子；
         /// 重复 Begin 先 End 防钩子泄漏）。guideOverride（2026-10-16 教学一跳过介绍）：非空时替代
         /// tutorial.guide 装链（skip 模式传 tutorial.guideSkip 直入第二段）。</summary>
         public static void Begin(TutorialConfig tutorial, List<TutorialGuideStepSpec> guideOverride = null)
@@ -155,7 +156,6 @@ namespace SynergyUI
             foreach (var s in guideOverride ?? tutorial?.guide ?? new List<TutorialGuideStepSpec>())
                 if (s != null && !string.IsNullOrEmpty(s.type))
                     _steps.Add(s);
-            _heroLockCard = tutorial?.heroLockCard;
 
             _index = 0;
             Active = _steps.Count > 0;
@@ -185,10 +185,8 @@ namespace SynergyUI
 
             if (Active)
                 TideLog.Info($"[TutorialGuide] 引导开始：{_steps.Count} 步——第 1 步 {Describe(_steps[0])}");
-            else if (!string.IsNullOrEmpty(_heroLockCard))
-                TideLog.Info($"[TutorialGuide] 无引导步骤，仅课规：{NameOf(_heroLockCard)} 存活期间不可攻击对方角色");
             else
-                return; // 既无步骤也无课规：不占钩子
+                return; // 无引导步骤：不占钩子
             OnStepAdvanced?.Invoke(0);
         }
 
@@ -209,14 +207,13 @@ namespace SynergyUI
         }
 
         /// <summary>完全退场（卸全部钩子；局末/切屏/回落普通局时调用，成对 Begin/End 防跨局残留）。
-        /// 注意：步骤全部完成只置 Active=false（课规随钩子留存），End 才是真正的拆除。</summary>
+        /// 注意：步骤全部完成只置 Active=false（钩子留存），End 才是真正的拆除。</summary>
         public static void End()
         {
             if (!Active && _index < 0 && RuleHooks.TutorialAttackGate == null && RuleHooks.TutorialElementGate == null)
                 return; // 从未安装
             Active = false;
             _index = -1;
-            _heroLockCard = null;
             _endWaitNextTurn = false;
             _deathTollSixFired = false;
             _engineRewardFired = false;
@@ -250,14 +247,8 @@ namespace SynergyUI
         private static string GateAttack(Player player, Entity attacker, Entity target)
         {
             if (player == null || player != GameCore.Instance?.Player1) return null; // 只闸玩家侧
-
-            // 课规（heroLock）：锁卡存活期间玩家不可攻击对方角色——步骤完成后仍生效，锁卡亡即解锁
-            if (!string.IsNullOrEmpty(_heroLockCard)
-                && target is Player && target == player.Opponent
-                && IsCardAliveOnBoard(GameCore.Instance?.Player2, _heroLockCard))
-                return $"先解决拦路的 {NameOf(_heroLockCard)}——它存活期间不能攻击对方角色";
-
-            if (!Active) return null; // 步骤全部完成=自由对局（课规已在上方处理）
+            // 课规 heroLock（锁卡存活期间禁攻对方角色）2026-11-02 随教学三连战改版整链退役
+            if (!Active) return null; // 步骤全部完成=自由对局
             var step = Current;
             if (step == null) return null;
             if (step.type == "victory" || step.type == "fieldclear" || step.type == "luckuse" || step.type == "deathtoll") return null; // 自由步：攻击全放行（探针收尾）
@@ -660,20 +651,13 @@ namespace SynergyUI
                 TideLog.Info("[TutorialGuide] 追赶补结算：终局先于 victory 步到达——视为完成");
             }
             var done = _index >= _steps.Count;
-            if (done) Active = false; // 步骤闸退场；课规（heroLock）随钩子留存到 End()
+            if (done) Active = false; // 步骤闸退场（钩子留存到 End 拆除）
             TideLog.Info($"[TutorialGuide] 步骤 {_index}/{_steps.Count} 完成{(missed ? "（漏做/未按引导）" : "")}——"
-                         + (done ? "引导步骤全部完成（课规仍生效）" : $"下一步 {Describe(_steps[_index])}"));
+                         + (done ? "引导步骤全部完成" : $"下一步 {Describe(_steps[_index])}"));
             OnStepAdvanced?.Invoke(_index);
         }
 
         // ======================================== 小件 ========================================
-
-        private static bool IsCardAliveOnBoard(Player owner, string cardId)
-        {
-            if (owner == null || string.IsNullOrEmpty(cardId)) return false;
-            return (GameCore.Instance?.ZoneManager?.GetCards(owner, Zone.Battlefield) ?? new List<Card>())
-                .Any(c => c != null && c.IsAlive && c.ID == cardId);
-        }
 
         private static string Describe(TutorialGuideStepSpec s)
         {

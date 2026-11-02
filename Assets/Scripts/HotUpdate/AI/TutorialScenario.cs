@@ -128,8 +128,8 @@ namespace SynergyUI
         /// <summary>开局携带的指示物（key=CounterRules 登记的 id，如 RushSickness；value=层数）。</summary>
         public List<TutorialCounterSpec> counters;
 
-        /// <summary>预置规则光环（如 "FatigueImmunity"）：静默入场不走登场效果，seeder 直接
-        /// RuleAuraSystem.Activate（载体=本卡）——预置仪典的正规等价路径。</summary>
+        /// <summary>预置规则光环（RuleAuraSystem 常量 id，如 "NoAttackAura"）：静默入场不走登场
+        /// 效果，seeder 直接 RuleAuraSystem.Activate（载体=本卡）——预置仪典的正规等价路径。</summary>
         public string activateRuleAura;
     }
 

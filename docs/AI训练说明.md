@@ -32,14 +32,60 @@ reward = 终局 ±1（actor-centric：归属「刚行动的一方」）
 
 ## 3. 对手与评估
 
+> 2026-11-02 C 期：对手分布扩展（对手池）+ 评估扩三主题。结论背景：默认 selfplay 的
+> 对手分布太窄（同策略 + 单主题评估），是「信号分布问题」不是算法问题。本节参数
+> **只改「和谁打」**——不动 obs/奖励/λ/网络结构/布局版本/卡表。
+
+### 3.1 对手位（基础口径，`--opponent` / `opponent`）
+
 | 口径 | 含义 |
 |---|---|
 | `opponent="selfplay"`（默认） | 主题整组 vs `Cards.json` 随机 30，双方同一策略；座次随机 |
 | `opponent="simpleai"` | 模型 vs 脚本主题卡组（SimpleAI + AutoMatch），座次随机（先后手各半） |
 
-- 评估：每 5 万步一次、**每次 50 局**（20 局时二项噪声 σ≈0.11，best 选点靠运气）。
-- **评估基准主题当前 = red**：绿/蓝脚本尚未重设计（随机基线绿 100% / 蓝 55% 白送分，污染总胜率），重设计完成后改回三主题随机。
-- 早停：目标胜率 0.75、连续 5 次达标。
+### 3.2 对手池（`--opponent-pool`，2026-11-02 C 期，默认 `current` = 旧行为不变）
+
+每次 `reset()` 采一个对手来源，`info.opponentSource` 与日志/stats 标注；评估等显式
+options 的 reset 不受池影响（直通）。
+
+| 取值 | 含义 | info.opponentSource |
+|---|---|---|
+| `current`（默认） | 旧行为：同策略自对弈（等价旧 selfplay） | `current` |
+| `themes` | 三预组整组轮换：红·快攻 / 绿·慢速 / 蓝·控制，各配对应 skill 卡与策略脚本（SimpleAI+AutoMatch，协议层 `opponent=simpleai`+`theme`，Unity 侧零改） | `theme:red` / `theme:green` / `theme:blue` |
+| `checkpoints` | 历史 checkpoint 池：每个评估点把当前策略参数快照入池（环形保留最近 `checkpoint_pool_size=8` 份，含初始随机策略 `init`），按局采一份当对手；对手座次的决策由**旧参数**驱动（独立对手 RNN 链），对手步经 learner 掩码剔除出 PPO 批次（其 logprob 相对当前策略无意义） | `ckpt:init` / `ckpt:step50000` … |
+| `mixed` | 三来源按权重混合 | 按局来源 |
+
+- **mixed 默认权重**：`current 0.5 / themes 0.25 / checkpoints 0.25`（`--pool-weights 0.5,0.25,0.25`）。
+  保持 50% 同策略自对弈是主学习信号不被稀释；主题/快照各 25% 引入分布多样性。可按
+  「想专攻哪类对手」调，但建议 current ≥ 0.4，否则主信号塌掉。
+- 快照采样权重 `checkpoint_weighting`：`uniform`（默认，等权）/ `recency`（越新越易
+  抽中，权重 ∝ 序号——防过旧弱策略占比过大）。
+- 日志证据：控制台每 log_interval 打一行 `[对手池] opponentSource 累计: …`；
+  `stats.jsonl` 每行带 `oppPool`（累计来源分布）与 `fsp` 字段。
+
+### 3.3 FSP（`--fsp`，默认关）
+
+fictitious self-play 的实用近似：**对手 = 快照池均匀随机旧策略**（并排除最新一份
+= 当前策略自身——打它就退回 selfplay 了）。等价 `--opponent-pool checkpoints` 的
+FSP 口径；开启后日志/config 标注 `fsp=true`，`info.fsp=True`。
+
+### 3.4 评估（三主题口径，2026-11-02 C 期起默认）
+
+- 每 **5 万步**评估一次；`--eval-theme`（默认空串）：
+  - `""`（默认）= **red / green / blue 三主题各 50 局**（共 150 局），输出**分主题胜率**；
+  - `"red"` = 单主题 50 局（旧临时口径，绿/蓝脚本重设计期用）；
+  - `"red,green"` = 逗号列表。
+- **早停（0.75 × 连续 5 次）与 best 选点按总胜率**（150 局合并口径）；但**分主题胜率
+  必印**（控制台 Multi-theme Evaluation 块 + `eval.jsonl` 每主题一行 + 总行 theme=ALL +
+  `stats.jsonl` 的 `theme_win_rates`）——否则看不出对某主题的退化被总胜率掩盖。
+- 自对弈训练时另有先手座次胜率口径（只记录不选点，衡量先后手失衡）。
+- 评估局模型侧卡组：`--model-theme` 命中则固定该主题整组（红镜像口径），缺省 Cards 随机 30。
+
+### 3.5 冻结面提醒（本组参数不动的东西）
+
+`--opponent-pool` / `--fsp` / `--eval-theme` 均为**训练分布与评估口径层**：不改网络
+结构、不升 LAYOUT_VERSION、不动奖励与 λ、卡表只读。旧 checkpoint 在新池参数下继续
+可用（分布变化会改变学习曲线起点，但不存在编码层面的不兼容）。
 
 ## 4. 版本与冻结面
 
@@ -98,3 +144,4 @@ reward = 终局 ±1（actor-centric：归属「刚行动的一方」）
 | 2026-09-29 | PPO 4 epoch、γ 0.99→1.0 | 1 epoch 时 clip 永不触发，退化成单步策略梯度 |
 | 2026-09-30 | v2c 动作空间（时机+目标+响应窗口进动作） | 旧空间表达不了响应与目标选择 |
 | 2026-11-02 | 布局升 v8（动作 11 维，多目标） | 多目标组合行需要目标2/目标3/目标数三个特征位 |
+| 2026-11-02 | 对手池（`--opponent-pool` themes/checkpoints/mixed）+ FSP（`--fsp`）+ 评估扩三主题（`--eval-theme` 默认空=每主题 50 局） | 对手分布太窄（同策略+单主题）是信号分布问题；绿/蓝脚本重设计完成后恢复三主题基准 |

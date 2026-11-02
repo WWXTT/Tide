@@ -218,12 +218,8 @@ namespace SynergyUI
                 }
                 // "playgrave" 已随 2026-10-30 归土改版整删（墓地视手牌使用退役——归土=回合末自动复活；
                 // 无存量教学脚本引用该动作）
-                case "phantom":
-                {
-                    // 幻卡清算（2026-10-18 教学二·末日降临挑战）：AI 第一回合签名动作——烧空己方
-                    // 镜像卡组，凭空召唤末日降临（带紊乱束缚）+ 仪典载体直挂规则光环。
-                    return LogResult(action, ExecutePhantom(core, me, action), "幻卡清算失败");
-                }
+                // "phantom"（幻卡清算）已随 2026-11-02 教学三连战改版整删——末日降临 Boss 战退役，
+                // ExecutePhantom/SpawnToBattlefield 同批拆除，无存量教学脚本引用该动作
                 case "wallet":
                 {
                     // 钱包灌入（2026-10-20 段六充盈钱包制）：钱包任一回合结束清空——场景播种的 bank
@@ -251,107 +247,6 @@ namespace SynergyUI
                 TideLog.Warn($"[ScriptedAi] 机器人回合 {_aiTurnCount} 动作失败 {action.type} " +
                              $"{action.card ?? action.attacker}：{failReason}");
             return ok;
-        }
-
-        // ======================================== 幻卡清算（教学二） ========================================
-
-        /// <summary>幻卡清算（2026-10-18 教学二·末日降临挑战·AI 第一回合签名动作）。字段口径——
-        /// card=末日降临卡 id（正主 C_791FE42E）、target=仪典载体卡 id（涌泉仪典 C_57A3ADD6——
-        /// 2026-10-30 纳川改版剥离疲劳免疫后教学载体随切；2026-10-31 涌泉表行退役后该卡保留为
-        /// 教学幻卡载体、effectIds 已空——Boss 免疲劳全靠下方 RuleAuraSystem.Activate 直挂）、
-        /// targets=仪典规则光环 id（FatigueImmunity=免疲劳——镜像卡组烧空后 AI 空牌库抽牌
-        /// 不再疲劳自伤）、mode=紊乱层数（RushSickness：boss 暂不可攻击角色、每它回合末−1）。
-        /// 实现：烧空=TutorialScenarioSeeder.ClearSide 同款抹除口径（容器直删+CardMoveEvent
-        /// To=None，不走死亡/换区结算）；造卡=CardCatalog→CardLoader（Seeder SpawnToDeck 同源）；
-        /// 入场=ZoneManager.TryMoveToBattlefield 官方口（容量闸+CardPutToBattlefieldEvent——
-        /// 视图对账+出场演出）+RegisterCardTriggeredEffects 显式补（静默入场不接触发式）；
-        /// 仪典光环=RuleAuraSystem.Activate 直挂（Seeder 预置仪典同口径，覆盖双方）。</summary>
-        private static bool ExecutePhantom(GameCore core, Player me, TutorialAction action)
-        {
-            var container = core.ZoneManager?.GetZoneContainer(me);
-            if (container == null || string.IsNullOrEmpty(action.card)) return false;
-
-            // ① 烧空己方全部区域（镜像手牌+牌库为主；其余区域防御性同清——ClearSide 同款）
-            int burned = 0;
-            foreach (var zone in new[] { Zone.Battlefield, Zone.ElementPool, Zone.Hand, Zone.Deck, Zone.Graveyard, Zone.Exile })
-            {
-                foreach (var card in core.ZoneManager.GetCards(me, zone) ?? new List<Card>())
-                {
-                    if (card == null) continue;
-                    if (zone == Zone.ElementPool) core.ElementPool.RemoveCardFromPool(card, me);
-                    container.Remove(card, zone);
-                    if (zone == Zone.Battlefield)
-                    {
-                        card.IsAlive = false;
-                        core.PublishEvent(new CardLeaveBattlefieldEvent
-                        {
-                            Card = card,
-                            Controller = me,
-                            Destination = Zone.None,
-                        });
-                    }
-                    core.PublishEvent(new CardMoveEvent
-                    {
-                        MovedCard = card,
-                        From = zone,
-                        To = Zone.None,
-                        Controller = me,
-                    });
-                    burned++;
-                }
-            }
-            var wallet = core.ElementPool.GetPool(me);
-            if (wallet != null)
-                foreach (ManaType t in System.Enum.GetValues(typeof(ManaType)))
-                    wallet.TempElements[t] = 0;
-
-            // ② 末日降临入场 + 紊乱束缚×mode
-            var boss = SpawnToBattlefield(core, me, action.card);
-            if (boss == null) return false;
-            if (action.mode > 0)
-                boss.AddCounters(CardCore.Attribute.KeywordRules.RushSicknessCounter, action.mode, me);
-
-            // ③ 仪典载体入场 + 规则光环直挂
-            string auraNote = "";
-            if (!string.IsNullOrEmpty(action.target))
-            {
-                var carrier = SpawnToBattlefield(core, me, action.target);
-                if (carrier != null)
-                {
-                    if (!string.IsNullOrEmpty(action.targets))
-                        RuleAuraSystem.Activate(action.targets, carrier, me);
-                    auraNote = $"，仪典入场（{action.targets}）";
-                }
-            }
-
-            TideLog.Info($"[ScriptedAi] 幻卡清算：{me?.Name} 烧掉 {burned} 张镜像卡，召唤 " +
-                         $"{TutorialGuide.NameOf(action.card)}（紊乱×{action.mode}）{auraNote}");
-            return true;
-        }
-
-        /// <summary>凭空造卡直入战场：CardCatalog→CardLoader 造实例，先静默入牌库（官方入场口
-        /// 的源区域），再 TryMoveToBattlefield（Deck→Battlefield=SummonedByEffect 入场源，发布
-        /// 入场事件链）；失败（满场）=官方口已入墓，返回 null。</summary>
-        private static Card SpawnToBattlefield(GameCore core, Player owner, string cardId)
-        {
-            var data = CardCatalog.GetById(cardId);
-            if (data == null)
-            {
-                TideLog.Warn($"[ScriptedAi] 幻卡造卡失败（卡表无此 id）：{cardId}");
-                return null;
-            }
-            var card = CardLoader.BuildDeck(new List<CardData> { data }, 1)?.FirstOrDefault(c => c != null);
-            if (card == null) return null;
-            card.SetController(owner);
-            var container = core.ZoneManager.GetZoneContainer(owner);
-            container.Add(card, Zone.Deck);
-            if (!core.ZoneManager.TryMoveToBattlefield(card, owner, Zone.Deck))
-            {
-                TideLog.Warn($"[ScriptedAi] 幻卡召唤入场失败（满场？）：{cardId}");
-                return null;
-            }
-            GameActions.RegisterCardTriggeredEffects(core, card, owner);
-            return card;
         }
 
         // ======================================== 找牌与目标解析 ========================================

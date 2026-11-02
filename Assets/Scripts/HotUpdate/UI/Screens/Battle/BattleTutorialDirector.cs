@@ -67,7 +67,6 @@ namespace SynergyUI
         private GameObject _tipPanelPrefab; // 惰性加载（Assets/Art/Prefab/TipPanel.prefab：msg=文案、btn-ok=确定）
         private AudioSource _voiceSource;
         private int _voiceSerial; // 连续换段防错播（加载完成时本段可能已被点走）
-        private Func<GameCore, Player, List<ResponseOption>, ResponseOption> _tutorialResponder; // 教学守卫应答器（UninstallResponder 卸载）
         private bool _guideHooked;
 
         /// <summary>在役导演实例（2026-10-20 双换场修复）：HookBanner 夺位。旧实例（屏 Replace/
@@ -123,35 +122,22 @@ namespace SynergyUI
             if (_activeDirector == this) _activeDirector = null;
         }
 
-        /// <summary>教学守卫应答器卸载（null=回落内置启发）。</summary>
-        public void UninstallResponder()
-        {
-            if (_tutorialResponder != null
-                && ReferenceEquals(ResponseWindowService.AiResponder, _tutorialResponder))
-            {
-                ResponseWindowService.AiResponder = null;
-                _tutorialResponder = null;
-            }
-        }
-
         /// <summary>终局教学分发（OnGameOverFan 转发——Retry/Complete 弹窗与重开序列）。</summary>
         public void PromptBattleOver(bool win)
         {
             if (BattleEntry.Mode != BattleMode.Tutorial) return;
-            if (!win)
+            // 教学三毕业连战（2026-11-02 改版）：胜场记账+场间/再战/通关弹窗链全归连战口
+            if (BattleEntry.TutorialId == TutorialProgressManager.LunzhuanId)
             {
-                // 教学败局：教学二=重挑（回对局准备重选卡组，2026-10-18）；basics=考验原地重开
-                if (BattleEntry.TutorialId == TutorialProgressManager.LunzhuanId)
-                    PromptLunzhuanRetryAsync().Forget();
-                else
-                    PromptTutorialRetryAsync().Forget();
+                PromptGauntletOverAsync(win).Forget();
+                return;
             }
+            if (!win)
+                PromptTutorialRetryAsync().Forget(); // 教学一/二败局：考验原地重开（终局撤销+重铺）
             else if (BattleEntry.TutorialId == TutorialProgressManager.BasicsId)
                 PromptTutorialCompleteAsync().Forget(); // 教学第一阶段（basics）通关：结算弹窗，确定回主菜单
             else if (BattleEntry.TutorialId == TutorialProgressManager.AdvancedId)
                 PromptTutorialCompleteAsync("你已完成第二课的教学").Forget(); // 第二课（主动效果）通关：同 basics 结算口径
-            else if (BattleEntry.TutorialId == TutorialProgressManager.LunzhuanId)
-                PromptLunzhuanCompleteAsync().Forget(); // 教学第三阶段（末日降临挑战）通关：结算弹窗
         }
 
         /// <summary>引导/守卫提示接线（教学步骤事件驱动，幂等——重入只补绑防重复订阅）。
@@ -565,14 +551,10 @@ namespace SynergyUI
         /// （EnablePassiveAiResponder——永不反制玩家）。返回 false=配置缺失回落普通局。
         /// 预设场面（2026-10-06 教学直入）：scenario 非 null=组卡取双方场面并集、
         /// 不走起手/摸牌序列断言，TutorialScenarioSeeder 直入起跳回合。
-        /// 教学二（2026-10-18 真实对局流程版）：entryPlayerDeck/entryAiDeck=对局准备流程注入的
-        /// 自选卡组+镜像（缺省回落 deckFile）；entryPlayerFirst=硬币先后手（后手+5 护甲同真实流程）；
-        /// entryMySkill/entryAiSkill=卡组标记技能；entryTokenBindings（P9b 2026-10-29）=注入卡组的
-        /// 衍生物槽绑定（教学自带卡组无绑定——固定绑定走原子 str）。</summary>
-        public bool StartGame(BattleController ctrl,
-            List<CardData> entryPlayerDeck = null, List<CardData> entryAiDeck = null,
-            bool? entryPlayerFirst = null, string entryMySkill = null, string entryAiSkill = null,
-            List<DeckTokenBinding> entryMyTokenBindings = null, List<DeckTokenBinding> entryAiTokenBindings = null)
+        /// 2026-11-02 教学三连战改版：真实对局注入分支（entry deck 注入/镜像/锁牌库/rngSeed 钉子）
+        /// 随 boss 战退役整删——lunzhuan 不再走本口（BattleScreen.EngageLocalBattle 分流为普通
+        /// AI 对手开局），教学一二均为 scenario 直入（basics 另有 skipIntro 两段式跳段）。</summary>
+        public bool StartGame(BattleController ctrl)
         {
             var tutorial = TutorialLibrary.Get(BattleEntry.TutorialId);
             if (tutorial == null)
@@ -629,69 +611,17 @@ namespace SynergyUI
                     BattleRevealDirector.BeginIntroReveal();
                 return true;
             }
-            // 教学二（2026-10-18）：外部注入卡组优先（对局准备流程自选+镜像），缺省回落 deckFile
-            var playerDeck = entryPlayerDeck ?? TutorialLibrary.BuildDeck(tutorial.PlayerDeckIds);
-            var aiDeck = entryAiDeck ?? TutorialLibrary.BuildDeck(tutorial.AiDeckIds);
-            if (playerDeck.Count < GameCore.OpeningHandSize || aiDeck.Count < GameCore.OpeningHandSize)
-            {
-                _toast.Show("教学卡组配置不足（回落本地 AI 局）");
-                return false;
-            }
-            ctrl.StartNewGame(playerDeck, aiDeck, MakePacedScriptedAi(tutorial),
-                lockDeckOrder: true, rngSeed: matchSeed,
-                mySkillCardId: entryMySkill, aiSkillCardId: entryAiSkill,
-                playerFirst: entryPlayerFirst, secondArmorBonus: entryPlayerFirst.HasValue ? GameCore.SecondPlayerArmorBonus : 0,
-                myTokenBindings: entryMyTokenBindings, aiTokenBindings: entryAiTokenBindings);
-            EnableTutorialAiResponder(ctrl, tutorial); // AI 响应：默认让过+aiGuard 守卫演示窗（2026-10-17 剧本）
-            TutorialGuide.Begin(tutorial);
-            InTrialSegment = false;
-            _phaseIndex = 0;
-            _phaseStarts.Clear();
-            _phaseStarts.Add(0);
-            // 语音联动显隐（2026-10-17）：guide 以 intro 开头=介绍段模式——开局全隐藏，
-            // 随配音段 reveal 指令独占显示对应区块（非 intro 链零影响）
-            if (TutorialGuide.Active && TutorialGuide.Current?.type == "intro")
-                BattleRevealDirector.BeginIntroReveal();
-            return true;
+            // 旧第三分支（scenario==null 真实对局注入：entry deck/镜像/锁牌库）=lunzhuan 专属，
+            // 2026-11-02 连战改版随 boss 战退役整删（lunzhuan 在 BattleScreen.EngageLocalBattle
+            // 分流，不经本口）；basics/advanced 均有 scenario 恒走上方直入分支。
+            return false; // 配置无预设场面也无跳段=不可开课（回落普通局由调用方处理）
         }
 
-        /// <summary>教学局 AI 响应器（2026-10-17 剧本·守卫演示）：默认全让过（同 PassiveAiResponder
-        /// 语义）；当前引导步带 aiGuard 标记且守卫候选非空时，AI 启发选守卫（生物赴挡位——
-        /// 玩家的攻击目标被改写为对守卫者的攻击）。返回 false=未接管（沿用被动应答）。
-        /// 委托自持引用（_tutorialResponder）：不走 BattleController 的还原机制，OnExit 自行卸载。</summary>
-        private bool EnableTutorialAiResponder(BattleController ctrl, TutorialConfig tutorial)
-        {
-            bool hasGuardDemo = false;
-            foreach (var s in tutorial.guide ?? new List<TutorialGuideStepSpec>())
-                if (s != null && s.aiGuard) { hasGuardDemo = true; break; }
-            if (!hasGuardDemo)
-            {
-                ctrl.EnablePassiveAiResponder(); // 无守卫演示的课：保持被动应答
-                return false;
-            }
-            _tutorialResponder = (c, holder, options) =>
-            {
-                if (holder != c.Player2) return ResponseWindowService.PassOption; // 玩家侧响应：让过
-                var step = TutorialGuide.Current;
-                if (step == null || !step.aiGuard) return ResponseWindowService.PassOption;
-                var guards = new List<ResponseOption>();
-                foreach (var o in options ?? new List<ResponseOption>())
-                    if (o != null && o.Kind == ResponseOption.ResponseKind.GuardAbility && o.SourceCard != null)
-                        guards.Add(o);
-                if (guards.Count == 0) return ResponseWindowService.PassOption;
-                // 启发：能扛住的挑血最厚，否则任选（教学演示窗守卫者通常唯一=AI 的大生物）
-                var source = guards[0].AttackInstance?.Source;
-                int incoming = c.LayerEngine != null && source != null
-                    ? c.LayerEngine.CalculatePower(source) : 0;
-                ResponseOption best = null;
-                foreach (var g in guards)
-                    if (best == null || (g.SourceCard.GetLife() > incoming && g.SourceCard.GetLife() > best.SourceCard.GetLife()))
-                        best = g;
-                return best ?? guards[0];
-            };
-            ResponseWindowService.AiResponder = _tutorialResponder;
-            return true;
-        }
+        // 教学局 AI 响应器（2026-10-17 剧本·守卫演示）——2026-11-02 随教学三连战改版退役：
+        // 唯一接线点=StartGame 旧第三分支（scenario==null 真实对局注入，lunzhuan 专属），boss 战
+        // 退役后零到达整删；_tutorialResponder/UninstallResponder 链同批拆除（aiGuard 步标记保留
+        // ——TutorialGuide 推进语义仍在用，教学一守卫演示步）。教学一二的 AI 响应=scenario 直入
+        // 分支的 EnablePassiveAiResponder（全让过）。
 
         /// <summary>教学脚本 AI 装配（2026-10-17 表现同步定案）：注入 PacingWait——剧本动作间等
         /// 视觉在途门归零（战斗演出走位/节拍/死亡/归位全播完才宣言下一动作）。缺省注入时
@@ -925,23 +855,40 @@ namespace SynergyUI
                 _back();
         }
 
-        /// <summary>教学三（末日降临挑战）败局重挑（2026-10-19 挪战场版）：确认=重开战场（Replace 重入
-        /// 战屏——五段式开场整体重放：重掷硬币+重选卡组，「换卡组=新局」教学语义保持；组合界面已解锁
-        /// 可另组卡组再来）。取消=留在终局画面（「返回主菜单」键同链路直回）。</summary>
-        private async UniTaskVoid PromptLunzhuanRetryAsync()
+        /// <summary>教学三毕业连战终局（2026-11-02 改版：末日降临 Boss 战退役——胜场记账+弹窗链）：
+        /// 胜=LunzhuanGauntlet.ReportWin——满 3 场=MarkTutorialCompleted 过课+通关弹窗（确定回主菜单，
+        /// 三课全胜=教学按钮隐藏/联机外露）；未满=场间弹窗（继续挑战=Replace 重入战屏重放开场：
+        /// 重掷币+沿用已选卡组、对手=预组序列下一场）。败=**胜场保留**（用户定案）——「再战当前
+        /// 对手」（同卡组同预组重掷币：Wins/Picked 均不变）或返回。取消/拆屏=留在终局画面
+        ///（「返回主菜单」键直回，连战态由下次主菜单入口 Begin 作废）。
+        /// ReportBattleResult 已对连战拦截——过课落档只发生在本口。</summary>
+        private async UniTaskVoid PromptGauntletOverAsync(bool win)
         {
-            var picked = await _showTip("末日降临获胜了——重新挑战？（可另组卡组再来）", "重新挑战", "返回");
-            if (picked != true || !GameEnded) return; // 取消/拆屏回落
-            if (_replayOpening != null) _replayOpening(); // 重开战场=重放开场（重掷硬币+重选卡组）
+            if (win)
+            {
+                if (LunzhuanGauntlet.ReportWin())
+                {
+                    TutorialProgressManager.Instance.MarkTutorialCompleted(TutorialProgressManager.LunzhuanId);
+                    LunzhuanGauntlet.End(); // 连战收口（完成态不再进任何分支）
+                    if (await _showTip("你已完成第三课的教学——毕业连战三战全胜！", "确定", null) == true)
+                        _back(); // 战场→主菜单
+                    return;
+                }
+                int next = LunzhuanGauntlet.Wins + 1;
+                var picked = await _showTip(
+                    $"第 {LunzhuanGauntlet.Wins} 胜！下一场（第 {next} 场）对手：{LunzhuanGauntlet.OpponentName}·预组",
+                    "继续挑战", "返回主菜单");
+                if (picked != true || !GameEnded) return; // 取消/拆屏回落（终局画面「返回主菜单」键仍可用）
+                if (_replayOpening != null) _replayOpening(); // 重开战场=五段开场重放（重掷币+沿用卡组）
+                else _back(); // 防御兜底（注入缺位=退主菜单重进）
+                return;
+            }
+            var retry = await _showTip(
+                $"连战失败（当前 {LunzhuanGauntlet.Wins} 胜）——胜场保留，重整旗鼓再战 {LunzhuanGauntlet.OpponentName}？",
+                "再战当前对手", "返回主菜单");
+            if (retry != true || !GameEnded) return; // 取消/拆屏回落
+            if (_replayOpening != null) _replayOpening(); // 同对手再战（Wins/Picked 不变=段四跳过+同预组）
             else _back(); // 防御兜底（注入缺位=退主菜单重进）
-        }
-
-        /// <summary>教学三（末日降临挑战）通关结算（2026-10-19 挪战场版）：确定=单退回主菜单
-        ///（栈=[主菜单,战场]——对局准备屏已随 PreMatchScreen 整删；最后一课入口此时已现）。</summary>
-        private async UniTaskVoid PromptLunzhuanCompleteAsync()
-        {
-            if (await _showTip("你已完成第二阶段的教学", "确定", null) == true)
-                _back(); // 战场→主菜单
         }
     }
 }

@@ -95,9 +95,9 @@ namespace SynergyUI
 
         // ======================================== 减费三选一（2026-11-02 定案） ========================================
 
-        /// <summary>代价减费上限：每条代价行全价 ≤4（「红色代价5→需5红地」的极端档自此禁新）。
+        /// <summary>代价减费上限：每条代价行全价 ≤3（2026-11-02 自 4 收紧）。
         /// 口径=代价行全价（逐原子 PayloadUnitGrant 求和）——抵扣色容量另有运行时钳，本闸管构筑期。</summary>
-        public const int CostDiscountCap = 4;
+        public const int CostDiscountCap = 3;
         /// <summary>有限分支减费区间上限：Then 奖励费值 1~3（门槛行 Budget 1/2/3 均在此内——本值为全局上界）。</summary>
         public const int LimitedBranchFeeCap = 3;
         /// <summary>自由分支减费区间上限：Then 奖励费值 1~6（原 1-5 同批放宽一档）。</summary>
@@ -170,7 +170,7 @@ namespace SynergyUI
 
         /// <summary>减费三选一冲突检测（单源：卡组合保存闸/addcost 闸/效果合成器形态闸/CardPipelineVerifier 共用）。
         /// 规则：① 同一效果只能三选一（有限分支/自由分支/代价）；② 并列添加两个效果时禁挂代价；
-        /// ③ 光环类（结界的场地光环/仪典行）禁挂代价；④ 代价行全价 ≤4。
+        /// ③ 光环类（结界的场地光环/仪典行）禁挂代价；④ 代价行全价 ≤3。
         /// 返回 null=合规；非空=违规描述（卡名+效果+违规类型）。</summary>
         public static string DiscountConflictOf(CardData card)
         {

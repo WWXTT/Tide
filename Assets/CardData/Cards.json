@@ -933,14 +933,14 @@
       ]
     },
     {
-      "id": "C_E1C8EFDB",
+      "id": "C_5E4E46B6",
       "cardName": "训练·灾祸刻印",
       "supertype": "Spell",
       "tags": [
         "训练池"
       ],
       "effectIds": [
-        "44CC30B6"
+        "8E446A92"
       ],
       "speedBonus": 2
     },

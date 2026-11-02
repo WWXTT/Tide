@@ -11,7 +11,8 @@ namespace SynergyUI
     /// <summary>
     /// 开场段四·战场内卡组选择（2026-10-19 掷币演出挪战场定案）：候选卡组以卡堆形式摆在我方
     /// 单位区 z2 行空格（开局无单位无遮挡），点击卡堆选取——普通模式双选两轮（先我方红环、
-    /// 再对方 AI 蓝环，语义与旧 PreMatch 双列表一致）；教学三变体=单轮+10 秒倒计时+AI 镜像。
+    /// 再对方 AI 蓝环，语义与旧 PreMatch 双列表一致）；教学三连战变体=单轮选我方（2026-11-02
+    /// 改版：无倒计时无镜像——对手=预组序列段五自取，后续场沿用已选卡组跳过本阶段）。
     ///
     /// 卡堆形态复用卡组格正主（BattleZoneProps 共享 mesh/材质——卡背顶面+条纹侧面），名签=
     /// world billboard TMP；恒有「随机卡组」兜底堆（deckName=null，与旧缺省随机行同语义）。
@@ -28,9 +29,6 @@ namespace SynergyUI
             public readonly string DeckName;
             public Entry(string display, string deckName) { Display = display; DeckName = deckName; }
         }
-
-        /// <summary>教学三选卡组倒计时秒数（旧 PreMatchScreen.Teaching3PickSeconds 同值平移）。</summary>
-        private const float LunzhuanPickSeconds = 10f;
 
         private const int RowZ = 2;          // 摆放行：P1 单位区近中线行（BoardLayout 单位行；P11 后 4 格 x1..x4）
         private const float StackLiftY = 0.02f;
@@ -116,40 +114,18 @@ namespace SynergyUI
             }
         }
 
-        /// <summary>选卡组主循环：双选两轮（普通）/ 单轮+倒计时（教学三，超时随机选定）。
+        /// <summary>选卡组主循环：双选两轮（普通）/ 单轮（教学三连战——只选我方，选完即成）。
         /// 返回 (我方卡组名, 对方卡组名)——null=随机兜底。收尾飞堆并入卡组格（纯装饰）。</summary>
         public async UniTask<(string myName, string aiName)> PickAsync(Func<bool> dead)
         {
             _pickingSelf = true;
-            SetPrompt(_lunzhuan ? "教学三·10 秒内选定你的卡组（对方镜像）" : "为我方选择卡组（点击卡堆）");
+            SetPrompt(_lunzhuan ? "毕业连战·选定你的卡组（点击卡堆）——将依次挑战三套预组" : "为我方选择卡组（点击卡堆）");
 
             if (_piles.Count == 0)
             {
                 // 依赖缺失/零候选降级：直接随机兜底（StartNewGame null 卡组同语义）
                 Debug.LogWarning("[BattleDeckPick] 无候选卡堆——跳过选择，双方随机卡组");
                 return (null, null);
-            }
-
-            if (_lunzhuan)
-            {
-                // 教学三倒计时（旧 PreMatchScreen.StartCountdownAsync 同语义）：归零未选=随机一张真实卡组
-                float t0 = Time.realtimeSinceStartup;
-                while (!dead() && Time.realtimeSinceStartup - t0 < LunzhuanPickSeconds)
-                {
-                    if (_done) break;
-                    int remain = Mathf.CeilToInt(LunzhuanPickSeconds - (Time.realtimeSinceStartup - t0));
-                    SetPrompt($"教学三·剩 {remain} 秒选定你的卡组（超时随机·对方镜像）");
-                    await UniTask.Yield();
-                }
-                if (!_done && !dead())
-                {
-                    // 随机兜底：优先真实卡组任选其一（旧 PreMatchScreen 倒计时口径），无真实卡组=null 随机
-                    var realDecks = _entries.Where(e => e.DeckName != null).Select(e => e.DeckName).ToList();
-                    string fallback = realDecks.Count > 0
-                        ? realDecks[UnityEngine.Random.Range(0, realDecks.Count)] : null;
-                    Debug.Log("[BattleDeckPick] 倒计时归零——随机选定 " + (fallback ?? "随机卡组"));
-                    Commit(fallback);
-                }
             }
 
             while (!dead() && !_done)
@@ -191,7 +167,8 @@ namespace SynergyUI
             if (clicked && idx >= 0) Commit(_entries[idx].DeckName);
         }
 
-        /// <summary>提交当前轮选择：普通模式两轮（先我方后对方），教学三=单轮+镜像即完成。</summary>
+        /// <summary>提交当前轮选择：普通模式两轮（先我方后对方），教学三连战=单轮选完即成
+        ///（对手=预组序列，段五自取——不再镜像）。</summary>
         private void Commit(string deckName)
         {
             if (_done) return;
@@ -201,7 +178,6 @@ namespace SynergyUI
                 Debug.Log("[BattleDeckPick] 我方卡组=" + (deckName ?? "随机卡组"));
                 if (_lunzhuan)
                 {
-                    _aiName = deckName; // 镜像（幻卡清算前对手用的就是你选的）
                     Complete();
                     return;
                 }
@@ -220,7 +196,7 @@ namespace SynergyUI
             _done = true;
             if (_ring != null) _ring.gameObject.SetActive(false);
             SetPrompt(_lunzhuan
-                ? $"已选 {_myName ?? "随机卡组"}——开战！"
+                ? $"已选 {_myName ?? "随机卡组"}——首战 {LunzhuanGauntlet.OpponentName}！"
                 : $"我方 {_myName ?? "随机卡组"} · 对方 {_aiName ?? "随机卡组"}——开战！");
         }
 

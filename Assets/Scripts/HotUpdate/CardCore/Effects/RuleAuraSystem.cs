@@ -226,10 +226,10 @@ namespace CardCore
         // 轮回/时光仪典（DoubleTurn：双人连两回合）已删（2026-10-29 阶段3a）——额外回合改走
         // TakeExtraTurn 原子行（7da143c9 彼时可叠加；现行行 2026-11-02 定案不可叠加），表行/常量/映射/OnTurnEnd 结算块同批退役。
         // 纳川仪典 2026-10-30 改版：手牌上限不再固定 15，改 +自己蓝色地牌数（动态）。
-        // 短名承袭不动（存量卡数据 str 兼容）。涌泉仪典（疲劳免疫）同日晚表行删除——
-        // 常量与替代件按 AdditionalEnergy 先例代码侧保留：无表行不生效，教学三课直挂专用。
+        // 短名承袭不动（存量卡数据 str 兼容）。涌泉仪典（疲劳免疫）同日晚表行删除——常量与替代件
+        // 曾按 AdditionalEnergy 先例代码侧保留（教学三课 Boss 直挂专用），2026-11-02 随教学三
+        // 连战改版（boss 战退役）零引用整链删除（常量/重挂注册/FatigueImmunityReplacement）。
         public const string HandLimitNoFatigue = "HandLimitNoFatigue"; // 纳川仪典（手牌上限+自己蓝色地牌数）
-        public const string FatigueImmunity = "FatigueImmunity";       // 教学直挂兼容（原涌泉仪典·表行已删，免疫抽牌疲劳）
 
         // ---- 负面光环仪典族已整族退役：毒蚀（CombatToxin 受伤叠毒素）/霜蚀（CombatFreeze
         // 攻击后横置）2026-11-02 用户定案删除（无特色）——常量/枚举位/类型映射/
@@ -523,7 +523,8 @@ namespace CardCore
             if (engine == null) return;
             engine.RegisterReplacementEffect(new DamageCapReplacement(), typeof(DamageEvent));
             engine.RegisterReplacementEffect(new BloodPactDamageRedirectReplacement(), typeof(DamageEvent));
-            engine.RegisterReplacementEffect(new FatigueImmunityReplacement(), typeof(FatigueEvent));
+            //（FatigueImmunityReplacement 注册 2026-11-02 随教学三连战改版整删——涌泉疲劳免疫
+            //  唯一挂接方=旧 boss 幻卡清算，同批退役）
         }
 
         // ============ 三相仪典：每消耗 3 点同色纯元素 → 红/蓝/绿各 1（双方各自计数） ============
@@ -764,24 +765,7 @@ namespace CardCore
                     : null;
         }
 
-        // ============ 涌泉仪典疲劳免疫（2026-10-30 从纳川剥离；同日晚表行删除）：
-        // 免疫空库抽牌疲劳（替代件——逐局重挂；范围三档可选，缺省双方）。无表行不生效——
-        // 代码侧保留专供教学三课直挂（ScriptedAi phantom 直调 Activate，AdditionalEnergy 先例）。 ============
-
-        private sealed class FatigueImmunityReplacement : ReplacementEffectBase
-        {
-            public FatigueImmunityReplacement() : base(typeof(FatigueEvent), "RuleAuraFatigueImmunity") { }
-
-            public override bool CanReplace(IGameEvent e)
-                => e is FatigueEvent f
-                   && f.Damage > 0
-                   && f.Player != null
-                   && RuleAuraSystem.ScopeHits(FatigueImmunity, f.Player);
-
-            public override IGameEvent CreateReplacement(IGameEvent originalEvent, Effect sourceEffect)
-                => originalEvent is FatigueEvent f
-                    ? new FatigueEvent { Player = f.Player, Damage = 0 }
-                    : null;
-        }
+        //（涌泉仪典疲劳免疫替代件 FatigueImmunityReplacement 2026-11-02 随教学三连战改版整删——
+        //  唯一挂接方=旧 boss 幻卡清算 RuleAuraSystem.Activate 直挂，boss 战退役后零引用）
     }
 }

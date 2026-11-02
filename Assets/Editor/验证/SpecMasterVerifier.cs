@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -19,7 +19,7 @@ namespace CardCore.Editor.Tests
     /// 任何一项 FAIL 给出「项名 + 具体卡/原子 + 原因」。
     /// ■ A 对账三件套：A1 卡表合并 SHA256（Cards.json + Effects.json + Configs/原子表_*.json，
     ///   按相对路径 Ordinal 排序后拼接原文，输出前 8 位）；A2 布局版本 C#(TideObservation) vs
-    ///   Python(tide_rl/tide_features.py)；A3 ONNX stamp（部署 fixture 的 manifest_sha256）vs A1——
+    ///   Python(tide_rl/tide_features.py)。A3（ONNX stamp）2026-11-02 已删——与卡表 hash 不同域，恒假警报。
     ///   域不同（stamp=导出时 card_identity_manifest.json 整文件 sha256），按定案只 WARN 不 FAIL，
     ///   附链路上下文（fixture↔磁盘 manifest、manifest table 指纹↔当前原子表指纹、fixture 布局字段）。
     /// ■ B 颜色规范：反射复用 CardPipelineVerifier.RunColorAudit（单源不改），捕获其 Console 输出汇总。
@@ -72,7 +72,7 @@ namespace CardCore.Editor.Tests
 
             // ---- 分区打印 + 汇总 ----
             Debug.Log("[规范总校验] ===== A. 对账三件套（并行开发防串味）=====");
-            Print("A1"); Print("A2"); Print("A3");
+            Print("A1"); Print("A2");
             Debug.Log("[规范总校验] ===== B. 颜色规范（复用 RunColorAudit，只报不改）=====");
             Print("B");
             Debug.Log("[规范总校验] ===== C. 减费三选一（2026-11-02 新规）=====");
@@ -147,58 +147,7 @@ namespace CardCore.Editor.Tests
             else if (csLayout != pyLayout || csNAction != pyNAction)
                 a2.FailWith($"[FAIL] 布局版本两侧不一致（训练副本口径漂移——模型/观测/动作空间不同代）");
 
-            // A3 ONNX stamp vs A1 卡表 hash（域不同，只 WARN）
-            var a3 = Of("A3");
-            try
-            {
-                string fixturePath = Path.Combine(Application.dataPath, "Art", "AIModels", "tide_policy_fixture.json");
-                if (!File.Exists(fixturePath))
-                {
-                    a3.WarnWith($"[WARN] 部署 fixture 缺失：{fixturePath}（无 stamp 可比）");
-                    return a1Hash;
-                }
-                var fxText = File.ReadAllText(fixturePath);
-                var m = Regex.Match(fxText, "\"manifest_sha256\"\\s*:\\s*\"([0-9a-fA-F]+)\"");
-                if (!m.Success)
-                {
-                    a3.WarnWith("[WARN] fixture 内无 manifest_sha256 字段（旧版导出产物）");
-                    return a1Hash;
-                }
-                string stamp = m.Groups[1].Value;
-                string stampShort = stamp.Length > 16 ? stamp.Substring(0, 16) : stamp;
-                if (stamp != a1Hash) // 域不同（stamp=manifest 整文件 sha256），按定案恒 WARN 不 FAIL
-                    a3.WarnWith($"[WARN] ONNX stamp {stampShort}… ≠ A1 卡表 hash {a1Hash}（stamp=导出时 card_identity_manifest.json 的 sha256，与 A1 卡表合并哈希不同域——模型记忆的卡内容与当前表需人工核对）");
-
-                // 链路上下文（可行动的分层证据）
-                string manifestPath = Path.Combine(root, "tide_rl", "card_identity_manifest.json");
-                if (File.Exists(manifestPath))
-                {
-                    string diskSha;
-                    using (var sha = SHA256.Create())
-                        diskSha = BitConverter.ToString(sha.ComputeHash(File.ReadAllBytes(manifestPath))).Replace("-", "").ToLowerInvariant();
-                    a3.Line(diskSha == stamp
-                        ? $"fixture↔磁盘 manifest sha 同源（{stampShort}…）"
-                        : $"[WARN] fixture↔磁盘 manifest sha 不同源（{stampShort}… vs {diskSha.Substring(0, 16)}…）——模型导出后卡身份清单已变");
-                    if (diskSha != stamp) a3.Warn = true;
-
-                    string tableLine = File.ReadLines(manifestPath).FirstOrDefault(l => l.Trim().StartsWith("table ", StringComparison.Ordinal));
-                    string manifestFp = tableLine?.Trim().Split(' ').LastOrDefault();
-                    string curFp = CardIdentityService.TableFingerprint().ToString();
-                    if (manifestFp == curFp)
-                        a3.Line($"manifest table 指纹 {manifestFp} == 当前原子表指纹（原子表未漂移）");
-                    else
-                    {
-                        a3.WarnWith($"[WARN] manifest table 指纹 {manifestFp} ≠ 当前原子表指纹 {curFp}——原子表在清单生成后已改");
-                    }
-                }
-                bool hasLayout = fxText.Contains("\"layout_version\"");
-                if (!hasLayout) a3.WarnWith("[WARN] fixture 缺 layout_version/dims 字段（旧版导出产物——布局对账不可用）");
-                else a3.Line("fixture 含 layout_version/dims 字段");
-            }
-            catch (Exception ex)
-            {
-                a3.WarnWith("[WARN] A3 读取异常：" + ex.Message);
-            }
+            // A3（ONNX stamp vs 卡表 hash）已于 2026-11-02 删除：两者不同域，恒为假警报。
             return a1Hash;
         }
 
@@ -230,21 +179,16 @@ namespace CardCore.Editor.Tests
             finally { Application.logMessageReceived -= OnLog; }
 
             var atomBad = captured.Where(s => s.StartsWith("[颜色][原子]", StringComparison.Ordinal)).ToList();
-            var cardBad = captured.Where(s => s.StartsWith("[颜色][卡级]", StringComparison.Ordinal)).ToList();
+            // 卡级分色校验已删除（2026-11-02 定案）：没有「本家色」这回事——卡可以带任意颜色效果，
+            // 能不能用由卡组可用性校验负责，不在卡面层面对这一点提要求。
             var summary = captured.FirstOrDefault(s => s.StartsWith("[颜色校验]", StringComparison.Ordinal)) ?? "";
             var m = Regex.Match(summary, @"原子符合\s*(\d+)\s*/\s*不符合\s*(\d+)");
             int atomOk = m.Success ? int.Parse(m.Groups[1].Value) : -1;
-            b.Line($"原子符合 {atomOk} / 不符合 {atomBad.Count}；卡级违规 {cardBad.Count} 张（扫卡范围=主表+教学副表）");
+            b.Line($"原子符合 {atomOk} / 不符合 {atomBad.Count}");
             if (atomBad.Count > 0)
             {
                 b.WarnWith($"[WARN] 原子不符合 {atomBad.Count} 条（前 10 条）：");
                 foreach (var s in atomBad.Take(10)) b.Line("  " + s);
-            }
-            if (cardBad.Count > 0)
-            {
-                b.Warn = true;
-                b.Line($"[附] 卡级违规前 10 条（README 三档口径，同源审计附带读数）：");
-                foreach (var s in cardBad.Take(10)) b.Line("  " + s);
             }
         }
 

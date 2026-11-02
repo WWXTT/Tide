@@ -747,8 +747,8 @@ namespace SynergyUI
         private void BindAddSlotButtons()
         {
             BindAddSlot(ZoneId.Cost, "addcost", "添加代价",
-                "新建一个空代价槽（生物/法术通用·至多 1）：右栏直列原子表·一般效果行——单原子引用·抵扣只作用于该原子可产出色的卡费·至多将该色费用清零·发动需有等量同色地牌（红色代价5→需5红地，以此类推——不同类型代价按色加算）。"
-                + "【2026-11-02 减费三选一】代价=并列槽位添加不占灰槽位费；同一效果只能三选一（有限分支/自由分支/代价）——效果含分支/并列两效果/光环（结界必有光环）时禁挂；每条代价减费 ≤4 点");
+                "新建一个空代价槽（生物/法术通用·至多 1）：右栏直列原子表·一般效果行——单原子引用·抵扣只作用于该原子可产出色的卡费·至多将该色费用清零·发动需有等量同色地牌（红色代价3→需3红地，以此类推——不同类型代价按色加算）。"
+                + $"【2026-11-02 减费三选一】代价=并列槽位添加不占灰槽位费；同一效果只能三选一（有限分支/自由分支/代价）——效果含分支/并列两效果/光环（结界必有光环）时禁挂；每条代价减费 ≤{EffectComposerScreen.CostDiscountCap} 点");
             BindAddSlot(ZoneId.Effect, "addeffect", "添加主动效果",
                 "新建空主动槽（生物×1 / 法术×1~3·施放时择一发动·可另带充能×1 / 结界×1·只收充能——P12）");
             BindAddSlot(ZoneId.Passives, "addpassives", "添加自动效果",
@@ -2128,7 +2128,7 @@ namespace SynergyUI
                 if (!int.TryParse(s, out var v)) return;
                 atom.value = v;
                 _card.ResetCache();
-                // 减费三选一（2026-11-02）：代价减费上限 ≤4——参数推高全价越界即回退上一合法值
+                // 减费三选一（2026-11-02）：代价减费上限 ≤3（自 4 收紧）——参数推高全价越界即回退上一合法值
                 float pts = EffectComposerScreen.CostRowPrice(_card.PayloadCost);
                 if (pts > EffectComposerScreen.CostDiscountCap)
                 {
@@ -3332,7 +3332,7 @@ namespace SynergyUI
 
             // 减费三选一保存闸（2026-11-02 定案·单源=EffectComposerScreen.DiscountConflictOf）：
             // ① 同一效果只能三选一（有限分支/自由分支/代价）；② 并列两效果禁代价；
-            // ③ 光环类（结界的场地光环/仪典行）禁代价；④ 代价行全价 ≤4。
+            // ③ 光环类（结界的场地光环/仪典行）禁代价；④ 代价行全价 ≤3（2026-11-02 自 4 收紧）。
             string discountConflict = EffectComposerScreen.DiscountConflictOf(_card);
             if (discountConflict != null)
             {

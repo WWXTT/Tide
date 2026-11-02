@@ -11,9 +11,9 @@ namespace SynergyUI
 {
     /// <summary>
     /// 战场五段式开局编排器（2026-10-19 掷币演出挪战场定案）：
-    /// 1 地块就位（等 BattleBoardAssemble 浮起落位）→ 2 角色就位（立柱自板下升起；
-    /// 教学三让位 boss intro 揭示段=跳过）→ 3 硬币先后手（镜头推近板心+BattleCoinToss）→
-    /// 4 战场选卡组（BattleDeckPickStage·双选两轮/教学三单轮+倒计时）→ 5 交班段五：
+    /// 1 地块就位（等 BattleBoardAssemble 浮起落位）→ 2 角色就位（立柱自板下升起）→
+    /// 3 硬币先后手（镜头推近板心+BattleCoinToss）→
+    /// 4 战场选卡组（BattleDeckPickStage·双选两轮/教学三连战单轮·后续场沿用已选）→ 5 交班段五：
     /// 组装卡组喂 BattleScreen.EngageLocalBattle（StartNewGame/教学装配/AI 先手 kickoff 全在段五）。
     ///
     /// 演出期任意点击=当前段快进（skip 旗标，段四选卡组除外——须真实输入）；相机推拉自持
@@ -26,7 +26,7 @@ namespace SynergyUI
     {
         private readonly Func<bool> _running;
         private readonly BattleFieldView _field;
-        private readonly bool _lunzhuan;
+        private readonly bool _lunzhuan;      // 教学三毕业连战（2026-11-02 改版）：段四单轮选我方（后续场沿用）、段五对手=预组序列
         private readonly bool _dummy;          // 木桩测试局（2026-10-23）：段四改掷币后弹 UI 选卡窗
         private readonly Action<List<CardData>, string, List<CardData>, string, bool?,
             List<DeckTokenBinding>, List<DeckTokenBinding>> _engage;
@@ -91,12 +91,9 @@ namespace SynergyUI
                 await BeatAsync(0.35f);
                 Debug.Log("[BattleOpening] 段一 地块就位完成");
 
-                // ---- 段二：角色就位（教学三让位 intro 揭示段——boss 现身归教学既有演出） ----
-                if (!_lunzhuan)
-                {
-                    await PlaceHeroesAsync();
-                    Debug.Log("[BattleOpening] 段二 角色就位完成");
-                }
+                // ---- 段二：角色就位（2026-11-02 教学三连战改版：boss intro 揭示段退役，恒播） ----
+                await PlaceHeroesAsync();
+                Debug.Log("[BattleOpening] 段二 角色就位完成");
 
                 // ---- 段三：硬币先后手（固定先后手=跳过掷币——木桩测试选项；镜头推近属掷币演出一并省） ----
                 bool playerFirst;
@@ -130,15 +127,19 @@ namespace SynergyUI
                 if (Dead) return;
 
                 // ---- 段五交班：组装卡组（旧 PreMatchScreen.OnStart 门槛口径平移）→ Engage ----
+                // 教学三毕业连战（2026-11-02 改版）：对手=连战当前场预组（LunzhuanGauntlet.OpponentName
+                // 按胜场索引：红·快攻→蓝·控制→绿·慢速），不再镜像我方。
+                var aiDeckName = _lunzhuan ? LunzhuanGauntlet.OpponentName : aiName;
                 var myDeck = BuildDeckOf(myName, "我方");
-                var aiDeck = _lunzhuan ? myDeck : BuildDeckOf(aiName, "对方"); // 教学三镜像
+                var aiDeck = BuildDeckOf(aiDeckName, "对方");
                 var mySkill = myDeck != null ? SkillOf(myName) : null;
-                var aiSkill = _lunzhuan ? mySkill : (aiDeck != null ? SkillOf(aiName) : null);
-                // P9b 衍生物槽绑定随组交班（镜像局双方同用；随机/预组=固定绑定 → null）
+                var aiSkill = aiDeck != null ? SkillOf(aiDeckName) : null;
+                // P9b 衍生物槽绑定随组交班（随机/预组=固定绑定 → null）
                 var myTokens = myDeck != null ? TokenBindingsOf(myName) : null;
-                var aiTokens = _lunzhuan ? myTokens : (aiDeck != null ? TokenBindingsOf(aiName) : null);
+                var aiTokens = aiDeck != null ? TokenBindingsOf(aiDeckName) : null;
                 Debug.Log($"[BattleOpening] 段五 交班开战：我方={myName ?? "随机"}({myDeck?.Count ?? 0}张) "
-                    + $"对方={aiName ?? "随机"}({aiDeck?.Count ?? 0}张) playerFirst={playerFirst}");
+                    + $"对方={aiDeckName ?? "随机"}({aiDeck?.Count ?? 0}张) playerFirst={playerFirst}"
+                    + (_lunzhuan ? $"（连战第 {LunzhuanGauntlet.Wins + 1} 场·已胜 {LunzhuanGauntlet.Wins}）" : ""));
                 _engage(myDeck, mySkill, aiDeck, aiSkill, playerFirst, myTokens, aiTokens);
             }
             catch (Exception ex)
@@ -258,11 +259,19 @@ namespace SynergyUI
             _netEngage?.Invoke(cardIds, skill, tokenIds, tokenBindings);
         }
 
-        /// <summary>段四：候选卡组建堆 → 双选两轮/教学三单轮+倒计时；返回卡组名（null=随机）。
+        /// <summary>段四：候选卡组建堆 → 双选两轮/教学三连战单轮；返回卡组名（null=随机）。
+        /// 连战后续场次（2026-11-02 改版）：LunzhuanGauntlet.Picked=沿用已选卡组跳过重选
+        ///（MyDeckName=null=首轮选了随机，同样沿用）。
         /// 木桩局（2026-10-23 用户改案）不走 3D 卡堆——掷币后弹 DummyDeckPanel（双方卡组下拉选
         /// +对手难度木桩/脚本/AI），难度经 BattleEntry.DummyDifficulty 带给段五 Engage。</summary>
         private async UniTask<(string myName, string aiName)> DeckPickStageAsync()
         {
+            if (_lunzhuan && LunzhuanGauntlet.Picked)
+            {
+                Debug.Log($"[BattleOpening] 段四（连战第 {LunzhuanGauntlet.Wins + 1} 场）沿用卡组 "
+                          + $"{LunzhuanGauntlet.MyDeckName ?? "随机"}——对手={LunzhuanGauntlet.OpponentName}");
+                return (LunzhuanGauntlet.MyDeckName, null); // 对手名段五按预组序列自取（不消费本返回值）
+            }
             if (_dummy)
             {
                 _deckPicking = true; // 点击不作快进（同 3D 选卡期口径）
@@ -300,6 +309,7 @@ namespace SynergyUI
             var picked = await _pickStage.PickAsync(() => Dead);
             _deckPicking = false;
             if (!Dead) _pickStage.Dispose(); // 拆堆收尾（飞堆已在 PickAsync 内演完）
+            if (_lunzhuan && !Dead) LunzhuanGauntlet.OnDeckPicked(picked.myName); // 连战首场选完记档（后续场沿用）
             return picked;
         }
 

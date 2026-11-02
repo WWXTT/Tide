@@ -22,7 +22,9 @@ namespace CardCore.AI.NeuralEnv
     ///   [35..38] 墓地 Graveyard (4，新死优先：slot35=最新入墓；更早只进计数)
     ///   [39..41] 发动区 Activation (3，公开区/反制指向点；第 4+ 张不可编码)
     ///   [42]     场地区 FieldZone (1，英雄技能卡)
-    /// 牌库/放逐 v3 仅以计数入 globals（放逐计数为本版新增）。
+    /// v9（2026-11-02 牌库双通道）：尾接己方牌库块 [86..115] 共 30 槽（仅决策座次方，无序集合
+    /// 按内容哈希排序编码——见 WriteOwnDeck；对方牌库不进 cards_，走 g[50..57] 开局标签通道）。
+    /// 放逐仍仅以计数入 globals。
     /// 对方手牌是隐藏信息：只写 valid+controller（不开图），张数在 globals g[6]。
     ///
     /// 位置特征 [66][67]：单位格=落位钉子+first-free（槽序≠格序，必须显式编码；
@@ -33,6 +35,11 @@ namespace CardCore.AI.NeuralEnv
     public sealed class TideObservation
     {
         // ---- 维度常量（Python 侧只改这些，模型不动）----
+        // v9（2026-11-02 牌库双通道）：卡槽 86→116（尾接己方牌库块 [86..115] 共 30 槽，仅决策
+        // 座次方、按内容哈希排序编码防泄露洗牌顺序）+ 卡特征 115→116（尾加 [115] zoneKind——
+        // 逐卡编码器无槽位位置嵌入，不加则牌库卡与手牌卡特征同形不可区分）+ globals 50→58
+        //（尾加 g[50..57] 对方牌库开局标签：GameCore.OriginalDeckOf 快照，整局恒定）。
+        // 旧 v8 模型布局不符作废（python MAX_CARDS/N_CARD_FEATURES/N_GLOBAL_FEATURES/LAYOUT_VERSION 同步升 9）。
         // v8（2026-11-02 LAE 多目标动作空间）：动作特征 8→11 维——追加 [8]target2Index/[9]target3Index/
         // [10]nTargets（多目标组合行次目标可见；逐原子 effCount 选 N 与 EmitCombinations 组合行可区分）。
         // 旧 v7 模型布局不符作废（python LAYOUT_VERSION 同步升 8、N_ACTION_FEATURES 8→11）。
@@ -43,9 +50,12 @@ namespace CardCore.AI.NeuralEnv
         // 旧模型权重作废（python LAYOUT_VERSION 同步升 6）。
         // v5（2026-10-29 P6 苏醒改版）：删卡特征 [113] AwakenCommitted（立约退役）——
         // NCard 116→115、N_GLOBAL 不变。
-        public const int LayoutVersion = 8;
+        public const int LayoutVersion = 9;
         public const int MaxCardsPerPlayer = 43;
-        public const int MaxCardsTotal = MaxCardsPerPlayer * 2;
+        // v9 己方牌库块（尾接全局块，不走 ZoneLayout 每玩家偏移语义——专用 DeckBase+排序名次路径）：
+        public const int DeckSlots = 30;                                      // 截断护栏（初始整组 30 恰满；衍生物入库超出不编码）
+        public const int DeckBase = MaxCardsPerPlayer * 2;                    // [86]
+        public const int MaxCardsTotal = MaxCardsPerPlayer * 2 + DeckSlots;   // v9：86→116
         // 卡特征布局（内容身份三通路，[15..] 由 CardIdentityService 推导；槽位下标全部由
         // AtomIdSlots 派生——扩容只改 AtomIdSlots 一处，python N_CARD_FEATURES 同步）：
         //   [0..13]  状态特征（valid/controller/超类/力量/生命/费用/横置/关键词/指示物…实时值）
@@ -68,13 +78,18 @@ namespace CardCore.AI.NeuralEnv
         public const int ParamStart = TypeIdStart + AtomIdSlots;               // [41..] 参数块
         public const int PosXSlot = ParamStart + AtomIdSlots * CardIdentityService.AtomParamDim; // [113]
         public const int PosZSlot = PosXSlot + 1;                              // [114]
-        public const int NCard = PosZSlot + 1; // v5：116→115（删苏醒立约位）；python N_CARD_FEATURES 同步
+        // v9 区域种类 [115]：显式映射（不依 Zone 枚举序，防重排）——0=战场 1=元素池 2=手牌 3=墓地
+        // 4=发动区 5=场地区 6=己方牌库块；对方隐藏手牌=2（WriteConcealedCard）。
+        public const int ZoneKindSlot = PosZSlot + 1;                          // [115]
+        public const int NCard = ZoneKindSlot + 1; // v9：115→116（尾加 zoneKind）；python N_CARD_FEATURES 同步
         // globals v3（50 维，契约 §5——重排序+归一化+放逐计数+弹药维；v2 g[48] 冗余删除）：
         //   g[0..16] 双方生命/30、回合/40、相位、座次、各区计数（墓地/30、牌库/60、放逐新）；
         //   g[17..28] 临时钱包 12 维；g[29] 栈占用；g[30..31] 势能 Φ/30；g[32..33] 地牌上限/14；
         //   g[34..37] 黑白已获得/14；g[38..45] 双方英雄技能块（P1 绝对序）[has,tapped,uses/10,弹药/5]；
-        //   g[46..48] 栈深度/16、栈顶来源/86（=MaxCardsTotal·v6）、栈顶 effectIdentity/1024；g[49] 决策上下文。
-        public const int NGlobal = 50;
+        //   g[46..48] 栈深度/16、栈顶来源/MaxCardsTotal、栈顶 effectIdentity/1024；g[49] 决策上下文。
+        // v9 尾加 g[50..57]（对方牌库开局标签快照，DeckTagsOf——随卡组创建保留、整局恒定）。
+        public const int NGlobal = 58; // v9：50→58（+8 对方牌库标签）
+        public const int DeckTagStart = 50; // v9 g[50..57] = DeckTagsOf（对方牌库开局标签）
         // 动作特征槽（v8 8→11 维）：[0]valid [1]type [2]sourceIndex [3]targetIndex [4]modeIndex
         // [5]actionCost [6]effectIdentity [7]targetKind + v8 多目标追加：
         // [8]target2Index [9]target3Index（Targets[1]/[2] 槽位，-1=无/玩家目标/>3 截断不编码）[10]nTargets（0..8 钳）。
@@ -106,6 +121,7 @@ namespace CardCore.AI.NeuralEnv
 
             obs.WritePlayer(core, seat, 0, concealHand: false, board);
             obs.WritePlayer(core, opp, MaxCardsPerPlayer, concealHand: true, board);
+            obs.WriteOwnDeck(core, seat); // v9：己方牌库块 [86..115]（仅决策座次方）
             obs.WriteGlobals(core, seat, opp, responseContext);
             return obs;
         }
@@ -119,14 +135,27 @@ namespace CardCore.AI.NeuralEnv
         }
 
         /// <summary>卡实例 → cards_ 槽位下标：动作行目标/栈顶来源的反查——扫描双方全部已编码区
-        /// （未编码区如牌库/放逐/衍生物临时区返回 -1）。仅枚举/观测辅助用，非热路径权威。</summary>
+        ///（v9 起含己方牌库块；未编码区如对方牌库/放逐/衍生物临时区返回 -1）。
+        /// 仅枚举/观测辅助用，非热路径权威。</summary>
         public static int IndexOfCard(GameCore core, Player me, Card c)
         {
             if (core?.ZoneManager == null || me == null || c == null) return -1;
             int slot = TryZoneSlot(core.ZoneManager, me, c, 0);
             if (slot >= 0) return slot;
+            slot = TryDeckSlot(core.ZoneManager, me, c); // v9：己方牌库块（排序名次对齐编码序）
+            if (slot >= 0) return slot;
             var opp = me.Opponent;
             return opp != null ? TryZoneSlot(core.ZoneManager, opp, c, MaxCardsPerPlayer) : -1;
+        }
+
+        /// <summary>己方牌库块反查（v9）：牌库卡在 [DeckBase..] 的槽位 = 排序名次（与
+        /// WriteOwnDeck 同享 SortDeckForEncoding 单源序）。对方牌库不编码，恒 -1。</summary>
+        private static int TryDeckSlot(ZoneManager zm, Player me, Card c)
+        {
+            var cards = zm.GetCards(me, Zone.Deck);
+            if (cards == null) return -1;
+            int rank = SortDeckForEncoding(cards).IndexOf(c);
+            return rank >= 0 && rank < DeckSlots ? DeckBase + rank : -1;
         }
 
         private static readonly Zone[] EncodedZones =
@@ -224,22 +253,117 @@ namespace CardCore.AI.NeuralEnv
                     posZ = (float)lz / BoardLayout.Height;
                 }
 
-                WriteCard(layer, c, baseSlot + i, tappedOverride, posX, posZ);
+                WriteCard(layer, c, baseSlot + i, tappedOverride, posX, posZ, ZoneKindOf(zone));
             }
         }
 
+        // =====================================================
+
+        /// <summary>己方牌库块 [DeckBase..]（v9 牌库双通道·己侧）：完整卡表**无序集合**——
+        /// 按内容哈希排序（SortDeckForEncoding 单源）写入前 DeckSlots 张全特征卡（身份/类型/
+        /// 参数三通路全吃；posX/posZ=-1、zoneKind=6）。排序键位置无关——**不泄露洗牌顺序**
+        ///（同哈希副本特征全同可互换；诅咒/祝福标记差异在卡特征内公开呈现，与槽序无关）。
+        /// cap=30 截断护栏：衍生物入库等超出部分不编码，剩余计数仍走 g[13]（同手牌 12 槽先例）。
+        /// 对方牌库不进 cards_——走 g[50..57] 开局标签通道（真实玩家口径=开局展示的卡组标签）。</summary>
+        private void WriteOwnDeck(GameCore core, Player seat)
+        {
+            var cards = core.ZoneManager.GetCards(seat, Zone.Deck);
+            if (cards == null || cards.Count == 0) return;
+            var sorted = SortDeckForEncoding(cards);
+            int n = Math.Min(DeckSlots, sorted.Count);
+            for (int i = 0; i < n; i++)
+                WriteCard(core.LayerEngine, sorted[i], DeckBase + i, false, -1f, -1f, 6);
+        }
+
+        /// <summary>牌库编码序（单源）：StructureContentHash → CompositionContentHash → RuntimeId。
+        /// 位置无关的确定性全序——编码槽序与区内序（洗牌序）解耦；WriteOwnDeck 写入与
+        /// TryDeckSlot 反查同享此序。token/未装载卡哈希 0 排最前（确定即可，无语义）。</summary>
+        private static List<Card> SortDeckForEncoding(List<Card> cards)
+        {
+            var sorted = new List<Card>(cards);
+            sorted.Sort(CompareDeckCards);
+            return sorted;
+        }
+
+        private static int CompareDeckCards(Card a, Card b)
+        {
+            var da = a is CardWrapper wa ? wa.GetData() : null;
+            var db = b is CardWrapper wb ? wb.GetData() : null;
+            int cmp = (da != null ? da.StructureContentHash : 0UL)
+                .CompareTo(db != null ? db.StructureContentHash : 0UL);
+            if (cmp != 0) return cmp;
+            cmp = (da != null ? da.CompositionContentHash : 0UL)
+                .CompareTo(db != null ? db.CompositionContentHash : 0UL);
+            if (cmp != 0) return cmp;
+            return a.RuntimeId.CompareTo(b.RuntimeId);
+        }
+
+        /// <summary>区域 → zoneKind 下标值（[115]；显式映射不依 Zone 枚举序，防重排）。
+        /// 己方牌库块=6 由 WriteOwnDeck 直传；对方隐藏手牌=2 由 WriteConcealedCard 直传。</summary>
+        private static int ZoneKindOf(Zone zone)
+        {
+            switch (zone)
+            {
+                case Zone.Battlefield: return 0;
+                case Zone.ElementPool: return 1;
+                case Zone.Hand: return 2;
+                case Zone.Graveyard: return 3;
+                case Zone.Activation: return 4;
+                case Zone.FieldZone: return 5;
+                default: return 0;
+            }
+        }
+
+        /// <summary>对方牌库开局标签 8 维（v9 牌库双通道·对侧；g[50..57]）：
+        /// [0..3] 四色张数（灰/红/蓝/绿=ManaType 0..3 序；逐色多计 Cost[色]&gt;0——与
+        /// CardSorter.HasCostColor 同口径，多色卡在构成色各计一次）、[4..6] 费用三档张数
+        ///（档值=Clamp(Round(TotalCost),1,9)：0 费并入 1 档、&gt;9 并入 9+——与 DeckBuilder
+        /// 费用曲线 BuildCostCurve 同口径；[4]=1-2 [5]=3-6 [6]=7-9）、[7] 卡组总数。
+        /// 输入=GameCore.OriginalDeckOf（随卡组创建保留的入局卡表快照），故整局恒定——
+        /// 不随抽牌/洗回变化（真实玩家口径=开局展示的标签，非剩余构成）。
+        /// 原始计数不归一化（与 g[5..10] 手牌/战场计数同族）。null/空卡表返回全 0。</summary>
+        public static float[] DeckTagsOf(IReadOnlyList<CardData> deck)
+        {
+            var tags = new float[8];
+            if (deck == null) return tags;
+            int total = 0;
+            foreach (var d in deck)
+            {
+                if (d == null) continue;
+                total++;
+                var cost = d.Cost;
+                if (cost != null)
+                    for (int i = 0; i <= (int)ManaType.Green; i++)
+                        if (cost[(ManaType)i] > 0f) tags[i]++;
+                // 费用档=Clamp(Round(TotalCost),1,9)，Round 为 .5 取偶（Banker's）——
+                // 与 DeckBuilder BuildCostCurve 的 Mathf.RoundToInt 逐值同款（正域手写，不引 UnityEngine）
+                float v = d.TotalCost;
+                int fl = (int)Math.Floor(v);
+                float frac = v - fl;
+                int rounded = frac > 0.5f ? fl + 1 : frac < 0.5f ? fl : (fl % 2 == 0 ? fl : fl + 1);
+                int tier = Math.Max(1, Math.Min(9, rounded));
+                if (tier <= 2) tags[4]++;
+                else if (tier <= 6) tags[5]++;
+                else tags[6]++;
+            }
+            tags[7] = total;
+            return tags;
+        }
+
         /// <summary>隐藏信息区（对方手牌）：只写存在性与归属，其余特征（含身份槽/位置）全 0 或 -1
-        /// ——模型不开图（张数在 global_）。</summary>
+        /// ——模型不开图（张数在 global_）。zoneKind=2（手牌，契约 §4 v9）。</summary>
         private void WriteConcealedCard(int slot)
         {
             int b = slot * NCard;
             Cards[b + 0] = 1f; // valid（这里有一张未知卡）
             Cards[b + 1] = 1f; // controller = 对方（该半区恒 opp）
+            Cards[b + ZoneKindSlot] = 2f; // zoneKind=手牌
             Cards[b + PosXSlot] = -1f; // 未落格（手牌不在棋盘上）
             Cards[b + PosZSlot] = -1f;
         }
 
-        private void WriteCard(LayerEngine layer, Card c, int slot, bool tappedOverride, float posX, float posZ)
+        private void WriteCard(LayerEngine layer, Card c, int slot, bool tappedOverride, float posX, float posZ,
+            int zoneKind)
         {
             int b = slot * NCard;
             int power = layer.CalculatePower(c);
@@ -286,6 +410,7 @@ namespace CardCore.AI.NeuralEnv
                     Cards[b + ParamStart + e * dim + p] = atomParams[e * dim + p];
             Cards[b + PosXSlot] = posX;
             Cards[b + PosZSlot] = posZ;
+            Cards[b + ZoneKindSlot] = zoneKind; // v9 区域种类（契约 §4）
         }
 
         private void WriteGlobals(GameCore core, Player me, Player opp, bool responseContext)
@@ -342,6 +467,11 @@ namespace CardCore.AI.NeuralEnv
                 ? TideCardIndex.IndexOfEffectDefinition(top.Definition) / 1024f
                 : 0f; // 同动作特征 [6] 口径（cast/攻击/SBA 栈顶无效果定义 = 0）
             g[49] = responseContext ? 1f : 0f;                // 决策上下文（0=己方 Main / 1=响应窗口）
+            // v9 对方牌库开局标签（g[50..57]，契约 §5）：GameCore.OriginalDeckOf 入局快照计算，
+            // 整局恒定（真实玩家口径=开局展示的标签，不随抽牌变化）
+            var deckTags = DeckTagsOf(core.OriginalDeckOf(opp));
+            for (int i = 0; i < deckTags.Length; i++)
+                g[DeckTagStart + i] = deckTags[i];
         }
 
         /// <summary>英雄技能 4 维块（契约 g[38..41]=P1 / g[42..45]=P2，绝对座次序）：

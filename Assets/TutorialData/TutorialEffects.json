@@ -946,29 +946,73 @@
       ]
     },
     {
-      "id": "5F0665FB",
-      "name": "施放时给对手牌库随机1张卡附加诅咒指示物，对手抽到该卡时受到10点伤害并移除指示物",
+      "id": "B335ADA6",
+      "name": "施放时给对手牌库随机1张卡附加诅咒指示物，对手抽到该卡时受到6点伤害并移除指示物",
       "timing": 19,
       "activation": 2,
+      "cost": [
+        0.0,
+        3.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "steps": [
         {
           "kind": 0,
           "atom": {
-            "refId": "90ba9782"
+            "refId": "90ba9782",
+            "branch": {
+              "settle": 3,
+              "engine": 6,
+              "engineParam": 1,
+              "tactivate": 2,
+              "then": [
+                {
+                  "refId": "a4b823fc",
+                  "value": 6,
+                  "kinds": [
+                    2
+                  ]
+                }
+              ]
+            }
           }
         }
       ]
     },
     {
-      "id": "DEEC3C8C",
-      "name": "施放时给自己牌库随机1张卡附加祝福指示物，自己抽到该卡时回复20点生命并移除指示物",
+      "id": "02B75103",
+      "name": "施放时给自己牌库随机1张卡附加祝福指示物，自己抽到该卡时回复12点生命并移除指示物",
       "timing": 19,
       "activation": 2,
+      "cost": [
+        0.0,
+        0.0,
+        0.0,
+        3.0,
+        0.0
+      ],
       "steps": [
         {
           "kind": 0,
           "atom": {
-            "refId": "e829f7af"
+            "refId": "e829f7af",
+            "branch": {
+              "settle": 3,
+              "engine": 7,
+              "engineParam": 1,
+              "tactivate": 2,
+              "then": [
+                {
+                  "refId": "599fcc9a",
+                  "value": 12,
+                  "kinds": [
+                    1
+                  ]
+                }
+              ]
+            }
           }
         }
       ]

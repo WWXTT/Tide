@@ -11,8 +11,9 @@ namespace SynergyUI
     /// 之后逐回合摸牌恒取牌库顶）；机器人逐回合动作脚本由 ScriptedAi 按条执行；rngSeed=复现钉子
     /// （2026-10-20 定案：非 0=钉同局重放；0/缺省=每局新抽——效果随机换局不同，卡序/剧本仍确定）。
     /// 数据：Assets/Configs/ 按课拆档（2026-10-19 三课制）：TutorialConfig.json=第一课（basics 攻防）、
-    /// TutorialConfig2.json=第二课（advanced 进阶机制）、TutorialConfig3.json=第三课（lunzhuan 末日降临
-    /// Boss），TutorialLibrary 三档合并装载（TidePaths 寻址：编辑器直读、直改 JSON 后 Reload 免重启，
+    /// TutorialConfig2.json=第二课（advanced 进阶机制）、TutorialConfig3.json=第三课（lunzhuan 毕业连战
+    /// ——2026-11-02 改版：预组三连战，条目仅存 id/name，引导/剧本/boss 链全删），TutorialLibrary
+    /// 三档合并装载（TidePaths 寻址：编辑器直读、直改 JSON 后 Reload 免重启，
     /// 真机由宿主装配进热更包——同 AtomicEffectTable 惯例）。
     /// </summary>
     [Serializable]
@@ -40,11 +41,6 @@ namespace SynergyUI
         /// 攻击/结束回合被钉住（错误目标与锁定生物拒绝、守卫候选只留引导守卫者），完成即推进，
         /// 全部完成引导退场。UI 高亮/提示后续接 OnStepAdvanced；本字段纯逻辑生效。</summary>
         public List<TutorialGuideStepSpec> guide;
-
-        /// <summary>课规（2026-10-06 第二课）：该卡（对手场上卡 id）存活期间，玩家以对方角色为目标的
-        /// 攻击宣言被教学闸拒绝（「先解决拦路巨兽」）——卡亡即解锁；法术直伤不在此列。
-        /// 独立于引导步骤存活（步骤完成后仍生效，直到 TutorialGuide.End）。</summary>
-        public string heroLockCard;
 
         /// <summary>跳过介绍版引导（2026-10-16 教学一两段式）：非空且玩家选择跳过第一大段时
         /// 用本链替代 guide（直入第二段攻防教学；配合 skipScenario 预设场面直入）。</summary>
@@ -104,9 +100,8 @@ namespace SynergyUI
     ///           6/6 主将、主将死后转攻角色）；skill——英雄技能；end——提前结束本回合（跳过剩余动作）；
     /// activate——场上卡 card 宣动主动效果（2026-10-19 第二课连锁教学：mode=第几个主动效果 0 起，
     ///           宣动后开响应窗等人类玩家连锁/让过，不立即排干栈）；
-    /// phantom——幻卡清算（2026-10-18 教学二·AI 第一回合签名动作）：烧空己方全部区域（镜像卡组），
-    ///           凭空召唤 card（末日降临，mode=紊乱 RushSickness 层数）+ target 仪典载体入场并直挂
-    ///           targets 规则光环（如 FatigueImmunity）。实现见 ScriptedAi.ExecutePhantom。
+    /// phantom（幻卡清算）已随 2026-11-02 教学三连战改版整删——末日降临 Boss 战退役，
+    ///           ExecutePhantom/SpawnToBattlefield 同批拆除，无存量教学脚本引用该动作。
     /// wallet——钱包灌入（2026-10-20 段六充盈钱包制）：给 side（"player"/"ai"，缺省 ai）的临时钱包
     ///           加 mode 个 target 色（颜色名缺省 Gray）元素——走 AddMana 官方口（事件可观测、
     ///           生成钳同口径）。用途：钱包任一回合结束清空，场景播种的 bank 跨不过回合边界——
