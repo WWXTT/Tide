@@ -105,6 +105,7 @@ namespace CardCore.Attribute
                 Chooser = controller,
                 Title = "守护：选择要保护的目标",
                 Hint = "所选目标受到的伤害将改写为该守护者自身承受，直到守护者死亡或离场",
+                PromptAtom = CardCore.AtomicEffectType.GrantGuardian, // AI 排序：巨像 > 角色
             });
             var ward = picked != null && picked.Count > 0 ? picked[0] : null;
             if (ward == null) return;

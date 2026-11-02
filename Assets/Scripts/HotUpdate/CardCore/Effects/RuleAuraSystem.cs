@@ -48,7 +48,7 @@ namespace CardCore
         public static System.Collections.Generic.IReadOnlyList<ActiveRuleAura> ActiveRules
             => _active.Values.ToList();
 
-        /// <summary>指定仪典的活跃载体（null=未激活/已失效；窥渊展示源等按规则取载体）。</summary>
+        /// <summary>指定仪典的活跃载体（null=未激活/已失效；各规则消费口按需取载体）。</summary>
         public static Card CarrierOf(string ruleId)
             => IsActive(ruleId) ? _active[ruleId].Carrier : null;
 
@@ -189,13 +189,7 @@ namespace CardCore
         public static void OnGameReset()
             => RuleAuraComponents.OnGameReset();
 
-        /// <summary>窥渊回合末结算（GameCore.OnTurnEnded 于 CounterRules.OnTurnEnd 之后显式调）：
-        /// 2026-10-04 时机改版（回合开始→回合结束）——随机展示+锁定排在指示物倒数之后，
-        /// 同回合末新挂的锁不被 ③ 块吞层。</summary>
-        public static void RevealAndLockAtTurnEnd(Player turnPlayer)
-            => RuleAuraComponents.RevealAndLockAtTurnEnd(turnPlayer);
-
-        /// <summary>归土回合末复活（GameCore.OnTurnEnded 于延迟死亡/窥渊之后显式调——2026-10-30 改版）：
+        /// <summary>归土回合末复活（GameCore.OnTurnEnded 于延迟死亡之后显式调——2026-10-30 改版）：
         /// 回合结束时从自己墓地复活一张费用≤己方绿色地牌数的生物（自动取费用最高者；容量满留墓地）。</summary>
         public static void ReviveAtTurnEnd(Player turnPlayer)
             => RuleAuraComponents.ReviveAtTurnEnd(turnPlayer);
@@ -221,31 +215,27 @@ namespace CardCore
         public const string BloodPact = "BloodPact";                 // 血偿仪典（2026-10-04 改造：己方回合角色受伤→对手角色承担）
         public const string HealOverflow = "HealOverflow";           // 丰盈仪典（2026-10-04 改造：回复溢出→生命上限+1）
         public const string DamageCap = "DamageCap";                 // 离散仪典（2026-10-04 蚕褪改版：单次伤害>5→5、<5→3；短名承袭存量卡数据）
-        public const string LockRevealed = "LockRevealed";           // 窥渊仪典
+        // 窥渊仪典（LockRevealed：回合末随机展示对手手牌+锁定）2026-11-02 用户定案整链删除——
+        // 常量/枚举位/类型映射/回合末结算块/GameCore 调用点/合成器映射同批退役
+        //（锁定原子 LockCard 与锁定指示物独立存续，不受影响）。
         public const string GraveyardPlay = "GraveyardPlay";         // 归土仪典（2026-10-30 改版：回合结束时从
                                                                      // 自己墓地复活一张费用≤己方绿色地牌数的生物——
                                                                      // 旧「墓地视手牌中使用」整链退役；短名承袭存量卡数据 str）
         // 疾风仪典（CastSpeedUp）2026-10-31 整链删除——常量/类型映射/IsFixedBothRule 名单/
         // OnBoardActiveSpeedBonus 算速口（PendingEffect.Create 与 PushAttackDeclaration 两消费点）同批退役。
         // 轮回/时光仪典（DoubleTurn：双人连两回合）已删（2026-10-29 阶段3a）——额外回合改走
-        // TakeExtraTurn 原子行（7da143c9，可叠加），表行/常量/映射/OnTurnEnd 结算块同批退役。
+        // TakeExtraTurn 原子行（7da143c9 彼时可叠加；现行行 2026-11-02 定案不可叠加），表行/常量/映射/OnTurnEnd 结算块同批退役。
         // 纳川仪典 2026-10-30 改版：手牌上限不再固定 15，改 +自己蓝色地牌数（动态）。
         // 短名承袭不动（存量卡数据 str 兼容）。涌泉仪典（疲劳免疫）同日晚表行删除——
         // 常量与替代件按 AdditionalEnergy 先例代码侧保留：无表行不生效，教学三课直挂专用。
         public const string HandLimitNoFatigue = "HandLimitNoFatigue"; // 纳川仪典（手牌上限+自己蓝色地牌数）
         public const string FatigueImmunity = "FatigueImmunity";       // 教学直挂兼容（原涌泉仪典·表行已删，免疫抽牌疲劳）
 
-        // ---- 负面光环仪典（2026-10-07 负面化定案：原"战斗伤害改写为指示物"语义退役，
-        // 改持续型挂层——受光环影响的生物按各自触发点叠对应指示物；钩子在本类，代码侧实现）：
-        // 毒蚀=受到伤害后叠毒素；霜蚀=攻击后冻结。
-        // 疫蚀仪典已删（2026-10-09 剧毒指示物删除后无独立存在意义）。
-        // 眠蚀仪典（CombatSleep）已删（2026-10-31 用户定案：主动发动叠沉睡整链移除——
-        // 常量/枚举位/映射/OnActivatedForSleepAura 钩/引擎结算点直调/合成器映射同批退役）。
-        // 舍身仪典（CombatRedirect 战斗伤害改写）已删（2026-10-16 关键词化：舍身改 GrantMartyrdom
-        // 关键词+MartyrdomRules 配对，改写口=KeywordRules.ApplyDamage；仪典改写映射清零。
-        // 2026-10-30 战斗法师改版：GrantBattleMage 无状态散射——MartyrdomRules 配对表亦退役）。----
-        public const string CombatToxin = "CombatToxin";             // 毒蚀仪典（受到伤害→毒素）
-        public const string CombatFreeze = "CombatFreeze";           // 霜蚀仪典（攻击后→冻结）
+        // ---- 负面光环仪典族已整族退役：毒蚀（CombatToxin 受伤叠毒素）/霜蚀（CombatFreeze
+        // 攻击后横置）2026-11-02 用户定案删除（无特色）——常量/枚举位/类型映射/
+        // DamageEvent·AttackResolvedEvent 两钩/合成器映射同批退役；疫蚀 2026-10-09、
+        // 眠蚀 2026-10-31 先行删除；舍身 2026-10-16 关键词化出族（GrantMartyrdom——
+        // 2026-10-30 战斗法师改版后 MartyrdomRules 配对表亦退役）。----
 
         // ---- 治疗改写仪典（2026-10-09 引入，黑8，表行 79ef61f3；2026-10-30 用户更名「放血仪典」，
         // 历名暗牧仪典/惩戒仪典）：受光环影响一方的单位与角色受到的治疗改写为等量伤害
@@ -258,13 +248,14 @@ namespace CardCore
         // ---- 禁令族（2026-10-29）：行为限制，受光环影响方按 ScopeHits 判命中。
         // 2026-10-30 表行改版：禁祭令/禁非生物令表行删除（常量/闸门同批退役）；
         // 除禁攻/禁守/禁发/禁地外的禁令全部移出 IsFixedBothRule——作用面改为
-        // 受光环影响的一方（极性 -1 钉对方单侧）。----
+        // 受光环影响的一方（极性 -1 钉对方单侧）。
+        // 禁寻令 2026-11-02 用户定案删除——表行/常量/枚举位/类型映射/检索·发现两闸/
+        // 合成器映射同批退役。----
         public const string NoAttackAura = "NoAttackAura";     // 禁攻令
         public const string NoGuardAura = "NoGuardAura";       // 禁守令
         public const string NoActivateAura = "NoActivateAura"; // 禁发令
         public const string NoLandAura = "NoLandAura";         // 禁地令
         public const string NoHealAura = "NoHealAura";           // 禁疗令
-        public const string NoSearchAura = "NoSearchAura";       // 禁寻令
         public const string NoSpellAura = "NoSpellAura";         // 禁魔令
         public const string NoCreatureAura = "NoCreatureAura";   // 禁召令（2026-10-31 改版：属性>己方灰色地牌数的生物禁放）
         public const string NoDrawAura = "NoDrawAura";           // 禁抽令
@@ -278,11 +269,12 @@ namespace CardCore
         // 表行 1bb1ea6d/常量 OwnTurnCastAura/枚举位 AuraNoInterfere/合成器映射/
         // PlayCardInResponse 与响应手牌候选两道旧闸整链移除。
 
-        // ---- 信息轴光环（2026-10-29 阶段3c，百闻牌参考）：两条都是改写族（范围可选、不进
-        // IsFixedBothRule）。占卜加成=受影响一方的占卜数量+1（消费口=LookAtTopCardsHandler
-        // / DeckArrangeHelper.PeekTop extra 参数，按控制者判 ScopeHits——谁发动占卜谁吃加成）；
-        // 灵视=使用已展示手牌者受2伤且其对手回2（消费口=本类 CardPlayEvent 订阅）。----
-        public const string ScryBonusAura = "ScryBonusAura";           // 占卜加成
+        // ---- 信息轴光环（2026-10-29 阶段3c，百闻牌参考）：改写族（范围可选、不进
+        // IsFixedBothRule）。灵视=使用已展示手牌者受2伤且其对手回2（消费口=本类
+        // CardPlayEvent 订阅）。
+        // 占卜加成（ScryBonusAura：受影响一方占卜数量+1，消费口原=LookAtTopCardsHandler
+        // /DeckArrangeHelper.PeekTop extra 参数）2026-11-02 用户定案删除——表行/常量/枚举位/
+        // 类型映射/ScryBonus 查询与 extra 参数/合成器映射同批退役。----
         public const string RevealedPunishAura = "RevealedPunishAura"; // 灵视（已展示惩罚）
 
         // ---- 阶段3b 改写光环（2026-10-29）：延迟死亡/牌库顶当手牌——改写族（范围三档可选，
@@ -301,7 +293,8 @@ namespace CardCore
         public const string InscriptionAura = "InscriptionAura";       // 铭刻（单位加层+1）
 
         // ---- 阶段D·EffectType 唯一化（2026-10-31）：场地光环行类型 → 规则短名静态映射 ----
-        // 源=上方常量，与原子表光环族 26 行一一对应（枚举名↔短名↔中文行名见各常量行注）；
+        // 源=上方常量，与原子表光环族行对应（枚举名↔短名↔中文行名见各常量行注；
+        // 窥渊/毒蚀/霜蚀 2026-11-02 整链删除，不在映射内）；
         // ModifyGameRuleHandler 投放、CostDerivation 计价、MorphSystem/合成器行识别、
         // DeckUniqueSlots/同名打出闸 一律经本映射取规则 id，彻底脱离 str=规则短名。
         // 禁指示物令（NoCounterAura）/疾风（CastSpeedUp）/禁扰令（OwnTurnCastAura·AuraNoInterfere）
@@ -314,24 +307,19 @@ namespace CardCore
             { AtomicEffectType.AuraSharedPain, BloodPact },
             { AtomicEffectType.AuraOverflowLife, HealOverflow },
             { AtomicEffectType.AuraDamageClamp, DamageCap },
-            { AtomicEffectType.AuraPeekLock, LockRevealed },
             { AtomicEffectType.AuraGraveRevive, GraveyardPlay },
             { AtomicEffectType.AuraHandLimit, HandLimitNoFatigue },
-            { AtomicEffectType.AuraToxin, CombatToxin },
-            { AtomicEffectType.AuraFreeze, CombatFreeze },
             { AtomicEffectType.AuraBleed, HealInversion },
             { AtomicEffectType.AuraNoAttack, NoAttackAura },
             { AtomicEffectType.AuraNoGuard, NoGuardAura },
             { AtomicEffectType.AuraNoActivate, NoActivateAura },
             { AtomicEffectType.AuraNoLand, NoLandAura },
             { AtomicEffectType.AuraNoHeal, NoHealAura },
-            { AtomicEffectType.AuraNoSearch, NoSearchAura },
             { AtomicEffectType.AuraNoSpell, NoSpellAura },
             { AtomicEffectType.AuraNoSummon, NoCreatureAura },
             { AtomicEffectType.AuraNoDraw, NoDrawAura },
             { AtomicEffectType.AuraNoLowCost, NoLowCostAura },
             { AtomicEffectType.AuraNoHighCost, NoHighCostAura },
-            { AtomicEffectType.AuraScryBonus, ScryBonusAura },
             { AtomicEffectType.AuraRevealPunish, RevealedPunishAura },
             { AtomicEffectType.AuraDelayedDeath, DelayedDeathAura },
             { AtomicEffectType.AuraTopDeckAsHand, TopDeckAsHandAura },
@@ -354,16 +342,11 @@ namespace CardCore
         /// <summary>光环行新型全集（handler 别名注册/验证器枚举用）。</summary>
         public static System.Collections.Generic.IReadOnlyCollection<AtomicEffectType> AuraTypes => _typeRuleIds.Keys;
 
-        /// <summary>是否负面光环族（毒/冻；眠蚀已删 2026-10-31）。缺省范围与极性驱动（负→对方）；
-        /// 运行时判定走 ScopeHits，不再读本口（保留供展示/分类）。</summary>
-        public static bool IsHolderScoped(string ruleId)
-            => ruleId == CombatToxin || ruleId == CombatFreeze;
-
         /// <summary>固定双方规则（2026-10-30 表行改版收缩；疾风 2026-10-31 删后）：许可 3（三相/归土/纳川）+
         /// 禁止 4（禁攻/禁守/禁发/禁地）——UI 不提供 己方/对方 选择。
-        /// 其余禁令族（禁疗/禁寻/禁魔/禁召/禁抽/禁低费/禁高费）改
+        /// 其余禁令族（禁疗/禁魔/禁召/禁抽/禁低费/禁高费）改
         /// 「受光环影响的一方」：移出本名单随极性钉单侧（-1=仅对方，单侧档计价 ×1.5）。
-        /// 改写族（苦痛/丰盈/离散/窥渊/毒蚀/霜蚀/放血）照旧三档。</summary>
+        /// 改写族（苦痛/丰盈/离散/放血）照旧三档。</summary>
         public static bool IsFixedBothRule(string ruleId)
             => ruleId == ElementConversion || ruleId == GraveyardPlay
             || ruleId == HandLimitNoFatigue
@@ -375,18 +358,15 @@ namespace CardCore
         // 三相：各玩家各纯色的累计消耗（满 3 兑换；Player 键随局重置回收）
         private static readonly Dictionary<Player, Dictionary<ManaType, int>> _spendCounters
             = new Dictionary<Player, Dictionary<ManaType, int>>();
-        // 窥渊（2026-10-04 原子化+时机改版）：锁定不走本类回合级 HashSet——回合结束（指示物倒数之后）
-        // 赋予对手被展示卡「锁定」指示物×1（LockCounter，层数=剩余回合，持有者回合末倒数；
-        // 手牌区同样结算——CounterRules 持有者侧结算域含手牌）。锁定独立于光环存续
-        //（载体离场不清既有指示物，自然倒数到归零）。
+        // 锁定指示物（原窥渊投放，2026-11-02 起仅锁定原子投放）：LockCounter 层数=剩余回合，
+        // 持有者回合末倒数（手牌区同样结算——CounterRules 持有者侧结算域含手牌）。
         // 归土配额（墓地出牌每回合一用）已随 2026-10-30 改版整删——新效果无逐回合状态
         // 禁抽令：按「玩家 × 全局回合」计数的抽牌闸（自然抽/效果抽同口）
         private static readonly Dictionary<Player, int> _drawTurn = new Dictionary<Player, int>();
         private static readonly Dictionary<Player, int> _drawCounts = new Dictionary<Player, int>();
 
         /// <summary>卡是否被锁定（不可使用）——出牌限制与 UI 共用查询口。
-        /// 2026-10-04 原子化：读锁定指示物（LockCounter&gt;0）——不再要求光环活跃
-        ///（锁定独立于载体存续，持有者回合末逐层倒数）。</summary>
+        /// 读锁定指示物（LockCounter&gt;0）——锁定原子投放，持有者回合末逐层倒数。</summary>
         public static bool IsLockedThisTurn(Card card)
             => card != null && card.GetCounterCount(Attribute.CounterRules.LockCounter) > 0;
 
@@ -413,11 +393,11 @@ namespace CardCore
 
             // 三相：己方消耗累计（出牌支付与效果元素费两路发布的 ElementPoolPayEvent 都算）
             EventManager.Instance.Subscribe<ElementPoolPayEvent>(OnElementPaid);
-            // 窥渊展示/锁定与归土复活均不经事件订阅——由 GameCore.OnTurnEnded 在指示物倒数后显式调
+            // 归土复活不经事件订阅——由 GameCore.OnTurnEnded 在指示物倒数后显式调
             //（订阅序相对 GameCore.OnTurnEnded 随局数漂移，先后无保证）
             // 牌库顶当手牌（2026-10-29 阶段3b）：牌库作为出牌来源（不限额——牌库顶是流动窗口）
             RuleHooks.RegisterPlaySource(new TopDeckPlaySource());
-            // 窥渊：锁定经出牌限制钩子接入 PlayCard/PlayCardInResponse
+            // 锁定：经出牌限制钩子接入 PlayCard/PlayCardInResponse（锁定原子投放）
             RuleHooks.RegisterPlayRestriction(new LockedCardRestriction());
             // 禁魔/禁召令（2026-10-29 1b）：出牌类型闸（同批注册——PlayCard/PlayCardInResponse 同门；
             // 禁召 2026-10-31 改版=属性>己方灰色地牌数的生物禁放，闸体见 NoCreaturePlayRestriction）
@@ -429,11 +409,8 @@ namespace CardCore
             RuleHooks.RegisterPlayRestriction(new NoHighCostPlayRestriction());
             // 纳川：手牌上限 +自己蓝色地牌数（修改链，实时查询；2026-10-30 改版前=固定 15）
             RuleHooks.RegisterHandLimitModifier(new HandLimitModifier());
-            // 负面光环（2026-10-07 负面化定案）：毒蚀走 DamageEvent 分流、
-            // 霜蚀走 AttackResolvedEvent（CombatSystem 攻击结算完成发布）；
-            // 眠蚀（EffectExecutionEngine 主动结算点直调）已删 2026-10-31
-            EventManager.Instance.Subscribe<DamageEvent>(OnDamageForNegativeAuras);
-            EventManager.Instance.Subscribe<AttackResolvedEvent>(OnAttackResolvedForFreeze);
+            // 负面光环两钩（毒蚀 DamageEvent 分流/霜蚀 AttackResolvedEvent）已随
+            // 2026-11-02 负面仪典族整族退役删除
             // 灵视（2026-10-29 阶段3c 信息轴）：使用已展示手牌时惩罚——锚 CardPlayEvent
             //（使用宣言时点、付费前，卡仍在手牌=ExposedCounter 尚未因换区清除，
             // 恰是「使用已展示的手牌」的判定窗口；离开手牌后不追溯）
@@ -464,48 +441,6 @@ namespace CardCore
             Attribute.KeywordRules.ApplyDamage(carrier, user, 2, isCombat: false);
             user.Opponent.Heal(2);
         }
-
-        // ============ 负面光环（2026-10-07 负面化定案：持续型挂层，代码侧实现） ============
-
-        /// <summary>毒蚀钩（DamageEvent）：受光环影响的生物受到伤害 → 受击者叠 1 层毒素
-        ///（每回合末受=层数的伤害后减半；毒素自身的回合末伤害会再触发叠层——文本字面语义，
-        /// 递增螺旋受减半衰减钳制）。疫蚀分支已删（2026-10-09 剧毒指示物删除后随行退役）。</summary>
-        private static void OnDamageForNegativeAuras(DamageEvent e)
-        {
-            if (!(e?.Target is Card toxinTarget) || !toxinTarget.IsAlive || e.Amount <= 0) return;
-            var owner = toxinTarget.GetController();
-            if (!RuleAuraSystem.ScopeHits(CombatToxin, owner)) return;
-            var carrier = RuleAuraSystem.CarrierOf(CombatToxin);
-            toxinTarget.AddCounters(Attribute.CounterRules.ToxinCounter, 1, carrier);
-            EventManager.Instance.Publish(new KeywordAppliedEvent
-            {
-                Target = toxinTarget,
-                Keyword = CombatToxin,
-                Detail = $"毒蚀光环：{EffectText.Name(toxinTarget)} 受到伤害 → 叠加一层毒素（每回合末受毒伤后减半）",
-                Source = carrier,
-            });
-        }
-
-        /// <summary>霜蚀钩（AttackResolvedEvent）：受光环影响的生物攻击结算后冻结 1 层
-        ///（横置+封锁重置，持有者回合末消退——攻击后横置等于锁过下一回合的重置）。</summary>
-        private static void OnAttackResolvedForFreeze(AttackResolvedEvent e)
-        {
-            if (!(e?.Attacker is Card attacker) || !attacker.IsAlive) return;
-            var owner = attacker.GetController();
-            if (!RuleAuraSystem.ScopeHits(CombatFreeze, owner)) return;
-            var carrier = RuleAuraSystem.CarrierOf(CombatFreeze);
-            attacker.Freeze(1, carrier);
-            EventManager.Instance.Publish(new KeywordAppliedEvent
-            {
-                Target = attacker,
-                Keyword = CombatFreeze,
-                Detail = $"霜蚀光环：{EffectText.Name(attacker)} 攻击后冻结（横置锁，持有者回合末消退）",
-                Source = carrier,
-            });
-        }
-
-        // 眠蚀钩（OnActivatedForSleepAura：主动发动结算后叠沉睡）已删 2026-10-31——
-        // 与 EffectExecutionEngine 主动结算点直调、CombatSleep 常量/枚举位/映射同批退役。
 
         // ============ 反疗改写（2026-10-09 放血仪典 HealInversion + 反疗指示物 DepravityCounter 共用单源） ============
 
@@ -639,72 +574,13 @@ namespace CardCore
             }
         }
 
-        // ============ 窥渊仪典（2026-10-04 时机改版）：每回合结束，随机展示对手一张手牌 + 被展示的卡一回合锁定 ============
-        // 触发口=GameCore.OnTurnEnded 组合根显式调，位于 CounterRules.OnTurnEnd 指示物倒数**之后**——
-        // 同回合末新挂的锁不被 ③ 块倒数吞层。不走事件订阅：订阅序相对 GameCore.OnTurnEnded 随局数漂移，先后无保证。
-
-        internal static void RevealAndLockAtTurnEnd(Player turnPlayer)
-        {
-            if (!RuleAuraSystem.ScopeHits(LockRevealed, turnPlayer)) return;
-            var locker = turnPlayer;
-            var victim = locker?.Opponent;
-            if (victim == null) return;
-            var zm = GameCore.Instance?.ZoneManager;
-            if (zm == null) return;
-
-            var carrier = RuleAuraSystem.CarrierOf(LockRevealed);
-
-            // ① 随机展示对手一张**未展示**手牌（自给展示源——RevealCard 原子同款口径，
-            //    二值不叠层；全展示/空手 = 无新展示，锁定照常对既有被展示卡生效）
-            var unrevealed = zm.GetCards(victim, Zone.Hand)
-                .Where(c => c != null && c.IsAlive && c.GetCounterCount(Attribute.CounterRules.ExposedCounter) == 0)
-                .ToList();
-            if (unrevealed.Count > 0)
-            {
-                var pick = unrevealed[GameRng.Next(0, unrevealed.Count)];
-                int actualDelta = pick.AddCounters(Attribute.CounterRules.ExposedCounter, 1, carrier);
-                EventManager.Instance.Publish(new CounterChangedEvent
-                {
-                    Target = pick,
-                    CounterType = Attribute.CounterRules.ExposedCounter,
-                    Amount = actualDelta,
-                    Source = carrier,
-                });
-                EventManager.Instance.Publish(new RevealCardsEvent
-                {
-                    Player = victim,
-                    Cards = new List<Card> { pick },
-                    Source = carrier,
-                });
-            }
-
-            // ② 赋予对手被展示的卡一回合锁定指示物（含①刚展示的——同回合末展示并锁定）。
-            // 被展示的卡**全部**锁定（无选择窗口——指示物即机制）。
-            // 层数=剩余回合：持有者整个回合锁使用，持有者回合末倒数归零（倒数先于本挂层——新锁完整活一回合）。
-            var revealed = RevealRules.GetExposedCards(zm, victim, Zone.Hand);
-            if (revealed.Count == 0) return;
-
-            foreach (var card in revealed)
-            {
-                int actualDelta = card.AddCounters(Attribute.CounterRules.LockCounter, 1, carrier);
-                EventManager.Instance.Publish(new CounterChangedEvent
-                {
-                    Target = card,
-                    CounterType = Attribute.CounterRules.LockCounter,
-                    Amount = actualDelta,
-                    Source = carrier,
-                });
-            }
-        }
-
         // ============ 归土仪典（2026-10-30 改版）：回合结束时，从自己墓地复活一张费用不大于
-        // 己方绿色地牌数量的生物（旧「每回合一次，墓地视手牌中使用」IPlaySource 配额链整删——
-        // 窥渊锁定不再有独立清口：指示物经 CounterRules.OnTurnEnd ③ 块持有者回合末逐层倒数） ============
-        // 触发口=GameCore.OnTurnEnded 组合根显式调（同窥渊——订阅序相对 GameCore.OnTurnEnded
+        // 己方绿色地牌数量的生物（旧「每回合一次，墓地视手牌中使用」IPlaySource 配额链整删） ============
+        // 触发口=GameCore.OnTurnEnded 组合根显式调（不走事件订阅：订阅序相对 GameCore.OnTurnEnded
         // 随局数漂移，先后无保证），排指示物倒数/延迟死亡之后——同回合末刚入墓的生物可被复活。
         // 固定双方规则：双方各在自己回合末结算一次。候选=墓地生物且运行时费（mode 0）≤己方
         // 绿色地牌数（0 费生物无绿地也可复活——费用不大于含等号）；自动取费用最高者（平局取
-        // 墓地序首位——无选择窗口，同窥渊「指示物即机制」口径）；入场经容量闸门：满则留在墓地。
+        // 墓地序首位——无选择窗口）；入场经容量闸门：满则留在墓地。
 
         internal static void ReviveAtTurnEnd(Player turnPlayer)
         {
@@ -756,8 +632,8 @@ namespace CardCore
             public bool TryBeginUse(Player player) => CanUse(player);
         }
 
-        // ============ 窥渊锁定：出牌限制（PlayCard / PlayCardInResponse 同门） ============
-        // 2026-10-04 原子化：读锁定指示物（独立于光环存续——光环死了锁照常倒数到归零）
+        // ============ 锁定指示物：出牌限制（PlayCard / PlayCardInResponse 同门） ============
+        // 读锁定指示物（锁定原子投放；持有者回合末逐层倒数，归零解锁）
 
         private sealed class LockedCardRestriction : IPlayRestriction
         {

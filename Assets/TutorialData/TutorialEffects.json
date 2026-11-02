@@ -1,7 +1,7 @@
 {
   "items": [
     {
-      "id": "C31BC96E",
+      "id": "23E6AFE9",
       "name": "消灭一个对方生物",
       "timing": 19,
       "activation": 2,
@@ -16,7 +16,7 @@
         {
           "kind": 0,
           "atom": {
-            "refId": "82c35ce6",
+            "refId": "a50b8c19",
             "kinds": [
               2
             ]
@@ -25,7 +25,7 @@
       ]
     },
     {
-      "id": "8418A414",
+      "id": "E58E7758",
       "name": "随机消灭一个对方生物",
       "timing": 19,
       "activation": 2,
@@ -40,7 +40,7 @@
         {
           "kind": 0,
           "atom": {
-            "refId": "82c35ce6",
+            "refId": "a50b8c19",
             "kinds": [
               2
             ],
@@ -51,7 +51,7 @@
       ]
     },
     {
-      "id": "44231DE4",
+      "id": "6178B429",
       "name": "先缄默目标，再消灭目标",
       "timing": 19,
       "activation": 2,
@@ -75,7 +75,7 @@
         {
           "kind": 0,
           "atom": {
-            "refId": "82c35ce6",
+            "refId": "a50b8c19",
             "kinds": [
               2
             ]
@@ -84,7 +84,7 @@
       ]
     },
     {
-      "id": "CA231AA6",
+      "id": "E9FC6D18",
       "name": "对对方目标造成1点伤害；若为本回合使用的第一张卡，再对对方目标造成1点伤害",
       "timing": 19,
       "activation": 2,
@@ -120,7 +120,7 @@
       ]
     },
     {
-      "id": "7430B0C8",
+      "id": "B6C60DE7",
       "name": "对对方目标造成1点伤害；若场上生物低于对手，再对对方目标造成1点伤害",
       "timing": 19,
       "activation": 2,
@@ -156,7 +156,7 @@
       ]
     },
     {
-      "id": "478E74DF",
+      "id": "29F8C17F",
       "name": "对对方目标造成1点伤害；若卡组剩余高于对手，再对对方目标造成1点伤害",
       "timing": 19,
       "activation": 2,
@@ -192,7 +192,7 @@
       ]
     },
     {
-      "id": "7F858933",
+      "id": "A082AF8E",
       "name": "对对方目标造成1点伤害；若此伤害消灭了目标，抽1张牌",
       "timing": 19,
       "activation": 2,
@@ -225,7 +225,7 @@
       ]
     },
     {
-      "id": "CE3728AD",
+      "id": "D2F79EF4",
       "name": "对对方目标造成1点伤害；若生命值低于对手，再对对方目标造成1点伤害",
       "timing": 19,
       "activation": 2,
@@ -261,7 +261,7 @@
       ]
     },
     {
-      "id": "21736229",
+      "id": "95ADEEFE",
       "name": "对对方目标造成1点伤害；若操控地数量≥7，抽1张牌",
       "timing": 19,
       "activation": 2,
@@ -294,7 +294,7 @@
       ]
     },
     {
-      "id": "503DC7F3",
+      "id": "E0C8F461",
       "name": "对对方目标造成1点伤害；若本回合准备阶段抽到本卡，再对对方目标造成3点伤害",
       "timing": 19,
       "activation": 2,
@@ -331,7 +331,7 @@
       ]
     },
     {
-      "id": "DDFF50FA",
+      "id": "0A8886CD",
       "name": "对对方目标造成1点伤害；若场上生物高于对手，再对对方目标造成1点伤害",
       "timing": 19,
       "activation": 2,
@@ -367,7 +367,7 @@
       ]
     },
     {
-      "id": "48E35C22",
+      "id": "1F3DB443",
       "name": "对对方目标造成1点伤害；若卡组剩余低于对手，再对对方目标造成1点伤害",
       "timing": 19,
       "activation": 2,
@@ -403,7 +403,7 @@
       ]
     },
     {
-      "id": "3640488D",
+      "id": "8DB8409B",
       "name": "对对方目标造成1点伤害；若生命值高于对手，再对对方目标造成1点伤害",
       "timing": 19,
       "activation": 2,
@@ -439,7 +439,7 @@
       ]
     },
     {
-      "id": "84B5E921",
+      "id": "414EDEB4",
       "name": "代价对自己造成1点伤害并获得1黑；对对方目标造成1点伤害；若己方生命值≤7，再对对方目标造成2点伤害",
       "timing": 19,
       "activation": 2,
@@ -449,20 +449,6 @@
         0.0,
         0.0,
         0.0
-      ],
-      "costs": [
-        {
-          "type": 1,
-          "value": 0,
-          "manaType": 0,
-          "turns": 0,
-          "payload": {
-            "refId": "a4b823fc",
-            "kinds": [
-              1
-            ]
-          }
-        }
       ],
       "steps": [
         {
@@ -490,7 +476,7 @@
       ]
     },
     {
-      "id": "7ADFF2C0",
+      "id": "608055F5",
       "name": "对对方目标造成1点伤害；若手牌数量为0，再对对方目标造成2点伤害",
       "timing": 19,
       "activation": 2,
@@ -527,7 +513,7 @@
       ]
     },
     {
-      "id": "331411EF",
+      "id": "D656EEF5",
       "name": "倒计时2——回合开始计数-1，归零时对对方目标造成2点伤害",
       "timing": 5,
       "activation": 1,
@@ -556,7 +542,7 @@
       ]
     },
     {
-      "id": "D720488A",
+      "id": "6BCD785C",
       "name": "点击掷两个骰子，运势一，则【对对方单位造成1点伤害(本回合0/1)】",
       "timing": 19,
       "activation": 2,
@@ -588,7 +574,7 @@
       ]
     },
     {
-      "id": "31CB0894",
+      "id": "1BB8B2DA",
       "name": "点击掷两个骰子，运势二，则【对对方单位造成2点伤害(本回合0/1)】",
       "timing": 19,
       "activation": 2,
@@ -621,7 +607,7 @@
       ]
     },
     {
-      "id": "7CB6BE78",
+      "id": "B3A90B8C",
       "name": "点击掷两个骰子，运势三，则【对对方单位造成3点伤害(本回合0/1)】",
       "timing": 19,
       "activation": 2,
@@ -654,7 +640,7 @@
       ]
     },
     {
-      "id": "EB6D5464",
+      "id": "BC5252DD",
       "name": "点击掷两个骰子，运势四，则【对对方单位造成4点伤害(本回合0/1)】",
       "timing": 19,
       "activation": 2,
@@ -687,7 +673,7 @@
       ]
     },
     {
-      "id": "12DB0232",
+      "id": "179CECE8",
       "name": "点击掷两个骰子，运势五，则【对对方单位造成5点伤害(本回合0/1)】",
       "timing": 19,
       "activation": 2,
@@ -720,7 +706,7 @@
       ]
     },
     {
-      "id": "3617EA1A",
+      "id": "60011B78",
       "name": "点击掷两个骰子，运势六，则【对对方单位造成6点伤害(本回合0/1)】",
       "timing": 19,
       "activation": 2,
@@ -753,7 +739,7 @@
       ]
     },
     {
-      "id": "77844DDB",
+      "id": "91EAF1DF",
       "name": "攻击宣言时与双方手牌各自展示攻击力最高的生物比攻击力，差额≥门槛时对对方目标造成6点伤害",
       "limit": 1,
       "steps": [
@@ -779,7 +765,7 @@
       ]
     },
     {
-      "id": "D5A420C0",
+      "id": "07F57EE1",
       "name": "此卡在手中或场上时对双方生物死亡计数，计数≥6时对对方目标造成6点伤害",
       "limit": 1,
       "steps": [
@@ -805,7 +791,7 @@
       ]
     },
     {
-      "id": "81086F80",
+      "id": "6B9F7621",
       "name": "对手回合对手使用卡牌结算后，双方剩余元素的差恰为1时，对目标造成1点伤害（仅自动）",
       "limit": 1,
       "steps": [
@@ -830,7 +816,7 @@
       ]
     },
     {
-      "id": "471C192E",
+      "id": "64CDFD65",
       "name": "对手回合对手使用卡牌结算后，双方剩余元素的差恰为2时，对目标造成2点伤害（仅自动）",
       "limit": 1,
       "steps": [
@@ -856,7 +842,7 @@
       ]
     },
     {
-      "id": "1B3BFDE4",
+      "id": "E2D48807",
       "name": "对手回合对手使用卡牌结算后，双方剩余元素的差恰为3时，对目标造成3点伤害（仅自动）",
       "limit": 1,
       "steps": [
@@ -882,7 +868,7 @@
       ]
     },
     {
-      "id": "B218F773",
+      "id": "AD5DD5DB",
       "name": "对手回合对手使用卡牌结算后，双方剩余元素的差恰为4时，对目标造成4点伤害（仅自动）",
       "limit": 1,
       "steps": [
@@ -908,7 +894,7 @@
       ]
     },
     {
-      "id": "42B8A0B4",
+      "id": "14B9EF4F",
       "name": "对手回合对手使用卡牌结算后，双方剩余元素的差恰为5时，对目标造成5点伤害（仅自动）",
       "limit": 1,
       "steps": [
@@ -934,7 +920,7 @@
       ]
     },
     {
-      "id": "8CEE78CB",
+      "id": "CD0C3750",
       "name": "对手回合对手使用卡牌结算后，双方剩余元素的差恰为6时，对目标造成6点伤害（仅自动）",
       "limit": 1,
       "steps": [
@@ -960,79 +946,35 @@
       ]
     },
     {
-      "id": "4AA54BF4",
+      "id": "5F0665FB",
       "name": "施放时给对手牌库随机1张卡附加诅咒指示物，对手抽到该卡时受到10点伤害并移除指示物",
       "timing": 19,
       "activation": 2,
-      "cost": [
-        0.0,
-        5.0,
-        0.0,
-        0.0,
-        0.0
-      ],
       "steps": [
         {
           "kind": 0,
           "atom": {
-            "refId": "90ba9782",
-            "branch": {
-              "settle": 3,
-              "engine": 6,
-              "engineParam": 1,
-              "tactivate": 2,
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "value": 10,
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
-            }
+            "refId": "90ba9782"
           }
         }
       ]
     },
     {
-      "id": "744AE728",
+      "id": "DEEC3C8C",
       "name": "施放时给自己牌库随机1张卡附加祝福指示物，自己抽到该卡时回复20点生命并移除指示物",
       "timing": 19,
       "activation": 2,
-      "cost": [
-        0.0,
-        0.0,
-        0.0,
-        5.0,
-        0.0
-      ],
       "steps": [
         {
           "kind": 0,
           "atom": {
-            "refId": "e829f7af",
-            "branch": {
-              "settle": 3,
-              "engine": 7,
-              "engineParam": 1,
-              "tactivate": 2,
-              "then": [
-                {
-                  "refId": "599fcc9a",
-                  "value": 20,
-                  "kinds": [
-                    1
-                  ]
-                }
-              ]
-            }
+            "refId": "e829f7af"
           }
         }
       ]
     },
     {
-      "id": "5E000966",
+      "id": "29C47333",
       "name": "与此卡相邻的单位数（生物/结界/角色/非空地牌格各算一）达到4时，对目标造成4点伤害",
       "limit": 1,
       "steps": [
@@ -1083,7 +1025,7 @@
       ]
     },
     {
-      "id": "BA30A8EB",
+      "id": "4E21BFCF",
       "name": "元素井入场：对敌方单位造成1点伤害；自身获得1层潜行",
       "cost": [
         0.0,
@@ -1105,7 +1047,7 @@
         {
           "kind": 0,
           "atom": {
-            "refId": "2addfe0c",
+            "refId": "1b6a20e9",
             "kinds": [
               0
             ]
@@ -1114,7 +1056,7 @@
       ]
     },
     {
-      "id": "A41193C6",
+      "id": "38B76368",
       "name": "对手回合对手使用卡牌结算后，若己方剩余元素比对手多1，对对方单位造成1点伤害",
       "limit": 1,
       "steps": [
@@ -1139,7 +1081,7 @@
       ]
     },
     {
-      "id": "D7FFFE64",
+      "id": "B3EC27CE",
       "name": "对手回合对手使用卡牌结算后，若己方剩余元素比对手多2，抽1张卡",
       "limit": 1,
       "steps": [
@@ -1161,7 +1103,7 @@
       ]
     },
     {
-      "id": "AD02702A",
+      "id": "72E637F4",
       "name": "对手回合对手使用卡牌结算后，若己方剩余元素比对手多2，对对方单位造成2点伤害",
       "limit": 1,
       "steps": [
@@ -1187,7 +1129,7 @@
       ]
     },
     {
-      "id": "DC7F2BA0",
+      "id": "3A891EB7",
       "name": "对手回合对手使用卡牌结算后，若己方剩余元素比对手多1，冻结一个对方单位",
       "limit": 1,
       "steps": [
@@ -1221,7 +1163,7 @@
       "cost": [
         0.0,
         0.0,
-        1.0,
+        2.0,
         0.0,
         0.0
       ],
@@ -1247,7 +1189,7 @@
       "cost": [
         0.0,
         0.0,
-        1.5,
+        3.0,
         0.0,
         0.0
       ],
@@ -1264,7 +1206,7 @@
       ]
     },
     {
-      "id": "9DD21C35",
+      "id": "09A6106C",
       "name": "将一个对方单位弹回手牌",
       "timing": 19,
       "activation": 2,
@@ -1272,8 +1214,8 @@
       "count": 1,
       "cost": [
         0.0,
-        0.0,
         3.0,
+        0.0,
         0.0,
         0.0
       ],
@@ -1281,7 +1223,7 @@
         {
           "kind": 0,
           "atom": {
-            "refId": "3e00ecd2",
+            "refId": "c3673dae",
             "kinds": [
               2
             ]
@@ -1297,10 +1239,10 @@
       "selection": 0,
       "count": 1,
       "cost": [
+        0.0,
+        0.0,
+        0.0,
         1.5,
-        0.0,
-        0.0,
-        0.0,
         0.0
       ],
       "steps": [
@@ -1338,7 +1280,7 @@
       ]
     },
     {
-      "id": "04B8A5D0",
+      "id": "93F9AFDE",
       "name": "赋予一个己方单位1层潜行",
       "timing": 19,
       "activation": 2,
@@ -1355,7 +1297,7 @@
         {
           "kind": 0,
           "atom": {
-            "refId": "2addfe0c",
+            "refId": "1b6a20e9",
             "kinds": [
               1
             ]
@@ -1364,408 +1306,7 @@
       ]
     },
     {
-      "id": "7AB991A1",
-      "name": "倒计时4：归零时召唤一个4/4远古树灵（重挂）",
-      "timing": 33,
-      "activation": 1,
-      "limit": 1,
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "fdf529cb",
-            "branch": {
-              "settle": 3,
-              "engine": 1,
-              "engineParam": 4,
-              "then": [
-                {
-                  "refId": "f3ca462e",
-                  "str": "C_0DE55E3F"
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "FD075D69",
-      "name": "倒计时3：归零时为己方单位回复6点生命（重挂）",
-      "timing": 33,
-      "activation": 1,
-      "limit": 1,
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "fdf529cb",
-            "branch": {
-              "settle": 3,
-              "engine": 1,
-              "engineParam": 3,
-              "then": [
-                {
-                  "refId": "599fcc9a",
-                  "value": 6,
-                  "kinds": [
-                    1
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "7968F3FA",
-      "name": "倒计时3：归零时为己方单位添加6层护甲（重挂）",
-      "timing": 33,
-      "activation": 1,
-      "limit": 1,
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "fdf529cb",
-            "branch": {
-              "settle": 3,
-              "engine": 1,
-              "engineParam": 3,
-              "then": [
-                {
-                  "refId": "9ff1954d",
-                  "value": 6,
-                  "kinds": [
-                    1
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "A43AACCC",
-      "name": "倒计时4：归零时对对方单位造成4点伤害（重挂）",
-      "timing": 33,
-      "activation": 1,
-      "limit": 1,
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "fdf529cb",
-            "branch": {
-              "settle": 3,
-              "engine": 1,
-              "engineParam": 4,
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "value": 4,
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "C243F88E",
-      "name": "倒计时6：归零时召唤一个7/7世界树之影（重挂）",
-      "timing": 33,
-      "activation": 1,
-      "limit": 1,
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "fdf529cb",
-            "branch": {
-              "settle": 3,
-              "engine": 1,
-              "engineParam": 6,
-              "then": [
-                {
-                  "refId": "f3ca462e",
-                  "str": "C_891C7364"
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "F6F007ED",
-      "name": "苏醒：灰费全免，转为入场沉睡层数（睡完才继续倒计时）",
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "38c8c978",
-            "value": 0,
-            "kinds": [
-              0
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "id": "742A0333",
-      "name": "倒计时3：归零时召唤一个4/4远古树灵（重挂）",
-      "timing": 33,
-      "activation": 1,
-      "limit": 1,
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "fdf529cb",
-            "branch": {
-              "settle": 3,
-              "engine": 1,
-              "engineParam": 3,
-              "then": [
-                {
-                  "refId": "f3ca462e",
-                  "str": "C_0DE55E3F"
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "CBE3C210",
-      "name": "倒计时4：归零时召唤一个7/7世界树之影（重挂）",
-      "timing": 33,
-      "activation": 1,
-      "limit": 1,
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "fdf529cb",
-            "branch": {
-              "settle": 3,
-              "engine": 1,
-              "engineParam": 4,
-              "then": [
-                {
-                  "refId": "f3ca462e",
-                  "str": "C_891C7364"
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "C3F9A0E5",
-      "name": "施放时给对手牌库随机2张卡附加诅咒；抽到时获得2层毒素（自动）",
-      "timing": 19,
-      "activation": 2,
-      "cost": [
-        0.0,
-        0.0,
-        0.0,
-        1.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "90ba9782",
-            "branch": {
-              "settle": 3,
-              "engine": 6,
-              "engineParam": 2,
-              "tactivate": 1,
-              "then": [
-                {
-                  "refId": "3d68a8bf",
-                  "value": 2,
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "1B2516CF",
-      "name": "施放时给对手牌库随机2张卡附加诅咒；抽到时失去2点生命（自动）",
-      "timing": 19,
-      "activation": 2,
-      "cost": [
-        1.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "90ba9782",
-            "branch": {
-              "settle": 3,
-              "engine": 6,
-              "engineParam": 2,
-              "tactivate": 1,
-              "then": [
-                {
-                  "refId": "d3d792bb",
-                  "value": 2,
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "455CD217",
-      "name": "施放时给自己牌库随机2张卡附加祝福；抽到时回复4点生命（自动）",
-      "timing": 19,
-      "activation": 2,
-      "cost": [
-        0.0,
-        0.0,
-        0.0,
-        1.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "e829f7af",
-            "branch": {
-              "settle": 3,
-              "engine": 7,
-              "engineParam": 2,
-              "tactivate": 1,
-              "then": [
-                {
-                  "refId": "599fcc9a",
-                  "value": 4,
-                  "kinds": [
-                    1
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "4CB46294",
-      "name": "施放时给自己牌库随机2张卡附加祝福；抽到时地牌上限+1（自动）",
-      "timing": 19,
-      "activation": 2,
-      "cost": [
-        0.0,
-        0.0,
-        0.0,
-        2.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "e829f7af",
-            "branch": {
-              "settle": 3,
-              "engine": 7,
-              "engineParam": 2,
-              "tactivate": 1,
-              "then": [
-                {
-                  "refId": "8e11494b"
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "22127205",
-      "name": "为一个己方单位回复4点生命",
-      "timing": 19,
-      "activation": 2,
-      "selection": 0,
-      "count": 1,
-      "cost": [
-        0.0,
-        0.0,
-        0.0,
-        2.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "599fcc9a",
-            "value": 4,
-            "kinds": [
-              1
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "id": "38CF932F",
-      "name": "为一个己方单位添加2层护甲",
-      "timing": 19,
-      "activation": 2,
-      "selection": 0,
-      "count": 1,
-      "cost": [
-        0.0,
-        0.0,
-        0.0,
-        1.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "9ff1954d",
-            "value": 2,
-            "kinds": [
-              1
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "id": "8D3E99C1",
+      "id": "0E52D31C",
       "name": "地牌上限+1",
       "timing": 19,
       "activation": 2,
@@ -1780,23 +1321,7 @@
         {
           "kind": 0,
           "atom": {
-            "refId": "8e11494b"
-          }
-        }
-      ]
-    },
-    {
-      "id": "92A20B4B",
-      "name": "苏醒：灰、绿费全免，转为入场沉睡层数（睡完才继续倒计时）",
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "38c8c978",
-            "value": 0,
-            "kinds": [
-              0
-            ]
+            "refId": "2aa1a984"
           }
         }
       ]
@@ -1807,10 +1332,10 @@
       "timing": 19,
       "activation": 2,
       "cost": [
+        0.0,
+        0.0,
+        0.0,
         3.0,
-        0.0,
-        0.0,
-        0.0,
         0.0
       ],
       "steps": [
@@ -1823,7 +1348,7 @@
       ]
     },
     {
-      "id": "F0634CD9",
+      "id": "F1468911",
       "name": "登场时，一个己方单位获得2层攻击力增加指示物；若手牌为0，抽1张卡",
       "selection": 0,
       "count": 1,
@@ -1860,7 +1385,7 @@
       ]
     },
     {
-      "id": "08CA1F6D",
+      "id": "763BE362",
       "name": "重置一个己方单位；若手牌为0，抽1张卡",
       "timing": 19,
       "activation": 2,
@@ -1880,7 +1405,7 @@
         {
           "kind": 0,
           "atom": {
-            "refId": "efc6de8a",
+            "refId": "473d915e",
             "kinds": [
               1
             ],
@@ -1898,7 +1423,7 @@
       ]
     },
     {
-      "id": "54A47231",
+      "id": "5F0EF6AD",
       "name": "消灭一个敌方生物；若手牌为0，抽1张卡",
       "timing": 19,
       "activation": 2,
@@ -1918,7 +1443,7 @@
         {
           "kind": 0,
           "atom": {
-            "refId": "82c35ce6",
+            "refId": "a50b8c19",
             "kinds": [
               2
             ],
@@ -1961,7 +1486,7 @@
       ]
     },
     {
-      "id": "1A0448E3",
+      "id": "31CE6ACE",
       "name": "重置一个己方单位",
       "timing": 19,
       "activation": 2,
@@ -1981,10 +1506,1079 @@
         {
           "kind": 0,
           "atom": {
-            "refId": "efc6de8a",
+            "refId": "473d915e",
             "kinds": [
               1
             ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "099F66FB",
+      "name": "倒计时3：归零时获得帷幕（重挂）",
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "fdf529cb",
+            "branch": {
+              "settle": 3,
+              "engine": 1,
+              "engineParam": 3,
+              "then": [
+                {
+                  "refId": "407eb771",
+                  "value": 0,
+                  "kinds": [
+                    1
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "F7440FD9",
+      "name": "赋予一个单位复生；若生命值≤7，回收己方墓地一张卡",
+      "timing": 19,
+      "activation": 2,
+      "cost": [
+        0.0,
+        0.0,
+        0.0,
+        3.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "2b5fb180",
+            "kinds": [
+              1
+            ],
+            "branch": {
+              "settle": 1,
+              "gateId": "LifeLe7",
+              "then": [
+                {
+                  "refId": "c03ef9fe",
+                  "kinds": [
+                    9
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "0DC60823",
+      "name": "倒计时3：归零时获得溅射（重挂）",
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "fdf529cb",
+            "branch": {
+              "settle": 3,
+              "engine": 1,
+              "engineParam": 3,
+              "then": [
+                {
+                  "refId": "c1332456",
+                  "value": 0,
+                  "kinds": [
+                    1
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "0807C808",
+      "name": "一个己方单位永久+1生命+1攻击",
+      "timing": 19,
+      "activation": 2,
+      "selection": 0,
+      "count": 1,
+      "cost": [
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0
+      ],
+      "costPin": 1,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "0afd7173",
+            "kinds": [
+              1
+            ]
+          }
+        },
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "c5340751",
+            "kinds": [
+              1
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "042F0177",
+      "name": "以{target}为目标，己方角色获得等同其生命的护甲",
+      "timing": 19,
+      "activation": 2,
+      "cost": [
+        0.0,
+        0.0,
+        0.0,
+        3.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "508a4975",
+            "kinds": [
+              1
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "2525A279",
+      "name": "倒计时3：归零时获得吸血（重挂）",
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "fdf529cb",
+            "branch": {
+              "settle": 3,
+              "engine": 1,
+              "engineParam": 3,
+              "then": [
+                {
+                  "refId": "f7119394",
+                  "value": 0,
+                  "kinds": [
+                    1
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "F4439B01",
+      "name": "倒计时3：归零时获得狩猎（重挂）",
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "fdf529cb",
+            "branch": {
+              "settle": 3,
+              "engine": 1,
+              "engineParam": 3,
+              "then": [
+                {
+                  "refId": "6eaa0d3f",
+                  "value": 0,
+                  "kinds": [
+                    1
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "D0C61A63",
+      "name": "登场时，为角色添加2点护甲",
+      "activation": 1,
+      "selection": 0,
+      "count": 1,
+      "kinds": [
+        1
+      ],
+      "cost": [
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "9ff1954d",
+            "value": 2,
+            "kinds": [
+              1
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "E404DB9B",
+      "name": "倒计时1：归零时为角色回复2点生命",
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "fdf529cb",
+            "branch": {
+              "settle": 3,
+              "engine": 1,
+              "engineParam": 1,
+              "then": [
+                {
+                  "refId": "599fcc9a",
+                  "value": 2,
+                  "kinds": [
+                    1
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "62607D6E",
+      "name": "对一个对方单位附加1层紊乱",
+      "timing": 19,
+      "activation": 2,
+      "selection": 0,
+      "count": 1,
+      "cost": [
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "d3ed120d",
+            "kinds": [
+              2
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "6584F222",
+      "name": "将一个对方单位从场上除外",
+      "timing": 19,
+      "activation": 2,
+      "selection": 0,
+      "count": 1,
+      "cost": [
+        0.0,
+        5.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "63a5dc1a",
+            "kinds": [
+              2
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "5E7727D2",
+      "name": "对手回合对手使用卡牌结算后，若己方剩余元素比对手多3，弃掉对手一张手牌",
+      "limit": 1,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "fd645778",
+            "branch": {
+              "settle": 3,
+              "engine": 5,
+              "then": [
+                {
+                  "refId": "bf06d56b",
+                  "kinds": [
+                    6
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "302E1C7E",
+      "name": "对手回合对手使用卡牌结算后，若己方剩余元素比对手多1，为己方角色回复2点生命",
+      "limit": 1,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "fd645778",
+            "branch": {
+              "settle": 3,
+              "engine": 5,
+              "then": [
+                {
+                  "refId": "599fcc9a",
+                  "value": 2,
+                  "kinds": [
+                    1
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "735B2360",
+      "name": "对手回合对手使用卡牌结算后，若己方剩余元素比对手多3，将一个对方单位弹回手牌",
+      "limit": 1,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "fd645778",
+            "branch": {
+              "settle": 3,
+              "engine": 5,
+              "then": [
+                {
+                  "refId": "c3673dae",
+                  "kinds": [
+                    2
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "38D9CE28",
+      "name": "冻结一个对方单位；若为本回合使用的第一张卡，为己方角色添加4层护甲",
+      "timing": 19,
+      "activation": 2,
+      "selection": 0,
+      "count": 1,
+      "cost": [
+        0.0,
+        0.0,
+        2.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "973884b1",
+            "kinds": [
+              2
+            ]
+          }
+        },
+        {
+          "kind": 1,
+          "gid": "FirstCardThisTurn",
+          "then": [
+            {
+              "refId": "9ff1954d",
+              "value": 4,
+              "kinds": [
+                1
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1458E272",
+      "name": "对一个对方单位附加1层紊乱；若为本回合使用的第一张卡，磨对手牌库2张",
+      "timing": 19,
+      "activation": 2,
+      "selection": 0,
+      "count": 1,
+      "cost": [
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "d3ed120d",
+            "kinds": [
+              2
+            ]
+          }
+        },
+        {
+          "kind": 1,
+          "gid": "FirstCardThisTurn",
+          "then": [
+            {
+              "refId": "e81b5f7e",
+              "value": 2,
+              "kinds": [
+                8
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C64722D6",
+      "name": "将一个对方单位弹回手牌；若为本回合使用的第一张卡，为己方角色添加4层护甲",
+      "timing": 19,
+      "activation": 2,
+      "selection": 0,
+      "count": 1,
+      "cost": [
+        0.0,
+        3.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "c3673dae",
+            "kinds": [
+              2
+            ]
+          }
+        },
+        {
+          "kind": 1,
+          "gid": "FirstCardThisTurn",
+          "then": [
+            {
+              "refId": "9ff1954d",
+              "value": 4,
+              "kinds": [
+                1
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "F76F20C5",
+      "name": "消灭一个对方生物；若为本回合使用的第一张卡，磨对手牌库2张",
+      "timing": 19,
+      "activation": 2,
+      "selection": 0,
+      "count": 1,
+      "cost": [
+        0.0,
+        3.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "a50b8c19",
+            "kinds": [
+              2
+            ]
+          }
+        },
+        {
+          "kind": 1,
+          "gid": "FirstCardThisTurn",
+          "then": [
+            {
+              "refId": "e81b5f7e",
+              "value": 2,
+              "kinds": [
+                8
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C672DDD7",
+      "name": "将一个对方单位从本局游戏中抹除；若为本回合使用的第一张卡，为己方角色添加4层护甲",
+      "timing": 19,
+      "activation": 2,
+      "selection": 0,
+      "count": 1,
+      "cost": [
+        6.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "96155537",
+            "kinds": [
+              2
+            ]
+          }
+        },
+        {
+          "kind": 1,
+          "gid": "FirstCardThisTurn",
+          "then": [
+            {
+              "refId": "9ff1954d",
+              "value": 4,
+              "kinds": [
+                1
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "66635E75",
+      "name": "冻结敌方全体单位",
+      "timing": 19,
+      "activation": 2,
+      "selection": 2,
+      "cost": [
+        0.0,
+        0.0,
+        6.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "973884b1",
+            "kinds": [
+              2
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "88C651B8",
+      "name": "将两个对方单位弹回手牌",
+      "timing": 19,
+      "activation": 2,
+      "selection": 1,
+      "count": 2,
+      "cost": [
+        0.0,
+        4.5,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "c3673dae",
+            "kinds": [
+              2
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "F95F6FB2",
+      "name": "磨对手牌库2张",
+      "timing": 19,
+      "activation": 2,
+      "cost": [
+        0.0,
+        0.0,
+        4.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "e81b5f7e",
+            "value": 2,
+            "kinds": [
+              8
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "63A64DDA",
+      "name": "抽2张卡",
+      "timing": 19,
+      "activation": 2,
+      "cost": [
+        0.0,
+        0.0,
+        4.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "03c85bc4",
+            "value": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "3D311137",
+      "name": "对一个对方单位附加1层沉睡",
+      "timing": 19,
+      "activation": 2,
+      "selection": 0,
+      "count": 1,
+      "cost": [
+        0.0,
+        0.0,
+        3.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "9bbc7348",
+            "kinds": [
+              2
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "ADBE1C34",
+      "name": "磨对手牌库3张",
+      "timing": 19,
+      "activation": 2,
+      "cost": [
+        0.0,
+        0.0,
+        6.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "e81b5f7e",
+            "value": 3,
+            "kinds": [
+              8
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "9A7B877E",
+      "name": "磨对手牌库4张",
+      "timing": 19,
+      "activation": 2,
+      "cost": [
+        0.0,
+        0.0,
+        8.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "e81b5f7e",
+            "value": 4,
+            "kinds": [
+              8
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "1976F557",
+      "name": "对一个己方单位附加1层无实体；若己方角色生命≤7，为己方单位添加4层护甲",
+      "timing": 20,
+      "activation": 2,
+      "selection": 0,
+      "count": 1,
+      "cost": [
+        5.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "6c38edaa",
+            "kinds": [
+              1
+            ]
+          }
+        },
+        {
+          "kind": 1,
+          "gid": "LifeLe7",
+          "then": [
+            {
+              "refId": "9ff1954d",
+              "value": 4,
+              "kinds": [
+                1
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "66A5DC3B",
+      "name": "对一个对方单位附加3层紊乱；若为本回合使用的第一张卡，为己方角色添加4层护甲",
+      "timing": 19,
+      "activation": 2,
+      "selection": 0,
+      "count": 1,
+      "cost": [
+        0.0,
+        0.0,
+        3.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "d3ed120d",
+            "value": 3,
+            "kinds": [
+              2
+            ]
+          }
+        },
+        {
+          "kind": 1,
+          "gid": "FirstCardThisTurn",
+          "then": [
+            {
+              "refId": "9ff1954d",
+              "value": 4,
+              "kinds": [
+                1
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "88825E61",
+      "name": "登场时，赋予一个己方单位1层潜行",
+      "selection": 0,
+      "count": 1,
+      "cost": [
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "1b6a20e9",
+            "kinds": [
+              1
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "C308DC2F",
+      "name": "元素充盈：剩余元素差达到门槛时，对一个对方单位造成1点伤害",
+      "limit": 1,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "fd645778",
+            "branch": {
+              "settle": 3,
+              "engine": 5,
+              "then": [
+                {
+                  "refId": "a4b823fc",
+                  "kinds": [
+                    2
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "03EEA8C2",
+      "name": "元素充盈：剩余元素差达到门槛时，抽1张卡",
+      "limit": 1,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "fd645778",
+            "branch": {
+              "settle": 3,
+              "engine": 5,
+              "then": [
+                {
+                  "refId": "03c85bc4",
+                  "kinds": [
+                    1
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "DCF12CEA",
+      "name": "对一个己方单位附加1层减半；若己方角色生命≤7，为己方角色添加4层护甲",
+      "timing": 19,
+      "activation": 2,
+      "selection": 0,
+      "count": 1,
+      "cost": [
+        0.0,
+        0.0,
+        5.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "f4918303",
+            "kinds": [
+              1
+            ]
+          }
+        },
+        {
+          "kind": 1,
+          "gid": "LifeLe7",
+          "then": [
+            {
+              "refId": "9ff1954d",
+              "value": 4,
+              "kinds": [
+                1
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "92119317",
+      "name": "对己方角色附加1层重放：其使用的下一张法术/主动效果将重复一次（包括效果和代价）",
+      "timing": 19,
+      "activation": 2,
+      "selection": 0,
+      "count": 1,
+      "cost": [
+        0.0,
+        0.0,
+        5.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "4bd7f55f",
+            "kinds": [
+              1
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "13DF0561",
+      "name": "将双方墓地的2张卡洗回牌库",
+      "timing": 19,
+      "activation": 2,
+      "selection": 0,
+      "count": 1,
+      "cost": [
+        0.0,
+        0.0,
+        0.0,
+        3.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "9af09c90",
+            "value": 2,
+            "kinds": [
+              9,
+              10
+            ],
+            "count": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "516F8220",
+      "name": "将2张己方墓地的卡返回手牌",
+      "timing": 19,
+      "activation": 2,
+      "selection": 0,
+      "count": 1,
+      "cost": [
+        0.0,
+        0.0,
+        0.0,
+        7.0,
+        0.0
+      ],
+      "costPin": 1,
+      "costs": [
+        {
+          "type": 1,
+          "value": 0,
+          "manaType": 0,
+          "turns": 0,
+          "payload": {
+            "refId": "9ff1954d",
+            "kinds": [
+              2
+            ]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "c03ef9fe",
+            "value": 2,
+            "kinds": [
+              9
+            ],
+            "count": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "17EB8C0B",
+      "name": "对手回合对手使用卡牌结算后，双方剩余元素的差≥1时，将双方墓地的1张卡洗回牌库（仅自动）",
+      "limit": 1,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "fd645778",
+            "branch": {
+              "settle": 3,
+              "engine": 5,
+              "then": [
+                {
+                  "refId": "9af09c90",
+                  "kinds": [
+                    9,
+                    10
+                  ],
+                  "count": 1
+                }
+              ]
+            }
           }
         }
       ]

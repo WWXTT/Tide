@@ -31,15 +31,18 @@ namespace CardCore.Editor.TideHeadless
         ///                                                → vs 脚本口径下模型侧卡组固定该主题整组
         ///                                                  （2026-10-30 红·快攻镜像训练口径；缺省模型侧
         ///                                                  仍 Cards 随机 30；找不到主题 LogWarning 回落随机）
-        ///   请求  {"op":"reset","shapingLambda":0.005}    → 按局覆盖塑形 λ（2026-09-22；缺省/0 用驱动默认 0.005）
+        ///   请求  {"op":"reset","shapingLambda":0,"shapingSet":1}
+        ///                                                → 按局显式塑形 λ（2026-11-02：shapingSet=1
+        ///                                                  时 shapingLambda 原样生效，0 = 关闭塑形只留
+        ///                                                  终局 ±1——λ=0 基线；不带该组键 = 驱动默认 0.005）
         ///   请求  {"op":"step","action":N}                → 响应同上
         ///   响应 {op, obs{cards,globals,actions,nActions}, reward, done,
         ///         info{toPlay,winner,reason,turn,modelSeat,theme,modelTheme,layoutVersion,dims,decisionSeat}}
-    ///   obs 恒为「当前决策座次」视角（v2：Main=回合玩家 / 响应窗口=优先权持有方；vs 脚本恒为模型视角），
-    ///   reward 归属同视角；
-    ///   info.toPlay：下一决策点行动方座次（0=P1 / 1=P2，终局 -1）——v2 起含响应窗口座次，Python 自对弈
-    ///   GAE 座次修正用；info.decisionSeat 同值（显式别名）；
-        ///   info.layoutVersion/dims：布局握手（v7 / {nCard:115,nGlobal:50,nAction:8,maxActions:512,maxCards:86}）——
+        ///   obs 恒为「当前决策座次」视角（v2：Main=回合玩家 / 响应窗口=优先权持有方；vs 脚本恒为模型视角），
+        ///   reward 归属同视角；
+        ///   info.toPlay：下一决策点行动方座次（0=P1 / 1=P2，终局 -1）——v2 起含响应窗口座次，Python 自对弈
+        ///   GAE 座次修正用；info.decisionSeat 同值（显式别名）；
+        ///   info.layoutVersion/dims：布局握手（v8 / {nCard:115,nGlobal:50,nAction:11,maxActions:512,maxCards:86}）——
         ///   Python reset 时断言逐值相等，维度漂移报清晰错误（防 2026-09-14 式 reshape 静默炸）；
         ///   info.modelSeat：模型座次（0=P1 / 1=P2），自对弈为 -1——vs 模式按它判胜负；
         ///   info.theme：对手主题 key（red/green/blue，vs 模式才有；自对弈空串）——Python 分主题统计胜率；
@@ -171,7 +174,8 @@ namespace CardCore.Editor.TideHeadless
                     }
 
                     TideStepResult result = req.op == "reset"
-                        ? HandleReset(driver, req.opponent, req.shapingLambda, req.theme, req.modelTheme)
+                        ? HandleReset(driver, req.opponent, req.shapingLambda, req.theme, req.modelTheme,
+                                      req.shapingSet != 0)
                         : HandleStep(driver, req.action);
 
                     string resp = Serialize(req.op, result);
@@ -287,10 +291,14 @@ namespace CardCore.Editor.TideHeadless
         }
 
         private static TideStepResult HandleReset(TideHeadlessDriver driver, string opponent,
-            float shapingLambda = 0f, string themeKey = null, string modelThemeKey = null)
+            float shapingLambda = 0f, string themeKey = null, string modelThemeKey = null,
+            bool shapingExplicit = false)
         {
-            // 按局覆盖塑形 λ（>0 生效；旧客户端不发该字段=0 → 用驱动默认 0.005）
-            driver.SetShapingLambda(shapingLambda);
+            // 按局塑形 λ（2026-11-02 显式协议）：shapingSet=1 = 客户端显式下发，shapingLambda
+            // 原样生效（0 = 关闭塑形只留终局 ±1，驱动内联动关掉无进展扣分）；旧客户端不带该组
+            // 键 = 不调用，保持驱动默认 0.005（旧行为，塑形常开）
+            if (shapingExplicit)
+                driver.SetShapingLambda(shapingLambda);
 
             // 2026-09-21 主题卡组口径（数据层迁移到 Cards.json + StreamingAssets/Card/，TestDecks 已删）：
             //   自对弈  = 主题整组（三套随机其一）vs Cards.json 随机 30 张，随机换座，双方模型驱动；
@@ -410,7 +418,9 @@ namespace CardCore.Editor.TideHeadless
                     modelTheme = _modelTheme ?? "",
                     // v2 版本握手（2026-09-30 契约第 5 节，防 2026-09-14 式静默炸）：
                     // Python reset 时断言逐值相等，不等报清晰错误（替代 reshape 炸）
-                    layoutVersion = LayoutVersion,
+                    // v8（2026-11-02 LAE 多目标）：NAction 8→11——直接引用 TideObservation.LayoutVersion
+                    // 单源（旧本地常量与注释「单源同步」名不符实，已删）
+                    layoutVersion = TideObservation.LayoutVersion,
                     dims = new HeadlessDims
                     {
                         nCard = TideObservation.NCard,
@@ -425,12 +435,6 @@ namespace CardCore.Editor.TideHeadless
             return JsonUtility.ToJson(resp);
         }
 
-        /// <summary>动作空间布局版本（v7 = 2026-10-29 对座镜像修订：盘面坐标轴平移——双方六格行
-        /// 同列带 x1..x6、P2 上下镜像，槽位/容量同 v6；v6 = P11 盘面重塑：战场槽 12→9、卡槽 92→86；
-        /// v5 = P6 苏醒改版 NCard 116→115）。
-        /// 与 TideObservation.LayoutVersion 单源同步。</summary>
-        private const int LayoutVersion = 7;
-
         private static List<float> ToList(float[] a)
         {
             var l = new List<float>(a.Length);
@@ -440,7 +444,7 @@ namespace CardCore.Editor.TideHeadless
 
         // ===================================================== JSON DTO（JsonUtility 字段名即协议键） =====================================================
 
-        [Serializable] public class HeadlessRequest { public string op; public int action; public string opponent; public float shapingLambda; public string theme; public string modelTheme; }
+        [Serializable] public class HeadlessRequest { public string op; public int action; public string opponent; public float shapingLambda; public int shapingSet; public string theme; public string modelTheme; }
         [Serializable] public class HeadlessObs { public List<float> cards; public List<float> globals; public List<float> actions; public int nActions; }
         // v2 布局握手字段（2026-09-30 契约第 5 节）：layoutVersion / dims / decisionSeat
         [Serializable] public class HeadlessDims { public int nCard; public int nGlobal; public int nAction; public int maxActions; public int maxCards; }

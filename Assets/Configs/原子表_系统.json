@@ -206,18 +206,19 @@
     "ManaList": null
   },
   {
-    "ID": "37296494",
-    "EnumName": "命运一抽【唯一】",
-    "DisplayName": "命运一抽【唯一】",
+    "ID": "66cdb39f",
+    "EnumName": "命运一抽",
+    "DisplayName": "命运一抽",
     "EffectType": "SituationGate",
     "TargetKinds": "",
     "TargetFilter": null,
     "Polarity": 0,
     "MountKinds": "有限分支",
-    "Tags": "有限分支",
+    "Tags": null,
     "ManaList": null,
     "GateId": "DrawnInStandbyThisTurn",
-    "Budget": 3
+    "Budget": 3,
+    "特殊裁定": "当此卡在准备阶段，自然抽取到手牌的那个回合有效。卡组每具有10张卡，能添加一张命运一抽。"
   },
   {
     "ID": "2208746f",
@@ -228,7 +229,7 @@
     "TargetFilter": null,
     "Polarity": 0,
     "MountKinds": "有限分支",
-    "Tags": "有限分支",
+    "Tags": null,
     "ManaList": null,
     "GateId": "LifeBelowOpp",
     "Budget": 1
@@ -242,7 +243,7 @@
     "TargetFilter": null,
     "Polarity": 0,
     "MountKinds": "有限分支",
-    "Tags": "有限分支",
+    "Tags": null,
     "ManaList": null,
     "GateId": "LifeAboveOpp",
     "Budget": 1
@@ -256,7 +257,7 @@
     "TargetFilter": null,
     "Polarity": 0,
     "MountKinds": "有限分支",
-    "Tags": "有限分支",
+    "Tags": null,
     "ManaList": null,
     "GateId": "DeckBelowOpp",
     "Budget": 1
@@ -270,7 +271,7 @@
     "TargetFilter": null,
     "Polarity": 0,
     "MountKinds": "有限分支",
-    "Tags": "有限分支",
+    "Tags": null,
     "ManaList": null,
     "GateId": "DeckAboveOpp",
     "Budget": 1
@@ -284,7 +285,7 @@
     "TargetFilter": null,
     "Polarity": 0,
     "MountKinds": "有限分支",
-    "Tags": "有限分支",
+    "Tags": null,
     "ManaList": null,
     "GateId": "CreaturesBelowOpp",
     "Budget": 1
@@ -298,7 +299,7 @@
     "TargetFilter": null,
     "Polarity": 0,
     "MountKinds": "有限分支",
-    "Tags": "有限分支",
+    "Tags": null,
     "ManaList": null,
     "GateId": "CreaturesAboveOpp",
     "Budget": 1
@@ -312,21 +313,35 @@
     "TargetFilter": null,
     "Polarity": 0,
     "MountKinds": "有限分支",
-    "Tags": "有限分支",
+    "Tags": null,
     "ManaList": null,
     "GateId": "FirstCardThisTurn",
-    "Budget": 1
+    "Budget": 2
   },
   {
-    "ID": "2cc573ce",
-    "EnumName": "操控地数量≥7",
-    "DisplayName": "操控地数量≥7",
+    "ID": "85051319",
+    "EnumName": "操控地数量>9",
+    "DisplayName": "操控地数量>9",
     "EffectType": "SituationGate",
     "TargetKinds": "",
     "TargetFilter": null,
     "Polarity": 0,
     "MountKinds": "有限分支",
-    "Tags": "有限分支",
+    "Tags": null,
+    "ManaList": null,
+    "GateId": "LandsGt9",
+    "Budget": 2
+  },
+  {
+    "ID": "ea77f36c",
+    "EnumName": "操控地数量≥3",
+    "DisplayName": "操控地数量≥3",
+    "EffectType": "SituationGate",
+    "TargetKinds": "",
+    "TargetFilter": null,
+    "Polarity": 0,
+    "MountKinds": "有限分支",
+    "Tags": null,
     "ManaList": null,
     "GateId": "LandsGe7",
     "Budget": 2
@@ -340,7 +355,7 @@
     "TargetFilter": null,
     "Polarity": 0,
     "MountKinds": "有限分支",
-    "Tags": "有限分支",
+    "Tags": null,
     "ManaList": null,
     "GateId": "HandEmpty",
     "Budget": 2
@@ -354,22 +369,35 @@
     "TargetFilter": null,
     "Polarity": 0,
     "MountKinds": "有限分支",
-    "Tags": "有限分支",
+    "Tags": null,
     "ManaList": null,
     "GateId": "LifeLe7",
     "Budget": 2
   },
   {
-    "ID": "a59e901d",
-    "EnumName": "卡名预言",
-    "DisplayName": "隐藏预言对手下回合首张出牌的类别或卡名，命中则触发奖励",
+    "ID": "479e3d5f",
+    "EnumName": "预言",
+    "DisplayName": "隐藏预言对手下回合首张出牌的类别，命中则触发奖励",
     "EffectType": "ProphecyNextCard",
     "TargetKinds": null,
     "TargetFilter": null,
     "Polarity": 1,
-    "MountKinds": "引擎主干",
+    "MountKinds": "有限分支",
     "Tags": null,
     "参数": "Dimension",
+    "ManaList": null,
+    "Budget": 3
+  },
+  {
+    "ID": "afa24bf3",
+    "EnumName": "充能",
+    "DisplayName": "充能：支付1点对应颜色元素，为此手牌放置1层同色费用降低指示物（展示这张卡；换区清除）",
+    "EffectType": "Charge",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": 0,
+    "MountKinds": "系统",
+    "Tags": null,
     "ManaList": null
   }
 ]

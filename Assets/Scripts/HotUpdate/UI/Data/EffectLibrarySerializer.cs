@@ -152,7 +152,10 @@ namespace SynergyUI
                 arrows = h.ArrowDirections,
                 linkAuras = h.LinkAuras != null && h.LinkAuras.Count > 0
                     ? new List<LinkAuraData>(h.LinkAuras) : null, // 空表不写列（2026-09-23 向后兼容）
-                cost = DeriveAnchorCost(graph), // 效果锚价（2026-09-23）：纯表累加实时推导——与合成器费用预览同口径
+                costPin = h.AnchorCostPinned != 0 ? 1 : 0, // 锚价钉死（2026-11-02 保真接线）：pin 行直出，不走推导
+                cost = h.AnchorCostPinned != 0 && h.AnchorCost != null
+                    ? new List<float>(h.AnchorCost.v) // 钉死行：手作 cost 列为权威——重推/落盘不覆盖（DeriveElementCosts 同口）
+                    : DeriveAnchorCost(graph), // 效果锚价（2026-09-23）：纯表累加实时推导——与合成器费用预览同口径
                 costs = h.Costs != null && h.Costs.Count > 0
                     ? h.Costs.Select(EffectSlim.ToCostRef).Where(c => c != null).ToList() : null,
                 steps = new List<StepRef>(),
@@ -204,6 +207,7 @@ namespace SynergyUI
                         ? new List<LinkAuraData>(dto.linkAuras) : null,
                     AnchorCost = dto.cost != null && dto.cost.Count > 0
                         ? new ElementCost(dto.cost.ToArray()) : null,
+                    AnchorCostPinned = dto.costPin, // 钉死旗随图往返（2026-11-02 保真接线）——防重推冲掉手作锚价
                     Costs = EffectSlim.ToCostEntries(dto.costs),
                 },
                 steps = dto.steps != null

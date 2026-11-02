@@ -115,8 +115,8 @@ namespace SynergyUI
             int ownerIdx = BoardLayout.OwnerOf(hx, hz);
             if (role == CellRole.Character)
             {
-                // 角色格（2026-10-16 技能格撤销）：角色信息（生命/弹药）；
-                // 技能介绍已迁【发动】键悬停（对手格无键=介绍留此兜底）
+                // 角色格（2026-10-16 技能格撤销）：角色信息（生命/弹药）+技能四段介绍
+                //（2026-11-02 定案：角色描述包含技能描述，两侧同口径）
                 SetHoverInfo(HeroHoverInfo(ownerIdx));
                 return;
             }
@@ -410,8 +410,8 @@ namespace SynergyUI
         }
 
         /// <summary>角色格悬停信息（2026-10-16 技能格撤销改版；当晚迁移）：角色本体（生命/护甲/攻击弹药）。
-        /// 己方技能四段介绍已迁到格前【发动】键悬停（TileButtonHoverInfo）；对手角色格无键可悬，
-        /// 技能是公开信息——介绍留在此处兜底。无技能局=占位行。
+        /// 2026-11-02 用户定案：角色描述文字包含技能描述——两侧同挂技能卡四段介绍（CardHoverInfo；
+        /// 旧己方指引「技能详情=【发动】键悬停」随 2026-10-26 头顶 3D 钮改版已无宿主）。无技能局=占位行。
         /// 2026-10-17 角色状态展示（参考生物）：补【状态】段——指示物完整解说（CounterText）+
         /// 受到的连接光环清单（LinkAuraSystem.GetApplicableAuras(Player) 新口，与生物同格式）。</summary>
         private string HeroHoverInfo(int ownerIdx)
@@ -453,13 +453,12 @@ namespace SynergyUI
             if (statusLines.Count > 0) lines.Add("【状态】\n" + string.Join("\n", statusLines));
 
             if (ownerIdx == 0)
-                lines.Add("操作=格前三键：攻击/守卫（需攻击弹药）、发动技能（技能详情=【发动】键悬停）");
-            else
-            {
-                var skill = pv?.Skill;
-                if (skill != null) lines.Add(CardHoverInfo(skill));
-                else lines.Add("本局无技能卡");
-            }
+                lines.Add("操作=头顶按钮：攻击/守卫（需攻击弹药）、发动技能");
+            // 技能描述（2026-11-02 用户定案：角色描述文字包含技能描述——两侧同口径挂技能卡四段介绍；
+            // 旧己方指引「技能详情=【发动】键悬停」随 2026-10-26 格前三键→头顶 3D 钮改版已无宿主）
+            var skill = pv?.Skill;
+            if (skill != null) lines.Add(CardHoverInfo(skill));
+            else lines.Add("本局无技能卡");
             return string.Join("\n", lines);
         }
 

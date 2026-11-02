@@ -37,6 +37,10 @@ namespace SynergyUI
         /// <summary>注入策略（null=通用 GeneralAiStrategy，行为与策略化之前完全一致）。</summary>
         public SimpleAI(AiStrategy strategy = null) => _strategy = strategy ?? AiStrategy.General;
 
+        /// <summary>注入策略只读口（2026-11-02 响应窗任务A）：BattleController/AiBattleDriver 开局
+        /// 把驱动策略按玩家登记进 AiStrategyRegistry（响应窗按玩家查表决策）。</summary>
+        public AiStrategy Strategy => _strategy;
+
         /// <summary>人机对局节奏（2026-10-14 用户定案）：非 null=电脑每个动作后等表现层把
         /// 当前这一件事演完（回调内部=等 BattleFieldView 视觉在途门归零）+ 最小间隔拍——
         /// 人类可逐步看清电脑操作。null=全速（AI-vs-AI/无头——完全不管渲染层）。
@@ -108,8 +112,8 @@ namespace SynergyUI
             AtomicEffectType.DrainLife,
             // 指示物妨害族（毒素：回合末持续毒伤；易损：受伤+1/层；剧毒已转关键词 GrantVenom）
             AtomicEffectType.GrantVenom, AtomicEffectType.AddToxin, AtomicEffectType.AddVulnerable,
-            // 单向属性削弱（攻击力/生命值/±1/费用增加四色——目标偏好对方）
-            AtomicEffectType.AddPowerDown, AtomicEffectType.AddLifeDown, AtomicEffectType.AddMinusOne,
+            // 单向属性削弱（攻击力/生命值/费用增加四色——目标偏好对方；属性±1/+1 2026-11-02 删）
+            AtomicEffectType.AddPowerDown, AtomicEffectType.AddLifeDown,
             AtomicEffectType.AddCostUpGray, AtomicEffectType.AddCostUpRed,
             AtomicEffectType.AddCostUpBlue, AtomicEffectType.AddCostUpGreen,
             AtomicEffectType.Weaken, AtomicEffectType.RushSickness,
@@ -141,7 +145,7 @@ namespace SynergyUI
             AtomicEffectType.ModifyPower, AtomicEffectType.ModifyLife,
             // 设置系复活（2026-09-09 三轨制重建）——有益直改
             AtomicEffectType.SetPower, AtomicEffectType.SetLife, AtomicEffectType.SetCost,
-            AtomicEffectType.AddPowerUp, AtomicEffectType.AddLifeUp, AtomicEffectType.AddPlusOne,
+            AtomicEffectType.AddPowerUp, AtomicEffectType.AddLifeUp,
             AtomicEffectType.AddCostDownGray, AtomicEffectType.AddCostDownRed,
             AtomicEffectType.AddCostDownBlue, AtomicEffectType.AddCostDownGreen,
             AtomicEffectType.Inspire,
@@ -189,10 +193,13 @@ namespace SynergyUI
             {
                 // 出牌/技能源已 async 化（含出牌舞台等待）；`|` 非短路——每轮仍全试一遍再判进展
                 //（墓地出牌臂已随 2026-10-30 归土改版整删——归土=回合末自动复活，无 AI 动作位）
+                // 2026-11-01：绿套·成长期技能先于出牌（策略钩子 SkillBeforeCards）——1 费回春藤
+                // 会把绿地花光，技能（绿 3）就发不动了。
                 bool progress = DrainVoluntaryQueue(core)
-                              | ActivateBattlefieldAbilities(core, me)
-                              | await PlayBestAffordableCardAsync(core, me)
-                              | await UseHeroSkillAsync(core, me);
+                              | ActivateBattlefieldAbilities(core, me);
+                progress |= _strategy.SkillBeforeCards(core, me)
+                    ? (await UseHeroSkillAsync(core, me) | await PlayBestAffordableCardAsync(core, me))
+                    : (await PlayBestAffordableCardAsync(core, me) | await UseHeroSkillAsync(core, me));
                 if (!progress) break;
                 await PaceAsync(); // 人机节奏：本轮动作落地后等表现层演完再做下一个动作
             }
@@ -234,8 +241,9 @@ namespace SynergyUI
         // ======================================== 资源准备 ========================================
 
         /// <summary>充能（2026-10-31 P12：建造→充能，低优先级）：主循环无进展后，把手牌带充能效果的卡
-        /// 逐色充到上限（速度 0 入栈→即排干；元素富余跨回合留存）。CanCharge 单源闸含色资格/上限/余量，
-        /// 失败即静默跳过——不阻塞回合推进。</summary>
+        /// 各充一点（2026-11-02 每回合一次定案——单卡一回合一次，CanCharge 闸内拒；上限跨回合逐补）。
+        /// CanCharge 单源闸含色资格/上限/余量/每回合一次，失败即静默跳过——不阻塞回合推进。
+        /// 对手回合响应档（速≥1 法术）不在此口——SimpleAI 响应走守卫启发，不主动充能。</summary>
         private static void ChargeIdleElements(GameCore core, Player me)
         {
             if (core.TurnEngine.TurnPlayer != me
@@ -266,8 +274,11 @@ namespace SynergyUI
                 .Where(ElementPoolSystem.CanServeAsLand)
                 .ToList();
             // 打不出的卡按策略地牌优先级排序（红：血偿等直伤打不出去时直接当地占坑；
-            // 默认=总费用降序——原口径）
-            var unaffordable = lands.Where(c => !CanPlayCard(core, me, c, Zone.Hand))
+            // 默认=总费用降序——原口径；绿：WantLand 可主动把付得起的牌也铺下去凑色）。
+            var unaffordable = lands
+                                    .Where(c => !CanPlayCard(core, me, c, Zone.Hand)
+                                                || _strategy.WantLand(core, me, c))
+                                    .Where(c => _strategy.ShouldLand(core, me, c))
                                     .OrderByDescending(c => _strategy.LandPriority(core, me, c, TotalCost))
                                     .ToList();
             // 兜底：手牌有生物但全部付得起——不放（留手打出，最大化场面交互）
@@ -276,7 +287,12 @@ namespace SynergyUI
             {
                 // 各自地牌槽上限（2026-10-11：个人曲线；缺省锁色=主色份额最多色）
                 if (!core.ElementPool.CanAddLand(me)) break;
-                GameActions.AddToElementPool(core, me, card);
+                // 2026-11-01 2 费空过修复：快照里打不出，但铺了前面的地之后已经付得起 → 留手打出，
+                // 不再继续当地（例外：策略 WantLand 主动铺地，如绿套凑绿地）。
+                if (CanPlayCard(core, me, card, Zone.Hand) && !_strategy.WantLand(core, me, card))
+                    continue;
+                var lc = _strategy.LandColorChoice(core, me, card);
+                GameActions.AddToElementPool(core, me, card, lc);
             }
         }
 
@@ -365,6 +381,9 @@ namespace SynergyUI
             return false;
         }
 
+        // 苏醒施放分支（WantAwakenCast/CanAwakenPlay，2026-11-01 绿套）已随 2026-11-02
+        // 苏醒机制整链删除——出牌恒普通施放。
+
         // 墓地出牌（TryGraveyardPlayAsync）已随 2026-10-30 归土改版整删——归土=回合末自动复活，无出牌动作位。
 
         // ======================================== 出牌辅助 ========================================
@@ -439,6 +458,9 @@ namespace SynergyUI
         /// ResolveCompositionTargetsAsync 同源）；按 SelectionMode 六值三维出目标（2026-09-16）——
         /// 全取档全取、选一/选多按数量 + 有害/有益偏好经策略择优（域={Self} 的选一=取源卡自身）。
         /// 无偏好返回 null 交引擎自动解析。
+        /// v8（2026-11-02 原子口径统一）：逐原子口径（PerAtomTargets）按 CollectAtomTargetSpecs 单源
+        /// 规格逐条预选——数量=每原子 effCount（>1 压过选一模式，预选填满 quota，不再依赖引擎
+        /// 欠额补足插队），排序偏好按各原子有害/有益逐条择优，返回序=原子执行序（预选队列有序消费）。
         /// </summary>
         private List<Entity> ChooseTargets(GameCore core, Player me, Card card, int modeIndex = 0)
         {
@@ -446,6 +468,25 @@ namespace SynergyUI
             if (def == null) return null; // 无需选目标 → 引擎自动
 
             var ctx = BuildTargetCtx(core, me, card);
+
+            if (def.PerAtomTargets)
+            {
+                var picked = new List<Entity>();
+                foreach (var spec in CardCore.Attribute.EffectHandlerRegistry.CollectAtomTargetSpecs(def, ctx))
+                {
+                    if (spec.AutoTake || spec.EffCount == -1) continue; // 引擎自动取/运行时自选——不预选
+                    IEnumerable<Entity> specOrdered;
+                    if (spec.Atom != null && HarmfulAtoms.Contains(spec.Atom.Type))
+                        specOrdered = _strategy.OrderHarmfulTargets(core, me, spec.Candidates);
+                    else if (spec.Atom != null && BeneficialAtoms.Contains(spec.Atom.Type))
+                        specOrdered = _strategy.OrderBeneficialTargets(core, me, spec.Candidates);
+                    else
+                        specOrdered = spec.Candidates; // 无偏好：保持引擎序（等价自动解析）
+                    picked.AddRange(specOrdered.Take(Math.Max(1, spec.EffCount)));
+                }
+                return picked.Count > 0 ? picked : null;
+            }
+
             var domain = DomainOfMode(def, modeIndex);
             var candidates = CardCore.Attribute.EffectHandlerRegistry.ResolveCandidates(domain, def.TargetFilter, ctx);
             if (candidates.Count == 0) return null;
@@ -498,13 +539,29 @@ namespace SynergyUI
 
         /// <summary>第一个带组合域的非主动效果定义（域 = TargetDomain / ChoiceDomains[mode]
         /// 预计算交集——目标域模型口径，取代旧「首个带域原子」编译级近似）。
-        /// None 模式（区域自结算类）跳过——AI 不为其选目标（2026-09-11）。</summary>
+        /// None 模式（区域自结算类）跳过——AI 不为其选目标（2026-09-11）。
+        /// v8（2026-11-02）：None 过滤对逐原子口径（PerAtomTargets）豁免——选择参数在原子上，
+        /// header None 不代表无交互原子（与 LAE.FirstDomainEffect 同口径）。
+        /// 法术分支（2026-11-02 逐原子验收补齐）：法术施放效果按 P12 全是主动档
+        ///（GetCastableEffectDefinitions 口径），旧「跳过一切主动」使法术恒 null 走引擎
+        /// 自动选首（无策略偏好）——镜像 LAE：IsSpellCard → castable[modeIndex]。</summary>
         private static EffectDefinition FirstDomainEffect(Card card, int modeIndex)
         {
+            if (CardExtensions.IsSpellCard(card))
+            {
+                // P12：modeIndex 索引非充能可施放列表（充能不算法术模式——与引擎
+                // SpellCastAnchor/ResolveSpellEffects 同序，ChooseMode 同源）
+                var castable = GameActions.GetCastableEffectDefinitions(card);
+                if (castable.Count == 0) return null;
+                var spellDef = castable[Math.Clamp(modeIndex, 0, castable.Count - 1)];
+                if (spellDef == null) return null;
+                if (spellDef.SelectionMode == SelectionMode.None && !spellDef.PerAtomTargets) return null;
+                return spellDef.TargetDomain != null && spellDef.TargetDomain.Count > 0 ? spellDef : null;
+            }
             foreach (var def in GetEffectDefinitions(card))
             {
                 if (def.IsActivatedEffect) continue; // 施放即结算的才会随出牌自动跑
-                if (def.SelectionMode == SelectionMode.None) continue; // 区域自结算：不选目标
+                if (def.SelectionMode == SelectionMode.None && !def.PerAtomTargets) continue; // 区域自结算：不选目标
                 var domain = DomainOfMode(def, modeIndex);
                 if (domain != null && domain.Count > 0) return def;
             }

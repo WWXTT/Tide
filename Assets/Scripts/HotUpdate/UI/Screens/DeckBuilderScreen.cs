@@ -494,16 +494,19 @@ namespace SynergyUI
                 ShowToast($"卡组已达上限 {MaxDeckCards} 张");
                 return;
             }
-            // 构筑规则②：唯一门/同名仪典每卡组限 1 张——同卡第二张与异卡同名都算冲突
+            // 构筑规则②：限量槽（唯一门/同名仪典=每卡组 1 张；容量门=每 10 张牌库卡 1 张——
+            // 2026-11-02 命运一抽改版）。容量按「添加后」的卡组规模投影：卡组长大会、上限随之升高
             var card = CardCatalog.GetById(id);
             if (card != null)
             {
                 foreach (var slot in ComposerCatalog.DeckUniqueSlots(card))
                 {
-                    var holder = DeckCardHoldingKey(slot.Key);
-                    if (holder != null)
+                    var cap = ComposerCatalog.SlotCapacity(slot.Key, DeckBuildCount + 1);
+                    if (DeckCardKeyCount(slot.Key) + 1 > cap)
                     {
-                        ShowToast($"「{slot.Display}」每卡组限 1 张——已有 {NameOf(holder)}");
+                        ShowToast(cap == 1
+                            ? $"「{slot.Display}」每卡组限 1 张——已有 {NameOf(DeckCardHoldingKey(slot.Key))}"
+                            : $"「{slot.Display}」已达当前上限（卡组每 10 张可带 1 张，{DeckBuildCount + 1} 张上限 {cap} 张）");
                         return;
                     }
                 }
@@ -512,7 +515,7 @@ namespace SynergyUI
             RefreshAll();
         }
 
-        /// <summary>卡组内已持有指定构筑唯一键的卡（无=null）——添加拦截用。</summary>
+        /// <summary>卡组内已持有指定构筑限量键的卡（无=null）——唯一门提示文案用。</summary>
         private CardData DeckCardHoldingKey(string key)
         {
             foreach (var id in _deckCardIds)
@@ -522,6 +525,18 @@ namespace SynergyUI
                     return c;
             }
             return null;
+        }
+
+        /// <summary>卡组内持有指定构筑限量键的卡数——容量门添加拦截用。</summary>
+        private int DeckCardKeyCount(string key)
+        {
+            int n = 0;
+            foreach (var id in _deckCardIds)
+            {
+                var c = CardCatalog.GetById(id);
+                if (c != null && ComposerCatalog.DeckUniqueSlots(c).Any(u => u.Key == key)) n++;
+            }
+            return n;
         }
 
         private static string NameOf(CardData card)
@@ -1552,20 +1567,29 @@ namespace SynergyUI
                 return;
             }
 
-            // 构筑规则②：唯一门/同名仪典每卡组限 1 张——添加口已拦，此处兜底旧档载入/卡数据热改
-            var seenKeys = new HashSet<string>();
+            // 构筑规则②：限量槽超额（唯一门/仪典=每卡组 1 张；容量门=每 10 张牌库卡 1 张——
+            // 2026-11-02 命运一抽改版）——添加口已拦，此处兜底旧档载入/卡数据热改
+            var slotFirst = new Dictionary<string, ComposerCatalog.DeckUniqueSlot>();
+            var slotCounts = new Dictionary<string, int>();
             foreach (var id in _deckCardIds)
             {
                 var card = CardCatalog.GetById(id);
                 if (card == null) continue;
                 foreach (var slot in ComposerCatalog.DeckUniqueSlots(card))
                 {
-                    if (!seenKeys.Add(slot.Key))
-                    {
-                        ShowToast($"「{slot.Display}」每卡组限 1 张（{NameOf(card)} 冲突）——请先移除多余的一张");
-                        return;
-                    }
+                    if (!slotFirst.ContainsKey(slot.Key)) slotFirst[slot.Key] = slot;
+                    slotCounts[slot.Key] = slotCounts.TryGetValue(slot.Key, out var n) ? n + 1 : 1;
                 }
+            }
+            foreach (var kv in slotCounts)
+            {
+                var cap = ComposerCatalog.SlotCapacity(kv.Key, DeckBuildCount);
+                if (kv.Value <= cap) continue;
+                var slot = slotFirst[kv.Key];
+                ShowToast(cap == 1
+                    ? $"「{slot.Display}」每卡组限 1 张——请先移除多余的一张"
+                    : $"「{slot.Display}」超出上限：卡组每 10 张可带 1 张（{DeckBuildCount} 张上限 {cap} 张，现有 {kv.Value} 张）");
+                return;
             }
 
             // 异常卡硬门槛（2026-10-16 全局对齐；主题违色已随主题约束删除——2026-10-26）：

@@ -747,7 +747,8 @@ namespace SynergyUI
         private void BindAddSlotButtons()
         {
             BindAddSlot(ZoneId.Cost, "addcost", "添加代价",
-                "新建一个空代价槽（三类卡通用·至多 1）：右栏直列原子表·一般效果行——单原子引用·抵扣只作用于该原子可产出色的卡费·至多将该色费用清零·发动需有等量同色地牌（红色代价5→需5红地，以此类推——不同类型代价按色加算）");
+                "新建一个空代价槽（生物/法术通用·至多 1）：右栏直列原子表·一般效果行——单原子引用·抵扣只作用于该原子可产出色的卡费·至多将该色费用清零·发动需有等量同色地牌（红色代价5→需5红地，以此类推——不同类型代价按色加算）。"
+                + "【2026-11-02 减费三选一】代价=并列槽位添加不占灰槽位费；同一效果只能三选一（有限分支/自由分支/代价）——效果含分支/并列两效果/光环（结界必有光环）时禁挂；每条代价减费 ≤4 点");
             BindAddSlot(ZoneId.Effect, "addeffect", "添加主动效果",
                 "新建空主动槽（生物×1 / 法术×1~3·施放时择一发动·可另带充能×1 / 结界×1·只收充能——P12）");
             BindAddSlot(ZoneId.Passives, "addpassives", "添加自动效果",
@@ -764,13 +765,20 @@ namespace SynergyUI
             Describe(btn, desc);
         }
 
-        /// <summary>新建空槽：容量闸（已用=已填+空槽）；新建即选中（右栏自动过滤到该类型）。</summary>
+        /// <summary>新建空槽：容量闸（已用=已填+空槽）；新建即选中（右栏自动过滤到该类型）。
+        /// 减费三选一（2026-11-02）：代价槽另受互斥闸（结界必有光环/效果含分支/并列两效果/光环）。</summary>
         private void AddEmptySlot(ZoneId id)
         {
             int cap = SlotCapacity(id);
             if (cap <= 0)
             {
                 ShowToast(TypeZh(id) + "槽与本卡类型不匹配——不可添加");
+                return;
+            }
+            if (id == ZoneId.Cost && (_kind == CardKind.Enchantment || EffectShapeBlocksCost()))
+            {
+                ShowToast("不可添加代价——减费三选一互斥：结界必有光环（光环类禁代价），"
+                          + "或效果已含分支/并列两效果（同一效果只能三选一）");
                 return;
             }
             if (FilledSlotCount(id) + EmptySlotCount(id) >= cap)
@@ -783,15 +791,33 @@ namespace SynergyUI
             SelectSlot(id, -1);
         }
 
-        /// <summary>add 四钮显隐/可用随卡型与容量（容量 0 整钮隐藏；满槽禁用）。</summary>
+        /// <summary>add 四钮显隐/可用随卡型与容量（容量 0 整钮隐藏；满槽禁用）。
+        /// 减费三选一（2026-11-02）：代价钮另受互斥闸——结界（必有光环）或效果含分支/并列两效果/光环时禁点。</summary>
         private void SyncAddSlotButtons()
         {
+            bool costBlocked = _kind == CardKind.Enchantment || EffectShapeBlocksCost();
             foreach (var kv in _addButtons)
             {
                 int cap = SlotCapacity(kv.Key);
                 kv.Value.gameObject.SetActive(cap > 0);
-                kv.Value.interactable = FilledSlotCount(kv.Key) + EmptySlotCount(kv.Key) < cap;
+                bool usable = FilledSlotCount(kv.Key) + EmptySlotCount(kv.Key) < cap;
+                if (kv.Key == ZoneId.Cost && costBlocked) usable = false; // 减费三选一互斥
+                kv.Value.interactable = usable;
             }
+        }
+
+        /// <summary>减费三选一（2026-11-02）：现有效果形态是否禁挂代价——
+        /// 任一效果为分支（有限/自由）/并列两效果/光环类即拦（判定单源=EffectComposerScreen）。</summary>
+        private bool EffectShapeBlocksCost()
+        {
+            foreach (var fx in _card.Effects ?? new List<CardEffectData>())
+            {
+                if (fx == null) continue;
+                if (EffectComposerScreen.IsBranchEffect(fx)) return true;
+                if (EffectComposerScreen.IsParallelTwoEffect(fx)) return true;
+                if (EffectComposerScreen.IsAuraEffectData(fx)) return true;
+            }
+            return false;
         }
 
         private static Image FindImageUnder(RectTransform scope, string name) =>
@@ -2101,13 +2127,24 @@ namespace SynergyUI
             {
                 if (!int.TryParse(s, out var v)) return;
                 atom.value = v;
-                _costParamValue = v;
                 _card.ResetCache();
+                // 减费三选一（2026-11-02）：代价减费上限 ≤4——参数推高全价越界即回退上一合法值
+                float pts = EffectComposerScreen.CostRowPrice(_card.PayloadCost);
+                if (pts > EffectComposerScreen.CostDiscountCap)
+                {
+                    atom.value = _costParamValue ?? 1;
+                    _card.ResetCache();
+                    field.SetTextWithoutNotify(atom.value.ToString());
+                    ShowToast($"代价减费 {pts:0.#} 点超上限（≤{EffectComposerScreen.CostDiscountCap}）——参数已回退");
+                    return;
+                }
+                _costParamValue = v;
                 var des = UiKit.FindDeep(row, "des")?.GetComponent<TMP_Text>();
                 if (des != null) des.text = SlotDesText(ZoneId.Cost, dataIndex);
                 Recalculate();
             });
-            Describe(field, "代价参数：使用时强制发动的数值——抵扣只作用于该原子可产出色的卡费，至多将该色费用清零（超出生成面无效）；发动需有等量同色地牌（数量击穿放行，无目标不可发动）");
+            Describe(field, "代价参数：使用时强制发动的数值——抵扣只作用于该原子可产出色的卡费，至多将该色费用清零（超出生成面无效）；"
+                + $"发动需有等量同色地牌（数量击穿放行，无目标不可发动）。减费上限 ≤{EffectComposerScreen.CostDiscountCap} 点（2026-11-02 减费三选一）");
         }
 
         private static string SlotTitle(ZoneId id, int ordinal) =>
@@ -2228,6 +2265,13 @@ namespace SynergyUI
                 ShowToast(reject);
                 return;
             }
+            // 减费三选一互斥闸（2026-11-02）：结界（必有光环）或效果含分支/并列两效果/光环时禁填代价
+            if (_kind == CardKind.Enchantment || EffectShapeBlocksCost())
+            {
+                ShowToast("不可挂代价——减费三选一互斥：光环类（结界的场地光环/仪典行）禁代价，"
+                          + "同一效果只能三选一（有限分支/自由分支/代价）、并列两效果禁代价");
+                return;
+            }
             var entry = new CardCore.AtomicEffectEntry
             {
                 refId = cfg.HashId,
@@ -2251,7 +2295,8 @@ namespace SynergyUI
             var calc = CardCostCalculator.Calculate(_card);
             int cap = CardCostService.PayloadCapacity(calc.PrePayloadCost, _card);
             ShowToast($"已填装代价「{cfg.DisplayName}」（全价 {totalPrice}·只抵{calc.PayloadScopeZh}色卡费"
-                + $"·实抵 {calc.PayloadApplied}/{cap}·占1槽）——至多把{calc.PayloadScopeZh}色费用清零");
+                + $"·实抵 {calc.PayloadApplied}/{cap}·不占槽位费——2026-11-02 减费三选一）"
+                + $"——至多把{calc.PayloadScopeZh}色费用清零");
         }
 
         /// <summary>代价行资格（2026-10-31 代价槽改版定案）：只收原子表**一般效果**行
@@ -2351,11 +2396,12 @@ namespace SynergyUI
             ShowToast(replacing ? $"已替换关键词槽 {_selIndex + 1}：{kw.DisplayName}" : $"已添加：{kw.DisplayName}");
         }
 
-        // ======================================== 系统效果直加（2026-10-31 苏醒/充能系统位定案） ========================================
+        // ======================================== 系统效果直加（2026-10-31 系统位定案） ========================================
 
-        // 苏醒（关键词表行 3df00ac7）与充能（一般效果表行 afa24bf3）挂「系统」位：移出效果组合原子库
+        // 充能（一般效果表行 afa24bf3）挂「系统」位：移出效果组合原子库
         //（EffectComposerScreen.IsLockedKeywordRow）与关键词目录（KeywordCatalog 关键词位门槛），
-        // 改在卡组合界面按槽直加——苏醒=关键词槽（仅生物），充能=主动槽（三类通用）；均为单原子整件，不经组合。
+        // 改在卡组合界面主动槽直加（三类通用）；单原子整件，不经组合。
+        //（苏醒直加行已随 2026-11-02 苏醒机制整链删除——原关键词槽直加、仅生物。）
 
         /// <summary>充能直加段（主动槽视图顶部）：行缺失（表未装载）时降级为提示行。</summary>
         private void AddChargeDirectRow()
@@ -2396,24 +2442,7 @@ namespace SynergyUI
             FillSelectedSlot(graph);
         }
 
-        /// <summary>苏醒直加段（关键词视图顶部）：点击=写入印刷关键词 Awaken（运行时闸
-        /// GameActions.HasAwakenKeyword 同 id）；仅生物可加（FillKeyword 同闸：非生物拒绝/去重/容量）。</summary>
-        private void AddAwakenDirectRow()
-        {
-            var row = CardCore.Attribute.AtomicEffectTable.GetByType(AtomicEffectType.GrantAwaken);
-            LibHeader("系统效果（直加·不经组合）——苏醒仅生物可加");
-            if (row == null)
-            {
-                LibHint("苏醒表行缺失（关键词表未装载）——直加不可用");
-                return;
-            }
-            LibCandidate(row.DisplayName, row.Description, () => FillKeyword(new KeywordCatalogEntry
-            {
-                Id = KeywordRules.Awaken,
-                DisplayName = row.DisplayName,
-                AtomicEffect = row.EnumName,
-            }), "系统·直加·生物专属");
-        }
+        // AddAwakenDirectRow（苏醒直加段）已随 2026-11-02 苏醒机制整链删除。
 
         // ======================================== 右栏：效果库列表（zone 选中=按区过滤·回收式） ========================================
 
@@ -2536,7 +2565,7 @@ namespace SynergyUI
         private void BuildLibraryActiveView()
         {
             LibNewBtn();
-            // 系统效果直加段（2026-10-31 苏醒/充能系统位定案）：充能移出效果组合——主动槽直加（三类通用）
+            // 系统效果直加段（2026-10-31 系统位定案）：充能移出效果组合——主动槽直加（三类通用）
             AddChargeDirectRow();
             // P9（2026-10-29）：宿主不匹配候选不静默隐藏——分区（可挂行照列 + 隐藏计数行）
             var host = HostOf(_kind);
@@ -2653,8 +2682,7 @@ namespace SynergyUI
 
         private void BuildLibraryKeywordsView()
         {
-            // 系统关键词直加段（2026-10-31 苏醒系统位定案）：苏醒移出关键词目录——直加行置顶（仅生物）
-            AddAwakenDirectRow();
+            //（苏醒直加行已随 2026-11-02 苏醒机制整链删除。）
             var catalog = KeywordCatalog.LoadAll();
             LibHeader($"关键词目录（{catalog.Count}）——点击=填入关键词槽（生物专属·至多 {KeywordCapacity}）");
             if (catalog.Count == 0)
@@ -3301,6 +3329,16 @@ namespace SynergyUI
         {
             ApplyTextLists();
             EnsureCardLists();
+
+            // 减费三选一保存闸（2026-11-02 定案·单源=EffectComposerScreen.DiscountConflictOf）：
+            // ① 同一效果只能三选一（有限分支/自由分支/代价）；② 并列两效果禁代价；
+            // ③ 光环类（结界的场地光环/仪典行）禁代价；④ 代价行全价 ≤4。
+            string discountConflict = EffectComposerScreen.DiscountConflictOf(_card);
+            if (discountConflict != null)
+            {
+                ShowToast(discountConflict);
+                return;
+            }
 
             // 形状拦截（2026-10-15 深夜三类卡改版；2026-10-31 P12 充能修订）：
             // 法术=非充能主动 1~3 + 充能最多 1（总 ≤4）；结界=主动只收充能（最多 1），其余主动仍拒。

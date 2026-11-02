@@ -67,8 +67,9 @@ namespace CardCore
         ///   目标并登记 GuardBlocker——守卫以可用状态参战照常反击，横置随攻击结算在战斗完成后支付
         /// - 警戒：已横置（自身先前动作所致）的防守者也能造成战斗伤害（见 ResolvePair）
     /// - 帷幕（原嘲讽，2026-09-13 更名）：不拦攻击（只吸引效果目标）；攻击侧目标强制由守卫拦截承担
-    /// - 潜行（2026-10-08 指示物化）：不可被指定为攻击/效果目标（三指定口读潜行层数>0）；
-    ///   攻击/发动效果/实际受伤各消耗 1 层（三个失效口，逐份撤）
+    /// - 潜行（2026-10-08 指示物化）：不可被指定为攻击/效果目标（判定单源 IsHiddenFromTargeting，
+    ///   生效须己方场上另有未潜行友方单位/角色——2026-11-02 改版，全员隐藏时不保护）；
+    ///   宣言攻击结算/守卫拦截/主动发动效果各消耗 1 层（实际受伤不消耗——2026-11-02 改版）
     /// - 先攻/连击：先攻步先行结算（死者不反击）；连击两步均结算
     /// - 缴械：攻击结算时被攻击的目标无法反击（对角色目标同样生效——压制角色反伤）
         /// - 碾压（2026-10-16 改版）：战斗伤害结算时对**宣言原目标**及其左右同排相邻生物各造成一次
@@ -181,10 +182,10 @@ namespace CardCore
                 && !_zoneManager.IsCardInZone(zc, targetController, Zone.Battlefield))
                 return false;
 
-            // 潜行/隐密：不可被指定为攻击目标（潜行 2026-10-08 指示物化——层数>0 即持有；
-            // 2026-10-19 Entity 级——角色持潜行层同样不可被指定；效果口径读数——绝缘体单位潜行不生效）
-            if (target.GetEffectiveCounterCount(Attribute.CounterRules.StealthCounter) > 0
-                || target.HasKeyword(KeywordRules.Concealed))
+            // 潜行/隐密：不可被指定为攻击目标——判定单源 EntityEffectExtensions.IsHiddenFromTargeting
+            //（2026-11-02 潜行改版：生效须己方场上另有未潜行友方单位/角色，全员隐藏时潜行不保护；
+            // 隐密恒生效。史：2026-10-08 指示物化、10-19 Entity 级、绝缘体效果读数——均并入该单源）
+            if (target.IsHiddenFromTargeting())
                 return false;
 
             // 突袭紊乱（负面指示物，持续一回合）：期间不准以玩家为目标——只能攻随从
@@ -205,6 +206,7 @@ namespace CardCore
         /// **攻击目标变更**（战斗三段第①段）：改写被拦截攻击宣言对象的目标为守卫者、
         /// 登记 GuardBlocker。守卫**不在此横置**（2026-10-15 定案）：战斗期间以可用状态参战
         /// 照常反击，横置由攻击结算在战斗完成后统一支付（攻击落空=守卫未参战不支付）。
+        /// 潜行：拦截成立后消耗 1 层（2026-11-02 改版新增口，落空不消耗）。
         /// 原阻挡阶段（SelectBlocker/DeclareBlock）退役。
         /// </summary>
         public void ResolveGuardDeclaration(EffectInstance guard)
@@ -224,6 +226,21 @@ namespace CardCore
                 return;
             if (guarder is Player gp && RuleAuraSystem.ScopeHits(RuleAuraComponents.NoGuardAura, gp))
                 return;
+
+            // 潜行：守卫拦截成立后消耗 1 层（2026-11-02 改版新增口——与宣言攻击/主动发动效果同为
+            // 主动参战行为；重检落空的拦截不消耗；Entity 级——角色守卫同样消耗；效果口径读数——
+            // 绝缘体单位不消耗。多层守卫拦截后若仍持层，攻击结算重检 CanAttackTarget 会落空——规则推论）
+            if (guarder.GetEffectiveCounterCount(Attribute.CounterRules.StealthCounter) > 0)
+            {
+                guarder.AddCounters(Attribute.CounterRules.StealthCounter, -1);
+                EventManager.Instance.Publish(new KeywordAppliedEvent
+                {
+                    Target = guarder,
+                    Keyword = Attribute.CounterRules.StealthCounter,
+                    Detail = "守卫拦截后潜行失效（消耗 1 层）",
+                    Source = guarder
+                });
+            }
 
             // 攻击目标变更：改写攻击宣言对象的目标（攻击结算时按改写后目标走 CanAttackTarget 重检）
             attack.Targets[0] = guarder;
@@ -270,8 +287,25 @@ namespace CardCore
                 return;
             }
 
-            // 潜行：攻击后消耗 1 层（2026-10-08 指示物化；取消/落空的攻击不计数；
-            // 2026-10-19 Entity 级——角色宣言攻击后同样消耗；效果口径读数——绝缘体单位不消耗）
+            // ② 战斗结算 + 收尾（2026-11-01 抽公共结算体 ResolveAttackResolution：
+            // 狩猎回合末攻击复用同一管线——payTap=false 不吃横置代价）
+            ResolveAttackResolution(attacker, target, attack.OriginalAttackTarget ?? target,
+                attack.Controller, payTap: true, guardBlocker: attack.GuardBlocker);
+
+            RuleHooks.OnTutorialAttackResolved?.Invoke(attacker, target); // 教学探针：守卫步骤漏守兜底（结算路径，目标=改写后）
+        }
+
+        /// <summary>攻击结算公共体（ResolveAttackDeclaration 与狩猎回合末攻击共用）：
+        /// AttacksThisTurn → ResolvePair 战斗结算 → 横置支付（payTap=false=狩猎：
+        /// 攻击不吃横置代价，打完仍可行动；拦截守卫照付）→ 角色弹药烧除 → AttackResolvedEvent
+        ///（战报/演出据此呈现）。declaredTarget=碾压溅射枢轴。
+        /// 潜行：宣言攻击结算后消耗 1 层（2026-11-02 改版当日往返：受伤口删除定案不变，
+        /// 攻击口经用户补充恢复，另新增守卫口——三失效口=攻击/守卫/主动发动效果）。</summary>
+        private void ResolveAttackResolution(Entity attacker, Entity target, Entity declaredTarget,
+            Player controller, bool payTap, Entity guardBlocker)
+        {
+            // 潜行：攻击结算后消耗 1 层（取消/落空的攻击不计数；2026-10-19 Entity 级——角色宣言
+            // 攻击后同样消耗；效果口径读数——绝缘体单位不消耗）
             if (attacker.GetEffectiveCounterCount(Attribute.CounterRules.StealthCounter) > 0)
             {
                 attacker.AddCounters(Attribute.CounterRules.StealthCounter, -1);
@@ -286,32 +320,70 @@ namespace CardCore
             if (attacker is Card counted)
                 counted.AttacksThisTurn++;
 
-            // ② 战斗结算（2026-10-15 定案：双方以可用状态完成战斗——此时攻击者未横置、拦截守卫
-            // 未横置，反击资格按 ResolvePair 口径自然成立——守卫照常反击）。
-            // 溅射枢轴=宣言原目标（2026-10-16 碾压改版：守卫改写后的 target 只是主战斗对象）
-            ResolvePair(attacker, target, attack.OriginalAttackTarget ?? target);
+            // 战斗结算（2026-10-15 定案：双方以可用状态完成战斗——此时攻击者未横置、拦截守卫
+            // 未横置，反击资格按 ResolvePair 口径自然成立——守卫照常反击）
+            ResolvePair(attacker, target, declaredTarget);
 
             // 战斗完成 → 支付横置（确定进入战斗且已完成才横置；警戒不抵扣）。拦截守卫同批
             // 补横置（GuardBlocker=最终拦截者，前序被改写者未参战不付；死者横置无观察面，照付）
-            if (KeywordRules.ShouldTap(attacker))
+            if (payTap && KeywordRules.ShouldTap(attacker))
                 attacker.Tap();
-            if (attack.GuardBlocker != null)
-                attack.GuardBlocker.Tap();
+            if (guardBlocker != null)
+                guardBlocker.Tap();
 
             // 角色主动攻击结算完成 → 烧除全部攻击弹药（2026-10-07 弹药定案：与反击共用同一份；
             // 重检落空/取消路径不走此处——宣言被无效化弹药保留）
             if (attacker is Player heroAttacker)
                 CounterRules.RemoveHeroAttackAmmo(heroAttacker);
 
-            // 攻击结算完成（2026-10-07 霜蚀光环配套：取消路径不发——取消不算"攻击后"）
+            // 攻击结算完成（取消路径不发——取消不算"攻击后"；原霜蚀配套，现战报/演出消费）
             EventManager.Instance.Publish(new AttackResolvedEvent
             {
                 Attacker = attacker,
                 Target = target,
-                AttackingPlayer = attack.Controller
+                AttackingPlayer = controller
             });
+        }
 
-            RuleHooks.OnTutorialAttackResolved?.Invoke(attacker, target); // 教学探针：守卫步骤漏守兜底（结算路径，目标=改写后）
+        // ======================= 狩猎（2026-11-01 新增关键词，绿3） =======================
+
+        /// <summary>
+        /// 狩猎回合末攻击（GameCore.OnTurnEnded 系统区首位显式调——时序保证：直到回合结束的
+        /// 力量加成仍在、Temp 轨授予的狩猎尚未清、击杀对手由随后的 CheckGameOver 兜住）：
+        /// 回合方战场上持有狩猎且可行动（未横置）的单位，各随机对防守方发起一次攻击。
+        /// 与普通攻击宣言的差异（定案）：①无守卫响应窗口——TurnEndEvent 内同步结算
+        /// （同毒素回合末伤害先例，不入栈，回合折返不被打断）；②攻击不吃横置代价
+        /// （payTap=false，打完仍可行动）；③战斗计算与事件链与普通攻击完全同口径
+        /// （重检→潜行消耗→ResolvePair 关键词管线→AttackResolvedEvent——触发/战报照常）。
+        /// 攻击者资格=CanDeclareAttack 全口径（战场/攻击能力/禁攻令/未横置=可行动/力量&gt;0）；
+        /// 目标池=防守方角色∪防守方战场卡，CanAttackTarget 单源过滤（潜行/隐密/紊乱限角色域
+        /// 同口径），无合法目标=空转不播报。目标池先快照后逐猎结算（前一只猎物的战果——
+        /// 反杀/溅射杀人——经 CanAttackTarget 重检自然剔除死者）。
+        /// </summary>
+        public void ResolveHuntAttacks(Player turnPlayer)
+        {
+            if (turnPlayer == null) return;
+            var defender = turnPlayer.Opponent;
+            if (defender == null) return;
+
+            var pool = new List<Entity> { defender };
+            foreach (var c in _zoneManager.GetCards(defender, Zone.Battlefield))
+                if (c != null) pool.Add(c);
+
+            foreach (var hunter in _zoneManager.GetCards(turnPlayer, Zone.Battlefield).ToList())
+            {
+                if (hunter == null || !hunter.IsAlive) continue;
+                if (!hunter.HasKeyword(KeywordRules.Hunt)) continue;
+                if (!CanDeclareAttack(hunter, turnPlayer)) continue;
+
+                var candidates = pool.Where(t => CanAttackTarget(hunter, t, turnPlayer)).ToList();
+                if (candidates.Count == 0) continue; // 防守方无合法目标（全潜行/无存活）——空转不播报
+                var target = candidates[GameRng.Next(0, candidates.Count)];
+                GameActions.Crumb($"CF-hunt atk={hunter.ID} power={GetPower(hunter)}"
+                                  + $" tgt={(target as Card)?.ID ?? (target as Player)?.Name}");
+                // 结算与普通攻击同管线（重检在 CanAttackTarget 已过、无守卫改写——declaredTarget=target）
+                ResolveAttackResolution(hunter, target, target, turnPlayer, payTap: false, guardBlocker: null);
+            }
         }
 
         /// <summary>结算一次攻击配对（含先攻/连击/碾压；剧毒吸血圣盾护甲坚韧在 KeywordRules 内）。
@@ -319,6 +391,8 @@ namespace CardCore
         private void ResolvePair(Entity attacker, Entity target, Entity declaredTarget)
         {
             int attackerPower = GetPower(attacker);
+            // 溅射（2026-11-01）：主目标伤害前的生命快照，用于算溢出
+            int splashLifeSnapshot = target is Card splashTargetCard ? splashTargetCard.GetLife() : 0;
             // 双向结算：随从目标按层引擎力量反击；角色（玩家）目标反伤直读 GetPower
             //（2026-10-07 弹药定案：反伤力=HeroAttackCounter 层数，武器扩展点已退役）
             int targetPower = target is Card ? GetPower(target)
@@ -421,6 +495,24 @@ namespace CardCore
                             continue; // 只打原目标同侧（防守方）的生物
                         DealCombatDamage(attacker, adjacent, attackerPower);
                     }
+                }
+            }
+
+            // ---- 溅射（2026-11-01 新增，红3）：战斗结算时，对对手随机单位造成溢出的战斗伤害 ----
+            if (attacker.IsAlive && attacker.HasKeyword(KeywordRules.Splash) && target is Card splashHit)
+            {
+                int overflow = attackerPower - splashLifeSnapshot;
+                if (overflow > 0)
+                {
+                    var splashOwner = splashHit.GetController();
+                    var pool = new System.Collections.Generic.List<Card>();
+                    var defenderField = GameCore.Instance?.ZoneManager?.GetCards(splashOwner, Zone.Battlefield);
+                    if (defenderField != null)
+                        foreach (var c in defenderField)
+                            if (c != null && c.IsAlive && c != splashHit && c != attacker && c.IsLivingUnit())
+                                pool.Add(c);
+                    if (pool.Count > 0)
+                        DealCombatDamage(attacker, pool[GameRng.Next(0, pool.Count)], overflow);
                 }
             }
 

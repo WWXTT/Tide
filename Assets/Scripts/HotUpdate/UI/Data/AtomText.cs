@@ -92,6 +92,11 @@ namespace SynergyUI
                 if (tableKinds != null && tableKinds.Count == 1)
                     return PlayerNounOf(cfg, tableKinds[0]) ?? "目标";
             }
+            // 双侧同域对（2026-11-02 洗回改版）：恰成一对的同区域两侧种类 →「双方墓地」统称
+            //（实例域优先；kinds 未声明回落表行默认域同判）
+            var pairZh = TargetKindRules.BothSidesNoun(atom?.kinds)
+                         ?? TargetKindRules.BothSidesNoun(cfg?.GetTargetKindList());
+            if (pairZh != null) return pairZh;
             return "目标";
         }
 
@@ -159,23 +164,16 @@ namespace SynergyUI
             // 数值随机（RandomAmplitude&gt;0）：区间文本「x至x」已表达随机语义（2026-10-09 句式定案）——不再冠「随机」前缀
             // 目标随机（2026-10-09 下沉每原子+句式定案）：条目声明优先（1=随机抽/0=弹窗），
             // 未声明回落效果级 RandomTarget；奖励渲染（header=null）=条目声明直接生效。
-            // 双侧域收缩侧词（2026-10-09 定案）：域同时含己方+对方作用面且极性≠0 → 按极性收缩
-            //（有益→己方/有害→对方），冠于「随机/目标」前（"对对方随机目标造成3点伤害"）。
-            // 渲染=侧词在前、「随机」随后，插在正文第一个「目标」前（"对目标造成…"→"对己方随机目标…"）；
-            // 域名次（己方单位等）无「目标」字样时冠在名次前；无名次可冠的行不加（原文照旧）。
-            // 纯文本口径——运行时候选域不随之过滤（逐原子目标制「禁极性过滤」定案照旧）。
+            // 极性收缩侧词已删（2026-11-02 用户定案：取消并列效果收缩作用域）——运行时候选域
+            // 从不做极性侧别过滤（逐原子目标制「禁极性过滤」定案，见 EffectHandlerRegistry.ResolveCandidates
+            // 头注），双侧域原子两侧可选；文案若按极性冠「己方/对方」会窄于实际可选域，误导目标选择。
             bool rand = atom.rand != -1 ? atom.rand == 1
                 : (header != null && header.RandomTarget != 0);
-            string side = DualSideScopeWord(cfg, atom);
-            if (rand || side != null)
+            if (rand)
             {
                 int idx = body.IndexOf("目标", StringComparison.Ordinal);
                 if (idx < 0 && noun.Length > 0) idx = body.IndexOf(noun, StringComparison.Ordinal);
-                if (idx >= 0)
-                {
-                    if (side != null) body = body.Insert(idx, side);
-                    if (rand) body = body.Insert(idx + (side != null ? side.Length : 0), "随机");
-                }
+                if (idx >= 0) body = body.Insert(idx, "随机");
             }
             // 特殊列（2026-10-31 阶段B）：文案没说、但引擎实际这么做的规则——括注追加在描述后。
             // 纯展示层（本渲染口=合成器效果描述/卡面 tooltip/挂载预览共用），不动模板与行 ID。
@@ -184,24 +182,10 @@ namespace SynergyUI
             return body;
         }
 
-        /// <summary>双侧域×极性≠0 的收缩侧词（2026-10-09 文本定案）：有效域（条目收窄 ?? 表行默认）
-        /// 同时含己方与对方作用面时，按极性收缩——有益(+1)→「己方」/有害(-1)→「对方」；
-        /// 单侧域/无域/中性（p=0）返回 null（单侧域名次本就自显作用面）。</summary>
-        private static string DualSideScopeWord(AtomicEffectConfig cfg, AtomicEffectEntry atom)
-        {
-            float p = cfg?.Polarity ?? 0f;
-            if (p == 0f) return null;
-            var kinds = atom?.kinds != null && atom.kinds.Count > 0 ? atom.kinds : cfg?.GetTargetKindList();
-            if (kinds == null || kinds.Count == 0) return null;
-            bool own = false, enemy = false;
-            foreach (var k in kinds)
-            {
-                if (TargetKindRules.IsEnemySide(k)) enemy = true;
-                else if (k != (int)TargetKind.Self) own = true;
-            }
-            if (!own || !enemy) return null;
-            return p > 0f ? "己方" : "对方";
-        }
+        // 双侧域极性收缩侧词（原 DualSideScopeWord）已随 2026-11-02「取消并列效果收缩作用域」定案整删：
+        // 运行时候选域不做极性侧别过滤，文案不再按极性冠「己方/对方」——双侧域名次（BothSidesNoun
+        // 「双方墓地」等）与实例收窄域名次照常自显作用面。
+
 
         /// <summary>按引用取表行渲染（便捷重载——refId 直查）。</summary>
         public static string Render(AtomicEffectEntry atom, CardEffectData header)
@@ -230,7 +214,13 @@ namespace SynergyUI
                         // 引擎主干行短式正文（2026-10-09 八引擎定案「自由分支·{名}{x}」）；非引擎行照表行模板
                         string body = EngineShortBody(s.atomic) ?? RenderAtomEntry(s.atomic, h);
                         var suffix = BranchSuffix(s.atomic);
-                        parts.Add(suffix.Length > 0 ? $"{body}{suffix}" : body);
+                        // 条件载体行（2026-11-01）：宿主原子行本身就是同一条局面门时，正文=条件从句本身，
+                        // 直接以分支后缀成句（「如果生命值≤7，…」），不重复渲染前置条件（旧文本会出现
+                        // 「生命值≤7，如果生命值≤7，…」的双写）。用于「仅当X时」型效果的主序列占位原子。
+                        if (suffix.Length > 0 && IsSituationGateCarrier(s.atomic))
+                            parts.Add(suffix.TrimStart('，'));
+                        else
+                            parts.Add(suffix.Length > 0 ? $"{body}{suffix}" : body);
                     }
                     else if (s.kind == 1)
                     {
@@ -312,8 +302,9 @@ namespace SynergyUI
         {
             if (h.ActivationType == (int)EffectActivationType.Voluntary)
             {
-                // 充能（P12 2026-10-31）：恒 0 速（ActivateCharge 强制）——不吃法术卡型提速，
-                // 防显示成「发动速度2/1」
+                // 充能（P12 2026-10-31；2026-11-02 对手回合档）：卡面主档=己方回合恒 0 速
+                //（ActivateCharge 强制）——不吃法术卡型提速，防显示成「发动速度2/1」；
+                // 对手回合响应窗按整卡施放速度接链（速≥1 法术），为时机属性不上卡面
                 if (ComposerCatalog.IsChargeEffect(h))
                     return "发动速度0，";
                 return $"发动速度{h.BaseSpeed + (owner != null ? CardCompositionCost.KindSpeedBonusOf(owner) : 0)}，";
@@ -361,6 +352,17 @@ namespace SynergyUI
                 default:
                     return ""; // 越界 settle——IsPhantom 已滤，防御兜底
             }
+        }
+
+        /// <summary>条件载体行判定（2026-11-01）：「仅当X时…」型效果的主序列占位原子——宿主原子行
+        /// 本身就是局面门行（MountKinds 含「有限分支」位），且槽级 gateId 与行 GateId 同一条。
+        /// 该形态下正文=条件从句（BranchSuffix 会整句重写），不与后缀重复。</summary>
+        private static bool IsSituationGateCarrier(AtomicEffectEntry atom)
+        {
+            var branch = atom?.branch;
+            if (branch == null || (BranchSettleKind)branch.settle != BranchSettleKind.Gate) return false;
+            var row = AtomicEffectTable.GetByHashId(atom.refId);
+            return row != null && !string.IsNullOrEmpty(row.GateId) && row.GateId == branch.gateId;
         }
 
         /// <summary>条目级渲染（refId → 表行 → Render；行缺失回退 refId）。</summary>

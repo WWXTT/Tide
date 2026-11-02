@@ -118,13 +118,11 @@ namespace CardCore.Attribute.Handlers
         }
 
         /// <summary>读取牌库顶 N 张（不移除；数量兜底至少 1——表定案：模板无 {value} 固定 1）。
-        /// extra=占卜加成外补数（2026-10-29 阶段3c ScryBonusAura：受影响一方占卜数量+1，
-        /// 只叠加读取数不改 effect 本体——计价/描述仍按表行 value 走）。</summary>
-        internal static List<Card> PeekTop(AtomicEffectInstance effect, EffectExecutionContext context, Player owner,
-            int extra = 0)
+        ///（占卜加成 extra 外补参数已随 2026-11-02 占卜加成仪典删除退役。）</summary>
+        internal static List<Card> PeekTop(AtomicEffectInstance effect, EffectExecutionContext context, Player owner)
         {
             if (context?.ZoneManager == null || owner == null) return new List<Card>();
-            int count = context.GetValueAfterModifiers(effect.Value) + extra;
+            int count = context.GetValueAfterModifiers(effect.Value);
             if (count < 1) count = 1;
             return context.ZoneManager.GetTopCards(owner, count);
         }
@@ -428,8 +426,9 @@ namespace CardCore.Attribute.Handlers
     // ======================= 特殊 =======================
 
     /// <summary>额外回合（2026-10-29 阶段3a 表行补齐 7da143c9——蓝9「额外回合」，此前长期能力侧
-    /// 无表行不可配置）：TurnEngine.GrantExtraTurn 只对当前回合玩家叠加额外回合计数
-    ///（额外接额外成立，End→Standby 折返时逐个消耗），非当前回合玩家静默忽略。</summary>
+    /// 无表行不可配置）：TurnEngine.GrantExtraTurn 只对当前回合玩家挂起额外回合
+    ///（2026-11-02 表行补「不可叠加」：至多挂起一个，同回合多次发动不累积；额外回合中
+    /// 再次发动照常串行接续），非当前回合玩家静默忽略。</summary>
     public class TakeExtraTurnHandler : AtomicEffectHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.TakeExtraTurn;

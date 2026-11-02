@@ -56,26 +56,23 @@ namespace CardCore.Attribute
         //（GrantDivineShieldHandler 挂层；挡下口=ApplyPreventionLayers 第 1 层，每层挡一次消耗一层）
         // 毒刺（PoisonSting）/冰晶（IceCrystal）已删（2026-10-15 整体退役）：表行 2026-10-02 已先退
         //（改写走分支组合），遗留的印刷关键词路径（改写链臂/Grant 映射/两张试作卡）同批清除——
-        // 战斗改写仅余战斗法师关键词（原舍身 2026-10-30 改版，散射内联无配对表）；毒素/冻结指示物由各自施加原子独立保留。
+        // 战斗伤害改写链已清零——战斗法师（原舍身）2026-11-01 退役注释（常量与 ApplyDamage 散射块见下文
+        // 注释段；表行 c3112c0b 已删）；毒素/冻结指示物由各自施加原子独立保留。
         // 梦魇（Nightmare，战斗伤害改沉睡）已删（2026-10-13）：改写链行为+常量+Grant 映射整体退役
         //——表行 2026-10-02 已先退，沉睡指示物（Sleep 行 a62a2df1）独立保留。
         /// <summary>剧毒（2026-10-08 指示物转关键词定案，落定追加式）：受到其战斗伤害的生物被消灭
         ///（战斗伤害照常结算，实际落定 &gt;0 且目标为生物 → DeathRules.TryKill 消灭口径，不灭可拦；
         /// 对角色照常落血）。表行 20c06d52（原 Poison 原子行）改挂 GrantVenom。</summary>
         public const string Venom = "Venom";
-        /// <summary>无实体（原禁魔石，2026-10-31 改版更名，绿6）：每次受到的伤害固定变为 1
-        ///（战斗+非战斗同口，穿透照钳——改写类与旧归零同口径，非防护层；改写口=ApplyDamage
-        /// 守护改写之后、延时保护/易损/防护层之前）。运行时 id 仍 Spellban
-        ///（更名只改中文文案，同辟邪→扰魔/嘲讽→帷幕先例）。</summary>
-        public const string Spellban = "Spellban";
+        // 无实体关键词 id "Spellban" 已删（2026-11-02 指示物化）：改走 CounterRules.SpellbanCounter
+        //（GrantSpellbanHandler 挂层；衰退型层=持续回合，钳口=ApplyDamage 守护改写之后——见下文）
         /// <summary>绝缘体（2026-10-31，绿3 表行 764236ed）：持有单位不受指示物的效果影响——
         /// 特殊裁定改版（同日「不拦指示物添加」）：①层照常落账（毒素/冻结/沉默/护甲/圣盾/保护…
         /// UI 可见、铭刻同沾、事件报真实增量），效果判定走效果口径读数
         /// EntityEffectExtensions.GetEffectiveCounterCount（绝缘体单位=0）；②沉睡/缄默=压制型，
         /// 时序互压——绝缘体生效期间后加即清零（「反过来压制」），先在的压住绝缘体（HasKeyword
         /// 实时读假，无循环）；③StatKind 属性类（攻/血/±1，加时回写式）添加即清零=属性变化不发生
-        ///（回写账目不漂移）；④System 指示物豁免；⑤压制面限战场单位（手牌卡不拦费用指示物）。
-        /// 苏醒入场沉睡（EntryCost 档）豁免（入场时序定案：沉睡先落压住后生效的绝缘体）。</summary>
+        ///（回写账目不漂移）；④System 指示物豁免；⑤压制面限战场单位（手牌卡不拦费用指示物）。</summary>
         public const string Insulator = "Insulator";
         /// <summary>病原体（2026-10-31 复活改版，绿5 表行「病原体」）：持有者**实际受到伤害**时
         /// 对伤害来源附加 1 层毒素指示物（CounterRules.ToxinCounter——来源回合末发作：
@@ -90,9 +87,11 @@ namespace CardCore.Attribute
         public const string Lifelink = "Lifelink";
         public const string Vigilance = "Vigilance";
         // 潜行关键词 id "Stealth" 已删（2026-10-08 指示物化）：改走 CounterRules.StealthCounter
-        //（GrantStealthHandler 挂层；三指定口查层数>0，攻击/发动效果/受伤各消耗 1 层）
-        /// <summary>隐密（2026-10-04，蓝5）：潜行的持续版——同不可被攻击/效果指定（三处指定口同查
-        /// 潜行指示物+Concealed），但不因**发动效果/攻击/受到伤害**失效（三个失效口只消耗潜行层，天然豁免）。</summary>
+        //（GrantStealthHandler 挂层；指定口单源 IsHiddenFromTargeting；2026-11-02 改版后
+        // 失效口=宣言攻击结算/守卫拦截/主动发动效果，实际受伤不消耗）
+        /// <summary>隐密（2026-10-04，蓝5）：潜行的持续版——同不可被攻击/效果指定（指定口单源
+        /// IsHiddenFromTargeting 同查），但不因宣言攻击/守卫/主动发动效果失效（失效口只消耗潜行层）、
+        /// 也无「己方须另有未潜行友方单位」生效条件（2026-11-02 潜行改版后与潜行的两个差异点）。</summary>
         public const string Concealed = "Concealed";
         /// <summary>帷幕（原"嘲讽"，2026-09-13 更名定案）：只吸引**效果**目标（选择层收窄见
         /// TargetResolver.ApplyTauntRestriction）；不拦攻击——攻击侧目标强制由守卫拦截承担。
@@ -102,6 +101,8 @@ namespace CardCore.Attribute
         public const string DoubleStrike = "DoubleStrike";
         public const string Disarm = "Disarm";
         public const string Overwhelm = "Overwhelm";
+        /// <summary>溅射（2026-11-01 新增，红3）：战斗结算时，对对手随机单位造成溢出的战斗伤害。</summary>
+        public const string Splash = "Splash";
         // 复生关键词 id "Reborn" 已删（2026-10-08 指示物化）：改走 CounterRules.RebornCounter
         //（GrantRebornHandler 挂层；TryReborn 每层一次死亡替代，消耗 1 层）
         public const string Indestructible = "Indestructible";
@@ -115,17 +116,21 @@ namespace CardCore.Attribute
         /// <summary>守护（2026-10-08 配对制改版）：登场选目标，其受伤改写为守护者承受（GuardianRules 配对表；无限次直到守护者离场）。</summary>
         public const string Guardian = "Guardian";
 
-        /// <summary>战斗法师（原舍身，2026-10-30 改版——登场弹选转投整套退役，改随机散射）：
-        /// 自己造成的战斗伤害改写为对随机目标造成 1 点效果伤害，重复发动次数=自身攻击力
-        ///（无状态关键词——无配对表无入场钩子，散射在 ApplyDamage 咽喉内联；效果伤害=非战斗路径
-        /// ——无实体持有者照受 1 点（原禁魔石清零口已随 2026-10-31 改版退役）、不触发战斗反击链）。</summary>
-        public const string BattleMage = "BattleMage";
+        // 战斗法师关键词 id "BattleMage" 2026-11-01 退役注释（原舍身 2026-10-30 改版；表行 c3112c0b
+        // 已删，Grant 映射/散射改写/战报播报同批注释）：
+        // public const string BattleMage = "BattleMage";
 
-        /// <summary>苏醒（2026-10-31 P12 关键词化）：卡面关键词含 Awaken 的生物才有「苏醒施放」
-        ///（数值沿用 P6c——只免净费灰份额、绿照付、免掉的灰等量转入场沉睡层数、横置登场；
-        /// 无此关键词的生物不再有特殊使用方式）。授予原子=GrantAwaken（表行 3df00ac7），
-        /// 闸门查询口=GameActions.HasAwakenKeyword。</summary>
-        public const string Awaken = "Awaken";
+        // 苏醒关键词 id "Awaken" 已删（2026-11-02 苏醒机制整链删除）：灰身材概念已不存在，
+        // 「免灰抵沉睡」失去意义；且与倒计时玩法过近。GrantAwaken 授予原子（表行 3df00ac7→
+        // 重推后 ebb21ba2）与闸门口 GameActions.HasAwakenKeyword 同批删除。
+        // public const string Awaken = "Awaken";
+
+        /// <summary>狩猎（2026-11-01 新增，绿3 表行 6eaa0d3f）：回合结束时，持有单位若处于
+        /// 可行动状态（未横置），随机对防守方（对方单位∪角色，CanAttackTarget 口径）发起一次
+        /// 攻击——攻击不吃横置代价（打完仍可行动），战斗计算/事件链与普通攻击同口径。
+        /// 触发口=CombatSystem.ResolveHuntAttacks（GameCore.OnTurnEnded 系统区首位显式调，
+        /// 同步结算无守卫响应窗口——同毒素回合末伤害先例，不入栈）。</summary>
+        public const string Hunt = "Hunt";
 
         // ---- 一次性关键词概念已彻底删除（2026-09-08 定案：错误设计）----
         // 关键词都是持续性特征，无「一次性生效后消失/重新入场刷新」的说法：
@@ -311,16 +316,17 @@ namespace CardCore.Attribute
                 }
             }
 
-            // 无实体（原禁魔石 2026-10-31 改版更名，绿6）：每次受到的伤害固定变为 1——战斗+非战斗
-            // 同口。守护改写**之后**生效：伤害真正落到持有者头上才钳 1（守护者承受的仍是原额，
-            // 不沾持有者减免）；替代引擎之后（伤害封顶类替代件先算，本口后钳）。
+            // 无实体（原禁魔石，2026-10-31 关键词化；2026-11-02 指示物化，表行 6c38edaa（原 fb88c3f4 随文案重推））：
+            // 持有期间每次受到的伤害固定变为 1——战斗+非战斗同口。守护改写**之后**生效：伤害真正落到
+            // 持有者头上才钳 1（守护者承受的仍是原额，不沾持有者减免）；替代引擎之后（伤害封顶类替代件
+            // 先算，本口后钳）。衰退型（层=持续回合）不按次消耗；读数走效果口径（绝缘体单位=0）。
             // 钳后照走延时保护/易损放大/防护层/落血（易损可把 1 放大回抬——层效果照计；护甲/圣盾
-            // 照常吸收钳后余量。改写类关键词与旧禁魔石归零同口径，非防护层）。
-            if (amount > 1 && target.HasKeyword(Spellban))
+            // 照常吸收钳后余量。改写类与旧禁魔石归零同口径，非防护层）。
+            if (amount > 1 && target.GetEffectiveCounterCount(CounterRules.SpellbanCounter) > 0)
             {
                 amount = 1;
                 EventManager.Instance.Publish(new KeywordAppliedEvent
-                { Target = target, Keyword = Spellban, Detail = "无实体：受到的伤害固定为 1", Source = source });
+                { Target = target, Keyword = CounterRules.SpellbanCounter, Detail = "无实体：受到的伤害固定为 1", Source = source });
             }
 
             // 延时保护（2026-10-30 指示物化，GrantProtection 原子族——读护盾指示物层改写）：
@@ -351,53 +357,51 @@ namespace CardCore.Attribute
             ApplyPreventionLayers(source, target, ref amount);
             if (amount <= 0) return 0;
 
-            // 战斗伤害改写（**防护层之后、落血之前**——只有"将要成功造成的伤害"才改写：圣盾/护甲/
-            // 坚韧完全挡住 → 不触发；部分吸收后仍有剩余 → 剩余改写，不再落血）。
-            // 唯一改写=战斗法师关键词（原舍身 2026-10-30 改版——登场弹选转投退役，改随机散射）：
-            // 持有者造成战斗伤害时原目标免受，改为对随机目标造成 1 点**效果伤害**、重复发动次数=
-            // 自身攻击力（GetPower 含光环成分，散射时活读）。散射=非战斗路径递归（不再触发战斗法师；
-            // 被无实体钳 1（单发本就 1 点=无感）/走易损与防护层——与旧舍身转投同口径）；候选域=对方存活战场单位+对方角色
-            //（同旧舍身弹选域；随机绕过潜行/不经帷幕收窄——与组合层 RandomTarget 绕选择口径一致）；
-            // 逐发独立抽取、每发重取候选——中途死亡出局、对手全灭即余发空转。
-            // 改写只对活体/角色的原目标生效——无生命单位（结界）受击走耐久管线跳过改写（同旧舍身
-            // 口径：攻击结界不被散射化为无效）。持有者沉睡/被「失效」（原缄默，2026-10-31 改名）
-            // 压制时不改写（战斗伤害照常结算——原 FindVictim 活性校验内联；2026-10-31 沉睡并入
-            // 统一压制口 SuppressRules）。
             //（毒刺/冰晶关键词改写已随 2026-10-15 整体退役删除；梦魇 2026-10-13、病原体 2026-10-08 先后退役；
             //  剧毒=落定追加式消灭，见管线尾部。）
-            if (isCombat && source != null && source.IsAlive
-                && !(target is Card rwCard && rwCard.IsNonLivingUnit())
-                && source is Card mageCard
-                && mageCard.HasKeyword(BattleMage)
-                && !SuppressRules.IsAutoSuppressed(mageCard)) // 沉睡/失效=自动效果压制口（2026-10-31 并口）
-            {
-                var foe = mageCard.GetController()?.Opponent;
-                int hits = Math.Max(0, mageCard.GetPower());
-                var zm = CardCore.GameCore.Instance?.ZoneManager;
-                int scattered = 0;
-                for (int i = 0; i < hits; i++)
-                {
-                    var pool = new List<Entity>();
-                    if (foe != null)
-                    {
-                        if (zm != null)
-                            foreach (var c in zm.GetCards(foe, Zone.Battlefield))
-                                if (c != null && c.IsAlive) pool.Add(c);
-                        if (foe.IsAlive) pool.Add(foe);
-                    }
-                    if (pool.Count == 0) break;
-                    ApplyDamage(mageCard, pool[GameRng.Next(0, pool.Count)], 1, isCombat: false);
-                    scattered++;
-                }
-                EventManager.Instance.Publish(new KeywordAppliedEvent
-                {
-                    Target = mageCard,
-                    Keyword = BattleMage,
-                    Detail = $"战斗法师：{EffectText.Name(mageCard)} 的战斗伤害化作 {scattered} 道魔法弹（原目标免受 {amount} 点）",
-                    Source = mageCard,
-                });
-                return 0;
-            }
+            // ==== 战斗法师散射改写 2026-11-01 退役注释（整段停用；表行 c3112c0b/枚举位/授予映射/常量同批）====
+            // 原口径：战斗伤害改写在**防护层之后、落血之前**——只有"将要成功造成的伤害"才改写
+            //（圣盾/护甲/坚韧完全挡住不触发；部分吸收后仍有剩余→剩余改写，不再落血）；持有者造成战斗
+            // 伤害时原目标免受，改为对随机目标（对方存活战场单位+对方角色，逐发独立抽取重取候选——
+            // 中途死亡出局、对手全灭即余发空转；随机绕过潜行/不经帷幕收窄——与组合层 RandomTarget
+            // 绕选择口径一致）造成 1 点**效果伤害**、重复发动次数=自身攻击力（GetPower 含光环成分，散射时活读）。
+            // 散射=非战斗路径递归（不再触发战斗法师；被无实体钳 1——单发本就 1 点=无感/走易损与防护层）；
+            // 改写只对活体/角色的原目标生效——无生命单位（结界）受击走耐久管线跳过改写（攻击结界不被散射化为无效）；
+            // 持有者沉睡/被「失效」（原缄默，2026-10-31 改名）压制时不改写（战斗伤害照常结算——
+            // 原 FindVictim 活性校验内联；2026-10-31 沉睡并入统一压制口 SuppressRules）。
+            // if (isCombat && source != null && source.IsAlive
+            //     && !(target is Card rwCard && rwCard.IsNonLivingUnit())
+            //     && source is Card mageCard
+            //     && mageCard.HasKeyword(BattleMage)
+            //     && !SuppressRules.IsAutoSuppressed(mageCard)) // 沉睡/失效=自动效果压制口（2026-10-31 并口）
+            // {
+            //     var foe = mageCard.GetController()?.Opponent;
+            //     int hits = Math.Max(0, mageCard.GetPower());
+            //     var zm = CardCore.GameCore.Instance?.ZoneManager;
+            //     int scattered = 0;
+            //     for (int i = 0; i < hits; i++)
+            //     {
+            //         var pool = new List<Entity>();
+            //         if (foe != null)
+            //         {
+            //             if (zm != null)
+            //                 foreach (var c in zm.GetCards(foe, Zone.Battlefield))
+            //                     if (c != null && c.IsAlive) pool.Add(c);
+            //             if (foe.IsAlive) pool.Add(foe);
+            //         }
+            //         if (pool.Count == 0) break;
+            //         ApplyDamage(mageCard, pool[GameRng.Next(0, pool.Count)], 1, isCombat: false);
+            //         scattered++;
+            //     }
+            //     EventManager.Instance.Publish(new KeywordAppliedEvent
+            //     {
+            //         Target = mageCard,
+            //         Keyword = BattleMage,
+            //         Detail = $"战斗法师：{EffectText.Name(mageCard)} 的战斗伤害化作 {scattered} 道魔法弹（原目标免受 {amount} 点）",
+            //         Source = mageCard,
+            //     });
+            //     return 0;
+            // }
 
             // 4. 落血（Card 到 0 标记死亡；Player 直接扣）。
             //    死亡决策走决策表（当前无护盾拦 DamageLethal；复生/落墓由 SBA 泵自发连锁处理）。
@@ -470,21 +474,11 @@ namespace CardCore.Attribute
                 dealt = Math.Max(0, oldLife - player.Life);
             }
 
-            // 潜行受伤失效（2026-10-04 弱化定案；2026-10-08 指示物化；2026-10-19 Entity 级——角色受伤
-            // 同样消耗）：伤害**实际落定**（替代/改写/防护层之后仍有剩余到达落血/耐久）才算「受到伤害」
-            // ——圣盾/护甲/坚韧完全挡住、舍身转投改写（return 0）不触发；触发即消耗 1 层潜行指示物
-            // （逐份撤口径）。隐密（Concealed）不失效——不因受伤掉正是它的定价理由（蓝5 vs 蓝1）。
-            if (target.GetEffectiveCounterCount(CounterRules.StealthCounter) > 0)
-            {
-                target.AddCounters(CounterRules.StealthCounter, -1);
-                EventManager.Instance.Publish(new KeywordAppliedEvent
-                {
-                    Target = target,
-                    Keyword = CounterRules.StealthCounter,
-                    Detail = "受到伤害后潜行失效（消耗 1 层）",
-                    Source = source
-                });
-            }
+            // 潜行受伤失效口已删（2026-11-02 改版）：实际受到伤害不再消耗潜行层——失效口=
+            // 宣言攻击结算 / 守卫拦截 / 主动发动效果三处（触发式效果豁免；见 CombatSystem 的
+            // ResolveAttackResolution / ResolveGuardDeclaration 与 EffectExecutionEngine.ExecuteAsync）。
+            // 史：2026-10-04 弱化定案引入受伤口（实际落定口径、逐份撤），2026-11-02 用户改版退役。
+            // 隐密（Concealed）本就不因受伤失效——定价理由（蓝5 vs 蓝1）不变。
 
             // 结算后发布伤害事件链（实际值；替代已在管线前消费）。
             // 时序定案：DamageEvent（触发器时点，OnDealDamage/OnTakeDamage 此刻可见）
@@ -547,7 +541,7 @@ namespace CardCore.Attribute
             }
 
             // 6.5 报复指示物（2026-10-16 新增，红1/层）：持有者**实际受到伤害**（防护层后仍有剩余
-            //     落定——圣盾/护甲/坚韧完全挡住、战斗法师散射改写不触发；
+            //     落定——圣盾/护甲/坚韧完全挡住不触发（战斗法师散射改写已随 2026-11-01 退役删除）；
             //     与潜行受伤失效同口径）时，对伤害来源造成等于层数的伤害（非战斗伤害、来源=持有者
             //     ——可被来源侧守护/圣盾/护甲/坚韧正常拦截），生效后层数减半（floor）。
             //     **先减半再反击**：双方互带报复时层数几何衰减，天然封死无限互弹；自伤（来源=自身）

@@ -253,11 +253,13 @@ namespace CardCore
                         foreach (var pe in payloadList)
                         {
                             // 逐原子契约过滤（ConvertPayloadForDisplay 单源——违约原子剔除不炸行）
-                            var payloadAtom = ConvertPayloadForDisplay(pe);
+                            var payloadAtom = ConvertPayloadForDisplay(pe,
+                                $"卡 {sourceCardId} 效果 {data?.Id}");
                             if (payloadAtom == null)
                             {
-                                TideLog.Error($"[CardEffectConverter] 卡 {sourceCardId} 代价栏 Payload 违反内容契约：" +
-                                               "代价只能挂 p≠0 且锁在受益方反面的原子（p<0 锁己方 / p>0 锁对方，2026-10-28 P1b），已剔除该原子");
+                                TideLog.Error($"[CardEffectConverter] 卡 {sourceCardId} 效果 {data?.Id} 代价栏 Payload" +
+                                               $"[{pe?.refId}] 违反内容契约：代价只能挂 p≠0 且锁在受益方反面的原子" +
+                                               "（p<0 锁己方 / p>0 锁对方，2026-10-28 P1b；极性0/无目标不可入代价栏——2026-11-02），已剔除该原子");
                                 continue;
                             }
                             payloadAtoms.Add(payloadAtom);
@@ -538,7 +540,7 @@ namespace CardCore
 
             // 内容契约（2026-09-11 定案；2026-10-03 用户定案收缩）：效果栏错边剔除只保留
             // 「有益原子锁对方域」（对对手有益）——仍只能进代价栏（Payload）；
-            // 「有害原子锁己方域」（负面效果指向自己——苏醒式自缚设计）在效果栏放行，
+            // 「有害原子锁己方域」（负面效果指向自己——自缚式设计）在效果栏放行，
             // 错边限制完整保留在代价栏（ConvertPayloadForDisplay 的 allowWrongSide 路径）。
             // 中性（p=0）与双侧域不受限（双侧「同时作用双方」由专用原子/组合表达）。
             if (!allowWrongSide && polarity > 0f
@@ -630,14 +632,25 @@ namespace CardCore
         /// p<0 锁己方 / p>0 锁对方；p=0 与锁错侧条目 Error 剔除返回 null，与 ConvertOne 代价转换同口径；
         /// 表行缺失同 null）。
         /// 消费面：CardCostService.SumPayloadPrice（代价抵扣）/ GameActions.CollectCardSpecialCosts（付费步）。</summary>
-        public static AtomicEffectInstance ConvertPayloadForDisplay(AtomicEffectEntry entry)
+        public static AtomicEffectInstance ConvertPayloadForDisplay(AtomicEffectEntry entry, string contextLabel = null)
         {
             var atom = entry == null ? null : ConvertAtomicEffect(entry, allowWrongSide: true);
             if (atom == null) return null;
             int requiredSide = CostDerivationService.PayloadCostRequiredSideLock(atom.Polarity);
             if (requiredSide != 0 && CostDerivationService.SideLock(atom.TargetKinds) == requiredSide) return atom;
-            TideLog.Error($"[CardEffectConverter] 代价栏 Payload 原子 {atom.Type} 违反内容契约" +
-                           "（2026-10-28 P1b：代价只收 p≠0 且锁在受益方反面——p<0 锁己方 / p>0 锁对方）——已剔除");
+            // 2026-11-02 代价栏翻转限制：报错须可定位（contextLabel=「卡 id 效果 id」——缺省调用面
+            // CardCostService/GameActions 无法提供，退回原子行 id pe.refId）
+            string where = string.IsNullOrEmpty(contextLabel)
+                ? $"原子[{entry?.refId}]"
+                : $"{contextLabel} 原子[{entry?.refId}]";
+            string why;
+            if (requiredSide == 0)
+                why = "极性=0（中性原子不能进代价栏——2026-11-02 定案）";
+            else if (atom.TargetKinds == null || atom.TargetKinds.Count == 0)
+                why = "无目标参数（没有 {target} 的原子不能翻转成代价——2026-11-02 定案）";
+            else
+                why = $"锁侧不符（SideLock={CostDerivationService.SideLock(atom.TargetKinds)}≠{requiredSide}；代价只收锁在受益方反面的原子）";
+            TideLog.Error($"[CardEffectConverter] 代价栏 Payload 契约拒绝：{where} {why}——已剔除");
             return null;
         }
 

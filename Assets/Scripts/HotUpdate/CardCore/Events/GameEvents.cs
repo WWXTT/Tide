@@ -410,9 +410,9 @@ namespace CardCore
     }
 
     /// <summary>
-    /// 攻击结算完成事件（2026-10-07 霜蚀光环配套）：一次攻击完整结算后发布
+    /// 攻击结算完成事件（2026-10-07 引入，原霜蚀光环配套）：一次攻击完整结算后发布
     ///（含先攻/连击/碾压全程；取消路径不发——取消不算"攻击后"）。
-    /// 消费方：RuleAuraComponents 霜蚀（受光环影响的生物攻击后冻结）。
+    /// 消费方：战报（MatchLogRenderer）与战斗演出（CombatChoreographer）。
     /// </summary>
     public class AttackResolvedEvent : GameEventBase
     {

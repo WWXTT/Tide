@@ -149,14 +149,14 @@ namespace CardCore
                                     bool asleep = card.GetCounterCount(Attribute.KeywordRules.SleepCounter) > 0;
                                     if (asleep)
                                     {
-                                        // 2026-10-22 苏醒口径：沉睡期间倒计时照走，但归零不出奖（停在0），
-                                        // 等苏醒后第一个回合开始才触发——「一边苏醒，一边倒计时，苏醒走完才成功」
+                                        // 2026-10-22 沉睡口径：沉睡期间倒计时照走，但归零不出奖（停在0），
+                                        // 等沉睡解除后第一个回合开始才触发——「一边沉睡，一边倒计时，睡醒才成功」
                                         if (cd > 0) card.AddCounters(Attribute.CounterRules.CountdownCounter, -1);
                                         break;
                                     }
                                     if (cd <= 0)
                                     {
-                                        // 沉睡期间已归零（或刚入场即0）：苏醒后补发并重挂
+                                        // 沉睡期间已归零（或刚入场即0）：沉睡解除后补发并重挂
                                         card.AddCounters(Attribute.CounterRules.CountdownCounter, turns);
                                         if (EngineCapReached(card, def)) break;
                                         EventManager.Instance.Publish(new KeywordAppliedEvent
@@ -535,6 +535,23 @@ namespace CardCore
                     break; // 同卡单载荷单次施放只触发一次（充盈同口径）
                 }
             }
+        }
+
+        /// <summary>场上充盈引擎门槛最大值（2026-11-02 蓝套留费动态化·AI 只读口）：owner 战场上
+        /// ManaSurplus 引擎的最高门槛 x（Then 锚价推导——与 OnCardCastSettled 判定同式）；
+        /// 无引擎=0（兼作「己方场上是否存在充盈引擎」判定）。只读，不影响引擎结算。</summary>
+        public static int MaxManaSurplusThreshold(Player owner)
+        {
+            int best = 0;
+            var zm = GameCore.Instance?.ZoneManager;
+            if (owner == null || zm == null) return best;
+            foreach (var card in zm.GetCards(owner, Zone.Battlefield) ?? new List<Card>())
+            {
+                if (card == null || !card.IsAlive) continue;
+                foreach (var (_, payload) in EnginePayloadsOf(card, BranchEngineKind.ManaSurplus))
+                    best = Math.Max(best, CostDerivationService.RewardThreshold(payload.Then));
+            }
+            return best;
         }
 
         /// <summary>施放结算回调（GameActions.ResolveCardCastAsync 在发动无效裁决**之后**调用）：

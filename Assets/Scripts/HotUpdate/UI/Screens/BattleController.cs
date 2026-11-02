@@ -80,6 +80,7 @@ namespace SynergyUI
                 // 标记 P2 为 AI：目标选择器对 AI 跳过弹窗、即时自动选择。
                 if (GameCore.Instance.Player2 != null)
                     GameCore.Instance.Player2.IsAI = true;
+                WireAiResponseStrategy();
                 AttachBoard(); // 棋盘先于注入：单位显式落位（PinCard 钉子）需要 BoardState 在场
                 TutorialScenarioSeeder.Apply(GameCore.Instance, scenario, _board);
                 GameCore.Instance.StartGame(); // TurnEngine 已预置起跳回合 → StartNewTurn 落到 startTurn/Main
@@ -98,6 +99,7 @@ namespace SynergyUI
             // 标记 P2 为 AI：目标选择器对 AI 跳过弹窗、即时自动选择。
             if (GameCore.Instance.Player2 != null)
                 GameCore.Instance.Player2.IsAI = true;
+            WireAiResponseStrategy();
             // 后手角色护甲补偿（StartGame 已随 InitGame 跑完——Reset 清指示物的窗口已过）
             if (secondArmorBonus > 0)
             {
@@ -113,17 +115,27 @@ namespace SynergyUI
         /// 教学专用卡与衍生物模板卡不进普通随机局/联机测试局（CardCatalog.IsTeachingCard/IsTokenCard
         /// 统一口径，2026-10-06 隔离；2026-10-14 补token过滤——IsTokenCard 文档口径本就含随机组卡，
         /// 此前漏滤致 4 张衍生物模板混入随机卡组）——教学局按 id 组卡（TutorialLibrary.BuildDeck），不经本过滤。
-        /// 构筑唯一键（命运一抽【唯一】/同名仪典）每卡组限 1 张（2026-10-11 构筑规则②）——随机组卡同口径。</summary>
+        /// 构筑限量键（唯一门/仪典=每卡组 1 张；容量门命运一抽=每 10 张 1 张，2026-11-02 改版）
+        /// ——随机组卡同口径（DeckUniqueSlots/SlotCapacity 单源）。</summary>
         public static List<CardData> RandomDeckFrom(List<CardData> catalog)
         {
-            var takenKeys = new HashSet<string>();
+            var keyCounts = new Dictionary<string, int>();
             var deck = new List<CardData>(RandomDeckSize);
             foreach (var c in catalog.Where(c => !CardCatalog.IsTeachingCard(c) && !CardCatalog.IsTokenCard(c))
                        .OrderBy(_ => Guid.NewGuid()))
             {
                 var slots = ComposerCatalog.DeckUniqueSlots(c);
-                if (slots.Any(u => takenKeys.Contains(u.Key))) continue;
-                foreach (var u in slots) takenKeys.Add(u.Key);
+                // 容量按「添加后」规模投影（与构筑添加口同口径）：单遍填充即可保证
+                // 任意前缀满足 持有数 ≤ 规模÷10，终态自然合法
+                bool over = false;
+                foreach (var u in slots)
+                {
+                    keyCounts.TryGetValue(u.Key, out var n);
+                    if (n + 1 > ComposerCatalog.SlotCapacity(u.Key, deck.Count + 1)) { over = true; break; }
+                }
+                if (over) continue;
+                foreach (var u in slots)
+                    keyCounts[u.Key] = keyCounts.TryGetValue(u.Key, out var n) ? n + 1 : 1;
                 deck.Add(c);
                 if (deck.Count == RandomDeckSize) break;
             }
@@ -185,6 +197,8 @@ namespace SynergyUI
         public void Shutdown()
         {
             DetachBoard();
+            // AI 响应策略解绑（2026-11-02 响应窗任务A）：Player 每局新建，清空防跨局累积
+            CardCore.AI.AiStrategyRegistry.Clear();
             // 教学态静态接线还原（AiResponder 是全局委托——不还原会泄漏到后续普通局：机器人永不让守卫）
             if (_passiveResponderOn)
             {
@@ -192,6 +206,21 @@ namespace SynergyUI
                 ResponseWindowService.AiResponder = _prevAiResponder;
                 _prevAiResponder = null;
             }
+        }
+
+        /// <summary>
+        /// AI 响应策略装配（2026-11-02 响应窗任务A）：AiResponder 装配为按玩家查表
+        /// （AiStrategyRegistry.PickFor → strategy.PickResponse；查不到/不作主=null → GameActions
+        /// 调用侧回落内置守卫启发 DefaultAiRespond）；P2 驱动为 SimpleAI 时把注入策略
+        /// （BattleScreen.MakePacedAi 等开局装配口的策略）按玩家登记。教学局装配的被动/剧本
+        /// 响应器在调用顺序上后装（StartNewGame 之后），会整体覆盖本口——教学行为不受影响；
+        /// 解绑归 Shutdown（AiStrategyRegistry.Clear）。
+        /// </summary>
+        private void WireAiResponseStrategy()
+        {
+            ResponseWindowService.AiResponder = CardCore.AI.AiStrategyRegistry.PickFor;
+            if (_ai is SimpleAI simple) // SimpleAI=SynergyUI 命名空间（本类同域）
+                CardCore.AI.AiStrategyRegistry.Bind(GameCore.Instance.Player2, simple.Strategy);
         }
 
         /// <summary>教学局开关：机器人响应窗口全让过（永不反制/拦截玩家操作——教学必需）。

@@ -195,6 +195,39 @@ namespace CardCore
             }
         }
 
+        /// <summary>功能区域中文基名（双侧同域对名次 BothSidesNoun 消费）。</summary>
+        private static string ZoneBaseZh(Zone zone)
+        {
+            switch (zone)
+            {
+                case Zone.Hand: return "手牌";
+                case Zone.Deck: return "牌库";
+                case Zone.Graveyard: return "墓地";
+                case Zone.Exile: return "除外区";
+                case Zone.ElementPool: return "元素池";
+                case Zone.Activation: return "发动区";
+                default: return zone.ToString();
+            }
+        }
+
+        /// <summary>双侧同域对名次（2026-11-02 洗回改版·游戏王「转生的预言」口径）：kinds 恰为
+        /// 某功能区域的两侧种类对（如 己方墓地+对方墓地）→「双方墓地」；非成对/含单位种类 →
+        /// null（调用方回落「目标」）。</summary>
+        public static string BothSidesNoun(List<int> kinds)
+        {
+            if (kinds == null || kinds.Count != 2) return null;
+            var sorted = kinds.Distinct().OrderBy(k => k).ToList();
+            if (sorted.Count != 2) return null;
+            foreach (Zone zone in new[]
+                     { Zone.Hand, Zone.Deck, Zone.Graveyard, Zone.Exile, Zone.ElementPool, Zone.Activation })
+            {
+                var pair = BothSides(zone);
+                if (sorted[0] == pair[0] && sorted[1] == pair[1])
+                    return "双方" + ZoneBaseZh(zone);
+            }
+            return null;
+        }
+
         /// <summary>单位域（生命性 × 归属，战场）。All=true 取全部四类。</summary>
         public static int[] UnitKinds(bool livingOnly = false, bool enemyOnly = false, bool ownOnly = false)
         {

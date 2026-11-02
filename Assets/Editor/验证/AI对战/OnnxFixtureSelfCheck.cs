@@ -35,8 +35,31 @@ namespace CardCore.Editor.Tests
                       System.Security.Cryptography.SHA256.Create().ComputeHash(File.ReadAllBytes(manifestPath)))
                     .Replace("-", "").ToLowerInvariant()
                 : "(文件缺失)";
-            bool manifestOk = diskSha == fx.manifest_sha256;
-            Debug.Log($"[Fixture自检] manifest 指纹：fixture==磁盘 {manifestOk}（{diskSha[..16]}… vs {fx.manifest_sha256[..16]}…）");
+            bool manifestOk = !string.IsNullOrEmpty(fx.manifest_sha256) && diskSha == fx.manifest_sha256;
+            if (!manifestOk)
+            {
+                // 2026-11-02 部署加固：分叉 = 响亮失败拒跑（对齐 NeuralDeployGuard 定案），
+                // 不再只打印一行比对继续跑——否则数值对拍全对、实战却 embedding 串台
+                string fxShort = string.IsNullOrEmpty(fx.manifest_sha256) ? "(无字段·旧版导出)" : fx.manifest_sha256[..16] + "…";
+                Debug.LogError($"[Fixture自检] ✗ manifest 指纹分叉：fixture {fxShort} vs "
+                             + $"磁盘 {diskSha[..16]}…——模型导出时的卡身份清单与当前不同源，"
+                             + "精确身份 embedding 行会串台。重训并重跑 tide_rl/export_onnx.py（或先跑 "
+                             + "tide_rl/sync_model_to_main.ps1 同步导出时的清单）后再自检");
+                return;
+            }
+            Debug.Log($"[Fixture自检] manifest 指纹一致（{diskSha[..16]}…）");
+
+            // 布局侧（2026-11-02 部署加固）：fixture 头 layout_version/dims 与当前 TideObservation
+            // 对账——旧版导出产物无该组字段也在此拦下（layout_version=0）
+            string layoutError = NeuralDeployGuard.VerifyFixtureLayout(fx.layout_version, fx.dims);
+            if (layoutError != null)
+            {
+                Debug.LogError($"[Fixture自检] ✗ {layoutError}");
+                return;
+            }
+            Debug.Log($"[Fixture自检] 布局一致（v{fx.layout_version}，"
+                     + $"cards {fx.dims.maxCards}x{fx.dims.nCard} / global {fx.dims.nGlobal} "
+                     + $"/ actions {fx.dims.maxActions}x{fx.dims.nAction}）");
 
             using (var policy = new OnnxTidePolicy())
             {
@@ -108,10 +131,13 @@ namespace CardCore.Editor.Tests
             return best;
         }
 
-        // ---- fixture JSON 形状（export_onnx.py 产出）----
+        // ---- fixture JSON 形状（export_onnx.py 产出；layout_version/dims 为 2026-11-02 加，
+        // dims 复用 NeuralDeployGuard.Dims 单源）----
         private sealed class Fixture
         {
             public string manifest_sha256 = "";
+            public int layout_version;
+            public NeuralDeployGuard.Dims dims;
             public float tol = 0.005f;
             public int case_count;
             public List<Case> cases = new List<Case>();

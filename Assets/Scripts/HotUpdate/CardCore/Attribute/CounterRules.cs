@@ -140,7 +140,7 @@ namespace CardCore.Attribute
     {
         // ---- 指示物 id 常量（新指示物 = 一条常量 + 一条 spec）----
         /// <summary>毒素（生效自减类）：无持续时间、只有层数——持有者每回合结束受到=层数的伤害，
-        /// 随后层数减半（向下取整，0.5→0）。**换区不清**、净化可清。施加口=AddToxinHandler/毒刺改写/毒蚀光环。</summary>
+        /// 随后层数减半（向下取整，0.5→0）。**换区不清**、净化可清。施加口=AddToxinHandler/毒刺改写。</summary>
         public const string ToxinCounter = "Toxin";
         /// <summary>沉默：持有者不可发动主动效果（换区清）</summary>
         public const string SilenceCounter = "Silence";
@@ -169,7 +169,7 @@ namespace CardCore.Attribute
         public const string ToughnessCounter = "Toughness";
         /// <summary>
         /// 报复（2026-10-16 新增，红1/层，表行/GrantRetaliation）：持有者**实际受到伤害**（防护层后
-        /// 仍有剩余落定——完全挡住/战斗法师散射改写（原舍身转投，2026-10-30 改版）不触发）时，对伤害来源造成等于层数的
+        /// 仍有剩余落定——完全挡住不触发；战斗法师散射改写已随 2026-11-01 退役删除）时，对伤害来源造成等于层数的
         /// 伤害（非战斗伤害，来源=持有者），生效后层数减半（向下取整）。自伤（来源=自身）不触发；
         /// 双方互带时先减半再反击=层数几何衰减，天然封死无限互弹。
         /// Entity 级；换区不清（生效自减档）、净化可清。施加口=GrantRetaliationHandler；
@@ -193,13 +193,12 @@ namespace CardCore.Attribute
         /// </summary>
         public const string RebornCounter = "Reborn";
         /// <summary>
-        /// 潜行（2026-10-08 指示物化，表行 8f84641e/GrantStealth；2026-10-19 Entity 级——角色可持有）：
-        /// 持有层数 &gt;0 期间不可被攻击/效果指定（两指定口：CombatSystem.CanAttackTarget /
-        /// TargetFilterSystem.ExcludeUnselectable，与隐密 Concealed 关键词同查——原第三口
-        /// EffectTargeting.CanTarget 已随 2026-10-13 死基建删除，从未接通）；
-        /// 攻击宣言/发动效果/实际受到伤害各消耗 1 层（逐份撤口径，承自旧台账消耗型语义）；
-        /// 换区不清（生效自减档）、净化可清。
-        /// 隐密（Concealed）仍是关键词——不因生效消耗，是潜行的持续版。
+        /// 潜行（2026-10-08 指示物化，表行 2addfe0c/GrantStealth；2026-10-19 Entity 级——角色可持有）：
+        /// 持有层数 &gt;0 且己方场上另有未潜行/未隐密友方实体（战场单位或角色）期间不可被攻击/效果
+        /// 指定——判定单源 EntityEffectExtensions.IsHiddenFromTargeting（2026-11-02 改版：全员隐藏时
+        /// 潜行整体失效）；宣言攻击结算/守卫拦截/主动发动效果各消耗 1 层（2026-11-02 改版——
+        /// 实际受伤不消耗、触发式效果不消耗）；换区不清（生效自减档）、净化可清。
+        /// 隐密（Concealed）仍是关键词——不消耗、无友方暴露条件，是潜行的持续版。
         /// </summary>
         public const string StealthCounter = "Stealth";
         /// <summary>
@@ -229,12 +228,11 @@ namespace CardCore.Attribute
         public const string LifeDownCounter = "LifeDown";
         /// <summary>费用增加指示物（每层 +1 费，仅手牌，离手消失）</summary>
         public const string CostUpCounter = "CostUp";
-        /// <summary>费用减少指示物（每层 −1 费，仅手牌，离手消失）——legacy 恒灰档
-        ///（2026-10-31 P12 四色扩容前唯一形态；同日通用增减四色化后表原子已退役，存档继续落此 id）。</summary>
-        public const string CostDownCounter = "CostDown";
+        // legacy 恒灰档 CostDown 已删（2026-11-02 减费改造）：GetCardCost 不再读、无投放口
+        //（2026-10-31 四色化后表原子退役）、无存量卡引用——四色档全面接棒。
         /// <summary>四色费用降低（2026-10-31 P12 充能定案）：灰/红/蓝/绿各一类，每层只减对应
-        /// 颜色的费用（GetCardCost 逐色套层、逐色钳 0 不串色）；充能投放、换区清除
-        ///（Resident 同旧 CostDown 口径）。充能上限与净费预览读 GameActions.GetHandCardChargeInfo。</summary>
+        /// 颜色的费用（GetCardCost 逐色套层、逐色钳 0 不串色）；充能投放、换区清除（Resident）。
+        /// 充能上限与净费预览读 GameActions.GetHandCardChargeInfo。</summary>
         public const string CostDownGrayCounter = "CostDownGray";
         /// <summary>费用降低（红）——每层红费 −1。</summary>
         public const string CostDownRedCounter = "CostDownRed";
@@ -286,10 +284,10 @@ namespace CardCore.Attribute
         /// <summary>祝福（2026-10-08；生效自减类）：同诅咒，作用面=自己牌库——由引擎主干·附加祝福投放，
         /// 抽到该卡时执行祝福分支效果并消层（一次性）。无玩家表行。</summary>
         public const string BlessingCounter = "Blessing";
-        /// <summary>锁定（2026-10-04 窥渊仪典原子化定案，衰退类）：层数=剩余回合，持有者回合结束 −1
-        ///（手牌区与场上同样倒数——持有者侧结算域含手牌）；持有期间无法进入发动区和地牌区
-        ///（打出/响应出牌/苏醒立约/放地入池同门，LockedCardRestriction+CommitAwaken+CanServeAsLand）。
-        /// 归零解锁。</summary>
+        /// <summary>锁定（衰退类）：层数=剩余回合，
+        /// 持有者回合结束 −1（手牌区与场上同样倒数——持有者侧结算域含手牌）；
+        /// 持有期间无法使用——打出/响应出牌同门封锁（LockedCardRestriction），
+        /// 但可作为地牌放置（CanServeAsLand 2026-11-02 起放行）。归零解锁。</summary>
         public const string LockCounter = "Lock";
 
         /// <summary>保护三档（2026-10-30 指示物化定案，GrantProtection 原子 3 行族挂载；衰退类）：
@@ -302,6 +300,14 @@ namespace CardCore.Attribute
         public const string NullShieldCounter = "NullShield";   // 全免：持有期间受到的伤害变为 0
         public const string LifeFloorCounter = "LifeFloor";     // 生命锁：持有期间生命值不会低于 1
         /// <summary>
+        /// 无实体（2026-11-02 指示物化，表行 fb88c3f4→6c38edaa 随文案重推；前身=禁魔石→2026-10-31 关键词化）：
+        /// 持有期间每次受到的伤害固定变为 1（战斗+非战斗同口，amount&gt;1 才触发——0/1 点不触发）。
+        /// 衰退类：层=持续回合，持有者回合结束 −1、归零消失，换区清、净化可清；不按次消耗（同减半护盾档）。
+        /// 钳口=KeywordRules.ApplyDamage 守护改写之后、延时保护/易损/防护层之前（守护者承受原额）；
+        /// 读数走效果口径 GetEffectiveCounterCount（绝缘体单位=0，账面层保留）。施加口=GrantSpellbanHandler。
+        /// </summary>
+        public const string SpellbanCounter = "Spellban";
+        /// <summary>
         /// 反疗（2026-10-09，黑2，表行 6b9c4b90/GrantDepravity；原名堕落·仅角色，同日用户改名放开）：
         /// 任意有生命单位（生物+角色，双方）可持——该目标下一次受到的治疗改写为等量伤害并消耗 1 层
         ///（改写口=EntityEffectExtensions.Heal 咽喉，伤害光源=施加方 GetCounterSource）。
@@ -310,10 +316,13 @@ namespace CardCore.Attribute
         /// </summary>
         public const string DepravityCounter = "Depravity";
         /// <summary>
-        /// 重放（2026-10-09，白4，表行 b70a8a42/GrantReplay）：挂场上单位——该单位效果发动结算后
-        /// 自动消耗 1 层并再次发动一次（重放轮不再消耗层——「重放不触发重放」；
-        /// 消耗口=EffectExecutor.ExecuteAsync 结算段）。生效自减档（换区不清——离场休眠、
-        /// 再入场（含预挂手牌/牌库的卡登场）仍可生效）。
+        /// 重放（2026-11-02 改版：对玩家指示物，蓝5，表行 93648aa7/GrantReplay）：挂**玩家**（双方角色）——
+        /// 该玩家使用的下一张法术/主动效果结算后自动消耗 1 层并再执行一轮（效果行+代价行——
+        ///「包括效果和代价」，元素费用不重复；重放轮不再消耗层——「重放不触发重放」；
+        /// 消耗口=EffectExecutor.ExecuteAsync 结算段·先闸后付——代价可付闸
+        /// CostPayability.AllPayableForReplay 溢出制不过=重复无效且**层保留**等下一张）。
+        /// 生效自减档、**无回合限制**（不倒数——层跨回合存续直至消耗；换区不清口径对角色无副作用）。
+        /// 旧单位挂载口径（2026-10-09 白4）已随改版退役。
         /// </summary>
         public const string ReplayCounter = "Replay";
         /// <summary>
@@ -373,8 +382,9 @@ namespace CardCore.Attribute
             // 下一次受到的治疗改写为等量伤害并消耗 1 层（改写口=EntityEffectExtensions.Heal 咽喉）；
             // 换区不清、生物侧净化可清（角色无净化通道）
             Register(new CounterSpec { Id = DepravityCounter, Polarity = CounterPolarity.Negative, Class = CounterClass.Exception, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.External, DisplayName = "反疗" });
-            // 重放（2026-10-09，白4）：单位效果发动结算后消耗 1 层并再次发动一次（重放不触发重放；
-            // 消耗口=EffectExecutor.ExecuteAsync）；换区不清（离场休眠、再入场仍生效）
+            // 重放（2026-11-02 改版，蓝5）：挂玩家（双方角色）——其使用的法术/主动效果结算后
+            // 消耗 1 层并再执行一轮（含代价行；重放不触发重放；消耗口=EffectExecutor.ExecuteAsync）；
+            // 生效自减档无回合限制（不倒数，层跨回合存续直至消耗）
             Register(new CounterSpec { Id = ReplayCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.Exception, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.External, DisplayName = "重放" });
             // 临时（2026-10-10 回响临时指示物化，白2）：持有者回合末不在战场→从游戏中移除；
             // 2026-10-12 生效自减改稿——在战场不生效也不倒数（旧 Clock 场上倒数/转正退役，
@@ -399,9 +409,8 @@ namespace CardCore.Attribute
             // 出牌链唯一口径 GameActions.GetCardCost 在此套层（预检/付费/pending 三处同源）；
             // 进发动区不清（发动区豁免），结算离开发动区与离手时清除。
             Register(new CounterSpec { Id = CostUpCounter, Polarity = CounterPolarity.Negative, Class = CounterClass.Resident, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.None, DisplayName = "费用增加", StatKind = StatCounterKind.CostUp });
-            Register(new CounterSpec { Id = CostDownCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.Resident, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.None, DisplayName = "费用减少", StatKind = StatCounterKind.CostDown });
-            // 四色费用降低（2026-10-31 P12 充能投放）：同 CostDown 档位（Positive/Resident/换区清），
-            // StatKind 共用 CostDown——_costModifier 只是历史聚合读数，主路径读各色计数器
+            // 四色费用降低（2026-10-31 P12 充能投放；legacy 恒灰档 CostDown 已于 2026-11-02 删除）：
+            // Positive/Resident/换区清，StatKind 共用 CostDown——_costModifier 只是历史聚合读数，主路径读各色计数器
             Register(new CounterSpec { Id = CostDownGrayCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.Resident, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.None, DisplayName = "费用降低（灰）", StatKind = StatCounterKind.CostDown });
             Register(new CounterSpec { Id = CostDownRedCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.Resident, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.None, DisplayName = "费用降低（红）", StatKind = StatCounterKind.CostDown });
             Register(new CounterSpec { Id = CostDownBlueCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.Resident, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.None, DisplayName = "费用降低（蓝）", StatKind = StatCounterKind.CostDown });
@@ -425,17 +434,20 @@ namespace CardCore.Attribute
             Register(new CounterSpec { Id = KeywordRules.FreezeCounter, Polarity = CounterPolarity.Negative, Class = CounterClass.Decay, LayerRole = CounterLayerRole.Clock, TickPolicy = CounterTickPolicy.TurnEndTickDown, BlocksUntap = true, DisplayName = "冻结" });
             // 突袭紊乱（长档已并入：同一机制不同量——层=回合数，教学长档 15 层即 15 回合）
             Register(new CounterSpec { Id = KeywordRules.RushSicknessCounter, Polarity = CounterPolarity.Negative, Class = CounterClass.Decay, LayerRole = CounterLayerRole.Clock, TickPolicy = CounterTickPolicy.TurnEndTickDown, DisplayName = "突袭紊乱" });
-            // 沉睡：持有期间无法重置+效果无效；层=持续回合，倒数在回合末（2026-10-08 从回合开始挪回合末，
-            // 苏醒特判随之退役——层归零后下回合开始自然恢复重置）
+            // 沉睡：持有期间无法重置+效果无效；层=持续回合，倒数在回合末（2026-10-08 从回合开始挪回合末——
+            // 层归零后下回合开始自然恢复重置）
             Register(new CounterSpec { Id = KeywordRules.SleepCounter, Polarity = CounterPolarity.Negative, Class = CounterClass.Decay, LayerRole = CounterLayerRole.Clock, TickPolicy = CounterTickPolicy.TurnEndTickDown, BlocksUntap = true, DisplayName = "沉睡" });
             //（易损 2026-10-09 迁入 Exception 生效自减——受伤放大后层数减半，见上区块）
-            // 锁定：层=剩余回合，手牌区同样倒数（窥渊只锁手牌——被锁卡无法打出故不换区，与换区清无冲突）
+            // 锁定：层=剩余回合，手牌区同样倒数（锁定原子只锁手牌——被锁卡无法打出故不换区，与换区清无冲突）
             Register(new CounterSpec { Id = LockCounter, Polarity = CounterPolarity.Negative, Class = CounterClass.Decay, LayerRole = CounterLayerRole.Clock, TickPolicy = CounterTickPolicy.TurnEndTickDown, DisplayName = "锁定" });
             // 保护三档（2026-10-30 指示物化）：层=持续到自己第 N 个回合结束；Entity 级（角色可持有——
             // ③块倒数域随之通用化到 Entity；现有 Decay 指示物从不挂角色，扩域零行为变化）
             Register(new CounterSpec { Id = HalveShieldCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.Decay, LayerRole = CounterLayerRole.Clock, TickPolicy = CounterTickPolicy.TurnEndTickDown, DisplayName = "减半护盾" });
             Register(new CounterSpec { Id = NullShieldCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.Decay, LayerRole = CounterLayerRole.Clock, TickPolicy = CounterTickPolicy.TurnEndTickDown, DisplayName = "全免护盾" });
             Register(new CounterSpec { Id = LifeFloorCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.Decay, LayerRole = CounterLayerRole.Clock, TickPolicy = CounterTickPolicy.TurnEndTickDown, DisplayName = "生命锁" });
+            // 无实体（2026-11-02 指示物化）：持有期间每次受到的伤害变为 1——钳口=ApplyDamage
+            //（守护改写之后）；衰退类同减半护盾档（层=持续回合，不按次消耗），换区清、净化可清
+            Register(new CounterSpec { Id = SpellbanCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.Decay, LayerRole = CounterLayerRole.Clock, TickPolicy = CounterTickPolicy.TurnEndTickDown, DisplayName = "无实体" });
 
             // ---- 系统（System：引擎主干投放/消耗，不给玩家用；换区清——引擎重挂/重计兜底）----
             Register(new CounterSpec { Id = CountdownCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.System, LayerRole = CounterLayerRole.Clock, TickPolicy = CounterTickPolicy.External, DisplayName = "倒计时" });
@@ -536,7 +548,7 @@ namespace CardCore.Attribute
         // ==================== 四色费用降低工具口（2026-10-31 P12 充能定案） ====================
 
         /// <summary>颜色 → 对应费用降低指示物 id（灰/红/蓝/绿四色；Any 与越界返回 null——
-        /// 万能货币不是颜色，不可充能/不可减费）。旧 CostDown 不在本口（恒灰档，legacy）。</summary>
+        /// 万能货币不是颜色，不可充能/不可减费）。</summary>
         public static string CostDownCounterFor(ManaType color)
         {
             switch (color)
@@ -549,13 +561,12 @@ namespace CardCore.Attribute
             }
         }
 
-        /// <summary>是否四色费用降低指示物（不含 legacy CostDown——它经 StatCounterKind.CostDown
-        /// 老路径读，充能侧只认四色新 id）。</summary>
+        /// <summary>是否四色费用降低指示物（legacy 恒灰档 CostDown 已删——2026-11-02）。</summary>
         public static bool IsCostDownCounter(string id)
             => id == CostDownGrayCounter || id == CostDownRedCounter
             || id == CostDownBlueCounter || id == CostDownGreenCounter;
 
-        /// <summary>四色费用降低指示物 → 颜色；非本族（含 legacy CostDown）返回 null。</summary>
+        /// <summary>四色费用降低指示物 → 颜色；非本族返回 null。</summary>
         public static ManaType? CostDownColorOf(string id)
         {
             if (id == CostDownGrayCounter) return ManaType.Gray;
@@ -787,8 +798,7 @@ namespace CardCore.Attribute
         ///    不在战场的挂标卡从游戏中移除（消失，不进墓）；**在战场不生效也不倒数**（层保留——
         ///    旧场上衰退/转正路径退役）；
         /// ③ 衰退族逐层倒数（Class=Decay：层=剩余回合，持有者回合末 −1，归零解除——冻结/紊乱/
-        ///    沉睡/锁定（易损 2026-10-09 迁生效自减档，已退出倒数）；窥渊挂锁必须排在倒数之后，
-        ///    时序契约见 GameCore.OnTurnEnded）。
+        ///    沉睡/锁定（易损 2026-10-09 迁生效自减档，已退出倒数））。
         /// </summary>
         public static void OnTurnEnd(Player turnPlayer, ZoneManager zoneManager)
         {
@@ -845,7 +855,7 @@ namespace CardCore.Attribute
         /// <summary>
         /// 毒素例外例程（2026-10-08 定案：无持续时间、只有层数）——持有者每回合结束受到
         /// 等于层数的伤害（null 来源——毒素自身不是伤害来源实体，吸血/系命无从触发），
-        /// 随后层数减半（向下取整：1 层余 0、3 层余 1）。伤害过程中的叠层（毒蚀光环）不影响
+        /// 随后层数减半（向下取整：1 层余 0、3 层余 1）。伤害过程中的叠层不影响
         /// 本次基数（先快照再结算）。
         /// </summary>
         private static void ProcessToxinException(Entity entity)
@@ -930,8 +940,9 @@ namespace CardCore.Attribute
 
     /// <summary>
     /// 重置拦截（2026-09-13 定案；2026-10-08 终版改 BlocksUntap 标记驱动）：持有 BlocksUntap
-    /// 指示物（冻结/沉睡）的卡持有期间**无法重置**。拦而不扣——衰退族倒数统一在 OnTurnEnd
+    /// 指示物的卡持有期间**无法重置**。拦而不扣——衰退族倒数统一在 OnTurnEnd
     ///（持有者回合末 −1 层）；层归零后下回合开始 BlocksUntap 自然为 false，走正常重置。
+    /// 2026-11-02 冻结回退指示物版：冻结恢复 BlocksUntap（持有期间无法重置）。
     /// 登记于 GameCore.Reset（组合根例外，幂等）——重置循环经 RuleHooks 只认接口；
     /// 新增同类指示物=CounterSpec 勾 BlocksUntap，本规则零改动。
     /// </summary>

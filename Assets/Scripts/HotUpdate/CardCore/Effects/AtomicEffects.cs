@@ -88,6 +88,8 @@ namespace CardCore
         GrantTaunt,
         GrantDivineShield,
         GrantOverwhelm,
+        /// <summary>溅射（2026-11-01 新增，红3）：战斗结算时，对对手随机单位造成溢出的战斗伤害。</summary>
+        GrantSplash,
         /// <summary>坚韧（2026-10-08 指示物化；同日更名——原 GrantArmor 与护甲 AddArmor 命名倒挂纠正；
         /// 2026-10-09 生效自减改版）：对目标附加 {value} 层坚韧指示物（ToughnessCounter）——
         /// 每次受到的伤害每层 −1，实际拦到即生效，生效后层数减半（floor）。</summary>
@@ -126,8 +128,9 @@ namespace CardCore
         AddPowerDown,
         AddLifeUp,
         AddLifeDown,
-        AddPlusOne,
-        AddMinusOne,
+        // AddPlusOne/AddMinusOne（属性增加/减少 ±1/±1 计数层）2026-11-02 退役——用户定案
+        //「只能分开加减」：表行（8bc5b925/9864d6df）+handler+枚举位同批删除；攻/血单轴行承接种类。
+        // 计数器表示 CounterRules.PlusOne/MinusOneCounter 保留（Weaken/Inspire 留白行引用）。
         // AddCostUp/AddCostDown（通用费用增减指示物）2026-10-31 四色化退役——表行随批换 8 行
         //（AddCostUpGray..Green / AddCostDownGray..Green），枚举位直接删（int 不进存储）。
 
@@ -165,8 +168,8 @@ namespace CardCore
 
         // ============ 状态原子（2026-09-11 沉睡改造） ============
         /// <summary>沉睡（绿1 中性）：赋予目标沉睡指示物——沉睡期间无法重置、效果无效。
-        /// （旧「自我沉睡走豁免费转时长」已随 2026-10-29 P6/P6c 苏醒改版退役——苏醒施放的沉睡层数
-        /// 由 ResolvePermanentEntry 入场直挂=免灰份额，不经本原子；本原子 Value 未显式兜底 1 层。）
+        /// （「自我沉睡走豁免费转时长」已随 2026-10-29 P6/P6c 苏醒改版退役；苏醒施放的
+        /// 入场直挂沉睡也已于 2026-11-02 随苏醒机制整链删除。本原子 Value 未显式兜底 1 层。）
         /// 效果/指示物分离定案：效果=赋予指示物，指示物本身承载持续规则。</summary>
         Sleep,
         // 微缩/放大（GrantMiniature/GrantMagnify）2026-10-10 照抄炉石机制退役：表行/Specs/
@@ -186,22 +189,24 @@ namespace CardCore
         /// 咽喉，单跳不链式 guardRerouted）。无限次直到守护者死亡/离场——离场断链，
         /// 墓地复活=新入场重新弹选（旧关系不残留）；复生原地留场配对保持。</summary>
         GrantGuardian,
-        /// <summary>战斗法师（原舍身，2026-10-30 改版——弹选转投退役，改随机散射；表行 MountKinds=关键词,不可作为连接光环）：
-        /// 自己造成的战斗伤害改写为对随机目标（对方存活单位+对方角色，逐发独立抽取——GameRng 种子流）
-        /// 造成 1 点**效果伤害**，重复发动次数=自身攻击力（GetPower 含光环成分）。非战斗路径：无实体钳 1
-        ///（单发本就 1 点=无感，原禁魔石清零口已随 2026-10-31 改版退役）/
-        /// 走易损与防护层/不触发战斗反击链/不递归改写；原目标免受。改写在 KeywordRules.ApplyDamage 咽喉
-        ///（防护层后落血前——完全挡住不触发，有剩余才散射）；持有者被「失效」（原缄默）压制时不改写（战斗伤害照常）。
-        /// 无状态关键词——无配对表/无入场钩子（原 MartyrdomRules 整套随改版退役）。</summary>
-        GrantBattleMage,
+        // 战斗法师（GrantBattleMage，原舍身）2026-11-01 退役注释：表行 c3112c0b（关键词表）已删，
+        // 授予映射（GrantKeywordHandlers.Specs）/关键词常量（KeywordRules.BattleMage）/ApplyDamage
+        // 散射改写/战报播报（MatchLogRenderer）同批注释——无存量卡引用，恢复=全处去注释+表行回补。
+        // 原文（2026-10-30 改版——弹选转投退役，改随机散射；表行 MountKinds=关键词,不可作为连接光环）：
+        // 自己造成的战斗伤害改写为对随机目标（对方存活单位+对方角色，逐发独立抽取——GameRng 种子流）
+        // 造成 1 点**效果伤害**，重复发动次数=自身攻击力（GetPower 含光环成分）。非战斗路径：无实体钳 1
+        //（单发本就 1 点=无感，原禁魔石清零口已随 2026-10-31 改版退役）/
+        // 走易损与防护层/不触发战斗反击链/不递归改写；原目标免受。改写在 KeywordRules.ApplyDamage 咽喉
+        //（防护层后落血前——完全挡住不触发，有剩余才散射）；持有者被「失效」（原缄默）压制时不改写（战斗伤害照常）。
+        // 无状态关键词——无配对表/无入场钩子（原 MartyrdomRules 整套随改版退役）。
+        // GrantBattleMage,
         // 固有全域原子（SweepDamage/SweepHeal）已随 2026-10-05 墓碑清理实删——
         // 全域语义由组合期 TargetKinds+全取档表达（2026-09-21 退役定案，此番连墓碑一并清除）。
         // 摒弃（Abandon）2026-10-09 并入牺牲退役；冰晶（GrantIceCrystal）/梦魇（GrantNightmare）
         // 分别 2026-10-15/13 印刷关键词路径退役——三者枚举位已随 2026-10-30 枚举收拢删除。
-        /// <summary>无实体（原禁魔石，2026-10-31 改版更名，绿6）：每次受到的伤害固定变为 1
-        ///（战斗+非战斗同口；改写口=KeywordRules.ApplyDamage 守护改写之后、延时保护/易损/防护层之前
-        ///——改写类与旧禁魔石归零同口径，非防护层）。运行时关键词 id 仍 Spellban
-        ///（更名只改中文文案，同辟邪→扰魔/嘲讽→帷幕先例）。</summary>
+        /// <summary>无实体（原禁魔石；2026-10-31 关键词化→2026-11-02 指示物化，表行 6c38edaa）：
+        /// 为目标附加 SpellbanCounter 衰退层——持有期间每次受到的伤害固定变为 1（战斗+非战斗同口；
+        /// 钳口=KeywordRules.ApplyDamage 守护改写之后、延时保护/易损/防护层之前）。执行=GrantSpellbanHandler。</summary>
         GrantSpellban,
 
         // 自由分支主干原子（BranchEngine*，7 枚举）已随 2026-10-05 两槽定案实删——
@@ -221,8 +226,8 @@ namespace CardCore
         /// 2026-10-08 表行退役（指示物档删除——自由分支·引擎主干行 EngineCurseOnDraw 接棒，CurseCounter
         /// 随之归系统指示物）；handler 保留代码侧，无表行不生效（手写数据兼容，AdditionalEnergy 同款先例）。</summary>
         AddCurse,
-        /// <summary>锁定（2026-10-04 窥渊仪典原子化，蓝）：为一张手牌挂「锁定」指示物×{value}回合——
-        /// 持有期间该牌无法使用（打出/响应出牌/苏醒立约同门）；持有者回合结束层数−1
+        /// <summary>锁定（蓝）：为一张手牌挂「锁定」指示物×{value}回合——
+        /// 持有期间该牌无法使用（打出/响应出牌同门）；持有者回合结束层数−1
         /// （手牌区与场上同样倒数，CounterRules 持有者侧结算域），归零解锁。</summary>
         LockCard,
         /// <summary>隐密（2026-10-04，蓝5——潜行的持续版）：不可被攻击/效果指定，且**不因
@@ -270,13 +275,15 @@ namespace CardCore
         /// 表行 20c06d52（原 Poison 原子行）改挂本枚举。</summary>
         GrantVenom,
 
-        /// <summary>永久属性增加（2026-10-08 来源分轨退役定案）：+{value}/+{value} 双属性**直写字段**
-        ///（复用 CounterRules.ApplyStatDelta 直写分支，不挂计数层）——本局游戏永久、跨区保留、
-        /// 净化不清（视同本体），与来源无关。临时层（换区清）用 AddPlusOne。表行 9256b41a。</summary>
-        AddPermanentPlusOne,
-        /// <summary>永久属性减少（2026-10-08）：−{value}/−{value} 直写字段（有效生命归零标死交 SBA），
-        /// 跨区保留、净化不清，与来源无关。表行 e5da6dd9。</summary>
-        AddPermanentMinusOne,
+        /// <summary>永久攻血四轴（2026-11-02 拆分定案——原 AddPermanentPlusOne/MinusOne 双属性
+        /// ±{value}/±{value} 整行退役，拆单轴四行各费 1）：单轴 ±{value} **直写字段**（复用
+        /// CounterRules.ApplyStatDelta 的 PowerUp/Down、LifeUp/Down 直写分支，不挂计数层）——
+        /// 本局游戏永久、跨区保留、净化不清（视同本体），与来源无关；血减同指示物口径
+        /// （上限削至 0 止、有效生命归零标死交 SBA，死亡来源=施加方）。</summary>
+        AddPermanentPowerUp,
+        AddPermanentPowerDown,
+        AddPermanentLifeUp,
+        AddPermanentLifeDown,
         /// <summary>敌方全体伤害（2026-10-09 全体对象独立原子定案）：对敌方全体生物各造成 {value} 点伤害
         ///（域={对方单位}+NoRole——排除角色与无生命单位）。
         /// 无域原子（表行 TargetKinds 空=自结算，单次执行不逐目标 Reset）——杀数聚合入 LastOutcome：
@@ -292,13 +299,16 @@ namespace CardCore
 
         /// <summary>成长（2026-10-11 资源重做：灵气复苏 ×2 翻倍改 +1，绿3；2026-10-15 封顶退役）：
         /// 效果控制者地牌上限 +1（各自池、可无限重复——ElementPool.LandCapBonus，GetLandCap 单点生效：
-        /// 地牌张数/支付浓度/出牌费用门槛/黑白钳同随）。无目标原子。</summary>
+        /// 地牌张数/支付浓度/出牌费用门槛/黑白钳同随）；并从自己牌库随机将一张带元素费用的卡
+        /// 横置加入元素池（2026-11-01 修订：不限绿费、不指定锁色——缺省主色，详见
+        /// IncreaseLandCapHandler）。无目标原子。</summary>
         IncreaseLandCap,
 
-        /// <summary>重放（2026-10-09，白4，表行 b70a8a42）：对场上单位附加 {value} 层重放指示物
-        ///（ReplayCounter，Exception 生效自减——换区不清，离场休眠、再入场仍可生效）——该单位
-        /// 效果发动结算后自动消耗 1 层并**再次发动一次**（重放轮不再消耗层——「重放不触发重放」；
-        /// 消耗口=EffectExecutor.ExecuteAsync 结算段，费用/记账/结算事件只走一次）。</summary>
+        /// <summary>重放（2026-11-02 改版：对玩家指示物，蓝5，表行 93648aa7）：对{target}（仅玩家）
+        /// 附加 {value} 层重放指示物（ReplayCounter，Exception 生效自减——无回合限制）——该玩家
+        /// 使用的下一张法术/主动效果结算后自动消耗 1 层并**再执行一轮**（效果行+代价行——
+        ///「包括效果和代价」；重放轮不再消耗层——「重放不触发重放」；消耗口=
+        /// EffectExecutor.ExecuteAsync 结算段，元素费/记账/结算事件只走一次）。</summary>
         GrantReplay,
 
         /// <summary>临时指示物（2026-10-10 回响临时指示物化，白2，表行 GrantTemporary）：对任意卡
@@ -410,11 +420,11 @@ namespace CardCore
         /// 后手护甲补偿同款指示物）。参照生命≤0=空转。</summary>
         LivingArmor,
 
-        /// <summary>苏醒（2026-10-31 P12 关键词化，表行 3df00ac7·关键词表）：授予「苏醒」关键词——
-        /// 卡面关键词含 Awaken 的生物才有「苏醒施放」入口（P6/P6c 数值沿用：只免净费灰份额、
-        /// 绿照付、免掉的灰等量转入场沉睡层数、横置登场）。GrantKeywordHandler 通用路径
-        ///（GrantKeywordHandlerFactory.Specs 登记），闸门读 GameActions.HasAwakenKeyword。</summary>
-        GrantAwaken,
+        // 苏醒（GrantAwaken，2026-10-31 P12 关键词化）2026-11-02 整链删除：灰身材概念已不存在，
+        // 「免灰抵沉睡」失去意义；且与倒计时玩法过近。表行（关键词表 3df00ac7→重推后 ebb21ba2
+        // 居系统表）、GrantKeywordHandlers.Specs 登记、KeywordRules.Awaken 常量、
+        // HasAwakenKeyword 闸门同批删除。
+        // GrantAwaken,
 
         /// <summary>充能（2026-10-31 P12 建造→充能，表行 afa24bf3·一般效果表）：主动效果、速度 0、
         /// 只能从手牌发动——卡上含本原子的主动效果即有充能入口（生物/法术/结界全类别）。
@@ -429,7 +439,6 @@ namespace CardCore
         /// GetEffectiveCounterCount 效果口径读数（绝缘体单位=0）；沉睡/缄默（压制型·时序互压：
         /// 生效期间后加即清零）与 StatKind 属性类（回写式）在 AddCounters 咽喉清零；
         /// 负量（移除）不拦；系统指示物（CounterClass.System——引擎主干内部驱动，如耐久）豁免。
-        /// 苏醒入场沉睡（EntryCost 档）不吃清零闸。
         /// 表行 MountKinds=关键词,不可作为连接光环（免疫洞防线，同无实体/守护）。</summary>
         GrantInsulator,
 
@@ -469,7 +478,7 @@ namespace CardCore
 
         /// ============ 有限分支门槛行（原 SituationGate 11 行共享——身份改从类型派生，
         /// GateId 列保留作显示/兼容；判定谓词仍由 BranchConditionEvaluator 按 GateId 注册） ============
-        GateFirstDrawOfTurn,   // 命运一抽【唯一】（DrawnInStandbyThisTurn）
+        GateFirstDrawOfTurn,   // 命运一抽（DrawnInStandbyThisTurn；2026-11-02 退役唯一，限量走容量门）
         GateLifeBelow,         // 生命值低于对手（LifeBelowOpp）
         GateLifeAbove,         // 生命值高于对手（LifeAboveOpp）
         GateDeckBelow,         // 卡组剩余低于对手（DeckBelowOpp）
@@ -488,12 +497,12 @@ namespace CardCore
         AuraSharedPain,        // 苦痛仪典（BloodPact）
         AuraOverflowLife,      // 丰盈仪典（HealOverflow）
         AuraDamageClamp,       // 离散仪典（DamageCap）
-        AuraPeekLock,          // 窥渊仪典（LockRevealed）
+        // 窥渊仪典（AuraPeekLock/LockRevealed）2026-11-02 整链删除
         AuraGraveRevive,       // 归土仪典（GraveyardPlay）
         // 疾风仪典（AuraSpeed/CastSpeedUp）2026-10-31 整链删除
         AuraHandLimit,         // 纳川仪典（HandLimitNoFatigue）
-        AuraToxin,             // 毒蚀仪典（CombatToxin）
-        AuraFreeze,            // 霜蚀仪典（CombatFreeze）
+        // 毒蚀仪典（AuraToxin/CombatToxin）与霜蚀仪典（AuraFreeze/CombatFreeze）
+        // 2026-11-02 随负面仪典族整链删除
         // 眠蚀仪典（AuraSleep/CombatSleep）2026-10-31 整链删除
         AuraBleed,             // 放血仪典（HealInversion）
         AuraNoAttack,          // 禁攻令（NoAttackAura）
@@ -501,13 +510,13 @@ namespace CardCore
         AuraNoActivate,        // 禁发令（NoActivateAura）
         AuraNoLand,            // 禁地令（NoLandAura）
         AuraNoHeal,            // 禁疗令（NoHealAura）
-        AuraNoSearch,          // 禁寻令（NoSearchAura）
+        // 禁寻令（AuraNoSearch/NoSearchAura）2026-11-02 整链删除
         AuraNoSpell,           // 禁魔令（NoSpellAura）
         AuraNoSummon,          // 禁召令（NoCreatureAura）
         AuraNoDraw,            // 禁抽令（NoDrawAura）
         AuraNoLowCost,         // 禁低费令（NoLowCostAura）
         AuraNoHighCost,        // 禁高费令（NoHighCostAura）
-        AuraScryBonus,         // 占卜加成（ScryBonusAura）
+        // 占卜加成（AuraScryBonus/ScryBonusAura）2026-11-02 整链删除
         AuraRevealPunish,      // 灵视（RevealedPunishAura）
         AuraDelayedDeath,      // 延迟死亡（DelayedDeathAura）
         AuraTopDeckAsHand,     // 牌库顶当手牌（TopDeckAsHandAura）
@@ -520,6 +529,15 @@ namespace CardCore
         /// （2026-10-08 退役·战斗伤害改写挂剧毒指示物）为不同语义，运行时 id 复用 Pathogen。
         /// GrantKeywordHandler 通用路径（GrantKeywordHandlerFactory.Specs 登记）。</summary>
         GrantPathogen,
+
+        /// <summary>狩猎（2026-11-01 新增，绿3 表行「狩猎」6eaa0d3f·关键词表）：授予「狩猎」
+        /// 关键词——回合结束时，持有单位若处于可行动状态（未横置），随机对防守方
+        /// （对方单位∪角色，CanAttackTarget 口径）发起一次攻击。攻击不吃横置代价
+        /// （打完仍可行动）；战斗计算与事件链与普通攻击同口径（潜行消耗/ResolvePair
+        /// 关键词管线/AttackResolvedEvent 照常）；回合末同步结算、无守卫响应窗口。
+        /// 触发口=CombatSystem.ResolveHuntAttacks（GameCore.OnTurnEnded 系统区首位显式调）。
+        /// GrantKeywordHandler 通用路径（GrantKeywordHandlerFactory.Specs 登记）。</summary>
+        GrantHunt,
     }
 
     /// <summary>
@@ -555,6 +573,10 @@ namespace CardCore
         /// <summary>信息族：本步的宣言原文（"维度:值"编码，见 ProphecyDimension）——延迟验证的押注凭据</summary>
         public string Declaration;
 
+        /// <summary>信息族：隐藏押注（2026-11-02 预言隐秘性定案）：宣言族（强夺/窃取）=false 即时公开；
+        /// 预言族=true——描述/战报不回显 Declaration 原文，验证时刻由 ProphecyResolvedEvent 公开。</summary>
+        public bool HiddenDeclaration;
+
         /// <summary>改写族（2026-09-22 拦截式改写门）：本步伤害被改写为指示物（伤害未发生）——
         /// 下游门（如 DmgKillsTarget）据此/凭空产出自然判否；AffectedTargets 照记（指示物已施加）。</summary>
         public bool Rewritten;
@@ -571,6 +593,7 @@ namespace CardCore
             AnySurvived = false;
             DeclareHit = false;
             Declaration = null;
+            HiddenDeclaration = false;
             Rewritten = false;
             AffectedTargets.Clear();
             KilledTargets.Clear();

@@ -147,10 +147,11 @@ namespace CardCore.Attribute.Handlers
     }
 
     /// <summary>
-    /// 潜行原子（2026-10-08 指示物化，表行 8f84641e——原子类型沿用 GrantStealth；
-    /// refId 已重推 a16f1e55→8f84641e，2026-10-08 全量 ID 重推·卡数据随后重建）：
+    /// 潜行原子（2026-10-08 指示物化，表行 2addfe0c——原子类型沿用 GrantStealth）：
     /// 对目标附加 {value} 层潜行指示物（CounterRules.StealthCounter）——持有期间不可被攻击/效果
-    /// 指定（三指定口与隐密关键词同查）；攻击宣言/发动效果/实际受到伤害各消耗 1 层（逐份撤）。
+    /// 指定，但须己方场上另有未潜行友方单位/角色才生效（2026-11-02 改版：全员隐藏时潜行整体失效；
+    /// 判定单源 EntityEffectExtensions.IsHiddenFromTargeting）；宣言攻击结算/守卫拦截/主动发动效果
+    /// 各消耗 1 层（2026-11-02 改版——实际受伤不消耗，触发式效果不消耗）。
     /// 换区不清（生效自减档）、净化可清。注意：隐密（Concealed）仍是关键词（持续版，不消耗）。
     /// </summary>
     public class GrantStealthHandler : AtomicEffectHandlerBase
@@ -178,7 +179,7 @@ namespace CardCore.Attribute.Handlers
         }
 
         protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => "附加一层潜行指示物（不可被攻击和效果指定；攻击、发动效果或受到伤害后消耗1层）";
+            => "附加一层潜行指示物（若己方场上有其他未潜行友方单位，持有期间不可被攻击和效果指定；宣言攻击、守卫或发动效果后消耗1层）";
     }
 
     /// <summary>
@@ -283,10 +284,10 @@ namespace CardCore.Attribute.Handlers
     }
 
     /// <summary>
-    /// 锁定原子（2026-10-04 窥渊仪典原子化定案，蓝2）：为一张手牌挂「锁定」指示物×{value}回合——
+    /// 锁定原子（2026-11-02 改版）：为一张手牌挂「锁定」指示物×{value}回合——
     /// 层数=剩余回合，持有者回合结束 −1（手牌区与场上同样倒数），归零解锁；
-    /// 持有期间无法进入发动区和地牌区（打出/响应出牌/放地入池同门——
-    /// LockedCardRestriction + CanServeAsLand 两口封锁；苏醒立约口已随 2026-10-29 P6 退役）。
+    /// 持有期间无法使用（打出/响应出牌同门——LockedCardRestriction 封锁），
+    /// 但可作为地牌放置（CanServeAsLand 放行——2026-11-02 起放地不算绕道）。
     /// </summary>
     public class LockCardHandler : AtomicEffectHandlerBase
     {
@@ -312,7 +313,7 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => "附加一层锁定指示物（无法进入发动区和地牌区，持有者回合结束−1层）";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "附加一层锁定指示物（可作为地牌放置，无法使用；持有者回合结束−1层）";
     }
 
     /// <summary>
@@ -481,11 +482,12 @@ namespace CardCore.Attribute.Handlers
     }
 
     /// <summary>
-    /// 重放原子（2026-10-09，白4，表行 b70a8a42）：对场上单位附加 {value} 层重放指示物
-    ///（ReplayCounter，Exception 生效自减）——该单位效果发动结算后自动消耗 1 层并再次发动一次
-    ///（重放不触发重放；消耗口=EffectExecutor.ExecuteAsync 结算段）。
-    /// 换区不清——预挂手牌/牌库的卡登场后生效；非卡目标跳过（2026-10-10 表行域=战场四类单位、
-    /// filter 空——旧「自己」域与 NoRole 已随指示物目标域复核清除）。
+    /// 重放原子（2026-11-02 改版：对玩家指示物，蓝5，表行 93648aa7）：对{target}（仅玩家——
+    /// 表行域=双方单位 + 滤 Player，即双方角色）附加 {value} 层重放指示物（ReplayCounter，
+    /// Exception 生效自减、无回合限制）——该玩家使用的下一张法术/主动效果结算后自动消耗 1 层
+    /// 并重复一轮（效果行+代价行——「包括效果和代价」；重放不触发重放；
+    /// 消耗口=EffectExecutor.ExecuteAsync 结算段）。非玩家目标跳过；旧单位挂载口径
+    ///（2026-10-09 白4，挂场上单位）已随改版退役。
     /// </summary>
     public class GrantReplayHandler : AtomicEffectHandlerBase
     {
@@ -498,11 +500,11 @@ namespace CardCore.Attribute.Handlers
 
             foreach (var target in context.Targets)
             {
-                if (!(target is Card unit) || !unit.IsAlive) continue;
-                int actualDelta = unit.AddCounters(CounterRules.ReplayCounter, stacks, context.Source);
+                if (!(target is Player player) || !player.IsAlive) continue; // 对玩家指示物——非玩家目标跳过
+                int actualDelta = player.AddCounters(CounterRules.ReplayCounter, stacks, context.Source);
                 PublishEvent(new CounterChangedEvent
                 {
-                    Target = unit,
+                    Target = player,
                     CounterType = CounterRules.ReplayCounter,
                     Amount = actualDelta,
                     Source = context.Source,
@@ -512,7 +514,7 @@ namespace CardCore.Attribute.Handlers
         }
 
         protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => "附加一层重放指示物（效果发动结算后自动消耗一层再次发动，重放不触发重放）";
+            => "附加一层重放指示物（该玩家使用的下一张法术/主动效果将重复一次——包括效果和代价，重放不触发重放）";
     }
 
     /// <summary>
@@ -556,10 +558,11 @@ namespace CardCore.Attribute.Handlers
     /// 「成长」原子（2026-10-11 资源重做定案：灵气复苏 ×2 翻倍改成长 +1，绿3，资源族；
     /// 2026-10-15：封顶退役）：① 效果控制者的地牌槽上限 +1（各自池生效不共享），可无限重复使用
     /// （ElementPool.AddLandCapBonus → GetLandCap 单点：地牌张数/支付浓度/出牌费用门槛/黑白钳同随）。
-    /// ② 2026-10-31 改版：从自己牌库随机将一张**带绿色费用**的卡横置加入元素池（锁定产色=绿）。
-    /// 「带绿色费用」=GetLandColorChoices 含绿（卡面/各模式费 ∪ 主动效果锚价——单源，绿锚价法术同入）；
+    /// ② 2026-10-31 改版·2026-11-01 修订：从自己牌库随机将一张**带元素费用**的卡横置加入元素池
+    /// （不指定锁色——缺省=主色即份额最多色）。「带元素费用」=GetLandColorChoices 非空
+    /// （卡面/各模式费 ∪ 主动效果锚价——单源，任意色费卡同入）；
     /// 上限加值先行（+1 腾出的槽位正好容纳本次入池）；禁地令/地牌资格/上限余位由 AddCardToPool
-    /// 权威闸兜底——任一被拒或牌库无绿费卡=只 +1 不加牌。横置入场=本回合周期不再产色
+    /// 权威闸兜底——任一被拒或牌库无带费卡=只 +1 不加牌。横置入场=本回合周期不再产色
     /// （PooledCard.IsTapped，己方回合开始解除）。无目标原子（作用=效果控制者）。
     /// </summary>
     public class IncreaseLandCapHandler : AtomicEffectHandlerBase
@@ -577,7 +580,7 @@ namespace CardCore.Attribute.Handlers
             }
             pool.AddLandCapBonus(player);
 
-            // ② 牌库随机取一张绿费卡横置入池（GameRng 种子可复播——网络对拍/回放确定性同发现原子）
+            // ② 牌库随机取一张带元素费用的卡横置入池（GameRng 种子可复播——网络对拍/回放确定性同发现原子）
             var zm = context.ZoneManager;
             var deck = zm?.GetCards(player, Zone.Deck);
             if (deck == null || deck.Count == 0) return;
@@ -585,13 +588,13 @@ namespace CardCore.Attribute.Handlers
             var candidates = new List<Card>();
             foreach (var card in deck)
             {
-                if (card != null && ElementPoolSystem.GetLandColorChoices(card).Contains(ManaType.Green))
+                if (card != null && ElementPoolSystem.GetLandColorChoices(card).Count > 0)
                     candidates.Add(card);
             }
             if (candidates.Count == 0) return;
 
             var pick = candidates[GameRng.Next(0, candidates.Count)];
-            if (!pool.AddCardToPool(pick, player, ManaType.Green)) return;
+            if (!pool.AddCardToPool(pick, player)) return; // 不指定锁色=缺省主色（份额最多色）
 
             // 横置入场：先改池内包装态（经入池事件读到的观察者即见已横置），再做区域移动+发事件
             var pooled = pool.GetPool(player).PooledCards.Find(pc => pc != null && pc.SourceCard == pick);
@@ -602,7 +605,7 @@ namespace CardCore.Attribute.Handlers
         }
 
         protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => "地牌上限+1（无上限），并从卡组随机将一张带绿色费用的卡横置加入元素池";
+            => "地牌上限+1（无上限），并从卡组随机将一张带元素费用的卡横置加入元素池";
     }
 
     /// <summary>攻击力减少指示物（每层 −1 攻）</summary>
@@ -629,21 +632,8 @@ namespace CardCore.Attribute.Handlers
         protected override string DescribeTemplate(AtomicEffectInstance effect) => "添加一层生命值减少指示物";
     }
 
-    /// <summary>属性增加指示物（每层 +1/+1，换区清除型）</summary>
-    public class AddPlusOneHandler : StatCounterAtomHandlerBase
-    {
-        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddPlusOne;
-        protected override string CounterId => CounterRules.PlusOneCounter;
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => "添加一层属性增加指示物（+1/+1）";
-    }
-
-    /// <summary>属性减少指示物（-1/-1）</summary>
-    public class AddMinusOneHandler : StatCounterAtomHandlerBase
-    {
-        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddMinusOne;
-        protected override string CounterId => CounterRules.MinusOneCounter;
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => "添加一层属性减少指示物（-1/-1）";
-    }
+    // AddPlusOneHandler/AddMinusOneHandler（属性±1/+1 计数层）2026-11-02 退役——用户定案「只能分开加减」，
+    // 表行（8bc5b925/9864d6df）+handler 同批删除；攻/血单轴指示物行承接种类。
 
     /// <summary>虚弱：对{target}施加 {value} 个属性减少（= -1/-1 层 ×{value}）</summary>
     public class WeakenHandler : StatCounterAtomHandlerBase
@@ -767,9 +757,8 @@ namespace CardCore.Attribute.Handlers
     /// 层=持续回合数，持有者回合末 −1、归零解除（无法重置+效果无效期间持续）。
     /// 效果/指示物分离原则：本原子只负责**赋予指示物**——持续规则由指示物自身承载
     ///（CounterRules.OnTurnEnd ③块倒数；TriggerEngine/CanActivate 拦效果）。
-    /// 旧「豁免费转时长」消费口已删（2026-10-29 P6 苏醒改版）：苏醒施放的沉睡层数由
-    /// ResolvePermanentEntry 在入场时直接挂层（不经卡面 Sleep 原子）；本原子 Value 未显式
-    /// 时一律兜底 1 层。
+    /// 旧「豁免费转时长」消费口已删（2026-10-29 P6 苏醒改版；苏醒本身已于 2026-11-02 整链删除）；
+    /// 本原子 Value 未显式时一律兜底 1 层。
     /// </summary>
     public class SleepHandler : AtomicEffectHandlerBase
     {
@@ -777,7 +766,7 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            // 2026-10-31 晚定案：一次发动按 value 给层（≤0/未填=1——苏醒施放层另行直挂不走本口）
+            // 2026-10-31 晚定案：一次发动按 value 给层（≤0/未填=1）
             int amount = CounterRules.ResolveLayers(KeywordRules.SleepCounter, context.GetValueAfterModifiers(effect.Value));
             foreach (var target in context.Targets)
             {
@@ -801,5 +790,38 @@ namespace CardCore.Attribute.Handlers
 
         protected override string DescribeTemplate(AtomicEffectInstance effect)
             => "赋予一层沉睡（横置无法重置，自动效果无效）";
+    }
+
+    /// <summary>
+    /// 无实体原子（2026-11-02 指示物化，表行 6c38edaa·EffectType 不变）：为目标附加
+    /// {value} 层无实体指示物（CounterRules.SpellbanCounter，衰退类）——持有期间每次受到的伤害
+    /// 固定变为 1（钳口=KeywordRules.ApplyDamage 守护改写之后）；层=持续回合（持有者回合末 −1），
+    /// 不按次消耗。效果/指示物分离原则：本原子只负责赋予，持续规则由指示物自身承载。
+    /// </summary>
+    public class GrantSpellbanHandler : AtomicEffectHandlerBase
+    {
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.GrantSpellban;
+
+        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            // 一次发动按 value 给层（≤0/未填=1；层=持续回合，衰退类）
+            int layers = CounterRules.ResolveLayers(CounterRules.SpellbanCounter, context.GetValueAfterModifiers(effect.Value));
+            foreach (var target in context.Targets)
+            {
+                if (target == null || !target.IsAlive) continue;
+                int actualDelta = target.AddCounters(CounterRules.SpellbanCounter, layers, context.Source);
+                PublishEvent(new CounterChangedEvent
+                {
+                    Target = target,
+                    CounterType = CounterRules.SpellbanCounter,
+                    Amount = actualDelta,
+                    Source = context.Source,
+                    EffectTint = effect.AnchorTint() // 赋予粒子（2026-11-01）：表现层以非 null 识别「赋予」并按极性×颜色播爆发
+                });
+            }
+        }
+
+        protected override string DescribeTemplate(AtomicEffectInstance effect)
+            => "附加一层无实体指示物（持有期间每次受到的伤害变为1）";
     }
 }

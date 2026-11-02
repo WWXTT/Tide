@@ -13,10 +13,11 @@ namespace CardCore.AI.NeuralEnv
     /// v3（2026-10-14 契约）：补漏的两个主阶段决策点——TapCreature(12) 横置地牌特性生物产元素、
     /// CommitAwaken(13) 苏醒立约（对账报告 D10/D11）。
     /// v4（2026-10-29 P6 苏醒改版）：CommitAwaken(13) 退役（立约决策删除）——苏醒并入
-    /// PlayCard 的 awaken 变体行（动作行=(卡,模式,目标,awaken)，免灰净费份额转入场沉睡层数；P6c 只免灰）。</summary>
+    /// PlayCard 的 awaken 变体行；**2026-11-02 苏醒机制整链删除：awaken 变体行一并退役**，
+    /// PlayCard 只剩普通施放行。</summary>
     public enum TideActionType : int
     {
-        PlayCard = 0,            // 手牌打出（含抉择模式 + 指向目标展开 + 苏醒施放变体 AwakenCast）
+        PlayCard = 0,            // 手牌打出（含抉择模式 + 指向目标展开）
         PlayLand = 1,            // 手牌放入元素池（当地产元素）
         Activate = 3,            // 效果发动：战场卡的主动（Activate_*）能力（含目标展开）
         Attack = 4,              // 攻击宣言（attacker → 对方随从 / 对方玩家）
@@ -34,7 +35,8 @@ namespace CardCore.AI.NeuralEnv
         //     枚举出的动作引擎必拒（口径漂移白耗动作配额）。引擎侧墓地出牌口已随
         //     2026-10-30 归土改版整删（归土=回合末自动复活，非出牌来源）。
         // 13 = CommitAwaken 苏醒立约（已移除 2026-10-29 P6 苏醒改版）：立约退役，苏醒并入
-        //     PlayCard 的 awaken 变体（AwakenCast 布尔列）。序号不回收、勿复用（旧契约/模型留档）。
+        //     PlayCard 的 awaken 变体（AwakenCast 布尔列）；awaken 变体行已于 2026-11-02 随
+        //     苏醒机制整链删除。序号不回收、勿复用（旧契约/模型留档）。
     }
 
     /// <summary>一个可执行动作：模型输出离散下标 → 桥接按此结构调用 GameActions.*。</summary>
@@ -55,14 +57,17 @@ namespace CardCore.AI.NeuralEnv
         public int TargetIndex;
         /// <summary>目标类别特征（动作特征 [7]）：0=无/区域自结算，1=卡目标，2=对方玩家，3=己方玩家。</summary>
         public int TargetKindCode;
+        /// <summary>次目标槽位（v8 多目标，动作特征 [8]/[9]）：Targets[1]/[Targets[2] 的 cards_ 槽位。
+        /// 仅目标展开四类动作（PlayCard/RespondPlay/Activate/RespondActivate，经 BuildTargetedRow）有效——
+        /// 其余类型构造点不设（struct 默认 0 会被 BuildFeatures 的类型闸强制 -1，防误读为槽 0）。
+        /// -1 = 无次目标/玩家目标/超出编码上限（行内 Targets 仍完整，特征截断）。</summary>
+        public int TargetIndex2;
+        public int TargetIndex3;
         /// <summary>攻击者=自己角色（2026-10-10 角色参战遗留收口）：Card 恒 null、SourceIndex 恒 -1，
         /// Apply 分流 DeclareAttack(core, me, me, target)——弹药结算后引擎烧光。</summary>
         public bool HeroAttacker;
         /// <summary>响应窗口动作（签名区分上下文：同一动作在 Main 与响应窗口不互相摘除）。</summary>
         public bool ResponseContext;
-        /// <summary>苏醒施放变体（2026-10-29 P6；P6c 只免灰）：PlayCard 专属——免净费灰份额转入场沉睡层数、
-        /// 横置登场（与普通施放同行不同签名；其余动作类型恒 false）。</summary>
-        public bool AwakenCast;
         /// <summary>充能色（2026-10-31 P12）：Charge 行专属——灰/红/蓝/绿四选一
         ///（其余动作类型无意义）；签名带色防同卡异色行判重坍缩。</summary>
         public ManaType Color;
@@ -74,9 +79,9 @@ namespace CardCore.AI.NeuralEnv
         }
 
         /// <summary>
-        /// 动作签名（Type|来源卡|效果Id|目标集|模式|上下文|苏醒）：跨枚举稳定（EffectDefinition 每次枚举都是新对象，
+        /// 动作签名（Type|来源卡|效果Id|目标集|模式|上下文|充能色）：跨枚举稳定（EffectDefinition 每次枚举都是新对象，
         /// 引用判等不可用；Id 是转换自卡表的稳定键）。供「本回合摘除无效动作」判重。
-        /// 苏醒位列（2026-10-29 P6）：同卡同模式同目标的普通/苏醒施放是两行不同签名。
+        /// （苏醒位列已随 2026-11-02 苏醒机制整链删除。）
         /// </summary>
         public string Signature
         {
@@ -84,9 +89,8 @@ namespace CardCore.AI.NeuralEnv
             {
                 string t = TargetsKey();
                 string ctx = ResponseContext ? "R" : "M";
-                string awaken = AwakenCast ? "A" : "-";
                 string color = Type == TideActionType.Charge ? ((int)Color).ToString() : "-";
-                return $"{(int)Type}|{Card?.ID ?? "-"}|{Effect?.Id ?? "-"}|{t}|{ModeIndex}|{ctx}|{awaken}|{color}";
+                return $"{(int)Type}|{Card?.ID ?? "-"}|{Effect?.Id ?? "-"}|{t}|{ModeIndex}|{ctx}|{color}";
             }
         }
 
@@ -117,6 +121,9 @@ namespace CardCore.AI.NeuralEnv
     /// 指向性目标逐目标展开（镜像 SimpleAI.ChooseTargets 的 ResolveCandidates 口径）：
     ///  - Single/SingleUnion：逐候选一行；Multiple/MultipleUnion（TargetCount&gt;0）：按引擎候选序组合枚举，
     ///    每效果上限 24 组截断；None/Whole/WholeUnion/Random/动态数量：单行（targets=null，引擎自动解析）。
+    ///  - v8（2026-11-02 多目标定案对齐）：逐原子口径（PerAtomTargets）按 CollectAtomTargetSpecs 单源
+    ///    规格展开——数量=每原子 effCount（>1 压过选一模式，如洗回跨双墓地选 N）；特征 8→11 维追加
+    ///    target2/target3/nTargets（组合行次目标可见，Python N_ACTION_FEATURES 同步）。
     ///
     /// 文档化简化（v1 沿袭）：横置地牌由 driver 回合初自动完成（LandTapPolicy），不建模。
     /// </summary>
@@ -133,8 +140,9 @@ namespace CardCore.AI.NeuralEnv
 
         public List<TideAction> Actions = new List<TideAction>();
         /// <summary>动作特征张量（Actions.Count × TideObservation.NAction），供模型输入。
-        /// 8 维布局（契约第 2 节）：[0]valid [1]type [2]sourceIndex [3]targetIndex
-        /// [4]modeIndex [5]actionCost [6]effectIdentity [7]targetKind。</summary>
+        /// 11 维布局（v8 契约）：[0]valid [1]type [2]sourceIndex [3]targetIndex
+        /// [4]modeIndex [5]actionCost [6]effectIdentity [7]targetKind
+        /// [8]target2Index [9]target3Index [10]nTargets（多目标组合行次目标可见）。</summary>
         public float[] Features = Array.Empty<float>();
 
         public int Count => Actions.Count;
@@ -209,6 +217,20 @@ namespace CardCore.AI.NeuralEnv
                         if (opt.Definition != null && opt.SourceCard != null)
                             AddActivatedRows(core, me, opt.SourceCard, opt.Definition, TideActionType.RespondActivate);
                         break;
+                    case ResponseOption.ResponseKind.Charge:
+                        // 充能响应（2026-11-02 对手回合档）：速≥1 法术充能卡逐色一票——Apply 走
+                        // TideActionType.Charge 公共口（ActivateCharge 终审），与主阶段充能同型行
+                        if (opt.SourceCard != null)
+                            Actions.Add(new TideAction
+                            {
+                                Type = TideActionType.Charge,
+                                Card = opt.SourceCard,
+                                Color = opt.ChargeColor,
+                                SourceIndex = TideObservation.IndexOfCard(core, me, opt.SourceCard),
+                                TargetIndex = -1,
+                                ResponseContext = true,
+                            });
+                        break;
                 }
             }
 
@@ -251,7 +273,7 @@ namespace CardCore.AI.NeuralEnv
             switch (a.Type)
             {
                 case TideActionType.PlayCard:
-                    return GameActions.PlayCard(core, me, a.Card, a.Targets, Zone.Hand, a.ModeIndex, a.AwakenCast);
+                    return GameActions.PlayCard(core, me, a.Card, a.Targets, Zone.Hand, a.ModeIndex);
                 case TideActionType.PlayLand:
                     // ModeIndex 复用为锁色选择（2026-10-11：-1=缺省主色，否则=ManaType 枚举值）
                     return GameActions.AddToElementPool(core, me, a.Card,
@@ -419,22 +441,10 @@ namespace CardCore.AI.NeuralEnv
                     if (!TargetDomainService.HasPlayableTargets(core, me, c, m)) continue; // 域空不可出（镜像 PlayCard 预检）
 
                     int src = TideObservation.CardIndex(me, me, Zone.Hand, i);
-                    // 普通行：全净费可付（苏醒可付但全价付不起时只出苏醒变体——穷时先醒的通路）
+                    // 普通行：全净费可付（苏醒变体行已随 2026-11-02 苏醒机制整链删除）
                     if (GameActions.CanAffordCast(core, me, c, m))
                         foreach (var targets in ExpandCardTargets(core, me, c, m))
                             Actions.Add(BuildTargetedRow(TideActionType.PlayCard, c, m, src, targets));
-
-                    // 苏醒施放变体（2026-10-29 P6；P6c 只免灰；2026-10-31 P12 关键词化：
-                    // GetAwakenSleepLayers 内含 Awaken 关键词闸——**无关键词生物不出苏醒行**，此处不另判）
-                    //：生物净费灰份额 ≥1 → 同目标展开各加一行
-                    //（免灰转入场沉睡层数、横置登场、彩色含绿照付；灰=0 不提供——无免可免不给白睡；
-                    // 2026-10-31 灰地门槛镜像 PlayCard 终审——灰份额>当前灰地数不出苏醒行〔统一定案：
-                    // 原地牌槽总上限口径退役，与代价槽按色地牌门槛同一把尺〕）
-                    if (GameActions.GetAwakenSleepLayers(c, m) > 0
-                        && !GameActions.AwakenExceedsGrayLands(core, me, c, m)
-                        && GameActions.CanAffordCast(core, me, c, m, awakenCast: true))
-                        foreach (var targets in ExpandCardTargets(core, me, c, m))
-                            Actions.Add(BuildTargetedRow(TideActionType.PlayCard, c, m, src, targets, awaken: true));
                 }
             }
         }
@@ -469,8 +479,9 @@ namespace CardCore.AI.NeuralEnv
         }
 
         /// <summary>充能枚举（2026-10-31 P12）：己方手牌 × 带充能效果 × 各可充色——每色一行
-        ///（CanCharge 单源闸：回合方/主阶段/手牌/色资格/上限/元素余量全检；Charge 行 Color 承载所选色）。
-        /// 充能=速度 0 主动效果入栈（ActivateCharge），可发动性含速度门（栈非空时引擎拒——枚举即省行）。</summary>
+        ///（CanCharge 单源闸：己方主阶段/手牌/每回合一次/色资格/上限/元素余量全检；Charge 行 Color 承载所选色）。
+        /// 充能=主动效果入栈（ActivateCharge；己方回合恒 0 速空栈首动——栈非空时引擎拒，枚举即省行）。
+        /// 对手回合响应档不在此枚举（EnumerateResponses 经响应候选映射）；本口只在 Enumerate（己方主阶段）调用。</summary>
         private void EnumerateCharge(GameCore core, Player me, ZoneManager zm)
         {
             var hand = zm.GetCards(me, Zone.Hand);
@@ -480,6 +491,7 @@ namespace CardCore.AI.NeuralEnv
                 if (c == null) continue;
                 var data = c is CardWrapper wrapper ? wrapper.GetData() : null;
                 if (data == null || !ComposerCatalog.HasChargeEffect(data)) continue;
+                if (GameActions.ChargeUsedThisTurn(core, c)) continue; // 每回合一次前置（省逐色 4× 转换查账）
                 int src = TideObservation.CardIndex(me, me, Zone.Hand, i);
                 foreach (ManaType color in new[] { ManaType.Gray, ManaType.Red, ManaType.Blue, ManaType.Green })
                 {
@@ -668,7 +680,8 @@ namespace CardCore.AI.NeuralEnv
         }
 
         // EnumerateCommitAwakens 已删（2026-10-29 P6 苏醒改版）：苏醒立约动作退役——
-        // 苏醒决策并入 EnumeratePlayCard 的 awaken 变体行（TideAction.AwakenCast）。
+        // 苏醒决策并入 EnumeratePlayCard 的 awaken 变体行（该变体行亦已于 2026-11-02 随
+        // 苏醒机制整链删除）。
 
         // ===================================================== 响应窗口枚举辅助 =====================================================
 
@@ -707,9 +720,9 @@ namespace CardCore.AI.NeuralEnv
         }
 
         /// <summary>响应出牌行（v2）：手牌卡在响应窗口打出（发动无效/效果无效等反制）。
-        /// 预检镜像 GameActions.PlayCardInResponse/PushCardCast：速度门（2026-10-18 全严格大于，
-        /// 响应窗口恒非空栈——空栈首动豁免不触发）+ RuleHooks + 战场容量 + 费用（含 pending 承诺）
-        /// + 目标域；目标逐张展开。</summary>
+        /// 预检镜像 GameActions.PlayCardInResponse/PushCardCast：速度门（2026-11-01 统一口径：
+        /// 速≥1 且 速≥记速器——同速可接；响应窗口恒非空栈，空栈首动豁免不触发）
+        /// + RuleHooks + 战场容量 + 费用（含 pending 承诺）+ 目标域；目标逐张展开。</summary>
         private void EnumerateRespondPlay(GameCore core, Player me)
         {
             var engine = core.StackEngine;
@@ -720,7 +733,7 @@ namespace CardCore.AI.NeuralEnv
                 if (!RuleHooks.CanPlay(core, me, c, Zone.Hand)) continue;
                 if (GameActions.GetPayloadGateReject(core, me, c) != null) continue; // 代价门槛镜像（①可支付②无目标③按色地牌——2026-10-31 代价地牌统一定案）
                 int castSpeed = SpeedCalculator.GetCardCastSpeed(c);
-                if (!engine.SpeedCounter.CanActivate(castSpeed, EffectActivationType.Voluntary, engine.IsEmpty)) continue;
+                if (castSpeed < 1 || castSpeed < engine.SpeedCounter.CurrentSpeed) continue; // 同速可接（镜像 PushCardCast/CollectAvailableResponses）
                 if (!IsSpell(c) && !c.IsFieldCard() && !core.ZoneManager.HasBattlefieldSpace(me)) continue; // 场地卡落场地格不计容量（P8）
 
                 int modes = ModeCount(c);
@@ -737,9 +750,9 @@ namespace CardCore.AI.NeuralEnv
         }
 
         /// <summary>带目标组合的动作行构造（PlayCard/RespondPlay/Activate/RespondActivate）：
-        /// 填 Target 兼容别名、槽位与目标类别特征。awaken（2026-10-29 P6）：PlayCard 苏醒施放变体行。</summary>
+        /// 填 Target 兼容别名、槽位与目标类别特征。</summary>
         private TideAction BuildTargetedRow(TideActionType type, Card card, int modeIndex, int sourceSlot,
-            List<Entity> targets, bool response = false, EffectDefinition effect = null, bool awaken = false)
+            List<Entity> targets, bool response = false, EffectDefinition effect = null)
         {
             var a = new TideAction
             {
@@ -750,21 +763,28 @@ namespace CardCore.AI.NeuralEnv
                 Effect = effect,
                 SourceIndex = sourceSlot,
                 ResponseContext = response,
-                AwakenCast = awaken,
             };
             if (targets != null && targets.Count > 0)
             {
                 a.Target = targets[0];
                 a.TargetIndex = targets[0] is Card tc ? TideObservation.IndexOfCard(_core, _me, tc) : -1;
                 a.TargetKindCode = targets[0] is Card ? 1 : (ReferenceEquals(targets[0], _me) ? 3 : 2);
+                a.TargetIndex2 = TargetSlotOf(targets, 1); // v8 多目标：次目标槽位（超出 3 个截断不编码）
+                a.TargetIndex3 = TargetSlotOf(targets, 2);
             }
             else
             {
                 a.TargetIndex = -1;
                 a.TargetKindCode = 0;
+                a.TargetIndex2 = -1;
+                a.TargetIndex3 = -1;
             }
             return a;
         }
+
+        /// <summary>targets[i] 的 cards_ 槽位（v8 多目标）：非卡目标/越界 = -1（与 TargetIndex 同口径）。</summary>
+        private int TargetSlotOf(List<Entity> targets, int i)
+            => i < targets.Count && targets[i] is Card tc ? TideObservation.IndexOfCard(_core, _me, tc) : -1;
 
         // ===================================================== 目标展开（镜像 SimpleAI.ChooseTargets 口径） =====================================================
 
@@ -784,15 +804,24 @@ namespace CardCore.AI.NeuralEnv
             return result;
         }
 
-        /// <summary>按效果定义的目标模式展开：
-        /// None/无域/随机/任意数量 → 单行 null（引擎自动——随机档不弹选择自动抽取）；
-        /// Whole/WholeUnion → 单行全取候选；
-        /// Single/SingleUnion → 逐候选一行；
+        /// <summary>按效果定义的目标模式展开（v8 多目标 2026-11-02 两口径分流）：
+        /// <para>逐原子口径（PerAtomTargets=true，header 无 kinds 声明）→ <see cref="ExpandPerAtomTargets"/>：
+        /// 候选域=atom.kinds/filter、数量=每原子 effCount（>1 压过选一模式）——与人类声明期收集器/
+        /// 结算路径 ResolveAtomTargetsAsync 完全同口径（CollectAtomTargetSpecs 单源）。</para>
+        /// 组合层口径（header 域共享）：None/无域/随机/任意数量 → 单行 null（引擎自动——随机档不弹选择自动抽取）；
+        /// Whole/WholeUnion → 单行全取候选；Single/SingleUnion → 逐候选一行；
         /// Multiple/MultipleUnion（TargetCount&gt;0）→ 引擎候选序组合枚举，上限 MaxTargetCombos 截断。
         /// 候选= ResolveCandidates（与引擎 ResolveCompositionTargetsAsync / SimpleAI.ChooseTargets 同源）。</summary>
         private static void ExpandDefinitionTargets(GameCore core, Player me, Card card, EffectDefinition def,
             int modeIndex, List<List<Entity>> sink)
         {
+            if (def.PerAtomTargets)
+            {
+                ExpandPerAtomTargets(core, me, card, def, sink);
+                if (sink.Count == 0) sink.Add(null); // 全部原子自动/任意 → 单行 null（引擎自解析）
+                return;
+            }
+
             var domain = DomainOfMode(def, modeIndex);
             if (domain == null || domain.Count == 0 || def.SelectionMode == SelectionMode.None)
             {
@@ -836,6 +865,61 @@ namespace CardCore.AI.NeuralEnv
                 return;
             }
             EmitCombinations(candidates, need, MaxTargetCombos, sink);
+        }
+
+        /// <summary>逐原子目标展开（v8 多目标 2026-11-02）：按 CollectAtomTargetSpecs 单源规格逐条展开——
+        /// 候选已完成两道过滤（与结算路径交互分支同序）；任意数量（-1）与单目标免弹档（AutoTake∧
+        /// effCount&lt;=1）不占选择权（引擎自动取/弹选代选，其余原子照常预选）；选 N 档被免弹自动取
+        ///（候选≤需求）仍显式展开唯一组合=全候选（2026-11-02 验收：2 敌+选 2 = 1 行 nTargets=2，
+        /// 显式多目标行优于 null 行交引擎自解析）；选一逐候选一行；选 N（effCount&gt;1，含压过
+        /// 选一模式情形）组合枚举；多规格=笛卡尔串接（返回序=原子执行序，预选队列有序消费对齐），
+        /// 总行数 cap=MaxTargetCombos 截断。行内 Targets 完整（特征只编码前 3 个目标）。</summary>
+        private static void ExpandPerAtomTargets(GameCore core, Player me, Card card, EffectDefinition def,
+            List<List<Entity>> sink)
+        {
+            var ctx = BuildTargetCtx(core, me, card);
+            var specs = CardCore.Attribute.EffectHandlerRegistry.CollectAtomTargetSpecs(def, ctx);
+            if (specs.Count == 0) return;
+
+            var rows = new List<List<Entity>> { new List<Entity>() }; // 笛卡尔种子（空行）
+            foreach (var spec in specs)
+            {
+                if (spec.EffCount == -1 || (spec.AutoTake && spec.EffCount <= 1)) continue; // 运行时自选/单目标免弹——不预选
+
+                var atomRows = new List<List<Entity>>();
+                if (spec.AutoTake)
+                {
+                    var forced = new List<Entity>(); // 候选≤需求的选 N 档：唯一组合=全候选（与引擎 AutoTake.Take 同取值）
+                    for (int i = 0; i < spec.Candidates.Count && i < spec.EffCount; i++) forced.Add(spec.Candidates[i]);
+                    atomRows.Add(forced);
+                }
+                else if (spec.EffCount <= 1)
+                {
+                    foreach (var t in spec.Candidates)
+                        atomRows.Add(new List<Entity> { t }); // 选一：逐候选一行
+                }
+                else
+                {
+                    // 选 N：候选≤需求已由 AutoTake 吸收（ShouldAutoTake），此处恒组合枚举
+                    EmitCombinations(spec.Candidates, spec.EffCount, MaxTargetCombos, atomRows);
+                }
+
+                var next = new List<List<Entity>>();
+                foreach (var prefix in rows)
+                {
+                    foreach (var tail in atomRows)
+                    {
+                        var merged = new List<Entity>(prefix);
+                        merged.AddRange(tail);
+                        next.Add(merged);
+                        if (next.Count >= MaxTargetCombos) break;
+                    }
+                    if (next.Count >= MaxTargetCombos) break;
+                }
+                rows = next;
+            }
+            foreach (var r in rows)
+                if (r.Count > 0) sink.Add(r);
         }
 
         /// <summary>候选序组合枚举（字典序前 cap 组）：候选序=引擎 ResolveCandidates 返回序（契约口径）。</summary>
@@ -886,6 +970,16 @@ namespace CardCore.AI.NeuralEnv
                     ? TideCardIndex.IndexOfEffectDefinition(a.Effect) / 1024f
                     : 0f;
                 Features[b + 7] = a.TargetKindCode;                          // 0 无/1 卡/2 对方玩家/3 己方玩家
+                // v8 多目标（2026-11-02 动作空间扩维）：次目标槽位 + 目标数——只有走 BuildTargetedRow
+                // 目标展开的四类动作才有次目标；其余类型（Attack/Guard 恒单目标、无目标类）恒 -1/按
+                // TargetKindCode 单目标计数（构造点不设字段，struct 默认 0 在此闸强制归位，防误读为槽 0）
+                bool expanded = a.Type == TideActionType.PlayCard || a.Type == TideActionType.RespondPlay
+                    || a.Type == TideActionType.Activate || a.Type == TideActionType.RespondActivate;
+                Features[b + 8] = expanded ? a.TargetIndex2 : -1;            // Targets[1] 槽位（-1=无/截断）
+                Features[b + 9] = expanded ? a.TargetIndex3 : -1;            // Targets[2] 槽位（-1=无/截断）
+                Features[b + 10] = expanded                                  // 目标数（0..8 钳；全取行=候选数）
+                    ? Math.Min(a.Targets?.Count ?? 0, 8)
+                    : (a.TargetKindCode > 0 ? 1 : 0);                        // Attack/Guard 单目标=1，无目标=0
             }
         }
 
@@ -895,7 +989,7 @@ namespace CardCore.AI.NeuralEnv
             {
                 case TideActionType.PlayCard:
                 case TideActionType.RespondPlay:
-                    return GameActions.GetCardCost(a.Card, a.ModeIndex, a.AwakenCast).Total; // 苏醒变体=豁免后账单
+                    return GameActions.GetCardCost(a.Card, a.ModeIndex).Total;
                 case TideActionType.Activate:
                 case TideActionType.RespondActivate:
                 case TideActionType.VoluntaryTrigger:
@@ -936,7 +1030,9 @@ namespace CardCore.AI.NeuralEnv
         /// <summary>第一个带组合域的非主动效果定义（施放即结算才会随出牌自动跑）；
         /// None 模式（区域自结算类）跳过——不为其选目标。
         /// 法术（2026-10-15 改版）：效果全为主动、施放时抉择其一——modeIndex=效果序号，
-        /// 目标展开按所选那条（其余效果本局不发动）。</summary>
+        /// 目标展开按所选那条（其余效果本局不发动）。
+        /// v8（2026-11-02）：None 过滤对逐原子口径（PerAtomTargets）豁免——选择参数在原子上
+        ///（atom.kinds/effCount），header None 不代表无交互原子。</summary>
         private static EffectDefinition FirstDomainEffect(Card card, int modeIndex)
         {
             var defs = GetEffectDefinitions(card);
@@ -947,13 +1043,14 @@ namespace CardCore.AI.NeuralEnv
                 var castable = GameActions.GetCastableEffectDefinitions(card);
                 if (castable.Count == 0) return null;
                 var spellDef = castable[Math.Clamp(modeIndex, 0, castable.Count - 1)];
-                if (spellDef == null || spellDef.SelectionMode == SelectionMode.None) return null;
+                if (spellDef == null) return null;
+                if (spellDef.SelectionMode == SelectionMode.None && !spellDef.PerAtomTargets) return null;
                 return spellDef.TargetDomain != null && spellDef.TargetDomain.Count > 0 ? spellDef : null;
             }
             foreach (var def in defs)
             {
                 if (def.IsActivatedEffect) continue;
-                if (def.SelectionMode == SelectionMode.None) continue;
+                if (def.SelectionMode == SelectionMode.None && !def.PerAtomTargets) continue;
                 var domain = DomainOfMode(def, modeIndex);
                 if (domain != null && domain.Count > 0) return def;
             }

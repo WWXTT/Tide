@@ -13,7 +13,8 @@ namespace CardCore
     /// （支付者视角，与 GameActions.EvaluatePayloadGate 目标门槛同源）。
     /// 资敌臂（2026-10-28 P1b，p&gt;0 锁对方）：判定 = 域内有合法目标，且该目标**确实会被改变**——
     /// 治疗（Damaged）须对方有受伤单位；防护类（圣盾/复生/不灭/帷幕…）须对方有未持有同名
-    /// 指示物/关键词的单位；抽牌/送牌须对方手牌未满；禁止「能付但无效果」白嫖减费。
+    /// 指示物/关键词的单位；抽牌恒可付（2026-11-02 满手概念删除——上限只是回合结束闸门）；
+    /// 禁止「能付但无效果」白嫖减费。
     /// 结算期目标失效（响应窗口内全灭）的回退仍由 PayloadTargetsAllLost 承担——本闸不替代。
     /// </summary>
     public static class CostPayability
@@ -72,8 +73,54 @@ namespace CardCore
             return true;
         }
 
+        /// <summary>
+        /// 重放轮可付口径（2026-11-02 重放改版·用户定案：**溢出支付制**——库存 ≥1 即可付、
+        /// 执行层付光现有为准；无支付目标=失败→重复无效、层保留）：弃牌/磨牌两臂自声明期
+        /// 「量足」放宽为「≥1」（执行层 DiscardCard/MillCard 对不足量本就全弃/全磨=天然溢出）；
+        /// 自伤臂沿用代价致死禁令（Life &gt; value）；资敌禁白嫖/有域候选非空/无域恒可付
+        /// 与声明期同口径（default 直接复用 <see cref="CanPay"/>）。仅重放轮使用——
+        /// 首轮施放/发动的声明闸仍走量足口径不变。
+        /// </summary>
+        public static bool CanPayForReplay(AtomicEffectInstance atom, Player payer, ZoneManager zm, CostContext ctx)
+        {
+            if (atom == null) return true;
+            payer = payer ?? ctx?.Payer;
+            zm = zm ?? ctx?.ZoneManager;
+            if (payer == null || zm == null) return false;
+            int value = Math.Max(0, atom.Value);
+            switch (atom.Type)
+            {
+                case AtomicEffectType.DiscardCard: // 弃 N·手牌 ≥1 即可付（不足量弃光=溢出）
+                    return value <= 0 || ZoneCount(zm, payer, Zone.Hand) >= 1;
+                case AtomicEffectType.MillCard:    // 磨 N·牌库 ≥1 即可付（同溢出口径）
+                    return value <= 0 || ZoneCount(zm, payer, Zone.Deck) >= 1;
+                default:
+                    return CanPay(atom, payer, zm, ctx);
+            }
+        }
+
+        /// <summary>重放轮一组代价：全部可付才 true（Payload 逐原子按重放口径；结构同 AllPayable）。</summary>
+        public static bool AllPayableForReplay(IEnumerable<CostInstance> costs, CostContext ctx)
+        {
+            if (costs == null) return true;
+            foreach (var cost in costs)
+            {
+                if (cost == null) continue;
+                if (cost.Type == CostType.Payload)
+                {
+                    if (cost.Payloads == null) continue;
+                    foreach (var atom in cost.Payloads)
+                        if (!CanPayForReplay(atom, ctx?.Payer, ctx?.ZoneManager, ctx))
+                            return false;
+                }
+                else if (!CostHandlerRegistry.CanPay(cost, ctx))
+                    return false;
+            }
+            return true;
+        }
+
         /// <summary>给 UI/AI 的拒绝原因串（可支付返回 null）：手牌不足/生命不足/牌库不足/无合法目标
-        /// /资敌无有效目标（对方满血·已持有防护·手牌满等）。</summary>
+        /// /资敌无有效目标（对方满血·已持有防护等；满手不拒——2026-11-02 满手概念删除）。</summary>
         public static string RejectReason(IEnumerable<CostInstance> costs, CostContext ctx)
         {
             if (costs == null) return null;
@@ -144,16 +191,9 @@ namespace CardCore
             reason = null;
             if (!HasDomain(atom)) return false;
 
-            // 抽牌/送牌族（对方卡域）：对方手牌未满才可付（手牌未满 → 继续候选检查）
-            if (atom.Type == AtomicEffectType.DrawCard && HasEnemyCardZone(atom))
-            {
-                var opp = payer.Opponent;
-                if (opp != null && ZoneCount(zm, opp, Zone.Hand) >= RuleHooks.GetHandLimit(opp))
-                {
-                    reason = $"资敌代价不可付：对方手牌已满（{atom.Type}）——卡的发动无效";
-                    return true;
-                }
-            }
+            // 抽牌/送牌族（对方卡域）：2026-11-02 用户定案删除「满手牌」概念——手牌上限只是
+            // 回合结束的弃牌闸门（GameCore.EnforceHandLimit），回合中抽牌/获得卡不限张数、
+            // 无爆牌——对方手牌再满，抽牌代价照付照结算（空牌库抽=疲劳，同样有效非白嫖）。
 
             var candidates = ResolveDomainCandidates(atom, payer, zm, ctx);
             if (candidates.Count == 0)

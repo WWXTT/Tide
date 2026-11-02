@@ -196,6 +196,22 @@ namespace CardCore
         public bool IsSBA { get; set; }
 
         /// <summary>
+        /// 阶段窗伪对象标记（2026-11-01 定案：0 速伪栈对象开阶段优先权窗；同日修订双窗时点）：
+        /// 本实例不代表任何效果/宣言，仅为「结束阶段开始」（GameActions.EndTurn）与「主阶段开始」
+        /// （GameCore.OnMainPhaseStartedWindow 订阅 PhaseStartEvent(Main)——原「回合结束前」废弃）
+        /// 两个时点开响应窗（双方 Pass=让路，阶段推进在窗口外由调用链/帧泵承担）。
+        /// 由 StackEngine.PushPhaseWindow 创建、ResolveStack 的 IsPhaseWindow 分支消费（到点自动
+        /// 消失——不结算、不重查、不发事件）。0 速不抬记速器：窗口内响应门槛=速≥1 且 速≥0
+        /// （1 速手牌/主动效果可入，同空栈基线）。Source/Definition 恒 null（Controller=优先权
+        /// 起点，仅供描述层）；Type 报告 StackObjectType.Effect；网络快照按 null 安全回落（同 SBA）。
+        /// </summary>
+        public bool IsPhaseWindow { get; set; }
+
+        /// <summary>阶段窗时点名（IsPhaseWindow 时由 PushPhaseWindow 写入，可空）：「结束阶段开始」/
+        /// 「主阶段开始」——描述层（响应弹窗「在响应什么」/回放标签）区分两个窗口用。</summary>
+        public string PhaseWindowLabel { get; set; }
+
+        /// <summary>
         /// 攻击宣言标记（2026-09-16 战斗接入栈机器定案）：本实例代表一次攻击宣言——
         /// 速度0栈对象（逐攻击开窗），Source=攻击者、Targets=[宣言目标]、Controller=攻击方；
         /// 由 StackEngine.PushAttackDeclaration 创建、ResolveStack 的 IsAttackDeclaration 分支

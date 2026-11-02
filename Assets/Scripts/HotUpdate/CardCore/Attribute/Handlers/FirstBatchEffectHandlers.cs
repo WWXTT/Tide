@@ -224,9 +224,6 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            // 禁寻令（2026-10-29 1b）：受光环影响的一方不能检索牌库
-            if (RuleAuraSystem.ScopeHits(RuleAuraComponents.NoSearchAura, context.Controller)) return;
-
             if (context.ZoneManager == null || context.Controller == null) return;
 
             string declared = effect.StringValue;
@@ -338,7 +335,9 @@ namespace CardCore.Attribute.Handlers
         protected override string DescribeTemplate(AtomicEffectInstance effect) => "从墓地返回到战场";
     }
 
-    /// <summary>墓地回收到手牌（将控制者墓地前 N 张放回手牌；费用锚点：回收 1 张 = 1 费）。</summary>
+    /// <summary>墓地回收到手牌（将控制者墓地前 N 张放回手牌；费用锚点：回收 1 张 = 1 费）。
+    /// 目标分支归属路由（2026-11-02 洗回改版对齐）：所选卡回**拥有者**手牌——跨双方墓地
+    /// 选取（kinds [9,10]/表默认双域）下对方卡回对方手牌，与弹回/弹回牌库/洗回/除外回收同口径。</summary>
     public class RecoverToHandHandler : AtomicEffectHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.RecoverToHand;
@@ -356,7 +355,8 @@ namespace CardCore.Attribute.Handlers
 
             foreach (var card in toRecover)
             {
-                context.ZoneManager.MoveCard(card, context.Controller, Zone.Graveyard, Zone.Hand);
+                var owner = card.GetOwner() ?? card.GetController() ?? context.Controller;
+                context.ZoneManager.MoveCard(card, owner, Zone.Graveyard, Zone.Hand);
                 PublishEvent(new CardReturnToHandEvent { Card = card, Source = context.Source });
             }
         }
@@ -388,9 +388,7 @@ namespace CardCore.Attribute.Handlers
     /// <summary>
     /// 占卜（2026-09-11 排列实现；2026-10-08 并入刺探为单行）：查看牌库顶 {value} 张并任意排列——
     /// 域锁对方(8)看对手牌库，其余（7/双域默认）看自己（排列者恒为发动方）。
-    /// 占卜加成（2026-10-29 阶段3c）：ScryBonusAura 生效且发动方一侧在范围内 → 实际查看数+1
-    ///（按控制者判——谁发动占卜谁吃加成，与百闻牌「己方占卜效果+1」同口径；只叠加读取数，
-    /// 不改 effect 本体）。
+    ///（占卜加成 ScryBonusAura 外补链已随 2026-11-02 占卜加成仪典删除退役。）
     /// 主路径 ExecuteAsync：排列交互逐张单选（先选的在最顶），整段写回新顶序；
     /// AI/无头/超时自动取剩余首张 = 维持原序（训练确定性）。
     /// 同步 Execute 仅查看播报（旧同步/触发路径兼容，不弹排列）。
@@ -399,14 +397,10 @@ namespace CardCore.Attribute.Handlers
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.LookAtTopCards;
 
-        /// <summary>占卜加成外补数（光环实时查询——不落 effect/value，计价与描述不受影响）。</summary>
-        private static int ScryBonus(EffectExecutionContext context)
-            => RuleAuraSystem.ScopeHits(RuleAuraComponents.ScryBonusAura, context.Controller) ? 1 : 0;
-
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
             var owner = DeckArrangeHelper.ResolveDeckOwner(effect, context);
-            var top = DeckArrangeHelper.PeekTop(effect, context, owner, ScryBonus(context));
+            var top = DeckArrangeHelper.PeekTop(effect, context, owner);
             if (top.Count > 0)
                 PublishEvent(new ScryEvent { Player = owner, Cards = top, Source = context.Source });
         }
@@ -414,7 +408,7 @@ namespace CardCore.Attribute.Handlers
         public override async UniTask ExecuteAsync(AtomicEffectInstance effect, EffectExecutionContext context)
         {
             var owner = DeckArrangeHelper.ResolveDeckOwner(effect, context);
-            var top = DeckArrangeHelper.PeekTop(effect, context, owner, ScryBonus(context));
+            var top = DeckArrangeHelper.PeekTop(effect, context, owner);
             if (top.Count == 0) return;
 
             var final = top;

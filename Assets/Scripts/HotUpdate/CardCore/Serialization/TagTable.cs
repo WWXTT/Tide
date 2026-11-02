@@ -240,6 +240,8 @@ namespace CardCore.Serialization
         public const int MsgIntentPlayCard_Targets = 1450138392;
         public const int MsgIntentPlayCard_FromZone = 933788219;
         public const int MsgIntentPlayCard_ModeIndex = 1969366828;
+        /// <summary>已废弃（2026-11-02 苏醒机制整链删除）：标签 ID 不回收（协议兼容），
+        /// 字段保留读兼容、不再写入。</summary>
         public const int MsgIntentPlayCard_AwakenCast = 1025809165;
 
         // ---- MsgIntentBuildCard ----

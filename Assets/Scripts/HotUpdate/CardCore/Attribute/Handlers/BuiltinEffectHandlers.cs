@@ -122,6 +122,9 @@ namespace CardCore.Attribute.Handlers
             int count = context.GetValueAfterModifiers(effect.Value);
             if (context.ZoneManager != null && context.Controller != null)
             {
+                // 抽牌归属=执行控制器（资敌抽牌经 CostCompensationService.ExecutePayloadAtomAsync
+                // 的受惠侧执行已把 Controller 翻转为对手——蓝套磨牌流「对手抽牌」代价即走此路，
+                // handler 无需再看域；效果栏「有益锁对方」原子被内容契约剔除，恒为己方抽）。
                 // 抽牌事件单源：ZoneManagerExtensions.DrawCard 内经 GameCore 统一路由发布一次
                 // （2026-10-15 修复：handler 此前自发布一次=效果抽牌同卡双事件，OnDraw 触发/计数双跑）。
                 for (int i = 0; i < count; i++)
@@ -192,7 +195,8 @@ namespace CardCore.Attribute.Handlers
         }
     }
 
-    /// <summary>冻结</summary>
+    /// <summary>冻结（2026-11-02 回退指示物版·表行 973884b1 回指示物表，费用 1→2 蓝）：
+    /// 横置 + 挂冻结指示物（层=持续回合，持有期间无法重置，持有者回合末 −1 归零解除）。</summary>
     public class FreezeHandler : AtomicEffectHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.Freeze;
@@ -311,14 +315,16 @@ namespace CardCore.Attribute.Handlers
         }
     }
 
-    /// <summary>
-    /// 永久属性增加（2026-10-08 恢复开放，表行 9256b41a）：+{value}/+{value} 双属性**直写字段**
-    ///（复用 CounterRules.ApplyStatDelta 的 PlusOnePlusOne 直写分支，不挂计数层）——本局游戏
-    /// 永久、跨区保留、净化不清（视同本体），与来源无关。临时层（换区清）用 AddPlusOne。
-    /// </summary>
-    public class AddPermanentPlusOneHandler : AtomicEffectHandlerBase
+    // ================================================================
+    // 永久攻血四轴（2026-11-02 拆分定案）：原 AddPermanentPlusOne/MinusOneHandler（±X/±X 双属性
+    // 直写，表行 9256b41a/e5da6dd9）退役，拆单轴四行各费 1——均走 CounterRules.ApplyStatDelta
+    // 的单轴直写分支（不挂计数层），本局永久、跨区保留、净化不清（视同本体），与来源无关。
+    // ================================================================
+
+    /// <summary>永久攻击力增加（表行 c5340751）：攻击力永久 +{value} 直写；value 为负时反向按减轴写。</summary>
+    public class AddPermanentPowerUpHandler : AtomicEffectHandlerBase
     {
-        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddPermanentPlusOne;
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddPermanentPowerUp;
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
@@ -327,9 +333,8 @@ namespace CardCore.Attribute.Handlers
             {
                 if (!(target is Card card) || !card.IsAlive) continue;
                 int oldPower = card.GetPower();
-                int oldLife = card.GetLife();
                 CounterRules.ApplyStatDelta(card,
-                    amount >= 0 ? StatCounterKind.PlusOnePlusOne : StatCounterKind.MinusOneMinusOne,
+                    amount >= 0 ? StatCounterKind.PowerUp : StatCounterKind.PowerDown,
                     amount >= 0 ? amount : -amount, context.Source);
                 PublishEvent(new StatModifyEvent
                 {
@@ -340,29 +345,17 @@ namespace CardCore.Attribute.Handlers
                     Delta = amount,
                     Source = context.Source
                 });
-                PublishEvent(new StatModifyEvent
-                {
-                    Target = card,
-                    StatType = StatType.Life,
-                    OldValue = oldLife,
-                    NewValue = card.GetLife(),
-                    Delta = amount,
-                    Source = context.Source
-                });
             }
         }
 
         protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => $"属性永久+{effect.Value}/+{effect.Value}";
+            => $"攻击力永久+{effect.Value}";
     }
 
-    /// <summary>
-    /// 永久属性减少（表行 e5da6dd9）：−{value}/−{value} 双属性直写字段（上限削至 0 止、
-    /// 有效生命归零标死交 SBA——死亡来源=施加方）；跨区保留、净化不清，与来源无关。
-    /// </summary>
-    public class AddPermanentMinusOneHandler : AtomicEffectHandlerBase
+    /// <summary>永久攻击力减少（表行 8ae22c02）：攻击力永久 −{value} 直写；value 为负时反向按增轴写。</summary>
+    public class AddPermanentPowerDownHandler : AtomicEffectHandlerBase
     {
-        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddPermanentMinusOne;
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddPermanentPowerDown;
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
@@ -371,9 +364,8 @@ namespace CardCore.Attribute.Handlers
             {
                 if (!(target is Card card) || !card.IsAlive) continue;
                 int oldPower = card.GetPower();
-                int oldLife = card.GetLife();
                 CounterRules.ApplyStatDelta(card,
-                    amount >= 0 ? StatCounterKind.MinusOneMinusOne : StatCounterKind.PlusOnePlusOne,
+                    amount >= 0 ? StatCounterKind.PowerDown : StatCounterKind.PowerUp,
                     amount >= 0 ? amount : -amount, context.Source);
                 PublishEvent(new StatModifyEvent
                 {
@@ -384,6 +376,60 @@ namespace CardCore.Attribute.Handlers
                     Delta = -amount,
                     Source = context.Source
                 });
+            }
+        }
+
+        protected override string DescribeTemplate(AtomicEffectInstance effect)
+            => $"攻击力永久−{effect.Value}";
+    }
+
+    /// <summary>永久生命值增加（表行 0afd7173）：生命上限与当前各永久 +{value} 直写。</summary>
+    public class AddPermanentLifeUpHandler : AtomicEffectHandlerBase
+    {
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddPermanentLifeUp;
+
+        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            int amount = context.GetValueAfterModifiers(effect.Value);
+            foreach (var target in context.Targets)
+            {
+                if (!(target is Card card) || !card.IsAlive) continue;
+                int oldLife = card.GetLife();
+                CounterRules.ApplyStatDelta(card,
+                    amount >= 0 ? StatCounterKind.LifeUp : StatCounterKind.LifeDown,
+                    amount >= 0 ? amount : -amount, context.Source);
+                PublishEvent(new StatModifyEvent
+                {
+                    Target = card,
+                    StatType = StatType.Life,
+                    OldValue = oldLife,
+                    NewValue = card.GetLife(),
+                    Delta = amount,
+                    Source = context.Source
+                });
+            }
+        }
+
+        protected override string DescribeTemplate(AtomicEffectInstance effect)
+            => $"生命值永久+{effect.Value}";
+    }
+
+    /// <summary>永久生命值减少（表行 e97b8001）：上限永久 −{value}（削至 0 止）、有效生命归零
+    /// 标死交 SBA——死亡来源=施加方（与生命值减少指示物同口径）。</summary>
+    public class AddPermanentLifeDownHandler : AtomicEffectHandlerBase
+    {
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddPermanentLifeDown;
+
+        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            int amount = context.GetValueAfterModifiers(effect.Value);
+            foreach (var target in context.Targets)
+            {
+                if (!(target is Card card) || !card.IsAlive) continue;
+                int oldLife = card.GetLife();
+                CounterRules.ApplyStatDelta(card,
+                    amount >= 0 ? StatCounterKind.LifeDown : StatCounterKind.LifeUp,
+                    amount >= 0 ? amount : -amount, context.Source);
                 PublishEvent(new StatModifyEvent
                 {
                     Target = card,
@@ -397,7 +443,7 @@ namespace CardCore.Attribute.Handlers
         }
 
         protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => $"属性永久−{effect.Value}/−{effect.Value}";
+            => $"生命值永久−{effect.Value}";
     }
 
     // ================================================================

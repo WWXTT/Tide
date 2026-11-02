@@ -317,7 +317,7 @@ namespace CardCore.Attribute.Handlers
     /// 命中奖励=内置发动无效原子（CardPlayEvent 时点被验证卡尚在发动区——施放路径送墓即
     /// cast 消费点中止，不付费不结算）。押注隐藏（ProphecyRegisteredEvent 不含宣言内容，
     /// 对手只知道"预言已立"；验证时刻 ProphecyResolvedEvent 公开）。非法编码照常登记，
-    /// 验证时刻按未命中结算（与卡名预言同口径——组装期垃圾不卡死结算）。
+    /// 验证时刻按未命中结算（与 ProphecyNextCard 押注行同口径——组装期垃圾不卡死结算）。
     /// </summary>
     public class DeclareDeckTopHandler : AtomicEffectHandlerBase
     {
@@ -338,6 +338,7 @@ namespace CardCore.Attribute.Handlers
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
             context.LastOutcome.Declaration = effect.StringValue;
+            context.LastOutcome.HiddenDeclaration = true; // 隐秘押注：描述/战报不回显，结算时 ProphecyResolvedEvent 公开
 
             if (!ProphecyDimension.TryParse(effect.StringValue, out var dim, out var val)
                 || dim != ProphecyDimension.Type || !ProphecyDimension.IsValidValue(dim, val))
@@ -364,26 +365,31 @@ namespace CardCore.Attribute.Handlers
         }
 
         protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => $"隐秘宣言{effect.StringValue}，对手下回合首张同类卡发动无效";
+            => "隐秘宣言一个类别，对手下回合首张同类卡发动无效（类别结算时公开）";
     }
 
     /// <summary>
-    /// 预言·对手下回合首张（隐藏押注）：本 handler 只登记押注（校验并暂存宣言），
-    /// 不写 DeclareHit。紧随其后的分支步骤由执行引擎识别为延迟验证，打包成
-    /// PendingProphecy 注册到 ProphecySystem——对手下回合首张出牌时验证，
+    /// 预言·押注行（2026-11-02 改版：卡名预言收紧为类别押注——挂法引擎主干→有限分支，
+    /// 表行 a59e901d→479e3d5f，EnumName 随改「预言」）：本 handler 只登记押注（校验并暂存宣言），
+    /// 不写 DeclareHit。押注域=类别三选一（Type:Creature/Spell/Enchantment），命中奖励预算 3
+    ///（表行 Budget 列——合成器 RewardCapOf 同源）。紧随其后的分支步骤由执行引擎识别为
+    /// 延迟验证，打包成 PendingProphecy 注册到 ProphecySystem——对手下回合首张出牌时验证，
     /// 整回合未出牌作未命中走 else（用户定案）。
+    /// 隐秘性（2026-11-02 定案）：宣言时刻类别不可见——反问只下发宣告方座位、描述模板不带
+    /// str、LastOutcome.HiddenDeclaration 压产出回显；结算时刻对手在战报（ProphecyResolvedEvent
+    /// → MatchLogRenderer 预言揭晓行）看到押注类别与结果。
     /// </summary>
     public class ProphecyNextCardHandler : AtomicEffectHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.ProphecyNextCard;
 
-        /// <summary>结算期宣言反问（2026-10-31 阶段C）：弹维度选择（全量维度——类别/颜色/费用/
-        /// 箭头/卡名，卡名项链文本输入）替换构筑期预置；押注隐秘（ProphecyRegisteredEvent 不含
-        /// 宣言内容）。维度行无取消键（封闭选项），卡名输入取消=效果不结算。</summary>
+        /// <summary>结算期宣言反问（2026-10-31 阶段C；2026-11-02 收紧）：弹类别三选一
+        /// （Type:Creature/Spell/Enchantment——与预言 DeclareDeckTop 同档）替换构筑期预置；
+        /// 押注隐秘（ProphecyRegisteredEvent 不含宣言内容）。封闭选项无取消键。</summary>
         public override async UniTask ExecuteAsync(AtomicEffectInstance effect, EffectExecutionContext context)
         {
             var encoded = await ProphecyHandlerUtil.AskDimensionAsync(effect, context,
-                "卡名预言：押注对手下回合首张出牌的类别或卡名", typeOnly: false);
+                "预言：押注对手下回合首张出牌的类别", typeOnly: true);
             if (encoded == null) return;
             effect.StringValue = encoded;
             Execute(effect, context);
@@ -391,18 +397,21 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            // 校验宣言域；非法宣言也照常登记（验证时刻按未命中结算，避免组装期垃圾卡死结算）
+            // 校验宣言域（2026-11-02 收紧只收类别档）；非法/越档宣言也照常登记
+            //（验证时刻按未命中结算，避免组装期垃圾卡死结算）
             if (!ProphecyDimension.TryParse(effect.StringValue, out var dim, out var val)
-                || !ProphecyDimension.IsValidValue(dim, val))
+                || dim != ProphecyDimension.Type || !ProphecyDimension.IsValidValue(dim, val))
             {
                 TideLog.Warn(
-                    $"[Prophecy] 非法宣言编码 '{effect.StringValue}'（应为 维度:值，且值在有限域内），预言将按未命中结算");
+                    $"[Prophecy] 非法宣言编码 '{effect.StringValue}'（预言只收类别 Type:Creature/Spell/Enchantment），将按未命中结算");
             }
 
             context.LastOutcome.Declaration = effect.StringValue;
+            context.LastOutcome.HiddenDeclaration = true; // 隐秘押注：描述/战报不回显，结算时 ProphecyResolvedEvent 公开
         }
 
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => $"预言对手下回合首张卡为{effect.StringValue}";
+        protected override string DescribeTemplate(AtomicEffectInstance effect)
+            => "隐秘押注对手下回合首张出牌的类别（命中触发奖励，类别结算时公开）";
     }
 
     // ---------------- 共用小工具 ----------------
@@ -411,7 +420,8 @@ namespace CardCore.Attribute.Handlers
     /// 强夺按宣言卡名定位，无选位语义）。
     /// 2026-10-31 阶段C：新增结算期宣言反问两口（原子表「参数」列接 UI 的引擎侧载体）——
     /// AskCardNameAsync（CardName 行：检索/强夺/窃取）与 AskDimensionAsync（Dimension 行：
-    /// 筛选展示/预言/卡名预言）。取消语义=效果不结算、已付费用不退（TargetSelectionService 定案）。</summary>
+    /// 筛选展示=全量维度、预言两行=类别三选一——2026-11-02 押注行同收紧）。取消语义=效果
+    /// 不结算、已付费用不退（TargetSelectionService 定案）。</summary>
     public static class ProphecyHandlerUtil
     {
         /// <summary>卡名输入长度上限（输入窗 characterLimit 与网络 MaxLen 同源）。</summary>

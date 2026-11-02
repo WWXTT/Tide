@@ -183,10 +183,11 @@ namespace CardCore.Attribute.Handlers
         protected override string DescribeTemplate(AtomicEffectInstance effect) => "消灭目标生物（效果死亡；不灭可拦、复生可替代）";
     }
 
-    /// <summary>全体消灭（2026-10-29 阶段3a，红12·无目标行）：消灭对方全体生物——逐个效果死亡
-    ///（DestroyEffect 死因，与消灭同口径：不灭拦/复生可替代由 TryKill 决策表承担）。
-    /// 无域原子（表行 TargetKinds 空）——handler 自结算：遍历对手战场存活的生物（Cardtype.Creature），
-    /// 单次执行、无目标解析。</summary>
+    /// <summary>全体消灭（2026-10-29 阶段3a，红12·无目标行）：消灭对方全体生物和结界——
+    /// 生物逐个效果死亡（DestroyEffect 死因，与消灭同口径：不灭拦/复生可替代由 TryKill 决策表承担）；
+    /// 结界=无生命单位，走摧毁口径（同 SmashHandler：不灭可拦、发摧毁事件、直送墓地不走死亡决策表）。
+    /// 2026-11-02 补齐结界面（表行文案本就是「消灭对方全体生物和结界」，旧实现只扫生物）。
+    /// 无域原子（表行 TargetKinds 空）——handler 自结算：遍历对手战场，单次执行、无目标解析。</summary>
     public class DevourAllEnemiesHandler : AtomicEffectHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.DevourAllEnemies;
@@ -199,8 +200,27 @@ namespace CardCore.Attribute.Handlers
             foreach (var card in context.ZoneManager.GetCards(opp, Zone.Battlefield))
             {
                 if (card == null || !card.IsAlive) continue;
-                if (!(card is IHasSupertype ht) || ht.Supertype != Cardtype.Creature) continue;
-                DeathRules.TryKill(card, DeathCause.DestroyEffect, context.Source, context.ZoneManager);
+                if (!(card is IHasSupertype ht)) continue;
+                if (ht.Supertype == Cardtype.Creature)
+                {
+                    DeathRules.TryKill(card, DeathCause.DestroyEffect, context.Source, context.ZoneManager);
+                }
+                else if (ht.Supertype == Cardtype.Enchantment)
+                {
+                    // 结界（2026-11-02）：不灭免疫三口同拦裁定——拦下即整跳；
+                    // 事件序定案（先摧毁事件后移墓）；无生命值不走 DeathRules，直送墓地
+                    if (DeathRules.IsShielded(card, DeathCause.DestroyEffect)) continue;
+                    PublishEvent(new CardDestroyEvent
+                    {
+                        DestroyedCard = card,
+                        Reason = DestroyReason.Smashed,
+                        Source = context.Source,
+                        EffectTint = effect.AnchorTint()
+                    });
+                    var owner = card.GetOwner() ?? card.GetController();
+                    if (owner != null && card.GetZone() != Zone.Graveyard)
+                        context.ZoneManager.MoveCard(card, owner, card.GetZone(), Zone.Graveyard);
+                }
             }
         }
     }
@@ -461,9 +481,6 @@ namespace CardCore.Attribute.Handlers
 
         public override async UniTask ExecuteAsync(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            // 禁寻令（2026-10-29 1b）：受光环影响的一方不能检索牌库（发现=检索族同门）
-            if (RuleAuraSystem.ScopeHits(RuleAuraComponents.NoSearchAura, context.Controller)) return;
-
             var controller = context.Controller;
             var zm = context.ZoneManager;
             if (controller == null || zm == null) return;

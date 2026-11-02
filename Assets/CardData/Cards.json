@@ -1,5 +1,1235 @@
 {
-  "cards": [],
+  "cards": [
+    {
+      "id": "C_7E05D6C3",
+      "cardName": "训练·01",
+      "supertype": "Creature",
+      "power": 1,
+      "life": 2,
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0
+      ],
+      "tags": [
+        "训练池"
+      ]
+    },
+    {
+      "id": "C_475D0B69",
+      "cardName": "训练·02",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 1,
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0
+      ],
+      "tags": [
+        "训练池"
+      ]
+    },
+    {
+      "id": "C_4D7154FA",
+      "cardName": "训练·03",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 3,
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        2.0,
+        0.0
+      ],
+      "tags": [
+        "训练池"
+      ]
+    },
+    {
+      "id": "C_4F2BEDE7",
+      "cardName": "训练·04",
+      "supertype": "Creature",
+      "power": 3,
+      "life": 2,
+      "costList": [
+        0.0,
+        1.0,
+        0.0,
+        1.0,
+        0.0
+      ],
+      "tags": [
+        "训练池"
+      ]
+    },
+    {
+      "id": "C_C8F2AFC2",
+      "cardName": "训练·05",
+      "supertype": "Creature",
+      "power": 7,
+      "life": 9,
+      "costList": [
+        0.0,
+        2.0,
+        0.0,
+        5.0,
+        0.0
+      ],
+      "tags": [
+        "训练池"
+      ]
+    },
+    {
+      "id": "C_135B6FC6",
+      "cardName": "训练·06",
+      "supertype": "Creature",
+      "power": 9,
+      "life": 7,
+      "costList": [
+        0.0,
+        4.0,
+        0.0,
+        3.0,
+        0.0
+      ],
+      "tags": [
+        "训练池"
+      ]
+    },
+    {
+      "id": "C_EF775B1E",
+      "cardName": "训练·先攻卫队",
+      "supertype": "Creature",
+      "power": 3,
+      "life": 2,
+      "costList": [
+        0.0,
+        3.0,
+        0.0,
+        1.0,
+        0.0
+      ],
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "073f18c7"
+      ]
+    },
+    {
+      "id": "C_D5523F0D",
+      "cardName": "训练·连击卫队",
+      "supertype": "Creature",
+      "power": 3,
+      "life": 3,
+      "costList": [
+        0.0,
+        4.0,
+        0.0,
+        1.0,
+        0.0
+      ],
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "8c988c18"
+      ]
+    },
+    {
+      "id": "C_79E3FBD5",
+      "cardName": "训练·警戒卫队",
+      "supertype": "Creature",
+      "power": 1,
+      "life": 3,
+      "costList": [
+        0.0,
+        0.0,
+        2.0,
+        1.0,
+        0.0
+      ],
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "4cf22304"
+      ]
+    },
+    {
+      "id": "C_81E74E39",
+      "cardName": "训练·碾压卫队",
+      "supertype": "Creature",
+      "power": 3,
+      "life": 3,
+      "costList": [
+        0.0,
+        4.0,
+        0.0,
+        1.0,
+        0.0
+      ],
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "f1bd9a67"
+      ]
+    },
+    {
+      "id": "C_CC69C1E7",
+      "cardName": "训练·剧毒卫队",
+      "supertype": "Creature",
+      "power": 1,
+      "life": 1,
+      "costList": [
+        0.0,
+        3.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "20c06d52"
+      ]
+    },
+    {
+      "id": "C_F2289E36",
+      "cardName": "训练·不灭卫队",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 2,
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        3.0,
+        0.0
+      ],
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "fe714786"
+      ]
+    },
+    {
+      "id": "C_DC0F8DCB",
+      "cardName": "训练·无实体卫队",
+      "supertype": "Creature",
+      "power": 1,
+      "life": 4,
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        2.0,
+        0.0
+      ],
+      "tags": [
+        "训练池"
+      ]
+    },
+    {
+      "id": "C_A49FDEE5",
+      "cardName": "训练·绝缘体卫队",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 2,
+      "costList": [
+        3.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0
+      ],
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "764236ed"
+      ]
+    },
+    {
+      "id": "C_1B5E5FFB",
+      "cardName": "训练·病原体卫队",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 3,
+      "costList": [
+        0.0,
+        5.0,
+        0.0,
+        2.0,
+        0.0
+      ],
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "89529e0e"
+      ]
+    },
+    {
+      "id": "C_F683DD78",
+      "cardName": "训练·系命卫队",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 2,
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        4.0,
+        0.0
+      ],
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "1e60cb92"
+      ]
+    },
+    {
+      "id": "C_FF0A9347",
+      "cardName": "训练·吸血卫队",
+      "supertype": "Creature",
+      "power": 3,
+      "life": 3,
+      "costList": [
+        0.0,
+        2.0,
+        0.0,
+        3.0,
+        0.0
+      ],
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "f7119394"
+      ]
+    },
+    {
+      "id": "C_A3D00A57",
+      "cardName": "训练·帷幕卫队",
+      "supertype": "Creature",
+      "power": 1,
+      "life": 4,
+      "costList": [
+        0.0,
+        0.0,
+        3.0,
+        2.0,
+        0.0
+      ],
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "407eb771"
+      ]
+    },
+    {
+      "id": "C_D562F418",
+      "cardName": "训练·溅射卫队",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 2,
+      "costList": [
+        0.0,
+        3.0,
+        0.0,
+        1.0,
+        0.0
+      ],
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "c1332456"
+      ]
+    },
+    {
+      "id": "C_F8ABCD87",
+      "cardName": "训练·狩猎卫队",
+      "supertype": "Creature",
+      "power": 3,
+      "life": 2,
+      "costList": [
+        0.0,
+        4.0,
+        0.0,
+        1.0,
+        0.0
+      ],
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "6eaa0d3f"
+      ]
+    },
+    {
+      "id": "C_589F490C",
+      "cardName": "训练·守护卫队",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 2,
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        3.0,
+        0.0
+      ],
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "91535cec"
+      ]
+    },
+    {
+      "id": "C_AE694D08",
+      "cardName": "训练·再生卫队",
+      "supertype": "Creature",
+      "power": 3,
+      "life": 3,
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        5.0,
+        0.0
+      ],
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "ea1df378"
+      ]
+    },
+    {
+      "id": "C_0BCC9D84",
+      "cardName": "训练·沉睡卫队",
+      "supertype": "Creature",
+      "power": 5,
+      "life": 5,
+      "costList": [
+        0.0,
+        3.0,
+        6.0,
+        2.0,
+        0.0
+      ],
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "DB92D1F5"
+      ]
+    },
+    {
+      "id": "C_25099780",
+      "cardName": "训练·隐密卫队",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 2,
+      "costList": [
+        0.0,
+        0.0,
+        5.0,
+        1.0,
+        0.0
+      ],
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "ed308353"
+      ]
+    },
+    {
+      "id": "C_DA89C5CA",
+      "cardName": "训练·寒锥",
+      "supertype": "Spell",
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "7ABD0919"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_3CE53AB8",
+      "cardName": "训练·庇护",
+      "supertype": "Spell",
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "206D1B2C"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_D810E9BB",
+      "cardName": "训练·再临",
+      "supertype": "Spell",
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "B76D311A"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_61E2D170",
+      "cardName": "训练·铁壁",
+      "supertype": "Spell",
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "733E37EC"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_3F345C94",
+      "cardName": "训练·酣梦",
+      "supertype": "Spell",
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "C307B3C6"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_7B8966D2",
+      "cardName": "训练·哑火",
+      "supertype": "Spell",
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "961A7D88"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_32214233",
+      "cardName": "训练·隐踪",
+      "supertype": "Spell",
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "BD1C0123"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_5EE06C23",
+      "cardName": "训练·疫蚀",
+      "supertype": "Spell",
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "F134FCD2"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_7D1ED886",
+      "cardName": "训练·霜暴",
+      "supertype": "Enchantment",
+      "costList": [
+        1.0,
+        0.0,
+        6.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "9D4C9867"
+      ],
+      "durability": 2
+    },
+    {
+      "id": "C_EEFFBCF4",
+      "cardName": "训练·殉盾卫",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 2,
+      "costList": [
+        0.0,
+        1.0,
+        0.0,
+        3.0,
+        0.0
+      ],
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "1944C079"
+      ]
+    },
+    {
+      "id": "C_C774D3BE",
+      "cardName": "训练·点杀",
+      "supertype": "Spell",
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "15EA53B2"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_6A119E97",
+      "cardName": "训练·双射",
+      "supertype": "Spell",
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "5691211B"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_904B481F",
+      "cardName": "训练·天罚",
+      "supertype": "Spell",
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "9EA89BAD"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_F7F7FF01",
+      "cardName": "训练·盲狙",
+      "supertype": "Spell",
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "39F09104"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_09936C04",
+      "cardName": "训练·弃置",
+      "supertype": "Spell",
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "C8B66363"
+      ],
+      "speedBonus": 2,
+      "payloads": [
+        {
+          "refId": "bf06d56b",
+          "kinds": [
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C_0813DE14",
+      "cardName": "训练·束缚",
+      "supertype": "Spell",
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "D5A11E90"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_17DED477",
+      "cardName": "训练·拾荒",
+      "supertype": "Spell",
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "DE85906C"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_839C120A",
+      "cardName": "训练·洞悉",
+      "supertype": "Spell",
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "143C726B"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_EC152CF3",
+      "cardName": "训练·闪击",
+      "supertype": "Spell",
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "C8DF9729"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_85B55112",
+      "cardName": "训练·应急盾",
+      "supertype": "Spell",
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "055C9CBF"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_40B7B9BF",
+      "cardName": "训练·反击哨兵",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 3,
+      "costList": [
+        0.0,
+        1.0,
+        0.0,
+        2.0,
+        0.0
+      ],
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "C0FEFE91"
+      ]
+    },
+    {
+      "id": "C_B1D76E72",
+      "cardName": "训练·霜甲卫",
+      "supertype": "Creature",
+      "power": 1,
+      "life": 4,
+      "costList": [
+        0.0,
+        1.0,
+        0.0,
+        2.0,
+        0.0
+      ],
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "D96F4E48"
+      ]
+    },
+    {
+      "id": "C_A07BD019",
+      "cardName": "训练·夜巡者",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 3,
+      "costList": [
+        0.0,
+        1.0,
+        3.0,
+        2.0,
+        0.0
+      ],
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "0AC7FD76"
+      ]
+    },
+    {
+      "id": "C_CEDB4CBA",
+      "cardName": "训练·夜鸦塔",
+      "supertype": "Enchantment",
+      "costList": [
+        2.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "9ECB3259"
+      ],
+      "durability": 3
+    },
+    {
+      "id": "C_6A673EDB",
+      "cardName": "训练·时砂行者",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 2,
+      "costList": [
+        0.0,
+        1.0,
+        0.0,
+        1.0,
+        0.0
+      ],
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "5F98CD72"
+      ]
+    },
+    {
+      "id": "C_AF392E7C",
+      "cardName": "训练·守誓者",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 2,
+      "costList": [
+        0.0,
+        1.0,
+        0.0,
+        1.0,
+        0.0
+      ],
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "EDC375CA"
+      ]
+    },
+    {
+      "id": "C_B07879C9",
+      "cardName": "训练·赌命一掷",
+      "supertype": "Spell",
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "D08B6731"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_AE7F8819",
+      "cardName": "训练·角力士",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 3,
+      "costList": [
+        0.0,
+        1.0,
+        0.0,
+        2.0,
+        0.0
+      ],
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "183964A1"
+      ]
+    },
+    {
+      "id": "C_896DC22E",
+      "cardName": "训练·灵柩收割者",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 2,
+      "costList": [
+        0.0,
+        1.0,
+        0.0,
+        1.0,
+        0.0
+      ],
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "EFA5FDAE"
+      ]
+    },
+    {
+      "id": "C_C2E5E44D",
+      "cardName": "训练·盈月图腾",
+      "supertype": "Enchantment",
+      "costList": [
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "46239714"
+      ],
+      "durability": 3
+    },
+    {
+      "id": "C_3CFC2A32",
+      "cardName": "训练·集群统领",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 2,
+      "costList": [
+        0.0,
+        1.0,
+        0.0,
+        1.0,
+        0.0
+      ],
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "293ECF43"
+      ]
+    },
+    {
+      "id": "C_E1C8EFDB",
+      "cardName": "训练·灾祸刻印",
+      "supertype": "Spell",
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "44CC30B6"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_835D2D23",
+      "cardName": "训练·丰饶刻印",
+      "supertype": "Spell",
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "0B07A546"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_7F5CF739",
+      "cardName": "训练·远窥",
+      "supertype": "Spell",
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "8F50F461"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_A54FB8B3",
+      "cardName": "训练·洞察",
+      "supertype": "Spell",
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "71692C0A"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_EC887E12",
+      "cardName": "训练·侦察",
+      "supertype": "Spell",
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "0064968F"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_84D035FE",
+      "cardName": "训练·三相仪典台",
+      "supertype": "Enchantment",
+      "costList": [
+        9.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "8367F795"
+      ],
+      "isField": true
+    },
+    {
+      "id": "C_D0117E45",
+      "cardName": "训练·归土祭坛",
+      "supertype": "Enchantment",
+      "costList": [
+        6.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "062DE283"
+      ],
+      "isField": true
+    },
+    {
+      "id": "C_6BD22752",
+      "cardName": "训练·铭刻石阵",
+      "supertype": "Enchantment",
+      "costList": [
+        6.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "D0741313"
+      ],
+      "isField": true
+    },
+    {
+      "id": "C_E9220F23",
+      "cardName": "训练·纳川水门",
+      "supertype": "Enchantment",
+      "costList": [
+        4.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "8A63D4C1"
+      ],
+      "durability": 3
+    },
+    {
+      "id": "C_E2423196",
+      "cardName": "训练·灵视灯塔",
+      "supertype": "Enchantment",
+      "costList": [
+        8.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "6F0FF12D"
+      ],
+      "durability": 3
+    },
+    {
+      "id": "C_7FF704BF",
+      "cardName": "训练·催征战魁",
+      "supertype": "Creature",
+      "power": 3,
+      "life": 3,
+      "costList": [
+        0.0,
+        0.0,
+        2.0,
+        1.0,
+        0.0
+      ],
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "F137EFA8"
+      ],
+      "payloads": [
+        {
+          "refId": "8ae22c02",
+          "kinds": [
+            1
+          ]
+        },
+        {
+          "refId": "e97b8001",
+          "kinds": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C_4FA57368",
+      "cardName": "训练·血偿",
+      "supertype": "Spell",
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "C563C386"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_FC63E5FA",
+      "cardName": "训练·亡者献祭",
+      "supertype": "Spell",
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "DE85906C"
+      ],
+      "speedBonus": 2,
+      "payloads": [
+        {
+          "refId": "a50b8c19",
+          "kinds": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C_9AC0C004",
+      "cardName": "训练·抉择·汲取",
+      "supertype": "Spell",
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "143C726B",
+        "858C5BF6"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_57614AD4",
+      "cardName": "训练·抉择·冻结",
+      "supertype": "Spell",
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "7ABD0919",
+        "733E37EC"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_829190D8",
+      "cardName": "训练·抉择·干扰",
+      "supertype": "Spell",
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "24BDB1EE",
+        "0064968F",
+        "206D1B2C"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_D2FB9D0B",
+      "cardName": "训练·检索",
+      "supertype": "Spell",
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "1632B175"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_5AFFC259",
+      "cardName": "训练·苏生",
+      "supertype": "Spell",
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "AB268E33"
+      ],
+      "speedBonus": 2
+    },
+    {
+      "id": "C_F99C5671",
+      "cardName": "训练·放逐",
+      "supertype": "Spell",
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "CB406A7D"
+      ],
+      "speedBonus": 2
+    }
+  ],
   "deckConfig": {
     "copiesPerCard": 1
   }

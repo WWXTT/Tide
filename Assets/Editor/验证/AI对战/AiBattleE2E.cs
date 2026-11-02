@@ -142,8 +142,21 @@ namespace CardCore.Editor.Tests
                 CardCore.Attribute.Handlers.SummonTokenHandler.ResolveTemplate = CardCatalog.GetById;
                 core.InitGame(CardLoader.BuildDeck(deck1, 1), CardLoader.BuildDeck(deck2, 1),
                     skillCardId1: skillCardId1, skillCardId2: skillCardId2);
+                // 后手护甲（2026-11-01 补齐：工具此前直接 InitGame，绕过了 BattleController/NetRoom 的
+                // 后手补偿注入——战报里 P2 无护甲、被直接扣血）。P1 恒先手，P2 后手。
+                if (GameCore.SecondPlayerArmorBonus > 0)
+                    core.Player2.AddCounters(CardCore.Attribute.KeywordRules.ArmorCounter,
+                        GameCore.SecondPlayerArmorBonus, core.Player2);
                 core.Player1.IsAI = true; // 选择全自动
                 core.Player2.IsAI = true;
+
+                // AI 响应策略装配（2026-11-02 响应窗任务A）：双座策略按玩家登记 + AiResponder 查表
+                //（Neural 座位走 ONNX 大脑整回合驱动，不登记脚本策略防串线）；finally 整局解绑
+                if (neural == null || brain1 != AiBrain.Neural)
+                    AiStrategyRegistry.Bind(core.Player1, ai1.Strategy);
+                if (neural == null || brain2 != AiBrain.Neural)
+                    AiStrategyRegistry.Bind(core.Player2, ai2.Strategy);
+                ResponseWindowService.AiResponder = AiStrategyRegistry.PickFor;
 
                 // 棋盘占用层（派生，单向读核心）：为碾压关键词注入邻接解析（核心不绑棋盘，宿主接线）
                 board = new GameBoard.BoardState(core, core.Player1, core.Player2,
@@ -186,6 +199,8 @@ namespace CardCore.Editor.Tests
             {
                 announcer.Detach();
                 EventManager.Instance.Unsubscribe<GameOverEvent>(OnGameOver);
+                AiStrategyRegistry.Clear(); // 响应策略整局解绑（2026-11-02 响应窗任务A）——恢复内置守卫启发
+                ResponseWindowService.AiResponder = null;
                 CombatSystem.AdjacentResolver = null; // 撤销本局的棋盘接线（静态扩展点归零）
                 GameBoard.LinkAuraSystem.Detach();    // 连接光环接线同步归零
                 CardCore.Attribute.Handlers.SummonTokenHandler.ResolveTemplate = null; // 召唤模板接线同步归零

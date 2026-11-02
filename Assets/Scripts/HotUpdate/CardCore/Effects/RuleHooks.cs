@@ -42,14 +42,14 @@ namespace CardCore
     }
 
     /// <summary>回合开始重置拦截（2026-09-13 定案：冻结/沉睡期间无法重置）：
-    /// 注册方声明实体本回合开始是否禁止重置，并自理被禁期间的状态推进（沉睡扣层/苏醒）。
+    /// 注册方声明实体本回合开始是否禁止重置，并自理被禁期间的状态推进（沉睡扣层/解除）。
     /// 重置循环（GameCore 回合开始）只认此扩展点，不点名具体指示物（OCP）。</summary>
     public interface IUntapBlockRule
     {
         /// <summary>该实体本回合开始是否禁止重置（无论当前是否横置——沉睡扣层对未横置者照常推进）。</summary>
         bool BlocksUntap(Card card);
 
-        /// <summary>禁止重置时的状态推进（如沉睡扣 1 层；末层耗尽由注册方自行苏醒重置）。</summary>
+        /// <summary>禁止重置时的状态推进（如沉睡扣 1 层；末层耗尽由注册方自行解除重置）。</summary>
         void OnUntapBlocked(GameCore core, Card card);
     }
 

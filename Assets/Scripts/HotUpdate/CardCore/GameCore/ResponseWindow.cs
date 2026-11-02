@@ -12,7 +12,7 @@ namespace CardCore
     /// </summary>
     public class ResponseOption
     {
-        public enum ResponseKind { GuardAbility, VoluntaryEffect, HandCard, ActivatedAbility }
+        public enum ResponseKind { GuardAbility, VoluntaryEffect, HandCard, ActivatedAbility, Charge }
 
         public ResponseKind Kind;
         /// <summary>弹窗显示文本（名称+费用摘要）。</summary>
@@ -41,6 +41,10 @@ namespace CardCore
         /// <summary>手牌响应卡（Kind=HandCard）声明期预选目标（2026-10-20）：
         /// null=未收集（无交互原子/AI——结算期照常反问代选）。</summary>
         public List<Entity> Targets;
+
+        /// <summary>充能色（Kind=Charge，2026-11-02 对手回合响应充能）：本次充能所选色（四色——
+        /// 收集期逐色一票，CanCharge 终审；ApplyResponse 经 ActivateCharge 消费）。</summary>
+        public ManaType ChargeColor;
     }
 
     /// <summary>

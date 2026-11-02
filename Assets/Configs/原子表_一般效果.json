@@ -62,9 +62,9 @@
     "Tags": "伤害产出族",
     "ManaList": [
       0,
-      2,
+      1,
       0,
-      0
+      1
     ]
   },
   {
@@ -78,8 +78,8 @@
     "MountKinds": "",
     "Tags": "生效自减型",
     "ManaList": [
-      1,
       0,
+      1,
       0,
       0
     ]
@@ -113,15 +113,15 @@
     "Tags": null,
     "ManaList": [
       0,
-      2,
       0,
+      3,
       0
     ]
   },
   {
-    "ID": "3e00ecd2",
+    "ID": "c3673dae",
     "EnumName": "弹回",
-    "DisplayName": "将{target}单位从场上返回手牌",
+    "DisplayName": "将{value}个{target}从场上返回手牌",
     "EffectType": "ReturnToHand",
     "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位",
     "TargetFilter": "NoRole",
@@ -130,15 +130,15 @@
     "Tags": null,
     "ManaList": [
       0,
-      0,
       3,
+      0,
       0
     ]
   },
   {
-    "ID": "ae4c7937",
+    "ID": "c03ef9fe",
     "EnumName": "回收",
-    "DisplayName": "将{target}卡从墓地返回手牌",
+    "DisplayName": "将{value}张{target}从墓地返回手牌",
     "EffectType": "RecoverToHand",
     "TargetKinds": "己方墓地,对方墓地",
     "TargetFilter": "",
@@ -148,14 +148,14 @@
     "ManaList": [
       0,
       0,
-      3,
-      0
+      0,
+      3
     ]
   },
   {
-    "ID": "0f5b8c17",
+    "ID": "63a5dc1a",
     "EnumName": "除外",
-    "DisplayName": "将{target}单位从场上除外",
+    "DisplayName": "将{value}个{target}从场上除外",
     "EffectType": "Exile",
     "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位",
     "TargetFilter": "NoRole",
@@ -170,9 +170,9 @@
     ]
   },
   {
-    "ID": "b24f68ac",
+    "ID": "9af09c90",
     "EnumName": "洗回",
-    "DisplayName": "将{target}卡从墓地洗入牌库",
+    "DisplayName": "将{value}张{target}的卡洗入牌库",
     "EffectType": "ShuffleIntoDeck",
     "TargetKinds": "己方墓地,对方墓地",
     "TargetFilter": "",
@@ -182,8 +182,8 @@
     "ManaList": [
       0,
       0,
-      1,
-      0
+      0,
+      1
     ]
   },
   {
@@ -205,9 +205,9 @@
     ]
   },
   {
-    "ID": "61fcd31b",
+    "ID": "38c7d7a4",
     "EnumName": "苏生",
-    "DisplayName": "{target}生物从墓地返回到己方战场",
+    "DisplayName": "将{value}个{target}（仅生物）从墓地返回到己方战场",
     "EffectType": "ReturnFromGraveyard",
     "TargetKinds": "己方墓地",
     "TargetFilter": "NoRole",
@@ -234,14 +234,14 @@
     "ManaList": [
       0,
       0,
-      2,
+      1,
       0
     ]
   },
   {
-    "ID": "efc6de8a",
+    "ID": "473d915e",
     "EnumName": "激励",
-    "DisplayName": "重置{target}单位横置状态",
+    "DisplayName": "重置{value}个{target}的横置状态",
     "EffectType": "Untap",
     "TargetKinds": "己方单位",
     "TargetFilter": "NoRole,Tapped",
@@ -257,7 +257,7 @@
   },
   {
     "ID": "7b8c45bc",
-    "EnumName": "生命流失",
+    "EnumName": "流失",
     "DisplayName": "{target}失去{value}点生命（扣除生命上限）",
     "EffectType": "LifeLoss",
     "TargetKinds": "己方单位,对方单位",
@@ -273,9 +273,9 @@
     ]
   },
   {
-    "ID": "f5e9da91",
+    "ID": "46607eb2",
     "EnumName": "锁定",
-    "DisplayName": "对{target}附加一层锁定指示物，无法进入发动区和地牌区",
+    "DisplayName": "对{value}张{target}附加一层锁定指示物，可作为地牌放置，无法使用",
     "EffectType": "LockCard",
     "TargetKinds": "己方手牌,对方手牌",
     "TargetFilter": null,
@@ -287,14 +287,15 @@
       0,
       1,
       0
-    ]
+    ],
+    "特殊裁定": "对手有手牌被展示时，可以选择锁定被展示的卡，没有时改为随机，不可指定"
   },
   {
-    "ID": "327f1014",
+    "ID": "3c4f3a60",
     "EnumName": "控制",
-    "DisplayName": "获得{target}的临时控制权，持续到回合结束",
+    "DisplayName": "获得{value}个{target}的临时控制权，持续到回合结束",
     "EffectType": "GainControl",
-    "TargetKinds": "己方单位,对方单位",
+    "TargetKinds": "对方单位",
     "TargetFilter": "NoRole",
     "Polarity": -1,
     "MountKinds": "",
@@ -352,9 +353,9 @@
     "Tags": null,
     "ManaList": [
       0,
+      3,
       0,
-      0,
-      3
+      0
     ]
   },
   {
@@ -375,9 +376,9 @@
     ]
   },
   {
-    "ID": "5b174fbf",
+    "ID": "799fb440",
     "EnumName": "跳过回合",
-    "DisplayName": "{target}跳过下个回合",
+    "DisplayName": "对手跳过下个回合",
     "EffectType": "SkipTurn",
     "TargetKinds": "对方单位",
     "TargetFilter": "Player",
@@ -392,9 +393,9 @@
     ]
   },
   {
-    "ID": "82c35ce6",
+    "ID": "a50b8c19",
     "EnumName": "消灭",
-    "DisplayName": "消灭{target}生物",
+    "DisplayName": "消灭{target}（仅生物）",
     "EffectType": "Devour",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": "NoRole",
@@ -409,9 +410,9 @@
     ]
   },
   {
-    "ID": "bf165407",
+    "ID": "70150d27",
     "EnumName": "摧毁",
-    "DisplayName": "摧毁目标无生命值单位：地牌/结界",
+    "DisplayName": "摧毁{target}（仅地牌/结界）",
     "EffectType": "Smash",
     "TargetKinds": "己方无生命单位,对方无生命单位,己方元素池,对方元素池",
     "TargetFilter": null,
@@ -420,15 +421,15 @@
     "Tags": null,
     "ManaList": [
       0,
-      4,
+      3,
       0,
       0
     ]
   },
   {
-    "ID": "fbe5ad81",
+    "ID": "96155537",
     "EnumName": "抹除",
-    "DisplayName": "将目标从本局游戏中除去",
+    "DisplayName": "将{target}从本局游戏中除去",
     "EffectType": "Erase",
     "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位,己方元素池,对方元素池",
     "TargetFilter": "NotRole",
@@ -454,16 +455,16 @@
     "Tags": null,
     "参数": "CardRef",
     "ManaList": [
-      2,
+      1,
       0,
       0,
       0
     ]
   },
   {
-    "ID": "8e11494b",
+    "ID": "2aa1a984",
     "EnumName": "成长",
-    "DisplayName": "地牌上限+1（无上限），并从卡组随机将一张带绿色费用的卡横置加入元素池",
+    "DisplayName": "地牌上限+1（无上限），并从卡组随机将{value}张带元素费用的卡横置加入元素池",
     "EffectType": "IncreaseLandCap",
     "TargetKinds": null,
     "TargetFilter": null,
@@ -478,9 +479,9 @@
     ]
   },
   {
-    "ID": "51843d31",
+    "ID": "85b7e5ac",
     "EnumName": "回响",
-    "DisplayName": "选择双方战场的一张卡，将其具有一层遗忘指示物的复制加入手牌",
+    "DisplayName": "选择双方战场的一张卡，将{value}张具有一层遗忘指示物的复制加入手牌",
     "EffectType": "EchoCopy",
     "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位",
     "TargetFilter": "NotRole",
@@ -488,16 +489,16 @@
     "MountKinds": "",
     "Tags": null,
     "ManaList": [
-      0,
-      0,
       1,
+      0,
+      0,
       0
     ]
   },
   {
-    "ID": "632765a9",
+    "ID": "22eabfc6",
     "EnumName": "发现",
-    "DisplayName": "从牌库中随机展示三张牌，从中选择一张加入手牌；未选中的留在牌库原位",
+    "DisplayName": "从牌库中随机展示三张牌，从中选择{value}张加入手牌；未选中的留在牌库原位",
     "EffectType": "DiscoverCard",
     "TargetKinds": "己方牌库",
     "TargetFilter": null,
@@ -512,9 +513,9 @@
     ]
   },
   {
-    "ID": "5f229fb9",
+    "ID": "f7ca683f",
     "EnumName": "牺牲",
-    "DisplayName": "以角色为目标，使其自行选择一个单位效果送墓，送墓的效果来源为持有者",
+    "DisplayName": "以角色为目标，使其自行选择{value}个单位效果送墓，送墓的效果来源为持有者",
     "EffectType": "Sacrifice",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": "Player",
@@ -529,9 +530,9 @@
     ]
   },
   {
-    "ID": "5848518e",
+    "ID": "9d6b3aef",
     "EnumName": "操控",
-    "DisplayName": "改写{target}的持有者。永久改写控制权——弹回洗回回新主卡组手牌，死亡去新主墓地",
+    "DisplayName": "改写{value}个{target}的持有者。永久改写控制权——弹回洗回回新主卡组手牌，死亡去新主墓地",
     "EffectType": "ChangeOwner",
     "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位",
     "TargetFilter": "NoRole",
@@ -557,15 +558,15 @@
     "Tags": null,
     "ManaList": [
       0,
-      1,
       0,
+      2,
       0
     ]
   },
   {
-    "ID": "df31e8c5",
+    "ID": "831af31d",
     "EnumName": "弹回牌库顶",
-    "DisplayName": "将{target}放回持有者牌库顶",
+    "DisplayName": "将{value}个{target}放回持有者牌库顶",
     "EffectType": "BounceToTop",
     "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位",
     "TargetFilter": "NoRole",
@@ -574,25 +575,8 @@
     "Tags": null,
     "ManaList": [
       0,
+      3,
       0,
-      4,
-      0
-    ]
-  },
-  {
-    "ID": "6b323b0b",
-    "EnumName": "弹回牌库底",
-    "DisplayName": "将{target}放回持有者牌库底",
-    "EffectType": "BounceToBottom",
-    "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位",
-    "TargetFilter": "NoRole",
-    "Polarity": -1,
-    "MountKinds": "",
-    "Tags": null,
-    "ManaList": [
-      0,
-      0,
-      4,
       0
     ]
   },
@@ -607,50 +591,84 @@
     "MountKinds": "",
     "Tags": null,
     "ManaList": [
-      3,
       0,
       0,
-      0
+      0,
+      3
     ]
   },
   {
-    "ID": "9256b41a",
-    "EnumName": "永久属性增加",
-    "DisplayName": "修改目标的文本级属性，本局游戏中属性永久增加{value}",
-    "EffectType": "AddPermanentPlusOne",
+    "ID": "c5340751",
+    "EnumName": "永久攻击力增加",
+    "DisplayName": "修改目标的文本级属性，本局游戏中攻击力永久增加{value}",
+    "EffectType": "AddPermanentPowerUp",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": "NoRole",
     "Polarity": 1,
     "MountKinds": "不可作为连接光环,不可随机",
     "Tags": "",
     "ManaList": [
-      2,
       0,
+      1,
       0,
       0
     ]
   },
   {
-    "ID": "e5da6dd9",
-    "EnumName": "永久属性减少",
-    "DisplayName": "修改目标的文本级属性，本局游戏中属性永久减少{value}",
-    "EffectType": "AddPermanentMinusOne",
+    "ID": "8ae22c02",
+    "EnumName": "永久攻击力减少",
+    "DisplayName": "修改目标的文本级属性，本局游戏中攻击力永久减少{value}",
+    "EffectType": "AddPermanentPowerDown",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": "NoRole",
     "Polarity": -1,
     "MountKinds": "不可作为连接光环,不可随机",
     "Tags": "",
     "ManaList": [
-      2,
       0,
+      1,
       0,
       0
     ]
   },
   {
-    "ID": "17da98ae",
+    "ID": "0afd7173",
+    "EnumName": "永久生命值增加",
+    "DisplayName": "修改目标的文本级属性，本局游戏中生命值永久增加{value}",
+    "EffectType": "AddPermanentLifeUp",
+    "TargetKinds": "己方单位,对方单位",
+    "TargetFilter": "NoRole",
+    "Polarity": 1,
+    "MountKinds": "不可作为连接光环,不可随机",
+    "Tags": "",
+    "ManaList": [
+      0,
+      0,
+      0,
+      1
+    ]
+  },
+  {
+    "ID": "e97b8001",
+    "EnumName": "永久生命值减少",
+    "DisplayName": "修改目标的文本级属性，本局游戏中生命值永久减少{value}",
+    "EffectType": "AddPermanentLifeDown",
+    "TargetKinds": "己方单位,对方单位",
+    "TargetFilter": "NoRole",
+    "Polarity": -1,
+    "MountKinds": "不可作为连接光环,不可随机",
+    "Tags": "",
+    "ManaList": [
+      0,
+      0,
+      0,
+      1
+    ]
+  },
+  {
+    "ID": "51c2eff1",
     "EnumName": "全体消灭",
-    "DisplayName": "消灭对方全体生物",
+    "DisplayName": "消灭对方全体生物和结界",
     "EffectType": "DevourAllEnemies",
     "TargetKinds": "",
     "TargetFilter": null,
@@ -665,9 +683,9 @@
     ]
   },
   {
-    "ID": "e301f1af",
+    "ID": "0afb06ce",
     "EnumName": "除外回收",
-    "DisplayName": "将{target}卡从除外区返回手牌",
+    "DisplayName": "将{value}张{target}从除外区返回手牌",
     "EffectType": "RecoverFromExile",
     "TargetKinds": "己方除外区",
     "TargetFilter": null,
@@ -677,14 +695,14 @@
     "ManaList": [
       0,
       0,
-      3,
-      0
+      0,
+      3
     ]
   },
   {
-    "ID": "373da698",
+    "ID": "5756fa58",
     "EnumName": "额外回合",
-    "DisplayName": "只能在自己回合发动：获得一个额外回合（可叠加）",
+    "DisplayName": "只能在自己回合发动：自己获得一个额外回合（不可叠加）",
     "EffectType": "TakeExtraTurn",
     "TargetKinds": null,
     "TargetFilter": null,
@@ -699,9 +717,9 @@
     ]
   },
   {
-    "ID": "bb69eaf0",
+    "ID": "0da83d4b",
     "EnumName": "跳过结束阶段",
-    "DisplayName": "跳过对手的下个结束阶段",
+    "DisplayName": "跳过对手的下个结束阶段（不可叠加）",
     "EffectType": "SkipTurn",
     "TargetKinds": "对方单位",
     "TargetFilter": "Player",
@@ -716,9 +734,9 @@
     ]
   },
   {
-    "ID": "837e72dc",
+    "ID": "0c2e45ba",
     "EnumName": "跳过准备阶段",
-    "DisplayName": "跳过对手的下个准备阶段",
+    "DisplayName": "跳过对手的下个准备阶段（不可叠加）",
     "EffectType": "SkipTurn",
     "TargetKinds": "对方单位",
     "TargetFilter": "Player",
@@ -733,9 +751,9 @@
     ]
   },
   {
-    "ID": "096d449c",
+    "ID": "7d1275e9",
     "EnumName": "跳过主要阶段",
-    "DisplayName": "跳过对手的下个主要阶段",
+    "DisplayName": "跳过对手的下个主要阶段（不可叠加）",
     "EffectType": "SkipTurn",
     "TargetKinds": "对方单位",
     "TargetFilter": "Player",
@@ -781,7 +799,7 @@
     "ManaList": [
       0,
       0,
-      5,
+      3,
       0
     ]
   },
@@ -799,13 +817,13 @@
     "ManaList": [
       0,
       0,
-      3,
+      2,
       0
     ]
   },
   {
     "ID": "f9848d5e",
-    "EnumName": "预言",
+    "EnumName": "禁言",
     "DisplayName": "隐秘宣言一个类别的卡，下个回合中对手使用的第一张卡与宣言类别一致，则发动的卡无效",
     "EffectType": "DeclareDeckTop",
     "TargetKinds": null,
@@ -870,23 +888,6 @@
       0,
       0,
       3
-    ]
-  },
-  {
-    "ID": "afa24bf3",
-    "EnumName": "充能",
-    "DisplayName": "充能：支付1点对应颜色元素，为此手牌放置1层同色费用降低指示物（展示这张卡；换区清除）",
-    "EffectType": "Charge",
-    "TargetKinds": null,
-    "TargetFilter": null,
-    "Polarity": 0,
-    "MountKinds": "系统",
-    "Tags": null,
-    "ManaList": [
-      0,
-      0,
-      0,
-      0
     ]
   }
 ]

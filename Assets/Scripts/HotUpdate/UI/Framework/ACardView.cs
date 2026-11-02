@@ -38,12 +38,12 @@ namespace SynergyUI
         private TMP_Text _nameText, _effectText, _passivesText, _keysText, _statesText;
         private RectTransform _effectBlock, _passivesBlock, _keysBlock, _statesBlock;
         private readonly List<RectTransform> _effectRowClones = new List<RectTransform>(); // 多主动效果行克隆（SyncEffectRows 增删）
-        private readonly List<RectTransform> _spRowClones = new List<RectTransform>();      // 特殊效果行克隆（苏醒/充能，SyncSpEffectRows 增删）
+        private readonly List<RectTransform> _spRowClones = new List<RectTransform>();      // 特殊效果行克隆（充能，SyncSpEffectRows 增删）
         /// <summary>多主动法术效果行（2026-11-01 抉择上卡）：ActiveEffectLines≥2 时 Apply 填充——
         /// 模板行（effect）+ 克隆行，顺序=效果序（引擎 modeIndex 对位）。交互（点击切选/Outline 选中
         /// 边框/CostSquares 费用联动）由手牌宿主 HandFanCard 接线；非手牌消费面（连锁台/预览卡）纯展示。</summary>
         public readonly List<RectTransform> ActiveEffectRows = new List<RectTransform>();
-        /// <summary>特殊效果行（2026-11-01 苏醒/充能上卡）：SpEffectLines≥1 时 Apply 填充——
+        /// <summary>特殊效果行（2026-11-01 上卡）：SpEffectLines≥1 时 Apply 填充——
         /// 全为克隆行（模板行留给单行/首模式行），追加在模式行之后、passives 之前；交互同上。</summary>
         public readonly List<RectTransform> SpEffectRows = new List<RectTransform>();
         private GameObject _back;
@@ -144,7 +144,7 @@ namespace SynergyUI
 
             SetText(_nameText, item.Name);
 
-            // effect 区：多主动法术逐效果成行（2026-11-01 抉择上卡）+ 特殊行（同日苏醒/充能上卡，
+            // effect 区：多主动法术逐效果成行（2026-11-01 抉择上卡）+ 特殊行（同日上卡，
             // 追加在模式行之后）——克隆烘焙 effect 行（Button+Outline 已烘在 prefab，交宿主接线）；
             // 两者皆无时保持单行 ActiveEffectText 原口径（克隆行回收、行列表清空）。
             bool effectRows = full && item.ActiveEffectLines != null && item.ActiveEffectLines.Count > 1;
@@ -360,7 +360,7 @@ namespace SynergyUI
             if (hasActive) SetText(_effectText, item.ActiveEffectText);
         }
 
-        /// <summary>特殊效果行同步（苏醒/充能，2026-11-01 上卡）：克隆模板行，兄弟序恒排在
+        /// <summary>特殊效果行同步（充能，2026-11-01 上卡）：克隆模板行，兄弟序恒排在
         /// 最后一个 effect 行（模板/模式克隆）之后、passives 之前——行序=Item 平行表序。
         /// 无特殊行（含 SpEffectLines=null——纯多主动法术）清空回收。</summary>
         private void SyncSpEffectRows(CardOverlayItem item)

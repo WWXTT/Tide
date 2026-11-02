@@ -473,6 +473,9 @@ namespace SynergyUI
             }
             if (top.IsGuardDeclaration) return "守卫宣言结算中——可响应或让过（不连锁）";
             if (top.IsSBA) return "系统动作结算中——可响应或让过（不连锁）";
+            if (top.IsPhaseWindow)
+                return (string.IsNullOrEmpty(top.PhaseWindowLabel) ? "阶段" : top.PhaseWindowLabel)
+                       + "优先权窗口——可打出速1+的手牌/发动效果，或让过";
             string src = top.Source is Card sc ? _cardName(sc)
                 : top.Source is Player sp ? (sp == P1 ? "我方角色" : "对方角色") : "?";
             string fxName = top.Definition?.DisplayName;

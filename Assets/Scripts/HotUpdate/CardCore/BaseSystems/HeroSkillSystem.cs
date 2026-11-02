@@ -30,7 +30,9 @@ namespace CardCore
         /// <summary>技能卡资格（构筑标记门槛 + InitGame 落位守卫共用）：
         /// 法术 && 1~3 个效果 && 全部为主动效果（19/20，响应式不算）
         /// && **不带代价**（2026-11-01 定案，与「主动效果禁代价」同口径——技能栏不开放
-        /// EffectActivationGate 净费闸，代价行在技能发动路径不会被正确执行/抵扣）。
+        /// EffectActivationGate 净费闸，代价行在技能发动路径不会被正确执行/抵扣）
+        /// && **效果数值上限 value=1**（2026-11-02 定案：value≥2 的原子不能挂成技能——
+        /// 威力档超技能定位；速度侧由技能源基速恒 0 已钉死）。
         /// 与法术形状校验（CardLoader.ValidateSpellShape）同口径。</summary>
         public static bool CanBeSkillCard(CardData data)
         {
@@ -44,6 +46,7 @@ namespace CardCore
                     return false;
             }
             if (CardCostService.HasPayloadCost(data)) return false;
+            if (SkillValueViolations(data).Count > 0) return false;
             return true;
         }
 
@@ -61,6 +64,85 @@ namespace CardCore
                     return "技能卡的效果必须全部为主动效果（不能是被动/触发/响应式）";
             }
             if (CardCostService.HasPayloadCost(data)) return "技能卡不能带代价（主动效果禁代价同理）";
+            var valueHits = SkillValueViolations(data);
+            if (valueHits.Count > 0)
+                return $"{data.CardName} 技能效果数值超限：{string.Join("；", valueHits)}"
+                       + "——技能效果只允许 value=1（2026-11-02 定案），请降低数值档或另选技能卡";
+            return null;
+        }
+
+        // ======================================== 效果数值上限（2026-11-02 定案：技能只允许 value=1） ========================================
+
+        /// <summary>技能效果数值违规明细（数据层扫描：主序列原子 + 步骤原子 + 分支奖励原子；
+        /// 每条含效果名 + 原子行 id + value）。空 = 合规。
+        /// 消费方：CanBeSkillCard（资格闸）/ SkillIneligibleReason（构筑期报错）/ 重推工具与验证器。
+        /// 口径：value≥2 拒绝；value=0/1 放行（0=无值参数原子，1=标准档）。</summary>
+        public static List<string> SkillValueViolations(CardData data)
+        {
+            var result = new List<string>();
+            if (data?.Effects == null) return result;
+            foreach (var fx in data.Effects)
+            {
+                if (fx == null) continue;
+                CheckSkillValueEntries(fx, fx.AtomicEffects, result);
+                if (fx.Steps != null)
+                {
+                    foreach (var step in fx.Steps)
+                    {
+                        if (step?.atomic != null) CheckSkillValueEntries(fx, new[] { step.atomic }, result);
+                    }
+                }
+            }
+            return result;
+        }
+
+        private static void CheckSkillValueEntries(CardEffectData fx, IEnumerable<AtomicEffectEntry> entries, List<string> result)
+        {
+            if (entries == null) return;
+            foreach (var e in entries)
+            {
+                if (e == null) continue;
+                if (e.value >= 2)
+                {
+                    var cfg = Attribute.AtomicEffectTable.GetByHashId(e.refId);
+                    result.Add($"效果[{fx.DisplayName ?? fx.Id}] 原子[{cfg?.DisplayName ?? e.refId}#{e.refId}] value={e.value}");
+                }
+                if (e.branch?.then != null) CheckSkillValueEntries(fx, e.branch.then, result); // 分支奖励同口径
+            }
+        }
+
+        /// <summary>运行时口（CanActivate 预检用）：转换后效果内任一原子 value≥2 → 违规明细；
+        /// 合规返回 null。扫主序列原子（含子效果与分支奖励——全部随技能发动结算）。</summary>
+        public static string EffectValueViolation(EffectDefinition def)
+        {
+            if (def?.Effects == null) return null;
+            foreach (var atom in def.Effects)
+            {
+                var v = AtomValueViolation(def, atom);
+                if (v != null) return v;
+            }
+            return null;
+        }
+
+        private static string AtomValueViolation(EffectDefinition def, AtomicEffectInstance atom)
+        {
+            if (atom == null) return null;
+            if (atom.Value >= 2)
+                return $"效果[{def.DisplayName ?? def.Id}] 原子[{atom.Type}#{atom.RowHashId}] value={atom.Value}"
+                       + "——技能效果只允许 value=1（2026-11-02 定案）";
+            foreach (var sub in atom.SubEffects ?? new List<AtomicEffectInstance>())
+            {
+                var v = AtomValueViolation(def, sub);
+                if (v != null) return v;
+            }
+            if (atom.Branch?.Then != null)
+            {
+                foreach (var reward in atom.Branch.Then)
+                {
+                    var v = AtomValueViolation(def, reward);
+                    if (v != null) return v;
+                }
+            }
             return null;
         }
 

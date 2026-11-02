@@ -17,11 +17,12 @@ namespace CardCore
             : entity is Card c ? c.ID
             : entity.ToString();
 
-        /// <summary>产出是否可读（有实际伤害/治疗/击杀/受影响目标/宣言）</summary>
+        /// <summary>产出是否可读（有实际伤害/治疗/击杀/受影响目标/公开宣言；隐藏押注不算可读——
+        /// 预言族隐秘性 2026-11-02：Declaration 存在但 HiddenDeclaration 时不计）</summary>
         public static bool HasReadableOutcome(EffectOutcome o)
             => o != null && (o.DamageDealt > 0 || o.HealApplied > 0
                           || o.KilledTargets.Count > 0 || o.AffectedTargets.Count > 0
-                          || o.Declaration != null);
+                          || (o.Declaration != null && !o.HiddenDeclaration));
 
         /// <summary>同名聚合的紧凑卡牌清单（"火球、嘲讽守卫×2、…"）</summary>
         public static string DescribeCards(List<Card> cards)
@@ -45,7 +46,7 @@ namespace CardCore
             if (o.HealApplied > 0)
                 return $"{DescribeEntities(o.AffectedTargets)} 回复 {o.HealApplied} 生命"
                        + (o.OverhealAmount > 0 ? $"（溢出 {o.OverhealAmount}）" : "");
-            if (o.Declaration != null)
+            if (o.Declaration != null && !o.HiddenDeclaration)
                 return $"宣言「{o.Declaration}」{(o.DeclareHit ? "命中" : "未命中")}";
             return $"作用于 {DescribeEntities(o.AffectedTargets)}";
         }

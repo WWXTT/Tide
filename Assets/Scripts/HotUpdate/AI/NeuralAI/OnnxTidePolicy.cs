@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using IE = Unity.InferenceEngine;
 
 namespace CardCore.AI.NeuralEnv
@@ -10,7 +12,7 @@ namespace CardCore.AI.NeuralEnv
     /// 图契约（tide_rl/export_onnx.py 导出，batch 已脱皮）：
     ///   输入 float32：rstate(512) cards(86×115) global(50) actions(512×8)
     ///   输出 float32：rstate_next(512) logits(512) value(1)
-    /// v6 布局（2026-10-29 P11 盘面重塑：卡槽 43/人（86 总，战场 12→9））、卡特征 115 维（v5 删苏醒立约位；
+    /// v6 布局（2026-10-29 P11 盘面重塑：卡槽 43/人（86 总，战场 12→9））、卡特征 115 维（v5 删旧立约位；
     /// v4 原子槽 6→12，2026-10-16）、globals 50 维（+放逐计数/弹药，
     /// 归一化）、动作类型 0..13、枚举器侧 MaxActions=512 守卫——旧 onnx/fixture 全部作废，
     /// 需重跑 export_onnx.py 重导出后使用本推理器。
@@ -52,7 +54,9 @@ namespace CardCore.AI.NeuralEnv
         public OnnxTidePolicy() : this(DefaultResourcePath) { }
 
         /// <summary>加载 ONNX 导入的 ModelAsset 并建 CPU worker
-        /// （小模型 CPU 快于 GPU，且输入输出都在 CPU）。</summary>
+        /// （小模型 CPU 快于 GPU，且输入输出都在 CPU）。加载时先做布局校验
+        /// （ValidateModelLayout）——模型图与当前观测编码不同代立即明确报错，
+        /// 不再等到首步推理抛晦涩的形状异常。</summary>
         public OnnxTidePolicy(string resourcePath)
         {
             var asset = LoadModelAsset(resourcePath);
@@ -62,8 +66,61 @@ namespace CardCore.AI.NeuralEnv
                     $"期望位置：YooAsset 包（{Tide.HotUpdate.HotUpdateAssets.DefaultPackageName}）或 " +
                     $"{ModelAssetFolder}/{resourcePath}.onnx（tide_rl/export_onnx.py 复制到该目录；" +
                     "热更侧需先跑 Tools/热更/2 配置收集器）");
-            _worker = new IE.Worker(IE.ModelLoader.Load(asset), IE.BackendType.CPU);
+            var model = IE.ModelLoader.Load(asset);
+            ValidateModelLayout(model, resourcePath);
+            _worker = new IE.Worker(model, IE.BackendType.CPU);
         }
+
+        /// <summary>
+        /// 加载侧布局校验（2026-11-02 部署加固）：模型图输入维度必须与当前
+        /// TideObservation 常量逐值一致。盘面重塑/特征增删后旧模型只会在首步推理
+        /// 抛张量形状异常（或更糟——维度恰好兼容但语义全错），此处提前给出明确报错；
+        /// 导出侧（export_onnx.py）同代把 layoutVersion/dims 写进 fixture 头与
+        /// onnx metadata，Python 对拍/部署两侧可对账。不一致抛 InvalidOperationException，
+        /// 由调用方（NeuralAiDriver）响亮回落 SimpleAI。
+        /// </summary>
+        private static void ValidateModelLayout(IE.Model model, string resourcePath)
+        {
+            var expect = new (string name, int[] dims)[]
+            {
+                ("rstate", new[] { RnnChannels }),
+                ("cards", new[] { MaxCards, TideObservation.NCard }),
+                ("global", new[] { TideObservation.NGlobal }),
+                ("actions", new[] { MaxActions, TideObservation.NAction }),
+            };
+            var problems = new List<string>();
+            foreach (var (name, dims) in expect)
+            {
+                int idx = model.inputs.FindIndex(i => i.name == name);
+                if (idx < 0)
+                {
+                    problems.Add($"缺输入 {name}（图实际输入: {string.Join(", ", model.inputs.Select(i => i.name))}）");
+                    continue;
+                }
+                var shape = model.inputs[idx].shape;
+                if (shape.rank != dims.Length)
+                {
+                    problems.Add($"{name}: rank {shape.rank} ≠ {dims.Length}");
+                    continue;
+                }
+                for (int k = 0; k < dims.Length; k++)
+                {
+                    int actual = shape.Get(k); // 动态维取出的值 ≠ 任何静态契约值，同样按不匹配报
+                    if (actual != dims[k])
+                        problems.Add($"{name}[{k}]: {DescribeDim(actual)} ≠ {dims[k]}");
+                }
+            }
+            if (problems.Count > 0)
+                throw new InvalidOperationException(
+                    $"[OnnxTidePolicy] 模型布局与当前观测编码不一致（{resourcePath}）：\n  "
+                    + string.Join("\n  ", problems)
+                    + $"\n当前契约 layoutVersion={TideObservation.LayoutVersion}"
+                      + $"（cards {MaxCards}x{TideObservation.NCard} / global {TideObservation.NGlobal}"
+                      + $" / actions {MaxActions}x{TideObservation.NAction} / rstate {RnnChannels}）"
+                    + "——代码与模型不同代，重跑 tide_rl/export_onnx.py 重导出后再用");
+        }
+
+        private static string DescribeDim(int dim) => dim < 0 ? "(动态维)" : dim.ToString();
 
         /// <summary>
         /// 三级回落：YooAsset 热更包 → 编辑器 AssetDatabase（直启 Main，未走 Launch）→

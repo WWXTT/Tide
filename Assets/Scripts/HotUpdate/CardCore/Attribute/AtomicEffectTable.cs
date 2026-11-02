@@ -274,7 +274,7 @@ namespace CardCore.Attribute
 
         /// <summary>遍历所有已加载配置行（EnumName 为英文枚举名；供关键词目录等派生用）。
         /// 2026-09-13 修正：改返回 _idMap.Values（全行）——此前返回 _typeMap.Values，
-        /// 同 EffectType 多行（效果/指示物分离，如 Sleep 沉睡/苏醒）只暴露覆盖后的末行，
+        /// 同 EffectType 多行（效果/指示物分离，如 Sleep 沉睡行族）只暴露覆盖后的末行，
         /// 消费方（关键词目录反查、验证器表行锚）拿不到首行。</summary>
         public static IEnumerable<AtomicEffectConfig> GetAll()
         {

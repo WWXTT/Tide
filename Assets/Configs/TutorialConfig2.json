@@ -21,9 +21,9 @@
           "lands": [],
           "units": [],
           "hand": [
-            "C_F4C4DFFD",
-            "C_8A584784",
-            "C_F1258717"
+            "C_C635DB5D",
+            "C_36A84A34",
+            "C_AC7E32A2"
           ],
           "deck": [
             "C_E98E60F2",
@@ -269,12 +269,12 @@
         },
         {
           "type": "play",
-          "card": "C_B35F5591",
+          "card": "C_243F6F88",
           "hint": "发动【教学·11】（费用 5 红）"
         },
         {
           "type": "play",
-          "card": "C_6ECCF727",
+          "card": "C_E3A7A535",
           "hint": "发动【教学·12】（费用 5 绿）"
         },
         {
@@ -545,8 +545,8 @@
             "units": [],
             "hand": [],
             "deck": [
-              "C_F4C4DFFD",
-              "C_F4C4DFFD"
+              "C_C635DB5D",
+              "C_C635DB5D"
             ],
             "grave": []
           }
@@ -627,8 +627,8 @@
             ],
             "hand": [],
             "deck": [
-              "C_F4C4DFFD",
-              "C_F4C4DFFD"
+              "C_C635DB5D",
+              "C_C635DB5D"
             ],
             "grave": []
           }
@@ -710,8 +710,8 @@
               "C_94DA8F61"
             ],
             "deck": [
-              "C_F4C4DFFD",
-              "C_F4C4DFFD"
+              "C_C635DB5D",
+              "C_C635DB5D"
             ],
             "grave": []
           }
@@ -733,15 +733,15 @@
             ],
             "lands": [
               {
-                "card": "C_4FCB2164",
+                "card": "C_11B82155",
                 "tokenType": "Gray"
               },
               {
-                "card": "C_4FCB2164",
+                "card": "C_11B82155",
                 "tokenType": "Red"
               },
               {
-                "card": "C_4FCB2164",
+                "card": "C_11B82155",
                 "tokenType": "Red"
               }
             ],
@@ -781,8 +781,8 @@
             "units": [],
             "hand": [],
             "deck": [
-              "C_F4C4DFFD",
-              "C_F4C4DFFD"
+              "C_C635DB5D",
+              "C_C635DB5D"
             ],
             "grave": []
           }
@@ -805,50 +805,50 @@
             ],
             "lands": [
               {
-                "card": "C_4FCB2164",
+                "card": "C_11B82155",
                 "tokenType": "Red"
               },
               {
-                "card": "C_4FCB2164",
+                "card": "C_11B82155",
                 "tokenType": "Red"
               },
               {
-                "card": "C_4FCB2164",
+                "card": "C_11B82155",
                 "tokenType": "Red"
               },
               {
-                "card": "C_4FCB2164",
+                "card": "C_11B82155",
                 "tokenType": "Red"
               },
               {
-                "card": "C_4FCB2164",
+                "card": "C_11B82155",
                 "tokenType": "Red"
               },
               {
-                "card": "C_4FCB2164",
+                "card": "C_11B82155",
                 "tokenType": "Green"
               },
               {
-                "card": "C_4FCB2164",
+                "card": "C_11B82155",
                 "tokenType": "Green"
               },
               {
-                "card": "C_4FCB2164",
+                "card": "C_11B82155",
                 "tokenType": "Green"
               },
               {
-                "card": "C_4FCB2164",
+                "card": "C_11B82155",
                 "tokenType": "Green"
               },
               {
-                "card": "C_4FCB2164",
+                "card": "C_11B82155",
                 "tokenType": "Green"
               }
             ],
             "units": [],
             "hand": [
-              "C_B35F5591",
-              "C_6ECCF727"
+              "C_243F6F88",
+              "C_E3A7A535"
             ],
             "deck": [
               "C_E98E60F2"
@@ -941,51 +941,51 @@
             ],
             "lands": [
               {
-                "card": "C_4FCB2164",
+                "card": "C_11B82155",
                 "tokenType": "Red"
               },
               {
-                "card": "C_4FCB2164",
+                "card": "C_11B82155",
                 "tokenType": "Red"
               },
               {
-                "card": "C_4FCB2164",
+                "card": "C_11B82155",
                 "tokenType": "Red"
               },
               {
-                "card": "C_4FCB2164",
+                "card": "C_11B82155",
                 "tokenType": "Red"
               },
               {
-                "card": "C_4FCB2164",
+                "card": "C_11B82155",
                 "tokenType": "Red"
               },
               {
-                "card": "C_4FCB2164",
+                "card": "C_11B82155",
                 "tokenType": "Red"
               },
               {
-                "card": "C_4FCB2164",
+                "card": "C_11B82155",
                 "tokenType": "Red"
               },
               {
-                "card": "C_4FCB2164",
+                "card": "C_11B82155",
                 "tokenType": "Red"
               },
               {
-                "card": "C_4FCB2164",
+                "card": "C_11B82155",
                 "tokenType": "Red"
               },
               {
-                "card": "C_4FCB2164",
+                "card": "C_11B82155",
                 "tokenType": "Red"
               },
               {
-                "card": "C_4FCB2164",
+                "card": "C_11B82155",
                 "tokenType": "Red"
               },
               {
-                "card": "C_4FCB2164",
+                "card": "C_11B82155",
                 "tokenType": "Red"
               }
             ],
@@ -1004,7 +1004,7 @@
             ],
             "deck": [
               "C_CA42AAF8",
-              "C_C6AE5B2C",
+              "C_3B8E79AB",
               "C_260F2CCE"
             ],
             "grave": []

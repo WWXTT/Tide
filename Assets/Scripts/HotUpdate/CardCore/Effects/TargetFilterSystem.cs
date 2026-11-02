@@ -350,6 +350,14 @@ namespace CardCore
         /// 2026-10-19 Entity 级——角色持潜行/隐密同口径隐藏）：从"选择"候选中隐藏
         /// 对方侧潜行/隐密单位（生物+角色）——弹窗不显示、AI/无头代替选取（自动取前 N）同口径不可选；
         /// 不改变范围本身（Full/Random 从完整候选域结算，照常命中）。
+        /// 2026-11-02 潜行改版：判定单源 EntityEffectExtensions.IsHiddenFromTargeting——
+        /// 潜行须己方场上另有未潜行友方单位/角色才生效（全员隐藏时不再隐藏，可被选中）。
+        /// 2026-11-02 洗回改版：隐藏只作用**场上**单位/角色——区域卡（墓地/手牌/除外等）
+        /// 不带潜伏语义，照常可选（跨双方墓地指向依赖此口径）。
+        /// 2026-11-02 审计补：**对方手牌卡**例外——手牌是隐藏信息，混合域（双方手牌等）
+        /// 弹选会泄露对方手牌内容；隐藏区消费应走 handler 自结算/宣言/随机。已展示
+        ///（展示指示物）的卡=公开信息照常可选。牌库不经此口：牌库域折叠
+        ///（TargetSelectionService.CollapseDeckZoneCells）折成区域格不泄内容。
         /// </summary>
         public static List<Entity> ExcludeUnselectable(List<Entity> candidates, Player controller)
         {
@@ -358,9 +366,12 @@ namespace CardCore
             {
                 if (controller == null) return true;
                 var side = c is Card card ? card.GetController() : c as Player;
-                return side == null || side == controller
-                    || !(c.GetEffectiveCounterCount(Attribute.CounterRules.StealthCounter) > 0
-                         || c.HasKeyword(KeywordRules.Concealed));
+                if (side == null || side == controller) return true;
+                if (c is Card handCard && handCard.GetZone() == Zone.Hand
+                    && handCard.GetEffectiveCounterCount(CounterRules.ExposedCounter) <= 0)
+                    return false; // 对方手牌未展示：弹窗不显示（隐藏信息不进选择面）
+                return (c is Card zoneCard && zoneCard.GetZone() != Zone.Battlefield) // 区域卡不隐藏
+                    || !c.IsHiddenFromTargeting();
             }).ToList();
         }
 
@@ -378,6 +389,8 @@ namespace CardCore
         /// edictExempt：牺牲类（选择权在目标方）豁免——帷幕=对手无法选择，不包括持有者自选。
         /// 攻击侧由守卫拦截承担（CombatSystem），帷幕不经此口。
         /// 碾压已重定义为攻击溅射（2026-09-13），不再无视帷幕。
+        /// 2026-11-02 洗回改版：帷幕护的是场上（角色/随从/结界）——区域卡（墓地/手牌/除外等）
+        /// 不经战场拦截照常可选（跨双方墓地指向依赖此口径）。
         /// </summary>
         public static List<Entity> ApplyTauntRestriction(List<Entity> candidates, EffectExecutionContext context, bool edictExempt = false)
         {
@@ -395,7 +408,9 @@ namespace CardCore
             {
                 var side = c is Card card ? card.GetController() : c as Player;
                 if (side != opp) return true;                       // 己方侧不受限
-                return c is Card tc && taunts.Contains(tc);          // 对方侧：仅帷幕卡
+                if (c is Card zoneCard && zoneCard.GetZone() != Zone.Battlefield)
+                    return true;                                    // 区域卡不参帷幕
+                return c is Card tc && taunts.Contains(tc);          // 对方侧场上：仅帷幕卡
             }).ToList();
         }
 

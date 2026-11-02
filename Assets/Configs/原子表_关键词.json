@@ -11,9 +11,9 @@
     "Tags": null,
     "ManaList": [
       0,
+      1.5,
       0,
-      0,
-      3
+      1.5
     ]
   },
   {
@@ -24,7 +24,7 @@
     "TargetKinds": "自己",
     "TargetFilter": "NoRole",
     "Polarity": 1,
-    "MountKinds": "关键词",
+    "MountKinds": "关键词,不可作为连接光环",
     "Tags": null,
     "ManaList": [
       0,
@@ -68,6 +68,23 @@
     ]
   },
   {
+    "ID": "c1332456",
+    "EnumName": "溅射",
+    "DisplayName": "获得溅射：战斗结算时，对对手随机单位造成溢出的战斗伤害",
+    "EffectType": "GrantSplash",
+    "TargetKinds": "自己",
+    "TargetFilter": "NoRole",
+    "Polarity": 1,
+    "MountKinds": "关键词",
+    "Tags": null,
+    "ManaList": [
+      0,
+      3,
+      0,
+      0
+    ]
+  },
+  {
     "ID": "4cf22304",
     "EnumName": "警戒",
     "DisplayName": "获得警戒：战斗结算时，横置状态也会触发战斗伤害",
@@ -80,8 +97,8 @@
     "ManaList": [
       0,
       0,
-      0,
-      2
+      2,
+      0
     ]
   },
   {
@@ -164,8 +181,8 @@
     "Tags": null,
     "ManaList": [
       0,
-      2,
       0,
+      2,
       0
     ]
   },
@@ -182,27 +199,9 @@
     "ManaList": [
       0,
       0,
-      0,
-      3
+      3,
+      0
     ]
-  },
-  {
-    "ID": "fb88c3f4",
-    "EnumName": "无实体",
-    "DisplayName": "获得无实体：每次受到的伤害变为1",
-    "EffectType": "GrantSpellban",
-    "TargetKinds": "自己",
-    "TargetFilter": "NoRole",
-    "Polarity": 1,
-    "MountKinds": "关键词,不可作为连接光环",
-    "Tags": null,
-    "ManaList": [
-      0,
-      0,
-      0,
-      6
-    ],
-    "特殊裁定": "伤害钳为 1 后仍可被易损放大；0 点伤害不触发"
   },
   {
     "ID": "8c988c18",
@@ -233,46 +232,11 @@
     "Tags": null,
     "ManaList": [
       0,
-      0,
-      0,
-      3
-    ],
-    "特殊裁定": "只认战斗伤害且需实际落定；不灭可拦"
-  },
-  {
-    "ID": "c3112c0b",
-    "EnumName": "战斗法师",
-    "DisplayName": "获得战斗法师：自己造成的战斗伤害改写为对随机目标造成1点伤害，此效果重复发动自身攻击力的次数",
-    "EffectType": "GrantBattleMage",
-    "TargetKinds": "自己",
-    "TargetFilter": null,
-    "Polarity": 0,
-    "MountKinds": "关键词,不可作为连接光环",
-    "Tags": null,
-    "ManaList": [
-      0,
       3,
       0,
       0
-    ]
-  },
-  {
-    "ID": "2e8b0a78",
-    "EnumName": "苏醒",
-    "DisplayName": "获得苏醒：支付费用时的灰色元素免除，入场横置并附加等同免除费用的等量层数的沉睡，以此方式添加的沉睡在其他效果前生效；灰色免除份额需有等量灰色地牌才可苏醒施放",
-    "EffectType": "GrantAwaken",
-    "TargetKinds": "自己",
-    "TargetFilter": "NoRole",
-    "Polarity": 1,
-    "MountKinds": "系统",
-    "Tags": null,
-    "ManaList": [
-      0,
-      0,
-      0,
-      0
     ],
-    "特殊裁定": "沉睡是以苏醒的入场代价释放时，会先于卡面上的其他效果生效；灰份额（=沉睡层数）按统一代价地牌门槛与施放者灰地数比较，等于时可以施放"
+    "特殊裁定": "只认战斗伤害且需实际落定；不灭可拦"
   },
   {
     "ID": "764236ed",
@@ -285,10 +249,10 @@
     "MountKinds": "关键词,不可作为连接光环",
     "Tags": null,
     "ManaList": [
+      3,
       0,
       0,
-      0,
-      3
+      0
     ],
     "特殊裁定": "不拦指示物添加，被沉睡/缄默压制时失效，绝缘体先生效时，反过来压制沉睡/缄默"
   },
@@ -304,9 +268,27 @@
     "Tags": null,
     "ManaList": [
       0,
+      5,
       0,
-      0,
-      5
+      0
     ]
+  },
+  {
+    "ID": "6eaa0d3f",
+    "EnumName": "狩猎",
+    "DisplayName": "获得狩猎：回合结束时，如果处于可行动状态，随机对对手发起一次攻击",
+    "EffectType": "GrantHunt",
+    "TargetKinds": "自己",
+    "TargetFilter": "NoRole",
+    "Polarity": 1,
+    "MountKinds": "关键词",
+    "Tags": null,
+    "ManaList": [
+      0,
+      3,
+      0,
+      0
+    ],
+    "特殊裁定": "狩猎攻击不吃横置代价（打完仍可行动），按正常战斗结算并触发其他效果；回合末同步结算，无守卫响应窗口"
   }
 ]

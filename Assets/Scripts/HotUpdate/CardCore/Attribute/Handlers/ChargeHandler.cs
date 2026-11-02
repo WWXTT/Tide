@@ -12,11 +12,14 @@ namespace CardCore.Attribute.Handlers
     // ================================================================
 
     /// <summary>
-    /// 充能原子处理器（主动效果、速度 0、只能从手牌发动——发动口 GameActions.ActivateCharge，
-    /// CanCharge 单源闸门；AI 枚举 LegalActionEnumerator.EnumerateCharge）。
+    /// 充能原子处理器（主动效果、只能从手牌发动——发动口 GameActions.ActivateCharge，
+    /// CanCharge 单源闸门；AI 枚举 LegalActionEnumerator.EnumerateCharge / 响应窗候选④）。
+    /// 速度（2026-11-02 定案）：己方回合恒 0 速（主阶段空栈首动）；对手回合=整卡施放速度
+    /// （仅速≥1 法术可响应窗口充能）。**每回合一次**（单卡：己方一次、速≥1 法术对手回合一次——
+    /// 记账在 ActivateCharge 入栈口，不在此处）。
     /// 结算步：扣 1 点所选色元素（现取现用）→ 手牌卡 +1 层同色费用降低指示物 →
     /// 首次充能展示这张卡（Exposed + RevealCardsEvent，二值不叠层）→ 发布 CardChargedEvent。
-    /// 卡留在手牌：不横置、不消耗行动次数/耐久；可重复至上限（CanCharge 闸）；
+    /// 卡留在手牌：不横置、不消耗行动次数/耐久；上限内逐回合续充（进度层跨回合保留）；
     /// 换区清除（Resident 指示物口径；发动区暂存豁免照旧由 ZoneContainer 保证，施放付费时折扣还在）。
     /// 颜色来自 context.ChargeColor（ActivateCharge 随 PendingEffect 透传）；空/Any/非手牌源=空转。
     /// </summary>

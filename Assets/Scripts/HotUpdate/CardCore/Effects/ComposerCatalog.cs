@@ -228,7 +228,7 @@ namespace CardCore
         private static readonly System.Collections.Generic.Dictionary<AtomicEffectType, string> _gateIdOfTypes
             = new System.Collections.Generic.Dictionary<AtomicEffectType, string>
         {
-            { AtomicEffectType.GateFirstDrawOfTurn, "DrawnInStandbyThisTurn" }, // 命运一抽【唯一】
+            { AtomicEffectType.GateFirstDrawOfTurn, "DrawnInStandbyThisTurn" }, // 命运一抽（2026-11-02 退役唯一——限量走容量门 IsCapacityGate）
             { AtomicEffectType.GateLifeBelow, "LifeBelowOpp" },
             { AtomicEffectType.GateLifeAbove, "LifeAboveOpp" },
             { AtomicEffectType.GateDeckBelow, "DeckBelowOpp" },
@@ -269,33 +269,50 @@ namespace CardCore
         public static bool IsSituationCondition(string conditionId)
             => SituationGates.Any(g => g.Id == conditionId);
 
-        // ======================================== 构筑唯一键（每卡组限 1 张） ========================================
+        // ======================================== 构筑限量键（唯一=每卡组 1 张；容量门=按卡组规模） ========================================
 
-        /// <summary>唯一门（2026-10-11 命运一抽起）：显示名带「【唯一】」后缀的局面门——使用该门的卡
+        /// <summary>唯一门（2026-10-11 起）：显示名带「【唯一】」后缀的局面门——使用该门的卡
         /// 每个卡组限 1 张（不同卡 id 也互斥）。单一事实源=SituationGates 显示名后缀，
-        /// 后续门加后缀即生效（构筑 UI 拦截/随机组卡过滤自动跟进）。</summary>
+        /// 后续门加后缀即生效（构筑 UI 拦截/随机组卡过滤自动跟进）。
+        /// 2026-11-02 命运一抽改版退役唯一（表删后缀、预算 5→3），限量改走容量门。</summary>
         public static bool IsUniqueGate(string gateId)
             => !string.IsNullOrEmpty(gateId)
                && SituationGates.Any(g => g.Id == gateId
                    && g.DisplayName != null && g.DisplayName.EndsWith("【唯一】", StringComparison.Ordinal));
 
+        /// <summary>容量门（2026-11-02 命运一抽改版定案）：随卡组规模限量的局面门——
+        /// 表行特殊裁定「卡组每具有 10 张卡，能添加一张命运一抽」。限量规则在代码
+        ///（表 特殊裁定 列纯展示层），门身份照旧=gateId（branch 载荷同键），
+        /// 与唯一门共用 DeckUniqueSlots 槽通道。</summary>
+        public static bool IsCapacityGate(string gateId)
+            => gateId == "DrawnInStandbyThisTurn";
+
         /// <summary>唯一门显示名（未知名回退 id 本身——提示文案用）。</summary>
         public static string UniqueGateDisplayName(string gateId)
             => SituationGates.FirstOrDefault(g => g.Id == gateId)?.DisplayName ?? gateId;
 
-        /// <summary>构筑唯一槽（2026-10-11 构筑规则②）：卡的「每卡组限 1 张」身份。</summary>
+        /// <summary>构筑槽容量（2026-11-02 容量门起，四执行口同源：构筑添加/保存、联机提交、
+        /// 随机组卡）：唯一门/仪典恒 1；容量门 = 牌库卡数 ÷10 向下取整
+        ///（30 张=3、60 张=6；deckCardCount=进牌库卡数，衍生物模板不计）。</summary>
+        public static int SlotCapacity(string slotKey, int deckCardCount)
+            => slotKey != null && slotKey.StartsWith("gate:", StringComparison.Ordinal)
+               && IsCapacityGate(slotKey.Substring("gate:".Length)) ? deckCardCount / 10 : 1;
+
+        /// <summary>构筑限量槽（2026-10-11 构筑规则②；2026-11-02 容量门起不限「1 张」）：
+        /// 卡的构筑限量身份（容量=SlotCapacity）。</summary>
         public sealed class DeckUniqueSlot
         {
             /// <summary>身份键（族前缀+id：「gate:{局面门 id}」/「aura:{仪典短名}」）——同键不同卡互斥。</summary>
             public string Key;
-            /// <summary>提示用显示名（如 命运一抽【唯一】/ 苦痛仪典）。</summary>
+            /// <summary>提示用显示名（如 苦痛仪典/命运一抽）。</summary>
             public string Display;
         }
 
-        /// <summary>卡携带的构筑唯一槽全集（消费方：DeckBuilderScreen 添加/保存拦截、
-        /// BattleController.RandomDeckFrom 随机组卡过滤）。两族：
-        /// ① 唯一门——槽级 branch 载荷（settle=Gate）gateId 命中 IsUniqueGate；
-        /// ② 规则光环仪典——ModifyGameRule 原子步（表行 MountKinds 含 RuleAura 位）str=规则短名，
+        /// <summary>卡携带的构筑限量槽全集（消费方：DeckBuilderScreen 添加/保存拦截、
+        /// NetMatchHandshake 联机提交、BattleController.RandomDeckFrom 随机组卡过滤）。三族：
+        /// ① 唯一门——槽级 branch 载荷（settle=Gate）gateId 命中 IsUniqueGate（每卡组 1 张）；
+        /// ② 容量门（2026-11-02 命运一抽起）——同载荷 gateId 命中 IsCapacityGate（每 10 张牌库卡 1 张）；
+        /// ③ 规则光环仪典——ModifyGameRule 原子步（表行 MountKinds 含 RuleAura 位）str=规则短名，
         /// 同名仪典每卡组限 1 张（镜像运行时「异名共存、同名禁止」，不同仪典可共存）。
         /// 扫描全部效果步骤（含抉择嵌套与旧版 then/else 扁平列）与扁平 AtomicEffects。</summary>
         public static List<DeckUniqueSlot> DeckUniqueSlots(CardData card)
@@ -337,7 +354,8 @@ namespace CardCore
         {
             if (atom == null) return;
             var b = atom.branch;
-            if (b != null && (BranchSettleKind)b.settle == BranchSettleKind.Gate && IsUniqueGate(b.gateId))
+            if (b != null && (BranchSettleKind)b.settle == BranchSettleKind.Gate
+                && (IsUniqueGate(b.gateId) || IsCapacityGate(b.gateId)))
                 AddDeckUniqueSlot(slots, "gate:" + b.gateId, UniqueGateDisplayName(b.gateId));
             var row = AtomicEffectTable.GetByHashId(atom.refId);
             // 阶段D（2026-10-31）：规则 id 从行类型派生（RuleAuraComponents 映射）优先——
@@ -498,8 +516,8 @@ namespace CardCore
 
         /// <summary>关键词 id 是否可作连接光环条目（2026-09-23 定案·数据驱动；2026-10-07 晚默认翻转）：
         /// 经关键词定义 → Grant 原子表行 → CanMountAsAura——关键词**默认可**，
-        /// 黑名单表标位 7（现值：守护/再生/无实体/绝缘体——与光环 live-query 持续语义冲突）——名单在表不在代码。
-        /// 指示物化关键词（圣盾/潜行/复生 2026-10-08、法术护盾 10-09）已退出关键词目录，恒 false。</summary>
+        /// 黑名单表标位 7（现值：守护/再生/绝缘体——与光环 live-query 持续语义冲突）——名单在表不在代码。
+        /// 指示物化关键词（圣盾/潜行/复生 2026-10-08、法术护盾 10-09、无实体 11-02）已退出关键词目录，恒 false。</summary>
         public static bool IsAuraMountableKeyword(string keywordId)
         {
             if (string.IsNullOrEmpty(keywordId)) return false;

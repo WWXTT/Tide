@@ -74,6 +74,9 @@ namespace CardCore
                 case "LandsGe7":   // 操控地数量 ≥ 7（地牌=元素池中未耗尽的地牌张数）
                     return context?.Controller != null && context.ElementPool != null
                         && context.ElementPool.GetPooledCards(context.Controller).Count >= 7;
+                case "LandsGt9":   // 操控地数量 &gt; 9（2026-11-01 绿套：门条件抬到 10 地，地牌数=元素池地牌张数）
+                    return context?.Controller != null && context.ElementPool != null
+                        && context.ElementPool.GetPooledCards(context.Controller).Count > 9;
                 case "HandEmpty":  // 手牌数量 = 0（预评口径同 FirstCardThisTurn：手里只剩本张=打出后即空）
                     return context?.Controller != null
                         && (context.ZoneManager?.GetCards(context.Controller, Zone.Hand)?.Count ?? 1)
@@ -123,6 +126,7 @@ namespace CardCore
                 case "FirstCardThisTurn":
                 // 局面状态族·二批（2026-09-22 追加）
                 case "LandsGe7":
+                case "LandsGt9":
                 case "HandEmpty":
                 case "LifeLe7":
                     return true;

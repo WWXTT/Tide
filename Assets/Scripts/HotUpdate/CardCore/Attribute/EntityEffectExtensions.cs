@@ -261,7 +261,8 @@ namespace CardCore
 
         // 效果标记（EffectTargetFlags/HasFlag/AddFlag/RemoveFlag）已删（2026-10-13）：
         // 早期目标免疫脚手架，全仓零逻辑消费（唯一触及=DTO 序列化往返常量）——
-        // 目标不可选的现行口径=潜行指示物/隐密关键词 + TargetFilterSystem.ExcludeUnselectable 显示层。
+        // 目标不可选的现行口径=IsHiddenFromTargeting（潜行指示物+生效条件/隐密关键词）+
+        // TargetResolver.ExcludeUnselectable 显示层。
 
         #region 关键词
 
@@ -382,14 +383,13 @@ namespace CardCore
         /// <summary>
         /// 添加指示物（Entity 级：角色/卡牌同构）。amount 可为负（攻/血/费指示物带符号）。
         /// source = 施加方（指示物来源定案：正量登记，净量归零丢弃；GetCounterSource 查询）。
-        /// kind = 投放档（2026-10-31 沉睡/免疫时序定案，CounterGrantKind 显式命名——压制闸豁免
-        /// 只认此传参）：Effect=常规投放（默认，过绝缘体压制闸）；EntryCost=入场代价投放（苏醒沉睡
-        /// ——只跳过绝缘体压制闸，铭刻 +1/来源登记照旧）。
         /// 返回实际落账增量（铭刻 +1 含在内；被绝缘体清零=0；负量移除返回负值）——调用方
         /// CounterChangedEvent 一律发此返回值（2026-10-31 实际增量子单源定案：战报/浮字/卡面
         /// 三层读数不漂移）。
         /// 回合时钟重载已删（2026-10-08 死路径清理）：限时持续由 CounterSpec 的
         /// Duration/TickPolicy 声明驱动，不再随施加传 turns。
+        /// （2026-11-02 苏醒机制整链删除：CounterGrantKind.EntryCost 入场代价投放档退役——
+        ///  唯一生产者是苏醒入场沉睡；kind 参数保留常规档默认值，调用面不动。）
         /// </summary>
         public static int AddCounters(this Entity entity, string counterType, int amount, Entity source = null,
             Attribute.CounterGrantKind kind = Attribute.CounterGrantKind.Effect)
@@ -401,16 +401,15 @@ namespace CardCore
                 var side = entity is Player p ? p : (entity as Card)?.GetController() ?? (entity as Card)?.GetOwner();
                 var spec = Attribute.CounterRules.Find(counterType);
 
-                // 绝缘体压制闸（2026-10-31 特殊裁定改版：「不拦指示物添加」）：只作用于 Effect 档
-                //（EntryCost=苏醒入场沉睡，入场时序定案——沉睡先落下压住后生效的绝缘体，豁免只认
-                // kind 传参）与战场单位（「持有单位」——手牌卡（含印刷绝缘体）不拦费用指示物投放）。
+                // 绝缘体压制闸（2026-10-31 特殊裁定改版：「不拦指示物添加」）：作用于战场单位
+                //（「持有单位」——手牌卡（含印刷绝缘体）不拦费用指示物投放）。
                 // 清零面收窄为两类：①沉睡/缄默=压制型，与绝缘体时序互压——绝缘体生效期间后加
                 // =被压制（裁定「反过来压制沉睡/缄默」；先在的沉睡/缄默则压住绝缘体=HasKeyword
                 // 实时读假，本闸自然放行，无循环）；②StatKind 属性类=加时回写式（层只是账目），
                 // 清零=属性变化不发生（回写/反写账目不漂移）。其余指示物（毒素/冻结/沉默/护甲/
                 // 圣盾/保护…）**层照常落账**（铭刻 +1 同沾、事件报真实增量），效果走读数压制
                 //（GetEffectiveCounterCount）。负量（移除）不拦；系统指示物（CounterClass.System
-                // ——引擎主干内部驱动，如耐久）豁免。绝缘体本体关键词经 HasKeyword 收口：沉睡/
+                ///——引擎主干内部驱动，如耐久）豁免。绝缘体本体关键词经 HasKeyword 收口：沉睡/
                 // 失效期间读取为假=绝缘体失效（2026-10-31 实时状态读定案）。
                 if (kind == Attribute.CounterGrantKind.Effect
                     && entity is Card insCard
@@ -424,9 +423,8 @@ namespace CardCore
 
                 // 铭刻（2026-10-31）：只作用于**场上单位**（战场卡——生物+结界）：受光环影响一方的
                 // 场上单位被添加指示物时层数+1；角色/手牌/牌库的指示物不受影响。排在绝缘体压制闸
-                // 之后——被清零的投放（沉睡/缄默/属性类）不进铭刻 +1，其余照常；EntryCost 档同沾（入场代价沉睡吃铭刻 +1
-                //——2026-10-31 定案）；系统指示物不加深（特殊裁定终稿：系统指示物不受影响——
-                // 倒计时/死亡计数等引擎主干层不沾）。
+                // 之后——被清零的投放（沉睡/缄默/属性类）不进铭刻 +1，其余照常；系统指示物不加深
+                //（特殊裁定终稿：系统指示物不受影响——倒计时/死亡计数等引擎主干层不沾）。
                 if (entity is Card unit && unit.GetZone() == Zone.Battlefield && side != null
                     && (spec == null || spec.Class != Attribute.CounterClass.System)
                     && RuleAuraSystem.ScopeHits(RuleAuraComponents.InscriptionAura, side))
@@ -480,6 +478,36 @@ namespace CardCore
             return raw;
         }
 
+        /// <summary>
+        /// 隐藏判定（不可被攻击/效果指定的统一口径；2026-11-02 潜行改版单源）：
+        /// 隐密关键词（持续版，恒生效）；或持有潜行层**且生效条件满足**——持有方场上须另有
+        /// 「未潜行且未隐密」的友方实体（战场单位或角色），全员隐藏时潜行整体失效
+        ///（总得有人暴露——表行 2addfe0c 文案口径）。消费口：CombatSystem.CanAttackTarget /
+        /// TargetResolver.ExcludeUnselectable（EffectHandlerRegistry 弹窗域六处汇于此）/
+        /// BattleScreen 攻击失败文案复算。其他实体的隐藏按直读口径（不走本方法——潜行条件互查会递归）。
+        /// </summary>
+        public static bool IsHiddenFromTargeting(this Entity entity)
+        {
+            if (entity == null) return false;
+            if (entity.HasKeyword(Attribute.KeywordRules.Concealed)) return true;
+            if (entity.GetEffectiveCounterCount(Attribute.CounterRules.StealthCounter) <= 0) return false;
+
+            // 生效条件：己方（持有方）场上须有其他未潜行/未隐密实体——战场单位或角色
+            var controller = entity is Player p ? p : (entity as Card)?.GetController();
+            if (controller == null) return true; // 无控制者可判（异常态）：按持有即生效回落
+            var zoneManager = GameCore.Instance.ZoneManager;
+            if (zoneManager == null) return true; // 无局可查（早于 InitGame 的夹具态）：同上回落
+            foreach (var c in zoneManager.GetCards(controller, Zone.Battlefield))
+                if (!ReferenceEquals(c, entity)
+                    && !(c.GetEffectiveCounterCount(Attribute.CounterRules.StealthCounter) > 0
+                         || c.HasKeyword(Attribute.KeywordRules.Concealed)))
+                    return true;
+            // 角色也是「友方单位」的一例（2026-11-02 用户定案）；持有者即角色时不自查
+            return !(entity is Player)
+                && !(controller.GetEffectiveCounterCount(Attribute.CounterRules.StealthCounter) > 0
+                     || controller.HasKeyword(Attribute.KeywordRules.Concealed));
+        }
+
         /// <summary>移除指示物（计数下限 0）</summary>
         public static void RemoveCounters(this Entity entity, string counterType, int amount)
         {
@@ -497,7 +525,7 @@ namespace CardCore
         /// 冻结（2026-09-13 定案；2026-10-08 层即持续定案）：强制横置（一次性动作）+ 放置冻结指示物——
         /// 层=持续回合数，持有者回合末 −1、归零解除（叠加=延长）；持有期间无法重置（BlocksUntap）。
         /// layers：指示物层数=回合数（Value 掷值，缺省 1）。
-        /// source = 施加方（2026-10-08 source 补齐：霜蚀光环经此口传 carrier）。
+        /// source = 施加方。
         /// </summary>
         public static void Freeze(this Entity entity, int layers = 1, Entity source = null)
         {
@@ -613,11 +641,8 @@ namespace CardCore
         // 回到手牌（任何来源）即重置为未展示。
         internal bool _isRevealed = false;
 
-        // 苏醒施放声明标记（2026-10-29 P6 苏醒改版，替代旧立约 AwakenCommitted+豁免暂存
-        // _pendingSleepLayers）：PlayCard 声明成功整体覆写（响应出牌恒 false），cast 结算
-        //（ResolveCardCastAsync）一次性消费清空——付费按苏醒净费（P6c：只免灰份额、彩色含绿照付），入场等量
-        // 转沉睡指示物（ResolvePermanentEntry 直接挂层，不经卡面 Sleep 原子）。运行时瞬态，不序列化。
-        internal bool _awakenCastPending = false;
+        // 苏醒施放声明标记 _awakenCastPending/_awakenWaivePending 已随 2026-11-02 苏醒机制
+        // 整链删除（原：PlayCard 声明写入、ResolveCardCastAsync 消费）。
 
         // 出牌两阶段（2026-10-04 定案）：带代价的卡声明期先算代价——预选代价目标暂存于此，
         // cast 结算付费步经 CostContext.PreselectedCostTargets 消费（响应窗口内不重选；消费后清空）。
@@ -668,9 +693,6 @@ namespace CardCore
         /// 运行时标记不入序列化（身份/观测/计价全走真实卡数据——快照无需区分）。</summary>
         public bool IsToken { get; set; } = false;
 
-        // AwakenCommitted（苏醒已立约）已删（2026-10-29 P6 苏醒改版）：立约决策退役，
-        // 苏醒随施放声明即时表达（Card._awakenCastPending 瞬态标记，见上）。
-
         // ===== 地牌状态三件套已删（2026-10-11 资源重做：指示物/耗竭/回手余量随锁色定案退役）——
         // 地牌权威态只在 ElementPool.PooledCard（LockedColor+IsTapped），卡上无持久字段 =====
     }
@@ -680,15 +702,13 @@ namespace CardCore.Attribute
 {
     /// <summary>指示物投放档（2026-10-31 沉睡/免疫时序定案）：显式命名投放性质——压制闸豁免
     /// 只认本枚举传参，禁止藏在 AddCounters 咽喉里认瞬态标记的静默特判。
-    /// Effect=效果/关键词常规投放（过全部压制闸）；EntryCost=入场代价投放（苏醒施放的沉睡：
-    /// 入场时序=生物进场沉睡先落下、绝缘体后生效，这层沉睡是入场代价，不吃绝缘体对沉睡
-    /// 的清零闸——只跳过该闸；铭刻 +1、来源登记、事件发布照旧）。</summary>
+    /// Effect=效果/关键词常规投放（过全部压制闸）。（2026-11-02 苏醒机制整链删除：
+    /// EntryCost 入场代价投放档退役——唯一生产者是苏醒入场沉睡；枚举保留 Effect 单档，
+    /// kind 参数与调用面不动。）</summary>
     public enum CounterGrantKind
     {
         /// <summary>常规投放（默认档）：过全部获得闸</summary>
         Effect,
-        /// <summary>入场代价投放（苏醒沉睡）：跳过绝缘体获得闸，其余照旧</summary>
-        EntryCost,
     }
 
     /// <summary>自动效果压制统一读数口（2026-10-31 定案）：沉睡与失效（原缄默，id 仍 Nullify）

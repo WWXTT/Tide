@@ -33,6 +33,9 @@ namespace CardCore.AI.NeuralEnv
     public sealed class TideObservation
     {
         // ---- 维度常量（Python 侧只改这些，模型不动）----
+        // v8（2026-11-02 LAE 多目标动作空间）：动作特征 8→11 维——追加 [8]target2Index/[9]target3Index/
+        // [10]nTargets（多目标组合行次目标可见；逐原子 effCount 选 N 与 EmitCombinations 组合行可区分）。
+        // 旧 v7 模型布局不符作废（python LAYOUT_VERSION 同步升 8、N_ACTION_FEATURES 8→11）。
         // v7（2026-10-29 对座镜像修订）：盘面坐标轴平移——双方六格行同列带 x1..x6、P2 改
         // 上下镜像像（槽位数/容量与 v6 一致，位置特征 posX/posZ 分布位移；python LAYOUT_VERSION 同步升 7）。
         // v6（2026-10-29 P11 盘面重塑）：战场槽 12→9（单位区 4+5）——每玩家 46→43 槽、
@@ -40,7 +43,7 @@ namespace CardCore.AI.NeuralEnv
         // 旧模型权重作废（python LAYOUT_VERSION 同步升 6）。
         // v5（2026-10-29 P6 苏醒改版）：删卡特征 [113] AwakenCommitted（立约退役）——
         // NCard 116→115、N_GLOBAL 不变。
-        public const int LayoutVersion = 7;
+        public const int LayoutVersion = 8;
         public const int MaxCardsPerPlayer = 43;
         public const int MaxCardsTotal = MaxCardsPerPlayer * 2;
         // 卡特征布局（内容身份三通路，[15..] 由 CardIdentityService 推导；槽位下标全部由
@@ -72,7 +75,10 @@ namespace CardCore.AI.NeuralEnv
         //   g[34..37] 黑白已获得/14；g[38..45] 双方英雄技能块（P1 绝对序）[has,tapped,uses/10,弹药/5]；
         //   g[46..48] 栈深度/16、栈顶来源/86（=MaxCardsTotal·v6）、栈顶 effectIdentity/1024；g[49] 决策上下文。
         public const int NGlobal = 50;
-        public const int NAction = 8; // 动作特征槽：valid/type/sourceIndex/targetIndex/modeIndex/actionCost/effectIdentity/targetKind
+        // 动作特征槽（v8 8→11 维）：[0]valid [1]type [2]sourceIndex [3]targetIndex [4]modeIndex
+        // [5]actionCost [6]effectIdentity [7]targetKind + v8 多目标追加：
+        // [8]target2Index [9]target3Index（Targets[1]/[2] 槽位，-1=无/玩家目标/>3 截断不编码）[10]nTargets（0..8 钳）。
+        public const int NAction = 11;
 
         public float[] Cards = new float[MaxCardsTotal * NCard];
         public float[] Globals = new float[NGlobal];
@@ -252,8 +258,7 @@ namespace CardCore.AI.NeuralEnv
             Cards[b + 9] = c.GetCounterCount(CounterRules.ToxinCounter);   // 毒素层数
             Cards[b + 10] = c.GetCounterCount(CounterRules.SilenceCounter) > 0 ? 1f : 0f;
             Cards[b + 11] = c.GetCounterCount(CounterRules.CostUpCounter)
-                          - (c.GetCounterCount(CounterRules.CostDownCounter)      // legacy 恒灰档
-                          + c.GetCounterCount(CounterRules.CostDownGrayCounter)   // 2026-10-31 P12 四色
+                          - (c.GetCounterCount(CounterRules.CostDownGrayCounter)   // 2026-10-31 P12 四色
                           + c.GetCounterCount(CounterRules.CostDownRedCounter)    // 充能投放，逐色只减对应费
                           + c.GetCounterCount(CounterRules.CostDownBlueCounter)
                           + c.GetCounterCount(CounterRules.CostDownGreenCounter)); // 费用层净量（合计）

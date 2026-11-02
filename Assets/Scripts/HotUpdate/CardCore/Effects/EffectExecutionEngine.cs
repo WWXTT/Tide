@@ -106,6 +106,19 @@ namespace CardCore
                 if (!(source is Card chargeCard) || chargeCard.GetZone() != Zone.Hand) return false;
             }
 
+            // 0.45 技能效果数值上限（2026-11-02 定案）：技能源（技能栏法术）效果只允许 value=1——
+            // value≥2 的效果不可经技能栏发动。构筑期校验（CanBeSkillCard/SkillIneligibleReason）
+            // 同口径先行；此闸兜底数据被运行时改写/网络路径绕过构筑闸的情形，拒绝时报卡名+效果。
+            if (HeroSkillSystem.IsSkillSource(source))
+            {
+                var valueViolation = HeroSkillSystem.EffectValueViolation(effect);
+                if (valueViolation != null)
+                {
+                    TideLog.Error($"[HeroSkill] 技能发动被拒：{(source as CardWrapper)?.GetData()?.CardName} {valueViolation}");
+                    return false;
+                }
+            }
+
             // 0. 发动代价预检（仅主动）：按宿主分货币（2026-10-15 深夜三类卡改版）——
             //    结界（战场/技能栏）= **拒绝**——结界禁主动效果，只挂自动/光环（运行时临摹/变形
             //    塞进来的主动行也在此拦）；其余（生物/技能区法术=英雄技能载体）= 未横置
@@ -259,16 +272,20 @@ namespace CardCore
                 return;
             }
 
-            // 潜行：发动效果后消耗 1 层（2026-10-08 指示物化；攻击后的消耗在 CombatSystem.ResolveAttackDeclaration）
+            // 潜行：主动发动效果后消耗 1 层（2026-11-02 改版三失效口之一——宣言攻击结算/守卫拦截
+            // 在 CombatSystem.ResolveAttackResolution / ResolveGuardDeclaration；实际受伤不消耗；
+            // 触发式（TriggeringEvent != null）非主动发动、不消耗）。
             // 效果口径读数（2026-10-31 绝缘体裁定）：潜行层对绝缘体单位无效果、不消耗
-            if (instance.Source is Card sourceCard && sourceCard.GetEffectiveCounterCount(Attribute.CounterRules.StealthCounter) > 0)
+            if (instance.TriggeringEvent == null
+                && instance.Source is Card sourceCard
+                && sourceCard.GetEffectiveCounterCount(Attribute.CounterRules.StealthCounter) > 0)
             {
                 sourceCard.AddCounters(Attribute.CounterRules.StealthCounter, -1);
                 EventManager.Instance.Publish(new KeywordAppliedEvent
                 {
                     Target = sourceCard,
                     Keyword = Attribute.CounterRules.StealthCounter,
-                    Detail = "发动效果后潜行失效（消耗 1 层）",
+                    Detail = "主动发动效果后潜行失效（消耗 1 层）",
                     Source = instance.Source
                 });
             }
@@ -381,7 +398,8 @@ namespace CardCore
             if (instance.IsEffectNegated)
             {
                 instance.IsResolved = true;
-                if (instance.TriggeringEvent == null)
+                // 充能跳过（2026-11-02 每回合一次）：ActivateCharge 入栈即记账——结算期不再双记
+                if (instance.TriggeringEvent == null && !ComposerCatalog.IsChargeEffect(effect))
                     RecordUse(effect, instance.Source);
                 EventManager.Instance.Publish(new EffectResolveEvent
                 {
@@ -395,11 +413,15 @@ namespace CardCore
             // 声明期预选目标保留透传（响应窗口指向性卡/教学与 AI 预选），由各原子在自身域内择取归属
             //（域外原子结算期自解析弹窗/AI 代选——见两路径循环与 ResolveAtomTargetsAsync 预选归属段）。
             //
-            // 重放指示物（2026-10-09，白4 表行 b70a8a42）：效果发动结算后，来源单位在场存活且持
-            // 重放层 → 消耗 1 层、同效果**再发动一次**（共享口径重解析组合目标；PerAtomTargets 各原子
-            // 循环内自解析）。重放轮不再消耗层（「重放不触发重放」）——每次真实发动至多重放一次，
-            // 多层=留给后续发动。循环体只含目标重置+原子序列执行：费用/潜行/记账/结算事件
-            // 全在外层，保持只走一次；重放轮 fragments 续加（战报可见两次发动）。
+            // 重放指示物（2026-11-02 改版：对玩家指示物，蓝5 表行 93648aa7）：**发起方玩家**使用的
+            // 法术施放（CastCard=法术卡）或主动效果发动（非触发式·源卡在场）结算后，持重放层 →
+            // **先闸后付**再执行一轮——代价可付闸（CostPayability.AllPayableForReplay 溢出制：
+            // 库存≥1 即可付，无支付目标=失败）不过 → 重复无效、**层保留**等下一张；过 → 消耗 1 层、
+            // 重放轮含代价行溢出执行（「包括效果和代价」，元素费用不重复；共享口径重解析组合目标；
+            // PerAtomTargets 各原子循环内自解析）。重放轮不再消耗层（「重放不触发重放」）——
+            // 每次真实发动至多重放一次，多层=留给后续发动。循环体只含闸+消耗+代价重执行+目标重置+
+            // 原子序列执行：元素费/潜行/记账/结算事件全在外层，保持只走一次；
+            // 重放轮 fragments 续加（战报可见两次发动）。
             bool replayed = false;
             // 片段收集（2026-09-16 描述接口化）：逐原子在执行后经 handler.GetDescription(atom, context)
             // 捕获片段（此刻目标=当前目标、LastOutcome=真实产出），末尾聚合为效果级完整文本。
@@ -425,8 +447,11 @@ namespace CardCore
                 }
 
                 if (replayed) break; // 重放轮不再消耗（重放不触发重放）
-                if (!ConsumeReplayForRerun(instance)) break;
+                if (!TryBeginReplayRerun(instance, specialCosts)) break; // 先闸后付：层∧代价可付——闸不过=重复无效、层保留
                 replayed = true;
+                // 重放轮含代价（2026-11-02 改版「包括效果和代价」）：效果级代价行 + 法术卡级
+                // PayloadCosts 行再执行一轮（元素费用不重复）；可付闸已过，此处溢出执行（弃不满弃光）
+                await PayReplayRoundCostsAsync(instance, specialCosts);
                 context.Targets = new List<Entity>(); // 清空触发下一轮组合目标重解析
             }
 
@@ -451,8 +476,10 @@ namespace CardCore
             }
 
             // 记录使用次数（触发式已在 ProcessTriggeredEffects 入栈时记账，此处防双记；
-            // 键含来源实例（2026-10-03）——同名卡/临时复制各记各的）
-            if (instance.TriggeringEvent == null)
+            // 键含来源实例（2026-10-03）——同名卡/临时复制各记各的。
+            // 充能同理跳过（2026-11-02 每回合一次）：ActivateCharge 入栈即 RecordQueuedActivation——
+            // 结算期再记会双算（读数=2），同链第二充将凭空解禁）
+            if (instance.TriggeringEvent == null && !ComposerCatalog.IsChargeEffect(effect))
                 RecordUse(effect, instance.Source);
 
             // 眠蚀光环主动结算点直调块已删（2026-10-31 整链退役——见 RuleAuraSystem 墓碑注）
@@ -910,27 +937,79 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 重放消耗口（2026-10-09，白4 表行 b70a8a42/GrantReplay）：效果发动结算后调用——
-        /// 来源=场上存活单位（重放挂单位，含结界）且持重放层 → 消耗 1 层+播报，返回 true
-        ///（ExecuteAsync 外层再发动一次）。重放轮由外层 replayed 标记拦截，不再到达此口
-        ///（「重放不触发重放」）。法术卡施放 Source=Player 归因定案天然不触发；诅咒载荷/
-        /// 预言验证/延迟效果/代价栏旁路 executor=设计内不重放。
+        /// 重放开启口·先闸后付（2026-11-02 改版：对玩家指示物，蓝5 表行 93648aa7/GrantReplay；
+        /// 同日用户定案=代价支付失败时重复无效）：**发起方玩家**（Controller）使用的法术施放
+        /// （CastCard=法术卡——法术效果 Source=角色归因定案）或主动效果发动（非触发式·源卡在场
+        /// 存活）结算后，持重放层 → 先过代价可付闸（CostPayability.AllPayableForReplay 溢出制：
+        /// 库存≥1 即可付；弃牌手牌0/磨牌牌库0/域候选空/自伤不足量=无支付目标）——
+        /// **闸不过 → 返回 false：重复无效、层保留**（生效自减=真正生效才消耗，层等下一张）；
+        /// 闸过 → 消耗 1 层+播报，返回 true（外层再执行一轮——代价溢出执行+效果行）。
+        /// 重放轮由外层 replayed 标记拦截，不再到达此口（「重放不触发重放」）。
+        /// 触发式/自动效果/攻击守卫/技能/手牌主动（充能）不触发；诅咒载荷/预言验证/延迟效果/
+        /// 代价栏旁路 executor=设计内不重放。无回合限制（Exception 不倒数）——层跨回合存续直至消耗。
         /// </summary>
-        private static bool ConsumeReplayForRerun(EffectInstance instance)
+        private bool TryBeginReplayRerun(EffectInstance instance, List<CostInstance> specialCosts)
         {
-            if (!(instance?.Source is Card src) || !src.IsAlive) return false;
-            if (src.GetZone() != Zone.Battlefield) return false;
-            if (src.GetEffectiveCounterCount(Attribute.CounterRules.ReplayCounter) <= 0) return false;
+            if (instance?.Controller == null) return false;
+            bool isSpellCast = instance.CastCard != null && instance.CastCard.IsSpellCard();
+            bool isActiveUse = instance.TriggeringEvent == null
+                && instance.Source is Card src && src.IsAlive
+                && src.GetZone() == Zone.Battlefield;
+            if (!isSpellCast && !isActiveUse) return false;
 
-            src.RemoveCounters(Attribute.CounterRules.ReplayCounter, 1);
+            var player = instance.Controller;
+            if (player.GetEffectiveCounterCount(Attribute.CounterRules.ReplayCounter) <= 0) return false;
+
+            var rows = ReplayCostRows(instance, specialCosts);
+            if (rows.Count > 0 && !CostPayability.AllPayableForReplay(rows, ReplayCostContext(instance)))
+            {
+                TideLog.Info("[EffectExecutor] 重放轮代价无支付目标——重复无效（层保留，等下一张法术/主动效果）");
+                return false;
+            }
+
+            player.RemoveCounters(Attribute.CounterRules.ReplayCounter, 1);
             EventManager.Instance.Publish(new KeywordAppliedEvent
             {
-                Target = src,
+                Target = player,
                 Keyword = Attribute.CounterRules.ReplayCounter,
-                Detail = $"重放发作：{EffectText.Name(src)} 的效果再次发动（消耗 1 层，重放不触发重放）",
+                Detail = $"重放发作：{EffectText.Name(player)} 使用的法术/主动效果再次执行（消耗 1 层，重放不触发重放）",
                 Source = instance.Source,
             });
             return true;
+        }
+
+        /// <summary>重放轮代价行全集（闸与付共源）：效果级代价行（specialCosts——法术所选主动行/
+        /// 单位主动行的原班）+ 法术施放的卡级 PayloadCosts 行（CollectCardPayloadCostRows 单源）。</summary>
+        private List<CostInstance> ReplayCostRows(EffectInstance instance, List<CostInstance> specialCosts)
+        {
+            var rows = new List<CostInstance>();
+            if (specialCosts != null) rows.AddRange(specialCosts);
+            if (instance.CastCard != null && instance.CastCard.IsSpellCard())
+                rows.AddRange(GameActions.CollectCardPayloadCostRows(instance.CastCard));
+            return rows;
+        }
+
+        /// <summary>重放轮代价上下文（闸=CostPayability 纯读、付=PayPayloadsAsync 执行，共用）。</summary>
+        private CostContext ReplayCostContext(EffectInstance instance) => new CostContext
+        {
+            Payer = instance.Controller,
+            ZoneManager = _zoneManager,
+            ElementPool = _elementPool,
+            Source = instance.Source,
+        };
+
+        /// <summary>
+        /// 重放轮代价重执行（2026-11-02 改版「包括效果和代价」）：效果级代价行 + 法术卡级
+        /// PayloadCosts 行，各再执行一轮；元素费用不重复（重放只重复代价，不重复费用）。
+        /// 只执行不产出（P1 口径）；可付闸已过（TryBeginReplayRerun），此处按溢出执行
+        ///（弃 N 而手牌 &lt;N 弃光现有——执行层天然口径）；返回 false 仅理论兜底（闸后同帧无状态窗）。
+        /// </summary>
+        private async UniTask PayReplayRoundCostsAsync(EffectInstance instance, List<CostInstance> specialCosts)
+        {
+            var rows = ReplayCostRows(instance, specialCosts);
+            if (rows.Count == 0) return;
+            if (!await CostCompensationService.PayPayloadsAsync(rows, ReplayCostContext(instance)))
+                TideLog.Warn("[EffectExecutor] 重放轮代价行执行失败——空转（可付闸已过，效果行照常执行）");
         }
 
         private bool CheckTiming(
@@ -1096,14 +1175,25 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 尝试发动效果（速度发动入口，2026-10-18 定案口径）
-        /// 门槛：所有主动发动 速度 **严格大于** 记速器（同速连锁一律禁止）；
-        /// 空栈首动（新连锁第一个发动）免门槛。
+        /// 尝试发动效果（速度发动入口）
+        /// 门槛（2026-11-01 统一口径，与 PushCardCast/CollectAvailableResponses 同款）：
+        /// ① 空栈首动（新连锁第一个发动/主阶段出牌）免门槛——0 速主动效果主阶段照常；
+        /// ② 非空栈：速≥1 且 速≥记速器（同速可接）——旧「全严格大于」与手牌整卡口径不一致
+        ///    （1 速主动效果接不住 1 速记速器），0 速主动效果仍锁在自家主阶段；
+        /// ③ 条件发动（强制/自动触发）不走速度、恒可入栈（原 SpeedCounter.CanActivate 口径保持）。
         /// 入栈时记速器只在更高速度时抬升（RaiseTo，非无条件 +1）
         /// </summary>
         public bool TryActivateEffect(PendingEffect pending)
         {
-            bool gate = _speedCounter.CanActivate(pending.ActivationSpeed, pending.ActivationType, _stack.Count == 0);
+            bool gate;
+            if (pending.ActivationType != EffectActivationType.Voluntary)
+                gate = true; // 条件发动：不参与速度比较（原 CanActivate 首位口径，含结算中——触发批有自己的排水口）
+            else if (_speedCounter.IsResolving)
+                gate = false; // 结算中不允许速度发动入栈
+            else if (_stack.Count == 0)
+                gate = true; // 空栈首动免门槛
+            else
+                gate = pending.ActivationSpeed >= 1 && pending.ActivationSpeed >= _speedCounter.CurrentSpeed;
             GameActions.Crumb($"CF-activate-try def={pending?.Effect?.Id} speed={pending?.ActivationSpeed} by={pending?.Controller?.Name} ctr={_speedCounter.CurrentSpeed} gate={gate}");
             if (!gate)
                 return false;
@@ -1142,7 +1232,10 @@ namespace CardCore
             if (_isResolving) return false; // 结算中不可声明（与 SpeedCounter.CanActivate 同口径）
             SyncActivePlayerFromTurn();
             int castSpeed = SpeedCalculator.GetCardCastSpeed(card);
-            if (!_speedCounter.CanActivate(castSpeed, EffectActivationType.Voluntary, _stack.Count == 0))
+            // 2026-11-01 用户定案：整卡施放的门槛=①空栈首动免门槛（主阶段出牌照旧）
+            // ②非空栈：速≥1 且 速≥记速器（法术同速可连锁，见 CollectAvailableResponses 同款口径）。
+            // 旧的 CanActivate 全严格大于会把「对手 1 槽法术(速2) → 我的 1 槽法术(速2)」卡死。
+            if (_stack.Count > 0 && (castSpeed < 1 || castSpeed < _speedCounter.CurrentSpeed))
                 return false;
 
             var instance = new EffectInstance
@@ -1207,6 +1300,52 @@ namespace CardCore
                 AddedObject = instance,
                 AddingPlayer = _activePlayer
             });
+
+            return true;
+        }
+
+        /// <summary>阶段窗伪对象速度（2026-11-01 定案）：0 速——不抬记速器，窗口内响应门槛
+        /// =速≥1 且 速≥0（1 速手牌整卡/主动效果可入，与空栈首动同基线；0 速主动效果照旧不可入）。</summary>
+        public const int PhaseWindowStackSpeed = 0;
+
+        /// <summary>
+        /// 阶段优先权窗伪对象入栈（2026-11-01 定案：0 速伪栈对象开窗，仿 PushStateAction）。
+        /// 时点（2026-11-01 同日修订，双窗）：①「结束阶段开始」——回合方声明结束、结束阶段系统
+        /// 行为（TurnEndEvent 订阅链）之前（GameActions.EndTurn 驱动）；②「主阶段开始」——
+        /// 新回合折返落主阶段时（GameCore.OnMainPhaseStartedWindow 订阅 PhaseStartEvent(Main) 驱动；
+        /// 原「回合结束前」时点废弃）。跳过主要阶段档无主阶段开始事件=自然无窗②。
+        /// 伪对象不参与结算（ResolveStack 的 IsPhaseWindow 分支到点自动消失）；双方 Pass 即让路，
+        /// 阶段推进由窗口外的调用链/帧泵承担；无候选时响应窗泵自动双 Pass（AI/无头局不卡死）。
+        /// 优先权起点=回合方（与 SBA/触发轮同口径）。label=窗口时点名（描述层显示，可空）。
+        /// </summary>
+        public bool PushPhaseWindow(Player firstResponder, string label = null)
+        {
+            if (firstResponder == null) return false;
+            if (_stack.Count > 0) return false; // 栈上有待响应对象时不插（调用点栈必空）
+            if (_speedCounter.IsResolving) return false; // 结算中不开窗（与玩家声明口同口径）
+            SyncActivePlayerFromTurn();
+
+            var instance = new EffectInstance
+            {
+                IsPhaseWindow = true,
+                PhaseWindowLabel = label,
+                ActivationSpeed = PhaseWindowStackSpeed, // 0 速：RaiseTo(0) 无操作，记速器保持 0
+                Controller = firstResponder,             // 优先权起点（描述层用；结算无消费）
+                // Source/Definition 恒 null：阶段窗是规则动作，无施放者、无费用、无执行定义
+                Targets = new List<Entity>()
+            };
+
+            _stack.Push(instance);
+            _priorityHolder = firstResponder; // 回合方先响应（与 SBA 轮同口径）
+            _consecutivePassCount = 0;
+            _waitingForPlayer = true;
+
+            EventManager.Instance.Publish(new StackAddEvent
+            {
+                AddedObject = instance,
+                AddingPlayer = firstResponder
+            });
+            GameActions.Crumb($"CF-phase-window-push({label ?? "?"}) by={firstResponder.Name} stack={_stack.Count}");
 
             return true;
         }
@@ -1468,6 +1607,13 @@ namespace CardCore
                             sbaCore.CheckLifeGameOver();    // 判负（ExecuteZeroLife 内含幂等守卫）
                         }
                     }
+                    else if (top.IsPhaseWindow)
+                    {
+                        // 0 速阶段窗伪对象（2026-11-01）：到点自动消失——不结算、不重查、不发事件。
+                        // 窗口本身（双方 Pass 让路）已在上面的双 Pass 流程完成；阶段推进在窗口外
+                        //（窗①=GameActions.EndTurn 续链、窗②=帧泵/驱动器折返口）。
+                        GameActions.Crumb("CF-phase-window-vanish");
+                    }
                     else if (top.IsGuardDeclaration)
                         GameCore.Instance?.CombatSystem?.ResolveGuardDeclaration(top);
                     else if (top.IsAttackDeclaration)
@@ -1596,6 +1742,7 @@ namespace CardCore
              : o.IsGuardDeclaration ? $"GRD:{(o.Source as Card)?.ID ?? o.Source?.ToString()}"
              : o.IsCardCast ? $"CAST:{(o.Source as Card)?.ID}"
              : o.IsSBA ? "SBA"
+             : o.IsPhaseWindow ? "PHASE-WIN"
              : $"{o.Definition?.Id ?? "?"}";
 
         public List<EffectInstance> GetStackContents()
@@ -1810,7 +1957,8 @@ namespace CardCore
                 // 与沉默（拦主动，CanActivate）对称——缄默不拦主动，沉睡另在 CanActivate 0.6 拦主动。
                 // 本体关键词另经 HasKeyword 收口同被压制（再生=GameCore 直连，读数走 HasKeyword 一并失效）；
                 // 伤害管线被动（坚韧/圣盾/护甲——指示物，走 ApplyDamage 管线）不归此管，天然不拦。
-                // 入场窗口自身的 OnPlay 不受影响（入场事件发布先于苏醒沉睡挂层——匹配先于挂层）。
+                // 入场窗口自身的 OnPlay 不受影响（入场事件发布先于任何入场后状态挂层——匹配先于挂层；
+                // 旧「苏醒入场沉睡」先例已于 2026-11-02 随苏醒机制删除）。
                 if (registered.Source != null
                     && SuppressRules.IsAutoSuppressed(registered.Source))
                     continue;
@@ -1946,8 +2094,8 @@ namespace CardCore
                 new ModifyCostHandler(),
 
                 // 信息族 — 强夺（宣言卡名夺对手手牌）/ 窃取（宣言卡名夺对手牌库·2026-10-31）/
-                // 预言（隐秘类别押注·命中发动无效）/ 卡名预言（引擎主干，延迟验证）
-                // ——箭头宣言 2026-10-30 退役（表行/handler/枚举位同批删除）
+                // 预言（隐秘类别押注·命中发动无效）/ 预言·押注行（ProphecyNextCard·类别三选一
+                // 延迟验证·2026-11-02 收紧）——箭头宣言 2026-10-30 退役（表行/handler/枚举位同批删除）
                 new DeclareHandHandler(),
                 new DeclareDeckHandler(),
                 new DeclareDeckTopHandler(),
@@ -1969,23 +2117,26 @@ namespace CardCore
                 // 法术护盾（2026-10-09 指示物化收官）：同上——执行改挂 SpellShieldCounter 层，
                 // ConsumeSpellShields 效果执行前置过滤逐层消耗
                 new GrantSpellShieldHandler(),
+                // 无实体（2026-11-02 指示物化）：同上——执行改挂 SpellbanCounter 衰退层（表行 6c38edaa），
+                // 钳口=ApplyDamage 守护改写之后
+                new GrantSpellbanHandler(),
 
                 // 状态原子（虚弱/鼓舞——施加 ±1/+1 属性指示物）
                 new WeakenHandler(),
                 new InspireHandler(),
 
-                // 指示物原子（紊乱/易损/单向属性指示物——攻击力·生命值·费用 ×增减、±1/+1）
+                // 指示物原子（紊乱/易损/单向属性指示物——攻击力·生命值·费用 ×增减；属性±1/+1 2026-11-02 删）
                 new RushSicknessHandler(),
                 new AddVulnerableHandler(),
                 new AddPowerUpHandler(),
                 new AddPowerDownHandler(),
                 new AddLifeUpHandler(),
                 new AddLifeDownHandler(),
-                new AddPlusOneHandler(),
-                new AddMinusOneHandler(),
-                // 永久属性原子（2026-10-08 来源分轨退役）：±X/±X 直写字段——跨区保留、净化不清
-                new AddPermanentPlusOneHandler(),
-                new AddPermanentMinusOneHandler(),
+                // 永久攻血四轴（2026-11-02 拆分定案，原双属性±X/±X 两行退役）：单轴直写字段——跨区保留、净化不清
+                new AddPermanentPowerUpHandler(),
+                new AddPermanentPowerDownHandler(),
+                new AddPermanentLifeUpHandler(),
+                new AddPermanentLifeDownHandler(),
                 // 四色费用指示物（2026-10-31 通用费用增减四色化——增减各 4 行，每层 ±1 对应色净费）
                 new AddCostUpGrayHandler(),
                 new AddCostUpRedHandler(),
@@ -2007,8 +2158,8 @@ namespace CardCore
                 // 反疗（2026-10-09，黑2，原名堕落·仅角色，同日放开）：任意有生命单位——
                 // 下一次受到的治疗改写为等量伤害并消耗 1 层（改写口=EntityEffectExtensions.Heal 咽喉）
                 new GrantDepravityHandler(),
-                // 重放（2026-10-09，白4）：单位效果发动结算后消耗 1 层并再次发动一次
-                //（重放不触发重放；消耗口=EffectExecutor.ExecuteAsync 结算段）
+                // 重放（2026-11-02 改版：对玩家指示物，蓝5）：玩家使用的法术/主动效果结算后
+                // 消耗 1 层并再执行一轮（含代价行；重放不触发重放；消耗口=ExecuteAsync 结算段）
                 new GrantReplayHandler(),
 
                 // 临时指示物（2026-10-10 回响临时指示物化，白2）：复制卡的「临时」标记——
@@ -2019,7 +2170,7 @@ namespace CardCore
                 // 无效指示物（蓝3）：拦非主动能力（触发式+光环）——与沉默（拦主动）对称
                 new AddNullifyHandler(),
 
-                // 锁定指示物（2026-10-04 窥渊原子化，蓝2）：手牌无法使用，持有者回合末层数−1
+                // 锁定指示物：手牌无法使用，持有者回合末层数−1
                 new LockCardHandler(),
 
                 // 沉睡（2026-09-11 改造，绿1 中性）：赋予沉睡指示物（效果/指示物分离——持续规则在指示物）

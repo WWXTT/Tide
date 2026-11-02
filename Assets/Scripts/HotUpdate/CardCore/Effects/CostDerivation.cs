@@ -153,6 +153,18 @@ namespace CardCore
                 return;
             }
 
+            // 极性裁定（2026-11-02 定案）：代价型原子指向自己=纯代价——亏牌/自伤本身即代价，
+            // 不得计正费（自我沉睡 Self 零费先例的推广）。效果栏贡献 0 费；代价语义的抵扣走
+            // 代价栏（payloads/Costs 行 → SumPayloadPrice 色锁，不经本口不受影响）。
+            // 判定域=原子自身 kinds 优先（实例指向声明）——计价域 PricingDomain 在效果未声明
+            // 共享域时为空，不承载「指向谁」语义。设计意图自查走 SelfCostViolations
+            //（重推工具 + 端到端验证双拦截，不静默）。
+            if (IsSelfDirectedCostAtom(atom, def))
+            {
+                AccumulateSubEffects(atom, def, domain, byColor);
+                return;
+            }
+
             // 突袭的「−1 对冲激励锚价」特判已删（2026-09-11 代价可选定案）：
             // （历史注：突袭曾以 CostType.SelfSickness 代价承载，2026-09-14 代价原子化后已退役）
             // 计价侧不再有效果内对冲；RushSickness 原子留在效果栏会被内容契约剔除（错边只能进代价栏）。
@@ -544,9 +556,9 @@ namespace CardCore
         /// </summary>
         private static float ComputeAtomBaseAmount(AtomicEffectInstance atom, EffectDefinition def, AtomicEffectConfig cfg)
         {
-            // 自我沉睡（灰费时长模式，2026-10-22 定案）：Value≤0 且实例域={Self}——这是苏醒的代价，
-            // 由被豁免的灰费（转为沉睡层数）支付，不再收黑费；否则绿卡带自我沉睡会被推导出黑费、
-            // 主题纯度直接破功，且「代价」被重复收两次。固定层数沉睡（Value>0）仍按黑费计。
+            // 自我沉睡（灰费时长模式，2026-10-22 定案；2026-11-02 苏醒删除后仅存历史口径）：
+            // Value≤0 且实例域={Self}——旧苏醒时代的代价位（由被豁免的灰费支付），维持零计价；
+            // 否则绿卡带自我沉睡会被推导出黑费。固定层数沉睡（Value>0）仍按黑费计。
             if (atom.Type == AtomicEffectType.Sleep && atom.Value <= 0
                 && atom.TargetKinds != null && atom.TargetKinds.Count == 1
                 && atom.TargetKinds[0] == (int)TargetKind.Self)
@@ -980,6 +992,146 @@ namespace CardCore
             return 0;
         }
 
+        // ======================================== 代价型原子极性裁定（2026-11-02 定案） ========================================
+
+        /// <summary>代价型原子表（2026-11-02 用户定案）：效果栏里「指向自己」时只可能是代价、
+        /// 无收益面的原子类型 → 构成「指向自己即代价」的 TargetKind 白名单。
+        /// 命中（原子有效指向纯己方侧且含白名单位）= 效果栏计 0 费 + <see cref="SelfCostViolations"/>
+        /// 上报；代价语义应改走代价栏（payloads/Costs 行·色锁抵扣）或把 kinds 改指对侧。
+        /// 至少覆盖用户点名四类：弃牌@己方手牌 / 造成伤害@Self（自伤）/ 消灭己方 / 磨己方牌库；
+        /// 同族补：摧毁己方无生命单位、生命流失@己方、永久属性减少@己方。
+        /// **不得按表行 Polarity&lt;0 泛化**——迸发（BurstDamage·P=−1）行域指己方单位但伤害落
+        /// 对方（己方只是参照目标），泛化会误杀； Polarity 只说明「对目标有害」，不说明目标是谁。</summary>
+        private static readonly Dictionary<AtomicEffectType, HashSet<int>> SelfCostAtoms = new Dictionary<AtomicEffectType, HashSet<int>>
+        {
+            { AtomicEffectType.DiscardCard, new HashSet<int> { (int)TargetKind.OwnHand } },          // 弃牌@己方手牌
+            { AtomicEffectType.DealDamage, new HashSet<int> { (int)TargetKind.Self, (int)TargetKind.OwnLivingUnit } }, // 自伤（角色=Self/己方单位）
+            { AtomicEffectType.Devour, new HashSet<int> { (int)TargetKind.OwnLivingUnit } },         // 消灭己方生物
+            { AtomicEffectType.Smash, new HashSet<int> { (int)TargetKind.OwnNonLivingUnit } },       // 摧毁己方地/结界
+            { AtomicEffectType.MillCard, new HashSet<int> { (int)TargetKind.OwnDeck } },             // 磨己方牌库
+            { AtomicEffectType.LifeLoss, new HashSet<int> { (int)TargetKind.Self, (int)TargetKind.OwnLivingUnit } }, // 己方生命流失
+            { AtomicEffectType.AddPermanentPowerDown, new HashSet<int> { (int)TargetKind.OwnLivingUnit } }, // 永久攻减@己方（原永久属性减少拆轴承袭）
+            { AtomicEffectType.AddPermanentLifeDown, new HashSet<int> { (int)TargetKind.OwnLivingUnit } },  // 永久血减@己方（同上）
+        };
+
+        /// <summary>是否「代价型原子指向自己」：类型在 <see cref="SelfCostAtoms"/> 白名单、
+        /// 有效指向（原子自身 kinds 优先，回落效果级共享域）纯己方侧、且含该类型的白名单位。
+        /// 含对侧成员=可改打对手（非纯代价），不命中。</summary>
+        public static bool IsSelfDirectedCostAtom(AtomicEffectInstance atom, EffectDefinition def = null)
+        {
+            if (atom == null) return false;
+            if (!SelfCostAtoms.TryGetValue(atom.Type, out var costKinds)) return false;
+            var kinds = atom.TargetKinds != null && atom.TargetKinds.Count > 0
+                ? atom.TargetKinds
+                : def?.TargetDomain;
+            if (kinds == null || kinds.Count == 0) return false;
+            if (SideLock(kinds) != -1) return false; // 纯己方侧才成立
+            return kinds.Any(costKinds.Contains);
+        }
+
+        /// <summary>极性校验（2026-11-02）：扫整卡全部计费原子，报出「代价型原子指向自己」组合——
+        /// 每条含效果名 + 原子行 + 指向 + 表锚价（未按极性裁定时的全价口径，供人工核对意图）。
+        /// 命中不是计价错误（计价层已按 0 费裁定），是设计意图问题：自伤/弃己牌按代价设计
+        /// 应走代价栏（payloads），打击对手应改指对侧。消费方：重推工具 RegenOneDeck（逐卡
+        /// LogError）与端到端验证（Assert 0 命中）。抉择全模式、分支 Then 奖励、子效果全覆盖。</summary>
+        public static List<string> SelfCostViolations(CardData card)
+        {
+            var result = new List<string>();
+            if (card?.Effects == null || card.Effects.Count == 0) return result;
+            foreach (var def in CardEffectConverter.ConvertAll(card.Effects, card.ID))
+            {
+                if (def == null) continue;
+                CheckSelfCostSteps(def, def.Steps, result);
+                foreach (var atom in def.Effects) // 扁平形态（未配 Steps 的旧卡）
+                    CheckSelfCostAtom(def, atom, result);
+            }
+            return result;
+        }
+
+        private static void CheckSelfCostSteps(EffectDefinition def, List<RuntimeEffectStep> steps, List<string> result)
+        {
+            if (steps == null) return;
+            foreach (var step in steps)
+            {
+                if (step == null) continue;
+                if (step.Kind == RuntimeStepKind.Atomic) CheckSelfCostAtom(def, step.Atomic, result);
+                else if (step.Kind == RuntimeStepKind.Choice && step.Choices != null)
+                    foreach (var mode in step.Choices) // 抉择全模式巡检（计价只看所选模式，校验面更宽）
+                        CheckSelfCostSteps(def, mode, result);
+            }
+        }
+
+        private static void CheckSelfCostAtom(EffectDefinition def, AtomicEffectInstance atom, List<string> result)
+        {
+            if (atom == null) return;
+            if (IsSelfDirectedCostAtom(atom, def))
+            {
+                var cfg = ResolvePricingConfig(atom);
+                var kinds = atom.TargetKinds != null && atom.TargetKinds.Count > 0 ? atom.TargetKinds : def?.TargetDomain;
+                string kindsZh = kinds == null ? "?" : string.Join(",", kinds.Select(k => TargetKindRules.ZhNameOf((TargetKind)k)));
+                string anchor = cfg?.ManaList != null ? AnchorZh(cfg.ManaList) : "?";
+                result.Add($"效果[{def.DisplayName ?? def.Id}] 原子[{cfg?.DisplayName ?? atom.Type.ToString()}] 指向[{kindsZh}]" +
+                           $"（代价型·指向自己·表锚价{anchor}）——效果栏已按极性裁定计 0 费；" +
+                           $"按代价设计请改走代价栏(payloads)，打击对手请改指对侧");
+            }
+            foreach (var sub in atom.SubEffects) CheckSelfCostAtom(def, sub, result);       // 元效果子原子
+            if (atom.Branch?.Then != null) CheckSelfCostThen(def, atom.Branch.Then, result); // 分支奖励原子同口径
+        }
+
+        private static void CheckSelfCostThen(EffectDefinition def, List<AtomicEffectInstance> then, List<string> result)
+        {
+            foreach (var atom in then)
+            {
+                if (atom == null) continue;
+                if (IsSelfDirectedCostAtom(atom, def))
+                {
+                    var cfg = ResolvePricingConfig(atom);
+                    string anchor = cfg?.ManaList != null ? AnchorZh(cfg.ManaList) : "?";
+                    result.Add($"效果[{def.DisplayName ?? def.Id}] 分支奖励[{cfg?.DisplayName ?? atom.Type.ToString()}]" +
+                               $"（代价型·指向自己·表锚价{anchor}）——奖励发自己亏牌=自相矛盾，请核对意图");
+                }
+                foreach (var sub in atom.SubEffects) CheckSelfCostThen(def, new List<AtomicEffectInstance> { sub }, result);
+            }
+        }
+
+        // ======================================== 代价栏翻转限制（2026-11-02 定案） ========================================
+
+        /// <summary>代价栏翻转限制（2026-11-02 定案）：①极性=0 的原子不能进代价栏；
+        /// ②没有 {target} 参数（表行 TargetKinds 空——无目标原子）的原子也不能翻转成代价。
+        /// 合成器放置口经 <see cref="PayloadCostDomain"/> 早已收口（eligible=false 拒入）；
+        /// 本口补**数据层显式上报**：装载期 ConvertPayloadForDisplay 剔除违约原子只留一行 Error，
+        /// 违规卡本身须被点名（卡名由消费方前缀），不得静默。
+        /// 消费方：重推工具 RegenOneDeck（逐卡 LogError）与端到端验证（Assert 0 命中）——
+        /// 与 <see cref="SelfCostViolations"/> 双挂接同款。</summary>
+        public static List<string> PayloadCostViolations(CardData card)
+        {
+            var result = new List<string>();
+            if (card?.Effects == null) return result;
+            foreach (var fx in card.Effects)
+            {
+                if (fx?.Costs == null) continue;
+                foreach (var row in fx.Costs)
+                {
+                    if (row == null) continue;
+                    foreach (var pe in row.AllPayloads())
+                    {
+                        if (pe == null || string.IsNullOrEmpty(pe.refId)) continue; // 空 refId=非 Payload 条目占位
+                        var cfg = AtomicEffectTable.GetByHashId(pe.refId);
+                        if (cfg == null) continue; // 悬空引用另有装载校验点名
+                        float p = Math.Clamp(cfg.Polarity, -1f, 1f);
+                        if (p == 0f)
+                            result.Add($"效果[{fx.DisplayName ?? fx.Id}] 代价栏原子[{cfg.DisplayName}#{pe.refId}] 极性=0" +
+                                       "——极性0的原子不能进代价栏（2026-11-02 定案），请移出或换非中性行");
+                        else if (cfg.GetTargetKindList().Count == 0)
+                            result.Add($"效果[{fx.DisplayName ?? fx.Id}] 代价栏原子[{cfg.DisplayName}#{pe.refId}] 无 {{target}} 参数" +
+                                       "——没有目标参数的原子不能翻转成代价（代价须可指向受损方），请移出或换带目标行");
+                    }
+                }
+            }
+            return result;
+        }
+
+
         /// <summary>计价取行（2026-10-03 行身份修复）：同枚举多行（变体行各自锚价——如规则光环 7 行、
         /// 光环关键词/指示物族）时按实例来源行（RowHashId，converter 填）取锚；null/缺行回落 GetByType
         ///（末行覆写，旧口径——手工构造实例与历史路径兼容）。</summary>
@@ -1037,40 +1189,22 @@ namespace CardCore
         /// 主动照常计槽（2026-10-02 用户定案：「不占费用，占技能挂载」维持——效果槽是 AI 侧
         /// 每卡最大原子数限制的可见性锚，免槽会让 AI 看不见超限的主动堆叠）；
         /// 主动占用的只是底盘免费额度抵扣位，元素锚价仍构筑期全免（运行时现付）。
-        /// 代价=**一个代价一个槽位**（2026-10-31 代价指向化定案）：每条已填代价行各计 1 槽——
-        /// 卡级行（PayloadCosts 逐行，TargetAttr 任指）与效果级行（每个效果的每条已填 Costs 行，
-        /// 主动/自动同口径）不分主次逐行计数；空行不占。底盘 3 灰预算同口径扣槽，超出加价。
+        /// 代价**不计槽**（2026-11-02 减费三选一改版定案）：代价=并列槽位添加、不占灰槽位费——
+        /// 卡级行（PayloadCosts）与效果级行（Costs）一律不计（旧「每条已填代价行各计 1 槽」随批退役）。
         /// </summary>
         public static int CountEffectSlots(CardData card)
         {
             if (card == null) return 0;
             int slots = 0;
-            if (card.PayloadCosts != null)
-            {
-                foreach (var row in card.PayloadCosts)
-                    if (row != null && row.AllPayloads().Count > 0) slots += 1; // 每条卡级代价行 1 槽
-            }
             if (card.Effects != null)
             {
                 foreach (var eff in card.Effects)
                 {
                     if (eff == null) continue;
                     slots += 1; // 每效果 1 槽（含充能效果——P12：充能照常计槽；Choice 分支计槽已随 kind==2 退役删除）
-                    slots += FilledCostRows(eff); // 效果级代价行：每条已填行 1 槽（主动/自动同口径）
                 }
             }
             return slots;
-        }
-
-        /// <summary>效果级已填代价行数（payload 原子非空的 Costs 条目——与 CardEffectConverter
-        /// 装载同口：refId 非空才算 Payload 条目；空行不占槽）。</summary>
-        private static int FilledCostRows(CardEffectData eff)
-        {
-            if (eff?.Costs == null) return 0;
-            int n = 0;
-            foreach (var ce in eff.Costs)
-                if (ce != null && ce.AllPayloads().Count > 0) n++;
-            return n;
         }
 
         /// <summary>数据级主动判定（镜像 CardEffectConverter.ConvertOne 的时机解析：Activate_* 三档时机，

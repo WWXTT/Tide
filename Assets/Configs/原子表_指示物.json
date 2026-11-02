@@ -47,13 +47,13 @@
       0,
       0,
       0,
-      1
+      2
     ]
   },
   {
-    "ID": "2addfe0c",
+    "ID": "1b6a20e9",
     "EnumName": "潜行",
-    "DisplayName": "对{target}附加{value}层潜行指示物，持有期间不可被攻击和效果指定，攻击、发动效果或受到伤害后消耗1层",
+    "DisplayName": "对{target}附加{value}层潜行指示物，如果有其他非潜行友方单位，持有期间则不可被攻击和效果指定，宣言攻击、守卫或发动效果后消耗1层",
     "EffectType": "GrantStealth",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": null,
@@ -231,8 +231,8 @@
     "MountKinds": "指示物,可以作为连接光环,不可随机",
     "Tags": "换区清除型",
     "ManaList": [
-      0.5,
       0,
+      0.5,
       0,
       0
     ]
@@ -265,44 +265,10 @@
     "MountKinds": "指示物,可以作为连接光环,不可随机",
     "Tags": "换区清除型",
     "ManaList": [
-      0.5,
       0,
       0,
-      0
-    ]
-  },
-  {
-    "ID": "8bc5b925",
-    "EnumName": "属性增加",
-    "DisplayName": "为{target}添加{value}层属性增加指示物（+1/+1）",
-    "EffectType": "AddPlusOne",
-    "TargetKinds": "己方单位,对方单位",
-    "TargetFilter": "NoRole",
-    "Polarity": 1,
-    "MountKinds": "指示物,可以作为连接光环,不可随机",
-    "Tags": "换区清除型",
-    "ManaList": [
-      1,
       0,
-      0,
-      0
-    ]
-  },
-  {
-    "ID": "9864d6df",
-    "EnumName": "属性减少",
-    "DisplayName": "为{target}添加{value}层属性减少指示物（-1/-1）",
-    "EffectType": "AddMinusOne",
-    "TargetKinds": "己方单位,对方单位",
-    "TargetFilter": "NoRole",
-    "Polarity": -1,
-    "MountKinds": "指示物,可以作为连接光环,不可随机",
-    "Tags": "换区清除型",
-    "ManaList": [
-      1,
-      0,
-      0,
-      0
+      0.5
     ]
   },
   {
@@ -351,9 +317,9 @@
     "Tags": "生效自减型",
     "ManaList": [
       0,
+      0.5,
       0,
-      0,
-      0.5
+      0
     ]
   },
   {
@@ -422,15 +388,15 @@
     "ManaList": [
       0,
       0,
-      1,
+      2,
       0
     ],
     "特殊裁定": "持有期间无法重置"
   },
   {
-    "ID": "13beeec8",
+    "ID": "d3ed120d",
     "EnumName": "紊乱",
-    "DisplayName": "对{target}附加{value}层紊乱指示物，期间不能以玩家为攻击目标，持有者回合结束时自动解除{value}层紊乱",
+    "DisplayName": "对{target}附加{value}层紊乱指示物，期间不能以玩家为攻击目标，持有者回合结束时自动解除一层紊乱",
     "EffectType": "RushSickness",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": null,
@@ -457,8 +423,8 @@
     "Tags": "生效自减型",
     "ManaList": [
       0,
-      0,
       1,
+      0,
       0
     ]
   },
@@ -480,21 +446,22 @@
     ]
   },
   {
-    "ID": "93648aa7",
+    "ID": "4bd7f55f",
     "EnumName": "重放",
-    "DisplayName": "对{target}附加{value}层重放指示物，该单位效果结算后自动消耗{value}层并再生效一次（重放不触发重放）",
+    "DisplayName": "对{target}附加{value}层重放指示物，其使用的下一张法术/主动效果将重复一次（包括效果和代价），重复后消耗1层（重放不触发重放）",
     "EffectType": "GrantReplay",
-    "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位",
-    "TargetFilter": null,
+    "TargetKinds": "己方单位,对方单位",
+    "TargetFilter": "Player",
     "Polarity": 1,
     "MountKinds": "指示物",
     "Tags": "生效自减型",
     "ManaList": [
       0,
       0,
-      0,
-      4
-    ]
+      5,
+      0
+    ],
+    "特殊裁定": "对玩家指示物（滤 Player，仅双方角色可挂）；无回合限制——不倒数、跨回合存续直至消耗；重放轮重复效果行与代价行（法术含卡级代价行），元素费用不重复支付；攻击/守卫/技能/自动效果与手牌主动（充能）不触发；重放轮代价先闸后付（溢出支付制：库存≥1即可付、弃N不足量则弃光现有）——无支付目标（弃牌手牌0/磨牌牌库0/域候选空/自伤不足量）则重复无效且层保留，等下一张法术/主动效果"
   },
   {
     "ID": "1ccc9649",
@@ -507,16 +474,16 @@
     "MountKinds": "指示物",
     "Tags": "生效自减型",
     "ManaList": [
-      0,
       2,
+      0,
       0,
       0
     ]
   },
   {
-    "ID": "38c8c978",
+    "ID": "9bbc7348",
     "EnumName": "沉睡",
-    "DisplayName": "赋予{target}{value}层沉睡，沉睡期间横置无法重置，自动效果无效，持有者回合结束时自动解除{value}层沉睡",
+    "DisplayName": "赋予{target}{value}层沉睡，沉睡期间横置无法重置，自动效果无效，持有者回合结束时自动解除一层沉睡",
     "EffectType": "Sleep",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": "NoRole",
@@ -549,9 +516,9 @@
     ]
   },
   {
-    "ID": "83fb707d",
+    "ID": "f4918303",
     "EnumName": "减半",
-    "DisplayName": "对{target}附加{value}层减半护盾指示物，持有期间受到的伤害减半（向上取整），自己回合结束自动解除{value}层",
+    "DisplayName": "对{target}附加{value}层减半指示物，持有期间受到的伤害减半（向上取整），自己回合结束自动解除一层",
     "EffectType": "GrantProtection",
     "TargetKinds": "己方单位",
     "TargetFilter": null,
@@ -561,42 +528,26 @@
     "ManaList": [
       0,
       0,
-      0,
-      3
+      5,
+      0
     ]
   },
   {
-    "ID": "a0bf076a",
-    "EnumName": "免疫",
-    "DisplayName": "对{target}附加{value}层全免护盾指示物，持有期间受到的伤害变为0，自己回合结束自动解除{value}层",
-    "EffectType": "GrantProtection",
+    "ID": "6c38edaa",
+    "EnumName": "无实体",
+    "DisplayName": "对{target}附加{value}层无实体指示物：每次受到的伤害变为1",
+    "EffectType": "GrantSpellban",
     "TargetKinds": "己方单位",
-    "TargetFilter": null,
+    "TargetFilter": "NoRole",
     "Polarity": 1,
     "MountKinds": "指示物",
     "Tags": "衰退型",
     "ManaList": [
+      5,
       0,
       0,
-      0,
-      6
-    ]
-  },
-  {
-    "ID": "8c4fcd9b",
-    "EnumName": "生命锁",
-    "DisplayName": "对{target}附加{value}层生命锁指示物，持有期间生命值不会低于1，自己回合结束自动解除{value}层",
-    "EffectType": "GrantProtection",
-    "TargetKinds": "己方单位",
-    "TargetFilter": null,
-    "Polarity": 1,
-    "MountKinds": "指示物",
-    "Tags": "衰退型",
-    "ManaList": [
-      0,
-      0,
-      0,
-      5
-    ]
+      0
+    ],
+    "特殊裁定": "伤害钳为 1 后仍可被易损放大；0 点伤害不触发"
   }
 ]

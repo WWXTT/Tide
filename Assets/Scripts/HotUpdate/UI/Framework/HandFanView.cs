@@ -7,8 +7,8 @@ namespace SynergyUI
 {
     /// <summary>手牌扇交互钩子（宿主屏注入，2026-10-14 手牌出牌接线）：条件评估与点击接管
     /// 全在宿主屏完成（UI Framework 不耦合引擎）；null 钩子或 null 委托=该项不可用。
-    /// 未注入钩子的扇区（对手扇常态）不显示按钮层。SpUse 钩子已随 2026-11-01 苏醒/充能上卡
-    /// 改版退役——苏醒/充能=卡面效果行选中经 Use 钮分流，可用性并入 CanUse。</summary>
+    /// 未注入钩子的扇区（对手扇常态）不显示按钮层。SpUse 钩子已随 2026-11-01 上卡
+    /// 改版退役——充能=卡面效果行选中经 Use 钮分流，可用性并入 CanUse。</summary>
     public sealed class FanInteractions
     {
         public Func<HandFanCard, bool> CanUse;
@@ -445,7 +445,7 @@ namespace SynergyUI
             // 触摸垫片（2026-10-22 B2 防漏点）随 2026-10-30 定档烘进 AHandCard prefab（touch-shield
             // 拉伸贴根·alpha 0·可射线）——运行时生成段退役
             // 放置/使用按钮+费用方格接线（prefab 用户摆位，m_OnClick 空）：点击交宿主屏钩子接管
-            //（SpUse 钮随 2026-11-01 苏醒/充能上卡改版从 prefab 删除——事件全走 Use）
+            //（SpUse 钮随 2026-11-01 上卡改版从 prefab 删除——事件全走 Use）
             card.UseButton = go.transform.Find("btn/Use")?.GetComponent<Button>();
             card.PlaceButton = go.transform.Find("btn/Place")?.GetComponent<Button>();
             // 费用方格宿主（2026-10-30 用户改版）：btn/NowCost 费用行底板下的 CostSquares

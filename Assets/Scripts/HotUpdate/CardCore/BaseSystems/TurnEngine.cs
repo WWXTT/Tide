@@ -405,12 +405,13 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 授予额外回合（仅支持当前回合玩家叠加额外回合）
+        /// 授予额外回合（仅支持当前回合玩家）。2026-11-02 表行「额外回合（不可叠加）」定案：
+        /// 至多挂起一个——同回合多次授予不累积；额外回合进行中再次授予照常串行接续（非叠加）。
         /// </summary>
         public void GrantExtraTurn(Player player)
         {
-            if (player != null && player == _turnPlayer)
-                _extraTurnsForCurrent++;
+            if (player != null && player == _turnPlayer && _extraTurnsForCurrent < 1)
+                _extraTurnsForCurrent = 1;
         }
 
         /// <summary>

@@ -89,8 +89,11 @@ namespace SynergyUI
 
         private bool Fail(string reason)
         {
+            // 2026-11-02 部署加固：回落保留（对局必然能继续打），但日志从 Warning 升为 Error——
+            // 模型/布局/清单过期导致的静默降级是「棋力悄悄变弱」的元凶，必须响亮
             _brokenReason = reason;
-            Debug.LogWarning($"[NeuralAI] 接入失败：{reason}（本进程回落 SimpleAI 启发）");
+            Debug.LogError($"[NeuralAI] 接入失败：{reason}（本进程回落 SimpleAI 启发——"
+                           + "重训 + 重跑 tide_rl/export_onnx.py 重导出后恢复）");
             return false;
         }
 

@@ -341,7 +341,7 @@ namespace GameBoard
                     // 角色=落格即本方角色格）；作用面档（1=己方/2=双方/3=对方）按侧别命中。旧卡级方向档已由
                     // AggregateEffectAuras 迁移盖戳到条目，此处不再读 data.AuraScope。
                     // 角色通道（2026-10-09 裁定）：关键词光环**一律可作用角色**——不能用光环表达的行
-                    //（守护/再生/无实体/绝缘体等）已由表「不可作为连接光环」位拉黑，通道不再设防；逐条目 role 声明
+                    //（守护/再生/绝缘体等）已由表「不可作为连接光环」位拉黑，通道不再设防；逐条目 role 声明
                     // 与 NoRole 硬闸（RoleChannelBlocked）整体退役；属性条目恒仅生物（2026-10-07 定案不变）。
                     var arrows = data.ArrowDirections;
                     bool geoComputed = false, geoHit = false; // 惰性：存在箭头档条目才算几何

@@ -13,12 +13,12 @@ namespace SynergyUI
         Land,
     }
 
-    /// <summary>手牌特殊效果行种类（2026-11-01 苏醒/充能上卡改版，SpUse 钮退役）：苏醒=生物限定
-    ///（Awaken 关键词·P12 限制延续）、充能=任意卡型（Charge 原子效果）。行交互（选中/再点取消）
-    /// 与 Use 钮分流见 HandFanCard/BattleScreen。</summary>
+    /// <summary>手牌特殊效果行种类（2026-11-01 上卡改版，SpUse 钮退役）：充能=任意卡型
+    ///（Charge 原子效果）。行交互（选中/再点取消）与 Use 钮分流见 HandFanCard/BattleScreen。
+    ///（Awaken=0 位已随 2026-11-02 苏醒机制整链删除——枚举显式赋值保持 Charge=1 不漂移，
+    /// 旧序号不回收。）</summary>
     public enum SpEffectKind
     {
-        Awaken = 0,
         Charge = 1,
     }
 
@@ -66,13 +66,14 @@ namespace SynergyUI
         /// <summary>效果行现付费用（与 ActiveEffectLines 平行；GetRuntimeCost 按模式推导）——
         /// 手牌 CostSquares 随选中行联动显示。</summary>
         public List<ElementCost> ActiveEffectCosts;
-        /// <summary>特殊效果行（2026-11-01 苏醒/充能上卡）：苏醒（生物+Awaken 关键词）/充能（有 Charge
-        /// 原子效果，任意卡型）各一行，渲染在效果模式行之后——手牌端点行选中（再点同行取消），
-        /// Use 钮文案随选中变「苏醒/充能」并按此分流施放（SpUse 钮退役）。四表平行等长。</summary>
+        /// <summary>特殊效果行（2026-11-01 上卡）：充能（有 Charge 原子效果，任意卡型）一行，
+        /// 渲染在效果模式行之后——手牌端点行选中（再点同行取消），
+        /// Use 钮文案随选中变「充能」并按此分流施放（SpUse 钮退役；苏醒行已随 2026-11-02 删除）。
+        /// 四表平行等长。</summary>
         public List<string> SpEffectLabels;
         public List<string> SpEffectLines;
         public List<SpEffectKind> SpEffectKinds;
-        /// <summary>特殊行费用（苏醒=数据级免灰账单 Gray=0；充能=null——现付 1 点待选色，施放时才定）。</summary>
+        /// <summary>特殊行费用（充能=null——现付 1 点待选色，施放时才定）。</summary>
         public List<ElementCost> SpEffectCosts;
         public Card RuntimeCard;                         // 事件刷新锚（本地模式引擎对象；null=不订阅）
 
@@ -164,20 +165,6 @@ namespace SynergyUI
         /// DisplayName 空=「作用 N」。</summary>
         private static string SpellEffectLabel(CardEffectData fx, int index)
             => string.IsNullOrEmpty(fx?.DisplayName) ? $"作用 {index + 1}" : fx.DisplayName;
-
-        /// <summary>苏醒行文案（2026-11-01 上卡）：关键词表描述剥「获得苏醒：」授予前缀；
-        /// 缺表回落引擎免灰口径的固定文案。</summary>
-        private static string AwakenRowText()
-        {
-            var def = CardLoader.GetKeywordDefinition(KeywordRules.Awaken);
-            var desc = def?.description;
-            if (!string.IsNullOrEmpty(desc))
-            {
-                const string prefix = "获得苏醒：";
-                return desc.StartsWith(prefix) ? desc.Substring(prefix.Length) : desc;
-            }
-            return "支付费用时的灰色元素免除，入场横置并附加等同免除费用的等量层数的沉睡";
-        }
 
         /// <summary>充能行文案（2026-11-01 上卡）：首个充能效果渲染全文（含「发动速度0，」前缀）；
         /// 无可渲染文本回落表行模板口径。</summary>
@@ -296,36 +283,20 @@ namespace SynergyUI
                     it.ActiveEffectCosts.Add(CardCostService.GetRuntimeCost(data, i));
                 }
             }
-            // 特殊效果行（2026-11-01 苏醒/充能上卡，SpUse 退役）：苏醒=生物+Awaken 关键词（P12 生物
-            // 限定延续；判定走 CoreCard 全口径——含光环投递/授予轨，与旧 SpUse 按钮闸一致；网络视图
-            // 无引擎实例回落印刷口径）、充能=有 Charge 原子效果（任意卡型）；渲染在模式行之后，
-            // 充能效果不再进单行/被动区（行替代防双显）。
-            bool hasAwaken = data != null && data.Supertype == Cardtype.Creature
-                && (v.CoreCard != null ? GameActions.HasAwakenKeyword(v.CoreCard)
-                                       : GameActions.HasAwakenKeyword(data));
+            // 特殊效果行（2026-11-01 上卡，SpUse 退役）：充能=有 Charge 原子效果（任意卡型）；
+            // 渲染在模式行之后，充能效果不再进单行/被动区（行替代防双显）。
+            //（苏醒行已随 2026-11-02 苏醒机制整链删除。）
             bool hasCharge = data != null && ComposerCatalog.HasChargeEffect(data);
-            if (hasAwaken || hasCharge)
+            if (hasCharge)
             {
                 it.SpEffectLabels = new List<string>();
                 it.SpEffectLines = new List<string>();
                 it.SpEffectKinds = new List<SpEffectKind>();
                 it.SpEffectCosts = new List<ElementCost>();
-                if (hasAwaken)
-                {
-                    it.SpEffectLabels.Add("苏醒");
-                    it.SpEffectLines.Add(AwakenRowText());
-                    it.SpEffectKinds.Add(SpEffectKind.Awaken);
-                    var bill = CardCostService.GetRuntimeCost(data, 0); // 数据级免灰账单（与引擎 GetCardCost 免灰层同口径）
-                    bill[ManaType.Gray] = 0f;
-                    it.SpEffectCosts.Add(bill);
-                }
-                if (hasCharge)
-                {
-                    it.SpEffectLabels.Add("充能");
-                    it.SpEffectLines.Add(ChargeRowText(data));
-                    it.SpEffectKinds.Add(SpEffectKind.Charge);
-                    it.SpEffectCosts.Add(null); // 现付 1 点待选色（施放期选色），无固定账单
-                }
+                it.SpEffectLabels.Add("充能");
+                it.SpEffectLines.Add(ChargeRowText(data));
+                it.SpEffectKinds.Add(SpEffectKind.Charge);
+                it.SpEffectCosts.Add(null); // 现付 1 点待选色（施放期选色），无固定账单
             }
             if (data?.Effects != null)
             {
@@ -476,7 +447,7 @@ namespace SynergyUI
     // ======================================== 净费单源（P4 §1 2026-10-29） ========================================
 
     /// <summary>卡面净费口径单源（P4 净费显示）：玩家实付=推导费 − 代价抵扣（战斗态另有建造预付/
-    /// 苏醒免灰/费用指示物层，各有专属展示口——本类只管「推导 − 代价抵扣」两层）。
+    /// 费用指示物层有专属展示口——本类只管「推导 − 代价抵扣」两层）。
     /// 与本文件同收口：新文件进不了已生成的 csproj 是老坑（SearchQuery 先例）。
     /// 全部实时推导（CardCostService.GetRuntimeCost / GetPrePayloadCost——Derive 内
     /// PrePayloadCost→代价抵扣（色锁：只扣代价原子可产出色）→DerivedCost，三段自洽由引擎构造保证），

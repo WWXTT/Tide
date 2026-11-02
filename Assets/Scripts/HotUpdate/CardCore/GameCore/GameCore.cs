@@ -187,6 +187,9 @@ namespace CardCore
             EventManager.Instance.Subscribe<TurnEndEvent>(OnTurnEnded);
             EventManager.Instance.Subscribe<PhaseEndEvent>(OnPhaseEnded);
 
+            // 阶段窗②「主阶段开始」（2026-11-01 同日修订：原「回合结束前」窗迁此）——见 OnMainPhaseStartedWindow
+            EventManager.Instance.Subscribe<PhaseStartEvent>(OnMainPhaseStartedWindow);
+
             // 临时复制卡订阅已删（2026-10-10 微缩/放大退役）：回响走 EchoCopyHandler 结算期
             // 直调 TempCopyRules.CreateTemporaryCopy，无事件订阅；回合末移除仍由 OnTurnEnded 承担。
 
@@ -207,6 +210,12 @@ namespace CardCore
         /// </summary>
         private void OnTurnEnded(TurnEndEvent e)
         {
+            // 狩猎（2026-11-01 新增关键词·绿3）：回合方战场可行动单位随机对防守方发起一次攻击——
+            // 系统区首位（组合根显式调，同归土惯例）：①直到回合结束的力量加成仍在
+            //（DurationTracker 尚未清）②Temp 轨授予的狩猎尚未清（ClearZoneKeywords 在后）
+            // ③狩猎击杀对手由随后的 CheckGameOver 兜住。同步结算，无守卫响应窗口。
+            this.CombatSystem.ResolveHuntAttacks(e.TurnPlayer);
+
             // 2026-10-11 现取现用定案：临时钱包清空（任一回合结束，效果授予元素即逝）；
             // 旧「未横置地牌自动横置产色+耗尽清理」已随指示物退役（先于台账封行）
             ElementPool.OnTurnEnd(e.TurnPlayer);
@@ -227,13 +236,8 @@ namespace CardCore
 
             // 延时保护（2026-10-30 指示物化）：回合末−1 层走 CounterRules ③块通用倒数，无独立清口
 
-            // 窥渊仪典（2026-10-04 时机改版：回合开始→回合结束）：随机展示+锁定必须排在
-            // 指示物倒数之后——同回合末新挂的锁不被 ③ 块吞层。组合根显式调（不走事件订阅：
-            // 订阅序相对本方法随局数漂移，先后无保证）。
-            RuleAuraSystem.RevealAndLockAtTurnEnd(e.TurnPlayer);
-
             // 归土仪典（2026-10-30 改版：墓地视手牌→回合末复活）：回合结束时从自己墓地复活一张
-            // 费用≤己方绿色地牌数的生物。排延迟死亡/窥渊之后——同回合末刚入墓的生物可被复活。
+            // 费用≤己方绿色地牌数的生物。排延迟死亡之后——同回合末刚入墓的生物可被复活。
             RuleAuraSystem.ReviveAtTurnEnd(e.TurnPlayer);
 
             // Temp 轨关键词回合末到期（2026-09-13 定案：生物赋予的关键词固定持续 1 回合——
@@ -251,6 +255,26 @@ namespace CardCore
 
             // 手牌上限：超出部分由玩家选弃（AI/超时自动弃先头）
             EnforceHandLimitAsync(e.TurnPlayer).Forget();
+        }
+
+        /// <summary>
+        /// 阶段窗②「主阶段开始」（2026-11-01 同日修订：原「回合结束前」窗迁此）：
+        /// 主阶段 PhaseStartEvent(Main) 时点压 0 速伪栈对象开响应窗——先于回合玩家任何主阶段
+        /// 动作（准备阶段自动化/抽牌已完成），双方可用速1+手牌/主动效果响应（记速器=0），
+        /// 双 Pass 即让路、主阶段照常；伪对象不参与结算（到点自动消失）。
+        /// 响应窗泵由本口 Forget 启动：无头/AI 局无候选或 AI 让过→整链同步双 Pass 收口
+        /// （驱动器折返/StartNewTurn 返回时栈已空，对 SimpleAI/验证器零影响）；UI 局人类有
+        /// 候选→弹窗挂起、答毕排干（帧泵期间栈非空自然让路）。跳过主要阶段档不发
+        /// PhaseStartEvent(Main)=自然无窗。优先权起点=回合方（与窗①/SBA 同口径）。
+        /// </summary>
+        private void OnMainPhaseStartedWindow(PhaseStartEvent e)
+        {
+            if (e?.Phase != PhaseType.Main || IsGameOver) return;
+            if (StackEngine == null || !StackEngine.IsEmpty || StackEngine.IsResolving) return;
+            var first = TurnEngine?.TurnPlayer;
+            if (first == null) return;
+            if (StackEngine.PushPhaseWindow(first, "主阶段开始"))
+                GameActions.SettleResponseWindowAsync(this).Forget();
         }
 
         /// <summary>初始手牌总量（2026-10-13 迁表：ValueSystemConfig GameRules.OpeningHandSize）。</summary>
@@ -385,7 +409,7 @@ namespace CardCore
                 }
 
                 // 横置恢复（2026-09-13 定案）：冻结/沉睡期间均**无法重置**——
-                // 谁被禁、被禁期间状态如何推进（沉睡扣层/苏醒重置）由 RuleHooks.IUntapBlockRule
+                // 谁被禁、被禁期间状态如何推进（沉睡扣层/解除重置）由 RuleHooks.IUntapBlockRule
                 // 注册方自理（OCP：重置循环不点名具体指示物）。
                 if (RuleHooks.BlocksUntap(card))
                 {

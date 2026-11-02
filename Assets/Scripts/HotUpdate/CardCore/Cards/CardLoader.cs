@@ -393,7 +393,7 @@ namespace CardCore
                     TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：声明了连接光环但未配箭头（arrows 为空）——构筑期拦截（生物/结界同规）");
 
                 // 光环关键词条目须可挂（2026-10-07 晚终版：关键词默认可−位 7 黑名单拉黑）：
-                // 名单在表（现值：守护/再生/无实体/绝缘体）——与光环 live-query 持续语义冲突
+                // 名单在表（现值：守护/再生/绝缘体）——与光环 live-query 持续语义冲突
                 //（守护=配对制弹选；法术护盾 2026-10-09 指示物化退出关键词族，目录不收）
                 if (card.LinkAuras != null)
                 {
@@ -509,24 +509,10 @@ namespace CardCore
                         TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {def.Id}："
                                        + $"主序列主干原子 {atomCount} 个超两槽上限 2（2026-10-05 并列定案；Then 奖励不计入）");
 
-                    // 效果级作用范围越界（2026-10-04 相同目标定案）：声明域须落在主序列原子域交集内
-                    //（并列共享同一选中目标——越界目标对域外原子不合法）。交集空不判（下方断链告警覆盖）。
-                    if (eff.TargetKinds != null && eff.TargetKinds.Count > 0)
-                    {
-                        List<int> rawInter = null;
-                        foreach (var atom in mainAtoms)
-                        {
-                            if (atom?.TargetKinds == null || atom.TargetKinds.Count == 0) continue;
-                            rawInter = rawInter == null
-                                ? new List<int>(atom.TargetKinds)
-                                : TargetKindRules.Intersect(rawInter, atom.TargetKinds);
-                        }
-                        if (rawInter != null && rawInter.Count > 0
-                            && eff.TargetKinds.Any(k => !rawInter.Contains(k)))
-                            TideLog.Warn($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {def.Id}："
-                                           + $"效果级作用范围 [{string.Join(",", eff.TargetKinds)}] 超出原子域交集 "
-                                           + $"[{TargetKindRules.Format(rawInter)}]——相同目标定案：作用范围须落在交集内");
-                    }
+                    // 效果级作用范围交集校验已删（2026-11-02「取消并列效果收缩作用域」定案——
+                    // 2026-10-04 相同目标定案的收窄闸）：并列原子结算期各按自身域独立解析
+                    //（PerAtomTargets——header 声明的共享单选旧数据仍走共享口径，但不再被
+                    // 「作用范围须落在原子域交集内」拦截收窄）。合成器新数据 header 恒空，本闸原已不触。
 
                     // 单范围域宽校验（2026-09-16 六值定案核心）：一个 {target} 只能从一个范围选择——
                     // 模式 0/1/2（Single/Multiple/Whole）要求组合域恰为单一 TargetKind，违反=数据错误

@@ -104,7 +104,10 @@ namespace SynergyUI
                 Label = card != null ? MatchLogRenderer.Name(card) // 卡名单源=EffectText（观侧口径与战报一致）
                     : item != null && item.IsAttackDeclaration ? "攻击宣言"
                     : item != null && item.IsGuardDeclaration ? "守卫宣言"
-                    : item != null && item.IsSBA ? "状态动作" : "效果",
+                    : item != null && item.IsSBA ? "状态动作"
+                    : item != null && item.IsPhaseWindow
+                        ? (string.IsNullOrEmpty(item.PhaseWindowLabel) ? "阶段窗口" : item.PhaseWindowLabel + "窗口")
+                        : "效果",
                 IsAttack = item != null && item.IsAttackDeclaration,
                 Remaining = e != null ? e.StackSize : 0,
             });

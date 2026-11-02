@@ -150,13 +150,13 @@ namespace CardCore
         /// 地牌资格（2026-10-03 定案沿用）：卡组正式 生物/法术/结界 三型可作地牌——
         /// 衍生物（IsToken，SummonToken 实例）、临时复制卡（回响——持临时指示物 TempCounter）不可
         ///（否则副本成免费地牌，2026-10-11 维持禁令）。
-        /// 锁定卡（LockCounter&gt;0）不可——锁定=无法进入地牌区，放地不得绕道封锁（2026-10-13 文案定案）。
+        /// 锁定卡（LockCounter&gt;0）可作地牌放置（2026-11-02 锁定改版：锁定只封「使用」，
+        /// 放地不再算绕道封锁——旧 2026-10-13 禁令废止）。
         /// UI/AI 预检与 AddCardToPool 权威校验共用此判据。
         /// </summary>
         public static bool CanServeAsLand(Card card)
             => card is CardWrapper
                && card.GetCounterCount(Attribute.CounterRules.TempCounter) <= 0 // 临时复制卡（临时指示物标记）
-               && card.GetCounterCount(Attribute.CounterRules.LockCounter) <= 0 // 锁定：无法进入地牌区（放地绕道封锁）
                && !card.IsToken
                && card is IHasSupertype ht
                && (ht.Supertype == Cardtype.Creature

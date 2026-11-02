@@ -254,8 +254,9 @@ namespace CardCore.Attribute
         /// **操作越省越好**——目标集被收窄到代码可自动执行（候选 ≤ 需求数，无任何选择余地）
         /// 即自动取，不弹确认窗；「效果作用到哪儿」的可见性交给历史记录，不通过复杂化操作。
         /// 纯 Self 域（唯一候选=源卡自身——守护类关键词效果）与全取档（数量声明 ≤0=全部）
-        /// 维持自动；AI/无头 Service 选首同结果。</summary>
-        private static bool ShouldAutoTake(List<int> kinds, int candidateCount, int need, bool allSemantics)
+        /// 维持自动；AI/无头 Service 选首同结果。
+        /// 2026-11-02 提 public：LAE/SimpleAI 镜像「候选≤需求→引擎自动取不占选择权」口径（单源防漂移）。</summary>
+        public static bool ShouldAutoTake(List<int> kinds, int candidateCount, int need, bool allSemantics)
             => allSemantics || candidateCount == 0 || candidateCount <= need
                || (kinds != null && kinds.Count == 1 && kinds[0] == (int)TargetKind.Self);
 
@@ -382,7 +383,7 @@ namespace CardCore.Attribute
         /// 逐原子目标解析（2026-10-09 逐原子目标制定案，PerAtomTargets 主序列专用）：
         /// 域=该原子实例域**原样**（表默认或显式收窄——运行时不做极性侧别过滤：与旧共享口径一致，
         /// 双域原子可选两侧、跨侧命中走错边黑白发放经济；极性收窄是合成器 UI 的选择集口径，
-        /// 「苏醒式自缚」类显式锁己域数据照常生效）；数量档/随机档为**每原子声明**
+        /// 「自缚式」（负面效果锁己域）数据照常生效）；数量档/随机档为**每原子声明**
         ///（2026-10-09 下沉：未声明 -2/-1 回落效果级 def，效果级对未声明原子统一生效）。
         /// 声明期预选目标归属（2026-10-20 有序消费改案）：**可消耗队列**（按声明期收集序=原子执行序，
         /// 调用方执行器线程共享，逐原子消费移除）——仅交互选一/选多原子消费；defer（效果处理时选）/
@@ -425,7 +426,25 @@ namespace CardCore.Attribute
                     preselectQueue.RemoveAt(i); // 已消费——后续原子不再可见（有序归属）
                     i--;
                 }
-                if (kept.Count > 0) return kept;
+                if (kept.Count > 0)
+                {
+                    // 预选欠额补足（2026-11-02 洗回改版）：AI/无头按**效果级**数量预选
+                    //（SimpleAI 读 header count），而每原子数量档 effCount 压过缺省——
+                    // 人类路径声明期收集器本就按 effCount 问满，此口把未填满的 quota 按
+                    // 选择层同口径过滤后的候选序补足（跨双方墓地选 N 等逐原子多目标卡）。
+                    if (quota != int.MaxValue && kept.Count < quota)
+                    {
+                        bool edictFill = TargetResolver.IsEdict(atom.Type);
+                        var fill = TargetResolver.ExcludeUnselectable(
+                            TargetResolver.ApplyTauntRestriction(pool, context, edictFill), context.Controller);
+                        foreach (var c in fill)
+                        {
+                            if (kept.Count >= quota) break;
+                            if (!kept.Contains(c)) kept.Add(c);
+                        }
+                    }
+                    return kept;
+                }
             }
 
             // 全隐藏区（对方手牌/双方牌库）：隐藏信息不进选择——自结算（与组合层早退口径一致）
@@ -444,11 +463,12 @@ namespace CardCore.Attribute
                 return candidates;
 
             // 目标随机：不弹窗，帷幕收窄后的完整候选域按种子抽取
+            //（2026-11-02 多目标定案：每原子数量档 effCount>0 优先——带 value 的原子设 N 个随机目标即抽 N）
             if (atom.EffectiveRandomTarget(def))
             {
                 var pool = TargetResolver.ApplyTauntRestriction(candidates, context, edictExempt);
-                int take = noneAsSingle || SelectionModeRules.IsPickOne(def.SelectionMode) ? 1
-                    : (effCount > 0 ? effCount : pool.Count);
+                int take = effCount > 0 ? effCount
+                    : (noneAsSingle || SelectionModeRules.IsPickOne(def.SelectionMode) ? 1 : pool.Count);
                 if (take >= pool.Count) return pool;
                 return GameRng.PickN(pool, take);
             }
@@ -464,7 +484,12 @@ namespace CardCore.Attribute
             bool allowCancelDecl = context.CastCard == null
                 && def.ActivationType == EffectActivationType.Voluntary;
 
-            if (noneAsSingle || SelectionModeRules.IsPickOne(def.SelectionMode))
+            // 选一个（2026-10-16 晚定案，同组合层口径）：候选 ≤ 需求/纯 Self 域自动取
+            //（落点可见性走历史记录）；AI/无头 Service 选首不变。
+            // 2026-11-02 多目标定案：**每原子数量档 effCount>1 压过选一模式提示**（None/Single 档
+            // 只代表「未声明数量的缺省=1」）——数量声明 2/3 的原子走下方选多，每目标独立结算一份；
+            // 候选不足按实有收口（MinCount=候选数）。
+            if ((noneAsSingle || SelectionModeRules.IsPickOne(def.SelectionMode)) && effCount <= 1)
             {
                 // 选一个（2026-10-16 晚定案，同组合层口径）：候选 ≤ 需求/纯 Self 域自动取
                 //（落点可见性走历史记录）；AI/无头 Service 选首不变
@@ -520,6 +545,58 @@ namespace CardCore.Attribute
             });
         }
 
+        /// <summary>逐原子交互选择规格（2026-11-02 LAE 动作空间 v8 单源）：收集"结算期会弹选"的
+        /// 原子清单——声明期收集器（人类弹选）、LAE（神经动作行展开）、SimpleAI（预选排序）三方共用，
+        /// 跳过条件与结算路径 ResolveAtomTargetsAsync 的自动档逐条同判：引擎主干/无域/defer/全隐藏区/
+        /// 强制类/随机/effCount=0（全取）/SelectionMode 全取档/候选空（这些原子结算期自动收口，不占选择权）。
+        /// 候选已完成两道过滤（帷幕收窄+显示域，同结算路径交互分支口径）；返回序=原子执行序
+        /// （预选队列有序消费对齐归属）。</summary>
+        public static List<AtomTargetSpec> CollectAtomTargetSpecs(EffectDefinition def, EffectExecutionContext context)
+        {
+            var none = new List<AtomTargetSpec>();
+            if (def == null || context == null || !def.PerAtomTargets) return none;
+            if (def.Effects == null || def.Effects.Count == 0) return none;
+            bool noWindow = def.ActivationType == EffectActivationType.Mandatory;
+            if (noWindow) return none; // 强制类无选择窗口——整效果自动全取
+
+            var specs = new List<AtomTargetSpec>();
+            foreach (var atom in def.Effects)
+            {
+                if (atom == null) continue;
+                // 引擎主干=条件载体不执行（与执行器 IsEngineTrunk 同判）
+                if (atom.Branch?.Settle == BranchSettleKind.Engine
+                    || ComposerCatalog.EngineKindOf(atom.Type) != BranchEngineKind.None) continue;
+
+                var kinds = atom.TargetKinds ?? new List<int>();
+                if (kinds.Count == 0) continue; // 无域原子：handler 自结算
+                if (atom.DeferSelect == 1) continue; // 效果处理时选——结算期问（必须选）
+                if (TargetKindRules.AllHiddenZone(kinds)) continue; // 隐藏区不进选择
+
+                if (atom.EffectiveRandomTarget(def)) continue; // 随机：结算期自动抽取
+                int effCount = atom.EffectiveTargetCount(def);
+                if (effCount == 0 || SelectionModeRules.IsTakeAll(def.SelectionMode))
+                    continue; // 全取：结算期自动全取
+
+                var candidates = ResolveCandidates(kinds, atom.Filter ?? "", context);
+                if (candidates.Count == 0) continue;
+                bool edictExempt = TargetResolver.IsEdict(atom.Type);
+                candidates = TargetResolver.ExcludeUnselectable(
+                    TargetResolver.ApplyTauntRestriction(candidates, context, edictExempt), context.Controller);
+                if (candidates.Count == 0) continue;
+
+                specs.Add(new AtomTargetSpec
+                {
+                    Atom = atom,
+                    Kinds = kinds,
+                    EffCount = effCount,
+                    Candidates = candidates,
+                    // 任意档（-1）必弹选；固定 N 档 allSemantics=false（effCount>0，同声明期旧判）
+                    AutoTake = effCount > 0 && ShouldAutoTake(kinds, candidates.Count, effCount, false),
+                });
+            }
+            return specs;
+        }
+
         /// <summary>
         /// 声明期目标收集器（2026-10-20 法术发动流程改案）：法术发动（上栈）前逐原子预选目标——
         /// 与 ResolveAtomTargetsAsync 结算路径同口径（候选/帷幕收窄/显示域过滤/自动取谓词单源），
@@ -539,61 +616,42 @@ namespace CardCore.Attribute
             if (!def.PerAtomTargets)
                 return await AskCompositionDeclarationAsync(def, context, title);
 
-            if (def.Effects == null || def.Effects.Count == 0) return none;
+            // 逐原子规格单源（CollectAtomTargetSpecs）：跳过条件/候选两道过滤/AutoTake 预判与
+            // 结算路径同口径——此处只剩弹选问询（2026-11-02 LAE 动作空间 v8 抽取重构，行为零变化：
+            // 选一档（effCount<=1，含被数量档压过的缺省 1）Min=Max=1；任意档（-1）0..候选数；
+            // 固定 N 档 Min=min(N,候选) Max=N——与旧内联三分支殊途同归）。
+            var specs = CollectAtomTargetSpecs(def, context);
+            if (specs.Count == 0) return none;
             var collected = new List<Entity>();
-            foreach (var atom in def.Effects)
+            foreach (var spec in specs)
             {
-                if (atom == null) continue;
-                // 引擎主干=条件载体不执行（与执行器 IsEngineTrunk 同判）
-                if (atom.Branch?.Settle == BranchSettleKind.Engine
-                    || ComposerCatalog.EngineKindOf(atom.Type) != BranchEngineKind.None) continue;
-
-                var kinds = atom.TargetKinds ?? new List<int>();
-                if (kinds.Count == 0) continue; // 无域原子：handler 自结算
-                if (atom.DeferSelect == 1) continue; // 效果处理时选——结算期问（必须选）
-                if (TargetKindRules.AllHiddenZone(kinds)) continue; // 隐藏区不进选择
-
-                bool noWindow = def.ActivationType == EffectActivationType.Mandatory;
-                bool randomPick = atom.EffectiveRandomTarget(def);
-                int effCount = atom.EffectiveTargetCount(def);
-                if (noWindow || randomPick || effCount == 0
-                    || SelectionModeRules.IsTakeAll(def.SelectionMode))
-                    continue; // 强制/随机/全取：结算期自动，无问选
-
-                var candidates = ResolveCandidates(kinds, atom.Filter ?? "", context);
-                if (candidates.Count == 0) continue;
-                bool edictExempt = TargetResolver.IsEdict(atom.Type);
-                candidates = TargetResolver.ExcludeUnselectable(
-                    TargetResolver.ApplyTauntRestriction(candidates, context, edictExempt), context.Controller);
-                if (candidates.Count == 0) continue;
-
-                bool noneAsSingle = def.SelectionMode == SelectionMode.None;
+                if (spec.AutoTake) continue; // 免弹自动取（ShouldAutoTake 同判）——结算期自动
                 TargetSelectionRequest req;
-                if (noneAsSingle || SelectionModeRules.IsPickOne(def.SelectionMode))
+                // 2026-11-02 多目标定案：每原子数量档 effCount>1 压过选一模式提示——声明期问选 N 个
+                //（与结算路径 ResolveAtomTargetsAsync 同口径，预选队列 quota 本就按 effCount）；
+                // 候选不足按实有收口（MinCount=候选数）。
+                if (spec.EffCount <= 1)
                 {
-                    if (ShouldAutoTake(kinds, candidates.Count, need: 1, allSemantics: false)) continue;
                     req = new TargetSelectionRequest
                     {
-                        Candidates = candidates, MinCount = 1, MaxCount = 1, Title = title,
+                        Candidates = spec.Candidates, MinCount = 1, MaxCount = 1, Title = title,
                     };
                 }
-                else if (effCount == -1) // 任意：玩家自选数量
+                else if (spec.EffCount == -1) // 任意：玩家自选数量
                 {
                     req = new TargetSelectionRequest
                     {
-                        Candidates = candidates, MinCount = 0, MaxCount = candidates.Count,
+                        Candidates = spec.Candidates, MinCount = 0, MaxCount = spec.Candidates.Count,
                         Title = title + "（任意数量）",
                     };
                 }
                 else
                 {
-                    int need = effCount > 0 ? effCount : candidates.Count;
-                    if (ShouldAutoTake(kinds, candidates.Count, need, allSemantics: effCount <= 0)) continue;
                     req = new TargetSelectionRequest
                     {
-                        Candidates = candidates,
-                        MinCount = Math.Min(need, candidates.Count), // 候选不足按实有收口（同结算口径）
-                        MaxCount = need, Title = title,
+                        Candidates = spec.Candidates,
+                        MinCount = Math.Min(spec.EffCount, spec.Candidates.Count), // 候选不足按实有收口（同结算口径）
+                        MaxCount = spec.EffCount, Title = title,
                     };
                 }
                 req.Chooser = context.Controller;
@@ -698,5 +756,23 @@ namespace CardCore.Attribute
         {
             return _handlers.ContainsKey(type);
         }
+    }
+
+    /// <summary>逐原子交互选择规格（CollectAtomTargetSpecs 产出，2026-11-02 LAE 动作空间 v8）：
+    /// 一个"结算期会弹选"原子的问选参数+已过滤候选。声明期收集器（人类弹选）、LAE（动作行展开）、
+    /// SimpleAI（预选排序）三方单源消费。</summary>
+    public sealed class AtomTargetSpec
+    {
+        /// <summary>来源原子实例（SimpleAI 有害/有益偏好按原子 Type 判定用；LAE 不消费）。</summary>
+        public AtomicEffectInstance Atom;
+        /// <summary>原子有效域（atom.TargetKinds）。</summary>
+        public List<int> Kinds;
+        /// <summary>每原子有效数量（EffectiveTargetCount）：>0=选 N（1=选一）、-1=任意数量。</summary>
+        public int EffCount;
+        /// <summary>两道过滤（帷幕收窄+显示域）后的交互候选（引擎 ResolveCandidates 返回序）。</summary>
+        public List<Entity> Candidates;
+        /// <summary>ShouldAutoTake 命中（候选≤需求/纯 Self 域）：结算期引擎自动取前 N 个——
+        /// 不占选择权，AI/玩家均无需预选。</summary>
+        public bool AutoTake;
     }
 }

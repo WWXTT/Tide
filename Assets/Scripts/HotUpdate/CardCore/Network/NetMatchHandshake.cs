@@ -175,25 +175,33 @@ namespace CardCore.Network
 
             var problems = new List<string>();
 
-            // 构筑唯一键（规则②，2026-10-11）：唯一门/同名仪典每卡组限 1 张——与
-            // DeckBuilderScreen 添加口/保存口同口径（ComposerCatalog.DeckUniqueSlots 单源）。
+            // 构筑限量键（规则②，2026-10-11；2026-11-02 容量门起不限「1 张」）：唯一门/仪典
+            // 每卡组 1 张；容量门（命运一抽）每 10 张牌库卡 1 张——与 DeckBuilderScreen
+            // 添加口/保存口同口径（ComposerCatalog.DeckUniqueSlots/SlotCapacity 单源）。
             // 旧「卡组不重复」铁律已随 2026-10-11 构筑规则③（30-60 张、同名可重复）废止——
             // 2026-10-26 修复：预组副本类卡组（同名多册合法、构筑界全绿可保存）曾在此被拒，
             // 表现为「保存通过但联机提交不可用」的口径断裂。
-            var seenSlots = new HashSet<string>();
-            var slotExamples = new List<string>();
+            var slotCounts = new Dictionary<string, string>(); // key → 显示名（超额才留）
+            var slotTotals = new Dictionary<string, int>();
             foreach (var id in submit.CardIds)
             {
                 var card = CardCatalog.GetById(id);
                 if (card == null) continue; // 缺卡另报
                 foreach (var slot in ComposerCatalog.DeckUniqueSlots(card))
                 {
-                    if (seenSlots.Add(slot.Key)) continue;
-                    if (!slotExamples.Contains(slot.Display)) slotExamples.Add(slot.Display);
+                    slotTotals[slot.Key] = slotTotals.TryGetValue(slot.Key, out var n) ? n + 1 : 1;
+                    slotCounts[slot.Key] = slot.Display;
                 }
             }
+            var slotExamples = new List<string>();
+            foreach (var kv in slotTotals)
+            {
+                var cap = ComposerCatalog.SlotCapacity(kv.Key, submit.CardIds.Length);
+                if (kv.Value > cap && !slotExamples.Contains(slotCounts[kv.Key]))
+                    slotExamples.Add(slotCounts[kv.Key]);
+            }
             if (slotExamples.Count > 0)
-                problems.Add($"卡组含超额唯一卡 ×{slotExamples.Count}（如 {slotExamples[0]}——唯一门/同名仪典每卡组限 1 张）");
+                problems.Add($"卡组含超额限量卡 ×{slotExamples.Count}（如 {slotExamples[0]}——唯一门/仪典每卡组限 1 张，命运一抽每 10 张限 1 张）");
 
             // 卡表命中（服务器本地 CardCatalog 解析）
             var missingCards = submit.CardIds.Where(id => CardCatalog.GetById(id) == null).Distinct().ToList();

@@ -1,3 +1,4 @@
+using System;
 using CardCore.Serialization;
 using MemoryPack;
 
@@ -13,8 +14,9 @@ namespace CardCore.Network
     /// <summary>出牌三路合一：FromZone=Hand（主阶段出牌）/ Graveyard（墓地视手牌）。
     /// 服务器按"栈非空且请求者持优先权"分派 PlayCardInResponse（响应出牌，来源限手牌），
     /// 否则走 PlayCard（主阶段+回合玩家门禁）。ModeIndex=抉择模式（宣言即公开）。
-    /// AwakenCast（2026-10-29 P6 苏醒改版，协议 v3 新增）：苏醒施放——仅主阶段 PlayCard
-    /// 分支生效（响应出牌忽略），生物免净费灰份额转入场沉睡层数（P6c：只免灰，彩色含绿照付）。
+    /// AwakenCast（2026-10-29 P6 苏醒改版，协议 v3 新增；**2026-11-02 苏醒机制整链删除后
+    /// deprecated**）：保留字段只为读取旧客户端报文兼容——新代码不再写入（恒 false），
+    /// 服务器侧收到 true 也按普通施放处理。协议 ID 不变。
     /// 永久物落格（2026-10-28）：快照不承载棋盘坐标（位置权威=客户端表现层）——选格钉在
     /// 客户端 NetCellPins（BuildNet 消费），无需协议带格。</summary>
     [MemoryPackable]
@@ -32,7 +34,9 @@ namespace CardCore.Network
         [MemoryPackOrder(TagTable.MsgIntentPlayCard_ModeIndex)]
         public int ModeIndex;
 
+        /// <summary>已废弃（2026-11-02 苏醒删除）：读兼容占位——不再写入，服务器忽略其值。</summary>
         [MemoryPackOrder(TagTable.MsgIntentPlayCard_AwakenCast)]
+        [Obsolete("苏醒机制已删除（2026-11-02）；字段仅保留报文读取兼容，恒 false，服务器忽略。")]
         public bool AwakenCast;
     }
 
@@ -102,9 +106,10 @@ namespace CardCore.Network
     }
 
     /// <summary>充能（2026-10-29 P7 建造入协议 v4；2026-10-31 P12 建造→充能只换语义，消息名/号不动）：
-    /// 主阶段对手牌「带充能效果的卡」逐色充能——服务器 GameActions.ActivateCharge（速度 0 主动效果
-    /// 入栈，结算时现付 1 点 Color 色元素 + 放 1 层同色费用降低指示物 + 展示这张卡；上限=该色
-    /// 代价抵扣前卡费；不限次数/回合，跨回合保留，换区清除、元素不退）。Color=ManaType 枚举值
+    /// 主阶段对手牌「带充能效果的卡」逐色充能——服务器 GameActions.ActivateCharge（主动效果入栈，
+    /// 结算时现付 1 点 Color 色元素 + 放 1 层同色费用降低指示物 + 展示这张卡；上限=该色
+    /// 代价抵扣前卡费；**每回合一次**（2026-11-02 定案：己方一次；速≥1 法术对手回合响应窗口一次——
+    /// 客户端响应档入口未接，服务器 CanCharge 终审兜底），跨回合保留，换区清除、元素不退）。Color=ManaType 枚举值
     ///（四色；任意位服务器拒绝）。可用性单源 GameActions.CanCharge——UI 置灰/AI 枚举/引擎终审同口径。</summary>
     [MemoryPackable]
     public partial class MsgIntentBuildCard

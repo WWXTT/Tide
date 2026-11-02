@@ -58,8 +58,9 @@ namespace CardCore.Network
     /// <summary>协议版本常量。信封 ProtocolVersion 读到 0 视为 legacy（无版本草稿期数据）。
     /// v2（2026-10-28 P2 元素席位收缩）：ManaType 白/黑退役、Any 6→4，位置数组 7→5 重排——
     /// 裸 int 色号/数组布局全线漂移，新旧端互拒不兼容（无兼容层）。
-    /// v3（2026-10-29 P6 苏醒施放字段）：MsgIntentPlayCard 新增 AwakenCast 布尔——
-    /// MemoryPack 载荷布局变更，新旧端互拒（无兼容层）。
+    /// v3（2026-10-29 P6 苏醒施放字段；2026-11-02 苏醒删除后 AwakenCast deprecated——
+    /// 字段保留读兼容恒 false、不再写入，载荷布局不变、协议不升版）：MsgIntentPlayCard 新增
+    /// AwakenCast 布尔——MemoryPack 载荷布局变更，新旧端互拒（无兼容层）。
     /// v4（2026-10-29 P7 建造→2026-10-31 P12 改义充能）：上行 MsgIntentBuildCard（卡+色）语义换为充能，
     /// 下行快照 RuntimeCardState 新增 BuildPaid（手牌卡已建额——只随持有者手牌区下发）——
     /// MemoryPack 载荷布局变更，新旧端互拒（无兼容层）。

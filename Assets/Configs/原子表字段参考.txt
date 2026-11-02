@@ -34,7 +34,7 @@
   自己墓地复活一张费用≤己方绿色地牌数的生物（短名 GraveyardPlay 承袭；旧「每回合一次墓地视
   手牌中使用」IPlaySource 配额链整删——GraveyardPlaySource/PlayCardFromGraveyard/UI 墓地使用
   按钮/SimpleAI·ScriptedAi 墓地出牌臂同批退役；新结算=RuleAuraComponents.ReviveAtTurnEnd，
-  GameCore.OnTurnEnded 于窥渊之后显式调，自动取费用最高合格生物，容量满留墓地）
+  GameCore.OnTurnEnded 于延迟死亡之后显式调，自动取费用最高合格生物，容量满留墓地）
 2026-10-30 保护指示物全体档退役（用户定案：指示物没有全体的说法，只作用于挂载单位）：合成器
   ProtectionIds 删「减半/全免/生命锁·全体」三键，GrantProtectionHandler 删 Mode|All 分支（旧 str
   多余段忽略按单体降级）；表本就只 3 行单体（a1e88b04/f7e69a25/e5c9d4b0·己方单位域），表零改
@@ -42,10 +42,31 @@
   指示物/光环/系统，按 TableCategory 分文件——拆分时点 162 行，行数以「当前表共」段为准不在此
   重复计数）；新增「特殊裁定/参数」两列——
   特殊裁定=效果间交互的裁定注记（中文短句，纯注释讲解、与代码无关——不参与装载/展示/计价，
-  不改 DisplayName、不影响 ID/指纹；当前 12 行：驱散/净化/无实体/剧毒/苏醒/绝缘体/沉默/失效/
-  冻结/紊乱/沉睡/铭刻）；参数=实例级字符串参数声明（None/CardRef/CardName/Dimension 四值，
+  不改 DisplayName、不影响 ID/指纹；当前 11 行：驱散/净化/无实体/剧毒/绝缘体/沉默/失效/
+  冻结/紊乱/沉睡/铭刻——苏醒行已随 2026-11-02 机制删除）；参数=实例级字符串参数声明（None/CardRef/CardName/Dimension 四值，
   装载校验口 CardLoader.ValidateAtomParams，非法值告警回落 None）。手牌序位引擎退役
   （表行 83c150f2 改挂团结）。
+2026-11-01 战斗法师退役（原舍身——d7e338e8 时代→2026-10-30 改版 GrantBattleMage·表行 c3112c0b：
+  改版整体弃用回滚态）：关键词表行 c3112c0b 删；代码全链**注释保留**（枚举位 GrantBattleMage/
+  GrantKeywordHandlers.Specs 授予映射/KeywordRules.BattleMage 常量+ApplyDamage 散射改写块/
+  MatchLogRenderer 播报行）；无存量卡引用（Cards/Effects/Tutorial 零命中）——恢复=去注释+表行回补。
+2026-11-02 卡名预言 a59e901d 改版「预言」（ID 随 DisplayName 重推 a59e901d→479e3d5f）：押注域收紧
+  类别三选一（Type:Creature/Spell/Enchantment，卡名/颜色/费用/箭头档退役——反问弹窗与
+  DeclareDeckTop 同档 typeOnly）、MountKinds 引擎主干→有限分支、表行补 Budget=3（命中奖励
+  预算——合成器 RewardCapOf 改读表行 Budget 单源，旧口径「类别 ≤1、卡名 ≤3」作废）；
+  handler 非类别编码警告照登记（验证时刻按未命中结算）；验证段夹具 B/C 随改 Type 押注。
+  预言 a2c4530d→f9848d5e（DeclareDeckTop·发动无效奖励档）并行换号见 git。
+2026-11-02 属性±退役+永久四轴拆分（用户定案「只能分开加减」）：指示物表 属性增加 8bc5b925/属性减少
+  9864d6df 两行删（表侧用户做；枚举 AddPlusOne/MinusOne+handler+注册+AI 引用同批删；计数器表示
+  CounterRules.PlusOne/MinusOneCounter 保留——Weaken/Inspire 留白行仍引用，无产生口）；一般效果表
+  永久属性增加 9256b41a/永久属性减少 e5da6dd9 两行删，拆永久攻血四轴各费 1：永久攻击力增加
+  c5340751（红1）/永久攻击力减少 8ae22c02（红1）/永久生命值增加 0afd7173（绿1）/永久生命值减少
+  e97b8001（绿1）——枚举 AddPermanentPowerUp/PowerDown/LifeUp/LifeDown，handler 走
+  ApplyStatDelta 单轴直写（血减归零标死同指示物口径）；存量引用迁移：火炬（代价行 −1/−1→攻减+血减
+  双 payload，卡换号 C_44193C93→C_93E8DDD1·净费 4灰 不变）+训练·催征战魁（同拆·C_E459E3E1→
+  C_7FF704BF）；合成器属性光环/属性降低条目改攻血单轴源行（Both 档退役）、连接光环 Both 计价改
+  攻+血双锚并列（防御口径，现无存量）。同日颜色规范批次见 42 行 ManaList 改色（吸血/吸取等双色
+  50/50、灵视回灰、生命值族全绿——字典 AddLifeDown 改绿）。
 
 ━━ 2026-10-08 大改定案总注（本版基准）━━━━━━━━━━━━━━━━━━━━━━━━
 ① 指示物四分类（CounterRules.CounterClass 为唯一真相源，表 Tags 三型与之间接同源）：
@@ -66,14 +87,18 @@
    （两文件当前清空待重做，重建时按新 ID 书写）。
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-当前表共 158 行，拆分为 5 张 JSON（2026-10-31 阶段A/B 口径）：原子表_一般效果 52 / 原子表_关键词 17 /
-原子表_指示物 35 / 原子表_光环 26 / 原子表_系统 28（单表 AttributeValueConfig.json 已退役）。
+当前表共 154 行（2026-11-02 实测；旧注 11-01 口径 158=52/17/35/26/28，其差=光环 −5 本批删行+
+指示物/系统并行改动）：
+原子表_一般效果 52 / 原子表_关键词 16（战斗法师 2026-11-01 退役删；实测 17=并行改动回涨）/
+原子表_指示物 33 / 原子表_光环 21（2026-11-02 五仪典删行：窥渊/毒蚀/霜蚀/禁寻/占卜加成）/
+原子表_系统 31（单表 AttributeValueConfig.json 已退役）。
 历史行数轨迹：161（2026-10-09 舍弃并档牺牲、疫蚀仪典随剧毒指示物删除后）→ 2026-10-29 禁令族四行/
 1b 六行/阶段2 五行/阶段3a +6−1/阶段3c 信息轴 +7 光环 +2/阶段3b 延时保护 +12 改写光环 +2 随更 →
 2026-10-30 涌泉/禁祭/禁非生物删、保护全体档退役、惩戒→放血 禁时机→禁扰 → 2026-10-31 计 162 →
-2026-10-31 疾风/眠蚀/禁指示物/禁扰令删 → 计 158。
+2026-10-31 疾风/眠蚀/禁指示物/禁扰令删 → 计 158 → 2026-11-01 战斗法师退役删（关键词表 c3112c0b）→
+实测仍计 158（删前并行改动已使总数回涨：系统表 +2·一般效果表 −1——分表行数以上段实测为准）。
 同枚举可多行=域/模板变体：
-SkipTurn×4（整回合/End/Standby/Main 相位档）、ModifyGameRule×26（场地光环族，
+SkipTurn×4（整回合/End/Standby/Main 相位档）、ModifyGameRule×21（场地光环族，
 实例 str=规则短名各自取锚）、GrantProtection×3（单体——己方单位域；全体档 2026-10-30 退役）。
 
 【EffectType 族谱（按 MountKinds 分组的当前实测，2026-10-31 阶段B 复核）】
@@ -97,11 +122,11 @@ SkipTurn×4（整回合/End/Standby/Main 相位档）、ModifyGameRule×26（场
     活体护甲（LivingArmor 绿3 参照生命护甲层）
     （采掘已删——资源族 2026-10-11 改版；洗入/临摹/变形赋予不在本表——临摹/变形赋予在系统表
     挂「引擎主干,动态费用」双位；充能 Charge 在本表但挂位 7 拉黑——P12 建造改充能）
-关键词行 x17: 吸血 隐密 碾压 警戒 先攻 不灭 系命 缴械 帷幕 连击 剧毒(GrantVenom)（扰魔 2026-10-13 删除）
-    + 位7拉黑 x6: 守护 再生 无实体(原禁魔石 2026-10-31 改版更名：每次受到的伤害固定 1·战斗+非战斗
-    同口·穿透照钳) 战斗法师(原舍身 2026-10-30 改版：1×攻击力随机散射) 苏醒(2026-10-31 P12
-    关键词化；同日加地牌门槛——净费灰份额>施放者当前地牌槽上限不可苏醒施放，等于放行，
-    闸=GameActions.AwakenExceedsLandCap·PlayCard 终审+LAE 枚举同判·限制文案进 DisplayName) 绝缘体
+关键词行 x16: 吸血 隐密 碾压 警戒 先攻 不灭 系命 缴械 帷幕 连击 剧毒(GrantVenom)（扰魔 2026-10-13 删除）
+    + 位7拉黑 x3: 守护 再生 绝缘体（无实体 2026-11-02 指示物化挪指示物表·fb88c3f4→6c38edaa 随文案
+    重推；战斗法师 2026-11-01 退役删——原舍身改版整体弃用）
+    + 苏醒行已删（2026-11-02 机制整链删除——曾居系统表 ebb21ba2，GrantAwaken 枚举位/
+    关键词常量/闸门口同批移除）
     （微缩/放大已删 2026-10-10；旧文误写「位8」——墓碑清理后 NoLinkAura=7；
     法术护盾在指示物表不在关键词表）
 指示物行 x35: 法术护盾 复生 圣盾 潜行 坚韧(GrantToughness) 护甲 毒素 报复 沉默 失效(缄默 2026-10-31
@@ -109,27 +134,33 @@ SkipTurn×4（整回合/End/Standby/Main 相位档）、ModifyGameRule×26（场
     己方单位域，全体档 2026-10-30 退役)
     + 属性六行(位3光环化源+不可随机): 攻击力增加/减少 生命值增加/减少 属性增加/减少
     + 费用增加/减少×四色(不可随机——CostDownGray/Red/Blue/Green 充能投放)
-场地光环 x26（规则光环 2026-10-30 改名场地光环）: 三相 苦痛(原血偿) 丰盈 离散(原蚕褪) 窥渊 归土 纳川
+场地光环 x21（规则光环 2026-10-30 改名场地光环）: 三相 苦痛(原血偿) 丰盈 离散(原蚕褪) 归土 纳川
+    （窥渊仪典 2026-11-02 整链删除——表行 901149d9/常量 LockRevealed/枚举位 AuraPeekLock/类型映射/
+    RevealAndLockAtTurnEnd 回合末结算块+GameCore 调用点/合成器映射同批退役；锁定原子 LockCard
+    与锁定指示物独立存续不受影响）
     （疾风仪典 2026-10-31 整链删除——表行 4f9918f2/常量 CastSpeedUp/枚举位 AuraSpeed/类型映射/
     IsFixedBothRule 名单/OnBoardActiveSpeedBonus 算速口（攻击宣言+主动效果两消费点）/合成器映射同批退役）
     （时光/轮回仪典已删 2026-10-29 阶段3a——DoubleTurn 双人连两回合整体退役，额外回合改走
     TakeExtraTurn 原子行 7da143c9；表行/常量/RuleAuraIds 映射/OnTurnEnd 结算块同批删除）
-    + 负面光环: 毒蚀 霜蚀（眠蚀仪典 2026-10-31 整链删除——表行/常量 CombatSleep/枚举位 AuraSleep/
-    类型映射/OnActivatedForSleepAura 钩/引擎主动结算点直调/合成器映射同批退役）+ 放血(原惩戒，
+    （负面光环族 2026-11-02 整族删除——毒蚀 94fd364a/霜蚀 cd0c8c25 表行/常量/枚举位/类型映射/
+    DamageEvent·AttackResolvedEvent 两钩/合成器映射同批退役；AttackResolvedEvent 事件本体保留
+    （战报 MatchLogRenderer/演出 CombatChoreographer 仍消费））
+    + 放血(原惩戒，
     2026-10-30 改名——原舍身仪典已关键词化出族，
-    2026-10-16；现关键词表「战斗法师」)（EffectType 全为 ModifyGameRule；范围化 value=RuleAuraScope，
+    2026-10-16；后继关键词「战斗法师」2026-11-01 退役删除)（EffectType 全为 ModifyGameRule；范围化 value=RuleAuraScope，
     表价即实价（2026-10-29 去对称让利）；对称仪典 3/6 档；载体=结界登场效果，RuleAuraSystem：
     全局唯一新换旧送墓/载体离场失效/无箭头）
-    + 禁令族 12 行：禁攻/禁守/禁发/禁地（2026-10-29 四行）+ 禁疗/禁寻/禁魔/禁召/禁抽（2026-10-29 1b，
-    固定双方——禁祭已随涌泉 2026-10-30 删，教学经 RuleAuraSystem.FatigueImmunity 直挂）
+    + 禁令族 11 行：禁攻/禁守/禁发/禁地（2026-10-29 四行）+ 禁疗/禁魔/禁召/禁抽（2026-10-29 1b，
+    固定双方——禁祭已随涌泉 2026-10-30 删，教学经 RuleAuraSystem.FatigueImmunity 直挂；
+    禁寻令 2026-11-02 删——表行 b8c9e648/常量/枚举位/类型映射/检索·发现两闸/合成器映射同批退役）
     + 禁令族·语料原生 2 行：禁低费/禁高费（禁扰 2026-10-31 删——用户弃「对手回合连锁主动/自动」
     改案整链退役：表行 1bb1ea6d/常量 OwnTurnCastAura/枚举位 AuraNoInterfere/类型映射/合成器映射/
     PlayCardInResponse 与响应手牌候选两道旧闸；禁指示物 2026-10-31 删）
     （固定双方·System 指示物豁免——禁非生物已随 2026-10-30 光环表清理删）
-    + 信息轴改写族（2026-10-29 阶段3c 两行，改写族三档范围不入固定双方名单）：占卜加成
-    （ScryBonusAura——受影响一方占卜数量+1，消费口=LookAtTopCardsHandler/PeekTop extra，
-    按控制者判）/ 灵视（RevealedPunishAura——使用已展示手牌者受2伤且其对手回2，
-    CardPlayEvent 订阅=使用宣言时点付费前）
+    + 信息轴改写族（2026-10-29 阶段3c，改写族三档范围不入固定双方名单）：灵视
+    （RevealedPunishAura——使用已展示手牌者受2伤且其对手回2，
+    CardPlayEvent 订阅=使用宣言时点付费前）（占卜加成 02b3c2e4 2026-11-02 删——表行/常量/
+    枚举位/类型映射/ScryBonus 查询与 PeekTop extra 参数/合成器映射同批退役）
     + 阶段3b 改写族（2026-10-29 两行，改写族三档范围不入固定双方名单）：延迟死亡
     （DelayedDeathAura 977f31ca 灰6——受影响单位死亡改写为下个回合结束时死亡：
     DeathRules.TryKill 头部改写+_delayedDeath 标记（防无限延迟，进快照）+GameCore.OnTurnEnd
@@ -196,9 +227,10 @@ SkipTurn×4（整回合/End/Standby/Main 相位档）、ModifyGameRule×26（场
   4 系统 SystemInternal   移出玩家合成器全部选择面
   5 引擎主干 EngineTrunk  引擎条件载体：零锚零域不入主序列，填槽即自由分支
   6 场地光环 RuleAura     仪典行：走 steps 原子步，不占连接位无箭头
-  7 不可作为连接光环 NoLinkAura 光环黑名单（一票否决；2026-10-31 实测 9 行）：守护/再生/无实体/
-                          战斗法师/苏醒/绝缘体（关键词表 6 行）+ 永久属性增加/减少/充能（一般效果表 3 行）
-                          ——名单在表不在代码
+  7 不可作为连接光环 NoLinkAura 光环黑名单（一票否决；2026-11-02 无实体指示物化随摘——现值关键词表
+                          隐密/守护/再生/绝缘体 4 行；充能现行表已不带本位、苏醒已随 2026-11-02 删除，
+                          旧注「9 行」口径作废）：
+                          + 永久属性增加/减少（一般效果表 2 行）——名单在表不在代码
   8 有限分支 SituationGate 门槛行身份/挂载/预算位（判定谓词在代码）
   9 动态费用 DynamicCost  临摹/变形赋予：不可作 Then 奖励（主干照旧）
   空串 = 普通行（主干/奖励资格走派生谓词 ComposerCatalog.CanBeTrunkRow/CanBeRewardRow）。

@@ -162,8 +162,12 @@ namespace CardCore
                     return new Line($"{Who(fatigue.Player, isSelf)}疲劳，受到 {fatigue.Damage} 伤害（空牌库抽牌）",
                         "log-line--combat");
                 case HealEvent heal:
-                    if (heal.Source != null) return Empty; // 原子治疗由结先行呈现，不重复
-                    return new Line($"〔回复〕{EntityName(heal.Target, isSelf)} 回复 {heal.Amount} 生命", "log-line--effect");
+                {
+                    // 2026-11-01 修复：原「Source!=null → Empty（由结先行呈现）」在倒计时奖励/分支奖励上
+                    // 根本没有对应的「结」行（战报里 22→24 却一行回复都没有）——治疗一律出行，来源附括号。
+                    string healSrc = heal.Source is Card hc && heal.Source != heal.Target ? $"（{Name(hc)}）" : "";
+                    return new Line($"〔回复〕{EntityName(heal.Target, isSelf)} 回复 {heal.Amount} 生命{healSrc}", "log-line--effect");
+                }
 
                 // ==== 状态改写（B1 补缺：属性增减/冻结） ====
                 case StatModifyEvent stat:
@@ -201,7 +205,7 @@ namespace CardCore
                     return new Line("　→ " + text, "log-line--effect");
                 }
                 case KeywordAppliedEvent kw when kw.Keyword == KeywordRules.Guardian
-                                                 || kw.Keyword == KeywordRules.BattleMage // 战斗法师散射播报（原舍身，2026-10-30 改版）
+                                                 // || kw.Keyword == KeywordRules.BattleMage // 战斗法师散射播报 2026-11-01 退役注释（原舍身；表行/常量同批）
                                                  || kw.Keyword == "运势": // 主动运势两段式（2026-10-20）：掷骰结果须玩家可见（成败都播报；自动路径同享）
                 {
                     if (string.IsNullOrEmpty(kw.Detail)) return Empty;
@@ -212,6 +216,24 @@ namespace CardCore
                 }
                 case KeywordAppliedEvent _:
                     return Empty; // 其余关键词由结先行覆盖（防刷屏，类注释口径）
+
+                // ==== 信息族·预言（2026-11-02 隐秘性定案：宣言时刻类别不可见，结算时刻公开） ====
+                case ProphecyRegisteredEvent reg:
+                    return new Line(
+                        $"{Who(reg.Declarer, isSelf)}立下预言：押注内容隐藏，对手下回合首张出牌时揭晓",
+                        "log-line--effect");
+                case ProphecyResolvedEvent res:
+                {
+                    string bet = DeclarationZh(res.Declaration);
+                    string verdict = res.Hit
+                        ? res.VerifiedCard != null
+                            ? $"押注「{bet}」——对手首张出牌「{Name(res.VerifiedCard)}」→ 命中"
+                            : $"押注「{bet}」→ 命中"
+                        : res.VerifiedCard != null
+                            ? $"押注「{bet}」——对手首张出牌「{Name(res.VerifiedCard)}」→ 未命中"
+                            : $"押注「{bet}」——对手整回合未出牌，作未命中";
+                    return new Line($"{Who(res.Declarer, isSelf)}的预言揭晓：{verdict}", "log-line--effect");
+                }
 
                 // ==== 指示物落定 ====
                 case CounterChangedEvent ctr:
@@ -279,6 +301,20 @@ namespace CardCore
         {
             if (en is Player p) return isSelf == null ? Name(p) : (isSelf(p) ? "【己方角色】" : "【对方角色】");
             return Name(en);
+        }
+
+        /// <summary>预言押注中文化（"维度:值"→「类别：生物」式；未知编码原文回显）——
+        /// 预言揭晓行专用（2026-11-02 隐秘性定案：宣言时刻不出行，此口只在结算时刻被走到）。</summary>
+        public static string DeclarationZh(string encoded)
+        {
+            if (!Attribute.Handlers.ProphecyDimension.TryParse(encoded, out var dim, out var val))
+                return string.IsNullOrEmpty(encoded) ? "∅" : encoded;
+            if (dim == Attribute.Handlers.ProphecyDimension.Name) return "卡名：" + val;
+            if (dim == Attribute.Handlers.ProphecyDimension.Type)
+                return "类别：" + (val.Equals(nameof(Cardtype.Creature), StringComparison.OrdinalIgnoreCase) ? "生物"
+                    : val.Equals(nameof(Cardtype.Spell), StringComparison.OrdinalIgnoreCase) ? "法术"
+                    : val.Equals(nameof(Cardtype.Enchantment), StringComparison.OrdinalIgnoreCase) ? "结界" : val);
+            return encoded;
         }
 
         // ======================================== 公共辅助（转发 EffectText 单一真相） ========================================

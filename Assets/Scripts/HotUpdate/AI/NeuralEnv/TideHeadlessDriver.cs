@@ -46,6 +46,7 @@ namespace CardCore.AI.NeuralEnv
     /// 奖励（actor-centric 自对弈，reward 恒归属「刚行动的那一方」= 本步决策座次）：
     ///   终局 ±1 主导；非终局每步 λ·(Φ_after − Φ_before)，Φ = 己方战场价值 − 对方战场价值
     ///   （2026-09-22：λ 默认 0.005 且 Φ 剔除手牌——塑形累计须 ≪ 终局 ±1，否则学拖局）。
+    ///   λ=0 显式下发 = 关闭塑形（非终局恒 0 纯终局 ±1 基线，2026-11-02 起可关）。
     ///   响应步计入 λ·ΔΦ 塑形（弧长变长——λ 维持观察，必要时再调，契约风险节）。
     ///
     /// 防死循环兜底（三层）：引擎速度门（响应互相抬记速器，速度不足自然无候选）+
@@ -58,7 +59,7 @@ namespace CardCore.AI.NeuralEnv
     {
         // 塑形系数（2026-09-22 定案 0.05→0.005：λ=0.05 时双方各自整局塑形累计 ≈ +3.1，
         // 是终局 ±1 的 3 倍，自对弈收敛到拖局刷塑形；reset 协议可按局覆盖——
-        // TideHeadlessServer.HandleReset 的 shapingLambda 字段，>0 生效，0 用本默认值）
+        // TideHeadlessServer.HandleReset 的 shapingSet=1 显式下发，含 0=关闭塑形）
         private float _shapingLambda = 0.005f;
         private const int MaxSettleAttempts = 32;    // 排干栈重试上限（镜像 SimpleAI）
         private const int PhaseAdvanceGuard = 256;   // 阶段推进循环保险（v2 响应分支并入同一循环后加大）
@@ -101,10 +102,13 @@ namespace CardCore.AI.NeuralEnv
         public bool IsGameOver => _gameOver;
         public Player Winner => _winner;
 
-        /// <summary>按局覆盖塑形系数 λ（reset 协议透传；≤0 忽略保持默认）。</summary>
+        /// <summary>按局覆盖塑形系数 λ（reset 协议透传）。显式调用即生效——
+        /// 0 = 关闭塑形：非终局奖励恒 0、无进展动作不扣分，只留终局 ±1（λ=0 基线消融，
+        /// 2026-11-02 修复：旧口径仅 lambda&gt;0 生效，λ=0 根本发不下去、塑形永远关不掉）；
+        /// 不调用保持默认 0.005（旧客户端兼容口径）。</summary>
         public void SetShapingLambda(float lambda)
         {
-            if (lambda > 0f) _shapingLambda = lambda;
+            _shapingLambda = lambda;
         }
 
         /// <summary>模型座次（0=P1 先手 / 1=P2）；自对弈为 -1。协议 info.modelSeat 用。</summary>
@@ -185,8 +189,11 @@ namespace CardCore.AI.NeuralEnv
             if (_gameOver) return BuildResult(0f); // 已终局：无动作可执行
 
             var me = _decider ?? _core.TurnEngine.TurnPlayer; // 本步决策座次（Main=回合玩家 / 响应=优先权方）
-            // 奖励势能剔除手牌（2026-09-22 定案）：含手牌时「每回合摸牌」是白拿的正奖励流
-            float before = FieldValueReward.ComputePotential(_core, me, includeHand: false);
+            // 奖励势能剔除手牌（2026-09-22 定案）：含手牌时「每回合摸牌」是白拿的正奖励流；
+            // λ=0 基线跳过计算（非终局奖励恒 0，势能白算）
+            float before = _shapingLambda > 0f
+                ? FieldValueReward.ComputePotential(_core, me, includeHand: false)
+                : 0f;
 
             // 越界下标：保守兜底——不推进、奖励 0，重观测同状态。但必须计入停滞与回合动作数：
             // 冻结态下模型全掩码均匀采样，每步仅 1/512 概率落在唯一兜底行上，其余全走本分支——
@@ -258,9 +265,10 @@ namespace CardCore.AI.NeuralEnv
                     // 不推进。摘除保证最坏情况把无效动作各试一次后只剩 EndTurn/Pass → 回合必然流动。
                     // 2026-09-22 符号修复：此前误传 +NoProgressPenalty（正奖励）——拒绝动作反而
                     // +0.05，构成可刷的奖励泉（每回合把会被拒的动作挨个试一遍）；取负恢复扣分本意。
+                    // λ=0 基线下不扣分（保持「reward 只有终局 ±1」的纯终局口径；流动靠摘除保证）。
                     _bannedThisTurn.Add(a.Signature);
                     _legal.RemoveAll(_bannedThisTurn);
-                    return BuildResult(-NoProgressPenalty);
+                    return BuildResult(_shapingLambda > 0f ? -NoProgressPenalty : 0f);
                 }
                 // 应用成功：不立即 DrainStack——对方回合响应窗口由 AdvanceToDecision 的
                 // 响应循环接管（候选>0 停靠问模型 / 候选=0 自动让过 = 旧双 Pass 行为）
@@ -269,11 +277,16 @@ namespace CardCore.AI.NeuralEnv
             // 推进到下一决策点（End→Standby 折返 / Standby→Main / 回合初横置 / 响应窗口；可能触发疲劳判负）
             AdvanceToDecision();
 
-            // 奖励：终局 ±1 主导（不再叠加塑形，避免 Φ 在终局无界）；否则势能塑形 λ·ΔΦ
+            // 奖励：终局 ±1 主导（不再叠加塑形，避免 Φ 在终局无界）；λ=0 基线非终局恒 0
+            //（纯终局口径——塑形与无进展扣分全部关闭）；否则势能塑形 λ·ΔΦ
             float reward;
             if (_gameOver)
             {
                 reward = ReferenceEquals(_winner, me) ? 1f : -1f;
+            }
+            else if (_shapingLambda <= 0f)
+            {
+                reward = 0f;
             }
             else
             {

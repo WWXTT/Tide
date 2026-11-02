@@ -162,6 +162,10 @@ namespace SynergyUI
                 }
                 var card = e as Card;
                 var it = card != null ? CardOverlayItem.FromLiveCard(card) : null;
+                // 墓地归属徽标（2026-11-02 洗回改版）：跨双方墓地的选择面按归属冠
+                // 【己方墓地】/【对方墓地】前缀——卡面本身无归属信息，混合候选须可辨别
+                //（【己方角色】前缀同款文案口径；非墓地卡不动）
+                if (it != null) PrefixGraveyardBadge(card, it, request.Chooser);
                 items.Add(it ?? new CardOverlayItem { Key = "L" + i, Name = labels[i] });
                 if (card != null && _boardCellOf?.Invoke(card) is { } cell) // 在场上（单位/施放立牌）
                     reticles[i] = (card.RuntimeId, cell.x, cell.z);
@@ -174,6 +178,20 @@ namespace SynergyUI
         }
 
         // ==================== 基接口（纯选项/网络兜底路径：仅卡名最小卡面） ====================
+
+        /// <summary>墓地候选归属徽标：卡在任一侧墓地时给卡名冠【己方墓地】/【对方墓地】前缀
+        ///（按 Chooser 判侧；非墓地卡不动）。牌库域折叠（CollapseDeckZoneCells）不在此径——
+        /// 牌库卡在选择面前已折为角色区域格。</summary>
+        private static void PrefixGraveyardBadge(Card card, CardOverlayItem it, Player chooser)
+        {
+            var core = GameCore.Instance;
+            var zm = core?.ZoneManager;
+            if (card == null || zm == null || it == null) return;
+            if (zm.IsCardInZone(card, core.Player1, Zone.Graveyard))
+                it.Name = (core.Player1 == chooser ? "【己方墓地】" : "【对方墓地】") + it.Name;
+            else if (zm.IsCardInZone(card, core.Player2, Zone.Graveyard))
+                it.Name = (core.Player2 == chooser ? "【己方墓地】" : "【对方墓地】") + it.Name;
+        }
 
         public async UniTask<List<int>> SelectIndicesAsync(IReadOnlyList<string> labels,
             int min, int max, string title, string hint, bool allowCancel, float timeoutSeconds)

@@ -12,7 +12,7 @@ namespace SynergyUI
     /// （同 CardOverlayCard 的挂载模式——prefab 本体不带脚本）。承担四件事：
     /// ① IPointerEnter/Exit 悬停上报，转发给所属 HandFanView 重排目标；
     /// ② 布局 tween 状态（当前值/目标值），由 HandFanView.Tick 统一推进；
-    /// ③ 悬停显隐按钮层（btn：放置/使用+费用方格；2026-11-01 SpUse 退役——苏醒/充能并入
+    /// ③ 悬停显隐按钮层（btn：放置/使用+费用方格；2026-11-01 SpUse 退役——充能并入
     ///    卡面效果行选中、事件全走 Use 钮）：
     ///    条件由宿主屏注入的交互钩子（FanInteractions）评估；指针从卡面移到按钮上
     ///    （子孙物体）不收悬停态——Exit 事件按射线落点是否本卡子孙判留；
@@ -33,7 +33,7 @@ namespace SynergyUI
         [System.NonSerialized] public ACardView Face;
 
         /// <summary>发动按钮（btn/Use，prefab 用户摆位，Create 时接线）——SpUse 钮退役后唯一出牌口
-        ///（2026-11-01 苏醒/充能上卡）：普通=召唤/使用/发动，特殊行选中=苏醒/充能（文案随选切换）。</summary>
+        ///（2026-11-01 上卡）：普通=召唤/使用/发动，特殊行选中=充能（文案随选切换）。</summary>
         [System.NonSerialized] public Button UseButton;
 
         /// <summary>放置按钮（btn/Place——作为地牌放入元素池）。</summary>
@@ -47,8 +47,8 @@ namespace SynergyUI
         ///（本地/网络的「选择要发动的效果」模式窗退役）。池复用换卡（对账键变更）归零。</summary>
         public int SelectedEffectMode;
 
-        /// <summary>特殊效果行选中（2026-11-01 苏醒/充能上卡）：-1=未选（普通使用）；≥0=SpEffectRows
-        /// 对位行序——Use 钮文案随选变「苏醒/充能」并按此分流施放；**再点选中行=取消**回普通使用。
+        /// <summary>特殊效果行选中（2026-11-01 上卡）：-1=未选（普通使用）；≥0=SpEffectRows
+        /// 对位行序——Use 钮文案随选变「充能」并按此分流施放；**再点选中行=取消**回普通使用。
         /// 与 SelectedEffectMode 互斥单向：选模式行清特殊选中；取消特殊后回退到原选中模式行。</summary>
         public int SelectedSpEffect = -1;
 
@@ -199,7 +199,7 @@ namespace SynergyUI
         // ---- 按钮层（放置/发动） ----
 
         /// <summary>按交互钩子条件刷新按钮层显隐（悬停进入/扇区对账后触发；无钩子=对手扇常态隐藏）。
-        /// SpUse 钮退役（2026-11-01）：苏醒/充能可用性并入 CanUse（宿主屏合并口径），此处只剩放置/使用两钮。</summary>
+        /// SpUse 钮退役（2026-11-01）：充能可用性并入 CanUse（宿主屏合并口径），此处只剩放置/使用两钮。</summary>
         public void RefreshActionButtons()
         {
             EnsureChromeRefs();
@@ -238,8 +238,8 @@ namespace SynergyUI
         public void HideActionButtons() => Face?.SetActionLayerVisible(false);
 
         /// <summary>手牌卡按钮文案+费用方格（2026-10-30 定案；2026-11-01 抉择上卡+SpUse 退役）：
-        /// 卡费只在手牌展示（btn/CostSquares，SetCards 对账时刷新；多主动法术=当前选中效果行费用、
-        /// 苏醒行选中=免灰账单）；使用钮文案=普通（召唤/使用/发动）或特殊行选中（苏醒/充能）。
+        /// 卡费只在手牌展示（btn/CostSquares，SetCards 对账时刷新；多主动法术=当前选中效果行费用）；
+        /// 使用钮文案=普通（召唤/使用/发动）或特殊行选中（充能）。
         /// 按钮显隐不在此处——RefreshActionButtons 按钩子逐钮评估。效果行接线（点击切选/边框）同拍完成。</summary>
         public void SetHandChrome(CardOverlayItem item)
         {
@@ -257,15 +257,14 @@ namespace SynergyUI
             UpdateEffectCost();
         }
 
-        /// <summary>使用钮文案（2026-11-01 SpUse 退役·事件全走 Use）：特殊行选中=苏醒/充能；
+        /// <summary>使用钮文案（2026-11-01 SpUse 退役·事件全走 Use）：特殊行选中=充能；
         /// 否则按卡型 召唤/使用/发动。SetHandChrome 与切行共用。</summary>
         private void UpdateUseLabel()
         {
             if (_chromeItem == null) return;
             string text;
             var spKind = SelectedSpKind;
-            if (spKind == SpEffectKind.Awaken) text = "苏醒";
-            else if (spKind == SpEffectKind.Charge) text = "充能";
+            if (spKind == SpEffectKind.Charge) text = "充能";
             else
             {
                 var type = _chromeItem.Supertype;
@@ -324,7 +323,7 @@ namespace SynergyUI
         }
 
         /// <summary>切换选中效果行（模式行点击入口）：边框/费用/使用钮文案联动（费用=该模式现付费）。
-        /// 与特殊行互斥——选中模式行即退出苏醒/充能特殊态。纯 UI 态，不设回合/阶段闸（出牌闸在「使用」链上）。</summary>
+        /// 与特殊行互斥——选中模式行即退出充能特殊态。纯 UI 态，不设回合/阶段闸（出牌闸在「使用」链上）。</summary>
         public void SelectEffectMode(int index)
         {
             var rows = Face != null ? Face.ActiveEffectRows : null;
@@ -338,7 +337,7 @@ namespace SynergyUI
             UpdateEffectCost();
         }
 
-        /// <summary>特殊行点击（苏醒/充能，2026-11-01 上卡）：选中→Use 钮文案/边框/费用切换为该特殊态；
+        /// <summary>特殊行点击（充能，2026-11-01 上卡）：选中→Use 钮文案/边框/费用切换为该特殊态；
         /// **再点选中行=取消**回普通使用（回落原选中模式行）。无特殊行数据空转。</summary>
         public void SelectSpEffect(int index)
         {
@@ -350,7 +349,7 @@ namespace SynergyUI
             UpdateEffectCost();
         }
 
-        /// <summary>费用方格刷新（对账/切行共用）：特殊行选中且带账单（苏醒=免灰）优先；
+        /// <summary>费用方格刷新（对账/切行共用）：特殊行选中且带账单优先；
         /// 多主动法术=选中行 ActiveEffectCosts；其余=卡净费 Costs（旧口径）。充能行无固定账单
         ///（现付 1 点待选色）→维持当前模式费显示。</summary>
         private void UpdateEffectCost()

@@ -158,10 +158,9 @@ namespace CardCore
             float rawTotal = statValue + keywordTotal + effectTotal;
             result.DerivedTier = rawTotal > 0f ? Math.Clamp(TideMath.RoundToInt(rawTotal), 1, cc.MaxTier) : 0;
 
-            // ---- 5) L2 组合：E/K 汇桶 + S 入灰桶，总额一次取整，最大余数法分色（无延迟折）----
+            // ---- 5) L2 组合：E/K 汇桶 + S 拆轴色入桶（2026-11-02 基地红绿：攻红/血绿），总额一次取整，最大余数法分色（无延迟折）----
             // 底盘预算（2026-09-10 攻/守效果化，取代旧挂载口曲线）：取整后落位——
             // 退费先灰后最高色（法术常无灰分量），加价入灰。
-            int statGray = (int)Math.Round(statValue, MidpointRounding.AwayFromZero);
             // 底盘（2026-10-22 最终定案，取代 10-15 生物按槽加价）：结构项=攻/守+效果槽，
             // 结构项>3 差额入灰（生物/非生物同式）；免费点按卡型：生物→属性（灰桶 S）、法术→提速、
             // 结界→耐久、地牌→全额抵价（先灰后最高色）。
@@ -175,7 +174,7 @@ namespace CardCore
             {
                 if (card.Supertype == Cardtype.Creature)
                     result.Breakdown.Add(new CostBreakdownLine("C",
-                        $"免费点 {surplus}（属性1{(card.NoAttack || card.NoGuard ? " + 攻/守 opt-out" : "")}）→ 减身材灰桶（不溢出彩色）",
+                        $"免费点 {surplus}（属性1{(card.NoAttack || card.NoGuard ? " + 攻/守 opt-out" : "")}）→ 减身材轴色桶（先红后绿·不溢出他色——2026-11-02 基地红绿）",
                         -surplus, ManaType.Gray));
                 else if (card.Supertype == Cardtype.Enchantment)
                 {
@@ -193,7 +192,7 @@ namespace CardCore
                         $"免费点 {surplus} → 抵价 {surplus}（先灰后最高色）", -surplus));
             }
 
-            var mounted = ApportionMounted(effBuckets, kwBuckets, statGray);
+            var mounted = ApportionMounted(effBuckets, kwBuckets, StatBucketsOf(card, cc));
             ApplyChassis(card, mounted);
 
             // ---- 5b) 代价抵扣（2026-10-28 P1 定案：代价 = 构筑期抵扣；2026-10-31 色锁定案+指向化） ----
@@ -265,7 +264,6 @@ namespace CardCore
 
             var cfg = ValueSystemConfigManager.Instance.GetOrCreateConfig();
             var cc = cfg.CardCostConfig;
-            float statValue = ComputeStatValue(card, cc, null);
 
             float keywordTotal;
             var kwBuckets = ComputeKeywordBuckets(card, null, out keywordTotal);
@@ -289,8 +287,8 @@ namespace CardCore
             }
 
             // 全额计价 + 结构费全额入灰——不走 ApplyChassis（衍生物无底盘，无剩余可支配）
-            int statGray = (int)Math.Round(statValue, MidpointRounding.AwayFromZero);
-            var mounted = ApportionMounted(effBuckets, kwBuckets, statGray);
+            //（2026-11-02 基地红绿：衍生物身材同样拆轴色——攻红/血绿，结构费仍灰）
+            var mounted = ApportionMounted(effBuckets, kwBuckets, StatBucketsOf(card, cc));
             int structureFee = CardCompositionCost.StructureFeeFull(card);
             if (structureFee > 0)
             {
@@ -383,7 +381,6 @@ namespace CardCore
             var cc = cfg.CardCostConfig;
 
             // 模式无关三块（与 Derive 共用助手，防口径漂移；无 breakdown 记录）
-            float statValue = ComputeStatValue(card, cc, null);
             float keywordTotal;
             var kwBuckets = ComputeKeywordBuckets(card, null, out keywordTotal);
 
@@ -397,7 +394,8 @@ namespace CardCore
             keywordTotal += auraTotal;
 
             var effectDefs = CardEffectConverter.ConvertAll(card.Effects, card.ID);
-            int statGray = (int)Math.Round(statValue, MidpointRounding.AwayFromZero);
+            // 2026-11-02 基地红绿：抉择各模式共用同一份身材轴色桶（攻红/血绿——模式无关块）
+            var statBuckets = StatBucketsOf(card, cc);
 
             // ---- 第一遍：各模式效果锚桶（DeriveElementCosts 的 modeIndex 分支，未折未取整）----
             // 主动能力与 Derive 同口径：构筑期不占卡费（运行时现付），各模式桶一律跳过。
@@ -431,15 +429,14 @@ namespace CardCore
             if (rawTotals[0] < tierMax - 0.001f)
                 TideLog.Warn($"[CardCostService] 抉择卡 {card.ID} 模式0非最高消耗（{rawTotals[0]} < {tierMax}）——违反数据契约（编辑界面应把最高消耗放在序号0）");
 
-            // 卡层组合费用：抉择价差溢价已废（2026-09-21）——灰桶只入身材费；
+            // 卡层组合费用：抉择价差溢价已废（2026-09-21）——身材费拆轴色入桶（2026-11-02 基地红绿）；
             // 抉择的弹性费在结构项计槽（每分支一个效果槽，CountEffectSlots），对模式均匀。
-            float grayAdd = statGray;
 
             // ---- 第二遍：L2 组合 + 整卡取整（与 Derive 的 ApportionMounted 同口径）----
             // 支付按所选模式（延迟折已删，各模式费随各自总额全额，不读存档 costList）。
             for (int m = 0; m < modeCount; m++)
             {
-                var mounted = ApportionMounted(modeBuckets[m], kwBuckets, grayAdd);
+                var mounted = ApportionMounted(modeBuckets[m], kwBuckets, statBuckets);
                 ApplyChassis(card, mounted); // 底盘（2026-10-10 可支配）：超槽加价入灰 / 剩余抵价（先灰后最高色）
                 if (prePayloadOut != null) prePayloadOut.Add(ToElementCost(mounted)); // P7：抵扣前留影
                 // 代价抵扣（2026-10-31 色锁定案+指向化）：抉择卡逐模式吃同一笔施放期代价
@@ -834,7 +831,12 @@ namespace CardCore
         {
             int statPoints = (card.Power ?? 0) + (card.Life ?? 0);
             float statValue = statPoints / Math.Max(1f, cc.StatUnit);
-            breakdown?.Add(new CostBreakdownLine("S", $"身材费 (攻{card.Power ?? 0}/血{card.Life ?? 0})", statValue, ManaType.Gray));
+            // 2026-11-02 基地红绿定案（属性红/绿连带基地）：身材费总量不变（(攻+血)/StatUnit），
+            // 只拆轴色——攻侧入红、血侧入绿（挂桶见 StatBucketsOf；此口仍回标量供 S 读数/档位）
+            breakdown?.Add(new CostBreakdownLine("S",
+                $"身材费·攻 (攻{card.Power ?? 0})", (card.Power ?? 0) / Math.Max(1f, cc.StatUnit), ManaType.Red));
+            breakdown?.Add(new CostBreakdownLine("S",
+                $"身材费·血 (血{card.Life ?? 0})", (card.Life ?? 0) / Math.Max(1f, cc.StatUnit), ManaType.Green));
             if (card.Durability > 0)
             {
                 float durValue = card.Durability * cc.DurabilityUnitCost;
@@ -842,6 +844,22 @@ namespace CardCore
                 breakdown?.Add(new CostBreakdownLine("S", $"耐久费 (耐久{card.Durability})", durValue, ManaType.Gray));
             }
             return statValue;
+        }
+
+        /// <summary>身材费轴色分桶（2026-11-02 基地红绿定案）：攻侧入红桶、血侧入绿桶——
+        /// 各 = 点数/StatUnit 真实小数（总量与旧全灰口径一致，只拆色；2/2 → 1红+1绿）；
+        /// 耐久仍入灰桶（结界/装备轴不属攻血）。消费口：Derive / ContentPriceByColor /
+        /// DeriveModeCosts 三处的 ApportionMounted statAdd。</summary>
+        public static Dictionary<ManaType, float> StatBucketsOf(CardData card, CardCostConfig cc)
+        {
+            var buckets = new Dictionary<ManaType, float>();
+            if (card == null) return buckets;
+            float unit = Math.Max(1f, cc.StatUnit);
+            if ((card.Power ?? 0) > 0) buckets[ManaType.Red] = (card.Power ?? 0) / unit;
+            if ((card.Life ?? 0) > 0) buckets[ManaType.Green] = (card.Life ?? 0) / unit;
+            if (card.Durability > 0)
+                buckets[ManaType.Gray] = card.Durability * cc.DurabilityUnitCost;
+            return buckets;
         }
 
         /// <summary>关键词费 K：Grant 原子固定费按颜色分桶（无 value 缩放）。</summary>
@@ -933,13 +951,13 @@ namespace CardCore
                     // 属性光环=位3「可以作为连接光环」表行的光环化（2026-10-07 深夜定案；2026-10-12
                     // 裁决按 stat 细分光源行——此前无脑走属性增加/减少是错行）：Power 走攻击力专用行
                     //（+→攻击力增加 39a3106c 红1 / −→攻击力减少 d00b4a7d 红1）、Life 走生命值专用行
-                    //（7a97f666/d3d792bb 绿1）；Both（±1/±1 双轨）才走 属性增加/减少（白2/黑2）。
-                    // 走下方通用光环化计价（行 ManaList × mult × magnitude；Both 不加倍——源行天然 ±1/±1）。
+                    //（7a97f666/d3d792bb 绿1）；Both（±1/±1 双轨）2026-11-02 属性±行删除后不再有
+                    // 独立源行——按攻行+血行两锚并列计价（合成器同批已不产 Both 档，此处为存量防御口径）。
+                    // 走下方通用光环化计价（行 ManaList × mult × magnitude；Both 不加倍——两轴各行天然 ±1）。
                     bool isLife = aura.stat.Equals("Life", System.StringComparison.OrdinalIgnoreCase);
                     bool isBoth = aura.stat.Equals("Both", System.StringComparison.OrdinalIgnoreCase);
-                    rep = isBoth ? (aura.value >= 0 ? AtomicEffectType.AddPlusOne : AtomicEffectType.AddMinusOne)
-                         : isLife ? (aura.value >= 0 ? AtomicEffectType.AddLifeUp : AtomicEffectType.AddLifeDown)
-                                  : (aura.value >= 0 ? AtomicEffectType.AddPowerUp : AtomicEffectType.AddPowerDown);
+                    rep = isLife || isBoth ? (aura.value >= 0 ? AtomicEffectType.AddLifeUp : AtomicEffectType.AddLifeDown)
+                                           : (aura.value >= 0 ? AtomicEffectType.AddPowerUp : AtomicEffectType.AddPowerDown);
                     magnitude = System.Math.Max(1, System.Math.Abs(aura.value));
                     label = $"{(isBoth ? "属性" : isLife ? "生命" : "攻击")}{(aura.value >= 0 ? "+" : "")}{aura.value}";
                 }
@@ -983,6 +1001,26 @@ namespace CardCore
                 float firstAmount = 0f;
                 float firstRaw = 0f; // 首色行锚原价（费用基准【x】用——不含箭头累乘）
                 ManaType firstColor = ManaType.Gray;
+                // Both 双轨另一轴（攻/血对侧行）锚价并列入桶——不进明细则（首轴行承担）。
+                // isBoth/isLife 声明在上文 stat 分支内，此处重取（stat 光环恒非空才会是 Both）
+                bool bothAxis = "Both".Equals(aura.stat, System.StringComparison.OrdinalIgnoreCase);
+                if (bothAxis)
+                {
+                    bool lifeAxis = "Life".Equals(aura.stat, System.StringComparison.OrdinalIgnoreCase);
+                    var otherRep = lifeAxis
+                        ? (aura.value >= 0 ? AtomicEffectType.AddPowerUp : AtomicEffectType.AddPowerDown)
+                        : (aura.value >= 0 ? AtomicEffectType.AddLifeUp : AtomicEffectType.AddLifeDown);
+                    var otherCost = AtomicEffectTable.GetByType(otherRep)?.ManaList;
+                    if (otherCost != null)
+                        foreach (var color in otherCost.NonzeroColors())
+                        {
+                            float oamount = otherCost[color] * mult * magnitude * countFactor * surface;
+                            if (oamount <= 0f) continue;
+                            buckets.TryGetValue(color, out var oprev);
+                            buckets[color] = oprev + oamount;
+                            auraTotal += oamount;
+                        }
+                }
                 var atomCost = atomCfg.ManaList;
                 if (atomCost != null)
                 {
@@ -1028,7 +1066,8 @@ namespace CardCore
         // 当量表转由 CostCompensationService 消费——付代价=得黑/白元素）。
 
         /// <summary>底盘落位（取整后，2026-10-15 卡型默认分配定案）：超槽 → 加价入灰；
-        /// 生物免费点 → 只减灰桶（StatOffsetOf，不溢出彩色——不干扰三色费用梯度）；
+        /// 生物免费点 → 减身材轴色桶（2026-11-02 基地红绿：先红后绿，不溢出到灰/效果色——
+        /// 「不干扰三色费用梯度」旧口径承袭：只碰身材自己的两轴）；
         /// 其余 → 抵价（PriceOffsetOf：法术扣除提速份额、结界 0=速1+耐久、地牌全额；
         /// ReduceBuckets 先灰后最高色）。与 Derive/DeriveModeCosts 两处共用，防口径漂移。</summary>
         private static void ApplyChassis(CardData card, Dictionary<ManaType, int> mounted)
@@ -1042,8 +1081,15 @@ namespace CardCore
             int statOffset = CardCompositionCost.StatOffsetOf(card);
             if (statOffset > 0)
             {
-                mounted.TryGetValue(ManaType.Gray, out var g);
-                mounted[ManaType.Gray] = Math.Max(0, g - statOffset); // 生物免费点：仅灰桶（不溢出彩色）
+                // 生物免费点：先红（攻轴）后绿（血轴），两轴皆空则余点丢弃（旧灰桶空时同口径）
+                for (int i = statOffset; i > 0; i--)
+                {
+                    mounted.TryGetValue(ManaType.Red, out var r);
+                    if (r > 0) { mounted[ManaType.Red] = r - 1; continue; }
+                    mounted.TryGetValue(ManaType.Green, out var g2);
+                    if (g2 > 0) { mounted[ManaType.Green] = g2 - 1; continue; }
+                    break;
+                }
                 return;
             }
             int offset = CardCompositionCost.PriceOffsetOf(card);
@@ -1051,13 +1097,19 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 组合层计价（整卡取整口径）：效果桶 + 关键词桶 + 灰桶（S）汇总为总额——
+        /// 组合层计价（整卡取整口径）：效果桶 + 关键词桶 + 身材桶汇总为总额——
         /// 一次 AwayFromZero 取整（减免发生在组合层，不做逐效果取整），
         /// 最大余数法把整数实付分摊回颜色（余数大者优先，并列取桶值大者，再并列按枚举序）。
-        /// grayAdd：身材费（结构费/抵价由 ApplyChassis 在取整后另行落位）。
+        /// statAdd：身材费轴色桶（2026-11-02 基地红绿——攻红/血绿/耐久灰，StatBucketsOf 单源；
+        /// 结构费/抵价由 ApplyChassis 在取整后另行落位）。grayAdd 旧口=纯灰附加（保留委托）。
         /// </summary>
         private static Dictionary<ManaType, int> ApportionMounted(Dictionary<ManaType, float> effBuckets,
             Dictionary<ManaType, float> kwBuckets, float grayAdd = 0f)
+            => ApportionMounted(effBuckets, kwBuckets,
+                grayAdd == 0f ? null : new Dictionary<ManaType, float> { { ManaType.Gray, grayAdd } });
+
+        private static Dictionary<ManaType, int> ApportionMounted(Dictionary<ManaType, float> effBuckets,
+            Dictionary<ManaType, float> kwBuckets, Dictionary<ManaType, float> statAdd)
         {
             var mounted = new Dictionary<ManaType, float>();
             foreach (var kv in effBuckets)
@@ -1070,10 +1122,13 @@ namespace CardCore
                 mounted.TryGetValue(kv.Key, out var prev);
                 mounted[kv.Key] = prev + kv.Value;
             }
-            if (grayAdd != 0f)
+            if (statAdd != null)
             {
-                mounted.TryGetValue(ManaType.Gray, out var prev);
-                mounted[ManaType.Gray] = prev + grayAdd;
+                foreach (var kv in statAdd)
+                {
+                    mounted.TryGetValue(kv.Key, out var prev);
+                    mounted[kv.Key] = prev + kv.Value;
+                }
             }
 
             float total = 0f;

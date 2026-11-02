@@ -120,8 +120,27 @@ namespace CardCore
                 return null;
             }
             ar.amp = Math.Clamp(ar.amp, 0f, 1f);
-            if (BranchEntryRules.IsPhantom(ar.branch)) ar.branch = null; // JsonUtility 物化的 settle=0 幽灵分支——读档剥离（主干/then 奖励原子统一过此口）
+            StripPhantomBranches(ar); // JsonUtility 物化的 settle=0 幽灵分支——读档剥离（主干/then 奖励原子统一过此口）
             return ar;
+        }
+
+        /// <summary>幽灵 branch 递归剥离（2026-11-02 修复）：JsonUtility 反序列化会给**所有**嵌套
+        /// AtomicEffectEntry 的 branch 字段物化 settle=0 幽灵实例——含 branch.then 奖励原子。
+        /// 旧口只剥顶层不递归 → LoadAll（工具重推）路径的 then 原子带幽灵入 HashEffect，
+        /// 与 EffectsLibrary→ToCardEffect（干净）路径**同内容两套 id**——引擎分支效果每次重推
+        /// 被「换号+卡保存链路回写旧号」双写成重复条目（训练池 9 条 A/B 双写的根因）。
+        /// 本口递归归一：任一路径产出的原子图幽灵全剥，HashEffect 两路径字节一致。</summary>
+        private static void StripPhantomBranches(AtomicEffectEntry a)
+        {
+            if (a?.branch == null) return;
+            if (BranchEntryRules.IsPhantom(a.branch)) { a.branch = null; return; }
+            if (a.branch.then == null) return;
+            foreach (var t in a.branch.then)
+            {
+                if (t == null) continue;
+                if (t.branch != null && BranchEntryRules.IsPhantom(t.branch)) t.branch = null;
+                else StripPhantomBranches(t); // 深层嵌套防御（理论不出现——converter 拒深层）
+            }
         }
 
         /// <summary>StepRef → EffectStepData（kind=0/1/2 全支持）。</summary>

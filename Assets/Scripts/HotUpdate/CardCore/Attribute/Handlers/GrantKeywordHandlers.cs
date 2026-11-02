@@ -48,7 +48,7 @@ namespace CardCore.Attribute.Handlers
                 //（印刷入场走 GuardianRules.OnEnterBattlefield 入场事件，不经此口——无双选）。
                 if (_keywordId == KeywordRules.Guardian && target is Card grantedCard)
                     GuardianRules.OnGrantedInPlay(grantedCard);
-                // 战斗法师（原舍身 2026-10-30 改版）：无状态关键词——无授予即选/无入场钩子
+                // 战斗法师（原舍身；2026-11-01 整链退役注释——见 Specs 战斗法师条）：无状态关键词——无授予即选/无入场钩子
                 //（散射在 KeywordRules.ApplyDamage 咽喉内联，MartyrdomRules 配对表整套退役）。
                 // EffectTint/IsDebuff（2026-11-01 赋予粒子定案）：原子行基准主色+落点极性——
                 // 表现层据此在目标锚点播「极性×颜色」8 种赋予爆发粒子（Heal/Hit 两族）。
@@ -93,6 +93,7 @@ namespace CardCore.Attribute.Handlers
             (AtomicEffectType.GrantDoubleStrike, "DoubleStrike", "获得连击"),
             (AtomicEffectType.GrantFirstStrike, "FirstStrike", "获得先攻"),
             (AtomicEffectType.GrantOverwhelm, "Overwhelm", "获得碾压"),
+            (AtomicEffectType.GrantSplash, "Splash", "获得溅射"),
             (AtomicEffectType.GrantDisarm, "Disarm", "获得缴械"),
 
             // 蓝色 - 规避/控制
@@ -117,10 +118,9 @@ namespace CardCore.Attribute.Handlers
             // 守护（2026-10-08 配对制改版，退出连接光环族——表行位 7 拉黑）：登场/授予时弹选一个
             // 己方目标（单位或角色），其受伤改写为守护者承受（GuardianRules 配对表；无限次直到守护者离场）
             (AtomicEffectType.GrantGuardian, "Guardian", "获得守护"),
-            // 战斗法师（原舍身，2026-10-30 改版——弹选转投退役改随机散射；关键词族位不变）：
-            // 自己造成的战斗伤害改写为对随机目标造成 1 点效果伤害，重复发动次数=自身攻击力
-            //（无状态关键词——散射内联在 KeywordRules.ApplyDamage 咽喉，无配对表）
-            (AtomicEffectType.GrantBattleMage, "BattleMage", "获得战斗法师"),
+            // 战斗法师（原舍身，2026-10-30 改版）2026-11-01 退役注释：表行 c3112c0b（关键词表）已删，
+            // 枚举位 GrantBattleMage/关键词常量/ApplyDamage 散射改写/战报播报同批注释——无存量卡引用。
+            // (AtomicEffectType.GrantBattleMage, "BattleMage", "获得战斗法师"),
             // 圣盾已移出关键词族（2026-10-08 指示物化）：GrantDivineShield 原子改由 GrantDivineShieldHandler
             // 执行（挂 DivineShieldCounter 层）——refId 已重推 feab5d3b→c8624e6a（2026-10-08 全量 ID 重推）
             (AtomicEffectType.GrantTaunt, "Taunt", "获得帷幕"),
@@ -131,12 +131,14 @@ namespace CardCore.Attribute.Handlers
             // 剧毒（2026-10-08 指示物转关键词·落定追加式）：受到其战斗伤害的生物被消灭；
             // 表行 20c06d52（原 Poison 原子）改挂 GrantVenom——病原体（改写挂剧毒指示物）随之退役
             (AtomicEffectType.GrantVenom, "Venom", "获得剧毒（受到其战斗伤害的生物被消灭）"),
-            (AtomicEffectType.GrantSpellban, "Spellban", "获得无实体（每次受到的伤害变为1）"),
+            // 无实体已移出关键词族（2026-11-02 指示物化）：GrantSpellban 原子改由 GrantSpellbanHandler
+            // 执行（挂 SpellbanCounter 衰退层，EffectExecutionEngine 指示物原子区注册）——表行 fb88c3f4
+            // →6c38edaa 随文案重推，训练卡 C_933347A6 引用同步迁移
             // 绝缘体（2026-10-31，绿3）：持有单位不受指示物的效果影响——特殊裁定改版
             //（同日「不拦指示物添加」）：层照常落账+效果走 GetEffectiveCounterCount 读数压制；
             // 沉睡/缄默（压制型）与 StatKind 属性类（回写式）在 AddCounters 咽喉清零
             //（时序互压/账目安全），系统指示物豁免。表行 MountKinds 带
-            //「不可作为连接光环」（免疫洞防线，同无实体/守护）。
+            //「不可作为连接光环」（免疫洞防线，同守护）。
             (AtomicEffectType.GrantInsulator, "Insulator", "获得绝缘体（不受指示物的效果影响）"),
             // 病原体（2026-10-31 复活改版，绿5）：受到伤害时对伤害来源附加 1 层毒素——
             // 触发口=KeywordRules.ApplyDamage 管线尾段（实际落定才触发，同报复/潜行失效口径；
@@ -145,9 +147,12 @@ namespace CardCore.Attribute.Handlers
             // 复生已移出关键词族（2026-10-08 指示物化）：GrantReborn 原子改由 GrantRebornHandler
             // 执行（挂 RebornCounter 层）——refId 已重推 502be10d→94f6a32d（2026-10-08 全量 ID 重推）
             (AtomicEffectType.GrantIndestructible, "Indestructible", "获得不灭"),
-            // 苏醒（2026-10-31 P12 关键词化）：卡面带 Awaken 的生物才有「苏醒施放」——
-            // 数值闸门在 GameActions.HasAwakenKeyword/GetAwakenSleepLayers，处理器只写关键词 id
-            (AtomicEffectType.GrantAwaken, "Awaken", "获得苏醒"),
+            // 苏醒（GrantAwaken）映射已删（2026-11-02 苏醒机制整链删除——灰身材概念已不存在，
+            // 且与倒计时玩法过近；GrantAwaken 枚举位/表行/关键词常量同批删除）
+            // 狩猎（2026-11-01，绿3）：回合结束时若可行动（未横置），随机对防守方发起一次攻击——
+            // 行为口=CombatSystem.ResolveHuntAttacks（GameCore.OnTurnEnded 首位显式调）；
+            // 攻击不吃横置代价，战斗计算/事件链与普通攻击同口径
+            (AtomicEffectType.GrantHunt, "Hunt", "获得狩猎（回合结束时，如果处于可行动状态，随机对对手发起一次攻击）"),
         };
 
         /// <summary>落点为减益的关键词（2026-11-01 赋予粒子极性单源）：与指示物 CounterPolarity
