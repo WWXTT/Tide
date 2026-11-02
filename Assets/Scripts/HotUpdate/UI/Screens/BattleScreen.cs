@@ -1529,9 +1529,12 @@ namespace SynergyUI
                 // 木桩难度 2 同款；响应行为归驱动自身内置启发），常规洗牌常规开局（不钉种子——
                 // 同对手重战不复现同局）。胜负不直接落档：TutorialFlow 连战拦截 + 终局弹窗链
                 //（LunzhuanGauntlet.ReportWin，三场全胜才 MarkTutorialCompleted）。
+                // 隐藏镜像局（2026-11-02）：Mirror=锁牌库序——双方同卡组同列表序开局
+                //（相同的牌序·镜像口径，AI 策略 AutoMatch 照常按卡组自适配）。
             {
                 _ctrl.StartNewGame(matchDeck, aiDeck,
                     MakePacedAi(aiDeck != null ? AiStrategy.AutoMatch(aiDeck) : null),
+                    lockDeckOrder: LunzhuanGauntlet.Mirror,
                     mySkillCardId: matchSkill, aiSkillCardId: aiSkill,
                     playerFirst: playerFirst, secondArmorBonus: GameCore.SecondPlayerArmorBonus,
                     myTokenBindings: myTokenBindings, aiTokenBindings: aiTokenBindings);

@@ -203,7 +203,7 @@ namespace CardCore
             }
 
             // 治疗：须存在会被改变的受伤目标（行 Damaged 滤通常已收窄，此处按 DamagedFilter
-            // 同口径兜底——反疗改写目标视为会被改变，治疗将转伤害恒非白嫖）。
+            // 同口径兜底——反疗改写/丰盈溢出目标视为会被改变：治疗转伤害或溢出加上限恒非白嫖）。
             if (atom.Type == AtomicEffectType.Heal && !candidates.Any(IsHealChangeable))
             {
                 reason = $"资敌代价无目标：对方无受伤单位（{atom.Type} 治疗满血=白嫖）——卡的发动无效";
@@ -226,9 +226,10 @@ namespace CardCore
         private static bool HasEnemyCardZone(AtomicEffectInstance atom)
             => atom.TargetKinds.Any(k => TargetKindRules.IsCardKind(k) && TargetKindRules.IsEnemySide(k));
 
-        /// <summary>治疗会被改变（与 DamagedFilter 同口径：未满血，或反疗改写——治疗转伤害恒改变目标）。</summary>
+        /// <summary>治疗会被改变（与 DamagedFilter 同口径：未满血，或满血仍有实得——反疗改写/
+        /// 丰盈溢出，单源 RuleAuraComponents.IsHealMeaningfulAtFullHp，2026-11-02 补丰盈支）。</summary>
         private static bool IsHealChangeable(Entity e)
-            => e.GetLife() < e.GetMaxLife() || RuleAuraComponents.IsHealInverted(e);
+            => e.GetLife() < e.GetMaxLife() || RuleAuraComponents.IsHealMeaningfulAtFullHp(e);
 
         /// <summary>防护类原子的「已持有」判定：指示物族=同名指示物层数&gt;0；
         /// 关键词族=同名关键词（GrantKeywordHandlerFactory 唯一映射源）。</summary>

@@ -67,6 +67,12 @@
   C_7FF704BF）；合成器属性光环/属性降低条目改攻血单轴源行（Both 档退役）、连接光环 Both 计价改
   攻+血双锚并列（防御口径，现无存量）。同日颜色规范批次见 42 行 ManaList 改色（吸血/吸取等双色
   50/50、灵视回灰、生命值族全绿——字典 AddLifeDown 改绿）。
+2026-11-03 耐久改蓝+耐久增加原子（用户定案「结界耐久换蓝色计费，一点耐久0.5蓝」）：身材耐久轴
+  灰→蓝（CardCostService.StatBucketsOf/breakdown 两口+DurabilityUnitCost 注释——0.5/点数值不变；
+  README 效果颜色规范「结界耐久→灰」同步改蓝）；指示物表新行 b55fddb8「耐久增加」
+  AddDurabilityUp·蓝0.5/层·域=双方无生命单位·Polarity 1·指示物,不可随机——枚举尾+AddDurabilityUpHandler
+  （挂 DurabilityCounter 层，Resident/铭刻照沾/绝缘体不拦）+注册；颜色字典补蓝行（审计 126/0）。
+  新行进表指纹→全体卡身份换血（重训+manifest 重导出随例）。
 
 ━━ 2026-10-08 大改定案总注（本版基准）━━━━━━━━━━━━━━━━━━━━━━━━
 ① 指示物四分类（CounterRules.CounterClass 为唯一真相源，表 Tags 三型与之间接同源）：

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Cysharp.Threading.Tasks;
@@ -624,10 +624,16 @@ namespace CardCore.Attribute.Handlers
             int stacks = Math.Max(0, reference.GetLife());
             if (stacks <= 0) return;
 
-            int actualDelta = hero.AddCounters(KeywordRules.ArmorCounter, stacks, context.Source);
+            // 2026-11-03 用户定案：str="SelfUnit" → 护甲**贴给目标单位本身**（用来守林地守卫）；
+            // 缺省仍沿用旧口径：护甲给己方角色。
+            Entity receiver = string.Equals(effect?.StringValue, "SelfUnit", StringComparison.Ordinal)
+                ? (Entity)reference
+                : hero;
+
+            int actualDelta = receiver.AddCounters(KeywordRules.ArmorCounter, stacks, context.Source);
             PublishEvent(new CounterChangedEvent
             {
-                Target = hero,
+                Target = receiver,
                 CounterType = KeywordRules.ArmorCounter,
                 Amount = actualDelta,
                 Source = context.Source,
@@ -636,7 +642,107 @@ namespace CardCore.Attribute.Handlers
         }
 
         protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => "以己方单位为参照，己方角色获得等同其生命的护甲";
+            => string.Equals(effect?.StringValue, "SelfUnit", StringComparison.Ordinal)
+                ? "以{target}为目标，该单位获得等同其生命的护甲"
+                : "以己方单位为参照，己方角色获得等同其生命的护甲";
+    }
+
+    /// <summary>
+    /// 护盾猛击（2026-11-02，红2 表行「护盾猛击」·参照族）：以{target}（己方单位）为参照——移除其
+    /// **全部护甲**（ArmorCounter 账面层数；负量移除不受绝缘体拦截——2026-10-31 特殊裁定口径），
+    /// 对弹选的**对方单位**（对方存活生物+对方角色，同迸发受害者域）造成等同移除层数的
+    /// **效果伤害**（非战斗伤害——TakeDamage 关键词管线照常：护甲/坚韧/圣盾吸收）。
+    /// 受害者结算期经 TargetSelectionService 反问选一（AI/无头自动取首、联机网络问选——与标准
+    /// 弹选同服务，候选=1 自动取不弹窗）；候选两道过滤（帷幕收窄+潜行隐藏）同标准弹选口径；
+    /// 同步路径无问选交互=自动取首候选（与无头 Service 同结果）。受害者域空或护甲 0=空转
+    ///（不移除不问选）。伤害产出族：LastOutcome.RecordDamage 记账——「消灭目标时」产出条件可挂。
+    /// </summary>
+    public class ShieldSlamHandler : AtomicEffectHandlerBase
+    {
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.ShieldSlam;
+
+        /// <summary>受害者候选域（对方存活生物+对方角色；帷幕收窄+潜行隐藏两道过滤同标准弹选口径）。</summary>
+        private List<Entity> VictimCandidates(EffectExecutionContext context)
+        {
+            var foe = context.Controller?.Opponent;
+            if (foe == null) return new List<Entity>();
+            var kinds = new List<int> { (int)TargetKind.EnemyLivingUnit };
+            var candidates = EffectHandlerRegistry.ResolveCandidates(kinds, "", context);
+            return TargetResolver.ExcludeUnselectable(
+                TargetResolver.ApplyTauntRestriction(candidates, context, false), context.Controller);
+        }
+
+        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            // 同步路径（代价强制执行/兜底）：无问选交互——自动取首候选（与无头 Service 同结果）
+            Resolve(effect, context, VictimCandidates(context).FirstOrDefault());
+        }
+
+        public override async UniTask ExecuteAsync(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            var reference = context.PrimaryTarget;
+            if (reference == null || !reference.IsAlive) return;
+            if (reference.GetCounterCount(KeywordRules.ArmorCounter) <= 0) return; // 无护甲=空转（不移除不问选）
+
+            var candidates = VictimCandidates(context);
+            if (candidates.Count == 0) return; // 受害者域空=空转（护甲保留）
+
+            Entity victim = candidates[0];
+            if (candidates.Count > 1)
+            {
+                var picked = await TargetSelectionService.RequestAsync(new TargetSelectionRequest
+                {
+                    Candidates = candidates,
+                    MinCount = 1,
+                    MaxCount = 1,
+                    Chooser = context.Controller,
+                    Title = "选择护盾猛击的目标",
+                    PromptSource = (Entity)context.CastCard ?? context.Source,
+                    PromptAtom = effect.Type,
+                    PromptValue = reference.GetCounterCount(KeywordRules.ArmorCounter), // AI 排序「能否打死」提示
+                });
+                if (picked != null && picked.Count > 0) victim = picked[0];
+            }
+            Resolve(effect, context, victim);
+        }
+
+        /// <summary>落账：移除护甲（双闸重检——问选期间状态可变）→ 等量伤害（迸发伤害段同款）。</summary>
+        private void Resolve(AtomicEffectInstance effect, EffectExecutionContext context, Entity victim)
+        {
+            var reference = context.PrimaryTarget;
+            if (reference == null || !reference.IsAlive || victim == null || !victim.IsAlive) return;
+
+            int armor = reference.GetCounterCount(KeywordRules.ArmorCounter);
+            if (armor <= 0) return;
+
+            int removed = reference.AddCounters(KeywordRules.ArmorCounter, -armor, context.Source);
+            if (removed != 0)
+                PublishEvent(new CounterChangedEvent
+                {
+                    Target = reference,
+                    CounterType = KeywordRules.ArmorCounter,
+                    Amount = removed,
+                    Source = context.Source, // EffectTint 恒 null：移除非赋予（粒子判据=赋予原子才填）
+                });
+
+            int dmg = Math.Max(0, -removed);
+            if (dmg <= 0) return;
+            int lifeBefore = victim.GetLife();
+            victim.TakeDamage(dmg, context.Source);
+            int actual = Math.Max(0, lifeBefore - victim.GetLife());
+            context.LastOutcome.RecordDamage(victim, lifeBefore, actual);
+            PublishEvent(new AtomicDamageEvent
+            {
+                Source = context.Source,
+                Target = victim,
+                Damage = dmg,
+                IsCombatDamage = false,
+                EffectTint = effect.AnchorTint()
+            });
+        }
+
+        protected override string DescribeTemplate(AtomicEffectInstance effect)
+            => "移除一个友方单位的全部护甲，对一个敌方目标造成等量伤害";
     }
 
     /// <summary>第三批 handler 工厂</summary>
@@ -730,9 +836,11 @@ namespace CardCore.Attribute.Handlers
                 // 移动（2026-10-31 场面轴3c）：将目标移动到空格（结算期选格反问）
                 new MoveUnitHandler(),
 
-                // 参照族（2026-10-31）：迸发=参照攻击力打随机对手；活体护甲=参照生命给己方角色
+                // 参照族（2026-10-31）：迸发=参照攻击力打随机对手；活体护甲=参照生命给己方角色；
+                // 护盾猛击（2026-11-02）=移除参照全部护甲、反问受害者等量伤害
                 new BurstDamageHandler(),
                 new LivingArmorHandler(),
+                new ShieldSlamHandler(),
             };
         }
     }

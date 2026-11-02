@@ -861,14 +861,67 @@ namespace SynergyUI
         /// 重掷币+沿用已选卡组、对手=预组序列下一场）。败=**胜场保留**（用户定案）——「再战当前
         /// 对手」（同卡组同预组重掷币：Wins/Picked 均不变）或返回。取消/拆屏=留在终局画面
         ///（「返回主菜单」键直回，连战态由下次主菜单入口 Begin 作废）。
+        /// 隐藏镜像局（2026-11-02 用户需求）：三战全胜且自组卡组引用预组卡种类&lt;3（HiddenMirrorEligible）
+        /// → 通关弹窗改双键「镜像对决/完成教学」——镜像=AI 用刚才通关的同款卡组、双方锁牌库序
+        /// （相同牌序）再战一场（BeginMirror+Replace 重入）；镜像局胜负不记账（Active 保持 true，
+        /// ReportBattleResult 拦截照旧），胜=结算回主菜单、败=可再战复现同局。
         /// ReportBattleResult 已对连战拦截——过课落档只发生在本口。</summary>
         private async UniTaskVoid PromptGauntletOverAsync(bool win)
         {
+            if (LunzhuanGauntlet.Mirror)
+            {
+                // 隐藏镜像局终局：不进胜场记账（连战已过课收口，本局为加时赛）。
+                if (win)
+                {
+                    if (await _showTip("镜像对决胜利！你战胜了使用同款卡组的自己。", "确定", null) == true)
+                    {
+                        LunzhuanGauntlet.End();
+                        _back(); // 战场→主菜单
+                    }
+                }
+                else
+                {
+                    var again = await _showTip("镜像对决失败——同卡组同牌序，再战一次？", "再战镜像", "返回主菜单");
+                    if (again == true && GameEnded)
+                    {
+                        if (_replayOpening != null)
+                        {
+                            _replayOpening(); // 重开战场=镜像局复现（段四跳过沿用卡组·段五对手=我方卡组·锁牌库序）
+                            return;
+                        }
+                    }
+                    if (again == null) return; // 拆屏回落（终局画面「返回主菜单」键仍可用）
+                    LunzhuanGauntlet.End();
+                    _back();
+                }
+                return;
+            }
             if (win)
             {
                 if (LunzhuanGauntlet.ReportWin())
                 {
                     TutorialProgressManager.Instance.MarkTutorialCompleted(TutorialProgressManager.LunzhuanId);
+                    if (LunzhuanGauntlet.HiddenMirrorEligible())
+                    {
+                        // 隐藏关卡开启（2026-11-02）：自组卡组（引用预组卡不足 3 种）→ 镜像对决。
+                        var mirror = await _showTip(
+                            "三战全胜！检测到你使用的是原创卡组（引用预组卡不足 3 种）——隐藏关卡「镜像对决」开启：\n"
+                            + "AI 将使用你刚才通关的卡组，与你相同的牌序，展开一场势均力敌的镜像对决！",
+                            "镜像对决", "完成教学");
+                        if (mirror == true && GameEnded)
+                        {
+                            if (_replayOpening != null)
+                            {
+                                LunzhuanGauntlet.BeginMirror();
+                                _replayOpening(); // 重开战场=五段开场重放（段四跳过沿用卡组·段五对手=我方卡组镜像·锁牌库序）
+                                return;
+                            }
+                        }
+                        if (mirror == null) return; // 拆屏回落（终局画面「返回主菜单」键仍可用）
+                        LunzhuanGauntlet.End();
+                        _back(); // 「完成教学」/注入缺位兜底——战场→主菜单
+                        return;
+                    }
                     LunzhuanGauntlet.End(); // 连战收口（完成态不再进任何分支）
                     if (await _showTip("你已完成第三课的教学——毕业连战三战全胜！", "确定", null) == true)
                         _back(); // 战场→主菜单

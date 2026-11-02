@@ -195,7 +195,7 @@
         0.0,
         0.0,
         0.0,
-        4.0
+        5.0
       ],
       "keywords": [
         "Indestructible"
@@ -886,7 +886,7 @@
       "costList": [
         0.0,
         2.0,
-        3.0,
+        4.0,
         0.0
       ],
       "keywords": [
@@ -909,7 +909,7 @@
       "costList": [
         0.0,
         2.0,
-        3.0,
+        4.0,
         0.0
       ],
       "keywords": [
@@ -927,9 +927,9 @@
       "cardName": "预组·17",
       "supertype": "Enchantment",
       "costList": [
+        0.0,
+        0.0,
         1.0,
-        0.0,
-        0.0,
         0.0
       ],
       "tags": [
@@ -946,9 +946,9 @@
       "cardName": "预组·18",
       "supertype": "Enchantment",
       "costList": [
+        0.0,
+        0.0,
         1.0,
-        0.0,
-        0.0,
         0.0
       ],
       "tags": [
@@ -965,9 +965,9 @@
       "cardName": "预组·19",
       "supertype": "Enchantment",
       "costList": [
+        0.0,
+        0.0,
         1.0,
-        0.0,
-        0.0,
         0.0
       ],
       "tags": [
@@ -984,9 +984,9 @@
       "cardName": "预组·20",
       "supertype": "Enchantment",
       "costList": [
+        0.0,
+        0.0,
         1.0,
-        0.0,
-        0.0,
         0.0
       ],
       "tags": [
@@ -1164,180 +1164,6 @@
       ]
     },
     {
-      "id": "C_172400E3",
-      "cardName": "火灵",
-      "supertype": "Creature",
-      "costList": [
-        0.0,
-        1.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeRedClash",
-        "教学"
-      ],
-      "effectIds": [
-        "F1468911"
-      ],
-      "power": 1,
-      "life": 1,
-      "noGuard": true
-    },
-    {
-      "id": "C_93E8DDD1",
-      "cardName": "火炬",
-      "supertype": "Creature",
-      "costList": [
-        0.0,
-        1.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeRedClash",
-        "教学"
-      ],
-      "effectIds": [],
-      "power": 9,
-      "life": 1,
-      "noGuard": true,
-      "payloads": [
-        {
-          "refId": "8ae22c02",
-          "value": 1,
-          "str": null,
-          "amp": 0.0,
-          "kinds": [
-            1
-          ],
-          "count": -2,
-          "rand": -1,
-          "defer": 0,
-          "branch": null
-        },
-        {
-          "refId": "e97b8001",
-          "value": 1,
-          "str": null,
-          "amp": 0.0,
-          "kinds": [
-            1
-          ],
-          "count": -2,
-          "rand": -1,
-          "defer": 0,
-          "branch": null
-        }
-      ]
-    },
-    {
-      "id": "C_3245275C",
-      "cardName": "激励",
-      "supertype": "Spell",
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeRedClash",
-        "教学"
-      ],
-      "effectIds": [
-        "763BE362"
-      ]
-    },
-    {
-      "id": "C_8B2C61F9",
-      "cardName": "消灭",
-      "supertype": "Spell",
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeRedClash",
-        "教学"
-      ],
-      "effectIds": [
-        "5F0EF6AD"
-      ]
-    },
-    {
-      "id": "C_E6C976BF",
-      "cardName": "火种",
-      "supertype": "Creature",
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeRedClash",
-        "教学"
-      ],
-      "effectIds": [],
-      "power": 3,
-      "life": 1,
-      "noGuard": true
-    },
-    {
-      "id": "C_BC63E951",
-      "cardName": "血偿",
-      "supertype": "Spell",
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeRedClash",
-        "教学"
-      ],
-      "effectIds": [
-        "7D523822"
-      ],
-      "payloads": [
-        {
-          "refId": "a4b823fc",
-          "value": 3,
-          "str": null,
-          "amp": 0.0,
-          "kinds": [
-            1
-          ],
-          "count": -2,
-          "rand": -1,
-          "defer": 0,
-          "branch": null
-        }
-      ]
-    },
-    {
-      "id": "C_7A353409",
-      "cardName": "重整",
-      "supertype": "Spell",
-      "tags": [
-        "ThemeRedClash",
-        "教学"
-      ],
-      "effectIds": [
-        "31CE6ACE"
-      ],
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ]
-    },
-    {
       "id": "C_8A60A92A",
       "cardName": "虚空巨像",
       "supertype": "Creature",
@@ -1359,7 +1185,7 @@
       "noGuard": true
     },
     {
-      "id": "C_6EA566C1",
+      "id": "C_912FA2FA",
       "cardName": "爆裂兽",
       "supertype": "Creature",
       "costList": [
@@ -1373,14 +1199,14 @@
         "教学"
       ],
       "effectIds": [
-        "0DC60823"
+        "5E4A9D9D"
       ],
       "power": 5,
       "life": 5,
       "noGuard": true
     },
     {
-      "id": "C_8C4E418B",
+      "id": "C_6673D86B",
       "cardName": "菌丝",
       "supertype": "Spell",
       "costList": [
@@ -1394,7 +1220,7 @@
         "教学"
       ],
       "effectIds": [
-        "F7440FD9"
+        "2F27F745"
       ]
     },
     {
@@ -1426,7 +1252,7 @@
         0.0,
         0.0,
         0.0,
-        8.0
+        11.0
       ],
       "tags": [
         "ThemeGreenCountdown",
@@ -1441,8 +1267,8 @@
       ]
     },
     {
-      "id": "C_C716E729",
-      "cardName": "新生",
+      "id": "C_C3C1B182",
+      "cardName": "培育",
       "supertype": "Spell",
       "costList": [
         0.0,
@@ -1455,11 +1281,11 @@
         "教学"
       ],
       "effectIds": [
-        "0807C808"
+        "76EF235B"
       ]
     },
     {
-      "id": "C_5F52F2EA",
+      "id": "C_E8686C24",
       "cardName": "成长",
       "supertype": "Spell",
       "tags": [
@@ -1467,7 +1293,7 @@
         "教学"
       ],
       "effectIds": [
-        "0E52D31C"
+        "E26A023C"
       ],
       "speedBonus": 2,
       "costList": [
@@ -1475,17 +1301,25 @@
         0.0,
         0.0,
         0.0
+      ],
+      "payloads": [
+        {
+          "refId": "9ff1954d",
+          "value": 6,
+          "kinds": [
+            2
+          ]
+        }
       ]
     },
     {
-      "id": "C_F79267DD",
+      "id": "C_C4A9FF45",
       "cardName": "林地守卫",
       "supertype": "Creature",
-      "power": 0,
-      "life": 6,
+      "power": 1,
+      "life": 7,
       "keywords": [
-        "Guardian",
-        "Regeneration"
+        "Guardian"
       ],
       "tags": [
         "ThemeGreenCountdown",
@@ -1495,15 +1329,16 @@
         0.0,
         0.0,
         0.0,
-        7.0
-      ]
+        4.0
+      ],
+      "noAttack": true
     },
     {
-      "id": "C_DE8DE79B",
+      "id": "C_F49188CC",
       "cardName": "雾障",
       "supertype": "Creature",
       "power": 1,
-      "life": 1,
+      "life": 5,
       "tags": [
         "ThemeGreenCountdown",
         "教学"
@@ -1513,73 +1348,77 @@
       ],
       "costList": [
         0.0,
-        1.0,
         0.0,
-        0.0
-      ]
+        0.0,
+        2.0
+      ],
+      "noAttack": true
     },
     {
-      "id": "C_57D118D4",
+      "id": "C_006EA7ED",
       "cardName": "棘爆",
       "supertype": "Creature",
       "power": 1,
-      "life": 1,
+      "life": 3,
       "tags": [
         "ThemeGreenCountdown",
         "教学"
       ],
       "effectIds": [
-        "0DC60823"
+        "5E4A9D9D"
       ],
       "costList": [
         0.0,
-        1.0,
         0.0,
-        0.0
-      ]
+        0.0,
+        1.0
+      ],
+      "noAttack": true
     },
     {
-      "id": "C_B150192B",
+      "id": "C_17CED892",
       "cardName": "噬血藤",
       "supertype": "Creature",
-      "power": 1,
-      "life": 1,
+      "power": 0,
+      "life": 6,
       "tags": [
         "ThemeGreenCountdown",
         "教学"
       ],
       "effectIds": [
-        "2525A279"
+        "9170B00B"
       ],
       "costList": [
         0.0,
-        1.0,
         0.0,
-        0.0
-      ]
+        0.0,
+        2.0
+      ],
+      "noAttack": true
     },
     {
-      "id": "C_D0B8CB73",
+      "id": "C_0D72F2B6",
       "cardName": "獠牙",
       "supertype": "Creature",
       "power": 1,
-      "life": 1,
+      "life": 5,
       "tags": [
         "ThemeGreenCountdown",
         "教学"
       ],
       "effectIds": [
-        "F4439B01"
+        "B4AA343A"
       ],
       "costList": [
         0.0,
-        1.0,
         0.0,
-        0.0
-      ]
+        0.0,
+        2.0
+      ],
+      "noAttack": true
     },
     {
-      "id": "C_A90FFF09",
+      "id": "C_A821917E",
       "cardName": "活体护甲",
       "supertype": "Spell",
       "tags": [
@@ -1587,7 +1426,7 @@
         "教学"
       ],
       "effectIds": [
-        "042F0177"
+        "A8400912"
       ],
       "speedBonus": 2,
       "costList": [
@@ -1618,11 +1457,11 @@
       ]
     },
     {
-      "id": "C_EDDEEFB8",
+      "id": "C_DA012D06",
       "cardName": "晨露",
       "supertype": "Creature",
-      "power": 1,
-      "life": 1,
+      "power": 0,
+      "life": 6,
       "tags": [
         "ThemeGreenCountdown",
         "教学"
@@ -1632,10 +1471,11 @@
       ],
       "costList": [
         0.0,
-        1.0,
         0.0,
-        0.0
-      ]
+        0.0,
+        2.0
+      ],
+      "noAttack": true
     },
     {
       "id": "C_C2FCDB19",
@@ -1746,13 +1586,13 @@
       ]
     },
     {
-      "id": "C_5B024819",
+      "id": "C_7A517CA5",
       "cardName": "窥手碑",
       "supertype": "Enchantment",
       "costList": [
+        0.0,
+        0.0,
         2.0,
-        0.0,
-        0.0,
         0.0
       ],
       "tags": [
@@ -1760,7 +1600,7 @@
         "教学"
       ],
       "effectIds": [
-        "5E7727D2"
+        "643BFF5D"
       ],
       "durability": 4
     },
@@ -1769,9 +1609,9 @@
       "cardName": "汲涌碑",
       "supertype": "Enchantment",
       "costList": [
+        0.0,
+        0.0,
         2.0,
-        0.0,
-        0.0,
         0.0
       ],
       "tags": [
@@ -1788,9 +1628,9 @@
       "cardName": "回春碑",
       "supertype": "Enchantment",
       "costList": [
+        0.0,
+        0.0,
         2.0,
-        0.0,
-        0.0,
         0.0
       ],
       "tags": [
@@ -1807,9 +1647,9 @@
       "cardName": "霜降碑",
       "supertype": "Enchantment",
       "costList": [
+        0.0,
+        0.0,
         2.0,
-        0.0,
-        0.0,
         0.0
       ],
       "tags": [
@@ -1826,9 +1666,9 @@
       "cardName": "退潮碑",
       "supertype": "Enchantment",
       "costList": [
+        0.0,
+        0.0,
         2.0,
-        0.0,
-        0.0,
         0.0
       ],
       "tags": [
@@ -2059,7 +1899,7 @@
       ]
     },
     {
-      "id": "C_8B59CE5D",
+      "id": "C_9A8EB596",
       "cardName": "乱锋",
       "supertype": "Spell",
       "costList": [
@@ -2073,7 +1913,7 @@
         "教学"
       ],
       "effectIds": [
-        "66A5DC3B"
+        "02B0B057"
       ],
       "payloads": [
         {
@@ -2090,9 +1930,9 @@
       "cardName": "潜影碑",
       "supertype": "Enchantment",
       "costList": [
+        0.0,
+        0.0,
         1.0,
-        0.0,
-        0.0,
         0.0
       ],
       "tags": [
@@ -2109,9 +1949,9 @@
       "cardName": "深潜碑",
       "supertype": "Enchantment",
       "costList": [
+        0.0,
+        0.0,
         1.0,
-        0.0,
-        0.0,
         0.0
       ],
       "tags": [
@@ -2178,7 +2018,7 @@
       ]
     },
     {
-      "id": "C_B18EFA5B",
+      "id": "C_6CE54813",
       "cardName": "回收",
       "supertype": "Spell",
       "costList": [
@@ -2192,19 +2032,17 @@
         "教学"
       ],
       "effectIds": [
-        "516F8220"
+        "F1C619E7"
       ]
     },
     {
-      "id": "C_7C6681B4",
+      "id": "C_2596A217",
       "cardName": "回潮",
-      "supertype": "Creature",
-      "power": 1,
-      "life": 1,
+      "supertype": "Enchantment",
       "costList": [
         0.0,
-        1.0,
         0.0,
+        2.0,
         0.0
       ],
       "tags": [
@@ -2213,6 +2051,159 @@
       ],
       "effectIds": [
         "17EB8C0B"
+      ],
+      "durability": 4
+    },
+    {
+      "id": "C_D14E4CF1",
+      "cardName": "火灵·攻",
+      "supertype": "Creature",
+      "costList": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeRedClash",
+        "教学"
+      ],
+      "effectIds": [
+        "F1468911"
+      ],
+      "power": 1,
+      "life": 1,
+      "noGuard": true
+    },
+    {
+      "id": "C_3DF04587",
+      "cardName": "火灵·守",
+      "supertype": "Creature",
+      "costList": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeRedClash",
+        "教学"
+      ],
+      "effectIds": [
+        "F1468911"
+      ],
+      "power": 1,
+      "life": 1,
+      "noAttack": true
+    },
+    {
+      "id": "C_384086AD",
+      "cardName": "火种·锐",
+      "supertype": "Creature",
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeRedClash",
+        "教学"
+      ],
+      "effectIds": [],
+      "power": 3,
+      "life": 1,
+      "noGuard": true
+    },
+    {
+      "id": "C_13E50D39",
+      "cardName": "火种·厚",
+      "supertype": "Creature",
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeRedClash",
+        "教学"
+      ],
+      "effectIds": [],
+      "power": 1,
+      "life": 3,
+      "noGuard": true
+    },
+    {
+      "id": "C_171607E2",
+      "cardName": "血偿",
+      "supertype": "Spell",
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeRedClash",
+        "教学"
+      ],
+      "effectIds": [
+        "0A3D02DD"
+      ]
+    },
+    {
+      "id": "C_17CD471B",
+      "cardName": "赋予连击",
+      "supertype": "Spell",
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeRedClash",
+        "教学"
+      ],
+      "effectIds": [
+        "A5173DFB"
+      ]
+    },
+    {
+      "id": "C_77A047CD",
+      "cardName": "激励",
+      "supertype": "Spell",
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeRedClash",
+        "教学"
+      ],
+      "effectIds": [
+        "31CE6ACE"
+      ]
+    },
+    {
+      "id": "C_8F136E25",
+      "cardName": "流失",
+      "supertype": "Spell",
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeGreenCountdown",
+        "教学"
+      ],
+      "effectIds": [
+        "C5180E36"
       ]
     }
   ]

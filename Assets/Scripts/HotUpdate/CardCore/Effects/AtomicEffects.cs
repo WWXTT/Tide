@@ -538,6 +538,24 @@ namespace CardCore
         /// 触发口=CombatSystem.ResolveHuntAttacks（GameCore.OnTurnEnded 系统区首位显式调）。
         /// GrantKeywordHandler 通用路径（GrantKeywordHandlerFactory.Specs 登记）。</summary>
         GrantHunt,
+
+        /// <summary>护盾猛击（2026-11-02 新增，红2 表行「护盾猛击」·参照族·伤害产出族）：以一个己方单位
+        /// 为参照目标（表域=己方单位，结算期弹选），移除其全部护甲（ArmorCounter 账面层数——负量
+        /// 移除不受绝缘体拦截，2026-10-31 特殊裁定口径），对弹选的对方单位（对方存活生物+对方角色，
+        /// 同迸发受害者域；两道过滤=帷幕收窄+潜行隐藏同标准弹选口径）造成等同移除层数的效果伤害
+        ///（非战斗伤害——TakeDamage 关键词管线照常：护甲/坚韧/圣盾吸收）。受害者在结算期经
+        /// TargetSelectionService 反问选一（AI/无头自动取首、联机走网络问选——与标准弹选同服务，
+        /// 候选=1 自动取不弹窗；同步路径自动取首候选）。受害者域空或护甲 0=空转（不移除不问选）。
+        /// LastOutcome.RecordDamage 记账——可挂「消灭目标时」产出条件。</summary>
+        ShieldSlam,
+
+        /// <summary>耐久增加（2026-11-03 新增，蓝0.5/层 表行「耐久增加」·指示物表）：对无生命单位
+        ///（表域=双方无生命单位——结界/装备）附加 {value} 层耐久指示物（CounterRules.DurabilityCounter，
+        /// Resident 常驻类——受击/被动触发消耗、归零送墓；加层即时扩池）。一次发动按 value 给层
+        ///（≤0/未填=1，ResolveLayers 单源）；铭刻光环照沾 +1（非 System 类，绝缘体清零闸不拦——
+        /// 耐久非沉睡/缄默/StatKind）。计价=基础费用×层=0.5蓝/点（2026-11-03 耐久改蓝定案——
+        /// 与结界身材耐久轴 0.5蓝/点 同口径）。</summary>
+        AddDurabilityUp,
     }
 
     /// <summary>

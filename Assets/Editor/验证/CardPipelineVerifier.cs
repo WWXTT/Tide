@@ -7250,6 +7250,7 @@ namespace CardCore.Editor
             { AtomicEffectType.GrantHunt, SpecColor.Red },                    // 狩猎=回合末攻击（场面）
             { AtomicEffectType.AddVulnerable, SpecColor.Red },                // 特例：易损=红
             { AtomicEffectType.BurstDamage, SpecColor.Red },
+            { AtomicEffectType.ShieldSlam, SpecColor.Red },                   // 护盾猛击=护甲转伤害（伤害产出族）
             { AtomicEffectType.MoveUnit, SpecColor.Red },                     // 移动=场面（位置族）
             { AtomicEffectType.Attack, SpecColor.Red },                       // 系统行（预留）
             // ---- 资源/生存（绿）：手牌/牌库/墓地/元素池/生命总量/减伤/防护 ----
@@ -7305,8 +7306,9 @@ namespace CardCore.Editor
             { AtomicEffectType.GrantVigilance, SpecColor.Blue },              // 警戒=攻击不横置（行动许可）
             { AtomicEffectType.GrantDisarm, SpecColor.Blue },                 // 缴械=压制反击（行动许可）
             { AtomicEffectType.GrantTaunt, SpecColor.Blue },                  // 帷幕=指定限制（能否被指定）
+            { AtomicEffectType.AddDurabilityUp, SpecColor.Blue },             // 特例：耐久=蓝（2026-11-03 定案：结界耐久轴同口径——身材耐久桶同日灰→蓝，0.5蓝/点）
             // ---- 场面/生存双成分（红|绿）----
-            { AtomicEffectType.GrantLifesteal, SpecColor.Red | SpecColor.Green }, // 吸血=伤害+回复 双色（吸取同构）
+            { AtomicEffectType.GrantLifesteal, SpecColor.Red },                  // 吸血=红（2026-11-03 用户定案·不随吸取双色同构）
             { AtomicEffectType.GrantLifelink, SpecColor.Red | SpecColor.Green },   // 系命=伤害+回复 双色
             // ---- 规则/工具（灰）：规则改写·属性定义·纯工具 ----
             { AtomicEffectType.ModifyGameRule, SpecColor.Gray },              // 特例：各仪典/各禁令=灰（行级细化见 SpecRowOverrides）

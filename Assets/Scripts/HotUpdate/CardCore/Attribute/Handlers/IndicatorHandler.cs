@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using CardCore.Attribute;
 
@@ -556,14 +557,15 @@ namespace CardCore.Attribute.Handlers
 
     /// <summary>
     /// 「成长」原子（2026-10-11 资源重做定案：灵气复苏 ×2 翻倍改成长 +1，绿3，资源族；
-    /// 2026-10-15：封顶退役）：① 效果控制者的地牌槽上限 +1（各自池生效不共享），可无限重复使用
+    /// 2026-10-15：封顶退役）：① 效果控制者的地牌槽上限 **+value**（各自池生效不共享），可无限重复
     /// （ElementPool.AddLandCapBonus → GetLandCap 单点：地牌张数/支付浓度/出牌费用门槛/黑白钳同随）。
-    /// ② 2026-10-31 改版·2026-11-01 修订：从自己牌库随机将一张**带元素费用**的卡横置加入元素池
+    /// ② 2026-10-31 改版·2026-11-01 修订：每 +1 上限就从牌库随机拉一张**带元素费用**的卡进元素池
     /// （不指定锁色——缺省=主色即份额最多色）。「带元素费用」=GetLandColorChoices 非空
     /// （卡面/各模式费 ∪ 主动效果锚价——单源，任意色费卡同入）；
-    /// 上限加值先行（+1 腾出的槽位正好容纳本次入池）；禁地令/地牌资格/上限余位由 AddCardToPool
-    /// 权威闸兜底——任一被拒或牌库无带费卡=只 +1 不加牌。横置入场=本回合周期不再产色
-    /// （PooledCard.IsTapped，己方回合开始解除）。无目标原子（作用=效果控制者）。
+    /// **2026-11-03 用户定案：按 value 一次拉多张**——value=2 就是 +2 上限并连拉 2 张（逐张走
+    /// AddCardToPool 权威闸：禁地令/地牌资格/上限余位任一被拒即少拉，牌库无带费卡即停）。
+    /// 拉进来的地**横置入场**（本回合周期不再产色）。
+    /// 无目标原子（作用=效果控制者）。
     /// </summary>
     public class IncreaseLandCapHandler : AtomicEffectHandlerBase
     {
@@ -578,34 +580,37 @@ namespace CardCore.Attribute.Handlers
                 TideLog.Warn("[IncreaseLandCap] 无效果控制者或元素池，空转");
                 return;
             }
-            pool.AddLandCapBonus(player);
-
-            // ② 牌库随机取一张带元素费用的卡横置入池（GameRng 种子可复播——网络对拍/回放确定性同发现原子）
             var zm = context.ZoneManager;
-            var deck = zm?.GetCards(player, Zone.Deck);
-            if (deck == null || deck.Count == 0) return;
+            if (zm == null) return;
 
-            var candidates = new List<Card>();
-            foreach (var card in deck)
+            int times = Math.Max(1, effect?.Value ?? 1);   // 2026-11-03：按 value 叠加（+1 上限 = 拉 1 张）
+            for (int i = 0; i < times; i++)
             {
-                if (card != null && ElementPoolSystem.GetLandColorChoices(card).Count > 0)
-                    candidates.Add(card);
+                pool.AddLandCapBonus(player);              // 上限先加，腾出本次入池的槽位
+
+                // 牌库随机取一张带元素费用的卡横置入池（GameRng 种子可复播——网络对拍/回放确定性同发现原子）
+                var deck = zm.GetCards(player, Zone.Deck);
+                if (deck == null || deck.Count == 0) return;
+                var candidates = new List<Card>();
+                foreach (var card in deck)
+                    if (card != null && ElementPoolSystem.GetLandColorChoices(card).Count > 0)
+                        candidates.Add(card);
+                if (candidates.Count == 0) return;
+
+                var pick = candidates[GameRng.Next(0, candidates.Count)];
+                if (!pool.AddCardToPool(pick, player)) return; // 不指定锁色=缺省主色（份额最多色）
+
+                // 横置入场：本回合周期不再产色
+                var pooled = pool.GetPool(player).PooledCards.Find(pc => pc != null && pc.SourceCard == pick);
+                if (pooled != null) pooled.IsTapped = true;
+
+                zm.MoveCard(pick, player, Zone.Deck, Zone.ElementPool);
+                pool.PublishPoolAdd(pick, player);
             }
-            if (candidates.Count == 0) return;
-
-            var pick = candidates[GameRng.Next(0, candidates.Count)];
-            if (!pool.AddCardToPool(pick, player)) return; // 不指定锁色=缺省主色（份额最多色）
-
-            // 横置入场：先改池内包装态（经入池事件读到的观察者即见已横置），再做区域移动+发事件
-            var pooled = pool.GetPool(player).PooledCards.Find(pc => pc != null && pc.SourceCard == pick);
-            if (pooled != null) pooled.IsTapped = true;
-
-            zm.MoveCard(pick, player, Zone.Deck, Zone.ElementPool);
-            pool.PublishPoolAdd(pick, player);
         }
 
         protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => "地牌上限+1（无上限），并从卡组随机将一张带元素费用的卡横置加入元素池";
+            => "地牌上限+{value}（无上限），并从卡组随机将等量带元素费用的卡横置加入元素池";
     }
 
     /// <summary>攻击力减少指示物（每层 −1 攻）</summary>
@@ -630,6 +635,41 @@ namespace CardCore.Attribute.Handlers
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddLifeDown;
         protected override string CounterId => CounterRules.LifeDownCounter;
         protected override string DescribeTemplate(AtomicEffectInstance effect) => "添加一层生命值减少指示物";
+    }
+
+    /// <summary>
+    /// 耐久增加原子（2026-11-03 新增，蓝0.5/层 表行「耐久增加」·指示物表）：对无生命单位
+    ///（表域=双方无生命单位——结界/装备）附加 {value} 层耐久指示物（CounterRules.DurabilityCounter，
+    /// Resident 常驻类）——耐久=受击/被动触发次数池（受击全额扣、归零送墓），加层即时扩池；
+    /// 铭刻光环照沾 +1（非 System 类）；绝缘体清零闸不拦（耐久非沉睡/缄默/StatKind）。
+    /// 非 Card 目标（角色等）跳过——表域已限无生命单位，此处防御双保险。
+    /// </summary>
+    public class AddDurabilityUpHandler : AtomicEffectHandlerBase
+    {
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddDurabilityUp;
+
+        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            // 2026-10-31 晚定案：一次发动按 value 给层（≤0/未填=1；CounterRules.ResolveLayers）
+            int stacks = CounterRules.ResolveLayers(CounterRules.DurabilityCounter, context.GetValueAfterModifiers(effect.Value));
+
+            foreach (var target in context.Targets)
+            {
+                if (!(target is Card card) || !card.IsAlive) continue;
+                int actualDelta = card.AddCounters(CounterRules.DurabilityCounter, stacks, context.Source);
+                PublishEvent(new CounterChangedEvent
+                {
+                    Target = target,
+                    CounterType = CounterRules.DurabilityCounter,
+                    Amount = actualDelta,
+                    Source = context.Source,
+                    EffectTint = effect.AnchorTint(), // 赋予粒子（2026-11-01）：表现层以非 null 识别「赋予」并按极性×颜色播爆发
+                });
+            }
+        }
+
+        protected override string DescribeTemplate(AtomicEffectInstance effect)
+            => "增加一层耐久";
     }
 
     // AddPlusOneHandler/AddMinusOneHandler（属性±1/+1 计数层）2026-11-02 退役——用户定案「只能分开加减」，

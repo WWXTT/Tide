@@ -1350,22 +1350,23 @@
       ]
     },
     {
-      "id": "0E52D31C",
-      "name": "地牌上限+1",
+      "id": "E26A023C",
+      "name": "地牌上限+2，并从牌库拉2张地带横置入场",
       "timing": 19,
       "activation": 2,
       "cost": [
         0.0,
         0.0,
         0.0,
-        3.0,
+        6.0,
         0.0
       ],
       "steps": [
         {
           "kind": 0,
           "atom": {
-            "refId": "2aa1a984"
+            "refId": "cab6ae97",
+            "value": 2
           }
         }
       ]
@@ -1429,136 +1430,6 @@
       ]
     },
     {
-      "id": "763BE362",
-      "name": "重置一个己方单位；若手牌为0，抽1张卡",
-      "timing": 19,
-      "activation": 2,
-      "selection": 0,
-      "count": 1,
-      "kinds": [
-        1
-      ],
-      "cost": [
-        0.0,
-        1.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "473d915e",
-            "kinds": [
-              1
-            ],
-            "branch": {
-              "settle": 1,
-              "gateId": "HandEmpty",
-              "then": [
-                {
-                  "refId": "03c85bc4"
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "5F0EF6AD",
-      "name": "消灭一个敌方生物；若手牌为0，抽1张卡",
-      "timing": 19,
-      "activation": 2,
-      "selection": 0,
-      "count": 1,
-      "kinds": [
-        2
-      ],
-      "cost": [
-        0.0,
-        3.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "a50b8c19",
-            "kinds": [
-              2
-            ],
-            "branch": {
-              "settle": 1,
-              "gateId": "HandEmpty",
-              "then": [
-                {
-                  "refId": "03c85bc4"
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "7D523822",
-      "name": "对一个敌方单位造成6点伤害",
-      "timing": 19,
-      "activation": 2,
-      "cost": [
-        0.0,
-        6.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "a4b823fc",
-            "value": 6,
-            "kinds": [
-              2
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "id": "31CE6ACE",
-      "name": "重置一个己方单位",
-      "timing": 19,
-      "activation": 2,
-      "selection": 0,
-      "count": 1,
-      "kinds": [
-        1
-      ],
-      "cost": [
-        0.0,
-        1.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "473d915e",
-            "kinds": [
-              1
-            ]
-          }
-        }
-      ]
-    },
-    {
       "id": "099F66FB",
       "name": "倒计时3：归零时获得帷幕（重挂）",
       "steps": [
@@ -1585,43 +1456,46 @@
       ]
     },
     {
-      "id": "F7440FD9",
-      "name": "赋予一个单位复生；若生命值≤7，回收己方墓地一张卡",
+      "id": "2F27F745",
+      "name": "赋予一个己方单位再生；代价：一个敌方单位获得6层护甲",
       "timing": 19,
       "activation": 2,
       "cost": [
         0.0,
         0.0,
         0.0,
-        3.0,
+        6.0,
         0.0
+      ],
+      "costs": [
+        {
+          "type": 1,
+          "value": 0,
+          "manaType": 0,
+          "turns": 0,
+          "payload": {
+            "refId": "9ff1954d",
+            "value": 6,
+            "kinds": [
+              2
+            ]
+          }
+        }
       ],
       "steps": [
         {
           "kind": 0,
           "atom": {
-            "refId": "2b5fb180",
+            "refId": "ea1df378",
             "kinds": [
               1
-            ],
-            "branch": {
-              "settle": 1,
-              "gateId": "LifeLe7",
-              "then": [
-                {
-                  "refId": "c03ef9fe",
-                  "kinds": [
-                    9
-                  ]
-                }
-              ]
-            }
+            ]
           }
         }
       ]
     },
     {
-      "id": "0DC60823",
+      "id": "5E4A9D9D",
       "name": "倒计时3：归零时获得溅射（重挂）",
       "steps": [
         {
@@ -1634,7 +1508,7 @@
               "engineParam": 3,
               "then": [
                 {
-                  "refId": "c1332456",
+                  "refId": "307eb123",
                   "value": 0,
                   "kinds": [
                     1
@@ -1647,8 +1521,8 @@
       ]
     },
     {
-      "id": "0807C808",
-      "name": "一个己方单位永久+1生命+1攻击",
+      "id": "76EF235B",
+      "name": "一个己方单位永久+1生命；若操控地数量≥9，一个己方单位永久+1攻击",
       "timing": 19,
       "activation": 2,
       "selection": 0,
@@ -1660,7 +1534,6 @@
         1.0,
         0.0
       ],
-      "costPin": 1,
       "steps": [
         {
           "kind": 0,
@@ -1668,23 +1541,26 @@
             "refId": "0afd7173",
             "kinds": [
               1
-            ]
-          }
-        },
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "c5340751",
-            "kinds": [
-              1
-            ]
+            ],
+            "branch": {
+              "settle": 1,
+              "gateId": "LandsGt9",
+              "then": [
+                {
+                  "refId": "c5340751",
+                  "kinds": [
+                    1
+                  ]
+                }
+              ]
+            }
           }
         }
       ]
     },
     {
-      "id": "042F0177",
-      "name": "以{target}为目标，己方角色获得等同其生命的护甲",
+      "id": "A8400912",
+      "name": "以{target}为目标，该单位获得等同其生命的护甲；代价：一个敌方单位获得6层护甲",
       "timing": 19,
       "activation": 2,
       "cost": [
@@ -1694,6 +1570,21 @@
         3.0,
         0.0
       ],
+      "costs": [
+        {
+          "type": 1,
+          "value": 0,
+          "manaType": 0,
+          "turns": 0,
+          "payload": {
+            "refId": "9ff1954d",
+            "value": 6,
+            "kinds": [
+              2
+            ]
+          }
+        }
+      ],
       "steps": [
         {
           "kind": 0,
@@ -1701,14 +1592,15 @@
             "refId": "508a4975",
             "kinds": [
               1
-            ]
+            ],
+            "str": "SelfUnit"
           }
         }
       ]
     },
     {
-      "id": "2525A279",
-      "name": "倒计时3：归零时获得吸血（重挂）",
+      "id": "9170B00B",
+      "name": "倒计时3：归零时获得警戒（重挂）",
       "steps": [
         {
           "kind": 0,
@@ -1720,7 +1612,7 @@
               "engineParam": 3,
               "then": [
                 {
-                  "refId": "f7119394",
+                  "refId": "4cf22304",
                   "value": 0,
                   "kinds": [
                     1
@@ -1733,7 +1625,7 @@
       ]
     },
     {
-      "id": "F4439B01",
+      "id": "B4AA343A",
       "name": "倒计时3：归零时获得狩猎（重挂）",
       "steps": [
         {
@@ -1746,7 +1638,7 @@
               "engineParam": 3,
               "then": [
                 {
-                  "refId": "6eaa0d3f",
+                  "refId": "a81e2068",
                   "value": 0,
                   "kinds": [
                     1
@@ -1866,7 +1758,7 @@
       ]
     },
     {
-      "id": "5E7727D2",
+      "id": "643BFF5D",
       "name": "对手回合对手使用卡牌结算后，若己方剩余元素比对手多3，弃掉对手一张手牌",
       "limit": 1,
       "steps": [
@@ -1879,7 +1771,7 @@
               "engine": 5,
               "then": [
                 {
-                  "refId": "bf06d56b",
+                  "refId": "43ac095e",
                   "kinds": [
                     6
                   ]
@@ -2318,9 +2210,9 @@
       "selection": 0,
       "count": 1,
       "cost": [
+        0.0,
+        0.0,
         5.0,
-        0.0,
-        0.0,
         0.0,
         0.0
       ],
@@ -2350,8 +2242,8 @@
       ]
     },
     {
-      "id": "66A5DC3B",
-      "name": "对一个对方单位附加3层紊乱；若为本回合使用的第一张卡，为己方角色添加4层护甲",
+      "id": "02B0B057",
+      "name": "对一个对方单位附加2层紊乱；若为本回合使用的第一张卡，为己方角色添加4层护甲",
       "timing": 19,
       "activation": 2,
       "selection": 0,
@@ -2359,7 +2251,7 @@
       "cost": [
         0.0,
         0.0,
-        3.0,
+        2.0,
         0.0,
         0.0
       ],
@@ -2368,7 +2260,7 @@
           "kind": 0,
           "atom": {
             "refId": "d3ed120d",
-            "value": 3,
+            "value": 2,
             "kinds": [
               2
             ]
@@ -2558,8 +2450,8 @@
       ]
     },
     {
-      "id": "516F8220",
-      "name": "将2张己方墓地的卡返回手牌",
+      "id": "F1C619E7",
+      "name": "将1张己方墓地的卡返回手牌",
       "timing": 19,
       "activation": 2,
       "selection": 0,
@@ -2568,34 +2460,17 @@
         0.0,
         0.0,
         0.0,
-        7.0,
+        3.0,
         0.0
-      ],
-      "costPin": 1,
-      "costs": [
-        {
-          "type": 1,
-          "value": 0,
-          "manaType": 0,
-          "turns": 0,
-          "payload": {
-            "refId": "9ff1954d",
-            "kinds": [
-              2
-            ]
-          }
-        }
       ],
       "steps": [
         {
           "kind": 0,
           "atom": {
             "refId": "c03ef9fe",
-            "value": 2,
             "kinds": [
               9
-            ],
-            "count": 2
+            ]
           }
         }
       ]
@@ -2623,6 +2498,154 @@
                 }
               ]
             }
+          }
+        }
+      ]
+    },
+    {
+      "id": "31CE6ACE",
+      "name": "重置一个己方单位",
+      "timing": 19,
+      "activation": 2,
+      "selection": 0,
+      "count": 1,
+      "kinds": [
+        1
+      ],
+      "cost": [
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "473d915e",
+            "kinds": [
+              1
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "0A3D02DD",
+      "name": "对一个敌方单位造成6点伤害",
+      "timing": 19,
+      "activation": 2,
+      "selection": 0,
+      "count": 1,
+      "kinds": [
+        2
+      ],
+      "cost": [
+        0.0,
+        6.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "costs": [
+        {
+          "type": 1,
+          "value": 0,
+          "manaType": 0,
+          "turns": 0,
+          "payload": {
+            "refId": "43ac095e",
+            "kinds": [
+              5
+            ]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "a4b823fc",
+            "value": 6,
+            "kinds": [
+              2
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "A5173DFB",
+      "name": "一个己方单位获得连击",
+      "timing": 19,
+      "activation": 2,
+      "selection": 0,
+      "count": 1,
+      "kinds": [
+        1
+      ],
+      "cost": [
+        0.0,
+        6.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "costs": [
+        {
+          "type": 1,
+          "value": 0,
+          "manaType": 0,
+          "turns": 0,
+          "payload": {
+            "refId": "43ac095e",
+            "kinds": [
+              5
+            ]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "8c988c18",
+            "kinds": [
+              1
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "C5180E36",
+      "name": "一个目标流失1生命",
+      "timing": 19,
+      "activation": 2,
+      "selection": 0,
+      "count": 1,
+      "kinds": [
+        1,
+        2
+      ],
+      "cost": [
+        0.0,
+        0.0,
+        0.0,
+        2.0,
+        0.0
+      ],
+      "costPin": 1,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "7b8c45bc",
+            "kinds": [
+              1,
+              2
+            ]
           }
         }
       ]

@@ -1,0 +1,51 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    TideLab：红套作者/无头验证的**独立**可运行工程（2026-11-02 新建）。
+
+    背景：TideServer 当前编译失败（Verify/SectionRules.cs 仍引用 2026-11-02 已删除的苏醒/旧 CostDown/
+    旧 PlayCard 重载/旧光环组件——属「尚未根据新规则修复」的另一笔账）。本工程只编红套 lab 需要的
+    共享源，不碰 Verify 目录，保证卡表/费用/AI 改动随时能跑无头验证。
+
+    共享源与 TideServer 完全同批（单一真相源，无复制）：
+      CardCore/** + AI/{SimpleAI,AiStrategy} + NeuralEnv{LegalActionEnumerator,TideObservation,FieldValueReward}
+      + UI/Data{CardCatalog,CardDataPaths,DeckTokenSupport,DeckData,ContentHasher,EffectGraphData}
+      + TideServer/RedDeckLab.cs + TideServer/HeadlessAiShims.cs
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>TideLab</AssemblyName>
+    <RootNamespace>TideServer</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MemoryPack" Version="1.21.4" />
+    <PackageReference Include="UniTask" Version="2.5.11" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\Assets\Scripts\HotUpdate\CardCore\**\*.cs" LinkBase="Shared\CardCore" />
+    <Compile Include="..\Assets\Scripts\HotUpdate\AI\NeuralEnv\LegalActionEnumerator.cs" Link="Shared\AI\LegalActionEnumerator.cs" />
+    <Compile Include="..\Assets\Scripts\HotUpdate\AI\NeuralEnv\TideObservation.cs" Link="Shared\AI\TideObservation.cs" />
+    <Compile Include="..\Assets\Scripts\HotUpdate\AI\NeuralEnv\FieldValueReward.cs" Link="Shared\AI\FieldValueReward.cs" />
+    <Compile Include="..\Assets\Scripts\HotUpdate\AI\SimpleAI.cs" Link="Shared\SynergyUI\SimpleAI.cs" />
+    <Compile Include="..\Assets\Scripts\HotUpdate\AI\AiStrategy.cs" Link="Shared\SynergyUI\AiStrategy.cs" />
+    <Compile Include="..\Assets\Scripts\HotUpdate\UI\Data\CardCatalog.cs" Link="Shared\SynergyUI\CardCatalog.cs" />
+    <Compile Include="..\Assets\Scripts\HotUpdate\UI\Data\CardDataPaths.cs" Link="Shared\SynergyUI\CardDataPaths.cs" />
+    <Compile Include="..\Assets\Scripts\HotUpdate\UI\Data\DeckTokenSupport.cs" Link="Shared\SynergyUI\DeckTokenSupport.cs" />
+    <Compile Include="..\Assets\Scripts\HotUpdate\UI\Data\DeckData.cs" Link="Shared\SynergyUI\DeckData.cs" />
+    <Compile Include="..\Assets\Scripts\HotUpdate\UI\Data\ContentHasher.cs" Link="Shared\SynergyUI\ContentHasher.cs" />
+    <Compile Include="..\Assets\Scripts\HotUpdate\UI\Data\EffectGraphData.cs" Link="Shared\SynergyUI\EffectGraphData.cs" />
+    <!-- 2026-11-03：关键词两通道（合成器取赋予行/卡面走印刷）——纯 C# 无 Unity 依赖，纳入编译检查 -->
+    <Compile Include="..\Assets\Scripts\HotUpdate\UI\Data\KeywordCatalog.cs" Link="Shared\SynergyUI\KeywordCatalog.cs" />
+    <Compile Include="..\Assets\Scripts\HotUpdate\UI\Data\ColorFilter.cs" Link="Shared\SynergyUI\ColorFilter.cs" />
+    <Compile Include="..\TideServer\RedDeckLab.cs" Link="Shared\TideServer\RedDeckLab.cs" />
+    <Compile Include="..\TideServer\HeadlessAiShims.cs" Link="Shared\TideServer\HeadlessAiShims.cs" />
+  </ItemGroup>
+
+</Project>

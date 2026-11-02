@@ -359,8 +359,9 @@ namespace CardCore
             => PayPayloadsAsync(costs, ctx);
 
         /// <summary>执行单个 Payload 原子：按其自身域解析目标，无域以无目标执行（2026-10-28 P1：只执行、不发放）。
-        /// 单位域原子（2026-10-31 定案）只作用于一个单位：存活候选唯一直接用/多个现选
-        /// （TargetSelectionService，不可取消）；域空 → false。
+        /// 单位域原子（2026-10-31 定案）只作用于一个单位：存活候选唯一直接用；候选 &gt;1 由**对手**现选
+        /// （2026-11-02 定案：代价可选目标 &gt;1 时选择权=对手——支付方不再自选；TargetSelectionService，
+        /// 不可取消）；域空 → false。
         /// 受惠侧执行：对方域锁定的 payload 以**对手**为控制者执行——产出型原子（SummonToken 等）
         /// 落在控制者侧；己方/双侧以支付者执行。
         /// atomIndex=组装代价的原子序（声明期预选目标按序沿用；单位域声明期不预选=恒现选）。
@@ -398,8 +399,9 @@ namespace CardCore
             else if (CostPayability.IsUnitDomainCost(atom))
             {
                 // 单位域代价（2026-10-31 用户定案：代价支付禁用全域）——只作用于**一个**单位：
-                // 按**支付者视角**解析存活候选——唯一 → 直接用；多个 → TargetSelectionService
-                // 现选一个（本地弹选/联机反问/AI 代选，不可取消）；域空 → 本原子不执行（false）。
+                // 按**支付者视角**解析存活候选——唯一 → 直接用；多个 → 对手现选（2026-11-02 用户定案：
+                // 代价可选目标 >1 时选择权=**对手**，不由支付方自选——本地弹选给对手/联机反问下发给
+                // 对手座席/AI 代选按对手视角排序，不可取消）；域空 → 本原子不执行（false）。
                 // 可付性=能指定一个目标即可（无数值门槛；全额扣减可致属性为负/死亡，量级限制归数据侧）。
                 if (preselected != null && preselected.Count > 0)
                 {
@@ -424,11 +426,13 @@ namespace CardCore
                             Candidates = candidates,
                             MinCount = 1,
                             MaxCount = 1,
-                            Chooser = ctx.Payer, // 选择权=支付者（资敌域也是付代价方选）
-                            Title = "选择代价目标",
-                            Hint = "代价只作用于一个单位",
+                            Chooser = ctx.Payer.Opponent ?? ctx.Payer, // 2026-11-02 定案：候选>1 选择权=对手（无对手位兜底支付者）
+                            Title = "为对手指定代价目标",
+                            Hint = "对手支付的代价只作用于一个单位，由你指定落点",
                             PromptAtom = atom.Type, // AI 候选排序：代价原子类型（2026-11-01）
+                            PromptValue = atom.Value, // 对手视角排序：判「能否打死」（2026-11-02）
                             IsCostTarget = true, // AI 排序按标记判代价语义（不依赖中文标题）
+                            CostPayer = ctx.Payer, // AI 排序视角锚：支付方（对手选择=最大化支付方损失）
                             AllowCancel = false, // 强制效果口径：必须选
                         });
                     if (targets == null || targets.Count == 0) return false;

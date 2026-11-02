@@ -2132,6 +2132,8 @@ namespace CardCore
                 new AddPowerDownHandler(),
                 new AddLifeUpHandler(),
                 new AddLifeDownHandler(),
+                // 耐久增加（2026-11-03 新增，蓝0.5/层）：无生命单位（结界/装备）耐久池 +value 层
+                new AddDurabilityUpHandler(),
                 // 永久攻血四轴（2026-11-02 拆分定案，原双属性±X/±X 两行退役）：单轴直写字段——跨区保留、净化不清
                 new AddPermanentPowerUpHandler(),
                 new AddPermanentPowerDownHandler(),

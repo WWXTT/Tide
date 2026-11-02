@@ -22,6 +22,10 @@ namespace CardCore.Editor.Tests
     /// ⑤ 截断护栏——skipOpeningDraw+deferStart 双闸满 30 + 塞第 31 张：valid 仍 30、g[13] 计数 31、
     ///   第 31 张（排序末位）IndexOfCard=-1；座次切换 Build(p2)——牌库块换 p2 构成、
     ///   标签换 OriginalDeckOf(p1)；维度握手 LayoutVersion=9/116/116/58 + LAE 冒烟。
+    /// v10（2026-11-02 观测欠账四件套）：⑥ 墓地扩槽 30（12 张全编码·槽35=最新·31 张截断）；
+    /// ⑦ 除外 8 入册（9 张放逐→8 编码+g[15]=9+zoneKind=9）；⑧ 被展示——对方手牌 2 张开图
+    ///（其余仍隐藏）、对方牌库 2 张入尾块 [185..]（区内序）；⑨ 牌库顶——光环命中才编码+LAE
+    /// 出牌行+Apply 离库，**未命中/载体离场恒空槽（反泄露硬断言）**。
     /// 夹具按卡名解析（教学池 ID 随内容重推漂移，硬编码 ID 会假阴——LAE 验证器同款口径）。
     /// 入口：菜单 验证/观测v9牌库双通道；Run() 返回报告文本（全过=PASS 结尾）。
     /// </summary>
@@ -75,11 +79,14 @@ namespace CardCore.Editor.Tests
             var deck2Data = Mix(catalog, (CardD, 10), (CardA, 10), (CardB, 10)); // 30（红+绿混色，标签口径覆盖）
 
             // ================= ⓪ 维度握手 =================
-            checks.Add(new Check(TideObservation.LayoutVersion == 9 && TideObservation.NCard == 116
-                && TideObservation.NGlobal == 58 && TideObservation.MaxCardsTotal == 116
-                && TideObservation.DeckBase == 86 && TideObservation.DeckSlots == 30,
-                $"布局常量期望 9/116/58/116/86/30，实际 {TideObservation.LayoutVersion}/{TideObservation.NCard}/"
-                + $"{TideObservation.NGlobal}/{TideObservation.MaxCardsTotal}/{TideObservation.DeckBase}/{TideObservation.DeckSlots}"));
+            checks.Add(new Check(TideObservation.LayoutVersion == 10 && TideObservation.NCard == 116
+                && TideObservation.NGlobal == 58 && TideObservation.MaxCardsTotal == 189
+                && TideObservation.MaxCardsPerPlayer == 77 && TideObservation.DeckBase == 154
+                && TideObservation.DeckSlots == 30 && TideObservation.DeckTopSlot == 184
+                && TideObservation.OppDeckExposedBase == 185 && TideObservation.OppDeckExposedSlots == 4,
+                $"布局常量期望 v10：10/116/58/189/77/154/30/184/185/4，实际 {TideObservation.LayoutVersion}/{TideObservation.NCard}/"
+                + $"{TideObservation.NGlobal}/{TideObservation.MaxCardsTotal}/{TideObservation.MaxCardsPerPlayer}/{TideObservation.DeckBase}/"
+                + $"{TideObservation.DeckSlots}/{TideObservation.DeckTopSlot}/{TideObservation.OppDeckExposedBase}/{TideObservation.OppDeckExposedSlots}"));
 
             // ================= ① 构成对账 + 标签静态（seed 12345·含开抽） =================
             core.InitGame(CardLoader.BuildDeck(deck1Data, 1), CardLoader.BuildDeck(deck2Data, 1), rngSeed: 12345);
@@ -107,7 +114,7 @@ namespace CardCore.Editor.Tests
             bool concealedOk = oppHand.Count > 0;
             for (int i = 0; i < 12 && concealedOk; i++)
             {
-                int b = (43 + 23 + i) * TideObservation.NCard;
+                int b = (TideObservation.MaxCardsPerPlayer + 23 + i) * TideObservation.NCard; // 对方手牌区（v10 基址 77）
                 bool present = i < oppHand.Count;
                 concealedOk &= obs.Cards[b] == (present ? 1f : 0f)                    // valid
                             && obs.Cards[b + TideObservation.ZoneKindSlot] == (present ? 2f : 0f) // zoneKind=手牌
@@ -146,7 +153,7 @@ namespace CardCore.Editor.Tests
             }
             bool idxOpp = zm.GetCards(p2, Zone.Deck).All(c => TideObservation.IndexOfCard(core, p1, c) == -1);
             checks.Add(new Check(idxOk && idxOpp,
-                $"IndexOfCard：己方 {slots1.Count} 张牌库卡应各得 [86..116) 唯一槽位（OK={idxOk}），对方牌库卡应恒 -1（OK={idxOpp}）"));
+                $"IndexOfCard：己方 {slots1.Count} 张牌库卡应各得 [{TideObservation.DeckBase}..{TideObservation.MaxCardsTotal}) 唯一槽位（OK={idxOk}），对方牌库卡应恒 -1（OK={idxOpp}）"));
 
             // LAE 冒烟（动作空间 v8 未动，枚举不应受 v9 影响）
             AdvanceToMainPhase(core, p1);
@@ -167,11 +174,11 @@ namespace CardCore.Editor.Tests
             checks.Add(new Check(orderChanged && orderFree,
                 $"排序无关：重洗牌库后区内容应逐浮点相等（洗牌确实换了序={orderChanged}，槽区恒定={orderFree}）"));
 
-            // ③ zoneKind 抽检：各区移卡后 [115] 值（战场0/元素池1/手牌2/墓地3/发动区4/场地区5/牌库6）
+            // ③ zoneKind 抽检：各区移卡后 [115] 值（战场0/元素池1/手牌2/墓地3/发动区4/场地区5/牌库6/除外9）
             var zoneChecks = new List<(Zone zone, int expect)>
             {
                 (Zone.Battlefield, 0), (Zone.ElementPool, 1), (Zone.Graveyard, 3),
-                (Zone.Activation, 4), (Zone.FieldZone, 5),
+                (Zone.Activation, 4), (Zone.FieldZone, 5), (Zone.Exile, 9),
             };
             var zm3 = core.ZoneManager;
             bool zkOk = zm3.GetCards(p1, Zone.Hand).Count > 0 && zm3.GetCards(p1, Zone.Deck).Count > 0;
@@ -191,7 +198,7 @@ namespace CardCore.Editor.Tests
                     if (got != expect) { log.AppendLine($"[zoneKind] {zone} 期望 {expect} 实际 {got}"); zkOk = false; }
                 }
             }
-            checks.Add(new Check(zkOk, "zoneKind 抽检：战场0/元素池1/手牌2/墓地3/发动区4/场地区5/牌库6"));
+            checks.Add(new Check(zkOk, "zoneKind 抽检：战场0/元素池1/手牌2/墓地3/发动区4/场地区5/牌库6/除外9"));
 
             // ================= ④ 截断护栏 + 座次切换（skipOpeningDraw+deferStart 双闸：不开抽 6 张、
             //     不进回合抽 1 张，牌库保持满 30——任一单用都会少一张） =================
@@ -234,6 +241,156 @@ namespace CardCore.Editor.Tests
             for (int i = 0; i < 8 && seatOk; i++)
                 seatOk &= Mathf.Abs(obsE.Globals[TideObservation.DeckTagStart + i] - tagsP1[i]) < 1e-4f;
             checks.Add(new Check(seatOk, "座次切换 Build(p2)：牌库块=p2 卡表、g[50..57]=OriginalDeckOf(p1) 标签"));
+
+            // ================= ⑥⑦⑧⑨ v10 四件套：墓地扩槽/除外/被展示/牌库顶 =================
+            RunV10Scenarios(catalog, log, checks);
+        }
+
+        // ======================================== v10 场景（2026-11-02 观测欠账四件套） ========================================
+
+        private static void RunV10Scenarios(List<CardData> catalog, StringBuilder log, List<Check> checks)
+        {
+            var core = GameCore.Instance;
+            var deck1Data = Mix(catalog, (CardA, 10), (CardB, 10), (CardC, 10));
+            var deck2Data = Mix(catalog, (CardD, 10), (CardA, 10), (CardB, 10));
+
+            // ---- ⑥ 墓地扩槽 30：12 张入墓全编码·槽35=最新入墓；31 张截断护栏 ----
+            core.InitGame(CardLoader.BuildDeck(deck1Data, 1), CardLoader.BuildDeck(deck2Data, 1), rngSeed: 42);
+            var p1 = core.Player1;
+            var p2 = core.Player2;
+            var zm = core.ZoneManager;
+            for (int i = 0; i < 12; i++)
+            {
+                var c = TakeFromDeckOrHand(zm, p1);
+                zm.MoveCard(c, p1, zm.IsCardInZone(c, p1, Zone.Hand) ? Zone.Hand : Zone.Deck, Zone.Graveyard);
+            }
+            int graveCount = zm.GetCards(p1, Zone.Graveyard).Count;
+            var obs = TideObservation.Build(core, p1, false, null);
+            var graveRegion = RegionStructureIndices(obs, 35, 30);
+            var graveNewest = zm.GetCards(p1, Zone.Graveyard).Last();
+            int b35 = 35 * TideObservation.NCard;
+            bool graveOk = graveRegion.Count == graveCount
+                && obs.Cards[b35] == 1f
+                && obs.Cards[b35 + TideObservation.StructureSlot] == TideCardIndex.IndexOf(StructureHashOf(graveNewest))
+                && zm.GetCards(p1, Zone.Graveyard).All(c => TideObservation.IndexOfCard(core, p1, c) is int s && s >= 35 && s < 65);
+            checks.Add(new Check(graveOk,
+                $"墓地扩槽：{graveCount} 张应全编码（cap30·新死优先槽35=最新入墓·IndexOfCard 全解析），实际 valid={graveRegion.Count}"));
+            // 截断：把 p1 剩余牌库+手牌全部入墓（30 张），再直塞第 31 张（开抽后总量恰 30，须补一张）
+            while (zm.GetCards(p1, Zone.Deck).Count > 0 || zm.GetCards(p1, Zone.Hand).Count > 0)
+            {
+                var c = TakeFromDeckOrHand(zm, p1);
+                if (c == null) break;
+                zm.MoveCard(c, p1, zm.IsCardInZone(c, p1, Zone.Hand) ? Zone.Hand : Zone.Deck, Zone.Graveyard);
+            }
+            var spareGrave = CardLoader.BuildDeck(new List<CardData> { ByName(catalog, CardC) }, 1)[0];
+            spareGrave.SetController(p1);
+            zm.GetZoneContainer(p1).Add(spareGrave, Zone.Graveyard);
+            graveCount = zm.GetCards(p1, Zone.Graveyard).Count;
+            obs = TideObservation.Build(core, p1, false, null);
+            var graveRegion31 = RegionStructureIndices(obs, 35, 30);
+            int g11Raw = Mathf.RoundToInt(obs.Globals[11] * 30f);
+            checks.Add(new Check(graveCount == 31 && graveRegion31.Count == 30 && g11Raw == 31,
+                $"墓地截断：31 张时 valid 槽应 30、g[11] 计数应 31，实际 张数={graveCount} 槽数={graveRegion31.Count} g11={g11Raw}"));
+
+            // ---- ⑦ 除外 8 入册：9 张放逐（墓→除外）→ 8 编码 + g[15]=9 + zoneKind=9 ----
+            var exiled = new List<Card>();
+            while (exiled.Count < 9 && zm.GetCards(p1, Zone.Graveyard).Count > 0)
+            {
+                var c = zm.GetCards(p1, Zone.Graveyard)[0];
+                zm.MoveCard(c, p1, Zone.Graveyard, Zone.Exile);
+                exiled.Add(c);
+            }
+            obs = TideObservation.Build(core, p1, false, null);
+            var exileRegion = RegionStructureIndices(obs, 69, 8);
+            bool exileOk = exileRegion.Count == 8 && Mathf.RoundToInt(obs.Globals[15]) == 9
+                && exiled.Take(8).All(c => ZoneKindOfCard(core, p1, obs, c) == 9)
+                && exiled.Take(8).All(c => TideObservation.IndexOfCard(core, p1, c) >= 69 && TideObservation.IndexOfCard(core, p1, c) < 77);
+            checks.Add(new Check(exileOk,
+                $"除外入册：9 张放逐应 8 编码+g[15]=9+zoneKind=9+IndexOfCard 解析，实际 槽={exileRegion.Count} g15={Mathf.RoundToInt(obs.Globals[15])}"));
+
+            // ---- ⑧ 被展示：对方手牌 2 张开图（其余隐藏）+ 对方牌库 2 张入尾块 ----
+            var oppHand = zm.GetCards(p2, Zone.Hand);
+            var oppDeck = zm.GetCards(p2, Zone.Deck);
+            oppHand[0].AddCounters(CardCore.Attribute.CounterRules.ExposedCounter, 1);
+            oppHand[2].AddCounters(CardCore.Attribute.CounterRules.ExposedCounter, 1);
+            oppDeck[0].AddCounters(CardCore.Attribute.CounterRules.ExposedCounter, 1);
+            oppDeck[3].AddCounters(CardCore.Attribute.CounterRules.ExposedCounter, 1);
+            obs = TideObservation.Build(core, p1, false, null);
+            bool revealHandOk = true;
+            for (int i = 0; i < oppHand.Count && i < 12; i++)
+            {
+                int b = (TideObservation.MaxCardsPerPlayer + 23 + i) * TideObservation.NCard;
+                bool exposed = i == 0 || i == 2;
+                float expectId = TideCardIndex.IndexOf(StructureHashOf(oppHand[i]));
+                revealHandOk &= obs.Cards[b + TideObservation.StructureSlot] == (exposed ? expectId : 0f)
+                            && obs.Cards[b + TideObservation.ZoneKindSlot] == 2f;
+            }
+            checks.Add(new Check(revealHandOk,
+                $"被展示·对方手牌：槽 0/2 应开图（身份=卡真值），其余身份槽 0（{oppHand.Count} 张），zoneKind 恒 2"));
+            int bx0 = TideObservation.OppDeckExposedBase * TideObservation.NCard;
+            int bx1 = (TideObservation.OppDeckExposedBase + 1) * TideObservation.NCard;
+            int bx2 = (TideObservation.OppDeckExposedBase + 2) * TideObservation.NCard;
+            bool revealDeckOk = obs.Cards[bx0] == 1f
+                && obs.Cards[bx0 + TideObservation.ZoneKindSlot] == 8f
+                && obs.Cards[bx0 + TideObservation.StructureSlot] == TideCardIndex.IndexOf(StructureHashOf(oppDeck[0]))
+                && obs.Cards[bx1] == 1f
+                && obs.Cards[bx1 + TideObservation.ZoneKindSlot] == 8f
+                && obs.Cards[bx1 + TideObservation.StructureSlot] == TideCardIndex.IndexOf(StructureHashOf(oppDeck[3]))
+                && obs.Cards[bx2] == 0f; // cap 内第 3 槽空（仅 2 张被展示）
+            checks.Add(new Check(revealDeckOk,
+                "被展示·对方牌库：尾块 [185][186] 应按区内序编码两张（zoneKind=8），[187] 空"));
+
+            // ---- ⑨ 牌库顶：光环命中才编码+LAE 行+Apply 离库；未命中/离场恒空（反泄露硬断言） ----
+            core.InitGame(CardLoader.BuildDeck(deck1Data, 1), CardLoader.BuildDeck(deck2Data, 1), rngSeed: 11);
+            p1 = core.Player1;
+            zm = core.ZoneManager;
+            foreach (var color in new[] { ManaType.Red, ManaType.Green, ManaType.Blue, ManaType.Gray })
+                core.ElementPool.AddMana(p1, color, null, 10);
+            // 代价行地牌门槛（红色代价 1 需红地 ≥1——代价不走临时钱包）：四色地各铺一张
+            var pool = core.ElementPool.GetPool(p1);
+            foreach (var color in new[] { ManaType.Red, ManaType.Green, ManaType.Blue, ManaType.Gray })
+            {
+                var lc = TakeFromDeckOrHand(zm, p1);
+                if (lc != null) pool.PooledCards.Add(new PooledCard(lc, color));
+            }
+            int bt = TideObservation.DeckTopSlot * TideObservation.NCard;
+            obs = TideObservation.Build(core, p1, false, null);
+            AdvanceToMainPhase(core, p1);
+            var lae = new LegalActionEnumerator();
+            lae.Enumerate(core, p1);
+            bool leakFreeOff = obs.Cards[bt] == 0f && obs.Cards[bt + TideObservation.ZoneKindSlot] == 0f
+                && lae.Actions.All(a => a.SourceIndex != TideObservation.DeckTopSlot);
+            checks.Add(new Check(leakFreeOff, "牌库顶·未命中：顶槽恒空 + LAE 无牌库顶行（反泄露硬断言）"));
+
+            var carrier = TakeFromDeckOrHand(zm, p1);
+            zm.MoveCard(carrier, p1, zm.IsCardInZone(carrier, p1, Zone.Hand) ? Zone.Hand : Zone.Deck, Zone.Battlefield);
+            RuleAuraSystem.Activate(RuleAuraComponents.TopDeckAsHandAura, carrier, p1, (int)RuleAuraScope.Own);
+            var topCard = zm.GetCards(p1, Zone.Deck)[0];
+            obs = TideObservation.Build(core, p1, false, null);
+            bool topOk = obs.Cards[bt] == 1f
+                && obs.Cards[bt + TideObservation.ZoneKindSlot] == 7f
+                && obs.Cards[bt + TideObservation.StructureSlot] == TideCardIndex.IndexOf(StructureHashOf(topCard));
+            checks.Add(new Check(topOk, "牌库顶·命中：顶槽=deck[0] 身份+zoneKind=7"));
+
+            lae.Enumerate(core, p1);
+            var topRows = lae.Actions.Where(a => a.SourceIndex == TideObservation.DeckTopSlot).ToList();
+            bool rowsOk = topRows.Count > 0 && topRows.All(r => r.Type == TideActionType.PlayCard
+                && ReferenceEquals(r.Card, topCard));
+            log.AppendLine($"[牌库顶] LAE 行数={topRows.Count}（光环命中）");
+            checks.Add(new Check(rowsOk, $"牌库顶·LAE：应出 deck[0] 的 PlayCard 行（sourceIndex={TideObservation.DeckTopSlot}），实际 {topRows.Count} 行"));
+
+            bool played = topRows.Count > 0 && LegalActionEnumerator.Apply(core, p1, topRows[0]);
+            int drain = 0;
+            while (played && !core.StackEngine.IsEmpty && drain++ < 10) GameActions.DrainStack(core);
+            checks.Add(new Check(played && !zm.IsCardInZone(topCard, p1, Zone.Deck),
+                $"牌库顶·Apply：出牌应成功且卡离库（ok={played} 在库={zm.IsCardInZone(topCard, p1, Zone.Deck)}）"));
+
+            zm.MoveCard(carrier, p1, Zone.Battlefield, Zone.Graveyard); // 载体离场 → 光环失效
+            obs = TideObservation.Build(core, p1, false, null);
+            lae.Enumerate(core, p1);
+            bool leakFreePost = obs.Cards[bt] == 0f
+                && lae.Actions.All(a => a.SourceIndex != TideObservation.DeckTopSlot);
+            checks.Add(new Check(leakFreePost, "牌库顶·载体离场：顶槽恒空 + LAE 无牌库顶行（反泄露硬断言）"));
         }
 
         // ======================================== 夹具辅助 ========================================
@@ -332,5 +489,9 @@ namespace CardCore.Editor.Tests
 
         private static Card TakeFromDeckOrHand(ZoneManager zm, Player p)
             => zm.GetCards(p, Zone.Deck).FirstOrDefault() ?? zm.GetCards(p, Zone.Hand).FirstOrDefault();
+
+        /// <summary>卡实例的内容结构哈希（CardWrapper→CardData；裸卡/token=0——与观测编码同源）。</summary>
+        private static ulong StructureHashOf(Card c)
+            => c is CardWrapper w && w.GetData() != null ? w.GetData().StructureContentHash : 0UL;
     }
 }

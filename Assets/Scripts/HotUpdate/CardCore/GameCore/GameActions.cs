@@ -1457,6 +1457,49 @@ namespace CardCore
         }
 
         /// <summary>
+        /// 弃牌代价「另有一张」闸（2026-11-03 用户定案）：施放/发动本卡时**本卡自身不算可弃手牌**——
+        /// 弃牌类代价要求「手牌数（剔除本卡）≥ 代价张数」，不够 → 整卡不可用（声明期闸，不是结算期失败）。
+        /// 旧口径 CostPayability 只数手牌总数（本卡仍在手），会出现「手里只剩本卡 → 代价空转白嫖」。
+        /// 覆盖面：卡级行 + 非主动效果行（CollectCardSpecialCosts）+ **法术所选模式（主动）效果行**
+        /// （specialCosts 不收主动行，但法术施放就是使用该主动效果——其代价照付）。
+        /// 返回 null=通过；非 null=拒绝原因。
+        /// </summary>
+        private static string CheckDiscardCostSelfExclusion(GameCore core, Player player, Card card, int modeIndex)
+        {
+            if (core == null || player == null || card == null) return null;
+            int need = 0;
+            foreach (var cost in CollectCardSpecialCosts(card))
+                need += DiscardAtomsOf(cost);
+            // 法术所选模式（主动）效果行——specialCosts 只收非主动效果
+            var data = card is CardWrapper cw ? cw.GetData() : null;
+            if (data != null && data.Supertype == Cardtype.Spell)
+            {
+                var defs = GetCastableEffectDefinitions(card);
+                var modeDef = defs != null && defs.Count > 0
+                    ? defs[Math.Clamp(modeIndex, 0, defs.Count - 1)] : null;
+                if (modeDef?.Costs != null)
+                    foreach (var c in modeDef.Costs) need += DiscardAtomsOf(c);
+            }
+            if (need <= 0) return null;
+
+            var hand = core.ZoneManager.GetCards(player, Zone.Hand) ?? new List<Card>();
+            int available = hand.Count - (hand.Contains(card) ? 1 : 0); // 本卡离手，不计入可弃
+            if (available >= need) return null;
+            return $"手牌不足：弃牌代价需另 {need} 张（本卡不计），当前可弃 {Math.Max(0, available)} 张——卡的发动无效";
+        }
+
+        /// <summary>单条代价里的弃牌张数（非弃牌子=0）。</summary>
+        private static int DiscardAtomsOf(CostInstance cost)
+        {
+            if (cost == null || cost.Type != CostType.Payload || cost.Payloads == null) return 0;
+            int n = 0;
+            foreach (var atom in cost.Payloads)
+                if (atom != null && atom.Type == AtomicEffectType.DiscardCard)
+                    n += Math.Max(0, atom.Value);
+            return n;
+        }
+
+        /// <summary>
         /// 收集一张卡的**施放期**特殊代价（2026-10-31 代价指向化定案）：
         /// = 卡级代价行（PayloadCosts 逐行，TargetAttr 任指——整卡 legacy / 攻血 / 耐久 / 速度）
         /// + **非主动**效果的效果级代价行（自动效果行——随卡施放在 cast 付费步统一执行）。
@@ -1541,6 +1584,11 @@ namespace CardCore
             foreach (var c in specialCosts)
                 if (c != null && c.Type == CostType.Payload && c.Payloads != null && c.Payloads.Count > 0)
                     payloadCosts.Add(c);
+            // 2026-11-03 用户定案：弃牌代价「另有一张」闸——本卡自身不算可弃手牌（声明期闸，整卡不可用）。
+            // 必须早于下方「无代价」早退：法术的代价行挂在**主动效果**上（不 Collected 进 specialCosts）。
+            var discardReject = CheckDiscardCostSelfExclusion(core, player, card, modeIndex);
+            if (discardReject != null) { payloadCosts = null; candidates = null; return discardReject; }
+
             if (payloadCosts.Count == 0) { payloadCosts = null; return null; } // 无代价：两阶段退化为一阶段（费用门禁）
 
             // ① 可支付门槛（声明期闸——与 CanAffordCast 同口径）：不可支付返回拒绝原因（UI/AI 直读）
@@ -2017,6 +2065,9 @@ namespace CardCore
             if (!CanAfford(core.ElementPool, GetCardCost(card, modeIndex), player,
                     GetPendingCastCosts(core, player)))
                 return false;
+
+            // 弃牌代价「另有一张」闸（2026-11-03）：本卡自身不算可弃手牌——AI/UI 预检同拒
+            if (CheckDiscardCostSelfExclusion(core, player, card, modeIndex) != null) return false;
 
             // 代价可支付闸（声明期——整卡不可用，非结算期失败）
             var specialCosts = CollectCardSpecialCosts(card);

@@ -374,7 +374,11 @@ namespace CardCore
             {
                 if (hunter == null || !hunter.IsAlive) continue;
                 if (!hunter.HasKeyword(KeywordRules.Hunt)) continue;
-                if (!CanDeclareAttack(hunter, turnPlayer)) continue;
+                // 2026-11-03 用户定案：狩猎攻击**不走 CanDeclareAttack**，但要求「未横置 + 攻击力>0」——
+                // NoAttack 不拦（0/6 的墙被培育喂出攻击力后也能在回合末白嫖一次攻击），
+                // 0 攻不打（否则纯自杀：0 攻打 3 攻会被反击打死）。
+                if (hunter.IsTapped()) continue;
+                if (GetPower(hunter) <= 0) continue;
 
                 var candidates = pool.Where(t => CanAttackTarget(hunter, t, turnPlayer)).ToList();
                 if (candidates.Count == 0) continue; // 防守方无合法目标（全潜行/无存活）——空转不播报

@@ -543,11 +543,28 @@
     "MountKinds": "指示物",
     "Tags": "衰退型",
     "ManaList": [
+      0,
+      0,
       5,
-      0,
-      0,
       0
     ],
     "特殊裁定": "伤害钳为 1 后仍可被易损放大；0 点伤害不触发"
+  },
+  {
+    "ID": "b55fddb8",
+    "EnumName": "耐久增加",
+    "DisplayName": "为{target}增加{value}点耐久",
+    "EffectType": "AddDurabilityUp",
+    "TargetKinds": "己方无生命单位,对方无生命单位",
+    "TargetFilter": null,
+    "Polarity": 1,
+    "MountKinds": "指示物,不可随机",
+    "Tags": "换区清除型",
+    "ManaList": [
+      0,
+      0,
+      0.5,
+      0
+    ]
   }
 ]

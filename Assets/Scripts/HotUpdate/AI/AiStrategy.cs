@@ -178,6 +178,47 @@ namespace CardCore.AI
         public virtual List<Entity> OrderTargetCandidates(GameCore core, Player me, TargetSelectionRequest req)
             => req?.Candidates;
 
+        // ======================================== 对手选代价目标（2026-11-02 定案） ========================================
+
+        /// <summary>
+        /// AiOrder 装配统一前置分发（2026-11-02 对手选代价目标定案）：代价请求且选择权在对手
+        ///（Chooser≠支付方 CostPayer）时按**对手视角**排序（最大化支付方损失）——代价选择策略
+        /// 无关节，红/绿/蓝统一走本口防各策略漏改；其余请求回落策略自身 OrderTargetCandidates。
+        /// AiOrder 武装点（SimpleAI 回合装配/蓝策略响应段）一律经本口，不再直调策略排序。
+        /// </summary>
+        public static List<Entity> DispatchOrder(AiStrategy strategy, GameCore core, Player chooser,
+            TargetSelectionRequest req)
+        {
+            var list = req?.Candidates;
+            if (list != null && list.Count > 1 && req.IsCostTarget)
+            {
+                var payer = req.CostPayer ?? chooser?.Opponent;
+                if (payer != null && !ReferenceEquals(payer, chooser))
+                    return OrderOpponentChosenCostTargets(core, payer, list, req.PromptValue);
+            }
+            return strategy?.OrderTargetCandidates(core, chooser, req);
+        }
+
+        /// <summary>对手视角的代价落点（2026-11-02 定案：代价候选 &gt;1 由对手选）：
+        /// 最大化支付方损失——能打死的单位最优先（连击载体加分），其次支付方角色（推脸，
+        /// 临近斩杀再加权），打不死按身板降序（蹭最贵的）。资敌有益原子同序可用：
+        /// 候选在对手自己侧，「价值最高优先」即对手的最优受益落点。</summary>
+        private static List<Entity> OrderOpponentChosenCostTargets(GameCore core, Player payer,
+            List<Entity> list, int value)
+            => list.OrderByDescending(e => OpponentChosenCostScore(core, payer, e, value)).ToList();
+
+        /// <summary>对手视角代价落点估值（越大越先被选中）。</summary>
+        private static float OpponentChosenCostScore(GameCore core, Player payer, Entity e, int value)
+        {
+            if (e is Player p && ReferenceEquals(p, payer))
+                return 2000f + value * 10f + (payer.Life - value <= 5 ? 4000f : 0f); // 推脸；残余 ≤5 直逼斩杀
+            if (!(e is Card c) || !c.IsAlive) return -1f;
+            float v = UnitValue(core, c);
+            if (c.GetLife() <= value)
+                return 3000f + v * 10f + (c.HasKeyword(KeywordRules.DoubleStrike) ? 2000f : 0f); // 打得死：贵子/连击载体先杀
+            return v * 2f; // 打不死：蹭价值最高的
+        }
+
         // ======================================== 解场评估（2026-11-01 用户定案） ========================================
 
         /// <summary>一次主动攻击的机会成本（费）：横置与节奏损失，用户定案按 1 费计。</summary>
@@ -387,10 +428,22 @@ namespace CardCore.AI
     }
 
     /// <summary>
-    /// 红快攻：整体低费生物、高攻低命。铺场优先（生物+低费先出）；
-    /// 激励/加攻指向攻击力最高的己方生物（多次攻击载体）；直伤在斩杀窗口提最高优先；
-    /// 攻击口径（2026-11-01 定案）：致死斩杀 &gt; 正收益解场 &gt; 打脸——换子只要赚就换，
-    /// 不赚才把伤害交给角色（快攻的失血速度就是胜利条件）。
+    /// 红快攻（2026-11-03 v5，卡组=火灵·攻/火灵·守/火种·锐/火种·厚/血偿/赋予连击）：
+    ///
+    /// 卡组两条线：0 费火种铺场（3/1 抢伤害、1/3 当被养的底座）+ 1 费火灵（登场 +2 攻，攻/守两版）
+    /// + 3 费血偿（6 伤敌）与赋予连击（连击）——两张 3 费都挂并列代价「**弃一张己方手牌**」
+    ///（2026-11-03 改版，取代原「对己方单位造成 3 点伤害」）：更契合红、更好用；选牌由对手选，
+    /// 而手牌是隐蔽区 → 引擎自动换随机。副作用：手里除本卡外没有第二张牌时，代价付不出、整卡不可用。
+    ///
+    /// 打法口径（用户 2026-11-02 四条）：
+    /// ① 对手**有可阻拦生物**时，加攻/连击/激励优先给**高生命**的己方单位（1 点伤害就能点掉 1 命攻兵）；
+    /// ② 斩杀线按连击算双倍伤害（有效伤害 = 攻击力 ×（连击?2:1）），全队有效伤害够就直接打脸；
+    /// ③ **只带守卫的火灵**留着保护大哥——场上还没有大哥（生命 ≥3 的己方单位）之前不打，先下只带攻击的火灵加伤害；
+    /// ④ **哪个 1/3 火种被养大，谁就是大哥**：加攻不再按「攻击力最高」堆（会被 1 点伤害轻松点掉）；
+    ///    只具备 +攻 时把攻击**分散**到不同单位（总伤害不变、更稳）；但手里连击即将可放、且对手无阻拦时，
+    ///    改回**集中**到同一只做连击爆发。
+    /// 攻击口径沿用 2026-11-01：致死斩杀 &gt; 正收益解场 &gt; 打脸（赚的换子照换）。
+    /// 代价自伤的目标排序（生命 20 分界那套）已随成本改弃牌**整段删除**——隐蔽区随机选牌，AI 无目标可排。
     /// </summary>
     public sealed class RedAggroStrategy : AiStrategy
     {
@@ -403,176 +456,486 @@ namespace CardCore.AI
             float score = 0f;
             bool isCreature = card is IHasSupertype ht && ht.Supertype == Cardtype.Creature;
             float cost = totalCost(card);
+            var data = DataOf(card);
 
-            // ① 火种式 0 费生物最优先（0 费 3/1）：不花资源先卸手牌，为「手牌为 0 抽 1」铺路
-            if (isCreature && cost <= 0f) score += 1000f;
-            else if (isCreature) score += 200f;
+            // ① 0 费生物最优先（火种 3/1、1/3）：不花资源先铺场
+            if (isCreature && cost <= 0f) score += 1200f;
+            else if (isCreature && data != null && data.NoAttack) score += 150f; // 火灵·守：等大哥（ShouldHold 闸）
+            else if (isCreature) score += 400f;                                  // 火灵·攻
 
-            // ② 加攻（火灵）指向单个最高攻生物（OrderTargetCandidates）；最高攻已 &gt;5 且重整待发、
-            //    且手里还有别的牌（火灵触发不了抽卡）时让位给「技能解横置再打一击」；若火灵是最后一张
-            //    （打出即空手抽 1），不让位——抽牌优先。
-            bool powerBuff = HasAtomAnywhere(card, AtomicEffectType.AddPowerUp,
-                                         AtomicEffectType.ModifyPower);
-            if (powerBuff && HighestPower(core, me) > 5 && base.WantHeroSkill(core, me)
-                && HandCount(core, me) > 1)
-                score -= 500f;
+            // ② 赋予连击：有值得连击的载体（攻 ≥2 的可攻击单位）才抢，否则压后
+            if (IsDoubleStrikeSpell(card))
+            {
+                var carrier = BurstCarrier(core, me);
+                score += carrier != null && PowerOf(core, carrier) >= 2 ? 900f : 200f;
+            }
 
-            // ③ 触发抽牌的卡（手牌为 0 时抽 1：火灵/激励）留到最后打——软降权，别抢在卸手牌之前
+            // ③ 血偿（6 伤直伤）：抽到、付得起就打；对手进斩杀线时提最高
+            if (IsDirectDamageSpell(card))
+                score += me.Opponent != null && me.Opponent.Life <= 6 ? 1300f : 700f;
+
+            // ④ 触发空手抽 1 的卡（火灵/激励）软降权到最后打——先把别的牌卸掉
             if (HasHandEmptyDraw(card)) score -= 5000f;
 
-            // ④ 血偿（6 伤直伤）：不等待——抽到、付得起就打（对手 ≤6 时提最高直接终结）
-            if (HasAtomAnywhere(card, AtomicEffectType.DealDamage))
-                score += me.Opponent != null && me.Opponent.Life <= 6 ? 1200f : 800f;
-
-            score -= cost * 5f; // 低费先出：快攻曲线靠前
+            score -= cost * 5f; // 低费先出
             return score;
         }
 
         /// <summary>
-        /// 红快攻攒牌/让位闸（2026-11-01 用户定案）：
-        /// · 火炬——代价是永久 −1/−1 吃掉一个己方生物，只在有「已攻击横置」的废子时打
-        ///   （先打脸再解放的出手顺序，不是攒牌）；
-        /// · 火灵——最高攻 &gt;5 且重整待发时留到技能之后再打；**仅限手里还有别的牌**
-        ///   （火灵触发不了空手抽 1 时）；若它是最后一张，打出抽牌优先；
-        /// · 血偿——不设等待闸（无目标/付不起时由 PlayLands 直接当地牌）。
+        /// 攒牌/让位闸（2026-11-03 改版）：
+        /// · 火灵·守（只带守卫）——留到大哥登场再下（生命 ≤10 自救除外）；
+        /// · 血偿/赋予连击（代价=弃一张己方手牌）——手里除本卡外没有第二张牌时留手：
+        ///   代价要求「另有一张可弃」，只剩本卡时不打（见 <see cref="DiscardCostPayable"/>）。
         /// </summary>
         public override bool ShouldHold(GameCore core, Player me, Card card)
         {
-            if (HasCostPayload(card, AtomicEffectType.AddPermanentPowerDown)
-                || HasCostPayload(card, AtomicEffectType.AddPermanentLifeDown))
-                return !HasTappedUnit(core, me);
-
-            if (HasAtomAnywhere(card, AtomicEffectType.AddPowerUp, AtomicEffectType.ModifyPower)
-                && HighestPower(core, me) > 5 && base.WantHeroSkill(core, me)
-                && HandCount(core, me) > 1)
+            if (IsGuardOnly(card) && !HasBigBrother(core, me) && me.Life > 10)
                 return true;
-
+            if (HasDiscardCost(card) && !DiscardCostPayable(core, me))
+                return true;
             return false;
         }
 
-        /// <summary>重整只为「让最高攻单位再次攻击」（2026-11-01 用户定案）：须有已横置且攻击力
-        /// &gt;5 的己方生物才发动；否则费用留给加攻/直伤。</summary>
+        /// <summary>弃牌代价在手牌结算后是否还付得起（2026-11-03 用户定案）：本卡离手后手里
+        /// 至少还要有一张可弃的牌。引擎当前在「只剩本卡」时仍放行、代价空转（已上报），
+        /// AI 侧先按设计口径自缚——不白嫖。</summary>
+        private static bool DiscardCostPayable(GameCore core, Player me)
+        {
+            int hand = (core.ZoneManager.GetCards(me, Zone.Hand) ?? new List<Card>()).Count;
+            return hand >= 2;
+        }
+
+        /// <summary>卡是否带「弃牌」代价（效果级 costs + 卡级 payloads 同口径扫）。</summary>
+        private static bool HasDiscardCost(Card card)
+        {
+            var data = DataOf(card);
+            if (data == null) return false;
+            bool IsDiscard(AtomicEffectEntry pe)
+            {
+                if (pe == null || string.IsNullOrEmpty(pe.refId)) return false;
+                var row = AtomicEffectTable.GetByHashId(pe.refId);
+                return row != null && row.EnumName == nameof(AtomicEffectType.DiscardCard);
+            }
+            if (data.PayloadCosts != null)
+                foreach (var row in data.PayloadCosts)
+                {
+                    if (row == null) continue;
+                    foreach (var pe in row.AllPayloads()) if (IsDiscard(pe)) return true;
+                }
+            if (data.Effects != null)
+                foreach (var fx in data.Effects)
+                {
+                    if (fx?.Costs == null) continue;
+                    foreach (var ce in fx.Costs)
+                    {
+                        if (ce == null) continue;
+                        foreach (var pe in ce.AllPayloads()) if (IsDiscard(pe)) return true;
+                    }
+                }
+            return false;
+        }
+
+        /// <summary>英雄技能=激励（重置一个己方单位）：只为一只能再打一波的攻击单位发动
+        /// （已横置、有效伤害 ≥4——被 +2 攻养过或带连击），不空放。</summary>
         public override bool WantHeroSkill(GameCore core, Player me)
-            => base.WantHeroSkill(core, me) && HighestTappedPower(core, me) > 5;
+            => base.WantHeroSkill(core, me) && BestUntapTarget(core, me) != null;
+
+        // ======================================== 连锁响应（2026-11-02 用户新定案） ========================================
 
         /// <summary>
-        /// 地牌投放优先级（2026-11-01 用户定案）：血偿等直伤打不出去时直接当地牌——
+        /// 连锁响应（2026-11-02 用户定案·两条策略）：**我的攻击被守卫拦下时**（对手宣告阻拦 → 攻方
+        /// 响应窗，3 红刚好够一张 3 费法术），在手里同时有直伤与连击时二选一：
+        /// ① **连击**：连击先结算一次战斗伤害——攻击力 ≥ 守卫生命则先制击杀，我方攻击手不掉血（无伤清障），
+        ///    代价是这一击不再打到原目标（打脸伤害为 0）；
+        /// ② **直伤**：连锁血偿把守卫打死，守卫结算失效 → 攻击回到原目标（打脸）——用一张终结牌开路。
+        /// 抉择：**斩杀线优先**（开路后本回合伤害够杀 → 选直伤）；否则**场面得失优先**（连击能先制
+        /// 无伤清掉守卫 → 选连击，把血偿留给脸）；连击打不死而直伤能打死 → 直伤；都打不死 → 让过。
+        /// 其余响应面（防守方守卫决策等）一律交回内置启发（返回 null）。
+        /// </summary>
+        public override ResponseOption PickResponse(GameCore core, Player me, List<ResponseOption> options)
+        {
+            if (core == null || me == null || options == null || options.Count == 0) return null;
+
+            var stack = core.StackEngine?.SnapshotStack();
+            if (stack == null || stack.Count < 2) return null;
+            var attack = stack.LastOrDefault(e => e != null && e.IsAttackDeclaration
+                                                  && ReferenceEquals(e.Controller, me));
+            if (attack == null) return null; // 不是我的攻击被响应 → 不做主
+            var guard = stack.LastOrDefault(e => e != null && e.IsGuardDeclaration
+                                                 && ReferenceEquals(e.InterceptedAttack, attack));
+            if (guard == null || guard.Source == null) return null;
+
+            var attacker = attack.Source as Card;
+            if (attacker == null) return null;
+
+            ResponseOption dsOpt = null, dmgOpt = null;
+            foreach (var o in options)
+            {
+                if (o == null || o.Kind != ResponseOption.ResponseKind.HandCard || o.SourceCard == null) continue;
+                if (dsOpt == null && IsDoubleStrikeSpell(o.SourceCard)) dsOpt = o;
+                else if (dmgOpt == null && IsDirectDamageSpell(o.SourceCard)) dmgOpt = o;
+            }
+            if (dsOpt == null && dmgOpt == null) return null;
+
+            int myPow = PowerOf(core, attacker);
+            int oppLife = me.Opponent?.Life ?? 0;
+
+            // 守卫者是生物才能算「打死」；角色守卫（无生命值概念）不在此口径内 → 让过交内置
+            var guarder = guard.Source as Card;
+            if (guarder == null || !guarder.IsAlive) return null;
+            int gLife = guarder.GetLife();
+
+            bool dsKills = myPow >= gLife;                       // 连击先制一击致死 → 无伤
+            bool dmgKills = dmgOpt != null && DirectDamageValue(dmgOpt.SourceCard) >= gLife; // 直伤开路
+            bool faceLethal = myPow >= oppLife;                  // 这一击回到脸就赢
+
+            // 若直伤开路后攻击回到脸，本回合剩余伤害够不够斩杀（不含已用的这张直伤）
+            bool lethalAfterOpen = dmgKills && CanFinishAfterOpen(core, me, myPow, dmgOpt?.SourceCard);
+
+            if (dmgKills && (faceLethal || lethalAfterOpen))
+                return WithTargets(dmgOpt, guarder);             // ① 斩杀线优先：直伤开路 → 打脸
+            if (dsKills)
+                return WithTargets(dsOpt, attacker);             // ② 场面优先：连击先制无伤清障
+            if (dmgKills)
+                return WithTargets(dmgOpt, guarder);             // ③ 连击打不死：只能直伤清障
+            return null;                                          // ④ 都打不死 → 让过（正常战斗）
+        }
+
+        /// <summary>响应选项写入声明期目标（AI 侧不走人类的目标预选收集，这里直接钉死）。</summary>
+        private static ResponseOption WithTargets(ResponseOption opt, Entity target)
+        {
+            if (opt == null) return null;
+            opt.Targets = new List<Entity> { target };
+            return opt;
+        }
+
+        /// <summary>直伤开路（守卫死亡、攻击回到原目标）后，本回合剩余伤害是否足以斩杀：
+        /// 这一击的打脸值 + 其它未横置攻击手的有效伤害 + 手里其它可付直伤（排除刚用的这张）。</summary>
+        private static bool CanFinishAfterOpen(GameCore core, Player me, int thisHit, Card exclude)
+        {
+            var opp = me?.Opponent;
+            if (opp == null) return false;
+            var stack = core.StackEngine.SnapshotStack();
+            int burst = thisHit;
+            foreach (var c in OwnLivingUnits(core, me))
+            {
+                if (c == null || !c.HasAttackAbility()) continue;
+                if (stack.Any(e => e != null && e.IsAttackDeclaration && ReferenceEquals(e.Source, c)))
+                    continue; // 已在栈上的这次攻击已计入 thisHit
+                if (!c.IsTapped() && core.CombatSystem.CanDeclareAttack(c, me))
+                    burst += EffectiveDamage(core, c);
+            }
+            foreach (var c in HandCards(core, me))
+            {
+                if (ReferenceEquals(c, exclude)) continue;
+                if (IsDirectDamageSpell(c) && GameActions.CanAffordCast(core, me, c, 0))
+                    burst += DirectDamageValue(c);
+            }
+            return burst >= opp.Life;
+        }
+
+
+        /// <summary>
+        /// 地牌投放优先级：血偿等直伤打不出去时直接当地牌——
         /// 0 费白板地，优先占坑（PlayLands 只对「打不出的卡」调用本口）。
         /// </summary>
         public override float LandPriority(GameCore core, Player me, Card card, Func<Card, float> totalCost)
-            => HasAtomAnywhere(card, AtomicEffectType.DealDamage)
+            => IsDirectDamageSpell(card)
                 ? 10000f
                 : base.LandPriority(core, me, card, totalCost);
 
         /// <summary>
-        /// AI 目标排序（2026-11-01 用户定案，仅自动选择路径）：
-        /// · 火炬代价 → 已横置（已攻击）的生物优先；
-        /// · 血偿代价 → 攻击力最低的生物先垫，角色最后；
-        /// · 血偿直伤效果 → 直接打脸（角色优先，不可指才回落生物）；
-        /// · 加攻/解横置 → 集中到攻击力最高的单个己方生物。
+        /// AI 目标排序（2026-11-03 成本改弃牌后）：
+        /// · 代价=弃一张己方手牌（隐蔽区，引擎自动随机选牌）→ 不排序；
+        ///   若代价变成有域的原子，由 <see cref="DispatchOrder"/> 的「对手选」先接管，本口不重复插手；
+        /// · 血偿直伤效果 → 直接打脸（角色优先，不可指才回落敌方生物）；
+        /// · 加攻/连击 → 见 <see cref="BuffScore"/>（有阻拦给高生命 / 无连击分散 / 连击爆发集中）；
+        /// · 激励（重置）→ 先挑已横置、有效伤害最高的攻击手。
         /// </summary>
         public override List<Entity> OrderTargetCandidates(GameCore core, Player me, TargetSelectionRequest req)
         {
             var list = req?.Candidates;
             if (list == null || list.Count <= 1) return list;
 
-            if (req.IsCostTarget)
-            {
-                if (req.PromptAtom == AtomicEffectType.AddPermanentPowerDown
-                    || req.PromptAtom == AtomicEffectType.AddPermanentLifeDown)
-                    return list.OrderByDescending(e => e is Card c && c.IsTapped())
-                               .ThenBy(e => e is Card c2 ? core.LayerEngine.CalculatePower(c2) : int.MaxValue)
-                               .ToList();
-                if (req.PromptAtom == AtomicEffectType.DealDamage)
-                    return list.OrderBy(e => e is Player ? 1 : 0)
-                               .ThenBy(e => e is Card c3 ? core.LayerEngine.CalculatePower(c3) : int.MaxValue)
-                               .ThenBy(e => e is Card c4 ? c4.GetLife() : int.MaxValue)
-                               .ToList();
-                return list;
-            }
+            if (req.IsCostTarget) return list; // 代价弃牌：随机，无目标可排
 
-            // 直伤效果（血偿）：直接用=直接打脸——角色优先；角色不可指（帷幕/潜行）才回落生物。
-            // 注：血偿是「主动」形态的法术效果，SimpleAI.ChooseTargets 会跳过主动效果，
-            // 目标在结算期由本钩子选——OrderHarmfulTargets 接不到这条线。
-            if (req.PromptAtom == AtomicEffectType.DealDamage)
-                return list.OrderByDescending(e => e is Player && ReferenceEquals(e, me.Opponent))
-                           .ThenByDescending(e => e is Card cd && cd.GetController() == me.Opponent && cd.IsAlive
-                               ? core.LayerEngine.CalculatePower(cd) : int.MinValue)
-                           .ToList();
+            if (req.PromptAtom == AtomicEffectType.Untap)
+                return OrderUntapTargets(core, me, list);
 
             if (req.PromptAtom == AtomicEffectType.AddPowerUp
                 || req.PromptAtom == AtomicEffectType.ModifyPower
-                || req.PromptAtom == AtomicEffectType.Untap)
-                return list.OrderByDescending(e => e is Card c5 && c5.GetController() == me
-                        ? core.LayerEngine.CalculatePower(c5) : int.MinValue)
-                    .ToList();
+                || req.PromptAtom == AtomicEffectType.GrantDoubleStrike)
+                return OrderBuffTargets(core, me, list);
+
+            // 直伤效果（血偿）：直接打脸——角色优先；角色不可指（帷幕/潜行）才回落生物。
+            if (req.PromptAtom == AtomicEffectType.DealDamage)
+                return OrderFaceTargets(core, me, list);
+
             return list;
         }
 
+        /// <summary>有益目标（SimpleAI 逐原子预选口）：与 OrderTargetCandidates 的加攻/连击同口径。</summary>
         public override IEnumerable<Entity> OrderBeneficialTargets(GameCore core, Player me, IEnumerable<Entity> candidates)
-            => candidates // 激励/加攻 → 攻击力最高的己方生物（多次攻击的载体）
-                .OrderByDescending(c => c is Card cd && cd.GetController() == me && cd.IsAlive)
-                .ThenByDescending(c => c is Card cd2 && cd2.GetController() == me
-                    ? core.LayerEngine.CalculatePower(cd2) : int.MinValue)
-                .ThenByDescending(c => ReferenceEquals(c, me));
+            => OrderBuffTargets(core, me, candidates?.ToList() ?? new List<Entity>());
 
-        /// <summary>有害目标排序（2026-11-01 用户定案）：红套直伤=打脸——角色优先，
-        /// 角色不可指（帷幕/潜行等）才回落生物威胁降序。红预组只有血偿一条有害线，
-        /// 本口即「血偿抽到就用、直接用=直接打脸」。</summary>
+        /// <summary>有害目标排序：红套直伤=打脸——角色优先，角色不可指才回落生物威胁降序。</summary>
         public override IEnumerable<Entity> OrderHarmfulTargets(GameCore core, Player me, IEnumerable<Entity> candidates)
         {
+            var list = candidates?.ToList() ?? new List<Entity>();
             var opp = me?.Opponent;
-            if (opp != null && candidates.Contains(opp))
-                return candidates
-                    .OrderByDescending(c => ReferenceEquals(c, opp))
-                    .ThenByDescending(c => c is Card cd && cd.GetController() == opp && cd.IsAlive
-                        ? core.LayerEngine.CalculatePower(cd) : int.MinValue);
-            return base.OrderHarmfulTargets(core, me, candidates);
+            if (opp != null && list.Contains(opp)) return OrderFaceTargets(core, me, list);
+            return base.OrderHarmfulTargets(core, me, list);
         }
 
         public override Entity PickAttackTarget(GameCore core, Player me, Card unit, Player opp)
         {
             var combat = core.CombatSystem;
 
-            // ① 致死斩杀：本攻 ≥ 对手剩余生命 → 直取（能赢先赢）
-            if (core.LayerEngine.CalculatePower(unit) >= opp.Life
-                && combat.CanAttackTarget(unit, opp, me)) return opp;
+            // ① 全队斩杀（2026-11-02 用户定案：连击=双倍伤害口径）：这一波够杀 → 全队打脸
+            if (CanLethalThisTurn(core, me, opp) && combat.CanAttackTarget(unit, opp, me)) return opp;
 
-            // ② 正收益解场无条件做（2026-11-01：红也先解场——赚的换子优先于打脸）
+            // ② 单兵致死（有效伤害含连击）
+            if (EffectiveDamage(core, unit) >= opp.Life && combat.CanAttackTarget(unit, opp, me)) return opp;
+
+            // ③ 正收益解场无条件做（2026-11-01：红也先解场——赚的换子优先于打脸）
             if (TryFindBestTrade(core, me, unit, opp, out var trade) && trade.Gain > 0f)
                 return trade.Target;
 
-            // ③ 不赚的换子让位给打脸（失血速度就是胜利条件；守卫拦截由引擎响应窗口承担）
+            // ④ 不赚的换子让位给打脸（失血速度就是胜利条件；守卫拦截由引擎响应窗口承担）
             return combat.CanAttackTarget(unit, opp, me) ? opp : null;
         }
 
-        // ======================================== 红快攻专用小工具（2026-11-01） ========================================
+        // ======================================== 红快攻专用（v5 2026-11-02） ========================================
 
-        /// <summary>己方战场最高攻击力（含光环/指示物；无生物=0）。</summary>
-        private static int HighestPower(GameCore core, Player me)
+        /// <summary>目标打分：加攻/连击该给谁。
+        /// 爆发模式（手里有付得起的连击 + 对手无阻拦）→ 集中：越强越堆；
+        /// 对手有可阻拦生物 → 高生命优先（1 点伤害点不掉）；
+        /// 其余（只有 +攻）→ 分散：先给还没被加过攻击的单位。
+        /// 只带守卫的单位（不可攻击）永远排最后——加攻/连击对它是浪费。</summary>
+        private static float BuffScore(GameCore core, Player me, Entity e, bool burst, bool blockers)
         {
-            int best = 0;
-            foreach (var c in core.ZoneManager.GetCards(me, Zone.Battlefield) ?? new List<Card>())
-                if (c != null && c.IsAlive) best = Math.Max(best, core.LayerEngine.CalculatePower(c));
-            return best;
+            if (!(e is Card c) || !c.IsAlive || !ReferenceEquals(c.GetController(), me)) return -10000f;
+            if (!c.HasAttackAbility()) return -5000f;
+            float s = 0f;
+            if (burst) s += PowerOf(core, c) * 10f;
+            else if (blockers) s += c.GetLife() * 10f;
+            else s -= c.GetCounterCount(CounterRules.PowerUpCounter) * 30f;
+            s += c.GetLife() * 0.5f;          // 次级：活得久更稳
+            s += PowerOf(core, c) * 0.1f;
+            return s;
         }
 
-        /// <summary>己方战场已横置（已攻击/已发动）的最高攻击力。</summary>
-        private static int HighestTappedPower(GameCore core, Player me)
+        private static List<Entity> OrderBuffTargets(GameCore core, Player me, List<Entity> list)
         {
-            int best = 0;
-            foreach (var c in core.ZoneManager.GetCards(me, Zone.Battlefield) ?? new List<Card>())
-                if (c != null && c.IsAlive && c.IsTapped())
-                    best = Math.Max(best, core.LayerEngine.CalculatePower(c));
-            return best;
+            bool burst = BurstMode(core, me);
+            bool blockers = EnemyHasBlocker(core, me);
+            var attacker = PendingAttacker(core, me);
+            return list.OrderByDescending(e =>
+                    BuffScore(core, me, e, burst, blockers)
+                    + (attacker != null && ReferenceEquals(e, attacker) ? 10000f : 0f)) // 连锁中：先把连击/加攻贴给正在揍人的那只
+                .ToList();
         }
 
-        /// <summary>己方是否有存活且已横置的生物（火炬代价只吃这种废子）。</summary>
-        private static bool HasTappedUnit(GameCore core, Player me)
+        /// <summary>栈上属于我的攻击宣言的攻击者（响应链里加攻/连击的落点）。</summary>
+        private static Card PendingAttacker(GameCore core, Player me)
         {
-            foreach (var c in core.ZoneManager.GetCards(me, Zone.Battlefield) ?? new List<Card>())
-                if (c != null && c.IsAlive && c.IsTapped()) return true;
+            var stack = core?.StackEngine?.SnapshotStack();
+            if (stack == null) return null;
+            for (int i = stack.Count - 1; i >= 0; i--)
+            {
+                var e = stack[i];
+                if (e != null && e.IsAttackDeclaration && ReferenceEquals(e.Controller, me))
+                    return e.Source as Card;
+            }
+            return null;
+        }
+
+        /// <summary>栈上拦我这一击的守卫（响应链里直伤开路的落点）。</summary>
+        private static Card PendingGuarder(GameCore core, Player me)
+        {
+            var stack = core?.StackEngine?.SnapshotStack();
+            if (stack == null) return null;
+            EffectInstance attack = null;
+            for (int i = stack.Count - 1; i >= 0; i--)
+            {
+                var e = stack[i];
+                if (e != null && e.IsAttackDeclaration && ReferenceEquals(e.Controller, me)) { attack = e; break; }
+            }
+            if (attack == null) return null;
+            for (int i = stack.Count - 1; i >= 0; i--)
+            {
+                var e = stack[i];
+                if (e != null && e.IsGuardDeclaration && ReferenceEquals(e.InterceptedAttack, attack))
+                    return e.Source as Card;
+            }
+            return null;
+        }
+
+        /// <summary>激励（重置）目标：已横置的攻击手优先，其次有效伤害最高。</summary>
+        private static List<Entity> OrderUntapTargets(GameCore core, Player me, List<Entity> list)
+            => list.OrderByDescending(e =>
+                    e is Card c && c.IsAlive && ReferenceEquals(c.GetController(), me) && c.HasAttackAbility()
+                        ? (c.IsTapped() ? 1000 : 0) + EffectiveDamage(core, c)
+                        : -1)
+                .ToList();
+
+        /// <summary>血偿直伤：守卫拦截中先打守卫（开路），否则角色优先，其余按敌方攻击力降序。</summary>
+        private static List<Entity> OrderFaceTargets(GameCore core, Player me, List<Entity> list)
+        {
+            var guarder = PendingGuarder(core, me);
+            return list.OrderByDescending(e =>
+                    guarder != null && ReferenceEquals(e, guarder) ? 2
+                    : e is Player && ReferenceEquals(e, me.Opponent) ? 1
+                    : 0)
+                .ThenByDescending(e => e is Card c && c.GetController() == me.Opponent && c.IsAlive
+                    ? PowerOf(core, c) : int.MinValue)
+                .ToList();
+        }
+
+        // ---------------- 小件 ----------------
+
+        private static CardData DataOf(Card card) => (card as CardWrapper)?.GetData();
+
+        private static bool IsCreatureCard(Card card) => DataOf(card)?.Supertype == Cardtype.Creature;
+
+        /// <summary>只带守卫：生物 + NoAttack（火灵·守）——可拦截、不能攻击。</summary>
+        private static bool IsGuardOnly(Card card)
+        {
+            var d = DataOf(card);
+            return d != null && d.Supertype == Cardtype.Creature && d.NoAttack;
+        }
+
+        /// <summary>赋予连击法术（主序列含 GrantDoubleStrike）。</summary>
+        private static bool IsDoubleStrikeSpell(Card card)
+            => DataOf(card)?.Supertype == Cardtype.Spell
+               && HasAtomAnywhere(card, AtomicEffectType.GrantDoubleStrike);
+
+        /// <summary>直伤法术（主序列含 DealDamage 且不是连击）。</summary>
+        private static bool IsDirectDamageSpell(Card card)
+            => DataOf(card)?.Supertype == Cardtype.Spell
+               && HasAtomAnywhere(card, AtomicEffectType.DealDamage)
+               && !HasAtomAnywhere(card, AtomicEffectType.GrantDoubleStrike);
+
+        private static int PowerOf(GameCore core, Card c) => core.LayerEngine.CalculatePower(c);
+
+        private static bool HasDoubleStrike(Card c) => c.HasKeyword(KeywordRules.DoubleStrike);
+
+        /// <summary>有效伤害（2026-11-02 斩杀口径）：攻击力 ×（连击 ? 2 : 1）。</summary>
+        private static int EffectiveDamage(GameCore core, Card c)
+            => PowerOf(core, c) * (HasDoubleStrike(c) ? 2 : 1);
+
+        /// <summary>直伤法术的实际伤害值（主序列 DealDamage 的 value——血偿=6）。</summary>
+        private static int DirectDamageValue(Card card)
+        {
+            if (!(card is CardWrapper w)) return 0;
+            var data = w.GetData();
+            if (data?.Effects == null) return 0;
+            foreach (var def in CardEffectConverter.ConvertAll(data.Effects, data.ID))
+            {
+                if (def == null) continue;
+                foreach (var atom in CardEffectConverter.EnumerateMainSequenceAtoms(def.Steps, 0))
+                    if (atom != null && atom.Type == AtomicEffectType.DealDamage) return Math.Max(1, atom.Value);
+                if (def.Steps != null && def.Steps.Count > 0) continue;
+                foreach (var atom in def.Effects)
+                    if (atom != null && atom.Type == AtomicEffectType.DealDamage) return Math.Max(1, atom.Value);
+            }
+            return 0;
+        }
+
+        private static List<Card> OwnLivingUnits(GameCore core, Player me)
+            => (core.ZoneManager.GetCards(me, Zone.Battlefield) ?? new List<Card>())
+                .Where(c => c != null && c.IsAlive && c.IsLivingUnit()).ToList();
+
+        private static List<Card> HandCards(GameCore core, Player me)
+            => (core.ZoneManager.GetCards(me, Zone.Hand) ?? new List<Card>()).Where(c => c != null).ToList();
+
+        /// <summary>对手是否有可阻拦的生物（守卫能力：生物且非 NoGuard）。</summary>
+        private static bool EnemyHasBlocker(GameCore core, Player me)
+        {
+            var opp = me?.Opponent;
+            if (opp == null) return false;
+            foreach (var c in core.ZoneManager.GetCards(opp, Zone.Battlefield) ?? new List<Card>())
+                if (c != null && c.IsAlive && c.IsLivingUnit() && c.HasGuardAbility()) return true;
             return false;
+        }
+
+        /// <summary>大哥（被养大的 1/3 火种）= 己方战场生命最高的存活单位；同生命取攻击高。
+        /// 只认生命 ≥3——1/3 火种没养起来之前不算。</summary>
+        private static Card BigBrother(GameCore core, Player me)
+        {
+            Card best = null;
+            int bestLife = 2; // 生命 ≥3 才算大哥
+            int bestPow = -1;
+            foreach (var c in OwnLivingUnits(core, me))
+            {
+                int life = c.GetLife();
+                int pow = PowerOf(core, c);
+                if (life > bestLife || (life == bestLife && pow > bestPow))
+                {
+                    best = c; bestLife = life; bestPow = pow;
+                }
+            }
+            return best;
+        }
+
+        private static bool HasBigBrother(GameCore core, Player me) => BigBrother(core, me) != null;
+
+        /// <summary>爆发载体（连击的落点）：可攻击、攻击力最高（同攻取生命高）。</summary>
+        private static Card BurstCarrier(GameCore core, Player me)
+        {
+            Card best = null;
+            int bestPow = -1, bestLife = -1;
+            foreach (var c in OwnLivingUnits(core, me))
+            {
+                if (!c.HasAttackAbility()) continue;
+                int pow = PowerOf(core, c);
+                int life = c.GetLife();
+                if (pow > bestPow || (pow == bestPow && life > bestLife))
+                {
+                    best = c; bestPow = pow; bestLife = life;
+                }
+            }
+            return best;
+        }
+
+        /// <summary>爆发模式（用户 2026-11-02 口径）：手里有付得起的「赋予连击」，且对手没有可阻拦的生物
+        /// → 加攻集中到同一只做连击爆发；否则按「分散 / 高生命」口径走。</summary>
+        private static bool BurstMode(GameCore core, Player me)
+        {
+            if (EnemyHasBlocker(core, me)) return false;
+            if (!(me?.Opponent is Player opp) || opp.Life <= 0) return false;
+            foreach (var c in HandCards(core, me))
+                if (IsDoubleStrikeSpell(c) && GameActions.CanAffordCast(core, me, c, 0)) return true;
+            return false;
+        }
+
+        /// <summary>值得用激励重置的单位：已横置、可攻击、有效伤害 ≥4（被养过或带连击）。</summary>
+        private static Card BestUntapTarget(GameCore core, Player me)
+        {
+            Card best = null;
+            int bestDmg = 3; // 有效伤害 ≥4 才值得再打一波
+            foreach (var c in OwnLivingUnits(core, me))
+            {
+                if (!c.IsTapped() || !c.HasAttackAbility()) continue;
+                int dmg = EffectiveDamage(core, c);
+                if (dmg > bestDmg) { best = c; bestDmg = dmg; }
+            }
+            return best;
+        }
+
+        /// <summary>本回合能否斩杀（连击翻倍口径）：场上未横置攻击手的有效伤害合计
+        /// + 手里付得起的直伤，≥ 对手生命。</summary>
+        private static bool CanLethalThisTurn(GameCore core, Player me, Player opp)
+        {
+            if (opp == null) return false;
+            int burst = 0;
+            foreach (var c in OwnLivingUnits(core, me))
+                if (c.HasAttackAbility() && core.CombatSystem.CanDeclareAttack(c, me))
+                    burst += EffectiveDamage(core, c);
+            foreach (var c in HandCards(core, me))
+                if (IsDirectDamageSpell(c) && GameActions.CanAffordCast(core, me, c, 0))
+                    burst += DirectDamageValue(c);
+            return burst >= opp.Life;
         }
 
         /// <summary>卡上是否含指定原子（含主动效果与 Branch.Then 奖励——血偿的法术效果是「主动」
@@ -630,28 +993,6 @@ namespace CardCore.AI
                     if (HasDrawAtom(t)) return true;
             return false;
         }
-
-        /// <summary>卡级代价行是否含指定原子（火炬=永久 −1/−1、血偿=3 伤己方）。</summary>
-        private static bool HasCostPayload(Card card, AtomicEffectType type)
-        {
-            if (!(card is CardWrapper w)) return false;
-            var data = w.GetData();
-            if (data?.PayloadCosts == null) return false;
-            foreach (var row in data.PayloadCosts)
-            {
-                if (row == null) continue;
-                foreach (var pe in row.AllPayloads())
-                {
-                    var atom = CardEffectConverter.ConvertPayloadForDisplay(pe);
-                    if (atom != null && atom.Type == type) return true;
-                }
-            }
-            return false;
-        }
-
-        /// <summary>手牌张数（火灵「最后一张才抽牌」判定用）。</summary>
-        private static int HandCount(GameCore core, Player me)
-            => (core.ZoneManager.GetCards(me, Zone.Hand) ?? new List<Card>()).Count;
     }
 
     /// <summary>
@@ -674,39 +1015,92 @@ namespace CardCore.AI
     public sealed class GreenRampStrategy : AiStrategy
     {
         private const string NameGrowth = "成长";    // 技能：地牌上限+1（技能区，不在手牌）
-        private const string NameNewborn = "新生";   // 永久+1；地>9 回收
-        private const string NameMycelium = "菌丝";  // 复生；生命≤7 回收
-        private const string NameGuard = "林地守卫"; // 1-9 守卫+再生：保角色的墙，也是被养的对象
-        private const string NameArmor = "活体护甲"; // 角色获得等同目标生命的护甲
-        private const string NameFangs = "獠牙";     // 狩猎：倒计时支援（1-1）
-        private const string NameShield = "藤盾";    // 1-1：登场给角色 2 点护甲（早期阻挡+护甲）
-        private const string NameDew = "晨露";       // 1-1：倒计时1 归零回 2 点生命（持续奶）
+        private const string NameNewborn = "培育";   // 永久+1生命；地>9 门再+1攻击（2026-11-02 更名自「新生」）
+        private const string NameMycelium = "菌丝";  // 再生；资敌 6 护甲（2026-11-02 改版）
+        private const string NameGuard = "林地守卫"; // 0/6 守护（Guardian 印刷）：保大哥/角色的墙
+        private const string NameFangs = "獠牙";     // 0/6 倒计时3→狩猎：这套牌唯一的进攻引擎
+        private const string NameTaunt = "雾障";     // 0/6 倒计时3→帷幕：倒计时第一优先（2026-11-03）
+        private const string NameLivingArmor = "活体护甲"; // 绿3 法术：己方角色获得=目标生命 的护甲（保命牌）
+        private const int ArmorTargetLife = 5;            // 「大生物」门槛：生命≥5 才值得贴活体护甲
+        /// <summary>成长停手线（2026-11-03 用户定案：**9 费还允许再成长一次**）——9 地打一发 +2 → 11 地，
+        /// 之后才停手、把成长当土地。</summary>
+        private const int GrowthStopLands = 11;
+        private const string NameDew = "晨露";       // 0/6 倒计时1 归零回 2 点生命（持续奶）
 
-        /// <summary>四种倒计时支援卡（帷幕/溅射/吸血/狩猎的载体，均为 1-1、倒计时3）。</summary>
+        /// <summary>倒计时支援卡（帷幕/溅射/警戒/狩猎的载体，均 0/6 NoAttack、倒计时3）。</summary>
         private static readonly HashSet<string> SupportNames =
             new HashSet<string> { "雾障", "棘爆", "噬血藤", "獠牙" };
 
-        /// <summary>保命阈值：生命≤7（低血时守卫额外置顶）。</summary>
+        /// <summary>保命阈值：生命≤7（低血时守卫额外置顶 / 守护改写目标转角色）。</summary>
         private const int LowLife = 7;
+        /// <summary>守护「比较危险」阈值：生命≤此值时，守护绑定目标改为角色（用户 2026-11-03 口径）。</summary>
+        private const int GuardianRoleLife = 10;
         /// <summary>绿地目标：5 绿＝守卫的绿费（灰1绿5）——绿地不够 5，守卫根本下不去。</summary>
         private const int GreenLandTarget = 5;
-        /// <summary>门条件：地牌 &gt; 9（=10 地起）才开始用永久属性养守卫 / 回收。</summary>
-        private const int GateLands = 9;
-        /// <summary>地牌计划总量：铺到 10 块封顶（门条件刚好卡在 &gt;9；成长每次还会再拉一块）。</summary>
+        /// <summary>门条件（2026-11-03 用户定案：门 = **地 ≥9**）：gateOpen = 地 &gt; 8。
+        /// 注意原子表行「操控地数量≥9」沿用了旧 GateId 字符串 LandsGt9（BranchConditionEvaluator 同口径 ≥9）。</summary>
+        private const int GateLands = 8;
+        /// <summary>技能（成长）优先于出牌的回合上限：9 地之前先把地铺起来（与门条件解耦）。</summary>
+        private const int SkillLands = 9;
+        /// <summary>地牌计划总量：铺到 10 块封顶（成长每次还会再拉一块）。</summary>
         private const int LandPlanTotal = 10;
 
         public override string Key => "green";
         public override string DisplayName => "绿慢速";
 
-        // ==================== 技能：成长最优先 ====================
+        // ==================== 技能：回收（2026-11-03 改版） ====================
 
-        /// <summary>成长：可付就发（地牌上限+1 + 从牌库拉地）——绿套的滚雪球全靠它。</summary>
-        public override bool WantHeroSkill(GameCore core, Player me) => base.WantHeroSkill(core, me);
+        /// <summary>技能=**回收 1 张**（绿3）：坟场有货且付得起就发（2026-11-03 用户定案——绿套的
+        /// 引擎是「回收活体护甲 → 0 费再贴 +6 甲」的叠甲循环，不能只当余费牌）。目标顺序见
+        /// OrderTargetCandidates 的 RecoverToHand 分支：活体护甲 &gt; 培育 &gt; 其他。</summary>
+        public override bool WantHeroSkill(GameCore core, Player me)
+        {
+            if (!base.WantHeroSkill(core, me)) return false;
+            if (GraveyardCount(core, me) == 0) return false;      // 回收需要坟场有货
+            return AvailableGreen(core, me) >= 3;                 // 技能绿3
+        }
 
-        /// <summary>成长先于出牌：**只在 9 地之前**（用户口径「9 地之前优先用英雄技能」）。
-        /// 门条件（地牌&gt;9）之后不再抢绿——绿要留给守卫/新生/回收，技能只剩余费时自己会发。</summary>
-        public override bool SkillBeforeCards(GameCore core, Player me)
-            => WantHeroSkill(core, me) && TotalLands(core, me) <= GateLands;
+        /// <summary>手里「还付得起」的最便宜一张牌要多少费（无=0）。</summary>
+        private static int CheapestPlayableCardCost(GameCore core, Player me)
+        {
+            int best = 0;
+            foreach (var c in core.ZoneManager.GetCards(me, Zone.Hand) ?? new List<Card>())
+            {
+                if (c == null || !GameActions.CanAffordCast(core, me, c, 0)) continue;
+                int cost = (int)Math.Ceiling(GameActions.GetCardCost(c, 0).Total - 1e-4f);
+                if (cost <= 0) continue;                          // 0 费牌不占钱，不算
+                if (best == 0 || cost < best) best = cost;
+            }
+            return best;
+        }
+
+        /// <summary>技能不再抢在出牌前：回收是价值牌，先铺场再拿牌（旧口径是成长 ramp 先手）。</summary>
+        public override bool SkillBeforeCards(GameCore core, Player me) => false;
+
+        /// <summary>当前可用的绿（未横置绿地 + 临时钱包绿）——技能留钱判定用。</summary>
+        private static int AvailableGreen(GameCore core, Player me)
+        {
+            int n = 0;
+            foreach (var pc in core.ElementPool.GetPooledCards(me))
+                if (pc != null && pc.LockedColor == ManaType.Green && !pc.IsTapped) n++;
+            var pool = core.ElementPool.GetPool(me);
+            if (pool != null) n += pool.TempElements.TryGetValue(ManaType.Green, out var w) ? w : 0;
+            return n;
+        }
+
+        /// <summary>手里最便宜的绿费生物要多少绿（无=0；用派生费读数，含取整）。</summary>
+        private static int CheapestGreenCreatureCost(GameCore core, Player me)
+        {
+            int best = 0;
+            foreach (var c in core.ZoneManager.GetCards(me, Zone.Hand) ?? new List<Card>())
+            {
+                var d = (c as CardWrapper)?.GetData();
+                if (d == null || d.Supertype != Cardtype.Creature) continue;
+                int g = (int)Math.Ceiling(GameActions.GetCardCost(c)[ManaType.Green] - 1e-4f);
+                if (g > 0 && (best == 0 || g < best)) best = g;
+            }
+            return best;
+        }
 
         // ==================== 出牌优先级 ====================
 
@@ -715,63 +1109,322 @@ namespace CardCore.AI
         {
             float score = totalCost(card); // 兜底：大费先出
             int lands = TotalLands(core, me);
-            bool gateOpen = lands > GateLands;   // 门条件：地牌 > 9 才开始养
+            bool gateOpen = lands > GateLands;   // 门条件：地 ≥9（GateLands=8 → lands>8）
             bool low = me.Life <= LowLife;
             int guards = CountOnBoard(core, me, NameGuard);
+            float survival = low ? 4000f : 0f;   // 保命加权（2026-11-03：成长要让位给保命）
 
             // ① 守卫：先下一张保护角色（守护改写伤害），之后按需补；低血时置顶
             if (Is(card, NameGuard))
             {
-                score += guards == 0 ? 2000f : 400f;
-                if (low) score += 1500f;
-                return score;
+                score += guards == 0 ? 3500f : 400f;   // 守卫先落地（2026-11-03：守卫 > 培育 > 护甲）
+                return score + survival;
             }
 
-            // ② 新生：门开了才养，且优先养守卫（永久+1/+1）；门没开由 ShouldHold 扣着
+            // ② 培育（2026-11-03 用户定案：**放弃复杂用法，只喂林地守卫**）：
+            //    场上没有林地守卫 → 这张不打（去当土地，手里留 1 张）；有守卫 → 立刻养它，其余单位一律不吃
             if (Is(card, NameNewborn))
             {
-                if (gateOpen)
-                {
-                    if (guards > 0) score += 2400f;
-                    else if (CountOnBoard(core, me, null) > 0) score += 600f;
-                    if (GraveyardCount(core, me) > 0) score += 1200f; // 回收不断
-                }
-                return score;
+                if (guards == 0) return score - 10000f;
+                return score + (gateOpen ? 3200f : 2600f) + survival;
             }
 
-            // ③ 活体护甲：有高血单位才值得（护甲=目标生命）；角色吃紧时再加权
-            if (Is(card, NameArmor))
+            // ③ 倒计时优先级（2026-11-03 用户定案）：**帷幕第一，狩猎第二**——
+            //    帷幕（雾障）先落地把对手的效果挡掉，再铺狩猎（獠牙）做输出；其余倒计时随后
+            if (Is(card, NameTaunt)) return score + 5000f + survival;
+            if (Is(card, NameFangs)) return score + (AnyOwnHunt(core, me) ? 1200f : 4000f) + survival;
+
+            // ④ 成长（主卡组·绿3·+2地）：**9 地之前优先级最高，仅次于保命**（低血时压到 2500，
+            //    让守护/墙先上）；**满 9 地之后不再施放**——抽到直接当地牌（ShouldHold/ShouldLand 同口径）
+            if (Is(card, NameGrowth))
             {
-                score += HighestOwnLife(core, me) >= 4 ? 800f : 100f;
-                if (me.Life <= 15) score += 300f;
-                return score;
+                if (lands >= GrowthStopLands) return score - 10000f;   // 排序垫底（ShouldHold 会拦）
+                return score + (low ? 2500f : 6000f);
             }
 
-            // ④ 菌丝：复生先贴角色，优先级不高
-            if (Is(card, NameMycelium))
-                return score + (me.GetCounterCount(CounterRules.RebornCounter) == 0 ? 250f : 100f);
-
-            // ⑤ 藤盾（1-1 登场给角色 2 护甲）／晨露（1-1 倒计时1 回 2）：便宜的早期阻挡+续航，早下
-            if (Is(card, NameShield)) return score + 800f;
-            if (Is(card, NameDew)) return score + 700f;
-
-            // ⑥ 四种倒计时支援（1-1）：9 地之前当墙铺，门开后拿多余费用继续铺
             if (card != null && SupportNames.Contains(NameOf(card)))
-                score += gateOpen ? 900f : 450f;
+                return score + (gateOpen ? 900f : 500f) + survival;
+
+            // ⑦ 活体护甲（2026-11-03 用户定案）：**永不主动施放**——它只在响应窗里
+            //    「林地守卫即将被一击打死」时贴（见 PickResponse ③）。这里直接垫底，
+            //    免得第 2 回合就被当成 0 费牌随手贴给雾障之类的单位。
+            if (Is(card, NameLivingArmor))
+            {
+                // 没有林地守卫 → 不打（会贴错人，战报第 2 回合贴给雾障就是这么来的）；
+                // 有守卫 → 正常贴（0 费，护甲=守卫生命，这就是「倒计时落地→+6甲→回收再来」的循环）
+                if (OwnGuard(core, me) == null) return score - 10000f;
+                return score + (low ? 4000f : 2500f) + survival;
+            }
+
+            // ⑤ 菌丝（再生+资敌护甲）：留到对手回合贴受伤单位（ShouldHold 扣着），这里只给低分兜底
+            if (Is(card, NameMycelium)) return score + 100f;
+
+            // ⑥ 晨露（0/6 倒计时1 回 2）：便宜的续航，早下
+            if (Is(card, NameDew)) return score + 700f + survival;
+
             return score;
         }
 
-        /// <summary>攒牌闸：门条件（地牌&gt;9）之前不养；新生/活体护甲场上没单位就不空放；
-        /// 守卫不再扣手——它现在是保护角色的前排。</summary>
+        /// <summary>攒牌闸（2026-11-03 用户定案）：
+        /// · 培育——**不再自己回合一次打光**：门没开全留（留给战斗窗口/对手回合反应）；
+        ///   门开了也留 1 张备反应，其余按成长打；
+        /// · 菌丝——自己回合不打，留到对手回合给受伤单位贴再生；
+        /// · **成长——满 9 地之后不再施放**（抽到就当地牌，ShouldLand 同口径）；
+        /// · 培育/菌丝场上没单位时不空放。</summary>
         public override bool ShouldHold(GameCore core, Player me, Card card)
         {
+            bool hold;
             if (Is(card, NameNewborn))
             {
-                if (TotalLands(core, me) <= GateLands) return true;      // 不到 10 地不开养
-                if (CountOnBoard(core, me, null) == 0) return true;      // 没单位可养
+                // 2026-11-03：只喂林地守卫——场上没守卫就憋着（由 ShouldLand 打发去当土地，留 1 张）
+                hold = CountOnBoard(core, me, NameGuard) == 0;
             }
-            if (Is(card, NameArmor) && CountOnBoard(core, me, null) == 0) return true;
+            else if (Is(card, NameMycelium))
+                // 2026-11-03：**不再等对手回合**——有林地守卫、且它身上还没再生时，有费就贴
+                hold = OwnGuardWithoutRegen(core, me) == null;
+            else if (Is(card, NameGrowth))
+                hold = TotalLands(core, me) >= GrowthStopLands;           // 满 11 地：不打，当地牌
+            else if (Is(card, NameLivingArmor))
+                hold = OwnGuard(core, me) == null;                        // 有守卫才贴；没守卫留在手里
+            else hold = false;
+
+            if (!hold) return false;
+            // 2026-11-03 用户定案：**每回合把费用花完**——这张付得起、手里又没有别的牌可打时，
+            // 憋着的也打出去。例外：成长（满 11 地当地）、菌丝/活体护甲（硬留，只在响应窗用）。
+            if (Is(card, NameGrowth) && TotalLands(core, me) >= GrowthStopLands) return true;
+
+            
+            if (!GameActions.CanAffordCast(core, me, card, 0)) return true;
+            return HasOtherPlayableCard(core, me, card);
+        }
+
+        /// <summary>手里除这张之外，还有没有「不憋着、也付得起」的牌（费用花完判定用）。</summary>
+        private static bool HasOtherPlayableCard(GameCore core, Player me, Card except)
+        {
+            foreach (var c in core.ZoneManager.GetCards(me, Zone.Hand) ?? new List<Card>())
+            {
+                if (c == null || ReferenceEquals(c, except)) continue;
+                if (!GameActions.CanAffordCast(core, me, c, 0)) continue;
+                var n = NameOf(c);
+                if (n == NameNewborn || n == NameMycelium || n == NameGrowth) continue;  // 这几张本来就憋着
+                return true;
+            }
             return false;
+        }
+
+        /// <summary>己方场上最大的生物生命（无=0）——活体护甲「和大生物一起出」的判据。</summary>
+        private static int BestOwnCreatureLife(GameCore core, Player me)
+        {
+            int best = 0;
+            foreach (var c in core.ZoneManager.GetCards(me, Zone.Battlefield) ?? new List<Card>())
+            {
+                if (c == null || !c.IsAlive) continue;
+                if ((c as CardWrapper)?.GetData()?.Supertype != Cardtype.Creature) continue;
+                int life = c.GetLife();
+                if (life > best) best = life;
+            }
+            return best;
+        }
+
+        /// <summary>手里还有没有生物牌（决定培育「打不出去」时该不该烧成地——手里有生物就先留着铺场）。</summary>
+        private static bool HasCreatureInHand(GameCore core, Player me)
+        {
+            foreach (var c in core.ZoneManager.GetCards(me, Zone.Hand) ?? new List<Card>())
+                if (c != null && (c as CardWrapper)?.GetData()?.Supertype == Cardtype.Creature) return true;
+            return false;
+        }
+
+        /// <summary>现在要不要贴活体护甲（2026-11-03 用户定案）：**憋到自家大生物（生命≥5）落地**；
+        /// 唯一例外是对手**场面总攻 ≥ 我方角色生命**（这一波会被斩杀）——那就立刻贴，哪怕目标不是大生物。</summary>
+        private static bool WantsArmorNow(GameCore core, Player me)
+        {
+            if (BestOwnCreatureLife(core, me) >= ArmorTargetLife) return true;
+            return OpponentTotalAttack(core, me) >= me.Life;
+        }
+
+        /// <summary>对手场面总攻击力（斩杀威胁判定用）。</summary>
+        private static int OpponentTotalAttack(GameCore core, Player me)
+        {
+            int sum = 0;
+            foreach (var c in core.ZoneManager.GetCards(me.Opponent, Zone.Battlefield) ?? new List<Card>())
+            {
+                if (c == null || !c.IsAlive) continue;
+                if ((c as CardWrapper)?.GetData()?.Supertype != Cardtype.Creature) continue;
+                sum += core.LayerEngine.CalculatePower(c);
+            }
+            return sum;
+        }
+
+        /// <summary>「被永久加强过的生物」判据：身上有永久攻/血指示物（培育加出来的那类）。</summary>
+        private static bool IsPermanentBuffed(GameCore core, Card c)
+        {
+            var d = (c as CardWrapper)?.GetData();
+            if (d == null) return false;
+            if (c.GetMaxLife() > (d.Life ?? 0)) return true;                       // 生命被永久加强
+            return core.LayerEngine.CalculatePower(c) > (d.Power ?? 0);            // 攻击被永久加强
+        }
+
+        // ==================== 响应窗（2026-11-03 用户定案） ====================
+
+        /// <summary>
+        /// 绿套的两张「留手牌」在对手动作后兑现（用户 2026-11-03 三条）：
+        /// ① **培育**：先让攻守宣言落栈，再在窗口里贴——只当 +1 生命能把「被打死」翻成「活下来」
+        ///    （对手伤害正好等于我方参战单位生命）时出手，属性在战斗过程中变化换优势；否则不打。
+        /// ② **菌丝（再生）**：等到对手回合，给**已受伤**的己方单位贴；优先没有再生的、掉血最多的。
+        /// 其余情况一律让过（守卫决策等交内置启发）。
+        /// </summary>
+        public override ResponseOption PickResponse(GameCore core, Player me, List<ResponseOption> options)
+        {
+            if (core == null || me == null || options == null || options.Count == 0) return null;
+            var stack = core.StackEngine?.SnapshotStack();
+            if (stack == null || stack.Count == 0) return null;
+
+            // ① 培育：战斗窗口的「+1 生命救一命」——**只给林地守卫**（2026-11-03 定案）
+            var atk = stack.LastOrDefault(e => e != null && e.IsAttackDeclaration);
+            if (atk != null)
+            {
+                var fighter = CombatFighterOf(core, me, stack, atk, out int incoming);
+                if (fighter != null && fighter.IsAlive && incoming > 0 && Is(fighter, NameGuard)
+                    && fighter.GetLife() <= incoming && fighter.GetLife() + 1 > incoming)
+                {
+                    var opt = FindHandOption(options, NameNewborn);
+                    if (opt != null) return WithTarget(opt, fighter);
+                }
+            }
+
+            // ② 菌丝（再生）：**只贴林地守卫**，且守卫身上还没有再生
+            if (core.TurnEngine.TurnPlayer != me)
+            {
+                var guardCard = OwnGuardWithoutRegen(core, me);
+                if (guardCard != null)
+                {
+                    var opt = FindHandOption(options, NameMycelium);
+                    if (opt != null) return WithTarget(opt, guardCard);
+                }
+            }
+
+            // （2026-11-03 撤回）：曾尝试「倒计时生物不当盾」，但拦截发生在对手回合、
+            // 自己回合开始即解横置，挡刀并不会妨碍出狩猎——反而因为不挡掉血更快（对红 12.1→9.1 回合）。
+            // 拦截决策交回内置启发 DefaultAiRespond。
+
+            // ③ 活体护甲（2026-11-03 用户定案）：**只在林地守卫即将受到致命伤时**才贴——
+            //    来袭伤害 ≥ 守卫当前生命（这一下会打死它）→ 贴甲，用「等同其生命的护甲」正好扛住
+            {
+                var guardCard2 = OwnGuard(core, me);
+                if (guardCard2 != null && LethalToGuard(core, me, stack, guardCard2))
+                {
+                    var opt = FindHandOption(options, NameLivingArmor);
+                    if (opt != null) return WithTarget(opt, guardCard2);
+                }
+            }
+            return null;
+        }
+
+        /// <summary>我方场上第一只林地守卫（无=null）。</summary>
+        private static Card OwnGuard(GameCore core, Player me)
+        {
+            foreach (var c in core.ZoneManager.GetCards(me, Zone.Battlefield) ?? new List<Card>())
+                if (c != null && c.IsAlive && Is(c, NameGuard)) return c;
+            return null;
+        }
+
+        /// <summary>没有再生关键词的我方林地守卫。</summary>
+        private static Card OwnGuardWithoutRegen(GameCore core, Player me)
+        {
+            var g = OwnGuard(core, me);
+            return g != null && !g.HasKeyword(KeywordRules.Regeneration) ? g : null;
+        }
+
+        /// <summary>这一下会不会打死我方林地守卫（来袭伤害 ≥ 当前生命）——活体护甲的贴牌时机。</summary>
+        private static bool LethalToGuard(GameCore core, Player me, List<EffectInstance> stack, Card guardCard)
+        {
+            var atk = stack.LastOrDefault(e => e != null && e.IsAttackDeclaration
+                                               && ReferenceEquals(e.Controller, me.Opponent));
+            if (atk == null) return false;
+            var fighter = CombatFighterOf(core, me, stack, atk, out int incoming);
+            if (!ReferenceEquals(fighter, guardCard)) return false;
+            return incoming > 0 && incoming >= guardCard.GetLife();
+        }
+
+        /// <summary>栈上是否有对手的效果以该卡为目标（解场判定）。</summary>
+        private static bool EnemyEffectTargets(List<EffectInstance> stack, Player me, Card card)
+        {
+            foreach (var e in stack)
+            {
+                if (e?.Targets == null || !ReferenceEquals(e.Controller, me.Opponent)) continue;
+                foreach (var t in e.Targets)
+                    if (ReferenceEquals(t, card)) return true;
+            }
+            return false;
+        }
+
+        private static ResponseOption FindHandOption(List<ResponseOption> options, string name)
+        {
+            foreach (var o in options)
+                if (o != null && o.Kind == ResponseOption.ResponseKind.HandCard
+                    && o.SourceCard != null && Is(o.SourceCard, name))
+                    return o;
+            return null;
+        }
+
+        private static ResponseOption WithTarget(ResponseOption opt, Card target)
+        {
+            if (opt == null || target == null) return null;
+            opt.Targets = new List<Entity> { target };
+            return opt;
+        }
+
+        /// <summary>当前攻防里我方参战单位（攻方=我方攻击手；守方=我方宣告的守卫，否则被攻击的我方单位）
+        /// 与它将要承受的伤害（incoming）。</summary>
+        private static Card CombatFighterOf(GameCore core, Player me, List<EffectInstance> stack,
+            EffectInstance atk, out int incoming)
+        {
+            incoming = 0;
+            int Pow(Entity e) => e is Card c ? core.LayerEngine.CalculatePower(c) : 0;
+
+            if (ReferenceEquals(atk.Controller, me))
+            {
+                if (!(atk.Source is Card mine)) return null;
+                var guard = stack.LastOrDefault(e => e != null && e.IsGuardDeclaration
+                                                     && ReferenceEquals(e.InterceptedAttack, atk));
+                incoming = Pow(guard?.Source);
+                return mine;
+            }
+
+            int attackerPower = Pow(atk?.Source);
+            var myGuard = stack.LastOrDefault(e => e != null && e.IsGuardDeclaration
+                                                   && ReferenceEquals(e.InterceptedAttack, atk)
+                                                   && ReferenceEquals(e.Controller, me));
+            if (myGuard?.Source is Card guarder)
+            {
+                incoming = attackerPower;
+                return guarder;
+            }
+            var victim = (atk?.Targets ?? new List<Entity>()).OfType<Card>()
+                .FirstOrDefault(c => c != null && ReferenceEquals(c.GetController(), me));
+            if (victim != null)
+            {
+                incoming = attackerPower;
+                return victim;
+            }
+            return null;
+        }
+
+        /// <summary>再生落点：己方已受伤、且还没有再生的单位——掉血多 > 有攻击力 > 守卫。</summary>
+        private static Card BestRegenTarget(GameCore core, Player me)
+        {
+            Card best = null;
+            int bestScore = 0;
+            foreach (var c in core.ZoneManager.GetCards(me, Zone.Battlefield) ?? new List<Card>())
+            {
+                if (c == null || !c.IsAlive || !c.GetController().Equals(me)) continue;
+                if (c.HasKeyword(KeywordRules.Regeneration)) continue;
+                int missing = c.GetMaxLife() - c.GetLife();
+                if (missing <= 0) continue;
+                int score = missing * 10 + core.LayerEngine.CalculatePower(c) * 3 + (Is(c, NameGuard) ? 5 : 0);
+                if (score > bestScore) { best = c; bestScore = score; }
+            }
+            return best;
         }
 
         // 苏醒策略段（WantAwakenCast/AwakenWaive 覆写——缺费才睡别拖慢倒计时）已随
@@ -781,36 +1434,42 @@ namespace CardCore.AI
 
         public override float LandPriority(GameCore core, Player me, Card card, Func<Card, float> totalCost)
         {
-            if (Is(card, NameGuard) && GreenLands(core, me) < GreenLandTarget) return 12000f;
+            // 2026-11-03 修正：**守卫是场上支柱，绝不当土地垫**——旧口给它 12000 的铺地优先，
+            // 结果 6 张 1/11 全被烧成地、场上一只都没有（对红 10 局只落地 1 次）。
+            if (Is(card, NameGuard)) return 300f;
             if (GreenLands(core, me) < GreenLandTarget && SupportsColor(card, ManaType.Green)) return 6000f;
             return 1000f;
         }
 
         public override bool ShouldLand(GameCore core, Player me, Card card)
         {
-            // 新生＝回收引擎，永远不当土地（回收拿回收，整副牌就靠它转）
-            if (Is(card, NameNewborn)) return false;
+            // 培育（2026-11-03 用户定案）：**没有林地守卫 → 当土地铺，但手里留 1 张**；
+            // 有守卫就留着立刻喂它，不铺地。
+            if (Is(card, NameNewborn))
+            {
+                if (CountOnBoard(core, me, NameGuard) > 0) return false;
+                return HandCopies(core, me, NameNewborn) > 1;
+            }
+            // 成长：9 地之前是 ramp 引擎（不烧）；**满 11 地之后抽到就当地牌**
+            if (Is(card, NameGrowth)) return TotalLands(core, me) >= GrowthStopLands;
+            // 活体护甲＝0 费叠甲核心，**永远不当土地**（2026-11-03 战报：第一回合就被当土地烧了）
+            if (Is(card, NameLivingArmor)) return false;
+            // 帷幕/狩猎载体也不烧：它们是进攻与防护主轴（战报里獠牙 10 局只打出 1 张，全被烧成地了）
+            if (Is(card, NameTaunt) || Is(card, NameFangs)) return false;
+            // 林地守卫＝全场支点，**永远不当土地**（旧口只改了铺地优先级，资格闸仍让它被烧：
+            // 战报里 6 张守卫 10 局只落地 2 次——培育/菌丝/护甲全成了废牌）
+            if (Is(card, NameGuard)) return false;
             int lands = TotalLands(core, me);
-            if (lands >= LandPlanTotal) return false;    // 10 地封顶＝门条件刚好卡在这里
-            int green = GreenLands(core, me);
+            if (lands >= LandPlanTotal) return false;    // 10 地封顶
+            int copies = HandCopies(core, me, NameOf(card));
 
-            // 早期先把地数补到 3（1-1 小牌要 1~2 费，没地一样打不出）
+            // 2026-11-03 用户定案：**全绿卡组不锁色，缺的就是地上限本身**——
+            // 前 3 回合把地铺到 3（不够 3 块绿地时成长/培育都打不出，ramp 直接卡死）。
+            // 这条优先于「每张留 1 张」：宁可先烧一张墙换启动，也要在第二个回合摸到 3 地。
             if (lands < 3) return true;
 
-            // 绿不够：绿费牌铺成绿地——绿 3 才发得动成长，绿 5 才下得去守卫。
-            // 守卫是这套牌最主要的绿地来源（4 张），留一张在手里，其余铺绿。
-            if (green < GreenLandTarget && SupportsColor(card, ManaType.Green))
-            {
-                if (Is(card, NameGuard)) return HandCopies(core, me, NameGuard) > 1;
-                return true; // 菌丝/活体护甲也铺绿
-            }
-
-            // 绿够了：守卫留手；支援卡（1-1 倒计时）可以先烧掉当地
-            if (Is(card, NameGuard)) return false;
-            if (card != null && SupportNames.Contains(NameOf(card))) return true;
-
-            // 藤盾/晨露：留一张，重复的才烧
-            return HandCopies(core, me, NameOf(card)) > 1;
+            // 3 地之后：每张留 1 张打出去，只铺重复副本（避免把墙全烧成地、场上一个单位都没有）
+            return copies > 1;
         }
 
         public override bool WantLand(GameCore core, Player me, Card card) => ShouldLand(core, me, card);
@@ -862,13 +1521,30 @@ namespace CardCore.AI
             if (list == null || list.Count <= 1) return list;
             var atom = req.PromptAtom;
 
-            // 永久属性（2026-11-02 拆四轴）：只喂守卫（养大这堵墙，死后回收再养），其次獠牙，再次其它生物，角色垫底
+            // 技能「流失 1 生命」= 余费解场（2026-11-03 用户定案）：先打**能直接打死**的对方单位，
+            // 其次按威胁（攻击力）挑对方单位，最后才轮到对方角色；己方单位垫底。
+            if (atom == AtomicEffectType.LifeLoss)
+                return list.OrderByDescending(e =>
+                        e is Card c && c.IsAlive && ReferenceEquals(c.GetController(), me.Opponent)
+                            ? (c.GetLife() <= 1 ? 2000f : 1000f) + core.LayerEngine.CalculatePower(c)
+                            : e is Player p && ReferenceEquals(p, me.Opponent) ? 100f
+                            : 0f)
+                    .ToList();
+
+            // 永久属性（2026-11-03 用户定案）：优先**已有再生**的生物（再生按最大生命回满，养它最赚），
+            // 其次正在打的这只（战斗窗口里贴），再次守卫，最后獠牙/角色
             if (atom == AtomicEffectType.AddPermanentPowerUp || atom == AtomicEffectType.AddPermanentLifeUp)
-                return list.OrderByDescending(e => e is Card c && Is(c, NameGuard))
-                           .ThenByDescending(e => e is Card c0 && Is(c0, NameFangs))
-                           .ThenByDescending(e => e is Card c2 && c2.GetController() == me ? c2.GetLife() : 0)
-                           .ThenByDescending(e => e is Player)
-                           .ToList();
+            {
+                // 2026-11-03 用户定案：**培育只喂林地守卫**——守卫永远第一，其余单位只在没守卫时才轮到
+                var fighter = PendingFighter(core, me);
+                return list.OrderByDescending(e =>
+                        e is Card cq && Is(cq, NameGuard) ? 10
+                        : e is Card cb && IsPermanentBuffed(core, cb) ? 2
+                        : ReferenceEquals(e, fighter) ? 1
+                        : 0)
+                    .ThenByDescending(e => e is Card c4 && c4.GetController() == me ? c4.GetMaxLife() : 0)
+                    .ToList();
+            }
 
             // 复生：先贴角色（用户口径：可以提前贴，优先级不高）
             if (atom == AtomicEffectType.GrantReborn)
@@ -876,18 +1552,40 @@ namespace CardCore.AI
                            .ThenByDescending(e => e is Card c3 && Is(c3, NameGuard))
                            .ToList();
 
-            // 活体护甲：护甲=目标生命，取生命最高的己方单位
+            // 活体护甲（2026-11-03 用户定案）：**只对林地守卫用**——守卫第一，其他单位垫底
             if (atom == AtomicEffectType.LivingArmor)
-                return list.OrderByDescending(e => e is Card c4 && c4.GetController() == me ? c4.GetLife() : int.MinValue)
+                return list.OrderByDescending(e => e is Card cg && Is(cg, NameGuard) ? 100
+                        : e is Card c4 && c4.GetController() == me ? c4.GetLife() : int.MinValue)
                            .ToList();
 
-            // 守护绑定：守卫登场时保角色（护的是角色这条命）
+            // 再生（菌丝）：**只贴林地守卫**（2026-11-03 用户定案），其它单位垫底
+            if (atom == AtomicEffectType.GrantRegeneration)
+                return list.OrderByDescending(e => e is Card cq && Is(cq, NameGuard) ? 100
+                        : e is Card c5 && c5.GetController() == me ? c5.GetMaxLife() : int.MinValue)
+                           .ToList();
+
+            // 守护绑定（2026-11-03 用户定案：生命安全第一）：
+            //   不危险 → 首个守护贴给**狩猎载体**（獠牙／已带狩猎的那只）护住进攻引擎；
+            //   比较危险（生命 ≤10）→ 贴给角色。
+            // 守护/守卫（2026-11-03 用户定案）：**优先绑角色**——对手的高攻爆发打的是角色，
+            // 守卫拦的就是这条线（生命危险时更是角色优先）；对手没场面时才退而保护狩猎载体/獠牙
             if (atom == AtomicEffectType.Guard || atom == AtomicEffectType.GrantGuardian)
-                return list.OrderByDescending(e => e is Player)
-                           .ThenByDescending(e => e is Card c9 && c9.GetController() == me ? c9.GetLife() : 0)
-                           .ToList();
+            {
+                bool enemyHasBodies = (core.ZoneManager.GetCards(me.Opponent, Zone.Battlefield) ?? new List<Card>())
+                    .Any(c => c != null && c.IsAlive);
+                if (me.Life <= GuardianRoleLife || enemyHasBodies)
+                    return list.OrderByDescending(e => e is Player)
+                               .ThenByDescending(e => e is Card cHunt0 && cHunt0.HasKeyword(KeywordRules.Hunt))
+                               .ToList();
+                return list.OrderByDescending(e => e is Card cHunt && cHunt.HasKeyword(KeywordRules.Hunt) ? 3
+                        : e is Card cFang && Is(cFang, NameFangs) ? 2
+                        : e is Card cOwn && ReferenceEquals(cOwn.GetController(), me) ? 1
+                        : 0)
+                    .ThenByDescending(e => e is Player)
+                    .ToList();
+            }
 
-            // 护甲（藤盾等）：先给角色（角色死了就输了），角色已满甲才给单位
+            // 护甲（资敌代价等）：先给角色（角色死了就输了），角色已满甲才给单位
             if (atom == AtomicEffectType.AddArmor)
                 return list.OrderByDescending(e => e is Player)
                            .ThenByDescending(e => e is Card c10 && c10.GetController() == me ? (c10.GetMaxLife() - c10.GetLife()) : int.MinValue)
@@ -897,24 +1595,40 @@ namespace CardCore.AI
             if (atom == AtomicEffectType.Heal)
                 return list.OrderByDescending(e => MaxLifeOf(e) - LifeOf(e)).ToList();
 
-            // 倒计时奖励关键词：优先挂被养大的守卫，其次獠牙，再次生命最高的己方生物
+            // 倒计时奖励关键词（2026-11-03 用户定案：狩猎优先——没有狩猎这套牌没有进攻性）：
+            // 先挂**攻击力最高**的那只（被培育养大的大哥），再挂已带狩猎的，最后按生命。
             if (atom == AtomicEffectType.GrantTaunt || atom == AtomicEffectType.GrantSplash
-                || atom == AtomicEffectType.GrantLifesteal || atom == AtomicEffectType.GrantHunt)
-                return list.OrderByDescending(e => e is Card c5 && Is(c5, NameGuard))
-                           .ThenByDescending(e => e is Card c7 && Is(c7, NameFangs))
+                || atom == AtomicEffectType.GrantVigilance || atom == AtomicEffectType.GrantHunt)
+                return list.OrderByDescending(e => e is Card cPow && cPow.GetController() == me
+                        ? core.LayerEngine.CalculatePower(cPow) : -1)
+                           .ThenByDescending(e => e is Card cHunt2 && cHunt2.HasKeyword(KeywordRules.Hunt))
                            .ThenByDescending(e => e is Card c6 && c6.GetController() == me ? c6.GetLife() : 0)
                            .ToList();
 
             // 回收：拿回收（新生）本身，保持引擎不断；手里新生已 >2 才换别的卡补多样性
             if (atom == AtomicEffectType.RecoverToHand)
             {
+                // 2026-11-03 用户定案（回收优先级）：
+                //  ① **被再生强化的林地守卫**（带再生的守卫是全场最硬的支点，先把它拿回来）
+                //  ② 其余看对面场面：压过来的场面（总攻高/人多）→ 回收活体护甲补甲；
+                //     对面没压力 → 回收培育继续养。
+                int handArmor = HandCopies(core, me, NameLivingArmor);
                 int handNewborn = HandCopies(core, me, NameNewborn);
-                if (handNewborn <= 2)
-                    return list.OrderByDescending(e => e is Card c8 && Is(c8, NameNewborn))
-                               .ThenByDescending(e => e is Card c10 ? c10.GetLife() : 0)
-                               .ToList();
-                return list.OrderByDescending(e => !(e is Card c11 && Is(c11, NameNewborn))) // 手里新生够多了 → 先拿别的
-                           .ThenByDescending(e => e is Card c12 ? c12.GetLife() : 0)
+                int enemyBodies = (core.ZoneManager.GetCards(me.Opponent, Zone.Battlefield) ?? new List<Card>())
+                    .Count(c => c != null && c.IsAlive);
+                bool defenseMode = OpponentTotalAttack(core, me) >= 6 || enemyBodies >= 3;
+                return list.OrderByDescending(e =>
+                           {
+                               if (e is Card g && Is(g, NameGuard) && g.HasKeyword(KeywordRules.Regeneration)) return 10;
+                               if (e is Card cA && Is(cA, NameLivingArmor))
+                                   return defenseMode ? 7 : (handArmor <= 1 ? 6 : 3);
+                               if (e is Card c8 && Is(c8, NameNewborn))
+                                   return defenseMode ? 2 : (handNewborn <= 2 ? 5 : 4);
+                               return 0;
+                           })
+                           .ThenByDescending(e => e is Card c10
+                               ? c10.GetMaxLife() + 2 * core.LayerEngine.CalculatePower(c10)
+                               : 0)
                            .ToList();
             }
 
@@ -926,6 +1640,14 @@ namespace CardCore.AI
         private static string NameOf(Card card) => (card as CardWrapper)?.GetData()?.CardName;
 
         private static bool Is(Card card, string name) => card != null && NameOf(card) == name;
+
+        /// <summary>己方场上是否已有狩猎（有的话 +1 攻能立刻变成输出）。</summary>
+        private static bool AnyOwnHunt(GameCore core, Player me)
+        {
+            foreach (var c in core.ZoneManager.GetCards(me, Zone.Battlefield) ?? new List<Card>())
+                if (c != null && c.IsAlive && c.HasKeyword(KeywordRules.Hunt)) return true;
+            return false;
+        }
 
         /// <summary>场上己方单位数量（name=null → 全部存活单位）。</summary>
         private static int CountOnBoard(GameCore core, Player me, string name)
@@ -939,18 +1661,18 @@ namespace CardCore.AI
             return n;
         }
 
-        /// <summary>己方墓地卡数（新生/菌丝 的回收燃料）。</summary>
-        private static int GraveyardCount(GameCore core, Player me)
-            => (core.ZoneManager.GetCards(me, Zone.Graveyard) ?? new List<Card>()).Count;
-
-        /// <summary>场上己方最高生命（活体护甲的护甲量）。</summary>
-        private static int HighestOwnLife(GameCore core, Player me)
+        /// <summary>当前攻防里我方参战单位（供战斗窗口的加属性落点用；无战斗=null）。</summary>
+        private static Card PendingFighter(GameCore core, Player me)
         {
-            int best = 0;
-            foreach (var c in core.ZoneManager.GetCards(me, Zone.Battlefield) ?? new List<Card>())
-                if (c != null && c.IsAlive) best = Math.Max(best, c.GetLife());
-            return best;
+            var stack = core?.StackEngine?.SnapshotStack();
+            if (stack == null || stack.Count == 0) return null;
+            var atk = stack.LastOrDefault(e => e != null && e.IsAttackDeclaration);
+            return atk == null ? null : CombatFighterOf(core, me, stack, atk, out _);
         }
+
+        /// <summary>己方墓地卡数（培育/菌丝 的回收燃料）。</summary>
+        private static int GraveyardCount(GameCore core, Player me)
+            => (core.ZoneManager.GetCards(me, Zone.Graveyard) ?? new List<Card>()).Count();
 
         private static bool SupportsColor(Card card, ManaType color)
         {
@@ -1307,7 +2029,7 @@ namespace CardCore.AI
                         oppTotalPower += core.LayerEngine.CalculatePower(c);
                 if (me.Life <= 7 || oppTotalPower >= 5)
                 {
-                    TargetSelectionService.AiOrder = req => OrderTargetCandidates(core, req?.Chooser ?? me, req);
+                    TargetSelectionService.AiOrder = req => AiStrategy.DispatchOrder(this, core, req?.Chooser ?? me, req);
                     return spellban;
                 }
             }
@@ -1326,7 +2048,7 @@ namespace CardCore.AI
             if (pick == null && directDamage != null) pick = directDamage; // d. 直伤斩杀线
 
             if (pick != null)
-                TargetSelectionService.AiOrder = req => OrderTargetCandidates(core, req?.Chooser ?? me, req);
+                TargetSelectionService.AiOrder = req => AiStrategy.DispatchOrder(this, core, req?.Chooser ?? me, req);
             return pick;
         }
 

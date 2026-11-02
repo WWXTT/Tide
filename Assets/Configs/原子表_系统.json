@@ -319,9 +319,9 @@
     "Budget": 2
   },
   {
-    "ID": "85051319",
-    "EnumName": "操控地数量>9",
-    "DisplayName": "操控地数量>9",
+    "ID": "5bfdaf7c",
+    "EnumName": "操控地数量≥9",
+    "DisplayName": "操控地数量≥9",
     "EffectType": "SituationGate",
     "TargetKinds": "",
     "TargetFilter": null,
@@ -333,9 +333,9 @@
     "Budget": 2
   },
   {
-    "ID": "ea77f36c",
-    "EnumName": "操控地数量≥3",
-    "DisplayName": "操控地数量≥3",
+    "ID": "f8f622b6",
+    "EnumName": "操控地数量≤3",
+    "DisplayName": "操控地数量≤3",
     "EffectType": "SituationGate",
     "TargetKinds": "",
     "TargetFilter": null,

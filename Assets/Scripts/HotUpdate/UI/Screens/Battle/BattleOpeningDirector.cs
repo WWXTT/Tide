@@ -129,7 +129,9 @@ namespace SynergyUI
                 // ---- 段五交班：组装卡组（旧 PreMatchScreen.OnStart 门槛口径平移）→ Engage ----
                 // 教学三毕业连战（2026-11-02 改版）：对手=连战当前场预组（LunzhuanGauntlet.OpponentName
                 // 按胜场索引：红·快攻→蓝·控制→绿·慢速），不再镜像我方。
-                var aiDeckName = _lunzhuan ? LunzhuanGauntlet.OpponentName : aiName;
+                // 隐藏镜像局（2026-11-02）：对手=我方卡组（OpponentDeckName 镜像取用——同卡组
+                // 同序镜像对决，EngageLocalBattle 按 Mirror 锁牌库序）。
+                var aiDeckName = _lunzhuan ? LunzhuanGauntlet.OpponentDeckName : aiName;
                 var myDeck = BuildDeckOf(myName, "我方");
                 var aiDeck = BuildDeckOf(aiDeckName, "对方");
                 var mySkill = myDeck != null ? SkillOf(myName) : null;
@@ -139,7 +141,10 @@ namespace SynergyUI
                 var aiTokens = aiDeck != null ? TokenBindingsOf(aiDeckName) : null;
                 Debug.Log($"[BattleOpening] 段五 交班开战：我方={myName ?? "随机"}({myDeck?.Count ?? 0}张) "
                     + $"对方={aiDeckName ?? "随机"}({aiDeck?.Count ?? 0}张) playerFirst={playerFirst}"
-                    + (_lunzhuan ? $"（连战第 {LunzhuanGauntlet.Wins + 1} 场·已胜 {LunzhuanGauntlet.Wins}）" : ""));
+                    + (_lunzhuan
+                        ? (LunzhuanGauntlet.Mirror ? "（隐藏镜像局·锁牌库序=相同牌序）"
+                            : $"（连战第 {LunzhuanGauntlet.Wins + 1} 场·已胜 {LunzhuanGauntlet.Wins}）")
+                        : ""));
                 _engage(myDeck, mySkill, aiDeck, aiSkill, playerFirst, myTokens, aiTokens);
             }
             catch (Exception ex)
@@ -268,8 +273,10 @@ namespace SynergyUI
         {
             if (_lunzhuan && LunzhuanGauntlet.Picked)
             {
-                Debug.Log($"[BattleOpening] 段四（连战第 {LunzhuanGauntlet.Wins + 1} 场）沿用卡组 "
-                          + $"{LunzhuanGauntlet.MyDeckName ?? "随机"}——对手={LunzhuanGauntlet.OpponentName}");
+                Debug.Log(LunzhuanGauntlet.Mirror
+                    ? $"[BattleOpening] 段四（隐藏镜像局）沿用卡组 {LunzhuanGauntlet.MyDeckName}——对手=同卡组镜像"
+                    : $"[BattleOpening] 段四（连战第 {LunzhuanGauntlet.Wins + 1} 场）沿用卡组 "
+                      + $"{LunzhuanGauntlet.MyDeckName ?? "随机"}——对手={LunzhuanGauntlet.OpponentName}");
                 return (LunzhuanGauntlet.MyDeckName, null); // 对手名段五按预组序列自取（不消费本返回值）
             }
             if (_dummy)

@@ -176,9 +176,10 @@ namespace SynergyUI
             if (core == null || me == null || me != core.TurnEngine.TurnPlayer) return;
 
             // AI 目标排序钩子（2026-11-01）：本回合的自动目标选择按策略排序
-            //（解横置选最高攻 / 代价选低攻或已横置 / 加攻集中同一生物——红快攻专用）。
+            //（解横置选最高攻 / 代价选低攻或已横置 / 加攻集中同一生物——红快攻专用；
+            // 代价候选>1 的对手选择段先经 AiStrategy.DispatchOrder 按对手视角重排，2026-11-02）。
             // 不还原：AI 轮次串行，下一回合由下一个 AI 覆盖；人类 chooser 不走该分支。
-            TargetSelectionService.AiOrder = req => _strategy.OrderTargetCandidates(core, req?.Chooser ?? me, req);
+            TargetSelectionService.AiOrder = req => AiStrategy.DispatchOrder(_strategy, core, req?.Chooser ?? me, req);
 
             // 0. 准备阶段：跳过产元素阶段进入主阶段
             GameActions.SkipElementPool(core, me);

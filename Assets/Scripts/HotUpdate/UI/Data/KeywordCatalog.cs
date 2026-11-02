@@ -38,7 +38,16 @@ namespace SynergyUI
                 //   未登记 Specs，LoadKeywords 直接跳过——指示物族面板另走原子库）；
                 // ②表行 TargetFilter 含 "NoRole"（仅生物可赋予）
                 // ——目标侧语义归目标过滤；以后增删可赋关键词只改原子表
-                var row = CardCore.Attribute.AtomicEffectTable.GetByEnumName(def.atomicEffect);
+                //
+                // 2026-11-03 两通道显式化：同一 EffectType 可能有两行——印刷/自赋行（域={自己}）
+                // 与**赋予行**（域含己方单位）。效果合成界面加关键词走**赋予通道**，所以这里
+                // 优先取「域不是纯自指」的那一行；没有赋予行才回落自指行。
+                // （旧口径靠 GetByEnumName 的「末行覆盖」，行序一变就翻车。）
+                var rows = CardCore.Attribute.AtomicEffectTable.GetAll()
+                    .Where(r => r != null && r.EnumName == def.atomicEffect)
+                    .ToList();
+                var row = rows.FirstOrDefault(r => !IsSelfOnly(r))
+                          ?? CardCore.Attribute.AtomicEffectTable.GetByEnumName(def.atomicEffect);
                 if (!ComposerCatalog.HasMountBit(row, MountKind.Keyword)) continue;
                 if (!ComposerCatalog.IsCreatureGrantRow(row)) continue;
                 result.Add(new KeywordCatalogEntry
@@ -50,6 +59,13 @@ namespace SynergyUI
                 });
             }
             return result.OrderBy(e => e.Color).ThenBy(e => e.DisplayName).ToList();
+        }
+
+        /// <summary>行域是否恰为纯自指（{Self}）——印刷/自赋通道的判据。</summary>
+        private static bool IsSelfOnly(CardCore.Attribute.AtomicEffectConfig row)
+        {
+            var kinds = row?.GetTargetKindList();
+            return kinds != null && kinds.Count == 1 && kinds[0] == (int)TargetKind.Self;
         }
     }
 }

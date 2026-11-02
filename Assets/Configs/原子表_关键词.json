@@ -11,9 +11,9 @@
     "Tags": null,
     "ManaList": [
       0,
-      1.5,
+      3,
       0,
-      1.5
+      0
     ]
   },
   {
@@ -29,7 +29,7 @@
     "ManaList": [
       0,
       0,
-      5,
+      6,
       0
     ]
   },
@@ -68,9 +68,9 @@
     ]
   },
   {
-    "ID": "c1332456",
+    "ID": "307eb123",
     "EnumName": "溅射",
-    "DisplayName": "获得溅射：战斗结算时，对对手随机单位造成溢出的战斗伤害",
+    "DisplayName": "获得溅射：战斗结算时，对随机对手单位造成溢出的战斗伤害",
     "EffectType": "GrantSplash",
     "TargetKinds": "自己",
     "TargetFilter": "NoRole",
@@ -97,7 +97,7 @@
     "ManaList": [
       0,
       0,
-      2,
+      3,
       0
     ]
   },
@@ -113,7 +113,7 @@
     "Tags": null,
     "ManaList": [
       0,
-      2,
+      3,
       0,
       0
     ]
@@ -132,7 +132,7 @@
       0,
       0,
       0,
-      2
+      3
     ]
   },
   {
@@ -143,13 +143,13 @@
     "TargetKinds": "自己",
     "TargetFilter": "NoRole",
     "Polarity": 1,
-    "MountKinds": "关键词",
+    "MountKinds": "关键词,不可作为连接光环",
     "Tags": null,
     "ManaList": [
       0,
       0,
       0,
-      3
+      6
     ]
   },
   {
@@ -166,7 +166,7 @@
       0,
       0,
       0,
-      3
+      6
     ]
   },
   {
@@ -211,11 +211,11 @@
     "TargetKinds": "自己",
     "TargetFilter": "NoRole",
     "Polarity": 1,
-    "MountKinds": "关键词",
+    "MountKinds": "关键词,不可作为连接光环",
     "Tags": null,
     "ManaList": [
       0,
-      3,
+      6,
       0,
       0
     ]
@@ -228,11 +228,11 @@
     "TargetKinds": "自己",
     "TargetFilter": "NoRole",
     "Polarity": 1,
-    "MountKinds": "关键词",
+    "MountKinds": "关键词,不可作为连接光环",
     "Tags": null,
     "ManaList": [
       0,
-      3,
+      6,
       0,
       0
     ],
@@ -249,7 +249,7 @@
     "MountKinds": "关键词,不可作为连接光环",
     "Tags": null,
     "ManaList": [
-      3,
+      6,
       0,
       0,
       0
@@ -264,19 +264,19 @@
     "TargetKinds": "自己",
     "TargetFilter": "NoRole",
     "Polarity": 1,
-    "MountKinds": "关键词",
+    "MountKinds": "关键词,不可作为连接光环",
     "Tags": null,
     "ManaList": [
       0,
-      5,
+      6,
       0,
       0
     ]
   },
   {
-    "ID": "6eaa0d3f",
+    "ID": "a81e2068",
     "EnumName": "狩猎",
-    "DisplayName": "获得狩猎：回合结束时，如果处于可行动状态，随机对对手发起一次攻击",
+    "DisplayName": "获得狩猎：回合结束时，如果处于可行动状态，随机对对手单位发起一次攻击",
     "EffectType": "GrantHunt",
     "TargetKinds": "自己",
     "TargetFilter": "NoRole",

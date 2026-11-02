@@ -445,7 +445,7 @@ namespace CardCore
         // ============ 反疗改写（2026-10-09 放血仪典 HealInversion + 反疗指示物 DepravityCounter 共用单源） ============
 
         /// <summary>反疗命中查询（只读）：目标持反疗层（任意有生命单位）或暗牧光环活跃且受疗方一侧
-        /// 在范围内。消费方：TargetFilterSystem.DamagedFilter（满血候选豁免）与引擎错边豁免快照
+        /// 在范围内。消费方：IsHealMeaningfulAtFullHp（满血豁免单源）与引擎错边豁免快照
         ///（执行前取——改写会消耗反疗层，执行后查不回）。改写本体见 TryRewriteHealAsDamage。</summary>
         public static bool IsHealInverted(Entity target)
         {
@@ -455,6 +455,18 @@ namespace CardCore
                 return true;
             var side = target is Player p ? p : (target as Card)?.GetController();
             return side != null && RuleAuraSystem.ScopeHits(HealInversion, side);
+        }
+
+        /// <summary>满血治疗仍有实得（2026-11-02 跨极性满血豁免）：反疗改写（放血仪典/反疗指示物
+        ///——治疗转伤害）或丰盈溢出（满血回复溢出→生命上限+1、当前+1，Heal 咽喉同口径）。
+        /// 消费方：TargetFilterSystem.DamagedFilter 与 CostPayability.IsHealChangeable——两极性
+        /// 光环任一命中，满血单位即合法治疗目标（治疗恒非白嫖）。同侧并存时 Heal 咽喉反疗优先，
+        /// 但本查询只判「治疗会不会有实得」，两支任一为真即真。</summary>
+        public static bool IsHealMeaningfulAtFullHp(Entity target)
+        {
+            if (IsHealInverted(target)) return true;
+            var side = target is Player p ? p : (target as Card)?.GetController();
+            return side != null && RuleAuraSystem.ScopeHits(HealOverflow, side);
         }
 
         // 重入闸：改写产生的伤害若再触发治疗（吸血等回环），嵌套治疗不再改写——封死自递归

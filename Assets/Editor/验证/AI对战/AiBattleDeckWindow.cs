@@ -151,6 +151,10 @@ namespace CardCore.Editor.Tests
                 return;
             }
 
+            // 2026-11-03 诊断：先点名双方卡组张数与内容（战报张数异常时一眼定位；不改变行为）
+            UnityEngine.Debug.Log($"[AI对战] P1 卡组 {_DeckLabel(_p1Deck)} = {p1.Count} 张：{_DeckDigest(p1)}");
+            UnityEngine.Debug.Log($"[AI对战] P2 卡组 {_DeckLabel(_p2Deck)} = {p2.Count} 张：{_DeckDigest(p2)}");
+
             var strategy1 = ResolveStrategy(_p1Strategy, p1);
             var strategy2 = ResolveStrategy(_p2Strategy, p2);
             var brain1 = (AiBrain)_p1Brain;
@@ -192,6 +196,25 @@ namespace CardCore.Editor.Tests
             {
                 policy?.Dispose();
             }
+        }
+
+        /// <summary>下拉项可读名（诊断用）。</summary>
+        private string _DeckLabel(int index)
+        {
+            if (index == DragDropIndex) return "拖入JSON";
+            if (index == RandomIndex) return "随机三色";
+            int nameIndex = index - 1;
+            return nameIndex >= 0 && nameIndex < _deckNames.Count ? _deckNames[nameIndex] : $"(越界{index})";
+        }
+
+        /// <summary>卡组摘要：卡名×张数（诊断用）。</summary>
+        private static string _DeckDigest(List<CardData> deck)
+        {
+            if (deck == null) return "∅";
+            return string.Join("、", deck.Where(c => c != null)
+                .GroupBy(c => c.CardName)
+                .OrderByDescending(g => g.Count())
+                .Select(g => $"{g.Key}×{g.Count()}"));
         }
 
         /// <summary>解析下拉所选卡组：拖入 JSON / 玩家卡组（ID 引用→CardCatalog 还原）/ 随机三色。</summary>

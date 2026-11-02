@@ -36,6 +36,13 @@ namespace CardCore
         /// <summary>本次选择是否为「代价目标」（2026-11-01）：AI 排序按本标记判代价语义，
         /// 不依赖中文标题文案。</summary>
         public bool IsCostTarget;
+        /// <summary>代价选择的**支付方**（2026-11-02 对手选代价目标定案）：代价候选 &gt;1 时
+        /// Chooser=对手、CostPayer=支付方——AI 排序按「最大化支付方损失」视角排。
+        /// null=未标注（AI 视角回落 Chooser 自身=旧口径）。</summary>
+        public Player CostPayer;
+        /// <summary>发起选择的效果数值（AI 排序用，2026-11-02）：代价=该代价原子 Value
+        ///（对手视角判「能否打死」）。0=未标注。</summary>
+        public int PromptValue;
         /// <summary>是否允许取消（取消返回空列表）。</summary>
         public bool AllowCancel = false;
         /// <summary>超时秒数。0 或负数时由 Service 按回合数自动算出。</summary>

@@ -273,7 +273,10 @@ namespace CardCore.AI.NeuralEnv
             switch (a.Type)
             {
                 case TideActionType.PlayCard:
-                    return GameActions.PlayCard(core, me, a.Card, a.Targets, Zone.Hand, a.ModeIndex);
+                    // v10 牌库顶变体行：卡在牌库（TopDeckAsHandAura 授权）→ fromZone=Deck
+                    //（引擎 PlayCard 内 TopDeckPlaySource 终审，未授权安全拒）；否则照旧手牌源
+                    return GameActions.PlayCard(core, me, a.Card, a.Targets,
+                        core.ZoneManager.IsCardInZone(a.Card, me, Zone.Deck) ? Zone.Deck : Zone.Hand, a.ModeIndex);
                 case TideActionType.PlayLand:
                     // ModeIndex 复用为锁色选择（2026-10-11：-1=缺省主色，否则=ManaType 枚举值）
                     return GameActions.AddToElementPool(core, me, a.Card,
@@ -446,6 +449,27 @@ namespace CardCore.AI.NeuralEnv
                         foreach (var targets in ExpandCardTargets(core, me, c, m))
                             Actions.Add(BuildTargetedRow(TideActionType.PlayCard, c, m, src, targets));
                 }
+            }
+
+            // v10（2026-11-02）牌库顶虚拟手牌：TopDeckAsHandAura 光环命中己方且牌库非空 → deck[0]
+            // 与手牌出牌同构枚举（镜像引擎 PlayCard fromZone=Deck 路径；授权口=TopDeckPlaySource，
+            // 引擎侧终审）。不放地/不充能（虚拟手牌规则：不计手牌上限/不可弃/放地）；响应窗口不枚举
+            //（RespondPlay 恒手牌源，与引擎 PlayCardInResponse 口径一致）。
+            // sourceIndex=观测牌库顶槽 [184]（zoneKind=7 同卡同槽，模型可分）。
+            if (!RuleAuraSystem.ScopeHits(RuleAuraComponents.TopDeckAsHandAura, me)) return;
+            var deck = zm.GetCards(me, Zone.Deck);
+            if (deck == null || deck.Count == 0) return;
+            var top = deck[0];
+            if (!RuleHooks.CanPlay(core, me, top, Zone.Deck)) return;
+            if (GameActions.GetPayloadGateReject(core, me, top) != null) return;
+            int topModes = ModeCount(top);
+            for (int m = 0; m < topModes; m++)
+            {
+                if (!IsSpell(top) && !top.IsFieldCard() && !zm.HasBattlefieldSpace(me)) continue;
+                if (!TargetDomainService.HasPlayableTargets(core, me, top, m)) continue;
+                if (!GameActions.CanAffordCast(core, me, top, m)) continue;
+                foreach (var targets in ExpandCardTargets(core, me, top, m))
+                    Actions.Add(BuildTargetedRow(TideActionType.PlayCard, top, m, TideObservation.DeckTopSlot, targets));
             }
         }
 

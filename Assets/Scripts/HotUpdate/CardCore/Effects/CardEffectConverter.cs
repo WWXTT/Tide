@@ -452,15 +452,21 @@ namespace CardCore
             return removed;
         }
 
-        /// <summary>条目是否关键词型 Grant：refId → 表行 → 英文枚举名 → ComposerCatalog.IsKeywordStyleGrant
-        ///（与合成器 UI 同源）。行缺失/枚举解析失败不判关键词型（交由后续装载校验点名）。</summary>
+        /// <summary>条目是否关键词型 Grant（2026-11-03 定案：**按实例域判**）：Grant 族原子，
+        /// 且**该条目的生效域**恰为 {Self}（条目显式 kinds 优先，未声明回落表行域）。
+        /// 这样「印刷行（域=自己）+ 实例域=己方单位/双方生物」就是赋予通道，可作主动效果；
+        /// 而纯自指（没写 kinds 或写 [0]）仍按关键词型处理、装载期剔除。
+        /// 合成器的关键词条目自带 kinds=[1,2]（EntryForEffectSlot），天然走赋予。</summary>
         private static bool IsKeywordStyleEntry(AtomicEffectEntry entry)
         {
             if (entry == null || string.IsNullOrEmpty(entry.refId)) return false;
             var row = Attribute.AtomicEffectTable.GetByHashId(entry.refId);
             if (row == null || string.IsNullOrEmpty(row.EnumName)) return false;
-            return Enum.TryParse<AtomicEffectType>(row.EnumName, out var type)
-                   && ComposerCatalog.IsKeywordStyleGrant(type);
+            if (!row.EnumName.StartsWith("Grant")) return false;
+            var kinds = entry.kinds != null && entry.kinds.Count > 0
+                ? entry.kinds
+                : row.GetTargetKindList();
+            return kinds != null && kinds.Count == 1 && kinds[0] == (int)TargetKind.Self;
         }
 
         /// <summary>UI 编辑出口（2026-09-14 合成器重做）：原子条目 → 运行时实例（内容契约照常生效——

@@ -215,8 +215,8 @@ namespace CardCore
         public float StatRewriteFlatCost = 3f;
         /// <summary>双方同时作用减半系数（双侧全取/规则光环 ×0.5；2026-10-05 迁表）。</summary>
         public float SymmetricDiscountFactor = 0.5f;
-        /// <summary>耐久单价：0.5 灰/点（2026-10-16 回调定案——受击伤害撤钳 1 改全额扣耐久，
-        /// 燃料按伤害计量重估；2026-10-10 的 1 灰/点口径退役）。</summary>
+        /// <summary>耐久单价：0.5/点（色=蓝——2026-11-03 耐久改蓝定案，落桶见 CardCostService.StatBucketsOf；
+        /// 2026-10-16 回调 0.5 灰/点口径退役）。</summary>
         public float DurabilityUnitCost = 0.5f;
         /// <summary>场地光环（原规则光环）单侧溢价系数（2026-10-30 定案）：极性 ±1 仪典作用面收窄单侧
         ///（+1 仅己方 / −1 仅对方）后，表价（按对称双方校准）× 本系数；双方档仍 ×1。具体值用户可调。</summary>

@@ -824,8 +824,8 @@ namespace CardCore
         // —— 模式无关的三块（Derive 与 DeriveModeCosts 共用，防口径漂移；breakdown 传 null 则不记行）——
 
         /// <summary>身材费 S：statPoints / StatUnit（灰桶，不参与 f）；
-        /// 耐久体另计 耐久 × DurabilityUnitCost（2026-10-16 回调 0.5 灰/点——受击伤害撤钳 1
-        /// 改全额扣耐久，被动触发/主动发动仍每次 −1；2026-10-10 的 1 灰/点口径退役。
+        /// 耐久体另计 耐久 × DurabilityUnitCost（0.5/点；2026-11-03 耐久改蓝定案——计价入蓝桶；
+        /// 2026-10-16 回调 0.5 灰/点口径退役）。
         /// 结界/装备，0=无耐久档不计）。</summary>
         private static float ComputeStatValue(CardData card, CardCostConfig cc, List<CostBreakdownLine> breakdown)
         {
@@ -841,15 +841,15 @@ namespace CardCore
             {
                 float durValue = card.Durability * cc.DurabilityUnitCost;
                 statValue += durValue;
-                breakdown?.Add(new CostBreakdownLine("S", $"耐久费 (耐久{card.Durability})", durValue, ManaType.Gray));
+                breakdown?.Add(new CostBreakdownLine("S", $"耐久费 (耐久{card.Durability})", durValue, ManaType.Blue));
             }
             return statValue;
         }
 
         /// <summary>身材费轴色分桶（2026-11-02 基地红绿定案）：攻侧入红桶、血侧入绿桶——
         /// 各 = 点数/StatUnit 真实小数（总量与旧全灰口径一致，只拆色；2/2 → 1红+1绿）；
-        /// 耐久仍入灰桶（结界/装备轴不属攻血）。消费口：Derive / ContentPriceByColor /
-        /// DeriveModeCosts 三处的 ApportionMounted statAdd。</summary>
+        /// 耐久入蓝桶（2026-11-03 定案：结界耐久=蓝——0.5蓝/点，旧灰桶口径退役）。
+        /// 消费口：Derive / ContentPriceByColor / DeriveModeCosts 三处的 ApportionMounted statAdd。</summary>
         public static Dictionary<ManaType, float> StatBucketsOf(CardData card, CardCostConfig cc)
         {
             var buckets = new Dictionary<ManaType, float>();
@@ -858,7 +858,7 @@ namespace CardCore
             if ((card.Power ?? 0) > 0) buckets[ManaType.Red] = (card.Power ?? 0) / unit;
             if ((card.Life ?? 0) > 0) buckets[ManaType.Green] = (card.Life ?? 0) / unit;
             if (card.Durability > 0)
-                buckets[ManaType.Gray] = card.Durability * cc.DurabilityUnitCost;
+                buckets[ManaType.Blue] = card.Durability * cc.DurabilityUnitCost;
             return buckets;
         }
 

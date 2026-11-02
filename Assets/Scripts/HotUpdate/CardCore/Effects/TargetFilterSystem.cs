@@ -197,11 +197,13 @@ namespace CardCore
         public string DisplayName => "已受伤";
         public List<Entity> Filter(List<Entity> candidates, EffectExecutionContext context)
         {
-            // 反疗豁免（2026-10-09 暗牧仪典+反疗指示物）：命中反疗改写的候选（治疗将改写为伤害）
-            // 跳过"已受伤"要求——常态满血的目标（如敌方角色）也可选为"治疗"目标。
+            // 满血豁免（跨极性，单源 RuleAuraComponents.IsHealMeaningfulAtFullHp，2026-11-02 补丰盈支）：
+            // ① 反疗改写（2026-10-09 放血仪典+反疗指示物）——治疗将改写为等量伤害，常态满血的
+            //    目标（如敌方角色）也可选为"治疗"目标；
+            // ② 丰盈溢出——满血回复溢出转生命上限+1/当前+1，治疗恒有实得。
             // Damaged token 仅 Heal 行消费，无外溢。
             return candidates.Where(e => e.GetLife() < e.GetMaxLife()
-                                         || RuleAuraComponents.IsHealInverted(e)).ToList();
+                                         || RuleAuraComponents.IsHealMeaningfulAtFullHp(e)).ToList();
         }
     }
 

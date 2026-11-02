@@ -15,16 +15,18 @@ namespace CardCore.AI.NeuralEnv
     /// v3 契约（2026-10-14，tide_rl/docs/action_space_v3_contract.md，对账依据=仓库根
     /// AI训练准备_v3对账报告_2026-10-14.md）：
     ///
-    /// 槽位分配（每玩家 43 槽，共 86 槽；容量=引擎真值精确对齐）：
+    /// 槽位分配（每玩家 77 槽，共 154 槽 + 尾块 35 = 189；容量=引擎真值精确对齐）：
     ///   [0..8]   战场 Battlefield (9 = BattlefieldCapacityPerPlayer，单位区 4+5；P11 盘面重塑)
     ///   [9..22]  元素池 ElementPool (14 = 地牌槽编码容量护栏——2026-10-15 规则硬顶退役后仅编码上限；按色叠格)
     ///   [23..34] 手牌 Hand (12 = 回合中溢出护栏；回合末上限 7 由 globals 表达)
-    ///   [35..38] 墓地 Graveyard (4，新死优先：slot35=最新入墓；更早只进计数)
-    ///   [39..41] 发动区 Activation (3，公开区/反制指向点；第 4+ 张不可编码)
-    ///   [42]     场地区 FieldZone (1，英雄技能卡)
-    /// v9（2026-11-02 牌库双通道）：尾接己方牌库块 [86..115] 共 30 槽（仅决策座次方，无序集合
+    ///   [35..64] 墓地 Graveyard (30 = v10 4→30 全量，新死优先：slot35=最新入墓；超出 30 截断)
+    ///   [65..67] 发动区 Activation (3，公开区/反制指向点；第 4+ 张不可编码)
+    ///   [68]     场地区 FieldZone (1，英雄技能卡)
+    ///   [69..76] 除外区 Exile (8 = v10 逐卡入册，区内时序 index0=最先放逐；超出 8 截断)
+    /// v9（2026-11-02 牌库双通道）：尾接己方牌库块 [154..183] 共 30 槽（仅决策座次方，无序集合
     /// 按内容哈希排序编码——见 WriteOwnDeck；对方牌库不进 cards_，走 g[50..57] 开局标签通道）。
-    /// 放逐仍仅以计数入 globals。
+    /// v10（2026-11-02 观测欠账四件套）：+牌库顶槽 [184]（光环命中才编码，防泄露下一抽）
+    /// +对方牌库被展示卡块 [185..188]（RevealRules 信息轴）；对方手牌被展示卡豁免为全特征开图。
     /// 对方手牌是隐藏信息：只写 valid+controller（不开图），张数在 globals g[6]。
     ///
     /// 位置特征 [66][67]：单位格=落位钉子+first-free（槽序≠格序，必须显式编码；
@@ -35,6 +37,12 @@ namespace CardCore.AI.NeuralEnv
     public sealed class TideObservation
     {
         // ---- 维度常量（Python 侧只改这些，模型不动）----
+        // v10（2026-11-02 观测欠账四件套）：卡槽 116→189——墓地区 4→30 全量（新死优先保留）、
+        // 除外区逐卡 8 槽入册（连带修复 LAE 目标槽位断链：除外回收/深墓地卡 IndexOfCard 原恒 -1）、
+        // 对方手牌被展示（Exposed）卡豁免为全特征开图、尾块 +牌库顶槽 1（TopDeckAsHandAura
+        // 光环命中才编码——防泄露下一抽）+对方牌库被展示卡 4（RevealRules 信息轴接入）。
+        // 每玩家槽 43→77、DeckBase 86→154。NCard/NGlobal 不变（zoneKind 值扩 7/8/9）。
+        // 旧 v9 模型布局不符作废（python MAX_CARDS/LAYOUT_VERSION 同步升 10）。
         // v9（2026-11-02 牌库双通道）：卡槽 86→116（尾接己方牌库块 [86..115] 共 30 槽，仅决策
         // 座次方、按内容哈希排序编码防泄露洗牌顺序）+ 卡特征 115→116（尾加 [115] zoneKind——
         // 逐卡编码器无槽位位置嵌入，不加则牌库卡与手牌卡特征同形不可区分）+ globals 50→58
@@ -50,12 +58,15 @@ namespace CardCore.AI.NeuralEnv
         // 旧模型权重作废（python LAYOUT_VERSION 同步升 6）。
         // v5（2026-10-29 P6 苏醒改版）：删卡特征 [113] AwakenCommitted（立约退役）——
         // NCard 116→115、N_GLOBAL 不变。
-        public const int LayoutVersion = 9;
-        public const int MaxCardsPerPlayer = 43;
+        public const int LayoutVersion = 10;
+        public const int MaxCardsPerPlayer = 77; // v10：43→77（墓地 4→30、除外 8 入册）
         // v9 己方牌库块（尾接全局块，不走 ZoneLayout 每玩家偏移语义——专用 DeckBase+排序名次路径）：
         public const int DeckSlots = 30;                                      // 截断护栏（初始整组 30 恰满；衍生物入库超出不编码）
-        public const int DeckBase = MaxCardsPerPlayer * 2;                    // [86]
-        public const int MaxCardsTotal = MaxCardsPerPlayer * 2 + DeckSlots;   // v9：86→116
+        public const int DeckBase = MaxCardsPerPlayer * 2;                    // v10：86→154
+        public const int DeckTopSlot = DeckBase + DeckSlots;                  // v10 [184]：牌库顶虚拟手牌（光环命中才编码）
+        public const int OppDeckExposedSlots = 4;                             // v10：对方牌库被展示卡截断护栏
+        public const int OppDeckExposedBase = DeckTopSlot + 1;                // v10 [185..188]
+        public const int MaxCardsTotal = DeckBase + DeckSlots + 1 + OppDeckExposedSlots; // v10：116→189
         // 卡特征布局（内容身份三通路，[15..] 由 CardIdentityService 推导；槽位下标全部由
         // AtomIdSlots 派生——扩容只改 AtomIdSlots 一处，python N_CARD_FEATURES 同步）：
         //   [0..13]  状态特征（valid/controller/超类/力量/生命/费用/横置/关键词/指示物…实时值）
@@ -79,7 +90,8 @@ namespace CardCore.AI.NeuralEnv
         public const int PosXSlot = ParamStart + AtomIdSlots * CardIdentityService.AtomParamDim; // [113]
         public const int PosZSlot = PosXSlot + 1;                              // [114]
         // v9 区域种类 [115]：显式映射（不依 Zone 枚举序，防重排）——0=战场 1=元素池 2=手牌 3=墓地
-        // 4=发动区 5=场地区 6=己方牌库块；对方隐藏手牌=2（WriteConcealedCard）。
+        // 4=发动区 5=场地区 6=己方牌库块；v10 扩 7=牌库顶虚拟手牌 8=对方牌库被展示 9=除外区。
+        // 对方隐藏手牌=2（WriteConcealedCard；被展示卡豁免为全特征，仍写 2=手牌）。
         public const int ZoneKindSlot = PosZSlot + 1;                          // [115]
         public const int NCard = ZoneKindSlot + 1; // v9：115→116（尾加 zoneKind）；python N_CARD_FEATURES 同步
         // globals v3（50 维，契约 §5——重排序+归一化+放逐计数+弹药维；v2 g[48] 冗余删除）：
@@ -121,7 +133,9 @@ namespace CardCore.AI.NeuralEnv
 
             obs.WritePlayer(core, seat, 0, concealHand: false, board);
             obs.WritePlayer(core, opp, MaxCardsPerPlayer, concealHand: true, board);
-            obs.WriteOwnDeck(core, seat); // v9：己方牌库块 [86..115]（仅决策座次方）
+            obs.WriteOwnDeck(core, seat);        // v9：己方牌库块（仅决策座次方）
+            obs.WriteDeckTop(core, seat);        // v10：牌库顶虚拟手牌槽（光环命中才编码——防泄露下一抽）
+            obs.WriteOppDeckExposed(core, opp);  // v10：对方牌库被展示卡尾块（RevealRules 信息轴）
             obs.WriteGlobals(core, seat, opp, responseContext);
             return obs;
         }
@@ -135,7 +149,7 @@ namespace CardCore.AI.NeuralEnv
         }
 
         /// <summary>卡实例 → cards_ 槽位下标：动作行目标/栈顶来源的反查——扫描双方全部已编码区
-        ///（v9 起含己方牌库块；未编码区如对方牌库/放逐/衍生物临时区返回 -1）。
+        ///（v9 起含己方牌库块、v10 起含除外区；未编码区如对方牌库/衍生物临时区返回 -1）。
         /// 仅枚举/观测辅助用，非热路径权威。</summary>
         public static int IndexOfCard(GameCore core, Player me, Card c)
         {
@@ -159,7 +173,8 @@ namespace CardCore.AI.NeuralEnv
         }
 
         private static readonly Zone[] EncodedZones =
-            { Zone.Battlefield, Zone.ElementPool, Zone.Hand, Zone.Graveyard, Zone.Activation, Zone.FieldZone };
+            { Zone.Battlefield, Zone.ElementPool, Zone.Hand, Zone.Graveyard, Zone.Activation, Zone.FieldZone,
+              Zone.Exile }; // v10：除外区入册（IndexOfCard/CardIndex 自动覆盖——除外回收目标槽位修复）
 
         private static int TryZoneSlot(ZoneManager zm, Player p, Card c, int baseSlot)
         {
@@ -178,7 +193,9 @@ namespace CardCore.AI.NeuralEnv
         /// 战场 9=BattlefieldCapacityPerPlayer（单位区 4+5）、元素池 14=地牌槽编码容量护栏（2026-10-15 规则硬顶退役后
         /// 仅编码上限，超出部分照常参与规则只是不可编码）、手牌 12=回合中溢出护栏
         ///（回合末上限 7 由 globals 表达；第 13+ 张动作仍可执行，只是来源槽不可编码——防串区）、
-        /// 墓地 4（新死优先）、发动区 3、场地区 1（技能卡）。容量变更须先改契约文档再改这里。</summary>
+        /// 墓地 30（v10 4→30 全量，新死优先；超出截断）、发动区 3、场地区 1（技能卡）、
+        /// 除外 8（v10 入册，区内时序 index0=最先放逐=UI Region 面板同序；超出截断）。
+        /// 容量变更须先改契约文档再改这里。</summary>
         public static bool ZoneLayout(Zone zone, out int offset, out int cap)
         {
             switch (zone)
@@ -186,9 +203,10 @@ namespace CardCore.AI.NeuralEnv
                 case Zone.Battlefield: offset = 0; cap = 9; return true;
                 case Zone.ElementPool: offset = 9; cap = 14; return true;
                 case Zone.Hand: offset = 23; cap = 12; return true;
-                case Zone.Graveyard: offset = 35; cap = 4; return true;
-                case Zone.Activation: offset = 39; cap = 3; return true;
-                case Zone.FieldZone: offset = 42; cap = 1; return true;
+                case Zone.Graveyard: offset = 35; cap = 30; return true; // v10：4→30
+                case Zone.Activation: offset = 65; cap = 3; return true; // v10：39→65（墓地区扩容右移）
+                case Zone.FieldZone: offset = 68; cap = 1; return true;  // v10：42→68
+                case Zone.Exile: offset = 69; cap = 8; return true;      // v10 新增
                 default: offset = -1; cap = 0; return false;
             }
         }
@@ -234,7 +252,9 @@ namespace CardCore.AI.NeuralEnv
                 if (idx < 0 || idx >= cards.Count) continue; // 空槽保持全 0（valid=0）
 
                 var c = cards[idx];
-                if (conceal) { WriteConcealedCard(baseSlot + i); continue; }
+                // v10 展示豁免（RevealRules 信息轴）：对方手牌被展示（Exposed 指示物，换区清除）的卡
+                // 对双方公开——全特征开图（玩家口径：UI 翻正面/网络快照同源下发）；未展示保持隐藏
+                if (conceal && !RevealRules.IsExposed(c)) { WriteConcealedCard(baseSlot + i); continue; }
 
                 float posX = -1f, posZ = -1f;
                 bool tappedOverride = false;
@@ -275,6 +295,29 @@ namespace CardCore.AI.NeuralEnv
                 WriteCard(core.LayerEngine, sorted[i], DeckBase + i, false, -1f, -1f, 6);
         }
 
+        /// <summary>牌库顶虚拟手牌槽 [DeckTopSlot]（v10）：TopDeckAsHandAura 光环命中座次方且
+        /// 牌库非空时编码 deck[0] 全特征（zoneKind=7）。**未命中恒空槽——绝不无件编码牌库顶
+        ///（防泄露下一抽，验收硬断言）**。口径同源 BattleScreen.TopDeckVirtualCard（光环命中
+        /// 己方+牌库非空；不计手牌上限/不可弃/放地——LAE 只枚举出牌行）。</summary>
+        private void WriteDeckTop(GameCore core, Player seat)
+        {
+            if (!RuleAuraSystem.ScopeHits(RuleAuraComponents.TopDeckAsHandAura, seat)) return;
+            var deck = core.ZoneManager.GetCards(seat, Zone.Deck);
+            if (deck == null || deck.Count == 0) return;
+            WriteCard(core.LayerEngine, deck[0], DeckTopSlot, false, -1f, -1f, 7);
+        }
+
+        /// <summary>对方牌库被展示卡尾块 [OppDeckExposedBase..]（v10）：RevealRules.GetExposedCards
+        /// 前 4 张全特征（zoneKind=8，区内序=玩家点卡组面板所见——面板即按此序列出，无额外位置泄露）。
+        /// cap=4 截断护栏。己方牌库被展示卡不另设块：身份已在己方牌库多重集块内（无增量信息）。</summary>
+        private void WriteOppDeckExposed(GameCore core, Player opp)
+        {
+            var exposed = RevealRules.GetExposedCards(core.ZoneManager, opp, Zone.Deck);
+            int n = Math.Min(OppDeckExposedSlots, exposed.Count);
+            for (int i = 0; i < n; i++)
+                WriteCard(core.LayerEngine, exposed[i], OppDeckExposedBase + i, false, -1f, -1f, 8);
+        }
+
         /// <summary>牌库编码序（单源）：StructureContentHash → CompositionContentHash → RuntimeId。
         /// 位置无关的确定性全序——编码槽序与区内序（洗牌序）解耦；WriteOwnDeck 写入与
         /// TryDeckSlot 反查同享此序。token/未装载卡哈希 0 排最前（确定即可，无语义）。</summary>
@@ -299,7 +342,8 @@ namespace CardCore.AI.NeuralEnv
         }
 
         /// <summary>区域 → zoneKind 下标值（[115]；显式映射不依 Zone 枚举序，防重排）。
-        /// 己方牌库块=6 由 WriteOwnDeck 直传；对方隐藏手牌=2 由 WriteConcealedCard 直传。</summary>
+        /// 己方牌库块=6 / 牌库顶=7 / 对方牌库被展示=8 由专用写入方法直传；
+        /// 对方隐藏手牌=2 由 WriteConcealedCard 直传。</summary>
         private static int ZoneKindOf(Zone zone)
         {
             switch (zone)
@@ -310,6 +354,7 @@ namespace CardCore.AI.NeuralEnv
                 case Zone.Graveyard: return 3;
                 case Zone.Activation: return 4;
                 case Zone.FieldZone: return 5;
+                case Zone.Exile: return 9; // v10
                 default: return 0;
             }
         }

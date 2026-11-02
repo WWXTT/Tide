@@ -499,17 +499,25 @@ namespace CardCore
             return false;
         }
 
-        /// <summary>关键词型 Grant 判定（2026-10-02 定案）：Grant 行且表行目标域恰为 {Self}（纯自指）。
-        /// 关键词型原子 = 关键词的挂载形态（卡面印刷/登场/触发式如"自我沉睡"），**不得作为主动
-        /// 效果的原子**——横置代价换静态身份无意义；域含其他目标 = 赋予型 Grant（"给目标加词"），
-        /// 可作主动。行级判定即完备：实例 kinds 是收窄（交集），自指域收不出他人域、赋予域收不出自指域。
+        /// <summary>关键词型 Grant 判定（2026-10-02 定案；2026-11-02 两通道修复）：Grant 行且**该行**
+        /// 目标域恰为 {Self}（纯自指）。关键词型原子 = 关键词的挂载形态（卡面印刷/登场/触发式如
+        /// "自我沉睡"），**不得作为主动效果的原子**——横置代价换静态身份无意义。
+        /// **两个通道（2026-11-02 用户定案）**：①印刷/自赋通道 = 表行域 {Self}（连击 8c988c18 等）；
+        /// ②赋予通道 = 同一 EffectType 另立一行、域含他人（如 327e9a87「赋予连击」域 {己方单位}），
+        /// 可作主动效果。此前的「行级判定即完备」在**同类型多行**时不成立——旧口用 GetByEnumName
+        /// 反查枚举名会命中末行，等于抹掉两通道差异；现按**实际引用行**判（IsKeywordStyleGrantRow）。
         /// 消费方：装载校验（CardEffectConverter）与效果合成器 UI——同源防两套口径。</summary>
         public static bool IsKeywordStyleGrant(AtomicEffectType t)
+            => IsKeywordStyleGrantRow(Attribute.AtomicEffectTable.GetByEnumName(t.ToString()));
+
+        /// <summary>按**实际表行**判关键词型 Grant：EffectType 以 Grant 开头且该行目标域恰为 {Self}。
+        /// 2026-11-03 两通道合并后：**装载校验已改为按「实例域」判**（CardEffectConverter.IsKeywordStyleEntry
+        /// ——印刷行 + 实例 kinds=[1] 就是赋予，不再另立「赋予XXX」行）；本口保留给合成器资格/悬停文案
+        /// 这类「只看表行」的读面用。</summary>
+        public static bool IsKeywordStyleGrantRow(Attribute.AtomicEffectConfig row)
         {
-            var name = t.ToString();
-            if (!name.StartsWith("Grant")) return false;
-            var row = Attribute.AtomicEffectTable.GetByEnumName(name);
-            if (row == null) return false;
+            if (row == null || string.IsNullOrEmpty(row.EnumName)) return false;
+            if (!row.EnumName.StartsWith("Grant")) return false;
             var kinds = row.GetTargetKindList();
             return kinds != null && kinds.Count == 1 && kinds[0] == (int)TargetKind.Self;
         }

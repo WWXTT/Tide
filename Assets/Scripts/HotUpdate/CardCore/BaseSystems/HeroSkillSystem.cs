@@ -31,6 +31,8 @@ namespace CardCore
         /// 法术 && 1~3 个效果 && 全部为主动效果（19/20，响应式不算）
         /// && **不带代价**（2026-11-01 定案，与「主动效果禁代价」同口径——技能栏不开放
         /// EffectActivationGate 净费闸，代价行在技能发动路径不会被正确执行/抵扣）
+        /// && **不带分支载荷**（2026-11-02 用户定案：「手牌为0抽1」这类门奖励、产出条件、
+        /// 引擎奖励一律不能挂到角色技能上——技能只允许效果本体）
         /// && **效果数值上限 value=1**（2026-11-02 定案：value≥2 的原子不能挂成技能——
         /// 威力档超技能定位；速度侧由技能源基速恒 0 已钉死）。
         /// 与法术形状校验（CardLoader.ValidateSpellShape）同口径。</summary>
@@ -46,6 +48,7 @@ namespace CardCore
                     return false;
             }
             if (CardCostService.HasPayloadCost(data)) return false;
+            if (SkillBranchViolations(data).Count > 0) return false;
             if (SkillValueViolations(data).Count > 0) return false;
             return true;
         }
@@ -64,11 +67,47 @@ namespace CardCore
                     return "技能卡的效果必须全部为主动效果（不能是被动/触发/响应式）";
             }
             if (CardCostService.HasPayloadCost(data)) return "技能卡不能带代价（主动效果禁代价同理）";
+            var branchHits = SkillBranchViolations(data);
+            if (branchHits.Count > 0)
+                return $"{data.CardName} 技能效果带了分支载荷：{string.Join("；", branchHits)}"
+                       + "——角色技能不能挂门奖励/产出条件/引擎奖励（如「手牌为0抽1」），请用效果本体";
             var valueHits = SkillValueViolations(data);
             if (valueHits.Count > 0)
                 return $"{data.CardName} 技能效果数值超限：{string.Join("；", valueHits)}"
                        + "——技能效果只允许 value=1（2026-11-02 定案），请降低数值档或另选技能卡";
             return null;
+        }
+
+        // ======================================== 角色技能禁分支载荷（2026-11-02 用户定案） ========================================
+
+        /// <summary>技能卡分支载荷违规明细（空=合规）：主序列原子 + 步骤原子的槽级 Branch 一律禁止。
+        /// 理由（用户定案）：角色技能是**0 速、每回合一次的固定效果**——「手牌为0抽1」这类门奖励、
+        /// 产出条件、引擎奖励会把它变成条件引擎，与技能定位冲突。
+        /// 消费方：CanBeSkillCard / SkillIneligibleReason / 重推工具与验证器。</summary>
+        public static List<string> SkillBranchViolations(CardData data)
+        {
+            var result = new List<string>();
+            if (data?.Effects == null) return result;
+            foreach (var fx in data.Effects)
+            {
+                if (fx == null) continue;
+                ScanSkillBranches(fx, fx.AtomicEffects, result);
+                if (fx.Steps != null)
+                    foreach (var step in fx.Steps)
+                        if (step?.atomic != null)
+                            ScanSkillBranches(fx, new[] { step.atomic }, result);
+            }
+            return result;
+        }
+
+        private static void ScanSkillBranches(CardEffectData fx, IEnumerable<AtomicEffectEntry> entries, List<string> result)
+        {
+            if (entries == null) return;
+            foreach (var e in entries)
+            {
+                if (e == null || BranchEntryRules.IsPhantom(e.branch)) continue;
+                result.Add($"效果[{fx.DisplayName ?? fx.Id}] 原子#{e.refId} 带槽级分支载荷");
+            }
         }
 
         // ======================================== 效果数值上限（2026-11-02 定案：技能只允许 value=1） ========================================
