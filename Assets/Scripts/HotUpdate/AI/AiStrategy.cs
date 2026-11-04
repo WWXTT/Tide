@@ -590,14 +590,16 @@ namespace CardCore.AI
             //（5 伤砸 1/1 是烧牌，还赔一张地）；只有「手里再没有别的牌可出」时才直接打脸。
             if (IsDirectDamageSpell(card))
             {
-                if (HasEnemyAboveLife(core, me, 4)) return false;       // 有正经目标 → 打
+                // 有正经目标（>4 血）→ 主阶段留手，等「攻击前一拍」跟着攻击一起打（规则 3）
+                // 有攻击手才等「攻击前一拍」；本回合根本没人能攻击 → 主阶段直接打 >4 目标（别把牌烂在手里）
+                if (HasEnemyAboveLife(core, me, 4)) return HasReadyAttacker(core, me);
                 return HasOtherPlayable(core, me, card);                // 还有牌可出 → 留着；没牌 → 打脸
             }
 
             // 连击（2026-11-04 用户定案）：**只给「能攻击且攻击力 ≥4」的单位**——4 攻以下不考虑，
             // 代价（炸一张地）的补偿比乱贴划算。没有合格载体就留手。
             if (IsDoubleStrikeSpell(card))
-                return BestDoubleStrikeCarrier(core, me) == null;
+                return true; // 主阶段一律留手：等「攻击前一拍」贴给 ≥4 攻载体（规则 3）
 
             return false;
         }
@@ -797,7 +799,11 @@ namespace CardCore.AI
                 var best = (core.ZoneManager.GetCards(me?.Opponent, Zone.Battlefield) ?? new List<Card>())
                     .Where(c => c != null && c.IsAlive && c.GetLife() > 4)
                     .OrderByDescending(c => c.GetLife()).FirstOrDefault();
-                return best != null ? new List<Entity> { best } : new List<Entity>(); // 空=不打
+                if (best != null) return new List<Entity> { best };
+                // 没有 >4 血目标：只有「手里再没有别的牌可出」才打脸（规则 1 的兜底），否则这次不打
+                if (!HasOtherPlayable(core, me, card) && me?.Opponent != null)
+                    return new List<Entity> { me.Opponent };
+                return new List<Entity>();
             }
             if (IsDoubleStrikeSpell(card))
             {
@@ -2395,6 +2401,9 @@ namespace CardCore.AI
         }
     }
 }
+
+
+
 
 
 

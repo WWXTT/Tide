@@ -98,14 +98,6 @@ namespace CardCore.Attribute
         public int Damage { get; set; }
     }
 
-    /// <summary>展示手牌事件</summary>
-    public class RevealHandEvent : GameEventBase
-    {
-        public Player Player { get; set; }
-        public List<Card> Cards { get; set; }
-        public Entity Source { get; set; }
-    }
-
     // ==================== 状态变更事件 ====================
 
     /// <summary>属性修改事件</summary>
@@ -126,17 +118,6 @@ namespace CardCore.Attribute
         public StatType StatType { get; set; }
         public int OldValue { get; set; }
         public int NewValue { get; set; }
-        public Entity Source { get; set; }
-    }
-
-    /// <summary>属性交换事件</summary>
-    public class SwapStatsEvent : GameEventBase
-    {
-        public Entity Target { get; set; }
-        public int OldPower { get; set; }
-        public int NewPower { get; set; }
-        public int OldLife { get; set; }
-        public int NewLife { get; set; }
         public Entity Source { get; set; }
     }
 
@@ -195,29 +176,6 @@ namespace CardCore.Attribute
         public Entity Source { get; set; }
     }
 
-    /// <summary>交换控制者事件</summary>
-    public class SwapControllerEvent : GameEventBase
-    {
-        public Entity Target1 { get; set; }
-        public Entity Target2 { get; set; }
-        public Entity Source { get; set; }
-    }
-
-    /// <summary>伤害防止事件</summary>
-    public class PreventDamageEvent : GameEventBase
-    {
-        public Entity Target { get; set; }
-        public int Amount { get; set; }
-        public Entity Source { get; set; }
-    }
-
-    /// <summary>反制法术事件</summary>
-    public class CounterSpellEvent : GameEventBase
-    {
-        public Entity Target { get; set; }
-        public Entity Source { get; set; }
-    }
-
     /// <summary>无效化事件</summary>
     public class NegateEvent : GameEventBase
     {
@@ -231,13 +189,6 @@ namespace CardCore.Attribute
     {
         public Entity OriginalTarget { get; set; }
         public Entity NewTarget { get; set; }
-        public Entity Source { get; set; }
-    }
-
-    /// <summary>无效化卡牌事件</summary>
-    public class NullifyEvent : GameEventBase
-    {
-        public Entity Target { get; set; }
         public Entity Source { get; set; }
     }
 

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -150,9 +150,12 @@ namespace TideSim
                 switch (entry.id)
                 {
                     case "blood-hold-1hp":
-                        Assert(In(core, p1, Zone.Hand, "血偿") != null, "① 血偿对 1/1：留手（回合结束仍在手牌）");
-                        Assert(In(core, p1, Zone.Graveyard, "血偿") == null, "① 血偿没有被当作打脸/烧小怪的出口（不在墓地）");
-                        Assert(Unit(core, p1, "火苗") != null, "① 出牌循环照常运转（手里别的牌——火苗——已下场）");
+                        // 2026-11-04 修订：手里还有别的牌时留着；别的牌打完后就是「无牌可出」→ 打脸，不打 1/1。
+                        // 小怪可能被火苗的攻击换掉（正常解场），所以只认「血偿的 5 伤落在脸上」这一条硬证据
+                        Assert(p2.Life == 25, "① 血偿 5 伤落在脸（30→25），没有浪费在 1/1 上");
+                        Assert(In(core, p1, Zone.Graveyard, "血偿") != null, "① 血偿没浪费在小怪上（进了墓地=打脸）");
+                        Assert(p2.Life == 25, $"① 5 伤打脸（30→25，实际 {p2.Life}）");
+                        Assert(Unit(core, p1, "火苗") != null, "① 出牌循环照常运转（火苗已下场）");
                         break;
 
                     case "blood-hit-7hp":
@@ -188,6 +191,25 @@ namespace TideSim
                         Assert(FirstSeq("attack") > 0 && FirstSeq("play") > 0, "⑥ 本回合攻击与出牌都发生过");
                         Assert(FirstSeq("play") < FirstSeq("attack"), "⑥ 常规序：首次出牌早于首个攻击宣言（先铺后攻）");
                         break;
+
+                    case "blood-face-no-cards":
+                        Assert(In(core, p1, Zone.Hand, "血偿") == null, "⑧ 血偿：无牌可出 → 主阶段打出（不在手）");
+                        Assert(p2.Life == 25, $"⑧ 5 伤打脸（30→25，实际 {p2.Life}）");
+                        Assert(Life(Unit(core, p2, "教学·3")) == 1, "⑧ 小怪没吃伤害（仍 1 血）");
+                        break;
+
+                    case "combo-at-attack":
+                    {
+                        int firstAtk = FirstSeq("attack");
+                        int playChase = _trace.Where(t => t.Kind == "play" && t.Detail == "追击").Select(t => t.Seq).FirstOrDefault();
+                        Assert(playChase > 0, "⑨ 追击出手");
+                        Assert(playChase > firstAtk, "⑨ 追击在第一次攻击宣言之后才出（主阶段留手，不是提前甩）");
+                        var carrier28 = Unit(core, p1, "预组·28");
+                        Assert(carrier28 != null && carrier28.HasKeyword(KeywordRules.DoubleStrike), "⑨ 4 攻载体吃到连击");
+                        Assert(_trace.Any(t => t.Kind == "attack" && t.Detail == "预组·28" && t.Seq > playChase),
+                            "⑨ 贴完连击后立刻跟着这一击宣言（攻击前一拍）");
+                        break;
+                    }
 
                     case "wave-split-guard":
                         Assert(_earlyCombatProbe, "⑦ 策略闸（守卫臂）：对手未横置守卫 → WantEarlyCombat=true");
@@ -290,3 +312,6 @@ namespace TideSim
         }
     }
 }
+
+
+

@@ -721,6 +721,9 @@ namespace SynergyUI
                 {
                     SettleStack(core);
                     if (core.IsGameOver) return;
+                    // 血偿可能把原定目标打掉 → 重新择目标（重选不到就跳过这一攻）
+                    target = _strategy.PickAttackTarget(core, me, unit, opp);
+                    if (target == null) continue;
                 }
                 if (!GameActions.DeclareAttack(core, me, unit, target)) continue;
                 await GameActions.SettleResponseWindowAsync(core); // 窗口+结算（含级联触发/SBA 轮）
@@ -784,4 +787,5 @@ namespace SynergyUI
         }
     }
 }
+
 

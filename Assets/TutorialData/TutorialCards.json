@@ -1,4 +1,4 @@
-{
+﻿{
   "cards": [
     {
       "id": "C_DA499FAE",
@@ -2038,7 +2038,7 @@
     {
       "id": "C_CBCE6D17",
       "cardName": "回潮",
-      "supertype": "Spell",
+      "supertype": "Enchantment",
       "costList": [
         0.0,
         0.0,
@@ -2051,7 +2051,8 @@
       ],
       "effectIds": [
         "63BC212E"
-      ]
+      ],
+      "durability": 4
     },
     {
       "id": "C_57BA44EC",
@@ -2252,3 +2253,4 @@
     }
   ]
 }
+

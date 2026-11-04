@@ -292,32 +292,6 @@ namespace CardCore
     }
 
     /// <summary>
-    /// 无效化类型
-    /// </summary>
-    public enum NullifyType
-    {
-        /// <summary>
-        /// 所有能力
-        /// </summary>
-        AllAbilities,
-
-        /// <summary>
-        /// 仅主动能力
-        /// </summary>
-        ActivatedAbilities,
-
-        /// <summary>
-        /// 仅触发式能力
-        /// </summary>
-        TriggeredAbilities,
-
-        /// <summary>
-        /// 仅静态能力
-        /// </summary>
-        StaticAbilities
-    }
-
-    /// <summary>
     /// 复制类型
     /// </summary>
     public enum CopyType

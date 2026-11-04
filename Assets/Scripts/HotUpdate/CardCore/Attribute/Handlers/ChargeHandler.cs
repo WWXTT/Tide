@@ -63,7 +63,19 @@ namespace CardCore.Attribute.Handlers
                 return UniTask.CompletedTask;
             }
 
-            card.AddCounters(counterId, 1, context.Source);
+            // 2026-11-04 审计补缺：充能落层此前直写无事件——战报只见「支付 X（充能:卡名）」不见
+            // 充到哪色/累计几层。补发标准计数事件（订阅面=UI 卡面刷新/浮字，无引擎触发链，无双触发）。
+            int charged = card.AddCounters(counterId, 1, context.Source);
+            if (charged > 0)
+                PublishEvent(new CounterChangedEvent
+                {
+                    Target = card,
+                    CounterType = counterId,
+                    Amount = charged,
+                    Source = context.Source,
+                    // 延迟渲染不能现查——发布口定格累计层数（CardChargedEvent.PaidOnColor 同读数）
+                    AfterNote = $"现有 {card.GetCounterCount(counterId)}",
+                });
 
             // 展示这张卡（信息轴「展示」口径：二值不叠层——已展示不重复挂/不重复发事件；
             // 2026-11-03 收口 RevealRules.Reveal 单源）

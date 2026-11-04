@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using CardCore;
@@ -58,7 +58,7 @@ namespace TideSim
             // ---- ② 连击：出现 4 攻载体 → 打 ----
             var big4 = MakeUnit("测试四攻", 4, 2);
             core.ZoneManager.TryAddToBattlefield(big4, p1);
-            Assert(chase != null && !strategy.ShouldHold(core, p1, chase), "② 连击：有 4 攻载体 → 打");
+            Assert(chase != null && strategy.ShouldHold(core, p1, chase), "② 连击：有 4 攻载体仍主阶段留手（攻击前一拍才贴）");
 
             // ---- ③ 血偿：敌方只有 2 血小怪、手里还有别的牌 → 留手 ----
             Assert(blood != null && strategy.ShouldHold(core, p1, blood), "③ 血偿：没有 >4 血目标（还有牌可出）→ 留手");
@@ -66,7 +66,7 @@ namespace TideSim
             // ---- ④ 血偿：出现 7 血目标 → 打 ----
             var big7 = MakeUnit("测试大个", 0, 7);
             core.ZoneManager.TryAddToBattlefield(big7, p2);
-            Assert(blood != null && !strategy.ShouldHold(core, p1, blood), "④ 血偿：有 7 血目标 → 打");
+            Assert(blood != null && strategy.ShouldHold(core, p1, blood), "④ 血偿：有 7 血目标且场上有攻击手 → 留手等攻击前一拍");
 
             // ---- ⑤ 血偿：手里没别的牌可出 → 直接打脸（不留） ----
             core.ZoneManager.MoveCard(big7, p2, Zone.Battlefield, Zone.Graveyard);
@@ -133,3 +133,4 @@ namespace TideSim
             });
     }
 }
+

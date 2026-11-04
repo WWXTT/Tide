@@ -70,7 +70,6 @@ namespace CardCore
                     Add(player, HealOverflow, e.Overfill);
             });
             em.Subscribe<RevealCardsEvent>(e => CountReveal(e?.Player, e?.Cards, e?.Source));
-            em.Subscribe<RevealHandEvent>(e => CountReveal(e?.Player, e?.Cards, e?.Source));
             em.Subscribe<CardMillEvent>(e => Add(e?.Player, MilledSelf, 1));
             em.Subscribe<MillDeckCostEvent>(e => Add(e?.Player, MilledSelf, e?.Cards?.Count ?? 0));
             em.Subscribe<CardEnterHandEvent>(e =>

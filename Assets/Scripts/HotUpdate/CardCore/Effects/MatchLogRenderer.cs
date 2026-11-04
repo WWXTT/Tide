@@ -103,6 +103,13 @@ namespace CardCore
                             : $"{Who(c.Player, isSelf)} 使用 {Name(c.PlayedCard)}" +
                               (c.FromZone == Zone.Graveyard ? "（从墓地）" : ""),
                         "log-line--card");
+                case CardActivationFailedEvent fail:
+                    // 发动失败（2026-11-04 审计补缺）：费用不足/代价无有效目标/发动无效/入场失败——
+                    // 此前「使用 X」后卡凭空消失无解释（四发布口均带 Reason，事件即真相）。
+                    // 效果无效另有 EffectFlight 行（弹体照飞），两行互补不重复。
+                    return fail.Card == null ? Empty
+                        : new Line($"〔发动失败〕{Who(fail.Controller, isSelf)} 的 {Name(fail.Card)}：{fail.Reason}",
+                            "log-line--effect");
                 case CardPutToBattlefieldEvent b:
                 {
                     string src = EnterSourceZh(b.Source);
@@ -210,6 +217,9 @@ namespace CardCore
                 // ==== 状态改写（B1 补缺：属性增减/冻结） ====
                 case StatModifyEvent stat:
                     return new Line($"{EntityName(stat.Target, isSelf)} {StatZh(stat.StatType)} {stat.OldValue}→{stat.NewValue}（{(stat.Delta >= 0 ? "+" : "")}{stat.Delta}）",
+                        "log-line--effect");
+                case StatSetEvent set: // 设置型属性改写（2026-11-04 审计补缺）：与增减行同构，标「设为」区分
+                    return new Line($"{EntityName(set.Target, isSelf)} {StatZh(set.StatType)} {set.OldValue}→{set.NewValue}（设为）",
                         "log-line--effect");
                 case FreezeEvent freeze:
                     return new Line($"{EntityName(freeze.Target, isSelf)} 被冻结", "log-line--effect");

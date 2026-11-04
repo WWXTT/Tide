@@ -541,15 +541,6 @@ namespace CardCore
         public EffectResolutionContext Context { get; set; }
     }
 
-    /// <summary>
-    /// 效果无效事件
-    /// </summary>
-    public class EffectNegatedEvent : GameEventBase
-    {
-        public Effect NegatedEffect { get; set; }
-        public Entity Source { get; set; }
-    }
-
     /// <summary>效果飞行表现事件（2026-10-20 用户定案：**发动无效才什么都不播；效果无效或
     /// 效果对目标不适用（如不灭拦消灭）不影响效果发动的表演**）——效果已发动（费已付）但
     /// 目标上无结算结果（无伤害/死亡事件）时，由引擎补发本事件驱动弹体飞行+到达表现。
@@ -772,27 +763,6 @@ namespace CardCore
         public Player GainingPlayer { get; set; }
     }
 
-    // ==================== 牌库操作事件 ====================
-
-    /// <summary>
-    /// 牌库检索事件
-    /// </summary>
-    public class CardSearchEvent : GameEventBase
-    {
-        public Player Player { get; set; }
-        public System.Collections.Generic.List<Card> SearchedCards { get; set; }
-        public Entity Source { get; set; }
-    }
-
-    /// <summary>
-    /// 洗牌事件
-    /// </summary>
-    public class CardShuffleEvent : GameEventBase
-    {
-        public Player Player { get; set; }
-        public Entity Source { get; set; }
-    }
-
     // ==================== 关键词事件 ====================
 
     /// <summary>
@@ -828,18 +798,6 @@ namespace CardCore
         public Entity Source { get; set; }
     }
 
-    // ==================== 效果反制事件 ====================
-
-    /// <summary>
-    /// 效果被反制事件
-    /// </summary>
-    public class EffectCounteredEvent : GameEventBase
-    {
-        public EffectInstance CounteredEffect { get; set; }
-        public Entity Source { get; set; }
-        public Player Controller { get; set; }
-    }
-
     // ==================== 衍生物事件 ====================
 
     /// <summary>
@@ -857,34 +815,4 @@ namespace CardCore
         public Zone DropZone { get; set; }
     }
 
-    // ==================== 卡牌复制/转化事件 ====================
-
-    /// <summary>
-    /// 卡牌复制事件
-    /// </summary>
-    public class CardCopiedEvent : GameEventBase
-    {
-        public Card OriginalCard { get; set; }
-        public Player Controller { get; set; }
-        public Entity Source { get; set; }
-    }
-
-    /// <summary>
-    /// 属性交换事件
-    /// </summary>
-    public class StatsSwappedEvent : GameEventBase
-    {
-        public Entity Target { get; set; }
-        public Entity Source { get; set; }
-    }
-
-    /// <summary>
-    /// 卡牌无效化事件
-    /// </summary>
-    public class CardNullifiedEvent : GameEventBase
-    {
-        public Entity Target { get; set; }
-        public NullifyType NullifyType { get; set; }
-        public Entity Source { get; set; }
-    }
 }
