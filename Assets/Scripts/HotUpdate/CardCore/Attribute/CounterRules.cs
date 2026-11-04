@@ -516,6 +516,7 @@ namespace CardCore.Attribute
                 {
                     DestroyedCard = durable,
                     Reason = DestroyReason.Smashed, // 耐久耗尽=摧毁口径（无生命直毁）
+                    FromZone = durable.GetZone(), // 2026-11-04 日志口径：移区前定格（战报延迟渲染）
                 });
                 if (owner != null)
                 {
@@ -595,7 +596,27 @@ namespace CardCore.Attribute
             // 保持「数值=字段+指示物」不漂移。
             int actual = card.AddCounters(id, amount, source);
             if (actual == 0) return;
+            // 回写前后属性定格（2026-11-04 战报定案）：指示物行只说「获得 N 层攻击力增加」
+            // 不说变化后属性——战报延迟渲染不能现查，回写前旧值在此捕获。
+            int oldPower = card.GetPower();
+            int oldLife = card.GetLife();
             ApplyStatDelta(card, spec.StatKind, actual, source);
+            string afterNote = null;
+            switch (spec.StatKind)
+            {
+                case StatCounterKind.PowerUp:
+                case StatCounterKind.PowerDown:
+                    afterNote = $"攻击 {oldPower}→{card.GetPower()}";
+                    break;
+                case StatCounterKind.LifeUp:
+                case StatCounterKind.LifeDown:
+                    afterNote = $"生命 {oldLife}→{card.GetLife()}";
+                    break;
+                case StatCounterKind.PlusOnePlusOne:
+                case StatCounterKind.MinusOneMinusOne:
+                    afterNote = $"攻击 {oldPower}→{card.GetPower()}、生命 {oldLife}→{card.GetLife()}";
+                    break;
+            }
             EventManager.Instance.Publish(new CounterChangedEvent
             {
                 Target = card,
@@ -605,6 +626,7 @@ namespace CardCore.Attribute
                 // 赋予粒子（2026-11-01）：属性族 handler 传原子行基准主色；非赋予调用方（设置轨直写等）
                 // 恒 null——表现层以非 null 识别「这是一次赋予」
                 EffectTint = effectTint,
+                AfterNote = afterNote,
             });
         }
 
@@ -804,10 +826,15 @@ namespace CardCore.Attribute
         {
             if (turnPlayer == null) return;
 
+            // 回合末指示物变化汇总（2026-11-04 用户定案）：三段例程的层变化逐条收集，
+            // 末尾一次性 TurnEndCounterSummaryEvent 播出（此前逐项 KeywordAppliedEvent
+            // 全在渲染白名单外=战报零播报）。
+            var turnEndParts = new List<string>();
+
             // ── ① 毒素例外例程（持有者侧） ──
             foreach (var entity in AllEntities(turnPlayer, zoneManager))
             {
-                ProcessToxinException(entity);
+                ProcessToxinException(entity, turnEndParts);
             }
 
             // ── ② 临时指示物例程（2026-10-10 回响临时指示物化；2026-10-12 生效自减改稿）：
@@ -835,6 +862,7 @@ namespace CardCore.Attribute
                     Keyword = TempCounter,
                     Detail = "临时到期——不在战场，从游戏中移除",
                 });
+                turnEndParts.Add($"{EffectText.Name(card)} 临时到期——移出游戏");
             }
 
             // ── ③ 衰退族逐层倒数（spec 驱动）：TickPolicy=TurnEndTickDown（=Decay 类），
@@ -848,8 +876,16 @@ namespace CardCore.Attribute
             foreach (var entity in AllEntities(turnPlayer, zoneManager))
             {
                 foreach (var (id, displayName) in tickDownIds)
-                    TickLayeredCounter(entity, id, displayName);
+                    TickLayeredCounter(entity, id, displayName, turnEndParts);
             }
+
+            // ── 汇总播报（空表不出行——渲染层同判） ──
+            if (turnEndParts.Count > 0)
+                EventManager.Instance.Publish(new TurnEndCounterSummaryEvent
+                {
+                    TurnPlayer = turnPlayer,
+                    Parts = turnEndParts,
+                });
         }
 
         /// <summary>
@@ -858,7 +894,7 @@ namespace CardCore.Attribute
         /// 随后层数减半（向下取整：1 层余 0、3 层余 1）。伤害过程中的叠层不影响
         /// 本次基数（先快照再结算）。
         /// </summary>
-        private static void ProcessToxinException(Entity entity)
+        private static void ProcessToxinException(Entity entity, List<string> turnEndParts = null)
         {
             // 效果口径读数（2026-10-31 绝缘体裁定）：毒素层对绝缘体单位不生效——不造伤、
             // 不减半（未生效），账面层保留（「不拦指示物添加」）
@@ -873,11 +909,14 @@ namespace CardCore.Attribute
                 Keyword = ToxinCounter,
                 Detail = $"毒素发作（{layers} 层，受到 {layers} 点伤害，余 {halved} 层）",
             });
+            // 层变化入回合末汇总（2026-11-04）：伤害本身由生命行呈现，这里只记层数
+            turnEndParts?.Add($"{EffectText.Name(entity)} 毒素 {layers}→{halved}");
         }
 
         /// <summary>层=剩余回合计数的衰退指示物通用倒数（持有者回合结束 −1，归零解除并播报；
         /// Entity 级——2026-10-30 保护三档可挂角色，Card 参数随③块扩域通用化）。</summary>
-        private static void TickLayeredCounter(Entity entity, string counterId, string displayName)
+        private static void TickLayeredCounter(Entity entity, string counterId, string displayName,
+            List<string> turnEndParts = null)
         {
             int layers = entity.GetCounterCount(counterId);
             if (layers <= 0) return;
@@ -890,6 +929,11 @@ namespace CardCore.Attribute
                     ? $"{displayName}倒数（持有者回合结束，余 {layers - 1} 回合）"
                     : $"{displayName}解除（持有者回合结束，层数归零）",
             });
+            // 层变化入回合末汇总（2026-11-04）：与上方 KeywordAppliedEvent 同息（该事件在渲染
+            // 白名单外），此处才真正对战报可见
+            turnEndParts?.Add(layers - 1 > 0
+                ? $"{EffectText.Name(entity)} {displayName} {layers}→{layers - 1}（余 {layers - 1} 回合）"
+                : $"{EffectText.Name(entity)} {displayName} {layers}→0（归零解除）");
         }
 
         /// <summary>临时例程结算域（2026-10-10）：持有者手牌/战场/墓地/牌库/技能栏/除外区快照——

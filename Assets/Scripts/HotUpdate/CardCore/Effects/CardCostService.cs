@@ -154,9 +154,12 @@ namespace CardCore
             }
 
             // ---- 4) 推导档位 Ĉ（2026-10-22 恒推导定案）：round(S+E+K) 所在档——
-            // 延迟折 f=d(Ĉ) 已整删（2026-10-31 定案），档位仅作 UI 卡面费数字，不再参与计价。----
+            // 延迟折 f=d(Ĉ) 已整删（2026-10-31 定案），档位仅作 UI 卡面费数字，不再参与计价。
+            // 档帽=地牌槽自然封顶 LandCurveCap 单源（2026-11-03 接入；旧独立 MaxTier=14 退役——
+            // 池侧 14 硬顶 2026-10-15 已退役，此处是最后一处残留；成长效果加槽无上限，不影响本显示钳）。----
             float rawTotal = statValue + keywordTotal + effectTotal;
-            result.DerivedTier = rawTotal > 0f ? Math.Clamp(TideMath.RoundToInt(rawTotal), 1, cc.MaxTier) : 0;
+            result.DerivedTier = rawTotal > 0f
+                ? Math.Clamp(TideMath.RoundToInt(rawTotal), 1, (int)cfg.GameRulesConfig.LandCurveCap) : 0;
 
             // ---- 5) L2 组合：E/K 汇桶 + S 拆轴色入桶（2026-11-02 基地红绿：攻红/血绿），总额一次取整，最大余数法分色（无延迟折）----
             // 底盘预算（2026-09-10 攻/守效果化，取代旧挂载口曲线）：取整后落位——
@@ -169,30 +172,39 @@ namespace CardCore
                 result.Breakdown.Add(new CostBreakdownLine("C",
                     $"结构项 {CardCompositionCost.ChassisItems(card)} − 预算3 → +{surcharge} 入灰",
                     surcharge, ManaType.Gray));
-            int surplus = CardCompositionCost.SurplusOf(card);
-            if (surplus > 0)
+            // 生物：免费属性底 n/n（FreeAttrBaseOf——预算 3−攻守−首槽；不受旧 surplus 口径守门，
+            // NoGuard+2槽 时旧 surplus=0 而新底=1 也要出明细行）
+            if (card.Supertype == Cardtype.Creature)
             {
-                if (card.Supertype == Cardtype.Creature)
+                int freeBase = CardCompositionCost.FreeAttrBaseOf(card);
+                if (freeBase > 0)
                     result.Breakdown.Add(new CostBreakdownLine("C",
-                        $"免费点 {surplus}（属性1{(card.NoAttack || card.NoGuard ? " + 攻/守 opt-out" : "")}）→ 减身材轴色桶（先红后绿·不溢出他色——2026-11-02 基地红绿）",
-                        -surplus, ManaType.Gray));
-                else if (card.Supertype == Cardtype.Enchantment)
+                        $"免费属性底 {freeBase}/{freeBase}{(card.NoAttack || card.NoGuard ? "（攻/守 opt-out 释放预算点）" : "")}"
+                        + "——攻/血各前 n 点免计（2026-11-03 底盘分配改版；旧「先红后绿扣桶」退役）", 0f));
+            }
+            else
+            {
+                int surplus = CardCompositionCost.SurplusOf(card);
+                if (surplus > 0)
                 {
-                    result.Breakdown.Add(new CostBreakdownLine("C",
-                        $"免费点 {surplus} → 入场耐久 +{surplus}（禁主动效果全投耐久；免卡价）", 0f));
+                    if (card.Supertype == Cardtype.Enchantment)
+                    {
+                        result.Breakdown.Add(new CostBreakdownLine("C",
+                            $"免费点 {surplus} → 入场耐久 +{surplus}（禁主动效果全投耐久；免卡价）", 0f));
+                    }
+                    else if (card.Supertype == Cardtype.Spell)
+                    {
+                        result.Breakdown.Add(new CostBreakdownLine("C",
+                            $"免费点 {surplus} → 发动速度 {surplus}（槽位从速度扣：{CardCompositionCost.ChassisItems(card)} 槽=速{surplus}；无抵价）",
+                            0f));
+                    }
+                    else
+                        result.Breakdown.Add(new CostBreakdownLine("C",
+                            $"免费点 {surplus} → 抵价 {surplus}（先灰后最高色）", -surplus));
                 }
-                else if (card.Supertype == Cardtype.Spell)
-                {
-                    result.Breakdown.Add(new CostBreakdownLine("C",
-                        $"免费点 {surplus} → 发动速度 {surplus}（槽位从速度扣：{CardCompositionCost.ChassisItems(card)} 槽=速{surplus}；无抵价）",
-                        0f));
-                }
-                else
-                    result.Breakdown.Add(new CostBreakdownLine("C",
-                        $"免费点 {surplus} → 抵价 {surplus}（先灰后最高色）", -surplus));
             }
 
-            var mounted = ApportionMounted(effBuckets, kwBuckets, StatBucketsOf(card, cc));
+            var mounted = ApportionMounted(effBuckets, kwBuckets, StatBucketsOf(card, cc, applyFreeBase: true));
             ApplyChassis(card, mounted);
 
             // ---- 5b) 代价抵扣（2026-10-28 P1 定案：代价 = 构筑期抵扣；2026-10-31 色锁定案+指向化） ----
@@ -221,14 +233,16 @@ namespace CardCore
             result.S = (int)Math.Round(statValue, MidpointRounding.AwayFromZero);
             result.K = (int)Math.Round(keywordTotal, MidpointRounding.AwayFromZero);
             result.EAnchor = (int)Math.Round(effectTotal, MidpointRounding.AwayFromZero);
-            result.DerivedTotal = (int)result.DerivedCost.Total;
+            // 2026-11-03 属性费真实小数：总额四舍五入（AwayFromZero）入 DerivedTotal——
+            // 与 Ĉ=round(S+E+K) 同侧取整，规则一 D≤Ĉ 只剩取整漂移
+            result.DerivedTotal = (int)Math.Round(result.DerivedCost.Total, MidpointRounding.AwayFromZero);
 
             // ---- 6) 规则一：D ≤ Ĉ + 结构费 直判（2026-10-31 阶梯减价删除后锚含结构费）----
             // 延迟折删除后 D = round(S+E+K) + 结构加价 − 底盘抵价：结构加价是「内容+结构」锚内的
             // 真实费用（超槽=多占预算），不再视为超模；Req>0 只可能来自取整漂移——巡检兜底用。
-            // 代价抵扣（5b）先于本判——净费参与。对照值 Ĉ₁=max(1, round(S+E+K)) 上不钳 MaxTier
-            //（2026-10-29）：若照钳后档判，rawTotal>MaxTier 的卡 Ĉ 恒钉上限而 D 随内容增长，
-            // D≤Ĉ 结构性不可满足（教学三 Boss 末日降临 rawTotal34→档14/D26 即此）；下钳 1 与档位口径一致。
+            // 代价抵扣（5b）先于本判——净费参与。对照值 Ĉ₁=max(1, round(S+E+K)) 上不钳档帽
+            //（2026-10-29）：若照钳后档判，rawTotal>档帽的卡 Ĉ 恒钉上限而 D 随内容增长，
+            // D≤Ĉ 结构性不可满足（教学三 Boss 末日降临 rawTotal34→档14/D26 即此——时值旧帽14）；下钳 1 与档位口径一致。
             int ruleTier = rawTotal > 0f ? Math.Max(1, TideMath.RoundToInt(rawTotal)) : 0;
             result.OffsetRequirement = Math.Max(0, result.DerivedTotal - ruleTier - surcharge);
             result.Conformant = result.OffsetRequirement == 0;
@@ -251,15 +265,16 @@ namespace CardCore
         /// </summary>
         public static int ContentPriceOf(CardData card)
         {
+            // 2026-11-03 属性费真实小数：桶值 float——总量四舍五入（衍生物内容价随口径走小数）
             int total = 0;
-            foreach (var v in ContentPriceByColor(card).Values) total += v;
+            foreach (var v in ContentPriceByColor(card).Values) total += (int)Math.Round(v, MidpointRounding.AwayFromZero);
             return total;
         }
 
         /// <summary>衍生物内容全价（逐色分布；SummonToken 分色计价同构成）。白板模板 = 灰（S+结构费）。</summary>
-        public static Dictionary<ManaType, int> ContentPriceByColor(CardData card)
+        public static Dictionary<ManaType, float> ContentPriceByColor(CardData card)
         {
-            var empty = new Dictionary<ManaType, int>();
+            var empty = new Dictionary<ManaType, float>();
             if (card == null) return empty;
 
             var cfg = ValueSystemConfigManager.Instance.GetOrCreateConfig();
@@ -394,8 +409,9 @@ namespace CardCore
             keywordTotal += auraTotal;
 
             var effectDefs = CardEffectConverter.ConvertAll(card.Effects, card.ID);
-            // 2026-11-02 基地红绿：抉择各模式共用同一份身材轴色桶（攻红/血绿——模式无关块）
-            var statBuckets = StatBucketsOf(card, cc);
+            // 2026-11-02 基地红绿：抉择各模式共用同一份身材轴色桶（攻红/血绿——模式无关块）；
+            // 2026-11-03 底盘改版：免费属性底在桶内免除（与 Derive 同基）
+            var statBuckets = StatBucketsOf(card, cc, applyFreeBase: true);
 
             // ---- 第一遍：各模式效果锚桶（DeriveElementCosts 的 modeIndex 分支，未折未取整）----
             // 主动能力与 Derive 同口径：构筑期不占卡费（运行时现付），各模式桶一律跳过。
@@ -540,8 +556,9 @@ namespace CardCore
         /// 效果级行，含主动）有 payload 原子即 true。衍生物模板禁带代价（DeckTokenSupport.ValidateDeck 消费）。</summary>
         public static bool HasPayloadCost(CardData card) => CollectCostEntries(card, includeActiveEffects: true).Count > 0;
 
-        /// <summary>计价内部 int 桶 → ElementCost（组合层机械的边界口）。</summary>
-        private static ElementCost ToElementCost(Dictionary<ManaType, int> dict)
+        /// <summary>计价内部 float 桶 → ElementCost（组合层机械的边界口；2026-11-03 底盘改版：
+        /// 属性费真实小数直通——ElementCost 本就 float 位置数组，显示 0.## 直显、支付逐色进 1）。</summary>
+        private static ElementCost ToElementCost(Dictionary<ManaType, float> dict)
         {
             var c = new ElementCost();
             if (dict == null) return c;
@@ -760,7 +777,7 @@ namespace CardCore
         /// <summary>代价抵扣单源（Derive / DeriveModeCosts / GameActions 建造重放三口共用）：
         /// **逐行色锁扣桶**（2026-10-31 色锁定案单位=单个代价：每行只扣该行原子可产出色，
         /// 行序=声明序；行与行不共享抵扣面——红原子的代价点数不能清灰费），返回实际抵扣点数。</summary>
-        public static int ApplyPayloadDeduction(Dictionary<ManaType, int> mounted, CardData card)
+        public static int ApplyPayloadDeduction(Dictionary<ManaType, float> mounted, CardData card)
         {
             int applied = 0;
             foreach (var row in CastCostRows(card))
@@ -823,20 +840,22 @@ namespace CardCore
 
         // —— 模式无关的三块（Derive 与 DeriveModeCosts 共用，防口径漂移；breakdown 传 null 则不记行）——
 
-        /// <summary>身材费 S：statPoints / StatUnit（灰桶，不参与 f）；
-        /// 耐久体另计 耐久 × DurabilityUnitCost（0.5/点；2026-11-03 耐久改蓝定案——计价入蓝桶；
-        /// 2026-10-16 回调 0.5 灰/点口径退役）。
-        /// 结界/装备，0=无耐久档不计）。</summary>
+        /// <summary>身材费 S（2026-11-03 底盘分配改版）：生物按**计费口径**=免除免费属性底 n/n 后
+        ///（FreeAttrBaseOf）的 (攻+血)/StatUnit——与 StatBucketsOf 同基（桶与标量两侧口径一致，
+        /// 规则一 D≤Ĉ 才闭合）；耐久体另计 耐久 × DurabilityUnitCost（0.5/点；2026-11-03 耐久改蓝定案
+        /// ——计价入蓝桶；2026-10-16 回调 0.5 灰/点口径退役）。结界/装备，0=无耐久档不计）。</summary>
         private static float ComputeStatValue(CardData card, CardCostConfig cc, List<CostBreakdownLine> breakdown)
         {
-            int statPoints = (card.Power ?? 0) + (card.Life ?? 0);
+            int freeBase = CardCompositionCost.FreeAttrBaseOf(card);
+            int paidPower = Math.Max(0, (card.Power ?? 0) - freeBase);
+            int paidLife = Math.Max(0, (card.Life ?? 0) - freeBase);
+            int statPoints = paidPower + paidLife;
             float statValue = statPoints / Math.Max(1f, cc.StatUnit);
-            // 2026-11-02 基地红绿定案（属性红/绿连带基地）：身材费总量不变（(攻+血)/StatUnit），
-            // 只拆轴色——攻侧入红、血侧入绿（挂桶见 StatBucketsOf；此口仍回标量供 S 读数/档位）
+            // 2026-11-02 基地红绿定案（属性红/绿连带基地）+ 2026-11-03 免费底：计费=超出底的部分
             breakdown?.Add(new CostBreakdownLine("S",
-                $"身材费·攻 (攻{card.Power ?? 0})", (card.Power ?? 0) / Math.Max(1f, cc.StatUnit), ManaType.Red));
+                $"身材费·攻 (攻{card.Power ?? 0}{(freeBase > 0 ? $"−底{Math.Min(freeBase, card.Power ?? 0)}" : "")})", paidPower / Math.Max(1f, cc.StatUnit), ManaType.Red));
             breakdown?.Add(new CostBreakdownLine("S",
-                $"身材费·血 (血{card.Life ?? 0})", (card.Life ?? 0) / Math.Max(1f, cc.StatUnit), ManaType.Green));
+                $"身材费·血 (血{card.Life ?? 0}{(freeBase > 0 ? $"−底{Math.Min(freeBase, card.Life ?? 0)}" : "")})", paidLife / Math.Max(1f, cc.StatUnit), ManaType.Green));
             if (card.Durability > 0)
             {
                 float durValue = card.Durability * cc.DurabilityUnitCost;
@@ -846,17 +865,21 @@ namespace CardCore
             return statValue;
         }
 
-        /// <summary>身材费轴色分桶（2026-11-02 基地红绿定案）：攻侧入红桶、血侧入绿桶——
-        /// 各 = 点数/StatUnit 真实小数（总量与旧全灰口径一致，只拆色；2/2 → 1红+1绿）；
-        /// 耐久入蓝桶（2026-11-03 定案：结界耐久=蓝——0.5蓝/点，旧灰桶口径退役）。
+        /// <summary>身材费轴色分桶（2026-11-02 基地红绿定案；2026-11-03 底盘分配改版）：
+        /// 攻侧入红桶、血侧入绿桶——各 = 点数/StatUnit **真实小数**（总量与旧全灰口径一致，只拆色；
+        /// 2/2 → 1红+1绿）；耐久入蓝桶（2026-11-03 定案：结界耐久=蓝——0.5蓝/点，旧灰桶口径退役）。
+        /// applyFreeBase（生物 Derive/DeriveModeCosts 两口传 true）：先免除免费属性底 n/n
+        ///（FreeAttrBaseOf——预算 3−攻守−首槽 的剩余，攻/血各前 n 点免费，下限 0）；
+        /// 衍生物内容全价（ContentPriceByColor）传 false——无底盘不吃免费底。
         /// 消费口：Derive / ContentPriceByColor / DeriveModeCosts 三处的 ApportionMounted statAdd。</summary>
-        public static Dictionary<ManaType, float> StatBucketsOf(CardData card, CardCostConfig cc)
+        public static Dictionary<ManaType, float> StatBucketsOf(CardData card, CardCostConfig cc, bool applyFreeBase = false)
         {
             var buckets = new Dictionary<ManaType, float>();
             if (card == null) return buckets;
             float unit = Math.Max(1f, cc.StatUnit);
-            if ((card.Power ?? 0) > 0) buckets[ManaType.Red] = (card.Power ?? 0) / unit;
-            if ((card.Life ?? 0) > 0) buckets[ManaType.Green] = (card.Life ?? 0) / unit;
+            int freeBase = applyFreeBase ? CardCompositionCost.FreeAttrBaseOf(card) : 0;
+            if ((card.Power ?? 0) > 0) buckets[ManaType.Red] = Math.Max(0, (card.Power ?? 0) - freeBase) / unit;
+            if ((card.Life ?? 0) > 0) buckets[ManaType.Green] = Math.Max(0, (card.Life ?? 0) - freeBase) / unit;
             if (card.Durability > 0)
                 buckets[ManaType.Blue] = card.Durability * cc.DurabilityUnitCost;
             return buckets;
@@ -1053,9 +1076,9 @@ namespace CardCore
         /// <summary>色中文名（明细行费用基准【x】显示用；与 CostDerivation.AnchorZh 同字面）。</summary>
         private static string ColorZh(ManaType m) => m switch
         {
-            ManaType.Red => "红",
-            ManaType.Blue => "蓝",
-            ManaType.Green => "绿",
+            ManaType.Red => "火",
+            ManaType.Blue => "水",
+            ManaType.Green => "植物",
             ManaType.Gray => "灰",
             _ => m.ToString(),
         };
@@ -1065,12 +1088,12 @@ namespace CardCore
         // OffsetProvided 已删（2026-09-11 规则一简化：代价当量抵扣下线，D≤C 直判；
         // 当量表转由 CostCompensationService 消费——付代价=得黑/白元素）。
 
-        /// <summary>底盘落位（取整后，2026-10-15 卡型默认分配定案）：超槽 → 加价入灰；
-        /// 生物免费点 → 减身材轴色桶（2026-11-02 基地红绿：先红后绿，不溢出到灰/效果色——
-        /// 「不干扰三色费用梯度」旧口径承袭：只碰身材自己的两轴）；
-        /// 其余 → 抵价（PriceOffsetOf：法术扣除提速份额、结界 0=速1+耐久、地牌全额；
-        /// ReduceBuckets 先灰后最高色）。与 Derive/DeriveModeCosts 两处共用，防口径漂移。</summary>
-        private static void ApplyChassis(CardData card, Dictionary<ManaType, int> mounted)
+        /// <summary>底盘落位（取整后，2026-11-03 底盘分配改版）：超槽 → 加价入灰（生物=首槽外每槽 1 灰，
+        /// 非生物=结构项>3 差额——StructuralSurcharge 单源）；生物**无抵扣步**（免费属性底 n/n 已在
+        /// StatBucketsOf 桶内免除，旧「先红后绿扣桶」退役）；其余卡型 → 抵价（PriceOffsetOf：
+        /// 法术扣除提速份额、结界 0=速1+耐久、地牌全额；ReduceBuckets 先灰后最高色）。
+        /// 与 Derive/DeriveModeCosts 两处共用，防口径漂移。桶值 float（属性费真实小数）。</summary>
+        private static void ApplyChassis(CardData card, Dictionary<ManaType, float> mounted)
         {
             int surcharge = CardCompositionCost.StructuralSurcharge(card);
             if (surcharge > 0)
@@ -1078,88 +1101,73 @@ namespace CardCore
                 mounted.TryGetValue(ManaType.Gray, out var g);
                 mounted[ManaType.Gray] = g + surcharge; // 加价入灰（取整后）
             }
-            int statOffset = CardCompositionCost.StatOffsetOf(card);
-            if (statOffset > 0)
-            {
-                // 生物免费点：先红（攻轴）后绿（血轴），两轴皆空则余点丢弃（旧灰桶空时同口径）
-                for (int i = statOffset; i > 0; i--)
-                {
-                    mounted.TryGetValue(ManaType.Red, out var r);
-                    if (r > 0) { mounted[ManaType.Red] = r - 1; continue; }
-                    mounted.TryGetValue(ManaType.Green, out var g2);
-                    if (g2 > 0) { mounted[ManaType.Green] = g2 - 1; continue; }
-                    break;
-                }
-                return;
-            }
+            if (card != null && card.Supertype == Cardtype.Creature) return; // 免费属性底已在桶内免除——无抵扣步
             int offset = CardCompositionCost.PriceOffsetOf(card);
             if (offset > 0) CardCompositionCost.ReduceBuckets(mounted, offset);
         }
 
         /// <summary>
-        /// 组合层计价（整卡取整口径）：效果桶 + 关键词桶 + 身材桶汇总为总额——
-        /// 一次 AwayFromZero 取整（减免发生在组合层，不做逐效果取整），
-        /// 最大余数法把整数实付分摊回颜色（余数大者优先，并列取桶值大者，再并列按枚举序）。
-        /// statAdd：身材费轴色桶（2026-11-02 基地红绿——攻红/血绿/耐久灰，StatBucketsOf 单源；
-        /// 结构费/抵价由 ApplyChassis 在取整后另行落位）。grayAdd 旧口=纯灰附加（保留委托）。
+        /// 组合层计价（2026-11-03 底盘分配改版口径）：**E/K 桶**（效果锚+关键词）合计一次
+        /// AwayFromZero 取整、最大余数法把整数实付分摊回颜色（余数大者优先，并列取桶值大者，
+        /// 再并列按枚举序）；**身材桶（statAdd）不再参与取整**——属性费真实小数直通
+        ///（0.5/点，与效果锚价同款真实小数路线；显示 0.## 直显，支付 NormalizeBill 逐色进 1）。
+        /// statAdd：身材费轴色桶（攻红/血绿/耐久蓝，StatBucketsOf 单源；结构费/抵价由
+        /// ApplyChassis 在取整后另行落位）。返回 float 桶（≤1e-5 剔除）。
         /// </summary>
-        private static Dictionary<ManaType, int> ApportionMounted(Dictionary<ManaType, float> effBuckets,
-            Dictionary<ManaType, float> kwBuckets, float grayAdd = 0f)
-            => ApportionMounted(effBuckets, kwBuckets,
-                grayAdd == 0f ? null : new Dictionary<ManaType, float> { { ManaType.Gray, grayAdd } });
-
-        private static Dictionary<ManaType, int> ApportionMounted(Dictionary<ManaType, float> effBuckets,
+        private static Dictionary<ManaType, float> ApportionMounted(Dictionary<ManaType, float> effBuckets,
             Dictionary<ManaType, float> kwBuckets, Dictionary<ManaType, float> statAdd)
         {
-            var mounted = new Dictionary<ManaType, float>();
+            var ek = new Dictionary<ManaType, float>();
             foreach (var kv in effBuckets)
             {
-                mounted.TryGetValue(kv.Key, out var prev);
-                mounted[kv.Key] = prev + kv.Value;
+                ek.TryGetValue(kv.Key, out var prev);
+                ek[kv.Key] = prev + kv.Value;
             }
             foreach (var kv in kwBuckets)
             {
-                mounted.TryGetValue(kv.Key, out var prev);
-                mounted[kv.Key] = prev + kv.Value;
-            }
-            if (statAdd != null)
-            {
-                foreach (var kv in statAdd)
-                {
-                    mounted.TryGetValue(kv.Key, out var prev);
-                    mounted[kv.Key] = prev + kv.Value;
-                }
+                ek.TryGetValue(kv.Key, out var prev);
+                ek[kv.Key] = prev + kv.Value;
             }
 
-            float total = 0f;
-            foreach (var kv in mounted) total += kv.Value;
-            int payInt = (int)Math.Round(total, MidpointRounding.AwayFromZero);
+            // E/K 整数分摊（旧整卡取整算法收窄到 E/K 部分）
+            float ekTotal = 0f;
+            foreach (var kv in ek) ekTotal += kv.Value;
+            int payInt = (int)Math.Round(ekTotal, MidpointRounding.AwayFromZero);
 
-            var result = new Dictionary<ManaType, int>();
+            var ekInt = new Dictionary<ManaType, int>();
             int floorSum = 0;
             var fracs = new List<(ManaType color, float frac, float bucket)>();
-            foreach (var kv in mounted)
+            foreach (var kv in ek)
             {
                 int fl = (int)Math.Floor(kv.Value);
-                result[kv.Key] = fl;
+                ekInt[kv.Key] = fl;
                 floorSum += fl;
                 fracs.Add((kv.Key, kv.Value - fl, kv.Value));
             }
-
             int remainder = payInt - floorSum;
             foreach (var t in fracs.OrderByDescending(x => x.frac).ThenByDescending(x => x.bucket).ThenBy(x => (int)x.color))
             {
                 if (remainder <= 0 || t.frac <= 0f) break;
-                result[t.color] += 1;
+                ekInt[t.color] += 1;
                 remainder--;
             }
-            if (remainder > 0) // 兜底（浮点尾差理论不可达）：加给最大桶
+            if (remainder > 0 && ek.Count > 0) // 兜底（浮点尾差理论不可达）：加给最大桶
             {
-                var maxKey = mounted.OrderByDescending(x => x.Value).First().Key;
-                result[maxKey] += remainder;
+                var maxKey = ek.OrderByDescending(x => x.Value).First().Key;
+                ekInt[maxKey] += remainder;
             }
 
-            foreach (var k in result.Where(x => x.Value <= 0).Select(x => x.Key).ToList()) result.Remove(k);
+            // 合成：E/K 整数 + 身材真实小数
+            var result = new Dictionary<ManaType, float>();
+            foreach (var kv in ekInt)
+                if (kv.Value > 0) result[kv.Key] = kv.Value;
+            if (statAdd != null)
+                foreach (var kv in statAdd)
+                {
+                    result.TryGetValue(kv.Key, out var prev);
+                    result[kv.Key] = prev + kv.Value;
+                }
+            foreach (var k in result.Where(x => x.Value <= 1e-5f).Select(x => x.Key).ToList()) result.Remove(k);
             return result;
         }
     }

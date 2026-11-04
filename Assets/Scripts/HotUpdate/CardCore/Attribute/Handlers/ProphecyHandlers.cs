@@ -16,7 +16,7 @@ namespace CardCore.Attribute.Handlers
     // 隐秘宣言类别，对手下回合首张同类卡发动无效（复用 ProphecySystem 延迟验证，
     // 命中奖励=内置发动无效原子）。两枚举名承袭旧槽位，语义以表行/handler 为准。
     // StringValue 编码 "维度:值"，如 Type:Creature / Name:青眼白龙 / Color:Red /
-    // CostParity:Odd / CostExact:3 / LinkArrow:NE。
+    // CostParity:Odd / CostExact:3。（2026-11-03 LinkArrow 维度退役——用户定案不再设计猜箭头的卡）
     // ================================================================
 
     /// <summary>
@@ -30,7 +30,6 @@ namespace CardCore.Attribute.Handlers
         public const string Color = "Color";               // ManaType（Red/Blue/Green/Gray）
         public const string CostParity = "CostParity";     // Odd / Even
         public const string CostExact = "CostExact";       // 0..7（费用受曲线封顶，天然有限）
-        public const string LinkArrow = "LinkArrow";       // CardCore.HexDirection 单方向
 
         private const int CostExactMax = 7; // 与地牌槽上限 7 同源的封顶值（2026-10-13 缩盘 9→7）
 
@@ -66,10 +65,6 @@ namespace CardCore.Attribute.Handlers
                            || value.Equals("Even", StringComparison.OrdinalIgnoreCase);
                 case CostExact:
                     return int.TryParse(value, out int n) && n >= 0 && n <= CostExactMax;
-                case LinkArrow:
-                    return Enum.TryParse<HexDirection>(value, true, out var dir)
-                           && dir != HexDirection.None && dir != HexDirection.All
-                           && (dir & (dir - 1)) == 0; // 单方向（Flags 枚举取单 bit）
                 default:
                     return false;
             }
@@ -105,10 +100,6 @@ namespace CardCore.Attribute.Handlers
 
                 case CostExact:
                     return TotalCost(card) == int.Parse(value);
-
-                case LinkArrow:
-                    return card is CardWrapper wrapper
-                           && wrapper.GetData().ArrowDirections.HasFlag(ParseEnum<HexDirection>(value));
 
                 default:
                     return false;
@@ -472,74 +463,121 @@ namespace CardCore.Attribute.Handlers
             return true;
         }
 
-        /// <summary>维度宣言反问（Dimension 行共用，2026-10-31 阶段C）：封闭维度走既有纯选项
-        /// 反问（RequestOneIndexAsync——本地 Region 卡牌列表/网络 SelectRequest/无头 AI 自动取 0）；
-        /// Name 开放集选项链文本反问（取消=整体取消）。合法预置 str 排位 0（默认/AI/超时兜底恒取）。
-        /// typeOnly=true 只给类别三项（预言定案：Creature/Spell/Enchantment 三选一）。
+        /// <summary>维度宣言反问（Dimension 行共用，2026-10-31 阶段C 落地）：封闭维度走既有纯选项
+        /// 反问（RequestOneIndexAsync——本地 Select 窗下拉/卡牌列表、网络 SelectRequest、无头 AI 自动取 0）；
+        /// Name 开放集选项链文本反问（取消=整体取消）。合法预置排位 0（默认/AI/超时兜底恒取）。
+        /// typeOnly=true 单段类别三项（预言定案：Creature/Spell/Enchantment 三选一）；
+        /// typeOnly=false 两段式（2026-11-03 用户定案：不一次性全列——先问维度档（类别/颜色/费用/卡名），
+        /// 再按档动态填值；UI 侧 Select 窗按「维度：/类别：/颜色：/费用：」标签前缀识别为下拉展示）。
         /// 返回 "维度:值" 编码；null=取消（效果不结算）。</summary>
         internal static async UniTask<string> AskDimensionAsync(AtomicEffectInstance effect,
             EffectExecutionContext context, string title, bool typeOnly)
         {
             if (effect == null || context == null || context.Controller == null) return null;
 
-            var options = DimensionOptions(typeOnly);
             string preset = effect.StringValue;
-            string presetName = null;
+            string presetName = null, presetDim = null, presetVal = null;
             if (ProphecyDimension.TryParse(preset, out var dim, out var val)
                 && ProphecyDimension.IsValidValue(dim, val))
             {
                 if (dim == ProphecyDimension.Name) presetName = val;
-                else
-                {
-                    // 预置合法 → 挪到首位（默认值位；非法编码不排——按第一个合法值起）
-                    string encoded = dim + ":" + val;
-                    int idx = options.FindIndex(o => o.encoded == encoded);
-                    if (idx > 0) { var hit = options[idx]; options.RemoveAt(idx); options.Insert(0, hit); }
-                }
+                else { presetDim = dim; presetVal = val; }
             }
 
-            int pick = await TargetSelectionService.RequestOneIndexAsync(
-                context.Controller, options.Select(o => o.label).ToList(), title);
-            if (pick < 0 || pick >= options.Count) pick = 0; // 越界兜底（Service 已钳，双保险）
+            if (typeOnly)
+            {
+                var types = TypeOptions();
+                MovePresetFirst(types, presetDim, presetVal);
+                return (await PickOptionAsync(context.Controller, types, title)).encoded;
+            }
 
-            if (options[pick].isNameEntry)
+            // 两段式：先问维度档（预设档置默认位），再按档动态填值 / 卡名档链文本反问
+            var kinds = KindOptions();
+            string presetKind = presetName != null ? ProphecyDimension.Name
+                : presetDim != null ? KindOf(presetDim) : null;
+            if (presetKind != null)
+            {
+                int kIdx = kinds.FindIndex(k => k.kind == presetKind);
+                if (kIdx > 0) { var hit = kinds[kIdx]; kinds.RemoveAt(kIdx); kinds.Insert(0, hit); }
+            }
+            var kindPick = await PickOptionAsync(context.Controller,
+                kinds.Select(k => (encoded: k.kind, label: k.label, isNameEntry: k.kind == ProphecyDimension.Name)).ToList(),
+                title);
+            if (kindPick.isNameEntry)
             {
                 string name = await TargetSelectionService.RequestTextAsync(
                     context.Controller, title + "——输入卡名", presetName, MaxCardNameLength);
                 return name == null ? null : ProphecyDimension.Name + ":" + name;
             }
-            return options[pick].encoded;
+            var values = ValueOptionsOf(kindPick.encoded);
+            MovePresetFirst(values, presetDim, presetVal);
+            string zh = kinds.Find(k => k.kind == kindPick.encoded).zh;
+            return (await PickOptionAsync(context.Controller, values, title + "——选择" + zh)).encoded;
         }
 
-        /// <summary>封闭维度选项目录（编码+显示名；Name 以特殊项出现——开放集链文本输入）。</summary>
-        private static List<(string encoded, string label, bool isNameEntry)> DimensionOptions(bool typeOnly)
+        private static async UniTask<(string encoded, string label, bool isNameEntry)> PickOptionAsync(
+            Player chooser, List<(string encoded, string label, bool isNameEntry)> options, string title)
+        {
+            int pick = await TargetSelectionService.RequestOneIndexAsync(
+                chooser, options.Select(o => o.label).ToList(), title);
+            if (pick < 0 || pick >= options.Count) pick = 0; // 越界兜底（Service 已钳，双保险）
+            return options[pick];
+        }
+
+        /// <summary>预置排位 0（默认/AI/超时兜底恒取；非法编码不排——按第一个合法值起）。</summary>
+        private static void MovePresetFirst(List<(string encoded, string label, bool isNameEntry)> options,
+            string presetDim, string presetVal)
+        {
+            if (presetDim == null || presetVal == null) return;
+            int idx = options.FindIndex(o => o.encoded == presetDim + ":" + presetVal);
+            if (idx > 0) { var hit = options[idx]; options.RemoveAt(idx); options.Insert(0, hit); }
+        }
+
+        /// <summary>类别三项（typeOnly 档与全量维度的类别档值表共用单源）。</summary>
+        private static List<(string encoded, string label, bool isNameEntry)> TypeOptions()
         {
             var list = new List<(string, string, bool)>();
-            if (typeOnly)
-            {
-                list.Add(("Type:Creature", "类别：生物", false));
-                list.Add(("Type:Spell", "类别：法术", false));
-                list.Add(("Type:Enchantment", "类别：结界", false));
-                return list;
-            }
             list.Add(("Type:Creature", "类别：生物", false));
             list.Add(("Type:Spell", "类别：法术", false));
             list.Add(("Type:Enchantment", "类别：结界", false));
-            list.Add(("Color:Red", "颜色：红", false));
-            list.Add(("Color:Blue", "颜色：蓝", false));
-            list.Add(("Color:Green", "颜色：绿", false));
-            list.Add(("Color:Gray", "颜色：灰", false));
+            return list;
+        }
+
+        /// <summary>维度档目录（两段式第一段）：kind=档键（ProphecyDimension 常量或 Cost=
+        /// CostParity+CostExact 合并档），Name 档链文本反问。标签「维度：X」前缀与 UI 下拉
+        /// 识别白名单（RegionTargetSelector）单源对应。</summary>
+        private static List<(string kind, string zh, string label)> KindOptions()
+        {
+            var list = new List<(string, string, string)>();
+            list.Add((ProphecyDimension.Type, "类别", "维度：类别"));
+            list.Add((ProphecyDimension.Color, "颜色", "维度：颜色"));
+            list.Add(("Cost", "费用", "维度：费用"));
+            list.Add((ProphecyDimension.Name, "卡名", "维度：卡名（手动输入…）"));
+            return list;
+        }
+
+        private static string KindOf(string dimension)
+            => dimension == ProphecyDimension.CostParity || dimension == ProphecyDimension.CostExact
+                ? "Cost" : dimension;
+
+        /// <summary>维度档值表（两段式第二段，按档动态填充——2026-11-03 定案：不一次性全列）。
+        /// 费用档=奇偶+恰为 0..7（恰为 N 若不要删 CostExact 循环一行即可）。</summary>
+        private static List<(string encoded, string label, bool isNameEntry)> ValueOptionsOf(string kind)
+        {
+            if (kind == ProphecyDimension.Type) return TypeOptions();
+            var list = new List<(string, string, bool)>();
+            if (kind == ProphecyDimension.Color)
+            {
+                list.Add(("Color:Red", "颜色：红", false));
+                list.Add(("Color:Blue", "颜色：蓝", false));
+                list.Add(("Color:Green", "颜色：绿", false));
+                list.Add(("Color:Gray", "颜色：灰", false));
+                return list;
+            }
             list.Add(("CostParity:Odd", "费用：奇数", false));
             list.Add(("CostParity:Even", "费用：偶数", false));
-            for (int n = 0; n <= 7; n++)
+            for (int n = 0; n <= 7; n++) // CostExact 封顶 7（ProphecyDimension.CostExactMax 同源）
                 list.Add(("CostExact:" + n, $"费用：恰为 {n}", false));
-            list.Add(("LinkArrow:Up", "箭头：上", false));
-            list.Add(("LinkArrow:Down", "箭头：下", false));
-            list.Add(("LinkArrow:UpperLeft", "箭头：左上", false));
-            list.Add(("LinkArrow:UpperRight", "箭头：右上", false));
-            list.Add(("LinkArrow:LowerLeft", "箭头：左下", false));
-            list.Add(("LinkArrow:LowerRight", "箭头：右下", false));
-            list.Add((ProphecyDimension.Name + ":", "卡名：手动输入…", true));
             return list;
         }
     }

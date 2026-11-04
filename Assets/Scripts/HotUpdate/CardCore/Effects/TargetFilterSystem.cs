@@ -100,6 +100,22 @@ namespace CardCore
         }
     }
 
+    /// <summary>可入池（token "Landable"，2026-11-03 封印原子启用）：仅指「可作地牌入池」的卡——
+    /// 地牌资格（CanServeAsLand：卡组正式三型，衍生物/临时复制卡拒）且带元素费用
+    ///（GetLandColorChoices 非空——与 AddCardToPool 空候选拒同口径；0费卡无主色可锁）。
+    /// 封印行与 NoRole 组合=敌方场上生物且费用&gt;0。</summary>
+    public class LandableFilter : ITargetFilter
+    {
+        public string DisplayName => "可入池(带元素费用)";
+
+        public List<Entity> Filter(List<Entity> candidates, EffectExecutionContext context)
+        {
+            return candidates.Where(e => e is Card c
+                                         && ElementPoolSystem.CanServeAsLand(c)
+                                         && ElementPoolSystem.GetLandColorChoices(c).Count > 0).ToList();
+        }
+    }
+
     /// <summary>属性比较筛选器（攻击力/生命值大于/小于/等于阈值）</summary>
     public class StatComparisonFilter : ITargetFilter
     {
@@ -378,7 +394,7 @@ namespace CardCore
         }
 
         /// <summary>edict 原子（2026-09-13；2026-10-09 摒弃并档后唯一成员=牺牲）：选择权在目标方——
-        /// 作用对象=角色、持有者自行选择自家单位结算（牺牲池=生物+无生命单位）。**豁免帷幕**：
+        /// 作用对象=角色、持有者自行选择自家单位结算（牺牲池=生物+结界+地牌，2026-11-03 扩定）。**豁免帷幕**：
         /// 帷幕只约束对手的选择，不管目标方自己选（用户定案）。</summary>
         public static bool IsEdict(AtomicEffectType type)
             => type == AtomicEffectType.Sacrifice;
@@ -531,6 +547,9 @@ namespace CardCore
                         break;
                     case "NotRole": // 非角色：排除 Player 实体、保留一切卡——抹除混合域（生物+结界+地牌）剔角色用
                         filters.Add(new NotRoleFilter());
+                        break;
+                    case "Landable": // 可入池（2026-11-03 封印行启用）：地牌资格+带元素费用——0费卡无主色可锁不可指
+                        filters.Add(new LandableFilter());
                         break;
                     // "Mortal"（凡躯）token 已删（2026-10-13 神佑删除——滤器随之退役；
                     // 旧存档数据串里的残留 token 走 default 静默忽略）

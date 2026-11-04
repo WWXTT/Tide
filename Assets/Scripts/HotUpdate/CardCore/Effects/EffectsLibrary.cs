@@ -17,6 +17,10 @@ namespace CardCore
         // 文件随教学卡挪至 StreamingAssets/Tutorial/）：同格式副表，
         // EnsureLoaded 时合并（重复 id 保正式表首条——与主表内重复 id 同口径）。
         private const string TutorialConfigRelative = "Tutorial/TutorialEffects.json";
+        // 训练独立效果表（2026-11-03 训练池分家）：训练卡的 effectIds 引用在此解析——
+        // 文件在 Assets/TrainingData，随开发仓库走（不进热更包、不下发玩家设备）。
+        // 合并口径同教学副表：重复 id 保先装表（主表>教学>训练）。
+        private const string TrainingConfigRelative = "TrainingData/TrainingEffects.json";
 
         [Serializable]
         private class Wrapper { public List<EffectSlimDto> items; }
@@ -31,6 +35,8 @@ namespace CardCore
         private static string _mainPath;
         private static DateTime _mainStampUtc = DateTime.MinValue;
         private static DateTime _tutorialStampUtc = DateTime.MinValue;
+        // 训练副表 mtime 独立记账（2026-11-03，同教学副表口径）：缺文件=玩家构建常态。
+        private static DateTime _trainingStampUtc = DateTime.MinValue;
         private static DateTime _lastStaleCheckUtc = DateTime.MinValue;
 
         private static void EnsureLoaded()
@@ -55,6 +61,8 @@ namespace CardCore
                 if (File.GetLastWriteTimeUtc(path) != _mainStampUtc) return true;
                 string tpath = SynergyUI.CardDataPaths.TutorialFileIn("TutorialEffects.json");
                 if (File.Exists(tpath) && File.GetLastWriteTimeUtc(tpath) != _tutorialStampUtc) return true;
+                string rpath = SynergyUI.CardDataPaths.TrainingFileIn("TrainingEffects.json");
+                if (File.Exists(rpath) && File.GetLastWriteTimeUtc(rpath) != _trainingStampUtc) return true;
                 return false;
             }
             catch
@@ -92,6 +100,7 @@ namespace CardCore
                 }
                 _mainStampUtc = File.GetLastWriteTimeUtc(path); // 解析成功才记账：坏 JSON 不落缓存态，下次调用重试
                 MergeTutorialEffects(); // 教学副表合并（2026-10-16）
+                MergeTrainingEffects(); // 训练副表合并（2026-11-03）：训练卡 effectIds 引用解析
             }
             catch (Exception e)
             {
@@ -127,6 +136,33 @@ namespace CardCore
             catch (Exception e)
             {
                 TideLog.Warn($"[EffectsLibrary] 加载 {TutorialConfigRelative} 失败: {e.Message}");
+            }
+        }
+
+        /// <summary>训练效果副表合并（2026-11-03 训练池分家）：重复 id 保先装表（主表>教学>训练）。
+        /// 文件缺失=玩家构建常态（训练表不随包下发），静默返回——与教学表 Warn 兜底不同口径。</summary>
+        private static void MergeTrainingEffects()
+        {
+            try
+            {
+                string rpath = SynergyUI.CardDataPaths.TrainingFileIn("TrainingEffects.json");
+                if (!File.Exists(rpath)) return;
+                var wrapper = TideJson.FromJson<Wrapper>(File.ReadAllText(rpath));
+                if (wrapper?.items != null)
+                {
+                    foreach (var it in wrapper.items)
+                    {
+                        if (it == null || string.IsNullOrEmpty(it.id)) continue;
+                        if (_byId.ContainsKey(it.id)) continue; // 重复 id 保首条（先装表）
+                        _byId[it.id] = it;
+                        _items.Add(it);
+                    }
+                }
+                _trainingStampUtc = File.GetLastWriteTimeUtc(rpath); // 解析成功才记账（与主表同口径）
+            }
+            catch (Exception e)
+            {
+                TideLog.Warn($"[EffectsLibrary] 加载 {TrainingConfigRelative} 失败: {e.Message}");
             }
         }
 

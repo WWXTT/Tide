@@ -89,7 +89,7 @@
     "EnumName": "抽卡",
     "DisplayName": "抽{value}张卡",
     "EffectType": "DrawCard",
-    "TargetKinds": "己方牌库",
+    "TargetKinds": "己方牌库,对方牌库",
     "TargetFilter": null,
     "Polarity": 1,
     "MountKinds": "",
@@ -113,8 +113,8 @@
     "Tags": null,
     "ManaList": [
       0,
-      3,
       0,
+      3,
       0
     ]
   },
@@ -130,8 +130,8 @@
     "Tags": null,
     "ManaList": [
       0,
-      3,
       0,
+      3,
       0
     ]
   },
@@ -149,7 +149,7 @@
       0,
       0,
       0,
-      3
+      2
     ]
   },
   {
@@ -222,9 +222,9 @@
     ]
   },
   {
-    "ID": "d5626b72",
+    "ID": "361a6544",
     "EnumName": "占卜",
-    "DisplayName": "查看牌库顶{value}张卡并任意排列",
+    "DisplayName": "展示牌库顶{value}张卡并任意排列",
     "EffectType": "LookAtTopCards",
     "TargetKinds": "己方牌库,对方牌库",
     "TargetFilter": null,
@@ -363,7 +363,7 @@
     "EnumName": "净化",
     "DisplayName": "解除目标全部负面(极性-1)的指示物",
     "EffectType": "RemoveDebuffs",
-    "TargetKinds": "己方单位",
+    "TargetKinds": "己方单位,对方单位",
     "TargetFilter": "NoRole",
     "Polarity": 1,
     "MountKinds": "",
@@ -455,7 +455,7 @@
     "Tags": null,
     "参数": "CardRef",
     "ManaList": [
-      1,
+      2,
       0,
       0,
       0
@@ -513,18 +513,18 @@
     ]
   },
   {
-    "ID": "f7ca683f",
+    "ID": "84136d36",
     "EnumName": "牺牲",
-    "DisplayName": "以角色为目标，使其自行选择{value}个单位效果送墓，送墓的效果来源为持有者",
+    "DisplayName": "自行选择{value}个单位规则送墓，每送墓一个单位，获得一点临时任意元素",
     "EffectType": "Sacrifice",
-    "TargetKinds": "己方单位,对方单位",
+    "TargetKinds": "己方单位",
     "TargetFilter": "Player",
-    "Polarity": -1,
+    "Polarity": 0,
     "MountKinds": "",
     "Tags": null,
     "ManaList": [
       0,
-      5,
+      0,
       0,
       0
     ]
@@ -721,8 +721,8 @@
     "EnumName": "跳过结束阶段",
     "DisplayName": "跳过对手的下个结束阶段（不可叠加）",
     "EffectType": "SkipTurn",
-    "TargetKinds": "对方单位",
-    "TargetFilter": "Player",
+    "TargetKinds": null,
+    "TargetFilter": null,
     "Polarity": -1,
     "MountKinds": "",
     "Tags": null,
@@ -738,8 +738,8 @@
     "EnumName": "跳过准备阶段",
     "DisplayName": "跳过对手的下个准备阶段（不可叠加）",
     "EffectType": "SkipTurn",
-    "TargetKinds": "对方单位",
-    "TargetFilter": "Player",
+    "TargetKinds": null,
+    "TargetFilter": null,
     "Polarity": -1,
     "MountKinds": "",
     "Tags": null,
@@ -755,8 +755,8 @@
     "EnumName": "跳过主要阶段",
     "DisplayName": "跳过对手的下个主要阶段（不可叠加）",
     "EffectType": "SkipTurn",
-    "TargetKinds": "对方单位",
-    "TargetFilter": "Player",
+    "TargetKinds": null,
+    "TargetFilter": null,
     "Polarity": -1,
     "MountKinds": "",
     "Tags": null,
@@ -823,7 +823,7 @@
   },
   {
     "ID": "f9848d5e",
-    "EnumName": "禁言",
+    "EnumName": "静默",
     "DisplayName": "隐秘宣言一个类别的卡，下个回合中对手使用的第一张卡与宣言类别一致，则发动的卡无效",
     "EffectType": "DeclareDeckTop",
     "TargetKinds": null,
@@ -844,7 +844,7 @@
     "EnumName": "移动",
     "DisplayName": "将{target}移动到空格",
     "EffectType": "MoveUnit",
-    "TargetKinds": "己方单位,对方单位",
+    "TargetKinds": "己方单位",
     "TargetFilter": null,
     "Polarity": 0,
     "MountKinds": "",
@@ -857,11 +857,45 @@
     ]
   },
   {
-    "ID": "6a17079d",
-    "EnumName": "迸发",
-    "DisplayName": "以{target}为目标，{target}造成等同其攻击力的伤害",
+    "ID": "89e4734d",
+    "EnumName": "活体炸弹",
+    "DisplayName": "以己方生物{target}为参照，对选择的一个对方单位造成等同其攻击力的伤害",
     "EffectType": "BurstDamage",
     "TargetKinds": "己方单位",
+    "TargetFilter": "NoRole",
+    "Polarity": -1,
+    "MountKinds": "",
+    "Tags": "伤害产出族",
+    "ManaList": [
+      0,
+      3,
+      0,
+      0
+    ]
+  },
+  {
+    "ID": "f5fe67d9",
+    "EnumName": "活体护甲",
+    "DisplayName": "以己方生物{target}为参照，选择的一个己方单位获得等同其生命的护甲",
+    "EffectType": "LivingArmor",
+    "TargetKinds": "己方单位",
+    "TargetFilter": "NoRole",
+    "Polarity": 1,
+    "MountKinds": "",
+    "Tags": null,
+    "ManaList": [
+      0,
+      0,
+      0,
+      3
+    ]
+  },
+  {
+    "ID": "247c2ae1",
+    "EnumName": "护盾猛击",
+    "DisplayName": "移除角色全部护甲，对{target}造成等量伤害",
+    "EffectType": "ShieldSlam",
+    "TargetKinds": "对方单位",
     "TargetFilter": null,
     "Polarity": -1,
     "MountKinds": "",
@@ -874,32 +908,15 @@
     ]
   },
   {
-    "ID": "508a4975",
-    "EnumName": "活体护甲",
-    "DisplayName": "以{target}为目标，{target}获得等同其生命的护甲",
-    "EffectType": "LivingArmor",
-    "TargetKinds": "己方单位",
-    "TargetFilter": null,
-    "Polarity": 1,
-    "MountKinds": "",
-    "Tags": null,
-    "ManaList": [
-      0,
-      0,
-      0,
-      3
-    ]
-  },
-  {
-    "ID": "825046c2",
-    "EnumName": "护盾猛击",
-    "DisplayName": "以{target}为目标，移除其全部护甲，对一个{target}目标造成等量伤害",
-    "EffectType": "ShieldSlam",
-    "TargetKinds": "己方单位",
-    "TargetFilter": null,
+    "ID": "c336be8f",
+    "EnumName": "封印",
+    "DisplayName": "将{target}封印为对手的地牌，按其最高费用放入对应地牌格（不能对0费单位使用）",
+    "EffectType": "SealUnit",
+    "TargetKinds": "对方单位",
+    "TargetFilter": "NoRole,Landable",
     "Polarity": -1,
     "MountKinds": "",
-    "Tags": "伤害产出族",
+    "Tags": null,
     "ManaList": [
       0,
       3,

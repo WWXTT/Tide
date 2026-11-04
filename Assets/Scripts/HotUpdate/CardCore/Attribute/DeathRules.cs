@@ -21,8 +21,9 @@ namespace CardCore.Attribute
     /// · 湮灭：彻底移除，死亡，不可被复活，直接送到除外区
     ///
     /// ── 非死亡移除族（不触发死亡，不经本决策表）────────────────────
-    /// · 牺牲（2026-10-09 舍弃并档定案）：以角色为目标，持有者自选一个单位效果
-    ///   直送墓地（SacrificeHandler）——非效果死亡，不发 CardDestroyEvent
+    /// · 牺牲（2026-11-03 改版）：以角色为目标，持有者自选 {value} 个场上单位（生物+结界+
+    ///   地牌）规则送墓，每个 +1 临时任意元素（SacrificeHandler）——非效果死亡，
+    ///   不发 CardDestroyEvent
     /// · 弹回：移回手牌        · 变形：变成其他卡
     /// · 放逐：移动到除外区    · 相位：暂移除外区，回归时无格则触发死亡
     /// · 封印：翻面覆盖占格，效果无效，卡不可成为目标、封印格可作为目标
@@ -103,7 +104,7 @@ namespace CardCore.Attribute
         /// 补救被否——引擎侧正本清源。OnDeath 触发此刻见卡仍在场（IsAlive 已 false）。
         /// </summary>
         public static bool TryKill(Card card, DeathCause cause, Entity source, ZoneManager zoneManager = null,
-            ManaType? effectTint = null)
+            ManaType? effectTint = null, bool isCost = false)
         {
             if (card == null) return false;
             if (IsShielded(card, cause)) return false;
@@ -127,13 +128,17 @@ namespace CardCore.Attribute
             if (cause != DeathCause.Annihilate && KeywordRules.TryReborn(card))
                 return false;
 
+            // 销毁前定格区域（2026-11-04 日志口径）：战报延迟渲染，此刻不记就只剩墓地
+            var from = card.GetZone();
             var e = new CardDestroyEvent
             {
                 DestroyedCard = card,
                 Cause = cause,
                 Reason = ToReason(cause),
                 Source = source,
-                EffectTint = effectTint // 效果基础色透传（2026-10-20：消灭族弹体按所用效果基础色）
+                EffectTint = effectTint, // 效果基础色透传（2026-10-20：消灭族弹体按所用效果基础色）
+                FromZone = from,
+                IsCost = isCost
             };
             if (GameCore.Instance != null) GameCore.Instance.PublishEvent(e);
             else EventManager.Instance.Publish(e);
@@ -145,7 +150,6 @@ namespace CardCore.Attribute
             var owner = card.GetOwner() ?? card.GetController();
             if (manager != null && owner != null)
             {
-                var from = card.GetZone();
                 if (from != destination)
                     manager.GetZoneContainer(owner).Move(card, from, destination);
                 card.SetZone(destination);

@@ -136,7 +136,23 @@ namespace CardCore.Attribute.Handlers
 
         protected override string DescribeTemplate(AtomicEffectInstance effect)
         {
-            return $"抽 {effect.Value} 张牌";
+            // 主语（2026-11-04 战报定案）：裸「抽 {value} 张牌」不说谁抽。此为无执行场景的模板口径
+            //（代价行战报/卡面纯模板），按原子域推导：锁对方侧（SideLock=+1）=「对手抽」——
+            // 对手抽牌类代价（受惠侧执行抽牌方是对手，执行期由 GetDescription 补实名）；其余
+            //（无域/己方/双侧）=「己方抽」——效果栏抽牌恒己方是内容契约，双侧域行只在代价栏收窄到对方。
+            bool enemy = effect.TargetKinds != null && effect.TargetKinds.Count > 0
+                         && CostDerivationService.SideLock(effect.TargetKinds) == 1;
+            return $"{(enemy ? "对手" : "己方")}抽 {effect.Value} 张牌";
+        }
+
+        public override string GetDescription(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            // 执行期主语=真实抽牌方（执行控制器——资敌抽牌代价经受惠侧执行已翻转）：中立实名与
+            // 效果摘要行同口径，观侧替换（Player 1→【己方角色】）由 MatchLogRenderer 统一做。
+            if (effect == null) return "";
+            if (context != null && context.Controller != null)
+                return $"{EffectText.Name(context.Controller)}抽 {effect.Value} 张牌";
+            return base.GetDescription(effect, context);
         }
     }
 

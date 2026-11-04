@@ -443,9 +443,9 @@ namespace SynergyUI
         {
             switch (color)
             {
-                case UIColor.Red: return "红";
-                case UIColor.Blue: return "蓝";
-                case UIColor.Green: return "绿";
+                case UIColor.Red: return "火";
+                case UIColor.Blue: return "水";
+                case UIColor.Green: return "植物";
                 default: return "灰";
             }
         }
@@ -846,12 +846,12 @@ namespace SynergyUI
         }
 
         /// <summary>预览卡费条（2026-10-28 preview-panel 重构）：preview-stage/CostSquares 烘焙
-        /// 实例直填——空卡/零费=Clear 清空（条本体常驻，prefab 布局恒定）。
+        /// 实例直填——空卡=Clear 清空；0费=单块灰「0」占位（2026-11-03，条本体常驻，prefab 布局恒定）。
         /// P4 §1（2026-10-29）：item.Costs 已是净费口径（CardNetCost.NetCostOf 实时推导）。</summary>
         private void RefreshPreviewCost(CardOverlayItem item)
         {
             if (_previewCost == null) return;
-            if (item != null && item.Costs != null && !item.Costs.IsZero) _previewCost.SetCosts(item.Costs);
+            if (item != null) _previewCost.SetCosts(item.Costs ?? new ElementCost());
             else _previewCost.Clear();
         }
 
@@ -1275,8 +1275,8 @@ namespace SynergyUI
             if (body == null) return;
 
             var pairs = new[] {
-                (UIColor.Red, UiStyle.DotRed, "红"), (UIColor.Blue, UiStyle.DotBlue, "蓝"),
-                (UIColor.Green, UiStyle.DotGreen, "绿"), (UIColor.Gray, UiStyle.DotGray, "灰") };
+                (UIColor.Red, UiStyle.DotRed, "火"), (UIColor.Blue, UiStyle.DotBlue, "水"),
+                (UIColor.Green, UiStyle.DotGreen, "植物"), (UIColor.Gray, UiStyle.DotGray, "灰") };
             var lines = new List<string>[] { new List<string>(), new List<string>() };
             for (int i = 0; i < pairs.Length; i++)
             {
@@ -1819,7 +1819,8 @@ namespace SynergyUI
             var inZone = new HashSet<string>(_tokenCardIds);
             var candidates = CardSorter.Sort(CardCatalog.LoadAll()
                 .Where(c => c != null && c.Supertype == Cardtype.Creature
-                            && !CardCatalog.IsTeachingCard(c) && !inZone.Contains(c.ID)
+                            && !CardCatalog.IsTeachingCard(c) && !CardCatalog.IsTrainingCard(c) // 训练池（2026-11-03）：不可见
+                            && !inZone.Contains(c.ID)
                             && DeckTokenSupport.TemplateRestrictionsOk(c))) // 两限制（2026-10-31）：0 费/带代价不进候选
                 .ToList();
             foreach (var tpl in candidates)

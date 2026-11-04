@@ -95,7 +95,8 @@ namespace SynergyUI
 
         // ======================================== 减费三选一（2026-11-02 定案） ========================================
 
-        /// <summary>代价减费上限：每条代价行全价 ≤3（2026-11-02 自 4 收紧）。
+        /// <summary>代价减费上限：每条代价行全价 ≤3（2026-11-03 当日两改：先放宽回 4，同日收回 3——
+        /// 寒锥/退潮/缓兵/蚀忆四张 4 点行随收回报超限，降回 ≤3 由表侧跟进）。
         /// 口径=代价行全价（逐原子 PayloadUnitGrant 求和）——抵扣色容量另有运行时钳，本闸管构筑期。</summary>
         public const int CostDiscountCap = 3;
         /// <summary>有限分支减费区间上限：Then 奖励费值 1~3（门槛行 Budget 1/2/3 均在此内——本值为全局上界）。</summary>
@@ -170,7 +171,7 @@ namespace SynergyUI
 
         /// <summary>减费三选一冲突检测（单源：卡组合保存闸/addcost 闸/效果合成器形态闸/CardPipelineVerifier 共用）。
         /// 规则：① 同一效果只能三选一（有限分支/自由分支/代价）；② 并列添加两个效果时禁挂代价；
-        /// ③ 光环类（结界的场地光环/仪典行）禁挂代价；④ 代价行全价 ≤3。
+        /// ③ 光环类（结界的场地光环/仪典行）禁挂代价；④ 代价行全价 ≤3（2026-11-03 收回——当日放宽 4 作废）。
         /// 返回 null=合规；非空=违规描述（卡名+效果+违规类型）。</summary>
         public static string DiscountConflictOf(CardData card)
         {
@@ -1362,9 +1363,9 @@ namespace SynergyUI
 
         private static string ColorZh(ManaType m) => m switch
         {
-            ManaType.Red => "红",
-            ManaType.Blue => "蓝",
-            ManaType.Green => "绿",
+            ManaType.Red => "火",
+            ManaType.Blue => "水",
+            ManaType.Green => "植物",
             ManaType.Gray => "灰",
             _ => m.ToString(),
         };
@@ -2855,7 +2856,7 @@ namespace SynergyUI
                 return "宣言编码：Type:Creature / Type:Spell / Type:Enchantment（3 选 1——押注对手下回合"
                        + "首张出牌类别，命中触发奖励·预算 3；运行时只收类别档，战斗期弹类别三选一）";
             return "宣言编码（维度:值）：Type:Creature|Spell|Enchantment / Name:卡名 / Color:Red|Blue|Green|Gray / "
-                   + "CostParity:Odd|Even / CostExact:0-7 / LinkArrow:方向（筛选展示维度全量）";
+                   + "CostParity:Odd|Even / CostExact:0-7（筛选展示维度——运行时按档两段反问）";
         }
 
         // ======================================== 每原子行与卡面 des（2026-10-09 下沉定案） ========================================
@@ -3160,11 +3161,13 @@ namespace SynergyUI
         }
 
         /// <summary>选择器候选资格（2026-10-31 阶段C）：真实生物/结界卡——剔除衍生物模板
-        ///（IsTokenTemplate）与教学卡；召唤衍生物只收生物（装载期 ValidateMountHosts 同口径）。</summary>
+        ///（IsTokenTemplate）、教学卡与训练卡（2026-11-03 分家：训练池不可见）；召唤衍生物只收
+        /// 生物（装载期 ValidateMountHosts 同口径）。</summary>
         private static bool CardRefCandidateOk(CardData card, bool creatureOnly)
         {
             if (card == null || string.IsNullOrEmpty(card.ID) || card.IsTokenTemplate) return false;
             if (CardCatalog.IsTeachingCard(card)) return false;
+            if (CardCatalog.IsTrainingCard(card)) return false;
             return creatureOnly
                 ? card.Supertype == Cardtype.Creature
                 : card.Supertype == Cardtype.Creature || card.Supertype == Cardtype.Enchantment;

@@ -24,9 +24,9 @@
       "life": 1,
       "costList": [
         0.0,
+        0.5,
         0.0,
-        0.0,
-        1.0
+        0.0
       ],
       "tags": [
         "教学"
@@ -42,7 +42,7 @@
         0.0,
         1.0,
         0.0,
-        1.0
+        0.5
       ],
       "tags": [
         "教学"
@@ -57,9 +57,9 @@
       "life": 2,
       "costList": [
         0.0,
+        0.5,
         0.0,
-        0.0,
-        1.0
+        0.5
       ],
       "tags": [
         "教学"
@@ -91,9 +91,9 @@
       "life": 8,
       "costList": [
         0.0,
-        3.0,
+        3.5,
         0.0,
-        4.0
+        3.5
       ],
       "tags": [
         "教学"
@@ -108,9 +108,9 @@
       "life": 1,
       "costList": [
         0.0,
-        2.0,
+        2.5,
         0.0,
-        1.0
+        0.0
       ],
       "tags": [
         "教学"
@@ -176,9 +176,9 @@
       "life": 9,
       "costList": [
         0.0,
-        3.0,
+        3.5,
         0.0,
-        5.0
+        4.0
       ],
       "tags": [
         "教学"
@@ -193,9 +193,9 @@
       "life": 3,
       "costList": [
         0.0,
+        1.0,
         0.0,
-        0.0,
-        5.0
+        4.0
       ],
       "keywords": [
         "Indestructible"
@@ -213,9 +213,9 @@
       "life": 2,
       "costList": [
         0.0,
+        0.5,
         0.0,
-        0.0,
-        1.0
+        0.5
       ],
       "keywords": [
         "Stealth"
@@ -437,9 +437,9 @@
       "life": 7,
       "costList": [
         0.0,
+        0.5,
         0.0,
-        0.0,
-        6.0
+        5.0
       ],
       "tags": [
         "教学"
@@ -457,7 +457,7 @@
       "life": 2,
       "costList": [
         0.0,
-        1.0,
+        0.5,
         0.0,
         1.0
       ],
@@ -479,7 +479,7 @@
         0.0,
         1.0,
         0.0,
-        2.0
+        1.5
       ],
       "tags": [
         "教学"
@@ -497,7 +497,7 @@
       "life": 2,
       "costList": [
         0.0,
-        1.0,
+        0.5,
         0.0,
         1.0
       ],
@@ -517,7 +517,7 @@
       "life": 2,
       "costList": [
         0.0,
-        1.0,
+        0.5,
         0.0,
         1.0
       ],
@@ -537,7 +537,7 @@
       "life": 2,
       "costList": [
         0.0,
-        1.0,
+        0.5,
         0.0,
         1.0
       ],
@@ -557,7 +557,7 @@
       "life": 2,
       "costList": [
         0.0,
-        1.0,
+        0.5,
         0.0,
         1.0
       ],
@@ -577,7 +577,7 @@
       "life": 2,
       "costList": [
         0.0,
-        1.0,
+        0.5,
         0.0,
         1.0
       ],
@@ -597,7 +597,7 @@
       "life": 2,
       "costList": [
         0.0,
-        1.0,
+        0.5,
         0.0,
         1.0
       ],
@@ -609,7 +609,7 @@
       ]
     },
     {
-      "id": "C_7ED41034",
+      "id": "C_5707BF50",
       "cardName": "教学·10",
       "supertype": "Creature",
       "illustration": "DragonessTheWickedKnight",
@@ -617,15 +617,15 @@
       "life": 1,
       "costList": [
         0.0,
-        1.0,
+        0.5,
         0.0,
-        0.0
+        0.5
       ],
       "tags": [
         "教学"
       ],
       "effectIds": [
-        "91EAF1DF"
+        "4B380BAD"
       ]
     },
     {
@@ -637,7 +637,7 @@
       "life": 2,
       "costList": [
         0.0,
-        1.0,
+        0.5,
         0.0,
         1.0
       ],
@@ -657,7 +657,7 @@
       "life": 2,
       "costList": [
         0.0,
-        1.0,
+        0.5,
         0.0,
         1.0
       ],
@@ -677,7 +677,7 @@
       "life": 2,
       "costList": [
         0.0,
-        1.0,
+        0.5,
         0.0,
         1.0
       ],
@@ -697,7 +697,7 @@
       "life": 2,
       "costList": [
         0.0,
-        1.0,
+        0.5,
         0.0,
         1.0
       ],
@@ -717,7 +717,7 @@
       "life": 2,
       "costList": [
         0.0,
-        1.0,
+        0.5,
         0.0,
         1.0
       ],
@@ -737,7 +737,7 @@
       "life": 2,
       "costList": [
         0.0,
-        1.0,
+        0.5,
         0.0,
         1.0
       ],
@@ -757,7 +757,7 @@
       "life": 2,
       "costList": [
         0.0,
-        1.0,
+        0.5,
         0.0,
         1.0
       ],
@@ -786,14 +786,14 @@
       ]
     },
     {
-      "id": "C_C330A1C4",
+      "id": "C_95187C1C",
       "cardName": "教学·11",
       "supertype": "Spell",
       "tags": [
         "教学"
       ],
       "effectIds": [
-        "B335ADA6"
+        "80B7DA7B"
       ],
       "costList": [
         0.0,
@@ -803,14 +803,14 @@
       ]
     },
     {
-      "id": "C_78A966FC",
+      "id": "C_AA96F206",
       "cardName": "教学·12",
       "supertype": "Spell",
       "tags": [
         "教学"
       ],
       "effectIds": [
-        "02B75103"
+        "FE4D4EBB"
       ],
       "costList": [
         0.0,
@@ -828,7 +828,7 @@
       "life": 2,
       "costList": [
         0.0,
-        1.0,
+        0.5,
         0.0,
         1.0
       ],
@@ -848,7 +848,7 @@
       "life": 2,
       "costList": [
         0.0,
-        1.0,
+        0.5,
         0.0,
         1.0
       ],
@@ -885,9 +885,9 @@
       "life": 1,
       "costList": [
         0.0,
-        2.0,
+        1.5,
         4.0,
-        0.0
+        0.5
       ],
       "keywords": [
         "Vigilance"
@@ -908,9 +908,9 @@
       "life": 1,
       "costList": [
         0.0,
-        2.0,
+        1.5,
         4.0,
-        0.0
+        0.5
       ],
       "keywords": [
         "Vigilance"
@@ -1118,9 +1118,9 @@
       "life": 4,
       "costList": [
         0.0,
+        0.5,
         0.0,
-        0.0,
-        2.0
+        1.5
       ],
       "tags": [
         "ThemeBlueSurplus",
@@ -1135,9 +1135,9 @@
       "life": 5,
       "costList": [
         0.0,
-        1.0,
+        1.5,
         0.0,
-        3.0
+        2.0
       ],
       "tags": [
         "ThemeBlueSurplus",
@@ -1145,7 +1145,7 @@
       ]
     },
     {
-      "id": "C_5C6A17CA",
+      "id": "C_0D781796",
       "cardName": "隐匿",
       "supertype": "Spell",
       "tags": [
@@ -1153,7 +1153,7 @@
         "教学"
       ],
       "effectIds": [
-        "93F9AFDE"
+        "BB8A7569"
       ],
       "speedBonus": 2,
       "costList": [
@@ -1185,7 +1185,7 @@
       "noGuard": true
     },
     {
-      "id": "C_912FA2FA",
+      "id": "C_704F7F1C",
       "cardName": "爆裂兽",
       "supertype": "Creature",
       "costList": [
@@ -1199,7 +1199,7 @@
         "教学"
       ],
       "effectIds": [
-        "5E4A9D9D"
+        "AF36EA72"
       ],
       "power": 5,
       "life": 5,
@@ -1231,7 +1231,7 @@
         0.0,
         0.0,
         0.0,
-        2.0
+        3.0
       ],
       "tags": [
         "ThemeGreenCountdown",
@@ -1252,7 +1252,7 @@
         0.0,
         0.0,
         0.0,
-        11.0
+        10.5
       ],
       "tags": [
         "ThemeGreenCountdown",
@@ -1329,7 +1329,7 @@
         0.0,
         0.0,
         0.0,
-        4.0
+        4.5
       ],
       "noAttack": true
     },
@@ -1355,8 +1355,8 @@
       "noAttack": true
     },
     {
-      "id": "C_006EA7ED",
-      "cardName": "棘爆",
+      "id": "C_BFE245C2",
+      "cardName": "爆荚",
       "supertype": "Creature",
       "power": 1,
       "life": 3,
@@ -1365,7 +1365,7 @@
         "教学"
       ],
       "effectIds": [
-        "5E4A9D9D"
+        "AF36EA72"
       ],
       "costList": [
         0.0,
@@ -1392,7 +1392,7 @@
         0.0,
         0.0,
         0.0,
-        2.0
+        2.5
       ],
       "noAttack": true
     },
@@ -1418,7 +1418,7 @@
       "noAttack": true
     },
     {
-      "id": "C_A821917E",
+      "id": "C_3F127CBB",
       "cardName": "活体护甲",
       "supertype": "Spell",
       "tags": [
@@ -1426,7 +1426,7 @@
         "教学"
       ],
       "effectIds": [
-        "A8400912"
+        "DE7CE01D"
       ],
       "speedBonus": 2,
       "costList": [
@@ -1451,9 +1451,9 @@
       ],
       "costList": [
         0.0,
+        0.5,
         0.0,
-        0.0,
-        2.0
+        1.5
       ]
     },
     {
@@ -1473,13 +1473,13 @@
         0.0,
         0.0,
         0.0,
-        2.0
+        2.5
       ],
       "noAttack": true
     },
     {
-      "id": "C_C2FCDB19",
-      "cardName": "寒锥",
+      "id": "C_DDB09243",
+      "cardName": "潮汐",
       "supertype": "Spell",
       "costList": [
         0.0,
@@ -1492,7 +1492,7 @@
         "教学"
       ],
       "effectIds": [
-        "38D9CE28"
+        "F0E98164"
       ],
       "payloads": [
         {
@@ -1500,7 +1500,7 @@
           "kinds": [
             8
           ],
-          "value": 2
+          "value": 1
         }
       ]
     },
@@ -1825,7 +1825,7 @@
         0.0,
         0.0,
         0.0,
-        4.0
+        4.5
       ],
       "tags": [
         "ThemeBlueSurplus",
@@ -1899,7 +1899,7 @@
       ]
     },
     {
-      "id": "C_9A8EB596",
+      "id": "C_F604F751",
       "cardName": "乱锋",
       "supertype": "Spell",
       "costList": [
@@ -1913,7 +1913,7 @@
         "教学"
       ],
       "effectIds": [
-        "02B0B057"
+        "48EA9774"
       ],
       "payloads": [
         {
@@ -1926,8 +1926,27 @@
       ]
     },
     {
-      "id": "C_0EDA6CE8",
-      "cardName": "潜影碑",
+      "id": "C_D820D589",
+      "cardName": "潮痕碑",
+      "supertype": "Enchantment",
+      "costList": [
+        0.0,
+        0.0,
+        2.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeBlueSurplus",
+        "教学"
+      ],
+      "effectIds": [
+        "69C458A8"
+      ],
+      "durability": 4
+    },
+    {
+      "id": "C_675211C9",
+      "cardName": "深潭碑",
       "supertype": "Enchantment",
       "costList": [
         0.0,
@@ -1940,31 +1959,12 @@
         "教学"
       ],
       "effectIds": [
-        "C308DC2F"
+        "C51D0775"
       ],
-      "durability": 2
+      "durability": 4
     },
     {
-      "id": "C_C93DE5D9",
-      "cardName": "深潜碑",
-      "supertype": "Enchantment",
-      "costList": [
-        0.0,
-        0.0,
-        1.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeBlueSurplus",
-        "教学"
-      ],
-      "effectIds": [
-        "03EEA8C2"
-      ],
-      "durability": 2
-    },
-    {
-      "id": "C_C4426DF2",
+      "id": "C_ECDF4B1E",
       "cardName": "薄壁",
       "supertype": "Spell",
       "costList": [
@@ -1978,12 +1978,12 @@
         "教学"
       ],
       "effectIds": [
-        "DCF12CEA"
+        "6229F9B6"
       ]
     },
     {
-      "id": "C_E0B33474",
-      "cardName": "重放",
+      "id": "C_BFEC188F",
+      "cardName": "余波",
       "supertype": "Spell",
       "costList": [
         0.0,
@@ -1996,7 +1996,7 @@
         "教学"
       ],
       "effectIds": [
-        "92119317"
+        "C34578F5"
       ]
     },
     {
@@ -2036,13 +2036,13 @@
       ]
     },
     {
-      "id": "C_2596A217",
+      "id": "C_CBCE6D17",
       "cardName": "回潮",
-      "supertype": "Enchantment",
+      "supertype": "Spell",
       "costList": [
         0.0,
         0.0,
-        2.0,
+        4.0,
         0.0
       ],
       "tags": [
@@ -2050,12 +2050,11 @@
         "教学"
       ],
       "effectIds": [
-        "17EB8C0B"
-      ],
-      "durability": 4
+        "63BC212E"
+      ]
     },
     {
-      "id": "C_D14E4CF1",
+      "id": "C_57BA44EC",
       "cardName": "火灵·攻",
       "supertype": "Creature",
       "costList": [
@@ -2069,14 +2068,14 @@
         "教学"
       ],
       "effectIds": [
-        "F1468911"
+        "2C78A233"
       ],
       "power": 1,
       "life": 1,
       "noGuard": true
     },
     {
-      "id": "C_3DF04587",
+      "id": "C_5F93DCDD",
       "cardName": "火灵·守",
       "supertype": "Creature",
       "costList": [
@@ -2090,52 +2089,52 @@
         "教学"
       ],
       "effectIds": [
-        "F1468911"
+        "2C78A233"
       ],
       "power": 1,
       "life": 1,
       "noAttack": true
     },
     {
-      "id": "C_384086AD",
-      "cardName": "火种·锐",
+      "id": "C_138CE290",
+      "cardName": "火苗",
       "supertype": "Creature",
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
       "tags": [
         "ThemeRedClash",
         "教学"
       ],
       "effectIds": [],
-      "power": 3,
-      "life": 1,
-      "noGuard": true
-    },
-    {
-      "id": "C_13E50D39",
-      "cardName": "火种·厚",
-      "supertype": "Creature",
+      "power": 2,
+      "life": 2,
+      "noGuard": true,
       "costList": [
         0.0,
         0.0,
         0.0,
         0.0
-      ],
+      ]
+    },
+    {
+      "id": "C_5BB0FCD6",
+      "cardName": "余烬",
+      "supertype": "Creature",
       "tags": [
         "ThemeRedClash",
         "教学"
       ],
       "effectIds": [],
-      "power": 1,
-      "life": 3,
-      "noGuard": true
+      "power": 2,
+      "life": 2,
+      "noGuard": true,
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
     },
     {
-      "id": "C_171607E2",
+      "id": "C_E105FABA",
       "cardName": "血偿",
       "supertype": "Spell",
       "costList": [
@@ -2149,12 +2148,12 @@
         "教学"
       ],
       "effectIds": [
-        "0A3D02DD"
+        "FC0E95E4"
       ]
     },
     {
-      "id": "C_17CD471B",
-      "cardName": "赋予连击",
+      "id": "C_7118DF4D",
+      "cardName": "追击",
       "supertype": "Spell",
       "costList": [
         0.0,
@@ -2167,7 +2166,7 @@
         "教学"
       ],
       "effectIds": [
-        "A5173DFB"
+        "8200C531"
       ]
     },
     {
@@ -2204,6 +2203,51 @@
       ],
       "effectIds": [
         "C5180E36"
+      ]
+    },
+    {
+      "id": "C_BFA45A95",
+      "cardName": "弹回",
+      "supertype": "Spell",
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeBlueSurplus",
+        "教学"
+      ],
+      "effectIds": [
+        "09A6106C"
+      ],
+      "payloads": [
+        {
+          "refId": "03c85bc4",
+          "kinds": [
+            8
+          ],
+          "value": 1
+        }
+      ]
+    },
+    {
+      "id": "C_19E67F54",
+      "cardName": "活体炸弹",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeRedClash",
+        "教学"
+      ],
+      "effectIds": [
+        "F800706B"
+      ],
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
       ]
     }
   ]

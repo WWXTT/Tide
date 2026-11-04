@@ -21,7 +21,7 @@ namespace SynergyUI
     ///    外扩 36px」的雾光画布并挂 SynergyUI/FogEdgeGlow 材质（逐卡随机 _Seed——雾形各异）。
     ///    雾带扩散/噪声翻涌/呼吸全在 shader 内 _Time 自驱，C# 只按可用性缓动 _Fade 淡入淡出。
     /// </summary>
-    public sealed class HandFanCard : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
+    public sealed class HandFanCard : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IPointerClickHandler
     {
         /// <summary>对账键（引擎卡实例运行时 id）。</summary>
         public uint RuntimeId;
@@ -118,6 +118,11 @@ namespace SynergyUI
             if (over != null && over.transform.IsChildOf(transform)) return;
             HideActionButtons();
             Fan?.NotifyHover(this, false);
+        }
+
+        public void OnPointerClick(PointerEventData eventData)
+        {
+            Fan?.NotifyCardClicked(this); // 卡体点击（2026-11-03 Information）：转发扇→宿主 OnCardClick；未挂=无操作
         }
 
         public void SetTarget(Vector2 pos, float rot, float scale)
@@ -351,7 +356,8 @@ namespace SynergyUI
 
         /// <summary>费用方格刷新（对账/切行共用）：特殊行选中且带账单优先；
         /// 多主动法术=选中行 ActiveEffectCosts；其余=卡净费 Costs（旧口径）。充能行无固定账单
-        ///（现付 1 点待选色）→维持当前模式费显示。</summary>
+        ///（现付 1 点待选色）→维持当前模式费显示。代价组（Cost2，2026-11-03 双组改版）=卡级
+        /// 代价色构成 PayloadCost——恒随卡（与费用行选择无关），无代价自动隐藏 Cost2。</summary>
         private void UpdateEffectCost()
         {
             if (CostSquares == null || _chromeItem == null) return;
@@ -366,8 +372,9 @@ namespace SynergyUI
                 if (modeCosts != null && modeCosts.Count > 1)
                     cost = modeCosts[Mathf.Clamp(SelectedEffectMode, 0, modeCosts.Count - 1)];
             }
-            if (cost != null && !cost.IsZero) CostSquares.SetCosts(cost);
-            else CostSquares.Clear();
+            // null=0费卡（CardOverlayItem 零费不落 Costs）→传全零显单块灰「0」占位（2026-11-03）
+            CostSquares.SetCosts(cost ?? new ElementCost());
+            CostSquares.SetPayloadCosts(_chromeItem.PayloadCost); // 有代价才显示 Cost2
         }
 
         private static void SetButtonLabel(Button button, string text)

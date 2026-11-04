@@ -6,7 +6,9 @@ using System.Text;
 
 namespace CardCore
 {
-    /// <summary>对局日志条目：保留事件对象引用（渲染延迟到导出/订阅时，避免每事件字符串化）</summary>
+    /// <summary>对局日志条目：保留事件对象引用（渲染延迟到导出/订阅时，避免每事件字符串化）。
+    /// FrozenText：必须在事件时点定格的条目（开局块读实时牌库/手牌）——入缓冲时即渲染并冻结，
+    /// 保证控制台即时行与终局导出战报完全一致。</summary>
     public class MatchLogEntry
     {
         public uint EventId;
@@ -14,6 +16,7 @@ namespace CardCore
         public string EventType;
         public IGameEvent Event;
         public DateTime Time;
+        public string FrozenText;
     }
 
     /// <summary>
@@ -24,6 +27,8 @@ namespace CardCore
     /// - 回合旁注：发布时读 GameCore.TurnEngine.TurnNumber（无核心时 0）。
     /// - 渲染：MatchLogRenderer 按 CLR 类型分派"事件→人话"；条目存原始事件引用，
     ///   渲染行仅在导出或 Appended 订阅者（如 Editor 播报器）需要时产生。
+    ///   例外=开局块（读实时牌库/手牌）：入缓冲时冻结（FrozenText），否则终局导出会把
+    ///   「开局」读成终局状态，与即时控制台不一致。
     /// - 缓冲上限 5 万条，超限截头并置标志（防超长对局内存膨胀）。
     /// </summary>
     public static class MatchLogService
@@ -76,6 +81,11 @@ namespace CardCore
         /// <summary>入缓冲（截头 + 追加 + Appended 通知）。</summary>
         private static void AppendEntry(MatchLogEntry entry)
         {
+            // 开局块的牌库/手牌是"事件时点"状态；导出发生在终局，延迟渲染会读成终局状态。
+            // 这里在入缓冲当下冻结，控制台（Appended）与导出共用同一行，避免两套工具互相打脸。
+            if (entry.Event is GameStartEvent)
+                entry.FrozenText = MatchLogRenderer.Render(entry.Event);
+
             if (_entries.Count >= MaxEntries)
             {
                 _entries.RemoveRange(0, TrimBatch); // 截头留序（有序 List 语义/导出遍历不变）；早丢 ≤一批，标志位同旧
@@ -122,7 +132,7 @@ namespace CardCore
                     sb.AppendLine($"## ════ 回合 {entry.TurnNumber} ════");
                 }
 
-                var line = MatchLogRenderer.Render(entry.Event);
+                var line = entry.FrozenText ?? MatchLogRenderer.Render(entry.Event);
                 if (!string.IsNullOrEmpty(line))
                     sb.AppendLine(line);
             }

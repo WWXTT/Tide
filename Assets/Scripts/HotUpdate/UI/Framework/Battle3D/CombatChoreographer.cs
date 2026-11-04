@@ -62,6 +62,9 @@ namespace SynergyUI
         // ---- 目标选择态 ----
         private BattleCardView _picker;                    // 发起攻击的我方单位
         private Action<BattleCardView> _onPicked;          // 回调：参数 null=对方角色
+        // 候选波记账（2026-11-03 波=选择期候选标志）：逐帧回补的已点格——退出选择（取消/确认）
+        // 逐格 ClearUnitGlow 显式收，防对账长时间不来残留红波
+        private readonly List<(int x, int z)> _waveCells = new List<(int x, int z)>();
 
         // picker → 宣言的路径交接（寻路固定：确认时的路径供演出直接复用）
         private List<(int x, int z)> _pickedPath;
@@ -157,6 +160,7 @@ namespace SynergyUI
             _onPicked = null;
             _arrow.Hide();
             HideReticle(); // 悬停期贴片随选择取消撤（宣言后的贴片归捕获/演出链管）
+            ClearCandidateWaves(); // 候选红波随选择收（2026-11-03 波=选择期候选标志）
         }
 
         private async UniTaskVoid TargetingLoopAsync(int epoch)
@@ -174,6 +178,8 @@ namespace SynergyUI
 
                 var cam = BattleStageDirector.WorldCam;
                 if (cam == null) { _arrow.Hide(); await UniTask.Yield(); continue; }
+
+                PaintCandidateWaves(); // 候选红波逐帧回补（2026-11-03 波=选择期候选标志；对账 ClearAll 会清）
 
                 // 鼠标/触摸统一（2026-10-18 安卓滑动输入·BattlePointer）：裁决/箭头终点=指针
                 // 落点（触摸不偏置——手指盖住箭头时合法变绿经箭身可观察）；确认=左键按下/触摸抬起
@@ -240,6 +246,7 @@ namespace SynergyUI
 
             _picker = null; // 先退出选择态（IsTargeting 即刻为 false），再交还控制权
             _onPicked = null;
+            ClearCandidateWaves(); // 候选红波随选择收（2026-11-03 波=选择期候选标志）
 
             _arrow.Show(from, BattleBoardGrid.WorldPositionOf(x, z), BattleAttackArrow.ValidSkin); // 吸附目标格（选对了=绿）再冻结渐隐
             await _arrow.FadeOutAsync(0.35f);
@@ -278,6 +285,31 @@ namespace SynergyUI
             unit = (d.OppUnits ?? new List<BattleCardView>())
                 .FirstOrDefault(c => c.X == x && c.Z == z && !c.IsDead);
             return unit != null;
+        }
+
+        /// <summary>攻击候选红波逐帧回补（2026-11-03 波=选择期候选标志）：候选集与 TryResolveTarget
+        /// 同源（对方未死单位格 ∪ 对方角色格），红=与攻击箭头同语言。逐帧因对账 ClearAll 会清
+        ///（RegionTargetSelector.PaintCandidateWaves 同款）；退出（取消/确认）ClearCandidateWaves 显式收。</summary>
+        private void PaintCandidateWaves()
+        {
+            var d = _view?.Invoke();
+            if (d == null) return;
+            _waveCells.Clear();
+            var heroCell = BoardLayout.CharacterCell(1);
+            _waveCells.Add((heroCell.x, heroCell.z));
+            foreach (var c in d.OppUnits ?? new List<BattleCardView>())
+                if (c != null && !c.IsDead && c.X >= 0 && c.Z >= 0)
+                    _waveCells.Add((c.X, c.Z));
+            foreach (var cell in _waveCells)
+                BattleTileFx.SetUnitGlow(cell.x, cell.z, opponent: true);
+        }
+
+        /// <summary>退出目标选择时逐格熄候选红波（对账 ClearAll 后无人回补即复原常态；显式清防残留）。</summary>
+        private void ClearCandidateWaves()
+        {
+            foreach (var cell in _waveCells)
+                BattleTileFx.ClearUnitGlow(cell.x, cell.z);
+            _waveCells.Clear();
         }
 
         /// <summary>tile-{x}-{z} BoxCollider 射线（与 BattleScreen.HandleFieldClick 同口径；点=裁决落点）。</summary>

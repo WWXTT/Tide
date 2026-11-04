@@ -377,9 +377,9 @@ namespace SynergyUI
         {
             switch (m)
             {
-                case ManaType.Red: return "红";
-                case ManaType.Blue: return "蓝";
-                case ManaType.Green: return "绿";
+                case ManaType.Red: return "火";
+                case ManaType.Blue: return "水";
+                case ManaType.Green: return "植物";
                 default: return "灰";
             }
         }

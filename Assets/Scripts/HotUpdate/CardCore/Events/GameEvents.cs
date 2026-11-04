@@ -146,6 +146,20 @@ namespace CardCore
     }
 
     /// <summary>
+    /// 回合结束指示物变化汇总（2026-11-04 用户定案「像回合开始那样一次性报出」）：
+    /// 回合末例程（CounterRules.OnTurnEnd——毒素发作减半/临时到期移除/衰退族逐层倒数）此前逐项
+    /// 发 KeywordAppliedEvent 且都在渲染白名单外=战报零播报。本事件把该回合末全部指示物层变化
+    /// 聚合成一行，parts 由引擎预拼（中立名，含卡名/角色实名——观侧替换在渲染层做），
+    /// 空表不出行。范式对标 StandbyResetEvent（回合开始重置账目行）。
+    /// </summary>
+    public class TurnEndCounterSummaryEvent : GameEventBase
+    {
+        public Player TurnPlayer { get; set; }
+        /// <summary>逐条变化（「卡名 冻结 2→1（余 1 回合）」式）；空=本回合末无指示物变化。</summary>
+        public List<string> Parts = new List<string>();
+    }
+
+    /// <summary>
     /// 使用卡牌事件（使用宣言时点，付费前——OnCardPlayed/OnSpellCast 锚点）
     /// </summary>
     public class CardPlayEvent : GameEventBase
@@ -158,6 +172,9 @@ namespace CardCore
         public Zone FromZone { get; set; }
         /// <summary>抉择模式索引（2026-09-07 定案）：宣言即公开所选模式——响应窗口/预言验证/播报可见</summary>
         public int ModeIndex { get; set; }
+        /// <summary>响应窗出牌标记（2026-11-03 连锁表现改日志定案）：非回合方在响应窗口打出的卡
+        /// 置 true——日志行渲染为「连锁了」（区别于主阶段「使用」）。</summary>
+        public bool IsResponseCast { get; set; }
     }
 
     /// <summary>
@@ -192,10 +209,31 @@ namespace CardCore
         /// （DamageLethal/LifeLoss/LifePayment/Poison/…）——未来死因相关触发/统计用。</summary>
         public CardCore.Attribute.DeathCause Cause { get; set; }
         public DestroyReason Reason { get; set; }
+        /// <summary>销毁时所在区（2026-11-04 日志口径修正）：战报渲染是**延迟**的（导出/订阅时才转文本，
+        /// 此刻卡已在墓地），仅凭 GetZone() 分不清「场上的结界」与「元素池里的地牌」——由发布点在移区
+        /// **之前**定格。null=旧发布点未记录（渲染侧按卡型兜底：无生命=结界、其余=地牌）。</summary>
+        public Zone? FromZone { get; set; }
+        /// <summary>是否由代价（CostType.Payload）结算触发（2026-11-04）：代价与效果同一执行口，
+        /// 战报须能标出「这张卡是你为发牌付的代价，不是对手打死的」——由付费步上下文下发。</summary>
+        public bool IsCost { get; set; }
         public Entity Source { get; set; }
         /// <summary>效果基础色（2026-10-20 定案：消灭/摧毁族弹体按所用效果的基础色）：
         /// 发布方填原子行费用基准主色；null=无基准（表现层回落来源卡费用主色）。</summary>
         public ManaType? EffectTint { get; set; }
+    }
+
+    /// <summary>
+    /// 代价支付事件（2026-11-04 战报口径）：代价栏 Payload 原子执行前发布——战报据此出一行
+    /// 「〔代价〕X 支付：…」，把「为发牌付的代价」与「对手的效果」在文本上分开
+    /// （此前两者同走执行口：玩家只看到结果——对手莫名获得护甲、自己的卡莫名被摧毁）。
+    /// 纯叙事事件，不参与任何规则判定、不被触发引擎消费。
+    /// </summary>
+    public class CostPaidEvent : GameEventBase
+    {
+        public Player Player { get; set; }
+        public Entity Source { get; set; }
+        /// <summary>代价原子描述（handler 模板；无目标语义的模板原文）。</summary>
+        public string Description { get; set; }
     }
 
     /// <summary>
@@ -536,6 +574,13 @@ namespace CardCore
     public class StackEmptyEvent : GameEventBase
     {
         public Player LastPriorityHolder { get; set; }
+        /// <summary>本次结算是否含真实栈对象（2026-11-03 连锁日志行「连锁结束」）：
+        /// 纯阶段窗排干（主/结束阶段窗折返）为 false——不出行防刷屏。</summary>
+        public bool HadRealItems { get; set; }
+        /// <summary>本窗口结算开始时栈上真实对象 ≥2（2026-11-04 连锁日志定案：无人跟连锁的
+        /// 单件窗口是普通处理不是连锁——「连锁开始逆处理/连锁结束」两行只在真连锁窗口出，
+        /// 单件窗口首行改「开始处理」且收尾不出行）。结算中触发的新效果走后续窗口各自判定。</summary>
+        public bool WasChain { get; set; }
     }
 
     /// <summary>
@@ -653,11 +698,49 @@ namespace CardCore
     }
 
     /// <summary>
+    /// 连锁询问事件（2026-11-03 连锁卡牌表现退役改日志定案）：响应窗口泵对优先权持有方
+    /// 开问（收集到真实候选、进入决策口）时发布——日志行「xx询问连锁」。
+    /// 0 候选的自动 Pass 不询问、不发本事件。
+    /// </summary>
+    public class ChainInquiryEvent : GameEventBase
+    {
+        public Player Holder { get; set; }
+    }
+
+    /// <summary>
+    /// 连锁应答事件：询问后选择了响应并成功应用——日志行「xx连锁了xx」。
+    /// 仅无既有内容行的响应种类发布（充能）；响应出牌走 CardPlayEvent.IsResponseCast、
+    /// 守卫/效果发动各有专属行，不重复发。
+    /// </summary>
+    public class ChainRespondedEvent : GameEventBase
+    {
+        public Player Responder { get; set; }
+        /// <summary>响应内容描述（引擎侧拼好：卡名带【】、效果名带「」，渲染端直接拼称谓）</summary>
+        public string Description { get; set; }
+    }
+
+    /// <summary>
+    /// 连锁拒绝事件：询问后让过（让过按钮/倒计时归零/AI 不作主/声明期取消）时发布——
+    /// 日志行「xx拒绝了连锁」。未被询问的自动 Pass 不发。
+    /// </summary>
+    public class ChainDeclinedEvent : GameEventBase
+    {
+        public Player Decliner { get; set; }
+    }
+
+    /// <summary>
     /// 栈结算开始事件
     /// </summary>
     public class StackResolutionStartEvent : GameEventBase
     {
         public int StackSize { get; set; }
+        /// <summary>结算开始时栈上**真实对象**数（阶段窗伪对象不计——2026-11-04 连锁日志定案：
+        /// ≥2=有人跟了连锁=真连锁，行文用「连锁开始逆处理」；单件窗口是普通处理=「开始处理」。
+        /// StackSize 原始计数含阶段窗不可作判据：主阶段窗下出牌栈=[阶段窗,卡]，StackSize=2 而非连锁）。</summary>
+        public int RealCount { get; set; }
+        /// <summary>结算起始栈顶（LIFO 首个结算项——2026-11-03 连锁日志行「连锁开始逆处理：xx」）；
+        /// 纯阶段窗栈（顶=阶段窗伪对象）渲染端不出行。</summary>
+        public EffectInstance TopItem { get; set; }
     }
 
     /// <summary>

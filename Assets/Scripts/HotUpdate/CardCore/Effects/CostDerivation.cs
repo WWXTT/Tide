@@ -888,9 +888,9 @@ namespace CardCore
 
         private static string ColorZh(ManaType m) => m switch
         {
-            ManaType.Red => "红",
-            ManaType.Blue => "蓝",
-            ManaType.Green => "绿",
+            ManaType.Red => "火",
+            ManaType.Blue => "水",
+            ManaType.Green => "植物",
             ManaType.Gray => "灰",
             _ => m.ToString(),
         };
@@ -900,9 +900,9 @@ namespace CardCore
         /// <summary>代价栏有效域计算（2026-10-28 P1b 定案：代价收 p≠0 且锁在**受益方反面**的原子）。
         /// p&lt;0（有害）→ 锁己方（自伤）；p&gt;0（有益）→ 锁对方（资敌：给对手回血/增益/防护/送牌）；
         /// p=0（中性）不可作代价（null,false）。
-        /// 双臂同构：表域双侧→收窄到锁定侧成员；表域恰为整侧（=锁定侧）→免写(null)；
-        /// 表域纯反面侧→ <see cref="TargetKindRules.MirrorDomain"/> 镜像逆转到锁定侧；
-        /// 镜像后仍非纯锁定侧锁（Self 无对侧等）= 不可入。
+        /// 2026-11-03 双侧域定案：只收表行 TargetKinds **同时含己方与对方条目**的双侧行——
+        /// 只能作用于单方面的行（SideLock=±1 纯己方/纯对方）不可作代价（镜像改写单侧行语义的
+        /// 放行口就此关闭；空域行同判不可入）；双侧行收窄到锁定侧成员（免写=null 表示表默认域同效）。
         /// 返回 (kinds, eligible)：kinds=null 表示免写（表默认域同效）；合成器放置口与候选过滤共用本口。</summary>
         public static (List<int> kinds, bool eligible) PayloadCostDomain(AtomicEffectConfig cfg)
             => PayloadCostDomain(cfg, cfg?.GetTargetKindList());
@@ -916,12 +916,18 @@ namespace CardCore
             float p = Math.Clamp(cfg.Polarity, -1f, 1f);
             if (p == 0f) return (null, false); // p=0 不可作代价（2026-10-28 P1b）
 
+            // ③ 双侧域闸（2026-11-03 定案）：单侧行（纯己方/纯对方，SideLock=±1）与空域行不可作代价——
+            // 代价只收同时含己方与对方条目的双侧行，锁侧由下方收窄段统一收窄（单侧行镜像放行口关闭）。
+            var rowKinds = cfg.GetTargetKindList();
+            if (rowKinds.Count == 0 || SideLock(rowKinds) != 0)
+                return (null, false);
+
             bool wantEnemy = p > 0f; // 锁定侧 = 受益方反面：p<0 锁己方 / p>0 锁对方（资敌臂恢复）
             var side = kinds.Where(k => TargetKindRules.IsEnemySide(k) == wantEnemy).ToList();
             if (side.Count > 0)
                 return side.Count == kinds.Count ? (null, true) : (side, true);
 
-            var mirrored = TargetKindRules.MirrorDomain(kinds); // 纯反面侧 → 逆转到锁定侧
+            var mirrored = TargetKindRules.MirrorDomain(kinds); // 纯反面侧 → 逆转到锁定侧（防御分支：双侧行闸后常规输入不可达）
             return SideLock(mirrored) == (wantEnemy ? 1 : -1) ? (mirrored, true) : (null, false);
         }
 
@@ -1000,8 +1006,9 @@ namespace CardCore
         /// 上报；代价语义应改走代价栏（payloads/Costs 行·色锁抵扣）或把 kinds 改指对侧。
         /// 至少覆盖用户点名四类：弃牌@己方手牌 / 造成伤害@Self（自伤）/ 消灭己方 / 磨己方牌库；
         /// 同族补：摧毁己方无生命单位、生命流失@己方、永久属性减少@己方。
-        /// **不得按表行 Polarity&lt;0 泛化**——迸发（BurstDamage·P=−1）行域指己方单位但伤害落
-        /// 对方（己方只是参照目标），泛化会误杀； Polarity 只说明「对目标有害」，不说明目标是谁。</summary>
+        /// **不得按表行 Polarity&lt;0 泛化**——Polarity 只说明「对目标有害」，不说明目标是谁
+        ///（历史例：迸发行域曾指己方参照而伤害落对方，泛化会误杀；2026-11-03 单目标改版后
+        /// 参照硬编码、行域已直指受害者——原则仍防未来同类行误杀）。</summary>
         private static readonly Dictionary<AtomicEffectType, HashSet<int>> SelfCostAtoms = new Dictionary<AtomicEffectType, HashSet<int>>
         {
             { AtomicEffectType.DiscardCard, new HashSet<int> { (int)TargetKind.OwnHand } },          // 弃牌@己方手牌
@@ -1094,41 +1101,59 @@ namespace CardCore
             }
         }
 
-        // ======================================== 代价栏翻转限制（2026-11-02 定案） ========================================
+        // ======================================== 代价栏翻转限制（2026-11-02 定案；2026-11-03 补③双侧域） ========================================
 
-        /// <summary>代价栏翻转限制（2026-11-02 定案）：①极性=0 的原子不能进代价栏；
-        /// ②没有 {target} 参数（表行 TargetKinds 空——无目标原子）的原子也不能翻转成代价。
+        /// <summary>代价栏翻转限制（2026-11-02 定案；2026-11-03 补③）：①极性=0 的原子不能进代价栏；
+        /// ②没有 {target} 参数（表行 TargetKinds 空——无目标原子）的原子不能翻转成代价；
+        /// ③表行 TargetKinds 只含单侧条目（纯己方/纯对方，SideLock=±1）的原子不能作代价——
+        /// 代价只收同时含己方与对方条目的双侧行（2026-11-03 定案，判定与 <see cref="PayloadCostDomain"/> 同源）。
+        /// 覆盖面（2026-11-03 补）：卡级 PayloadCosts 全行 + 各效果 Costs 行（原版漏扫卡级行）。
         /// 合成器放置口经 <see cref="PayloadCostDomain"/> 早已收口（eligible=false 拒入）；
-        /// 本口补**数据层显式上报**：装载期 ConvertPayloadForDisplay 剔除违约原子只留一行 Error，
-        /// 违规卡本身须被点名（卡名由消费方前缀），不得静默。
+        /// 本口补**数据层显式上报**：装载期 ConvertPayloadForDisplay 剔除①②违约原子只留一行 Error
+        ///（③暂不进装载剥除口——存量教学/训练数据带单侧代价行十余处，剥除会使这些卡代价当场失效，
+        /// 待表侧整改后收口）；违规卡本身须被点名（卡名由消费方前缀），不得静默。
         /// 消费方：重推工具 RegenOneDeck（逐卡 LogError）与端到端验证（Assert 0 命中）——
         /// 与 <see cref="SelfCostViolations"/> 双挂接同款。</summary>
         public static List<string> PayloadCostViolations(CardData card)
         {
             var result = new List<string>();
-            if (card?.Effects == null) return result;
-            foreach (var fx in card.Effects)
+            if (card == null) return result;
+            CheckPayloadCostRows(card.PayloadCosts, "卡级", result);
+            if (card.Effects != null)
+                foreach (var fx in card.Effects)
+                    if (fx != null)
+                        CheckPayloadCostRows(fx.Costs, $"效果[{fx.DisplayName ?? fx.Id}]", result);
+            return result;
+        }
+
+        /// <summary>代价行扫描体（PayloadCostViolations 单源）：逐原子按①极性0/②无目标/③域单侧上报。</summary>
+        private static void CheckPayloadCostRows(List<CostEntry> rows, string where, List<string> result)
+        {
+            if (rows == null) return;
+            foreach (var row in rows)
             {
-                if (fx?.Costs == null) continue;
-                foreach (var row in fx.Costs)
+                if (row == null) continue;
+                foreach (var pe in row.AllPayloads())
                 {
-                    if (row == null) continue;
-                    foreach (var pe in row.AllPayloads())
+                    if (pe == null || string.IsNullOrEmpty(pe.refId)) continue; // 空 refId=非 Payload 条目占位
+                    var cfg = AtomicEffectTable.GetByHashId(pe.refId);
+                    if (cfg == null) continue; // 悬空引用另有装载校验点名
+                    float p = Math.Clamp(cfg.Polarity, -1f, 1f);
+                    if (p == 0f)
+                        result.Add($"{where} 代价栏原子[{cfg.DisplayName}#{pe.refId}] 极性=0" +
+                                   "——极性0的原子不能进代价栏（2026-11-02 定案），请移出或换非中性行");
+                    else if (cfg.GetTargetKindList().Count == 0)
+                        result.Add($"{where} 代价栏原子[{cfg.DisplayName}#{pe.refId}] 无 {{target}} 参数" +
+                                   "——没有目标参数的原子不能翻转成代价（代价须可指向受损方），请移出或换带目标行");
+                    else if (SideLock(cfg.GetTargetKindList()) != 0)
                     {
-                        if (pe == null || string.IsNullOrEmpty(pe.refId)) continue; // 空 refId=非 Payload 条目占位
-                        var cfg = AtomicEffectTable.GetByHashId(pe.refId);
-                        if (cfg == null) continue; // 悬空引用另有装载校验点名
-                        float p = Math.Clamp(cfg.Polarity, -1f, 1f);
-                        if (p == 0f)
-                            result.Add($"效果[{fx.DisplayName ?? fx.Id}] 代价栏原子[{cfg.DisplayName}#{pe.refId}] 极性=0" +
-                                       "——极性0的原子不能进代价栏（2026-11-02 定案），请移出或换非中性行");
-                        else if (cfg.GetTargetKindList().Count == 0)
-                            result.Add($"效果[{fx.DisplayName ?? fx.Id}] 代价栏原子[{cfg.DisplayName}#{pe.refId}] 无 {{target}} 参数" +
-                                       "——没有目标参数的原子不能翻转成代价（代价须可指向受损方），请移出或换带目标行");
+                        string kindsZh = string.Join(",", cfg.GetTargetKindList()
+                            .Select(k => TargetKindRules.ZhNameOf((TargetKind)k)));
+                        result.Add($"{where} 代价栏原子[{cfg.DisplayName}#{pe.refId}] 域单侧（{kindsZh}）" +
+                                   "——只能作用于单方面的原子不能作代价（2026-11-03 定案），请换 TargetKinds 含己方与对方的双侧行");
                     }
                 }
             }
-            return result;
         }
 
 

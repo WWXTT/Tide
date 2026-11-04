@@ -321,23 +321,7 @@ namespace CardCore
             }
             if (best == null) return null;
 
-            if (best.GetCounterCount(Attribute.CounterRules.ExposedCounter) == 0)
-            {
-                int actualDelta = best.AddCounters(Attribute.CounterRules.ExposedCounter, 1, engineCard);
-                EventManager.Instance.Publish(new CounterChangedEvent
-                {
-                    Target = best,
-                    CounterType = Attribute.CounterRules.ExposedCounter,
-                    Amount = actualDelta,
-                    Source = engineCard,
-                });
-                EventManager.Instance.Publish(new RevealCardsEvent
-                {
-                    Player = player,
-                    Cards = new List<Card> { best },
-                    Source = engineCard,
-                });
-            }
+            Attribute.RevealRules.Reveal(best, engineCard); // 展示口径单源（二值不叠层，换区自清）
             return best;
         }
 
@@ -607,6 +591,9 @@ namespace CardCore
                         Target = target, Keyword = keyword,
                         Detail = $"{keyword}附加：抽到该卡时自动执行{keyword}分支效果（一次性）",
                     });
+                    // 2026-11-03 展示定案：隐藏区的卡成为效果作用目标即自动展示（被附加诅咒/祝福的
+                    // 牌库卡对双方可查——RevealRules.Reveal 单源，二值不叠层；抽到换区自清）。
+                    Attribute.RevealRules.Reveal(target, player);
                 }
                 break;
             }

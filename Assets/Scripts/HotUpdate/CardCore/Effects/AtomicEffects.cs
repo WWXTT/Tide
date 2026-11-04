@@ -383,7 +383,7 @@ namespace CardCore
 
         /// <summary>筛选展示（2026-10-29 阶段3c 信息轴，蓝3——表行「筛选展示」）：按宣言维度
         ///（StringValue="维度:值"，ProphecyDimension 编码——Type/Color/CostParity/CostExact/
-        /// LinkArrow/Name 全量可用）展示{target}手牌中所有命中的牌——命中者挂「展示」指示物
+        /// Name 全量可用）展示{target}手牌中所有命中的牌——命中者挂「展示」指示物
         ///（ExposedCounter，换区清）并按张发布 RevealCardsEvent（RevealCard 同款口径，二值不叠层）；
         /// 读心「展示某式神全部专属牌」类按维度圈定全集的载体。str 空/非法 → 空转并告警。</summary>
         RevealByDimension,
@@ -407,17 +407,18 @@ namespace CardCore
         /// LegalActionEnumerator 本阶段不枚举（防 AI 白付发动代价）。联机同步须协议承载选格——暂不接线。</summary>
         MoveUnit,
 
-        /// <summary>迸发（2026-10-31 新增，红3 表行「迸发」6a17079d·参照族）：以一个己方单位为参照目标
-        ///（表域=己方单位，结算期弹选），对**随机**对手单位（对方存活生物+对方角色，GameRng 单次抽取
-        ///——随机绕过潜行，战斗法师散射同口径）造成等同其**当前攻击力**的效果伤害（GetPower 活读
-        /// 含光环成分；非战斗伤害——走 TakeDamage 关键词管线，护甲/坚韧/圣盾照常吸收）。
-        /// 受害者域空或攻击力≤0=空转。伤害产出族——可挂「消灭目标时」产出条件。</summary>
+        /// <summary>活体炸弹（2026-10-31 新增原名「迸发」；2026-11-04 双段目标改版，红3 表行 80daf3b6·参照族）：
+        /// 第一段弹选{target}=**己方生物**参照（表域=己方单位+NoRole 滤角色），结算期反问选择一个
+        /// **对方单位**（含对方角色；候选=1 自动取、AI/无头取首）承受等同参照**当前攻击力**的效果
+        /// 伤害（非战斗伤害——走 TakeDamage 关键词管线，护甲/坚韧/圣盾照常吸收）。
+        /// 无己方生物/参照攻≤0/受害者域空=空转。伤害产出族——可挂「消灭目标时」产出条件。</summary>
         BurstDamage,
 
-        /// <summary>活体护甲（2026-10-31 新增，绿3 表行「活体护甲」508a4975·参照族）：以一个己方单位为
-        /// 参照目标（表域=己方单位），**己方角色**（=效果控制者）获得等同其**当前生命**的护甲
-        ///（ArmorCounter 层数=GetLife 活读含光环成分——每层吸收 1 点伤害、生效自减；角色可持有，
-        /// 后手护甲补偿同款指示物）。参照生命≤0=空转。</summary>
+        /// <summary>活体护甲（2026-10-31 新增；2026-11-04 双段目标改版，绿3 表行 10c6345b·参照族）：
+        /// 第一段弹选{target}=**己方生物**参照（表域=己方单位+NoRole 滤角色），结算期反问选择一个
+        /// **己方单位**（含己方角色——角色可受甲；候选=1 自动取、AI/无头取首）获得护甲
+        ///（ArmorCounter 层数=每层吸收 1 点伤害、生效自减），层数=参照**当前生命**。
+        /// str="SelfUnit" 档已退役。无己方生物/参照生命≤0/落点域空=空转。</summary>
         LivingArmor,
 
         // 苏醒（GrantAwaken，2026-10-31 P12 关键词化）2026-11-02 整链删除：灰身材概念已不存在，
@@ -487,6 +488,7 @@ namespace CardCore
         GateCreatureAbove,     // 场上生物高于对手（CreaturesAboveOpp）
         GateFirstCardOfTurn,   // 本回合使用的第一张卡（FirstCardThisTurn）
         GateLandsAtLeast7,     // 操控地数量≥7（LandsGe7）
+        GateLandsAtMost3,      // 操控地数量≤3（LandsLe3——2026-11-03 红套火灵奖励门）
         GateHandEmpty,         // 手牌数量为0（HandEmpty）
         GateLifeAtMost7,       // 生命值≤7（LifeLe7）
 
@@ -539,13 +541,11 @@ namespace CardCore
         /// GrantKeywordHandler 通用路径（GrantKeywordHandlerFactory.Specs 登记）。</summary>
         GrantHunt,
 
-        /// <summary>护盾猛击（2026-11-02 新增，红2 表行「护盾猛击」·参照族·伤害产出族）：以一个己方单位
-        /// 为参照目标（表域=己方单位，结算期弹选），移除其全部护甲（ArmorCounter 账面层数——负量
-        /// 移除不受绝缘体拦截，2026-10-31 特殊裁定口径），对弹选的对方单位（对方存活生物+对方角色，
-        /// 同迸发受害者域；两道过滤=帷幕收窄+潜行隐藏同标准弹选口径）造成等同移除层数的效果伤害
-        ///（非战斗伤害——TakeDamage 关键词管线照常：护甲/坚韧/圣盾吸收）。受害者在结算期经
-        /// TargetSelectionService 反问选一（AI/无头自动取首、联机走网络问选——与标准弹选同服务，
-        /// 候选=1 自动取不弹窗；同步路径自动取首候选）。受害者域空或护甲 0=空转（不移除不问选）。
+        /// <summary>护盾猛击（2026-11-02 新增；2026-11-03 单目标改版，红3 表行 247c2ae1·参照族）：
+        /// 移除**己方角色**（硬编码=效果控制者）全部护甲（ArmorCounter 账面层数——负量
+        /// 移除不受绝缘体拦截，2026-10-31 特殊裁定口径），对弹选的{target}（表域=对方单位，
+        /// 含对方角色）造成等同移除层数的效果伤害（非战斗伤害——TakeDamage 关键词管线照常，
+        /// 护甲/坚韧/圣盾照常吸收）。角色无护甲或目标无效=空转（不移除不出伤）。
         /// LastOutcome.RecordDamage 记账——可挂「消灭目标时」产出条件。</summary>
         ShieldSlam,
 
@@ -556,6 +556,15 @@ namespace CardCore
         /// 耐久非沉睡/缄默/StatKind）。计价=基础费用×层=0.5蓝/点（2026-11-03 耐久改蓝定案——
         /// 与结界身材耐久轴 0.5蓝/点 同口径）。</summary>
         AddDurabilityUp,
+
+        /// <summary>封印（2026-11-03 新增，蓝3 表行「封印」·一般效果表）：弹选的{target}
+        ///（表域=对方单位+NoRole+Landable 过滤——敌方场上生物且带元素费用，0费单位无主色
+        /// 可锁不可指）离场，作为地牌加入**目标持有侧**（=对手）的地牌池：AddCardToPool 权威闸
+        /// +缺省锁色=主色即份额最多色（GetLandColorChoices 降序首位=「最高费用」色，开对应色
+        /// 地牌格）；上限满/禁地令（对手侧）/资格拒=空转不动盘面。非死亡离场：不发摧毁/死亡
+        /// 事件，指示物随换区清除；入池未横置（对手下回合周期即可产色）。区域移动
+        /// Battlefield→ElementPool 走 ZoneManager，入池事件 PublishPoolAdd。</summary>
+        SealUnit,
     }
 
     /// <summary>
@@ -688,6 +697,11 @@ namespace CardCore
 
         /// <summary>元素池系统</summary>
         public ElementPoolSystem ElementPool { get; set; }
+
+        /// <summary>代价结算标记（2026-11-04 日志口径）：true=本次原子执行属代价（CostType.Payload）
+        /// 而非效果本体——战报据此把「代价摧毁/代价消灭」与对手效果区分开。仅
+        /// CostCompensationService.ExecutePayloadAtomAsync 置位。</summary>
+        public bool IsCostPayload;
 
         /// <summary>施放中的宿主卡（2026-09-22 定案）：出牌结算链路上的卡实例——
         /// 魔法卡效果 Source=角色（来源归因定案），状态门（如「本回合第一张抽到的卡」）

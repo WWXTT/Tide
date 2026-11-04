@@ -76,7 +76,8 @@ namespace SynergyUI
                 GameCore.Instance.InitGame(myDeck, aiDeck, rngSeed: rngSeed, lockDeckOrder: true,
                     skipOpeningDraw: true, deferStart: true,
                     skillCardId1: mySkill, skillCardId2: aiSkill,
-                    tokenBindings1: myTokenBindings, tokenBindings2: aiTokenBindings);
+                    tokenBindings1: myTokenBindings, tokenBindings2: aiTokenBindings,
+                    ai2: true);
                 // 标记 P2 为 AI：目标选择器对 AI 跳过弹窗、即时自动选择。
                 if (GameCore.Instance.Player2 != null)
                     GameCore.Instance.Player2.IsAI = true;
@@ -95,7 +96,8 @@ namespace SynergyUI
             GameCore.Instance.InitGame(myDeck, aiDeck, rngSeed: rngSeed, lockDeckOrder: lockDeckOrder,
                 p2LandCapBonus: aiLandCapBonus, p2ExtraOpeningDraws: aiExtraOpeningDraws,
                 skillCardId1: mySkill, skillCardId2: aiSkill, startingPlayer: first,
-                tokenBindings1: myTokenBindings, tokenBindings2: aiTokenBindings);
+                tokenBindings1: myTokenBindings, tokenBindings2: aiTokenBindings,
+                ai2: true);
             // 标记 P2 为 AI：目标选择器对 AI 跳过弹窗、即时自动选择。
             if (GameCore.Instance.Player2 != null)
                 GameCore.Instance.Player2.IsAI = true;
@@ -121,7 +123,8 @@ namespace SynergyUI
         {
             var keyCounts = new Dictionary<string, int>();
             var deck = new List<CardData>(RandomDeckSize);
-            foreach (var c in catalog.Where(c => !CardCatalog.IsTeachingCard(c) && !CardCatalog.IsTokenCard(c))
+            foreach (var c in catalog.Where(c => !CardCatalog.IsTeachingCard(c) && !CardCatalog.IsTokenCard(c)
+                                                 && !CardCatalog.IsTrainingCard(c)) // 训练池（2026-11-03 分家）：不进随机局
                        .OrderBy(_ => Guid.NewGuid()))
             {
                 var slots = ComposerCatalog.DeckUniqueSlots(c);
@@ -248,8 +251,12 @@ namespace SynergyUI
 
         /// <summary>玩家声明一次攻击（速度0上栈开响应窗口）——窗口/结算由调用方接 SettleResponseWindowAsync。</summary>
         public bool DeclareAttack(Player attacker, Entity attackerUnit, Entity target)
+            => DeclareAttack(attacker, attackerUnit, target, out _);
+
+        /// <summary>带原因版（2026-11-03 失败提示细化）：失败时 UI 直显引擎拒绝文案。</summary>
+        public bool DeclareAttack(Player attacker, Entity attackerUnit, Entity target, out string reason)
         {
-            return GameActions.DeclareAttack(Core, attacker, attackerUnit, target);
+            return GameActions.DeclareAttack(Core, attacker, attackerUnit, target, out reason);
         }
 
         /// <summary>响应窗口泵（人类候选→弹窗由 HumanResponder 承担；AI→守卫启发；无候选→自动双 Pass）。</summary>

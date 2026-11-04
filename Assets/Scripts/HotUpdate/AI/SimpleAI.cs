@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using CardCore;
@@ -110,6 +110,8 @@ namespace SynergyUI
             // 伤害族（解场优先——穿透档已删 2026-10-31）
             AtomicEffectType.DealDamage, AtomicEffectType.DealCombatDamage, AtomicEffectType.LifeLoss,
             AtomicEffectType.DrainLife,
+            // 参照族直伤（2026-11-03 单目标改版：弹选目标=受害者——活体炸弹/护盾猛击）
+            AtomicEffectType.BurstDamage, AtomicEffectType.ShieldSlam,
             // 指示物妨害族（毒素：回合末持续毒伤；易损：受伤+1/层；剧毒已转关键词 GrantVenom）
             AtomicEffectType.GrantVenom, AtomicEffectType.AddToxin, AtomicEffectType.AddVulnerable,
             // 单向属性削弱（攻击力/生命值/费用增加四色——目标偏好对方；属性±1/+1 2026-11-02 删）
@@ -121,6 +123,7 @@ namespace SynergyUI
             AtomicEffectType.Exile, AtomicEffectType.DiscardCard, AtomicEffectType.MillCard,
             AtomicEffectType.BounceToTop, AtomicEffectType.BounceToBottom,
             AtomicEffectType.Smash, // 摧毁：打对方地牌（无生命值单位）
+            AtomicEffectType.SealUnit, // 封印：对方单位封为对手地牌（解场；域=敌方带费生物，滤口已收窄）
             // 死亡原子族（牺牲目标己方友军，目标偏好对该原子无实际影响；湮灭已删 2026-10-13）
             AtomicEffectType.Sacrifice, AtomicEffectType.Devour,
             // 妨碍/压制族
@@ -141,6 +144,8 @@ namespace SynergyUI
             AtomicEffectType.ReturnFromGraveyard, AtomicEffectType.RecoverToHand,
             // 资源族（2026-10-11：Mine 已删；2026-10-23：Photosynthesis 已换 GainAnyElement）
             AtomicEffectType.Untap, AtomicEffectType.AddArmor, AtomicEffectType.GainAnyElement,
+            // 参照族增益（2026-11-03 单目标改版：弹选目标=护甲落点——活体护甲；入集才走策略偏好排序）
+            AtomicEffectType.LivingArmor,
             // 强化族（GrantX 关键词与数值强化；单向属性增益——攻击力/生命值/±1/费用减少）
             AtomicEffectType.ModifyPower, AtomicEffectType.ModifyLife,
             // 设置系复活（2026-09-09 三轨制重建）——有益直改
@@ -187,6 +192,16 @@ namespace SynergyUI
             // 1. 资源准备：补地到槽上限（费用最高的生物优先——打不出的当地产元素）。
             //    2026-10-11 现取现用：无回合初横置步骤——付费时系统按账单自动横置。
             PlayLands(core, me);
+
+            // 1.5 先手一波（2026-11-04 交替定案）：策略要求时，先用**现成单位**打一轮，再进入出牌循环。
+            //   旧结构=「铺满→打」，对手一张 AOE/回应费就能把整回合的量一波清掉（一点伤害打不出）；
+            //   打成「打—铺—打」后，对手的回应费只能吃掉第一波，后续铺场照样出手。
+            //   门槛在策略侧（默认关）——只有战斗前置更划算的局面才开。
+            if (!core.IsGameOver && _strategy.WantEarlyCombat(core, me))
+            {
+                await DoCombatAsync(core, me);
+                if (core.IsGameOver) { SettleStack(core); return; }
+            }
 
             // 2. 动作耗尽主循环：各类动作每轮各试一遍（非短路 |），任一成功即继续轮询；
             //    出口 = 无进展：费用花完 / 手牌打空 / 无可发动效果
@@ -288,6 +303,9 @@ namespace SynergyUI
             {
                 // 各自地牌槽上限（2026-10-11：个人曲线；缺省锁色=主色份额最多色）
                 if (!core.ElementPool.CanAddLand(me)) break;
+                // 2026-11-03：ShouldLand 允许按**当前地数**动态判定（红套「操控地≤3」奖励门）——
+                // 快照列表是按放地前的地数筛的，前面每放一张都可能改变判定，故逐张重问。
+                if (!_strategy.ShouldLand(core, me, card)) continue;
                 // 2026-11-01 2 费空过修复：快照里打不出，但铺了前面的地之后已经付得起 → 留手打出，
                 // 不再继续当地（例外：策略 WantLand 主动铺地，如绿套凑绿地）。
                 if (CanPlayCard(core, me, card, Zone.Hand) && !_strategy.WantLand(core, me, card))
@@ -370,8 +388,12 @@ namespace SynergyUI
             {
                 int mode = ChooseMode(core, me, card);
                 if (mode < 0) continue; // 抉择卡全模式不可发动 → 换下一张
+                // 策略钉目标（2026-11-04 用户定案）：血偿只打 >4 血、连击只贴 ≥4 攻的可攻击单位——
+                // 通用择优够不到这些口径。null=不接管（回落通用），空表=本次不满足就不打。
+                var pinned = _strategy.PickSpellTargets(core, me, card, mode);
+                if (pinned != null && pinned.Count == 0) continue;
                 // 失败静默重试下一张（引擎契约：不付费、卡留手）
-                var targets = ChooseTargets(core, me, card, mode);
+                var targets = pinned ?? ChooseTargets(core, me, card, mode);
                 if (GameActions.PlayCard(core, me, card, targets, Zone.Hand, mode))
                 {
                     await StageCastAsync(core, card, targets); // 出牌舞台：亮 1 秒（卡面+箭头）再结算
@@ -405,7 +427,12 @@ namespace SynergyUI
                 return false;
             }
             if (!TargetDomainService.HasPlayableTargets(core, me, card, 0)) return false;
-            if (card is IHasCost hc && hc.Cost != null && !hc.Cost.IsZero
+            // 2026-11-04 修复（TideSim 抓出）：法术的 CardData.Cost 是**推导缓存**（主动效果锚价不进这里，
+            // 通常是 0），实际施放价只在 GameActions.GetCardCost 才带锚价。旧口用 hc.Cost.IsZero 跳过
+            // 支付力检查，导致 3 费法术在 2 地时被当成「能打」——既不进 PlayLands 的「打不出→当地」列表，
+            // 尝试施放又必然失败，红套会永远卡在 2 地、3 费线全废。这里改用真实费用判定。
+            var castCost = GameActions.GetCardCost(card, 0);
+            if (castCost != null && !castCost.IsZero
                 && !GameActions.CanAffordCast(core, me, card, 0)) return false;
             return true;
         }
@@ -686,6 +713,15 @@ namespace SynergyUI
                 if (!core.CombatSystem.CanDeclareAttack(unit, me)) continue;
                 var target = _strategy.PickAttackTarget(core, me, unit, opp); // 攻击决策经策略
                 if (target == null) continue;
+                // 攻击前一拍（2026-11-04 用户定案）：连击/血偿跟这一击一起用（只是操作顺序）——
+                // 先按要求把牌打出去并结算，再宣言攻击（打不动/无牌则原样继续）。
+                var preTargets = new List<Entity>();
+                var preCard = _strategy.PickAttackTimeSpell(core, me, unit, target, preTargets);
+                if (preCard != null && GameActions.PlayCard(core, me, preCard, preTargets, Zone.Hand, 0))
+                {
+                    SettleStack(core);
+                    if (core.IsGameOver) return;
+                }
                 if (!GameActions.DeclareAttack(core, me, unit, target)) continue;
                 await GameActions.SettleResponseWindowAsync(core); // 窗口+结算（含级联触发/SBA 轮）
                 await PaceAsync(); // 人机节奏：等本次攻击演出（走位/交击/死亡漩涡）演完再宣言下一攻
@@ -748,3 +784,4 @@ namespace SynergyUI
         }
     }
 }
+

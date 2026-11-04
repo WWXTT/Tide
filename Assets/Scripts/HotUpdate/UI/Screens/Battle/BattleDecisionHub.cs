@@ -101,14 +101,59 @@ namespace SynergyUI
         /// （2026-10-18 安卓滑动输入口径：BattlePointer 统一采样——快照供数经 ctor 委托由屏侧注入）。</summary>
         public void PollProbe()
         {
-            if (!GuardWindowOpen) { _guardProbeAlive = false; return; }
+            if (!GuardWindowOpen)
+            {
+                _guardProbeAlive = false;
+                ClearGuardWaves(); // 收口清候选蓝波（窗口已关——2026-11-03 波=选择期候选标志）
+                return;
+            }
             if (!_guardProbeAlive)
             {
                 _guardProbeAlive = true;
                 Debug.Log("[GuardProbe] 守卫窗口开启，棋盘指针轮询存活（此后每次确认触发打分支快照）");
             }
+            PaintGuardWaves(); // 候选蓝波逐帧回补（对账 ClearAll 会清）
             if (BattlePointer.ConfirmPressed)
                 Debug.Log($"[GuardProbe] 确认触发：{_probeSnapshot()}");
+        }
+
+        // 守卫候选蓝波记账（2026-11-03 波=选择期候选标志）：已点格缓存——窗口关闭收口逐格熄
+        private readonly List<(int x, int z)> _guardWaveCells = new List<(int x, int z)>();
+
+        /// <summary>守卫候选蓝波逐帧回补：单位候选=View.SelfUnits 匹配 SourceCard 的格、角色候选=
+        /// CharacterCell(0)（引擎 _guardOptions 已含角色项=弹药&gt;0）；蓝=与守卫拦截箭头同语言。</summary>
+        private void PaintGuardWaves()
+        {
+            _guardWaveCells.Clear();
+            if (_guardOptions != null)
+            {
+                var units = View?.SelfUnits;
+                foreach (var o in _guardOptions)
+                {
+                    if (o == null) continue;
+                    if (o.SourcePlayer != null && ReferenceEquals(o.SourcePlayer, P1))
+                    {
+                        var heroCell = BoardLayout.CharacterCell(0);
+                        _guardWaveCells.Add((heroCell.x, heroCell.z));
+                        continue;
+                    }
+                    if (o.SourceCard == null || units == null) continue;
+                    foreach (var u in units)
+                        if (u != null && !u.IsDead && u.X >= 0 && u.Z >= 0 && ReferenceEquals(u.CoreCard, o.SourceCard))
+                        { _guardWaveCells.Add((u.X, u.Z)); break; }
+                }
+            }
+            foreach (var cell in _guardWaveCells)
+                BattleTileFx.SetUnitGlow(cell.x, cell.z, opponent: false);
+        }
+
+        /// <summary>守卫窗口收口：逐格熄候选蓝波（幂等——无记账即零开销）。</summary>
+        private void ClearGuardWaves()
+        {
+            if (_guardWaveCells.Count == 0) return;
+            foreach (var cell in _guardWaveCells)
+                BattleTileFx.ClearUnitGlow(cell.x, cell.z);
+            _guardWaveCells.Clear();
         }
 
         /// <summary>OnExit 收口协议（顺序有逐条依据——类注释；选择器经 ctor 注入取用）。</summary>
@@ -121,6 +166,8 @@ namespace SynergyUI
             sel?.Cancel();       // Region 选择面同步收口（空结果——防销毁后异步收尾触已毁节点）
             sel?.ForceIdle();    // 三态钉回空闲（2026-10-17）：Cancel 后 Run 收尾链可能孤悬——IsOpen/busy 残留会闭死新局点击路由
             _guardArrow.Dispose();
+            if (_btnNotChain != null) _btnNotChain.gameObject.SetActive(false); // 2026-11-03：无条件收按钮（此前只在守卫收口路径隐藏，跨局残留=可点的死按钮）
+            _selectCancelShown = false;
         }
 
         /// <summary>守卫候选走棋盘交互（用户定案：不弹列表）——点我方守卫生物/角色格=选中出拦截箭头
@@ -212,7 +259,7 @@ namespace SynergyUI
             {
                 if (_guardOptions.All(o => !ReferenceEquals(o.SourceCard, mine.CoreCard)))
                 {
-                    _toast.Show("该生物不能守卫（已横置或无守卫能力）");
+                    _toast.Show(GuardPickRejectReason(mine)); // 具体原因（2026-11-03 失败提示细化）
                     return;
                 }
                 SelectGuarder(mine);
@@ -246,10 +293,23 @@ namespace SynergyUI
             if (mine == null) return;
             if (_guardOptions.All(o => !ReferenceEquals(o.SourceCard, mine.CoreCard)))
             {
-                _toast.Show("该生物不能守卫（已横置或无守卫能力）");
+                _toast.Show(GuardPickRejectReason(mine)); // 具体原因（2026-11-03 失败提示细化）
                 return;
             }
             SelectGuarder(mine);
+        }
+
+        /// <summary>候选外单位不能守卫的原因（2026-11-03 失败提示细化）：横置/禁守令/无守卫关键词
+        /// 拆分（单源谓词复算——候选收集在 ResponseWindowService 同口径；教学过滤走兜底文案）。</summary>
+        private static string GuardPickRejectReason(BattleCardView mine)
+        {
+            var card = mine?.CoreCard as Card;
+            if (card == null) return "该单位不能守卫";
+            if (card.IsTapped()) return "该单位已横置（守卫须未横置）";
+            if (!card.IsAlive) return "该单位已死亡";
+            return RuleAuraSystem.ScopeHits(RuleAuraComponents.NoGuardAura, card.GetController())
+                ? "禁守令生效——守卫能力失效"
+                : "该单位不具备守卫能力";
         }
 
         private void SelectGuarder(BattleCardView v, bool hero = false)
@@ -285,7 +345,13 @@ namespace SynergyUI
         {
             bool guardOpen = _guardTcs != null;
             bool regionPick = Selector() != null && Selector().IsOpen;
-            if (!guardOpen && !regionPick) return;
+            if (!guardOpen && !regionPick)
+            {
+                // 2026-11-03：守卫窗/选择面都没开时点击=无待决事项，无操作——但按钮此刻
+                // 本不该可见（可见即收口漏洞，见 ShowResponseAsync finally 兜底），留日志取证。
+                Debug.Log("[响应窗口] 不连锁按钮点击——当前无守卫/选择窗口在开（按钮不应可见，已忽略）");
+                return;
+            }
             _notChainSerial++; // 作废在途倒计时
             _responsePassAll = true; // 整窗让过：不连锁=拒绝连锁，后续档不再问
             Debug.Log("[响应窗口] 不连锁按钮——立即让过（整窗）");
@@ -384,6 +450,12 @@ namespace SynergyUI
             finally
             {
                 _toast.Show(""); // 整窗收口清 toast（②档关窗 prompt 已清，此处兜底守卫档早退路径）
+                // 2026-11-03 兜底收按钮：响应窗会话结束=不连锁键使命终结。此前按钮只在
+                // FinishResponsePickUi/ResolveGuardPrompt 收口——异常路径/降档路径漏收会把按钮
+                // 晾在屏上，之后点击命中 OnNotChainClick 早退分支=「点了没反应」。
+                // 声明期目标窗随后经 OnSelectCancel(true) 重亮为「取消」，时序在 finally 之后不冲突。
+                if (_guardTcs == null && !_selectCancelShown && _btnNotChain != null)
+                    _btnNotChain.gameObject.SetActive(false);
             }
         }
 

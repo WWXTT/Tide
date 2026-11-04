@@ -237,6 +237,7 @@ namespace CardCore
             { AtomicEffectType.GateCreatureAbove, "CreaturesAboveOpp" },
             { AtomicEffectType.GateFirstCardOfTurn, "FirstCardThisTurn" },
             { AtomicEffectType.GateLandsAtLeast7, "LandsGe7" },
+            { AtomicEffectType.GateLandsAtMost3, "LandsLe3" },
             { AtomicEffectType.GateHandEmpty, "HandEmpty" },
             { AtomicEffectType.GateLifeAtMost7, "LifeLe7" },
         };

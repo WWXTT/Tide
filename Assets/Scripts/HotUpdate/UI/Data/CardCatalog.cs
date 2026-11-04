@@ -24,6 +24,12 @@ namespace SynergyUI
         // id 冲突保正式表（教学表写错撞正式 id 时可查）。缓存新鲜度与主表同盯。
         private const string TutorialCardsFile = "TutorialCards.json";
 
+        // 训练独立卡表（2026-11-03 训练池分家定案）：RL 训练桥/验证器的专用卡池，与玩家主表、
+        // 教学副表三足分立——文件在 Assets/TrainingData，随开发仓库走（不进热更包、不下发玩家
+        // 设备）。同格式副表，LoadAll 时合并入索引（训练卡带 tags=训练池 → LoadPlayPool/各玩家面
+        // 过滤自动隔离）；id 冲突保先装表（主表>教学>训练）。缓存新鲜度独立记账。
+        private const string TrainingCardsFile = "TrainingCards.json";
+
         private static List<CardData> _cache;
         private static Dictionary<string, CardData> _byId;
         private static bool _loading;
@@ -37,6 +43,9 @@ namespace SynergyUI
         // CardLoader 费用巡检重入 GetById→LoadAll 时恒过期触发 Invalidate 把在用 _byId 置空
         // → 外层 MergeTutorialCards 的 _byId.ContainsKey NRE（界面装载异常/卡池空）。
         private static DateTime _tutorialStampUtc = DateTime.MinValue;
+        // 训练副表 mtime 独立记账（2026-11-03，与教学副表同案）：缺文件=玩家构建常态（训练表
+        // 不随包下发），用 MinValue 占位——文件从不出现则永不判过期。
+        private static DateTime _trainingStampUtc = DateTime.MinValue;
         private static DateTime _lastStaleCheckUtc = DateTime.MinValue; // GetById 高频入口的盯盘节流（2026-10-17）
 
         /// <summary>加载（并缓存）全部卡牌。文件缺失返回空列表。
@@ -91,6 +100,7 @@ namespace SynergyUI
                     }
                 }
                 MergeTutorialCards(); // 教学独立卡表（2026-10-16）：副表合并入索引，教学局按 id 组卡可取
+                MergeTrainingCards(); // 训练独立卡表（2026-11-03）：训练桥/验证器按 id 可取，玩家面经 LoadPlayPool 隔离
                 return _cache;
             }
             finally
@@ -110,6 +120,8 @@ namespace SynergyUI
                 if (File.GetLastWriteTimeUtc(path) != _cacheStampUtc) return true;
                 string tpath = CardDataPaths.TutorialFileIn(TutorialCardsFile);
                 if (File.Exists(tpath) && File.GetLastWriteTimeUtc(tpath) != _tutorialStampUtc) return true;
+                string rpath = CardDataPaths.TrainingFileIn(TrainingCardsFile);
+                if (File.Exists(rpath) && File.GetLastWriteTimeUtc(rpath) != _trainingStampUtc) return true;
                 return false;
             }
             catch
@@ -138,6 +150,30 @@ namespace SynergyUI
                 if (_byId.ContainsKey(card.ID))
                 {
                     TideLog.Warn($"[CardCatalog] 教学卡表 id 与正式卡冲突（保正式表）: {card.ID}");
+                    continue;
+                }
+                _byId[card.ID] = card;
+                _cache.Add(card);
+            }
+        }
+
+        /// <summary>训练副表合并（2026-11-03 训练池分家）：训练卡进 _cache 与 _byId 供训练桥/
+        /// 验证器按 id 取卡（BattleDeckSources/TideHeadlessServer 随机 30 口径不变）；
+        /// id 冲突保先装表（主表&gt;教学&gt;训练）。文件缺失=玩家构建常态（训练表不随包下发），
+        /// 静默返回——与教学表「缺失属配置错误」不同口径，勿加 Warn。</summary>
+        private static void MergeTrainingCards()
+        {
+            string rpath = CardDataPaths.TrainingFileIn(TrainingCardsFile);
+            if (!File.Exists(rpath)) return;
+            var cards = CardLoader.LoadCardsFromText(File.ReadAllText(rpath));
+            if (cards == null) return;
+            _trainingStampUtc = File.GetLastWriteTimeUtc(rpath); // 解析成功才记账（与教学副表同口径）
+            foreach (var card in cards)
+            {
+                if (card == null || string.IsNullOrEmpty(card.ID)) continue;
+                if (_byId.ContainsKey(card.ID))
+                {
+                    TideLog.Warn($"[CardCatalog] 训练卡表 id 与先装表冲突（保先装表）: {card.ID}");
                     continue;
                 }
                 _byId[card.ID] = card;
@@ -199,8 +235,16 @@ namespace SynergyUI
         public static bool IsTokenCard(CardData card)
             => card?.Tags != null && card.Tags.Contains("衍生物");
 
-        /// <summary>玩家可用卡池：LoadAll 去除教学专用卡与衍生物模板卡（各消费面统一走此口，勿各自手写 tag 判断）。</summary>
+        /// <summary>训练专用卡判定（2026-11-03 训练池分家，tags 含「训练池」）：不进玩家侧任何
+        /// 卡池面——随机组卡/卡组构筑/卡牌编辑器预览/联机 AI 填位/衍生物模板候选/CardRef 选卡器
+        /// 一律排除（各消费面统一走 LoadPlayPool 或补 IsTrainingCard 判断，勿各自手写 tag 逻辑）；
+        /// 训练桥/验证器按 id 组卡（CardCatalog.GetById / BattleDeckSources.AllCards）照常可取。</summary>
+        public static bool IsTrainingCard(CardData card)
+            => card?.Tags != null && card.Tags.Contains("训练池");
+
+        /// <summary>玩家可用卡池：LoadAll 去除教学专用卡、衍生物模板卡与训练专用卡
+        ///（各消费面统一走此口，勿各自手写 tag 判断）。</summary>
         public static List<CardData> LoadPlayPool()
-            => LoadAll().Where(c => !IsTeachingCard(c) && !IsTokenCard(c)).ToList();
+            => LoadAll().Where(c => !IsTeachingCard(c) && !IsTokenCard(c) && !IsTrainingCard(c)).ToList();
     }
 }

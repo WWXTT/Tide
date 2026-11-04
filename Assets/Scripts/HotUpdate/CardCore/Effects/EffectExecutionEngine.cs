@@ -96,14 +96,28 @@ namespace CardCore
             Player activePlayer,
             PhaseType currentPhase,
             int turnNumber)
+            => TryActivate(effect, source, activator, activePlayer, currentPhase, turnNumber, out _);
+
+        /// <summary>带原因版（2026-11-03 失败提示细化）：与 CanActivate 同路径单源，逐闸给用户可读文案
+        ///（净费闸透传 EffectActivationGate.RejectReason；主消费者=技能预检/UI/网络）。</summary>
+        public bool TryActivate(
+            EffectDefinition effect,
+            Entity source,
+            Player activator,
+            Player activePlayer,
+            PhaseType currentPhase,
+            int turnNumber,
+            out string reason)
         {
+            reason = null;
             // 0-charge 充能效果（2026-10-31 P12）：**只能从手牌发动**——源必须是手牌卡；
             // 战场/技能栏/其它区一律 false（充能入口=GameActions.ActivateCharge，此处为通用闸镜像）。
             // 不要求横置、不走耐久；下方沉默/沉睡/禁发令等通用闸照旧。费用不经此段
             //（充能锚价恒 0，1 点元素由 ChargeHandler 结算期按所选色现扣）。
             if (ComposerCatalog.IsChargeEffect(effect))
             {
-                if (!(source is Card chargeCard) || chargeCard.GetZone() != Zone.Hand) return false;
+                if (!(source is Card chargeCard) || chargeCard.GetZone() != Zone.Hand)
+                { reason = "充能效果只能从手牌发动"; return false; }
             }
 
             // 0.45 技能效果数值上限（2026-11-02 定案）：技能源（技能栏法术）效果只允许 value=1——
@@ -114,6 +128,7 @@ namespace CardCore
                 var valueViolation = HeroSkillSystem.EffectValueViolation(effect);
                 if (valueViolation != null)
                 {
+                    reason = $"技能效果数值超限：{valueViolation}";
                     TideLog.Error($"[HeroSkill] 技能发动被拒：{(source as CardWrapper)?.GetData()?.CardName} {valueViolation}");
                     return false;
                 }
@@ -130,32 +145,32 @@ namespace CardCore
                     || _zoneManager.IsCardInZone(activateCard, activateCard.GetController(), Zone.FieldZone)))
             {
                 if (Attribute.CounterRules.UsesDurabilityEconomy(activateCard))
-                    return false; // 结界禁主动效果（2026-10-15 深夜改版）
+                { reason = "结界不能主动发动效果"; return false; } // 结界禁主动效果（2026-10-15 深夜改版）
                 if (activateCard.IsTapped())
-                    return false;
+                { reason = "该卡已横置（本回合已发动过）"; return false; }
             }
 
             // 0.5 沉默指示物（定案）：持有者不可发动主动效果（主动能力路径；
             //     PlayCard 出牌不受限——那是"打出"而非"发动"）。换区清除。
             //     效果口径读数（2026-10-31 绝缘体裁定）：沉默层对绝缘体单位不生效。
             if (source != null && source.GetEffectiveCounterCount(Attribute.CounterRules.SilenceCounter) > 0)
-                return false;
+            { reason = "该卡被沉默——不能发动主动效果"; return false; }
 
             // 0.55 禁发令光环（2026-10-29）：受光环影响方的单位与角色不能发动主动效果
             //（主动能力路径；硬闸在 GameActions.ActivateEffect/ActivateEffectInResponse——网络 intent 不经此）。
             if (source != null && RuleAuraSystem.ScopeHits(RuleAuraComponents.NoActivateAura, source.GetController()))
-                return false;
+            { reason = "禁发令生效中——不能发动主动效果"; return false; }
 
             // 0.6 沉睡指示物（2026-09-11 定案）：沉睡期间效果无效——主动同样不可发动
             //（触发式在 TriggerEngine.FindMatchingEffects 拦，双口合流）。
             if (source != null && source.GetCounterCount(Attribute.KeywordRules.SleepCounter) > 0)
-                return false;
+            { reason = "该卡在沉睡中——不能发动"; return false; }
 
             // 1. 速度检查（由 SpeedCounter 处理，这里不重复）
 
             // 2. 时点检查
             if (!CheckTiming(effect, currentPhase, activator, activePlayer))
-                return false;
+            { reason = "时点不符（当前阶段不可发动该效果）"; return false; }
 
             // 3. 发动条件检查
             var context = new ConditionCheckContext
@@ -172,7 +187,7 @@ namespace CardCore
             context.FillDamageAggregates(); // P2a：伤害聚合死条件修复（服务取本回合口径）
 
             if (!_conditionChecker.CheckAll(effect.ActivationConditions, context))
-                return false;
+            { reason = "发动条件未满足"; return false; }
 
             // 4. 费用检查：元素代价自动推导（含抵消可达性），特殊代价走原子预检
             var elementCosts = CostDerivationService.DeriveElementCosts(effect);
@@ -205,17 +220,18 @@ namespace CardCore
                 // 技能栏不开放（IsSkillSource 分流保底；技能卡禁带代价由资格闸 CanBeSkillCard 拦）。
                 if (EffectActivationGate.Applies(effect, source, specialCosts))
                 {
-                    if (EffectActivationGate.RejectReason(effect, source, elementCosts, specialCosts, costContext) != null)
-                        return false;
+                    var gateReason = EffectActivationGate.RejectReason(effect, source, elementCosts, specialCosts, costContext);
+                    if (gateReason != null)
+                    { reason = gateReason; return false; }
                 }
                 else
                 {
                     // 特殊代价：必须可原子支付
                     if (specialCosts.Count > 0 && !CostHandlerRegistry.CanPayAll(specialCosts, costContext))
-                        return false;
+                    { reason = "代价不可支付（手牌/生命/牌库等资源不足）"; return false; }
                     // 元素代价：当前 bank 可付（浓度上限口径；黑白获取只经卡结算，无兑换通道）
                     if (!elementCosts.IsZero && !ElementCostPayment.CanPay(elementCosts, costContext))
-                        return false;
+                    { reason = "费用不足——元素不足以支付发动费"; return false; }
                 }
             }
 
@@ -234,7 +250,7 @@ namespace CardCore
                     ModeIndex = 0,
                 };
                 if (EffectHandlerRegistry.ResolveCandidates(effect.TargetDomain, effect.TargetFilter, probe).Count == 0)
-                    return false;
+                { reason = "无合法目标（场上没有该效果可选的对象）"; return false; }
             }
 
             return true;
@@ -1429,9 +1445,15 @@ namespace CardCore
         /// 宣言期零支付（横置在结算时支付）；结算时改写攻击目标（CombatSystem.ResolveGuardDeclaration）。
         /// </summary>
         public bool PushGuardDeclaration(Entity guarder, EffectInstance attackInstance, Player controller)
+            => PushGuardDeclaration(guarder, attackInstance, controller, out _);
+
+        /// <summary>带原因版（2026-11-03 失败提示细化）：资格/速度门拒绝逐条可读（网络 Error 帧透传）。</summary>
+        public bool PushGuardDeclaration(Entity guarder, EffectInstance attackInstance, Player controller, out string reason)
         {
-            if (guarder == null || attackInstance == null || controller == null) return false;
-            if (!_stack.Contains(attackInstance)) return false; // 拦截对象须在栈上
+            reason = null;
+            if (guarder == null || attackInstance == null || controller == null) { reason = "内部错误：空参数"; return false; }
+            if (!_stack.Contains(attackInstance))
+            { reason = "该攻击宣言已不在栈上（响应窗口已关闭？）"; return false; } // 拦截对象须在栈上
             // 资格闸（2026-09-16）：守卫能力（NoGuard 卡不能拦）/存活/未横置——横置支付在结算期，
             // 此处拦的是"已横置不能再宣"。角色（玩家）守卫（2026-10-16 定案）：无守卫关键词、
             // 无横置概念——资格=有攻击弹药（弹药即攻击力）；守卫=把攻击改写为打角色，
@@ -1444,10 +1466,28 @@ namespace CardCore
                           && !RuleAuraSystem.ScopeHits(RuleAuraComponents.NoGuardAura, heroGuard);
             else
                 guardOk = false;
-            if (!guardOk) return false;
+            if (!guardOk)
+            {
+                if (guarder is Card gc)
+                {
+                    if (!gc.IsAlive) reason = "该单位已死亡";
+                    else if (gc.IsTapped()) reason = "该单位已横置（守卫须未横置）";
+                    else reason = RuleAuraSystem.ScopeHits(RuleAuraComponents.NoGuardAura, gc.GetController())
+                        ? "禁守令生效——守卫能力失效"
+                        : "该单位不具备守卫能力";
+                }
+                else if (guarder is Player hp)
+                {
+                    reason = hp.GetPower() <= 0
+                        ? "角色无弹药（攻击力 0）——不能守卫"
+                        : "禁守令生效——角色不能守卫";
+                }
+                else reason = "守卫者无效";
+                return false;
+            }
             SyncActivePlayerFromTurn();
             if (!_speedCounter.CanActivate(GuardStackSpeed, EffectActivationType.Voluntary, _stack.Count == 0))
-                return false;
+            { reason = "守卫速度门拒绝（记速器已高于守卫速度）"; return false; }
 
             _speedCounter.RaiseTo(GuardStackSpeed); // ★ 记速器抬到 1：攻方须 >1 连锁、守方 1 速不能再响应
 
@@ -1569,12 +1609,18 @@ namespace CardCore
             _speedCounter.BeginResolution();
             _waitingForPlayer = false;
 
+            // 真连锁判定（2026-11-04 连锁日志定案）：结算开始时栈上真实对象 ≥2 =有人跟了连锁。
+            // 阶段窗伪对象不计——主阶段窗下出牌栈=[阶段窗,卡]，StackSize=2 但只是普通处理。
+            int realCount = _stack.Count(it => !it.IsPhaseWindow);
+
             EventManager.Instance.Publish(new StackResolutionStartEvent
             {
-                StackSize = _stack.Count
+                StackSize = _stack.Count,
+                RealCount = realCount,
+                TopItem = _stack.Count > 0 ? _stack.Peek() : null // LIFO 首结算项（2026-11-03 连锁日志「逆处理」行）
             });
 
-            await ResolveStack();
+            await ResolveStack(realCount);
         }
 
         /// <summary>
@@ -1583,17 +1629,19 @@ namespace CardCore
         /// 结算期间产生的新条件触发效果存入延迟队列。
         /// 原子效果异步执行：交互效果可 await UI，期间 IsResolving=true 阻止主循环重入。
         /// </summary>
-        private async UniTask ResolveStack()
+        private async UniTask ResolveStack(int realCountAtStart)
         {
             _isResolving = true;
             try
             {
                 int guardResolve = 0;
+                bool resolvedRealItems = false; // 本次结算是否含真实栈对象（2026-11-03 连锁日志——纯阶段窗排干不出「连锁结束」行）
                 while (_stack.Count > 0)
                 {
                     var top = _stack.Pop();
                     GameActions.Crumb($"resolve top #{guardResolve} cast={top.IsCardCast} sba={top.IsSBA} id={top.Definition?.Id ?? (top.Source as Card)?.ID ?? "?"}");
                     if (++guardResolve > 200) { GameActions.Crumb("resolve GUARD-200 break"); break; }
+                    if (!top.IsPhaseWindow) resolvedRealItems = true; // 阶段窗伪对象=窗口折返非连锁
                     // SBA 伪对象：到点重查执行（必须先于执行器拦截——Definition=null 会 throw）；
                     // 攻击/守卫宣言走战斗结算（2026-09-16 战斗接入栈机器：死亡处理由栈机器 SBA 轮
                     // 统一接管——战斗死亡与效果致死同口径，救场窗口自然覆盖）；
@@ -1631,7 +1679,7 @@ namespace CardCore
                     });
                 }
 
-                await FinishResolution();
+                await FinishResolution(resolvedRealItems, realCountAtStart);
             }
             finally
             {
@@ -1655,14 +1703,16 @@ namespace CardCore
         /// 循环直到稳定。顺序敏感：关键 SBA 检查必须先于 CheckLifeGameOver（后者直查
         /// Life≤0 即终局，排前会让 0 血绕过响应窗口）。
         /// </summary>
-        private async UniTask FinishResolution()
+        private async UniTask FinishResolution(bool resolvedRealItems, int realCountAtStart)
         {
             _speedCounter.Reset();
             _waitingForPlayer = false;
 
             EventManager.Instance.Publish(new StackEmptyEvent
             {
-                LastPriorityHolder = _priorityHolder
+                LastPriorityHolder = _priorityHolder,
+                HadRealItems = resolvedRealItems, // 2026-11-03 连锁日志：纯阶段窗排干不出「连锁结束」行
+                WasChain = realCountAtStart >= 2 // 2026-11-04 连锁日志定案：「连锁结束」只在真连锁窗口出——单件窗口是普通处理无收尾行
             });
 
             for (int guard = 0; guard < 16; guard++)
@@ -2278,6 +2328,7 @@ namespace CardCore
             AtomicEffectType.GateCreatureAbove,
             AtomicEffectType.GateFirstCardOfTurn,
             AtomicEffectType.GateLandsAtLeast7,
+            AtomicEffectType.GateLandsAtMost3,
             AtomicEffectType.GateHandEmpty,
             AtomicEffectType.GateLifeAtMost7,
         };

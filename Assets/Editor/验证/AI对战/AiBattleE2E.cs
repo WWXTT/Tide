@@ -64,7 +64,7 @@ namespace CardCore.Editor.Tests
 
         private void OnAppended(MatchLogEntry entry)
         {
-            var line = MatchLogRenderer.Render(entry.Event);
+            var line = entry.FrozenText ?? MatchLogRenderer.Render(entry.Event);
             if (string.IsNullOrEmpty(line)) return;
             _lines += line.Split('\n').Length;
             Debug.Log(line);
@@ -96,12 +96,26 @@ namespace CardCore.Editor.Tests
         /// （null=通用 GeneralAiStrategy，行为与策略化之前一致）。policy 由调用方提供并管理生命周期；
         /// 双 Neural 共用同一 policy —— 单 rstate 链贯穿全局，与训练自对弈同口径。
         /// 指定了 Neural 但 policy 为 null 时该座位回落 SimpleAI 并记错误。
+        /// 技能/衍生物（2026-11-04 补齐）：skillCardId1/2 = 双方英雄技能标记（真实入口
+        /// BattleController.StartNewGame 口径——木桩/联机按卡组 DeckData.skillCardId 传入，
+        /// null=无技能；此前工具恒不传，双方无技能卡，红快攻 40:0 横扫蓝控制，与木桩
+        /// 结果完全相反）；tokenBindings1/2 = 卡组期衍生物槽绑定（P9b——不传则带槽卡
+        /// 效果只能回落原子 str 固定绑定）。补齐后与木桩的残余差异只剩开场演出/掷币/
+        /// 节奏（本工具 P1 恒先手、P2 恒后手护甲）。
         /// </summary>
         public BattleRunResult RunFullGame(List<CardData> deck1, List<CardData> deck2, int maxTurns,
             AiBrain brain1, AiBrain brain2, OnnxTidePolicy policy,
             AiStrategy strategy1 = null, AiStrategy strategy2 = null,
-            string skillCardId1 = null, string skillCardId2 = null)
+            string skillCardId1 = null, string skillCardId2 = null,
+            List<DeckTokenBinding> tokenBindings1 = null, List<DeckTokenBinding> tokenBindings2 = null,
+            int? seed = null, bool detail = false)
         {
+            // 2026-11-04 单局/批量一致性：双方都是脚本时，单局与批量统一走共享 AiDuelRunner
+            //（与无头 TideSim 同一份执行器）——技能/衍生物/策略/seed/补泵/收尾全同口径。
+            if (brain1 == AiBrain.Script && brain2 == AiBrain.Script && policy == null)
+                return RunScriptedGame(deck1, deck2, maxTurns, strategy1, strategy2,
+                    skillCardId1, skillCardId2, tokenBindings1, tokenBindings2, seed, detail);
+
             var result = new BattleRunResult();
             var announcer = new ConsoleAnnouncer();
             var gameOver = false;
@@ -118,6 +132,10 @@ namespace CardCore.Editor.Tests
 
             EventManager.Instance.Subscribe<GameOverEvent>(OnGameOver);
             announcer.Attach();
+            // 隐蔽信息可见（2026-11-04 用户定案）：AI 对战的开局块允许展示双方牌库与起手全量
+            //（真实对战默认关——日志/导出不得含隐蔽区信息）；finally 恢复原值防串局。
+            bool prevHidden = MatchLogRenderer.AllowHiddenInfo;
+            MatchLogRenderer.AllowHiddenInfo = true;
             try
             {
                 if (deck1 == null || deck1.Count == 0 || deck2 == null || deck2.Count == 0)
@@ -140,8 +158,11 @@ namespace CardCore.Editor.Tests
                 // 静默空转——"打召唤法术只付费无衍生物"）：接 CardCatalog
                 //（2026-10-13 临摹退役：原变形解析器 MorphSystem.ResolveMorphTarget 已并入本口）
                 CardCore.Attribute.Handlers.SummonTokenHandler.ResolveTemplate = CardCatalog.GetById;
-                core.InitGame(CardLoader.BuildDeck(deck1, 1), CardLoader.BuildDeck(deck2, 1),
-                    skillCardId1: skillCardId1, skillCardId2: skillCardId2);
+                core.InitGame(deck1, deck2, 1,
+                    rngSeed: seed,
+                    skillCardId1: skillCardId1, skillCardId2: skillCardId2,
+                    tokenBindings1: tokenBindings1, tokenBindings2: tokenBindings2,
+                    ai1: true, ai2: true);
                 // 后手护甲（2026-11-01 补齐：工具此前直接 InitGame，绕过了 BattleController/NetRoom 的
                 // 后手补偿注入——战报里 P2 无护甲、被直接扣血）。P1 恒先手，P2 后手。
                 if (GameCore.SecondPlayerArmorBonus > 0)
@@ -197,6 +218,7 @@ namespace CardCore.Editor.Tests
             }
             finally
             {
+                MatchLogRenderer.AllowHiddenInfo = prevHidden;
                 announcer.Detach();
                 EventManager.Instance.Unsubscribe<GameOverEvent>(OnGameOver);
                 AiStrategyRegistry.Clear(); // 响应策略整局解绑（2026-11-02 响应窗任务A）——恢复内置守卫启发
@@ -211,6 +233,56 @@ namespace CardCore.Editor.Tests
                     $"Logs/MatchLog_{DateTime.Now:yyyyMMdd_HHmmss}.md");
                 Debug.Log($"[对局] 战报：{(result.Completed ? $"游戏结束（胜者 {AiBattleE2E.Name(result.Winner)}，{result.Reason}，{result.TotalTurns} 回合）" : result.TurnLimitReached ? $"到达回合上限 {maxTurns}" : "异常中止")}；播报 {result.AnnouncedLines} 行；错误 {result.Errors.Count} 条；日志 {(result.LogPath != null ? result.LogPath : "无条目未导出")}");
             }
+        }
+        /// <summary>脚本座位的单局：统一转交共享 AiDuelRunner（与无头 TideSim 同一执行器）。
+        /// 单局与批量只差调用次数；同一 seed 必须得到同一局。</summary>
+        private BattleRunResult RunScriptedGame(List<CardData> deck1, List<CardData> deck2, int maxTurns,
+            AiStrategy strategy1, AiStrategy strategy2,
+            string skillCardId1, string skillCardId2,
+            List<DeckTokenBinding> tokenBindings1, List<DeckTokenBinding> tokenBindings2, int? seed, bool detail)
+        {
+            var result = new BattleRunResult();
+            var announcer = new ConsoleAnnouncer();
+            announcer.Attach();
+            var cfg = new DuelConfig
+            {
+                Deck1 = deck1,
+                Deck2 = deck2,
+                SkillCardId1 = skillCardId1,
+                SkillCardId2 = skillCardId2,
+                TokenBindings1 = tokenBindings1,
+                TokenBindings2 = tokenBindings2,
+                Strategy1 = strategy1 ?? AiStrategy.General,
+                Strategy2 = strategy2 ?? AiStrategy.General,
+                Seed = seed ?? Environment.TickCount,
+                MaxTurns = maxTurns,
+                Detail = detail,
+                Label1 = "P1",
+                Label2 = "P2",
+            };
+            try
+            {
+                var d = AiDuelRunner.Run(cfg);
+                result.Completed = d.Completed;
+                result.TurnLimitReached = d.TurnLimitReached;
+                result.Winner = d.Winner;
+                result.Reason = d.Reason;
+                result.TotalTurns = d.TotalTurns;
+                result.Errors.AddRange(d.Errors);
+            }
+            finally
+            {
+                announcer.Detach();
+                result.AnnouncedLines = announcer.LineCount;
+                result.LogPath = MatchLogService.ExportMarkdown(
+                    $"Logs/MatchLog_{DateTime.Now:yyyyMMdd_HHmmss}.md");
+                Debug.Log($"[对局] seed={cfg.Seed} 策略 P1={cfg.Strategy1.Key} P2={cfg.Strategy2.Key}；" +
+                          $"技能 {skillCardId1 ?? "无"}/{skillCardId2 ?? "无"}；" +
+                          $"结果={(result.Completed ? $"胜者 {AiBattleE2E.Name(result.Winner)}（{result.Reason}，{result.TotalTurns} 回合）" : result.TurnLimitReached ? $"回合上限 {maxTurns}" : "异常中止")}；" +
+                          $"播报 {result.AnnouncedLines} 行；错误 {result.Errors.Count} 条；" +
+                          $"日志 {(result.LogPath != null ? result.LogPath : "无条目未导出")}");
+            }
+            return result;
         }
     }
 }

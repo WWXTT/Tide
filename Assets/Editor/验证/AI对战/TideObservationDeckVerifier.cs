@@ -31,9 +31,10 @@ namespace CardCore.Editor.Tests
     /// </summary>
     public static class TideObservationDeckVerifier
     {
-        private const string CardA = "火灵";     // 红低费
-        private const string CardB = "火种";     // 红低费
-        private const string CardC = "火炬";     // 红低费
+        // 2026-11-03 教学池红卡改名对齐：火灵→火灵·攻/守、火种→火种·锐/厚、火炬退役
+        private const string CardA = "火灵·攻";   // 红低费
+        private const string CardB = "火苗";   // 红低费（0 费，2/2；原火种·锐）
+        private const string CardC = "火灵·守";   // 红低费
         private const string CardD = "虚空巨像"; // 绿高费（9/9，费用 7-9 档素材）
 
         private readonly struct Check

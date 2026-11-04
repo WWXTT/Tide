@@ -132,9 +132,9 @@
     "ManaList": null
   },
   {
-    "ID": "2b4f8efd",
-    "EnumName": "拼点",
-    "DisplayName": "自由分支·拼点：从双方的手牌中展示攻击力最高的生物卡，比攻击力，无法展示视为0，差额≥x，则触发奖励（最大值6）",
+    "ID": "2beb3a21",
+    "EnumName": "拼枪",
+    "DisplayName": "自由分支·拼枪：从双方的手牌中展示攻击力最高的生物卡，比攻击力，无法展示视为0，差额≥x，则触发奖励（最大值6）",
     "EffectType": "EngineClash",
     "TargetKinds": null,
     "TargetFilter": null,
@@ -180,9 +180,9 @@
     "ManaList": null
   },
   {
-    "ID": "90ba9782",
+    "ID": "2a8db836",
     "EnumName": "附加诅咒",
-    "DisplayName": "自由分支·附加诅咒：给对手牌库中的卡附加诅咒指示物，抽到该卡时自动执行诅咒分支效果，并移除诅咒指示物",
+    "DisplayName": "自由分支·附加诅咒：展示对手牌库中随机一张卡,附加诅咒指示物，抽到该卡时自动执行诅咒分支效果，并移除诅咒指示物",
     "EffectType": "EngineCurseOnDraw",
     "TargetKinds": null,
     "TargetFilter": null,
@@ -193,9 +193,9 @@
     "ManaList": null
   },
   {
-    "ID": "e829f7af",
+    "ID": "8e89caae",
     "EnumName": "附加祝福",
-    "DisplayName": "自由分支·附加祝福：给自己牌库中的卡附加祝福指示物，抽到该卡时自动执行祝福分支效果，并移除祝福指示物",
+    "DisplayName": "自由分支·附加祝福：展示对手牌库中随机一张卡,附加祝福指示物，抽到该卡时自动执行祝福分支效果，并移除祝福指示物",
     "EffectType": "EngineBlessingOnDraw",
     "TargetKinds": null,
     "TargetFilter": null,
@@ -343,7 +343,7 @@
     "MountKinds": "有限分支",
     "Tags": null,
     "ManaList": null,
-    "GateId": "LandsGe7",
+    "GateId": "LandsLe3",
     "Budget": 2
   },
   {

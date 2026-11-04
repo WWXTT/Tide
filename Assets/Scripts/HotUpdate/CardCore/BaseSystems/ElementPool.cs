@@ -237,30 +237,36 @@ namespace CardCore
         /// 地牌不消耗不耗竭；离池（弹回手等）后可再入池重新选色。
         /// </summary>
         public bool AddCardToPool(Card card, Player owner, ManaType? colorChoice = null)
+            => TryAddToPool(card, owner, colorChoice, out _);
+
+        /// <summary>带原因版（2026-11-03 失败提示细化）：与 AddCardToPool 同路径单源，四闸逐条可读。</summary>
+        public bool TryAddToPool(Card card, Player owner, ManaType? colorChoice, out string reason)
         {
-            if (card == null || owner == null) return false;
+            reason = null;
+            if (card == null || owner == null) { reason = "内部错误：空参数"; return false; }
 
             // 禁地令（2026-10-29）：受光环影响的一方不能将手牌作为地牌放置（权威校验，UI 预检之外兜底）
-            if (RuleAuraSystem.ScopeHits(RuleAuraComponents.NoLandAura, owner)) return false;
+            if (RuleAuraSystem.ScopeHits(RuleAuraComponents.NoLandAura, owner))
+            { reason = "禁地令生效中——不能放置地牌"; return false; }
 
             // 地牌资格：卡组正式三型（衍生物/临时复制卡不可）
             if (!CanServeAsLand(card))
-                return false;
+            { reason = "该卡不可作为地牌（衍生物/临时复制卡）"; return false; }
 
             var pool = GetPool(owner);
 
             // 地牌槽上限（各自口径）
             if (pool.PooledCards.Count >= GetLandCap(owner))
-                return false;
+            { reason = $"地牌槽已满（上限 {GetLandCap(owner)}）"; return false; }
 
             // 锁色候选（卡面/各模式费 ∪ 主动效果锚价，去黑白）；空候选（真无费用元素）拒绝入池
             var choices = GetLandColorChoices(card);
             if (choices.Count == 0)
-                return false;
+            { reason = "该卡无可锁定产色（无费用元素）"; return false; }
 
             // 显式锁色必须在候选内（非法选择拒绝——UI 只给有效项，AI/夹具传错即拒）
             if (colorChoice.HasValue && !choices.Contains(colorChoice.Value))
-                return false;
+            { reason = "所选颜色不在该卡可锁定的产色内"; return false; }
 
             var color = colorChoice ?? choices[0]; // 缺省=主色（份额最多色）
 

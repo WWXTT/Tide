@@ -130,35 +130,41 @@ namespace CardCore
         /// （攻击=速度0：回合方 ≥ 计数器，即计数器为 0 才可宣——旧手写"计数器>0 拒绝"守卫
         /// 与该规则重复，已删，规则本身零变化）。主阶段+回合方校验在 GameActions 层。</summary>
         public bool CanDeclareAttack(Entity attacker, Player controller)
+            => TryDeclareAttack(attacker, controller, out _);
+
+        /// <summary>带原因版（2026-11-03 失败提示细化）：与 CanDeclareAttack 同路径单源——
+        /// 拒绝分支即写用户可读文案（UI toast / 网络 intent 拒绝直读），闸序零变化。</summary>
+        public bool TryDeclareAttack(Entity attacker, Player controller, out string reason)
         {
-            if (attacker == null || controller == null) return false;
+            reason = null;
+            if (attacker == null || controller == null) { reason = "攻击者无效"; return false; }
 
             // 检查是否在战场
             if (attacker is Card card)
             {
                 if (_zoneManager != null && !_zoneManager.IsCardInZone(card, controller, Zone.Battlefield))
-                    return false;
+                { reason = "该单位不在战场上"; return false; }
 
                 // 攻击能力（攻击效果化）：攻击=速度0主动效果（默认自带），NoAttack 卡不能宣言攻击。
                 // 次数上限已撤（横置即上限）——AttacksThisTurn 只作台账统计
                 if (!card.HasAttackAbility())
-                    return false;
+                { reason = "该单位不具备攻击能力"; return false; }
             }
 
             // 禁攻令（2026-10-29）：受光环影响方不能宣言攻击——单位按控制者、角色按宣言方判命中
             if (RuleAuraSystem.ScopeHits(RuleAuraComponents.NoAttackAura,
                     attacker is Card atkCard ? atkCard.GetController() : controller))
-                return false;
+            { reason = "禁攻令生效中——受影响方不能宣言攻击"; return false; }
 
             // 检查是否已横置（宣言期已横置不可再宣；结算期横置在 ResolveAttackDeclaration 支付）
             if (attacker.IsTapped())
-                return false;
+            { reason = "该单位已横置"; return false; }
 
             // 检查是否有攻击力（按层引擎计算的当前力量）。角色同门（2026-10-07 弹药定案）：
             // 角色攻击力=HeroAttackCounter 层数——读数 0 即无攻击资格；攻击/反击结算后烧除全部弹药
             //（弹药即闸门——烧完读数归 0，本回合不可再宣，无需专用次数计数器）。
             if (GetPower(attacker) <= 0)
-                return false;
+            { reason = "攻击力为 0"; return false; }
 
             return true;
         }
@@ -167,12 +173,19 @@ namespace CardCore
         /// 突袭定案：生效即消耗（解除横置），负面=紊乱指示物（一回合内不能以玩家为目标，攻击与效果同口径）。
         /// 2026-09-16：防守方=攻击方对手（会话字段退役，参数化）。</summary>
         public bool CanAttackTarget(Entity attacker, Entity target, Player attackingPlayer)
+            => TryAttackTarget(attacker, target, attackingPlayer, out _);
+
+        /// <summary>带原因版（2026-11-03 失败提示细化）：与 CanAttackTarget 同路径单源。</summary>
+        public bool TryAttackTarget(Entity attacker, Entity target, Player attackingPlayer, out string reason)
         {
-            if (target == null || !target.IsAlive || target == attacker) return false;
+            reason = null;
+            if (target == null || !target.IsAlive || target == attacker)
+            { reason = "目标无效（已死亡或离场）"; return false; }
 
             // 只能攻击防守方（对方随从或对方玩家）
             var targetController = target is Card tc ? tc.GetController() : target as Player;
-            if (attackingPlayer == null || targetController != attackingPlayer.Opponent) return false;
+            if (attackingPlayer == null || targetController != attackingPlayer.Opponent)
+            { reason = "只能攻击对方的单位或角色"; return false; }
 
             // 2026-10-02 三类卡型定案：卡牌攻击目标=防守方**战场上**的卡（活体生物全额落血；
             // 无生命结界经耐久管线按伤害全额扣耐久，反击力=0 天然单向）或防守方角色。
@@ -180,17 +193,17 @@ namespace CardCore
             if (target is Card zc && targetController != null
                 && _zoneManager != null
                 && !_zoneManager.IsCardInZone(zc, targetController, Zone.Battlefield))
-                return false;
+            { reason = "目标不在对方战场上"; return false; }
 
             // 潜行/隐密：不可被指定为攻击目标——判定单源 EntityEffectExtensions.IsHiddenFromTargeting
             //（2026-11-02 潜行改版：生效须己方场上另有未潜行友方单位/角色，全员隐藏时潜行不保护；
             // 隐密恒生效。史：2026-10-08 指示物化、10-19 Entity 级、绝缘体效果读数——均并入该单源）
             if (target.IsHiddenFromTargeting())
-                return false;
+            { reason = "目标具有潜行/隐密——不可被指定为攻击目标"; return false; }
 
             // 突袭紊乱（负面指示物，持续一回合）：期间不准以玩家为目标——只能攻随从
             if (target is Player && KeywordRules.HasRushSickness(attacker))
-                return false;
+            { reason = "突袭紊乱——本回合不能以角色为目标"; return false; }
 
             // 帷幕（原嘲讽，2026-09-13 更名定案）：**不拦攻击**——只吸引效果目标
             // （TargetResolver.ApplyTauntRestriction）；攻击侧的目标强制由守卫拦截承担。

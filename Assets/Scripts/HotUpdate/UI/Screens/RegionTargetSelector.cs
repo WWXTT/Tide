@@ -48,6 +48,10 @@ namespace SynergyUI
         /// 的只读探针——真实选择（Run）或外部 ClosePreview 收起。</summary>
         public bool PreviewOpen => _previewActive;
 
+        /// <summary>候选条（viewport）被 btn-hide 收起中（2026-11-03 需求5/6）：收起期区域点击可开
+        /// Information 查阅。仅选择进行中（IsOpen）有意义——浏览态 viewport 本就藏。</summary>
+        public bool ViewportHidden => IsOpen && _viewport != null && !_viewport.gameObject.activeSelf;
+
         private readonly RectTransform _region;
         private readonly GameObject _labelNumNode; // label-num 面板本体（TMP 在子节点 label 上——显隐须控面板）
         private readonly TMP_Text _labelNum;
@@ -64,6 +68,11 @@ namespace SynergyUI
         // 根级 btn-notchain「取消」（守卫/响应窗口同键共用，显隐归 BattleScreen）
         private readonly Func<TargetSelectionRequest, string> _buildPrompt;
         private readonly Action<bool> _onCancelAvailable;
+        private readonly Action _onWindowNeedsSpace; // Select 窗被占用（选择/下拉/文本/预览/btn-hide 显示）——屏侧收 Information（2026-11-03 需求4/7）
+        private readonly Button _btnHide;          // Select/btn-hide：候选条临时收起口（2026-11-03 需求5——藏 viewport 非关窗）
+        private readonly TMP_Text _btnHideLabel;   // btn-hide 子 label 文案（隐藏↔显示）
+        private readonly TMP_InputField _inputStr; // Select/label-str：卡名宣言输入（2026-11-03 信息轴）
+        private readonly TMP_Dropdown _dropdown;   // Select/Dropdown：类别/颜色/费用/维度档宣言（2026-11-03 信息轴）
 
         private readonly List<int> _picked = new List<int>();
         private readonly List<Image> _frames = new List<Image>();
@@ -100,6 +109,8 @@ namespace SynergyUI
             _activeTextTcs = null;
             _activeTextModal?.Close();
             _activeTextModal = null;
+            if (_inputStr != null && _inputStr.gameObject.activeSelf) _inputStr.gameObject.SetActive(false); // 窗口内输入/下拉态一并收（2026-11-03）
+            if (_dropdown != null && _dropdown.gameObject.activeSelf) _dropdown.gameObject.SetActive(false);
             _busy = false;
             IsOpen = false;
             OpenSinceRealtime = 0f;
@@ -107,23 +118,51 @@ namespace SynergyUI
 
         public RegionTargetSelector(RectTransform region, Func<Card, (int x, int z)?> boardCellOf = null,
             Func<Player, bool> isLocalPlayer = null, Func<Player, (int x, int z)?> roleCellOf = null,
-            Func<TargetSelectionRequest, string> buildPrompt = null, Action<bool> onCancelAvailable = null)
+            Func<TargetSelectionRequest, string> buildPrompt = null, Action<bool> onCancelAvailable = null,
+            Action onWindowNeedsSpace = null)
         {
             _region = region;
-            var labelNum = region.Find("label-num");
+            var labelNum = region.Find("label-num") ?? UiKit.FindDeep(region, "label-num"); // 2026-11-03 prefab 改版：label-num 挪入 viewport 下——深找兼容两种摆位
             _labelNumNode = labelNum?.gameObject;
             _labelNum = labelNum?.GetComponentInChildren<TMP_Text>();
             _btnSelect = region.Find("btn-select")?.GetComponent<Button>();
             _viewport = region.Find("viewport") as RectTransform;
             _content = region.Find("viewport/content") as RectTransform;
             _template = region.Find("viewport/content/ACard") as RectTransform;
+            var btnHide = region.Find("btn-hide");
+            _btnHide = btnHide != null ? btnHide.GetComponent<Button>() : null;
+            _btnHideLabel = btnHide != null ? btnHide.GetComponentInChildren<TMP_Text>(true) : null;
+            if (_btnHide != null)
+            {
+                _btnHide.onClick.RemoveAllListeners();
+                _btnHide.onClick.AddListener(OnBtnHideClicked);
+                _btnHide.gameObject.SetActive(false); // 仅候选卡模式（Run）可见——浏览/预览/输入态由各开窗口自管
+            }
+            var labelStr = region.Find("label-str") ?? UiKit.FindDeep(region, "label-str");
+            _inputStr = labelStr != null ? labelStr.GetComponentInChildren<TMP_InputField>(true) : null;
+            var dropdownNode = region.Find("Dropdown") ?? UiKit.FindDeep(region, "Dropdown");
+            _dropdown = dropdownNode != null ? dropdownNode.GetComponentInChildren<TMP_Dropdown>(true) : null;
             _boardCellOf = boardCellOf;
             _isLocalPlayer = isLocalPlayer;
             _roleCellOf = roleCellOf;
             _buildPrompt = buildPrompt;
             _onCancelAvailable = onCancelAvailable;
+            _onWindowNeedsSpace = onWindowNeedsSpace;
             if (_labelNum == null || _btnSelect == null || _viewport == null || _template == null)
                 Debug.LogError("[RegionTargetSelector] Region 缺节点（label-num/btn-select/viewport/content/ACard）——目标选择将退化自动选");
+            if (_inputStr == null || _dropdown == null)
+                Debug.LogWarning("[RegionTargetSelector] Select 缺 label-str/Dropdown——卡名输入退回弹窗、维度反问退回卡列表（prefab 2026-11-03 改版节点）");
+        }
+
+        /// <summary>btn-hide（2026-11-03 需求5/7）：收起=藏 viewport 让玩家观察场上信息（窗不关，
+        /// label-num/计数随 viewport 一并藏）；再点显示=viewport 复原并让屏侧收 Information（同位互斥）。</summary>
+        private void OnBtnHideClicked()
+        {
+            if (_viewport == null || !IsOpen) return; // 仅候选卡模式在身时有效（浏览/预览/输入态本按钮已藏）
+            bool hide = _viewport.gameObject.activeSelf;
+            _viewport.gameObject.SetActive(!hide);
+            if (_btnHideLabel != null) _btnHideLabel.text = hide ? "显示" : "隐藏";
+            if (!hide) _onWindowNeedsSpace?.Invoke(); // 切回显示：Select 需要完整窗位——Information 让位（需求7）
         }
 
         // ==================== ITargetSelectorEx（本地局主入口：实体候选 → ACard 卡面） ====================
@@ -196,6 +235,11 @@ namespace SynergyUI
         public async UniTask<List<int>> SelectIndicesAsync(IReadOnlyList<string> labels,
             int min, int max, string title, string hint, bool allowCancel, float timeoutSeconds)
         {
+            // 下拉识别（2026-11-03 用户定案）：单选纯选项且全部标签带白名单前缀（类别：/颜色：/费用：/维度：
+            // ——与 ProphecyHandlerUtil 维度目录单源对应）→ 不列卡，改 Select/Dropdown 下拉+确认；
+            // 其余（响应窗卡名/自由文案抉择）照旧卡列表。候选卡走 SelectAsync 不经此径。
+            if (min == 1 && max == 1 && _dropdown != null && _labelNum != null && IsChoiceDropdown(labels))
+                return await RunChoice(labels, title, hint, timeoutSeconds);
             var items = new List<CardOverlayItem>(labels.Count);
             for (int i = 0; i < labels.Count; i++)
                 items.Add(new CardOverlayItem { Key = "L" + i, Name = labels[i] });
@@ -203,6 +247,80 @@ namespace SynergyUI
             // 同写 label-num（2026-10-17 并入）
             string prompt = string.IsNullOrWhiteSpace(hint) ? title : hint;
             return await Run(items, null, min, max, title, timeoutSeconds, prompt, allowCancel); // 纯选项路径无实体→无面片
+        }
+
+        /// <summary>下拉识别白名单前缀（与 ProphecyHandlerUtil 维度目录单源注释对应）。</summary>
+        private static readonly string[] ChoicePrefixes = { "类别：", "颜色：", "费用：", "维度：" };
+
+        /// <summary>下拉识别：2..12 项且全部标签共同一白名单前缀（类别：/颜色：/费用：/维度：）。
+        /// 响应窗标签=卡名、抉择标签=自由文案——不撞白名单；混前缀不放行（引擎两段式单档单请求，
+        /// 收紧杜绝未来误撞）。</summary>
+        private static bool IsChoiceDropdown(IReadOnlyList<string> labels)
+        {
+            if (labels == null || labels.Count < 2 || labels.Count > 12) return false;
+            string common = null;
+            foreach (var l in labels)
+            {
+                if (string.IsNullOrEmpty(l)) return false;
+                string hit = null;
+                foreach (var p in ChoicePrefixes)
+                    if (l.StartsWith(p)) { hit = p; break; }
+                if (hit == null) return false;
+                if (common == null) common = hit;
+                else if (common != hit) return false;
+            }
+            return true;
+        }
+
+        /// <summary>下拉单选（Select/Dropdown）：按引擎序 ClearOptions+重填（value=0=预设默认——
+        /// 引擎侧已把预置排位 0），btn-select=确认；超时/AI 兜底取 0（与卡列表 AutoPick 对齐）。
+        /// 占窗语义同 Run（_busy/IsOpen/看门狗/Cancel 口径）；无候选实例/面片/收起口。</summary>
+        private async UniTask<List<int>> RunChoice(IReadOnlyList<string> labels, string title, string hint, float timeoutSeconds)
+        {
+            _onWindowNeedsSpace?.Invoke(); // Select 窗被下拉占用——Information 让位（需求4 同族）
+            bool regionWasActive = _region.gameObject.activeSelf;
+            var hidden = HideBrowseNodes();
+            if (_inputStr != null && _inputStr.gameObject.activeSelf) _inputStr.gameObject.SetActive(false);
+            if (_btnHide != null) _btnHide.gameObject.SetActive(false); // 下拉模式无候选条可收起
+
+            _region.gameObject.SetActive(true);
+            _labelNumNode.SetActive(true);
+            _viewport.gameObject.SetActive(true); // label-num 在 viewport 下——提示可见须带 viewport
+            _dropdown.gameObject.SetActive(true);
+            _dropdown.ClearOptions();
+            var opts = new List<string>(labels.Count);
+            for (int i = 0; i < labels.Count; i++) opts.Add(labels[i]);
+            _dropdown.AddOptions(opts);
+            _dropdown.SetValueWithoutNotify(0);
+            _dropdown.RefreshShownValue();
+            string head = string.IsNullOrWhiteSpace(hint) ? title : hint;
+            _labelNum.text = (string.IsNullOrWhiteSpace(head) ? "请选择" : head) + "——下拉选择后点「确认」";
+
+            _busy = true; // 占窗互斥（Run 同款；引擎侧反问串行，重入兜底）
+            IsOpen = true;
+            OpenSinceRealtime = Time.realtimeSinceStartup;
+            var tcs = new UniTaskCompletionSource<List<int>>();
+            _activeTcs = tcs; // Cancel 外部收口挂点（空表→调用方按 0 兜底，与超时同义）
+            _btnSelect.onClick.RemoveAllListeners();
+            _btnSelect.onClick.AddListener(() => tcs.TrySetResult(new List<int> { _dropdown.value }));
+            _btnSelect.gameObject.SetActive(true);
+
+            float seconds = timeoutSeconds > 0f ? timeoutSeconds : 60f;
+            var timeoutTask = UniTask.Delay(TimeSpan.FromSeconds(seconds))
+                .ContinueWith(() => (List<int>)null);
+            var (win, uiResult, _) = await UniTask.WhenAny(tcs.Task, timeoutTask);
+            List<int> result = win == 0 ? uiResult : null;
+            if (result == null) result = new List<int> { 0 }; // 超时=默认档（AutoPick 取 0 对齐）
+
+            _btnSelect.onClick.RemoveAllListeners();
+            _activeTcs = null;
+            _dropdown.gameObject.SetActive(false);
+            RestoreBrowseNodes(hidden);
+            _region.gameObject.SetActive(regionWasActive);
+            IsOpen = false;
+            OpenSinceRealtime = 0f;
+            _busy = false;
+            return result;
         }
 
         public async UniTask<int> SelectOneAsync(Player chooser, IReadOnlyList<string> options,
@@ -214,8 +332,9 @@ namespace SynergyUI
 
         // ==================== 文本反问（2026-10-31 阶段C：卡名宣言等开放集输入） ====================
 
-        /// <summary>ITargetSelectorEx 文本口：模态输入窗（标题+输入框+确认/取消），中文输入法随
-        /// TMP_InputField 标准内容类型可用。超时自持（Ex 契约）——到点按取消收口返回 null
+        /// <summary>ITargetSelectorEx 文本口：Select 窗内 label-str 输入（2026-11-03 改版——prefab
+        /// 缺节点或选择条在身时退回模态弹窗），中文输入法随 TMP_InputField 标准内容类型可用。
+        /// 超时自持（Ex 契约）——到点按取消收口返回 null
         ///（TargetSelectionService 口径：取消/超时=效果不结算、费用不退）。</summary>
         public async UniTask<string> SelectTextAsync(Player chooser, string title, string defaultValue,
             int maxLen, float timeoutSeconds)
@@ -223,13 +342,73 @@ namespace SynergyUI
             return await PromptTextAsync(title, defaultValue, maxLen, timeoutSeconds);
         }
 
-        /// <summary>模态文本输入窗（网络客户端反问复用同一实现——BattleScreen.NetOnTextRequest）。
+        /// <summary>文本反问窗（网络客户端反问复用同一实现——BattleScreen.NetOnTextRequest）。
         /// 返回玩家输入（原样，收口在 RequestTextAsync/TryCompleteText）；null=取消/超时。
-        /// 独立于 Region 选择面（不动 _busy/IsOpen——输入窗可与选择条共存，先问文本再选目标）；
-        /// 在途态入 _activeText* 记账，ForceIdle 跨局清算一并收口。</summary>
+        /// 2026-11-03 Select 窗改版：label-str（TMP_InputField）窗口内输入+btn-select 确认（回车
+        /// 同效）取代旧 UiKit.ModalBox 弹窗；prefab 缺 label-str 或选择条在身（_busy——窗面共享
+        /// label-num/btn-select 不可并行）退回旧模态。在途态入 _activeText* 记账，ForceIdle
+        /// 跨局清算一并收口。</summary>
         public async UniTask<string> PromptTextAsync(string title, string defaultValue, int maxLen, float timeoutSeconds)
         {
             if (_region == null) return null; // 无宿主（极端：屏已拆）：按取消收口
+            if (_busy || _inputStr == null || _labelNumNode == null || _labelNum == null || _btnSelect == null)
+                return await PromptTextModalAsync(title, defaultValue, maxLen, timeoutSeconds); // 选择条共存口径保留——独立弹窗不抢窗面
+            return await RunTextInputAsync(title, defaultValue, maxLen, timeoutSeconds);
+        }
+
+        /// <summary>窗口内文本输入（Select/label-str）：激活 Select 节点+压浏览三件+label-num 写
+        /// 提示；btn-select=确认（此路径无 _busy，btn-select 无在途监听可安全接管）；空输入确认=
+        /// 取消（口径沿用：取消/超时=效果不结算、费用不退）。收尾全量还原。</summary>
+        private async UniTask<string> RunTextInputAsync(string title, string defaultValue, int maxLen, float timeoutSeconds)
+        {
+            _onWindowNeedsSpace?.Invoke(); // Select 窗被文本输入占用——Information 让位（需求4 同族）
+            bool regionWasActive = _region.gameObject.activeSelf;
+            var hidden = HideBrowseNodes();
+            bool dropdownWas = _dropdown != null && _dropdown.gameObject.activeSelf;
+            if (_dropdown != null) _dropdown.gameObject.SetActive(false);
+            if (_btnHide != null) _btnHide.gameObject.SetActive(false); // 文本模式无候选条可收起
+
+            _region.gameObject.SetActive(true);
+            _labelNumNode.SetActive(true);
+            _viewport.gameObject.SetActive(true); // label-num 在 viewport 下——提示可见须带 viewport
+            _inputStr.gameObject.SetActive(true);
+            _inputStr.text = defaultValue ?? "";
+            if (maxLen > 0) _inputStr.characterLimit = maxLen;
+            _inputStr.interactable = true;
+            string head = string.IsNullOrWhiteSpace(title) ? "请输入宣言的卡名" : title;
+            _labelNum.text = head + "——输入后点「确认」或回车；留空/超时=本次不结算（费用不退）";
+
+            var tcs = new UniTaskCompletionSource<string>();
+            _activeTextTcs = tcs;
+            void Confirm() => tcs.TrySetResult(_inputStr.text);
+            _btnSelect.onClick.RemoveAllListeners(); // 无 _busy 在途监听（Run/RunChoice 收尾已清）——安全接管
+            _btnSelect.onClick.AddListener(Confirm);
+            _btnSelect.gameObject.SetActive(true);
+            _inputStr.onSubmit.RemoveAllListeners();
+            _inputStr.onSubmit.AddListener(_ => Confirm()); // 回车确认（onSubmit 仅回车触发，失焦不收口）
+            _inputStr.ActivateInputField(); // 直接落焦——免一次点击（IME 随激活拉起）
+
+            float seconds = timeoutSeconds > 0f ? timeoutSeconds : 120f;
+            var timeoutTask = UniTask.Delay(TimeSpan.FromSeconds(seconds))
+                .ContinueWith(() => (string)null);
+            var (win, uiResult, _) = await UniTask.WhenAny(tcs.Task, timeoutTask);
+            _activeTextTcs = null;
+
+            _inputStr.onSubmit.RemoveAllListeners();
+            _inputStr.DeactivateInputField();
+            _inputStr.gameObject.SetActive(false);
+            _btnSelect.onClick.RemoveAllListeners();
+            _btnSelect.gameObject.SetActive(false);
+            if (dropdownWas && _dropdown != null) _dropdown.gameObject.SetActive(true);
+            RestoreBrowseNodes(hidden);
+            _region.gameObject.SetActive(regionWasActive);
+            return win == 0 ? uiResult : null; // 超时=取消（TargetSelectionService 口径）
+        }
+
+        /// <summary>旧模态文本弹窗（2026-10-31 阶段C 原实现——2026-11-03 起为退化路径：prefab 缺
+        /// label-str 或选择条在身时的兜底）。返回玩家输入；null=取消/超时。</summary>
+        private async UniTask<string> PromptTextModalAsync(string title, string defaultValue, int maxLen, float timeoutSeconds)
+        {
             var canvas = _region.GetComponentInParent<Canvas>();
             if (canvas == null) return null;
             var host = (RectTransform)canvas.transform; // 根画布：置顶兄弟序盖全场
@@ -275,6 +454,7 @@ namespace SynergyUI
             if (!usable || _busy) return AutoPick(items.Count, min); // 缺节点/重入：退化自动选
 
             if (_previewActive) ClosePreview(); // 真实目标选择开窗——「渲染目标选择」自动让位（2026-10-26 用户定案）
+            _onWindowNeedsSpace?.Invoke(); // Select 窗被选择占用——Information 让位（2026-11-03 需求4：连锁/响应同径）
             _busy = true;
             IsOpen = true;
             OpenSinceRealtime = Time.realtimeSinceStartup;
@@ -285,19 +465,15 @@ namespace SynergyUI
             bool regionWasActive = _region.gameObject.activeSelf;
 
             // 压掉浏览态三件（BuildRegionPanel 的代码子物体；名字单源在 BattleScreen）
-            var hidden = new List<KeyValuePair<GameObject, bool>>();
-            foreach (var kid in new[] { "title", "lines", "cards" })
-            {
-                var t = _region.Find(kid);
-                if (t != null)
-                {
-                    hidden.Add(new KeyValuePair<GameObject, bool>(t.gameObject, t.gameObject.activeSelf));
-                    t.gameObject.SetActive(false);
-                }
-            }
+            var hidden = HideBrowseNodes();
 
             _labelNumNode.SetActive(true); // 面板本体（TMP 在子节点上——须控面板而非文本节点）
             _viewport.gameObject.SetActive(true);
+            if (_btnHide != null) // 收起口复位（2026-11-03 需求5）：开窗从显示态起，label 回「隐藏」
+            {
+                _btnHide.gameObject.SetActive(true);
+                if (_btnHideLabel != null) _btnHideLabel.text = "隐藏";
+            }
             _btnSelect.gameObject.SetActive(false);
             _region.gameObject.SetActive(true);
             _prompt = string.IsNullOrWhiteSpace(prompt) ? null : prompt;
@@ -357,7 +533,7 @@ namespace SynergyUI
                         BattleTileFx.ClearUnitGlow(_reticles[i].Value.x, _reticles[i].Value.z); // 撤候选波（2026-11-01）——真可行动单位随下个对账自动复原
                     }
             _reticles = null;
-            foreach (var kv in hidden) kv.Key.SetActive(kv.Value);
+            RestoreBrowseNodes(hidden);
             _region.gameObject.SetActive(regionWasActive);
             IsOpen = false;
             OpenSinceRealtime = 0f;
@@ -365,6 +541,8 @@ namespace SynergyUI
             _activeTcs = null;
             _prompt = null;
             _onCancelAvailable?.Invoke(false); // 关窗收取消键（仅本屏亮出的才收——2026-10-16 定案沿用）
+            if (_btnHide != null) _btnHide.gameObject.SetActive(false); // 收起口随窗收（不外泄到浏览/预览态）
+            _viewport.gameObject.SetActive(true); // 收起态不外泄——下次开窗/预览从显示态起
             return result;
         }
 
@@ -380,23 +558,16 @@ namespace SynergyUI
                 || _template == null || _btnSelect == null) return;
             if (_busy || items == null || items.Count == 0) return; // 真实选择在身/空表不开
             ClosePreview();
+            _onWindowNeedsSpace?.Invoke(); // Select 窗被预览占用——Information 让位（2026-11-03 需求4 同族）
 
             _previewActive = true;
             _previewRegionWasActive = _region.gameObject.activeSelf;
-            _previewHidden = new List<KeyValuePair<GameObject, bool>>();
-            foreach (var kid in new[] { "title", "lines", "cards" })
-            {
-                var t = _region.Find(kid);
-                if (t != null)
-                {
-                    _previewHidden.Add(new KeyValuePair<GameObject, bool>(t.gameObject, t.gameObject.activeSelf));
-                    t.gameObject.SetActive(false);
-                }
-            }
+            _previewHidden = HideBrowseNodes();
             _labelNumNode.SetActive(true);
             _labelNum.text = string.IsNullOrWhiteSpace(title) ? "牌库 · 被标记的卡" : title;
             _viewport.gameObject.SetActive(true);
             _btnSelect.gameObject.SetActive(false); // 预览无确认语义——确定键恒藏
+            if (_btnHide != null) _btnHide.gameObject.SetActive(false); // 预览非交互——收起口同藏
             _region.gameObject.SetActive(true);
             if (_region.GetComponent<ScrollRect>() is { } scroll)
                 scroll.horizontalNormalizedPosition = 0f; // 与 Run 同拍从最左起
@@ -410,11 +581,8 @@ namespace SynergyUI
             if (!_previewActive) return;
             _previewActive = false;
             ClearInstances();
-            if (_previewHidden != null)
-            {
-                foreach (var kv in _previewHidden) kv.Key.SetActive(kv.Value);
-                _previewHidden = null;
-            }
+            RestoreBrowseNodes(_previewHidden);
+            _previewHidden = null;
             _region.gameObject.SetActive(_previewRegionWasActive);
         }
 
@@ -447,6 +615,10 @@ namespace SynergyUI
             if (cost != null) cost.gameObject.SetActive(false);
             var btnLayer = rt.Find("btn");
             if (btnLayer != null) btnLayer.gameObject.SetActive(false);
+            var rootImg = rt.GetComponent<Image>();
+            if (rootImg != null) rootImg.raycastTarget = true; // 2026-11-03 角色候选点不到修复：ACard 根
+            // Image 烘焙 raycastTarget=0，而角色占位卡类型块/行区全隐=整卡无射线命中（看得到点不到）；
+            // 统一开根底图射线=全卡可点（普通卡无行为差异——子块命中与根命中同冒泡到根 Button）
 
             var face = rt.gameObject.AddComponent<ACardView>();
             face.Bind();
@@ -560,6 +732,29 @@ namespace SynergyUI
             for (int i = _content.childCount - 1; i >= 0; i--)
                 if (!ReferenceEquals(_content.GetChild(i), _template))
                     Destroy(_content.GetChild(i).gameObject);
+        }
+
+        /// <summary>压掉浏览态三件（title/lines/cards——BattleRegionPanel 的代码子物体；名字单源
+        /// 在 BattleScreen）。返回原显隐清单供 RestoreBrowseNodes 还原（Run/预览/文本/下拉共用）。</summary>
+        private List<KeyValuePair<GameObject, bool>> HideBrowseNodes()
+        {
+            var hidden = new List<KeyValuePair<GameObject, bool>>();
+            foreach (var kid in new[] { "title", "lines", "cards" })
+            {
+                var t = _region.Find(kid);
+                if (t != null)
+                {
+                    hidden.Add(new KeyValuePair<GameObject, bool>(t.gameObject, t.gameObject.activeSelf));
+                    t.gameObject.SetActive(false);
+                }
+            }
+            return hidden;
+        }
+
+        private static void RestoreBrowseNodes(List<KeyValuePair<GameObject, bool>> hidden)
+        {
+            if (hidden == null) return;
+            foreach (var kv in hidden) kv.Key.SetActive(kv.Value);
         }
 
         private static void Destroy(GameObject go)

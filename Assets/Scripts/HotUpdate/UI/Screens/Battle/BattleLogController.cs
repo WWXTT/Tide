@@ -26,6 +26,7 @@ namespace SynergyUI
         private readonly List<(string text, string cls)> _standbyDeferred = new(); // 挂起的回合自然抽牌行（待〔准备阶段〕行落定，2026-10-17）
         private RectTransform _logListRect;        // log-list 高度动画目标（0↔700）
         private float _logListTarget;
+        private bool _autoOpened;                   // 连锁自动展开标记（2026-11-03：连锁结束只收自己开的——手动展开不关）
         private int _activeLineCount;               // 在役行数（池化口径：trim 按活动行计，池中 inactive 不算——childCount 含 inactive 不可用）
         private readonly Stack<TMP_Text> _linePool = new(); // 回收行池（2026-10-24 对象池定案：超限行回收复用不再 Destroy）
 
@@ -71,8 +72,35 @@ namespace SynergyUI
 
         private void OnAppended(MatchLogEntry entry)
         {
+            AutoToggleForChain(entry.Event); // 连锁自动开合（置于 Hold 检查前——结算回放缓冲期事件也照常驱动面板）
             if (_holding) { _heldEntries.Add(entry); return; } // 结算回放期缓冲（2026-10-19 步进放行）
             ProcessEntry(entry);
+        }
+
+        /// <summary>连锁自动开合（2026-11-03 用户定案）：真连锁开始逆处理→展开、连锁结束→收起。
+        /// 收口只针对本类自动开的展开——玩家手动展开在连锁期保持开（连锁结束不关）；手动 Toggle
+        /// 即接管（解除自动标记）。纯阶段窗折返（主/结束阶段窗排干）不触发。
+        /// 真连锁=结算开始时栈上真实对象 ≥2（2026-11-04 与战报行同判据 RealCount——单件窗口
+        /// 是普通处理「开始处理」，不再自动弹面板）。</summary>
+        private void AutoToggleForChain(IGameEvent e)
+        {
+            if (e is StackResolutionStartEvent s && s.TopItem != null && !s.TopItem.IsPhaseWindow
+                && s.RealCount >= 2) // 单件窗口=普通处理，不开面板
+            {
+                if (_logListTarget <= 0f)
+                {
+                    _logListTarget = LogListOpenHeight;
+                    _autoOpened = true;
+                }
+            }
+            else if (e is StackEmptyEvent se && se.HadRealItems)
+            {
+                if (_autoOpened)
+                {
+                    _logListTarget = 0f;
+                    _autoOpened = false;
+                }
+            }
         }
 
         /// <summary>单条入史（即时路径与回放放行共用）：时序整理（武装/挂起）+ 行入列。</summary>
@@ -238,9 +266,10 @@ namespace SynergyUI
             _activeLineCount = 0; // 实物与计数漂移（理论不可达）——校正退出
         }
 
-        /// <summary>btn-log 切换面板高度目标。</summary>
+        /// <summary>btn-log 切换面板高度目标（手动接管：解除连锁自动开合标记）。</summary>
         public void Toggle()
         {
+            _autoOpened = false; // 手动操作即接管——连锁结束不再替用户收面板
             _logListTarget = _logListTarget > 0f ? 0f : LogListOpenHeight;
             Debug.Log($"[BattleLog] btn-log 切换：目标高度 {_logListTarget:0}（展开={_logListTarget > 0f}）");
         }

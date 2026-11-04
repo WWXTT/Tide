@@ -79,11 +79,12 @@ namespace SynergyUI
             _grid = UiKit.ScrollGrid("cards", _panel, cellW: 232f, cellH: cellH, spacing: 10f);
             UiKit.Size(_grid.Rect.transform, fw: 1f, fh: 1f);
 
-            // 选择三件（label-num/btn-select/viewport）不参与浏览态 VLG 排版（保持 prefab 摆位；
-            // viewport 拉伸锚点被 VLG 接管则横滑面崩坏）；选择面由 RegionTargetSelector 自管显隐
-            foreach (var kid in new[] { "label-num", "btn-select", "viewport" })
+            // 选择面四件（label-num/btn-select/viewport/btn-hide——btn-hide 2026-11-03 Select 改版新增收起口）
+            // 不参与浏览态 VLG 排版（保持 prefab 摆位；viewport 拉伸锚点被 VLG 接管则横滑面崩坏）；
+            // 选择面由 RegionTargetSelector 自管显隐
+            foreach (var kid in new[] { "label-num", "btn-select", "viewport", "btn-hide" })
             {
-                var t = _panel.Find(kid);
+                var t = FindChild(_panel, kid);
                 if (t == null) continue;
                 var le = t.GetComponent<LayoutElement>();
                 if (le == null) le = t.gameObject.AddComponent<LayoutElement>();
@@ -93,17 +94,21 @@ namespace SynergyUI
             _panel.gameObject.SetActive(false);
         }
 
-        /// <summary>Region 选择面三件（label-num/btn-select/viewport）显隐——浏览态全藏；
+        /// <summary>Region 选择面四件（label-num/btn-select/viewport/btn-hide）显隐——浏览态全藏；
         /// 选择面打开时由 RegionTargetSelector 自显（节点名与 prefab 单源）。</summary>
         private void SetSelectNodes(bool visible)
         {
             if (_panel == null) return;
-            foreach (var kid in new[] { "label-num", "btn-select", "viewport" })
+            foreach (var kid in new[] { "label-num", "btn-select", "viewport", "btn-hide" })
             {
-                var t = _panel.Find(kid);
+                var t = FindChild(_panel, kid);
                 if (t != null && t.gameObject.activeSelf != visible) t.gameObject.SetActive(visible);
             }
         }
+
+        /// <summary>直找+深找（2026-11-03 prefab 改版：label-num 挪入 viewport 下——两代摆位兼容）。</summary>
+        private static Transform FindChild(RectTransform panel, string name)
+            => panel.Find(name) ?? UiKit.FindDeep(panel, name);
 
         public void Open(RegionKind kind, Player owner)
         {

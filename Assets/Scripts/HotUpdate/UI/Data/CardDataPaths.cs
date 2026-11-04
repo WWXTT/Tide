@@ -91,6 +91,29 @@ namespace SynergyUI
             }
         }
 
+        /// <summary>训练数据目录内文件完整路径（2026-11-03 训练池分家定案：训练卡池独立于
+        /// 玩家/教学两池——训练桥/验证器按 id 可取，玩家侧一切卡池面不可见不可改）。</summary>
+        public static string TrainingFileIn(string fileName) => Path.Combine(TrainingDir, fileName);
+
+        /// <summary>训练数据目录（编辑器=仓库源 Assets/TrainingData；TideServer=仓库源回落；
+        /// 玩家构建=persistent/Training，**不经 EnsureBootstrap 下发**——训练内容只随开发侧
+        /// 仓库走，玩家设备上该目录不存在=合并装载自然为空，天然不可见）。</summary>
+        public static string TrainingDir
+        {
+            get
+            {
+#if UNITY_EDITOR
+                return Path.Combine(TidePaths.DataPath, "TrainingData");
+#else
+                string persistent = Path.Combine(TidePaths.PersistentDataPath, "Training");
+                if (Directory.Exists(persistent)) return persistent;
+                string source = Path.Combine(TidePaths.DataPath, "TrainingData");
+                if (Directory.Exists(source)) return source; // TideServer：无装配直读仓库源
+                return persistent;
+#endif
+            }
+        }
+
         /// <summary>
         /// 玩家端引导（编辑器空操作，每次读写入口调用，幂等）：
         /// · **玩家数据 Card/**：只在文件缺失时补种子（绝不覆盖玩家自建卡/效果）；

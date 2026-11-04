@@ -221,9 +221,9 @@ namespace CardCore
         private static readonly string[] ZhNames =
         {
             "灰", // Gray
-            "红", // Red
-            "蓝", // Blue
-            "绿", // Green
+            "火", // Red
+            "水", // Blue
+            "植物", // Green
             "任意", // Any（万能货币，非地牌锁色色）
         };
 

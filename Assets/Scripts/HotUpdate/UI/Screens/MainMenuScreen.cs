@@ -39,10 +39,11 @@ namespace SynergyUI
             BindButton("btn-card", () => Manager.Show<CardComposerScreen>());
             BindButton("btn-effect", () => Manager.Show<EffectComposerScreen>());
 
-            // 木桩测试（2026-10-22，接管原 2026-10-16 测试开局入口；2026-10-23 木桩改脚本驱动）：
+            // 木桩测试（2026-10-22，接管原 2026-10-16 测试开局入口；2026-11-03 对手统一预组策略 AI）：
             // 进入战场先弹选项面板（先后手/洗牌/元素池），确认后走五段式开局变体（固定先后手=跳过
             // 掷币段；掷硬币照常），先选你的卡组、再从三套主题卡组里给木桩选一套；
-            // 对手=脚本木桩（ScriptedAi 无剧本全让过，可喂剧本）+响应窗全让过。
+            // 对手=预组主题策略 AI（AutoMatch：红快攻/绿慢速/蓝控制，三档难度同源——旧「全让过
+            // 木桩」2026-11-03 退役）。
             // 旧一键「地牌充满」直入链保留在 TestStartFlow.EnterFullLandsTest（代码入口，无 UI 挂接）。
             BindButton("btn-teststart", () =>
             {

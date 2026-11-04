@@ -32,9 +32,10 @@ namespace CardCore.Editor.Tests
     public static class LaeMultiTargetVerifier
     {
         private const string LureName = "诱敌";
-        private const string EnemyAName = "火灵";   // 1/1
-        private const string EnemyBName = "火种";   // 1/1
-        private const string EnemyCName = "火炬";   // 1/1
+        // 2026-11-03 教学池红卡改名对齐：火灵→火灵·攻/守、火种→火种·锐/厚、火炬退役——夹具随之更名
+        private const string EnemyAName = "火灵·攻";   // 1 血
+        private const string EnemyBName = "教学·3";   // 1/1 白板（原火种·锐已改 2/2，移出 1 血夹具）
+        private const string EnemyCName = "火灵·守";   // 1 血
         private const string OwnBigName = "虚空巨像"; // 9/9
 
         private readonly struct Check

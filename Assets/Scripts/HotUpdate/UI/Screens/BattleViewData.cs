@@ -121,8 +121,8 @@ namespace SynergyUI
         // ---- 中文映射（展示串中文；PhaseZh/ManaZh 已收敛 CardCore 单源——2026-10-18 B1 日志中间层） ----
         private static readonly Dictionary<ManaType, string> ManaNames = new Dictionary<ManaType, string>
         {
-            { ManaType.Gray, "灰" }, { ManaType.Red, "红" }, { ManaType.Blue, "蓝" },
-            { ManaType.Green, "绿" },
+            { ManaType.Gray, "灰" }, { ManaType.Red, "火" }, { ManaType.Blue, "水" },
+            { ManaType.Green, "植物" },
             { ManaType.Any, "任意" }, // 万能货币（2026-10-23）：钱包串显示「任意N」（白/黑已删 2026-10-28 P2）
         };
 

@@ -392,6 +392,8 @@ namespace CardCore.Attribute.Handlers
     /// 主路径 ExecuteAsync：排列交互逐张单选（先选的在最顶），整段写回新顶序；
     /// AI/无头/超时自动取剩余首张 = 维持原序（训练确定性）。
     /// 同步 Execute 仅查看播报（旧同步/触发路径兼容，不弹排列）。
+    /// 2026-11-03 展示定案：隐藏区的卡被查看即自动展示——查看的牌库顶 {value} 张挂 Exposed
+    ///（RevealRules.Reveal 单源，二值不叠层，换区清；双方可查看），ScryEvent 保持原样照发。
     /// </summary>
     public class LookAtTopCardsHandler : AtomicEffectHandlerBase
     {
@@ -401,8 +403,9 @@ namespace CardCore.Attribute.Handlers
         {
             var owner = DeckArrangeHelper.ResolveDeckOwner(effect, context);
             var top = DeckArrangeHelper.PeekTop(effect, context, owner);
-            if (top.Count > 0)
-                PublishEvent(new ScryEvent { Player = owner, Cards = top, Source = context.Source });
+            if (top.Count == 0) return;
+            foreach (var c in top) RevealRules.Reveal(c, context.Source);
+            PublishEvent(new ScryEvent { Player = owner, Cards = top, Source = context.Source });
         }
 
         public override async UniTask ExecuteAsync(AtomicEffectInstance effect, EffectExecutionContext context)
@@ -410,6 +413,7 @@ namespace CardCore.Attribute.Handlers
             var owner = DeckArrangeHelper.ResolveDeckOwner(effect, context);
             var top = DeckArrangeHelper.PeekTop(effect, context, owner);
             if (top.Count == 0) return;
+            foreach (var c in top) RevealRules.Reveal(c, context.Source);
 
             var final = top;
             if (top.Count > 1)

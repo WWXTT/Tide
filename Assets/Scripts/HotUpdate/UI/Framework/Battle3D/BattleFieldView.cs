@@ -297,6 +297,7 @@ namespace SynergyUI
             public Func<Vector3?> LookPin;    // 战斗注视钉（编舞器）：非空优先于待机注视
             public int IdleGazeVer;           // 待机注视缓存版本（_gazeVersion 对账递增——版本不符才重扫最近敌人）
             public UnitVisual IdleGazeEnemy;  // 缓存的最近敌方生物（null=无→回落角色立柱）
+            public UnitCardPlate CardPlate;   // 脚下卡背指示牌（2026-11-03 横置视觉：竖直=可用/横置=旋90°；仅生物挂载）
 
             // —— 头顶数值节拍（2026-10-15 定案：攻击结算同帧改血，展示等命中时刻）——
             // Shown=当前展示值（滚动起点/逐帧推进）；Target=对账目标值（冻结期只缓冲）；
@@ -442,8 +443,9 @@ namespace SynergyUI
             }
 
             // 朝向架构（2026-10-15 用户定案·二次修订）：模型层持对敌朝向（己方0/对手180）、stats 自
-            // billboard、wrapper 恒 identity（横置 24° 侧倾同日退役——横置仅由光波熄表达；
-            // 走位/演出期 wrapper 转向=期望世界朝向−ModelYaw，归编舞器）；hold 中归编舞器
+            // billboard、wrapper 恒 identity（横置 24° 侧倾同日退役；2026-11-03 起横置由脚下卡背牌
+            // 朝向表达（UnitCardPlate：竖直=可用/横置=旋 90°）；走位/演出期 wrapper 转向=期望世界
+            // 朝向−ModelYaw，归编舞器）；hold 中归编舞器
             if (!IsHeld(card.RuntimeId))
             {
                 v.Wrapper.rotation = Quaternion.identity;
@@ -451,10 +453,10 @@ namespace SynergyUI
                     v.Model.transform.localRotation = Quaternion.Euler(0f, v.ModelYaw, 0f);
             }
 
-            // 可行动高光（2026-10-13 卡背退役定案·晚改扩散波·2026-10-17 分色·2026-10-31 还原——
-            // 10-30 描边环版退役）：未横置未死亡=脚下地块扩散波，己方淡蓝 / 对手红；横置/死亡即熄
-            if (!card.IsTapped && !card.IsDead)
-                BattleTileFx.SetUnitGlow(card.X, card.Z, owner == 1);
+            // 横置视觉（2026-11-03 波语义重定义）：旧「未横置=脚下扩散波常亮」整链退役——
+            // 横置状态由卡背牌旋转表达；波改为目标选择期的候选区域专属标志（选择器逐帧回补，
+            // 常态对账不再点亮，见 BattleTileFx.SetUnitGlow）
+            v.CardPlate?.SetTapped(card.IsTapped);
 
             // 死亡↔复活（MonsterRig 基础态）：死亡翻转只落一次记账（v.Dead 锁存）；
             // 非 hold 的死亡走通用退场演出（生物=碎裂散落原地沉降片刻即收、结界等无 rig
@@ -462,6 +464,7 @@ namespace SynergyUI
             if (card.IsDead && !v.Dead)
             {
                 v.Dead = true;
+                v.CardPlate?.SetVisible(false); // 卡背随死亡收起（复活随 v.Dead 翻转恢复）
                 if (!IsHeld(card.RuntimeId))
                     PlayDeathExitAsync(card.RuntimeId, owner).Forget();
                 // hold 中：记账已锁存，退场时机归编舞器⑤（数值/体型照常刷新）
@@ -469,6 +472,7 @@ namespace SynergyUI
             else if (!card.IsDead && v.Dead)
             {
                 v.Dead = false;
+                v.CardPlate?.SetVisible(true);
                 v.SetStatsVisible(true); // 死亡碎裂时隐去的格面读数随复活恢复（2026-10-26 迁格）
                 v.Anim?.Revive();
                 v.Anim?.Play(MonsterAction.Breath);
@@ -565,9 +569,14 @@ namespace SynergyUI
                 r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             UnitBlobShadow.Attach(wrapper.transform, card.X, card.Z);
 
+            // 脚下卡背指示牌（2026-11-03 横置视觉改版）：竖直=可用、横置=原地旋 90°——
+            // 仅生物（结界走三件模型早退分支，无横置概念不挂）
+            var plate = UnitCardPlate.Attach(wrapper.transform, card.X, card.Z);
+
             // 头顶数值高度=实际包围盒顶+余量（2026-10-14 体型分档后各模型高低不一，不能再按统一基准估算）
             var uv = FinishUnit(card, wrapper.transform, model, anim, owner);
             uv.ModelYaw = FacingYaw(owner);
+            uv.CardPlate = plate;
             return uv;
         }
 

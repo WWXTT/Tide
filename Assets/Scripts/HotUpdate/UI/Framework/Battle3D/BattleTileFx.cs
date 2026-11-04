@@ -140,10 +140,21 @@ namespace SynergyUI
             _icons.Clear();
         }
 
-        /// <summary>生物可行动：脚下地块从格心向外扩散的光波（2026-10-31 还原扩散波——10-30
-        /// 描边环版退役；己方淡蓝 / 对手红，候选等同己方蓝口径）。</summary>
+        /// <summary>选择期候选波·阵营档（2026-11-03 波语义重定义：旧「未横置=可行动常亮波」整链退役——
+        /// 横置由脚下卡背牌朝向表达（UnitCardPlate）；波改为目标选择期的可选区域专属标志：
+        /// 攻击候选红 / 守卫·空格候选蓝 / Region 反问候选沿用本口。逐帧回补由选择器负责（对账
+        /// ClearAll 会清——RegionTargetSelector.PaintCandidateWaves 同款）。</summary>
         public static void SetUnitGlow(int x, int z, bool opponent = false)
             => Light(x, z, opponent ? UnitGlowColorOpp : UnitGlowColor);
+
+        /// <summary>选择期候选波·任意色档（2026-11-03 选格器统一换波）：放地候选=对应元素色波
+        /// （色表=GlowColors，与旧锁色环同源）——选格器 HighlightCandidates 消费。</summary>
+        public static void SetCellWave(int x, int z, Color c)
+            => Light(x, z, c);
+
+        /// <summary>元素色表取色（钳口；选格器元素色波消费——与旧锁色环同源色）。</summary>
+        public static Color ElementColorOf(int lockedColor)
+            => GlowColors[Mathf.Clamp(lockedColor, 0, GlowColors.Length - 1)];
 
         /// <summary>逐格提示环（2026-10-30 起逐格提示统一载体）：单位空格候选蓝环、
         /// B5 自动取目标脉冲（阵营色环）均走本口；放地候选锁色环仍走 SetLandGlow。</summary>

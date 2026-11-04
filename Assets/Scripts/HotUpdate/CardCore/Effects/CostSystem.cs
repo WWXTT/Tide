@@ -358,6 +358,12 @@ namespace CardCore
             List<CostInstance> costs, CostContext ctx)
             => PayPayloadsAsync(costs, ctx);
 
+        /// <summary>地牌域代价（己方/对方元素池）：与单位域同走「只作用一个目标 + 对手选」。</summary>
+        private static bool IsLandCostDomain(AtomicEffectInstance atom)
+            => atom?.TargetKinds != null
+               && atom.TargetKinds.Any(k => k == (int)TargetKind.OwnElementPool
+                                           || k == (int)TargetKind.EnemyElementPool);
+
         /// <summary>执行单个 Payload 原子：按其自身域解析目标，无域以无目标执行（2026-10-28 P1：只执行、不发放）。
         /// 单位域原子（2026-10-31 定案）只作用于一个单位：存活候选唯一直接用；候选 &gt;1 由**对手**现选
         /// （2026-11-02 定案：代价可选目标 &gt;1 时选择权=对手——支付方不再自选；TargetSelectionService，
@@ -386,6 +392,7 @@ namespace CardCore
                 ElementPool = ctx.ElementPool,
                 Duration = DurationType.Once,          // 与 PayloadUnitGrant 计价同口径
                 SummonDropZone = Zone.Battlefield,
+                IsCostPayload = true,                  // 2026-11-04 日志口径：代价原子执行标（销毁事件据此标「代价」）
             };
 
             List<Entity> targets;
@@ -396,13 +403,15 @@ namespace CardCore
             {
                 targets = new List<Entity>(); // 无域代价（无目标语义）：按无目标执行、照常补偿
             }
-            else if (CostPayability.IsUnitDomainCost(atom))
+            else if (CostPayability.IsUnitDomainCost(atom) || IsLandCostDomain(atom))
             {
                 // 单位域代价（2026-10-31 用户定案：代价支付禁用全域）——只作用于**一个**单位：
                 // 按**支付者视角**解析存活候选——唯一 → 直接用；多个 → 对手现选（2026-11-02 用户定案：
                 // 代价可选目标 >1 时选择权=**对手**，不由支付方自选——本地弹选给对手/联机反问下发给
                 // 对手座席/AI 代选按对手视角排序，不可取消）；域空 → 本原子不执行（false）。
                 // 可付性=能指定一个目标即可（无数值门槛；全额扣减可致属性为负/死亡，量级限制归数据侧）。
+                // 2026-11-04：扩展地牌域（己方/对方元素池）——「摧毁一个己方地」类代价也只选一个，
+                // 且同样由对手选落点（不能一口气把元素池全摧毁）。
                 if (preselected != null && preselected.Count > 0)
                 {
                     targets = new List<Entity> { preselected[0] }; // 显式预选路径：只取首个（恒单目标）
@@ -418,7 +427,7 @@ namespace CardCore
                     };
                     var candidates = EffectHandlerRegistry.ResolveCandidates(atom.TargetKinds, atom.Filter, resolveCtx)
                         ?? new List<Entity>();
-                    candidates.RemoveAll(e => e == null || !e.IsAlive);
+                    candidates.RemoveAll(e => e == null || (e is Card unit && !unit.IsAlive));
                     if (candidates.Count == 0) return false; // 无可指定单位：不执行（声明期闸已拦，此处兜底响应窗口内恶化）
                     targets = candidates.Count == 1 ? candidates
                         : await TargetSelectionService.RequestAsync(new TargetSelectionRequest
@@ -467,6 +476,27 @@ namespace CardCore
             }
 
             ectx.Targets = targets;
+
+            // 战报叙事（2026-11-04）：代价与效果同一执行口，先出一行「〔代价〕X 支付：…」——
+            // 否则玩家只看到结果（对手莫名获得护甲 / 自己的地莫名被摧毁），分不清是谁的动作。
+            var costHandler = EffectHandlerRegistry.GetHandler(atom.Type);
+            if (costHandler != null)
+            {
+                string desc = costHandler.GetDescription(atom, null); // 模板口径：目标名在下一行结果里
+                // 受惠侧执行（原子域锁对手侧）：模板按施动方书写，会读成「支付者自己抽/自己得」——
+                // 补执行方，玩家才知道这一笔落在谁头上（如「对手抽 1 张」类代价）。
+                if (ectx.Controller != null && ctx.Payer != null && ectx.Controller != ctx.Payer)
+                    desc += "（对手执行）";
+                var paid = new CostPaidEvent
+                {
+                    Player = ctx.Payer,
+                    Source = ctx.Source,
+                    Description = desc,
+                };
+                if (GameCore.Instance != null) GameCore.Instance.PublishEvent(paid);
+                else EventManager.Instance.Publish(paid);
+            }
+
             await EffectHandlerRegistry.ExecuteEffectAsync(atom, ectx);
             return true;
         }

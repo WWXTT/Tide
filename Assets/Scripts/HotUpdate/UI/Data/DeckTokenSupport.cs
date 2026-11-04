@@ -155,13 +155,14 @@ namespace SynergyUI
         /// <summary>合成期衍生物模板候选过滤（2026-10-31 用户定案三条）：①费用 ≥1 且不带代价
         /// （TemplateRestrictionsOk 同源——与卡组期校验同口径）；②不嵌套——候选自身不得再含
         /// 引用卡槽原子（SummonToken/GrantMorph，衍生物套衍生物禁）；③卡型——召唤槽仅生物
-        /// （creatureOnly）、变形槽生物/结界。另剔衍生物模板与教学卡（同 CardRef 选卡口径）。
+        ///（creatureOnly）、变形槽生物/结界。另剔衍生物模板、教学卡与训练卡（同 CardRef 选卡口径）。
         /// 卡面衍生物槽选卡器与效果组合界面 CardRef 选卡器（召唤/变形原子）共用。</summary>
         public static bool TokenTemplateCandidateOk(CardData tpl, bool creatureOnly)
             => tpl != null
                && !string.IsNullOrEmpty(tpl.ID)
                && !tpl.IsTokenTemplate
                && !CardCatalog.IsTeachingCard(tpl)
+               && !CardCatalog.IsTrainingCard(tpl) // 训练池（2026-11-03 分家）：不可见
                && (creatureOnly
                    ? tpl.Supertype == Cardtype.Creature
                    : tpl.Supertype == Cardtype.Creature || tpl.Supertype == Cardtype.Enchantment)

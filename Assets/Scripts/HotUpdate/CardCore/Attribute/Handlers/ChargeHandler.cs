@@ -65,17 +65,9 @@ namespace CardCore.Attribute.Handlers
 
             card.AddCounters(counterId, 1, context.Source);
 
-            // 展示这张卡（信息轴「展示」口径：二值不叠层——已展示不重复挂/不重复发事件）
-            if (card.GetCounterCount(CounterRules.ExposedCounter) == 0)
-            {
-                card.AddCounters(CounterRules.ExposedCounter, 1, context.Source);
-                PublishEvent(new RevealCardsEvent
-                {
-                    Player = card.GetController() ?? context.Controller,
-                    Cards = new List<CardCore.Card> { card },
-                    Source = context.Source,
-                });
-            }
+            // 展示这张卡（信息轴「展示」口径：二值不叠层——已展示不重复挂/不重复发事件；
+            // 2026-11-03 收口 RevealRules.Reveal 单源）
+            RevealRules.Reveal(card, context.Source);
 
             PublishEvent(new CardChargedEvent
             {

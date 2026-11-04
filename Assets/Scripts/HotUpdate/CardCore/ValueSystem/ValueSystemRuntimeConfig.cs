@@ -204,7 +204,8 @@ namespace CardCore
     public class CardCostConfig
     {
         public float StatUnit = 2f;                     // 1费=StatUnit点属性（攻血各 1/StatUnit 元素，灰）
-        public int MaxTier = 14;                        // 档位上限（2026-10-13 缩盘对齐地牌槽封顶 14：>9 带可达；现仅钳 UI 显示档）
+        // MaxTier 已删（2026-11-03）：档帽=GameRules.LandCurveCap 单源（CardCostService.Derive 直读）——
+        // 旧独立值 14 是地牌封顶 14 时代的残留（池侧 2026-10-15 已退役，本字段是最后一处）。
         /// <summary>属性锚：+1 攻/+1 生命 = 0.5（攻血同锚；2026-10-05 自 CostDerivation 常量迁表）。</summary>
         public float StatAnchor = 0.5f;
         /// <summary>修改族持续档乘数：换区移除/条件持续 = 锚×3（=1.5/+1）；连接光环档同此乘数。</summary>

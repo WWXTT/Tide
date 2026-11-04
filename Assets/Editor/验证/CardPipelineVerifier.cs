@@ -3681,7 +3681,7 @@ namespace CardCore.Editor
             Assert(ProphecyDimension.IsValidValue("Color", "Red") && !ProphecyDimension.IsValidValue("Color", "Pink"), "维度 Color 域校验");
             Assert(ProphecyDimension.IsValidValue("CostParity", "Odd") && !ProphecyDimension.IsValidValue("CostParity", "Maybe"), "维度 CostParity 域校验");
             Assert(ProphecyDimension.IsValidValue("CostExact", "9") && !ProphecyDimension.IsValidValue("CostExact", "10"), "维度 CostExact 域 0..9");
-            Assert(ProphecyDimension.IsValidValue("LinkArrow", "Up") && !ProphecyDimension.IsValidValue("LinkArrow", "All"), "维度 LinkArrow 限单方向（CardCore.HexDirection 成员名）");
+            Assert(!ProphecyDimension.IsValidValue("LinkArrow", "Up"), "维度 LinkArrow 已退役（2026-11-03 定案——不再设计猜箭头的卡）");
             Assert(ProphecyDimension.TryParse("Type:Creature", out var dim, out var val) && dim == "Type" && val == "Creature", "编码解析 维度:值");
         }
 
@@ -5415,7 +5415,7 @@ namespace CardCore.Editor
             Assert(drawGates.Length >= 7 && drawGates.All(g => g.ProducerTag == null)
                    && drawGates.Any(g => g.Id == "FirstCardThisTurn") && drawGates.Any(g => g.Id == "DrawnInStandbyThisTurn")
                    && drawGates.Any(g => g.Id == "LifeBelowOpp") && drawGates.Any(g => g.Id == "CreaturesAboveOpp")
-                   && drawGates.Any(g => g.Id == "LandsGe7") && drawGates.Any(g => g.Id == "HandEmpty")
+                   && drawGates.Any(g => g.Id == "LandsLe3") && drawGates.Any(g => g.Id == "HandEmpty")
                    && drawGates.Any(g => g.Id == "LifeLe7"),
                    "局面门目录与产出无关（任意主干原子可挂，含二批三门；总数随目录扩缩不锚）");
             // 门槛行不入主干/奖励（2026-10-23 入表：位 8 排除——防门槛行漏进原子库与卡组合）
@@ -5456,10 +5456,10 @@ namespace CardCore.Editor
                    && drawGates.First(g => g.Id == "LifeBelowOpp").Budget == 1
                    && drawGates.First(g => g.Id == "FirstCardThisTurn").Budget == 1,
                    "状态门预算锚：命运一抽 3 / 一批通用门 1（表 Budget 列）");
-            Assert(drawGates.First(g => g.Id == "LandsGe7").Budget == 2
+            Assert(drawGates.First(g => g.Id == "LandsLe3").Budget == 2
                    && drawGates.First(g => g.Id == "HandEmpty").Budget == 2
                    && drawGates.First(g => g.Id == "LifeLe7").Budget == 2,
-                   "状态门二批预算锚：操控地≥7/手牌=0/生命≤7 均 2（表 Budget 列）");
+                   "状态门二批预算锚：操控地≤3/手牌=0/生命≤7 均 2（表 Budget 列；2026-11-03 地门行≥7→≤3 随火灵改版）");
             // 改写门目录（2026-10-05 退役）：拦截式改写族已迁唯一光环——三族目录全清；
             // 诅咒门不还原（诅咒通道=引擎主干行 EngineCurseOnDraw，2026-10-08 接棒）
             Assert(CardCore.ComposerCatalog.OutcomeConditions.All(g => !g.Id.StartsWith("DmgRewrite"))
@@ -5603,7 +5603,7 @@ namespace CardCore.Editor
         /// <summary>
         /// 减费三选一（2026-11-02 定案）：① 同一效果只能三选一（有限分支/自由分支/代价）；
         /// ② 并列添加两个效果禁挂代价；③ 光环类（结界的场地光环/仪典行）禁挂代价；
-        /// ④ 代价行全价 ≤3（2026-11-02 自 4 收紧）；⑤ 分支减费=Then 奖励费值——有限分支 1~3、自由分支 1~6（原 1-5 同批放宽）。
+        /// ④ 代价行全价 ≤4（2026-11-03 自 3 放宽回 4）；⑤ 分支减费=Then 奖励费值——有限分支 1~3、自由分支 1~6（原 1-5 同批放宽）。
         /// 判定单源=SynergyUI.EffectComposerScreen（DiscountConflictOf / BranchRewardCapViolationOf——
         /// 卡组合保存闸 / addcost 闸 / 效果合成器形态闸与本段共用）。夹具全内存合成，不动卡表。
         /// </summary>
@@ -5665,20 +5665,20 @@ namespace CardCore.Editor
             Assert(rAura != null && rAura.Contains("光环类"),
                    $"光环卡+代价 → 报错（实际：{rAura ?? "未报"}）");
 
-            // ---- ③ 代价 4 点 → 超上限（≤3，2026-11-02 自 4 收紧） ----
+            // ---- ③ 代价超上限（常量相对：cap+1 越界报错 / 恰 cap 合规；2026-11-03 收回 3） ----
+            var cardCost5 = SpellOf(ParallelFx(Atom(AtomicEffectType.DrawCard, 1)));
+            SetCost(cardCost5, Atom(AtomicEffectType.DealDamage, SynergyUI.EffectComposerScreen.CostDiscountCap + 1)); // 伤害 1红/点
+            float price5 = SynergyUI.EffectComposerScreen.CostRowPrice(cardCost5.PayloadCost);
+            string rCost5 = SynergyUI.EffectComposerScreen.DiscountConflictOf(cardCost5);
+            Assert(price5 > SynergyUI.EffectComposerScreen.CostDiscountCap && rCost5 != null && rCost5.Contains("超上限"),
+                   $"代价 {price5:0.#} 点 → 超上限报错（实际：{rCost5 ?? "未报"}）");
+            // 反例：代价恰在上限 → 合规
             var cardCost4 = SpellOf(ParallelFx(Atom(AtomicEffectType.DrawCard, 1)));
-            SetCost(cardCost4, Atom(AtomicEffectType.DealDamage, 4)); // 伤害 1红/点 → 4 点
+            SetCost(cardCost4, Atom(AtomicEffectType.DealDamage, SynergyUI.EffectComposerScreen.CostDiscountCap));
             float price4 = SynergyUI.EffectComposerScreen.CostRowPrice(cardCost4.PayloadCost);
-            string rCost4 = SynergyUI.EffectComposerScreen.DiscountConflictOf(cardCost4);
-            Assert(price4 > SynergyUI.EffectComposerScreen.CostDiscountCap && rCost4 != null && rCost4.Contains("超上限"),
-                   $"代价 {price4:0.#} 点 → 超上限报错（实际：{rCost4 ?? "未报"}）");
-            // 反例：代价 3 点 → 合规（恰在上限）
-            var cardCost3 = SpellOf(ParallelFx(Atom(AtomicEffectType.DrawCard, 1)));
-            SetCost(cardCost3, Atom(AtomicEffectType.DealDamage, 3));
-            float price3 = SynergyUI.EffectComposerScreen.CostRowPrice(cardCost3.PayloadCost);
-            Assert(price3 <= SynergyUI.EffectComposerScreen.CostDiscountCap
-                   && SynergyUI.EffectComposerScreen.DiscountConflictOf(cardCost3) == null,
-                   $"代价 {price3:0.#} 点（≤{SynergyUI.EffectComposerScreen.CostDiscountCap}）→ 合规");
+            Assert(price4 <= SynergyUI.EffectComposerScreen.CostDiscountCap
+                   && SynergyUI.EffectComposerScreen.DiscountConflictOf(cardCost4) == null,
+                   $"代价 {price4:0.#} 点（≤{SynergyUI.EffectComposerScreen.CostDiscountCap}）→ 合规");
 
             // ---- ④ 有限分支 4 点 → 超区间（1~3） ----
             var gate4 = ParallelFx(GateAtom(AtomicEffectType.DealDamage, 1, "FirstCardThisTurn",
@@ -5730,6 +5730,8 @@ namespace CardCore.Editor
         /// 减费三选一数据审计（2026-11-02 定案·只报不改——同 RunColorAudit 先例）：
         /// 主表+教学副表全卡扫描，四类违规逐条 Warning（卡名+效果+违规类型），收尾统计。
         /// 判定单源=SynergyUI.EffectComposerScreen（DiscountConflictOf / BranchRewardCapViolationOf）。
+        /// 2026-11-03 追加：代价栏翻转限制①②③（极性0/无target/域单侧——CostDerivationService.
+        /// PayloadCostViolations 单源，含卡级行覆盖）——同卡集+训练副表逐条 Warning。
         /// </summary>
         [MenuItem("Tools/减费三选一校验（只报不改）")]
         public static void RunDiscountExclusiveAudit()
@@ -5764,6 +5766,26 @@ namespace CardCore.Editor
             }
             Debug.Log($"[减费三选一] 审计 {checkedCards} 张卡：互斥/上限违规 {conflict} 张，分支费值超区间 {capBad} 条"
                       + "（只报不改——改数由人决定）");
+
+            // 代价栏翻转限制①②③（2026-11-03 追加）：主表+教学副表+训练副表——③域单侧在存量
+            // 教学/训练数据有已知命中（蓝套9张卡级 03c85bc4 抽卡@己方牌库），只报不改待表侧整改。
+            int costBad = 0, costCards = 0;
+            var costScan = new List<CardData>(cards);
+            string trainPath = SynergyUI.CardDataPaths.TrainingFileIn("TrainingCards.json");
+            if (File.Exists(trainPath))
+                costScan.AddRange(CardLoader.LoadCardsFromText(File.ReadAllText(trainPath)));
+            foreach (var card in costScan)
+            {
+                if (card == null) continue;
+                costCards++;
+                foreach (var v in CardCore.CostDerivationService.PayloadCostViolations(card))
+                {
+                    costBad++;
+                    Debug.LogWarning($"[代价栏][①②③] 卡「{(string.IsNullOrEmpty(card.CardName) ? card.ID : card.CardName)}」{v}");
+                }
+            }
+            Debug.Log($"[代价栏] 审计 {costCards} 张卡（主表+教学+训练）：代价栏违规 {costBad} 条"
+                      + "（①极性0 ②无target ③域单侧——只报不改；③整改前不动装载剥除口）");
         }
 
         /// <summary>元素席位收缩断言（2026-10-28 P2）：ManaType 白/黑退役、Any 6→4——
@@ -5827,15 +5849,50 @@ namespace CardCore.Editor
             // 2026-10-09 清理：Heal TotalUnitCost=0.4 钉价断言删除——表价已迁绿0.5（表为单一来源，测试不钉价）
             // 2026-10-31 阶梯减价删除：DelayDiscountConfig 整链退役（d(C) 分段曲线断言随之删除——
             // 无前中后期卡组概念，S+E+K 全额计价不按额度打折）
-            Assert(ElementAffinities.GetAffinityForEffect(AtomicEffectType.GrantTaunt).PrimaryColor == ManaType.Green,
-                   "计价锚：GrantTaunt 表 Green（2026-10-28 P2a 席位收缩改色——白/黑退役，原白色防御系迁绿）");
+            // 2026-11-03：GrantTaunt 表行现 Blue3（表侧改色）——按「表为单一来源不钉色」惯例
+            //（2026-10-09 Heal 先例）改断「亲和随表走」，不再钉 Green
+            var tauntRow = CardCore.Attribute.AtomicEffectTable.GetByType(AtomicEffectType.GrantTaunt);
+            var tauntPrimary = ManaType.Gray;
+            if (tauntRow?.ManaList != null)
+                foreach (var c in tauntRow.ManaList.NonzeroColors()) { tauntPrimary = c; break; }
+            Assert(tauntRow != null && tauntRow.ManaList != null && tauntRow.ManaList.Total > 0
+                   && ElementAffinities.GetAffinityForEffect(AtomicEffectType.GrantTaunt).PrimaryColor == tauntPrimary,
+                   "计价锚：GrantTaunt 亲和随表走（表为单一来源不钉色；2026-10-28 曾 Green，2026-11-03 表行=Blue3）");
 
-            // ---- 身材：1费 = 2点属性（灰）；2026-10-15 卡型默认分配：免费点（属性1+攻/守opt-out）
-            //      只减灰桶 S（不溢出彩色）——白板生物减 1，总额与旧口径一致 ----
-            Assert(DeriveTotal(MakeCostCard(Cardtype.Creature, 1, 1)) == 0, "计价锚：1/1 白板 D=0（S1 − 免费点1减灰桶）");
-            Assert(DeriveTotal(MakeCostCard(Cardtype.Creature, 0, 2)) == 0, "计价锚：0/2 白板 D=0（同上）");
-            Assert(DeriveTotal(MakeCostCard(Cardtype.Creature, 2, 2)) == 1, "计价锚：2/2 白板 D=1（S2 − 减1）");
-            Assert(DeriveTotal(MakeCostCard(Cardtype.Creature, 3, 2)) == 2, "计价锚：3/2 白板 D=2（S2.5→取整3 − 减1；2026-10-31 阶梯减价删除后无延迟折，旧 d(3)=0.75 口径的 D=1 断言已废）");
+            // ---- 身材（2026-11-03 底盘分配改版）：3 点预算优先 攻1+守1+首个效果槽，剩余 n=免费属性底
+            //      n/n（攻/血各前 n 点免计）；超出部分按颜色收费（攻红/血绿，真实小数 0.5/点不参与
+            //      整卡取整——显示 0.## 直显、支付 NormalizeBill 逐色进 1）。旧「免费点先红后绿扣桶」退役 ----
+            Assert(CardCompositionCost.FreeAttrBaseOf(MakeCostCard(Cardtype.Creature, 1, 1)) == 1,
+                   "计价锚：底盘 0 效果攻守白板 → 免费属性底 1/1");
+            Assert(CardCompositionCost.FreeAttrBaseOf(MakeCostCard(Cardtype.Creature, 1, 1, MakeEffect("Heal", 1))) == 0,
+                   "计价锚：底盘 1 效果生物 → 攻守+首槽=3 用满，底 0（每点属性按颜色收费）");
+            Assert(DeriveTotal(MakeCostCard(Cardtype.Creature, 1, 1)) == 0, "计价锚：1/1 白板 D=0（底 1/1 内免计）");
+            Assert(DeriveTotal(MakeCostCard(Cardtype.Creature, 0, 2)) == 1, "计价锚：0/2 白板 D=1（血超底 1 计 0.5 绿——DerivedTotal 四舍五入 1；旧 D=0 口径作废）");
+            Assert(DeriveTotal(MakeCostCard(Cardtype.Creature, 2, 2)) == 1, "计价锚：2/2 白板 D=1（各超底 1 → 0.5红+0.5绿=1）");
+            Assert(DeriveTotal(MakeCostCard(Cardtype.Creature, 3, 2)) == 2, "计价锚：3/2 白板 D=2（1红+0.5绿=1.5→2）");
+            var c44 = MakeCostCard(Cardtype.Creature, 4, 4);
+            var r44 = CardCostService.Derive(c44);
+            Assert(System.Math.Abs(r44.DerivedCost[ManaType.Red] - 1.5f) < 1e-4f
+                   && System.Math.Abs(r44.DerivedCost[ManaType.Green] - 1.5f) < 1e-4f,
+                   "计价锚：4/4 白板（底1）= 红1.5+绿1.5 真实小数（2026-11-03 定案例1；支付进 1=2+2）");
+            var c44s = MakeCostCard(Cardtype.Creature, 4, 4, MakeEffect("Heal", 1));
+            c44s.Effects[0].TriggerTiming = (int)TriggerTiming.Activate_Active; // 主动不占卡费（只计 1 槽压底）
+            var r44s = CardCostService.Derive(c44s);
+            Assert(r44s.DerivedCost[ManaType.Red] == 2f && r44s.DerivedCost[ManaType.Green] == 2f,
+                   "计价锚：4/4+1技能（底0）= 红2+绿2 每个属性按颜色收费（2026-11-03 定案例2）");
+            var wall = MakeCostCard(Cardtype.Creature, 3, 3);
+            wall.NoAttack = true; wall.NoGuard = true;
+            Assert(CardCompositionCost.FreeAttrBaseOf(wall) == 3 && DeriveTotal(wall) == 0,
+                   "计价锚：无攻守无技能 → 底 3/3 固定获得（3/3 整卡免费；定案例3——偏斜底 5/1 由组合器属性下限闸拦）");
+            var ng2 = MakeCostCard(Cardtype.Creature, 4, 4, MakeEffect("Heal", 1), MakeEffect("Heal", 1));
+            ng2.NoGuard = true;
+            ng2.Effects[0].TriggerTiming = (int)TriggerTiming.Activate_Active;
+            ng2.Effects[1].TriggerTiming = (int)TriggerTiming.Activate_Active;
+            var rng2 = CardCostService.Derive(ng2);
+            Assert(CardCompositionCost.FreeAttrBaseOf(ng2) == 1 && rng2.DerivedCost[ManaType.Gray] == 1f
+                   && System.Math.Abs(rng2.DerivedCost[ManaType.Red] - 1.5f) < 1e-4f
+                   && System.Math.Abs(rng2.DerivedCost[ManaType.Green] - 1.5f) < 1e-4f,
+                   "计价锚：NoGuard+2技能 → 底1（预算优先 攻+首槽）+超槽恒1灰+红1.5绿1.5（2026-11-03 超槽加价改版）");
 
             // ---- 底盘纯函数（2026-10-15 卡型默认分配定案）：SurplusOf=免费点（生物=3−攻守→属性1+opt-out；
             //      非生物=3−效果槽）；StructuralSurcharge=超槽加价（生物=每槽；非生物=结构项>3 差额）----
@@ -6697,12 +6754,12 @@ namespace CardCore.Editor
             }
             var spellCheap = Probe(Cardtype.Spell, 1);   // Ĉ=E1→档1
             var spell9 = Probe(Cardtype.Spell, 9);       // Ĉ=E9→档9
-            var creature9 = Probe(Cardtype.Creature, 9); // Ĉ=S2+E9=11→档11
+            var creature9 = Probe(Cardtype.Creature, 9); // Ĉ=S2+E9=11→档帽后 10
             Assert(spellCheap.DerivedTotal == 1, $"三类定案：法术低档全额 D(1伤)={spellCheap.DerivedTotal}=1");
             Assert(spell9.DerivedTotal == 9,
                    $"三类定案：法术高档全额 D(9伤)={spell9.DerivedTotal}=9（2026-10-31 阶梯减价删除——不再 ×d(Ĉ) 打折）");
-            Assert(creature9.DerivedTotal == 11 && creature9.DerivedTier == 11,
-                   $"三类定案：生物全额 D(2/2+9伤)={creature9.DerivedTotal}=11（S2 计入 Ĉ；实际 D={creature9.DerivedTotal} Ĉ={creature9.DerivedTier}）");
+            Assert(creature9.DerivedTotal == 11 && creature9.DerivedTier == 10,
+                   $"三类定案：生物全额 D(2/2+9伤)={creature9.DerivedTotal}=11（S2 计入 Ĉ；档帽=LandCurveCap 地牌封顶 2026-11-03 起单源；实际 D={creature9.DerivedTotal} Ĉ={creature9.DerivedTier}）");
             Assert(spell9.DerivedTotal > spellCheap.DerivedTotal,
                    $"三类定案：内容决定价 D(9伤)={spell9.DerivedTotal} > D(1伤)={spellCheap.DerivedTotal}");
 
@@ -7195,6 +7252,7 @@ namespace CardCore.Editor
             RegenOneDeck(path, atomRenames);
             RemapTutorialAtomRefs(atomRenames); // 教学副表原子 refId 跟换（重推前置——效果/卡 id 依赖原子行 id）
             RegenTutorialAndPresetTables();     // 2026-11-01 预组+教学纳入费用/ID 重推+引用跟换
+            RegenTrainingTables(atomRenames);   // 2026-11-03 训练池分家：训练副表（TrainingData）同批重推
             RunColorAudit(); // 2026-11-02 颜色校验（README《效果颜色规范》定案）：只报不改——收尾统计
             RunDiscountExclusiveAudit(); // 2026-11-02 减费三选一校验：只报不改——收尾统计
         }
@@ -7307,6 +7365,7 @@ namespace CardCore.Editor
             { AtomicEffectType.GrantDisarm, SpecColor.Blue },                 // 缴械=压制反击（行动许可）
             { AtomicEffectType.GrantTaunt, SpecColor.Blue },                  // 帷幕=指定限制（能否被指定）
             { AtomicEffectType.AddDurabilityUp, SpecColor.Blue },             // 特例：耐久=蓝（2026-11-03 定案：结界耐久轴同口径——身材耐久桶同日灰→蓝，0.5蓝/点）
+            { AtomicEffectType.SealUnit, SpecColor.Blue },                    // 封印=场面移除转对手资源（控制/节奏=蓝，2026-11-03 新行）
             // ---- 场面/生存双成分（红|绿）----
             { AtomicEffectType.GrantLifesteal, SpecColor.Red },                  // 吸血=红（2026-11-03 用户定案·不随吸取双色同构）
             { AtomicEffectType.GrantLifelink, SpecColor.Red | SpecColor.Green },   // 系命=伤害+回复 双色
@@ -7638,7 +7697,9 @@ namespace CardCore.Editor
             var cards = CardLoader.LoadCardsFromText(File.ReadAllText(path));
             if (cards.Count == 0)
             {
-                Debug.LogError($"[Regen] 卡表为空/解析失败：{path}");
+                // 2026-11-03 措辞改版：主表=玩家自建内容，空=设计态常态（2026-10-27 起玩家池清空、
+                // 2026-11-03 训练池迁 TrainingData）——不再是错误，降级提示即可。
+                Debug.LogWarning($"[Regen] 主表为空（玩家池空=设计态，训练池在 TrainingData）——跳过主表重推：{path}");
                 return false;
             }
 
@@ -8020,6 +8081,142 @@ namespace CardCore.Editor
             }
             Debug.Log($"[Regen] 预组+教学重推完成：效果换号 {fxRenames.Count} · 卡换号 {cardRenames.Count}" +
                       (cardRenames.Count > 0 ? "（卡组/TutorialConfig/玩家档引用已跟换）" : "（卡 id 无漂移——卡组无需跟换）"));
+        }
+
+        // ======================================== 训练副表重推导（2026-11-03 训练池分家） ========================================
+
+        /// <summary>训练池独立副表（Assets/TrainingData）重推导——由 Tools/重推导测试卡表费用与ID
+        /// 统一入口调用（须在 RegenAtomicTableIds 之后，原子行 id 已收口）。与教学段
+        ///（RegenTutorialAndPresetTables）同构：
+        /// ① TrainingEffects：迁移台账自愈 → 原子 refId 跟换 → 悬空守卫（**中止不落盘**——训练表
+        ///   为机器生成内容，悬空=真实腐坏，与教学「人工维护仅告警」口径不同）→ 清档重写
+        ///（Save 内 HashEffect 重算 id + 锚价快照按现行原子表实时推导）；
+        /// ② TrainingCards：effectIds 跟换（新效果号 + 原子换号）+ payload refId 台账自愈/跟换 →
+        ///   装载重推费用快照（EnsureCost）→ 卡 id 重推（"C_"+HashCard——内容变才变）。
+        /// 训练池无卡组 json 引用（训练桥=随机 30/主题整组口径），无③跟换段；训练卡 id 换号后
+        /// tide_rl/card_identity_manifest.json 经 RegisterIdentities 幂等追加续排，旧基线吊死属预期。</summary>
+        private static void RegenTrainingTables(Dictionary<string, string> atomRenames)
+        {
+            string fxPath = SynergyUI.CardDataPaths.TrainingFileIn("TrainingEffects.json");
+            string cardsPath = SynergyUI.CardDataPaths.TrainingFileIn("TrainingCards.json");
+            if (!File.Exists(fxPath) || !File.Exists(cardsPath))
+            {
+                Debug.LogError($"[Regen] 训练副表缺失：{fxPath} / {cardsPath}——跳过训练池重推");
+                return;
+            }
+
+            // ---------- ① 效果表：台账自愈 → 原子 refId 跟换 → 悬空守卫 → 清档重写 ----------
+            var validAtomIds = new HashSet<string>(
+                CardCore.Attribute.AtomicEffectTable.GetAll()
+                    .Where(c => c != null && !string.IsNullOrEmpty(c.HashId))
+                    .Select(c => c.HashId));
+            var fxRoot = Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(fxPath));
+            HealDanglingAtomRefs(fxRoot, validAtomIds, fxPath);
+            int atomRemapped = 0;
+            var dangling = new List<string>();
+            foreach (var prop in fxRoot.Descendants().OfType<Newtonsoft.Json.Linq.JProperty>()
+                     .Where(p => p.Name == "refId" && p.Value.Type == Newtonsoft.Json.Linq.JTokenType.String).ToList())
+            {
+                string rid = (string)prop.Value;
+                if (atomRenames != null && atomRenames.TryGetValue(rid, out var nid))
+                {
+                    prop.Value = nid;
+                    atomRemapped++;
+                    rid = nid;
+                }
+                if (!validAtomIds.Contains(rid)) dangling.Add(rid);
+            }
+            if (dangling.Count > 0)
+            {
+                Debug.LogError($"[Regen] TrainingEffects.json 悬空原子引用 {dangling.Count} 处——训练池重推中止不落盘" +
+                               $"（同正式池守卫；台账外孤儿引用请核对后记入 AtomMigrationLedger）：{string.Join("，", dangling.Distinct())}");
+                return;
+            }
+            if (atomRemapped > 0)
+            {
+                WriteJTokenIndented(fxPath, fxRoot);
+                Debug.Log($"[Regen] TrainingEffects.json 原子引用跟换 {atomRemapped} 处 → {fxPath}");
+            }
+
+            var graphs = SynergyUI.EffectLibrarySerializer.LoadAll(false, training: true);
+            var fxRenames = new Dictionary<string, string>();
+            if (graphs.Count > 0)
+            {
+                File.WriteAllText(fxPath, "{\"items\":[]}"); // 清档重写：防旧 id 条目残留（upsert 不删旧行）
+                foreach (var g in graphs)
+                {
+                    if (g == null) continue;
+                    string oldId = g.id;
+                    SynergyUI.EffectLibrarySerializer.Save(g, false, training: true); // Save 内重算 id + 锚价快照
+                    if (!string.IsNullOrEmpty(oldId) && oldId != g.id) fxRenames[oldId] = g.id;
+                }
+            }
+            Debug.Log($"[Regen][训练] 效果表 id 重推：{graphs.Count} 条（换号 {fxRenames.Count} 条）→ {fxPath}");
+            CardCore.EffectsLibrary.Reload(); // 新效果号生效：卡表 effectIds 解析/费用推导按新库
+
+            // ---------- ② 卡表：effectIds/payload refId 跟换 → 装载 → 费用快照 + 卡 id 重推 ----------
+            var cardsRoot = Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(cardsPath));
+            HealDanglingAtomRefs(cardsRoot, validAtomIds, cardsPath); // payload.refId 跨表迁移孤儿接回
+            var cardsArr = cardsRoot["cards"] as Newtonsoft.Json.Linq.JArray;
+            int idsRemapped = 0;
+            if (cardsArr != null)
+                foreach (var card in cardsArr.OfType<Newtonsoft.Json.Linq.JObject>())
+                {
+                    var idsArr = card["effectIds"] as Newtonsoft.Json.Linq.JArray;
+                    if (idsArr != null)
+                        for (int i = 0; i < idsArr.Count; i++)
+                        {
+                            if (idsArr[i].Type != Newtonsoft.Json.Linq.JTokenType.String) continue;
+                            string s = (string)idsArr[i];
+                            if (fxRenames.TryGetValue(s, out var ne)) { idsArr[i] = ne; idsRemapped++; }
+                            else if (atomRenames != null && atomRenames.TryGetValue(s, out var na)) { idsArr[i] = na; idsRemapped++; }
+                        }
+                    // effectIds 混装（效果库 id+关键词原子 refId，同正式卡口径）；payload.refId 同批跟换
+                    foreach (var prop in card.Descendants().OfType<Newtonsoft.Json.Linq.JProperty>()
+                             .Where(p => p.Name == "refId" && p.Value.Type == Newtonsoft.Json.Linq.JTokenType.String).ToList())
+                    {
+                        string rid = (string)prop.Value;
+                        if (atomRenames != null && atomRenames.TryGetValue(rid, out var na)) { prop.Value = na; idsRemapped++; }
+                    }
+                }
+            if (idsRemapped > 0)
+                WriteJTokenIndented(cardsPath, cardsRoot); // 先落跟换再装载（解析按新效果号/原子号）
+
+            var loaded = CardLoader.LoadCardsFromText(File.ReadAllText(cardsPath));
+            if (loaded == null || loaded.Count == 0)
+            {
+                Debug.LogError($"[Regen] 训练卡表装载为空/失败（effectIds 跟换后解析断裂？）——中止，卡表未换号：{cardsPath}");
+                return;
+            }
+            if (cardsArr != null && loaded.Count != cardsArr.Count)
+                Debug.LogWarning($"[Regen] 训练卡表装载 {loaded.Count} 张 ≠ 文件 {cardsArr.Count} 条（坏行被剔除？）——按装载序回写，请人工核对");
+
+            int costRewritten = 0, idRekeyed = 0;
+            for (int i = 0; i < loaded.Count && cardsArr != null && i < cardsArr.Count; i++)
+            {
+                var card = loaded[i];
+                var obj = cardsArr[i] as Newtonsoft.Json.Linq.JObject;
+                if (card == null || obj == null) continue;
+                card.ResetCache();
+                CardCostService.EnsureCost(card); // 恒推导：costList 显示快照重刷（费用不参与卡哈希）
+                var r = CardCostService.Derive(card);
+                string costStr = card.Cost != null && !card.Cost.IsZero ? card.Cost.ToString() : "(D=0 空 Cost)";
+                if (obj["cardName"] != null)
+                    Debug.Log($"[Regen][训练] {obj["cardName"]} S={r.S} K={r.K} E={r.EAnchor} D={r.DerivedTotal} 档位Ĉ={r.DerivedTier}：{costStr}");
+                obj["costList"] = new Newtonsoft.Json.Linq.JArray(
+                    card.Cost[CardCore.ManaType.Gray], card.Cost[CardCore.ManaType.Red],
+                    card.Cost[CardCore.ManaType.Blue], card.Cost[CardCore.ManaType.Green]);
+                costRewritten++;
+                string nid = "C_" + SynergyUI.ContentHasher.HashCard(card);
+                if (!string.IsNullOrEmpty(card.ID) && card.ID != nid)
+                {
+                    obj["id"] = nid;
+                    idRekeyed++;
+                }
+            }
+            WriteJTokenIndented(cardsPath, cardsRoot);
+            Debug.Log($"[Regen][训练] 训练池重推完成：效果换号 {fxRenames.Count} · 卡费用重写 {costRewritten} 张" +
+                      $"（id 换号 {idRekeyed} 张·引用跟换 {idsRemapped} 条）→ {cardsPath}");
         }
 
         /// <summary>迁移台账自愈（AtomMigrationLedger）：JToken 深扫 refId，命中台账且目标行现存则接回，
@@ -8419,15 +8616,15 @@ namespace CardCore.Editor
         {
             EnsureMainPhase(core, p1);
 
-            // ---- 1. 表行锚 ----
+            // ---- 1. 表行锚（2026-11-03 改版：0费 Pol=0 域={1}——自选N送墓每个+1临时任意元素） ----
             var cfg = CardCore.Attribute.AtomicEffectTable.GetByType(AtomicEffectType.Sacrifice);
-            Assert(cfg != null && cfg.TotalUnitCost == 5f && cfg.Polarity == -1f
-                   && cfg.GetTargetKindList().SequenceEqual(new[] { 1, 2 })
+            Assert(cfg != null && cfg.TotalUnitCost == 0f && cfg.Polarity == 0f
+                   && cfg.GetTargetKindList().SequenceEqual(new[] { 1 })
                    && (cfg.TargetFilter ?? "") == "Player"
-                   && ElementAffinities.GetAffinityForEffect(AtomicEffectType.Sacrifice).PrimaryColor == ManaType.Red,
-                   "牺牲表行：红5 Pol=-1 域={1,2} filter=Player（2026-10-28 P2a 黑→红改色；仅角色域——无生命域已剔，2026-10-09 舍弃并档调价 3→5）");
+                   && ElementAffinities.GetAffinityForEffect(AtomicEffectType.Sacrifice).IsGeneric,
+                   "牺牲表行：0费 Pol=0 域={1} filter=Player（2026-11-03 改版零计价+域收窄己方；旧红5/Pol=-1/域{1,2}作废）");
 
-            // ---- 2. 候选域=仅角色（Player 过滤激活；域=战场四单位类） ----
+            // ---- 2. 候选域：Player 过滤滤单位得角色（机制口四单位类→双方角色）；表行域收窄→仅己方角色 ----
             var ctx = new EffectExecutionContext
             {
                 Source = p1,
@@ -8441,8 +8638,12 @@ namespace CardCore.Editor
                 "Player", ctx);
             Assert(candidates.Contains(p1) && candidates.Contains(p2) && candidates.All(c => c is Player),
                    "牺牲候选域：仅双方角色（Player 过滤滤除单位）");
+            var rowCandidates = CardCore.Attribute.EffectHandlerRegistry.ResolveCandidates(
+                cfg.GetTargetKindList(), "Player", ctx);
+            Assert(rowCandidates.Contains(p1) && !rowCandidates.Contains(p2),
+                   "牺牲候选域收窄：表行域={1}（己方单位）→ 仅己方角色（旧双方域作废）");
 
-            // ---- 3. 行为：持有者交出一个单位（直送非死亡；不灭无从拦） ----
+            // ---- 3. 行为：持有者交出单位（规则送墓非死亡；不灭无从拦）——每个 +1 临时任意元素 ----
             int seq = 0;
             Card Spawn(Player owner, int power, int life, params string[] keywords)
             {
@@ -8469,33 +8670,88 @@ namespace CardCore.Editor
                 Controller = p1, // 施法者=p1；送墓归属=各自持有者
                 ZoneManager = core.ZoneManager,
                 ElementPool = core.ElementPool,
-                Targets = new List<Entity> { p2, p1 }, // 作用对象=双方角色
+                Targets = new List<Entity> { p2, p1 }, // 作用对象=双方角色（handler 逐角色结算——机制口）
             };
             int sacDestroyEvents = 0;
             void OnSacDestroy(CardDestroyEvent e) => sacDestroyEvents++;
             EventManager.Instance.Subscribe<CardDestroyEvent>(OnSacDestroy);
+            int anyP1 = core.ElementPool.GetAvailableManaCount(ManaType.Any, p1);
+            int anyP2 = core.ElementPool.GetAvailableManaCount(ManaType.Any, p2);
             Assert(CardCore.Attribute.EffectHandlerRegistry.ExecuteEffect(atom, execCtx), "牺牲原子执行（作用对象=双方角色）");
             EventManager.Instance.Unsubscribe<CardDestroyEvent>(OnSacDestroy);
 
             Assert(!foeIndestructible.IsAlive && core.ZoneManager.IsCardInZone(foeIndestructible, p2, Zone.Graveyard),
-                   "牺牲：对手持有者交出唯一单位（直送非死亡——不灭无从拦）");
+                   "牺牲：对手持有者交出唯一单位（规则送墓非死亡——不灭无从拦）");
             Assert(!mine.IsAlive && core.ZoneManager.IsCardInZone(mine, p1, Zone.Graveyard),
                    "牺牲：己方持有者同批交出（送墓归属=各自持有者）");
             Assert(sacDestroyEvents == 0, "牺牲非死亡：全批不发 CardDestroyEvent（死亡时点不触发）");
+            Assert(core.ElementPool.GetAvailableManaCount(ManaType.Any, p1) == anyP1 + 1
+                   && core.ElementPool.GetAvailableManaCount(ManaType.Any, p2) == anyP2 + 1,
+                   "牺牲入账：每送墓一个单位 +1 临时任意元素（交出方各 +1，任一回合结束清空）");
 
-            // ---- 4. 帷幕豁免：牺牲类选择权在目标方——帷幕只约束对手的选择 ----
+            // ---- 3b. 多选 {value}（2026-11-03 改版）：候选序前 N 送墓（战场序优先、地牌殿后——3 候选取 2） ----
+            var u1 = Spawn(p1, 1, 1);
+            var u2 = Spawn(p1, 1, 1);
+            var landData = new CardData
+            {
+                // 2/2 身材推导绿 1——锁色候选非空才可入池（0/1 零费卡 GetLandColorChoices 空被拒）
+                ID = "VERIFY_SAC_LAND", CardName = "牺牲之地", Supertype = Cardtype.Creature, Power = 2, Life = 2,
+            };
+            var land = new CardWrapper(landData);
+            land.SetController(p1);
+            // 正式放地路径（GameActions.AddToElementPool）是双写（池私有列表 + ElementPool 容器）——
+            // 沿旧摒弃段夹具口径补容器登记
+            Assert(core.ElementPool.AddCardToPool(land, p1), "牺牲段：地牌入池");
+            core.ZoneManager.GetZoneContainer(p1).Add(land, Zone.ElementPool);
+
+            var multiCtx = new EffectExecutionContext
+            {
+                Source = p1,
+                Controller = p1,
+                ZoneManager = core.ZoneManager,
+                ElementPool = core.ElementPool,
+                Targets = new List<Entity> { p1 },
+            };
+            int anyP1b = core.ElementPool.GetAvailableManaCount(ManaType.Any, p1);
+            Assert(CardCore.Attribute.EffectHandlerRegistry.ExecuteEffect(
+                       new CardCore.AtomicEffectInstance { Type = AtomicEffectType.Sacrifice, Value = 2 }, multiCtx),
+                   "牺牲原子多选执行（value=2·候选 3=单位2+地牌1）");
+            Assert(!u1.IsAlive && !u2.IsAlive
+                   && core.ZoneManager.IsCardInZone(u1, p1, Zone.Graveyard)
+                   && core.ZoneManager.IsCardInZone(u2, p1, Zone.Graveyard),
+                   "牺牲多选：自动取候选前 2 个送墓（战场序优先）");
+            Assert(core.ZoneManager.GetCards(p1, Zone.ElementPool).Contains(land),
+                   "牺牲多选：地牌殿后不占前 2 席（候选序=战场序→地牌序）");
+            Assert(core.ElementPool.GetAvailableManaCount(ManaType.Any, p1) == anyP1b + 2,
+                   "牺牲多选入账：2 个单位 = +2 临时任意元素");
+
+            // ---- 3c. 地牌扩池（2026-11-03 定案：牺牲范围=场上地牌+生物+结界）：地牌出池入墓照计 Any ----
+            int anyP1c = core.ElementPool.GetAvailableManaCount(ManaType.Any, p1);
+            Assert(CardCore.Attribute.EffectHandlerRegistry.ExecuteEffect(atom, multiCtx),
+                   "牺牲原子再执行（战场空、仅池内地牌——地牌为唯一候选）");
+            Assert(core.ZoneManager.IsCardInZone(land, p1, Zone.Graveyard)
+                   && !core.ZoneManager.GetCards(p1, Zone.ElementPool).Contains(land),
+                   "牺牲扩池：地牌入候选——出池直送墓（旧「地牌非单位不入池」口径作废）");
+            Assert(!core.ElementPool.GetPool(p1).PooledCards.Any(pc => pc.SourceCard == land),
+                   "牺牲扩池：出池落账（PooledCards 移除）");
+            Assert(core.ElementPool.GetAvailableManaCount(ManaType.Any, p1) == anyP1c + 1,
+                   "牺牲扩池入账：地牌送墓同计 +1 临时任意元素");
+
+            // ---- 4. 帷幕豁免：牺牲类选择权在目标方——帷幕只约束对手的选择（机制口与表行域解耦：
+            //      手工四单位类域——域收窄后真实卡只能以己方角色为作用对象，豁免机制本段独立验证） ----
             var curtain = Spawn(p2, 2, 5, Attribute.KeywordRules.Taunt);
             var p1Second = Spawn(p1, 2, 2);
-            var sacDef = CardEffectConverter.ConvertOne(new CardEffectData
+            var sacDef = new CardCore.EffectDefinition
             {
                 Id = "VERIFY_SAC_CURTAIN",
-                // 2026-09-13 修复：缺省 SelectionMode=-1(None) 会让组合解析早退返回空目标——
-                // 显式选多·多范围（牺牲域跨双方角色，第十三批 TDM 探针同款坑）；
-                // TargetCount 缺省兜底 1 只选单目标，断言要求双方角色都在 → 显式 2
-                SelectionMode = (int)CardCore.SelectionMode.MultipleUnion,
+                // 缺省 SelectionMode=None 会让组合解析早退返回空目标——显式选多·多范围（域跨双方角色）
+                SelectionMode = CardCore.SelectionMode.MultipleUnion,
                 TargetCount = 2,
-                AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(CardCore.AtomicEffectType.Sacrifice, value: 1) },
-            }, "VERIFY_SAC_CURTAIN");
+                TargetDomain = new List<int> { (int)CardCore.TargetKind.OwnLivingUnit, (int)CardCore.TargetKind.EnemyLivingUnit,
+                                               (int)CardCore.TargetKind.OwnNonLivingUnit, (int)CardCore.TargetKind.EnemyNonLivingUnit },
+                TargetFilter = "Player",
+                Effects = new List<CardCore.AtomicEffectInstance> { new CardCore.AtomicEffectInstance { Type = AtomicEffectType.Sacrifice, Value = 1 } },
+            };
             var curtainPicked = CardCore.Attribute.EffectHandlerRegistry
                 .ResolveCompositionTargetsAsync(sacDef, ctx).GetAwaiter().GetResult();
             Assert(curtainPicked.Contains(p2) && curtainPicked.Contains(p1),
@@ -8513,7 +8769,7 @@ namespace CardCore.Editor
             RetireCards(core, p1, p1Second);
             RetireCards(core, p2, curtain);
 
-            // ---- 5. 摒弃并池（2026-10-09 舍弃并档）：无生命单位入牺牲池，直送墓 ----
+            // ---- 5. 摒弃并池（2026-10-09 舍弃并档）：无生命单位入牺牲池，规则送墓照计 Any ----
             var p2Enchant = new CardData
             {
                 ID = "VERIFY_SAC_ENCH", CardName = "牺牲标的结界", Supertype = Cardtype.Enchantment, Power = 0, Life = 0,
@@ -8529,25 +8785,12 @@ namespace CardCore.Editor
                 ElementPool = core.ElementPool,
                 Targets = new List<Entity> { p2 }, // p2 唯一单位=结界——自动选它
             };
+            int anyP2b = core.ElementPool.GetAvailableManaCount(ManaType.Any, p2);
             Assert(CardCore.Attribute.EffectHandlerRegistry.ExecuteEffect(atom, sacCtx2), "牺牲原子再执行（作用对象=对方角色）");
             Assert(core.ZoneManager.IsCardInZone(enchant, p2, Zone.Graveyard),
-                   "牺牲并池：持有者交出唯一无生命单位（结界直送墓——摒弃覆盖并入牺牲）");
-
-            // ---- 6. 地牌退役（2026-10-09）：元素池地牌非"单位"——不入牺牲候选，空场空转 ----
-            var landData = new CardData
-            {
-                ID = "VERIFY_SAC_LAND", CardName = "牺牲外之地", Supertype = Cardtype.Creature, Power = 0, Life = 1,
-            };
-            var land = new CardWrapper(landData);
-            land.SetController(p2);
-            // 正式放地路径（GameActions.AddToElementPool）是双写（池私有列表 + ElementPool 容器）——
-            // 沿旧摒弃段夹具口径补容器登记
-            Assert(core.ElementPool.AddCardToPool(land, p2), "牺牲段：地牌入池");
-            core.ZoneManager.GetZoneContainer(p2).Add(land, Zone.ElementPool);
-            CardCore.Attribute.EffectHandlerRegistry.ExecuteEffect(atom, sacCtx2); // p2 战场空·仅池内地牌——空转
-            Assert(!core.ZoneManager.GetCards(p2, Zone.Graveyard).Contains(land)
-                   && core.ZoneManager.GetCards(p2, Zone.ElementPool).Contains(land),
-                   "牺牲候选=战场单位：地牌（元素池）不入池——旧摒弃地牌覆盖随并档退役");
+                   "牺牲并池：持有者交出唯一无生命单位（结界规则送墓——摒弃覆盖并入牺牲）");
+            Assert(core.ElementPool.GetAvailableManaCount(ManaType.Any, p2) == anyP2b + 1,
+                   "牺牲并池入账：结界送墓同计 +1 临时任意元素");
         }
 
         // ======================================== 守护配对（2026-10-08 配对制改版） ========================================

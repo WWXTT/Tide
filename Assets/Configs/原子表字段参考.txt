@@ -73,6 +73,14 @@
   AddDurabilityUp·蓝0.5/层·域=双方无生命单位·Polarity 1·指示物,不可随机——枚举尾+AddDurabilityUpHandler
   （挂 DurabilityCounter 层，Resident/铭刻照沾/绝缘体不拦）+注册；颜色字典补蓝行（审计 126/0）。
   新行进表指纹→全体卡身份换血（重训+manifest 重导出随例）。
+2026-11-03 封印原子（用户定案「蓝色3：敌方场上单位封为对手地牌，按最高费用入对应地牌格，不能对
+  0费单位使用」）：一般效果表新行 c336be8f「封印」SealUnit·蓝3·域=对方单位·TargetFilter 新
+  token **Landable**（可入池：CanServeAsLand+GetLandColorChoices 非空——0费卡无主色可锁不可指，
+  TargetFilterSystem.LandableFilter）+NoRole——枚举尾+SealUnitHandler（AddCardToPool 权威闸·缺省
+  锁色=主色即份额最多色=「最高费用」色开对应地牌格·Battlefield→ElementPool 走 ZoneManager·
+  PublishPoolAdd；对手上限满/禁地令/资格拒=空转）+注册；SimpleAI 入有害集（解场偏好对方单位）；
+  颜色字典补蓝行。非死亡离场：不发摧毁/死亡事件，指示物随换区清除，入池未横置。
+  新行进表指纹→全体卡身份换血（重训+manifest 重导出随例）。
 
 ━━ 2026-10-08 大改定案总注（本版基准）━━━━━━━━━━━━━━━━━━━━━━━━
 ① 指示物四分类（CounterRules.CounterClass 为唯一真相源，表 Tags 三型与之间接同源）：
@@ -123,7 +131,7 @@ SkipTurn×4（整回合/End/Standby/Main 相位档）、ModifyGameRule×21（场
     ——对手下回合首张同类卡发动无效，延迟验证复用 ProphecySystem）；箭头宣言 42453a25 已删
     （枚举 DeclareArrow 2026-10-31 实删）；合成器 derivative 输入行编 str、提示按行分化）
     + 筛选展示（RevealByDimension 蓝3——按维度展示{target}手牌全部命中卡；维度全量
-    Type/Name/Color/CostParity/CostExact/LinkArrow）
+    Type/Name/Color/CostParity/CostExact——LinkArrow 2026-11-03 退役）
     + 2026-10-31 新行：移动（MoveUnit 灰2 位置族·场面轴）/ 迸发（BurstDamage 红3 参照攻伤散射）/
     活体护甲（LivingArmor 绿3 参照生命护甲层）
     （采掘已删——资源族 2026-10-11 改版；洗入/临摹/变形赋予不在本表——临摹/变形赋予在系统表

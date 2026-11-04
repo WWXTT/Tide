@@ -100,7 +100,8 @@ namespace CardCore.Network
                     var target = NetEntityDirectory.Resolve(core, intent.Target);
                     if (attacker == null || target == null) { error = "攻击者/目标解析失败"; return false; }
 
-                    return Ok(GameActions.DeclareAttack(core, player, attacker, target), out error);
+                    return Ok(GameActions.DeclareAttack(core, player, attacker, target, out var attackReason),
+                        attackReason, out error); // 2026-11-03 失败提示细化：拒绝文案直读引擎闸门
                 }
 
                 case NetworkMessageType.IntentDeclareBlock:
@@ -118,8 +119,8 @@ namespace CardCore.Network
                         .FirstOrDefault(o => o != null && o.IsAttackDeclaration && o.Source == attacker);
                     if (attackInstance == null)
                     { error = "栈上无该攻击者的攻击宣言（响应窗口已关闭？）"; return false; }
-                    if (!core.StackEngine.PushGuardDeclaration(blocker, attackInstance, player))
-                    { error = "守卫声明不合法（速度门/资格拒绝）"; return false; }
+                    if (!core.StackEngine.PushGuardDeclaration(blocker, attackInstance, player, out var guardReason))
+                    { error = guardReason ?? "守卫声明不合法（速度门/资格拒绝）"; return false; } // 2026-11-03 失败提示细化：引擎真因
                     return true;
                 }
 
@@ -140,7 +141,8 @@ namespace CardCore.Network
                     { error = "目标解析失败"; return false; }
 
                     // 注意：ActivateEffect 的 targets 经由 PendingEffect 携带（LegalActionEnumerator.Apply 同款口径）
-                    return Ok(ActivateWithTargets(core, player, effect, source, targets, intent.PaidBoost), out error);
+                    return Ok(ActivateWithTargets(core, player, effect, source, targets, intent.PaidBoost, out var effectReason),
+                        effectReason, out error); // 2026-11-03 失败提示细化：拒绝文案直读引擎闸门
                 }
 
                 case NetworkMessageType.IntentActivateHeroSkill:
@@ -148,20 +150,17 @@ namespace CardCore.Network
                     var intent = MemoryPackSerializer.Deserialize<MsgIntentActivateHeroSkill>(msg.Payload);
                     if (intent == null) { error = "IntentActivateHeroSkill 载荷损坏"; return false; }
 
-                    // ActivateAsync 是伪异步（全同步守卫 + 同步 ActivateEffect，末尾 CompletedTask——
-                    // 2026-10-21 补课时核实）：泵线程同步取结果即可。防御分支：未来真异步化（如内部
-                    // 反问化）时按已受理放行，失败经事件流/快照可见，不阻塞泵线程。
-                    var task = GameActions.ActivateHeroSkill(core, player, intent.EffectIndex);
-                    if (task.Status == UniTaskStatus.Succeeded)
-                        return Ok(task.GetAwaiter().GetResult(), "技能发动被拒（时点/每回合横置闸/沉默/费用/目标预检）", out error);
-                    return true;
+                    // 技能发动全链同步（TryActivateSkill 同步核——2026-11-03 失败提示细化）：
+                    // 泵线程直调同步核，拒绝文案直读引擎闸门（时点/横置/沉默/费用/目标预检逐条可读）
+                    return Ok(GameActions.ActivateHeroSkill(core, player, intent.EffectIndex, out var skillReason),
+                        skillReason, out error);
                 }
 
                 case NetworkMessageType.IntentPassPriority:
                     return Ok(GameActions.PassPriority(core, player), out error);
 
                 case NetworkMessageType.IntentEndTurn:
-                    return Ok(GameActions.EndTurn(core, player), out error);
+                    return Ok(GameActions.EndTurn(core, player, out var endTurnReason), endTurnReason, out error);
 
                 case NetworkMessageType.IntentConcede:
                     core.EndGame(player.Opponent, GameOverReason.Concede);
@@ -193,10 +192,11 @@ namespace CardCore.Network
         /// 网络侧与 LegalActionEnumerator.Apply 同款：经 PendingEffect.Create 携带预选目标。
         /// </summary>
         private static bool ActivateWithTargets(GameCore core, Player player, EffectDefinition effect,
-            Card source, System.Collections.Generic.List<Entity> targets, int paidBoost)
+            Card source, System.Collections.Generic.List<Entity> targets, int paidBoost, out string reason)
         {
+            reason = null;
             if (targets == null || targets.Count == 0)
-                return GameActions.ActivateEffect(core, player, effect, source, paidBoost);
+                return GameActions.ActivateEffect(core, player, effect, source, paidBoost, out reason);
 
             // 有预选目标：走 PendingEffect 路径（与 RL 侧 Apply 的带目标激活口径一致）
             var pending = PendingEffect.Create(
@@ -206,6 +206,7 @@ namespace CardCore.Network
                 paidBoost: paidBoost);
             pending.SelectedTargets = targets;
             var activated = core.StackEngine.PlayerActivateVoluntary(pending);
+            if (!activated) reason = "发动入栈被拒（速度门/栈结算中）";
             if (activated && effect.IsActivatedEffect && source != null && Attribute.KeywordRules.ShouldTap(source))
                 source.Tap();
             return activated;

@@ -331,34 +331,43 @@ namespace CardCore
         /// → SkillUse 计数 +1（遥测）→ 发 HeroSkillActivatedEvent。结算在栈排空时（锚价由执行器现付）。
         /// </summary>
         public static async UniTask<bool> ActivateAsync(GameCore core, Player player, int effectIndex = 0)
+            => TryActivateSkill(core, player, effectIndex, out _);
+
+        /// <summary>带原因版（2026-11-03 失败提示细化）：同步核（守卫+预检+ActivateEffect 全链同步，
+        /// 伪异步仅签名兼容）——UI toast / 网络泵线程直读拒绝文案。</summary>
+        public static bool TryActivateSkill(GameCore core, Player player, int effectIndex, out string reason)
         {
-            if (core == null || player == null) return false;
-            if (core.TurnEngine.TurnPlayer != player) return false;
-            if (core.TurnEngine.CurrentPhase?.Phase != PhaseType.Main) return false;
+            reason = null;
+            if (core == null || player == null) { reason = "内部错误：空参数"; return false; }
+            if (core.TurnEngine.TurnPlayer != player) { reason = "只能在你的回合发动技能"; return false; }
+            if (core.TurnEngine.CurrentPhase?.Phase != PhaseType.Main)
+            { reason = $"技能发动只能在你的主阶段（当前：{core.TurnEngine.CurrentPhase?.Phase}）"; return false; }
 
             var skillCard = ResolveSkillCard(core, player); // 含快照恢复后的 lazy 回填
-            if (skillCard == null) return false; // 未标记技能卡
+            if (skillCard == null) { reason = "本局无技能卡"; return false; } // 未标记技能卡
             if (!core.ZoneManager.GetCards(player, Zone.FieldZone).Contains(skillCard))
-                return false; // 已被摧毁/弹回/移场——技能随卡离场失效
+            { reason = "技能卡已离场——技能不可用"; return false; } // 已被摧毁/弹回/移场——技能随卡离场失效
             // 每回合一次闸（2026-10-15 改版）：横置=本回合已发动；回合开始 ResetSkillForTurn 解横置。
-            if (skillCard.IsTapped()) return false;
+            if (skillCard.IsTapped()) { reason = "技能本回合已发动"; return false; }
             if (skillCard.GetCounterCount(CounterRules.SilenceCounter) > 0)
-                return false; // 沉默：不可发动主动效果
+            { reason = "技能卡被沉默——不能发动"; return false; } // 沉默：不可发动主动效果
 
             var effects = SkillEffectsOf(skillCard);
-            if (effects.Count == 0) return false; // 卡面无主动效果（防御性）
+            if (effects.Count == 0) { reason = "技能卡无可发动效果"; return false; } // 卡面无主动效果（防御性）
             var effect = effects[Math.Clamp(effectIndex, 0, effects.Count - 1)];
 
             // CanActivate 预检（费用可付性含自动横置地牌、目标域非空）——
             // 栈机器 TryActivateEffect 只管速度门，此处不过会在不可付时照样入栈白横置
             var executor = core.StackEngine.GetExecutor();
-            if (executor == null || !executor.CanActivate(effect, skillCard, player,
+            if (executor == null)
+            { reason = "执行器未就绪"; return false; }
+            if (!executor.TryActivate(effect, skillCard, player,
                     core.TurnEngine.TurnPlayer,
                     core.TurnEngine.CurrentPhase?.Phase ?? PhaseType.Standby,
-                    core.TurnEngine.TurnNumber))
+                    core.TurnEngine.TurnNumber, out reason))
                 return false;
 
-            if (!GameActions.ActivateEffect(core, player, effect, skillCard)) return false;
+            if (!GameActions.ActivateEffect(core, player, effect, skillCard, 0, out reason)) return false;
 
             // 遥测：发动计数（升级机制已退役；快照/RL 观察口径保留）
             int totalUses = skillCard.GetCounterCount(CounterRules.SkillUseCounter) + 1;
@@ -369,7 +378,6 @@ namespace CardCore
                 SkillCard = skillCard,
                 TotalUses = totalUses,
             });
-            await UniTask.CompletedTask;
             return true;
         }
 

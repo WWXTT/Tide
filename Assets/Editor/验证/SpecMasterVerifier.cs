@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -33,12 +33,13 @@ namespace CardCore.Editor.Tests
     /// </summary>
     public static class SpecMasterVerifier
     {
-        // ---- 夹具卡名（与 LaeMultiTargetVerifier 同源；教学池 ID 随内容重推漂移，按卡名解析）----
+        // ---- 夹具卡名（与 LaeMultiTargetVerifier 同源；教学池 ID 随内容重推漂移，按卡名解析。
+        //      2026-11-03 教学池红卡改名对齐：火灵→火灵·攻/守、火种→火种·锐/厚、火炬退役）----
         private const string LureName = "诱敌";
         private const string FreezeTwoName = "预组·22"; // C_B19375C1 冻结两个对方单位（蓝3·selection=Multiple·count=2）
-        private const string EnemyAName = "火灵";     // 1/1
-        private const string EnemyBName = "火种";     // 1/1
-        private const string EnemyCName = "火炬";     // 1/1
+        private const string EnemyAName = "火灵·攻";   // 1 血
+        private const string EnemyBName = "教学·3";   // 1/1 白板（原火种·锐已改 2/2，移出 1 血夹具）
+        private const string EnemyCName = "火灵·守";   // 1 血
 
         private static readonly List<Item> Items = new List<Item>();
 
@@ -119,6 +120,10 @@ namespace CardCore.Editor.Tests
             // A1 卡表合并哈希
             var a1 = Of("A1");
             var files = new List<string> { "Assets/CardData/Cards.json", "Assets/CardData/Effects.json" };
+            // 2026-11-03 训练池分家：训练表（TrainingData）纳入指纹——训练内容不再住主表，
+            // 不并入则训练表内容漂移（换号/改行）失去对账；文件缺失（旧副本未同步）跳过不计。
+            foreach (var tf in new[] { "Assets/TrainingData/TrainingCards.json", "Assets/TrainingData/TrainingEffects.json" })
+                if (File.Exists(Path.Combine(root, tf))) files.Add(tf);
             var cfgDir = Path.Combine(root, "Assets", "Configs");
             files.AddRange(Directory.GetFiles(cfgDir, "原子表_*.json").Select(p => "Assets/Configs/" + Path.GetFileName(p)));
             files.Sort(StringComparer.Ordinal);
@@ -407,7 +412,7 @@ namespace CardCore.Editor.Tests
             }
             catch (Exception ex) { e1.FailWith("[FAIL] E1 读取异常：" + ex.Message); }
 
-            // E2 代价栏两条拒绝文案
+            // E2 代价栏三条拒绝文案（2026-11-03 补③域单侧）
             var e2 = Of("E2");
             try
             {
@@ -415,9 +420,10 @@ namespace CardCore.Editor.Tests
                 string src = File.ReadAllText(Path.Combine(root, "Assets", "Scripts", "HotUpdate", "CardCore", "Effects", "CostDerivation.cs"));
                 bool hasP0 = src.Contains("极性=0");
                 bool hasNoTarget = src.Contains("无 {{target}} 参数");
-                e2.Line($"PayloadCostViolations 存在={hasMethod}；「极性=0」文案={hasP0}；「无 {{target}} 参数」文案={hasNoTarget}");
-                if (!hasMethod || !hasP0 || !hasNoTarget)
-                    e2.FailWith("[FAIL] 代价栏拒绝路径残缺（极性=0 / 无 {target} 两条违规文案或方法本体缺失）");
+                bool hasSingleSide = src.Contains("域单侧");
+                e2.Line($"PayloadCostViolations 存在={hasMethod}；「极性=0」文案={hasP0}；「无 {{target}} 参数」文案={hasNoTarget}；「域单侧」文案={hasSingleSide}");
+                if (!hasMethod || !hasP0 || !hasNoTarget || !hasSingleSide)
+                    e2.FailWith("[FAIL] 代价栏拒绝路径残缺（极性=0 / 无 {target} / 域单侧 三条违规文案或方法本体缺失）");
             }
             catch (Exception ex) { e2.FailWith("[FAIL] E2 读取异常：" + ex.Message); }
 

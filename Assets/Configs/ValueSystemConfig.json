@@ -1,41 +1,5 @@
 [
   {
-    "Category": "AttributeValue",
-    "Key": "OnceDiscount",
-    "Value": 0.5,
-    "Des": "持续=瞬发"
-  },
-  {
-    "Category": "AttributeValue",
-    "Key": "UntilEndOfTurnDiscount",
-    "Value": 0.6,
-    "Des": "持续=到持有者回合结束（限时指示物统一档）"
-  },
-  {
-    "Category": "AttributeValue",
-    "Key": "UntilNextTurnDiscount",
-    "Value": 0.6,
-    "Des": "≡UntilEndOfTurn（2026-09-16 统一档：两档合一，费用按 1 回合计）"
-  },
-  {
-    "Category": "AttributeValue",
-    "Key": "WhileConditionDiscount",
-    "Value": 0.75,
-    "Des": "持续=条件满足期间"
-  },
-  {
-    "Category": "AttributeValue",
-    "Key": "UntilLeaveBattlefieldDiscount",
-    "Value": 0.8,
-    "Des": "持续=到离场"
-  },
-  {
-    "Category": "AttributeValue",
-    "Key": "PermanentDiscount",
-    "Value": 1.0,
-    "Des": "持续=本局有效（永续档，复利载体）"
-  },
-  {
     "Category": "CardCost",
     "Key": "StatUnit",
     "Value": 2.0,
@@ -43,45 +7,21 @@
   },
   {
     "Category": "CardCost",
-    "Key": "MaxTier",
-    "Value": 14.0,
-    "Des": "档位上限（2026-10-13 缩盘对齐地牌槽封顶 14：>9 折扣带可达）"
-  },
-  {
-    "Category": "CardCost",
-    "Key": "StatAnchor",
-    "Value": 0.5,
-    "Des": "属性锚：+1攻/+1生命=0.5（攻血同锚；2026-10-05 迁表）"
-  },
-  {
-    "Category": "CardCost",
-    "Key": "StatSustainMultiplier",
-    "Value": 3.0,
-    "Des": "修改族持续档乘数：换区/条件=锚×3（1.5/+1）；连接光环档同此"
-  },
-  {
-    "Category": "CardCost",
-    "Key": "StatPermanentMultiplier",
-    "Value": 4.0,
-    "Des": "修改族永久档乘数：锚×4（2.0/+1）"
-  },
-  {
-    "Category": "CardCost",
-    "Key": "StatRewriteFlatCost",
-    "Value": 3.0,
-    "Des": "改写族恒价：Set*/费用永久直改=3.0/+1"
-  },
-  {
-    "Category": "CardCost",
     "Key": "SymmetricDiscountFactor",
     "Value": 0.5,
-    "Des": "双方同时作用减半系数（2026-10-05 迁表）"
+    "Des": "双方同时作用减半系数（2026-10-05 迁表；规则光环不在此列——2026-10-29 去对称让利，表价即实价）"
   },
   {
     "Category": "CardCost",
     "Key": "DurabilityUnitCost",
     "Value": 0.5,
-    "Des": "耐久单价 0.5 灰/点（2026-10-16 回调——受击伤害撤钳 1 改全额扣耐久，燃料按伤害计量重估；2026-10-10 的 1 灰/点口径退役）"
+    "Des": "耐久单价 0.5/点（色=蓝——2026-11-03 耐久改蓝定案，计价入蓝桶；2026-10-16 回调口径；2026-10-10 的 1 灰/点口径退役）"
+  },
+  {
+    "Category": "CardCost",
+    "Key": "RuleAuraSingleSideFactor",
+    "Value": 1.5,
+    "Des": "场地光环单侧溢价（2026-10-30 定案）：极性 ±1 行作用面收窄单侧（+1 仅己方/−1 仅对方）=表价×1.5；固定双方行（IsFixedBothRule）与存量 value=Both 恒 ×1；补行——此前仅代码默认"
   },
   {
     "Category": "CardComposition",
@@ -224,20 +164,20 @@
   {
     "Category": "TimingFactor",
     "Key": "OnAttack",
-    "Value": 2.0,
-    "Des": "攻击宣言：己方每回合至多一次；期望未标定，暂定2"
+    "Value": 1.5,
+    "Des": "攻击宣言：己方每回合至多一次；期望未标定，暂定1.5"
   },
   {
     "Category": "TimingFactor",
     "Key": "OnAttacked",
-    "Value": 2.0,
-    "Des": "被攻击：对手每回合至多一次；期望未标定，暂定2"
+    "Value": 1.5,
+    "Des": "被攻击：对手每回合至多一次；期望未标定，暂定1.5"
   },
   {
     "Category": "TimingFactor",
     "Key": "OnBlockDeclare",
-    "Value": 2.0,
-    "Des": "阻拦宣言：每回合一次；期望未标定，暂定2"
+    "Value": 1.5,
+    "Des": "阻拦宣言：每回合一次；期望未标定，暂定1.5"
   },
   {
     "Category": "TimingFactor",
@@ -254,8 +194,8 @@
   {
     "Category": "TimingFactor",
     "Key": "OnTargeted",
-    "Value": 2.0,
-    "Des": "被指定为目标：期望未标定，暂定2（实测后改本行）"
+    "Value": 1.0,
+    "Des": "被指定为目标：期望未标定，暂定1（实测后改本行）"
   },
   {
     "Category": "TimingFactor",

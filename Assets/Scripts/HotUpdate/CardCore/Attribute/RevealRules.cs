@@ -20,5 +20,32 @@ namespace CardCore.Attribute
             => (zoneManager != null ? zoneManager.GetCards(player, zone) : new List<Card>())
                 .Where(IsExposed)
                 .ToList();
+
+        /// <summary>展示投放统一口（2026-11-03 定案：隐藏区域的卡**成为效果作用目标即自动展示**——
+        /// 占卜/发现/附加诅咒·祝福/筛选展示/展示原子/拼点引擎取样/首充，全走此口）：
+        /// 挂 1 层 Exposed（二值不叠层——已展示不重复挂/不重复发事件，换区自清），并发布
+        /// CounterChangedEvent + RevealCardsEvent（净计数/动画/统计三消费口同口径）。
+        /// 返回是否本次新投放。</summary>
+        public static bool Reveal(Card card, Entity source)
+        {
+            if (card == null || !card.IsAlive) return false;
+            if (IsExposed(card)) return false;
+
+            int actualDelta = card.AddCounters(CounterRules.ExposedCounter, 1, source);
+            EventManager.Instance.Publish(new CounterChangedEvent
+            {
+                Target = card,
+                CounterType = CounterRules.ExposedCounter,
+                Amount = actualDelta,
+                Source = source,
+            });
+            EventManager.Instance.Publish(new RevealCardsEvent
+            {
+                Player = card.GetController(),
+                Cards = new List<Card> { card },
+                Source = source,
+            });
+            return true;
+        }
     }
 }

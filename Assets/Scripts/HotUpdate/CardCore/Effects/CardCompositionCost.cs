@@ -31,12 +31,17 @@ namespace CardCore
  ///   非生物 = 效果槽 ×CountEffectSlots（抉择分支计槽 2026-09-21 维持；主动照常计槽；
  ///   代价行不计槽——2026-11-02 减费三选一改版：代价不再占 1 灰槽位费）。
  /// ②免费点 N = 3 − 结构项（≥0），按卡型固定去向：法术 → 提速（N=槽数余量，槽位从速度扣）；
- ///   结界 → 全入耐久（EquipRules 落位，免卡价）；
- ///   生物 → 全额减身材轴色桶（2026-11-02 基地红绿：先红后绿、不溢出他色）；地牌/其余 → 全额抵价（ReduceBuckets 先灰后最高色）。
- /// ③超槽加价：**统一 = 结构项>3 的差额 ×1 入灰**（生物/非生物同式；3 效果+攻+守 = 2 灰）；
- ///   取整后入灰（不吃 d(C)），与抵价不再互斥（生物加价与轴色桶抵扣同帧落位）。
- /// ④抵价落位：d(C) 取整后总价逐点扣，先灰后最高费用色（ReduceBuckets）；生物抵扣恒身材两轴专属（2026-11-02 基地红绿）。
- /// ④抵价落位：d(C) 取整后总价逐点扣，先灰后最高费用色（ReduceBuckets）；生物抵扣恒灰桶专属。
+ ///   结界 → 全入耐久（EquipRules 落位，免卡价）；地牌/其余 → 全额抵价（ReduceBuckets 先灰后最高色）；
+ ///   生物 → **免费属性底 n/n**（2026-11-03 底盘分配改版）：预算优先占坑 攻1+守1+**首个效果槽**，
+ ///   剩余 n=3−(攻+守+首槽) 落成攻/血各 n 点的免费底——计价侧（StatBucketsOf/ComputeStatValue）
+ ///   直接免除前 n 点，超出部分按颜色收费（攻红/血绿，真实小数 0.5/点不参与整卡取整，支付侧逐色进 1）。
+ ///   免费底固定 n/n 不可偏移（组合器以 n 为属性输入下限——无法做成 5-1 之类偏斜底）。
+ ///   旧「盈余点先红后绿扣色桶」（StatOffsetOf）随之退役。
+ /// ③超槽加价（2026-11-03 生物改版）：生物 = **首个效果槽之外每槽恒 +1 灰**（攻/守占坑不触发加价；
+ ///   旧「结构项>3 差额」口径对攻守齐全生物等价、对 opt-out 生物少收——新口径统一按槽数计）；
+ ///   非生物保持 结构项>3 差额 ×1 入灰；取整后入灰（不吃 d(C)）。
+ /// ④抵价落位：非生物 d(C) 取整后总价逐点扣，先灰后最高费用色（ReduceBuckets）；
+ ///   生物无抵价步（免费属性底已在计价桶内免除）。
     /// ⑤衍生物无底盘（CardCostService.ContentPriceOf/ByColor 口径）：未走「入组/抽牌」通道，
     ///   结构费全额计（攻/守/槽全算）、无免费点可支配——见 CostDerivation SummonToken 分支。
     ///
@@ -71,6 +76,9 @@ namespace CardCore
             var cfg = ValueSystemConfigManager.Instance.GetOrCreateConfig().CardCompositionConfig;
             int budget = (int)Math.Max(0f, cfg.ChassisBudget);
             int rate = Math.Max(1, (int)Math.Max(0f, cfg.ChassisItemRate));
+            // 生物（2026-11-03 底盘分配改版）：首槽上预算，其余槽恒 1 灰/个——攻/守占坑不再触发加价
+            if (card != null && card.Supertype == Cardtype.Creature)
+                return Math.Max(0, CostDerivationService.CountEffectSlots(card) - 1) * rate;
             return Math.Max(0, ChassisItems(card) * rate - budget);
         }
 
@@ -100,14 +108,20 @@ namespace CardCore
             return surplus;
         }
 
-        /// <summary>生物身材抵扣点数（ApplyChassis 轴色桶消费）：= 免费点 N（属性1 +
-        /// 攻/守 opt-out 释放的点）——只减身材两轴（2026-11-02 基地红绿：先红后绿），
-        /// 不溢出到灰/效果色（2026-10-15「不干扰三色费用梯度」定案承袭：
-        /// 玩家不要攻/守的费用，全用来减身材费用，不能用作其他）。</summary>
-        public static int StatOffsetOf(CardData card)
+        /// <summary>生物免费属性底 n（2026-11-03 底盘分配改版）：3 点预算优先占坑
+        /// 攻 1 + 守 1 + **首个效果槽**，剩余 n（≥0）= 攻/血各 n 点的免费底——计价侧
+        /// （StatBucketsOf/ComputeStatValue）直接免除前 n 点，超出部分按颜色收费；
+        /// 组合器以本值为属性输入下限（免费底固定 n/n 不可偏移，玩家只能在底之上加付属性，
+        /// 无法设置成 5-1 之类偏斜底）。非生物恒 0。旧「盈余点先红后绿扣色桶」（StatOffsetOf）随之退役。</summary>
+        public static int FreeAttrBaseOf(CardData card)
         {
             if (card == null || card.Supertype != Cardtype.Creature) return 0;
-            return SurplusOf(card);
+            var cfg = ValueSystemConfigManager.Instance.GetOrCreateConfig().CardCompositionConfig;
+            int budget = (int)Math.Max(0f, cfg.ChassisBudget);
+            int rate = Math.Max(1, (int)Math.Max(0f, cfg.ChassisItemRate));
+            int slots = CostDerivationService.CountEffectSlots(card);
+            int items = (card.NoAttack ? 0 : 1) + (card.NoGuard ? 0 : 1) + Math.Min(1, slots);
+            return Math.Max(0, budget - items * rate);
         }
 
         /// <summary>卡型速度加成单源（2026-10-15 定案：速度归卡型免费额度默认分配；
@@ -165,22 +179,23 @@ namespace CardCore
         /// 抵价逐点扣桶（原 ApplyChassisRefund 默认算法复活；RefundColor 自标已随字段删除退役）：
         /// 先扣灰桶（≥1 才扣），灰不足（法术常无灰分量）逐点从最高费用色桶扣（并列取枚举序靠前者）。
         /// 全桶空则停——抵价后可为 0（2026-10-10 放宽：免费地板=抵价耗尽即可，非「内容为 0 才免费」）。
+        /// 2026-11-03 底盘改版配套：桶值浮点化（属性费真实小数后 mounted 恒 float，扣减仍逐整数点）。
         /// </summary>
-        public static void ReduceBuckets(Dictionary<ManaType, int> mounted, int points)
+        public static void ReduceBuckets(Dictionary<ManaType, float> mounted, int points)
         {
             for (int i = 0; i < points; i++)
             {
-                if (mounted.TryGetValue(ManaType.Gray, out var g) && g >= 1)
+                if (mounted.TryGetValue(ManaType.Gray, out var g) && g >= 1f)
                 {
-                    mounted[ManaType.Gray] = g - 1;
+                    mounted[ManaType.Gray] = g - 1f;
                     continue;
                 }
                 ManaType best = default;
-                int bestV = 0;
+                float bestV = 0f;
                 foreach (var kv in mounted)
                     if (kv.Key != ManaType.Gray && kv.Value > bestV) { bestV = kv.Value; best = kv.Key; }
-                if (bestV <= 0) break;
-                mounted[best] = bestV - 1;
+                if (bestV <= 0f) break;
+                mounted[best] = bestV - 1f;
             }
         }
 
@@ -188,30 +203,31 @@ namespace CardCore
         ///（allowed=引用行 ManaList 非零色）内扣——扣序同 <see cref="ReduceBuckets"/>（先灰后最高费用色，
         /// 并列取枚举序靠前者），每色下限 0、溢出丢弃、不穿底到他色。allowed 空=无抵扣面（分文不扣）。
         /// 返回实际扣减点数：生成面超出可抵色容量即失效——「单个代价至多将这张卡对应色费用完全清零」
-        /// 由下限 0+不溢出他色两条共同保证。消费口：CardCostService.ApplyPayloadDeduction 单源。</summary>
-        public static int ReduceBucketsLocked(Dictionary<ManaType, int> mounted, int points, HashSet<ManaType> allowed)
+        /// 由下限 0+不溢出他色两条共同保证。消费口：CardCostService.ApplyPayloadDeduction 单源。
+        /// 2026-11-03 底盘改版配套：桶值浮点化（扣减仍逐整数点，≥1 阈值 1e-4 容差）。</summary>
+        public static int ReduceBucketsLocked(Dictionary<ManaType, float> mounted, int points, HashSet<ManaType> allowed)
         {
             if (allowed == null || allowed.Count == 0) return 0;
             int applied = 0;
             for (int i = 0; i < points; i++)
             {
                 if (allowed.Contains(ManaType.Gray)
-                    && mounted.TryGetValue(ManaType.Gray, out var g) && g >= 1)
+                    && mounted.TryGetValue(ManaType.Gray, out var g) && g >= 1f - 1e-4f)
                 {
-                    mounted[ManaType.Gray] = g - 1;
+                    mounted[ManaType.Gray] = Math.Max(0f, g - 1f);
                     applied++;
                     continue;
                 }
                 ManaType best = default;
-                int bestV = 0;
+                float bestV = 0f;
                 foreach (var kv in mounted)
                     if (allowed.Contains(kv.Key) && kv.Key != ManaType.Gray && kv.Value > bestV)
                     {
                         bestV = kv.Value;
                         best = kv.Key;
                     }
-                if (bestV <= 0) break;
-                mounted[best] = bestV - 1;
+                if (bestV <= 1e-4f) break;
+                mounted[best] = Math.Max(0f, bestV - 1f);
                 applied++;
             }
             return applied;

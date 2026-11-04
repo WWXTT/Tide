@@ -509,7 +509,7 @@ namespace CardCore
             bool skipOpeningDraw = false, bool deferStart = false,
             int p2LandCapBonus = 0, int p2ExtraOpeningDraws = 0,
             string skillCardId1 = null, string skillCardId2 = null,
-            Player startingPlayer = null)
+            Player startingPlayer = null, bool ai1 = false, bool ai2 = false)
         {
             if (deck1 == null || deck2 == null)
                 throw new ArgumentNullException("卡组不能为null");
@@ -527,6 +527,11 @@ namespace CardCore
 
             // 重置游戏状态
             Reset();
+
+            // 工具/AI 对局：在 StartGame 发 TurnStartEvent 之前就设 AI 标记，
+            // 否则回合 1 的回合头渲染会漏「（AI）」——控制台即时渲染与终局导出战报会不一致。
+            _player1.IsAI = ai1;
+            _player2.IsAI = ai2;
 
             // 重置本局疲劳计数
             _player1.ResetFatigueCount();
@@ -616,12 +621,13 @@ namespace CardCore
             string skillCardId1 = null, string skillCardId2 = null,
             Player startingPlayer = null,
             List<SynergyUI.DeckTokenBinding> tokenBindings1 = null,
-            List<SynergyUI.DeckTokenBinding> tokenBindings2 = null)
+            List<SynergyUI.DeckTokenBinding> tokenBindings2 = null,
+            bool ai1 = false, bool ai2 = false)
         {
             var deck1 = CardLoader.BuildDeck(deck1Data, copiesPerCard, tokenBindings1);
             var deck2 = CardLoader.BuildDeck(deck2Data, copiesPerCard, tokenBindings2);
             InitGame(deck1, deck2, rngSeed, lockDeckOrder, skipOpeningDraw, deferStart,
-                p2LandCapBonus, p2ExtraOpeningDraws, skillCardId1, skillCardId2, startingPlayer);
+                p2LandCapBonus, p2ExtraOpeningDraws, skillCardId1, skillCardId2, startingPlayer, ai1, ai2);
         }
 
         /// <summary>
@@ -715,6 +721,11 @@ namespace CardCore
         public void AcquirePresentationHold() => PresentationHoldCount++;
 
         public void ReleasePresentationHold() => PresentationHoldCount = System.Math.Max(0, PresentationHoldCount - 1);
+
+        /// <summary>响应窗结算泵在途标记（2026-11-03 帧泵自愈）：SettleResponseWindowAsync 进出置位/
+        /// 复位；在途=有链正在驱动当前窗口（人类弹窗/AI 决策/结算中）——帧泵 GameLoopController
+        /// 据此判断窗口是否孤儿化（无泵在途且有候选=冻结前兆，补发一个泵接管）。</summary>
+        public bool ResponsePumpInFlight { get; internal set; }
 
         /// <summary>
         /// 游戏主循环

@@ -21,6 +21,13 @@ namespace CardCore
         bool CanPlay(GameCore core, Player player, Card card, Zone fromZone);
     }
 
+    /// <summary>带拒绝文案的出牌限制（2026-11-03 失败提示细化）：RejectText=该限制拒绝出牌时的
+    /// 用户可读原因（TryPlay 命中即取——PlayCard/UI 直显，不再糊成「规则锁定」泛称）。</summary>
+    public interface IPlayRestrictionWithReason : IPlayRestriction
+    {
+        string RejectText { get; }
+    }
+
     /// <summary>非手牌出牌来源（如墓地视手牌使用）：声明来源区与使用配额。</summary>
     public interface IPlaySource
     {
@@ -86,6 +93,20 @@ namespace CardCore
             foreach (var restriction in _playRestrictions)
                 if (!restriction.CanPlay(core, player, card, fromZone))
                     return false;
+            return true;
+        }
+
+        /// <summary>带原因版（2026-11-03 失败提示细化）：命中的限制若实现 IPlayRestrictionWithReason
+        /// 则取其 RejectText，否则 reason=null（调用方回落泛称）。</summary>
+        public static bool TryPlay(GameCore core, Player player, Card card, Zone fromZone, out string reason)
+        {
+            reason = null;
+            foreach (var restriction in _playRestrictions)
+                if (!restriction.CanPlay(core, player, card, fromZone))
+                {
+                    reason = (restriction as IPlayRestrictionWithReason)?.RejectText;
+                    return false;
+                }
             return true;
         }
 

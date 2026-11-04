@@ -76,82 +76,126 @@ namespace CardCore.Attribute.Handlers
 
     // ---------------- 死亡原子（消灭 / 湮灭；牺牲 2026-10-09 转直送非死亡） ----------------
 
-    /// <summary>牺牲（2026-10-09 舍弃并档定案，黑5，edict 形态）：作用对象=**角色**（表 filter "Player"）——
-    /// 目标玩家（持有者）**自行选择**一个己方战场单位（生物+无生命单位，摒弃并池）**直送墓地**。
-    /// 裁定：**非效果死亡**——不经 DeathRules、不发 CardDestroyEvent（OnDeath/亡语/消灭替代/击杀统计
-    /// 全不触发），不灭/复生无从拦截（非死亡路径天然绕过）；送墓归属=卡牌持有者。
-    /// 同步路径（触发式/headless）：自动选持有者战场首个单位（TargetSelectionService 代替选取同口径）。</summary>
+    /// <summary>牺牲（2026-11-03 改版，0费，edict 形态）：作用对象=**角色**（表 filter "Player"、域=己方单位）——
+    /// 目标玩家（持有者）**自行选择** {value} 个己方场上单位（生物+结界+**地牌**——2026-11-03 地牌入池扩定，
+    /// 旧「地牌非单位不入池」口径作废）**规则送墓**。裁定：**非效果死亡**——不经 DeathRules、不发
+    /// CardDestroyEvent（OnDeath/亡语/消灭替代/击杀统计全不触发），不灭/复生无从拦截（非死亡路径天然
+    /// 绕过）；地牌先出池（余量写回卡——摧毁/抹除同口）再入墓；送墓归属=卡牌持有者。
+    /// 每送墓一个单位，该持有者临时钱包 +1 任意元素（AddMana 官方口，任一回合结束清空）。
+    /// 候选不足 {value} 个时全量送墓；空场空转（不空发整卡、不入账）。
+    /// 同步路径（触发式/headless）：自动选候选前 N 个（TargetSelectionService 代替选取同口径）。</summary>
     public class SacrificeHandler : AtomicEffectHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.Sacrifice;
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
+            int count = Wanted(effect, context);
             foreach (var target in context.Targets)
             {
                 if (!(target is Player holder)) continue; // 作用对象=角色
-                var board = BoardUnits(holder, context);
-                if (board.Count == 0) continue; // 空场空转
-                SendToGrave(board[0], context);
+                var pool = SacrificePool(holder, context);
+                if (pool.Count == 0) continue; // 空场空转
+                GrantAny(holder, SendAll(pool.Take(count), context), context);
             }
         }
 
         public override async UniTask ExecuteAsync(AtomicEffectInstance effect, EffectExecutionContext context)
         {
+            int count = Wanted(effect, context);
             foreach (var target in context.Targets)
             {
                 if (!(target is Player holder)) continue; // 作用对象=角色
-                var board = BoardUnits(holder, context);
-                if (board.Count == 0) continue; // 空场空转
+                var pool = SacrificePool(holder, context);
+                if (pool.Count == 0) continue; // 空场空转
 
-                Card chosen = board[0];
-                if (board.Count > 1)
+                List<Card> picks;
+                if (pool.Count <= count)
                 {
-                    var picked = await TargetSelectionService.RequestAsync(new TargetSelectionRequest
+                    picks = pool; // 无选择余地：全量送墓（ShouldAutoTake「操作越省越好」同口径）
+                }
+                else if (holder.IsAI || TargetSelectionService.Current == null)
+                {
+                    picks = pool.Take(count).ToList(); // AI/无头：自动取前 N
+                }
+                else
+                {
+                    var chosen = await TargetSelectionService.RequestAsync(new TargetSelectionRequest
                     {
-                        Candidates = new List<Entity>(board),
-                        MinCount = 1,
-                        MaxCount = 1,
-                        Chooser = holder, // 持有者自行选择（对手的牺牲对手挑）
-                        Title = $"{holder.Name}：选择一个单位送入墓地",
+                        Candidates = new List<Entity>(pool),
+                        MinCount = count,
+                        MaxCount = count,
+                        Chooser = holder, // 持有者自行选择（选择权在目标方——域收窄己方后恒自选）
+                        Title = $"{holder.Name}：选择 {count} 个单位送入墓地（每个 +1 任意元素）",
+                        AllowCancel = false,
+                        PromptSource = (Entity)context.CastCard ?? context.Source,
                     });
-                    if (picked != null && picked.Count > 0 && picked[0] is Card pc) chosen = pc;
+                    picks = chosen?.OfType<Card>().ToList();
+                    if (picks == null || picks.Count == 0)
+                        picks = pool.Take(count).ToList(); // 超时兜底双保险（Service 已代选）
                 }
 
-                SendToGrave(chosen, context);
+                GrantAny(holder, SendAll(picks, context), context);
             }
         }
 
-        /// <summary>直送墓地（非死亡）：仅落死档 + 按持有者归属入墓——不发 CardDestroyEvent
-        /// （死亡时点/消灭替代/统计不触发）；换区清理（指示物/守护断链/变形解除/临时关键词）
-        /// 由 ZoneContainer.OnCardMoved 统一承担，与死亡落葬同款。</summary>
+        /// <summary>送墓数量 {value}（缺省/≤0 钳 1）。</summary>
+        private static int Wanted(AtomicEffectInstance effect, EffectExecutionContext context)
+            => Math.Max(1, context.GetValueAfterModifiers(effect.Value > 0 ? effect.Value : 1));
+
+        private static int SendAll(IEnumerable<Card> picks, EffectExecutionContext context)
+        {
+            int sent = 0;
+            foreach (var card in picks)
+            {
+                SendToGrave(card, context);
+                sent++;
+            }
+            return sent;
+        }
+
+        /// <summary>每送墓一个单位 +1 **临时任意元素**（万能货币落临时钱包，任一回合结束清空；
+        /// 支付沿各色链尾垫付）。AddMana 官方口（ElementPoolGainEvent 可观测），入账方=交出单位的一方。</summary>
+        private static void GrantAny(Player holder, int sent, EffectExecutionContext context)
+        {
+            if (sent <= 0 || context.ElementPool == null) return;
+            var from = context.Source as Card ?? context.CastCard as Card;
+            context.ElementPool.AddMana(holder, ManaType.Any, from, sent);
+        }
+
+        /// <summary>规则送墓（非效果死亡）：地牌先出池 + 落死档 + 按持有者归属入墓——不发
+        /// CardDestroyEvent（死亡时点/消灭替代/统计不触发）；换区清理（指示物/守护断链/变形解除/
+        /// 临时关键词）由 ZoneContainer.OnCardMoved 统一承担，与死亡落葬同款。</summary>
         private static void SendToGrave(Card card, EffectExecutionContext context)
         {
             var owner = card.GetOwner() ?? card.GetController();
             if (owner == null) return;
+            var from = card.GetZone();
+            if (from == Zone.ElementPool)
+                context.ElementPool?.RemoveCardFromPool(card, owner); // 地牌：余量写回卡再入墓（摧毁同口）
             card.IsAlive = false;
-            if (context.ZoneManager != null)
-            {
-                var from = card.GetZone();
-                if (from != Zone.Graveyard)
-                    context.ZoneManager.MoveCard(card, owner, from, Zone.Graveyard);
-            }
+            if (context.ZoneManager != null && from != Zone.Graveyard)
+                context.ZoneManager.MoveCard(card, owner, from, Zone.Graveyard);
         }
 
-        /// <summary>牺牲候选 = 持有者战场全部存活单位（生物+无生命单位——2026-10-09 摒弃并池；
-        /// 元素池地牌非"单位"不入池）。含衍生物（召唤定案下衍生物=真实生物卡的 CardWrapper 实例）。
-        /// 空场跳过该目标（外层 continue，不空发整卡）。</summary>
-        private static List<Card> BoardUnits(Player holder, EffectExecutionContext context)
+        /// <summary>牺牲候选 = 持有者场上单位全集（2026-11-03 扩定）：战场生物+结界（2026-10-09
+        /// 摒弃并池承袭，含衍生物——召唤定案下衍生物=真实生物卡的 CardWrapper 实例）+ **元素池地牌**。
+        /// 序=战场序→地牌序（AutoSelect 取前 N 的确定性来源）。空集跳过该目标（不空发整卡、不入账）。</summary>
+        private static List<Card> SacrificePool(Player holder, EffectExecutionContext context)
         {
             var result = new List<Card>();
             if (holder == null || context.ZoneManager == null) return result;
             foreach (var c in context.ZoneManager.GetCards(holder, Zone.Battlefield))
                 if (c != null && c.IsAlive)
                     result.Add(c);
+            foreach (var c in context.ZoneManager.GetCards(holder, Zone.ElementPool))
+                if (c != null && c.IsAlive)
+                    result.Add(c);
             return result;
         }
 
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => "以角色为目标，使其自行选择一个单位效果送墓（非效果死亡，不触发死亡时点）";
+        protected override string DescribeTemplate(AtomicEffectInstance effect)
+            => $"自行选择 {Math.Max(1, effect.Value > 0 ? effect.Value : 1)} 个场上单位（含地牌）规则送墓；每送墓一个单位，获得一点临时任意元素（非效果死亡，不触发死亡时点）";
     }
 
     /// <summary>消灭（2026-10-09 吞噬机制移除定案：原吞噬行改名，EffectType 沿用 Devour 枚举位）——
@@ -170,7 +214,7 @@ namespace CardCore.Attribute.Handlers
                 // 发动表演照播（2026-10-20 用户定案）：不灭等拦截=效果对目标不适用——效果已发动
                 //（费已付），补飞行事件驱动弹体+到达表现（无死亡事件，表现层仅飞行不结算）。
                 if (!DeathRules.TryKill(victim, DeathCause.DestroyEffect, context.Source, context.ZoneManager,
-                        effect.AnchorTint()))
+                        effect.AnchorTint(), context.IsCostPayload))
                     PublishEvent(new EffectFlightEvent
                     {
                         Source = context.Source, CastCard = context.CastCard, Target = victim,
@@ -203,7 +247,8 @@ namespace CardCore.Attribute.Handlers
                 if (!(card is IHasSupertype ht)) continue;
                 if (ht.Supertype == Cardtype.Creature)
                 {
-                    DeathRules.TryKill(card, DeathCause.DestroyEffect, context.Source, context.ZoneManager);
+                    DeathRules.TryKill(card, DeathCause.DestroyEffect, context.Source, context.ZoneManager,
+                        null, context.IsCostPayload);
                 }
                 else if (ht.Supertype == Cardtype.Enchantment)
                 {
@@ -215,7 +260,9 @@ namespace CardCore.Attribute.Handlers
                         DestroyedCard = card,
                         Reason = DestroyReason.Smashed,
                         Source = context.Source,
-                        EffectTint = effect.AnchorTint()
+                        EffectTint = effect.AnchorTint(),
+                        FromZone = card.GetZone(), // 2026-11-04 日志口径：移区前定格
+                        IsCost = context.IsCostPayload,
                     });
                     var owner = card.GetOwner() ?? card.GetController();
                     if (owner != null && card.GetZone() != Zone.Graveyard)
@@ -264,7 +311,9 @@ namespace CardCore.Attribute.Handlers
                     DestroyedCard = card,
                     Reason = DestroyReason.Smashed,
                     Source = context.Source,
-                    EffectTint = effect.AnchorTint()
+                    EffectTint = effect.AnchorTint(),
+                    FromZone = card.GetZone(), // 2026-11-04 日志口径：移区前定格（地牌=ElementPool/结界=Battlefield）
+                    IsCost = context.IsCostPayload,
                 });
 
                 // 直送墓地（无生命值单位不走 DeathRules）
@@ -503,18 +552,9 @@ namespace CardCore.Attribute.Handlers
 
             // 2026-10-09 展示链路定案：展示即状态——被展示牌挂 Exposed（双方可查看，换区清除）：
             // 未选中留库=不换区保持展示；选中入手=deck→hand 换区即消（ZoneContainer 换区清统一承担）。
+            // 2026-11-03 收口 RevealRules.Reveal 单源（补齐 RevealCardsEvent——动画/统计消费口同口径）。
             foreach (var card in shown)
-            {
-                if (card.GetCounterCount(CounterRules.ExposedCounter) > 0) continue; // 二值不叠层
-                int actualDelta = card.AddCounters(CounterRules.ExposedCounter, 1, context.Source);
-                PublishEvent(new CounterChangedEvent
-                {
-                    Target = card,
-                    CounterType = CounterRules.ExposedCounter,
-                    Amount = actualDelta,
-                    Source = context.Source,
-                });
-            }
+                RevealRules.Reveal(card, context.Source);
 
             List<Entity> chosen;
             if (shown.Count <= 1)
@@ -553,40 +593,74 @@ namespace CardCore.Attribute.Handlers
             $"发现：从牌库随机展示 {Math.Max(1, effect.Value)} 张，选一张加入手牌";
     }
 
-    // ---------------- 参照族（2026-10-31：以己方单位为参照读攻/血——参照目标是弹选的表域目标，
-    // 产出作用面由 handler 自定：迸发打随机对手、活体护甲给己方角色） ----------------
+    // ---------------- 参照族（2026-10-31；2026-11-04 双段目标改版：第一段弹选{target}=己方生物参照
+    //（表域=己方单位+NoRole 滤角色——角色不作参照，防以角色生命 30 为基准刷甲），第二段=结算期
+    // 反问落点（活体炸弹问受害者=对方单位含角色、活体护甲问护甲落点=己方单位含角色——角色可
+    // 受甲）。2026-11-03「单目标+硬编码最高参照」与 str="SelfUnit" 档作废；护盾猛击无参照段照旧） ----------------
 
     /// <summary>
-    /// 迸发（2026-10-31，红3 表行 6a17079d）：以{target}（己方单位）为参照——对**随机**对手单位
-    ///（对方存活生物+对方角色，GameRng 单次抽取——随机绕过潜行，战斗法师散射同口径）
-    /// 造成等同参照单位当前攻击力的**效果伤害**（GetPower 活读含光环成分；非战斗伤害——
-    /// TakeDamage 关键词管线照常：护甲/坚韧/圣盾吸收、易损放大）。受害者域空或攻击力≤0=空转。
+    /// 活体炸弹（2026-10-31 参照族；2026-11-04 双段目标改版，红3 表行 80daf3b6·原名「迸发」）：
+    /// 第一段弹选{target}=**己方生物**参照（NoRole 滤角色）；结算期对**反问选择的对方单位**
+    ///（对方生物+对方角色；候选=1 自动取、AI/无头自动取首、同步路径取首候选）造成等同参照当前
+    /// 攻击力的**效果伤害**（GetPower 活读含光环成分；非战斗伤害——TakeDamage 关键词管线照常：
+    /// 护甲/坚韧/圣盾吸收、易损放大）。无己方生物/参照攻≤0/受害者域空=空转。
     /// 伤害产出族：LastOutcome.RecordDamage 记账——「消灭目标时」产出条件可挂。
     /// </summary>
     public class BurstDamageHandler : AtomicEffectHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.BurstDamage;
 
+        /// <summary>受害者候选域（对方存活生物+对方角色；帷幕收窄+潜行隐藏两道过滤同标准弹选口径）。</summary>
+        private static List<Entity> VictimCandidates(EffectExecutionContext context)
+        {
+            var kinds = new List<int> { (int)TargetKind.EnemyLivingUnit };
+            var candidates = EffectHandlerRegistry.ResolveCandidates(kinds, "", context);
+            return TargetResolver.ExcludeUnselectable(
+                TargetResolver.ApplyTauntRestriction(candidates, context, false), context.Controller);
+        }
+
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            // 同步路径（触发式/headless 兜底）：受害者自动取首候选（与无头 Service 代选同结果）
+            Resolve(effect, context, VictimCandidates(context).FirstOrDefault());
+        }
+
+        public override async UniTask ExecuteAsync(AtomicEffectInstance effect, EffectExecutionContext context)
         {
             var reference = context.PrimaryTarget;
             if (reference == null || !reference.IsAlive) return;
 
+            var candidates = VictimCandidates(context);
+            if (candidates.Count == 0) return; // 受害者域空=空转
+
+            Entity victim = candidates[0];
+            if (candidates.Count > 1)
+            {
+                var picked = await TargetSelectionService.RequestAsync(new TargetSelectionRequest
+                {
+                    Candidates = candidates,
+                    MinCount = 1,
+                    MaxCount = 1,
+                    Chooser = context.Controller,
+                    Title = "选择活体炸弹的受害者",
+                    PromptSource = (Entity)context.CastCard ?? context.Source,
+                    PromptAtom = effect.Type,
+                    PromptValue = Math.Max(0, reference.GetPower()), // AI 排序「能否打死」提示=参照攻
+                });
+                if (picked != null && picked.Count > 0) victim = picked[0];
+            }
+            Resolve(effect, context, victim);
+        }
+
+        /// <summary>落账：参照亡/攻≤0/受害者无效=空转；效果伤害+AtomicDamageEvent（伤害产出族记账）。</summary>
+        private void Resolve(AtomicEffectInstance effect, EffectExecutionContext context, Entity victim)
+        {
+            var reference = context.PrimaryTarget;
+            if (reference == null || !reference.IsAlive || victim == null || !victim.IsAlive) return;
+
             int dmg = Math.Max(0, reference.GetPower());
             if (dmg <= 0) return;
 
-            var foe = context.Controller?.Opponent;
-            var pool = new List<Entity>();
-            if (foe != null)
-            {
-                if (context.ZoneManager != null)
-                    foreach (var c in context.ZoneManager.GetCards(foe, Zone.Battlefield))
-                        if (c != null && c.IsAlive && !c.IsNonLivingUnit()) pool.Add(c); // 域=对方单位（有生命）
-                if (foe.IsAlive) pool.Add(foe); // 角色=有生命单位（世界观定案）
-            }
-            if (pool.Count == 0) return;
-
-            var victim = pool[GameRng.Next(0, pool.Count)];
             int lifeBefore = victim.GetLife();
             victim.TakeDamage(dmg, context.Source);
             int actual = Math.Max(0, lifeBefore - victim.GetLife());
@@ -602,33 +676,71 @@ namespace CardCore.Attribute.Handlers
         }
 
         protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => "以己方单位为参照，对随机对手单位造成等同其攻击力的伤害";
+            => "以己方生物为参照，对一个对方单位造成等同其攻击力的伤害";
     }
 
     /// <summary>
-    /// 活体护甲（2026-10-31，绿3 表行 508a4975）：以{target}（己方单位）为参照——**己方角色**
-    ///（=效果控制者）获得等同参照单位当前生命的护甲（ArmorCounter 层数，GetLife 活读含光环成分
-    ///——每层吸收 1 点伤害、生效自减；Entity 级角色可持有，后手护甲补偿同款指示物）。
-    /// 参照生命≤0=空转。参照目标选的是单位本体，护甲落点恒为角色（表域承担"以己方单位为目标"）。
+    /// 活体护甲（2026-10-31 参照族；2026-11-04 双段目标改版，绿3 表行 10c6345b）：第一段弹选
+    /// {target}=**己方生物**参照（NoRole 滤角色）；结算期**反问选择的己方单位**（己方生物+己方
+    /// 角色——角色可受甲；候选=1 自动取、AI/无头自动取首、同步路径取首候选）获得护甲
+    ///（ArmorCounter 层数——每层吸收 1 点伤害、生效自减；Entity 级角色可持有，后手护甲补偿
+    /// 同款指示物），层数=参照当前生命（GetLife 活读含光环成分）。载荷 str="SelfUnit" 档已随
+    /// 双段改版退役（落点自选即可指回参照生物）。无己方生物/参照生命≤0/落点域空=空转。
     /// </summary>
     public class LivingArmorHandler : AtomicEffectHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.LivingArmor;
 
+        /// <summary>护甲落点候选域（己方存活生物+己方角色；两道过滤同标准弹选口径）。</summary>
+        private static List<Entity> ReceiverCandidates(EffectExecutionContext context)
+        {
+            var kinds = new List<int> { (int)TargetKind.OwnLivingUnit };
+            var candidates = EffectHandlerRegistry.ResolveCandidates(kinds, "", context);
+            return TargetResolver.ExcludeUnselectable(
+                TargetResolver.ApplyTauntRestriction(candidates, context, false), context.Controller);
+        }
+
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
+            // 同步路径（触发式/headless 兜底）：落点自动取首候选（与无头 Service 代选同结果）
+            Resolve(effect, context, ReceiverCandidates(context).FirstOrDefault());
+        }
+
+        public override async UniTask ExecuteAsync(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
             var reference = context.PrimaryTarget;
-            var hero = context.Controller;
-            if (reference == null || hero == null) return;
+            if (reference == null || !reference.IsAlive) return;
+
+            var candidates = ReceiverCandidates(context);
+            if (candidates.Count == 0) return; // 落点域空=空转
+
+            Entity receiver = candidates[0];
+            if (candidates.Count > 1)
+            {
+                var picked = await TargetSelectionService.RequestAsync(new TargetSelectionRequest
+                {
+                    Candidates = candidates,
+                    MinCount = 1,
+                    MaxCount = 1,
+                    Chooser = context.Controller,
+                    Title = "选择活体护甲的落点",
+                    PromptSource = (Entity)context.CastCard ?? context.Source,
+                    PromptAtom = effect.Type,
+                    PromptValue = Math.Max(0, reference.GetLife()), // AI 排序「受益幅度」提示=参照命
+                });
+                if (picked != null && picked.Count > 0) receiver = picked[0];
+            }
+            Resolve(effect, context, receiver);
+        }
+
+        /// <summary>落账：参照亡/生命≤0/落点无效=空转；护甲层数=参照命（AddCounters 实际增量出账）。</summary>
+        private void Resolve(AtomicEffectInstance effect, EffectExecutionContext context, Entity receiver)
+        {
+            var reference = context.PrimaryTarget;
+            if (reference == null || !reference.IsAlive || receiver == null || !receiver.IsAlive) return;
 
             int stacks = Math.Max(0, reference.GetLife());
             if (stacks <= 0) return;
-
-            // 2026-11-03 用户定案：str="SelfUnit" → 护甲**贴给目标单位本身**（用来守林地守卫）；
-            // 缺省仍沿用旧口径：护甲给己方角色。
-            Entity receiver = string.Equals(effect?.StringValue, "SelfUnit", StringComparison.Ordinal)
-                ? (Entity)reference
-                : hero;
 
             int actualDelta = receiver.AddCounters(KeywordRules.ArmorCounter, stacks, context.Source);
             PublishEvent(new CounterChangedEvent
@@ -642,84 +754,35 @@ namespace CardCore.Attribute.Handlers
         }
 
         protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => string.Equals(effect?.StringValue, "SelfUnit", StringComparison.Ordinal)
-                ? "以{target}为目标，该单位获得等同其生命的护甲"
-                : "以己方单位为参照，己方角色获得等同其生命的护甲";
+            => "以己方生物为参照，一个己方单位获得等同其生命的护甲";
     }
 
     /// <summary>
-    /// 护盾猛击（2026-11-02，红2 表行「护盾猛击」·参照族）：以{target}（己方单位）为参照——移除其
-    /// **全部护甲**（ArmorCounter 账面层数；负量移除不受绝缘体拦截——2026-10-31 特殊裁定口径），
-    /// 对弹选的**对方单位**（对方存活生物+对方角色，同迸发受害者域）造成等同移除层数的
-    /// **效果伤害**（非战斗伤害——TakeDamage 关键词管线照常：护甲/坚韧/圣盾吸收）。
-    /// 受害者结算期经 TargetSelectionService 反问选一（AI/无头自动取首、联机网络问选——与标准
-    /// 弹选同服务，候选=1 自动取不弹窗）；候选两道过滤（帷幕收窄+潜行隐藏）同标准弹选口径；
-    /// 同步路径无问选交互=自动取首候选（与无头 Service 同结果）。受害者域空或护甲 0=空转
-    ///（不移除不问选）。伤害产出族：LastOutcome.RecordDamage 记账——「消灭目标时」产出条件可挂。
+    /// 护盾猛击（2026-11-02 参照族；2026-11-03 单目标改版，红3 表行 247c2ae1）：移除**己方角色**
+    ///（硬编码=效果控制者）全部护甲（ArmorCounter 账面层数；负量移除不受绝缘体拦截——
+    /// 2026-10-31 特殊裁定口径），对弹选的{target}（表域=对方单位，含对方角色）造成等同移除
+    /// 层数的**效果伤害**（非战斗伤害——TakeDamage 关键词管线照常：护甲/坚韧/圣盾吸收）。
+    /// 角色无护甲或目标无效=空转（不移除不出伤）。
+    /// 伤害产出族：LastOutcome.RecordDamage 记账——「消灭目标时」产出条件可挂。
     /// </summary>
     public class ShieldSlamHandler : AtomicEffectHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.ShieldSlam;
 
-        /// <summary>受害者候选域（对方存活生物+对方角色；帷幕收窄+潜行隐藏两道过滤同标准弹选口径）。</summary>
-        private List<Entity> VictimCandidates(EffectExecutionContext context)
-        {
-            var foe = context.Controller?.Opponent;
-            if (foe == null) return new List<Entity>();
-            var kinds = new List<int> { (int)TargetKind.EnemyLivingUnit };
-            var candidates = EffectHandlerRegistry.ResolveCandidates(kinds, "", context);
-            return TargetResolver.ExcludeUnselectable(
-                TargetResolver.ApplyTauntRestriction(candidates, context, false), context.Controller);
-        }
-
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            // 同步路径（代价强制执行/兜底）：无问选交互——自动取首候选（与无头 Service 同结果）
-            Resolve(effect, context, VictimCandidates(context).FirstOrDefault());
-        }
+            var hero = context.Controller;
+            var victim = context.PrimaryTarget;
+            if (hero == null || victim == null || !victim.IsAlive) return;
 
-        public override async UniTask ExecuteAsync(AtomicEffectInstance effect, EffectExecutionContext context)
-        {
-            var reference = context.PrimaryTarget;
-            if (reference == null || !reference.IsAlive) return;
-            if (reference.GetCounterCount(KeywordRules.ArmorCounter) <= 0) return; // 无护甲=空转（不移除不问选）
+            int armor = hero.GetCounterCount(KeywordRules.ArmorCounter);
+            if (armor <= 0) return; // 无护甲=空转（不出伤）
 
-            var candidates = VictimCandidates(context);
-            if (candidates.Count == 0) return; // 受害者域空=空转（护甲保留）
-
-            Entity victim = candidates[0];
-            if (candidates.Count > 1)
-            {
-                var picked = await TargetSelectionService.RequestAsync(new TargetSelectionRequest
-                {
-                    Candidates = candidates,
-                    MinCount = 1,
-                    MaxCount = 1,
-                    Chooser = context.Controller,
-                    Title = "选择护盾猛击的目标",
-                    PromptSource = (Entity)context.CastCard ?? context.Source,
-                    PromptAtom = effect.Type,
-                    PromptValue = reference.GetCounterCount(KeywordRules.ArmorCounter), // AI 排序「能否打死」提示
-                });
-                if (picked != null && picked.Count > 0) victim = picked[0];
-            }
-            Resolve(effect, context, victim);
-        }
-
-        /// <summary>落账：移除护甲（双闸重检——问选期间状态可变）→ 等量伤害（迸发伤害段同款）。</summary>
-        private void Resolve(AtomicEffectInstance effect, EffectExecutionContext context, Entity victim)
-        {
-            var reference = context.PrimaryTarget;
-            if (reference == null || !reference.IsAlive || victim == null || !victim.IsAlive) return;
-
-            int armor = reference.GetCounterCount(KeywordRules.ArmorCounter);
-            if (armor <= 0) return;
-
-            int removed = reference.AddCounters(KeywordRules.ArmorCounter, -armor, context.Source);
+            int removed = hero.AddCounters(KeywordRules.ArmorCounter, -armor, context.Source);
             if (removed != 0)
                 PublishEvent(new CounterChangedEvent
                 {
-                    Target = reference,
+                    Target = hero,
                     CounterType = KeywordRules.ArmorCounter,
                     Amount = removed,
                     Source = context.Source, // EffectTint 恒 null：移除非赋予（粒子判据=赋予原子才填）
@@ -742,7 +805,49 @@ namespace CardCore.Attribute.Handlers
         }
 
         protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => "移除一个友方单位的全部护甲，对一个敌方目标造成等量伤害";
+            => "移除角色全部护甲，对{target}造成等量伤害";
+    }
+
+    /// <summary>
+    /// 封印（2026-11-03 新增，蓝3 表行 c336be8f·一般效果表）：弹选的{target}（表域=对方单位+
+    /// NoRole+Landable——敌方场上生物且带元素费用）离场，作为地牌加入**目标持有侧**（=对手）
+    /// 的地牌池。锁色不指定=缺省主色（份额最多色=「最高费用」色，GetLandColorChoices 降序首位，
+    /// 开对应色地牌格——与成长拉牌同口径）。AddCardToPool 权威闸照走：对手上限满/对手禁地令/
+    /// 资格拒=空转不动盘面（表域 Landable 已滤 0费/衍生物，闸为兜底）。非死亡离场：不发摧毁/
+    /// 死亡事件，指示物随换区清除；入池未横置（对手下回合周期即可产色）。
+    /// </summary>
+    public class SealUnitHandler : AtomicEffectHandlerBase
+    {
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.SealUnit;
+
+        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            var pool = context.ElementPool ?? GameCore.Instance?.ElementPool;
+            var zm = context.ZoneManager;
+            if (pool == null || zm == null) return;
+
+            foreach (var target in context.Targets)
+            {
+                if (!(target is Card unit) || !unit.IsAlive) continue;
+                if (unit.GetZone() != Zone.Battlefield) continue; // 表域兜底：只封场上单位
+
+                // 入池方=目标持有侧（控制者优先——被偷单位封进当前控制者池=「对手的地牌池」）
+                var owner = unit.GetController() ?? unit.GetOwner();
+                if (owner == null) continue;
+
+                if (!pool.AddCardToPool(unit, owner)) // 权威闸：缺省锁色=主色（最高费用色）
+                {
+                    TideLog.Warn($"[SealUnit] {unit.ID} 入池被拒（0费/资格/禁地令/上限满）——封印空转");
+                    continue;
+                }
+
+                zm.MoveCard(unit, owner, Zone.Battlefield, Zone.ElementPool);
+                pool.PublishPoolAdd(unit, owner);
+            }
+        }
+
+        protected override string DescribeTemplate(AtomicEffectInstance effect)
+            => "将{target}封印为对手的地牌，按其最高费用放入对应地牌格（不能对0费单位使用）";
     }
 
     /// <summary>第三批 handler 工厂</summary>
@@ -841,7 +946,11 @@ namespace CardCore.Attribute.Handlers
                 new BurstDamageHandler(),
                 new LivingArmorHandler(),
                 new ShieldSlamHandler(),
+
+                // 封印（2026-11-03）：对方场上单位封为对手的地牌（按最高费用锁色开格）
+                new SealUnitHandler(),
             };
         }
     }
 }
+

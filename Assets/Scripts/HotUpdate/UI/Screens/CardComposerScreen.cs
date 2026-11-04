@@ -73,9 +73,9 @@ namespace SynergyUI
             (CardKind.Spell, "法术", "spell"),
         };
 
-        /// <summary>生物基础属性上限（2026-11-01 定案）：攻/血至多 9——输入即时钳制回写，
-        /// 保存闸兜底拦「载入旧卡>9 未触碰」的直存（编辑触碰即被输入钳制收口）。</summary>
-        private const int MaxCreatureStat = 9;
+        /// <summary>生物基础属性上限（2026-11-01 定案 9；2026-11-03 放宽 12）：攻/血至多 12——输入即时钳制回写，
+        /// 保存闸兜底拦「载入旧卡>12 未触碰」的直存（编辑触碰即被输入钳制收口）。</summary>
+        private const int MaxCreatureStat = 12;
 
         private readonly CardData _card = new CardData
         {
@@ -470,11 +470,11 @@ namespace SynergyUI
 
             _attributeZone = UiKit.FindDeep(_cardFace, "attribute");
             _attackInput = BindIntInput(_attributeZone, "attack",
-                v => { _card.Power = v; Recalculate(); },
-                $"生物攻击力——计入自动算费（上限 {MaxCreatureStat}）", MaxCreatureStat);
+                v => { _card.Power = ClampStat(v, _attackInput); Recalculate(); },
+                $"生物攻击力——计入自动算费（区间 [免费属性底, {MaxCreatureStat}]；底=3−攻守−首槽，动态）", MaxCreatureStat);
             _lifeInput = BindIntInput(_attributeZone, "life",
-                v => { _card.Life = v; Recalculate(); },
-                $"生物生命值——计入自动算费（上限 {MaxCreatureStat}）", MaxCreatureStat);
+                v => { _card.Life = ClampStat(v, _lifeInput); Recalculate(); },
+                $"生物生命值——计入自动算费（区间 [免费属性底, {MaxCreatureStat}]；底=3−攻守−首槽，动态）", MaxCreatureStat);
             _durabilityInput = BindIntInput(_attributeZone, "durability",
                 v => { _card.Durability = v; Recalculate(); }, "结界耐久——免费点全投耐久，装/卸效果时即时重算");
 
@@ -872,6 +872,32 @@ namespace SynergyUI
             if (_nameInput != null) _nameInput.SetTextWithoutNotify(_card.CardName ?? "");
         }
 
+        /// <summary>生物属性输入钳制（2026-11-03 底盘分配改版）：区间=[免费属性底, MaxCreatureStat]。
+        /// 底=FreeAttrBaseOf（3−攻守−首槽，与计价同源）：免费 n/n 固定获得、不可偏移
+        ///（无法做成 5-1 之类偏斜底）——越界输入即时钳制回写。非生物不钳。</summary>
+        private int ClampStat(int v, UInputField field)
+        {
+            if (_kind != CardKind.Creature) return v;
+            int min = CardCompositionCost.FreeAttrBaseOf(_card);
+            int clamped = Math.Max(min, Math.Min(MaxCreatureStat, v));
+            if (clamped != v && field != null)
+                field.SetTextWithoutNotify(clamped.ToString()); // 回写钳后值——输入框显示与卡数据不脱钩
+            return clamped;
+        }
+
+        /// <summary>结构变动后托底（2026-11-03 底盘分配改版）：已填属性低于新底则抬到底
+        ///（「免费属性 n/n 固定获得」——如删技能/关攻守使底上升时自动补齐；
+        /// 未填(null)不强制——留待保存闸拦截）。字段经 SetAttrTexts 静默回显。</summary>
+        private void ApplyStatFloors()
+        {
+            if (_kind != CardKind.Creature) return;
+            int min = CardCompositionCost.FreeAttrBaseOf(_card);
+            bool changed = false;
+            if (_card.Power.HasValue && _card.Power.Value < min) { _card.Power = min; changed = true; }
+            if (_card.Life.HasValue && _card.Life.Value < min) { _card.Life = min; changed = true; }
+            if (changed) SetAttrTexts();
+        }
+
         /// <summary>属性输入框显隐+回写（生物=攻/血、结界=耐久、法术=attribute 整区隐藏）。
         /// 攻/血文本回显收窄到 SetAttrTexts（留空=未填，保存闸口径）；耐久恒回显数字。
         /// v2：输入在表单网格行壳内（icon+label+input）——行壳随输入一起显隐。</summary>
@@ -994,9 +1020,9 @@ namespace SynergyUI
         {
             _basicAbilityZone = UiKit.FindDeep(_cardFace, "basicability");
             _attackToggle = BindAbilityToggle("ac", "具备攻击",
-                on => _card.NoAttack = !on, "具备攻击能力（basicability）：关掉可腾出 1 个关键词槽（释放的免费点只减身材灰费）");
+                on => _card.NoAttack = !on, "具备攻击能力（basicability）：关掉可腾出 1 个关键词槽；释放的预算点进免费属性底（底 n/n 抬升，2026-11-03 底盘改版）");
             _guardToggle = BindAbilityToggle("dc", "具备守卫",
-                on => _card.NoGuard = !on, "具备守卫能力（basicability）：关掉可腾出 1 个关键词槽（释放的免费点只减身材灰费）");
+                on => _card.NoGuard = !on, "具备守卫能力（basicability）：关掉可腾出 1 个关键词槽；释放的预算点进免费属性底（底 n/n 抬升，2026-11-03 底盘改版）");
             SyncBasicAbility();
         }
 
@@ -2128,7 +2154,7 @@ namespace SynergyUI
                 if (!int.TryParse(s, out var v)) return;
                 atom.value = v;
                 _card.ResetCache();
-                // 减费三选一（2026-11-02）：代价减费上限 ≤3（自 4 收紧）——参数推高全价越界即回退上一合法值
+                // 减费三选一：代价减费上限 ≤3（2026-11-03 收回——当日放宽 4 作废）——参数推高全价越界即回退上一合法值
                 float pts = EffectComposerScreen.CostRowPrice(_card.PayloadCost);
                 if (pts > EffectComposerScreen.CostDiscountCap)
                 {
@@ -2299,10 +2325,11 @@ namespace SynergyUI
                 + $"——至多把{calc.PayloadScopeZh}色费用清零");
         }
 
-        /// <summary>代价行资格（2026-10-31 代价槽改版定案）：只收原子表**一般效果**行
+        /// <summary>代价行资格（2026-10-31 代价槽改版定案；2026-11-03 补双侧域）：只收原子表**一般效果**行
         ///（来源文件判定，TableCategory——关键词/指示物/光环/系统行出局）且行有计价色
-        ///（ManaList 非空非全零——无产出色=无抵扣面）+ 可逆转到错误一侧（PayloadCostDomain：
-        /// p&lt;0 锁己方自伤 / p&gt;0 锁对方资敌）。false=不可作代价（reject 带原因）。</summary>
+        ///（ManaList 非空非全零——无产出色=无抵扣面）+ PayloadCostDomain 可入（p≠0、有目标参数、
+        /// 表行 TargetKinds 同时含己方与对方条目——只能作用于单方面的行不可作代价，2026-11-03 定案）。
+        /// false=不可作代价（reject 带原因）。</summary>
         private static bool CostEligibleRow(CardCore.Attribute.AtomicEffectConfig cfg, out string reject)
         {
             reject = null;
@@ -2324,7 +2351,12 @@ namespace SynergyUI
             var (_, eligible) = CostDerivationService.PayloadCostDomain(cfg);
             if (!eligible)
             {
-                reject = $"「{cfg.DisplayName}」无法逆转到错误一侧（纯自身域有益/中性双侧域）——不可作代价";
+                var kindsZh = string.Join(",", cfg.GetTargetKindList()
+                    .Select(k => CardCore.TargetKindRules.ZhNameOf((CardCore.TargetKind)k)));
+                reject = string.IsNullOrEmpty(kindsZh)
+                    ? $"「{cfg.DisplayName}」无目标参数（无 {{target}} 的原子不能翻转成代价）——不可作代价"
+                    : $"「{cfg.DisplayName}」域单侧（{kindsZh}）——只能作用于单方面的原子不能作代价" +
+                      "（2026-11-03 定案：代价只收 TargetKinds 含己方与对方的双侧行），请换双侧行";
                 return false;
             }
             return true;
@@ -2548,7 +2580,7 @@ namespace SynergyUI
             LibHeader($"代价原子（{rows.Count}）——只收原子表·一般效果行·点击=填入代价槽（抵扣只作用于该原子可产出色的卡费·至多将该色清零）");
             if (rows.Count == 0)
             {
-                LibHint("一般效果表没有可作代价的行——须有计价色（ManaList 非空）且可逆转到错误一侧（自伤/资敌）");
+                LibHint("一般效果表没有可作代价的行——须有计价色（ManaList 非空）且 TargetKinds 含己方与对方的双侧行（p≠0·收窄到受益方反面）");
                 return;
             }
             foreach (var row in rows)
@@ -3308,6 +3340,7 @@ namespace SynergyUI
 
         private void Recalculate()
         {
+            ApplyStatFloors(); // 2026-11-03 底盘改版：结构变动后免费属性底托底（先托底再算费）
             var result = CardCostCalculator.Calculate(_card);
 
             // 自动算费直写（2026-10-16 定案：手动声明/采纳/建议标签全退役）——费用恒=内容推导分布。
@@ -3332,7 +3365,7 @@ namespace SynergyUI
 
             // 减费三选一保存闸（2026-11-02 定案·单源=EffectComposerScreen.DiscountConflictOf）：
             // ① 同一效果只能三选一（有限分支/自由分支/代价）；② 并列两效果禁代价；
-            // ③ 光环类（结界的场地光环/仪典行）禁代价；④ 代价行全价 ≤3（2026-11-02 自 4 收紧）。
+            // ③ 光环类（结界的场地光环/仪典行）禁代价；④ 代价行全价 ≤3（2026-11-03 收回——当日放宽 4 作废）。
             string discountConflict = EffectComposerScreen.DiscountConflictOf(_card);
             if (discountConflict != null)
             {
@@ -3419,6 +3452,14 @@ namespace SynergyUI
                 if ((_card.Power ?? 0) > MaxCreatureStat || (_card.Life ?? 0) > MaxCreatureStat)
                 {
                     ShowToast($"生物基础属性上限 {MaxCreatureStat}——攻/血至多 {MaxCreatureStat}，调整后保存");
+                    return;
+                }
+                // 免费属性底闸（2026-11-03 底盘分配改版）：兜底拦「载入旧卡低于新底未触碰」的直存
+                //（编辑触碰即被输入钳制/托底收口）；底=FreeAttrBaseOf（3−攻守−首槽），n/n 固定不可偏移。
+                int statFloor = CardCompositionCost.FreeAttrBaseOf(_card);
+                if ((_card.Power ?? 0) < statFloor || (_card.Life ?? 0) < statFloor)
+                {
+                    ShowToast($"生物属性下限=免费属性底 {statFloor}（攻/血各至少 {statFloor}——免费底 n/n 固定获得），调整后保存");
                     return;
                 }
             }

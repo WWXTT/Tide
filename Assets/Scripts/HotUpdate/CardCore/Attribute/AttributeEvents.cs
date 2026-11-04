@@ -45,6 +45,10 @@ namespace CardCore.Attribute
         /// （原子行费用基准主色 effect.AnchorTint()）——回合末衰减/护甲吸收/引擎投放等其余发布点
         /// 恒 null，表现层以非 null 为「这是一次赋予」的判据（赋予爆发粒子的触发口）。</summary>
         public ManaType? EffectTint { get; set; }
+        /// <summary>变化后读数附注（2026-11-04 战报定案）：战报为延迟渲染，不能现查实体——
+        /// 属性类指示物=回写后现值（「攻击 3→5」）、耐久=变化后层数（「现有 4」），由发布口
+        /// 定格拼好整串；null=无附注不追加。渲染层零推导原样括注。</summary>
+        public string AfterNote { get; set; }
     }
 
     // ==================== 卡牌操作事件 ====================

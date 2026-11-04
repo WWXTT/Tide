@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Cysharp.Threading.Tasks;
 
 namespace CardCore.Attribute
@@ -95,8 +95,10 @@ namespace CardCore.Attribute
         /// 执行期完整描述（模板方法，2026-09-16 接口化定案）：DescribeTemplate 模板主干 +
         /// 上下文合成（目标名 + LastOutcome 真实产出——handler 结算时写入，描述不重掷随机）。
         /// context=null（代价文本等无执行场景）退纯模板。
+        /// **virtual（2026-11-04）**：个别 handler 需要按自身语义补主语（如抽牌「己方/对手抽」——
+        /// 代价行的受惠侧执行会把抽牌方变成对手），由 handler 覆写补实名后再回落基类合成。
         /// </summary>
-        public string GetDescription(AtomicEffectInstance effect, EffectExecutionContext context)
+        public virtual string GetDescription(AtomicEffectInstance effect, EffectExecutionContext context)
         {
             if (effect == null) return "";
             var text = DescribeTemplate(effect);

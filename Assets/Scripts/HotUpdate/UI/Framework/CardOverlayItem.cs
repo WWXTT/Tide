@@ -33,6 +33,8 @@ namespace SynergyUI
         public string Name = "";
         public string CostText = "";    // 如「红2 灰1」（文本兜底——方格缺数据时卡面仍可显示）
         public ElementCost Costs;       // 费用明细（净费口径——CardNetCost.NetCostOf 实时推导，P4 2026-10-29）
+        public ElementCost PayloadCost; // 代价色构成（2026-11-03 CostSquares Cost2 组数据源：施放期代价
+                                        // 按色生成面 PayloadGrantByColor，与净费抵扣/地牌门槛同源；null=无代价）
         public string StatsText = "";   // 如「3/2」「耐久2」
         public string TypeText = "";    // 生物/法术/结界…
         public string KeywordsText = "";
@@ -233,6 +235,15 @@ namespace SynergyUI
                 if (data.Supertype == Cardtype.Creature) { it.AttrPower = data.Power ?? 0; it.AttrLife = data.Life ?? 0; }
                 else if (data.Supertype == Cardtype.Enchantment) it.AttrDurability = CardCompositionCost.TotalDurabilityOf(data);
                 it.PayloadText = PayloadTextOf(data);
+                // 代价色构成（2026-11-03 手牌费用方格双组）：施放期代价按色生成面——与净费
+                // 抵扣/地牌门槛同源口径（主动效果行不入施放期桶，其代价发动时现付不在此列）。
+                var grant = CardCostService.PayloadGrantByColor(data);
+                if (grant != null && grant.Count > 0)
+                {
+                    var payloadCost = new ElementCost();
+                    foreach (var kv in grant) payloadCost[kv.Key] = kv.Value;
+                    if (!payloadCost.IsZero) it.PayloadCost = payloadCost;
+                }
             }
 
             // 压制态（2026-10-31 删除线定案）：沉默/失效/沉睡层数 → 主动/被动行与本体关键词芯片划线灰显

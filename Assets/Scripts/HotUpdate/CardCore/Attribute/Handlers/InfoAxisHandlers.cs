@@ -25,22 +25,7 @@ namespace CardCore.Attribute.Handlers
             foreach (var target in ResolveTargets(effect, context))
             {
                 if (!(target is Card card) || !card.IsAlive) continue;
-                if (card.GetCounterCount(CounterRules.ExposedCounter) > 0) continue; // 已展示不叠层（二值状态）
-
-                int actualDelta = card.AddCounters(CounterRules.ExposedCounter, 1, context.Source);
-                PublishEvent(new CounterChangedEvent
-                {
-                    Target = card,
-                    CounterType = CounterRules.ExposedCounter,
-                    Amount = actualDelta,
-                    Source = context.Source,
-                });
-                PublishEvent(new RevealCardsEvent
-                {
-                    Player = card.GetController(),
-                    Cards = new List<Card> { card },
-                    Source = context.Source,
-                });
+                RevealRules.Reveal(card, context.Source);
             }
         }
 
@@ -127,6 +112,8 @@ namespace CardCore.Attribute.Handlers
                     Detail = "诅咒附加：抽到该卡时自动执行诅咒分支效果（一次性）",
                     Source = context.Controller,
                 });
+                // 2026-11-03 展示定案：被附加诅咒的隐藏区卡自动展示（与引擎主干 DeployOnDrawEngines 同口径）
+                RevealRules.Reveal(card, context.Controller);
             }
         }
 
@@ -140,8 +127,8 @@ namespace CardCore.Attribute.Handlers
     /// 命中者挂「展示」指示物（ExposedCounter，当前展示态，换区清）并按张发布
     /// CounterChangedEvent + RevealCardsEvent（RevealCardHandler 同款口径，二值不叠层）。
     /// 与 RevealCard（随机一张）的分野：本原子按维度圈定全集（"展示对方手牌中所有生物"）。
-    /// 维度全量可用（Type/Color/CostParity/CostExact/LinkArrow/Name——Name=卡名精确匹配，
-    /// 读心「展示某式神全部专属牌」的载体）；str 空/非法 → 空转并告警。
+    /// 维度全量可用（Type/Color/CostParity/CostExact/Name——Name=卡名精确匹配，
+    /// 读心「展示某式神全部专属牌」的载体；LinkArrow 2026-11-03 退役）；str 空/非法 → 空转并告警。
     /// 域=隐藏区手牌（5/6）：None 自结算不弹选——按原子域取对应侧手牌全量筛选。
     /// </summary>
     public class RevealByDimensionHandler : AtomicEffectHandlerBase
@@ -175,22 +162,7 @@ namespace CardCore.Attribute.Handlers
             {
                 if (!(target is Card card) || !card.IsAlive) continue;
                 if (!ProphecyDimension.Matches(card, dim, val)) continue;
-                if (card.GetCounterCount(CounterRules.ExposedCounter) > 0) continue; // 已展示不叠层（二值状态）
-
-                int actualDelta = card.AddCounters(CounterRules.ExposedCounter, 1, context.Source);
-                PublishEvent(new CounterChangedEvent
-                {
-                    Target = card,
-                    CounterType = CounterRules.ExposedCounter,
-                    Amount = actualDelta,
-                    Source = context.Source,
-                });
-                PublishEvent(new RevealCardsEvent
-                {
-                    Player = card.GetController(),
-                    Cards = new List<Card> { card },
-                    Source = context.Source,
-                });
+                RevealRules.Reveal(card, context.Source);
             }
         }
 

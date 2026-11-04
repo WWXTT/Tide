@@ -15,6 +15,7 @@ namespace SynergyUI
         public Func<HandFanCard, bool> CanPlaceLand;
         public Action<HandFanCard> OnUse;
         public Action<HandFanCard> OnPlaceLand;
+        public Action<HandFanCard> OnCardClick; // 卡体点击（2026-11-03 Information）：对方手牌扇开查阅窗——己方扇不挂=无操作
     }
     /// <summary>手牌扇区的一条数据：对账键=引擎卡 RuntimeId；FaceUp=false 只显示卡背（内容被 back 覆盖）。</summary>
     public sealed class HandFanCardData
@@ -87,6 +88,14 @@ namespace SynergyUI
         {
             _hooks = hooks;
             _hovered?.RefreshActionButtons();
+        }
+
+        /// <summary>卡体点击转发（HandFanCard.OnPointerClick）：宿主经 FanInteractions.OnCardClick
+        /// 接管——对方手牌扇开「对方手牌」Information（2026-11-03）；未挂=无操作（不影响 Use/Place 钮）。</summary>
+        internal void NotifyCardClicked(HandFanCard card)
+        {
+            var cb = _hooks?.OnCardClick;
+            if (cb != null) cb(card);
         }
 
         /// <summary>整扇显隐（2026-10-14 放地/出牌选格期隐藏手牌）：挂载层 SetActive，

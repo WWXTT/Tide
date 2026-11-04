@@ -627,7 +627,7 @@ namespace CardCore
             {
                 Target = best,
                 Keyword = GraveyardPlay,
-                Detail = $"归土光环：{EffectText.Name(turnPlayer)} 回合结束——从墓地复活「{EffectText.Name(best)}」（费用 {bestCost:0.#} ≤ 绿色地牌 {greenLands}）",
+                Detail = $"归土光环：{EffectText.Name(turnPlayer)} 回合结束——从墓地复活「{EffectText.Name(best)}」（费用 {bestCost:0.#} ≤ 植物地牌 {greenLands}）",
                 Source = RuleAuraSystem.CarrierOf(GraveyardPlay),
             });
         }
@@ -648,23 +648,27 @@ namespace CardCore
         // ============ 锁定指示物：出牌限制（PlayCard / PlayCardInResponse 同门） ============
         // 读锁定指示物（锁定原子投放；持有者回合末逐层倒数，归零解锁）
 
-        private sealed class LockedCardRestriction : IPlayRestriction
+        private sealed class LockedCardRestriction : IPlayRestrictionWithReason
         {
             public bool CanPlay(GameCore core, Player player, Card card, Zone fromZone)
                 => card == null || card.GetCounterCount(Attribute.CounterRules.LockCounter) == 0;
+
+            public string RejectText => "该卡被锁定指示物锁定——暂不可打出";
         }
 
         // ============ 禁魔/禁召令（2026-10-29 1b）：出牌类型闸——禁魔=不能施放法术；
         // 禁召 2026-10-31 改版=不能施放属性大于己方灰色地牌数的生物（旧=全禁生物） ============
 
-        private sealed class NoSpellPlayRestriction : IPlayRestriction
+        private sealed class NoSpellPlayRestriction : IPlayRestrictionWithReason
         {
             public bool CanPlay(GameCore core, Player player, Card card, Zone fromZone)
                 => !(RuleAuraSystem.ScopeHits(NoSpellAura, player)
                      && card is CardWrapper w && w.GetData() is CardData d && d.Supertype == Cardtype.Spell);
+
+            public string RejectText => "禁魔令生效——不能打出法术";
         }
 
-        private sealed class NoCreaturePlayRestriction : IPlayRestriction
+        private sealed class NoCreaturePlayRestriction : IPlayRestrictionWithReason
         {
             // 2026-10-31 改版（旧=全禁生物）：攻击或生命大于己方灰色地牌数的生物禁放（印刷值），
             // 等于放行（同归土"费用≤绿地数含等号"口径；0 灰地=全禁极限档，平滑承袭旧效果）；
@@ -678,12 +682,14 @@ namespace CardCore
                     ?.Count(pc => pc != null && pc.LockedColor == ManaType.Gray) ?? 0;
                 return (d2.Power ?? 0) <= grayLands && (d2.Life ?? 0) <= grayLands;
             }
+
+            public string RejectText => "禁召令生效——攻击或生命大于己方灰色地牌数的生物不可打出";
         }
 
         // ============ 语料原生禁令（2026-10-29 阶段2）：低费/高费/非生物 三道出牌闸 ============
         // 模式费取 mode 0 运行时推导费（多模式卡近似——先按首模式判；后续要精确再改 PlayCard 的 modeIndex 口）。
 
-        private sealed class NoLowCostPlayRestriction : IPlayRestriction
+        private sealed class NoLowCostPlayRestriction : IPlayRestrictionWithReason
         {
             public bool CanPlay(GameCore core, Player player, Card card, Zone fromZone)
             {
@@ -691,9 +697,11 @@ namespace CardCore
                 if (!(card is CardWrapper w) || !(w.GetData() is CardData d)) return true;
                 return CardCostService.GetRuntimeCost(d, 0).Total > 3f;
             }
+
+            public string RejectText => "禁低费令生效——费用不高于 3 的牌不可打出";
         }
 
-        private sealed class NoHighCostPlayRestriction : IPlayRestriction
+        private sealed class NoHighCostPlayRestriction : IPlayRestrictionWithReason
         {
             public bool CanPlay(GameCore core, Player player, Card card, Zone fromZone)
             {
@@ -704,6 +712,8 @@ namespace CardCore
                 int oppLands = opp != null ? (core?.ElementPool?.GetPool(opp)?.PooledCards?.Count ?? 0) : 0;
                 return CardCostService.GetRuntimeCost(d, 0).Total <= oppLands;
             }
+
+            public string RejectText => "禁高费令生效——费用高于对手地牌数的牌不可打出";
         }
 
         // ============ 纳川仪典（2026-10-30 改版）：手牌上限 + 自己蓝色地牌数（动态实时查询）。

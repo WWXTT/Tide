@@ -610,7 +610,7 @@ namespace CardCore.Attribute.Handlers
         }
 
         protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => "地牌上限+{value}（无上限），并从卡组随机将等量带元素费用的卡横置加入元素池";
+            => $"地牌上限+{Math.Max(1, effect?.Value ?? 1)}（无上限），并从牌库随机将等量带元素费用的卡横置加入元素池";
     }
 
     /// <summary>攻击力减少指示物（每层 −1 攻）</summary>
@@ -664,6 +664,8 @@ namespace CardCore.Attribute.Handlers
                     Amount = actualDelta,
                     Source = context.Source,
                     EffectTint = effect.AnchorTint(), // 赋予粒子（2026-11-01）：表现层以非 null 识别「赋予」并按极性×颜色播爆发
+                    // 2026-11-04 战报定案：延迟渲染不能现查——发布口定格变化后层数（加层即时扩池）
+                    AfterNote = $"现有 {card.GetCounterCount(CounterRules.DurabilityCounter)}",
                 });
             }
         }
@@ -707,21 +709,21 @@ namespace CardCore.Attribute.Handlers
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddCostUpRed;
         protected override string CounterId => CounterRules.CostUpRedCounter;
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => "添加一层红色费用增加指示物";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "添加一层火费用增加指示物";
     }
 
     public class AddCostUpBlueHandler : StatCounterAtomHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddCostUpBlue;
         protected override string CounterId => CounterRules.CostUpBlueCounter;
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => "添加一层蓝色费用增加指示物";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "添加一层水费用增加指示物";
     }
 
     public class AddCostUpGreenHandler : StatCounterAtomHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddCostUpGreen;
         protected override string CounterId => CounterRules.CostUpGreenCounter;
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => "添加一层绿色费用增加指示物";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "添加一层植物费用增加指示物";
     }
 
     public class AddCostDownGrayHandler : StatCounterAtomHandlerBase
@@ -735,21 +737,21 @@ namespace CardCore.Attribute.Handlers
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddCostDownRed;
         protected override string CounterId => CounterRules.CostDownRedCounter;
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => "添加一层红色费用减少指示物";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "添加一层火费用减少指示物";
     }
 
     public class AddCostDownBlueHandler : StatCounterAtomHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddCostDownBlue;
         protected override string CounterId => CounterRules.CostDownBlueCounter;
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => "添加一层蓝色费用减少指示物";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "添加一层水费用减少指示物";
     }
 
     public class AddCostDownGreenHandler : StatCounterAtomHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddCostDownGreen;
         protected override string CounterId => CounterRules.CostDownGreenCounter;
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => "添加一层绿色费用减少指示物";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "添加一层植物费用减少指示物";
     }
 
     /// <summary>

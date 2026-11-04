@@ -62,6 +62,21 @@ namespace CardCore
             // 4. 战斗阶段处理
             // 战斗系统有自己的状态机，这里不做额外处理
 
+            // 0b. 栈上有阶段窗=回合链路口（2026-11-03 帧泵自愈）：结算泵本应由动作链
+            //     （EndTurn 续链/回合开始链）驱动，泵若孤儿化（async 链断/演出 hold 后无人
+            //     接管/驱动竞态）窗口永久无人结算=整局冻结（实测木桩局对手回合冻死、主阶段
+            //     窗冻死均此机制）。此处兜底：无泵在途即补发接管；有泵在途=正等人/AI 决策，
+            //     不重复开泵（并发闸见 SettleResponseWindowAsync）。只认阶段窗——出牌/攻宣/
+            //     触发窗各有同步驱动链在场（AI 出牌同帧 DrainStack、攻宣流程显式 await），
+            //     补泵会抢在演出分期中段开窗问人，行为面收窄到已实测的冻结形态。
+            if (!_stackEngine.IsEmpty)
+            {
+                var healCore = GameCore.Instance;
+                if (healCore != null && !healCore.IsGameOver && !healCore.ResponsePumpInFlight
+                    && HasPhaseWindowOnStack())
+                    GameActions.SettleResponseWindowAsync(healCore).Forget();
+            }
+
             // 5. 检查是否有可行动作（栈为空且处于可行动阶段）
             if (_stackEngine.IsEmpty && _turnEngine.CanActivateEffect())
             {
@@ -86,6 +101,15 @@ namespace CardCore
                     }
                 }
             }
+        }
+
+        /// <summary>栈上是否有阶段窗伪对象（帧泵自愈的补发判据——见 Update 0b 注记）。</summary>
+        private bool HasPhaseWindowOnStack()
+        {
+            foreach (var obj in _stackEngine.GetStackContents())
+                if (obj != null && obj.IsPhaseWindow)
+                    return true;
+            return false;
         }
 
         /// <summary>

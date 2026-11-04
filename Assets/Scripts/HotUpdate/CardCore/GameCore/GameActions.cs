@@ -21,26 +21,33 @@ namespace CardCore
         /// null=缺省主色（份额最多色）；后续生成固定，付费时系统按账单自动横置。
         /// </summary>
         public static bool AddToElementPool(GameCore core, Player player, Card card, ManaType? colorChoice = null)
+            => AddToElementPool(core, player, card, colorChoice, out _);
+
+        /// <summary>带原因版（2026-11-03 失败提示细化）：池内四闸经 ElementPool.TryAddToPool 单源透传。</summary>
+        public static bool AddToElementPool(GameCore core, Player player, Card card, ManaType? colorChoice, out string reason)
         {
-            if (core == null || player == null || card == null) return false;
-            if (core.TurnEngine.TurnPlayer != player) return false;
-            if (core.TurnEngine.CurrentPhase?.Phase != PhaseType.Main) return false;
+            reason = null;
+            if (core == null || player == null || card == null) { reason = "内部错误：空参数"; return false; }
+            if (core.TurnEngine.TurnPlayer != player) { reason = "现在不是你的回合"; return false; }
+            if (core.TurnEngine.CurrentPhase?.Phase != PhaseType.Main)
+            { reason = $"放地只能在你的主阶段（当前：{core.TurnEngine.CurrentPhase?.Phase}）"; return false; }
 
             // 检查卡牌在手中
             var hand = core.ZoneManager.GetCards(player, Zone.Hand);
-            if (!hand.Contains(card)) return false;
+            if (!hand.Contains(card)) { reason = "卡不在手牌（快照过期？请重试）"; return false; }
 
             // 教学引导闸（2026-10-06 第二课）：放地步骤语义优先（非引导卡拒绝）
             var guideReject = RuleHooks.TutorialElementGate?.Invoke(player, card);
             if (guideReject != null)
             {
+                reason = $"教学引导：{guideReject}";
                 TideLog.Warn($"[GameActions] 放地被教学引导拒绝：{guideReject}");
                 return false;
             }
 
             // 放入元素池（各自张数 ≤ 地牌上限；锁色自选/缺省主色）
             var elementPool = core.ElementPool;
-            if (!elementPool.AddCardToPool(card, player, colorChoice))
+            if (!elementPool.TryAddToPool(card, player, colorChoice, out reason))
                 return false;
 
             // 从手牌移到元素池区域，然后发布入池事件（时序定案 2026-09-26：
@@ -286,6 +293,11 @@ namespace CardCore
         public static async Cysharp.Threading.Tasks.UniTask<bool> ActivateHeroSkill(GameCore core, Player player, int effectIndex = 0)
             => await HeroSkillSystem.ActivateAsync(core, player, effectIndex);
 
+        /// <summary>带原因版（2026-11-03 失败提示细化）：技能发动全链同步（见 ActivateAsync 尾注），
+        /// UI/网络泵线程直调同步核读拒绝文案。</summary>
+        public static bool ActivateHeroSkill(GameCore core, Player player, int effectIndex, out string reason)
+            => HeroSkillSystem.TryActivateSkill(core, player, effectIndex, out reason);
+
         /// <summary>
         /// 主阶段：横置带地牌特性的生物产 1 元素（2026-09-13 英雄技能·培育赋予的特性）。
         /// 颜色随该生物费用构成（多色时自动取首个有份额的颜色；无费用→灰）。
@@ -439,9 +451,10 @@ namespace CardCore
             var sourceZone = core.ZoneManager.GetCards(player, fromZone);
             if (!sourceZone.Contains(card)) { rejectReason = $"卡不在{fromZone}（快照过期？请重试）"; return false; }
 
-            // 规则扩展点（OCP）：出牌限制（如信息轴锁定）经注册表询问
-            if (!RuleHooks.CanPlay(core, player, card, fromZone))
-            { rejectReason = "出牌受限（规则锁定）"; return false; }
+            // 规则扩展点（OCP）：出牌限制（如信息轴锁定）经注册表询问——
+            // 命中的限制自带文案（2026-11-03 失败提示细化：禁召/禁魔等逐令可读）
+            if (!RuleHooks.TryPlay(core, player, card, fromZone, out var playRestrict))
+            { rejectReason = playRestrict ?? "出牌受限（规则锁定）"; return false; }
 
             // 目标域预检（2026-09-10 定案：运行时无候选不可发动）
             if (!TargetDomainService.HasPlayableTargets(core, player, card, modeIndex))
@@ -582,7 +595,8 @@ namespace CardCore
                 Player = player,
                 PlayedCard = card,
                 FromZone = Zone.Hand,
-                ModeIndex = modeIndex
+                ModeIndex = modeIndex,
+                IsResponseCast = true // 响应窗出牌（2026-11-03 连锁日志）：渲染为「连锁了」
             });
 
             return true;
@@ -1126,6 +1140,15 @@ namespace CardCore
         /// </summary>
         public static async Cysharp.Threading.Tasks.UniTask SettleResponseWindowAsync(GameCore core, int maxRounds = 96)
         {
+            // 并发泵闸（2026-11-03 帧泵自愈配套）：在途=别的链正在驱动本窗口（人类弹窗/AI 决策/
+            // 结算中），本调用直接让路——双泵并发会双弹窗/双结算。顺序调用方（AI 回合驱动等）
+            // 在让路时窗口由在途泵负责收口，语义不变；帧泵自愈口在途时本就不补发。
+            if (core == null || core.ResponsePumpInFlight)
+            {
+                Crumb("CF-pump-skip " + (core == null ? "null-core" : "in-flight"));
+                return;
+            }
+            core.ResponsePumpInFlight = true;
             Crumb($"CF-pump-enter stack={core?.StackEngine?.StackSize} res={core?.StackEngine?.IsResolving}");
             ResponseWindowService.ResetDeclinedWindow(); // 撤销记忆会话边界=本泵一次（一条连锁会话）
             try
@@ -1147,8 +1170,14 @@ namespace CardCore
                     ResponseOption choice = null;
                     var options = CollectAvailableResponses(core, holder);
                     Crumb($"CF-round i={i} holder={holder.Name} stack={engine.StackSize} opts={options.Count} waiting={engine.WaitingForPlayer} ctr={engine.SpeedCounter.CurrentSpeed}");
+                    bool inquired = false;
                     if (options.Count > 0)
                     {
+                        inquired = true;
+                        // 连锁询问入日志（2026-11-03 连锁表现改日志定案）：有真实候选进入决策口才记
+                        // ——0 候选自动 Pass 不询问不出行。应答三态：响应出牌=CardPlayEvent.IsResponseCast
+                        // 「连锁了」、充能=ChainRespondedEvent（无既有行）、让过=ChainDeclinedEvent。
+                        core.PublishEvent(new ChainInquiryEvent { Holder = holder });
                         if (holder.IsAI)
                             choice = ResponseWindowService.AiResponder?.Invoke(core, holder, options)
                                      ?? DefaultAiRespond(core, holder, options);
@@ -1185,14 +1214,28 @@ namespace CardCore
                         bool applied = ApplyResponse(core, holder, choice);
                         Crumb($"CF-choice holder={holder.Name} kind={choice.Kind} label={choice.Label} applied={applied}");
                         if (applied)
+                        {
+                            // 充能响应无既有播报行（2026-11-03 连锁日志补缺）；其余种类已有专属行
+                            //（响应出牌=CardPlayEvent.IsResponseCast、守卫=BlockDeclaration、效果=StackAdd）。
+                            if (choice.Kind == ResponseOption.ResponseKind.Charge)
+                                core.PublishEvent(new ChainRespondedEvent
+                                {
+                                    Responder = holder,
+                                    Description = choice.SourceCard != null
+                                        ? $"充能【{EffectText.Name(choice.SourceCard)}】" : "充能",
+                                });
                             continue; // 发动成功 → 优先权已翻转，继续下一轮
+                        }
                     }
 
+                    if (inquired) // 询问后的让过（让过按钮/倒计时/AI 不作主/声明期取消）——未询问的自动 Pass 不记
+                        core.PublishEvent(new ChainDeclinedEvent { Decliner = holder });
                     await engine.PassPriority(holder); // 0 候选/放弃/失败 → Pass（双 Pass 触发结算并 await 完成）
                 }
             }
             finally
             {
+                core.ResponsePumpInFlight = false;
                 Crumb("CF-pump-exit");
             }
         }
@@ -1679,24 +1722,38 @@ namespace CardCore
         /// 主阶段+回合方在此把守；速度门（0≥计数器）在 PushAttackDeclaration。
         /// </summary>
         public static bool DeclareAttack(GameCore core, Player player, Entity attacker, Entity target)
+            => DeclareAttack(core, player, attacker, target, out _);
+
+        /// <summary>带原因版（2026-11-03 失败提示细化）：拒绝文案直读闸门（UI toast / 网络 Error 帧透传），
+        /// 攻击者侧/目标侧资格经 CombatSystem.TryDeclareAttack/TryAttackTarget 单源透传。</summary>
+        public static bool DeclareAttack(GameCore core, Player player, Entity attacker, Entity target, out string reason)
         {
-            if (core == null || player == null) return false;
-            if (!core.TurnEngine.CanCombatAction()) return false;
-            if (core.TurnEngine.TurnPlayer != player) return false;
+            reason = null;
+            if (core == null || player == null) { reason = "内部错误：空参数"; return false; }
+            if (!core.TurnEngine.CanCombatAction())
+            {
+                reason = core.TurnEngine.CurrentPhase?.Phase != PhaseType.Main
+                    ? $"攻击只能在你的主阶段（当前：{core.TurnEngine.CurrentPhase?.Phase}）"
+                    : "当前不可宣言攻击（阶段非激活态/结算中）";
+                return false;
+            }
+            if (core.TurnEngine.TurnPlayer != player) { reason = "现在不是你的回合"; return false; }
 
             // 教学引导闸（2026-10-06）：先于常规资格——引导步骤语义优先（错误目标/锁定生物在此拒绝）
             var guideReject = RuleHooks.TutorialAttackGate?.Invoke(player, attacker, target);
             if (guideReject != null)
             {
+                reason = $"教学引导：{guideReject}";
                 TideLog.Warn($"[GameActions] 攻击被教学引导拒绝：{guideReject}");
                 return false;
             }
 
             var combat = core.CombatSystem;
-            if (!combat.CanDeclareAttack(attacker, player)) return false;
-            if (!combat.CanAttackTarget(attacker, target, player)) return false;
+            if (!combat.TryDeclareAttack(attacker, player, out reason)) return false;
+            if (!combat.TryAttackTarget(attacker, target, player, out reason)) return false;
 
-            if (!core.StackEngine.PushAttackDeclaration(attacker, target, player)) return false;
+            if (!core.StackEngine.PushAttackDeclaration(attacker, target, player))
+            { reason = "攻击入栈被拒（速度门/栈结算中）"; return false; }
             RuleHooks.OnTutorialAttackDeclared?.Invoke(player, attacker, target);
             return true;
         }
@@ -1715,14 +1772,21 @@ namespace CardCore
         /// （编辑器验证）时窗口自动让路，EndTurn 返回时已推进到位（行为同旧版）。
         /// </summary>
         public static bool EndTurn(GameCore core, Player player)
+            => EndTurn(core, player, out _);
+
+        /// <summary>带原因版（2026-11-03 失败提示细化）：拒绝文案直读闸门——UI 直显，替代旧
+        ///「Region 是否开窗」启发式二分猜测。</summary>
+        public static bool EndTurn(GameCore core, Player player, out string reason)
         {
-            if (core == null || player == null) return false;
-            if (core.TurnEngine.TurnPlayer != player) return false;
+            reason = null;
+            if (core == null || player == null) { reason = "内部错误：空参数"; return false; }
+            if (core.TurnEngine.TurnPlayer != player) { reason = "现在不是你的回合"; return false; }
 
             // 教学引导闸（2026-10-06）：引导步骤未完成时钉住回合（必须先做引导动作）
             var guideReject = RuleHooks.TutorialEndTurnGate?.Invoke(player);
             if (guideReject != null)
             {
+                reason = $"教学引导：{guideReject}";
                 TideLog.Warn($"[GameActions] 结束回合被教学引导拒绝：{guideReject}");
                 return false;
             }
@@ -1744,6 +1808,9 @@ namespace CardCore
             // 连发两次，连续 end 步一击双进（段七实测：换场/考验武装提前、必杀直伤提前落地）。
             if (!core.TurnEngine.EndTurn())
             {
+                reason = core.StackEngine.IsEmpty
+                    ? $"当前阶段不可结束回合（{core.TurnEngine.CurrentPhase?.Phase}/{core.TurnEngine.CurrentPhase?.State}）"
+                    : "连锁尚未结算——暂时无法结束回合";
                 TideLog.Warn("[GameActions] 结束回合被引擎拒绝（阶段已推进/连锁未结算）——不发教学探针");
                 return false;
             }
@@ -1785,15 +1852,23 @@ namespace CardCore
         ///（每回合一次闸门——回合开始 Untap 重置，接替旧耐久池）。
         /// </summary>
         public static bool ActivateEffect(GameCore core, Player player, EffectDefinition effect, Card source, int paidBoost = 0)
+            => ActivateEffect(core, player, effect, source, paidBoost, out _);
+
+        /// <summary>带原因版（2026-11-03 失败提示细化）：既有 Crumb 取证分支同步升级为用户可读
+        /// reason（Crumb 保留作验证器取证），闸序零变化。</summary>
+        public static bool ActivateEffect(GameCore core, Player player, EffectDefinition effect, Card source, int paidBoost, out string reason)
         {
-            if (core == null || player == null || effect == null) return false;
+            reason = null;
+            if (core == null || player == null || effect == null) { reason = "内部错误：空参数"; return false; }
             if (core.TurnEngine.TurnPlayer != player)
             {
+                reason = "只能在你的回合发动主动效果";
                 Crumb($"CF-activate-reject def={effect.Id} reason=非回合方 by={player?.Name}");
                 return false;
             }
             if (core.TurnEngine.CurrentPhase?.Phase != PhaseType.Main)
             {
+                reason = $"效果发动只能在你的主阶段（当前：{core.TurnEngine.CurrentPhase?.Phase}）";
                 Crumb($"CF-activate-reject def={effect.Id} reason=非主阶段({core.TurnEngine.CurrentPhase?.Phase})");
                 return false;
             }
@@ -1801,6 +1876,7 @@ namespace CardCore
             // 禁发令硬闸（2026-10-29）：网络 intent 直调本口不经引擎 CanActivate——统一在此拦
             if (source != null && RuleAuraSystem.ScopeHits(RuleAuraComponents.NoActivateAura, source.GetController()))
             {
+                reason = "禁发令生效中——不能发动主动效果";
                 Crumb($"CF-activate-reject def={effect.Id} reason=禁发令 by={player?.Name}");
                 return false;
             }
@@ -1810,6 +1886,7 @@ namespace CardCore
             var guideReject = RuleHooks.TutorialActivateGate?.Invoke(player, source, effect);
             if (guideReject != null)
             {
+                reason = $"教学引导：{guideReject}";
                 Crumb($"CF-activate-reject def={effect.Id} reason=引导闸：{guideReject}");
                 return false;
             }
@@ -1822,11 +1899,13 @@ namespace CardCore
             {
                 if (Attribute.CounterRules.UsesDurabilityEconomy(source))
                 {
+                    reason = "结界不能主动发动效果";
                     Crumb($"CF-activate-reject def={effect.Id} reason=结界禁主动 src={source.ID}");
                     return false; // 结界禁主动效果（2026-10-15 深夜改版）——耐久−1 通道整体退役
                 }
                 if (source.IsTapped())
                 {
+                    reason = "该卡已横置（本回合已发动过）";
                     Crumb($"CF-activate-reject def={effect.Id} reason=源已横置 src={source.ID}");
                     return false;
                 }
@@ -1842,7 +1921,10 @@ namespace CardCore
 
             var activated = core.StackEngine.PlayerActivateVoluntary(pending);
             if (!activated)
+            {
+                reason = $"发动入栈被拒（速度门/栈结算中，记速器 {core.StackEngine.SpeedCounter.CurrentSpeed}）";
                 Crumb($"CF-activate-reject def={effect.Id} reason=速度门或入栈失败 ctr={core.StackEngine.SpeedCounter.CurrentSpeed} stack={core.StackEngine.StackSize}");
+            }
 
             // 发动成功 → 消耗发动代价（仅主动；固定代价，不发不扣）：横置（恒横置，警戒不抵扣）
             //——生物每回合一次；技能区法术=英雄技能每回合一次（回合开始 Untap 重置）。
@@ -1867,10 +1949,16 @@ namespace CardCore
         /// 发动代价同口径：结界禁主动；源横置=每回合一次闸；发动成功横置（ShouldTap）。
         /// </summary>
         public static bool ActivateEffectInResponse(GameCore core, Player player, EffectDefinition effect, Card source)
+            => ActivateEffectInResponse(core, player, effect, source, out _);
+
+        /// <summary>带原因版（2026-11-03 失败提示细化）：Crumb 取证保留，同步升级 reason。</summary>
+        public static bool ActivateEffectInResponse(GameCore core, Player player, EffectDefinition effect, Card source, out string reason)
         {
-            if (core == null || player == null || effect == null || source == null) return false;
+            reason = null;
+            if (core == null || player == null || effect == null || source == null) { reason = "内部错误：空参数"; return false; }
             if (core.StackEngine.IsEmpty || core.StackEngine.IsResolving)
             {
+                reason = "响应窗口已关闭（栈空或结算中）";
                 Crumb($"CF-activate-reject def={effect.Id} reason=响应窗口已关闭（栈空或结算中）");
                 return false;
             }
@@ -1878,6 +1966,7 @@ namespace CardCore
             // 禁发令硬闸（2026-10-29）：与 ActivateEffect 同口径——网络 intent 不经引擎 CanActivate
             if (source != null && RuleAuraSystem.ScopeHits(RuleAuraComponents.NoActivateAura, source.GetController()))
             {
+                reason = "禁发令生效中——不能发动主动效果";
                 Crumb($"CF-activate-reject def={effect.Id} reason=禁发令 by={player?.Name}");
                 return false;
             }
@@ -1886,11 +1975,13 @@ namespace CardCore
             {
                 if (Attribute.CounterRules.UsesDurabilityEconomy(source))
                 {
+                    reason = "结界不能主动发动效果";
                     Crumb($"CF-activate-reject def={effect.Id} reason=结界禁主动 src={source.ID}");
                     return false;
                 }
                 if (source.IsTapped())
                 {
+                    reason = "该卡已横置（本回合已发动过）";
                     Crumb($"CF-activate-reject def={effect.Id} reason=源已横置 src={source.ID}");
                     return false;
                 }
@@ -1906,6 +1997,7 @@ namespace CardCore
             var activated = core.StackEngine.PlayerActivateVoluntary(pending);
             if (!activated)
             {
+                reason = $"发动入栈被拒（速度门/栈结算中，记速器 {core.StackEngine.SpeedCounter.CurrentSpeed}）";
                 Crumb($"CF-activate-reject def={effect.Id} reason=速度门或入栈失败 ctr={core.StackEngine.SpeedCounter.CurrentSpeed} stack={core.StackEngine.StackSize}");
                 return false;
             }
@@ -2128,9 +2220,9 @@ namespace CardCore
 
         private static string ManaZh(ManaType type) => type switch
         {
-            ManaType.Red => "红",
-            ManaType.Blue => "蓝",
-            ManaType.Green => "绿",
+            ManaType.Red => "火",
+            ManaType.Blue => "水",
+            ManaType.Green => "植物",
             ManaType.Any => "任意",
             _ => "灰",
         };
