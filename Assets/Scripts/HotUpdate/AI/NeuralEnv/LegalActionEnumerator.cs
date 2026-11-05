@@ -30,8 +30,9 @@ namespace CardCore.AI.NeuralEnv
         RespondActivate = 10,    // 响应发动（主动；镜像 NetworkIntentApplier.ActivateWithTargets）
         Guard = 11,              // 守卫宣言（拦截栈上的攻击宣言对象）
         TapCreature = 12,        // 横置带地牌特性(LandTrait)的生物产 1 元素进临时钱包（主阶段；产色自动=费用首色）
-        Charge = 14,             // 充能（2026-10-31 P12：手牌带充能效果的卡逐色充能——速度 0 主动效果入栈；
-                                  // Color 字段承载所选色；CanCharge 单源闸）。13 见下（勿复用）。
+        Charge = 14,             // 充能（2026-11-05 系统动作化改版：任意手牌卡宣充能——速度0系统动作入栈，
+                                  // 一张卡一回合一次；**不再承载选色**——颜色结算期反问由引擎代选；
+                                  // CanCharge 单源闸）。13 见下（勿复用）。
         // 2 = 墓地出牌（已移除 2026-09-09）：RL 标准池不含可从墓地打出的来源卡，
         //     枚举出的动作引擎必拒（口径漂移白耗动作配额）。引擎侧墓地出牌口已随
         //     2026-10-30 归土改版整删（归土=回合末自动复活，非出牌来源）。
@@ -69,8 +70,8 @@ namespace CardCore.AI.NeuralEnv
         public bool HeroAttacker;
         /// <summary>响应窗口动作（签名区分上下文：同一动作在 Main 与响应窗口不互相摘除）。</summary>
         public bool ResponseContext;
-        /// <summary>充能色（2026-10-31 P12）：Charge 行专属——灰/红/蓝/绿四选一
-        ///（其余动作类型无意义）；签名带色防同卡异色行判重坍缩。</summary>
+        /// <summary>充能色【墓碑字段·恒默认值】（2026-11-05 充能系统动作化改版）：选色移入引擎结算期
+        /// 反问（AI 自动取最大余量色），Charge 行不再逐色展开——字段保留防签名段漂移，恒不赋值。</summary>
         public ManaType Color;
 
         public override string ToString()
@@ -80,9 +81,9 @@ namespace CardCore.AI.NeuralEnv
         }
 
         /// <summary>
-        /// 动作签名（Type|来源卡|效果Id|目标集|模式|上下文|充能色）：跨枚举稳定（EffectDefinition 每次枚举都是新对象，
+        /// 动作签名（Type|来源卡|效果Id|目标集|模式|上下文|充能色段【墓碑·恒 -】）：跨枚举稳定（EffectDefinition 每次枚举都是新对象，
         /// 引用判等不可用；Id 是转换自卡表的稳定键）。供「本回合摘除无效动作」判重。
-        /// （苏醒位列已随 2026-11-02 苏醒机制整链删除。）
+        /// （苏醒位列已随 2026-11-02 苏醒机制整链删除；充能色段已随 2026-11-05 充能系统动作化改版恒 "-"。）
         /// </summary>
         public string Signature
         {
@@ -90,8 +91,7 @@ namespace CardCore.AI.NeuralEnv
             {
                 string t = TargetsKey();
                 string ctx = ResponseContext ? "R" : "M";
-                string color = Type == TideActionType.Charge ? ((int)Color).ToString() : "-";
-                return $"{(int)Type}|{Card?.ID ?? "-"}|{Effect?.Id ?? "-"}|{t}|{ModeIndex}|{ctx}|{color}";
+                return $"{(int)Type}|{Card?.ID ?? "-"}|{Effect?.Id ?? "-"}|{t}|{ModeIndex}|{ctx}|-";
             }
         }
 
@@ -218,20 +218,8 @@ namespace CardCore.AI.NeuralEnv
                         if (opt.Definition != null && opt.SourceCard != null)
                             AddActivatedRows(core, me, opt.SourceCard, opt.Definition, TideActionType.RespondActivate);
                         break;
-                    case ResponseOption.ResponseKind.Charge:
-                        // 充能响应（2026-11-02 对手回合档）：速≥1 法术充能卡逐色一票——Apply 走
-                        // TideActionType.Charge 公共口（ActivateCharge 终审），与主阶段充能同型行
-                        if (opt.SourceCard != null)
-                            Actions.Add(new TideAction
-                            {
-                                Type = TideActionType.Charge,
-                                Card = opt.SourceCard,
-                                Color = opt.ChargeColor,
-                                SourceIndex = TideObservation.IndexOfCard(core, me, opt.SourceCard),
-                                TargetIndex = -1,
-                                ResponseContext = true,
-                            });
-                        break;
+                    //（充能响应档已随 2026-11-05 充能系统动作化改版删除：充能=速度0系统动作，
+                    //  只能己方主阶段空栈首动宣入，不经响应窗口。）
                 }
             }
 
@@ -307,8 +295,9 @@ namespace CardCore.AI.NeuralEnv
                 case TideActionType.TapCreature:
                     return GameActions.TapCreatureForElement(core, me, a.Card);
                 case TideActionType.Charge:
-                    // 充能（2026-10-31 P12）：手牌带充能效果的卡逐色充能——CanCharge 单源终审
-                    return GameActions.ActivateCharge(core, me, a.Card, a.Color, out _);
+                    // 充能（2026-11-05 系统动作化改版）：任意手牌卡宣充能（速度0系统动作）——
+                    // CanCharge 单源终审；颜色在结算期反问由引擎代选（AI 自动取最大余量色）
+                    return GameActions.DeclareCharge(core, me, a.Card, out _);
                 default:
                     return false;
             }
@@ -495,9 +484,7 @@ namespace CardCore.AI.NeuralEnv
                     // 移动原子（2026-10-31 场面轴3c）：本阶段不枚举——枚举器的动作行无选格参数，
                     // AI 发动=白付代价空转（handler Warn 后不动盘面）
                     if (ContainsMoveUnitAtom(def)) continue;
-                    // 充能（2026-10-31 P12）：充能效果不走战场发动路径（引擎 CanActivate 限手牌源）
-                    //——枚举口=EnumerateCharge，此处跳过防死行
-                    if (ComposerCatalog.IsChargeEffect(def)) continue;
+                    //（充能跳过已随 2026-11-05 充能系统动作化改版删除——充能不再是卡上效果。）
                     if (!executor.CanActivate(def, src, me, me, phase, turn)) continue;
 
                     int slot = TideObservation.CardIndex(me, me, Zone.Battlefield, i);
@@ -506,10 +493,10 @@ namespace CardCore.AI.NeuralEnv
             }
         }
 
-        /// <summary>充能枚举（2026-10-31 P12）：己方手牌 × 带充能效果 × 各可充色——每色一行
-        ///（CanCharge 单源闸：己方主阶段/手牌/每回合一次/色资格/上限/元素余量全检；Charge 行 Color 承载所选色）。
-        /// 充能=主动效果入栈（ActivateCharge；己方回合恒 0 速空栈首动——栈非空时引擎拒，枚举即省行）。
-        /// 对手回合响应档不在此枚举（EnumerateResponses 经响应候选映射）；本口只在 Enumerate（己方主阶段）调用。</summary>
+        /// <summary>充能枚举（2026-11-05 系统动作化改版）：己方手牌 × 本回合未充过 × 有可充颜色
+        ///——**每卡一行**（不再逐色展开：颜色在结算期反问由引擎代选，AI 自动取最大余量色）。
+        /// CanCharge 单源闸（己方主阶段/空栈/手牌/一张卡一回合一次/余量全检）。
+        /// 对手回合响应档已随改版退役（充能=速度0系统动作，0 速无法接链）。</summary>
         private void EnumerateCharge(GameCore core, Player me, ZoneManager zm)
         {
             var hand = zm.GetCards(me, Zone.Hand);
@@ -518,23 +505,16 @@ namespace CardCore.AI.NeuralEnv
             {
                 var c = hand[i];
                 if (c == null) continue;
-                var data = c is CardWrapper wrapper ? wrapper.GetData() : null;
-                if (data == null || !ComposerCatalog.HasChargeEffect(data)) continue;
-                if (GameActions.ChargeUsedThisTurn(core, c)) continue; // 每回合一次前置（省逐色 4× 转换查账）
+                if (!GameActions.CanCharge(core, me, c, out _)) continue;
                 int src = TideObservation.CardIndex(me, me, Zone.Hand, i);
-                foreach (ManaType color in new[] { ManaType.Gray, ManaType.Red, ManaType.Blue, ManaType.Green })
+                Actions.Add(new TideAction
                 {
-                    if (!GameActions.CanCharge(core, me, c, color, out _)) continue;
-                    Actions.Add(new TideAction
-                    {
-                        Type = TideActionType.Charge,
-                        Card = c,
-                        Color = color,
-                        SourceIndex = src,
-                        TargetIndex = -1,
-                        TargetKindCode = 0,
-                    });
-                }
+                    Type = TideActionType.Charge,
+                    Card = c,
+                    SourceIndex = src,
+                    TargetIndex = -1,
+                    TargetKindCode = 0,
+                });
             }
         }
 
@@ -1026,7 +1006,7 @@ namespace CardCore.AI.NeuralEnv
                 case TideActionType.HeroSkill: // 技能发动费（2026-11-01 锚价现付定案）：与主动效果同价源现推
                     return CostDerivationService.DeriveElementCosts(a.Effect, 0).Total; // 效果费现推（主动/自愿桶发动时现付——L1 现推口径）
                 case TideActionType.Charge:
-                    return 1f; // 充能（P12）：现付 1 点所选色元素（ChargeHandler 结算期扣）
+                    return 0f; // 充能（2026-11-05 系统动作化）：免费落层（不支付元素）
                 default:
                     return 0f;
             }
@@ -1037,8 +1017,7 @@ namespace CardCore.AI.NeuralEnv
         private static int ModeCount(Card c)
         {
             if (!(c is CardWrapper w)) return 1;
-            // P12（2026-10-31）：法术模式数=非充能主动效果数（CostDerivationService 单源——
-            // 充能走特殊使用入口不算法术模式；旧 data.Effects.Count 会把充能算进模式）
+            // 法术模式数（CostDerivationService 单源——P12 充能排除已随 2026-11-05 充能系统动作化改版失效）
             return Math.Max(1, CostDerivationService.GetModeCount(w.GetData()));
         }
 

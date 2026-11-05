@@ -180,11 +180,6 @@ namespace CardCore
         public int PaidSpeedBoost { get; set; }
         public bool IsOnStack { get; set; }
 
-        /// <summary>充能色（2026-10-31 P12）：充能发动时玩家选定的颜色（灰/红/蓝/绿）——
-        /// 沿出队→入栈→执行链透传给 ChargeHandler（扣 1 点该色 + 放同色费用降低层）；
-        /// 非充能效果恒 null。</summary>
-        public ManaType? ChargeColor { get; set; }
-
         /// <summary>
         /// 创建待发效果
         /// 条件发动 speed=Max 绕过速度检查

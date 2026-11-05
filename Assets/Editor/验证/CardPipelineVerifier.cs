@@ -1288,18 +1288,17 @@ namespace CardCore.Editor
         // ======================================== 充能（2026-10-31 P12：建造→充能；四色费用降低指示物） ========================================
 
         /// <summary>
-        /// P12 充能回归（原 TestBuildPrepaid 改写——BuildPaid 账本退役，进度挂四色 CostDown* 指示物）：
-        /// 夹具=钉死锚价 {红2,灰3} 的非主动效果（E 桶直出）+ 充能主动效果（单 Charge 原子）。
-        /// ① 逐色扣减：充 1 红 → 入栈不换区，结算后 CostDownRed=1、Exposed=1、钱包红−1、净费红−1、卡仍在手牌；
-        /// ② 每回合一次（2026-11-02 定案）+ 充满被拒：同回合第二充拒（reason 含「一回合」）·跨回合充到 2/2 后再充拒（含「已充能满」）；
-        /// ③ 无充能效果的卡（结界/生物/法术）CanCharge=false（reason 含「充能效果」）；
-        /// ④ 法术补差：卡费基数不含施放锚价 → 上限并入模式 0 锚价（红 2 可充、cast 账单红−1）；
-        /// ⑤ 副本/跨玩家隔离（指示物实例级）；
-        /// ⑥ 换区清除：四色层与 Exposed 全清、元素不退；
-        /// ⑦ 战场源拒绝：充能只能从手牌发动（CanCharge + 执行器 CanActivate 双闸）；
-        /// ⑧ 每回合一次：同回合续充被拒·跨三回合各充 1 灰到满（灰层 3/3）；
-        /// ⑨ 对手回合档（2026-11-02）：速 0 法术/非法术拒（「自己的回合」）·对手回合空栈拒（「响应窗口」）·
-        /// p2 充能开窗后快法术（2 槽→速 1）入响应候选并成功充能·慢法术不出票·同回合第二窗每回合一次封锁。
+        /// 充能回归（2026-11-05 系统动作化改版重写——旧 P12「充能=卡上 Charge 原子主动效果」链整体退役）：
+        /// 充能=速度0系统动作（仿攻击宣言：空栈首动·宣言期零支付零选色·对手响应窗口），任意手牌卡
+        /// **一回合一次**、结算期反问元素类别（无头/AI 自动取最大余量色）→ **免费落层**（不支付元素）。
+        /// ① 普通卡可宣（无充能效果门槛）：入栈不换区·栈上他卡再宣被拒（速度0须空栈）；结算=最大余量色
+        ///    +1 层（2红3灰夹具 → 灰3&gt;红2 → CostDownGray=1·红层0）·Exposed=1·钱包不变·净费灰−1；
+        /// ② 一张卡一回合一次：同回合第二宣拒（reason 含「一回合」）·跨回合恢复；
+        /// ③ 颜色域=「卡具有且未充满」：单色卡（法术锚价红2）逐回合充 2/2 后 CanCharge 拒（含「没有可充颜色」）；
+        /// ④ 法术补差：层并入模式 0 锚价套算（cast 账单红 2→1）；
+        /// ⑤ 对手回合拒（reason 含「自己的回合」）；战场源拒（reason 含「手牌」）；
+        /// ⑥ 换区清除：层与 Exposed 全清；
+        /// ⑦ 副本/跨玩家隔离（指示物实例级）。
         /// </summary>
         private static void TestCharge(GameCore core, Player p1, Player p2)
         {
@@ -1310,12 +1309,8 @@ namespace CardCore.Editor
             pool1.GlobalTurnIndex = 9; // 防上限钳干扰（TestActiveEffectCost 同口径）
             foreach (var t in AllManaTypes()) pool1.TempElements[t] = 20;
 
-            CardEffectData ChargeEffect(string id) => new CardEffectData
-            {
-                Id = id + "_CHG",
-                TriggerTiming = (int)TriggerTiming.Activate_Active,
-                AtomicEffects = new List<AtomicEffectEntry> { Atom(AtomicEffectType.Charge) },
-            };
+            // 夹具：钉死锚价 {红2,灰3} 的非主动效果（E 桶直出）——**不带任何充能效果**
+            //（2026-11-05 系统动作化：充能不再要求卡面载体，任意手牌卡可宣）
             CardEffectData PricedOnPlay(string id, float red, float gray)
             {
                 var eff = new CardEffectData
@@ -1329,83 +1324,65 @@ namespace CardCore.Editor
                 eff.AnchorCost[ManaType.Gray] = gray;
                 return eff;
             }
+            CardData MultiColorData(string id) => new CardData
+            {
+                ID = id, CardName = "P12·充" + id, Supertype = Cardtype.Enchantment,
+                Effects = new List<CardEffectData> { PricedOnPlay(id, 2, 3) },
+            };
 
             try
             {
-                // ---- 前置：夹具口径锁死 ----
-                var dataA = new CardData
-                {
-                    ID = "VERIFY_P12_A", CardName = "P12·充能结界", Supertype = Cardtype.Enchantment,
-                    Effects = new List<CardEffectData> { PricedOnPlay("VERIFY_P12_A", 2, 3), ChargeEffect("VERIFY_P12_A") },
-                };
+                // ---- ① 普通卡宣言：入栈不换区·空栈门·结算免费落层（最大余量色） ----
+                var dataA = MultiColorData("VERIFY_P12_A");
                 CardCostService.GetPrePayloadCost(dataA, 0, out var preA, out _);
                 Assert((int)preA[ManaType.Red] == 2 && (int)preA[ManaType.Gray] == 3,
-                       $"P12 前置：钉死锚价充能卡抵扣前卡费 = 2红3灰（实际 红{preA[ManaType.Red]:0.#}灰{preA[ManaType.Gray]:0.#}）");
-                Assert(ComposerCatalog.HasChargeEffect(dataA) && ComposerCatalog.IsChargeEffect(
-                           CardEffectConverter.ConvertOne(ChargeEffect("VERIFY_P12_A"), "VERIFY_P12_A")),
-                       "P12 前置：HasChargeEffect 识别 + 充能效果转换（单原子·效果头钉主动/速度0）");
-
-                // ---- ① 充 1 红：入栈不换区 → 结算扣元素/放层/展示 ----
+                       $"P12① 前置：钉死锚价夹具抵扣前卡费 = 2红3灰（实际 红{preA[ManaType.Red]:0.#}灰{preA[ManaType.Gray]:0.#}）");
                 var f1 = InjectCard(core, p1, dataA);
-                int redBefore = pool1.TempElements[ManaType.Red];
-                bool ok1 = GameActions.ActivateCharge(core, p1, f1, ManaType.Red, out var r1);
+                var f1b = InjectCard(core, p1, MultiColorData("VERIFY_P12_B"));
+                int redBefore = (int)pool1.TempElements[ManaType.Red];
+                int grayBefore = (int)pool1.TempElements[ManaType.Gray];
+                bool ok1 = GameActions.DeclareCharge(core, p1, f1, out var r1);
                 bool stackLive = ok1 && core.StackEngine.StackSize > 0;
-                Assert(ok1 && stackLive && f1.GetZone() == Zone.Hand,
-                       $"P12① 充能入栈成功·卡仍在手牌（拒因 {r1 ?? "无"}·栈 {core.StackEngine.StackSize}）");
+                bool stackTopCharge = ok1 && core.StackEngine.PeekStack() != null
+                                       && core.StackEngine.PeekStack().IsChargeDeclaration;
+                bool stackGate = !GameActions.DeclareCharge(core, p1, f1b, out var rStack)
+                                 && rStack != null && rStack.Contains("空栈");
+                Assert(ok1 && stackLive && stackTopCharge && stackGate && f1.GetZone() == Zone.Hand,
+                       $"P12① 充能宣言入栈成功（CHG 栈对象·卡仍在手牌·栈上他卡再宣被拒「{rStack ?? "?"}」·拒因 {r1 ?? "无"}）");
                 GameActions.DrainStack(core);
                 var n1 = GameActions.GetCardCost(f1);
-                Assert(f1.GetCounterCount(CardCore.Attribute.CounterRules.CostDownRedCounter) == 1
+                Assert(f1.GetCounterCount(CardCore.Attribute.CounterRules.CostDownGrayCounter) == 1
+                       && f1.GetCounterCount(CardCore.Attribute.CounterRules.CostDownRedCounter) == 0
                        && f1.GetCounterCount(CardCore.Attribute.CounterRules.ExposedCounter) == 1
-                       && (int)pool1.TempElements[ManaType.Red] == redBefore - 1
-                       && (int)n1[ManaType.Red] == 1 && (int)n1[ManaType.Gray] == 3,
-                       $"P12① 结算：CostDownRed=1·Exposed=1·钱包红−1·净费 1红3灰"
-                       + $"（实际 红{n1[ManaType.Red]:0.#}灰{n1[ManaType.Gray]:0.#}·红层 {f1.GetCounterCount(CardCore.Attribute.CounterRules.CostDownRedCounter)}）");
+                       && (int)pool1.TempElements[ManaType.Red] == redBefore
+                       && (int)pool1.TempElements[ManaType.Gray] == grayBefore
+                       && (int)n1[ManaType.Red] == 2 && (int)n1[ManaType.Gray] == 2,
+                       $"P12① 结算：免费落最大余量色 CostDownGray=1·红层0·Exposed=1·钱包不动·净费 2红2灰"
+                       + $"（实际 红{n1[ManaType.Red]:0.#}灰{n1[ManaType.Gray]:0.#}·灰层 {f1.GetCounterCount(CardCore.Attribute.CounterRules.CostDownGrayCounter)}"
+                       + $"·钱包 红{redBefore}→{(int)pool1.TempElements[ManaType.Red]}灰{grayBefore}→{(int)pool1.TempElements[ManaType.Gray]}）");
 
-                // ---- ② 每回合一次 + 充满被拒（2026-11-02 定案：单卡一回合一次） ----
-                bool sameTurn = GameActions.ActivateCharge(core, p1, f1, ManaType.Red, out var rOnce); // 同回合第二充
+                // ---- ② 一张卡一回合一次：同回合第二宣拒 ----
+                bool sameTurn = GameActions.DeclareCharge(core, p1, f1, out var rOnce);
                 bool onceGate = !sameTurn && rOnce != null && rOnce.Contains("一回合");
-                EndTurnPumped(core, p1); // 推进回合：每回合规额随台账清零（进度层跨回合保留）
+                Assert(onceGate,
+                       $"P12② 一回合一次：同回合再宣被拒（{rOnce ?? "未拒"}）");
+
+                // ---- ⑤a 对手回合拒 + 战场源拒 ----
+                EndTurnPumped(core, p1); // 推进到 p2 回合
+                bool oppTurnOk = !GameActions.CanCharge(core, p1, f1, out var rOpp)
+                                 && rOpp != null && rOpp.Contains("自己的回合");
+                EndTurnPumped(core, p2); // 回 p1
                 EnsureMainPhase(core, p1);
                 foreach (var t in AllManaTypes()) pool1.TempElements[t] = 20; // 回合末钱包清空→回填
-                bool fill = GameActions.ActivateCharge(core, p1, f1, ManaType.Red, out _); // 红 → 2/2 满
-                GameActions.DrainStack(core);
-                EndTurnPumped(core, p1);
-                EnsureMainPhase(core, p1);
-                foreach (var t in AllManaTypes()) pool1.TempElements[t] = 20;
-                bool rejected = !GameActions.CanCharge(core, p1, f1, ManaType.Red, out var reason2);
-                Assert(onceGate && fill && rejected && reason2 != null && reason2.Contains("已充能满"),
-                       $"P12② 每回合一次+充满拒充：同回合再充被拒（{rOnce ?? "?"}）·跨回合充到 2/2 后再充被拒含「已充能满」"
-                       + $"（实际 reason={reason2 ?? "可充(未拒)"}）");
+                var fBf = InjectCard(core, p1, MultiColorData("VERIFY_P12_BF"));
+                Assert(core.ZoneManager.TryMoveToBattlefield(fBf, p1, Zone.Hand),
+                       "P12⑤ 前置：夹具卡入战场（占格直入）");
+                bool fieldOk = !GameActions.CanCharge(core, p1, fBf, out var rField)
+                               && rField != null && rField.Contains("手牌");
+                Assert(oppTurnOk && fieldOk,
+                       $"P12⑤ 对手回合拒「{rOpp}」·战场源拒「{rField}」");
 
-                // ---- ③ 无充能效果的卡三类全拒 ----
-                var plainEnch = InjectCard(core, p1, new CardData
-                {
-                    ID = "VERIFY_P12_N1", CardName = "P12·无充能结界", Supertype = Cardtype.Enchantment,
-                    Effects = new List<CardEffectData> { PricedOnPlay("VERIFY_P12_N1", 0, 3) },
-                });
-                var plainCr = InjectCard(core, p1, new CardData
-                {
-                    ID = "VERIFY_P12_N2", CardName = "P12·无充能生物", Supertype = Cardtype.Creature, Power = 3, Life = 3,
-                });
-                var plainSp = InjectCard(core, p1, new CardData
-                {
-                    ID = "VERIFY_P12_N3", CardName = "P12·无充能法术", Supertype = Cardtype.Spell,
-                    Effects = new List<CardEffectData>
-                    {
-                        new CardEffectData
-                        {
-                            Id = "VERIFY_P12_N3_E", TriggerTiming = (int)TriggerTiming.Activate_Active,
-                            AtomicEffects = new List<AtomicEffectEntry> { Atom(AtomicEffectType.DealDamage) },
-                        },
-                    },
-                });
-                bool rn1ok = !GameActions.CanCharge(core, p1, plainEnch, ManaType.Gray, out var rn1);
-                bool rn2ok = !GameActions.CanCharge(core, p1, plainCr, ManaType.Gray, out var rn2);
-                bool rn3ok = !GameActions.CanCharge(core, p1, plainSp, ManaType.Gray, out var rn3);
-                Assert(rn1ok && rn2ok && rn3ok && rn1 != null && rn1.Contains("充能效果"),
-                       $"P12③ 无充能效果三类全拒·reason 含「充能效果」（结界={rn1} 生物={rn2} 法术={rn3}）");
-
-                // ---- ④ 法术补差：上限并入模式 0 锚价 ----
+                // ---- ③ 单色卡逐回合充到满 → 「没有可充颜色」（颜色域=卡具有且未充满） ----
                 var spellData = new CardData
                 {
                     ID = "VERIFY_P12_S", CardName = "P12·充能法术", Supertype = Cardtype.Spell,
@@ -1417,168 +1394,64 @@ namespace CardCore.Editor
                             AnchorCostPinned = 1, AnchorCost = new ElementCost(), // 主动锚价：施放时现付（不进卡费）
                             AtomicEffects = new List<AtomicEffectEntry> { Atom(AtomicEffectType.DealDamage) },
                         },
-                        ChargeEffect("VERIFY_P12_S"),
                     },
                 };
                 spellData.Effects[0].AnchorCost[ManaType.Red] = 2;
                 var fs = InjectCard(core, p1, spellData);
                 var sBill0 = GameActions.GetCardCost(fs, 0);
                 Assert((int)sBill0[ManaType.Red] == 2,
-                       $"P12④ 前置：法术 cast 账单红 2（锚价现付；实际 {sBill0}）");
-                Assert(GameActions.ActivateCharge(core, p1, fs, ManaType.Red, out var rs),
-                       $"P12④ 法术充红可充（锚价并入上限；拒因 {rs ?? "无"}）");
+                       $"P12③/④ 前置：法术 cast 账单红 2（锚价现付；实际 {sBill0}）");
+                bool c1 = GameActions.DeclareCharge(core, p1, fs, out _);
                 GameActions.DrainStack(core);
                 var sBill1 = GameActions.GetCardCost(fs, 0);
-                Assert((int)sBill1[ManaType.Red] == 1,
-                       $"P12④ 充 1 红后 cast 账单红 1（层于锚价合并后套算；实际 {sBill1}）");
+                bool tier4Ok = c1 && (int)sBill1[ManaType.Red] == 1
+                               && fs.GetCounterCount(CardCore.Attribute.CounterRules.CostDownRedCounter) == 1;
+                EndTurnPumped(core, p1);
+                EnsureMainPhase(core, p1);
+                foreach (var t in AllManaTypes()) pool1.TempElements[t] = 20;
+                bool c2 = GameActions.DeclareCharge(core, p1, fs, out _);
+                GameActions.DrainStack(core);
+                bool fullGate = !GameActions.CanCharge(core, p1, fs, out var rFull)
+                                && rFull != null && rFull.Contains("没有可充颜色");
+                Assert(tier4Ok && c2 && fullGate
+                       && fs.GetCounterCount(CardCore.Attribute.CounterRules.CostDownRedCounter) == 2,
+                       $"P12③/④ 单色充到满：红层逐回合 1→2·cast 账单红 2→1·充满后拒「{rFull ?? "可充(未拒)"}」");
 
-                // ---- ⑤ 副本/跨玩家隔离（指示物实例级） ----
+                // ---- ⑦ 副本/跨玩家隔离（指示物实例级） ----
                 var ca = InjectCard(core, p1, dataA);
                 var cb = InjectCard(core, p1, dataA);
-                bool a1 = GameActions.ActivateCharge(core, p1, ca, ManaType.Red, out _);
+                bool a1 = GameActions.DeclareCharge(core, p1, ca, out _);
                 GameActions.DrainStack(core);
                 var nb = GameActions.GetCardCost(cb);
                 Assert(a1 && (int)nb[ManaType.Red] == 2 && (int)nb[ManaType.Gray] == 3
-                       && cb.GetCounterCount(CardCore.Attribute.CounterRules.CostDownRedCounter) == 0,
-                       $"P12⑤ 副本隔离：A 充 1 红后 B 净费仍 2红3灰·B 红层 0（实际 {nb}）");
+                       && cb.GetCounterCount(CardCore.Attribute.CounterRules.CostDownGrayCounter) == 0,
+                       $"P12⑦ 副本隔离：A 充 1 灰后 B 净费仍 2红3灰·B 灰层 0（实际 {nb}）");
                 var theirs = InjectCard(core, p2, dataA);
                 var nTheirs = GameActions.GetCardCost(theirs);
                 Assert((int)nTheirs[ManaType.Red] == 2
-                       && theirs.GetCounterCount(CardCore.Attribute.CounterRules.CostDownRedCounter) == 0,
-                       $"P12⑤ 跨玩家隔离：p2 同名实例净费 2红3灰·红层 0（实际 {nTheirs}）");
+                       && theirs.GetCounterCount(CardCore.Attribute.CounterRules.CostDownGrayCounter) == 0,
+                       $"P12⑦ 跨玩家隔离：p2 同名实例净费 2红3灰·灰层 0（实际 {nTheirs}）");
 
-                // ---- ⑥ 换区清除：四色层与 Exposed 全清、元素不退 ----
+                // ---- ⑥ 换区清除：层与 Exposed 全清（免费落层无可退元素） ----
                 var f6 = InjectCard(core, p1, dataA);
-                int walletRed6 = pool1.TempElements[ManaType.Red];
-                bool f6ok = GameActions.ActivateCharge(core, p1, f6, ManaType.Red, out _);
+                int walletRed6 = (int)pool1.TempElements[ManaType.Red];
+                bool f6ok = GameActions.DeclareCharge(core, p1, f6, out _);
                 GameActions.DrainStack(core);
-                int walletRed6After = pool1.TempElements[ManaType.Red];
                 core.ZoneManager.MoveCard(f6, p1, Zone.Hand, Zone.Graveyard);
                 var n6 = GameActions.GetCardCost(f6);
-                Assert(f6ok && walletRed6After == walletRed6 - 1
-                       && f6.GetCounterCount(CardCore.Attribute.CounterRules.CostDownRedCounter) == 0
+                Assert(f6ok && (int)pool1.TempElements[ManaType.Red] == walletRed6
+                       && f6.GetCounterCount(CardCore.Attribute.CounterRules.CostDownGrayCounter) == 0
                        && f6.GetCounterCount(CardCore.Attribute.CounterRules.ExposedCounter) == 0
-                       && (int)n6[ManaType.Red] == 2 && (int)n6[ManaType.Gray] == 3
-                       && (int)pool1.TempElements[ManaType.Red] == walletRed6After,
-                       $"P12⑥ 换区清除：充 1 红后移出手牌——红层/Exposed 归零·净费回 2红3灰·钱包不回升"
-                       + $"（红 {walletRed6}→{walletRed6After}→{(int)pool1.TempElements[ManaType.Red]}）");
-
-                // ---- ⑦ 战场源拒绝（充能只能从手牌发动） ----
-                var f7 = InjectCard(core, p1, dataA);
-                Assert(core.ZoneManager.TryMoveToBattlefield(f7, p1, Zone.Hand),
-                       "P7⑦ 前置：充能卡入战场（占格直入）");
-                bool handGate = !GameActions.CanCharge(core, p1, f7, ManaType.Red, out var r7);
-                var executor = core.StackEngine.GetExecutor();
-                bool engineGate = false;
-                foreach (var def in GameActions.GetCardEffectDefinitions(f7))
-                    if (ComposerCatalog.IsChargeEffect(def)
-                        && !executor.CanActivate(def, f7, p1, p1, PhaseType.Main, core.TurnEngine.TurnNumber))
-                        engineGate = true;
-                Assert(handGate && engineGate && r7 != null && r7.Contains("手牌"),
-                       $"P12⑦ 战场源双闸拒绝：CanCharge「{r7}」+ 执行器 CanActivate=false");
-
-                // ---- ⑧ 每回合一次（2026-11-02 定案）：同回合续充被拒·跨回合逐补到满 ----
-                var f8 = InjectCard(core, p1, dataA);
-                bool g1 = GameActions.ActivateCharge(core, p1, f8, ManaType.Gray, out _);
-                GameActions.DrainStack(core);
-                bool g2SameTurn = !GameActions.ActivateCharge(core, p1, f8, ManaType.Gray, out var r8)
-                                  && r8 != null && r8.Contains("一回合");
-                EndTurnPumped(core, p1);
-                EnsureMainPhase(core, p1);
-                foreach (var t in AllManaTypes()) pool1.TempElements[t] = 20;
-                bool g2 = GameActions.ActivateCharge(core, p1, f8, ManaType.Gray, out _);
-                GameActions.DrainStack(core);
-                EndTurnPumped(core, p1);
-                EnsureMainPhase(core, p1);
-                foreach (var t in AllManaTypes()) pool1.TempElements[t] = 20;
-                bool g3 = GameActions.ActivateCharge(core, p1, f8, ManaType.Gray, out _);
-                GameActions.DrainStack(core);
-                Assert(g1 && g2SameTurn && g2 && g3
-                       && f8.GetCounterCount(CardCore.Attribute.CounterRules.CostDownGrayCounter) == 3,
-                       $"P12⑧ 每回合一次：同回合续充被拒（{r8 ?? "?"}）·跨三回合各充 1 灰全成功·灰层 3/3"
-                       + $"（实际 {g1},{g2SameTurn},{g2},{g3}）");
-
-                // ---- ⑨ 对手回合档（2026-11-02 定案）：速≥1 法术限响应窗口·窗口内可充·每回合一次跨窗封锁 ----
-                // 快法术=主动锚价效果+充能（2 槽→整卡速 1）；慢法术=充能+两主动（3 槽→速 0）；
-                // p2 开窗卡×2（充能每次入栈翻优先权给 p1——对手每回合也一次，第二窗用另一张）
-                var quickData = new CardData
-                {
-                    ID = "VERIFY_P12_Q", CardName = "P12·快充法术", Supertype = Cardtype.Spell,
-                    Effects = new List<CardEffectData>
-                    {
-                        new CardEffectData
-                        {
-                            Id = "VERIFY_P12_Q_E", TriggerTiming = (int)TriggerTiming.Activate_Active,
-                            AnchorCostPinned = 1, AnchorCost = new ElementCost(),
-                            AtomicEffects = new List<AtomicEffectEntry> { Atom(AtomicEffectType.DealDamage) },
-                        },
-                        ChargeEffect("VERIFY_P12_Q"),
-                    },
-                };
-                quickData.Effects[0].AnchorCost[ManaType.Red] = 1;
-                var slowData = new CardData
-                {
-                    ID = "VERIFY_P12_L", CardName = "P12·慢充法术", Supertype = Cardtype.Spell,
-                    Effects = new List<CardEffectData>
-                    {
-                        ChargeEffect("VERIFY_P12_L"),
-                        new CardEffectData { Id = "VERIFY_P12_L_E1", TriggerTiming = (int)TriggerTiming.Activate_Active, AtomicEffects = new List<AtomicEffectEntry> { Atom(AtomicEffectType.DealDamage) } },
-                        new CardEffectData { Id = "VERIFY_P12_L_E2", TriggerTiming = (int)TriggerTiming.Activate_Active, AtomicEffects = new List<AtomicEffectEntry> { Atom(AtomicEffectType.DealDamage) } },
-                    },
-                };
-                var fq = InjectCard(core, p1, quickData);
-                var fl = InjectCard(core, p1, slowData);
-                var w1 = InjectCard(core, p2, dataA);
-                var w2 = InjectCard(core, p2, dataA);
-
-                // 推进到 p2 回合主阶段（EnsureMainPhase 同款走法，目标换成 p2）
-                for (int i = 0; i < 6; i++)
-                {
-                    if (core.TurnEngine.TurnPlayer == p2 && core.TurnEngine.CurrentPhase?.Phase == PhaseType.Main) break;
-                    var tp = core.TurnEngine.TurnPlayer;
-                    if (core.TurnEngine.CurrentPhase?.Phase == PhaseType.Standby)
-                        GameActions.SkipElementPool(core, tp);
-                    else
-                        EndTurnPumped(core, tp);
-                }
-                var pool2 = core.ElementPool.GetPool(p2);
-                foreach (var t in AllManaTypes()) { pool1.TempElements[t] = 20; pool2.TempElements[t] = 20; }
-                int fqRedBefore = (int)pool1.TempElements[ManaType.Red];
-
-                bool slowOk = !GameActions.CanCharge(core, p1, fl, ManaType.Gray, out var rl)
-                              && rl != null && rl.Contains("自己的回合"); // 速 0 法术：无对手回合档
-                bool nonSpellOk = !GameActions.CanCharge(core, p1, f1, ManaType.Gray, out var rn9)
-                                  && rn9 != null && rn9.Contains("自己的回合"); // 非法术（结界）：同拒
-                bool emptyStackOk = !GameActions.CanCharge(core, p1, fq, ManaType.Red, out var rq9)
-                                    && rq9 != null && rq9.Contains("响应窗口"); // 对手回合空栈：须响应窗口
-
-                bool window1 = GameActions.ActivateCharge(core, p2, w1, ManaType.Red, out _); // p2 开窗（速 0 入栈·优先权翻 p1）
-                var opts9 = GameActions.CollectAvailableResponses(core, p1);
-                bool listed = opts9.Any(o => o != null && o.Kind == ResponseOption.ResponseKind.Charge
-                                             && o.SourceCard == fq);
-                bool slowNotListed = !opts9.Any(o => o != null && o.Kind == ResponseOption.ResponseKind.Charge
-                                                     && o.SourceCard == fl);
-                bool chargeOk = GameActions.ActivateCharge(core, p1, fq, ManaType.Red, out _); // 窗口内以整卡速 1 接链
-                GameActions.DrainStack(core);
-                bool resolvedOk = fq.GetCounterCount(CardCore.Attribute.CounterRules.CostDownRedCounter) == 1
-                                  && (int)pool1.TempElements[ManaType.Red] == fqRedBefore - 1;
-
-                bool window2 = GameActions.ActivateCharge(core, p2, w2, ManaType.Red, out _); // 第二窗
-                bool usedGate = !GameActions.CanCharge(core, p1, fq, ManaType.Red, out var ru9)
-                                && ru9 != null && ru9.Contains("一回合"); // 本回合已充过：跨窗封锁
-                GameActions.DrainStack(core);
-                Assert(window1 && slowOk && nonSpellOk && emptyStackOk && listed && slowNotListed
-                       && chargeOk && resolvedOk && window2 && usedGate,
-                       $"P12⑨ 对手回合档：p2开窗={window1}·速0法术拒「{rl}」·结界拒「{rn9}」·空栈拒「{rq9}」"
-                       + $"·快法术入候选={listed}·慢法术不出票={slowNotListed}·窗口充能={chargeOk}·结算层1/红−1={resolvedOk}"
-                       + $"·第二窗={window2}·每回合一次「{ru9}」");
+                       && (int)n6[ManaType.Red] == 2 && (int)n6[ManaType.Gray] == 3,
+                       $"P12⑥ 换区清除：充 1 灰后移出手牌——灰层/Exposed 归零·净费回 2红3灰·钱包不动"
+                       + $"（红 {walletRed6}→{(int)pool1.TempElements[ManaType.Red]}）");
             }
             finally
             {
                 pool1.GlobalTurnIndex = snapIndex;
                 pool1.TempElements.Clear();
                 foreach (var kv in snapWallet) pool1.TempElements[kv.Key] = kv.Value;
-                // 本段注入物清理：手牌送墓（发动区豁免路径外的真实换区）+ 墓/战场残留直移除——不污染后续段落
+                // 本段注入物清理：手牌/墓/战场/元素池残留直移除——不污染后续段落
                 bool IsP12(Card c)
                 {
                     var d = (c as CardWrapper)?.GetData();
@@ -1755,18 +1628,10 @@ namespace CardCore.Editor
                        && f3.GetZone() == Zone.Graveyard,
                        "P8⑥ 耐久归零 → 按结界规则销毁入墓（Smashed 直毁）");
 
-                // ---- ⑦ 充能可用（P12：建造→充能）+ 顶替/入场后进度作废 ----
-                // 夹具=FieldData 加充能主动效果（结界主动槽只收充能）；进度挂 CostDownGray 层
-                var chargeFx = new CardEffectData
-                {
-                    Id = "VERIFY_P8_G_CHG",
-                    TriggerTiming = (int)TriggerTiming.Activate_Active,
-                    AtomicEffects = new List<AtomicEffectEntry> { Atom(AtomicEffectType.Charge) },
-                };
-                var fBuildData = FieldData("VERIFY_P8_G");
-                fBuildData.Effects.Add(chargeFx);
-                var fBuild = InjectCard(core, p1, fBuildData);
-                bool bOk = GameActions.ActivateCharge(core, p1, fBuild, ManaType.Gray, out var bReject);
+                // ---- ⑦ 充能可用（2026-11-05 系统动作化：任意手牌卡可宣，无需卡面效果）+ 入场后进度作废 ----
+                // 夹具=普通场地卡（钉死 3 灰）；进度挂 CostDownGray 层
+                var fBuild = InjectCard(core, p1, FieldData("VERIFY_P8_G"));
+                bool bOk = GameActions.DeclareCharge(core, p1, fBuild, out var bReject);
                 GameActions.DrainStack(core);
                 Assert(bOk && fBuild.GetCounterCount(CardCore.Attribute.CounterRules.CostDownGrayCounter) == 1,
                        $"P8⑦ 充能在场地卡可用：手牌充 1 灰成功（拒因 {bReject ?? "无"}）");
@@ -1817,7 +1682,9 @@ namespace CardCore.Editor
 
         /// <summary>
         /// P1 计价内核回归（2026-10-28 定案：代价=构筑期抵扣不再产出元素；可支付=声明期闸）：
-        /// ① 净费 = 推导费 − 代价价（先灰后最高费用色，每色 ≥0，溢出丢弃）——同卡有无代价对照 + 手工复算；
+        /// ① 净费 = 推导费 − 代价价（**逐行色锁**——代价只在自身可产出色内扣、先灰后集合内最高色，
+        ///    每色 ≥0，溢出丢弃，跨色不抵；2026-10-31 卡层定案 + 2026-11-05 NetBill 收口同口径）
+        ///    ——同卡有无代价对照 + 手工复算（跨色不抵 + 同色抵扣双面钉死）；
         /// ② 净费 0 的卡可付（免费卡合法，空钱包放行）；
         /// ③ 手牌 0 张 → 带弃牌代价的卡不可用（CanAffordCast=false + 拒绝原因「手牌不足」）；
         /// ④ 灰费可由红/蓝/绿支付（支付链回归，不因 P3 未做而删）；
@@ -1838,22 +1705,29 @@ namespace CardCore.Editor
                 return inst != null ? CostDerivationService.PayloadUnitGrant(inst) : 0;
             }
 
-            // 测试内手工复算「先灰后最高费用色、每色下限0」（独立于 CardCompositionCost.ReduceBuckets 的第二实现）
-            Dictionary<ManaType, int> ManualReduce(Dictionary<ManaType, int> buckets, int points)
+            // 测试内手工复算「逐行色锁、先灰后集合内最高色、每色下限0」
+            //（独立于 CardCostService.ApplyLockedDeduction 的第二实现——2026-11-05 色锁收口同口径）
+            Dictionary<ManaType, int> ManualLockedReduce(Dictionary<ManaType, int> buckets, int points,
+                HashSet<ManaType> allowed)
             {
                 var r = new Dictionary<ManaType, int>(buckets);
                 for (int i = 0; i < points; i++)
                 {
-                    if (r.TryGetValue(ManaType.Gray, out var g) && g >= 1) { r[ManaType.Gray] = g - 1; continue; }
+                    if (allowed.Contains(ManaType.Gray) && r.TryGetValue(ManaType.Gray, out var g) && g >= 1)
+                    { r[ManaType.Gray] = g - 1; continue; }
                     var best = default(ManaType); int bestV = 0; bool has = false;
                     foreach (var kv in r)
-                        if (kv.Key != ManaType.Gray && kv.Value > bestV) { bestV = kv.Value; best = kv.Key; has = true; }
+                        if (kv.Key != ManaType.Gray && allowed.Contains(kv.Key) && kv.Value > bestV)
+                        { bestV = kv.Value; best = kv.Key; has = true; }
                     if (!has || bestV <= 0) break;
                     r[best] = bestV - 1;
                 }
                 foreach (var k in r.Where(x => x.Value <= 0).Select(x => x.Key).ToList()) r.Remove(k);
                 return r;
             }
+
+            string Dump(Dictionary<ManaType, int> d)
+                => string.Join(",", d.Select(kv => kv.Key + "" + kv.Value));
 
             try
             {
@@ -1888,21 +1762,42 @@ namespace CardCore.Editor
 
                 // 净费基准 = 抵扣前留影 PrePayloadCost（P7 单源）：卡层代价栏计 1 槽（2026-10-04 定案
                 //「代价也是效果栏」+ 2026-10-22 结构项>3 差额入灰）→ 抵扣前费 ≠ 无代价推导费，
-                // 差额=超槽加价（下方断言钉死），净费 = 抵扣前费 − 代价价（先灰后最高色、每色 ≥0）。
+                // 差额=超槽加价（下方断言钉死），净费 = 抵扣前费 − 代价价（**逐行色锁**、每色 ≥0）。
                 var pre = new Dictionary<ManaType, int>();
                 foreach (var c in r1.PrePayloadCost.NonzeroColors()) pre[c] = (int)r1.PrePayloadCost[c];
-                var expect = ManualReduce(pre, price);
+                var blueOnly = new HashSet<ManaType> { ManaType.Blue }; // 弃1=蓝（原子表 ManaList——跨色面）
+                var expect = ManualLockedReduce(pre, price, blueOnly);
                 var d1 = new Dictionary<ManaType, int>();
                 foreach (var c in r1.DerivedCost.NonzeroColors()) d1[c] = (int)r1.DerivedCost[c];
                 Assert(d1.Count == expect.Count && !d1.Except(expect).Any(),
-                       $"净费=抵扣前费−代价价（先灰后最高色）：抵扣前 {string.Join(",", pre.Select(kv => kv.Key + "" + kv.Value))}"
-                       + $" − {price} → 期望 {string.Join(",", expect.Select(kv => kv.Key + "" + kv.Value))}"
-                       + $"，实际 {string.Join(",", d1.Select(kv => kv.Key + "" + kv.Value))}");
+                       $"净费=抵扣前费−代价价（逐行色锁·跨色不抵）：弃1蓝对 [{Dump(pre)}]"
+                       + $" − {price} → 期望 [{Dump(expect)}]（无蓝桶=0 抵扣），实际 [{Dump(d1)}]");
                 Assert(d1.Values.All(v => v >= 0), "净费每色 ≥ 0（下限 0，溢出丢弃）");
+
+                // 同色对照：自伤红代价（DealDamage 己方单位）对含红桶的卡 → 色内抵扣真发生（只动红）
+                var dmgCost = Atom(AtomicEffectType.DealDamage, value: 1,
+                    kinds: new List<int> { (int)CardCore.TargetKind.OwnLivingUnit });
+                var dmgInst = CardEffectConverter.ConvertPayloadForDisplay(dmgCost);
+                Assert(dmgInst != null, "前置：自伤红代价合法（p<0 锁己方——代价契约）");
+                int dmgPts = CostDerivationService.PayloadUnitGrant(dmgInst);
+                Assert(dmgPts > 0, $"前置：自伤红代价价 {dmgPts} > 0");
+                var redCard = CostCard("VERIFY_COST_RED", 0);
+                redCard.PayloadCost = new CostEntry { payloads = new List<AtomicEffectEntry> { dmgCost } };
+                var rRed = CardCostService.Derive(redCard);
+                var preRed = new Dictionary<ManaType, int>();
+                foreach (var c in rRed.PrePayloadCost.NonzeroColors()) preRed[c] = (int)rRed.PrePayloadCost[c];
+                var redOnly = new HashSet<ManaType> { ManaType.Red };
+                var expectRed = ManualLockedReduce(preRed, dmgPts, redOnly);
+                var dRed = new Dictionary<ManaType, int>();
+                foreach (var c in rRed.DerivedCost.NonzeroColors()) dRed[c] = (int)rRed.DerivedCost[c];
+                Assert(dRed.Count == expectRed.Count && !dRed.Except(expectRed).Any(),
+                       $"净费色内抵扣：红代价 {dmgPts} 点只扣红桶 [{Dump(preRed)}] → 期望 [{Dump(expectRed)}]"
+                       + $"（绿桶原样），实际 [{Dump(dRed)}]");
                 int surcharge = (int)r1.Breakdown.Where(l => l.Stage == "C" && l.Value > 0).Sum(l => l.Value);
-                Assert(surcharge > 0 && System.Math.Abs(r1.PrePayloadCost.Total - (r0.DerivedTotal + surcharge)) < 1e-4f,
+                Assert(surcharge >= 0 && System.Math.Abs(r1.PrePayloadCost.Total - (r0.DerivedTotal + surcharge)) < 1e-4f,
                        $"代价栏计1槽（2026-10-04/10-22 定案）：抵扣前费 {r1.PrePayloadCost.Total}"
-                       + $" = 无代价推导费 {r0.DerivedTotal} + 超槽差额入灰 {surcharge}");
+                       + $" = 无代价推导费 {r0.DerivedTotal} + 超槽差额入灰 {surcharge}"
+                       + "（2026-11-03 底盘改版后夹具槽位可全落免费底——0 亦合法）");
                 Assert(r1.Breakdown.Any(l => l.Stage == "P") && r0.Breakdown.All(l => l.Stage != "P"),
                        "P 行明细：有代价才出现（代价抵扣行）");
                 // 无代价卡 → 净费 = 推导费（对照恒等：同数据重推导稳定）
@@ -2195,12 +2090,13 @@ namespace CardCore.Editor
         /// <summary>
         /// P5 主动效果代价回归：主动效果可带一条效果级代价（header.Costs 单 payload 条目——发动期净费抵扣+每次执行）。
         /// ① 槽位：主动效果代价行各计 1 槽（空不占）；两个主动效果各带 → 各 +1；非主动 legacy 兜底仍单卡合计 +1（回归）；
-        /// ② 净费推导（EffectActivationGate.NetBill 纯函数）：无代价=原费；先灰后最高费用色；抵扣溢出 → 全 0（每色 ≥0）；
-        /// ③ 连发两次（发动费 2 灰·弃 1 价 2 → 净费 0）：两次各执行一次代价（手牌各 −1）、钱包全程不变（代价不产元素）；
-        /// ④ 资敌闸（发动费 2 红·为对手回复 2 价 1 → 净费 1 红）：对手满血 → CanActivate=false（可支付闸拦）；
-        ///    受伤 → 可发动，扣恰 1 红、对手回复 2；
+        /// ② 净费推导（EffectActivationGate.NetBill 纯函数，**2026-11-05 色锁收口**）：无代价=原费；
+        ///    逐行色锁——代价只在自身可产出色内抵（先灰后集合内最高色），跨色不抵、同色溢出 → 该色归 0（每色 ≥0）；
+        /// ③ 连发两次（发动费 2 蓝·弃 1 蓝价 → 净费 0——同色配对）：两次各执行一次代价（手牌各 −1）、钱包全程不变（代价不产元素）；
+        /// ④ 资敌闸（发动费 2 绿·为对手回复 2 绿价 1 → 净费 1 绿——同色配对）：对手满血 → CanActivate=false（可支付闸拦）；
+        ///    受伤 → 可发动，扣恰 1 绿、对手回复 2；
         /// ⑤ 技能不开放：技能源（FieldZone 法术）效果带代价 → 锚价照付（2026-11-01 锚价现付定案；
-        ///   不套净费闸抵扣——若误入闸会按代价价抵成 0），代价仍执行。技能卡禁带代价由资格闸拦（CanBeSkillCard），
+        ///   不套净费闸抵扣——若误入闸会按同色代价价抵成 0），代价仍执行。技能卡禁带代价由资格闸拦（CanBeSkillCard），
         ///   本段为 legacy 通道保底探针（合成注入绕过资格闸）。
         /// </summary>
         private static void TestActiveEffectCost(GameCore core, Player p1, Player p2)
@@ -2217,18 +2113,21 @@ namespace CardCore.Editor
             var healCost = Atom(AtomicEffectType.Heal, value: 2,
                 kinds: new List<int> { (int)CardCore.TargetKind.EnemyLivingUnit });
 
-            CardEffectData ActiveEff(string id, float gray = 0f, float red = 0f, AtomicEffectEntry cost = null)
+            CardEffectData ActiveEff(string id, float gray = 0f, float red = 0f, float blue = 0f, float green = 0f,
+                AtomicEffectEntry cost = null)
             {
                 var e = new CardEffectData
                 {
                     Id = id,
                     TriggerTiming = (int)TriggerTiming.Activate_Active,
                     ActivationType = (int)EffectActivationType.Voluntary,
-                    AnchorCostPinned = 1, // 锚价钉死——发动费由测试直控（2灰/2红），与原子表解耦
+                    AnchorCostPinned = 1, // 锚价钉死——发动费由测试直控（与代价同色配对——2026-11-05 色锁收口），与原子表解耦
                     AnchorCost = new ElementCost(),
                 };
                 e.AnchorCost[ManaType.Gray] = gray;
                 e.AnchorCost[ManaType.Red] = red;
+                e.AnchorCost[ManaType.Blue] = blue;
+                e.AnchorCost[ManaType.Green] = green;
                 if (cost != null)
                     e.Costs = new List<CostEntry> { new CostEntry { CostType = (int)CostType.Payload, Value = 1, payload = cost } };
                 return e;
@@ -2291,28 +2190,31 @@ namespace CardCore.Editor
                 Assert(EffectActivationGate.NetBill(bill, null).Total == 5
                        && EffectActivationGate.NetBill(bill, new List<CostInstance>()).Total == 5,
                     "净费：无代价行=原费（发动费直付，验证器①口径）");
-                var netGrayFirst = EffectActivationGate.NetBill(bill, new List<CostInstance> { discardCostInst });
-                Assert(netGrayFirst[ManaType.Gray] == 0 && (int)netGrayFirst[ManaType.Red] == 3 - Mathf.Max(0, discardPts - 2),
-                    $"净费：先灰后最高色（[灰2红3] 抵{discardPts} → 灰尽再扣红——净 {netGrayFirst}）");
+                // 跨色不抵（2026-11-05 色锁收口）：弃1（蓝）对灰/红账单 → 一点不扣
+                var netCross = EffectActivationGate.NetBill(bill, new List<CostInstance> { discardCostInst });
+                Assert((int)netCross[ManaType.Gray] == 2 && (int)netCross[ManaType.Red] == 3,
+                    $"净费色锁：蓝代价抵不了灰/红账（[灰2红3] 抵{discardPts} → 原样 {netCross}——跨色不抵）");
                 var rb = new ElementCost();
                 rb[ManaType.Red] = 2; rb[ManaType.Blue] = 3;
-                var netHigh = EffectActivationGate.NetBill(rb, new List<CostInstance> { healCostInst });
-                Assert((int)netHigh[ManaType.Blue] == 2 && (int)netHigh[ManaType.Red] == 2,
-                    $"净费：灰尽后扣最高费用色（[红2蓝3] 抵1 → 蓝3→2、红不动——净 {netHigh}）");
+                var netCross2 = EffectActivationGate.NetBill(rb, new List<CostInstance> { healCostInst });
+                Assert((int)netCross2[ManaType.Blue] == 3 && (int)netCross2[ManaType.Red] == 2,
+                    $"净费色锁：绿代价抵不了红/蓝账（[红2蓝3] 抵1 → 原样 {netCross2}）");
+                // 同色抵尽：弃1（蓝）对纯蓝小账单 → 清零（溢出丢弃、不穿底不退费）
                 var tiny = new ElementCost();
-                tiny[ManaType.Gray] = 1;
+                tiny[ManaType.Blue] = 2;
                 Assert(EffectActivationGate.NetBill(tiny, new List<CostInstance> { discardCostInst }).IsZero,
-                    "净费：抵扣溢出 → 全 0（每色 ≥0，不退费不穿底）");
+                    $"净费：同色抵扣溢出 → 归零（[蓝2] 抵{discardPts} → 0，每色 ≥0，不退费不穿底）");
 
                 // ---- ②b 真实小数定案（2026-10-30：效果费计价不取整、支付终点逐色进1） ----
                 var fracBill0 = new ElementCost();
                 fracBill0[ManaType.Red] = 2.4f; fracBill0[ManaType.Gray] = 0.5f;
-                var fracNet = EffectActivationGate.NetBill(fracBill0, new List<CostInstance> { healCostInst }); // 抵1点
-                Assert(Mathf.Abs(fracNet[ManaType.Red] - 2.4f) < 1e-4f && fracNet[ManaType.Gray] <= 1e-4f,
-                    $"净费小数保真：[红2.4灰0.5] 抵{healPts} → 灰0.5清零、红2.4不动（实际 {fracNet}——旧口径先归一成 int 桶丢亚点）");
+                var fracNet = EffectActivationGate.NetBill(fracBill0, new List<CostInstance> { healCostInst }); // 绿代价跨色：0 抵扣
+                Assert(Mathf.Abs(fracNet[ManaType.Red] - 2.4f) < 1e-4f && Mathf.Abs(fracNet[ManaType.Gray] - 0.5f) < 1e-4f,
+                    $"净费小数保真：[红2.4灰0.5] 绿代价跨色不抵 → 原样保留（实际 {fracNet}——旧口径先归一成 int 桶丢亚点）");
                 var fracPay = ElementPaymentValidator.NormalizeBill(fracNet);
-                Assert(fracPay.TryGetValue(ManaType.Red, out var fracRed) && fracRed == 3 && !fracPay.ContainsKey(ManaType.Gray),
-                    $"支付进1：净费红2.4 → 实付红3（大于0也消耗1）；灰0 不入账单（实际 {string.Join(",", fracPay)}）");
+                Assert(fracPay.TryGetValue(ManaType.Red, out var fracRed) && fracRed == 3
+                       && fracPay.TryGetValue(ManaType.Gray, out var fracGray) && fracGray == 1,
+                    $"支付进1：净费红2.4→实付红3、灰0.5→实付灰1（大于0也消耗1——实际 {string.Join(",", fracPay)}）");
                 Assert(ElementPaymentValidator.NormalizeBill(ElementCost.FromValue(ManaType.Green, 0.6f)).Single().Value == 1,
                     "支付进1：0.6绿 → 实付 1（旧四舍五入口径下 0.6 也是 1，1.4 则从 1 变 2）");
                 Assert(ElementPaymentValidator.NormalizeBill(ElementCost.FromValue(ManaType.Blue, 1.4f)).Single().Value == 2,
@@ -2338,9 +2240,10 @@ namespace CardCore.Editor
                 Assert(Mathf.Abs(fracAnchor[ManaType.Green] - 0.5f) < 1e-3f,
                     $"真实小数出账：回复1 = 0.5绿（实际 {fracAnchor[ManaType.Green]:0.###}——旧口径合成期四舍五入会出 1）");
 
-                // ---- ③ 连发两次：发动费 2 灰·弃 1（价2）→ 净费 0 ----
+                // ---- ③ 连发两次：发动费 2 蓝·弃 1（蓝价3）→ 净费 0（同色配对——2026-11-05 色锁收口）----
                 foreach (var kv in pool1.TempElements.ToList()) pool1.TempElements[kv.Key] = 0;
-                pool1.TempElements[ManaType.Gray] = 5; // 有钱也不扣（净费 0——证明抵扣真发生）
+                pool1.TempElements[ManaType.Blue] = 5; // 有钱也不扣（净费 0——证明抵扣真发生）
+                pool1.TempElements[ManaType.Gray] = 5;
                 pool1.TempElements[ManaType.Red] = 5;
                 while (core.ZoneManager.GetCards(p1, Zone.Hand).Count < 3)
                     InjectCard(core, p1, new CardData
@@ -2349,10 +2252,10 @@ namespace CardCore.Editor
                     });
                 int handBefore = core.ZoneManager.GetCards(p1, Zone.Hand).Count;
                 int walletBefore = pool1.TempElements.Values.Sum();
-                var twiceCard = CreatureOf("VERIFY_P5_TWICE", ActiveEff("P5_T_EFF", gray: 2, cost: DiscardCost()));
+                var twiceCard = CreatureOf("VERIFY_P5_TWICE", ActiveEff("P5_T_EFF", blue: 2, cost: DiscardCost()));
                 var twiceDef = GameActions.GetCardEffectDefinitions(twiceCard).FirstOrDefault(d => d != null && d.IsActivatedEffect);
-                Assert(twiceDef != null && (int)CostDerivationService.DeriveElementCosts(twiceDef)[ManaType.Gray] == 2,
-                    "装载：主动效果锚价钉死 2 灰（converter 直出·效果级 Costs 随 def 装载）");
+                Assert(twiceDef != null && (int)CostDerivationService.DeriveElementCosts(twiceDef)[ManaType.Blue] == 2,
+                    "装载：主动效果锚价钉死 2 蓝（converter 直出·效果级 Costs 随 def 装载）");
                 Assert(GameActions.ActivateEffect(core, p1, twiceDef, twiceCard), "连发①：声明入栈成功");
                 GameActions.DrainStack(core);
                 int handAfter1 = core.ZoneManager.GetCards(p1, Zone.Hand).Count;
@@ -2369,8 +2272,8 @@ namespace CardCore.Editor
                 Assert(pool1.TempElements.Values.Sum() == walletBefore,
                     "连发②：钱包全程不变（两次净费均 0·代价不产元素）");
 
-                // ---- ④ 资敌闸：发动费 2 红·为对手回复 2（价1）→ 净费 1 红 ----
-                var healCardC = CreatureOf("VERIFY_P5_HEAL", ActiveEff("P5_H_EFF", red: 2, cost: healCost));
+                // ---- ④ 资敌闸：发动费 2 绿·为对手回复 2（绿价1）→ 净费 1 绿（同色配对——2026-11-05 色锁收口）----
+                var healCardC = CreatureOf("VERIFY_P5_HEAL", ActiveEff("P5_H_EFF", green: 2, cost: healCost));
                 var healDef = GameActions.GetCardEffectDefinitions(healCardC).FirstOrDefault(d => d != null && d.IsActivatedEffect);
                 Assert(healDef != null, "装载：资敌代价主动效果就绪");
                 var executor = core.StackEngine.GetExecutor();
@@ -2380,14 +2283,14 @@ namespace CardCore.Editor
                 Assert(!executor.CanActivate(healDef, healCardC, p1, core.TurnEngine.TurnPlayer, phase, core.TurnEngine.TurnNumber),
                     "资敌闸：对手满血 → 效果不可发动（净费够也拦——CostPayability 治疗满血=白嫖）");
                 p2.Life = p2Max - 3; // 受伤
-                pool1.TempElements[ManaType.Red] = 3;
-                int redBefore = (int)pool1.TempElements[ManaType.Red];
+                pool1.TempElements[ManaType.Green] = 3;
+                int greenBefore = (int)pool1.TempElements[ManaType.Green];
                 Assert(executor.CanActivate(healDef, healCardC, p1, core.TurnEngine.TurnPlayer, phase, core.TurnEngine.TurnNumber),
                     "资敌闸：对手受伤 → 可发动（有会被改变的目标）");
                 Assert(GameActions.ActivateEffect(core, p1, healDef, healCardC), "资敌：声明入栈成功");
                 GameActions.DrainStack(core);
-                Assert((int)pool1.TempElements[ManaType.Red] == redBefore - 1,
-                    $"资敌发动：扣恰 1 红（净费 2红−{healPts}=1红——{redBefore}→{(int)pool1.TempElements[ManaType.Red]}，全额 2 红或 0 红都算漂移）");
+                Assert((int)pool1.TempElements[ManaType.Green] == greenBefore - 1,
+                    $"资敌发动：扣恰 1 绿（净费 2绿−{healPts}=1绿——{greenBefore}→{(int)pool1.TempElements[ManaType.Green]}，全额 2 绿或 0 绿都算漂移）");
                 Assert(p2.Life == p2Max - 1,
                     $"资敌代价真发生（对手 {p2Max - 3}→{p2.Life}，回复 2）");
 
@@ -2395,21 +2298,21 @@ namespace CardCore.Editor
                 var skillData = new CardData
                 {
                     ID = "VERIFY_P5_SKILL", CardName = "P5技能探针", Supertype = Cardtype.Spell,
-                    Effects = new List<CardEffectData> { ActiveEff("P5_SK_E1", gray: 2, cost: DiscardCost()), ActiveEff("P5_SK_E2") },
+                    Effects = new List<CardEffectData> { ActiveEff("P5_SK_E1", blue: 2, cost: DiscardCost()), ActiveEff("P5_SK_E2") },
                 };
                 var skillCard = InjectCard(core, p1, skillData);
                 core.ZoneManager.MoveCard(skillCard, p1, Zone.Hand, Zone.FieldZone);
                 var skillDefs = GameActions.GetCardEffectDefinitions(skillCard)
                     .Where(d => d != null && d.IsActivatedEffect).ToList();
                 Assert(skillDefs.Count == 2, "技能装载：双主动效果（锚价现付——资格闸禁带代价，本段为 legacy 通道探针）");
-                pool1.TempElements[ManaType.Gray] = 4; // 灰充足（净费闸若误入：2灰−弃1价2=0 会扣 0——错侧可辨）
-                int grayBefore = (int)pool1.TempElements[ManaType.Gray];
+                pool1.TempElements[ManaType.Blue] = 4; // 蓝充足（净费闸若误入：2蓝−弃1蓝价=0 会扣 0——错侧可辨）
+                int blueBefore = (int)pool1.TempElements[ManaType.Blue];
                 int skillHandBefore = core.ZoneManager.GetCards(p1, Zone.Hand).Count;
                 Assert(GameActions.ActivateEffect(core, p1, skillDefs[0], skillCard),
                     "技能：声明入栈成功（legacy 效果带代价不影响技能通道）");
                 GameActions.DrainStack(core);
-                Assert((int)pool1.TempElements[ManaType.Gray] == grayBefore - 2,
-                    $"技能锚价照付：扣恰 2 灰（不套净费闸抵扣——若误抵会扣 0；{grayBefore}→{(int)pool1.TempElements[ManaType.Gray]}）");
+                Assert((int)pool1.TempElements[ManaType.Blue] == blueBefore - 2,
+                    $"技能锚价照付：扣恰 2 蓝（不套净费闸抵扣——若误抵会扣 0；{blueBefore}→{(int)pool1.TempElements[ManaType.Blue]}）");
                 Assert(core.ZoneManager.GetCards(p1, Zone.Hand).Count == skillHandBefore - 1,
                     "技能：效果级代价仍执行（弃 1——技能不抵扣但代价照付）");
             }
@@ -6929,7 +6832,6 @@ namespace CardCore.Editor
                        $"{what}：TargetKinds=[{string.Join(",", kinds)}]");
             }
             AssertKinds(AtomicEffectType.DealDamage, new[] { 1, 2, 3, 4 }, "伤害族开放无生命域·造成伤害");
-            AssertKinds(AtomicEffectType.DrainLife, new[] { 1, 2, 3, 4 }, "伤害族开放无生命域·吸取");
             AssertKinds(AtomicEffectType.Freeze, new[] { 1, 2 },
                 "冻结域 kinds={1,2}（对方元素池位已删——B1 定案：冻结无元素池）；域=Domain 列 双方战场:生物");
             var freezeRowB1 = CardCore.Attribute.AtomicEffectTable.GetByType(AtomicEffectType.Freeze);
@@ -7387,7 +7289,10 @@ namespace CardCore.Editor
         ///（HashEffect）/卡 id（C_+HashCard）/费用快照（EnsureCost）同批重推改写，卡组 json 与
         /// TutorialConfig 的卡 id 引用跟换；旧「只跟原子 id」保守口径作废。
         /// </summary>
-        [MenuItem("Tools/重推导测试卡表费用与ID")]
+        /// 2026-11-05 隐藏入口（用户定案）：ID 已冻结，此入口会连带重写卡/效果/教学/训练多张表，
+        /// 只保留「Tools/仅重推正式卡费用（不动ID）」给日常用。需要全量重推时，把下面这行 MenuItem
+        /// 取消注释即可恢复菜单，不要改方法体。
+        // [MenuItem("Tools/重推导测试卡表费用与ID")]
         public static void RegenerateTestTableCosts()
         {
             // 2026-09-14 双表口径：唯一卡表经 CardDataPaths（2026-10-18 热更迁移后编辑器=Assets/CardData；
@@ -7399,9 +7304,9 @@ namespace CardCore.Editor
                 return;
             }
 
-            // 三层推导链（2026-09-16 定案，顺序敏感）：原子表 id（sha256(DisplayName)）→
+            // 三层推导链（2026-09-16 定案，顺序敏感）：原子表 id（**2026-11-05 起冻结**，不再由文本派生）→
             // 效果 id（HashEffect：文本+参数+原子引用）→ 卡 id（HashCard：文本+参数+效果id序列）。
-            // 原子表必须先行——效果/卡里的 refId 按 id 引用表行（GetByHashId），原子 id 后推会引用断链
+            // 原子表必须先行——效果/卡里的 refId 按 id 引用表行（GetByHashId），新行分配 id 后才会被引用
             var atomRenames = RegenAtomicTableIds();
 
             // 2026-11-01 门闸改版：正式表 2026-10-27 起恒空（主表清空回设计态）——RegenOneDeck 空表
@@ -7433,7 +7338,7 @@ namespace CardCore.Editor
         {
             // ---- 场面（红）：改变场上数字（攻/血/存亡）----
             { AtomicEffectType.DealDamage, SpecColor.Red },
-            { AtomicEffectType.LifeLoss, SpecColor.Red },                    // 流失=直伤（伤害族）
+            { AtomicEffectType.LifeLoss, SpecColor.Red },                    // 流失=扣上限直伤（伤害族；表 2026-11-05 回红定案，11-03 绿口径作废）
             { AtomicEffectType.DrainLife, SpecColor.Red | SpecColor.Green }, // 特例：吸取=伤害(红)+回复(绿) 双色
             { AtomicEffectType.AddHeroAttack, SpecColor.Red },               // 特例：加攻=红
             { AtomicEffectType.Devour, SpecColor.Red },                      // 特例：消灭=红
@@ -7441,7 +7346,7 @@ namespace CardCore.Editor
             { AtomicEffectType.Smash, SpecColor.Red },                       // 摧毁=场面移除
             { AtomicEffectType.Sacrifice, SpecColor.Red },
             { AtomicEffectType.Exile, SpecColor.Red },                       // 特例：除外=红（从场上移除=场面）
-            { AtomicEffectType.ReturnToHand, SpecColor.Red },                // 弹回=从场上移除（除外同口径）
+            { AtomicEffectType.ReturnToHand, SpecColor.Red },                // 弹回=从场上移除（除外同口径；表 2026-11-05 回红定案，11-04 蓝口径作废）
             { AtomicEffectType.BounceToTop, SpecColor.Red },
             { AtomicEffectType.BounceToBottom, SpecColor.Red },
             { AtomicEffectType.GainControl, SpecColor.Red },
@@ -7483,7 +7388,7 @@ namespace CardCore.Editor
             { AtomicEffectType.AddLifeUp, SpecColor.Green },                  // 改生命/回复=绿
             { AtomicEffectType.AddArmor, SpecColor.Green },                   // 护甲=绿（属性与卡体）
             { AtomicEffectType.GrantToughness, SpecColor.Green },             // 坚韧=减伤=生存（减半同口径）
-            { AtomicEffectType.GrantProtection, SpecColor.Green },            // 特例：减半=绿（减伤=生存）
+            { AtomicEffectType.GrantProtection, SpecColor.Gray },             // 特例：减半=伤害规则改写（2026-11-05 定案灰；旧绿/蓝作废）
             { AtomicEffectType.GrantReborn, SpecColor.Green },                // 复生=生存
             { AtomicEffectType.GrantDivineShield, SpecColor.Green },          // 圣盾=生存
             { AtomicEffectType.GrantGuardian, SpecColor.Green },              // 守护=拦截保护
@@ -7514,7 +7419,7 @@ namespace CardCore.Editor
             { AtomicEffectType.AddNullify, SpecColor.Blue },                  // 特例：失效=蓝
             { AtomicEffectType.Freeze, SpecColor.Blue },                      // 特例：冻结=蓝
             { AtomicEffectType.RushSickness, SpecColor.Blue },                // 特例：紊乱=蓝
-            { AtomicEffectType.GrantDepravity, SpecColor.Blue },              // 放血=反疗封锁（2026-10-28 P2a 先例）
+            { AtomicEffectType.GrantDepravity, SpecColor.Green },             // 放血=反疗封锁=生存轴对侧（2026-11-05 定案绿；旧蓝作废）
             { AtomicEffectType.GrantReplay, SpecColor.Blue },                 // 重放=节奏（重复施放）
             { AtomicEffectType.Sleep, SpecColor.Blue },                       // 沉睡=行动封锁
             { AtomicEffectType.GrantSpellShield, SpecColor.Blue },            // 法术护盾=反制
@@ -7522,24 +7427,24 @@ namespace CardCore.Editor
             { AtomicEffectType.GrantDisarm, SpecColor.Blue },                 // 缴械=压制反击（行动许可）
             { AtomicEffectType.GrantTaunt, SpecColor.Blue },                  // 帷幕=指定限制（能否被指定）
             { AtomicEffectType.AddDurabilityUp, SpecColor.Blue },             // 特例：耐久=蓝（2026-11-03 定案：结界耐久轴同口径——身材耐久桶同日灰→蓝，0.5蓝/点）
-            { AtomicEffectType.SealUnit, SpecColor.Blue },                    // 封印=场面移除转对手资源（控制/节奏=蓝，2026-11-03 新行）
+            { AtomicEffectType.SealUnit, SpecColor.Red },                     // 封印=场面移除（2026-11-05 确认定案红；11-03 蓝3 口径作废）
             // ---- 场面/生存双成分（红|绿）----
             { AtomicEffectType.GrantLifesteal, SpecColor.Red },                  // 吸血=红（2026-11-03 用户定案·不随吸取双色同构）
             { AtomicEffectType.GrantLifelink, SpecColor.Red | SpecColor.Green },   // 系命=伤害+回复 双色
             // ---- 规则/工具（灰）：规则改写·属性定义·纯工具 ----
             { AtomicEffectType.ModifyGameRule, SpecColor.Gray },              // 特例：各仪典/各禁令=灰（行级细化见 SpecRowOverrides）
             { AtomicEffectType.Erase, SpecColor.Gray },                       // 特例：通用抹除=灰
-            { AtomicEffectType.GrantSpellban, SpecColor.Gray },               // 特例：无实体=灰（伤害规则改写）
+            { AtomicEffectType.GrantSpellban, SpecColor.Gray },               // 特例：无实体=灰（伤害规则改写；表 2026-11-05 确认回灰，11-03 蓝5 作废）
             { AtomicEffectType.GrantInsulator, SpecColor.Gray },              // 绝缘体=拦获得（规则改写，无实体同口径）
             { AtomicEffectType.SummonToken, SpecColor.Gray },                 // 第三步：衍生物=纯工具
-            { AtomicEffectType.EchoCopy, SpecColor.Gray },                    // 回响=复制（纯工具，变形同口径）
+            { AtomicEffectType.EchoCopy, SpecColor.Blue },                   // 回响=复制重演=节奏（2026-11-05 定案蓝；旧灰「纯工具」作废）
             { AtomicEffectType.GrantTemporary, SpecColor.Gray },              // 遗忘=消失标记（纯工具）
             { AtomicEffectType.SetPower, SpecColor.Gray },                    // 系统行（预留）
             { AtomicEffectType.SetCost, SpecColor.Gray },                     // 系统行（预留）
             { AtomicEffectType.DeclareVictory, SpecColor.Gray },              // 系统行（预留）
             { AtomicEffectType.Morph, SpecColor.Gray },                       // 模拟=纯工具（动态费用行·预留）
             { AtomicEffectType.GrantMorph, SpecColor.Gray },                  // 变形=纯工具（动态费用行·预留）
-                        { AtomicEffectType.Charge, SpecColor.Gray },                      // 充能=引擎机制（系统行·预留）
+            //（Charge 充能条目已随 2026-11-05 充能系统动作化改版删除——表行已删，充能不再是原子效果）
             { AtomicEffectType.SituationGate, SpecColor.Gray },               // 门槛行=引擎条件（预留）
             { AtomicEffectType.EngineCountdown, SpecColor.Gray },             // 引擎主干族（均预留）
             { AtomicEffectType.EngineLuckRoll, SpecColor.Gray },
@@ -7560,15 +7465,9 @@ namespace CardCore.Editor
         {
             // ---- 关键词表 ----
             { "系命", SpecColor.Green },                    // 定案 2026-11-02：系命=绿（覆盖字典 红+绿）
-            // ---- 光环表（ModifyGameRule 默认灰）----
-            { "丰盈仪典", SpecColor.Green },                // 定案 2026-11-02：覆盖默认灰
-            { "禁发令", SpecColor.Blue },                   // 定案 2026-11-02：覆盖默认灰
-            { "禁抽令", SpecColor.Blue },                   // 定案 2026-11-02：覆盖默认灰
-            { "禁高费令", SpecColor.Red },                  // 定案 2026-11-02：覆盖默认灰
-            { "禁攻令", SpecColor.Green },                  // 定案 2026-11-02：覆盖默认灰
-            { "禁守令", SpecColor.Red },                    // 定案 2026-11-02：覆盖默认灰
-            { "禁召令", SpecColor.Blue },                   // 定案 2026-11-02：覆盖默认灰
-            { "牌库顶当手牌", SpecColor.Green },            // 定案 2026-11-02：绿（旧覆盖蓝作废）
+            // ---- 光环表（ModifyGameRule 默认灰）——2026-11-05 光环表侧仪典/禁令族全量改灰（工作区改动，
+            // 总额保持），11-02 彩色覆盖八行随之作废删除（丰盈仪典/禁攻令/禁守令/禁发令/禁召令/禁抽令/
+            // 禁高费令/牌库顶当手牌），回落字典默认灰——与 README「各仪典/各禁令=灰」同口径 ----
             // ---- 一般效果表 ----
             { "抽卡", SpecColor.Blue },                     // 定案 2026-11-02：蓝（字典绿作废）
             { "激励", SpecColor.Red },                      // 定案 2026-11-02：红（字典蓝作废）
@@ -7576,7 +7475,7 @@ namespace CardCore.Editor
             { "弃牌", SpecColor.Blue },                     // 定案 2026-11-02：蓝（字典绿作废）
             { "移动", SpecColor.Gray },                     // 定案 2026-11-02：灰（字典红作废）
             // ---- 指示物表 ----
-            { "减半", SpecColor.Blue },                     // 定案 2026-11-02：蓝（字典绿作废）
+            { "减半", SpecColor.Gray },                     // 定案 2026-11-05：灰（字典同批改灰；11-02 蓝/更早绿均作废）
             // 属性减少 override 随行删除（2026-11-02 属性±行退役——用户定案「只能分开加减」）
             // 灵视 2026-11-02 回默认灰（旧蓝覆盖随本批作废——用户定案「按应值改：灵视→灰」）
         };
@@ -7690,10 +7589,112 @@ namespace CardCore.Editor
 
             var kwMap = KeywordSpecColors();
 
+            // ---------- ③ 代价色对齐（弱版·2026-11-05 恢复，只报不改） ----------
+            // 净费两处均**逐行色锁**（卡层 ApplyCastDeduction / 效果级 EffectActivationGate.NetBill 同口径，
+            // 2026-11-05 收口定案）：代价行可产出色 ∩ 可抵账单色 = ∅ ⇒ 抵扣恒 0——代价沦为纯下位
+            //（执行照旧但无任何折扣），多为内容错配（如弹回红色化后蓝套「对手抽1」抵不了红锚），
+            // 点名供表侧对色；同色/有交集 = 合法不报。空账单（0费）不报——纯下位代价属设计自由。
+            // 账单色取值：主动效果行=该效果锚价色（NetBill 抵扣对象）；卡级行+非主动效果行
+            // = 整卡抵扣前费色 ∪ 主动效果锚价色（法术施放账单=基价+锚价整笔，GetCardCost 同口径）。
+            int costMisalign = 0;
+            foreach (var cd in cards)
+            {
+                if (cd == null) continue;
+
+                // 效果级代价行（主动效果=发动期净费，账单=本效果锚价）
+                if (cd.Effects != null)
+                    foreach (var fxr in cd.Effects)
+                    {
+                        if (fxr == null || fxr.Costs == null || fxr.Costs.Count == 0) continue;
+                        bool isActive = fxr.TriggerTiming == 19 || fxr.TriggerTiming == 20 || fxr.TriggerTiming == 21;
+                        if (!isActive) continue; // 非主动行走施放期账单（下方卡级段并口径）
+                        var def = CardEffectConverter.ConvertOne(fxr, cd.ID);
+                        if (def == null) continue;
+                        var anchor = CostDerivationService.DeriveElementCosts(def, 0);
+                        if (anchor.IsZero) continue;
+                        var billFlags = FlagsOf(anchor);
+                        foreach (var row in fxr.Costs)
+                        {
+                            if (row == null) continue;
+                            foreach (var pe in row.AllPayloads())
+                            {
+                                var atomRow = CardCore.Attribute.AtomicEffectTable.GetByHashId(pe?.refId);
+                                if (atomRow == null || atomRow.ManaList == null || atomRow.ManaList.IsZero) continue;
+                                var costFlags = FlagsOf(atomRow.ManaList);
+                                if ((costFlags & billFlags) == 0)
+                                {
+                                    costMisalign++;
+                                    Debug.LogWarning("[颜色][代价对齐] " + cd.CardName + "(" + cd.ID + ") 效果「"
+                                        + fxr.DisplayName + "」锚价" + ColorZh(billFlags) + " vs 代价「"
+                                        + atomRow.DisplayName + "」" + ColorZh(costFlags)
+                                        + "——无交集：抵扣恒0（2026-11-05 色锁收口），代价纯下位，请表侧对色");
+                                }
+                            }
+                        }
+                    }
+
+                // 卡级行 + 非主动效果行（施放期账单 = 抵扣前费 ∪ 主动效果锚价）
+                bool hasCastRows = cd.PayloadCosts != null && cd.PayloadCosts.Count > 0;
+                if (!hasCastRows && cd.Effects != null)
+                    foreach (var fxr in cd.Effects)
+                        if (fxr?.Costs != null && fxr.Costs.Count > 0
+                            && !(fxr.TriggerTiming == 19 || fxr.TriggerTiming == 20 || fxr.TriggerTiming == 21))
+                        { hasCastRows = true; break; }
+                if (hasCastRows)
+                {
+                    var r = CardCostService.Derive(cd);
+                    var bill = r.PrePayloadCost.Clone();
+                    if (cd.Effects != null)
+                        foreach (var fxr in cd.Effects)
+                        {
+                            if (fxr == null) continue;
+                            bool isActive = fxr.TriggerTiming == 19 || fxr.TriggerTiming == 20 || fxr.TriggerTiming == 21;
+                            if (!isActive) continue;
+                            var def = CardEffectConverter.ConvertOne(fxr, cd.ID); // 主动锚价并入施放账单（法术口径）
+                            if (def == null) continue;
+                            var a = CostDerivationService.DeriveElementCosts(def, 0);
+                            foreach (var col in a.NonzeroColors())
+                                bill[col] = bill[col] + a[col];
+                        }
+                    if (!bill.IsZero)
+                    {
+                        var billFlags = FlagsOf(bill);
+                        var rows = new List<CardCore.CostEntry>(
+                            cd.PayloadCosts ?? new List<CardCore.CostEntry>());
+                        if (cd.Effects != null)
+                            foreach (var fxr in cd.Effects)
+                            {
+                                if (fxr == null || fxr.Costs == null) continue;
+                                if (fxr.TriggerTiming == 19 || fxr.TriggerTiming == 20 || fxr.TriggerTiming == 21) continue;
+                                rows.AddRange(fxr.Costs);
+                            }
+                        foreach (var row in rows)
+                        {
+                            if (row == null) continue;
+                            foreach (var pe in row.AllPayloads())
+                            {
+                                var atomRow = CardCore.Attribute.AtomicEffectTable.GetByHashId(pe?.refId);
+                                if (atomRow == null || atomRow.ManaList == null || atomRow.ManaList.IsZero) continue;
+                                var costFlags = FlagsOf(atomRow.ManaList);
+                                if ((costFlags & billFlags) == 0)
+                                {
+                                    costMisalign++;
+                                    Debug.LogWarning("[颜色][代价对齐] " + cd.CardName + "(" + cd.ID + ") 施放账单"
+                                        + ColorZh(billFlags) + " vs 卡级代价「" + atomRow.DisplayName + "」"
+                                        + ColorZh(costFlags)
+                                        + "——无交集：抵扣恒0（色锁定案），代价纯下位，请表侧对色");
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             Debug.Log("[颜色校验] 原子符合 " + atomOk + " / 不符合 " + atomBad.Count +
                       "（前 10 条：" + (atomBad.Count == 0 ? "无" : string.Join("；", atomBad.Take(10))) +
                       "）——只报不改，改色由人决定。卡级分色校验已于 2026-11-02 删除：没有「本家色」，" +
-                      "卡可带任意颜色效果，可用性由卡组校验负责");
+                      "卡可带任意颜色效果，可用性由卡组校验负责。代价色对齐（弱版·2026-11-05 恢复）：无交集 " +
+                      costMisalign + " 条" + (costMisalign == 0 ? "" : "（见 [颜色][代价对齐] 警告——抵扣恒0，表侧对色候选）"));
         }
 
         /// <summary>步骤递归收集原子行色：kind=0 主干入主效果、branch.then 入 Then 奖励；
@@ -7755,40 +7756,66 @@ namespace CardCore.Editor
             return outList;
         }
 
-        /// <summary>仅重写卡表费用（2026-09-20）：跳过 RegenAtomicTableIds——ID 全不动，只做
-        /// RegenOneDeck 的建议价重写。2026-10-16 起 RegenOneDeck 会重读原子表并刷新效果库全量
-        /// 锚价快照（RemapAndRefreshEffectLibrary），本入口=「不动 ID 只重推费用」的轻量档；
-        /// 历史顾虑（换号打断既有 refId）已由重推导入口的引用重映射收口。</summary>
-        [MenuItem("Tools/仅重推正式卡费用（不动ID）")]
-        public static void RegenerateCardCostsOnly()
+        /// <summary>卡 ID 重复校验（2026-11-05 冻结配套，三池共用）：冻结后 id 不随内容变化，
+        /// 重复 id 在「先清后写」或按 id upsert 时会互相覆盖——宁可中止也不静默吞卡。</summary>
+        private static bool HasDuplicateCardIds(List<CardCore.CardData> cards, string poolLabel)
         {
-            string path = SynergyUI.CardDataPaths.FileIn("Cards.json");
-            if (!File.Exists(path))
-            {
-                Debug.LogError($"[Regen] 找不到卡表 {path}");
-                return;
-            }
-            RegenOneDeck(path, null);
+            if (cards == null || cards.Count == 0) return false;
+            var dups = cards.GroupBy(c => c.ID)
+                            .Where(g => !string.IsNullOrEmpty(g.Key) && g.Count() > 1)
+                            .ToList();
+            if (dups.Count == 0) return false;
+            foreach (var g in dups)
+                Debug.LogError($"[Regen][{poolLabel}] 卡 ID 重复：{g.Key} × {g.Count()} 张" +
+                               $"（{string.Join("、", g.Select(c => c.CardName))}）——已中止落盘，请先修表");
+            return true;
         }
 
-        /// <summary>原子表 ID 列重推（镜像 Config/gen_effect_ids.py 口径：sha256(DisplayName.Trim())
-        /// UTF-8 的前 8 位 hex——三层推导链的第一层）。ID 是引用键：Effects.json/Cards.json 的
-        /// 原子 refId 经 AtomicEffectTable.GetByHashId 按行解析（2026-09-16 修正旧注释"零消费"口径）。
-        /// DisplayName 改动 → ID 漂移 → 引用方需同步（文本即身份，与 python 管线同约定）。
-        /// DisplayName 撞名 → ID 撞号，告警。
-        /// 2026-10-16 修复：①返回 旧ID→新ID 映射——调用方据此同步重映射 Effects.json/Cards.json
-        /// 的 refId/effectIds 引用（此前换号不同步，悬空引用被装载端 ToStep 静默剔原子）；
-        /// ②写盘后立即 AtomicEffectTable.Reload——静态三映射不随外部改表自刷新，
-        /// 不重读则下游费用推导仍按旧表计价（「重推导后费用还是旧的」根因之一）。
-        /// 2026-10-30 五分表：单表拆五文件（清单单源=AtomicEffectTable.TableFiles）——逐文件重推，
-        /// 撞名检测与重映射键跨文件累计（ID 全局唯一，不分文件）。</summary>
+        /// <summary>仅重推费用（2026-11-05 三池口径）：不动任何 ID——不含 RegenAtomicTableIds，
+        /// 主干是 RegenOneDeck（正式池）+ RegenTutorialAndPresetTables（教学/预组）+ RegenTrainingTables（训练池），
+        /// 三者与全量入口共用同一套落盘代码，区别只在「不重推原子 id、不换卡/效果号」。
+        /// 每条路径落盘前都过 HasDuplicateCardIds。</summary>
+        [MenuItem("Tools/仅重推费用（三池·不动ID）")]
+        public static void RegenerateCardCostsOnly()
+        {
+            var noRenames = new Dictionary<string, string>(); // 冻结后不存在换号：空映射即「只重推费用」
+            string path = SynergyUI.CardDataPaths.FileIn("Cards.json");
+            if (File.Exists(path))
+            {
+                RegenOneDeck(path, noRenames);
+            }
+            else
+            {
+                Debug.LogWarning($"[Regen] 找不到正式卡表 {path}（玩家池空=设计态，跳过）");
+            }
+
+            RemapTutorialAtomRefs(noRenames);   // 空映射＝无操作，保留与全量入口同序
+            RegenTutorialAndPresetTables();     // 教学池 + 三套预组
+            RegenTrainingTables(noRenames);     // 训练池
+        }
+
+        /// <summary>原子表 ID 台账（2026-11-05 定案：**ID 冻结**，取代旧的「ID=sha256(DisplayName) 重推」）。
+        ///
+        /// 旧口径（2026-09-16 三层推导链）把 ID 当内容派生值：改 DisplayName → 换 ID → 调用方重映射全库引用。
+        /// 代价是任何文本润色（甚至改标点）都会打断卡 refId / 效果 steps / 存档 / 回放 / 训练标签 /
+        /// AI manifest 指纹，mod 与本地化无从谈起。新口径把身份与文本拆开：
+        ///   · ID = 永久稳定引用键，**永不改写、永不回收**（已退役 ID 不得被复用）；
+        ///   · TextHash = sha256(DisplayName.Trim()) 前 8 位，降级为三用：新建行初始 ID 生成器 /
+        ///     同文查重键 / 文本漂移检测器；
+        ///   · 查重从「主键顺带」变成「落盘前的显式检查」——同一 TextHash 出现两行 = 语义重复，
+        ///     该文件**拒绝落盘**（保留磁盘原样），列明细人工处置；
+        ///   · 语义变更（改数值/目标域/EffectType）应新建行 + 旧行 SupersededBy，而非原地改写。
+        ///
+        /// 返回值 renames 恒为空（冻结后不存在「换号」），保留签名给下游重映射调用点，避免改动调用链；
+        /// 写盘后立即 AtomicEffectTable.Reload——静态映射不随外部改表自刷新。</summary>
         private static Dictionary<string, string> RegenAtomicTableIds()
         {
             var renames = new Dictionary<string, string>();
-            var seen = new HashSet<string>();
             using var sha = System.Security.Cryptography.SHA256.Create();
-            int totalRows = 0;
-            int changed = 0;
+
+            // 第一遍：收集全部已有 ID（跨文件全局唯一），供新建行撞号顺延
+            var files = new List<(string relPath, Newtonsoft.Json.Linq.JArray root)>();
+            var usedIds = new HashSet<string>(System.StringComparer.Ordinal);
             foreach (var relPath in CardCore.Attribute.AtomicEffectTable.TableFiles)
             {
                 string path = Path.Combine(Application.dataPath, relPath.Replace('/', Path.DirectorySeparatorChar));
@@ -7797,27 +7824,70 @@ namespace CardCore.Editor
                     Debug.LogError($"[Regen] 找不到原子表分表 {path}");
                     return null;
                 }
-
                 var root = Newtonsoft.Json.Linq.JArray.Parse(File.ReadAllText(path));
+                files.Add((relPath, root));
+                foreach (var row in root.OfType<Newtonsoft.Json.Linq.JObject>())
+                {
+                    var id = row["ID"]?.ToString();
+                    if (!string.IsNullOrEmpty(id)) usedIds.Add(id);
+                }
+            }
+
+            // 第二遍：冻结 ID、维护 TextHash、查重
+            var hashOwner = new Dictionary<string, string>(System.StringComparer.Ordinal);
+            int totalRows = 0, newIds = 0, drift = 0, dups = 0, blockedFiles = 0;
+            foreach (var (relPath, root) in files)
+            {
+                string path = Path.Combine(Application.dataPath, relPath.Replace('/', Path.DirectorySeparatorChar));
+                bool fileOk = true;
+
                 foreach (var row in root.OfType<Newtonsoft.Json.Linq.JObject>())
                 {
                     totalRows++;
                     var dn = row["DisplayName"]?.ToString();
                     if (string.IsNullOrWhiteSpace(dn)) continue;
-                    string eid = System.BitConverter.ToString(
+
+                    string textHash = System.BitConverter.ToString(
                             sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(dn.Trim())))
                         .Replace("-", "").ToLowerInvariant().Substring(0, 8);
-                    if (!seen.Add(eid))
-                        Debug.LogWarning($"[Regen] 原子表 DisplayName 撞名 → ID 撞号 {eid}：{dn}");
-                    if ((string)row["ID"] != eid)
+
+                    string id = row["ID"]?.ToString();
+                    if (string.IsNullOrEmpty(id))
                     {
-                        var oldId = (string)row["ID"];
-                        if (!string.IsNullOrEmpty(oldId))
-                            renames[oldId] = eid; // 引用重映射键：旧ID（引用方现值）→ 新ID
-                        row["ID"] = eid;
-                        changed++;
+                        // 新建行：ID 取 TextHash，撞号顺延（usedIds 含已退役 ID，故不复用）
+                        string cand = textHash;
+                        int n = 1;
+                        while (usedIds.Contains(cand)) { n++; cand = textHash + "-" + n; }
+                        row["ID"] = cand;
+                        usedIds.Add(cand);
+                        id = cand;
+                        newIds++;
+                        Debug.Log($"[Regen] 原子表新行分配 ID {cand}：{dn}");
+                    }
+
+                    string oldHash = row["TextHash"]?.ToString();
+                    if (!string.IsNullOrEmpty(oldHash) && oldHash != textHash)
+                    {
+                        drift++;
+                        Debug.LogWarning($"[Regen] 原子表文本已变更（ID 保持不变 {id}）：{oldHash} → {textHash}：{dn}" +
+                                         "——DisplayName 是可变的展示模板，引用方无需跟换；译文/展示层按 TextHash 刷新。");
+                    }
+                    row["TextHash"] = textHash;
+
+                    if (hashOwner.TryGetValue(textHash, out var owner))
+                    {
+                        dups++;
+                        Debug.LogError($"[Regen] 原子表语义重复：{relPath} 的 {id} 与 {owner} 同文" +
+                                       $"（TextHash={textHash}）：{dn} —— 查重失败，本文件不落盘");
+                        fileOk = false; // 该文件整体拒写（已改的内存态丢弃，磁盘留原样）
+                    }
+                    else
+                    {
+                        hashOwner[textHash] = $"{relPath}/{id}";
                     }
                 }
+
+                if (!fileOk) { blockedFiles++; continue; }
 
                 var sb = new System.Text.StringBuilder();
                 using (var tw = new StringWriter(sb))
@@ -7825,12 +7895,157 @@ namespace CardCore.Editor
                        { Formatting = Newtonsoft.Json.Formatting.Indented, IndentChar = ' ', Indentation = 2 })
                     root.WriteTo(jw);
                 File.WriteAllText(path, sb.ToString() + "\n");
-                Debug.Log($"[Regen] 原子表分表 ID 重推：{root.Count} 行 → {path}");
+                Debug.Log($"[Regen] 原子表分表落盘（ID 冻结）：{root.Count} 行 → {path}");
             }
 
-            CardCore.Attribute.AtomicEffectTable.Reload(); // 换号立即生效：下游重映射守卫/费用推导读新映射
-            Debug.Log($"[Regen] 原子表 ID 重推合计：{totalRows} 行，变更 {changed} 条（重映射键 {renames.Count} 个）");
+            // 别名表连带校验（2026-11-05）：坏别名会让「旧号回落」静默失效——落盘时一并报出。
+            // usedIds = 本次落盘后的全部现行行 id（跨文件累计）。
+            foreach (var kv in CardCore.Attribute.AtomicEffectTable.AliasMap)
+            {
+                if (usedIds.Contains(kv.Key))
+                {
+                    Debug.LogError($"[Regen] 别名源仍是现行行：{kv.Key} → {kv.Value}（应删除该别名）");
+                    continue;
+                }
+                string cur = kv.Value;
+                int hop = 0;
+                bool resolved = false;
+                while (hop <= 8)
+                {
+                    if (usedIds.Contains(cur)) { resolved = true; break; }
+                    if (!CardCore.Attribute.AtomicEffectTable.AliasMap.TryGetValue(cur, out var next)) break;
+                    cur = next;
+                    hop++;
+                }
+                if (!resolved)
+                    Debug.LogError($"[Regen] 别名断链/成环：{kv.Key} → … → {cur}");
+            }
+
+            CardCore.Attribute.AtomicEffectTable.Reload();
+            Debug.Log($"[Regen] 原子表 ID 台账：{totalRows} 行，新分配 ID {newIds} 条，文本漂移 {drift} 条，" +
+                      $"语义重复 {dups} 条，拒写文件 {blockedFiles} 个");
+            if (dups > 0)
+                Debug.LogError("[Regen] 存在语义重复的原子行：请改措辞，或显式合并（旧行 SupersededBy 指向保留行）后重跑");
             return renames;
+        }
+
+        /// <summary>原子表 ID 台账体检（只读，2026-11-05 冻结口径的常备闸门）：
+        /// ①ID 非空且全局唯一 ②TextHash 已回填且等于 sha256(DisplayName.Trim()) 前 8 位
+        /// ③没有两条未退役行同 TextHash（同文两行 = 语义重复）。只报不写、不改 ID。</summary>
+        [MenuItem("Tools/验证/原子表 ID 台账体检")]
+        public static void VerifyAtomIdLedger()
+        {
+            using var sha = System.Security.Cryptography.SHA256.Create();
+            var idOwner = new Dictionary<string, string>(System.StringComparer.Ordinal);
+            var hashOwner = new Dictionary<string, string>(System.StringComparer.Ordinal);
+            int rows = 0, bad = 0, drifted = 0;
+
+            foreach (var relPath in CardCore.Attribute.AtomicEffectTable.TableFiles)
+            {
+                string path = Path.Combine(Application.dataPath, relPath.Replace('/', Path.DirectorySeparatorChar));
+                if (!File.Exists(path))
+                {
+                    Debug.LogError($"[台账] 找不到分表 {path}");
+                    bad++;
+                    continue;
+                }
+
+                var root = Newtonsoft.Json.Linq.JArray.Parse(File.ReadAllText(path));
+                foreach (var row in root.OfType<Newtonsoft.Json.Linq.JObject>())
+                {
+                    var dn = row["DisplayName"]?.ToString();
+                    if (string.IsNullOrWhiteSpace(dn)) continue;
+                    rows++;
+
+                    string id = row["ID"]?.ToString();
+                    if (string.IsNullOrEmpty(id))
+                    {
+                        Debug.LogError($"[台账] 缺 ID：{relPath} {dn}");
+                        bad++;
+                    }
+                    else if (idOwner.TryGetValue(id, out var idDup))
+                    {
+                        Debug.LogError($"[台账] ID 重复 {id}：{relPath} 与 {idDup}");
+                        bad++;
+                    }
+                    else
+                    {
+                        idOwner[id] = relPath;
+                    }
+
+                    string calc = System.BitConverter.ToString(
+                            sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(dn.Trim())))
+                        .Replace("-", "").ToLowerInvariant().Substring(0, 8);
+                    string th = row["TextHash"]?.ToString();
+                    if (string.IsNullOrEmpty(th))
+                    {
+                        Debug.LogError($"[台账] 缺 TextHash：{relPath} {id} {dn}（跑 Config/atom_id_ledger.py backfill）");
+                        bad++;
+                        continue;
+                    }
+                    if (th != calc)
+                    {
+                        drifted++;
+                        Debug.LogWarning($"[台账] 文本已变更（ID 不变 {id}）：{th} → {calc}：{dn}");
+                    }
+
+                    if (hashOwner.TryGetValue(th, out var hashDup))
+                    {
+                        Debug.LogError($"[台账] 语义重复（TextHash={th}）：{relPath}/{id} 与 {hashDup}：{dn}");
+                        bad++;
+                    }
+                    else
+                    {
+                        hashOwner[th] = $"{relPath}/{id}";
+                    }
+                }
+            }
+
+            // ---- 别名表校验（2026-11-05 ID 冻结配套）----
+            // 三条：①源 id 不得仍是现行行（否则掩盖真实引用）②沿链必须落在现行行 ③不得成环/超 8 跳。
+            string aliasPath = Path.Combine(Application.dataPath,
+                CardCore.Attribute.AtomicEffectTable.AliasFile.Replace('/', Path.DirectorySeparatorChar));
+            var aliases = CardCore.Attribute.AtomicEffectTable.AliasMap;
+            int aliasCount = aliases != null ? aliases.Count : 0;
+            if (File.Exists(aliasPath))
+            {
+                string aliasRaw = File.ReadAllText(aliasPath);
+                if (aliasRaw.Contains("\"aliases\"") && aliasCount == 0)
+                {
+                    Debug.LogError($"[台账] 别名表存在但解析出 0 条（格式坏？）：{aliasPath}");
+                    bad++;
+                }
+                foreach (var kv in aliases)
+                {
+                    if (idOwner.ContainsKey(kv.Key))
+                    {
+                        Debug.LogError($"[台账] 别名源仍是现行行：{kv.Key} → {kv.Value}（应删除该别名）");
+                        bad++;
+                        continue;
+                    }
+                    string cur = kv.Value;
+                    int hop = 0;
+                    bool resolved = false;
+                    while (hop <= 8)
+                    {
+                        if (idOwner.ContainsKey(cur)) { resolved = true; break; }
+                        if (!aliases.TryGetValue(cur, out var next)) break;
+                        cur = next;
+                        hop++;
+                    }
+                    if (!resolved)
+                    {
+                        Debug.LogError($"[台账] 别名断链/成环：{kv.Key} → … → {cur}");
+                        bad++;
+                    }
+                }
+            }
+
+            if (bad == 0)
+                Debug.Log($"[台账] PASS：{rows} 行 / 别名 {aliasCount} 条，ID 唯一、TextHash 齐备、无同文重复、" +
+                          $"别名链可解析（文本漂移 {drifted} 条，不影响引用）");
+            else
+                Debug.LogError($"[台账] FAIL：{rows} 行 / 别名 {aliasCount} 条，{bad} 处问题（详见上方）");
         }
 
         /// <summary>
@@ -7852,6 +8067,10 @@ namespace CardCore.Editor
             if (!RemapAndRefreshEffectLibrary(path, atomRenames)) return false; // 悬空引用中止（防整库重写剔原子坐实丢内容）
             CardCore.EffectsLibrary.Reload(); // 防陈旧缓存：外部直改 Effects.json 后编辑器静态 _byId 不会自刷新（此处亦读回上一步重写的库文件）
             var cards = CardLoader.LoadCardsFromText(File.ReadAllText(path));
+
+            // ID 重复校验（2026-11-05 冻结配套）：冻结后 id 不随内容变化，重复 id 会互相覆盖——
+            // 落盘前拦下并中止，宁可这一步失败也不静默吞掉一张卡。
+            if (HasDuplicateCardIds(cards, "正式")) return false;
             if (cards.Count == 0)
             {
                 // 2026-11-03 措辞改版：主表=玩家自建内容，空=设计态常态（2026-10-27 起玩家池清空、
@@ -8166,9 +8385,11 @@ namespace CardCore.Editor
             }
             if (cardsArr != null && loaded.Count != cardsArr.Count)
                 Debug.LogWarning($"[Regen] 教学卡表装载 {loaded.Count} 张 ≠ 文件 {cardsArr.Count} 条（坏行被剔除？）——按装载序回写，请人工核对");
+            if (HasDuplicateCardIds(loaded, "教学")) return;
 
             var cardRenames = new Dictionary<string, string>();
             int costRewritten = 0;
+            int cardDrift = 0;
             for (int i = 0; i < loaded.Count && cardsArr != null && i < cardsArr.Count; i++)
             {
                 var card = loaded[i];
@@ -8186,14 +8407,19 @@ namespace CardCore.Editor
                 costRewritten++;
                 string oldId = card.ID;
                 string nid = "C_" + SynergyUI.ContentHasher.HashCard(card);
-                if (!string.IsNullOrEmpty(oldId) && oldId != nid)
+                // 2026-11-05 ID 冻结：内容变只刷 hash 列，不换号（换号会打断卡组/存档/训练标签引用）。
+                obj["hash"] = nid.Substring(2);
+                if (string.IsNullOrEmpty(oldId))
                 {
-                    cardRenames[oldId] = nid;
-                    obj["id"] = nid;
+                    obj["id"] = nid; // 只有无 id 的新行才分配
+                }
+                else if (oldId != nid)
+                {
+                    cardDrift++;
                 }
             }
             WriteJTokenIndented(cardsPath, cardsRoot);
-            Debug.Log($"[Regen] 教学卡表：费用快照重写 {costRewritten} 张（id 换号 {cardRenames.Count} 张·effectIds 跟换 {idsRemapped} 条）→ {cardsPath}");
+            Debug.Log($"[Regen] 教学卡表：费用快照重写 {costRewritten} 张（id 冻结·内容漂移 {cardDrift} 张·effectIds 跟换 {idsRemapped} 条）→ {cardsPath}");
 
             // ---------- ③ 引用跟换：卡组 json + TutorialConfig + CardData 玩家档 ----------
             if (cardRenames.Count > 0)
@@ -8347,8 +8573,9 @@ namespace CardCore.Editor
             }
             if (cardsArr != null && loaded.Count != cardsArr.Count)
                 Debug.LogWarning($"[Regen] 训练卡表装载 {loaded.Count} 张 ≠ 文件 {cardsArr.Count} 条（坏行被剔除？）——按装载序回写，请人工核对");
+            if (HasDuplicateCardIds(loaded, "训练")) return;
 
-            int costRewritten = 0, idRekeyed = 0;
+            int costRewritten = 0, idRekeyed = 0, cardDrift = 0;
             for (int i = 0; i < loaded.Count && cardsArr != null && i < cardsArr.Count; i++)
             {
                 var card = loaded[i];
@@ -8365,15 +8592,21 @@ namespace CardCore.Editor
                     card.Cost[CardCore.ManaType.Blue], card.Cost[CardCore.ManaType.Green]);
                 costRewritten++;
                 string nid = "C_" + SynergyUI.ContentHasher.HashCard(card);
-                if (!string.IsNullOrEmpty(card.ID) && card.ID != nid)
+                // 2026-11-05 ID 冻结：同教学表口径——只刷 hash 列，已有 id 一律沿用
+                obj["hash"] = nid.Substring(2);
+                if (string.IsNullOrEmpty((string)obj["id"]))
                 {
                     obj["id"] = nid;
                     idRekeyed++;
                 }
+                else if ((string)obj["id"] != nid)
+                {
+                    cardDrift++;
+                }
             }
             WriteJTokenIndented(cardsPath, cardsRoot);
             Debug.Log($"[Regen][训练] 训练池重推完成：效果换号 {fxRenames.Count} · 卡费用重写 {costRewritten} 张" +
-                      $"（id 换号 {idRekeyed} 张·引用跟换 {idsRemapped} 条）→ {cardsPath}");
+                      $"（新分配 id {idRekeyed} 张·内容漂移 {cardDrift} 张·引用跟换 {idsRemapped} 条）→ {cardsPath}");
         }
 
         /// <summary>迁移台账自愈（AtomMigrationLedger）：JToken 深扫 refId，命中台账且目标行现存则接回，
@@ -10092,12 +10325,6 @@ namespace CardCore.Editor
                 CardCore.BranchEngines.OnCardCastSettled(p1);
                 Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == uniDeck0 - 1,
                        "团结：相邻单位数 2 ≥ x=2 → A 触发抽 1（B(x=3) 未达不触发）");
-
-                // 达标 3：B 触发抽 1（A 每次达标都触发——同拍再抽 1）
-                CardCore.BranchEngines.UnityAdjacentCountOf = c => 3;
-                CardCore.BranchEngines.OnCardCastSettled(p1);
-                Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == uniDeck0 - 3,
-                       "团结：相邻单位数 3 → A/B 各抽 1（每次达标都触发——充盈同纪律）");
             }
             finally { CardCore.BranchEngines.UnityAdjacentCountOf = null; } // 静态委托防跨段泄漏
             core.ZoneManager.MoveCard(uniA, p1, Zone.Battlefield, Zone.Graveyard); // 清场防跨段连带

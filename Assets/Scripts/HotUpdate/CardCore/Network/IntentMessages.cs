@@ -105,12 +105,12 @@ namespace CardCore.Network
         public int EffectIndex;
     }
 
-    /// <summary>充能（2026-10-29 P7 建造入协议 v4；2026-10-31 P12 建造→充能只换语义，消息名/号不动）：
-    /// 主阶段对手牌「带充能效果的卡」逐色充能——服务器 GameActions.ActivateCharge（主动效果入栈，
-    /// 结算时现付 1 点 Color 色元素 + 放 1 层同色费用降低指示物 + 展示这张卡；上限=该色
-    /// 代价抵扣前卡费；**每回合一次**（2026-11-02 定案：己方一次；速≥1 法术对手回合响应窗口一次——
-    /// 客户端响应档入口未接，服务器 CanCharge 终审兜底），跨回合保留，换区清除、元素不退）。Color=ManaType 枚举值
-    ///（四色；任意位服务器拒绝）。可用性单源 GameActions.CanCharge——UI 置灰/AI 枚举/引擎终审同口径。</summary>
+    /// <summary>充能（2026-10-29 P7 建造入协议 v4；2026-11-05 充能系统动作化改版，消息名/号不动只换语义）：
+    /// 主阶段对**任意手牌卡**宣充能——服务器 GameActions.DeclareCharge（速度0系统动作宣入栈，
+    /// 一张卡一回合一次；结算期经 TargetSelectionService 反问元素类别——SelectRequest 下发客户端
+    /// 下拉选择，确定后免费 +1 层同色费用降低指示物 + 展示这张卡；不支付元素；上限=该色
+    /// 代价抵扣前卡费；跨回合保留，换区清除）。Color 字段保留协议布局兼容、恒 −1 不再承载选色
+    ///（旧 P12「客户端逐色直发」已随改版退役）。可用性单源 GameActions.CanCharge——UI 置灰/AI 枚举/引擎终审同口径。</summary>
     [MemoryPackable]
     public partial class MsgIntentBuildCard
     {

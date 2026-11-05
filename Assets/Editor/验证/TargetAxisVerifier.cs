@@ -15,8 +15,9 @@ namespace CardCore.Editor.Tests
     ///   + 4 类别 token（卡/生物/结界/法术；无角色/地牌类别）。
     /// ■ ② 契约解析：合法样例（多 selector/类别并集/自己/角色）全过；
     ///   非法全拒——裸 X方、卡区域无类别、角色/自己带类别、发动区、坏 token、空段。
-    /// ■ ③ 区域收窄：entry.kinds 只收窄区域（紊乱样例：双方战场:生物 + kind[2] → 对方战场:生物；
-    ///   Both 双侧保持；无交删 selector；空 kinds 不收窄）。
+    /// ■ ③ 区域收窄：entry.kinds 收窄区域**与角色 selector 侧别**（契约 §5：1/2 生命单位授角色
+    ///   侧别、3/4 不授予；紊乱样例：双方战场:生物 + kind[2] → 对方战场:生物；Both 双侧保持；
+    ///   无交删 selector；空 kinds 不收窄）。
     /// ■ ④ 候选取件（夹具）：selector 逐类正确性（生物/结界/法术/卡/角色/自己/属性 Filter）。
     /// ■ ⑤ 全表守卫：153 行（2026-11-05 硬切 B2：全体两行已删）——新语法合法/无目标二分。
     /// ■ ⑥ 生产链证据：converter 新 Domain 产轴+收窄 + executor 结算 LiveResolutions&gt;0。
@@ -213,6 +214,24 @@ namespace CardCore.Editor.Tests
                 Check("3", narrowed.Selectors.Count == 2 && narrowed.Selectors.Any(s => s.Region == TargetRegion.BothBattlefield)
                            && narrowed.Selectors.Any(s => s.Region == TargetRegion.BothCharacter),
                     "双侧 kinds 收窄应保持 Both 区域/角色 selector");
+            }
+
+            // 角色侧别收窄（2026-11-05 收口·契约 §5）：kinds 收窄连角色 selector 一起按生命单位侧别收窄
+            ok = TargetAxisRules.TryParseDomain("双方战场:生物; 双方角色", out var roleAxis);
+            if (ok)
+            {
+                // kinds=[1]（己方生命单位）→ 双方战场→己方战场、双方角色→己方角色
+                var ownOnly = TargetAxisRules.NarrowByKinds(roleAxis, new List<int> { 1 });
+                Check("3", ownOnly.Selectors.Count == 2
+                           && ownOnly.Selectors.Any(s => s.Region == TargetRegion.OwnBattlefield)
+                           && ownOnly.Selectors.Any(s => s.Region == TargetRegion.OwnCharacter)
+                           && ownOnly.Selectors.All(s => s.Region != TargetRegion.BothCharacter),
+                    $"角色收窄：+ kind[1] 应 → 己方战场:生物; 己方角色（实 {ownOnly.Zh}）");
+                // kinds=[3]（己方无生命单位）→ 3/4 不授予角色侧别 → 角色 selector 被删（战场仍收窄到己方）
+                var noRole = TargetAxisRules.NarrowByKinds(roleAxis, new List<int> { 3 });
+                Check("3", noRole.Selectors.Count == 1 && noRole.Selectors[0].Region == TargetRegion.OwnBattlefield
+                           && !noRole.Selectors.Any(s => TargetRegionRules.IsCharacter(s.Region)),
+                    $"角色收窄：+ kind[3] 应删角色 selector（无生命单位不授予侧别；实 {noRole.Zh}）");
             }
 
             // 无交 → 删 selector（行域手牌 + kinds 战场 → 空）

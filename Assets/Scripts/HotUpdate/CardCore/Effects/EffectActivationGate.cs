@@ -6,8 +6,9 @@ namespace CardCore
 {
     /// <summary>
     /// 主动效果发动闸（2026-10-29 P5：主动效果可带一条代价行——构筑两行「效果行 + 可选代价行」）。
-    /// · 净费 = max(0, 发动费 − Σ代价价)，抵扣逐点先灰、后最高费用色（复用
-    ///   <see cref="CardCompositionCost.ReduceBuckets"/>，与卡层代价抵扣同算法）；
+    /// · 净费 = max(0, 发动费 − Σ代价价)，**逐行色锁**（2026-11-05 收口定案：每行只在自身原子
+    ///   可产出色内逐点扣，先灰后集合内最高费用色——<see cref="CardCostService.ApplyLockedDeduction"/>
+    ///   单源，与卡层代价抵扣同口径；跨色不抵、溢出丢弃）；
     /// · 每次发动各扣一次净费、各执行一次代价原子（代价只执行、不产任何元素——P1 口径）；
     /// · 顺序不回退：净费先付、代价后执行（与卡层 cast 同序）；
     /// · 可用性 = 净费可付 ∧ 代价可支付（<see cref="CostPayability"/>——资敌白嫖/手牌不足在此拦，
@@ -27,7 +28,9 @@ namespace CardCore
                && !HeroSkillSystem.IsSkillSource(source);
 
         /// <summary>代价抵扣点数：特殊代价里全部 Payload 原子的全价合计
-        ///（<see cref="CostDerivationService.PayloadUnitGrant"/> 单源——与构筑期计价同锚）。</summary>
+        ///（<see cref="CostDerivationService.PayloadUnitGrant"/> 单源——与构筑期计价同锚）。
+        /// **颜色盲读**（潜在抵扣上限）：实际落账以 <see cref="NetBill"/> 逐行色锁为准——
+        /// 代价色与账单色无交集时实际抵扣可小于本值（UI 抵扣角标只作潜在值展示）。</summary>
         public static int DeductionPoints(List<CostInstance> specialCosts)
         {
             int points = 0;
@@ -41,32 +44,34 @@ namespace CardCore
             return points;
         }
 
-        /// <summary>每次发动的净费账单（发动费 − 代价抵扣；先灰后最高费用色、逐色 ≥0、可归零）。
+        /// <summary>每次发动的净费账单（发动费 − 代价抵扣；**逐行色锁**、逐色 ≥0、可归零）。
         /// 只读不改入参；无代价/零抵扣 → 原费克隆。
+        /// 2026-11-05 色锁收口定案（对齐卡层 ApplyCastDeduction/ApplyPayloadDeduction 同口径）：
+        /// 抵扣单位=单个代价行（行序=声明序），每行只在自身原子**可产出色**（行 ManaList 非零色）
+        /// 内逐点扣（先灰后该集合内最高费用色——<see cref="CardCostService.ApplyLockedDeduction"/> 单源）；
+        /// 跨色不抵、溢出丢弃——蓝代价抵不了红/灰账（弹回红色化后蓝套代价跨色案定案）。
         /// 2026-10-30 真实小数定案：抵扣直接在 float 桶上逐点进行（每点至多减 1.0、下限 0、
-        /// ≤1e-4 视为空桶），净费保留真值小数——取整只在支付终点 NormalizeBill（逐色进1）；
-        /// 不再先归一成 int 桶（旧口径会在抵扣前把 2.4红 抹成 2，丢失亚点）。
-        /// 与卡层 ReduceBuckets 同序：先灰、灰尽后最高费用色（并列取枚举序靠前者）。</summary>
+        /// ≤1e-4 视为空桶），净费保留真值小数——取整只在支付终点 NormalizeBill（逐色进1）。</summary>
         public static ElementCost NetBill(ElementCost elementCosts, List<CostInstance> specialCosts)
         {
             var net = elementCosts?.Clone() ?? new ElementCost();
-            int points = DeductionPoints(specialCosts);
-            for (int i = 0; i < points; i++)
+            if (specialCosts == null) return net;
+            foreach (var c in specialCosts)
             {
-                if (net[ManaType.Gray] > 1e-4f)
+                if (c == null || c.Type != CostType.Payload || c.Payloads == null) continue;
+                int points = 0;
+                var allowed = new HashSet<ManaType>();
+                foreach (var atom in c.Payloads)
                 {
-                    net[ManaType.Gray] = Math.Max(0f, net[ManaType.Gray] - 1f);
-                    continue;
+                    if (atom == null) continue;
+                    points += CostDerivationService.PayloadUnitGrant(atom);
+                    var ml = Attribute.AtomicEffectTable.GetByHashId(atom.RowHashId)?.ManaList;
+                    if (ml == null) continue;
+                    foreach (var color in ml.NonzeroColors())
+                        if (color != ManaType.Any)
+                            allowed.Add(color);
                 }
-                ManaType best = ManaType.Gray; float bestV = 0f;
-                for (int c = 0; c <= (int)ManaType.Any; c++)
-                {
-                    var color = (ManaType)c;
-                    if (color == ManaType.Gray) continue;
-                    if (net[color] > bestV + 1e-4f) { bestV = net[color]; best = color; }
-                }
-                if (bestV <= 0f) break; // 全桶空（可归零，不退费不穿底）
-                net[best] = Math.Max(0f, net[best] - 1f);
+                CardCostService.ApplyLockedDeduction(net, points, allowed);
             }
             return net;
         }

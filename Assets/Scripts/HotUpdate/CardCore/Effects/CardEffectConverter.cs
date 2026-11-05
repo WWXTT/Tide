@@ -374,31 +374,8 @@ namespace CardCore
                                            || def.TriggerTiming == TriggerTiming.Activate_Response);
             }
 
-            // 充能形态契约（2026-10-31 P12：建造→充能）：充能效果=单 Charge 原子、无分支、无目标域；
-            // 违规（混原子/带门/带域）→ 告警并**丢弃整个效果**（构筑期拦截——充能不能与其它内容组合）。
-            // 合规者效果头钉档：主动 / Activate_Active / 速度 0（充能入口只能从手牌发动，
-            // 1 点元素由 handler 结算期按所选色现扣——效果锚价恒 0，表行 ManaList 全 0）。
-            if (ComposerCatalog.IsChargeEffect(def))
-            {
-                bool shapeOk = (def.Steps == null || def.Steps.Count == 0)
-                    && def.Effects.Count == 1
-                    && def.Effects[0] != null && def.Effects[0].Type == AtomicEffectType.Charge
-                    && def.Effects[0].Branch == null
-                    && (def.Effects[0].TargetKinds == null || def.Effects[0].TargetKinds.Count == 0)
-                    && (data.TargetKinds == null || data.TargetKinds.Count == 0);
-                if (!shapeOk)
-                {
-                    TideLog.Warn($"[CardEffectConverter] 卡 {sourceCardId} 效果 {def.Id} 充能形态违规" +
-                                 "（充能=单原子、无分支、无目标域），已丢弃该效果——构筑期拦截");
-                    return null;
-                }
-                def.ActivationType = EffectActivationType.Voluntary;
-                def.TriggerTiming = TriggerTiming.Activate_Active;
-                def.BaseSpeed = 0;
-                def.ElementCostPrepaid = false;
-                def.TargetDomain = new List<int>();
-                def.TargetFilter = "";
-            }
+            //（充能形态契约段已随 2026-11-05 充能系统动作化改版删除：充能不再是卡上效果，
+            //  原子表行已删——不会再有 Charge 原子进转换链。）
 
             return def;
         }
@@ -632,10 +609,14 @@ namespace CardCore
                 bool hasTarget = (config.Description ?? "").Contains("{target}");
                 if (effectiveCount == 0 || !hasTarget)
                 {
-                    if (effectiveCount == 0)
+                    // 日志降噪（2026-11-05）：count=-2=**未声明**（旧数据默认档，归一即预期行为）——
+                    // 静默收 1；只有显式声明（count=0 全域 / count>1）才告警。旧口径逐原子每次
+                    // 装载刷一条，单次回归 38 万行把真告警淹没。
+                    bool undeclared = entry.count == -2;
+                    if (!undeclared && effectiveCount == 0)
                         TideLog.Warn($"[CardEffectConverter] 原子 {type}（行 {entry.refId}）关键词/指示物行" +
                                      "=单体赋予（2026-11-04 定案）——不开放全域：count=0 已收为 1");
-                    else
+                    else if (!undeclared)
                         TideLog.Warn($"[CardEffectConverter] 原子 {type}（行 {entry.refId}）行模板不含 {{target}}" +
                                      "（单体赋予·无逐目标语义）——只能选一个：count=" + effectiveCount + " 已收为 1");
                     effectiveCount = 1;

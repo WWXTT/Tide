@@ -287,7 +287,8 @@ namespace CardCore
             var first = TurnEngine?.TurnPlayer;
             if (first == null) return;
             if (StackEngine.PushPhaseWindow(first, "主阶段开始"))
-                GameActions.SettleResponseWindowAsync(this).Forget();
+                GameActions.ForgetSafeAsync(
+                    GameActions.SettleResponseWindowAsync(this), "主阶段开始响应窗", this).Forget();
         }
 
         /// <summary>初始手牌总量（2026-10-13 迁表：ValueSystemConfig GameRules.OpeningHandSize）。</summary>

@@ -187,12 +187,12 @@ namespace CardCore
 
         /// <summary>技能卡的全部主动效果（运行时口径：转换后的 EffectDefinition，1~3 条）。
         /// 空 = 无可发动效果（防御性：资格校验之外的兜底，如卡面被运行时改写）。
-        /// P12（2026-10-31）：充能效果排除——充能只能从手牌发动，技能栏（FieldZone）源恒不可发动。</summary>
+        ///（P12 充能排除已随 2026-11-05 充能系统动作化改版失效——充能不再是卡上效果。）</summary>
         public static List<EffectDefinition> SkillEffectsOf(Card skillCard)
             => skillCard == null
                 ? new List<EffectDefinition>()
                 : GameActions.GetCardEffectDefinitions(skillCard)
-                    ?.Where(d => d != null && d.IsActivatedEffect && !ComposerCatalog.IsChargeEffect(d)).ToList()
+                    ?.Where(d => d != null && d.IsActivatedEffect).ToList()
                 ?? new List<EffectDefinition>();
 
         /// <summary>技能源判定：技能栏（FieldZone）里的法术卡。
@@ -274,13 +274,14 @@ namespace CardCore
             return SynergyUI.CardCatalog.LoadAll();
         }
 
-        /// <summary>卡上各效果锚价总额的最小值（AutoPick 挑选键；P12：充能效果排除——0 费行）。</summary>
+        /// <summary>卡上各效果锚价总额的最小值（AutoPick 挑选键）。
+        ///（P12 充能排除已随 2026-11-05 充能系统动作化改版失效——充能不再是卡上效果。）</summary>
         private static float MinEffectAnchor(CardData data)
         {
             float best = float.MaxValue;
             foreach (var def in GameActions.GetCardEffectDefinitions(new CardWrapper(data)))
             {
-                if (def == null || !def.IsActivatedEffect || ComposerCatalog.IsChargeEffect(def)) continue;
+                if (def == null || !def.IsActivatedEffect) continue;
                 best = Math.Min(best, CostDerivationService.DeriveElementCosts(def, 0)?.Total ?? 0f);
             }
             return best == float.MaxValue ? 0f : best;

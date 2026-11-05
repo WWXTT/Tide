@@ -1,6 +1,7 @@
 [
   {
     "ID": "301a29ba",
+    "TextHash": "301a29ba",
     "EnumName": "三相仪典",
     "DisplayName": "己方回合中，自己每消耗3点同色纯元素，获得红/蓝/绿各1",
     "EffectType": "ModifyGameRule",
@@ -17,6 +18,7 @@
   },
   {
     "ID": "74bd19a2",
+    "TextHash": "74bd19a2",
     "EnumName": "苦痛仪典",
     "DisplayName": "己方回合中，角色受到的伤害改由对手角色承担",
     "EffectType": "ModifyGameRule",
@@ -33,6 +35,7 @@
   },
   {
     "ID": "cf64a958",
+    "TextHash": "cf64a958",
     "EnumName": "丰盈仪典",
     "DisplayName": "回复生命的溢出转化为生命上限+1",
     "EffectType": "ModifyGameRule",
@@ -41,14 +44,15 @@
     "MountKinds": "场地光环",
     "Tags": null,
     "ManaList": [
+      3,
       0,
       0,
-      0,
-      3
+      0
     ]
   },
   {
     "ID": "c752bd98",
+    "TextHash": "c752bd98",
     "EnumName": "离散仪典",
     "DisplayName": "单次伤害超过5时改为5，低于5时改为3",
     "EffectType": "ModifyGameRule",
@@ -65,6 +69,7 @@
   },
   {
     "ID": "7e8d4aa8",
+    "TextHash": "7e8d4aa8",
     "EnumName": "归土仪典",
     "DisplayName": "回合结束时，从自己墓地复活一张费用不大于己方绿色地牌数量的生物",
     "EffectType": "ModifyGameRule",
@@ -81,6 +86,7 @@
   },
   {
     "ID": "0df10778",
+    "TextHash": "0df10778",
     "EnumName": "纳川仪典",
     "DisplayName": "手牌上限增加自己蓝色地牌的数量",
     "EffectType": "ModifyGameRule",
@@ -97,6 +103,7 @@
   },
   {
     "ID": "79ef61f3",
+    "TextHash": "79ef61f3",
     "EnumName": "放血仪典",
     "DisplayName": "受光环影响一方的单位与角色受到的治疗改写为等量伤害",
     "EffectType": "ModifyGameRule",
@@ -113,6 +120,7 @@
   },
   {
     "ID": "107256b7",
+    "TextHash": "107256b7",
     "EnumName": "禁攻令",
     "DisplayName": "受光环影响的单位与角色不能宣言攻击",
     "EffectType": "ModifyGameRule",
@@ -121,14 +129,15 @@
     "MountKinds": "场地光环",
     "Tags": null,
     "ManaList": [
+      6,
       0,
       0,
-      0,
-      6
+      0
     ]
   },
   {
     "ID": "b07c1ee5",
+    "TextHash": "b07c1ee5",
     "EnumName": "禁守令",
     "DisplayName": "受光环影响的单位与角色不能进行守卫拦截",
     "EffectType": "ModifyGameRule",
@@ -137,14 +146,15 @@
     "MountKinds": "场地光环",
     "Tags": null,
     "ManaList": [
-      0,
       6,
+      0,
       0,
       0
     ]
   },
   {
     "ID": "684b9b0e",
+    "TextHash": "684b9b0e",
     "EnumName": "禁发令",
     "DisplayName": "受光环影响的单位与角色不能发动主动效果",
     "EffectType": "ModifyGameRule",
@@ -153,14 +163,15 @@
     "MountKinds": "场地光环",
     "Tags": null,
     "ManaList": [
-      0,
-      0,
       6,
+      0,
+      0,
       0
     ]
   },
   {
     "ID": "eb99b6c3",
+    "TextHash": "eb99b6c3",
     "EnumName": "禁地令",
     "DisplayName": "受光环影响的一方不能将手牌作为地牌放置",
     "EffectType": "ModifyGameRule",
@@ -177,6 +188,7 @@
   },
   {
     "ID": "c7b29f6c",
+    "TextHash": "c7b29f6c",
     "EnumName": "禁疗令",
     "DisplayName": "受光环影响一方的角色与单位不能回复生命",
     "EffectType": "ModifyGameRule",
@@ -193,6 +205,7 @@
   },
   {
     "ID": "1c82a7e8",
+    "TextHash": "1c82a7e8",
     "EnumName": "禁魔令",
     "DisplayName": "受光环影响一方不能施放法术牌",
     "EffectType": "ModifyGameRule",
@@ -209,6 +222,7 @@
   },
   {
     "ID": "bc397c9e",
+    "TextHash": "bc397c9e",
     "EnumName": "禁召令",
     "DisplayName": "受光环影响一方不能施放攻击或生命大于己方灰色地牌数量的生物牌",
     "EffectType": "ModifyGameRule",
@@ -217,15 +231,16 @@
     "MountKinds": "场地光环",
     "Tags": null,
     "ManaList": [
-      0,
-      0,
       3,
+      0,
+      0,
       0
     ],
     "特殊裁定": "攻击或生命等于灰色地牌数量时可以施放；灰色地牌=元素池内锁灰的地牌"
   },
   {
     "ID": "37de45b9",
+    "TextHash": "37de45b9",
     "EnumName": "禁抽令",
     "DisplayName": "受光环影响一方每回合至多抽1张牌",
     "EffectType": "ModifyGameRule",
@@ -234,14 +249,15 @@
     "MountKinds": "场地光环",
     "Tags": null,
     "ManaList": [
-      0,
-      0,
       6,
+      0,
+      0,
       0
     ]
   },
   {
     "ID": "a123a922",
+    "TextHash": "a123a922",
     "EnumName": "禁低费令",
     "DisplayName": "受光环影响一方不能施放费用不超过3的卡",
     "EffectType": "ModifyGameRule",
@@ -258,6 +274,7 @@
   },
   {
     "ID": "c8f63d17",
+    "TextHash": "c8f63d17",
     "EnumName": "禁高费令",
     "DisplayName": "受光环影响一方不能施放费用超过对手地牌数的卡",
     "EffectType": "ModifyGameRule",
@@ -266,14 +283,15 @@
     "MountKinds": "场地光环",
     "Tags": null,
     "ManaList": [
-      0,
       3,
+      0,
       0,
       0
     ]
   },
   {
     "ID": "e9394839",
+    "TextHash": "e9394839",
     "EnumName": "灵视",
     "DisplayName": "对手使用已展示的手牌时，其角色受到2点伤害且你的角色回复2点生命",
     "EffectType": "ModifyGameRule",
@@ -290,6 +308,7 @@
   },
   {
     "ID": "0e815e0d",
+    "TextHash": "0e815e0d",
     "EnumName": "延迟死亡",
     "DisplayName": "受光环影响的单位死亡时，改为在下个回合结束时死亡（不会延迟此效果结算的死亡）",
     "EffectType": "ModifyGameRule",
@@ -306,6 +325,7 @@
   },
   {
     "ID": "5d1a7907",
+    "TextHash": "5d1a7907",
     "EnumName": "牌库顶当手牌",
     "DisplayName": "受光环影响的一方可以将牌库顶的卡当作手牌使用",
     "EffectType": "ModifyGameRule",
@@ -314,14 +334,15 @@
     "MountKinds": "场地光环",
     "Tags": null,
     "ManaList": [
+      6,
       0,
       0,
-      0,
-      6
+      0
     ]
   },
   {
     "ID": "a4f67cf5",
+    "TextHash": "a4f67cf5",
     "EnumName": "铭刻",
     "DisplayName": "受光环影响一方的场上单位被添加指示物时，该指示物的层数+1",
     "EffectType": "ModifyGameRule",

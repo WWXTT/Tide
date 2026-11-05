@@ -729,9 +729,14 @@ namespace SynergyUI
             var card = NetHandViewOf(fan);
             if (card == null) return false;
             if (NetCardCastableNet(card)) return true;
+            // 充能（2026-11-05 系统动作化改版）：任意手牌卡一回合一次可宣（协议 114 改义承载）——
+            // 客户端近似闸（服务器真校验兜底）。
             var data = DataOf(card);
             if (data == null) return false;
-            return ComposerCatalog.HasChargeEffect(data); // 充能（P12：协议 114 改义承载）
+            CardCostService.GetPrePayloadCost(data, 0, out var preCost, out _);
+            foreach (var c in preCost.NonzeroColors())
+                if (c != ManaType.Any && preCost[c] > 0f) return true;
+            return false;
         }
 
         /// <summary>网络逐卡可发动（2026-10-28 可用性精确化，取代「主阶段全亮」近似）：
@@ -816,40 +821,22 @@ namespace SynergyUI
                 return;
             }
             var spKind = fan.SelectedSpKind;
-            if (spKind == SpEffectKind.Charge) { NetChargeAsync(card).Forget(); return; }
+            if (spKind == SpEffectKind.Charge) { NetChargeAsync(card); return; }
             NetUseCardAsync(card, fan.SelectedEffectMode).Forget();
         }
 
-        /// <summary>网络充能：充能色=代价抵扣前卡费非零色（单色直发/多色 Region 择一）→
-        /// IntentBuildCard（协议 114，P12 改义充能——服务器 ActivateCharge 终审）。</summary>
-        private async UniTaskVoid NetChargeAsync(BattleCardView card)
+        /// <summary>网络充能（2026-11-05 系统动作化改版）：**不选色直发** IntentBuildCard（协议 114，
+        /// Color 恒 −1——颜色改由服务器结算期反问下发 SelectRequest）。服务器 DeclareCharge 终审。</summary>
+        private void NetChargeAsync(BattleCardView card)
         {
-            var data = DataOf(card);
-            if (data == null || _netClient == null) return;
-            CardCostService.GetPrePayloadCost(data, 0, out var preCost, out _);
-            var colors = new List<ManaType>();
-            foreach (var c in preCost.NonzeroColors())
-                if (c != ManaType.Any && preCost[c] > 0f) colors.Add(c);
-            if (colors.Count == 0) { _toast.Show("该卡卡费无可充颜色"); return; }
-
-            ManaType color;
-            if (colors.Count == 1) color = colors[0];
-            else
-            {
-                var options = new List<string>();
-                foreach (var c in colors)
-                    options.Add($"充能 {ManaTypeNames.ZhNameOf(c)}（现付 1 点该色元素）");
-                int? picked = await PickRegionOptionAsync("选择充能颜色", options);
-                if (picked == null) return;
-                color = colors[picked.Value];
-            }
+            if (DataOf(card) == null || _netClient == null) return;
 
             _netClient.Send(NetworkMessageType.IntentBuildCard, new MsgIntentBuildCard
             {
                 CardRuntimeId = card.RuntimeId,
-                Color = (int)color,
+                Color = -1, // 2026-11-05：充能色在服务器结算期反问（字段保留协议兼容，恒 −1）
             });
-            _toast.Show($"充能 +1{ManaTypeNames.ZhNameOf(color)} 已发动（服务器终审）");
+            _toast.Show("充能已宣入（服务器终审——结算期选择元素类别）");
         }
 
         /// <summary>网络出牌：模式抉择（Region）→ 永久物（生物/结界）
@@ -2385,8 +2372,8 @@ namespace SynergyUI
         /// <summary>「使用」按钮条件（2026-11-01 SpUse 退役·合并口径）：
         /// 普通出牌=任一模式 CanAffordCast（含声明承诺 pending——代价补偿黑/白不预计算垫本卡，
         /// 2026-10-16 恢复旧序）+永久物另需单位区空格（满场不可出）；
-        /// 特殊行=充能（任意卡型有充能效果、本回合未充过且 PayableNow 任一可付色——点击时 CanCharge 终审；
-        /// 2026-11-02 每回合一次，对手回合响应档走响应弹窗）。
+        /// 特殊行=充能（2026-11-05 系统动作化：任意手牌卡、本回合未充过且有可充颜色——点击时
+        /// CanCharge 终审；免费落层、颜色结算期反问）。
         /// （生物苏醒亮钮分支已随 2026-11-02 苏醒机制整链删除。）
         /// 法术多主动（2026-11-01 抉择上卡）：使用钮按卡面效果行选中模式直入施放
         ///（选中行不可付时点击 toast 拒——亮钮条件仍是任一模式可付）。</summary>
@@ -2398,14 +2385,12 @@ namespace SynergyUI
             if (CardCastableNow(card)) return true;
             var data = (card as CardWrapper)?.GetData();
             if (data == null) return false;
-            // 充能（P12）：任意 supertype——有充能效果、本回合未充过（2026-11-02 每回合一次）且
-            // 当前有可付颜色即亮（对手回合响应档入口=响应弹窗，不经手牌 Use 钮）
-            if (card.GetZone() == Zone.Hand && ComposerCatalog.HasChargeEffect(data)
-                && !GameActions.ChargeUsedThisTurn(Core, card))
+            // 充能（2026-11-05 系统动作化改版）：任意 supertype 手牌卡——本回合未充过（一张卡
+            // 一回合一次）且还有可充颜色（卡具有且未充满）即亮；颜色在结算期经引擎反问选。
+            if (card.GetZone() == Zone.Hand && !GameActions.ChargeUsedThisTurn(Core, card))
             {
                 var info = GameActions.GetHandCardChargeInfo(Core, P1, card);
-                foreach (var payable in info.PayableNow.Values)
-                    if (payable) return true;
+                if (info.WindowOpen && info.RemainingByColor.Count > 0) return true;
             }
             return false;
         }
@@ -2623,7 +2608,7 @@ namespace SynergyUI
 
         /// <summary>「使用」点击（2026-10-14 定案；2026-11-01 抉择上卡+充能上卡·SpUse 退役；
         /// 苏醒行已随 2026-11-02 苏醒机制整链删除）：
-        /// 特殊行选中=充能（ChargeCardAsync——选色→入栈）；
+        /// 特殊行选中=充能（ChargeCardAsync——2026-11-05 系统动作化：宣言入栈，结算期反问选色）；
         /// 普通=法术按卡面效果行选中模式直入声明流（模式窗退役）、永久物=模式窗（多模式）→选格、
         /// 生物=直入召唤。再点选中特殊行取消即回本链。</summary>
         private void OnFanUse(HandFanCard fan)
@@ -2640,7 +2625,7 @@ namespace SynergyUI
             var spKind = fan.SelectedSpKind;
             if (spKind == SpEffectKind.Charge)
             {
-                ChargeCardAsync(card).Forget(); // 充能=选色→ActivateCharge 速度 0 主动效果入栈
+                ChargeCardAsync(card); // 充能=速度0系统动作宣入（结算期反问元素类别）
                 return;
             }
 
@@ -2681,37 +2666,14 @@ namespace SynergyUI
             BeginUseCellPicking(view, card, modeIndex);
         }
 
-        /// <summary>充能（2026-10-31 P12：建造→充能）：可充色=卡费有该色且余量&gt;0 且现可付 1 点
-        ///（GetHandCardChargeInfo 数据口）；多色=Region 择一（附余量/充后净费预览）；单色直发。
-        /// ActivateCharge 把充能效果作为速度 0 主动效果入栈（响应窗口后结算：现付 1 点该色元素、
-        /// 放 1 层同色费用降低指示物并展示此卡），卡留手牌——净费随 RefreshLocal 回写。</summary>
-        private async UniTaskVoid ChargeCardAsync(Card card)
+        /// <summary>充能（2026-11-05 系统动作化改版）：把充能作为速度0系统动作宣入栈（仿攻击宣言，
+        /// 对手获响应窗口）——**发动期不选色**：颜色在结算期经引擎反问下拉选择（只列此卡具有
+        /// 且未充满的颜色；本地=Select 窗下拉、网络=SelectRequest、AI/无头/超时自动取最大余量色）。
+        /// 确定后免费 +1 层同色费用降低指示物并展示此卡（不支付元素）；卡留手牌——净费随 RefreshLocal 回写。</summary>
+        private void ChargeCardAsync(Card card)
         {
-            var info = GameActions.GetHandCardChargeInfo(Core, P1, card);
-            var colors = new List<ManaType>();
-            foreach (var kv in info.PayableNow)
-                if (kv.Value && info.RemainingByColor.TryGetValue(kv.Key, out var remain) && remain > 0)
-                    colors.Add(kv.Key);
-            if (colors.Count == 0) { _toast.Show("无对应元素可充（每点充能=现付 1 点该色元素）"); return; }
-
-            ManaType color;
-            if (colors.Count == 1) color = colors[0];
-            else
-            {
-                var options = new List<string>();
-                foreach (var c in colors)
-                {
-                    int remain = info.RemainingByColor.TryGetValue(c, out var r) ? r : 0;
-                    string after = info.NetCostAfterCharge.TryGetValue(c, out var nc) ? CostText(nc) : "—";
-                    options.Add($"充能 {ManaTypeNames.ZhNameOf(c)}（余{remain}点 · 充后净费 {after}）");
-                }
-                int? picked = await PickRegionOptionAsync("选择充能颜色", options);
-                if (picked == null) return; // 取消/缺 Region：本次不充
-                color = colors[picked.Value];
-            }
-
-            if (GameActions.ActivateCharge(Core, P1, card, color, out var reason))
-                _toast.Show($"充能 +1{ManaTypeNames.ZhNameOf(color)} 已发动（响应窗口后结算）");
+            if (GameActions.DeclareCharge(Core, P1, card, out var reason))
+                _toast.Show("充能已宣入（响应窗口后结算——届时选择元素类别）");
             else
                 _toast.Show($"充能失败：{reason}");
             RefreshLocal();

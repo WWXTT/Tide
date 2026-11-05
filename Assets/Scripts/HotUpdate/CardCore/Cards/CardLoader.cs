@@ -35,7 +35,11 @@ namespace CardCore
     [Serializable]
     public class CardConfigEntry
     {
+        /// <summary>卡牌稳定 ID（2026-11-05 冻结：一经分配永不改写；新卡缺省 = "C_"+内容指纹）。</summary>
         public string id;
+        /// <summary>内容指纹（= ContentHasher.HashCard，不含 id 自身）——只用于去重与漂移检测，
+        /// 不参与身份。旧档缺列 = null，下次保存回填。</summary>
+        public string hash;
         public string cardName;
         public string supertype;
         public int power;
@@ -220,11 +224,12 @@ namespace CardCore
             return result;
         }
 
-        /// <summary>法术形态校验（2026-10-15 深夜三类卡改版；2026-10-31 P12 修订）：
-        /// ① 非充能主动效果 1..3（0=白板法术无意义；>3 超抉择上限）、充能最多 1 个、总效果数 ≤4；
+        /// <summary>法术形态校验（2026-10-15 深夜三类卡改版；2026-11-05 充能系统动作化修订）：
+        /// ① 主动效果 1..3（0=白板法术无意义；>3 超抉择上限）、总效果数 ≤4；
         /// ② 全部为主动（Activate_Active/Activate_Instant——响应式 Activate_Response 不算，
-        ///    法术施放走整卡 cast 通道没有响应发动口；充能也算主动）。
-        /// 内嵌抉择分支检查已删（2026-10-31 P12：kind==2 整链退役——法术模式=非充能主动效果数）。
+        ///    法术施放走整卡 cast 通道没有响应发动口）。
+        /// 内嵌抉择分支检查已删（2026-10-31 P12：kind==2 整链退役——法术模式=主动效果数）。
+        ///（充能形态位已随 2026-11-05 充能系统动作化改版删除——充能不再是卡上效果，任意手牌卡可宣。）
         /// 可见不炸——坏卡点名。</summary>
         private static void ValidateSpellShape(List<CardData> cards)
         {
@@ -234,45 +239,38 @@ namespace CardCore
                 int count = card.Effects.Count;
                 if (count < 1 || count > 4)
                     TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：法术须挂 1~4 个主动效果" +
-                                  $"（现 {count} 个——非充能 1~3 + 充能最多 1）——构筑期拦截");
-                int chargeCount = 0, activeCount = 0;
+                                  $"（现 {count} 个）——构筑期拦截");
+                int activeCount = 0;
                 foreach (var e in card.Effects)
                 {
-                    if (ComposerCatalog.IsChargeEffect(e)) { chargeCount++; continue; }
                     int t = e?.TriggerTiming ?? -1;
                     if (t != (int)TriggerTiming.Activate_Active && t != (int)TriggerTiming.Activate_Instant)
                         TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：法术效果 {e.Id} 须为主动" +
                                       "（主阶段/瞬间——法术只挂主动效果，自动/触发/响应档不收）——构筑期拦截");
                     else activeCount++;
                 }
-                if (chargeCount > 1)
-                    TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：法术充能效果最多 1 个（现 {chargeCount}）——构筑期拦截");
                 if (activeCount < 1 || activeCount > 3)
-                    TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：法术非充能主动效果须 1~3 个" +
+                    TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：法术主动效果须 1~3 个" +
                                   $"（现 {activeCount}——施放时择一发动）——构筑期拦截");
             }
         }
 
-        /// <summary>结界形态校验（2026-10-15 深夜三类卡改版；2026-10-31 P12 修订）：
-        /// 只挂自动/光环 + **充能主动最多 1 个**（充能=手牌发动的主动效果，与场上耐久经济无关
-        /// ——原「结界禁一切主动」对充能放开）；其余主动仍拒。耐久语义保留（受击−1/被动触发−1）。</summary>
+        /// <summary>结界形态校验（2026-10-15 深夜三类卡改版；2026-11-05 充能系统动作化修订）：
+        /// 只挂自动/光环，主动全拒（原 P12「结界可挂充能」已随充能系统动作化改版收回——
+        /// 充能不再是卡上效果）。耐久语义保留（受击−1/被动触发−1）。</summary>
         private static void ValidateEnchantShape(List<CardData> cards)
         {
             foreach (var card in cards)
             {
                 if (card?.Supertype != Cardtype.Enchantment || card.Effects == null) continue;
-                int chargeCount = 0;
                 foreach (var e in card.Effects)
                 {
-                    if (ComposerCatalog.IsChargeEffect(e)) { chargeCount++; continue; }
                     int t = e?.TriggerTiming ?? -1;
                     if (t == (int)TriggerTiming.Activate_Active || t == (int)TriggerTiming.Activate_Instant
                         || t == (int)TriggerTiming.Activate_Response)
                         TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：结界效果 {e.Id} 为主动" +
-                                      "（结界只挂自动/光环/充能，其余主动效果已退役）——构筑期拦截");
+                                      "（结界只挂自动/光环，主动效果已退役）——构筑期拦截");
                 }
-                if (chargeCount > 1)
-                    TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：结界充能效果最多 1 个（现 {chargeCount} 个）——构筑期拦截");
             }
         }
 
@@ -805,6 +803,38 @@ namespace CardCore
 
         // ======================================== 内部方法 ========================================
 
+        /// <summary>触发式单一结果校验（2026-11-05 定案；用户裁定"未来也不开放"）：
+        /// 触发式没有「宣言点」——模式选择无处发生。同一张卡上两条及以上触发式效果共用同一时机，
+        /// 结算时必然**全部触发**（=「两样都给」），并不是玩家二选一；且各自独立计次、独立进计价，
+        /// 作者按"二选一"定价的卡会静默变成超模卡。故装载期直接点名，不做静默容忍。
+        /// 主动式（主阶段/瞬间/响应）不受限：出牌/发动本身就是宣言，选模式合法。</summary>
+        private static void ValidateTriggeredSingleResult(string cardId, string cardName, List<CardEffectData> effects)
+        {
+            if (effects == null || effects.Count < 2) return;
+
+            var byTiming = new Dictionary<int, List<CardEffectData>>();
+            foreach (var fx in effects)
+            {
+                if (fx == null) continue;
+                int t = fx.TriggerTiming;
+                if (t == (int)TriggerTiming.Activate_Active
+                    || t == (int)TriggerTiming.Activate_Instant
+                    || t == (int)TriggerTiming.Activate_Response) continue; // 主动式：宣言期选模式，合法
+                if (!byTiming.TryGetValue(t, out var list)) byTiming[t] = list = new List<CardEffectData>();
+                list.Add(fx);
+            }
+
+            foreach (var kv in byTiming)
+            {
+                if (kv.Value.Count < 2) continue;
+                var names = string.Join(" / ", kv.Value.Select(f =>
+                    string.IsNullOrEmpty(f.DisplayName) ? (f.Id ?? "?") : f.DisplayName));
+                TideLog.Error($"[CardLoader] 触发式多结果：{cardName}({cardId}) 在 {((TriggerTiming)kv.Key)} 挂了 " +
+                              $"{kv.Value.Count} 条效果（{names}）——触发式无宣言点，结算会全部触发；" +
+                              "请合并成单条效果，或改为主动式。");
+            }
+        }
+
         /// <summary>
         /// 从配置条目创建 CardData
         /// </summary>
@@ -856,6 +886,7 @@ namespace CardCore
                     }
                 }
                 cardData.Effects = resolved;
+                ValidateTriggeredSingleResult(entry.id, entry.cardName, cardData.Effects);
             }
 
             // 连接光环声明（三轨制）：无效条目（stat/keyword 双空）装载期即丢弃

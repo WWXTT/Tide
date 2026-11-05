@@ -380,9 +380,9 @@ namespace SynergyUI
                 if (btn == null) continue;
                 Describe(btn, captured switch
                 {
-                    CardKind.Creature => "生物：有攻击/生命可参战，可挂自动效果（禁连接光环）",
-                    CardKind.Spell => "法术：挂 1~3 个主动效果（施放时择一发动），速度=3−槽数动态算",
-                    _ => "结界：耐久体，挂自动效果与连接光环（主动槽只收「充能」——P12）",
+                CardKind.Creature => "生物：有攻击/生命可参战，可挂自动效果（禁连接光环）",
+                CardKind.Spell => "法术：挂 1~3 个主动效果（施放时择一发动），速度=3−槽数动态算",
+                _ => "结界：耐久体，只挂自动效果与连接光环（禁主动——充能已是系统动作，任意手牌卡可宣）",
                 });
                 _kindButtons[captured] = btn;
             }
@@ -750,7 +750,7 @@ namespace SynergyUI
                 "新建一个空代价槽（生物/法术通用·至多 1）：右栏直列原子表·一般效果行——单原子引用·抵扣只作用于该原子可产出色的卡费·至多将该色费用清零·发动需有等量同色地牌（红色代价3→需3红地，以此类推——不同类型代价按色加算）。"
                 + $"【2026-11-02 减费三选一】代价=并列槽位添加不占灰槽位费；同一效果只能三选一（有限分支/自由分支/代价）——效果含分支/并列两效果/光环（结界必有光环）时禁挂；每条代价减费 ≤{EffectComposerScreen.CostDiscountCap} 点");
             BindAddSlot(ZoneId.Effect, "addeffect", "添加主动效果",
-                "新建空主动槽（生物×1 / 法术×1~3·施放时择一发动·可另带充能×1 / 结界×1·只收充能——P12）");
+                "新建空主动槽（生物×1 / 法术×1~3·施放时择一发动；结界禁主动）");
             BindAddSlot(ZoneId.Passives, "addpassives", "添加自动效果",
                 "新建空自动槽（生物=自动×1；结界=光环恰好 1〔必填〕+自动×2；法术无）");
             BindAddSlot(ZoneId.Keys, "addkeys", "添加关键词",
@@ -973,8 +973,8 @@ namespace SynergyUI
         private bool TypeEnabledForKind(ZoneId id) => id switch
         {
             ZoneId.Cost => true,
-            // P12（2026-10-31）：结界主动槽合法（只收充能图——FillSelectedSlot 形状闸过滤）；
-            // 法术主动槽含充能位（总 4 = 非充能 1~3 + 充能 1，保存闸约束组成）
+            //（P12「结界主动槽只收充能/法术充能位」已随 2026-11-05 充能系统动作化改版收回——
+            //  充能不再是卡上效果：结界禁主动（容量 0），法术主动槽=1~3。）
             ZoneId.Effect => true,
             ZoneId.Passives => _kind != CardKind.Spell,
             _ => _kind == CardKind.Creature,
@@ -1090,17 +1090,10 @@ namespace SynergyUI
 
         // ---- 容量与效果分型（单源：保存闸/槽行/右栏过滤共用） ----
 
-        // P12（2026-10-31）：结界主动槽 0→1——只收「充能」图（充能=手牌发动的主动效果，
-        // 与场上耐久经济无关）；法术主动槽 = 4（非充能 1~3 + 充能最多 1——与 CardLoader
-        // 「总效果数 ≤4」同口径，保存闸约束组成；充能照常计 1 槽压速度）。
-        private int ActiveSlotCapacity => _kind == CardKind.Spell ? 4 : (_kind == CardKind.Creature ? 1 : 1);
-
-        /// <summary>效果图是否含充能原子（P12：结界主动槽只收充能图——快照前置判定）。
-        /// 判定委托 ComposerCatalog（与装载/枚举同源）。</summary>
-        private static bool EffectGraphContainsCharge(EffectGraphData g)
-            => g != null
-               && (ComposerCatalog.IsChargeEffect(g.header)
-                   || ComposerCatalog.IsChargeEffect(new CardEffectData { Steps = g.steps }));
+        //（P12「结界主动槽 1（只收充能）/法术主动槽 4（含充能位）」已随 2026-11-05 充能系统动作化
+        //  改版收回——充能不再是卡上效果：法术主动槽=1~3（与 CardLoader「总效果数 ≤4」含自动位
+        //  同口径），结界禁主动（容量 0），生物照旧 ×1。）
+        private int ActiveSlotCapacity => _kind == CardKind.Spell ? 3 : (_kind == CardKind.Creature ? 1 : 0);
         private int AutoSlotCapacity => _kind == CardKind.Enchantment ? 2 : (_kind == CardKind.Creature ? 1 : 0);
         private int AuraSlotCapacity => _kind == CardKind.Enchantment ? 1 : 0;
 
@@ -1761,6 +1754,9 @@ namespace SynergyUI
         /// 覆盖替换闸（源档=教学数据，改后内容哈希必换新 ID=另存新卡；被预组卡组引用不拦截）。</summary>
         private void LoadCardForEdit(CardData src, bool presetSource = false)
         {
+            // 2026-11-05 ID 冻结：编辑既有卡带上原 id——保存走原地覆盖，卡组/存档引用不断。
+            // 预设段=另存语义，故意清空 id 让其按内容重新分配。
+            _card.ID = presetSource ? null : src.ID;
             _card.CardName = src.CardName;
             _card.Supertype = src.Supertype;
             _card.Illustration = src.Illustration;
@@ -1806,6 +1802,7 @@ namespace SynergyUI
 
         private void OnNewCard()
         {
+            _card.ID = null; // 2026-11-05 ID 冻结：新建卡无 id，保存时按内容指纹分配
             _card.CardName = $"新建·{++_newCardSeq}"; // 默认名（2026-10-23 定案：不补零、无上限）；玩家可改
             _card.Supertype = Cardtype.Creature;
             _card.Illustration = null; // 立绘复位（画廊高亮随 RefreshCardFace 对账）
@@ -2431,51 +2428,12 @@ namespace SynergyUI
             ShowToast(replacing ? $"已替换关键词槽 {_selIndex + 1}：{kw.DisplayName}" : $"已添加：{kw.DisplayName}");
         }
 
-        // ======================================== 系统效果直加（2026-10-31 系统位定案） ========================================
+        // ========================================（系统效果直加段已删 2026-11-05） ========================================
 
-        // 充能（一般效果表行 afa24bf3）挂「系统」位：移出效果组合原子库
-        //（EffectComposerScreen.IsLockedKeywordRow）与关键词目录（KeywordCatalog 关键词位门槛），
-        // 改在卡组合界面主动槽直加（三类通用）；单原子整件，不经组合。
-        //（苏醒直加行已随 2026-11-02 苏醒机制整链删除——原关键词槽直加、仅生物。）
-
-        /// <summary>充能直加段（主动槽视图顶部）：行缺失（表未装载）时降级为提示行。</summary>
-        private void AddChargeDirectRow()
-        {
-            var row = CardCore.Attribute.AtomicEffectTable.GetByType(AtomicEffectType.Charge);
-            LibHeader("系统效果（直加·不经组合）");
-            if (row == null || string.IsNullOrEmpty(row.HashId))
-            {
-                LibHint("充能表行缺失（一般效果表未装载）——直加不可用");
-                return;
-            }
-            LibCandidate(row.DisplayName, row.Description, () => FillChargeDirect(row), "系统·直加");
-        }
-
-        /// <summary>充能直加：合成单 Charge 原子主动图（效果头钉档由 CardEffectConverter 充能契约归一——
-        /// 主动/速度 0/无域）走 FillSelectedSlot 通用填槽（形状/容量闸复用）；每卡最多 1 个（保存闸同口径前置）。</summary>
-        private void FillChargeDirect(CardCore.Attribute.AtomicEffectConfig row)
-        {
-            if (ComposerCatalog.HasChargeEffect(_card))
-            {
-                ShowToast("充能效果每卡最多 1 个——删除现有充能后再加");
-                return;
-            }
-            var graph = new EffectGraphData(row.DisplayName)
-            {
-                header = new CardEffectData
-                {
-                    DisplayName = row.DisplayName,
-                    TriggerTiming = (int)TriggerTiming.Activate_Active,
-                    ActivationType = (int)EffectActivationType.Voluntary,
-                    BaseSpeed = 0,
-                },
-                steps = new List<EffectStepData>
-                {
-                    new EffectStepData { kind = 0, atomic = new CardCore.AtomicEffectEntry { refId = row.HashId } },
-                },
-            };
-            FillSelectedSlot(graph);
-        }
+        // 充能直加行（AddChargeDirectRow/FillChargeDirect）已随 2026-11-05 充能系统动作化改版删除：
+        // 充能不再是卡上效果——改为任意手牌卡可宣的速度0系统动作（引擎 GameActions.DeclareCharge，
+        // 结算期反问元素类别），卡组合界面不再提供充能挂载。
+        //（更早的苏醒直加行已随 2026-11-02 苏醒机制整链删除。）
 
         // AddAwakenDirectRow（苏醒直加段）已随 2026-11-02 苏醒机制整链删除。
 
@@ -2600,29 +2558,23 @@ namespace SynergyUI
         private void BuildLibraryActiveView()
         {
             LibNewBtn();
-            // 系统效果直加段（2026-10-31 系统位定案）：充能移出效果组合——主动槽直加（三类通用）
-            AddChargeDirectRow();
+            //（充能直加段已随 2026-11-05 充能系统动作化改版删除——充能不再是卡上效果。）
             // P9（2026-10-29）：宿主不匹配候选不静默隐藏——分区（可挂行照列 + 隐藏计数行）
             var host = HostOf(_kind);
             var graphs = EffectLibrarySerializer.LoadAll()
                 .Where(g => !EffectComposerScreen.IsAuraMode(EffectComposerScreen.InferMode(g)) && IsActiveGraph(g))
                 .ToList();
-            // P12（2026-10-31）：结界主动槽只收充能图（非充能主动行不列——形状闸同款过滤前置）
-            if (_kind == CardKind.Enchantment)
-                graphs = graphs.Where(EffectGraphContainsCharge).ToList();
             PartitionByHost(graphs, host, out var eligible);
             graphs = eligible;
             LibHeader(_kind switch
             {
-                CardKind.Spell => $"主动效果（{graphs.Count}）——点击=填入主动槽（非充能 1~3·施放时择一 + 充能最多 1·总 4 槽）",
-                CardKind.Enchantment => $"主动效果（{graphs.Count}）——点击=填入主动槽（×1·只收「充能」）",
-                _ => $"主动效果（{graphs.Count}）——点击=填入主动槽（生物×1·可收充能）",
+                CardKind.Spell => $"主动效果（{graphs.Count}）——点击=填入主动槽（1~3·施放时择一发动）",
+                CardKind.Enchantment => $"主动效果（{graphs.Count}）——结界禁主动（充能已是系统动作，任意手牌卡可宣）",
+                _ => $"主动效果（{graphs.Count}）——点击=填入主动槽（生物×1）",
             });
             if (graphs.Count == 0)
             {
-                LibHint(_kind == CardKind.Enchantment
-                    ? "效果库没有充能图——充能已移出效果组合，用上方「充能」直加行添加（三类卡通用）"
-                    : "库中没有主动形态的效果——「新建效果」在效果合成器里做主动效果");
+                LibHint("库中没有主动形态的效果——「新建效果」在效果合成器里做主动效果");
             }
             foreach (var graph in graphs)
                 LibEffect(graph);
@@ -2997,14 +2949,14 @@ namespace SynergyUI
                     : "法术只挂主动效果（施放时择一发动），不可挂光环");
                 return;
             }
-            // 时机形态闸：法术只收主动（Active/Instant）；结界主动只收「充能」（P12——其余主动仍拒）
+            // 时机形态闸：法术只收主动（Active/Instant）；结界禁主动
+            //（P12「结界主动只收充能」已随 2026-11-05 充能系统动作化改版收回——充能不再是卡上效果。）
             int t = graph?.header?.TriggerTiming ?? -1;
             bool activated = t == (int)TriggerTiming.Activate_Active || t == (int)TriggerTiming.Activate_Instant
                              || t == (int)TriggerTiming.Activate_Response;
-            bool chargeGraph = graph != null && EffectGraphContainsCharge(graph);
-            if (_kind == CardKind.Enchantment && activated && !chargeGraph)
+            if (_kind == CardKind.Enchantment && activated)
             {
-                ShowToast("结界主动槽只收「充能」效果（P12 充能改版）——其余主动效果仍不收");
+                ShowToast("结界禁主动效果（只挂自动/光环——充能已是系统动作，任意手牌卡可宣）");
                 return;
             }
             if (_kind == CardKind.Spell && !activated)
@@ -3376,15 +3328,14 @@ namespace SynergyUI
                 return;
             }
 
-            // 形状拦截（2026-10-15 深夜三类卡改版；2026-10-31 P12 充能修订）：
-            // 法术=非充能主动 1~3 + 充能最多 1（总 ≤4）；结界=主动只收充能（最多 1），其余主动仍拒。
+            // 形状拦截（2026-10-15 深夜三类卡改版；2026-11-05 充能系统动作化修订）：
+            // 法术=主动 1~3（总效果数 ≤4）；结界=主动全拒（充能不再是卡上效果，P12 修订收回）。
             if (_kind == CardKind.Spell)
             {
                 int count = _card.Effects?.Count ?? 0;
-                int chargeCount = 0, activeCount = 0;
+                int activeCount = 0;
                 foreach (var e in _card.Effects ?? new List<CardEffectData>())
                 {
-                    if (ComposerCatalog.IsChargeEffect(e)) { chargeCount++; continue; }
                     int t = e?.TriggerTiming ?? -1;
                     if (t != (int)TriggerTiming.Activate_Active && t != (int)TriggerTiming.Activate_Instant)
                     {
@@ -3395,33 +3346,21 @@ namespace SynergyUI
                 }
                 if (count < 1 || count > 4 || activeCount < 1 || activeCount > 3)
                 {
-                    ShowToast($"法术须挂 1~3 个非充能主动效果 + 充能最多 1（现非充能 {activeCount} + 充能 {chargeCount}——施放时择一发动）");
-                    return;
-                }
-                if (chargeCount > 1)
-                {
-                    ShowToast($"法术充能效果最多 1 个（现 {chargeCount}）");
+                    ShowToast($"法术须挂 1~3 个主动效果（现 {activeCount}——施放时择一发动）");
                     return;
                 }
             }
             else if (_kind == CardKind.Enchantment)
             {
-                int chargeCount = 0;
                 foreach (var e in _card.Effects ?? new List<CardEffectData>())
                 {
-                    if (ComposerCatalog.IsChargeEffect(e)) { chargeCount++; continue; }
                     int t = e?.TriggerTiming ?? -1;
                     if (t == (int)TriggerTiming.Activate_Active || t == (int)TriggerTiming.Activate_Instant
                         || t == (int)TriggerTiming.Activate_Response)
                     {
-                        ShowToast($"结界效果「{e.DisplayName ?? e.Id}」为主动效果——结界只挂自动/光环/充能（2026-10-31 P12）");
+                        ShowToast($"结界效果「{e.DisplayName ?? e.Id}」为主动效果——结界只挂自动/光环（充能已是系统动作）");
                         return;
                     }
-                }
-                if (chargeCount > 1)
-                {
-                    ShowToast($"结界充能效果最多 1 个（现 {chargeCount}）");
-                    return;
                 }
             }
 
@@ -3500,13 +3439,15 @@ namespace SynergyUI
                 return;
             }
 
-            // 名称缺省（2026-10-16 槽位化）：留空=用生成的卡 ID 当卡名；
-            // ToEntry 随后按新卡名重算正式 id——名称/ID 自洽，卡池行优先显卡名
+            // 名称缺省（2026-10-16 槽位化）：留空=用卡 ID 当卡名。
+            // 2026-11-05 ID 冻结：编辑既有卡沿用其 id（名字不再参与身份）；新建/另存才按内容指纹分配。
             bool nameFromId = string.IsNullOrWhiteSpace(_card.CardName);
-            var newId = "C_" + ContentHasher.HashCard(_card);
-            if (nameFromId) _card.CardName = newId;
+            string savedId = string.IsNullOrEmpty(_card.ID)
+                ? "C_" + ContentHasher.HashCard(_card)
+                : _card.ID;
+            if (nameFromId) _card.CardName = savedId;
             bool replacing = !_editingPresetSource // 预设卡恒另存（源档=教学数据，覆盖替换概念不适用）
-                             && !string.IsNullOrEmpty(_editingOriginalId) && _editingOriginalId != newId;
+                             && !string.IsNullOrEmpty(_editingOriginalId) && _editingOriginalId != savedId;
 
             // 覆盖替换前置检查（2026-09-24 定案）：旧卡被卡组引用则拦截（删除会使卡组引用悬空）
             if (replacing)
@@ -3525,7 +3466,7 @@ namespace SynergyUI
                 ShowToast("保存失败");
                 return;
             }
-            var savedId = "C_" + ContentHasher.HashCard(_card); // 落盘真 ID（ToEntry 同源：名字缺省时上方 newId 在回填卡名前算的）
+            // savedId 已在保存前算定（= ToEntry 落盘 id：既有卡沿用原 id，新卡=内容指纹）
             CardCatalog.Invalidate();
             CorpusCache.Clear();
             TutorialCreationFlow.NotifyCardsChanged(); // 第三课走查步检测（未开课零行为）

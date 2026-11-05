@@ -74,7 +74,8 @@ namespace CardCore
     [Serializable]
     public class EffectSlimDto
     {
-        public string id;              // 效果 id = ContentHasher.HashEffect（单源化口径）
+        public string id;              // 效果 id（2026-11-05 冻结：一经分配永不改写；新效果 = ContentHasher.HashEffect）
+        public string hash;            // 内容指纹（= ContentHasher.HashEffect，不含 id 自身）——去重/漂移检测，不参与身份
         public string name;            // 显示名（自动名）
         public int timing;             // TriggerTiming
         public int activation;         // 0=强制 1=自动 2=主动
@@ -321,6 +322,7 @@ namespace CardCore
         {
             if (d == null) return null;
             var o = new JObject { ["id"] = d.id, ["name"] = d.name };
+            if (!string.IsNullOrEmpty(d.hash)) o["hash"] = d.hash; // 内容指纹（2026-11-05 ID 冻结配套）
             if (d.timing != 0) o["timing"] = d.timing;
             if (d.activation != 0) o["activation"] = d.activation;
             if (d.speed != 0) o["speed"] = d.speed;

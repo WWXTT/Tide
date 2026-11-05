@@ -61,10 +61,10 @@ namespace CardCore
             }
             if (host == Cardtype.Enchantment)
             {
-                // P12 充能豁免（2026-10-31）：充能=手牌发动的主动效果（发动口 GameActions.ActivateCharge），
-                // 与场上耐久经济无关——结界可挂（装载 ValidateEnchantShape/保存闸同口径：最多 1）。
-                if (def.IsActivatedEffect && !ComposerCatalog.IsChargeEffect(def))
-                    return "结界禁主动效果（2026-10-15 改版——只挂自动/光环；充能除外——P12 手牌主动）";
+                //（P12 充能豁免已随 2026-11-05 充能系统动作化改版收回：充能不再是卡上效果——
+                //  结界照旧禁一切主动，只挂自动/光环。）
+                if (def.IsActivatedEffect)
+                    return "结界禁主动效果（2026-10-15 改版——只挂自动/光环）";
                 if (def.IsTriggeredEffect && !CostDerivationService.FiresOncePerPaidLifetime(def.TriggerTiming)
                     && IsTapAnchoredTiming(def.TriggerTiming))
                     return "结界不横置——绑横置触发（攻击/守卫）无从锚定";

@@ -42,6 +42,9 @@ namespace CardCore
                 ["cardName"] = c.cardName ?? "",
                 ["supertype"] = string.IsNullOrEmpty(c.supertype) ? nameof(Cardtype.Creature) : c.supertype,
             };
+            // 内容指纹（2026-11-05 ID 冻结配套）：id 与内容解耦后，去重/漂移检测靠这列。
+            // 旧档缺列 = 不写（读侧 null），下次保存由 ToEntry 回填。
+            if (!string.IsNullOrEmpty(c.hash)) o["hash"] = c.hash;
             if (!string.IsNullOrEmpty(c.illustration)) o["illustration"] = c.illustration;
             if (c.power != 0) o["power"] = c.power;
             if (c.life != 0) o["life"] = c.life;

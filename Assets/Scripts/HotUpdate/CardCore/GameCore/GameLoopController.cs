@@ -74,7 +74,8 @@ namespace CardCore
                 var healCore = GameCore.Instance;
                 if (healCore != null && !healCore.IsGameOver && !healCore.ResponsePumpInFlight
                     && HasPhaseWindowOnStack())
-                    GameActions.SettleResponseWindowAsync(healCore).Forget();
+                    GameActions.ForgetSafeAsync(
+                        GameActions.SettleResponseWindowAsync(healCore), "帧泵自愈响应窗", healCore).Forget();
             }
 
             // 5. 检查是否有可行动作（栈为空且处于可行动阶段）

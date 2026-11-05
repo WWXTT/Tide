@@ -341,14 +341,20 @@ namespace CardCore
             return false;
         }
 
-        /// <summary>entry.kinds 区域收窄（契约 §5：kinds 只做区域收窄，类别取表行 Domain selector 原值）：
-        /// 逐 selector 按 kinds 的区域侧别集改写/删除——Both 区域落在单侧收窄集 → 改写为该侧区域；
-        /// 无交集 → 删该 selector；kinds 空/含 0=自己 → 不收窄。返回收窄后新轴（入参不变）。</summary>
+        /// <summary>entry.kinds 区域收窄（契约 §5：kinds 收窄区域**与角色 selector 的侧别**，
+        /// 类别取表行 Domain selector 原值）：逐 selector 按 kinds 的区域侧别集改写/删除——
+        /// Both 区域落在单侧收窄集 → 改写为该侧区域；无交集 → 删该 selector；角色 selector 按
+        /// 生命单位侧别同式收窄（1=OwnLivingUnit 授己方、2=EnemyLivingUnit 授对方；3/4 无生命
+        /// 单位不授予角色侧别）；kinds 空/含 0=自己 → 不收窄。返回收窄后新轴（入参不变）。</summary>
         public static TargetAxis NarrowByKinds(TargetAxis axis, List<int> kinds)
         {
             if (axis == null || kinds == null || kinds.Count == 0) return axis;
             bool selfOnly = kinds.All(k => k == (int)TargetKind.Self);
             if (selfOnly) return axis; // 纯自己域：收窄无意义（自己 selector 不分区）
+
+            // 角色 selector 侧别授权（契约 §5）：只有生命单位 kind（1/2）授予角色侧别
+            bool roleOwn = kinds.Contains((int)TargetKind.OwnLivingUnit);
+            bool roleEnemy = kinds.Contains((int)TargetKind.EnemyLivingUnit);
 
             // kinds → (zone, 侧别允许集)：1/2/3/4 都归战场侧别；区域 kind 归对应区侧别
             var allowed = new Dictionary<Zone, bool>(); // zone -> 允许对方侧？（true=双侧均许）
@@ -380,8 +386,22 @@ namespace CardCore
                 if (s.Region == TargetRegion.Self) { result.Selectors.Add(s); continue; } // 自己 selector 不受区域收窄
                 if (TargetRegionRules.IsCharacter(s.Region))
                 {
-                    // 角色 selector：无对应 kind 侧别信息（kinds 无角色 kind）——保持（角色取件与卡区域无关）
-                    result.Selectors.Add(s);
+                    // 角色 selector 按生命单位侧别收窄（不再无条件保留）：
+                    // 双方角色=双许留/仅己改己方/仅敌改对方/全无删；己方角色仅己方许留；对方角色仅对方许留
+                    switch (TargetRegionRules.SideOf(s.Region))
+                    {
+                        case RegionSide.Both:
+                            if (roleOwn && roleEnemy) result.Selectors.Add(s);
+                            else if (roleOwn) result.Selectors.Add(new TargetSelector { Region = TargetRegion.OwnCharacter, Categories = s.Categories });
+                            else if (roleEnemy) result.Selectors.Add(new TargetSelector { Region = TargetRegion.EnemyCharacter, Categories = s.Categories });
+                            break; // 双侧皆无授权 → 删
+                        case RegionSide.Own:
+                            if (roleOwn) result.Selectors.Add(s);
+                            break;
+                        case RegionSide.Opposing:
+                            if (roleEnemy) result.Selectors.Add(s);
+                            break;
+                    }
                     continue;
                 }
                 var zone = TargetRegionRules.ZoneOf(s.Region);
@@ -461,12 +481,19 @@ namespace CardCore
                     continue;
                 }
                 var zone = TargetRegionRules.ZoneOf(selector.Region);
+                // 施放中的卡不得成为任何手牌域目标（含自己的代价）——单口同口径：
+                // TargetFilterSystem.GetZoneCards（旧 kinds 路径）同款剔除（IsPendingCast 单口）。
+                // 语义：施放中的卡在规则上已不在手牌（相当于已上链），不可被任何手牌域目标指到
+                //——否则「弃牌代价可以弃掉自己」＝零代价发动。
+                // 空引用防御：训练/无头无 GameCore 实例时放行（不剔除）。
+                var pendingCastStack = zone == Zone.Hand ? GameCore.Instance?.StackEngine : null;
                 foreach (var side in SidesOf(selector.Region, context.Controller))
                 {
                     if (side == null) continue;
                     foreach (var card in context.ZoneManager.GetCards(side, zone))
                     {
                         if (zone == Zone.Battlefield && !card.IsAlive) continue; // 死亡窗口死卡仍列战场区
+                        if (pendingCastStack != null && pendingCastStack.IsPendingCast(card)) continue;
                         result.Add(card);
                     }
                 }

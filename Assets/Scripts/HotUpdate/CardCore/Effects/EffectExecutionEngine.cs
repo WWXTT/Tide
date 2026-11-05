@@ -110,16 +110,6 @@ namespace CardCore
             out string reason)
         {
             reason = null;
-            // 0-charge 充能效果（2026-10-31 P12）：**只能从手牌发动**——源必须是手牌卡；
-            // 战场/技能栏/其它区一律 false（充能入口=GameActions.ActivateCharge，此处为通用闸镜像）。
-            // 不要求横置、不走耐久；下方沉默/沉睡/禁发令等通用闸照旧。费用不经此段
-            //（充能锚价恒 0，1 点元素由 ChargeHandler 结算期按所选色现扣）。
-            if (ComposerCatalog.IsChargeEffect(effect))
-            {
-                if (!(source is Card chargeCard) || chargeCard.GetZone() != Zone.Hand)
-                { reason = "充能效果只能从手牌发动"; return false; }
-            }
-
             // 0.45 技能效果数值上限（2026-11-02 定案）：技能源（技能栏法术）效果只允许 value=1——
             // value≥2 的效果不可经技能栏发动。构筑期校验（CanBeSkillCard/SkillIneligibleReason）
             // 同口径先行；此闸兜底数据被运行时改写/网络路径绕过构筑闸的情形，拒绝时报卡名+效果。
@@ -190,10 +180,8 @@ namespace CardCore
             { reason = "发动条件未满足"; return false; }
 
             // 4. 费用检查：元素代价自动推导（含抵消可达性），特殊代价走原子预检
+            //（充能豁免段已随 2026-11-05 充能系统动作化改版删除——充能不再是卡上效果）
             var elementCosts = CostDerivationService.DeriveElementCosts(effect);
-            // 充能（2026-10-31 P12）：效果锚价不参与预检（表行 0 费 + 手写钉价防御清零）——
-            // 1 点元素由 ChargeHandler 结算期按所选色现扣
-            if (ComposerCatalog.IsChargeEffect(effect)) elementCosts = new ElementCost();
             // 技能发动费（2026-11-01 定案，推翻 2026-10-18「免锚价+抉择另收1灰」）：
             // 技能源照走锚价预检（与法术施放/主动效果同价源；UI 技能栏费用显示同为锚价口径）；
             // 特殊代价（牺牲等效果机制）不属「费用」，照收——技能卡禁带代价由资格闸拦（CanBeSkillCard）
@@ -326,7 +314,6 @@ namespace CardCore
                 SummonDropZone = effect.SummonDropZone,
                 CastCard = instance.CastCard, // 施放链路宿主卡（状态门 DrawnInStandbyThisTurn 用）
                 ResolvingEffect = effect, // P9b：引用卡槽按 (来源卡ID, 效果序号) 解析卡组期绑定
-                ChargeColor = instance.ChargeColor, // 充能色（P12）：ChargeHandler 结算期消费
                 RespondedEntry = instance.RespondedEntry, // E1-1 响应绑定透传：反制原子读它打标（跟谁入栈反制谁）
             };
 
@@ -336,9 +323,7 @@ namespace CardCore
             // 卡牌的 effect.Costs 仅保留非元素的特殊代价（Payload 原子），走付费步异步执行+补偿。
             // 抉择卡按所选模式推导（per-mode 独立计价定案）。
             var elementCosts = CostDerivationService.DeriveElementCosts(effect, instance.ModeIndex);
-            // 充能（2026-10-31 P12）：跳过通用元素锚价（表行 0 费钉死；手写钉价同款防御清零）——
-            // 1 点元素由 ChargeHandler 按所选色现扣；源不在手牌/色非法时 handler 空转（不扣不加）
-            if (ComposerCatalog.IsChargeEffect(effect)) elementCosts = new ElementCost();
+            //（充能锚价豁免段已随 2026-11-05 充能系统动作化改版删除——充能不再是卡上效果）
             // 技能发动费（2026-11-01 定案）：锚价现付——照走通用 DeriveElementCosts（无专属豁免），
             // 与 CanActivate 预检同口径；抉择技能 instance.ModeIndex=所选效果序号，per-mode 计价天然成立
             //（结界发动费抵扣臂已随 2026-10-15 拆分定案退役：免费点今折免费耐久底抵卡价
@@ -415,9 +400,7 @@ namespace CardCore
             if (instance.IsEffectNegated)
             {
                 instance.IsResolved = true;
-                // 充能跳过（2026-11-02 每回合一次）：ActivateCharge 入栈即记账——结算期不再双记
-                if (instance.TriggeringEvent == null && !ComposerCatalog.IsChargeEffect(effect))
-                    RecordUse(effect, instance.Source);
+                RecordUse(effect, instance.Source);
                 EventManager.Instance.Publish(new EffectResolveEvent
                 {
                     ResolvedEffect = instance.SourceEffect,
@@ -494,9 +477,9 @@ namespace CardCore
 
             // 记录使用次数（触发式已在 ProcessTriggeredEffects 入栈时记账，此处防双记；
             // 键含来源实例（2026-10-03）——同名卡/临时复制各记各的。
-            // 充能同理跳过（2026-11-02 每回合一次）：ActivateCharge 入栈即 RecordQueuedActivation——
-            // 结算期再记会双算（读数=2），同链第二充将凭空解禁）
-            if (instance.TriggeringEvent == null && !ComposerCatalog.IsChargeEffect(effect))
+            //（充能跳过段已随 2026-11-05 充能系统动作化改版删除——充能不再是卡上效果，
+            // 每回合规额台账在 StackEngine 充能专账。）
+            if (instance.TriggeringEvent == null)
                 RecordUse(effect, instance.Source);
 
             // 眠蚀光环主动结算点直调块已删（2026-10-31 整链退役——见 RuleAuraSystem 墓碑注）
@@ -1079,6 +1062,10 @@ namespace CardCore
         private SpeedCounter _speedCounter = new SpeedCounter();
         private PendingEffectQueue _pendingQueue;
         private EffectExecutor _executor;
+        // 充能每回合规额台账（2026-11-05 系统动作化改版）：单卡一回合一次——宣入即记账、
+        // 结算期不再记；回合开始清零（OnTurnStart）。旧口径键=充能效果Id@卡（效果台账）已随
+        // 充能效果链退役，充能不再是卡上效果，改按卡实例直记。
+        private readonly HashSet<Card> _chargedThisTurn = new HashSet<Card>();
 
         private Player _activePlayer;
         private Player _priorityHolder;
@@ -1198,6 +1185,7 @@ namespace CardCore
             _speedCounter.Reset();
             _pendingQueue.Clear();
             _stack.Clear();
+            _chargedThisTurn.Clear();
             _waitingForPlayer = false;
             _consecutivePassCount = 0;
             _isResolving = false; // 跨局残留清算（2026-10-17）：上局结算中被重开打断时，finally 不会跑——
@@ -1520,6 +1508,55 @@ namespace CardCore
             return true;
         }
 
+        /// <summary>充能宣言栈对象速度（2026-11-05 充能系统动作化改版）：充能=速度0规则动作（同攻击）——
+        /// 宣言本就要求空栈（连锁中不可宣），宣言期零支付零选色，颜色在结算期反问。</summary>
+        public const int ChargeStackSpeed = 0;
+
+        /// <summary>
+        /// 充能宣言入栈（2026-11-05 充能系统动作化改版，仿 PushAttackDeclaration）：充能=速度0
+        /// 系统动作，任意手牌卡一回合一次可宣（资格/每回合规额闸在 GameActions.DeclareCharge 单源）。
+        /// 宣言期零支付零选色——对手获响应窗口（标准双 Pass 流）；结算消费见 ResolveStack 的
+        /// IsChargeDeclaration 分支（GameActions.ResolveChargeDeclarationAsync：反问元素类别→
+        /// +1 层同色费用降低指示物→展示，**不再支付元素**——旧 P12 现付 1 点制随改版退役）。
+        /// 入栈成功即记本回合规额（MarkChargeUsed——结算期不再记）。
+        /// </summary>
+        public bool PushChargeDeclaration(Card card, Player controller)
+        {
+            if (card == null || controller == null) return false;
+            if (_stack.Count > 0) return false; // 连锁中不可宣（速度0=空栈首动，同攻击宣言）
+            if (_isResolving) return false;     // 结算中不可声明（与玩家声明口同口径）
+            SyncActivePlayerFromTurn();
+            if (!_speedCounter.CanActivate(ChargeStackSpeed, EffectActivationType.Voluntary, _stack.Count == 0))
+                return false;
+
+            var instance = new EffectInstance
+            {
+                IsChargeDeclaration = true,
+                Source = card,
+                Controller = controller,
+                ActivationSpeed = ChargeStackSpeed, // 基速0——不抬记速器（同攻击宣言，无 RaiseTo 调用）
+                Targets = new List<Entity>(),
+            };
+
+            PushWithResponse(instance);
+            _priorityHolder = controller.Opponent; // 对手先获响应机会（同攻宣防守方先响应口径）
+            _consecutivePassCount = 0;
+            _waitingForPlayer = true;
+            GameActions.Crumb($"CF-charge-push card={card.ID} by={controller.Name} stack={_stack.Count}");
+
+            EventManager.Instance.Publish(new StackAddEvent { AddedObject = instance, AddingPlayer = controller });
+            return true;
+        }
+
+        /// <summary>充能每回合规额记账（入栈成功口——GameActions.DeclareCharge 调用；结算期不记）。</summary>
+        public void MarkChargeUsed(Card card)
+        {
+            if (card != null) _chargedThisTurn.Add(card);
+        }
+
+        /// <summary>该卡本回合是否已充能（一张卡一回合只能发动一次；回合开始清零）。</summary>
+        public bool IsChargeUsed(Card card) => card != null && _chargedThisTurn.Contains(card);
+
         /// <summary>
         /// 守卫拦截入栈（速度1响应，2026-09-16 定案）：Targets=[被拦截的攻击宣言对象]。
         /// 守卫者=未横置守卫生物，或角色（2026-10-16 角色守卫：资格=攻击弹药&gt;0）。
@@ -1747,6 +1784,8 @@ namespace CardCore
                         GameCore.Instance?.CombatSystem?.ResolveGuardDeclaration(top);
                     else if (top.IsAttackDeclaration)
                         GameCore.Instance?.CombatSystem?.ResolveAttackDeclaration(top);
+                    else if (top.IsChargeDeclaration)
+                        await GameActions.ResolveChargeDeclarationAsync(top);
                     else if (top.IsCardCast)
                         await GameActions.ResolveCardCastAsync(top);
                     else
@@ -1855,6 +1894,7 @@ namespace CardCore
             _priorityHolder = newTurnPlayer;
             _consecutivePassCount = 0;
             _waitingForPlayer = false;
+            _chargedThisTurn.Clear(); // 充能每回合规额清零（2026-11-05：一张卡一回合只能发动一次）
         }
 
         public void Clear()
@@ -1862,6 +1902,7 @@ namespace CardCore
             _stack.Clear();
             _speedCounter.Reset();
             _pendingQueue.Clear();
+            _chargedThisTurn.Clear();
             _waitingForPlayer = false;
             _consecutivePassCount = 0;
         }
@@ -1871,6 +1912,7 @@ namespace CardCore
             => o == null ? "null"
              : o.IsAttackDeclaration ? $"ATK:{(o.Source as Card)?.ID ?? o.Source?.ToString()}"
              : o.IsGuardDeclaration ? $"GRD:{(o.Source as Card)?.ID ?? o.Source?.ToString()}"
+             : o.IsChargeDeclaration ? $"CHG:{(o.Source as Card)?.ID}"
              : o.IsCardCast ? $"CAST:{(o.Source as Card)?.ID}"
              : o.IsSBA ? "SBA"
              : o.IsPhaseWindow ? "PHASE-WIN"
@@ -1909,6 +1951,8 @@ namespace CardCore
                         GameCore.Instance?.CombatSystem?.ResolveGuardDeclaration(top);
                     else if (top.IsAttackDeclaration)
                         GameCore.Instance?.CombatSystem?.ResolveAttackDeclaration(top);
+                    else if (top.IsChargeDeclaration)
+                        await GameActions.ResolveChargeDeclarationAsync(top);
                     else if (top.IsCardCast)
                         await GameActions.ResolveCardCastAsync(top);
                     else
@@ -2278,9 +2322,8 @@ namespace CardCore
                 new AddCostDownBlueHandler(),
                 new AddCostDownGreenHandler(),
 
-                // 充能（2026-10-31 P12：建造→充能）：手牌主动效果、速度 0——结算期扣 1 点所选色
-                // 元素 + 放 1 层同色费用降低指示物 + 展示（发动口 GameActions.ActivateCharge）
-                new ChargeHandler(),
+                //（充能处理器注册已随 2026-11-05 充能系统动作化改版删除：充能=速度0系统动作，
+                //  结算走 GameActions.ResolveChargeDeclarationAsync，不再是卡上原子效果。）
 
                 // 角色攻击弹药（2026-10-07 角色参战定案，Entity 级）：给角色附加攻击指示物，
                 // 攻击/反击结算后烧除（CounterRules.RemoveHeroAttackAmmo）
@@ -2410,6 +2453,12 @@ namespace CardCore
             AtomicEffectType.GateLandsAtMost3,
             AtomicEffectType.GateHandEmpty,
             AtomicEffectType.GateLifeAtMost7,
+
+            // 2026-11-05 退役：全体原子删除（单体选全域生成）+ 充能系统动作化（不再是卡上原子）——
+            // 枚举位保留作墓碑（int 序列化/兼容），永不挂处理器，也不该再进「缺失处理器」告警。
+            AtomicEffectType.DealDamageAllEnemies,
+            AtomicEffectType.DevourAllEnemies,
+            AtomicEffectType.Charge,
         };
 
         private static void VerifyHandlerCoverage()

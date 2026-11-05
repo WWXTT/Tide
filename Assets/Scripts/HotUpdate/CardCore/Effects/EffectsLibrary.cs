@@ -189,16 +189,22 @@ namespace CardCore
             return _byId.TryGetValue(id, out var it) ? it : null;
         }
 
-        /// <summary>按 id 解析出卡内效果（瘦 DTO → CardEffectData；原子引用逐个还原，缺行告警剔除）。</summary>
+        /// <summary>按 id 解析出卡内效果（瘦 DTO → CardEffectData；原子引用逐个还原，缺行告警剔除）。
+        /// 缺行告警**按 id 去重**（2026-11-05 日志降噪）：卡表批量装载会重复解析同一批卡，
+        /// 旧口径每次刷一行，一次回归上千行噪声；同 id 只报首次。</summary>
         public static CardEffectData Resolve(string id)
         {
             var it = Get(id);
             if (it == null)
             {
-                TideLog.Warn($"[EffectsLibrary] 效果引用缺失: {id}（Effects.json 无此条）");
+                if (_warnedMissing.Add(id ?? ""))
+                    TideLog.Warn($"[EffectsLibrary] 效果引用缺失: {id}（Effects.json 无此条）");
                 return null;
             }
             return EffectSlim.ToCardEffect(it);
         }
+
+        /// <summary>缺行告警去重账（进程级；同 id 只报首次）。</summary>
+        private static readonly HashSet<string> _warnedMissing = new HashSet<string>();
     }
 }

@@ -1811,60 +1811,15 @@ namespace SynergyUI
 
             // 设置盒已随 2026-10-09 prefab 重排拆除：发动四参数=activate-bar 静态组（Build 一次绑定），
             // 数量/随机/衍生物=每原子卡面行（MakeAtomCard/MakeRewardSlot 逐卡绑定）
-            ApplyChargeHeaderLock(); // 充能在案→主动/主动钉档/速度 0（P12，先于引擎锁——末尾控件同步取终值）
+            //（充能效果头钉档已随 2026-11-05 充能系统动作化改版删除——充能不再是卡上效果。）
             ApplyEngineHeaderLock(); // 引擎在案→效果头四值钉预设+四控件禁用（2026-10-09 九项定案，含载入/换引擎路径）
             RefreshName();
             ValidateZones(); // 槽区重建后立即校验
         }
 
-        // ======================================== 充能形态（2026-10-31 P12：建造→充能） ========================================
-
-        /// <summary>图内是否含充能原子（主序列/奖励位扫描——ChargeShapeError/ApplyChargeHeaderLock 共用）。</summary>
-        private static bool GraphHasChargeAtom(EffectGraphData g)
-        {
-            if (g?.steps == null) return false;
-            foreach (var s in g.steps)
-            {
-                if (s == null) continue;
-                if (ComposerCatalog.IsChargeRow(AtomicEffectTable.GetByHashId(s.atomic?.refId))) return true;
-                if (s.thenSteps != null)
-                    foreach (var a in s.thenSteps)
-                        if (ComposerCatalog.IsChargeRow(AtomicEffectTable.GetByHashId(a?.refId))) return true;
-            }
-            return false;
-        }
-
-        /// <summary>充能效果头钉档（P12）：图内含充能原子 → 主动 / Activate_Active / 速度 0
-        ///（CardEffectConverter 同口径收口——此处编辑期先行，防合成器缺省值漂移；充能图无引擎，两锁不冲突）。</summary>
-        private void ApplyChargeHeaderLock()
-        {
-            var h = _graph?.header;
-            if (h == null || !GraphHasChargeAtom(_graph)) return;
-            h.ActivationType = (int)EffectActivationType.Voluntary;
-            h.TriggerTiming = (int)TriggerTiming.Activate_Active;
-            h.BaseSpeed = 0;
-        }
-
-        /// <summary>充能图形态契约（P12）：恰好 1 个充能原子、无分支/Then、无目标域——
-        /// 违规文本（null=合规）。ValidateZones 消费（保存禁用+描述条提示；转换器同口径构筑期拦截）。</summary>
-        private string ChargeShapeError()
-        {
-            if (!GraphHasChargeAtom(_graph)) return null;
-            int atomCount = 0;
-            foreach (var s in _graph.steps)
-            {
-                if (s == null) continue;
-                if (s.kind == 1) return "充能图不可带条件分支（充能=单原子）";
-                if (s.kind == 2 || (s.choices != null && s.choices.Count > 0)) return "充能图不可带抉择分支";
-                if (s.atomic?.branch != null) return "充能原子不可挂条件/引擎载荷";
-                if (s.thenSteps != null && s.thenSteps.Count > 0) return "充能图不可带 Then 奖励";
-                if (s.kind == 0 && s.atomic != null) atomCount++;
-            }
-            if (atomCount != 1) return "充能图=恰好 1 个充能原子（不可与其他原子组合）";
-            if (_graph.header?.TargetKinds != null && _graph.header.TargetKinds.Count > 0)
-                return "充能图无目标域（充能只作用于这张手牌）";
-            return null;
-        }
+        // ========================================（充能形态契约已删 2026-11-05） ========================================
+        // GraphHasChargeAtom/ApplyChargeHeaderLock/ChargeShapeError 三口随「充能系统动作化」改版删除：
+        // 充能不再是卡上原子效果（原子表行已删，原子库本就不列系统位行），效果合成器无充能形态可言。
 
         /// <summary>图内是否含引擎载荷（settle=Engine——步骤/扁平双扫）：宿主时机闸豁免口
         ///（引擎通道自持重复经济，效果头时机=奖励发射窗——与计价 TimingCostFactor 豁免同口径）。</summary>
@@ -4891,9 +4846,7 @@ namespace SynergyUI
                 if (z.Invalid) { errs.Add(err); focus ??= z.Zone; }
             }
 
-            // 充能形态（2026-10-31 P12）：单原子/无分支/无域——违规=保存禁用（无专区，只进描述条）
-            string chargeErr = ChargeShapeError();
-            if (chargeErr != null) errs.Add(chargeErr);
+            //（充能形态校验已随 2026-11-05 充能系统动作化改版删除——充能不再是卡上效果。）
 
             // 宿主时机档位闸（2026-11-05 两档定案）：非结界宿主+周期多次时机——违规=保存禁用
             //（卡编辑模式兜载入旧数据/直改 JSON；效果库模式无宿主不查）

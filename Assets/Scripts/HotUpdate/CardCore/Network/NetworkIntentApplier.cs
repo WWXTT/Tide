@@ -75,16 +75,17 @@ namespace CardCore.Network
 
                 case NetworkMessageType.IntentBuildCard:
                 {
-                    // 充能（2026-10-31 P12：建造→充能，消息名/号不动只换语义）：卡+色 → ActivateCharge
-                    //（速度 0 主动效果入栈，结算 ChargeHandler 扣元素+放层+展示）。
-                    // 拒绝文案直读 CanCharge 门禁（上限/色资格/元素余量等逐项可读——Ok(bool,reason) 出口）
+                    // 充能（2026-11-05 系统动作化改版，消息名/号不动只换语义）：速度0系统动作宣入
+                    //（仿攻击宣言——宣言期零选色，颜色在结算期经 TargetSelectionService 反问
+                    // 下发 SelectRequest 由客户端下拉选择；AI/无头自动取最大余量色）。
+                    // 拒绝文案直读 CanCharge 门禁（时点/每回合规额/余量等逐项可读——Ok(bool,reason) 出口）
                     var intent = MemoryPackSerializer.Deserialize<MsgIntentBuildCard>(msg.Payload);
                     if (intent == null) { error = "IntentBuildCard 载荷损坏"; return false; }
 
                     var card = NetEntityDirectory.ResolveCard(core, intent.CardRuntimeId);
                     if (card == null) { error = $"卡不存在 RuntimeId={intent.CardRuntimeId}"; return false; }
 
-                    return Ok(GameActions.ActivateCharge(core, player, card, (ManaType)intent.Color, out var chargeReason),
+                    return Ok(GameActions.DeclareCharge(core, player, card, out var chargeReason),
                         chargeReason, out error);
                 }
 

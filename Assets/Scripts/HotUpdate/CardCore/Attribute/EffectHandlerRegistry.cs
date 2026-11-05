@@ -108,7 +108,12 @@ namespace CardCore.Attribute
 
             if (!handler.CanExecute(effect, context))
             {
-                TideLog.Warn($"效果无法执行: {effect.Type}");
+                // 2026-11-05 诊断补全：旧行只有效果类型，无法定位是哪张卡的哪一原子
+                //（曾出现单次回归 379 条同名告警却查不到来源）。带源卡名 + 目标数。
+                var srcName = (context.Source as IHasName)?.CardName
+                              ?? (context.CastCard as IHasName)?.CardName
+                              ?? context.Source?.ToString() ?? "?";
+                TideLog.Warn($"效果无法执行: {effect.Type}（源={srcName}，目标={context.Targets?.Count ?? 0}）");
                 return false;
             }
 

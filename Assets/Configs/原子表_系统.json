@@ -1,9 +1,10 @@
 [
   {
-    "ID": "3057d8ac",
+    "ID": "cc6d592f",
+    "TextHash": "cc6d592f",
     "Domain": "对方战场:生物; 对方角色",
     "EnumName": "攻击",
-    "DisplayName": "攻击{target}，结算战斗伤害后横置",
+    "DisplayName": "仅己方主要阶段可以发动，攻击{target}，结算战斗伤害后横置",
     "EffectType": "Attack",
     "TargetFilter": null,
     "Polarity": -1,
@@ -13,6 +14,7 @@
   },
   {
     "ID": "23a06182",
+    "TextHash": "23a06182",
     "EnumName": "守卫",
     "DisplayName": "对手攻击宣言时，转移以此卡作为攻击对象，结算战斗伤害后横置",
     "EffectType": "Guard",
@@ -24,6 +26,7 @@
   },
   {
     "ID": "70034aee",
+    "TextHash": "70034aee",
     "EnumName": "设置攻击力",
     "DisplayName": "将{target}攻击力设为{value}",
     "EffectType": "SetPower",
@@ -35,6 +38,7 @@
   },
   {
     "ID": "38a43580",
+    "TextHash": "38a43580",
     "EnumName": "设置生命值",
     "DisplayName": "将{target}生命值设为{value}",
     "EffectType": "SetLife",
@@ -46,6 +50,7 @@
   },
   {
     "ID": "a9beb7b4",
+    "TextHash": "a9beb7b4",
     "Domain": "双方手牌:卡",
     "EnumName": "设置费用",
     "DisplayName": "将{target}的费用设为{value}",
@@ -58,6 +63,7 @@
   },
   {
     "ID": "7d701213",
+    "TextHash": "7d701213",
     "EnumName": "对手胜利",
     "DisplayName": "效果控制者的对手获得胜利",
     "EffectType": "DeclareVictory",
@@ -69,6 +75,7 @@
   },
   {
     "ID": "7e6840f3",
+    "TextHash": "7e6840f3",
     "Domain": "双方战场:生物,结界",
     "EnumName": "模拟",
     "DisplayName": "变成场上目标单位(无法复制场地光环)，附加一层变形指示物，解除时还原;发动时，按变形前后卡费用，用任意元素补齐差额",
@@ -87,6 +94,7 @@
   },
   {
     "ID": "dccd2254",
+    "TextHash": "dccd2254",
     "Domain": "双方战场:生物,结界",
     "EnumName": "变形",
     "DisplayName": "将{target}变成引用卡（引用卡ID指向一张真实生物/结界卡，无法引用场地光环），附加一层变形指示物，解除时还原；发动主动效果按变形前后卡费用，用任意元素补齐差额",
@@ -105,6 +113,7 @@
   },
   {
     "ID": "fdf529cb",
+    "TextHash": "fdf529cb",
     "EnumName": "倒计时",
     "DisplayName": "自由分支·倒计时：准备阶段倒计时+1（费用与回合数一比一），倒计时≥x，则触发奖励并重置倒计时（只能自动触发，等待回合数上限为6）",
     "EffectType": "EngineCountdown",
@@ -116,6 +125,7 @@
   },
   {
     "ID": "bde41868",
+    "TextHash": "bde41868",
     "EnumName": "运势",
     "DisplayName": "自由分支·运势：掷两个六面骰子，掷出的值都≥x，则触发奖励（最大值6）",
     "EffectType": "EngineLuckRoll",
@@ -127,6 +137,7 @@
   },
   {
     "ID": "4b9a0393",
+    "TextHash": "4b9a0393",
     "EnumName": "拼枪",
     "DisplayName": "自由分支·拼枪：从双方牌库中随机展示一张生物卡比攻击力，无生物视为0，差额≥x，则触发奖励（最大值6）",
     "EffectType": "EngineClash",
@@ -138,6 +149,7 @@
   },
   {
     "ID": "d1ddfd78",
+    "TextHash": "d1ddfd78",
     "EnumName": "死亡计数",
     "DisplayName": "自由分支·死亡计数：此卡在手中或场上时，记录对双方生物死亡数量，计数≥x，则触发奖励并重置死亡计数（最大值6）",
     "EffectType": "EngineDeathToll",
@@ -149,6 +161,7 @@
   },
   {
     "ID": "fd645778",
+    "TextHash": "fd645778",
     "EnumName": "元素充盈",
     "DisplayName": "自由分支·元素充盈：仅对手回合，对手使用卡牌结算后，双方剩余元素的差恰等于x，则触发奖励（只能自动触发，差额上限为6）",
     "EffectType": "EngineManaSurplus",
@@ -160,6 +173,7 @@
   },
   {
     "ID": "83c150f2",
+    "TextHash": "83c150f2",
     "EnumName": "团结",
     "DisplayName": "自由分支·团结：与此卡相邻的单位数量（生物/结界/角色/非空地牌格各算一）达到 x 时触发奖励（最大值6）",
     "EffectType": "EngineUnity",
@@ -171,6 +185,7 @@
   },
   {
     "ID": "2a8db836",
+    "TextHash": "2a8db836",
     "EnumName": "附加诅咒",
     "DisplayName": "自由分支·附加诅咒：展示对手牌库中随机一张卡,附加诅咒指示物，抽到该卡时自动执行诅咒分支效果，并移除诅咒指示物",
     "EffectType": "EngineCurseOnDraw",
@@ -183,6 +198,7 @@
   },
   {
     "ID": "8e89caae",
+    "TextHash": "8e89caae",
     "EnumName": "附加祝福",
     "DisplayName": "自由分支·附加祝福：展示对手牌库中随机一张卡,附加祝福指示物，抽到该卡时自动执行祝福分支效果，并移除祝福指示物",
     "EffectType": "EngineBlessingOnDraw",
@@ -195,6 +211,7 @@
   },
   {
     "ID": "66cdb39f",
+    "TextHash": "66cdb39f",
     "EnumName": "命运一抽",
     "DisplayName": "命运一抽",
     "EffectType": "SituationGate",
@@ -209,6 +226,7 @@
   },
   {
     "ID": "2208746f",
+    "TextHash": "2208746f",
     "EnumName": "生命值低于对手",
     "DisplayName": "生命值低于对手",
     "EffectType": "SituationGate",
@@ -222,6 +240,7 @@
   },
   {
     "ID": "ffe40d3c",
+    "TextHash": "ffe40d3c",
     "EnumName": "生命值高于对手",
     "DisplayName": "生命值高于对手",
     "EffectType": "SituationGate",
@@ -235,6 +254,7 @@
   },
   {
     "ID": "0e320493",
+    "TextHash": "0e320493",
     "EnumName": "卡组剩余低于对手",
     "DisplayName": "卡组剩余低于对手",
     "EffectType": "SituationGate",
@@ -248,6 +268,7 @@
   },
   {
     "ID": "5d88e583",
+    "TextHash": "5d88e583",
     "EnumName": "卡组剩余高于对手",
     "DisplayName": "卡组剩余高于对手",
     "EffectType": "SituationGate",
@@ -261,6 +282,7 @@
   },
   {
     "ID": "c2f41e57",
+    "TextHash": "c2f41e57",
     "EnumName": "场上生物低于对手",
     "DisplayName": "场上生物低于对手",
     "EffectType": "SituationGate",
@@ -274,6 +296,7 @@
   },
   {
     "ID": "2fd37848",
+    "TextHash": "2fd37848",
     "EnumName": "场上生物高于对手",
     "DisplayName": "场上生物高于对手",
     "EffectType": "SituationGate",
@@ -287,6 +310,7 @@
   },
   {
     "ID": "1dae71b7",
+    "TextHash": "1dae71b7",
     "EnumName": "本回合使用的第一张卡",
     "DisplayName": "本回合使用的第一张卡",
     "EffectType": "SituationGate",
@@ -300,6 +324,7 @@
   },
   {
     "ID": "5bfdaf7c",
+    "TextHash": "5bfdaf7c",
     "EnumName": "操控地数量≥9",
     "DisplayName": "操控地数量≥9",
     "EffectType": "SituationGate",
@@ -313,6 +338,7 @@
   },
   {
     "ID": "f8f622b6",
+    "TextHash": "f8f622b6",
     "EnumName": "操控地数量≤3",
     "DisplayName": "操控地数量≤3",
     "EffectType": "SituationGate",
@@ -326,6 +352,7 @@
   },
   {
     "ID": "da9b92ac",
+    "TextHash": "da9b92ac",
     "EnumName": "手牌数量为0",
     "DisplayName": "手牌数量为0",
     "EffectType": "SituationGate",
@@ -339,6 +366,7 @@
   },
   {
     "ID": "6407186f",
+    "TextHash": "6407186f",
     "EnumName": "生命值≤7",
     "DisplayName": "生命值≤7",
     "EffectType": "SituationGate",
@@ -352,6 +380,7 @@
   },
   {
     "ID": "479e3d5f",
+    "TextHash": "479e3d5f",
     "EnumName": "预言",
     "DisplayName": "隐藏预言对手下回合首张出牌的类别，命中则触发奖励",
     "EffectType": "ProphecyNextCard",
@@ -362,16 +391,5 @@
     "参数": "Dimension",
     "ManaList": null,
     "Budget": 3
-  },
-  {
-    "ID": "afa24bf3",
-    "EnumName": "充能",
-    "DisplayName": "充能：支付1点对应颜色元素，为此手牌放置1层同色费用降低指示物（展示这张卡；换区清除）",
-    "EffectType": "Charge",
-    "TargetFilter": null,
-    "Polarity": 0,
-    "MountKinds": "系统",
-    "Tags": null,
-    "ManaList": null
   }
 ]

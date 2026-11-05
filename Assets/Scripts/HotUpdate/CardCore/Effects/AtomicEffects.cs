@@ -427,12 +427,11 @@ namespace CardCore
         // HasAwakenKeyword 闸门同批删除。
         // GrantAwaken,
 
-        /// <summary>充能（2026-10-31 P12 建造→充能，表行 afa24bf3·一般效果表）：主动效果、速度 0、
-        /// 只能从手牌发动——卡上含本原子的主动效果即有充能入口（生物/法术/结界全类别）。
-        /// 每次发动：展示这张卡（Exposed+RevealCardsEvent）+ 现付 1 点所选色元素 + 放 1 层同色
-        /// 费用降低指示物（CostDownGray/Red/Blue/Green 四色）；卡留手牌、可重复、不横置、
-        /// 不耗行动次数，上限=该色代价抵扣前卡费剩余额度；换区清除。
-        /// 消费口=ChargeHandler（结算时扣费），发动口=GameActions.ActivateCharge。</summary>
+        /// <summary>【枚举墓碑】充能（2026-11-05 充能系统动作化改版整链退役）：充能不再是卡上原子
+        /// 效果——改为速度0系统动作（StackEngine.PushChargeDeclaration 宣入、结算期
+        /// GameActions.ResolveChargeDeclarationAsync 反问元素类别后 +1 层同色费用降低指示物，
+        /// 不支付元素）。表行（原子表_系统 16073886）、ChargeHandler、ComposerCatalog.IsCharge*、
+        /// 合成器直加段同批删除。枚举成员保留防序号漂移，勿复用。</summary>
         Charge,
 
         /// <summary>绝缘体（2026-10-31 新增，绿3 表行「绝缘体」764236ed·关键词表）：持有单位不受
@@ -681,9 +680,8 @@ namespace CardCore
         /// <summary>抉择模式索引（来自 EffectInstance.ModeIndex；执行引擎遇 Choice 步骤按此分派）</summary>
         public int ModeIndex;
 
-        /// <summary>充能色（2026-10-31 P12，EffectExecutor 从 EffectInstance.ChargeColor 复制）：
-        /// 充能结算期 ChargeHandler 按此扣 1 点元素并放同色费用降低层；非充能效果恒 null。</summary>
-        public ManaType? ChargeColor;
+        //（充能色字段已随 2026-11-05 充能系统动作化改版删除：充能不再是卡上效果，
+        //  颜色在充能宣言结算期反问后直接落层，不经执行上下文透传。）
 
         // ---- 组合层编排属性（2026-09-10 重构 P1：自 EffectDefinition 复制进上下文，参照 ModeIndex 先例；
         //      2026-09-14 收缩：DurationValue 删除——持续档收缩后回合数走指示物自减，效果级不再携带）----

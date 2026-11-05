@@ -64,198 +64,139 @@ namespace CardCore
         // 强制动作（无速度交互），不再有玩家手动产色操作；产色口收敛到
         // ElementPool.TryPayCostWithAutoTap / TryPayBillWithAutoTap。
 
-        // ======================================== 充能（2026-10-31 P12：建造→充能；主动效果、只能从手牌发动） ========================================
+        // ======================================== 充能（2026-11-05 系统动作化改版：速度0规则动作，任意手牌卡一回合一次） ========================================
 
         /// <summary>
-        /// 充能可用性单源（P12 §B2）：UI 置灰 / AI 枚举 / 引擎终审三步同口径——ActivateCharge 内部先过本口。
-        /// 门禁序：时点（己方回合=主阶段；对手回合=带额外发动速度的法术在响应窗口——非空栈·非结算·
-        /// 持优先权·速≥记速器，2026-11-02 定案）→ 卡在手牌 → 卡有充能效果（ComposerCatalog.HasChargeEffect
-        /// ——生物/法术/结界全类别）→ **每回合一次**（ChargeUsedThisTurn——单卡一回合一次：己方回合一次、
-        /// 速≥1 法术对手回合响应窗口另一次；台账按回合清零，天然按「谁的回合」分桶）→ 色合法（灰/红/蓝/绿，
-        /// Any 拒）→ 该色「代价抵扣前卡费」&gt;0 → 该色已充层数 &lt; 该色上限（进度=四色费用降低指示物层数，
-        /// GetPrePayloadCost 逐色）→ 元素池可付 1 点该色（CanPayCostWithAutoTap 现取现用）。
-        /// 充能不消耗行动次数：还有可通过此方式减免的元素且本回合未充过就能充。
+        /// 充能可用性单源（2026-11-05 充能系统动作化改版）：UI 置灰 / AI 枚举 / 引擎终审三步同口径
+        /// ——DeclareCharge 内部先过本口。门禁序：时点（充能=速度0系统动作，**仅己方主阶段空栈首动**
+        /// ——仿攻击宣言；对手回合响应档已随改版退役）→ 卡在手牌（施放中除外）→ **一张卡一回合一次**
+        ///（StackEngine 充能专账，回合开始清零）→ 有可充颜色（「卡具有的颜色」=代价抵扣前逐色卡费 &gt;0
+        /// 且未充满——法术补差并入模式 0 施放锚价；进度=四色费用降低指示物层数，GetPrePayloadCost 逐色）。
+        /// **不支付元素**（旧「现付 1 点该色元素」随改版退役，充能=免费落层，节奏闸=一张卡一回合一次）。
         /// </summary>
-        public static bool CanCharge(GameCore core, Player player, Card card, ManaType color, out string reason)
+        public static bool CanCharge(GameCore core, Player player, Card card, out string reason)
         {
             reason = null;
             if (core == null || player == null || card == null) { reason = "内部错误：空参数"; return false; }
 
-            var data = (card as CardWrapper)?.GetData();
-            if (data == null || !ComposerCatalog.HasChargeEffect(data))
-            { reason = "该卡没有充能效果（充能入口只对带「充能」效果的卡开放）"; return false; }
-
-            if (core.TurnEngine.TurnPlayer == player)
-            {
-                if (core.TurnEngine.CurrentPhase?.Phase != PhaseType.Main)
-                { reason = $"充能只能在主阶段（当前：{core.TurnEngine.CurrentPhase?.Phase}）"; return false; }
-            }
-            else
-            {
-                // 对手回合档（2026-11-02 定案）：仅限「带额外发动速度的法术」（整卡施放速度≥1——
-                // 与③手牌整卡响应同门），且只能在响应窗口（栈非空·非结算·持优先权）按速度门接链。
-                if (data.Supertype != Cardtype.Spell || SpeedCalculator.GetCardCastSpeed(card) < 1)
-                { reason = "充能只能在自己的回合（对手回合充能仅限带额外发动速度的法术）"; return false; }
-                var engine = core.StackEngine;
-                if (engine == null || engine.IsEmpty || engine.IsResolving || engine.CurrentPriorityHolder != player)
-                { reason = "对手回合充能只能在响应窗口（持有优先权时响应发动）"; return false; }
-                if (SpeedCalculator.GetCardCastSpeed(card) < engine.SpeedCounter.CurrentSpeed)
-                { reason = $"充能速度不足（{SpeedCalculator.GetCardCastSpeed(card)} < 记速器 {engine.SpeedCounter.CurrentSpeed}——同速可接、更慢不行）"; return false; }
-            }
+            // 充能=速度0系统动作（2026-11-05 改版，仿攻击宣言）：仅己方主阶段空栈首动——
+            // 对手回合响应档（旧 P12 速≥1 法术充能）随改版退役，0 速本就锁死在自家主阶段。
+            if (core.TurnEngine.TurnPlayer != player)
+            { reason = "充能只能在自己的回合"; return false; }
+            if (core.TurnEngine.CurrentPhase?.Phase != PhaseType.Main)
+            { reason = $"充能只能在主阶段（当前：{core.TurnEngine.CurrentPhase?.Phase}）"; return false; }
+            var engine = core.StackEngine;
+            if (engine == null || engine.IsResolving) { reason = "结算进行中不可宣充能"; return false; }
+            if (!engine.IsEmpty)
+            { reason = "充能=速度0系统动作，须空栈首动（连锁/响应窗口中不可宣）"; return false; }
 
             var hand = core.ZoneManager.GetCards(player, Zone.Hand);
             if (!hand.Contains(card)) { reason = "充能对象必须在手牌"; return false; }
+            if (engine.IsPendingCast(card)) { reason = "该卡施放中（结算未完成）"; return false; }
 
-            // 每回合一次（2026-11-02 定案）：单卡一回合一次——入栈即记账（ChargeUsedThisTurn 读数，
-            // 结算期不再双记）；跨回合额度随台账清零恢复（进度层本身跨回合保留）。
+            // 一张卡一回合只能发动一次（2026-11-05 改版保持）：宣入即记账（StackEngine 充能专账），
+            // 发动层无效不退账；跨回合随台账清零恢复（进度层本身跨回合保留）。
             if (ChargeUsedThisTurn(core, card))
             { reason = "充能一回合只能发动一次（本回合已充过）"; return false; }
 
-            if (Attribute.CounterRules.CostDownCounterFor(color) == null)
-            { reason = "任意元素是万用货币不是颜色，不可充能"; return false; }
+            if (ChargeRemainingOf(card).Count == 0)
+            { reason = "该卡没有可充颜色（各色已充满或卡费无对应色）"; return false; }
+            return true;
+        }
 
-            // 上限口径=代价抵扣前逐色卡费（旧建造同源，GetPrePayloadCost 单口）；
-            // 进度=同色费用降低指示物层数（Resident 换区清——实例级，同名副本/跨玩家互不共享）。
-            // 法术补差（P12 落地）：卡费基数不含施放锚价（主动效果运行时现付——法术出牌费≈0），
-            // 并入模式 0 锚价（数据契约「模式0=最高消耗」；层在 GetCardCost 于锚价合并后套算、
-            // 逐色钳 0——对低锚模式最多折到 0，无白赚）。
-            CardCostService.GetPrePayloadCost(data, 0, out var preCost, out _);
-            float costColor = preCost[color];
-            if (data.Supertype == Cardtype.Spell)
-                costColor += SpellCastAnchor(card, 0)[color];
-            if (costColor <= 0f)
-            { reason = $"该卡卡费中没有{ManaZh(color)}——只能充卡费里确实有的色"; return false; }
-            int charged = card.GetCounterCount(Attribute.CounterRules.CostDownCounterFor(color));
-            if (charged >= costColor)
+        /// <summary>
+        /// 充能发动（2026-11-05 系统动作化改版）：把充能作为**速度0系统动作**推入栈（仿攻击宣言）——
+        /// 宣言期零支付零选色，对手获响应窗口（标准双 Pass 流）；结算期反问元素类别
+        ///（ResolveChargeDeclarationAsync——下拉只列该卡具有且未充满的颜色）→ +1 层同色费用降低
+        /// 指示物 → 展示。不横置、不换区——卡留在手牌；入栈失败（速度门）不改状态。
+        /// 入栈成功即记一次本回合规额（MarkChargeUsed）。
+        /// </summary>
+        public static bool DeclareCharge(GameCore core, Player player, Card card, out string reason)
+        {
+            if (!CanCharge(core, player, card, out reason)) return false;
+            if (!core.StackEngine.PushChargeDeclaration(card, player))
+            { reason = "充能入栈被拒（速度门——栈上有待响应对象）"; return false; }
+            core.StackEngine.MarkChargeUsed(card);
+            return true;
+        }
+
+        /// <summary>
+        /// 充能宣言结算（ResolveStack 的 IsChargeDeclaration 分支消费）：重检手牌 → 反问元素类别
+        ///（TargetSelectionService.RequestOneIndexAsync——本地 Select 窗下拉/网络 SelectRequest/
+        /// AI·无头自动取首项）→ 选项只列「卡具有且未充满」的颜色 → 确定 +1 层同色费用降低指示物
+        /// → 首次充能展示这张卡 → 发布 CardChargedEvent。**不支付元素**（2026-11-05 改版）。
+        /// 响应链中卡离手牌/各色充满=空转（不落层不发事件，规额已耗）。
+        /// </summary>
+        public static async Cysharp.Threading.Tasks.UniTask ResolveChargeDeclarationAsync(EffectInstance declaration)
+        {
+            var card = declaration?.Source as Card;
+            var player = declaration?.Controller;
+            var core = GameCore.Instance;
+            if (core == null || card == null || player == null) return;
+
+            if (card.GetZone() != Zone.Hand)
             {
-                reason = $"{ManaZh(color)}已充能满（已充 {charged}/{costColor:0.#}）——该色无剩余可充额度";
-                return false;
+                TideLog.Warn($"[Charge] 充能源不在手牌（{card.ID} @ {card.GetZone()}）——空转");
+                return;
             }
 
-            if (!core.ElementPool.CanPayCostWithAutoTap(ElementCost.FromValue(color, 1), player))
-            { reason = $"元素不足——充能需现付 1 {ManaZh(color)}（临时钱包优先，不足则系统自动横置地牌）"; return false; }
-            return true;
+            var remaining = ChargeRemainingOf(card);
+            if (remaining.Count == 0)
+            {
+                TideLog.Warn($"[Charge] {card.ID} 无可充颜色（响应链中充满？）——空转");
+                return;
+            }
+
+            // 选项序=余量降序、色序稳定（AI/无头/超时自动取首项=最大余量色，确定性可复播）
+            var colors = remaining.OrderByDescending(kv => kv.Value).ThenBy(kv => (int)kv.Key)
+                .Select(kv => kv.Key).ToList();
+            var labels = new List<string>();
+            foreach (var c in colors)
+                labels.Add($"充能 {ManaZh(c)}（余{remaining[c]}点 · 充后净费 {CostTextOf(card, c)}）");
+            int pick = await TargetSelectionService.RequestOneIndexAsync(
+                player, labels, $"充能——为【{(card as IHasName)?.CardName ?? card.ID}】选择元素类别");
+            if (pick < 0 || pick >= colors.Count) pick = 0; // 越界兜底（Service 已钳，双保险）
+            var color = colors[pick];
+
+            string counterId = Attribute.CounterRules.CostDownCounterFor(color);
+            if (counterId == null)
+            {
+                TideLog.Warn($"[Charge] 非法充能色 {color}——空转");
+                return;
+            }
+
+            int charged = card.AddCounters(counterId, 1, card);
+            if (charged > 0)
+                core.PublishEvent(new Attribute.CounterChangedEvent
+                {
+                    Target = card,
+                    CounterType = counterId,
+                    Amount = charged,
+                    Source = card,
+                    AfterNote = $"现有 {card.GetCounterCount(counterId)}",
+                });
+
+            // 展示这张卡（信息轴「展示」口径：二值不叠层；2026-11-03 收口 RevealRules.Reveal 单源）
+            Attribute.RevealRules.Reveal(card, card);
+
+            core.PublishEvent(new CardChargedEvent
+            {
+                Player = player,
+                Card = card,
+                Color = color,
+                PaidOnColor = card.GetCounterCount(counterId),
+            });
         }
 
-        /// <summary>
-        /// 充能发动（P12 §B2）：把该卡的充能效果作为主动效果推入自愿桶（PlayerActivateVoluntary →
-        /// 响应窗口 → ChargeHandler 结算：现付 1 点所选色 + 放 1 层同色费用降低指示物 + 展示 +
-        /// CardChargedEvent）。不横置、不消耗耐久、不换区——卡留在手牌；入栈失败（速度门）不改状态。
-        /// 速度（2026-11-02 定案）：己方回合恒 0 速（主阶段空栈首动豁免）；对手回合=整卡施放速度
-        /// （仅速≥1 法术可到这——与手牌整卡响应同门，同速可接）。ChargeColor 随 PendingEffect →
-        /// EffectInstance → context 透传到执行期。
-        /// 入栈成功即记一次本回合规额（RecordQueuedActivation——每回合一次；结算期不再双记）。
-        /// </summary>
-        public static bool ActivateCharge(GameCore core, Player player, Card card, ManaType color, out string reason)
+        /// <summary>充能选项与余量单源：可充色 → 剩余额度（上限=代价抵扣前逐色卡费，法术补差并入
+        /// 模式 0 施放锚价；进度=同色费用降低指示物层数，Resident 换区清——实例级）。
+        /// 「卡具有的颜色」即由此口径派生（该色卡费 &gt; 0 且未充满）。</summary>
+        private static Dictionary<ManaType, int> ChargeRemainingOf(Card card, int modeIndex = 0)
         {
-            if (!CanCharge(core, player, card, color, out reason)) return false;
-
-            EffectDefinition chargeDef = FindChargeDefinition(card);
-            if (chargeDef == null)
-            { reason = "该卡没有充能效果（效果转换后缺失——数据异常）"; return false; }
-
-            var pending = PendingEffect.Create(
-                chargeDef, card, player, core.TurnEngine.TurnPlayer,
-                core.TurnEngine.CurrentPhase?.Phase ?? PhaseType.Main);
-            // 己方回合恒 0 速（主阶段空栈首动豁免内）；对手回合=整卡施放速度（速≥1 才进得了响应窗口）
-            pending.ActivationSpeed = core.TurnEngine.TurnPlayer == player
-                ? 0
-                : SpeedCalculator.GetCardCastSpeed(card);
-            pending.ActivationType = EffectActivationType.Voluntary;
-            pending.ChargeColor = color;
-
-            if (!core.StackEngine.PlayerActivateVoluntary(pending))
-            { reason = "充能入栈失败（速度门——栈上有待响应对象）"; return false; }
-            // 每回合一次（2026-11-02）：入栈即记账（结算期 RecordUse 跳过充能防双记——
-            // 同窗口再开时读数已封锁，防同链双充）
-            core.StackEngine.GetExecutor().RecordQueuedActivation(chargeDef, card);
-            return true;
-        }
-
-        /// <summary>卡的充能效果定义（转换后首个 Charge 原子效果；无= null）。CanCharge/ActivateCharge/
-        /// ChargeUsedThisTurn 同源——效果 Id 是每回合规额台账键的组成部分。</summary>
-        private static EffectDefinition FindChargeDefinition(Card card)
-        {
-            foreach (var def in GetCardEffectDefinitions(card))
-                if (def != null && ComposerCatalog.IsChargeEffect(def)) return def;
-            return null;
-        }
-
-        /// <summary>充能每回合一次读数（2026-11-02 定案）：键=充能效果 Id@卡实例（EffectExecutor 台账，
-        /// 回合开始清零）——单卡一回合一次：己方回合一次、速≥1 法术对手回合响应窗口另一次。
-        /// 记账点=ActivateCharge 入栈成功（RecordQueuedActivation），发动层无效不退账。</summary>
-        public static bool ChargeUsedThisTurn(GameCore core, Card card)
-        {
-            var chargeDef = FindChargeDefinition(card);
-            return chargeDef != null
-                && core != null && core.StackEngine != null
-                && core.StackEngine.GetExecutor().GetTurnUsageOf(chargeDef.Id, card) >= 1;
-        }
-
-        /// <summary>充能时点窗口（纯时机——不含颜色/余量/每回合一次；CanCharge 前段与 UI 置灰同源）：
-        /// 己方回合=主阶段；对手回合=带额外发动速度的法术在响应窗口（非空栈·非结算·持优先权·速可接）。</summary>
-        public static bool ChargeTimingOpen(GameCore core, Player player, Card card, CardData data)
-        {
-            if (core == null || player == null || card == null || data == null) return false;
-            if (core.TurnEngine.TurnPlayer == player)
-                return core.TurnEngine.CurrentPhase?.Phase == PhaseType.Main;
-            if (data.Supertype != Cardtype.Spell) return false;
-            int castSpeed = SpeedCalculator.GetCardCastSpeed(card);
-            if (castSpeed < 1) return false;
-            var engine = core.StackEngine;
-            return engine != null && !engine.IsEmpty && !engine.IsResolving
-                && engine.CurrentPriorityHolder == player
-                && castSpeed >= engine.SpeedCounter.CurrentSpeed;
-        }
-
-        /// <summary>手牌卡充能数据口（P12 §B3：给数据不做画面——战场/手牌怎么画归用户）。
-        /// 消费面：本地对局=引擎卡直读；联机客户端=快照计数器（CounterEntryDTO 已覆盖四色层）。</summary>
-        public sealed class HandCardChargeInfo
-        {
-            /// <summary>已充层数 [灰,红,蓝,绿,任意]（任意位恒 0；换区清零、跨回合保留）。</summary>
-            public int[] ChargedByColor;
-            /// <summary>时点窗口总闸：己方回合主阶段 / 速≥1 法术对手回合响应窗口 + 手牌 + 有充能效果
-            /// + 本回合未充过（不含颜色/余量——UI 置灰第一层；2026-11-02 每回合一次定案）。</summary>
-            public bool WindowOpen;
-            /// <summary>当前净费（GetCardCost 同源——已含四色费用降低层与代价抵扣）。</summary>
-            public ElementCost NetCostNow;
-            /// <summary>可充色 → 还能充几点（代价抵扣前卡费上限口径；0=充满仍列出便于置灰）。</summary>
-            public Dictionary<ManaType, int> RemainingByColor = new Dictionary<ManaType, int>();
-            /// <summary>可充色 → 元素池现在能否再付 1 点（CanCharge 余量判定同口径）。</summary>
-            public Dictionary<ManaType, bool> PayableNow = new Dictionary<ManaType, bool>();
-            /// <summary>可充色 → 再充 1 点该色后的净费预览（当前净费该色 −1 下限 0——不动卡状态；充满色=当前净费）。</summary>
-            public Dictionary<ManaType, ElementCost> NetCostAfterCharge = new Dictionary<ManaType, ElementCost>();
-        }
-
-        /// <summary>
-        /// 手牌卡充能数据（P12 §B3）：已充层数 / 可充颜色列表（每色还能充几点）/ 充能后净费预览。
-        /// 无充能效果/异常入参 → 空信息（WindowOpen=false、空表）——UI 按总闸隐藏充能入口即可。
-        /// modeIndex 仅抉择卡有意义（缺省 0 与 CanCharge 上限口径一致）。
-        /// </summary>
-        public static HandCardChargeInfo GetHandCardChargeInfo(GameCore core, Player player, Card card, int modeIndex = 0)
-        {
-            var info = new HandCardChargeInfo();
+            var remaining = new Dictionary<ManaType, int>();
             var data = (card as CardWrapper)?.GetData();
-            info.ChargedByColor = new int[ElementCost.Length];
-            if (card != null)
-            {
-                info.ChargedByColor[(int)ManaType.Gray] = card.GetCounterCount(Attribute.CounterRules.CostDownGrayCounter);
-                info.ChargedByColor[(int)ManaType.Red] = card.GetCounterCount(Attribute.CounterRules.CostDownRedCounter);
-                info.ChargedByColor[(int)ManaType.Blue] = card.GetCounterCount(Attribute.CounterRules.CostDownBlueCounter);
-                info.ChargedByColor[(int)ManaType.Green] = card.GetCounterCount(Attribute.CounterRules.CostDownGreenCounter);
-            }
-            info.NetCostNow = card != null ? GetCardCost(card, modeIndex) : new ElementCost();
-            // 时点窗口总闸（2026-11-02 每回合一次定案）：己方回合主阶段，或速≥1 法术在对手回合
-            // 响应窗口；已充过本回合=关窗（不含颜色/余量——UI 置灰第一层）。
-            info.WindowOpen = core != null && player != null && card != null && data != null
-                && ComposerCatalog.HasChargeEffect(data)
-                && core.ZoneManager.GetCards(player, Zone.Hand).Contains(card)
-                && ChargeTimingOpen(core, player, card, data)
-                && !ChargeUsedThisTurn(core, card);
-            if (data == null || !ComposerCatalog.HasChargeEffect(data)) return info;
-
+            if (data == null) return remaining;
             CardCostService.GetPrePayloadCost(data, modeIndex, out var preCost, out _);
-            // 法术补差（P12，与 CanCharge 同口径）：上限并入模式 0 施放锚价（卡费基数不含锚）
             if (data.Supertype == Cardtype.Spell)
             {
                 var anchor0 = SpellCastAnchor(card, 0);
@@ -270,18 +211,85 @@ namespace CardCore
                 int cap = (int)Math.Round(preCost[color]);
                 if (cap <= 0) continue;
                 int charged = card.GetCounterCount(cid);
-                info.RemainingByColor[color] = Math.Max(0, cap - charged);
-                info.PayableNow[color] = core != null && player != null
-                    && core.ElementPool.CanPayCostWithAutoTap(ElementCost.FromValue(color, 1), player);
+                if (cap - charged > 0) remaining[color] = cap - charged;
+            }
+            return remaining;
+        }
+
+        /// <summary>充能后净费预览文案（单色）：当前净费该色 −1 下限 0（只读，不动卡状态）。</summary>
+        private static string CostTextOf(Card card, ManaType color)
+        {
+            var net = GetCardCost(card, 0);
+            float after = Math.Max(0f, net[color] - 1f);
+            return $"{after:0.#}{ManaZh(color)}";
+        }
+
+        /// <summary>充能每回合一次读数（2026-11-05 系统动作化改版）：键=卡实例（StackEngine 充能专账，
+        /// 回合开始清零）——一张卡一回合一次。记账点=DeclareCharge 入栈成功，发动层无效不退账。</summary>
+        public static bool ChargeUsedThisTurn(GameCore core, Card card)
+            => core != null && core.StackEngine != null && core.StackEngine.IsChargeUsed(card);
+
+        /// <summary>充能时点窗口（纯时机——不含余量/每回合一次；CanCharge 前段与 UI 置灰同源）：
+        /// 充能=速度0系统动作，仅己方主阶段（对手回合响应档已随 2026-11-05 改版退役）。</summary>
+        public static bool ChargeTimingOpen(GameCore core, Player player, Card card)
+        {
+            if (core == null || player == null || card == null) return false;
+            if (core.TurnEngine.TurnPlayer != player) return false;
+            return core.TurnEngine.CurrentPhase?.Phase == PhaseType.Main;
+        }
+
+        /// <summary>手牌卡充能数据口（2026-11-05 系统动作化改版：充能不再要求卡带充能效果——
+        /// 任意手牌卡可充，给数据不做画面——战场/手牌怎么画归用户）。
+        /// 消费面：本地对局=引擎卡直读；联机客户端=快照计数器（CounterEntryDTO 已覆盖四色层）。</summary>
+        public sealed class HandCardChargeInfo
+        {
+            /// <summary>已充层数 [灰,红,蓝,绿,任意]（任意位恒 0；换区清零、跨回合保留）。</summary>
+            public int[] ChargedByColor;
+            /// <summary>时点窗口总闸：己方主阶段 + 手牌 + 本回合未充过（不含余量——UI 置灰第一层；
+            /// 2026-11-05 改版：充能=速度0系统动作，任意手牌卡一回合一次，无充能效果门槛）。</summary>
+            public bool WindowOpen;
+            /// <summary>当前净费（GetCardCost 同源——已含四色费用降低层与代价抵扣）。</summary>
+            public ElementCost NetCostNow;
+            /// <summary>可充色 → 还能充几点（代价抵扣前卡费上限口径；0/缺席=充满）。</summary>
+            public Dictionary<ManaType, int> RemainingByColor = new Dictionary<ManaType, int>();
+            /// <summary>可充色 → 再充 1 点该色后的净费预览（当前净费该色 −1 下限 0——不动卡状态；充满色=当前净费）。</summary>
+            public Dictionary<ManaType, ElementCost> NetCostAfterCharge = new Dictionary<ManaType, ElementCost>();
+        }
+
+        /// <summary>
+        /// 手牌卡充能数据：已充层数 / 可充颜色列表（每色还能充几点）/ 充能后净费预览。
+        /// 异常入参 → 空信息（WindowOpen=false、空表）——UI 按总闸隐藏充能入口即可。
+        /// modeIndex 仅抉择卡有意义（缺省 0 与上限口径一致）。
+        /// </summary>
+        public static HandCardChargeInfo GetHandCardChargeInfo(GameCore core, Player player, Card card, int modeIndex = 0)
+        {
+            var info = new HandCardChargeInfo();
+            var data = (card as CardWrapper)?.GetData();
+            info.ChargedByColor = new int[ElementCost.Length];
+            if (card != null)
+            {
+                info.ChargedByColor[(int)ManaType.Gray] = card.GetCounterCount(Attribute.CounterRules.CostDownGrayCounter);
+                info.ChargedByColor[(int)ManaType.Red] = card.GetCounterCount(Attribute.CounterRules.CostDownRedCounter);
+                info.ChargedByColor[(int)ManaType.Blue] = card.GetCounterCount(Attribute.CounterRules.CostDownBlueCounter);
+                info.ChargedByColor[(int)ManaType.Green] = card.GetCounterCount(Attribute.CounterRules.CostDownGreenCounter);
+            }
+            info.NetCostNow = card != null ? GetCardCost(card, modeIndex) : new ElementCost();
+            // 时点窗口总闸（2026-11-05 改版）：己方主阶段 + 手牌 + 本回合未充过——
+            // 充能=速度0系统动作，无充能效果门槛（不含余量——UI 置灰第一层）。
+            info.WindowOpen = core != null && player != null && card != null && data != null
+                && core.ZoneManager.GetCards(player, Zone.Hand).Contains(card)
+                && ChargeTimingOpen(core, player, card)
+                && !ChargeUsedThisTurn(core, card);
+            if (data == null || !info.WindowOpen) return info;
+
+            var remaining = ChargeRemainingOf(card, modeIndex);
+            foreach (var kv in remaining)
+            {
+                info.RemainingByColor[kv.Key] = kv.Value;
                 // 充能后净费预览：当前净费读数已含进度层，手动 −1 该色（下限 0）即可，不动卡状态
-                if (charged < cap)
-                {
-                    var after = info.NetCostNow.Clone();
-                    after[color] = Math.Max(0f, after[color] - 1f);
-                    info.NetCostAfterCharge[color] = after;
-                }
-                else
-                    info.NetCostAfterCharge[color] = info.NetCostNow.Clone();
+                var after = info.NetCostNow.Clone();
+                after[kv.Key] = Math.Max(0f, after[kv.Key] - 1f);
+                info.NetCostAfterCharge[kv.Key] = after;
             }
             return info;
         }
@@ -783,7 +791,9 @@ namespace CardCore
         private static void CastAbortToGraveyard(GameCore core, Card card, Player player, string reason)
         {
             var fromZone = card.GetZone(); // S3b：卡留来源区——入墓从真实所在区起跳
-            core.ZoneManager.MoveCard(card, player, fromZone, Zone.Graveyard);
+            // 同区幂等（2026-11-05 收口）：中止前卡已被其它效果送墓 → 只发失败事件，不再移动
+            if (fromZone != Zone.Graveyard)
+                core.ZoneManager.MoveCard(card, player, fromZone, Zone.Graveyard);
             core.PublishEvent(new CardActivationFailedEvent
             {
                 Card = card,
@@ -1119,34 +1129,9 @@ namespace CardCore
                 }
             }
 
-            // ④ 手牌充能响应（2026-11-02 充能每回合一次定案·对手回合档）：带额外发动速度的法术充能卡
-            //    （速≥1 才可在对手回合发动——与③整卡同门）；CanCharge 单源终审（对手回合+响应窗口+
-            //    持优先权+速度门+每回合一次+色资格/上限/元素余量），逐可充色一票（Label 承载色——
-            //    弹窗直选免二次择色）。己方回合不出票：充能=主阶段空栈 0 速首动（速度门天然锁死，列了也是死行）。
-            if (core.TurnEngine.TurnPlayer != p && !engine.IsEmpty && !engine.IsResolving)
-            {
-                foreach (var c in core.ZoneManager.GetCards(p, Zone.Hand) ?? new List<Card>())
-                {
-                    if (c == null) continue;
-                    var cdata = (c as CardWrapper)?.GetData();
-                    if (cdata == null || cdata.Supertype != Cardtype.Spell
-                        || !ComposerCatalog.HasChargeEffect(cdata)) continue;
-                    int chargeSpeed = SpeedCalculator.GetCardCastSpeed(c);
-                    if (chargeSpeed < 1) continue;
-                    foreach (ManaType color in new[] { ManaType.Gray, ManaType.Red, ManaType.Blue, ManaType.Green })
-                    {
-                        if (!CanCharge(core, p, c, color, out _)) continue;
-                        options.Add(new ResponseOption
-                        {
-                            Kind = ResponseOption.ResponseKind.Charge,
-                            SourceCard = c,
-                            ChargeColor = color,
-                            Label = $"充能 {EffectText.Name(c)}·{ManaZh(color)}（速度{chargeSpeed}·+1{ManaZh(color)}费用降低层）",
-                            CostSummary = $"现付 1 {ManaZh(color)}",
-                        });
-                    }
-                }
-            }
+            //（④ 手牌充能响应档已随 2026-11-05 充能系统动作化改版删除：充能=速度0系统动作，
+            //  只能己方主阶段空栈首动宣入——0 速本就无法在对手回合响应窗口接链，旧速≥1 法术
+            //  充能响应（2026-11-02 档）随「充能不再是卡上效果」一并退役。）
 
             return options;
         }
@@ -1243,18 +1228,7 @@ namespace CardCore
                         bool applied = ApplyResponse(core, holder, choice);
                         Crumb($"CF-choice holder={holder.Name} kind={choice.Kind} label={choice.Label} applied={applied}");
                         if (applied)
-                        {
-                            // 充能响应无既有播报行（2026-11-03 连锁日志补缺）；其余种类已有专属行
-                            //（响应出牌=CardPlayEvent.IsResponseCast、守卫=BlockDeclaration、效果=StackAdd）。
-                            if (choice.Kind == ResponseOption.ResponseKind.Charge)
-                                core.PublishEvent(new ChainRespondedEvent
-                                {
-                                    Responder = holder,
-                                    Description = choice.SourceCard != null
-                                        ? $"充能【{EffectText.Name(choice.SourceCard)}】" : "充能",
-                                });
                             continue; // 发动成功 → 优先权已翻转，继续下一轮
-                        }
                     }
 
                     if (inquired) // 询问后的让过（让过按钮/倒计时/AI 不作主/声明期取消）——未询问的自动 Pass 不记
@@ -1270,8 +1244,8 @@ namespace CardCore
         }
 
         /// <summary>应用所选响应：守卫=PushGuardDeclaration；主动=ActivateEffect；自愿效果=PlayerActivateVoluntary；
-        /// 手牌卡=PlayCardInResponse（目标=声明期预选（2026-10-20 收集器下发）或 null——结算期反问单源）；
-        /// 充能=ActivateCharge（2026-11-02 对手回合响应档——色随选项下发，CanCharge 终审）。</summary>
+        /// 手牌卡=PlayCardInResponse（目标=声明期预选（2026-10-20 收集器下发）或 null——结算期反问单源）。
+        ///（充能档已随 2026-11-05 充能系统动作化改版删除——充能=速度0系统动作，不再经响应窗。）</summary>
         private static bool ApplyResponse(GameCore core, Player p, ResponseOption opt)
         {
             if (opt == null) return false;
@@ -1287,9 +1261,6 @@ namespace CardCore
                         && ActivateEffectInResponse(core, p, opt.Definition, opt.SourceCard);
                 case ResponseOption.ResponseKind.VoluntaryEffect:
                     return core.StackEngine.PlayerActivateVoluntary(opt.Pending);
-                case ResponseOption.ResponseKind.Charge:
-                    return opt.SourceCard != null
-                        && ActivateCharge(core, p, opt.SourceCard, opt.ChargeColor, out _);
                 default:
                     return false;
             }
@@ -1485,8 +1456,12 @@ namespace CardCore
                 }, skipElementCost: true);
             }
 
-            // 结算完成 → 入墓（S3b：从来源区[手牌/牌库顶]入墓；Leave 事件随区退役）
-            core.ZoneManager.MoveCard(card, player, card.GetZone(), Zone.Graveyard);
+            // 结算完成 → 入墓（S3b：从来源区[手牌/牌库顶]入墓；Leave 事件随区退役）。
+            // 同区幂等（2026-11-05 收口）：结算有效性只取决于效果目标，源卡所在区域不参与结算
+            //（S3b 后卡留来源区，可能在任何时机被移走——效果结算期间被送墓/回手/弹牌库均合法），
+            // 结算尾卡已在墓地则跳过移动，防 ZoneOperationException。
+            if (card.GetZone() != Zone.Graveyard)
+                core.ZoneManager.MoveCard(card, player, card.GetZone(), Zone.Graveyard);
         }
 
         /// <summary>
@@ -2049,8 +2024,34 @@ namespace CardCore
 
             // Pass 可能触发结算，结算含异步原子效果（await UI）。
             // 本入口返回校验结果，结算在后台推进（StackEngine.IsResolving 阻止主循环重入）。
-            core.StackEngine.PassPriority(player).Forget();
+            ForgetSafeAsync(core.StackEngine.PassPriority(player), "PassPriority 优先权让过", core).Forget();
             return true;
+        }
+
+        /// <summary>
+        /// fire-and-forget 安全包装（2026-11-05 收口）：栈/响应窗结算泵后台推进的异常不再被
+        /// UniTask.Forget 静默吞（否则以 UnobservedTaskException 形态漏出、对局日志无因可查）——
+        /// 捕获后 TideLog.Error（带栈顶卡名/效果名定位来源）并继续。不改变结算顺序与控制流：
+        /// 异步链在 catch 处截断，与裸 Forget 同语义，只是多一条错误日志。
+        /// </summary>
+        internal static async Cysharp.Threading.Tasks.UniTask ForgetSafeAsync(
+            Cysharp.Threading.Tasks.UniTask task, string scope, GameCore core)
+        {
+            try { await task; }
+            catch (Exception ex)
+            {
+                TideLog.Error($"[结算] {scope} 后台链异常（{DescribeStackTop(core)}）：{ex}");
+            }
+        }
+
+        /// <summary>异常定位用：栈顶条目的卡名/效果名快照（栈空=标注空栈）。</summary>
+        private static string DescribeStackTop(GameCore core)
+        {
+            var top = core?.StackEngine?.GetStackContents()?.LastOrDefault(e => e != null);
+            if (top == null) return "栈空";
+            var cardName = (top.Source as IHasName)?.CardName ?? (top.CastCard as IHasName)?.CardName;
+            var effName = top.Definition?.DisplayName ?? top.Definition?.Id;
+            return $"卡[{cardName ?? top.Source?.ToString() ?? "?"}] 效果[{effName ?? "?"}]";
         }
 
         // 苏醒机制已整链删除（2026-11-02）：灰身材概念已不存在，「免灰抵沉睡」失去意义；
@@ -2280,23 +2281,18 @@ namespace CardCore
             return new List<EffectDefinition>();
         }
 
-        /// <summary>法术可施放效果定义（P12 C1：过滤充能效果、序=Effects 声明序）——
+        /// <summary>法术可施放效果定义（序=Effects 声明序）——
         /// 模式序号 modeIndex 索引本列表（SpellCastAnchor/目标收集/结算/VFX 色调全消费面同源；
-        /// 与 CostDerivationService.GetCastableEffects(CardData) 同序——转换保序）。</summary>
+        /// 与 CostDerivationService.GetCastableEffects(CardData) 同序——转换保序）。
+        ///（P12「过滤充能效果」已随 2026-11-05 充能系统动作化改版失效——充能不再是卡上效果。）</summary>
         public static List<EffectDefinition> GetCastableEffectDefinitions(Card card)
-        {
-            var defs = GetCardEffectDefinitions(card);
-            var castable = new List<EffectDefinition>();
-            foreach (var def in defs)
-                if (def != null && !ComposerCatalog.IsChargeEffect(def)) castable.Add(def);
-            return castable;
-        }
+            => new List<EffectDefinition>(GetCardEffectDefinitions(card).Where(d => d != null));
     }
 
     /// <summary>
-    /// 充能事件（2026-10-31 P12：建造→充能，原 CardBuiltEvent 更名）：每次充能结算发布——
-    /// UI/AI 可观测的进度变化信号（元素实付组合另见 ElementPoolPayEvent，SourceNote="充能:卡名"；
-    /// 进度本身=四色费用降低指示物层数，换区清除随 CounterChangedEvent/快照可见）。
+    /// 充能事件（2026-11-05 充能系统动作化改版）：每次充能结算发布——UI/AI 可观测的进度变化信号
+    ///（充能=速度0系统动作，免费落层不支付元素；进度本身=四色费用降低指示物层数，换区清除随
+    /// CounterChangedEvent/快照可见。旧 P12「现付 1 点该色元素」已随改版退役）。
     /// </summary>
     public class CardChargedEvent : GameEventBase
     {

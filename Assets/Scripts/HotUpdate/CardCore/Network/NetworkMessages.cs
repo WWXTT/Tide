@@ -27,7 +27,7 @@ namespace CardCore.Network
         DeckSubmit = 110,            // 开局握手：卡组提交（MsgDeckSubmit，见 网络协议.md §11）
         JoinRoom = 111,              // 会话层：进房分座/观战登记（MsgJoinRoom，见 网络协议.md §12）
         IntentActivateHeroSkill = 112, // 英雄技能发动（MsgIntentActivateHeroSkill——2026-10-21 协议补课；离散位在会话层消息之后）
-        IntentBuildCard = 113,       // 充能（原建造，2026-10-31 P12 改义）：手牌带充能效果的卡逐色充能（MsgIntentBuildCard——2026-10-29 P7 协议 v4 入列，2026-10-31 阶段D 重排改号）
+        IntentBuildCard = 113,       // 充能（2026-11-05 系统动作化改义）：任意手牌卡宣充能（MsgIntentBuildCard；结算期反问选色——Color 恒 −1 协议兼容）
         TextResponse = 114,          // 文本反问应答（MsgTextResponse——2026-10-31 阶段C：卡名宣言开放集输入）
 
         // ---- 下行（服务器→客户端）----

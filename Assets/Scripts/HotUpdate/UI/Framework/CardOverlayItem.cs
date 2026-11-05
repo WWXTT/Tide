@@ -168,18 +168,11 @@ namespace SynergyUI
         private static string SpellEffectLabel(CardEffectData fx, int index)
             => string.IsNullOrEmpty(fx?.DisplayName) ? $"作用 {index + 1}" : fx.DisplayName;
 
-        /// <summary>充能行文案（2026-11-01 上卡）：首个充能效果渲染全文（含「发动速度0，」前缀）；
-        /// 无可渲染文本回落表行模板口径。</summary>
+        /// <summary>充能行文案（2026-11-05 充能系统动作化改版）：充能=速度0系统动作（不再是卡上
+        /// Charge 原子效果），任意手牌卡一回合一次可宣——文案为系统规则描述（全卡统一）。</summary>
         private static string ChargeRowText(CardData data)
-        {
-            foreach (var fx in data.Effects)
-            {
-                if (fx == null || !ComposerCatalog.IsChargeEffect(fx)) continue;
-                var text = AtomText.RenderEffectSummary(new EffectGraphData(fx.DisplayName) { header = fx, steps = fx.Steps }, data);
-                if (!string.IsNullOrEmpty(text)) return text;
-            }
-            return "支付1点对应颜色元素，为此手牌放置1层同色费用降低指示物（展示这张卡；换区清除）";
-        }
+            => "充能：速度0系统动作，本回合一次（仅己方主阶段）；结算期选择此卡具有的颜色，"
+               + "为其放置1层同色费用降低指示物并展示这张卡（不支付元素；换区清除）";
 
         /// <summary>压制层数快照读数（沉默/失效/沉睡）——FromHand 与战场悬停面板
         /// 共用行级划线判定，与引擎 SuppressRules 计数原语同源。</summary>
@@ -294,11 +287,10 @@ namespace SynergyUI
                     it.ActiveEffectCosts.Add(CardCostService.GetRuntimeCost(data, i));
                 }
             }
-            // 特殊效果行（2026-11-01 上卡，SpUse 退役）：充能=有 Charge 原子效果（任意卡型）；
-            // 渲染在模式行之后，充能效果不再进单行/被动区（行替代防双显）。
-            //（苏醒行已随 2026-11-02 苏醒机制整链删除。）
-            bool hasCharge = data != null && ComposerCatalog.HasChargeEffect(data);
-            if (hasCharge)
+            // 特殊效果行（2026-11-05 充能系统动作化改版）：充能=速度0系统动作，不再是卡上效果——
+            // **所有手牌卡**统一带一行充能入口（选中→Use 钮变「充能」分流到 DeclareCharge；
+            // 颜色在结算期经引擎反问下拉选择）。渲染在模式行之后。
+            //（旧「有 Charge 原子效果才出充能行/充能效果不进单行」的行替代逻辑已随原子链退役。）
             {
                 it.SpEffectLabels = new List<string>();
                 it.SpEffectLines = new List<string>();
@@ -307,14 +299,13 @@ namespace SynergyUI
                 it.SpEffectLabels.Add("充能");
                 it.SpEffectLines.Add(ChargeRowText(data));
                 it.SpEffectKinds.Add(SpEffectKind.Charge);
-                it.SpEffectCosts.Add(null); // 现付 1 点待选色（施放期选色），无固定账单
+                it.SpEffectCosts.Add(null); // 免费落层（不支付元素）；可充色随卡费动态，无固定账单
             }
             if (data?.Effects != null)
             {
                 foreach (var fx in data.Effects)
                 {
                     if (fx == null || rowSet != null && rowSet.Contains(fx)) continue;
-                    if (hasCharge && ComposerCatalog.IsChargeEffect(fx)) continue; // 充能行替代，不进单行/被动区
                     var timing = (TriggerTiming)fx.TriggerTiming;
                     var isActive = timing == TriggerTiming.Activate_Active || timing == TriggerTiming.Activate_Instant;
                     var text = AtomText.RenderEffectSummary(new EffectGraphData(fx.DisplayName) { header = fx, steps = fx.Steps }, data);

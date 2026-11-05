@@ -220,8 +220,8 @@ namespace SynergyUI
                 await PaceAsync(); // 人机节奏：本轮动作落地后等表现层演完再做下一个动作
             }
 
-            // 2.5 充能（2026-10-31 P12 低优先级）：动作耗尽后把手牌充能卡逐色充到上限
-            //     （富余元素跨回合留存——同旧建造「攒大招」策略；CanCharge 单源闸含余量/上限）。
+            // 2.5 充能（2026-11-05 系统动作化改版，低优先级）：动作耗尽后把手牌各卡宣一次充能
+            //     （速度0系统动作·免费落层——一张卡一回合一次；颜色由引擎结算期反问代选=最大余量色）。
             ChargeIdleElements(core, me);
 
             // 3. 战前排干栈：让本回合发动/触发的效果先落地（增益类才影响攻击结算）
@@ -256,10 +256,10 @@ namespace SynergyUI
 
         // ======================================== 资源准备 ========================================
 
-        /// <summary>充能（2026-10-31 P12：建造→充能，低优先级）：主循环无进展后，把手牌带充能效果的卡
-        /// 各充一点（2026-11-02 每回合一次定案——单卡一回合一次，CanCharge 闸内拒；上限跨回合逐补）。
-        /// CanCharge 单源闸含色资格/上限/余量/每回合一次，失败即静默跳过——不阻塞回合推进。
-        /// 对手回合响应档（速≥1 法术）不在此口——SimpleAI 响应走守卫启发，不主动充能。</summary>
+        /// <summary>充能（2026-11-05 系统动作化改版，低优先级）：主循环无进展后，把手牌各卡宣一次
+        /// 充能（速度0系统动作·**免费落层**——一张卡一回合一次，CanCharge 闸内拒；上限跨回合逐补，
+        /// 颜色由引擎结算期反问代选=最大余量色）。失败即静默跳过——不阻塞回合推进。
+        /// 对手回合响应档已随改版退役（充能=速度0系统动作，0 速无法接链）。</summary>
         private static void ChargeIdleElements(GameCore core, Player me)
         {
             if (core.TurnEngine.TurnPlayer != me
@@ -269,14 +269,9 @@ namespace SynergyUI
             hand = hand.Where(c => !core.StackEngine.IsPendingCast(c)).ToList();
             foreach (var card in hand)
             {
-                var data = (card as CardWrapper)?.GetData();
-                if (data == null || !ComposerCatalog.HasChargeEffect(data)) continue;
-                foreach (ManaType color in new[] { ManaType.Gray, ManaType.Red, ManaType.Blue, ManaType.Green })
-                {
-                    int guard = 0;
-                    while (guard++ < 12 && GameActions.ActivateCharge(core, me, card, color, out _))
-                        SettleStack(core);
-                }
+                // 充能=速度0系统动作须空栈——宣一张结算一张（结算期反问代选色+落层）再宣下一张
+                if (GameActions.DeclareCharge(core, me, card, out _))
+                    SettleStack(core);
             }
         }
 

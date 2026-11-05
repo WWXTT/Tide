@@ -31,6 +31,11 @@ namespace CardCore.Attribute
             "Configs/原子表_系统.json",
         };
 
+        // 别名表（2026-11-05 ID 冻结配套）：{"aliases": {旧 id: 现行 id}}。
+        // 冻结后 ID 不再随文本漂移，但"必须换号"的场景仍存在（语义拆分、人工检修）——
+        // 旧号登记在此，装载层解析时沿链回落，老存档/老卡组的 refId 不会变成静默剔原子的悬空引用。
+        public const string AliasFile = "Configs/原子表ID别名.json";
+
         // 来源类别常量（2026-10-31）：下标与 TableFiles 一一对应，装载期写进 config.TableCategory——
         // 行归属的真相源是「在哪份文件」而非 MountKinds 派生（派生口径会随位语义漂移）。
         // 消费口：卡组合界面代价槽（代价原子只收一般效果行）。
@@ -44,6 +49,8 @@ namespace CardCore.Attribute
         private static Dictionary<string, AtomicEffectConfig> _hashIdMap;
         private static Dictionary<string, AtomicEffectConfig> _enumNameMap;
         private static Dictionary<AtomicEffectType, AtomicEffectConfig> _typeMap;
+        /// <summary>ID 别名（旧 id → 现行 id）；装载期从 AliasFile 读入，只用于解析回落。</summary>
+        private static Dictionary<string, string> _aliasMap = new Dictionary<string, string>();
 
         static AtomicEffectTable()
         {
@@ -56,6 +63,7 @@ namespace CardCore.Attribute
             _hashIdMap = new Dictionary<string, AtomicEffectConfig>();
             _enumNameMap = new Dictionary<string, AtomicEffectConfig>();
             _typeMap = new Dictionary<AtomicEffectType, AtomicEffectConfig>();
+            _aliasMap = new Dictionary<string, string>();
 
             int loaded = 0;
             try
@@ -69,6 +77,40 @@ namespace CardCore.Attribute
 
             if (loaded == 0)
                 TideLog.Warn("[AtomicEffectTable] 未从 JSON 加载到任何条目（配置缺失或解析失败）");
+
+            LoadAliases();
+        }
+
+        /// <summary>别名表装载（可选文件——缺失不报错，别名功能退化为「无回落」）。
+        /// 格式 {"aliases": {"旧id": "现行id"}}；脏条目（源=目标）装载期即丢弃。</summary>
+        private static void LoadAliases()
+        {
+            string raw = TidePaths.ReadConfigText(AliasFile);
+            if (string.IsNullOrEmpty(raw)) return;
+            try
+            {
+                var wrapper = TideJson.FromJson<AliasWrapper>(raw);
+                var items = wrapper?.aliases;
+                if (items == null) return;
+                foreach (var kv in items)
+                {
+                    if (kv.Key == null || kv.Value == null) continue;
+                    string from = kv.Key.Trim().ToLowerInvariant();
+                    string to = kv.Value.Trim().ToLowerInvariant();
+                    if (from.Length == 0 || to.Length == 0 || from == to) continue;
+                    _aliasMap[from] = to;
+                }
+            }
+            catch (Exception e)
+            {
+                TideLog.Warn($"[AtomicEffectTable] 别名表解析失败（{AliasFile}）：{e.Message}");
+            }
+        }
+
+        /// <summary>别名表 DTO（TideJson 反序列化用）。</summary>
+        private class AliasWrapper
+        {
+            public Dictionary<string, string> aliases;
         }
 
         /// <summary>强制重读表（2026-09-14 合成器「读取原子表」按钮——外部直改 JSON 后免重启刷新；
@@ -231,8 +273,22 @@ namespace CardCore.Attribute
         public static AtomicEffectConfig GetByHashId(string hashId)
         {
             if (string.IsNullOrEmpty(hashId)) return null;
-            return _hashIdMap.TryGetValue(hashId, out var cfg) ? cfg : null;
+            if (_hashIdMap.TryGetValue(hashId, out var cfg)) return cfg;
+
+            // 别名回落（2026-11-05 ID 冻结配套）：旧号 → 现行号，最多 8 跳。
+            // 断链/成环返回 null（调用方按"缺行"处理并告警，与旧口径一致）；正常数据零成本。
+            var cur = hashId;
+            for (int hop = 0; hop < 8; hop++)
+            {
+                if (!_aliasMap.TryGetValue(cur, out var next)) return null;
+                if (_hashIdMap.TryGetValue(next, out var hit)) return hit;
+                cur = next;
+            }
+            return null;
         }
+
+        /// <summary>别名表只读快照（体检/工具用）：旧 id → 现行 id。</summary>
+        public static IReadOnlyDictionary<string, string> AliasMap => _aliasMap;
 
         /// <summary>
         /// 反查行 ID（EffectSlim.ToRef 用）：EffectType + 实例域 → 表 ID 列 8-hex。

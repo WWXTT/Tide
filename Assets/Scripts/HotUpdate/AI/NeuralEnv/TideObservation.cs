@@ -37,6 +37,10 @@ namespace CardCore.AI.NeuralEnv
     public sealed class TideObservation
     {
         // ---- 维度常量（Python 侧只改这些，模型不动）----
+        // v11（2026-11-05 充能系统动作化）：动作空间语义变更——Charge 行从「带充能效果的卡逐色
+        // 一行（Color 承载选色）」改为「任意手牌卡每卡一行（免元素、选色移交引擎结算期反问，
+        // AI 代取最大余量色）」；充能从主动效果入栈改为速度0系统动作。观测布局（槽位/特征数）不变，
+        // 旧 v10 模型对充能行的语义不符作废（python LAYOUT_VERSION 同步升 11）。
         // v10（2026-11-02 观测欠账四件套）：卡槽 116→189——墓地区 4→30 全量（新死优先保留）、
         // 除外区逐卡 8 槽入册（连带修复 LAE 目标槽位断链：除外回收/深墓地卡 IndexOfCard 原恒 -1）、
         // 对方手牌被展示（Exposed）卡豁免为全特征开图、尾块 +牌库顶槽 1（TopDeckAsHandAura
@@ -58,7 +62,7 @@ namespace CardCore.AI.NeuralEnv
         // 旧模型权重作废（python LAYOUT_VERSION 同步升 6）。
         // v5（2026-10-29 P6 苏醒改版）：删卡特征 [113] AwakenCommitted（立约退役）——
         // NCard 116→115、N_GLOBAL 不变。
-        public const int LayoutVersion = 10;
+        public const int LayoutVersion = 11;
         public const int MaxCardsPerPlayer = 77; // v10：43→77（墓地 4→30、除外 8 入册）
         // v9 己方牌库块（尾接全局块，不走 ZoneLayout 每玩家偏移语义——专用 DeckBase+排序名次路径）：
         public const int DeckSlots = 30;                                      // 截断护栏（初始整组 30 恰满；衍生物入库超出不编码）

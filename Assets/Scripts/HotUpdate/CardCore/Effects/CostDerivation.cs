@@ -1151,10 +1151,10 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 法术模式数（2026-10-31 P12 定案：抉择=默认使用方式）：法术=**非充能**主动效果数
-        ///（1~3；充能效果最多 1 个且不进模式列表——充能走特殊使用入口），Math.Max(1, n)；
+        /// 法术模式数（抉择=默认使用方式）：法术=主动效果数（1~3），Math.Max(1, n)；
         /// 单主动法术=1（跳过模式窗直放）。非法术恒 1（生物/结界无模式；旧 Choice 步骤通道退役）。
         /// 不再扫描 EffectStepData.choices。
+        ///（P12「非充能」限定已随 2026-11-05 充能系统动作化改版失效——充能不再是卡上效果。）
         /// </summary>
         public static int GetModeCount(CardData card)
         {
@@ -1162,13 +1162,14 @@ namespace CardCore
             if (card.Supertype != Cardtype.Spell) return 1;
             int n = 0;
             foreach (var fx in card.Effects)
-                if (fx != null && !ComposerCatalog.IsChargeEffect(fx)) n++;
+                if (fx != null) n++;
             return Math.Max(1, n);
         }
 
-        /// <summary>法术可施放效果列表（P12 C1：过滤充能效果、序=Effects 声明序——模式序号
-        /// modeIndex 索引本列表；SpellCastAnchor/ResolveSpellEffects/模式窗/AI 全消费面同源）。
-        /// 非法术返回原列表（含充能——非施放通道消费）；空表安全。</summary>
+        /// <summary>法术可施放效果列表（序=Effects 声明序——模式序号 modeIndex 索引本列表；
+        /// SpellCastAnchor/ResolveSpellEffects/模式窗/AI 全消费面同源）。
+        /// 非法术返回原列表；空表安全。
+        ///（P12「过滤充能效果」已随 2026-11-05 充能系统动作化改版失效——充能不再是卡上效果。）</summary>
         public static List<CardEffectData> GetCastableEffects(CardData card)
         {
             var list = card?.Effects;
@@ -1176,7 +1177,7 @@ namespace CardCore
             if (card.Supertype != Cardtype.Spell) return list;
             var castable = new List<CardEffectData>();
             foreach (var fx in list)
-                if (fx != null && !ComposerCatalog.IsChargeEffect(fx)) castable.Add(fx);
+                if (fx != null) castable.Add(fx);
             return castable;
         }
 

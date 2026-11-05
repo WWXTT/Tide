@@ -418,7 +418,8 @@ namespace CardCore
         /// 位进主干槽（填槽即自由分支）；系统/攻守行有资格但被合成器库过滤隐藏；关键词/指示物行以授予形态落槽。
         /// 2026-10-23 有限分支入表：门槛行（位 8）不得作主干——表行只承载门槛身份/挂载/预算，
         /// 防门槛行漏进原子库与卡组合。
-        /// 2026-10-31 P12 充能：充能行可作主干（主动效果形态——手牌充能入口的唯一载体）。</summary>
+        ///（2026-10-31 P12「充能行可作主干」已随 2026-11-05 充能系统动作化改版失效——充能不再是卡上效果，
+        ///  充能表行已删，充能=任意手牌卡可宣的速度0系统动作。）</summary>
         public static bool CanBeTrunkRow(Attribute.AtomicEffectConfig row)
             => row != null && !HasMountBit(row, MountKind.RuleAura) && !HasMountBit(row, MountKind.SituationGate);
 
@@ -429,76 +430,17 @@ namespace CardCore
         /// 2026-10-24 动态费用位：临摹/变形赋予挂位 9 排除出奖励——补差随局内动态情况，
         /// 奖励入价锚定在构筑期无法覆盖；主干照旧。
         /// 2026-10-31 召唤衍生物入列（表行已挂位 9）：模板费随引用卡绑定浮动——同排除出奖励。
-        /// 2026-10-31 P12 充能：充能行排除出奖励——充能=手牌主动效果专用形态（颜色在结算期决定，
-        /// 作奖励无意义且绕过手牌闸）。
+        ///（2026-10-31 P12「充能行排除出奖励」已随 2026-11-05 充能系统动作化改版失效——充能行已删。）
         /// （2026-10-13 晚「主动发动」位已删：动态计价原子触发式预付与主动现付同额同源
         ///（ResolveTemplate→ContentPriceOf）——主动/自动自由选择。）</summary>
         public static bool CanBeRewardRow(Attribute.AtomicEffectConfig row)
             => CanBeTrunkRow(row) && !HasMountBit(row, MountKind.EngineTrunk)
-               && !HasMountBit(row, MountKind.DynamicCost) && !IsChargeRow(row);
+               && !HasMountBit(row, MountKind.DynamicCost);
 
-        // ======================================== 充能（2026-10-31 P12：建造→充能） ========================================
-
-        /// <summary>原子类型是否充能（表行 afa24bf3「充能」——主动效果、速度 0、只能从手牌发动）。</summary>
-        public static bool IsChargeAtom(AtomicEffectType type) => type == AtomicEffectType.Charge;
-
-        /// <summary>表行是否充能行（EnumName 解析——行级判定，合成器奖励过滤与装载校验共用）。</summary>
-        public static bool IsChargeRow(Attribute.AtomicEffectConfig row)
-            => row != null && Enum.TryParse<AtomicEffectType>(row.EnumName, out var t) && IsChargeAtom(t);
-
-        /// <summary>卡面效果条目是否充能效果（效果树内任意原子为 Charge 即是——正常只允许单原子；
-        /// 形态违规由 CardEffectConverter 告警丢弃，此处只做识别）。</summary>
-        public static bool IsChargeEffect(CardEffectData fx)
-        {
-            if (fx == null) return false;
-            if (ContainsChargeEntry(fx.AtomicEffects)) return true;
-            return StepsContainCharge(fx.Steps);
-        }
-
-        private static bool ContainsChargeEntry(List<AtomicEffectEntry> atoms)
-        {
-            if (atoms == null) return false;
-            foreach (var a in atoms)
-                if (a != null && IsChargeRow(Attribute.AtomicEffectTable.GetByHashId(a.refId))) return true;
-            return false;
-        }
-
-        private static bool StepsContainCharge(List<EffectStepData> steps)
-        {
-            if (steps == null) return false;
-            foreach (var s in steps)
-            {
-                if (s == null) continue;
-                if (IsChargeRow(Attribute.AtomicEffectTable.GetByHashId(s.atomic?.refId))) return true;
-                if (ContainsChargeEntry(s.thenSteps) || ContainsChargeEntry(s.elseSteps)) return true;
-                if (s.choices == null) continue;
-                foreach (var c in s.choices)
-                    if (StepsContainCharge(c?.steps)) return true;
-            }
-            return false;
-        }
-
-        /// <summary>运行时效果定义是否充能效果（主序列含 Charge 原子——转换后形态；枚举/AI/引擎闸共用）。</summary>
-        public static bool IsChargeEffect(EffectDefinition def)
-        {
-            if (def == null) return false;
-            if (def.Effects != null)
-                foreach (var a in def.Effects)
-                    if (a != null && IsChargeAtom(a.Type)) return true;
-            if (def.Steps != null)
-                foreach (var s in def.Steps)
-                    if (s?.Atomic != null && IsChargeAtom(s.Atomic.Type)) return true;
-            return false;
-        }
-
-        /// <summary>卡是否有充能效果（卡面定义扫描——UI 入口闸/AI 枚举共用；生物/法术/结界全类别）。</summary>
-        public static bool HasChargeEffect(CardData data)
-        {
-            if (data?.Effects == null) return false;
-            foreach (var fx in data.Effects)
-                if (IsChargeEffect(fx)) return true;
-            return false;
-        }
+        // ========================================（充能识别族已删 2026-11-05） ========================================
+        // IsChargeAtom/IsChargeRow/IsChargeEffect/HasChargeEffect 整族随「充能系统动作化」改版删除：
+        // 充能不再是卡上原子效果（原子表行 16073886、ChargeHandler、转换器形态契约同批退役），
+        // 改为任意手牌卡可宣的速度0系统动作（GameActions.DeclareCharge → 结算期反问元素类别）。
 
         /// <summary>关键词型 Grant 判定（2026-10-02 定案；2026-11-02 两通道修复）：Grant 行且**该行**
         /// 目标域恰为 {Self}（纯自指）。关键词型原子 = 关键词的挂载形态（卡面印刷/登场/触发式如

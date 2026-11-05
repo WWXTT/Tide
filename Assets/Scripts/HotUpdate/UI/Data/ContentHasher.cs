@@ -17,7 +17,8 @@ namespace SynergyUI
     {
         /// <summary>
         /// 效果内容哈希（2026-09-16 三层推导链定案）：**文本描述为基底**（header.DisplayName，
-        /// 与原子表 ID=sha256(DisplayName) 同口径）+ 附加参数（时点/激活/编排/代价/steps 原子引用）。
+        /// 与原子表 `TextHash` 同口径——注意 2026-11-05 起原子表 **ID 已冻结**，TextHash 只是查重/漂移检测列，
+        /// 不再是身份来源）+ 附加参数（时点/激活/编排/代价/steps 原子引用）。
         /// Description 是动态渲染文案不作身份；graph.name 是展示别名不参与。
         /// </summary>
         public static string HashEffect(EffectGraphData graph)

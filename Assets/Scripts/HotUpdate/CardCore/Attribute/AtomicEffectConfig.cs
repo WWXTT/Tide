@@ -106,7 +106,8 @@ namespace CardCore.Attribute
 
         /// <summary>特殊声明（2026-10-31 阶段B 表「特殊」列）：文案没说、但引擎实际这么做的规则
         ///（中文短句）——纯展示层追加（AtomText.RenderCore 单点，合成器效果描述/卡面 tooltip 共用），
-        /// 不改 DisplayName 模板、不改行 ID（ID=sha256(DisplayName)，动模板=全链换号）。</summary>
+        /// 不改 DisplayName 模板、不改行 ID。**2026-11-05 起 ID 冻结**，可随意改模板：ID 不再随文本漂移，
+        /// 文本哈希退为 TextHash 列只做查重/漂移检测（见 Config/atom_id_ledger.py）。</summary>
         public string Special;
 
         /// <summary>实例级字符串参数声明（2026-10-31 阶段B 表「参数」列）：本行实例需要什么 str。

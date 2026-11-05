@@ -306,6 +306,15 @@ namespace CardCore
                     return new Line($"{Who(res.Declarer, isSelf)}的预言揭晓：{verdict}", "log-line--effect");
                 }
 
+                // ==== 充能（2026-11-05 系统动作化：速度0系统动作，结算期反问选色、免费落层） ====
+                case CardChargedEvent chg:
+                {
+                    string cid = CounterRules.CostDownCounterFor(chg.Color);
+                    string cname = cid != null ? CounterRules.Find(cid).DisplayName : "费用降低";
+                    return new Line($"{Who(chg.Player, isSelf)}为【{Name(chg.Card)}】充能{ManaZh(chg.Color)}"
+                                    + $"（{cname} {chg.PaidOnColor} 层）", "log-line--effect");
+                }
+
                 // ==== 指示物落定 ====
                 case CounterChangedEvent ctr:
                 {

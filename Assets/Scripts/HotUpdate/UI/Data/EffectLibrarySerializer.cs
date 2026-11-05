@@ -63,7 +63,9 @@ namespace SynergyUI
             if (graph == null) return null;
             graph.header ??= new CardEffectData();
             graph.steps ??= new List<EffectStepData>();
-            graph.id = ContentHasher.HashEffect(graph);
+            // 2026-11-05 ID 冻结：已有 id 一律沿用（upsert 走原行）；只有新图才按内容指纹分配。
+            // 注意顺序——EffectIdsOf 已把冻结 id 写进 graph.id，这里再重算就会把它冲掉。
+            if (string.IsNullOrEmpty(graph.id)) graph.id = ContentHasher.HashEffect(graph);
             if (string.IsNullOrEmpty(graph.name)) graph.name = graph.id;
 
             string path = FilePathOf(tutorial, training);
@@ -104,8 +106,12 @@ namespace SynergyUI
             {
                 if (fx == null) continue;
                 var graph = new EffectGraphData(fx.DisplayName) { header = fx, steps = fx.Steps ?? new List<EffectStepData>() };
-                graph.id = ContentHasher.HashEffect(graph);
-                if (EffectsLibrary.Get(graph.id) == null) Save(graph, tutorial);
+                // ID 冻结（2026-11-05）：已有 id 沿用，只有新效果才按内容指纹分配。
+                // 内容变了也不再换号——改为更新同一行（旧行 hash 与现值不等即视为内容变更）。
+                string contentHash = ContentHasher.HashEffect(graph);
+                graph.id = string.IsNullOrEmpty(fx.Id) ? contentHash : fx.Id;
+                var existing = EffectsLibrary.Get(graph.id);
+                if (existing == null || existing.hash != contentHash) Save(graph, tutorial);
                 ids.Add(graph.id);
             }
             return ids;
@@ -119,8 +125,10 @@ namespace SynergyUI
             {
                 if (fx == null) continue;
                 var graph = new EffectGraphData(fx.DisplayName) { header = fx, steps = fx.Steps ?? new List<EffectStepData>() };
-                graph.id = ContentHasher.HashEffect(graph);
-                if (EffectsLibrary.Get(graph.id) == null) Save(graph, tutorial);
+                string contentHash = ContentHasher.HashEffect(graph);
+                graph.id = string.IsNullOrEmpty(fx.Id) ? contentHash : fx.Id; // 2026-11-05 ID 冻结：已有 id 沿用
+                var existing = EffectsLibrary.Get(graph.id);
+                if (existing == null || existing.hash != contentHash) Save(graph, tutorial);
             }
         }
 
@@ -142,6 +150,7 @@ namespace SynergyUI
             var dto = new EffectSlimDto
             {
                 id = graph.id,
+                hash = ContentHasher.HashEffect(graph), // 内容指纹（2026-11-05 ID 冻结配套）
                 name = graph.name,
                 timing = h.TriggerTiming,
                 activation = h.ActivationType,

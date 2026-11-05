@@ -3,6 +3,7 @@
     {
       "id": "7ABD0919",
       "name": "训练·冻结单体",
+      "hash": "7ABD0919",
       "timing": 19,
       "activation": 2,
       "selection": 0,
@@ -29,6 +30,7 @@
     {
       "id": "206D1B2C",
       "name": "训练·单体圣盾",
+      "hash": "206D1B2C",
       "timing": 19,
       "activation": 2,
       "selection": 0,
@@ -55,6 +57,7 @@
     {
       "id": "B76D311A",
       "name": "训练·单体复生",
+      "hash": "B76D311A",
       "timing": 19,
       "activation": 2,
       "selection": 0,
@@ -81,6 +84,7 @@
     {
       "id": "733E37EC",
       "name": "训练·单体双护甲",
+      "hash": "733E37EC",
       "timing": 19,
       "activation": 2,
       "selection": 0,
@@ -108,6 +112,7 @@
     {
       "id": "C307B3C6",
       "name": "训练·沉睡压制",
+      "hash": "C307B3C6",
       "timing": 19,
       "activation": 2,
       "selection": 0,
@@ -135,6 +140,7 @@
     {
       "id": "961A7D88",
       "name": "训练·失效封锁",
+      "hash": "961A7D88",
       "timing": 19,
       "activation": 2,
       "selection": 0,
@@ -161,6 +167,7 @@
     {
       "id": "BD1C0123",
       "name": "训练·潜行遮蔽",
+      "hash": "BD1C0123",
       "timing": 19,
       "activation": 2,
       "selection": 0,
@@ -187,6 +194,7 @@
     {
       "id": "F134FCD2",
       "name": "训练·毒素浸染",
+      "hash": "F134FCD2",
       "timing": 19,
       "activation": 2,
       "selection": 0,
@@ -214,6 +222,7 @@
     {
       "id": "9D4C9867",
       "name": "训练·全场冻结",
+      "hash": "9D4C9867",
       "selection": 2,
       "cost": [
         0.0,
@@ -237,6 +246,7 @@
     {
       "id": "1944C079",
       "name": "训练·亡语圣盾",
+      "hash": "1944C079",
       "timing": 1,
       "selection": 0,
       "count": 1,
@@ -262,6 +272,7 @@
     {
       "id": "15EA53B2",
       "name": "训练·单体直击",
+      "hash": "15EA53B2",
       "timing": 19,
       "activation": 2,
       "selection": 0,
@@ -289,6 +300,7 @@
     {
       "id": "5691211B",
       "name": "训练·双点散射",
+      "hash": "5691211B",
       "timing": 19,
       "activation": 2,
       "selection": 1,
@@ -313,29 +325,9 @@
       ]
     },
     {
-      "id": "9EA89BAD",
-      "name": "训练·全体轰击",
-      "timing": 19,
-      "activation": 2,
-      "cost": [
-        0.0,
-        3.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "28c0c99c"
-          }
-        }
-      ]
-    },
-    {
       "id": "39F09104",
       "name": "训练·随机狙击",
+      "hash": "39F09104",
       "timing": 19,
       "activation": 2,
       "selection": 0,
@@ -364,6 +356,7 @@
     {
       "id": "C8B66363",
       "name": "训练·滤抽",
+      "hash": "C8B66363",
       "timing": 19,
       "activation": 2,
       "cost": [
@@ -386,6 +379,7 @@
     {
       "id": "D5A11E90",
       "name": "训练·锁手",
+      "hash": "D5A11E90",
       "timing": 19,
       "activation": 2,
       "cost": [
@@ -411,6 +405,7 @@
     {
       "id": "143C726B",
       "name": "训练·双抽",
+      "hash": "143C726B",
       "timing": 19,
       "activation": 2,
       "cost": [
@@ -433,6 +428,7 @@
     {
       "id": "C8DF9729",
       "name": "训练·瞬刺",
+      "hash": "C8DF9729",
       "timing": 20,
       "activation": 2,
       "selection": 0,
@@ -459,6 +455,7 @@
     {
       "id": "055C9CBF",
       "name": "训练·瞬盾",
+      "hash": "055C9CBF",
       "timing": 20,
       "activation": 2,
       "selection": 0,
@@ -485,6 +482,7 @@
     {
       "id": "C0FEFE91",
       "name": "训练·反打",
+      "hash": "C0FEFE91",
       "timing": 21,
       "activation": 2,
       "selection": 0,
@@ -512,6 +510,7 @@
     {
       "id": "D96F4E48",
       "name": "训练·冰封响应",
+      "hash": "D96F4E48",
       "timing": 21,
       "activation": 2,
       "selection": 0,
@@ -538,12 +537,13 @@
     {
       "id": "0AC7FD76",
       "name": "训练·夜汲",
+      "hash": "0AC7FD76",
       "timing": 6,
       "activation": 1,
       "cost": [
         0.0,
         0.0,
-        3.0,
+        2.0,
         0.0,
         0.0
       ],
@@ -559,11 +559,12 @@
     {
       "id": "9ECB3259",
       "name": "训练·夜袭",
+      "hash": "9ECB3259",
       "timing": 6,
       "activation": 1,
       "cost": [
         0.0,
-        1.5,
+        1.0,
         0.0,
         0.0,
         0.0
@@ -584,6 +585,7 @@
     {
       "id": "EF907DC7",
       "name": "训练·窥探",
+      "hash": "EF907DC7",
       "timing": 19,
       "activation": 2,
       "cost": [
@@ -606,6 +608,7 @@
     {
       "id": "CA0D26C4",
       "name": "训练·深窥",
+      "hash": "CA0D26C4",
       "timing": 19,
       "activation": 2,
       "cost": [
@@ -628,6 +631,7 @@
     {
       "id": "0064968F",
       "name": "训练·侦测",
+      "hash": "0064968F",
       "timing": 19,
       "activation": 2,
       "cost": [
@@ -650,6 +654,7 @@
     {
       "id": "8367F795",
       "name": "训练·三相仪典",
+      "hash": "8367F795",
       "cost": [
         9.0,
         0.0,
@@ -670,6 +675,7 @@
     {
       "id": "062DE283",
       "name": "训练·归土仪典",
+      "hash": "062DE283",
       "cost": [
         6.0,
         0.0,
@@ -690,6 +696,7 @@
     {
       "id": "8A63D4C1",
       "name": "训练·纳川仪典",
+      "hash": "8A63D4C1",
       "cost": [
         2.0,
         0.0,
@@ -710,6 +717,7 @@
     {
       "id": "D0741313",
       "name": "训练·铭刻仪典",
+      "hash": "D0741313",
       "cost": [
         6.0,
         0.0,
@@ -730,6 +738,7 @@
     {
       "id": "6F0FF12D",
       "name": "训练·灵视仪典",
+      "hash": "6F0FF12D",
       "cost": [
         6.0,
         0.0,
@@ -751,6 +760,7 @@
     {
       "id": "F137EFA8",
       "name": "训练·催征",
+      "hash": "F137EFA8",
       "cost": [
         0.0,
         0.0,
@@ -770,6 +780,7 @@
     {
       "id": "C563C386",
       "name": "训练·血偿",
+      "hash": "C563C386",
       "timing": 19,
       "activation": 2,
       "selection": 0,
@@ -812,6 +823,7 @@
     {
       "id": "858C5BF6",
       "name": "训练·三连击",
+      "hash": "858C5BF6",
       "timing": 19,
       "activation": 2,
       "selection": 0,
@@ -839,6 +851,7 @@
     {
       "id": "24BDB1EE",
       "name": "训练·磨牌",
+      "hash": "24BDB1EE",
       "timing": 19,
       "activation": 2,
       "cost": [
@@ -864,6 +877,7 @@
     {
       "id": "5F98CD72",
       "name": "训练·倒计时汲牌",
+      "hash": "5F98CD72",
       "steps": [
         {
           "kind": 0,
@@ -887,6 +901,7 @@
     {
       "id": "EDC375CA",
       "name": "训练·倒计时圣盾",
+      "hash": "EDC375CA",
       "steps": [
         {
           "kind": 0,
@@ -912,6 +927,7 @@
     {
       "id": "D08B6731",
       "name": "训练·运势重锤",
+      "hash": "D08B6731",
       "timing": 19,
       "activation": 2,
       "limit": 1,
@@ -943,57 +959,9 @@
       ]
     },
     {
-      "id": "C0CB1637",
-      "name": "训练·拼点冲刺",
-      "limit": 1,
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "2beb3a21",
-            "branch": {
-              "settle": 3,
-              "engine": 3,
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "value": 4,
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "EFA5FDAE",
-      "name": "训练·死亡清算",
-      "limit": 1,
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "d1ddfd78",
-            "branch": {
-              "settle": 3,
-              "engine": 4,
-              "engineParam": 4,
-              "then": [
-                {
-                  "refId": "28c0c99c"
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
       "id": "46239714",
       "name": "训练·充盈回响",
+      "hash": "46239714",
       "limit": 1,
       "steps": [
         {
@@ -1016,6 +984,7 @@
     {
       "id": "293ECF43",
       "name": "训练·同心一击",
+      "hash": "293ECF43",
       "limit": 1,
       "steps": [
         {
@@ -1043,6 +1012,7 @@
     {
       "id": "AFCD7A37",
       "name": "训练·诅咒烙印",
+      "hash": "AFCD7A37",
       "timing": 19,
       "activation": 2,
       "cost": [
@@ -1079,6 +1049,7 @@
     {
       "id": "501BF5EC",
       "name": "训练·祝福之泉",
+      "hash": "501BF5EC",
       "timing": 19,
       "activation": 2,
       "cost": [
@@ -1115,6 +1086,7 @@
     {
       "id": "1632B175",
       "name": "训练·检索",
+      "hash": "1632B175",
       "timing": 19,
       "activation": 2,
       "cost": [
@@ -1137,6 +1109,7 @@
     {
       "id": "AB268E33",
       "name": "训练·苏生",
+      "hash": "AB268E33",
       "timing": 19,
       "activation": 2,
       "cost": [
@@ -1161,6 +1134,7 @@
     {
       "id": "CB406A7D",
       "name": "训练·放逐",
+      "hash": "CB406A7D",
       "timing": 19,
       "activation": 2,
       "selection": 0,
@@ -1187,6 +1161,7 @@
     {
       "id": "DB92D1F5",
       "name": "训练·沉睡诅咒",
+      "hash": "DB92D1F5",
       "activation": 1,
       "cost": [
         0.0,
@@ -1211,6 +1186,7 @@
     {
       "id": "35628BEB",
       "name": "封印一个对方单位",
+      "hash": "35628BEB",
       "timing": 19,
       "activation": 2,
       "selection": 0,

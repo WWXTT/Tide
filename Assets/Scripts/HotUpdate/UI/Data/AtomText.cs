@@ -346,11 +346,7 @@ namespace SynergyUI
         {
             if (h.ActivationType == (int)EffectActivationType.Voluntary)
             {
-                // 充能（P12 2026-10-31；2026-11-02 对手回合档）：卡面主档=己方回合恒 0 速
-                //（ActivateCharge 强制）——不吃法术卡型提速，防显示成「发动速度2/1」；
-                // 对手回合响应窗按整卡施放速度接链（速≥1 法术），为时机属性不上卡面
-                if (ComposerCatalog.IsChargeEffect(h))
-                    return "发动速度0，";
+                //（P12 充能 0 速前缀分支已随 2026-11-05 充能系统动作化改版删除——充能不再是卡上效果。）
                 return $"发动速度{h.BaseSpeed + (owner != null ? CardCompositionCost.KindSpeedBonusOf(owner) : 0)}，";
             }
             return TimingZh.TryGetValue((TriggerTiming)h.TriggerTiming, out var zh) ? zh + "，" : "";

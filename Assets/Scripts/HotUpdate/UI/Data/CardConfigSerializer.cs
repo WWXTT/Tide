@@ -44,8 +44,9 @@ namespace SynergyUI
 
         /// <summary>
         /// 把一张卡写入目标卡表（按 id 去重更新，不存在则追加）。返回写入的完整路径。
-        /// replaceId（2026-09-24 覆盖替换定案）：编辑旧卡保存时传旧 ID——内容哈希机制下内容变则
-        /// ID 必变、无法原地覆盖，落盘新卡后删除旧条目（调用方负责先检查卡组引用）。
+        /// **2026-11-05 ID 冻结后**：内容是可变数据、id 是稳定身份——编辑旧卡保存时若 card.ID 已带上，
+        /// 一律原地覆盖同一行（不再「内容变则换号」）；replaceId 分支只剩兼容旧调用方，
+        /// 传给它的旧 id 与新 id 相同时是无操作。
         /// </summary>
         public static string Save(CardData card, string fileRelative = null, string replaceId = null)
             => SaveTo(card, CardTable.Main, replaceId);
@@ -80,7 +81,16 @@ namespace SynergyUI
 
             var entry = ToEntry(card, table);
 
-            // 按功能内容哈希去重：相同功能内容（id 相同）替换，不重复追加。
+            // 内容重复告警（2026-11-05 ID 冻结配套）：旧口径下「同内容 = 同 id」会自动合并成一张；
+            // 冻结后 id 与内容解耦，同样的内容可能出现两条不同 id——这里只告警不合并：合并是设计决策，
+            // 静默吞掉作者/玩家的第二次创建更糟。
+            var clash = wrapper.cards.Find(c => c != null && c.id != entry.id
+                                                && !string.IsNullOrEmpty(c.hash) && c.hash == entry.hash);
+            if (clash != null)
+                Debug.LogWarning($"[CardConfigSerializer] 内容重复：{entry.cardName}({entry.id}) 与 " +
+                                 $"{clash.cardName}({clash.id}) 内容指纹相同（{entry.hash}）——冻结口径下不会自动合并");
+
+            // 按 id 去重更新：同 id 覆盖，不重复追加。
             int existing = wrapper.cards.FindIndex(c => c != null && c.id == entry.id);
             if (existing >= 0)
             {
@@ -167,7 +177,11 @@ namespace SynergyUI
 
             var entry = new CardConfigEntry
             {
-                id = "C_" + ContentHasher.HashCard(card),
+                // ID 冻结（2026-11-05）：已有 ID 一律沿用（它是卡组存档/回放/训练标签的引用键）；
+                // 只有新建卡（ID 为空）才按内容指纹分配。内容指纹另存 hash 列，供去重与漂移检测——
+                // 改卡名/身材不再换号，玩家卡组不会被平衡补丁打断。
+                id = string.IsNullOrEmpty(card.ID) ? "C_" + ContentHasher.HashCard(card) : card.ID,
+                hash = ContentHasher.HashCard(card),
                 cardName = card.CardName ?? "",
                 supertype = card.Supertype.ToString(),
                 illustration = card.Illustration ?? "",

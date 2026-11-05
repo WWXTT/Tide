@@ -514,12 +514,13 @@ namespace CardCore.Attribute.Handlers
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.BurstDamage;
 
-        /// <summary>受害者候选域（**第二段目标域=行 Domain 单源**，2026-11-05 硬切 B2：
-        /// 活体炸弹行 Domain='对方战场:生物; 对方角色'；用户改版——第一段参照由外层 kinds 路径选，
-        /// 本段读行 Domain 解析候选，不再手写 kinds。帷幕收窄+潜行隐藏两道过滤同标准弹选口径）。</summary>
-        private static List<Entity> VictimCandidates(EffectExecutionContext context, AtomicEffectInstance effect)
+        /// <summary>受害者候选域（**第二段=代码常量**，2026-11-05 收口回退：表行 Domain 回到第一段
+        /// 参照域（己方战场:生物）——第二段不再读行 Domain，恢复硬编码 TargetKind.EnemyLivingUnit
+        ///（对方生物+对方角色）。帷幕收窄+潜行隐藏两道过滤同标准弹选口径）。</summary>
+        private static List<Entity> VictimCandidates(EffectExecutionContext context)
         {
-            return WrapSelectable(ResolveRowDomainCandidates(effect, context), context);
+            var kinds = new List<int> { (int)TargetKind.EnemyLivingUnit };
+            return WrapSelectable(EffectHandlerRegistry.ResolveCandidates(kinds, "", context), context);
         }
 
         /// <summary>弹选口径两道过滤（帷幕收窄+潜行隐藏——参照族第二段共用）。</summary>
@@ -527,21 +528,10 @@ namespace CardCore.Attribute.Handlers
             => TargetResolver.ExcludeUnselectable(
                 TargetResolver.ApplyTauntRestriction(candidates, context, false), context.Controller);
 
-        /// <summary>按行 Domain（新语法）解析候选（参照族第二段共用；行缺失/非新语法=空集）。</summary>
-        internal static List<Entity> ResolveRowDomainCandidates(AtomicEffectInstance effect, EffectExecutionContext context)
-        {
-            var row = Attribute.AtomicEffectTable.GetByHashId(effect.RowHashId)
-                      ?? Attribute.AtomicEffectTable.GetByType(effect.Type);
-            if (row == null || !TargetAxisRules.TryParseDomain(row.Domain, out var axis))
-                return new List<Entity>();
-            axis.Filter = row.TargetFilter ?? "";
-            return TargetAxisResolver.GetCandidates(axis, context);
-        }
-
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
             // 同步路径（触发式/headless 兜底）：受害者自动取首候选（与无头 Service 代选同结果）
-            Resolve(effect, context, VictimCandidates(context, effect).FirstOrDefault());
+            Resolve(effect, context, VictimCandidates(context).FirstOrDefault());
         }
 
         public override async UniTask ExecuteAsync(AtomicEffectInstance effect, EffectExecutionContext context)
@@ -549,7 +539,7 @@ namespace CardCore.Attribute.Handlers
             var reference = context.PrimaryTarget;
             if (reference == null || !reference.IsAlive) return;
 
-            var candidates = VictimCandidates(context, effect);
+            var candidates = VictimCandidates(context);
             if (candidates.Count == 0) return; // 受害者域空=空转
 
             Entity victim = candidates[0];
@@ -610,15 +600,19 @@ namespace CardCore.Attribute.Handlers
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.LivingArmor;
 
-        /// <summary>护甲落点候选域（**第二段目标域=行 Domain 单源**，2026-11-05 硬切 B2：
-        /// 活体护甲行 Domain='己方战场:生物; 己方角色'；两道过滤同标准弹选口径）。</summary>
-        private static List<Entity> ReceiverCandidates(EffectExecutionContext context, AtomicEffectInstance effect)
-            => BurstDamageHandler.WrapSelectable(BurstDamageHandler.ResolveRowDomainCandidates(effect, context), context);
+        /// <summary>护甲落点候选域（**第二段=代码常量**，2026-11-05 收口回退：表行 Domain 回到第一段
+        /// 参照域——第二段不再读行 Domain，恢复硬编码 TargetKind.OwnLivingUnit（己方生物+己方角色
+        ///——角色可受甲）。两道过滤同标准弹选口径）。</summary>
+        private static List<Entity> ReceiverCandidates(EffectExecutionContext context)
+        {
+            var kinds = new List<int> { (int)TargetKind.OwnLivingUnit };
+            return BurstDamageHandler.WrapSelectable(EffectHandlerRegistry.ResolveCandidates(kinds, "", context), context);
+        }
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
             // 同步路径（触发式/headless 兜底）：落点自动取首候选（与无头 Service 代选同结果）
-            Resolve(effect, context, ReceiverCandidates(context, effect).FirstOrDefault());
+            Resolve(effect, context, ReceiverCandidates(context).FirstOrDefault());
         }
 
         public override async UniTask ExecuteAsync(AtomicEffectInstance effect, EffectExecutionContext context)
@@ -626,7 +620,7 @@ namespace CardCore.Attribute.Handlers
             var reference = context.PrimaryTarget;
             if (reference == null || !reference.IsAlive) return;
 
-            var candidates = ReceiverCandidates(context, effect);
+            var candidates = ReceiverCandidates(context);
             if (candidates.Count == 0) return; // 落点域空=空转
 
             Entity receiver = candidates[0];
