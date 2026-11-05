@@ -230,7 +230,8 @@ namespace CardCore.Attribute.Handlers
             if (string.IsNullOrEmpty(declared)) return; // 未预置宣言名：不检索
 
             var deck = context.ZoneManager.GetCards(context.Controller, Zone.Deck).ToList();
-            var found = deck.FirstOrDefault(c => MatchesDeclaration(c, declared));
+            // 牌库顶锁（S3b 收口 2026-11-05）：施放中的卡不可被检索拿走
+            var found = deck.FirstOrDefault(c => !ZoneManagerExtensions.IsDeckLocked(c) && MatchesDeclaration(c, declared));
             if (found == null)
             {
                 context.LastOutcome.DeclareHit = false;

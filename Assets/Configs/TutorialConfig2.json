@@ -100,7 +100,7 @@
           "lands": [],
           "units": [
             {
-              "card": "C_98F6E41B",
+              "card": "C_FFDF953C",
               "x": 1,
               "z": 2
             }
@@ -211,7 +211,7 @@
         },
         {
           "type": "attack",
-          "attacker": "C_5707BF50",
+          "attacker": "C_CD77F233",
           "target": "hero",
           "hint": "用【教学·10】攻击对方角色——宣言的瞬间，拼点结算"
         },
@@ -515,7 +515,7 @@
             "lands": [],
             "units": [
               {
-                "card": "C_5707BF50",
+                "card": "C_CD77F233",
                 "x": 1,
                 "z": 2
               }

@@ -312,6 +312,11 @@ namespace CardCore
             var hand = ZoneManager.GetCards(player, Zone.Hand);
             if (hand == null) return;
 
+            // S3b 全域剔除：施放中的卡留手牌但不占手牌上限（不可被上限弃牌指到——IsPendingCast 单口）
+            var stack = StackEngine;
+            if (stack != null)
+                hand = hand.Where(c => !(c is Card hc && stack.IsPendingCast(hc))).ToList();
+
             // 手牌上限：规则扩展点（OCP）修改链（基值 7）
             int limit = RuleHooks.GetHandLimit(player);
             int over = hand.Count - limit;

@@ -265,6 +265,8 @@ namespace SynergyUI
             if (core.TurnEngine.TurnPlayer != me
                 || core.TurnEngine.CurrentPhase?.Phase != PhaseType.Main) return;
             var hand = core.ZoneManager.GetCards(me, Zone.Hand) ?? new List<Card>();
+            // S3b：剔施放中的卡（不可二次声明/不可弃）
+            hand = hand.Where(c => !core.StackEngine.IsPendingCast(c)).ToList();
             foreach (var card in hand)
             {
                 var data = (card as CardWrapper)?.GetData();
@@ -287,6 +289,7 @@ namespace SynergyUI
         private void PlayLands(GameCore core, Player me)
         {
             var lands = (core.ZoneManager.GetCards(me, Zone.Hand) ?? new List<Card>())
+                .Where(c => !core.StackEngine.IsPendingCast(c)) // S3b：剔施放中的卡
                 .Where(ElementPoolSystem.CanServeAsLand)
                 .ToList();
             // 打不出的卡按策略地牌优先级排序（红：血偿等直伤打不出去时直接当地占坑；
@@ -379,6 +382,8 @@ namespace SynergyUI
         private async Cysharp.Threading.Tasks.UniTask<bool> PlayBestAffordableCardAsync(GameCore core, Player me)
         {
             var hand = core.ZoneManager.GetCards(me, Zone.Hand) ?? new List<Card>();
+            // S3b：剔施放中的卡（不可二次声明/不可弃）
+            hand = hand.Where(c => !core.StackEngine.IsPendingCast(c)).ToList();
             var ordered = hand
                 .Where(c => CanPlayCard(core, me, c, Zone.Hand))
                 .Where(c => !_strategy.ShouldHold(core, me, c)) // 攒牌闸（2026-10-31 红快攻斩杀线）：刻意留手

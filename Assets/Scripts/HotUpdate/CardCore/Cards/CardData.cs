@@ -319,7 +319,8 @@ namespace CardCore
         public int SpeedBonus { get => _speedBonus; set => _speedBonus = value; }
 
         // SurplusToDurability 已删（2026-10-15 拆分定案）：结界二选一退役——
-        // 免费点固定拆「速1+其余入耐久」（CardCompositionCost.DurabilityBonusOf/EnchantSpeedBonusOf）。
+        // 免费点今折免费耐久底抵卡价（2026-11-04 碑族0费改版：CardCompositionCost.FreeDurabilityBaseOf，
+        // 旧「速1+其余入耐久」的 DurabilityBonusOf/EnchantSpeedBonusOf 均退役）。
 
         /// <summary>
         /// 总费用计算
@@ -491,6 +492,9 @@ namespace CardCore
         public string str;            // 字符串参数（token 模板 ID、关键词 id、宣言卡名）
         public float amp;             // 数值随机幅度 0..1（0=off；span=round(|value|×amp)）
         public List<int> kinds;       // 实例域收窄（TargetKind 序号；null=表行默认域）
+        public string domain;         // 域词表声明（2026-11-04 P0-1）：单中文 token（EffectDomain 词表 28 token）；
+                                      // null=未声明走 kinds 旧口径。非空时优先于 kinds 与表行 TargetKinds
+                                      //（converter 双读第一优先级）；不在表行 Domain 允许集内=告警但生效（迁移期排错）
         public int count = -2;        // 每原子目标数量（2026-10-09：档 1/2/3；-2=未声明回落效果级 TargetCount）
         public int rand = -1;         // 每原子目标随机（2026-10-09：1=随机抽不弹窗/0=弹窗；-1=未声明回落效果级 RandomTarget）
         public int defer;             // 每原子目标选择方式（2026-10-20：0=发动前预选=默认/1=效果处理时选——结算期必须选不可取消）

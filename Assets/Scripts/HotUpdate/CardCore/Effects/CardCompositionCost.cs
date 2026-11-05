@@ -20,7 +20,9 @@ namespace CardCore
  ///   发动=现付所选效果锚价（cast 结算步并入账单），无额外费用。
  ///   效果发动速度=卡的发动速度（法术专享通道）；从手牌打出即按此速度过门（GetCardCastSpeed）。
  /// · 结界禁主动效果（只挂自动/光环）：速度通道退役（EnchantSpeedBonusOf 删除），
- ///   免费点全投耐久（DurabilityBonusOf=剩余）；耐久=受击/被动触发次数池（主动−1 通道退役）。
+ ///   免费点折免费耐久底（FreeDurabilityBaseOf=剩余÷耐久单价；2026-11-04 碑族0费改版——
+ ///   旧「入场+N 堆叠」（DurabilityBonusOf）退役：碑按印刷耐久入场，底内免卡价）；
+ ///   耐久=受击/被动触发次数池（主动−1 通道退役）。
  /// · 生物 = 攻击 1 + 守卫 1 + 每个效果槽 1——**结构项>3 的差额入灰**（2026-10-22 最终定案）：
  ///   纯白板（攻+守=2 项）盈余 1 点 → +1/+1 属性；攻/守 opt-out 各释放 1 点（NoGuard 红套 = 攻 1 项，
  ///   盈余 2 点 → +2/+2 属性）；3 效果+攻+守=5 项 → 2 灰槽位费。
@@ -31,7 +33,9 @@ namespace CardCore
  ///   非生物 = 效果槽 ×CountEffectSlots（抉择分支计槽 2026-09-21 维持；主动照常计槽；
  ///   代价行不计槽——2026-11-02 减费三选一改版：代价不再占 1 灰槽位费）。
  /// ②免费点 N = 3 − 结构项（≥0），按卡型固定去向：法术 → 提速（N=槽数余量，槽位从速度扣）；
- ///   结界 → 全入耐久（EquipRules 落位，免卡价）；地牌/其余 → 全额抵价（ReduceBuckets 先灰后最高色）；
+ ///   结界 → 折免费耐久底（⌊N÷DurabilityUnitCost⌋，计价侧免除、入场耐久=印刷值下限1——
+ ///   2026-11-04 碑族0费改版，取代旧「全入耐久=入场+N」）；
+ ///   地牌/其余 → 全额抵价（ReduceBuckets 先灰后最高色）；
  ///   生物 → **免费属性底 n/n**（2026-11-03 底盘分配改版）：预算优先占坑 攻1+守1+**首个效果槽**，
  ///   剩余 n=3−(攻+守+首槽) 落成攻/血各 n 点的免费底——计价侧（StatBucketsOf/ComputeStatValue）
  ///   直接免除前 n 点，超出部分按颜色收费（攻红/血绿，真实小数 0.5/点不参与整卡取整，支付侧逐色进 1）。
@@ -46,8 +50,8 @@ namespace CardCore
     ///   结构费全额计（攻/守/槽全算）、无免费点可支配——见 CostDerivation SummonToken 分支。
     ///
     /// 应用点：CardCostService.Derive/DeriveModeCosts 统一附加；
-    /// 运行时消费口：GameActions（法术提速）/ EffectExecutionEngine（结界发动费抵扣）/
-    /// EquipRules·HeroSkillSystem（结界耐久 +N）。
+    /// 运行时消费口：GameActions（法术提速）/ EquipRules·MorphSystem（结界入场耐久=
+    /// 印刷值·TotalDurabilityOf 单源）/ CardCostService（免费耐久底·FreeDurabilityBaseOf）。
     /// 参数见 ValueSystemRuntimeConfig.CardCompositionConfig（表 Category=CardComposition）。
     /// </summary>
     public static class CardCompositionCost
@@ -84,7 +88,7 @@ namespace CardCore
 
         /// <summary>
         /// 免费点 N（恒 ≥0）：3 点额度被结构项占用后的盈余，按卡型固定去向（类头②）——
-        /// 法术=提速+差额抵价 / 结界=速1+其余入耐久 / 生物=全额减灰桶 S / 地牌=全额抵价。
+        /// 法术=提速 / 结界=折免费耐久底（FreeDurabilityBaseOf）/ 生物=免费属性底（FreeAttrBaseOf）/ 地牌=全额抵价。
         /// </summary>
         public static int SurplusOf(CardData card)
         {
@@ -95,7 +99,7 @@ namespace CardCore
         }
 
         /// <summary>计价侧抵价点数（ApplyChassis 消费·ReduceBuckets 先灰后最高色）：结界/生物/法术 = 0
-        ///（结界走耐久、生物走灰桶专属抵扣 StatOffsetOf、法术免费点全投提速——槽位从速度扣无抵价余量）；
+        ///（结界走免费耐久底、生物走免费属性底、法术走提速——均已在各自计价口内免除，无剩余抵价）；
         /// 地牌/其余 = N。</summary>
         public static int PriceOffsetOf(CardData card)
         {
@@ -142,24 +146,28 @@ namespace CardCore
             return 0;
         }
 
-        /// <summary>结界入场耐久加成点数（EquipRules/MorphSystem 初始化消费；
-        /// 2026-10-15 深夜改版：结界禁主动效果——速度通道退役，免费点全投耐久）。
-        /// 2026-10-17 用户定案：结界一律走耐久经济（归零送墓）——不再要求印刷 Durability&gt;0
-        /// 才可加（旧「持续型结界无次数池」口径作废——那是更早已废弃的带任务仪式设计）。</summary>
-        public static int DurabilityBonusOf(CardData card)
+        /// <summary>结界免费耐久底（2026-11-04 碑族0费改版）：免费点按耐久单价折算的免费耐久数
+        /// ⌊SurplusOf ÷ DurabilityUnitCost⌋——1 槽碑=免费点 2 → 底 4（印刷耐久 4 内免卡价，
+        /// 超出部分 0.5蓝/点计价）。耐久单价≤0（全局免费耐久）→ 底=印刷值全免。非结界恒 0。
+        /// 计价消费：CardCostService.ComputeStatValue / StatBucketsOf（applyFreeBase 口径同生物属性底）。
+        /// 取代旧「免费点全投耐久=入场+N 堆叠」（DurabilityBonusOf 同批退役）。</summary>
+        public static int FreeDurabilityBaseOf(CardData card)
         {
             if (card == null || card.Supertype != Cardtype.Enchantment) return 0;
-            return SurplusOf(card);
+            float unit = ValueSystemConfigManager.Instance.GetOrCreateConfig().CardCostConfig.DurabilityUnitCost;
+            if (unit <= 0f) return card.Durability;
+            return (int)Math.Floor(SurplusOf(card) / unit);
         }
 
         /// <summary>结界入场耐久总层数（单源，2026-10-17 定案：结界一律走耐久经济）：
-        /// 印刷耐久 + 免费点全投，下限 1（结界必有耐久池）；非结界返回印刷值（装备=纯数据驱动）。
+        /// 印刷耐久（下限 1——结界必有耐久池；2026-11-04 碑族0费改版：免费点改抵卡价，
+        /// 旧「印刷+免费点+N 堆叠」退役）；非结界返回印刷值（装备=纯数据驱动）。
         /// 消费：EquipRules/MorphSystem 入场初始化 + 各显示口（卡面耐久/头顶配色基准）。</summary>
         public static int TotalDurabilityOf(CardData card)
         {
             if (card == null) return 0;
             if (card.Supertype != Cardtype.Enchantment) return card.Durability;
-            return Math.Max(1, card.Durability + DurabilityBonusOf(card));
+            return Math.Max(1, card.Durability);
         }
 
         /// <summary>结构费全额（费率 × 结构项，**无预算抵扣**）——衍生物口径专用

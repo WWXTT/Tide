@@ -1,4 +1,4 @@
-﻿{
+{
   "cards": [
     {
       "id": "C_DA499FAE",
@@ -469,7 +469,7 @@
       ]
     },
     {
-      "id": "C_98F6E41B",
+      "id": "C_FFDF953C",
       "cardName": "教学·20",
       "supertype": "Creature",
       "illustration": "MukaMuka",
@@ -485,7 +485,7 @@
         "教学"
       ],
       "effectIds": [
-        "D656EEF5"
+        "03271DDF"
       ]
     },
     {
@@ -609,7 +609,7 @@
       ]
     },
     {
-      "id": "C_5707BF50",
+      "id": "C_CD77F233",
       "cardName": "教学·10",
       "supertype": "Creature",
       "illustration": "DragonessTheWickedKnight",
@@ -625,7 +625,7 @@
         "教学"
       ],
       "effectIds": [
-        "4B380BAD"
+        "AE2C3BF2"
       ]
     },
     {
@@ -929,7 +929,7 @@
       "costList": [
         0.0,
         0.0,
-        1.0,
+        0.0,
         0.0
       ],
       "tags": [
@@ -948,7 +948,7 @@
       "costList": [
         0.0,
         0.0,
-        1.0,
+        0.0,
         0.0
       ],
       "tags": [
@@ -967,7 +967,7 @@
       "costList": [
         0.0,
         0.0,
-        1.0,
+        0.0,
         0.0
       ],
       "tags": [
@@ -986,7 +986,7 @@
       "costList": [
         0.0,
         0.0,
-        1.0,
+        0.0,
         0.0
       ],
       "tags": [
@@ -1418,7 +1418,7 @@
       "noAttack": true
     },
     {
-      "id": "C_3F127CBB",
+      "id": "C_3D4C4EEB",
       "cardName": "活体护甲",
       "supertype": "Spell",
       "tags": [
@@ -1426,7 +1426,7 @@
         "教学"
       ],
       "effectIds": [
-        "DE7CE01D"
+        "AB77CDE8"
       ],
       "speedBonus": 2,
       "costList": [
@@ -1592,7 +1592,7 @@
       "costList": [
         0.0,
         0.0,
-        2.0,
+        0.0,
         0.0
       ],
       "tags": [
@@ -1611,7 +1611,7 @@
       "costList": [
         0.0,
         0.0,
-        2.0,
+        0.0,
         0.0
       ],
       "tags": [
@@ -1630,7 +1630,7 @@
       "costList": [
         0.0,
         0.0,
-        2.0,
+        0.0,
         0.0
       ],
       "tags": [
@@ -1649,7 +1649,7 @@
       "costList": [
         0.0,
         0.0,
-        2.0,
+        0.0,
         0.0
       ],
       "tags": [
@@ -1668,7 +1668,7 @@
       "costList": [
         0.0,
         0.0,
-        2.0,
+        0.0,
         0.0
       ],
       "tags": [
@@ -1926,13 +1926,13 @@
       ]
     },
     {
-      "id": "C_D820D589",
+      "id": "C_DF45065E",
       "cardName": "潮痕碑",
       "supertype": "Enchantment",
       "costList": [
         0.0,
         0.0,
-        2.0,
+        0.0,
         0.0
       ],
       "tags": [
@@ -1940,18 +1940,18 @@
         "教学"
       ],
       "effectIds": [
-        "69C458A8"
+        "1FB7E6DA"
       ],
       "durability": 4
     },
     {
-      "id": "C_675211C9",
+      "id": "C_2BD6EDE2",
       "cardName": "深潭碑",
       "supertype": "Enchantment",
       "costList": [
         0.0,
         0.0,
-        1.0,
+        0.0,
         0.0
       ],
       "tags": [
@@ -1959,7 +1959,7 @@
         "教学"
       ],
       "effectIds": [
-        "C51D0775"
+        "79655260"
       ],
       "durability": 4
     },
@@ -2036,13 +2036,13 @@
       ]
     },
     {
-      "id": "C_CBCE6D17",
+      "id": "C_8A2A1F78",
       "cardName": "回潮",
-      "supertype": "Enchantment",
+      "supertype": "Spell",
       "costList": [
         0.0,
         0.0,
-        4.0,
+        0.0,
         0.0
       ],
       "tags": [
@@ -2050,9 +2050,8 @@
         "教学"
       ],
       "effectIds": [
-        "63BC212E"
-      ],
-      "durability": 4
+        "6AAD18EB"
+      ]
     },
     {
       "id": "C_57BA44EC",
@@ -2234,7 +2233,7 @@
       ]
     },
     {
-      "id": "C_19E67F54",
+      "id": "C_51A8E9E0",
       "cardName": "活体炸弹",
       "supertype": "Spell",
       "tags": [
@@ -2242,7 +2241,7 @@
         "教学"
       ],
       "effectIds": [
-        "F800706B"
+        "94340261"
       ],
       "costList": [
         0.0,
@@ -2253,4 +2252,3 @@
     }
   ]
 }
-

@@ -537,12 +537,48 @@ namespace CardCore
                 return null;
             }
 
-            // 目标域：条目显式收窄 kinds ?? 表行默认域（解析为有效域存实例，运行时零查表）
-            List<int> kinds = entry.kinds != null && entry.kinds.Count > 0
+            // 目标域（**B2 2026-11-05 硬切：Domain 新语法唯一入口，旧 EffectDomain 词表已删**）：
+            // kinds = entry.kinds（实例显式收窄）?? 行 Domain 派生视图（GetTargetKindList——SideLock/
+            // 隐藏区等区级消费口用）；候选一律走 axis（下方产轴）。filter = 行 TargetFilter（属性 token）。
+            // entry.domain 旧词表 token（历史授予域数据）不再解析——数据保留仅为卡 ID 不换血（重导另任务）。
+            List<int> kinds;
+            string filter = config.TargetFilter ?? "";
+            kinds = entry.kinds != null && entry.kinds.Count > 0
                 ? new List<int>(entry.kinds)
                 : config.GetTargetKindList();
 
             float polarity = Math.Clamp(config.Polarity, -1f, 1f);
+
+            // 目标域产轴（**B2：行/实例 Domain 新语法唯一域源**；空 Domain = 无目标）：
+            // ① entry.domain 为新语法（实例级覆盖）优先；② 行 Domain → 产轴；
+            // entry.kinds 只做区域收窄（NarrowByKinds：Both 落单侧改写、无交删 selector、
+            // 角色 selector 只由行 Domain 提供）。FilterConflicts → 告警不产轴（防御口）。
+            TargetAxis axis = null;
+            string domainDecl = null;
+            if (TargetAxisRules.TryParseDomain(entry.domain, out _)) domainDecl = entry.domain;
+            else if (TargetAxisRules.TryParseDomain(config.Domain, out _)) domainDecl = config.Domain;
+            if (domainDecl != null)
+            {
+                TargetAxisRules.TryParseDomain(domainDecl, out var parsedAxis); // 已验证必成功
+                if (TargetAxisRules.FilterConflicts(filter))
+                {
+                    TideLog.Warn($"[CardEffectConverter] 原子 {type}（行 {entry.refId}）新语法 Domain='{domainDecl}'"
+                                 + $" 与 TargetFilter='{filter}' 含类别性 token 冲突（契约规则 5）"
+                                 + "——不产轴（表数据错误，B1 后应无）");
+                }
+                else
+                {
+                    parsedAxis.Filter = filter;
+                    var narrowed = TargetAxisRules.NarrowByKinds(parsedAxis, entry.kinds);
+                    // 收窄后空 selector（参照族形态：行 Domain=第二段目标域、entry.kinds=第一段参照域——
+                    // 两者无交）：挂 null——外层 {target} 解析回落 kinds 路径选**参照**（第一段），
+                    // 第二段目标域由 handler 读行 Domain 自管（BurstDamage/LivingArmor 2026-11-05 定案）。
+                    axis = narrowed.Selectors.Count > 0 ? narrowed : null;
+                }
+            }
+            else if (!string.IsNullOrEmpty(config.Domain))
+                TideLog.Warn($"[CardEffectConverter] 原子 {type}（行 {entry.refId}）行 Domain='{config.Domain}'"
+                             + " 非合法新语法（旧词表残留？）——无轴，该原子无候选");
 
             // 内容契约（2026-09-11 定案；2026-10-03 用户定案收缩）：效果栏错边剔除只保留
             // 「有益原子锁对方域」（对对手有益）——仍只能进代价栏（Payload）；
@@ -558,6 +594,54 @@ namespace CardCore
                 return null;
             }
 
+            // 数量装载守卫（P2-1 NoWhole；P2-2 修订=单体赋予定案）：
+            // ① 行标「不可全体」（NoWhole——操控/牺牲/宣言/反制/变形/跳回合等操作类原子）
+            //   不开放 count=0（域内全取）——告警收 1（全取严重违背定价/规则）。
+            // ② 关键词/指示物行=**单体赋予**（2026-11-04 用户定案）：一律无全域——count=0 告警收 1；
+            //   且行模板不含 {target}（无逐目标语义，如关键词「获得吸血」）→ 只能选一个——count>1 收 1。
+            //   模板含 {target} 的（指示物多数——「对{target}附加N层」）允许 1/2/3 多选。
+            int effectiveCount = entry.count;
+            var mounts = MountKindExtensions.ParseCsv(config.MountKinds);
+            if (effectiveCount == 0 && mounts.Contains(MountKind.NoWhole))
+            {
+                TideLog.Warn($"[CardEffectConverter] 原子 {type}（行 {entry.refId}）行标「不可全体」（NoWhole）" +
+                             "——count=0（域内全取）已收为 1（全取严重违背定价/规则）");
+                effectiveCount = 1;
+            }
+            // 全取域守卫（**A1 定案 2026-11-05**：全体效果=side×战场×生物 三段相乘取一种）：
+            // count=0（域内全取）的域必须恰=单 selector「X方战场:生物」——角色 selector 不与区域卡类型
+            // 相乘、不进全取域；非战场区/含角色/Self/类别非生物 → 告警收 1（单体选目标）。
+            if (effectiveCount == 0 && axis != null)
+            {
+                bool wholeLegal = axis.Selectors.Count == 1
+                                  && TargetRegionRules.ZoneOf(axis.Selectors[0].Region) == Zone.Battlefield
+                                  && axis.Selectors[0].Region != TargetRegion.Self
+                                  && !TargetRegionRules.IsCharacter(axis.Selectors[0].Region)
+                                  && axis.Selectors[0].Categories == TargetCategory.Creature;
+                if (!wholeLegal)
+                {
+                    TideLog.Warn($"[CardEffectConverter] 原子 {type}（行 {entry.refId}）count=0（全域）但域 '"
+                                 + axis.Zh + "' 非「X方战场:生物」形态（A1 定案：全体=side×战场×生物，"
+                                 + "角色不进全取域）——已收为 1（单体选目标）");
+                    effectiveCount = 1;
+                }
+            }
+            bool grantRow = mounts.Contains(MountKind.Keyword) || mounts.Contains(MountKind.Counter);
+            if (grantRow && effectiveCount != 1)
+            {
+                bool hasTarget = (config.Description ?? "").Contains("{target}");
+                if (effectiveCount == 0 || !hasTarget)
+                {
+                    if (effectiveCount == 0)
+                        TideLog.Warn($"[CardEffectConverter] 原子 {type}（行 {entry.refId}）关键词/指示物行" +
+                                     "=单体赋予（2026-11-04 定案）——不开放全域：count=0 已收为 1");
+                    else
+                        TideLog.Warn($"[CardEffectConverter] 原子 {type}（行 {entry.refId}）行模板不含 {{target}}" +
+                                     "（单体赋予·无逐目标语义）——只能选一个：count=" + effectiveCount + " 已收为 1");
+                    effectiveCount = 1;
+                }
+            }
+
             return new AtomicEffectInstance
             {
                 Type = type,
@@ -567,10 +651,11 @@ namespace CardCore
                 RowHashId = entry.refId, // 来源行身份（2026-10-03：同枚举多行各自锚价——计价按行取锚）
                 Mana = null, // ManaList 已随彻底引用化删除（全数据 0 使用）
                 TargetKinds = kinds,
-                TargetCount = entry.count,   // 每原子数量覆盖（-2=未声明回落效果级）
+                TargetCount = effectiveCount, // 每原子数量覆盖（-2=未声明回落效果级；NoWhole 行 0 收 1）
                 RandomTarget = entry.rand,   // 每原子随机覆盖（-1=未声明回落效果级）
                 DeferSelect = entry.defer,   // 每原子目标选择方式（0=预选=默认/1=效果处理时选）
-                Filter = config.TargetFilter ?? "",
+                Filter = filter,             // 域词表双读后的合并 filter（无域声明=表行 TargetFilter ?? ""，与旧口径一致）
+                Axis = axis,                 // 两轴（P1-b）：行声明 Region 且实例无显式域时挂载；null=回落旧口径
                 Polarity = polarity,
                 Branch = ConvertBranchPayload(entry.branch),
             };
@@ -642,6 +727,13 @@ namespace CardCore
         {
             var atom = entry == null ? null : ConvertAtomicEffect(entry, allowWrongSide: true);
             if (atom == null) return null;
+            // A2 定案（2026-11-05）：代价不支持全域——count=0（域内全取）只允许单目标多选（1/2/3）。
+            if (entry.count == 0)
+            {
+                TideLog.Error($"[CardEffectConverter] 代价栏 Payload 契约拒绝：原子[{entry?.refId}] count=0（全域）"
+                              + "——代价只允许单目标多选（A2 定案 2026-11-05），已剔除");
+                return null;
+            }
             int requiredSide = CostDerivationService.PayloadCostRequiredSideLock(atom.Polarity);
             if (requiredSide != 0 && CostDerivationService.SideLock(atom.TargetKinds) == requiredSide) return atom;
             // 2026-11-02 代价栏翻转限制：报错须可定位（contextLabel=「卡 id 效果 id」——缺省调用面

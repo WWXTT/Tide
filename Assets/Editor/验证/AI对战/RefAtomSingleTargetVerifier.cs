@@ -86,7 +86,7 @@ namespace CardCore.Editor.Tests
         private static void RunBurstDamageScenario(StringBuilder log, List<Check> checks)
         {
             var tmp = BuildTempCard("探针·活体炸弹", "C_TMP_BURST_PROBE", "EFF_TMP_BURST", AtomicEffectType.BurstDamage, 1);
-            CheckTableDomain(checks, AtomicEffectType.BurstDamage, "己方单位", "NoRole", "活体炸弹");
+            CheckTableDomain(checks, AtomicEffectType.BurstDamage, "己方战场:生物", null, "活体炸弹"); // B2：Domain 新语法
 
             var core = GameCore.Instance;
             var catalog = CardCatalog.LoadAll().ToList();
@@ -185,7 +185,7 @@ namespace CardCore.Editor.Tests
         private static void RunLivingArmorDefaultScenario(StringBuilder log, List<Check> checks)
         {
             var tmp = BuildTempCard("探针·活体护甲缺省", "C_TMP_ARMOR_PROBE", "EFF_TMP_ARMOR", AtomicEffectType.LivingArmor, 1);
-            CheckTableDomain(checks, AtomicEffectType.LivingArmor, "己方单位", "NoRole", "活体护甲");
+            CheckTableDomain(checks, AtomicEffectType.LivingArmor, "己方战场:生物", null, "活体护甲"); // B2
 
             var core = GameCore.Instance;
             var catalog = CardCatalog.LoadAll().ToList();
@@ -352,7 +352,7 @@ namespace CardCore.Editor.Tests
         private static void RunShieldSlamScenario(StringBuilder log, List<Check> checks)
         {
             var tmp = BuildTempCard("探针·护盾猛击", "C_TMP_SLAM_PROBE", "EFF_TMP_SLAM", AtomicEffectType.ShieldSlam, 2);
-            CheckTableDomain(checks, AtomicEffectType.ShieldSlam, "对方单位", null, "护盾猛击");
+            CheckTableDomain(checks, AtomicEffectType.ShieldSlam, "对方战场:生物; 对方角色", null, "护盾猛击"); // B2
 
             var core = GameCore.Instance;
             var catalog = CardCatalog.LoadAll().ToList();
@@ -434,10 +434,10 @@ namespace CardCore.Editor.Tests
         private static void CheckTableDomain(List<Check> checks, AtomicEffectType type, string expectDomain, string expectFilter, string label)
         {
             var cfg = Attribute.AtomicEffectTable.GetByType(type);
-            string filterNow = cfg == null ? "行缺失" : $"域={cfg.TargetKinds}/滤={cfg.TargetFilter ?? "无"}";
-            checks.Add(new Check(cfg != null && !string.IsNullOrEmpty(cfg.HashId) && cfg.TargetKinds == expectDomain
+            string filterNow = cfg == null ? "行缺失" : $"域={cfg.Domain}/滤={cfg.TargetFilter ?? "无"}";
+            checks.Add(new Check(cfg != null && !string.IsNullOrEmpty(cfg.HashId) && cfg.Domain == expectDomain
                 && (cfg.TargetFilter ?? "") == (expectFilter ?? ""),
-                $"{label}表行期望 域={expectDomain}/滤={expectFilter ?? "无"}（2026-11-04 双段改版口径），实际 {filterNow}"));
+                $"{label}表行期望 域={expectDomain}/滤={expectFilter ?? "无"}（B2：TargetKinds 列删，域=Domain），实际 {filterNow}"));
         }
 
         /// <summary>内存合成临时卡（不落盘）：单原子 refId=表行 HashId·kinds=count=1，header 无 kinds。</summary>

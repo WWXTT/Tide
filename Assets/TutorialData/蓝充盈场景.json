@@ -1,0 +1,564 @@
+{
+    "_说明":  "元素充盈教学式固定盘面（2026-11-04）：蓝方碑族充盈引擎的触发/不触发/每回合封顶行为级验证。scenario 块与 Assets/Configs/TutorialConfig2.json 的 TutorialScenario 逐字段同构，经 TutorialScenarioSeeder 静默注入（教学直入口径）。受测回合=红（P2）回合——充盈只在对手回合自动评估，蓝方（P1）挂机不动；SimpleAI(General) 走完整回合。判据：蓝剩余元素（未横置地+钱包）−红剩余元素，封顶6，≥门槛x（Then锚价自动推导）→执行奖励；触发口两条：对手出牌结算后（OnCardCastSettled）+对手横置地牌支付时（OnOpponentTappedLands）。断言在 TideSim/BlueFullnessScenarioCheck.cs（dotnet run --project TideSim -- --tutorial-scenario 红蓝两套一起跑）。红侧全部用 0 费火苗出牌，保证不横置地牌、单走出牌结算触发口；横置口由场景⑥用付费血偿单独覆盖。",
+    "_卡表":  {
+                "C_033E7545":  "潮痕碑（结界·耐久4·效果37E0FFC7：充盈→对一个对方单位2伤；门槛x=Then锚价自动推导）",
+                "C_83B5019F":  "深潭碑（结界·耐久4·效果AD0B7EF8：充盈→回响1：双方战场一张卡的带临时指示物(遗忘)复制加入手牌）",
+                "C_138CE290":  "火苗 2/2（0费生物，红回合的「出牌」动作；0费=不横置地牌）",
+                "C_57BA44EC":  "火灵·攻 1/1（推导费 Red:1——红回合会真实横置地牌付费的出牌，场景⑥横置触发口用）",
+                "C_03E4B181":  "教学·8 7/7（充盈2伤的存活读数目标/场景④攻击者）",
+                "C_DA499FAE":  "教学·3 1/1（填充牌）",
+                "C_11B82155":  "教学·35（地牌载体，tokenType 锁色）"
+            },
+    "scenarios":  [
+                      {
+                          "id":  "tide-trigger-on-play",
+                          "name":  "① 潮痕碑：红出牌结算后差值达标→2伤（出牌结算触发口）",
+                          "note":  "蓝(P1)场=潮痕碑+6未横置蓝地；红(P2)0地手[火苗0费]。红回合打出火苗→结算后剩余元素差 6−0=6≥x→充盈触发，2伤落在唯一对方有生命单位=刚下场的火苗（2/2→0阵亡）。0费不横置→只走出牌结算触发口。",
+                          "scenario":  {
+                                           "startTurn":  10,
+                                           "firstPlayer":  "P2",
+                                           "player":  {
+                                                          "life":  30,
+                                                          "fatigue":  0,
+                                                          "bank":  [
+                                                                       0,
+                                                                       0,
+                                                                       0,
+                                                                       0,
+                                                                       0,
+                                                                       0
+                                                                   ],
+                                                          "lands":  [
+                                                                        {
+                                                                            "card":  "C_11B82155",
+                                                                            "tokenType":  "Blue"
+                                                                        },
+                                                                        {
+                                                                            "card":  "C_11B82155",
+                                                                            "tokenType":  "Blue"
+                                                                        },
+                                                                        {
+                                                                            "card":  "C_11B82155",
+                                                                            "tokenType":  "Blue"
+                                                                        },
+                                                                        {
+                                                                            "card":  "C_11B82155",
+                                                                            "tokenType":  "Blue"
+                                                                        },
+                                                                        {
+                                                                            "card":  "C_11B82155",
+                                                                            "tokenType":  "Blue"
+                                                                        },
+                                                                        {
+                                                                            "card":  "C_11B82155",
+                                                                            "tokenType":  "Blue"
+                                                                        }
+                                                                    ],
+                                                          "units":  [
+                                                                        {
+                                                                            "card":  "C_033E7545"
+                                                                        }
+                                                                    ],
+                                                          "hand":  [
+
+                                                                   ],
+                                                          "deck":  [
+                                                                       "C_DA499FAE",
+                                                                       "C_DA499FAE"
+                                                                   ],
+                                                          "grave":  [
+
+                                                                    ]
+                                                      },
+                                           "ai":  {
+                                                      "life":  30,
+                                                      "fatigue":  0,
+                                                      "bank":  [
+                                                                   0,
+                                                                   0,
+                                                                   0,
+                                                                   0,
+                                                                   0,
+                                                                   0
+                                                               ],
+                                                      "lands":  [
+
+                                                                ],
+                                                      "units":  [
+
+                                                                ],
+                                                      "hand":  [
+                                                                   "C_138CE290"
+                                                               ],
+                                                      "deck":  [
+                                                                   "C_DA499FAE",
+                                                                   "C_DA499FAE"
+                                                               ],
+                                                      "grave":  [
+
+                                                                ]
+                                                  }
+                                       }
+                      },
+                      {
+                          "id":  "deep-echo-on-play",
+                          "name":  "② 深潭碑：红出牌结算后差值达标→回响1（临时复制入手）",
+                          "note":  "蓝(P1)场=深潭碑+6未横置蓝地；红(P2)0地手[火苗0费]。红出火苗→结算后差6≥x→充盈触发，回响1：双方战场一张卡（候选=深潭碑/火苗）的带1层临时指示物复制加入蓝手牌。",
+                          "scenario":  {
+                                           "startTurn":  10,
+                                           "firstPlayer":  "P2",
+                                           "player":  {
+                                                          "life":  30,
+                                                          "fatigue":  0,
+                                                          "bank":  [
+                                                                       0,
+                                                                       0,
+                                                                       0,
+                                                                       0,
+                                                                       0,
+                                                                       0
+                                                                   ],
+                                                          "lands":  [
+                                                                        {
+                                                                            "card":  "C_11B82155",
+                                                                            "tokenType":  "Blue"
+                                                                        },
+                                                                        {
+                                                                            "card":  "C_11B82155",
+                                                                            "tokenType":  "Blue"
+                                                                        },
+                                                                        {
+                                                                            "card":  "C_11B82155",
+                                                                            "tokenType":  "Blue"
+                                                                        },
+                                                                        {
+                                                                            "card":  "C_11B82155",
+                                                                            "tokenType":  "Blue"
+                                                                        },
+                                                                        {
+                                                                            "card":  "C_11B82155",
+                                                                            "tokenType":  "Blue"
+                                                                        },
+                                                                        {
+                                                                            "card":  "C_11B82155",
+                                                                            "tokenType":  "Blue"
+                                                                        }
+                                                                    ],
+                                                          "units":  [
+                                                                        {
+                                                                            "card":  "C_83B5019F"
+                                                                        }
+                                                                    ],
+                                                          "hand":  [
+
+                                                                   ],
+                                                          "deck":  [
+                                                                       "C_DA499FAE",
+                                                                       "C_DA499FAE"
+                                                                   ],
+                                                          "grave":  [
+
+                                                                    ]
+                                                      },
+                                           "ai":  {
+                                                      "life":  30,
+                                                      "fatigue":  0,
+                                                      "bank":  [
+                                                                   0,
+                                                                   0,
+                                                                   0,
+                                                                   0,
+                                                                   0,
+                                                                   0
+                                                               ],
+                                                      "lands":  [
+
+                                                                ],
+                                                      "units":  [
+
+                                                                ],
+                                                      "hand":  [
+                                                                   "C_138CE290"
+                                                               ],
+                                                      "deck":  [
+                                                                   "C_DA499FAE",
+                                                                   "C_DA499FAE"
+                                                               ],
+                                                      "grave":  [
+
+                                                                ]
+                                                  }
+                                       }
+                      },
+                      {
+                          "id":  "no-trigger-low-diff",
+                          "name":  "③ 差值不足：蓝未留地+红地留满→红出牌也不触发",
+                          "note":  "蓝(P1)场=潮痕碑+仅1未横置蓝地（未留地）；红(P2)3未横置红地（地留满）手[火苗0费]。红照样出牌→结算后差 1−3=−2<x→不触发：零充盈播报、火苗满血存活、蓝手无临时复制。",
+                          "scenario":  {
+                                           "startTurn":  10,
+                                           "firstPlayer":  "P2",
+                                           "player":  {
+                                                          "life":  30,
+                                                          "fatigue":  0,
+                                                          "bank":  [
+                                                                       0,
+                                                                       0,
+                                                                       0,
+                                                                       0,
+                                                                       0,
+                                                                       0
+                                                                   ],
+                                                          "lands":  [
+                                                                        {
+                                                                            "card":  "C_11B82155",
+                                                                            "tokenType":  "Blue"
+                                                                        }
+                                                                    ],
+                                                          "units":  [
+                                                                        {
+                                                                            "card":  "C_033E7545"
+                                                                        }
+                                                                    ],
+                                                          "hand":  [
+
+                                                                   ],
+                                                          "deck":  [
+                                                                       "C_DA499FAE",
+                                                                       "C_DA499FAE"
+                                                                   ],
+                                                          "grave":  [
+
+                                                                    ]
+                                                      },
+                                           "ai":  {
+                                                      "life":  30,
+                                                      "fatigue":  0,
+                                                      "bank":  [
+                                                                   0,
+                                                                   0,
+                                                                   0,
+                                                                   0,
+                                                                   0,
+                                                                   0
+                                                               ],
+                                                      "lands":  [
+                                                                        {
+                                                                            "card":  "C_11B82155",
+                                                                            "tokenType":  "Red"
+                                                                        },
+                                                                        {
+                                                                            "card":  "C_11B82155",
+                                                                            "tokenType":  "Red"
+                                                                        },
+                                                                        {
+                                                                            "card":  "C_11B82155",
+                                                                            "tokenType":  "Red"
+                                                                        }
+                                                                    ],
+                                                      "units":  [
+
+                                                                ],
+                                                      "hand":  [
+                                                                   "C_138CE290"
+                                                               ],
+                                                      "deck":  [
+                                                                   "C_DA499FAE",
+                                                                   "C_DA499FAE"
+                                                               ],
+                                                      "grave":  [
+
+                                                                ]
+                                                  }
+                                       }
+                      },
+                      {
+                          "id":  "no-trigger-no-play",
+                          "name":  "④ 红不打牌只攻击（场上动作）→不触发（我不动你也不准动）",
+                          "note":  "蓝(P1)场=潮痕碑+6未横置蓝地（差值巨大，若评估必达标）；红(P2)2红地+场[教学·8 7/7]+空手。红回合无牌可出→只做攻击（打脸7伤）——两个触发口（出牌结算/横置支付）都不发生→零充盈播报。",
+                          "scenario":  {
+                                           "startTurn":  10,
+                                           "firstPlayer":  "P2",
+                                           "player":  {
+                                                          "life":  30,
+                                                          "fatigue":  0,
+                                                          "bank":  [
+                                                                       0,
+                                                                       0,
+                                                                       0,
+                                                                       0,
+                                                                       0,
+                                                                       0
+                                                                   ],
+                                                          "lands":  [
+                                                                        {
+                                                                            "card":  "C_11B82155",
+                                                                            "tokenType":  "Blue"
+                                                                        },
+                                                                        {
+                                                                            "card":  "C_11B82155",
+                                                                            "tokenType":  "Blue"
+                                                                        },
+                                                                        {
+                                                                            "card":  "C_11B82155",
+                                                                            "tokenType":  "Blue"
+                                                                        },
+                                                                        {
+                                                                            "card":  "C_11B82155",
+                                                                            "tokenType":  "Blue"
+                                                                        },
+                                                                        {
+                                                                            "card":  "C_11B82155",
+                                                                            "tokenType":  "Blue"
+                                                                        },
+                                                                        {
+                                                                            "card":  "C_11B82155",
+                                                                            "tokenType":  "Blue"
+                                                                        }
+                                                                    ],
+                                                          "units":  [
+                                                                        {
+                                                                            "card":  "C_033E7545"
+                                                                        }
+                                                                    ],
+                                                          "hand":  [
+
+                                                                   ],
+                                                          "deck":  [
+                                                                       "C_DA499FAE",
+                                                                       "C_DA499FAE"
+                                                                   ],
+                                                          "grave":  [
+
+                                                                    ]
+                                                      },
+                                           "ai":  {
+                                                      "life":  30,
+                                                      "fatigue":  0,
+                                                      "bank":  [
+                                                                   0,
+                                                                   0,
+                                                                   0,
+                                                                   0,
+                                                                   0,
+                                                                   0
+                                                               ],
+                                                      "lands":  [
+                                                                        {
+                                                                            "card":  "C_11B82155",
+                                                                            "tokenType":  "Red"
+                                                                        },
+                                                                        {
+                                                                            "card":  "C_11B82155",
+                                                                            "tokenType":  "Red"
+                                                                        }
+                                                                    ],
+                                                      "units":  [
+                                                                    {
+                                                                        "card":  "C_03E4B181"
+                                                                    }
+                                                                ],
+                                                      "hand":  [
+
+                                                               ],
+                                                      "deck":  [
+                                                                   "C_DA499FAE",
+                                                                   "C_DA499FAE"
+                                                               ],
+                                                      "grave":  [
+
+                                                                ]
+                                                  }
+                                       }
+                      },
+                      {
+                          "id":  "once-per-turn",
+                          "name":  "⑤ 每卡每回合只触发一次：红同回合连出两张牌只吃一次",
+                          "note":  "蓝(P1)场=潮痕碑+6未横置蓝地；红(P2)0地手[火苗×2(均0费)]。红连出两张：第一张出牌结算→触发一次（2伤打死第一只火苗）；第二张出牌结算→每卡每回合1次封顶→不再触发。终态：充盈播报=1、碑伤=1、红墓1火苗+场1火苗。",
+                          "scenario":  {
+                                           "startTurn":  10,
+                                           "firstPlayer":  "P2",
+                                           "player":  {
+                                                          "life":  30,
+                                                          "fatigue":  0,
+                                                          "bank":  [
+                                                                       0,
+                                                                       0,
+                                                                       0,
+                                                                       0,
+                                                                       0,
+                                                                       0
+                                                                   ],
+                                                          "lands":  [
+                                                                        {
+                                                                            "card":  "C_11B82155",
+                                                                            "tokenType":  "Blue"
+                                                                        },
+                                                                        {
+                                                                            "card":  "C_11B82155",
+                                                                            "tokenType":  "Blue"
+                                                                        },
+                                                                        {
+                                                                            "card":  "C_11B82155",
+                                                                            "tokenType":  "Blue"
+                                                                        },
+                                                                        {
+                                                                            "card":  "C_11B82155",
+                                                                            "tokenType":  "Blue"
+                                                                        },
+                                                                        {
+                                                                            "card":  "C_11B82155",
+                                                                            "tokenType":  "Blue"
+                                                                        },
+                                                                        {
+                                                                            "card":  "C_11B82155",
+                                                                            "tokenType":  "Blue"
+                                                                        }
+                                                                    ],
+                                                          "units":  [
+                                                                        {
+                                                                            "card":  "C_033E7545"
+                                                                        }
+                                                                    ],
+                                                          "hand":  [
+
+                                                                   ],
+                                                          "deck":  [
+                                                                       "C_DA499FAE",
+                                                                       "C_DA499FAE"
+                                                                   ],
+                                                          "grave":  [
+
+                                                                    ]
+                                                      },
+                                           "ai":  {
+                                                      "life":  30,
+                                                      "fatigue":  0,
+                                                      "bank":  [
+                                                                   0,
+                                                                   0,
+                                                                   0,
+                                                                   0,
+                                                                   0,
+                                                                   0
+                                                               ],
+                                                      "lands":  [
+
+                                                                ],
+                                                      "units":  [
+
+                                                                ],
+                                                      "hand":  [
+                                                                   "C_138CE290",
+                                                                   "C_138CE290"
+                                                               ],
+                                                      "deck":  [
+                                                                   "C_DA499FAE",
+                                                                   "C_DA499FAE"
+                                                               ],
+                                                      "grave":  [
+
+                                                                ]
+                                                  }
+                                       }
+                      },
+                      {
+                          "id":  "tide-trigger-on-tap",
+                          "name":  "⑥ 潮痕碑：红横置地牌支付时差值达标→触发（横置支付触发口）",
+                          "note":  "蓝(P1)场=潮痕碑+6未横置蓝地；红(P2)2红地手[火灵·攻(推导费Red:1)]场[教学·8 7/7]。红付1红横置1地→横置口：未横置地差 6−1=5≥x→充盈触发（播报含「横置」），2伤落教学·8（7→5）。",
+                          "scenario":  {
+                                           "startTurn":  10,
+                                           "firstPlayer":  "P2",
+                                           "player":  {
+                                                          "life":  30,
+                                                          "fatigue":  0,
+                                                          "bank":  [
+                                                                       0,
+                                                                       0,
+                                                                       0,
+                                                                       0,
+                                                                       0,
+                                                                       0
+                                                                   ],
+                                                          "lands":  [
+                                                                        {
+                                                                            "card":  "C_11B82155",
+                                                                            "tokenType":  "Blue"
+                                                                        },
+                                                                        {
+                                                                            "card":  "C_11B82155",
+                                                                            "tokenType":  "Blue"
+                                                                        },
+                                                                        {
+                                                                            "card":  "C_11B82155",
+                                                                            "tokenType":  "Blue"
+                                                                        },
+                                                                        {
+                                                                            "card":  "C_11B82155",
+                                                                            "tokenType":  "Blue"
+                                                                        },
+                                                                        {
+                                                                            "card":  "C_11B82155",
+                                                                            "tokenType":  "Blue"
+                                                                        },
+                                                                        {
+                                                                            "card":  "C_11B82155",
+                                                                            "tokenType":  "Blue"
+                                                                        }
+                                                                    ],
+                                                          "units":  [
+                                                                        {
+                                                                            "card":  "C_033E7545"
+                                                                        }
+                                                                    ],
+                                                          "hand":  [
+
+                                                                   ],
+                                                          "deck":  [
+                                                                       "C_DA499FAE",
+                                                                       "C_DA499FAE"
+                                                                   ],
+                                                          "grave":  [
+
+                                                                    ]
+                                                      },
+                                           "ai":  {
+                                                      "life":  30,
+                                                      "fatigue":  0,
+                                                      "bank":  [
+                                                                   0,
+                                                                   0,
+                                                                   0,
+                                                                   0,
+                                                                   0,
+                                                                   0
+                                                               ],
+                                                      "lands":  [
+                                                                        {
+                                                                            "card":  "C_11B82155",
+                                                                            "tokenType":  "Red"
+                                                                        },
+                                                                        {
+                                                                            "card":  "C_11B82155",
+                                                                            "tokenType":  "Red"
+                                                                        }
+                                                                    ],
+                                                      "units":  [
+                                                                    {
+                                                                        "card":  "C_03E4B181"
+                                                                    }
+                                                                ],
+                                                      "hand":  [
+                                                                   "C_57BA44EC"
+                                                               ],
+                                                      "deck":  [
+                                                                   "C_DA499FAE",
+                                                                   "C_DA499FAE"
+                                                               ],
+                                                      "grave":  [
+
+                                                                ]
+                                                  }
+                                       }
+                      }
+                  ]
+}

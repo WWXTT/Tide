@@ -102,7 +102,7 @@ namespace CardCore
                     if (TargetKindRules.AllHiddenZone(kinds)) continue; // 隐藏信息不进选择——handler 自裁
                     if (SelectionModeRules.IsTakeAll(def.SelectionMode) || atom.EffectiveTargetCount(def) == 0)
                         continue; // 全取档用全域判定——空域全取不拦（取 0 个照常结算）
-                    var atomCands = EffectHandlerRegistry.ResolveCandidates(kinds, atom.Filter ?? "", ctx);
+                    var atomCands = EffectHandlerRegistry.ResolveCandidates(kinds, atom.Filter ?? "", ctx, atom.Axis);
                     bool atomEdict = TargetResolver.IsEdict(atom.Type);
                     atomCands = atom.EffectiveRandomTarget(def)
                         ? TargetResolver.ApplyTauntRestriction(atomCands, ctx, atomEdict)

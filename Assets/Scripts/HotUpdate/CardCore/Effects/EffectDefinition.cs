@@ -363,15 +363,15 @@ namespace CardCore
         /// <summary>
         /// 时点 → 锚定事件唯一映射表（时点接线定案）。
         ///
-        /// 观察者语义对照（与 TriggerTiming 双泳道注释配套）：
-        /// - CardEnterActivationEvent = 发动开始（进发动区，反制窗口锚点，含 FromZone）
-        /// - CardPlayEvent = 使用宣言（付费前）：OnCardPlayed / OnSpellCast 锚点；FromZone 区分手牌/墓地（IPlaySource）打出
+        /// 观察者语义对照（与 TriggerTiming 双泳道注释配套；S3b 2026-11-04 删发动区后更新）：
+        /// - CardPlayEvent = 使用宣言（付费前，卡留来源区不上栈移动）：OnCardPlayed / OnSpellCast 锚点；FromZone 区分手牌/牌库顶（IPlaySource）打出
         /// - CardPutToBattlefieldEvent = 入场（已在战场容器）：
         ///     OnSummon 任意来源（超集：打出也触发）/ OnPlay=登场 仅 CastPlayed /
         ///     OnOtherCreatureEnter 进场的不是自己 / OnReturnFromGraveyard 仅 Revived——EnterSource 区分
-        /// 三来源对号：①手牌=EnterActivation(Hand)→CardPlay(Hand)→PutToBattlefield(CastPlayed)；
+        /// 三来源对号（S3b：发动区流转事件已退役，施放中=栈条目）：
+        /// ①手牌=CardPlay(Hand)→〔栈上施放中〕→PutToBattlefield(CastPlayed)；
         /// ②效果召唤/复活/token=直接 PutToBattlefield(SummonedByEffect/Revived/TokenSpawned)，token 另发 TokenCreatedEvent；
-        /// ③墓地经 IPlaySource=EnterActivation(Graveyard)→CardPlay(Graveyard)→PutToBattlefield(CastPlayed)。
+        /// ③牌库顶经 IPlaySource=CardPlay(Deck)→〔栈上施放中〕→PutToBattlefield(CastPlayed)。
         /// 类型匹配后的 self/来源/施受区分见 TriggerPayloadFilter。
         /// </summary>
         public static Type GetEventType(TriggerTiming timing)
@@ -639,6 +639,12 @@ namespace CardCore
         }
         /// <summary>域内属性过滤 token（表级 TargetFilter；converter 解析存实例）。</summary>
         public string Filter;
+        /// <summary>两轴目标域（P1-b 2026-11-05 运行时切轴）：converter 从**行 Region/Category** 构建
+        ///（Filter=与旧口径同一份合并 filter——类别性 token 对已收窄类别集幂等）。挂载闸与行 Domain
+        /// 默认域同款：实例显式 kinds/domain 时不挂（显式收窄优先，防血偿/充盈类条目被行级两轴覆盖）。
+        /// null=未声明 → 消费口回落旧 TargetKinds/Domain 口径（ResolveCandidates axis 参数缺省）。
+        /// 运行时字段，不入网络 DTO。</summary>
+        public TargetAxis Axis;
         /// <summary>极性（表级解析：-1=对对手释放有益 / +1=对己方释放有益 / 0=中性；错边折价输入）。</summary>
         public float Polarity;
 

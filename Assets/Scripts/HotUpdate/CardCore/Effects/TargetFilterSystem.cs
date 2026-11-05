@@ -74,32 +74,6 @@ namespace CardCore
         }
     }
 
-    /// <summary>仅角色（TargetFilter token "Player"，2026-09-13 启用：原休眠 no-op）——
-    /// 滤除全部非 Player 实体（生物等卡）。"以角色为作用对象"的效果用（如牺牲原子：
-    /// 目标=角色，持有者自行选择一个单位效果直送墓地）。</summary>
-    public class RoleOnlyFilter : ITargetFilter
-    {
-        public string DisplayName => "仅角色";
-
-        public List<Entity> Filter(List<Entity> candidates, EffectExecutionContext context)
-        {
-            return candidates.Where(e => e is Player).ToList();
-        }
-    }
-
-    /// <summary>非角色（token "NotRole"，2026-10-10 抹除域启用）：排除 Player 实体、保留一切卡
-    ///（生物/结界/地牌）。与 NoRole（仅生物）的差别：不收窄卡类型——混合域（单位+元素池地牌）
-    /// 要剔除角色而不丢无生命目标时用。</summary>
-    public class NotRoleFilter : ITargetFilter
-    {
-        public string DisplayName => "非角色";
-
-        public List<Entity> Filter(List<Entity> candidates, EffectExecutionContext context)
-        {
-            return candidates.Where(e => !(e is Player)).ToList();
-        }
-    }
-
     /// <summary>可入池（token "Landable"，2026-11-03 封印原子启用）：仅指「可作地牌入池」的卡——
     /// 地牌资格（CanServeAsLand：卡组正式三型，衍生物/临时复制卡拒）且带元素费用
     ///（GetLandColorChoices 非空——与 AddCardToPool 空候选拒同口径；0费卡无主色可锁）。
@@ -337,7 +311,7 @@ namespace CardCore
                             candidates.AddRange(NonLivingOf(opponent));
                         break;
 
-                    // 卡种类：对应功能区域
+                    // 卡种类：对应功能区域（15/16 回落发动区——E1-1 修订后非目标域，反制走 RespondedEntry）
                     default:
                         var (zone, own) = TargetKindRules.ZoneOf(kind);
                         var owner = own ? context.Controller : opponent;
@@ -501,7 +475,9 @@ namespace CardCore
                     case "Deck": return Zone.Deck;
                     case "Exile": return Zone.Exile;
                     case "Battlefield": return Zone.Battlefield;
-                    case "Activation": return Zone.Activation; // 发动中的卡（反制指向发动区）
+                    // "Activation" 已随 S3b（2026-11-04 删发动区）退役：卡施放中留来源区，
+                    // 反制走 RespondedEntry 响应绑定（E1-1）——该分区 token 无消费方，回落战场。
+                    case "Activation": return Zone.Battlefield;
                     case "ElementPool": return Zone.ElementPool; // 地牌区（池内地牌）
                 }
             }
@@ -542,12 +518,8 @@ namespace CardCore
                 var trimmed = token.Trim();
                 switch (trimmed)
                 {
-                    case "NoRole": // 仅生物（排除角色）——2026-09-10 自 Creature 改名（语义自解释）
-                        filters.Add(new CardTypeFilter(Cardtype.Creature));
-                        break;
-                    case "NotRole": // 非角色：排除 Player 实体、保留一切卡——抹除混合域（生物+结界+地牌）剔角色用
-                        filters.Add(new NotRoleFilter());
-                        break;
+                    // 类别性 token（NoRole/NotRole/Player/Living/Field）已随 B2 硬切（2026-11-05）删除：
+                    // 类别语义由 Domain selector 承载（契约规则 5）；数据串残留走 default 静默忽略。
                     case "Landable": // 可入池（2026-11-03 封印行启用）：地牌资格+带元素费用——0费卡无主色可锁不可指
                         filters.Add(new LandableFilter());
                         break;
@@ -559,10 +531,6 @@ namespace CardCore
                         break;
                     // "Untargetable"（仅扰魔持有者）token 已删（2026-10-13 扰魔整体退役；
                     // 旧数据串残留走 default 静默忽略）
-                    case "Player":
-                        // 仅角色（2026-09-13 启用，原休眠 no-op）：滤除生物等卡——牺牲原子（持有者选单位送墓）等以角色为作用对象的效果
-                        filters.Add(new RoleOnlyFilter());
-                        break;
                     case "Hand":
                     case "Graveyard":
                     case "Deck":
@@ -635,7 +603,16 @@ namespace CardCore
             if (player == null || _zoneManager == null) return new List<Entity>();
             var container = _zoneManager.GetZoneContainer(player);
             if (container == null) return new List<Entity>();
-            return container.GetCards(zone).Cast<Entity>().ToList();
+            var cards = container.GetCards(zone).Cast<Entity>().ToList();
+            // S3b 全域剔除（2026-11-04 删发动区）：手牌域候选剔施放中的卡（IsPendingCast 单口）——
+            // 卡留手牌但不可被手牌域原子（弃牌/展示/代价弃牌/手牌破坏）指到（规则洞防线）。
+            if (zone == Zone.Hand)
+            {
+                var stack = GameCore.Instance?.StackEngine;
+                if (stack != null)
+                    cards.RemoveAll(c => c is Card hc && stack.IsPendingCast(hc));
+            }
+            return cards;
         }
     }
 }

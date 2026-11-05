@@ -111,6 +111,9 @@ namespace CardCore.Serialization
 
         // ---- SerializableAtomicEffectEntry ----
         public const int AEI_Amplitude = 1647853197;
+        // 域词表声明（2026-11-04 P0-1）：尾部追加——MemoryPack 标准格式按成员数前缀读旧 payload，
+        // 旧值缺成员回落默认 null；只许尾部追加、永不重排（同 TargetKind 惯例）。
+        public const int AEI_Domain = 1873429461;
 
         // ---- SerializableManaAmount ----
         public const int SerializableManaAmount_manaType = 549926884;

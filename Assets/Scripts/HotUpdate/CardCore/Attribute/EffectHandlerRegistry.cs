@@ -287,7 +287,7 @@ namespace CardCore.Attribute
             var (kinds, filter, count) = GetEffectiveDomain(effect);
             if (kinds.Count == 0) return new List<Entity>(); // 无目标原子
 
-            var candidates = ResolveCandidates(kinds, filter, context);
+            var candidates = ResolveCandidates(kinds, filter, context, effect.Axis);
             // TargetCount: 0=全部, <0=任意（全部）, >0=取前 N 个
             return count > 0 ? candidates.Take(count).ToList() : candidates;
         }
@@ -311,7 +311,7 @@ namespace CardCore.Attribute
 
             int need = reward.TargetCount > 0 ? reward.TargetCount : 1; // 未声明=弹选 1（2026-10-07 口径）
             var full = TargetResolver.ApplyTauntRestriction(
-                ResolveCandidates(kinds, reward.Filter ?? "", context), context);
+                ResolveCandidates(kinds, reward.Filter ?? "", context, reward.Axis), context);
             if (reward.RandomTarget == 1)
                 return need >= full.Count ? full : GameRng.PickN(full, need); // 随机=完整候选池抽取
 
@@ -349,11 +349,11 @@ namespace CardCore.Attribute
             // RevealCard/AddCurse 等隐藏区消费原子拿首候选照常结算（防"从牌库选目标"弹窗）。
             if (TargetKindRules.AllHiddenZone(kinds))
             {
-                var hidden = ResolveCandidates(kinds, filter, context);
+                var hidden = ResolveCandidates(kinds, filter, context, effect.Axis);
                 return hidden.Count > 0 ? new List<Entity> { hidden[0] } : new List<Entity>();
             }
 
-            var candidates = ResolveCandidates(kinds, filter, context);
+            var candidates = ResolveCandidates(kinds, filter, context, effect.Axis);
             if (candidates.Count == 0) return candidates;
 
             // 固定数量：count<=0 视为全部
@@ -416,7 +416,7 @@ namespace CardCore.Attribute
                 && !SelectionModeRules.IsTakeAll(def.SelectionMode)
                 && preselectQueue != null && preselectQueue.Count > 0)
             {
-                var pool = ResolveCandidates(kinds, atom.Filter ?? "", context);
+                var pool = ResolveCandidates(kinds, atom.Filter ?? "", context, atom.Axis);
                 int quota = effCount == -1 ? int.MaxValue : Math.Max(1, effCount);
                 var kept = new List<Entity>();
                 for (int i = 0; i < preselectQueue.Count && kept.Count < quota; i++)
@@ -450,7 +450,7 @@ namespace CardCore.Attribute
             // 全隐藏区（对方手牌/双方牌库）：隐藏信息不进选择——自结算（与组合层早退口径一致）
             if (TargetKindRules.AllHiddenZone(kinds)) return new List<Entity>();
 
-            var candidates = ResolveCandidates(kinds, atom.Filter ?? "", context);
+            var candidates = ResolveCandidates(kinds, atom.Filter ?? "", context, atom.Axis);
             GameActions.Crumb($"atom-targets {def.Id}/{atom.Type} kinds={TargetKindRules.Format(kinds)} "
                 + $"pre={preselectQueue?.Count ?? 0} cands={candidates.Count} mode={def.SelectionMode} cnt={atom.EffectiveTargetCount(def)}");
             if (candidates.Count == 0) return candidates;
@@ -577,7 +577,7 @@ namespace CardCore.Attribute
                 if (effCount == 0 || SelectionModeRules.IsTakeAll(def.SelectionMode))
                     continue; // 全取：结算期自动全取
 
-                var candidates = ResolveCandidates(kinds, atom.Filter ?? "", context);
+                var candidates = ResolveCandidates(kinds, atom.Filter ?? "", context, atom.Axis);
                 if (candidates.Count == 0) continue;
                 bool edictExempt = TargetResolver.IsEdict(atom.Type);
                 candidates = TargetResolver.ExcludeUnselectable(
@@ -722,9 +722,13 @@ namespace CardCore.Attribute
             return pickedN != null && pickedN.Count > 0 ? pickedN : null;
         }
 
-        /// <summary>按域+filter 解析候选（域模型统一口径；TargetDomainService 预检复用）。</summary>
-        public static List<Entity> ResolveCandidates(List<int> kinds, string filter, EffectExecutionContext context)
+        /// <summary>按域+filter 解析候选（域模型统一口径；TargetDomainService 预检复用）。
+        /// P1-b 两轴优先（2026-11-05 运行时切轴）：axis 非空（converter 从行 Region/Category 构建）
+        /// → TargetAxisResolver；null=回落旧 kinds/Domain 口径（kinds 恒为 converter 解析缓存，本签名可用）。</summary>
+        public static List<Entity> ResolveCandidates(List<int> kinds, string filter, EffectExecutionContext context,
+            TargetAxis axis = null)
         {
+            if (axis != null) return TargetAxisResolver.GetCandidates(axis, context);
             var resolver = new TargetResolver(context.ZoneManager);
             var candidates = resolver.GetCandidates(kinds, filter, context);
             if (!string.IsNullOrEmpty(filter))

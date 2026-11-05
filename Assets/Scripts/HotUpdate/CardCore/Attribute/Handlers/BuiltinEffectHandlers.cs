@@ -47,41 +47,8 @@ namespace CardCore.Attribute.Handlers
 
     /// <summary>
     /// 敌方全体伤害（2026-10-09 全体对象独立原子定案，红3基准）：对敌方全体生物各造成 {value} 点伤害。
-    /// 无域原子（表行 TargetKinds 空）——handler 自结算：域={对方单位}+NoRole 过滤（排除角色与无生命单位，
-    /// 恰=敌方全体生物），单次执行、LastOutcome 不逐目标 Reset——杀数聚合：
-    /// 击杀门槛 DmgKillsTarget=至少击杀一个即过、分支奖励只结算一次。
-    /// 每单位独立掷值、走 TakeDamage 关键词管线（与 DealDamageHandler 同款结算）。
-    /// </summary>
-    public class DealDamageAllEnemiesHandler : AtomicEffectHandlerBase
-    {
-        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.DealDamageAllEnemies;
-
-        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
-        {
-            var opp = context.Controller?.Opponent;
-            if (opp == null) return;
-
-            var targets = EffectHandlerRegistry.ResolveCandidates(
-                new List<int> { (int)TargetKind.EnemyLivingUnit }, "NoRole", context);
-            foreach (var target in targets)
-            {
-                // 每单位独立掷（掷值在修饰链前——与 DealDamageHandler 逐目标口径一致）
-                int dmg = context.GetValueAfterModifiers(effect.GetRolledValue());
-                int lifeBefore = target.GetLife();
-                target.TakeDamage(dmg, context.Source); // 关键词管线：圣盾/护甲/坚韧/吸血
-                int actual = System.Math.Max(0, lifeBefore - target.GetLife());
-                context.LastOutcome.RecordDamage(target, lifeBefore, actual);
-                PublishEvent(new AtomicDamageEvent
-                {
-                    Source = context.Source,
-                    Target = target,
-                    Damage = dmg,
-                    IsCombatDamage = false,
-                    EffectTint = effect.AnchorTint()
-                });
-            }
-        }
-    }
+    // 全体伤害 DealDamageAllEnemiesHandler 已随 2026-11-05 硬切 B2 删除（用户定案：删除全体原子——
+    // 由单体效果选全域（count=0 全取）生成；枚举墓碑保留于 AtomicEffects）。
 
     /// <summary>
     /// 宣告胜利（2026-09-15 终局原子，黑）：效果控制者的对手获得游戏胜利——
@@ -145,7 +112,7 @@ namespace CardCore.Attribute.Handlers
             return $"{(enemy ? "对手" : "己方")}抽 {effect.Value} 张牌";
         }
 
-        public override string GetDescription(AtomicEffectInstance effect, EffectExecutionContext context)
+        public new string GetDescription(AtomicEffectInstance effect, EffectExecutionContext context)
         {
             // 执行期主语=真实抽牌方（执行控制器——资敌抽牌代价经受惠侧执行已翻转）：中立实名与
             // 效果摘要行同口径，观侧替换（Player 1→【己方角色】）由 MatchLogRenderer 统一做。

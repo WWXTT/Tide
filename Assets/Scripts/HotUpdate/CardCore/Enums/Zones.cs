@@ -49,9 +49,9 @@ namespace CardCore
         FieldZone,
 
         /// <summary>
-        /// 发动区（万能结算位）：隐蔽区（手牌/卡组等）来源的发动先移入此区结算，
-        /// 公开且可被指向（反制指向发动区而非来源区）；结算后按去向离区
-        /// （入场型进战场、满则失败入墓；非入场型回原位）。场上卡原地发动，不经此区。
+        /// 发动区——**墓碑**（S3b 2026-11-04 删发动区）：枚举位保留（int 序列化约束——
+        /// Extra=9 在其后，删位会错位）；不再有任何生产代码读写本区。
+        /// 旧档 Zone=8 读取侧由 RuntimeCardStateDTO.ApplyToCard 迁 Hand。
         /// 注意：新值只能追加在枚举末尾——SerializableRuntimeCardState 按 int 序列化，插中间会错位旧档。
         /// </summary>
         Activation,
@@ -533,19 +533,16 @@ namespace CardCore
         /// <summary>
         /// 换区统一清理（定案默认持续：未写持续时间的指示物=持续到移动所属区域）：
         /// 指示物属性先反向回写再清空；入手重置宣言"已展示"标记；离场发事件并解除变形。
-        /// 【发动区豁免（定案）】发动区=栈的物理呈现/暂存区，不是卡的真实归属——
-        /// 进发动区（隐蔽区来源声明）与声明失败回滚（退回来源区）不清指示物：
-        /// cast 付费发生在发动区内，费用指示物必须存活到结算；结算后的真实去向
-        /// （入场/入墓/被无效化送墓/支付失败）才是换区清除点。
+        /// 【发动区豁免已删（S3b 2026-11-04 删发动区）】卡施放中**留在来源区**——不再有
+        /// 进/出 Activation 的换区移动；指示物清除恢复普通换区口径（from≠to 即清）。
+        /// 施放期间费用指示物存活由「卡未移动」天然保证。
         /// </summary>
         private void OnCardMoved(Card card, Zone from, Zone to)
         {
-            bool viaActivationStaging = to == Zone.Activation
-                                        || (from == Zone.Activation && to == Zone.Hand);
-            if (from != to && !viaActivationStaging)
+            if (from != to)
             {
                 // 攻/血指示物离场消失、费用指示物离手消失；充能进度（四色费用降低层，2026-10-31 P12）
-                // 同款在此清除——建造 BuildPaid 账本已随改版退役，ClearAll 覆盖全部清除面
+                // 同款在此清除——建造 BuildPaid 账单已随改版退役，ClearAll 覆盖全部清除面
                 CardCore.Attribute.CounterRules.ClearAll(card);
             }
 
@@ -560,14 +557,13 @@ namespace CardCore
                 CardCore.Attribute.MorphSystem.RestoreIfMorphed(card); // 变形解除（2026-10-13 重做）：
             // 还原钩子实际由上方 ClearAll→CounterRules.ClearCounters（变形指示物被清）驱动——
             // 此处直调为无指示物残留时的兜底（幂等：无快照即 no-op），保序不变。
-            // 临时关键词换区清（三轨制定案）：置于解除之后——防快照复活已清层；
-            // 同受发动区豁免约束（cast 付费期间临时层存活）。
-            if (from != to && !viaActivationStaging)
+            // 临时关键词换区清（三轨制定案）：置于解除之后——防快照复活已清层。
+            if (from != to)
                 CardCore.Attribute.KeywordRules.ClearZoneKeywords(card);
 
-            // 延迟死亡（2026-10-29 阶段3b）：离开战场即不再待死（同受发动区豁免约束——cast 付费期间状态存活）；
+            // 延迟死亡（2026-10-29 阶段3b）：离开战场即不再待死；
             // 延时保护（2026-10-30 指示物化）：换区清走 CounterRules.ClearAll 通用口，无独立钩子
-            if (from != to && !viaActivationStaging)
+            if (from != to)
             {
                 CardCore.Attribute.DeathRules.OnZoneChanged(card);
             }
@@ -779,6 +775,16 @@ namespace CardCore
         /// </summary>
         internal static bool IsDrawMove;
 
+        /// <summary>牌库顶锁（S3b 收口 2026-11-05·方案 B「卡留顶+路径跳过」）：牌库顶施放中的卡
+        ///（IsPendingCast 栈条目表示，PlayCardFromDeckTop 声明后卡留牌库原位）不可被抽/磨/夺走——
+        /// 抽磨跳过它取下一张；可抽卡耗尽（全在施放中）按空库口径疲劳。占卜排列只挪位不拿走，
+        /// cast 结算（入墓/入场/回退）不依赖「在顶」，均不受影响。</summary>
+        internal static bool IsDeckLocked(Card card)
+            => card != null
+               && GameCore.Instance != null
+               && GameCore.Instance.StackEngine != null
+               && GameCore.Instance.StackEngine.IsPendingCast(card);
+
         /// <summary>从牌库抽一张牌。牌库为空时不抽牌，改为疲劳（第 N 次疲劳造成 N 点递增伤害）。
         /// 抽卡后经统一路由发布 CardDrawEvent——抽卡时点（OnDraw）对所有触发可见。</summary>
         public static Card DrawCard(this ZoneManager zm, Player player, bool firstDrawOfTurn = false)
@@ -793,13 +799,18 @@ namespace CardCore
             if (container == null) return null;
 
             var deck = container.GetCards(Zone.Deck);
-            if (deck.Count == 0)
+            // 牌库顶锁：跳过施放中的卡抽下一张（S3b 口径：响应窗内抽牌拿不到正在施放的牌）
+            Card card = null;
+            for (int i = 0; i < deck.Count; i++)
             {
-                ApplyFatigue(player);
+                if (!IsDeckLocked(deck[i])) { card = deck[i]; break; }
+            }
+            if (card == null)
+            {
+                ApplyFatigue(player); // 可抽卡耗尽（空库或全部施放中）＝空库口径
                 return null;
             }
 
-            var card = deck[0];
             bool prev = IsDrawMove;
             IsDrawMove = true;
             try
@@ -871,7 +882,7 @@ namespace CardCore
             }
         }
 
-        /// <summary>送墓：从牌库顶送一张牌入墓地</summary>
+        /// <summary>送墓：从牌库顶送一张牌入墓地（牌库顶锁：跳过施放中的卡磨下一张）</summary>
         public static Card MillCard(this ZoneManager zm, Player player)
         {
             if (zm == null || player == null) return null;
@@ -880,9 +891,13 @@ namespace CardCore
             if (container == null) return null;
 
             var deck = container.GetCards(Zone.Deck);
-            if (deck.Count == 0) return null;
+            Card card = null;
+            for (int i = 0; i < deck.Count; i++)
+            {
+                if (!IsDeckLocked(deck[i])) { card = deck[i]; break; }
+            }
+            if (card == null) return null; // 空库或全部施放中：无可磨
 
-            var card = deck[0];
             container.Move(card, Zone.Deck, Zone.Graveyard);
             return card;
         }
@@ -960,13 +975,7 @@ namespace CardCore
             // 效果横置（沉睡/冻结/横置原子）；冲锋/突袭的登场解横置效果行就此成为空操作（真实卡池 0 张）。
             card._isTapped = false;
 
-            if (fromZone == Zone.Activation)
-                PublishEntryEvent(new CardLeaveActivationEvent
-                {
-                    Card = card,
-                    Controller = controller,
-                    ToZone = Zone.Battlefield,
-                });
+            // S3b 删发动区：fromZone==Activation 的 Leave 事件分支已删（卡不再经 Activation 入场）
 
             // 入场刷新（2026-09-09 定案）：真实入场对 Printed 轨做卡面差集补齐（消耗项随入场恢复）——
             // 只挂统一出口（真换区）：复生原地留场/控制权变更容器直移均不经此，天然不触发。
@@ -976,7 +985,8 @@ namespace CardCore
             // 保证入场卡自己的 OnPlay/OnSummon 能吃到自己的入场事件（RegisterEffect 幂等）
             GameActions.RegisterCardTriggeredEffects(GameCore.Instance, card, controller);
 
-            // 入场事件带来源（时点接线定案）：未显式指定时按 FromZone 派生
+            // 入场事件带来源（时点接线定案；S3b：Activation→CastPlayed 派生已删——
+            // 出牌路径由 ResolvePermanentEntry 显式传 CastPlayed，未传时按 FromZone 派生）
             PublishEntryEvent(new CardPutToBattlefieldEvent
             {
                 Card = card,
@@ -988,13 +998,14 @@ namespace CardCore
             return true;
         }
 
-        /// <summary>按来源区派生进场来源（TryMoveToBattlefield 未显式指定时的兜底）</summary>
+        /// <summary>按来源区派生进场来源（TryMoveToBattlefield 未显式指定时的兜底；
+        /// S3b 删 Activation 分支——出牌路径显式传 CastPlayed）</summary>
         private static EnterSource DeriveEnterSource(Zone fromZone)
         {
             switch (fromZone)
             {
-                case Zone.Activation: return EnterSource.CastPlayed;   // 经发动区打出
                 case Zone.Graveyard: return EnterSource.Revived;       // 墓地复活
+                case Zone.Hand: return EnterSource.CastPlayed;         // 手牌打出（S3b：出牌起点=手牌）
                 default: return EnterSource.SummonedByEffect;          // 牌组检索等效果直入
             }
         }

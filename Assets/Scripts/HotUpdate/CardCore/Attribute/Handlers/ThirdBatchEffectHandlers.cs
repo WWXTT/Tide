@@ -227,62 +227,7 @@ namespace CardCore.Attribute.Handlers
         protected override string DescribeTemplate(AtomicEffectInstance effect) => "消灭目标生物（效果死亡；不灭可拦、复生可替代）";
     }
 
-    /// <summary>全体消灭（2026-10-29 阶段3a，红12·无目标行）：消灭对方全体生物和结界——
-    /// 生物逐个效果死亡（DestroyEffect 死因，与消灭同口径：不灭拦/复生可替代由 TryKill 决策表承担）；
-    /// 结界=无生命单位，走摧毁口径（同 SmashHandler：不灭可拦、发摧毁事件、直送墓地不走死亡决策表）。
-    /// 2026-11-02 补齐结界面（表行文案本就是「消灭对方全体生物和结界」，旧实现只扫生物）。
-    /// 无域原子（表行 TargetKinds 空）——handler 自结算：遍历对手战场，单次执行、无目标解析。</summary>
-    public class DevourAllEnemiesHandler : AtomicEffectHandlerBase
-    {
-        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.DevourAllEnemies;
-
-        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
-        {
-            var opp = context.Controller?.Opponent;
-            if (opp == null || context.ZoneManager == null) return;
-
-            foreach (var card in context.ZoneManager.GetCards(opp, Zone.Battlefield))
-            {
-                if (card == null || !card.IsAlive) continue;
-                if (!(card is IHasSupertype ht)) continue;
-                if (ht.Supertype == Cardtype.Creature)
-                {
-                    DeathRules.TryKill(card, DeathCause.DestroyEffect, context.Source, context.ZoneManager,
-                        null, context.IsCostPayload);
-                }
-                else if (ht.Supertype == Cardtype.Enchantment)
-                {
-                    // 结界（2026-11-02）：不灭免疫三口同拦裁定——拦下即整跳；
-                    // 事件序定案（先摧毁事件后移墓）；无生命值不走 DeathRules，直送墓地
-                    if (DeathRules.IsShielded(card, DeathCause.DestroyEffect)) continue;
-                    PublishEvent(new CardDestroyEvent
-                    {
-                        DestroyedCard = card,
-                        Reason = DestroyReason.Smashed,
-                        Source = context.Source,
-                        EffectTint = effect.AnchorTint(),
-                        FromZone = card.GetZone(), // 2026-11-04 日志口径：移区前定格
-                        IsCost = context.IsCostPayload,
-                    });
-                    var owner = card.GetOwner() ?? card.GetController();
-                    if (owner != null && card.GetZone() != Zone.Graveyard)
-                        context.ZoneManager.MoveCard(card, owner, card.GetZone(), Zone.Graveyard);
-                }
-            }
-        }
-    }
-
-    // 湮灭处理器 2026-10-13 删除（表行已删、处理器不可达）；DeathCause.Annihilate 保留
-    //（引擎层死因仍活——复活=重写表行+本处理器）；同名原子枚举位已随 2026-10-30 枚举收拢删除。
-
-    /// <summary>
-    /// 摧毁（黑5）：与"消灭"的区别——作用于**无生命值单位**（地牌/结界）。
-    /// 地牌 = 双方元素池中的卡（Zone.ElementPool）：先出池（余量写回卡，不设耗尽标记——
-    /// 摧毁≠资源枯竭，回收后可再作地牌），再直送拥有者墓地；结界 = 战场非生物持久物。
-    /// 不经死亡决策表（无生命值者无"死亡"），发 CardDestroyEvent（Reason=Smashed）。
-    /// 不灭免疫（2026-10-09 裁定：剧毒/消灭/摧毁三口全可被不灭拦）——显式走护盾矩阵消灭类
-    /// 判定（IsShielded/DestroyEffect），拦下即整跳（不出池不入墓不发事件）。
-    /// </summary>
+    // 全体消灭 DevourAllEnemiesHandler 已随 2026-11-05 硬切 B2 删除（用户定案：删除全体原子——
     public class SmashHandler : AtomicEffectHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.Smash;
@@ -385,11 +330,12 @@ namespace CardCore.Attribute.Handlers
     // ---------------- 反制 / 沉默 ----------------
 
     /// <summary>
-    /// 发动无效（2026-10-04 两层无效定案；原打落 KnockDown 承接）：无效化**发动**本身——净零成本。
-    /// - 施放（发动区卡）：直接送墓 → cast 在消费点因「已不在发动区」中止：不付费、不结算（净效果=扣费返还）；
-    /// - 场上发动（主动/触发式）：标记该源卡待结算栈条目「发动层无效」——结算时跳过：
-    ///   主动不扣费（横置为声明期代价，不重置）、触发式退还发动次数（不计入）；
-    /// - 强制桶（Mandatory，如光环类强制效果）不受发动无效管制：不标记、无效果。
+    /// 发动无效（2026-10-04 两层无效定案；E1-1 2026-11-04 定案·**响应绑定**）：无效化**发动**本身——净零成本。
+    /// 无目标选择器——读 context.RespondedEntry（本条目入栈时绑定的当时栈顶）：**跟谁发动就反制谁**。
+    /// RespondedEntry 为空 / 系统条目（SBA/阶段窗/攻击·守卫宣言）/ 已标 IsActivationNegated / 场上强制桶
+    ///（Mandatory，cast 条目豁免——整卡施放永远是玩家行为）→ no-op。
+    /// cast 条目由消费点 ResolveCardCastAsync 早退收口（不付费+入墓+Failed）；非 cast 条目由 EffectExecutor
+    /// 跳过（主动不扣费、触发式退还发动次数）。NegateEvent.Target=条目源卡。
     /// </summary>
     public class NegateActivationHandler : AtomicEffectHandlerBase
     {
@@ -397,47 +343,22 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            var stack = GameCore.Instance?.StackEngine;
-            foreach (var target in context.Targets)
-            {
-                if (!(target is Card card)) continue;
-                var owner = card.GetController() ?? context.Controller;
-
-                // 施放路径：发动区卡送墓（cast 消费点中止——不付费不结算）
-                if (context.ZoneManager.IsCardInZone(card, owner, Zone.Activation))
-                {
-                    context.ZoneManager.MoveCard(card, owner, Zone.Activation, Zone.Graveyard);
-                    PublishEvent(new CardLeaveActivationEvent
-                    {
-                        Card = card,
-                        Controller = owner,
-                        ToZone = Zone.Graveyard
-                    });
-                    continue;
-                }
-
-                // 场上发动路径：标记该源卡**最晚入栈**的非强制条目（强制桶不受发动无效管制）
-                var entry = stack?.GetStackContents()
-                    .LastOrDefault(e => e != null && !e.IsCardCast && !e.IsSBA
-                                        && !e.IsAttackDeclaration && !e.IsGuardDeclaration
-                                        && ReferenceEquals(e.Source, card)
-                                        && e.ActivationType != EffectActivationType.Mandatory);
-                if (entry != null)
-                {
-                    entry.IsActivationNegated = true;
-                    PublishEvent(new NegateEvent { Target = card, IsActivation = true, Source = context.Source });
-                }
-            }
+            var entry = context.RespondedEntry;
+            if (entry == null || entry.IsSBA || entry.IsPhaseWindow
+                || entry.IsAttackDeclaration || entry.IsGuardDeclaration) return; // 无响应对象/系统条目
+            if (entry.IsActivationNegated) return;                                // 不可双重无效
+            if (!entry.IsCardCast && entry.ActivationType == EffectActivationType.Mandatory) return; // 强制桶不受管制
+            entry.IsActivationNegated = true;
+            PublishEvent(new NegateEvent { Target = entry.Source as Card, IsActivation = true, Source = context.Source });
         }
 
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => "无效化目标的发动（不扣费、不计发动次数；强制效果不受管制）";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "响应连锁：无效化其发动的发动（不扣费、不计发动次数；强制效果不受管制）";
     }
 
     /// <summary>
-    /// 效果无效（2026-10-04 两层无效定案；承接旧 NegateActivation 标记实现）：发动照常、效果不结算。
-    /// - 施放：照常扣费（不返还）、卡入墓、跳过效果（消费点 _isNegated 路径）；
-    /// - 场上发动（主动/触发式）：标记栈条目「效果层无效」——扣费照走、横置不重置、触发式计入发动次数；
-    /// - 强制桶（光环类强制效果）**同样受管制**：可标记、效果跳过。
+    /// 效果无效（2026-10-04 两层无效定案；E1-1 2026-11-04 定案·**响应绑定**）：发动照常、效果不结算。
+    /// 与发动无效同构读 context.RespondedEntry——差别仅：**强制桶同样受管制**（可标记）；
+    /// cast 条目消费点付费后入墓、费用不退。RespondedEntry 为空/系统条目/已标 → no-op。
     /// </summary>
     public class NegateEffectHandler : AtomicEffectHandlerBase
     {
@@ -445,34 +366,15 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            var stack = GameCore.Instance?.StackEngine;
-            foreach (var target in context.Targets)
-            {
-                if (!(target is Card card)) continue;
-                var owner = card.GetController() ?? context.Controller;
-
-                // 施放路径：标记 _isNegated（ResolveCardCastAsync 步3：付费后入墓、费用不退）
-                if (context.ZoneManager.IsCardInZone(card, owner, Zone.Activation))
-                {
-                    card.Negate();
-                    PublishEvent(new NegateEvent { Target = card, IsActivation = true, Source = context.Source });
-                    continue;
-                }
-
-                // 场上发动路径：标记该源卡最晚入栈的待结算条目（含强制桶——受效果无效管制）
-                var entry = stack?.GetStackContents()
-                    .LastOrDefault(e => e != null && !e.IsCardCast && !e.IsSBA
-                                        && !e.IsAttackDeclaration && !e.IsGuardDeclaration
-                                        && ReferenceEquals(e.Source, card));
-                if (entry != null)
-                {
-                    entry.IsEffectNegated = true;
-                    PublishEvent(new NegateEvent { Target = card, IsActivation = true, Source = context.Source });
-                }
-            }
+            var entry = context.RespondedEntry;
+            if (entry == null || entry.IsSBA || entry.IsPhaseWindow
+                || entry.IsAttackDeclaration || entry.IsGuardDeclaration) return;
+            if (entry.IsActivationNegated) return; // 发动无效后不可再被效果无效指
+            entry.IsEffectNegated = true;
+            PublishEvent(new NegateEvent { Target = entry.Source as Card, IsActivation = true, Source = context.Source });
         }
 
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => "无效化目标的效果（扣费照付，效果不结算；强制效果同受管制）";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "响应连锁：无效化其发动的效果（扣费照付，效果不结算；强制效果同受管制）";
     }
 
     /// <summary>
@@ -593,6 +495,8 @@ namespace CardCore.Attribute.Handlers
             $"发现：从牌库随机展示 {Math.Max(1, effect.Value)} 张，选一张加入手牌";
     }
 
+    // 由单体效果选全域生成；枚举墓碑保留）。
+
     // ---------------- 参照族（2026-10-31；2026-11-04 双段目标改版：第一段弹选{target}=己方生物参照
     //（表域=己方单位+NoRole 滤角色——角色不作参照，防以角色生命 30 为基准刷甲），第二段=结算期
     // 反问落点（活体炸弹问受害者=对方单位含角色、活体护甲问护甲落点=己方单位含角色——角色可
@@ -610,19 +514,34 @@ namespace CardCore.Attribute.Handlers
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.BurstDamage;
 
-        /// <summary>受害者候选域（对方存活生物+对方角色；帷幕收窄+潜行隐藏两道过滤同标准弹选口径）。</summary>
-        private static List<Entity> VictimCandidates(EffectExecutionContext context)
+        /// <summary>受害者候选域（**第二段目标域=行 Domain 单源**，2026-11-05 硬切 B2：
+        /// 活体炸弹行 Domain='对方战场:生物; 对方角色'；用户改版——第一段参照由外层 kinds 路径选，
+        /// 本段读行 Domain 解析候选，不再手写 kinds。帷幕收窄+潜行隐藏两道过滤同标准弹选口径）。</summary>
+        private static List<Entity> VictimCandidates(EffectExecutionContext context, AtomicEffectInstance effect)
         {
-            var kinds = new List<int> { (int)TargetKind.EnemyLivingUnit };
-            var candidates = EffectHandlerRegistry.ResolveCandidates(kinds, "", context);
-            return TargetResolver.ExcludeUnselectable(
+            return WrapSelectable(ResolveRowDomainCandidates(effect, context), context);
+        }
+
+        /// <summary>弹选口径两道过滤（帷幕收窄+潜行隐藏——参照族第二段共用）。</summary>
+        internal static List<Entity> WrapSelectable(List<Entity> candidates, EffectExecutionContext context)
+            => TargetResolver.ExcludeUnselectable(
                 TargetResolver.ApplyTauntRestriction(candidates, context, false), context.Controller);
+
+        /// <summary>按行 Domain（新语法）解析候选（参照族第二段共用；行缺失/非新语法=空集）。</summary>
+        internal static List<Entity> ResolveRowDomainCandidates(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            var row = Attribute.AtomicEffectTable.GetByHashId(effect.RowHashId)
+                      ?? Attribute.AtomicEffectTable.GetByType(effect.Type);
+            if (row == null || !TargetAxisRules.TryParseDomain(row.Domain, out var axis))
+                return new List<Entity>();
+            axis.Filter = row.TargetFilter ?? "";
+            return TargetAxisResolver.GetCandidates(axis, context);
         }
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
             // 同步路径（触发式/headless 兜底）：受害者自动取首候选（与无头 Service 代选同结果）
-            Resolve(effect, context, VictimCandidates(context).FirstOrDefault());
+            Resolve(effect, context, VictimCandidates(context, effect).FirstOrDefault());
         }
 
         public override async UniTask ExecuteAsync(AtomicEffectInstance effect, EffectExecutionContext context)
@@ -630,7 +549,7 @@ namespace CardCore.Attribute.Handlers
             var reference = context.PrimaryTarget;
             if (reference == null || !reference.IsAlive) return;
 
-            var candidates = VictimCandidates(context);
+            var candidates = VictimCandidates(context, effect);
             if (candidates.Count == 0) return; // 受害者域空=空转
 
             Entity victim = candidates[0];
@@ -691,19 +610,15 @@ namespace CardCore.Attribute.Handlers
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.LivingArmor;
 
-        /// <summary>护甲落点候选域（己方存活生物+己方角色；两道过滤同标准弹选口径）。</summary>
-        private static List<Entity> ReceiverCandidates(EffectExecutionContext context)
-        {
-            var kinds = new List<int> { (int)TargetKind.OwnLivingUnit };
-            var candidates = EffectHandlerRegistry.ResolveCandidates(kinds, "", context);
-            return TargetResolver.ExcludeUnselectable(
-                TargetResolver.ApplyTauntRestriction(candidates, context, false), context.Controller);
-        }
+        /// <summary>护甲落点候选域（**第二段目标域=行 Domain 单源**，2026-11-05 硬切 B2：
+        /// 活体护甲行 Domain='己方战场:生物; 己方角色'；两道过滤同标准弹选口径）。</summary>
+        private static List<Entity> ReceiverCandidates(EffectExecutionContext context, AtomicEffectInstance effect)
+            => BurstDamageHandler.WrapSelectable(BurstDamageHandler.ResolveRowDomainCandidates(effect, context), context);
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
             // 同步路径（触发式/headless 兜底）：落点自动取首候选（与无头 Service 代选同结果）
-            Resolve(effect, context, ReceiverCandidates(context).FirstOrDefault());
+            Resolve(effect, context, ReceiverCandidates(context, effect).FirstOrDefault());
         }
 
         public override async UniTask ExecuteAsync(AtomicEffectInstance effect, EffectExecutionContext context)
@@ -711,7 +626,7 @@ namespace CardCore.Attribute.Handlers
             var reference = context.PrimaryTarget;
             if (reference == null || !reference.IsAlive) return;
 
-            var candidates = ReceiverCandidates(context);
+            var candidates = ReceiverCandidates(context, effect);
             if (candidates.Count == 0) return; // 落点域空=空转
 
             Entity receiver = candidates[0];

@@ -267,6 +267,9 @@ namespace SynergyUI
               .Append(string.Join(",", (a.kinds ?? new System.Collections.Generic.List<int>()).Distinct().OrderBy(k => k)))
               .Append(",amp=").Append(a.amp.ToString("R", System.Globalization.CultureInfo.InvariantCulture))
               .Append(']');
+            // 授予域 token（P2-2 2026-11-04）：非空才入哈希（按值省略——domain 空的旧卡零漂移）；
+            // 同一关键词不同域（己方/双方）= 不同段 → 不同卡 ID。
+            if (!string.IsNullOrEmpty(a.domain)) sb.Append(",dom=").Append(a.domain);
             AppendBranch(sb, a.branch);
         }
 

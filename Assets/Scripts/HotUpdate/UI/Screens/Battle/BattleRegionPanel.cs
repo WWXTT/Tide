@@ -140,15 +140,32 @@ namespace SynergyUI
             {
                 RegionKind.Graveyard => Zone.Graveyard,
                 RegionKind.Exile => Zone.Exile,
-                RegionKind.Activation => Zone.Activation,
+                RegionKind.Activation => Zone.None, // 发动中=栈概念（E1-1）：走下方栈源分支，不查区
                 _ => null,
             };
+            if (_kind == RegionKind.Activation)
+            {
+                // 发动中页（E1-1 2026-11-04·游戏王口径）：**栈上待结算条目的源卡**——与引擎 15/16
+                // 候选同集（StackEngine.GetEngagedCards 单源：任意来源、排除系统条目与已无效者、
+                // 不查卡所在区）。标题列「卡(效果名)」——卡名+栈条目效果名（卡+效果名显示）。
+                var engaged = Core != null && Core.StackEngine != null ? Core.StackEngine.GetEngagedCards(_owner) : null;
+                var entryNames = new List<string>();
+                if (engaged != null && Core != null)
+                    foreach (var c in engaged)
+                    {
+                        var entry = Core.StackEngine.GetEngagedEntryOf(c);
+                        string fxName = entry?.Definition?.DisplayName;
+                        entryNames.Add((c as IHasName)?.CardName ?? "?" + (string.IsNullOrEmpty(fxName) ? "" : $"({fxName})"));
+                    }
+                _title.text = $"{who}发动中 · {engaged?.Count ?? 0} 条";
+                FillCards(engaged, ownerIsOpp);
+                Debug.Log($"[Region] {who}发动中列条目 {engaged?.Count ?? 0}：{string.Join("、", entryNames)}");
+                return;
+            }
             if (zone.HasValue)
             {
                 var cards = Core != null ? Core.ZoneManager.GetCards(_owner, zone.Value) : null;
-                string zoneName = _kind == RegionKind.Graveyard ? "墓地"
-                    : _kind == RegionKind.Exile ? "除外区"
-                    : "发动区";
+                string zoneName = _kind == RegionKind.Graveyard ? "墓地" : "除外区";
                 _title.text = $"{who}{zoneName} · {cards?.Count ?? 0} 张";
                 FillCards(cards, ownerIsOpp);
                 Debug.Log($"[Region] {who}{zoneName} 列卡 {cards?.Count ?? 0} 张");

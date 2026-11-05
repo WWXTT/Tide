@@ -58,9 +58,10 @@ namespace CardCore
         OwnElementPool = 13,
         /// <summary>对方元素池（地牌卡）</summary>
         EnemyElementPool = 14,
-        /// <summary>己方发动区（被使用的卡——反制指向落点）</summary>
+        /// <summary>己方发动区（枚举位保留·E1-1 修订后**非目标域**——反制=响应绑定栈顶
+        /// EffectInstance.RespondedEntry，不走 15/16 候选；本位待 S3b 拆区时一并处置）。</summary>
         OwnActivation = 15,
-        /// <summary>对方发动区（被使用的卡）</summary>
+        /// <summary>对方发动区（同上——非目标域）</summary>
         EnemyActivation = 16,
     }
 
@@ -154,7 +155,10 @@ namespace CardCore
         public static bool AllHiddenZone(List<int> kinds)
             => kinds != null && kinds.Count > 0 && kinds.All(IsHiddenZone);
 
-        /// <summary>卡种类 → (Zone, 是否己方)。单位种类返回 (None, false) 无意义值。</summary>
+        /// <summary>卡种类 → (Zone, 是否己方)。单位种类返回 (None, false) 无意义值。
+        /// 15/16 E1-1 修订：非目标域（反制=响应绑定 RespondedEntry）——映射回 Zone.Activation 待 S3b 拆区
+        ///（候选解析在 TargetFilterSystem 专属 case 挂 StackEngine.GetEngagedCards），
+        /// 此处返回 None；ZoneOf 的区域消费方（InfoAxisHandlers 等）遇 None 须跳过。</summary>
         public static (Zone zone, bool own) ZoneOf(int kind)
         {
             bool own = !IsEnemySide(kind);
@@ -263,7 +267,7 @@ namespace CardCore
             "对方除外区",     // 12 EnemyExile
             "己方元素池",     // 13 OwnElementPool
             "对方元素池",     // 14 EnemyElementPool
-            "己方发动区",     // 15 OwnActivation
+            "己方发动区",     // 15 OwnActivation（枚举位保留·非目标域——反制走 RespondedEntry）
             "对方发动区",     // 16 EnemyActivation
         };
 

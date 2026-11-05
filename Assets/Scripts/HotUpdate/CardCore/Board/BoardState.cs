@@ -51,15 +51,12 @@ namespace GameBoard
         // （钉格须属其所在区的格集，否则按无钉顺延），其余卡先回上轮格（位置粘滞）再填空。
         // 卡离场（不再落格）钉子在 Resync 尾自动清除。
         private readonly Dictionary<Card, int> _pinnedCells = new Dictionary<Card, int>();
-
-        // 施放占格（2026-10-15 发动格拆除定案：施放中的卡=发动区占位期，落在该玩家单位区空格上
-        // 呈现——整个单位区兼任发动区（P11 后 4+5=9 格）；永久物=玩家所选钉格原地转正，
-        // 法术/响应施放=first-free）。
-        // 与战场占用**分离存放**：施放卡不进 _cellOf（TryGetCell=false——光环 TryGetCellOf、
-        // 攻击距离、邻接查询不视其为战场单位），CardAt 合并可见（出牌选格/呈现层需要占用真值）。
-        // Enter/Leave/Failed 事件钩子已引全量 Resync，本表由 Resync 纯重建（钉优先→first-free）。
-        private readonly Dictionary<Card, int> _castingCellOf = new Dictionary<Card, int>();   // 施放卡 -> 格 index
-        private readonly Dictionary<int, Card> _castingOccupant = new Dictionary<int, Card>(); // 格 index -> 施放卡
+        //
+        // 施放占格已退役（S3b 收口 2026-11-05 定案「栈没有实体」）：施放中的卡**不再投影到
+        // 单位区格**——BoardState 只落战场真单位/地牌；施放卡的对局呈现走链列表
+        //（BattleViewData.CastingCards 从栈来、X/Z=-1 悬浮语义）与 StackLines 链 UI。
+        // 旧 _castingCellOf/_castingOccupant/PlaceCasting/TryGetCastingCell/IsCasting 随之删除
+        //（CardAt 不再合并施放卡——出牌选格不再为施放卡让格）。
 
         private bool _autoResync;
         private readonly List<IDisposable> _subscriptions = new List<IDisposable>();
@@ -77,35 +74,30 @@ namespace GameBoard
 
         /// <summary>
         /// 从核心区域列表重建全部占用（幂等、确定性——同状态必得同布局）。
-        /// 战场列表 → 己方单位区格序 钉优先→上轮格粘滞→first-free；元素池列表 → 地牌行格序；
-        /// 发动区列表 → 单位区空格施放占格（钉优先→上轮格粘滞→first-free，2026-10-15 发动格拆除）。
+        /// 战场列表 → 己方单位区格序 钉优先→上轮格粘滞→first-free；元素池列表 → 地牌行格序。
         /// 容量外（控制权迁移等边缘）不落格、不抛错。
         /// </summary>
         public void Resync()
         {
             // 上一轮落位快照（位置粘滞用）：先留档再清表——无钉单位优先回自己上轮的格
             var prevCells = _cellOf.Count > 0 ? new Dictionary<Card, int>(_cellOf) : null;
-            var prevCasting = _castingCellOf.Count > 0 ? new Dictionary<Card, int>(_castingCellOf) : null;
 
             _occupant.Clear();
             _cellOf.Clear();
-            _castingCellOf.Clear();
-            _castingOccupant.Clear();
 
             AssignCells(_p1, Zone.Battlefield, BoardLayout.UnitCells(0), prevCells);
             AssignCells(_p2, Zone.Battlefield, BoardLayout.UnitCells(1), prevCells);
             AssignCells(_p1, Zone.ElementPool, BoardLayout.LandCells(0));
             AssignCells(_p2, Zone.ElementPool, BoardLayout.LandCells(1));
 
-            PlaceCasting(_p1, 0, prevCasting);
-            PlaceCasting(_p2, 1, prevCasting);
+            // 施放占格投影已退役（S3b 收口 2026-11-05）：Resync 不再把施放卡落单位区格
 
-            // 落位钉子清理：本轮未落格的卡（离场/换区）钉子不保留（施放占格期保钉——入场要用）
+            // 落位钉子清理：本轮未落格的卡（离场/换区）钉子不保留
             if (_pinnedCells.Count > 0)
             {
                 var stale = new List<Card>();
                 foreach (var card in _pinnedCells.Keys)
-                    if (!_cellOf.ContainsKey(card) && !_castingCellOf.ContainsKey(card)) stale.Add(card);
+                    if (!_cellOf.ContainsKey(card)) stale.Add(card);
                 foreach (var card in stale) _pinnedCells.Remove(card);
             }
         }
@@ -149,9 +141,6 @@ namespace GameBoard
             // 落位钉子优先：本批带合法钉的卡占住钉格；其余卡先回自己上轮的格（位置粘滞，
             // 2026-10-16 死亡不挪位：同批死亡/离场只让出自己的格，其余单位不再顺移补空），
             // 回不上（新入场/格被钉占/换半场）才按列表序填剩余空格。
-            // 施放占格避让说明（2026-10-15）：本方法先于 PlaceCasting 跑（战场批先落，
-            // 施放字典此刻恒空）——单位不感知施放卡；极窄口（施放窗内新单位入场占施放格）由
-            // 「施放卡挪格呈现 + 转正时钉优先拿回自己的格、其余单位重排」自愈收敛。
             var cellIndex = new HashSet<int>();
             foreach (var c in cells) cellIndex.Add(BoardMath.Index(c.x, c.z));
 
@@ -286,80 +275,9 @@ namespace GameBoard
         }
 
         /// <summary>
-        /// 施放占格（2026-10-15 发动格拆除）：发动区列表 → 该玩家单位区空格。
-        /// 钉优先（永久物出牌=玩家所选格，钉格须属己方单位区且未被战场/其他施放卡占用），
-        /// 其余（法术/响应施放）按单位区格序 first-free；无空格不落格不抛错（立牌不显示）。
-        /// </summary>
-        private void PlaceCasting(Player player, int pIdx, Dictionary<Card, int> prev = null)
-        {
-            var cards = SafeGetCards(player, Zone.Activation);
-            if (cards == null) return;
-
-            var cells = BoardLayout.UnitCells(pIdx);
-            var cellIndex = new HashSet<int>();
-            foreach (var c in cells) cellIndex.Add(BoardMath.Index(c.x, c.z));
-
-            foreach (var card in cards)
-            {
-                if (card == null) continue;
-                // 场地卡（2026-10-29 P8）：施放立牌恒在己方场地格（与入场落位同格）——旧场地
-                // 仍占格时不立牌（顶替在 cast 结算才发生，防同格双卡重叠），空则落格预告位。
-                if (card.IsFieldCard())
-                {
-                    var fc = BoardLayout.FieldCell(pIdx);
-                    int fIdx = BoardMath.Index(fc.x, fc.z);
-                    if (!_occupant.ContainsKey(fIdx) && !_castingOccupant.ContainsKey(fIdx))
-                    {
-                        _castingCellOf[card] = fIdx;
-                        _castingOccupant[fIdx] = card;
-                    }
-                    continue;
-                }
-                int placed = -1;
-                if (_pinnedCells.TryGetValue(card, out int pin)
-                    && cellIndex.Contains(pin)
-                    && !_occupant.ContainsKey(pin) && !_castingOccupant.ContainsKey(pin))
-                {
-                    placed = pin;
-                }
-                else if (prev != null && prev.TryGetValue(card, out int old)
-                    && cellIndex.Contains(old)
-                    && !_occupant.ContainsKey(old) && !_castingOccupant.ContainsKey(old))
-                {
-                    placed = old; // 位置粘滞：施放立牌回上轮格，无关重排（如死亡）不再挪动它
-                }
-                else
-                {
-                    foreach (var c in cells)
-                    {
-                        int idx = BoardMath.Index(c.x, c.z);
-                        if (_occupant.ContainsKey(idx) || _castingOccupant.ContainsKey(idx)) continue;
-                        placed = idx; break;
-                    }
-                }
-                if (placed < 0) continue;
-                _castingCellOf[card] = placed;
-                _castingOccupant[placed] = card;
-            }
-        }
-
-        /// <summary>施放占格快照（呈现层数据道）：发动区占位卡 × 落格 × 归属；未落格卡不列。</summary>
-        public List<(Card card, int x, int z, int owner)> CastingPlacements()
-        {
-            var list = new List<(Card, int, int, int)>();
-            AppendCasting(_p1, 0, list);
-            AppendCasting(_p2, 1, list);
-            return list;
-        }
-
-        private void AppendCasting(Player player, int owner, List<(Card card, int x, int z, int ownerIdx)> list)
-        {
-            var cards = SafeGetCards(player, Zone.Activation);
-            if (cards == null) return;
-            foreach (var card in cards)
-                if (card != null && _castingCellOf.TryGetValue(card, out int idx))
-                    list.Add((card, idx % BoardMath.Width, idx / BoardMath.Width, owner));
-        }
+        /// 施放占格（2026-10-15 发动格拆除；S3b A 切源 2026-11-04：数据源改读栈）：
+        // PlaceCasting（施放占格投影）已随 S3b 收口 2026-11-05 删除——施放卡不落单位区格；
+        // CastingPlacements/AppendCasting 施放占格快照口同批退役（呈现层改读栈）。
 
         /// <summary>表现层不得抛错：玩家未注册区域容器时返回 null</summary>
         private List<Card> SafeGetCards(Player player, Zone zone)
@@ -377,18 +295,15 @@ namespace GameBoard
 
         // ======================================== 查询（选择/表现层的映射 API） ========================================
 
-        /// <summary>格上的卡：单位/地牌格返回占用者；施放占格（发动区占位卡）次优先返回施放卡
-        ///（占用真值——出牌选格/呈现层用；战斗邻接走 Neighbors/FlankNeighbors 已滤施放卡）</summary>
+        /// <summary>格上的卡：单位/地牌格返回占用者；无占用 = null
+        ///（施放卡不占格——S3b 收口 2026-11-05：施放卡不再投影到单位区格）</summary>
         public Card CardAt(int x, int z)
         {
             if (!BoardMath.InBounds(x, z)) return null;
-            int idx = BoardMath.Index(x, z);
-            if (_occupant.TryGetValue(idx, out var card)) return card;
-            return _castingOccupant.TryGetValue(idx, out var casting) ? casting : null;
+            return _occupant.TryGetValue(BoardMath.Index(x, z), out var card) ? card : null;
         }
 
-        /// <summary>卡所在格（未落格 = false；施放占位卡不在 _cellOf——战场/光环/距离口径
-        /// 均不视其为在场单位，落格查询走 TryGetCastingCell）</summary>
+        /// <summary>卡所在格（未落格 = false；战场/光环/距离口径均以本表为准）</summary>
         public bool TryGetCell(Card card, out int x, out int z)
         {
             x = z = -1;
@@ -398,18 +313,8 @@ namespace GameBoard
             return true;
         }
 
-        /// <summary>施放占位卡落格查询（呈现层）：发动区占位卡 → 单位区格；未落格 = false。</summary>
-        public bool TryGetCastingCell(Card card, out int x, out int z)
-        {
-            x = z = -1;
-            if (card == null || !_castingCellOf.TryGetValue(card, out int idx)) return false;
-            x = idx % BoardMath.Width;
-            z = idx / BoardMath.Width;
-            return true;
-        }
-
-        /// <summary>卡是否处于施放占格期（发动区占位）——邻接/战斗查询过滤用。</summary>
-        public bool IsCasting(Card card) => card != null && _castingCellOf.ContainsKey(card);
+        // TryGetCastingCell/IsCasting（施放占格查询）已随 S3b 收口 2026-11-05 删除——
+        // 施放卡无落格，邻接/战斗/呈现查询一律走 TryGetCell（恒 false 于施放卡）。
 
         /// <summary>玩家角色格坐标（核心不存坐标——这就是布局常量）</summary>
         public (int x, int z) CharacterCell(Player player) => BoardLayout.CharacterCell(PlayerIndex(player));
@@ -436,7 +341,7 @@ namespace GameBoard
         }
 
         /// <summary>卡所在格的 6 邻格占用卡（通用邻接查询；未落格 = 空枚举）。
-        /// 施放占位卡不算在场单位（2026-10-15 发动格拆除：施放卡只是占格呈现）——滤除。</summary>
+        /// 施放卡不落格（S3b 收口 2026-11-05）——CardAt 恒不返回施放卡，无需过滤。</summary>
         public IEnumerable<Card> Neighbors(Card card)
         {
             if (!TryGetCell(card, out int x, out int z)) yield break;
@@ -444,7 +349,7 @@ namespace GameBoard
             {
                 var (nx, nz) = BoardMath.Neighbor(x, z, dir);
                 var neighbor = CardAt(nx, nz);
-                if (neighbor != null && neighbor != card && !IsCasting(neighbor))
+                if (neighbor != null && neighbor != card)
                     yield return neighbor;
             }
         }
@@ -463,7 +368,7 @@ namespace GameBoard
                 if (!BoardMath.InBounds(nx, nz)) continue;
                 if (BoardLayout.RoleOf(nx, nz) == CellRole.Character) { count++; continue; }
                 var occupant = CardAt(nx, nz);
-                if (occupant != null && occupant != card && !IsCasting(occupant)) count++;
+                if (occupant != null && occupant != card) count++;
             }
             return count;
         }
@@ -478,14 +383,14 @@ namespace GameBoard
             {
                 var (nx, nz) = BoardMath.Neighbor(x, z, dir);
                 var neighbor = CardAt(nx, nz);
-                if (neighbor != null && neighbor != card && !IsCasting(neighbor))
+                if (neighbor != null && neighbor != card)
                     yield return neighbor;
             }
         }
 
         /// <summary>角色格左右同排（E/W 两向）邻格占用生物（碾压 RoleAdjacentResolver 接线用，
         /// 2026-10-16 碾压攻角色改版：溅射域=角色格左右邻格生物）。8×7 布局下角色格居左右列端头
-        ///（P1=(0,1)/P2=(7,5)）——E/W 仅一格在盘（对方侧出界自然跳过）。施放占位卡非在场生物——滤除。</summary>
+        ///（P1=(0,1)/P2=(7,5)）——E/W 仅一格在盘（对方侧出界自然跳过）。</summary>
         public IEnumerable<Card> FlankNeighborsOfRole(Player player)
         {
             var (x, z) = CharacterCell(player);
@@ -493,7 +398,7 @@ namespace GameBoard
             {
                 var (nx, nz) = BoardMath.Neighbor(x, z, dir);
                 var neighbor = CardAt(nx, nz);
-                if (neighbor != null && !IsCasting(neighbor))
+                if (neighbor != null)
                     yield return neighbor;
             }
         }
@@ -501,8 +406,7 @@ namespace GameBoard
         // ======================================== 一致性自检（验证器用） ========================================
 
         /// <summary>占用双向索引是否成对一致、无悬挂（TestBoard 的核心断言之一；
-        /// 地牌同色组多卡共享一格——正向表按格计，反向表每张卡都须指向有占用者的格。
-        /// 施放占格同式成对校验，且与战场占用不得同格重叠）</summary>
+        /// 地牌同色组多卡共享一格——正向表按格计，反向表每张卡都须指向有占用者的格。</summary>
         public bool IsConsistent()
         {
             foreach (var kv in _occupant)
@@ -512,15 +416,6 @@ namespace GameBoard
             foreach (var kv in _cellOf)
             {
                 if (!_occupant.ContainsKey(kv.Value)) return false;
-            }
-            foreach (var kv in _castingCellOf)
-            {
-                if (!_castingOccupant.TryGetValue(kv.Value, out var c) || !ReferenceEquals(c, kv.Key)) return false;
-                if (_occupant.ContainsKey(kv.Value)) return false;
-            }
-            foreach (var kv in _castingOccupant)
-            {
-                if (!_castingCellOf.TryGetValue(kv.Value, out int idx) || idx != kv.Key) return false;
             }
             return true;
         }
@@ -548,8 +443,10 @@ namespace GameBoard
             // 2026-09-26 补钩（BattlefieldVerifier S2 发现）：漏钩时离场只能等 SBA 快照扫描
             // 补发 CardZoneChangeEvent 才追上，窗口期内棋盘留幽灵占用（HUD/碾压邻接过期）
             Hook<CardZoneChangeEvent>();
-            Hook<CardEnterActivationEvent>();
-            Hook<CardLeaveActivationEvent>();
+            // Enter/Leave Activation 已随 S3b 删发动区退役（2026-11-04）——
+            // 施放中卡占格改由 StackAddEvent/StackResolutionEndEvent/Failed/ZoneChange 驱动
+            Hook<StackAddEvent>();
+            Hook<StackResolutionEndEvent>();
             Hook<CardActivationFailedEvent>();
             Hook<ElementPoolAddEvent>();
             // ElementPoolDepleteEvent 已删（2026-10-11 指示物/耗竭退役）——地牌离池改由
@@ -599,7 +496,7 @@ namespace GameBoard
         private static Player OwnerOf(Card unit) => unit?.GetController() ?? unit?.GetOwner();
 
         /// <summary>
-        /// 合法落格：该单位所在方单位区内 · 空格（无单位/无施放占位——CardAt 占用真值）· 非原地。
+        /// 合法落格：该单位所在方单位区内 · 空格（无单位）· 非原地。
         /// 未装配/无属主/未落格单位照常返回其半场空格（未落格无原地排除）。
         /// </summary>
         public static List<(int x, int z)> LegalDestinations(Card unit)
@@ -612,7 +509,7 @@ namespace GameBoard
             foreach (var cell in BoardLayout.UnitCells(board.PlayerIndex(owner)))
             {
                 if (cell.x == ux && cell.z == uz) continue;         // 原地不可
-                if (board.CardAt(cell.x, cell.z) != null) continue; // 占用真值（含施放占格卡）
+                if (board.CardAt(cell.x, cell.z) != null) continue; // 占用真值
                 result.Add((cell.x, cell.z));
             }
             return result;
@@ -632,7 +529,7 @@ namespace GameBoard
             foreach (var c in BoardLayout.UnitCells(board.PlayerIndex(owner)))
                 if (c.x == x && c.z == z) { inZone = true; break; }
             if (!inZone) return false;                              // 须属该方单位区
-            if (board.CardAt(x, z) != null) return false;           // 空格（含施放占位）
+            if (board.CardAt(x, z) != null) return false;           // 空格
             board.PinCard(unit, x, z);
             return true;
         }

@@ -425,7 +425,7 @@ namespace CardCore
                         ZoneManager = ctx.ZoneManager,
                         ElementPool = ctx.ElementPool,
                     };
-                    var candidates = EffectHandlerRegistry.ResolveCandidates(atom.TargetKinds, atom.Filter, resolveCtx)
+                    var candidates = EffectHandlerRegistry.ResolveCandidates(atom.TargetKinds, atom.Filter, resolveCtx, atom.Axis)
                         ?? new List<Entity>();
                     candidates.RemoveAll(e => e == null || (e is Card unit && !unit.IsAlive));
                     if (candidates.Count == 0) return false; // 无可指定单位：不执行（声明期闸已拦，此处兜底响应窗口内恶化）
@@ -465,7 +465,7 @@ namespace CardCore
                     ZoneManager = ctx.ZoneManager,
                     ElementPool = ctx.ElementPool,
                 };
-                targets = EffectHandlerRegistry.ResolveCandidates(atom.TargetKinds, atom.Filter, resolveCtx)
+                targets = EffectHandlerRegistry.ResolveCandidates(atom.TargetKinds, atom.Filter, resolveCtx, atom.Axis)
                     ?? new List<Entity>();
             }
 

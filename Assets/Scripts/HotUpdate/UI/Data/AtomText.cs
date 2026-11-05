@@ -77,6 +77,22 @@ namespace SynergyUI
         /// "对方单位玩家"病句与硬写规避都在此收敛）。实例域未声明时回落表行默认域。</summary>
         public static string TargetNoun(AtomicEffectConfig cfg, AtomicEffectEntry atom)
         {
+            // 目标域重做 P0（2026-11-05·契约）：行 Domain 为**新选择器语法**且实例无显式域/kinds
+            // → selector 短语（「双方战场的生物、双方角色」），优先于 legacy Domain 顿号 / 旧 kinds 侧词。
+            // 注：实例显式 kinds 条目（组合器收窄）的候选走区域收窄轴（converter），
+            // 渲染暂保持旧侧词——文案与候选来源的统一留 P2 渲染收口。
+            bool p1bEntryDomain = !string.IsNullOrEmpty(atom?.domain);
+            bool p1bEntryKinds = atom != null && atom.kinds != null && atom.kinds.Count > 0;
+            if (!p1bEntryDomain && !p1bEntryKinds && !string.IsNullOrEmpty(cfg?.Domain)
+                && TargetAxisRules.TryParseDomain(cfg.Domain, out var p0Axis))
+                return AxisPhraseOf(p0Axis);
+
+            // P2-2 域优先（2026-11-04）：实例显式 token（关键词授予域等）→ 表行 Domain（多 token 原样 CSV）
+            // → 旧 kinds 口径。域显式即真实选择域——不受关键词 [Self] 存储态回退影响（授予卡显示所选域）。
+            // S3b 收口（2026-11-05）临时映射：多 token CSV 不再原样渲染（「双方,双方角色」病句源）
+            // ——顿号短语过渡，legacy 行（旧 EffectDomain token）走此分支。
+            if (!string.IsNullOrEmpty(atom?.domain)) return DomainPhrase(atom.domain);
+            if (!string.IsNullOrEmpty(cfg?.Domain)) return DomainPhrase(cfg.Domain);
             if (atom?.kinds != null && atom.kinds.Count == 1)
             {
                 var m = MountKindExtensions.ParseCsv(cfg?.MountKinds ?? "");
@@ -110,11 +126,39 @@ namespace SynergyUI
             return null;
         }
 
+        /// <summary>域词表 CSV → 可读短语（legacy 渲染·S3b 收口 2026-11-05 临时映射）：token 本身已是中文
+        ///（EffectDomain 词表），仅把分隔逗号换顿号——「双方,双方角色」→「双方、双方角色」。
+        /// P1-b 起仅服务未声明两轴列的 legacy 行（Region 行走 AxisPhrase）。</summary>
+        private static string DomainPhrase(string domainCsv)
+        {
+            if (string.IsNullOrEmpty(domainCsv)) return domainCsv;
+            return domainCsv.Replace(",", "、");
+        }
+
+        /// <summary>两轴短语（目标域重做 P0）：selector 列表 →「双方战场的生物、双方角色」
+        ///——selector 内区域+类别顿号（卡类别=「…的卡」），selector 间顿号。类别缺省（自己/角色）=区域本身。</summary>
+        private static string AxisPhraseOf(TargetAxis axis)
+        {
+            var parts = new List<string>();
+            foreach (var s in axis.Selectors)
+            {
+                var region = TargetRegionRules.ZhNameOf(s.Region);
+                if (s.Region == TargetRegion.Self || TargetRegionRules.IsCharacter(s.Region))
+                    parts.Add(region);                       // 自己 / X方角色（无类别段）
+                else if (s.Categories == TargetCategory.Card)
+                    parts.Add(region + "的卡");               // 区域内全选
+                else
+                    parts.Add(region + "的" + TargetCategoryRules.ZhOf(s.Categories).Replace(",", "、"));
+            }
+            return string.Join("、", parts);
+        }
+
         /// <summary>效果级作用范围版（2026-10-04 相同目标定案）：header.TargetKinds 单值优先——
         /// 并列全体原子共享同一作用范围，{target} 按效果级域渲染（关键词/指示物行 [Self] 存储态例外同口径）；
         /// 未声明/多值回落实例域口径。</summary>
         public static string TargetNoun(AtomicEffectConfig cfg, AtomicEffectEntry atom, CardEffectData header)
         {
+            if (!string.IsNullOrEmpty(atom?.domain)) return atom.domain; // P2-2：实例域 token 最高优先
             if (header?.TargetKinds != null && header.TargetKinds.Count == 1)
             {
                 var m = MountKindExtensions.ParseCsv(cfg?.MountKinds ?? "");

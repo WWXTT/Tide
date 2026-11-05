@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Cysharp.Threading.Tasks;
@@ -254,10 +254,11 @@ namespace CardCore
             }
         }
 
-        /// <summary>拼点引擎评估（2026-10-09 触发改版：回合开始→攻击宣言，仅攻击方·无限次；
-        /// 2026-10-19 取样改版：牌库随机取样→手牌展示）：攻击宣言事件结算**攻击方**战场引擎卡
-        /// （与回合开始只遍历当前回合玩家同口径）；双方各从手牌展示攻击力最高的一张生物
-        /// （挂「展示」指示物对双方公开，手牌无生物按 0），差额 ≥ 门槛（Then 锚价推导）执行奖励。</summary>
+        /// <summary>拼枪引擎评估（2026-10-09 触发改版：回合开始→攻击宣言，仅攻击方·无限次；
+        /// **A4 定案 2026-11-05：拼点改名拼枪、取样回改牌库随机生物**——只读不移牌）：
+        /// 攻击宣言事件结算**攻击方**战场引擎卡（与回合开始只遍历当前回合玩家同口径）；
+        /// 双方各从牌库随机展示一张生物卡（挂「展示」指示物对双方公开，牌库无生物按 0），
+        /// 差额 ≥ 门槛（Then 锚价推导）执行奖励。</summary>
         private static void OnAttackDeclared(AttackDeclarationEvent e)
         {
             var player = e?.AttackingPlayer;
@@ -270,8 +271,8 @@ namespace CardCore
                 if (card == null || !card.IsAlive) continue;
                 foreach (var (def, payload) in EnginePayloadsOf(card, BranchEngineKind.Clash))
                 {
-                    var minePick = RevealBestCreatureInHand(player, zm, card);
-                    var theirsPick = RevealBestCreatureInHand(player.Opponent, zm, card);
+                    var minePick = RandomCreatureFromDeck(player, zm, card);
+                    var theirsPick = RandomCreatureFromDeck(player.Opponent, zm, card);
                     int mine = PowerOf(minePick);
                     int theirs = PowerOf(theirsPick);
                     int threshold = CostDerivationService.RewardThreshold(payload.Then); // 公式与 UI 短文案同源
@@ -291,8 +292,8 @@ namespace CardCore
                     {
                         EventManager.Instance.Publish(new KeywordAppliedEvent
                         {
-                            Target = card, Keyword = "拼点",
-                            Detail = $"拼点 {mine} vs {theirs}（我方展示{NameOf(minePick)}／对方展示{NameOf(theirsPick)}，差额 {mine - theirs} ≥ 门槛 {threshold}）：执行奖励（手牌展示比攻击力，手牌未动）",
+                            Target = card, Keyword = "拼枪",
+                            Detail = $"拼枪 {mine} vs {theirs}（我方展示{NameOf(minePick)}／对方展示{NameOf(theirsPick)}，差额 {mine - theirs} ≥ 门槛 {threshold}）：执行奖励（牌库随机取样比攻击力，牌库未动）",
                         });
                         LaunchReward(payload, null, card, player, core, e);
                         RecordEngineFire(card, def);
@@ -301,34 +302,27 @@ namespace CardCore
             }
         }
 
-        /// <summary>手牌中攻击力最高的生物（拼点展示取样，2026-10-19）：选中卡挂「展示」指示物对双方公开
-        /// （RevealCard 原子同款口径——已展示不重复挂/不发事件，换区自清）；手牌无生物=null（按攻击力 0）。
-        /// 取最高=双方理性策略同构（引擎方拉大差额、对手压缩差额），引擎自动判定无需选择窗口。</summary>
-        private static Card RevealBestCreatureInHand(Player player, ZoneManager zm, Card engineCard)
+        /// <summary>牌库中随机一张生物卡（**拼枪取样·A4 定案 2026-11-05 回改库内随机**）：
+        /// 只读不移牌（牌库序不动）；选中卡挂「展示」指示物对双方公开（RevealRules 单源——
+        /// 二值不叠层，换区自清）；牌库无生物=null（按攻击力 0）。攻=印刷攻（GetData().Power）。</summary>
+        private static Card RandomCreatureFromDeck(Player player, ZoneManager zm, Card engineCard)
         {
             if (player == null || zm == null) return null;
-            Card best = null;
-            int bestPower = int.MinValue;
-            foreach (var c in zm.GetCards(player, Zone.Hand))
-            {
-                var data = (c as CardWrapper)?.GetData();
-                if (data?.Supertype != Cardtype.Creature) continue;
-                if (best == null || (data.Power ?? 0) > bestPower)
-                {
-                    best = c;
-                    bestPower = data.Power ?? 0;
-                }
-            }
-            if (best == null) return null;
+            var pool = new List<Card>();
+            foreach (var c in zm.GetCards(player, Zone.Deck))
+                if ((c as CardWrapper)?.GetData()?.Supertype == Cardtype.Creature)
+                    pool.Add(c);
+            if (pool.Count == 0) return null;
+            var pick = pool[GameRng.Next(0, pool.Count)];
 
-            Attribute.RevealRules.Reveal(best, engineCard); // 展示口径单源（二值不叠层，换区自清）
-            return best;
+            Attribute.RevealRules.Reveal(pick, engineCard); // 展示口径单源（二值不叠层，换区自清）
+            return pick;
         }
 
         private static int PowerOf(Card card) => (card as CardWrapper)?.GetData()?.Power ?? 0;
 
         private static string NameOf(Card card)
-            => card != null ? $"【{(card as CardWrapper)?.GetData()?.CardName}】" : "无生物(0)";
+            => card != null ? $"【{(card as CardWrapper)?.GetData()?.CardName}】" : "牌库无生物(0)";
 
         // ======================================== 死亡计数 / 元素充盈（2026-09-22 定案） ========================================
 
@@ -407,8 +401,8 @@ namespace CardCore
                 {
                     if (player == null || core?.ZoneManager == null) return false;
                     var zm = core.ZoneManager;
-                    var minePick = RevealBestCreatureInHand(player, zm, card);
-                    var theirsPick = RevealBestCreatureInHand(player.Opponent, zm, card);
+                    var minePick = RandomCreatureFromDeck(player, zm, card);
+                    var theirsPick = RandomCreatureFromDeck(player.Opponent, zm, card);
                     int mine = PowerOf(minePick), theirs = PowerOf(theirsPick);
                     int threshold = CostDerivationService.RewardThreshold(payload.Then); // 公式与自动路径/UI 同源
                     bool success = mine - theirs >= threshold;
@@ -423,7 +417,7 @@ namespace CardCore
                         Threshold = threshold,
                         Success = success,
                     });
-                    detail = $"拼点 {mine} vs {theirs}（我方展示{NameOf(minePick)}／对方展示{NameOf(theirsPick)}，"
+                    detail = $"拼枪 {mine} vs {theirs}（我方展示{NameOf(minePick)}／对方展示{NameOf(theirsPick)}，"
                            + $"差额 {mine - theirs}{(success ? " ≥ " : " < ")}门槛 {threshold}）";
                     return success;
                 }
@@ -464,9 +458,12 @@ namespace CardCore
             if (player == null || zm == null) return;
 
             // 元素充盈（判据六 ≥x）：引擎主=施放者的对手——施放者须为当前回合玩家（对手回合内对手自己的出牌）
-            if (core.TurnEngine?.TurnPlayer == player && player.Opponent != null)
+            if (core.TurnEngine?.TurnPlayer == player)
             {
-                var owner = player.Opponent;
+                // 2026-11-04：headless 下 player.Opponent 可能未接线 → 按座位取（同横置触发口）
+                var owner = ReferenceEquals(player, core.Player1) ? core.Player2
+                          : ReferenceEquals(player, core.Player2) ? core.Player1 : player.Opponent;
+                if (owner == null) return;
                 foreach (var card in zm.GetCards(owner, Zone.Battlefield).ToList())
                 {
                     if (card == null || !card.IsAlive) continue;
@@ -521,6 +518,55 @@ namespace CardCore
             }
         }
 
+        /// <summary>元素充盈（2026-11-04 用户定案·触发口修正）：**对手回合内、对手横置地牌支付元素时**
+        /// 检测一次——己方未横置地数 − 对手未横置地数（封顶 SurplusCap）≥ 门槛 x 即触发奖励。
+        /// 与 OnCardCastSettled 的充盈段同判据（≥x、每卡每回合 1 次），只换触发时点：
+        /// 从「对手出牌结算后」改成「对手每横置一次地牌」。</summary>
+        public static void OnOpponentTappedLands(Player payer)
+        {
+            var core = GameCore.Instance;
+            var zm = core?.ZoneManager;
+            if (payer == null || zm == null) return;
+            if (core.TurnEngine?.TurnPlayer != payer) return; // 只在对手回合（支付者=回合玩家）
+            // 2026-11-04：headless 下 payer.Opponent 可能未接线 → 按玩家位直接取对手
+            var owner = ReferenceEquals(payer, core.Player1) ? core.Player2
+                      : ReferenceEquals(payer, core.Player2) ? core.Player1 : payer.Opponent;
+            if (owner == null) return;
+
+            int mine = UntappedLandCount(owner);
+            int theirs = UntappedLandCount(payer);
+            int diff = Math.Min(mine - theirs, SurplusCap);
+
+            foreach (var card in zm.GetCards(owner, Zone.Battlefield).ToList())
+            {
+                if (card == null || !card.IsAlive) continue;
+                foreach (var (def, payload) in EnginePayloadsOf(card, BranchEngineKind.ManaSurplus))
+                {
+                    int x = CostDerivationService.RewardThreshold(payload.Then);
+                    if (diff < x) continue;
+                    if (EngineCapReached(card, def)) break;
+
+                    EventManager.Instance.Publish(new KeywordAppliedEvent
+                    {
+                        Target = card, Keyword = "元素充盈",
+                        Detail = $"对手横置地牌后未横置地差 {diff}（己 {mine}−对 {theirs}，封顶 {SurplusCap}）≥ {x}：执行奖励（仅对手回合·横置触发）",
+                    });
+                    LaunchReward(payload, null, card, owner, core);
+                    RecordEngineFire(card, def);
+                    break;
+                }
+            }
+        }
+
+        /// <summary>未横置地牌数（不含临时钱包——充盈按用户口径只数地牌）。</summary>
+        private static int UntappedLandCount(Player p)
+        {
+            var pool = GameCore.Instance?.ElementPool?.GetPool(p);
+            if (pool == null) return 0;
+            int n = 0;
+            foreach (var pc in pool.PooledCards) if (pc != null && !pc.IsTapped) n++;
+            return n;
+        }
         /// <summary>场上充盈引擎门槛最大值（2026-11-02 蓝套留费动态化·AI 只读口）：owner 战场上
         /// ManaSurplus 引擎的最高门槛 x（Then 锚价推导——与 OnCardCastSettled 判定同式）；
         /// 无引擎=0（兼作「己方场上是否存在充盈引擎」判定）。只读，不影响引擎结算。</summary>
@@ -669,3 +715,9 @@ namespace CardCore
         }
     }
 }
+
+
+
+
+
+

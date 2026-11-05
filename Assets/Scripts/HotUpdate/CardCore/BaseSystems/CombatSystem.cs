@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using CardCore.Attribute;
@@ -155,6 +155,7 @@ namespace CardCore
             if (RuleAuraSystem.ScopeHits(RuleAuraComponents.NoAttackAura,
                     attacker is Card atkCard ? atkCard.GetController() : controller))
             { reason = "禁攻令生效中——受影响方不能宣言攻击"; return false; }
+
 
             // 检查是否已横置（宣言期已横置不可再宣；结算期横置在 ResolveAttackDeclaration 支付）
             if (attacker.IsTapped())
@@ -569,3 +570,5 @@ namespace CardCore
         // 攻击=速度0栈对象逐攻击开窗，死亡处理由栈机器 SBA 轮统一接管（见 ResolveAttackDeclaration）。
     }
 }
+
+

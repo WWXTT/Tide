@@ -253,25 +253,31 @@ namespace SynergyUI
             FillLandsLocal(d.SelfLands, core, board, self, ownerIsOpponent: false);
             FillLandsLocal(d.OppLands, core, board, opp, ownerIsOpponent: true);
 
+            // S3b：手牌扇剔除施放中的卡（IsPendingCast 单口——卡留手牌但不可见/不可用）
+            var stackEngine = core.StackEngine;
             foreach (var card in new List<Card>(core.ZoneManager.GetCards(self, Zone.Hand)))
-                d.SelfHand.Add(FromRuntime(SerializableRuntimeCardState.FromCard(card), card, false));
+                if (stackEngine == null || !stackEngine.IsPendingCast(card))
+                    d.SelfHand.Add(FromRuntime(SerializableRuntimeCardState.FromCard(card), card, false));
 
-            // 施放占格（2026-10-15 发动格拆除）：发动区占位卡 × BoardState 落格（钉优先→first-free）
+            // 施放卡（S3b 收口 2026-11-05 定案「栈没有实体」）：数据**仍从栈来**
+            //（GetPendingCastCards），但**不落单位区格**——X/Z 恒 -1（悬浮语义，呈现走链 UI）。
+            // 旧施放占格投影（BoardState.TryGetCastingCell）已退役。
             foreach (var p in new[] { self, opp })
             {
-                foreach (var card in new List<Card>(core.ZoneManager.GetCards(p, Zone.Activation)))
+                var pending = core.StackEngine?.GetPendingCastCards(p) ?? new List<Card>();
+                foreach (var card in pending)
                 {
-                    int cx, cz;
-                    if (board == null || !board.TryGetCastingCell(card, out cx, out cz)) continue; // 无空格不立牌
                     var v = FromRuntime(SerializableRuntimeCardState.FromCard(card), card, p == opp);
-                    v.X = cx;
-                    v.Z = cz;
+                    v.X = -1;
+                    v.Z = -1;
                     d.CastingCards.Add(v);
                 }
             }
 
             // 连锁链（2026-10-19 chain UI）：栈上卡牌施放项，底→顶——SnapshotStack 为顶→底故倒序入列；
-            // 归属按施放者（EffectInstance.Controller）判观侧
+            // 归属按施放者（EffectInstance.Controller）判观侧。
+            // E1-1 响应绑定：链上每个条目带「响应了谁」读数（RespondedEntry 链即连锁链——
+            // 反制跟谁发动就反制谁，链 UI 与引擎绑定同源）。
             var stackItems = core.StackEngine?.SnapshotStack();
             if (stackItems != null)
             {
@@ -279,12 +285,30 @@ namespace SynergyUI
                 {
                     var item = stackItems[i];
                     if (item == null || !item.IsCardCast || !(item.Source is Card chainCard)) continue;
-                    d.ChainCards.Add(FromRuntime(SerializableRuntimeCardState.FromCard(chainCard),
-                        chainCard, item.Controller == opp));
+                    var v = FromRuntime(SerializableRuntimeCardState.FromCard(chainCard),
+                        chainCard, item.Controller == opp);
+                    var responded = item.RespondedEntry;
+                    string respondedName = null;
+                    if (responded != null)
+                        respondedName = responded.IsCardCast && responded.Source is Card rc
+                            ? (rc as IHasName)?.CardName
+                            : responded.Definition?.DisplayName;
+                    if (!string.IsNullOrEmpty(respondedName))
+                        v.Name = $"{v.Name} ← 响应：{respondedName}"; // 链展示：它跟在其后（反制对象）
+                    d.ChainCards.Add(v);
                 }
             }
 
             d.StackLines.Add(d.StackNotEmpty ? $"栈：{core.StackEngine.StackSize} 个对象" : "栈：空");
+            // 响应对象行（E1-1 2026-11-04 定案：反制=响应绑定栈顶，无目标选择器）——
+            // 响应窗直读：当前栈顶的「卡/效果名」，反制跟谁发动就反制谁。
+            if (stackTop != null)
+            {
+                string topName = stackTop.IsCardCast && stackTop.Source is Card castCard
+                    ? ((castCard as IHasName)?.CardName ?? "?")
+                    : (!string.IsNullOrEmpty(stackTop.Definition?.DisplayName) ? stackTop.Definition.DisplayName : "?");
+                d.StackLines.Add($"响应：{topName}");
+            }
             return d;
         }
 
@@ -295,7 +319,9 @@ namespace SynergyUI
             v.MaxHealth = p.MaxHealth;
             v.IsAI = p.IsAI;
             v.DeckCount = Count(core, p, Zone.Deck);
-            v.HandCount = Count(core, p, Zone.Hand);
+            // S3b 手牌口径（六处同源）：HUD 手牌数=可用手牌（剔除施放中）——与手牌扇 SelfHand/
+            // 网络 HandCount/观测 g[5]/手牌上限同口径（本地局曾含施放中卡致 HUD 比扇子多 1 张）。
+            v.HandCount = UsableHandCountLocal(core, p);
             v.GraveyardCount = Count(core, p, Zone.Graveyard);
             v.FatigueCount = p.FatigueCount;
             v.LandCap = core.ElementPool.GetLandCap(p);
@@ -359,6 +385,20 @@ namespace SynergyUI
         private static int Count(GameCore core, Player p, Zone z)
             => core.ZoneManager.GetCards(p, z)?.Count ?? 0;
 
+        /// <summary>可用手牌数（S3b 口径·六处同源之一）：剔除施放中的卡（IsPendingCast 单口）——
+        /// 与 SelfHand 扇区过滤、NetSnapshotBuilder.UsableHand、观测 g[5]/g[6]、手牌上限同式。</summary>
+        private static int UsableHandCountLocal(GameCore core, Player p)
+        {
+            var hand = core.ZoneManager.GetCards(p, Zone.Hand);
+            if (hand == null) return 0;
+            var stack = core.StackEngine;
+            if (stack == null) return hand.Count;
+            int n = 0;
+            foreach (var c in hand)
+                if (c != null && !stack.IsPendingCast(c)) n++;
+            return n;
+        }
+
         private static string BankTextLocal(GameCore core, Player p)
         {
             var parts = new List<string>();
@@ -400,23 +440,21 @@ namespace SynergyUI
             FillLandsNet(d.OppLands, snap, them, ownerIsOpponent: true);
             FillHandNet(d.SelfHand, snap, me);
 
-            // 施放占格（2026-10-15 发动格拆除）：网络侧落格=观察者视角 first-free 近似
-            //（快照不承载 BoardState 钉格；跳过该方单位已占格——与 FillUnitsNet 列表序对应）
+            // 施放卡（S3b 收口 2026-11-05「栈没有实体」）：网络侧读 StackV2 施放条目源卡
+            //（IsCardCast）——X/Z 恒 -1（悬浮语义，呈现走链 UI；旧单位区格投影已退役）
             foreach (var seat in new[] { me, them })
             {
-                var casting = ZoneCardsNet(snap, seat, Zone.Activation);
-                if (casting.Length == 0) continue;
+                if (snap.StackV2 == null) break;
                 bool isOpp = seat != me;
-                var cells = BoardLayout.UnitCells(isOpp ? 1 : 0);
-                int i = ZoneCardsNet(snap, seat, Zone.Battlefield).Length;
-                foreach (var s in casting)
+                foreach (var item in snap.StackV2)
                 {
-                    if (i >= cells.Count) break; // 无空格不立牌
+                    if (item == null || !item.IsCardCast) continue;
+                    var s = FindCardState(snap, item.Source, seat);
+                    if (s == null) continue;
                     var v = FromRuntime(s, null, isOpp);
-                    v.X = cells[i].x;
-                    v.Z = cells[i].z;
+                    v.X = -1;
+                    v.Z = -1;
                     d.CastingCards.Add(v);
-                    i++;
                 }
             }
 
@@ -557,6 +595,17 @@ namespace SynergyUI
         private static SerializableRuntimeCardState[] ZoneCardsNet(MsgGameStateSync snap, int seat, Zone zone)
             => snap.ZoneCards?.FirstOrDefault(z => z.Seat == seat && (Zone)z.Zone == zone)?.Cards
                ?? new SerializableRuntimeCardState[0];
+
+        /// <summary>StackV2 条目源引用 → 该座位的卡运行态（施放卡留来源区=手牌——从手牌区快照找；
+        /// S3b A 切源：网络侧施放占格数据源）。找不到=null（跳过）。</summary>
+        private static SerializableRuntimeCardState FindCardState(MsgGameStateSync snap, NetEntityRef src, int seat)
+        {
+            if (src == null || src.IsPlayer) return null;
+            foreach (var zone in new[] { Zone.Hand, Zone.Battlefield, Zone.Graveyard, Zone.Deck })
+                foreach (var s in ZoneCardsNet(snap, seat, zone))
+                    if (s != null && s.RuntimeId == src.RuntimeId) return s;
+            return null;
+        }
 
         /// <summary>网络栈/事件里的实体引用 → 短文本（玩家按座位、卡按 CardId 查表名）。</summary>
         public static string EntityTextOf(NetEntityRef r, int viewerSeat)

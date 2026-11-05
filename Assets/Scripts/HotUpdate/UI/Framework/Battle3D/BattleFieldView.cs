@@ -682,7 +682,10 @@ namespace SynergyUI
         /// <summary>施放卡类型图标对账（发动区占格卡 × 单位区空格——整个 2×6 兼任发动区）。
         /// 2026-10-17 时序定案：离区不即清——转正在场（同帧已入 _units，Apply 单位先于本段）=
         /// linger 至登场演出完成（≈1.15s）；其余（法术结算）=1s 等待期；被阻拦失败=
-        /// InterruptCasting 即清（CardActivationFailedEvent）；新卡占同格=顶掉旧 linger。</summary>
+        /// InterruptCasting 即清（CardActivationFailedEvent）；新卡占同格=顶掉旧 linger。
+        /// **S3b 收口（2026-11-05）「栈没有实体」**：CastingCards 恒 X/Z=-1（施放卡不落单位区格）
+        /// → 本段不再立任何图标（X<0 continue 全滤），施放呈现由链 UI（StackLines）承载；
+        /// stale 清扫照常回收存量。管线保留：未来悬浮标记可复用。</summary>
         private void ReconcileCasting(List<BattleCardView> cards)
         {
             var seen = new HashSet<uint>();

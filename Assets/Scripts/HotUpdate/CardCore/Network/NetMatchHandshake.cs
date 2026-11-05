@@ -92,7 +92,7 @@ namespace CardCore.Network
         {
             return $"{r.HashId ?? ""}|{r.EnumName ?? ""}|{r.DisplayName ?? ""}|{r.Description ?? ""}"
                 + $"|ML:{ManaSig(r.ManaList)}|TG:{r.Tags ?? ""}"
-                + $"|TK:{r.TargetKinds ?? ""}|TF:{r.TargetFilter ?? ""}"
+                + $"|DM:{r.Domain ?? ""}|TF:{r.TargetFilter ?? ""}"
                 + $"|PO:{Float(r.Polarity)}|MK:{r.MountKinds ?? ""}|CM:{Float(r.CostMultiplier)}";
         }
 

@@ -4,18 +4,23 @@ using System.Linq;
 namespace CardCore
 {
     /// <summary>
-    /// 效果适用卡型单源（2026-10-29 P9 定案；2026-10-30 无次数上限定案修订）：输入效果定义
-    ///（激活方式 + 触发时机 + 原子构成），输出可挂载的卡型集合与逐卡型拒绝原因。判定表与已定案承载规则同源：
+    /// 效果适用卡型单源（2026-10-29 P9 定案；2026-10-30 无次数上限定案修订；2026-11-05 时机两档
+    /// 收敛再修订）：输入效果定义（激活方式 + 触发时机 + 原子构成），输出可挂载的卡型集合与逐卡型
+    /// 拒绝原因。判定表与已定案承载规则同源：
     /// · 关键词（表行 Keyword 挂位 ∪ Grant* 域恰 {Self}）：生物✓ 结界✓ 法术✗；
     /// · 一次性触发（FiresOncePerPaidLifetime 单源——不另造表）：生物✓ 结界✓；
     ///   法术仅「登场」通过（法术=施放即结算的一次性形态），死亡/离场等驻场时点无从触发；
-    /// · 反复触发（抽牌/伤害/阶段/事件观察族）：**生物✓（2026-10-30 放开——次数上限删除后由
-    ///   期望触发次数计价承担平衡，不再以卡型硬拒）** 结界✓（耐久即次数）法术✗（法术不驻场）；
-    /// · 绑横置触发（攻击/守卫/横置族）：生物✓（横置锚天然限频）结界✗（不横置）法术✗；
+    /// · 周期/观察族多次触发（回合/阶段/抽牌/伤害/使用/事件观察——IsEnchantExclusiveTiming）：
+    ///   生物✗（**2026-11-05 收回 2026-10-30 的放开**——多次档系数已收敛 ×1，周期价值须由
+    ///   耐久支付，生物挂载=无对价白嫖）结界✓（耐久即次数池）法术✗（法术不驻场）；
+    ///   引擎载荷豁免（效果头时机=奖励发射窗，非重复语义——与计价 TimingCostFactor 同口径）；
+    /// · 绑横置触发（攻击/守卫/横置族 IsTapAnchoredTiming）：虽归多次档**生物仍可挂**
+    ///   （2026-11-05 定案：宿主自身行动承担次数，横置锚天然限频）结界✗（不横置）法术✗；
     /// · 主动效果（Activate_*）：生物✓（横置发动）结界仅充能✓（P12：充能=手牌主动——其余禁，
     ///   2026-10-15 改版）法术✓（抉择槽 1~3 即主动形态——与宿主钉值/主动槽同口径）；
     /// · 连接光环：生物✓（属性±类）结界✓ 法术✗；规则光环：生物✗ 结界✓ 法术✗。
-    /// 消费方：效果合成器顶栏「适用」实时推导、卡组合候选过滤（不静默隐藏——计数行+原因+跳转）。
+    /// 消费方：效果合成器顶栏「适用」实时推导、卡组合候选过滤（不静默隐藏——计数行+原因+跳转）、
+    /// 装载期 ValidateCreatureShape（CardLoader 兜底，防直改 JSON/旧档）。
     /// 注意：本类只判「能不能挂」，不管槽位容量与保存闸——既有形状闸（FillSelectedSlot）与
     /// 宿主钉值（SyncActivationVisibility）仍在调用侧前置。
     ///
@@ -63,18 +68,36 @@ namespace CardCore
                 if (def.IsTriggeredEffect && !CostDerivationService.FiresOncePerPaidLifetime(def.TriggerTiming)
                     && IsTapAnchoredTiming(def.TriggerTiming))
                     return "结界不横置——绑横置触发（攻击/守卫）无从锚定";
-                return null; // 一次性/反复触发=耐久即次数池（2026-10-10 发数经济）
+                return null; // 一次性/周期反复触发=耐久即次数池（2026-10-10 发数经济；2026-11-05 多次档×1）
             }
-            // 生物：反复触发自 2026-10-30 起可挂（次数上限删除，平衡由时机期望系数承担——
-            // 回合/阶段/抽牌/横置 ×1.5、攻防/伤害/事件族暂定 ×2，见 CostDerivation.TimingCostFactor）。
+            // 生物（及其他无耐久宿主）：2026-10-30 曾放开反复触发（平衡由期望次数系数承担）——
+            // 2026-11-05 收回：两档系数收敛 ×1 后周期价值必须由耐久支付，仅结界可挂；
+            // 攻/守/横置族豁免（多次档但宿主自身行动承担次数）；引擎载荷豁免（发射窗非重复语义）。
             if (HasRuleAuraAtom(def)) return "场地光环专属结界（全局唯一、驻场生效）";
+            if (def.IsTriggeredEffect && IsEnchantExclusiveTiming(def.TriggerTiming) && !HasEnginePayload(def))
+                return "周期性多次时机（回合/阶段/抽牌/伤害/事件观察族）为结界专属（耐久即次数池）"
+                       + "——生物只能挂单次时机或攻/守/横置族";
             return null;
         }
 
-        /// <summary>绑横置触发族（判定表「攻击/守卫」行 + 横置/重置——横置状态即天然限频锚）。</summary>
+        /// <summary>绑横置触发族（判定表「攻击/守卫」行 + 横置/重置——横置状态即天然限频锚）：
+        /// 归多次档但生物可挂（2026-11-05 定案），结界不横置拒挂。</summary>
         public static bool IsTapAnchoredTiming(TriggerTiming t)
             => t == TriggerTiming.OnAttack || t == TriggerTiming.OnAttacked
                || t == TriggerTiming.OnBlockDeclare || t == TriggerTiming.OnTap || t == TriggerTiming.OnUntap;
+
+        /// <summary>周期/观察族多次时机（多次档减攻/守/横置族——回合/阶段/抽牌/伤害/被指向/
+        /// 使用/施放/占卜/事件观察/OnSummon 等）：**结界专属**（耐久即次数池——额外触发次数已由
+        /// 耐久支付，生物挂载=无对价白嫖）。2026-11-05 收回 2026-10-30 的放开。
+        /// 消费方：RejectReason 生物臂 / 合成器时机下拉宿主过滤 / 装载 ValidateCreatureShape / 验证器审计。</summary>
+        public static bool IsEnchantExclusiveTiming(TriggerTiming t)
+            => CostDerivationService.IsRepeatTiming(t) && !IsTapAnchoredTiming(t);
+
+        /// <summary>是否携带引擎载荷（settle=Engine——扁平 Effects 与节点化 Steps 双扫）：
+        /// 效果头时机=奖励发射窗，不代表主干发射次数（与计价 TimingCostFactor 豁免同口径）——
+        /// 宿主时机闸对引擎豁免（倒计时/运势/元素充盈等引擎自持重复经济）。Editor 可见的公开转发口。</summary>
+        public static bool HasEnginePayload(EffectDefinition def)
+            => CostDerivationService.HasEnginePayload(def);
 
         /// <summary>是否携带关键词型原子（表行 Keyword 挂位 ∪ Grant* 域恰 {Self}——与
         /// KeywordCatalog/装载校验同口径；Effects 主序列与 Steps 节点双扫）。</summary>

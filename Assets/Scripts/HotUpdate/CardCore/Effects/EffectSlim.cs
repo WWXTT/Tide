@@ -439,7 +439,8 @@ namespace CardCore
         }
 
         /// <summary>原子紧凑发射：恒写 refId；增量只在偏离默认时写（value≠1 / str 非空 / amp≠0 /
-        /// kinds 非空 / count≠-2 / rand≠-1）。branch=null 或幽灵（settle 越界——JsonUtility 物化残渣）
+        /// kinds 非空 / domain 非空（2026-11-04 P0-1 域词表）/ count≠-2 / rand≠-1）。
+        /// branch=null 或幽灵（settle 越界——JsonUtility 物化残渣）
         /// 一律不写；非幽灵 branch 恒带 then 数组（空数组也写——读侧/UI 就地 Add 不判 null）。
         /// public=卡表发射（CardConfigCompact.payload）共用同源口径（2026-10-13）。</summary>
         public static JObject EmitAtom(AtomicEffectEntry a)
@@ -450,6 +451,7 @@ namespace CardCore
             if (!string.IsNullOrEmpty(a.str)) o["str"] = a.str;
             if (a.amp != 0f) o["amp"] = a.amp;
             if (a.kinds != null && a.kinds.Count > 0) o["kinds"] = new JArray(a.kinds);
+            if (!string.IsNullOrEmpty(a.domain)) o["domain"] = a.domain; // 域词表声明（P0-1）——按值省略：空=不写=旧档缺键回落 null
             if (a.count != -2) o["count"] = a.count;
             if (a.rand != -1) o["rand"] = a.rand;
             if (!BranchEntryRules.IsPhantom(a.branch))

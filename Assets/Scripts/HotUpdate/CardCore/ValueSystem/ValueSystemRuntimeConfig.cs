@@ -49,8 +49,9 @@ namespace CardCore
     /// 数量 1:1 / 2:1.5 / 3:2 / 全部:3。消费方 CostDerivation.QuantityFactor。
     /// **作用次数档已退役**（2026-10-30 定案）：效果不再有每回合生效次数上限，
     /// TriggerLimit1/2/3/Infinite 与 TriggerLimitFactor 整删（此前已零消费，TriggerCostFactor 恒 1）。
-    /// **发动时机系数已迁出本段**：2026-10-30 起按「期望触发次数」逐时机配在 Category=TimingFactor
-    /// （见 TimingFactorConfig），旧 TimingOnceFactor×0.8 / TimingRepeatFactor×1 两档删除。
+    /// **发动时机系数已迁出本段**：2026-10-30 起配在 Category=TimingFactor——2026-11-05 收敛为
+    /// 单次/多次两档（均 ×1，多次成本由耐久承担，见 TimingFactorConfig），旧 TimingOnceFactor×0.8 /
+    /// TimingRepeatFactor×1 两档与 31 行期望次数表先后删除。
     /// 速度档已随 2026-10-19 速度计价退役整删——三类卡分类把发动速度特化为法术专属类特性
     ///（速度=3−槽数、其余主动默认 0），不再是可购溢价轴。
     /// </summary>
@@ -78,61 +79,29 @@ namespace CardCore
     }
 
     /// <summary>
-    /// 发动时机系数（表 Category=TimingFactor，2026-10-30 用户定案）——**系数 = 这张卡付清后
-    /// 该时机的期望触发次数**（不是折扣）：付费后只能触发一次的时机（登场/死亡/破坏/除外/离场/
-    /// 墓地回场/游戏开始/角色死亡/召唤进场）=1；随生物存活期望（假设 1.5 回合）复现的回合/阶段/
-    /// 抽牌/横置=1.5；攻击/受伤/造成伤害/事件观察族等期望未标定，暂定 2（可直接改本表逐时机调）。
-    /// 主动发动（Activate_*）恒 1（发动时现付，不乘表）；引擎载荷不乘（奖励发射由 BranchEngines
-    /// 每卡每回合 1 次自限，主干部署单发）。消费方 CostDerivation.TimingCostFactor[Of]；
-    /// 合成器时机下拉尾缀「×N」与本段同源（改表即同步计价与展示）。
+    /// 发动时机系数（表 Category=TimingFactor；2026-11-05 两档收敛定案）——时机只分**单次/多次**两档，
+    /// 且两档系数均为 1：**多次生效的成本由耐久承担**（结界每次触发 −1 耐久、0.5 蓝/点——耐久即次数池，
+    /// 不再按次数加价）；单据 FiresOncePerPaidLifetime 归类（CostDerivation 单源）。
+    /// 单次=登场/死亡/破坏/除外/离场/墓地回场/游戏开始/角色死亡（付清后只发生一次）；
+    /// 多次=回合/阶段/抽牌/伤害/事件观察族（仅结界可挂）+ 攻/守/横置族（生物可挂——宿主自身行动承担次数）。
+    /// 旧 31 行逐时机期望次数表（2026-10-30 上线）同日整删——「存活期望 1.5 回合/暂定 2」口径退役。
+    /// 主动发动（Activate_*）与引擎载荷恒 1（TimingCostFactor 内判，不乘表）；消费方
+    /// CostDerivation.TimingCostFactor[Of]/IsRepeatTiming；合成器时机下拉档位标签与本段同源。
     /// </summary>
     [Serializable]
     public class TimingFactorConfig
     {
-        // ---- 付费后只能触发一次：期望 1 ----
-        public float OnPlay = 1f;                     // 登场
-        public float OnDeath = 1f;                    // 死亡
-        public float OnDestroy = 1f;                  // 破坏（死因）
-        public float OnExile = 1f;                    // 除外
-        public float OnLeaveBattlefield = 1f;         // 离场
-        public float OnReturnFromGraveyard = 1f;      // 墓地回场（每次回场由另一笔支付带来）
-        public float OnGameStart = 1f;                // 游戏开始（每局一次）
-        public float OnRoleDeath = 1f;                // 角色死亡（每局一次）
-        public float OnSummon = 1f;                   // 召唤进场（登场超集；复活/效果召唤由他卡付费）
-
-        // ---- 随存活期望复现：期望 1.5（2026-10-30 假设生物在场存活 1.5 回合）----
-        public float OnTurnStart = 1.5f;              // 回合开始（系统专用）
-        public float OnTurnEnd = 1.5f;                // 回合结束
-        public float OnStandbyPhase = 1.5f;           // 准备阶段
-        public float OnPhaseStart = 1.5f;             // 阶段开始（系统专用）
-        public float OnPhaseEnd = 1.5f;               // 阶段结束（系统专用）
-        public float OnDraw = 1.5f;                   // 抽牌
-        public float OnTap = 1.5f;                    // 横置
-        public float OnUntap = 1.5f;                  // 重置
-
-        // ---- 攻防/伤害/事件族：期望未标定，暂定 2（实测后逐行调表）----
-        public float OnAttack = 2f;                   // 攻击宣言（期望未标定）
-        public float OnAttacked = 2f;                 // 被攻击
-        public float OnBlockDeclare = 2f;             // 阻拦宣言
-        public float OnDealDamage = 2f;               // 造成伤害
-        public float OnTakeDamage = 2f;               // 受到伤害
-        public float OnTargeted = 2f;                 // 被指定为目标
-        public float OnOtherCreatureEnter = 2f;       // 其他生物进场（观察者）
-        public float OnOtherCreatureDeath = 2f;       // 其他生物死亡（观察者）
-        public float OnSpellCast = 2f;                // 施放法术
-        public float OnCardPlayed = 2f;               // 使用卡牌
-        public float OnScry = 2f;                     // 占卜
-        public float OnAtomicEffectActivation = 2f;   // 原子效果发动（系统观察）
-        public float OnAtomicEffectStartApplying = 2f;// 原子效果开始作用（系统观察）
-        public float OnAtomicEffectResolution = 2f;   // 原子效果结算完成（系统观察）
+        public float Once = 1f;   // 单次档（FiresOncePerPaidLifetime=true 的时机）：基准 ×1
+        public float Repeat = 1f; // 多次档：×1——额外次数已由耐久支付（结界），不按次数加价
     }
 
     // 注：TimingModifier / CostValue / EffectValue / TriggerValue / CardTypeValue 五类配置
     // 已于 2026-10-05 删除——全仓无消费方（时机轴未接入计价、EffectValue 委托原子表后无人调用、
     // CardTypeValue 对应的卡型价值未使用）；ValueSystemConfig.json 同批清理 33 行死行。
     // 2026-10-16 修订：时机轴已接入计价——走 PricingTierConfig.TimingOnceFactor 单值（一发时机 ×0.8）。
-    // 2026-10-30 再修订：两档合表改为逐时机期望触发次数（TimingFactorConfig，Category=TimingFactor），
-    // 旧 TimingModifier 的「逐时机结构」以更简形态回归；TimingOnce/Repeat 两行同日删除。
+    // 2026-10-30 再修订：两档合表改为逐时机期望触发次数（TimingFactorConfig，Category=TimingFactor）。
+    // 2026-11-05 定案：期望次数口径退役——收敛为单次/多次两档且均 ×1（多次成本由结界耐久承担），
+    // TimingFactorConfig 缩为 Once/Repeat 两字段，31 行逐时机表整删。
 
     /// <summary>
     /// 开局/全局规则数值（表 Category=GameRules，2026-10-13 迁表定案：逻辑不动、数值出代码——

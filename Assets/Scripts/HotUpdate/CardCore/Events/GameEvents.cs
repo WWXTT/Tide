@@ -303,29 +303,10 @@ namespace CardCore
         public Zone Destination { get; set; }
     }
 
-    // ==================== 发动区事件 ====================
-    // 发动区 = 万能结算位：隐蔽区（手牌/卡组等）来源的发动先入此区，公开可被指向
-    // （反制指向发动区而非来源区）。Phase A 暂态 = 一次 PlayCard 调用内完成进出。
-
-    /// <summary>
-    /// 卡牌进入发动区事件（发动开始，公开并成为可指向目标）
-    /// </summary>
-    public class CardEnterActivationEvent : GameEventBase
-    {
-        public Card Card { get; set; }
-        public Player Controller { get; set; }
-        public Zone FromZone { get; set; } // 来源区（手牌/卡组等）
-    }
-
-    /// <summary>
-    /// 卡牌离开发动区事件（结算完成，去向见 ToZone）
-    /// </summary>
-    public class CardLeaveActivationEvent : GameEventBase
-    {
-        public Card Card { get; set; }
-        public Player Controller { get; set; }
-        public Zone ToZone { get; set; } // 战场（入场成功）/ 墓地（法术）/ 原位（非入场型）
-    }
+    // ==================== 发动区事件（已随 S3b 2026-11-04 删发动区退役） ====================
+    // CardEnterActivationEvent / CardLeaveActivationEvent 定义已删（S3b 收口 2026-11-05）：
+    // 卡施放中留来源区、不再进出发动区——订阅口迁 StackAdd（栈条目）/ CardActivationFailedEvent
+    //（失败）/ StackResolutionEnd（结算完成）。
 
     /// <summary>
     /// 入场失败事件（发动通过但要进战场时己方战场已满 → 失败入墓）

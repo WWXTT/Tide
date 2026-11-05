@@ -409,6 +409,11 @@ namespace CardCore.Serialization
         [MemoryPackOrder(TagTable.AEI_Amplitude)]
         public float amp;
 
+        // 域词表声明（2026-11-04 P0-1）：单中文 token（EffectDomain 词表）；null=未声明走 kinds 旧口径。
+        // 尾部追加（TagTable.AEI_Domain）——旧 payload 缺成员反序列化得默认 null，线上格式向后兼容。
+        [MemoryPackOrder(TagTable.AEI_Domain)]
+        public string domain;
+
         public static SerializableAtomicEffectEntry FromEntry(AtomicEffectEntry entry)
         {
             return new SerializableAtomicEffectEntry
@@ -418,6 +423,7 @@ namespace CardCore.Serialization
                 str = entry.str,
                 kinds = entry.kinds?.ToArray() ?? System.Array.Empty<int>(),
                 amp = entry.amp,
+                domain = entry.domain,
             };
         }
 
@@ -430,6 +436,7 @@ namespace CardCore.Serialization
                 str = str,
                 kinds = kinds != null ? new List<int>(kinds) : null,
                 amp = amp,
+                domain = domain,
             };
         }
     }

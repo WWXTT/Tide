@@ -45,14 +45,20 @@ namespace CardCore.Attribute
         /// <summary>费用乘数（不同目标范围对费用的影响）</summary>
         public float CostMultiplier;
 
-        /// <summary>目标种类集（表 TargetKinds 列：逗号分隔 TargetKind **中文名**（2026-10-06 中文化，
-        /// 解析双轨兼容序号）；空 = 无目标原子）。
-        /// 2026-09-10 目标域模型：取代旧 TargetType+分区 filter token——组合层取成员原子域的交集。</summary>
-        public string TargetKinds;
+        /// <summary>目标种类集（**B2 2026-11-05 硬切：TargetKinds 列已删**——本字段退役删除；
+        /// kinds 视图经 <see cref="GetTargetKindList"/> 自 Domain 派生；候选走 TargetAxis）。
+        /// 卡效果 entry.kinds（实例收窄）保留在 AtomicEffectEntry——不经本字段。</summary>
 
-        /// <summary>域内属性过滤（逗号分隔属性 token：Creature/Player/Untapped/Tapped/Damaged/Power&gt;N 等；
-        /// 分区与归属 token 已并入 TargetKinds 序号，此列只剩属性细化）</summary>
+        /// <summary>域内属性过滤（逗号分隔属性 token：Damaged/Tapped/Untapped/Stealth/Power&gt;N 等）。
+        /// 目标域重做 P0 契约：**只留属性 token**——声明了新语法 Domain 的行禁用类别性 token
+        ///（NoRole/NotRole/Player/Living/Field——TargetAxisRules.FilterConflicts 拒）。</summary>
         public string TargetFilter;
+
+        /// <summary>目标域声明（目标域重做 P0·docs/目标域契约.md）：**新选择器语法优先**
+        ///（domain := selector (";" selector)*；selector := region (":" category)*）——合法即产轴
+        ///（converter→TargetAxis→TargetAxisResolver）。旧 EffectDomain 词表 token 识别为 legacy：
+        /// 不产轴，回落 TargetKinds 旧口径（试点期兼容，P2 删）。空=未声明（旧 kinds 口径）。</summary>
+        public string Domain;
 
         /// <summary>极性（2026-09-10 定案）：-1=对对手释放有益（伤害/削弱类）；+1=对己方释放有益（治疗/增益类）；
         /// 0=中性。表级列（EffectType 固有语义，实例不可覆盖）。配合 TargetKind 域侧别做错边折价（CostDerivation）。</summary>
@@ -155,10 +161,62 @@ namespace CardCore.Attribute
         }
 
         /// <summary>
-        /// 获取目标种类集（解析 TargetKinds 列；空集 = 无目标原子，不参与组合交集约束）
+        /// 目标种类集（**B2 2026-11-05 硬切：TargetKinds 列已删——kinds 视图自 Domain 新语法派生**）。
+        /// 派生口径（区级语义，供 SideLock/隐藏区/装载校验等 17 个消费口）：自己→{0}；
+        /// 战场 selector→对应侧单位 kind（Own→1/Enemy→2/Both→1,2）；区域 selector→Zone+Side 匹配的
+        /// 区域 kind（5..16）；角色 selector→对应侧单位 kind（角色经单位 kind 承载侧别——Player 滤器语义）。
+        /// 类别细分（生物/结界/法术/卡）不进 kinds——候选走 TargetAxis（TargetAxisResolver）。
+        /// 空 Domain（无目标行）= 空集。
         /// </summary>
         public List<int> GetTargetKindList()
-            => CardCore.TargetKindRules.Parse(TargetKinds);
+        {
+            if (!CardCore.TargetAxisRules.TryParseDomain(Domain, out var axis))
+                return new List<int>();
+            var kinds = new List<int>();
+            foreach (var s in axis.Selectors)
+            {
+                if (s == null) continue;
+                if (s.Region == CardCore.TargetRegion.Self)
+                {
+                    if (!kinds.Contains(0)) kinds.Add(0);
+                    continue;
+                }
+                var zone = CardCore.TargetRegionRules.ZoneOf(s.Region);
+                var side = CardCore.TargetRegionRules.SideOf(s.Region);
+                // 类别细分（2026-11-05 B2 修正）：战场 selector 的类别含结界才派生无生命位 3/4，
+                // 否则只派生有生命位 1/2——沉睡/牺牲等生物域行派生保持旧口径 {1,2}。
+                // 注：单位 kind 1-4 是跨区实体类（TargetKindRules.ZoneOf 返回 None）——战场位在此手写。
+                if (zone == Zone.Battlefield)
+                {
+                    if (side == CardCore.RegionSide.Own || side == CardCore.RegionSide.Both)
+                    {
+                        if (!kinds.Contains(1)) kinds.Add(1);
+                        if (wantNonLivingFor(s) && !kinds.Contains(3)) kinds.Add(3);
+                    }
+                    if (side == CardCore.RegionSide.Opposing || side == CardCore.RegionSide.Both)
+                    {
+                        if (!kinds.Contains(2)) kinds.Add(2);
+                        if (wantNonLivingFor(s) && !kinds.Contains(4)) kinds.Add(4);
+                    }
+                    continue;
+                }
+                for (int k = 5; k <= 16; k++)
+                {
+                    var (kZone, kOwn) = CardCore.TargetKindRules.ZoneOf(k);
+                    if (kZone != zone) continue;
+                    bool sideMatch = side == CardCore.RegionSide.Both
+                        || (side == CardCore.RegionSide.Own && kOwn)
+                        || (side == CardCore.RegionSide.Opposing && !kOwn);
+                    if (sideMatch && !kinds.Contains(k)) kinds.Add(k);
+                }
+            }
+            kinds.Sort();
+            return kinds;
+        }
+
+        /// <summary>战场 selector 是否含结界类别（派生无生命位 3/4 的条件）。</summary>
+        private bool wantNonLivingFor(CardCore.TargetSelector s)
+            => (s.Categories & CardCore.TargetCategory.Enchantment) != 0;
     }
 
     /// <summary>原子行实例级字符串参数声明（2026-10-31 阶段B 表「参数」列）：

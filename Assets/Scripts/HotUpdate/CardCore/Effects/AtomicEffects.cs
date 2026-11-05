@@ -289,7 +289,7 @@ namespace CardCore
         /// 无域原子（表行 TargetKinds 空=自结算，单次执行不逐目标 Reset）——杀数聚合入 LastOutcome：
         /// 击杀门槛 DmgKillsTarget=至少击杀一个即过、奖励只结算一次。基准红 3（范围溢价含 BaseCost，
         /// 空域数量恒 ×1）。取代旧「DealDamage+全取档」表达全体伤害的口径（SweepDamage 2026-09-21 退役的复归）。</summary>
-        DealDamageAllEnemies,
+        DealDamageAllEnemies, // 墓碑（2026-11-05 硬切 B2：全体原子删除——单体选全域生成；位不重排
 
         /// <summary>反疗（2026-10-09，黑2，表行 6b9c4b90；原名堕落·仅角色，同日用户改名放开）：
         /// 对任意有生命单位（生物+角色，双方）附加 {value} 层反疗指示物
@@ -375,7 +375,7 @@ namespace CardCore
         /// <summary>全体消灭（2026-10-29 阶段3a，红12·无目标行——表行 17da98ae）：消灭对方全体生物
         ///（效果死亡 DestroyEffect 死因，与消灭同口径——不灭可拦、复生可替代）；handler 自结算
         ///（目标域=对方战场生物）。</summary>
-        DevourAllEnemies,
+        DevourAllEnemies,     // 墓碑（2026-11-05 硬切 B2：同上）
 
         /// <summary>除外回收（2026-10-29 阶段3a，蓝3——表行 e301f1af）：将所选目标卡从除外区
         /// 返回其持有者手牌（域=己方除外区；非除外区目标跳过）。</summary>
@@ -713,6 +713,12 @@ namespace CardCore
         /// CardData.Effects 的下标（转换器保序保 Id）。旁路上下文（预检/描述）可为 null，
         /// 消费方（SummonTokenHandler.ResolveBoundTemplateId）判空回落。</summary>
         public EffectDefinition ResolvingEffect { get; set; }
+
+        /// <summary>响应绑定（E1-1 2026-11-04 定案）：本上下文所属条目入栈时绑定的**当时栈顶**
+        ///（EffectInstance.RespondedEntry 透传）。反制原子执行时读它打标——跟谁发动就反制谁，
+        /// 无目标选择器；null=空栈发动（无响应对象，反制 no-op）。cast 结算（ResolveSpellEffectsAsync）
+        /// 与效果执行（EffectExecutor）构造上下文时传入。</summary>
+        public EffectInstance RespondedEntry { get; set; }
 
         /// <summary>上一步原子效果的产出结果（per-target，由分支步骤读取）</summary>
         public EffectOutcome LastOutcome { get; set; } = new EffectOutcome();

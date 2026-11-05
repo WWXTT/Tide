@@ -72,6 +72,12 @@ namespace CardCore
         /// 2026-10-31 召唤衍生物入列（表行已标）：本体费=表行锚价（2灰）恒收＋模板费×数量——
         /// 模板费随卡组合界面引用卡绑定浮动（CostDerivation 召唤段），完整费绑定后才可见，故同挂本位。</summary>
         DynamicCost = 9,
+        /// <summary>不可全体（P2-1 2026-11-04）：本行不开放「数量=全部」档（count=0）——
+        /// 全取会严重违背定价/规则的操作类原子（操控/牺牲/宣言/反制/变形/跳回合/检索/发现/移动/
+        /// 活体护甲/预言，首批 19 行名单在表）。消费口：合成器 dd-num 过滤 0 档（EffectComposerScreen）；
+        /// 装载守卫（CardEffectConverter：entry.count==0 → 告警收 1）。关键词/指示物行本轮一律
+        /// 不显示全部档（P2-2 域选择后放开）。</summary>
+        NoWhole = 10,
     }
 
     /// <summary>MountKinds CSV 解析/判定辅助（AtomicEffectTable 与装载校验共用）。</summary>
@@ -91,6 +97,7 @@ namespace CardCore
             "不可作为连接光环", // 7 NoLinkAura（2026-10-07 晚：消耗型关键词黑名单）
             "有限分支", // 8 SituationGate（2026-10-23 入表——门槛行身份/挂载/预算位）
             "动态费用", // 9 DynamicCost（2026-10-24——动态计价行不可作 Then 奖励）
+            "不可全体", // 10 NoWhole（P2-1 2026-11-04——不开放数量=全部档）
         };
 
         /// <summary>成员中文名（越界回退枚举名）。</summary>

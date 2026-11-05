@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using CardCore;
 using CardCore.Attribute;
 
@@ -326,6 +327,7 @@ namespace CardCore.AI.NeuralEnv
             if (engine.CurrentPriorityHolder != p) return false;
 
             var hand = zm.GetCards(p, Zone.Hand) ?? new List<Card>();
+            if (core.StackEngine != null) hand = hand.Where(c => !core.StackEngine.IsPendingCast(c)).ToList(); // S3b
             foreach (var c in hand)
             {
                 if (c == null || !RuleHooks.CanPlay(core, p, c, Zone.Hand)) continue;
@@ -408,6 +410,7 @@ namespace CardCore.AI.NeuralEnv
             // 各自地牌槽上限（2026-10-11：个人曲线，共享计数器废止——与 AddCardToPool 权威校验同口径）
             if (!core.ElementPool.CanAddLand(me)) return;
             var hand = zm.GetCards(me, Zone.Hand);
+            if (core.StackEngine != null) hand = hand.Where(c => !core.StackEngine.IsPendingCast(c)).ToList(); // S3b
             for (int i = 0; i < hand.Count; i++)
             {
                 var c = hand[i];
@@ -431,6 +434,7 @@ namespace CardCore.AI.NeuralEnv
         private void EnumeratePlayCard(GameCore core, Player me, ZoneManager zm)
         {
             var hand = zm.GetCards(me, Zone.Hand);
+            if (core.StackEngine != null) hand = hand.Where(c => !core.StackEngine.IsPendingCast(c)).ToList(); // S3b
             for (int i = 0; i < hand.Count; i++)
             {
                 var c = hand[i];
@@ -509,6 +513,7 @@ namespace CardCore.AI.NeuralEnv
         private void EnumerateCharge(GameCore core, Player me, ZoneManager zm)
         {
             var hand = zm.GetCards(me, Zone.Hand);
+            if (core.StackEngine != null) hand = hand.Where(c => !core.StackEngine.IsPendingCast(c)).ToList(); // S3b
             for (int i = 0; i < hand.Count; i++)
             {
                 var c = hand[i];
@@ -751,6 +756,7 @@ namespace CardCore.AI.NeuralEnv
         {
             var engine = core.StackEngine;
             var hand = core.ZoneManager.GetCards(me, Zone.Hand);
+            if (core.StackEngine != null) hand = hand.Where(c => !core.StackEngine.IsPendingCast(c)).ToList(); // S3b
             for (int i = 0; i < hand.Count; i++)
             {
                 var c = hand[i];

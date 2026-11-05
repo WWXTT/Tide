@@ -155,7 +155,9 @@ namespace SynergyUI
             // 施放类型图标收口（2026-10-15 发动区改版回归修复）：入场/离开发动区/发动失败即时刷新——
             // 白板卡结算零事件（无指示物/无效果），缺此订阅图标滞留、3D 模型要等回合结束才上
             On<CardPutToBattlefieldEvent>(e => { DeferOrRun(() => _onArrival(e)); QueueFans(); QueueField(); }); // 入场演出载荷组装（2026-10-15 出场浮现；回放抑制期延迟随步放出）
-            On<CardLeaveActivationEvent>(_ => { QueueFans(); QueueField(); }); // 结算离区：图标/卡面转 linger（2026-10-17 时序定案）
+            // CardLeaveActivationEvent 已随 S3b 删发动区退役——结算离区刷新改由
+            // StackResolutionEndEvent（步出栈）+ CardActivationFailedEvent（失败）双口驱动
+            On<StackResolutionEndEvent>(_ => { QueueFans(); QueueField(); }); // 结算步完成：图标/卡面转 linger
             On<CardActivationFailedEvent>(e => // 发动失败（阻拦无效/费用/代价异常+满场入墓口）：展示即清不等 linger
             {
                 _onActivationFailed(e);
@@ -250,20 +252,22 @@ namespace SynergyUI
             _unsubscribers.Add(() => EventManager.Instance.Unsubscribe(handler));
         }
 
-        /// <summary>法术伤害表现的发动位抓拍（2026-10-20 时序定案）：伤害来源=角色（法术效果来源归因）
-        /// 且其发动区有施放中法术 → 施放贴片落格（弹体从这里起飞）；否则 null——单位来源/技能/
-        /// 触发效果照旧从来源锚点起飞。**事件期求值**：回放期卡已入墓，发动区查不到。</summary>
+        /// <summary>法术伤害表现的发动位抓拍（2026-10-20 时序定案；S3b A 切源读栈）：
+        /// 伤害来源=角色（法术效果来源归因）且其栈上有施放中法术 → 弹体自施放者角色格起飞
+        ///（S3b 收口 2026-11-05：施放贴片格已随「栈没有实体」退役——起点改角色格）；
+        /// 否则 null——单位来源/技能/触发效果照旧从来源锚点起飞。**事件期求值**：回放期卡已入墓。</summary>
         private (int x, int z)? ResolveCastFxCell(Entity source)
         {
             if (!(source is Player p)) return null;
             var core = _core();
             var board = _ctrl()?.Board;
-            if (core?.ZoneManager == null || board == null) return null;
+            if (core?.StackEngine == null || board == null) return null;
             Card spell = null;
-            foreach (var c in core.ZoneManager.GetCards(p, Zone.Activation) ?? new List<Card>())
+            foreach (var c in core.StackEngine.GetPendingCastCards(p))
                 if (c != null && c.IsSpellCard()) { spell = c; break; }
             if (spell == null) return null;
-            return board.TryGetCastingCell(spell, out int x, out int z) ? ((int x, int z)?)(x, z) : null;
+            var (x, z) = board.CharacterCell(p);
+            return (x, z);
         }
 
         public void Dispose()

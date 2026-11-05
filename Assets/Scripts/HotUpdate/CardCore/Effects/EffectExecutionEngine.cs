@@ -327,6 +327,7 @@ namespace CardCore
                 CastCard = instance.CastCard, // 施放链路宿主卡（状态门 DrawnInStandbyThisTurn 用）
                 ResolvingEffect = effect, // P9b：引用卡槽按 (来源卡ID, 效果序号) 解析卡组期绑定
                 ChargeColor = instance.ChargeColor, // 充能色（P12）：ChargeHandler 结算期消费
+                RespondedEntry = instance.RespondedEntry, // E1-1 响应绑定透传：反制原子读它打标（跟谁入栈反制谁）
             };
 
             // 代价支付：元素代价由配置表自动推导（费用唯一权威），经 ElementCostPayment 纯支付
@@ -340,8 +341,8 @@ namespace CardCore
             if (ComposerCatalog.IsChargeEffect(effect)) elementCosts = new ElementCost();
             // 技能发动费（2026-11-01 定案）：锚价现付——照走通用 DeriveElementCosts（无专属豁免），
             // 与 CanActivate 预检同口径；抉择技能 instance.ModeIndex=所选效果序号，per-mode 计价天然成立
-            //（结界发动费抵扣臂已随 2026-10-15 拆分定案退役：免费点固定拆「速1+其余入耐久」，
-            // 不再二选一抵每次发动费——DurabilityBonusOf/EnchantSpeedBonusOf 两向落位。）
+            //（结界发动费抵扣臂已随 2026-10-15 拆分定案退役：免费点今折免费耐久底抵卡价
+            //——2026-11-04 碑族0费改版，旧 DurabilityBonusOf/EnchantSpeedBonusOf 两向落位均退役。）
             // 临摹/变形发动补价（2026-10-23 开放元素限制——并入灰档=任意元素可补差，落在底盘抵扣之后——底盘属原卡，
             // 不抵变形溢价）：被变形卡的主动效果按变形前后声明费差额补差并入本次账单；
             // 触发式（ElementCostPrepaid）不经此段；付不出沿用空转口径
@@ -1097,6 +1098,86 @@ namespace CardCore
         /// <summary>栈内容只读快照（2026-10-19 连锁链 UI 数据源）：返回即时拷贝（顶→底序），
         /// 防外部枚举期间栈变动；BattleViewData 据此构建 ChainCards。</summary>
         public List<EffectInstance> SnapshotStack() => new List<EffectInstance>(_stack);
+
+        /// <summary>「发动中」源卡清单（E1-1 修订·**链展示，非目标域**——反制=响应绑定 RespondedEntry，
+        /// 不走 15/16 候选）：栈上待结算条目的源卡（任意来源），按条目 Controller 分侧。
+        /// 排除 SBA/阶段窗/攻击·守卫宣言与已标 IsActivationNegated；不查卡所在区。底→顶稳定序。
+        /// 消费口：BattleViewData 连锁链/UI 展示。</summary>
+        public List<Card> GetEngagedCards(Player side)
+        {
+            var result = new List<Card>();
+            foreach (var e in GetStackContents()) // 底→顶稳定序
+            {
+                if (e == null || e.IsSBA || e.IsPhaseWindow || e.IsAttackDeclaration || e.IsGuardDeclaration) continue;
+                if (e.IsActivationNegated) continue;
+                if (!(e.Source is Card card)) continue;
+                if (side != null && !ReferenceEquals(e.Controller, side)) continue;
+                if (!result.Contains(card)) result.Add(card); // 同卡多条目（理论上不可见）去重
+            }
+            return result;
+        }
+
+        /// <summary>「发动中」条目按源卡反查（**链展示，非目标**——UI 卡+效果名/验证器对拍）：
+        /// 返回该卡在栈上最近的（最晚入栈）条目；无=null。排除口径与 GetEngagedCards 同源。</summary>
+        public EffectInstance GetEngagedEntryOf(Card card)
+        {
+            if (card == null) return null;
+            EffectInstance found = null;
+            foreach (var e in GetStackContents()) // 底→顶：末次命中=最近（最顶）条目
+            {
+                if (e == null || e.IsSBA || e.IsPhaseWindow || e.IsAttackDeclaration || e.IsGuardDeclaration) continue;
+                if (e.IsActivationNegated) continue;
+                if (e.Source is Card src && ReferenceEquals(src, card)) found = e;
+            }
+            return found;
+        }
+
+        /// <summary>验证器/探针直挂条目（E1-1 发动中夹具）：绕过专用 Push 的字段组装与门槛——
+        /// 生产流转一律走 PushCardCast/TryActivateEffect/PushAttackDeclaration 等专用口
+        ///（本口不设速度门槛、不触发入栈联动；DrainStack 会照常结算它）。</summary>
+        public void PushRaw(EffectInstance entry) => PushWithResponse(entry);
+
+        /// <summary>验证器探针口：直接弹出栈顶（不结算——仅测试夹具清栈用；生产流转走 DrainStack）。</summary>
+        public EffectInstance PopForTest() => _stack.Count > 0 ? _stack.Pop() : null;
+
+        /// <summary>施放中卡清单（S3b A 切源 2026-11-04）：栈上 IsCardCast 条目的源卡（底→顶稳定序），
+        /// 按条目 Controller 分侧。**占位/链展示数据源**——替代 Zone.Activation 区查询
+        ///（区仍填=A 阶段零行为；B 阶段删区后本口成唯一源）。不滤已标（展示口径含被无效待结算的）。</summary>
+        public List<Card> GetPendingCastCards(Player side)
+        {
+            var result = new List<Card>();
+            foreach (var e in GetStackContents()) // 底→顶稳定序
+            {
+                if (e == null || !e.IsCardCast) continue;
+                if (!(e.Source is Card card)) continue;
+                if (side != null && !ReferenceEquals(e.Controller, side)) continue;
+                if (!result.Contains(card)) result.Add(card);
+            }
+            return result;
+        }
+
+        /// <summary>卡是否施放中（S3b 单一判定口 2026-11-04）：该卡有 IsCardCast 条目在栈上。
+        /// **全域剔除消费口**——手牌域候选（弃牌/手牌破坏/展示/代价弃牌）、手牌上限、UI 手牌扇、
+        /// AI 候选、观测手牌计数：施放中的卡留在手牌但**不算手牌可用卡**（区域效果指不到它=
+        /// 变相无限反制规则洞的防线）。不滤 IsActivationNegated（已发动无效的 cast 结算前仍占位）。</summary>
+        public bool IsPendingCast(Card card)
+        {
+            if (card == null) return false;
+            foreach (var e in GetStackContents())
+                if (e != null && e.IsCardCast && e.Source is Card src && ReferenceEquals(src, card))
+                    return true;
+            return false;
+        }
+
+        /// <summary>入栈统一口（E1-1 响应绑定）：**Push 前捕获当前栈顶**写入 RespondedEntry
+        ///（空栈=null）——随谁入栈就绑谁。全部专用 Push 与 PushRaw 走此口；链条 RespondedEntry
+        /// 引用链即连锁链（A←B←C）。捕获在记速器/优先权切换**之前**——绑定的是入栈瞬间的栈顶。</summary>
+        private void PushWithResponse(EffectInstance entry)
+        {
+            if (entry == null) return;
+            entry.RespondedEntry = _stack.Count > 0 ? _stack.Peek() : null;
+            _stack.Push(entry);
+        }
         public Player CurrentPriorityHolder => _priorityHolder;
         public Player ActivePlayer => _activePlayer;
         public bool WaitingForPlayer => _waitingForPlayer;
@@ -1161,7 +1242,7 @@ namespace CardCore
                 // 触发式无每回合生效次数上限（2026-10-30 定案）：满足时点的每次触发都入栈。
                 // 唯一的每回合 1 次保留在自由分支引擎奖励——由 BranchEngines 按卡自限，不在此闸。
                 var instance = EffectInstance.FromPendingEffect(next);
-                _stack.Push(instance);
+                PushWithResponse(instance);
                 next.IsOnStack = true;
 
                 // 入栈即记账（2026-09-13 修复；2026-10-30 起仅作读数——条件计数/卡面统计，无闸门）：
@@ -1217,7 +1298,7 @@ namespace CardCore
             _speedCounter.RaiseTo(pending.ActivationSpeed); // ★ 记速器：更高才抬升
 
             var instance = EffectInstance.FromPendingEffect(pending);
-            _stack.Push(instance);
+            PushWithResponse(instance);
             pending.IsOnStack = true;
 
             _priorityHolder = pending.Controller.Opponent;
@@ -1266,7 +1347,7 @@ namespace CardCore
 
             _speedCounter.RaiseTo(castSpeed); // ★ 记速器：更高才抬升
 
-            _stack.Push(instance);
+            PushWithResponse(instance);
             _priorityHolder = controller.Opponent;
             _consecutivePassCount = 0;
             _waitingForPlayer = true;
@@ -1306,7 +1387,7 @@ namespace CardCore
 
             _speedCounter.RaiseTo(SbaStackSpeed); // ★ 记速器：SBA 抬到 1（本连锁的最高速度基线）
 
-            _stack.Push(instance);
+            PushWithResponse(instance);
             _priorityHolder = _activePlayer;   // 回合方先响应（与触发式轮统一）
             _consecutivePassCount = 0;
             _waitingForPlayer = true;
@@ -1351,7 +1432,7 @@ namespace CardCore
                 Targets = new List<Entity>()
             };
 
-            _stack.Push(instance);
+            PushWithResponse(instance);
             _priorityHolder = firstResponder; // 回合方先响应（与 SBA 轮同口径）
             _consecutivePassCount = 0;
             _waitingForPlayer = true;
@@ -1420,7 +1501,7 @@ namespace CardCore
                 OriginalAttackTarget = target, // 原目标存档（2026-10-16 碾压改版：守卫改写后溅射枢轴仍取原目标）
             };
 
-            _stack.Push(instance);
+            PushWithResponse(instance);
             _priorityHolder = controller.Opponent; // 防守方先响应（发动弹窗候选：守卫/响应卡）
             _consecutivePassCount = 0;
             _waitingForPlayer = true;
@@ -1500,7 +1581,7 @@ namespace CardCore
                 InterceptedAttack = attackInstance, // 拦截载荷（Targets 装不下栈对象，专用字段）
             };
 
-            _stack.Push(instance);
+            PushWithResponse(instance);
             _priorityHolder = controller.Opponent;
             _consecutivePassCount = 0;
             _waitingForPlayer = true;
@@ -2100,9 +2181,7 @@ namespace CardCore
             {
                 new DealDamageHandler(),
                 // 敌方全体伤害（2026-10-09 全体对象独立原子）：无域自结算，杀数聚合（击杀门槛一次结算）
-                new DealDamageAllEnemiesHandler(),
                 // 全体消灭（2026-10-29 阶段3a）：对方全体生物效果死亡——无域自结算（同上款全体口径）
-                new DevourAllEnemiesHandler(),
                 new DrawCardHandler(),
                 // 回响（2026-10-07 关键词→普通效果改版）：复制施放卡入手（完全复制，连锁保留）
                 new EchoCopyHandler(),

@@ -204,7 +204,7 @@ namespace CardCore.AI.NeuralEnv
                 case Zone.ElementPool: offset = 9; cap = 14; return true;
                 case Zone.Hand: offset = 23; cap = 12; return true;
                 case Zone.Graveyard: offset = 35; cap = 30; return true; // v10：4→30
-                case Zone.Activation: offset = 65; cap = 3; return true; // v10：39→65（墓地区扩容右移）
+                case Zone.Activation: offset = 65; cap = 3; return true; // v11-B（S3b 删发动区）：槽保留恒零——布局不变免重训
                 case Zone.FieldZone: offset = 68; cap = 1; return true;  // v10：42→68
                 case Zone.Exile: offset = 69; cap = 8; return true;      // v10 新增
                 default: offset = -1; cap = 0; return false;
@@ -469,8 +469,11 @@ namespace CardCore.AI.NeuralEnv
             g[2] = core.TurnEngine.TurnNumber / 40f;
             g[3] = (int)(core.TurnEngine.CurrentPhase?.Phase ?? PhaseType.Standby); // 0/1/2
             g[4] = ReferenceEquals(me, core.TurnEngine.TurnPlayer) ? 1f : 0f; // is_my_turn（决策座次视角）
-            g[5] = zm.GetCards(me, Zone.Hand).Count;
-            g[6] = zm.GetCards(opp, Zone.Hand).Count;
+            // S3b（2026-11-04 删发动区）：手牌计数剔除施放中的卡（IsPendingCast 单口全域剔除）——
+            // 卡留手牌但不可用（弃牌/上限/展示已剔），观测口径与可用手牌对齐。
+            var se = core.StackEngine;
+            g[5] = se != null ? zm.GetCards(me, Zone.Hand).FindAll(c => !se.IsPendingCast(c)).Count : zm.GetCards(me, Zone.Hand).Count;
+            g[6] = se != null ? zm.GetCards(opp, Zone.Hand).FindAll(c => !se.IsPendingCast(c)).Count : zm.GetCards(opp, Zone.Hand).Count;
             g[7] = zm.GetCards(me, Zone.Battlefield).Count;
             g[8] = zm.GetCards(opp, Zone.Battlefield).Count;
             g[9] = ep.GetPooledCards(me).Count;

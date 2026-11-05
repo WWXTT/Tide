@@ -576,6 +576,7 @@ namespace CardCore.AI
         /// </summary>
         public override bool ShouldHold(GameCore core, Player me, Card card)
         {
+
             if (IsGuardOnly(card) && !HasBigBrother(core, me) && me.Life > 10)
                 return true;
             // 活体炸弹（2026-11-04）：本回合已经出过牌就留手——3 红只够它一张，
@@ -1466,6 +1467,7 @@ namespace CardCore.AI
         /// · 培育/菌丝场上没单位时不空放。</summary>
         public override bool ShouldHold(GameCore core, Player me, Card card)
         {
+
             bool hold;
             if (Is(card, NameNewborn))
             {
@@ -2072,6 +2074,77 @@ namespace CardCore.AI
             return score;
         }
 
+        // ==================== 蓝套速度牌准入（2026-11-04 用户定案） ====================
+
+        /// <summary>扰乱价值（弹回口径）：卡费 + 关键词/指示物溢价（连击 +6）。
+        /// 被乱锋控住的单位返回 -1——**一律不弹**（它已经打不到角色了，弹回去等于送它重下）。</summary>
+        private static int DisruptValue(Card c)
+        {
+            if (c == null || !c.IsAlive) return -1;
+            if (KeywordRules.HasRushSickness(c)) return -1; // 被乱锋控住 → 不弹
+            int v = 0;
+            var cost = GameActions.GetCardCost(c, 0);
+            if (cost != null)
+                foreach (var color in cost.NonzeroColors()) v += (int)(cost[color] / 2f); // 半费→整费
+            if (c.HasKeyword(KeywordRules.DoubleStrike)) v += 6; // 连击溢价
+            return v;
+        }
+
+        /// <summary>弹回的最佳目标：价值 ≥3 且未被乱锋控住；取最高价值，没有返回 null（→ 留手当土地）。</summary>
+        private static Card BestBounceTarget(GameCore core, Player me)
+        {
+            var opp = me?.Opponent;
+            if (opp == null) return null;
+            Card best = null; int bestV = 2; // >2 才算（即 ≥3）
+            foreach (var c in core.ZoneManager.GetCards(opp, Zone.Battlefield) ?? new List<Card>())
+            {
+                int v = DisruptValue(c);
+                if (v > bestV) { best = c; bestV = v; }
+            }
+            return best;
+        }
+
+        /// <summary>敌方场上是否有被乱锋控住的单位（有 → 不用减半：它打不到角色，减半是浪费）。</summary>
+        private static bool AnyEnemyRushed(GameCore core, Player me)
+        {
+            var opp = me?.Opponent;
+            if (opp == null) return false;
+            foreach (var c in core.ZoneManager.GetCards(opp, Zone.Battlefield) ?? new List<Card>())
+                if (c != null && c.IsAlive && KeywordRules.HasRushSickness(c)) return true;
+            return false;
+        }
+
+        /// <summary>减半生效中（自己身上带减半护盾）→ 本回合不用乱锋（两条防御别叠着浪费）。</summary>
+        private static bool HalveShieldActive(Player me)
+            => me != null && me.GetEffectiveCounterCount("HalveShield") > 0;
+
+        public override List<Entity> PickSpellTargets(GameCore core, Player me, Card card, int modeIndex)
+        {
+            // 弹回：只弹价值 ≥3 且未被乱锋控住的卡；没有合格目标 → 空表（本次不打，留着当土地）
+            if (HasBranchAtom(card, AtomicEffectType.ReturnToHand))
+            {
+                var t = BestBounceTarget(core, me);
+                return t != null ? new List<Entity> { t } : new List<Entity>();
+            }
+            // 回潮（0 费洗回）：优先洗「回潮 + 潮汐」——2 费无条件抽牌是过牌引擎，加速摸到需要的卡
+            if (HasBranchAtom(card, AtomicEffectType.ShuffleIntoDeck))
+            {
+                var grave = core.ZoneManager.GetCards(me, Zone.Graveyard) ?? new List<Card>();
+                var picks = new List<Entity>();
+                foreach (var name in new[] { "回潮", "潮汐" })
+                {
+                    var c = grave.FirstOrDefault(x => x is IHasName n && n.CardName == name && !picks.Contains(x));
+                    if (c != null) picks.Add(c);
+                }
+                foreach (var c in grave)
+                {
+                    if (picks.Count >= 2) break;
+                    if (!picks.Contains(c)) picks.Add(c);
+                }
+                return picks;
+            }
+            return null;
+        }
         /// <summary>蓝套英雄技能「隐匿」：只在己方场上有**未潜行的带充盈结界**时发动；
         /// 没有充盈结界就不放（绝不把潜行丢给角色/普通结界）。</summary>
         public override bool WantHeroSkill(GameCore core, Player me)
@@ -2170,6 +2243,14 @@ namespace CardCore.AI
         /// </summary>
         public override bool ShouldHold(GameCore core, Player me, Card card)
         {
+            // 2026-11-04 用户定案（蓝套速度牌）：
+            // · 回潮（0 费洗回）——拿到就用，不走留牌逻辑；
+            // · 薄壁（减半）——对手生物已被乱锋控住时不用（它打不到角色）；
+            // · 乱锋——减半生效中不用（两条防御别叠着浪费）。
+            if (HasBranchAtom(card, AtomicEffectType.ShuffleIntoDeck)) return false;
+            if (HasBranchAtom(card, AtomicEffectType.ProtectionHalve) && AnyEnemyRushed(core, me)) return true;
+            if (HasBranchAtom(card, AtomicEffectType.RushSickness) && HalveShieldActive(me)) return true;
+
             if (CardHasAtom(core, card, AtomicEffectType.EngineManaSurplus)) return false;
 
             // 回潮：洗回的是**双方**墓地——前期主动打=给对手续牌、把自己的控制/过牌再洗回去。
@@ -2195,13 +2276,16 @@ namespace CardCore.AI
             int threshold = BranchEngines.MaxManaSurplusThreshold(me); // 0=场上无充盈引擎 → 不留费
             if (opp == null || threshold <= 0) return false;
 
+            // 2026-11-04 用户定案（充盈操作策略）：充盈判的是**未横置地牌**——对手回合里
+            // 「我的未横置地 − 对手当前未横置地 ≥ x」才触发。所以留牌要留**地**，不是留钱包：
+            // 预算 = 对手地数（其回合开始会全解横置）+ 门槛 x；支付会先花临时钱包、再横置地。
             int need = (int)Math.Ceiling(bill.Total - 1e-4f);
-            int remaining = core.ElementPool.GetRemainingElementTotal(me);
-            int reserve = core.ElementPool.GetRemainingElementTotal(opp) + threshold;
-
-            if (remaining <= reserve)
-                return need >= remaining; // 保护区：放行后池子还剩 ≥1 的低费牌；清空元素池的大费扣住
-            return remaining - need < reserve;
+            int myLands = core.ElementPool.GetPool(me).PooledCards.Count(pc => pc != null && !pc.IsTapped);
+            int oppLands = core.ElementPool.GetPool(opp).PooledCards.Count(pc => pc != null && !pc.IsTapped);
+            int wallet = core.ElementPool.GetRemainingElementTotal(me) - myLands;
+            int reserve = oppLands + threshold;
+            int landsAfter = myLands - Math.Max(0, need - wallet);
+            return landsAfter < reserve;
         }
 
         // ======================================== 响应窗（2026-11-02 任务A·打断式响应） ========================================
@@ -2401,6 +2485,10 @@ namespace CardCore.AI
         }
     }
 }
+
+
+
+
 
 
 

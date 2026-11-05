@@ -214,6 +214,7 @@ namespace CardCore
             ValidateRandomParams(result);
             ValidateSpellShape(result);
             ValidateEnchantShape(result);
+            ValidateCreatureShape(result);
             ValidateAtomParams(result);
 
             return result;
@@ -273,6 +274,46 @@ namespace CardCore
                 if (chargeCount > 1)
                     TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：结界充能效果最多 1 个（现 {chargeCount} 个）——构筑期拦截");
             }
+        }
+
+        /// <summary>生物形态校验（2026-11-05 时机两档定案）：生物（及非结界宿主）效果挂
+        /// 周期/观察族多次时机（回合/阶段/抽牌/伤害/被指向/使用/事件观察——EffectEligibility.
+        /// IsEnchantExclusiveTiming）→ Error 点名卡/效果/时机（防直改 JSON 或旧档绕过合成器；
+        /// 结界=耐久即次数池放行；攻/守/横置族放行——宿主自身行动承担次数；引擎载荷放行
+        /// ——settle=Engine 的效果头时机只是奖励发射窗，与计价豁免同口径）。可见不炸——坏卡点名。</summary>
+        private static void ValidateCreatureShape(List<CardData> cards)
+        {
+            foreach (var card in cards)
+            {
+                if (card?.Supertype != Cardtype.Creature || card.Effects == null) continue;
+                foreach (var e in card.Effects)
+                {
+                    if (e == null) continue;
+                    int t = e.TriggerTiming;
+                    if (t == (int)TriggerTiming.Activate_Active || t == (int)TriggerTiming.Activate_Instant
+                        || t == (int)TriggerTiming.Activate_Response)
+                        continue; // 主动档无时机（现付）
+                    if (!EffectEligibility.IsEnchantExclusiveTiming((TriggerTiming)t)) continue;
+                    if (HasEngineEntry(e)) continue; // 引擎载荷：时机=奖励发射窗，非重复语义
+                    TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：效果 {e.Id} 时机"
+                                  + $"「{(TriggerTiming)t}」为周期性多次档——结界专属（耐久即次数池），"
+                                  + "生物只能挂单次时机或攻/守/横置族——装载期拦截");
+                }
+            }
+        }
+
+        /// <summary>效果条目是否携带引擎载荷（settle=Engine——Steps/扁平双扫，与
+        /// CostDerivationService.HasEnginePayload 同口径；本口工作在 CardEffectData 原始层）。</summary>
+        private static bool HasEngineEntry(CardEffectData e)
+        {
+            bool Of(BranchEntryData b) => b != null && b.settle == (int)BranchSettleKind.Engine;
+            if (e.Steps != null)
+                foreach (var s in e.Steps)
+                    if (Of(s?.atomic?.branch)) return true;
+            if (e.AtomicEffects != null)
+                foreach (var a in e.AtomicEffects)
+                    if (Of(a?.branch)) return true;
+            return false;
         }
 
         /// <summary>
@@ -703,6 +744,7 @@ namespace CardCore
             ValidateRandomParams(result);
             ValidateSpellShape(result);
             ValidateEnchantShape(result);
+            ValidateCreatureShape(result);
             ValidateAtomParams(result);
 
             return result;

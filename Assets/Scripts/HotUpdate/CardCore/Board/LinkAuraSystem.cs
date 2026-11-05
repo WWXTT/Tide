@@ -86,8 +86,7 @@ namespace GameBoard
             Hook<CardPutToBattlefieldEvent>();
             Hook<CardLeaveBattlefieldEvent>();
             Hook<CardZoneChangeEvent>();
-            Hook<CardEnterActivationEvent>();
-            Hook<CardLeaveActivationEvent>();
+            // Enter/Leave Activation 已随 S3b 删发动区退役——施放中卡不入区，光环缓存无需响应
             Hook<CardActivationFailedEvent>();
             Hook<TokenCreatedEvent>();
             Hook<CounterChangedEvent>(); // 无效指示物增减 = 光环压制状态变化

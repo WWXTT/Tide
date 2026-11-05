@@ -2351,12 +2351,15 @@ namespace SynergyUI
             var (_, eligible) = CostDerivationService.PayloadCostDomain(cfg);
             if (!eligible)
             {
-                var kindsZh = string.Join(",", cfg.GetTargetKindList()
-                    .Select(k => CardCore.TargetKindRules.ZhNameOf((CardCore.TargetKind)k)));
-                reject = string.IsNullOrEmpty(kindsZh)
+                // 域显示优先（P2-3 UI 适配）：cfg.Domain（多 token 原样 CSV）优先——与
+                // EffectComposerScreen.AtomParamLine 同口径；空=未迁行回落旧 TargetKinds 中文。
+                var domainZh = !string.IsNullOrEmpty(cfg.Domain) ? cfg.Domain
+                    : string.Join(",", cfg.GetTargetKindList()
+                        .Select(k => CardCore.TargetKindRules.ZhNameOf((CardCore.TargetKind)k)));
+                reject = string.IsNullOrEmpty(domainZh)
                     ? $"「{cfg.DisplayName}」无目标参数（无 {{target}} 的原子不能翻转成代价）——不可作代价"
-                    : $"「{cfg.DisplayName}」域单侧（{kindsZh}）——只能作用于单方面的原子不能作代价" +
-                      "（2026-11-03 定案：代价只收 TargetKinds 含己方与对方的双侧行），请换双侧行";
+                    : $"「{cfg.DisplayName}」域单侧（{domainZh}）——只能作用于单方面的原子不能作代价" +
+                      "（2026-11-03 定案：代价只收含己方与对方的双侧行），请换双侧行";
                 return false;
             }
             return true;

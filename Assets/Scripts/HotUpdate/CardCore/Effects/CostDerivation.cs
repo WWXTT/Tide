@@ -10,7 +10,7 @@ namespace CardCore
     /// 由效果配置表（AttributeValueConfig.json 的 ManaList 位置数组，下标=ManaType 枚举序号）推导出
     /// 「元素消耗代价」，使费用成为配置表唯一权威：费用 = round(份额 × CostMultiplier × 效果值) 按色分配。
     /// 卡牌仍可在 effect.Costs 中声明效果型代价（Payload 原子——弃牌/送墓/流失等资源支付，付费步执行+补偿）。
-    /// 生物挂载折扣（落地延迟 d(C) 与存活期望的额外回合折）不在此处 —— 在 CardCostService 的组合层计价。
+    /// 卡级组合计价（底盘/结构费/属性分色）不在此处 —— 在 CardCostService 的组合层。
     /// </summary>
     public static class CostDerivationService
     {
@@ -369,10 +369,9 @@ namespace CardCore
         ///——速度=3−槽数是法术的类特性而非可购溢价，旧规给速 2 效果 ×2 属历史遗留多收；
         /// 其余主动效果速度已全归默认 0。SpeedFactor/SpeedTier 配置位同批整删。）</summary>
 
-        /// <summary>发动时机计价系数（2026-10-30 定案，表 Category=TimingFactor 逐时机行）：
-        /// **系数 = 这张卡付清后该时机的期望触发次数**，不是折扣——登场/死亡等一次性时机 ×1；
-        /// 随生物存活期望（假设 1.5 回合）复现的回合/阶段/抽牌/横置族 ×1.5；攻击/受伤/造成伤害/
-        /// 事件观察族等期望未标定，表内暂定 2（逐行可调）。
+        /// <summary>发动时机计价系数（2026-11-05 两档收敛定案，表 Category=TimingFactor 仅 Once/Repeat 两行）：
+        /// 时机只分单次/多次两档且均 ×1——**多次生效的成本由耐久承担**（结界每次触发 −1 耐久、
+        /// 0.5 蓝/点——耐久即次数池），不按次数加价；单据 FiresOncePerPaidLifetime 归类。
         /// 引擎载荷豁免：重复性属引擎通道，效果头时机=奖励发射窗，不代表主干发射次数；
         /// 非触发式（主动现付）不乘（恒 1）。</summary>
         public static float TimingCostFactor(EffectDefinition def)
@@ -382,54 +381,28 @@ namespace CardCore
             return TimingCostFactorOf(def.TriggerTiming);
         }
 
-        /// <summary>时机系数单口（计价 TimingCostFactor 与时机下拉尾缀「×N」展示同源）：
-        /// 表 Category=TimingFactor 逐时机取值（字段名=TriggerTiming 枚举名）——改表即同步改计价与展示。
-        /// 主动三档恒 1（发动时现付，不乘表；表内也不设行）。</summary>
+        /// <summary>时机系数单口（计价 TimingCostFactor 与时机下拉档位标签展示同源）：
+        /// 表 Category=TimingFactor 两行（Once/Repeat，均 1.0）——单据 FiresOncePerPaidLifetime
+        /// 两档归类。改表即同步改计价与展示；主动三档恒 1（发动时现付，不乘表）。</summary>
         public static float TimingCostFactorOf(TriggerTiming timing)
         {
             var f = ValueSystemConfigManager.Instance.GetOrCreateConfig().TimingFactorConfig;
-            return timing switch
-            {
-                TriggerTiming.OnPlay => f.OnPlay,
-                TriggerTiming.OnDeath => f.OnDeath,
-                TriggerTiming.OnDraw => f.OnDraw,
-                TriggerTiming.OnDealDamage => f.OnDealDamage,
-                TriggerTiming.OnTakeDamage => f.OnTakeDamage,
-                TriggerTiming.OnTurnStart => f.OnTurnStart,
-                TriggerTiming.OnTurnEnd => f.OnTurnEnd,
-                TriggerTiming.OnAttack => f.OnAttack,
-                TriggerTiming.OnAttacked => f.OnAttacked,
-                TriggerTiming.OnSummon => f.OnSummon,
-                TriggerTiming.OnTargeted => f.OnTargeted,
-                TriggerTiming.OnOtherCreatureEnter => f.OnOtherCreatureEnter,
-                TriggerTiming.OnSpellCast => f.OnSpellCast,
-                TriggerTiming.OnTap => f.OnTap,
-                TriggerTiming.OnUntap => f.OnUntap,
-                TriggerTiming.OnDestroy => f.OnDestroy,
-                TriggerTiming.OnExile => f.OnExile,
-                TriggerTiming.OnReturnFromGraveyard => f.OnReturnFromGraveyard,
-                TriggerTiming.OnLeaveBattlefield => f.OnLeaveBattlefield,
-                TriggerTiming.OnPhaseStart => f.OnPhaseStart,
-                TriggerTiming.OnPhaseEnd => f.OnPhaseEnd,
-                TriggerTiming.OnBlockDeclare => f.OnBlockDeclare,
-                TriggerTiming.OnCardPlayed => f.OnCardPlayed,
-                TriggerTiming.OnGameStart => f.OnGameStart,
-                TriggerTiming.OnAtomicEffectActivation => f.OnAtomicEffectActivation,
-                TriggerTiming.OnAtomicEffectStartApplying => f.OnAtomicEffectStartApplying,
-                TriggerTiming.OnAtomicEffectResolution => f.OnAtomicEffectResolution,
-                TriggerTiming.OnOtherCreatureDeath => f.OnOtherCreatureDeath,
-                TriggerTiming.OnRoleDeath => f.OnRoleDeath,
-                TriggerTiming.OnStandbyPhase => f.OnStandbyPhase,
-                TriggerTiming.OnScry => f.OnScry,
-                _ => 1f, // 主动三档/未定义：发动时现付，不乘
-            };
+            return FiresOncePerPaidLifetime(timing) ? f.Once : f.Repeat;
         }
 
-        /// <summary>一发时机分类（2026-10-16 入档；2026-10-30 与计价解耦——只用于卡型适用性
-        /// 〔法术合法性〕与合成器时机排序，不再映射计价系数）：付费后整个生命期望=1——
+        /// <summary>多次档判定（2026-11-05 两档定案配套；合成器宿主过滤/装载校验/验证器共用）：
+        /// !FiresOncePerPaidLifetime——回合/阶段/抽牌/伤害/事件观察族 + 攻/守/横置族 + OnSummon。
+        /// 注意「多次档」≠「生物禁挂」：攻/守/横置族（EffectEligibility.IsTapAnchoredTiming）虽归
+        /// 多次档，生物仍可挂（宿主自身行动承担次数）——周期/观察族才是结界专属（耐久即次数池）。</summary>
+        public static bool IsRepeatTiming(TriggerTiming t) => !FiresOncePerPaidLifetime(t);
+
+        /// <summary>一发时机分类——**两档归类的唯一判定**（2026-10-16 入档；2026-10-30 与计价解耦；
+        /// 2026-11-05 两档收敛定案后为单次/多次档的唯一单源）：付费后整个生命期望=1——
         /// 登场/死亡/游戏开始·角色死亡（每局一发）/破坏·除外·离场·墓地回场（付费后基本一次）。
-        /// OnSummon 进场**不入档**：OnPlay 超集（token/复活/换主控可不付二次费再触发），有真实二次机会。
-        /// 事件观察族（OnOtherCreature* 等）与每回合可复现时机（攻防/横置/阶段/抽牌/伤害）期望&gt;1 不入档。</summary>
+        /// OnSummon 进场**不入档**：OnPlay 超集（token/复活/换主控可不付二次费再触发），有真实二次机会
+        /// ——归多次档（系数仍 ×1）。事件观察族（OnOtherCreature* 等）与每回合可复现时机（攻防/横置/
+        /// 阶段/抽牌/伤害）期望&gt;1 不入档。消费方：TimingCostFactorOf / IsRepeatTiming /
+        /// EffectEligibility（法术合法性+合成器时机排序）。</summary>
         public static bool FiresOncePerPaidLifetime(TriggerTiming timing)
             => timing == TriggerTiming.OnPlay
                || timing == TriggerTiming.OnDeath
@@ -461,10 +434,9 @@ namespace CardCore
             if (n > 1f)
                 amount *= n;
 
-            // 发动时机计价（2026-10-30 定案，表 Category=TimingFactor）：系数=该时机的**期望触发次数**——
-            // 付清后只能触发一次的时机 ×1；随存活期望（假设 1.5 回合）复现的回合/阶段/抽牌/横置族 ×1.5；
-            // 攻防/伤害/事件观察族暂定 2（逐时机可调）。引擎载荷/非触发式恒 ×1（TimingCostFactor 内判）。
-            // 系数可 &lt;1 也可 &gt;1——判 ≠1 即乘。
+            // 发动时机计价（2026-11-05 两档收敛：表 TimingFactor 仅 Once/Repeat 两行且均 ×1——
+            // 多次生效的成本由结界耐久承担，不按次数加价；引擎载荷/非触发式恒 ×1 在 TimingCostFactor 内判）。
+            // 系数判 ≠1 即乘（两档调离 1 时自动生效）。
             float timingFactor = TimingCostFactor(def);
             if (Math.Abs(timingFactor - 1f) > 0.001f)
                 amount *= timingFactor;

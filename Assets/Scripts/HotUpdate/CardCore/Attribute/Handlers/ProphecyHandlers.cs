@@ -160,8 +160,11 @@ namespace CardCore.Attribute.Handlers
             }
             else if (hand != null)
             {
+                // S3b 手牌口径（2026-11-05 收口）：施放中的卡不算可用手牌——强夺拿不到它
+                var stack = GameCore.Instance?.StackEngine;
                 foreach (var c in hand)
-                    if (ProphecyDimension.Matches(c, dim, val)) { found = c; break; }
+                    if (stack == null || !stack.IsPendingCast(c))
+                        if (ProphecyDimension.Matches(c, dim, val)) { found = c; break; }
             }
 
             bool hit = found != null;

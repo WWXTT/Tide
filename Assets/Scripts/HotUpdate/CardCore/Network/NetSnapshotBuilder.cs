@@ -15,15 +15,29 @@ namespace CardCore.Network
     /// - 时点约束（M1 记录、M2 服务器收口）：人局 EndTurn 后可能赶上半完成结算
     ///   （EnforceHandLimitAsync / PassPriority 内部 .Forget() 异步）——服务器侧快照
     ///   前置静默检查（StackEngine.IsResolving + 栈空 + 无 pending）再取样。
+    /// - 手牌口径（S3b 收口 2026-11-05 定案·五处同源）：施放中的卡留手牌区但**不算手牌**——
+    ///   HandCount / CardHandInfo(Count+OwnRuntimeIds) / viewer 手牌 ZoneCards 一律剔除
+    ///   （IsPendingCast 单口）。同口径：观测 g[5]/g[6]、手牌上限、UI 手牌扇（BuildLocal/RefreshFans）。
+    ///   施放卡的对局呈现由 StackV2 承载（链 UI），不占手牌位。
     /// </summary>
     public static class NetSnapshotBuilder
     {
+        /// <summary>手牌可用卡（S3b 口径）：剔除施放中的卡（卡在区但不算手牌——与观测/上限/手牌扇同源）。</summary>
+        private static System.Collections.Generic.List<Card> UsableHand(GameCore core, Player player)
+        {
+            var hand = core.ZoneManager.GetCards(player, Zone.Hand) ?? new System.Collections.Generic.List<Card>();
+            var stack = core.StackEngine;
+            if (stack != null)
+                hand = hand.Where(c => !(c is Card hc && stack.IsPendingCast(hc))).ToList();
+            return hand;
+        }
         /// <summary>公开区域（进 ZoneCards 全量）；Hand/Deck 不在此列——隐私经 CardHandInfo/Count 承载。
-        /// Extra=额外区（衍生物模板区，2026-10-22 补入快照）：双方可见，客户端按格位识别。</summary>
+        /// Extra=额外区（衍生物模板区，2026-10-22 补入快照）：双方可见，客户端按格位识别。
+        /// S3b（2026-11-04 删发动区）：Activation 退役——施放卡由 StackV2 承载（客户端读栈）。</summary>
         private static readonly Zone[] PublicZones =
         {
             Zone.Battlefield, Zone.Graveyard, Zone.Exile,
-            Zone.ElementPool, Zone.Activation, Zone.FieldZone, Zone.Extra,        };
+            Zone.ElementPool, Zone.FieldZone, Zone.Extra,        };
 
         public static MsgGameStateSync Build(GameCore core, int viewerSeat)
             => Build(core, viewerSeat, fullInfo: false);
@@ -101,7 +115,7 @@ namespace CardCore.Network
                     Life = player.Life,
                     MaxHealth = player.MaxHealth,
                     DeckCount = core.ZoneManager.GetCards(player, Zone.Deck)?.Count ?? 0,
-                    HandCount = core.ZoneManager.GetCards(player, Zone.Hand)?.Count ?? 0,
+                    HandCount = UsableHand(core, player).Count, // S3b 口径：剔除施放中（五处同源）
                     IsAI = player.IsAI,
                     FatigueCount = player.FatigueCount,
                     LandCap = core.ElementPool.GetLandCap(player),
@@ -122,7 +136,7 @@ namespace CardCore.Network
                 var player = NetEntityDirectory.SeatToPlayer(core, seat);
                 if (player == null) continue;
 
-                var hand = core.ZoneManager.GetCards(player, Zone.Hand) ?? new System.Collections.Generic.List<Card>();
+                var hand = UsableHand(core, player); // S3b 口径：剔除施放中（Count 与 OwnRuntimeIds 同源）
                 var info = new CardHandInfo
                 {
                     Seat = seat,
@@ -156,7 +170,11 @@ namespace CardCore.Network
 
         private static NetZoneCards BuildZone(GameCore core, int seat, Player player, Zone zone)
         {
-            var cards = core.ZoneManager.GetCards(player, zone) ?? new System.Collections.Generic.List<Card>();
+            // viewer/fullInfo 手牌区走 S3b 口径（剔除施放中——与 HandCount/OwnRuntimeIds 同源）；
+            // 公开区照实全量（施放中卡不在公开区，无需过滤）
+            var cards = zone == Zone.Hand
+                ? UsableHand(core, player)
+                : core.ZoneManager.GetCards(player, zone) ?? new System.Collections.Generic.List<Card>();
             var states = cards.Select(ToSortedCardState).ToArray();
 
             // 地牌权威态在 PooledCard 包装（锁色/横置不在卡字段上）：按包装覆盖——

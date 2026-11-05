@@ -580,7 +580,7 @@
       "costList": [
         0.0,
         0.0,
-        7.0,
+        6.0,
         0.0
       ],
       "tags": [
@@ -839,21 +839,20 @@
     {
       "id": "C_A07BD019",
       "cardName": "训练·夜巡者",
-      "supertype": "Creature",
-      "power": 2,
-      "life": 3,
+      "supertype": "Enchantment",
       "costList": [
         0.0,
-        1.0,
-        3.0,
-        1.5
+        0.0,
+        2.0,
+        0.0
       ],
       "tags": [
         "训练池"
       ],
       "effectIds": [
         "0AC7FD76"
-      ]
+      ],
+      "durability": 3
     },
     {
       "id": "C_CEDB4CBA",
@@ -862,7 +861,7 @@
       "costList": [
         0.0,
         2.0,
-        1.5,
+        0.0,
         0.0
       ],
       "tags": [
@@ -974,7 +973,7 @@
       "costList": [
         0.0,
         0.0,
-        1.5,
+        0.0,
         0.0
       ],
       "tags": [
@@ -1155,7 +1154,7 @@
       "costList": [
         2.0,
         0.0,
-        1.5,
+        0.0,
         0.0
       ],
       "tags": [
@@ -1173,7 +1172,7 @@
       "costList": [
         6.0,
         0.0,
-        1.5,
+        0.0,
         0.0
       ],
       "tags": [
@@ -1228,32 +1227,6 @@
         "C563C386"
       ],
       "speedBonus": 2,
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ]
-    },
-    {
-      "id": "C_FC63E5FA",
-      "cardName": "训练·亡者献祭",
-      "supertype": "Spell",
-      "tags": [
-        "训练池"
-      ],
-      "effectIds": [
-        "DE85906C"
-      ],
-      "speedBonus": 2,
-      "payloads": [
-        {
-          "refId": "a50b8c19",
-          "kinds": [
-            1
-          ]
-        }
-      ],
       "costList": [
         0.0,
         0.0,

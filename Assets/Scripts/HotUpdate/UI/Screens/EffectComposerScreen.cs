@@ -547,13 +547,15 @@ namespace SynergyUI
             _ => null,
         };
 
-        // 原子目标数量档（2026-10-09 逐原子目标制）：仅 1/2/3；0=全部档退役，AOE 另出专用原子行。
+        // 原子目标数量档（2026-10-09 逐原子目标制；P2-1 2026-11-04）：1/2/3/0——0=「全部」档回归
+        //（域内全取、费用×3=TargetCountAll；BindAtomTargetRow 按行 NoWhole/关键词/指示物位过滤 0）。
         // 选择模式由 目标数×各原子自身域 推导（CardEffectConverter）——不再手选。
-        // 发动速度档 2026-10-15 退役：activate-bar/speed 组删除，新组合 BaseSpeed 恒 0
+        // 发动速度档 2023-10-15 退役：activate-bar/speed 组删除，新组合 BaseSpeed 恒 0
         //（引擎 0 速语义完备见 SpeedSystem；速度>0 只剩法术提速份额与存量数据）
         // 2026-10-29 P9 作用次数下拉退役；2026-10-30 定案：效果无每回合生效次数上限，
-        // 组合阶段不再有次数选项（take-effect 组隐藏）——平衡由时机期望系数承担。
-        private static readonly int[] CountTiers = { 1, 2, 3 };
+        // 组合阶段不再有次数选项（take-effect 组隐藏）——2026-11-05 时机两档收敛（均 ×1），
+        // 周期多次的价值由结界耐久经济承担，计价不再按次数加价。
+        private static readonly int[] CountTiers = { 1, 2, 3, 0 };
 
         // 描述条文案（原子/奖励原子两处共用——面向新玩家白话口径，不谈名义值/锚点等内部概念）
         private const string ValueFieldDesc =
@@ -768,14 +770,17 @@ namespace SynergyUI
             // 2026-10-09 定案不开放玩家选择；**回合开始 2026-10-20 起同样收归系统专用**——
             // 自动抽牌/倒计时递减等系统行为专属，效果时点改挂「准备阶段」）
             //
-            // 2026-10-30 定案：系数=该时机的**期望触发次数**（不再是折扣）——下拉尾缀 ×N 与计价同源
-            //（TimingCostFactorOf 单口）；系数在 ValueSystemConfig 表 Category=TimingFactor 逐时机行改，
-            // 改表即同步这里显示与顶栏费用。一次性时机（×1）排前，分类单源=FiresOncePerPaidLifetime。
+            // 2026-11-05 两档收敛定案：时机只分「单次/多次」两档、系数均 ×1（多次成本由结界耐久
+            // 承担，不按次数加价）——尾缀 ×N 退役改档位标签，分类单源=FiresOncePerPaidLifetime。
+            // 宿主过滤：非结界宿主（生物等）滤掉周期/观察族多次时机（结界专属——耐久即次数池；
+            // 攻/守/横置族归多次档但生物可挂，保留）；效果库模式无宿主两档全开；结界宿主全开。
+            bool hostFiltersRepeat = _editingCard != null && _editingCard.Supertype != Cardtype.Enchantment;
             _timings = TimingZh.Keys.Where(t => t != TriggerTiming.OnTurnStart)
+                .Where(t => !hostFiltersRepeat || !EffectEligibility.IsEnchantExclusiveTiming(t))
                 .OrderBy(t => CostDerivationService.FiresOncePerPaidLifetime(t) ? 0 : 1) // LINQ 稳定排序——组内维持表序
                 .ToList();
             var labels = _timings
-                .Select(t => $"{TimingZh[t]} ×{CostDerivationService.TimingCostFactorOf(t):0.###}")
+                .Select(t => $"{TimingZh[t]} · {(CostDerivationService.IsRepeatTiming(t) ? "多次" : "单次")}")
                 .ToList();
             _timingDropdown.SetOptions(labels, 0);
             SyncTimingDropdown();
@@ -787,10 +792,11 @@ namespace SynergyUI
             float onceF = CostDerivationService.TimingCostFactorOf(TriggerTiming.OnPlay);
             float repF = CostDerivationService.TimingCostFactorOf(TriggerTiming.OnDraw);
             _timingDropdown.Describe(
-                $"触发时机（自动效果按「付清这张卡后预计触发几次」计价）：一次性时机 ×{onceF:0.###}＝登场/死亡/离场等"
-                + $"（弹回重打=新付费）；回合/阶段/抽牌/横置族 ×{repF:0.###}＝按生物存活期望 1.5 回合计；"
-                + "攻击/受伤/造成伤害/事件观察族等期望未标定，表内暂定 2——可逐时机调。"
-                + "系数在 ValueSystemConfig 表 TimingFactor 段改，改表即同步这里显示的 ×N 与计价。"
+                $"触发时机（单次 ×{onceF:0.###} / 多次 ×{repF:0.###}——多次的成本由耐久承担，不按次数加价）："
+                + "单次=付清这张卡后只发生一次（登场/死亡/破坏/除外/离场/墓地回场）；"
+                + "多次中的周期/观察族（回合/阶段/抽牌/伤害/事件观察）为结界专属——每触发 −1 耐久（0.5 蓝/点），耐久归零销毁；"
+                + "攻/守/横置族虽归多次档，生物也可挂（宿主自身行动承担次数）。"
+                + "两档系数在 ValueSystemConfig 表 TimingFactor 段改，改表即同步这里与计价。"
                 + "自由分支奖励仍限每张卡每回合 1 次；其余效果无次数限制，仅同一效果每回合超过 30 次按自循环截断。点选项看各时机说明。",
                 idx => idx >= 0 && idx < _timings.Count ? TimingDescZh(_timings[idx]) : null);
         }
@@ -1860,6 +1866,40 @@ namespace SynergyUI
             return null;
         }
 
+        /// <summary>图内是否含引擎载荷（settle=Engine——步骤/扁平双扫）：宿主时机闸豁免口
+        ///（引擎通道自持重复经济，效果头时机=奖励发射窗——与计价 TimingCostFactor 豁免同口径）。</summary>
+        private static bool GraphHasEnginePayload(EffectGraphData g)
+        {
+            if (g?.steps != null)
+                foreach (var s in g.steps)
+                    if (s?.atomic?.branch != null && s.atomic.branch.settle == (int)BranchSettleKind.Engine)
+                        return true;
+            if (g?.header?.AtomicEffects != null)
+                foreach (var a in g.header.AtomicEffects)
+                    if (a?.branch != null && a.branch.settle == (int)BranchSettleKind.Engine)
+                        return true;
+            return false;
+        }
+
+        /// <summary>宿主时机档位闸（2026-11-05 两档定案，仿 ChargeShapeError）：非结界宿主（生物等）
+        /// 挂周期/观察族多次时机 → 违规文本（null=合规）。ValidateZones 消费（保存禁用+描述条提示）
+        /// ——兜住载入旧数据/直改 JSON 的直存；效果库模式无宿主不查；攻/守/横置族与引擎载荷豁免
+        ///（与 EffectEligibility.RejectReason 生物臂同口径——结界宿主全开=耐久即次数池）。</summary>
+        private string HostTimingTierError()
+        {
+            if (_editingCard == null || _editingCard.Supertype == Cardtype.Enchantment) return null;
+            var h = _graph?.header;
+            if (h == null) return null;
+            var t = (TriggerTiming)h.TriggerTiming;
+            if (t == TriggerTiming.Activate_Active || t == TriggerTiming.Activate_Instant
+                || t == TriggerTiming.Activate_Response)
+                return null; // 主动档无时机（现付）
+            if (!EffectEligibility.IsEnchantExclusiveTiming(t) || GraphHasEnginePayload(_graph)) return null;
+            string zh = TimingZh.TryGetValue(t, out var name) ? name : t.ToString();
+            return $"本卡宿主（{_editingCard.CardName}）挂不住周期性多次时机「{zh}」——结界专属（耐久即次数池）；"
+                   + "请改单次时机（登场/死亡等）或攻/守/横置族，或把卡改为结界配耐久";
+        }
+
 
         // ======================================== 槽位选中（右侧点击=替换选中槽） ========================================
 
@@ -2875,12 +2915,14 @@ namespace SynergyUI
             UiKit.Size(des, fw: 1f);
         }
 
-        /// <summary>原子表行四参数文本（2026-10-09 定案格式）：作用范围=TargetKinds 原文（逐原子自身域）、
+        /// <summary>原子表行四参数文本（2026-10-09 定案格式；P2-1 域优先）：
+        /// 作用范围=cfg.Domain 原文（多 token 原样 CSV）优先、空则旧 TargetKinds 原文（逐原子自身域）、
         /// 筛选标签=TargetFilter 原文（域内属性筛选）、极性=±1/0、费用基准=ManaList 非零色文本化
         ///（保留小数锚）；空项显「无」。</summary>
         private static string AtomParamLine(AtomicEffectConfig cfg)
         {
-            string scope = string.IsNullOrEmpty(cfg?.TargetKinds) ? "无" : cfg.TargetKinds;
+            string scope = !string.IsNullOrEmpty(cfg?.Domain) ? cfg.Domain
+                : "无"; // B2（2026-11-05）：TargetKinds 列删——Domain 已在前置分支承载
             string filter = string.IsNullOrEmpty(cfg?.TargetFilter) ? "无" : cfg.TargetFilter;
             float p = UnityEngine.Mathf.Clamp(cfg?.Polarity ?? 0f, -1f, 1f);
             string polarity = p > 0.5f ? "+1" : p < -0.5f ? "−1" : "0";
@@ -2917,11 +2959,37 @@ namespace SynergyUI
             if (hiddenDomain) atom.rand = 1;
             if (pinCountOne) atom.count = 1;
 
+            // 「全部」档开放面（P2-1；P2-2 定案修订：单体赋予）：关键词/指示物行一律不开放 0 档
+            //（单体赋予·无全域——2026-11-04 用户定案）；NoWhole 行同拦。存量 count=0 落在禁开行上
+            // → 收 1 + 告警（与装载守卫同口径）。
+            var mounts = MountKindExtensions.ParseCsv(cfg.MountKinds);
+            bool isKeywordRow = mounts.Contains(MountKind.Keyword);
+            bool grantRow = isKeywordRow || mounts.Contains(MountKind.Counter);
+            bool wholeAllowed = !mounts.Contains(MountKind.NoWhole) && !grantRow;
+            if (!wholeAllowed && atom.count == 0)
+            {
+                Debug.LogWarning($"[EffectComposer] 原子 {cfg.EnumName}（{atom.refId}）不可开「全部」档"
+                                 + "（NoWhole/关键词/指示物行=单体赋予·无全域）——数量已收为 1");
+                atom.count = 1;
+            }
+            // 单体赋予·逐目标语义（2026-11-04 定案）：模板含 {target}（指示物多数「对{target}附加N层」）
+            // → 1/2/3 多选；不含 {target}（关键词「获得吸血」类）→ 只能选一个（恒 1 档）——与装载守卫同口径。
+            bool hasTargetSlot = (cfg.Description ?? "").Contains("{target}");
+            if (grantRow && !hasTargetSlot && atom.count > 1)
+            {
+                Debug.LogWarning($"[EffectComposer] 原子 {cfg.EnumName}（{atom.refId}）模板不含 {{target}}"
+                                 + "（单体赋予·无逐目标语义）——只能选 1 个：数量已收为 1");
+                atom.count = 1;
+            }
+            int[] tiers = wholeAllowed ? CountTiers
+                : grantRow ? (hasTargetSlot ? new[] { 1, 2, 3 } : new[] { 1 })
+                : CountTiers.Where(v => v != 0).ToArray();
+
             // 目标数量按名取 dd-num（行内现有多枚下拉：dd-num/dd-select——不再靠「首个下拉」隐式命中）
             var ddNumNode = UiKit.FindDeep(row, "dd-num");
             if (ddNumNode == null)
                 Debug.LogError("[EffectComposer] placeholder 行缺 dd-num 下拉（目标数量不可编）——检查 EffectUI.prefab");
-            var ddCount = ddNumNode == null ? null : BindTierDropdown(ddNumNode, CountTiers, atom.count,
+            var ddCount = ddNumNode == null ? null : BindTierDropdown(ddNumNode, tiers, atom.count,
                 v =>
                 {
                     atom.count = v;
@@ -2930,11 +2998,44 @@ namespace SynergyUI
                 "目标数量：这个原子发动时选取几个目标——点选项看各档说明。",
                 optionDesc: v => v switch
                 {
+                    0 => "域内全取：不弹窗，作用域内所有目标（费用 3 倍）。",
                     1 => "发动时弹窗由你选 1 个目标（基础价）。",
                     2 => "弹窗由你选 2 个目标（费用 1.5 倍）。",
                     _ => "弹窗由你选 3 个目标（费用 2 倍）。",
                 });
             if (pinCountOne && ddCount != null) ddCount.interactable = false; // 费用减少奖励数量恒 1
+
+            // 关键词授予域下拉（P2-2 2026-11-04）：仅关键词行显示（dd-domain=dd-select 同参克隆，
+            // EffectUI.prefab 槽/奖励两模板各一处）——写 entry.domain（token），默认「双方」；
+            // 指示物/普通行隐藏（指示物保持 kinds 旧口径）。切换随 refresh 刷摘要/价签。
+            var domNode = UiKit.FindDeep(row, "dd-domain");
+            if (domNode == null)
+                Debug.LogWarning("[EffectComposer] placeholder 行缺 dd-domain 下拉（关键词授予域不可编）——检查 EffectUI.prefab（P2-2）");
+            else
+            {
+                domNode.gameObject.SetActive(isKeywordRow);
+                if (isKeywordRow)
+                {
+                    if (string.IsNullOrEmpty(atom.domain)) atom.domain = GrantDomain(cfg) ?? "双方"; // 落槽默认/防御
+                    string[] domTokens = { "己方", "对方", "双方" };
+                    int domCur = Array.IndexOf(domTokens, atom.domain);
+                    if (domCur < 0) domCur = 2; // 词表外残留值 → 占位「双方」不写回（换选才落值）
+                    BindTierDropdown(domNode, new[] { 0, 1, 2 }, domCur,
+                        v =>
+                        {
+                            atom.domain = domTokens[v];
+                            refresh?.Invoke(); // 域影响候选/摘要/价签（双方减半系数）——随改随刷
+                        },
+                        "授予域：这张关键词卡的作用侧——己方/对方/双方（候选与费用随域变化）。",
+                        labelOf: v => domTokens[v],
+                        optionDesc: v => domTokens[v] switch
+                        {
+                            "己方" => "授予己方场上的目标（按行筛选标签收窄——生物行=该侧生物）。",
+                            "对方" => "授予对方场上的目标。",
+                            _ => "授予双方场上的目标（默认——延续旧口径范围）。",
+                        });
+                }
+            }
 
             var tgNode = UiKit.FindDeep(row, "rand");
             var tg = tgNode != null
@@ -2980,6 +3081,23 @@ namespace SynergyUI
             }
             if (tg != null && ddDefer != null)
                 tg.onValueChanged.AddListener(on => ddDefer.interactable = !hiddenDomain && !on);
+
+            // 「全部」档联动（P2-1）：count=0=域内全取——随机（全取无抽取语境）与结算期选择
+            //（全取不弹选）双双禁用；切回 1/2/3 恢复。局部函数捕获 tg/ddDefer——声明于两变量之后，
+            // dd-num 的档位联动经下拉第二监听挂接（首监听=BindTierDropdown 的写回，顺序保证同步于写后）。
+            void SyncWholeDependents()
+            {
+                bool whole = atom.count == 0;
+                if (whole && atom.rand == 1)
+                {
+                    atom.rand = 0;
+                    if (tg != null) tg.SetIsOnWithoutNotify(false);
+                }
+                if (tg != null && !hiddenDomain) tg.interactable = !whole;
+                if (ddDefer != null) ddDefer.interactable = !hiddenDomain && atom.rand != 1 && !whole;
+            }
+            SyncWholeDependents(); // 存量 count=0 初次绑定即生效
+            if (ddCount != null) ddCount.onValueChanged.AddListener(_ => SyncWholeDependents());
         }
 
         /// <summary>每原子引用卡行（derivative）——2026-10-31 阶段C 按原子表「参数」列分流：
@@ -3672,7 +3790,7 @@ namespace SynergyUI
         ///（后三者中文 CSV 直收——搜「关键词」「指示物」「连接光环」等类别词即中）。</summary>
         private static string AtomCorpus(AtomicEffectConfig row)
             => row == null ? "" : string.Join("\n",
-                row.DisplayName, row.Description, row.Tags, row.MountKinds, row.TargetKinds);
+                row.DisplayName, row.Description, row.Tags, row.MountKinds, row.Domain); // B2：TargetKinds→Domain
 
         /// <summary>当前选中槽的可放置性谓词（库只展示可用项——与分类/搜索取交集；2026-10-23 五分类）。
         /// 附带中文上下文（右栏顶部 AddTableHint 提示行消费）。并列=普通主干原子（排除引擎行）；
@@ -4160,7 +4278,15 @@ namespace SynergyUI
                 && ProtectionIds.TryGetValue(payload.Cfg.DisplayName, out var protection))
                 entry.str = protection;
             if (!payload.IsKeywordAtom && !payload.IsCounterAtom) return entry;
-            entry.kinds = GrantTargetKinds(payload.Cfg);
+            // P2-2 授予域化：关键词 → entry.domain 承载（GrantDomain token，默认双方——converter 双读
+            // 落基座域+行 filter，不再写 kinds；旧卡存量 kinds=[1,2] 走旧口径零漂移）；
+            // 指示物 → 保持 kinds {1..8} 旧口径（单体/任意卡，P2-2 不动）。
+            if (payload.IsKeywordAtom)
+            {
+                entry.kinds = null;
+                entry.domain = GrantDomain(payload.Cfg);
+            }
+            else entry.kinds = GrantTargetKinds(payload.Cfg);
             if (!payload.IsKeywordAtom) return entry; // 指示物：持续由 CounterSpec 承载，无关键词 id
             // 关键词 id 与 CardLoader.LoadKeywords 同源：TryGetKeywordId 映射，否则枚举名去 Grant 前缀
             var enumName = payload.Cfg.EnumName;
@@ -4228,13 +4354,18 @@ namespace SynergyUI
             _graph.header.RandomTarget = 0; // 赋予目标由弹窗选一——不做随机
         }
 
-        /// <summary>授予目标域（2026-10-07 仅可转换定案）：关键词行（位 0）→ 双方生物 {1,2}；
+        /// <summary>关键词授予域 token（P2-2 2026-11-04）：关键词行（位 0）→ 域词表基座 token
+        ///（己方 {1,3}/对方 {2,4}/双方 {1,2,3,4}，默认「双方」延续旧口径范围）——由 entry.domain
+        /// 承载（converter 双读落 kinds+行 filter；同关键词不同域=不同卡身份，ContentHasher 纳 domain）。
+        /// 非关键词行 → null。</summary>
+        private static string GrantDomain(AtomicEffectConfig cfg)
+            => ComposerCatalog.HasMountBit(cfg, MountKind.Keyword) ? "双方" : null;
+
+        /// <summary>授予目标域（2026-10-07 仅可转换定案；P2-2 收缩为**指示物专用**——关键词已域化）：
         /// 指示物行（位 1）→ 任意卡 {1..8}（双方单位/手牌/牌库——存储态"自己"的赋予形态域）；
         /// 其余 → null=表行默认域。</summary>
         private static List<int> GrantTargetKinds(AtomicEffectConfig cfg)
         {
-            if (ComposerCatalog.HasMountBit(cfg, MountKind.Keyword))
-                return new List<int> { (int)TargetKind.OwnLivingUnit, (int)TargetKind.EnemyLivingUnit };
             if (ComposerCatalog.HasMountBit(cfg, MountKind.Counter))
                 return new List<int>
                 {
@@ -4763,6 +4894,11 @@ namespace SynergyUI
             // 充能形态（2026-10-31 P12）：单原子/无分支/无域——违规=保存禁用（无专区，只进描述条）
             string chargeErr = ChargeShapeError();
             if (chargeErr != null) errs.Add(chargeErr);
+
+            // 宿主时机档位闸（2026-11-05 两档定案）：非结界宿主+周期多次时机——违规=保存禁用
+            //（卡编辑模式兜载入旧数据/直改 JSON；效果库模式无宿主不查）
+            string timingTierErr = HostTimingTierError();
+            if (timingTierErr != null) errs.Add(timingTierErr);
 
             // 高亮框：违规→临时挂到首个违规区下拉伸填充；全合规→回 EffectUI 根下隐藏
             if (focus != null) FocusGuideFrame(focus);

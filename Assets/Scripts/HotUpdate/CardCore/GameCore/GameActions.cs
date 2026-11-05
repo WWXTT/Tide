@@ -429,6 +429,11 @@ namespace CardCore
             if (core.TurnEngine.CurrentPhase?.Phase != PhaseType.Main)
             { rejectReason = $"出牌只能在你的主阶段（当前：{core.TurnEngine.CurrentPhase?.Phase}）"; return false; }
 
+            // 反制卡响应闸（E1-1 2026-11-04 定案）：含反制原子的卡**只能走 PlayCardInResponse**
+            //（反制=响应绑定栈顶——主阶段空栈发动无响应对象）。引擎拒绝，非仅 UI 藏按钮。
+            if (IsNegateCard(card))
+            { rejectReason = "反制必须响应栈顶（连锁中跟谁发动就反制谁）——主阶段不可直接打出"; return false; }
+
             // 教学引导闸（2026-10-06 第二课）：play 步骤语义优先（非引导卡拒绝）——
             // 只闸玩家手牌打出（墓地视手牌使用属自由段轮转手段，不闸）
             if (fromZone == Zone.Hand)
@@ -493,22 +498,20 @@ namespace CardCore
             if (!CanAffordCast(core, player, card, modeIndex))
             { rejectReason = CostRejectText(core, player, cost); return false; }
 
-            // ---- 声明（使用时点）：设控制者 → 进发动区 → cast 上栈 → 使用宣言（对手获得响应窗口） ----
+            // ---- 声明（使用时点·S3b 2026-11-04 删发动区）：设控制者 → 重复施放闸 → cast 上栈 → 使用宣言 ----
+            // 卡**留在来源区**（手牌/牌库顶）——「施放中」只由栈条目表示；不再 MoveCard 进 Activation、
+            // 不再发 Enter 事件；PushCardCast 失败=零移动（卡没动过，无需回退）。
             card.SetController(player);
-            card._pendingCastFromZone = fromZone; // 回退锚（2026-10-04 本轮：代价无有效目标时原路退回）
+            card._pendingCastFromZone = fromZone; // 回退锚（2026-10-04 本轮：代价无有效目标时原路退回；S3b 后=Hand/Deck）
 
-            core.ZoneManager.MoveCard(card, player, fromZone, Zone.Activation);
-            core.PublishEvent(new CardEnterActivationEvent
-            {
-                Card = card,
-                Controller = player,
-                FromZone = fromZone
-            });
+            // 重复施放闸（S3b）：卡已在该玩家的栈上施放中（旧防线=来源区 Contains——卡留手牌后天然恒真失效）
+            if (core.StackEngine.GetPendingCastCards(player).Contains(card))
+            { rejectReason = "该卡已在施放中（连锁上待结算——不可二次声明）"; return false; }
 
             if (!core.StackEngine.PushCardCast(card, player, targets, modeIndex))
             {
-                // 理论不可达（声明预检已过）；保守回退：卡退回来源区，声明失败不付费
-                CastReturnToOrigin(core, card, player, fromZone);
+                // 理论不可达（声明预检已过）；S3b 后零移动——直接失败（卡从未动过）
+                card._pendingCastFromZone = Zone.None;
                 rejectReason = "栈机器拒入（结算中或速度门）";
                 return false;
             }
@@ -548,6 +551,18 @@ namespace CardCore
             var hand = core.ZoneManager.GetCards(player, Zone.Hand);
             if (!hand.Contains(card)) { rejectReason = "卡不在手牌（快照过期？请重试）"; return false; }
 
+            // 反制卡栈顶校验（E1-1）：反制卡只能在此口打出——且**当前栈顶必须可反制**
+            //（非系统条目、未标 ActivationNegated；SBA/阶段窗/攻击·守卫宣言拒绝）。
+            if (IsNegateCard(card))
+            {
+                var top = core.StackEngine.PeekStack();
+                bool topNegatable = top != null && !top.IsSBA && !top.IsPhaseWindow
+                                    && !top.IsAttackDeclaration && !top.IsGuardDeclaration
+                                    && !top.IsActivationNegated;
+                if (!topNegatable)
+                { rejectReason = "反制必须响应栈顶（当前栈顶不可反制——系统条目或已被无效）"; return false; }
+            }
+
             // 规则扩展点（OCP）：出牌限制经注册表询问（响应出牌同样受限，如信息轴锁定）
             if (!RuleHooks.CanPlay(core, player, card, Zone.Hand))
             { rejectReason = "出牌受限（规则锁定）"; return false; }
@@ -573,19 +588,15 @@ namespace CardCore
             { rejectReason = CostRejectText(core, player, cost); return false; }
 
             card.SetController(player);
-            card._pendingCastFromZone = Zone.Hand; // 回退锚（2026-10-04 本轮：代价无有效目标时原路退回；响应路径来源恒手牌）
+            card._pendingCastFromZone = Zone.Hand; // 回退锚（S3b 后卡留手牌——回退=零移动）
 
-            core.ZoneManager.MoveCard(card, player, Zone.Hand, Zone.Activation);
-            core.PublishEvent(new CardEnterActivationEvent
-            {
-                Card = card,
-                Controller = player,
-                FromZone = Zone.Hand
-            });
+            // 重复施放闸（S3b）：卡已在栈上施放中（hand.Contains 恒真失效后的新防线）
+            if (core.StackEngine.GetPendingCastCards(player).Contains(card))
+            { rejectReason = "该卡已在施放中（连锁上待结算——不可二次声明）"; return false; }
 
             if (!core.StackEngine.PushCardCast(card, player, targets, modeIndex))
             {
-                core.ZoneManager.MoveCard(card, player, Zone.Activation, Zone.Hand);
+                // S3b：零移动回退（卡留手牌，Push 失败不动卡）
                 rejectReason = "速度门拒绝（响应卡速度须高于记速器）";
                 return false;
             }
@@ -612,13 +623,36 @@ namespace CardCore
         public static bool PlayCardFromDeckTop(GameCore core, Player player, Card card, List<Entity> targets = null, int modeIndex = 0)
             => PlayCard(core, player, card, targets, Zone.Deck, modeIndex);
 
+        /// <summary>反制卡判定（E1-1 2026-11-04 定案）：卡的任意可施放效果含 NegateActivation/NegateEffect
+        /// 原子——此类卡只能走 PlayCardInResponse（响应绑定栈顶，主阶段 PlayCard 拒绝）。
+        /// 与 CardEffectConverter.ContainsAtom 同构的浅扫（Effects+Steps 首层；奖励原子不扫——
+        /// 反制作为主效果出现，混入奖励槽的形态由装载校验另行拦截）。</summary>
+        internal static bool IsNegateCard(Card card)
+        {
+            var data = (card as CardWrapper)?.GetData();
+            if (data?.Effects == null) return false;
+            foreach (var fx in data.Effects)
+            {
+                if (fx?.AtomicEffects == null) continue;
+                foreach (var atom in fx.AtomicEffects)
+                    if (atom != null && (atom.refId == "c3d65a3d" || atom.refId == "f1cf5ce6"))
+                        return true;
+                if (fx.Steps == null) continue;
+                foreach (var st in fx.Steps)
+                    if (st?.atomic != null && (st.atomic.refId == "c3d65a3d" || st.atomic.refId == "f1cf5ce6"))
+                        return true;
+            }
+            return false;
+        }
+
         // ======================================== 整卡施放结算（使用时点消费点） ========================================
 
         /// <summary>
-        /// 整卡施放的栈结算——「此卡被使用」的消费点（Option Y 定案）：
-        /// 1. 卡已不在发动区（被「发动无效」送墓等）→ 中止：不付费、不结算（发动层无效达成）；
+        /// 整卡施放的栈结算——「此卡被使用」的消费点（Option Y 定案；E1-1 S3a 2026-11-04 判据翻转）：
+        /// 1. cast.IsActivationNegated（被「发动无效」打标）→ 中止：不付费、不结算，**送墓收口到此**
+        ///    （原「查卡在不在发动区」区位判据+handler 物理送墓改为 cast 标记——卡不再被 handler 挪走）；
         /// 2. 付费（扣费在响应窗口之后，从 bank 扣）；
-        /// 3. 卡 _isNegated（被「效果无效」置位）→ 移入墓地、跳过效果、费用不退（效果层无效达成）；
+        /// 3. cast.IsEffectNegated（被「效果无效」打标）→ 移入墓地、跳过效果、费用不退（效果层无效达成）；
         /// 4. 否则结算卡效果并离开发动区（法术入墓 / 永久物入场）。
         /// 支付失败（窗口内其他支付挤占 bank，不回卷）→ 发动失败入墓。
         /// 由 StackEngine 结算整卡施放对象时调用（PlayCard / PlayCardInResponse 声明的消费端）。
@@ -630,9 +664,13 @@ namespace CardCore
             var player = cast?.Controller;
             if (core == null || card == null || player == null) return;
 
-            // 1. 发动无效中止：卡已不在发动区 → 不付费、不结算（净效果=扣费返还）
-            if (!core.ZoneManager.IsCardInZone(card, player, Zone.Activation))
+            // 1. 发动无效中止（S3a 判据翻转：cast 标记替代区位查询）：不付费、不结算；
+            //    送墓/失败事件收口到消费点（原 handler 物理送墓退役——15/16 候选同步剔除已标 cast）
+            if (cast.IsActivationNegated)
+            {
+                CastAbortToGraveyard(core, card, player, "发动无效");
                 return;
+            }
 
             // 2. 付费（响应窗口之后）——抉择卡按声明期选定的模式付费（cast.ModeIndex）。
             // 顺序（2026-10-28 P1 定案：代价=构筑期抵扣、不再产出元素）：
@@ -680,13 +718,13 @@ namespace CardCore
                 return;
             }
 
-            // 3. 效果无效：付了但被否定 → 入墓、跳过效果、费用不退。
+            // 3. 效果无效（S3a：cast.IsEffectNegated 替代 card._isNegated——卡字段 cast 用法退役）：
+            // 付了但被否定 → 入墓、跳过效果、费用不退。
             // 发动表演照播（2026-10-20 用户定案：效果无效≠发动无效——费已付，弹体照飞到预选目标；
-            // 效果不结算=无伤害/死亡事件，表现层仅飞行+到达）。发动无效（①卡已离发动区）在上方
-            // 早退：不付费不结算，什么都不播。
-            if (card._isNegated)
+            // 效果不结算=无伤害/死亡事件，表现层仅飞行+到达）。发动无效在上方早退：不付费不结算，
+            // 什么都不播（双重标记场景由次序兜底：ActivationNegated 先查——IsEffectNegated 永不达）。
+            if (cast.IsEffectNegated)
             {
-                card._isNegated = false; // 消费即复位（同一否定标记只拦一次）
                 if (cast.Targets != null && cast.Targets.Count > 0)
                 {
                     var fizzTint = FirstAtomTint(card, cast.ModeIndex);
@@ -709,12 +747,16 @@ namespace CardCore
             // 4. 结算：法术 → 效果全结算后离区入墓；永久物 → 登记触发式 + 入场
             if (card.IsSpellCard())
             {
-                await ResolveSpellEffectsAsync(core, player, card, cast.Targets, cast.ModeIndex);
+                await ResolveSpellEffectsAsync(core, player, card, cast.Targets, cast.ModeIndex, cast);
             }
             else
             {
                 ResolvePermanentEntry(core, player, card);
             }
+
+            // 成功路径复位回退锚（S3b 收口 2026-11-05）：cast 结算完成（入墓/入场已发生），
+            // _pendingCastFromZone 使命结束——残留会让下一轮（同卡实例复用/验证器夹具）读到过期来源。
+            card._pendingCastFromZone = Zone.None;
 
             // 元素充盈引擎判定（2026-09-22 定案；2026-10-20 判据五改）：施放结算完成后评估——
             // 仅对手回合（施放者==当前回合玩家）时评估施放者对手的引擎：双方**剩余元素总量**
@@ -736,55 +778,40 @@ namespace CardCore
             return null;
         }
 
-        /// <summary>cast 结算中止（支付失败 / 发动无效）：离开发动区入墓 + 失败/离区事件。</summary>
+        /// <summary>cast 结算中止（支付失败 / 发动无效）：**来源区**入墓（S3b 后卡在手牌/牌库顶）
+        /// + 失败事件（FromZone=真实来源）。Leave 事件随区退役不再发。</summary>
         private static void CastAbortToGraveyard(GameCore core, Card card, Player player, string reason)
         {
-            core.ZoneManager.MoveCard(card, player, Zone.Activation, Zone.Graveyard);
+            var fromZone = card.GetZone(); // S3b：卡留来源区——入墓从真实所在区起跳
+            core.ZoneManager.MoveCard(card, player, fromZone, Zone.Graveyard);
             core.PublishEvent(new CardActivationFailedEvent
             {
                 Card = card,
                 Controller = player,
-                FromZone = Zone.Activation,
+                FromZone = fromZone,
                 Reason = reason
-            });
-            core.PublishEvent(new CardLeaveActivationEvent
-            {
-                Card = card,
-                Controller = player,
-                ToZone = Zone.Graveyard
             });
         }
 
         /// <summary>
-        /// cast 结算中止·回退声明来源区（2026-10-04 本轮定案：代价无有效目标 → 发动失败回手牌——
-        /// 手牌出牌路径即回手牌；墓地视手牌使用路径原路回墓地，不白赚挪区）。发生在扣费前：不付费、不补偿。
+        /// cast 结算中止·回退声明来源区（2026-10-04 本轮定案；**S3b 2026-11-04 删发动区**：
+        /// 卡从未离开来源区——回退=零移动 + 清回退锚。牌库顶来源同理（卡留在牌库顶原位）。
         /// </summary>
-        /// <summary>声明失败回退原区（2026-10-29 阶段3b 牌库顶当手牌来源）：牌库来源回牌库**顶**
-        ///（原位——MoveCard 默认追加末尾=牌库底，白送换牌）；其余来源常规回退。</summary>
         private static void CastReturnToOrigin(GameCore core, Card card, Player player, Zone fromZone)
         {
-            if (fromZone == Zone.Deck)
-                core.ZoneManager.GetZoneContainer(player).Move(card, Zone.Activation, Zone.Deck, DeckPosition.Top);
-            else
-                core.ZoneManager.MoveCard(card, player, Zone.Activation, fromZone);
+            // S3b：声明不移动卡——回退无操作（保留签名以最小化调用面改动）
         }
 
         private static void CastAbortToOrigin(GameCore core, Card card, Player player, Zone fromZone, string reason)
         {
-            if (fromZone == Zone.None || fromZone == Zone.Activation) fromZone = Zone.Hand;
-            CastReturnToOrigin(core, card, player, fromZone);
+            // S3b：卡从未离开来源区——零移动；仅发失败事件（FromZone=真实来源）
+            var realFrom = card.GetZone();
             core.PublishEvent(new CardActivationFailedEvent
             {
                 Card = card,
                 Controller = player,
-                FromZone = Zone.Activation,
+                FromZone = realFrom,
                 Reason = reason
-            });
-            core.PublishEvent(new CardLeaveActivationEvent
-            {
-                Card = card,
-                Controller = player,
-                ToZone = fromZone
             });
         }
 
@@ -815,8 +842,8 @@ namespace CardCore
             {
                 var atom = payloadCost.Payloads[i];
                 if (atom == null || atom.TargetKinds == null || atom.TargetKinds.Count == 0) continue; // 无域原子：无目标语义照常执行
-                var current = Attribute.EffectHandlerRegistry.ResolveCandidates(atom.TargetKinds, atom.Filter, resolveCtx);
-                if (current != null) current.RemoveAll(e => ReferenceEquals(e, card)); // 本卡已在发动区：不作代价目标
+                var current = Attribute.EffectHandlerRegistry.ResolveCandidates(atom.TargetKinds, atom.Filter, resolveCtx, atom.Axis);
+                if (current != null) current.RemoveAll(e => ReferenceEquals(e, card)); // 本卡施放中仍留来源区（S3b）：不作自己的代价目标
                 if (current == null || current.Count == 0) return true; // 该原子域已空：必然全灭
                 // 单位域代价（2026-10-31 定案）：声明期不预选（该位恒 null）——无预选目标可验；
                 // 域空（连一个可指定单位都没有，域非空检查已在上方）才判全灭（发动失败回退原区）。
@@ -842,8 +869,10 @@ namespace CardCore
         /// </summary>
         private static void ResolvePermanentEntry(GameCore core, Player player, Card card)
         {
-            // 发动通过 → 入场（声明期预检已过；满则入墓的兜底在 helper 内）
-            if (!core.ZoneManager.TryMoveToBattlefield(card, player, Zone.Activation))
+            // 发动通过 → 入场（声明期预检已过；满则入墓的兜底在 helper 内）。
+            // S3b：卡在**来源区**（手牌/牌库顶）——入场起点=真实所在区；EnterSource 显式 CastPlayed
+            //（旧口径 fromZone==Activation 派生已废——卡不在 Activation）。
+            if (!core.ZoneManager.TryMoveToBattlefield(card, player, card.GetZone(), EnterSource.CastPlayed))
                 return; // 入场失败（满场兜底入墓）
         }
 
@@ -1419,7 +1448,8 @@ namespace CardCore
         /// 通过 EffectInstance 走与栈结算一致的执行路径，保证目标解析/事件一致；特殊代价仍由执行器结算。
         /// </summary>
         private static async Cysharp.Threading.Tasks.UniTask ResolveSpellEffectsAsync(
-            GameCore core, Player player, Card card, List<Entity> targets, int modeIndex = 0)
+            GameCore core, Player player, Card card, List<Entity> targets, int modeIndex = 0,
+            EffectInstance cast = null)
         {
             var defs = GetCastableEffectDefinitions(card); // P12：模式序号索引非充能列表
             EffectDefinition chosen = null;
@@ -1435,6 +1465,11 @@ namespace CardCore
             if (chosen != null)
             {
                 var executor = core.StackEngine.GetExecutor();
+                // cast 直传优先（2026-11-05 断链修复）：结算时本卡 cast 条目**已弹栈**，
+                // GetStackContents 反查恒 null → RespondedEntry 丢失 → 反制原子空转
+                //（整卡施放的反制从未打中标）。栈上反查仅留作非 cast 调用口的兜底。
+                var castEntry = cast ?? core.StackEngine.GetStackContents()
+                    .LastOrDefault(e => e != null && e.IsCardCast && ReferenceEquals(e.Source, card));
                 await executor.ExecuteAsync(new EffectInstance
                 {
                     Definition = chosen,
@@ -1446,17 +1481,12 @@ namespace CardCore
                     Targets = targets != null ? new List<Entity>(targets) : new List<Entity>(),
                     ModeIndex = 0, // 法术效果禁嵌抉择（装载校验拦）——modeIndex 已被效果抉择占用，执行层恒 0
                     CastCard = card, // 施放宿主卡（状态门「本回合第一张抽到的卡」需要卡身份）
+                    RespondedEntry = castEntry?.RespondedEntry, // E1-1：cast 的响应绑定透传给法术效果上下文（反制读它）
                 }, skipElementCost: true);
             }
 
-            // 结算完成 → 离开发动区入墓（终态与历史行为一致）
-            core.ZoneManager.MoveCard(card, player, Zone.Activation, Zone.Graveyard);
-            core.PublishEvent(new CardLeaveActivationEvent
-            {
-                Card = card,
-                Controller = player,
-                ToZone = Zone.Graveyard
-            });
+            // 结算完成 → 入墓（S3b：从来源区[手牌/牌库顶]入墓；Leave 事件随区退役）
+            core.ZoneManager.MoveCard(card, player, card.GetZone(), Zone.Graveyard);
         }
 
         /// <summary>

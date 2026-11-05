@@ -186,6 +186,14 @@ namespace CardCore
         public bool IsCardCast { get; set; }
 
         /// <summary>
+        /// 响应绑定（E1-1 2026-11-04 定案·游戏王口径）：入栈瞬间捕获的**当时栈顶**（空栈=null）。
+        /// 反制语义的唯一锚——「要反制谁就必须跟在谁后面发动」：反制原子执行时不做目标选择，
+        /// 直接对本条目打 IsActivationNegated/IsEffectNegated。随谁入栈就绑谁——普通施放/效果
+        /// 入栈同样捕获（链条 A←B←C 的 RespondedEntry 链即连锁链）。**不参与序列化/观测**（栈内瞬态引用）。
+        /// </summary>
+        public EffectInstance RespondedEntry { get; set; }
+
+        /// <summary>
         /// SBA 伪对象标记（2026-09-15 定案：SBA=速度1栈对象）：本实例代表一批待执行的状态动作
         /// （尸体送墓/判负），由 StackEngine.PushStateAction 创建、ResolveStack 的 IsSBA 分支消费
         /// （SBAEngine.ExecuteAll 到点重查——窗口内被救回的不再执行），

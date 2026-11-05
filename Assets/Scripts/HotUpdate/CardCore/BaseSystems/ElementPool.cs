@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -441,6 +441,10 @@ namespace CardCore
                 SourceNote = sourceNote,
             });
 
+            // 元素充盈触发口（2026-11-04 用户定案）：对手回合内、对手横置地牌支付时检测一次
+            if (plan.Taps != null && plan.Taps.Count > 0)
+                BranchEngines.OnOpponentTappedLands(player);
+
             return true;
         }
 
@@ -723,3 +727,5 @@ namespace CardCore
         public Effect Source { get; set; }
     }
 }
+
+

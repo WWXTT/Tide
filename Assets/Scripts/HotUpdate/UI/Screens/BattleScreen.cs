@@ -931,14 +931,13 @@ namespace SynergyUI
             return true;
         }
 
-        /// <summary>网络局空格候选（己方单位区未被单位/施放占用的格——视图坐标权威）。</summary>
+        /// <summary>网络局空格候选（己方单位区未被单位占用的格——视图坐标权威；
+        /// 施放卡不占格——S3b 收口 2026-11-05 起 CastingCards 恒 X=-1 不参与占用）。</summary>
         private List<BattleCellPicker.CellOption> NetEmptyUnitCells()
         {
             var occupied = new HashSet<int>();
             foreach (var u in _view?.SelfUnits ?? new List<BattleCardView>())
                 if (u != null && u.X >= 0) occupied.Add(u.X * 100 + u.Z);
-            foreach (var c in _view?.CastingCards ?? new List<BattleCardView>())
-                if (c != null && c.X >= 0) occupied.Add(c.X * 100 + c.Z);
             var options = new List<BattleCellPicker.CellOption>();
             foreach (var cell in BoardLayout.UnitCells(0))
                 if (!occupied.Contains(cell.x * 100 + cell.z))
@@ -1856,15 +1855,19 @@ namespace SynergyUI
         }
 
         /// <summary>幂等全量对账：己方手牌全正面；对手手牌默认背面，带 Exposed 指示物的翻正面。
-        /// 教学介绍段闸（2026-10-17 语音联动显隐）：介绍到费用段前手牌区保持空。</summary>
+        /// 教学介绍段闸（2026-10-17 语音联动显隐）：介绍到费用段前手牌区保持空。
+        /// S3b 手牌口径（2026-11-05 收口·五处同源）：施放中的卡留手牌区但**不上扇**——
+        /// 与网络 HandCount/观测 g[5]/g[6]/手牌上限/BattleViewData.SelfHand 一致；施放呈现走链 UI。</summary>
         private void RefreshFans()
         {
             if (BattleRevealDirector.SuppressHandFan) return;
             if (Core?.ZoneManager == null || P1 == null || P2 == null) return;
+            var stackEngine = Core.StackEngine;
 
             var self = new List<HandFanCardData>();
             foreach (var card in Core.ZoneManager.GetCards(P1, Zone.Hand))
             {
+                if (stackEngine != null && stackEngine.IsPendingCast(card)) continue; // S3b：剔除施放中
                 self.Add(new HandFanCardData
                 {
                     RuntimeId = card.RuntimeId,
@@ -1879,6 +1882,7 @@ namespace SynergyUI
             var opp = new List<HandFanCardData>();
             foreach (var card in Core.ZoneManager.GetCards(P2, Zone.Hand))
             {
+                if (stackEngine != null && stackEngine.IsPendingCast(card)) continue; // S3b：剔除施放中（对手扇不显示其施放卡）
                 bool exposed = RevealRules.IsExposed(card); // 信息轴「展示」：对双方公开
                 opp.Add(new HandFanCardData
                 {
@@ -1998,16 +2002,20 @@ namespace SynergyUI
             _lastPaidBySeat[seat] = paid;
 
             // 法术扣费粒子（2026-10-20 用户定案「沿用生物召唤元素粒子飘向使用区域」）：
-            // 打出实付 + 付费者发动区是法术卡 → 实付色粒子自地格汇聚至施放贴片格。
+            // 打出实付 + 付费者施放中法术 → 实付色粒子自地格汇聚至施放者角色格
+            //（S3b 收口 2026-11-05：施放贴片格已随「栈没有实体」退役——粒子改汇向角色格）。
             // 生物不动（CastPlayed 入场汇聚 EnqueueArrival 已覆盖，防双份）；效果费/技能费
             // SourceNote 非「打出:」口径天然排除。
             if (paid.Count > 0 && e.SourceNote != null && e.SourceNote.StartsWith("打出:", StringComparison.Ordinal))
             {
-                var spell = (Core?.ZoneManager?.GetCards(e.Player, Zone.Activation) ?? new List<Card>())
+                // S3b A 切源：读栈（施放中法术）不读区
+                var spell = (Core?.StackEngine?.GetPendingCastCards(e.Player) ?? new List<Card>())
                     .FirstOrDefault(c => c != null && c.IsSpellCard());
-                if (spell != null && _ctrl?.Board != null
-                    && _ctrl.Board.TryGetCastingCell(spell, out int cx, out int cz))
-                    _field?.PlayCastPay(seat, paid, cx, cz);
+                if (spell != null && _ctrl?.Board != null)
+                {
+                    var (hx, hz) = _ctrl.Board.CharacterCell(e.Player);
+                    _field?.PlayCastPay(seat, paid, hx, hz);
+                }
             }
         }
 

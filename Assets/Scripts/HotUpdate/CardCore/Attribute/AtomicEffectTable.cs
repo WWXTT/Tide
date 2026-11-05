@@ -119,7 +119,6 @@ namespace CardCore.Attribute
                 CostMultiplier = 1.0f,
                 Priority = 50,
                 // ---- 安全兜底（仅当 entry 缺失或字段解析失败时生效）----
-                TargetKinds = "己方单位,对方单位",           // 双方有生命单位（最宽域）
                 TargetFilter = null,                        // 无过滤（旧常量 "Creature" 已废：token 改名 NoRole，
                                                               // 死 token 顶替 null 会让「review 定案 filter=(空)」失真）
             };
@@ -154,10 +153,13 @@ namespace CardCore.Attribute
                 }
 
                 // targeting / 发动 / 三分类：配置驱动，解析失败保留上面的兜底。
-                // TargetKinds 列即真相：行内显式空（null/""）= 真无域（守卫/跳回合类被动，
-                // 不落 "0,1" 宽域兜底——兜底仅在整行缺失 entry==null 时生效）
-                config.TargetKinds = entry.TargetKinds;
+                // B2（2026-11-05 硬切）：TargetKinds 列已删——kinds 视图经 config.GetTargetKindList()
+                // 自 Domain 派生；此处不再读列（JSON 残留键装载层忽略）。
                 if (!string.IsNullOrEmpty(entry.TargetFilter)) config.TargetFilter = entry.TargetFilter;
+                // 目标域声明（目标域重做 P0 2026-11-05·docs/目标域契约.md）：Domain 列直通——
+                // 新选择器语法优先（converter 产轴），旧 EffectDomain token=legacy 回落 kinds（P2 删）。
+                // Region/Category 两列已随契约删除（P1-a/b 试点形态被本契约取代）。
+                config.Domain = entry.Domain;
                 config.Polarity = Math.Clamp(entry.Polarity, -1f, 1f);
 
                 // 可装载范围（2026-09-11；2026-10-06 中文化；2026-10-07 仅可转换）：
@@ -328,9 +330,15 @@ namespace CardCore.Attribute
             public List<float> ManaList;
             public string EffectType;     // 英文枚举名（DealDamage）→ AtomicEffectType
 
-            // ---- targeting / 发动（2026-09-10 目标域模型：TargetKinds+SelectionMode 取代 TargetType/Scope；持续已上移组合层）----
-            public string TargetKinds;    // 逗号分隔 TargetKind 中文名（2026-10-06 中文化，解析双轨兼容序号；空 = 无目标原子）
-            public string TargetFilter;   // 逗号分隔属性 token（Creature/Player/Untapped/...）
+            // ---- targeting / 发动（B2 2026-11-05 硬切：TargetKinds 列已删——kinds 自 Domain 派生）----
+            public string TargetFilter;   // 逗号分隔属性 token（Damaged/Tapped/Untapped/...；类别 token 已禁）
+
+            // ---- 目标域（目标域重做 P0 2026-11-05·docs/目标域契约.md）：Domain 列承载新选择器语法
+            //（domain := selector (";" selector)*；selector := region (":" category)*）——converter 优先产轴；
+            // 旧 EffectDomain 词表 token=legacy 回落 kinds（试点期兼容，P2 删）。
+            // Region/Category 两列（P1-a/b 试点形态）已随本契约删除——JSON 中的残留键装载层忽略。----
+            public string Domain;
+
             public float Polarity;        // 极性 [-1,1]：-1=对对手释放有益 / +1=对己方释放有益 / 0=中性
 
             // ---- 可装载范围（2026-09-11 定案；2026-10-06 中文化）：主动效果/关键词/指示物/分支位置/赋予目标，显性化 ----

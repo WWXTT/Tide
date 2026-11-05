@@ -409,32 +409,6 @@
       ]
     },
     {
-      "id": "DE85906C",
-      "name": "训练·墓地回收",
-      "timing": 19,
-      "activation": 2,
-      "selection": 0,
-      "count": 1,
-      "cost": [
-        0.0,
-        0.0,
-        0.0,
-        2.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "c03ef9fe",
-            "kinds": [
-              9
-            ]
-          }
-        }
-      ]
-    },
-    {
       "id": "143C726B",
       "name": "训练·双抽",
       "timing": 19,

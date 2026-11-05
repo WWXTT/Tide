@@ -49,9 +49,14 @@ namespace TideSim
             if (args.Length > 0 && args[0] == "--scenario")
                 return ScenarioCheck.Run();
 
-            // 教学式固定盘面场景回归（2026-11-04）：红快攻新策略（血偿/连击准入+拆波）行为级断言
+            // 教学式固定盘面场景回归（2026-11-04）：红快攻（血偿/连击准入+拆波）+ 蓝·元素充盈
+            //（潮痕碑/深潭碑 触发·不触发·每回合封顶）两套串跑，一次命令覆盖红蓝双套场景
             if (args.Length > 0 && args[0] == "--tutorial-scenario")
-                return TutorialScenarioCheck.Run();
+            {
+                int red = TutorialScenarioCheck.Run();
+                int blue = BlueFullnessScenarioCheck.Run();
+                return red == 0 && blue == 0 ? 0 : 1;
+            }
 
             var options = SimOptions.Parse(args);
             if (options.Games <= 0) { Console.WriteLine("--games 必须 > 0"); return 2; }
@@ -69,7 +74,7 @@ namespace TideSim
             Console.WriteLine("          [--matchup all|cross|mirror|red-blue|red-green|blue-green]");
             Console.WriteLine("          [--detail] [--quiet] [--match-log]");
             Console.WriteLine("  TideSim --scenario            场景回归（红快攻策略闸门直调断言）");
-            Console.WriteLine("  TideSim --tutorial-scenario   教学式固定盘面回归（红快攻新策略行为级断言）");
+            Console.WriteLine("  TideSim --tutorial-scenario   教学式固定盘面回归（红快攻9场景 + 蓝充盈6场景）");
             Console.WriteLine();
             Console.WriteLine("口径：");
             Console.WriteLine("  · 策略显式绑定：红·快攻→RedAggro / 绿·慢速→GreenRamp / 蓝·控制→BlueControl");

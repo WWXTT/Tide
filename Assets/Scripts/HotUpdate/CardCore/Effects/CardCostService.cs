@@ -140,7 +140,7 @@ namespace CardCore
 
                 float defTotal = 0f;
                 // 作用次数档已随 2026-10-30 无上限定案整删——不再对非生物卡型归一次数分量；
-                // 平衡由时机期望系数（TimingFactor）承担。
+                // 时机两档（2026-11-05 收敛均 ×1）由 CostDerivation 内乘，多次成本由结界耐久承担。
                 var defCost = CostDerivationService.DeriveElementCosts(def, 0); // 法术宿主永久档由迁移回填承载（Duration=Permanent）
                 foreach (var color in defCost.NonzeroColors())
                 {
@@ -190,7 +190,8 @@ namespace CardCore
                     if (card.Supertype == Cardtype.Enchantment)
                     {
                         result.Breakdown.Add(new CostBreakdownLine("C",
-                            $"免费点 {surplus} → 入场耐久 +{surplus}（禁主动效果全投耐久；免卡价）", 0f));
+                            $"免费点 {surplus} → 折免费耐久底 {CardCompositionCost.FreeDurabilityBaseOf(card)}（底内免卡价；"
+                            + "入场耐久=印刷值——2026-11-04 碑族0费改版，旧「+N 堆叠」退役）", 0f));
                     }
                     else if (card.Supertype == Cardtype.Spell)
                     {
@@ -858,9 +859,15 @@ namespace CardCore
                 $"身材费·血 (血{card.Life ?? 0}{(freeBase > 0 ? $"−底{Math.Min(freeBase, card.Life ?? 0)}" : "")})", paidLife / Math.Max(1f, cc.StatUnit), ManaType.Green));
             if (card.Durability > 0)
             {
-                float durValue = card.Durability * cc.DurabilityUnitCost;
+                // 2026-11-04 碑族0费改版：结界免费耐久底（FreeDurabilityBaseOf）内免计——
+                // 超出部分按 0.5蓝/点计价（2026-11-03 耐久改蓝定案维持）。
+                int freeDur = CardCompositionCost.FreeDurabilityBaseOf(card);
+                int paidDur = Math.Max(0, card.Durability - freeDur);
+                float durValue = paidDur * cc.DurabilityUnitCost;
                 statValue += durValue;
-                breakdown?.Add(new CostBreakdownLine("S", $"耐久费 (耐久{card.Durability})", durValue, ManaType.Blue));
+                breakdown?.Add(new CostBreakdownLine("S",
+                    $"耐久费 (耐久{card.Durability}{(freeDur > 0 ? $"−底{Math.Min(freeDur, card.Durability)}" : "")})",
+                    durValue, ManaType.Blue));
             }
             return statValue;
         }
@@ -869,7 +876,8 @@ namespace CardCore
         /// 攻侧入红桶、血侧入绿桶——各 = 点数/StatUnit **真实小数**（总量与旧全灰口径一致，只拆色；
         /// 2/2 → 1红+1绿）；耐久入蓝桶（2026-11-03 定案：结界耐久=蓝——0.5蓝/点，旧灰桶口径退役）。
         /// applyFreeBase（生物 Derive/DeriveModeCosts 两口传 true）：先免除免费属性底 n/n
-        ///（FreeAttrBaseOf——预算 3−攻守−首槽 的剩余，攻/血各前 n 点免费，下限 0）；
+        ///（FreeAttrBaseOf——预算 3−攻守−首槽 的剩余，攻/血各前 n 点免费，下限 0）与
+        /// 结界免费耐久底（FreeDurabilityBaseOf——2026-11-04 碑族0费改版）；
         /// 衍生物内容全价（ContentPriceByColor）传 false——无底盘不吃免费底。
         /// 消费口：Derive / ContentPriceByColor / DeriveModeCosts 三处的 ApportionMounted statAdd。</summary>
         public static Dictionary<ManaType, float> StatBucketsOf(CardData card, CardCostConfig cc, bool applyFreeBase = false)
@@ -881,7 +889,12 @@ namespace CardCore
             if ((card.Power ?? 0) > 0) buckets[ManaType.Red] = Math.Max(0, (card.Power ?? 0) - freeBase) / unit;
             if ((card.Life ?? 0) > 0) buckets[ManaType.Green] = Math.Max(0, (card.Life ?? 0) - freeBase) / unit;
             if (card.Durability > 0)
-                buckets[ManaType.Blue] = card.Durability * cc.DurabilityUnitCost;
+            {
+                // 免费耐久底（2026-11-04 碑族0费改版）：applyFreeBase 口径同生物属性底——
+                // Derive/DeriveModeCosts 免除；衍生物内容全价（无底盘）不免。
+                int freeDur = applyFreeBase ? CardCompositionCost.FreeDurabilityBaseOf(card) : 0;
+                buckets[ManaType.Blue] = Math.Max(0, card.Durability - freeDur) * cc.DurabilityUnitCost;
+            }
             return buckets;
         }
 

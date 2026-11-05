@@ -127,7 +127,10 @@ namespace CardCore.Serialization
             card._isTapped = IsTapped;
             card._isNegated = IsNegated;
             card._isNullified = IsNullified;
-            card._zone = (Zone)Zone;
+            // S3b 存档迁移（2026-11-04 删发动区）：旧档 Zone=8（Activation）读取侧迁 Hand——
+            // 卡留手牌是现行模型；其他值原样（Extra=9 衍生物模板不动）。
+            // DTO.Zone 是 int 字段（与 CardCore.Zone 枚举同名）——按 int 值比较（Activation=8）。
+            card._zone = Zone == 8 ? CardCore.Zone.Hand : (CardCore.Zone)Zone;
             card._delayedDeath = DelayedDeath;
 
             if (Keywords != null)

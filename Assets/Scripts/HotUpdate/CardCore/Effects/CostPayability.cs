@@ -195,10 +195,11 @@ namespace CardCore
             // 回合结束的弃牌闸门（GameCore.EnforceHandLimit），回合中抽牌/获得卡不限张数、
             // 无爆牌——对方手牌再满，抽牌代价照付照结算（空牌库抽=疲劳，同样有效非白嫖）。
 
-            var candidates = ResolveDomainCandidates(atom, payer, zm, ctx);
+            var candidates = ResolveDomainCandidates(atom, payer, zm, ctx)
+                .Where(e => IsOpponentSide(e, payer)).ToList(); // A2 定案（2026-11-05）：只看对手侧是否满足
             if (candidates.Count == 0)
             {
-                reason = $"资敌代价无合法目标（{atom.Type}）——卡的发动无效";
+                reason = $"资敌代价无合法目标（{atom.Type}，仅对手侧判定）——卡的发动无效";
                 return true;
             }
 
@@ -220,6 +221,15 @@ namespace CardCore
 
             // 其余（属性增益 +1/+1 等——可增益目标恒会被改变）：候选非空即可付
             return false;
+        }
+
+        /// <summary>实体归属对方侧（A2 定案：资敌闸只看对手——Player=对方本人；卡=控制器为对方）。</summary>
+        private static bool IsOpponentSide(Entity e, Player payer)
+        {
+            var opp = payer?.Opponent;
+            if (opp == null || e == null) return false;
+            if (e is Player p) return ReferenceEquals(p, opp);
+            return e is Card c && ReferenceEquals(c.GetController() ?? c.GetOwner(), opp);
         }
 
         /// <summary>域内是否含对方侧卡区（送牌族判定输入）。</summary>
@@ -288,7 +298,7 @@ namespace CardCore
                 ZoneManager = zm,
                 ElementPool = ctx?.ElementPool,
             };
-            return Attribute.EffectHandlerRegistry.ResolveCandidates(atom.TargetKinds, atom.Filter, resolveCtx)
+            return Attribute.EffectHandlerRegistry.ResolveCandidates(atom.TargetKinds, atom.Filter, resolveCtx, atom.Axis)
                    ?? new List<Entity>();
         }
 

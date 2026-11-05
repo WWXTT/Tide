@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Cysharp.Threading.Tasks;
 using CardCore.Attribute;
 using CardCore.Attribute.Handlers;
@@ -144,6 +145,11 @@ namespace CardCore
                 Targets = verifiedCard != null ? new List<Entity> { verifiedCard } : new List<Entity>(),
                 ZoneManager = p.ZoneManager,
                 ElementPool = p.ElementPool,
+                // E1-1 响应绑定（2026-11-05 断链修复）：预言命中的内置发动无效与响应反制同语义
+                //——绑定**被验证卡的 cast 条目**（CardPlayEvent 时点该条目已在栈上），打标后由
+                // ResolveCardCastAsync 消费点中止（不付费+送墓）。无 cast 条目（非施放路径）= null。
+                RespondedEntry = GameCore.Instance?.StackEngine?.GetStackContents()
+                    ?.LastOrDefault(x => x != null && x.IsCardCast && ReferenceEquals(x.Source, verifiedCard)),
             };
 
             foreach (var atom in rewards)
