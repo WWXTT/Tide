@@ -13,7 +13,8 @@ namespace SynergyUI
     /// （tide_policy.onnx 整回合策略）接进 BattleController 的 AI 槽位（此前只由编辑器
     /// 对战窗口直调，不接入活体对局）。
     /// 接线序列镜像 AiBattleDeckWindow.ConfigureNeuralIdentity / 训练服务器 HandleReset：
-    /// ConfigureManifest（表指纹不符=拒用——embedding 串台比没 AI 更糟）→ 全池+双方卡组
+    /// ConfigureManifest（2026-11-05 manifest v2：不再锚定表指纹——旧格式/损坏清单=拒用作废，
+    /// embedding 串台比没 AI 更糟；模型与清单的新鲜度由部署三件套 sha 校验兜底）→ 全池+双方卡组
     /// Register（追加式幂等）→ OnnxTidePolicy（进程共享 worker）→ 新对局换脑（GRU rstate 归零）。
     /// 模型/清单缺失或指纹不符：一次性失败标记 + 响亮回落 SimpleAI（对局可继续，Console 留因）。
     /// 注意：战斗时序=训练口径 DrainStack——镜像局里人类的守卫响应窗口不开启
@@ -62,10 +63,11 @@ namespace SynergyUI
             if (ReferenceEquals(_lastCore, core)) return _brain != null;
             try
             {
-                // ① 卡身份清单（进程一次绑定；-1=表指纹不符：游戏内容已变更，旧模型下标全体作废）
+                // ① 卡身份清单（进程一次绑定；-1=旧格式清单（v1 table 指纹头）作废：
+                // 冻结前哈希混盐口径不同，旧模型下标本就无意义——重登记+重训+重导出后可用）
                 string manifest = Path.Combine(Application.dataPath, "..", "tide_rl", "card_identity_manifest.json");
                 if (TideCardIndex.Count == 0 && TideCardIndex.ConfigureManifest(manifest) < 0)
-                    return Fail("card_identity_manifest 表指纹与当前原子表不符（重训+重导出后可用）");
+                    return Fail("card_identity_manifest 为旧格式（v1 表指纹闸）——重生成清单+重导出后可用");
 
                 // ② 身份登记（追加式幂等）：全池 + 双方卡组（训练 HandleReset 同序）
                 if (_poolCache == null) _poolCache = CardCatalog.LoadAll();

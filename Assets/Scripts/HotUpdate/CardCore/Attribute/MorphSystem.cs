@@ -129,7 +129,7 @@ namespace CardCore.Attribute
             // 连接光环（箭头类，2026-10-13 定案：非规则光环全量复制——属性/关键词光环随形态走；
             // 规则光环不在 CardData.LinkAuras，而在 Effects 的 ModifyGameRule 步，已在上方被滤除）
             data.LinkAuras = clone.LinkAuras != null
-                ? new List<LinkAuraData>(clone.LinkAuras.Select(a => new LinkAuraData { stat = a.stat, value = a.value, keyword = a.keyword }))
+                ? new List<LinkAuraData>(clone.LinkAuras.Select(a => new LinkAuraData { stat = a.stat, value = a.value, keyword = a.keyword, scope = a.scope, effectRef = a.effectRef }))
                 : new List<LinkAuraData>();
             data.ArrowDirections = clone.ArrowDirections;
             GameBoard.LinkAuraSystem.InvalidateCache(); // 光环 live-query 缓存失效重算（TransferEquipment 同惯例）

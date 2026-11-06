@@ -113,7 +113,7 @@ namespace CardCore.Attribute
         // ExcludeUnselectable 检查同批删除——「不可被指名选取」语义由潜行/隐密承担）
         // 微缩/放大关键词 id 已删（2026-10-10 照抄炉石机制退役）：临时复制卡族仅余回响（普通效果 EchoCopy）
         // 回响关键词常量已删（2026-10-07 改普通效果 EchoCopy——宣言时点分支随之退役）
-        /// <summary>守护（2026-10-08 配对制改版）：登场选目标，其受伤改写为守护者承受（GuardianRules 配对表；无限次直到守护者离场）。</summary>
+        /// <summary>守护（2026-11-05 简化定案）：固定保护己方角色——角色受伤改写为守护者承受（GuardianRules 实时查询；无限次直到守护者离场；单位受伤不改写）。</summary>
         public const string Guardian = "Guardian";
 
         // 战斗法师关键词 id "BattleMage" 2026-11-01 退役注释（原舍身 2026-10-30 改版；表行 c3112c0b
@@ -295,10 +295,11 @@ namespace CardCore.Attribute
                 if (amount <= 0) return 0;
             }
 
-            // 守护改写（2026-10-08 配对制改版，替代旧箭头光环/扫场护角色两形态）：登场时选定目标的
-            // 受伤改写为配对守护者承受（GuardianRules.FindGuardian 活性实时校验——存活/在场/未被无效；
-            // 无限次直到守护者死亡/离场，次数闸对守护作废）。单跳（guardRerouted 防链式改写）；
-            // 替代路由之后、易损/防护层之前；守卫者承受时自身防护层照走（递归收口）。
+            // 守护改写（2026-11-05 简化定案，替代 2026-10-08 配对制/更早箭头光环/扫场护角色形态）：
+            // 固定保护己方角色——角色受伤改写为该侧守护者承受（GuardianRules.FindGuardian 实时扫描
+            // 持有者——存活/在场/未被压制；无限次直到守护者死亡/离场，次数闸对守护作废；单位受伤
+            // 不改写）。单跳（guardRerouted 防链式改写）；替代路由之后、易损/防护层之前；
+            // 守卫者承受时自身防护层照走（递归收口）。
             if (!guardRerouted)
             {
                 var guardian = GuardianRules.FindGuardian(target);

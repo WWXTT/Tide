@@ -183,11 +183,10 @@ namespace CardCore
         /// 炉石发现池=全收藏，本项目卡池难以估计——收窄为牌库内。未选中的牌留在牌库原位。
         /// 结算期选择走 TargetSelectionService（AI/无头自动选首张）。</summary>
         DiscoverCard,
-        /// <summary>守护（2026-10-08 配对制改版，白1；表行 MountKinds=关键词,不可作为连接光环）：
-        /// 登场/授予时弹选一个己方目标（单位或角色，TargetSelectionService——AI/无头自动选首候选），
-        /// 其受到的伤害改写为守护者自身承受（GuardianRules 配对表；改写在 KeywordRules.ApplyDamage
-        /// 咽喉，单跳不链式 guardRerouted）。无限次直到守护者死亡/离场——离场断链，
-        /// 墓地复活=新入场重新弹选（旧关系不残留）；复生原地留场配对保持。</summary>
+        /// <summary>守护（2026-11-05 简化定案；表行 MountKinds=关键词,不可作为连接光环）：
+        /// 固定保护己方角色——角色受到的伤害改写为自己受到等量伤害（改写在 KeywordRules.ApplyDamage
+        /// 咽喉，单跳不链式 guardRerouted）。无弹选/配对表：关键词在场即生效（GuardianRules 实时
+        /// 查询），无限次直到守护者死亡/离场——墓地复活即恢复保护；单位受伤不改写。</summary>
         GrantGuardian,
         // 战斗法师（GrantBattleMage，原舍身）2026-11-01 退役注释：表行 c3112c0b（关键词表）已删，
         // 授予映射（GrantKeywordHandlers.Specs）/关键词常量（KeywordRules.BattleMage）/ApplyDamage

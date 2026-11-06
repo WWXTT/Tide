@@ -23,6 +23,13 @@ namespace CardCore
         }
 
         /// <summary>
+        /// 卡表内容指纹透传（= CardConfigEntry.hash，2026-11-05 ID 冻结配套）——
+        /// 联机握手摘要（NetDeckDigest.ContentSig）用：冻结后同 ID 可载不同内容，指纹列补上
+        /// 「ID 命中 ≠ 内容一致」的核对缺口。不参与身份/费用/存档；旧档缺列 = null（重推回填）。
+        /// </summary>
+        public string ConfigHash { get; set; }
+
+        /// <summary>
         /// 卡牌类型
         /// </summary>
         [TideSerialized]
@@ -464,7 +471,8 @@ namespace CardCore
                 if (fx.LinkAuras == null) continue;
                 foreach (var aura in fx.LinkAuras)
                 {
-                    if (aura == null || (string.IsNullOrEmpty(aura.stat) && string.IsNullOrEmpty(aura.keyword))) continue;
+                    if (aura == null || (string.IsNullOrEmpty(aura.stat) && string.IsNullOrEmpty(aura.keyword)
+                                         && string.IsNullOrEmpty(aura.effectRef))) continue;
                     LinkAuras.Add(aura);
                 }
             }
@@ -658,19 +666,23 @@ namespace CardCore
 
     /// <summary>
     /// 连接光环声明条目（三轨制定案 2026-09-09）：箭头指向格的占据者享受的持续效果。
-    /// stat（"Power"|"Life"）+value 与 keyword 二选一；空 stat 且空 keyword = 无效条目（加载时忽略）。
+    /// stat（"Power"|"Life"）+value、keyword、effectRef 三选一；三者全空 = 无效条目（加载时忽略）。
     /// 光环轨 live-query（LinkAuraSystem），断链/离场/来源被无效即失效。
     /// </summary>
     [Serializable]
     public class LinkAuraData
     {
-        /// <summary>属性名："Power"/"Life"/"Both"（攻生同值 ±1/±1；空 = 关键词条目）</summary>
+        /// <summary>属性名："Power"/"Life"/"Both"（攻生同值 ±1/±1；空 = 关键词/效果条目）</summary>
         public string stat;
         /// <summary>数值幅度（stat 条目的 ±修正量；关键词条目现无值语义读数——
         /// 坚韧值化已随 2026-10-08 指示物化退役，字段留存兼容旧数据）</summary>
         public int value;
         /// <summary>关键词 id（与 stat 二选一；光环期间 HasKeyword=true，不进 _keywords）</summary>
         public string keyword;
+        /// <summary>效果库引用（2026-11-05 效果光环定案）：引用效果库组合效果 id——覆盖期间受益者
+        /// 视为持有该触发效果（触发引擎实时枚举合成条目，Source=受益者）；与 stat/keyword 三选一。
+        /// 资格过滤（非主动∧多次档∧生物臂∧非Voluntary∧无代价∧非引擎主干）见装载校验与组合器单源。</summary>
+        public string effectRef;
         /// <summary>条目级作用范围（2026-10-08 actuating-range 定案）：0=连接方向（随卡面箭头几何）；
         /// 1=己方/2=双方/3=对方（作用面档，不经箭头）。旧数据 0=未声明——效果级 header.AuraScope
         /// 由 AggregateEffectAuras 迁移盖戳。</summary>

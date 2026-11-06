@@ -18,7 +18,9 @@ namespace CardCore
     ///   （2026-11-05 定案：宿主自身行动承担次数，横置锚天然限频）结界✗（不横置）法术✗；
     /// · 主动效果（Activate_*）：生物✓（横置发动）结界仅充能✓（P12：充能=手牌主动——其余禁，
     ///   2026-10-15 改版）法术✓（抉择槽 1~3 即主动形态——与宿主钉值/主动槽同口径）；
-    /// · 连接光环：生物✓（属性±类）结界✓ 法术✗；规则光环：生物✗ 结界✓ 法术✗。
+    /// · 连接光环：生物✓（属性±类）结界✓ 法术✗；规则光环：生物✗ 结界✓ 法术✗；
+    /// · 光环效果引用（effectRef，2026-11-05 效果光环）：授予资格单源=非主动∧多次档∧生物臂
+    ///   ∧非可选∧无代价∧非引擎主干（AuraGrantRejectReason——组合器筛选/装载闸/授予缓存共用）。
     /// 消费方：效果合成器顶栏「适用」实时推导、卡组合候选过滤（不静默隐藏——计数行+原因+跳转）、
     /// 装载期 ValidateCreatureShape（CardLoader 兜底，防直改 JSON/旧档）。
     /// 注意：本类只判「能不能挂」，不管槽位容量与保存闸——既有形状闸（FillSelectedSlot）与
@@ -39,6 +41,31 @@ namespace CardCore
         /// 不携带箭头/条目，由调用侧按图形态传入）。</summary>
         public static IReadOnlyList<Cardtype> AllowedHosts(EffectDefinition def, bool auraShape = false)
             => AllHosts.Where(h => RejectReason(h, def, auraShape) == null).ToList();
+
+        /// <summary>
+        /// 可否被连接光环 effectRef 条目引用（2026-11-05 效果光环定案·资格谓词单源——
+        /// 组合器光环效果库筛选 / 装载校验闸 / 触发引擎授予缓存三处共用）：
+        /// 非主动 ∧ 多次档时机 ∧ 生物宿主臂放行（受益者=生物——攻/守/横置族豁免口径同源）∧
+        /// 非可选触发（Voluntary 需玩家选择窗口；关键词类比=授予即自动）∧ 无代价行（授予=免费
+        /// 自动效果，2026-11-05 拍板）∧ 非引擎主干（引擎效果不入触发管线，合成条目会成孤儿栈项）。
+        /// 返回 null=可引用，否则拒绝原因（UI 筛选提示/装载告警共用文案）。
+        /// </summary>
+        public static string AuraGrantRejectReason(CardEffectData data)
+        {
+            if (data == null) return "空效果";
+            var timing = (TriggerTiming)data.TriggerTiming;
+            if (timing < 0 || timing > TriggerTiming.OnScry) return "时机值非法";
+            var def = CardEffectConverter.ConvertOne(data, data.Id ?? "");
+            if (def.IsActivatedEffect) return "主动效果不可被光环授予（只授予触发式）";
+            if (!CostDerivationService.IsRepeatTiming(timing)) return "单次时机不可被光环授予（只授予多次触发时机）";
+            var creatureArm = RejectReason(Cardtype.Creature, def);
+            if (creatureArm != null) return creatureArm; // 周期/观察族=结界专属、场地光环原子等
+            if (def.ActivationType == EffectActivationType.Voluntary) return "可选触发不可被光环授予（授予=自动效果）";
+            if (data.Costs != null && data.Costs.Count > 0) return "带代价行的效果不可被光环授予（免费自动效果）";
+            if (CardEffectConverter.EngineKindOfDefinition(def) != BranchEngineKind.None)
+                return "引擎主干不入触发管线";
+            return null;
+        }
 
         /// <summary>逐卡型拒绝原因（null=可挂载）。多特征叠加时任一命中即拒。</summary>
         public static string RejectReason(Cardtype host, EffectDefinition def, bool auraShape = false)

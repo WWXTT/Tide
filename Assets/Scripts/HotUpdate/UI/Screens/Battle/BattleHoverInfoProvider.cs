@@ -217,8 +217,8 @@ namespace SynergyUI
             //（2026-10-15 补：live-query 反查来源，与加成计算同判定链；光环关键词不物化不入 _keywords，
             // 故与上方关键词段不重复；同源同增益叠加计 ×N——箭头叠加计数语义）
             var statusLines = new List<string>();
-            // 守护配对（2026-10-16 定案）：发动结成后在状态段书写当前绑定对象——
-            // 守护=FindWard 正查（配对在即展示，被守护者死亡不清链）。
+            // 守护状态行（2026-11-05 简化定案）：固定保护己方角色——守护=FindWard 正查
+            //（回自身控制器角色；不在场/无关键词不展示）。
             //（舍身配对行已删——2026-10-30 战斗法师改版：无状态关键词，散射无固定绑定对象，
             //  关键词段 GetNameZh/GetDescription 已覆盖解说。）
             if (card.CoreCard != null)
@@ -245,13 +245,20 @@ namespace SynergyUI
             }
             if (card.CoreCard != null)
             {
+                // 效果条目（2026-11-05）走授予口 GetGrantedEffectAuras——绝缘体受益者不收效果授予，
+                // 展示与运行时同读数；stat/keyword 条目仍走 GetApplicableAuras（无绝缘体特判）
                 var grants = LinkAuraSystem.GetApplicableAuras(card.CoreCard)
+                    .Where(a => string.IsNullOrEmpty(a.aura?.effectRef))
                     .Select(a => (name: CardNameOf(a.source), grant: AuraGrantText(a.aura)))
                     .Where(t => !string.IsNullOrEmpty(t.grant))
+                    .ToList();
+                grants.AddRange(LinkAuraSystem.GetGrantedEffectAuras(card.CoreCard)
+                    .Select(a => (name: CardNameOf(a.source), grant: AuraGrantText(a.aura))));
+                var grouped = grants
                     .GroupBy(t => (t.name, t.grant))
                     .Select(g => g.Count() > 1 ? $"{g.Key.name}：{g.Key.grant}×{g.Count()}" : $"{g.Key.name}：{g.Key.grant}")
                     .ToList();
-                if (grants.Count > 0) statusLines.Add("受光环｜" + string.Join("；", grants));
+                if (grouped.Count > 0) statusLines.Add("受光环｜" + string.Join("；", grouped));
             }
             if (statusLines.Count > 0) sections.Add("【状态】\n" + string.Join("\n", statusLines));
 
@@ -276,7 +283,8 @@ namespace SynergyUI
             return e != null ? e.ToString() : "?";
         }
 
-        /// <summary>光环条目授予文案（与计价明细 CardCostService 同词表）：属性±N/生命±N/攻击±N/关键词中文短名。</summary>
+        /// <summary>光环条目授予文案（与计价明细 CardCostService 同词表）：属性±N/生命±N/攻击±N/
+        /// 关键词中文短名/效果名（2026-11-05 效果光环——悬空直显 id）。</summary>
         private static string AuraGrantText(LinkAuraData aura)
         {
             if (!string.IsNullOrEmpty(aura.stat))
@@ -285,6 +293,8 @@ namespace SynergyUI
                 bool isBoth = aura.stat.Equals("Both", StringComparison.OrdinalIgnoreCase);
                 return $"{(isBoth ? "属性" : isLife ? "生命" : "攻击")}{(aura.value >= 0 ? "+" : "")}{aura.value}";
             }
+            if (!string.IsNullOrEmpty(aura.effectRef))
+                return $"效果：{EffectsLibrary.Get(aura.effectRef)?.name ?? aura.effectRef}";
             if (!string.IsNullOrEmpty(aura.keyword))
                 return KeywordEffectMapper.GetNameZh(aura.keyword);
             return null;

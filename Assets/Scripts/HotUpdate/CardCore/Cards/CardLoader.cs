@@ -433,7 +433,7 @@ namespace CardCore
 
                 // 光环关键词条目须可挂（2026-10-07 晚终版：关键词默认可−位 7 黑名单拉黑）：
                 // 名单在表（现值：守护/再生/绝缘体）——与光环 live-query 持续语义冲突
-                //（守护=配对制弹选；法术护盾 2026-10-09 指示物化退出关键词族，目录不收）
+                //（守护=固定护角色与光环 live-query 持续语义冲突；法术护盾 2026-10-09 指示物化退出关键词族，目录不收）
                 if (card.LinkAuras != null)
                 {
                     foreach (var aura in card.LinkAuras)
@@ -443,6 +443,20 @@ namespace CardCore
                             TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：光环关键词「{aura.keyword}」"
                                          + "不可作光环（原子表 Grant 行标「不可作为连接光环」位 7 黑名单——"
                                          + "与光环 live-query 持续语义冲突）——构筑期拦截");
+                    }
+                    // 光环效果引用条目（2026-11-05 效果光环）：聚合后单点拦截=卡面直书+效果携带全覆盖
+                    //（卡面直书悬空/资格不符已在装载口 Warn+剔除，此处兜效果层夹带——直改 Effects.json 等）；
+                    // 资格口径 AuraGrantRejectReason 单源
+                    foreach (var aura in card.LinkAuras)
+                    {
+                        if (aura == null || string.IsNullOrEmpty(aura.effectRef)) continue;
+                        var eff = EffectsLibrary.Resolve(aura.effectRef);
+                        var reject = eff == null
+                            ? "引用不在效果库（悬空）"
+                            : EffectEligibility.AuraGrantRejectReason(eff);
+                        if (reject != null)
+                            TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：光环效果引用「{aura.effectRef}」"
+                                         + $"{reject}——构筑期拦截");
                     }
                 }
             }
@@ -845,6 +859,7 @@ namespace CardCore
             var cardData = new CardData
             {
                 ID = entry.id,
+                ConfigHash = entry.hash, // 内容指纹透传（ID 冻结配套）：联机摘要用，不参与身份
                 CardName = entry.cardName,
                 Supertype = ParseCardtype(entry.supertype),
                 Illustration = entry.illustration,
@@ -889,11 +904,35 @@ namespace CardCore
                 ValidateTriggeredSingleResult(entry.id, entry.cardName, cardData.Effects);
             }
 
-            // 连接光环声明（三轨制）：无效条目（stat/keyword 双空）装载期即丢弃
+            // 连接光环声明（三轨制）：无效条目（stat/keyword/effectRef 三空）装载期即丢弃；
+            // effectRef 悬空/资格不符（EffectEligibility.AuraGrantRejectReason 单源）→ Warn+剔除
+            // 该条目（effectIds 悬空同模式）；效果层夹带由聚合后校验闸拦截
             if (entry.linkAuras != null)
-                cardData.LinkAuras = entry.linkAuras
-                    .Where(a => a != null && (!string.IsNullOrEmpty(a.stat) || !string.IsNullOrEmpty(a.keyword)))
-                    .ToList();
+            {
+                cardData.LinkAuras = new List<LinkAuraData>();
+                foreach (var a in entry.linkAuras)
+                {
+                    if (a == null) continue;
+                    if (string.IsNullOrEmpty(a.stat) && string.IsNullOrEmpty(a.keyword)
+                        && string.IsNullOrEmpty(a.effectRef)) continue;
+                    if (!string.IsNullOrEmpty(a.effectRef))
+                    {
+                        var eff = EffectsLibrary.Resolve(a.effectRef);
+                        if (eff == null)
+                        {
+                            TideLog.Warn($"[CardLoader] {entry.id}：光环 effectRef 引用 {a.effectRef} 不在效果库——跳过该条目");
+                            continue;
+                        }
+                        var reject = EffectEligibility.AuraGrantRejectReason(eff);
+                        if (reject != null)
+                        {
+                            TideLog.Warn($"[CardLoader] {entry.id}：光环 effectRef 引用 {a.effectRef}（{eff.DisplayName}）{reject}——跳过该条目");
+                            continue;
+                        }
+                    }
+                    cardData.LinkAuras.Add(a);
+                }
+            }
 
             // 效果层光环聚合（2026-09-23 定案）：效果携带的箭头/光环条目并集入卡面
             //（与卡面直书值并集——兼容旧数据）；须在 EnsureCost 前完成（光环费/箭头累乘进计价）

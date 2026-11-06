@@ -44,10 +44,8 @@ namespace CardCore.Attribute.Handlers
                 // 守护配对制无限次改写——台账 Value/Limit 现仅作不叠加账目，无行为读数。
                 target.AddKeyword(_keywordId, lane, context.Source,
                     effect.GetRolledValue(), context.TriggerLimitPerTurn == 0 ? 1 : context.TriggerLimitPerTurn);
-                // 守护授予即选（2026-10-08 定案）：落到已在场的卡立即弹选保护目标
-                //（印刷入场走 GuardianRules.OnEnterBattlefield 入场事件，不经此口——无双选）。
-                if (_keywordId == KeywordRules.Guardian && target is Card grantedCard)
-                    GuardianRules.OnGrantedInPlay(grantedCard);
+                // 守护无授予即选（2026-11-05 简化定案）：固定保护己方角色——关键词在场即生效，
+                // 无弹选/配对表（GuardianRules 实时查询），授予与印刷同口径无双选。
                 // 战斗法师（原舍身；2026-11-01 整链退役注释——见 Specs 战斗法师条）：无状态关键词——无授予即选/无入场钩子
                 //（散射在 KeywordRules.ApplyDamage 咽喉内联，MartyrdomRules 配对表整套退役）。
                 // EffectTint/IsDebuff（2026-11-01 赋予粒子定案）：原子行基准主色+落点极性——
@@ -115,8 +113,8 @@ namespace CardCore.Attribute.Handlers
             // 坚韧已移出关键词族（2026-10-08 指示物化）：GrantToughness 原子（原 GrantArmor 同日更名）
             // 改由 GrantToughnessHandler 执行（挂 ToughnessCounter 层，EffectExecutionEngine 指示物原子区注册）
             //——refId 迁移 05485f65→a312b8b0→758a74e0（同日哈希对齐）→2b1e3700（2026-10-09 生效自减改版随文案换号）→a8f7f476（现行号）
-            // 守护（2026-10-08 配对制改版，退出连接光环族——表行位 7 拉黑）：登场/授予时弹选一个
-            // 己方目标（单位或角色），其受伤改写为守护者承受（GuardianRules 配对表；无限次直到守护者离场）
+            // 守护（2026-11-05 简化定案，退出连接光环族——表行位 7 拉黑）：固定保护己方角色——
+            // 角色受伤改写为守护者承受（GuardianRules 实时查询；无限次直到守护者离场；单位不改写）
             (AtomicEffectType.GrantGuardian, "Guardian", "获得守护"),
             // 战斗法师（原舍身，2026-10-30 改版）2026-11-01 退役注释：表行 c3112c0b（关键词表）已删，
             // 枚举位 GrantBattleMage/关键词常量/ApplyDamage 散射改写/战报播报同批注释——无存量卡引用。

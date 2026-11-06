@@ -26,7 +26,7 @@
     "Domain": "自己",
     "TargetFilter": null,
     "Polarity": 1,
-    "MountKinds": "关键词,不可作为连接光环",
+    "MountKinds": "关键词",
     "Tags": null,
     "ManaList": [
       0,
@@ -39,12 +39,12 @@
     "ID": "91535cec",
     "TextHash": "91535cec",
     "EnumName": "守护",
-    "DisplayName": "获得守护：登场时选择一个目标，其受到伤害时改写为自己受到等量伤害",
+    "DisplayName": "获得守护：角色受到伤害时改写为自己受到等量伤害",
     "EffectType": "GrantGuardian",
     "Domain": "自己",
     "TargetFilter": null,
     "Polarity": 1,
-    "MountKinds": "关键词,不可作为连接光环",
+    "MountKinds": "关键词",
     "Tags": null,
     "ManaList": [
       0,
@@ -152,7 +152,7 @@
     "Domain": "自己",
     "TargetFilter": null,
     "Polarity": 1,
-    "MountKinds": "关键词,不可作为连接光环",
+    "MountKinds": "关键词",
     "Tags": null,
     "ManaList": [
       0,
@@ -170,7 +170,7 @@
     "Domain": "自己",
     "TargetFilter": null,
     "Polarity": 1,
-    "MountKinds": "关键词,不可作为连接光环",
+    "MountKinds": "关键词",
     "Tags": null,
     "ManaList": [
       0,
@@ -224,7 +224,7 @@
     "Domain": "自己",
     "TargetFilter": null,
     "Polarity": 1,
-    "MountKinds": "关键词,不可作为连接光环",
+    "MountKinds": "关键词",
     "Tags": null,
     "ManaList": [
       0,
@@ -242,7 +242,7 @@
     "Domain": "自己",
     "TargetFilter": null,
     "Polarity": 1,
-    "MountKinds": "关键词,不可作为连接光环",
+    "MountKinds": "关键词",
     "Tags": null,
     "ManaList": [
       0,
@@ -261,7 +261,7 @@
     "Domain": "自己",
     "TargetFilter": null,
     "Polarity": 1,
-    "MountKinds": "关键词,不可作为连接光环",
+    "MountKinds": "关键词",
     "Tags": null,
     "ManaList": [
       6,
@@ -280,7 +280,7 @@
     "Domain": "自己",
     "TargetFilter": null,
     "Polarity": 1,
-    "MountKinds": "关键词,不可作为连接光环",
+    "MountKinds": "关键词",
     "Tags": null,
     "ManaList": [
       0,

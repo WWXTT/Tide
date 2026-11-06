@@ -28,6 +28,10 @@ namespace GameBoard
     /// 在条目声明 role 时同样投递对应侧角色。属性（攻/血）条目与未声明 role 的作用面条目钉死生物专用。
     /// 角色攻击力不走光环（HeroAttackCounter 弹药原子，见 CounterRules——角色攻击力增加原子表内
     /// 无连接位，不可作光环）。
+    /// **2026-11-05 用户定案：关键词=生物专属，角色通道整体下线**——部分关键词效果并不适合角色，
+    /// 逐条筛选的工期暂无；投递入口（BonusOf Player 分支/GetApplicableAuras(Player)）注释保留，
+    /// 内部管线（ScopeHitRole/EnumerateApplicable 角色臂）休眠待将来筛出角色适配关键词后整链恢复。
+    /// 「不可作为连接光环」位拉黑机制（守护/再生/绝缘体等）不受本次影响，照常生效。
     /// </summary>
     public static class LinkAuraSystem
     {
@@ -109,7 +113,8 @@ namespace GameBoard
         // ======================================== 查询 API（受益者单视角） ========================================
         // 属性三口（GetPowerBonus/GetLifeBonus/GetMaxLifeBonus）钉死 Card 签名——属性光环只对生物生效
         //（2026-10-07 定案：角色攻击力走 HeroAttackCounter 弹药原子，不走光环；生命光环同理不到角色）。
-        // 关键词三口 Entity 签名——关键词条目可投递角色（箭头指向角色格，或条目级作用面+含角色声明）。
+        // 关键词三口 Entity 签名——**2026-11-05 定案：关键词=生物专属，角色投递入口已注释下线**
+        //（原 2026-10-07 角色格投递通道——部分关键词不适合角色，无工期逐条筛选，整链休眠保留）。
 
         /// <summary>攻击力光环加成（含减益，可为负；仅生物）</summary>
         public static int GetPowerBonus(Card card) => BonusOf(card)?.Power ?? 0;
@@ -121,7 +126,8 @@ namespace GameBoard
         public static int GetMaxLifeBonus(Card card) => BonusOf(card)?.Life ?? 0;
 
         /// <summary>光环关键词（Boolean 语义：光环期间视为持有，不参与 GetKeywordCount 重复叠加计数）。
-        /// Entity 签名（2026-10-07）：角色经箭头指向角色格的关键词光环同样命中。</summary>
+        /// Entity 签名（2026-10-07）：角色经箭头指向角色格的关键词光环同样命中——
+        /// **2026-11-05 角色通道下线：Player 入参恒 false**（BonusOf Player 分支已注释）。</summary>
         public static bool HasAuraKeyword(Entity entity, string keyword)
         {
             var bonus = BonusOf(entity);
@@ -154,18 +160,71 @@ namespace GameBoard
             return result;
         }
 
+        /// <summary>受益者当前命中的「效果授予」光环条目（2026-11-05 效果光环）：与 GetApplicableAuras
+        /// 同判定链（EnumerateApplicable 单源），滤 effectRef 非空条目；**绝缘体受益者整卡跳过**
+        ///（2026-11-05 拍板：失效/沉睡照发、仅绝缘体特判——绝缘体=不受施加的效果影响，效果授予视为施加；
+        /// stat/keyword 条目不受此判，行为不变）。触发引擎事件命中时实时枚举（live-query：不物化注册，
+        /// 断链/离场自动失效），悬停展示侧共用同一读数。</summary>
+        public static List<(Card source, LinkAuraData aura)> GetGrantedEffectAuras(Card beneficiary)
+        {
+            var result = new List<(Card source, LinkAuraData aura)>();
+            if (beneficiary == null || !Enabled) return result;
+            if (beneficiary.HasKeyword(KeywordRules.Insulator)) return result;
+            var bCell = TryGetCellOf(beneficiary);
+            if (!bCell.HasValue) return result;
+            foreach (var (source, aura) in EnumerateApplicable(beneficiary, bCell.Value, keywordsOnly: false))
+                if (aura != null && !string.IsNullOrEmpty(aura.effectRef))
+                    result.Add((source, aura));
+            return result;
+        }
+
+        /// <summary>场上是否存在携带 effectRef 条目的光环源（触发引擎逐事件枚举的早退口；
+        /// 只扫源卡条目声明不做几何/受益者判定，源不在场/已死不算）。</summary>
+        public static bool AnyEffectGrantSources()
+        {
+            if (!Enabled) return false;
+            var core = GameCore.Instance;
+            var zoneManager = core?.ZoneManager;
+            if (zoneManager == null) return false;
+            foreach (var player in new[] { core.Player1, core.Player2 })
+            {
+                if (player == null) continue;
+                var fieldZone = zoneManager.GetCards(player, Zone.FieldZone);
+                for (int i = 0; i < fieldZone.Count; i++)
+                    if (HasEffectRef(fieldZone[i])) return true;
+                var battlefield = zoneManager.GetCards(player, Zone.Battlefield);
+                for (int i = 0; i < battlefield.Count; i++)
+                    if (HasEffectRef(battlefield[i])) return true;
+            }
+            return false;
+        }
+
+        private static bool HasEffectRef(Card source)
+        {
+            if (source == null || !source.IsAlive) return false;
+            var auras = (source as CardWrapper)?.GetData()?.LinkAuras;
+            if (auras == null) return false;
+            foreach (var a in auras)
+                if (a != null && !string.IsNullOrEmpty(a.effectRef)) return true;
+            return false;
+        }
+
         /// <summary>受益者（角色）当前命中的连接光环清单（2026-10-17 角色状态展示补齐）：与
         /// BonusOf 的 Player 通道同判定链（受益格=本方角色格、keywordsOnly），并滤掉 stat 条目
-        /// ——属性光环钉死生物专用（Accumulate 同口径），角色只收关键词条目，展示侧不误导。</summary>
+        /// ——属性光环钉死生物专用（Accumulate 同口径），角色只收关键词条目，展示侧不误导。
+        /// **2026-11-05 角色通道下线（关键词=生物专属定案）：体已注释恒空表**——签名保留
+        /// （BattleHoverInfoProvider 角色悬停展示零改动跟随），恢复=解开下方注释块。</summary>
         public static List<(Card source, LinkAuraData aura)> GetApplicableAuras(Player role)
         {
             var result = new List<(Card source, LinkAuraData aura)>();
-            if (role == null || !Enabled) return result;
-            int idx = PlayerIndexOf(role);
-            if (idx < 0) return result;
-            foreach (var (source, aura) in EnumerateApplicable(role, BoardLayout.CharacterCell(idx), keywordsOnly: true))
-                if (aura != null && string.IsNullOrEmpty(aura.stat))
-                    result.Add((source, aura));
+            // —— 2026-11-05 关键词生物专属定案：角色投递通道注释下线（部分关键词不适合角色，
+            //    无工期逐条筛选；管线休眠保留，恢复时解开本块并与 BonusOf Player 分支同步）——
+            // if (role == null || !Enabled) return result;
+            // int idx = PlayerIndexOf(role);
+            // if (idx < 0) return result;
+            // foreach (var (source, aura) in EnumerateApplicable(role, BoardLayout.CharacterCell(idx), keywordsOnly: true))
+            //     if (aura != null && string.IsNullOrEmpty(aura.stat))
+            //         result.Add((source, aura));
             return result;
         }
 
@@ -174,7 +233,7 @@ namespace GameBoard
         // 不再经关键词光环投递（表行 a8f7f476 MountKinds=指示物，CanMountAsAura 位 1 硬拒）。
 
         // 守护光环源查询（GetGuardianAuraSources）已随 2026-10-08 配对制改版退役——
-        // 守护退出连接光环族（表行 MountKinds 位 7 拉黑），改写走 GuardianRules 配对表（KeywordRules.ApplyDamage）。
+        // 守护退出连接光环族（表行 MountKinds 位 7 拉黑），改写走 GuardianRules（KeywordRules.ApplyDamage）。
 
         /// <summary>方向档命中·生物（2026-10-07）：beneficiary 一侧是否在 source 光环方向内
         ///（1=己方：源控制者一侧；2=双方；3=对方：源控制者的对手一侧）。</summary>
@@ -188,8 +247,8 @@ namespace GameBoard
             return scope == 1 ? ReferenceEquals(sc, bc) : !ReferenceEquals(sc, bc);
         }
 
-        /// <summary>方向档命中·角色（2026-10-08 含角色定案）：作用面档条目声明 role 时按侧别投递
-        ///（1=源控制者本人的角色/2=双方角色/3=对手角色）。</summary>
+        /// <summary>方向档命中·角色（2026-10-08 含角色定案；**2026-11-05 角色通道下线——休眠保留**）：
+        /// 作用面档条目声明 role 时按侧别投递（1=源控制者本人的角色/2=双方角色/3=对手角色）。</summary>
         private static bool ScopeHitRole(Card source, Player role, int scope)
         {
             if (scope < 1 || scope > 3) return false;
@@ -272,14 +331,16 @@ namespace GameBoard
                 if (bCell.HasValue)
                     AccumulateSources(beneficiary, bCell.Value, bonus, keywordsOnly: false);
             }
-            else if (beneficiary is Player role)
-            {
-                // 角色通道（2026-10-07 定案）：受益格=本方角色格（BoardLayout.CharacterCell）；
-                // 只收关键词条目（keywordsOnly）——属性光环钉死生物专用、作用面档永不投递角色。
-                int idx = PlayerIndexOf(role);
-                if (idx >= 0)
-                    AccumulateSources(role, BoardLayout.CharacterCell(idx), bonus, keywordsOnly: true);
-            }
+            // —— 2026-11-05 关键词生物专属定案：角色通道注释下线（原 2026-10-07 定案——受益格=本方
+            //    角色格 BoardLayout.CharacterCell、只收关键词条目；部分关键词不适合角色，无工期逐条筛选）。
+            //    Player 入参落入空缓存（HasAuraKeyword/GetAuraKeywordCount 对角色恒 false/0）；
+            //    恢复=解开本块并与 GetApplicableAuras(Player) 体同步——
+            // else if (beneficiary is Player role)
+            // {
+            //     int idx = PlayerIndexOf(role);
+            //     if (idx >= 0)
+            //         AccumulateSources(role, BoardLayout.CharacterCell(idx), bonus, keywordsOnly: true);
+            // }
 
             _cache[beneficiary] = bonus; // 负缓存也入表（无光环卡读一次后 O(1)）
             return bonus;
@@ -342,6 +403,8 @@ namespace GameBoard
                     // 角色通道（2026-10-09 裁定）：关键词光环**一律可作用角色**——不能用光环表达的行
                     //（守护/再生/绝缘体等）已由表「不可作为连接光环」位拉黑，通道不再设防；逐条目 role 声明
                     // 与 NoRole 硬闸（RoleChannelBlocked）整体退役；属性条目恒仅生物（2026-10-07 定案不变）。
+                    // **2026-11-05 修订：上行"一律可作用角色"已被关键词生物专属定案推翻——角色投递入口
+                    //（BonusOf Player 分支）已注释，下方 Player 臂成为休眠管线（无调用方到达）；位拉黑机制保留。**
                     var arrows = data.ArrowDirections;
                     bool geoComputed = false, geoHit = false; // 惰性：存在箭头档条目才算几何
                     foreach (var aura in data.LinkAuras)

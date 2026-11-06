@@ -443,9 +443,9 @@ namespace SynergyUI
         {
             switch (color)
             {
-                case UIColor.Red: return "火";
-                case UIColor.Blue: return "水";
-                case UIColor.Green: return "植物";
+                case UIColor.Red: return "红";
+                case UIColor.Blue: return "蓝";
+                case UIColor.Green: return "绿";
                 default: return "灰";
             }
         }
@@ -1275,8 +1275,8 @@ namespace SynergyUI
             if (body == null) return;
 
             var pairs = new[] {
-                (UIColor.Red, UiStyle.DotRed, "火"), (UIColor.Blue, UiStyle.DotBlue, "水"),
-                (UIColor.Green, UiStyle.DotGreen, "植物"), (UIColor.Gray, UiStyle.DotGray, "灰") };
+                (UIColor.Red, UiStyle.DotRed, "红"), (UIColor.Blue, UiStyle.DotBlue, "蓝"),
+                (UIColor.Green, UiStyle.DotGreen, "绿"), (UIColor.Gray, UiStyle.DotGray, "灰") };
             var lines = new List<string>[] { new List<string>(), new List<string>() };
             for (int i = 0; i < pairs.Length; i++)
             {

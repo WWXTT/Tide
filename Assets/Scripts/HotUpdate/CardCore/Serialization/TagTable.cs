@@ -314,6 +314,7 @@ namespace CardCore.Serialization
         public const int NDD_AtomicRowsHash = 1017044835;
         public const int NDD_AtomicRowCount = 1928083177;
         public const int NDD_TokenSig = 571524600;
+        public const int NDD_ContentSig = 1755961784; // 2026-11-05 ID 冻结收口：卡/效果层内容指纹摘要（协议 v8）
 
         // ---- MsgDeckSubmit ----
         public const int MDS_DeckName = 1095059584;
@@ -392,6 +393,6 @@ namespace CardCore.Serialization
         public const int MLAA_RoomId = 97705085;
         public const int MLAA_Nickname = 1153192151;
 
-        // 共 264 个标签（纯哈希口径）
+        // 共 265 个标签（纯哈希口径）
     }
 }

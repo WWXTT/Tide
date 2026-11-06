@@ -11,10 +11,10 @@ namespace CardCore.Network
     /// 开局握手校验（2026-09-22 定案，同日收缩为"只核对卡组引用"口径）：
     /// 不比对整个 Cards.json/Effects.json——只核对**卡组引用闭包**。
     ///
-    /// - 卡/效果层：ID 即内容哈希（同 ID ⟹ 同内容），提交卡组在服务器端全命中 +
-    ///   效果/原子引用闭环即保证一致，无需任何内容摘要。
-    /// - 原子表层：行 ID 稳定（平衡层，改内容不改 ID），闭包引用到的行**必须核对内容**——
-    ///   NetDeckDigest = 闭包 refId 集对应表行内容（排序后哈希），双方按同一卡组各算一次比对。
+    /// - 三层内容核对（2026-11-05 ID 冻结收口：原子行/效果/卡三层 ID 已冻结，**ID 命中 ≠ 内容一致**）：
+    ///   卡/效果层经 ContentSig（CardConfigEntry.hash / EffectSlimDto.hash 指纹列）核对——
+    ///   补上冻结后「两端同 ID 不同效果也能过握手打出内容分裂局」的缺口；原子表层行 ID 稳定
+    ///（平衡层，改内容不改 ID），闭包引用到的行仍须核对内容——AtomicRowsHash。
     /// - 对手侧 / 未来扩展：**用到再核对**（对局中按实际出现的 ID/行核对），开局不做全量对比。
     ///
     /// 服务器侧 ValidateDeckSubmit（拒绝=Error 帧语义）；客户端侧 VerifyMatchManifest。
@@ -24,27 +24,45 @@ namespace CardCore.Network
     {
         // ======================================== 摘要计算 ========================================
 
-        /// <summary>按卡组计算引用闭包的原子行摘要（双方各用本地数据算同一卡组，比对即可）。
-        /// 闭包 = cardIds → 卡表条目 → effectIds → 效果步内/代价 payload/奖励的全部原子 refId。</summary>
+        /// <summary>按卡组计算引用闭包的内容摘要（双方各用本地数据算同一卡组，比对即可）。
+        /// 三段：AtomicRowsHash（闭包原子行内容，口径不变）/ ContentSig（卡+效果层指纹，
+        /// 2026-11-05 ID 冻结收口）/ TokenSig（衍生物绑定，P9b）。
+        /// 闭包 = cardIds+tokenCardIds → 卡表条目 → effectIds → 效果步内/代价 payload/奖励的全部原子 refId。</summary>
         public static NetDeckDigest ComputeDeckDigest(IReadOnlyList<string> cardIds)
             => ComputeDeckDigest(cardIds, null, null);
 
         /// <summary>同上并计入衍生物区/槽绑定（P9b v5）：TokenSig = 区列表 + 绑定三元组（排序后哈希）
         /// ——效果 ID 不含绑定，同卡表不同绑定的两套牌在此摘要上分叉（互不同步）。
-        /// null 与空等价（归一化后参与哈希——两侧口径恒一致）。</summary>
+        /// null 与空等价（归一化后参与哈希——两侧口径恒一致）。
+        /// ContentSig（v8）：闭包卡（C:卡ID|ConfigHash）+ 引用效果（E:效果ID|hash）——排序后哈希。
+        /// 指纹列旧档可为 null（空串参与，两侧同版本口径一致；跨版本由协议号闸拦截）。</summary>
         public static NetDeckDigest ComputeDeckDigest(IReadOnlyList<string> cardIds,
             IReadOnlyList<string> tokenCardIds, IReadOnlyList<DeckTokenBinding> tokenBindings)
         {
             var refIds = new HashSet<string>(StringComparer.Ordinal);
-            if (cardIds != null)
+            var cardLines = new SortedSet<string>(StringComparer.Ordinal); // 卡层：ID 冻结后按指纹核对内容
+            var effectIds = new HashSet<string>(StringComparer.Ordinal);
+            void CollectCard(string id)
             {
-                foreach (var id in cardIds)
-                {
-                    var card = string.IsNullOrEmpty(id) ? null : CardCatalog.GetById(id);
-                    if (card == null) continue; // 缺卡由 ValidateDeckSubmit 显性报告，此处只算摘要
-                    CollectCardRefIds(card, refIds);
-                }
+                if (string.IsNullOrEmpty(id)) return;
+                var card = CardCatalog.GetById(id);
+                if (card == null) return; // 缺卡由 ValidateDeckSubmit 显性报告，此处只算摘要
+                cardLines.Add($"C:{card.ID}|{card.ConfigHash ?? ""}");
+                if (card.Effects != null)
+                    foreach (var fx in card.Effects)
+                    {
+                        if (fx == null || string.IsNullOrEmpty(fx.Id)) continue;
+                        if (fx.Id.StartsWith("EFF_", StringComparison.Ordinal)) continue; // 内嵌遗留口径，无库行/指纹
+                        effectIds.Add(fx.Id);
+                    }
+                CollectCardRefIds(card, refIds);
             }
+            if (cardIds != null)
+                foreach (var id in cardIds)
+                    CollectCard(id);
+            if (tokenCardIds != null)
+                foreach (var id in tokenCardIds)
+                    CollectCard(id); // 衍生物模板卡同属闭包
 
             var sigs = refIds
                 .Select(AtomicEffectTable.GetByHashId)
@@ -52,6 +70,12 @@ namespace CardCore.Network
                 .Select(RowSig)
                 .OrderBy(s => s, StringComparer.Ordinal)
                 .ToList();
+
+            var contentLines = new List<string>(cardLines);
+            contentLines.AddRange(effectIds
+                .Select(eid => $"E:{eid}|{EffectsLibrary.Get(eid)?.hash ?? ""}")
+                .OrderBy(s => s, StringComparer.Ordinal));
+            contentLines.Sort(StringComparer.Ordinal);
 
             // 衍生物区 + 绑定签名（P9b）：区原序即卡组语义（展示序）——排序后哈希防同内容异序误判
             var tokenLines = new List<string>();
@@ -68,6 +92,7 @@ namespace CardCore.Network
                 AtomicRowsHash = MurmurHash3.Hash32(string.Join("\n", sigs)).ToString("X8"),
                 AtomicRowCount = sigs.Count,
                 TokenSig = MurmurHash3.Hash32(string.Join("\n", tokenLines)).ToString("X8"),
+                ContentSig = MurmurHash3.Hash32(string.Join("\n", contentLines)).ToString("X8"),
             };
         }
 
@@ -229,7 +254,8 @@ namespace CardCore.Network
             problems.AddRange(SynergyUI.DeckTokenSupport.ValidateDeck(
                 submit.CardIds.ToList(), tokenCardIds.ToList(), tokenBindings));
 
-            // 原子行摘要比对（仅卡组引用闭包内的行——不做全池对比）+ 绑定摘要（TokenSig，P9b v5）
+            // 内容摘要比对（仅卡组引用闭包内的行——不做全池对比）+ 绑定摘要（TokenSig，P9b v5）
+            // + 卡/效果层指纹（ContentSig，v8——ID 冻结后同 ID 须再核对内容）
             if (submit.Digest == null)
             {
                 problems.Add("客户端未随提交携带原子行摘要");
@@ -241,6 +267,10 @@ namespace CardCore.Network
                     problems.Add($"原子行摘要不一致（服务器 {serverDigest.AtomicRowCount} 行 / 提交方 {submit.Digest.AtomicRowCount} 行）——卡组引用的原子表内容漂移");
                 if ((submit.Digest.TokenSig ?? "") != serverDigest.TokenSig)
                     problems.Add("衍生物绑定摘要不一致（TokenSig）——卡组衍生物区/槽绑定与提交摘要不匹配");
+                if (string.IsNullOrEmpty(submit.Digest.ContentSig))
+                    problems.Add("客户端未随提交携带内容指纹摘要（ContentSig）——旧版本客户端，请升级到相同版本");
+                else if (submit.Digest.ContentSig != serverDigest.ContentSig)
+                    problems.Add("卡/效果内容指纹不一致（ContentSig）——同 ID 不同内容（卡表/效果表内容漂移或两端版本不一致）");
             }
 
             if (problems.Count > 0)
@@ -406,6 +436,16 @@ namespace CardCore.Network
             if ((manifest.OwnDeckDigest.TokenSig ?? "") != localDigest.TokenSig)
             {
                 reason = "服务器与本端的衍生物绑定摘要不一致（TokenSig）——服务器装载的绑定与提交不符";
+                return false;
+            }
+            if (string.IsNullOrEmpty(manifest.OwnDeckDigest.ContentSig))
+            {
+                reason = "服务器未携带内容指纹摘要（ContentSig）——版本不一致，请升级到相同版本";
+                return false;
+            }
+            if (manifest.OwnDeckDigest.ContentSig != localDigest.ContentSig)
+            {
+                reason = "服务器与本端的卡/效果内容指纹不一致（ContentSig）——同 ID 不同内容（表内容漂移或版本不一致）";
                 return false;
             }
 

@@ -239,6 +239,9 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
+            // 取证（2026-11-05 SBA 救回排查）：治疗有没有跑、打到谁
+            GameActions.Crumb($"[HEAL] targets={context.Targets?.Count ?? 0} " +
+                              $"first={(context.Targets != null && context.Targets.Count > 0 ? ((context.Targets[0] as Card)?.ID ?? context.Targets[0].GetType().Name) : "无")}");
             foreach (var target in context.Targets)
             {
                 // 2026-09-13 数值随机定案：每目标独立掷（掷值在修饰链前；幅度 0 恒名义值）

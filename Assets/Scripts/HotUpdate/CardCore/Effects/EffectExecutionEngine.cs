@@ -1320,6 +1320,13 @@ namespace CardCore
             // 2026-11-01 用户定案：整卡施放的门槛=①空栈首动免门槛（主阶段出牌照旧）
             // ②非空栈：速≥1 且 速≥记速器（法术同速可连锁，见 CollectAvailableResponses 同款口径）。
             // 旧的 CanActivate 全严格大于会把「对手 1 槽法术(速2) → 我的 1 槽法术(速2)」卡死。
+            // SBA 窗例外（2026-09-15 SbaStackSpeed 定案仍有效）：SBA 伪对象在栈顶时非回合方
+            // 严格大于（≥2）——同速可连锁只放开 cast↔cast 链，角色相对门槛照旧
+            //（速度2治疗救回 = 非回合方对 SBA 的既定达标路径）。
+            if (_stack.Count > 0 && PeekStack()?.IsSBA == true
+                && controller != GameCore.Instance?.TurnEngine?.TurnPlayer
+                && castSpeed <= _speedCounter.CurrentSpeed)
+                return false;
             if (_stack.Count > 0 && (castSpeed < 1 || castSpeed < _speedCounter.CurrentSpeed))
                 return false;
 
@@ -1873,8 +1880,14 @@ namespace CardCore
                 // SBA 即栈对象（2026-09-15）：检出关键 SBA（送墓/判负）→ 速度1伪对象入栈开响应窗口；
                 // 到点（ResolveStack 的 IsSBA 分支）重查执行——窗口内 ≥2 速响应可救回（治疗解标死）。
                 // 无人响应（双 Pass）则照旧送墓/判负，亡语走触发式新一轮（计数器已归 0）。
-                if (core.SBAEngine.HasCriticalPendingAfterCheck())
+                // 取证探针（2026-11-05 SBA 全灭排查）：本行只在「本轮走到 SBA 检查点」时出现在
+                // Logs/EngineCrumb.txt——文件里没有 `[SBA] check` = 循环在更早的分支 return 了；
+                // 有行但 crit=False = checker 没产出 ZeroToughness/ZeroLife 记录。
+                bool sbaCritical = core.SBAEngine.HasCriticalPendingAfterCheck();
+                GameActions.Crumb($"[SBA] check crit={sbaCritical} stack={_stack.Count}");
+                if (sbaCritical)
                 {
+                    GameActions.Crumb("[SBA] critical pending → push 栈对象"); // 取证：检出了没
                     core.SBAEngine.ClearCriticalPending();
                     PushStateAction();
                     return; // SBA 轮：双 Pass → BeginResolution → 消费 → 回到这里再查触发式/SBA
@@ -1973,6 +1986,15 @@ namespace CardCore
             return _stack.Count > 0 ? _stack.Peek() : null;
         }
 
+        /// <summary>栈上是否还有 SBA 伪对象（2026-11-05：SBA 救回窗口判定——GetStackContents 会滤掉
+        /// 伪对象，不能用来判窗口；这里直查原始栈）。</summary>
+        public bool HasPendingSba()
+        {
+            foreach (var o in _stack)
+                if (o != null && o.IsSBA) return true;
+            return false;
+        }
+
         /// <summary>
         /// 重定向栈顶效果的目标（RedirectTarget 原子效果使用）。
         /// 栈顶无对象时返回 false。
@@ -1999,6 +2021,13 @@ namespace CardCore
     {
         private List<RegisteredEffect> _registeredEffects = new List<RegisteredEffect>();
         private StackEngine _stackEngine;
+
+        // 光环效果授予解析缓存（2026-11-05 效果光环）：effectRef → (库 DTO 实例, 转换定义)。
+        // 按库 DTO 实例引用判失效——EffectsLibrary reload 换实例即重转（mtime 盯盘在库内）。
+        // def=null 表示悬空或资格不符（EffectEligibility.AuraGrantRejectReason 单源，装载闸
+        // 同口径）——运行时静默跳过，防直改表夹带上栈。
+        private readonly Dictionary<string, (EffectSlimDto dto, EffectDefinition def)> _auraGrantCache
+            = new Dictionary<string, (EffectSlimDto, EffectDefinition)>();
 
         // 触发条件校验（由 GameCore 注入 ZoneManager 后可用）。未注入时跳过条件校验，
         // 便于在缺少区域系统的独立测试中仅按时点匹配。
@@ -2103,7 +2132,10 @@ namespace CardCore
             var result = new List<RegisteredEffect>();
             var eventType = gameEvent.GetType();
 
-            foreach (var registered in _registeredEffects)
+            // 候选=物化注册表 + 光环效果授予合成条目（2026-11-05 效果光环 live-query——事件命中时
+            // 实时枚举不物化注册，断链/离场自动失效；合成条目 Source=受益单位 ⇒ 载荷过滤与
+            // {target} 自参照零改动对准受益者，下方判定链全程共用零分叉）
+            foreach (var registered in EnumerateRegisteredAndAuraGrants())
             {
                 var effect = registered.Effect;
 
@@ -2120,6 +2152,11 @@ namespace CardCore
                 // 伤害落血即置 IsAlive=false（KeywordRules.ApplyDamage），一刀切会拦死全部亡语
                 //（TryKill 在发布 CardDestroyEvent 前已置 IsAlive=false）。
                 // 其后的无效指示物/沉睡/TriggerConditions 门禁照常拦截（蓝无效仍拦亡语）。
+                // 墓地亡灵闸（2026-11-05）：裸 MoveCard 入墓不清 IsAlive（验证器清理/部分工具口径），
+                // 已入墓的源不得再开火——同享亡语豁免（自己的摧毁事件放行）。
+                if (registered.Source is Card srcCard && srcCard.GetZone() == Zone.Graveyard
+                    && !(gameEvent is CardDestroyEvent deG && ReferenceEquals(deG.DestroyedCard, registered.Source)))
+                    continue;
                 if (registered.Source != null && !registered.Source.IsAlive)
                 {
                     if (!(gameEvent is CardDestroyEvent de && ReferenceEquals(de.DestroyedCard, registered.Source)))
@@ -2134,7 +2171,10 @@ namespace CardCore
                 // 伤害管线被动（坚韧/圣盾/护甲——指示物，走 ApplyDamage 管线）不归此管，天然不拦。
                 // 入场窗口自身的 OnPlay 不受影响（入场事件发布先于任何入场后状态挂层——匹配先于挂层；
                 // 旧「苏醒入场沉睡」先例已于 2026-11-02 随苏醒机制删除）。
-                if (registered.Source != null
+                // 光环授予合成条目豁免本闸（2026-11-05 拍板：受益者带失效/沉睡照发，仅绝缘体
+                // 特判——绝缘体受益者已在授予枚举处剔除；来源侧无效不压光环=2026-10-31 定案不变）
+                if (!registered.FromAuraGrant
+                    && registered.Source != null
                     && SuppressRules.IsAutoSuppressed(registered.Source))
                     continue;
 
@@ -2161,6 +2201,75 @@ namespace CardCore
             }
 
             return result;
+        }
+
+        /// <summary>候选枚举=物化注册表 + 光环效果授予（live-query 合成条目，2026-11-05 效果光环）。</summary>
+        private IEnumerable<RegisteredEffect> EnumerateRegisteredAndAuraGrants()
+        {
+            for (int i = 0; i < _registeredEffects.Count; i++)
+                yield return _registeredEffects[i];
+            foreach (var granted in EnumerateAuraGrantedEffects())
+                yield return granted;
+        }
+
+        /// <summary>
+        /// 光环效果授予枚举（live-query）：双方战场逐单位 × 当前命中的 effectRef 光环条目
+        /// （LinkAuraSystem.GetGrantedEffectAuras 单源判定链——绝缘体受益者已在链内剔除）→
+        /// 合成 RegisteredEffect{Effect=解析定义, Source=受益单位, Controller=受益者控制者}。
+        /// Source=受益单位 ⇒ TriggerPayloadFilter 的 self 比对与 {target} 自参照零改动对准受益者。
+        /// 重复授予（两条箭头/两个源授同一效果）=各一条候选（与关键词按箭头叠加口径一致）。
+        /// 结界耐久不消耗：光环=持续授予，非载体自身触发文（与光环计价「恒持续不收持续费」同口径）。
+        /// 结算计费：ConvertOne 对触发式设 ElementCostPrepaid=true——元素费不逐次向受益者控制者
+        /// 收取（锚价×作用面已随载体卡价收讫，防双计；资格谓词已剔代价行，无特殊代价）。
+        /// </summary>
+        private IEnumerable<RegisteredEffect> EnumerateAuraGrantedEffects()
+        {
+            if (!GameBoard.LinkAuraSystem.AnyEffectGrantSources()) yield break; // 无源早退（逐事件高频口）
+            var core = GameCore.Instance;
+            var zoneManager = _zoneManager ?? core?.ZoneManager;
+            if (zoneManager == null) yield break;
+            foreach (var player in new[] { core.Player1, core.Player2 })
+            {
+                if (player == null) continue;
+                var battlefield = zoneManager.GetCards(player, Zone.Battlefield);
+                for (int i = 0; i < battlefield.Count; i++)
+                {
+                    var beneficiary = battlefield[i];
+                    if (beneficiary == null || !beneficiary.IsAlive) continue;
+                    var grants = GameBoard.LinkAuraSystem.GetGrantedEffectAuras(beneficiary);
+                    for (int g = 0; g < grants.Count; g++)
+                    {
+                        var def = ResolveAuraGrant(grants[g].aura.effectRef);
+                        if (def == null) continue;
+                        yield return new RegisteredEffect
+                        {
+                            Effect = def,
+                            Source = beneficiary,
+                            Controller = beneficiary.GetController(),
+                            FromAuraGrant = true,
+                        };
+                    }
+                }
+            }
+        }
+
+        /// <summary>effectRef → 运行时定义（缓存按库 DTO 实例失效，见 _auraGrantCache）：
+        /// 悬空（装载期已 Warn）静默跳过；资格不符（AuraGrantRejectReason 单源，装载闸同口径）
+        /// 在此兜底——防直改表夹带上栈成孤儿项。</summary>
+        private EffectDefinition ResolveAuraGrant(string effectRef)
+        {
+            if (string.IsNullOrEmpty(effectRef)) return null;
+            var dto = EffectsLibrary.Get(effectRef);
+            if (dto == null) return null;
+            if (_auraGrantCache.TryGetValue(effectRef, out var cached)
+                && ReferenceEquals(cached.dto, dto))
+                return cached.def;
+            var data = EffectSlim.ToCardEffect(dto);
+            var def = EffectEligibility.AuraGrantRejectReason(data) == null
+                ? CardEffectConverter.ConvertOne(data, data.Id ?? "")
+                : null;
+            _auraGrantCache[effectRef] = (dto, def);
+            return def;
         }
 
         /// <summary>
@@ -2198,6 +2307,10 @@ namespace CardCore
         public EffectDefinition Effect { get; set; }
         public Entity Source { get; set; }
         public Player Controller { get; set; }
+        /// <summary>光环效果授予合成条目（2026-11-05 效果光环）：live-query 现算，非物化注册。
+        /// true=受益者带失效/沉睡仍照发（拍板：光环域退出压制，仅绝缘体特判——绝缘体受益者
+        /// 已在授予枚举处剔除，见 LinkAuraSystem.GetGrantedEffectAuras）。</summary>
+        public bool FromAuraGrant;
     }
 
     #endregion

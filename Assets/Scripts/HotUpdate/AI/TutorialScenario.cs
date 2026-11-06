@@ -341,11 +341,8 @@ namespace SynergyUI
                 // 卡面关键词的差集补齐/指示物化补层（潜行 1 层等）从不发生——教学二潜行者可被效果
                 // 指名、不朽卫士无「不灭」。官方入场口同款显式补调；无卡面关键词零开销直返。
                 CardCore.Attribute.KeywordRules.RefreshPrintedKeywordsOnEntry(card);
-                // 守护播种配对（2026-10-21）：官方入场口的配对由入场事件驱动，静默播种无入场事件——
-                // 持守护关键词的种子（考验守墓巨像）配对永不建立。逐单位显式补选：此刻列表后续单位
-                // 尚未入场，候选只剩己方角色（播种序=入场序契约；AI/无头自动取首候选不弹窗）。
-                if (card.HasKeyword(CardCore.Attribute.KeywordRules.Guardian))
-                    CardCore.Attribute.GuardianRules.OnGrantedInPlay(card);
+                // 守护（2026-11-05 简化定案）：固定保护己方角色、关键词在场即生效——静默播种
+                // 无需任何补调（旧配对制的弹选补调已随配对表退役）。
                 if (unit.tapped) card.Tap();
                 GameActions.RegisterCardTriggeredEffects(core, card, owner); // 静默入场不接触发式，显式补
                 foreach (var counter in unit.counters ?? new List<TutorialCounterSpec>())

@@ -73,10 +73,22 @@ namespace CardCore.Network
     /// v7（2026-10-31 阶段D 全量重排，无历史包袱）：NetworkMessageType 全量重排——0-99 草稿死值段
     /// 删除、101 空洞闭合、分组连续编号（上行/下行/大厅/就绪四段无空号）；TagTable 手工定值段
     /// 整体退役（六个常量并入哈希生成口径）。消息号与 MemoryPack 标签口径全线漂移——
-    /// 新旧端互拒不兼容（无兼容层）。</summary>
+    /// 新旧端互拒不兼容（无兼容层）。
+    /// v8（2026-11-05 ID 冻结收口·摘要三层收口）：NetDeckDigest 新增 ContentSig（卡 ConfigHash +
+    /// 效果 hash 指纹摘要）——ID 命中不再蕴含内容一致，旧端缺该段会被新端显式拒绝；
+    /// 同批起接收侧对信封 ProtocolVersion 设闸（此前只写不校验），失配回显式 Error 帧而非
+    /// 靠序列化错位自然崩。</summary>
     public static class NetworkProtocol
     {
-        public const ushort Version = 7;
+        public const ushort Version = 8;
+
+        /// <summary>接收侧版本闸（v8 起）：信封版本与本端不符 = 新旧端互拒（无兼容层）。
+        /// 0=legacy 草稿期数据，同样失配。</summary>
+        public static bool IsCompatible(ushort receivedVersion) => receivedVersion == Version;
+
+        /// <summary>失配拒绝文案（Error 帧 / 断连日志共用单源）。</summary>
+        public static string MismatchText(ushort receivedVersion)
+            => $"协议不兼容：对端 v{receivedVersion}（本端 v{Version}）——请升级两端到相同版本";
     }
 
     [MemoryPackable]

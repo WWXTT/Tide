@@ -389,11 +389,14 @@ namespace CardCore.Editor
 
                 // 泛型保持具体声明类型：MemoryPack 按声明类型找 formatter（object 无注册）；
                 // 空载荷 intent 用 byte[0] 占位（原生支持，applier 不读这些 payload）
+                string lastIntentError = null; // 诊断（2026-11-05）：被拒动作的引擎理由（PlayLand×0 取证）
                 bool ApplyIntent<T>(int seat, NetworkMessageType type, T payload) where T : class
                 {
                     var wire = NetworkSerializer.SerializeMessage(type, payload);
                     var envelope = NetworkSerializer.DeserializeEnvelope(wire);
-                    return NetworkIntentApplier.Apply(core, seat, envelope, out _);
+                    var ok = NetworkIntentApplier.Apply(core, seat, envelope, out var err);
+                    lastIntentError = err;
+                    return ok;
                 }
                 var emptyPayload = Array.Empty<byte>();
 
@@ -425,9 +428,11 @@ namespace CardCore.Editor
 
                     // 2026-10-11 现取现用：横置产元素 intent 已删——付费时服务器自动横置，无回合初产色职责
 
-                    // 动作循环：枚举 → 选型 → 映射 intent → 分派（拒绝即本回合拉黑重枚举）
+                    // 动作循环：枚举 → 选型 → 映射 intent → 分派（拒绝即本回合拉黑重枚举）。
+                    // 步预算 40（2026-11-05 v11 充能动作化后上调 24→40）：任意手牌卡每卡一条 Charge 行
+                    // 扩大了动作面，24 步会被「禁用拉黑 + 充能接受」吃满，饿死 PlayLand/EndTurn。
                     bool landPlayedThisTurn = false;
-                    for (int step = 0; step < 24; step++)
+                    for (int step = 0; step < 40; step++)
                     {
                         enumerator.Enumerate(core, me);
                         enumerator.RemoveAll(banned);
@@ -467,8 +472,21 @@ namespace CardCore.Editor
                                 });
                                 break;
                             case TideActionType.PlayLand:
+                                // ModeIndex=-1=缺省主色（2026-10-11 锁色选择口径）：旧写法不传时默认 0=灰——
+                                // 手牌无灰可锁卡即「所选颜色不在可锁产色内」恒拒（PlayLand×0 的根因）
                                 accepted = ApplyIntent(seat, NetworkMessageType.IntentAddToElementPool,
-                                    new MsgIntentAddToElementPool { CardRuntimeId = choice.Card.RuntimeId });
+                                    new MsgIntentAddToElementPool { CardRuntimeId = choice.Card.RuntimeId, ModeIndex = -1 });
+                                break;
+                            case TideActionType.Charge:
+                                // v11 充能动作化（2026-11-05）：线上通道=IntentBuildCard（消息名/号不动只换语义），
+                                // 宣言期零选色（颜色在结算期反问，AI/无头自动取最大余量色）——
+                                // 缺本分支时 Charge 行落 default 被误发成 IntentEndTurn（Charge×60 假覆盖 +
+                                // PlayLand/EndTurn 饿死的根因）
+                                accepted = ApplyIntent(seat, NetworkMessageType.IntentBuildCard, new MsgIntentBuildCard
+                                {
+                                    CardRuntimeId = choice.Card.RuntimeId,
+                                    Color = 0,
+                                });
                                 break;
                             case TideActionType.Activate:
                                 accepted = ApplyIntent(seat, NetworkMessageType.IntentActivateEffect, new MsgIntentActivateEffect
@@ -499,8 +517,20 @@ namespace CardCore.Editor
                         }
                         else
                         {
+                            if (choice.Type == TideActionType.PlayLand)
+                                Debug.Log($"[NetVerify][intent] PlayLand 被拒（取证）：{lastIntentError}（sig={choice.Signature}）");
                             banned.Add(choice.Signature);
                         }
+                    }
+
+                    // 步预算兜底（2026-11-05）：40 步耗尽仍未走到 EndTurn（充能行动面扩大后的饥饿保护）
+                    // ——仍在己方主阶段则直接补发 EndTurn intent（与 default 分支同通道），保证回合必然流动。
+                    if (gameOver == null
+                        && core.TurnEngine.CurrentPhase?.Phase == PhaseType.Main
+                        && ReferenceEquals(me, core.TurnEngine.TurnPlayer))
+                    {
+                        if (ApplyIntent(seat, NetworkMessageType.IntentEndTurn, emptyPayload))
+                            coverage[TideActionType.EndTurn] = coverage.GetValueOrDefault(TideActionType.EndTurn) + 1;
                     }
 
                     // End→Standby 折返（编辑器无帧泵的既定惯例，同 AiBattleDriver）
@@ -508,7 +538,7 @@ namespace CardCore.Editor
                         core.TurnEngine.CheckPhaseTransition();
                 }
 
-                foreach (var type in new[] { TideActionType.PlayCard, TideActionType.PlayLand, TideActionType.Attack, TideActionType.EndTurn })
+                foreach (var type in new[] { TideActionType.PlayCard, TideActionType.Charge, TideActionType.PlayLand, TideActionType.Attack, TideActionType.EndTurn })
                     Assert(coverage.GetValueOrDefault(type) >= 1, $"intent 覆盖 {type} × {coverage.GetValueOrDefault(type)} ≥ 1");
                 Debug.Log($"[NetVerify] intent 覆盖：{string.Join(", ", coverage.Select(k => $"{k.Key}×{k.Value}"))}");
 
@@ -605,7 +635,8 @@ namespace CardCore.Editor
 
         // ============================================================
         // 第五段：开局握手（DeckSubmit/MatchManifest + 卡组引用闭包校验，2026-09-22）
-        // 口径：只核对卡组引用闭包（卡/效果 ID 命中即一致 + 闭包原子行内容摘要）——不做全池对比。
+        // 口径：只核对卡组引用闭包（不做全池对比）。2026-11-05 ID 冻结收口后三层各带指纹：
+        // 卡/效果层 ContentSig + 原子行 AtomicRowsHash + 衍生物绑定 TokenSig——ID 命中不再蕴含内容一致。
         // ============================================================
 
         private static void RunHandshakeSection()
@@ -723,6 +754,92 @@ namespace CardCore.Editor
             Assert(!NetMatchHandshake.VerifyMatchManifest(echoTampered, deckIds, out var echoReason)
                    && echoReason.Contains("回显"),
                 $"客户端拒绝卡组回显不符（{echoReason}）");
+
+            // ---- 5f. 反例：ContentSig（2026-11-05 ID 冻结收口·协议 v8）----
+            // 漂移（同 ID 不同内容）——ID 命中不再蕴含内容一致，指纹段必须拦下
+            var contentDrift = new MsgDeckSubmit
+            {
+                DeckName = "内容指纹漂移",
+                CardIds = deckIds,
+                Digest = new NetDeckDigest
+                {
+                    AtomicRowsHash = digest.AtomicRowsHash,
+                    AtomicRowCount = digest.AtomicRowCount,
+                    TokenSig = digest.TokenSig,
+                    ContentSig = "00000000",
+                },
+            };
+            Assert(!NetMatchHandshake.ValidateDeckSubmit(contentDrift, out var contentReason)
+                   && contentReason.Contains("内容指纹不一致"),
+                $"卡/效果内容指纹漂移被拒（{contentReason}）");
+
+            // 旧客户端（协议 v7 及以前——Digest 无 ContentSig 段）
+            var legacySubmit = new MsgDeckSubmit
+            {
+                DeckName = "旧版客户端",
+                CardIds = deckIds,
+                Digest = new NetDeckDigest
+                {
+                    AtomicRowsHash = digest.AtomicRowsHash,
+                    AtomicRowCount = digest.AtomicRowCount,
+                    TokenSig = digest.TokenSig,
+                },
+            };
+            Assert(!NetMatchHandshake.ValidateDeckSubmit(legacySubmit, out var legacyReason)
+                   && legacyReason.Contains("未随提交携带内容指纹摘要"),
+                $"旧版客户端（无 ContentSig）被拒并点名升级（{legacyReason}）");
+
+            // 客户端侧同口径：服务器缺 ContentSig / 指纹漂移
+            var noSigManifest = NetMatchHandshake.BuildMatchManifest(0, deckIds, deckIds.Length);
+            noSigManifest.OwnDeckDigest = new NetDeckDigest
+            {
+                AtomicRowsHash = digest.AtomicRowsHash,
+                AtomicRowCount = digest.AtomicRowCount,
+                TokenSig = digest.TokenSig,
+            };
+            Assert(!NetMatchHandshake.VerifyMatchManifest(noSigManifest, deckIds, out var noSigReason)
+                   && noSigReason.Contains("未携带内容指纹摘要"),
+                $"客户端拒绝无 ContentSig 的服务器（{noSigReason}）");
+            var sigTampered = NetMatchHandshake.BuildMatchManifest(0, deckIds, deckIds.Length);
+            sigTampered.OwnDeckDigest.ContentSig = "DEADBEEF";
+            Assert(!NetMatchHandshake.VerifyMatchManifest(sigTampered, deckIds, out var sigReason)
+                   && sigReason.Contains("内容指纹不一致"),
+                $"客户端拒绝 ContentSig 漂移的服务器（{sigReason}）");
+
+            // 构成断言：指纹段确实覆盖卡层（同 ID 改 ConfigHash → 摘要必须变）
+            // hash 列由「仅重推费用（三池·不动ID）」回填——未回填时此处响亮红提示先跑回填
+            var hashSample = pool.FirstOrDefault(c => !string.IsNullOrEmpty(c.ConfigHash));
+            Assert(hashSample != null,
+                "卡表 hash 指纹列已回填（存在 ConfigHash 非空卡——若红：先跑 Tools/仅重推费用（三池·不动ID））");
+            if (hashSample != null)
+            {
+                string original = hashSample.ConfigHash;
+                hashSample.ConfigHash = "TESTDRIFT"; // 内存模拟「另一端同 ID 不同内容」
+                var driftedDigest = NetMatchHandshake.ComputeDeckDigest(deckIds);
+                // 漂移态下用改前摘要提交（= 旧客户端按旧内容算的指纹）——必须被指纹段拦下
+                var sameIdDiffContent = new MsgDeckSubmit
+                {
+                    DeckName = "同ID不同内容",
+                    CardIds = deckIds,
+                    Digest = digest,
+                };
+                bool sidRejected = !NetMatchHandshake.ValidateDeckSubmit(sameIdDiffContent, out var sidReason);
+                hashSample.ConfigHash = original; // 还原（目录缓存是共享态）
+                Assert(sidRejected && sidReason.Contains("内容指纹不一致"),
+                    $"两端同 ID 不同内容在握手期被拒（{sidReason}——ID 冻结后旧防线已拆，指纹段是唯一闸）");
+                Assert(driftedDigest.ContentSig != digest.ContentSig
+                       && driftedDigest.AtomicRowsHash == digest.AtomicRowsHash,
+                    "同 ID 改 ConfigHash → ContentSig 变而原子行摘要不变（三层各管各段）");
+            }
+
+            // 协议版本闸（v8 起）：单源判定函数——接线点 NetRoom.OnMessage（服务器上行，
+            // 对局/大厅共用）与 NetGameClient.Dispatch（客户端下行）/两处 AI 回环 Dispatch
+            Assert(!NetworkProtocol.IsCompatible(0)                                     // legacy 草稿期
+                   && !NetworkProtocol.IsCompatible((ushort)(NetworkProtocol.Version + 1)) // 未来版本
+                   && NetworkProtocol.IsCompatible(NetworkProtocol.Version),
+                $"协议版本闸判定（本端 v{NetworkProtocol.Version}，非本端一律拒）");
+            Assert(NetworkProtocol.MismatchText(7).Contains("协议不兼容") && NetworkProtocol.MismatchText(7).Contains("升级"),
+                "失配文案单源（含「协议不兼容」与「升级」——Error 帧与断连日志共用）");
         }
 
         // ============================================================
@@ -779,13 +896,24 @@ namespace CardCore.Editor
                     && a.LastRoomState.Players[1].Connected && a.LastRoomState.SpectatorCount == 1,
                     "双玩家位满仍 Waiting（就绪层 2026-10-28：等准备+房主开局；观战 1 人）");
 
-                // 就绪层（2026-10-28）：B 准备 → A（房主椅0）开局 → DeckSubmit（先手已定+倒计时起算）
+                // 就绪层（2026-10-28）：B 准备 → **泵至服务器落定（房主可观 GuestReady）** → A（房主椅0）开局。
+                // 修复（2026-11-05）：旧写法 Ready/Start 背靠背发送——服务器按连接序先处理 A 队列里的
+                // RoomStart（B 的 RoomReady 尚未处理、_ready[1] 仍 false）确定性被拒，房间永不进
+                // DeckSubmit。真实客户端等看到 GuestReady 才点开局，驱动对齐该时序。
                 b.Send(NetworkMessageType.RoomReady, new MsgRoomReady { Ready = true });
-                a.Send(NetworkMessageType.RoomStart, new object());
+                for (int i = 0; i < 100 && a.LastRoomState?.GuestReady != true; i++)
+                    PumpAndReceive(server, 30, a, b, spec);
+                Assert(a.LastRoomState?.GuestReady == true, "房主可观 GuestReady（B 就绪已落定）");
+                // 空载荷传 (object)null（镜像生产端 LobbyScreen/NetAiFiller）：BuildEnvelope 对 null 短路为
+                // 空 byte[]——旧写法 new object() 令 Send<T=object> 走 MemoryPack 序列化，抛
+                // 「System.Object is not registered」被 Send 的 try-catch 静默吞掉并置 Disconnected——
+                // RoomStart 从未发出、A 哑死（socket 冒烟自就绪层上线以来的真凶，非时序问题）。
+                a.Send(NetworkMessageType.RoomStart, (object)null);
                 for (int i = 0; i < 100 && (a.LastRoomState == null || a.LastRoomState.Phase != (int)NetRoomPhase.DeckSubmit); i++)
                     PumpAndReceive(server, 30, a, b, spec);
                 Assert(a.LastRoomState != null && a.LastRoomState.Phase == (int)NetRoomPhase.DeckSubmit,
-                    "客人准备+房主开局 → DeckSubmit");
+                    $"客人准备+房主开局 → DeckSubmit（取证：phase={a.LastRoomState?.Phase} guestReady={a.LastRoomState?.GuestReady}"
+                    + $" A收Error=[{string.Join("；", a.Errors.Select(e => e.Context + ":" + e.Reason))}]）");
 
                 // ---- 6b. 握手（真实 socket 驱动 §11 消息流）----
                 a.Send(NetworkMessageType.DeckSubmit, submit);
@@ -1188,11 +1316,24 @@ namespace CardCore.Editor
                 a.Connect(server.Port);
                 b.Connect(server.Port);
 
-                // 进房（就绪层 2026-10-28：双方就座 → B 准备 → A 开局 → DeckSubmit，再提交）
+                // 进房（就绪层 2026-10-28）：双方就座 → 泵至落定 → B 准备 → 泵至 GuestReady → A 开局。
+                // 修复（2026-11-05）：旧写法四消息背靠背发送，服务器按连接序先处理 A 队列里的
+                // RoomStart（B 未就座/未准备）确定性被拒——三局全从未开局（120s×3 空转即旧 4 红根因）。
                 a.Send(NetworkMessageType.JoinRoom, new MsgJoinRoom { RoomId = "m3", WantSeat = 0, Nickname = "A" });
                 b.Send(NetworkMessageType.JoinRoom, new MsgJoinRoom { RoomId = "m3", WantSeat = 1, Nickname = "B" });
+                for (int i = 0; i < 100 && !(a.LastRoomState?.Players != null && a.LastRoomState.Players.Length == 2
+                     && a.LastRoomState.Players[0].Connected && a.LastRoomState.Players[1].Connected); i++)
+                {
+                    server.Pump();
+                    a.Receive(10); b.Receive(10);
+                }
                 b.Send(NetworkMessageType.RoomReady, new MsgRoomReady { Ready = true });
-                a.Send(NetworkMessageType.RoomStart, new object());
+                for (int i = 0; i < 100 && a.LastRoomState?.GuestReady != true; i++)
+                {
+                    server.Pump();
+                    a.Receive(10); b.Receive(10);
+                }
+                a.Send(NetworkMessageType.RoomStart, (object)null); // 空载荷=null（new object() 会炸 MemoryPack——见 6a 注）
                 for (int i = 0; i < 200 && !(a.LastRoomState?.Phase == (int)NetRoomPhase.DeckSubmit
                     && b.LastRoomState?.Phase == (int)NetRoomPhase.DeckSubmit); i++)
                 {

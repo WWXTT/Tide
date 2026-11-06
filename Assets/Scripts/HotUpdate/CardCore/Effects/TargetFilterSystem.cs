@@ -1,4 +1,4 @@
-﻿using CardCore.Attribute;
+using CardCore.Attribute;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -440,24 +440,26 @@ namespace CardCore
         }
 
         /// <summary>某玩家的战场生物（有生命单位中的卡部分；角色由调用方补）。
-        /// 死亡事件窗口内死卡仍列战场区（先死亡后移墓定案，见 DeathRules.TryKill）且
-        /// IsAlive 已先置 false——须滤除，否则死亡计数等事件内同步结算的目标弹窗见已死生物。</summary>
+        /// **2026-11-05 用户定案：按速度划分，0 速以上都能选，预选与效果中一视同仁**——
+        /// 已标死未送墓的卡（死亡先于移墓，见 DeathRules.TryKill）一律留在候选里，
+        /// 能不能真打出去交给速度门（0 速卡无法在响应窗口出手）。
+        /// 旧口径「死亡事件窗口内滤除已死生物」作废：救回机制（治疗解标死）需要它能被选中。</summary>
         private List<Entity> CreaturesOf(Player player)
         {
             var list = new List<Entity>();
             foreach (var c in GetZoneCards(player, Zone.Battlefield))
-                if (c.IsAlive && c is IHasSupertype st && st.Supertype == Cardtype.Creature)
+                if (c is IHasSupertype st && st.Supertype == Cardtype.Creature)
                     list.Add(c);
             return list;
         }
 
-        /// <summary>某玩家的战场非生物持久物（无生命单位）。死亡滤除同 <see cref="CreaturesOf"/>
-        ///（结界耐久归零死亡同样先死亡后移墓）。</summary>
+        /// <summary>某玩家的战场非生物持久物（无生命单位）。口径同 <see cref="CreaturesOf"/>：
+        /// 已标死未送墓的也留在候选里，由速度门决定能否出手。</summary>
         private List<Entity> NonLivingOf(Player player)
         {
             var list = new List<Entity>();
             foreach (var c in GetZoneCards(player, Zone.Battlefield))
-                if (c.IsAlive && c is IHasSupertype st && st.Supertype != Cardtype.Creature)
+                if (c is IHasSupertype st && st.Supertype != Cardtype.Creature)
                     list.Add(c);
             return list;
         }

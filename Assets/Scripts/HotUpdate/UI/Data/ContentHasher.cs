@@ -67,7 +67,8 @@ namespace SynergyUI
             }
             sb.Append('|');
 
-            // 连接光环声明影响功能（三轨制 2026-09-09）
+            // 连接光环声明影响功能（三轨制 2026-09-09；2026-11-05 效果光环：effectRef 非空才
+            // 追加 '#id'——存量卡 id 零漂移，P2-2 domain 先例同款）
             var auras = card.LinkAuras;
             if (auras != null && auras.Count > 0)
             {
@@ -76,7 +77,10 @@ namespace SynergyUI
                 {
                     if (aura == null) continue;
                     sb.Append(aura.stat ?? "").Append('=').Append(aura.value)
-                      .Append('#').Append(aura.keyword ?? "").Append(',');
+                      .Append('#').Append(aura.keyword ?? "");
+                    if (!string.IsNullOrEmpty(aura.effectRef))
+                        sb.Append('#').Append(aura.effectRef);
+                    sb.Append(',');
                 }
                 sb.Append('|');
             }
@@ -149,14 +153,17 @@ namespace SynergyUI
                 // 光环段（2026-09-23 效果级）：箭头/光环条目随效果哈希——空声明不写段（存量效果 id 零漂移）
                 if (h.ArrowDirections != 0 || (h.LinkAuras != null && h.LinkAuras.Count > 0))
                 {
-                    sb.Append("AUR:").Append(h.ArrowDirections).Append(';');
-                    foreach (var aura in h.LinkAuras)
-                    {
-                        if (aura == null) continue;
-                        sb.Append(aura.stat ?? "").Append('=').Append(aura.value)
-                          .Append('#').Append(aura.keyword ?? "").Append(',');
-                    }
-                    sb.Append('|');
+                sb.Append("AUR:").Append(h.ArrowDirections).Append(';');
+                foreach (var aura in h.LinkAuras)
+                {
+                    if (aura == null) continue;
+                    sb.Append(aura.stat ?? "").Append('=').Append(aura.value)
+                      .Append('#').Append(aura.keyword ?? "");
+                    if (!string.IsNullOrEmpty(aura.effectRef))
+                        sb.Append('#').Append(aura.effectRef); // 2026-11-05 效果光环：非空才写=存量零漂移
+                    sb.Append(',');
+                }
+                sb.Append('|');
                 }
             }
             sb.Append("STEPS:");

@@ -1014,6 +1014,56 @@ namespace CardCore
                     // 关键词条目值化（2026-10-07 深夜）：magnitude=|value|（Boolean 关键词 value=0 恒 1）
                     magnitude = System.Math.Max(1, System.Math.Abs(aura.value));
                 }
+                else if (!string.IsNullOrEmpty(aura.effectRef))
+                {
+                    // 效果光环条目（2026-11-05 定案）：费用=引用效果锚价（钉死行直读 cost 列、
+                    // 其余实时推导——与效果库存库 DeriveAnchorCost 同口径）×作用面系数
+                    //（箭头档=位数 ×1.2^(n−1)、作用面档同含角色 5 档口径）；次数乘数恒 1
+                    //（拍板：平衡杠杆=载体可被拆除，触发不另收元素费）。悬空/推导失败计 0 价注明
+                    //（资格与悬空的拦截在装载闸与编辑器校验口，此处不重复）。
+                    var dto = EffectsLibrary.Get(aura.effectRef);
+                    if (dto == null)
+                    {
+                        breakdown?.Add(new CostBreakdownLine("A", $"效果光环 {aura.effectRef}（悬空引用，计 0）", 0f));
+                        continue;
+                    }
+                    ElementCost anchor;
+                    try
+                    {
+                        if (dto.costPin != 0 && dto.cost != null)
+                            anchor = new ElementCost(dto.cost.ToArray());
+                        else
+                        {
+                            var fxData = EffectSlim.ToCardEffect(dto);
+                            var fxDef = CardEffectConverter.ConvertOne(fxData, dto.id ?? "");
+                            anchor = (fxDef != null ? CostDerivationService.DeriveElementCosts(fxDef, 0) : null)
+                                     ?? new ElementCost();
+                        }
+                    }
+                    catch
+                    {
+                        anchor = new ElementCost(); // 推导失败不阻断计价（费用预览显示 0——同库存库容错）
+                    }
+                    int fxLadder = aura.scope > 0 ? 5 : CountArrowBits(card.ArrowDirections);
+                    float fxSurface = fxLadder > 1 ? (float)Math.Pow(1.2f, fxLadder - 1) : 1f;
+                    float fxFirst = 0f, fxFirstRaw = 0f;
+                    ManaType fxFirstColor = ManaType.Gray;
+                    foreach (var color in anchor.NonzeroColors())
+                    {
+                        float amount = anchor[color] * fxSurface;
+                        if (amount <= 0f) continue;
+                        buckets.TryGetValue(color, out var prev);
+                        buckets[color] = prev + amount;
+                        auraTotal += amount;
+                        if (fxFirst == 0f) { fxFirst = amount; fxFirstRaw = anchor[color]; fxFirstColor = color; }
+                    }
+                    string fxBaseZh = $"{fxFirstRaw:0.##}{ColorZh(fxFirstColor)}";
+                    string fxArrowZh = fxSurface > 1f ? $"目标系数【×{fxSurface:0.###}】" : "";
+                    breakdown?.Add(new CostBreakdownLine("A",
+                        $"效果·{dto.name ?? aura.effectRef} 费用基准【{fxBaseZh}】{fxArrowZh}",
+                        fxFirst, fxFirstColor));
+                    continue;
+                }
                 else continue;
 
                 var atomCfg = AtomicEffectTable.GetByType(rep);
@@ -1089,9 +1139,9 @@ namespace CardCore
         /// <summary>色中文名（明细行费用基准【x】显示用；与 CostDerivation.AnchorZh 同字面）。</summary>
         private static string ColorZh(ManaType m) => m switch
         {
-            ManaType.Red => "火",
-            ManaType.Blue => "水",
-            ManaType.Green => "植物",
+            ManaType.Red => "红",
+            ManaType.Blue => "蓝",
+            ManaType.Green => "绿",
             ManaType.Gray => "灰",
             _ => m.ToString(),
         };

@@ -94,13 +94,15 @@ namespace CardCore
             if (!hand.Contains(card)) { reason = "充能对象必须在手牌"; return false; }
             if (engine.IsPendingCast(card)) { reason = "该卡施放中（结算未完成）"; return false; }
 
+            // 满色前置（2026-11-05 拍板口径）：「没有可充颜色」先于每回合一档报告——充满后
+            // 探针/UI 须见满色拒因（每回合一档在同一张卡刚充过时恒真，放前面会吞掉满色信息）。
+            if (ChargeRemainingOf(card).Count == 0)
+            { reason = "该卡没有可充颜色（各色已充满或卡费无对应色）"; return false; }
+
             // 一张卡一回合只能发动一次（2026-11-05 改版保持）：宣入即记账（StackEngine 充能专账），
             // 发动层无效不退账；跨回合随台账清零恢复（进度层本身跨回合保留）。
             if (ChargeUsedThisTurn(core, card))
             { reason = "充能一回合只能发动一次（本回合已充过）"; return false; }
-
-            if (ChargeRemainingOf(card).Count == 0)
-            { reason = "该卡没有可充颜色（各色已充满或卡费无对应色）"; return false; }
             return true;
         }
 
@@ -1109,6 +1111,10 @@ namespace CardCore
                     // 与设计意图冲突。此处只放开手牌整卡：要求 ①速≥1（0 速牌仍锁在自家主阶段）
                     // ②速≥记速器（同速可接、更慢不行）。效果发动仍走全严格大于（不变）。
                     if (castSpeed < 1 || castSpeed < engine.SpeedCounter.CurrentSpeed) continue;
+                    // SBA 窗非回合方严格大于（2026-09-15 SbaStackSpeed 定案——与 PushCardCast 同口）：
+                    // SBA 栈顶时非回合方候选按角色门槛剔列，防泵自动代选非法响应
+                    if (engine.PeekStack()?.IsSBA == true && p != core.TurnEngine?.TurnPlayer
+                        && castSpeed <= engine.SpeedCounter.CurrentSpeed) continue;
                     if (!c.IsSpellCard() && !core.ZoneManager.HasBattlefieldSpace(p)) continue;
                     var data = (c as CardWrapper)?.GetData();
                     int modes = data?.Supertype == Cardtype.Spell
@@ -1433,6 +1439,9 @@ namespace CardCore
             bool edictExempt = chosen != null && chosen.Effects != null
                 && chosen.Effects.Any(a => a != null && TargetResolver.IsEdict(a.Type));
             targets = TargetResolver.FilterPreselectedTargets(targets, player, player, core.ZoneManager, edictExempt);
+            // 取证（2026-11-05 SBA 救回排查）：法术结算前的目标过滤结果
+            GameActions.Crumb($"[CAST] {card.ID} defs={defs?.Count ?? 0} atoms={chosen?.Effects?.Count ?? 0} " +
+                              $"targetsAfterFilter={targets?.Count ?? 0}");
             if (chosen != null)
             {
                 var executor = core.StackEngine.GetExecutor();
@@ -2251,9 +2260,9 @@ namespace CardCore
 
         private static string ManaZh(ManaType type) => type switch
         {
-            ManaType.Red => "火",
-            ManaType.Blue => "水",
-            ManaType.Green => "植物",
+            ManaType.Red => "红",
+            ManaType.Blue => "蓝",
+            ManaType.Green => "绿",
             ManaType.Any => "任意",
             _ => "灰",
         };

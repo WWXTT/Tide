@@ -287,8 +287,10 @@ namespace CardCore
                 ArrowDirections = dto.arrows,
                 LinkAuras = dto.linkAuras != null && dto.linkAuras.Count > 0
                     ? dto.linkAuras.Where(a => a != null
-                        && (!string.IsNullOrEmpty(a.stat) || !string.IsNullOrEmpty(a.keyword))).ToList()
-                    : null, // 光环条目（2026-09-23 效果级）——无效条目装载期即丢弃
+                        && (!string.IsNullOrEmpty(a.stat) || !string.IsNullOrEmpty(a.keyword)
+                            || !string.IsNullOrEmpty(a.effectRef))).ToList()
+                    : null, // 光环条目（2026-09-23 效果级）——无效条目（三空）装载期即丢弃；
+                            // effectRef 条目（2026-11-05 效果光环）第四处三空口径与装载/聚合/发射同源
                 AnchorCost = dto.cost != null && dto.cost.Count > 0
                     ? new ElementCost(dto.cost.ToArray())
                     : null, // 锚价缓存（2026-09-23；2026-10-04 位置数组）——装载期逐效果建立
@@ -355,15 +357,18 @@ namespace CardCore
             return o;
         }
 
-        /// <summary>光环条目：stat/keyword 双空=无效条目不写；value/scope 非零才写。
-        /// public=卡表发射（CardConfigCompact）共用同源口径（2026-10-13）。</summary>
+        /// <summary>光环条目：stat/keyword/effectRef 三空=无效条目不写；value/scope 非零才写。
+        /// public=卡表发射（CardConfigCompact）共用同源口径（2026-10-13）。
+        /// effectRef 非空才写=存量零漂移（P2-2 domain 先例，2026-11-05 效果光环）。</summary>
         public static JObject EmitLinkAura(LinkAuraData a)
         {
-            if (string.IsNullOrEmpty(a.stat) && string.IsNullOrEmpty(a.keyword)) return null;
+            if (string.IsNullOrEmpty(a.stat) && string.IsNullOrEmpty(a.keyword)
+                && string.IsNullOrEmpty(a.effectRef)) return null;
             var o = new JObject();
             if (!string.IsNullOrEmpty(a.stat)) o["stat"] = a.stat;
             if (a.value != 0) o["value"] = a.value;
             if (!string.IsNullOrEmpty(a.keyword)) o["keyword"] = a.keyword;
+            if (!string.IsNullOrEmpty(a.effectRef)) o["effectRef"] = a.effectRef;
             if (a.scope != 0) o["scope"] = a.scope;
             return o;
         }

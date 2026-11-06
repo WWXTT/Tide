@@ -45,6 +45,15 @@ namespace CardCore.Attribute
         public const int CategoryAura = 3;
         public const int CategorySystem = 4;
 
+        // 来源表中文名（2026-11-05）：下标与 TableFiles/Category 常量一一对应——合成器右栏行 tag
+        // 「所在原子表」展示的唯一口径（tag 不再显示 Tags 表色回填色名/预设卡组名——色名仍在 Tags
+        // 供 ElementAffinity 色匹配，卡组名仍在搜索语料）。
+        public static readonly string[] CategoryZhNames = { "一般效果", "关键词", "指示物", "光环", "系统" };
+
+        /// <summary>来源表中文名（越界回退空串）。</summary>
+        public static string CategoryZhOf(int category)
+            => category >= 0 && category < CategoryZhNames.Length ? CategoryZhNames[category] : "";
+
         private static Dictionary<int, AtomicEffectConfig> _idMap;
         private static Dictionary<string, AtomicEffectConfig> _hashIdMap;
         private static Dictionary<string, AtomicEffectConfig> _enumNameMap;

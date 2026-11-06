@@ -400,6 +400,14 @@ namespace CardCore.Network
 
             private void Dispatch(NetworkMessage msg)
             {
+                // 协议版本闸（v8 起，2026-11-05）：失配=版本错乱（同进程回环理论不触发），断连自护
+                if (!NetworkProtocol.IsCompatible(msg.ProtocolVersion))
+                {
+                    TideLog.Error($"[NetLobbyServer.AiLoopback] {NetworkProtocol.MismatchText(msg.ProtocolVersion)}——断开");
+                    _disconnected = true;
+                    return;
+                }
+
                 switch (msg.Type)
                 {
                     case NetworkMessageType.RoomState:

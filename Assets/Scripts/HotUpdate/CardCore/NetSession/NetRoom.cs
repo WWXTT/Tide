@@ -95,6 +95,14 @@ namespace CardCore.Network
         {
             if (conn == null || msg == null) return;
 
+            // 协议版本闸（v8 起，2026-11-05）：此前信封版本只写不校验，新旧端只能靠
+            // MemoryPack 错位自然崩——现显式拒绝并回 Error 帧（对局/大厅共用本口）。
+            if (!NetworkProtocol.IsCompatible(msg.ProtocolVersion))
+            {
+                SendError(conn, NetworkProtocol.MismatchText(msg.ProtocolVersion), "ProtocolVersion");
+                return;
+            }
+
             try
             {
                 switch (msg.Type)
@@ -347,8 +355,24 @@ namespace CardCore.Network
             Attribute.Handlers.SummonTokenHandler.ResolveTemplate = CardCatalog.GetById;
             // P9b：卡组期绑定盖到卡实例（效果序号→模板 ID；空表=固定绑定走原子 str）；
             // 衍生物区模板随组入局（IsTokenTemplate 分流落 Zone.Extra）
-            var deckFirst = BuildDeck(_deckIds[_firstSeat], _deckTokens[_firstSeat]);
-            var deckSecond = BuildDeck(_deckIds[1 - _firstSeat], _deckTokens[1 - _firstSeat]);
+            // 缺卡响亮拒绝（2026-11-05 ID 冻结收口）：提交链有 ValidateDeckSubmit 全命中校验，
+            // 此处 miss = 预组超时替落断链 / 提交后卡表漂移（mtime 重载）——不再静默跳卡变薄，
+            // 广播错误并退回提交位（宁可不开局，与「宁可拒不可静默」同口径）。
+            var missingFirst = new List<string>();
+            var missingSecond = new List<string>();
+            var deckFirst = BuildDeck(_deckIds[_firstSeat], _deckTokens[_firstSeat], missingFirst);
+            var deckSecond = BuildDeck(_deckIds[1 - _firstSeat], _deckTokens[1 - _firstSeat], missingSecond);
+            if (missingFirst.Count > 0 || missingSecond.Count > 0)
+            {
+                int total = missingFirst.Count + missingSecond.Count;
+                var sample = string.Join(", ", missingFirst.Concat(missingSecond).Distinct().Take(3));
+                TideLog.Error($"[NetRoom] 开局中止：卡表缺失 {total} 张（如 {sample}）——预组断链或表内容漂移");
+                BroadcastError($"开局中止：卡组引用的 {total} 张卡不在本端卡表（预组断链或内容漂移）——请重新提交卡组");
+                if (missingFirst.Count > 0) ResetSeatDeck(_firstSeat);
+                if (missingSecond.Count > 0) ResetSeatDeck(1 - _firstSeat);
+                _roomStateDirty = true;
+                return;
+            }
             core.InitGame(CardLoader.BuildDeck(deckFirst, 1, _deckTokenBindings[_firstSeat]),
                 CardLoader.BuildDeck(deckSecond, 1, _deckTokenBindings[1 - _firstSeat]), _seed,
                 lockDeckOrder: _settingsShuffle == 1,
@@ -453,20 +477,30 @@ namespace CardCore.Network
         /// TeardownMatch 幂等，与 ResetIfEmpty 重复调用无副作用。</summary>
         public void TeardownIfActive() => TeardownMatch();
 
-        private static List<CardData> BuildDeck(string[] cardIds, string[] tokenCardIds)
+        /// <summary>清空某座位的卡组提交态（缺卡中止回退用——镜像 DeckSubmit 相位断线重置块的字段集）。</summary>
+        private void ResetSeatDeck(int seat)
+        {
+            _deckIds[seat] = null;
+            _skillIds[seat] = null;
+            _deckTokens[seat] = null;
+            _deckTokenBindings[seat] = null;
+        }
+
+        private static List<CardData> BuildDeck(string[] cardIds, string[] tokenCardIds, List<string> missing)
         {
             var deck = new List<CardData>(cardIds.Length);
             foreach (var id in cardIds)
             {
                 var card = CardCatalog.GetById(id);
                 if (card != null) deck.Add(card);
+                else missing.Add(id); // 2026-11-05 响亮拒绝：不再静默跳卡（StartMatch 聚合中止）
             }
-            // P9b 衍生物区模板随组入局（落 Zone.Extra）；缺失 id 记警告跳过（同上口径）
+            // P9b 衍生物区模板随组入局（落 Zone.Extra）；缺失同入 missing（同口径）
             foreach (var id in tokenCardIds ?? Array.Empty<string>())
             {
                 var card = CardCatalog.GetById(id);
                 if (card != null) deck.Add(card);
-                else TideLog.Warn($"[NetRoom] 衍生物区模板 {id} 不在卡表——已跳过");
+                else missing.Add(id);
             }
             return deck;
         }

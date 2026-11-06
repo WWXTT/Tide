@@ -240,8 +240,10 @@ namespace CardCore
 
             // 持续指示物消退（2026-09-16 统一档定案：限时指示物一律持续到**持有者**回合结束）：
             // 只结算回合方侧——自己回合末清自己的（冻结/毒素/易损/紊乱/限时属性层），
-            // 对手的要等对手回合末；突袭的"不能以玩家为目标"限制随自己回合末解除
-            Attribute.CounterRules.OnTurnEnd(e.TurnPlayer, ZoneManager);
+            // 对手的要等对手回合末；突袭的"不能以玩家为目标"限制随自己回合末解除。
+            // 2026-11-05 迁址：倒数挪至 PublishEventRouted 的 TriggerEngine 之后——同一回合末的
+            // OnTurnEnd 触发式须按**倒数前**层数评估压制（沉睡末层回合末仍压：层覆盖整个回合末）。
+            // 延迟死亡（下方）先于倒数执行不影响语义：本回合倒数期登记的条目本就须等下个回合末。
 
             // 延迟死亡（2026-10-29 阶段3b）：到点条目执行死亡（指示物倒数之后——毒素等回合末
             // 死亡同轮登记的条目ScheduledTurn=本回合，须等下个回合末；离开战场/已死的条目撤销）
@@ -834,10 +836,8 @@ namespace CardCore
             // 延时保护（2026-10-30 指示物化）：无独立局重置口——指示物随 CounterRules 清；延迟死亡待死条目同批清
             Attribute.DeathRules.ResetDelayedDeaths();
 
-            // 守护配对（2026-10-08 配对制改版）：入场弹选保护目标/离场断链——组合根登记（幂等，
-            // 先退再订防多局重复订阅）+ 配对表跨局不残留（被守护者引用跨局失效）
-            Attribute.GuardianRules.EnsureSubscribed();
-            Attribute.GuardianRules.Reset();
+            // 守护接线已删（2026-11-05 简化定案）：固定护角色无状态——无弹选/配对表/事件订阅，
+            // 改写实时查询（GuardianRules.FindGuardian，ApplyDamage 咽喉）。
 
             // 舍身配对接线已删（2026-10-30 战斗法师改版）：无状态关键词——散射内联
             // KeywordRules.ApplyDamage 咽喉，MartyrdomRules 配对表/订阅/跨局清档整套退役。
@@ -906,6 +906,11 @@ namespace CardCore
             EventManager.Instance.PublishDynamic(e);
             BranchEngines.OnRoutedEvent(e);
             TriggerEngine.OnEvent(e);
+            // 回合末指示物倒数（2026-09-16 持续档定案；2026-11-05 自 OnTurnEnded 订阅迁此）：
+            // 置于 TriggerEngine 之后——OnTurnEnd 触发式的压制读数（沉睡/失效）按倒数前层数评估，
+            // 层覆盖整个回合末；倒数本身在评估后收尾，回合末外的读取时点不受影响。
+            if (e is TurnEndEvent tee)
+                Attribute.CounterRules.OnTurnEnd(tee.TurnPlayer, ZoneManager);
             LayerEngine?.OnEvent(e);
         }
 

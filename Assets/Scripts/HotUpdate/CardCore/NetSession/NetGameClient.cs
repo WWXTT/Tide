@@ -62,6 +62,20 @@ namespace CardCore.Network
 
         private void Dispatch(NetworkMessage msg)
         {
+            // 协议版本闸（v8 起，2026-11-05）：下行失配 = 版本不一致，显式报错断连——
+            // 不能再靠 MemoryPack 错位解出垃圾继续打。
+            if (!NetworkProtocol.IsCompatible(msg.ProtocolVersion))
+            {
+                TideLog.Error($"[NetGameClient] {NetworkProtocol.MismatchText(msg.ProtocolVersion)}——已断开");
+                OnError?.Invoke(new MsgError
+                {
+                    Reason = NetworkProtocol.MismatchText(msg.ProtocolVersion),
+                    Context = "ProtocolVersion",
+                });
+                MarkDisconnected();
+                return;
+            }
+
             switch (msg.Type)
             {
                 case NetworkMessageType.LobbyState:

@@ -93,6 +93,29 @@ namespace SynergyUI
             return ComposeMode.Parallel;
         }
 
+        /// <summary>组合形态中文短名（2026-11-05：效果表行 tag 用——与模式条五形态同词表）。</summary>
+        private static string ModeZhOf(ComposeMode mode)
+        {
+            switch (mode)
+            {
+                case ComposeMode.FreeBranch: return "自由分支";
+                case ComposeMode.LimitedBranch: return "有限分支";
+                case ComposeMode.LinkAura: return "连接光环";
+                case ComposeMode.RangeAura: return "场地光环";
+                default: return "并列";
+            }
+        }
+
+        /// <summary>效果表行 tag（2026-11-05 定案）：组成原子所在原子表并集 + 组合方式（InferMode 同口径）。
+        /// 不再显示组成简称/预设卡组名（出处仍在搜索语料与 Meta 里）；原子表侧行 tag 则直接显示所在表
+        /// （AtomicEffectTable.CategoryZhOf）——Tags 的表色回填色名（植物/火…）只供色匹配，不上 tag。</summary>
+        private static string EffectTableTag(EffectGraphData fx, List<AtomicEffectConfig> parts)
+        {
+            var tables = string.Join("·", parts.Select(c => AtomicEffectTable.CategoryZhOf(c.TableCategory)).Distinct());
+            var mode = ModeZhOf(InferMode(fx));
+            return string.IsNullOrEmpty(tables) ? mode : tables + "·" + mode;
+        }
+
         // ======================================== 减费三选一（2026-11-02 定案） ========================================
 
         /// <summary>代价减费上限：每条代价行全价 ≤3（2026-11-03 当日两改：先放宽回 4，同日收回 3——
@@ -1012,6 +1035,8 @@ namespace SynergyUI
                     string body;
                     if (!string.IsNullOrEmpty(a.stat))
                         body = $"{subject}生物{StatZhOf(a.stat)}{a.value:+0;-0}";
+                    else if (!string.IsNullOrEmpty(a.effectRef))
+                        body = $"{subject}单位获得效果「{EffectsLibrary.Get(a.effectRef)?.name ?? a.effectRef}」";
                     else if (!string.IsNullOrEmpty(a.keyword))
                         body = $"{subject}单位获得{KeywordZh(a.keyword)}"; // 关键词条目恒含角色（2026-10-09 裁定）
                     else continue;
@@ -1369,9 +1394,9 @@ namespace SynergyUI
 
         private static string ColorZh(ManaType m) => m switch
         {
-            ManaType.Red => "火",
-            ManaType.Blue => "水",
-            ManaType.Green => "植物",
+            ManaType.Red => "红",
+            ManaType.Blue => "蓝",
+            ManaType.Green => "绿",
             ManaType.Gray => "灰",
             _ => m.ToString(),
         };
@@ -3500,7 +3525,7 @@ namespace SynergyUI
                 _effectItems.Add(new TableRowData
                 {
                     Name = captured.name,                                          // 行名（2026-10-23 行模板化恢复显示）
-                    Tag = string.Join("·", parts.Select(c => c?.DisplayName ?? "")), // 组成简称
+                    Tag = EffectTableTag(captured, parts), // 表归属∪组合方式（2026-11-05：组成简称退役）
                     Meta = AtomText.RenderEffectSummary(captured), // 完整效果描述（2026-10-03 定案：不再简写）
                     Dot = DotColor(ColorFilter.OfTagsCsv(parts.FirstOrDefault()?.Tags)),
                     Costs = captured.header?.AnchorCost,
@@ -3569,7 +3594,7 @@ namespace SynergyUI
                 _effectItems.Add(new TableRowData
                 {
                     Name = captured.name,
-                    Tag = "预设·" + string.Join("·", presetRefs[captured.id]),
+                    Tag = EffectTableTag(captured, parts), // 表归属∪组合方式（2026-11-05：预设卡组名退役——出处仍在搜索语料）
                     Meta = AtomText.RenderEffectSummary(captured) + "（预设效果——保存另存为新效果，不可删除）",
                     Dot = DotColor(ColorFilter.OfTagsCsv(parts.FirstOrDefault()?.Tags)),
                     Costs = captured.header?.AnchorCost,
@@ -3870,7 +3895,7 @@ namespace SynergyUI
                 _atomItems.Add(new TableRowData
                 {
                     Name = payload.Cfg.DisplayName,
-                    Tag = payload.Cfg.Tags,
+                    Tag = AtomicEffectTable.CategoryZhOf(payload.Cfg.TableCategory), // 所在原子表（2026-11-05：表色回填色名退役）
                     Meta = payload.Cfg.Description + CounterClearSuffix(payload.Cfg.Tags), // 2026-10-13 定案：指示物类行统一追加清除方式
                     Dot = DotColor(ColorFilter.OfTagsCsv(payload.Cfg.Tags)),
                     Costs = AtomCosts(payload.Cfg),
@@ -4152,6 +4177,29 @@ namespace SynergyUI
                     ColorFilter.OfKeyword(captured.id),
                     () => AddAura(new LinkAuraData { keyword = captured.id }));
             }
+
+            // ---- 效果光环（2026-11-05）：引用效果库组合效果——授予资格单源
+            // EffectEligibility.AuraGrantRejectReason（非主动∧多次档∧生物臂∧非可选∧无代价∧
+            // 非引擎主干）；箭头指向的单位在覆盖期间视为持有该触发效果（live-query：断链/载体
+            // 离场即失效；受益者失效/沉睡照发、仅绝缘体不收；元素费不逐次收——锚价随载体卡价） ----
+            var grantableFx = EffectLibrarySerializer.LoadAll()
+                .Where(g => g?.header != null && EffectEligibility.AuraGrantRejectReason(g.header) == null)
+                .ToList();
+            if (grantableFx.Count == 0)
+                AddTableHint(_atomItems, _libraryList,
+                    "效果光环：效果库暂无可授予效果（要求多次触发时机·非主动·非可选·无代价·生物可挂口径——先在效果表组合）");
+            foreach (var g in grantableFx)
+            {
+                var captured = g;
+                var parts = EffectAtomCfgs(captured);
+                var timing = (TriggerTiming)captured.header.TriggerTiming;
+                string timingZh = AtomText.TimingZh.TryGetValue(timing, out var tz) ? tz : timing.ToString();
+                AddRow($"效果光环·{captured.name}",
+                    $"授予「{captured.name}」（{timingZh}触发）——箭头指向的单位视为持有该触发效果；断链/载体离场即失效，"
+                    + "受益者失效/沉睡照发（仅绝缘体不收）；费用=效果锚价×箭头数，触发不另收元素费",
+                    ColorFilter.OfTagsCsv(parts.FirstOrDefault()?.Tags),
+                    () => AddAura(new LinkAuraData { effectRef = captured.id }));
+            }
         }
 
         /// <summary>点击库行 = 替换左侧选中槽（2026-10-23 五分类路由）；选中槽不合适该原子时 toast 提示。
@@ -4399,7 +4447,8 @@ namespace SynergyUI
 
             // ---- 连接光环面（2026-10-30 只留增益）：条目+箭头（仪典/属性降低不入——切「场地光环」配） ----
             MakeHint(parent, "光环＝持续增益：作用对象=箭头指向格的当前占据者（断链/离场即失效）——"
-                + "无作用面档/全体档；关键词条目恒含角色（指向角色格=投递角色），属性条目只作用于生物。");
+                + "无作用面档/全体档；关键词条目恒含角色（指向角色格=投递角色），属性条目只作用于生物；"
+                + "效果条目=箭头指向的单位视为持有该触发效果（仅多次触发时机·无代价效果可授予，2026-11-05）。");
             h.LinkAuras ??= new List<LinkAuraData>();
             // 条目归属归一：本面只留增益/关键词条目（负属性条目属场地光环——防御旧档/旁路），
             // 恒箭头档（scope=0，作用范围下拉已随 2026-10-30 删退役）；空条目一并剔除
@@ -4415,8 +4464,9 @@ namespace SynergyUI
             for (int i = 0; i < h.LinkAuras.Count; i++)
                 MakeAuraEntryCard(slot, i);
             if (h.LinkAuras.Count == 0)
-                MakeHint(slot, "尚无光环——右侧增益库点击选择（属性/关键词；新选即替换旧选）");
-            MakeHint(slot, "条目费=行锚×量级×箭头数（×1.2 按箭头数累乘；关键词条目恒含角色=箭头×5 档）；光环默认持续——不收持续费");
+                MakeHint(slot, "尚无光环——右侧增益库点击选择（属性/关键词/效果；新选即替换旧选）");
+            MakeHint(slot, "条目费=行锚×量级×箭头数（×1.2 按箭头数累乘；关键词条目恒含角色=箭头×5 档；"
+                + "效果条目=效果锚价×箭头数，触发不另收元素费）；光环默认持续——不收持续费");
 
             // ---- 连接箭头（2026-10-09 迁入光环槽底部——跨级克隆 tpl-arrows 进 slot；
             //      存在连接方向档条目才显示；作用面档条目不依赖箭头） ----
@@ -4447,17 +4497,28 @@ namespace SynergyUI
                         ? "未选箭头——连接光环必须搭配至少一支箭头（无箭头=永无受益者）；场地光环（仪典/属性降低）则不需要箭头" : null));
                 }
             }
-            // 校验：至少一条有效光环内容 + 关键词条目须位 5 可挂（仪典唯一性属规则光环面）
+            // 校验：至少一条有效光环内容 + 关键词条目须位 5 可挂 + 效果引用须可授予（仪典唯一性属规则光环面）
             _slotZones.Add(MakeZone(slot, () =>
             {
                 if (ValidAuraCount(h.LinkAuras) == 0)
                     return "无有效光环内容——至少配一条条目（空条目保存时剔除）";
                 foreach (var a in h.LinkAuras)
                 {
-                    if (a == null || string.IsNullOrEmpty(a.keyword)) continue;
-                    if (!ComposerCatalog.IsAuraMountableKeyword(a.keyword))
+                    if (a == null) continue;
+                    if (!string.IsNullOrEmpty(a.keyword)
+                        && !ComposerCatalog.IsAuraMountableKeyword(a.keyword))
                         return $"关键词「{a.keyword}」不可作光环——表行标「不可作为连接光环」"
                              + "（真消耗型生效后移除，与光环 live-query 持续语义冲突）；请改选下拉中的可挂关键词";
+                    // 效果引用条目（2026-11-05）：悬空/资格不符拦截（AuraGrantRejectReason 单源；
+                    // Get 不告警防校验循环刷屏，装载闸有 Warn 兜底）
+                    if (!string.IsNullOrEmpty(a.effectRef))
+                    {
+                        var dto = EffectsLibrary.Get(a.effectRef);
+                        var reject = dto == null ? "引用不在效果库（悬空——效果可能已被删除）"
+                            : EffectEligibility.AuraGrantRejectReason(EffectSlim.ToCardEffect(dto));
+                        if (reject != null)
+                            return $"效果「{a.effectRef}」{reject}——请改选效果库中的可授予效果";
+                    }
                 }
                 return null;
             }));
@@ -4531,9 +4592,10 @@ namespace SynergyUI
             return n == 0 ? "（未选）" : $"（已选 {n} 支）";
         }
 
-        /// <summary>有效光环条目数（stat/keyword 至少一项非空）。</summary>
+        /// <summary>有效光环条目数（stat/keyword/effectRef 至少一项非空——2026-11-05 效果光环扩三空）。</summary>
         private static int ValidAuraCount(List<LinkAuraData> auras)
-            => auras?.Count(a => a != null && (!string.IsNullOrEmpty(a.stat) || !string.IsNullOrEmpty(a.keyword))) ?? 0;
+            => auras?.Count(a => a != null && (!string.IsNullOrEmpty(a.stat) || !string.IsNullOrEmpty(a.keyword)
+                                              || !string.IsNullOrEmpty(a.effectRef))) ?? 0;
 
         /// <summary>光环卡克隆源（2026-10-07 光环专用卡）：tpl-aura-slot 内 pristine aura-card——
         /// head 摘要(text+del) + field-value 数值 + aura-duration 行(placeholder 标签 + aura-kinds 下拉)。
@@ -4724,7 +4786,8 @@ namespace SynergyUI
         }
 
         /// <summary>条目摘要（2026-10-08 作用面版）：作用面档=【范围】前缀；
-        /// 属性=「属性：攻击 +1」（Both=属性——攻生同值 ±1/±1）；关键词=「关键词：帷幕」（库外脏值直显 id）。
+        /// 属性=「属性：攻击 +1」（Both=属性——攻生同值 ±1/±1）；关键词=「关键词：帷幕」（库外脏值直显 id）；
+        /// 效果（2026-11-05 效果光环）=「效果：名」（库外悬空直显 id）。
         /// 含角色尾注已随 2026-10-09 裁定退役（关键词条目恒含角色，不再逐条目标注）。</summary>
         private static string AuraEntryText(LinkAuraData aura)
         {
@@ -4732,6 +4795,8 @@ namespace SynergyUI
             string scopeZh = aura.scope > 0 ? $"【{LinkScopeZh(aura.scope)}】" : "";
             if (!string.IsNullOrEmpty(aura.stat))
                 return $"{scopeZh}属性：{StatZhOf(aura.stat)} {(aura.value >= 0 ? "+" : "")}{aura.value}";
+            if (!string.IsNullOrEmpty(aura.effectRef))
+                return $"{scopeZh}效果：{EffectsLibrary.Get(aura.effectRef)?.name ?? aura.effectRef}";
             var c = ComposerCatalog.AuraKeywordChoices().FirstOrDefault(k => k.id == aura.keyword);
             return $"{scopeZh}关键词：{c.label ?? aura.keyword ?? "？"}";
         }

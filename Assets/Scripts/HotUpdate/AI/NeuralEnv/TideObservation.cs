@@ -546,9 +546,9 @@ namespace CardCore.AI.NeuralEnv
 
     /// <summary>
     /// 内容身份登记簿：ulong 内容哈希（CardIdentityService：原子哈希 / 组合结构哈希 /
-    /// 关键词+tag+光环组合哈希，均已混入原子表指纹）→ 池内小整数下标，供 TideObservation
-    /// [15..22] 输出、Python 侧 nn.Embed 查表。拆散到原子级：同原子（如 造成伤害4）跨卡共享
-    /// 同一行——相近效果在原子层重叠，语义直接迁移。
+    /// 关键词+tag+光环组合哈希，2026-11-05 ID 冻结收口后直接锚定冻结 ID——不再混原子表指纹）
+    /// → 池内小整数下标，供 TideObservation [15..22] 输出、Python 侧 nn.Embed 查表。
+    /// 拆散到原子级：同原子（如 造成伤害4）跨卡共享同一行——相近效果在原子层重叠，语义直接迁移。
     /// 0 = 无该成分 / token / 未登记；容量 1024 与 Python N_CARD_POOL 对齐。
     /// 键是内容哈希（内容寻址，别名 ID 不参与）。容量口径（2026-09-21 扩容定案）：
     /// 占行的是「原子实例级身份」（原子类型+参数+目标域组合 / 结构骨架 / 关键词组合），
@@ -561,7 +561,9 @@ namespace CardCore.AI.NeuralEnv
     ///   - 新哈希按批内排序追加到末尾（首批 = 全池排序 1..N，与历史口径一致），
     ///     任何新卡/新组合都不再挪动已有下标——已训 embedding 行永不串台；
     ///   - ConfigureManifest 绑定清单文件（训练/部署同一份）：启动载入、有新增即落盘。
-    ///     表指纹不符则作废旧清单（表变更全体身份换血，旧下标本就无意义）。
+    ///     manifest v2（2026-11-05 ID 冻结收口）：清单不再锚定原子表指纹——表内容编辑/新增行
+    ///     不再作废清单（旧「table 指纹」头一票作废已拆）；EffectType 下标冻结分配同存清单
+    ///     （type 行）。旧格式清单（-1）按作废处理：冻结前哈希混盐，键本就不兼容，重登记即可。
     /// </summary>
     public static class TideCardIndex
     {
@@ -572,8 +574,10 @@ namespace CardCore.AI.NeuralEnv
         /// <summary>已登记身份数（诊断/日志用）。</summary>
         public static int Count => _map.Count;
 
-        /// <summary>绑定清单文件并载入既有分配。返回载入条数；-1 = 表指纹不符（旧清单已作废，从零开始）。
-        /// 幂等：重复调用以首次绑定的文件为准（训练服务器与自测共用同一路径）。</summary>
+        /// <summary>绑定清单文件并载入既有分配。返回载入条数；-1 = 旧格式清单已作废（从零开始）。
+        /// 幂等：重复调用以首次绑定的文件为准（训练服务器与自测共用同一路径）。
+        /// manifest v2（2026-11-05 ID 冻结收口）：scheme 2 头 + type 行（EffectType 冻结分配）+
+        /// 哈希行；不再有表内容闸。旧「table 指纹」头 = 冻结前混盐口径，键不兼容——作废重登记。</summary>
         public static int ConfigureManifest(string path)
         {
             if (string.IsNullOrEmpty(path)) return 0;
@@ -583,29 +587,38 @@ namespace CardCore.AI.NeuralEnv
             try
             {
                 if (!File.Exists(path)) return 0;
-                bool tableMatched = false;
+                bool schemeOk = false;
+                var typeLines = new Dictionary<string, int>();
                 int loaded = 0;
                 foreach (var line in File.ReadAllLines(path))
                 {
                     var t = line.Trim();
                     if (t.Length == 0 || t.StartsWith("#")) continue;
                     var parts = t.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                    if (parts.Length == 2 && parts[0] == "table")
+                    if (parts.Length == 2 && parts[0] == "scheme")
                     {
-                        tableMatched = ulong.TryParse(parts[1], out ulong fp) && fp == CardIdentityService.TableFingerprint();
-                        if (!tableMatched) break;
+                        schemeOk = parts[1] == "2";
+                        if (!schemeOk) break; // 旧 table 头 / 未知版本：冻结前清单作废
+                        continue;
+                    }
+                    if (parts.Length == 3 && parts[0] == "type"
+                        && !string.IsNullOrEmpty(parts[1])
+                        && int.TryParse(parts[2], out int tix) && tix >= 1 && tix <= CardIdentityService.MaxTypeIndex)
+                    {
+                        typeLines[parts[1]] = tix;
                         continue;
                     }
                     if (parts.Length == 2
                         && ulong.TryParse(parts[0], out ulong h) && h != 0UL
                         && int.TryParse(parts[1], out int idx)
-                        && idx >= 1 && idx < Capacity && tableMatched)
+                        && idx >= 1 && idx < Capacity && schemeOk)
                     {
                         _map[h] = idx; // 清单是权威分配，直接采纳
                         loaded++;
                     }
                 }
-                if (!tableMatched) return -1;
+                if (!schemeOk) return -1;
+                if (typeLines.Count > 0) CardIdentityService.AdoptTypeIndexes(typeLines);
                 // 载入后 Count 可能小于最大下标（清单曾被截断）；Count 只用于「追加位置」，
                 // 从最大下标续排，避免与清单内保留条目撞号。
                 foreach (var idx in _map.Values)
@@ -631,6 +644,9 @@ namespace CardCore.AI.NeuralEnv
             foreach (var card in pool)
             {
                 if (card == null) continue;
+                // 2026-11-05 ID 冻结收口：装载期身份可能早于清单绑定（EffectType 下标按播种号暂存）——
+                // 清单 type 行 Adoption 后按冻结分配重刷一遍（幂等便宜），观测取用口径一致。
+                CardIdentityService.EnsureIdentity(card);
                 if (card.AtomContentHashes != null)
                     foreach (var h in card.AtomContentHashes)
                         if (h != 0UL) hashes.Add(h);
@@ -683,7 +699,8 @@ namespace CardCore.AI.NeuralEnv
             return IndexOfOrRegister(h);
         }
 
-        /// <summary>清单落盘（临时文件 + 替换，原子写）。格式：# 注释 / table 指纹 / 「哈希 下标」行。</summary>
+        /// <summary>清单落盘（临时文件 + 替换，原子写）。格式（v2）：# 注释 / scheme 2 头 /
+        /// type &lt;枚举名&gt; &lt;下标&gt;（EffectType 冻结分配）/ 「哈希 下标」行。</summary>
         private static void SaveManifest()
         {
             try
@@ -691,8 +708,12 @@ namespace CardCore.AI.NeuralEnv
                 var dir = Path.GetDirectoryName(_manifestPath);
                 if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
                 var sb = new System.Text.StringBuilder();
-                sb.Append("# TideCardIndex identity manifest (append-only; hash=decimal index)\n");
-                sb.Append("table ").Append(CardIdentityService.TableFingerprint()).Append('\n');
+                sb.Append("# TideCardIndex identity manifest v2 (append-only; hash=decimal index; type=frozen EffectType index)\n");
+                sb.Append("scheme 2\n");
+                var typeRows = new List<KeyValuePair<string, int>>(CardIdentityService.TypeIndexSnapshot());
+                typeRows.Sort((a, b) => a.Value.CompareTo(b.Value)); // 按下标序落盘（追加史可读）
+                foreach (var kv in typeRows)
+                    sb.Append("type ").Append(kv.Key).Append(' ').Append(kv.Value).Append('\n');
                 foreach (var kvp in _map)
                     sb.Append(kvp.Key).Append(' ').Append(kvp.Value).Append('\n');
                 string tmp = _manifestPath + ".tmp";

@@ -1859,12 +1859,9 @@ namespace CardCore.AI
                         : e is Card c5 && c5.GetController() == me ? c5.GetMaxLife() : int.MinValue)
                            .ToList();
 
-            // 守护绑定（2026-11-03 用户定案：生命安全第一）：
-            //   不危险 → 首个守护贴给**狩猎载体**（獠牙／已带狩猎的那只）护住进攻引擎；
-            //   比较危险（生命 ≤10）→ 贴给角色。
-            // 守护/守卫（2026-11-03 用户定案）：**优先绑角色**——对手的高攻爆发打的是角色，
+            // 守卫（2026-11-03 用户定案）：**优先绑角色**——对手的高攻爆发打的是角色，
             // 守卫拦的就是这条线（生命危险时更是角色优先）；对手没场面时才退而保护狩猎载体/獠牙
-            if (atom == AtomicEffectType.Guard || atom == AtomicEffectType.GrantGuardian)
+            if (atom == AtomicEffectType.Guard)
             {
                 bool enemyHasBodies = (core.ZoneManager.GetCards(me.Opponent, Zone.Battlefield) ?? new List<Card>())
                     .Any(c => c != null && c.IsAlive);
@@ -1879,6 +1876,13 @@ namespace CardCore.AI
                     .ThenByDescending(e => e is Player)
                     .ToList();
             }
+
+            // 守护（2026-11-05 简化定案）：固定护角色、无弹选——本排序只服务「谁获得守护」：
+            // 贴给最能扛的单位（同活体护甲/再生 2026-11-03 口径：守卫第一，其余按最大生命）
+            if (atom == AtomicEffectType.GrantGuardian)
+                return list.OrderByDescending(e => e is Card cg && Is(cg, NameGuard) ? 100
+                        : e is Card c4 && c4.GetController() == me ? c4.GetMaxLife() : int.MinValue)
+                    .ToList();
 
             // 护甲（资敌代价等）：先给角色（角色死了就输了），角色已满甲才给单位
             if (atom == AtomicEffectType.AddArmor)

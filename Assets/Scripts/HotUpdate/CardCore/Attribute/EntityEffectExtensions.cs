@@ -148,6 +148,12 @@ namespace CardCore
                     card.IsAlive = true;
                     card._pendingDeathCause = null;
                     card._pendingDeathSource = null;
+                    GameActions.Crumb($"[HEAL] 救回成功 {card.ID} life={card._life}"); // 取证：救回路径是否命中
+                }
+                else if (!card.IsAlive)
+                {
+                    GameActions.Crumb($"[HEAL] 未救回 {card.ID} life={card._life} " +
+                                      $"bonus={GameBoard.LinkAuraSystem.GetLifeBonus(card)} zone={card.GetZone()}");
                 }
             }
         }
@@ -361,7 +367,8 @@ namespace CardCore
 
         /// <summary>检查是否有关键词（连接光环关键词=光环期间视为持有，
         /// 不进 _keywords、不参与 GetKeywordCount 重复叠加计数）。角色同走连接光环读数
-        /// （2026-10-07 定案：关键词光环可经箭头指向角色格投递；属性光环钉死生物专用）。
+        /// （2026-10-07 定案：关键词光环可经箭头指向角色格投递；属性光环钉死生物专用）
+        /// ——**2026-11-05 修订：关键词=生物专属，角色光环读数分支已注释下线（角色恒 false）**。
         /// 自动效果压制（2026-10-19 关键词=自动效果定案；2026-10-31 沉睡并入同口）：本体关键词
         /// （印刷/Setting/Temp 轨）在持有者沉睡或被失效（原缄默）期间**读取为假**（统一读数=
         /// SuppressRules.IsAutoSuppressed，实时状态读）；光环投递轨不受压制影响——
@@ -372,7 +379,9 @@ namespace CardCore
             if (entity._keywords.Contains(keyword)
                 && !Attribute.SuppressRules.IsAutoSuppressed(entity)) return true;
             if (entity is Card card) return GameBoard.LinkAuraSystem.HasAuraKeyword(card, keyword);
-            if (entity is Player player) return GameBoard.LinkAuraSystem.HasAuraKeyword(player, keyword);
+            // —— 2026-11-05 关键词生物专属定案：角色光环读数注释下线（LinkAuraSystem 角色投递
+            //    入口同批注释；部分关键词不适合角色，无工期逐条筛选，恢复时两处同步解开）——
+            // if (entity is Player player) return GameBoard.LinkAuraSystem.HasAuraKeyword(player, keyword);
             return false;
         }
 

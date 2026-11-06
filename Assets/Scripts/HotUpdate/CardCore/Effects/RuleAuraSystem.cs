@@ -627,7 +627,7 @@ namespace CardCore
             {
                 Target = best,
                 Keyword = GraveyardPlay,
-                Detail = $"归土光环：{EffectText.Name(turnPlayer)} 回合结束——从墓地复活「{EffectText.Name(best)}」（费用 {bestCost:0.#} ≤ 植物地牌 {greenLands}）",
+                Detail = $"归土光环：{EffectText.Name(turnPlayer)} 回合结束——从墓地复活「{EffectText.Name(best)}」（费用 {bestCost:0.#} ≤ 绿色地牌 {greenLands}）",
                 Source = RuleAuraSystem.CarrierOf(GraveyardPlay),
             });
         }

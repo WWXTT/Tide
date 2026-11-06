@@ -32,9 +32,9 @@ namespace CardCore
         {
             return PrimaryColor switch
             {
-                ManaType.Red => "火",
-                ManaType.Blue => "水",
-                ManaType.Green => "植物",
+                ManaType.Red => "红",
+                ManaType.Blue => "蓝",
+                ManaType.Green => "绿",
                 ManaType.Gray => "通用",
                 ManaType.Any => "任意",
                 _ => PrimaryColor.ToString()

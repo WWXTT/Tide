@@ -164,7 +164,7 @@ namespace CardCore.Attribute.Handlers
         }
 
         /// <summary>规则送墓（非效果死亡）：地牌先出池 + 落死档 + 按持有者归属入墓——不发
-        /// CardDestroyEvent（死亡时点/消灭替代/统计不触发）；换区清理（指示物/守护断链/变形解除/
+        /// CardDestroyEvent（死亡时点/消灭替代/统计不触发）；换区清理（指示物/变形解除/
         /// 临时关键词）由 ZoneContainer.OnCardMoved 统一承担，与死亡落葬同款。</summary>
         private static void SendToGrave(Card card, EffectExecutionContext context)
         {
@@ -281,7 +281,7 @@ namespace CardCore.Attribute.Handlers
     /// **不走换区、直接消失**（不进墓/不进除外区），不发 CardDestroyEvent（死亡时点/
     /// 亡语/击杀统计全不触发），不灭/复生无从拦截（非死亡路径天然绕过）。
     /// 地牌先出池（余量写回卡，同摧毁口）再消失；战场单位容器直删后补发离场事件
-    ///（守护断链/棋盘位/UI 扇面同步），CardMoveEvent To=None 作「消失」信号。
+    ///（棋盘位/UI 扇面同步），CardMoveEvent To=None 作「消失」信号。
     /// </summary>
     public class EraseHandler : AtomicEffectHandlerBase
     {

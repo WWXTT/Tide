@@ -236,6 +236,7 @@ namespace CardCore.Tools
                 // ---- 开局握手（2026-09-22：DeckSubmit/MatchManifest + 卡组闭包原子行摘要）----
                 ("NetDeckDigest", "AtomicRowsHash"), ("NetDeckDigest", "AtomicRowCount"),
                 ("NetDeckDigest", "TokenSig"), // 2026-10-29 P9b 衍生物区/槽绑定摘要（协议 v5）
+                ("NetDeckDigest", "ContentSig"), // 2026-11-05 ID 冻结收口：卡/效果层内容指纹摘要（协议 v8）
                 ("MsgDeckSubmit", "DeckName"), ("MsgDeckSubmit", "CardIds"), ("MsgDeckSubmit", "Digest"),
                 ("MsgDeckSubmit", "SkillCardId"), // 英雄技能标记卡（2026-10-31 阶段D：手工定值退役并入哈希；不参与 Digest）
                 ("MsgDeckSubmit", "TokenCardIds"), ("MsgDeckSubmit", "TokenBindings"), // P9b 两块（协议 v5）

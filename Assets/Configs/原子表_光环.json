@@ -6,7 +6,7 @@
     "DisplayName": "己方回合中，自己每消耗3点同色纯元素，获得红/蓝/绿各1",
     "EffectType": "ModifyGameRule",
     "TargetFilter": null,
-    "Polarity": 1,
+    "Polarity": 0,
     "MountKinds": "场地光环",
     "Tags": null,
     "ManaList": [
@@ -23,11 +23,11 @@
     "DisplayName": "己方回合中，角色受到的伤害改由对手角色承担",
     "EffectType": "ModifyGameRule",
     "TargetFilter": null,
-    "Polarity": 1,
+    "Polarity": 0,
     "MountKinds": "场地光环",
     "Tags": null,
     "ManaList": [
-      6,
+      9,
       0,
       0,
       0
@@ -40,11 +40,11 @@
     "DisplayName": "回复生命的溢出转化为生命上限+1",
     "EffectType": "ModifyGameRule",
     "TargetFilter": null,
-    "Polarity": 1,
+    "Polarity": 0,
     "MountKinds": "场地光环",
     "Tags": null,
     "ManaList": [
-      3,
+      2,
       0,
       0,
       0
@@ -74,7 +74,7 @@
     "DisplayName": "回合结束时，从自己墓地复活一张费用不大于己方绿色地牌数量的生物",
     "EffectType": "ModifyGameRule",
     "TargetFilter": null,
-    "Polarity": 1,
+    "Polarity": 0,
     "MountKinds": "场地光环",
     "Tags": null,
     "ManaList": [
@@ -91,7 +91,7 @@
     "DisplayName": "手牌上限增加自己蓝色地牌的数量",
     "EffectType": "ModifyGameRule",
     "TargetFilter": null,
-    "Polarity": 1,
+    "Polarity": 0,
     "MountKinds": "场地光环",
     "Tags": null,
     "ManaList": [

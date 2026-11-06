@@ -121,8 +121,8 @@ namespace SynergyUI
         // ---- 中文映射（展示串中文；PhaseZh/ManaZh 已收敛 CardCore 单源——2026-10-18 B1 日志中间层） ----
         private static readonly Dictionary<ManaType, string> ManaNames = new Dictionary<ManaType, string>
         {
-            { ManaType.Gray, "灰" }, { ManaType.Red, "火" }, { ManaType.Blue, "水" },
-            { ManaType.Green, "植物" },
+            { ManaType.Gray, "灰" }, { ManaType.Red, "红" }, { ManaType.Blue, "蓝" },
+            { ManaType.Green, "绿" },
             { ManaType.Any, "任意" }, // 万能货币（2026-10-23）：钱包串显示「任意N」（白/黑已删 2026-10-28 P2）
         };
 
@@ -618,10 +618,13 @@ namespace SynergyUI
             return $"{name}#{r.RuntimeId % 10000}";
         }
 
-        /// <summary>效果短名（EffectId 查本地效果库；miss 取前 8 位）。</summary>
+        /// <summary>效果短名：按 EffectId 查本地效果库显示名（2026-11-05 ID 冻结收口接线——
+        /// 此前只截 ID 前 8 位）；查无（含 EFF_ 内嵌遗留口径）回落截断。</summary>
         public static string EffectShortName(string effectId)
         {
             if (string.IsNullOrEmpty(effectId)) return "?";
+            var dto = EffectsLibrary.Get(effectId);
+            if (!string.IsNullOrEmpty(dto?.name)) return dto.name;
             return effectId.Length <= 10 ? effectId : effectId.Substring(0, 8) + "…";
         }
     }

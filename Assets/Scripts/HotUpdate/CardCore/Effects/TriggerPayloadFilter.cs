@@ -119,6 +119,13 @@ namespace CardCore
                            od.DestroyedCard != null &&
                            !ReferenceEquals(od.DestroyedCard, registered.Source);
 
+                // ---- 回合族（TurnEndEvent，2026-11-05 补载荷过滤）----
+                // 仅**持有者**的回合结束触发：TurnEndEvent 双方回合都会发布，default 放行会
+                // 跨火到对手回合末（沉睡末层在己方回合末倒数归零后，效果提前在对手回合末生效）。
+                case TriggerTiming.OnTurnEnd:
+                    return gameEvent is TurnEndEvent te &&
+                           ReferenceEquals(te.TurnPlayer, registered.Controller);
+
                 // ---- 角色亡语（RoleDeathEvent，2026-09-15 定案；注册源=Player）----
                 case TriggerTiming.OnRoleDeath:
                     return gameEvent is RoleDeathEvent rd &&

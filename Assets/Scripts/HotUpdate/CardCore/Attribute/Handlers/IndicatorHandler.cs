@@ -709,21 +709,21 @@ namespace CardCore.Attribute.Handlers
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddCostUpRed;
         protected override string CounterId => CounterRules.CostUpRedCounter;
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => "添加一层火费用增加指示物";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "添加一层红色费用增加指示物";
     }
 
     public class AddCostUpBlueHandler : StatCounterAtomHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddCostUpBlue;
         protected override string CounterId => CounterRules.CostUpBlueCounter;
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => "添加一层水费用增加指示物";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "添加一层蓝色费用增加指示物";
     }
 
     public class AddCostUpGreenHandler : StatCounterAtomHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddCostUpGreen;
         protected override string CounterId => CounterRules.CostUpGreenCounter;
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => "添加一层植物费用增加指示物";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "添加一层绿色费用增加指示物";
     }
 
     public class AddCostDownGrayHandler : StatCounterAtomHandlerBase
@@ -737,21 +737,21 @@ namespace CardCore.Attribute.Handlers
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddCostDownRed;
         protected override string CounterId => CounterRules.CostDownRedCounter;
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => "添加一层火费用减少指示物";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "添加一层红色费用减少指示物";
     }
 
     public class AddCostDownBlueHandler : StatCounterAtomHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddCostDownBlue;
         protected override string CounterId => CounterRules.CostDownBlueCounter;
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => "添加一层水费用减少指示物";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "添加一层蓝色费用减少指示物";
     }
 
     public class AddCostDownGreenHandler : StatCounterAtomHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddCostDownGreen;
         protected override string CounterId => CounterRules.CostDownGreenCounter;
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => "添加一层植物费用减少指示物";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "添加一层绿色费用减少指示物";
     }
 
     /// <summary>

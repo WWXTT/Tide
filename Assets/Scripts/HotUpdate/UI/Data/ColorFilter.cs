@@ -57,9 +57,9 @@ namespace SynergyUI
             return color switch
             {
                 UIColor.All => "全部",
-                UIColor.Red => "火",
-                UIColor.Blue => "水",
-                UIColor.Green => "植物",
+                UIColor.Red => "红",
+                UIColor.Blue => "蓝",
+                UIColor.Green => "绿",
                 UIColor.Gray => "灰",
                 _ => color.ToString(),
             };

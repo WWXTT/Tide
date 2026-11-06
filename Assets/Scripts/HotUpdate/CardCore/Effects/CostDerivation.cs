@@ -860,9 +860,9 @@ namespace CardCore
 
         private static string ColorZh(ManaType m) => m switch
         {
-            ManaType.Red => "火",
-            ManaType.Blue => "水",
-            ManaType.Green => "植物",
+            ManaType.Red => "红",
+            ManaType.Blue => "蓝",
+            ManaType.Green => "绿",
             ManaType.Gray => "灰",
             _ => m.ToString(),
         };

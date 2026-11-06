@@ -492,7 +492,9 @@ namespace CardCore
                     if (side == null) continue;
                     foreach (var card in context.ZoneManager.GetCards(side, zone))
                     {
-                        if (zone == Zone.Battlefield && !card.IsAlive) continue; // 死亡窗口死卡仍列战场区
+                        // 战场标死未送墓的卡照常入候选（2026-11-05 用户定案，与旧 kinds 路径
+                        // TargetFilterSystem.CreaturesOf 同口径：救回机制——治疗解标死——需要
+                        // 死亡窗口内的卡仍可被选中；出手可行性归速度门，不归候选域）。
                         if (pendingCastStack != null && pendingCastStack.IsPendingCast(card)) continue;
                         result.Add(card);
                     }

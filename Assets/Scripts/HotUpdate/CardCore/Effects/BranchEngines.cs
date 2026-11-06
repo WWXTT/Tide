@@ -147,6 +147,10 @@ namespace CardCore
                                     int turns = Math.Max(1, payload.CountdownTurns);
                                     int cd = card.GetCounterCount(Attribute.CounterRules.CountdownCounter);
                                     bool asleep = card.GetCounterCount(Attribute.KeywordRules.SleepCounter) > 0;
+                                    // 声明时机门（2026-11-05 时机两档定案：倒计时按**声明时机**发射）：
+                                    // 主动档宿主（TriggerTiming∈{19,20,21}——判主动权威口径）归零=待发，
+                                    // 不随宿主回合开始自动发奖（发射窗=玩家主动发动）；自动档照旧即发即重挂。
+                                    bool activeHost = def.IsActivatedEffect;
                                     if (asleep)
                                     {
                                         // 2026-10-22 沉睡口径：沉睡期间倒计时照走，但归零不出奖（停在0），
@@ -158,7 +162,7 @@ namespace CardCore
                                     {
                                         // 沉睡期间已归零（或刚入场即0）：沉睡解除后补发并重挂
                                         card.AddCounters(Attribute.CounterRules.CountdownCounter, turns);
-                                        if (EngineCapReached(card, def)) break;
+                                        if (activeHost || EngineCapReached(card, def)) break; // 主动档：重挂不补发
                                         EventManager.Instance.Publish(new KeywordAppliedEvent
                                         {
                                             Target = card, Keyword = "倒计时",
@@ -171,8 +175,9 @@ namespace CardCore
                                     card.AddCounters(Attribute.CounterRules.CountdownCounter, -1);
                                     if (card.GetCounterCount(Attribute.CounterRules.CountdownCounter) <= 0)
                                     {
-                                        card.AddCounters(Attribute.CounterRules.CountdownCounter, turns); // 归零重挂
-                                        if (EngineCapReached(card, def)) break;
+                                        // 主动档：归零重挂不发奖（发射窗=玩家主动发动；计数照常回初值）
+                                        card.AddCounters(Attribute.CounterRules.CountdownCounter, turns);
+                                        if (activeHost || EngineCapReached(card, def)) break;
                                         EventManager.Instance.Publish(new KeywordAppliedEvent
                                         {
                                             Target = card, Keyword = "倒计时",

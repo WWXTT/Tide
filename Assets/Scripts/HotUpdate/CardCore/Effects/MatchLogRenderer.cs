@@ -552,9 +552,9 @@ namespace CardCore
         /// <summary>元素中文名</summary>
         public static string ManaZh(ManaType type) => type switch
         {
-            ManaType.Red => "火",
-            ManaType.Blue => "水",
-            ManaType.Green => "植物",
+            ManaType.Red => "红",
+            ManaType.Blue => "蓝",
+            ManaType.Green => "绿",
             ManaType.Any => "任意",
             _ => "灰",
         };
