@@ -146,10 +146,8 @@ namespace CardCore
             if (source != null && source.GetEffectiveCounterCount(Attribute.CounterRules.SilenceCounter) > 0)
             { reason = "该卡被沉默——不能发动主动效果"; return false; }
 
-            // 0.55 禁发令光环（2026-10-29）：受光环影响方的单位与角色不能发动主动效果
-            //（主动能力路径；硬闸在 GameActions.ActivateEffect/ActivateEffectInResponse——网络 intent 不经此）。
-            if (source != null && RuleAuraSystem.ScopeHits(RuleAuraComponents.NoActivateAura, source.GetController()))
-            { reason = "禁发令生效中——不能发动主动效果"; return false; }
+            // 0.55 禁自动令闸 2026-11-06 改版退役（原禁发令=拦主动发动）：主动发动放开——
+            // 改拦自动效果（触发式全拦），闸移至 TriggerEngine.FindMatchingEffects（与失效同位）。
 
             // 0.6 沉睡指示物（2026-09-11 定案）：沉睡期间效果无效——主动同样不可发动
             //（触发式在 TriggerEngine.FindMatchingEffects 拦，双口合流）。
@@ -1579,7 +1577,7 @@ namespace CardCore
             if (guarder == null || attackInstance == null || controller == null) { reason = "内部错误：空参数"; return false; }
             if (!_stack.Contains(attackInstance))
             { reason = "该攻击宣言已不在栈上（响应窗口已关闭？）"; return false; } // 拦截对象须在栈上
-            // 资格闸（2026-09-16）：守卫能力（NoGuard 卡不能拦）/存活/未横置——横置支付在结算期，
+            // 资格闸（2026-09-16；2026-11-06 opt-in）：守卫资格（未声明 GuardAbility 不能拦）/存活/未横置——横置支付在结算期，
             // 此处拦的是"已横置不能再宣"。角色（玩家）守卫（2026-10-16 定案）：无守卫关键词、
             // 无横置概念——资格=有攻击弹药（弹药即攻击力）；守卫=把攻击改写为打角色，
             // 反伤/弹药烧除走既有 Player 目标路径（ResolvePair 反伤步全烧——与被打同口径）
@@ -1897,7 +1895,19 @@ namespace CardCore
                 core.CheckLifeGameOver();      // 兜底（关键判负已走 SBA 轮；幂等）
                 if (core.IsGameOver) return;
 
-                if (!_pendingQueue.HasAutoEffects) break; // 稳定：无新动作、无新触发
+                if (!_pendingQueue.HasAutoEffects)
+                {
+                    // 效果结算后 flush（2026-11-06 判据七·充盈改造）：连锁终点稳定点统一补发——
+                    // 充盈奖励（直发）与 CardCastSettledEvent 观察族触发可能产生新待发/关键 SBA，
+                    // continue 再走一轮（guard 16 兜底）；无待补发才算真稳定。
+                    if (BranchEngines.HasPendingCastSettles)
+                    {
+                        GameActions.Crumb("[CastSettled] flush at chain end");
+                        BranchEngines.FlushCardCastSettled();
+                        continue;
+                    }
+                    break; // 稳定：无新动作、无新触发
+                }
             }
         }
 
@@ -2169,14 +2179,26 @@ namespace CardCore
                 // 与沉默（拦主动，CanActivate）对称——缄默不拦主动，沉睡另在 CanActivate 0.6 拦主动。
                 // 本体关键词另经 HasKeyword 收口同被压制（再生=GameCore 直连，读数走 HasKeyword 一并失效）；
                 // 伤害管线被动（坚韧/圣盾/护甲——指示物，走 ApplyDamage 管线）不归此管，天然不拦。
-                // 入场窗口自身的 OnPlay 不受影响（入场事件发布先于任何入场后状态挂层——匹配先于挂层；
-                // 旧「苏醒入场沉睡」先例已于 2026-11-02 随苏醒机制删除）。
+                // 入场窗口自身的 OnPlay 不受影响（入场事件发布先于任何入场后状态挂层——匹配先于挂层）。
                 // 光环授予合成条目豁免本闸（2026-11-05 拍板：受益者带失效/沉睡照发，仅绝缘体
                 // 特判——绝缘体受益者已在授予枚举处剔除；来源侧无效不压光环=2026-10-31 定案不变）
                 if (!registered.FromAuraGrant
                     && registered.Source != null
                     && SuppressRules.IsAutoSuppressed(registered.Source))
                     continue;
+
+                // 禁自动令光环（2026-11-06 改版，原禁发令=拦主动发动）：受光环影响的单位与角色
+                // 不能发动自动效果——触发式全拦（同失效口径：登场/回合末/亡语等一律）；
+                // 作用面按源卡控制者一侧判（固定双方规则=Scope 恒 Both，两侧同拦）；
+                // 光环授予合成条目豁免（压制不进光环域——与失效 2026-10-31 定案同源）。
+                if (!registered.FromAuraGrant)
+                {
+                    var autoSide = registered.Source is Player asp ? asp
+                        : (registered.Source as Card)?.GetController();
+                    if (autoSide != null
+                        && RuleAuraSystem.ScopeHits(RuleAuraComponents.NoActivateAura, autoSide))
+                        continue;
+                }
 
                 // 检查触发条件（intervening "if" 条件）：仅在已注入区域系统时校验。
                 if (_conditionChecker != null &&
@@ -2566,12 +2588,6 @@ namespace CardCore
             AtomicEffectType.GateLandsAtMost3,
             AtomicEffectType.GateHandEmpty,
             AtomicEffectType.GateLifeAtMost7,
-
-            // 2026-11-05 退役：全体原子删除（单体选全域生成）+ 充能系统动作化（不再是卡上原子）——
-            // 枚举位保留作墓碑（int 序列化/兼容），永不挂处理器，也不该再进「缺失处理器」告警。
-            AtomicEffectType.DealDamageAllEnemies,
-            AtomicEffectType.DevourAllEnemies,
-            AtomicEffectType.Charge,
         };
 
         private static void VerifyHandlerCoverage()

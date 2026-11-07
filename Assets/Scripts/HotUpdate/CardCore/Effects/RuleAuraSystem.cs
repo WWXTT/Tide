@@ -19,9 +19,9 @@ namespace CardCore
     /// </summary>
     /// <summary>规则光环作用范围（2026-10-07 极性门控定案）：存 ModifyGameRule 原子步 entry.value；
     /// 己方=仅光环控制者一侧，对方=仅其对手一侧，双方=两侧（缺省 1=双方，兼容存量仪典步 value=1）。
-    /// 合成器选项按表行 Polarity 门控：+1 只 {己方,双方}、-1 只 {对方,双方}、0 三选；
-    /// 2026-10-29 定案：固定双方规则（IsFixedBothRule——许可 4 条+禁止 4 条）UI 不提供单侧选择，
-    /// 改写族保留三档；计价去对称让利（规则光环表价即实价，不再 ×0.5）。</summary>
+    /// 合成器选项按表行 Polarity 门控（2026-11-06 定案翻转）：极性 0 只 {双方}（表价即实价）、
+    /// +1 {己方,双方}、-1 {对方,双方}（±1 缺省双方=表价档，单侧档计价 ×RuleAuraSingleSideFactor）；
+    /// 旧固定双方名单 IsFixedBothRule 已随本定案整链退役——极性 0 行由表行 Polarity 驱动恒双方。</summary>
     public enum RuleAuraScope
     {
         Own = 0,      // 仅己方（光环控制者一侧）
@@ -247,38 +247,41 @@ namespace CardCore
 
         // ---- 禁令族（2026-10-29）：行为限制，受光环影响方按 ScopeHits 判命中。
         // 2026-10-30 表行改版：禁祭令/禁非生物令表行删除（常量/闸门同批退役）；
-        // 除禁攻/禁守/禁发/禁地外的禁令全部移出 IsFixedBothRule——作用面改为
-        // 受光环影响的一方（极性 -1 钉对方单侧）。
+        // 2026-11-06 定案：IsFixedBothRule 名单整链退役——禁令族（−1）作用方向可选
+        //（缺省双方=表价档，可收窄仅对方 ×1.5）。
         // 禁寻令 2026-11-02 用户定案删除——表行/常量/枚举位/类型映射/检索·发现两闸/
         // 合成器映射同批退役。----
         public const string NoAttackAura = "NoAttackAura";     // 禁攻令
         public const string NoGuardAura = "NoGuardAura";       // 禁守令
-        public const string NoActivateAura = "NoActivateAura"; // 禁发令
+        public const string NoActivateAura = "NoActivateAura"; // 禁自动令（2026-11-06 改版，原禁发令：
+        // 拦自动效果——触发式全拦（FindMatchingEffects 光环闸），主动发动放开；短名沿用不换身份）
         public const string NoLandAura = "NoLandAura";         // 禁地令
         public const string NoHealAura = "NoHealAura";           // 禁疗令
         public const string NoSpellAura = "NoSpellAura";         // 禁魔令
-        public const string NoCreatureAura = "NoCreatureAura";   // 禁召令（2026-10-31 改版：属性>己方灰色地牌数的生物禁放）
+        public const string NoCreatureAura = "NoCreatureAura";   // 禁召令（2026-11-07 改版：攻击>己方红地牌数或生命>己方绿地牌数的生物禁放）
         public const string NoDrawAura = "NoDrawAura";           // 禁抽令
 
         // ---- 语料原生禁令族（2026-10-29 阶段2：MTG 出处的行为限制全局化） ----
         public const string NoLowCostAura = "NoLowCostAura";       // 禁低费令（梦魇异音布瑟拉：mana value ≤3）
-        public const string NoHighCostAura = "NoHighCostAura";     // 禁高费令（俄佐立变节者拉温妮改版：费用>对手地牌数不能施放）
+        public const string NoHighCostAura = "NoHighCostAura";     // 禁高费令（俄佐立变节者拉温妮改版：
+                                                                   // 原始费用>对手地牌数不能施放——2026-11-07
+                                                                   // 口径细化：原始费=代价/减免指示物抵扣前，地牌数不含临时元素）
         // 禁指示物令已删（2026-10-31 用户定案：指示物承载了大部分游戏规则，不能禁止）——
         // 表行 d436b741/常量 NoCounterAura/AddCounters 闸/合成器映射整链移除。
         // 禁扰令已删（2026-10-31 用户定案：弃改版整链退役）——
         // 表行 1bb1ea6d/常量 OwnTurnCastAura/枚举位 AuraNoInterfere/合成器映射/
         // PlayCardInResponse 与响应手牌候选两道旧闸整链移除。
 
-        // ---- 信息轴光环（2026-10-29 阶段3c，百闻牌参考）：改写族（范围可选、不进
-        // IsFixedBothRule）。灵视=使用已展示手牌者受2伤且其对手回2（消费口=本类
+        // ---- 信息轴光环（2026-10-29 阶段3c，百闻牌参考）：改写族（作用方向可选）。
+        // 灵视=使用已展示手牌者受2伤且其对手回2（消费口=本类
         // CardPlayEvent 订阅）。
         // 占卜加成（ScryBonusAura：受影响一方占卜数量+1，消费口原=LookAtTopCardsHandler
         // /DeckArrangeHelper.PeekTop extra 参数）2026-11-02 用户定案删除——表行/常量/枚举位/
         // 类型映射/ScryBonus 查询与 extra 参数/合成器映射同批退役。----
         public const string RevealedPunishAura = "RevealedPunishAura"; // 灵视（已展示惩罚）
 
-        // ---- 阶段3b 改写光环（2026-10-29）：延迟死亡/牌库顶当手牌——改写族（范围三档可选，
-        // 不入 IsFixedBothRule 固定双方名单）。延迟死亡=受影响单位的死亡改写为下个回合结束时死亡
+        // ---- 阶段3b 改写光环（2026-10-29）：延迟死亡/牌库顶当手牌——改写族（作用方向可选，
+        // 缺省双方=表价档）。延迟死亡=受影响单位的死亡改写为下个回合结束时死亡
         //（改写口=DeathRules.TryKill 头部 + 本类回合末消费 OnTurnEndDelayedDeaths）；
         // 牌库顶当手牌=受影响一方可将牌库顶的卡当手牌使用（授权口=TopDeckPlaySource/IPlaySource，
         // PlayCard fromZone=Deck 路径由此放行；UI=手牌扇末尾虚拟手牌，本地局 BattleScreen 消费）。----
@@ -289,7 +292,7 @@ namespace CardCore
         // 受光环影响一方的场上单位被添加指示物时，该次添加层数+1——角色/手牌/牌库的指示物
         // 不受影响；消费口=EntityEffectExtensions.AddCounters 咽喉（引擎/关键词/效果 handler
         // 全部加层入口共口）。系统指示物不加深（特殊裁定终稿：系统指示物不受影响——
-        // 倒计时/死亡计数等引擎主干层不沾）。改写族：极性 0、范围三档可选（缺省双方）。----
+        // 倒计时/死亡计数等引擎主干层不沾）。极性 0=恒双方（2026-11-06 定案，无单侧档）。----
         public const string InscriptionAura = "InscriptionAura";       // 铭刻（单位加层+1）
 
         // ---- 阶段D·EffectType 唯一化（2026-10-31）：场地光环行类型 → 规则短名静态映射 ----
@@ -342,16 +345,8 @@ namespace CardCore
         /// <summary>光环行新型全集（handler 别名注册/验证器枚举用）。</summary>
         public static System.Collections.Generic.IReadOnlyCollection<AtomicEffectType> AuraTypes => _typeRuleIds.Keys;
 
-        /// <summary>固定双方规则（2026-10-30 表行改版收缩；疾风 2026-10-31 删后）：许可 3（三相/归土/纳川）+
-        /// 禁止 4（禁攻/禁守/禁发/禁地）——UI 不提供 己方/对方 选择。
-        /// 其余禁令族（禁疗/禁魔/禁召/禁抽/禁低费/禁高费）改
-        /// 「受光环影响的一方」：移出本名单随极性钉单侧（-1=仅对方，单侧档计价 ×1.5）。
-        /// 改写族（苦痛/丰盈/离散/放血）照旧三档。</summary>
-        public static bool IsFixedBothRule(string ruleId)
-            => ruleId == ElementConversion || ruleId == GraveyardPlay
-            || ruleId == HandLimitNoFatigue
-            || ruleId == NoAttackAura || ruleId == NoGuardAura
-            || ruleId == NoActivateAura || ruleId == NoLandAura;
+        // 固定双方名单 IsFixedBothRule 已删（2026-11-06 定案）：极性 0 行恒双方改由表行
+        // Polarity 驱动（converter 矫正 value / handler 兜底 / 合成器锁选项），±1 行方向可选。
 
         private static bool _registered;
 
@@ -400,7 +395,7 @@ namespace CardCore
             // 锁定：经出牌限制钩子接入 PlayCard/PlayCardInResponse（锁定原子投放）
             RuleHooks.RegisterPlayRestriction(new LockedCardRestriction());
             // 禁魔/禁召令（2026-10-29 1b）：出牌类型闸（同批注册——PlayCard/PlayCardInResponse 同门；
-            // 禁召 2026-10-31 改版=属性>己方灰色地牌数的生物禁放，闸体见 NoCreaturePlayRestriction）
+            // 禁召 2026-11-07 改版=攻击>己方红地牌数或生命>己方绿地牌数的生物禁放，闸体见 NoCreaturePlayRestriction）
             RuleHooks.RegisterPlayRestriction(new NoSpellPlayRestriction());
             RuleHooks.RegisterPlayRestriction(new NoCreaturePlayRestriction());
             // 语料原生禁令（2026-10-29 阶段2）：低费/高费 两道出牌闸
@@ -657,7 +652,8 @@ namespace CardCore
         }
 
         // ============ 禁魔/禁召令（2026-10-29 1b）：出牌类型闸——禁魔=不能施放法术；
-        // 禁召 2026-10-31 改版=不能施放属性大于己方灰色地牌数的生物（旧=全禁生物） ============
+        // 禁召 2026-11-07 改版=不能施放攻击大于己方红色地牌数、或生命大于己方绿色地牌数的生物
+        //（旧=全禁生物 → 2026-10-31 单阈值=属性>己方灰色地牌数） ============
 
         private sealed class NoSpellPlayRestriction : IPlayRestrictionWithReason
         {
@@ -670,24 +666,28 @@ namespace CardCore
 
         private sealed class NoCreaturePlayRestriction : IPlayRestrictionWithReason
         {
-            // 2026-10-31 改版（旧=全禁生物）：攻击或生命大于己方灰色地牌数的生物禁放（印刷值），
-            // 等于放行（同归土"费用≤绿地数含等号"口径；0 灰地=全禁极限档，平滑承袭旧效果）；
-            // 灰地计数=元素池内 LockedColor==Gray 的地牌（同纳川蓝地/归土绿地口径）。
+            // 2026-11-07 改版（2026-10-31 旧版=攻击/生命共用灰色地牌单阈值）：攻击>己方红色地牌数
+            // 或生命>己方绿色地牌数的生物禁放（印刷值），等于放行（同归土"费用≤绿地数含等号"口径；
+            // 双色各 0 时仅剩 0 攻 0 血生物可放）。地牌计数=元素池内 LockedColor 对应色的地牌
+            //（同纳川蓝地/归土绿地口径）。
             public bool CanPlay(GameCore core, Player player, Card card, Zone fromZone)
             {
                 if (!RuleAuraSystem.ScopeHits(NoCreatureAura, player)) return true;
                 if (!(card is CardWrapper w2) || !(w2.GetData() is CardData d2)
                     || d2.Supertype != Cardtype.Creature) return true;
-                int grayLands = core?.ElementPool?.GetPool(player)?.PooledCards
-                    ?.Count(pc => pc != null && pc.LockedColor == ManaType.Gray) ?? 0;
-                return (d2.Power ?? 0) <= grayLands && (d2.Life ?? 0) <= grayLands;
+                var lands2 = core?.ElementPool?.GetPool(player)?.PooledCards;
+                int redLands = lands2?.Count(pc => pc != null && pc.LockedColor == ManaType.Red) ?? 0;
+                int greenLands = lands2?.Count(pc => pc != null && pc.LockedColor == ManaType.Green) ?? 0;
+                return (d2.Power ?? 0) <= redLands && (d2.Life ?? 0) <= greenLands;
             }
 
-            public string RejectText => "禁召令生效——攻击或生命大于己方灰色地牌数的生物不可打出";
+            public string RejectText => "禁召令生效——攻击大于己方红色地牌数或生命大于己方绿色地牌数的生物不可打出";
         }
 
-        // ============ 语料原生禁令（2026-10-29 阶段2）：低费/高费/非生物 三道出牌闸 ============
-        // 模式费取 mode 0 运行时推导费（多模式卡近似——先按首模式判；后续要精确再改 PlayCard 的 modeIndex 口）。
+        // ============ 语料原生禁令（2026-10-29 阶段2）：低费/高费 两道出牌闸 ============
+        // 模式费取 mode 0（多模式卡近似——先按首模式=数据契约最高消耗档判，最严侧；后续要精确再改
+        // PlayCard 的 modeIndex 口）。低费=运行时推导费；高费 2026-11-07 改=**代价抵扣前**推导费
+        //（GetPrePayloadCost 原始费用口径，见闸体注）。
 
         private sealed class NoLowCostPlayRestriction : IPlayRestrictionWithReason
         {
@@ -703,17 +703,21 @@ namespace CardCore
 
         private sealed class NoHighCostPlayRestriction : IPlayRestrictionWithReason
         {
+            // 2026-11-07 表行文本口径对齐：比对**原始费用**=代价抵扣前的推导费（GetPrePayloadCost
+            // 单源——卡层代价行不折算；四色费用增减指示物在 GetCardCost 指示物层才套算，推导费
+            // 天然不含——减免指示物压不下卡费来绕闸）。阈值=对手地牌张数（元素池 PooledCards 全为
+            // 地牌卡；临时元素落 TempElements 钱包非地牌——天然不计）。恰等于阈值放行（同归土含等号口径）。
             public bool CanPlay(GameCore core, Player player, Card card, Zone fromZone)
             {
                 if (!RuleAuraSystem.ScopeHits(NoHighCostAura, player)) return true;
                 if (!(card is CardWrapper w) || !(w.GetData() is CardData d)) return true;
-                // 2026-10-29 修正口径：阈值=对手池内地牌张数（不限非生物、不看己方地数——拉温妮改版）
                 var opp = player?.Opponent;
                 int oppLands = opp != null ? (core?.ElementPool?.GetPool(opp)?.PooledCards?.Count ?? 0) : 0;
-                return CardCostService.GetRuntimeCost(d, 0).Total <= oppLands;
+                CardCostService.GetPrePayloadCost(d, 0, out var original, out _);
+                return original.Total <= oppLands;
             }
 
-            public string RejectText => "禁高费令生效——费用高于对手地牌数的牌不可打出";
+            public string RejectText => "禁高费令生效——原始费用超过对手地牌数（不含临时元素）的牌不可打出";
         }
 
         // ============ 纳川仪典（2026-10-30 改版）：手牌上限 + 自己蓝色地牌数（动态实时查询）。

@@ -26,21 +26,28 @@ namespace CardCore
             return 0;
         }
 
-        // ---- 战斗底盘能力（2026-09-10 攻/守效果化）：opt-out 经卡数据声明，缺省自带 ----
+        // ---- 战斗底盘能力（2026-09-10 攻/守效果化；2026-11-06 opt-in 改版）：资格经卡数据声明，缺省不带 ----
         // 扩展方法口径（与 IsTapped 同款）：CombatSystem/AI 拿到的是 Card 基类引用。
-        // 裸 Card（衍生物/临时卡，无卡数据）从严 = 无攻无守。
+        // 裸 Card（衍生物/临时卡，无卡数据）从严 = 无攻无守无充能。
 
-        /// <summary>攻击能力（速度0主动效果，2026-09-16 战斗接入栈机器）：生物默认自带；NoAttack 卡不能宣言攻击。</summary>
+        /// <summary>攻击资格（速度0主动效果，2026-09-16 战斗接入栈机器）：卡面声明才有（2026-11-06
+        /// opt-in 改版——生物不再默认自带）；仅生物。无资格卡不能宣言攻击。</summary>
         public static bool HasAttackAbility(this Card card)
             => card is CardWrapper w && w.GetData() is CardData d
-               && d.Supertype == Cardtype.Creature && !d.NoAttack;
+               && d.Supertype == Cardtype.Creature && d.AttackAbility;
 
-        /// <summary>守卫能力（速度1响应拦截，2026-09-16）：生物默认自带；守卫拦截入口按此过滤。
+        /// <summary>守卫资格（速度1响应拦截，2026-09-16）：卡面声明才有（2026-11-06 opt-in 改版）；
+        /// 守卫拦截入口按此过滤。
         /// 2026-10-29 禁守令：受禁守光环影响的控制者一侧，其生物守卫能力一并失效。</summary>
         public static bool HasGuardAbility(this Card card)
             => card is CardWrapper w && w.GetData() is CardData d
-               && d.Supertype == Cardtype.Creature && !d.NoGuard
+               && d.Supertype == Cardtype.Creature && d.GuardAbility
                && !RuleAuraSystem.ScopeHits(RuleAuraComponents.NoGuardAura, card.GetController());
+
+        /// <summary>充能资格（2026-11-06 充能 opt-in 改版）：卡面声明才有——GameActions.CanCharge
+        /// 首闸 / UI 充能行与亮钮 / AI 枚举同口。任意卡型可声明（与攻/守不同：不限生物）。</summary>
+        public static bool HasChargeAbility(this Card card)
+            => card is CardWrapper w && w.GetData() is CardData d && d.ChargeAbility;
 
         /// <summary>获取生命值（含连接光环加成；伤害扣 _life 原值，断链自动回落）</summary>
         public static int GetLife(this Entity entity)
@@ -397,8 +404,6 @@ namespace CardCore
         /// 三层读数不漂移）。
         /// 回合时钟重载已删（2026-10-08 死路径清理）：限时持续由 CounterSpec 的
         /// Duration/TickPolicy 声明驱动，不再随施加传 turns。
-        /// （2026-11-02 苏醒机制整链删除：CounterGrantKind.EntryCost 入场代价投放档退役——
-        ///  唯一生产者是苏醒入场沉睡；kind 参数保留常规档默认值，调用面不动。）
         /// </summary>
         public static int AddCounters(this Entity entity, string counterType, int amount, Entity source = null,
             Attribute.CounterGrantKind kind = Attribute.CounterGrantKind.Effect)
@@ -409,6 +414,14 @@ namespace CardCore
             {
                 var side = entity is Player p ? p : (entity as Card)?.GetController() ?? (entity as Card)?.GetOwner();
                 var spec = Attribute.CounterRules.Find(counterType);
+
+                // 禁疗令扩版（2026-11-06）：受光环影响一方的角色与单位不能添加护甲——与「不能回复生命」
+                //（Heal 咽喉）同光环同侧收口；护甲正量投放全经此咽喉（护甲原子/活体护甲同收），
+                // 负量移除不拦（伤害吸收照常）；被拦投放不进铭刻 +1。
+                if (counterType == Attribute.KeywordRules.ArmorCounter
+                    && side != null
+                    && RuleAuraSystem.ScopeHits(RuleAuraComponents.NoHealAura, side))
+                    return 0;
 
                 // 绝缘体压制闸（2026-10-31 特殊裁定改版：「不拦指示物添加」）：作用于战场单位
                 //（「持有单位」——手牌卡（含印刷绝缘体）不拦费用指示物投放）。
@@ -650,9 +663,6 @@ namespace CardCore
         // 回到手牌（任何来源）即重置为未展示。
         internal bool _isRevealed = false;
 
-        // 苏醒施放声明标记 _awakenCastPending/_awakenWaivePending 已随 2026-11-02 苏醒机制
-        // 整链删除（原：PlayCard 声明写入、ResolveCardCastAsync 消费）。
-
         // 出牌两阶段（2026-10-04 定案）：带代价的卡声明期先算代价——预选代价目标暂存于此，
         // cast 结算付费步经 CostContext.PreselectedCostTargets 消费（响应窗口内不重选；消费后清空）。
         // 代价无目标时 PlayCard 直接拒发（卡的发动无效）。运行时瞬态，不序列化。
@@ -711,9 +721,7 @@ namespace CardCore.Attribute
 {
     /// <summary>指示物投放档（2026-10-31 沉睡/免疫时序定案）：显式命名投放性质——压制闸豁免
     /// 只认本枚举传参，禁止藏在 AddCounters 咽喉里认瞬态标记的静默特判。
-    /// Effect=效果/关键词常规投放（过全部压制闸）。（2026-11-02 苏醒机制整链删除：
-    /// EntryCost 入场代价投放档退役——唯一生产者是苏醒入场沉睡；枚举保留 Effect 单档，
-    /// kind 参数与调用面不动。）</summary>
+    /// Effect=效果/关键词常规投放（过全部压制闸）。</summary>
     public enum CounterGrantKind
     {
         /// <summary>常规投放（默认档）：过全部获得闸</summary>

@@ -464,8 +464,14 @@ namespace CardCore.Attribute
             bool noneAsSingle = def.SelectionMode == SelectionMode.None; // 未声明模式=按选一（与组合层同口径）
 
             // 全取：候选全取——潜行照常命中，不受帷幕收窄；强制类无窗口同走全取（构筑期目标明确）
+            // 角色默认不参与全取（2026-11-06 用户定案：角色只有一个——全部档全取只吃面积域目标
+            //（战场生物/结界等）；候选恰全为角色时保留，防角色专属域原子全取空转）。
             if (SelectionModeRules.IsTakeAll(def.SelectionMode) || effCount == 0 || noWindow)
-                return candidates;
+            {
+                var nonRole = new List<Entity>();
+                foreach (var c in candidates) if (!(c is Player)) nonRole.Add(c);
+                return nonRole.Count > 0 || candidates.Count == 0 ? nonRole : candidates;
+            }
 
             // 目标随机：不弹窗，帷幕收窄后的完整候选域按种子抽取
             //（2026-11-02 多目标定案：每原子数量档 effCount>0 优先——带 value 的原子设 N 个随机目标即抽 N）

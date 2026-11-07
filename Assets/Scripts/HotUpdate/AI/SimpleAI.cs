@@ -404,9 +404,6 @@ namespace SynergyUI
             return false;
         }
 
-        // 苏醒施放分支（WantAwakenCast/CanAwakenPlay，2026-11-01 绿套）已随 2026-11-02
-        // 苏醒机制整链删除——出牌恒普通施放。
-
         // 墓地出牌（TryGraveyardPlayAsync）已随 2026-10-30 归土改版整删——归土=回合末自动复活，无出牌动作位。
 
         // ======================================== 出牌辅助 ========================================
@@ -697,7 +694,7 @@ namespace SynergyUI
 
         /// <summary>逐攻击开窗：每个可攻击单位按策略选目标宣言（解场收益优先，见 AiStrategy.PickAttackTarget；
         /// 速度0上栈）→ 响应窗口（SettleResponseWindowAsync：对方人类=发动弹窗/AI=守卫启发/无头=自动双 Pass）
-        /// → 结算 → 下一攻。攻击资格由引擎权威判定（横置/零攻/NoAttack）。</summary>
+        /// → 结算 → 下一攻。攻击资格由引擎权威判定（横置/零攻/无攻资格卡）。</summary>
         private async Cysharp.Threading.Tasks.UniTask DoCombatAsync(GameCore core, Player me)
         {
             var opp = me.Opponent;

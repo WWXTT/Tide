@@ -1,0 +1,575 @@
+{
+    "_说明":  "自由分支（引擎主干 8 种之 7——元素充盈已由蓝充盈场景.json 覆盖）教学式固定盘面：倒计时/运势/拼枪/死亡计数/团结/附加诅咒/附加祝福 各至少一正触发场景 + 倒计时等待/拼枪不中/团结不足三负场景。scenario 块与 TutorialScenario 同构，经 TutorialScenarioSeeder 静默注入。盘面口径：引擎卡在红（P2，SimpleAI(General) 受测行动方）；蓝（P1）惰性侧（空场空手零银行——奖励伤害按「对方无单位→角色兜底」口径落蓝角色，与蓝充盈场景⑥同款已验证据链）。倒计时计数须 units.counters 显式预置（静默入场不发区域事件、不触发入场自动挂层）；多回合场景（倒计时等待/诅咒/祝福）由 Check 侧连续 TakeTurn 驱动（P2→P1→P2 轮替）。门槛口径（CostDerivationService.RewardThreshold=Then锚价四舍五入下限1）：伤害 1 费/点→6伤门槛6、1伤门槛1；团结 x=4 手填；拼枪双方各从牌库随机展示一张生物比攻击（无生物=0），差≥门槛触发。断言在 TideSim/FreeBranchScenarioCheck.cs（dotnet run --project TideSim -- --tutorial-scenario 红蓝绿三套一起跑）。",
+    "_卡表":  {
+                "C_FFDF953C":  "教学·20 2/3（倒计时宿主：效果03271DDF param2=2回合，归零→对对方单位2伤；seeder 静默入场须 units.counters 预置 Countdown 层数）",
+                "C_2E00FB6A":  "教学·21 1/2（运势宿主：效果6BCD785C x=1 主动档 timing19——SimpleAI 主循环 ActivateBattlefieldAbilities 自动发动，双骰≥1 恒中→对对方单位1伤）",
+                "C_CD77F233":  "教学·10 1/1（拼枪宿主：效果AE2C3BF2 攻击宣言时触发，门槛=6伤锚价=6；then 6伤对对方单位）",
+                "C_E84B9F8A":  "教学·27 1/2（死亡计数宿主：效果07F57EE1 双方生物死亡计数，满值6、门槛6，then 6伤对对方单位）",
+                "C_BD0822E9":  "教学·37 1/2（团结宿主：效果29C47333 x=4，己方施放结算后评估相邻占用≥4→4伤对对方单位；邻接计数经 BoardState.AdjacentOccupantCount 注入）",
+                "C_95187C1C":  "教学·11（法术·旧形态存档：效果80B7DA7B Then原子列=兼容通道——本套不再引用，仅作对照保留）",
+                "C_AA96F206":  "教学·12（法术·旧形态存档：效果FE4D4EBB Then原子列=兼容通道——本套不再引用）",
+                "C_CC0DE001":  "教学·50（法术·附加诅咒·载荷效果化主通道：效果CC0DE003 原子str=CC0DE001组合效果引用、Then空；费红3）",
+                "C_CC0DE002":  "教学·51（法术·附加祝福·载荷效果化主通道：效果CC0DE004 原子str=CC0DE002组合效果引用、Then空；费绿3）",
+                "CC0DE001":  "诅咒载荷组合效果：两段各对对方单位3伤（Steps遍历·免编排·原子各自解析目标——多原子即「组合」证据）",
+                "CC0DE002":  "祝福载荷组合效果：回复12点生命",
+                "C_E2122348":  "教学·26 1/2（运势宿主 x=6：效果60011B78——双骰都≥6 才中=1/36，固定种子下不中路径可复现）",
+                "C_A9ED8C5A":  "教学·33 1/2（充盈宿主 x=6：效果CD0C3750 then 6伤——门槛6；差封顶6语义的载体）",
+                "C_CC0DE003":  "教学·52 0/2（死亡计数宿主·门槛2专用：效果CC0DE005 then=抽1牌（锚价2）——无攻守无充能纯计数载体，抽牌奖励不杀生物=逐次触发可观察）",
+                "C_11B82155":  "教学·35 1/1（地牌载体，tokenType 锁色；团结混合格场景的地牌格占用）",
+                "C_03E4B181":  "教学·8 7/7（7费——大攻击生物：拼枪牌库取样/攻击者/死亡计数击杀者）",
+                "C_138CE290":  "火苗 2/2（1灰生物：团结场景的出牌动作与邻接占位填充）",
+                "C_DA499FAE":  "教学·3 1/1（1灰填充生物：死亡计数受害者/牌库填充/诅咒挂载目标）",
+                "C_DF45065E":  "潮痕碑（结界——非生物牌库填充：拼枪场景制造「牌库无生物=0」侧；下场后不可被施放=纯占位）"
+            },
+    "scenarios":  [
+                      {
+                          "id":  "countdown-fire",
+                          "name":  "① 倒计时：预置1层，红回合准备阶段归零→2伤+重挂",
+                          "note":  "红(P2)场=教学·20（t10 预置横置防首回合攻击，counters 预置 Countdown:1——静默入场不走入场自动挂层）；蓝(P1)惰性（空场空手零银行）。起跳回合（t10）跳过准备阶段自动化，红第2回合（t12）准备阶段才 tick 1→0→自动触发：2伤落对方唯一有生命目标=蓝角色；t12 回合开始解横置后教学·20 也会攻击蓝脸2——终态蓝26=引擎2伤+攻击2。计数重挂=2。注：教学·20 效果 activation=1（自动档），归零即发不走主动发射窗；驱动=红→蓝→红三连回合（CheckPhaseTransition 泵推进）。",
+                          "scenario":  {
+                                           "startTurn":  10,
+                                           "firstPlayer":  "P2",
+                                           "player":  {
+                                                          "life":  30,
+                                                          "fatigue":  0,
+                                                          "bank":  [0,0,0,0,0,0],
+                                                          "lands":  [],
+                                                          "units":  [],
+                                                          "hand":  [],
+                                                          "deck":  ["C_03E4B181","C_03E4B181"],
+                                                          "grave":  []
+                                                      },
+                                           "ai":  {
+                                                      "life":  30,
+                                                      "fatigue":  0,
+                                                      "bank":  [0,0,0,0,0,0],
+                                                      "lands":  [],
+                                                      "units":  [
+                                                                    {
+                                                                        "card":  "C_FFDF953C",
+                                                                        "tapped":  true,
+                                                                        "counters":  [
+                                                                                         {"key":  "Countdown", "value":  1}
+                                                                                     ]
+                                                                    }
+                                                                ],
+                                                      "hand":  [],
+                                                      "deck":  ["C_03E4B181","C_03E4B181"],
+                                                      "grave":  []
+                                                  }
+                                       }
+                      },
+                      {
+                          "id":  "countdown-wait",
+                          "name":  "② 倒计时：预置2层，首个红回合不触发→隔蓝回合→第二红回合才触发",
+                          "note":  "同①但 Countdown:2。五连回合驱动（红→蓝→红→蓝→红，CheckPhaseTransition 泵推进）：起跳回合（t10）跳过准备阶段；红t12 tick 2→1 不出奖（同回合解横置后攻击蓝脸2）；蓝回合 tick 只作用于蓝方场上卡（教学·20 不动）；红t14 tick 1→0→触发 2伤+再攻击2——终态蓝24=引擎2伤+攻击2×2。验证 tick 只挂控制者自己的准备阶段+跨回合计数存续。",
+                          "scenario":  {
+                                           "startTurn":  10,
+                                           "firstPlayer":  "P2",
+                                           "player":  {
+                                                          "life":  30,
+                                                          "fatigue":  0,
+                                                          "bank":  [0,0,0,0,0,0],
+                                                          "lands":  [],
+                                                          "units":  [],
+                                                          "hand":  [],
+                                                          "deck":  ["C_03E4B181","C_03E4B181"],
+                                                          "grave":  []
+                                                      },
+                                           "ai":  {
+                                                      "life":  30,
+                                                      "fatigue":  0,
+                                                      "bank":  [0,0,0,0,0,0],
+                                                      "lands":  [],
+                                                      "units":  [
+                                                                    {
+                                                                        "card":  "C_FFDF953C",
+                                                                        "tapped":  true,
+                                                                        "counters":  [
+                                                                                         {"key":  "Countdown", "value":  2}
+                                                                                     ]
+                                                                    }
+                                                                ],
+                                                      "hand":  [],
+                                                      "deck":  ["C_03E4B181","C_03E4B181"],
+                                                      "grave":  []
+                                                  }
+                                       }
+                      },
+                      {
+                          "id":  "luck-fire",
+                          "name":  "③ 运势：x=1 双骰恒≥1，主动发动必中→1伤",
+                          "note":  "红(P2)场=教学·21（运势 x=1，timing19 主动档——SimpleAI 主循环 ActivateBattlefieldAbilities 会自动发动，无头掷 2d6 GameRng；发动代价横置宿主=本回合不再攻击）；蓝(P1)惰性。双骰都≥1 恒成立→执行奖励 1伤落蓝角色（终态29）。每卡每回合1次封顶：limit=1 + 引擎发射账双保险。",
+                          "scenario":  {
+                                           "startTurn":  10,
+                                           "firstPlayer":  "P2",
+                                           "player":  {
+                                                          "life":  30,
+                                                          "fatigue":  0,
+                                                          "bank":  [0,0,0,0,0,0],
+                                                          "lands":  [],
+                                                          "units":  [],
+                                                          "hand":  [],
+                                                          "deck":  ["C_DA499FAE","C_DA499FAE"],
+                                                          "grave":  []
+                                                      },
+                                           "ai":  {
+                                                      "life":  30,
+                                                      "fatigue":  0,
+                                                      "bank":  [0,0,0,0,0,0],
+                                                      "lands":  [],
+                                                      "units":  [
+                                                                    {"card":  "C_2E00FB6A"}
+                                                                ],
+                                                      "hand":  [],
+                                                      "deck":  ["C_DA499FAE","C_DA499FAE"],
+                                                      "grave":  []
+                                                  }
+                                       }
+                      },
+                      {
+                          "id":  "clash-fire",
+                          "name":  "④ 拼枪：红牌库7/7生物 vs 蓝牌库无生物（差7≥门槛6）→攻击宣言触发6伤",
+                          "note":  "红(P2)场=教学·10(已横置)+教学·8 7/7(攻击者)；红牌库=[教学·8×2]（起跳抽1张余1张7/7=取样恒7）；蓝(P1)牌库=[潮痕碑×2]（结界=牌库无生物→取样0）。红宣言攻击（打蓝脸）→拼枪评估：7−0=7 ≥ 门槛6（then 6伤锚价）→6伤落蓝角色（30→24）+攻击本体7伤（终态17）。",
+                          "scenario":  {
+                                           "startTurn":  10,
+                                           "firstPlayer":  "P2",
+                                           "player":  {
+                                                          "life":  30,
+                                                          "fatigue":  0,
+                                                          "bank":  [0,0,0,0,0,0],
+                                                          "lands":  [],
+                                                          "units":  [],
+                                                          "hand":  [],
+                                                          "deck":  ["C_DF45065E","C_DF45065E"],
+                                                          "grave":  []
+                                                      },
+                                           "ai":  {
+                                                      "life":  30,
+                                                      "fatigue":  0,
+                                                      "bank":  [0,0,0,0,0,0],
+                                                      "lands":  [],
+                                                      "units":  [
+                                                                    {"card":  "C_CD77F233", "tapped":  true},
+                                                                    {"card":  "C_03E4B181"}
+                                                                ],
+                                                      "hand":  [],
+                                                      "deck":  ["C_03E4B181","C_03E4B181"],
+                                                      "grave":  []
+                                                  }
+                                       }
+                      },
+                      {
+                          "id":  "clash-miss",
+                          "name":  "⑤ 拼枪（负）：红牌库无生物 vs 蓝7/7（差−7<门槛）→宣言评估但不触发",
+                          "note":  "牌库与④对调：红牌库=[潮痕碑×2]（取样0）、蓝牌库=[教学·8×2]（取样7）。红宣言攻击→拼枪评估必发 ClashResolvedEvent(Success=false)——0−7=−7 < 6：零播报零奖励，蓝只吃攻击本体7伤（终态23）。",
+                          "scenario":  {
+                                           "startTurn":  10,
+                                           "firstPlayer":  "P2",
+                                           "player":  {
+                                                          "life":  30,
+                                                          "fatigue":  0,
+                                                          "bank":  [0,0,0,0,0,0],
+                                                          "lands":  [],
+                                                          "units":  [],
+                                                          "hand":  [],
+                                                          "deck":  ["C_03E4B181","C_03E4B181"],
+                                                          "grave":  []
+                                                      },
+                                           "ai":  {
+                                                      "life":  30,
+                                                      "fatigue":  0,
+                                                      "bank":  [0,0,0,0,0,0],
+                                                      "lands":  [],
+                                                      "units":  [
+                                                                    {"card":  "C_CD77F233", "tapped":  true},
+                                                                    {"card":  "C_03E4B181"}
+                                                                ],
+                                                      "hand":  [],
+                                                      "deck":  ["C_DF45065E","C_DF45065E"],
+                                                      "grave":  []
+                                                  }
+                                       }
+                      },
+                      {
+                          "id":  "deathtoll-fire",
+                          "name":  "⑥ 死亡计数：红6攻击者杀蓝6只1/1，计数恰满6=门槛→6伤",
+                          "note":  "红(P2)场=教学·27(已横置——引擎订阅与横置无关，且避免其1攻打脸污染读数；t12 解横置时 6 杀已完成，无攻击窗口)+教学·8×6(7/7攻击者)；蓝(P1)场=教学·3×6(1/1受害者)。红回合战斗逐个点名单位（General 解场收益>0 无条件换子）：6杀→死亡计数 1..6 递增，第6杀计数=6=门槛（then 6伤锚价）→触发6伤——无头自动选首=刚阵亡的第6只仍在候选首位，6伤落尸体（角色兜底只在完全无单位时发生，蓝充盈⑥同源口径），蓝零战损生命30。满值6不再计数；每卡每回合1次=只发一次。",
+                          "scenario":  {
+                                           "startTurn":  10,
+                                           "firstPlayer":  "P2",
+                                           "player":  {
+                                                          "life":  30,
+                                                          "fatigue":  0,
+                                                          "bank":  [0,0,0,0,0,0],
+                                                          "lands":  [],
+                                                          "units":  [
+                                                                    {"card":  "C_DA499FAE"},
+                                                                    {"card":  "C_DA499FAE"},
+                                                                    {"card":  "C_DA499FAE"},
+                                                                    {"card":  "C_DA499FAE"},
+                                                                    {"card":  "C_DA499FAE"},
+                                                                    {"card":  "C_DA499FAE"}
+                                                                ],
+                                                          "hand":  [],
+                                                          "deck":  ["C_DF45065E","C_DF45065E"],
+                                                          "grave":  []
+                                                      },
+                                           "ai":  {
+                                                      "life":  30,
+                                                      "fatigue":  0,
+                                                      "bank":  [0,0,0,0,0,0],
+                                                      "lands":  [],
+                                                      "units":  [
+                                                                    {"card":  "C_E84B9F8A", "tapped":  true},
+                                                                    {"card":  "C_03E4B181"},
+                                                                    {"card":  "C_03E4B181"},
+                                                                    {"card":  "C_03E4B181"},
+                                                                    {"card":  "C_03E4B181"},
+                                                                    {"card":  "C_03E4B181"},
+                                                                    {"card":  "C_03E4B181"}
+                                                                ],
+                                                      "hand":  [],
+                                                      "deck":  ["C_DF45065E","C_DF45065E"],
+                                                      "grave":  []
+                                                  }
+                                       }
+                      },
+                      {
+                          "id":  "unity-fire",
+                          "name":  "⑦ 团结：引擎钉(3,4)四邻格全占（邻接4≥x=4），红连出两牌只触发一次",
+                          "note":  "红(P2)单位区钉位：教学·37(引擎,已横置)在(3,4)，火苗×4(已横置)占其四邻格(4,4)/(2,4)/(3,5)/(2,5)——odd-r 邻接恰4个单位格（另两邻=中线格不计数）；红手[火苗×2]+钱包2灰。红连出两张火苗（钱包付灰；新火苗自动落位(5,4)/(5,5)均不邻引擎、计数稳定4）→每次施放结算后评估：首张邻接4≥4→触发4伤落蓝角色；第二张每卡每回合1次封顶→不再触发。两张新火苗未横置会攻击蓝脸（2+2），终态蓝22=4伤+4攻击伤。",
+                          "scenario":  {
+                                           "startTurn":  10,
+                                           "firstPlayer":  "P2",
+                                           "player":  {
+                                                          "life":  30,
+                                                          "fatigue":  0,
+                                                          "bank":  [0,0,0,0,0,0],
+                                                          "lands":  [],
+                                                          "units":  [],
+                                                          "hand":  [],
+                                                          "deck":  ["C_DA499FAE","C_DA499FAE"],
+                                                          "grave":  []
+                                                      },
+                                           "ai":  {
+                                                      "life":  30,
+                                                      "fatigue":  0,
+                                                      "bank":  [2,0,0,0,0,0],
+                                                      "lands":  [],
+                                                      "units":  [
+                                                                    {"card":  "C_BD0822E9", "tapped":  true, "x":  3, "z":  4},
+                                                                    {"card":  "C_138CE290", "tapped":  true, "x":  4, "z":  4},
+                                                                    {"card":  "C_138CE290", "tapped":  true, "x":  2, "z":  4},
+                                                                    {"card":  "C_138CE290", "tapped":  true, "x":  3, "z":  5},
+                                                                    {"card":  "C_138CE290", "tapped":  true, "x":  2, "z":  5}
+                                                                ],
+                                                      "hand":  ["C_138CE290","C_138CE290"],
+                                                      "deck":  ["C_DA499FAE","C_DA499FAE"],
+                                                      "grave":  []
+                                                  }
+                                       }
+                      },
+                      {
+                          "id":  "unity-miss",
+                          "name":  "⑧ 团结（负）：只占三邻格（3<4），施放结算后不触发",
+                          "note":  "同⑦但四邻格只占三（(2,4)留空）且只出一张火苗（自动落位(5,4)=序首空格，不邻引擎、计数稳定3；出第二张会落(2,4)变成邻接4）——施放结算后评估 3<4 恒不触发：零播报零引擎伤害。新火苗攻击蓝脸2，终态28。对照⑦=同一评估口、唯一变量是邻接数。",
+                          "scenario":  {
+                                           "startTurn":  10,
+                                           "firstPlayer":  "P2",
+                                           "player":  {
+                                                          "life":  30,
+                                                          "fatigue":  0,
+                                                          "bank":  [0,0,0,0,0,0],
+                                                          "lands":  [],
+                                                          "units":  [],
+                                                          "hand":  [],
+                                                          "deck":  ["C_DA499FAE","C_DA499FAE"],
+                                                          "grave":  []
+                                                      },
+                                           "ai":  {
+                                                      "life":  30,
+                                                      "fatigue":  0,
+                                                      "bank":  [1,0,0,0,0,0],
+                                                      "lands":  [],
+                                                      "units":  [
+                                                                    {"card":  "C_BD0822E9", "tapped":  true, "x":  3, "z":  4},
+                                                                    {"card":  "C_138CE290", "tapped":  true, "x":  4, "z":  4},
+                                                                    {"card":  "C_138CE290", "tapped":  true, "x":  3, "z":  5},
+                                                                    {"card":  "C_138CE290", "tapped":  true, "x":  2, "z":  5}
+                                                                ],
+                                                      "hand":  ["C_138CE290"],
+                                                      "deck":  ["C_DA499FAE","C_DA499FAE"],
+                                                      "grave":  []
+                                                  }
+                                       }
+                      },
+                      {
+                          "id":  "curse-fire",
+                          "name":  "⑨ 附加诅咒（载荷效果化主通道）：施放→蓝牌库唯一卡挂诅咒→抽到发作=组合载荷两段3伤",
+                          "note":  "两阶段两回合（CheckPhaseTransition 泵推进；起跳回合跳过准备阶段=红不抽牌）：红(P2)手[教学·50]+钱包[1灰,3红]（施放价=锚价红3）；蓝(P1)牌库=[教学·3×1]恰1张（随机挂载确定性）+惰性。教学·50=2026-11-06 载荷效果化新形态（原子str=CC0DE001组合效果引用，Then 兼容通道未用）：红回合施放→结算时部署（蓝牌库唯一卡+1层诅咒+登记载荷+自动展示）；泵进蓝回合→准备阶段抽到该卡→诅咒发作**按效果定义 Steps 遍历**（免编排路径·原子各自解析目标）=组合载荷两段各3伤落蓝角色（30→24），指示物清零、卡正常入手。断言覆盖载荷通道前置+附加/发作两段播报+指示物生灭+两段伤害。",
+                          "scenario":  {
+                                           "startTurn":  10,
+                                           "firstPlayer":  "P2",
+                                           "player":  {
+                                                          "life":  30,
+                                                          "fatigue":  0,
+                                                          "bank":  [0,0,0,0,0,0],
+                                                          "lands":  [],
+                                                          "units":  [],
+                                                          "hand":  [],
+                                                          "deck":  ["C_DA499FAE"],
+                                                          "grave":  []
+                                                      },
+                                           "ai":  {
+                                                      "life":  30,
+                                                      "fatigue":  0,
+                                                      "bank":  [1,3,0,0,0,0],
+                                                      "lands":  [],
+                                                      "units":  [],
+                                                      "hand":  ["C_CC0DE001"],
+                                                      "deck":  ["C_DF45065E","C_DF45065E"],
+                                                      "grave":  []
+                                                  }
+                                       }
+                      },
+                      {
+                          "id":  "blessing-fire",
+                          "name":  "⑩ 附加祝福（载荷效果化主通道）：施放→自己牌库挂祝福→隔回合抽到发作=组合载荷回12",
+                          "note":  "三回合（泵推进；起跳回合跳过准备阶段）：红(P2)手[教学·51]+钱包[1灰,3绿]（施放价=锚价绿3）、生命12/上限30（带伤入场——回复类 Damaged 过滤要求 life<max 才有合法目标）、牌库=[教学·3×1]恰1张（起跳不抽牌=部署时牌库仍1张，挂载确定性）。教学·51=载荷效果化新形态（原子str=CC0DE002组合效果引用，Then 兼容通道未用）：红回合1施放→部署给自己牌库唯一卡；泵进蓝回合过；红回合2（t12）准备阶段抽到→祝福发作按效果定义结算=回12落自己唯一受伤目标=红角色（12→24），指示物清零。",
+                          "scenario":  {
+                                           "startTurn":  10,
+                                           "firstPlayer":  "P2",
+                                           "player":  {
+                                                          "life":  30,
+                                                          "fatigue":  0,
+                                                          "bank":  [0,0,0,0,0,0],
+                                                          "lands":  [],
+                                                          "units":  [],
+                                                          "hand":  [],
+                                                          "deck":  ["C_DF45065E","C_DF45065E"],
+                                                          "grave":  []
+                                                      },
+                                           "ai":  {
+                                                      "life":  12,
+                                                      "maxLife":  30,
+                                                      "fatigue":  0,
+                                                      "bank":  [1,0,0,3,0,0],
+                                                      "lands":  [],
+                                                      "units":  [],
+                                                      "hand":  ["C_CC0DE002"],
+                                                      "deck":  ["C_DA499FAE"],
+                                                      "grave":  []
+                                                  }
+                                       }
+                      },
+                      {
+                          "id":  "countdown-sleep",
+                          "name":  "⑪ 倒计时·沉睡：沉睡期间照走归零不发，睡醒首个准备阶段补发+重挂",
+                          "note":  "同①但预置 Countdown:1 + Sleeping:2。t12 准备阶段：沉睡中 cd 1→0 照走但不出奖（沉睡层2→1）；t14：沉睡解除（1→0）且 cd 已 0 → 补发 2伤+重挂。验证「一边沉睡一边倒计时，睡醒才成功」。驱动=五连回合。",
+                          "scenario":  {
+                                           "startTurn":  10,
+                                           "firstPlayer":  "P2",
+                                           "player":  {
+                                                          "life":  30, "fatigue":  0,
+                                                          "bank":  [0,0,0,0,0,0], "lands":  [], "units":  [],
+                                                          "hand":  [], "deck":  ["C_DA499FAE","C_DA499FAE"], "grave":  []
+                                                      },
+                                           "ai":  {
+                                                      "life":  30, "fatigue":  0,
+                                                      "bank":  [0,0,0,0,0,0], "lands":  [],
+                                                      "units":  [
+                                                                    {"card":  "C_FFDF953C", "tapped":  true,
+                                                                     "counters":  [{"key":  "Countdown", "value":  1}, {"key":  "Sleeping", "value":  2}]}
+                                                                ],
+                                                      "hand":  [], "deck":  ["C_DA499FAE","C_DA499FAE"], "grave":  []
+                                                  }
+                                       }
+                      },
+                      {
+                          "id":  "luck-miss",
+                          "name":  "⑫ 运势（负）：x=6 双骰非双6 → 评估必发但不中，零奖励",
+                          "note":  "红(P2)场=教学·26（运势 x=6，主动档自动发动）。掷骰 LuckRolledEvent 成败两态必发（评估发生的外部证据——负例不是「引擎没跑」）；固定种子下双骰确定，非双6 → Success=false：零运势播报、零伤害。发动横置宿主=不攻击，蓝满血30。",
+                          "scenario":  {
+                                           "startTurn":  10,
+                                           "firstPlayer":  "P2",
+                                           "player":  {
+                                                          "life":  30, "fatigue":  0,
+                                                          "bank":  [0,0,0,0,0,0], "lands":  [], "units":  [],
+                                                          "hand":  [], "deck":  ["C_DA499FAE","C_DA499FAE"], "grave":  []
+                                                      },
+                                           "ai":  {
+                                                      "life":  30, "fatigue":  0,
+                                                      "bank":  [0,0,0,0,0,0], "lands":  [],
+                                                      "units":  [{"card":  "C_E2122348"}],
+                                                      "hand":  [], "deck":  ["C_DA499FAE","C_DA499FAE"], "grave":  []
+                                                  }
+                                       }
+                      },
+                      {
+                          "id":  "clash-twice",
+                          "name":  "⑬ 拼枪·两次宣言：每宣必评估（2 次 Success），奖励每卡每回合封顶 1 发",
+                          "note":  "红(P2)场=教学·10(已横置)+教学·8×2（两个攻击者）；红牌库=[教学·8×2]（取样7）、蓝牌库=[潮痕碑×2]（取样0）。两个 7/7 各宣言攻击蓝脸 → 2 次攻击宣言=2 次拼枪评估（均 Success=true，7≥6——评估无每回合上限）；但奖励发射受每卡每回合 1 次全局封顶 → 只发 1 次 6伤。终态蓝=30−6−7−7=10。",
+                          "scenario":  {
+                                           "startTurn":  10,
+                                           "firstPlayer":  "P2",
+                                           "player":  {
+                                                          "life":  30, "fatigue":  0,
+                                                          "bank":  [0,0,0,0,0,0], "lands":  [], "units":  [],
+                                                          "hand":  [], "deck":  ["C_DF45065E","C_DF45065E"], "grave":  []
+                                                      },
+                                           "ai":  {
+                                                      "life":  30, "fatigue":  0,
+                                                      "bank":  [0,0,0,0,0,0], "lands":  [],
+                                                      "units":  [
+                                                                    {"card":  "C_CD77F233", "tapped":  true},
+                                                                    {"card":  "C_03E4B181"},
+                                                                    {"card":  "C_03E4B181"}
+                                                                ],
+                                                      "hand":  [], "deck":  ["C_03E4B181","C_03E4B181"], "grave":  []
+                                                  }
+                                       }
+                      },
+                      {
+                          "id":  "deathtoll-repeat",
+                          "name":  "⑭ 死亡计数·逐次触发：门槛2+6杀1/回合 → [2,6] 每档一发共5发（负例=首杀未达门槛）",
+                          "note":  "红(P2)场=教学·52(0/2·无攻守=纯计数载体)+教学·36(1伤主动·每回合一发=经济钉死的逐杀器)+1红地(每回合自动横置付1红)、生命999；蓝(P1)场=教学·3×6(1/1受害者)。11 连回合（红×6蓝×5）：红每回合主动发动1伤点杀一只（General 对 gain=0 换子不换——杀走主动口不走攻击）→ 计数 1..6；首杀(计数1)未达门槛2=负例，t12 起计数 2/3/4/5/6 各触发一发（触发不清零+跨回合续计+每回合一发封顶）共 5 发，奖励=抽1牌（不杀生物零连锁）——红总抽牌=5 准备阶段+5 奖励=10 张为逐次触发的直接读数。蓝1/1打不动0/2与1/2只打脸（999承伤）。",
+                          "scenario":  {
+                                           "startTurn":  10,
+                                           "firstPlayer":  "P2",
+                                           "player":  {
+                                                          "life":  30, "fatigue":  0,
+                                                          "bank":  [0,0,0,0,0,0], "lands":  [],
+                                                          "units":  [
+                                                                    {"card":  "C_DA499FAE"}, {"card":  "C_DA499FAE"},
+                                                                    {"card":  "C_DA499FAE"}, {"card":  "C_DA499FAE"},
+                                                                    {"card":  "C_DA499FAE"}, {"card":  "C_DA499FAE"}
+                                                                ],
+                                                          "hand":  [], "deck":  ["C_DF45065E","C_DF45065E"], "grave":  []
+                                                      },
+                                           "ai":  {
+                                                      "life":  999, "fatigue":  0,
+                                                      "bank":  [0,0,0,0,0,0],
+                                                      "lands":  [{"card":  "C_11B82155", "tokenType":  "Red"}],
+                                                      "units":  [
+                                                                    {"card":  "C_CC0DE003"},
+                                                                    {"card":  "C_6E58021B"}
+                                                                ],
+                                                      "hand":  [],
+                                                      "deck":  ["C_DF45065E","C_DF45065E","C_DF45065E","C_DF45065E","C_DF45065E","C_DF45065E","C_DF45065E","C_DF45065E","C_DF45065E","C_DF45065E","C_DF45065E","C_DF45065E"],
+                                                      "grave":  []
+                                                  }
+                                       }
+                      },
+                      {
+                          "id":  "unity-mixed-cells",
+                          "name":  "⑮ 团结·混合格：角色格+地牌格+单位格各算一（仅2单位邻格也达标4）",
+                          "note":  "引擎教学·37 钉(5,5)：E邻(6,5)=P2角色格恒计1；NW邻(5,6)=灰地牌格（seeder 1灰地入池占格）计1；W邻(4,5)/SW邻(5,4)=两个单位格各计1——合计4≥x=4（对照⑦=四单位格路线）。若角色/地牌不计，仅2<4 不触发——触发本身即「各算一」口径的判别性证据。红手[火苗]+1灰：出牌结算触发4伤；新火苗落位(4,4)不邻引擎；蓝终态=30−4−火苗攻击2=24。",
+                          "scenario":  {
+                                           "startTurn":  10,
+                                           "firstPlayer":  "P2",
+                                           "player":  {
+                                                          "life":  30, "fatigue":  0,
+                                                          "bank":  [0,0,0,0,0,0], "lands":  [], "units":  [],
+                                                          "hand":  [], "deck":  ["C_DA499FAE","C_DA499FAE"], "grave":  []
+                                                      },
+                                           "ai":  {
+                                                      "life":  30, "fatigue":  0,
+                                                      "bank":  [1,0,0,0,0,0],
+                                                      "lands":  [{"card":  "C_11B82155", "tokenType":  "Gray"}],
+                                                      "units":  [
+                                                                    {"card":  "C_BD0822E9", "tapped":  true, "x":  5, "z":  5},
+                                                                    {"card":  "C_138CE290", "tapped":  true, "x":  4, "z":  5},
+                                                                    {"card":  "C_138CE290", "tapped":  true, "x":  5, "z":  4}
+                                                                ],
+                                                      "hand":  ["C_138CE290"], "deck":  ["C_DA499FAE","C_DA499FAE"], "grave":  []
+                                                  }
+                                       }
+                      },
+                      {
+                          "id":  "fullness-cap6",
+                          "name":  "⑯ 充盈·封顶6：差8读作6（min(8,6)==x=6）仍触发——封顶不是拒发",
+                          "note":  "红(P2)场=教学·33（充盈 x=6·then 6伤，门槛=Then锚价推导=6）+8未横置地；红手[火苗]+1灰。红出火苗（钱包付灰）→连锁终点：红剩余8−蓝0=8，差额读数封顶 min(8,6)=6 恰等于 x=6 → 触发6伤落蓝角色。播报明细含「己 8−对 0，封顶 6）== 6」=封顶语义直接证据。引擎已横置不攻击；新火苗攻击蓝脸2——蓝终态=30−6−2=22。",
+                          "scenario":  {
+                                           "startTurn":  10,
+                                           "firstPlayer":  "P2",
+                                           "player":  {
+                                                          "life":  30, "fatigue":  0,
+                                                          "bank":  [0,0,0,0,0,0], "lands":  [], "units":  [],
+                                                          "hand":  [], "deck":  ["C_DA499FAE","C_DA499FAE"], "grave":  []
+                                                      },
+                                           "ai":  {
+                                                      "life":  30, "fatigue":  0,
+                                                      "bank":  [1,0,0,0,0,0],
+                                                      "lands":  [
+                                                                {"card":  "C_11B82155", "tokenType":  "Blue"},
+                                                                {"card":  "C_11B82155", "tokenType":  "Blue"},
+                                                                {"card":  "C_11B82155", "tokenType":  "Blue"},
+                                                                {"card":  "C_11B82155", "tokenType":  "Blue"},
+                                                                {"card":  "C_11B82155", "tokenType":  "Blue"},
+                                                                {"card":  "C_11B82155", "tokenType":  "Blue"},
+                                                                {"card":  "C_11B82155", "tokenType":  "Blue"},
+                                                                {"card":  "C_11B82155", "tokenType":  "Blue"}
+                                                            ],
+                                                      "units":  [{"card":  "C_A9ED8C5A", "tapped":  true}],
+                                                      "hand":  ["C_138CE290"], "deck":  ["C_DA499FAE","C_DA499FAE"], "grave":  []
+                                                  }
+                                       }
+                      },
+                      {
+                          "id":  "curse-empty-deck",
+                          "name":  "⑰ 附加诅咒·空库空转：施放照常、零部署零挂载零播报（不炸局）",
+                          "note":  "蓝(P1)手=[教学·3]但牌库空（BuildDeck 经手牌 id 过闸；蓝无银行不可施放=纯占位）。红(P2)手[教学·50]+钱包[1灰,3红]照常施放→部署口遇空库：Warn 空转（不部署不登记）——零诅咒指示物事件、零附加播报、双方满血。施放发生(_redPlays==1)=评估路径确被进入，负例不是引擎没跑。",
+                          "scenario":  {
+                                           "startTurn":  10,
+                                           "firstPlayer":  "P2",
+                                           "player":  {
+                                                          "life":  30, "fatigue":  0,
+                                                          "bank":  [0,0,0,0,0,0], "lands":  [], "units":  [],
+                                                          "hand":  ["C_DA499FAE"], "deck":  [], "grave":  []
+                                                      },
+                                           "ai":  {
+                                                      "life":  30, "fatigue":  0,
+                                                      "bank":  [1,3,0,0,0,0], "lands":  [], "units":  [],
+                                                      "hand":  ["C_CC0DE001"], "deck":  ["C_DF45065E","C_DF45065E"], "grave":  []
+                                                  }
+                                       }
+                      },
+                      {
+                          "id":  "fullness-response-chain",
+                          "name":  "⑱ 响应链时点×双引擎：蓝宣攻→红响应出牌（双栈对象）→团结随施放即评估、充盈整链落定后一次评估",
+                          "note":  "受测回合=蓝（firstPlayer=P1）。蓝场=教学·3(1/1·宣攻者)；红(P2)场=潮痕碑(充盈x=2)+教学·37钉(3,4)+火苗×4占邻格(邻接4)+红手[教学·50诅咒法术·速2]+5红地。蓝宣攻红脸→响应窗：Check 钉选红打出教学·50（法术速2≥攻宣记速1；横置3红地付费）→栈=[攻宣,响应施放]：施放结算内（诅咒部署到蓝牌库唯一卡）→团结随本次施放立即评估（OnCardCastSettled 直调拍）→攻宣结算（蓝打红脸1）→整链落定 FinishResolution→FlushCardCastSettled→充盈此刻才评估一次（红剩余2==x=2）→2伤落蓝唯一单位=宣攻的教学·3（阵亡）。事件序断言：诅咒附加 < 团结播报 < 攻击伤害 < 充盈播报=时点语义直接证据。",
+                          "scenario":  {
+                                           "startTurn":  10,
+                                           "firstPlayer":  "P1",
+                                           "player":  {
+                                                          "life":  30, "fatigue":  0,
+                                                          "bank":  [0,0,0,0,0,0], "lands":  [],
+                                                          "units":  [{"card":  "C_03E4B181"}, {"card":  "C_DA499FAE"}],
+                                                          "hand":  [], "deck":  ["C_DA499FAE"], "grave":  []
+                                                      },
+                                           "ai":  {
+                                                      "life":  30, "fatigue":  0,
+                                                      "bank":  [0,0,0,0,0,0],
+                                                      "lands":  [
+                                                                {"card":  "C_11B82155", "tokenType":  "Red"},
+                                                                {"card":  "C_11B82155", "tokenType":  "Red"},
+                                                                {"card":  "C_11B82155", "tokenType":  "Red"},
+                                                                {"card":  "C_11B82155", "tokenType":  "Red"},
+                                                                {"card":  "C_11B82155", "tokenType":  "Red"},
+                                                                {"card":  "C_11B82155", "tokenType":  "Red"}
+                                                            ],
+                                                      "units":  [
+                                                                    {"card":  "C_DF45065E"},
+                                                                    {"card":  "C_BD0822E9", "tapped":  true, "x":  3, "z":  4},
+                                                                    {"card":  "C_138CE290", "tapped":  true, "x":  4, "z":  4},
+                                                                    {"card":  "C_138CE290", "tapped":  true, "x":  2, "z":  4},
+                                                                    {"card":  "C_138CE290", "tapped":  true, "x":  3, "z":  5},
+                                                                    {"card":  "C_138CE290", "tapped":  true, "x":  2, "z":  5}
+                                                                ],
+                                                      "hand":  ["C_CC0DE001"], "deck":  ["C_DF45065E","C_DF45065E"], "grave":  []
+                                                  }
+                                       }
+                      }
+                  ]
+}

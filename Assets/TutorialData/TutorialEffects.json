@@ -563,9 +563,6 @@
       "timing": 19,
       "activation": 2,
       "limit": 1,
-      "kinds": [
-        2
-      ],
       "steps": [
         {
           "kind": 0,
@@ -596,9 +593,6 @@
       "timing": 19,
       "activation": 2,
       "limit": 1,
-      "kinds": [
-        2
-      ],
       "steps": [
         {
           "kind": 0,
@@ -630,9 +624,6 @@
       "timing": 19,
       "activation": 2,
       "limit": 1,
-      "kinds": [
-        2
-      ],
       "steps": [
         {
           "kind": 0,
@@ -664,9 +655,6 @@
       "timing": 19,
       "activation": 2,
       "limit": 1,
-      "kinds": [
-        2
-      ],
       "steps": [
         {
           "kind": 0,
@@ -698,9 +686,6 @@
       "timing": 19,
       "activation": 2,
       "limit": 1,
-      "kinds": [
-        2
-      ],
       "steps": [
         {
           "kind": 0,
@@ -732,9 +717,6 @@
       "timing": 19,
       "activation": 2,
       "limit": 1,
-      "kinds": [
-        2
-      ],
       "steps": [
         {
           "kind": 0,
@@ -1041,6 +1023,135 @@
                   "kinds": [
                     1
                   ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "CC0DE001",
+      "name": "诅咒载荷（组合效果）：对对方单位造成3点伤害，共两段",
+      "hash": "CC0DE001",
+      "timing": 19,
+      "activation": 2,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "a4b823fc",
+            "value": 3,
+            "kinds": [
+              2
+            ]
+          }
+        },
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "a4b823fc",
+            "value": 3,
+            "kinds": [
+              2
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "CC0DE002",
+      "name": "祝福载荷（组合效果）：回复12点生命",
+      "hash": "CC0DE002",
+      "timing": 19,
+      "activation": 2,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "599fcc9a",
+            "value": 12,
+            "kinds": [
+              1
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "CC0DE003",
+      "name": "施放时给对手牌库随机1张卡附加诅咒（组合载荷CC0DE001：抽到时两段各3伤共6点并移除指示物）",
+      "hash": "CC0DE003",
+      "timing": 19,
+      "activation": 2,
+      "cost": [
+        0.0,
+        3.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "2a8db836",
+            "str": "CC0DE001",
+            "branch": {
+              "settle": 3,
+              "engine": 6,
+              "engineParam": 1,
+              "tactivate": 2
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "CC0DE004",
+      "name": "施放时给自己牌库随机1张卡附加祝福（组合载荷CC0DE002：抽到时回复12点生命并移除指示物）",
+      "hash": "CC0DE004",
+      "timing": 19,
+      "activation": 2,
+      "cost": [
+        0.0,
+        0.0,
+        0.0,
+        3.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "8e89caae",
+            "str": "CC0DE002",
+            "branch": {
+              "settle": 3,
+              "engine": 7,
+              "engineParam": 1,
+              "tactivate": 2
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "CC0DE005",
+      "name": "此卡在手中或场上时对双方生物死亡计数，计数≥2时抽1张牌（门槛=抽1牌锚价推导=2；抽牌奖励不杀生物=逐次触发可观察）",
+      "hash": "CC0DE005",
+      "limit": 1,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "d1ddfd78",
+            "branch": {
+              "settle": 3,
+              "engine": 4,
+              "then": [
+                {
+                  "refId": "03c85bc4"
                 }
               ]
             }
@@ -1445,9 +1556,6 @@
       "hash": "2C78A233",
       "selection": 0,
       "count": 1,
-      "kinds": [
-        1
-      ],
       "cost": [
         0.0,
         1.0,
@@ -1707,9 +1815,6 @@
       "activation": 1,
       "selection": 0,
       "count": 1,
-      "kinds": [
-        1
-      ],
       "cost": [
         0.0,
         0.0,
@@ -2326,9 +2431,9 @@
     },
     {
       "id": "1FB7E6DA",
-      "name": "元素充盈：剩余元素差达到门槛时，对一个对方单位造成2点伤害",
+      "name": "元素充盈：剩余元素差恰好等于门槛时，对一个对方单位造成2点伤害",
       "hash": "1FB7E6DA",
-      "timing": 26,
+      "timing": 35,
       "activation": 1,
       "limit": 1,
       "steps": [
@@ -2356,9 +2461,9 @@
     },
     {
       "id": "79655260",
-      "name": "元素充盈：剩余元素差达到门槛时，回响1：选择双方战场的一张卡，将其1张带遗忘指示物的临时复制加入手牌",
+      "name": "元素充盈：剩余元素差恰好等于门槛时，回响1：选择双方战场的一张卡，将其1张带遗忘指示物的临时复制加入手牌",
       "hash": "79655260",
-      "timing": 26,
+      "timing": 35,
       "activation": 1,
       "limit": 1,
       "steps": [
@@ -2571,9 +2676,6 @@
       "activation": 2,
       "selection": 0,
       "count": 1,
-      "kinds": [
-        1
-      ],
       "cost": [
         0.0,
         1.0,
@@ -2601,9 +2703,6 @@
       "activation": 2,
       "selection": 0,
       "count": 1,
-      "kinds": [
-        2
-      ],
       "cost": [
         0.0,
         6.0,
@@ -2621,6 +2720,8 @@
           "payload": {
             "refId": "70150d27",
             "kinds": [
+              1,
+              3,
               13
             ]
           }
@@ -2634,7 +2735,8 @@
             "value": 5,
             "kinds": [
               2
-            ]
+            ],
+            "count": 1
           }
         }
       ]
@@ -2647,9 +2749,6 @@
       "activation": 2,
       "selection": 0,
       "count": 1,
-      "kinds": [
-        1
-      ],
       "cost": [
         0.0,
         6.0,
@@ -2691,10 +2790,6 @@
       "activation": 2,
       "selection": 0,
       "count": 1,
-      "kinds": [
-        1,
-        2
-      ],
       "cost": [
         0.0,
         0.0,
@@ -2750,6 +2845,320 @@
                 }
               ]
             }
+          }
+        }
+      ]
+    },
+    {
+      "id": "C9BDE58E",
+      "name": "抽1张卡，【代价】对手抽1张卡",
+      "hash": "C9BDE58E",
+      "timing": 19,
+      "activation": 2,
+      "cost": [
+        0.0,
+        0.0,
+        2.0,
+        0.0,
+        0.0
+      ],
+      "costs": [
+        {
+          "type": 1,
+          "value": 0,
+          "manaType": 0,
+          "turns": 0,
+          "payload": {
+            "refId": "03c85bc4",
+            "kinds": [
+              8
+            ]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "03c85bc4"
+          }
+        }
+      ]
+    },
+    {
+      "id": "1B5250E3",
+      "name": "冻结1个对方战场的生物：横置并放置1层冻结指示物，冻结期间无法重置，持有者回合结束时自动解除1层冻结，【代价】对手抽1张卡",
+      "hash": "1B5250E3",
+      "timing": 19,
+      "activation": 2,
+      "selection": 2,
+      "cost": [
+        0.0,
+        0.0,
+        6.0,
+        0.0,
+        0.0
+      ],
+      "costs": [
+        {
+          "type": 1,
+          "value": 0,
+          "manaType": 0,
+          "turns": 0,
+          "payload": {
+            "refId": "03c85bc4",
+            "kinds": [
+              8
+            ]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "973884b1",
+            "kinds": [
+              2
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "84969C65",
+      "name": "将1个对方牌库的卡牌库顶的2张牌送入墓地，【代价】对手抽1张卡",
+      "hash": "84969C65",
+      "timing": 19,
+      "activation": 2,
+      "cost": [
+        0.0,
+        0.0,
+        4.0,
+        0.0,
+        0.0
+      ],
+      "costs": [
+        {
+          "type": 1,
+          "value": 0,
+          "manaType": 0,
+          "turns": 0,
+          "payload": {
+            "refId": "03c85bc4",
+            "kinds": [
+              8
+            ]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "e81b5f7e",
+            "value": 2,
+            "kinds": [
+              8
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "9C4515B2",
+      "name": "抽2张卡，【代价】对手抽1张卡",
+      "hash": "9C4515B2",
+      "timing": 19,
+      "activation": 2,
+      "cost": [
+        0.0,
+        0.0,
+        4.0,
+        0.0,
+        0.0
+      ],
+      "costs": [
+        {
+          "type": 1,
+          "value": 0,
+          "manaType": 0,
+          "turns": 0,
+          "payload": {
+            "refId": "03c85bc4",
+            "kinds": [
+              8
+            ]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "03c85bc4",
+            "value": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "42CBFCF7",
+      "name": "赋予1个对方战场的生物1层沉睡，沉睡期间横置无法重置，自动效果无效，持有者回合结束时自动解除一层沉睡，【代价】对手抽1张卡",
+      "hash": "42CBFCF7",
+      "timing": 19,
+      "activation": 2,
+      "selection": 0,
+      "count": 1,
+      "cost": [
+        0.0,
+        0.0,
+        3.0,
+        0.0,
+        0.0
+      ],
+      "costs": [
+        {
+          "type": 1,
+          "value": 0,
+          "manaType": 0,
+          "turns": 0,
+          "payload": {
+            "refId": "03c85bc4",
+            "kinds": [
+              8
+            ]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "9bbc7348",
+            "kinds": [
+              2
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "91133E76",
+      "name": "将1个对方牌库的卡牌库顶的3张牌送入墓地，【代价】对手抽1张卡",
+      "hash": "91133E76",
+      "timing": 19,
+      "activation": 2,
+      "cost": [
+        0.0,
+        0.0,
+        6.0,
+        0.0,
+        0.0
+      ],
+      "costs": [
+        {
+          "type": 1,
+          "value": 0,
+          "manaType": 0,
+          "turns": 0,
+          "payload": {
+            "refId": "03c85bc4",
+            "kinds": [
+              8
+            ]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "e81b5f7e",
+            "value": 3,
+            "kinds": [
+              8
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "EA8346E6",
+      "name": "对1个对方战场的生物附加3层紊乱指示物，期间不能以玩家为攻击目标，持有者回合结束时自动解除一层紊乱，【代价】对手抽1张卡",
+      "hash": "EA8346E6",
+      "timing": 19,
+      "activation": 2,
+      "selection": 0,
+      "count": 1,
+      "cost": [
+        0.0,
+        0.0,
+        3.0,
+        0.0,
+        0.0
+      ],
+      "costs": [
+        {
+          "type": 1,
+          "value": 0,
+          "manaType": 0,
+          "turns": 0,
+          "payload": {
+            "refId": "03c85bc4",
+            "kinds": [
+              8
+            ]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "d3ed120d",
+            "value": 3,
+            "kinds": [
+              2
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "CC86792A",
+      "name": "地牌上限+2（无上限），并从卡组随机将2张带元素费用的卡横置加入元素池，【代价】为1个对方战场的生物或对方角色添加护甲指示物，受到伤害时每吸收一点伤害消耗6层护甲",
+      "hash": "CC86792A",
+      "timing": 19,
+      "activation": 2,
+      "cost": [
+        0.0,
+        0.0,
+        0.0,
+        6.0,
+        0.0
+      ],
+      "costs": [
+        {
+          "type": 1,
+          "value": 0,
+          "manaType": 0,
+          "turns": 0,
+          "payload": {
+            "refId": "9ff1954d",
+            "value": 6,
+            "kinds": [
+              2
+            ]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "cab6ae97",
+            "value": 2
           }
         }
       ]

@@ -124,9 +124,6 @@ namespace CardCore.AI
         /// <summary>地牌锁色选择（2026-11-01）：null=缺省主色；绿套前 3 块绿、之后灰。</summary>
         public virtual ManaType? LandColorChoice(GameCore core, Player me, Card card) => null;
 
-        // WantAwakenCast / AwakenWaive（苏醒施放策略钩子，2026-11-01 绿套）已随 2026-11-02
-        // 苏醒机制整链删除。
-
         /// <summary>
         /// 出牌优先级（分数高先出）。默认=有害原子优先 + 大费先出（原 PlayBestAffordableCard 排序）。
         /// containsHarmfulAtom / totalCost 由 SimpleAI 注入（与其内部口径一致）。
@@ -445,7 +442,7 @@ namespace CardCore.AI
     /// <summary>
     /// 红快攻（2026-11-04 v7，卡组=火灵·攻/火灵·守/火种·锐/火种·厚/血偿/赋予连击/活体炸弹）：
     ///
-    /// 卡组两条线：0 费 2/2 火种铺场（锐/厚同名同身材，纯攻击 NoGuard）+ 1 费火灵（登场 +2 攻，攻/守两版）
+    /// 卡组两条线：0 费 2/2 火种铺场（锐/厚同名同身材，纯攻击无守卫）+ 1 费火灵（登场 +2 攻，攻/守两版）
     /// + 血偿（5 伤敌）/赋予连击（连击）——两张都挂并列代价「**摧毁一个己方地（对手选落点）**」
     ///（2026-11-04 改版：火种 2/2 后自伤 2 会打死它，自伤代价退役，改为摧毁地；摧毁锚红 3 →
     /// 血偿锚价钉死 6、连击锚 6，两张净红 3）。
@@ -534,9 +531,9 @@ namespace CardCore.AI
             var data = DataOf(card);
 
             // ① 0 费 2/2 火种（锐/厚同身材，免费底 2/2）最优先：不花资源先铺场
-            //    2026-11-04：火种统一 2/2 仅攻击（NoGuard），费用 0；0.5 半费仍兼容（攻红/血绿）。
+            //    2026-11-04：火种统一 2/2 仅攻击（无守卫资格），费用 0；0.5 半费仍兼容（攻红/血绿）。
             if (isCreature && cost <= 0.5f) score += 1200f;
-            else if (isCreature && data != null && data.NoAttack) score += 150f; // 火灵·守：等大哥（ShouldHold 闸）
+            else if (isCreature && data != null && !data.AttackAbility) score += 150f; // 火灵·守：等大哥（ShouldHold 闸；2026-11-06 opt-in：无攻资格）
             else if (isCreature) score += 400f;                                  // 火灵·攻
 
             // ② 赋予连击：有值得连击的载体（攻 ≥2 的可攻击单位）才抢，否则压后
@@ -1099,11 +1096,11 @@ namespace CardCore.AI
 
         private static bool IsCreatureCard(Card card) => DataOf(card)?.Supertype == Cardtype.Creature;
 
-        /// <summary>只带守卫：生物 + NoAttack（火灵·守）——可拦截、不能攻击。</summary>
+        /// <summary>只带守卫：生物 + 无攻资格（火灵·守，2026-11-06 opt-in 口径）——可拦截、不能攻击。</summary>
         private static bool IsGuardOnly(Card card)
         {
             var d = DataOf(card);
-            return d != null && d.Supertype == Cardtype.Creature && d.NoAttack;
+            return d != null && d.Supertype == Cardtype.Creature && !d.AttackAbility;
         }
 
         /// <summary>赋予连击法术（主序列含 GrantDoubleStrike）。</summary>
@@ -1151,7 +1148,7 @@ namespace CardCore.AI
         private static List<Card> HandCards(GameCore core, Player me)
             => (core.ZoneManager.GetCards(me, Zone.Hand) ?? new List<Card>()).Where(c => c != null).ToList();
 
-        /// <summary>对手是否有可阻拦的生物（守卫能力：生物且非 NoGuard）。</summary>
+        /// <summary>对手是否有可阻拦的生物（守卫资格：生物且声明 GuardAbility）。</summary>
         private static bool EnemyHasBlocker(GameCore core, Player me)
         {
             var opp = me?.Opponent;
@@ -1290,7 +1287,7 @@ namespace CardCore.AI
     }
 
     /// <summary>
-    /// 绿慢速（2026-11-01 重写·用户口径；2026-11-02 苏醒删除后口径顺延——支援卡不再带苏醒）：
+    /// 绿慢速（2026-11-01 重写·用户口径）：
     /// 成长最优先 → 下守卫保角色 → 门条件（地牌&gt;9）到了才用新生养守卫
     /// → 多余费用丢给四种倒计时支援（帷幕/溅射/吸血/狩猎）→ 回收不断（拿回收本身，手里回收到 3 张才换别的）。
     ///
@@ -1321,7 +1318,7 @@ namespace CardCore.AI
         private const int GrowthStopLands = 11;
         private const string NameDew = "晨露";       // 0/6 倒计时1 归零回 2 点生命（持续奶）
 
-        /// <summary>倒计时支援卡（帷幕/溅射/警戒/狩猎的载体，均 0/6 NoAttack、倒计时3）。</summary>
+        /// <summary>倒计时支援卡（帷幕/溅射/警戒/狩猎的载体，均 0/6 无攻资格、倒计时3）。</summary>
         private static readonly HashSet<string> SupportNames =
             new HashSet<string> { "雾障", "爆荚", "噬血藤", "獠牙" };
 
@@ -1721,9 +1718,6 @@ namespace CardCore.AI
             }
             return best;
         }
-
-        // 苏醒策略段（WantAwakenCast/AwakenWaive 覆写——缺费才睡别拖慢倒计时）已随
-        // 2026-11-02 苏醒机制整链删除（灰身材概念已不存在，与倒计时玩法过近）。
 
         // ==================== 铺地 ====================
 
@@ -2236,13 +2230,12 @@ namespace CardCore.AI
             return n;
         }
 
-        /// <summary>留费闸（2026-11-02 任务B 动态化）：**只在己方场上存在充盈引擎（EngineManaSurplus）时留费**，
-        /// 没引擎就不留（正常铺场出牌，别空过）。基线=对手剩余元素总量（GetRemainingElementTotal，
-        /// 与充盈判据同口径=未横置地+钱包）+ 场上充盈引擎门槛最大值（BranchEngines.MaxManaSurplusThreshold·
-        /// Then 锚价推导）——替换 2026-11-01 的死留 2 块。打断玩法的命脉：充盈差与对手回合 instant
-        /// 全靠没花掉的剩余（对手花大钱后剩余骤降、我方留费不动）。
-        /// 保护区（任务B③）：剩余 ≤ 基线（本回合留费目标不可达）时**只放行不清空元素池的低费牌**
-        ///（need &lt; remaining 才放行——留费后至少还能出 1 张牌，也不把对手回合的打断弹药清零）。
+        /// <summary>留费闸（2026-11-02 任务B 动态化；2026-11-06 判据七重推导）：**只在己方场上存在
+        /// 充盈引擎（EngineManaSurplus）时留费**，没引擎就不留（正常铺场出牌，别空过）。
+        /// 判据七口径=双方剩余元素总量之差**恰==x** 触发、双方施放各评估——留费不再「囤越多越好」
+        ///（≥x 旧账），改守**踩档带**：回合终态差（我的未横置地−对手剩余总量，钱包回合末清空）
+        /// 落在 x−1 时对手最便宜的一张即踩中；打出后本回合内差恰==x 时自己的引擎当场开火（双方面）。
+        /// 保护区（任务B③沿旧）：掉出踩档带（终态差 &lt; x−1）时扣住守剩余。
         /// 充盈引擎卡本身照常铺（它是产出留费价值的地基，不是消耗品）。
         /// </summary>
         public override bool ShouldHold(GameCore core, Player me, Card card)
@@ -2280,16 +2273,23 @@ namespace CardCore.AI
             int threshold = BranchEngines.MaxManaSurplusThreshold(me); // 0=场上无充盈引擎 → 不留费
             if (opp == null || threshold <= 0) return false;
 
-            // 2026-11-04 用户定案（充盈操作策略）：充盈判的是**未横置地牌**——对手回合里
-            // 「我的未横置地 − 对手当前未横置地 ≥ x」才触发。所以留牌要留**地**，不是留钱包：
-            // 预算 = 对手地数（其回合开始会全解横置）+ 门槛 x；支付会先花临时钱包、再横置地。
+            // 判据七（2026-11-06 充盈改造）：差值=双方剩余元素总量（未横置地+钱包）、**恰==x** 才触发、
+            // 双方施放各评估一次（己方回合自己出牌也会触发自己的引擎）。留费从「囤越多越好」
+            //（判据六 ≥x 口径）改为「守踩档带」：钱包本回合结束清空——回合终态差=我的未横置地−
+            // 对手剩余总量；对手每出一张，其剩余降、差值+1，恰==x 的那一张开火。
+            // 两条放行捷径都是「好打」：① 打出后本回合内差恰==x → 自己的引擎当场开火（双方面）；
+            // ② 回合终态差==x−1 → 对手最便宜的一张即踩中恰等档。掉出踩档带（< x−1）才扣住守剩余。
             int need = (int)Math.Ceiling(bill.Total - 1e-4f);
-            int myLands = core.ElementPool.GetPool(me).PooledCards.Count(pc => pc != null && !pc.IsTapped);
-            int oppLands = core.ElementPool.GetPool(opp).PooledCards.Count(pc => pc != null && !pc.IsTapped);
-            int wallet = core.ElementPool.GetRemainingElementTotal(me) - myLands;
-            int reserve = oppLands + threshold;
-            int landsAfter = myLands - Math.Max(0, need - wallet);
-            return landsAfter < reserve;
+            int myUntapped = core.ElementPool.GetPool(me).PooledCards.Count(pc => pc != null && !pc.IsTapped);
+            int myRem = core.ElementPool.GetRemainingElementTotal(me);
+            int oppRem = core.ElementPool.GetRemainingElementTotal(opp);
+            int wallet = myRem - myUntapped;
+            int landsAfter = myUntapped - Math.Max(0, need - wallet); // 支付钱包优先、地牌补足后的未横置地
+            int dInTurn = myRem - need - oppRem;        // 本回合内口径（钱包在场，自触发判据）
+            int dTurnEnd = landsAfter - oppRem;         // 回合终态口径（钱包清空，对手踩档判据）
+            if (dInTurn == threshold) return false;     // 己方自触发：恰等档当场兑现
+            if (dTurnEnd == threshold - 1) return false; // 对手踩档：留一张最便宜的牌位给对手踩中
+            return dTurnEnd < threshold - 1;            // 掉出踩档带 → 守剩余（再打就够不着了）
         }
 
         // ======================================== 响应窗（2026-11-02 任务A·打断式响应） ========================================

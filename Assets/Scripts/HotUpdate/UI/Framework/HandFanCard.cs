@@ -355,13 +355,15 @@ namespace SynergyUI
         }
 
         /// <summary>费用方格刷新（对账/切行共用）：特殊行选中且带账单优先；
-        /// 多主动法术=选中行 ActiveEffectCosts；其余=卡净费 Costs（旧口径）。充能行无固定账单
-        ///（现付 1 点待选色）→维持当前模式费显示。代价组（Cost2，2026-11-03 双组改版）=卡级
-        /// 代价色构成 PayloadCost——恒随卡（与费用行选择无关），无代价自动隐藏 Cost2。</summary>
+        /// 多主动法术=选中行 ActiveEffectCosts（净费口径）；其余=卡净费 Costs（旧口径）。充能行无固定
+        /// 账单（现付 1 点待选色）→维持当前模式费显示。代价组（Cost2，2026-11-03 双组改版）=选中行
+        /// 效果级代价（ActiveEffectPayloadCosts，2026-11-06 逐行化），无则回落卡级 PayloadCost
+        /// ——恒随卡（与费用行选择无关），无代价自动隐藏 Cost2。</summary>
         private void UpdateEffectCost()
         {
             if (CostSquares == null || _chromeItem == null) return;
             ElementCost cost = _chromeItem.Costs;
+            ElementCost pay = _chromeItem.PayloadCost;
             var spCosts = _chromeItem.SpEffectCosts;
             if (SelectedSpEffect >= 0 && spCosts != null && SelectedSpEffect < spCosts.Count
                 && spCosts[SelectedSpEffect] != null)
@@ -370,11 +372,17 @@ namespace SynergyUI
             {
                 var modeCosts = _chromeItem.ActiveEffectCosts;
                 if (modeCosts != null && modeCosts.Count > 1)
-                    cost = modeCosts[Mathf.Clamp(SelectedEffectMode, 0, modeCosts.Count - 1)];
+                {
+                    int m = Mathf.Clamp(SelectedEffectMode, 0, modeCosts.Count - 1);
+                    cost = modeCosts[m];
+                    var payCosts = _chromeItem.ActiveEffectPayloadCosts;
+                    if (payCosts != null && m < payCosts.Count && payCosts[m] != null)
+                        pay = payCosts[m]; // 该模式行带效果级代价——代价组随行
+                }
             }
             // null=0费卡（CardOverlayItem 零费不落 Costs）→传全零显单块灰「0」占位（2026-11-03）
             CostSquares.SetCosts(cost ?? new ElementCost());
-            CostSquares.SetPayloadCosts(_chromeItem.PayloadCost); // 有代价才显示 Cost2
+            CostSquares.SetPayloadCosts(pay); // 有代价才显示 Cost2
         }
 
         private static void SetButtonLabel(Button button, string text)

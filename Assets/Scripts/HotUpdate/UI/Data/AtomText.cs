@@ -44,8 +44,8 @@ namespace SynergyUI
             { TriggerTiming.OnSpellCast, "施放法术时" },
             { TriggerTiming.OnTap, "横置时" },
             { TriggerTiming.OnUntap, "重置时" },
-            { TriggerTiming.OnDestroy, "破坏时" },
-            { TriggerTiming.OnExile, "除外时" },
+            { TriggerTiming.OnDestroy, "被破坏时" },
+            { TriggerTiming.OnExile, "被除外时" },
             { TriggerTiming.OnReturnFromGraveyard, "从墓地回到战场时" },
             { TriggerTiming.OnLeaveBattlefield, "离场时" },
             { TriggerTiming.OnPhaseStart, "阶段开始时" },
@@ -59,6 +59,7 @@ namespace SynergyUI
             { TriggerTiming.OnOtherCreatureDeath, "其他生物死亡时" },
             { TriggerTiming.OnRoleDeath, "角色死亡时" },
             { TriggerTiming.OnScry, "占卜时" }, // 2026-10-29 阶段3c 信息轴：占卜结算观察（双方占卜都触发）
+            { TriggerTiming.OnCardCastSettled, "效果结算后" }, // 2026-11-06 判据七：任一方施放结算·连锁终点（双方施放都观察）
         };
 
         /// <summary>TargetKind → 中文名（2026-10-06 单一来源迁 CardCore：TargetKindRules.ZhNameOf——
@@ -75,24 +76,41 @@ namespace SynergyUI
         /// 玩家滤器特化（2026-10-13 定案，代码侧统一）：行 TargetFilter=Player（RoleOnlyFilter）且
         /// 有效域单值为 己方单位/对方单位 → 名词=「己方玩家/对方玩家」（表书写保持 {target} 统一，
         /// "对方单位玩家"病句与硬写规避都在此收敛）。实例域未声明时回落表行默认域。</summary>
-        public static string TargetNoun(AtomicEffectConfig cfg, AtomicEffectEntry atom)
+        public static string TargetNoun(AtomicEffectConfig cfg, AtomicEffectEntry atom, int count = -1)
         {
             // 目标域重做 P0（2026-11-05·契约）：行 Domain 为**新选择器语法**且实例无显式域/kinds
-            // → selector 短语（「双方战场的生物、双方角色」），优先于 legacy Domain 顿号 / 旧 kinds 侧词。
+            // → selector 短语（「双方战场的生物或双方角色」），优先于 legacy Domain 顿号 / 旧 kinds 侧词。
+            // 2026-11-06 极性定案：非场地效果按极性定侧（p<0→对方/p>0→己方）——P0 短语同步收窄，
+            // 文案与实际候选域一致（「对对方战场的生物或对方角色造成伤害」）。
+            // 2026-11-06 或连接定案：选择档（单选/多选·count!=0）多域以「或」连接——目标是诸域
+            // 并集里挑 N 个，顿号并例会读成「对每个域都造成伤害」；全部档（count=0）保持顿号。
             // 注：实例显式 kinds 条目（组合器收窄）的候选走区域收窄轴（converter），
-            // 渲染暂保持旧侧词——文案与候选来源的统一留 P2 渲染收口。
+            // 渲染保持旧侧词——文案与候选来源的统一留 P2 渲染收口。
             bool p1bEntryDomain = !string.IsNullOrEmpty(atom?.domain);
             bool p1bEntryKinds = atom != null && atom.kinds != null && atom.kinds.Count > 0;
+            bool sel = SelectionOf(atom);
             if (!p1bEntryDomain && !p1bEntryKinds && !string.IsNullOrEmpty(cfg?.Domain)
                 && TargetAxisRules.TryParseDomain(cfg.Domain, out var p0Axis))
-                return AxisPhraseOf(p0Axis);
+                return AxisPhraseOf(TargetAxisRules.NarrowByPolarity(p0Axis, cfg?.Polarity ?? 0f), sel, count);
 
             // P2-2 域优先（2026-11-04）：实例显式 token（关键词授予域等）→ 表行 Domain（多 token 原样 CSV）
             // → 旧 kinds 口径。域显式即真实选择域——不受关键词 [Self] 存储态回退影响（授予卡显示所选域）。
-            // S3b 收口（2026-11-05）临时映射：多 token CSV 不再原样渲染（「双方,双方角色」病句源）
-            // ——顿号短语过渡，legacy 行（旧 EffectDomain token）走此分支。
-            if (!string.IsNullOrEmpty(atom?.domain)) return DomainPhrase(atom.domain);
-            if (!string.IsNullOrEmpty(cfg?.Domain)) return DomainPhrase(cfg.Domain);
+            // 2026-11-06：实例域为新选择器语法（dd-domain 通用化写入）→ 两轴短语（AxisPhrase）渲染；
+            // legacy token 多值在选择档同按「或」连末段（DomainPhrase·运行时已不解析，仅存量展示）。
+            if (!string.IsNullOrEmpty(atom?.domain))
+                return TargetAxisRules.TryParseDomain(atom.domain, out var entryAxis)
+                    ? AxisPhraseOf(entryAxis, sel, count) : DomainPhrase(atom.domain, sel);
+            // 行域新语法 + 实例 kinds 单值 → 按 converter 同口径收窄（NarrowByKinds）后两轴短语
+            //（2026-11-06 收口：此前回显行 Domain 原文——"双方战场:生物;双方战场:结界; 双方角色"
+            // 病句源；kinds 收窄语义与 CardEffectConverter 产轴一致）。
+            if (!string.IsNullOrEmpty(cfg?.Domain) && atom?.kinds != null && atom.kinds.Count > 0
+                && TargetAxisRules.TryParseDomain(cfg.Domain, out var rowAxis))
+            {
+                var narrowed = TargetAxisRules.NarrowByKinds(rowAxis, atom.kinds);
+                return narrowed != null && narrowed.Selectors.Count > 0
+                    ? AxisPhraseOf(narrowed, sel, count) : AxisPhraseOf(rowAxis, sel, count);
+            }
+            if (!string.IsNullOrEmpty(cfg?.Domain)) return DomainPhrase(cfg.Domain, sel);
             if (atom?.kinds != null && atom.kinds.Count == 1)
             {
                 var m = MountKindExtensions.ParseCsv(cfg?.MountKinds ?? "");
@@ -127,47 +145,119 @@ namespace SynergyUI
         }
 
         /// <summary>域词表 CSV → 可读短语（legacy 渲染·S3b 收口 2026-11-05 临时映射）：token 本身已是中文
-        ///（EffectDomain 词表），仅把分隔逗号换顿号——「双方,双方角色」→「双方、双方角色」。
-        /// P1-b 起仅服务未声明两轴列的 legacy 行（Region 行走 AxisPhrase）。</summary>
-        private static string DomainPhrase(string domainCsv)
+        ///（EffectDomain 词表），分隔逗号换顿号——「双方,双方角色」→「双方、双方角色」；选择档 orJoin=true
+        /// 时末段换「或」（2026-11-06 或连接定案，见 JoinZh）。P1-b 起仅服务未声明两轴列的 legacy 行
+        ///（Region 行走 AxisPhrase）。</summary>
+        private static string DomainPhrase(string domainCsv, bool orJoin = false)
         {
             if (string.IsNullOrEmpty(domainCsv)) return domainCsv;
-            return domainCsv.Replace(",", "、");
+            return JoinZh(domainCsv.Split(',').ToList(), orJoin);
         }
 
+        /// <summary>中文并例/择一连接（2026-11-06 或连接定案）：选择档（单选/多选）的多个目标域以
+        ///「或」连接最后一段——「A、B或C」＝目标从 A/B/C 并集中挑选，顿号并例会读成「对每个域都
+        /// 造成伤害」；全部档（orJoin=false）保持顿号（真对每个域都生效）。单段不受影响。</summary>
+        private static string JoinZh(List<string> parts, bool orJoin)
+        {
+            if (parts == null || parts.Count == 0) return "";
+            if (!orJoin || parts.Count == 1) return string.Join("、", parts);
+            return string.Join("、", parts.Take(parts.Count - 1)) + "或" + parts[parts.Count - 1];
+        }
+
+        /// <summary>条目是否选择档（2026-11-06 或连接定案）：count!=0（-2 未声明/1/2/3）=单选/多选——
+        /// 目标域短语按「或」连接；count=0 全部档对每个域全取，保持顿号并例。</summary>
+        private static bool SelectionOf(AtomicEffectEntry atom)
+            => atom == null || atom.count != 0;
+
         /// <summary>两轴短语（目标域重做 P0）：selector 列表 →「双方战场的生物、双方角色」
-        ///——selector 内区域+类别顿号（卡类别=「…的卡」），selector 间顿号。类别缺省（自己/角色）=区域本身。</summary>
-        private static string AxisPhraseOf(TargetAxis axis)
+        ///——selector 内区域+类别顿号（卡类别=「…的卡」），selector 间顿号；类别缺省（自己/角色）=区域本身。
+        /// 选择档 orJoin=true（2026-11-06 或连接定案）：selector 间与 selector 内多类别均以「或」连末段
+        ///（「对方战场的生物或结界」——目标从并集挑，非逐域全打）。
+        /// 量词定案（2026-11-07）：量词只标在**类别前**——生物/结界「N个」、法术/卡「N张」、
+        /// 全部档「全部」（同位）；域（区域侧别词）前与角色 selector 恒无量词；手牌/牌库域
+        /// =纯区域词（类别恒卡，模板自带「张牌/的卡」语境——「对方牌库顶的2张牌」/「对方手牌中的卡」）。
+        /// count=-1（调用方未传，战报等旧口径）=无量词原短语。</summary>
+        private static string AxisPhraseOf(TargetAxis axis, bool orJoin = false, int count = -1)
         {
             var parts = new List<string>();
             foreach (var s in axis.Selectors)
             {
                 var region = TargetRegionRules.ZhNameOf(s.Region);
                 if (s.Region == TargetRegion.Self || TargetRegionRules.IsCharacter(s.Region))
-                    parts.Add(region);                       // 自己 / X方角色（无类别段）
-                else if (s.Categories == TargetCategory.Card)
-                    parts.Add(region + "的卡");               // 区域内全选
-                else
-                    parts.Add(region + "的" + TargetCategoryRules.ZhOf(s.Categories).Replace(",", "、"));
+                { parts.Add(region); continue; }             // 自己 / X方角色（无类别段·无量词）
+                var zone = TargetRegionRules.ZoneOf(s.Region);
+                if (zone == Zone.Hand || zone == Zone.Deck)
+                { parts.Add(region); continue; }             // 手牌/牌库：纯区域词（量词与「的卡」由模板语境承载）
+                string cats = JoinZh(TargetCategoryRules.ZhOf(s.Categories).Split(',').ToList(), orJoin);
+                string quant = count < 0 ? "" : count == 0 ? "全部" : count + MeasureWordOf(s.Categories);
+                parts.Add(region + "的" + quant + cats);
             }
-            return string.Join("、", parts);
+            return JoinZh(parts, orJoin);
+        }
+
+        /// <summary>类别量词（2026-11-07 定案）：生物/结界=「个」、法术/卡=「张」
+        ///（卡位=区域内全选标志——出现即「张」；生物系位优先于法术位）。</summary>
+        private static string MeasureWordOf(TargetCategory categories)
+            => (categories & (TargetCategory.Creature | TargetCategory.Enchantment)) != 0
+               && (categories & TargetCategory.Card) == 0 ? "个" : "张";
+
+        /// <summary>条目有效轴（展示口径，2026-11-06 极性定案）：实例 domain（新语法）优先 →
+        /// 行 Domain；kinds 显式 → NarrowByKinds（实例收窄/代价锁侧/参照族优先）；否则极性收窄
+        ///（NarrowByPolarity——非场地效果按极性定侧，与 converter 产轴同口径）。
+        /// null=无域或参照族形态（kinds 收窄空——第二段域由 handler 自管）。</summary>
+        private static TargetAxis EffectiveAxisOf(AtomicEffectConfig cfg, AtomicEffectEntry atom)
+        {
+            TargetAxis axis = null;
+            if (!string.IsNullOrEmpty(atom?.domain) && TargetAxisRules.TryParseDomain(atom.domain, out var domAxis))
+                axis = domAxis;
+            else if (!string.IsNullOrEmpty(cfg?.Domain) && TargetAxisRules.TryParseDomain(cfg.Domain, out var rowAxis))
+                axis = rowAxis;
+            if (axis == null) return null;
+            if (atom?.kinds != null && atom.kinds.Count > 0)
+            {
+                var narrowed = TargetAxisRules.NarrowByKinds(axis, atom.kinds);
+                return narrowed != null && narrowed.Selectors.Count > 0 ? narrowed : null;
+            }
+            return TargetAxisRules.NarrowByPolarity(axis, cfg?.Polarity ?? 0f);
+        }
+
+        /// <summary>全取面积轴（全部档名词用）：有效轴剔 自己/角色 selector（角色默认不参与
+        /// 全取——与 ResolveAtomTargetsAsync 全取路径同口径）；无面积 selector 返回 null。</summary>
+        private static TargetAxis AreaAxisOf(AtomicEffectConfig cfg, AtomicEffectEntry atom)
+        {
+            var eff = EffectiveAxisOf(cfg, atom);
+            if (eff == null) return null;
+            var area = new TargetAxis { Filter = eff.Filter };
+            foreach (var s in eff.Selectors)
+                if (s != null && s.Region != TargetRegion.Self && !TargetRegionRules.IsCharacter(s.Region))
+                    area.Selectors.Add(s);
+            return area.Selectors.Count > 0 ? area : null;
         }
 
         /// <summary>效果级作用范围版（2026-10-04 相同目标定案）：header.TargetKinds 单值优先——
         /// 并列全体原子共享同一作用范围，{target} 按效果级域渲染（关键词/指示物行 [Self] 存储态例外同口径）；
         /// 未声明/多值回落实例域口径。</summary>
-        public static string TargetNoun(AtomicEffectConfig cfg, AtomicEffectEntry atom, CardEffectData header)
+        public static string TargetNoun(AtomicEffectConfig cfg, AtomicEffectEntry atom, CardEffectData header,
+            int count = -1)
         {
-            if (!string.IsNullOrEmpty(atom?.domain)) return atom.domain; // P2-2：实例域 token 最高优先
+            if (!string.IsNullOrEmpty(atom?.domain)) // 实例域最高优先（2026-11-06：新语法按两轴短语渲染；
+                // 选择档按「或」连接多域——同 TargetNoun 两参重载口径）
+                return TargetAxisRules.TryParseDomain(atom.domain, out var entryAxis)
+                    ? AxisPhraseOf(entryAxis, SelectionOf(atom), count) : atom.domain;
             if (header?.TargetKinds != null && header.TargetKinds.Count == 1)
             {
                 var m = MountKindExtensions.ParseCsv(cfg?.MountKinds ?? "");
-                bool selfStorage = (TargetKind)header.TargetKinds[0] == TargetKind.Self
-                    && (m.Contains(MountKind.Keyword) || m.Contains(MountKind.Counter));
-                return selfStorage ? "目标"
-                    : PlayerNounOf(cfg, header.TargetKinds[0]) ?? TargetKindZhOf((TargetKind)header.TargetKinds[0]);
+                // 关键词（2026-11-07 特判）：效果层关键词=赋予己方战场生物——header 旧 [Self]
+                // 存储态不再回退「自己/目标」，改走行域名词（己方战场的…生物）。
+                if (!m.Contains(MountKind.Keyword))
+                {
+                    bool selfStorage = (TargetKind)header.TargetKinds[0] == TargetKind.Self
+                        && m.Contains(MountKind.Counter);
+                    return selfStorage ? "目标"
+                        : PlayerNounOf(cfg, header.TargetKinds[0]) ?? TargetKindZhOf((TargetKind)header.TargetKinds[0]);
+                }
             }
-            return TargetNoun(cfg, atom);
+            return TargetNoun(cfg, atom, count);
         }
 
         /// <summary>渲染单原子描述。cfg 为空（无表行 fallback 原子）时回退 refId。</summary>
@@ -193,7 +283,43 @@ namespace SynergyUI
             // 2026-10-04 补：关键词行 [Self] 存储态回退「目标」，见 TargetNoun；
             // 2026-10-04 相同目标定案：header 效果级作用范围单值优先；
             // 2026-10-20 定案：奖励名次不再冠「新的」——【奖励】段已区分，冗余词删除）
-            string noun = TargetNoun(cfg, atom, header);
+            // 量词定案（2026-11-07）：整体名词前缀「N个/全部」退役——量词只标在**类别前**
+            //（AxisPhraseOf 内嵌：生物/结界「N个」/法术·卡「N张」/全部档「全部」），域（区域侧别词）
+            // 前与角色恒无量词；手牌/牌库域=纯区域词（模板自带「张牌/的卡」语境——"将对方牌库顶的
+            // 2张牌送入墓地"）。非轴回退名词（「目标」）保旧口径「N个目标」；玩家名词（角色类）不冠词。
+            var cfgKinds = cfg?.GetTargetKindList();
+            // 有效数量（2026-11-06 数量词全局显式定案）：-2（未声明）→ header.TargetCount 回落
+            // → 仍 -2 归一 1（converter FallbackTargetCount 恒 1 同口径——代价/奖励原子 header=null
+            // 走此归一）；-1（任意数量）不冠词。
+            int effCount = atom.count;
+            if (effCount == -2)
+            {
+                int hc = header != null ? header.TargetCount : -2;
+                effCount = hc == 0 || (hc >= 1 && hc <= 3) ? hc : 1;
+            }
+            bool quantified = effCount >= 1 && effCount <= 3;
+            string noun;
+            if (atom.count == 0)
+            {
+                // 全部档=域内全取：名词=面积轴短语（角色/自己不参与全取——AreaAxisOf 同口径），
+                // 「全部」同标在类别前；无面积 selector（角色专属域）保持原名词（角色无量词）。
+                var area = AreaAxisOf(cfg, atom);
+                noun = area != null ? AxisPhraseOf(area, false, 0) : TargetNoun(cfg, atom, header);
+            }
+            else
+            {
+                noun = TargetNoun(cfg, atom, header, quantified ? effCount : -1);
+                if (noun == "目标" && (cfgKinds?.Count ?? 0) > 0 && quantified)
+                    noun = effCount + "个目标"; // 回退名词非域非类别——保旧口径（2026-11-06「2个目标」）
+            }
+            // 费用增减指示物（2026-11-07 定案）：{target} 解析为「x张 / 全部 单侧手牌」——
+            // 域=极性解析后的单一手牌，全域=该手牌下全部卡（表模板「为{target}中的卡添加…」）。
+            if (Enum.TryParse<AtomicEffectType>(cfg?.EnumName ?? "", out var costType)
+                && TargetAxisRules.IsCostIndicator(costType) && noun.Length > 0)
+            {
+                if (effCount == 0) noun = "全部" + noun;
+                else if (quantified) noun = effCount + "张" + noun;
+            }
             string body = tpl.Replace("{value}", number).Replace("{target}", noun);
             // {衍生物} → 模板卡名（2026-10-09 衍生物召唤配套）：SummonToken 的 str 指向真实生物卡——
             // 未填/未解析显「未指定模板」/原样 ID；表行括注「{衍生物}=字符串参数指向…」整段折叠为卡名
@@ -213,7 +339,7 @@ namespace SynergyUI
             // 头注），双侧域原子两侧可选；文案若按极性冠「己方/对方」会窄于实际可选域，误导目标选择。
             bool rand = atom.rand != -1 ? atom.rand == 1
                 : (header != null && header.RandomTarget != 0);
-            if (rand)
+            if (rand && atom.count != 0) // 全部档=域内全取无抽取语境——随机前缀不冠（UI 已强制关，防御）
             {
                 int idx = body.IndexOf("目标", StringComparison.Ordinal);
                 if (idx < 0 && noun.Length > 0) idx = body.IndexOf(noun, StringComparison.Ordinal);
@@ -238,10 +364,9 @@ namespace SynergyUI
         /// <summary>效果整体预览（两槽定案）：并列主序列=逐原子分号连接，原子带槽级 branch 载荷时
         /// 追加分支后缀（产出条件/局面门=「，如果…，奖励」自然句；引擎=正文短式「自由分支·{名}{x}」+「→奖励」）；
         /// 遗留 kind=1 门步骤与抉择步骤照旧渲染。
-        /// 开头时机前缀（2026-10-09 定案；2026-10-15 晚措辞改版+卡型速度接线）：非主动=「{时机}，」
-        ///（"登场时，…"）；主动=「发动速度x，」（x=BaseSpeed+卡型速度加成 KindSpeedBonusOf——法术提速
-        /// 缺省2/结界装主动+1/生物0；owner=null（效果库单效果预览）时显示裸 BaseSpeed——速度唯一显示位：
-        /// attribute 区不显速度，主动效果的发动速度一律挂描述句首）；空效果不加前缀；
+        /// 开头时机前缀（2026-10-09 定案；2026-11-06 速度显示改版：主动效果无前缀——速度不再属于
+        /// 效果文字，归卡面 effect 行 lbl-skill-speed 独显（CardOverlayItem.EffectSpeed 按卡类别：
+        /// 生物0/结界无/法术底盘分配））：非主动=「{时机}，」（"登场时，…"）；空效果不加前缀；
         /// 时机不在中文表（异常组合）无前缀。</summary>
         public static string RenderEffectSummary(EffectGraphData graph, CardData owner = null)
         {
@@ -283,8 +408,9 @@ namespace SynergyUI
             string joined = string.Join("；", parts);
             if (joined.Length == 0) return "";
             // 代价后缀（2026-10-31 代价指向化定案：代价描述文本附加进文字表述）：
-            // 效果级代价行=指向本效果的代价——正文追加「，代价：…」；行内多原子以「＋」连接
+            // 效果级代价行=指向本效果的代价——正文追加「，【代价】…」；行内多原子以「＋」连接
             //（与合成器代价文案同口径）；原子按自身域渲染（代价独立执行，不随主干目标）。
+            // 2026-11-06：标记与引擎分支【奖励】同式【】——有限分支写法统一。
             if (h.Costs != null)
             {
                 var costParts = new List<string>();
@@ -293,10 +419,10 @@ namespace SynergyUI
                     if (ce == null) continue;
                     foreach (var pa in ce.AllPayloads())
                         if (pa != null && !string.IsNullOrEmpty(pa.refId))
-                            costParts.Add(RenderAtomEntry(pa));
+                            costParts.Add(RenderCostAtomEntry(pa));
                 }
                 if (costParts.Count > 0)
-                    joined = joined + "，代价：" + string.Join("＋", costParts);
+                    joined = joined + "，【代价】" + string.Join("＋", costParts);
             }
             // 引擎主干卡（自由分支·2026-10-20 用户定案）：不加时机/发动前缀——引擎身份+参数即正文首
             //（"自由分支·倒计时2，【奖励】…"）；常规效果照旧前缀。
@@ -309,45 +435,21 @@ namespace SynergyUI
             return hasEngineTrunk ? joined : ActivationPrefix(h, owner) + joined;
         }
 
-        /// <summary>卡级代价行的文字表述（2026-10-31 代价指向化定案：代价描述附加进文字表述——
-        /// 卡级行按目标属性冠名）。每行一条：「代价（攻击血量/耐久/速度）：原子＋原子」；
-        /// 整卡 legacy 行（TargetAttr=0）=「代价：…」。空表返回空列表。
-        /// 消费口：卡面文字/合成器槽行（UI 层后续接线——逻辑层先行单源）。</summary>
-        public static List<string> CardCostLines(CardData card)
-        {
-            var lines = new List<string>();
-            if (card?.PayloadCosts == null) return lines;
-            foreach (var row in card.PayloadCosts)
-            {
-                var atoms = row?.AllPayloads();
-                if (atoms == null || atoms.Count == 0) continue;
-                var parts = new List<string>();
-                foreach (var a in atoms)
-                    if (a != null && !string.IsNullOrEmpty(a.refId)) parts.Add(RenderAtomEntry(a));
-                if (parts.Count == 0) continue;
-                string label = row.TargetAttr switch
-                {
-                    (int)CostAttrTarget.PowerLife => "代价（攻击血量）",
-                    (int)CostAttrTarget.Durability => "代价（耐久）",
-                    (int)CostAttrTarget.Speed => "代价（速度）",
-                    _ => "代价",
-                };
-                lines.Add(label + "：" + string.Join("＋", parts));
-            }
-            return lines;
-        }
+        // 卡级代价行文字口（CardCostLines/CardCostSuffixText）已随 2026-11-06「代价全面并入效果级」
+        // 定案退役——效果级 Costs 走 RenderEffectSummary「，【代价】…」句内标记，卡级 payloads 遗留
+        // 数据仅存 EffectComposer 代价门编辑兼容口（SynthesizeCostGateView，自然空转）。
 
-        /// <summary>效果描述开头前缀（2026-10-15 晚措辞改版+卡型速度接线）：主动=「发动速度x，」
-        ///（x=BaseSpeed+卡型速度加成 CardCompositionCost.KindSpeedBonusOf(owner)——法术提速缺省2/
-        /// 结界装主动效果+1/生物0；owner=null 显示裸 BaseSpeed。速度唯一显示位——attribute 区不显，
-        /// 2026-10-15 速度定案配套）；
+        /// <summary>效果描述开头前缀（2026-11-06 速度显示改版：主动效果不再带速度描述——速度归卡
+        /// 类别，由卡面 effect 行 lbl-skill-speed 独显（CardOverlayItem.EffectSpeed），主动前缀退役为空。
+        /// 旧「发动速度x，」句首=BaseSpeed+KindSpeedBonusOf 口径已随本改版整删）；
         /// 非主动（强制/自动）=「{时机中文}，」——时机查 TimingZh 全量表（含系统自用时点）。</summary>
         private static string ActivationPrefix(CardEffectData h, CardData owner)
         {
             if (h.ActivationType == (int)EffectActivationType.Voluntary)
             {
                 //（P12 充能 0 速前缀分支已随 2026-11-05 充能系统动作化改版删除——充能不再是卡上效果。）
-                return $"发动速度{h.BaseSpeed + (owner != null ? CardCompositionCost.KindSpeedBonusOf(owner) : 0)}，";
+                //（主动速度前缀 2026-11-06 删除——速度不再属于效果文字，见 summary。）
+                return "";
             }
             return TimingZh.TryGetValue((TriggerTiming)h.TriggerTiming, out var zh) ? zh + "，" : "";
         }
@@ -376,6 +478,16 @@ namespace SynergyUI
                         ? $"，【奖励】{reward}(本回合0/1)"
                         : $"，【奖励】{reward}";
                 case BranchSettleKind.Gate:
+                    // 代价门（2026-11-06 展示期合成——不落盘）：句式「，【代价】{原子}」——
+                    // 与引擎分支【奖励】同式【】标记（2026-11-06 定案：有限分支写法统一；
+                    // 减免读数不随文案标出——费用/代价信息归 CostSquares 双组）。
+                    if (b.gateId == ComposerCatalog.CostGateId)
+                    {
+                        string costAtom = b.then != null && b.then.Count > 0
+                            ? RenderCostAtomEntry(b.then[0]) : "（未设代价）";
+                        string more = b.then != null && b.then.Count > 1 ? $" 等{b.then.Count}个原子" : "";
+                        return $"，【代价】{costAtom}{more}";
+                    }
                     // 局面门（有限分支）：DisplayName 即自然从句（如"生命值低于对手"）
                     var sc = ComposerCatalog.SituationGates.FirstOrDefault(g => g.Id == b.gateId);
                     string scond = sc != null ? sc.DisplayName
@@ -410,6 +522,21 @@ namespace SynergyUI
         {
             if (atom == null || string.IsNullOrEmpty(atom.refId)) return "原子";
             return Render(AtomicEffectTable.GetByHashId(atom.refId), atom, null);
+        }
+
+        /// <summary>代价原子渲染（2026-11-06 手写代价批修复）：资敌代价（SideLock=+1 纯锁对方侧）
+        /// 由受惠侧执行——执行控制器翻转为对手（CostSystem.ExecutePayloadAtomAsync 同口径），
+        /// 文案必须显主语，与战报 DrawCardHandler.DescribeTemplate「对手抽 N 张牌」同源。
+        /// 表行模板含 {target} 时名词已带侧别（「对方牌库」）不冠；模板无 {target}（如「抽{value}张卡」）
+        /// 时裸文读作自己——冠「对手」。己方侧代价不冠（卡面默认主语=自己）。</summary>
+        public static string RenderCostAtomEntry(AtomicEffectEntry atom)
+        {
+            var text = RenderAtomEntry(atom);
+            var cfg = AtomicEffectTable.GetByHashId(atom?.refId);
+            bool tplHasTarget = cfg != null && (cfg.Description ?? "").Contains("{target}");
+            if (!tplHasTarget && CostDerivationService.SideLock(atom?.kinds) == 1)
+                text = "对手" + text;
+            return text;
         }
 
         /// <summary>条目级渲染·效果级作用范围版（2026-10-04 相同目标定案）：并列主序列原子传
@@ -460,9 +587,9 @@ namespace SynergyUI
                     // 计数≥x 触发奖励（触发不清零），使用后清零
                     return $"此卡在手牌或场上时计数双方生物死亡，计数大于等于{CostDerivationService.RewardThreshold(ToInstances(then))}时触发奖励（满6不再计数，使用后清零）";
                 case BranchEngineKind.ManaSurplus:
-                    // 2026-10-20 判据五改完整句：仅对手回合·对手出牌结算后（只能是自动效果），
+                    // 2026-11-06 判据七完整句：双方施放·整条连锁结算完成后（只能是自动效果），
                     // 双方剩余元素（未横置地牌+钱包）之差恰==x 触发（差每+1踩一档各一次）
-                    return $"对手回合对手使用卡牌结算后，双方剩余元素的差恰好等于{CostDerivationService.RewardThreshold(ToInstances(then))}时触发奖励（仅自动，差额封顶6）";
+                    return $"任一方使用卡牌、整条连锁结算完成后，双方剩余元素的差恰好等于{CostDerivationService.RewardThreshold(ToInstances(then))}时触发奖励（仅自动，差额封顶6）";
                 case BranchEngineKind.Clash:
                     x = CostDerivationService.RewardThreshold(ToInstances(then));
                     break;

@@ -9,7 +9,8 @@ namespace CardCore.Attribute.Handlers
     /// RuleAuraComponents.RuleIdOfType（源=RuleAuraComponents 常量），str=规则短名口径彻底退役
     ///（表 EffectType 列未翻新期间行仍=ModifyGameRule，按 str 回落过渡；旧卡带 str 新链路忽略）。
     /// Value=作用范围序（RuleAuraScope：0=己方/1=双方（缺省）/2=对方——合成器按表行 Polarity 门控可选项；
-    /// 2026-10-29 起固定双方规则忽略 value 恒 Both，计价去对称让利=表价即实价）。挂在结界卡登场效果上——载体（CastCard）入场结算时
+    /// 2026-11-06 定案：极性 0 行忽略 value 恒 Both（表价即实价）；±1 行缺省双方=表价档、可收窄极性单侧
+    ///（+1 己方/−1 对方，计价 ×RuleAuraSingleSideFactor））。挂在结界卡登场效果上——载体（CastCard）入场结算时
     /// 激活 RuleAuraSystem：持续永久、全局唯一（新换旧送墓）、载体离场失效、
     /// 无方向箭头（非连接光环）。效果/指示物分离定案延续：本原子只负责投放，
     /// 规则体由 RuleAuraSystem/RuleHooks/ReplacementEngine 承载。
@@ -34,9 +35,12 @@ namespace CardCore.Attribute.Handlers
                 return;
             }
 
-            // 固定双方规则（2026-10-29 1b 定案）：许可/禁止族 UI 不提供单侧选择——忽略实例 value 恒 Both；
-            // 改写族照走原子步 value（RuleAuraScope 序）。
-            int scope = RuleAuraComponents.IsFixedBothRule(ruleId) ? (int)RuleAuraScope.Both : effect.Value;
+            // 作用范围（2026-11-06 定案）：极性 0 行恒双方（表价即实价，无单侧档）——忽略实例 value
+            //（存量旧档数据一并矫正，converter 同口径）；±1 行照走原子步 value（缺省双方=表价档，
+            // 可收窄极性单侧——+1 己方/−1 对方，计价 ×RuleAuraSingleSideFactor）。
+            var scopeRow = AtomicEffectTable.GetByHashId(effect.RowHashId);
+            bool fixedBoth = scopeRow != null && scopeRow.Polarity > -0.5f && scopeRow.Polarity < 0.5f;
+            int scope = fixedBoth ? (int)RuleAuraScope.Both : effect.Value;
             RuleAuraSystem.Activate(ruleId, carrier, context.Controller, scope);
         }
 

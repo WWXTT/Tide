@@ -123,7 +123,6 @@ namespace SynergyUI
         private TMP_Text _skillCostLabel;
         private TMP_Text _deckCount;    // hdr-deck 右侧「N 种 / M 张」
         private TMP_Text _catalogCount; // hdr-catalog 右侧「N 张」
-        private UButton _skillClearBtn;
         private UInputField _nameField;
         private UInputField _searchField;
 
@@ -170,7 +169,6 @@ namespace SynergyUI
                 Debug.LogError("[DeckBuilder] preview-stage 缺烘焙 CostSquares 费用条——检查 DeckUI.prefab");
             _skillLabel = FindText("lbl-skill");
             _skillCostLabel = FindText("lbl-skill-cost");
-            _skillClearBtn = BindButton("btn-skill-clear", OnClearSkill);
 
             // 放大态遮罩接线（验收2）：点遮罩=还原（放大卡本体无 OnClick，点卡面不关闭）
             _zoomOverlay = Find("zoom-overlay");
@@ -847,11 +845,17 @@ namespace SynergyUI
 
         /// <summary>预览卡费条（2026-10-28 preview-panel 重构）：preview-stage/CostSquares 烘焙
         /// 实例直填——空卡=Clear 清空；0费=单块灰「0」占位（2026-11-03，条本体常驻，prefab 布局恒定）。
-        /// P4 §1（2026-10-29）：item.Costs 已是净费口径（CardNetCost.NetCostOf 实时推导）。</summary>
+        /// P4 §1（2026-10-29）：item.Costs 已是净费口径（CardNetCost.NetCostOf 实时推导）。
+        /// Cost2 代价组（2026-11-06 预览补齐）：与手牌同口径——FromCardDataFull 已填 PayloadCost
+        ///（施放期代价色构成），null=藏 Cost2（SetPayloadCosts 现成语义）。</summary>
         private void RefreshPreviewCost(CardOverlayItem item)
         {
             if (_previewCost == null) return;
-            if (item != null) _previewCost.SetCosts(item.Costs ?? new ElementCost());
+            if (item != null)
+            {
+                _previewCost.SetCosts(item.Costs ?? new ElementCost());
+                _previewCost.SetPayloadCosts(item.PayloadCost);
+            }
             else _previewCost.Clear();
         }
 
@@ -1044,7 +1048,8 @@ namespace SynergyUI
                 ((RectTransform)_zoomTokenSlot.GetChild(0)).localScale = Vector2.one * ZoomCardScale;
         }
 
-        /// <summary>技能栏刷新：已设置=卡名+发动费区间+取消钮；未设置=空态提示（保存口必选拦截）。</summary>
+        /// <summary>技能栏刷新：已设置=卡名+发动费区间（技能为卡组必备——选新即替换，无取消钮）；
+        /// 未设置=空态提示（保存口必选拦截）。</summary>
         private void RefreshSkillSlot()
         {
             if (_skillLabel == null) return;
@@ -1053,7 +1058,6 @@ namespace SynergyUI
             {
                 _skillLabel.text = "英雄技能：未设置——右侧选主动技能卡填入（保存前必须设置）";
                 if (_skillCostLabel != null) _skillCostLabel.text = "";
-                if (_skillClearBtn != null) _skillClearBtn.gameObject.SetActive(false);
                 return;
             }
 
@@ -1072,7 +1076,6 @@ namespace SynergyUI
                 costText = $"发动费用：{anchors.Min(a => a.Total):0.#}~{anchors.Max(a => a.Total):0.#} 区间" +
                            $"（{marked.Effects.Count} 个作用择一发动；每回合一次）";
             if (_skillCostLabel != null) _skillCostLabel.text = costText;
-            if (_skillClearBtn != null) _skillClearBtn.gameObject.SetActive(true);
         }
 
         /// <summary>右侧卡池行「技能」钮：填入英雄技能栏（资格=法术且 1~3 主动——不合格 toast 原因）。</summary>
@@ -1088,13 +1091,6 @@ namespace SynergyUI
             ShowPreview(card); // 所见即所标：顺带展示该卡
             RefreshAll();
             ShowToast($"英雄技能已设置：{NameOf(card)}——开局落技能栏（不占卡组张数），每回合一次");
-        }
-
-        private void OnClearSkill()
-        {
-            _skillCardId = null;
-            RefreshAll();
-            ShowToast("已取消英雄技能标记");
         }
 
         // ======================================== 统计区（左栏底部·非滚动容器） ========================================

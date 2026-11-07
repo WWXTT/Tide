@@ -409,6 +409,9 @@ namespace CardCore
                 TriggerTiming.OnCardPlayed => typeof(CardPlayEvent),
                 TriggerTiming.OnSpellCast => typeof(CardPlayEvent),
 
+                // 使用结算观察族（2026-11-06 判据七）：连锁终点稳定点补发
+                TriggerTiming.OnCardCastSettled => typeof(CardCastSettledEvent),
+
                 TriggerTiming.OnTap => typeof(TapEvent),
                 TriggerTiming.OnUntap => typeof(UntapEvent),
 
@@ -527,6 +530,11 @@ namespace CardCore
         public BranchEngineKind EngineKind;
         /// <summary>引擎参数 x（运势阈值/死亡计数阈值等；倒计时缺省 0=按 Then 推导费自动换算）。</summary>
         public int EngineParam;
+        /// <summary>载荷效果库条目 id（2026-11-06 附加诅咒/祝福载荷效果化）：引擎主干原子 str →
+        /// converter 落此字段——CurseOnDraw/BlessingOnDraw 的载荷=组合效果引用（非 Then 原子列），
+        /// 抽到时按效果定义结算（CurseSystem）；计价=引用效果锚价减半（EngineBranchSurcharge）。
+        /// Then 原子列保留为旧手写数据兼容通道（EffectId 优先）。其他引擎恒 null。</summary>
+        public string EffectId;
         /// <summary>倒计时初值回合数（converter 换算：Then 推导费 1费=1回合，向上取整下限 1；
         /// 引擎运行时归零重置回此值）。仅 EngineKind==Countdown 有语义。</summary>
         public int CountdownTurns;
@@ -561,9 +569,10 @@ namespace CardCore
         /// <summary>死亡计数（2026-09-22 定案）：本回合**双方合计**生物死亡数 ≥ x 时执行奖励（计数单调，
         /// 每回合达标时刻唯一→天然一次/回合）；奖励预算=x（奖励原子锚价合计 ≤ x，引擎零计价）。x∈[1,9]</summary>
         DeathToll = 4,
-        /// <summary>元素充盈（2026-09-22 定案；2026-10-20 判据五改）：**只能是自动效果、只能在对手回合中
-        /// 发动**——对手（=当前回合玩家）出牌施放结算完成后，比较双方剩余元素总量（未横置地牌+钱包）
-        /// ——己方与对手的差（封顶 6）**恰好等于** x 即执行奖励（==x：差每+1踩一档各一次）；奖励恒直发，
+        /// <summary>元素充盈（2026-09-22 定案；2026-11-06 判据七·充盈改造）：**只能是自动效果**——
+        /// 任一方施放的卡成功结算、且整条连锁结算完成后（连锁终点稳定点补发 CardCastSettledEvent），
+        /// 双方各自评估己方场上引擎：比较双方剩余元素总量（未横置地牌+钱包）——己方与对手的差
+        /// （封顶 6）**恰好等于** x 即执行奖励（==x：差每+1踩一档各一次）；每卡每回合 1 次；奖励恒直发，
         /// 目标由控制者结算期弹选；门槛=Then 锚价推导。</summary>
         ManaSurplus = 5,
         // 2026-10-31 墓碑清理：原位 6（手牌序位·2026-10-19 退役）与位 7（Grant 赋予引擎·2026-10-05 解体）
@@ -579,8 +588,9 @@ namespace CardCore
         /// <summary>团结（2026-10-20 效果序位换轴定案·第6种改空间轴）：与此卡**相邻的单位数** ≥ x 时执行
         /// 奖励——计数口径：生物/结界占格各 1、角色格恒 1（角色无卡实体按格计）、非空地牌格 1
         ///（同色组首张占格=非空；空地牌格不计）；施放占位卡非在场单位不计（同战斗邻接口径）；六邻天然
-        /// 封顶 6。评估口=己方每次出牌施放结算完成后（OnCardCastSettled，与元素充盈同拍）——只观察己方
-        /// 场上引擎卡（手牌无格），每次达标都触发；x∈[1,6] 手填。核心不绑棋盘（架构铁律）——邻接计数经
+        /// 封顶 6。评估口=己方每次出牌施放结算完成后（OnCardCastSettled 直调时点；元素充盈已于
+        /// 2026-11-06 判据七迁往连锁终点 flush，两者拆拍）——只观察己方场上引擎卡（手牌无格），每次达标
+        /// 都触发；x∈[1,6] 手填。核心不绑棋盘（架构铁律）——邻接计数经
         /// UnityAdjacentCountOf 注入（宿主接线 BoardState.AdjacentOccupantCount）。</summary>
         Unity = 8,
     }

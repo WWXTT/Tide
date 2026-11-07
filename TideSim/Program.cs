@@ -54,12 +54,14 @@ namespace TideSim
                 return ChargeProbe.Run();
 
             // 教学式固定盘面场景回归（2026-11-04）：红快攻（血偿/连击准入+拆波）+ 蓝·元素充盈
-            //（潮痕碑/深潭碑 触发·不触发·每回合封顶）两套串跑，一次命令覆盖红蓝双套场景
+            //（潮痕碑/深潭碑 触发·不触发·每回合封顶）+ 自由分支引擎主干 7 种（2026-11-06：
+            // 倒计时/运势/拼枪/死亡计数/团结/附加诅咒/附加祝福）三套串跑，一次命令覆盖全部场景
             if (args.Length > 0 && args[0] == "--tutorial-scenario")
             {
                 int red = TutorialScenarioCheck.Run();
                 int blue = BlueFullnessScenarioCheck.Run();
-                return red == 0 && blue == 0 ? 0 : 1;
+                int free = FreeBranchScenarioCheck.Run();
+                return red == 0 && blue == 0 && free == 0 ? 0 : 1;
             }
 
             var options = SimOptions.Parse(args);
@@ -78,7 +80,7 @@ namespace TideSim
             Console.WriteLine("          [--matchup all|cross|mirror|red-blue|red-green|blue-green]");
             Console.WriteLine("          [--detail] [--quiet] [--match-log]");
             Console.WriteLine("  TideSim --scenario            场景回归（红快攻策略闸门直调断言）");
-            Console.WriteLine("  TideSim --tutorial-scenario   教学式固定盘面回归（红快攻9场景 + 蓝充盈6场景）");
+            Console.WriteLine("  TideSim --tutorial-scenario   教学式固定盘面回归（红快攻9场景 + 蓝充盈6场景 + 自由分支10场景）");
             Console.WriteLine("  TideSim --charge-probe        规则探针（充能系统动作化 + 参照族声明域）");
             Console.WriteLine();
             Console.WriteLine("口径：");

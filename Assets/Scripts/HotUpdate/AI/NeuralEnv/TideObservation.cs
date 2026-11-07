@@ -60,9 +60,10 @@ namespace CardCore.AI.NeuralEnv
         // v6（2026-10-29 P11 盘面重塑）：战场槽 12→9（单位区 4+5）——每玩家 46→43 槽、
         // 后续区域槽位整体前移 3；位置特征归一化分母随 BoardLayout.Width 8→7。
         // 旧模型权重作废（python LAYOUT_VERSION 同步升 6）。
-        // v5（2026-10-29 P6 苏醒改版）：删卡特征 [113] AwakenCommitted（立约退役）——
-        // NCard 116→115、N_GLOBAL 不变。
-        public const int LayoutVersion = 11;
+        // v5（2026-10-29）：删卡特征 [113]——NCard 116→115、N_GLOBAL 不变。
+        // v12（2026-11-06 墓碑清理）：TideActionType 空洞移除连续重排——动作特征[1] type 数值漂移，
+        // 旧模型作废（python LAYOUT_VERSION 同步升 12）。
+        public const int LayoutVersion = 12;
         public const int MaxCardsPerPlayer = 77; // v10：43→77（墓地 4→30、除外 8 入册）
         // v9 己方牌库块（尾接全局块，不走 ZoneLayout 每玩家偏移语义——专用 DeckBase+排序名次路径）：
         public const int DeckSlots = 30;                                      // 截断护栏（初始整组 30 恰满；衍生物入库超出不编码）
@@ -82,8 +83,6 @@ namespace CardCore.AI.NeuralEnv
         //   [29..40] 原子 EffectType 下标（原子表内排名，参数无关）
         //   [41..112] 原子参数浮点块（12 槽 × CardIdentityService.AtomParamDim 维）
         //   [113][114] 格坐标 x/Width、z/Height（未落格 = -1）
-        //   （旧 [113] AwakenCommitted 苏醒立约位已删——2026-10-29 P6 苏醒改版：立约决策退役，
-        //     苏醒并入 PlayCard 变体行；卡特征 116→115 维，旧模型权重作废，LAYOUT_VERSION 升 5）
         // 精确哈希 = 冻结的查表身份；类型 + 参数 = 泛化通路。0 = 无该成分 / token / 未登记。
         public const int HashIdStart = 15;
         public const int AtomIdSlots = 12; // 2026-10-16 6→12（正式卡满配9+余量3）

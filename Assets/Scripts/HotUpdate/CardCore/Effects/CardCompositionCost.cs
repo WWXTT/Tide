@@ -23,9 +23,11 @@ namespace CardCore
  ///   免费点折免费耐久底（FreeDurabilityBaseOf=剩余÷耐久单价；2026-11-04 碑族0费改版——
  ///   旧「入场+N 堆叠」（DurabilityBonusOf）退役：碑按印刷耐久入场，底内免卡价）；
  ///   耐久=受击/被动触发次数池（主动−1 通道退役）。
- /// · 生物 = 攻击 1 + 守卫 1 + 每个效果槽 1——**结构项>3 的差额入灰**（2026-10-22 最终定案）：
- ///   纯白板（攻+守=2 项）盈余 1 点 → +1/+1 属性；攻/守 opt-out 各释放 1 点（NoGuard 红套 = 攻 1 项，
+ /// · 生物 = 攻击 1 + 守卫 1 + 每个效果槽 1——**结构项>3 的差额入灰**（2026-10-22 最终定案；
+ ///   2026-11-06 opt-in 改版：攻/守=卡面声明才有，资格缺位各释放 1 点）：
+ ///   纯白板（攻+守=2 项）盈余 1 点 → +1/+1 属性；只声明攻（红套火种=攻 1 项，
  ///   盈余 2 点 → +2/+2 属性）；3 效果+攻+守=5 项 → 2 灰槽位费。
+ ///   充能资格（2026-11-06）不占结构项：开启=推导费固定 +1 灰（CardCostService 三口），底盘分配不动。
  ///   效果槽与攻/守同占 3 点底盘，不再“效果槽不占额度、每槽单独加价”。
  ///   生物禁挂连接光环（2026-10-15 改版：只留主动/自动/规则光环/本体关键词）。
  /// · 生物和结界从手牌使用的默认速度是 0（仅己方主要阶段，目前无效果能改）。
@@ -56,14 +58,16 @@ namespace CardCore
     /// </summary>
     public static class CardCompositionCost
     {
-        /// <summary>结构项数（未乘费率；2026-10-22 最终定案）：**统一 = 攻/守/效果槽各占 1 点**——
-        /// 生物 = 攻在 + 守在 + 效果槽（CountEffectSlots，抉择分支计槽；NoAttack/NoGuard 各释放 1 点）；
-        /// 非生物 = 效果槽。三点免费底盘被占用后的盈余按卡型分配，结构项>3 的差额入灰加价。</summary>
+        /// <summary>结构项数（未乘费率；2026-10-22 最终定案；2026-11-06 opt-in 同构翻转）：
+        /// **统一 = 攻/守/效果槽各占 1 点**——生物 = 已声明攻 + 已声明守 + 效果槽
+        ///（CountEffectSlots，抉择分支计槽；攻/守资格缺位各释放 1 点）；非生物 = 效果槽。
+        /// 三点免费底盘被占用后的盈余按卡型分配，结构项>3 的差额入灰加价。
+        /// 充能资格不占结构项（固定 +1 灰加价走 CardCostService——不动底盘分配）。</summary>
         public static int ChassisItems(CardData card)
         {
             int slots = CostDerivationService.CountEffectSlots(card);
             if (card != null && card.Supertype == Cardtype.Creature)
-                return (card.NoAttack ? 0 : 1) + (card.NoGuard ? 0 : 1) + slots;
+                return (card.AttackAbility ? 1 : 0) + (card.GuardAbility ? 1 : 0) + slots;
             return slots;
         }
 
@@ -73,7 +77,7 @@ namespace CardCore
         /// 生物 3 效果 + 攻 + 守 = 5 项 → 2 灰（用户点名口径）；
         /// 1 效果生物 = 3 项 → 0 灰（与 SurplusOf=0 对冲，净 0）；
         /// 2 效果生物 = 4 项 → 1 灰；纯白板 = 2 项（攻+守）→ 0 灰且盈余 1 点入属性。
-        /// 攻/守 = 生物默认自带（NoAttack/NoGuard 玩家自选 opt-out——Power=0 不自动剥夺）。
+        /// 攻/守 = 卡面声明才有（2026-11-06 opt-in 改版——资格缺位释放 1 点；Power=0 不自动剥夺）。
         /// </summary>
         public static int StructuralSurcharge(CardData card)
         {
@@ -124,7 +128,7 @@ namespace CardCore
             int budget = (int)Math.Max(0f, cfg.ChassisBudget);
             int rate = Math.Max(1, (int)Math.Max(0f, cfg.ChassisItemRate));
             int slots = CostDerivationService.CountEffectSlots(card);
-            int items = (card.NoAttack ? 0 : 1) + (card.NoGuard ? 0 : 1) + Math.Min(1, slots);
+            int items = (card.AttackAbility ? 1 : 0) + (card.GuardAbility ? 1 : 0) + Math.Min(1, slots);
             return Math.Max(0, budget - items * rate);
         }
 
@@ -178,7 +182,7 @@ namespace CardCore
             var cfg = ValueSystemConfigManager.Instance.GetOrCreateConfig().CardCompositionConfig;
             int rate = Math.Max(1, (int)Math.Max(0f, cfg.ChassisItemRate));
             bool isCreature = card != null && card.Supertype == Cardtype.Creature;
-            int items = (isCreature && !card.NoAttack ? 1 : 0) + (isCreature && !card.NoGuard ? 1 : 0)
+            int items = (isCreature && card.AttackAbility ? 1 : 0) + (isCreature && card.GuardAbility ? 1 : 0)
                 + CostDerivationService.CountEffectSlots(card);
             return items * rate;
         }

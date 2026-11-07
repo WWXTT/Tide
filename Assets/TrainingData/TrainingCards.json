@@ -4,10 +4,13 @@
       "id": "C_7E05D6C3",
       "cardName": "训练·01",
       "supertype": "Creature",
+      "attackAbility": true,
+      "guardAbility": true,
+      "chargeAbility": true,
       "power": 1,
       "life": 2,
       "costList": [
-        0.0,
+        1.0,
         0.0,
         0.0,
         0.5
@@ -21,10 +24,13 @@
       "id": "C_475D0B69",
       "cardName": "训练·02",
       "supertype": "Creature",
+      "attackAbility": true,
+      "guardAbility": true,
+      "chargeAbility": true,
       "power": 2,
       "life": 1,
       "costList": [
-        0.0,
+        1.0,
         0.5,
         0.0,
         0.0
@@ -38,10 +44,13 @@
       "id": "C_4D7154FA",
       "cardName": "训练·03",
       "supertype": "Creature",
+      "attackAbility": true,
+      "guardAbility": true,
+      "chargeAbility": true,
       "power": 2,
       "life": 3,
       "costList": [
-        0.0,
+        1.0,
         0.5,
         0.0,
         1.0
@@ -55,10 +64,13 @@
       "id": "C_4F2BEDE7",
       "cardName": "训练·04",
       "supertype": "Creature",
+      "attackAbility": true,
+      "guardAbility": true,
+      "chargeAbility": true,
       "power": 3,
       "life": 2,
       "costList": [
-        0.0,
+        1.0,
         1.0,
         0.0,
         0.5
@@ -72,10 +84,13 @@
       "id": "C_C8F2AFC2",
       "cardName": "训练·05",
       "supertype": "Creature",
+      "attackAbility": true,
+      "guardAbility": true,
+      "chargeAbility": true,
       "power": 7,
       "life": 9,
       "costList": [
-        0.0,
+        1.0,
         3.0,
         0.0,
         4.0
@@ -89,10 +104,13 @@
       "id": "C_135B6FC6",
       "cardName": "训练·06",
       "supertype": "Creature",
+      "attackAbility": true,
+      "guardAbility": true,
+      "chargeAbility": true,
       "power": 9,
       "life": 7,
       "costList": [
-        0.0,
+        1.0,
         4.0,
         0.0,
         3.0
@@ -106,10 +124,13 @@
       "id": "C_EF775B1E",
       "cardName": "训练·先攻卫队",
       "supertype": "Creature",
+      "attackAbility": true,
+      "guardAbility": true,
+      "chargeAbility": true,
       "power": 3,
       "life": 2,
       "costList": [
-        0.0,
+        1.0,
         4.0,
         0.0,
         0.5
@@ -126,10 +147,13 @@
       "id": "C_D99B9E33",
       "cardName": "训练·连击卫队",
       "supertype": "Creature",
+      "attackAbility": true,
+      "guardAbility": true,
+      "chargeAbility": true,
       "power": 3,
       "life": 3,
       "costList": [
-        0.0,
+        1.0,
         1.0,
         0.0,
         1.0
@@ -143,10 +167,13 @@
       "id": "C_79E3FBD5",
       "cardName": "训练·警戒卫队",
       "supertype": "Creature",
+      "attackAbility": true,
+      "guardAbility": true,
+      "chargeAbility": true,
       "power": 1,
       "life": 3,
       "costList": [
-        0.0,
+        1.0,
         0.0,
         3.0,
         1.0
@@ -163,10 +190,13 @@
       "id": "C_81E74E39",
       "cardName": "训练·碾压卫队",
       "supertype": "Creature",
+      "attackAbility": true,
+      "guardAbility": true,
+      "chargeAbility": true,
       "power": 3,
       "life": 3,
       "costList": [
-        0.0,
+        1.0,
         4.0,
         0.0,
         1.0
@@ -183,10 +213,13 @@
       "id": "C_CC69C1E7",
       "cardName": "训练·剧毒卫队",
       "supertype": "Creature",
+      "attackAbility": true,
+      "guardAbility": true,
+      "chargeAbility": true,
       "power": 1,
       "life": 1,
       "costList": [
-        0.0,
+        1.0,
         6.0,
         0.0,
         0.0
@@ -203,10 +236,13 @@
       "id": "C_F2289E36",
       "cardName": "训练·不灭卫队",
       "supertype": "Creature",
+      "attackAbility": true,
+      "guardAbility": true,
+      "chargeAbility": true,
       "power": 2,
       "life": 2,
       "costList": [
-        0.0,
+        1.0,
         0.5,
         0.0,
         3.5
@@ -223,10 +259,13 @@
       "id": "C_DC0F8DCB",
       "cardName": "训练·无实体卫队",
       "supertype": "Creature",
+      "attackAbility": true,
+      "guardAbility": true,
+      "chargeAbility": true,
       "power": 1,
       "life": 4,
       "costList": [
-        0.0,
+        1.0,
         0.0,
         0.0,
         1.5
@@ -240,10 +279,13 @@
       "id": "C_A49FDEE5",
       "cardName": "训练·绝缘体卫队",
       "supertype": "Creature",
+      "attackAbility": true,
+      "guardAbility": true,
+      "chargeAbility": true,
       "power": 2,
       "life": 2,
       "costList": [
-        6.0,
+        7.0,
         0.5,
         0.0,
         0.5
@@ -260,10 +302,13 @@
       "id": "C_1B5E5FFB",
       "cardName": "训练·病原体卫队",
       "supertype": "Creature",
+      "attackAbility": true,
+      "guardAbility": true,
+      "chargeAbility": true,
       "power": 2,
       "life": 3,
       "costList": [
-        0.0,
+        1.0,
         6.5,
         0.0,
         1.0
@@ -280,10 +325,13 @@
       "id": "C_F683DD78",
       "cardName": "训练·系命卫队",
       "supertype": "Creature",
+      "attackAbility": true,
+      "guardAbility": true,
+      "chargeAbility": true,
       "power": 2,
       "life": 2,
       "costList": [
-        0.0,
+        1.0,
         0.5,
         0.0,
         5.5
@@ -300,10 +348,13 @@
       "id": "C_FF0A9347",
       "cardName": "训练·吸血卫队",
       "supertype": "Creature",
+      "attackAbility": true,
+      "guardAbility": true,
+      "chargeAbility": true,
       "power": 3,
       "life": 3,
       "costList": [
-        0.0,
+        1.0,
         4.0,
         0.0,
         1.0
@@ -320,10 +371,13 @@
       "id": "C_A3D00A57",
       "cardName": "训练·帷幕卫队",
       "supertype": "Creature",
+      "attackAbility": true,
+      "guardAbility": true,
+      "chargeAbility": true,
       "power": 1,
       "life": 4,
       "costList": [
-        0.0,
+        1.0,
         0.0,
         3.0,
         1.5
@@ -340,10 +394,13 @@
       "id": "C_D562F418",
       "cardName": "训练·溅射卫队",
       "supertype": "Creature",
+      "attackAbility": true,
+      "guardAbility": true,
+      "chargeAbility": true,
       "power": 2,
       "life": 2,
       "costList": [
-        0.0,
+        1.0,
         3.5,
         0.0,
         0.5
@@ -360,10 +417,13 @@
       "id": "C_F8ABCD87",
       "cardName": "训练·狩猎卫队",
       "supertype": "Creature",
+      "attackAbility": true,
+      "guardAbility": true,
+      "chargeAbility": true,
       "power": 3,
       "life": 2,
       "costList": [
-        0.0,
+        1.0,
         4.0,
         0.0,
         0.5
@@ -380,10 +440,13 @@
       "id": "C_589F490C",
       "cardName": "训练·守护卫队",
       "supertype": "Creature",
+      "attackAbility": true,
+      "guardAbility": true,
+      "chargeAbility": true,
       "power": 2,
       "life": 2,
       "costList": [
-        0.0,
+        1.0,
         0.5,
         0.0,
         2.5
@@ -400,10 +463,13 @@
       "id": "C_2CD3049F",
       "cardName": "训练·再生卫队",
       "supertype": "Creature",
+      "attackAbility": true,
+      "guardAbility": true,
+      "chargeAbility": true,
       "power": 3,
       "life": 3,
       "costList": [
-        0.0,
+        1.0,
         1.0,
         0.0,
         1.0
@@ -417,10 +483,13 @@
       "id": "C_0BCC9D84",
       "cardName": "训练·沉睡卫队",
       "supertype": "Creature",
+      "attackAbility": true,
+      "guardAbility": true,
+      "chargeAbility": true,
       "power": 5,
       "life": 5,
       "costList": [
-        0.0,
+        1.0,
         2.5,
         6.0,
         2.5
@@ -437,10 +506,13 @@
       "id": "C_25099780",
       "cardName": "训练·隐密卫队",
       "supertype": "Creature",
+      "attackAbility": true,
+      "guardAbility": true,
+      "chargeAbility": true,
       "power": 2,
       "life": 2,
       "costList": [
-        0.0,
+        1.0,
         0.5,
         6.0,
         0.5
@@ -457,6 +529,7 @@
       "id": "C_DA89C5CA",
       "cardName": "训练·寒锥",
       "supertype": "Spell",
+      "chargeAbility": true,
       "tags": [
         "训练池"
       ],
@@ -465,7 +538,7 @@
       ],
       "speedBonus": 2,
       "costList": [
-        0.0,
+        1.0,
         0.0,
         0.0,
         0.0
@@ -476,6 +549,7 @@
       "id": "C_3CE53AB8",
       "cardName": "训练·庇护",
       "supertype": "Spell",
+      "chargeAbility": true,
       "tags": [
         "训练池"
       ],
@@ -484,7 +558,7 @@
       ],
       "speedBonus": 2,
       "costList": [
-        0.0,
+        1.0,
         0.0,
         0.0,
         0.0
@@ -495,6 +569,7 @@
       "id": "C_D810E9BB",
       "cardName": "训练·再临",
       "supertype": "Spell",
+      "chargeAbility": true,
       "tags": [
         "训练池"
       ],
@@ -503,7 +578,7 @@
       ],
       "speedBonus": 2,
       "costList": [
-        0.0,
+        1.0,
         0.0,
         0.0,
         0.0
@@ -514,6 +589,7 @@
       "id": "C_61E2D170",
       "cardName": "训练·铁壁",
       "supertype": "Spell",
+      "chargeAbility": true,
       "tags": [
         "训练池"
       ],
@@ -522,7 +598,7 @@
       ],
       "speedBonus": 2,
       "costList": [
-        0.0,
+        1.0,
         0.0,
         0.0,
         0.0
@@ -533,6 +609,7 @@
       "id": "C_3F345C94",
       "cardName": "训练·酣梦",
       "supertype": "Spell",
+      "chargeAbility": true,
       "tags": [
         "训练池"
       ],
@@ -541,7 +618,7 @@
       ],
       "speedBonus": 2,
       "costList": [
-        0.0,
+        1.0,
         0.0,
         0.0,
         0.0
@@ -552,6 +629,7 @@
       "id": "C_7B8966D2",
       "cardName": "训练·哑火",
       "supertype": "Spell",
+      "chargeAbility": true,
       "tags": [
         "训练池"
       ],
@@ -560,7 +638,7 @@
       ],
       "speedBonus": 2,
       "costList": [
-        0.0,
+        1.0,
         0.0,
         0.0,
         0.0
@@ -571,6 +649,7 @@
       "id": "C_32214233",
       "cardName": "训练·隐踪",
       "supertype": "Spell",
+      "chargeAbility": true,
       "tags": [
         "训练池"
       ],
@@ -579,7 +658,7 @@
       ],
       "speedBonus": 2,
       "costList": [
-        0.0,
+        1.0,
         0.0,
         0.0,
         0.0
@@ -590,6 +669,7 @@
       "id": "C_5EE06C23",
       "cardName": "训练·疫蚀",
       "supertype": "Spell",
+      "chargeAbility": true,
       "tags": [
         "训练池"
       ],
@@ -598,7 +678,7 @@
       ],
       "speedBonus": 2,
       "costList": [
-        0.0,
+        1.0,
         0.0,
         0.0,
         0.0
@@ -609,8 +689,9 @@
       "id": "C_7D1ED886",
       "cardName": "训练·霜暴",
       "supertype": "Enchantment",
+      "chargeAbility": true,
       "costList": [
-        0.0,
+        1.0,
         0.0,
         6.0,
         0.0
@@ -628,10 +709,13 @@
       "id": "C_EEFFBCF4",
       "cardName": "训练·殉盾卫",
       "supertype": "Creature",
+      "attackAbility": true,
+      "guardAbility": true,
+      "chargeAbility": true,
       "power": 2,
       "life": 2,
       "costList": [
-        0.0,
+        1.0,
         1.0,
         0.0,
         3.0
@@ -648,6 +732,7 @@
       "id": "C_C774D3BE",
       "cardName": "训练·点杀",
       "supertype": "Spell",
+      "chargeAbility": true,
       "tags": [
         "训练池"
       ],
@@ -656,7 +741,7 @@
       ],
       "speedBonus": 2,
       "costList": [
-        0.0,
+        1.0,
         0.0,
         0.0,
         0.0
@@ -667,6 +752,7 @@
       "id": "C_6A119E97",
       "cardName": "训练·双射",
       "supertype": "Spell",
+      "chargeAbility": true,
       "tags": [
         "训练池"
       ],
@@ -675,7 +761,7 @@
       ],
       "speedBonus": 2,
       "costList": [
-        0.0,
+        1.0,
         0.0,
         0.0,
         0.0
@@ -686,6 +772,7 @@
       "id": "C_F7F7FF01",
       "cardName": "训练·盲狙",
       "supertype": "Spell",
+      "chargeAbility": true,
       "tags": [
         "训练池"
       ],
@@ -694,7 +781,7 @@
       ],
       "speedBonus": 2,
       "costList": [
-        0.0,
+        1.0,
         0.0,
         0.0,
         0.0
@@ -705,23 +792,16 @@
       "id": "C_8F0A4892",
       "cardName": "训练·弃置",
       "supertype": "Spell",
+      "chargeAbility": true,
       "tags": [
         "训练池"
       ],
       "effectIds": [
-        "C8B66363"
+        "B2615708"
       ],
       "speedBonus": 2,
-      "payloads": [
-        {
-          "refId": "43ac095e",
-          "kinds": [
-            5
-          ]
-        }
-      ],
       "costList": [
-        0.0,
+        1.0,
         0.0,
         0.0,
         0.0
@@ -732,6 +812,7 @@
       "id": "C_0813DE14",
       "cardName": "训练·束缚",
       "supertype": "Spell",
+      "chargeAbility": true,
       "tags": [
         "训练池"
       ],
@@ -740,7 +821,7 @@
       ],
       "speedBonus": 2,
       "costList": [
-        0.0,
+        1.0,
         0.0,
         0.0,
         0.0
@@ -751,6 +832,7 @@
       "id": "C_839C120A",
       "cardName": "训练·洞悉",
       "supertype": "Spell",
+      "chargeAbility": true,
       "tags": [
         "训练池"
       ],
@@ -759,7 +841,7 @@
       ],
       "speedBonus": 2,
       "costList": [
-        0.0,
+        1.0,
         0.0,
         0.0,
         0.0
@@ -770,6 +852,7 @@
       "id": "C_EC152CF3",
       "cardName": "训练·闪击",
       "supertype": "Spell",
+      "chargeAbility": true,
       "tags": [
         "训练池"
       ],
@@ -778,7 +861,7 @@
       ],
       "speedBonus": 2,
       "costList": [
-        0.0,
+        1.0,
         0.0,
         0.0,
         0.0
@@ -789,6 +872,7 @@
       "id": "C_85B55112",
       "cardName": "训练·应急盾",
       "supertype": "Spell",
+      "chargeAbility": true,
       "tags": [
         "训练池"
       ],
@@ -797,7 +881,7 @@
       ],
       "speedBonus": 2,
       "costList": [
-        0.0,
+        1.0,
         0.0,
         0.0,
         0.0
@@ -808,10 +892,13 @@
       "id": "C_40B7B9BF",
       "cardName": "训练·反击哨兵",
       "supertype": "Creature",
+      "attackAbility": true,
+      "guardAbility": true,
+      "chargeAbility": true,
       "power": 2,
       "life": 3,
       "costList": [
-        0.0,
+        1.0,
         1.0,
         0.0,
         1.5
@@ -828,10 +915,13 @@
       "id": "C_B1D76E72",
       "cardName": "训练·霜甲卫",
       "supertype": "Creature",
+      "attackAbility": true,
+      "guardAbility": true,
+      "chargeAbility": true,
       "power": 1,
       "life": 4,
       "costList": [
-        0.0,
+        1.0,
         0.5,
         0.0,
         2.0
@@ -848,8 +938,9 @@
       "id": "C_BF8FE23D",
       "cardName": "训练·夜巡者",
       "supertype": "Enchantment",
+      "chargeAbility": true,
       "costList": [
-        0.0,
+        1.0,
         0.0,
         2.0,
         0.0
@@ -867,8 +958,9 @@
       "id": "C_CEDB4CBA",
       "cardName": "训练·夜鸦塔",
       "supertype": "Enchantment",
+      "chargeAbility": true,
       "costList": [
-        0.0,
+        1.0,
         1.0,
         0.0,
         0.0
@@ -886,10 +978,13 @@
       "id": "C_6A673EDB",
       "cardName": "训练·时砂行者",
       "supertype": "Creature",
+      "attackAbility": true,
+      "guardAbility": true,
+      "chargeAbility": true,
       "power": 2,
       "life": 2,
       "costList": [
-        0.0,
+        1.0,
         1.0,
         0.0,
         1.0
@@ -906,10 +1001,13 @@
       "id": "C_AF392E7C",
       "cardName": "训练·守誓者",
       "supertype": "Creature",
+      "attackAbility": true,
+      "guardAbility": true,
+      "chargeAbility": true,
       "power": 2,
       "life": 2,
       "costList": [
-        0.0,
+        1.0,
         1.0,
         0.0,
         1.0
@@ -926,6 +1024,7 @@
       "id": "C_B07879C9",
       "cardName": "训练·赌命一掷",
       "supertype": "Spell",
+      "chargeAbility": true,
       "tags": [
         "训练池"
       ],
@@ -934,7 +1033,7 @@
       ],
       "speedBonus": 2,
       "costList": [
-        0.0,
+        1.0,
         0.0,
         0.0,
         0.0
@@ -945,8 +1044,9 @@
       "id": "C_C2E5E44D",
       "cardName": "训练·盈月图腾",
       "supertype": "Enchantment",
+      "chargeAbility": true,
       "costList": [
-        0.0,
+        1.0,
         0.0,
         0.0,
         0.0
@@ -964,10 +1064,13 @@
       "id": "C_3CFC2A32",
       "cardName": "训练·集群统领",
       "supertype": "Creature",
+      "attackAbility": true,
+      "guardAbility": true,
+      "chargeAbility": true,
       "power": 2,
       "life": 2,
       "costList": [
-        0.0,
+        1.0,
         1.0,
         0.0,
         1.0
@@ -984,6 +1087,7 @@
       "id": "C_E5EBDFE5",
       "cardName": "训练·灾祸刻印",
       "supertype": "Spell",
+      "chargeAbility": true,
       "tags": [
         "训练池"
       ],
@@ -992,7 +1096,7 @@
       ],
       "speedBonus": 2,
       "costList": [
-        0.0,
+        1.0,
         0.0,
         0.0,
         0.0
@@ -1003,6 +1107,7 @@
       "id": "C_337EBF89",
       "cardName": "训练·丰饶刻印",
       "supertype": "Spell",
+      "chargeAbility": true,
       "tags": [
         "训练池"
       ],
@@ -1011,7 +1116,7 @@
       ],
       "speedBonus": 2,
       "costList": [
-        0.0,
+        1.0,
         0.0,
         0.0,
         0.0
@@ -1022,6 +1127,7 @@
       "id": "C_151CFC33",
       "cardName": "训练·远窥",
       "supertype": "Spell",
+      "chargeAbility": true,
       "tags": [
         "训练池"
       ],
@@ -1030,7 +1136,7 @@
       ],
       "speedBonus": 2,
       "costList": [
-        0.0,
+        1.0,
         0.0,
         0.0,
         0.0
@@ -1041,6 +1147,7 @@
       "id": "C_2CA20E42",
       "cardName": "训练·洞察",
       "supertype": "Spell",
+      "chargeAbility": true,
       "tags": [
         "训练池"
       ],
@@ -1049,7 +1156,7 @@
       ],
       "speedBonus": 2,
       "costList": [
-        0.0,
+        1.0,
         0.0,
         0.0,
         0.0
@@ -1060,6 +1167,7 @@
       "id": "C_EC887E12",
       "cardName": "训练·侦察",
       "supertype": "Spell",
+      "chargeAbility": true,
       "tags": [
         "训练池"
       ],
@@ -1068,7 +1176,7 @@
       ],
       "speedBonus": 2,
       "costList": [
-        0.0,
+        1.0,
         0.0,
         0.0,
         0.0
@@ -1079,8 +1187,9 @@
       "id": "C_84D035FE",
       "cardName": "训练·三相仪典台",
       "supertype": "Enchantment",
+      "chargeAbility": true,
       "costList": [
-        9.0,
+        10.0,
         0.0,
         0.0,
         0.0
@@ -1098,8 +1207,9 @@
       "id": "C_D0117E45",
       "cardName": "训练·归土祭坛",
       "supertype": "Enchantment",
+      "chargeAbility": true,
       "costList": [
-        6.0,
+        10.0,
         0.0,
         0.0,
         0.0
@@ -1117,8 +1227,9 @@
       "id": "C_6BD22752",
       "cardName": "训练·铭刻石阵",
       "supertype": "Enchantment",
+      "chargeAbility": true,
       "costList": [
-        6.0,
+        7.0,
         0.0,
         0.0,
         0.0
@@ -1136,8 +1247,9 @@
       "id": "C_E9220F23",
       "cardName": "训练·纳川水门",
       "supertype": "Enchantment",
+      "chargeAbility": true,
       "costList": [
-        2.0,
+        3.0,
         0.0,
         0.0,
         0.0
@@ -1155,8 +1267,9 @@
       "id": "C_E2423196",
       "cardName": "训练·灵视灯塔",
       "supertype": "Enchantment",
+      "chargeAbility": true,
       "costList": [
-        6.0,
+        7.0,
         0.0,
         0.0,
         0.0
@@ -1171,43 +1284,10 @@
       "hash": "E2423196"
     },
     {
-      "id": "C_7FF704BF",
-      "cardName": "训练·催征战魁",
-      "supertype": "Creature",
-      "power": 3,
-      "life": 3,
-      "costList": [
-        0.0,
-        0.5,
-        2.0,
-        0.5
-      ],
-      "tags": [
-        "训练池"
-      ],
-      "effectIds": [
-        "F137EFA8"
-      ],
-      "payloads": [
-        {
-          "refId": "8ae22c02",
-          "kinds": [
-            1
-          ]
-        },
-        {
-          "refId": "e97b8001",
-          "kinds": [
-            1
-          ]
-        }
-      ],
-      "hash": "7FF704BF"
-    },
-    {
       "id": "C_4FA57368",
       "cardName": "训练·血偿",
       "supertype": "Spell",
+      "chargeAbility": true,
       "tags": [
         "训练池"
       ],
@@ -1216,7 +1296,7 @@
       ],
       "speedBonus": 2,
       "costList": [
-        0.0,
+        1.0,
         0.0,
         0.0,
         0.0
@@ -1227,6 +1307,7 @@
       "id": "C_9AC0C004",
       "cardName": "训练·抉择·汲取",
       "supertype": "Spell",
+      "chargeAbility": true,
       "tags": [
         "训练池"
       ],
@@ -1236,7 +1317,7 @@
       ],
       "speedBonus": 2,
       "costList": [
-        0.0,
+        1.0,
         0.0,
         0.0,
         0.0
@@ -1247,6 +1328,7 @@
       "id": "C_57614AD4",
       "cardName": "训练·抉择·冻结",
       "supertype": "Spell",
+      "chargeAbility": true,
       "tags": [
         "训练池"
       ],
@@ -1256,7 +1338,7 @@
       ],
       "speedBonus": 2,
       "costList": [
-        0.0,
+        1.0,
         0.0,
         0.0,
         0.0
@@ -1267,6 +1349,7 @@
       "id": "C_829190D8",
       "cardName": "训练·抉择·干扰",
       "supertype": "Spell",
+      "chargeAbility": true,
       "tags": [
         "训练池"
       ],
@@ -1277,7 +1360,7 @@
       ],
       "speedBonus": 2,
       "costList": [
-        0.0,
+        1.0,
         0.0,
         0.0,
         0.0
@@ -1288,6 +1371,7 @@
       "id": "C_D2FB9D0B",
       "cardName": "训练·检索",
       "supertype": "Spell",
+      "chargeAbility": true,
       "tags": [
         "训练池"
       ],
@@ -1296,7 +1380,7 @@
       ],
       "speedBonus": 2,
       "costList": [
-        0.0,
+        1.0,
         0.0,
         0.0,
         0.0
@@ -1307,6 +1391,7 @@
       "id": "C_5AFFC259",
       "cardName": "训练·苏生",
       "supertype": "Spell",
+      "chargeAbility": true,
       "tags": [
         "训练池"
       ],
@@ -1315,7 +1400,7 @@
       ],
       "speedBonus": 2,
       "costList": [
-        0.0,
+        1.0,
         0.0,
         0.0,
         0.0
@@ -1326,6 +1411,7 @@
       "id": "C_F99C5671",
       "cardName": "训练·放逐",
       "supertype": "Spell",
+      "chargeAbility": true,
       "tags": [
         "训练池"
       ],
@@ -1334,7 +1420,7 @@
       ],
       "speedBonus": 2,
       "costList": [
-        0.0,
+        1.0,
         0.0,
         0.0,
         0.0
@@ -1345,6 +1431,7 @@
       "id": "C_977D4944",
       "cardName": "封印",
       "supertype": "Spell",
+      "chargeAbility": true,
       "tags": [
         "训练池"
       ],
@@ -1352,7 +1439,7 @@
         "35628BEB"
       ],
       "costList": [
-        0.0,
+        1.0,
         0.0,
         0.0,
         0.0

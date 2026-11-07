@@ -52,6 +52,12 @@ namespace CardCore
                     // 任意卡使用宣言（含法术、含对手——对手/自己限定交给 TriggerConditions）
                     return true;
 
+                // ---- 使用结算观察族（CardCastSettledEvent，连锁终点补发）----
+                case TriggerTiming.OnCardCastSettled:
+                    // 任意一方的施放结算都观察（含响应窗施放）——对手/自己限定交给
+                    // TriggerConditions（同 OnCardPlayed 范式）
+                    return true;
+
                 // ---- 阶段族（PhaseStartEvent）----
                 case TriggerTiming.OnStandbyPhase:
                     // 准备阶段（2026-10-20 定案）：GetEventType 只有类型级映射（PhaseStartEvent），

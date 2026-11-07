@@ -5,7 +5,7 @@ using System.Collections.Generic;
 namespace CardCore
 {
     /// <summary>
-    /// 触发时机（单套命名定案，31 值连续；卡牌数据随本次收敛重建，int 重排定案）
+    /// 触发时机（单套命名定案；早期 31 值重排冻结后**只尾部追加不重排**——现 35 值，编号 10 为历史空洞）
     ///
     /// 双泳道定案：
     /// - 泳道A（不在场的卡·整卡使用）：手牌/隐蔽区 → 发动区三关（①双方可见宣言→②反制窗口→③未被反制结算代价）
@@ -45,9 +45,9 @@ namespace CardCore
         OnTap = 14,
         /// <summary>重置时</summary>
         OnUntap = 15,
-        /// <summary>破坏时（"破坏"死因）</summary>
+        /// <summary>被破坏时（"破坏"死因）</summary>
         OnDestroy = 16,
-        /// <summary>除外时</summary>
+        /// <summary>被除外时</summary>
         OnExile = 17,
         /// <summary>从墓地回到战场时（进场事件的 Revived 来源）</summary>
         OnReturnFromGraveyard = 18,
@@ -101,6 +101,12 @@ namespace CardCore
         /// 侧别限定交给 TriggerConditions。载荷过滤不设 case（默认放行=每次占卜一发）。
         /// 枚举只尾部追加不重排。</summary>
         OnScry = 34,
+
+        /// <summary>效果结算后（2026-11-06 判据七·充盈改造；2026-11-07 更名「使用结算后」→「效果结算后」）：任一方施放的卡成功结算、
+        /// 且整条连锁结算完成的稳定点补发（CardCastSettledEvent）——观察者时点，双方施放都触发，
+        /// 侧别限定交给 TriggerConditions；发动无效/效果无效早退不补发。
+        /// 枚举只尾部追加不重排。</summary>
+        OnCardCastSettled = 35,
     }
 
     /// <summary>

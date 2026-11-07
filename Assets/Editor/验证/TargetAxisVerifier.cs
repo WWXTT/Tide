@@ -19,7 +19,8 @@ namespace CardCore.Editor.Tests
     ///   侧别、3/4 不授予；紊乱样例：双方战场:生物 + kind[2] → 对方战场:生物；Both 双侧保持；
     ///   无交删 selector；空 kinds 不收窄）。
     /// ■ ④ 候选取件（夹具）：selector 逐类正确性（生物/结界/法术/卡/角色/自己/属性 Filter）。
-    /// ■ ⑤ 全表守卫：153 行（2026-11-05 硬切 B2：全体两行已删）——新语法合法/无目标二分。
+    /// ■ ⑤ 全表守卫：153 行（2026-11-05 硬切 B2：全体两行已删）——新语法合法/无目标二分；
+    ///   光环行（21）恒「双方」前缀 Domain（2026-11-06 定案：表价=对称双方，单侧属实例方向）。
     /// ■ ⑥ 生产链证据：converter 新 Domain 产轴+收窄 + executor 结算 LiveResolutions&gt;0。
     /// </summary>
     public static class TargetAxisVerifier
@@ -358,6 +359,24 @@ namespace CardCore.Editor.Tests
                 }
                 noTarget++;
             }
+
+            // 光环表 Domain 定案（2026-11-06）：场地光环行 Domain 恒「双方」前缀——表价=对称双方
+            // 校准口径（极性 0 行只能双方；±1 行作用方向在仪典步 value 上选，缺省双方=表价档，
+            // 单侧 ×RuleAuraSingleSideFactor）。逐 selector 查侧别前缀，防单侧域混入光环表。
+            int auraRows = 0;
+            foreach (var row in AtomicEffectTable.GetAll())
+            {
+                if (row == null || !Enum.TryParse<AtomicEffectType>(row.EnumName ?? "", out var at)
+                    || !RuleAuraComponents.IsAuraLike(at)) continue;
+                auraRows++;
+                if (string.IsNullOrEmpty(row.Domain))
+                    Of("5").FailWith($"光环行 {row.DisplayName}（{row.HashId}）缺 Domain（2026-11-06 定案：恒双方前缀）");
+                else if (!row.Domain.Split('；', ';').All(seg => seg.Trim().StartsWith("双方")))
+                    Of("5").FailWith($"光环行 {row.DisplayName}（{row.HashId}）Domain='{row.Domain}' 含非「双方」"
+                                     + "前缀 selector（光环表价=对称双方口径，单侧属实例方向非行域）");
+            }
+            Check("5", auraRows == 21, $"光环行 {auraRows} 行（应 21——全部带双方前缀 Domain）");
+
             Debug.Log($"[域契约][5] 全表硬切口径：{rows} 行 = 已迁（新语法）{migrated} + 无目标 {noTarget} + "
                       + $"迁移未完成 {pendingLegacy + pendingContract}（旧 Domain {pendingLegacy} / 新行契约违规 {pendingContract}）"
                       + "——大面积红为预期（映射提案见 docs/目标域迁移提案.md，不因红恢复 legacy）");
@@ -370,16 +389,18 @@ namespace CardCore.Editor.Tests
         {
             var core = GameCore.Instance;
 
-            // B1 卡级样本（2026-11-05 硬切验收）：表行 Domain + entry.kinds 收窄 → converter 产轴落点
+            // B1 卡级样本（2026-11-05 硬切验收；2026-11-06 极性定侧修订）：表行 Domain + entry.kinds
+            // 收窄 → converter 产轴落点——kinds=null 的条目现按**极性收窄**（非场地效果 p<0→对方侧/
+            // p>0→己方侧，行域「双方」只是双极性并集声明），kinds 显式走 NarrowByKinds 不受极性影响。
             var samples = new (string refId, List<int> kinds, string expectZh, string expectFilter)[]
             {
                 ("d3ed120d", new List<int> { 2 }, "对方战场:生物", ""),                       // 紊乱卡：kinds[2]→对方战场，无角色
                 ("d3ed120d", new List<int> { 1 }, "己方战场:生物", ""),                       // 紊乱可指己方生物（代价用法）
-                ("a4b823fc", null, "双方战场:生物；双方角色", ""),                            // 伤害卡
-                ("af7bd26e", null, "双方战场:生物；双方角色", ""),                            // 吸取卡
-                ("a50b8c19", null, "双方战场:生物", ""),                                      // 消灭卡
-                ("599fcc9a", null, "双方战场:生物；双方角色", "Damaged"),                     // 回复卡（+Damaged）
-                ("973884b1", null, "双方战场:生物", ""),                                      // 冻结（无元素池）
+                ("a4b823fc", null, "对方战场:生物；对方战场:结界；对方角色", ""),              // 伤害卡（p=-1 极性定侧；行域含结界）
+                ("af7bd26e", null, "对方战场:生物；对方角色", ""),                            // 吸取卡（p=-1）
+                ("a50b8c19", null, "对方战场:生物", ""),                                      // 消灭卡（p=-1）
+                ("599fcc9a", null, "己方战场:生物；己方角色", "Damaged"),                     // 回复卡（p=+1；+Damaged）
+                ("973884b1", null, "对方战场:生物", ""),                                      // 冻结（p=-1；无元素池）
             };
             foreach (var (refId, kinds, expectZh, expectFilter) in samples)
             {

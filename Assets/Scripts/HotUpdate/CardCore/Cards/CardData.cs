@@ -106,11 +106,6 @@ namespace CardCore
         [NonSerialized]
         internal List<ElementCost> ModeCostCache;
 
-        // 自我沉睡判定缓存（2026-09-11 豁免费定案；灰+绿 2026-10-22）：任一非主动效果含 Sleep 原子且组合域={Self}。
-        // GetCardCost 高频调用，转换结果缓存（ResetCache 失效，随 ModeCostCache 口径）。
-        [NonSerialized]
-        internal bool? SelfSleepEffectCache;
-
         // 地牌锁色候选缓存（2026-10-23 锚价开格定案）：ElementPoolSystem.GetLandColorChoices 写入/读取
         //（放地按钮逐帧评估+AI 枚举高频口记忆化，ResetCache 失效——随费用/效果数据同口径）。
         [NonSerialized]
@@ -284,16 +279,28 @@ namespace CardCore
             set => _linkAuras = value;
         }
 
-        // ---- 战斗底盘（2026-09-10 攻击/守卫效果化）----
-        // 攻/守 = 速度0/速度1主动效果（2026-09-16；各 1 灰，不占槽位），生物默认自带；opt-out 退底盘额度。
-        // 计价见 CardCompositionCost（2026-10-10 可支配底盘）；资格见 CombatSystem（NoAttack 卡不能攻击）。
+        // ---- 战斗底盘（2026-09-10 攻/守效果化；2026-11-06 opt-in 改版）----
+        // 攻/守/充能 = 三系统动作的资格位：**默认不带，卡面声明才有**（组合界面 basicability
+        // ac/dc/rc 三开关，正向绑定）。旧 NoAttack/NoGuard opt-out 模型同日翻转退役。
+        // 计价：攻/守仍占底盘结构项（CardCompositionCost——数学与旧口径同构翻转，底盘分配不动）；
+        // 充能=推导费固定 +1 灰（CardCostService 三口）。资格见 EntityEffectExtensions / CombatSystem /
+        // EffectExecutionEngine / GameActions.CanCharge（充能首闸）。
         [TideSerialized]
-        private bool _noAttack;
-        public bool NoAttack { get => _noAttack; set => _noAttack = value; }
+        private bool _attackAbility;
+        /// <summary>攻击资格：速度0主动效果（结算期横置支付）。仅生物有意义（装载端非生物记 Error 降级）。</summary>
+        public bool AttackAbility { get => _attackAbility; set => _attackAbility = value; }
 
         [TideSerialized]
-        private bool _noGuard;
-        public bool NoGuard { get => _noGuard; set => _noGuard = value; }
+        private bool _guardAbility;
+        /// <summary>守卫资格：速度1响应拦截。仅生物有意义（装载端非生物记 Error 降级）。</summary>
+        public bool GuardAbility { get => _guardAbility; set => _guardAbility = value; }
+
+        [TideSerialized]
+        private bool _chargeAbility;
+        /// <summary>充能资格（2026-11-06 充能 opt-in 改版）：默认不可充——GameActions.CanCharge 首闸
+        /// 放行 + UI 充能行/亮钮按此过滤；计价=推导费固定 +1 灰（Derive/DeriveModeCosts/
+        /// ContentPriceByColor 三口同加，不动底盘分配）。任意卡型可声明。</summary>
+        public bool ChargeAbility { get => _chargeAbility; set => _chargeAbility = value; }
 
         // ===== 装备系统（2026-09-13 第二十一批：万智神器×炉石武器——箭头佩带+驱动）=====
         [TideSerialized]
@@ -437,7 +444,6 @@ namespace CardCore
             _hasActiveEffect = null;
             DerivedCostCache = null; // 整卡推导费随内容/配置失效（下次 GetRuntimeCost/EnsureCost 重推导）
             ModeCostCache = null; // 抉择 per-mode 费用随配置失效（下次构筑期重推导）
-            SelfSleepEffectCache = null; // 自我沉睡判定随效果数据失效（2026-09-11）
             LandColorChoicesCache = null; // 地牌锁色候选随费用/效果数据失效（2026-10-23 锚价开格）
         }
 
@@ -985,6 +991,7 @@ namespace CardCore
         /// </summary>
         public CardData CreateCardData()
         {
+            // 资格位（2026-11-06 opt-in）不带出：模板类无资格字段，衍生物按裸口径从严=无攻无守无充能。
             return new CardData
             {
                 Supertype = Supertype,

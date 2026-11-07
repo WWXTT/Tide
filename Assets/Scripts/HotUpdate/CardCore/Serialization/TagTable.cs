@@ -243,9 +243,6 @@ namespace CardCore.Serialization
         public const int MsgIntentPlayCard_Targets = 1450138392;
         public const int MsgIntentPlayCard_FromZone = 933788219;
         public const int MsgIntentPlayCard_ModeIndex = 1969366828;
-        /// <summary>已废弃（2026-11-02 苏醒机制整链删除）：标签 ID 不回收（协议兼容），
-        /// 字段保留读兼容、不再写入。</summary>
-        public const int MsgIntentPlayCard_AwakenCast = 1025809165;
 
         // ---- MsgIntentBuildCard ----
         public const int MsgIntentBuildCard_CardRuntimeId = 77691148;
@@ -393,6 +390,6 @@ namespace CardCore.Serialization
         public const int MLAA_RoomId = 97705085;
         public const int MLAA_Nickname = 1153192151;
 
-        // 共 265 个标签（纯哈希口径）
+        // 共 264 个标签（纯哈希口径）
     }
 }

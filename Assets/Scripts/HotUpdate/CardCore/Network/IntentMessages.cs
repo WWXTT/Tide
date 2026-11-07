@@ -1,4 +1,3 @@
-using System;
 using CardCore.Serialization;
 using MemoryPack;
 
@@ -14,9 +13,6 @@ namespace CardCore.Network
     /// <summary>出牌三路合一：FromZone=Hand（主阶段出牌）/ Graveyard（墓地视手牌）。
     /// 服务器按"栈非空且请求者持优先权"分派 PlayCardInResponse（响应出牌，来源限手牌），
     /// 否则走 PlayCard（主阶段+回合玩家门禁）。ModeIndex=抉择模式（宣言即公开）。
-    /// AwakenCast（2026-10-29 P6 苏醒改版，协议 v3 新增；**2026-11-02 苏醒机制整链删除后
-    /// deprecated**）：保留字段只为读取旧客户端报文兼容——新代码不再写入（恒 false），
-    /// 服务器侧收到 true 也按普通施放处理。协议 ID 不变。
     /// 永久物落格（2026-10-28）：快照不承载棋盘坐标（位置权威=客户端表现层）——选格钉在
     /// 客户端 NetCellPins（BuildNet 消费），无需协议带格。</summary>
     [MemoryPackable]
@@ -33,11 +29,6 @@ namespace CardCore.Network
 
         [MemoryPackOrder(TagTable.MsgIntentPlayCard_ModeIndex)]
         public int ModeIndex;
-
-        /// <summary>已废弃（2026-11-02 苏醒删除）：读兼容占位——不再写入，服务器忽略其值。</summary>
-        [MemoryPackOrder(TagTable.MsgIntentPlayCard_AwakenCast)]
-        [Obsolete("苏醒机制已删除（2026-11-02）；字段仅保留报文读取兼容，恒 false，服务器忽略。")]
-        public bool AwakenCast;
     }
 
     // MsgIntentTapForElement 已删（2026-10-11 现取现用：无手动横置意图）——原 101 空位已随

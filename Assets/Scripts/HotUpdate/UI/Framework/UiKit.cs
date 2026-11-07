@@ -1018,6 +1018,24 @@ namespace SynergyUI
                 if (Application.isPlaying) _loop.RefillCells(); // 引擎仅 Play 铺行；编辑态 Count 已就位（空态诊断可用）
             }
 
+            /// <summary>保位重铺（2026-11-07 效果组合界面点选弹回第一行修复）：数据变化
+            /// （如落位原子从库中隐藏）但要求视口停在原条目附近——先记首活行+滚动位，
+            /// 重铺后 RefillCells(startItem, contentOffset) 复位（引擎官方跳位口，内部
+            /// m_ContentStartPosition/UpdatePrevData 同步，比硬还原 anchoredPosition 稳）。
+            /// 数据未变场景同样适用（保位语义比 RebindVisible 的 RefreshCells 更直接）。
+            /// contentOffset 口径=恢复后的 anchoredPosition.y 本身（引擎 pos.y 直传，含
+            /// VLG padding.top——首版误扣 padding 致每次点选下漂 padding.top≈5px）。
+            /// 条目数收缩时钳到末位；count=0/编辑态退化为回顶。</summary>
+            public void SetItemsKeepScroll(int count, Func<int, float> heightOf)
+            {
+                var (start, _) = ItemWindow();
+                float pos = _content != null ? Mathf.Max(0f, _content.anchoredPosition.y) : 0f;
+                SetItems(count, heightOf);
+                if (_loop == null || !Application.isPlaying || _count <= 0) return;
+                int restore = Mathf.Min(start, _count - 1);
+                if (restore > 0) _loop.RefillCells(restore, pos);
+            }
+
             /// <summary>网格数据源（等格多列）：格几何取 content 的 GLG（cellW/cellH 可覆写），
             /// 列数按内容宽自算并锁进 GLG（引擎只认 FixedColumnCount）。</summary>
             public void SetGrid(int count, float cellW = 0f, float cellH = 0f)

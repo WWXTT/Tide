@@ -302,13 +302,15 @@ namespace CardCore
             return DeriveElementCosts(shim);
         }
 
-        /// <summary>附加诅咒/附加祝福分支附加费（2026-10-09 定案：这两引擎的 Then 奖励**不再免费**——
-        /// 按分支实际填入的诅咒/祝福的费用**减半、向上取整**）：色分配=奖励推导色费按原色占比分摊
-        /// 减半总额（最大余数法）。其余引擎照旧零计价（条件性即折扣——倒计时延迟即付费、拼点差额付门槛）。</summary>
+        /// <summary>附加诅咒/附加祝福分支附加费（2026-10-09 定案：这两引擎的载荷**不再免费**——
+        /// 按分支实际载荷的费用**减半、向上取整**；2026-11-06 载荷效果化：载荷=效果库组合效果引用时
+        /// 按引用效果锚价取费，Then 原子列为旧手写数据兼容通道）：
+        /// 色分配=载荷推导色费按原色占比分摊减半总额（最大余数法）。
+        /// 其余引擎照旧零计价（条件性即折扣——倒计时延迟即付费、拼点差额付门槛）。</summary>
         public static ElementCost EngineBranchSurcharge(BranchPayload payload)
         {
             var result = new ElementCost();
-            var full = RewardDerivedCostByColor(payload?.Then);
+            var full = CursePayloadFullCost(payload);
             float total = full.Total;
             if (total <= 0f) return result;
             int half = (int)Math.Ceiling(total / 2f);
@@ -332,9 +334,41 @@ namespace CardCore
             return result;
         }
 
-        /// <summary>附加诅咒/祝福分支附加费标量（合成器分支段预览文本用）：Then 奖励推导费 ceil 减半。</summary>
+        /// <summary>载荷全费（2026-11-06 载荷效果化单源——与运行时 EffectId 优先同口径）：
+        /// payload.EffectId 非空按引用效果锚价；否则按 Then 原子列奖励推导费（旧手写数据通道）。
+        /// 两通道皆空=0 费。</summary>
+        private static ElementCost CursePayloadFullCost(BranchPayload payload)
+            => !string.IsNullOrEmpty(payload?.EffectId)
+                ? ReferencedEffectCostByColor(payload.EffectId)
+                : RewardDerivedCostByColor(payload?.Then);
+
+        // 引用效果解析深度闸（防手写数据自引用循环 A→A→…：资格过滤已拦引擎主干作载荷，
+        // 此闸只兜直改 JSON 的环——4 层足够任何合法链）
+        [ThreadStatic] private static int _refCostDepth;
+
+        /// <summary>载荷引用效果全费：效果库条目 → ConvertOne → DeriveElementCosts（公开口：
+        /// 合成器分支段预览共用同源）。缺失/解析失败=0 费（装载校验已点名，计价不重复告警）。</summary>
+        public static ElementCost ReferencedEffectCostByColor(string effectId)
+        {
+            var result = new ElementCost();
+            if (string.IsNullOrEmpty(effectId) || _refCostDepth > 4) return result;
+            var data = EffectsLibrary.Resolve(effectId);
+            var def = data != null ? CardEffectConverter.ConvertOne(data, effectId) : null;
+            if (def == null) return result;
+            _refCostDepth++;
+            try { return DeriveElementCosts(def, 0); }
+            finally { _refCostDepth--; }
+        }
+
+        /// <summary>附加诅咒/祝福分支附加费标量（合成器分支段预览文本用）：载荷费 ceil 减半
+        ///（Then 原子列口径——效果引用口径走 EngineBranchSurchargeHalfOf）。</summary>
         public static float EngineBranchSurchargeHalf(List<AtomicEffectInstance> then)
             => (float)Math.Ceiling(RewardDerivedCost(then) / 2f);
+
+        /// <summary>附加诅咒/祝福分支附加费标量（2026-11-06 载荷效果化：效果引用/Then 双通道口径——
+        /// 合成器分支段预览文本用）。</summary>
+        public static float EngineBranchSurchargeHalfOf(BranchPayload payload)
+            => (float)Math.Ceiling(CursePayloadFullCost(payload).Total / 2f);
 
         /// <summary>自平衡门槛（原拼点门槛 2026-10-09 抽公共；同日统一——运行时判定与 UI 短文案同源，
         /// 防显示≠判定）：拼点/死亡计数/元素充盈共用——奖励锚价合计四舍五入（AwayFromZero）、
@@ -528,14 +562,6 @@ namespace CardCore
         /// </summary>
         private static float ComputeAtomBaseAmount(AtomicEffectInstance atom, EffectDefinition def, AtomicEffectConfig cfg)
         {
-            // 自我沉睡（灰费时长模式，2026-10-22 定案；2026-11-02 苏醒删除后仅存历史口径）：
-            // Value≤0 且实例域={Self}——旧苏醒时代的代价位（由被豁免的灰费支付），维持零计价；
-            // 否则绿卡带自我沉睡会被推导出黑费。固定层数沉睡（Value>0）仍按黑费计。
-            if (atom.Type == AtomicEffectType.Sleep && atom.Value <= 0
-                && atom.TargetKinds != null && atom.TargetKinds.Count == 1
-                && atom.TargetKinds[0] == (int)TargetKind.Self)
-                return 0f;
-
             // 检索：按筛选维度档计费，替代通用公式。维度档存于 atom.StringValue（默认单一维度）。
             if (atom.Type == AtomicEffectType.SearchDeck)
                 return FilterPrecisionCost(atom);
@@ -618,9 +644,9 @@ namespace CardCore
             //（RuleAuraScope）非量级——不乘 magnitude，
             // 恒单价×成本乘数×持续档（与旧口径 value=1 等价）；不吃对称让利（2026-10-29 去对称让利——
             // 表价即实价；含负面光环——2026-10-07 改写降级回滚，改写族箭头计价口径退役；舍身（2026-10-30 改版战斗法师）2026-10-16 关键词化出族）。
-            // 2026-10-30 单侧溢价：极性 ±1 行作用面收窄单侧（+1 仅己方/−1 仅对方，UI 不再提供双方档），
-            // 表价按对称双方校准 → 单侧档 ×RuleAuraSingleSideFactor（CardCostConfig，默认 1.5——具体值用户调）；
-            // 固定双方行（IsFixedBothRule）与存量 value=Both 数据恒 ×1。
+            // 2026-10-30 单侧溢价（2026-11-06 定案修订：±1 行缺省双方=表价档，卡面可收窄极性单侧
+            //——+1 仅己方/−1 仅对方）：表价按对称双方校准 → 单侧档 ×RuleAuraSingleSideFactor
+            //（CardCostConfig，默认 1.5——具体值用户调）；极性 0 行恒双方（converter 已矫正 value）×1。
             if (RuleAuraComponents.IsAuraLike(atom.Type))
             {
                 float ruleMult = cfg.CostMultiplier > 0f ? cfg.CostMultiplier : 1f;

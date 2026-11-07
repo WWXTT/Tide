@@ -68,11 +68,13 @@ namespace CardCore
         // 连接光环声明（三轨制 2026-09-09）：箭头指向格占据者享受的持续效果（stat/keyword 二选一）
         public List<LinkAuraData> linkAuras;
 
-        // 战斗底盘（2026-09-10 攻/守效果化）：opt-out 缺省 false=自带攻守；
-        // 2026-10-15 卡型默认分配：法术提速份额 speedBonus 缺省 2（装载处迁移）；
+        // 系统动作资格位（2026-11-06 opt-in 改版）：攻/守/充能默认不带，卡面声明才有——
+        // 正向列（attackAbility/guardAbility/chargeAbility），旧 noAttack/noGuard opt-out 列
+        // 已随全表迁移退役（缺列=false=不带）。speedBonus 缺省 2（装载处迁移）；
         // surplusToDurability 已随拆分定案退役（残留列按未知字段忽略）
-        public bool noAttack;
-        public bool noGuard;
+        public bool attackAbility;
+        public bool guardAbility;
+        public bool chargeAbility;
         public int speedBonus;
 
         // 结界耐久（2026-09-24 定案：结界=耐久体，被攻击每次仅损失 1 点，归零销毁；0=无）——生物不使用
@@ -137,7 +139,7 @@ namespace CardCore
         private static Dictionary<string, KeywordDefinition> _keywordCache;
 
         /// <summary>
-        /// 加载关键词定义 —— 关键词本身即原子效果（GrantXxx，作用默认指向自身），不单独开表：
+        /// 加载关键词定义 —— 关键词本身即原子效果（GrantXxx，效果层默认赋予己方战场生物），不单独开表：
         /// 直接从原子效果表（AtomicEffectTable ← 原子表五分文件）的 Grant* 条目合成。
         /// 中文名/描述/颜色取自表内字段；id 取 GrantKeywordHandlerFactory 登记的运行时关键词 id
         /// （与写入 IHasKeywords 的字符串同源，如 GrantReborn → Reborn）。
@@ -161,13 +163,22 @@ namespace CardCore
                 if (!GrantKeywordHandlerFactory.TryGetKeywordId(type, out var keywordId))
                     continue; // 未登记=非关键词族 Grant 行（如指示物化的坚韧），不进关键词目录
 
+                // 关键词定义描述=**效果说明**（2026-11-07 关键词特判）：效果层关键词行 Description
+                // 现为「赋予{target}X：<效果说明>」——关键词定义只要冒号后的效果说明，避免
+                // {target} 字面进悬浮/光环库文案（卡面效果文本仍读行 Description 原文）。
+                string keywordDesc = atom.Description ?? "";
+                if (keywordDesc.StartsWith("赋予{target}"))
+                {
+                    int colon = keywordDesc.IndexOf('：');
+                    if (colon >= 0) keywordDesc = keywordDesc.Substring(colon + 1);
+                }
                 _keywordCache[keywordId] = new KeywordDefinition
                 {
                     id = keywordId,
                     nameZh = atom.DisplayName,      // 中文短名（冲锋/突袭…）
                     nameEn = atom.EnumName,
                     color = ElementAffinities.GetAffinityForEffect(type).PrimaryColor.ToString(), // 源自表 ManaList 主色（装载时并入 Tags 色名；旧 EffectColor 列已删）
-                    description = atom.Description, // 展示模板（{target}获得冲锋）
+                    description = keywordDesc,      // 效果说明（已去「赋予{target}X：」前缀）
                     isPassive = true,
                     atomicEffect = atom.EnumName,   // 被动授予的原子效果（GrantXxx）
                 };
@@ -321,8 +332,10 @@ namespace CardCore
         /// 提前到装载期暴露；P9b 卡组期空槽绑定随之收口为装载错误）。
         /// CardRef 的 str 须在卡库解析到该卡 ID（本批卡 ids ∪ SummonTokenHandler.ResolveTemplate
         /// 注入的卡目录——与 ValidateMountHosts 同一解析器）。
-        /// 豁免：引擎主干行（附加诅咒/附加祝福）的载荷通道=branch.then——实例带 then 载荷即不缺参，
-        /// str 通道对这两行不适用（AddCurse 兼容 handler 的 str=载荷效果 id 属无表行手写数据，不经本口）。
+        /// EffectRef（2026-11-06 附加诅咒/祝福载荷效果化）的 str 须在 EffectsLibrary 解析到条目
+        /// 且通过载荷资格（EffectEligibility.CursePayloadRejectReason——主动∧极性匹配引擎行）。
+        /// 豁免：引擎主干行（附加诅咒/附加祝福）的旧手写形态=branch.then 载荷、无 str——照旧放行
+        ///（兼容通道）；带 str 的引擎主干走 str 校验（载荷=效果引用，主通道）。
         /// </summary>
         private static void ValidateAtomParams(List<CardData> cards)
         {
@@ -341,8 +354,9 @@ namespace CardCore
                         var row = Attribute.AtomicEffectTable.GetByHashId(atom?.refId);
                         if (row == null || row.Param == Attribute.AtomicParamKind.None) continue;
                         if (ComposerCatalog.IsEngineTrunkRow(row)
+                            && string.IsNullOrEmpty(atom.str)
                             && atom.branch?.then != null && atom.branch.then.Count > 0)
-                            continue; // 引擎主干行：载荷走 branch.then（附加诅咒/附加祝福）
+                            continue; // 引擎主干行旧手写形态：载荷走 branch.then、无 str——兼容放行
                         if (string.IsNullOrEmpty(atom.str))
                         {
                             TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}："
@@ -356,6 +370,22 @@ namespace CardCore
                             TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}："
                                           + $"原子行「{row.DisplayName}」的引用卡 '{atom.str}' 未能在卡库解析到该卡 ID"
                                           + "——装载期拦截");
+                        else if (row.Param == Attribute.AtomicParamKind.EffectRef)
+                        {
+                            var payloadData = EffectsLibrary.Resolve(atom.str);
+                            if (payloadData == null)
+                                TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}："
+                                              + $"原子行「{row.DisplayName}」的载荷效果 '{atom.str}' 未能在效果库解析到条目 id"
+                                              + "——装载期拦截");
+                            else
+                            {
+                                var reason = EffectEligibility.CursePayloadRejectReason(payloadData, row.Polarity);
+                                if (reason != null)
+                                    TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}："
+                                                  + $"原子行「{row.DisplayName}」的载荷效果 '{atom.str}' 不符合附加诅咒/祝福"
+                                                  + $"载荷资格——{reason}（装载期拦截）");
+                            }
+                        }
                     }
                 }
             }
@@ -938,11 +968,17 @@ namespace CardCore
             //（与卡面直书值并集——兼容旧数据）；须在 EnsureCost 前完成（光环费/箭头累乘进计价）
             cardData.AggregateEffectAuras(false);
 
-            // 战斗底盘（2026-09-10 攻/守效果化）+ 卡型默认分配（2026-10-15）：
-            // 法术速度=3−槽数动态算（2026-10-31 P12 回归；KindSpeedBonusOf 单源）——speedBonus 字段退役只读不消费；
-            // surplusToDurability 已退役按未知字段忽略。
-            cardData.NoAttack = entry.noAttack;
-            cardData.NoGuard = entry.noGuard;
+            // 系统动作资格位（2026-11-06 opt-in 改版）：攻/守/充能默认不带，正向列声明才有。
+            // 攻/守仅生物有意义——非生物带列记 Error 并降级（isField 先例：可见不炸，坏卡点名）。
+            cardData.AttackAbility = entry.attackAbility;
+            cardData.GuardAbility = entry.guardAbility;
+            cardData.ChargeAbility = entry.chargeAbility;
+            if (cardData.Supertype != Cardtype.Creature && (cardData.AttackAbility || cardData.GuardAbility))
+            {
+                TideLog.Error($"[CardLoader] {entry.id}：attackAbility/guardAbility 只属生物（当前 {cardData.Supertype}）——已降级剥离");
+                cardData.AttackAbility = cardData.GuardAbility = false;
+            }
+            // speedBonus 字段退役只读不消费（法术速度=3−槽数动态算，KindSpeedBonusOf 单源）
             cardData.SpeedBonus = entry.speedBonus;
 
             // 结界耐久（2026-09-24 定案）：战斗侧已实装（CounterRules.LoseDurability + 零坚韧 SBA，TideServer V9.c 全流程回归）——本行只做数据采集

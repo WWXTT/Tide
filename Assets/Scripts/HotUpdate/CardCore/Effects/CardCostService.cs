@@ -173,13 +173,13 @@ namespace CardCore
                     $"结构项 {CardCompositionCost.ChassisItems(card)} − 预算3 → +{surcharge} 入灰",
                     surcharge, ManaType.Gray));
             // 生物：免费属性底 n/n（FreeAttrBaseOf——预算 3−攻守−首槽；不受旧 surplus 口径守门，
-            // NoGuard+2槽 时旧 surplus=0 而新底=1 也要出明细行）
+            // 攻/守资格缺位（2026-11-06 opt-in）时底抬升同口径——旧 NoGuard+2槽 surplus=0 而新底=1 也要出明细行）
             if (card.Supertype == Cardtype.Creature)
             {
                 int freeBase = CardCompositionCost.FreeAttrBaseOf(card);
                 if (freeBase > 0)
                     result.Breakdown.Add(new CostBreakdownLine("C",
-                        $"免费属性底 {freeBase}/{freeBase}{(card.NoAttack || card.NoGuard ? "（攻/守 opt-out 释放预算点）" : "")}"
+                        $"免费属性底 {freeBase}/{freeBase}{(!card.AttackAbility || !card.GuardAbility ? "（攻/守资格缺位释放预算点）" : "")}"
                         + "——攻/血各前 n 点免计（2026-11-03 底盘分配改版；旧「先红后绿扣桶」退役）", 0f));
             }
             else
@@ -207,6 +207,16 @@ namespace CardCore
 
             var mounted = ApportionMounted(effBuckets, kwBuckets, StatBucketsOf(card, cc, applyFreeBase: true));
             ApplyChassis(card, mounted);
+            // 充能加价（2026-11-06 充能 opt-in 定案）：开启充能资格 = 推导费固定 +1 灰——
+            // 不占底盘结构项（攻/守走 ChassisItems，充能不动底盘分配）。计入 PrePayload 留影
+            //（充能上限基数含本灰——灰 1 层可充回，属设计涌现）。
+            int chargeFee = card.ChargeAbility ? 1 : 0;
+            if (chargeFee > 0)
+            {
+                mounted.TryGetValue(ManaType.Gray, out var g);
+                mounted[ManaType.Gray] = g + chargeFee;
+                result.Breakdown.Add(new CostBreakdownLine("C", "具备充能 +1 灰（充能资格加价，2026-11-06 opt-in）", chargeFee, ManaType.Gray));
+            }
 
             // ---- 5b) 代价抵扣（2026-10-28 P1 定案：代价 = 构筑期抵扣；2026-10-31 色锁定案+指向化） ----
             // 施放期代价行（卡级行任指 + 非主动效果行）逐原子 PayloadUnitGrant 求和，
@@ -245,9 +255,11 @@ namespace CardCore
             //（2026-10-29）：若照钳后档判，rawTotal>档帽的卡 Ĉ 恒钉上限而 D 随内容增长，
             // D≤Ĉ 结构性不可满足（教学三 Boss 末日降临 rawTotal34→档14/D26 即此——时值旧帽14）；下钳 1 与档位口径一致。
             int ruleTier = rawTotal > 0f ? Math.Max(1, TideMath.RoundToInt(rawTotal)) : 0;
-            result.OffsetRequirement = Math.Max(0, result.DerivedTotal - ruleTier - surcharge);
+            // 充能加价（+1 灰）与结构费同为资格/结构加价——计入规则一对照额度，不判超模。
+            result.OffsetRequirement = Math.Max(0, result.DerivedTotal - ruleTier - surcharge - chargeFee);
             result.Conformant = result.OffsetRequirement == 0;
-            result.Breakdown.Add(new CostBreakdownLine("Req", $"规则一 D{result.DerivedTotal} ≤ Ĉ{ruleTier}+结构{surcharge}", result.OffsetRequirement));
+            result.Breakdown.Add(new CostBreakdownLine("Req",
+                $"规则一 D{result.DerivedTotal} ≤ Ĉ{ruleTier}+结构{surcharge}+充能{chargeFee}", result.OffsetRequirement));
 
             // ---- 6b) 黑白获得汇总已删（2026-10-28 P1 定案）：代价=构筑期抵扣（5b），不再发放任何元素；
             // Grants 字段留空不填（引用清理 P4 处理）----
@@ -311,6 +323,12 @@ namespace CardCore
                 mounted.TryGetValue(ManaType.Gray, out var g);
                 mounted[ManaType.Gray] = g + structureFee;
             }
+            if (card.ChargeAbility)
+            {
+                // 充能加价（2026-11-06 opt-in 定案）：衍生物模板带充能资格同样 +1 灰（与 Derive 同口径）
+                mounted.TryGetValue(ManaType.Gray, out var g);
+                mounted[ManaType.Gray] = g + 1;
+            }
             return mounted;
         }
 
@@ -344,6 +362,7 @@ namespace CardCore
                 card.Cost = maxCost;
                 card.ResetCache(); // 清 _totalCost/费用缓存——最后回填
                 card.ModeCostCache = modes;
+                WarnPayloadColorMismatch(card); // 2026-11-06 同色定案：费用推导期非法代价报警
                 return;
             }
 
@@ -357,6 +376,24 @@ namespace CardCore
             card.Cost = derived.Clone();
             card.ResetCache();
             card.DerivedCostCache = derived; // ResetCache 会清，回填
+            WarnPayloadColorMismatch(card); // 2026-11-06 同色定案：费用推导期非法代价报警
+        }
+
+        /// <summary>2026-11-06 同色定案报警（EnsureCost 单口，一次性去重；同日基准收口=效果主干色）：
+        /// 代价原子色不在**归属效果**主干色内 → TideLog.Warn（只报不改；数据沿旧档仍可加载，由人改数）。
+        /// 编辑器菜单域 TideLog 无 sink 只进 Editor.log——RunDiscountExclusiveAudit ④段复扫补可见性。</summary>
+        private static readonly HashSet<string> _payloadColorWarned = new HashSet<string>(StringComparer.Ordinal);
+        private static void WarnPayloadColorMismatch(CardData card)
+        {
+            if (card == null || !HasPayloadCost(card)) return;
+            List<string> bad;
+            try { bad = PayloadColorMismatches(card); }
+            catch (Exception e) { TideLog.Warn($"[CardCostService] 代价同色检查异常：{e.Message}"); return; }
+            if (bad.Count == 0) return;
+            string key = (card.ID ?? card.CardName ?? "?") + "|" + string.Join(";", bad);
+            if (!_payloadColorWarned.Add(key)) return;
+            foreach (var b in bad)
+                TideLog.Warn($"[CardCostService] 代价色不符：卡「{card.CardName ?? card.ID}」({card.ID}) {b}");
         }
 
         /// <summary>存档 costList 与推导不一致 → 告警（仅观测不阻塞——编辑器定位陈旧费用快照用；
@@ -455,6 +492,12 @@ namespace CardCore
             {
                 var mounted = ApportionMounted(modeBuckets[m], kwBuckets, statBuckets);
                 ApplyChassis(card, mounted); // 底盘（2026-10-10 可支配）：超槽加价入灰 / 剩余抵价（先灰后最高色）
+                if (card.ChargeAbility)
+                {
+                    // 充能加价（2026-11-06 opt-in 定案）：与 Derive 主管同口径 +1 灰，先于 PrePayload 留影
+                    mounted.TryGetValue(ManaType.Gray, out var g);
+                    mounted[ManaType.Gray] = g + 1;
+                }
                 if (prePayloadOut != null) prePayloadOut.Add(ToElementCost(mounted)); // P7：抵扣前留影
                 // 代价抵扣（2026-10-31 色锁定案+指向化）：抉择卡逐模式吃同一笔施放期代价
                 //（色锁单源——只扣可产出色；主动效果行不在此桶，各模式容量不同，实抵随模式自决）。
@@ -552,6 +595,110 @@ namespace CardCore
 
         /// <summary>卡层代价价合计公开口（P7 建造账单重放 ReduceBuckets 消费；SumPayloadPrice 单源包装）。</summary>
         public static int PayloadPriceOf(CardData card) => card == null ? 0 : SumPayloadPrice(card);
+
+        // ======================================== 代价同色（2026-11-06 定案） ========================================
+
+        /// <summary>卡牌有效色集合（不含灰/任意）：Derive 的**抵扣前**推导色（身材/关键词/非主动效果）
+        /// ∪ 每个主动效果锚价色。等价于「玩家实际会付的非灰颜色」。
+        /// 2026-11-06 同色定案当日基准收口：代价同色基准已改用**效果主干色**
+        /// <see cref="EffectTrunkColors"/>（逐行归属效果比对），本口不再是代价色基准——保留作卡级配色参考口。</summary>
+        public static HashSet<ManaType> EffectiveColorsOf(CardData card)
+        {
+            var set = new HashSet<ManaType>();
+            if (card == null) return set;
+            void AddColors(ElementCost cost)
+            {
+                if (cost == null) return;
+                foreach (var m in cost.NonzeroColors())
+                    if (m != ManaType.Gray && m != ManaType.Any && cost[m] > 0f) set.Add(m);
+            }
+            AddColors(Derive(card).PrePayloadCost);
+            if (card.Effects != null)
+                foreach (var fx in card.Effects)
+                    if (fx != null && CostDerivationService.IsActivatedEffectData(fx))
+                        AddColors(fx.AnchorCost);
+            return set;
+        }
+
+        /// <summary>效果主干色集合（不含灰/任意）——2026-11-06 同色定案·同日基准收口：代价同色基准
+        /// 从卡有效色改为**效果主干色**（吸取 红+绿 → 代价只能从红/绿里选；单绿效果不得以吸取作代价）。
+        /// 口径 = 效果 Steps 主干原子（kind==0）计价色并集；门分支载荷不参与（代价色不得自证）；
+        /// 主干空=空集（仅纯灰代价合法）。消费方：PayloadColorMismatches（费用推导报警·逐行归属）、
+        /// EffectComposerScreen.CostGateColors（代价门候选过滤/落槽防御）——两处共用，勿分叉。</summary>
+        public static HashSet<ManaType> EffectTrunkColors(CardEffectData fx)
+            => TrunkColorsOfSteps(fx?.Steps);
+
+        /// <summary>主干色枚举本体（EffectTrunkColors 的步骤级口——合成器编辑态传 _graph.steps，
+        /// 审计态传 CardEffectData.Steps，同一枚举勿复制）。</summary>
+        public static HashSet<ManaType> TrunkColorsOfSteps(List<EffectStepData> steps)
+        {
+            var set = new HashSet<ManaType>();
+            if (steps == null) return set;
+            foreach (var s in steps)
+            {
+                if (s == null || s.kind != 0 || s.atomic == null) continue;
+                var mana = AtomicEffectTable.GetByHashId(s.atomic.refId)?.ManaList;
+                if (mana == null) continue;
+                foreach (var m in mana.NonzeroColors())
+                    if (m != ManaType.Gray && m != ManaType.Any && mana[m] > 0f) set.Add(m);
+            }
+            return set;
+        }
+
+        /// <summary>代价原子色是否允许（2026-11-06 同色定案）：原子的每个非灰非任意色都必须落在
+        /// 卡牌有效色内；纯灰/无色代价视为中性放行（不参与同色约束）。</summary>
+        public static bool PayloadColorAllowed(ElementCost atomCost, HashSet<ManaType> cardColors)
+        {
+            if (atomCost == null) return false;
+            foreach (var m in atomCost.NonzeroColors())
+            {
+                if (m == ManaType.Gray || m == ManaType.Any || atomCost[m] <= 0f) continue;
+                if (cardColors == null || !cardColors.Contains(m)) return false;
+            }
+            return true;
+        }
+
+        /// <summary>代价同色违规扫描（2026-11-06 定案·同日基准收口；只报不改）：逐行**归属效果**比对——
+        /// 效果级行（fx.Costs）对照所在效果主干色 <see cref="EffectTrunkColors(CardEffectData)"/>；
+        /// 卡级行（PayloadCosts）归属首效果（合成器代价门=首效果单主干承载·保存回写 PayloadCost）。
+        /// 返回「行归属/原子/原子色/效果色」明细。费用推导口（EnsureCost）据此打一次性 Warning
+        ///（编辑器菜单域 TideLog 无 sink 只进 Editor.log——RunDiscountExclusiveAudit ④段复扫补可见性）；
+        /// 不并入 PayloadCostViolations 硬断言，避免存量数据（如退潮 红3 带蓝抽卡代价）直接卡死
+        /// 验证——先报警、由人改数。</summary>
+        public static List<string> PayloadColorMismatches(CardData card)
+        {
+            var result = new List<string>();
+            if (card == null) return result;
+            string Zh(HashSet<ManaType> set)
+                => set.Count == 0 ? "无彩" : string.Join("/", set.Select(ManaTypeNames.ZhNameOf));
+            void Check(List<CostEntry> rows, HashSet<ManaType> effectColors, string where)
+            {
+                if (rows == null) return;
+                string colorsZh = Zh(effectColors);
+                foreach (var row in rows)
+                {
+                    if (row == null) continue;
+                    foreach (var pe in row.AllPayloads())
+                    {
+                        if (pe == null || string.IsNullOrEmpty(pe.refId)) continue;
+                        var cfg = AtomicEffectTable.GetByHashId(pe.refId);
+                        if (cfg?.ManaList == null || cfg.ManaList.IsZero) continue;
+                        if (PayloadColorAllowed(cfg.ManaList, effectColors)) continue;
+                        string atomZh = string.Join("/", cfg.ManaList.NonzeroColors()
+                            .Where(m => m != ManaType.Gray && m != ManaType.Any && cfg.ManaList[m] > 0f)
+                            .Select(ManaTypeNames.ZhNameOf));
+                        result.Add($"{where} 代价原子[{cfg.DisplayName}#{pe.refId}] 色={atomZh}，效果色={colorsZh}"
+                                   + "——代价只能添加与效果同色的原子（2026-11-06 定案·基准=效果主干色）");
+                    }
+                }
+            }
+            Check(card.PayloadCosts, EffectTrunkColors(card.Effects?.FirstOrDefault()), "卡级（归属首效果）");
+            if (card.Effects != null)
+                foreach (var fx in card.Effects)
+                    if (fx != null) Check(fx.Costs, EffectTrunkColors(fx), $"效果[{fx.DisplayName ?? fx.Id}]");
+            return result;
+        }
+
 
         /// <summary>是否携带代价（2026-10-31 衍生物两限制配套）：任意代价行（卡级行 + 全部
         /// 效果级行，含主动）有 payload 原子即 true。衍生物模板禁带代价（DeckTokenSupport.ValidateDeck 消费）。</summary>

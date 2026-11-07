@@ -252,7 +252,8 @@ namespace CardCore.Editor.Tests
             // ---------- D1（兼 E4 三态探针）：诱敌 3 敌 LAE 组合枚举 ----------
             var d1 = Of("D1");
             var catalog = CardCatalog.LoadAll().ToList();
-            var lure = ByName(catalog, LureName);
+            // 2026-11-06 诱敌卡已删出教学池（④同色违规清除）——卡池取不到时从教学效果库合成夹具卡
+            var lure = catalog.FirstOrDefault(c => IsName(c, LureName)) ?? LureFixture();
 
             var core = GameCore.Instance;
             var deck1 = new List<CardData>();
@@ -392,23 +393,18 @@ namespace CardCore.Editor.Tests
         private static void SectionE()
         {
             string root = Path.Combine(Application.dataPath, "..");
-            // E1 全体消灭 handler 含 Enchantment 分支
+            // E1 全体消灭（2026-11-05 B2 硬切删除；2026-11-06 墓碑清理收口）：handler 与枚举成员均已移除
             var e1 = Of("E1");
             try
             {
-                string src = File.ReadAllText(Path.Combine(root, "Assets", "Scripts", "HotUpdate", "CardCore", "Attribute", "Handlers", "ThirdBatchEffectHandlers.cs"));
-                int start = src.IndexOf("class DevourAllEnemiesHandler", StringComparison.Ordinal);
-                if (start < 0)
-                    e1.FailWith("[FAIL] 找不到 DevourAllEnemiesHandler（全体消灭 handler——被并行改动？）");
+                string handlers = File.ReadAllText(Path.Combine(root, "Assets", "Scripts", "HotUpdate", "CardCore", "Attribute", "Handlers", "ThirdBatchEffectHandlers.cs"));
+                string atoms = File.ReadAllText(Path.Combine(root, "Assets", "Scripts", "HotUpdate", "CardCore", "Effects", "AtomicEffects.cs"));
+                if (handlers.Contains("class DevourAllEnemiesHandler"))
+                    e1.FailWith("[FAIL] DevourAllEnemiesHandler 残留（B2 已删除全体原子）");
+                else if (atoms.Contains("DevourAllEnemies"))
+                    e1.FailWith("[FAIL] AtomicEffectType.DevourAllEnemies 枚举成员残留");
                 else
-                {
-                    int next = src.IndexOf("public class ", start + 10, StringComparison.Ordinal);
-                    string body = next < 0 ? src.Substring(start) : src.Substring(start, next - start);
-                    if (body.Contains("Cardtype.Enchantment"))
-                        e1.Line("DevourAllEnemiesHandler.Execute 含 Cardtype.Enchantment 分支（结界走摧毁口径）✓");
-                    else
-                        e1.FailWith("[FAIL] DevourAllEnemiesHandler 不含 Enchantment 分支（原子：全体消灭 DevourAllEnemies；原因：结界面缺失回归）");
-                }
+                    e1.Line("全体消灭 handler 与枚举成员均已移除 ✓");
             }
             catch (Exception ex) { e1.FailWith("[FAIL] E1 读取异常：" + ex.Message); }
 
@@ -474,6 +470,41 @@ namespace CardCore.Editor.Tests
         private static bool IsName(CardData c, string name) => c != null && c.CardName == name;
 
         private static bool IsName(Card c, string name) => c is IHasName n && n.CardName == name;
+
+        /// <summary>诱敌夹具卡合成（2026-11-06·同 LaeMultiTargetVerifier①）：诱敌卡（C_AC7E3467，
+        /// 卡级蓝抽卡代价×红效果=④同色违规）已删出教学池——D1 改从教学效果库取条目合成：效果 88C651B8
+        ///（Multiple·count=2·两敌弹回）保留在库专供夹具，断言口径不变；卡级「对方抽1」代价行原样带入
+        ///（对方牌库非空闸=对局行为前提）。ToGraph 不回填 header.Steps，手动接 graph.steps。
+        /// 效果内容若改动换号，按显示名兜底。</summary>
+        private static CardData LureFixture()
+        {
+            var graphs = EffectLibrarySerializer.LoadAll(tutorial: true);
+            var g = graphs.FirstOrDefault(x => x != null && x.id == "88C651B8")
+                 ?? graphs.FirstOrDefault(x => x?.header != null
+                      && x.header.DisplayName == "将两个对方单位弹回手牌");
+            if (g?.header == null)
+                throw new InvalidOperationException(
+                    "教学效果库缺诱敌夹具条目（id=88C651B8 / 将两个对方单位弹回手牌）——卡已删，效果条目须保留");
+            g.header.Steps = g.steps != null && g.steps.Count > 0 ? g.steps : null;
+            return new CardData
+            {
+                ID = "C_LURE_FIXTURE",
+                CardName = LureName,
+                Supertype = Cardtype.Spell,
+                Effects = new List<CardEffectData> { g.header },
+                PayloadCosts = new List<CostEntry>
+                {
+                    new CostEntry
+                    {
+                        CostType = (int)CostType.Payload,
+                        payloads = new List<AtomicEffectEntry>
+                        {
+                            new AtomicEffectEntry { refId = "03c85bc4", kinds = new List<int> { 8 }, value = 1 },
+                        },
+                    },
+                },
+            };
+        }
 
         private static Card FindAndMoveByName(ZoneManager zm, Player owner, string name, Zone to)
         {

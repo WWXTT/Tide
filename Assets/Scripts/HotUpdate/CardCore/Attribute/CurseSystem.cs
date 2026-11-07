@@ -13,10 +13,11 @@ namespace CardCore
     /// 载荷的分支效果并消层（一次性，用户定案）。
     ///
     /// - 2026-10-08 引擎主干化：主投放口=自由分支·引擎主干行（附加诅咒→对手牌库/附加祝福→自己牌库，
-    ///   BranchEngines.OnCardCastResolved 施放结算时部署，Then=引擎奖励原子列——结算走
-    ///   EffectExecutor.ExecuteThenRewardsAsync 弹选口径，与六引擎 FireRewards 同款）；
-    ///   指示物（诅咒/祝福）归系统，不设玩家表行。旧 AddCurse 原子路径（表行已退役）保留代码侧
-    ///   兼容手写数据：Effects.json 条目引用（str）。
+    ///   BranchEngines.OnCardCastResolved 施放结算时部署）；指示物（诅咒/祝福）归系统，不设玩家表行。
+    ///   旧 AddCurse 原子路径（表行已退役）保留代码侧兼容手写数据：Effects.json 条目引用（str）。
+    /// - 2026-11-06 载荷效果化：引擎主干行的载荷=**效果库组合效果引用**（原子 str=效果 id——
+    ///   附加祝福只挂极性 +1 主动效果、附加诅咒只挂极性 −1 主动效果，资格单源
+    ///   EffectEligibility.CursePayloadRejectReason）。Then 原子列降为旧手写数据兼容通道（EffectId 优先）。
     /// - 执行上下文：Controller=施加方（载荷的相对域以施加方视角解析——「敌方」=被诅玩家）；
     ///   引擎载荷 Source=来源卡（弹选/免编排）；legacy 载荷 Targets/CastCard=被抽到的卡，
     ///   TriggeringEvent=CardDrawEvent，原子各自解析目标。
@@ -67,16 +68,19 @@ namespace CardCore
             });
         }
 
-        /// <summary>登记一条引擎主干行载荷（2026-10-08 自由分支化主投放口）：
-        /// BranchEngines.OnCardCastResolved 部署调用——counterId 区分诅咒/祝福，
-        /// then=引擎 Then 奖励原子列（发作时走 ExecuteThenRewardsAsync 弹选口径）。Then 空=只挂层不登记。</summary>
-        public static void AttachEngine(Card target, string counterId,
+        /// <summary>登记一条引擎主干行载荷（2026-10-08 自由分支化主投放口；2026-11-06 载荷效果化）：
+        /// BranchEngines.OnCardCastResolved 部署调用——counterId 区分诅咒/祝福；
+        /// effectId=载荷效果库条目（新主通道——抽到时按效果定义结算）；then=引擎 Then 奖励原子列
+        /// （旧手写数据兼容通道）。两通道至少其一非空，EffectId 优先。全空=不登记。</summary>
+        public static void AttachEngine(Card target, string counterId, string effectId,
             List<AtomicEffectInstance> then, Player caster, Card sourceCard)
         {
-            if (target == null || then == null || then.Count == 0) return;
+            if (target == null) return;
+            if (string.IsNullOrEmpty(effectId) && (then == null || then.Count == 0)) return;
             AddPayload(target, new CursePayload
             {
                 CounterId = counterId,
+                EffectId = effectId,
                 InlineSteps = then,
                 FromEngine = true,
                 Caster = caster,
@@ -172,15 +176,17 @@ namespace CardCore
                 await ExecutePayloadAsync(payload, drawnCard, trigger, core);
         }
 
-        /// <summary>执行一条载荷：引擎形态（2026-10-08）=Then 奖励原子列走 ExecuteThenRewardsAsync
-        /// 弹选口径（BranchEngines.FireRewards 同款——AI/无头自动选首；await 进结算链保同步续行可断言）；
-        /// legacy 引用形态=按 Steps 遍历（Atomic→注册表执行；Branch→产出条件评估选 Then/Else），
-        /// Steps 空退化为扁平 Effects。legacy 原子各自解析目标（免编排路径）。</summary>
+        /// <summary>执行一条载荷（2026-11-06 载荷效果化——效果引用优先）：
+        /// ①效果引用形态（引擎 str→EffectId，主通道；legacy AddCurse 引用同走此路）=按 Steps 遍历
+        /// 效果定义（Atomic→注册表执行；Branch→产出条件评估选 Then/Else），Steps 空退化扁平 Effects，
+        /// 原子各自解析目标（免编排路径）；
+        /// ②引擎 Then 形态（旧手写数据兼容）=Then 奖励原子列走 ExecuteThenRewardsAsync
+        /// 弹选口径（BranchEngines.FireRewards 同款——AI/无头自动选首；await 进结算链保同步续行可断言）。</summary>
         private static async UniTask ExecutePayloadAsync(
             CursePayload payload, Card drawnCard, CardDrawEvent trigger, GameCore core)
         {
-            // 引擎主干行载荷（2026-10-08）：Then=奖励原子列——per 原子弹选目标（无头自动选首）
-            if (payload.FromEngine)
+            // 引擎 Then 载荷（2026-10-08 旧通道）：per 原子弹选目标（无头自动选首）——仅无效果引用时走
+            if (payload.FromEngine && string.IsNullOrEmpty(payload.EffectId))
             {
                 var engCtx = new EffectExecutionContext
                 {
@@ -212,6 +218,17 @@ namespace CardCore
                 return;
             }
 
+            // 2026-11-06 晚定案（自由分支场景回归抓实）：引擎载荷（FromEngine·效果引用主通道）=组合效果，
+            // 原子按**自身域**解析目标——与 Then 通道 ExecuteThenRewardsAsync 逐原子解析同口径。
+            // ctx 预置 Targets=[被抽卡] 会让 ExecuteEffectAsync「见预置即沿用」旁路域解析（实测：对方单位
+            // 3伤×2 全打在被抽到的卡上、玩家零掉血）；且首个原子解析结果会劫持后续原子——故引擎载荷
+            // 逐原子执行前清空。legacy AddCurse 引用（FromEngine=false）作用面=被抽到的卡本身，沿用预置。
+            async UniTask ExecuteAtomAsync(AtomicEffectInstance atom)
+            {
+                if (payload.FromEngine) ctx.Targets = new List<Entity>();
+                await EffectHandlerRegistry.ExecuteEffectAsync(atom, ctx);
+            }
+
             if (def.Steps != null && def.Steps.Count > 0)
             {
                 foreach (var step in def.Steps)
@@ -219,7 +236,7 @@ namespace CardCore
                     if (step == null) continue;
                     if (step.Kind == RuntimeStepKind.Atomic && step.Atomic != null)
                     {
-                        await EffectHandlerRegistry.ExecuteEffectAsync(step.Atomic, ctx);
+                        await ExecuteAtomAsync(step.Atomic);
                     }
                     else if (step.Kind == RuntimeStepKind.Branch)
                     {
@@ -231,7 +248,7 @@ namespace CardCore
                         if (branch == null) continue;
                         foreach (var atom in branch)
                             if (atom != null)
-                                await EffectHandlerRegistry.ExecuteEffectAsync(atom, ctx);
+                                await ExecuteAtomAsync(atom);
                     }
                     else if (step.Kind == RuntimeStepKind.Choice)
                     {
@@ -243,7 +260,7 @@ namespace CardCore
 
             foreach (var atom in def.Effects)
                 if (atom != null)
-                    await EffectHandlerRegistry.ExecuteEffectAsync(atom, ctx);
+                    await ExecuteAtomAsync(atom);
         }
 
         /// <summary>载荷效果 id → EffectDefinition（EffectsLibrary 瘦条目 → CardEffectConverter 转换；缓存含负缓存）。</summary>

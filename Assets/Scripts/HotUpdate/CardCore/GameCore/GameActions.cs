@@ -64,20 +64,28 @@ namespace CardCore
         // 强制动作（无速度交互），不再有玩家手动产色操作；产色口收敛到
         // ElementPool.TryPayCostWithAutoTap / TryPayBillWithAutoTap。
 
-        // ======================================== 充能（2026-11-05 系统动作化改版：速度0规则动作，任意手牌卡一回合一次） ========================================
+        // ======================================== 充能（2026-11-05 系统动作化改版：速度0规则动作；2026-11-06 opt-in：卡面声明才有资格） ========================================
 
         /// <summary>
-        /// 充能可用性单源（2026-11-05 充能系统动作化改版）：UI 置灰 / AI 枚举 / 引擎终审三步同口径
-        /// ——DeclareCharge 内部先过本口。门禁序：时点（充能=速度0系统动作，**仅己方主阶段空栈首动**
-        /// ——仿攻击宣言；对手回合响应档已随改版退役）→ 卡在手牌（施放中除外）→ **一张卡一回合一次**
-        ///（StackEngine 充能专账，回合开始清零）→ 有可充颜色（「卡具有的颜色」=代价抵扣前逐色卡费 &gt;0
-        /// 且未充满——法术补差并入模式 0 施放锚价；进度=四色费用降低指示物层数，GetPrePayloadCost 逐色）。
+        /// 充能可用性单源（2026-11-05 充能系统动作化改版；2026-11-06 opt-in 修订）：UI 置灰 /
+        /// AI 枚举 / 引擎终审三步同口径——DeclareCharge 内部先过本口。门禁序：**资格闸（卡面
+        /// 声明 chargeAbility 才有——攻/守/充能三系统动作同日统一 opt-in）** → 时点（充能=速度0
+        /// 系统动作，**仅己方主阶段空栈首动**——仿攻击宣言；对手回合响应档已随改版退役）→
+        /// 卡在手牌（施放中除外）→ **一张卡一回合一次**（StackEngine 充能专账，回合开始清零）
+        /// → 有可充颜色（「卡具有的颜色」=代价抵扣前逐色卡费 &gt;0 且未充满——法术补差并入模式 0
+        /// 施放锚价；进度=四色费用降低指示物层数，GetPrePayloadCost 逐色）。
         /// **不支付元素**（旧「现付 1 点该色元素」随改版退役，充能=免费落层，节奏闸=一张卡一回合一次）。
+        /// 开启充能资格的计价=推导费固定 +1 灰（CardCostService，不动底盘分配）。
         /// </summary>
         public static bool CanCharge(GameCore core, Player player, Card card, out string reason)
         {
             reason = null;
             if (core == null || player == null || card == null) { reason = "内部错误：空参数"; return false; }
+
+            // 资格闸（2026-11-06 充能 opt-in 改版）：卡面声明 chargeAbility 才可宣——放最前，
+            // 让无资格卡拿到准确拒因（时点/余量拒因对无资格卡无意义）。
+            if (!card.HasChargeAbility())
+            { reason = "该卡不具备充能能力"; return false; }
 
             // 充能=速度0系统动作（2026-11-05 改版，仿攻击宣言）：仅己方主阶段空栈首动——
             // 对手回合响应档（旧 P12 速≥1 法术充能）随改版退役，0 速本就锁死在自家主阶段。
@@ -240,15 +248,16 @@ namespace CardCore
             return core.TurnEngine.CurrentPhase?.Phase == PhaseType.Main;
         }
 
-        /// <summary>手牌卡充能数据口（2026-11-05 系统动作化改版：充能不再要求卡带充能效果——
-        /// 任意手牌卡可充，给数据不做画面——战场/手牌怎么画归用户）。
+        /// <summary>手牌卡充能数据口（2026-11-05 系统动作化改版；2026-11-06 opt-in 修订：
+        /// 充能资格=卡面 chargeAbility 声明，默认不带——WindowOpen 总闸含资格位）。
+        /// 给数据不做画面——战场/手牌怎么画归用户。
         /// 消费面：本地对局=引擎卡直读；联机客户端=快照计数器（CounterEntryDTO 已覆盖四色层）。</summary>
         public sealed class HandCardChargeInfo
         {
             /// <summary>已充层数 [灰,红,蓝,绿,任意]（任意位恒 0；换区清零、跨回合保留）。</summary>
             public int[] ChargedByColor;
-            /// <summary>时点窗口总闸：己方主阶段 + 手牌 + 本回合未充过（不含余量——UI 置灰第一层；
-            /// 2026-11-05 改版：充能=速度0系统动作，任意手牌卡一回合一次，无充能效果门槛）。</summary>
+            /// <summary>时点窗口总闸：资格位（chargeAbility）+ 己方主阶段 + 手牌 + 本回合未充过
+            ///（不含余量——UI 置灰第一层；2026-11-06 opt-in：无资格位恒 false）。</summary>
             public bool WindowOpen;
             /// <summary>当前净费（GetCardCost 同源——已含四色费用降低层与代价抵扣）。</summary>
             public ElementCost NetCostNow;
@@ -276,9 +285,10 @@ namespace CardCore
                 info.ChargedByColor[(int)ManaType.Green] = card.GetCounterCount(Attribute.CounterRules.CostDownGreenCounter);
             }
             info.NetCostNow = card != null ? GetCardCost(card, modeIndex) : new ElementCost();
-            // 时点窗口总闸（2026-11-05 改版）：己方主阶段 + 手牌 + 本回合未充过——
-            // 充能=速度0系统动作，无充能效果门槛（不含余量——UI 置灰第一层）。
+            // 时点窗口总闸（2026-11-05 改版；2026-11-06 opt-in 修订）：资格位 + 己方主阶段 +
+            // 手牌 + 本回合未充过——充能=速度0系统动作（不含余量——UI 置灰第一层）。
             info.WindowOpen = core != null && player != null && card != null && data != null
+                && data.ChargeAbility
                 && core.ZoneManager.GetCards(player, Zone.Hand).Contains(card)
                 && ChargeTimingOpen(core, player, card)
                 && !ChargeUsedThisTurn(core, card);
@@ -424,8 +434,6 @@ namespace CardCore
         /// （扣费在响应窗口之后；发动无效=没付、效果无效=付了但被否定、费用不退、不回卷——两层无效定案 2026-10-04）。
         /// targets：可选的预选目标（如指向性法术）；为空时由各原子效果按配置自动解析。
         /// fromZone：出牌来源区（默认手牌；Graveyard = IPlaySource「墓地视手牌中使用」路径）。
-        /// （2026-11-02 苏醒机制整链删除：awakenCast/awakenWaive 参数退役——灰身材概念已不存在，
-        ///  「免灰抵沉睡」失去意义，且与倒计时玩法过近。）
         /// </summary>
         public static bool PlayCard(GameCore core, Player player, Card card, List<Entity> targets = null, Zone fromZone = Zone.Hand, int modeIndex = 0)
             => PlayCard(core, player, card, targets, fromZone, modeIndex, out _);
@@ -768,10 +776,11 @@ namespace CardCore
             // _pendingCastFromZone 使命结束——残留会让下一轮（同卡实例复用/验证器夹具）读到过期来源。
             card._pendingCastFromZone = Zone.None;
 
-            // 元素充盈引擎判定（2026-09-22 定案；2026-10-20 判据五改）：施放结算完成后评估——
-            // 仅对手回合（施放者==当前回合玩家）时评估施放者对手的引擎：双方**剩余元素总量**
-            // （未横置地牌+钱包）之差（封顶 6）恰==x 即发奖（差每+1踩一档各一次）；奖励恒直发。
-            // 发动无效/效果无效早退不评估；效果费支付不走此口。
+            // 使用结算记账 + 团结评估（2026-11-06 判据七·充盈改造）：充盈不再在本口中段直调——
+            // 成功结算先记账（NoteCastSettled），整条连锁结算完成的稳定点由 StackEngine.FinishResolution
+            // 统一 flush（FlushCardCastSettled：双方评估、恰==x、差=未横置地+钱包）；团结引擎仍在本拍评估。
+            // 发动无效/效果无效/付费失败上方早退不达此；效果费支付不走此口。
+            BranchEngines.NoteCastSettled(player, card, cast.ModeIndex);
             BranchEngines.OnCardCastSettled(player);
         }
 
@@ -876,8 +885,6 @@ namespace CardCore
         /// （触发式注册已收口到 TryMoveToBattlefield/TryAddToBattlefield 统一出口——
         /// 时点接线定案：任何来源进场的卡都注册自身触发式，入场事件发布前完成，
         /// 保证入场卡自己的 OnPlay/OnSummon 能吃到自己的入场事件。）
-        /// （2026-11-02 苏醒机制整链删除：sleepLayers 入场代价沉睡档随之退役——
-        ///  沉睡指示物仍由 Sleep 原子等常规路径施加。）
         /// </summary>
         private static void ResolvePermanentEntry(GameCore core, Player player, Card card)
         {
@@ -1887,13 +1894,8 @@ namespace CardCore
                 return false;
             }
 
-            // 禁发令硬闸（2026-10-29）：网络 intent 直调本口不经引擎 CanActivate——统一在此拦
-            if (source != null && RuleAuraSystem.ScopeHits(RuleAuraComponents.NoActivateAura, source.GetController()))
-            {
-                reason = "禁发令生效中——不能发动主动效果";
-                Crumb($"CF-activate-reject def={effect.Id} reason=禁发令 by={player?.Name}");
-                return false;
-            }
+            // 禁发令硬闸 2026-11-06 改版退役（禁自动令不拦主动发动——自动效果闸在
+            // TriggerEngine.FindMatchingEffects，触发式不经网络 intent，无对应硬闸）。
 
             // 教学引导闸（2026-10-23 元素合成步）：资源步期间拦截玩家侧主动效果发动——
             // 防把后续步骤要用的效果提前烧掉（横置后步骤软锁）；AI 侧与响应路径不经此口
@@ -1977,13 +1979,7 @@ namespace CardCore
                 return false;
             }
 
-            // 禁发令硬闸（2026-10-29）：与 ActivateEffect 同口径——网络 intent 不经引擎 CanActivate
-            if (source != null && RuleAuraSystem.ScopeHits(RuleAuraComponents.NoActivateAura, source.GetController()))
-            {
-                reason = "禁发令生效中——不能发动主动效果";
-                Crumb($"CF-activate-reject def={effect.Id} reason=禁发令 by={player?.Name}");
-                return false;
-            }
+            // 禁发令硬闸 2026-11-06 改版退役（禁自动令不拦主动发动，与 ActivateEffect 同口径）。
 
             if (effect.IsActivatedEffect)
             {
@@ -2063,11 +2059,6 @@ namespace CardCore
             return $"卡[{cardName ?? top.Source?.ToString() ?? "?"}] 效果[{effName ?? "?"}]";
         }
 
-        // 苏醒机制已整链删除（2026-11-02）：灰身材概念已不存在，「免灰抵沉睡」失去意义；
-        // 且与倒计时玩法过近。CommitAwaken（立约，2026-10-29 退役）→ awakenCast 施放变体
-        //（P6/P6c）→ P12 关键词化（GrantAwaken 原子+HasAwakenKeyword 闸）全链不再存在，
-        // 沉睡指示物仍由 Sleep 原子等常规路径施加。
-
         // ======================================== 内部方法 ========================================
 
         /// <summary>
@@ -2091,7 +2082,6 @@ namespace CardCore
         /// 出牌费用单源（2026-10-31 P12：建造 BuildPaid 重放整链退役——充能进度改挂四色费用降低
         /// 指示物，在下方指示物层统一套算）。层序恒定：恒推导基价 → 法术锚价 → 四色费用指示物层；
         /// 预检/扣费/pending/UI 预览全消费面共用本口，不另开口径。
-        /// （2026-11-02 苏醒机制整链删除：末段「苏醒豁免」层退役。）
         /// </summary>
         public static ElementCost GetCardCost(Card card, int modeIndex = 0)
         {
@@ -2171,10 +2161,6 @@ namespace CardCore
             if (def == null) return new ElementCost();
             return CostDerivationService.DeriveElementCosts(def, 0) ?? new ElementCost();
         }
-
-        // HasSelfSleepEffect / ContainsWaivableSleepAtom / GetAwakenSleepLayers /
-        // AwakenExceedsGrayLands / HasAwakenKeyword 已随 2026-11-02 苏醒机制整链删除。
-        // CardData.SelfSleepEffectCache 字段随之失去消费方（字段本身归 CardData/P8 管，留待彼包清理）。
 
         /// <summary>
         /// 检查是否能支付费用（2026-09-14 统一混付口径；public 供 LegalActionEnumerator 共用防掩码/引擎分叉）：

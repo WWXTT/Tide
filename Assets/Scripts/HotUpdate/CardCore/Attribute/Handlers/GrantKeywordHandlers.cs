@@ -27,15 +27,10 @@ namespace CardCore.Attribute.Handlers
         {
             foreach (var target in context.Targets)
             {
-                // 判轨（2026-09-09 三轨制；2026-09-13 修订；2026-09-14 用户定案三分）：
-                // ①角色来源（魔法/英雄——来源归因=Player）→ Setting（视同本体，按声明持续）；
-                // ②**目标=来源卡自己** → Setting（**文本效果轨**——自赋予视同印制文本，永久：
-                //「赋予」给别人才是 1 回合增益）；
-                // ③其余（生物→别人的单位目标）→ Temp 固定 1 回合（回合末 GameCore 清 Temp 轨；
-                // 光环 linkAuras 不经此口）。
-                var lane = context.Source is Player || ReferenceEquals(target, context.Source)
-                    ? KeywordLane.Setting
-                    : KeywordLane.Temp;
+                // 关键词三轨（2026-11-07 系统特判）：**效果层关键词=赋予通道（Temp：驱散清/换区清）**——
+                // 不论目标是来源自己还是他人、来源是生物还是角色；卡牌组合界面直加的本体关键词走
+                // CardData.Keywords→Printed（装载期，免疫驱散），不经本 handler。
+                var lane = KeywordLane.Temp;
 
                 // 参数化（2026-10-07 值化定案；2026-10-08 不叠加；2026-10-09 全轨取代修订）：
                 // 实例值=原子 value、生效次数=承载效果次数档（0→1；-1=无限）随授予入台账——
@@ -88,47 +83,47 @@ namespace CardCore.Attribute.Handlers
         private static readonly (AtomicEffectType type, string keywordId, string description)[] Specs =
         {
             // 红色 - 攻击性
-            (AtomicEffectType.GrantDoubleStrike, "DoubleStrike", "获得连击"),
-            (AtomicEffectType.GrantFirstStrike, "FirstStrike", "获得先攻"),
-            (AtomicEffectType.GrantOverwhelm, "Overwhelm", "获得碾压"),
-            (AtomicEffectType.GrantSplash, "Splash", "获得溅射"),
-            (AtomicEffectType.GrantDisarm, "Disarm", "获得缴械"),
+            (AtomicEffectType.GrantDoubleStrike, "DoubleStrike", "赋予连击"),
+            (AtomicEffectType.GrantFirstStrike, "FirstStrike", "赋予先攻"),
+            (AtomicEffectType.GrantOverwhelm, "Overwhelm", "赋予碾压"),
+            (AtomicEffectType.GrantSplash, "Splash", "赋予溅射"),
+            (AtomicEffectType.GrantDisarm, "Disarm", "赋予缴械"),
 
             // 蓝色 - 规避/控制
-            (AtomicEffectType.GrantVigilance, "Vigilance", "获得警戒"),
+            (AtomicEffectType.GrantVigilance, "Vigilance", "赋予警戒"),
             // 潜行已移出关键词族（2026-10-08 指示物化）：GrantStealth 原子改由 GrantStealthHandler
             // 执行（挂 StealthCounter 层，EffectExecutionEngine 指示物原子区注册）——refId 已重推
             // a16f1e55→8f84641e（2026-10-08 全量 ID 重推·卡数据随后重建）
             // 隐密（2026-10-04，蓝5）：潜行的持续版——不因发动效果/受到伤害失效（三个失效口只消耗潜行层）
-            (AtomicEffectType.GrantConcealed, "Concealed", "获得隐密"),
+            (AtomicEffectType.GrantConcealed, "Concealed", "赋予隐密"),
             // 法术护盾已移出关键词族（2026-10-09 指示物化）：GrantSpellShield 原子改由 GrantSpellShieldHandler
             // 执行（挂 SpellShieldCounter 层，EffectExecutionEngine 指示物原子区注册）——refId 已重推
             // a3ad6a04→7270df35（2026-10-09 指示物化随文案换号）
             // 扰魔（GrantCannotBeTargeted/Untargetable）映射与枚举位已删（2026-10-13 整体退役；枚举收拢 2026-10-30）
 
             // 绿色 - 续航
-            (AtomicEffectType.GrantLifesteal, "Lifesteal", "获得吸血"),
-            (AtomicEffectType.GrantLifelink, "Lifelink", "获得系命"),
-            (AtomicEffectType.GrantRegeneration, "Regeneration", "获得再生"),
+            (AtomicEffectType.GrantLifesteal, "Lifesteal", "赋予吸血"),
+            (AtomicEffectType.GrantLifelink, "Lifelink", "赋予系命"),
+            (AtomicEffectType.GrantRegeneration, "Regeneration", "赋予再生"),
             // 坚韧已移出关键词族（2026-10-08 指示物化）：GrantToughness 原子（原 GrantArmor 同日更名）
             // 改由 GrantToughnessHandler 执行（挂 ToughnessCounter 层，EffectExecutionEngine 指示物原子区注册）
             //——refId 迁移 05485f65→a312b8b0→758a74e0（同日哈希对齐）→2b1e3700（2026-10-09 生效自减改版随文案换号）→a8f7f476（现行号）
             // 守护（2026-11-05 简化定案，退出连接光环族——表行位 7 拉黑）：固定保护己方角色——
             // 角色受伤改写为守护者承受（GuardianRules 实时查询；无限次直到守护者离场；单位不改写）
-            (AtomicEffectType.GrantGuardian, "Guardian", "获得守护"),
+            (AtomicEffectType.GrantGuardian, "Guardian", "赋予守护"),
             // 战斗法师（原舍身，2026-10-30 改版）2026-11-01 退役注释：表行 c3112c0b（关键词表）已删，
             // 枚举位 GrantBattleMage/关键词常量/ApplyDamage 散射改写/战报播报同批注释——无存量卡引用。
-            // (AtomicEffectType.GrantBattleMage, "BattleMage", "获得战斗法师"),
+            // (AtomicEffectType.GrantBattleMage, "BattleMage", "赋予战斗法师"),
             // 圣盾已移出关键词族（2026-10-08 指示物化）：GrantDivineShield 原子改由 GrantDivineShieldHandler
             // 执行（挂 DivineShieldCounter 层）——refId 已重推 feab5d3b→c8624e6a（2026-10-08 全量 ID 重推）
-            (AtomicEffectType.GrantTaunt, "Taunt", "获得帷幕"),
+            (AtomicEffectType.GrantTaunt, "Taunt", "赋予帷幕"),
             // 毒刺（PoisonSting）/冰晶（IceCrystal）映射已删（2026-10-15 整体退役）：表行 2026-10-02
             // 已先退（改写走分支组合），遗留的印刷关键词路径（改写链臂/两张试作卡）同批清除——
             // 毒素/冻结指示物由各自施加原子独立保留，不经关键词。
             // GrantNightmare（梦魇）映射与枚举位已删（2026-10-13 引擎行为退役；枚举收拢 2026-10-30）
             // 剧毒（2026-10-08 指示物转关键词·落定追加式）：受到其战斗伤害的生物被消灭；
             // 表行 20c06d52（原 Poison 原子）改挂 GrantVenom——病原体（改写挂剧毒指示物）随之退役
-            (AtomicEffectType.GrantVenom, "Venom", "获得剧毒（受到其战斗伤害的生物被消灭）"),
+            (AtomicEffectType.GrantVenom, "Venom", "赋予剧毒（受到其战斗伤害的生物被消灭）"),
             // 无实体已移出关键词族（2026-11-02 指示物化）：GrantSpellban 原子改由 GrantSpellbanHandler
             // 执行（挂 SpellbanCounter 衰退层，EffectExecutionEngine 指示物原子区注册）——表行 fb88c3f4
             // →6c38edaa 随文案重推，训练卡 C_933347A6 引用同步迁移
@@ -137,20 +132,18 @@ namespace CardCore.Attribute.Handlers
             // 沉睡/缄默（压制型）与 StatKind 属性类（回写式）在 AddCounters 咽喉清零
             //（时序互压/账目安全），系统指示物豁免。表行 MountKinds 带
             //「不可作为连接光环」（免疫洞防线，同守护）。
-            (AtomicEffectType.GrantInsulator, "Insulator", "获得绝缘体（不受指示物的效果影响）"),
+            (AtomicEffectType.GrantInsulator, "Insulator", "赋予绝缘体（不受指示物的效果影响）"),
             // 病原体（2026-10-31 复活改版，绿5）：受到伤害时对伤害来源附加 1 层毒素——
             // 触发口=KeywordRules.ApplyDamage 管线尾段（实际落定才触发，同报复/潜行失效口径；
             // 旧病原体=战斗伤害改写挂剧毒，2026-10-08 退役，本位全新语义复活·id 复用）
-            (AtomicEffectType.GrantPathogen, "Pathogen", "获得病原体（受到伤害时，对伤害来源附加一层毒素）"),
+            (AtomicEffectType.GrantPathogen, "Pathogen", "赋予病原体（受到伤害时，对伤害来源附加一层毒素）"),
             // 复生已移出关键词族（2026-10-08 指示物化）：GrantReborn 原子改由 GrantRebornHandler
             // 执行（挂 RebornCounter 层）——refId 已重推 502be10d→94f6a32d（2026-10-08 全量 ID 重推）
-            (AtomicEffectType.GrantIndestructible, "Indestructible", "获得不灭"),
-            // 苏醒（GrantAwaken）映射已删（2026-11-02 苏醒机制整链删除——灰身材概念已不存在，
-            // 且与倒计时玩法过近；GrantAwaken 枚举位/表行/关键词常量同批删除）
+            (AtomicEffectType.GrantIndestructible, "Indestructible", "赋予不灭"),
             // 狩猎（2026-11-01，绿3）：回合结束时若可行动（未横置），随机对防守方发起一次攻击——
             // 行为口=CombatSystem.ResolveHuntAttacks（GameCore.OnTurnEnded 首位显式调）；
             // 攻击不吃横置代价，战斗计算/事件链与普通攻击同口径
-            (AtomicEffectType.GrantHunt, "Hunt", "获得狩猎（回合结束时，如果处于可行动状态，随机对对手发起一次攻击）"),
+            (AtomicEffectType.GrantHunt, "Hunt", "赋予狩猎（回合结束时，如果处于可行动状态，随机对对手发起一次攻击）"),
         };
 
         /// <summary>落点为减益的关键词（2026-11-01 赋予粒子极性单源）：与指示物 CounterPolarity

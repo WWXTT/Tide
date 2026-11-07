@@ -70,8 +70,10 @@ namespace CardCore
                 }
                 if (auras.Count > 0) o["linkAuras"] = auras;
             }
-            if (c.noAttack) o["noAttack"] = true;
-            if (c.noGuard) o["noGuard"] = true;
+            // 系统动作资格位（2026-11-06 opt-in 改版）：正向列，只在声明时写（false 省略=不带）
+            if (c.attackAbility) o["attackAbility"] = true;
+            if (c.guardAbility) o["guardAbility"] = true;
+            if (c.chargeAbility) o["chargeAbility"] = true;
             if (c.speedBonus != 0) o["speedBonus"] = c.speedBonus;
             if (c.durability != 0) o["durability"] = c.durability;
             if (c.isField) o["isField"] = true; // 场地标记（2026-10-29 P8）：false 省略——读侧缺字段回落默认

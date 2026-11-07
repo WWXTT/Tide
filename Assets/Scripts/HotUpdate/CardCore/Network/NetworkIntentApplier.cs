@@ -43,8 +43,6 @@ namespace CardCore.Network
                     // 响应出牌分派：栈上有待响应对象、非结算中、优先权在请求者手、来源限手牌
                     // （与 PlayCardInResponse 自身门禁一致——此处预分派只是让"同一个消息类型"
                     //   覆盖两种出牌时点；引擎入口仍有全部校验，分派错误只会得到 false）。
-                    // AwakenCast 已废弃（2026-11-02 苏醒机制整链删除）：intent.AwakenCast 读兼容
-                    // 保留但不再消费——旧客户端发 true 按普通施放结算。
                     if (fromZone == Zone.Hand
                         && !core.StackEngine.IsEmpty && !core.StackEngine.IsResolving
                         && core.StackEngine.CurrentPriorityHolder == player)

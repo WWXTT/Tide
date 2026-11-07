@@ -721,18 +721,17 @@ namespace SynergyUI
         }
 
         /// <summary>网络「使用」条件（2026-11-01 SpUse 退役·合并口径）：普通出牌=NetCardCastableNet；
-        /// 特殊行=充能（任意卡型带充能效果——颜色余量服务器 CanCharge 终审，客户端不预闸）。
-        /// （苏醒行已随 2026-11-02 苏醒机制整链删除。）</summary>
+        /// 特殊行=充能（卡面声明 chargeAbility 才有——颜色余量服务器 CanCharge 终审，客户端不预闸）。</summary>
         private bool NetFanCanUse(HandFanCard fan)
         {
             if (!NetFanGate()) return false;
             var card = NetHandViewOf(fan);
             if (card == null) return false;
             if (NetCardCastableNet(card)) return true;
-            // 充能（2026-11-05 系统动作化改版）：任意手牌卡一回合一次可宣（协议 114 改义承载）——
-            // 客户端近似闸（服务器真校验兜底）。
+            // 充能（2026-11-05 系统动作化；2026-11-06 opt-in）：卡面声明充能资格的手牌卡一回合一次
+            // 可宣（协议 114 改义承载）——客户端近似闸（服务器真校验兜底）。
             var data = DataOf(card);
-            if (data == null) return false;
+            if (data == null || !data.ChargeAbility) return false;
             CardCostService.GetPrePayloadCost(data, 0, out var preCost, out _);
             foreach (var c in preCost.NonzeroColors())
                 if (c != ManaType.Any && preCost[c] > 0f) return true;
@@ -806,7 +805,7 @@ namespace SynergyUI
             return null;
         }
 
-        /// <summary>网络「使用」点击（2026-11-01 上卡·SpUse 退役；苏醒行 2026-11-02 随机制删除）：
+        /// <summary>网络「使用」点击（2026-11-01 上卡·SpUse 退役）：
         /// 特殊行选中=充能（IntentBuildCard 114）上行；普通=多主动法术按卡面效果行
         /// 选中模式（selectedMode 上行）。服务器终审一切。</summary>
         private void NetOnFanUse(HandFanCard fan)
@@ -842,8 +841,7 @@ namespace SynergyUI
         /// <summary>网络出牌：模式抉择（Region）→ 永久物（生物/结界）
         /// 棋盘选格（光圈候选，同本地交互——钉 NetCellPins 随快照生效）→ IntentPlayCard
         ///（目标 null=结算期反问回弹）。法术恒自动落位（B4 定案）；选格钉=客户端表现层权威
-        ///（快照不承载坐标）。（苏醒施放 AwakenCast 上行已随 2026-11-02 苏醒机制删除——
-        /// intent 字段保留协议兼容恒 false；2026-11-01 抉择上卡：多主动法术不再弹
+        ///（快照不承载坐标）。2026-11-01 抉择上卡：多主动法术不再弹
         /// 「选择要发动的效果」Region 窗——模式=卡面效果行直选（selectedMode，同本地口径）；
         /// 永久物多模式照旧弹窗。）</summary>
         private async UniTaskVoid NetUseCardAsync(BattleCardView card, int selectedMode = 0)
@@ -890,7 +888,6 @@ namespace SynergyUI
                 CardRuntimeId = card.RuntimeId,
                 FromZone = (int)Zone.Hand,
                 ModeIndex = modeIndex,
-                // AwakenCast 不再写入（2026-11-02 苏醒删除；字段保留协议读兼容恒 false）
                 Targets = null, // 声明期目标不预收：结算期经 SelectRequest 反问（服务器候选集权威）
             });
         }
@@ -1039,7 +1036,7 @@ namespace SynergyUI
             }
             if (card.IsTapped) { _toast.Show("该单位已横置"); return; }
             if (card.CoreCard is Card netUnitCard && !netUnitCard.HasAttackAbility())
-            { _toast.Show("该单位不具备攻击能力"); return; } // NoAttack 预检（2026-11-03）：点击即提示，不进选目标
+            { _toast.Show("该单位不具备攻击能力"); return; } // 无攻资格预检（2026-11-06 opt-in）：点击即提示，不进选目标
             if (card.Runtime != null && card.Runtime.Power <= 0) { _toast.Show("该单位攻击力为 0"); return; }
             NetAttackFlowAsync(card).Forget();
         }
@@ -2159,7 +2156,6 @@ namespace SynergyUI
         /// <summary>出牌终态：PlayCard+响应窗口泵（2026-10-18 网络簇整删——intent 上行分支随网络簇退役）。
         /// 2026-10-20 法术改版：法术经 SpellDeclarationFlow 进入（声明期预选目标+贴片预览+可取消撤销），
         /// 本口仍是终态单点（法术带 targets、生物/结界 targets=null 照旧）。
-        /// （awakenCast 苏醒施放参数已随 2026-11-02 苏醒机制整链删除。）
         /// 返回声明成败——法术流的乐观 UI（藏卡+转正贴片）由调用方按 false 清理（拒绝无引擎事件，
         /// 扇区/贴片不会随后续对账自愈）。</summary>
         private bool PlayCardFinal(BattleCardView card, List<Entity> targets, int modeIndex)
@@ -2372,9 +2368,8 @@ namespace SynergyUI
         /// <summary>「使用」按钮条件（2026-11-01 SpUse 退役·合并口径）：
         /// 普通出牌=任一模式 CanAffordCast（含声明承诺 pending——代价补偿黑/白不预计算垫本卡，
         /// 2026-10-16 恢复旧序）+永久物另需单位区空格（满场不可出）；
-        /// 特殊行=充能（2026-11-05 系统动作化：任意手牌卡、本回合未充过且有可充颜色——点击时
-        /// CanCharge 终审；免费落层、颜色结算期反问）。
-        /// （生物苏醒亮钮分支已随 2026-11-02 苏醒机制整链删除。）
+        /// 特殊行=充能（2026-11-05 系统动作化；2026-11-06 opt-in：卡面声明资格、本回合未充过且有
+        /// 可充颜色——点击时 CanCharge 终审；免费落层、颜色结算期反问）。
         /// 法术多主动（2026-11-01 抉择上卡）：使用钮按卡面效果行选中模式直入施放
         ///（选中行不可付时点击 toast 拒——亮钮条件仍是任一模式可付）。</summary>
         private bool FanCanUse(HandFanCard fan)
@@ -2385,9 +2380,10 @@ namespace SynergyUI
             if (CardCastableNow(card)) return true;
             var data = (card as CardWrapper)?.GetData();
             if (data == null) return false;
-            // 充能（2026-11-05 系统动作化改版）：任意 supertype 手牌卡——本回合未充过（一张卡
-            // 一回合一次）且还有可充颜色（卡具有且未充满）即亮；颜色在结算期经引擎反问选。
-            if (card.GetZone() == Zone.Hand && !GameActions.ChargeUsedThisTurn(Core, card))
+            // 充能（2026-11-05 系统动作化；2026-11-06 opt-in）：卡面声明 chargeAbility 的手牌卡——
+            // 本回合未充过（一张卡一回合一次）且还有可充颜色（卡具有且未充满）即亮；
+            // 颜色在结算期经引擎反问选。
+            if (card.GetZone() == Zone.Hand && data.ChargeAbility && !GameActions.ChargeUsedThisTurn(Core, card))
             {
                 var info = GameActions.GetHandCardChargeInfo(Core, P1, card);
                 if (info.WindowOpen && info.RemainingByColor.Count > 0) return true;
@@ -2606,8 +2602,7 @@ namespace SynergyUI
             return null;
         }
 
-        /// <summary>「使用」点击（2026-10-14 定案；2026-11-01 抉择上卡+充能上卡·SpUse 退役；
-        /// 苏醒行已随 2026-11-02 苏醒机制整链删除）：
+        /// <summary>「使用」点击（2026-10-14 定案；2026-11-01 抉择上卡+充能上卡·SpUse 退役）：
         /// 特殊行选中=充能（ChargeCardAsync——2026-11-05 系统动作化：宣言入栈，结算期反问选色）；
         /// 普通=法术按卡面效果行选中模式直入声明流（模式窗退役）、永久物=模式窗（多模式）→选格、
         /// 生物=直入召唤。再点选中特殊行取消即回本链。</summary>
@@ -2800,7 +2795,7 @@ namespace SynergyUI
             if (!GateMyMain()) return;
             if (card.IsTapped) { _toast.Show("该单位已横置"); return; }
             if (card.CoreCard is Card unitCard && !unitCard.HasAttackAbility())
-            { _toast.Show("该单位不具备攻击能力"); return; } // NoAttack 预检（2026-11-03）：点击即提示，不进选目标
+            { _toast.Show("该单位不具备攻击能力"); return; } // 无攻资格预检（2026-11-06 opt-in）：点击即提示，不进选目标
             if (card.Runtime != null && card.Runtime.Power <= 0) { _toast.Show("该单位攻击力为 0"); return; }
             if (card.X < 0 || card.Z < 0 || _choreo == null)
             {

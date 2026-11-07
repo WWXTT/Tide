@@ -86,7 +86,7 @@ namespace CardCore.Editor.Tests
         private static void RunBurstDamageScenario(StringBuilder log, List<Check> checks)
         {
             var tmp = BuildTempCard("探针·活体炸弹", "C_TMP_BURST_PROBE", "EFF_TMP_BURST", AtomicEffectType.BurstDamage, 1);
-            CheckTableDomain(checks, AtomicEffectType.BurstDamage, "己方战场:生物", null, "活体炸弹"); // B2：Domain 新语法
+            CheckTableDomain(checks, AtomicEffectType.BurstDamage, "双方战场:结界;己方战场:生物", null, "活体炸弹"); // B2：Domain 新语法；伤害行已扩含结界（2026-11-05 遗留期望同步）
 
             var core = GameCore.Instance;
             var catalog = CardCatalog.LoadAll().ToList();
@@ -352,7 +352,7 @@ namespace CardCore.Editor.Tests
         private static void RunShieldSlamScenario(StringBuilder log, List<Check> checks)
         {
             var tmp = BuildTempCard("探针·护盾猛击", "C_TMP_SLAM_PROBE", "EFF_TMP_SLAM", AtomicEffectType.ShieldSlam, 2);
-            CheckTableDomain(checks, AtomicEffectType.ShieldSlam, "对方战场:生物; 对方角色", null, "护盾猛击"); // B2
+            CheckTableDomain(checks, AtomicEffectType.ShieldSlam, "双方战场:结界;对方战场:生物; 对方角色", null, "护盾猛击"); // B2；伤害行已扩含结界（2026-11-05 遗留期望同步）
 
             var core = GameCore.Instance;
             var catalog = CardCatalog.LoadAll().ToList();

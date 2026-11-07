@@ -53,7 +53,7 @@
     "TextHash": "a9beb7b4",
     "Domain": "双方手牌:卡",
     "EnumName": "设置费用",
-    "DisplayName": "将{target}的费用设为{value}",
+    "DisplayName": "将{target}中一张卡的费用设为{value}",
     "EffectType": "SetCost",
     "TargetFilter": null,
     "Polarity": 0,
@@ -163,7 +163,7 @@
     "ID": "fd645778",
     "TextHash": "fd645778",
     "EnumName": "元素充盈",
-    "DisplayName": "自由分支·元素充盈：仅对手回合，对手使用卡牌结算后，双方剩余元素的差恰等于x，则触发奖励（只能自动触发，差额上限为6）",
+    "DisplayName": "自由分支·元素充盈：双方使用卡牌结算后，己方可用元素-对手可用元素的差恰等于x，则触发奖励（只能自动触发，差额上限为6）",
     "EffectType": "EngineManaSurplus",
     "TargetFilter": null,
     "Polarity": 0,
@@ -193,7 +193,7 @@
     "Polarity": -1,
     "MountKinds": "引擎主干",
     "Tags": "生效自减型",
-    "参数": "CardRef",
+    "参数": "EffectRef",
     "ManaList": null
   },
   {
@@ -206,7 +206,7 @@
     "Polarity": 1,
     "MountKinds": "引擎主干",
     "Tags": "生效自减型",
-    "参数": "CardRef",
+    "参数": "EffectRef",
     "ManaList": null
   },
   {
@@ -377,6 +377,21 @@
     "ManaList": null,
     "GateId": "LifeLe7",
     "Budget": 2
+  },
+  {
+    "ID": "c057a1e9",
+    "TextHash": "d16e8e74",
+    "EnumName": "支付代价",
+    "DisplayName": "支付代价",
+    "EffectType": "SituationGate",
+    "TargetFilter": null,
+    "Polarity": 0,
+    "MountKinds": "有限分支",
+    "Tags": null,
+    "ManaList": null,
+    "GateId": "CostGate",
+    "Budget": 3,
+    "特殊裁定": "代价挪入有限分支（2026-11-06）：选中后第二槽填代价原子（一般效果行·双侧域，全价≤3）——减免等值费用。展示期合成/保存回写卡级代价行，本门不落盘。"
   },
   {
     "ID": "479e3d5f",

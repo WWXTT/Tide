@@ -21,6 +21,9 @@ namespace CardCore
     /// · 连接光环：生物✓（属性±类）结界✓ 法术✗；规则光环：生物✗ 结界✓ 法术✗；
     /// · 光环效果引用（effectRef，2026-11-05 效果光环）：授予资格单源=非主动∧多次档∧生物臂
     ///   ∧非可选∧无代价∧非引擎主干（AuraGrantRejectReason——组合器筛选/装载闸/授予缓存共用）。
+    /// · 附加诅咒/祝福载荷（2026-11-06 载荷效果化）：载荷资格单源=主动∧极性匹配引擎行
+    ///   （祝福=+1/诅咒=−1，全原子同极性）∧非引擎主干（CursePayloadRejectReason——
+    ///   组合器载荷效果选择器/装载闸/装载期 ValidateAtomParams 共用）。
     /// 消费方：效果合成器顶栏「适用」实时推导、卡组合候选过滤（不静默隐藏——计数行+原因+跳转）、
     /// 装载期 ValidateCreatureShape（CardLoader 兜底，防直改 JSON/旧档）。
     /// 注意：本类只判「能不能挂」，不管槽位容量与保存闸——既有形状闸（FillSelectedSlot）与
@@ -54,7 +57,7 @@ namespace CardCore
         {
             if (data == null) return "空效果";
             var timing = (TriggerTiming)data.TriggerTiming;
-            if (timing < 0 || timing > TriggerTiming.OnScry) return "时机值非法";
+            if (timing < 0 || timing > TriggerTiming.OnCardCastSettled) return "时机值非法";
             var def = CardEffectConverter.ConvertOne(data, data.Id ?? "");
             if (def.IsActivatedEffect) return "主动效果不可被光环授予（只授予触发式）";
             if (!CostDerivationService.IsRepeatTiming(timing)) return "单次时机不可被光环授予（只授予多次触发时机）";
@@ -64,6 +67,54 @@ namespace CardCore
             if (data.Costs != null && data.Costs.Count > 0) return "带代价行的效果不可被光环授予（免费自动效果）";
             if (CardEffectConverter.EngineKindOfDefinition(def) != BranchEngineKind.None)
                 return "引擎主干不入触发管线";
+            // 连接光环只授予极性 +1 效果（2026-11-07 定案）：箭头只能指向己方战场（中间信息条隔断，
+            // 指不到对手战场）——减益/中性效果挂上去只会打自己人，直接拒绝。
+            bool sawAtom = false;
+            foreach (var a in AtomsDeepOf(def))
+            {
+                if (a == null) continue;
+                sawAtom = true;
+                if (a.Polarity < 0.5f)
+                    return "连接光环只授予极性 +1 效果（箭头只能指向己方战场，减益/中性不可）";
+            }
+            if (!sawAtom) return "空效果（无原子）";
+            return null;
+        }
+
+        /// <summary>
+        /// 可否作附加诅咒/附加祝福的载荷效果（2026-11-06 载荷效果化定案·资格谓词单源——
+        /// 组合器载荷效果选择器 / 装载校验闸 / 装载期 ValidateAtomParams 三处共用）：
+        /// **主动效果**（Activate_*——抽到时按声明结算，不依赖场上触发语境）∧ **极性匹配引擎行**
+        ///（附加祝福=给自己 → 极性 +1 效果；附加诅咒=给对手 → 极性 −1 效果——全部原子须同极性，
+        /// 中性/混合极性效果不可作载荷）∧ 非引擎主干（引擎主干不经载荷管线，挂上=静默空转）。
+        /// 返回 null=可作载荷，否则拒绝原因（UI 筛选提示/装载告警共用文案）。
+        /// 输入契约：**完整卡内效果**（Steps/AtomicEffects 任一形态携带原子）——效果库条目须先经
+        /// `EffectsLibrary.Resolve`（还原 Steps）再入；`EffectGraphData.header` 只带头部字段不含原子，
+        /// 直接喂入会极性判定恒空（合成器选择器曾踩）。
+        /// </summary>
+        public static string CursePayloadRejectReason(CardEffectData data, float enginePolarity)
+        {
+            if (data == null) return "空效果";
+            var timing = (TriggerTiming)data.TriggerTiming;
+            if (timing < 0 || timing > TriggerTiming.OnCardCastSettled) return "时机值非法";
+            var def = CardEffectConverter.ConvertOne(data, data.Id ?? "");
+            if (def == null) return "空效果";
+            if (!def.IsActivatedEffect) return "非主动效果不可作附加诅咒/祝福载荷（只挂主动效果）";
+            if (CardEffectConverter.EngineKindOfDefinition(def) != BranchEngineKind.None)
+                return "引擎主干不作载荷（引擎不经载荷管线，抽到时静默空转）";
+            bool wantPositive = enginePolarity >= 0.5f;
+            bool sawAtom = false;
+            foreach (var a in AtomsDeepOf(def))
+            {
+                if (a == null) continue;
+                sawAtom = true;
+                bool positive = a.Polarity >= 0.5f, negative = a.Polarity <= -0.5f;
+                if ((wantPositive && !positive) || (!wantPositive && !negative))
+                    return wantPositive
+                        ? "极性不匹配——附加祝福只挂极性 +1 的效果（全部原子须增益极性；中性/混合不可）"
+                        : "极性不匹配——附加诅咒只挂极性 −1 的效果（全部原子须减益极性；中性/混合不可）";
+            }
+            if (!sawAtom) return "空效果（无原子）";
             return null;
         }
 
@@ -158,6 +209,29 @@ namespace CardCore
             if (def.Effects != null)
                 foreach (var a in def.Effects)
                     if (a != null) yield return a;
+        }
+
+        /// <summary>深枚举原子（主序列 ∪ 槽级 Branch.Then 奖励递归）——载荷极性判定用：
+        /// 主动效果的 Then 奖励（如引擎/门分支）也是效果内容的一部分，极性口径须整体一致。
+        /// AtomsOf 维持浅扫（关键词/规则光环挂位判定不进奖励——既有口径不动）。</summary>
+        private static IEnumerable<AtomicEffectInstance> AtomsDeepOf(EffectDefinition def)
+        {
+            if (def == null) yield break;
+            foreach (var a in AtomsOf(def))
+            {
+                if (a == null) continue;
+                yield return a;
+                if (a.Branch?.Then == null) continue;
+                var stack = new Stack<AtomicEffectInstance>(a.Branch.Then);
+                while (stack.Count > 0)
+                {
+                    var r = stack.Pop();
+                    if (r == null) continue;
+                    yield return r;
+                    if (r.Branch?.Then != null)
+                        foreach (var rr in r.Branch.Then) stack.Push(rr);
+                }
+            }
         }
     }
 }

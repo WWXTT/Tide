@@ -11,15 +11,15 @@ using SynergyUI;
 namespace TideSim
 {
     /// <summary>
-    /// 教学式固定盘面场景回归（2026-11-04）——蓝方碑族**元素充盈**引擎的行为级验证：
-    /// · 判据（已定稿口径，本文件只验证不改）：充盈引擎主=施放者的对手；只在对手回合评估——
-    ///   ① 对手出牌结算后（OnCardCastSettled）：我方剩余元素（未横置地+钱包）−对手剩余元素，封顶 6，≥x 触发；
-    ///   ② 对手横置地牌支付时（OnOpponentTappedLands）：未横置地差（不含钱包）同判据；
-    ///   每卡每回合只触发 1 次；门槛 x=Then 奖励锚价自动推导（RewardThreshold）。
+    /// 教学式固定盘面场景回归（2026-11-04；2026-11-06 判据七改版）——蓝方碑族**元素充盈**引擎的行为级验证：
+    /// · 判据七（已定稿口径，本文件只验证不改）：任一方使用卡牌、**整条连锁结算完成后**（连锁终点补发
+    ///   CardCastSettledEvent）双方各自评估己方场上引擎——我方剩余元素（未横置地+钱包）−对方剩余元素，
+    ///   封顶 6，**恰好等于** x（Then 锚价推导，两碑 x=2）才触发；每卡每回合只触发 1 次。
+    ///   判据六 ≥x、单边「仅对手回合」、横置触发口（OnOpponentTappedLands）均已退役。
     /// · 盘面来自 Assets/TutorialData/蓝充盈场景.json（scenario 块=教学 TutorialScenario 同构，
-    ///   TutorialScenarioSeeder 静默注入）。受测回合=红（P2），SimpleAI(General) 走完整回合；
-    ///   蓝方（P1）挂机——充盈只在对手回合自动评估，正贴合「蓝不动，对手一动就给蓝收益」的博弈点。
-    /// · 断言只认外部证据：KeywordAppliedEvent(元素充盈) 播报明细（含触发口归属）、以碑为源的
+    ///   TutorialScenarioSeeder 静默注入）。场景①-⑤受测回合=红（P2，SimpleAI(General) 走完整回合、
+    ///   蓝挂机）；场景⑥受测回合=蓝自己（firstPlayer=P1）——双方触发面的直接证据。
+    /// · 断言只认外部证据：KeywordAppliedEvent(元素充盈) 播报明细（含触发口/判据归属）、以碑为源的
     ///   AtomicDamageEvent、TempCounter 挂层/手牌读数、区域终态；不读引擎内部状态下结论。
     /// 用法：dotnet run --project TideSim -- --tutorial-scenario（红快攻 9 场景 + 蓝充盈 6 场景一起跑）
     /// </summary>
@@ -37,6 +37,7 @@ namespace TideSim
             new List<(string, int)>();
         private static readonly List<string> _tempCopies = new List<string>();        // 临时指示物(遗忘)挂层=回响复制
         private static int _redPlays;                                                  // 红（P2）本回合出牌数
+        private static int _bluePlays;                                                 // 蓝（P1）本回合出牌数（场景⑥己方自触发）
         private static int _redAttacks;                                                // 红（P2）本回合攻击宣言数
         private static Card _monument;                                                 // 本场景受测碑（伤害事件 Source 比对）
 
@@ -140,8 +141,8 @@ namespace TideSim
             core.Player1.IsAI = true;
             core.Player2.IsAI = true;
             AttachBoard(core);
-            AiStrategyRegistry.Bind(core.Player1, AiStrategy.General); // 蓝挂机（充盈只在对手回合自动评估）
-            AiStrategyRegistry.Bind(core.Player2, AiStrategy.General); // 红=受测回合的行动方（出牌/横置/攻击）
+            AiStrategyRegistry.Bind(core.Player1, AiStrategy.General); // 蓝：场景①-⑤挂机（红回合），场景⑥自己走回合（双方触发面）
+            AiStrategyRegistry.Bind(core.Player2, AiStrategy.General); // 红=①-⑤受测回合的行动方（出牌/横置/攻击）
             ResponseWindowService.AiResponder = AiStrategyRegistry.PickFor;
 
             var p1 = core.Player1;
@@ -151,6 +152,7 @@ namespace TideSim
             _monumentDamage.Clear();
             _tempCopies.Clear();
             _redPlays = 0;
+            _bluePlays = 0;
             _redAttacks = 0;
             _monument = null;
 
@@ -166,6 +168,7 @@ namespace TideSim
             Action<CardPlayEvent> onPlay = e =>
             {
                 if (e?.Player == p2 && !e.IsResponseCast) _redPlays++;
+                if (e?.Player == p1 && !e.IsResponseCast) _bluePlays++;
             };
             Action<AttackDeclarationEvent> onAttack = e =>
             {
@@ -206,6 +209,7 @@ namespace TideSim
                 int redRem = core.ElementPool.GetRemainingElementTotal(p2);
                 Console.WriteLine($"    读数：受测碑={NameOf(_monument)}，门槛x={x}（Then锚价推导），"
                                   + $"蓝剩余={blueRem} 红剩余={redRem}，差={Math.Min(blueRem - redRem, 6)}（封顶6）");
+                Assert(x == 2, $"门槛x=2（实际{x}）——判据七板面按x=2设计（两碑Then锚价：2伤=2红／回响1=2蓝），锚价漂移须重调板面");
                 foreach (var c in core.ZoneManager.GetCards(p2, Zone.Hand) ?? new List<Card>())
                 {
                     var d = (c as CardWrapper)?.GetData();
@@ -225,10 +229,10 @@ namespace TideSim
                 switch (entry.id)
                 {
                     case "tide-trigger-on-play":
-                        Assert(_redPlays >= 1, "① 红确实出牌（火苗 0 费，全程不横置地）");
+                        Assert(_redPlays >= 1, "① 红确实出牌（火苗 1 灰走钱包，全程不横置地）");
                         Assert(_fullness.Count == 1, $"① 充盈触发恰 1 次（实际 {_fullness.Count}）");
-                        Assert(_fullness.Count == 1 && _fullness[0].Contains("出牌结算后"),
-                            $"① 触发口=出牌结算后 OnCardCastSettled（明细：{_fullness.FirstOrDefault() ?? "无"}）");
+                        Assert(_fullness.Count == 1 && _fullness[0].Contains("使用结算后") && _fullness[0].Contains("== 2"),
+                            $"① 触发口=使用结算后·判据恰等（明细：{_fullness.FirstOrDefault() ?? "无"}）");
                         Assert(_monumentDamage.Count == 1 && _monumentDamage[0].Dmg == 2
                             && _monumentDamage[0].Target == "火苗",
                             $"① 潮痕碑奖励=2 伤落在火苗（实际 {DescribeDamage()}）");
@@ -249,12 +253,12 @@ namespace TideSim
                         Assert(_tempCopies.Count == 1, $"② 回响挂层事件恰 1 次（实际 {_tempCopies.Count}）");
                         break;
 
-                    case "no-trigger-low-diff":
-                        Assert(_redPlays >= 1, "③ 红确实出牌了（差值不足≠没出牌）");
-                        Assert(_fullness.Count == 0, $"③ 差 1−3=−2 < x：零充盈播报（实际 {_fullness.Count}）");
+                    case "no-trigger-high-diff":
+                        Assert(_redPlays >= 1, "③ 红确实出牌了（差越过≠没出牌）");
+                        Assert(_fullness.Count == 0, $"③ 差 6 > 门槛 2：恰等不中零播报（==x——判据六 ≥x 已退役；实际 {_fullness.Count}）");
                         Assert(_monumentDamage.Count == 0, $"③ 零碑伤（实际 {DescribeDamage()}）");
                         Assert(Unit(core, p2, "火苗") != null && Life(Unit(core, p2, "火苗")) == 2,
-                            "③ 火苗满血存活（没吃到充盈 2 伤）");
+                            "③ 火苗满血存活（差越过门槛不触发）");
                         Assert(_tempCopies.Count == 0, "③ 无临时复制入手");
                         break;
 
@@ -262,7 +266,7 @@ namespace TideSim
                         Assert(_redPlays == 0, $"④ 红本回合未出牌（空手；实际出牌 {_redPlays}）");
                         Assert(_redAttacks >= 1, $"④ 红只做了场上动作（攻击宣言 {_redAttacks} 次）");
                         Assert(p1.Life < 30, $"④ 攻击真实结算（蓝脸被打开：{p1.Life} < 30）");
-                        Assert(_fullness.Count == 0, $"④ 零充盈播报——蓝不动红也不准动（实际 {_fullness.Count}）");
+                        Assert(_fullness.Count == 0, $"④ 零充盈播报——差恰=2 也不评估：非施放动作无评估口（实际 {_fullness.Count}）");
                         Assert(_monumentDamage.Count == 0, $"④ 零碑伤（实际 {DescribeDamage()}）");
                         Assert(Life(Unit(core, p2, "教学·8")) == 7, "④ 教学·8 无伤存活（蓝无单位无反伤）");
                         break;
@@ -270,25 +274,26 @@ namespace TideSim
                     case "once-per-turn":
                         Assert(_redPlays == 2, $"⑤ 红同回合连出两张牌（实际 {_redPlays}）");
                         Assert(_fullness.Count == 1,
-                            $"⑤ 充盈只触发 1 次——每卡每回合封顶（实际 {_fullness.Count}）");
+                            $"⑤ 恰等只中一次——首张差2==x触发、次张差3≠2不触发（实际 {_fullness.Count}）");
                         Assert(_monumentDamage.Count == 1 && _monumentDamage[0].Dmg == 2,
                             $"⑤ 碑 2 伤只发生一次（实际 {DescribeDamage()}）");
                         int grave = CountIn(core, p2, Zone.Graveyard, "火苗");
                         int field = CountAlive(core, p2, "火苗");
                         Assert(grave == 1, $"⑤ 第一只火苗被充盈 2 伤打死进墓（实际墓 {grave}）");
-                        Assert(field == 1, $"⑤ 第二张牌不再触发——第二只火苗存活（实际场 {field}）");
+                        Assert(field == 1, $"⑤ 差滑过恰等档：第二只火苗存活（实际场 {field}）");
                         break;
 
-                    case "tide-trigger-on-tap":
-                        Assert(_redPlays >= 1, "⑥ 红确实出牌（火灵·攻：付 1 红=横置 1 地）");
-                        Assert(_fullness.Count == 1, $"⑥ 充盈触发恰 1 次（实际 {_fullness.Count}）");
-                        Assert(_fullness.Count == 1 && _fullness[0].Contains("横置"),
-                            $"⑥ 触发口=横置地牌支付时 OnOpponentTappedLands（明细：{_fullness.FirstOrDefault() ?? "无"}）");
+                    case "own-turn-self-trigger":
+                        Assert(_bluePlays >= 1, $"⑥ 蓝确实自己出牌（实际 {_bluePlays}）——己方回合施放是本场景受测动作");
+                        Assert(_redPlays == 0, $"⑥ 红全程未施放（实际 {_redPlays}）");
+                        Assert(_fullness.Count == 1, $"⑥ 充盈触发恰 1 次——己方回合自己施放也评估（双方触发面；实际 {_fullness.Count}）");
+                        Assert(_fullness.Count == 1 && _fullness[0].Contains("== 2"),
+                            $"⑥ 判据=恰等于（明细：{_fullness.FirstOrDefault() ?? "无"}）");
                         Assert(_monumentDamage.Count == 1 && _monumentDamage[0].Dmg == 2
-                            && _monumentDamage[0].Target == "教学·8",
-                            $"⑥ 潮痕碑 2 伤落教学·8（实际 {DescribeDamage()}）");
-                        Assert(Life(Unit(core, p2, "教学·8")) == 5, $"⑥ 教学·8 7→5（实际 {Life(Unit(core, p2, "教学·8"))}）");
-                        Assert(p1.Life < 30, $"⑥ 火灵·攻/教学·8 后续攻击结算到蓝脸（蓝生命 {p1.Life} < 30）");
+                            && _monumentDamage[0].Target == p2.Name,
+                            $"⑥ 潮痕碑 2 伤落红角色（对方无单位→角色兜底；实际 {DescribeDamage()}）");
+                        Assert(p2.Life <= 28 && p2.Life >= 26,
+                            $"⑥ 红终态=28（碑2伤）或 26（再吃火苗攻脸2）——实际 {p2.Life}");
                         break;
 
                     default:

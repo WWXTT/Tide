@@ -164,6 +164,15 @@ namespace SynergyUI
                 if (hasActive) SetText(_effectText, item.ActiveEffectText);
             }
 
+            // effect 行速度标签（2026-11-06 速度显示改版）：速度归卡类别（EffectSpeed 单源——
+            // 法术=底盘分配/生物=0/结界=null 藏）；模板行+全部模式/充能克隆行统一刷
+            ApplySpeedBadges(item.EffectSpeed);
+
+            // effect 行费用方格（2026-11-06）：行级 lbl-skill-cost（CostSquares 双组）——费用组=
+            // 该效果现付账单（0 费显灰 0 占位）、代价组=卡级施放期代价（PayloadCost）；
+            // 模式行按 ActiveEffectCosts 对位、单行=ActiveEffectCost、充能行无固定账单=藏
+            ApplyRowCosts(item);
+
             // passives 区
             bool hasPassives = full && item.PassiveLines != null && item.PassiveLines.Count > 0;
             SetActive(_passivesBlock, hasPassives);
@@ -178,6 +187,12 @@ namespace SynergyUI
             bool hasCounters = full && item.CounterChips != null && item.CounterChips.Count > 0;
             SetActive(_statesBlock, hasCounters);
             if (hasCounters) SetText(_statesText, string.Join("　", item.CounterChips.Select(c => c.Name + "×" + c.Layers)));
+
+            // des 自适应链同步重建（2026-11-06）：行 CSF(竖=Preferred) 随 TMP 换行 preferredHeight
+            // 拉高行块、content VLG/CSF 跟着重排——TMP 赋值只标脏到帧末，池复用/同帧读位会看到
+            // 旧布局（des 溢出行背景），Apply 尾部强刷两遍（首遍按 HLG ctlW 定宽、次遍按新宽
+            // 重算 preferred 高度，覆盖克隆行/新实例的 0 宽初帧）
+            RefreshFormLayout();
 
             if (_group != null) _group.alpha = item.IsTapped ? 0.62f : 1f;
 
@@ -302,9 +317,11 @@ namespace SynergyUI
         {
             var parent = _effectBlock.parent;
             int need = item.ActiveEffectLines.Count - 1; // 克隆行数（模板行=第 1 行）
+            ClearTemplateRowCost(); // 克隆源先清费用方格（防拷入未对账色块→双块，见方法注）
             while (_effectRowClones.Count < need)
             {
                 var clone = Instantiate(_effectBlock.gameObject, parent, false).transform as RectTransform;
+                StripGhostSquares(clone);
                 clone.name = "effect" + (_effectRowClones.Count + 2); // effect2、effect3…（名字不参与 Bind 解析）
                 clone.SetSiblingIndex(_effectBlock.GetSiblingIndex() + _effectRowClones.Count + 1);
                 _effectRowClones.Add(clone);
@@ -377,9 +394,11 @@ namespace SynergyUI
                 return;
             }
             var parent = _effectBlock.parent;
+            ClearTemplateRowCost(); // 克隆源先清费用方格（防拷入未对账色块→双块，见方法注）
             while (_spRowClones.Count < need)
             {
                 var clone = Instantiate(_effectBlock.gameObject, parent, false).transform as RectTransform;
+                StripGhostSquares(clone);
                 clone.name = "effect-sp" + (_spRowClones.Count + 1); // effect-sp1、effect-sp2…（特殊行）
                 _spRowClones.Add(clone);
             }
@@ -455,6 +474,105 @@ namespace SynergyUI
         {
             var t = _faceRoot.Find(path);
             return t != null ? t.GetComponent<TMP_Text>() : null;
+        }
+
+        /// <summary>des→行块→content 自适应布局同步重建：effect 块的父即行容器（content 或
+        /// 旧行口径的卡根，两者都挂竖排布局），ForceRebuild 自上而下跑行 HLG/行 CSF/content CSF
+        /// 全链；两遍=宽→换行 preferred 高度联算（宽度恒定后第二遍即收敛，小卡面开销可忽略）。</summary>
+        private void RefreshFormLayout()
+        {
+            if (_effectBlock == null) return;
+            var container = _effectBlock.parent as RectTransform;
+            if (container == null) return;
+            LayoutRebuilder.ForceRebuildLayoutImmediate(container);
+            LayoutRebuilder.ForceRebuildLayoutImmediate(container);
+        }
+
+        /// <summary>effect 行 lbl-skill-speed 速度标签（2026-11-06）：类别驱动（CardOverlayItem.
+        /// EffectSpeed 单源）——模板行与全部模式/充能克隆行统一设置；结界（null）/旧版 prefab
+        /// 未铺节点=静默藏。</summary>
+        private void ApplySpeedBadges(int? speed)
+        {
+            SetSpeedBadge(_effectBlock, speed);
+            for (int i = 0; i < ActiveEffectRows.Count; i++) SetSpeedBadge(ActiveEffectRows[i], speed);
+            for (int i = 0; i < SpEffectRows.Count; i++) SetSpeedBadge(SpEffectRows[i], speed);
+        }
+
+        private static void SetSpeedBadge(RectTransform row, int? speed)
+        {
+            if (row == null) return;
+            var t = row.Find("text/lbl-skill-speed");
+            if (t == null) return; // 美术未铺节点：静默空转
+            SetActive(t, speed != null);
+            if (speed != null)
+            {
+                var tmp = t.GetComponent<TMP_Text>();
+                if (tmp != null) tmp.text = "发动速度" + speed.Value;
+            }
+        }
+
+        /// <summary>effect 行 lbl-skill-cost 费用方格（2026-11-06）：每行驱动自己的 CostSquares
+        /// 双组——费用组=该效果净费（带效果级代价=发动费−抵扣；模式行按 ActiveEffectCosts 对位/
+        /// 单行=ActiveEffectCost，0 费显灰 0 占位与手牌扇 0 费定案同口径）、代价组=**该行效果级代价**
+        ///（ActiveEffectPayloadCost(s)；2026-11-06 代价全面并入效果级——效果行不回落卡级施放桶，
+        /// 非主动效果行的施放期代价走手牌扇/预览费条卡级口径）；无固定账单（充能现付待选色/null）=藏节点。</summary>
+        private void ApplyRowCosts(CardOverlayItem item)
+        {
+            for (int i = 0; i < ActiveEffectRows.Count; i++)
+            {
+                var fee = item.ActiveEffectCosts != null && i < item.ActiveEffectCosts.Count
+                    ? item.ActiveEffectCosts[i] : null;
+                var pay = item.ActiveEffectPayloadCosts != null && i < item.ActiveEffectPayloadCosts.Count
+                    ? item.ActiveEffectPayloadCosts[i] : null;
+                SetRowCost(ActiveEffectRows[i], fee, pay);
+            }
+            if (ActiveEffectRows.Count == 0)
+                SetRowCost(_effectBlock, item.ActiveEffectCost, item.ActiveEffectPayloadCost); // 单行口径（模板行）
+            for (int i = 0; i < SpEffectRows.Count; i++)
+            {
+                var fee = item.SpEffectCosts != null && i < item.SpEffectCosts.Count
+                    ? item.SpEffectCosts[i] : null;
+                SetRowCost(SpEffectRows[i], fee, item.PayloadCost); // 充能行非效果行——卡级施放桶口径
+            }
+        }
+
+        private static void SetRowCost(RectTransform row, ElementCost fee, ElementCost payload)
+        {
+            if (row == null) return;
+            var t = row.Find("text/lbl-skill-cost");
+            if (t == null) return; // 美术未铺节点：静默空转
+            var csv = t.GetComponent<CostSquaresView>();
+            if (csv == null) return;
+            SetActive(t, fee != null);
+            if (fee == null) return;
+            csv.SetCosts(fee);
+            csv.SetPayloadCosts(payload);
+        }
+
+        /// <summary>克隆前清模板行费用方格：SetCosts 在模板上克隆的色块会被 Instantiate 连带
+        /// 拷进新行，而拷入块不在新实例的组对账表里——克隆后再驱动会双块。克隆源保持干净，
+        /// 行费用统一由 ApplyRowCosts 在克隆后驱动。</summary>
+        private void ClearTemplateRowCost()
+        {
+            var csv = _effectBlock.Find("text/lbl-skill-cost")?.GetComponent<CostSquaresView>();
+            if (csv != null) csv.Clear();
+        }
+
+        /// <summary>剥离克隆行费用方格里的未对账色块（双保险）：播放态 Clear 的 Destroy 延帧
+        /// 生效，同帧克隆会把 pending-destroy 色块原样拷进新行（拷贝件不进对账表=永久双块）——
+        /// 克隆落地即剥，DestroyImmediate 同帧生效；保留组标签（Cost1/Cost2）与模板块。</summary>
+        private static void StripGhostSquares(RectTransform clone)
+        {
+            if (clone == null) return;
+            var cost = clone.Find("text/lbl-skill-cost");
+            if (cost == null) return;
+            for (int i = cost.childCount - 1; i >= 0; i--)
+            {
+                var ch = cost.GetChild(i);
+                if (ch.name == CostSquaresView.FeeGroupName || ch.name == CostSquaresView.PayloadGroupName
+                    || ch.name == CostSquaresView.TemplateName) continue;
+                DestroyImmediate(ch.gameObject);
+            }
         }
 
         private static void SetText(TMP_Text t, string value)

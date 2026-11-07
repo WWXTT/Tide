@@ -58,9 +58,8 @@ namespace CardCore.Network
     /// <summary>协议版本常量。信封 ProtocolVersion 读到 0 视为 legacy（无版本草稿期数据）。
     /// v2（2026-10-28 P2 元素席位收缩）：ManaType 白/黑退役、Any 6→4，位置数组 7→5 重排——
     /// 裸 int 色号/数组布局全线漂移，新旧端互拒不兼容（无兼容层）。
-    /// v3（2026-10-29 P6 苏醒施放字段；2026-11-02 苏醒删除后 AwakenCast deprecated——
-    /// 字段保留读兼容恒 false、不再写入，载荷布局不变、协议不升版）：MsgIntentPlayCard 新增
-    /// AwakenCast 布尔——MemoryPack 载荷布局变更，新旧端互拒（无兼容层）。
+    /// v3（2026-10-29 P6）：MsgIntentPlayCard 新增 AwakenCast 布尔——MemoryPack 载荷布局变更，
+    /// 新旧端互拒不兼容（无兼容层）。该字段已于 v9 删除。
     /// v4（2026-10-29 P7 建造→2026-10-31 P12 改义充能）：上行 MsgIntentBuildCard（卡+色）语义换为充能，
     /// 下行快照 RuntimeCardState 新增 BuildPaid（手牌卡已建额——只随持有者手牌区下发）——
     /// MemoryPack 载荷布局变更，新旧端互拒（无兼容层）。
@@ -77,10 +76,12 @@ namespace CardCore.Network
     /// v8（2026-11-05 ID 冻结收口·摘要三层收口）：NetDeckDigest 新增 ContentSig（卡 ConfigHash +
     /// 效果 hash 指纹摘要）——ID 命中不再蕴含内容一致，旧端缺该段会被新端显式拒绝；
     /// 同批起接收侧对信封 ProtocolVersion 设闸（此前只写不校验），失配回显式 Error 帧而非
-    /// 靠序列化错位自然崩。</summary>
+    /// 靠序列化错位自然崩。
+    /// v9（2026-11-06 协议瘦身）：MsgIntentPlayCard 删除废弃字段 AwakenCast（v3 引入、
+    /// 机制删除后曾留读兼容）——成员 5→4，MemoryPack 载荷布局变更，新旧端互拒（无兼容层）。</summary>
     public static class NetworkProtocol
     {
-        public const ushort Version = 8;
+        public const ushort Version = 9;
 
         /// <summary>接收侧版本闸（v8 起）：信封版本与本端不符 = 新旧端互拒（无兼容层）。
         /// 0=legacy 草稿期数据，同样失配。</summary>

@@ -42,7 +42,8 @@ namespace SynergyUI
     /// · 容量按型：生物=代价1+主动1+自动1+关键词3（每关一个攻/守 +1）；法术=主动1~3（速度加成=3−槽数）；
     ///   结界=光环恰好 1（必填，规则或连接；保存闸）+自动0~2（passives 槽容量 3=光环1+自动2）；
     ///   代价三类卡通用；关键词生物专属（切型即清）；
-    /// · basicability 区（具备攻击/具备守卫 Toggle）反相绑 NoAttack/NoGuard；
+    /// · basicability 区（具备攻击/具备守卫/具备充能 Toggle）：**正向绑定资格位，默认不带**
+    ///   （2026-11-06 opt-in 改版——攻/守/充能三系统动作统一「添加了才有」；ac/dc 生物专属、rc 全卡型；旧 NoAttack/NoGuard 反相绑定退役）；
     /// · 名称可缺省——留空保存=用生成的卡 ID 当卡名；生物属性必填（输入框留空=未填拦保存）；
     /// · type 区 ID 钮：仅在保存过卡后出现（num 显卡 ID，点击复制——方便衍生物填 ID）；
     /// · type 区 "CostSquares " 文本节点＝卡费文字公式（方格退役，口径参考效果组合界面费用公式）；
@@ -56,7 +57,26 @@ namespace SynergyUI
     /// 2026-10-27 三栏占比重定（prefab 手改 400/800/650 配套）：左 400=图库两列 184 格（内容区 376=2×184+8 恰满）/
     /// 右 650=字阶对齐 DeckUI v2 三档（25=按钮·chips/18=行名·输入框/16=meta·提示·费用数字），
     /// 行规格同步（行高 56·列表间距 4·表头行 44 容纳 25 号切换钮·chips 72×40）。
-    /// </summary>
+    ///
+    /// 2026-11-06 布局改版配套（prefab 手改：编辑控件挪出 ACard 实例）：
+    /// · 中栏拆两树——CardPreView 下 ACard 实例=只读实时预览（AddComponent&lt;ACardView&gt;+FromCardDataFull
+    ///   静态快照，DeckBuilder preview 同款）；编辑控件=CardPreView 直属 fields（name/费用公式/basicability/
+    ///   attribute）+form-scroll（effect/passives/keys 三槽模板）——直查路径绑定防与卡面内部同名节点串线；
+    /// · 代价槽整口退役（prefab 删 cost 模板+addcost；编辑口=效果合成器「支付代价」门，2026-11-06 定案）；
+    /// · 美术图库：法术/结界=Title 默认图一张（Art/Icons/Title.png，与 ACard.prefab 烘焙占位同图），
+    ///   切型自动选中（生物清回占位）；
+        /// · setderivant 槽行钮=衍生物/变形槽新入口（旧 derive 行模板+addderive+放大预览退役）：
+        ///   效果含 SummonToken/GrantMorph 原子才显形，点击开选卡器写原子 str=定义期直绑。
+        ///
+        /// 2026-11-06 二次四改：
+        /// · 卡池行 meta 法术补「速度X」（速度归卡类别的同一口径——单源 CardOverlayItem.EffectSpeedOf；
+        ///   生物=攻/血、结界=耐久不变）；
+        /// · 中栏卡面单击=全屏放大（DeckBuilder OpenZoom 同款：运行时遮罩+360×648 槽×5/3 缩放，
+        ///   点遮罩还原；CardUI.prefab 无烘焙节点——遮罩运行时建）；
+        /// · 图库占位项退役（画廊只列真实可选图；未选立绘=无高亮格，卡面回落烘焙占位图）；
+        /// · 效果库补预设段（AppendPresetEffects）：预组卡组效果只读并入——可引用挂载、「编辑」
+        ///   跳效果合成器预设只读态（修改保存=另存新效果，与预设同内容拦存；源档不可覆盖不可删）。
+        /// </summary>
     public sealed class CardComposerScreen : UIScreen
     {
         protected override string PrefabName => "CardUI";
@@ -115,13 +135,14 @@ namespace SynergyUI
         private UnityEngine.UI.Button _btnSwitchTable;
         private bool _rightShowCards = true; // 默认卡池（延续原主入口）
 
-        // ---- 中栏卡面（2026-10-16 prefab 二次重做：卡面即编辑器 + 单槽模板制） ----
-        private RectTransform _cardFace;
-        private RectTransform _formContent; // v3：表单区滚动内容（form-scroll/viewport/content）——槽行克隆/清理挂这里
-        private RectTransform _typeZone, _attributeZone, _costZone, _effectZone, _passivesZone, _keysZone;
-        private Image _typeBg, _maskImg, _artImg;
-        private TMP_Text _artHint; // v3：立绘空位提示（art 下 art-hint——无图显「点左侧立绘选择」，有图即隐）
-        private TMP_Text _typeCostText;   // type 区 "CostSquares " 文本节点：卡费文字公式（方格已随 prefab 重做退役）
+        // ---- 中栏（2026-11-06 prefab 布局改版：编辑控件挪出 ACard 实例，卡面=只读预览） ----
+        private RectTransform _cardFace;   // CardPreView 下烘焙 ACard 实例（ACardView 实时渲染预览）
+        private ACardView _previewView;    // 卡面实时渲染（DeckBuilder preview 同款：FromCardDataFull 静态快照）
+        private RectTransform _editorRoot; // CardPreView：fields/add-slot/form-scroll 的共同父
+        private RectTransform _fields;     // fields 表单区（name/cost-row/basicability/attribute）——编辑控件锚点
+        private RectTransform _formContent; // CardPreView 内联 form-scroll/viewport/content——槽行克隆/清理挂这里
+        private RectTransform _attributeZone, _effectZone, _passivesZone, _keysZone;
+        private TMP_Text _typeCostText;   // fields/cost-row "CostSquares " 文本节点：卡费文字公式（名带尾空格）
         private UInputField _nameInput, _attackInput, _lifeInput, _durabilityInput;
         // 场地开关（2026-10-29 P8）：结界专属标记——运行时建钮挂耐久行壳（prefab 零改、不新增美术）
         private UnityEngine.UI.Button _fieldToggle;
@@ -129,21 +150,24 @@ namespace SynergyUI
         private readonly Dictionary<CardKind, UnityEngine.UI.Button> _kindButtons = new Dictionary<CardKind, UnityEngine.UI.Button>();
         private readonly Dictionary<CardKind, Color> _kindBtnBase = new Dictionary<CardKind, Color>(); // v2：chip 原底色（选中换 ChipActiveBg/还原）
 
-        // ---- 中栏 v2（2026-10-23）：卡面 360×648 只读预览层（名称/类别/构成摘要随算费同拍刷新） ----
-        private TMP_Text _nameView, _kindView, _faceNote;
+        // ---- 衍生物槽（2026-11-06 setderivant 改版）：主动/自动槽行内「设置衍生物」钮——效果含
+        // 召唤衍生物/变形原子才显形；点击开选卡器，选中写原子 str=定义期直绑（v2 只读预览层已随
+        // ACardView 实时渲染退役） ----
+        private UiKit.Modal _deriveModal; // 选卡弹层（重复点开=换卡窗）
 
-        // ---- 衍生物槽（2026-10-31 ID 复制钮退役改版）：效果含召唤衍生物/变形原子时卡面直选模板
-        //（prefab 加 derive 行模板 + addderive 钮，代码克隆/接线；选中写原子 str=定义期直绑） ----
-        private RectTransform _deriveTemplate;                              // derive 行模板（content 下恒 inactive）
-        private UnityEngine.UI.Button _addDeriveBtn;                        // addderive（add-slot 排尾）
-        private readonly List<RectTransform> _deriveRows = new List<RectTransform>(); // 克隆活行
-        private UiKit.Modal _deriveModal;                                   // 选卡弹层（重复点开=换卡窗）
-        private RectTransform _deriveZoomMask, _deriveZoomSlot;             // 放大预览遮罩+卡槽（懒建）
+        // ---- 卡面放大（2026-11-06）：单击中栏卡面=全屏遮罩+放大卡（DeckBuilder OpenZoom 同款）。
+        // CardUI.prefab 无烘焙遮罩节点——运行时 UiKit 原语建（field-toggle/derive 弹层同口径） ----
+        private RectTransform _zoomOverlay;  // 全屏遮罩（半透明底+点按还原），懒建一次
+        private RectTransform _zoomSlot;     // 居中 360×648 放大槽（ACard 实例由 CardOverlayController 池化挂入）
+        private readonly List<CardOverlayBinding> _zoomBindings = new List<CardOverlayBinding>();
+        /// <summary>放大卡整体同比缩放（DeckBuilder 同款：设计矩形 360×648 ×1080/648——文字随 localScale
+        /// 同比渲染，字号三档恒定）。</summary>
+        private const float ZoomCardScale = 1080f / 648f;
 
         // ---- 左栏画廊（2026-10-21 回收式虚拟化：~103 贴片只保留可见格，滚动/换类型零重建） ----
         private RectTransform _galleryContent;
         private UiKit.RecycledList _galleryList;
-        private List<string> _artNames; // 立绘名数据源（首项 null=占位；非生物=空表）
+        private List<string> _artNames; // 立绘名数据源（2026-11-06 去占位：只列真实图——生物=模型立绘，法术/结界=Title）
         private UInputField _artSearchField; // v2：左栏图库搜索（按立绘名子串过滤）
         private TMP_Text _galleryCount;      // v2：图库表头计数
         private string _galleryQuery = "";
@@ -178,6 +202,7 @@ namespace SynergyUI
             public Action ClickAction;
             public string Tag;             // v2：右侧类型标签（代价/主动/光环/自动/关键词…）
             public string Reason;          // P9 隐藏明细行：宿主不匹配原因（EffectEligibility.RejectReason）
+            public bool Preset;            // 2026-11-06 预设段：预组卡组引用的组合效果（可引用·编辑走另存新效果）
             public float H;
         }
 
@@ -205,9 +230,10 @@ namespace SynergyUI
         private readonly Dictionary<ZoneId, UnityEngine.UI.Button> _addButtons = new Dictionary<ZoneId, UnityEngine.UI.Button>(); // add-slot 四钮
         private int? _costParamValue; // 代价槽 generate 参数（2026-10-21 单参数定案）：随键记录，换选原子时沿用；载入/新建/删除代价时清
 
-        // ---- basicability 区（prefab 手加 ac/dc 两 Toggle「具备攻击/具备守卫」→ NoAttack/NoGuard 反相） ----
+        // ---- basicability 区（2026-11-06 opt-in 改版：prefab ac/dc/rc 三 Toggle「具备攻击/具备守卫/具备充能」
+        //      → AttackAbility/GuardAbility/ChargeAbility 正向绑定，默认关=不带；ac/dc 生物专属、rc 全卡型） ----
         private RectTransform _basicAbilityZone;
-        private Toggle _attackToggle, _guardToggle;
+        private Toggle _attackToggle, _guardToggle, _chargeToggle;
 
         // ======================================== 装配 ========================================
 
@@ -253,7 +279,7 @@ namespace SynergyUI
             _artSearchField = FindInput("field-art-search");
             if (_artSearchField != null)
             {
-                Describe(_artSearchField, "图库搜索：按立绘名子串过滤（仅生物画廊有图；空=全量含占位项）");
+                Describe(_artSearchField, "图库搜索：按立绘名子串过滤（空=全量；生物=模型立绘，法术/结界=Title 默认图）");
                 _artSearchField.onValueChanged.RemoveAllListeners();
                 _artSearchField.onValueChanged.AddListener(q => { _galleryQuery = q ?? ""; BuildArtGallery(true); });
             }
@@ -300,7 +326,7 @@ namespace SynergyUI
             UiKit.DescRequested -= OnDescRequested;
             Tips.Close(); // 在途提示弹窗清理
             if (_deriveModal != null) { _deriveModal.Close(); _deriveModal = null; } // 在途选卡弹层
-            CloseDeriveZoom(); // 放大预览遮罩+池化卡回收
+            CloseZoom(); // 在途放大态（UGUI 卡面层回收——CardOverlayController 全局池）
         }
 
         private void OnEnterInternal()
@@ -323,7 +349,7 @@ namespace SynergyUI
             SyncBasicAbility();
             SyncAttributeInputs();
             _card.AggregateEffectAuras(true);
-            RefreshSlots(); // 内含 SyncDeriveZone——衍生物槽行随进屏对账
+            RefreshSlots(); // 槽行随进屏对账（含 setderivant 显隐/标签）
             Recalculate();
             RefreshLibrary();
             RefreshPool();
@@ -382,7 +408,7 @@ namespace SynergyUI
                 {
                 CardKind.Creature => "生物：有攻击/生命可参战，可挂自动效果（禁连接光环）",
                 CardKind.Spell => "法术：挂 1~3 个主动效果（施放时择一发动），速度=3−槽数动态算",
-                _ => "结界：耐久体，只挂自动效果与连接光环（禁主动——充能已是系统动作，任意手牌卡可宣）",
+                _ => "结界：耐久体，只挂自动效果与连接光环（禁主动——充能=资格位，任意卡型在基础能力区勾选「具备充能」）",
                 });
                 _kindButtons[captured] = btn;
             }
@@ -446,29 +472,43 @@ namespace SynergyUI
 
         private void BindMiddleCard()
         {
+            // 卡面=只读实时预览（2026-11-06 布局改版）：ACardView 按卡型点亮类型块/立绘/徽章/效果行，
+            // 与手牌/战场渲染同源（FromCardDataFull 静态快照，无运行态订阅）
             _cardFace = Find("ACard");
-            if (_cardFace == null) return; // Find 已 LogError；各引用保持 null 空转不炸
-
-            _typeZone = UiKit.FindDeep(_cardFace, "type");
-            _typeBg = FindImageUnder(_typeZone, "bg");
-            _maskImg = FindImageUnder(_typeZone, "mask");
-            _artImg = FindImageUnder(_typeZone, "art");
-            _artHint = UiKit.FindDeep(_typeZone, "art-hint")?.GetComponent<TMP_Text>(); // v3：空位提示（prefab 烤入）
-            // 费用公式文本节点（v2：随表单网格「费用」行移出 type 区；节点名带尾空格 "CostSquares "）——
-            // 按名前缀深扫防尾空格丢失；开启自动换行（公式长于行宽）
-            _typeCostText = FindCostFormulaText(_cardFace);
-            if (_typeCostText != null) _typeCostText.enableWordWrapping = true;
-            BindDeriveZone();
-
-            _nameInput = FindInputUnder(_cardFace, "name");
-            if (_nameInput != null)
-                _nameInput.onValueChanged.AddListener(v =>
+            if (_cardFace != null)
+            {
+                _previewView = _cardFace.GetComponent<ACardView>() ?? _cardFace.gameObject.AddComponent<ACardView>();
+                _previewView.Bind();
+                // 单击卡面=放大展示（2026-11-06：DeckBuilder 预览同款——运行时补 Button，
+                // 编辑走下方表单/槽行，卡面本体只读+可放大）
+                var faceBtn = _cardFace.GetComponent<UnityEngine.UI.Button>();
+                if (faceBtn == null)
                 {
-                    _card.CardName = v;
-                    if (_nameView != null) _nameView.text = string.IsNullOrEmpty(v) ? "（未命名）" : v;
-                });
+                    faceBtn = _cardFace.gameObject.AddComponent<UnityEngine.UI.Button>();
+                    faceBtn.transition = UnityEngine.UI.Button.Transition.None;
+                }
+                faceBtn.onClick.RemoveAllListeners();
+                faceBtn.onClick.AddListener(() => OpenZoom(_card));
+                Describe(faceBtn, "单击放大查看全卡（点空白遮罩还原）——卡面为实时预览，编辑请用右侧表单与效果槽行");
+            }
 
-            _attributeZone = UiKit.FindDeep(_cardFace, "attribute");
+            // 编辑区锚点：CardPreView 直属子树（fields/add-slot/form-scroll 与 ACard 实例平级）——
+            // 直查路径绑定，防深扫与卡面内部同名节点（name/effect/passives/keys）串线
+            _editorRoot = Find("CardPreView");
+            _fields = _editorRoot != null ? _editorRoot.Find("fields") as RectTransform : null;
+            if (_fields == null)
+                Debug.LogError("[CardComposer] 屏内缺 CardPreView/fields（CardUI.prefab）——表单输入区不可用");
+
+            // 费用公式文本节点（fields/cost-row 下；节点名带尾空格 "CostSquares "）——
+            // 按名前缀深扫防尾空格丢失；开启自动换行（公式长于行宽）
+            _typeCostText = FindCostFormulaText(_fields);
+            if (_typeCostText != null) _typeCostText.enableWordWrapping = true;
+
+            _nameInput = FindInputUnder(_fields, "name");
+            if (_nameInput != null)
+                _nameInput.onValueChanged.AddListener(v => { _card.CardName = v; RefreshPreview(); });
+
+            _attributeZone = UiKit.FindDeep(_fields, "attribute");
             _attackInput = BindIntInput(_attributeZone, "attack",
                 v => { _card.Power = ClampStat(v, _attackInput); Recalculate(); },
                 $"生物攻击力——计入自动算费（区间 [免费属性底, {MaxCreatureStat}]；底=3−攻守−首槽，动态）", MaxCreatureStat);
@@ -489,19 +529,15 @@ namespace SynergyUI
                     + "再打场地=顶替（旧场地入墓）。改标记=换卡 ID（内容哈希）");
             }
 
-            // v2 卡面只读预览层（卡名回显由上方输入监听直写；类别/构成摘要随 Recalculate/RefreshSlots 同拍）
-            _nameView = FindTmpUnder(_cardFace, "name-view");
-            _kindView = FindTmpUnder(_cardFace, "kind-view");
-            _faceNote = FindTmpUnder(_cardFace, "face-note");
+            // v2 只读预览层（name-view/kind-view/face-note）已随 ACardView 实时渲染退役（prefab 节点同批删除）
 
-            _costZone = UiKit.FindDeep(_cardFace, "cost");
-            _effectZone = UiKit.FindDeep(_cardFace, "effect");
-            _passivesZone = UiKit.FindDeep(_cardFace, "passives");
-            _keysZone = UiKit.FindDeep(_cardFace, "keys");
+            var formCt = FormContent();
+            _effectZone = formCt != null ? formCt.Find("effect") as RectTransform : null;
+            _passivesZone = formCt != null ? formCt.Find("passives") as RectTransform : null;
+            _keysZone = formCt != null ? formCt.Find("keys") as RectTransform : null;
 
-            // 四区节点=单槽模板（2026-10-16 二次改版）：prefab 恒 inactive，槽行=运行时克隆；
-            // 捕获主 Outline 原色（选中行变白/取消还原），登记模板供克隆
-            RegisterSlotTemplate(ZoneId.Cost, _costZone);
+            // 三区节点=单槽模板（cost 模板已随 2026-11-06 代价挪构筑期退役）：prefab 恒 inactive，
+            // 槽行=运行时克隆；捕获主 Outline 原色（选中行变白/取消还原），登记模板供克隆
             RegisterSlotTemplate(ZoneId.Effect, _effectZone);
             RegisterSlotTemplate(ZoneId.Passives, _passivesZone);
             RegisterSlotTemplate(ZoneId.Keys, _keysZone);
@@ -509,113 +545,52 @@ namespace SynergyUI
             BindAddSlotButtons();
         }
 
-        /// <summary>登记槽模板并捕获主 Outline 原色（缺节点 LogError 空转不炸）。</summary>
+        /// <summary>登记槽模板并捕获主 Outline 原色（缺节点 LogError 空转不炸）。
+        /// 模板登记即压回 inactive（2026-11-06 prefab 改版后模板可能烘成激活态——CloneTemplateFrom
+        /// 只收 inactive 模板：激活态会静默不克隆，且模板自身常驻显示成三条空行）。</summary>
         private void RegisterSlotTemplate(ZoneId id, RectTransform zone)
         {
             if (zone == null) return;
+            zone.gameObject.SetActive(false);
             _slotTemplates[id] = zone;
             var ol = zone.GetComponent<Outline>();
             if (ol != null) _slotOutlineBase[id] = (ol.effectColor, ol.enabled);
         }
 
-        // ---- 衍生物槽（2026-10-31 ID 复制钮退役改版）：效果含召唤衍生物/变形原子时卡面直选模板卡
-        //（引用不再经「复制 ID→粘贴」流转：槽行直开选卡器写原子 str=定义期直绑） ----
+        // ---- setderivant（2026-11-06 改版）：主动/自动槽行内「设置衍生物」钮——效果含召唤衍生物/
+        // 变形原子才显形（用户定案）；点击开选卡器（候选过滤单源 TokenTemplateCandidateOk），选中写
+        // 原子 str=定义期直绑（保存闸对未绑 CardRef 原子照拦）。旧 derive 行模板/addderive 钮已随
+        // prefab 布局改版退役 ----
 
-        /// <summary>衍生物槽一次接线：derive 行模板登记（内联表单树 content 下恒 inactive，运行时克隆）+
-        /// addderive 钮（点击=给第一个未绑定槽开选卡器）。模板按屏根深扫——derive 在 CardPreView
-        /// 内联 form-scroll（与 ACard 实例内四区表单是两棵树），FormContent() 只覆盖 ACard 子树扫不到。
-        /// prefab 缺件降级空转不炸。</summary>
-        private void BindDeriveZone()
+        /// <summary>槽行 setderivant 钮接线（MakeSlotRow 逐行调用）：显隐=该效果是否含
+        /// SummonToken/GrantMorph 槽（空槽/关键词行/无槽效果恒隐）；目标=该效果第一个未绑槽
+        /// （全绑=首个槽，重选）；标签随绑定对账（已绑显卡名）。</summary>
+        private void BindSetDerivant(RectTransform row, int dataIndex)
         {
-            _deriveTemplate = UiKit.FindDeep(Root, "derive");
-            if (_deriveTemplate == null)
-                Debug.LogError("[CardComposer] 屏内缺 derive 行模板（CardUI.prefab）——衍生物槽不可用");
-            _addDeriveBtn = BindButton("addderive", OnAddDeriveClicked);
-            if (_addDeriveBtn != null)
-                Describe(_addDeriveBtn, "为效果里的召唤衍生物/变形槽选模板卡（＋衍生物）：点按开卡表选卡器——"
-                    + "候选须费≥1、不带代价、自身不含衍生物/变形（不可嵌套）；召唤仅生物，变形可生物/结界");
-        }
-
-        private void OnAddDeriveClicked()
-        {
-            var unbound = DeckTokenSupport.EnumerateSlots(_card).FirstOrDefault(s => s.NeedsBinding);
-            if (unbound == null)
+            var btnRt = UiKit.FindDeep(row, "setderivant");
+            if (btnRt == null) return; // keys 模板/旧 prefab 兼容——无钮空转
+            var mine = DeckTokenSupport.EnumerateSlots(_card)
+                .Where(s => s.EffectIndex == dataIndex).ToList();
+            btnRt.gameObject.SetActive(mine.Count > 0);
+            if (mine.Count == 0) return;
+            var btn = btnRt.GetComponent<UnityEngine.UI.Button>();
+            if (btn == null) return;
+            var target = mine.FirstOrDefault(s => s.NeedsBinding) ?? mine[0];
+            var label = UiKit.FindDeep(btnRt, "label")?.GetComponent<TMP_Text>();
+            var tpl = string.IsNullOrEmpty(target.FixedTemplateId)
+                ? null : CardCatalog.GetById(target.FixedTemplateId);
+            if (label != null)
+                label.text = tpl != null
+                    ? (target.IsMorph ? "变形:" : "衍生物:") + (string.IsNullOrEmpty(tpl.CardName) ? tpl.ID : tpl.CardName)
+                    : "设置衍生物";
+            btn.onClick.RemoveAllListeners();
+            btn.onClick.AddListener(() =>
             {
-                ShowToast("衍生物槽已全部绑定——点行内卡名可放大预览，delete 钮清除后重选");
-                return;
-            }
-            OpenDerivePicker(unbound);
-        }
-
-        /// <summary>衍生物槽行重建（RefreshSlots 尾部随四区同拍）：每引用卡槽克隆一行——
-        /// text=槽类型（变形/衍生物·效果名）、des=已选卡名或未选占位、des/行点击=已选放大预览·
-        /// 未选开选卡器、delete=清绑定。addderive 与行区显隐=卡含引用卡原子才开
-        ///（用户定案「效果包含衍生物时打开」；绑定值=原子 str，卡组期校验对已绑槽免绑定）。</summary>
-        private void SyncDeriveZone()
-        {
-            for (int i = _deriveRows.Count - 1; i >= 0; i--)
-                if (_deriveRows[i] != null) UnityEngine.Object.Destroy(_deriveRows[i].gameObject);
-            _deriveRows.Clear();
-            if (_deriveTemplate == null) return;
-            var slots = DeckTokenSupport.EnumerateSlots(_card);
-            bool hasSlots = slots.Count > 0;
-            if (_addDeriveBtn != null) _addDeriveBtn.gameObject.SetActive(hasSlots);
-            if (!hasSlots) return;
-            var host = _deriveTemplate.parent as RectTransform; // 克隆行挂模板同容器（内联表单树 content）
-            int ordinal = 0;
-            foreach (var slot in slots)
-            {
-                var row = UiKit.CloneTemplateFrom(host, _deriveTemplate.name, host);
-                if (row == null) return;
-                row.name = "rt-derive";
-                row.SetSiblingIndex(_deriveTemplate.GetSiblingIndex() + 1 + ordinal++);
-                _deriveRows.Add(row);
-
-                var title = UiKit.FindDeep(row, "text")?.GetComponent<TMP_Text>();
-                if (title != null)
-                    title.text = (slot.IsMorph ? "变形·" : "衍生物·") + (slot.EffectDisplayName ?? "?") + "：";
-
-                var tpl = string.IsNullOrEmpty(slot.FixedTemplateId)
-                    ? null : CardCatalog.GetById(slot.FixedTemplateId);
-                var des = UiKit.FindDeep(row, "des")?.GetComponent<TMP_Text>();
-                if (des != null)
-                {
-                    des.text = tpl != null
-                        ? (string.IsNullOrEmpty(tpl.CardName) ? tpl.ID : tpl.CardName)
-                        : (string.IsNullOrEmpty(slot.FixedTemplateId)
-                            ? "（未选择——点击选择模板卡）" : "[断链] " + slot.FixedTemplateId);
-                    des.color = tpl == null ? UiStyle.TextHint : UiStyle.TextBody;
-                }
-
-                var del = UiKit.FindDeep(row, "delete")?.GetComponent<UnityEngine.UI.Button>();
-                if (del != null)
-                {
-                    del.onClick.RemoveAllListeners();
-                    del.onClick.AddListener(() =>
-                    {
-                        Debug.Log("[UI点击] 衍生物槽delete " + slot.EffectDisplayName);
-                        slot.Atom.str = null; // 清定义期绑定（保存闸拦未选——重选后才能存）
-                        Recalculate();
-                        SyncDeriveZone();
-                    });
-                    Describe(del, "清除该衍生物槽的模板绑定（效果与空槽保留——点行内卡名位或＋衍生物重选）");
-                }
-
-                var click = UiKit.FindDeep(row, "des")?.GetComponent<UnityEngine.UI.Button>()
-                            ?? row.GetComponent<UnityEngine.UI.Button>();
-                if (click != null)
-                {
-                    click.onClick.RemoveAllListeners();
-                    click.onClick.AddListener(() =>
-                    {
-                        if (tpl != null) OpenDeriveZoom(tpl);   // 已选=放大预览（用户定案）
-                        else OpenDerivePicker(slot);              // 未选=直接开选卡器
-                    });
-                    Describe(click, slot.IsMorph
-                        ? "变形槽：点卡名放大预览该模板卡；未选时点击=从卡表选择（生物/结界）"
-                        : "衍生物槽：点卡名放大预览该模板卡；未选时点击=从卡表选择（仅生物）");
-                }
-            }
+                Debug.Log("[UI点击] setderivant 效果#" + (dataIndex + 1));
+                OpenDerivePicker(target);
+            });
+            Describe(btn, (target.IsMorph ? "变形" : "召唤衍生物") + "槽：点按从卡表选模板卡——候选须"
+                + (target.IsMorph ? "生物/结界" : "生物") + "·费≥1·不带代价、自身不含衍生物/变形（不可嵌套）；选中即写进效果引用");
         }
 
         /// <summary>衍生物模板选卡器（卡表全量+三条过滤+搜索）：选中写原子 str=定义期直绑
@@ -669,7 +644,7 @@ namespace SynergyUI
                     {
                         slot.Atom.str = pick.ID; // 定义期直绑
                         Recalculate();           // 卡面效果文案 {引用卡}→卡名 同拍
-                        SyncDeriveZone();
+                        RefreshSlots();          // setderivant 标签随绑定对账
                         _deriveModal?.Close();
                         _deriveModal = null;
                     }, bg: current ? UiStyle.SelectedRowBg : null, height: 30f, fontSize: 13);
@@ -692,63 +667,11 @@ namespace SynergyUI
                 ? $"生物 {(card.Power.HasValue ? card.Power.Value.ToString() : "?")}/{(card.Life.HasValue ? card.Life.Value.ToString() : "?")}"
                 : card.Supertype == Cardtype.Enchantment ? "结界" : card.Supertype.ToString();
 
-        /// <summary>已选模板放大预览（des 点击）：懒建全屏遮罩+居中卡槽，渲染走 CardOverlayController
-        /// 池化 ACard（同 DeckBuilder 放大预览）；卡槽 localScale×5/3=600×1080（项目放大口径）。
-        /// 点遮罩关闭并回收卡实例。</summary>
-        private void OpenDeriveZoom(CardData tpl)
-        {
-            EnsureDeriveZoom();
-            if (_deriveZoomMask == null || _deriveZoomSlot == null) return;
-            CardOverlayController.Instance.Bind(new List<CardOverlayBinding>
-            {
-                new CardOverlayBinding
-                {
-                    Slot = _deriveZoomSlot,
-                    Item = CardOverlayItem.FromCardDataFull(tpl, "DeriveZoom"),
-                    Layout = CardOverlayLayout.Full,
-                },
-            });
-            _deriveZoomMask.gameObject.SetActive(true);
-            Debug.Log("[UI点击] 衍生物模板预览 " + (string.IsNullOrEmpty(tpl.CardName) ? tpl.ID : tpl.CardName));
-        }
-
-        private void EnsureDeriveZoom()
-        {
-            if (_deriveZoomMask != null || Root == null) return;
-            var maskGo = new GameObject("derive-zoom-mask", typeof(RectTransform));
-            _deriveZoomMask = (RectTransform)maskGo.transform;
-            _deriveZoomMask.SetParent(Root, false);
-            UiKit.Stretch(_deriveZoomMask);
-            var img = maskGo.AddComponent<UnityEngine.UI.Image>();
-            img.color = new Color(0f, 0f, 0f, 0.65f);
-            img.raycastTarget = true;
-            var maskBtn = maskGo.AddComponent<UnityEngine.UI.Button>();
-            maskBtn.transition = UnityEngine.UI.Selectable.Transition.None;
-            maskBtn.onClick.AddListener(CloseDeriveZoom);
-
-            var slotGo = new GameObject("derive-zoom-card", typeof(RectTransform));
-            _deriveZoomSlot = (RectTransform)slotGo.transform;
-            _deriveZoomSlot.SetParent(_deriveZoomMask, false);
-            _deriveZoomSlot.anchorMin = _deriveZoomSlot.anchorMax = new Vector2(0.5f, 0.5f);
-            _deriveZoomSlot.pivot = new Vector2(0.5f, 0.5f);
-            _deriveZoomSlot.sizeDelta = new Vector2(360f, 648f);
-            _deriveZoomSlot.localScale = Vector3.one * (5f / 3f);
-            _deriveZoomMask.gameObject.SetActive(false); // 懒建即隐，预览时开
-        }
-
-        private void CloseDeriveZoom()
-        {
-            if (_deriveZoomMask != null) _deriveZoomMask.gameObject.SetActive(false);
-            CardOverlayController.Instance.Bind(new List<CardOverlayBinding>()); // 回收池内卡实例
-        }
-
-        // ---- add-slot 四钮：新建空槽（容量按型闸；新建即选中→右栏按槽类型过滤） ----
+        // ---- add-slot 三钮：新建空槽（容量按型闸；新建即选中→右栏按槽类型过滤） ----
 
         private void BindAddSlotButtons()
         {
-            BindAddSlot(ZoneId.Cost, "addcost", "添加代价",
-                "新建一个空代价槽（生物/法术通用·至多 1）：右栏直列原子表·一般效果行——单原子引用·抵扣只作用于该原子可产出色的卡费·至多将该色费用清零·发动需有等量同色地牌（红色代价3→需3红地，以此类推——不同类型代价按色加算）。"
-                + $"【2026-11-02 减费三选一】代价=并列槽位添加不占灰槽位费；同一效果只能三选一（有限分支/自由分支/代价）——效果含分支/并列两效果/光环（结界必有光环）时禁挂；每条代价减费 ≤{EffectComposerScreen.CostDiscountCap} 点");
+            // addcost 已随 2026-11-06 代价挪构筑期退役（prefab 同批删除；既有代价行编辑口=效果合成器）
             BindAddSlot(ZoneId.Effect, "addeffect", "添加主动效果",
                 "新建空主动槽（生物×1 / 法术×1~3·施放时择一发动；结界禁主动）");
             BindAddSlot(ZoneId.Passives, "addpassives", "添加自动效果",
@@ -766,7 +689,8 @@ namespace SynergyUI
         }
 
         /// <summary>新建空槽：容量闸（已用=已填+空槽）；新建即选中（右栏自动过滤到该类型）。
-        /// 减费三选一（2026-11-02）：代价槽另受互斥闸（结界必有光环/效果含分支/并列两效果/光环）。</summary>
+        /// 2026-11-06 代价挪入有限分支：代价槽不再新建（编辑口=效果合成器「支付代价」门；
+        /// 已填代价行保留展示/删除）。</summary>
         private void AddEmptySlot(ZoneId id)
         {
             int cap = SlotCapacity(id);
@@ -775,10 +699,9 @@ namespace SynergyUI
                 ShowToast(TypeZh(id) + "槽与本卡类型不匹配——不可添加");
                 return;
             }
-            if (id == ZoneId.Cost && (_kind == CardKind.Enchantment || EffectShapeBlocksCost()))
+            if (id == ZoneId.Cost)
             {
-                ShowToast("不可添加代价——减费三选一互斥：结界必有光环（光环类禁代价），"
-                          + "或效果已含分支/并列两效果（同一效果只能三选一）");
+                ShowToast("代价编辑已挪至效果合成器——在效果的有限分支里选「支付代价」门（本槽仍可查看/删除既有代价）");
                 return;
             }
             if (FilledSlotCount(id) + EmptySlotCount(id) >= cap)
@@ -791,18 +714,14 @@ namespace SynergyUI
             SelectSlot(id, -1);
         }
 
-        /// <summary>add 四钮显隐/可用随卡型与容量（容量 0 整钮隐藏；满槽禁用）。
-        /// 减费三选一（2026-11-02）：代价钮另受互斥闸——结界（必有光环）或效果含分支/并列两效果/光环时禁点。</summary>
+        /// <summary>add 三钮显隐/可用随卡型与容量（容量 0 整钮隐藏；满槽禁用）。</summary>
         private void SyncAddSlotButtons()
         {
-            bool costBlocked = _kind == CardKind.Enchantment || EffectShapeBlocksCost();
             foreach (var kv in _addButtons)
             {
                 int cap = SlotCapacity(kv.Key);
                 kv.Value.gameObject.SetActive(cap > 0);
-                bool usable = FilledSlotCount(kv.Key) + EmptySlotCount(kv.Key) < cap;
-                if (kv.Key == ZoneId.Cost && costBlocked) usable = false; // 减费三选一互斥
-                kv.Value.interactable = usable;
+                kv.Value.interactable = FilledSlotCount(kv.Key) + EmptySlotCount(kv.Key) < cap;
             }
         }
 
@@ -820,14 +739,8 @@ namespace SynergyUI
             return false;
         }
 
-        private static Image FindImageUnder(RectTransform scope, string name) =>
-            scope != null ? UiKit.FindDeep(scope, name)?.GetComponent<Image>() : null;
-
         private static UInputField FindInputUnder(RectTransform scope, string name) =>
             scope != null ? UiKit.FindDeep(scope, name)?.GetComponentInChildren<UInputField>(true) : null;
-
-        private static TMP_Text FindTmpUnder(RectTransform scope, string name) =>
-            scope != null ? UiKit.FindDeep(scope, name)?.GetComponent<TMP_Text>() : null;
 
         /// <summary>费用公式节点深扫（v2：节点在表单网格 cost-row 下；名带尾空格按前缀匹配）。</summary>
         private static TMP_Text FindCostFormulaText(RectTransform scope)
@@ -1004,29 +917,37 @@ namespace SynergyUI
             RefreshLibrary();
         }
 
-        /// <summary>卡型可见性（2026-10-16 二次改版）：四区模板恒 inactive（槽行运行时克隆）；
-        /// 此处只管 add 四钮（容量 0 隐藏）与 basicability（生物专属）；选中槽失效→取消。</summary>
+        /// <summary>卡型可见性（2026-10-16 二次改版；2026-11-06 opt-in 修订）：四区模板恒 inactive（槽行运行时克隆）；
+        /// 此处只管 add 四钮（容量 0 隐藏）——basicability 恒显（充能资格全卡型，行可见性归 SyncBasicAbility）。</summary>
         private void SyncZoneVisibility()
         {
-            if (_basicAbilityZone != null)
-                _basicAbilityZone.gameObject.SetActive(_kind == CardKind.Creature);
+            SyncBasicAbility();
             SyncAddSlotButtons();
             if (_selType != null && SlotCapacity(_selType.Value) == 0) DeselectSlot();
         }
 
-        // ---- basicability（具备攻击/具备守卫 → NoAttack/NoGuard 反相；关一个腾 1 个关键词槽） ----
+        // ---- basicability（2026-11-06 opt-in 改版：ac/dc/rc 三开关正向绑 AttackAbility/GuardAbility/
+        //      ChargeAbility，默认关=不带——「添加了才有」；ac/dc 生物专属、rc 全卡型） ----
 
         private void BindBasicAbility()
         {
-            _basicAbilityZone = UiKit.FindDeep(_cardFace, "basicability");
+            _basicAbilityZone = UiKit.FindDeep(_fields, "basicability");
             _attackToggle = BindAbilityToggle("ac", "具备攻击",
-                on => _card.NoAttack = !on, "具备攻击能力（basicability）：关掉可腾出 1 个关键词槽；释放的预算点进免费属性底（底 n/n 抬升，2026-11-03 底盘改版）");
+                on => _card.AttackAbility = on,
+                "具备攻击能力（basicability，2026-11-06 opt-in）：默认不带；开启占 1 点底盘预算，关闭释放（关键词槽 +1、免费属性底抬升）",
+                affectsKeywordSlots: true);
             _guardToggle = BindAbilityToggle("dc", "具备守卫",
-                on => _card.NoGuard = !on, "具备守卫能力（basicability）：关掉可腾出 1 个关键词槽；释放的预算点进免费属性底（底 n/n 抬升，2026-11-03 底盘改版）");
+                on => _card.GuardAbility = on,
+                "具备守卫能力（basicability，2026-11-06 opt-in）：默认不带；开启占 1 点底盘预算，关闭释放（关键词槽 +1、免费属性底抬升）",
+                affectsKeywordSlots: true);
+            _chargeToggle = BindAbilityToggle("rc", "具备充能",
+                on => _card.ChargeAbility = on,
+                "具备充能能力（basicability，2026-11-06 opt-in）：默认不带；开启=该卡可宣充能（己方主阶段空栈、一回合一次、结算期选色免费落层），卡费固定 +1 灰",
+                affectsKeywordSlots: false);
             SyncBasicAbility();
         }
 
-        private Toggle BindAbilityToggle(string node, string label, Action<bool> apply, string desc)
+        private Toggle BindAbilityToggle(string node, string label, Action<bool> apply, string desc, bool affectsKeywordSlots)
         {
             var rt = _basicAbilityZone != null ? UiKit.FindDeep(_basicAbilityZone, node) : null;
             var toggle = rt != null ? rt.GetComponent<Toggle>() : null;
@@ -1037,9 +958,11 @@ namespace SynergyUI
             {
                 apply(on);
                 _card.ResetCache();
-                RefreshSlots(); // 关键词槽容量随攻/守开关变化（add 按钮态同步）
+                if (affectsKeywordSlots) RefreshSlots(); // 关键词槽容量随攻/守开关变化（add 按钮态同步；充能不影响）
                 Recalculate();
-                ShowToast(on ? $"已具备：{label}" : $"已关闭：{label}——关键词槽 +1（现上限 {KeywordCapacity}）");
+                ShowToast(on ? $"已具备：{label}" : affectsKeywordSlots
+                    ? $"已关闭：{label}——关键词槽 +1（现上限 {KeywordCapacity}）"
+                    : $"已关闭：{label}——该卡不再可宣充能");
             });
             Describe(toggle, desc);
             return toggle;
@@ -1062,12 +985,23 @@ namespace SynergyUI
             rt.anchoredPosition = anchors.Item5;
         }
 
+        /// <summary>三开关回显与行可见性（2026-11-06 opt-in）：区恒显（充能资格全卡型）；
+        /// 攻/守行仅生物可见（资格清空归 ApplyKindToCard 切型口，与关键词「切型即清」同口径）。</summary>
         private void SyncBasicAbility()
         {
             if (_basicAbilityZone != null)
-                _basicAbilityZone.gameObject.SetActive(_kind == CardKind.Creature);
-            if (_attackToggle != null) _attackToggle.SetIsOnWithoutNotify(!_card.NoAttack);
-            if (_guardToggle != null) _guardToggle.SetIsOnWithoutNotify(!_card.NoGuard);
+                _basicAbilityZone.gameObject.SetActive(true);
+            if (_attackToggle != null)
+            {
+                _attackToggle.SetIsOnWithoutNotify(_card.AttackAbility);
+                _attackToggle.gameObject.SetActive(_kind == CardKind.Creature);
+            }
+            if (_guardToggle != null)
+            {
+                _guardToggle.SetIsOnWithoutNotify(_card.GuardAbility);
+                _guardToggle.gameObject.SetActive(_kind == CardKind.Creature);
+            }
+            if (_chargeToggle != null) _chargeToggle.SetIsOnWithoutNotify(_card.ChargeAbility);
         }
 
         // ---- 场地开关（2026-10-29 P8）：结界专属 isField 标记 ----
@@ -1097,9 +1031,10 @@ namespace SynergyUI
         private int AutoSlotCapacity => _kind == CardKind.Enchantment ? 2 : (_kind == CardKind.Creature ? 1 : 0);
         private int AuraSlotCapacity => _kind == CardKind.Enchantment ? 1 : 0;
 
-        /// <summary>关键词上限（生物专属）：3 + 每关一个攻/守 +1（最高 5）。</summary>
+        /// <summary>关键词上限（生物专属，2026-11-06 opt-in 口径）：3 + 攻/守资格缺位各 +1（最高 5；
+        /// 充能资格不占底盘——不影响关键词槽）。</summary>
         private int KeywordCapacity => _kind == CardKind.Creature
-            ? 3 + (_card.NoAttack ? 1 : 0) + (_card.NoGuard ? 1 : 0)
+            ? 3 + (_card.AttackAbility ? 0 : 1) + (_card.GuardAbility ? 0 : 1)
             : 0;
 
         /// <summary>光环形态判据（与效果合成器 InferMode 同源）：连接/规则光环都走光环形态效果图（IsAuraMode）。</summary>
@@ -1194,129 +1129,91 @@ namespace SynergyUI
             }
         }
 
-        // ---- type 区视觉（ACardView.TypeAssets 同源：生物=方/法术=三角/结界=圆） ----
-
-        private static readonly Dictionary<Cardtype, (string bg, string mask)> TypeAssets = new()
-        {
-            { Cardtype.Creature, ("biology", "mask_square") },
-            { Cardtype.Spell, ("spell", "mask_triangle") },
-            { Cardtype.Enchantment, ("barrier", "mask_circle") },
-        };
-        private static readonly Dictionary<string, Sprite> SpriteCache = new();
-        private static string SpritePath(string name) => $"Assets/Art/Icons/{name}.png";
-
-        private void SetTypeVisuals(Cardtype type)
-        {
-            if (!TypeAssets.TryGetValue(type, out var assets))
-                assets = ("biology", "mask_square");
-            var bg = LoadSprite(assets.bg);
-            if (_typeBg != null && bg != null) _typeBg.sprite = bg;
-            var mask = LoadSprite(assets.mask);
-            if (_maskImg != null && mask != null) _maskImg.sprite = mask;
-        }
-
-        private static Sprite LoadSprite(string name)
-        {
-            if (string.IsNullOrEmpty(name)) return null;
-            if (SpriteCache.TryGetValue(name, out var s)) return s;
-            s = Tide.HotUpdate.HotUpdateAssets.Load<Sprite>(name, SpritePath(name));
-            SpriteCache[name] = s; // 加载失败也缓存 null，避免逐次重试
-            return s;
-        }
-
         // ---- 卡面刷新（Recalculate 统一收口） ----
+
+        /// <summary>卡面实时预览（2026-11-06 布局改版）：ACardView 静态快照——类型块/立绘/徽章/
+        /// 效果行全量重绘（与手牌/战场渲染同源；FromCardDataFull 无运行态订阅，幂等）。</summary>
+        private void RefreshPreview()
+        {
+            if (_previewView != null)
+                _previewView.Apply(CardOverlayItem.FromCardDataFull(_card, "ComposerPreview"), CardOverlayLayout.Full);
+        }
 
         private void RefreshCardFace(CardCostCalculator.Result result)
         {
-            SetTypeVisuals(_card.Supertype);
+            RefreshPreview();
 
-            // 立绘：生物=画廊选中（两级找图同 ACardView）；法术/结界缺省空白（清 sprite 防卡实例串位）
-            if (_artImg != null)
-            {
-                if (_kind == CardKind.Creature && !string.IsNullOrEmpty(_card.Illustration))
-                {
-                    var sp = CardArtLibrary.Load(_card.Illustration);
-                    if (sp != null) _artImg.sprite = sp;
-                }
-                else if (_artImg.sprite != null) _artImg.sprite = null;
-            }
-
-            // v3：立绘空位提示——无图=深色占位上显指引，选了立绘即隐
-            if (_artHint != null)
-                _artHint.gameObject.SetActive(_artImg == null || _artImg.sprite == null);
-
-            // type 区 "CostSquares " 文本节点=卡费文字公式（2026-10-16 二次改版：方格退役，
+            // fields/cost-row "CostSquares " 文本节点=卡费文字公式（2026-10-16 二次改版：方格退役，
             // 口式参考效果组合界面费用公式——逐项「标签＝值」＋折扣＋合计/分布）
             if (_typeCostText != null)
                 _typeCostText.text = CardCostFormulaText(result);
 
-            // 悬浮费用构成（完整逐行明细；文本公式是它的紧凑投影）
-            if (_typeZone != null && result != null)
+            // 悬浮费用构成（完整逐行明细；文本公式是它的紧凑投影）——挂费用公式节点
+            if (_typeCostText != null && result != null)
             {
                 var lines = new List<string>();
                 foreach (var l in result.Breakdown) lines.Add($"{l.Label} {l.Value:0.0}");
                 if (result.Grants.Count > 0)
                     lines.Add("获得 " + string.Join(" ", result.Grants.Select(kv => $"{(ManaType)kv.Key} {(int)kv.Value}")));
                 lines.Add($"总档位 D={result.Total:0}");
-                Describe(_typeZone, "卡牌费用（自动算费，手动声明已退役）——构成：\n" + string.Join("\n", lines));
+                Describe(_typeCostText, "卡牌费用（自动算费，手动声明已退役）——构成：\n" + string.Join("\n", lines));
             }
-            SyncCardPreview();
         }
 
-        /// <summary>卡面只读预览层（v2）：名称/类别/构成摘要（身材·耐久·关键词·各效果一行）——
-        /// 与算费同拍（Recalculate）+ 槽行重建（RefreshSlots）后刷新；卡名另有输入监听直写。</summary>
-        private void SyncCardPreview()
+        // ---- 卡面放大（2026-11-06）：全屏遮罩 + 放大卡居中（DeckBuilder OpenZoom 同款） ----
+
+        /// <summary>放大当前组合卡：遮罩点亮、卡面层池化挂入放大槽（点卡面不关闭——控制器给卡实例
+        /// 挂的空 OnClick 吞点击；点遮罩/空白还原）。</summary>
+        private void OpenZoom(CardData card)
         {
-            if (_nameView != null)
-                _nameView.text = string.IsNullOrEmpty(_card.CardName) ? "（未命名）" : _card.CardName;
-            if (_kindView != null)
-                _kindView.text = _kind switch
-                {
-                    CardKind.Spell => "法术",
-                    CardKind.Enchantment => "结界",
-                    _ => "生物",
-                };
-            if (_faceNote != null)
+            if (card == null) return;
+            EnsureZoomOverlay();
+            if (_zoomOverlay == null || _zoomSlot == null) return;
+            _zoomBindings.Clear();
+            _zoomBindings.Add(new CardOverlayBinding
             {
-                var lines = new List<string>();
-                if (_kind == CardKind.Creature) lines.Add($"攻 {_card.Power ?? 0} ／ 血 {_card.Life ?? 0}");
-                else if (_kind == CardKind.Enchantment)
-                    lines.Add((_card.IsField ? "场地·" : "") + $"耐久 {_card.Durability:0.#}"); // 场地标记（P8）前缀显形
-                foreach (var k in _card.Keywords ?? new List<string>())
-                {
-                    var zh = KeywordZh(k);
-                    if (!string.IsNullOrEmpty(zh)) lines.Add("◆ " + zh);
-                }
-                foreach (var fx in _card.Effects ?? new List<CardEffectData>())
-                {
-                    if (fx == null) continue;
-                    string tag = IsAuraEffect(fx) ? "光环" : (IsActiveEffect(fx) ? "主动" : "自动");
-                    // P5（2026-10-29）：主动效果带代价行 → 卡面预览内联净费公式（全文在槽行 des）
-                    var netFormula = ActiveEffectNetFeeFormula(fx);
-                    lines.Add(netFormula == null
-                        ? $"[{tag}] {fx.DisplayName ?? "效果"}"
-                        : $"[{tag}] {fx.DisplayName ?? "效果"}（{netFormula}）");
-                }
-                // P4 §2（2026-10-29）：卡牌编辑器无卡组上下文——衍生物槽只报状态不展开卡：
-                // 空槽=「衍生物槽 · 未绑定」（卡组编辑器选中该卡才按当前卡组绑定展开第二张卡）；
-                // 固定槽（原子 str 直书，旧数据/教程）报模板名。失效不静默：断链照实报。
-                foreach (var g in DeckTokenSupport.EnumerateSlots(_card)
-                             .GroupBy(s => s.EffectIndex).OrderBy(g => g.Key))
-                {
-                    var s0 = g.First();
-                    string kind = s0.IsMorph ? "变形" : "衍生物";
-                    if (s0.NeedsBinding)
-                        lines.Add($"○ {kind}槽 · 未绑定（卡组编辑器内绑定）");
-                    else
-                    {
-                        var tpl = CardCatalog.GetById(s0.FixedTemplateId);
-                        lines.Add(tpl != null
-                            ? $"○ {kind}槽 · {(string.IsNullOrEmpty(tpl.CardName) ? tpl.ID : tpl.CardName)}"
-                            : $"○ {kind}槽 · 固定模板 {s0.FixedTemplateId} 在卡表查不到");
-                    }
-                }
-                _faceNote.text = string.Join("\n", lines);
-            }
+                Slot = _zoomSlot,
+                Item = CardOverlayItem.FromCardDataFull(card, "ComposerZoom"),
+                Layout = CardOverlayLayout.Full,
+            });
+            CardOverlayController.Instance.Bind(_zoomBindings);
+            if (_zoomSlot.childCount > 0)
+                ((RectTransform)_zoomSlot.GetChild(0)).localScale = Vector2.one * ZoomCardScale;
+            _zoomOverlay.SetAsLastSibling(); // 置顶（表单/弹层之上）
+            _zoomOverlay.gameObject.SetActive(true);
+            Debug.Log("[UI点击] 卡面放大（组合预览）");
+        }
+
+        /// <summary>放大遮罩懒建：半透明全屏底（Button=点按还原）+ 居中 360×648 放大槽。</summary>
+        private void EnsureZoomOverlay()
+        {
+            if (_zoomOverlay != null) return;
+            var go = new GameObject("zoom-overlay", typeof(RectTransform));
+            _zoomOverlay = (RectTransform)go.transform;
+            _zoomOverlay.SetParent(Root, false);
+            UiKit.Stretch(_zoomOverlay);
+            var mask = go.AddComponent<Image>();
+            mask.color = new Color(0f, 0f, 0f, 0.6f);
+            mask.raycastTarget = true;
+            var maskBtn = go.AddComponent<UnityEngine.UI.Button>();
+            maskBtn.transition = UnityEngine.UI.Button.Transition.None;
+            maskBtn.onClick.AddListener(CloseZoom);
+            var slotGo = new GameObject("zoom-card", typeof(RectTransform));
+            _zoomSlot = (RectTransform)slotGo.transform;
+            _zoomSlot.SetParent(_zoomOverlay, false);
+            _zoomSlot.anchorMin = _zoomSlot.anchorMax = _zoomSlot.pivot = new Vector2(0.5f, 0.5f);
+            _zoomSlot.anchoredPosition = Vector2.zero;
+            _zoomSlot.sizeDelta = new Vector2(360f, 648f);
+            _zoomOverlay.gameObject.SetActive(false);
+        }
+
+        /// <summary>还原放大态：关遮罩+清绑定（UGUI 卡面层回收放大卡实例；未开过=空转）。</summary>
+        private void CloseZoom()
+        {
+            if (_zoomOverlay == null || !_zoomOverlay.gameObject.activeSelf) return;
+            _zoomBindings.Clear();
+            CardOverlayController.ClearActive();
+            _zoomOverlay.gameObject.SetActive(false);
         }
 
         // ======================================== 左栏：卡池筛选 ========================================
@@ -1620,6 +1517,13 @@ namespace SynergyUI
                     return $"生物 {(card.Power ?? 0)}/{(card.Life ?? 0)}";
                 case Cardtype.Enchantment:
                     return $"{(card.IsField ? "场地" : "")}结界 耐久{CardCompositionCost.TotalDurabilityOf(card)}"; // 2026-10-17：恒有耐久（派生单源）；场地标记（P8）前缀
+                case Cardtype.Spell:
+                {
+                    // 速度归卡类别（2026-11-06 定案·单源 EffectSpeedOf=与引擎 GetCardCastSpeed 同口）：
+                    // 法术 meta 补「速度X」对齐生物/结界的额外信息档；生物速度恒0、结界无速度概念不显
+                    var speed = CardOverlayItem.EffectSpeedOf(card);
+                    return "法术" + (speed.HasValue ? $" 速度{speed.Value}" : "");
+                }
                 default:
                     return CardSorter.TypeName(card);
             }
@@ -1772,8 +1676,10 @@ namespace SynergyUI
             _costParamValue = null; // 参数以载入卡自身原子 value 为准
             _card.ArrowDirections = src.ArrowDirections;
             _card.LinkAuras = src.LinkAuras != null ? new List<LinkAuraData>(src.LinkAuras) : null;
-            _card.NoAttack = src.NoAttack;
-            _card.NoGuard = src.NoGuard;
+            // 系统动作资格位（2026-11-06 opt-in）：攻/守仅生物带入（脏数据不带入——装载端同降级口径）
+            _card.AttackAbility = src.AttackAbility && src.Supertype == Cardtype.Creature;
+            _card.GuardAbility = src.GuardAbility && src.Supertype == Cardtype.Creature;
+            _card.ChargeAbility = src.ChargeAbility;
             _card.SpeedBonus = src.SpeedBonus;
             _card.ResetCache();
             _card.AggregateEffectAuras(true);
@@ -1818,7 +1724,7 @@ namespace SynergyUI
             _costParamValue = null;
             _card.ArrowDirections = default;
             _card.LinkAuras = null;
-            _card.NoAttack = _card.NoGuard = false;
+            _card.AttackAbility = _card.GuardAbility = _card.ChargeAbility = false; // 资格位复位（2026-11-06 opt-in：新建默认不带）
             _card.SpeedBonus = 0;
             _card.ResetCache();
             _editingOriginalId = null;
@@ -1927,6 +1833,7 @@ namespace SynergyUI
                     _card.Durability = 0; // 耐久是结界专属
                     _card.IsField = false; // 场地标记是结界专属（P8）
                     _card.SpeedBonus = 0; // 字段已退役（2026-10-15 改版：速度动态算不落字段）
+                    if (_card.Illustration == "Title") _card.Illustration = null; // Title=法术/结界默认图，生物清回占位
                     // 生物禁挂连接光环（2026-10-15 改版）：切类型即清光环与箭头（防旧数据残留）
                     _card.LinkAuras = new List<LinkAuraData>();
                     _card.ArrowDirections = HexDirection.None;
@@ -1937,7 +1844,9 @@ namespace SynergyUI
                     _card.Life = null;
                     _card.Durability = 0;
                     _card.IsField = false; // 场地标记是结界专属（P8）
+                    _card.AttackAbility = _card.GuardAbility = false; // 攻/守=生物专属（2026-11-06 opt-in，切型即清）
                     _card.SpeedBonus = 0;
+                    _card.Illustration = "Title"; // 2026-11-06 默认图定案：法术自动选 Title（占位项可清空）
                     _card.LinkAuras = new List<LinkAuraData>(); // 法术只挂主动效果
                     _card.ArrowDirections = HexDirection.None;
                     _card.Keywords = new List<string>(); // 关键词=生物专属（2026-10-16 槽位化）
@@ -1946,7 +1855,9 @@ namespace SynergyUI
                     _card.Supertype = Cardtype.Enchantment;
                     _card.Power = null;
                     _card.Life = null; // 结界=耐久体（2026-09-24 定案），不用攻/血
+                    _card.AttackAbility = _card.GuardAbility = false; // 攻/守=生物专属（2026-11-06 opt-in，切型即清）
                     _card.SpeedBonus = 0; // 速度通道退役（2026-10-15 改版：结界禁主动，免费点全投耐久）
+                    _card.Illustration = "Title"; // 2026-11-06 默认图定案：结界自动选 Title（占位项可清空）
                     _card.Keywords = new List<string>(); // 关键词=生物专属（2026-10-16 槽位化）
                     break;
             }
@@ -1965,28 +1876,32 @@ namespace SynergyUI
             return t == TriggerTiming.Activate_Active || t == TriggerTiming.Activate_Instant;
         }
 
-        /// <summary>P5 主动效果代价行·净费公式（2026-10-29）：主动效果带效果级代价才非空——
-        /// 「发动费 2灰 → 抵扣 2 → 净费 0」。与引擎发动闸同源（EffectActivationGate.NetBill 单源：
-        /// 先灰后最高费用色、逐色 ≥0）。internal（P4 2026-10-29）：ACard 卡面效果区内联同源复用
-        ///（CardOverlayItem.WithActiveNetFormula）。</summary>
-        internal static string ActiveEffectNetFeeFormula(CardEffectData fx)
+        /// <summary>效果级净费（2026-11-06 方格改版数据源）：带效果级代价的主动效果=发动费−抵扣
+        ///（EffectActivationGate.NetBill 单源：先灰后最高费用色、逐色 ≥0）；无代价行 null
+        ///（调用方回落锚价/模式费账单）。原「发动费→抵扣→净费」公式文本随本改版退役——
+        /// 信息由 CostSquares 双组承载（费用组=净费、代价组=EffectPayloadCostOf）。</summary>
+        internal static ElementCost ActiveEffectNetCost(CardEffectData fx)
         {
             var (fee, pts, net, atom) = ActiveEffectCostParts(fx);
-            return fee == null ? null : $"发动费 {CostZh(fee)} → 抵扣 {pts} → 净费 {CostZh(net)}";
+            return fee == null ? null : net;
         }
 
-        /// <summary>P5 代价行全文（槽行 des 用）：「代价（自伤）：弃牌 1（价2）｜发动费 … → 抵扣 … → 净费 …」。
-        /// 文案区分自伤（p&lt;0 锁己方）/ 资敌（p&gt;0 锁对方）；契约违约行被转换器剔除 → null（不显示）。</summary>
-        private static string ActiveEffectCostText(CardEffectData fx)
+        /// <summary>效果级代价分色面 → ElementCost（Cost2 代价组数据源，2026-11-06）：经 ConvertOne
+        /// 契约转换（违约行剔除同运行时）→ PayloadGrantByColor 按原子可产出色记账。
+        /// null=无效果级代价（调用方回落卡级施放代价 PayloadCost）。</summary>
+        internal static ElementCost EffectPayloadCostOf(CardEffectData fx)
         {
-            var (fee, pts, net, atom) = ActiveEffectCostParts(fx);
-            if (fee == null) return null;
-            string arm = atom != null && atom.Polarity < 0f ? "自伤" : "资敌";
-            string name = atom != null
-                ? (AtomicEffectTable.GetByType(atom.Type)?.DisplayName ?? atom.Type.ToString())
-                : "代价";
-            int val = atom != null ? Math.Max(1, atom.Value) : 1;
-            return $"代价（{arm}）：{name} {val}（价{pts}）｜发动费 {CostZh(fee)} → 抵扣 {pts} → 净费 {CostZh(net)}";
+            if (fx?.Costs == null) return null;
+            var def = CardEffectConverter.ConvertOne(fx, "COMPOSER_COST_PREVIEW");
+            var special = def?.Costs != null
+                ? def.Costs.Where(c => c != null && c.Type != CostType.ElementConsume).ToList()
+                : null;
+            if (special == null || special.Count == 0) return null;
+            var grant = CardCostService.PayloadGrantByColor(special);
+            if (grant == null || grant.Count == 0) return null;
+            var cost = new ElementCost();
+            foreach (var kv in grant) cost[kv.Key] = kv.Value;
+            return cost.IsZero ? null : cost;
         }
 
         /// <summary>P5 净费四段（发动费/抵扣点/净费/首个代价原子）：数据口=fx.Costs 首个 payload 条目，经
@@ -1995,9 +1910,17 @@ namespace SynergyUI
         internal static (ElementCost fee, int pts, ElementCost net, CardCore.AtomicEffectInstance atom) ActiveEffectCostParts(CardEffectData fx)
         {
             if (!IsActiveEffect(fx) || fx?.Costs == null) return (null, 0, null, null);
+            // payload/payloads 两形态同收（2026-11-06 修复：此前只认 legacy ce.payload——
+            // 新形态 payloads 的代价行文本有、净费公式/抵扣读数恒缺）
             bool hasPayload = false;
             foreach (var ce in fx.Costs)
-                if (ce?.payload != null && !string.IsNullOrEmpty(ce.payload.refId)) { hasPayload = true; break; }
+            {
+                var ps = ce?.AllPayloads();
+                if (ps == null) continue;
+                foreach (var p in ps)
+                    if (p != null && !string.IsNullOrEmpty(p.refId)) { hasPayload = true; break; }
+                if (hasPayload) break;
+            }
             if (!hasPayload) return (null, 0, null, null);
             var def = CardEffectConverter.ConvertOne(fx, "COMPOSER_NET_PREVIEW");
             var special = def?.Costs != null
@@ -2017,7 +1940,7 @@ namespace SynergyUI
         private void RefreshSlots()
         {
             EnsureCardLists();
-            if (_cardFace == null) return;
+            if (_editorRoot == null) return;
             // 删槽后选中下标越界回收（空槽 -1 不动）
             if (_selIndex >= 0)
             {
@@ -2031,13 +1954,11 @@ namespace SynergyUI
                 }
             }
             ClearRuntimeChildren(FormContent());
-            BuildSlots(ZoneId.Cost);
-            BuildSlots(ZoneId.Effect);
+            BuildSlots(ZoneId.Effect); // cost 区已随 2026-11-06 代价挪构筑期退役（模板删除）
             BuildSlots(ZoneId.Passives);
             BuildSlots(ZoneId.Keys);
             SyncAddSlotButtons();
-            SyncDeriveZone(); // 衍生物槽行随四区同拍（rt-derive 已被上方 ClearRuntimeChildren 清）
-            SyncCardPreview(); // v2：槽行重建后卡面构成摘要对账（多数路径随后还有 Recalculate 兜底）
+            RefreshPreview(); // 卡面效果行随槽内容同拍（多数路径随后还有 Recalculate 兜底）
         }
 
         /// <summary>逐槽行渲染：已填（数据下标）在前、空槽（_emptySlots）在后；
@@ -2053,11 +1974,12 @@ namespace SynergyUI
             for (int e = 0; e < empties; e++) MakeSlotRow(id, tpl, -1, ordinal++);
         }
 
-        /// <summary>中栏表单滚动内容（v3：卡面常驻，表单/槽区入 form-scroll）——槽模板与克隆行的共同父。</summary>
+        /// <summary>中栏表单滚动内容（2026-11-06 布局改版：CardPreView 内联 form-scroll/viewport/content）——
+        /// 槽模板与克隆行的共同父（与 ACard 卡面实例的内部 form-scroll 是两棵树）。</summary>
         private RectTransform FormContent()
         {
-            if (_formContent == null && _cardFace != null)
-                _formContent = _cardFace.Find("form-scroll/viewport/content") as RectTransform;
+            if (_formContent == null && _editorRoot != null)
+                _formContent = _editorRoot.Find("form-scroll/viewport/content") as RectTransform;
             return _formContent;
         }
 
@@ -2127,55 +2049,15 @@ namespace SynergyUI
                 });
             }
             Describe((Component)btn ?? row, SlotRowDesc(id, dataIndex));
-            if (id == ZoneId.Cost) BindCostGenerate(row, dataIndex);
-        }
-
-        /// <summary>代价槽 generate 参数输入（2026-10-21 单参数定案）：prefab cost 模板下 TMP_InputField——
-        /// 代价=单原子效果，参数（原子 value）由此框驱动：已填=回显并随键写回（des 文案与计价按
-        /// 「generate 值＋所选原子」即时重生成，不整刷槽行防丢输入焦点）；空槽隐藏。
-        /// 使用时强制发动为固定语义（cast 付费步执行），不提供开关。</summary>
-        private void BindCostGenerate(RectTransform row, int dataIndex)
-        {
-            var field = UiKit.FindDeep(row, "generate")?.GetComponent<UInputField>();
-            if (field == null) return; // prefab 缺 generate（旧 prefab 兼容）——参数输入跳过
-            var atoms = dataIndex >= 0 ? _card.PayloadCost?.AllPayloads() : null;
-            bool filled = atoms != null && atoms.Count > 0;
-            field.gameObject.SetActive(filled);
-            if (!filled) return;
-            var atom = atoms[0];
-            field.contentType = UInputField.ContentType.IntegerNumber;
-            field.SetTextWithoutNotify(atom.value.ToString());
-            field.onValueChanged.RemoveAllListeners();
-            field.onValueChanged.AddListener(s =>
-            {
-                if (!int.TryParse(s, out var v)) return;
-                atom.value = v;
-                _card.ResetCache();
-                // 减费三选一：代价减费上限 ≤3（2026-11-03 收回——当日放宽 4 作废）——参数推高全价越界即回退上一合法值
-                float pts = EffectComposerScreen.CostRowPrice(_card.PayloadCost);
-                if (pts > EffectComposerScreen.CostDiscountCap)
-                {
-                    atom.value = _costParamValue ?? 1;
-                    _card.ResetCache();
-                    field.SetTextWithoutNotify(atom.value.ToString());
-                    ShowToast($"代价减费 {pts:0.#} 点超上限（≤{EffectComposerScreen.CostDiscountCap}）——参数已回退");
-                    return;
-                }
-                _costParamValue = v;
-                var des = UiKit.FindDeep(row, "des")?.GetComponent<TMP_Text>();
-                if (des != null) des.text = SlotDesText(ZoneId.Cost, dataIndex);
-                Recalculate();
-            });
-            Describe(field, "代价参数：使用时强制发动的数值——抵扣只作用于该原子可产出色的卡费，至多将该色费用清零（超出生成面无效）；"
-                + $"发动需有等量同色地牌（数量击穿放行，无目标不可发动）。减费上限 ≤{EffectComposerScreen.CostDiscountCap} 点（2026-11-02 减费三选一）");
+            BindSetDerivant(row, dataIndex); // 显隐=该效果含衍生物/变形原子（无钮模板空转）
         }
 
         private static string SlotTitle(ZoneId id, int ordinal) =>
             (id == ZoneId.Cost ? "代价槽" : id == ZoneId.Effect ? "主动槽" : id == ZoneId.Passives ? "自动槽" : "关键词")
             + (char)('①' + ordinal) + "：";
 
-        /// <summary>槽行 des 内容：已填=效果全文（名称+摘要）/关键词/代价文案；空槽=操作提示。
-        /// 与卡型不匹配的已填槽前缀⚠（保存闸兜底）。</summary>
+        /// <summary>槽行 des 内容：已填=渲染摘要单遍（效果名即全文定案下不再名+摘要并列）/关键词/代价文案；
+        /// 空槽=操作提示。与卡型不匹配的已填槽前缀⚠（保存闸兜底）。</summary>
         private string SlotDesText(ZoneId id, int dataIndex)
         {
             if (dataIndex < 0)
@@ -2186,7 +2068,7 @@ namespace SynergyUI
                 var atoms = _card.PayloadCost?.AllPayloads() ?? new List<CardCore.AtomicEffectEntry>();
                 var parts = new List<string>();
                 foreach (var a in atoms)
-                    if (a != null && !string.IsNullOrEmpty(a.refId)) parts.Add(AtomText.RenderAtomEntry(a));
+                    if (a != null && !string.IsNullOrEmpty(a.refId)) parts.Add(AtomText.RenderCostAtomEntry(a));
                 // 文案自动生成（2026-10-21 单参数定案）：generate 值代入所选原子模板 + 固定「使用时强制发动」前缀
                 body = "使用时强制发动：" + string.Join("＋", parts);
                 // 抵扣读数（2026-10-31 色锁定案）：只抵该原子可产出色的卡费，至多将该色清零
@@ -2206,13 +2088,16 @@ namespace SynergyUI
             {
                 var fx = _card.Effects[dataIndex];
                 var name = string.IsNullOrEmpty(fx?.DisplayName) ? $"效果 #{dataIndex + 1}" : fx.DisplayName;
-                if (id == ZoneId.Passives && IsAuraEffect(fx)) name = "[光环] " + name;
+                // des 只显渲染摘要单遍（2026-11-06 修复双写）：效果名=保存时渲染全文（效果合成器
+                // 2026-10-03 定案 CurrentDisplayName=RenderEffectSummary）——名+摘要并列把同一效果
+                // 写两遍，渲染文案改版后两遍句式还会分叉（「；若」旧名 vs「，如果」新析）。
+                // 与卡面 FromCardDataFull/卡池行同源；空摘要（无步骤）回落名字。
+                string prefix = id == ZoneId.Passives && IsAuraEffect(fx) ? "[光环] " : "";
                 var summary = fx == null ? "" : AtomText.RenderEffectSummary(
                     new EffectGraphData(name) { header = fx, steps = fx.Steps }, _card);
-                body = string.IsNullOrEmpty(summary) ? name : name + "\n" + summary;
-                // P5（2026-10-29）：主动效果带代价行 → 追加「代价（自伤/资敌）…｜发动费→抵扣→净费」
-                var costLine = ActiveEffectCostText(fx);
-                if (costLine != null) body += "\n" + costLine;
+                body = string.IsNullOrEmpty(summary) ? prefix + name : prefix + summary;
+                // 卡级代价显示口已随 2026-11-06「代价全面并入效果级」定案退役——效果级 Costs 的
+                // 「，【代价】…」由 RenderEffectSummary 拼进 summary；净费/代价读数在中栏 ACard 行级方格
             }
             return TypeEnabledForKind(id) ? body : "⚠与本卡类型不匹配（保存会被拦）——删除或换型\n" + body;
         }
@@ -2279,47 +2164,12 @@ namespace SynergyUI
 
         /// <summary>填装代价槽（2026-10-31 代价槽改版定案：候选=原子表**一般效果**行直引——
         /// 不再经由效果库组装图；关键词/代价成为原子表直加的两个槽类型）。
-        /// 填入=单原子引用（refId=行 ID），按代价语义执行/计价；抵扣只作用于该行可产出色的卡费，
-        /// 至多将该色费用清零。</summary>
+        /// 2026-11-06 代价挪入有限分支定案：**本槽停收新增**——代价改在效果合成器有限分支的
+        /// 「支付代价」门编辑（保存回写卡级代价行）；已填代价行在本槽保留展示/删除/参数微调。</summary>
         private void FillPayloadCost(CardCore.Attribute.AtomicEffectConfig cfg)
         {
-            if (!CostEligibleRow(cfg, out var reject))
-            {
-                ShowToast(reject);
-                return;
-            }
-            // 减费三选一互斥闸（2026-11-02）：结界（必有光环）或效果含分支/并列两效果/光环时禁填代价
-            if (_kind == CardKind.Enchantment || EffectShapeBlocksCost())
-            {
-                ShowToast("不可挂代价——减费三选一互斥：光环类（结界的场地光环/仪典行）禁代价，"
-                          + "同一效果只能三选一（有限分支/自由分支/代价）、并列两效果禁代价");
-                return;
-            }
-            var entry = new CardCore.AtomicEffectEntry
-            {
-                refId = cfg.HashId,
-                value = _costParamValue ?? 1, // generate 已填=换原子沿用（单参数定案：参数不随原子走）
-            };
-            // 代价域收窄/镜像（PayloadCostDomain：p<0 锁己方·p>0 锁对方）——与旧组装图填装同口径
-            var (kinds, _) = CostDerivationService.PayloadCostDomain(cfg);
-            if (kinds != null) entry.kinds = kinds;
-            var atoms = new List<CardCore.AtomicEffectEntry> { entry };
-            _card.PayloadCost = new CostEntry
-            {
-                CostType = (int)CostType.Payload,
-                Value = 1,
-                payloads = atoms,
-            };
-            _card.ResetCache();
-            ConsumeEmptySlot(ZoneId.Cost); // 填入空代价槽（或全量视图兜底）
-            RefreshSlots();
-            Recalculate();
-            int totalPrice = PayloadTotalGrant(atoms);
-            var calc = CardCostCalculator.Calculate(_card);
-            int cap = CardCostService.PayloadCapacity(calc.PrePayloadCost, _card);
-            ShowToast($"已填装代价「{cfg.DisplayName}」（全价 {totalPrice}·只抵{calc.PayloadScopeZh}色卡费"
-                + $"·实抵 {calc.PayloadApplied}/{cap}·不占槽位费——2026-11-02 减费三选一）"
-                + $"——至多把{calc.PayloadScopeZh}色费用清零");
+            ShowToast("代价编辑已挪至效果合成器——在效果的有限分支里选「支付代价」门填入代价原子"
+                      + "（保存回写卡级代价行）；本槽仍可查看/删除既有代价");
         }
 
         /// <summary>代价行资格（2026-10-31 代价槽改版定案；2026-11-03 补双侧域）：只收原子表**一般效果**行
@@ -2378,7 +2228,7 @@ namespace SynergyUI
             var colorsZh = string.Concat(new[] { ManaType.Gray, ManaType.Red, ManaType.Blue, ManaType.Green }
                 .Where(c => cfg.ManaList != null && cfg.ManaList[c] > 0f)
                 .Select(ManaTypeNames.ZhNameOf));
-            return AtomText.RenderAtomEntry(clone) + $"（抵扣色：{colorsZh}）";
+            return AtomText.RenderCostAtomEntry(clone) + $"（抵扣色：{colorsZh}）";
         }
 
         /// <summary>代价全价合计（逐原子 PayloadUnitGrant 求和——门槛/补偿同锚）。</summary>
@@ -2416,7 +2266,7 @@ namespace SynergyUI
             }
             if (!replacing && _card.Keywords.Count + 1 > KeywordCapacity)
             {
-                ShowToast($"关键词槽已满（{_card.Keywords.Count}/{KeywordCapacity}）——可关闭攻击/守卫能力腾出槽位");
+                ShowToast($"关键词槽已满（{_card.Keywords.Count}/{KeywordCapacity}）——可关闭攻击/守卫资格腾出槽位");
                 return;
             }
             if (replacing) _card.Keywords[_selIndex] = kw.Id;
@@ -2433,9 +2283,6 @@ namespace SynergyUI
         // 充能直加行（AddChargeDirectRow/FillChargeDirect）已随 2026-11-05 充能系统动作化改版删除：
         // 充能不再是卡上效果——改为任意手牌卡可宣的速度0系统动作（引擎 GameActions.DeclareCharge，
         // 结算期反问元素类别），卡组合界面不再提供充能挂载。
-        //（更早的苏醒直加行已随 2026-11-02 苏醒机制整链删除。）
-
-        // AddAwakenDirectRow（苏醒直加段）已随 2026-11-02 苏醒机制整链删除。
 
         // ======================================== 右栏：效果库列表（zone 选中=按区过滤·回收式） ========================================
 
@@ -2514,18 +2361,80 @@ namespace SynergyUI
             });
         }
 
+        // ---- 预设段（2026-11-06 定案）：预组卡组引用的组合效果并入效果库展示——可引用挂载、
+        //      行内「编辑」跳效果合成器预设只读态（修改保存=另存新效果，源档不可覆盖不可删） ----
+
+        /// <summary>预设卡组用到的组合效果集（同效果组合界面 AppendPresetEffectRows 口径）：
+        /// DeckCatalog 预组 → 卡 → 效果 id 引用集 → 预设表装载；主表已含同 id（玩家另存过同内容
+        /// 副本）不重复列（主表行为准）。引用不断链：ReferenceAudit.LibraryEffectIds 本就含预设表。</summary>
+        private static List<EffectGraphData> PresetEffectGraphs()
+        {
+            var presetIds = new HashSet<string>();
+            foreach (var deck in DeckCatalog.LoadPresets())
+            {
+                if (deck?.cardIds == null) continue;
+                foreach (var cardId in deck.cardIds)
+                {
+                    var card = CardCatalog.GetById(cardId);
+                    if (card?.Effects == null) continue;
+                    foreach (var fx in card.Effects)
+                        if (fx != null && !string.IsNullOrEmpty(fx.Id)) presetIds.Add(fx.Id);
+                }
+            }
+            if (presetIds.Count == 0) return new List<EffectGraphData>();
+            var mainIds = new HashSet<string>(EffectLibrarySerializer.LoadAll()
+                .Where(g => !string.IsNullOrEmpty(g?.id)).Select(g => g.id));
+            return EffectLibrarySerializer.LoadAll(true)
+                .Where(g => g != null && !string.IsNullOrEmpty(g.id) && presetIds.Contains(g.id) && !mainIds.Contains(g.id))
+                .ToList();
+        }
+
+        /// <summary>预设段效果行（与 LibEffect 同结构·Preset 标记）：Tag=形态+预设后缀；
+        /// 行点击=引用填槽（FillSelectedSlot 走主段同一形状闸）。</summary>
+        private void LibPresetEffect(EffectGraphData graph)
+        {
+            var name = string.IsNullOrEmpty(graph.name) ? "(未命名)" : graph.name;
+            var summary = AtomText.RenderEffectSummary(graph);
+            if (!RowPassFilters(name + "\n" + summary, graph.header?.AnchorCost)) return;
+            _libItems.Add(new LibRowData
+            {
+                Kind = 3, Graph = graph, Text = name, SummaryOverride = summary, H = LibRowH, Preset = true,
+                Tag = (EffectComposerScreen.IsAuraMode(EffectComposerScreen.InferMode(graph)) ? "光环"
+                        : IsActiveGraph(graph) ? "主动" : "自动") + "·预设",
+            });
+        }
+
+        /// <summary>预设段落行（分节头+效果行）：shape=当前视图形态过滤（null=全量浏览）；
+        /// partitionByHost=true 时与主段同口径宿主分区（可挂行照列+隐藏计数行——P9 候选不静默隐藏，
+        /// 缓冲先清防吃主段残留）。</summary>
+        private void AppendPresetEffects(Func<EffectGraphData, bool> shape, string sectionZh, bool partitionByHost)
+        {
+            var graphs = PresetEffectGraphs().Where(g => shape == null || shape(g)).ToList();
+            List<EffectGraphData> eligible;
+            if (partitionByHost)
+            {
+                _hiddenPending.Clear(); // 预设段独立分区——不吃主段残留缓冲
+                PartitionByHost(graphs, HostOf(_kind), out eligible);
+            }
+            else eligible = graphs;
+            if (eligible.Count == 0 && (!partitionByHost || _hiddenPending.Count == 0)) return;
+            LibHeader($"{sectionZh}（预设 {eligible.Count}）——预组卡组效果·可引用挂载；编辑=另存新效果（源档只读）");
+            if (eligible.Count == 0) LibHint("预设段没有该形态的效果");
+            foreach (var g in eligible) LibPresetEffect(g);
+            if (partitionByHost) LibHiddenSection();
+        }
+
         private void BuildLibraryFullView()
         {
             LibNewBtn();
             var graphs = EffectLibrarySerializer.LoadAll();
             LibHeader($"效果库（{graphs.Count}）——点击=填入中间选中槽；「编辑」=改库");
             if (graphs.Count == 0)
-            {
-                LibHint("效果库为空——「新建效果」或在效果合成器保存即入库");
-                return;
-            }
+                LibHint("效果库为空——「新建效果」或在效果合成器保存即入库；下方列出预设卡组使用的组合效果");
             foreach (var graph in graphs)
                 LibEffect(graph);
+            // 预设段（2026-11-06 定案）：预组卡组效果只读并入——全量浏览不做宿主分区（挂载闸在点选时）
+            AppendPresetEffects(null, "预设卡组效果", partitionByHost: false);
         }
 
         /// <summary>代价视图（2026-10-31 代价槽改版定案）：候选=原子表**一般效果**行直引
@@ -2579,6 +2488,10 @@ namespace SynergyUI
             foreach (var graph in graphs)
                 LibEffect(graph);
             LibHiddenSection();
+            // 预设段：主动形态（非光环）——与主段同口径宿主分区
+            AppendPresetEffects(
+                g => !EffectComposerScreen.IsAuraMode(EffectComposerScreen.InferMode(g)) && IsActiveGraph(g),
+                "预设·主动效果", partitionByHost: true);
         }
 
         private void BuildLibraryPassivesView()
@@ -2598,10 +2511,12 @@ namespace SynergyUI
                 if (aurasOk.Count == 0) LibHint("库中没有光环形态的效果——「新建效果」在效果合成器里做光环");
                 foreach (var g in aurasOk) LibEffect(g);
                 LibHiddenSection();
+                AppendPresetEffects(Aura, "预设·光环", partitionByHost: true);
                 LibHeader($"自动效果（{autosOk.Count}）——至多 2（每槽占 1 点免费预算，盈余转入场耐久）");
                 if (autosOk.Count == 0) LibHint("库中没有自动/触发形态的效果");
                 foreach (var g in autosOk) LibEffect(g);
                 LibHiddenSection();
+                AppendPresetEffects(g => !Aura(g) && !IsActiveGraph(g), "预设·自动效果", partitionByHost: true);
             }
             else
             {
@@ -2611,6 +2526,7 @@ namespace SynergyUI
                 if (autosOk.Count == 0) LibHint("库中没有自动/触发形态的效果");
                 foreach (var g in autosOk) LibEffect(g);
                 LibHiddenSection();
+                AppendPresetEffects(g => !Aura(g) && !IsActiveGraph(g), "预设·自动效果", partitionByHost: true);
             }
         }
 
@@ -2669,7 +2585,6 @@ namespace SynergyUI
 
         private void BuildLibraryKeywordsView()
         {
-            //（苏醒直加行已随 2026-11-02 苏醒机制整链删除。）
             var catalog = KeywordCatalog.LoadAll();
             LibHeader($"关键词目录（{catalog.Count}）——点击=填入关键词槽（生物专属·至多 {KeywordCapacity}）");
             if (catalog.Count == 0)
@@ -2865,7 +2780,7 @@ namespace SynergyUI
 
             // ---- 效果行（v2：f14 名称+右侧 f12 标签+费标；摘要走悬浮） ----
             var graph = item.Graph;
-            var name = item.Text;
+            var name = item.Preset ? "［预设］" + item.Text : item.Text; // 预设段前缀（同卡池预设卡行口径）
             var summary = item.SummaryOverride ?? "";
             var name2 = UiKit.FindDeep(row, "name")?.GetComponent<TMP_Text>();
             if (name2 != null)
@@ -2886,13 +2801,19 @@ namespace SynergyUI
                     FillSelectedSlot(graph);
                 });
             }
-            Describe(row, $"点击=把「{name}」填入中间选中槽位（未选槽=追加到末尾）"
-                + (string.IsNullOrEmpty(summary) ? "" : "\n" + summary));
+            Describe(row, item.Preset
+                ? $"点击=引用「{item.Text}」填入中间选中槽位（预设效果只读）；「编辑」=载入效果合成器——"
+                  + "修改保存会另存为新效果（与预设同内容拦存），原预设不可改删"
+                : $"点击=把「{name}」填入中间选中槽位（未选槽=追加到末尾）"
+                  + (string.IsNullOrEmpty(summary) ? "" : "\n" + summary));
             var editBtn = UiKit.FindDeep(row, "edit")?.GetComponent<UnityEngine.UI.Button>();
             if (editBtn != null)
             {
+                editBtn.gameObject.SetActive(true); // 池行复用显式还原（预设编辑走另存通道——钮恒在）
                 editBtn.onClick.RemoveAllListeners();
                 editBtn.onClick.AddListener(() => OnEditLibraryEffect(graph));
+                if (item.Preset)
+                    Describe(editBtn, "编辑预设效果：载入效果合成器预设只读态——改动保存=另存新效果，源档不变");
             }
         }
 
@@ -3114,15 +3035,21 @@ namespace SynergyUI
             _artNames = new List<string>();
             if (_kind == CardKind.Creature)
             {
-                bool emptyQuery = string.IsNullOrEmpty(_galleryQuery);
-                if (emptyQuery) _artNames.Add(null); // 占位项（清空立绘=预制体占位图）——搜索态隐藏
                 foreach (var n in CreatureArtNames())
-                    if (emptyQuery || n.IndexOf(_galleryQuery, StringComparison.OrdinalIgnoreCase) >= 0)
+                    if (string.IsNullOrEmpty(_galleryQuery) || n.IndexOf(_galleryQuery, StringComparison.OrdinalIgnoreCase) >= 0)
                         _artNames.Add(n);
             }
+            else
+            {
+                // 2026-11-06 默认图定案：法术/结界各一张默认图 Title（Assets/Art/Icons/Title.png——
+                // ACard.prefab 同图已烘为两类型块的立绘占位，未选时卡面回落同一张图）
+                if (string.IsNullOrEmpty(_galleryQuery) || "Title".IndexOf(_galleryQuery, StringComparison.OrdinalIgnoreCase) >= 0)
+                    _artNames.Add("Title");
+            }
+            // 2026-11-06 去占位定案：占位项（清空立绘）退役——画廊只列真实可选图；
+            // 未选立绘（null）=无高亮格，卡面回落烘焙占位图
             if (_galleryCount != null)
-                _galleryCount.text = _kind != CardKind.Creature ? "无"
-                    : (_artNames.Count == 0 ? "0" : (_artNames.Count - 1).ToString()) + " 张";
+                _galleryCount.text = _artNames.Count + " 张";
             _galleryList.SetGrid(_artNames.Count); // 格几何（184×184·间8·2 列）由 Attach 从 GLG 吸收（2026-10-27 左栏 400 两列化）
         }
 
@@ -3168,11 +3095,6 @@ namespace SynergyUI
             lRt.anchoredPosition = new Vector2(0f, 1f);
             label.overflowMode = TextOverflowModes.Ellipsis;
 
-            var hint = UiKit.Label("hint", thumb, "占位", UiStyle.SmallSize, UiStyle.TextHint,
-                TextAnchor.MiddleCenter);
-            UiKit.Stretch(hint.rectTransform);
-            hint.gameObject.SetActive(false); // 占位项才显示（bind 开关）
-
             var btn = tile.gameObject.AddComponent<UnityEngine.UI.Button>();
             btn.transition = Selectable.Transition.None;
             btn.targetGraphic = bg;
@@ -3186,25 +3108,23 @@ namespace SynergyUI
         /// <summary>图库选中金框（v2）。</summary>
         private static readonly Color Gold = new Color(0.91f, 0.75f, 0.35f);
 
-        /// <summary>贴片绑定：立绘图/占位字/名称/选中描边/点击监听（原 HighlightArtTile 高亮并入此处）。</summary>
+        /// <summary>贴片绑定：立绘图/名称/选中描边/点击监听（原 HighlightArtTile 高亮并入此处）。
+        /// 2026-11-06 去占位：数据源无 null 项——占位分支退役，全部条目都是真实可选图。</summary>
         private void BindArtTile(RectTransform tile, int index)
         {
             var spriteName = _artNames[index];
-            bool placeholder = string.IsNullOrEmpty(spriteName);
 
             var thumb = tile.Find("thumb") as RectTransform;
             var img = thumb != null ? thumb.GetComponent<Image>() : null;
             if (img != null)
             {
-                var sp = placeholder ? null : CardArtLibrary.Load(spriteName); // 按名称两级回落（内部带缓存）
+                var sp = CardArtLibrary.Load(spriteName); // 按名称两级回落（内部带缓存）
                 img.sprite = sp; // 池行复用须显式清旧图
                 img.preserveAspect = true;
                 img.color = sp != null ? Color.white : new Color(0f, 0f, 0f, 0.25f);
             }
-            var hintGo = thumb != null ? thumb.Find("hint") : null;
-            if (hintGo != null) hintGo.gameObject.SetActive(placeholder);
             var label = thumb != null ? thumb.Find("label")?.GetComponent<TMP_Text>() : null;
-            if (label != null) label.text = placeholder ? "（占位）" : spriteName;
+            if (label != null) label.text = spriteName;
 
             var ol = tile.GetComponent<Outline>();
             if (ol != null) ol.enabled = (_card.Illustration ?? "") == spriteName; // 高亮=与当前立绘对账
@@ -3215,15 +3135,13 @@ namespace SynergyUI
             btn.onClick.RemoveAllListeners();
             btn.onClick.AddListener(() =>
             {
-                Debug.Log("[UI点击] 立绘 " + (string.IsNullOrEmpty(captured) ? "占位" : captured));
-                _card.Illustration = string.IsNullOrEmpty(captured) ? null : captured;
+                Debug.Log("[UI点击] 立绘 " + captured);
+                _card.Illustration = captured;
                 Recalculate(); // 卡面立绘随 RefreshCardFace 对账
                 _galleryList.RebindVisible(); // 画廊高亮同帧对账（原 HighlightArtTile 全量重描）
-                ShowToast(string.IsNullOrEmpty(captured) ? "立绘已清空（占位图）" : "立绘已选：" + captured);
+                ShowToast("立绘已选：" + captured);
             });
-            Describe(tile, placeholder
-                ? "清空立绘（卡面回到占位图）"
-                : $"选用立绘 {captured}——卡面立绘与战场 3D 模型同名双源");
+            Describe(tile, $"选用立绘 {captured}——卡面立绘与战场 3D 模型同名双源");
         }
 
         // ======================================== 自动算费（终值直写） ========================================

@@ -158,18 +158,17 @@ namespace CardCore
         /// <summary>无效指示物（蓝3）：目标非主动能力无法发动（拦触发式+光环；换区清除）。</summary>
         AddNullify,
 
-        // ============ 战斗底盘（2026-09-10 攻击/守卫效果化：1速/2速主动效果，各 1 灰，不占槽） ============
+        // ============ 战斗底盘（2026-09-10 攻击/守卫效果化：1速/2速主动效果，各 1 灰，不占槽；2026-11-06 opt-in：资格卡面声明） ============
         /// <summary>攻击：速度0主动效果（2026-09-16；结算期横置支付）。附带以可用状态参战（结算按可用状态，结算完恢复横置）。
-        /// 生物默认自带（CardData.NoAttack 可退除）。战斗流程由 CombatSystem 消费，不走常规原子执行。</summary>
+        /// 卡面声明 AttackAbility 才有（2026-11-06 opt-in 改版——生物不再默认自带）。战斗流程由 CombatSystem 消费，不走常规原子执行。</summary>
         Attack,
         /// <summary>守卫：速度1响应拦截（2026-09-16）——友方被指为攻击目标时横置自身、转移目标；结算按横置（单向受伤）。
-        /// 生物默认自带（CardData.NoGuard 可退除）。</summary>
+        /// 卡面声明 GuardAbility 才有（2026-11-06 opt-in 改版）。</summary>
         Guard,
 
         // ============ 状态原子（2026-09-11 沉睡改造） ============
-        /// <summary>沉睡（绿1 中性）：赋予目标沉睡指示物——沉睡期间无法重置、效果无效。
-        /// （「自我沉睡走豁免费转时长」已随 2026-10-29 P6/P6c 苏醒改版退役；苏醒施放的
-        /// 入场直挂沉睡也已于 2026-11-02 随苏醒机制整链删除。本原子 Value 未显式兜底 1 层。）
+        /// <summary>沉睡（绿1 中性）：赋予目标沉睡指示物——沉睡期间无法重置、效果无效
+        ///（本原子 Value 未显式兜底 1 层）。
         /// 效果/指示物分离定案：效果=赋予指示物，指示物本身承载持续规则。</summary>
         Sleep,
         // 微缩/放大（GrantMiniature/GrantMagnify）2026-10-10 照抄炉石机制退役：表行/Specs/
@@ -283,12 +282,6 @@ namespace CardCore
         AddPermanentPowerDown,
         AddPermanentLifeUp,
         AddPermanentLifeDown,
-        /// <summary>敌方全体伤害（2026-10-09 全体对象独立原子定案）：对敌方全体生物各造成 {value} 点伤害
-        ///（域={对方单位}+NoRole——排除角色与无生命单位）。
-        /// 无域原子（表行 TargetKinds 空=自结算，单次执行不逐目标 Reset）——杀数聚合入 LastOutcome：
-        /// 击杀门槛 DmgKillsTarget=至少击杀一个即过、奖励只结算一次。基准红 3（范围溢价含 BaseCost，
-        /// 空域数量恒 ×1）。取代旧「DealDamage+全取档」表达全体伤害的口径（SweepDamage 2026-09-21 退役的复归）。</summary>
-        DealDamageAllEnemies, // 墓碑（2026-11-05 硬切 B2：全体原子删除——单体选全域生成；位不重排
 
         /// <summary>反疗（2026-10-09，黑2，表行 6b9c4b90；原名堕落·仅角色，同日用户改名放开）：
         /// 对任意有生命单位（生物+角色，双方）附加 {value} 层反疗指示物
@@ -371,11 +364,6 @@ namespace CardCore
         /// 无目标原子，时机/挂载由效果声明驱动）。生成受全类型累计钳（AddMana 内钳）。</summary>
         GainAnyElement,
 
-        /// <summary>全体消灭（2026-10-29 阶段3a，红12·无目标行——表行 17da98ae）：消灭对方全体生物
-        ///（效果死亡 DestroyEffect 死因，与消灭同口径——不灭可拦、复生可替代）；handler 自结算
-        ///（目标域=对方战场生物）。</summary>
-        DevourAllEnemies,     // 墓碑（2026-11-05 硬切 B2：同上）
-
         /// <summary>除外回收（2026-10-29 阶段3a，蓝3——表行 e301f1af）：将所选目标卡从除外区
         /// 返回其持有者手牌（域=己方除外区；非除外区目标跳过）。</summary>
         RecoverFromExile,
@@ -419,19 +407,6 @@ namespace CardCore
         ///（ArmorCounter 层数=每层吸收 1 点伤害、生效自减），层数=参照**当前生命**。
         /// str="SelfUnit" 档已退役。无己方生物/参照生命≤0/落点域空=空转。</summary>
         LivingArmor,
-
-        // 苏醒（GrantAwaken，2026-10-31 P12 关键词化）2026-11-02 整链删除：灰身材概念已不存在，
-        // 「免灰抵沉睡」失去意义；且与倒计时玩法过近。表行（关键词表 3df00ac7→重推后 ebb21ba2
-        // 居系统表）、GrantKeywordHandlers.Specs 登记、KeywordRules.Awaken 常量、
-        // HasAwakenKeyword 闸门同批删除。
-        // GrantAwaken,
-
-        /// <summary>【枚举墓碑】充能（2026-11-05 充能系统动作化改版整链退役）：充能不再是卡上原子
-        /// 效果——改为速度0系统动作（StackEngine.PushChargeDeclaration 宣入、结算期
-        /// GameActions.ResolveChargeDeclarationAsync 反问元素类别后 +1 层同色费用降低指示物，
-        /// 不支付元素）。表行（原子表_系统 16073886）、ChargeHandler、ComposerCatalog.IsCharge*、
-        /// 合成器直加段同批删除。枚举成员保留防序号漂移，勿复用。</summary>
-        Charge,
 
         /// <summary>绝缘体（2026-10-31 新增，绿3 表行「绝缘体」764236ed·关键词表）：持有单位不受
         /// 指示物的效果影响——特殊裁定改版（同日「不拦指示物添加」）：层照常落账，效果判定走
@@ -507,7 +482,7 @@ namespace CardCore
         AuraBleed,             // 放血仪典（HealInversion）
         AuraNoAttack,          // 禁攻令（NoAttackAura）
         AuraNoGuard,           // 禁守令（NoGuardAura）
-        AuraNoActivate,        // 禁发令（NoActivateAura）
+        AuraNoActivate,        // 禁自动令（NoActivateAura——2026-11-06 改版，原禁发令：拦主动→拦自动）
         AuraNoLand,            // 禁地令（NoLandAura）
         AuraNoHeal,            // 禁疗令（NoHealAura）
         // 禁寻令（AuraNoSearch/NoSearchAura）2026-11-02 整链删除

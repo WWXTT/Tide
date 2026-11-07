@@ -62,8 +62,8 @@ namespace CardCore
     /// - 可用性统一走横置：入场即可用（2026-10-17 取消横置入场）；冲锋的登场解横置成为空操作、
     ///   突袭残留紊乱指示物一回合（期间不能以玩家为目标）；攻击/拦截/主动均以未横置为资格，
     ///   横置即上限——激励解除横置即可再动
-        /// - 攻击 = 速度0主动效果（默认自带，NoAttack 卡不能攻；标准速度门 0≥计数器——连锁中不可宣）；
-        ///   守卫 = 速度1响应拦截（默认自带，NoGuard 卡不能拦）：响应窗口内入栈，结算期改写攻击
+        /// - 攻击 = 速度0主动效果（2026-11-06 opt-in：卡面声明才有攻资格，无资格不能攻；标准速度门 0≥计数器——连锁中不可宣）；
+        ///   守卫 = 速度1响应拦截（2026-11-06 opt-in：卡面声明才有守资格，无资格不能拦）：响应窗口内入栈，结算期改写攻击
         ///   目标并登记 GuardBlocker——守卫以可用状态参战照常反击，横置随攻击结算在战斗完成后支付
         /// - 警戒：已横置（自身先前动作所致）的防守者也能造成战斗伤害（见 ResolvePair）
     /// - 帷幕（原嘲讽，2026-09-13 更名）：不拦攻击（只吸引效果目标）；攻击侧目标强制由守卫拦截承担
@@ -145,8 +145,8 @@ namespace CardCore
                 if (_zoneManager != null && !_zoneManager.IsCardInZone(card, controller, Zone.Battlefield))
                 { reason = "该单位不在战场上"; return false; }
 
-                // 攻击能力（攻击效果化）：攻击=速度0主动效果（默认自带），NoAttack 卡不能宣言攻击。
-                // 次数上限已撤（横置即上限）——AttacksThisTurn 只作台账统计
+                // 攻击资格（攻击效果化，2026-11-06 opt-in 改版）：攻击=速度0主动效果（卡面声明才有），
+                // 无资格卡不能宣言攻击。次数上限已撤（横置即上限）——AttacksThisTurn 只作台账统计
                 if (!card.HasAttackAbility())
                 { reason = "该单位不具备攻击能力"; return false; }
             }
@@ -389,7 +389,8 @@ namespace CardCore
                 if (hunter == null || !hunter.IsAlive) continue;
                 if (!hunter.HasKeyword(KeywordRules.Hunt)) continue;
                 // 2026-11-03 用户定案：狩猎攻击**不走 CanDeclareAttack**，但要求「未横置 + 攻击力>0」——
-                // NoAttack 不拦（0/6 的墙被培育喂出攻击力后也能在回合末白嫖一次攻击），
+                // 即不查攻击资格位（opt-in 前后同语义）：无攻资格的墙被培育喂出攻击力后，
+                // 也能在回合末白嫖一次狩猎攻击。
                 // 0 攻不打（否则纯自杀：0 攻打 3 攻会被反击打死）。
                 if (hunter.IsTapped()) continue;
                 if (GetPower(hunter) <= 0) continue;

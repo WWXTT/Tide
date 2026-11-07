@@ -799,7 +799,6 @@ namespace CardCore.Attribute.Handlers
     /// 层=持续回合数，持有者回合末 −1、归零解除（无法重置+效果无效期间持续）。
     /// 效果/指示物分离原则：本原子只负责**赋予指示物**——持续规则由指示物自身承载
     ///（CounterRules.OnTurnEnd ③块倒数；TriggerEngine/CanActivate 拦效果）。
-    /// 旧「豁免费转时长」消费口已删（2026-10-29 P6 苏醒改版；苏醒本身已于 2026-11-02 整链删除）；
     /// 本原子 Value 未显式时一律兜底 1 层。
     /// </summary>
     public class SleepHandler : AtomicEffectHandlerBase

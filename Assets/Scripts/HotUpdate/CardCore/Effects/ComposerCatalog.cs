@@ -146,10 +146,10 @@ namespace CardCore
         /// 递减本身是回合开始的系统行为）；
         /// 死亡计数=自动·其他生物死亡·无限（2026-10-19 手牌/场上改案：手牌或场上累计双方
         /// 生物死亡，满 6 不再计，达标触发不清零，使用后清零——时机/次数随口径更新）；拼点=自动·攻击宣言·无限（仅攻击方结算）；
-        /// 元素充盈=自动·使用卡牌时·无限（2026-10-20 判据五：真实评估口=OnCardCastSettled 且**仅对手回合**
-        /// 对手出牌后（剩余元素差恰==x），时机列仅作显示缺省；奖励恒直发）；团结=自动·使用卡牌时·无限
-        /// （2026-10-20 效果序位换轴：团结评估口=OnCardCastSettled 出牌施放结算完成，与充盈同拍——
-        /// 时机列仅作显示缺省）；
+        /// 元素充盈=自动·效果结算后·无限（2026-11-06 判据七：真实评估口=连锁终点 FlushCardCastSettled，
+        /// **双方**施放各评估一次（剩余元素差恰==x），时机列=真实时点；奖励恒直发）；团结=自动·使用卡牌时·无限
+        /// （2026-10-20 效果序位换轴：团结评估口=OnCardCastSettled 直调（本卡结算拍；充盈已迁连锁终点
+        /// flush，两者拆拍）——时机列仅作显示缺省）；
         /// 附加诅咒/祝福=主动·主动钉档·速度 0（部署点=施放结算，主动打出即生效）。</summary>
         public static EngineHeaderPreset? EngineHeaderPresetOf(BranchEngineKind kind) => kind switch
         {
@@ -157,7 +157,7 @@ namespace CardCore
             BranchEngineKind.LuckRoll => new EngineHeaderPreset(EffectActivationType.Automatic, TriggerTiming.OnStandbyPhase, 0, -1, freeTiming: true),
             BranchEngineKind.DeathToll => new EngineHeaderPreset(EffectActivationType.Automatic, TriggerTiming.OnOtherCreatureDeath, 0, -1),
             BranchEngineKind.Clash => new EngineHeaderPreset(EffectActivationType.Automatic, TriggerTiming.OnAttack, 0, -1),
-            BranchEngineKind.ManaSurplus => new EngineHeaderPreset(EffectActivationType.Automatic, TriggerTiming.OnCardPlayed, 0, -1),
+            BranchEngineKind.ManaSurplus => new EngineHeaderPreset(EffectActivationType.Automatic, TriggerTiming.OnCardCastSettled, 0, -1),
             BranchEngineKind.Unity => new EngineHeaderPreset(EffectActivationType.Automatic, TriggerTiming.OnCardPlayed, 0, -1),
             BranchEngineKind.CurseOnDraw => new EngineHeaderPreset(EffectActivationType.Voluntary, TriggerTiming.Activate_Active, 0, 1),
             BranchEngineKind.BlessingOnDraw => new EngineHeaderPreset(EffectActivationType.Voluntary, TriggerTiming.Activate_Active, 0, 1),
@@ -265,6 +265,13 @@ namespace CardCore
                 ProducerTag = null,
             })
             .ToArray();
+
+        /// <summary>代价门哨兵 gateId（2026-11-06 代价挪入有限分支定案）：门条件列表的「支付代价」行
+        ///（原子表_系统.json GateId=本值）——第二槽=代价原子（减免等值费用，全价 ≤3）。效果合成器
+        /// 加载时把卡级整卡代价行（PayloadCosts TargetAttr=0）**展示期合成**为该门分支编辑，保存时
+        /// 反向回写代价行并剥除哨兵分支——哨兵永不落盘（Effects/库均剥），BranchConditionEvaluator
+        /// 不注册=即使数据泄漏也默认不触发（fail-safe）。</summary>
+        public const string CostGateId = "CostGate";
 
         /// <summary>是否局面状态门 id（converter 折叠遗留门步骤时按此归类 Gate）。</summary>
         public static bool IsSituationCondition(string conditionId)
@@ -442,21 +449,16 @@ namespace CardCore
         // 充能不再是卡上原子效果（原子表行 16073886、ChargeHandler、转换器形态契约同批退役），
         // 改为任意手牌卡可宣的速度0系统动作（GameActions.DeclareCharge → 结算期反问元素类别）。
 
-        /// <summary>关键词型 Grant 判定（2026-10-02 定案；2026-11-02 两通道修复）：Grant 行且**该行**
-        /// 目标域恰为 {Self}（纯自指）。关键词型原子 = 关键词的挂载形态（卡面印刷/登场/触发式如
-        /// "自我沉睡"），**不得作为主动效果的原子**——横置代价换静态身份无意义。
-        /// **两个通道（2026-11-02 用户定案）**：①印刷/自赋通道 = 表行域 {Self}（连击 8c988c18 等）；
-        /// ②赋予通道 = 同一 EffectType 另立一行、域含他人（如 327e9a87「赋予连击」域 {己方单位}），
-        /// 可作主动效果。此前的「行级判定即完备」在**同类型多行**时不成立——旧口用 GetByEnumName
-        /// 反查枚举名会命中末行，等于抹掉两通道差异；现按**实际引用行**判（IsKeywordStyleGrantRow）。
+        /// <summary>关键词型 Grant 判定（2026-10-02 定案；2026-11-07 关键词特判后恒 false）：
+        /// Grant 行且**该行**目标域恰为 {Self}（纯自指）才算关键词型。
+        /// 2026-11-07 起全部关键词行域=己方战场:生物（效果层=赋予通道、可作主动效果）——
+        /// 本判定对现行关键词恒 false，仅保留给未来「自指行」/旧档兼容；装载校验不再剔除关键词原子。
         /// 消费方：装载校验（CardEffectConverter）与效果合成器 UI——同源防两套口径。</summary>
         public static bool IsKeywordStyleGrant(AtomicEffectType t)
             => IsKeywordStyleGrantRow(Attribute.AtomicEffectTable.GetByEnumName(t.ToString()));
 
         /// <summary>按**实际表行**判关键词型 Grant：EffectType 以 Grant 开头且该行目标域恰为 {Self}。
-        /// 2026-11-03 两通道合并后：**装载校验已改为按「实例域」判**（CardEffectConverter.IsKeywordStyleEntry
-        /// ——印刷行 + 实例 kinds=[1] 就是赋予，不再另立「赋予XXX」行）；本口保留给合成器资格/悬停文案
-        /// 这类「只看表行」的读面用。</summary>
+        /// 2026-11-07 关键词特判：现行 Grant 行域=己方战场:生物 → 恒 false（赋予通道）。</summary>
         public static bool IsKeywordStyleGrantRow(Attribute.AtomicEffectConfig row)
         {
             if (row == null || string.IsNullOrEmpty(row.EnumName)) return false;

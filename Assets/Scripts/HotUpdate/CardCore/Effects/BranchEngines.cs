@@ -27,14 +27,15 @@ namespace CardCore
     ///   **满值 6**，达满不再计数；计数 ≥ 门槛（Then 锚价推导）即触发奖励——[x,6] 区间**每次递增都触发**
     ///   （满值 6 天然封顶总次数；触发**不清零**，仅使用/换区清零重计）。
     ///   旧「场上·本回合合计·每回合一发」口径随本改案退役。
-    /// - **元素充盈**（2026-09-22 定案；同上自平衡统一；2026-10-20 判据六改：**大于等于**——判据五
-    ///     「恰好等于」恰等太难（自回合囤元素代价大、对手回合精准踩值不现实）同日退役）：**只能是自动
-    ///     效果、只能在对手回合中发动**——对手（=当前回合玩家）出牌施放结算完成后（ResolveCardCastAsync
-    ///     末步回调 OnCardCastSettled；响应出牌/己方回合出牌不评估）比较双方**剩余元素总量**
-    ///     （GetRemainingElementTotal=未横置地牌+钱包，与支付同资源口径）——**己方剩余与对手的差**
-    ///     （封顶 6）**大于等于**门槛（Then 锚价推导）即执行奖励；**2026-10-22 全局规则：同一张卡
-    ///     每回合只触发一次自由分支**（与教学二充盈卡 limit=1 同口径，引擎侧不再看效果行 limit）；
-    ///     奖励恒直发（LaunchReward 直发例外），目标由控制者结算期弹选。判据四「地牌上限差/≥x」此前已退役。
+    /// - **元素充盈**（2026-09-22 定案；2026-11-06 判据七·充盈改造：**恰等于**——推翻 2026-10-20
+    ///     判据六「大于等于」，双方触发面让恰等重新可玩）：**只能是自动效果**——任一方施放的卡
+    ///     成功结算、且**整条连锁结算完成后**（StackEngine.FinishResolution 稳定点统一 flush，
+    ///     不再在本卡结算中段直调；横置触发口 2026-11-04 引入、本日随判据七退役）双方各自评估
+    ///     己方场上引擎：比较双方**剩余元素总量**（GetRemainingElementTotal=未横置地牌+钱包，
+    ///     与支付同资源口径）——**己方剩余与对手的差**（封顶 6）**恰好等于**门槛（Then 锚价推导）
+    ///     即执行奖励（==x：差每+1踩一档各一次）；**同一张卡每回合只触发一次自由分支**
+    ///     （2026-10-22 全局规则，引擎侧不看效果行 limit）；奖励恒直发（LaunchReward 直发例外），
+    ///     目标由控制者结算期弹选。判据四「地牌上限差/≥x」、判据五/六均退役。
         /// - **团结**（2026-10-20 效果序位换轴·第6种改空间轴）：与此卡相邻的单位数（生物/结界占格、
         ///   角色格、非空地牌格各算一；施放占位卡不计）≥ x 时执行奖励——评估口与元素充盈同拍
         ///   （OnCardCastSettled；2026-10-22 起同卡每回合仅 1 次）；只观察己方场上引擎卡（手牌无格）；x∈[1,6] 手填；
@@ -75,7 +76,33 @@ namespace CardCore
 
         /// <summary>测试专用：清空本回合引擎发射记账（运势概率等需要独立同分布重掷的夹具用；
         /// 生产路径只由 TurnStartEvent 翻章清空，勿在业务代码调用）。</summary>
-        public static void ResetTurnCapsForTest() => _engineRewardFires.Clear();
+        public static void ResetTurnCapsForTest()
+        {
+            _engineRewardFires.Clear();
+            _pendingCastSettles.Clear();
+        }
+
+        // —— 效果结算后待补发清单（2026-11-06 判据七·充盈改造）：ResolveCardCastAsync 成功结算的
+        //    施放先记账（NoteCastSettled），整条连锁结算完成的稳定点（StackEngine.FinishResolution
+        //    稳定 break 处调 FlushCardCastSettled）统一补发 CardCastSettledEvent + 双方充盈评估。
+        //    **只存载荷数据、发布期才构造事件对象**——EventId 在 GameEventBase 构造期分配
+        //    （++_nextEventId），记账期预构造会让补发事件带旧 Id 插进投影流=EventId 乱序
+        //    （NetProtocolLoopbackVerifier 严格递增断言实证）。
+        //    连锁不跨回合：RunCountdownTick 翻章清空兜底（终局搁浅未 flush 的残账不带入下一局——
+        //    新局任何施放前必先过首个回合开始）。
+        private static readonly List<(Player caster, Card card, int modeIndex)> _pendingCastSettles =
+            new List<(Player, Card, int)>();
+
+        /// <summary>是否有待补发的使用结算记录（StackEngine.FinishResolution 稳定点查询）。</summary>
+        public static bool HasPendingCastSettles => _pendingCastSettles.Count > 0;
+
+        /// <summary>使用结算记账（GameActions.ResolveCardCastAsync 末步·成功路径调用）：只记账不评估——
+        /// 评估统一推迟到连锁终点（FlushCardCastSettled）。发动无效/效果无效/付费失败早退不调用。</summary>
+        public static void NoteCastSettled(Player caster, Card playedCard, int modeIndex)
+        {
+            if (caster == null || playedCard == null) return;
+            _pendingCastSettles.Add((caster, playedCard, modeIndex));
+        }
 
         public static void EnsureRegistered()
         {
@@ -126,6 +153,7 @@ namespace CardCore
         public static void RunCountdownTick(Player player)
         {
             _engineRewardFires.Clear(); // 单回合上限翻章（2026-10-20）：任一回合开始都算新周期
+            _pendingCastSettles.Clear(); // 使用结算残账翻章（2026-11-06 判据七）：连锁不跨回合，届时未 flush 的均为中断残账
             var core = GameCore.Instance;
             var zm = core?.ZoneManager;
             if (player == null || zm == null) return;
@@ -448,52 +476,15 @@ namespace CardCore
             }
         }
 
-        /// <summary>施放结算完成回调（GameActions.ResolveCardCastAsync 末步——法术效果结算/永久物入场之后）：
-        /// 元素充盈引擎判定（2026-10-20 判据六改：**大于等于**）——**只能在对手回合中发动**：施放者==当前
-        /// 回合玩家（对手于自己回合的出牌；响应出牌/己方回合出牌不评估）时，评估**施放者对手**（引擎主）
-        /// 战场上的充盈引擎——双方剩余元素总量（GetRemainingElementTotal=未横置地牌+钱包）之差（己−对，
-        /// 封顶 <see cref="SurplusCap"/>）**大于等于** x（Then 锚价推导）即执行奖励：首次达标即触发、
-        /// 2026-10-22 全局规则：同一张卡每回合只触发一次自由分支（引擎侧不再看效果行 limit）。
-        /// 判据五「恰好等于 ==x」同日退役（用户定案：恰等太难——自回合囤元素代价大，对手回合精准踩值不现实）。
-        /// 发动无效/效果无效早退不评估；效果费支付不走此口。判据四「地牌上限差/≥x」此前已退役。</summary>
+        /// <summary>施放结算回调（GameActions.ResolveCardCastAsync 末步——法术效果结算/永久物入场之后）：
+        /// **团结引擎评估**。元素充盈段已于 2026-11-06 判据七迁往连锁终点统一评估（NoteCastSettled 记账 →
+        /// StackEngine.FinishResolution 稳定点 FlushCardCastSettled——双方、恰==x），与充盈拆拍；
+        /// 附加诅咒/祝福部署走 OnCardCastResolved（另一口）。发动无效/效果无效早退不达此。</summary>
         public static void OnCardCastSettled(Player player)
         {
             var core = GameCore.Instance;
             var zm = core?.ZoneManager;
             if (player == null || zm == null) return;
-
-            // 元素充盈（判据六 ≥x）：引擎主=施放者的对手——施放者须为当前回合玩家（对手回合内对手自己的出牌）
-            if (core.TurnEngine?.TurnPlayer == player)
-            {
-                // 2026-11-04：headless 下 player.Opponent 可能未接线 → 按座位取（同横置触发口）
-                var owner = ReferenceEquals(player, core.Player1) ? core.Player2
-                          : ReferenceEquals(player, core.Player2) ? core.Player1 : player.Opponent;
-                if (owner == null) return;
-                foreach (var card in zm.GetCards(owner, Zone.Battlefield).ToList())
-                {
-                    if (card == null || !card.IsAlive) continue;
-                    foreach (var (def, payload) in EnginePayloadsOf(card, BranchEngineKind.ManaSurplus))
-                    {
-                        // 2026-10-09 自平衡统一：门槛=Then 奖励锚价推导（与拼点同式）——奖励越贵需领先越多
-                        int x = CostDerivationService.RewardThreshold(payload.Then);
-                        int mine = core.ElementPool?.GetRemainingElementTotal(owner) ?? 0;
-                        int theirs = core.ElementPool?.GetRemainingElementTotal(player) ?? 0;
-                        int diff = Math.Min(mine - theirs, SurplusCap);
-                        if (diff < x) continue; // 判据六（≥x）：差达到门槛即触发（==x 恰等语义随判据五退役）
-
-                        if (EngineCapReached(card, def)) break; // 每卡每回合 1 次（2026-10-22 全局规则）
-
-                        EventManager.Instance.Publish(new KeywordAppliedEvent
-                        {
-                            Target = card, Keyword = "元素充盈",
-                            Detail = $"对手出牌结算后剩余元素差 {diff}（己 {mine}−对 {theirs}，封顶 {SurplusCap}）≥ {x}：执行奖励（仅对手回合·自动）",
-                        });
-                        LaunchReward(payload, null, card, owner, core);
-                        RecordEngineFire(card, def);
-                        break; // 同卡单载荷单次施放只触发一次
-                    }
-                }
-            }
 
             // 团结（2026-10-20 效果序位换轴·第6种改空间轴）：与此卡相邻的单位数（生物/结界占格、
             // 角色格、非空地牌格各算一；施放占位卡不计）≥ x 即执行奖励——与充盈同拍同纪律
@@ -523,57 +514,74 @@ namespace CardCore
             }
         }
 
-        /// <summary>元素充盈（2026-11-04 用户定案·触发口修正）：**对手回合内、对手横置地牌支付元素时**
-        /// 检测一次——己方未横置地数 − 对手未横置地数（封顶 SurplusCap）≥ 门槛 x 即触发奖励。
-        /// 与 OnCardCastSettled 的充盈段同判据（≥x、每卡每回合 1 次），只换触发时点：
-        /// 从「对手出牌结算后」改成「对手每横置一次地牌」。</summary>
-        public static void OnOpponentTappedLands(Player payer)
+        /// <summary>效果结算后连锁终点 flush（StackEngine.FinishResolution 稳定 break 处调用——
+        /// 2026-11-06 判据七·充盈改造）：逐条补发 CardCastSettledEvent（OnCardCastSettled 观察族——
+        /// 普通触发式经 TriggerEngine 入待发队列，由 FinishResolution 的 continue 再走一轮处理），
+        /// 并对每条记录做**双方**充盈评估（己方回合施放也触发己方引擎）。充盈奖励恒直发，
+        /// 其产生的新触发/SBA 同样由调用方下一轮收敛。先取走清单再处理——flush 内奖励若引发新施放
+        /// （新账），由下一轮 flush 消化，无重入风险。2026-11-04 横置触发口（OnOpponentTappedLands）
+        /// 随判据七退役：单口=使用卡牌结算后。</summary>
+        public static void FlushCardCastSettled()
         {
             var core = GameCore.Instance;
-            var zm = core?.ZoneManager;
-            if (payer == null || zm == null) return;
-            if (core.TurnEngine?.TurnPlayer != payer) return; // 只在对手回合（支付者=回合玩家）
-            // 2026-11-04：headless 下 payer.Opponent 可能未接线 → 按玩家位直接取对手
-            var owner = ReferenceEquals(payer, core.Player1) ? core.Player2
-                      : ReferenceEquals(payer, core.Player2) ? core.Player1 : payer.Opponent;
-            if (owner == null) return;
+            if (core == null || _pendingCastSettles.Count == 0) return;
+            var notes = _pendingCastSettles.ToArray();
+            _pendingCastSettles.Clear();
+            foreach (var note in notes)
+            {
+                // 发布期构造（EventId 构造期分配——迟构造迟发布，Id 与发布序一致；统一路由口：
+                // 替代检查→总线→引擎→Trigger/Layer 全观察）
+                core.PublishEvent(new CardCastSettledEvent
+                {
+                    Caster = note.caster, PlayedCard = note.card, ModeIndex = note.modeIndex,
+                });
+                EvaluateManaSurplusEngines(core.Player1, core);
+                EvaluateManaSurplusEngines(core.Player2, core);
+            }
+        }
 
-            int mine = UntappedLandCount(owner);
-            int theirs = UntappedLandCount(payer);
-            int diff = Math.Min(mine - theirs, SurplusCap);
+        /// <summary>充盈评估（2026-11-06 判据七·双方）：任一方施放结算后各评估一侧——引擎主=owner
+        /// （与施放者无关，双方各自评估己方场上引擎），差=双方剩余元素总量（GetRemainingElementTotal=
+        /// 未横置地牌+钱包，与支付同资源口径）之差（己−对，封顶 <see cref="SurplusCap"/>）
+        /// **恰好等于** x（Then 锚价推导）即执行奖励；每卡每回合 1 次（2026-10-22 全局规则）；
+        /// 同卡单载荷单次。≥x（判据六）与「仅对手回合」单边限制均随判据七退役。</summary>
+        private static void EvaluateManaSurplusEngines(Player owner, GameCore core)
+        {
+            var zm = core?.ZoneManager;
+            if (owner == null || zm == null) return;
+            // 2026-11-04：headless 下 owner.Opponent 可能未接线 → 按座位取（沿旧口径）
+            var opponent = ReferenceEquals(owner, core.Player1) ? core.Player2
+                         : ReferenceEquals(owner, core.Player2) ? core.Player1 : owner.Opponent;
+            if (opponent == null) return;
 
             foreach (var card in zm.GetCards(owner, Zone.Battlefield).ToList())
             {
                 if (card == null || !card.IsAlive) continue;
                 foreach (var (def, payload) in EnginePayloadsOf(card, BranchEngineKind.ManaSurplus))
                 {
+                    // 2026-10-09 自平衡统一：门槛=Then 奖励锚价推导（与拼点同式）——奖励越贵需领先越多
                     int x = CostDerivationService.RewardThreshold(payload.Then);
-                    if (diff < x) continue;
-                    if (EngineCapReached(card, def)) break;
+                    int mine = core.ElementPool?.GetRemainingElementTotal(owner) ?? 0;
+                    int theirs = core.ElementPool?.GetRemainingElementTotal(opponent) ?? 0;
+                    int diff = Math.Min(mine - theirs, SurplusCap);
+                    if (diff != x) continue; // 判据七（==x）：差恰等于门槛才触发（≥x 随判据六退役）
+
+                    if (EngineCapReached(card, def)) break; // 每卡每回合 1 次（2026-10-22 全局规则）
 
                     EventManager.Instance.Publish(new KeywordAppliedEvent
                     {
                         Target = card, Keyword = "元素充盈",
-                        Detail = $"对手横置地牌后未横置地差 {diff}（己 {mine}−对 {theirs}，封顶 {SurplusCap}）≥ {x}：执行奖励（仅对手回合·横置触发）",
+                        Detail = $"效果结算后剩余元素差 {diff}（己 {mine}−对 {theirs}，封顶 {SurplusCap}）== {x}：执行奖励（双方施放·连锁终点·自动）",
                     });
                     LaunchReward(payload, null, card, owner, core);
                     RecordEngineFire(card, def);
-                    break;
+                    break; // 同卡单载荷单次施放只触发一次
                 }
             }
         }
 
-        /// <summary>未横置地牌数（不含临时钱包——充盈按用户口径只数地牌）。</summary>
-        private static int UntappedLandCount(Player p)
-        {
-            var pool = GameCore.Instance?.ElementPool?.GetPool(p);
-            if (pool == null) return 0;
-            int n = 0;
-            foreach (var pc in pool.PooledCards) if (pc != null && !pc.IsTapped) n++;
-            return n;
-        }
         /// <summary>场上充盈引擎门槛最大值（2026-11-02 蓝套留费动态化·AI 只读口）：owner 战场上
-        /// ManaSurplus 引擎的最高门槛 x（Then 锚价推导——与 OnCardCastSettled 判定同式）；
+        /// ManaSurplus 引擎的最高门槛 x（Then 锚价推导——与 EvaluateManaSurplusEngines 判定同式）；
         /// 无引擎=0（兼作「己方场上是否存在充盈引擎」判定）。只读，不影响引擎结算。</summary>
         public static int MaxManaSurplusThreshold(Player owner)
         {
@@ -605,9 +613,10 @@ namespace CardCore
                 Attribute.CounterRules.BlessingCounter, "祝福", enemyDeck: false, core);
         }
 
-        /// <summary>附加诅咒/附加祝福部署（2026-10-08 引擎主干化）：施放结算时一次性投放——
-        /// 随机 x 张（GameRng，不给施放者看牌库——炉石式随机即结果）各挂 1 层 + CurseSystem.AttachEngine
-        /// 登记 Then 载荷；空库=本次施放空转（不部署不登记）。同卡多载荷取首个部署（倒计时入场同款口径）；
+        /// <summary>附加诅咒/附加祝福部署（2026-10-08 引擎主干化；2026-11-06 载荷效果化）：施放结算时
+        /// 一次性投放——随机 x 张（GameRng，不给施放者看牌库——炉石式随机即结果）各挂 1 层 +
+        /// CurseSystem.AttachEngine 登记载荷（payload.EffectId 效果引用主通道 / Then 原子列兼容通道）；
+        /// 空库=本次施放空转（不部署不登记）。同卡多载荷取首个部署（倒计时入场同款口径）；
         /// 同一张目标卡被重复命中=多层多载荷，一次抽牌一并消耗（CurseSystem 一次性定案）。</summary>
         private static void DeployOnDrawEngines(Card card, Player player, BranchEngineKind kind,
             string counterId, string keyword, bool enemyDeck, GameCore core)
@@ -629,7 +638,9 @@ namespace CardCore
                     var target = deck[GameRng.Next(0, deck.Count)];
                     TideLog.Info($"[OnDrawDeploy] {keyword}附加 → {target.ID}（{deckOwner?.Name} 牌库 {deck.Count} 张随机取）");
                     int actualDelta = target.AddCounters(counterId, 1, player);
-                    CurseSystem.AttachEngine(target, counterId, payload.Then, player, card);
+                    // 2026-11-06 载荷效果化：载荷=效果库组合效果引用（payload.EffectId，主通道——
+                    // 祝福=极性+1/诅咒=极性−1 主动效果）；Then 原子列=旧手写数据兼容通道
+                    CurseSystem.AttachEngine(target, counterId, payload.EffectId, payload.Then, player, card);
                     EventManager.Instance.Publish(new Attribute.CounterChangedEvent
                     {
                         Target = target,

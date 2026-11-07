@@ -111,7 +111,9 @@ namespace CardCore.Attribute
         public string Special;
 
         /// <summary>实例级字符串参数声明（2026-10-31 阶段B 表「参数」列）：本行实例需要什么 str。
-        /// None=不需要；CardRef=引用卡 ID（装载期须在卡库解析到该卡）；CardName=宣言卡名；
+        /// None=不需要；CardRef=引用卡 ID（装载期须在卡库解析到该卡）；EffectRef=引用效果库条目 id
+        ///（2026-11-06 附加诅咒/祝福载荷效果化：附加诅咒→极性 −1 效果、附加祝福→极性 +1 效果，
+        /// 须为主动效果——资格单源 EffectEligibility.CursePayloadRejectReason）；CardName=宣言卡名；
         /// Dimension=「维度:值」编码。装载校验口=CardLoader.ValidateAtomParams（空 str 报错点名行名，
         /// 不再静默空转/退回默认档）。</summary>
         public AtomicParamKind Param;
@@ -221,12 +223,14 @@ namespace CardCore.Attribute
     }
 
     /// <summary>原子行实例级字符串参数声明（2026-10-31 阶段B 表「参数」列）：
-    /// None=不需要 str；CardRef=引用卡 ID；CardName=宣言卡名；Dimension=维度:值 编码。
+    /// None=不需要 str；CardRef=引用卡 ID；EffectRef=引用效果库条目 id（2026-11-06 附加诅咒/祝福
+    /// 载荷效果化——装载期按 EffectsLibrary 解析+资格过滤）；CardName=宣言卡名；Dimension=维度:值 编码。
     /// 缺省（表内不写键）= None。</summary>
     public enum AtomicParamKind
     {
         None,
         CardRef,
+        EffectRef,
         CardName,
         Dimension,
     }

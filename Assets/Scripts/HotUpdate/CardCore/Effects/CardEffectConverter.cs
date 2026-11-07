@@ -111,9 +111,10 @@ namespace CardCore
                 def.AnchorCostPin = data.AnchorCost != null ? data.AnchorCost.Clone() : new ElementCost();
             }
 
-            // 关键词型原子不得作主动（2026-10-02 定案）：主动效果内的纯自指 Grant 原子
-            //（=给自己加关键词——横置换静态身份无意义）告警剔除（内容契约"错边剔除"同款先例）；
-            // 赋予型 Grant（域含其他目标）不受限。判定委托 ComposerCatalog.IsKeywordStyleGrant（与合成器 UI 同源）。
+            // 关键词型原子不得作主动（2026-10-02 定案；2026-11-07 关键词特判后对现行关键词恒不触发）：
+            // 旧自指 Grant 原子（=给自己加关键词——横置换静态身份无意义）仍告警剔除；现行关键词行
+            // 域=己方战场:生物（赋予通道）不命中——本闸保留给旧档自指行/未来例外。
+            // 判定委托 ComposerCatalog.IsKeywordStyleGrant（与合成器 UI 同源）。
             if (isActivated)
             {
                 int removed = RemoveKeywordStyleGrants(data);
@@ -429,20 +430,17 @@ namespace CardCore
             return removed;
         }
 
-        /// <summary>条目是否关键词型 Grant（2026-11-03 定案：**按实例域判**）：Grant 族原子，
-        /// 且**该条目的生效域**恰为 {Self}（条目显式 kinds 优先，未声明回落表行域）。
-        /// 这样「印刷行（域=自己）+ 实例域=己方单位/双方生物」就是赋予通道，可作主动效果；
-        /// 而纯自指（没写 kinds 或写 [0]）仍按关键词型处理、装载期剔除。
-        /// 合成器的关键词条目自带 kinds=[1,2]（EntryForEffectSlot），天然走赋予。</summary>
+        /// <summary>条目是否关键词型 Grant（2026-11-07 关键词特判后按**表行域**判）：Grant 族原子，
+        /// 且该表行目标域恰为 {Self}。2026-11-07 起关键词行改「己方战场:生物」（效果层=赋予通道），
+        /// 不再有自指行——本判定对现行关键词恒 false，旧自指行（若有）仍按关键词型处理。
+        /// 实例 kinds [0] 不再视为自指（NarrowByKinds 对纯 Self kinds 不收窄，按行域走）。</summary>
         private static bool IsKeywordStyleEntry(AtomicEffectEntry entry)
         {
             if (entry == null || string.IsNullOrEmpty(entry.refId)) return false;
             var row = Attribute.AtomicEffectTable.GetByHashId(entry.refId);
             if (row == null || string.IsNullOrEmpty(row.EnumName)) return false;
             if (!row.EnumName.StartsWith("Grant")) return false;
-            var kinds = entry.kinds != null && entry.kinds.Count > 0
-                ? entry.kinds
-                : row.GetTargetKindList();
+            var kinds = row.GetTargetKindList();
             return kinds != null && kinds.Count == 1 && kinds[0] == (int)TargetKind.Self;
         }
 
@@ -520,7 +518,12 @@ namespace CardCore
             // entry.domain 旧词表 token（历史授予域数据）不再解析——数据保留仅为卡 ID 不换血（重导另任务）。
             List<int> kinds;
             string filter = config.TargetFilter ?? "";
-            kinds = entry.kinds != null && entry.kinds.Count > 0
+            // 场地光环行（2026-11-06 加 Domain 列）：作用方向走 RuleAuraScope（entry.value→投放），
+            // 不参与目标解析——kinds 恒空（保持「空 Domain=无目标」的既有运行时行为，
+            // 防光环原子凭行域生成候选弹目标窗）。
+            bool auraRow = RuleAuraComponents.IsAuraLike(type);
+            kinds = auraRow ? new List<int>()
+                : entry.kinds != null && entry.kinds.Count > 0
                 ? new List<int>(entry.kinds)
                 : config.GetTargetKindList();
 
@@ -530,10 +533,12 @@ namespace CardCore
             // ① entry.domain 为新语法（实例级覆盖）优先；② 行 Domain → 产轴；
             // entry.kinds 只做区域收窄（NarrowByKinds：Both 落单侧改写、无交删 selector、
             // 角色 selector 只由行 Domain 提供）。FilterConflicts → 告警不产轴（防御口）。
+            // 例外：场地光环行（2026-11-06 加 Domain 列）不产轴——「只有场地可同时作用于双方」
+            // 的产轴豁免落点：行 Domain 仅声明/展示（缺省双方=表价），方向由 RuleAuraScope 承载。
             TargetAxis axis = null;
             string domainDecl = null;
-            if (TargetAxisRules.TryParseDomain(entry.domain, out _)) domainDecl = entry.domain;
-            else if (TargetAxisRules.TryParseDomain(config.Domain, out _)) domainDecl = config.Domain;
+            if (!auraRow && TargetAxisRules.TryParseDomain(entry.domain, out _)) domainDecl = entry.domain;
+            else if (!auraRow && TargetAxisRules.TryParseDomain(config.Domain, out _)) domainDecl = config.Domain;
             if (domainDecl != null)
             {
                 TargetAxisRules.TryParseDomain(domainDecl, out var parsedAxis); // 已验证必成功
@@ -547,13 +552,19 @@ namespace CardCore
                 {
                     parsedAxis.Filter = filter;
                     var narrowed = TargetAxisRules.NarrowByKinds(parsedAxis, entry.kinds);
+                    // 极性收窄（2026-11-06 用户定案：非场地效果一律按极性定作用侧——行域「双方」
+                    // 只是双极性并集声明，p<0→对方侧/p>0→己方侧；只有场地（仪典/场地光环，不经
+                    // 产轴路径）可同时作用于双方）。仅 kinds 未显式声明的条目收窄——实例 kinds
+                    // （手动收窄/代价锁侧/参照族第一段）优先，不经此口。
+                    if (entry.kinds == null || entry.kinds.Count == 0)
+                        narrowed = TargetAxisRules.NarrowByPolarity(narrowed, polarity);
                     // 收窄后空 selector（参照族形态：行 Domain=第二段目标域、entry.kinds=第一段参照域——
                     // 两者无交）：挂 null——外层 {target} 解析回落 kinds 路径选**参照**（第一段），
                     // 第二段目标域由 handler 读行 Domain 自管（BurstDamage/LivingArmor 2026-11-05 定案）。
                     axis = narrowed.Selectors.Count > 0 ? narrowed : null;
                 }
             }
-            else if (!string.IsNullOrEmpty(config.Domain))
+            else if (!auraRow && !string.IsNullOrEmpty(config.Domain))
                 TideLog.Warn($"[CardEffectConverter] 原子 {type}（行 {entry.refId}）行 Domain='{config.Domain}'"
                              + " 非合法新语法（旧词表残留？）——无轴，该原子无候选");
 
@@ -571,12 +582,11 @@ namespace CardCore
                 return null;
             }
 
-            // 数量装载守卫（P2-1 NoWhole；P2-2 修订=单体赋予定案）：
-            // ① 行标「不可全体」（NoWhole——操控/牺牲/宣言/反制/变形/跳回合等操作类原子）
-            //   不开放 count=0（域内全取）——告警收 1（全取严重违背定价/规则）。
-            // ② 关键词/指示物行=**单体赋予**（2026-11-04 用户定案）：一律无全域——count=0 告警收 1；
-            //   且行模板不含 {target}（无逐目标语义，如关键词「获得吸血」）→ 只能选一个——count>1 收 1。
-            //   模板含 {target} 的（指示物多数——「对{target}附加N层」）允许 1/2/3 多选。
+            // 数量装载守卫（2026-11-07 定案：按**作用域**，不按原子族）：
+            // ① 行标「不可全体」（NoWhole——操控/牺牲/宣言/反制/变形/跳回合等）禁 count=0。
+            // ② count=0（全域）仅允许**战场/手牌**（AllowsAllTarget）——这两处目标数量可预测（3~5），
+            //    1/2/3/全部合理；牌库/墓地/除外区/元素池取全域严重超模（如磨牌全磨对手牌库）→ 收 1。
+            // ③ count=2/3 任意非 Self 域允许；Self 域收 1。
             int effectiveCount = entry.count;
             var mounts = MountKindExtensions.ParseCsv(config.MountKinds);
             if (effectiveCount == 0 && mounts.Contains(MountKind.NoWhole))
@@ -585,48 +595,34 @@ namespace CardCore
                              "——count=0（域内全取）已收为 1（全取严重违背定价/规则）");
                 effectiveCount = 1;
             }
-            // 全取域守卫（**A1 定案 2026-11-05**：全体效果=side×战场×生物 三段相乘取一种）：
-            // count=0（域内全取）的域必须恰=单 selector「X方战场:生物」——角色 selector 不与区域卡类型
-            // 相乘、不进全取域；非战场区/含角色/Self/类别非生物 → 告警收 1（单体选目标）。
-            if (effectiveCount == 0 && axis != null)
+            bool allowsAll = !mounts.Contains(MountKind.NoWhole)
+                             && TargetAxisRules.AllowsAllTarget(axis);
+            if (effectiveCount == 0 && !allowsAll)
             {
-                bool wholeLegal = axis.Selectors.Count == 1
-                                  && TargetRegionRules.ZoneOf(axis.Selectors[0].Region) == Zone.Battlefield
-                                  && axis.Selectors[0].Region != TargetRegion.Self
-                                  && !TargetRegionRules.IsCharacter(axis.Selectors[0].Region)
-                                  && axis.Selectors[0].Categories == TargetCategory.Creature;
-                if (!wholeLegal)
-                {
-                    TideLog.Warn($"[CardEffectConverter] 原子 {type}（行 {entry.refId}）count=0（全域）但域 '"
-                                 + axis.Zh + "' 非「X方战场:生物」形态（A1 定案：全体=side×战场×生物，"
-                                 + "角色不进全取域）——已收为 1（单体选目标）");
-                    effectiveCount = 1;
-                }
+                TideLog.Warn($"[CardEffectConverter] 原子 {type}（行 {entry.refId}）count=0（全域）但域 '"
+                             + (axis?.Zh ?? "空") + "' 非「战场/手牌」（2026-11-07 定案：全域仅战场/手牌，"
+                             + "牌库/墓地/除外区/元素池/角色/Self 不收）——已收为 1");
+                effectiveCount = 1;
             }
-            bool grantRow = mounts.Contains(MountKind.Keyword) || mounts.Contains(MountKind.Counter);
-            if (grantRow && effectiveCount != 1)
+            bool singleOnly = axis == null
+                              || (axis.Selectors.Count > 0
+                                  && axis.Selectors.All(s => s != null
+                                      && (s.Region == TargetRegion.Self
+                                          || TargetRegionRules.IsCharacter(s.Region))));
+            if ((effectiveCount == 2 || effectiveCount == 3) && singleOnly)
             {
-                bool hasTarget = (config.Description ?? "").Contains("{target}");
-                if (effectiveCount == 0 || !hasTarget)
-                {
-                    // 日志降噪（2026-11-05）：count=-2=**未声明**（旧数据默认档，归一即预期行为）——
-                    // 静默收 1；只有显式声明（count=0 全域 / count>1）才告警。旧口径逐原子每次
-                    // 装载刷一条，单次回归 38 万行把真告警淹没。
-                    bool undeclared = entry.count == -2;
-                    if (!undeclared && effectiveCount == 0)
-                        TideLog.Warn($"[CardEffectConverter] 原子 {type}（行 {entry.refId}）关键词/指示物行" +
-                                     "=单体赋予（2026-11-04 定案）——不开放全域：count=0 已收为 1");
-                    else if (!undeclared)
-                        TideLog.Warn($"[CardEffectConverter] 原子 {type}（行 {entry.refId}）行模板不含 {{target}}" +
-                                     "（单体赋予·无逐目标语义）——只能选一个：count=" + effectiveCount + " 已收为 1");
-                    effectiveCount = 1;
-                }
+                TideLog.Warn($"[CardEffectConverter] 原子 {type}（行 {entry.refId}）域仅角色/Self"
+                             + "——目标数量已收为 1");
+                effectiveCount = 1;
             }
 
             return new AtomicEffectInstance
             {
                 Type = type,
-                Value = entry.value,
+                // 光环·极性 0 行存量旧档值（三选/钉侧时代）矫正为双方=表价档（与 handler/UI 同口径）
+                Value = auraRow && config.Polarity > -0.5f && config.Polarity < 0.5f
+                    ? (int)RuleAuraScope.Both
+                    : entry.value,
                 RandomAmplitude = Math.Clamp(entry.amp, 0f, 1f),
                 StringValue = entry.str ?? "",
                 RowHashId = entry.refId, // 来源行身份（2026-10-03：同枚举多行各自锚价——计价按行取锚）
@@ -638,13 +634,15 @@ namespace CardCore
                 Filter = filter,             // 域词表双读后的合并 filter（无域声明=表行 TargetFilter ?? ""，与旧口径一致）
                 Axis = axis,                 // 两轴（P1-b）：行声明 Region 且实例无显式域时挂载；null=回落旧口径
                 Polarity = polarity,
-                Branch = ConvertBranchPayload(entry.branch),
+                Branch = ConvertBranchPayload(entry.branch, entry.str),
             };
         }
 
         /// <summary>槽级分支载荷转换（两槽定案）：条目 → BranchPayload；Then 奖励递归引用化。
-        /// settle 越界/条件空 → 告警丢弃（防幽灵载荷空转）。</summary>
-        private static BranchPayload ConvertBranchPayload(BranchEntryData data)
+        /// settle 越界/条件空 → 告警丢弃（防幽灵载荷空转）。
+        /// 附加诅咒/祝福载荷效果化（2026-11-06）：引擎主干原子 str=效果库条目 id → payload.EffectId
+        /// ——Then 原子列与 EffectId 二通道并存（EffectId 优先），任一非空即不折叠。</summary>
+        private static BranchPayload ConvertBranchPayload(BranchEntryData data, string atomStr = null)
         {
             if (data == null) return null;
             var settle = (BranchSettleKind)data.settle;
@@ -686,6 +684,10 @@ namespace CardCore
                     payload.EngineParam = data.engineParam;
                     payload.CountdownTurns = data.engineParam; // 声明初值；0=ConvertOne 按 Then 推导换算
                     payload.ThenActivation = data.tactivate;  // 奖励发动方式（2026-10-20：-1=未声明随主干）
+                    // 载荷效果引用（2026-11-06 附加诅咒/祝福载荷效果化）：str=效果库条目 id
+                    if ((engine == BranchEngineKind.CurseOnDraw || engine == BranchEngineKind.BlessingOnDraw)
+                        && !string.IsNullOrEmpty(atomStr))
+                        payload.EffectId = atomStr;
                     break;
             }
 
@@ -697,7 +699,9 @@ namespace CardCore
                     if (inst != null) payload.Then.Add(inst);
                 }
             }
-            return payload.Then.Count > 0 ? payload : null; // 无 Then 的条件空转——折叠为无分支
+            // 无载荷的条件空转——折叠为无分支（EffectId 引用通道同计：2026-11-06 附加诅咒/祝福
+            // 载荷=组合效果引用，Then 空但有引用不折叠）
+            return payload.Then.Count > 0 || !string.IsNullOrEmpty(payload.EffectId) ? payload : null;
         }
 
         /// <summary>代价栏 Payload 条目 → 原子实例（2026-10-28 P1b 契约同步：p≠0 且锁在受益方反面——

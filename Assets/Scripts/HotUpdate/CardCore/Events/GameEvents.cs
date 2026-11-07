@@ -178,6 +178,19 @@ namespace CardCore
     }
 
     /// <summary>
+    /// 使用卡牌结算后事件（2026-11-06 充盈改造·判据七）：施放成功结算、且整条连锁结算完成的
+    /// 稳定点补发——OnCardCastSettled 锚点。与 CardPlayEvent（使用宣言时点、付费前）分工：
+    /// 本事件在连锁终点逐条补发，每个成功结算的施放各一发；发动无效/效果无效早退不补发。
+    /// </summary>
+    public class CardCastSettledEvent : GameEventBase
+    {
+        public Player Caster { get; set; }
+        public Card PlayedCard { get; set; }
+        /// <summary>抉择模式索引（宣言时已公开）</summary>
+        public int ModeIndex { get; set; }
+    }
+
+    /// <summary>
     /// 卡牌移动事件
     /// </summary>
     public class CardMoveEvent : GameEventBase

@@ -120,11 +120,6 @@ namespace CardCore.Attribute
         // 已删，Grant 映射/散射改写/战报播报同批注释）：
         // public const string BattleMage = "BattleMage";
 
-        // 苏醒关键词 id "Awaken" 已删（2026-11-02 苏醒机制整链删除）：灰身材概念已不存在，
-        // 「免灰抵沉睡」失去意义；且与倒计时玩法过近。GrantAwaken 授予原子（表行 3df00ac7→
-        // 重推后 ebb21ba2）与闸门口 GameActions.HasAwakenKeyword 同批删除。
-        // public const string Awaken = "Awaken";
-
         /// <summary>狩猎（2026-11-01 新增，绿3 表行 6eaa0d3f）：回合结束时，持有单位若处于
         /// 可行动状态（未横置），随机对防守方（对方单位∪角色，CanAttackTarget 口径）发起一次
         /// 攻击——攻击不吃横置代价（打完仍可行动），战斗计算/事件链与普通攻击同口径。

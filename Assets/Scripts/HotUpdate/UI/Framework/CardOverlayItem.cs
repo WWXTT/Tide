@@ -14,12 +14,11 @@ namespace SynergyUI
     }
 
     /// <summary>手牌特殊效果行种类（2026-11-01 上卡改版，SpUse 钮退役）：充能=任意卡型
-    ///（Charge 原子效果）。行交互（选中/再点取消）与 Use 钮分流见 HandFanCard/BattleScreen。
-    ///（Awaken=0 位已随 2026-11-02 苏醒机制整链删除——枚举显式赋值保持 Charge=1 不漂移，
-    /// 旧序号不回收。）</summary>
+    ///（2026-11-06 opt-in：充能行只出现在卡面声明 chargeAbility 的卡上——不再是全卡统一行）。
+    /// 行交互（选中/再点取消）与 Use 钮分流见 HandFanCard/BattleScreen。</summary>
     public enum SpEffectKind
     {
-        Charge = 1,
+        Charge,
     }
 
     /// <summary>
@@ -48,7 +47,7 @@ namespace SynergyUI
 
         public Cardtype Supertype;                       // type 区：底图+遮罩形状映射
         public string Illustration = "";                 // type 区立绘资源名（空=保持预制体占位）
-        public string AttributeText = "";                // attribute 区：攻击/生命/耐久（空=藏区；发动速度归效果句首）
+        public string AttributeText = "";                // attribute 区：攻击/生命/耐久（空=藏区；速度归 effect 行 lbl-skill-speed——EffectSpeed）
         public int? AttrPower, AttrLife;                 // 上半徽章数字（2026-10-30 美术定档：生物 Atc/Hea 烘焙徽章；
                                                           // null=非生物）
         public int? AttrDurability;                      // 上半徽章数字：结界耐久（Hea 徽章；TotalDurabilityOf 派生
@@ -57,7 +56,12 @@ namespace SynergyUI
         public List<string> KeywordChips;                // keys 区：关键词中文简称芯片（null/空=藏区）
         public List<(string Name, int Layers)> CounterChips; // stats 区：指示物简称+层数（空=藏区）
         public string ActiveEffectText = "";             // effect 区：唯一主动效果全文（空=藏区）
-        public ElementCost ActiveEffectCost;             // effect 区发动消耗（AnchorCost 快照；全零=藏费用行）
+        /// <summary>effect 行费用组（2026-11-06 方格改版）：带效果级代价的主动=净费
+        ///（ActiveEffectNetCost=发动费−抵扣），无代价行=锚价/模式费账单；全零=藏费用行。</summary>
+        public ElementCost ActiveEffectCost;
+        /// <summary>effect 行代价组（2026-11-06）：效果级代价分色面（EffectPayloadCostOf）；
+        /// null=该行无效果级代价——消费方回落卡级施放代价 PayloadCost。</summary>
+        public ElementCost ActiveEffectPayloadCost;
         public List<string> PassiveLines;                // passives 区：被动行（已拼 (x/y) 后缀；无限/无对局不带）
         /// <summary>多主动法术逐效果行（2026-11-01 抉择上卡改版）：法术可施放主动 ≥2 时 FromHand 按
         /// GetCastableEffects 序填充（下标=引擎 modeIndex 对位，含空文案行防错位）——ACardView 克隆
@@ -65,18 +69,25 @@ namespace SynergyUI
         public List<string> ActiveEffectLines;
         /// <summary>效果行标题（与 ActiveEffectLines 平行）：DisplayName 空=「作用 N」。</summary>
         public List<string> ActiveEffectLabels;
-        /// <summary>效果行现付费用（与 ActiveEffectLines 平行；GetRuntimeCost 按模式推导）——
-        /// 手牌 CostSquares 随选中行联动显示。</summary>
+        /// <summary>效果行费用组（与 ActiveEffectLines 平行；净费口径——带代价行=发动费−抵扣，
+        /// 无代价行=GetRuntimeCost 模式费）——手牌 CostSquares 随选中行联动显示。</summary>
         public List<ElementCost> ActiveEffectCosts;
+        /// <summary>效果行代价组（与 ActiveEffectLines 平行；效果级代价分色面，null 项=该行无效果级代价
+        /// ——消费方回落卡级 PayloadCost）。</summary>
+        public List<ElementCost> ActiveEffectPayloadCosts;
         /// <summary>特殊效果行（2026-11-01 上卡）：充能（有 Charge 原子效果，任意卡型）一行，
         /// 渲染在效果模式行之后——手牌端点行选中（再点同行取消），
-        /// Use 钮文案随选中变「充能」并按此分流施放（SpUse 钮退役；苏醒行已随 2026-11-02 删除）。
+        /// Use 钮文案随选中变「充能」并按此分流施放（SpUse 钮退役）。
         /// 四表平行等长。</summary>
         public List<string> SpEffectLabels;
         public List<string> SpEffectLines;
         public List<SpEffectKind> SpEffectKinds;
         /// <summary>特殊行费用（充能=null——现付 1 点待选色，施放时才定）。</summary>
         public List<ElementCost> SpEffectCosts;
+        /// <summary>effect 行速度标签值（2026-11-06 速度显示改版：效果文字退役速度句首——速度归卡
+        /// 类别，ACard effect 行 lbl-skill-speed 独显）：法术=旧底盘分配（EffectSpeedOf 单源）；
+        /// 生物=0；结界/其余=null=藏标签（结界效果恒自动，无速度概念）。FromHand/FromCardDataFull 填充。</summary>
+        public int? EffectSpeed;
         public Card RuntimeCard;                         // 事件刷新锚（本地模式引擎对象；null=不订阅）
 
         /// <summary>对战卡视图 → 显示模型。keepRuntimeStats=战场单位（光环加减后的实时 P/L 权威）。</summary>
@@ -126,6 +137,10 @@ namespace SynergyUI
             if (d.Supertype == Cardtype.Creature) { it.AttrPower = d.Power ?? 0; it.AttrLife = d.Life ?? 0; }
             else if (d.Supertype == Cardtype.Enchantment) it.AttrDurability = CardCompositionCost.TotalDurabilityOf(d);
             it.PayloadText = PayloadTextOf(d);
+            // 代价色构成（2026-11-06 预览补齐）：与手牌 FromHand 同口径——合成器/卡组构筑的
+            // ACard 预览同样显 Cost2 代价方格（此前只有手牌填，预览恒缺）。
+            it.PayloadCost = PayloadCostOf(d);
+            it.EffectSpeed = EffectSpeedOf(d); // effect 行速度标签（2026-11-06：类别驱动单源）
 
             // keys 芯片：印刷关键词（合成期无运行态，无授予/净化合并）
             if (d.Keywords != null && d.Keywords.Count > 0)
@@ -144,8 +159,10 @@ namespace SynergyUI
                     if (string.IsNullOrEmpty(text)) continue;
                     if (isActive && string.IsNullOrEmpty(it.ActiveEffectText))
                     {
-                        it.ActiveEffectText = WithActiveNetFormula(text, fx);
-                        it.ActiveEffectCost = fx.AnchorCost;
+                        // 2026-11-06：净费/代价公式文本退役——费用组=净费、代价组=效果级代价，进行级方格
+                        it.ActiveEffectText = text;
+                        it.ActiveEffectCost = CardComposerScreen.ActiveEffectNetCost(fx) ?? fx.AnchorCost;
+                        it.ActiveEffectPayloadCost = CardComposerScreen.EffectPayloadCostOf(fx);
                         continue;
                     }
                     (it.PassiveLines ??= new List<string>()).Add(text);
@@ -154,13 +171,17 @@ namespace SynergyUI
             return it;
         }
 
-        /// <summary>主动效果全文 + 净费公式内联（P4 §1.3·2026-10-29）：带效果级代价的主动效果
-        /// 追加「（发动费 X → 抵扣 Y → 净费 Z）」——与两合成器（P5）同源单口 CardComposerScreen.
-        /// ActiveEffectNetFeeFormula（EffectActivationGate.NetBill 只读不重算）；无代价行原样返回。</summary>
-        private static string WithActiveNetFormula(string text, CardEffectData fx)
+        /// <summary>施放期代价色构成 → Cost2 方格数据（2026-11-06 提单源）：FromHand（手牌扇/战斗）
+        /// 与 FromCardDataFull（合成器/卡组构筑预览）共用——施放期桶口径（卡级行+非主动效果行；
+        /// 2026-11-06 代价全面并入效果级后，主动效果级代价走行级 ActiveEffectPayloadCost(s)，
+        /// 本口只剩非主动效果行入桶）。null=无施放期代价（SetPayloadCosts(null)=藏 Cost2 组）。</summary>
+        private static ElementCost PayloadCostOf(CardData data)
         {
-            var formula = CardComposerScreen.ActiveEffectNetFeeFormula(fx);
-            return formula == null ? text : $"{text}（{formula}）";
+            var grant = CardCostService.PayloadGrantByColor(data);
+            if (grant == null || grant.Count == 0) return null;
+            var payloadCost = new ElementCost();
+            foreach (var kv in grant) payloadCost[kv.Key] = kv.Value;
+            return payloadCost.IsZero ? null : payloadCost;
         }
 
         /// <summary>法术效果行标题（2026-11-01 抉择上卡·承袭原模式窗选项文案口径）：
@@ -168,8 +189,9 @@ namespace SynergyUI
         private static string SpellEffectLabel(CardEffectData fx, int index)
             => string.IsNullOrEmpty(fx?.DisplayName) ? $"作用 {index + 1}" : fx.DisplayName;
 
-        /// <summary>充能行文案（2026-11-05 充能系统动作化改版）：充能=速度0系统动作（不再是卡上
-        /// Charge 原子效果），任意手牌卡一回合一次可宣——文案为系统规则描述（全卡统一）。</summary>
+        /// <summary>充能行文案（2026-11-05 充能系统动作化改版；2026-11-06 opt-in 修订）：充能=速度0
+        /// 系统动作（不再是卡上 Charge 原子效果），卡面声明资格、一回合一次可宣——文案为系统规则
+        /// 描述（全卡统一；开资格计价=卡费固定 +1 灰）。</summary>
         private static string ChargeRowText(CardData data)
             => "充能：速度0系统动作，本回合一次（仅己方主阶段）；结算期选择此卡具有的颜色，"
                + "为其放置1层同色费用降低指示物并展示这张卡（不支付元素；换区清除）";
@@ -230,13 +252,8 @@ namespace SynergyUI
                 it.PayloadText = PayloadTextOf(data);
                 // 代价色构成（2026-11-03 手牌费用方格双组）：施放期代价按色生成面——与净费
                 // 抵扣/地牌门槛同源口径（主动效果行不入施放期桶，其代价发动时现付不在此列）。
-                var grant = CardCostService.PayloadGrantByColor(data);
-                if (grant != null && grant.Count > 0)
-                {
-                    var payloadCost = new ElementCost();
-                    foreach (var kv in grant) payloadCost[kv.Key] = kv.Value;
-                    if (!payloadCost.IsZero) it.PayloadCost = payloadCost;
-                }
+                it.PayloadCost = PayloadCostOf(data);
+                it.EffectSpeed = EffectSpeedOf(data); // effect 行速度标签（2026-11-06：类别驱动单源）
             }
 
             // 压制态（2026-10-31 删除线定案）：沉默/失效/沉睡层数 → 主动/被动行与本体关键词芯片划线灰显
@@ -277,20 +294,26 @@ namespace SynergyUI
                 it.ActiveEffectLines = new List<string>();
                 it.ActiveEffectLabels = new List<string>();
                 it.ActiveEffectCosts = new List<ElementCost>();
+                it.ActiveEffectPayloadCosts = new List<ElementCost>();
                 for (int i = 0; i < castable.Count; i++)
                 {
                     var fx = castable[i];
                     var text = AtomText.RenderEffectSummary(new EffectGraphData(fx.DisplayName) { header = fx, steps = fx.Steps }, data);
                     it.ActiveEffectLabels.Add(SpellEffectLabel(fx, i));
                     it.ActiveEffectLines.Add(string.IsNullOrEmpty(text)
-                        ? "" : SuppressedText(WithActiveNetFormula(text, fx), activeSuppressed));
-                    it.ActiveEffectCosts.Add(CardCostService.GetRuntimeCost(data, i));
+                        ? "" : SuppressedText(text, activeSuppressed)); // 2026-11-06：公式文本退役——纯摘要
+                    it.ActiveEffectCosts.Add(CardComposerScreen.ActiveEffectNetCost(fx)
+                                             ?? CardCostService.GetRuntimeCost(data, i)); // 费用组=净费（无代价=模式费）
+                    it.ActiveEffectPayloadCosts.Add(CardComposerScreen.EffectPayloadCostOf(fx)); // 代价组=效果级代价
                 }
             }
-            // 特殊效果行（2026-11-05 充能系统动作化改版）：充能=速度0系统动作，不再是卡上效果——
-            // **所有手牌卡**统一带一行充能入口（选中→Use 钮变「充能」分流到 DeclareCharge；
-            // 颜色在结算期经引擎反问下拉选择）。渲染在模式行之后。
-            //（旧「有 Charge 原子效果才出充能行/充能效果不进单行」的行替代逻辑已随原子链退役。）
+            // 特殊效果行（2026-11-05 充能系统动作化改版；2026-11-06 opt-in 修订）：充能=速度0系统
+            // 动作（不再是卡上效果），**卡面声明 chargeAbility 才有资格**（组合界面 basicability
+            // 「具备充能」）——有资格的手牌卡带一行充能入口（选中→Use 钮变「充能」分流到
+            // DeclareCharge；颜色在结算期经引擎反问下拉选择）。渲染在模式行之后。
+            //（旧「有 Charge 原子效果才出充能行」行替代逻辑已随原子链退役；「全卡统一出充能行」
+            //  为 2026-11-05~11-06 间过渡口径，随 opt-in 收回。）
+            if (data != null && data.ChargeAbility)
             {
                 it.SpEffectLabels = new List<string>();
                 it.SpEffectLines = new List<string>();
@@ -312,9 +335,10 @@ namespace SynergyUI
                     if (string.IsNullOrEmpty(text)) continue;
                     if (isActive && string.IsNullOrEmpty(it.ActiveEffectText))
                     {
-                        // P4 §1.3：净费公式内联；被压（沉默/沉睡拦主动）整行划线灰显
-                        it.ActiveEffectText = SuppressedText(WithActiveNetFormula(text, fx), activeSuppressed);
-                        it.ActiveEffectCost = fx.AnchorCost;
+                        // 被压（沉默/沉睡拦主动）整行划线灰显；2026-11-06：公式文本退役、费用组=净费
+                        it.ActiveEffectText = SuppressedText(text, activeSuppressed);
+                        it.ActiveEffectCost = CardComposerScreen.ActiveEffectNetCost(fx) ?? fx.AnchorCost;
+                        it.ActiveEffectPayloadCost = CardComposerScreen.EffectPayloadCostOf(fx);
                         continue;
                     }
                     (it.PassiveLines ??= new List<string>()).Add(SuppressedText(text, autoSuppressed));
@@ -376,8 +400,7 @@ namespace SynergyUI
 
         /// <summary>attribute 区紧凑格式（2026-10-15 晚定案）：生物=攻击/生命、结界=耐久（2026-10-17
         /// 起恒显——结界一律走耐久经济，TotalDurabilityOf 派生单源）；
-        /// 发动速度不在此显示（与速度定案冲突——速度归效果描述句首，见 AtomText.ActivationPrefix），
-        /// 空串=藏区。</summary>
+        /// 速度不在此显示（2026-11-06 起归 effect 行 lbl-skill-speed——见 EffectSpeed），空串=藏区。</summary>
         private static string AttributeTextOf(CardData d)
         {
             var parts = new List<string>();
@@ -389,6 +412,25 @@ namespace SynergyUI
             else if (d.Supertype == Cardtype.Enchantment)
                 parts.Add((d.IsField ? "场地·" : "") + $"耐久{CardCompositionCost.TotalDurabilityOf(d)}"); // P4 §1.5：场地结界加「场地·」前缀（与合成器卡面摘要同措辞）
             return parts.Count == 0 ? "" : string.Join(" ", parts);
+        }
+
+        /// <summary>卡类别速度（2026-11-06 定案·单源）：主动效果本身不再带速度——速度只由卡类别决定。
+        /// 法术=旧底盘分配 KindSpeedBonusOf（max(0,3−效果槽数)）+ 效果 BaseSpeed 上限（与引擎
+        /// GetCardCastSpeed 同口——新组合 BaseSpeed 恒 0，即纯底盘值）；生物=0；
+        /// 结界/其余=null（结界效果恒自动，无速度概念=不显示）。</summary>
+        public static int? EffectSpeedOf(CardData d)
+        {
+            if (d == null) return null;
+            if (d.Supertype == Cardtype.Spell)
+            {
+                int max = 0;
+                if (d.Effects != null)
+                    foreach (var fx in d.Effects)
+                        if (fx != null && fx.BaseSpeed > max) max = fx.BaseSpeed;
+                return max + CardCompositionCost.KindSpeedBonusOf(d);
+            }
+            if (d.Supertype == Cardtype.Creature) return 0;
+            return null;
         }
 
         private static string KeywordZh(string keywordId)

@@ -201,7 +201,6 @@ namespace CardCore.Tools
                 // ---- 上行 intent ----
                 ("MsgIntentPlayCard", "CardRuntimeId"), ("MsgIntentPlayCard", "Targets"),
                 ("MsgIntentPlayCard", "FromZone"), ("MsgIntentPlayCard", "ModeIndex"),
-                ("MsgIntentPlayCard", "AwakenCast"), // 2026-10-29 P6 苏醒施放字段（协议 v3；2026-11-02 苏醒删除后 deprecated——字段保留读兼容不再写入，注册保持载荷布局不变）
                 ("MsgIntentBuildCard", "CardRuntimeId"), ("MsgIntentBuildCard", "Color"), // 2026-10-29 P7 建造（协议 v4）
                 // MsgIntentTapForElement 已删（2026-10-11 现取现用：无手动横置）——两个 tag 常量同批移除（2026-10-22）
                 ("MsgIntentAddToElementPool", "CardRuntimeId"),

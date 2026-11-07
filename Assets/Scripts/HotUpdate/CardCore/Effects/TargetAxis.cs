@@ -445,6 +445,105 @@ namespace CardCore
                     return r;
             return region;
         }
+
+        /// <summary>极性收窄（2026-11-06 用户定案：非场地效果一律按极性定作用侧——行域「双方」
+        /// 只是双极性的并集声明，只有场地（仪典/场地光环，不经本产轴路径）可同时作用于双方）：
+        /// p&lt;0（有害）→ 对方侧 / p&gt;0（有益）→ 己方侧。仅改写 **Both 侧别** selector——
+        /// 区域经 OwnOf/EnemyOf、角色直接 OwnCharacter/EnemyCharacter（角色 Zone=None，
+        /// OwnOf 会误命中 Self）；单侧/自己 selector 原样（行已显式声明侧别）。
+        /// kinds 已显式声明的条目**不经此口**（实例收窄/代价锁侧优先）。p=0 或轴空原样返回；
+        /// 收窄结果恒非空（Both selector 必有单侧对应 token）。</summary>
+        public static TargetAxis NarrowByPolarity(TargetAxis axis, float polarity)
+        {
+            if (axis == null) return axis;
+            float p = polarity < -0.5f ? -1f : polarity > 0.5f ? 1f : 0f;
+            if (p == 0f) return axis;
+            var result = new TargetAxis { Filter = axis.Filter };
+            foreach (var s in axis.Selectors)
+            {
+                if (s == null) continue;
+                if (TargetRegionRules.SideOf(s.Region) != RegionSide.Both || s.Region == TargetRegion.Self)
+                { result.Selectors.Add(s); continue; } // 自己/单侧原样
+                result.Selectors.Add(new TargetSelector
+                {
+                    Region = TargetRegionRules.IsCharacter(s.Region)
+                        ? (p > 0 ? TargetRegion.OwnCharacter : TargetRegion.EnemyCharacter)
+                        : (p > 0 ? OwnOf(s.Region) : EnemyOf(s.Region)),
+                    Categories = s.Categories,
+                });
+            }
+            return result;
+        }
+
+        /// <summary>费用增减指示物八行（2026-11-07 定案）：域=双方手牌整池，极性解析后取单侧手牌；
+        /// 该侧手牌下允许「x 张 / 全部」目标（全域=单域全取）。</summary>
+        public static bool IsCostIndicator(AtomicEffectType type)
+            => type == AtomicEffectType.AddCostUpGray
+            || type == AtomicEffectType.AddCostUpRed
+            || type == AtomicEffectType.AddCostUpBlue
+            || type == AtomicEffectType.AddCostUpGreen
+            || type == AtomicEffectType.AddCostDownGray
+            || type == AtomicEffectType.AddCostDownRed
+            || type == AtomicEffectType.AddCostDownBlue
+            || type == AtomicEffectType.AddCostDownGreen;
+
+        /// <summary>全域（count=0）合法域（2026-11-07 定案）：仅**战场/手牌**——这两处目标数量可预测
+        ///（一般 3~5 个），1/2/3/全部合理；牌库/墓地/除外区/元素池取全域会严重超模（如磨牌全磨对手牌库），
+        /// 只允许 1/2/3；角色（Player）与 Self 不进全域。要求全部 selector 都是战场/手牌。</summary>
+        public static bool AllowsAllTarget(TargetAxis axis)
+            => axis != null && axis.Selectors.Count > 0 && axis.Selectors.All(s =>
+                s != null && s.Region != TargetRegion.Self
+                && !TargetRegionRules.IsCharacter(s.Region)
+                && (TargetRegionRules.ZoneOf(s.Region) == Zone.Battlefield
+                    || TargetRegionRules.ZoneOf(s.Region) == Zone.Hand));
+
+        /// <summary>行域收窄变体枚举（2026-11-06 dd-domain 通用域下拉选项源；2026-11-07 极性单选定案后
+        /// 合成器已改逐 selector 直接收窄，本方法**当前无调用**——保留避免动公共面，勿再用于
+        /// dd-domain 选项：它产 己方/对方/双方 三变体，正是要退役的旧口径）。</summary>
+        public static List<string> SideVariantsOf(TargetAxis axis, int maxVariants = 12)
+        {
+            var result = new List<string>();
+            if (axis == null) return result;
+            foreach (var s in axis.Selectors)
+            {
+                if (s == null) continue;
+                if (s.Region == TargetRegion.Self || TargetRegionRules.IsCharacter(s.Region))
+                {
+                    AddVariant(TargetRegionRules.ZhNameOf(s.Region));
+                    continue;
+                }
+                // 侧别变体：双方区域 → 己方/对方/双方（双方=原值）；单侧区域原样
+                var side = TargetRegionRules.SideOf(s.Region);
+                var regions = side == RegionSide.Both
+                    ? new[] { OwnOf(s.Region), EnemyOf(s.Region), s.Region }
+                    : new[] { s.Region };
+                // 类别变体：多值 → 拆单类别 + 原组合；单值原样
+                var cats = SplitCategoryFlags(s.Categories).ToList();
+                var catVariants = cats.Count > 1
+                    ? cats.Select(TargetCategoryRules.ZhOf)
+                        .Concat(new[] { TargetCategoryRules.ZhOf(s.Categories) }).ToList()
+                    : new List<string> { TargetCategoryRules.ZhOf(s.Categories) };
+                foreach (var region in regions)
+                    foreach (var cat in catVariants)
+                        AddVariant(TargetRegionRules.ZhNameOf(region) + ":" + cat);
+            }
+            return result;
+
+            void AddVariant(string domain)
+            {
+                if (result.Count >= maxVariants || result.Contains(domain)) return;
+                if (TryParseDomain(domain, out _)) result.Add(domain);
+            }
+        }
+
+        /// <summary>类别 Flags → 词表序单值枚举（SideVariantsOf 拆类别用）。</summary>
+        private static IEnumerable<TargetCategory> SplitCategoryFlags(TargetCategory categories)
+        {
+            if ((categories & TargetCategory.Card) != 0) yield return TargetCategory.Card;
+            if ((categories & TargetCategory.Creature) != 0) yield return TargetCategory.Creature;
+            if ((categories & TargetCategory.Enchantment) != 0) yield return TargetCategory.Enchantment;
+            if ((categories & TargetCategory.Spell) != 0) yield return TargetCategory.Spell;
+        }
     }
 
     /// <summary>

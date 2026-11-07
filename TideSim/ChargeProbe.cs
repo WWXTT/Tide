@@ -10,8 +10,9 @@ namespace TideSim
     /// <summary>规则探针（2026-11-05 收口，常驻 QA）：
     /// ① 充能系统动作化端到端——宣入栈 → 结算期反问代选色（AI 取最大余量）→ 免费 +1 层
     ///    同色费用降低 → 净费 -1 → 同回合不可再充；
-    /// ② 参照族声明域——活体炸弹卡必须是逐原子目标制（PerAtomTargets），第一段轴=己方战场:生物
-    ///    （不含角色 selector），第二段由 handler 代码常量承担。
+    /// ② 参照族声明域——活体炸弹卡必须是逐原子目标制（PerAtomTargets），第一段轴=
+    ///    己方战场:结界；己方战场:生物（伤害行 2026-11-05 扩含结界、实例 kinds=[1] 收窄落己方；
+    ///    不含角色 selector），第二段由 handler 代码常量承担。
     /// 用法：TideSim --charge-probe（退出码=失败项数）。</summary>
     internal static class ChargeProbe
     {
@@ -83,8 +84,10 @@ namespace TideSim
                 if (atom?.Axis != null)
                 {
                     bool hasChar = atom.Axis.Selectors.Any(s => TargetRegionRules.IsCharacter(s.Region));
-                    Check(atom.Axis.Zh == "己方战场:生物" && !hasChar,
-                          $"第一段轴=己方战场:生物 且不含角色（实 {atom.Axis.Zh}）");
+                    // 2026-11-05 伤害行扩含结界：行域=双方战场:结界;己方战场:生物，实例 kinds=[1]
+                    // 把「双方结界」段收窄落己方（NarrowByKinds·Both 落单侧）→ 轴=己方结界;己方生物
+                    Check(atom.Axis.Zh == "己方战场:结界；己方战场:生物" && !hasChar,
+                          $"第一段轴=己方战场:结界；己方战场:生物（伤害行已扩含结界·2026-11-05·kinds[1] 收窄）且不含角色（实 {atom.Axis.Zh}）");
                 }
             }
 

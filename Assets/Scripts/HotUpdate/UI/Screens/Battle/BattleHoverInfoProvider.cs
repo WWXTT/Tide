@@ -193,6 +193,8 @@ namespace SynergyUI
                     }
                 }
             }
+            // 卡级代价显示口已随 2026-11-06「代价全面并入效果级」定案退役——效果级 Costs 的
+            // 「，【代价】…」由 RenderEffectSummary 拼进主动行文本
             if (actives != null) sections.Add("【主动效果】\n" + string.Join("\n", actives));
             if (autos != null) sections.Add("【自动效果】\n" + string.Join("\n", autos));
 

@@ -441,9 +441,8 @@ namespace CardCore
                 SourceNote = sourceNote,
             });
 
-            // 元素充盈触发口（2026-11-04 用户定案）：对手回合内、对手横置地牌支付时检测一次
-            if (plan.Taps != null && plan.Taps.Count > 0)
-                BranchEngines.OnOpponentTappedLands(player);
+            // 元素充盈横置触发口已于 2026-11-06 判据七退役：单口=使用卡牌结算后
+            //（BranchEngines.FlushCardCastSettled，连锁终点）——支付横置不再触发充盈评估。
 
             return true;
         }

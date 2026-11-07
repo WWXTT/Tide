@@ -8,37 +8,29 @@ namespace CardCore.AI.NeuralEnv
 {
     /// <summary>动作类型（离散下标 → 桥接映射回 GameActions.*）。
     /// v2（2026-09-30 动作空间二期契约）：新增 HeroSkill/VoluntaryTrigger/PassPriority/
-    /// RespondPlay/RespondActivate/Guard（6..11）——模型获得效果发动时机（自愿桶/英雄技能）
+    /// RespondPlay/RespondActivate/Guard——模型获得效果发动时机（自愿桶/英雄技能）
     /// 与对方回合响应窗口（守卫/响应出牌/响应发动/让过）的决策点；
     /// 指向性目标 = 同表逐目标展开（动作行=(卡,模式,目标)，与攻击动作同构，单步 argmax）。
-    /// v3（2026-10-14 契约）：补漏的两个主阶段决策点——TapCreature(12) 横置地牌特性生物产元素、
-    /// CommitAwaken(13) 苏醒立约（对账报告 D10/D11）。
-    /// v4（2026-10-29 P6 苏醒改版）：CommitAwaken(13) 退役（立约决策删除）——苏醒并入
-    /// PlayCard 的 awaken 变体行；**2026-11-02 苏醒机制整链删除：awaken 变体行一并退役**，
-    /// PlayCard 只剩普通施放行。</summary>
+    /// v3（2026-10-14 契约）：补漏 TapCreature 横置地牌特性生物产元素。
+    /// 2026-11-06 墓碑清理：历史空洞（墓地出牌 2 / 立约 13）移除，枚举连续重排 0..12——
+    /// 动作类型号全线漂移，旧模型权重作废（与 LAYOUT_VERSION 12 同批重训）。</summary>
     public enum TideActionType : int
     {
         PlayCard = 0,            // 手牌打出（含抉择模式 + 指向目标展开）
         PlayLand = 1,            // 手牌放入元素池（当地产元素）
-        Activate = 3,            // 效果发动：战场卡的主动（Activate_*）能力（含目标展开）
-        Attack = 4,              // 攻击宣言（attacker → 对方随从 / 对方玩家）
-        EndTurn = 5,             // 结束回合
-        HeroSkill = 6,           // 己方回合主阶段发动英雄技能（2026-10-07 卡牌化：技能=结界卡，Card 承载）
-        VoluntaryTrigger = 7,    // 发动自愿桶待发效果（触发式可选项；响应窗口内同类型复用）
-        PassPriority = 8,        // 响应窗口让过/放弃（仅响应窗口出现，Main 阶段不出现）
-        RespondPlay = 9,         // 响应出牌（带目标展开；速度门/费用/优先权全检）
-        RespondActivate = 10,    // 响应发动（主动；镜像 NetworkIntentApplier.ActivateWithTargets）
-        Guard = 11,              // 守卫宣言（拦截栈上的攻击宣言对象）
-        TapCreature = 12,        // 横置带地牌特性(LandTrait)的生物产 1 元素进临时钱包（主阶段；产色自动=费用首色）
-        Charge = 14,             // 充能（2026-11-05 系统动作化改版：任意手牌卡宣充能——速度0系统动作入栈，
+        Activate = 2,            // 效果发动：战场卡的主动（Activate_*）能力（含目标展开）
+        Attack = 3,              // 攻击宣言（attacker → 对方随从 / 对方玩家）
+        EndTurn = 4,             // 结束回合
+        HeroSkill = 5,           // 己方回合主阶段发动英雄技能（2026-10-07 卡牌化：技能=结界卡，Card 承载）
+        VoluntaryTrigger = 6,    // 发动自愿桶待发效果（触发式可选项；响应窗口内同类型复用）
+        PassPriority = 7,        // 响应窗口让过/放弃（仅响应窗口出现，Main 阶段不出现）
+        RespondPlay = 8,         // 响应出牌（带目标展开；速度门/费用/优先权全检）
+        RespondActivate = 9,     // 响应发动（主动；镜像 NetworkIntentApplier.ActivateWithTargets）
+        Guard = 10,              // 守卫宣言（拦截栈上的攻击宣言对象）
+        TapCreature = 11,        // 横置带地牌特性(LandTrait)的生物产 1 元素进临时钱包（主阶段；产色自动=费用首色）
+        Charge = 12,             // 充能（2026-11-05 系统动作化改版：任意手牌卡宣充能——速度0系统动作入栈，
                                   // 一张卡一回合一次；**不再承载选色**——颜色结算期反问由引擎代选；
-                                  // CanCharge 单源闸）。13 见下（勿复用）。
-        // 2 = 墓地出牌（已移除 2026-09-09）：RL 标准池不含可从墓地打出的来源卡，
-        //     枚举出的动作引擎必拒（口径漂移白耗动作配额）。引擎侧墓地出牌口已随
-        //     2026-10-30 归土改版整删（归土=回合末自动复活，非出牌来源）。
-        // 13 = CommitAwaken 苏醒立约（已移除 2026-10-29 P6 苏醒改版）：立约退役，苏醒并入
-        //     PlayCard 的 awaken 变体（AwakenCast 布尔列）；awaken 变体行已于 2026-11-02 随
-        //     苏醒机制整链删除。序号不回收、勿复用（旧契约/模型留档）。
+                                  // CanCharge 单源闸）。
     }
 
     /// <summary>一个可执行动作：模型输出离散下标 → 桥接按此结构调用 GameActions.*。</summary>
@@ -70,9 +62,6 @@ namespace CardCore.AI.NeuralEnv
         public bool HeroAttacker;
         /// <summary>响应窗口动作（签名区分上下文：同一动作在 Main 与响应窗口不互相摘除）。</summary>
         public bool ResponseContext;
-        /// <summary>充能色【墓碑字段·恒默认值】（2026-11-05 充能系统动作化改版）：选色移入引擎结算期
-        /// 反问（AI 自动取最大余量色），Charge 行不再逐色展开——字段保留防签名段漂移，恒不赋值。</summary>
-        public ManaType Color;
 
         public override string ToString()
         {
@@ -81,9 +70,8 @@ namespace CardCore.AI.NeuralEnv
         }
 
         /// <summary>
-        /// 动作签名（Type|来源卡|效果Id|目标集|模式|上下文|充能色段【墓碑·恒 -】）：跨枚举稳定（EffectDefinition 每次枚举都是新对象，
+        /// 动作签名（Type|来源卡|效果Id|目标集|模式|上下文|尾段恒 -）：跨枚举稳定（EffectDefinition 每次枚举都是新对象，
         /// 引用判等不可用；Id 是转换自卡表的稳定键）。供「本回合摘除无效动作」判重。
-        /// （苏醒位列已随 2026-11-02 苏醒机制整链删除；充能色段已随 2026-11-05 充能系统动作化改版恒 "-"。）
         /// </summary>
         public string Signature
         {
@@ -437,7 +425,7 @@ namespace CardCore.AI.NeuralEnv
                     if (!TargetDomainService.HasPlayableTargets(core, me, c, m)) continue; // 域空不可出（镜像 PlayCard 预检）
 
                     int src = TideObservation.CardIndex(me, me, Zone.Hand, i);
-                    // 普通行：全净费可付（苏醒变体行已随 2026-11-02 苏醒机制整链删除）
+                    // 普通行：全净费可付
                     if (GameActions.CanAffordCast(core, me, c, m))
                         foreach (var targets in ExpandCardTargets(core, me, c, m))
                             Actions.Add(BuildTargetedRow(TideActionType.PlayCard, c, m, src, targets));
@@ -687,10 +675,6 @@ namespace CardCore.AI.NeuralEnv
                 });
             }
         }
-
-        // EnumerateCommitAwakens 已删（2026-10-29 P6 苏醒改版）：苏醒立约动作退役——
-        // 苏醒决策并入 EnumeratePlayCard 的 awaken 变体行（该变体行亦已于 2026-11-02 随
-        // 苏醒机制整链删除）。
 
         // ===================================================== 响应窗口枚举辅助 =====================================================
 
@@ -971,7 +955,7 @@ namespace CardCore.AI.NeuralEnv
                 var a = Actions[k];
                 int b = k * TideObservation.NAction;
                 Features[b + 0] = 1f;                                        // valid
-                Features[b + 1] = (int)a.Type;                               // type 0..12（13 已退役）
+                Features[b + 1] = (int)a.Type;                               // type 0..12（2026-11-06 重排后连续无洞）
                 Features[b + 2] = a.SourceIndex;                             // cards_ 槽下标（-1=无）
                 Features[b + 3] = a.TargetIndex;                             // cards_ 槽下标（-1=无/玩家目标）
                 Features[b + 4] = a.ModeIndex;                               // 抉择模式 / HeroSkill=skillId
