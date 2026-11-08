@@ -118,6 +118,72 @@ namespace CardCore
             return null;
         }
 
+        /// <summary>
+        /// 可否作自由分支/有限分支的 Then 奖励效果引用（2026-11-07 分支奖励效果化定案·资格谓词单源
+        /// ——合成器奖励效果选择器 / 槽区保存闸 / 装载期 ValidateAtomParams 共用）：
+        /// 非引擎主干（引擎主干自持事件经济，作奖励=奖励永不发射）∧ 非光环形态（箭头/连接光环条目=
+        /// 驻场持续语义，奖励是单次结算）∧ 无场地光环步（RuleAura 驻场全局唯一）∧ 非空原子。
+        /// 不限发动方式与极性——奖励发射口 LaunchReward 自理（主动档入待发队列/自动档直发），
+        /// 奖励目标由控制者结算期弹选（极性=目标侧语义，与诅咒/祝福载荷的极性闸不同源）。
+        /// 输入契约同 <see cref="CursePayloadRejectReason"/>：完整卡内效果（EffectsLibrary.Resolve 还原）。
+        /// 自引用（分支奖励引用宿主效果自身）由选择器排除+运行时深度闸兜底，不在本谓词判。
+        /// </summary>
+        public static string BranchRewardRejectReason(CardEffectData data)
+        {
+            if (data == null) return "空效果";
+            var timing = (TriggerTiming)data.TriggerTiming;
+            if (timing < 0 || timing > TriggerTiming.OnCardCastSettled) return "时机值非法";
+            if (data.ArrowDirections != 0 || (data.LinkAuras != null && data.LinkAuras.Count > 0))
+                return "光环形态效果不可作分支奖励（箭头/光环条目=驻场持续语义，奖励是单次结算）";
+            var def = CardEffectConverter.ConvertOne(data, data.Id ?? "");
+            if (def == null) return "空效果";
+            if (CardEffectConverter.EngineKindOfDefinition(def) != BranchEngineKind.None)
+                return "引擎主干不作分支奖励（引擎不经奖励管线，条件永不评估）";
+            if (HasRuleAuraAtom(def)) return "场地光环步不可作分支奖励（驻场全局唯一语义）";
+            bool sawAtom = false;
+            foreach (var a in AtomsDeepOf(def))
+            {
+                if (a == null) continue;
+                sawAtom = true;
+                break;
+            }
+            if (!sawAtom) return "空效果（无原子）";
+            return null;
+        }
+
+        /// <summary>
+        /// 引擎奖励效果引用的发动档资格（2026-11-08 规则地基定案·资格谓词单源——合成器奖励效果
+        /// 选择器 / 槽区保存闸 / 验证器共用）：先复用 <see cref="BranchRewardRejectReason"/>
+        ///（非引擎主干/非光环形态/非空原子），再按引擎奖励类型分档——
+        /// 主动奖励引擎（倒计时/死亡计数/元素充盈，ComposerCatalog.IsActiveRewardEngine）：
+        /// 奖励必须是主动效果（def.IsActivatedEffect——Activate_*，发射口入待发队列）；
+        /// 自动奖励引擎（运势/拼枪/团结，IsAutomaticRewardEngine）：奖励必须是自动效果
+        ///（IsTriggeredEffect ∧ ActivationType==Automatic）且时机有真实事件锚
+        ///（TriggerTimingDefaults.GetEventType 非空——达标直发）。
+        /// 载荷引擎（附加诅咒/祝福）不经发动档闸——载荷资格另走 CursePayloadRejectReason，
+        /// Then 原子旧兼容通道照 BranchRewardRejectReason 通用口径。
+        /// 输入契约同 <see cref="CursePayloadRejectReason"/>：完整卡内效果（EffectsLibrary.Resolve 还原）。
+        /// </summary>
+        public static string EngineRewardRejectReason(CardEffectData data, BranchEngineKind engine)
+        {
+            var common = BranchRewardRejectReason(data);
+            if (common != null) return common;
+            if (!ComposerCatalog.IsActiveRewardEngine(engine) && !ComposerCatalog.IsAutomaticRewardEngine(engine))
+                return null; // 非奖励引擎（载荷/None）：只吃通用闸
+            var def = CardEffectConverter.ConvertOne(data, data.Id ?? "");
+            if (def == null) return "空效果";
+            if (ComposerCatalog.IsActiveRewardEngine(engine))
+                return def.IsActivatedEffect
+                    ? null
+                    : "该引擎奖励只能挂主动效果";
+            bool autoOk = def.IsTriggeredEffect
+                          && def.ActivationType == EffectActivationType.Automatic
+                          && TriggerTimingDefaults.GetEventType(def.TriggerTiming) != null;
+            return autoOk
+                ? null
+                : "该引擎奖励只能挂自动效果，且必须有真实触发时机";
+        }
+
         /// <summary>逐卡型拒绝原因（null=可挂载）。多特征叠加时任一命中即拒。</summary>
         public static string RejectReason(Cardtype host, EffectDefinition def, bool auraShape = false)
         {

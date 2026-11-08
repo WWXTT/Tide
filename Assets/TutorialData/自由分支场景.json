@@ -571,5 +571,28 @@
                                                   }
                                        }
                       }
-                  ]
+                ,
+  {
+    "id": "deathtoll-effectref",
+    "name": "⑲ 死亡计数·奖励效果引用：门槛含引用费+双通道结算（引用1伤+Then抽1）",
+    "note": "红(P2)场=教学·53(死亡计数引擎·注入卡1/2·已横置；预置计数5/6)+教学·8×1(7/7攻击者)；蓝(P1)场=教学·3×1(1/1受害者)。7/7换子杀死1/1→计数6≥门槛(抽1票2+引用「对目标造成1点伤害」1=3)→触发：奖励=先引用效果(引擎源1伤)后Then原子(红抽1)。满值6不再计数；每卡每回合1次。",
+    "scenario": {
+      "startTurn": 10,
+      "firstPlayer": "P2",
+      "player": { "life": 30, "fatigue": 0, "bank": [0,0,0,0,0,0], "lands": [], "units": [ { "card": "C_DA499FAE" } ], "hand": [], "deck": ["C_DF45065E"], "grave": [] },
+      "ai": { "life": 30, "fatigue": 0, "bank": [0,0,0,0,0,0], "lands": [], "units": [ { "card": "C_FXDT001", "tapped": true, "counters": [ { "key": "DeathToll", "value": 5 } ] }, { "card": "C_03E4B181" } ], "hand": [], "deck": ["C_DF45065E","C_DF45065E"], "grave": [] }
+    }
+  },
+  {
+    "id": "gate-effectref",
+    "name": "⑳ 有限分支·奖励效果引用：门达标双通道（主抽1+引用1伤+Then抽1）",
+    "note": "红(P2)手=教学·54(注入卡2/2·1灰·登场抽1+DeckAboveOpp门奖励)；蓝(P1)场=教学·3×1(1/1受害者)。红打教学·54：主原子抽1→门=牌库剩余高于对手(2>1)达标→奖励=先引用「对目标造成1点伤害」(1伤杀蓝1/1)后Then抽1——红共抽2、蓝受害者亡。红库=教学·8×3(7费付不起不添乱)。",
+    "scenario": {
+      "startTurn": 10,
+      "firstPlayer": "P2",
+      "player": { "life": 30, "fatigue": 0, "bank": [0,0,0,0,0,0], "lands": [], "units": [ { "card": "C_DA499FAE" } ], "hand": [], "deck": ["C_DF45065E"], "grave": [] },
+      "ai": { "life": 30, "fatigue": 0, "bank": [2,2,3,2,0,0], "lands": [], "units": [], "hand": ["C_FXGATE1"], "deck": ["C_03E4B181","C_03E4B181","C_03E4B181"], "grave": [] }
+    }
+  }
+  ]
 }

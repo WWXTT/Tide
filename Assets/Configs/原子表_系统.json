@@ -15,6 +15,7 @@
   {
     "ID": "23a06182",
     "TextHash": "23a06182",
+    "Domain": "",
     "EnumName": "守卫",
     "DisplayName": "对手攻击宣言时，转移以此卡作为攻击对象，结算战斗伤害后横置",
     "EffectType": "Guard",
@@ -27,6 +28,7 @@
   {
     "ID": "70034aee",
     "TextHash": "70034aee",
+    "Domain": "双方战场:生物",
     "EnumName": "设置攻击力",
     "DisplayName": "将{target}攻击力设为{value}",
     "EffectType": "SetPower",
@@ -39,6 +41,7 @@
   {
     "ID": "38a43580",
     "TextHash": "38a43580",
+    "Domain": "双方战场:生物",
     "EnumName": "设置生命值",
     "DisplayName": "将{target}生命值设为{value}",
     "EffectType": "SetLife",
@@ -74,48 +77,10 @@
     "ManaList": null
   },
   {
-    "ID": "7e6840f3",
-    "TextHash": "7e6840f3",
-    "Domain": "双方战场:生物,结界",
-    "EnumName": "模拟",
-    "DisplayName": "变成场上目标单位(无法复制场地光环)，附加一层变形指示物，解除时还原;发动时，按变形前后卡费用，用任意元素补齐差额",
-    "EffectType": "Morph",
-    "TargetFilter": null,
-    "Polarity": 0,
-    "MountKinds": "引擎主干,动态费用,不可全体",
-    "Tags": "换区清除型",
-    "参数": "CardRef",
-    "ManaList": [
-      0,
-      0,
-      0,
-      0
-    ]
-  },
-  {
-    "ID": "dccd2254",
-    "TextHash": "dccd2254",
-    "Domain": "双方战场:生物,结界",
-    "EnumName": "变形",
-    "DisplayName": "将{target}变成引用卡（引用卡ID指向一张真实生物/结界卡，无法引用场地光环），附加一层变形指示物，解除时还原；发动主动效果按变形前后卡费用，用任意元素补齐差额",
-    "EffectType": "GrantMorph",
-    "TargetFilter": null,
-    "Polarity": 0,
-    "MountKinds": "引擎主干,动态费用,不可全体",
-    "Tags": "换区清除型",
-    "参数": "CardRef",
-    "ManaList": [
-      0,
-      0,
-      0,
-      0
-    ]
-  },
-  {
     "ID": "fdf529cb",
-    "TextHash": "fdf529cb",
+    "TextHash": "42f1b1c5",
     "EnumName": "倒计时",
-    "DisplayName": "自由分支·倒计时：准备阶段倒计时+1（费用与回合数一比一），倒计时≥x，则触发奖励并重置倒计时（只能自动触发，等待回合数上限为6）",
+    "DisplayName": "自由分支·倒计时：准备阶段倒计时层数−1，归零则触发奖励并重挂倒计时（费用与回合数一比一）",
     "EffectType": "EngineCountdown",
     "TargetFilter": null,
     "Polarity": 0,

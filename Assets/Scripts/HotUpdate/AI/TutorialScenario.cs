@@ -350,6 +350,11 @@ namespace SynergyUI
                     if (counter == null || string.IsNullOrEmpty(counter.key) || counter.value == 0) continue;
                     card.AddCounters(counter.key, counter.value, owner);
                 }
+                // 倒计时入场挂层（2026-11-08）：静默播种不走入场统一出口，OnEnterBattlefield 不触发
+                // ——官方入场口同款显式补调（同 RefreshPrintedKeywordsOnEntry 先例）。不补则计数 0
+                // 起步，首个准备阶段 tick 误走「沉睡解除补发」兜底（重挂满值+立即发奖）。
+                // 预置 counters 已给 Countdown 的场景（自由分支场景①②⑪）本口跳过，行为不变。
+                BranchEngines.ArmCountdownOnEnter(card);
                 if (!string.IsNullOrEmpty(unit.activateRuleAura))
                     RuleAuraSystem.Activate(unit.activateRuleAura, card, owner); // 预置仪典：静默入场不走登场效果，直接投放
                 if (board != null && (unit.x >= 0 || unit.z >= 0))

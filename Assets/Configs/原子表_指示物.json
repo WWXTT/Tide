@@ -260,7 +260,7 @@
     "EffectType": "AddPowerDown",
     "TargetFilter": null,
     "Polarity": -1,
-    "MountKinds": "指示物,可以作为连接光环,不可随机",
+    "MountKinds": "指示物,不可随机",
     "Tags": "换区清除型",
     "ManaList": [
       0,
@@ -296,7 +296,7 @@
     "EffectType": "AddLifeDown",
     "TargetFilter": null,
     "Polarity": -1,
-    "MountKinds": "指示物,可以作为连接光环,不可随机",
+    "MountKinds": "指示物,不可随机",
     "Tags": "换区清除型",
     "ManaList": [
       0,
@@ -550,7 +550,7 @@
     "TextHash": "842f2a26",
     "Domain": "双方手牌:卡; 双方牌库:卡",
     "EnumName": "展示",
-    "DisplayName": "给目标添加一层展示指示物，持续期间，双方可查看",
+    "DisplayName": "给{target}添加一层展示指示物，持续期间，双方可查看",
     "EffectType": "RevealCard",
     "TargetFilter": null,
     "Polarity": 0,

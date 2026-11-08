@@ -10,7 +10,7 @@ namespace CardCore
     /// 自由分支·事件引擎运行时（2026-09-13 分支体系正规化；2026-10-05 两槽定案载荷化）：
     /// 引擎条件挂槽级原子 Branch 载荷（Settle==Engine），Then 奖励不占卡费（机制费/预算口径）。
     /// - **倒计时**（2026-10-20 固定触发定案）：入场挂 Countdown 计数（层数=payload.CountdownTurns=Then 推导费
-    ///   换算回合，1费=1回合；UntilLeaveBattlefield 换区清）；控制者回合开始 -1；归零→**直接触发奖励**
+    ///   换算回合，1费=1回合；UntilLeaveBattlefield 换区清）；控制者准备阶段 -1；归零→**直接触发奖励**
     ///   （FireRewards 直发——主干与奖励不拆开：不按奖励发动方式 tactivate 分流、不入待发队列、不走响应窗）
     ///   →重挂计数（多轮继续触发）。2026-10-16 解绑（归零→待发标记→按声明时机发射）与 2026-10-20
     ///   分支奖励发动方式拆分，均对倒计时收回。
@@ -134,6 +134,16 @@ namespace CardCore
         {
             var card = e?.Card;
             if (card == null || !card.IsAlive) return;
+            ArmCountdownOnEnter(card);
+        }
+
+        /// <summary>入场挂倒计时计数（2026-11-08 抽公共口）：首个倒计时载荷挂 CountdownTurns 层
+        ///（已挂/无载荷直返）。真实入场（CardPutToBattlefieldEvent）与教学静默播种
+        ///（TutorialScenarioSeeder——不发入场事件，须显式补调）共用——不补则计数 0 起步，
+        /// 首个准备阶段 tick 误走「沉睡解除补发」兜底分支（重挂满值+立即发奖，教学二段三a实证）。</summary>
+        public static void ArmCountdownOnEnter(Card card)
+        {
+            if (card == null || !card.IsAlive) return;
             foreach (var payload in EnginePayloadsOf(card, BranchEngineKind.Countdown).Select(tp => tp.payload))
             {
                 if (payload.CountdownTurns > 0
@@ -188,7 +198,8 @@ namespace CardCore
                                     }
                                     if (cd <= 0)
                                     {
-                                        // 沉睡期间已归零（或刚入场即0）：沉睡解除后补发并重挂
+                                        // 沉睡期间已归零：沉睡解除后补发并重挂（2026-11-08 起静默播种由
+                                        // ArmCountdownOnEnter 显式挂层，新卡不再以 0 计数进本分支）
                                         card.AddCounters(Attribute.CounterRules.CountdownCounter, turns);
                                         if (activeHost || EngineCapReached(card, def)) break; // 主动档：重挂不补发
                                         EventManager.Instance.Publish(new KeywordAppliedEvent
@@ -308,7 +319,7 @@ namespace CardCore
                     var theirsPick = RandomCreatureFromDeck(player.Opponent, zm, card);
                     int mine = PowerOf(minePick);
                     int theirs = PowerOf(theirsPick);
-                    int threshold = CostDerivationService.RewardThreshold(payload.Then); // 公式与 UI 短文案同源
+                    int threshold = CostDerivationService.RewardThresholdOf(payload.Then, payload.EffectId); // 公式与 UI 短文案同源
                     bool success = mine - theirs >= threshold;
                     EventManager.Instance.Publish(new ClashResolvedEvent // 成败两态必发（2026-10-20 表现观察口）
                     {
@@ -401,7 +412,7 @@ namespace CardCore
                     card.AddCounters(Attribute.CounterRules.DeathTollCounter, 1);
                     count++;
                     // 2026-10-09 自平衡统一（沿旧制）：门槛=Then 奖励锚价推导——奖励越贵需死亡越多
-                    int x = CostDerivationService.RewardThreshold(payload.Then);
+                    int x = CostDerivationService.RewardThresholdOf(payload.Then, payload.EffectId);
                     if (count < x) break;
                     if (EngineCapReached(card, def)) break; // 每卡每回合 1 次（2026-10-22 全局规则）
 
@@ -437,7 +448,7 @@ namespace CardCore
                     var minePick = RandomCreatureFromDeck(player, zm, card);
                     var theirsPick = RandomCreatureFromDeck(player.Opponent, zm, card);
                     int mine = PowerOf(minePick), theirs = PowerOf(theirsPick);
-                    int threshold = CostDerivationService.RewardThreshold(payload.Then); // 公式与自动路径/UI 同源
+                    int threshold = CostDerivationService.RewardThresholdOf(payload.Then, payload.EffectId); // 公式与自动路径/UI 同源
                     bool success = mine - theirs >= threshold;
                     EventManager.Instance.Publish(new ClashResolvedEvent // 成败两态必发（表现观察口——同自动路径）
                     {
@@ -457,7 +468,7 @@ namespace CardCore
                 case BranchEngineKind.DeathToll:
                 {
                     int count = card != null ? card.GetCounterCount(Attribute.CounterRules.DeathTollCounter) : 0;
-                    int x = CostDerivationService.RewardThreshold(payload.Then);
+                    int x = CostDerivationService.RewardThresholdOf(payload.Then, payload.EffectId);
                     bool success = count >= x;
                     detail = $"死亡计数 {count}{(success ? " ≥ " : " < ")}{x}（满值 {DeathTollCap}，触发不清零，使用后清零）";
                     return success;
@@ -560,7 +571,7 @@ namespace CardCore
                 foreach (var (def, payload) in EnginePayloadsOf(card, BranchEngineKind.ManaSurplus))
                 {
                     // 2026-10-09 自平衡统一：门槛=Then 奖励锚价推导（与拼点同式）——奖励越贵需领先越多
-                    int x = CostDerivationService.RewardThreshold(payload.Then);
+                    int x = CostDerivationService.RewardThresholdOf(payload.Then, payload.EffectId);
                     int mine = core.ElementPool?.GetRemainingElementTotal(owner) ?? 0;
                     int theirs = core.ElementPool?.GetRemainingElementTotal(opponent) ?? 0;
                     int diff = Math.Min(mine - theirs, SurplusCap);
@@ -592,7 +603,7 @@ namespace CardCore
             {
                 if (card == null || !card.IsAlive) continue;
                 foreach (var (_, payload) in EnginePayloadsOf(card, BranchEngineKind.ManaSurplus))
-                    best = Math.Max(best, CostDerivationService.RewardThreshold(payload.Then));
+                    best = Math.Max(best, CostDerivationService.RewardThresholdOf(payload.Then, payload.EffectId));
             }
             return best;
         }
@@ -669,16 +680,18 @@ namespace CardCore
         /// 发动口径=payload.ThenActivation（-1=未声明随主干 def·向后兼容；1=自动；2=主动）。
         /// 主动→0 费奖励 def 入待发队列走既有响应窗路径（玩家发动/AI·无头自动
         /// 代选；ElementCostPrepaid 落实费用 0——卡价收讫防执行器再扣锚价；BRANCH_REWARD 不占
-        /// 发动位）。自动/强制/未声明随主干非主动 → FireRewards 直发。</summary>
+        /// 发动位）。自动/强制/未声明随主干非主动 → FireRewards 直发。
+        /// 2026-11-07 分支奖励效果化：双通道（EffectId 效果引用+Then 原子）——主动档引用效果
+        /// 单独入队（Steps 保真· prepaid），直发档两通道一并结算。</summary>
         private static void LaunchReward(BranchPayload payload, EffectDefinition def, Card source,
             Player controller, GameCore core, IGameEvent triggeringEvent = null)
         {
-            if (payload?.Then == null || payload.Then.Count == 0) return;
+            if (BranchPayloadEmpty(payload)) return;
             // 倒计时固定触发（2026-10-20 定案）：主干与奖励不拆开——无论 tactivate 声明恒直发
             //（防御兜底；正路发射口=OnTurnStarted 归零处直调 FireRewards，不经此方法）。
             // 元素充盈同款例外（2026-10-20 判据五定案「只能是自动效果」）：奖励恒直发——
             // ThenActivation 不适用（主动队列会把触发挪进响应窗，违背仅对手回合自动发动）。
-            // 直发≠免弹选：目标仍走 ExecuteThenRewardsAsync 结算期弹选（控制者择目标）。
+            // 直发≠免弹选：目标仍走 ExecuteBranchRewardsAsync 结算期弹选（控制者择目标）。
             if (payload.EngineKind == BranchEngineKind.Countdown
                 || payload.EngineKind == BranchEngineKind.ManaSurplus)
             {
@@ -690,28 +703,83 @@ namespace CardCore
                 : (def?.ActivationType ?? EffectActivationType.Automatic);
             if (launch == EffectActivationType.Voluntary && core?.StackEngine != null)
             {
-                var rewardDef = new EffectDefinition
+                // 奖励效果引用（2026-11-07）：引用效果单独入队（定义保真——Steps/时机/编排原样，
+                // prepaid 落实费用 0）；Then 原子照旧 BRANCH_REWARD 合成 def 入队。先效果后原子。
+                if (!string.IsNullOrEmpty(payload.EffectId))
                 {
-                    Id = "BRANCH_REWARD",
-                    DisplayName = $"{ComposerCatalog.EngineZhOf(payload.EngineKind)}奖励",
-                    TriggerTiming = def?.TriggerTiming ?? TriggerTiming.OnTurnStart,
-                    ActivationType = EffectActivationType.Voluntary,
-                    ElementCostPrepaid = true,
-                    Effects = payload.Then,
-                };
-                core.StackEngine.AddPendingEffect(PendingEffect.Create(
-                    rewardDef, source, controller,
-                    core.TurnEngine?.TurnPlayer ?? controller,
-                    core.TurnEngine?.CurrentPhase?.Phase ?? PhaseType.Main,
-                    triggeringEvent: triggeringEvent));
+                    var refDef = ResolveRewardFx(payload.EffectId);
+                    if (refDef != null)
+                    {
+                        var queued = new EffectDefinition
+                        {
+                            Id = refDef.Id,
+                            DisplayName = refDef.DisplayName,
+                            TriggerTiming = refDef.TriggerTiming,
+                            ActivationType = EffectActivationType.Voluntary,
+                            ElementCostPrepaid = true,
+                            TargetCount = refDef.TargetCount,
+                            SelectionMode = refDef.SelectionMode,
+                            RandomTarget = refDef.RandomTarget,
+                            Effects = refDef.Effects,
+                            Steps = refDef.Steps,
+                        };
+                        core.StackEngine.AddPendingEffect(PendingEffect.Create(
+                            queued, source, controller,
+                            core.TurnEngine?.TurnPlayer ?? controller,
+                            core.TurnEngine?.CurrentPhase?.Phase ?? PhaseType.Main,
+                            triggeringEvent: triggeringEvent));
+                    }
+                }
+                if (payload.Then != null && payload.Then.Count > 0)
+                {
+                    var rewardDef = new EffectDefinition
+                    {
+                        Id = "BRANCH_REWARD",
+                        DisplayName = $"{ComposerCatalog.EngineZhOf(payload.EngineKind)}奖励",
+                        TriggerTiming = def?.TriggerTiming ?? TriggerTiming.OnTurnStart,
+                        ActivationType = EffectActivationType.Voluntary,
+                        ElementCostPrepaid = true,
+                        Effects = payload.Then,
+                    };
+                    core.StackEngine.AddPendingEffect(PendingEffect.Create(
+                        rewardDef, source, controller,
+                        core.TurnEngine?.TurnPlayer ?? controller,
+                        core.TurnEngine?.CurrentPhase?.Phase ?? PhaseType.Main,
+                        triggeringEvent: triggeringEvent));
+                }
                 return;
             }
             FireRewards(payload, source, controller, core);
         }
 
+        /// <summary>分支载荷双通道皆空（Then 原子列空 ∧ 效果引用空）=无奖励可发
+        ///（2026-11-07 分支奖励效果化——发射口统一闸；EffectExecutor.BranchPayloadEmpty 同口径）。</summary>
+        private static bool BranchPayloadEmpty(BranchPayload payload)
+            => (payload?.Then == null || payload.Then.Count == 0)
+               && string.IsNullOrEmpty(payload?.EffectId);
+
+        /// <summary>奖励效果库条目 → 定义（缓存键=库 DTO 实例——Reload 换实例即失效重解析，
+        /// 与 CurseSystem.Reset 语义对齐：编辑器改表重载后不喂旧定义；负缓存同存）。</summary>
+        private static readonly Dictionary<string, EffectSlimDto> _rewardFxSrc =
+            new Dictionary<string, EffectSlimDto>();
+        private static readonly Dictionary<string, EffectDefinition> _rewardFxCache =
+            new Dictionary<string, EffectDefinition>();
+
+        private static EffectDefinition ResolveRewardFx(string effectId)
+        {
+            var src = EffectsLibrary.Get(effectId);
+            if (_rewardFxCache.TryGetValue(effectId, out var cached)
+                && ReferenceEquals(_rewardFxSrc[effectId], src))
+                return cached;
+            var def = src != null ? CardEffectConverter.ConvertOne(EffectsLibrary.Resolve(effectId), effectId) : null;
+            _rewardFxSrc[effectId] = src;
+            _rewardFxCache[effectId] = def;
+            return def;
+        }
+
         private static void FireRewards(BranchPayload payload, Card source, Player controller, GameCore core)
         {
-            if (payload?.Then == null || payload.Then.Count == 0) return;
+            if (BranchPayloadEmpty(payload)) return;
             var ctx = new EffectExecutionContext
             {
                 Source = source,
@@ -720,7 +788,7 @@ namespace CardCore
                 ElementPool = core.ElementPool,
                 ModeIndex = -1,
             };
-            EffectExecutor.ExecuteThenRewardsAsync(payload.Then, ctx, null).Forget();
+            EffectExecutor.ExecuteBranchRewardsAsync(payload, ctx, null).Forget(); // 双通道：先效果引用后原子（2026-11-07）
         }
 
         private static IEnumerable<EffectDefinition> DefsOf(Card card)

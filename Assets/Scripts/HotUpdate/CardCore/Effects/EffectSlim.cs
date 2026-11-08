@@ -59,7 +59,10 @@ namespace CardCore
         public float value;  // 元素数（真实小数）
     }
 
-    /// <summary>代价引用：type=7(Payload) 时 payload 为错边原子引用。</summary>
+    /// <summary>代价引用：type=7(Payload) 时 payload 为错边原子引用；
+    /// payloads=组装代价原子序列（2026-11-08 代价效果级化——多原子行落库承载，此前只承
+    /// legacy 单原子 payload，多原子过 Effects.json 一趟即丢）。读写两形并存：
+    /// AllPayloads() 口径 payloads 优先、legacy 折入。</summary>
     [Serializable]
     public class CostRef
     {
@@ -68,6 +71,7 @@ namespace CardCore
         public int manaType;
         public int turns;
         public AtomicEffectEntry payload;
+        public List<AtomicEffectEntry> payloads;
     }
 
     /// <summary>效果条目（瘦格式——Effects.json items 的元素）。</summary>
@@ -233,7 +237,7 @@ namespace CardCore
             }
         }
 
-        /// <summary>CostEntry → CostRef（payload 原子转引用）。</summary>
+        /// <summary>CostEntry → CostRef（payload 原子转引用；payloads 列表同转——2026-11-08 效果级代价多原子承载）。</summary>
         public static CostRef ToCostRef(CostEntry c)
         {
             if (c == null) return null;
@@ -244,10 +248,13 @@ namespace CardCore
                 manaType = c.ManaType,
                 turns = c.TurnDuration,
                 payload = c.payload != null && !string.IsNullOrEmpty(c.payload.refId) ? ToRef(c.payload) : null,
+                payloads = c.payloads != null && c.payloads.Count > 0
+                    ? c.payloads.Where(p => p != null && !string.IsNullOrEmpty(p.refId)).Select(ToRef).ToList()
+                    : null,
             };
         }
 
-        /// <summary>CostRef → CostEntry。</summary>
+        /// <summary>CostRef → CostEntry（payloads 列表还原；legacy 单原子 payload 读兼容）。</summary>
         public static CostEntry ToCostEntry(CostRef cr)
         {
             if (cr == null) return null;
@@ -258,6 +265,9 @@ namespace CardCore
                 ManaType = cr.manaType,
                 TurnDuration = cr.turns,
                 payload = cr.payload != null ? ToEntry(cr.payload) : null,
+                payloads = cr.payloads != null && cr.payloads.Count > 0
+                    ? cr.payloads.Where(p => p != null).Select(ToEntry).ToList()
+                    : null,
             };
         }
 
@@ -373,7 +383,8 @@ namespace CardCore
             return o;
         }
 
-        /// <summary>代价条目（稀有列）：type/value/manaType/turns 四整数恒写（0 可能是合法枚举位——不做按值省略）。</summary>
+        /// <summary>代价条目（稀有列）：type/value/manaType/turns 四整数恒写（0 可能是合法枚举位——不做按值省略）；
+        /// payloads 列表非空才写（2026-11-08 效果级代价多原子——空表不写，legacy 单原子 payload 存量零漂移）。</summary>
         private static JObject EmitCost(CostRef c)
         {
             var o = new JObject
@@ -385,6 +396,11 @@ namespace CardCore
             };
             var p = EmitAtom(c.payload);
             if (p != null) o["payload"] = p;
+            if (c.payloads != null && c.payloads.Count > 0)
+            {
+                var arr = new JArray(c.payloads.Where(a => a != null).Select(EmitAtom).Where(x => x != null));
+                if (arr.Count > 0) o["payloads"] = arr;
+            }
             return o;
         }
 
@@ -471,6 +487,7 @@ namespace CardCore
                 if (a.branch.engine != 0) b["engine"] = a.branch.engine;
                 if (a.branch.engineParam != 0) b["engineParam"] = a.branch.engineParam;
                 if (a.branch.tactivate != -1) b["tactivate"] = a.branch.tactivate; // 奖励发动方式（-1=随主干·省略）
+                if (!string.IsNullOrEmpty(a.branch.effectId)) b["effectId"] = a.branch.effectId; // 奖励效果引用（2026-11-07 分支奖励效果化——非空才写=存量零漂移）
                 b["then"] = EmitAtoms(a.branch.then);
                 o["branch"] = b;
             }

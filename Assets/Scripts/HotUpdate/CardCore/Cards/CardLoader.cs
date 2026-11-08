@@ -84,27 +84,9 @@ namespace CardCore
         // 只能被自己顶替）。仅结界可标；装载端非结界 Error+降级（CardLoader.CreateCardData）。
         public bool isField;
 
-        // 代价栏（2026-10-04 持久化链）：卡层 Payload 原子引用——CostType 恒 Payload、Value 恒 1，
-        // 装载时按规范常量重建 CostEntry；逆转后的镜像域存于 payload.kinds（可超出表行域）。
-        // refId 空/字段缺省 = 无代价（旧档兼容——JsonUtility 空对象回落同样由此守卫拦下）。
-        public AtomicEffectEntry payload;
-
-        // 组装效果代价（2026-10-16）：线性原子序列——payloads 非空优先；旧 payload 单条由装载折入。
-        // 2026-10-31 代价指向化：本列=**整卡行**（TargetAttr=0 存量迁移形态）——列格式不变保存量卡 id 零漂移。
-        public List<AtomicEffectEntry> payloads;
-
-        // 指向化代价行（2026-10-31 代价指向化定案）：target=CostAttrTarget（1=攻击血量/2=耐久/3=速度）
-        // 的卡级代价行；整卡行（target=0）仍写 payloads 列不进本表。空表/null=无指向行。
-        public List<CardCostRowEntry> costRows;
-    }
-
-    /// <summary>指向化代价行（2026-10-31 代价指向化）：一条代价=线性原子序列 + 目标基础属性。
-    /// target=CostAttrTarget 枚举值（整卡 legacy 行不落本表——走 payloads 列）；装载重建 CostEntry。</summary>
-    [Serializable]
-    public class CardCostRowEntry
-    {
-        public int target;
-        public List<AtomicEffectEntry> payloads;
+        //（卡级代价列 payload/payloads/costRows 已随 2026-11-08 代价效果级化整删——
+        //  代价唯一形态=效果级 Costs（随效果列装载还原）；卡表不再落代价列，
+        //  旧档残留键由 JsonUtility 忽略，卡级存量 0 条无迁移。）
     }
 
     // CostJsonEntry（{manaType, amount} 对）已删除（2026-10-04 费用位置数组化）：
@@ -351,6 +333,26 @@ namespace CardCore
                     if (eff == null) continue;
                     foreach (var atom in EnumerateAtomEntries(eff))
                     {
+                        // 分支奖励效果引用（2026-11-07 分支奖励效果化）：悬空/资格不符装载期点名
+                        //（资格单源 EffectEligibility.BranchRewardRejectReason——与合成器保存闸同口径；
+                        // 不依赖表行参数位，故置于行参数 continue 之前——普通原子主干（Param=None）
+                        // 挂 Gate 载荷同样必查）
+                        var branchFx = atom?.branch?.effectId;
+                        if (!string.IsNullOrEmpty(branchFx))
+                        {
+                            var rewardData = EffectsLibrary.Resolve(branchFx);
+                            if (rewardData == null)
+                                TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}："
+                                              + $"分支奖励效果 '{branchFx}' 未能在效果库解析到条目 id——装载期拦截");
+                            else
+                            {
+                                var reason = EffectEligibility.BranchRewardRejectReason(rewardData);
+                                if (reason != null)
+                                    TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}："
+                                                  + $"分支奖励效果 '{branchFx}' 不符合奖励资格——{reason}（装载期拦截）");
+                            }
+                        }
+
                         var row = Attribute.AtomicEffectTable.GetByHashId(atom?.refId);
                         if (row == null || row.Param == Attribute.AtomicParamKind.None) continue;
                         if (ComposerCatalog.IsEngineTrunkRow(row)
@@ -991,50 +993,9 @@ namespace CardCore
                 else TideLog.Error($"[CardLoader] {entry.id}：isField 只属结界（当前 {cardData.Supertype}）——已降级为普通卡");
             }
 
-            // 代价栏（2026-10-04 持久化链；2026-10-31 代价指向化）：payloads/payload 旧列=**整卡行**
-            //（TargetAttr=0 存量迁移形态，格式不变）；costRows 新列=指向基础属性的代价行（1=攻血/2=耐久/3=速度）。
-            // 须在 EnsureCost 前。2026-10-16 组装效果代价：payloads 数组优先；旧单条 payload 折入（AllPayloads 单源）。
-            var payloadAtoms = new List<AtomicEffectEntry>();
-            if (entry.payloads != null)
-                foreach (var pa in entry.payloads)
-                    if (pa != null && !string.IsNullOrEmpty(pa.refId)) payloadAtoms.Add(pa);
-            if (payloadAtoms.Count == 0 && entry.payload != null && !string.IsNullOrEmpty(entry.payload.refId))
-                payloadAtoms.Add(entry.payload);
-            if (payloadAtoms.Count > 0)
-            {
-                cardData.PayloadCost = new CostEntry
-                {
-                    CostType = (int)CostType.Payload,
-                    Value = 1,
-                    TargetAttr = (int)CostAttrTarget.WholeCard,
-                    payloads = payloadAtoms,
-                };
-            }
-
-            // 指向化代价行：target 越界（非 1..3）Error 丢弃；空行跳过
-            if (entry.costRows != null)
-            {
-                foreach (var row in entry.costRows)
-                {
-                    if (row == null || row.payloads == null) continue;
-                    var atoms = new List<AtomicEffectEntry>();
-                    foreach (var pa in row.payloads)
-                        if (pa != null && !string.IsNullOrEmpty(pa.refId)) atoms.Add(pa);
-                    if (atoms.Count == 0) continue;
-                    if (!Enum.IsDefined(typeof(CostAttrTarget), row.target) || row.target == (int)CostAttrTarget.WholeCard)
-                    {
-                        TideLog.Error($"[CardLoader] {entry.id}：代价行 target={row.target} 非法（指向行须 1=攻血/2=耐久/3=速度；整卡行走 payloads 列）——已丢弃");
-                        continue;
-                    }
-                    cardData.PayloadCosts.Add(new CostEntry
-                    {
-                        CostType = (int)CostType.Payload,
-                        Value = 1,
-                        TargetAttr = row.target,
-                        payloads = atoms,
-                    });
-                }
-            }
+            //（卡级代价装载（payloads/payload/costRows 列）已随 2026-11-08 代价效果级化整删——
+            //  代价唯一形态=效果级 Costs，随效果列装载还原；卡级存量 0 条无迁移，
+            //  旧档残留键由 JsonUtility 忽略。）
 
             // 统一计价兜底：costList 缺省 → 写入建议档位分布（幂等，非空不动）
             CardCostService.EnsureCost(cardData);

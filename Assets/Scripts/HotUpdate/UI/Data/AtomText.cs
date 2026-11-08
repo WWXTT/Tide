@@ -576,6 +576,7 @@ namespace SynergyUI
             if (kind == BranchEngineKind.None) return null;
 
             var then = atom.branch?.then;
+            var fxId = atom.branch?.effectId; // 奖励效果引用（2026-11-07）：门槛/换算并入引用效果费——与运行时判定同源
             int x;
             switch (kind)
             {
@@ -585,16 +586,16 @@ namespace SynergyUI
                     // 2026-10-19 手牌/场上改案完整句：此卡在手牌或场上时计数双方生物死亡（类似死亡=
                     // CardDestroyEvent 生物：战斗死亡+消灭；牺牲直送非死亡无事件不计），满 6 不再计数，
                     // 计数≥x 触发奖励（触发不清零），使用后清零
-                    return $"此卡在手牌或场上时计数双方生物死亡，计数大于等于{CostDerivationService.RewardThreshold(ToInstances(then))}时触发奖励（满6不再计数，使用后清零）";
+                    return $"此卡在手牌或场上时计数双方生物死亡，计数大于等于{CostDerivationService.RewardThresholdOf(ToInstances(then), fxId)}时触发奖励（满6不再计数，使用后清零）";
                 case BranchEngineKind.ManaSurplus:
                     // 2026-11-06 判据七完整句：双方施放·整条连锁结算完成后（只能是自动效果），
                     // 双方剩余元素（未横置地牌+钱包）之差恰==x 触发（差每+1踩一档各一次）
-                    return $"任一方使用卡牌、整条连锁结算完成后，双方剩余元素的差恰好等于{CostDerivationService.RewardThreshold(ToInstances(then))}时触发奖励（仅自动，差额封顶6）";
+                    return $"任一方使用卡牌、整条连锁结算完成后，双方剩余元素的差恰好等于{CostDerivationService.RewardThresholdOf(ToInstances(then), fxId)}时触发奖励（仅自动，差额封顶6）";
                 case BranchEngineKind.Clash:
-                    x = CostDerivationService.RewardThreshold(ToInstances(then));
+                    x = CostDerivationService.RewardThresholdOf(ToInstances(then), fxId);
                     break;
                 case BranchEngineKind.Countdown:
-                    x = CostDerivationService.CountdownTurnsOf(atom.branch?.engineParam ?? 0, ToInstances(then));
+                    x = CostDerivationService.CountdownTurnsOf(atom.branch?.engineParam ?? 0, ToInstances(then), fxId);
                     break;
                 default: // 运势点数线/团结邻位数/附加诅咒·祝福张数——手填参数（EngineParamRange 钳制显示）
                     ComposerCatalog.EngineParamRange(kind, out var mn, out var mx);

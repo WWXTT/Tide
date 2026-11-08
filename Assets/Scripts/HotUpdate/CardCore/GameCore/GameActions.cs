@@ -1480,51 +1480,15 @@ namespace CardCore
                 core.ZoneManager.MoveCard(card, player, card.GetZone(), Zone.Graveyard);
         }
 
-        /// <summary>
-        /// 收集一张卡的**卡级**代价行（2026-11-02 重放改版自 CollectCardSpecialCosts 抽取）：
-        /// PayloadCosts 逐行（行序=声明序；行内原子序列整行转换）。重放轮重执行
-        ///（EffectExecutor.PayReplayRoundCostsAsync——「包括效果和代价」）与 cast 付费步共读此口。
-        /// </summary>
-        internal static List<CostInstance> CollectCardPayloadCostRows(Card card)
-        {
-            var result = new List<CostInstance>();
-            if (!(card is CardWrapper wrapper)) return result;
-
-            var rows = wrapper.GetData()?.PayloadCosts;
-            if (rows == null) return result;
-            foreach (var row in rows)
-            {
-                var atoms = row?.AllPayloads();
-                if (atoms == null || atoms.Count == 0) continue;
-                var payloadAtoms = new List<AtomicEffectInstance>();
-                bool allOk = true;
-                foreach (var pe in atoms)
-                {
-                    var inst = CardEffectConverter.ConvertPayloadForDisplay(pe);
-                    if (inst == null) { allOk = false; break; }
-                    payloadAtoms.Add(inst);
-                }
-                if (!allOk)
-                {
-                    TideLog.Warn("[CardActions] 卡级代价行 Payload 转换失败（表行缺失/契约违约）——该行按无代价处理");
-                    continue;
-                }
-                result.Add(new CostInstance
-                {
-                    Type = CostType.Payload,
-                    Value = row.Value,
-                    ManaType = (ManaType)row.ManaType,
-                    Payloads = payloadAtoms,
-                });
-            }
-            return result;
-        }
+        //（CollectCardPayloadCostRows 已随 2026-11-08 代价效果级化整删——卡级代价行不存在；
+        //  施放期代价单源=CollectCardSpecialCosts 内非主动效果行 def.Costs，
+        //  重放轮 PayReplayRoundCostsAsync 与 cast 付费步同经该口。）
 
         /// <summary>
         /// 弃牌代价「另有一张」闸（2026-11-03 用户定案）：施放/发动本卡时**本卡自身不算可弃手牌**——
         /// 弃牌类代价要求「手牌数（剔除本卡）≥ 代价张数」，不够 → 整卡不可用（声明期闸，不是结算期失败）。
         /// 旧口径 CostPayability 只数手牌总数（本卡仍在手），会出现「手里只剩本卡 → 代价空转白嫖」。
-        /// 覆盖面：卡级行 + 非主动效果行（CollectCardSpecialCosts）+ **法术所选模式（主动）效果行**
+        /// 覆盖面：非主动效果行（CollectCardSpecialCosts）+ **法术所选模式（主动）效果行**
         /// （specialCosts 不收主动行，但法术施放就是使用该主动效果——其代价照付）。
         /// 返回 null=通过；非 null=拒绝原因。
         /// </summary>
@@ -1534,14 +1498,15 @@ namespace CardCore
             int need = 0;
             foreach (var cost in CollectCardSpecialCosts(card))
                 need += DiscardAtomsOf(cost);
-            // 法术所选模式（主动）效果行——specialCosts 只收非主动效果
+            // 法术所选模式（主动）效果行——specialCosts 只收非主动效果；
+            // 非主动模式行已在 specialCosts 内，不另计（防同桶双计——2026-11-08 效果级化配套）
             var data = card is CardWrapper cw ? cw.GetData() : null;
             if (data != null && data.Supertype == Cardtype.Spell)
             {
                 var defs = GetCastableEffectDefinitions(card);
                 var modeDef = defs != null && defs.Count > 0
                     ? defs[Math.Clamp(modeIndex, 0, defs.Count - 1)] : null;
-                if (modeDef?.Costs != null)
+                if (modeDef != null && modeDef.IsActivatedEffect && modeDef.Costs != null)
                     foreach (var c in modeDef.Costs) need += DiscardAtomsOf(c);
             }
             if (need <= 0) return null;
@@ -1564,19 +1529,15 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 收集一张卡的**施放期**特殊代价（2026-10-31 代价指向化定案）：
-        /// = 卡级代价行（PayloadCosts 逐行，TargetAttr 任指——整卡 legacy / 攻血 / 耐久 / 速度）
-        /// + **非主动**效果的效果级代价行（自动效果行——随卡施放在 cast 付费步统一执行）。
+        /// 收集一张卡的**施放期**特殊代价（2026-11-08 代价效果级化——卡级行整删）：
+        /// = **非主动**效果的效果级代价行（自动效果行——随卡施放在 cast 付费步统一执行）。
         /// 主动效果行不在此列：发动时经 EffectActivationGate 现付（净费+执行）；法术施放=使用
         /// 所选主动效果——其代价行在 GetCardCost 锚价净费落账、执行器结算时执行。
         /// </summary>
         private static List<CostInstance> CollectCardSpecialCosts(Card card)
         {
-            // 卡级代价行（2026-11-02 重放改版抽取：CollectCardPayloadCostRows 单源——cast 付费步
-            // 与 EffectExecutor 重放轮「包括代价」重执行共读）
-            var result = CollectCardPayloadCostRows(card);
-
             // 效果级行：非主动（自动）效果——cast 付费步执行；主动跳过（发动时现付）
+            var result = new List<CostInstance>();
             var defs = GetCardEffectDefinitions(card);
             if (defs == null) return result;
             foreach (var def in defs)
@@ -2104,7 +2065,9 @@ namespace CardCore
                 var modeDefs = GetCastableEffectDefinitions(card);
                 var modeDef = modeDefs != null && modeDefs.Count > 0
                     ? modeDefs[Math.Clamp(modeIndex, 0, modeDefs.Count - 1)] : null;
-                var modeCosts = modeDef?.Costs != null
+                // 主动模式行才对锚价净费（法术施放=使用所选主动效果）；非主动行经
+                // ApplyCastDeduction 施放期补扣——同桶互斥防双计（2026-11-08 效果级化配套）
+                var modeCosts = modeDef != null && modeDef.IsActivatedEffect && modeDef.Costs != null
                     ? modeDef.Costs.Where(c => c != null && c.Type != CostType.ElementConsume).ToList()
                     : null;
                 if (modeCosts != null && modeCosts.Count > 0)

@@ -465,9 +465,10 @@ namespace CardCore.Editor.Tests
 
         /// <summary>诱敌夹具卡合成（2026-11-06）：诱敌卡（C_AC7E3467，卡级蓝抽卡代价×红效果=④同色
         /// 违规）已删出教学池——本验证改从教学效果库取条目合成：效果 88C651B8（Multiple·count=2·
-        /// 两敌弹回）保留在库专供本夹具，形态断言口径不变；卡级「对方抽1」代价行原样带入
-        ///（对方牌库非空闸=对局行为前提）。ToGraph 不回填 header.Steps，手动接 graph.steps
-        ///（同 EffectLibrarySerializer.DeriveAnchorCost 口径）。效果内容若改动换号，按显示名兜底。</summary>
+        /// 两敌弹回）保留在库专供本夹具，形态断言口径不变；「对方抽1」代价行 2026-11-08 效果级化
+        /// 改挂该效果 Costs（主动行=法术施放净费账单——对局行为前提等价）。ToGraph 不回填
+        /// header.Steps，手动接 graph.steps（同 EffectLibrarySerializer.DeriveAnchorCost 口径）。
+        /// 效果内容若改动换号，按显示名兜底。</summary>
         private static CardData LureFixture()
         {
             var graphs = EffectLibrarySerializer.LoadAll(tutorial: true);
@@ -478,23 +479,23 @@ namespace CardCore.Editor.Tests
                 throw new InvalidOperationException(
                     "教学效果库缺诱敌夹具条目（id=88C651B8 / 将两个对方单位弹回手牌）——卡已删，效果条目须保留");
             g.header.Steps = g.steps != null && g.steps.Count > 0 ? g.steps : null;
+            g.header.Costs = new List<CostEntry>
+            {
+                new CostEntry
+                {
+                    CostType = (int)CostType.Payload,
+                    payloads = new List<AtomicEffectEntry>
+                    {
+                        new AtomicEffectEntry { refId = "03c85bc4", kinds = new List<int> { 8 }, value = 1 },
+                    },
+                },
+            };
             return new CardData
             {
                 ID = "C_LURE_FIXTURE",
                 CardName = LureName,
                 Supertype = Cardtype.Spell,
                 Effects = new List<CardEffectData> { g.header },
-                PayloadCosts = new List<CostEntry>
-                {
-                    new CostEntry
-                    {
-                        CostType = (int)CostType.Payload,
-                        payloads = new List<AtomicEffectEntry>
-                        {
-                            new AtomicEffectEntry { refId = "03c85bc4", kinds = new List<int> { 8 }, value = 1 },
-                        },
-                    },
-                },
             };
         }
 

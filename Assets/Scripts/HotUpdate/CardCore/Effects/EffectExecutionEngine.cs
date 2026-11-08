@@ -537,17 +537,16 @@ namespace CardCore
                 if (atomicEffect == null) continue;
                 if (IsEngineTrunk(atomicEffect))
                 {
-                    // 主动引擎主干（2026-10-20 运势一步点击定案；2026-10-30 双选组主动路径泛化）：
-                    // 主动声明 + 双选引擎（除倒计时/元素充盈——仅自动）→ 点击即评估引擎条件、达标发奖。
-                    // 两段式（入待发+二次发动）已废——第一次点击（主动发动）横置源卡，待发奖励再发动
-                    // 被 CanActivate 横置检查拒。自动声明仍条件载体跳过（BranchEngines 事件驱动；
-                    // 倒计时钉死组直发）。
+                    // 主动引擎主干（2026-11-08 规则地基定案，双选组整删）：主动声明可达面=附加诅咒/祝福
+                    //（主动钉死——手动发动提示性空转，施放时已部署）+ 存量主动运势（自然缺省组保留声明
+                    //——掷骰一步点击）；其余引擎（倒计时/拼点/死亡计数/元素充盈/团结）自动钉死，转换期
+                    // 已归一不会走到主动档。自动声明仍条件载体跳过（BranchEngines 事件驱动；倒计时直发）。
                     if (effect.ActivationType == EffectActivationType.Voluntary)
                     {
                         var activeKind = atomicEffect.Branch?.EngineKind ?? BranchEngineKind.None;
                         if (activeKind == BranchEngineKind.LuckRoll)
                             await ApplyActiveLuckTrunkAsync(atomicEffect.Branch, context, fragments);
-                        else if (ComposerCatalog.EngineActivationFree(activeKind))
+                        else if (activeKind == BranchEngineKind.CurseOnDraw || activeKind == BranchEngineKind.BlessingOnDraw)
                             await ApplyActiveEngineTrunkAsync(atomicEffect.Branch, activeKind, context, fragments);
                     }
                     continue;
@@ -761,7 +760,7 @@ namespace CardCore
             bool pass = BranchConditionEvaluator.Evaluate(
                 payload.OutcomeId, context.LastOutcome, payload.ConditionParam, payload.ConditionStringParam, context);
             if (!pass) return;
-            await ExecuteThenRewardsAsync(payload.Then, context, fragments);
+            await ExecuteBranchRewardsAsync(payload, context, fragments); // 双通道（效果引用+原子，2026-11-07）
         }
 
         /// <summary>局面门评估（有限分支·Gate，2026-10-09 还原定案）：与原子产出无关，效果结算时评估一次；
@@ -773,7 +772,7 @@ namespace CardCore
             bool pass = BranchConditionEvaluator.Evaluate(
                 payload.GateId, context.LastOutcome, payload.ConditionParam, payload.ConditionStringParam, context);
             if (!pass) return;
-            await ExecuteThenRewardsAsync(payload.Then, context, fragments);
+            await ExecuteBranchRewardsAsync(payload, context, fragments); // 双通道（效果引用+原子，2026-11-07）
         }
 
         /// <summary>主动运势掷骰（2026-10-20 一步点击定案：点击→选目标→执行期先掷骰，达标则分支
@@ -784,7 +783,7 @@ namespace CardCore
         private static async UniTask ApplyActiveLuckTrunkAsync(BranchPayload payload,
             EffectExecutionContext context, List<string> fragments)
         {
-            if (payload?.Then == null || payload.Then.Count == 0) return;
+            if (BranchPayloadEmpty(payload)) return;
             int x = Math.Max(1, Math.Min(6, payload.EngineParam));
             int d1 = GameRng.Next(1, 7), d2 = GameRng.Next(1, 7);
             bool hit = d1 >= x && d2 >= x;
@@ -814,7 +813,7 @@ namespace CardCore
         private static async UniTask ApplyActiveEngineTrunkAsync(BranchPayload payload, BranchEngineKind kind,
             EffectExecutionContext context, List<string> fragments)
         {
-            if (payload?.Then == null || payload.Then.Count == 0) return;
+            if (BranchPayloadEmpty(payload)) return;
             string zh = ComposerCatalog.EngineZhOf(kind);
             if (kind == BranchEngineKind.CurseOnDraw || kind == BranchEngineKind.BlessingOnDraw)
             {
@@ -836,12 +835,16 @@ namespace CardCore
             await ApplyThenToSharedTargetsAsync(payload, context, fragments);
         }
 
-        /// <summary>主动引擎达标后的奖励适用（运势/通用主动主干共用尾段）：组合目标非空→逐目标适用
+        /// <summary>主动引擎达标后的奖励适用（运势/通用主动主干共用尾段）：奖励效果引用先按自身域结算
+        ///（2026-11-07 双通道——引用效果不吃组合目标，原子域独立弹选）；Then 原子组合目标非空→逐目标适用
         ///（效果级作用范围在结算期首已弹选共享）；空→ExecuteThenRewardsAsync 弹选口径。执行完恢复
         /// 原目标列表。奖励原子免费（卡价收讫，同 FireRewards 口径）。</summary>
         private static async UniTask ApplyThenToSharedTargetsAsync(BranchPayload payload,
             EffectExecutionContext context, List<string> fragments)
         {
+            if (!string.IsNullOrEmpty(payload?.EffectId))
+                await ExecuteReferencedEffectAsync(payload.EffectId, context, fragments);
+            if (payload.Then == null || payload.Then.Count == 0) return;
             if (context.Targets == null || context.Targets.Count == 0)
             {
                 await ExecuteThenRewardsAsync(payload.Then, context, fragments);
@@ -860,6 +863,12 @@ namespace CardCore
             }
             context.Targets = shared;
         }
+
+        /// <summary>分支载荷双通道皆空（Then 原子列空 ∧ 效果引用空）=无奖励可发
+        ///（2026-11-07 分支奖励效果化——发射口统一闸）。</summary>
+        private static bool BranchPayloadEmpty(BranchPayload payload)
+            => (payload?.Then == null || payload.Then.Count == 0)
+               && string.IsNullOrEmpty(payload?.EffectId);
 
         /// <summary>Then 奖励强制结算（两槽定案，槽级载荷/引擎共用）：依次执行——
         /// 有目标域的奖励按合法范围弹窗选 1（2026-10-07 晚定案：Chooser=效果控制者，AI/无头自动选首）；
@@ -882,6 +891,91 @@ namespace CardCore
                 }
             }
             context.Targets = saved;
+        }
+
+        // ======================================== 分支奖励效果引用（2026-11-07 分支奖励效果化） ========================================
+
+        /// <summary>奖励效果自引用环解析深度闸（A 的奖励引用 A → 奖励执行 A → 门再达标 → …）：
+        /// 资格谓词已拦引擎主干、选择器排除自身 id，本闸只兜直改 JSON 的环——4 层足够任何合法链
+        ///（与计价侧 _refCostDepth 同惯例）。</summary>
+        [ThreadStatic] private static int _rewardFxDepth;
+
+        /// <summary>分支奖励统一结算口（2026-11-07 分支奖励效果化——Gate/Outcome/Engine 三 settle 共用）：
+        /// 先结算奖励效果引用（payload.EffectId → 组合效果定义遍历），后 Then 原子列（弹选口径）——
+        /// 「组合后的效果+原子」双通道并存；单通道为空即跳过该段。双通道皆空=no-op。</summary>
+        public static async UniTask ExecuteBranchRewardsAsync(BranchPayload payload,
+            EffectExecutionContext context, List<string> fragments)
+        {
+            if (payload == null) return;
+            if (!string.IsNullOrEmpty(payload.EffectId))
+                await ExecuteReferencedEffectAsync(payload.EffectId, context, fragments);
+            if (payload.Then != null && payload.Then.Count > 0)
+                await ExecuteThenRewardsAsync(payload.Then, context, fragments);
+        }
+
+        /// <summary>奖励效果引用结算：EffectsLibrary.Resolve → ConvertOne → 按 Steps（Atomic 执行/
+        /// Branch 局面门评估，产出族门无上游产出恒否）/扁平 Effects 遍历——原子按**自身域**解析目标
+        ///（逐原子前清空 ctx.Targets，与诅咒引擎载荷 2026-11-06 晚定案同口径：防预置目标劫持域解析），
+        /// 目标由控制者结算期弹选（AI/无头自动选首）。缺失/解析失败=告警跳过（装载校验已点名）。</summary>
+        private static async UniTask ExecuteReferencedEffectAsync(string effectId,
+            EffectExecutionContext context, List<string> fragments)
+        {
+            if (_rewardFxDepth > 4)
+            {
+                TideLog.Warn($"[EffectExecutor] 分支奖励效果引用深度超限（疑似自引用环）：{effectId}——已截断");
+                return;
+            }
+            var data = EffectsLibrary.Resolve(effectId);
+            var def = data != null ? CardEffectConverter.ConvertOne(data, effectId) : null;
+            if (def == null)
+            {
+                TideLog.Warn($"[EffectExecutor] 分支奖励效果缺失: {effectId}（效果库无此条）——跳过");
+                return;
+            }
+
+            var saved = context.Targets != null ? new List<Entity>(context.Targets) : new List<Entity>();
+            _rewardFxDepth++;
+            try
+            {
+                async UniTask ExecuteAtomAsync(AtomicEffectInstance atom)
+                {
+                    if (atom == null) return;
+                    context.Targets = new List<Entity>(); // 逐原子按自身域解析（免预置劫持）
+                    await EffectHandlerRegistry.ExecuteEffectAsync(atom, context);
+                    CaptureDescription(atom, context, fragments);
+                }
+
+                if (def.Steps != null && def.Steps.Count > 0)
+                {
+                    foreach (var step in def.Steps)
+                    {
+                        if (step == null) continue;
+                        if (step.Kind == RuntimeStepKind.Atomic)
+                        {
+                            await ExecuteAtomAsync(step.Atomic);
+                        }
+                        else if (step.Kind == RuntimeStepKind.Branch)
+                        {
+                            // 局面状态族门可评估（读 ctx）；产出族门无上游产出恒否（与 CurseSystem 同取舍）
+                            bool hit = BranchConditionEvaluator.Evaluate(
+                                step.ConditionId, context.LastOutcome, step.ConditionParam, step.ConditionStringParam, context);
+                            if (step.Negate) hit = !hit;
+                            var branch = hit ? step.Then : step.Else;
+                            if (branch == null) continue;
+                            foreach (var atom in branch)
+                                await ExecuteAtomAsync(atom);
+                        }
+                    }
+                    return;
+                }
+                foreach (var atom in def.Effects)
+                    await ExecuteAtomAsync(atom);
+            }
+            finally
+            {
+                _rewardFxDepth--;
+                context.Targets = saved;
+            }
         }
 
         /// <summary>
@@ -977,13 +1071,12 @@ namespace CardCore
         }
 
         /// <summary>重放轮代价行全集（闸与付共源）：效果级代价行（specialCosts——法术所选主动行/
-        /// 单位主动行的原班）+ 法术施放的卡级 PayloadCosts 行（CollectCardPayloadCostRows 单源）。</summary>
+        /// 单位主动行/非主动行的原班）。卡级行已随 2026-11-08 代价效果级化整删——
+        /// 施放期代价已并入 specialCosts 通道，重放轮不再另收。</summary>
         private List<CostInstance> ReplayCostRows(EffectInstance instance, List<CostInstance> specialCosts)
         {
             var rows = new List<CostInstance>();
             if (specialCosts != null) rows.AddRange(specialCosts);
-            if (instance.CastCard != null && instance.CastCard.IsSpellCard())
-                rows.AddRange(GameActions.CollectCardPayloadCostRows(instance.CastCard));
             return rows;
         }
 
@@ -997,8 +1090,8 @@ namespace CardCore
         };
 
         /// <summary>
-        /// 重放轮代价重执行（2026-11-02 改版「包括效果和代价」）：效果级代价行 + 法术卡级
-        /// PayloadCosts 行，各再执行一轮；元素费用不重复（重放只重复代价，不重复费用）。
+        /// 重放轮代价重执行（2026-11-02 改版「包括效果和代价」·2026-11-08 效果级化）：
+        /// 效果级代价行（specialCosts 全集）各再执行一轮；元素费用不重复（重放只重复代价，不重复费用）。
         /// 只执行不产出（P1 口径）；可付闸已过（TryBeginReplayRerun），此处按溢出执行
         ///（弃 N 而手牌 &lt;N 弃光现有——执行层天然口径）；返回 false 仅理论兜底（闸后同帧无状态窗）。
         /// </summary>

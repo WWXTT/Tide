@@ -1792,7 +1792,8 @@ namespace CardCore.Editor
                         },
                     };
                     if (discardValue > 0)
-                        d.PayloadCost = new CostEntry { payloads = new List<AtomicEffectEntry> { DiscardPayload(discardValue) } };
+                        d.Effects[0].Costs = new List<CostEntry>
+                            { new CostEntry { payloads = new List<AtomicEffectEntry> { DiscardPayload(discardValue) } } };
                     return d;
                 }
 
@@ -1825,7 +1826,7 @@ namespace CardCore.Editor
                 int dmgPts = CostDerivationService.PayloadUnitGrant(dmgInst);
                 Assert(dmgPts > 0, $"前置：自伤红代价价 {dmgPts} > 0");
                 var redCard = CostCard("VERIFY_COST_RED", 0);
-                redCard.PayloadCost = new CostEntry { payloads = new List<AtomicEffectEntry> { dmgCost } };
+                redCard.Effects[0].Costs = new List<CostEntry> { new CostEntry { payloads = new List<AtomicEffectEntry> { dmgCost } } };
                 var rRed = CardCostService.Derive(redCard);
                 var preRed = new Dictionary<ManaType, int>();
                 foreach (var c in rRed.PrePayloadCost.NonzeroColors()) preRed[c] = (int)rRed.PrePayloadCost[c];
@@ -1848,8 +1849,23 @@ namespace CardCore.Editor
                 Assert(System.Math.Abs(r0b.DerivedTotal - r0.DerivedTotal) < 1e-4f, "无代价卡净费=推导费（蓝/绿套不变——恒推导稳定）");
 
                 // ---- ② 净费 0 的卡可付（免费卡合法）----
-                var freeData = new CardData { ID = "VERIFY_FREE_COST", CardName = "免费代价卡", Supertype = Cardtype.Spell,
-                    PayloadCost = new CostEntry { payloads = new List<AtomicEffectEntry> { DiscardPayload(1) } } };
+                // 2026-11-08 效果级化：代价挂主动效果 Costs（法术施放=使用所选主动效果——
+                // 真实免费代价卡形态，同教学潮汐族；模式行计弃牌闸、锚价净费单源）
+                var freeData = new CardData
+                {
+                    ID = "VERIFY_FREE_COST", CardName = "免费代价卡", Supertype = Cardtype.Spell,
+                    Effects = new List<CardEffectData>
+                    {
+                        new CardEffectData
+                        {
+                            Id = "VERIFY_FREE_COST_EFF",
+                            TriggerTiming = (int)TriggerTiming.Activate_Active,
+                            ActivationType = (int)EffectActivationType.Voluntary,
+                            Costs = new List<CostEntry>
+                                { new CostEntry { payloads = new List<AtomicEffectEntry> { DiscardPayload(1) } } },
+                        },
+                    },
+                };
                 CardCostService.EnsureCost(freeData);
                 Assert(freeData.Cost.IsZero, "无内容卡+代价 → 净费 0（免费卡合法，抵扣溢出丢弃）");
                 var freeCard = InjectCard(core, p1, freeData);
@@ -1993,7 +2009,7 @@ namespace CardCore.Editor
                     },
                 };
                 if (payload != null)
-                    d.PayloadCost = new CostEntry { payloads = new List<AtomicEffectEntry> { payload } };
+                    d.Effects[0].Costs = new List<CostEntry> { new CostEntry { payloads = new List<AtomicEffectEntry> { payload } } };
                 return d;
             }
 
@@ -2796,12 +2812,16 @@ namespace CardCore.Editor
             var tripleDefs = GameActions.GetCardEffectDefinitions(new CardWrapper(tripleSlot));
             Assert(tripleDefs.Count == 3 && tripleDefs[0].BaseSpeed == 0,
                    $"法术 3 槽=速0（3−槽数下限 0，实际 {tripleDefs[0].BaseSpeed}）");
-            // 4 槽 = 3 效果 + 代价行（代价栏计 1 槽——「1 效果+1 代价」=2 槽同口径，代价行刻意稍压速度）
+            // 4 槽 = 3 效果 + 代价（2026-11-08 效果级化：代价行挂第三效果 Costs——「3 效果其一带代价」
+            // 与旧「3 效果+卡级代价行」同槽位口径，代价行不计槽）
             var quadSlot = new CardData
             {
                 ID = "VERIFY_AG_QUAD", CardName = "重策术", Supertype = Cardtype.Spell,
                 Effects = new List<CardEffectData> { swiftData.Effects[0], swiftData.Effects[0], swiftData.Effects[0] },
-                PayloadCost = new CostEntry
+            };
+            quadSlot.Effects[2].Costs = new List<CostEntry>
+            {
+                new CostEntry
                 {
                     payloads = new List<AtomicEffectEntry>
                         { Atom(AtomicEffectType.DiscardCard, value: 1, kinds: new List<int> { (int)CardCore.TargetKind.OwnHand }) },
@@ -5440,17 +5460,24 @@ namespace CardCore.Editor
             // 可随机性与滑条随表 NoRandom 位漂移，不再单独锚定冻结行）
 
             // ---- 1d. 位 4 SystemInternal（2026-10-04 定案；2026-10-07 位 0/3 删除后挂载资格走派生——
-            // 资格保留、仅 UI 隐藏；晚间并行扩容：攻击/守卫/设置三行/宣告胜利并入系统位，共 9 行）----
+            // 资格保留、仅 UI 隐藏；晚间并行扩容：攻击/守卫/设置三行/宣告胜利并入系统位；
+            // 2026-11-08 模拟/变形退役出组合：挂「系统」位整库隐藏——卡直接引用（引用卡=卡组合界面绑定）----
             var internalRows = CardCore.Attribute.AtomicEffectTable.GetAll()
                 .Where(r => r != null && CardCore.ComposerCatalog.HasMountBit(r, CardCore.MountKind.SystemInternal)).ToList();
-            Assert(internalRows.Count == 7
+            Assert(internalRows.Count == 9
                    && new HashSet<string>(internalRows.Select(r => r.EnumName))
                        .SetEquals(new[] { "Attack", "Guard", "SetPower", "SetLife", "SetCost",
-                           "DeclareVictory", "RevealCard" }),
-                   "系统位 4 行：攻击/守卫/设置攻击力/设置生命值/设置费用/对手胜利+展示（2026-10-09：展示即状态加系统位；修改三原语行已随 e9a5d96 表大改删除）");
+                           "DeclareVictory", "RevealCard", "Morph", "GrantMorph" }),
+                   "系统位 9 行：攻击/守卫/设置攻击力/设置生命值/设置费用/对手胜利+展示+模拟/变形"
+                   + "（2026-11-08 模拟/变形退役出组合——挂「系统」位整库隐藏，卡直接引用+卡组合界面绑定引用卡）");
             foreach (var row in internalRows)
-                Assert(CardCore.ComposerCatalog.CanBeTrunkRow(row) && CardCore.ComposerCatalog.CanBeRewardRow(row),
-                       $"系统行 {row.EnumName} 保留派生挂载资格（主干/奖励——仅 UI 不暴露）");
+            {
+                bool dynamicCost = CardCore.ComposerCatalog.HasMountBit(row, CardCore.MountKind.DynamicCost);
+                Assert(CardCore.ComposerCatalog.CanBeTrunkRow(row),
+                       $"系统行 {row.EnumName} 保留主干挂载资格（数据可挂——仅 UI 不暴露）");
+                Assert(dynamicCost || CardCore.ComposerCatalog.CanBeRewardRow(row),
+                       $"系统行 {row.EnumName} 奖励挂载资格（动态费用行除外——不作 Then 奖励，2026-10-31 定案）");
+            }
 
             // ---- 2. 槽级载荷端到端（合成器产出形态 = TestBranchEngines 数据形态）----
             // 引擎载荷（settle=3）：任意主干原子可挂，EngineKind/Then 转存进原子 Branch 槽
@@ -5742,16 +5769,20 @@ namespace CardCore.Editor
             void SetCost(CardData c, AtomicEffectEntry a)
             {
                 // 2026-11-02 代价栏翻转限制（并行定案）：代价原子必须带锁侧 kinds
-                //（与 CardComposerScreen.FillPayloadCost 同口——PayloadCostDomain 单源），否则
+                //（与效果合成器代价门候选同口——PayloadCostDomain 单源），否则
                 // ConvertPayloadForDisplay 契约拒绝计 0 价
                 var (lockKinds, _) = CostDerivationService.PayloadCostDomain(
                     CardCore.Attribute.AtomicEffectTable.GetByHashId(a.refId));
                 if (lockKinds != null) a.kinds = lockKinds;
-                c.PayloadCost = new CostEntry
+                // 2026-11-08 代价效果级化：代价行挂首效果 Costs（卡级行已整删）
+                c.Effects[0].Costs = new List<CostEntry>
                 {
-                    CostType = (int)CostType.Payload,
-                    Value = 1,
-                    payloads = new List<AtomicEffectEntry> { a },
+                    new CostEntry
+                    {
+                        CostType = (int)CostType.Payload,
+                        Value = 1,
+                        payloads = new List<AtomicEffectEntry> { a },
+                    },
                 };
             }
 
@@ -5784,14 +5815,14 @@ namespace CardCore.Editor
             // ---- ③ 代价超上限（常量相对：cap+1 越界报错 / 恰 cap 合规；2026-11-03 收回 3） ----
             var cardCost5 = SpellOf(ParallelFx(Atom(AtomicEffectType.DrawCard, 1)));
             SetCost(cardCost5, Atom(AtomicEffectType.DealDamage, SynergyUI.EffectComposerScreen.CostDiscountCap + 1)); // 伤害 1红/点
-            float price5 = SynergyUI.EffectComposerScreen.CostRowPrice(cardCost5.PayloadCost);
+            float price5 = SynergyUI.EffectComposerScreen.CostRowPrice(cardCost5.Effects[0].Costs[0]);
             string rCost5 = SynergyUI.EffectComposerScreen.DiscountConflictOf(cardCost5);
             Assert(price5 > SynergyUI.EffectComposerScreen.CostDiscountCap && rCost5 != null && rCost5.Contains("超上限"),
                    $"代价 {price5:0.#} 点 → 超上限报错（实际：{rCost5 ?? "未报"}）");
             // 反例：代价恰在上限 → 合规
             var cardCost4 = SpellOf(ParallelFx(Atom(AtomicEffectType.DrawCard, 1)));
             SetCost(cardCost4, Atom(AtomicEffectType.DealDamage, SynergyUI.EffectComposerScreen.CostDiscountCap));
-            float price4 = SynergyUI.EffectComposerScreen.CostRowPrice(cardCost4.PayloadCost);
+            float price4 = SynergyUI.EffectComposerScreen.CostRowPrice(cardCost4.Effects[0].Costs[0]);
             Assert(price4 <= SynergyUI.EffectComposerScreen.CostDiscountCap
                    && SynergyUI.EffectComposerScreen.DiscountConflictOf(cardCost4) == null,
                    $"代价 {price4:0.#} 点（≤{SynergyUI.EffectComposerScreen.CostDiscountCap}）→ 合规");
@@ -7912,9 +7943,9 @@ namespace CardCore.Editor
                         }
                     }
 
-                // 卡级行 + 非主动效果行（施放期账单 = 抵扣前费 ∪ 主动效果锚价）
-                bool hasCastRows = cd.PayloadCosts != null && cd.PayloadCosts.Count > 0;
-                if (!hasCastRows && cd.Effects != null)
+                // 非主动效果行（施放期账单 = 抵扣前费 ∪ 主动效果锚价；卡级行已随 2026-11-08 效果级化整删）
+                bool hasCastRows = false;
+                if (cd.Effects != null)
                     foreach (var fxr in cd.Effects)
                         if (fxr?.Costs != null && fxr.Costs.Count > 0
                             && !(fxr.TriggerTiming == 19 || fxr.TriggerTiming == 20 || fxr.TriggerTiming == 21))
@@ -7938,8 +7969,7 @@ namespace CardCore.Editor
                     if (!bill.IsZero)
                     {
                         var billFlags = FlagsOf(bill);
-                        var rows = new List<CardCore.CostEntry>(
-                            cd.PayloadCosts ?? new List<CardCore.CostEntry>());
+                        var rows = new List<CardCore.CostEntry>();
                         if (cd.Effects != null)
                             foreach (var fxr in cd.Effects)
                             {

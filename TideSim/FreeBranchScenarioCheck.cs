@@ -94,6 +94,7 @@ namespace TideSim
         public static int Run()
         {
             CardCatalog.LoadAll();
+            InjectRewardFxCards(); // 分支奖励效果化夹具（2026-11-07）：两张注入卡（反射注 CardCatalog）
             string path = CardDataPaths.TutorialFileIn(ScenarioFileName + ".json");
             if (!File.Exists(path))
             {
@@ -144,7 +145,10 @@ namespace TideSim
 
         /// <summary>场景 id → 受测引擎卡名列表（诅咒/祝福宿主是法术：开局在手，施放后入墓；
         /// ⑨⑩⑰=2026-11-06 载荷效果化新形态卡 教学·50/51——原子 str=组合效果引用主通道；
-        /// ⑱=响应链双引擎：潮痕碑(充盈·连锁终点拍) + 教学·37(团结·施放直调拍)）。</summary>
+        /// ⑱=响应链双引擎：潮痕碑(充盈·连锁终点拍) + 教学·37(团结·施放直调拍)；
+        /// ⑲⑳=2026-11-07 分支奖励效果化注入卡：教学·53(死亡计数·branch.effectId 引用+Then 原子双通道)、
+        /// 教学·54(登场门 DeckAboveOpp·branch.effectId 引用+Then 原子双通道)——奖励引用既有教学组合效果
+        /// 540FB6C9「对目标造成1点伤害」（资格单源 BranchRewardRejectReason 放行）。</summary>
         private static string[] EngineNamesOf(string id)
         {
             switch (id)
@@ -159,6 +163,8 @@ namespace TideSim
                 case "clash-twice": return new[] { "教学·10" };
                 case "deathtoll-fire": return new[] { "教学·27" };
                 case "deathtoll-repeat": return new[] { "教学·52" };
+                case "deathtoll-effectref": return new[] { "教学·53" };
+                case "gate-effectref": return new[] { "教学·54" };
                 case "unity-fire":
                 case "unity-miss":
                 case "unity-mixed-cells": return new[] { "教学·37" };
@@ -304,7 +310,8 @@ namespace TideSim
                                 Console.WriteLine($"    [引擎载荷] def={def.Id} engine={a.Branch.EngineKind} param={a.Branch.EngineParam} " +
                                                   $"载荷通道={(string.IsNullOrEmpty(a.Branch.EffectId) ? "Then原子列" : $"效果引用 {a.Branch.EffectId}")}" +
                                                   $"（Then原子 {a.Branch.Then?.Count ?? 0} 个）" +
-                                                  $" 门槛x（拼枪/死亡计数=Then锚价推导）={CostDerivationService.RewardThreshold(a.Branch.Then)}");
+                                                  $" 门槛x（双通道=Then锚价+引用效果费；纯Then对照 {CostDerivationService.RewardThreshold(a.Branch.Then)}）" +
+                                                  $"={CostDerivationService.RewardThresholdOf(a.Branch.Then, a.Branch.EffectId)}");
                     if (entry.id.StartsWith("countdown"))
                         Console.WriteLine($"    读数：教学·20 预置 Countdown 层数={_engine.GetCounterCount(CounterRules.CountdownCounter)}（seeder counters 注入）");
                     if (entry.id.StartsWith("unity"))
@@ -391,6 +398,41 @@ namespace TideSim
                             $"⑥ 蓝 6 只 1/1 全灭（墓 {CountIn(core, p1, Zone.Graveyard, "教学·3")} / 场存活 {CountAlive(core, p1, "教学·3")}）");
                         Assert(p1.Life == 30, $"⑥ 蓝零战损生命（无头自动选首=第 6 杀的尸体仍在候选首位，6 伤落尸体不落角色——角色兜底只发生在完全无单位时，充盈⑥同源口径）——实际 {p1.Life}");
                         break;
+
+                    case "deathtoll-effectref":
+                    {
+                        // ⑲ 分支奖励效果化（2026-11-07）：教学·53=死亡计数引擎，branch.effectId=540FB6C9
+                        //「对目标造成1点伤害」+ Then 抽1——双通道（先效果后原子）结算 + 门槛含引用效果费。
+                        Assert(EngineEffectIdOf(_engine, BranchEngineKind.DeathToll) == "540FB6C9",
+                            $"⑲ 载荷通道=branch.effectId 直落（converter；实际 {EngineEffectIdOf(_engine, BranchEngineKind.DeathToll) ?? "null"}）");
+                        var dtFx = RewardFxBriefOf(_engine, BranchEngineKind.DeathToll);
+                        int xWith = CostDerivationService.RewardThresholdOf(dtFx?.Then, dtFx?.EffectId);
+                        int xPure = CostDerivationService.RewardThreshold(dtFx?.Then);
+                        Assert(xWith > xPure,
+                            $"⑲ 门槛推导含引用效果费（双通道 {xWith} > 纯 Then {xPure}——抽1票2+引用1伤）");
+                        Assert(Kw("死亡计数") == 1 && KwDetail("死亡计数").Contains($"≥ {xWith}"),
+                            $"⑲ 计数 6≥{xWith} 恰 1 次触发（实际 {Kw("死亡计数")}，明细：{KwDetail("死亡计数")}）");
+                        Assert(_engineDamage.Any(d => d.dmg == 1),
+                            $"⑲ 引用效果执行=引擎源 1 伤事件（实际 {DescribeDamage()}）");
+                        Assert(_redDraws.Count == 1,
+                            $"⑲ Then 原子执行=红抽 1（实际 [{string.Join(",", _redDraws)}]）");
+                        break;
+                    }
+
+                    case "gate-effectref":
+                    {
+                        // ⑳ 有限分支奖励效果化（2026-11-07）：教学·54 登场抽1 + DeckAboveOpp 门 →
+                        // 奖励=引用效果 540FB6C9（1 伤）+ Then 抽1——门达标双通道一并结算。
+                        Assert(_redPlays == 1, $"⑳ 红打出教学·54 恰 1 次（实际 {_redPlays}）");
+                        Assert(Unit(core, p2, "教学·54") != null, "⑳ 教学·54 落红场");
+                        Assert(_redDraws.Count == 2,
+                            $"⑳ 主原子抽1+Then抽1=共 2（实际 [{string.Join(",", _redDraws)}]）");
+                        Assert(_allDamage.Any(x => x.Contains("教学·54") && x.Contains("−1")),
+                            $"⑳ 引用效果执行=1 伤来自教学·54（实际 {string.Join("；", _allDamage)}）");
+                        Assert(Unit(core, p1, "教学·3") == null,
+                            "⑳ 蓝受害者被引用效果 1 伤击杀（不在场）");
+                        break;
+                    }
 
                     case "unity-fire":
                         Assert(BranchEngines.UnityAdjacentCountOf != null && BranchEngines.UnityAdjacentCountOf(_engine) == 4,
@@ -613,6 +655,138 @@ namespace TideSim
                     if (a?.Branch != null && a.Branch.Settle == BranchSettleKind.Engine && a.Branch.EngineKind == kind)
                         return a.Branch.EffectId;
             return null;
+        }
+
+        /// <summary>卡上指定引擎载荷全文（2026-11-07 分支奖励效果化断言用：Then+EffectId 双通道读数）。</summary>
+        private static BranchPayload RewardFxBriefOf(Card card, BranchEngineKind kind)
+        {
+            foreach (var def in GameActions.GetCardEffectDefinitions(card) ?? new List<EffectDefinition>())
+                foreach (var a in def?.Effects ?? new List<AtomicEffectInstance>())
+                    if (a?.Branch != null && a.Branch.Settle == BranchSettleKind.Engine && a.Branch.EngineKind == kind)
+                        return a.Branch;
+            return null;
+        }
+
+        // ======================================== 分支奖励效果化注入夹具（2026-11-07） ========================================
+
+        /// <summary>奖励引用的组合效果：既有教学条目 540FB6C9「对目标造成1点伤害」（timing19 主动·
+        /// 1 红锚价·DealDamage a4b823fc kinds[2]）——资格单源 EffectEligibility.BranchRewardRejectReason 放行。</summary>
+        private const string RewardFxRefId = "540FB6C9";
+
+        /// <summary>注入两张夹具卡（反射注 CardCatalog._byId/_cache——库无公开注入口，同 FixtureCards 惯例）：
+        /// 教学·53=死亡计数引擎（branch.effectId 引用+Then 抽1 双通道）/ 教学·54=登场抽1+DeckAboveOpp 门
+        /// （branch.effectId 引用+Then 抽1）。行 id 运行时反查（EngineDeathToll/DrawCard），不硬编码。</summary>
+        private static void InjectRewardFxCards()
+        {
+            try
+            {
+                string tollRow = AtomicEffectTable.GetByType(AtomicEffectType.EngineDeathToll)?.HashId;
+                string drawRow = AtomicEffectTable.GetByType(AtomicEffectType.DrawCard)?.HashId;
+                if (string.IsNullOrEmpty(tollRow) || string.IsNullOrEmpty(drawRow))
+                {
+                    Console.WriteLine("    [注入] 夹具行缺失：EngineDeathToll/DrawCard 原子行不可解析——⑲⑳ 场景将失败");
+                    return;
+                }
+
+                var tollFx = new CardEffectData
+                {
+                    Id = "FXDT",
+                    DisplayName = "死亡计数·效果引用奖励（注入）",
+                    TriggerTiming = (int)TriggerTiming.OnPlay,
+                    ActivationType = (int)EffectActivationType.Automatic,
+                    Steps = new List<EffectStepData>
+                    {
+                        new EffectStepData
+                        {
+                            kind = 0,
+                            atomic = new AtomicEffectEntry
+                            {
+                                refId = tollRow,
+                                branch = new BranchEntryData
+                                {
+                                    settle = 3,
+                                    engine = (int)BranchEngineKind.DeathToll,
+                                    effectId = RewardFxRefId,
+                                    then = new List<AtomicEffectEntry> { new AtomicEffectEntry { refId = drawRow } },
+                                },
+                            },
+                        },
+                    },
+                };
+                var tollCard = new CardData
+                {
+                    ID = "C_FXDT001",
+                    CardName = "教学·53",
+                    Supertype = Cardtype.Creature,
+                    Power = 1,
+                    Life = 2,
+                    AttackAbility = true,
+                    GuardAbility = true,
+                    ChargeAbility = true,
+                    Cost = new ElementCost(new[] { 1f, 0f, 0f, 0f, 0f, 0f }),
+                    Tags = new List<string> { "教学" },
+                    Effects = new List<CardEffectData> { tollFx },
+                };
+
+                var gateFx = new CardEffectData
+                {
+                    Id = "FXGATE",
+                    DisplayName = "登场抽1·门达标再奖（注入）",
+                    TriggerTiming = (int)TriggerTiming.OnPlay,
+                    ActivationType = (int)EffectActivationType.Automatic,
+                    Steps = new List<EffectStepData>
+                    {
+                        new EffectStepData
+                        {
+                            kind = 0,
+                            atomic = new AtomicEffectEntry
+                            {
+                                refId = drawRow,
+                                branch = new BranchEntryData
+                                {
+                                    settle = 1,
+                                    gateId = "DeckAboveOpp",
+                                    effectId = RewardFxRefId,
+                                    then = new List<AtomicEffectEntry> { new AtomicEffectEntry { refId = drawRow } },
+                                },
+                            },
+                        },
+                    },
+                };
+                var gateCard = new CardData
+                {
+                    ID = "C_FXGATE1",
+                    CardName = "教学·54",
+                    Supertype = Cardtype.Creature,
+                    Power = 2,
+                    Life = 2,
+                    AttackAbility = true,
+                    GuardAbility = true,
+                    ChargeAbility = true,
+                    Cost = new ElementCost(new[] { 1f, 0f, 0f, 0f, 0f, 0f }),
+                    Tags = new List<string> { "教学" },
+                    Effects = new List<CardEffectData> { gateFx },
+                };
+
+                var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static;
+                var byId = typeof(CardCatalog).GetField("_byId", flags)?.GetValue(null) as Dictionary<string, CardData>;
+                var cache = typeof(CardCatalog).GetField("_cache", flags)?.GetValue(null) as List<CardData>;
+                if (byId == null || cache == null)
+                {
+                    Console.WriteLine("    [注入] CardCatalog 私有字段反射失败——⑲⑳ 场景将失败");
+                    return;
+                }
+                foreach (var c in new[] { tollCard, gateCard })
+                {
+                    byId[c.ID] = c;
+                    if (cache.All(x => x?.ID != c.ID)) cache.Add(c);
+                }
+                Console.WriteLine("    [注入] 分支奖励效果化夹具就绪：教学·53（死亡计数·双通道）/教学·54（登场门·双通道）→ 引用 " + RewardFxRefId);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"    [注入] 夹具注入异常：{e.Message}——⑲⑳ 场景将失败");
+            }
         }
 
         /// <summary>卡上指定引擎的自平衡门槛（Then 锚价推导——与运行时判定同式；无载荷=-1）。</summary>

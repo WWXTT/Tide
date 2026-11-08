@@ -102,16 +102,39 @@ namespace CardCore
             _ => false,
         };
 
-        /// <summary>引擎发动方式双选组（2026-10-30 用户定案）：除倒计时/元素充盈（仅自动钉死）外，
-        /// 其余引擎 自动/主动 均可声明——预设 Activation 降级为落槽缺省，声明主动（2）合法保留
-        ///（合成器 ApplyEngineHeaderLock 不再钉值；CardEffectConverter 归一放行声明值）。
-        /// 主动路径运行时已接（EffectExecutionEngine.ApplyActiveEngineTrunkAsync/ApplyActiveLuckTrunkAsync：
-        /// 点击即评估条件、达标发奖；附加诅咒·祝福=施放时已部署、手动发动提示性空转）。
-        /// 模拟/变形动态主干=仅主动（非引擎预设，合成器另行钉死，不经本口）。</summary>
-        public static bool EngineActivationFree(BranchEngineKind kind)
-            => kind != BranchEngineKind.None
-               && kind != BranchEngineKind.Countdown
-               && kind != BranchEngineKind.ManaSurplus;
+        // ======================================== 引擎发动方式·奖励发动档（2026-11-08 规则地基单一事实源） ========================================
+
+        /// <summary>自由分支主动行（2026-11-08 规则地基定案；同日模拟/变形退役出组合——
+        /// 两行动态主干出列，挂「系统」位转卡直接引用）：附加诅咒（EngineCurseOnDraw）/
+        /// 附加祝福（EngineBlessingOnDraw）——发动方式钉主动。
+        /// 消费：EngineActivationPinOf（合成器钉值/下拉闸）、验证器（EngineRewardRulesVerifier）。</summary>
+        public static bool IsActiveFreeBranchRow(AtomicEffectType type)
+            => type == AtomicEffectType.EngineCurseOnDraw || type == AtomicEffectType.EngineBlessingOnDraw;
+
+        /// <summary>自动引擎行（主动行以外的全部引擎主干行）：倒计时/运势/拼点/死亡计数/
+        /// 元素充盈/团结——发动方式钉自动（评估口内生于引擎事件）。</summary>
+        public static bool IsAutomaticFreeBranchRow(AtomicEffectType type)
+            => EngineKindOf(type) != BranchEngineKind.None && !IsActiveFreeBranchRow(type);
+
+        /// <summary>主动奖励引擎（2026-11-08 规则地基定案）：倒计时/死亡计数/元素充盈——
+        /// 奖励只能挂主动效果（Activate_*，发射口入待发队列）。资格闸=EffectEligibility.EngineRewardRejectReason。</summary>
+        public static bool IsActiveRewardEngine(BranchEngineKind kind)
+            => kind == BranchEngineKind.Countdown || kind == BranchEngineKind.DeathToll
+               || kind == BranchEngineKind.ManaSurplus;
+
+        /// <summary>自动奖励引擎：运势/拼点/团结——奖励只能挂自动效果（真实触发时机，达标直发）。</summary>
+        public static bool IsAutomaticRewardEngine(BranchEngineKind kind)
+            => kind == BranchEngineKind.LuckRoll || kind == BranchEngineKind.Clash
+               || kind == BranchEngineKind.Unity;
+
+        /// <summary>引擎主干发动方式单值钉（2026-11-08 定案，取代 2026-10-30 双选组——
+        /// EngineActivationFree 已随双选面整删）：主动行（附加诅咒/祝福） → Voluntary；其余引擎行 → Automatic；
+        /// 非引擎 → null（宿主形状闸照旧管辖）。
+        /// 消费：合成器 EngineActivationPin（图形态判定后委派本口）/发动方式下拉 Changed 闸/验证器。</summary>
+        public static EffectActivationType? EngineActivationPinOf(AtomicEffectType type)
+            => IsActiveFreeBranchRow(type) ? EffectActivationType.Voluntary
+             : IsAutomaticFreeBranchRow(type) ? (EffectActivationType?)EffectActivationType.Automatic
+             : null;
 
         /// <summary>引擎效果头固定档（2026-10-09 自由分支九项定案）：引擎=单原子形态效果，发动方式/时机/
         /// 速度/生效次数由引擎内生触发事件决定——效果头四值按引擎钉死：合成器锁定不可改（ApplyEngineHeaderLock），
@@ -138,27 +161,23 @@ namespace CardCore
             { Activation = activation; Timing = timing; Speed = speed; Limit = limit; FreeTiming = freeTiming; }
         }
 
-        /// <summary>各引擎固定档（null=非引擎）——FreeTiming 组（2026-10-16 解绑）仅剩**运势**=缺省自动·
-        /// 准备阶段（掷骰随声明时机判定，骰子本就随时可扔；缺省时机 2026-10-20 随「回合开始收归系统」
-        /// 由回合开始迁至准备阶段）。
-        /// 钉死组照旧：倒计时=自动·**准备阶段**·无限（2026-10-20 固定触发定案：回合开始系统递减、
-        /// 归零**直接触发奖励**——主干/奖励不拆开，tactivate 不适用；效果头时点=准备阶段，
-        /// 递减本身是回合开始的系统行为）；
-        /// 死亡计数=自动·其他生物死亡·无限（2026-10-19 手牌/场上改案：手牌或场上累计双方
-        /// 生物死亡，满 6 不再计，达标触发不清零，使用后清零——时机/次数随口径更新）；拼点=自动·攻击宣言·无限（仅攻击方结算）；
-        /// 元素充盈=自动·效果结算后·无限（2026-11-06 判据七：真实评估口=连锁终点 FlushCardCastSettled，
-        /// **双方**施放各评估一次（剩余元素差恰==x），时机列=真实时点；奖励恒直发）；团结=自动·使用卡牌时·无限
-        /// （2026-10-20 效果序位换轴：团结评估口=OnCardCastSettled 直调（本卡结算拍；充盈已迁连锁终点
-        /// flush，两者拆拍）——时机列仅作显示缺省）；
-        /// 附加诅咒/祝福=主动·主动钉档·速度 0（部署点=施放结算，主动打出即生效）。</summary>
+        /// <summary>各引擎固定档（null=非引擎）——2026-11-08 规则地基定案分三组：
+        /// ① 固定三引擎（倒计时/死亡计数/元素充盈）保持原固定时机（奖励=主动效果，发射口入待发队列，
+        ///    主干表头时机=真实系统时点）：倒计时=自动·准备阶段·无限（2026-10-20 固定触发定案）；
+        ///    死亡计数=自动·其他生物死亡·无限；元素充盈=自动·效果结算后·无限（2026-11-06 判据七：
+        ///    真实评估口=连锁终点 FlushCardCastSettled，时机列=真实时点）。
+        /// ② 自然缺省组（运势/拼枪/团结，2026-11-08 起不再给固定时机——奖励=自动效果自带真实触发
+        ///    时机，主干表头时机只是**无奖励时的占位缺省**，可改）：运势缺省准备阶段（掷骰随声明时机）、
+        ///    拼点缺省攻击宣言、团结缺省使用卡牌时——发动方式恒钉自动（EngineActivationPinOf）。
+        /// ③ 附加诅咒/祝福=主动·主动钉档·速度 0（部署点=施放结算，主动打出即生效）。</summary>
         public static EngineHeaderPreset? EngineHeaderPresetOf(BranchEngineKind kind) => kind switch
         {
             BranchEngineKind.Countdown => new EngineHeaderPreset(EffectActivationType.Automatic, TriggerTiming.OnStandbyPhase, 0, -1),
             BranchEngineKind.LuckRoll => new EngineHeaderPreset(EffectActivationType.Automatic, TriggerTiming.OnStandbyPhase, 0, -1, freeTiming: true),
             BranchEngineKind.DeathToll => new EngineHeaderPreset(EffectActivationType.Automatic, TriggerTiming.OnOtherCreatureDeath, 0, -1),
-            BranchEngineKind.Clash => new EngineHeaderPreset(EffectActivationType.Automatic, TriggerTiming.OnAttack, 0, -1),
+            BranchEngineKind.Clash => new EngineHeaderPreset(EffectActivationType.Automatic, TriggerTiming.OnAttack, 0, -1, freeTiming: true),
             BranchEngineKind.ManaSurplus => new EngineHeaderPreset(EffectActivationType.Automatic, TriggerTiming.OnCardCastSettled, 0, -1),
-            BranchEngineKind.Unity => new EngineHeaderPreset(EffectActivationType.Automatic, TriggerTiming.OnCardPlayed, 0, -1),
+            BranchEngineKind.Unity => new EngineHeaderPreset(EffectActivationType.Automatic, TriggerTiming.OnCardPlayed, 0, -1, freeTiming: true),
             BranchEngineKind.CurseOnDraw => new EngineHeaderPreset(EffectActivationType.Voluntary, TriggerTiming.Activate_Active, 0, 1),
             BranchEngineKind.BlessingOnDraw => new EngineHeaderPreset(EffectActivationType.Voluntary, TriggerTiming.Activate_Active, 0, 1),
             _ => (EngineHeaderPreset?)null,
@@ -266,11 +285,12 @@ namespace CardCore
             })
             .ToArray();
 
-        /// <summary>代价门哨兵 gateId（2026-11-06 代价挪入有限分支定案）：门条件列表的「支付代价」行
-        ///（原子表_系统.json GateId=本值）——第二槽=代价原子（减免等值费用，全价 ≤3）。效果合成器
-        /// 加载时把卡级整卡代价行（PayloadCosts TargetAttr=0）**展示期合成**为该门分支编辑，保存时
-        /// 反向回写代价行并剥除哨兵分支——哨兵永不落盘（Effects/库均剥），BranchConditionEvaluator
-        /// 不注册=即使数据泄漏也默认不触发（fail-safe）。</summary>
+        /// <summary>代价门哨兵 gateId（2026-11-06 代价挪入有限分支定案·2026-11-08 效果级化）：
+        /// 门条件列表的「支付代价」行（原子表_系统.json GateId=本值）——第二槽=代价原子
+        ///（减免等值费用，全价 ≤3）。效果合成器加载时把本效果代价行（header.Costs）
+        /// **展示期合成**为该门分支编辑，保存时反向回写效果级代价行并剥除哨兵分支——
+        /// 哨兵永不落盘（Effects/库均剥），BranchConditionEvaluator 不注册=即使数据泄漏
+        /// 也默认不触发（fail-safe）。</summary>
         public const string CostGateId = "CostGate";
 
         /// <summary>是否局面状态门 id（converter 折叠遗留门步骤时按此归类 Gate）。</summary>

@@ -377,11 +377,22 @@ namespace CardCore
         public static int RewardThreshold(List<AtomicEffectInstance> then)
             => Math.Max(1, (int)Math.Round(RewardDerivedCost(then), MidpointRounding.AwayFromZero));
 
+        /// <summary>分支奖励全费（2026-11-07 分支奖励效果化——Then 原子列+效果引用双通道合计）：
+        /// 引用效果走 <see cref="ReferencedEffectCostByColor"/>（ConvertOne→DeriveElementCosts 同链），
+        /// 与运行时先效果后原子的执行序同口径。</summary>
+        public static float BranchRewardDerivedCost(List<AtomicEffectInstance> then, string effectId)
+            => RewardDerivedCost(then) + ReferencedEffectCostByColor(effectId).Total;
+
+        /// <summary>自平衡门槛·双通道版（2026-11-07 分支奖励效果化）：Then 原子+奖励效果引用合计
+        /// 推导——BranchEngines 判定/AtomText 短文案/合成器预算共用，替代裸 Then 版防显示≠判定。</summary>
+        public static int RewardThresholdOf(List<AtomicEffectInstance> then, string effectId)
+            => Math.Max(1, (int)Math.Round(BranchRewardDerivedCost(then, effectId), MidpointRounding.AwayFromZero));
+
         /// <summary>倒计时初值回合（与 converter 换算同源）：声明 param&gt;0 用声明值；
-        /// 缺省 0=按 Then 推导费自动换算（1费=1回合，向上取整下限 1）。</summary>
-        public static int CountdownTurnsOf(int param, List<AtomicEffectInstance> then)
+        /// 缺省 0=按奖励推导费自动换算（1费=1回合，向上取整下限 1——2026-11-07 效果引用费并入）。</summary>
+        public static int CountdownTurnsOf(int param, List<AtomicEffectInstance> then, string effectId = null)
             => param > 0 ? param
-            : Math.Max(1, (int)Math.Ceiling(RewardDerivedCost(then)));
+            : Math.Max(1, (int)Math.Ceiling(BranchRewardDerivedCost(then, effectId)));
 
         /// <summary>效果是否携带引擎载荷（settle=Engine——扁平 Effects 与节点化 Steps 双扫）。
         /// 引擎效果头被 EngineHeaderPresetOf 归一为无限档（-1），但主干原子部署单发、奖励由引擎
@@ -1105,7 +1116,7 @@ namespace CardCore
         /// ②没有 {target} 参数（表行 TargetKinds 空——无目标原子）的原子不能翻转成代价；
         /// ③表行 TargetKinds 只含单侧条目（纯己方/纯对方，SideLock=±1）的原子不能作代价——
         /// 代价只收同时含己方与对方条目的双侧行（2026-11-03 定案，判定与 <see cref="PayloadCostDomain"/> 同源）。
-        /// 覆盖面（2026-11-03 补）：卡级 PayloadCosts 全行 + 各效果 Costs 行（原版漏扫卡级行）。
+        /// 覆盖面（2026-11-08 代价效果级化）：各效果 Costs 行（卡级行已整删——代价只挂效果）。
         /// 合成器放置口经 <see cref="PayloadCostDomain"/> 早已收口（eligible=false 拒入）；
         /// 本口补**数据层显式上报**：装载期 ConvertPayloadForDisplay 剔除①②违约原子只留一行 Error
         ///（③暂不进装载剥除口——存量教学/训练数据带单侧代价行十余处，剥除会使这些卡代价当场失效，
@@ -1116,7 +1127,6 @@ namespace CardCore
         {
             var result = new List<string>();
             if (card == null) return result;
-            CheckPayloadCostRows(card.PayloadCosts, "卡级", result);
             if (card.Effects != null)
                 foreach (var fx in card.Effects)
                     if (fx != null)

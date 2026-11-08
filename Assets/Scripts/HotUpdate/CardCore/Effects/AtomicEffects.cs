@@ -240,7 +240,7 @@ namespace CardCore
         // 引擎条件与参数存槽级 BranchPayload（Settle=Engine），行本身只作填充入口与身份锚。
         // 2026-10-08 附加诅咒/附加祝福入列（八行）——引擎用到的指示物（诅咒/倒计时/祝福）归系统，
         // 不设玩家可组合的指示物表行。
-        /// <summary>引擎主干·倒计时：回合开始计数-1，归零触发奖励并重置（延迟即付费）。</summary>
+        /// <summary>引擎主干·倒计时：入场挂层，控制者准备阶段计数-1，归零触发奖励并重置（延迟即付费）。</summary>
         EngineCountdown,
         /// <summary>引擎主干·运势：掷 2d6，双骰都≥x（=分支费用）触发奖励。</summary>
         EngineLuckRoll,

@@ -158,7 +158,7 @@ namespace CardCore
             {
                 if (atom?.Branch?.EngineKind == BranchEngineKind.Countdown && atom.Branch.CountdownTurns <= 0)
                     atom.Branch.CountdownTurns = CostDerivationService.CountdownTurnsOf(
-                        atom.Branch.EngineParam, atom.Branch.Then); // 公式与 UI 短文案同源
+                        atom.Branch.EngineParam, atom.Branch.Then, atom.Branch.EffectId); // 公式与 UI 短文案同源（效果引用费并入换算）
             }
 
             // ---- 组合层域预计算（2026-09-10 目标域模型）----
@@ -313,19 +313,19 @@ namespace CardCore
             // 引擎效果头兜底归一（2026-10-09 自由分支九项定案）：效果含引擎载荷（引擎=单原子形态）→
             // 发动方式/时机/速度/生效次数按 ComposerCatalog.EngineHeaderPresetOf 归一——合成器已锁定，
             // 此处收口旧数据/手写数据（引擎运行时本就无视效果头，自订阅事件；归一保证显示/计价/数据三面一致）。
-            // 2026-10-16 解绑修订：运势（FreeTiming）时机声明值优先；非触发式声明（含 <0 未声明的
-            // Activate_Active 回落）→ 预设缺省 OnTurnStart。2026-10-20 倒计时固定触发定案：退回
-            // 钉死组——声明值一律归一 自动+回合开始（归零直接触发奖励，主干/奖励不拆开）。
+            // 2026-11-08 规则地基定案：双选组随 EngineActivationFree 整删——发动方式按
+            // EngineActivationPinOf 单值钉（主动行=主动、其余引擎行=自动）；
+            // 自然缺省组（运势/拼点/团结，FreeTiming）时机声明值优先、否则回落自然缺省；
+            // 固定三引擎/附加诅咒·祝福（钉死组）声明值一律预设归一。
             var engineKind = EngineKindOfDefinition(def);
             if (ComposerCatalog.EngineHeaderPresetOf(engineKind) is { } ehp)
             {
                 if (ehp.FreeTiming)
                 {
-                    // 2026-10-20 主动运势一步点击修订（推翻同日早「掷骰恒自动」口径）：声明主动
-                    //（activation=2）→ 发动方式保留声明，时机取声明 Activate_* 值（非主动时机
-                    // 声明回落 Activate_Active）——点击→选目标（效果级 kinds 弹选）→执行期掷骰，
-                    // 达标则分支效果作用于已选目标。自动/未声明照旧：触发式时机声明值优先、
-                    // 否则预设缺省，发动方式钉 Automatic。
+                    // 自然缺省组（2026-10-16 运势解绑 → 2026-11-08 拼点/团结入列）：声明主动
+                    //（activation=2）→ 发动方式保留声明（存量主动运势一步点击路径），时机取声明
+                    // Activate_* 值（非主动时机声明回落 Activate_Active）。自动/未声明照旧：触发式
+                    // 时机声明值优先、否则自然缺省占位，发动方式钉 Automatic。
                     if (def.ActivationType == EffectActivationType.Voluntary)
                     {
                         def.TriggerTiming = def.IsActivatedEffect ? def.TriggerTiming : TriggerTiming.Activate_Active;
@@ -340,31 +340,11 @@ namespace CardCore
                 }
                 else
                 {
-                    // 2026-10-30 双选组（除倒计时/元素充盈外——EngineActivationFree）：发动方式玩家可声明
-                    //（合成器下拉双选）——声明主动（2）合法保留、时机归主动钉档；声明自动/未声明照预设归一
-                    //（预设为主动钉档的诅咒/祝福被改自动时，时机回落 OnPlay）。钉死组照旧一律预设。
-                    if (ComposerCatalog.EngineActivationFree(engineKind)
-                        && def.ActivationType == EffectActivationType.Voluntary)
-                    {
-                        def.TriggerTiming = def.IsActivatedEffect ? def.TriggerTiming : TriggerTiming.Activate_Active;
-                    }
-                    else if (ComposerCatalog.EngineActivationFree(engineKind))
-                    {
-                        def.ActivationType = EffectActivationType.Automatic;
-                        var et = ehp.Timing;
-                        if (et == TriggerTiming.Activate_Active || et == TriggerTiming.Activate_Instant
-                            || et == TriggerTiming.Activate_Response)
-                            et = TriggerTiming.OnPlay;
-                        def.TriggerTiming = def.IsTriggeredEffect
-                            && TriggerTimingDefaults.GetEventType(def.TriggerTiming) != null
-                            ? def.TriggerTiming : et;
-                    }
-                    else
-                    {
-                        def.ActivationType = ehp.Activation;
-                        def.TriggerTiming = ehp.Activation == EffectActivationType.Voluntary
-                            ? TriggerTiming.Activate_Active : ehp.Timing;
-                    }
+                    // 钉死组：倒计时/死亡计数/元素充盈=自动+固定时机；附加诅咒/祝福=主动+主动钉档
+                    //（2026-11-08 起声明值不再放行——旧双选声明一律预设归一）。
+                    def.ActivationType = ehp.Activation;
+                    def.TriggerTiming = ehp.Activation == EffectActivationType.Voluntary
+                        ? TriggerTiming.Activate_Active : ehp.Timing;
                 }
                 def.BaseSpeed = ehp.Speed;
                 // 历史字段归一（2026-10-30 起无消费方）：引擎预设兜底仍保留存档值（哈希稳定）。
@@ -385,10 +365,15 @@ namespace CardCore
         /// 触发管线排除口（2026-10-20 定案）：RegisterEffect 用它识别引擎主干——不入触发队列/栈。</summary>
         internal static BranchEngineKind EngineKindOfDefinition(EffectDefinition def)
         {
+            // 双判口径（2026-11-08 对齐 EffectExecutionEngine.IsEngineTrunk）：Branch.Settle==Engine
+            // ∨ 原子行类型即引擎（EngineCountdown 族）——Engine 载荷经 ConvertBranchPayload 折叠
+            //（Then 空∧无 EffectId）后 Branch=null，行类型是引擎主干身份的最后事实源；
+            // 消费口（奖励/载荷/光环资格、效果头归一、触发管线排除）与运行时主序列同语义。
             BranchEngineKind KindOf(AtomicEffectInstance atom)
             {
                 var b = atom?.Branch;
-                return b != null && b.Settle == BranchSettleKind.Engine ? b.EngineKind : BranchEngineKind.None;
+                if (b != null && b.Settle == BranchSettleKind.Engine) return b.EngineKind;
+                return atom != null ? ComposerCatalog.EngineKindOf(atom.Type) : BranchEngineKind.None;
             }
             if (def.Effects != null)
                 foreach (var atom in def.Effects)
@@ -640,8 +625,9 @@ namespace CardCore
 
         /// <summary>槽级分支载荷转换（两槽定案）：条目 → BranchPayload；Then 奖励递归引用化。
         /// settle 越界/条件空 → 告警丢弃（防幽灵载荷空转）。
-        /// 附加诅咒/祝福载荷效果化（2026-11-06）：引擎主干原子 str=效果库条目 id → payload.EffectId
-        /// ——Then 原子列与 EffectId 二通道并存（EffectId 优先），任一非空即不折叠。</summary>
+        /// 附加诅咒/祝福载荷效果化（2026-11-06）：引擎主干原子 str=效果库条目 id → payload.EffectId。
+        /// 分支奖励效果化（2026-11-07）：BranchEntryData.effectId=奖励组合效果引用，三 settle 通用
+        /// ——Then 原子列与 EffectId 二通道并存（先效果后原子），任一非空即不折叠。</summary>
         private static BranchPayload ConvertBranchPayload(BranchEntryData data, string atomStr = null)
         {
             if (data == null) return null;
@@ -653,6 +639,7 @@ namespace CardCore
             }
 
             var payload = new BranchPayload { Settle = settle };
+            if (!string.IsNullOrEmpty(data.effectId)) payload.EffectId = data.effectId; // 奖励效果引用（2026-11-07）：三 settle 通用直落
             switch (settle)
             {
                 case BranchSettleKind.Gate:
@@ -685,7 +672,9 @@ namespace CardCore
                     payload.CountdownTurns = data.engineParam; // 声明初值；0=ConvertOne 按 Then 推导换算
                     payload.ThenActivation = data.tactivate;  // 奖励发动方式（2026-10-20：-1=未声明随主干）
                     // 载荷效果引用（2026-11-06 附加诅咒/祝福载荷效果化）：str=效果库条目 id
-                    if ((engine == BranchEngineKind.CurseOnDraw || engine == BranchEngineKind.BlessingOnDraw)
+                    //（2026-11-07 分支奖励效果化：直落通道 effectId 优先，str 仅附加诅咒/祝福旧手写兼容）
+                    if (string.IsNullOrEmpty(payload.EffectId)
+                        && (engine == BranchEngineKind.CurseOnDraw || engine == BranchEngineKind.BlessingOnDraw)
                         && !string.IsNullOrEmpty(atomStr))
                         payload.EffectId = atomStr;
                     break;

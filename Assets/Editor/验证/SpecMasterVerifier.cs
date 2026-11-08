@@ -209,7 +209,7 @@ namespace CardCore.Editor.Tests
             {
                 if (card == null) continue;
                 scanned++;
-                // C1/C4/C5：DiscountConflictOf 单源（返回首个违规；卡级+效果级代价行都在其口径内）
+                // C1/C4/C5：DiscountConflictOf 单源（返回首个违规；2026-11-08 效果级化——代价行都在效果 Costs 口径内）
                 if (EffectComposerScreen.CardHasCost(card))
                 {
                     withCost++;
@@ -473,8 +473,9 @@ namespace CardCore.Editor.Tests
 
         /// <summary>诱敌夹具卡合成（2026-11-06·同 LaeMultiTargetVerifier①）：诱敌卡（C_AC7E3467，
         /// 卡级蓝抽卡代价×红效果=④同色违规）已删出教学池——D1 改从教学效果库取条目合成：效果 88C651B8
-        ///（Multiple·count=2·两敌弹回）保留在库专供夹具，断言口径不变；卡级「对方抽1」代价行原样带入
-        ///（对方牌库非空闸=对局行为前提）。ToGraph 不回填 header.Steps，手动接 graph.steps。
+        ///（Multiple·count=2·两敌弹回）保留在库专供夹具，断言口径不变；「对方抽1」代价行
+        /// 2026-11-08 效果级化改挂该效果 Costs（主动行=法术施放净费账单——对局行为前提等价）。
+        /// ToGraph 不回填 header.Steps，手动接 graph.steps。
         /// 效果内容若改动换号，按显示名兜底。</summary>
         private static CardData LureFixture()
         {
@@ -486,23 +487,23 @@ namespace CardCore.Editor.Tests
                 throw new InvalidOperationException(
                     "教学效果库缺诱敌夹具条目（id=88C651B8 / 将两个对方单位弹回手牌）——卡已删，效果条目须保留");
             g.header.Steps = g.steps != null && g.steps.Count > 0 ? g.steps : null;
+            g.header.Costs = new List<CostEntry>
+            {
+                new CostEntry
+                {
+                    CostType = (int)CostType.Payload,
+                    payloads = new List<AtomicEffectEntry>
+                    {
+                        new AtomicEffectEntry { refId = "03c85bc4", kinds = new List<int> { 8 }, value = 1 },
+                    },
+                },
+            };
             return new CardData
             {
                 ID = "C_LURE_FIXTURE",
                 CardName = LureName,
                 Supertype = Cardtype.Spell,
                 Effects = new List<CardEffectData> { g.header },
-                PayloadCosts = new List<CostEntry>
-                {
-                    new CostEntry
-                    {
-                        CostType = (int)CostType.Payload,
-                        payloads = new List<AtomicEffectEntry>
-                        {
-                            new AtomicEffectEntry { refId = "03c85bc4", kinds = new List<int> { 8 }, value = 1 },
-                        },
-                    },
-                },
             };
         }
 

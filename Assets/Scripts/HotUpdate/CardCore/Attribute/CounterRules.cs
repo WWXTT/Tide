@@ -269,8 +269,9 @@ namespace CardCore.Attribute
         // ---- 系统指示物（2026-10-08 定案：引擎主干行用到的指示物归系统，不设玩家可组合的指示物表行
         //      ——投放/触发/消耗全部由引擎（BranchEngines/CurseSystem）内部驱动。诅咒/祝福后经
         //      2026-10-08 晚补裁决移入 Exception 生效自减（换区不清——跨区存活是机制必需），系统类=倒计时/死亡计数）----
-        /// <summary>倒计时：引擎主干·倒计时的计数层——控制者回合开始 −1，归零触发奖励并重置。
-        /// 仅由引擎投放（BranchEngines.OnEnterBattlefield），无玩家表行；换区清（引擎重挂兜底）。</summary>
+        /// <summary>倒计时：引擎主干·倒计时的计数层——控制者准备阶段 −1，归零触发奖励并重置。
+        /// 仅由引擎投放（BranchEngines.ArmCountdownOnEnter——真实入场与静默播种共用），无玩家表行；
+        /// 换区清（引擎重挂兜底）。</summary>
         public const string CountdownCounter = "Countdown";
         /// <summary>死亡计数（2026-10-19 手牌/场上改案）：引擎主干·死亡计数的计数层——挂**手牌中或场上**的
         /// 引擎卡上，每次双方生物死亡 +1；满值 6 达满不再计数；计数≥门槛（Then 锚价推导）即触发奖励

@@ -7,6 +7,7 @@ using System.Linq;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 using UInputField = TMPro.TMP_InputField;
 
 namespace SynergyUI
@@ -63,7 +64,8 @@ namespace SynergyUI
 
         /// <summary>由数据推断组合形态（2026-10-23 五分类，先光环后分支）：
         /// ①箭头/增益·关键词条目→连接光环；②仪典步或属性降低条目（2026-10-30 入场地光环）→场地光环；
-        /// ③首原子引擎主干行→自由分支（含模拟/变形动态主干——2026-10-30 挪入）；
+        /// ③首原子引擎主干行→自由分支（模拟/变形 2026-11-08 退役出组合——挂「系统」位整库隐藏，
+        /// 引用卡绑定走卡牌组合界面）；
         /// ④首原子 Gate/历史 Outcome 载荷→有限分支（产出条件不再新建，载入只读保留）；
         /// ⑤非引擎行挂引擎载荷→并列单行只读（2026-10-26 定案：五分类前旧形状——现值=关键词获得
         /// 「自由分支·拼点→奖励」三条；自由分支主干已收窄为引擎行，此形状入自由分支必报
@@ -197,13 +199,10 @@ namespace SynergyUI
             return IsAuraMode(InferMode(new EffectGraphData(fx.DisplayName ?? "") { header = fx, steps = fx.Steps }));
         }
 
-        /// <summary>卡是否挂了代价（卡级行或任一效果级行——互斥闸的代价面判定）。</summary>
+        /// <summary>卡是否挂了代价（任一效果级行——2026-11-08 效果级化：卡级行已整删）。</summary>
         public static bool CardHasCost(CardData card)
         {
             if (card == null) return false;
-            if (card.PayloadCosts != null)
-                foreach (var row in card.PayloadCosts)
-                    if (row != null && row.AllPayloads().Count > 0) return true;
             if (card.Effects != null)
                 foreach (var fx in card.Effects)
                 {
@@ -229,35 +228,49 @@ namespace SynergyUI
             return pts;
         }
 
-        /// <summary>减费三选一冲突检测（单源：卡组合保存闸/addcost 闸/效果合成器形态闸/CardPipelineVerifier 共用）。
-        /// 规则：① 同一效果只能三选一（有限分支/自由分支/代价）；② 并列添加两个效果时禁挂代价；
-        /// ③ 光环类（结界的场地光环/仪典行）禁挂代价；④ 代价行全价 ≤3（2026-11-03 收回——当日放宽 4 作废）。
+        /// <summary>减费三选一冲突检测（2026-11-08 代价效果级化修订·单源：卡组合保存闸/效果合成器
+        /// 保存闸/CardPipelineVerifier 共用）。效果级语义（代价行挂 CardEffectData.Costs）：
+        /// ④ 代价行全价 ≤3（2026-11-03 收回——当日放宽 4 作废）；①②③ 同一效果只能三选一
+        ///（有限分支/自由分支/代价——带代价行的效果不得同时是分支/并列两效果/光环形态）。
         /// 返回 null=合规；非空=违规描述（卡名+效果+违规类型）。</summary>
         public static string DiscountConflictOf(CardData card)
         {
-            if (card == null || !CardHasCost(card)) return null;
+            if (card == null) return null;
             string name = string.IsNullOrEmpty(card.CardName) ? card.ID : card.CardName;
-            // ④ 代价减费上限（逐行判——单个代价=抵扣单位）
-            if (card.PayloadCosts != null)
-                foreach (var row in card.PayloadCosts)
-                {
-                    if (row == null || row.AllPayloads().Count == 0) continue;
-                    float pts = CostRowPrice(row);
-                    if (pts > CostDiscountCap)
-                        return $"卡「{name}」代价行：减费 {pts:0.#} 点超上限（≤{CostDiscountCap}）";
-                }
-            // ①②③ 效果形态互斥（卡级代价挂卡上、效果级行挂效果上——同一效果只能三选一）
             foreach (var fx in card.Effects ?? new List<CardEffectData>())
             {
-                if (fx == null) continue;
-                var fxName = string.IsNullOrEmpty(fx.DisplayName) ? fx.Id : fx.DisplayName;
-                if (IsBranchEffect(fx))
-                    return $"卡「{name}」效果「{fxName}」：已挂代价，不能再选分支——同一效果只能三选一（有限分支/自由分支/代价）";
-                if (IsParallelTwoEffect(fx))
-                    return $"卡「{name}」效果「{fxName}」：并列添加了两个效果，不允许再挂代价";
-                if (IsAuraEffectData(fx))
-                    return $"卡「{name}」效果「{fxName}」：光环类（结界的场地光环/仪典行）不允许挂代价";
+                var v = EffectCostConflictOf(fx, name);
+                if (v != null) return v;
             }
+            return null;
+        }
+
+        /// <summary>单效果代价冲突（2026-11-08 效果级化单源——合成器保存闸直调，卡级聚合口逐效果转发）：
+        /// ④ 逐行全价 ≤3（CostRowPrice 同源）；①②③ 带代价行的效果须为「单主干+支付代价门」形态。
+        /// 正常保存链路（代价门剥除后单主干无分支）天然合规——本口拦手写数据/旁路。</summary>
+        public static string EffectCostConflictOf(CardEffectData fx, string cardName = null)
+        {
+            if (fx == null || fx.Costs == null) return null;
+            string fxName = string.IsNullOrEmpty(fx.DisplayName) ? fx.Id : fx.DisplayName;
+            string who = string.IsNullOrEmpty(cardName)
+                ? $"效果「{fxName}」"
+                : $"卡「{cardName}」效果「{fxName}」";
+            bool hasCost = false;
+            foreach (var row in fx.Costs)
+            {
+                if (row == null || row.AllPayloads().Count == 0) continue;
+                hasCost = true;
+                float pts = CostRowPrice(row);
+                if (pts > CostDiscountCap)
+                    return $"{who}：代价行减费 {pts:0.#} 点超上限（≤{CostDiscountCap}）";
+            }
+            if (!hasCost) return null;
+            if (IsBranchEffect(fx))
+                return $"{who}：已挂代价，不能再选分支——同一效果只能三选一（有限分支/自由分支/代价）";
+            if (IsParallelTwoEffect(fx))
+                return $"{who}：并列添加了两个效果，不允许再挂代价";
+            if (IsAuraEffectData(fx))
+                return $"{who}：光环类（结界的场地光环/仪典行）不允许挂代价";
             return null;
         }
 
@@ -456,12 +469,20 @@ namespace SynergyUI
         private bool _returnToCardComposer;
 
         /// <summary>预设内容指纹：header 克隆后清 DisplayName 再哈希——载入/保存两次同口径，
-        /// 文案重渲漂移不参与「是否修改」判定。</summary>
+        /// 文案重渲漂移不参与「是否修改」判定。代价门哨兵分支（展示期合成物）在两侧同口径剔除
+        ///（进屏合成/保存剥除后比对恒等——2026-11-08 效果级化配套）。</summary>
         private static string PresetContentHash(EffectGraphData g)
         {
             var header = JsonUtility.FromJson<CardEffectData>(JsonUtility.ToJson(g.header));
             header.DisplayName = "";
-            return ContentHasher.HashEffect(new EffectGraphData("") { header = header, steps = g.steps ?? new List<EffectStepData>() });
+            var steps = g.steps != null
+                ? JsonUtility.FromJson<ListStepWrap>(JsonUtility.ToJson(new ListStepWrap { items = g.steps })).items
+                : new List<EffectStepData>();
+            if (steps != null)
+                foreach (var s in steps)
+                    if (s?.kind == 0 && s.atomic?.branch != null && IsCostGate(s.atomic.branch))
+                        s.atomic.branch = null;
+            return ContentHasher.HashEffect(new EffectGraphData("") { header = header, steps = steps });
         }
 
         private TipPromptHost _tips; // TipPanel 提示弹窗宿主（2026-10-18 统一定案；惰性建——字段初始化器不能引用实例 Root）
@@ -798,7 +819,7 @@ namespace SynergyUI
                 string msg = index >= 0 ? $"编辑效果 #{index + 1}（保存写回卡牌）" : "新建效果（保存追加到卡牌）";
                 if (note != null) msg += $"——载入归一化：{note}"; // 两槽定案：遗留门步骤折叠/主干截断可见化
                 ShowToast(msg);
-                SynthesizeCostGateView(); // 代价门视图合成（2026-11-06）：卡级整卡代价行→首效果「支付代价」门分支
+                SynthesizeCostGateView(); // 代价门视图合成（2026-11-08 效果级化）：本效果 header.Costs →「支付代价」门分支
             }
             else
             {
@@ -924,13 +945,13 @@ namespace SynergyUI
                     {
                         // 宿主形状闸（2026-10-15 深夜改版）：法术只挂主动、结界禁主动——非法选择弹回不改值
                         var pick = ActivationChoices[idx];
-                        // 主干发动方式钉（2026-10-30）：模拟/变形仅主动、倒计时/元素充盈仅自动——非法选择弹回
+                        // 主干发动方式钉（2026-11-08 规则地基）：四类主动行仅主动、其余引擎行仅自动——非法选择弹回
                         var pin = EngineActivationPin();
                         if (pin != null && pick.value != (int)pin.Value)
                         {
                             ShowToast(pin.Value == EffectActivationType.Voluntary
-                                ? "该主干仅主动（模拟/变形=主动效果）"
-                                : "该引擎仅自动（倒计时/元素充盈=固定自动）");
+                                ? "该主干仅主动（附加诅咒/附加祝福=主动效果）"
+                                : "该引擎仅自动（评估口内生于引擎事件）");
                             SyncActivationVisibility(); // 弹回当前合法值
                             return;
                         }
@@ -1591,8 +1612,7 @@ namespace SynergyUI
             MakeModeChip(ComposeMode.Parallel,
                 "并列形态：最多两个槽，各放一颗原子组成效果，两原子并列生效——要给原子挂条件或引擎请切分支形态");
             MakeModeChip(ComposeMode.FreeBranch,
-                "自由分支：主干是一颗事件引擎（倒计时/拼点/运势等），事件达成时发放下方 Then 奖励——奖励在 1-6 费区间自由调整，门槛随计费推导；"
-                + "模拟/变形也在此形态作主干（仅主动；引用卡与发动时机留到卡牌合成界面设置）");
+                "自由分支：主干是一颗事件引擎（倒计时/拼点/运势等），事件达成时发放下方 Then 奖励——奖励在 1-6 费区间自由调整，门槛随计费推导");
             MakeModeChip(ComposeMode.LimitedBranch,
                 "有限分支：一颗主干原子加一个局面门槛，当前局面达标时发放 Then 奖励——不达标不奖励也不惩罚（奖励免费）");
             MakeModeChip(ComposeMode.LinkAura,
@@ -1823,8 +1843,9 @@ namespace SynergyUI
                 }
                 case ComposeMode.FreeBranch:
                 {
-                    // 自由分支：单主干槽（引擎行 / 模拟·变形动态主干）+ 槽内 Then 奖励块（引擎预设锁效果头）
-                    var slot = MakeSlot("主干（引擎行/模拟·变形）");
+                    // 自由分支：单主干槽（引擎行）+ 槽内 Then 奖励块（引擎预设锁效果头）
+                    //（模拟/变形 2026-11-08 退役出组合——挂「系统」位整库隐藏，卡直接引用+卡组合界面绑定）
+                    var slot = MakeSlot("主干（引擎行）");
                     if (slot == null) break; // 模板缺失——MakeSlot 已报
                     MarkSelected(slot, SelKind.Parallel, 0);
                     SelectOnClick(slot, SelKind.Parallel, 0, false);
@@ -1835,59 +1856,44 @@ namespace SynergyUI
                         if (ComposerCatalog.IsEngineTrunkRow(AtomicEffectTable.GetByHashId(atom.refId)))
                         {
                             var engineKind = ComposerCatalog.EngineKindOf(ResolveType(atom));
-                            if (engineKind == BranchEngineKind.None)
+                            var b = atom.branch ?? new BranchEntryData { settle = (int)BranchSettleKind.Engine };
+                            b.settle = (int)BranchSettleKind.Engine; // 引擎载荷落槽即挂（载入/换行双保险）
+                            if (engineKind != BranchEngineKind.None) b.engine = (int)engineKind;
+                            atom.branch = b;
+                            if (IsCurseEngine(engineKind))
                             {
-                                // 动态主干（2026-10-30 模拟/变形挪入自由分支·均仅主动）：真实引擎种类为 None——
-                                // 不挂引擎载荷/无 Then 奖励块（无引擎事件可发奖）；运行时按普通原子执行
-                                //（EffectExecutionEngine 只跳 EngineKindOf≠None 的行）。
-                                // 归属定案（2026-10-30 用户修正）：引用卡与发动时机都在卡牌合成界面设置
-                                //（选中后显示卡牌列表，不带衍生物的卡均可选；卡合成改版时落地——
-                                // 本屏不为其做专属 UI，暂沿用通用效果头缺省）
-                                atom.branch = null;
-                                MakeHint(slot, "动态主干（模拟/变形·仅主动）：发动时执行——引用卡不在此填，"
-                                    + "在卡牌合成界面选择（选中后显示卡牌列表，不带衍生物的卡均可选）；发动时机同样迁至卡牌合成界面设置");
+                                // 附加诅咒/祝福（2026-11-06 载荷效果化）：载荷=效果库组合效果引用
+                                //（主干卡「载荷效果」行选择——主动·极性匹配），不再是 Then 原子奖励
+                                MakeHint(slot, $"{ComposerCatalog.EngineZhOf(engineKind)}：载荷=效果组合"
+                                    + (engineKind == BranchEngineKind.BlessingOnDraw
+                                        ? "（主动·极性+1——附加祝福给自己牌库）"
+                                        : "（主动·极性−1——附加诅咒给对手牌库）")
+                                    + "，点主干卡「载荷效果」行选择；张数=附加张数（每张各自完整载荷）；"
+                                    + "附加费=载荷费减半入卡价；抽到该卡时自动结算（一次性）");
+                                _slotZones.Add(MakeZone(slot, () => CursePayloadError(atom, engineKind)));
                             }
                             else
                             {
-                                var b = atom.branch ?? new BranchEntryData { settle = (int)BranchSettleKind.Engine };
-                                b.settle = (int)BranchSettleKind.Engine; // 引擎载荷落槽即挂（载入/换行双保险）
-                                if (engineKind != BranchEngineKind.None) b.engine = (int)engineKind;
-                                atom.branch = b;
-                                if (IsCurseEngine(engineKind))
-                                {
-                                    // 附加诅咒/祝福（2026-11-06 载荷效果化）：载荷=效果库组合效果引用
-                                    //（主干卡「载荷效果」行选择——主动·极性匹配），不再是 Then 原子奖励
-                                    MakeHint(slot, $"{ComposerCatalog.EngineZhOf(engineKind)}：载荷=效果组合"
-                                        + (engineKind == BranchEngineKind.BlessingOnDraw
-                                            ? "（主动·极性+1——附加祝福给自己牌库）"
-                                            : "（主动·极性−1——附加诅咒给对手牌库）")
-                                        + "，点主干卡「载荷效果」行选择；张数=附加张数（每张各自完整载荷）；"
-                                        + "附加费=载荷费减半入卡价；抽到该卡时自动结算（一次性）");
-                                    _slotZones.Add(MakeZone(slot, () => CursePayloadError(atom, engineKind)));
-                                }
-                                else
-                                {
-                                    MakeHint(slot, $"{ComposerCatalog.EngineZhOf(engineKind)}门槛=Then 奖励锚价合计"
-                                        + "（随奖励实时推导，无需参数；奖励在 1-6 费区间内自由调整，门槛随计费变；"
-                                        + "同一张卡每回合只触发一次）"
-                                        + $"——见顶栏预览「自由分支·{ComposerCatalog.EngineZhOf(engineKind)}x」");
-                                    MakeRewardSlot(slot, b);
-                                }
+                                MakeHint(slot, $"{ComposerCatalog.EngineZhOf(engineKind)}门槛=奖励费合计"
+                                    + "（组合效果+原子双通道·随奖励实时推导，无需参数；奖励在 1-6 费区间内自由调整，"
+                                    + "门槛随计费变；同一张卡每回合只触发一次）"
+                                    + $"——见顶栏预览「自由分支·{ComposerCatalog.EngineZhOf(engineKind)}x」");
+                                MakeRewardSlot(slot, b);
                             }
                         }
                         else
                         {
                             atom.branch = null; // 引擎载荷只配引擎主干行（旧形状静默归位）
-                            MakeHint(slot, "该行不是引擎主干——到右侧重新选择（自由分支主干=引擎行/模拟/变形）");
+                            MakeHint(slot, "该行不是引擎主干——到右侧重新选择");
                         }
                     }
-                    else MakeHint(slot, "主干为空——到右侧选择引擎行（倒计时/拼点/运势/死亡计数/元素充盈…）或模拟/变形");
+                    else MakeHint(slot, "主干为空——到右侧选择引擎行（倒计时/拼点/运势/死亡计数/元素充盈…）");
                     _slotZones.Add(MakeZone(slot, () =>
                     {
                         var a = FirstKind0Atom();
-                        if (a == null) return "主干为空——到右侧选择引擎主干行（或模拟/变形）";
+                        if (a == null) return "主干为空——到右侧选择引擎主干行";
                         return ComposerCatalog.IsEngineTrunkRow(AtomicEffectTable.GetByHashId(a.refId))
-                            ? null : "自由分支主干必须是引擎行（或模拟/变形）——到右侧重新选择";
+                            ? null : "自由分支主干必须是引擎行——到右侧重新选择";
                     }));
                     break;
                 }
@@ -2200,9 +2206,10 @@ namespace SynergyUI
                 RefreshName();
                 ValidateZones();
             }
-            // 模拟目标数量钉 1（2026-10-30 定案：目标恒单个——数量下拉禁改）；其余行走默认
+            // 模拟/变形目标数量钉 1（2026-10-30 定案：目标恒单个——数量下拉禁改；2026-11-08 变形
+            // 对齐同口径——「变成{target}」恒单目标）；其余行走默认
             BindAtomTargetRow(card, atom, RefreshCard,
-                pinCountOne: IsImitateEntry(atom));
+                pinCountOne: IsImitateEntry(atom) || IsGrantMorphEntry(atom));
             BindAtomDerivativeRow(card, atom);
 
             if (expanded)
@@ -2385,12 +2392,6 @@ namespace SynergyUI
         {
             var atom = FirstKind0Atom();
             if (atom == null) { ShowToast("先到右侧选一颗主干原子——门槛挂在主干上"); return; }
-            // 代价门（2026-11-06）：保存须回写卡级整卡代价行——效果库独立模式（无卡上下文）不可用
-            if (gate.Id == ComposerCatalog.CostGateId && _editingCard == null)
-            {
-                ShowToast("代价门只在卡编辑态可用（保存回写卡级代价行）——效果库独立效果不支持");
-                return;
-            }
             var b = atom.branch ?? new BranchEntryData();
             b.then ??= new List<AtomicEffectEntry>();
             b.settle = (int)BranchSettleKind.Gate;
@@ -2548,6 +2549,13 @@ namespace SynergyUI
             {
                 if (text != null)
                 {
+                    // 奖励效果引用前缀（2026-11-07 分支奖励效果化）：双通道=先效果后原子
+                    string fxPrefix = "";
+                    if (!costGate && !string.IsNullOrEmpty(b.effectId))
+                    {
+                        var fxg = EffectsLibrary.Get(b.effectId);
+                        fxPrefix = $"【效果】{(fxg != null ? fxg.name : b.effectId + "(悬空)")}｜";
+                    }
                     if (reward != null)
                     {
                         // 代价门合成视图可含多原子（存量代价行多 payload）——首原子成句+尾注计数，
@@ -2556,12 +2564,14 @@ namespace SynergyUI
                         string body = costGate
                             ? AtomText.RenderCostAtomEntry(reward)
                             : AtomText.RenderRewardAtomEntry(reward);
-                        text.text = (manualParams ? (expanded ? "▼ " : "▶ ") : "") + body + more;
+                        text.text = (manualParams ? (expanded ? "▼ " : "▶ ") : "") + fxPrefix + body + more;
                     }
                     else
                         text.text = costGate
                             ? "选中后点击库中的代价原子填入（一般效果行·双侧域·与效果同色，全价 ≤3）"
-                            : "选中后点击库中的奖励原子填入（推导费 ≤ 分支预算）";
+                            : fxPrefix.Length > 0
+                                ? fxPrefix + "（可再点库追加原子奖励——合计 ≤ 分支预算）"
+                                : "选中后点击库中的奖励原子填入，或点「奖励效果」行选择组合效果（合计 ≤ 分支预算）";
                 }
                 RefreshName();
                 ValidateZones(); // 参数/预算变化原地复验
@@ -2592,6 +2602,10 @@ namespace SynergyUI
                     else SelectSlot(SelKind.Reward, 0);                // 非自由主干=仅选中（参数自动生成，无可编辑）
                 });
             }
+
+            // ——「奖励效果」选择行（2026-11-07 分支奖励效果化）：非代价门分支通用——
+            // 奖励=组合效果引用+原子双通道：效果经弹层选择（右栏库不列组合效果），原子照旧点库落槽
+            if (!costGate) MakeRewardFxRow(area, b, head, RefreshText);
 
             // 原子表行四参数 des + 每原子目标行/衍生物行（2026-10-09 下沉定案；持续行随层化退役）：
             // 仅自由主干（引擎）奖励手控参数——非自由主干参数随预算自动生成，行隐藏
@@ -2713,15 +2727,31 @@ namespace SynergyUI
             // 校验：分支未设奖励（converter 折叠为无分支——条件空转）+ 可实现费用内。
             // 2026-10-09 定案：上限统一走 RewardFilterCap——自由分支（引擎）恒 6（2026-11-02 减费三选一：
             // 1-5 放宽一档；此前 -1 直通=「校验恒满足」根因）；有限分支=门槛 Budget（全局上界 1~3）。
+            // 2026-11-07 分支奖励效果化：奖励效果引用费并入合计（双通道至少其一非空即不空转）。
             // 超限=GuideFrame 红框脉冲+描述条文本+禁存。
             _slotZones.Add(MakeZone(area, () =>
             {
+                // 奖励效果引用校验先行（2026-11-07）：悬空/资格不符/自引用——then 空单通道同样必查
+                if (!costGate)
+                {
+                    var fxErr = BranchRewardFxError(b);
+                    if (fxErr != null) return fxErr;
+                }
                 if (b.then == null || b.then.Count == 0)
                 {
+                    if (!costGate && !string.IsNullOrEmpty(b.effectId))
+                    {
+                        // 效果引用单通道：引用费即全部奖励费——同预算闸
+                        float refOnly = CostDerivationService.ReferencedEffectCostByColor(b.effectId).Total;
+                        int capOnly = RewardCapOf(b);
+                        return refOnly > capOnly
+                            ? $"奖励超出分支可实现费用（{refOnly:0.#}/{capOnly}）——换更便宜的奖励效果"
+                            : null;
+                    }
                     if (costGate) return "代价未填——点本区选中后到右栏挑一个代价原子（一般效果行·双侧域·与效果同色，减免 ≤3）";
                     return free
-                        ? "Then 奖励未填——点本区选中后到右栏挑一个奖励原子（1-6 费）"
-                        : "Then 奖励未填——点本区选中后到右栏挑一个奖励原子（≤门槛预算），或删除门槛";
+                        ? "Then 奖励未填——点本区选中后到右栏挑一个奖励原子（1-6 费），或点「奖励效果」行选择组合效果"
+                        : "Then 奖励未填——点本区选中后到右栏挑一个奖励原子（≤门槛预算），或点「奖励效果」行选择组合效果，或删除门槛";
                 }
                 if (costGate)
                 {
@@ -2735,10 +2765,12 @@ namespace SynergyUI
                         : null;
                 }
                 int cap = RewardCapOf(b);
-                float cost = RewardCost(b.then[0]);
+                float refCost = string.IsNullOrEmpty(b.effectId)
+                    ? 0f : CostDerivationService.ReferencedEffectCostByColor(b.effectId).Total;
+                float cost = refCost + RewardCost(b.then[0]);
                 return cost > cap
                     ? $"奖励超出分支可实现费用（{cost:0.#}/{cap}）——"
-                      + (free ? "调低数值或换原子" : "参数已按预算自动生成仍超出——换更便宜的原子")
+                      + (free ? "调低数值或换更便宜的原子/效果" : "参数已按预算自动生成仍超出——换更便宜的原子或效果")
                     : null;
             }));
             RefreshText();
@@ -3008,7 +3040,7 @@ namespace SynergyUI
                 foreach (var r in s.atomic.branch?.then ?? new List<AtomicEffectEntry>()) Check(r);
             }
             return dupName == null ? null
-                : $"重复效果「{dupName}」——引擎主干/模拟·变形/仪典在一个组合中只能出现一次（并列槽与奖励均计入）";
+                : $"重复效果「{dupName}」——引擎主干/仪典在一个组合中只能出现一次（并列槽与奖励均计入）";
         }
 
         private static bool IsSummonTokenEntry(AtomicEffectEntry a)
@@ -3419,8 +3451,10 @@ namespace SynergyUI
         }
 
         /// <summary>每原子引用卡行（derivative）——按原子表「参数」列分流：
-        /// CardRef（变形/模拟/召唤衍生物）＝「选择卡牌」控件（点按开搜索+列表弹层，仅真实生物/结界卡
+        /// CardRef（召唤衍生物）＝「选择卡牌」控件（点按开搜索+列表弹层，仅真实生物/结界卡
         /// ——召唤只列生物），选中写卡 ID 进 str、已选显卡名缩略；
+        /// CardRef 的变形/模拟（2026-10-30 定案·2026-11-08 落地）＝行隐藏——引用卡与发动时机
+        /// 都在卡牌合成界面设置（本屏动态主干提示已注明），效果组合期不填；
         /// EffectRef（2026-11-06 附加诅咒/祝福载荷效果化）＝「选择载荷效果」控件（点按开效果库弹层
         /// ——只列主动效果且极性匹配引擎行的组合效果，资格单源 EffectEligibility.CursePayloadRejectReason），
         /// 选中写效果 id 进 str；
@@ -3440,8 +3474,11 @@ namespace SynergyUI
             bool isCardRef = cfg != null && cfg.Param == AtomicParamKind.CardRef;
             bool isEffectRef = cfg != null && cfg.Param == AtomicParamKind.EffectRef;
             bool isDeclareStr = IsDeclarationStrEntry(atom);
+            // 变形/模拟（2026-10-30 定案）：引用卡在卡牌合成界面选择——本屏行隐藏（CardRef 行中
+            // 只有召唤衍生物保留选择控件；恒 1 收值与 num 隐藏照走下方公共段）
+            bool refInCardComposer = IsGrantMorphEntry(atom) || IsImitateEntry(atom);
 
-            if (isCardRef)
+            if (isCardRef && !refInCardComposer)
             {
                 row.gameObject.SetActive(true);
                 BindCardRefField(row, atom, isSummon);
@@ -3494,6 +3531,23 @@ namespace SynergyUI
             }
         }
 
+        /// <summary>只读输入位点按接线（2026-11-08 修复）：InputField 节点已挂 TMP_InputField
+        ///（Selectable 子类），Button 同为 Selectable——DisallowMultipleComponent 令
+        /// AddComponent&lt;Button&gt; 被引擎拒收并返回 null（曾致「Can't add 'Button' to InputField」
+        /// 后紧跟 NRE）。改挂 EventTrigger（普通 MonoBehaviour 无 Selectable 冲突）承载点按；
+        /// interactable=false 不影响其触发（不走 Selectable 状态机）。重绑先清旧 PointerClick
+        /// 条目（等价原 RemoveAllListeners）。</summary>
+        private static void BindInputFieldTap(TMP_InputField field, Action onTap)
+        {
+            var trig = field.gameObject.GetComponent<EventTrigger>();
+            if (trig == null) trig = field.gameObject.AddComponent<EventTrigger>();
+            trig.triggers ??= new List<EventTrigger.Entry>();
+            trig.triggers.RemoveAll(e => e != null && e.eventID == EventTriggerType.PointerClick);
+            var entry = new EventTrigger.Entry { eventID = EventTriggerType.PointerClick };
+            entry.callback.AddListener(_ => onTap());
+            trig.triggers.Add(entry);
+        }
+
         /// <summary>CardRef 行选择控件（2026-10-31 阶段C）：InputField 退化为只读显示位
         ///（已选=卡名缩略+ID，未选=占位提示），点按本体开卡牌选择弹层。</summary>
         private void BindCardRefField(RectTransform row, AtomicEffectEntry atom, bool creatureOnly)
@@ -3507,10 +3561,7 @@ namespace SynergyUI
             idField.interactable = false;
             idField.readOnly = true;
             RefreshCardRefField(idField, atom.str, creatureOnly);
-            var btn = idField.gameObject.GetComponent<Button>();
-            if (btn == null) btn = idField.gameObject.AddComponent<Button>();
-            btn.onClick.RemoveAllListeners();
-            btn.onClick.AddListener(() => OpenCardRefPicker(atom, creatureOnly,
+            BindInputFieldTap(idField, () => OpenCardRefPicker(atom, creatureOnly,
                 () => RefreshCardRefField(idField, atom.str, creatureOnly)));
             UiKit.Described(idField, creatureOnly
                 ? "选择卡牌（召唤衍生物）：指向一张真实生物卡——实例=该卡全参数复制、恒落战场。"
@@ -3658,10 +3709,7 @@ namespace SynergyUI
             idField.interactable = false;
             idField.readOnly = true;
             RefreshEffectRefField(idField, atom.str, polarity);
-            var btn = idField.gameObject.GetComponent<Button>();
-            if (btn == null) btn = idField.gameObject.AddComponent<Button>();
-            btn.onClick.RemoveAllListeners();
-            btn.onClick.AddListener(() => OpenEffectRefPicker(atom,
+            BindInputFieldTap(idField, () => OpenEffectRefPicker(atom,
                 () => RefreshEffectRefField(idField, atom.str, polarity)));
             UiKit.Described(idField, polarity >= 0.5f
                 ? "选择载荷效果（附加祝福→给自己牌库）：只列主动效果且极性 +1 的组合效果——抽到该卡时以你为控制者自动结算（一次性）。"
@@ -3773,6 +3821,131 @@ namespace SynergyUI
                 ? $"生物 {(card.Power.HasValue ? card.Power.Value.ToString() : "?")}/{(card.Life.HasValue ? card.Life.Value.ToString() : "?")}"
                 : card.Supertype == Cardtype.Enchantment ? "结界" : card.Supertype.ToString();
 
+        // ======================================== 分支奖励效果（2026-11-07 分支奖励效果化） ========================================
+
+        /// <summary>槽内「奖励效果」选择行（2026-11-07 分支奖励效果化）：自由分支（非附加诅咒/祝福）与
+        /// 有限分支的 Then 奖励=组合效果引用+原子双通道——效果经弹层选择（右栏库仍只列原子），原子照旧
+        /// 点库落槽；两通道费合计并入分支预算（超限禁存）与引擎门槛/倒计时换算推导。</summary>
+        private void MakeRewardFxRow(RectTransform area, BranchEntryData b, RectTransform head, Action refresh)
+        {
+            var row = UiKit.Row("fx-reward-ref", area, spacing: 6f);
+            if (head != null) row.SetSiblingIndex(head.GetSiblingIndex() + 1); // 紧随摘要行
+            UiKit.Size(UiKit.Label("lbl", row, "奖励效果：", 12, UiStyle.TextSecondary), w: 62f);
+            var state = UiKit.Label("state", row, "", 12);
+            UiKit.Size(state, fw: 1f);
+            void RefreshState()
+            {
+                var fxg = string.IsNullOrEmpty(b.effectId) ? null : EffectsLibrary.Get(b.effectId);
+                state.text = string.IsNullOrEmpty(b.effectId)
+                    ? "（未选——可选组合效果作奖励，与下方原子奖励并存）"
+                    : fxg != null ? $"已选：{fxg.name}（{b.effectId}）" : $"[断链] {b.effectId}";
+            }
+            RefreshState();
+            UiKit.Button("btn-pick", row, "选择", () => OpenRewardFxPicker(b), height: 26f, fontSize: 12);
+            UiKit.Button("btn-clear", row, "清除", () =>
+            {
+                b.effectId = null;
+                RefreshState();
+                refresh?.Invoke();
+            }, height: 26f, fontSize: 12);
+            UiKit.Described(state, "选择奖励效果（组合效果）：条件达成时先结算该组合效果、再结算原子奖励——"
+                + "两通道费合计须在分支预算内（超限禁存）；门槛/倒计时随合计费自动推导。");
+        }
+
+        /// <summary>分支奖励效果校验（2026-11-07 分支奖励效果化——保存闸）：须在效果库解析成功、
+        /// 通过奖励资格（非引擎主干/非光环/非空——单源 EffectEligibility.BranchRewardRejectReason）、
+        /// 且不得引用本效果自身（自引用环）。null=合规。与装载期 ValidateAtomParams 同口径。</summary>
+        private string BranchRewardFxError(BranchEntryData b)
+        {
+            var fxId = b?.effectId;
+            if (string.IsNullOrEmpty(fxId)) return null;
+            if (fxId == _graph?.id) return "分支奖励效果不能引用本效果自身（自引用环）——请改选";
+            var data = EffectsLibrary.Resolve(fxId);
+            if (data == null) return $"奖励效果 '{fxId}' 不在效果库（悬空——效果可能已被删除），请改选";
+            var reason = EffectEligibility.BranchRewardRejectReason(data);
+            return reason != null ? $"奖励效果 '{fxId}' {reason}——请改选" : null;
+        }
+
+        /// <summary>分支奖励效果选择弹层（2026-11-07 分支奖励效果化）：搜索 + 效果库列表（主∪教学——
+        /// 训练表不随包下发不入，重复 id 保主表，与载荷效果弹层同口径）。只列奖励资格通过的组合效果
+        ///（资格单源 BranchRewardRejectReason）；排除本效果自身防自引用环。选中写 b.effectId。</summary>
+        private UiKit.Modal _rewardFxModal;
+
+        private void OpenRewardFxPicker(BranchEntryData b)
+        {
+            if (_rewardFxModal != null) { _rewardFxModal.Close(); _rewardFxModal = null; } // 重复点开=换窗
+            var selfId = _graph?.id;
+            var modal = UiKit.ModalBox(Root, "选择奖励效果（组合效果·与原子奖励并存）", width: 660f, height: 600f);
+            _rewardFxModal = modal;
+
+            var searchRow = UiKit.Row("search", modal.Panel, spacing: 8f);
+            UiKit.Size(UiKit.Label("lbl", searchRow, "搜索：", 13, UiStyle.TextSecondary), w: 40f);
+            var searchField = UiKit.InputField("input", searchRow, "效果名 / ID 关键词", "", width: 400f);
+            UiKit.Button("btn-close", searchRow, "关闭", () =>
+            {
+                _rewardFxModal?.Close();
+                _rewardFxModal = null;
+            }, height: 30f, fontSize: 13);
+
+            var scroll = UiKit.ScrollColumn("list", modal.Panel);
+            UiKit.Size(scroll.Rect, fw: 1f, fh: 1f);
+
+            void Rebuild()
+            {
+                for (int i = scroll.Content.childCount - 1; i >= 0; i--)
+                    UnityEngine.Object.Destroy(scroll.Content.GetChild(i).gameObject);
+                string key = (searchField.text ?? "").Trim();
+                // 资格判定走运行时同源通道：EffectsLibrary.Resolve 还原完整 Steps（header 不带原子）
+                var candidates = EffectLibrarySerializer.LoadAll()               // 主表
+                    .Concat(EffectLibrarySerializer.LoadAll(tutorial: true))      // 教学副表（重复 id 保主表）
+                    .GroupBy(g => g.id).Select(grp => grp.First())
+                    .Where(g => g != null && !string.IsNullOrEmpty(g.id) && g.id != selfId)
+                    .Select(g => new { graph = g, data = EffectsLibrary.Resolve(g.id) })
+                    .Where(t => t.data != null
+                                && EffectEligibility.BranchRewardRejectReason(t.data) == null)
+                    .Where(t => string.IsNullOrEmpty(key)
+                                || (t.graph.name ?? "").Contains(key, StringComparison.OrdinalIgnoreCase)
+                                || (t.graph.id ?? "").Contains(key, StringComparison.OrdinalIgnoreCase))
+                    .Select(t => new { t.graph, cost = CostDerivationService.ReferencedEffectCostByColor(t.graph.id).Total })
+                    .ToList();
+                const int cap = 150;
+                int shown = 0;
+                foreach (var c in candidates)
+                {
+                    if (shown++ >= cap) break;
+                    var pick = c.graph;
+                    var timing = (TriggerTiming)pick.header.TriggerTiming;
+                    string timingZh = AtomText.TimingZh.TryGetValue(timing, out var tz) ? tz : timing.ToString();
+                    int atomN = 0;
+                    foreach (var s in pick.steps ?? new List<EffectStepData>())
+                        if (s?.kind == 0 && s.atomic != null) atomN++;
+                    var line = UiKit.Row("fx-" + pick.id, scroll.Content, spacing: 8f);
+                    UiKit.Size(UiKit.Label("name", line,
+                        string.IsNullOrEmpty(pick.name) ? pick.id : pick.name, 13), w: 220f);
+                    UiKit.Size(UiKit.Label("meta", line,
+                        $"{timingZh}·{c.cost:0.#} 费·{atomN} 原子", 12, UiStyle.TextFaint), fw: 1f);
+                    bool current = b.effectId == pick.id;
+                    UiKit.Button("btn-pick", line, current ? "已选 ✓" : "选择", () =>
+                    {
+                        b.effectId = pick.id;
+                        RefreshSlots(); // 摘要/校验/门槛预览随写刷新
+                        _rewardFxModal?.Close();
+                        _rewardFxModal = null;
+                    }, bg: current ? UiStyle.SelectedRowBg : null, height: 30f, fontSize: 13);
+                }
+                UiKit.Label("count", scroll.Content,
+                    candidates.Count == 0
+                        ? "（无可选效果——奖励不可挂引擎主干/光环形态，先在效果表组合）"
+                        : shown < candidates.Count ? $"共 {candidates.Count} 条，仅列前 {cap} 条——用搜索缩小范围"
+                        : $"共 {candidates.Count} 条", 12, UiStyle.TextHint);
+            }
+
+            searchField.onValueChanged.RemoveAllListeners();
+            searchField.onValueChanged.AddListener(_ => Rebuild());
+            Rebuild();
+        }
+
+
         /// <summary>仪典作用方向可选集（方向码：1=己方/2=双方/3=对方；2026-11-06 定案翻转）：
         /// 极性 0 行只能双方（表价即实价，无单侧档）；±1 行=极性单侧+双方两档
         ///（缺省双方=表价档，单侧计价 ×RuleAuraSingleSideFactor）。仅仪典卡作用面下拉消费
@@ -3821,10 +3994,11 @@ namespace SynergyUI
             return null;
         }
 
-        /// <summary>自由分支主干发动方式单值钉（2026-10-30 用户定案）：
-        /// 模拟（Morph）/变形（GrantMorph）动态主干=仅主动；倒计时/元素充盈=仅自动
-        ///（引擎预设钉死组）；其余引擎=null（自动/主动双选——预设仅作落槽缺省）。
-        /// 无引擎主干（并列/有限分支/光环）=null（宿主形状闸照旧管辖）。
+        /// <summary>自由分支主干发动方式单值钉（2026-11-08 规则地基定案，取代 2026-10-30 双选组）：
+        /// 主动行（附加诅咒/附加祝福）=仅主动；其余引擎行（倒计时/运势/拼点/
+        /// 死亡计数/元素充盈/团结）=仅自动；非引擎主干（并列/有限分支/光环）=null（宿主形状闸照旧管辖）。
+        ///（模拟/变形 2026-11-08 退役出组合——不再经此口。）
+        /// 钉值表单源=ComposerCatalog.EngineActivationPinOf（与验证器共用，图形态判定在调用侧）。
         /// 消费：ApplyEngineHeaderLock（钉值+锁下拉）、发动方式下拉 Changed 闸（非法选择弹回）。</summary>
         private EffectActivationType? EngineActivationPin()
         {
@@ -3832,24 +4006,17 @@ namespace SynergyUI
             if (atom == null) return null;
             var cfg = AtomicEffectTable.GetByHashId(atom.refId);
             if (!ComposerCatalog.IsEngineTrunkRow(cfg)) return null;
-            if (Enum.TryParse<AtomicEffectType>(cfg.EnumName, out var t))
-            {
-                if (t == AtomicEffectType.Morph || t == AtomicEffectType.GrantMorph)
-                    return EffectActivationType.Voluntary;
-                if (t == AtomicEffectType.EngineCountdown || t == AtomicEffectType.EngineManaSurplus)
-                    return EffectActivationType.Automatic;
-            }
-            return null;
+            return Enum.TryParse<AtomicEffectType>(cfg.EnumName, out var t)
+                ? ComposerCatalog.EngineActivationPinOf(t)
+                : null;
         }
 
-        /// <summary>引擎效果头锁定（2026-10-09 自由分支九项定案；速度组 2026-10-15 退役；2026-10-16 解绑；
-        /// 2026-10-30 发动方式定案）：首槽引擎在案 → 时机/速度/生效次数按 ComposerCatalog.EngineHeaderPresetOf
-        /// 归一；发动方式三分——①模拟/变形动态主干=仅主动（钉死+锁下拉）；②倒计时/元素充盈=仅自动
-        ///（钉死组，预设归一+锁下拉）；③其余引擎=自动/主动**双选**（ComposerCatalog.EngineActivationFree——
-        /// 预设仅作落槽缺省，下拉解锁，合法声明保留；主动档时机钉 Activate_*、自动档时机归预设）。
-        /// **FreeTiming 组（仅运势）时机不再钉死**——时机可改（掷骰恒自动）；速度/生效次数仍钉。
-        /// 落槽瞬间（引擎种类切换）且时机仍为图缺省
-        /// OnPlay(0) → 补预设缺省 OnTurnStart（防新效果落在「奖励等下次入场」死档）；其余刷新不动用户值。
+        /// <summary>引擎效果头锁定（2026-10-09 自由分支九项定案；2026-11-08 规则地基定案修订）：
+        /// 首槽引擎在案 → 速度/生效次数按 ComposerCatalog.EngineHeaderPresetOf 归一；发动方式按
+        /// EngineActivationPinOf 单值钉（四类主动行=仅主动、其余引擎行=仅自动——下拉锁定）；
+        /// 时机——主动钉 Activate_*；自动固定组（倒计时/死亡计数/元素充盈）钉预设时机；
+        /// 自然缺省组（运势/拼点/团结，FreeTiming）时机可改：预设 Timing 仅作**无奖励时的占位缺省**，
+        /// 只在落槽瞬间且图值缺省 OnPlay(0) 时补（防新效果落在「奖励等下次入场」死档），其余刷新不动用户值。
         /// 引擎主干零计价——limit=-1 档无费用影响。
         /// 消费点：RefreshSlots 尾部（覆盖引擎落槽/换引擎/载入三路径）。</summary>
         private BranchEngineKind? _lastEngineLockKind; // 落槽种类跟踪：FreeTiming 缺省只在切换瞬间补，刷新不覆写用户值
@@ -3865,43 +4032,37 @@ namespace SynergyUI
             bool justLanded = currentKind != _lastEngineLockKind; // null→kind 落槽 / kindA→kindB 换引擎
             _lastEngineLockKind = currentKind;
 
-            // 发动方式单值钉（2026-10-30）：模拟/变形=主动、倒计时/元素充盈=自动；null=双选
+            // 发动方式单值钉（2026-11-08 规则地基）：四类主动行=主动、其余引擎行=自动；null=非引擎主干
             var actPin = EngineActivationPin();
 
             if (locked)
             {
                 if (actPin != null)
                 {
-                    // 钉死组（倒计时/元素充盈）：预设归一——发动方式恒预设 Automatic
-                    h.ActivationType = (int)preset.Value.Activation;
-                    h.TriggerTiming = preset.Value.Activation == EffectActivationType.Voluntary
-                        ? (int)TriggerTiming.Activate_Active : (int)preset.Value.Timing;
-                }
-                else
-                {
-                    // 双选组：预设 Activation 仅落槽缺省——合法声明值（1 自动/2 主动）保留
-                    if (justLanded || (h.ActivationType != (int)EffectActivationType.Automatic
-                                     && h.ActivationType != (int)EffectActivationType.Voluntary))
-                        h.ActivationType = (int)preset.Value.Activation;
-                    bool vol = h.ActivationType == (int)EffectActivationType.Voluntary;
+                    // 钉死组（全部在册引擎行）：发动方式恒钉值；时机=主动钉 Activate_*、自动固定组钉预设；
+                    // 自然缺省组时机可改——只在落槽瞬间补占位缺省
+                    h.ActivationType = (int)actPin.Value;
                     if (freeTiming)
                     {
-                        // 2026-10-16 解绑（仅运势在册）：时机声明值优先——只在落槽瞬间补缺省
                         if (justLanded && h.TriggerTiming == 0) h.TriggerTiming = (int)preset.Value.Timing;
                     }
                     else
                     {
-                        h.TriggerTiming = (int)(vol ? TriggerTiming.Activate_Active : preset.Value.Timing);
+                        h.TriggerTiming = actPin == EffectActivationType.Voluntary
+                            ? (int)TriggerTiming.Activate_Active : (int)preset.Value.Timing;
                     }
+                }
+                else
+                {
+                    // 未知引擎行兜底（表新增未登记行）：预设 Activation 仅落槽缺省——合法声明值保留
+                    if (justLanded || (h.ActivationType != (int)EffectActivationType.Automatic
+                                     && h.ActivationType != (int)EffectActivationType.Voluntary))
+                        h.ActivationType = (int)preset.Value.Activation;
+                    bool vol = h.ActivationType == (int)EffectActivationType.Voluntary;
+                    h.TriggerTiming = (int)(vol ? TriggerTiming.Activate_Active : preset.Value.Timing);
                 }
                 h.BaseSpeed = preset.Value.Speed;
                 h.TriggerLimitPerTurn = preset.Value.Limit;
-            }
-            else if (actPin != null)
-            {
-                // 动态主干（模拟/变形）：无引擎预设——仅主动钉死 + 主动钉档时机
-                h.ActivationType = (int)EffectActivationType.Voluntary;
-                h.TriggerTiming = (int)TriggerTiming.Activate_Active;
             }
 
             // 值对齐先行，禁用态最后落——防同步链覆写锁定
@@ -3909,8 +4070,8 @@ namespace SynergyUI
             SyncActivationVisibility();
             SyncTimingDropdown();
 
-            // 禁用面（2026-10-30 修订）：发动下拉=单值钉死组（模拟/变形/倒计时/元素充盈）锁定、
-            // 双选引擎解锁；时机=预设锁（FreeTiming 组解锁；动态主干随主动档隐藏时机行）；
+            // 禁用面（2026-11-08 规则地基修订）：发动下拉=引擎主干一律锁定（主动行/自动引擎行均单值钉）；
+            // 时机=自动固定组锁、自然缺省组（运势/拼点/团结）解锁；
             // 速度组已退役无控件；次数选项已整删。
             if (_activationDropdown != null)
                 _activationDropdown.Interactable = actPin == null;
@@ -4118,6 +4279,7 @@ namespace SynergyUI
             _loadedFromLibraryId = null;
             _presetSourceId = _graph.id;
             var note = NormalizeLoadedGraph(_graph);
+            SynthesizeCostGateView(); // 代价门视图合成（2026-11-08 效果级化）：预设代价行同样进编辑视图
 
             _mode = InferMode(_graph);
             _expandedAtoms.Clear();
@@ -4128,7 +4290,7 @@ namespace SynergyUI
             SyncActivationVisibility();
             RefreshAll();
             UpdateDeleteState(); // 预设载入=删除钮隐藏
-            // 快照在归一化/效果头对齐（RefreshAll 链内 SyncActivationVisibility 等可能钉时机）全部落定后拍
+            // 快照在归一化/代价门合成/效果头对齐（RefreshAll 链内 SyncActivationVisibility 等可能钉时机）全部落定后拍
             _presetSnapshotHash = PresetContentHash(_graph);
             ShowToast(note != null
                 ? $"已载入预设效果：{_graph.name}（修改保存=另存新效果）——{note}"
@@ -4151,6 +4313,7 @@ namespace SynergyUI
             _presetSourceId = null;
                 _presetSnapshotHash = null; // 常规库条目接管——预设只读态退出
             var note = NormalizeLoadedGraph(_graph);
+            SynthesizeCostGateView(); // 代价门视图合成（2026-11-08 效果级化）：库条目代价行进编辑视图
 
             _mode = InferMode(_graph);
             _expandedAtoms.Clear();
@@ -4306,7 +4469,7 @@ namespace SynergyUI
                         return lp => b != null && lp.CanBeBranchReward && !lp.IsWrongSideOnly
                                      && RewardWithinFilterCap(lp.Entry(), cap);
                     }
-                    contextZh = "主干（引擎行——倒计时/拼点/运势/死亡计数/元素充盈/团结/附加诅咒·祝福，或模拟/变形动态主干）";
+                    contextZh = "主干（引擎行——倒计时/拼点/运势/死亡计数/元素充盈/团结/附加诅咒·祝福）";
                     return lp => lp.IsEngineTrunk;
                 }
                 case ComposeMode.LimitedBranch:
@@ -4369,8 +4532,7 @@ namespace SynergyUI
                 foreach (var g in ComposerCatalog.SituationGates)
                 {
                     var captured = g;
-                    // 代价门只在卡编辑态列出（保存回写卡级代价行——库独立模式无落点）
-                    if (captured.Id == ComposerCatalog.CostGateId && _editingCard == null) continue;
+                    // 支付代价门 2026-11-08 效果级化放开：库独立模式也可选——代价随效果落库（EffectSlim costs）
                     if (!SearchQuery.Match(captured.DisplayName ?? "", _filterName.text)) continue;
                     _atomItems.Add(new TableRowData
                     {
@@ -4772,7 +4934,7 @@ namespace SynergyUI
                     }
                     else
                     {
-                        if (!payload.IsEngineTrunk) { ShowToast("自由分支主干=引擎行或模拟/变形（倒计时/拼点/运势…）——其余原子请切并列/有限分支"); break; }
+                        if (!payload.IsEngineTrunk) { ShowToast("自由分支主干=引擎行（倒计时/拼点/运势…）——其余原子请切并列/有限分支"); break; }
                         ReplaceBranchTrunk(InferredTrunkEntry(payload), keepBranch: false); // 引擎行自动挂 Engine 载荷
                     }
                     RefreshLibrary(keepScroll: true);
@@ -4806,8 +4968,8 @@ namespace SynergyUI
         }
 
         /// <summary>库行 → 效果槽条目：关键词/指示物类统一为赋予形态
-        ///（kinds 按 GrantTargetKinds 推导——关键词=双方生物、指示物=任意卡 {1..8}；
-        /// 关键词另带 str=运行时关键词 id），其余原样；跳过三阶段行（2026-10-29 阶段3a）
+        ///（kinds/domain 均不写=行默认域按极性定侧；关键词另带 str=运行时关键词 id），
+        /// 其余原样；跳过三阶段行（2026-10-29 阶段3a）
         /// 按 EnumName 查 SkipTurnIds 写相位档 str。</summary>
         private static AtomicEffectEntry EntryForEffectSlot(LibPayload payload)
         {
@@ -4826,16 +4988,14 @@ namespace SynergyUI
                 && ProtectionIds.TryGetValue(payload.Cfg.DisplayName, out var protection))
                 entry.str = protection;
             if (!payload.IsKeywordAtom && !payload.IsCounterAtom) return entry;
-            // 关键词（2026-11-07 系统特判）：entry.domain/entry.kinds 均不写——落槽=行默认
-            // （己方战场:生物）=赋予己方战场生物；x个/全域由 atom.count 承载（0=全域）。
+            // 关键词/指示物（2026-11-07 关键词特判·2026-11-08 指示物对齐同口径）：entry.domain/
+            // entry.kinds 均不写——落槽=行默认域按极性定侧（关键词=己方战场:生物；指示物 p≠0
+            // 收窄单侧）；x个/全域由 atom.count 承载（0=全域）；域换选经 dd-domain 写 atom.domain。
+            // 指示物 {1..8}「任意卡」旧存储态随之退役——显式 kinds 令渲染/产轴走 NarrowByKinds
+            // 停在「双方」，与极性定侧后的域下拉占位错位（lbl-effect-name 不随单侧选择，2026-11-08 修复）。
             // 印刷通道（卡牌组合界面直加的本体关键词）不走本入口，免疫驱散。
-            // 指示物 → 保持 kinds {1..8} 旧口径（单体/任意卡，P2-2 不动）。
-            if (payload.IsKeywordAtom)
-            {
-                entry.kinds = null;
-                entry.domain = null;
-            }
-            else entry.kinds = GrantTargetKinds(payload.Cfg);
+            entry.kinds = null;
+            entry.domain = null;
             if (!payload.IsKeywordAtom) return entry; // 指示物：持续由 CounterSpec 承载，无关键词 id
             // 关键词 id 与 CardLoader.LoadKeywords 同源：TryGetKeywordId 映射，否则枚举名去 Grant 前缀
             var enumName = payload.Cfg.EnumName;
@@ -4901,22 +5061,6 @@ namespace SynergyUI
             _graph.header.SelectionMode = (int)CardCore.SelectionMode.Single;
             _graph.header.Duration = (int)DurationType.UntilEndOfTurn;
             _graph.header.RandomTarget = 0; // 赋予目标由弹窗选一——不做随机
-        }
-
-        /// <summary>授予目标域（2026-10-07 仅可转换定案；P2-2 收缩为**指示物专用**——关键词已域化）：
-        /// 指示物行（位 1）→ 任意卡 {1..8}（双方单位/手牌/牌库——存储态"自己"的赋予形态域）；
-        /// 其余 → null=表行默认域。</summary>
-        private static List<int> GrantTargetKinds(AtomicEffectConfig cfg)
-        {
-            if (ComposerCatalog.HasMountBit(cfg, MountKind.Counter))
-                return new List<int>
-                {
-                    (int)TargetKind.OwnLivingUnit, (int)TargetKind.EnemyLivingUnit,
-                    (int)TargetKind.OwnNonLivingUnit, (int)TargetKind.EnemyNonLivingUnit,
-                    (int)TargetKind.OwnHand, (int)TargetKind.EnemyHand,
-                    (int)TargetKind.OwnDeck, (int)TargetKind.EnemyDeck,
-                };
-            return null;
         }
 
         // ======================================== 光环模式（箭头+条目随效果合成，挂卡并集） ========================================
@@ -5474,73 +5618,55 @@ namespace SynergyUI
                     a == null || (string.IsNullOrEmpty(a.stat) && string.IsNullOrEmpty(a.keyword)));
             }
 
+            // 代价门反向回写（2026-11-08 代价效果级化）：哨兵分支不落 Steps——then 原样回写本效果
+            // header.Costs（克隆原行保留 CostType/ManaType 等字段只换 payloads；删光代价原子=清空）。
+            // 卡编辑/库模式同链：卡路径经 BuildCardEffect header 往返挂回效果；库路径经 EffectSlim
+            // costs 落库（payloads 多原子承载）。数据层闸=EffectCostConflictOf 逐效果口径，
+            // 存量未改动（与合成快照一致）豁免、新改动强校验，违规回滚禁存。
+            List<AtomicEffectEntry> costPayloads = null;
+            EffectStepData costStep = null;
+            BranchEntryData costBranch = null;
+            foreach (var s in _graph.steps ?? new List<EffectStepData>())
+            {
+                if (s?.kind != 0 || s.atomic?.branch == null || !IsCostGate(s.atomic.branch)) continue;
+                costStep = s;
+                costBranch = s.atomic.branch;
+                costPayloads = costBranch.then;
+                s.atomic.branch = null; // 剥除——代价门永不进 Steps
+                break;
+            }
+            if (costPayloads != null)
+            {
+                var originalCosts = _graph.header.Costs;
+                if (costPayloads.Count > 0)
+                {
+                    var originalRow = originalCosts != null && originalCosts.Count > 0 ? originalCosts[0] : null;
+                    var row = originalRow != null // 克隆回滚源——不动原行对象
+                        ? JsonUtility.FromJson<CostEntry>(JsonUtility.ToJson(originalRow))
+                        : new CostEntry { CostType = (int)CostType.Payload, Value = 1 };
+                    row.payloads = costPayloads;
+                    row.payload = null; // 新写恒 payloads（legacy 单原子口退役）
+                    _graph.header.Costs = new List<CostEntry> { row };
+                }
+                else _graph.header.Costs = null;
+                if (!CostGateUnchanged(costPayloads))
+                {
+                    var costConflict = EffectCostConflictOf(_graph.header);
+                    if (costConflict != null)
+                    {
+                        _graph.header.Costs = originalCosts; // 回滚——保持进入本屏时的效果状态
+                        costStep.atomic.branch = costBranch; // 代价门视图恢复
+                        ShowToast(costConflict);
+                        return;
+                    }
+                }
+            }
+
             // 卡编辑模式：写回卡牌并返回（不落效果库文件）
             if (_editingCard != null)
             {
                 _editingCard.Effects ??= new List<CardEffectData>();
-                // 代价门反向回写（2026-11-06 代价挪入有限分支）：哨兵分支不落效果——then 原样回写
-                // 卡级整卡代价行（保留原行 CostType/ManaType 等字段只换 payloads；删光代价原子=清空
-                // 代价行）；回写后跑 DiscountConflictOf 数据层闸（全价≤3 等），违规回滚并禁存。
-                List<AtomicEffectEntry> costPayloads = null;
-                EffectStepData costStep = null;
-                BranchEntryData costBranch = null;
-                foreach (var s in _graph.steps ?? new List<EffectStepData>())
-                {
-                    if (s?.kind != 0 || s.atomic?.branch == null || !IsCostGate(s.atomic.branch)) continue;
-                    costStep = s;
-                    costBranch = s.atomic.branch;
-                    costPayloads = costBranch.then;
-                    s.atomic.branch = null; // 剥除——代价门永不进 Effects
-                    break;
-                }
-                if (costPayloads != null)
-                {
-                    var originalRow = _editingCard.PayloadCost;
-                    if (costPayloads.Count > 0)
-                    {
-                        var row = originalRow ?? new CostEntry { CostType = (int)CostType.Payload, Value = 1 };
-                        row.payloads = costPayloads;
-                        row.payload = null; // 新写恒 payloads（legacy 单原子口退役）
-                        _editingCard.PayloadCost = row;
-                    }
-                    else _editingCard.PayloadCost = null;
-                    _editingCard.ResetCache();
-                    // 数据层闸（全价≤3 等）——存量代价行未改动（与合成快照一致）豁免：
-                    // 绕过UI数据可超上限（"以现有数据为准"），只有新改动强校验；违规回滚禁存
-                    if (!CostGateUnchanged(costPayloads))
-                    {
-                        var costConflict = DiscountConflictOf(_editingCard);
-                        if (costConflict != null)
-                        {
-                            _editingCard.PayloadCost = originalRow; // 回滚——保持进入本屏时的卡状态
-                            _editingCard.ResetCache();
-                            costStep.atomic.branch = costBranch; // 代价门视图恢复
-                            ShowToast(costConflict);
-                            return;
-                        }
-                    }
-                }
                 var effect = BuildCardEffect();
-                // 减费三选一保存闸（2026-11-02）：宿主已挂代价 → 分支/并列两效果/光环形态禁存
-                //（chip/槽位已禁——本口拦载入旧数据未清理的直存）
-                if (CardHasCost(_editingCard))
-                {
-                    if (IsBranchEffect(effect))
-                    {
-                        ShowToast("本卡已挂代价——同一效果只能三选一（有限分支/自由分支/代价）");
-                        return;
-                    }
-                    if (IsParallelTwoEffect(effect))
-                    {
-                        ShowToast("本卡已挂代价——并列添加了两个效果，不允许再挂代价");
-                        return;
-                    }
-                    if (IsAuraEffectData(effect))
-                    {
-                        ShowToast("本卡已挂代价——光环类（结界的场地光环/仪典行）不允许挂代价");
-                        return;
-                    }
-                }
                 if (_editingIndex >= 0 && _editingIndex < _editingCard.Effects.Count)
                     _editingCard.Effects[_editingIndex] = effect;
                 else
@@ -5651,16 +5777,16 @@ namespace SynergyUI
             => _costGateOriginalJson != null && then != null
                && JsonUtility.ToJson(new ListAtomWrap { items = then }) == _costGateOriginalJson;
 
-        /// <summary>代价门·展示期合成（2026-11-06 代价挪入有限分支定案）：卡编辑态载入后，把卡级
-        /// 整卡代价行（PayloadCost 垫片=TargetAttr 0 行）的 payloads 深拷贝合成为首主干原子的
-        /// 「支付代价」门分支（settle=Gate + CostGateId 哨兵）——InferMode 落有限分支按代价门渲染；
-        /// 保存时 OnSave 反向回写 PayloadCost 并剥除哨兵（永不落盘，运行时零改）。
-        /// 仅首效果（_editingIndex==0）·单主干无分支·非光环形态合成；其余形态代价不进本编辑器
-        ///（卡组合界面代价槽仍展示/可删）。</summary>
+        /// <summary>代价门·展示期合成（2026-11-08 代价效果级化修订）：载入后把本效果代价行
+        /// （header.Costs 首个有原子行）的 payloads 深拷贝合成为单主干原子的「支付代价」门分支
+        ///（settle=Gate + CostGateId 哨兵）——InferMode 落有限分支按代价门渲染；保存时 OnSave
+        /// 反向回写 header.Costs 并剥除哨兵（永不落盘，运行时零改）。卡编辑/库载入（含预设只读）
+        /// 同链——每个效果各自合成自己的代价行；保留限制：单主干·无已有分支·非光环形态
+        ///（其余形态代价不进本编辑器）。</summary>
         private void SynthesizeCostGateView()
         {
-            if (_editingCard == null || _editingIndex != 0) return;
-            var payloads = _editingCard.PayloadCost?.AllPayloads();
+            var payloads = _graph?.header?.Costs?.FirstOrDefault(
+                r => r != null && r.AllPayloads().Count > 0)?.AllPayloads();
             if (payloads == null || payloads.Count == 0) return;
             if (IsAuraMode(InferMode(_graph))) return;
             var steps = _graph.steps ?? new List<EffectStepData>();
@@ -5932,11 +6058,11 @@ namespace SynergyUI
             private HashSet<MountKind> Mounts => MountKindExtensions.ParseCsv(Cfg?.MountKinds ?? "");
 
             /// <summary>关键词类原子（位 0 Keyword）——库行点击同关键词面板：恒为他人赋予形态
-            ///（kinds=GrantTargetKinds 覆写 + str=关键词 id）。</summary>
+            ///（kinds/domain 不写=行默认域 + str=关键词 id）。</summary>
             public bool IsKeywordAtom => Cfg != null && Mounts.Contains(MountKind.Keyword);
 
-            /// <summary>指示物类原子（位 1 Counter，2026-10-07 与关键词同型）：落槽=赋予任意卡形态
-            ///（kinds=GrantTargetKinds 覆写 {1..8}；持续由 CounterSpec 承载，无关键词 id/头部惯例）。</summary>
+            /// <summary>指示物类原子（位 1 Counter，2026-10-07 与关键词同型）：落槽=赋予形态
+            ///（kinds/domain 不写=行默认域按极性定侧；持续由 CounterSpec 承载，无关键词 id/头部惯例）。</summary>
             public bool IsCounterAtom => Cfg != null && Mounts.Contains(MountKind.Counter);
 
             /// <summary>引擎主干行（位 5）：填入槽即自由分支（引擎参数+奖励槽直出）；

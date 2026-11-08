@@ -530,10 +530,11 @@ namespace CardCore
         public BranchEngineKind EngineKind;
         /// <summary>引擎参数 x（运势阈值/死亡计数阈值等；倒计时缺省 0=按 Then 推导费自动换算）。</summary>
         public int EngineParam;
-        /// <summary>载荷效果库条目 id（2026-11-06 附加诅咒/祝福载荷效果化）：引擎主干原子 str →
-        /// converter 落此字段——CurseOnDraw/BlessingOnDraw 的载荷=组合效果引用（非 Then 原子列），
-        /// 抽到时按效果定义结算（CurseSystem）；计价=引用效果锚价减半（EngineBranchSurcharge）。
-        /// Then 原子列保留为旧手写数据兼容通道（EffectId 优先）。其他引擎恒 null。</summary>
+        /// <summary>载荷/奖励效果库条目 id（2026-11-06 附加诅咒/祝福载荷效果化；2026-11-07 分支奖励
+        /// 效果化扩至三 settle 通用）：诅咒/祝福=引擎主干原子 str → converter 落此字段（抽到时按效果
+        /// 定义结算，CurseSystem）；其余分支=BranchEntryData.effectId 直落（条件达成先结算引用效果、
+        /// 后 Then 原子，EffectExecutor.ExecuteBranchRewardsAsync）；计价并入门槛/换算推导
+        ///（RewardThresholdOf/CountdownTurnsOf——引用效果锚价 ReferencedEffectCostByColor）。</summary>
         public string EffectId;
         /// <summary>倒计时初值回合数（converter 换算：Then 推导费 1费=1回合，向上取整下限 1；
         /// 引擎运行时归零重置回此值）。仅 EngineKind==Countdown 有语义。</summary>

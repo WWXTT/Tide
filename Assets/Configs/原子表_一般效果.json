@@ -164,7 +164,6 @@
   {
     "ID": "c2abbd1f",
     "TextHash": "c2abbd1f",
-    "Domain": "己方牌库:卡",
     "EnumName": "检索",
     "DisplayName": "宣言一个卡名，从牌库检索对应的卡",
     "EffectType": "SearchDeck",
@@ -212,7 +211,7 @@
     "ManaList": [
       0,
       0,
-      0.5,
+      1,
       0
     ]
   },
@@ -293,7 +292,7 @@
     "ID": "c3d65a3d",
     "TextHash": "c3d65a3d",
     "EnumName": "发动无效",
-    "DisplayName": "使{target}效果的发动无效化",
+    "DisplayName": "使连锁的效果的发动无效化",
     "EffectType": "NegateActivation",
     "TargetFilter": null,
     "Polarity": -1,
@@ -310,7 +309,7 @@
     "ID": "f1cf5ce6",
     "TextHash": "f1cf5ce6",
     "EnumName": "效果无效",
-    "DisplayName": "使{target}发动的效果无效化",
+    "DisplayName": "使连锁的发动的效果无效化",
     "EffectType": "NegateEffect",
     "TargetFilter": null,
     "Polarity": -1,
@@ -443,7 +442,44 @@
     "Tags": null,
     "参数": "CardRef",
     "ManaList": [
-      2,
+      1,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ID": "7e6840f3",
+    "TextHash": "7e6840f3",
+    "Domain": "双方战场:生物,结界",
+    "EnumName": "模拟",
+    "DisplayName": "变成{target}(无法复制场地光环)，附加一层变形指示物，解除时还原;发动时，按变形前后卡费用，用任意元素补齐差额",
+    "EffectType": "Morph",
+    "TargetFilter": null,
+    "Polarity": 0,
+    "MountKinds": "系统,动态费用",
+    "Tags": "换区清除型",
+    "ManaList": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ID": "dccd2254",
+    "TextHash": "dccd2254",
+    "Domain": "双方战场:生物,结界",
+    "EnumName": "变形",
+    "DisplayName": "将{target}变成引用卡（引用卡ID指向一张真实生物/结界卡，无法引用场地光环），附加一层变形指示物，解除时还原；发动主动效果按变形前后卡费用，用任意元素补齐差额",
+    "EffectType": "GrantMorph",
+    "TargetFilter": null,
+    "Polarity": 0,
+    "MountKinds": "系统,动态费用",
+    "Tags": "换区清除型",
+    "参数": "CardRef",
+    "ManaList": [
+      0,
       0,
       0,
       0
@@ -471,7 +507,7 @@
     "TextHash": "85b7e5ac",
     "Domain": "双方战场:生物; 双方战场:结界",
     "EnumName": "回响",
-    "DisplayName": "选择双方战场的一张卡，将{value}张具有一层遗忘指示物的复制加入手牌",
+    "DisplayName": "选择{target}，将{value}张具有一层遗忘指示物的复制加入手牌",
     "EffectType": "EchoCopy",
     "TargetFilter": null,
     "Polarity": 0,
@@ -489,7 +525,7 @@
     "TextHash": "84136d36",
     "Domain": "己方战场:卡",
     "EnumName": "牺牲",
-    "DisplayName": "自行选择{value}个单位规则送墓，每送墓一个单位，获得一点临时任意元素",
+    "DisplayName": "自行选择{target}规则送墓（共{value}个单位），每送墓一个单位，获得一点临时任意元素",
     "EffectType": "Sacrifice",
     "TargetFilter": null,
     "Polarity": 0,
@@ -578,7 +614,7 @@
     "TextHash": "c5340751",
     "Domain": "双方战场:生物",
     "EnumName": "永久攻击力增加",
-    "DisplayName": "修改目标的文本级属性，本局游戏中攻击力永久增加{value}",
+    "DisplayName": "修改{target}文本级属性，本局游戏中攻击力永久增加{value}",
     "EffectType": "AddPermanentPowerUp",
     "TargetFilter": null,
     "Polarity": 1,
@@ -596,7 +632,7 @@
     "TextHash": "8ae22c02",
     "Domain": "双方战场:生物",
     "EnumName": "永久攻击力减少",
-    "DisplayName": "修改目标的文本级属性，本局游戏中攻击力永久减少{value}",
+    "DisplayName": "修改{target}文本级属性，本局游戏中攻击力永久减少{value}",
     "EffectType": "AddPermanentPowerDown",
     "TargetFilter": null,
     "Polarity": -1,
@@ -614,7 +650,7 @@
     "TextHash": "0afd7173",
     "Domain": "双方战场:生物",
     "EnumName": "永久生命值增加",
-    "DisplayName": "修改目标的文本级属性，本局游戏中生命值永久增加{value}",
+    "DisplayName": "修改{target}文本级属性，本局游戏中生命值永久增加{value}",
     "EffectType": "AddPermanentLifeUp",
     "TargetFilter": null,
     "Polarity": 1,
@@ -632,7 +668,7 @@
     "TextHash": "e97b8001",
     "Domain": "双方战场:生物",
     "EnumName": "永久生命值减少",
-    "DisplayName": "修改目标的文本级属性，本局游戏中生命值永久减少{value}",
+    "DisplayName": "修改{target}文本级属性，本局游戏中生命值永久减少{value}",
     "EffectType": "AddPermanentLifeDown",
     "TargetFilter": null,
     "Polarity": -1,
@@ -862,7 +898,7 @@
     "TextHash": "c336be8f",
     "Domain": "对方战场:生物",
     "EnumName": "封印",
-    "DisplayName": "将{target}封印为对手的地牌，按其最高费用放入对应地牌格（不能对0费单位使用）",
+    "DisplayName": "将{value}个{target}封印为对手的地牌，按其最高费用放入对应地牌格（不能对0费单位使用）",
     "EffectType": "SealUnit",
     "TargetFilter": "Landable",
     "Polarity": -1,
@@ -872,6 +908,25 @@
       0,
       3,
       0,
+      0
+    ]
+  },
+  {
+    "ID": "f1992573",
+    "TextHash": "f1992573",
+    "Domain": "对方手牌:卡",
+    "EnumName": "筛选展示",
+    "DisplayName": "选择一个卡牌类别，展示对手手中对应类型的牌",
+    "EffectType": "RevealByDimension",
+    "TargetFilter": null,
+    "Polarity": -1,
+    "MountKinds": "",
+    "Tags": null,
+    "参数": "Dimension",
+    "ManaList": [
+      0,
+      0,
+      2,
       0
     ]
   }

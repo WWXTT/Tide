@@ -659,8 +659,8 @@ namespace CardCore
         }
 
         /// <summary>代价同色违规扫描（2026-11-06 定案·同日基准收口；只报不改）：逐行**归属效果**比对——
-        /// 效果级行（fx.Costs）对照所在效果主干色 <see cref="EffectTrunkColors(CardEffectData)"/>；
-        /// 卡级行（PayloadCosts）归属首效果（合成器代价门=首效果单主干承载·保存回写 PayloadCost）。
+        /// 效果级行（fx.Costs）对照所在效果主干色 <see cref="EffectTrunkColors(CardEffectData)"/>
+        ///（卡级行已随 2026-11-08 代价效果级化整删——代价只挂效果）。
         /// 返回「行归属/原子/原子色/效果色」明细。费用推导口（EnsureCost）据此打一次性 Warning
         ///（编辑器菜单域 TideLog 无 sink 只进 Editor.log——RunDiscountExclusiveAudit ④段复扫补可见性）；
         /// 不并入 PayloadCostViolations 硬断言，避免存量数据（如退潮 红3 带蓝抽卡代价）直接卡死
@@ -692,7 +692,6 @@ namespace CardCore
                     }
                 }
             }
-            Check(card.PayloadCosts, EffectTrunkColors(card.Effects?.FirstOrDefault()), "卡级（归属首效果）");
             if (card.Effects != null)
                 foreach (var fx in card.Effects)
                     if (fx != null) Check(fx.Costs, EffectTrunkColors(fx), $"效果[{fx.DisplayName ?? fx.Id}]");
@@ -700,8 +699,8 @@ namespace CardCore
         }
 
 
-        /// <summary>是否携带代价（2026-10-31 衍生物两限制配套）：任意代价行（卡级行 + 全部
-        /// 效果级行，含主动）有 payload 原子即 true。衍生物模板禁带代价（DeckTokenSupport.ValidateDeck 消费）。</summary>
+        /// <summary>是否携带代价（2026-10-31 衍生物两限制配套）：任意效果级代价行（含主动）
+        /// 有 payload 原子即 true。衍生物模板禁带代价（DeckTokenSupport.ValidateDeck 消费）。</summary>
         public static bool HasPayloadCost(CardData card) => CollectCostEntries(card, includeActiveEffects: true).Count > 0;
 
         /// <summary>计价内部 float 桶 → ElementCost（组合层机械的边界口；2026-11-03 底盘改版：
@@ -715,10 +714,9 @@ namespace CardCore
             return c;
         }
 
-        /// <summary>代价原子条目收集单源（2026-10-31 代价指向化定案）：
-        /// · **施放期桶**（includeActiveEffects=false）= 卡级行（TargetAttr 任指——整卡 legacy /
-        ///   攻击血量 / 耐久 / 速度）+ **非主动**效果的效果级行——随卡施放：抵扣卡费（Derive 色锁）、
-        ///   cast 付费步执行、施放地牌门槛（EvaluatePayloadGate ③）；
+        /// <summary>代价原子条目收集单源（2026-11-08 代价效果级化——卡级行整删）：
+        /// · **施放期桶**（includeActiveEffects=false）= **非主动**效果的效果级行——随卡施放：
+        ///   抵扣卡费（Derive 色锁）、cast 付费步执行、施放地牌门槛（EvaluatePayloadGate ③）；
         /// · 全量桶（true）另含主动效果级行——身份/限制口径（HasPayloadCost）用。
         /// 主动效果行**永不入施放期桶**（2026-10-31 用户定案：主动效果不计入卡费，其代价同理——
         /// 只在该效果发动时净费抵扣/执行/过门槛，见 EffectActivationGate 与 GetCardCost 法术分支）。
@@ -728,11 +726,6 @@ namespace CardCore
         {
             var entries = new List<AtomicEffectEntry>();
             if (card == null) return entries;
-            foreach (var row in card.PayloadCosts)
-            {
-                if (row == null) continue;
-                entries.AddRange(row.AllPayloads());
-            }
             if (card.Effects != null)
             {
                 foreach (var eff in card.Effects)
@@ -749,14 +742,12 @@ namespace CardCore
             return entries;
         }
 
-        /// <summary>施放期代价行枚举（cast 口径：卡级行 + 非主动效果行）——**保留行结构**，
+        /// <summary>施放期代价行枚举（cast 口径：非主动效果行——卡级行已整删）——**保留行结构**，
         /// 供逐行色锁抵扣（2026-10-31 色锁定案单位=「单个代价」：每行只扣自己可产出色的卡费）。</summary>
         private static List<CostEntry> CastCostRows(CardData card)
         {
             var rows = new List<CostEntry>();
             if (card == null) return rows;
-            foreach (var row in card.PayloadCosts)
-                if (row != null && row.AllPayloads().Count > 0) rows.Add(row);
             if (card.Effects != null)
             {
                 foreach (var eff in card.Effects)

@@ -77,23 +77,8 @@ namespace CardCore
             if (c.speedBonus != 0) o["speedBonus"] = c.speedBonus;
             if (c.durability != 0) o["durability"] = c.durability;
             if (c.isField) o["isField"] = true; // 场地标记（2026-10-29 P8）：false 省略——读侧缺字段回落默认
-            // 代价栏（2026-10-16 组装效果代价）：payloads 原子数组（同源原子口径，refId 空行不写）；
-            // 单原子也走数组——装载端 payloads 优先、旧 payload 单对象列继续可读
-            if (c.payloads != null && c.payloads.Count > 0)
-            {
-                var arr = new JArray();
-                foreach (var pa in c.payloads)
-                {
-                    var emitted = EffectSlim.EmitAtom(pa);
-                    if (emitted != null) arr.Add(emitted);
-                }
-                if (arr.Count > 0) o["payloads"] = arr;
-            }
-            else
-            {
-                var payload = EffectSlim.EmitAtom(c.payload); // 旧档单原子列（读兼容）
-                if (payload != null) o["payload"] = payload;
-            }
+            //（卡级代价列 payloads/payload 发射已随 2026-11-08 代价效果级化整删——
+            //  代价唯一形态=效果级 Costs，随 effectIds→Effects.json 通道走）
             return o;
         }
 

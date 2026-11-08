@@ -57,7 +57,7 @@ namespace SynergyUI
             { KeywordRules.SleepCounter, "持有期间无法重置且效果无效；持有者回合结束层数 −1，归零解除" },
             { CounterRules.LockCounter, "持有期间无法使用（可作为地牌放置）；持有者回合结束层数 −1，归零解锁" },
             // ---- 系统（System：引擎投放/消耗）----
-            { CounterRules.CountdownCounter, "控制者回合开始层数 −1，归零触发奖励并重置" },
+            { CounterRules.CountdownCounter, "控制者准备阶段层数 −1，归零触发奖励并重置" },
             { CounterRules.DeathTollCounter, "此卡在手牌或场上时计数双方生物死亡；计数≥x（x=奖励锚价推导）触发奖励；满 6 不再计数；使用后清零" },
         };
 

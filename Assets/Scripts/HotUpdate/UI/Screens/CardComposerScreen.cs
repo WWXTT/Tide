@@ -228,7 +228,7 @@ namespace SynergyUI
         private readonly Dictionary<ZoneId, RectTransform> _slotTemplates = new Dictionary<ZoneId, RectTransform>(); // 四区模板（克隆源）
         private readonly Dictionary<ZoneId, (Color color, bool on)> _slotOutlineBase = new Dictionary<ZoneId, (Color, bool)>(); // 模板主 Outline 原色（选中变白/取消还原）
         private readonly Dictionary<ZoneId, UnityEngine.UI.Button> _addButtons = new Dictionary<ZoneId, UnityEngine.UI.Button>(); // add-slot 四钮
-        private int? _costParamValue; // 代价槽 generate 参数（2026-10-21 单参数定案）：随键记录，换选原子时沿用；载入/新建/删除代价时清
+        //（_costParamValue 已随 2026-11-08 代价效果级化整删——代价槽退役）
 
         // ---- basicability 区（2026-11-06 opt-in 改版：prefab ac/dc/rc 三 Toggle「具备攻击/具备守卫/具备充能」
         //      → AttackAbility/GuardAbility/ChargeAbility 正向绑定，默认关=不带；ac/dc 生物专属、rc 全卡型） ----
@@ -688,20 +688,13 @@ namespace SynergyUI
             Describe(btn, desc);
         }
 
-        /// <summary>新建空槽：容量闸（已用=已填+空槽）；新建即选中（右栏自动过滤到该类型）。
-        /// 2026-11-06 代价挪入有限分支：代价槽不再新建（编辑口=效果合成器「支付代价」门；
-        /// 已填代价行保留展示/删除）。</summary>
+        /// <summary>新建空槽：容量闸（已用=已填+空槽）；新建即选中（右栏自动过滤到该类型）。</summary>
         private void AddEmptySlot(ZoneId id)
         {
             int cap = SlotCapacity(id);
             if (cap <= 0)
             {
                 ShowToast(TypeZh(id) + "槽与本卡类型不匹配——不可添加");
-                return;
-            }
-            if (id == ZoneId.Cost)
-            {
-                ShowToast("代价编辑已挪至效果合成器——在效果的有限分支里选「支付代价」门（本槽仍可查看/删除既有代价）");
                 return;
             }
             if (FilledSlotCount(id) + EmptySlotCount(id) >= cap)
@@ -725,19 +718,8 @@ namespace SynergyUI
             }
         }
 
-        /// <summary>减费三选一（2026-11-02）：现有效果形态是否禁挂代价——
-        /// 任一效果为分支（有限/自由）/并列两效果/光环类即拦（判定单源=EffectComposerScreen）。</summary>
-        private bool EffectShapeBlocksCost()
-        {
-            foreach (var fx in _card.Effects ?? new List<CardEffectData>())
-            {
-                if (fx == null) continue;
-                if (EffectComposerScreen.IsBranchEffect(fx)) return true;
-                if (EffectComposerScreen.IsParallelTwoEffect(fx)) return true;
-                if (EffectComposerScreen.IsAuraEffectData(fx)) return true;
-            }
-            return false;
-        }
+        //（EffectShapeBlocksCost 已随 2026-11-08 代价效果级化整删——无消费方：形态互斥在
+        //  EffectComposerScreen.EffectCostConflictOf 效果级单源判定。）
 
         private static UInputField FindInputUnder(RectTransform scope, string name) =>
             scope != null ? UiKit.FindDeep(scope, name)?.GetComponentInChildren<UInputField>(true) : null;
@@ -861,10 +843,12 @@ namespace SynergyUI
         };
 
         /// <summary>槽容量按型（单源：add 四钮/填入闸/保存闸共用同一口径）。
-        /// 结界 passives=光环1+自动2 合一（光环恰好 1 由保存闸拦截——填入时不强分）。</summary>
+        /// 结界 passives=光环1+自动2 合一（光环恰好 1 由保存闸拦截——填入时不强分）。
+        /// 代价槽已随 2026-11-08 代价效果级化整退役（容量 0=全区隐藏）——代价编辑口=
+        /// 效果合成器有限分支「支付代价」门（代价行挂 CardEffectData.Costs）。</summary>
         private int SlotCapacity(ZoneId id) => id switch
         {
-            ZoneId.Cost => 1, // 三类卡通用·可选×1
+            ZoneId.Cost => 0, // 代价槽退役（2026-11-08 效果级化）——编辑走效果合成器
             ZoneId.Effect => ActiveSlotCapacity,
             ZoneId.Passives => _kind == CardKind.Enchantment ? AuraSlotCapacity + AutoSlotCapacity : AutoSlotCapacity,
             _ => KeywordCapacity,
@@ -873,7 +857,7 @@ namespace SynergyUI
         /// <summary>该类型已填槽数（数据侧计数；空槽另计 EmptySlotCount）。</summary>
         private int FilledSlotCount(ZoneId id) => id switch
         {
-            ZoneId.Cost => _card.PayloadCost != null && _card.PayloadCost.AllPayloads().Count > 0 ? 1 : 0,
+            ZoneId.Cost => 0, // 代价槽退役（2026-11-08）——卡级代价行不存在
             ZoneId.Effect => ActiveEffectCount,
             ZoneId.Passives => AuraEffectCount + AutoEffectCount,
             _ => _card.Keywords?.Count ?? 0,
@@ -1672,8 +1656,7 @@ namespace SynergyUI
             _card.Tags = src.Tags != null ? new List<string>(src.Tags) : new List<string>();
             _card.Effects = src.Effects != null ? new List<CardEffectData>(src.Effects) : new List<CardEffectData>();
             _card.Cost = src.Cost != null ? src.Cost.Clone() : null;
-            _card.PayloadCost = src.PayloadCost; // 单条 Payload：填装走整体替换
-            _costParamValue = null; // 参数以载入卡自身原子 value 为准
+            //（卡级 PayloadCost 已随 2026-11-08 代价效果级化整删——代价随效果 Costs 走效果数据）
             _card.ArrowDirections = src.ArrowDirections;
             _card.LinkAuras = src.LinkAuras != null ? new List<LinkAuraData>(src.LinkAuras) : null;
             // 系统动作资格位（2026-11-06 opt-in）：攻/守仅生物带入（脏数据不带入——装载端同降级口径）
@@ -1720,8 +1703,7 @@ namespace SynergyUI
             _card.Tags = new List<string>();
             _card.Effects = new List<CardEffectData>();
             _card.Cost = null;
-            _card.PayloadCost = null;
-            _costParamValue = null;
+            //（卡级 PayloadCost 已随 2026-11-08 代价效果级化整删）
             _card.ArrowDirections = default;
             _card.LinkAuras = null;
             _card.AttackAbility = _card.GuardAbility = _card.ChargeAbility = false; // 资格位复位（2026-11-06 opt-in：新建默认不带）
@@ -2053,34 +2035,18 @@ namespace SynergyUI
         }
 
         private static string SlotTitle(ZoneId id, int ordinal) =>
-            (id == ZoneId.Cost ? "代价槽" : id == ZoneId.Effect ? "主动槽" : id == ZoneId.Passives ? "自动槽" : "关键词")
+            (id == ZoneId.Effect ? "主动槽" : id == ZoneId.Passives ? "自动槽" : "关键词")
             + (char)('①' + ordinal) + "：";
 
-        /// <summary>槽行 des 内容：已填=渲染摘要单遍（效果名即全文定案下不再名+摘要并列）/关键词/代价文案；
-        /// 空槽=操作提示。与卡型不匹配的已填槽前缀⚠（保存闸兜底）。</summary>
+        /// <summary>槽行 des 内容：已填=渲染摘要单遍（效果名即全文定案下不再名+摘要并列）/关键词；
+        /// 空槽=操作提示。与卡型不匹配的已填槽前缀⚠（保存闸兜底）。
+        ///（代价槽已随 2026-11-08 代价效果级化整退役——代价=效果 Costs，编辑在效果合成器。）</summary>
         private string SlotDesText(ZoneId id, int dataIndex)
         {
             if (dataIndex < 0)
                 return $"（空槽）点击行选中 → 右栏按「{TypeZh(id)}」过滤 → 点候选项填入此槽";
             string body;
-            if (id == ZoneId.Cost)
-            {
-                var atoms = _card.PayloadCost?.AllPayloads() ?? new List<CardCore.AtomicEffectEntry>();
-                var parts = new List<string>();
-                foreach (var a in atoms)
-                    if (a != null && !string.IsNullOrEmpty(a.refId)) parts.Add(AtomText.RenderCostAtomEntry(a));
-                // 文案自动生成（2026-10-21 单参数定案）：generate 值代入所选原子模板 + 固定「使用时强制发动」前缀
-                body = "使用时强制发动：" + string.Join("＋", parts);
-                // 抵扣读数（2026-10-31 色锁定案）：只抵该原子可产出色的卡费，至多将该色清零
-                var calc = CardCostCalculator.Calculate(_card);
-                if (calc.PayloadPrice > 0)
-                {
-                    int cap = CardCostService.PayloadCapacity(calc.PrePayloadCost, _card);
-                    body += $"\n代价抵扣：只抵{calc.PayloadScopeZh}色卡费·实抵 {calc.PayloadApplied}/{cap}"
-                        + (calc.PayloadApplied < calc.PayloadPrice ? $"（全价 {calc.PayloadPrice}·超上限部分无效）" : "");
-                }
-            }
-            else if (id == ZoneId.Keys)
+            if (id == ZoneId.Keys)
             {
                 body = KeywordZh(_card.Keywords[dataIndex]);
             }
@@ -2106,12 +2072,12 @@ namespace SynergyUI
             ? $"选中这个空{TypeZh(id)}槽：右栏自动按「{TypeZh(id)}」过滤候选，点选填入此槽"
             : id switch
             {
-                ZoneId.Cost => "代价槽：选中后右栏直列原子表·一般效果行（点选=替换；抵扣只作用于该原子可产出色的卡费）",
                 ZoneId.Keys => "关键词槽：选中后右栏列出关键词目录（点选=替换）",
                 _ => "效果槽：选中后右栏列出对应形态的效果（点选=整实例替换此槽）",
             };
 
-        /// <summary>槽删除：已填=删数据（效果/关键词/代价），空槽=回收占位。</summary>
+        /// <summary>槽删除：已填=删数据（效果/关键词），空槽=回收占位。
+        ///（代价槽已随 2026-11-08 代价效果级化整退役——代价随效果删除。）</summary>
         private void DeleteSlot(ZoneId id, int dataIndex)
         {
             if (dataIndex < 0)
@@ -2123,11 +2089,6 @@ namespace SynergyUI
             }
             switch (id)
             {
-                case ZoneId.Cost:
-                    _card.PayloadCost = null;
-                    _costParamValue = null;
-                    _card.ResetCache();
-                    break;
                 case ZoneId.Effect:
                 case ZoneId.Passives:
                     RemoveAttachedAt(dataIndex); // 内部已刷新+重算
@@ -2160,76 +2121,10 @@ namespace SynergyUI
             Recalculate();
         }
 
-        // ======================================== 代价栏（cost 槽·三类卡通用） ========================================
-
-        /// <summary>填装代价槽（2026-10-31 代价槽改版定案：候选=原子表**一般效果**行直引——
-        /// 不再经由效果库组装图；关键词/代价成为原子表直加的两个槽类型）。
-        /// 2026-11-06 代价挪入有限分支定案：**本槽停收新增**——代价改在效果合成器有限分支的
-        /// 「支付代价」门编辑（保存回写卡级代价行）；已填代价行在本槽保留展示/删除/参数微调。</summary>
-        private void FillPayloadCost(CardCore.Attribute.AtomicEffectConfig cfg)
-        {
-            ShowToast("代价编辑已挪至效果合成器——在效果的有限分支里选「支付代价」门填入代价原子"
-                      + "（保存回写卡级代价行）；本槽仍可查看/删除既有代价");
-        }
-
-        /// <summary>代价行资格（2026-10-31 代价槽改版定案；2026-11-03 补双侧域）：只收原子表**一般效果**行
-        ///（来源文件判定，TableCategory——关键词/指示物/光环/系统行出局）且行有计价色
-        ///（ManaList 非空非全零——无产出色=无抵扣面）+ PayloadCostDomain 可入（p≠0、有目标参数、
-        /// 表行 TargetKinds 同时含己方与对方条目——只能作用于单方面的行不可作代价，2026-11-03 定案）。
-        /// false=不可作代价（reject 带原因）。</summary>
-        private static bool CostEligibleRow(CardCore.Attribute.AtomicEffectConfig cfg, out string reject)
-        {
-            reject = null;
-            if (cfg == null || string.IsNullOrEmpty(cfg.HashId))
-            {
-                reject = "原子表引用缺失——无法作代价";
-                return false;
-            }
-            if (cfg.TableCategory != CardCore.Attribute.AtomicEffectTable.CategoryGeneral)
-            {
-                reject = $"「{cfg.DisplayName}」非一般效果行（关键词/指示物/光环/系统不可作代价）";
-                return false;
-            }
-            if (cfg.ManaList == null || cfg.ManaList.IsZero)
-            {
-                reject = $"「{cfg.DisplayName}」无计价色（不计价行没有可抵扣的颜色）——不可作代价";
-                return false;
-            }
-            var (_, eligible) = CostDerivationService.PayloadCostDomain(cfg);
-            if (!eligible)
-            {
-                // 域显示优先（P2-3 UI 适配）：cfg.Domain（多 token 原样 CSV）优先——与
-                // EffectComposerScreen.AtomParamLine 同口径；空=未迁行回落旧 TargetKinds 中文。
-                var domainZh = !string.IsNullOrEmpty(cfg.Domain) ? cfg.Domain
-                    : string.Join(",", cfg.GetTargetKindList()
-                        .Select(k => CardCore.TargetKindRules.ZhNameOf((CardCore.TargetKind)k)));
-                reject = string.IsNullOrEmpty(domainZh)
-                    ? $"「{cfg.DisplayName}」无目标参数（无 {{target}} 的原子不能翻转成代价）——不可作代价"
-                    : $"「{cfg.DisplayName}」域单侧（{domainZh}）——只能作用于单方面的原子不能作代价" +
-                      "（2026-11-03 定案：代价只收含己方与对方的双侧行），请换双侧行";
-                return false;
-            }
-            return true;
-        }
-
-        /// <summary>代价候选行预览（2026-10-31 表行直引版）：按**代价语义**渲染该行——
-        /// 域收窄/镜像后的文案（克隆条目解析，不动表对象）＋抵扣色说明。
-        /// value 取当前 generate 已填参数（未填=1，预览默认值口径）。</summary>
-        private string CostRowPreview(CardCore.Attribute.AtomicEffectConfig cfg)
-        {
-            if (cfg == null) return "";
-            var clone = new CardCore.AtomicEffectEntry
-            {
-                refId = cfg.HashId,
-                value = _costParamValue ?? 1,
-            };
-            var (kinds, _) = CostDerivationService.PayloadCostDomain(cfg);
-            if (kinds != null) clone.kinds = kinds; // null=免写：表默认域本就整侧匹配
-            var colorsZh = string.Concat(new[] { ManaType.Gray, ManaType.Red, ManaType.Blue, ManaType.Green }
-                .Where(c => cfg.ManaList != null && cfg.ManaList[c] > 0f)
-                .Select(ManaTypeNames.ZhNameOf));
-            return AtomText.RenderCostAtomEntry(clone) + $"（抵扣色：{colorsZh}）";
-        }
+        // ======================================== 代价栏（已整退役 2026-11-08 代价效果级化） ========================================
+        //（FillPayloadCost/CostEligibleRow/CostRowPreview/BuildLibraryPayloadView/_costParamValue
+        //  随卡级代价整删——代价唯一编辑口=效果合成器有限分支「支付代价」门，数据=CardEffectData.Costs；
+        //  代价行文案/抵扣读数随效果行渲染（EffectPayloadCostOf 行级代价组）。）
 
         /// <summary>代价全价合计（逐原子 PayloadUnitGrant 求和——门槛/补偿同锚）。</summary>
         private static int PayloadTotalGrant(List<CardCore.AtomicEffectEntry> atoms)
@@ -2305,7 +2200,6 @@ namespace SynergyUI
             {
                 switch (_selType.Value)
                 {
-                    case ZoneId.Cost: BuildLibraryPayloadView(); break;
                     case ZoneId.Effect: BuildLibraryActiveView(); break;
                     case ZoneId.Passives: BuildLibraryPassivesView(); break;
                     case ZoneId.Keys: BuildLibraryKeywordsView(); break;
@@ -2437,32 +2331,8 @@ namespace SynergyUI
             AppendPresetEffects(null, "预设卡组效果", partitionByHost: false);
         }
 
-        /// <summary>代价视图（2026-10-31 代价槽改版定案）：候选=原子表**一般效果**行直引
-        ///（GetGeneralRows——按装载序）且行可作代价（有计价色 + PayloadCostDomain 可逆转）；
-        /// 关键词/指示物/光环/系统行出局，效果库组装图不再进代价面。行文案=**翻转后预览**
-        ///（CostRowPreview：按代价语义镜像/收窄＋抵扣色说明）。点击=填入代价槽（抵扣只作用于
-        /// 该行可产出色的卡费·至多将该色清零）。</summary>
-        private void BuildLibraryPayloadView()
-        {
-            var rows = CardCore.Attribute.AtomicEffectTable.GetGeneralRows()
-                .Where(r => CostEligibleRow(r, out _))
-                .ToList();
-            LibHeader($"代价原子（{rows.Count}）——只收原子表·一般效果行·点击=填入代价槽（抵扣只作用于该原子可产出色的卡费·至多将该色清零）");
-            if (rows.Count == 0)
-            {
-                LibHint("一般效果表没有可作代价的行——须有计价色（ManaList 非空）且 TargetKinds 含己方与对方的双侧行（p≠0·收窄到受益方反面）");
-                return;
-            }
-            foreach (var row in rows)
-            {
-                var captured = row;
-                var colorsZh = string.Concat(new[] { ManaType.Gray, ManaType.Red, ManaType.Blue, ManaType.Green }
-                    .Where(c => captured.ManaList != null && captured.ManaList[c] > 0f)
-                    .Select(ManaTypeNames.ZhNameOf));
-                LibCandidate(captured.DisplayName, CostRowPreview(captured),
-                    () => FillPayloadCost(captured), "代价·抵" + colorsZh);
-            }
-        }
+        //（BuildLibraryPayloadView 已随 2026-11-08 代价效果级化整删——代价槽退役，
+        //  代价原子候选/编辑=效果合成器「支付代价」门（CostGateCandidate 单源）。）
 
         private void BuildLibraryActiveView()
         {

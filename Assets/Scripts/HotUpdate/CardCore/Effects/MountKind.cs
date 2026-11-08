@@ -26,12 +26,12 @@ namespace CardCore
     public enum MountKind
     {
         /// <summary>关键词行（仅可）：卡面印刷+授予双通道，目标侧仅生物（表行 TargetFilter=NoRole 表达）；
-        /// 授予形态入效果栏由派生主干资格承载，落槽域由 GrantTargetKinds 覆写为双方生物。
+        /// 授予形态入效果栏由派生主干资格承载，落槽域=行默认域（entry 不写 kinds/domain，2026-11-07 起）。
         /// 关键词**默认可作连接光环**（ComposerCatalog.CanMountAsAura），
         /// 黑名单走位 7（名单在表：守护/再生/绝缘体——与光环 live-query 持续语义冲突）。</summary>
         Keyword = 0,
-        /// <summary>指示物行（2026-10-07 与关键词同型定案）：效果作用自身（表行 TargetKinds 存储态="自己"），
-        /// 赋予语义可赋予任意卡（合成器落槽域统一=双方单位/手牌/牌库 {1..8}）；
+        /// <summary>指示物行（2026-10-07 与关键词同型定案）：赋予形态落槽=行默认域按极性定侧
+        ///（2026-11-08 与关键词同口径，{1..8}「任意卡」旧存储态退役；域换选走 dd-domain 写 entry.domain）；
         /// 持续与计价由指示物规格（CounterSpec）承载，效果级持续档不生效。</summary>
         Counter = 1,
         /// <summary>不可随机（黑名单）：标此位的行禁数值随机；未标且描述含 {value} 的行默认可随机。</summary>

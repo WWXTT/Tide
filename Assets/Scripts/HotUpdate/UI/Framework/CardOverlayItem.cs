@@ -172,9 +172,9 @@ namespace SynergyUI
         }
 
         /// <summary>施放期代价色构成 → Cost2 方格数据（2026-11-06 提单源）：FromHand（手牌扇/战斗）
-        /// 与 FromCardDataFull（合成器/卡组构筑预览）共用——施放期桶口径（卡级行+非主动效果行；
-        /// 2026-11-06 代价全面并入效果级后，主动效果级代价走行级 ActiveEffectPayloadCost(s)，
-        /// 本口只剩非主动效果行入桶）。null=无施放期代价（SetPayloadCosts(null)=藏 Cost2 组）。</summary>
+        /// 与 FromCardDataFull（合成器/卡组构筑预览）共用——施放期桶口径（2026-11-08 代价效果级化：
+        /// 非主动效果行入桶；主动效果级代价走行级 ActiveEffectPayloadCost(s)）。
+        /// null=无施放期代价（SetPayloadCosts(null)=藏 Cost2 组）。</summary>
         private static ElementCost PayloadCostOf(CardData data)
         {
             var grant = CardCostService.PayloadGrantByColor(data);
@@ -471,7 +471,7 @@ namespace SynergyUI
                 var text = AtomText.RenderAtomEntry(a);
                 (AtomicEffectTable.GetByHashId(a.refId)?.Polarity < 0f ? selfParts : enemyParts).Add(text);
             }
-            foreach (var a in d?.AllCostRowPayloads() ?? new List<AtomicEffectEntry>()) Collect(a);
+            //（卡级 AllCostRowPayloads 已随 2026-11-08 代价效果级化整删——代价原子全在效果 Costs）
             if (d?.Effects != null)
                 foreach (var fx in d.Effects)
                 {

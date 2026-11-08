@@ -754,7 +754,7 @@ namespace SynergyUI
                         foreach (var cost in fx.Costs)
                             CollectRefAtoms(cost != null ? cost.AllPayloads() : null, seen, result);
                 }
-                CollectRefAtoms(card != null ? card.AllCostRowPayloads() : null, seen, result);
+                //（卡级 AllCostRowPayloads 已随 2026-11-08 代价效果级化整删——代价原子全在 fx.Costs）
             }
             return result;
         }
