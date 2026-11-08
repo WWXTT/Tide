@@ -63,17 +63,11 @@ namespace CardCore
         public List<string> cardIds;
     }
 
-    /// <summary>atoms.json G2 桩（词条定义 G3 才消费——本阶段只记条数，schema 不设闸）。</summary>
+    /// <summary>atoms.json 包装（词条定义——G3 起消费；G2 期只记条数的桩已退役）。</summary>
     [Serializable]
-    public class ContentPackAtomsStub
+    public class ContentPackAtomsWrapper
     {
-        public List<ContentPackAtomStub> items;
-    }
-
-    [Serializable]
-    public class ContentPackAtomStub
-    {
-        public string id;
+        public List<CompositeAtomDef> items;
     }
 
     /// <summary>效果表同构包装（effects.json = 瘦格式 { items }）。</summary>
@@ -91,7 +85,7 @@ namespace CardCore
         public string CardsText;                                  // 卡表原文（物化时经 CardLoader 全链装载）
         public List<EffectSlimDto> Effects = new List<EffectSlimDto>();
         public List<ContentPackDeckEntry> Decks = new List<ContentPackDeckEntry>();
-        public int AtomCount;                                     // atoms.json 条数（G3 前仅记账）
+        public List<CompositeAtomDef> AtomDefs = new List<CompositeAtomDef>(); // 词条定义（G3）
         private List<CardData> _materialized;                     // 物化缓存（随注册表失效）
 
         /// <summary>物化卡（CardLoader 全链装载——含装载校验与效果解析；仅在 CardCatalog 合并位调用）。</summary>
@@ -181,8 +175,9 @@ namespace CardCore
                 string atomsPath = Path.Combine(dir, "atoms.json");
                 if (File.Exists(atomsPath))
                 {
-                    var at = TideJson.FromJson<ContentPackAtomsStub>(File.ReadAllText(atomsPath));
-                    pack.AtomCount = at?.items?.Count ?? 0; // G3 前仅记账
+                    var at = TideJson.FromJson<ContentPackAtomsWrapper>(File.ReadAllText(atomsPath));
+                    if (at?.items != null)
+                        pack.AtomDefs = at.items.Where(a => a != null && !string.IsNullOrEmpty(a.id)).ToList();
                 }
                 return pack;
             }
@@ -217,6 +212,23 @@ namespace CardCore
                     yield return dto;
         }
 
+        /// <summary>全部包词条定义（CompositeAtomTable 唯一消费口）。</summary>
+        public static IEnumerable<CompositeAtomDef> AllAtomDefs()
+        {
+            foreach (var pack in EnsureLoaded())
+                foreach (var def in pack.AtomDefs)
+                    yield return def;
+        }
+
+        /// <summary>词条 id → 所属包 id（无则 null）。</summary>
+        public static string PackIdOfAtom(string atomId)
+        {
+            if (string.IsNullOrEmpty(atomId)) return null;
+            foreach (var pack in EnsureLoaded())
+                if (pack.AtomDefs.Any(a => a.id == atomId)) return pack.Manifest.id;
+            return null;
+        }
+
         // ======================================== seal（握手闭包出口） ========================================
 
         /// <summary>计算效果条目的行为封印（瘦 DTO → CardEffectData → SealEffect——跳名字段）。
@@ -243,7 +255,9 @@ namespace CardCore
             return null;
         }
 
-        /// <summary>被引用效果的包封印行（NetMatchHandshake.AtomicRowsHash 闭包）：格式 PK:包id|效果id|seal。
+        /// <summary>被引用的封印行（NetMatchHandshake.AtomicRowsHash 闭包）：两类——
+        /// ① 包效果行为封印（PK:包id|效果id|seal）；② 效果步内引用的**词条**定义封印
+        /// （PK:包id|词条id|seal——效果 dto 原文步扫描；展开后运行时模型无词条痕迹，闭包须读原文）。
         /// 无包/引用不涉包 → 空表 → 摘要与既有逐字节一致（零漂移）。</summary>
         public static List<string> ReferencedSealLines(IEnumerable<string> effectIds)
         {
@@ -253,8 +267,21 @@ namespace CardCore
             {
                 var s = SealOf(eid);
                 if (s != null) lines.Add($"PK:{s.Value.packId}|{eid}|{s.Value.seal}");
+                var dto = EffectsLibrary.Get(eid); // 原文步扫词条引用（调用位=握手摘要，不在装载链内）
+                if (dto?.steps != null)
+                    foreach (var atom in WalkStepRefs(dto.steps))
+                    {
+                        if (atom == null || string.IsNullOrEmpty(atom.refId)
+                            || !atom.refId.StartsWith("@", StringComparison.Ordinal)) continue;
+                        var def = CompositeAtomTable.Get(atom.refId);
+                        if (def == null) continue;
+                        string packId = PackIdOfAtom(def.id);
+                        if (packId == null) continue;
+                        lines.Add($"PK:{packId}|{def.id}|{CompositeAtomSeal.Compute(def)}");
+                    }
             }
             lines.Sort(StringComparer.Ordinal);
+            lines = lines.Distinct().ToList();
             return lines;
         }
 
@@ -312,15 +339,23 @@ namespace CardCore
             Invalidate();
             SynergyUI.CardCatalog.Invalidate();
             EffectsLibrary.Reload();
+            CompositeAtomTable.Invalidate(); // 词条表随包装卸失效（G3）
         }
 
         // ======================================== 装包校验（六查——全过才落目录） ========================================
 
-        /// <summary>原子引用单点检查：行在表 + 分支奖励效果引用可解析（装包校验 ⑤ 用）。</summary>
+        /// <summary>原子引用单点检查（装包校验 ⑤ 用）：内置行在表；词条引用（@ 前缀且
+        /// 候选包定义∪已装表可解析）放行——其 body 由 ⑦ 词条四查把关；@ 前缀不可解析=缺表。</summary>
         private static void CheckAtomRef(AtomicEffectEntry atom, string source,
-            ContentPackInstallReport report, HashSet<string> packFxIds)
+            ContentPackInstallReport report, HashSet<string> packFxIds, HashSet<string> candDefIds)
         {
             if (atom == null || string.IsNullOrEmpty(atom.refId)) return;
+            if (atom.refId.StartsWith("@", StringComparison.Ordinal))
+            {
+                if (candDefIds.Contains(atom.refId) || CompositeAtomTable.Get(atom.refId) != null) return;
+                report.Errors.Add($"效果[{source}] 原子行缺表: {atom.refId}——整卡断链，拒装（不得静默剔除单原子）");
+                return;
+            }
             if (Attribute.AtomicEffectTable.GetByHashId(atom.refId) == null)
                 report.Errors.Add($"效果[{source}] 原子行缺表: {atom.refId}——整卡断链，拒装（不得静默剔除单原子）");
             if (!string.IsNullOrEmpty(atom.branch?.effectId))
@@ -329,6 +364,17 @@ namespace CardCore
                 if (EffectsLibrary.Get(bid) == null && !packFxIds.Contains(bid))
                     report.Errors.Add($"效果[{source}] 分支奖励效果引用缺行: {bid}");
             }
+        }
+
+        /// <summary>词条 string 载体可解析性（装包校验 ⑦ 用）：{key}∈params / 字面量（int 须可 parse；
+        /// 空=int 缺省 1、str 空串——与展开器口径一致）。</summary>
+        private static bool TokenResolvable(string raw, bool intToken, HashSet<string> keys)
+        {
+            raw = raw ?? "";
+            if (raw.Length == 0) return true; // 空=int 1 / str ""（展开器同口径）
+            if (raw.Length >= 3 && raw[0] == '{' && raw[raw.Length - 1] == '}')
+                return keys.Contains(raw.Substring(1, raw.Length - 2));
+            return !intToken || int.TryParse(raw, out _);
         }
 
         /// <summary>瘦 DTO 的**裸**原子引用树（不经 ToCardEffect——ToEntry 会静默剔除缺行原子，
@@ -382,6 +428,16 @@ namespace CardCore
             { report.Errors.Add($"包 id 非法（限 1~32 位字母/数字/-/_）: {manifest.id}"); return; }
             report.PackId = manifest.id;
             string prefix = "@" + manifest.id + "/";
+
+            // ⓪ 词条定义（G3）：先裸解析——供 ⑤ 闭包放行与 ⑦ 四查使用
+            var candDefs = new List<CompositeAtomDef>();
+            string atomsPath = Path.Combine(sourceDir, "atoms.json");
+            if (File.Exists(atomsPath))
+            {
+                var at = TideJson.FromJson<ContentPackAtomsWrapper>(File.ReadAllText(atomsPath));
+                if (at?.items != null) candDefs = at.items.Where(a => a != null && !string.IsNullOrEmpty(a.id)).ToList();
+            }
+            var candDefIds = new HashSet<string>(candDefs.Select(d => d.id), StringComparer.Ordinal);
 
             // ② 效果表（瘦格式，可缺=纯卡包）
             var packFx = new List<EffectSlimDto>();
@@ -446,19 +502,23 @@ namespace CardCore
                 if (dto != null)
                 {
                     foreach (var atom in EnumerateDtoAtomRefs(dto))
-                        CheckAtomRef(atom, source, report, packFxIds);
+                        CheckAtomRef(atom, source, report, packFxIds, candDefIds);
                 }
                 else if (inlineFx != null)
                 {
                     foreach (var atom in CardLoader.EnumerateAtomEntries(inlineFx))
-                        CheckAtomRef(atom, source, report, packFxIds);
+                        CheckAtomRef(atom, source, report, packFxIds, candDefIds);
                 }
             }
 
             // ⑥ seal 对账：包效果逐一封印，计算值须 ∈ seal.json 声明列（改 body→seal 变→拒；
             //    改文案→seal 不变→照过）。有效果而无 seal.json = 拒（封印必须随包声明）。
+            //    **候选词条上下文**：引用词条的效果按展开后行为封印——候选定义经上下文入表视图。
             if (packFx.Count > 0)
             {
+                CompositeAtomTable.PushContext(candDefs);
+                try
+                {
                 string sealPath = Path.Combine(sourceDir, "seal.json");
                 if (!File.Exists(sealPath))
                 {
@@ -481,6 +541,67 @@ namespace CardCore
                             report.Errors.Add($"效果 {dto.id} 封印不符：现算 {seal}，声明 [{string.Join(",", declared)}]——body 与封印不一致，拒装");
                     }
                 }
+                }
+                finally
+                {
+                    CompositeAtomTable.PopContext();
+                }
+            }
+
+            // ⑦ 词条定义四查（G3 §6.2 三硬约定 + 封印对账）：命名空间 / 深度 1 且行在表 /
+            //     string 载体可解析 / 参数 v1 形状 + seal==现算（改 body/params/slot→拒·改名不查）
+            foreach (var def in candDefs)
+            {
+                if (!def.id.StartsWith(prefix, StringComparison.Ordinal))
+                    report.Errors.Add($"词条 id 不在包命名空间（须 {prefix}…）: {def.id}");
+                if (def.body == null || def.body.Count == 0)
+                {
+                    report.Errors.Add($"词条 {def.id} body 为空（展开体至少一个内置原子）");
+                    continue;
+                }
+                var bindKeys = new HashSet<string>(StringComparer.Ordinal);
+                int valueParams = 0, strParams = 0;
+                foreach (var p in def.@params ?? new List<CompositeAtomParam>())
+                {
+                    if (p == null || string.IsNullOrEmpty(p.key) || !bindKeys.Add(p.key))
+                    {
+                        report.Errors.Add($"词条 {def.id} 参数 key 空或重复");
+                        continue;
+                    }
+                    if (p.type == "Str") strParams++;
+                    else valueParams++;
+                }
+                if (valueParams > 1 || strParams > 1)
+                    report.Errors.Add($"词条 {def.id} 参数超 v1 上限（单 Value 参+单 Str 参·现 Value×{valueParams} Str×{strParams}）");
+                foreach (var b in def.body)
+                {
+                    if (b == null || string.IsNullOrEmpty(b.refId))
+                    {
+                        report.Errors.Add($"词条 {def.id} body 引用为空");
+                        continue;
+                    }
+                    if (b.refId.StartsWith("@", StringComparison.Ordinal))
+                    {
+                        report.Errors.Add(candDefIds.Contains(b.refId) || CompositeAtomTable.Get(b.refId) != null
+                            ? $"词条 {def.id} body 引用词条 {b.refId}——深度恒 1，拒装"
+                            : $"词条 {def.id} body 原子行缺表: {b.refId}");
+                        continue;
+                    }
+                    if (Attribute.AtomicEffectTable.GetByHashId(b.refId) == null)
+                    {
+                        report.Errors.Add($"词条 {def.id} body 原子行缺表: {b.refId}");
+                        continue;
+                    }
+                    if (!TokenResolvable(b.value, true, bindKeys))
+                        report.Errors.Add($"词条 {def.id} body（{b.refId}）value 载体不可解析: '{b.value}'（字面量或 {{key}}）");
+                    if (!TokenResolvable(b.str, false, bindKeys))
+                        report.Errors.Add($"词条 {def.id} body（{b.refId}）str 载体不可解析: '{b.str}'");
+                }
+                string defSeal = CompositeAtomSeal.Compute(def);
+                if (string.IsNullOrEmpty(def.seal))
+                    report.Errors.Add($"词条 {def.id} 未声明封印（seal 必须随定义声明）");
+                else if (def.seal != defSeal)
+                    report.Errors.Add($"词条 {def.id} 封印不符：现算 {defSeal}，声明 {def.seal}——body/params/slot 与封印不一致，拒装");
             }
 
             // decks.json（可选）：卡引用须 包∪内置 可解析

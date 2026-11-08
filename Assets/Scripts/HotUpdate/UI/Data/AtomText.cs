@@ -534,10 +534,12 @@ namespace SynergyUI
             return row != null && !string.IsNullOrEmpty(row.GateId) && row.GateId == branch.gateId;
         }
 
-        /// <summary>条目级渲染（refId → 表行 → Render；行缺失回退 refId）。</summary>
+        /// <summary>条目级渲染（refId → 表行 → Render；行缺失回退 refId）。词条步（@）走投影分支。</summary>
         public static string RenderAtomEntry(AtomicEffectEntry atom)
         {
             if (atom == null || string.IsNullOrEmpty(atom.refId)) return "原子";
+            var composite = RenderCompositeEntry(atom);
+            if (composite != null) return composite;
             return Render(AtomicEffectTable.GetByHashId(atom.refId), atom, null);
         }
 
@@ -557,11 +559,30 @@ namespace SynergyUI
         }
 
         /// <summary>条目级渲染·效果级作用范围版（2026-10-04 相同目标定案）：并列主序列原子传
-        /// header——{target} 按效果级域渲染；奖励原子目标各自解析，不传 header（用单参重载）。</summary>
+        /// header——{target} 按效果级域渲染；奖励原子目标各自解析，不传 header（用单参重载）。
+        /// 词条引用步（@ 前缀·G5）：「【词条·名】参数=N：展开体逐原子文案」——展开体走既有
+        /// RenderAtomEntry 链（handler 描述同源聚合，不改结构）。</summary>
         public static string RenderAtomEntry(AtomicEffectEntry atom, CardEffectData header)
         {
             if (atom == null || string.IsNullOrEmpty(atom.refId)) return "原子";
+            var composite = RenderCompositeEntry(atom);
+            if (composite != null) return composite;
             return Render(AtomicEffectTable.GetByHashId(atom.refId), atom, header);
+        }
+
+        /// <summary>词条引用步渲染（G5 投影）：定义可解析 → 词条名+参数绑定值+展开体逐原子文案；
+        /// 非 词条步/定义缺失 → null（回落常规渲染——缺表词条的卡在 G4 已整卡剔除，此处只见旁路）。</summary>
+        private static string RenderCompositeEntry(AtomicEffectEntry atom)
+        {
+            if (atom.refId == null || !atom.refId.StartsWith("@", StringComparison.Ordinal)) return null;
+            var def = CardCore.CompositeAtomTable.Get(atom.refId);
+            if (def == null) return null;
+            var entries = CardCore.CompositeExpander.BindBody(def, atom);
+            string body = entries == null
+                ? "（展开失败——见 Console）"
+                : string.Join("；", entries.Select(e => RenderAtomEntry(e)));
+            string param = string.IsNullOrEmpty(atom.str) ? $"参数={atom.value}" : $"参数={atom.value}·{atom.str}";
+            return $"【词条·{def.name}】{param}：{body}";
         }
 
         /// <summary>条目级奖励渲染（2026-10-08「新的目标」定案）：分支 Then 奖励统一走此口径——

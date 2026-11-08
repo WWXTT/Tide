@@ -424,7 +424,8 @@ namespace CardCore.Editor.Tests
                 && hExpr == ContentHasher.HashEffectOf(fxExpr),
                 $"内容哈希区分：同 refId 有/无 valueExpr → {(hExpr != null && hExpr.Length >= 8 ? hExpr.Substring(0, 8) : hExpr)}… vs {(hNoExpr != null && hNoExpr.Length >= 8 ? hNoExpr.Substring(0, 8) : hNoExpr)}…（不同且重算稳定）"));
 
-            // 上界两查（步6 §4.3）：valueMax<value → Error 拒绝；valueMax 超同类分布 → Warn 告警
+            // 上界两查（步6 §4.3；收口修复：拒绝=整卡剔除）：valueMax<value → Error+入剔除集；
+            // valueMax 超同类分布 → Warn-only（不入剔除集）
             int boundErrors = 0, boundWarns = 0;
             Application.LogCallback boundHook = (condition, stackTrace, type) =>
             {
@@ -432,16 +433,18 @@ namespace CardCore.Editor.Tests
                 if (type == LogType.Error) boundErrors++;
                 else if (type == LogType.Warning) boundWarns++;
             };
+            System.Collections.Generic.HashSet<string> boundBroken = null;
             Application.logMessageReceived += boundHook;
             try
             {
                 var badCard = BombProbeCard("C_TMP_SPESP_B1", "EFF_TMP_B1");
                 badCard.Effects[0].AtomicEffects[0].value = 3;
-                badCard.Effects[0].AtomicEffects[0].valueMax = 2; // < 名义值 → 拒绝
+                badCard.Effects[0].AtomicEffects[0].valueMax = 2; // < 名义值 → 拒绝（整卡剔除）
                 var warnCard = BombProbeCard("C_TMP_SPESP_B2", "EFF_TMP_B2"); // valueMax=12 > 参照上限 9 → 告警
                 var validate = typeof(CardLoader).GetMethod("ValidateValueBounds",
                     System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-                validate.Invoke(null, new object[] { new List<CardData> { badCard, warnCard } });
+                boundBroken = validate.Invoke(null, new object[] { new List<CardData> { badCard, warnCard } })
+                    as System.Collections.Generic.HashSet<string>;
             }
             finally
             {
@@ -449,6 +452,9 @@ namespace CardCore.Editor.Tests
             }
             checks.Add(new Check(boundErrors == 1 && boundWarns == 1,
                 $"上界两查触发：valueMax<value 拒绝={boundErrors}（期望1）、超分布告警={boundWarns}（期望1·valueMax12 vs 参照上限9）"));
+            checks.Add(new Check(boundBroken != null
+                && boundBroken.Contains("C_TMP_SPESP_B1") && !boundBroken.Contains("C_TMP_SPESP_B2"),
+                $"上界拒绝=整卡剔除（bad 在剔除集·warn 不在）：剔除集=[{string.Join(",", boundBroken ?? new System.Collections.Generic.HashSet<string>())}]"));
         }
         // ======================================== ⑧ {reference} 落表渲染 ========================================
 

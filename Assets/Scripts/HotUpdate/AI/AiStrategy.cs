@@ -22,6 +22,34 @@ namespace CardCore.AI
     /// </summary>
     public abstract class AiStrategy
     {
+        // ======================================== G6 参照族数据谓词（2026-11-08 收口） ========================================
+        /// <summary>表行参照族判定（数据信号=RefDomain 列×极性——取代枚举点名；polaritySign<0 查
+        /// 参照直伤行、>0 查参照贴附行）。</summary>
+        protected static bool IsReferenceRow(AtomicEffectType type, float polaritySign)
+        {
+            var row = CardCore.Attribute.AtomicEffectTable.GetByType(type);
+            if (row == null || string.IsNullOrEmpty(row.RefDomain)) return false;
+            return polaritySign < 0f ? row.Polarity < 0f : row.Polarity > 0f;
+        }
+
+        /// <summary>卡级分段原子扫描：任一主序列原子 ReferenceAxis≠null；negative=true 再要求
+        /// 负极性（参照直伤）——HasAtomAnywhere 的数据驱动姊妹口（G6 收口）。</summary>
+        protected static bool HasSegmentedAtom(Card card, bool negative)
+        {
+            if (!(card is CardWrapper w)) return false;
+            var data = w.GetData();
+            if (data?.Effects == null) return false;
+            foreach (var def in CardEffectConverter.ConvertAll(data.Effects, data.ID))
+            {
+                if (def == null) continue;
+                foreach (var atom in CardEffectConverter.EnumerateMainSequenceAtoms(def.Steps, 0))
+                    if (atom != null && atom.ReferenceAxis != null && (!negative || atom.Polarity < 0f)) return true;
+                foreach (var atom in def.Effects)
+                    if (atom != null && atom.ReferenceAxis != null && (!negative || atom.Polarity < 0f)) return true;
+            }
+            return false;
+        }
+
         public abstract string Key { get; }
         public abstract string DisplayName { get; }
 
@@ -446,7 +474,7 @@ namespace CardCore.AI
     /// + 血偿（5 伤敌）/赋予连击（连击）——两张都挂并列代价「**摧毁一个己方地（对手选落点）**」
     ///（2026-11-04 改版：火种 2/2 后自伤 2 会打死它，自伤代价退役，改为摧毁地；摧毁锚红 3 →
     /// 血偿锚价钉死 6、连击锚 6，两张净红 3）。
-    /// **活体炸弹**（2026-11-04 新 Key 牌 ×2，3 红 BurstDamage）：主伤=己方最高攻生物的当前攻击力砸脸；
+    /// **活体炸弹**（2026-11-04 新 Key 牌 ×2，3 红·参照直伤）：主伤=己方最高攻生物的当前攻击力砸脸；
     /// 本回合第一张卡时奖励 2 伤（对手生命 ≤2 时补刀、否则优先解能打死的小阻拦生物）。红只 3 地，
     /// 付得起就抢本回合首卡（首卡门）；已经出过别的牌就留手到下一回合，不白丢奖励。
     /// 火灵奖励门同批由「手牌为0」换「操控地≤3」（LandsLe3）——早期地少=快攻奖励窗，越早下越赚。
@@ -495,11 +523,12 @@ namespace CardCore.AI
         private static int LandCount(GameCore core, Player me)
             => core.ElementPool.GetPooledCards(me)?.Count ?? 0;
 
-        /// <summary>活体炸弹（BurstDamage）：主伤=参照己方生物当前攻击力，受害者结算期选（默认打脸）；
-        /// 本回合第一张卡时奖励 2 伤（优先解能打死的小阻拦生物，能补刀时才补脸）。</summary>
+        /// <summary>参照直伤法术（G6 收口 2026-11-08 数据驱动化）：数据信号=分段原子（表行 RefDomain）
+        /// ×负极性——不再按枚举点名；现池=活体炸弹。主伤=参照己方生物当前攻击力，受害者结算期选
+        ///（默认打脸）；本回合第一张卡时奖励 2 伤（优先解能打死的小阻拦生物，能补刀时才补脸）。</summary>
         private static bool IsBurstSpell(Card card)
             => DataOf(card)?.Supertype == Cardtype.Spell
-               && HasAtomAnywhere(card, AtomicEffectType.BurstDamage);
+               && HasSegmentedAtom(card, negative: true);
 
         /// <summary>活体炸弹的参照（伤害=其当前攻击力）：己方场上攻击力最高的生物。</summary>
         private static Card BestBurstReference(GameCore core, Player me)
@@ -909,7 +938,7 @@ namespace CardCore.AI
             // 活体炸弹主伤：打脸。（步5 spec 驱动：注册表分派替代类型相等特判——受体窗请求
             // 由引擎 spec 计划发起并带 SpecRole=Target；参照窗同表命中但候选全己方，
             // OrderBurstVictimTargets 对己方候选稳定保序，两侧行为与旧口径一致。）
-            if (req.PromptAtom != null && FaceFirstVictimAtoms.Contains(req.PromptAtom.Value))
+            if (req.PromptAtom != null && IsReferenceRow(req.PromptAtom.Value, -1f))
                 return OrderBurstVictimTargets(core, me, list);
 
             // 血偿直伤（5 伤）/ 活体炸弹奖励（2 伤）：前者只处理生命 >4 的目标（没有就打脸）；
@@ -1061,14 +1090,6 @@ namespace CardCore.AI
                 .ToList();
         }
 
-        /// <summary>受体窗打脸优先的原子注册表（步5 spec 驱动分派）：命中即走
-        /// OrderBurstVictimTargets——替代原「PromptAtom == BurstDamage」类型相等特判，
-        /// 行为零变化（含参照窗命中时的稳定保序路径）。</summary>
-        private static readonly HashSet<AtomicEffectType> FaceFirstVictimAtoms = new HashSet<AtomicEffectType>
-        {
-            AtomicEffectType.BurstDamage,
-        };
-
         /// <summary>活体炸弹主伤：直接打脸（角色优先），敌方生物按攻击力降序兜底。</summary>
         private static List<Entity> OrderBurstVictimTargets(GameCore core, Player me, List<Entity> list)
         {
@@ -1118,12 +1139,13 @@ namespace CardCore.AI
             => DataOf(card)?.Supertype == Cardtype.Spell
                && HasAtomAnywhere(card, AtomicEffectType.GrantDoubleStrike);
 
-        /// <summary>直伤法术（主序列含 DealDamage 且不是连击/活体炸弹——活体炸弹走 BurstDamage 专线）。</summary>
+        /// <summary>直伤法术（主序列含 DealDamage 且不是连击/参照直伤——参照直伤走专线，
+        /// 数据信号=分段原子（G6 收口）：不再按枚举点名）。</summary>
         private static bool IsDirectDamageSpell(Card card)
             => DataOf(card)?.Supertype == Cardtype.Spell
                && HasAtomAnywhere(card, AtomicEffectType.DealDamage)
                && !HasAtomAnywhere(card, AtomicEffectType.GrantDoubleStrike)
-               && !HasAtomAnywhere(card, AtomicEffectType.BurstDamage);
+               && !HasSegmentedAtom(card, negative: true);
 
         private static int PowerOf(GameCore core, Card c) => core.LayerEngine.CalculatePower(c);
 
@@ -1321,7 +1343,7 @@ namespace CardCore.AI
         private const string NameGuard = "林地守卫"; // 0/6 守护（Guardian 印刷）：保大哥/角色的墙
         private const string NameFangs = "獠牙";     // 0/6 倒计时3→狩猎：这套牌唯一的进攻引擎
         private const string NameTaunt = "雾障";     // 0/6 倒计时3→帷幕：倒计时第一优先（2026-11-03）
-        private const string NameLivingArmor = "活体护甲"; // 绿3 法术（2026-11-03 单目标改版·教学卡 str=SelfUnit）：贴给{target}，护甲=其自身生命（守林地守卫）
+        private const string NameVineArmor = "活体护甲"; // 绿3 法术（2026-11-03 单目标改版·教学卡 str=SelfUnit）：贴给{target}，护甲=其自身生命（守林地守卫）
         private const int ArmorTargetLife = 5;            // 「大生物」门槛：生命≥5 才值得贴活体护甲
         /// <summary>成长停手线（2026-11-03 用户定案：**9 费还允许再成长一次**）——9 地打一发 +2 → 11 地，
         /// 之后才停手、把成长当土地。</summary>
@@ -1449,7 +1471,7 @@ namespace CardCore.AI
             // ⑦ 活体护甲（2026-11-03 用户定案）：**永不主动施放**——它只在响应窗里
             //    「林地守卫即将被一击打死」时贴（见 PickResponse ③）。这里直接垫底，
             //    免得第 2 回合就被当成 0 费牌随手贴给雾障之类的单位。
-            if (Is(card, NameLivingArmor))
+            if (Is(card, NameVineArmor))
             {
                 // 没有林地守卫 → 不打（会贴错人，战报第 2 回合贴给雾障就是这么来的）；
                 // 有守卫 → 正常贴（0 费，护甲=守卫生命，这就是「倒计时落地→+6甲→回收再来」的循环）
@@ -1486,7 +1508,7 @@ namespace CardCore.AI
                 hold = OwnGuardWithoutRegen(core, me) == null;
             else if (Is(card, NameGrowth))
                 hold = TotalLands(core, me) >= GrowthStopLands;           // 满 11 地：不打，当地牌
-            else if (Is(card, NameLivingArmor))
+            else if (Is(card, NameVineArmor))
                 hold = OwnGuard(core, me) == null;                        // 有守卫才贴；没守卫留在手里
             else hold = false;
 
@@ -1615,7 +1637,7 @@ namespace CardCore.AI
                 var guardCard2 = OwnGuard(core, me);
                 if (guardCard2 != null && LethalToGuard(core, me, stack, guardCard2))
                 {
-                    var opt = FindHandOption(options, NameLivingArmor);
+                    var opt = FindHandOption(options, NameVineArmor);
                     if (opt != null) return WithTarget(opt, guardCard2);
                 }
             }
@@ -1752,7 +1774,7 @@ namespace CardCore.AI
             // 成长：9 地之前是 ramp 引擎（不烧）；**满 11 地之后抽到就当地牌**
             if (Is(card, NameGrowth)) return TotalLands(core, me) >= GrowthStopLands;
             // 活体护甲＝0 费叠甲核心，**永远不当土地**（2026-11-03 战报：第一回合就被当土地烧了）
-            if (Is(card, NameLivingArmor)) return false;
+            if (Is(card, NameVineArmor)) return false;
             // 帷幕/狩猎载体也不烧：它们是进攻与防护主轴（战报里獠牙 10 局只打出 1 张，全被烧成地了）
             if (Is(card, NameTaunt) || Is(card, NameFangs)) return false;
             // 林地守卫＝全场支点，**永远不当土地**（旧口只改了铺地优先级，资格闸仍让它被烧：
@@ -1851,8 +1873,9 @@ namespace CardCore.AI
                            .ThenByDescending(e => e is Card c3 && Is(c3, NameGuard))
                            .ToList();
 
-            // 活体护甲（2026-11-03 用户定案）：**只对林地守卫用**——守卫第一，其他单位垫底
-            if (atom == AtomicEffectType.LivingArmor)
+            // 参照贴附增益（2026-11-03 用户定案·G6 数据驱动化：表行 RefDomain×正极性，现池=活体护甲）：
+            // **只对林地守卫用**——守卫第一，其他单位垫底
+            if (atom != null && IsReferenceRow(atom.Value, +1f))
                 return list.OrderByDescending(e => e is Card cg && Is(cg, NameGuard) ? 100
                         : e is Card c4 && c4.GetController() == me ? c4.GetLife() : int.MinValue)
                            .ToList();
@@ -1915,7 +1938,7 @@ namespace CardCore.AI
                 //  ① **被再生强化的林地守卫**（带再生的守卫是全场最硬的支点，先把它拿回来）
                 //  ② 其余看对面场面：压过来的场面（总攻高/人多）→ 回收活体护甲补甲；
                 //     对面没压力 → 回收培育继续养。
-                int handArmor = HandCopies(core, me, NameLivingArmor);
+                int handArmor = HandCopies(core, me, NameVineArmor);
                 int handNewborn = HandCopies(core, me, NameNewborn);
                 int enemyBodies = (core.ZoneManager.GetCards(me.Opponent, Zone.Battlefield) ?? new List<Card>())
                     .Count(c => c != null && c.IsAlive);
@@ -1923,7 +1946,7 @@ namespace CardCore.AI
                 return list.OrderByDescending(e =>
                            {
                                if (e is Card g && Is(g, NameGuard) && g.HasKeyword(KeywordRules.Regeneration)) return 10;
-                               if (e is Card cA && Is(cA, NameLivingArmor))
+                               if (e is Card cA && Is(cA, NameVineArmor))
                                    return defenseMode ? 7 : (handArmor <= 1 ? 6 : 3);
                                if (e is Card c8 && Is(c8, NameNewborn))
                                    return defenseMode ? 2 : (handNewborn <= 2 ? 5 : 4);

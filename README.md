@@ -208,7 +208,7 @@
 **世界观定案**：角色（玩家化身）就是**普通生物单位**——对生物有效的效果对他也有效。**神佑（DivineProtection）默认免疫已于 2026-10-13 整体退役**：`Player` 不再写入该状态，`DeathRules.ShieldMatrix` 只剩「不灭→拦消灭」，引擎层不再为角色保留任何效果死亡豁免（`CardPipelineVerifier` 有断言）。
 **「能不能指向角色」不再由代码决定**——完全由原子表 `Domain` 列决定：写 `对方战场:生物` 就指不到角色，要能指角色就加 selector `; 对方角色`。**2026-11-05 起 `NoRole/NotRole/Player` 三个类别性 filter 退役**（类别语义由 Domain 承载，双写即冲突拒）；实例 `kinds` 只做**区域收窄**——收窄**连角色 selector 一起收**（kinds 含 1 才授权己方角色、含 2 才授权对方角色，3/4 无生命单位不授权；`双方角色` 按授权侧改写成单侧或删除）。想让某效果能打角色或不能打角色，只改 Domain 列，不改引擎（目标合法性层无角色特判；效果内部按 `is Player` 区分结算口径属效果语义，不影响可指向性）。关键词存储已上移到 `Entity` 基类（Player/Card 同构）。
 
-**目标选择 spec 计划（2026-11-08 目标选择重构）**：所有目标/参照选择由引擎 spec 计划统一执行，handler 内禁止发起选择（守卫点名）。分段原子（活体炸弹/护甲）走 `Domain`（受体域）+ `RefDomain`（参照域）+ `RefPick` 三列——参照与受体分储（`Refs`/`Targets`）、过滤分层（参照不做可指性过滤、不触发被指定事件）、`SpecKey` 显式关联（网络 v10/重放/AI 代选对齐）；动态数值 `valueExpr`（ref.power/life/cost，定价仍按 value 名义锚）。文法与铁律全量见 **`docs/目标域契约.md`**。
+**目标选择 spec 计划（2026-11-08 目标选择重构）**：所有目标/参照选择由引擎 spec 计划统一执行，handler 内禁止发起选择（守卫点名）。分段原子（活体炸弹/护甲）走 `Domain`（受体域）+ `RefDomain`（参照域）+ `RefPick` 三列——参照与受体分储（`Refs`/`Targets`）、过滤分层（参照不做可指性过滤、不触发被指定事件）、`SpecKey` 显式关联（网络 v10/重放/AI 代选对齐）；动态数值 `valueExpr`（ref.power/life/cost，定价仍按 value 名义锚）。文法与铁律全量见 **`docs/目标域契约.md`**。内容包容器与词条（虚拟原子）见 **`docs/项目概览.md`**「内容包与词条」节，封印行入握手摘要的口径见 **`docs/网络协议.md`** AtomicRowsHash 表行。
 
 **术语表**（代码化于 `Attribute/DeathRules.cs` 的 `DeathCause` 枚举，8 个成员=6 个在用 + 2 个墓碑位 `Sacrifice`/`Devour`——2026-10-09 后无调用方，仅为位序稳定保留）：
 

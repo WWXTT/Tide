@@ -306,8 +306,11 @@ namespace CardCore
                     : null, // 锚价缓存（2026-09-23；2026-10-04 位置数组）——装载期逐效果建立
                 AnchorCostPinned = dto.costPin, // 锚价钉死（2026-10-20）：1=上行 cost 列为权威
                 Costs = ToCostEntries(dto.costs),
+                // 唯一展开缝（G3 2026-11-08）：词条引用步骤（refId="@包id/…"）先原地展开成 N 个
+                // 内置原子步骤，再走常规 ToStep——展开先于装载校验/计价（价格守恒+位预算守恒前提），
+                // 展开后 校验→计价→结算→AI→联机 零改动。快路：无词条引用原列表直通（零分配）。
                 Steps = dto.steps != null
-                    ? dto.steps.Select(ToStep).Where(st => st != null).ToList() : null,
+                    ? CompositeExpander.ExpandSteps(dto.steps).Select(ToStep).Where(st => st != null).ToList() : null,
             };
             return fx;
         }

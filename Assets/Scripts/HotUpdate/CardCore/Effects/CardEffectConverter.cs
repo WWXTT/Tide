@@ -149,7 +149,11 @@ namespace CardCore
                 if (data.Steps.Any(s => s != null && s.kind == 2))
                     TideLog.Warn($"[CardEffectConverter] 卡 {sourceCardId} 效果 {data.Id} 含内嵌抉择分支（kind==2）" +
                                  "——2026-10-31 P12 退役：抉择=法术多主动效果默认择一，内嵌分支已忽略");
-                FoldBranchSteps(data.Steps, def, sourceCardId);
+                // 词条步展开（G5 2026-11-08）：合成器编辑图携带 @词条 引用步——转换（计价/校验消费口）
+                // 前先物化展开，创作面同守「展开先于计价」；不改入参（保存写回 @ 引用步不变形）。
+                // 运行装载路径（EffectsLibrary.Resolve→ToCardEffect）已在更早处展开，此口对它为快路直通。
+                FoldBranchSteps(CompositeExpander.ExpandEditingSteps(
+                    data.Steps, $"convert:{sourceCardId}·{data.Id}"), def, sourceCardId);
             }
 
             // 倒计时载荷换算（Steps/扁平两通道统一，2026-10-22 修复）：初值=Then 推导费 1费=1回合

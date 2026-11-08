@@ -775,17 +775,20 @@ namespace CardCore
             Entity victim = candidates[0];
             if (candidates.Count > 1)
             {
+                // G6 收口（2026-11-08）：反问标题/预览值按行数据判定（行极性）——参照族正极性=
+                // 贴附（落点·预览参照命）；负极性=直伤（受害者·预览参照攻）。不再按枚举点名；
+                // 非参照族不会进本窗（分段原子才有反问段）。
+                bool attachRow = row.Polarity > 0f;
                 var picked = await TargetSelectionService.RequestAsync(new TargetSelectionRequest
                 {
                     Candidates = candidates,
                     MinCount = 1,
                     MaxCount = 1,
                     Chooser = context.Controller,
-                    Title = "选择" + row.DisplayName + "的"
-                            + (atomic.Type == AtomicEffectType.LivingArmor ? "落点" : "受害者"),
+                    Title = "选择" + row.DisplayName + "的" + (attachRow ? "落点" : "受害者"),
                     PromptSource = (Entity)context.CastCard ?? context.Source,
                     PromptAtom = atomic.Type,
-                    PromptValue = atomic.Type == AtomicEffectType.LivingArmor
+                    PromptValue = attachRow
                         ? Math.Max(0, EntityEffectExtensions.GetLife(reference))
                         : Math.Max(0, EntityEffectExtensions.GetPower(reference)),
                     SpecKey = $"atom:{atomIndex}/spec:1/role:target",

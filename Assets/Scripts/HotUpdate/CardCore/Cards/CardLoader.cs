@@ -213,7 +213,9 @@ namespace CardCore
             ValidateEnchantShape(result);
             ValidateCreatureShape(result);
             ValidateAtomParams(result);
-            ValidateValueBounds(result);
+            var g4Broken = ValidateCompositeAtoms(result); // G4 展开后校验：违规整卡剔除（不静默降级）
+            g4Broken.UnionWith(ValidateValueBounds(result)); // §4.3 上界拒绝=整卡剔除（与 G4 同权·一次 RemoveAll）
+            if (g4Broken.Count > 0) result.RemoveAll(c => g4Broken.Contains(c.ID));
 
             return result;
         }
@@ -453,12 +455,15 @@ namespace CardCore
             }
         }
 
-        /// <summary>数值上界校验（步6 §4.3，2026-11-08 地基计划 G1）：valueMax 声明档两查——
-        /// ① valueMax &lt; value（名义锚）→ Error 拒绝（上界低于名义值=声明矛盾）；
-        /// ② valueMax 超同类分布阈值 → Warn（阈值 v1 硬编码，P2 再做统计口径）。
-        /// valueMax=0=未声明（按值省略）不查；value 不动——定价恒按名义值。</summary>
-        private static void ValidateValueBounds(List<CardData> cards)
+        /// <summary>数值上界校验（步6 §4.3，2026-11-08 地基计划 G1；同日收口修复=拒绝落实为整卡剔除）：
+        /// valueMax 声明档两查——
+        /// ① valueMax &lt; value（名义锚）→ Error 点名 + **整卡剔除**（返回剔除集，与 G4 展开后校验
+        ///   同权——违规整卡不可用，不静默降级；该原子不再做分布告警）；
+        /// ② valueMax 超同类分布阈值 → Warn-only（不入剔除集；阈值 v1 硬编码，P2 再做统计口径）。
+        /// valueMax=0=未声明（按值省略）不查；value 本身不动——定价仍按 Value 名义值。</summary>
+        private static HashSet<string> ValidateValueBounds(List<CardData> cards)
         {
+            var broken = new HashSet<string>(System.StringComparer.Ordinal);
             foreach (var card in cards)
             {
                 if (card?.Effects == null) continue;
@@ -474,7 +479,8 @@ namespace CardCore
                         {
                             TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id} 原子{atomZh}："
                                           + $"valueMax={atom.valueMax} 低于名义值 value={atom.value}"
-                                          + "——静态上界声明矛盾，装载期拒绝");
+                                          + "——静态上界声明矛盾，装载期拒绝（整卡剔除，与 G4 同权）");
+                            broken.Add(card.ID);
                             continue;
                         }
                         int ceiling = ValueExprCeilingOf(atom.valueExpr);
@@ -485,6 +491,7 @@ namespace CardCore
                     }
                 }
             }
+            return broken;
         }
 
         /// <summary>valueExpr 白名单叶子的可达上界（v1 硬编码；P2 换统计口径）。参照域现状恒为
@@ -501,6 +508,174 @@ namespace CardCore
             }
         }
 
+
+        /// <summary>域段集（G4 域一致用）：复合域串按 ';' 切段去空白；空域 → null（不设闸）。</summary>
+        private static HashSet<string> SegmentsOf(string domain)
+        {
+            if (string.IsNullOrEmpty(domain)) return null;
+            var set = new HashSet<string>(System.StringComparer.Ordinal);
+            foreach (var s in domain.Split(';'))
+            {
+                var t = s.Trim();
+                if (t.Length > 0) set.Add(t);
+            }
+            return set;
+        }
+
+        /// <summary>展开后校验（G4 2026-11-08 · 地基计划 §7 六条，落点=卡装载）——效果步引用词条
+        ///（@ 前缀）时逐条把关，错误点名到 卡/效果/步/原子/约束：
+        /// ① 位预算：展开后主干原子数 ≤2（直接原子+Σ词条 body；**仅对引用词条的效果生效**——纯直摆存量不扰）；
+        /// ② 域一致：子原子行域 ⊆ 词条声明域（slot.domain 段集）；
+        /// ③ 深度：body 引用词条 → 装包层拦（G3 ⑦）+词条表可用闸（表侧 '@' body 定义不入表）——
+        ///    本口对表外定义按 ⑤ 断链口径收口；
+        /// ④ 参数：Value 参在 [min,max]（声明范围才查）；必填 Str 参（无缺省）须有 usage.str 绑定；
+        /// ⑤ 断链：词条定义缺失/不可用 → **整卡不可用**（返回剔除集——绝不静默装弱卡）；
+        /// ⑥ 反模式：词条只允许出现在**效果顶层主干步**——代价行（costs.payload(s)）/分支奖励
+        /// （branch.then）/词条步自带 branch/光环条目 effectRef 中的 @ 引用一律拒绝。
+        /// 返回不可用卡 id 集（调用侧整卡剔除；六条同权——违规即整卡不可用，不静默降级）。</summary>
+        private static HashSet<string> ValidateCompositeAtoms(List<CardData> cards)
+        {
+            var broken = new HashSet<string>(System.StringComparer.Ordinal);
+            void Reject(CardData card, string what)
+            {
+                TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：{what}——装载期拒绝（G4 展开后校验）");
+                broken.Add(card.ID);
+            }
+
+            foreach (var card in cards)
+            {
+                if (card?.Effects == null) continue;
+                foreach (var eff in card.Effects)
+                {
+                    if (eff == null || string.IsNullOrEmpty(eff.Id)
+                        || eff.Id.StartsWith("EFF_", StringComparison.Ordinal)) continue; // 内嵌遗留无库行
+                    var dto = EffectsLibrary.Get(eff.Id);
+                    if (dto?.steps == null) continue;
+
+                    bool budgetOn = false;
+                    int trunk = 0;
+                    for (int i = 0; i < dto.steps.Count; i++)
+                    {
+                        var step = dto.steps[i];
+                        if (step == null) continue;
+                        if (step.kind == 0 && !string.IsNullOrEmpty(step.atom?.refId)
+                            && step.atom.refId.StartsWith("@", StringComparison.Ordinal)) budgetOn = true;
+                        if (step.kind != 0)
+                        {
+                            // 模式/条件嵌套位=非主干——@ 引用即反模式（词条只上顶层主干）
+                            if (HasNestedComposite(step))
+                                Reject(card, $"效果 {eff.Id} 步{i} 嵌套位（条件/抉择）引用词条（词条只允许顶层主干步）[G4-反模式]");
+                            continue;
+                        }
+                        var atom = step.atom;
+                        if (atom == null || string.IsNullOrEmpty(atom.refId)) continue;
+                        var def = CompositeAtomTable.Get(atom.refId);
+                        if (atom.refId.StartsWith("@", StringComparison.Ordinal) && def == null)
+                        {
+                            Reject(card, $"效果 {eff.Id} 步{i} 词条定义缺失或不可用: {atom.refId}（表外定义——整卡不可用）[G4-断链]");
+                            continue;
+                        }
+                        if (def == null)
+                        {
+                            trunk++; // 直摆内置原子计 1 槽
+                            if (atom.branch?.then != null)
+                                foreach (var t in atom.branch.then)
+                                    if (!string.IsNullOrEmpty(t?.refId) && t.refId.StartsWith("@", StringComparison.Ordinal))
+                                        Reject(card, $"效果 {eff.Id} 步{i} 分支奖励引用词条 {t.refId}（词条只允许顶层主干步）[G4-反模式]");
+                            continue;
+                        }
+                        // —— 词条步六查 ——
+                        // branch 幻影感知：TideJson 反序列化物化 settle=0 幽灵分支（EffectSlim 同坑）——
+                        // 只有非幻影 branch 才算「词条步携带分支载荷」。
+                        if (atom.branch != null && !BranchEntryRules.IsPhantom(atom.branch))
+                            Reject(card, $"效果 {eff.Id} 步{i} 词条步 {atom.refId} 携带 branch 载荷（分支与词条不组合）[G4-反模式]");
+                        var slotSegs = SegmentsOf(def.slot?.domain);
+                        for (int j = 0; j < (def.body?.Count ?? 0); j++)
+                        {
+                            var b = def.body[j];
+                            if (b == null || string.IsNullOrEmpty(b.refId)) continue;
+                            if (b.refId.StartsWith("@", StringComparison.Ordinal))
+                            {
+                                Reject(card, $"效果 {eff.Id} 步{i} 词条 {def.id} body[{j}] 引用词条 {b.refId}——深度恒 1 [G4-深度]");
+                                continue;
+                            }
+                            var row = Attribute.AtomicEffectTable.GetByHashId(b.refId);
+                            if (row == null)
+                            {
+                                Reject(card, $"效果 {eff.Id} 步{i} 词条 {def.id} body[{j}] 原子行缺表: {b.refId}——整卡不可用 [G4-断链]");
+                                continue;
+                            }
+                            var rowSegs = SegmentsOf(row.Domain);
+                            if (slotSegs != null && slotSegs.Count > 0 && rowSegs != null && !slotSegs.IsSupersetOf(rowSegs))
+                                Reject(card, $"效果 {eff.Id} 步{i} 词条 {def.id} body[{j}]（{b.refId}）行域"
+                                             + $"「{row.Domain}」⊄ 声明域「{def.slot?.domain}」[G4-域一致]");
+                        }
+                        foreach (var p in def.@params ?? new List<CompositeAtomParam>())
+                        {
+                            if (p == null || string.IsNullOrEmpty(p.key)) continue;
+                            if (p.type == "Str")
+                            {
+                                if (string.IsNullOrEmpty(atom.str) && string.IsNullOrEmpty(p.defaultStr))
+                                    Reject(card, $"效果 {eff.Id} 步{i} 词条 {def.id} 必填 Str 参 {{{p.key}}} 缺绑定（usage.str 与缺省均空）[G4-参数]");
+                            }
+                            else if (p.min > 1 || p.max > 0)
+                            {
+                                if (atom.value < p.min || (p.max > 0 && atom.value > p.max))
+                                    Reject(card, $"效果 {eff.Id} 步{i} 词条 {def.id} 参数 {{{p.key}}}={atom.value} 超声明范围 [{p.min},{p.max}] [G4-参数]");
+                            }
+                        }
+                        trunk += def.body?.Count ?? 0;
+                    }
+                    if (budgetOn && trunk > 2)
+                        Reject(card, $"效果 {eff.Id} 展开后主干原子数 {trunk} > 2（直接+Σ词条 body——位预算守恒）[G4-位预算]");
+                }
+            }
+
+            // ⑥ 反模式余两位：代价行与光环条目（效果 dto 原文层——展开/转换均不触碰这些位）
+            foreach (var card in cards)
+            {
+                if (card?.Effects == null) continue;
+                foreach (var eff in card.Effects)
+                {
+                    if (eff == null || string.IsNullOrEmpty(eff.Id)
+                        || eff.Id.StartsWith("EFF_", StringComparison.Ordinal)) continue;
+                    var dto = EffectsLibrary.Get(eff.Id);
+                    if (dto == null) continue;
+                    if (dto.costs != null)
+                        foreach (var c in dto.costs)
+                        {
+                            if (c == null) continue;
+                            if (!string.IsNullOrEmpty(c.payload?.refId) && c.payload.refId.StartsWith("@", StringComparison.Ordinal))
+                                Reject(card, $"效果 {eff.Id} 代价行 payload 引用词条 {c.payload.refId}（词条不可作代价）[G4-反模式]");
+                            foreach (var pl in c.payloads ?? new List<AtomicEffectEntry>())
+                                if (!string.IsNullOrEmpty(pl?.refId) && pl.refId.StartsWith("@", StringComparison.Ordinal))
+                                    Reject(card, $"效果 {eff.Id} 代价行 payloads 引用词条 {pl.refId}（词条不可作代价）[G4-反模式]");
+                        }
+                    if (dto.linkAuras != null)
+                        foreach (var aura in dto.linkAuras)
+                            if (!string.IsNullOrEmpty(aura?.effectRef) && aura.effectRef.StartsWith("@", StringComparison.Ordinal))
+                                Reject(card, $"效果 {eff.Id} 光环条目 effectRef 引用词条 {aura.effectRef}（词条不可作光环载荷）[G4-反模式]");
+                }
+            }
+            return broken;
+        }
+
+        /// <summary>StepRef 嵌套位（条件 then/els·抉择 steps）是否含 @ 引用（G4 反模式扫描）。</summary>
+        private static bool HasNestedComposite(StepRef step)
+        {
+            bool Scan(List<AtomicEffectEntry> entries)
+            {
+                foreach (var e in entries ?? new List<AtomicEffectEntry>())
+                    if (!string.IsNullOrEmpty(e?.refId) && e.refId.StartsWith("@", StringComparison.Ordinal)) return true;
+                return false;
+            }
+            if (Scan(step.then) || Scan(step.els)) return true;
+            foreach (var c in step.choices ?? new List<ChoiceRef>())
+                foreach (var s in c?.steps ?? new List<StepRef>())
+                    if (s != null && (Scan(s.then) || Scan(s.els)
+                        || (!string.IsNullOrEmpty(s.atom?.refId) && s.atom.refId.StartsWith("@", StringComparison.Ordinal)))) return true;
+            return false;
+        }
 
         /// <summary>
         /// 构筑期装载宿主校验（2026-09-11 MountKinds 定案配套的硬约束，可见不炸——坏卡点名）：
@@ -898,7 +1073,9 @@ namespace CardCore
             ValidateEnchantShape(result);
             ValidateCreatureShape(result);
             ValidateAtomParams(result);
-            ValidateValueBounds(result);
+            var g4Broken = ValidateCompositeAtoms(result); // G4 展开后校验：违规整卡剔除（不静默降级）
+            g4Broken.UnionWith(ValidateValueBounds(result)); // §4.3 上界拒绝=整卡剔除（与 G4 同权·一次 RemoveAll）
+            if (g4Broken.Count > 0) result.RemoveAll(c => g4Broken.Contains(c.ID));
 
             return result;
         }

@@ -4769,8 +4769,51 @@ namespace SynergyUI
                     OnClick = () => QuickAdd(payload),
                     H = TableRowH,
                 });
+
+            // —— 我的词条分区（G5 合成器投影 2026-11-08 · 地基计划 §8）：内置行后追加，不新开界面。
+            //    元数据从**展开体**派生（CompositeAtomProjection——价=Σ展开行单价·占槽数=展开原子数·
+            //    描述=词条名+展开体行文案），不从词条自述读；搜索同筛（词条跨色，v1 不参与色筛）。
+            var compositeDefs = CardCore.CompositeAtomTable.GetAll();
+            if (compositeDefs.Count > 0)
+            {
+                AddTableHint(_atomItems, _libraryList, "—— 我的词条（虚拟原子·点击填入并列主干·展开计价）——");
+                foreach (var def in compositeDefs.OrderBy(d => d.id, System.StringComparer.Ordinal))
+                {
+                    var captured = def;
+                    var info = CardCore.CompositeAtomProjection.Project(captured);
+                    if (!SearchQuery.Match(captured.name + " " + captured.id + " " + info.Description,
+                            _filterName.text)) continue;
+                    _atomItems.Add(new TableRowData
+                    {
+                        Tag = "词条",
+                        Meta = info.Description,
+                        Dot = DotColor(UIColor.All),
+                        Costs = info.Cost != null && !info.Cost.IsZero ? info.Cost : null,
+                        OnClick = () => QuickAddComposite(captured),
+                        H = TableRowH,
+                    });
+                }
+            }
+
             if (keepScroll) _atomRows.SetItemsKeepScroll(_atomItems.Count, i => _atomItems[i].H);
             else Apply();
+        }
+
+        /// <summary>词条落槽（G5）：v1 只作并列主干——写入 @ 引用步（value=Value 参缺省绑定）；
+        /// 计价/校验经 ConvertAll 的展开面（CardEffectConverter 词条步展开）；保存写回 @ 引用步
+        ///（重载不变形——展开只发生在转换/装载消费口，编辑图恒保引用形态）。</summary>
+        private void QuickAddComposite(CardCore.CompositeAtomDef def)
+        {
+            if (_mode != ComposeMode.Parallel)
+            {
+                ShowToast("词条只能作并列主干（v1——分支奖励/门槛/光环不收词条）");
+                return;
+            }
+            var entry = new AtomicEffectEntry { refId = def.id, value = 1 };
+            foreach (var p in def.@params ?? new List<CardCore.CompositeAtomParam>())
+                if (p != null && p.type != "Str" && p.defaultValue > 0) entry.value = p.defaultValue;
+            ReplaceParallel(entry);
+            RefreshLibrary(keepScroll: true);
         }
 
         /// <summary>指示物类原子介绍栏统一后缀（2026-10-13 定案）：清除方式按表行 Tags 四分类标注

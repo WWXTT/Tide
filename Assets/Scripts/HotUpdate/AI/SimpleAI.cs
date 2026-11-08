@@ -104,14 +104,26 @@ namespace SynergyUI
             finally { OnCastStageEnd?.Invoke(); }
         }
 
+        /// <summary>有害原子判定（G6 收口 2026-11-08 数据驱动化）：类型集 ∪ **参照族负极性**
+        ///（ReferenceAxis≠null ∧ Polarity<0——分段原子中的直伤（活体炸弹/护盾猛击等）入此臂，
+        /// 不再按枚举点名——参照族信号=表行 RefDomain 列，G0 落位）。</summary>
+        private static bool IsHarmfulAtom(CardCore.AtomicEffectInstance atom)
+            => atom != null && (HarmfulAtoms.Contains(atom.Type)
+                || (atom.ReferenceAxis != null && atom.Polarity < 0f));
+
+        /// <summary>有益原子判定（同上）：类型集 ∪ 参照族正极性（参照贴附增益——护甲类）。</summary>
+        private static bool IsBeneficialAtom(CardCore.AtomicEffectInstance atom)
+            => atom != null && (BeneficialAtoms.Contains(atom.Type)
+                || (atom.ReferenceAxis != null && atom.Polarity > 0f));
+
         /// <summary>有害类原子：目标偏好对方单位 &gt; 对方玩家（解场优先——2026-09-13 用户裁决，原削血优先反转）</summary>
         private static readonly HashSet<AtomicEffectType> HarmfulAtoms = new HashSet<AtomicEffectType>
         {
             // 伤害族（解场优先——穿透档已删 2026-10-31）
             AtomicEffectType.DealDamage, AtomicEffectType.DealCombatDamage, AtomicEffectType.LifeLoss,
             AtomicEffectType.DrainLife,
-            // 参照族直伤（2026-11-03 单目标改版：弹选目标=受害者——活体炸弹/护盾猛击）
-            AtomicEffectType.BurstDamage, AtomicEffectType.ShieldSlam,
+            // 参照族直伤不在此列（G6 收口 2026-11-08）：走 IsHarmfulAtom 的 ReferenceAxis×负极性
+            // 数据臂——分段原子（活体炸弹/护盾猛击等）不再按枚举点名
             // 指示物妨害族（毒素：回合末持续毒伤；易损：受伤+1/层；剧毒已转关键词 GrantVenom）
             AtomicEffectType.GrantVenom, AtomicEffectType.AddToxin, AtomicEffectType.AddVulnerable,
             // 单向属性削弱（攻击力/生命值/费用增加四色——目标偏好对方；属性±1/+1 2026-11-02 删）
@@ -144,8 +156,8 @@ namespace SynergyUI
             AtomicEffectType.ReturnFromGraveyard, AtomicEffectType.RecoverToHand,
             // 资源族（2026-10-11：Mine 已删；2026-10-23：Photosynthesis 已换 GainAnyElement）
             AtomicEffectType.Untap, AtomicEffectType.AddArmor, AtomicEffectType.GainAnyElement,
-            // 参照族增益（2026-11-03 单目标改版：弹选目标=护甲落点——活体护甲；入集才走策略偏好排序）
-            AtomicEffectType.LivingArmor,
+            // 参照族增益不在此列（G6 收口 2026-11-08）：走 IsBeneficialAtom 的 ReferenceAxis×正极性
+            // 数据臂（参照贴附类——活体护甲等）
             // 强化族（GrantX 关键词与数值强化；单向属性增益——攻击力/生命值/±1/费用减少）
             AtomicEffectType.ModifyPower, AtomicEffectType.ModifyLife,
             // 设置系复活（2026-09-09 三轨制重建）——有益直改
@@ -454,7 +466,7 @@ namespace SynergyUI
                 if (!ModeHasValidTarget(core, me, card, i)) continue;
 
                 var atomic = FirstTargetingAtomic(card, i, out _);
-                bool harmful = atomic != null && HarmfulAtoms.Contains(atomic.Type);
+                bool harmful = IsHarmfulAtom(atomic);
                 float total = cost.Total;
 
                 float score = _strategy.ModeScore(harmful, total);
@@ -504,9 +516,9 @@ namespace SynergyUI
                     if (spec.AiMode != CardCore.Attribute.AiPickMode.Enumerate) continue; // 受体 Auto：不进预选
                     if (spec.AutoTake || spec.EffCount == -1) continue; // 引擎自动取/运行时自选——不预选
                     IEnumerable<Entity> specOrdered;
-                    if (spec.Atom != null && HarmfulAtoms.Contains(spec.Atom.Type))
+                    if (IsHarmfulAtom(spec.Atom))
                         specOrdered = _strategy.OrderHarmfulTargets(core, me, spec.Candidates);
-                    else if (spec.Atom != null && BeneficialAtoms.Contains(spec.Atom.Type))
+                    else if (IsBeneficialAtom(spec.Atom))
                         specOrdered = _strategy.OrderBeneficialTargets(core, me, spec.Candidates);
                     else
                         specOrdered = spec.Candidates; // 无偏好：保持引擎序（等价自动解析）
@@ -534,7 +546,7 @@ namespace SynergyUI
                 : (def.TargetCount > 0 ? def.TargetCount : 1);
             var atomic = FirstTargetingAtomic(card, modeIndex, out _); // 仅作有害/有益偏好参考
             IEnumerable<Entity> ordered;
-            if (atomic != null && HarmfulAtoms.Contains(atomic.Type))
+            if (IsHarmfulAtom(atomic))
             {
                 // 有害：目标偏好经策略（通用=对方存活单位威胁降序 > 对方玩家 > 己方垫底——解场优先）
                 ordered = _strategy.OrderHarmfulTargets(core, me, candidates);
