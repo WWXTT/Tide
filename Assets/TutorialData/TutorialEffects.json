@@ -870,13 +870,6 @@
       "hash": "80DCABEF",
       "timing": 19,
       "activation": 2,
-      "cost": [
-        0.0,
-        3.0,
-        0.0,
-        0.0,
-        0.0
-      ],
       "steps": [
         {
           "kind": 0,
@@ -899,13 +892,6 @@
       "hash": "3E7640C3",
       "timing": 19,
       "activation": 2,
-      "cost": [
-        0.0,
-        0.0,
-        0.0,
-        3.0,
-        0.0
-      ],
       "steps": [
         {
           "kind": 0,
@@ -925,9 +911,16 @@
     {
       "id": "CC0DE001",
       "name": "诅咒载荷（组合效果）：对对方单位造成3点伤害，共两段",
-      "hash": "CC0DE001",
+      "hash": "39E95B1A",
       "timing": 19,
       "activation": 2,
+      "cost": [
+        0.0,
+        6.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "steps": [
         {
           "kind": 0,
@@ -954,9 +947,16 @@
     {
       "id": "CC0DE002",
       "name": "祝福载荷（组合效果）：回复12点生命",
-      "hash": "CC0DE002",
+      "hash": "83C496EE",
       "timing": 19,
       "activation": 2,
+      "cost": [
+        0.0,
+        0.0,
+        0.0,
+        6.0,
+        0.0
+      ],
       "steps": [
         {
           "kind": 0,
@@ -973,16 +973,9 @@
     {
       "id": "CC0DE003",
       "name": "施放时给对手牌库随机1张卡附加诅咒（组合载荷CC0DE001：抽到时两段各3伤共6点并移除指示物）",
-      "hash": "CC0DE003",
+      "hash": "715B7CC3",
       "timing": 19,
       "activation": 2,
-      "cost": [
-        0.0,
-        3.0,
-        0.0,
-        0.0,
-        0.0
-      ],
       "steps": [
         {
           "kind": 0,
@@ -1003,16 +996,9 @@
     {
       "id": "CC0DE004",
       "name": "施放时给自己牌库随机1张卡附加祝福（组合载荷CC0DE002：抽到时回复12点生命并移除指示物）",
-      "hash": "CC0DE004",
+      "hash": "92C719AD",
       "timing": 19,
       "activation": 2,
-      "cost": [
-        0.0,
-        0.0,
-        0.0,
-        3.0,
-        0.0
-      ],
       "steps": [
         {
           "kind": 0,
@@ -1103,7 +1089,7 @@
     {
       "id": "4E21BFCF",
       "name": "元素井入场：对敌方单位造成1点伤害；自身获得1层潜行",
-      "hash": "4E21BFCF",
+      "hash": "8D0CB19B",
       "cost": [
         0.0,
         1.0,
@@ -1425,7 +1411,7 @@
     {
       "id": "2C78A233",
       "name": "登场时，一个己方单位获得2层攻击力增加指示物；若操控地数量≤3，抽1张卡",
-      "hash": "2C78A233",
+      "hash": "E3DDEFC5",
       "selection": 0,
       "count": 1,
       "cost": [
@@ -1583,7 +1569,7 @@
     {
       "id": "41A6D862",
       "name": "以己方生物{target}为参照，选择一个己方单位获得等同其生命的护甲；代价：一个敌方单位获得6层护甲",
-      "hash": "41A6D862",
+      "hash": "A83916A5",
       "timing": 19,
       "activation": 2,
       "cost": [
@@ -1613,10 +1599,10 @@
           "kind": 0,
           "atom": {
             "refId": "1936751b",
-            "valueExpr": "ref.life",
             "kinds": [
               1
-            ]
+            ],
+            "valueExpr": "ref.life"
           }
         }
       ]
@@ -1668,7 +1654,7 @@
     {
       "id": "D0C61A63",
       "name": "登场时，为角色添加2点护甲",
-      "hash": "D0C61A63",
+      "hash": "9032F5D7",
       "activation": 1,
       "selection": 0,
       "count": 1,
@@ -2184,7 +2170,7 @@
       "selection": 0,
       "count": 1,
       "cost": [
-        5.0,
+        9.0,
         0.0,
         0.0,
         0.0,
@@ -2492,7 +2478,7 @@
     {
       "id": "31CE6ACE",
       "name": "重置一个己方单位",
-      "hash": "31CE6ACE",
+      "hash": "C0DD9F94",
       "timing": 19,
       "activation": 2,
       "selection": 0,
@@ -2519,7 +2505,7 @@
     {
       "id": "FC0E95E4",
       "name": "对一个敌方单位造成5点伤害",
-      "hash": "FC0E95E4",
+      "hash": "65D4BB4D",
       "timing": 19,
       "activation": 2,
       "selection": 0,
@@ -2565,7 +2551,7 @@
     {
       "id": "8200C531",
       "name": "一个己方单位获得连击",
-      "hash": "8200C531",
+      "hash": "1584F195",
       "timing": 19,
       "activation": 2,
       "selection": 0,
@@ -2606,7 +2592,7 @@
     {
       "id": "C5180E36",
       "name": "一个目标流失1生命",
-      "hash": "C5180E36",
+      "hash": "29FB5630",
       "timing": 19,
       "activation": 2,
       "selection": 0,
@@ -2635,7 +2621,7 @@
     {
       "id": "0909E61B",
       "name": "以己方生物为参照，对一个对方单位造成等同其攻击力的伤害；若本回合使用的第一张卡，对一个目标造成2点伤害",
-      "hash": "0909E61B",
+      "hash": "DA0BD39B",
       "timing": 19,
       "activation": 2,
       "cost": [
@@ -2650,11 +2636,11 @@
           "kind": 0,
           "atom": {
             "refId": "2cca9b23",
-            "valueExpr": "ref.power",
-            "valueMax": 12,
             "kinds": [
               1
             ],
+            "valueMax": 9,
+            "valueExpr": "ref.power",
             "branch": {
               "settle": 1,
               "gateId": "FirstCardThisTurn",
@@ -2992,6 +2978,13 @@
       "hash": "C578A49D",
       "timing": 19,
       "activation": 2,
+      "cost": [
+        0.0,
+        2.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "steps": [
         {
           "kind": 0,
@@ -3011,6 +3004,13 @@
       "hash": "A335E361",
       "timing": 33,
       "activation": 1,
+      "cost": [
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "steps": [
         {
           "kind": 0,
@@ -3029,6 +3029,13 @@
       "hash": "F7F2D3C3",
       "timing": 33,
       "activation": 1,
+      "cost": [
+        0.0,
+        2.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "steps": [
         {
           "kind": 0,
@@ -3048,6 +3055,13 @@
       "hash": "496D84D2",
       "timing": 33,
       "activation": 1,
+      "cost": [
+        0.0,
+        3.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "steps": [
         {
           "kind": 0,
@@ -3067,6 +3081,13 @@
       "hash": "641B5EAE",
       "timing": 33,
       "activation": 1,
+      "cost": [
+        0.0,
+        4.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "steps": [
         {
           "kind": 0,
@@ -3086,6 +3107,13 @@
       "hash": "0B6DEF6D",
       "timing": 33,
       "activation": 1,
+      "cost": [
+        0.0,
+        5.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "steps": [
         {
           "kind": 0,
@@ -3105,6 +3133,13 @@
       "hash": "9DD0AAFB",
       "timing": 33,
       "activation": 1,
+      "cost": [
+        0.0,
+        6.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "steps": [
         {
           "kind": 0,
@@ -3124,6 +3159,13 @@
       "hash": "30423ED2",
       "timing": 7,
       "activation": 1,
+      "cost": [
+        0.0,
+        6.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "steps": [
         {
           "kind": 0,
@@ -3143,6 +3185,13 @@
       "hash": "32768F97",
       "timing": 19,
       "activation": 2,
+      "cost": [
+        0.0,
+        6.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "steps": [
         {
           "kind": 0,
@@ -3162,6 +3211,13 @@
       "hash": "5244FA6F",
       "timing": 19,
       "activation": 2,
+      "cost": [
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "steps": [
         {
           "kind": 0,
@@ -3180,6 +3236,13 @@
       "hash": "A2FE44F2",
       "timing": 19,
       "activation": 2,
+      "cost": [
+        0.0,
+        2.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "steps": [
         {
           "kind": 0,
@@ -3199,6 +3262,13 @@
       "hash": "700A320B",
       "timing": 19,
       "activation": 2,
+      "cost": [
+        0.0,
+        3.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "steps": [
         {
           "kind": 0,
@@ -3218,6 +3288,13 @@
       "hash": "82BEE13D",
       "timing": 19,
       "activation": 2,
+      "cost": [
+        0.0,
+        4.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "steps": [
         {
           "kind": 0,
@@ -3237,6 +3314,13 @@
       "hash": "2A0EDEB3",
       "timing": 19,
       "activation": 2,
+      "cost": [
+        0.0,
+        5.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "steps": [
         {
           "kind": 0,
@@ -3256,6 +3340,13 @@
       "hash": "A439A146",
       "timing": 19,
       "activation": 2,
+      "cost": [
+        0.0,
+        6.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "steps": [
         {
           "kind": 0,
@@ -3275,6 +3366,13 @@
       "hash": "6774291E",
       "timing": 19,
       "activation": 2,
+      "cost": [
+        0.0,
+        6.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "steps": [
         {
           "kind": 0,
@@ -3294,6 +3392,13 @@
       "hash": "3921B380",
       "timing": 19,
       "activation": 2,
+      "cost": [
+        0.0,
+        0.0,
+        0.0,
+        6.0,
+        0.0
+      ],
       "steps": [
         {
           "kind": 0,
@@ -3313,6 +3418,13 @@
       "hash": "194E7CAD",
       "timing": 19,
       "activation": 2,
+      "cost": [
+        0.0,
+        0.0,
+        2.0,
+        0.0,
+        0.0
+      ],
       "steps": [
         {
           "kind": 0,
@@ -3328,6 +3440,13 @@
       "hash": "F946B51E",
       "timing": 35,
       "activation": 1,
+      "cost": [
+        0.0,
+        4.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "steps": [
         {
           "kind": 0,
@@ -3347,6 +3466,13 @@
       "hash": "5004AFA1",
       "timing": 19,
       "activation": 2,
+      "cost": [
+        0.0,
+        0.0,
+        2.0,
+        0.0,
+        0.0
+      ],
       "steps": [
         {
           "kind": 0,
@@ -3362,6 +3488,13 @@
       "hash": "269D2661",
       "timing": 19,
       "activation": 2,
+      "cost": [
+        0.0,
+        0.0,
+        2.0,
+        0.0,
+        0.0
+      ],
       "steps": [
         {
           "kind": 0,
@@ -3380,6 +3513,13 @@
       "hash": "FBE8AC66",
       "timing": 19,
       "activation": 2,
+      "cost": [
+        0.0,
+        0.0,
+        3.0,
+        0.0,
+        0.0
+      ],
       "steps": [
         {
           "kind": 0,
@@ -3399,6 +3539,13 @@
       "hash": "EE60165C",
       "timing": 19,
       "activation": 2,
+      "cost": [
+        0.0,
+        0.0,
+        2.0,
+        0.0,
+        0.0
+      ],
       "steps": [
         {
           "kind": 0,
@@ -3414,6 +3561,13 @@
       "hash": "7C65BC0E",
       "timing": 19,
       "activation": 2,
+      "cost": [
+        0.0,
+        0.0,
+        3.0,
+        0.0,
+        0.0
+      ],
       "steps": [
         {
           "kind": 0,
@@ -3433,6 +3587,13 @@
       "hash": "1BBBAB5B",
       "timing": 19,
       "activation": 2,
+      "cost": [
+        0.0,
+        3.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "steps": [
         {
           "kind": 0,
@@ -3452,6 +3613,13 @@
       "hash": "F6B7BFE1",
       "timing": 19,
       "activation": 2,
+      "cost": [
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0
+      ],
       "steps": [
         {
           "kind": 0,
@@ -3471,6 +3639,13 @@
       "hash": "2F38FF7E",
       "timing": 19,
       "activation": 2,
+      "cost": [
+        0.0,
+        0.0,
+        3.0,
+        0.0,
+        0.0
+      ],
       "steps": [
         {
           "kind": 0,
@@ -3489,6 +3664,13 @@
       "hash": "F786FF4A",
       "timing": 19,
       "activation": 2,
+      "cost": [
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0
+      ],
       "steps": [
         {
           "kind": 0,
@@ -3508,6 +3690,13 @@
       "hash": "7E9A402E",
       "timing": 19,
       "activation": 2,
+      "cost": [
+        0.0,
+        3.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "steps": [
         {
           "kind": 0,
@@ -3526,6 +3715,13 @@
       "hash": "290FA5F0",
       "timing": 19,
       "activation": 2,
+      "cost": [
+        0.0,
+        0.0,
+        2.0,
+        0.0,
+        0.0
+      ],
       "steps": [
         {
           "kind": 0,

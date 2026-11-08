@@ -101,6 +101,7 @@ namespace SynergyUI
                 }
                 MergeTutorialCards(); // 教学独立卡表（2026-10-16）：副表合并入索引，教学局按 id 组卡可取
                 MergeTrainingCards(); // 训练独立卡表（2026-11-03）：训练桥/验证器按 id 可取，玩家面经 LoadPlayPool 隔离
+                MergePackCards(); // 内容包卡合并（G2 2026-11-08）：装包卡并入索引（卸包=断链由此自然成立）
                 return _cache;
             }
             finally
@@ -174,6 +175,25 @@ namespace SynergyUI
                 if (_byId.ContainsKey(card.ID))
                 {
                     TideLog.Warn($"[CardCatalog] 训练卡表 id 与先装表冲突（保先装表）: {card.ID}");
+                    continue;
+                }
+                _byId[card.ID] = card;
+                _cache.Add(card);
+            }
+        }
+
+        /// <summary>内容包卡合并（G2 2026-11-08）：id 冲突保先装表（装包校验已拒撞号，此处兜底）。
+        /// 卡物化在合并位发生（CardLoader 全链装载——含效果解析与装载校验）；卸包后目录消失，
+        /// 卡随之出索引 → 卡组校验（DeckCompositionValidator）按 MissingIds **整卡断链**。
+        /// 包目录变更不经 mtime 盯盘——装卸走 ContentPackRegistry（内部即调 Invalidate）。</summary>
+        private static void MergePackCards()
+        {
+            foreach (var card in CardCore.ContentPackRegistry.AllCards())
+            {
+                if (card == null || string.IsNullOrEmpty(card.ID)) continue;
+                if (_byId.ContainsKey(card.ID))
+                {
+                    TideLog.Warn($"[CardCatalog] 内容包卡 id 与先装表冲突（保先装表）: {card.ID}");
                     continue;
                 }
                 _byId[card.ID] = card;

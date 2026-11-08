@@ -526,7 +526,8 @@ namespace CardCore.Attribute.Handlers
         }
 
         /// <summary>落账：参照亡/攻≤0/受害者无效=空转；效果伤害+AtomicDamageEvent（伤害产出族记账）。
-        /// 数值=ResolveValue（步6：valueExpr=ref.power 活读参照攻；空=旧 GetRolledValue 名义值路径）。</summary>
+        /// 数值=ResolveValue 单口（步6：valueExpr=ref.power 活读参照攻；空=常量名义值路径；
+        /// **修正链+amp 掷已内含在 ResolveValue**——此处不得再包 GetValueAfterModifiers）。</summary>
         private void Resolve(AtomicEffectInstance effect, EffectExecutionContext context, Entity victim)
         {
             var reference = context.Ref ?? context.PrimaryTarget;
@@ -574,8 +575,9 @@ namespace CardCore.Attribute.Handlers
             return UniTask.CompletedTask;
         }
 
-        /// <summary>落账：参照亡/生命≤0/落点无效=空转；护甲层数=ResolveValue（步6：valueExpr=ref.life
-        /// 活读参照命；空=旧 GetRolledValue 名义值路径）；AddCounters 实际增量出账。</summary>
+        /// <summary>落账：参照亡/生命≤0/落点无效=空转；护甲层数=ResolveValue 单口（步6：valueExpr=ref.life
+        /// 活读参照命；空=常量名义值路径；**修正链+amp 掷已内含在 ResolveValue**——此处不得再包
+        /// GetValueAfterModifiers）；AddCounters 实际增量出账。</summary>
         private void Resolve(AtomicEffectInstance effect, EffectExecutionContext context, Entity receiver)
         {
             var reference = context.Ref ?? context.PrimaryTarget;

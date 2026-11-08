@@ -102,7 +102,30 @@ namespace SynergyUI
             return MurmurHash3.Hash32(sb.ToString()).ToString("X8");
         }
 
-        private static void AppendEffect(StringBuilder sb, EffectGraphData graph)
+        /// <summary>效果行为封印（G2 内容包容器 2026-11-08）：与 HashEffect 同一组合，
+        /// **跳过 NM（DisplayName）段**——seal 只盖行为（时点/激活/编排/代价/光环/步骤），
+        /// 不盖名字与风味文案（地基计划 §5：改文案 seal 不变、改 body seal 变）。
+        /// HashEffect 口径零改动（ContentSig/效果 id 不漂移）。</summary>
+        public static string SealEffect(EffectGraphData graph)
+        {
+            var sb = new StringBuilder();
+            AppendEffect(sb, graph, includeName: false);
+            return MurmurHash3.Hash32(sb.ToString()).ToString("X8");
+        }
+
+        /// <summary>SealEffect 的 CardEffectData 便捷口（与 HashEffectOf 同构——瘦 DTO 往返后
+        /// 由注册表按条目计算封印用此口；名字段被跳过，DTO.name 与 header.DisplayName 均不参与）。</summary>
+        public static string SealEffectOf(CardEffectData fx)
+        {
+            if (fx == null) return "∅";
+            return SealEffect(new EffectGraphData(fx.DisplayName)
+            {
+                header = fx,
+                steps = fx.Steps != null ? new List<EffectStepData>(fx.Steps) : new List<EffectStepData>()
+            });
+        }
+
+        private static void AppendEffect(StringBuilder sb, EffectGraphData graph, bool includeName = true)
         {
             if (graph == null)
             {
@@ -110,10 +133,12 @@ namespace SynergyUI
             }
             // header 取文本基底（DisplayName——身份层，与原子表同口径）+ 功能字段（时点/激活/编排/代价）；
             // Description 是动态渲染文案、Tags 是展示标签，均不作身份。
+            // includeName=false = SealEffect（G2 内容包）：跳过名字段——seal 只盖行为不盖文案。
             var h = graph.header;
             if (h != null)
             {
-                sb.Append("NM:").Append(h.DisplayName ?? "").Append('|');
+                if (includeName)
+                    sb.Append("NM:").Append(h.DisplayName ?? "").Append('|');
                 sb.Append("TT:").Append(h.TriggerTiming).Append('|');
                 sb.Append("AT:").Append(h.ActivationType).Append('|');
                 AppendOrchestration(sb, h, graph.steps);

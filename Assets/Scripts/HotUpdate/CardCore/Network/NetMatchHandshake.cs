@@ -70,6 +70,10 @@ namespace CardCore.Network
                 .Select(RowSig)
                 .OrderBy(s => s, StringComparer.Ordinal)
                 .ToList();
+            // 内容包封印闭包（G2 2026-11-08）：被引用的包效果行为封印计入 AtomicRowsHash——
+            // 一端有包/包 body 漂移即两端摘要分叉（现有握手拒绝）。无包=零行=与既有摘要逐字节一致。
+            sigs.AddRange(ContentPackRegistry.ReferencedSealLines(effectIds));
+            sigs.Sort(StringComparer.Ordinal);
 
             var contentLines = new List<string>(cardLines);
             contentLines.AddRange(effectIds

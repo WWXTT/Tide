@@ -902,7 +902,8 @@ namespace SynergyUI
         }
 
         /// <summary>卡型可见性（2026-10-16 二次改版；2026-11-06 opt-in 修订）：四区模板恒 inactive（槽行运行时克隆）；
-        /// 此处只管 add 四钮（容量 0 隐藏）——basicability 恒显（充能资格全卡型，行可见性归 SyncBasicAbility）。</summary>
+        /// 此处只管 add 四钮（容量 0 隐藏）——basicability 行可见性归 SyncBasicAbility（充能暂不
+        /// 开放后非生物整区收起，见其 2026-11-08 注）。</summary>
         private void SyncZoneVisibility()
         {
             SyncBasicAbility();
@@ -911,7 +912,8 @@ namespace SynergyUI
         }
 
         // ---- basicability（2026-11-06 opt-in 改版：ac/dc/rc 三开关正向绑 AttackAbility/GuardAbility/
-        //      ChargeAbility，默认关=不带——「添加了才有」；ac/dc 生物专属、rc 全卡型） ----
+        //      ChargeAbility，默认关=不带——「添加了才有」；ac/dc 生物专属、rc 全卡型。
+        //      2026-11-08 充能暂不开放：rc 编辑口收起——绑定/数据保留，重开=去 SyncBasicAbility 恒藏行） ----
 
         private void BindBasicAbility()
         {
@@ -969,12 +971,13 @@ namespace SynergyUI
             rt.anchoredPosition = anchors.Item5;
         }
 
-        /// <summary>三开关回显与行可见性（2026-11-06 opt-in）：区恒显（充能资格全卡型）；
-        /// 攻/守行仅生物可见（资格清空归 ApplyKindToCard 切型口，与关键词「切型即清」同口径）。</summary>
+        /// <summary>三开关回显与行可见性（2026-11-06 opt-in）：攻/守行仅生物可见（资格清空归
+        /// ApplyKindToCard 切型口，与关键词「切型即清」同口径）。2026-11-08 充能暂不开放：
+        /// rc 行恒藏（回显保留防池化残亮）——区只剩攻/守行，随其生物专属走：非生物整区收起。</summary>
         private void SyncBasicAbility()
         {
             if (_basicAbilityZone != null)
-                _basicAbilityZone.gameObject.SetActive(true);
+                _basicAbilityZone.gameObject.SetActive(_kind == CardKind.Creature);
             if (_attackToggle != null)
             {
                 _attackToggle.SetIsOnWithoutNotify(_card.AttackAbility);
@@ -985,7 +988,11 @@ namespace SynergyUI
                 _guardToggle.SetIsOnWithoutNotify(_card.GuardAbility);
                 _guardToggle.gameObject.SetActive(_kind == CardKind.Creature);
             }
-            if (_chargeToggle != null) _chargeToggle.SetIsOnWithoutNotify(_card.ChargeAbility);
+            if (_chargeToggle != null)
+            {
+                _chargeToggle.SetIsOnWithoutNotify(_card.ChargeAbility);
+                _chargeToggle.gameObject.SetActive(false); // 充能暂不开放（2026-11-08）：编辑口收起
+            }
         }
 
         // ---- 场地开关（2026-10-29 P8）：结界专属 isField 标记 ----

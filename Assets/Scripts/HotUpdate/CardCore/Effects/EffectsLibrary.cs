@@ -101,6 +101,7 @@ namespace CardCore
                 _mainStampUtc = File.GetLastWriteTimeUtc(path); // 解析成功才记账：坏 JSON 不落缓存态，下次调用重试
                 MergeTutorialEffects(); // 教学副表合并（2026-10-16）
                 MergeTrainingEffects(); // 训练副表合并（2026-11-03）：训练卡 effectIds 引用解析
+                MergePackEffects(); // 内容包效果合并（G2 2026-11-08）：装包效果并入解析面
             }
             catch (Exception e)
             {
@@ -163,6 +164,18 @@ namespace CardCore
             catch (Exception e)
             {
                 TideLog.Warn($"[EffectsLibrary] 加载 {TrainingConfigRelative} 失败: {e.Message}");
+            }
+        }
+
+        /// <summary>内容包效果合并（G2 2026-11-08）：重复 id 保先装表（内置&gt;教学&gt;训练&gt;包——
+        /// 装包校验已拒撞号，此处兜底）。注册表只做裸解析（防递归铁律），本口经 AllEffects 取数。</summary>
+        private static void MergePackEffects()
+        {
+            foreach (var it in ContentPackRegistry.AllEffects())
+            {
+                if (_byId.ContainsKey(it.id)) continue; // 撞号保先装表
+                _byId[it.id] = it;
+                _items.Add(it);
             }
         }
 

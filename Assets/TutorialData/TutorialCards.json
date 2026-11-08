@@ -6,11 +6,10 @@
       "supertype": "Creature",
       "attackAbility": true,
       "guardAbility": true,
-      "chargeAbility": true,
       "power": 1,
       "life": 1,
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -26,11 +25,10 @@
       "supertype": "Creature",
       "attackAbility": true,
       "guardAbility": true,
-      "chargeAbility": true,
       "power": 2,
       "life": 1,
       "costList": [
-        1.0,
+        0.0,
         0.5,
         0.0,
         0.0
@@ -46,11 +44,10 @@
       "supertype": "Creature",
       "attackAbility": true,
       "guardAbility": true,
-      "chargeAbility": true,
       "power": 3,
       "life": 2,
       "costList": [
-        1.0,
+        0.0,
         1.0,
         0.0,
         0.5
@@ -66,12 +63,11 @@
       "supertype": "Creature",
       "attackAbility": true,
       "guardAbility": true,
-      "chargeAbility": true,
       "illustration": "PetitAngel",
       "power": 2,
       "life": 2,
       "costList": [
-        1.0,
+        0.0,
         0.5,
         0.0,
         0.5
@@ -87,12 +83,11 @@
       "supertype": "Creature",
       "attackAbility": true,
       "guardAbility": true,
-      "chargeAbility": true,
       "illustration": "DragonessTheWickedKnight",
       "power": 7,
       "life": 7,
       "costList": [
-        1.0,
+        0.0,
         3.0,
         0.0,
         3.0
@@ -108,12 +103,11 @@
       "supertype": "Creature",
       "attackAbility": true,
       "guardAbility": true,
-      "chargeAbility": true,
       "illustration": "Kojikocy",
       "power": 8,
       "life": 8,
       "costList": [
-        1.0,
+        0.0,
         3.5,
         0.0,
         3.5
@@ -129,12 +123,11 @@
       "supertype": "Creature",
       "attackAbility": true,
       "guardAbility": true,
-      "chargeAbility": true,
       "illustration": "DarkPrisoner",
       "power": 6,
       "life": 1,
       "costList": [
-        1.0,
+        0.0,
         2.5,
         0.0,
         0.0
@@ -148,7 +141,6 @@
       "id": "C_C635DB5D",
       "cardName": "教学·14",
       "supertype": "Spell",
-      "chargeAbility": true,
       "tags": [
         "教学"
       ],
@@ -156,7 +148,7 @@
         "23E6AFE9"
       ],
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -167,7 +159,6 @@
       "id": "C_36A84A34",
       "cardName": "教学·15",
       "supertype": "Spell",
-      "chargeAbility": true,
       "tags": [
         "教学"
       ],
@@ -175,7 +166,7 @@
         "E58E7758"
       ],
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -186,7 +177,6 @@
       "id": "C_AC7E32A2",
       "cardName": "教学·16",
       "supertype": "Spell",
-      "chargeAbility": true,
       "tags": [
         "教学"
       ],
@@ -194,7 +184,7 @@
         "6178B429"
       ],
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -207,12 +197,11 @@
       "supertype": "Creature",
       "attackAbility": true,
       "guardAbility": true,
-      "chargeAbility": true,
       "illustration": "Kojikocy",
       "power": 8,
       "life": 9,
       "costList": [
-        1.0,
+        0.0,
         3.5,
         0.0,
         4.0
@@ -228,12 +217,11 @@
       "supertype": "Creature",
       "attackAbility": true,
       "guardAbility": true,
-      "chargeAbility": true,
       "illustration": "MukaMuka",
       "power": 3,
       "life": 3,
       "costList": [
-        1.0,
+        0.0,
         1.0,
         0.0,
         4.0
@@ -252,12 +240,11 @@
       "supertype": "Creature",
       "attackAbility": true,
       "guardAbility": true,
-      "chargeAbility": true,
       "illustration": "DarkPrisoner",
       "power": 2,
       "life": 2,
       "costList": [
-        1.0,
+        0.0,
         0.5,
         0.0,
         0.5
@@ -274,7 +261,6 @@
       "id": "C_655C063A",
       "cardName": "教学·39",
       "supertype": "Spell",
-      "chargeAbility": true,
       "tags": [
         "教学"
       ],
@@ -282,7 +268,7 @@
         "E9FC6D18"
       ],
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -293,7 +279,6 @@
       "id": "C_86771FC7",
       "cardName": "教学·40",
       "supertype": "Spell",
-      "chargeAbility": true,
       "tags": [
         "教学"
       ],
@@ -301,7 +286,7 @@
         "B6C60DE7"
       ],
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -312,7 +297,6 @@
       "id": "C_E1256CFE",
       "cardName": "教学·41",
       "supertype": "Spell",
-      "chargeAbility": true,
       "tags": [
         "教学"
       ],
@@ -320,7 +304,7 @@
         "29F8C17F"
       ],
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -331,7 +315,6 @@
       "id": "C_A1AE2226",
       "cardName": "教学·42",
       "supertype": "Spell",
-      "chargeAbility": true,
       "tags": [
         "教学"
       ],
@@ -339,7 +322,7 @@
         "A082AF8E"
       ],
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -350,7 +333,6 @@
       "id": "C_B3F95B21",
       "cardName": "教学·13",
       "supertype": "Spell",
-      "chargeAbility": true,
       "tags": [
         "教学"
       ],
@@ -358,7 +340,7 @@
         "D2F79EF4"
       ],
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -369,7 +351,6 @@
       "id": "C_0A0BAC14",
       "cardName": "教学·43",
       "supertype": "Spell",
-      "chargeAbility": true,
       "tags": [
         "教学"
       ],
@@ -377,7 +358,7 @@
         "95ADEEFE"
       ],
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -388,7 +369,6 @@
       "id": "C_CA42AAF8",
       "cardName": "教学·46",
       "supertype": "Spell",
-      "chargeAbility": true,
       "tags": [
         "教学"
       ],
@@ -396,7 +376,7 @@
         "E0C8F461"
       ],
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -407,7 +387,6 @@
       "id": "C_1F9D64E0",
       "cardName": "教学·44",
       "supertype": "Spell",
-      "chargeAbility": true,
       "tags": [
         "教学"
       ],
@@ -415,7 +394,7 @@
         "0A8886CD"
       ],
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -426,7 +405,6 @@
       "id": "C_D824053B",
       "cardName": "教学·45",
       "supertype": "Spell",
-      "chargeAbility": true,
       "tags": [
         "教学"
       ],
@@ -434,7 +412,7 @@
         "1F3DB443"
       ],
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -445,7 +423,6 @@
       "id": "C_D78B3E37",
       "cardName": "教学·38",
       "supertype": "Spell",
-      "chargeAbility": true,
       "tags": [
         "教学"
       ],
@@ -453,7 +430,7 @@
         "8DB8409B"
       ],
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -464,7 +441,6 @@
       "id": "C_3B8E79AB",
       "cardName": "教学·47",
       "supertype": "Spell",
-      "chargeAbility": true,
       "tags": [
         "教学"
       ],
@@ -472,7 +448,7 @@
         "414EDEB4"
       ],
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -483,7 +459,6 @@
       "id": "C_260F2CCE",
       "cardName": "教学·48",
       "supertype": "Spell",
-      "chargeAbility": true,
       "tags": [
         "教学"
       ],
@@ -491,7 +466,7 @@
         "608055F5"
       ],
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -504,12 +479,11 @@
       "supertype": "Creature",
       "attackAbility": true,
       "guardAbility": true,
-      "chargeAbility": true,
       "illustration": "MukaMuka",
       "power": 2,
       "life": 7,
       "costList": [
-        1.0,
+        0.0,
         0.5,
         0.0,
         5.0
@@ -528,12 +502,11 @@
       "supertype": "Creature",
       "attackAbility": true,
       "guardAbility": true,
-      "chargeAbility": true,
       "illustration": "PetitAngel",
       "power": 1,
       "life": 2,
       "costList": [
-        1.0,
+        0.0,
         0.5,
         0.0,
         1.0
@@ -552,12 +525,11 @@
       "supertype": "Creature",
       "attackAbility": true,
       "guardAbility": true,
-      "chargeAbility": true,
       "illustration": "MukaMuka",
       "power": 2,
       "life": 3,
       "costList": [
-        1.0,
+        0.0,
         1.0,
         0.0,
         1.5
@@ -568,7 +540,7 @@
       "effectIds": [
         "03271DDF"
       ],
-      "hash": "FFDF953C"
+      "hash": "CFF08451"
     },
     {
       "id": "C_2E00FB6A",
@@ -576,12 +548,11 @@
       "supertype": "Creature",
       "attackAbility": true,
       "guardAbility": true,
-      "chargeAbility": true,
       "illustration": "PetitAngel",
       "power": 1,
       "life": 2,
       "costList": [
-        1.0,
+        0.0,
         0.5,
         0.0,
         1.0
@@ -592,7 +563,7 @@
       "effectIds": [
         "6BCD785C"
       ],
-      "hash": "2E00FB6A"
+      "hash": "CB1777D1"
     },
     {
       "id": "C_052EB2FB",
@@ -600,12 +571,11 @@
       "supertype": "Creature",
       "attackAbility": true,
       "guardAbility": true,
-      "chargeAbility": true,
       "illustration": "DragonessTheWickedKnight",
       "power": 1,
       "life": 2,
       "costList": [
-        1.0,
+        0.0,
         0.5,
         0.0,
         1.0
@@ -616,7 +586,7 @@
       "effectIds": [
         "1BB8B2DA"
       ],
-      "hash": "052EB2FB"
+      "hash": "9E97A9F6"
     },
     {
       "id": "C_2D6E5BFB",
@@ -624,12 +594,11 @@
       "supertype": "Creature",
       "attackAbility": true,
       "guardAbility": true,
-      "chargeAbility": true,
       "illustration": "Kojikocy",
       "power": 1,
       "life": 2,
       "costList": [
-        1.0,
+        0.0,
         0.5,
         0.0,
         1.0
@@ -640,7 +609,7 @@
       "effectIds": [
         "B3A90B8C"
       ],
-      "hash": "2D6E5BFB"
+      "hash": "ED3A12F6"
     },
     {
       "id": "C_B5C0296B",
@@ -648,12 +617,11 @@
       "supertype": "Creature",
       "attackAbility": true,
       "guardAbility": true,
-      "chargeAbility": true,
       "illustration": "DarkPrisoner",
       "power": 1,
       "life": 2,
       "costList": [
-        1.0,
+        0.0,
         0.5,
         0.0,
         1.0
@@ -664,7 +632,7 @@
       "effectIds": [
         "BC5252DD"
       ],
-      "hash": "B5C0296B"
+      "hash": "DE6E69AB"
     },
     {
       "id": "C_D04CC69F",
@@ -672,12 +640,11 @@
       "supertype": "Creature",
       "attackAbility": true,
       "guardAbility": true,
-      "chargeAbility": true,
       "illustration": "MukaMuka",
       "power": 1,
       "life": 2,
       "costList": [
-        1.0,
+        0.0,
         0.5,
         0.0,
         1.0
@@ -688,7 +655,7 @@
       "effectIds": [
         "179CECE8"
       ],
-      "hash": "D04CC69F"
+      "hash": "F781B3B9"
     },
     {
       "id": "C_E2122348",
@@ -696,12 +663,11 @@
       "supertype": "Creature",
       "attackAbility": true,
       "guardAbility": true,
-      "chargeAbility": true,
       "illustration": "Griffore",
       "power": 1,
       "life": 2,
       "costList": [
-        1.0,
+        0.0,
         0.5,
         0.0,
         1.0
@@ -712,7 +678,7 @@
       "effectIds": [
         "60011B78"
       ],
-      "hash": "E2122348"
+      "hash": "EE8ECFC0"
     },
     {
       "id": "C_CD77F233",
@@ -720,12 +686,11 @@
       "supertype": "Creature",
       "attackAbility": true,
       "guardAbility": true,
-      "chargeAbility": true,
       "illustration": "DragonessTheWickedKnight",
       "power": 1,
       "life": 1,
       "costList": [
-        1.0,
+        0.0,
         0.5,
         0.0,
         0.5
@@ -736,7 +701,7 @@
       "effectIds": [
         "AE2C3BF2"
       ],
-      "hash": "CD77F233"
+      "hash": "8AAC3927"
     },
     {
       "id": "C_E84B9F8A",
@@ -744,12 +709,11 @@
       "supertype": "Creature",
       "attackAbility": true,
       "guardAbility": true,
-      "chargeAbility": true,
       "illustration": "DarkPrisoner",
       "power": 1,
       "life": 2,
       "costList": [
-        1.0,
+        0.0,
         0.5,
         0.0,
         1.0
@@ -760,7 +724,7 @@
       "effectIds": [
         "07F57EE1"
       ],
-      "hash": "E84B9F8A"
+      "hash": "B37A1696"
     },
     {
       "id": "C_96610366",
@@ -768,12 +732,11 @@
       "supertype": "Creature",
       "attackAbility": true,
       "guardAbility": true,
-      "chargeAbility": true,
       "illustration": "PetitAngel",
       "power": 1,
       "life": 2,
       "costList": [
-        1.0,
+        0.0,
         0.5,
         0.0,
         1.0
@@ -784,7 +747,7 @@
       "effectIds": [
         "6B9F7621"
       ],
-      "hash": "96610366"
+      "hash": "E8CA45E8"
     },
     {
       "id": "C_5EAB2F1B",
@@ -792,12 +755,11 @@
       "supertype": "Creature",
       "attackAbility": true,
       "guardAbility": true,
-      "chargeAbility": true,
       "illustration": "PetitAngel",
       "power": 1,
       "life": 2,
       "costList": [
-        1.0,
+        0.0,
         0.5,
         0.0,
         1.0
@@ -808,7 +770,7 @@
       "effectIds": [
         "64CDFD65"
       ],
-      "hash": "5EAB2F1B"
+      "hash": "951A0C7D"
     },
     {
       "id": "C_0C94B65F",
@@ -816,12 +778,11 @@
       "supertype": "Creature",
       "attackAbility": true,
       "guardAbility": true,
-      "chargeAbility": true,
       "illustration": "PetitAngel",
       "power": 1,
       "life": 2,
       "costList": [
-        1.0,
+        0.0,
         0.5,
         0.0,
         1.0
@@ -832,7 +793,7 @@
       "effectIds": [
         "E2D48807"
       ],
-      "hash": "0C94B65F"
+      "hash": "C4731880"
     },
     {
       "id": "C_0E166CA4",
@@ -840,12 +801,11 @@
       "supertype": "Creature",
       "attackAbility": true,
       "guardAbility": true,
-      "chargeAbility": true,
       "illustration": "PetitAngel",
       "power": 1,
       "life": 2,
       "costList": [
-        1.0,
+        0.0,
         0.5,
         0.0,
         1.0
@@ -856,7 +816,7 @@
       "effectIds": [
         "AD5DD5DB"
       ],
-      "hash": "0E166CA4"
+      "hash": "465A7ED9"
     },
     {
       "id": "C_AE964832",
@@ -864,12 +824,11 @@
       "supertype": "Creature",
       "attackAbility": true,
       "guardAbility": true,
-      "chargeAbility": true,
       "illustration": "PetitAngel",
       "power": 1,
       "life": 2,
       "costList": [
-        1.0,
+        0.0,
         0.5,
         0.0,
         1.0
@@ -880,7 +839,7 @@
       "effectIds": [
         "14B9EF4F"
       ],
-      "hash": "AE964832"
+      "hash": "ED319B0D"
     },
     {
       "id": "C_A9ED8C5A",
@@ -888,12 +847,11 @@
       "supertype": "Creature",
       "attackAbility": true,
       "guardAbility": true,
-      "chargeAbility": true,
       "illustration": "PetitAngel",
       "power": 1,
       "life": 2,
       "costList": [
-        1.0,
+        0.0,
         0.5,
         0.0,
         1.0
@@ -904,7 +862,7 @@
       "effectIds": [
         "CD0C3750"
       ],
-      "hash": "A9ED8C5A"
+      "hash": "2392CE37"
     },
     {
       "id": "C_94DA8F61",
@@ -912,12 +870,11 @@
       "supertype": "Creature",
       "attackAbility": true,
       "guardAbility": true,
-      "chargeAbility": true,
       "illustration": "Kojikocy",
       "power": 1,
       "life": 1,
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -931,7 +888,6 @@
       "id": "C_95187C1C",
       "cardName": "教学·11",
       "supertype": "Spell",
-      "chargeAbility": true,
       "tags": [
         "教学"
       ],
@@ -939,18 +895,17 @@
         "80B7DA7B"
       ],
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
       ],
-      "hash": "95187C1C"
+      "hash": "97868E21"
     },
     {
       "id": "C_AA96F206",
       "cardName": "教学·12",
       "supertype": "Spell",
-      "chargeAbility": true,
       "tags": [
         "教学"
       ],
@@ -958,18 +913,17 @@
         "FE4D4EBB"
       ],
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
       ],
-      "hash": "AA96F206"
+      "hash": "9C82FA44"
     },
     {
       "id": "C_CC0DE001",
       "cardName": "教学·50",
       "supertype": "Spell",
-      "chargeAbility": true,
       "tags": [
         "教学"
       ],
@@ -977,18 +931,17 @@
         "CC0DE003"
       ],
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
       ],
-      "hash": "CC0DE001"
+      "hash": "D6733603"
     },
     {
       "id": "C_CC0DE002",
       "cardName": "教学·51",
       "supertype": "Spell",
-      "chargeAbility": true,
       "tags": [
         "教学"
       ],
@@ -996,12 +949,12 @@
         "CC0DE004"
       ],
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
       ],
-      "hash": "CC0DE002"
+      "hash": "204C30FE"
     },
     {
       "id": "C_CC0DE003",
@@ -1010,10 +963,10 @@
       "power": 0,
       "life": 2,
       "costList": [
-        1.0,
-        0.5,
         0.0,
-        0.5
+        0.0,
+        0.0,
+        0.0
       ],
       "tags": [
         "教学"
@@ -1021,7 +974,7 @@
       "effectIds": [
         "CC0DE005"
       ],
-      "hash": "CC0DE003"
+      "hash": "E82459CD"
     },
     {
       "id": "C_BD0822E9",
@@ -1029,12 +982,11 @@
       "supertype": "Creature",
       "attackAbility": true,
       "guardAbility": true,
-      "chargeAbility": true,
       "illustration": "MukaMuka",
       "power": 1,
       "life": 2,
       "costList": [
-        1.0,
+        0.0,
         0.5,
         0.0,
         1.0
@@ -1045,7 +997,7 @@
       "effectIds": [
         "29C47333"
       ],
-      "hash": "BD0822E9"
+      "hash": "A8C21A37"
     },
     {
       "id": "C_6E58021B",
@@ -1053,12 +1005,11 @@
       "supertype": "Creature",
       "attackAbility": true,
       "guardAbility": true,
-      "chargeAbility": true,
       "illustration": "Kojikocy",
       "power": 1,
       "life": 2,
       "costList": [
-        1.0,
+        0.0,
         0.5,
         0.0,
         1.0
@@ -1077,12 +1028,11 @@
       "supertype": "Creature",
       "attackAbility": true,
       "guardAbility": true,
-      "chargeAbility": true,
       "illustration": "Kojikocy",
       "power": 1,
       "life": 1,
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -1098,12 +1048,11 @@
       "supertype": "Creature",
       "attackAbility": true,
       "guardAbility": true,
-      "chargeAbility": true,
       "illustration": "Morinphen",
       "power": 1,
       "life": 1,
       "costList": [
-        1.0,
+        0.0,
         1.5,
         4.0,
         0.5
@@ -1117,7 +1066,7 @@
       "effectIds": [
         "4E21BFCF"
       ],
-      "hash": "11B82155"
+      "hash": "F751C8E2"
     },
     {
       "id": "C_9D044165",
@@ -1125,12 +1074,11 @@
       "supertype": "Creature",
       "attackAbility": true,
       "guardAbility": true,
-      "chargeAbility": true,
       "illustration": "Morinphen",
       "power": 1,
       "life": 1,
       "costList": [
-        1.0,
+        0.0,
         1.5,
         4.0,
         0.5
@@ -1144,15 +1092,14 @@
       "effectIds": [
         "4E21BFCF"
       ],
-      "hash": "9D044165"
+      "hash": "55545CF7"
     },
     {
       "id": "C_6A87E23A",
       "cardName": "预组·17",
       "supertype": "Enchantment",
-      "chargeAbility": true,
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -1165,15 +1112,14 @@
         "38B76368"
       ],
       "durability": 2,
-      "hash": "6A87E23A"
+      "hash": "7FA01CD2"
     },
     {
       "id": "C_339E9C1F",
       "cardName": "预组·18",
       "supertype": "Enchantment",
-      "chargeAbility": true,
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -1186,15 +1132,14 @@
         "B3EC27CE"
       ],
       "durability": 2,
-      "hash": "339E9C1F"
+      "hash": "A3F3E63A"
     },
     {
       "id": "C_EF25C2FD",
       "cardName": "预组·19",
       "supertype": "Enchantment",
-      "chargeAbility": true,
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -1207,15 +1152,14 @@
         "72E637F4"
       ],
       "durability": 2,
-      "hash": "EF25C2FD"
+      "hash": "523D745C"
     },
     {
       "id": "C_4B282868",
       "cardName": "预组·20",
       "supertype": "Enchantment",
-      "chargeAbility": true,
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -1228,13 +1172,12 @@
         "3A891EB7"
       ],
       "durability": 2,
-      "hash": "4B282868"
+      "hash": "EAA568A7"
     },
     {
       "id": "C_D0AF2ABB",
       "cardName": "预组·21",
       "supertype": "Spell",
-      "chargeAbility": true,
       "tags": [
         "ThemeBlueSurplus",
         "教学"
@@ -1244,7 +1187,7 @@
       ],
       "speedBonus": 2,
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -1255,7 +1198,6 @@
       "id": "C_B19375C1",
       "cardName": "预组·22",
       "supertype": "Spell",
-      "chargeAbility": true,
       "tags": [
         "ThemeBlueSurplus",
         "教学"
@@ -1265,7 +1207,7 @@
       ],
       "speedBonus": 2,
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -1276,7 +1218,6 @@
       "id": "C_2B79CDB1",
       "cardName": "预组·23",
       "supertype": "Spell",
-      "chargeAbility": true,
       "tags": [
         "ThemeBlueSurplus",
         "教学"
@@ -1286,7 +1227,7 @@
       ],
       "speedBonus": 2,
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -1297,7 +1238,6 @@
       "id": "C_0AD56075",
       "cardName": "预组·24",
       "supertype": "Spell",
-      "chargeAbility": true,
       "tags": [
         "ThemeBlueSurplus",
         "教学"
@@ -1308,7 +1248,7 @@
       ],
       "speedBonus": 1,
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -1319,7 +1259,6 @@
       "id": "C_AD521F40",
       "cardName": "预组·25",
       "supertype": "Spell",
-      "chargeAbility": true,
       "tags": [
         "ThemeBlueSurplus",
         "教学"
@@ -1329,7 +1268,7 @@
       ],
       "speedBonus": 2,
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -1342,10 +1281,9 @@
       "supertype": "Creature",
       "attackAbility": true,
       "guardAbility": true,
-      "chargeAbility": true,
       "life": 5,
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         2.0
@@ -1362,11 +1300,10 @@
       "supertype": "Creature",
       "attackAbility": true,
       "guardAbility": true,
-      "chargeAbility": true,
       "power": 2,
       "life": 4,
       "costList": [
-        1.0,
+        0.0,
         0.5,
         0.0,
         1.5
@@ -1383,11 +1320,10 @@
       "supertype": "Creature",
       "attackAbility": true,
       "guardAbility": true,
-      "chargeAbility": true,
       "power": 4,
       "life": 5,
       "costList": [
-        1.0,
+        0.0,
         1.5,
         0.0,
         2.0
@@ -1402,7 +1338,6 @@
       "id": "C_B98ABB51",
       "cardName": "隐匿",
       "supertype": "Spell",
-      "chargeAbility": true,
       "tags": [
         "ThemeBlueSurplus",
         "教学"
@@ -1412,7 +1347,7 @@
       ],
       "speedBonus": 2,
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -1424,9 +1359,8 @@
       "cardName": "虚空巨像",
       "supertype": "Creature",
       "attackAbility": true,
-      "chargeAbility": true,
       "costList": [
-        1.0,
+        0.0,
         4.0,
         0.0,
         4.0
@@ -1440,16 +1374,15 @@
       ],
       "power": 9,
       "life": 9,
-      "hash": "8A60A92A"
+      "hash": "98A2848C"
     },
     {
       "id": "C_704F7F1C",
       "cardName": "爆裂兽",
       "supertype": "Creature",
       "attackAbility": true,
-      "chargeAbility": true,
       "costList": [
-        1.0,
+        0.0,
         2.0,
         0.0,
         2.0
@@ -1463,15 +1396,14 @@
       ],
       "power": 5,
       "life": 5,
-      "hash": "704F7F1C"
+      "hash": "75BA95DE"
     },
     {
       "id": "C_6673D86B",
       "cardName": "菌丝",
       "supertype": "Spell",
-      "chargeAbility": true,
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -1490,9 +1422,8 @@
       "cardName": "小守誓",
       "supertype": "Creature",
       "guardAbility": true,
-      "chargeAbility": true,
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         3.0
@@ -1513,9 +1444,8 @@
       "cardName": "守誓",
       "supertype": "Creature",
       "guardAbility": true,
-      "chargeAbility": true,
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         10.5
@@ -1536,9 +1466,8 @@
       "id": "C_C3C1B182",
       "cardName": "培育",
       "supertype": "Spell",
-      "chargeAbility": true,
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -1556,7 +1485,6 @@
       "id": "C_E8686C24",
       "cardName": "成长",
       "supertype": "Spell",
-      "chargeAbility": true,
       "tags": [
         "ThemeGreenCountdown",
         "教学"
@@ -1566,19 +1494,18 @@
       ],
       "speedBonus": 2,
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
       ],
-      "hash": "E8686C24"
+      "hash": "3C39281A"
     },
     {
       "id": "C_C4A9FF45",
       "cardName": "林地守卫",
       "supertype": "Creature",
       "guardAbility": true,
-      "chargeAbility": true,
       "power": 1,
       "life": 7,
       "keywords": [
@@ -1589,7 +1516,7 @@
         "教学"
       ],
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         4.5
@@ -1601,7 +1528,6 @@
       "cardName": "雾障",
       "supertype": "Creature",
       "guardAbility": true,
-      "chargeAbility": true,
       "power": 1,
       "life": 5,
       "tags": [
@@ -1612,19 +1538,18 @@
         "099F66FB"
       ],
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         2.0
       ],
-      "hash": "F49188CC"
+      "hash": "5DD9F397"
     },
     {
       "id": "C_BFE245C2",
       "cardName": "爆荚",
       "supertype": "Creature",
       "guardAbility": true,
-      "chargeAbility": true,
       "power": 1,
       "life": 3,
       "tags": [
@@ -1635,19 +1560,18 @@
         "AF36EA72"
       ],
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         1.0
       ],
-      "hash": "BFE245C2"
+      "hash": "AAA468B5"
     },
     {
       "id": "C_17CED892",
       "cardName": "噬血藤",
       "supertype": "Creature",
       "guardAbility": true,
-      "chargeAbility": true,
       "power": 0,
       "life": 6,
       "tags": [
@@ -1658,19 +1582,18 @@
         "9170B00B"
       ],
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         2.5
       ],
-      "hash": "17CED892"
+      "hash": "15509DE4"
     },
     {
       "id": "C_0D72F2B6",
       "cardName": "獠牙",
       "supertype": "Creature",
       "guardAbility": true,
-      "chargeAbility": true,
       "power": 1,
       "life": 5,
       "tags": [
@@ -1681,18 +1604,17 @@
         "B4AA343A"
       ],
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         2.0
       ],
-      "hash": "0D72F2B6"
+      "hash": "615267F1"
     },
     {
       "id": "C_0C3A881F",
       "cardName": "活体护甲",
       "supertype": "Spell",
-      "chargeAbility": true,
       "tags": [
         "ThemeGreenCountdown",
         "教学"
@@ -1702,12 +1624,12 @@
       ],
       "speedBonus": 2,
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
       ],
-      "hash": "0C3A881F"
+      "hash": "4A1DDEE2"
     },
     {
       "id": "C_F8AA7D46",
@@ -1715,7 +1637,6 @@
       "supertype": "Creature",
       "attackAbility": true,
       "guardAbility": true,
-      "chargeAbility": true,
       "power": 1,
       "life": 1,
       "tags": [
@@ -1726,19 +1647,18 @@
         "D0C61A63"
       ],
       "costList": [
-        1.0,
+        0.0,
         0.5,
         0.0,
         1.5
       ],
-      "hash": "F8AA7D46"
+      "hash": "8E2D7455"
     },
     {
       "id": "C_DA012D06",
       "cardName": "晨露",
       "supertype": "Creature",
       "guardAbility": true,
-      "chargeAbility": true,
       "power": 0,
       "life": 6,
       "tags": [
@@ -1749,20 +1669,19 @@
         "E404DB9B"
       ],
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         2.5
       ],
-      "hash": "DA012D06"
+      "hash": "4E62DE55"
     },
     {
       "id": "C_DDB09243",
       "cardName": "潮汐",
       "supertype": "Spell",
-      "chargeAbility": true,
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -1774,15 +1693,14 @@
       "effectIds": [
         "C9BDE58E"
       ],
-      "hash": "DDB09243"
+      "hash": "69535E51"
     },
     {
       "id": "C_3FE20343",
       "cardName": "乱流",
       "supertype": "Spell",
-      "chargeAbility": true,
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -1800,9 +1718,8 @@
       "id": "C_AB394031",
       "cardName": "抹除",
       "supertype": "Spell",
-      "chargeAbility": true,
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -1820,9 +1737,8 @@
       "id": "C_48CB732A",
       "cardName": "逐出",
       "supertype": "Spell",
-      "chargeAbility": true,
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -1840,9 +1756,8 @@
       "id": "C_7A517CA5",
       "cardName": "窥手碑",
       "supertype": "Enchantment",
-      "chargeAbility": true,
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -1855,15 +1770,14 @@
         "643BFF5D"
       ],
       "durability": 4,
-      "hash": "7A517CA5"
+      "hash": "7F95E083"
     },
     {
       "id": "C_8B12838C",
       "cardName": "汲涌碑",
       "supertype": "Enchantment",
-      "chargeAbility": true,
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -1876,15 +1790,14 @@
         "B3EC27CE"
       ],
       "durability": 4,
-      "hash": "8B12838C"
+      "hash": "329B5A93"
     },
     {
       "id": "C_5E135B65",
       "cardName": "回春碑",
       "supertype": "Enchantment",
-      "chargeAbility": true,
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -1897,15 +1810,14 @@
         "302E1C7E"
       ],
       "durability": 4,
-      "hash": "5E135B65"
+      "hash": "5BAD55C5"
     },
     {
       "id": "C_7B43F386",
       "cardName": "霜降碑",
       "supertype": "Enchantment",
-      "chargeAbility": true,
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -1918,15 +1830,14 @@
         "3A891EB7"
       ],
       "durability": 4,
-      "hash": "7B43F386"
+      "hash": "3138F707"
     },
     {
       "id": "C_40F826F1",
       "cardName": "退潮碑",
       "supertype": "Enchantment",
-      "chargeAbility": true,
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -1939,15 +1850,14 @@
         "735B2360"
       ],
       "durability": 4,
-      "hash": "40F826F1"
+      "hash": "FF4D56D9"
     },
     {
       "id": "C_F65A8F31",
       "cardName": "缓兵",
       "supertype": "Spell",
-      "chargeAbility": true,
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -1959,15 +1869,14 @@
       "effectIds": [
         "1B5250E3"
       ],
-      "hash": "F2F9F178"
+      "hash": "788E7621"
     },
     {
       "id": "C_6533A861",
       "cardName": "沉沙",
       "supertype": "Spell",
-      "chargeAbility": true,
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -1979,15 +1888,14 @@
       "effectIds": [
         "84969C65"
       ],
-      "hash": "6533A861"
+      "hash": "597291F0"
     },
     {
       "id": "C_FBECD5BF",
       "cardName": "遗策",
       "supertype": "Spell",
-      "chargeAbility": true,
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -1999,15 +1907,14 @@
       "effectIds": [
         "9C4515B2"
       ],
-      "hash": "FBECD5BF"
+      "hash": "54A36A87"
     },
     {
       "id": "C_6DFA3132",
       "cardName": "沉眠",
       "supertype": "Spell",
-      "chargeAbility": true,
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -2019,7 +1926,7 @@
       "effectIds": [
         "42CBFCF7"
       ],
-      "hash": "6DFA3132"
+      "hash": "5DE9C95A"
     },
     {
       "id": "C_12B4DF83",
@@ -2027,11 +1934,10 @@
       "supertype": "Creature",
       "attackAbility": true,
       "guardAbility": true,
-      "chargeAbility": true,
       "power": 0,
       "life": 6,
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         4.5
@@ -2049,9 +1955,8 @@
       "id": "C_33A7C78B",
       "cardName": "蚀忆",
       "supertype": "Spell",
-      "chargeAbility": true,
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -2063,15 +1968,14 @@
       "effectIds": [
         "91133E76"
       ],
-      "hash": "C7DF3979"
+      "hash": "3CCF2B54"
     },
     {
       "id": "C_FD7387F5",
       "cardName": "噬典",
       "supertype": "Spell",
-      "chargeAbility": true,
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -2089,9 +1993,8 @@
       "id": "C_3F2E69F0",
       "cardName": "幻壁",
       "supertype": "Spell",
-      "chargeAbility": true,
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -2109,9 +2012,8 @@
       "id": "C_F604F751",
       "cardName": "乱锋",
       "supertype": "Spell",
-      "chargeAbility": true,
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -2123,15 +2025,14 @@
       "effectIds": [
         "EA8346E6"
       ],
-      "hash": "F604F751"
+      "hash": "6E7523E4"
     },
     {
       "id": "C_DF45065E",
       "cardName": "潮痕碑",
       "supertype": "Enchantment",
-      "chargeAbility": true,
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -2144,15 +2045,14 @@
         "1FB7E6DA"
       ],
       "durability": 4,
-      "hash": "DF45065E"
+      "hash": "D9D4118A"
     },
     {
       "id": "C_2BD6EDE2",
       "cardName": "深潭碑",
       "supertype": "Enchantment",
-      "chargeAbility": true,
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -2165,15 +2065,14 @@
         "79655260"
       ],
       "durability": 4,
-      "hash": "2BD6EDE2"
+      "hash": "9D7AB36C"
     },
     {
       "id": "C_AAA266D0",
       "cardName": "洗回",
       "supertype": "Spell",
-      "chargeAbility": true,
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -2191,9 +2090,8 @@
       "id": "C_6CE54813",
       "cardName": "回收",
       "supertype": "Spell",
-      "chargeAbility": true,
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -2211,9 +2109,8 @@
       "id": "C_8A2A1F78",
       "cardName": "回潮",
       "supertype": "Spell",
-      "chargeAbility": true,
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -2232,9 +2129,8 @@
       "cardName": "火灵·攻",
       "supertype": "Creature",
       "attackAbility": true,
-      "chargeAbility": true,
       "costList": [
-        1.0,
+        0.0,
         1.0,
         0.0,
         0.0
@@ -2248,16 +2144,15 @@
       ],
       "power": 1,
       "life": 1,
-      "hash": "57BA44EC"
+      "hash": "88677C6C"
     },
     {
       "id": "C_5F93DCDD",
       "cardName": "火灵·守",
       "supertype": "Creature",
       "guardAbility": true,
-      "chargeAbility": true,
       "costList": [
-        1.0,
+        0.0,
         1.0,
         0.0,
         0.0
@@ -2271,14 +2166,13 @@
       ],
       "power": 1,
       "life": 1,
-      "hash": "5F93DCDD"
+      "hash": "98B2054E"
     },
     {
       "id": "C_138CE290",
       "cardName": "火苗",
       "supertype": "Creature",
       "attackAbility": true,
-      "chargeAbility": true,
       "tags": [
         "ThemeRedClash",
         "教学"
@@ -2287,7 +2181,7 @@
       "power": 2,
       "life": 2,
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -2299,7 +2193,6 @@
       "cardName": "余烬",
       "supertype": "Creature",
       "attackAbility": true,
-      "chargeAbility": true,
       "tags": [
         "ThemeRedClash",
         "教学"
@@ -2308,7 +2201,7 @@
       "power": 2,
       "life": 2,
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -2319,9 +2212,8 @@
       "id": "C_E105FABA",
       "cardName": "血偿",
       "supertype": "Spell",
-      "chargeAbility": true,
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -2333,15 +2225,14 @@
       "effectIds": [
         "FC0E95E4"
       ],
-      "hash": "E105FABA"
+      "hash": "B4F4BF75"
     },
     {
       "id": "C_7118DF4D",
       "cardName": "追击",
       "supertype": "Spell",
-      "chargeAbility": true,
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -2353,15 +2244,14 @@
       "effectIds": [
         "8200C531"
       ],
-      "hash": "7118DF4D"
+      "hash": "D162C03B"
     },
     {
       "id": "C_77A047CD",
       "cardName": "激励",
       "supertype": "Spell",
-      "chargeAbility": true,
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -2373,15 +2263,14 @@
       "effectIds": [
         "31CE6ACE"
       ],
-      "hash": "77A047CD"
+      "hash": "62949B62"
     },
     {
       "id": "C_8F136E25",
       "cardName": "流失",
       "supertype": "Spell",
-      "chargeAbility": true,
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -2393,13 +2282,12 @@
       "effectIds": [
         "C5180E36"
       ],
-      "hash": "8F136E25"
+      "hash": "FB730C7F"
     },
     {
       "id": "C_5705F9FE",
       "cardName": "活体炸弹",
       "supertype": "Spell",
-      "chargeAbility": true,
       "tags": [
         "ThemeRedClash",
         "教学"
@@ -2408,12 +2296,12 @@
         "0909E61B"
       ],
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
       ],
-      "hash": "5705F9FE"
+      "hash": "DAD5FB36"
     }
   ]
 }

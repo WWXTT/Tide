@@ -429,8 +429,9 @@ namespace CardCore.Editor
                     // 2026-10-11 现取现用：横置产元素 intent 已删——付费时服务器自动横置，无回合初产色职责
 
                     // 动作循环：枚举 → 选型 → 映射 intent → 分派（拒绝即本回合拉黑重枚举）。
-                    // 步预算 40（2026-11-05 v11 充能动作化后上调 24→40）：任意手牌卡每卡一条 Charge 行
-                    // 扩大了动作面，24 步会被「禁用拉黑 + 充能接受」吃满，饿死 PlayLand/EndTurn。
+                    // 步预算 40（2026-11-05 v11 充能动作化后上调 24→40）：当年任意手牌卡每卡一条
+                    // Charge 行扩大动作面，24 步会被「禁用拉黑 + 充能接受」吃满饿死 PlayLand/EndTurn
+                    //（2026-11-08 充能暂不开放后 Charge 行退场，预算余量更宽，40 保持不动）。
                     bool landPlayedThisTurn = false;
                     for (int step = 0; step < 40; step++)
                     {
@@ -538,7 +539,9 @@ namespace CardCore.Editor
                         core.TurnEngine.CheckPhaseTransition();
                 }
 
-                foreach (var type in new[] { TideActionType.PlayCard, TideActionType.Charge, TideActionType.PlayLand, TideActionType.Attack, TideActionType.EndTurn })
+                // 2026-11-08 充能暂不开放（表侧 181 位清零）：全池无充能资格卡——Charge 行不再
+                // 枚举，覆盖断言移出必现名单（线上分支保留，充能卡回归时断言复原即可）。
+                foreach (var type in new[] { TideActionType.PlayCard, TideActionType.PlayLand, TideActionType.Attack, TideActionType.EndTurn })
                     Assert(coverage.GetValueOrDefault(type) >= 1, $"intent 覆盖 {type} × {coverage.GetValueOrDefault(type)} ≥ 1");
                 Debug.Log($"[NetVerify] intent 覆盖：{string.Join(", ", coverage.Select(k => $"{k.Key}×{k.Value}"))}");
 

@@ -95,6 +95,30 @@ namespace SynergyUI
         /// 玩家/教学两池——训练桥/验证器按 id 可取，玩家侧一切卡池面不可见不可改）。</summary>
         public static string TrainingFileIn(string fileName) => Path.Combine(TrainingDir, fileName);
 
+        /// <summary>内容包根目录内路径（G2 内容包容器 2026-11-08）：每个已装包 = PackDir/&lt;包id&gt;/
+        /// 子目录（pack.json/atoms.json/effects.json/cards.json/decks.json/seal.json）。
+        /// 装卸唯一写口=ContentPackRegistry（装卸即失效两目录缓存）。</summary>
+        public static string PackFileIn(string fileName) => Path.Combine(PackDir, fileName);
+
+        /// <summary>内容包根目录（G2 2026-11-08）：编辑器=Assets/Packs（即装即见，与 CardData 同
+        /// 仓库内口径）；玩家=persistent/Packs（工坊/导入落此，不经 EnsureBootstrap 下发）；
+        /// TideServer=仓库源回落（无头对拍同读）。目录缺失=无包，装载自然为空。</summary>
+        public static string PackDir
+        {
+            get
+            {
+#if UNITY_EDITOR
+                return Path.Combine(TidePaths.DataPath, "Packs");
+#else
+                string persistent = Path.Combine(TidePaths.PersistentDataPath, "Packs");
+                if (Directory.Exists(persistent)) return persistent;
+                string source = Path.Combine(TidePaths.DataPath, "Packs");
+                if (Directory.Exists(source)) return source;
+                return persistent;
+#endif
+            }
+        }
+
         /// <summary>训练数据目录（编辑器=仓库源 Assets/TrainingData；TideServer=仓库源回落；
         /// 玩家构建=persistent/Training，**不经 EnsureBootstrap 下发**——训练内容只随开发侧
         /// 仓库走，玩家设备上该目录不存在=合并装载自然为空，天然不可见）。</summary>
