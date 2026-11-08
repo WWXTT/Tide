@@ -213,6 +213,7 @@ namespace CardCore
             ValidateEnchantShape(result);
             ValidateCreatureShape(result);
             ValidateAtomParams(result);
+            ValidateValueBounds(result);
 
             return result;
         }
@@ -307,6 +308,15 @@ namespace CardCore
             return false;
         }
 
+        /// <summary>引擎时机归一（2026-11-08 阶段3·外层一致性比对用）：校验枚举合法；
+        /// OnTurnStart 收归 OnStandbyPhase（与 ConvertOne 顶部同规则）；非法值 → null。</summary>
+        private static TriggerTiming? NormalizeEngineTiming(int raw)
+        {
+            if (raw < 0 || !Enum.IsDefined(typeof(TriggerTiming), raw)) return null;
+            var t = (TriggerTiming)raw;
+            return t == TriggerTiming.OnTurnStart ? TriggerTiming.OnStandbyPhase : t;
+        }
+
         /// <summary>
         /// 装载期参数校验（2026-10-31 阶段B 原子表「参数」列配套，可见不炸——坏行点名）：
         /// 参数≠None 的行，实例 str 为空 → Error 指出行名——取代运行时静默空转/计价退回默认档
@@ -316,8 +326,8 @@ namespace CardCore
         /// 注入的卡目录——与 ValidateMountHosts 同一解析器）。
         /// EffectRef（2026-11-06 附加诅咒/祝福载荷效果化）的 str 须在 EffectsLibrary 解析到条目
         /// 且通过载荷资格（EffectEligibility.CursePayloadRejectReason——主动∧极性匹配引擎行）。
-        /// 豁免：引擎主干行（附加诅咒/附加祝福）的旧手写形态=branch.then 载荷、无 str——照旧放行
-        ///（兼容通道）；带 str 的引擎主干走 str 校验（载荷=效果引用，主通道）。
+        /// 引擎分支收口（2026-11-08 阶段3）：settle=Engine 的分支 then 非空/无 effectId/奖励资格不符/
+        /// 外层时机与奖励时机不一致 → Error（见方法内引擎闸）；引擎主干行 Param=None，不经行参数段。
         /// </summary>
         private static void ValidateAtomParams(List<CardData> cards)
         {
@@ -333,32 +343,82 @@ namespace CardCore
                     if (eff == null) continue;
                     foreach (var atom in EnumerateAtomEntries(eff))
                     {
-                        // 分支奖励效果引用（2026-11-07 分支奖励效果化）：悬空/资格不符装载期点名
-                        //（资格单源 EffectEligibility.BranchRewardRejectReason——与合成器保存闸同口径；
-                        // 不依赖表行参数位，故置于行参数 continue 之前——普通原子主干（Param=None）
-                        // 挂 Gate 载荷同样必查）
-                        var branchFx = atom?.branch?.effectId;
-                        if (!string.IsNullOrEmpty(branchFx))
+                        // 引擎分支收口（2026-11-08 阶段3·奖励只允许效果引用）：settle=Engine 的分支
+                        // ——then 原子列非空 → Error；无 effectId（附加诅咒/祝福 str 旧手写通道同判）
+                        // → Error；effectId 走 EngineRewardRejectReason（发动档/真实时机/通用资格）
+                        // → Error；自动三（运势/拼枪/团结）另查外层时机与奖励效果时机一致 → Error。
+                        // 引擎闸已内含通用奖励资格（EngineRewardRejectReason 复用 BranchRewardRejectReason）
+                        // ——命中引擎闸即跳过下方通用段，防同因双报。
+                        var branch = atom?.branch;
+                        if (branch != null && branch.settle == (int)BranchSettleKind.Engine)
                         {
-                            var rewardData = EffectsLibrary.Resolve(branchFx);
+                            var eng = (BranchEngineKind)branch.engine;
+                            var engZh = ComposerCatalog.EngineZhOf(eng);
+                            var engFx = !string.IsNullOrEmpty(branch.effectId) ? branch.effectId : atom.str;
+                            if (branch.then != null && branch.then.Count > 0)
+                                TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}：{engZh}分支"
+                                              + "携带 then 原子列——引擎分支奖励只允许效果引用（2026-11-08 阶段3），装载期拦截");
+                            else if (string.IsNullOrEmpty(engFx))
+                                TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}：{engZh}分支"
+                                              + "缺少奖励效果引用（effectId；附加诅咒/祝福 str 通道同判）——装载期拦截");
+                            else
+                            {
+                                var engReward = EffectsLibrary.Resolve(engFx);
+                                if (engReward == null)
+                                    TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}：{engZh}分支"
+                                                  + $"奖励效果 '{engFx}' 未能在效果库解析到条目 id——装载期拦截");
+                                else
+                                {
+                                    var engReason = EffectEligibility.EngineRewardRejectReason(engReward, eng);
+                                    if (engReason != null)
+                                        TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}：{engZh}分支"
+                                                      + $"奖励效果 '{engFx}' 不符合引擎奖励资格——{engReason}（装载期拦截）");
+                                    else if (ComposerCatalog.IsAutomaticRewardEngine(eng))
+                                    {
+                                        // 自动三：外层时机必须与奖励效果时机一致（转换器同口径归一：
+                                        // OnTurnStart 收归 OnStandbyPhase；数据侧已随阶段2迁移对齐）
+                                        var rt = NormalizeEngineTiming(engReward.TriggerTiming);
+                                        var outer = NormalizeEngineTiming(eff.TriggerTiming);
+                                        if (rt == null)
+                                            TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}：{engZh}分支"
+                                                          + $"奖励效果 '{engFx}' 时机值 {engReward.TriggerTiming} 非法——装载期拦截");
+                                        else if (outer != rt)
+                                            TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}：{engZh}分支"
+                                                          + $"外层时机 {eff.TriggerTiming} 与奖励效果时机 {(int)rt} 不一致（运行时按奖励时机评估）"
+                                                          + "——装载期拦截（修表侧对齐）");
+                                    }
+                                }
+                            }
+                        }
+                        else if (!string.IsNullOrEmpty(atom?.branch?.effectId))
+                        {
+                            // 分支奖励效果引用（2026-11-07 分支奖励效果化）：悬空/资格不符装载期点名
+                            //（资格单源 EffectEligibility.BranchRewardRejectReason——与合成器保存闸同口径；
+                            // 不依赖表行参数位，故置于行参数 continue 之前——普通原子主干（Param=None）
+                            // 挂 Gate 载荷同样必查；Engine settle 分支走上方引擎闸，不入本段）
+                            var rewardData = EffectsLibrary.Resolve(atom.branch.effectId);
                             if (rewardData == null)
                                 TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}："
-                                              + $"分支奖励效果 '{branchFx}' 未能在效果库解析到条目 id——装载期拦截");
+                                              + $"分支奖励效果 '{atom.branch.effectId}' 未能在效果库解析到条目 id——装载期拦截");
                             else
                             {
                                 var reason = EffectEligibility.BranchRewardRejectReason(rewardData);
                                 if (reason != null)
                                     TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}："
-                                                  + $"分支奖励效果 '{branchFx}' 不符合奖励资格——{reason}（装载期拦截）");
+                                                  + $"分支奖励效果 '{atom.branch.effectId}' 不符合奖励资格——{reason}（装载期拦截）");
                             }
                         }
 
                         var row = Attribute.AtomicEffectTable.GetByHashId(atom?.refId);
                         if (row == null || row.Param == Attribute.AtomicParamKind.None) continue;
+                        //（2026-11-08 阶段3：引擎主干行 branch.then 旧手写兼容放行已删——then 非空
+                        //  一律上方引擎闸 Error；带 str 的引擎主干照走下方 EffectRef 载荷校验。）
+                        // 引擎主干行 effectId 直落主通道（str 空、载荷在 branch.effectId——阶段2迁移后
+                        // 主形态）：参数已由上方引擎闸统一校验，行参数段不再按 str 空误伤。
                         if (ComposerCatalog.IsEngineTrunkRow(row)
                             && string.IsNullOrEmpty(atom.str)
-                            && atom.branch?.then != null && atom.branch.then.Count > 0)
-                            continue; // 引擎主干行旧手写形态：载荷走 branch.then、无 str——兼容放行
+                            && !string.IsNullOrEmpty(atom?.branch?.effectId))
+                            continue;
                         if (string.IsNullOrEmpty(atom.str))
                         {
                             TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}："
@@ -390,6 +450,54 @@ namespace CardCore
                         }
                     }
                 }
+            }
+        }
+
+        /// <summary>数值上界校验（步6 §4.3，2026-11-08 地基计划 G1）：valueMax 声明档两查——
+        /// ① valueMax &lt; value（名义锚）→ Error 拒绝（上界低于名义值=声明矛盾）；
+        /// ② valueMax 超同类分布阈值 → Warn（阈值 v1 硬编码，P2 再做统计口径）。
+        /// valueMax=0=未声明（按值省略）不查；value 不动——定价恒按名义值。</summary>
+        private static void ValidateValueBounds(List<CardData> cards)
+        {
+            foreach (var card in cards)
+            {
+                if (card?.Effects == null) continue;
+                foreach (var eff in card.Effects)
+                {
+                    if (eff == null) continue;
+                    foreach (var atom in EnumerateAtomEntries(eff))
+                    {
+                        if (atom == null || atom.valueMax <= 0) continue;
+                        var row = Attribute.AtomicEffectTable.GetByHashId(atom.refId);
+                        string atomZh = row != null ? $"「{row.DisplayName}」" : atom.refId;
+                        if (atom.valueMax < atom.value)
+                        {
+                            TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id} 原子{atomZh}："
+                                          + $"valueMax={atom.valueMax} 低于名义值 value={atom.value}"
+                                          + "——静态上界声明矛盾，装载期拒绝");
+                            continue;
+                        }
+                        int ceiling = ValueExprCeilingOf(atom.valueExpr);
+                        if (ceiling > 0 && atom.valueMax > ceiling)
+                            TideLog.Warn($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id} 原子{atomZh}："
+                                         + $"ValueMax={atom.valueMax} 超出同类分布（{atom.valueExpr} 可达上限 {ceiling}）"
+                                         + "——仅告警，不拦截。若确为设计意图请标注");
+                    }
+                }
+            }
+        }
+
+        /// <summary>valueExpr 白名单叶子的可达上界（v1 硬编码；P2 换统计口径）。参照域现状恒为
+        /// 己方战场:生物——攻/命参照级上限 9（虚空巨像 9/9 夹具同口径）；ref.cost 无 v1 消费者
+        /// 暂同档。空/非白名单表达式=不设分布告警档（0）。</summary>
+        private static int ValueExprCeilingOf(string expr)
+        {
+            switch (expr)
+            {
+                case "ref.power": return 9;
+                case "ref.life": return 9;
+                case "ref.cost": return 9;
+                default: return 0;
             }
         }
 
@@ -790,6 +898,7 @@ namespace CardCore
             ValidateEnchantShape(result);
             ValidateCreatureShape(result);
             ValidateAtomParams(result);
+            ValidateValueBounds(result);
 
             return result;
         }

@@ -554,6 +554,11 @@ namespace CardCore
                         // 「被展示的卡送入墓地/本回合不可使用/换费用减免」类设计的取件口）
                         filters.Add(new CounterFilter(Attribute.CounterRules.ExposedCounter));
                         break;
+                    case "Armored": // 具有护甲（2026-11-08 护盾猛击参照化）：护甲指示物 ≥1——
+                        // 参照侧属性条件（RefFilter 专用：RefDomain 域文法只表结构不表状态，
+                        // 「具有护甲的」取件口挂滤器；受体侧同样可用）
+                        filters.Add(new CounterFilter(Attribute.KeywordRules.ArmorCounter));
+                        break;
                     case "Friendly":
                         filters.Add(new FriendlyFilter());
                         break;

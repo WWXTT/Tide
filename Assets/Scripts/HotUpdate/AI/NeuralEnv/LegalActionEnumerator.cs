@@ -57,6 +57,12 @@ namespace CardCore.AI.NeuralEnv
         /// -1 = 无次目标/玩家目标/超出编码上限（行内 Targets 仍完整，特征截断）。</summary>
         public int TargetIndex2;
         public int TargetIndex3;
+        /// <summary>参照单位（步5 §3.5 参照 Enumerate spec 的选择结果镜像——参照=数值基准锚，
+        /// 与受体 Targets 分角色编码；v1 单参照=行内首个 Reference 角色选位）。null=本动作无参照。</summary>
+        public Entity Reference;
+        /// <summary>参照槽位（动作特征 [11]，LayoutVersion 13）：参照卡的 cards_ 槽位；
+        /// -1 = 无参照/玩家参照（与 TargetIndex 同口径）。</summary>
+        public int ReferenceIndex;
         /// <summary>攻击者=自己角色（2026-10-10 角色参战遗留收口）：Card 恒 null、SourceIndex 恒 -1，
         /// Apply 分流 DeclareAttack(core, me, me, target)——弹药结算后引擎烧光。</summary>
         public bool HeroAttacker;
@@ -428,7 +434,8 @@ namespace CardCore.AI.NeuralEnv
                     // 普通行：全净费可付
                     if (GameActions.CanAffordCast(core, me, c, m))
                         foreach (var targets in ExpandCardTargets(core, me, c, m))
-                            Actions.Add(BuildTargetedRow(TideActionType.PlayCard, c, m, src, targets));
+                            Actions.Add(BuildTargetedRow(TideActionType.PlayCard, c, m, src, targets,
+                                reference: ReferencePickOf(core, me, c, m, targets)));
                 }
             }
 
@@ -450,7 +457,8 @@ namespace CardCore.AI.NeuralEnv
                 if (!TargetDomainService.HasPlayableTargets(core, me, top, m)) continue;
                 if (!GameActions.CanAffordCast(core, me, top, m)) continue;
                 foreach (var targets in ExpandCardTargets(core, me, top, m))
-                    Actions.Add(BuildTargetedRow(TideActionType.PlayCard, top, m, TideObservation.DeckTopSlot, targets));
+                    Actions.Add(BuildTargetedRow(TideActionType.PlayCard, top, m, TideObservation.DeckTopSlot, targets,
+                        reference: ReferencePickOf(core, me, top, m, targets)));
             }
         }
 
@@ -738,15 +746,17 @@ namespace CardCore.AI.NeuralEnv
 
                     int src = TideObservation.CardIndex(me, me, Zone.Hand, i);
                     foreach (var targets in ExpandCardTargets(core, me, c, m))
-                        Actions.Add(BuildTargetedRow(TideActionType.RespondPlay, c, m, src, targets, response: true));
+                        Actions.Add(BuildTargetedRow(TideActionType.RespondPlay, c, m, src, targets, response: true,
+                            reference: ReferencePickOf(core, me, c, m, targets)));
                 }
             }
         }
 
         /// <summary>带目标组合的动作行构造（PlayCard/RespondPlay/Activate/RespondActivate）：
-        /// 填 Target 兼容别名、槽位与目标类别特征。</summary>
+        /// 填 Target 兼容别名、槽位与目标类别特征。reference=参照角色选位镜像（步5 §3.5——
+        /// Reference Enumerate spec 的选择结果带进动作行，特征 [11] 编码；null=无参照）。</summary>
         private TideAction BuildTargetedRow(TideActionType type, Card card, int modeIndex, int sourceSlot,
-            List<Entity> targets, bool response = false, EffectDefinition effect = null)
+            List<Entity> targets, bool response = false, EffectDefinition effect = null, Entity reference = null)
         {
             var a = new TideAction
             {
@@ -757,6 +767,8 @@ namespace CardCore.AI.NeuralEnv
                 Effect = effect,
                 SourceIndex = sourceSlot,
                 ResponseContext = response,
+                Reference = reference,
+                ReferenceIndex = reference is Card rc ? TideObservation.IndexOfCard(_core, _me, rc) : -1,
             };
             if (targets != null && targets.Count > 0)
             {
@@ -861,18 +873,37 @@ namespace CardCore.AI.NeuralEnv
             EmitCombinations(candidates, need, MaxTargetCombos, sink);
         }
 
-        /// <summary>逐原子目标展开（v8 多目标 2026-11-02）：按 CollectAtomTargetSpecs 单源规格逐条展开——
-        /// 候选已完成两道过滤（与结算路径交互分支同序）；任意数量（-1）与单目标免弹档（AutoTake∧
-        /// effCount&lt;=1）不占选择权（引擎自动取/弹选代选，其余原子照常预选）；选 N 档被免弹自动取
-        ///（候选≤需求）仍显式展开唯一组合=全候选（2026-11-02 验收：2 敌+选 2 = 1 行 nTargets=2，
-        /// 显式多目标行优于 null 行交引擎自解析）；选一逐候选一行；选 N（effCount&gt;1，含压过
-        /// 选一模式情形）组合枚举；多规格=笛卡尔串接（返回序=原子执行序，预选队列有序消费对齐），
+        /// <summary>参照角色选位（步5 §3.5）：效果 spec 计划首个 Enumerate spec 为 Reference 时，
+        /// 行内 Targets 首个选位即参照（v1 单参照）——镜像进 TideAction.Reference/ReferenceIndex
+        /// 供特征 [11] 编码（AI 枚举了参照，特征里必须看得到，否则等于没学）。
+        /// null=非参照先行卡（普通目标行）。</summary>
+        private static Entity ReferencePickOf(GameCore core, Player me, Card card, int modeIndex, List<Entity> targets)
+        {
+            if (targets == null || targets.Count == 0) return null;
+            var def = FirstDomainEffect(card, modeIndex);
+            if (def == null || !def.PerAtomTargets) return null;
+            var ctx = BuildTargetCtx(core, me, card);
+            var plan = CardCore.Attribute.EffectHandlerRegistry.CollectSpecPlan(def, ctx);
+            var first = plan.FirstOrDefault(s => s.AiMode == CardCore.Attribute.AiPickMode.Enumerate);
+            return first != null && first.Role == CardCore.Attribute.TargetSpecRole.Reference
+                ? targets[0] : null;
+        }
+
+        /// <summary>逐原子目标展开（v8 多目标 2026-11-02；步5 2026-11-08 切 spec 计划单源）：
+        /// 按 CollectSpecPlan 规格**仅展开 AiMode=Enumerate 的 spec**（参照 spec=逐参照候选一行；
+        /// 分段受体 spec=Auto 不展开——结算期引擎/AiOrder 代选，不与参照维做笛卡尔积 §7 坑③；
+        /// 同域共享组=单 spec 单选位——同域并列原子共享目标）；候选已完成两道过滤（与结算路径
+        /// 交互分支同序）；任意数量（-1）与单目标免弹档（AutoTake∧effCount&lt;=1）不占选择权；
+        /// 选 N 档被免弹自动取（候选≤需求）仍显式展开唯一组合=全候选；选一逐候选一行；
+        /// 选 N（effCount&gt;1）组合枚举；多规格=笛卡尔串接（返回序=计划序=预选队列有序消费对齐），
         /// 总行数 cap=MaxTargetCombos 截断。行内 Targets 完整（特征只编码前 3 个目标）。</summary>
         private static void ExpandPerAtomTargets(GameCore core, Player me, Card card, EffectDefinition def,
             List<List<Entity>> sink)
         {
             var ctx = BuildTargetCtx(core, me, card);
-            var specs = CardCore.Attribute.EffectHandlerRegistry.CollectAtomTargetSpecs(def, ctx);
+            var specs = CardCore.Attribute.EffectHandlerRegistry.CollectSpecPlan(def, ctx)
+                .Where(s => s.AiMode == CardCore.Attribute.AiPickMode.Enumerate)
+                .ToList();
             if (specs.Count == 0) return;
 
             var rows = new List<List<Entity>> { new List<Entity>() }; // 笛卡尔种子（空行）
@@ -974,6 +1005,10 @@ namespace CardCore.AI.NeuralEnv
                 Features[b + 10] = expanded                                  // 目标数（0..8 钳；全取行=候选数）
                     ? Math.Min(a.Targets?.Count ?? 0, 8)
                     : (a.TargetKindCode > 0 ? 1 : 0);                        // Attack/Guard 单目标=1，无目标=0
+                // v13 参照槽位（步5 2026-11-08 参照 Enumerate 进动作空间）：Reference 角色选位镜像——
+                // AI 枚举了参照（活体炸弹的己方生物参照），特征必须可分（否则策略看不到选了哪个参照）。
+                // -1=无参照/玩家参照（与 TargetIndex 同口径）。
+                Features[b + 11] = expanded ? a.ReferenceIndex : -1;
             }
         }
 

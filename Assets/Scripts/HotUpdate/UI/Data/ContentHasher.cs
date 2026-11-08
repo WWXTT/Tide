@@ -246,6 +246,10 @@ namespace SynergyUI
             // 授予域 token（P2-2 2026-11-04）：非空才入哈希（按值省略——domain 空的旧卡零漂移）；
             // 同一关键词不同域（己方/双方）= 不同段 → 不同卡 ID。
             if (!string.IsNullOrEmpty(a.domain)) sb.Append(",dom=").Append(a.domain);
+            // 动态数值（步6 2026-11-08）：非默认才入哈希（按值省略——存量零漂移）；同 refId 不同
+            // 表达式=不同内容哈希（防「同 ID 异值」撞指纹）。计价不读它们（定价恒按 value 名义值）。
+            if (a.valueMax != 0) sb.Append(",vmax=").Append(a.valueMax);
+            if (!string.IsNullOrEmpty(a.valueExpr)) sb.Append(",vexpr=").Append(a.valueExpr);
             AppendBranch(sb, a.branch);
         }
 

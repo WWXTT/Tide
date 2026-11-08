@@ -116,8 +116,9 @@ namespace CardCore
         public static bool IsAutomaticFreeBranchRow(AtomicEffectType type)
             => EngineKindOf(type) != BranchEngineKind.None && !IsActiveFreeBranchRow(type);
 
-        /// <summary>主动奖励引擎（2026-11-08 规则地基定案）：倒计时/死亡计数/元素充盈——
-        /// 奖励只能挂主动效果（Activate_*，发射口入待发队列）。资格闸=EffectEligibility.EngineRewardRejectReason。</summary>
+        /// <summary>主动奖励引擎（2026-11-08 规则地基定案；同日阶段3修订发射口径）：倒计时/死亡计数/
+        /// 元素充盈——奖励只能挂主动效果（Activate_*；发射口 LaunchReward **直发**——固定三主干触发
+        /// 立即生效，主动奖励不入待发队列、忽略 tactivate）。资格闸=EffectEligibility.EngineRewardRejectReason。</summary>
         public static bool IsActiveRewardEngine(BranchEngineKind kind)
             => kind == BranchEngineKind.Countdown || kind == BranchEngineKind.DeathToll
                || kind == BranchEngineKind.ManaSurplus;
@@ -162,7 +163,8 @@ namespace CardCore
         }
 
         /// <summary>各引擎固定档（null=非引擎）——2026-11-08 规则地基定案分三组：
-        /// ① 固定三引擎（倒计时/死亡计数/元素充盈）保持原固定时机（奖励=主动效果，发射口入待发队列，
+        /// ① 固定三引擎（倒计时/死亡计数/元素充盈）保持原固定时机（奖励=主动效果，发射口直发
+        ///（2026-11-08 阶段3：主干触发立即生效、忽略 tactivate），
         ///    主干表头时机=真实系统时点）：倒计时=自动·准备阶段·无限（2026-10-20 固定触发定案）；
         ///    死亡计数=自动·其他生物死亡·无限；元素充盈=自动·效果结算后·无限（2026-11-06 判据七：
         ///    真实评估口=连锁终点 FlushCardCastSettled，时机列=真实时点）。

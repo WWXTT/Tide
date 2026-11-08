@@ -1015,9 +1015,11 @@ namespace CardCore
         /// 上报；代价语义应改走代价栏（payloads/Costs 行·色锁抵扣）或把 kinds 改指对侧。
         /// 至少覆盖用户点名四类：弃牌@己方手牌 / 造成伤害@Self（自伤）/ 消灭己方 / 磨己方牌库；
         /// 同族补：摧毁己方无生命单位、生命流失@己方、永久属性减少@己方。
-        /// **不得按表行 Polarity&lt;0 泛化**——Polarity 只说明「对目标有害」，不说明目标是谁
-        ///（历史例：迸发行域曾指己方参照而伤害落对方，泛化会误杀；2026-11-03 单目标改版后
-        /// 参照硬编码、行域已直指受害者——原则仍防未来同类行误杀）。</summary>
+        /// **不得按表行 Polarity&lt;0 泛化**——Polarity 只说明「对目标有害」，不说明目标是谁。
+        /// （历史例已随 2026-11-08 目标选择重构结构性消除：迸发曾「行域指己方参照而伤害落对方」，
+        /// 泛化会误杀；现参照域独立走 RefDomain 列、Domain 恒为受体域——两域分离后该形态不可再产生。
+        /// 白名单机制保留：防未来「有害原子行域纯己方」的同类误定价——注意参照族行 Domain 指受体
+        ///（对方侧），天然不触本闸。）</summary>
         private static readonly Dictionary<AtomicEffectType, HashSet<int>> SelfCostAtoms = new Dictionary<AtomicEffectType, HashSet<int>>
         {
             { AtomicEffectType.DiscardCard, new HashSet<int> { (int)TargetKind.OwnHand } },          // 弃牌@己方手牌

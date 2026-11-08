@@ -163,6 +163,10 @@ namespace CardCore.Network
                 EffectId = instance.Definition?.Id,
                 ModeIndex = instance.ModeIndex,
                 Targets = instance.Targets?.Select(NetEntityMapper.FromEntity).ToArray() ?? Array.Empty<NetEntityRef>(),
+                // 参照选位（步5 协议 v10 §3.3）：分角色随栈条目传输（与 Targets 分离，按 SpecKey 对齐）
+                References = instance.Refs != null && instance.Refs.Count > 0
+                    ? instance.Refs.Select(NetEntityMapper.FromEntity).ToArray()
+                    : null,
                 ActivationSpeed = instance.ActivationSpeed,
                 StackObjectType = (int)instance.Type,
             }).ToArray();

@@ -47,6 +47,15 @@ namespace CardCore
         public bool AllowCancel = false;
         /// <summary>超时秒数。0 或负数时由 Service 按回合数自动算出。</summary>
         public float TimeoutSeconds = 0f;
+        /// <summary>spec 计划关联键（2026-11-08 目标选择重构 §3.3）：格式 atom:{i}/spec:{j}/role:{r}
+        /// 或 effect/spec:{j}/role:target。引擎按 spec 计划发起的请求必带；空=非 spec 计划路径
+        ///（handler 自发反问——handler 作用域内会被守卫点名）。网络/重放/AI 代选按此键对齐，
+        /// 不靠 requestId 之外的弹窗顺序。</summary>
+        public string SpecKey;
+        /// <summary>spec 角色（步5 §3.5 AI 分派用）：本请求问的是参照（Reference）还是受体（Target）。
+        /// AI 策略按角色+PromptAtom 泛化分派（参照候选全己方→最高攻；受体窗打脸优先），不做类型
+        /// 相等特判。null=非 spec 计划路径（代价/弃牌等，保持原策略）。</summary>
+        public Attribute.TargetSpecRole? SpecRole;
     }
 
     /// <summary>
@@ -119,6 +128,41 @@ namespace CardCore
         /// 静态计数对本地 UI 与网络选择器通用（网络侧另有 NetRoom.HasPending 同向门）。</summary>
         public static int PendingRequests { get; private set; }
 
+        // ---- handler 作用域守卫（2026-11-08 目标选择重构铁律 §1.1）----
+        // 引擎调用 IAtomicEffectHandler.ExecuteAsync 期间置位：作用域内的选择请求须携带
+        // 外层 context.ApprovedSpecKeys 中的 SpecKey，否则 GuardHandlerScope 报 Error 点名
+        //（先叫后清零：登记为「后续通用化债务」，不静默也不拦截行为）。深度计数兼容
+        // handler 内再触发 ExecuteEffectAsync 的嵌套（作用域=最外层 context）。
+        private static EffectExecutionContext _handlerScope;
+        private static int _handlerScopeDepth;
+
+        /// <summary>进入 handler 作用域（ExecuteEffectAsync 调 handler 前调；须与 EndHandlerScope 严格配对）。</summary>
+        public static void BeginHandlerScope(EffectExecutionContext context)
+        {
+            if (_handlerScopeDepth == 0) _handlerScope = context;
+            _handlerScopeDepth++;
+        }
+
+        /// <summary>退出 handler 作用域（ExecuteEffectAsync 的 finally 中调）。</summary>
+        public static void EndHandlerScope()
+        {
+            if (_handlerScopeDepth > 0) _handlerScopeDepth--;
+            if (_handlerScopeDepth == 0) _handlerScope = null;
+        }
+
+        /// <summary>铁律守卫：handler 作用域内的请求 SpecKey 未获批准 → Error 点名（effect/atom/标题）。</summary>
+        private static void GuardHandlerScope(TargetSelectionRequest req)
+        {
+            if (_handlerScope == null || req == null) return;
+            var approved = _handlerScope.ApprovedSpecKeys;
+            if (!string.IsNullOrEmpty(req.SpecKey) && approved != null && approved.Contains(req.SpecKey))
+                return; // 计划内：引擎按 spec 计划发起
+            var effectId = _handlerScope.ResolvingEffect?.Id;
+            TideLog.Error($"[SpecGuard] handler 作用域内发起未批准的目标选择（铁律§1.1：选择必须来自 spec 计划）："
+                + $"effect={effectId ?? "?"} atom={req.PromptAtom} title=\"{req.Title}\" specKey=\"{req.SpecKey ?? ""}\""
+                + "——登记为通用化债务（先叫后清零，不拦截行为）");
+        }
+
         /// <summary>
         /// 通用目标选择。返回玩家选中的实体列表（自动选择时为候选前 MinCount 个）。
         /// </summary>
@@ -126,6 +170,8 @@ namespace CardCore
         {
             if (req == null || req.Candidates == null || req.Candidates.Count == 0 || req.MaxCount <= 0)
                 return new List<Entity>();
+
+            GuardHandlerScope(req);
 
             GameActions.Crumb($"target-select cands={req.Candidates.Count} min={req.MinCount} chooser={req.Chooser?.Name} ui={(Current != null ? Current.GetType().Name : "null→auto")}");
 

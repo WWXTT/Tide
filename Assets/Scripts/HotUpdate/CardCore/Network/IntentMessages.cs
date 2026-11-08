@@ -29,6 +29,12 @@ namespace CardCore.Network
 
         [MemoryPackOrder(TagTable.MsgIntentPlayCard_ModeIndex)]
         public int ModeIndex;
+
+        /// <summary>参照选位（步5 2026-11-08 协议 v10 §3.3）：声明期 Reference spec 选位显式携带
+        ///（活体炸弹的参照生物）——与 Targets 分角色上送（不混平铺数组，按 SpecKey 对齐）。
+        /// null/空=无参照。后加字段（旧客户端缺省反序列化为 null——版本闸 v10 拒旧端）。</summary>
+        [MemoryPackOrder(TagTable.MsgIntentPlayCard_References)]
+        public NetEntityRef[] References;
     }
 
     // MsgIntentTapForElement 已删（2026-10-11 现取现用：无手动横置意图）——原 101 空位已随
@@ -84,6 +90,10 @@ namespace CardCore.Network
 
         [MemoryPackOrder(TagTable.MsgIntentActivateEffect_PaidBoost)]
         public int PaidBoost;
+
+        /// <summary>参照选位（步5 协议 v10 §3.3，同 MsgIntentPlayCard.References）。null/空=无参照。</summary>
+        [MemoryPackOrder(TagTable.MsgIntentActivateEffect_References)]
+        public NetEntityRef[] References;
     }
 
     /// <summary>发动英雄技能（2026-10-21 协议补课：技能格 2026-10-15 加入，此后协议首个新 intent）。
@@ -153,6 +163,12 @@ namespace CardCore.Network
 
         [MemoryPackOrder(TagTable.MSelR_Candidates)]
         public NetEntityRef[] Candidates;
+
+        /// <summary>spec 计划关联键（步5 协议 v10 §3.3）：atom:{i}/spec:{j}/role:{r} 或
+        /// effect/spec:{j}/role:target——客户端 UI/日志/回放按它对齐本次反问问的是参照还是受体，
+        /// 不靠 requestId 之外的弹窗顺序。null=非 spec 计划路径（代价/弃牌等既有反问）。</summary>
+        [MemoryPackOrder(TagTable.MSelR_SpecKey)]
+        public string SpecKey;
     }
 
     /// <summary>反问应答：Indices 指向 MsgSelectRequest.Labels/Candidates 的下标。

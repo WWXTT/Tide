@@ -86,7 +86,7 @@ namespace CardCore.Editor.Tests
         private static void RunBurstDamageScenario(StringBuilder log, List<Check> checks)
         {
             var tmp = BuildTempCard("探针·活体炸弹", "C_TMP_BURST_PROBE", "EFF_TMP_BURST", AtomicEffectType.BurstDamage, 1);
-            CheckTableDomain(checks, AtomicEffectType.BurstDamage, "双方战场:结界;己方战场:生物", null, "活体炸弹"); // B2：Domain 新语法；伤害行已扩含结界（2026-11-05 遗留期望同步）
+            CheckTableDomain(checks, AtomicEffectType.BurstDamage, "对方战场:生物; 对方角色", null, "活体炸弹"); // 2026-11-08 参照化定案：Domain=受体域，参照走 RefDomain
 
             var core = GameCore.Instance;
             var catalog = CardCatalog.LoadAll().ToList();
@@ -185,7 +185,7 @@ namespace CardCore.Editor.Tests
         private static void RunLivingArmorDefaultScenario(StringBuilder log, List<Check> checks)
         {
             var tmp = BuildTempCard("探针·活体护甲缺省", "C_TMP_ARMOR_PROBE", "EFF_TMP_ARMOR", AtomicEffectType.LivingArmor, 1);
-            CheckTableDomain(checks, AtomicEffectType.LivingArmor, "己方战场:生物", null, "活体护甲"); // B2
+            CheckTableDomain(checks, AtomicEffectType.LivingArmor, "己方战场:生物; 己方角色", null, "活体护甲"); // 2026-11-08 参照化定案
 
             var core = GameCore.Instance;
             var catalog = CardCatalog.LoadAll().ToList();
@@ -352,7 +352,7 @@ namespace CardCore.Editor.Tests
         private static void RunShieldSlamScenario(StringBuilder log, List<Check> checks)
         {
             var tmp = BuildTempCard("探针·护盾猛击", "C_TMP_SLAM_PROBE", "EFF_TMP_SLAM", AtomicEffectType.ShieldSlam, 2);
-            CheckTableDomain(checks, AtomicEffectType.ShieldSlam, "双方战场:结界;对方战场:生物; 对方角色", null, "护盾猛击"); // B2；伤害行已扩含结界（2026-11-05 遗留期望同步）
+            CheckTableDomain(checks, AtomicEffectType.ShieldSlam, "对方战场:结界;对方战场:生物; 对方角色", null, "护盾猛击"); // 2026-11-08 参照化定案：Domain=受体域，参照=RefDomain+RefFilter(Armored)
 
             var core = GameCore.Instance;
             var catalog = CardCatalog.LoadAll().ToList();
@@ -384,21 +384,23 @@ namespace CardCore.Editor.Tests
                     // 己方角色预挂 5 层护甲（拆甲来源=硬编码角色）
                     EntityEffectExtensions.AddCounters(p1, Attribute.KeywordRules.ArmorCounter, 5, null);
 
-                    // 规格：kinds=[2] 候选=火灵+对方角色 共 2
+                    // 规格（2026-11-08 参照化）：参照 spec 候选=RefDomain(己方单位)∩Armored=仅挂 5 甲的角色 1 个
+                    //（受害者侧由引擎受体 spec 结算期解析——受体候选=火灵+对方角色，不进本断言）
                     var def = CardEffectConverter.ConvertAll(tmp.Effects, tmp.ID).First();
                     var ctx = new EffectExecutionContext { Source = p1, Controller = p1, ZoneManager = zm, ElementPool = core.ElementPool, ModeIndex = 0 };
                     var specs = Attribute.EffectHandlerRegistry.CollectAtomTargetSpecs(def, ctx);
                     checks.Add(new Check(def.Effects.Count == 1 && def.Effects[0].TargetKinds.SequenceEqual(new[] { 2 })
-                        && specs.Count == 1 && specs[0].Candidates.Count == 2 && !specs[0].AutoTake,
-                        $"护盾猛击规格期望 单原子 kinds=[2] / 1 spec / 2 候选，实际 "
+                        && specs.Count == 1 && specs[0].Candidates.Count == 1 && specs[0].Candidates.Contains(p1),
+                        $"护盾猛击规格期望 单原子 kinds=[2] / 1 spec / 参照候选 1（具甲角色·RefFilter=Armored），实际 "
                         + string.Join(" ; ", specs.Select(s => $"{s.Atom.Type}:{s.Candidates.Count}c/auto={s.AutoTake}").ToArray())));
 
-                    // LAE：2 行 nTargets=1
+                    // LAE：单行 null（唯一具甲参照=ShouldAutoTake 命中免弹+受体 Auto——两个 spec 均不占
+                    // 选择位，ExpandCardTargets 兜底单行 null 交引擎自动；多具甲单位时才逐参照一行）
                     var lae = new LegalActionEnumerator();
                     lae.Enumerate(core, p1);
                     var rows = lae.Actions.Where(a => a.Type == TideActionType.PlayCard && ReferenceEquals(a.Card, tCard)).ToList();
-                    checks.Add(new Check(rows.Count == 2 && rows.All(r => r.Targets != null && r.Targets.Count == 1),
-                        $"护盾猛击 LAE 期望 2 行 nTargets=1（单目标），实际 {rows.Count} 行"));
+                    checks.Add(new Check(rows.Count == 1 && rows[0].Targets == null,
+                        $"护盾猛击 LAE 期望 单行 null（免弹参照+受体 Auto·引擎自解析·2026-11-08 参照化），实际 {rows.Count} 行 Targets={(rows.Count > 0 && rows[0].Targets != null ? rows[0].Targets.Count + "个" : "null")}"));
 
                     // 引擎①：打火灵 → 角色甲 5 清零、火灵(1 命)被 5 伤打死
                     var ok = GameActions.PlayCard(core, p1, tCard, new List<Entity> { enemy }, Zone.Hand, 0);
@@ -440,7 +442,9 @@ namespace CardCore.Editor.Tests
                 $"{label}表行期望 域={expectDomain}/滤={expectFilter ?? "无"}（B2：TargetKinds 列删，域=Domain），实际 {filterNow}"));
         }
 
-        /// <summary>内存合成临时卡（不落盘）：单原子 refId=表行 HashId·kinds=count=1，header 无 kinds。</summary>
+        /// <summary>内存合成临时卡（不落盘）：单原子 refId=表行 HashId·kinds=count=1，header 无 kinds。
+        /// 步6（2026-11-08）：参照族探针原子携带 valueExpr（ref.power/ref.life）——伤害/护甲=参照活值
+        ///（引擎 ResolveValue 路径），与教学真卡同口径；护盾猛击无参照段照旧名义值。</summary>
         private static CardData BuildTempCard(string cardName, string cardId, string effId, AtomicEffectType type, int kind)
         {
             var row = Attribute.AtomicEffectTable.GetByType(type);
@@ -454,7 +458,15 @@ namespace CardCore.Editor.Tests
                 TargetCount = -2,   // 未声明——原子 count=1 显式声明
                 AtomicEffects = new List<AtomicEffectEntry>
                 {
-                    new AtomicEffectEntry { refId = row.HashId, kinds = new List<int> { kind }, count = 1 },
+                    new AtomicEffectEntry
+                    {
+                        refId = row.HashId,
+                        kinds = new List<int> { kind },
+                        count = 1,
+                        valueExpr = type == AtomicEffectType.BurstDamage ? "ref.power"
+                            : type == AtomicEffectType.LivingArmor ? "ref.life"
+                            : null,
+                    },
                 },
             };
             return new CardData { ID = cardId, CardName = cardName, Supertype = Cardtype.Spell, Effects = new List<CardEffectData> { eff } };

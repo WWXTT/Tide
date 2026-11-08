@@ -503,71 +503,36 @@ namespace CardCore.Attribute.Handlers
     // 受甲）。2026-11-03「单目标+硬编码最高参照」与 str="SelfUnit" 档作废；护盾猛击无参照段照旧） ----------------
 
     /// <summary>
-    /// 活体炸弹（2026-10-31 参照族；2026-11-04 双段目标改版，红3 表行 80daf3b6·原名「迸发」）：
-    /// 第一段弹选{target}=**己方生物**参照（NoRole 滤角色）；结算期对**反问选择的对方单位**
-    ///（对方生物+对方角色；候选=1 自动取、AI/无头自动取首、同步路径取首候选）造成等同参照当前
-    /// 攻击力的**效果伤害**（GetPower 活读含光环成分；非战斗伤害——TakeDamage 关键词管线照常：
-    /// 护甲/坚韧/圣盾吸收、易损放大）。无己方生物/参照攻≤0/受害者域空=空转。
-    /// 伤害产出族：LastOutcome.RecordDamage 记账——「消灭目标时」产出条件可挂。
+    /// 活体炸弹（参照族·2026-11-08 步3 换轨）：**选择全部在引擎 spec 计划**——参照=context.Refs["ref"]
+    ///（旧直调路径回落 Targets 首位）、受害者=context.Targets 首位（行 Domain=受体域，引擎在进 handler 前
+    /// 解析——候选>1 弹选/AI 代选/无头取首）。本 handler 只读结果：对受害者造成等同参照当前攻击力的
+    /// **效果伤害**（GetPower 活读含光环成分；非战斗伤害——护甲/坚韧/圣盾吸收、易损放大）。
+    /// 无己方生物/参照攻≤0/受害者域空=空转。伤害产出族：LastOutcome.RecordDamage 记账。
     /// </summary>
     public class BurstDamageHandler : AtomicEffectHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.BurstDamage;
 
-        /// <summary>受害者候选域（**第二段=代码常量**，2026-11-05 收口回退：表行 Domain 回到第一段
-        /// 参照域（己方战场:生物）——第二段不再读行 Domain，恢复硬编码 TargetKind.EnemyLivingUnit
-        ///（对方生物+对方角色）。帷幕收窄+潜行隐藏两道过滤同标准弹选口径）。</summary>
-        private static List<Entity> VictimCandidates(EffectExecutionContext context)
-        {
-            var kinds = new List<int> { (int)TargetKind.EnemyLivingUnit };
-            return WrapSelectable(EffectHandlerRegistry.ResolveCandidates(kinds, "", context), context);
-        }
-
-        /// <summary>弹选口径两道过滤（帷幕收窄+潜行隐藏——参照族第二段共用）。</summary>
-        internal static List<Entity> WrapSelectable(List<Entity> candidates, EffectExecutionContext context)
-            => TargetResolver.ExcludeUnselectable(
-                TargetResolver.ApplyTauntRestriction(candidates, context, false), context.Controller);
-
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            // 同步路径（触发式/headless 兜底）：受害者自动取首候选（与无头 Service 代选同结果）
-            Resolve(effect, context, VictimCandidates(context).FirstOrDefault());
+            // 同步路径：受体=Targets 首位（引擎侧已解析；无头直调兜底同口径）
+            Resolve(effect, context, context.Targets.FirstOrDefault());
         }
 
-        public override async UniTask ExecuteAsync(AtomicEffectInstance effect, EffectExecutionContext context)
+        public override UniTask ExecuteAsync(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            var reference = context.PrimaryTarget;
-            if (reference == null || !reference.IsAlive) return;
-
-            var candidates = VictimCandidates(context);
-            if (candidates.Count == 0) return; // 受害者域空=空转
-
-            Entity victim = candidates[0];
-            if (candidates.Count > 1)
-            {
-                var picked = await TargetSelectionService.RequestAsync(new TargetSelectionRequest
-                {
-                    Candidates = candidates,
-                    MinCount = 1,
-                    MaxCount = 1,
-                    Chooser = context.Controller,
-                    Title = "选择活体炸弹的受害者",
-                    PromptSource = (Entity)context.CastCard ?? context.Source,
-                    PromptAtom = effect.Type,
-                    PromptValue = Math.Max(0, reference.GetPower()), // AI 排序「能否打死」提示=参照攻
-                });
-                if (picked != null && picked.Count > 0) victim = picked[0];
-            }
-            Resolve(effect, context, victim);
+            Resolve(effect, context, context.Targets.FirstOrDefault());
+            return UniTask.CompletedTask;
         }
 
-        /// <summary>落账：参照亡/攻≤0/受害者无效=空转；效果伤害+AtomicDamageEvent（伤害产出族记账）。</summary>
+        /// <summary>落账：参照亡/攻≤0/受害者无效=空转；效果伤害+AtomicDamageEvent（伤害产出族记账）。
+        /// 数值=ResolveValue（步6：valueExpr=ref.power 活读参照攻；空=旧 GetRolledValue 名义值路径）。</summary>
         private void Resolve(AtomicEffectInstance effect, EffectExecutionContext context, Entity victim)
         {
-            var reference = context.PrimaryTarget;
+            var reference = context.Ref ?? context.PrimaryTarget;
             if (reference == null || !reference.IsAlive || victim == null || !victim.IsAlive) return;
 
-            int dmg = Math.Max(0, reference.GetPower());
+            int dmg = Math.Max(0, context.ResolveValue(effect));
             if (dmg <= 0) return;
 
             int lifeBefore = victim.GetLife();
@@ -584,71 +549,39 @@ namespace CardCore.Attribute.Handlers
             });
         }
 
-        protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => "以己方生物为参照，对一个对方单位造成等同其攻击力的伤害";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) =>
+            "以己方生物为参照，对一个对方单位造成等同其攻击力的伤害";
     }
 
     /// <summary>
-    /// 活体护甲（2026-10-31 参照族；2026-11-04 双段目标改版，绿3 表行 10c6345b）：第一段弹选
-    /// {target}=**己方生物**参照（NoRole 滤角色）；结算期**反问选择的己方单位**（己方生物+己方
-    /// 角色——角色可受甲；候选=1 自动取、AI/无头自动取首、同步路径取首候选）获得护甲
-    ///（ArmorCounter 层数——每层吸收 1 点伤害、生效自减；Entity 级角色可持有，后手护甲补偿
-    /// 同款指示物），层数=参照当前生命（GetLife 活读含光环成分）。载荷 str="SelfUnit" 档已随
-    /// 双段改版退役（落点自选即可指回参照生物）。无己方生物/参照生命≤0/落点域空=空转。
+    /// 活体护甲（参照族·2026-11-08 步3 换轨）：参照=context.Refs["ref"]（旧直调路径回落 Targets 首位）、
+    /// 落点=context.Targets 首位（行 Domain=受体域，引擎侧解析——候选&gt;1 弹选/AI 代选/无头取首；
+    /// 角色可受甲）。本 handler 只读结果：落点获得等同参照当前生命的护甲（ArmorCounter 层数——
+    /// 每层吸收 1 点伤害、生效自减；Entity 级角色可持有）。无己方生物/参照生命≤0/落点域空=空转。
     /// </summary>
     public class LivingArmorHandler : AtomicEffectHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.LivingArmor;
 
-        /// <summary>护甲落点候选域（**第二段=代码常量**，2026-11-05 收口回退：表行 Domain 回到第一段
-        /// 参照域——第二段不再读行 Domain，恢复硬编码 TargetKind.OwnLivingUnit（己方生物+己方角色
-        ///——角色可受甲）。两道过滤同标准弹选口径）。</summary>
-        private static List<Entity> ReceiverCandidates(EffectExecutionContext context)
-        {
-            var kinds = new List<int> { (int)TargetKind.OwnLivingUnit };
-            return BurstDamageHandler.WrapSelectable(EffectHandlerRegistry.ResolveCandidates(kinds, "", context), context);
-        }
-
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            // 同步路径（触发式/headless 兜底）：落点自动取首候选（与无头 Service 代选同结果）
-            Resolve(effect, context, ReceiverCandidates(context).FirstOrDefault());
+            Resolve(effect, context, context.Targets.FirstOrDefault());
         }
 
-        public override async UniTask ExecuteAsync(AtomicEffectInstance effect, EffectExecutionContext context)
+        public override UniTask ExecuteAsync(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            var reference = context.PrimaryTarget;
-            if (reference == null || !reference.IsAlive) return;
-
-            var candidates = ReceiverCandidates(context);
-            if (candidates.Count == 0) return; // 落点域空=空转
-
-            Entity receiver = candidates[0];
-            if (candidates.Count > 1)
-            {
-                var picked = await TargetSelectionService.RequestAsync(new TargetSelectionRequest
-                {
-                    Candidates = candidates,
-                    MinCount = 1,
-                    MaxCount = 1,
-                    Chooser = context.Controller,
-                    Title = "选择活体护甲的落点",
-                    PromptSource = (Entity)context.CastCard ?? context.Source,
-                    PromptAtom = effect.Type,
-                    PromptValue = Math.Max(0, reference.GetLife()), // AI 排序「受益幅度」提示=参照命
-                });
-                if (picked != null && picked.Count > 0) receiver = picked[0];
-            }
-            Resolve(effect, context, receiver);
+            Resolve(effect, context, context.Targets.FirstOrDefault());
+            return UniTask.CompletedTask;
         }
 
-        /// <summary>落账：参照亡/生命≤0/落点无效=空转；护甲层数=参照命（AddCounters 实际增量出账）。</summary>
+        /// <summary>落账：参照亡/生命≤0/落点无效=空转；护甲层数=ResolveValue（步6：valueExpr=ref.life
+        /// 活读参照命；空=旧 GetRolledValue 名义值路径）；AddCounters 实际增量出账。</summary>
         private void Resolve(AtomicEffectInstance effect, EffectExecutionContext context, Entity receiver)
         {
-            var reference = context.PrimaryTarget;
+            var reference = context.Ref ?? context.PrimaryTarget;
             if (reference == null || !reference.IsAlive || receiver == null || !receiver.IsAlive) return;
 
-            int stacks = Math.Max(0, reference.GetLife());
+            int stacks = Math.Max(0, context.ResolveValue(effect));
             if (stacks <= 0) return;
 
             int actualDelta = receiver.AddCounters(KeywordRules.ArmorCounter, stacks, context.Source);
@@ -662,8 +595,8 @@ namespace CardCore.Attribute.Handlers
             });
         }
 
-        protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => "以己方生物为参照，一个己方单位获得等同其生命的护甲";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) =>
+            "以己方生物为参照，一个己方单位获得等同其生命的护甲";
     }
 
     /// <summary>
@@ -680,18 +613,32 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            var hero = context.Controller;
-            var victim = context.PrimaryTarget;
-            if (hero == null || victim == null || !victim.IsAlive) return;
+            Resolve(effect, context, context.Targets.FirstOrDefault());
+        }
 
-            int armor = hero.GetCounterCount(KeywordRules.ArmorCounter);
+        public override UniTask ExecuteAsync(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            Resolve(effect, context, context.Targets.FirstOrDefault());
+            return UniTask.CompletedTask;
+        }
+
+        /// <summary>落账（2026-11-08 参照化）：参照=context.Refs["ref"]（行 RefDomain=己方单位+RefFilter
+        /// Armored=具有护甲——引擎 spec 计划解析，旧直调路径回落 Targets 首位）；移除参照全部护甲
+        ///（CounterChangedEvent 出账），对受害者（Targets 首位=行 Domain 受体）造成**移除护甲值等量**
+        /// 效果伤害。参照亡/无甲/受害者无效=空转（RefRequired 同口径）。</summary>
+        private void Resolve(AtomicEffectInstance effect, EffectExecutionContext context, Entity victim)
+        {
+            var reference = context.Ref ?? context.PrimaryTarget;
+            if (reference == null || !reference.IsAlive || victim == null || !victim.IsAlive) return;
+
+            int armor = reference.GetCounterCount(KeywordRules.ArmorCounter);
             if (armor <= 0) return; // 无护甲=空转（不出伤）
 
-            int removed = hero.AddCounters(KeywordRules.ArmorCounter, -armor, context.Source);
+            int removed = reference.AddCounters(KeywordRules.ArmorCounter, -armor, context.Source);
             if (removed != 0)
                 PublishEvent(new CounterChangedEvent
                 {
-                    Target = hero,
+                    Target = reference,
                     CounterType = KeywordRules.ArmorCounter,
                     Amount = removed,
                     Source = context.Source, // EffectTint 恒 null：移除非赋予（粒子判据=赋予原子才填）
@@ -713,8 +660,8 @@ namespace CardCore.Attribute.Handlers
             });
         }
 
-        protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => "移除角色全部护甲，对{target}造成等量伤害";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) =>
+            "移除{reference}全部护甲，对{target}造成移除护甲值等量的伤害";
     }
 
     /// <summary>

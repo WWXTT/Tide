@@ -53,7 +53,7 @@
   },
   {
     "ID": "a9beb7b4",
-    "TextHash": "a9beb7b4",
+    "TextHash": "e563dc34",
     "Domain": "双方手牌:卡",
     "EnumName": "设置费用",
     "DisplayName": "将{target}中一张卡的费用设为{value}",
@@ -114,9 +114,9 @@
   },
   {
     "ID": "d1ddfd78",
-    "TextHash": "d1ddfd78",
+    "TextHash": "00c1a3d8",
     "EnumName": "死亡计数",
-    "DisplayName": "自由分支·死亡计数：此卡在手中或场上时，记录对双方生物死亡数量，计数≥x，则触发奖励并重置死亡计数（最大值6）",
+    "DisplayName": "自由分支·死亡计数：此卡在场上时，记录对双方生物死亡数量，计数≥x，则触发奖励并重置死亡计数（最大值6）",
     "EffectType": "EngineDeathToll",
     "TargetFilter": null,
     "Polarity": 0,
@@ -126,7 +126,7 @@
   },
   {
     "ID": "fd645778",
-    "TextHash": "fd645778",
+    "TextHash": "dbaf032d",
     "EnumName": "元素充盈",
     "DisplayName": "自由分支·元素充盈：双方使用卡牌结算后，己方可用元素-对手可用元素的差恰等于x，则触发奖励（只能自动触发，差额上限为6）",
     "EffectType": "EngineManaSurplus",

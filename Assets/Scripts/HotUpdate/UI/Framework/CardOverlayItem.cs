@@ -52,6 +52,10 @@ namespace SynergyUI
                                                           // null=非生物）
         public int? AttrDurability;                      // 上半徽章数字：结界耐久（Hea 徽章；TotalDurabilityOf 派生
                                                           // 单源，与 AttributeText 同口径；null=非结界）
+        /// <summary>生物攻/守资格位（2026-11-06 opt-in 三开关）→ 卡面能力图标：AttackAbility=Ac
+        ///（Atc 徽章旁）、GuardAbility=Dc（Hea 徽章旁）——开=显示、关=隐藏；默认 false。
+        /// FromHand/FromCardDataFull 生物分支填充（与 AttrPower 同点）。</summary>
+        public bool AttackAbility, GuardAbility;
         public string PayloadText = "";                  // cost 区：代价行（PayloadCost 产黑白元素等；空=藏区）
         public List<string> KeywordChips;                // keys 区：关键词中文简称芯片（null/空=藏区）
         public List<(string Name, int Layers)> CounterChips; // stats 区：指示物简称+层数（空=藏区）
@@ -134,7 +138,11 @@ namespace SynergyUI
             it.Supertype = d.Supertype;
             it.Illustration = d.Illustration ?? "";
             it.AttributeText = AttributeTextOf(d);
-            if (d.Supertype == Cardtype.Creature) { it.AttrPower = d.Power ?? 0; it.AttrLife = d.Life ?? 0; }
+            if (d.Supertype == Cardtype.Creature)
+            {
+                it.AttrPower = d.Power ?? 0; it.AttrLife = d.Life ?? 0;
+                it.AttackAbility = d.AttackAbility; it.GuardAbility = d.GuardAbility; // Ac/Dc 能力图标位
+            }
             else if (d.Supertype == Cardtype.Enchantment) it.AttrDurability = CardCompositionCost.TotalDurabilityOf(d);
             it.PayloadText = PayloadTextOf(d);
             // 代价色构成（2026-11-06 预览补齐）：与手牌 FromHand 同口径——合成器/卡组构筑的
@@ -247,7 +255,11 @@ namespace SynergyUI
                 it.Supertype = data.Supertype;
                 it.Illustration = data.Illustration ?? "";
                 it.AttributeText = AttributeTextOf(data);
-                if (data.Supertype == Cardtype.Creature) { it.AttrPower = data.Power ?? 0; it.AttrLife = data.Life ?? 0; }
+                if (data.Supertype == Cardtype.Creature)
+                {
+                    it.AttrPower = data.Power ?? 0; it.AttrLife = data.Life ?? 0;
+                    it.AttackAbility = data.AttackAbility; it.GuardAbility = data.GuardAbility; // Ac/Dc 能力图标位
+                }
                 else if (data.Supertype == Cardtype.Enchantment) it.AttrDurability = CardCompositionCost.TotalDurabilityOf(data);
                 it.PayloadText = PayloadTextOf(data);
                 // 代价色构成（2026-11-03 手牌费用方格双组）：施放期代价按色生成面——与净费

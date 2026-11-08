@@ -63,7 +63,9 @@ namespace CardCore.AI.NeuralEnv
         // v5（2026-10-29）：删卡特征 [113]——NCard 116→115、N_GLOBAL 不变。
         // v12（2026-11-06 墓碑清理）：TideActionType 空洞移除连续重排——动作特征[1] type 数值漂移，
         // 旧模型作废（python LAYOUT_VERSION 同步升 12）。
-        public const int LayoutVersion = 12;
+        // v13（2026-11-08 目标选择重构步5）：动作特征 11→12 维——[11]referenceIndex（参照角色选位
+        // 镜像，Reference Enumerate spec 进动作空间）；旧模型作废（python LAYOUT_VERSION 同步升 13）。
+        public const int LayoutVersion = 13;
         public const int MaxCardsPerPlayer = 77; // v10：43→77（墓地 4→30、除外 8 入册）
         // v9 己方牌库块（尾接全局块，不走 ZoneLayout 每玩家偏移语义——专用 DeckBase+排序名次路径）：
         public const int DeckSlots = 30;                                      // 截断护栏（初始整组 30 恰满；衍生物入库超出不编码）
@@ -105,10 +107,11 @@ namespace CardCore.AI.NeuralEnv
         // v9 尾加 g[50..57]（对方牌库开局标签快照，DeckTagsOf——随卡组创建保留、整局恒定）。
         public const int NGlobal = 58; // v9：50→58（+8 对方牌库标签）
         public const int DeckTagStart = 50; // v9 g[50..57] = DeckTagsOf（对方牌库开局标签）
-        // 动作特征槽（v8 8→11 维）：[0]valid [1]type [2]sourceIndex [3]targetIndex [4]modeIndex
+        // 动作特征槽（v8 8→11 维；v13 11→12）：[0]valid [1]type [2]sourceIndex [3]targetIndex [4]modeIndex
         // [5]actionCost [6]effectIdentity [7]targetKind + v8 多目标追加：
-        // [8]target2Index [9]target3Index（Targets[1]/[2] 槽位，-1=无/玩家目标/>3 截断不编码）[10]nTargets（0..8 钳）。
-        public const int NAction = 11;
+        // [8]target2Index [9]target3Index（Targets[1]/[2] 槽位，-1=无/玩家目标/>3 截断不编码）[10]nTargets（0..8 钳）
+        // + v13 参照追加：[11]referenceIndex（Reference 角色选位镜像槽位，-1=无/玩家参照）。
+        public const int NAction = 12;
 
         public float[] Cards = new float[MaxCardsTotal * NCard];
         public float[] Globals = new float[NGlobal];

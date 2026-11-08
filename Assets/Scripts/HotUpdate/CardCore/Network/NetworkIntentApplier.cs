@@ -38,6 +38,10 @@ namespace CardCore.Network
                     if (!NetEntityDirectory.TryResolveAll(core, intent.Targets, out var targets))
                     { error = "目标解析失败"; return false; }
 
+                    // 参照选位（步5 协议 v10 §3.3）：分角色上送——解析失败按无参照降级
+                    //（参照域空转语义由引擎承担），不整卡拒绝。
+                    NetEntityDirectory.TryResolveAll(core, intent.References, out var references);
+
                     var fromZone = (Zone)intent.FromZone;
 
                     // 响应出牌分派：栈上有待响应对象、非结算中、优先权在请求者手、来源限手牌
@@ -47,11 +51,11 @@ namespace CardCore.Network
                         && !core.StackEngine.IsEmpty && !core.StackEngine.IsResolving
                         && core.StackEngine.CurrentPriorityHolder == player)
                     {
-                        return Ok(GameActions.PlayCardInResponse(core, player, card, targets, intent.ModeIndex, out var respReason),
+                        return Ok(GameActions.PlayCardInResponse(core, player, card, targets, intent.ModeIndex, references, out var respReason),
                             respReason, out error);
                     }
 
-                    return Ok(GameActions.PlayCard(core, player, card, targets, fromZone, intent.ModeIndex, out var reason),
+                    return Ok(GameActions.PlayCard(core, player, card, targets, fromZone, intent.ModeIndex, references, out var reason),
                         reason, out error);
                 }
 

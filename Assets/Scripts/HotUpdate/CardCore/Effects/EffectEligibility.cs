@@ -156,10 +156,14 @@ namespace CardCore
         /// 选择器 / 槽区保存闸 / 验证器共用）：先复用 <see cref="BranchRewardRejectReason"/>
         ///（非引擎主干/非光环形态/非空原子），再按引擎奖励类型分档——
         /// 主动奖励引擎（倒计时/死亡计数/元素充盈，ComposerCatalog.IsActiveRewardEngine）：
-        /// 奖励必须是主动效果（def.IsActivatedEffect——Activate_*，发射口入待发队列）；
+        /// 奖励必须是主动效果（def.IsActivatedEffect——Activate_*；发射口 LaunchReward **直发**，
+        /// 2026-11-08 阶段3 定案：固定三主干触发立即生效，主动奖励不入待发队列、忽略 tactivate）；
         /// 自动奖励引擎（运势/拼枪/团结，IsAutomaticRewardEngine）：奖励必须是自动效果
         ///（IsTriggeredEffect ∧ ActivationType==Automatic）且时机有真实事件锚
         ///（TriggerTimingDefaults.GetEventType 非空——达标直发）。
+        /// 无 Domain 原子不入引擎奖励（2026-11-08 阶段4 入闸）：奖励发射/目标解析走域管线——
+        /// 含无域行（检索/强夺/跳过阶段等，与「无Domain不参与效果组合」同口径）的效果整体拒绝，
+        /// 深扫含嵌套 Then（奖励内嵌奖励同为发射内容）。
         /// 载荷引擎（附加诅咒/祝福）不经发动档闸——载荷资格另走 CursePayloadRejectReason，
         /// Then 原子旧兼容通道照 BranchRewardRejectReason 通用口径。
         /// 输入契约同 <see cref="CursePayloadRejectReason"/>：完整卡内效果（EffectsLibrary.Resolve 还原）。
@@ -172,16 +176,20 @@ namespace CardCore
                 return null; // 非奖励引擎（载荷/None）：只吃通用闸
             var def = CardEffectConverter.ConvertOne(data, data.Id ?? "");
             if (def == null) return "空效果";
-            if (ComposerCatalog.IsActiveRewardEngine(engine))
-                return def.IsActivatedEffect
-                    ? null
-                    : "该引擎奖励只能挂主动效果";
-            bool autoOk = def.IsTriggeredEffect
-                          && def.ActivationType == EffectActivationType.Automatic
-                          && TriggerTimingDefaults.GetEventType(def.TriggerTiming) != null;
-            return autoOk
-                ? null
-                : "该引擎奖励只能挂自动效果，且必须有真实触发时机";
+            if (ComposerCatalog.IsActiveRewardEngine(engine) && !def.IsActivatedEffect)
+                return "该引擎奖励只能挂主动效果";
+            if (ComposerCatalog.IsAutomaticRewardEngine(engine)
+                && !(def.IsTriggeredEffect
+                     && def.ActivationType == EffectActivationType.Automatic
+                     && TriggerTimingDefaults.GetEventType(def.TriggerTiming) != null))
+                return "该引擎奖励只能挂自动效果，且必须有真实触发时机";
+            foreach (var a in AtomsDeepOf(def))
+            {
+                var row = CardCore.Attribute.AtomicEffectTable.GetByType(a.Type);
+                if (row != null && row.GetTargetKindList().Count == 0)
+                    return "效果含无目标域原子（检索/强夺等无域行）——不可作引擎奖励";
+            }
+            return null;
         }
 
         /// <summary>逐卡型拒绝原因（null=可挂载）。多特征叠加时任一命中即拒。</summary>

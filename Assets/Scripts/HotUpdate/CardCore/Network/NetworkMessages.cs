@@ -78,10 +78,13 @@ namespace CardCore.Network
     /// 同批起接收侧对信封 ProtocolVersion 设闸（此前只写不校验），失配回显式 Error 帧而非
     /// 靠序列化错位自然崩。
     /// v9（2026-11-06 协议瘦身）：MsgIntentPlayCard 删除废弃字段 AwakenCast（v3 引入、
-    /// 机制删除后曾留读兼容）——成员 5→4，MemoryPack 载荷布局变更，新旧端互拒（无兼容层）。</summary>
+    /// 机制删除后曾留读兼容）——成员 5→4，MemoryPack 载荷布局变更，新旧端互拒（无兼容层）。
+    /// v10（2026-11-08 目标选择重构步5）：MsgIntentPlayCard/MsgIntentActivateEffect 新增
+    /// References（参照选位分角色上送）、StackItemDTO 新增 References、MsgSelectRequest 新增
+    /// SpecKey（spec 计划显式关联键，§3.3）——布局变更，新旧端互拒（无兼容层）。</summary>
     public static class NetworkProtocol
     {
-        public const ushort Version = 9;
+        public const ushort Version = 10;
 
         /// <summary>接收侧版本闸（v8 起）：信封版本与本端不符 = 新旧端互拒（无兼容层）。
         /// 0=legacy 草稿期数据，同样失配。</summary>

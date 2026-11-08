@@ -58,7 +58,7 @@ namespace SynergyUI
             { CounterRules.LockCounter, "持有期间无法使用（可作为地牌放置）；持有者回合结束层数 −1，归零解锁" },
             // ---- 系统（System：引擎投放/消耗）----
             { CounterRules.CountdownCounter, "控制者准备阶段层数 −1，归零触发奖励并重置" },
-            { CounterRules.DeathTollCounter, "此卡在手牌或场上时计数双方生物死亡；计数≥x（x=奖励锚价推导）触发奖励；满 6 不再计数；使用后清零" },
+            { CounterRules.DeathTollCounter, "此卡在场上时计数双方生物死亡；计数≥x（x=奖励锚价推导）触发奖励；满 6 不再计数；使用后清零" },
         };
 
         /// <summary>单条状态行：「显示名×层数：完整解说」（与卡面 stats 芯片同 DisplayName 口径）。</summary>

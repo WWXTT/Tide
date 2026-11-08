@@ -22,11 +22,11 @@ namespace CardCore
         ///   双方理性策略同为最高：引擎方拉大差额、对手压缩差额，无需选择窗口；选中卡挂「展示」指示物对双方
         ///   公开=RevealCard 原子同款口径，已展示不重复挂；手牌无生物按攻击力 0）——比**攻击力**；
         ///   **差额 ≥ 奖励锚价合计**（大于等于）才触发，奖励按声明值结算；**无限次**（每次攻击宣言独立判定，无每回合 guard）。
-    /// - **死亡计数**（2026-09-22 定案；2026-10-09 自平衡统一；2026-10-19 手牌/场上改案）：**此卡在手牌中
-    ///   或场上时**计数双方生物死亡——每次生物死亡 +1 死亡计数指示物（系统层，换区清=使用后清零）；
-    ///   **满值 6**，达满不再计数；计数 ≥ 门槛（Then 锚价推导）即触发奖励——[x,6] 区间**每次递增都触发**
-    ///   （满值 6 天然封顶总次数；触发**不清零**，仅使用/换区清零重计）。
-    ///   旧「场上·本回合合计·每回合一发」口径随本改案退役。
+        /// - **死亡计数**（2026-09-22 定案；2026-10-09 自平衡统一；2026-11-08 阶段3 收窄）：**此卡在场
+        ///   上时**计数双方生物死亡（手牌不计数）——每次生物死亡 +1 死亡计数指示物（系统层，换区清=
+        ///   使用后清零）；**满值 6**，达满不再计数；计数 ≥ 门槛（Then 锚价推导）即触发奖励——[x,6] 区间
+        ///   **每次递增都触发**（满值 6 天然封顶总次数；触发**不清零**，仅使用/换区清零重计）。
+        ///   旧「场上·本回合合计·每回合一发」口径与 2026-10-19 手牌/场上双区口径均退役。
     /// - **元素充盈**（2026-09-22 定案；2026-11-06 判据七·充盈改造：**恰等于**——推翻 2026-10-20
     ///     判据六「大于等于」，双方触发面让恰等重新可玩）：**只能是自动效果**——任一方施放的卡
     ///     成功结算、且**整条连锁结算完成后**（StackEngine.FinishResolution 稳定点统一 flush，
@@ -110,7 +110,8 @@ namespace CardCore
             _registered = true;
             EventManager.Instance.Subscribe<CardPutToBattlefieldEvent>(OnEnterBattlefield);
             EventManager.Instance.Subscribe<CardDestroyEvent>(OnCreatureDestroyed);
-            EventManager.Instance.Subscribe<AttackDeclarationEvent>(OnAttackDeclared); // 拼点（2026-10-09 触发改版）
+            // 拼枪/团结已随 2026-11-08 阶段3 迁 OnRoutedEvent（时机=奖励效果时机）——
+            // AttackDeclarationEvent 订阅与 OnCardCastSettled 直调均退役。
             // 倒计时 tick 已随 2026-10-26 精准切分迁 GameCore.RunStandbyAutomation 显式调用（原 TurnStartEvent 订阅退役）
         }
 
@@ -235,10 +236,13 @@ namespace CardCore
             }
         }
 
-        /// <summary>引擎时机评估钩子（2026-10-16 解绑「回合开始」硬绑定；2026-10-20 倒计时改固定触发后**仅运势消费**）：
-        /// GameCore.PublishEventRouted 在总线分发之后逐事件调用。def 声明时机（TriggerTimingDefaults.GetEventType）
-        /// 映射的事件类型 == 当前事件类型才评估。仅做类型匹配、不走 TriggerPayloadFilter——载荷过滤是
-        /// 「来源卡自身参战」语义（伤害源==自己等），引擎卡非战斗参与方会被误杀；同一事件双方均评估为已知取舍。</summary>
+        /// <summary>自动三引擎（运势/拼枪/团结）的统一事件评估口（2026-11-08 阶段3·奖励效果时机判定）：
+        /// GameCore.PublishEventRouted 在总线分发之后逐事件调用。时机=<see cref="RewardTimingOf"/>
+        ///（解析 payload.EffectId → 奖励效果 TriggerTiming；失败回落 def.TriggerTiming=转换器归一值）
+        /// 映射的事件类型 == 当前事件类型才评估。归属过滤（<see cref="ExcludedByOwnership"/>）：
+        /// 拼枪仅攻击方、团结仅施放者；运势沿用双方各评估；事件无法归属时双方各评估一次。
+        /// 不走 TriggerPayloadFilter——载荷过滤是「来源卡自身参战」语义（伤害源==自己等），
+        /// 引擎卡非战斗参与方会被误杀。</summary>
         public static void OnRoutedEvent(IGameEvent e)
         {
             if (e == null) return;
@@ -249,8 +253,6 @@ namespace CardCore
             var zm = core?.ZoneManager;
             if (zm == null || core?.StackEngine == null) return;
             var eventType = e.GetType();
-            var turnPlayer = core.TurnEngine?.TurnPlayer ?? core.Player1;
-            var phase = core.TurnEngine?.CurrentPhase?.Phase ?? PhaseType.Standby;
 
             foreach (var player in new[] { core.Player1, core.Player2 })
             {
@@ -265,12 +267,16 @@ namespace CardCore
                         {
                             var payload = atom?.Branch;
                             if (payload == null || payload.Settle != BranchSettleKind.Engine) continue;
-                            if (payload.EngineKind != BranchEngineKind.LuckRoll) continue;
-                            if (TriggerTimingDefaults.GetEventType(def.TriggerTiming) != eventType) continue;
+                            if (payload.EngineKind != BranchEngineKind.LuckRoll
+                                && payload.EngineKind != BranchEngineKind.Clash
+                                && payload.EngineKind != BranchEngineKind.Unity) continue;
+                            if (ExcludedByOwnership(payload.EngineKind, e, player)) continue;
+                            if (TriggerTimingDefaults.GetEventType(RewardTimingOf(payload, def)) != eventType) continue;
 
                             switch (payload.EngineKind)
                             {
                                 case BranchEngineKind.LuckRoll:
+                                {
                                     int x = Math.Max(1, Math.Min(6, payload.EngineParam));
                                     int d1 = GameRng.Next(1, 7), d2 = GameRng.Next(1, 7);
                                     bool luckHit = d1 >= x && d2 >= x;
@@ -290,7 +296,75 @@ namespace CardCore
                                         LaunchReward(payload, def, card, player, core, e);
                                         RecordEngineFire(card, def);
                                     }
+                                    else if (!luckHit)
+                                    {
+                                        // 未达标播报（2026-11-08 运势奖励效果化迁移配套——主干钉自动后
+                                        // 掷骰走本口，成败两态与主动路径 EffectExecutionEngine 同口径：
+                                        // 负例带评估证据，教学 luck-miss 断言立足点）
+                                        EventManager.Instance.Publish(new KeywordAppliedEvent
+                                        {
+                                            Target = card, Keyword = "运势",
+                                            Detail = $"运势 {d1}+{d2} < {x}×2：未达标",
+                                        });
+                                    }
                                     break;
+                                }
+
+                                case BranchEngineKind.Clash:
+                                {
+                                    // 拼枪评估（2026-10-09 触发改版；A4 定案 2026-11-05 牌库随机生物取样）：
+                                    // 双方各从牌库随机展示一张生物（挂「展示」公开、牌库不动），差额 ≥ 门槛执行奖励。
+                                    var minePick = RandomCreatureFromDeck(player, zm, card);
+                                    var theirsPick = RandomCreatureFromDeck(player.Opponent, zm, card);
+                                    int mine = PowerOf(minePick);
+                                    int theirs = PowerOf(theirsPick);
+                                    int threshold = CostDerivationService.RewardThresholdOf(payload.Then, payload.EffectId); // 公式与 UI 短文案同源
+                                    bool success = mine - theirs >= threshold;
+                                    EventManager.Instance.Publish(new ClashResolvedEvent // 成败两态必发（2026-10-20 表现观察口）
+                                    {
+                                        EngineCard = card,
+                                        AttackingPlayer = player,
+                                        MyReveal = minePick,
+                                        TheirReveal = theirsPick,
+                                        MyPower = mine,
+                                        TheirPower = theirs,
+                                        Threshold = threshold,
+                                        Success = success,
+                                    });
+                                    if (success && !EngineCapReached(card, def)) // 每卡每回合 1 次（2026-10-22 全局规则）
+                                    {
+                                        EventManager.Instance.Publish(new KeywordAppliedEvent
+                                        {
+                                            Target = card, Keyword = "拼枪",
+                                            Detail = $"拼枪 {mine} vs {theirs}（我方展示{NameOf(minePick)}／对方展示{NameOf(theirsPick)}，差额 {mine - theirs} ≥ 门槛 {threshold}）：执行奖励（牌库随机取样比攻击力，牌库未动）",
+                                        });
+                                        LaunchReward(payload, def, card, player, core, e);
+                                        RecordEngineFire(card, def);
+                                    }
+                                    break;
+                                }
+
+                                case BranchEngineKind.Unity:
+                                {
+                                    // 团结评估（2026-10-20 效果序位换轴·空间轴）：与此卡相邻的单位数
+                                    //（生物/结界占格、角色格、非空地牌格各算一；施放占位卡不计）≥ x 即执行奖励
+                                    //——2026-11-08 阶段3 自 OnCardCastSettled 直调迁本口（时机=奖励效果）。
+                                    ComposerCatalog.EngineParamRange(BranchEngineKind.Unity, out int uMin, out int uMax);
+                                    int x = Math.Max(uMin, Math.Min(uMax, payload.EngineParam));
+                                    int n = UnityAdjacentCountOf != null ? UnityAdjacentCountOf(card) : 0;
+                                    if (n < x) break;
+
+                                    if (EngineCapReached(card, def)) break; // 每卡每回合 1 次（2026-10-22 全局规则）
+
+                                    EventManager.Instance.Publish(new KeywordAppliedEvent
+                                    {
+                                        Target = card, Keyword = "团结",
+                                        Detail = $"评估时点相邻单位数 {n} ≥ {x}：执行奖励（生物/结界/角色/非空地牌格各算一）",
+                                    });
+                                    LaunchReward(payload, def, card, player, core, e);
+                                    RecordEngineFire(card, def);
+                                    break;
+                                }
                             }
                         }
                     }
@@ -298,51 +372,33 @@ namespace CardCore
             }
         }
 
-        /// <summary>拼枪引擎评估（2026-10-09 触发改版：回合开始→攻击宣言，仅攻击方·无限次；
-        /// **A4 定案 2026-11-05：拼点改名拼枪、取样回改牌库随机生物**——只读不移牌）：
-        /// 攻击宣言事件结算**攻击方**战场引擎卡（与回合开始只遍历当前回合玩家同口径）；
-        /// 双方各从牌库随机展示一张生物卡（挂「展示」指示物对双方公开，牌库无生物按 0），
-        /// 差额 ≥ 门槛（Then 锚价推导）执行奖励。</summary>
-        private static void OnAttackDeclared(AttackDeclarationEvent e)
+        /// <summary>引擎奖励效果时机（2026-11-08 阶段3）：解析 payload.EffectId → 引用效果
+        /// TriggerTiming（ResolveRewardFx 同缓存——库 DTO 实例失效）；失败（无引用/悬空）回落
+        /// def.TriggerTiming（转换器归一值=奖励时机或自然缺省）。与 CardEffectConverter 引擎头归一同源。</summary>
+        private static TriggerTiming RewardTimingOf(BranchPayload payload, EffectDefinition def)
         {
-            var player = e?.AttackingPlayer;
-            var core = GameCore.Instance;
-            var zm = core?.ZoneManager;
-            if (player == null || zm == null) return;
-
-            foreach (var card in zm.GetCards(player, Zone.Battlefield).ToList())
+            if (!string.IsNullOrEmpty(payload?.EffectId))
             {
-                if (card == null || !card.IsAlive) continue;
-                foreach (var (def, payload) in EnginePayloadsOf(card, BranchEngineKind.Clash))
-                {
-                    var minePick = RandomCreatureFromDeck(player, zm, card);
-                    var theirsPick = RandomCreatureFromDeck(player.Opponent, zm, card);
-                    int mine = PowerOf(minePick);
-                    int theirs = PowerOf(theirsPick);
-                    int threshold = CostDerivationService.RewardThresholdOf(payload.Then, payload.EffectId); // 公式与 UI 短文案同源
-                    bool success = mine - theirs >= threshold;
-                    EventManager.Instance.Publish(new ClashResolvedEvent // 成败两态必发（2026-10-20 表现观察口）
-                    {
-                        EngineCard = card,
-                        AttackingPlayer = player,
-                        MyReveal = minePick,
-                        TheirReveal = theirsPick,
-                        MyPower = mine,
-                        TheirPower = theirs,
-                        Threshold = threshold,
-                        Success = success,
-                    });
-                    if (success && !EngineCapReached(card, def)) // 每卡每回合 1 次（2026-10-22 全局规则）
-                    {
-                        EventManager.Instance.Publish(new KeywordAppliedEvent
-                        {
-                            Target = card, Keyword = "拼枪",
-                            Detail = $"拼枪 {mine} vs {theirs}（我方展示{NameOf(minePick)}／对方展示{NameOf(theirsPick)}，差额 {mine - theirs} ≥ 门槛 {threshold}）：执行奖励（牌库随机取样比攻击力，牌库未动）",
-                        });
-                        LaunchReward(payload, null, card, player, core, e);
-                        RecordEngineFire(card, def);
-                    }
-                }
+                var refDef = ResolveRewardFx(payload.EffectId);
+                if (refDef != null) return refDef.TriggerTiming;
+            }
+            return def != null ? def.TriggerTiming : TriggerTiming.OnStandbyPhase;
+        }
+
+        /// <summary>归属过滤（2026-11-08 阶段3）：拼枪仅攻击方（AttackDeclarationEvent）、
+        /// 团结仅施放者（CardPlayEvent/CardCastSettledEvent）——事件可归属且归属方≠player 时跳过；
+        /// 运势（及一切无法归属的事件）双方各评估一次。</summary>
+        private static bool ExcludedByOwnership(BranchEngineKind kind, IGameEvent e, Player player)
+        {
+            switch (kind)
+            {
+                case BranchEngineKind.Clash:
+                    return e is AttackDeclarationEvent a && a.AttackingPlayer != player;
+                case BranchEngineKind.Unity:
+                    return e is CardCastSettledEvent cs && cs.Caster != player
+                        || e is CardPlayEvent cp && cp.Player != player;
+                default:
+                    return false;
             }
         }
 
@@ -370,7 +426,7 @@ namespace CardCore
 
         // ======================================== 死亡计数 / 元素充盈（2026-09-22 定案） ========================================
 
-        /// <summary>死亡事件计数（2026-10-19 手牌/场上改案）：此卡在手牌中或场上时计数双方生物死亡——
+        /// <summary>死亡事件计数（2026-11-08 阶段3：只扫战场——手牌卡不计数）：场上此卡计数双方生物死亡——
         /// 每次生物死亡 +1 死亡计数指示物（系统层，换区清=使用后清零）；满值 <see cref="DeathTollCap"/>
         /// 达满不再计数；计数 ≥ 门槛（Then 锚价推导）即触发奖励（每次递增都触发，触发不清零）。
         /// MatchStats 订阅序依赖已全解除（手牌序位引擎 2026-10-19 退役后无读序消费方）。</summary>
@@ -400,10 +456,11 @@ namespace CardCore
 
         private static void EvaluateDeathTollEngines(Player player, ZoneManager zm, GameCore core)
         {
-            foreach (var card in zm.GetCards(player, Zone.Hand)
-                .Concat(zm.GetCards(player, Zone.Battlefield)).ToList())
+            // 2026-11-08 阶段3：只扫战场——手牌不再计数（引擎须驻场观察死亡；
+            // 手牌卡的存量计数由 System 指示物换区清机制自理）。
+            foreach (var card in zm.GetCards(player, Zone.Battlefield).ToList())
             {
-                if (card == null) continue; // 手牌卡无战场生死态——实体在即计（法术/结界宿主同权）
+                if (card == null || !card.IsAlive) continue; // 只扫战场存活卡（与其它评估口同口径）
                 foreach (var (def, payload) in EnginePayloadsOf(card, BranchEngineKind.DeathToll))
                 {
                     int count = card.GetCounterCount(Attribute.CounterRules.DeathTollCounter);
@@ -487,43 +544,9 @@ namespace CardCore
             }
         }
 
-        /// <summary>施放结算回调（GameActions.ResolveCardCastAsync 末步——法术效果结算/永久物入场之后）：
-        /// **团结引擎评估**。元素充盈段已于 2026-11-06 判据七迁往连锁终点统一评估（NoteCastSettled 记账 →
-        /// StackEngine.FinishResolution 稳定点 FlushCardCastSettled——双方、恰==x），与充盈拆拍；
-        /// 附加诅咒/祝福部署走 OnCardCastResolved（另一口）。发动无效/效果无效早退不达此。</summary>
-        public static void OnCardCastSettled(Player player)
-        {
-            var core = GameCore.Instance;
-            var zm = core?.ZoneManager;
-            if (player == null || zm == null) return;
-
-            // 团结（2026-10-20 效果序位换轴·第6种改空间轴）：与此卡相邻的单位数（生物/结界占格、
-            // 角色格、非空地牌格各算一；施放占位卡不计）≥ x 即执行奖励——与充盈同拍同纪律
-            //（≥ 达标即触发、只观察己方场上引擎卡——手牌无格；2026-10-22 起同卡每回合仅 1 次）。
-            // 邻接计数经注入委托（核心不绑棋盘），未接线=0 恒不触发（无头/验证夹具可注假计数）。
-            foreach (var card in zm.GetCards(player, Zone.Battlefield).ToList())
-            {
-                if (card == null || !card.IsAlive) continue;
-                foreach (var (def, payload) in EnginePayloadsOf(card, BranchEngineKind.Unity))
-                {
-                    ComposerCatalog.EngineParamRange(BranchEngineKind.Unity, out int uMin, out int uMax);
-                    int x = Math.Max(uMin, Math.Min(uMax, payload.EngineParam));
-                    int n = UnityAdjacentCountOf != null ? UnityAdjacentCountOf(card) : 0;
-                    if (n < x) continue;
-
-                    if (EngineCapReached(card, def)) break; // 每卡每回合 1 次（2026-10-22 全局规则）
-
-                    EventManager.Instance.Publish(new KeywordAppliedEvent
-                    {
-                        Target = card, Keyword = "团结",
-                        Detail = $"出牌结算后相邻单位数 {n} ≥ {x}：执行奖励（生物/结界/角色/非空地牌格各算一）",
-                    });
-                    LaunchReward(payload, null, card, player, core);
-                    RecordEngineFire(card, def);
-                    break; // 同卡单载荷单次施放只触发一次（充盈同口径）
-                }
-            }
-        }
+        //（团结引擎评估口 OnCardCastSettled 已随 2026-11-08 阶段3 整删：时机=奖励效果时机、
+        //  归属=施放者——统一迁 OnRoutedEvent（CardPlayEvent/CardCastSettledEvent 等按 RewardTimingOf
+        //  匹配）；元素充盈此前已迁 FlushCardCastSettled 连锁终点。GameActions 调用点同批删除。）
 
         /// <summary>效果结算后连锁终点 flush（StackEngine.FinishResolution 稳定 break 处调用——
         /// 2026-11-06 判据七·充盈改造）：逐条补发 CardCastSettledEvent（OnCardCastSettled 观察族——
@@ -675,25 +698,23 @@ namespace CardCore
         /// <summary>执行 Then 奖励原子（依次弹选目标——两槽定案；无头/AI 自动选首保 verify 确定性）。
         /// per 原子独立上下文（引擎无当前目标）。</summary>
 
-        /// <summary>奖励发射统一口（2026-10-20 用户定案：**奖励=一般效果按自身发动方式发射，
-        /// 主干只管触发判定**；同日倒计时例外——固定触发定案：归零直接触发奖励，不走此口分流）：
-        /// 发动口径=payload.ThenActivation（-1=未声明随主干 def·向后兼容；1=自动；2=主动）。
-        /// 主动→0 费奖励 def 入待发队列走既有响应窗路径（玩家发动/AI·无头自动
-        /// 代选；ElementCostPrepaid 落实费用 0——卡价收讫防执行器再扣锚价；BRANCH_REWARD 不占
-        /// 发动位）。自动/强制/未声明随主干非主动 → FireRewards 直发。
-        /// 2026-11-07 分支奖励效果化：双通道（EffectId 效果引用+Then 原子）——主动档引用效果
-        /// 单独入队（Steps 保真· prepaid），直发档两通道一并结算。</summary>
+        /// <summary>奖励发射统一口（2026-10-20 用户定案；**2026-11-08 阶段3 定案：固定三一律直发**）：
+        /// 固定三引擎（倒计时/死亡计数/元素充盈，ComposerCatalog.IsActiveRewardEngine）主干触发立即生效——
+        /// **忽略 tactivate**（payload.ThenActivation 与 def 发动方式均不看），奖励虽为主动效果
+        ///（资格闸 EngineRewardRejectReason 钉主动档）也**不入待发队列**——直发 FireRewards，
+        /// 目标仍走结算期弹选。自动三（运势/拼枪/团结）奖励=自动效果：launch 分流恒落直发分支
+        ///（入队段仅剩对手写 tactivate=2 数据的防御位）；附加诅咒/祝福不经此口（CurseSystem）。
+        /// 2026-11-07 分支奖励效果化：双通道（EffectId 效果引用+Then 原子）——入队段引用效果
+        /// 单独入队（Steps 保真· prepaid），直发段两通道一并结算。</summary>
         private static void LaunchReward(BranchPayload payload, EffectDefinition def, Card source,
             Player controller, GameCore core, IGameEvent triggeringEvent = null)
         {
             if (BranchPayloadEmpty(payload)) return;
-            // 倒计时固定触发（2026-10-20 定案）：主干与奖励不拆开——无论 tactivate 声明恒直发
-            //（防御兜底；正路发射口=OnTurnStarted 归零处直调 FireRewards，不经此方法）。
-            // 元素充盈同款例外（2026-10-20 判据五定案「只能是自动效果」）：奖励恒直发——
-            // ThenActivation 不适用（主动队列会把触发挪进响应窗，违背仅对手回合自动发动）。
+            // 固定三（2026-11-08 阶段3）：主干与奖励不拆开——无论 tactivate/效果头声明恒直发
+            //（倒计时 2026-10-20 固定触发、充盈 2026-10-20 判据五「只能是自动效果」定案的延伸，
+            //  死亡计数 2026-11-08 入列——主动奖励入待发队列的旧注释口径随之作废）。
             // 直发≠免弹选：目标仍走 ExecuteBranchRewardsAsync 结算期弹选（控制者择目标）。
-            if (payload.EngineKind == BranchEngineKind.Countdown
-                || payload.EngineKind == BranchEngineKind.ManaSurplus)
+            if (ComposerCatalog.IsActiveRewardEngine(payload.EngineKind))
             {
                 FireRewards(payload, source, controller, core);
                 return;

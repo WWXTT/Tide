@@ -2528,7 +2528,7 @@ namespace SynergyUI
             if (_director != null && _director.Busy) return;
             if (stepType == "fieldclear") TutorialGuide.PollFieldClear();
             else if (stepType == "deathtoll") TutorialGuide.PollDeathToll(); // 死亡计数段自由步（2026-10-20）：计数满 6 触发奖励即推进
-            else TutorialGuide.PollLuckUse(); // 运势段用毕步（2026-10-20）：全横置+无待发奖励才推进
+            else TutorialGuide.PollLuckUse(); // 运势段等待步（2026-10-20；2026-11-08 奖励效果化改版）：六只运势单位 LuckRolledEvent 全掷过（准备阶段自动掷骰）才推进
         }
 
         /// <summary>选格/出牌流程收尾：恢复手牌扇+全量对账（按钮条件/流光随刷新重评估）。</summary>

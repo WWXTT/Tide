@@ -20,7 +20,8 @@ namespace CardCore.Editor.Tests
     ///   原子表 EngineTrunk 位全行有钉（新行未登记会被抓）。
     /// B EngineRewardRejectReason 正反例：先吃 BranchRewardRejectReason 通用闸
     ///   （引擎主干/光环形态/空效果），再按奖励档分档——主动奖励引擎只收主动效果（Activate_*），
-    ///   自动奖励引擎只收自动效果（真实触发时机 ∧ Automatic）；载荷引擎/None 不经发动档闸。
+    ///   自动奖励引擎只收自动效果（真实触发时机 ∧ Automatic）；载荷引擎/None 不经发动档闸；
+    ///   B5（2026-11-08 阶段4）：含无 Domain 原子（检索等无域行）的效果整体拒绝（两档同拒·混合同拒）。
     /// C 发动方式钉：EngineActivationPinOf 期望值（主动行→Voluntary、自动引擎行→Automatic、
     ///   非引擎→null）；EngineActivationFree 已随双选面整删（反射证不存在）；
     ///   EngineHeaderPresetOf——固定三引擎保持原时机、运势/拼枪/团结转自然缺省（FreeTiming，
@@ -248,6 +249,24 @@ namespace CardCore.Editor.Tests
                 Check(a == null && b == null,
                     $"B4 {engine} 不经发动档闸（主动形态：{a ?? "过"} / 自动形态：{b ?? "过"}，期望双双放行）");
             }
+
+            // B5 无 Domain 原子（2026-11-08 阶段4 入闸）：含无域行（检索等——与「无Domain不参与
+            // 效果组合」同口径）的效果整体不可作引擎奖励——奖励发射/目标解析走域管线；
+            // 发动档先行（B1/B2 口径优先命中），档位匹配时由无域条款拒绝。两档引擎同拒。
+            var domainlessActiveFx = Fx((int)TriggerTiming.Activate_Active, 2, Entry(AtomicEffectType.SearchDeck));
+            var domainlessAutoFx = Fx((int)TriggerTiming.OnDraw, 1, Entry(AtomicEffectType.SearchDeck));
+            var dl1 = EffectEligibility.EngineRewardRejectReason(domainlessActiveFx, BranchEngineKind.Countdown);
+            Check(dl1 != null && dl1.Contains("无目标域"),
+                $"B5 主动档引擎奖励含无Domain原子（检索）被拒（实际：{dl1 ?? "null"}）");
+            var dl2 = EffectEligibility.EngineRewardRejectReason(domainlessAutoFx, BranchEngineKind.LuckRoll);
+            Check(dl2 != null && dl2.Contains("无目标域"),
+                $"B5 自动档引擎奖励含无Domain原子（检索）被拒（实际：{dl2 ?? "null"}）");
+            // 混合（带域+无域并存）同拒——条款按「任一原子无域」整体拒绝
+            var mixedFx = Fx((int)TriggerTiming.Activate_Active, 2,
+                Entry(AtomicEffectType.Heal, value: 2), Entry(AtomicEffectType.SearchDeck));
+            var dl3 = EffectEligibility.EngineRewardRejectReason(mixedFx, BranchEngineKind.DeathToll);
+            Check(dl3 != null && dl3.Contains("无目标域"),
+                $"B5 无Domain原子与带域原子混合仍被拒（实际：{dl3 ?? "null"}）");
         }
 
         // ======================================== C 发动方式钉 / 预设档 ========================================

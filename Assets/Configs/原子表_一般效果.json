@@ -73,7 +73,7 @@
   },
   {
     "ID": "43ac095e",
-    "TextHash": "43ac095e",
+    "TextHash": "f5f5074d",
     "Domain": "双方手牌:卡",
     "EnumName": "弃牌",
     "DisplayName": "从{target}中弃掉{value}张牌",
@@ -91,7 +91,7 @@
   },
   {
     "ID": "c3673dae",
-    "TextHash": "c3673dae",
+    "TextHash": "aae02093",
     "Domain": "双方战场:生物",
     "EnumName": "弹回",
     "DisplayName": "将{target}从场上返回手牌",
@@ -109,7 +109,7 @@
   },
   {
     "ID": "c03ef9fe",
-    "TextHash": "c03ef9fe",
+    "TextHash": "f7e42580",
     "Domain": "双方墓地:卡",
     "EnumName": "回收",
     "DisplayName": "将{target}从墓地返回手牌",
@@ -127,7 +127,7 @@
   },
   {
     "ID": "63a5dc1a",
-    "TextHash": "63a5dc1a",
+    "TextHash": "62131ab7",
     "Domain": "双方战场:生物",
     "EnumName": "除外",
     "DisplayName": "将{target}从场上除外",
@@ -145,7 +145,7 @@
   },
   {
     "ID": "9af09c90",
-    "TextHash": "9af09c90",
+    "TextHash": "979b9562",
     "Domain": "双方墓地:卡",
     "EnumName": "洗回",
     "DisplayName": "将{target}洗入牌库",
@@ -181,7 +181,7 @@
   },
   {
     "ID": "38c7d7a4",
-    "TextHash": "38c7d7a4",
+    "TextHash": "8f6b2e91",
     "Domain": "己方墓地:生物",
     "EnumName": "苏生",
     "DisplayName": "将{target}从墓地返回到己方战场",
@@ -199,7 +199,7 @@
   },
   {
     "ID": "361a6544",
-    "TextHash": "361a6544",
+    "TextHash": "428583b5",
     "Domain": "双方牌库:卡",
     "EnumName": "占卜",
     "DisplayName": "展示{target}{value}张卡并任意排列",
@@ -217,7 +217,7 @@
   },
   {
     "ID": "46607eb2",
-    "TextHash": "46607eb2",
+    "TextHash": "04f950db",
     "Domain": "双方手牌:卡",
     "EnumName": "锁定",
     "DisplayName": "对{target}中的{value}张卡附加一层锁定指示物，可作为地牌放置，无法使用",
@@ -272,7 +272,7 @@
   },
   {
     "ID": "3c4f3a60",
-    "TextHash": "3c4f3a60",
+    "TextHash": "327f1014",
     "Domain": "对方战场:生物",
     "EnumName": "控制",
     "DisplayName": "获得{target}的临时控制权，持续到回合结束",
@@ -290,7 +290,7 @@
   },
   {
     "ID": "c3d65a3d",
-    "TextHash": "c3d65a3d",
+    "TextHash": "2f4b2a8d",
     "EnumName": "发动无效",
     "DisplayName": "使连锁的效果的发动无效化",
     "EffectType": "NegateActivation",
@@ -307,7 +307,7 @@
   },
   {
     "ID": "f1cf5ce6",
-    "TextHash": "f1cf5ce6",
+    "TextHash": "75d78f44",
     "EnumName": "效果无效",
     "DisplayName": "使连锁的发动的效果无效化",
     "EffectType": "NegateEffect",
@@ -450,7 +450,7 @@
   },
   {
     "ID": "7e6840f3",
-    "TextHash": "7e6840f3",
+    "TextHash": "34675a99",
     "Domain": "双方战场:生物,结界",
     "EnumName": "模拟",
     "DisplayName": "变成{target}(无法复制场地光环)，附加一层变形指示物，解除时还原;发动时，按变形前后卡费用，用任意元素补齐差额",
@@ -504,7 +504,7 @@
   },
   {
     "ID": "85b7e5ac",
-    "TextHash": "85b7e5ac",
+    "TextHash": "d49541c9",
     "Domain": "双方战场:生物; 双方战场:结界",
     "EnumName": "回响",
     "DisplayName": "选择{target}，将{value}张具有一层遗忘指示物的复制加入手牌",
@@ -522,7 +522,7 @@
   },
   {
     "ID": "84136d36",
-    "TextHash": "84136d36",
+    "TextHash": "4bfd611f",
     "Domain": "己方战场:卡",
     "EnumName": "牺牲",
     "DisplayName": "自行选择{target}规则送墓（共{value}个单位），每送墓一个单位，获得一点临时任意元素",
@@ -540,7 +540,7 @@
   },
   {
     "ID": "9d6b3aef",
-    "TextHash": "9d6b3aef",
+    "TextHash": "5848518e",
     "Domain": "双方战场:生物",
     "EnumName": "操控",
     "DisplayName": "改写{target}的持有者。永久改写控制权——弹回洗回回新主卡组手牌，死亡去新主墓地",
@@ -558,7 +558,7 @@
   },
   {
     "ID": "e81b5f7e",
-    "TextHash": "e81b5f7e",
+    "TextHash": "29864889",
     "Domain": "双方牌库:卡",
     "EnumName": "磨牌",
     "DisplayName": "将{target}顶的{value}张牌送入墓地",
@@ -576,7 +576,7 @@
   },
   {
     "ID": "831af31d",
-    "TextHash": "831af31d",
+    "TextHash": "df31e8c5",
     "Domain": "双方战场:生物",
     "EnumName": "弹回牌库顶",
     "DisplayName": "将{target}放回持有者牌库顶",
@@ -611,7 +611,7 @@
   },
   {
     "ID": "c5340751",
-    "TextHash": "c5340751",
+    "TextHash": "6461321b",
     "Domain": "双方战场:生物",
     "EnumName": "永久攻击力增加",
     "DisplayName": "修改{target}文本级属性，本局游戏中攻击力永久增加{value}",
@@ -629,7 +629,7 @@
   },
   {
     "ID": "8ae22c02",
-    "TextHash": "8ae22c02",
+    "TextHash": "f87a3226",
     "Domain": "双方战场:生物",
     "EnumName": "永久攻击力减少",
     "DisplayName": "修改{target}文本级属性，本局游戏中攻击力永久减少{value}",
@@ -647,7 +647,7 @@
   },
   {
     "ID": "0afd7173",
-    "TextHash": "0afd7173",
+    "TextHash": "f0f5a532",
     "Domain": "双方战场:生物",
     "EnumName": "永久生命值增加",
     "DisplayName": "修改{target}文本级属性，本局游戏中生命值永久增加{value}",
@@ -665,7 +665,7 @@
   },
   {
     "ID": "e97b8001",
-    "TextHash": "e97b8001",
+    "TextHash": "54fff2dd",
     "Domain": "双方战场:生物",
     "EnumName": "永久生命值减少",
     "DisplayName": "修改{target}文本级属性，本局游戏中生命值永久减少{value}",
@@ -683,7 +683,7 @@
   },
   {
     "ID": "0afb06ce",
-    "TextHash": "0afb06ce",
+    "TextHash": "fd926da6",
     "Domain": "己方除外区:卡",
     "EnumName": "除外回收",
     "DisplayName": "将{target}从除外区返回手牌",
@@ -841,10 +841,13 @@
   },
   {
     "ID": "2cca9b23",
-    "TextHash": "cff4c2ab",
+    "TextHash": "03a64775",
     "Domain": "对方战场:生物; 对方角色",
+    "RefDomain": "己方战场:生物",
+    "RefPick": "Cast",
+    "RefRequired": true,
     "EnumName": "活体炸弹",
-    "DisplayName": "以一个己方生物为参照，对{target}造成等同其攻击力的伤害",
+    "DisplayName": "以{reference}为参照，对{target}造成等同其攻击力的伤害",
     "EffectType": "BurstDamage",
     "TargetFilter": null,
     "Polarity": -1,
@@ -859,10 +862,13 @@
   },
   {
     "ID": "1936751b",
-    "TextHash": "32e7f33a",
+    "TextHash": "d5efba16",
     "Domain": "己方战场:生物; 己方角色",
+    "RefDomain": "己方战场:生物",
+    "RefPick": "Cast",
+    "RefRequired": true,
     "EnumName": "活体护甲",
-    "DisplayName": "以一个己方生物参照，{target}获得等同其生命值的护甲",
+    "DisplayName": "以{reference}为参照，{target}获得等同其生命值的护甲",
     "EffectType": "LivingArmor",
     "TargetFilter": null,
     "Polarity": 1,
@@ -877,10 +883,14 @@
   },
   {
     "ID": "247c2ae1",
-    "TextHash": "6ff3e895",
+    "TextHash": "8fcb60ed",
     "Domain": "对方战场:结界;对方战场:生物; 对方角色",
+    "RefDomain": "己方战场:结界;己方战场:生物; 己方角色",
+    "RefFilter": "Armored",
+    "RefPick": "Cast",
+    "RefRequired": true,
     "EnumName": "护盾猛击",
-    "DisplayName": "移除角色全部护甲，对{target}造成移除护甲值等量的伤害",
+    "DisplayName": "移除{reference}全部护甲，对{target}造成移除护甲值等量的伤害",
     "EffectType": "ShieldSlam",
     "TargetFilter": null,
     "Polarity": -1,
@@ -895,7 +905,7 @@
   },
   {
     "ID": "c336be8f",
-    "TextHash": "c336be8f",
+    "TextHash": "53c5ff85",
     "Domain": "对方战场:生物",
     "EnumName": "封印",
     "DisplayName": "将{value}个{target}封印为对手的地牌，按其最高费用放入对应地牌格（不能对0费单位使用）",

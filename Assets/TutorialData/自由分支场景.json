@@ -98,8 +98,8 @@
                       },
                       {
                           "id":  "luck-fire",
-                          "name":  "③ 运势：x=1 双骰恒≥1，主动发动必中→1伤",
-                          "note":  "红(P2)场=教学·21（运势 x=1，timing19 主动档——SimpleAI 主循环 ActivateBattlefieldAbilities 会自动发动，无头掷 2d6 GameRng；发动代价横置宿主=本回合不再攻击）；蓝(P1)惰性。双骰都≥1 恒成立→执行奖励 1伤落蓝角色（终态29）。每卡每回合1次封顶：limit=1 + 引擎发射账双保险。",
+                          "name":  "③ 运势：x=1 双骰恒≥1，准备阶段自动掷骰必中→1伤",
+                          "note":  "红(P2)场=教学·21（运势 x=1，奖励效果化后主干钉自动 timing33——准备阶段掷骰：起跳@10 与对手回合@11 的 PhaseStartEvent(Standby) 各评估一次掷 2d6（起跳只跳自动化不吞事件）；掷骰不横置宿主=起跳回合参战攻击 1 伤）；蓝(P1)惰性。双骰都≥1 恒成立→奖励 1伤直发落蓝角色×2（终态 27=30−攻击1−引擎1伤×2）。每卡每回合1次封顶：limit=1 + 引擎发射账翻章双保险。",
                           "scenario":  {
                                            "startTurn":  10,
                                            "firstPlayer":  "P2",
@@ -389,7 +389,7 @@
                       {
                           "id":  "luck-miss",
                           "name":  "⑫ 运势（负）：x=6 双骰非双6 → 评估必发但不中，零奖励",
-                          "note":  "红(P2)场=教学·26（运势 x=6，主动档自动发动）。掷骰 LuckRolledEvent 成败两态必发（评估发生的外部证据——负例不是「引擎没跑」）；固定种子下双骰确定，非双6 → Success=false：零运势播报、零伤害。发动横置宿主=不攻击，蓝满血30。",
+                          "note":  "红(P2)场=教学·26（运势 x=6，奖励效果化后主干钉自动——准备阶段掷骰）。掷骰 LuckRolledEvent 成败两态必发（评估发生的外部证据——负例不是「引擎没跑」）；固定种子下双骰确定，非双6 → Success=false：未达标播报一次（自动路径成败两态）、零伤害。掷骰不横置宿主=起跳回合参战攻击 1，蓝终态 29。",
                           "scenario":  {
                                            "startTurn":  10,
                                            "firstPlayer":  "P2",
@@ -593,6 +593,28 @@
       "player": { "life": 30, "fatigue": 0, "bank": [0,0,0,0,0,0], "lands": [], "units": [ { "card": "C_DA499FAE" } ], "hand": [], "deck": ["C_DF45065E"], "grave": [] },
       "ai": { "life": 30, "fatigue": 0, "bank": [2,2,3,2,0,0], "lands": [], "units": [], "hand": ["C_FXGATE1"], "deck": ["C_03E4B181","C_03E4B181","C_03E4B181"], "grave": [] }
     }
-  }
+  },
+    {
+      "id": "deathtoll-hand-exclude",
+      "name": "㉑ 死亡计数·手牌不计数：引擎卡在手牌时杀2只生物，计数恒0零触发（阶段3：只扫战场）",
+      "note": "红(P2)场=教学·36(1伤主动逐杀器)+教学·52(0/2纯计数载体·对照：场上引擎卡照常计数)+1红地(付主动费)、生命999；蓝(P1)手[教学·27(死亡计数·门槛6·奖励6伤)]场=教学·3×2(1/1受害者)。单回合(t10红杀1只即读数，蓝不行动——蓝一旦行动会把手中卡铺为地牌/打出，引擎卡离手毁读数)：旧口径手牌卡同步计数→教学·27计1，新口径只扫战场→蓝手教学·27计数恒0；场上对照教学·52计1(<门槛2不触发)。杀1只的区分度：1>0 恰分新旧口径。",
+      "scenario": {
+        "startTurn": 10,
+        "firstPlayer": "P2",
+        "player": { "life": 30, "fatigue": 0, "bank": [0,0,0,0,0,0], "lands": [], "units": [ { "card": "C_DA499FAE" }, { "card": "C_DA499FAE" } ], "hand": ["C_E84B9F8A"], "deck": ["C_DA499FAE","C_DA499FAE"], "grave": [] },
+        "ai": { "life": 999, "fatigue": 0, "bank": [0,0,0,0,0,0], "lands": [ { "card": "C_11B82155", "tokenType": "Red" } ], "units": [ { "card": "C_CC0DE003" }, { "card": "C_6E58021B" } ], "hand": [], "deck": ["C_DA499FAE","C_DA499FAE"], "grave": [] }
+      }
+    },
+    {
+      "id": "luck-onplayed",
+      "name": "㉓ 运势·非默认时机判定：奖励效果时机=OnCardPlayed(26)，红出牌宣言即掷骰必中→1伤（阶段3：RewardTimingOf）",
+      "note": "红(P2)场=教学·55(注入·运势x=1·奖励引用FXLUCK26注入条目timing=26·tapped防首回合攻击)手[火苗1灰]银行1灰；蓝(P1)惰性(空场空手零银行)。起跳回合(t10)直落Main跳过准备阶段=无PhaseStart(Standby)事件——掷骰唯一事件源=出牌宣言CardPlayEvent(时机26映射)。x=1双骰恒中→直发1伤落蓝；火苗随后攻击蓝脸。",
+      "scenario": {
+        "startTurn": 10,
+        "firstPlayer": "P2",
+        "player": { "life": 30, "fatigue": 0, "bank": [0,0,0,0,0,0], "lands": [], "units": [], "hand": [], "deck": ["C_DA499FAE","C_DA499FAE"], "grave": [] },
+        "ai": { "life": 30, "fatigue": 0, "bank": [1,0,0,0,0,0], "lands": [], "units": [ { "card": "C_FXLUCK1", "tapped": true } ], "hand": ["C_138CE290"], "deck": ["C_DA499FAE","C_DA499FAE"], "grave": [] }
+      }
+    }
   ]
 }

@@ -91,7 +91,7 @@
   },
   {
     "ID": "010ec5f4",
-    "TextHash": "010ec5f4",
+    "TextHash": "face53fc",
     "Domain": "双方手牌:卡",
     "EnumName": "费用增加（灰）",
     "DisplayName": "为{target}中的卡添加{value}层灰色费用增加指示物",
@@ -109,7 +109,7 @@
   },
   {
     "ID": "64639418",
-    "TextHash": "64639418",
+    "TextHash": "947ab9dc",
     "Domain": "双方手牌:卡",
     "EnumName": "费用增加（红）",
     "DisplayName": "为{target}中的卡添加{value}层红色费用增加指示物",
@@ -127,7 +127,7 @@
   },
   {
     "ID": "a4a9518b",
-    "TextHash": "a4a9518b",
+    "TextHash": "422d02c2",
     "Domain": "双方手牌:卡",
     "EnumName": "费用增加（蓝）",
     "DisplayName": "为{target}中的卡添加{value}层蓝色费用增加指示物",
@@ -145,7 +145,7 @@
   },
   {
     "ID": "e85b93ef",
-    "TextHash": "e85b93ef",
+    "TextHash": "0ff17fa4",
     "Domain": "双方手牌:卡",
     "EnumName": "费用增加（绿）",
     "DisplayName": "为{target}中的卡添加{value}层绿色费用增加指示物",
@@ -163,7 +163,7 @@
   },
   {
     "ID": "75cec969",
-    "TextHash": "75cec969",
+    "TextHash": "3cf3b7a5",
     "Domain": "双方手牌:卡",
     "EnumName": "费用减少（灰）",
     "DisplayName": "为{target}中的卡添加{value}层灰色费用减少指示物",
@@ -181,7 +181,7 @@
   },
   {
     "ID": "2c4eeac9",
-    "TextHash": "2c4eeac9",
+    "TextHash": "8ecd1579",
     "Domain": "双方手牌:卡",
     "EnumName": "费用减少（红）",
     "DisplayName": "为{target}中的卡添加{value}层红色费用减少指示物",
@@ -199,7 +199,7 @@
   },
   {
     "ID": "18247a42",
-    "TextHash": "18247a42",
+    "TextHash": "576e115d",
     "Domain": "双方手牌:卡",
     "EnumName": "费用减少（蓝）",
     "DisplayName": "为{target}中的卡添加{value}层蓝色费用减少指示物",
@@ -217,7 +217,7 @@
   },
   {
     "ID": "48083c16",
-    "TextHash": "48083c16",
+    "TextHash": "ee3935b3",
     "Domain": "双方手牌:卡",
     "EnumName": "费用减少（绿）",
     "DisplayName": "为{target}中的卡添加{value}层绿色费用减少指示物",
@@ -547,7 +547,7 @@
   },
   {
     "ID": "842f2a26",
-    "TextHash": "842f2a26",
+    "TextHash": "2e460618",
     "Domain": "双方手牌:卡; 双方牌库:卡",
     "EnumName": "展示",
     "DisplayName": "给{target}添加一层展示指示物，持续期间，双方可查看",

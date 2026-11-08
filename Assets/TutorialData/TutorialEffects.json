@@ -530,7 +530,8 @@
     {
       "id": "03271DDF",
       "name": "倒计时2——回合开始计数-1，归零时对对方目标造成2点伤害",
-      "hash": "03271DDF",
+      "hash": "571382E8",
+      "timing": 33,
       "activation": 1,
       "limit": 1,
       "steps": [
@@ -542,15 +543,8 @@
               "settle": 3,
               "engine": 1,
               "engineParam": 2,
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "value": 2,
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
+              "effectId": "C578A49D",
+              "then": []
             }
           }
         }
@@ -559,9 +553,9 @@
     {
       "id": "6BCD785C",
       "name": "点击掷两个骰子，运势一，则【对对方单位造成1点伤害(本回合0/1)】",
-      "hash": "6BCD785C",
-      "timing": 19,
-      "activation": 2,
+      "hash": "1533DE99",
+      "timing": 33,
+      "activation": 1,
       "limit": 1,
       "steps": [
         {
@@ -572,15 +566,8 @@
               "settle": 3,
               "engine": 2,
               "engineParam": 1,
-              "tactivate": 2,
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
+              "effectId": "A335E361",
+              "then": []
             }
           }
         }
@@ -589,9 +576,9 @@
     {
       "id": "1BB8B2DA",
       "name": "点击掷两个骰子，运势二，则【对对方单位造成2点伤害(本回合0/1)】",
-      "hash": "1BB8B2DA",
-      "timing": 19,
-      "activation": 2,
+      "hash": "BAD1B6A2",
+      "timing": 33,
+      "activation": 1,
       "limit": 1,
       "steps": [
         {
@@ -602,16 +589,8 @@
               "settle": 3,
               "engine": 2,
               "engineParam": 2,
-              "tactivate": 2,
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "value": 2,
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
+              "effectId": "F7F2D3C3",
+              "then": []
             }
           }
         }
@@ -620,9 +599,9 @@
     {
       "id": "B3A90B8C",
       "name": "点击掷两个骰子，运势三，则【对对方单位造成3点伤害(本回合0/1)】",
-      "hash": "B3A90B8C",
-      "timing": 19,
-      "activation": 2,
+      "hash": "B4CD8A8A",
+      "timing": 33,
+      "activation": 1,
       "limit": 1,
       "steps": [
         {
@@ -633,16 +612,8 @@
               "settle": 3,
               "engine": 2,
               "engineParam": 3,
-              "tactivate": 2,
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "value": 3,
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
+              "effectId": "496D84D2",
+              "then": []
             }
           }
         }
@@ -651,9 +622,9 @@
     {
       "id": "BC5252DD",
       "name": "点击掷两个骰子，运势四，则【对对方单位造成4点伤害(本回合0/1)】",
-      "hash": "BC5252DD",
-      "timing": 19,
-      "activation": 2,
+      "hash": "BAFC84CB",
+      "timing": 33,
+      "activation": 1,
       "limit": 1,
       "steps": [
         {
@@ -664,16 +635,8 @@
               "settle": 3,
               "engine": 2,
               "engineParam": 4,
-              "tactivate": 2,
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "value": 4,
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
+              "effectId": "641B5EAE",
+              "then": []
             }
           }
         }
@@ -682,9 +645,9 @@
     {
       "id": "179CECE8",
       "name": "点击掷两个骰子，运势五，则【对对方单位造成5点伤害(本回合0/1)】",
-      "hash": "179CECE8",
-      "timing": 19,
-      "activation": 2,
+      "hash": "2EB47D44",
+      "timing": 33,
+      "activation": 1,
       "limit": 1,
       "steps": [
         {
@@ -695,16 +658,8 @@
               "settle": 3,
               "engine": 2,
               "engineParam": 5,
-              "tactivate": 2,
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "value": 5,
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
+              "effectId": "0B6DEF6D",
+              "then": []
             }
           }
         }
@@ -713,9 +668,9 @@
     {
       "id": "60011B78",
       "name": "点击掷两个骰子，运势六，则【对对方单位造成6点伤害(本回合0/1)】",
-      "hash": "60011B78",
-      "timing": 19,
-      "activation": 2,
+      "hash": "C5191E53",
+      "timing": 33,
+      "activation": 1,
       "limit": 1,
       "steps": [
         {
@@ -726,16 +681,8 @@
               "settle": 3,
               "engine": 2,
               "engineParam": 6,
-              "tactivate": 2,
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "value": 6,
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
+              "effectId": "9DD0AAFB",
+              "then": []
             }
           }
         }
@@ -744,7 +691,9 @@
     {
       "id": "AE2C3BF2",
       "name": "攻击宣言时与双方手牌各自展示攻击力最高的生物比攻击力，差额≥门槛时对对方目标造成6点伤害",
-      "hash": "AE2C3BF2",
+      "hash": "5ECBA309",
+      "timing": 7,
+      "activation": 1,
       "limit": 1,
       "steps": [
         {
@@ -754,15 +703,8 @@
             "branch": {
               "settle": 3,
               "engine": 3,
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "value": 6,
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
+              "effectId": "30423ED2",
+              "then": []
             }
           }
         }
@@ -771,7 +713,9 @@
     {
       "id": "07F57EE1",
       "name": "此卡在手中或场上时对双方生物死亡计数，计数≥6时对对方目标造成6点伤害",
-      "hash": "07F57EE1",
+      "hash": "BF37A41C",
+      "timing": 31,
+      "activation": 1,
       "limit": 1,
       "steps": [
         {
@@ -781,15 +725,8 @@
             "branch": {
               "settle": 3,
               "engine": 4,
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "value": 6,
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
+              "effectId": "32768F97",
+              "then": []
             }
           }
         }
@@ -798,7 +735,9 @@
     {
       "id": "6B9F7621",
       "name": "对手回合对手使用卡牌结算后，双方剩余元素的差恰为1时，对目标造成1点伤害（仅自动）",
-      "hash": "6B9F7621",
+      "hash": "A61739E0",
+      "timing": 35,
+      "activation": 1,
       "limit": 1,
       "steps": [
         {
@@ -808,14 +747,8 @@
             "branch": {
               "settle": 3,
               "engine": 5,
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
+              "effectId": "5244FA6F",
+              "then": []
             }
           }
         }
@@ -824,7 +757,9 @@
     {
       "id": "64CDFD65",
       "name": "对手回合对手使用卡牌结算后，双方剩余元素的差恰为2时，对目标造成2点伤害（仅自动）",
-      "hash": "64CDFD65",
+      "hash": "79FB85CC",
+      "timing": 35,
+      "activation": 1,
       "limit": 1,
       "steps": [
         {
@@ -834,15 +769,8 @@
             "branch": {
               "settle": 3,
               "engine": 5,
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "value": 2,
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
+              "effectId": "A2FE44F2",
+              "then": []
             }
           }
         }
@@ -851,7 +779,9 @@
     {
       "id": "E2D48807",
       "name": "对手回合对手使用卡牌结算后，双方剩余元素的差恰为3时，对目标造成3点伤害（仅自动）",
-      "hash": "E2D48807",
+      "hash": "C35299E2",
+      "timing": 35,
+      "activation": 1,
       "limit": 1,
       "steps": [
         {
@@ -861,15 +791,8 @@
             "branch": {
               "settle": 3,
               "engine": 5,
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "value": 3,
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
+              "effectId": "700A320B",
+              "then": []
             }
           }
         }
@@ -878,7 +801,9 @@
     {
       "id": "AD5DD5DB",
       "name": "对手回合对手使用卡牌结算后，双方剩余元素的差恰为4时，对目标造成4点伤害（仅自动）",
-      "hash": "AD5DD5DB",
+      "hash": "D0E136C4",
+      "timing": 35,
+      "activation": 1,
       "limit": 1,
       "steps": [
         {
@@ -888,15 +813,8 @@
             "branch": {
               "settle": 3,
               "engine": 5,
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "value": 4,
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
+              "effectId": "82BEE13D",
+              "then": []
             }
           }
         }
@@ -905,7 +823,9 @@
     {
       "id": "14B9EF4F",
       "name": "对手回合对手使用卡牌结算后，双方剩余元素的差恰为5时，对目标造成5点伤害（仅自动）",
-      "hash": "14B9EF4F",
+      "hash": "D104DB11",
+      "timing": 35,
+      "activation": 1,
       "limit": 1,
       "steps": [
         {
@@ -915,15 +835,8 @@
             "branch": {
               "settle": 3,
               "engine": 5,
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "value": 5,
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
+              "effectId": "2A0EDEB3",
+              "then": []
             }
           }
         }
@@ -932,7 +845,9 @@
     {
       "id": "CD0C3750",
       "name": "对手回合对手使用卡牌结算后，双方剩余元素的差恰为6时，对目标造成6点伤害（仅自动）",
-      "hash": "CD0C3750",
+      "hash": "14011310",
+      "timing": 35,
+      "activation": 1,
       "limit": 1,
       "steps": [
         {
@@ -942,15 +857,8 @@
             "branch": {
               "settle": 3,
               "engine": 5,
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "value": 6,
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
+              "effectId": "A439A146",
+              "then": []
             }
           }
         }
@@ -959,7 +867,7 @@
     {
       "id": "80B7DA7B",
       "name": "施放时给对手牌库随机1张卡附加诅咒指示物，对手抽到该卡时受到6点伤害并移除指示物",
-      "hash": "80B7DA7B",
+      "hash": "80DCABEF",
       "timing": 19,
       "activation": 2,
       "cost": [
@@ -978,16 +886,8 @@
               "settle": 3,
               "engine": 6,
               "engineParam": 1,
-              "tactivate": 2,
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "value": 6,
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
+              "effectId": "6774291E",
+              "then": []
             }
           }
         }
@@ -996,7 +896,7 @@
     {
       "id": "FE4D4EBB",
       "name": "施放时给自己牌库随机1张卡附加祝福指示物，自己抽到该卡时回复12点生命并移除指示物",
-      "hash": "FE4D4EBB",
+      "hash": "3E7640C3",
       "timing": 19,
       "activation": 2,
       "cost": [
@@ -1015,16 +915,8 @@
               "settle": 3,
               "engine": 7,
               "engineParam": 1,
-              "tactivate": 2,
-              "then": [
-                {
-                  "refId": "599fcc9a",
-                  "value": 12,
-                  "kinds": [
-                    1
-                  ]
-                }
-              ]
+              "effectId": "3921B380",
+              "then": []
             }
           }
         }
@@ -1101,7 +993,8 @@
               "settle": 3,
               "engine": 6,
               "engineParam": 1,
-              "tactivate": 2
+              "tactivate": 2,
+              "then": []
             }
           }
         }
@@ -1130,7 +1023,8 @@
               "settle": 3,
               "engine": 7,
               "engineParam": 1,
-              "tactivate": 2
+              "tactivate": 2,
+              "then": []
             }
           }
         }
@@ -1139,7 +1033,9 @@
     {
       "id": "CC0DE005",
       "name": "此卡在手中或场上时对双方生物死亡计数，计数≥2时抽1张牌（门槛=抽1牌锚价推导=2；抽牌奖励不杀生物=逐次触发可观察）",
-      "hash": "CC0DE005",
+      "hash": "B28A3B24",
+      "timing": 31,
+      "activation": 1,
       "limit": 1,
       "steps": [
         {
@@ -1149,11 +1045,8 @@
             "branch": {
               "settle": 3,
               "engine": 4,
-              "then": [
-                {
-                  "refId": "03c85bc4"
-                }
-              ]
+              "effectId": "194E7CAD",
+              "then": []
             }
           }
         }
@@ -1162,7 +1055,9 @@
     {
       "id": "29C47333",
       "name": "与此卡相邻的单位数（生物/结界/角色/非空地牌格各算一）达到4时，对目标造成4点伤害",
-      "hash": "29C47333",
+      "hash": "1F957C5C",
+      "timing": 35,
+      "activation": 1,
       "limit": 1,
       "steps": [
         {
@@ -1173,15 +1068,8 @@
               "settle": 3,
               "engine": 8,
               "engineParam": 4,
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "value": 4,
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
+              "effectId": "F946B51E",
+              "then": []
             }
           }
         }
@@ -1245,7 +1133,9 @@
     {
       "id": "38B76368",
       "name": "对手回合对手使用卡牌结算后，若己方剩余元素比对手多1，对对方单位造成1点伤害",
-      "hash": "38B76368",
+      "hash": "DD3ACDDA",
+      "timing": 35,
+      "activation": 1,
       "limit": 1,
       "steps": [
         {
@@ -1255,14 +1145,8 @@
             "branch": {
               "settle": 3,
               "engine": 5,
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
+              "effectId": "5244FA6F",
+              "then": []
             }
           }
         }
@@ -1271,7 +1155,9 @@
     {
       "id": "B3EC27CE",
       "name": "对手回合对手使用卡牌结算后，若己方剩余元素比对手多2，抽1张卡",
-      "hash": "B3EC27CE",
+      "hash": "4A6550D4",
+      "timing": 35,
+      "activation": 1,
       "limit": 1,
       "steps": [
         {
@@ -1281,11 +1167,8 @@
             "branch": {
               "settle": 3,
               "engine": 5,
-              "then": [
-                {
-                  "refId": "03c85bc4"
-                }
-              ]
+              "effectId": "5004AFA1",
+              "then": []
             }
           }
         }
@@ -1294,7 +1177,9 @@
     {
       "id": "72E637F4",
       "name": "对手回合对手使用卡牌结算后，若己方剩余元素比对手多2，对对方单位造成2点伤害",
-      "hash": "72E637F4",
+      "hash": "BF71B34E",
+      "timing": 35,
+      "activation": 1,
       "limit": 1,
       "steps": [
         {
@@ -1304,15 +1189,8 @@
             "branch": {
               "settle": 3,
               "engine": 5,
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "value": 2,
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
+              "effectId": "A2FE44F2",
+              "then": []
             }
           }
         }
@@ -1321,7 +1199,9 @@
     {
       "id": "3A891EB7",
       "name": "对手回合对手使用卡牌结算后，若己方剩余元素比对手多1，冻结一个对方单位",
-      "hash": "3A891EB7",
+      "hash": "350A9342",
+      "timing": 35,
+      "activation": 1,
       "limit": 1,
       "steps": [
         {
@@ -1331,14 +1211,8 @@
             "branch": {
               "settle": 3,
               "engine": 5,
-              "then": [
-                {
-                  "refId": "973884b1",
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
+              "effectId": "269D2661",
+              "then": []
             }
           }
         }
@@ -1586,7 +1460,9 @@
     {
       "id": "099F66FB",
       "name": "倒计时3：归零时获得帷幕（重挂）",
-      "hash": "099F66FB",
+      "hash": "445A9082",
+      "timing": 33,
+      "activation": 1,
       "steps": [
         {
           "kind": 0,
@@ -1596,15 +1472,8 @@
               "settle": 3,
               "engine": 1,
               "engineParam": 3,
-              "then": [
-                {
-                  "refId": "407eb771",
-                  "value": 0,
-                  "kinds": [
-                    1
-                  ]
-                }
-              ]
+              "effectId": "FBE8AC66",
+              "then": []
             }
           }
         }
@@ -1653,7 +1522,9 @@
     {
       "id": "AF36EA72",
       "name": "倒计时2：归零时抽1张卡（重挂）",
-      "hash": "AF36EA72",
+      "hash": "3BFF01D1",
+      "timing": 33,
+      "activation": 1,
       "steps": [
         {
           "kind": 0,
@@ -1663,11 +1534,8 @@
               "settle": 3,
               "engine": 1,
               "engineParam": 2,
-              "then": [
-                {
-                  "refId": "03c85bc4"
-                }
-              ]
+              "effectId": "EE60165C",
+              "then": []
             }
           }
         }
@@ -1745,6 +1613,7 @@
           "kind": 0,
           "atom": {
             "refId": "1936751b",
+            "valueExpr": "ref.life",
             "kinds": [
               1
             ]
@@ -1755,7 +1624,9 @@
     {
       "id": "9170B00B",
       "name": "倒计时3：归零时获得警戒（重挂）",
-      "hash": "9170B00B",
+      "hash": "025E8402",
+      "timing": 33,
+      "activation": 1,
       "steps": [
         {
           "kind": 0,
@@ -1765,15 +1636,8 @@
               "settle": 3,
               "engine": 1,
               "engineParam": 3,
-              "then": [
-                {
-                  "refId": "4cf22304",
-                  "value": 0,
-                  "kinds": [
-                    1
-                  ]
-                }
-              ]
+              "effectId": "7C65BC0E",
+              "then": []
             }
           }
         }
@@ -1782,7 +1646,9 @@
     {
       "id": "B4AA343A",
       "name": "倒计时3：归零时获得狩猎（重挂）",
-      "hash": "B4AA343A",
+      "hash": "4D85C57C",
+      "timing": 33,
+      "activation": 1,
       "steps": [
         {
           "kind": 0,
@@ -1792,15 +1658,8 @@
               "settle": 3,
               "engine": 1,
               "engineParam": 3,
-              "then": [
-                {
-                  "refId": "a81e2068",
-                  "value": 0,
-                  "kinds": [
-                    1
-                  ]
-                }
-              ]
+              "effectId": "1BBBAB5B",
+              "then": []
             }
           }
         }
@@ -1836,7 +1695,9 @@
     {
       "id": "E404DB9B",
       "name": "倒计时1：归零时为角色回复2点生命",
-      "hash": "E404DB9B",
+      "hash": "8C92F0A0",
+      "timing": 33,
+      "activation": 1,
       "steps": [
         {
           "kind": 0,
@@ -1846,15 +1707,8 @@
               "settle": 3,
               "engine": 1,
               "engineParam": 1,
-              "then": [
-                {
-                  "refId": "599fcc9a",
-                  "value": 2,
-                  "kinds": [
-                    1
-                  ]
-                }
-              ]
+              "effectId": "F6B7BFE1",
+              "then": []
             }
           }
         }
@@ -1917,7 +1771,9 @@
     {
       "id": "643BFF5D",
       "name": "对手回合对手使用卡牌结算后，若己方剩余元素比对手多3，弃掉对手一张手牌",
-      "hash": "643BFF5D",
+      "hash": "6265AECB",
+      "timing": 35,
+      "activation": 1,
       "limit": 1,
       "steps": [
         {
@@ -1927,14 +1783,8 @@
             "branch": {
               "settle": 3,
               "engine": 5,
-              "then": [
-                {
-                  "refId": "43ac095e",
-                  "kinds": [
-                    6
-                  ]
-                }
-              ]
+              "effectId": "2F38FF7E",
+              "then": []
             }
           }
         }
@@ -1943,7 +1793,9 @@
     {
       "id": "302E1C7E",
       "name": "对手回合对手使用卡牌结算后，若己方剩余元素比对手多1，为己方角色回复2点生命",
-      "hash": "302E1C7E",
+      "hash": "563C0006",
+      "timing": 35,
+      "activation": 1,
       "limit": 1,
       "steps": [
         {
@@ -1953,15 +1805,8 @@
             "branch": {
               "settle": 3,
               "engine": 5,
-              "then": [
-                {
-                  "refId": "599fcc9a",
-                  "value": 2,
-                  "kinds": [
-                    1
-                  ]
-                }
-              ]
+              "effectId": "F786FF4A",
+              "then": []
             }
           }
         }
@@ -1970,7 +1815,9 @@
     {
       "id": "735B2360",
       "name": "对手回合对手使用卡牌结算后，若己方剩余元素比对手多3，将一个对方单位弹回手牌",
-      "hash": "735B2360",
+      "hash": "F95F901F",
+      "timing": 35,
+      "activation": 1,
       "limit": 1,
       "steps": [
         {
@@ -1980,14 +1827,8 @@
             "branch": {
               "settle": 3,
               "engine": 5,
-              "then": [
-                {
-                  "refId": "c3673dae",
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
+              "effectId": "7E9A402E",
+              "then": []
             }
           }
         }
@@ -2430,7 +2271,7 @@
     {
       "id": "1FB7E6DA",
       "name": "元素充盈：剩余元素差恰好等于门槛时，对一个对方单位造成2点伤害",
-      "hash": "1FB7E6DA",
+      "hash": "B165BD20",
       "timing": 35,
       "activation": 1,
       "limit": 1,
@@ -2442,16 +2283,8 @@
             "branch": {
               "settle": 3,
               "engine": 5,
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "value": 2,
-                  "kinds": [
-                    2
-                  ],
-                  "count": 1
-                }
-              ]
+              "effectId": "A2FE44F2",
+              "then": []
             }
           }
         }
@@ -2460,7 +2293,7 @@
     {
       "id": "79655260",
       "name": "元素充盈：剩余元素差恰好等于门槛时，回响1：选择双方战场的一张卡，将其1张带遗忘指示物的临时复制加入手牌",
-      "hash": "79655260",
+      "hash": "580C4118",
       "timing": 35,
       "activation": 1,
       "limit": 1,
@@ -2472,18 +2305,8 @@
             "branch": {
               "settle": 3,
               "engine": 5,
-              "then": [
-                {
-                  "refId": "85b7e5ac",
-                  "kinds": [
-                    1,
-                    2,
-                    3,
-                    4
-                  ],
-                  "count": 1
-                }
-              ]
+              "effectId": "290FA5F0",
+              "then": []
             }
           }
         }
@@ -2827,6 +2650,8 @@
           "kind": 0,
           "atom": {
             "refId": "2cca9b23",
+            "valueExpr": "ref.power",
+            "valueMax": 12,
             "kinds": [
               1
             ],
@@ -3157,6 +2982,562 @@
           "atom": {
             "refId": "cab6ae97",
             "value": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "C578A49D",
+      "name": "引擎奖励·倒计时·造成伤害×2",
+      "hash": "C578A49D",
+      "timing": 19,
+      "activation": 2,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "a4b823fc",
+            "value": 2,
+            "kinds": [
+              2
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "A335E361",
+      "name": "引擎奖励·运势·造成伤害",
+      "hash": "A335E361",
+      "timing": 33,
+      "activation": 1,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "a4b823fc",
+            "kinds": [
+              2
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "F7F2D3C3",
+      "name": "引擎奖励·运势·造成伤害×2",
+      "hash": "F7F2D3C3",
+      "timing": 33,
+      "activation": 1,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "a4b823fc",
+            "value": 2,
+            "kinds": [
+              2
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "496D84D2",
+      "name": "引擎奖励·运势·造成伤害×3",
+      "hash": "496D84D2",
+      "timing": 33,
+      "activation": 1,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "a4b823fc",
+            "value": 3,
+            "kinds": [
+              2
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "641B5EAE",
+      "name": "引擎奖励·运势·造成伤害×4",
+      "hash": "641B5EAE",
+      "timing": 33,
+      "activation": 1,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "a4b823fc",
+            "value": 4,
+            "kinds": [
+              2
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "0B6DEF6D",
+      "name": "引擎奖励·运势·造成伤害×5",
+      "hash": "0B6DEF6D",
+      "timing": 33,
+      "activation": 1,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "a4b823fc",
+            "value": 5,
+            "kinds": [
+              2
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "9DD0AAFB",
+      "name": "引擎奖励·运势·造成伤害×6",
+      "hash": "9DD0AAFB",
+      "timing": 33,
+      "activation": 1,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "a4b823fc",
+            "value": 6,
+            "kinds": [
+              2
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "30423ED2",
+      "name": "引擎奖励·拼点·造成伤害×6",
+      "hash": "30423ED2",
+      "timing": 7,
+      "activation": 1,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "a4b823fc",
+            "value": 6,
+            "kinds": [
+              2
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "32768F97",
+      "name": "引擎奖励·死亡计数·造成伤害×6",
+      "hash": "32768F97",
+      "timing": 19,
+      "activation": 2,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "a4b823fc",
+            "value": 6,
+            "kinds": [
+              2
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "5244FA6F",
+      "name": "引擎奖励·元素充盈·造成伤害",
+      "hash": "5244FA6F",
+      "timing": 19,
+      "activation": 2,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "a4b823fc",
+            "kinds": [
+              2
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "A2FE44F2",
+      "name": "引擎奖励·元素充盈·造成伤害×2",
+      "hash": "A2FE44F2",
+      "timing": 19,
+      "activation": 2,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "a4b823fc",
+            "value": 2,
+            "kinds": [
+              2
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "700A320B",
+      "name": "引擎奖励·元素充盈·造成伤害×3",
+      "hash": "700A320B",
+      "timing": 19,
+      "activation": 2,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "a4b823fc",
+            "value": 3,
+            "kinds": [
+              2
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "82BEE13D",
+      "name": "引擎奖励·元素充盈·造成伤害×4",
+      "hash": "82BEE13D",
+      "timing": 19,
+      "activation": 2,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "a4b823fc",
+            "value": 4,
+            "kinds": [
+              2
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "2A0EDEB3",
+      "name": "引擎奖励·元素充盈·造成伤害×5",
+      "hash": "2A0EDEB3",
+      "timing": 19,
+      "activation": 2,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "a4b823fc",
+            "value": 5,
+            "kinds": [
+              2
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "A439A146",
+      "name": "引擎奖励·元素充盈·造成伤害×6",
+      "hash": "A439A146",
+      "timing": 19,
+      "activation": 2,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "a4b823fc",
+            "value": 6,
+            "kinds": [
+              2
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "6774291E",
+      "name": "引擎奖励·附加诅咒·造成伤害×6",
+      "hash": "6774291E",
+      "timing": 19,
+      "activation": 2,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "a4b823fc",
+            "value": 6,
+            "kinds": [
+              2
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "3921B380",
+      "name": "引擎奖励·附加祝福·回复生命×12",
+      "hash": "3921B380",
+      "timing": 19,
+      "activation": 2,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "599fcc9a",
+            "value": 12,
+            "kinds": [
+              1
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "194E7CAD",
+      "name": "引擎奖励·死亡计数·抽卡",
+      "hash": "194E7CAD",
+      "timing": 19,
+      "activation": 2,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "03c85bc4"
+          }
+        }
+      ]
+    },
+    {
+      "id": "F946B51E",
+      "name": "引擎奖励·团结·造成伤害×4",
+      "hash": "F946B51E",
+      "timing": 35,
+      "activation": 1,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "a4b823fc",
+            "value": 4,
+            "kinds": [
+              2
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "5004AFA1",
+      "name": "引擎奖励·元素充盈·抽卡",
+      "hash": "5004AFA1",
+      "timing": 19,
+      "activation": 2,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "03c85bc4"
+          }
+        }
+      ]
+    },
+    {
+      "id": "269D2661",
+      "name": "引擎奖励·元素充盈·冻结",
+      "hash": "269D2661",
+      "timing": 19,
+      "activation": 2,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "973884b1",
+            "kinds": [
+              2
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "FBE8AC66",
+      "name": "引擎奖励·倒计时·帷幕×0",
+      "hash": "FBE8AC66",
+      "timing": 19,
+      "activation": 2,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "407eb771",
+            "value": 0,
+            "kinds": [
+              1
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "EE60165C",
+      "name": "引擎奖励·倒计时·抽卡",
+      "hash": "EE60165C",
+      "timing": 19,
+      "activation": 2,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "03c85bc4"
+          }
+        }
+      ]
+    },
+    {
+      "id": "7C65BC0E",
+      "name": "引擎奖励·倒计时·警戒×0",
+      "hash": "7C65BC0E",
+      "timing": 19,
+      "activation": 2,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "4cf22304",
+            "value": 0,
+            "kinds": [
+              1
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "1BBBAB5B",
+      "name": "引擎奖励·倒计时·狩猎×0",
+      "hash": "1BBBAB5B",
+      "timing": 19,
+      "activation": 2,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "a81e2068",
+            "value": 0,
+            "kinds": [
+              1
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "F6B7BFE1",
+      "name": "引擎奖励·倒计时·回复生命×2",
+      "hash": "F6B7BFE1",
+      "timing": 19,
+      "activation": 2,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "599fcc9a",
+            "value": 2,
+            "kinds": [
+              1
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "2F38FF7E",
+      "name": "引擎奖励·元素充盈·弃牌",
+      "hash": "2F38FF7E",
+      "timing": 19,
+      "activation": 2,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "43ac095e",
+            "kinds": [
+              6
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "F786FF4A",
+      "name": "引擎奖励·元素充盈·回复生命×2",
+      "hash": "F786FF4A",
+      "timing": 19,
+      "activation": 2,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "599fcc9a",
+            "value": 2,
+            "kinds": [
+              1
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "7E9A402E",
+      "name": "引擎奖励·元素充盈·弹回",
+      "hash": "7E9A402E",
+      "timing": 19,
+      "activation": 2,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "c3673dae",
+            "kinds": [
+              2
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "290FA5F0",
+      "name": "引擎奖励·元素充盈·回响",
+      "hash": "290FA5F0",
+      "timing": 19,
+      "activation": 2,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "85b7e5ac",
+            "kinds": [
+              1,
+              2,
+              3,
+              4
+            ],
+            "count": 1
           }
         }
       ]

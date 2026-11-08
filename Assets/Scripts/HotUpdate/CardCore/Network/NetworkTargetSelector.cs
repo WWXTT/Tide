@@ -120,6 +120,8 @@ namespace CardCore.Network
                 // Candidates 下标不变）；纯选项反问（Candidates 空，如抉择模式）保留 Labels 作语义载荷
                 Labels = request.Candidates.Count > 0 ? Array.Empty<string>() : labels.ToArray(),
                 Candidates = request.Candidates.Select(NetEntityMapper.FromEntity).ToArray(),
+                // 步5 协议 v10 §3.3：spec 计划关联键显式上送（参照/受体对齐，不靠弹窗顺序）
+                SpecKey = request.SpecKey,
             };
 
             var tcs = new UniTaskCompletionSource<List<int>>();

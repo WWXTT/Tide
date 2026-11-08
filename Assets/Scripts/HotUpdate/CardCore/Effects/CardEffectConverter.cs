@@ -315,28 +315,19 @@ namespace CardCore
             // 此处收口旧数据/手写数据（引擎运行时本就无视效果头，自订阅事件；归一保证显示/计价/数据三面一致）。
             // 2026-11-08 规则地基定案：双选组随 EngineActivationFree 整删——发动方式按
             // EngineActivationPinOf 单值钉（主动行=主动、其余引擎行=自动）；
-            // 自然缺省组（运势/拼点/团结，FreeTiming）时机声明值优先、否则回落自然缺省；
-            // 固定三引擎/附加诅咒·祝福（钉死组）声明值一律预设归一。
+            // 2026-11-08 阶段3：固定三（钉死组）声明值一律预设归一；自动三（自然缺省组）一律自动
+            // +时机=奖励效果时机（解析失败回落自然缺省并告警）——「声明主动运势」旧路径退役。
             var engineKind = EngineKindOfDefinition(def);
             if (ComposerCatalog.EngineHeaderPresetOf(engineKind) is { } ehp)
             {
                 if (ehp.FreeTiming)
                 {
-                    // 自然缺省组（2026-10-16 运势解绑 → 2026-11-08 拼点/团结入列）：声明主动
-                    //（activation=2）→ 发动方式保留声明（存量主动运势一步点击路径），时机取声明
-                    // Activate_* 值（非主动时机声明回落 Activate_Active）。自动/未声明照旧：触发式
-                    // 时机声明值优先、否则自然缺省占位，发动方式钉 Automatic。
-                    if (def.ActivationType == EffectActivationType.Voluntary)
-                    {
-                        def.TriggerTiming = def.IsActivatedEffect ? def.TriggerTiming : TriggerTiming.Activate_Active;
-                    }
-                    else
-                    {
-                        bool hasRealTiming = def.IsTriggeredEffect
-                            && TriggerTimingDefaults.GetEventType(def.TriggerTiming) != null;
-                        def.TriggerTiming = hasRealTiming ? def.TriggerTiming : ehp.Timing;
-                        def.ActivationType = ehp.Activation;
-                    }
+                    // 自然缺省组（运势/拼枪/团结·2026-11-08 阶段3）：一律自动；时机=奖励效果时机
+                    //（首个引擎载荷 payload.EffectId → 引用条目 TriggerTiming——与 BranchEngines.
+                    // RewardTimingOf 运行时同源）。解析失败（无引用/悬空/非法值）回落自然缺省并告警
+                    //（引擎分支硬校验在装载期 ValidateAtomParams——本口保运行时不炸）。
+                    def.ActivationType = EffectActivationType.Automatic;
+                    def.TriggerTiming = RewardTimingOfEngine(def, ehp.Timing, sourceCardId, data.Id);
                 }
                 else
                 {
@@ -385,6 +376,37 @@ namespace CardCore
                     if (k != BranchEngineKind.None) return k;
                 }
             return BranchEngineKind.None;
+        }
+
+        /// <summary>自动三引擎（运势/拼枪/团结）的奖励效果时机（2026-11-08 阶段3·转换器侧）：
+        /// 首个引擎载荷 payload.EffectId → 效果库条目 TriggerTiming——与 BranchEngines.RewardTimingOf
+        /// 运行时同源。解析失败（无引用/悬空/越界/主动档值）回落自然缺省 fallback 并告警
+        ///（时机归一同 ConvertOne 顶部：OnTurnStart 收归 OnStandbyPhase）。</summary>
+        private static TriggerTiming RewardTimingOfEngine(EffectDefinition def, TriggerTiming fallback,
+            string sourceCardId, string effectId)
+        {
+            foreach (var atom in def.Effects)
+            {
+                var b = atom?.Branch;
+                if (b == null || b.Settle != BranchSettleKind.Engine) continue;
+                var fx = string.IsNullOrEmpty(b.EffectId) ? null : EffectsLibrary.Resolve(b.EffectId);
+                if (fx != null
+                    && fx.TriggerTiming >= 0
+                    && Enum.IsDefined(typeof(TriggerTiming), fx.TriggerTiming)
+                    && fx.TriggerTiming != (int)TriggerTiming.Activate_Active
+                    && fx.TriggerTiming != (int)TriggerTiming.Activate_Instant
+                    && fx.TriggerTiming != (int)TriggerTiming.Activate_Response)
+                {
+                    var t = (TriggerTiming)fx.TriggerTiming;
+                    if (t == TriggerTiming.OnTurnStart) t = TriggerTiming.OnStandbyPhase; // 系统专用收归（同顶部归一）
+                    return t;
+                }
+                break; // 首个引擎载荷即权威——解析失败即回落（多载荷同拍告警一次）
+            }
+            TideLog.Warn($"[CardEffectConverter] 卡 {sourceCardId} 效果 {effectId} 自动引擎"
+                         + $"（{ComposerCatalog.EngineZhOf(EngineKindOfDefinition(def))}）奖励效果时机解析失败"
+                         + $"（effectId 空/悬空/非触发值）——时机回落自然缺省 {fallback}");
+            return fallback;
         }
 
         // ======================================== 关键词型原子主动校验（2026-10-02 定案） ========================================
@@ -479,6 +501,16 @@ namespace CardCore
             return AtomsContain(atom.SubEffects, type);
         }
 
+        /// <summary>动态值表达式白名单（步6 §4.1 v1）：仅 ref.power|ref.life|ref.cost——
+        /// 不接运算符；白名单外告警置空（回落旧路径 GetRolledValue，效果可结算不炸）。</summary>
+        private static bool IsValidValueExpr(string expr)
+        {
+            if (string.IsNullOrEmpty(expr)) return true;
+            if (expr == "ref.power" || expr == "ref.life" || expr == "ref.cost") return true;
+            TideLog.Warn($"[CardEffectConverter] 动态值表达式 '{expr}' 超白名单（v1 仅 ref.power|ref.life|ref.cost）——置空回落名义值路径");
+            return false;
+        }
+
         /// <summary>引用型唯一转换口（2026-09-14 彻底引用化）：refId → 表行 → 运行时实例。
         /// 枚举/默认域/Filter/极性/MountKinds 全部从行解析；增量只读 value/str/amp/kinds/branch。
         /// branch 载荷递归转换（Then 奖励同引用化口径；引擎倒计时初值换算在 ConvertOne 收口）。</summary>
@@ -507,6 +539,9 @@ namespace CardCore
             // 不参与目标解析——kinds 恒空（保持「空 Domain=无目标」的既有运行时行为，
             // 防光环原子凭行域生成候选弹目标窗）。
             bool auraRow = RuleAuraComponents.IsAuraLike(type);
+            // 参照域行（步4 §2.4）：Domain=受体域、RefDomain=参照域各自独立产轴——entry.kinds 不再
+            // 作为目标/参照域收窄源（仍照旧填 TargetKinds 供 SideLock/隐藏区等区级消费口）。
+            bool refRow = !auraRow && !string.IsNullOrEmpty(config.RefDomain);
             kinds = auraRow ? new List<int>()
                 : entry.kinds != null && entry.kinds.Count > 0
                 ? new List<int>(entry.kinds)
@@ -536,17 +571,19 @@ namespace CardCore
                 else
                 {
                     parsedAxis.Filter = filter;
-                    var narrowed = TargetAxisRules.NarrowByKinds(parsedAxis, entry.kinds);
+                    // 参照域行（步4）：受体轴不受 entry.kinds 收窄（§2.4 忽略 kinds 作为域源）；
+                    // 非参照行照旧 NarrowByKinds（实例收窄/代价锁侧）。
+                    var narrowed = TargetAxisRules.NarrowByKinds(parsedAxis, refRow ? null : entry.kinds);
                     // 极性收窄（2026-11-06 用户定案：非场地效果一律按极性定作用侧——行域「双方」
                     // 只是双极性并集声明，p<0→对方侧/p>0→己方侧；只有场地（仪典/场地光环，不经
-                    // 产轴路径）可同时作用于双方）。仅 kinds 未显式声明的条目收窄——实例 kinds
-                    // （手动收窄/代价锁侧/参照族第一段）优先，不经此口。
-                    if (entry.kinds == null || entry.kinds.Count == 0)
+                    // 产轴路径）可同时作用于双方）。kinds 未显式声明（含参照域行——其 kinds 不承载
+                    // 受体域语义）的条目收窄；实例 kinds（手动收窄/代价锁侧）优先，不经此口。
+                    if (refRow || entry.kinds == null || entry.kinds.Count == 0)
                         narrowed = TargetAxisRules.NarrowByPolarity(narrowed, polarity);
-                    // 收窄后空 selector（参照族形态：行 Domain=第二段目标域、entry.kinds=第一段参照域——
-                    // 两者无交）：挂 null——外层 {target} 解析回落 kinds 路径选**参照**（第一段），
-                    // 第二段目标域由 handler 读行 Domain 自管（BurstDamage/LivingArmor 2026-11-05 定案）。
-                    axis = narrowed.Selectors.Count > 0 ? narrowed : null;
+                    // 步4（2026-11-08 目标选择重构）：删「收窄后空 selector 挂 null 回落 kinds 选参照」
+                    // 特例——参照域已由 RefDomain 独立承载（ReferenceAxis），Domain 恒为受体轴；
+                    // 非参照行 kinds ⊄ Domain 并集属数据错误，保留空轴（无候选，错误可见不静默回落）。
+                    axis = narrowed;
                 }
             }
             else if (!auraRow && !string.IsNullOrEmpty(config.Domain))
@@ -601,6 +638,32 @@ namespace CardCore
                 effectiveCount = 1;
             }
 
+            // 参照域三列落库（2026-11-08 目标选择重构步2 §2.1：**只读填充**——目标/参照来源尚未切换，
+            // 旧 kinds 路径照旧；ReferenceAxis != null 即「分段原子」标记，步3 引擎据此分流 Refs/Targets）。
+            // 参照轴可见性过滤之外可挂 RefFilter 属性条件（护盾猛击「具有护甲的」——2026-11-08 参照化）。
+            TargetAxis refAxis = null;
+            var refPick = Attribute.RefPick.Cast;
+            bool refRequired = true;
+            if (!auraRow && !string.IsNullOrEmpty(config.RefDomain))
+            {
+                if (TargetAxisRules.TryParseDomain(config.RefDomain, out var refParsed))
+                {
+                    refAxis = refParsed;
+                    // 参照侧属性过滤（2026-11-08 护盾猛击参照化）：RefDomain 表结构、RefFilter 表状态
+                    //（「具有护甲的」），挂参照轴随候选解析生效（TargetAxis 管线 :626 属性过滤段）。
+                    refAxis.Filter = config.RefFilter;
+                }
+                else
+                {
+                    TideLog.Warn($"[CardEffectConverter] 原子 {type}（行 {entry.refId}）RefDomain='"
+                                 + config.RefDomain + "' 非法——参照轴不挂（参照回落旧 kinds 路径）");
+                }
+                if (!string.IsNullOrEmpty(config.RefPick)
+                    && Enum.TryParse(config.RefPick, out Attribute.RefPick parsedPick))
+                    refPick = parsedPick;
+                refRequired = config.RefRequired;
+            }
+
             return new AtomicEffectInstance
             {
                 Type = type,
@@ -609,6 +672,8 @@ namespace CardCore
                     ? (int)RuleAuraScope.Both
                     : entry.value,
                 RandomAmplitude = Math.Clamp(entry.amp, 0f, 1f),
+                ValueMax = Math.Max(0, entry.valueMax),   // 数值上界（步6）：只告警不拦（装载不读表价）
+                ValueExpr = IsValidValueExpr(entry.valueExpr) ? entry.valueExpr : null, // 白名单外置空+告警
                 StringValue = entry.str ?? "",
                 RowHashId = entry.refId, // 来源行身份（2026-10-03：同枚举多行各自锚价——计价按行取锚）
                 Mana = null, // ManaList 已随彻底引用化删除（全数据 0 使用）
@@ -618,6 +683,10 @@ namespace CardCore
                 DeferSelect = entry.defer,   // 每原子目标选择方式（0=预选=默认/1=效果处理时选）
                 Filter = filter,             // 域词表双读后的合并 filter（无域声明=表行 TargetFilter ?? ""，与旧口径一致）
                 Axis = axis,                 // 两轴（P1-b）：行声明 Region 且实例无显式域时挂载；null=回落旧口径
+                ReferenceAxis = refAxis,     // 参照轴（步2 只读落库）：行 RefDomain 产轴；null=非分段原子
+                ReferenceKinds = refAxis != null ? config.GetReferenceKindList() : null,
+                RefPick = refPick,
+                RefRequired = refRequired,
                 Polarity = polarity,
                 Branch = ConvertBranchPayload(entry.branch, entry.str),
             };

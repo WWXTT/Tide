@@ -477,6 +477,8 @@ namespace CardCore
             if (!string.IsNullOrEmpty(a.domain)) o["domain"] = a.domain; // 域词表声明（P0-1）——按值省略：空=不写=旧档缺键回落 null
             if (a.count != -2) o["count"] = a.count;
             if (a.rand != -1) o["rand"] = a.rand;
+            if (a.valueMax != 0) o["valueMax"] = a.valueMax; // 数值静态上界（步6：按值省略——0=未声明，存量零漂移）
+            if (!string.IsNullOrEmpty(a.valueExpr)) o["valueExpr"] = a.valueExpr; // 动态值表达式（步6：白名单 ref.power/life/cost）
             if (!BranchEntryRules.IsPhantom(a.branch))
             {
                 var b = new JObject { ["settle"] = a.branch.settle };

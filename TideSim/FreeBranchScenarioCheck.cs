@@ -127,9 +127,43 @@ namespace TideSim
             foreach (var entry in file.scenarios)
                 RunScenario(entry);
 
+            VerifyEngineRewardFxMigrated();
+
             Console.WriteLine();
             Console.WriteLine(_fail == 0 ? "自由分支场景回归：通过" : $"自由分支场景回归：失败 {_fail} 项");
             return _fail == 0 ? 0 : 1;
+        }
+
+        /// <summary>引擎奖励效果化迁移校验（2026-11-08 阶段2验收）：合并库（主∪教∪训）全部
+        /// settle=Engine 分支——branch.then 清空、effectId 可解析（converter 双通道归一后读）。
+        /// 附加诅咒/祝福 str 通道存量（CC0DE003/4）同过：converter 落 EffectId。</summary>
+        private static void VerifyEngineRewardFxMigrated()
+        {
+            Console.WriteLine();
+            Console.WriteLine("【迁移校验】引擎分支奖励效果化：全库 settle=3 then 清空 + effectId 可解析");
+            int checkedCount = 0;
+            foreach (var dto in EffectsLibrary.GetAll())
+            {
+                if (dto?.steps == null) continue;
+                foreach (var step in dto.steps)
+                {
+                    if (step?.kind != 0 || step.atom?.branch == null) continue;
+                    var b = step.atom.branch;
+                    if ((BranchSettleKind)b.settle != BranchSettleKind.Engine) continue;
+                    checkedCount++;
+                    var fx = EffectsLibrary.Resolve(dto.id);
+                    var def = fx != null ? CardEffectConverter.ConvertOne(fx, dto.id) : null;
+                    var payload = def?.Effects?.Select(a => a?.Branch).FirstOrDefault(x =>
+                        x != null && x.Settle == BranchSettleKind.Engine && x.EngineKind == (BranchEngineKind)b.engine);
+                    Assert(payload != null && payload.Then.Count == 0,
+                        $"迁移：{dto.id}「{dto.name}」引擎分支 then 未清空（实际 {payload?.Then.Count ?? -1} 原子）");
+                    Assert(payload != null && !string.IsNullOrEmpty(payload.EffectId)
+                           && EffectsLibrary.Get(payload.EffectId) != null,
+                        $"迁移：{dto.id}「{dto.name}」effectId 悬空（实际 '{payload?.EffectId}'）");
+                }
+            }
+            Assert(checkedCount >= 40, $"迁移覆盖面：全库引擎分支 ≥ 40 条（实际 {checkedCount}）");
+            Console.WriteLine($"  扫描合并库引擎分支 {checkedCount} 条——校验完毕");
         }
 
         // ======================================== 单场景 ========================================
@@ -139,8 +173,11 @@ namespace TideSim
         private static int TurnCountOf(string id)
             => id == "countdown-wait" ? 5
              : id == "countdown-fire" || id == "blessing-fire" || id == "countdown-sleep" ? (id == "countdown-sleep" ? 5 : 3)
+             : id == "luck-fire" || id == "luck-miss" ? 2 // 2026-11-08 运势奖励效果化：主干钉自动（准备阶段掷骰）——起跳@10 与对手回合@11 各掷一次（起跳只跳自动化不吞 Standby 事件）
              : id == "curse-fire" ? 2
              : id == "deathtoll-repeat" ? 11
+             : id == "deathtoll-hand-exclude" ? 1 // ㉑ 阶段3：t10 红杀 1 只即读数（蓝不行动——一行动就铺卡/出牌，引擎卡离手毁读数）
+             : id == "luck-onplayed" ? 1
              : 1;
 
         /// <summary>场景 id → 受测引擎卡名列表（诅咒/祝福宿主是法术：开局在手，施放后入墓；
@@ -165,6 +202,8 @@ namespace TideSim
                 case "deathtoll-repeat": return new[] { "教学·52" };
                 case "deathtoll-effectref": return new[] { "教学·53" };
                 case "gate-effectref": return new[] { "教学·54" };
+                case "deathtoll-hand-exclude": return new[] { "教学·27", "教学·52" }; // ㉑ 手牌不计数 + 场上对照
+                case "luck-onplayed": return new[] { "教学·55" }; // ㉓ 注入卡（奖励时机=26 注入条目）
                 case "unity-fire":
                 case "unity-miss":
                 case "unity-mixed-cells": return new[] { "教学·37" };
@@ -297,7 +336,9 @@ namespace TideSim
                 // 受测引擎卡定位 + 盘面读数（外部证据：门槛推导值/预置计数/邻接数——与引擎判定同式）
                 foreach (var engineName in EngineNamesOf(entry.id))
                 {
-                    var card = Unit(core, p2, engineName) ?? In(core, p2, Zone.Hand, engineName) ?? In(core, p2, Zone.Graveyard, engineName);
+                    // ㉑ 手牌载体挂蓝(P1)手——主查红侧，p1 手补查（惰性侧夹具）
+                    var card = Unit(core, p2, engineName) ?? In(core, p2, Zone.Hand, engineName)
+                               ?? In(core, p2, Zone.Graveyard, engineName) ?? In(core, p1, Zone.Hand, engineName);
                     Assert(card != null, $"受测引擎卡在场/在手：{engineName}");
                     if (card != null) _engines.Add(card);
                 }
@@ -363,10 +404,10 @@ namespace TideSim
                     case "luck-fire":
                         Assert(_luckRolls.Count >= 1 && _luckRolls.All(r => r.ok && r.x == 1),
                             $"③ 掷骰必发且 x=1 双骰恒中（实际 {string.Join("/", _luckRolls.Select(r => $"{r.d1}+{r.d2}≥{r.x}:{r.ok}"))}）");
-                        Assert(Kw("运势") == 1, $"③ 运势播报恰 1 次（每卡每回合封顶；实际 {Kw("运势")}）");
-                        Assert(_engineDamage.Count == 1 && _engineDamage[0].dmg == 1 && _engineDamage[0].target == p1.Name,
-                            $"③ 奖励=1 伤落蓝角色（实际 {DescribeDamage()}）");
-                        Assert(p1.Life == 29, $"③ 蓝终态 29（30−引擎1伤；主动发动横置宿主=教学·21 本回合不再攻击）——实际 {p1.Life}");
+                        Assert(Kw("运势") == 2, $"③ 运势播报 2 次（起跳回合@10+对手回合@11 各一次——准备阶段 Standby 事件照发、每卡每回合封顶翻章；实际 {Kw("运势")}）");
+                        Assert(_allDamage.Count(s => s.Contains(p1.Name) && s.Contains("−1") && !s.Contains("(战)")) == 1,
+                            $"③ 奖励=非战斗 1 伤原子事件（起跳@10 的奖励伤先于计账清点=_allDamage.Clear，由终态联合证明；实际 {string.Join("；", _allDamage)}）");
+                        Assert(p1.Life == 27, $"③ 蓝终态 27（30−教学·21攻击1−引擎1伤×2：奖励效果化后主干钉自动=掷骰不横置宿主，起跳回合参战攻击+两个准备阶段各掷一次必中直发）——实际 {p1.Life}");
                         break;
 
                     case "clash-fire":
@@ -397,6 +438,15 @@ namespace TideSim
                         Assert(CountIn(core, p1, Zone.Graveyard, "教学·3") == 6 && CountAlive(core, p1, "教学·3") == 0,
                             $"⑥ 蓝 6 只 1/1 全灭（墓 {CountIn(core, p1, Zone.Graveyard, "教学·3")} / 场存活 {CountAlive(core, p1, "教学·3")}）");
                         Assert(p1.Life == 30, $"⑥ 蓝零战损生命（无头自动选首=第 6 杀的尸体仍在候选首位，6 伤落尸体不落角色——角色兜底只发生在完全无单位时，充盈⑥同源口径）——实际 {p1.Life}");
+                        // ㉒ 固定三主动奖励同帧结算（2026-11-08 阶段3）：死亡计数奖励=主动效果（timing19）
+                        // 但 LaunchReward 直发——第 6 杀触发播报与奖励 6 伤在事件序上紧邻（seq+1），
+                        // 中间无栈收敛/响应窗事件（入待发队列则隔着 StackAdd/处理轮）。
+                        {
+                            var seqToll = _order.Where(o => o.tag == "[死亡计数]").Select(o => o.seq).DefaultIfEmpty(-1).First();
+                            var seqDmg = _order.Where(o => o.tag.StartsWith("伤:教学·27") && o.tag.Contains("−6")).Select(o => o.seq).DefaultIfEmpty(-2).First();
+                            Assert(seqToll > 0 && seqDmg == seqToll + 1,
+                                $"㉒ 固定三主动奖励同帧直发：播报({seqToll})→奖励6伤({seqDmg}) 序号紧邻无栈事件——实际序：{string.Join(" < ", _order.Select(o => o.tag))}");
+                        }
                         break;
 
                     case "deathtoll-effectref":
@@ -509,10 +559,10 @@ namespace TideSim
                         Assert(_luckRolls.Count >= 1, $"⑫ 掷骰必发=评估发生证据（实际 {_luckRolls.Count} 次）");
                         Assert(_luckRolls.All(r => !r.ok && r.x == 6),
                             $"⑫ x=6 非双6 不中（实际 {string.Join("/", _luckRolls.Select(r => $"{r.d1}+{r.d2}≥{r.x}:{r.ok}"))}）");
-                        Assert(Kw("运势") == 1 && KwDetail("运势").Contains("未达标"),
-                            $"⑫ 不中也播报（成败两态口径——负例带评估证据；明细：{KwDetail("运势")}）");
+                        Assert(Kw("运势") == 2 && KwDetail("运势").Contains("未达标"),
+                            $"⑫ 两回合各播报一次未达标（成败两态口径——负例带评估证据；实际 {Kw("运势")} 次，明细：{KwDetail("运势")}）");
                         Assert(_engineDamage.Count == 0, $"⑫ 零奖励伤害（实际 {DescribeDamage()}）");
-                        Assert(p1.Life == 30, $"⑫ 蓝满血（主动发动横置宿主=不攻击）——实际 {p1.Life}");
+                        Assert(p1.Life == 29, $"⑫ 蓝终态 29（仅吃教学·26攻击1：主干钉自动=掷骰不横置宿主，起跳回合参战攻击；x=6 掷骰未达标零奖励）——实际 {p1.Life}");
                         break;
 
                     case "clash-twice":
@@ -579,8 +629,8 @@ namespace TideSim
                         var seqFull = SeqOf("[元素充盈]");
                         Assert(seqCurse > 0 && seqUnity > 0 && seqAtkRes > 0 && seqFull > 0,
                             $"⑱ 四时点事件齐全（诅咒{seqCurse}/团结{seqUnity}/攻结{seqAtkRes}/充盈{seqFull}）——序号日志：{string.Join(" < ", _order.Select(o => o.tag))}");
-                        Assert(seqCurse < seqUnity && seqUnity < seqAtkRes && seqAtkRes < seqFull,
-                            $"⑱ 时点序：诅咒附加({seqCurse}) < 团结随施放即评估({seqUnity}) < 攻击结算({seqAtkRes}) < 充盈整链落定后({seqFull})——团结=施放拍/充盈=连锁终点拍（判据七拆拍直接证据；攻击打脸伤害不走 AtomicDamageEvent，时点证据=AttackResolvedEvent）");
+                        Assert(seqCurse < seqAtkRes && seqAtkRes < seqUnity && seqUnity < seqFull,
+                            $"⑱ 时点序：诅咒附加({seqCurse}) < 攻击结算({seqAtkRes}) < 团结连锁终点评估({seqUnity}) < 充盈整链落定后({seqFull})——团结与充盈同拍=连锁终点 CardCastSettledEvent（2026-11-08 阶段3：团结自单卡结算直调迁 OnRoutedEvent·时机=奖励效果 OnCardCastSettled，同一 flush 内团结先于充盈；攻击打脸伤害不走 AtomicDamageEvent，时点证据=AttackResolvedEvent）");
                         Assert(Kw("元素充盈") == 1 && KwDetail("元素充盈").Contains("== 2"),
                             $"⑱ 充盈恰等一次（红付费后剩余2；明细：{KwDetail("元素充盈")}）");
                         Assert(_keywords.Any(k => k.keyword == "诅咒" && k.detail.Contains("附加")), "⑱ 响应出牌的诅咒部署照常（部署口与施放路径无关）");
@@ -589,6 +639,43 @@ namespace TideSim
                         Assert(p1.Life == 30, $"⑱ 蓝满血（奖励落单位不落脸）——实际 {p1.Life}");
                         Assert(p2.Life == 29, $"⑱ 红终态 29（吃蓝1/1攻击1）——实际 {p2.Life}");
                         break;
+
+                    case "deathtoll-hand-exclude":
+                    {
+                        // ㉑ 死亡计数手牌不计数（2026-11-08 阶段3：EvaluateDeathTollEngines 只扫战场）：
+                        // 单回合设计——教学·27 挂蓝(P1)手，t10 红杀 1 只蓝 1/1 即读数（蓝不行动：
+                        // 一行动就把手中卡铺为地牌/打出，引擎卡离手毁读数）。杀 1 只的区分度 1>0
+                        // 恰分新旧口径；场上教学·52 对照：照常计 1（<门槛2 不触发——观察面=仅场上仍计）。
+                        var handToll = In(core, p1, Zone.Hand, "教学·27");
+                        var boardToll = Unit(core, p2, "教学·52");
+                        Assert(handToll != null, "㉑ 教学·27 留在蓝手（蓝未行动）——手牌载体读数成立");
+                        Assert(CountIn(core, p1, Zone.Graveyard, "教学·3") == 1,
+                            $"㉑ 蓝确实死 1 只（墓 {CountIn(core, p1, Zone.Graveyard, "教学·3")}）——死亡事件真实发生");
+                        Assert(handToll != null && handToll.GetCounterCount(CounterRules.DeathTollCounter) == 0,
+                            $"㉑ 手牌引擎卡计数恒 0（实际 {handToll?.GetCounterCount(CounterRules.DeathTollCounter)}；旧口径手牌同计=1）");
+                        Assert(boardToll != null && boardToll.GetCounterCount(CounterRules.DeathTollCounter) == 1,
+                            $"㉑ 对照：场上教学·52 计数=1 照常（实际 {boardToll?.GetCounterCount(CounterRules.DeathTollCounter)}）——只扫战场≠不计数");
+                        Assert(Kw("死亡计数") == 0 && !_redDraws.Any(),
+                            $"㉑ 计数 1<门槛 2 双双未触发（播报 {Kw("死亡计数")}）——触发面读数干净");
+                        Assert(!_engineDamage.Any(d => d.dmg == 6),
+                            "㉑ 手牌教学·27 零奖励（6 伤=教学·27 专属奖励面，未发射）");
+                        break;
+                    }
+
+                    case "luck-onplayed":
+                    {
+                        // ㉓ 运势在非默认时机（OnCardPlayed=26）判定（2026-11-08 阶段3：RewardTimingOf）：
+                        // 注入卡教学·55 奖励引用 timing=26——起跳回合直落 Main 无 Standby 事件，
+                        // 掷骰唯一事件源=红出牌宣言 CardPlayEvent；x=1 双骰恒中→直发 1 伤。
+                        Assert(_redPlays == 1, $"㉓ 红恰出 1 张牌=火苗（实际 {_redPlays}）——掷骰触发口成立前提");
+                        Assert(_luckRolls.Count == 1 && _luckRolls[0].ok && _luckRolls[0].x == 1,
+                            $"㉓ 出牌宣言拍掷骰恰 1 次且必中（实际 {string.Join("/", _luckRolls.Select(r => $"{r.d1}+{r.d2}≥{r.x}:{r.ok}"))}）"
+                            + "——起跳回合无 Standby 事件，掷骰源只能是 CardPlayEvent（时机 26 映射）");
+                        Assert(Kw("运势") == 1, $"㉓ 运势播报恰 1 次（实际 {Kw("运势")}，明细：{KwDetail("运势")}）");
+                        Assert(_engineDamage.Count == 1 && _engineDamage[0].dmg == 1 && _engineDamage[0].target == p1.Name,
+                            $"㉓ 奖励=1 伤落蓝角色（实际 {DescribeDamage()}）");
+                        break;
+                    }
 
                     default:
                         Assert(false, $"未知场景 id：{entry.id}（C# 断言表没有对应分支）");
@@ -782,6 +869,7 @@ namespace TideSim
                     if (cache.All(x => x?.ID != c.ID)) cache.Add(c);
                 }
                 Console.WriteLine("    [注入] 分支奖励效果化夹具就绪：教学·53（死亡计数·双通道）/教学·54（登场门·双通道）→ 引用 " + RewardFxRefId);
+                InjectLuckTimingFixture();
             }
             catch (Exception e)
             {
@@ -789,13 +877,119 @@ namespace TideSim
             }
         }
 
-        /// <summary>卡上指定引擎的自平衡门槛（Then 锚价推导——与运行时判定同式；无载荷=-1）。</summary>
+        /// <summary>非默认奖励时机夹具（2026-11-08 阶段3·㉓ luck-onplayed）：注入效果库条目
+        /// FXLUCK26（timing=26 OnCardPlayed·自动·对对方单位 1 伤，镜像 A335E361 只改时机）+
+        /// 引擎卡教学·55（在场形态·运势 x=1·branch.effectId=FXLUCK26——奖励效果时机≠自然缺省 33，
+        /// 断言 OnRoutedEvent 按 RewardTimingOf 在出牌宣言拍掷骰）。</summary>
+        private const string LuckFx26Id = "FXLUCK26";
+
+        private static void InjectLuckTimingFixture()
+        {
+            try
+            {
+                var luckRow = AtomicEffectTable.GetByType(AtomicEffectType.EngineLuckRoll)?.HashId;
+                var dealRow = "a4b823fc"; // DealDamage 行（A335E361 同款引用）
+                if (string.IsNullOrEmpty(luckRow) || AtomicEffectTable.GetByHashId(dealRow) == null)
+                {
+                    Console.WriteLine("    [注入] 运势时机夹具行缺失：EngineLuckRoll/DealDamage 不可解析——㉓ 场景将失败");
+                    return;
+                }
+
+                // ① 奖励条目注 EffectsLibrary（_byId/_items 私有静态——GetAll 先触发装载防 _byId=null）
+                _ = EffectsLibrary.GetAll();
+                var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static;
+                var fxById = typeof(EffectsLibrary).GetField("_byId", flags)?.GetValue(null) as Dictionary<string, CardCore.EffectSlimDto>;
+                var fxItems = typeof(EffectsLibrary).GetField("_items", flags)?.GetValue(null) as List<CardCore.EffectSlimDto>;
+                if (fxById == null || fxItems == null)
+                {
+                    Console.WriteLine("    [注入] EffectsLibrary 私有字段反射失败——㉓ 场景将失败");
+                    return;
+                }
+                fxById[LuckFx26Id] = new CardCore.EffectSlimDto
+                {
+                    id = LuckFx26Id,
+                    hash = LuckFx26Id,
+                    name = "引擎奖励·运势·非默认时机（注入）",
+                    timing = (int)TriggerTiming.OnCardPlayed, // 26：出牌宣言拍（≠自然缺省 33 准备阶段）
+                    activation = 1,
+                    steps = new List<CardCore.StepRef>
+                    {
+                        new CardCore.StepRef
+                        {
+                            kind = 0,
+                            atom = new AtomicEffectEntry { refId = dealRow, kinds = new List<int> { 2 } },
+                        },
+                    },
+                };
+                if (fxItems.All(x => x?.id != LuckFx26Id)) fxItems.Add(fxById[LuckFx26Id]);
+
+                // ② 引擎卡注 CardCatalog（内嵌引擎效果——卡内嵌通道同走 converter/引擎运行时）
+                var byId = typeof(CardCatalog).GetField("_byId", flags)?.GetValue(null) as Dictionary<string, CardData>;
+                var cache = typeof(CardCatalog).GetField("_cache", flags)?.GetValue(null) as List<CardData>;
+                if (byId == null || cache == null)
+                {
+                    Console.WriteLine("    [注入] CardCatalog 私有字段反射失败——㉓ 场景将失败");
+                    return;
+                }
+                var luckCard = new CardData
+                {
+                    ID = "C_FXLUCK1",
+                    CardName = "教学·55",
+                    Supertype = Cardtype.Creature,
+                    Power = 1,
+                    Life = 2,
+                    AttackAbility = true,
+                    GuardAbility = true,
+                    ChargeAbility = true,
+                    Cost = new ElementCost(new[] { 1f, 0f, 0f, 0f, 0f, 0f }),
+                    Tags = new List<string> { "教学" },
+                    Effects = new List<CardEffectData>
+                    {
+                        new CardEffectData
+                        {
+                            Id = "FXLUCK26ENG",
+                            DisplayName = "运势·非默认时机（注入）",
+                            TriggerTiming = (int)TriggerTiming.OnCardPlayed, // 外层与奖励时机一致（装载闸口径）
+                            ActivationType = (int)EffectActivationType.Automatic,
+                            Steps = new List<EffectStepData>
+                            {
+                                new EffectStepData
+                                {
+                                    kind = 0,
+                                    atomic = new AtomicEffectEntry
+                                    {
+                                        refId = luckRow,
+                                        branch = new BranchEntryData
+                                        {
+                                            settle = 3,
+                                            engine = (int)BranchEngineKind.LuckRoll,
+                                            engineParam = 1, // x=1 双骰恒中（掷骰行为与时机解耦读数）
+                                            effectId = LuckFx26Id,
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                };
+                byId[luckCard.ID] = luckCard;
+                if (cache.All(x => x?.ID != luckCard.ID)) cache.Add(luckCard);
+                Console.WriteLine("    [注入] 运势非默认时机夹具就绪：教学·55（运势 x=1·奖励时机 26）→ 引用 " + LuckFx26Id);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"    [注入] 运势时机夹具异常：{e.Message}——㉓ 场景将失败");
+            }
+        }
+
+        /// <summary>卡上指定引擎的自平衡门槛（Then 锚价+效果引用费双通道——与运行时判定同式
+        ///（2026-11-08 奖励效果化迁移后 Then 恒空、费在 effectId）；无载荷=-1）。</summary>
         private static int EngineThresholdOf(Card card, BranchEngineKind kind)
         {
             foreach (var def in GameActions.GetCardEffectDefinitions(card) ?? new List<EffectDefinition>())
                 foreach (var a in def?.Effects ?? new List<AtomicEffectInstance>())
                     if (a?.Branch != null && a.Branch.Settle == BranchSettleKind.Engine && a.Branch.EngineKind == kind)
-                        return CostDerivationService.RewardThreshold(a.Branch.Then);
+                        return CostDerivationService.RewardThresholdOf(a.Branch.Then, a.Branch.EffectId);
             return -1;
         }
 

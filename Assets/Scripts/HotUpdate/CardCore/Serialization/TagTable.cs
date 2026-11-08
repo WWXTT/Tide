@@ -108,12 +108,10 @@ namespace CardCore.Serialization
         public const int AEI_DynamicTargetCount = 1960296747;
         public const int AEI_TargetKinds = 1052954153;
         public const int AEI_ManaList = 902140877;
+        public const int AEI_Domain = 1316499356;
 
         // ---- SerializableAtomicEffectEntry ----
         public const int AEI_Amplitude = 1647853197;
-        // 域词表声明（2026-11-04 P0-1）：尾部追加——MemoryPack 标准格式按成员数前缀读旧 payload，
-        // 旧值缺成员回落默认 null；只许尾部追加、永不重排（同 TargetKind 惯例）。
-        public const int AEI_Domain = 1873429461;
 
         // ---- SerializableManaAmount ----
         public const int SerializableManaAmount_manaType = 549926884;
@@ -227,6 +225,7 @@ namespace CardCore.Serialization
         public const int SID_Targets = 1694824900;
         public const int SID_ActivationSpeed = 548007896;
         public const int SID_StackObjectType = 554634774;
+        public const int SID_References = 192158638;
 
         // ---- NetZoneCards ----
         public const int NZC_Seat = 687121728;
@@ -243,6 +242,7 @@ namespace CardCore.Serialization
         public const int MsgIntentPlayCard_Targets = 1450138392;
         public const int MsgIntentPlayCard_FromZone = 933788219;
         public const int MsgIntentPlayCard_ModeIndex = 1969366828;
+        public const int MsgIntentPlayCard_References = 271658474;
 
         // ---- MsgIntentBuildCard ----
         public const int MsgIntentBuildCard_CardRuntimeId = 77691148;
@@ -265,6 +265,7 @@ namespace CardCore.Serialization
         public const int MsgIntentActivateEffect_EffectId = 976844325;
         public const int MsgIntentActivateEffect_Targets = 795110869;
         public const int MsgIntentActivateEffect_PaidBoost = 1309359023;
+        public const int MsgIntentActivateEffect_References = 16323924;
 
         // ---- MsgIntentActivateHeroSkill ----
         public const int MsgIntentActivateHeroSkill_EffectIndex = 1738103103;
@@ -280,6 +281,7 @@ namespace CardCore.Serialization
         public const int MSelR_Max = 1324456978;
         public const int MSelR_Labels = 108139152;
         public const int MSelR_Candidates = 1387773462;
+        public const int MSelR_SpecKey = 317799922;
 
         // ---- MsgSelectResponse ----
         public const int MSelP_RequestId = 1596262577;
@@ -311,7 +313,7 @@ namespace CardCore.Serialization
         public const int NDD_AtomicRowsHash = 1017044835;
         public const int NDD_AtomicRowCount = 1928083177;
         public const int NDD_TokenSig = 571524600;
-        public const int NDD_ContentSig = 1755961784; // 2026-11-05 ID 冻结收口：卡/效果层内容指纹摘要（协议 v8）
+        public const int NDD_ContentSig = 1755961784;
 
         // ---- MsgDeckSubmit ----
         public const int MDS_DeckName = 1095059584;
@@ -390,6 +392,6 @@ namespace CardCore.Serialization
         public const int MLAA_RoomId = 97705085;
         public const int MLAA_Nickname = 1153192151;
 
-        // 共 264 个标签（纯哈希口径）
+        // 共 269 个标签（纯哈希口径）
     }
 }

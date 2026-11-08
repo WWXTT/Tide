@@ -60,6 +60,24 @@ namespace CardCore.Attribute
         /// 不产轴，回落 TargetKinds 旧口径（试点期兼容，P2 删）。空=未声明（旧 kinds 口径）。</summary>
         public string Domain;
 
+        // ---- 参照域三列（2026-11-08 目标选择重构 §2.1）：仅分段原子（活体炸弹/护甲）声明，其余行留空 ----
+        /// <summary>参照域声明：复用 Domain 同一套选择器文法；与 Domain 各自独立产轴
+        ///（converter→ReferenceAxis），不再用 entry.kinds 顶替参照域。</summary>
+        public string RefDomain;
+
+        /// <summary>参照侧属性过滤（2026-11-08 护盾猛击参照化）：逗号分隔属性 token
+        ///（Armored/Damaged/…，同 TargetFilter 词表）——挂在参照轴上随候选解析生效。
+        /// RefDomain 表结构、RefFilter 表状态：护盾猛击「具有护甲的己方单位」=两者合取。</summary>
+        public string RefFilter;
+
+        /// <summary>参照收集时机：Cast=声明期选（取消参照=撤销发动）；Resolve=结算期问；
+        /// Auto=不弹窗自动取。string 存枚举名（表列直通；装载校验口=AtomicEffectTable.BuildConfig）。</summary>
+        public string RefPick;
+
+        /// <summary>参照候选为空是否空转（当前行为=true）。bool 列——xlsm 回导可能变 0/1 或
+        /// "true"/"false"，Newtonsoft 绑定 bool 天然兼容三态。缺省 true。</summary>
+        public bool RefRequired = true;
+
         /// <summary>极性（2026-09-10 定案）：-1=对对手释放有益（伤害/削弱类）；+1=对己方释放有益（治疗/增益类）；
         /// 0=中性。表级列（EffectType 固有语义，实例不可覆盖）。配合 TargetKind 域侧别做错边折价（CostDerivation）。</summary>
         public float Polarity;
@@ -171,9 +189,20 @@ namespace CardCore.Attribute
         /// 类别细分（生物/结界/法术/卡）不进 kinds——候选走 TargetAxis（TargetAxisResolver）。
         /// 空 Domain（无目标行）= 空集。
         /// </summary>
-        public List<int> GetTargetKindList()
+        public List<int> GetTargetKindList() => KindListOf(Domain);
+
+        /// <summary>战场 selector 是否含结界类别（派生无生命位 3/4 的条件）。</summary>
+        private bool wantNonLivingFor(CardCore.TargetSelector s)
+            => (s.Categories & CardCore.TargetCategory.Enchantment) != 0;
+
+        /// <summary>参照种类集（2026-11-08 目标选择重构 §2.1）：与目标域同一派生口径，源=RefDomain。
+        /// 空/不可解析 RefDomain = 空集（非分段原子）。</summary>
+        public List<int> GetReferenceKindList() => KindListOf(RefDomain);
+
+        /// <summary>域声明 → 区级 kinds 视图（GetTargetKindList 的参数化本体）。</summary>
+        private List<int> KindListOf(string domain)
         {
-            if (!CardCore.TargetAxisRules.TryParseDomain(Domain, out var axis))
+            if (!CardCore.TargetAxisRules.TryParseDomain(domain, out var axis))
                 return new List<int>();
             var kinds = new List<int>();
             foreach (var s in axis.Selectors)
@@ -216,10 +245,6 @@ namespace CardCore.Attribute
             kinds.Sort();
             return kinds;
         }
-
-        /// <summary>战场 selector 是否含结界类别（派生无生命位 3/4 的条件）。</summary>
-        private bool wantNonLivingFor(CardCore.TargetSelector s)
-            => (s.Categories & CardCore.TargetCategory.Enchantment) != 0;
     }
 
     /// <summary>原子行实例级字符串参数声明（2026-10-31 阶段B 表「参数」列）：

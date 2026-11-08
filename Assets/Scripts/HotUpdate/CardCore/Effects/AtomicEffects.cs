@@ -641,6 +641,24 @@ namespace CardCore
         /// <summary>主要目标</summary>
         public Entity PrimaryTarget => Targets.Count > 0 ? Targets[0] : null;
 
+        /// <summary>参照单位表（2026-11-08 目标选择重构：参照=分段原子的数值基准锚，非受体）：
+        /// 与 Targets 严格分储——参照候选不做可指性过滤（帷幕/守护/edict）、不触发 OnTargeted
+        /// 等被指定事件。v1 单槽 key="ref"（Ref 便捷口）；将来可具名多槽（"ref2"…）。</summary>
+        public Dictionary<string, Entity> Refs { get; } = new Dictionary<string, Entity>();
+
+        /// <summary>主参照（Refs["ref"] 便捷口；null=本次执行无参照）。</summary>
+        public Entity Ref => Refs.TryGetValue("ref", out var e) ? e : null;
+
+        /// <summary>本次执行已批准的 spec 计划键（目标选择重构铁律守卫 §1.1）：引擎按 spec 计划
+        /// 调用 handler 前写入；handler 作用域内发起的选择请求 SpecKey 不在集合中 →
+        /// TideLog.Error 点名（先叫后清零，不拦截行为）。</summary>
+        public HashSet<string> ApprovedSpecKeys { get; } = new HashSet<string>();
+
+        /// <summary>受体已由 spec 计划解析封口（步3 换轨）：true 时 ExecuteEffectAsync 对空 Targets
+        /// **不再**回落 ResolveTargetsInteractiveAsync——分段原子受体域空=空转，防 kinds 旧口径
+        /// 兜底误解析出参照候选。执行器逐原子写置（非分段原子恒 false）。</summary>
+        public bool TargetsResolvedBySpec;
+
         /// <summary>触发事件</summary>
         public IGameEvent TriggeringEvent { get; set; }
 
@@ -701,6 +719,31 @@ namespace CardCore
         public int GetValueAfterModifiers(int baseValue)
         {
             return baseValue;
+        }
+
+        /// <summary>结算期数值求值单口（步6 §4.2，2026-11-08）：ValueExpr 空 → 旧路径
+        /// GetRolledValue（value 名义值 ± 幅度掷）；非空 → 解析 ref.power|ref.life|ref.cost
+        ///（读 context.Ref 活值，参照缺失=0 空转口径），取值钳非负后再按幅度掷。
+        /// 执行顺序钉死（§4.2）：解析 bindings（Refs）→ 本口求值 → handler 增/减伤修正链
+        ///（GetValueAfterModifiers）→ 逐目标结算。计价/构筑/描述不读本口（恒 Value 名义值）。</summary>
+        public int ResolveValue(AtomicEffectInstance atom)
+        {
+            if (atom == null) return 0;
+            if (string.IsNullOrEmpty(atom.ValueExpr)) return atom.GetRolledValue();
+            var reference = Ref;
+            if (reference == null) return 0; // 参照缺失=空转（分段原子 RefRequired=v1 恒 true）
+            int v;
+            switch (atom.ValueExpr)
+            {
+                case "ref.power": v = EntityEffectExtensions.GetPower(reference); break;
+                case "ref.life": v = EntityEffectExtensions.GetLife(reference); break;
+                case "ref.cost": v = reference is Card rc ? (int)GameActions.GetCardCost(rc, 0).Total : 0; break;
+                default:
+                    TideLog.Warn($"[ResolveValue] 动态值表达式 '{atom.ValueExpr}' 超白名单（v1 仅 ref.power|ref.life|ref.cost）——按 0 空转");
+                    return 0;
+            }
+            v = Math.Max(0, v);
+            return atom.RandomAmplitude > 0f ? GameRng.RollValue(v, atom.RandomAmplitude) : v;
         }
     }
 }

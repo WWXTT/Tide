@@ -468,6 +468,10 @@ namespace CardCore
         public int rand = -1;         // 每原子目标随机（2026-10-09：1=随机抽不弹窗/0=弹窗；-1=未声明回落效果级 RandomTarget）
         public int defer;             // 每原子目标选择方式（2026-10-20：0=发动前预选=默认/1=效果处理时选——结算期必须选不可取消）
         public BranchEntryData branch; // 槽级分支载荷（2026-10-05 两槽定案）：null=无分支
+        public int valueMax;          // 数值静态上界（步6 §4.1，2026-11-08）：作者声明——校验器/分布告警用，
+                                      // **不参与计价**（定价恒按 value 名义值）；0=未声明（按值省略不写键）
+        public string valueExpr;      // 结算期动态值表达式（步6 §4.1）：v1 白名单 ref.power|ref.life|ref.cost
+                                      //（读 context.Ref 活值）；空=旧路径 value±amp 掷值（GetRolledValue）
     }
 
     /// <summary>

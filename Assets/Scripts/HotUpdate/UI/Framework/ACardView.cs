@@ -35,6 +35,8 @@ namespace SynergyUI
         private Image _bioArt, _barrierArt, _spellArt;                 // 块内立绘（mask/art）
         private Sprite _bioArtBaked, _barrierArtBaked, _spellArtBaked; // 立绘预制体占位（未命中回落）
         private TMP_Text _bioAtc, _bioHea, _barrierHea;                // 上半数字徽章（生物攻/血·结界耐久）
+        private RectTransform _bioAc, _bioDc;                          // 生物攻/守能力图标（2026-11-08 用户铺点：
+                                                                        // Ac 挂 Atc 徽章底、Dc 挂 Hea 徽章底——资格开=显示）
         private TMP_Text _nameText, _effectText, _passivesText, _keysText, _statesText;
         private RectTransform _effectBlock, _passivesBlock, _keysBlock, _statesBlock;
         private readonly List<RectTransform> _effectRowClones = new List<RectTransform>(); // 多主动效果行克隆（SyncEffectRows 增删）
@@ -89,6 +91,8 @@ namespace SynergyUI
             _spellArtBaked = _spellArt != null ? _spellArt.sprite : null;
             _bioAtc = DeepText(_bioBlock, "Atc");
             _bioHea = DeepText(_bioBlock, "Hea");
+            _bioAc = DeepChild(_bioBlock, "Ac");
+            _bioDc = DeepChild(_bioBlock, "Dc");
             _barrierHea = DeepText(_barrierBlock, "Hea");
             // name 直挂 TMP；四行区嵌在 form-scroll/viewport/content 下（text=烘焙标题、des=内容）
             _nameText = FindText("name/text") ?? FindText("name");
@@ -138,6 +142,10 @@ namespace SynergyUI
             {
                 SetText(_bioAtc, (item.AttrPower ?? 0).ToString());
                 SetText(_bioHea, (item.AttrLife ?? 0).ToString());
+                // Ac/Dc 能力图标（2026-11-06 opt-in 攻/守资格位）：开=显示、关=隐藏（非生物 biology
+                // 整块已关，图标随块不可见；旧 prefab 未铺节点=DeepChild null 静默空转）
+                SetActive(_bioAc, item.AttackAbility);
+                SetActive(_bioDc, item.GuardAbility);
             }
             else if (isBarrier)
                 SetText(_barrierHea, (item.AttrDurability ?? 0).ToString());
@@ -448,6 +456,15 @@ namespace SynergyUI
             if (block == null) return null;
             foreach (var tmp in block.GetComponentsInChildren<TMP_Text>(true))
                 if (tmp.name == nodeName) return tmp;
+            return null;
+        }
+
+        /// <summary>块内按名深找变换（Ac/Dc 能力图标与徽章同底深挂，路径不定长；含未激活节点）。</summary>
+        private static RectTransform DeepChild(RectTransform block, string nodeName)
+        {
+            if (block == null) return null;
+            foreach (var t in block.GetComponentsInChildren<Transform>(true))
+                if (t.name == nodeName) return t as RectTransform;
             return null;
         }
 

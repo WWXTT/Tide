@@ -496,9 +496,12 @@ namespace SynergyUI
 
             if (def.PerAtomTargets)
             {
+                // 步5（2026-11-08）：切 spec 计划单源——同域共享组只预选**一次**（与人类单窗/
+                // 执行器组内 memo 同口径）；分段受体 Auto spec 不预选（结算期引擎/AiOrder 代选）。
                 var picked = new List<Entity>();
-                foreach (var spec in CardCore.Attribute.EffectHandlerRegistry.CollectAtomTargetSpecs(def, ctx))
+                foreach (var spec in CardCore.Attribute.EffectHandlerRegistry.CollectSpecPlan(def, ctx))
                 {
+                    if (spec.AiMode != CardCore.Attribute.AiPickMode.Enumerate) continue; // 受体 Auto：不进预选
                     if (spec.AutoTake || spec.EffCount == -1) continue; // 引擎自动取/运行时自选——不预选
                     IEnumerable<Entity> specOrdered;
                     if (spec.Atom != null && HarmfulAtoms.Contains(spec.Atom.Type))

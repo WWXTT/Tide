@@ -877,7 +877,9 @@
     {
       "id": "5F98CD72",
       "name": "训练·倒计时汲牌",
-      "hash": "5F98CD72",
+      "hash": "368B2FAF",
+      "timing": 33,
+      "activation": 1,
       "steps": [
         {
           "kind": 0,
@@ -887,12 +889,8 @@
               "settle": 3,
               "engine": 1,
               "engineParam": 3,
-              "then": [
-                {
-                  "refId": "03c85bc4",
-                  "value": 2
-                }
-              ]
+              "effectId": "284015EB",
+              "then": []
             }
           }
         }
@@ -901,7 +899,9 @@
     {
       "id": "EDC375CA",
       "name": "训练·倒计时圣盾",
-      "hash": "EDC375CA",
+      "hash": "B339889C",
+      "timing": 33,
+      "activation": 1,
       "steps": [
         {
           "kind": 0,
@@ -911,14 +911,8 @@
               "settle": 3,
               "engine": 1,
               "engineParam": 3,
-              "then": [
-                {
-                  "refId": "98f36a22",
-                  "kinds": [
-                    1
-                  ]
-                }
-              ]
+              "effectId": "70CDB4B1",
+              "then": []
             }
           }
         }
@@ -927,9 +921,9 @@
     {
       "id": "D08B6731",
       "name": "训练·运势重锤",
-      "hash": "D08B6731",
-      "timing": 19,
-      "activation": 2,
+      "hash": "DFC5BDB1",
+      "timing": 33,
+      "activation": 1,
       "limit": 1,
       "steps": [
         {
@@ -940,16 +934,8 @@
               "settle": 3,
               "engine": 2,
               "engineParam": 3,
-              "tactivate": 2,
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "value": 6,
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
+              "effectId": "9DD0AAFB",
+              "then": []
             }
           }
         }
@@ -958,7 +944,7 @@
     {
       "id": "46239714",
       "name": "训练·充盈回响",
-      "hash": "46239714",
+      "hash": "E3F52EB8",
       "timing": 35,
       "activation": 1,
       "limit": 1,
@@ -970,11 +956,8 @@
             "branch": {
               "settle": 3,
               "engine": 5,
-              "then": [
-                {
-                  "refId": "03c85bc4"
-                }
-              ]
+              "effectId": "5004AFA1",
+              "then": []
             }
           }
         }
@@ -983,7 +966,9 @@
     {
       "id": "293ECF43",
       "name": "训练·同心一击",
-      "hash": "293ECF43",
+      "hash": "AA63736D",
+      "timing": 35,
+      "activation": 1,
       "limit": 1,
       "steps": [
         {
@@ -994,15 +979,8 @@
               "settle": 3,
               "engine": 8,
               "engineParam": 4,
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "value": 4,
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
+              "effectId": "F946B51E",
+              "then": []
             }
           }
         }
@@ -1011,7 +989,7 @@
     {
       "id": "AFCD7A37",
       "name": "训练·诅咒烙印",
-      "hash": "AFCD7A37",
+      "hash": "1A06F706",
       "timing": 19,
       "activation": 2,
       "cost": [
@@ -1030,16 +1008,8 @@
               "settle": 3,
               "engine": 6,
               "engineParam": 1,
-              "tactivate": 2,
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "value": 4,
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
+              "effectId": "306BD07C",
+              "then": []
             }
           }
         }
@@ -1048,7 +1018,7 @@
     {
       "id": "501BF5EC",
       "name": "训练·祝福之泉",
-      "hash": "501BF5EC",
+      "hash": "0EDB028C",
       "timing": 19,
       "activation": 2,
       "cost": [
@@ -1067,16 +1037,8 @@
               "settle": 3,
               "engine": 7,
               "engineParam": 1,
-              "tactivate": 2,
-              "then": [
-                {
-                  "refId": "599fcc9a",
-                  "value": 8,
-                  "kinds": [
-                    1
-                  ]
-                }
-              ]
+              "effectId": "D5402E56",
+              "then": []
             }
           }
         }
@@ -1242,6 +1204,78 @@
           "atom": {
             "refId": "03c85bc4",
             "value": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "284015EB",
+      "name": "引擎奖励·倒计时·抽卡×2",
+      "hash": "284015EB",
+      "timing": 19,
+      "activation": 2,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "03c85bc4",
+            "value": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "70CDB4B1",
+      "name": "引擎奖励·倒计时·圣盾",
+      "hash": "70CDB4B1",
+      "timing": 19,
+      "activation": 2,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "98f36a22",
+            "kinds": [
+              1
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "306BD07C",
+      "name": "引擎奖励·附加诅咒·造成伤害×4",
+      "hash": "306BD07C",
+      "timing": 19,
+      "activation": 2,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "a4b823fc",
+            "value": 4,
+            "kinds": [
+              2
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "D5402E56",
+      "name": "引擎奖励·附加祝福·回复生命×8",
+      "hash": "D5402E56",
+      "timing": 19,
+      "activation": 2,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "599fcc9a",
+            "value": 8,
+            "kinds": [
+              1
+            ]
           }
         }
       ]

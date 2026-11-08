@@ -5684,8 +5684,8 @@ namespace CardCore.Editor
             var engineBody = SynergyUI.AtomText.EngineShortBodyFor(
                 EngineAtom(CardCore.AtomicEffectType.EngineDeathToll, 1, CardCore.BranchEngineKind.DeathToll, 2,
                     Atom("DrawCard", 1)));
-            Assert(engineBody == "此卡在手牌或场上时计数双方生物死亡，计数大于等于2时触发奖励（满6不再计数，使用后清零）",
-                   $"引擎短文案（2026-10-19 手牌/场上改案·死亡计数完整句）：「{engineBody}」——门槛=Then 锚价推导（DrawCard1=2），engineParam 死数据不参与");
+            Assert(engineBody == "此卡在场上时计数双方生物死亡，计数大于等于2时触发奖励（满6不再计数，使用后清零）",
+                   $"引擎短文案（2026-11-08 阶段3 只扫战场·死亡计数完整句）：「{engineBody}」——门槛=Then 锚价推导（DrawCard1=2），engineParam 死数据不参与");
             var outcomeSuffix = SynergyUI.AtomText.BranchSuffix(
                 OutcomeAtom(CardCore.AtomicEffectType.DealDamage, 3, "DmgKillsTarget", Atom("DrawCard", 1)));
             Assert(outcomeSuffix.Contains("如果消灭了目标") && outcomeSuffix.Contains("，") && outcomeSuffix.Contains("抽"),
@@ -10308,7 +10308,13 @@ namespace CardCore.Editor
                 + $"p2deck={core.ZoneManager.GetCards(p2, Zone.Deck).Count}");
             // 2026-10-09 触发改版：拼点由攻击宣言触发（仅攻击方战场引擎卡·无限次，无回合自动化干扰）——
             // 攻击宣言无回合抽牌副作用，无需拦截器；库内唯一生物（己方 5 / 对方 2）随机必中。
-            EventManager.Instance.Publish(new AttackDeclarationEvent { AttackingPlayer = p1 });
+            // 2026-11-08 阶段3：拼枪评估已自 AttackDeclarationEvent 总线订阅迁 GameCore.PublishEventRouted
+            // 钩子（OnRoutedEvent·归属=攻击方）——裸 EventManager.Publish 只进总线不再触发引擎，
+            // 须反射 internal 路由单口发布（同效果光环段 FireTap 先例）。
+            var clashPublish = typeof(GameCore).GetMethod("PublishEventRouted",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            Assert(clashPublish != null, "拼点段前提：GameCore.PublishEventRouted 可反射（internal 事件路由单口）");
+            clashPublish.Invoke(core, new object[] { new AttackDeclarationEvent { AttackingPlayer = p1 }, false });
             GameActions.DrainStack(core);
             Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckBefore - 1,
                    "拼点运行时（2026-10-09 触发改版：攻击宣言·仅攻击方）：己方随机生物 5 − 对方 2 = 3 ≥ 门槛 2 → 执行奖励（抽 1）");
@@ -10323,10 +10329,10 @@ namespace CardCore.Editor
             PadDeck(core, p1, 15, "VERIFY_0922_P1_");
             PadDeck(core, p2, 15, "VERIFY_0922_P2_");
 
-            // ---- 5. 死亡计数（2026-10-19 手牌/场上改案）：此卡在手牌中或场上时计数双方生物死亡——
+            // ---- 5. 死亡计数（2026-11-08 阶段3 只扫战场）：此卡在场上时计数双方生物死亡——
             //      计数 ≥ 门槛（Then 锚价推导，DrawCard(1)=2 → 门槛 2）即触发奖励（每次递增都触发，
-            //      触发不清零）；满值 6 达满不再计数；使用（换区）后清零。
-            //      （engineParam 旧值 2 为死数据不参与判定；旧「场上·本回合合计·每回合一发」口径退役）----
+            //      触发不清零）；满值 6 达满不再计数；离场换区清零、手牌不计数。
+            //      （engineParam 旧值 2 为死数据不参与判定；旧「手牌/场上双面口径」退役）----
             var tollData = new CardData
             {
                 ID = "VERIFY_ENGINE_TOLL", CardName = "验证死亡计数", Supertype = Cardtype.Creature, Power = 3, Life = 3,
@@ -10352,9 +10358,9 @@ namespace CardCore.Editor
 
             var tollCard = new CardWrapper(tollData);
             tollCard.SetController(p1);
-            core.ZoneManager.GetZoneContainer(p1).Add(tollCard, Zone.Hand); // 手牌改案：手牌中即计数
+            Assert(core.ZoneManager.TryAddToBattlefield(tollCard, p1), "死亡计数：引擎宿主入场（阶段3 只扫战场）");
 
-            var tollVictims = new Card[9];
+            var tollVictims = new Card[10];
             for (int i = 0; i < tollVictims.Length; i++)
                 tollVictims[i] = i % 2 == 0 ? SpawnTier(core, p2, 1, 1) : SpawnTier(core, p1, 1, 1); // 双方交替死
             int deckAtToll = core.ZoneManager.GetCards(p1, Zone.Deck).Count;
@@ -10368,9 +10374,9 @@ namespace CardCore.Editor
                 core.SBAEngine.CheckAndExecute(); // 直接 ApplyDamage 不经栈——手动泵 SBA 送墓（标死→死透→CardDestroyEvent）
                 Crumb($"toll kill{i + 1}: " + tollState());
             }
-            TollKill(0); // 对手侧 1 死
+            TollKill(0); // 对手侧 1 死（场上计数）
             Assert(tollCount() == 1 && core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckAtToll,
-                   "死亡计数：手牌中计数——对手生物死亡 +1（1 < 门槛 2 未触发）");
+                   "死亡计数：场上计数——对手生物死亡 +1（1 < 门槛 2 未触发）");
             TollKill(1); // 己方侧 +1 → 累计 2（双方口径）
             Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckAtToll - 1 && tollCount() == 2,
                    "死亡计数：双方生物死亡累计 2 ≥ 门槛 2（推导）触发（抽 1）——触发不清零（计数保持 2）");
@@ -10385,12 +10391,16 @@ namespace CardCore.Editor
             TollKill(6); // 满值后死亡：不再计数不再触发
             Assert(tollCount() == 6 && core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckAtToll - 1,
                    "死亡计数：满值 6 达满不再计数——超出死亡不 +1 不触发");
-            core.ZoneManager.MoveCard(tollCard, p1, Zone.Hand, Zone.Battlefield); // 使用（打出）→ 换区
-            Assert(tollCount() == 0, "死亡计数：使用后清零（系统指示物换区清）");
-            TollKill(7); // 场上计数：累计 1
+            core.ZoneManager.MoveCard(tollCard, p1, Zone.Battlefield, Zone.Hand); // 离场 → 换区
+            Assert(tollCount() == 0, "死亡计数：离场换区清零（系统指示物换区清）");
+            TollKill(7); // 手牌中死亡 → 不计数
+            Assert(tollCount() == 0 && core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckAtToll - 1,
+                   "死亡计数：手牌不计数（2026-11-08 阶段3）——离场后死亡不入账");
+            core.ZoneManager.MoveCard(tollCard, p1, Zone.Hand, Zone.Battlefield); // 回场重计
+            TollKill(8); // 回场后：累计 1
             Assert(tollCount() == 1 && core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckAtToll - 1,
-                   "死亡计数：场上同样计数（1 < 2 未触发）——手牌/场上双面口径");
-            TollKill(8); // 场上累计 2（换区清计数不清发奖台账——同回合仍收口）
+                   "死亡计数：回场后重新计数（换区清后从 0 起，1 < 2 未触发）");
+            TollKill(9); // 回场累计 2 ≥ 门槛——发奖台账不清（同回合不再发）
             Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckAtToll - 1 && tollCount() == 2,
                    "死亡计数：换区重计后计数恢复（累计 2）——发奖台账每卡每回合 1 次同回合不再发（2026-11-05）");
             core.ZoneManager.MoveCard(tollCard, p1, Zone.Battlefield, Zone.Graveyard);
@@ -10750,21 +10760,25 @@ namespace CardCore.Editor
             int uniDeck0 = core.ZoneManager.GetCards(p1, Zone.Deck).Count;
             try
             {
+                // 2026-11-08 阶段3：团结评估已自 OnCardCastSettled 直调迁 OnRoutedEvent（时机=奖励效果
+                // 时机——本夹具声明 OnCardPlayed → 驱动口=发布 CardPlayEvent·归属=施放者）。
+                CardCore.CardPlayEvent UnityPump() => new CardCore.CardPlayEvent { Player = p1 };
+
                 // 未接线（编辑器默认无棋盘）=0 恒不触发
                 CardCore.BranchEngines.UnityAdjacentCountOf = null;
-                CardCore.BranchEngines.OnCardCastSettled(p1);
+                CardCore.BranchEngines.OnRoutedEvent(UnityPump());
                 Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == uniDeck0,
                        "团结：邻接计数未接线 = 0 恒不触发（无头/编辑器默认）");
 
                 // 邻接不足（1 < 2/3）不触发；手牌载体(x=1)不受 1 达标——观察面=仅场上
                 CardCore.BranchEngines.UnityAdjacentCountOf = c => 1;
-                CardCore.BranchEngines.OnCardCastSettled(p1);
+                CardCore.BranchEngines.OnRoutedEvent(UnityPump());
                 Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == uniDeck0,
                        "团结：相邻单位数 1 < x=2/3 不触发（手牌载体无格不观察）");
 
                 // 达标 2：A(x=2) 触发抽 1（B=3 未达）
                 CardCore.BranchEngines.UnityAdjacentCountOf = c => 2;
-                CardCore.BranchEngines.OnCardCastSettled(p1);
+                CardCore.BranchEngines.OnRoutedEvent(UnityPump());
                 Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == uniDeck0 - 1,
                        "团结：相邻单位数 2 ≥ x=2 → A 触发抽 1（B(x=3) 未达不触发）");
             }

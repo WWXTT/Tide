@@ -129,6 +129,11 @@ namespace CardCore.Network
         [MemoryPackOrder(TagTable.SID_Targets)]
         public NetEntityRef[] Targets;
 
+        /// <summary>参照选位（步5 协议 v10 §3.3）：栈条目携带的 Reference spec 选位（EffectInstance.Refs）
+        ///——与 Targets 分角色，回放/观测按 SpecKey 对齐。null/空=无参照。</summary>
+        [MemoryPackOrder(TagTable.SID_References)]
+        public NetEntityRef[] References;
+
         [MemoryPackOrder(TagTable.SID_ActivationSpeed)]
         public int ActivationSpeed;
 

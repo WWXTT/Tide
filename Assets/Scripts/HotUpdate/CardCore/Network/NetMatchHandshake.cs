@@ -112,13 +112,16 @@ namespace CardCore.Network
 
         /// <summary>原子行内容指纹（行 ID 稳定，内容是平衡层可变——必须哈希内容本身）。
         /// 覆盖费用构成/极性/目标域/可装载域/模板文案（客户端本地重渲染依赖文案，文案漂移也要拦）。
-        /// 2026-10-04 费用位置数组化：ManaSig 按序数序（下标=枚举序号）无损拼串。</summary>
+        /// 2026-10-04 费用位置数组化：ManaSig 按序数序（下标=枚举序号）无损拼串。
+        /// v10（2026-11-08 目标选择重构）：参照域四列（RefDomain/RefPick/RefRequired/RefFilter）入指纹——
+        /// 参照域/参照条件漂移即拒（分段原子的选择行为随这几列变；RefFilter=护盾猛击「具有护甲的」）。</summary>
         private static string RowSig(AtomicEffectConfig r)
         {
             return $"{r.HashId ?? ""}|{r.EnumName ?? ""}|{r.DisplayName ?? ""}|{r.Description ?? ""}"
                 + $"|ML:{ManaSig(r.ManaList)}|TG:{r.Tags ?? ""}"
                 + $"|DM:{r.Domain ?? ""}|TF:{r.TargetFilter ?? ""}"
-                + $"|PO:{Float(r.Polarity)}|MK:{r.MountKinds ?? ""}|CM:{Float(r.CostMultiplier)}";
+                + $"|PO:{Float(r.Polarity)}|MK:{r.MountKinds ?? ""}|CM:{Float(r.CostMultiplier)}"
+                + $"|RF:{r.RefDomain ?? ""}|RP:{r.RefPick ?? ""}|RR:{r.RefRequired}|RF2:{r.RefFilter ?? ""}";
         }
 
         private static string ManaSig(ElementCost cost)

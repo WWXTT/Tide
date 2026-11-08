@@ -315,6 +315,12 @@ namespace CardCore
                 RespondedEntry = instance.RespondedEntry, // E1-1 响应绑定透传：反制原子读它打标（跟谁入栈反制谁）
             };
 
+            // 参照显式透传（步5 §3.3）：声明期 Reference spec 选位随实例入栈（网络/重放按 SpecKey
+            // 对齐，不依赖预选队列域推导）——种进 context.Refs；分段原子结算时引擎 spec 计划的
+            // 解析结果为权威（Cast 档预选两者一致），此处为显式来源。
+            if (instance.Refs != null && instance.Refs.Count > 0 && instance.Refs[0] != null)
+                context.Refs["ref"] = instance.Refs[0];
+
             // 代价支付：元素代价由配置表自动推导（费用唯一权威），经 ElementCostPayment 纯支付
             // （浓度上限校验 + 混付；兑换通道已随抵消系统退役——黑白获取只经卡结算）；
             // 卡内效果（ElementCostPrepaid）的元素费已随卡牌档位费收讫，跳过以防双计；游戏中途授予的动态效果照付。
@@ -531,9 +537,14 @@ namespace CardCore
             // 声明期预选队列（2026-10-20 有序消费）：逐原子共享可消耗——交互原子按序吃队归属，
             // defer/全取/随机原子不吃（见 ResolveAtomTargetsAsync）；每轮重放重建（预选只在首轮有效）
             var preselectQueue = new List<Entity>(originalTargets);
+            // spec 计划（步5 §3.2）：同域共享组只解析**一次**，组内原子共享同一目标
+            //（沉默+消灭同域并列→单窗同目标）；分段参照/受体 spec 亦入计划（ApprovedSpecKeys 同源）。
+            var specPlan = EffectHandlerRegistry.CollectSpecPlan(effect, context);
+            var specMemo = new Dictionary<string, List<Entity>>();
 
-            foreach (var atomicEffect in effect.Effects)
+            for (int ai = 0; ai < effect.Effects.Count; ai++)
             {
+                var atomicEffect = effect.Effects[ai];
                 if (atomicEffect == null) continue;
                 if (IsEngineTrunk(atomicEffect))
                 {
@@ -557,10 +568,28 @@ namespace CardCore
                 // 声明期预选目标（originalTargets）先经该原子域归属过滤（域内沿用/域外自解析）；
                 // 解析空（无域/全隐藏区/无候选）=空目标自结算（ExecuteEffectAsync 内原子级兜底，与奖励口径同）。
                 // 共享口径照旧吃组合目标快照（originalTargets/compositionTargets）。
+                // 步5 spec memo：同域共享组成员复用首解析结果（共享单窗单目标）。
                 List<Entity> ownTargets = null;
                 if (effect.PerAtomTargets)
-                    ownTargets = await EffectHandlerRegistry.ResolveAtomTargetsAsync(
-                        effect, atomicEffect, context, preselectQueue);
+                {
+                    var spec = EffectHandlerRegistry.SpecOfAtom(specPlan, ai);
+                    if (spec != null && specMemo.TryGetValue(spec.SpecKey, out var memoTargets))
+                        ownTargets = new List<Entity>(memoTargets);
+                    else
+                    {
+                        ownTargets = await EffectHandlerRegistry.ResolveAtomTargetsAsync(
+                            effect, atomicEffect, context, preselectQueue);
+                        if (spec != null) specMemo[spec.SpecKey] = new List<Entity>(ownTargets);
+                    }
+                }
+
+                // 分段原子换轨（2026-11-08 目标选择重构步3）：参照（旧 kinds 路径解析结果）写
+                // context.Refs["ref"]；受体（受害者/落点）由引擎从行 Domain 轴解析——第二窗从
+                // handler 搬到引擎，次数/顺序/过滤口径不变。TargetsResolvedBySpec 封口防 kinds 兜底
+                //（作用域收紧到本原子 ExecuteEffectAsync 期间——防泄漏进同上下文的 gate/奖励解析）。
+                bool segAtom = atomicEffect.ReferenceAxis != null;
+                if (segAtom)
+                    ownTargets = await ResolveSegmentedTargetsAsync(atomicEffect, context, ownTargets, ai);
 
                 if (HasOutcome(atomicEffect))
                 {
@@ -572,9 +601,11 @@ namespace CardCore
                     {
                         context.Targets = target != null ? new List<Entity> { target } : new List<Entity>();
                         context.LastOutcome.Reset();
+                        context.TargetsResolvedBySpec = segAtom;
 
                         PublishPhase(atomicEffect, AtomicEffectPhase.StartApplying, context);
                         await EffectHandlerRegistry.ExecuteEffectAsync(atomicEffect, context);
+                        context.TargetsResolvedBySpec = false;
                         CaptureDescription(atomicEffect, context, fragments);
                         PublishPhase(atomicEffect, AtomicEffectPhase.ResolutionComplete, context);
 
@@ -587,7 +618,9 @@ namespace CardCore
                     context.Targets = effect.PerAtomTargets
                         ? new List<Entity>(ownTargets)
                         : new List<Entity>(originalTargets); // 恢复原始目标（产出条件原子可能改写）
+                    context.TargetsResolvedBySpec = segAtom;
                     await EffectHandlerRegistry.ExecuteEffectAsync(atomicEffect, context);
+                    context.TargetsResolvedBySpec = false;
                     CaptureDescription(atomicEffect, context, fragments);
 
                     if (payload != null && payload.Settle == BranchSettleKind.Gate)
@@ -660,23 +693,36 @@ namespace CardCore
                         : null;
 
                 // 逐原子目标制（2026-10-09）：该原子按自身极性过滤域独立解析（弹窗/AI 代选落结算期）；
-                // 声明期预选目标经有序队列归属消费（2026-10-20）；空解析=单次 null 目标自结算。
+                // 声明期预选目标经有序队列归属消费（2026-10-20）；空解析=单次 null 自结算。
                 var stepTargets = compositionTargets;
                 if (effect.PerAtomTargets)
                 {
                     var resolved = await EffectHandlerRegistry.ResolveAtomTargetsAsync(
                         effect, atomic, context, preselectQueue);
-                    stepTargets = resolved.Count > 0 ? resolved : new List<Entity> { null };
+                    // 分段原子换轨（步3）：参照→Refs，受体=行 Domain 引擎侧解析；空=单次 null 空转
+                    //（gate 照常评估——与旧 handler 早退后 gate 仍评估的口径一致）。
+                    // TargetsResolvedBySpec 作用域收紧到本原子 ExecuteEffectAsync 期间（防泄漏进 gate 奖励）。
+                    if (atomic.ReferenceAxis != null)
+                    {
+                        var victims = await ResolveSegmentedTargetsAsync(atomic, context, resolved, i);
+                        stepTargets = victims.Count > 0 ? victims : new List<Entity> { null };
+                    }
+                    else
+                    {
+                        stepTargets = resolved.Count > 0 ? resolved : new List<Entity> { null };
+                    }
                 }
 
                 foreach (var target in stepTargets)
                 {
                     context.Targets = target != null ? new List<Entity> { target } : new List<Entity>();
                     context.LastOutcome.Reset();
+                    context.TargetsResolvedBySpec = atomic.ReferenceAxis != null;
 
                     PublishPhase(atomic, AtomicEffectPhase.Activation, context);
                     PublishPhase(atomic, AtomicEffectPhase.StartApplying, context);
                     await EffectHandlerRegistry.ExecuteEffectAsync(atomic, context);
+                    context.TargetsResolvedBySpec = false;
                     CaptureDescription(atomic, context, fragments);
                     PublishPhase(atomic, AtomicEffectPhase.ResolutionComplete, context);
 
@@ -687,6 +733,70 @@ namespace CardCore
                 if (gate != null)
                     i++; // 消费已配对的分支步骤
             }
+        }
+
+        // ======================================== 分段原子换轨（2026-11-08 目标选择重构步3） ========================================
+
+        /// <summary>分段原子（ReferenceAxis != null，活体炸弹/护甲）引擎侧解析：参照（旧 kinds 路径
+        /// 解析结果首位）写 context.Refs["ref"]；受体（受害者/落点）从**行 Domain 轴**解析——第二窗
+        /// 从 handler 搬到引擎，窗口次数/顺序/过滤口径与 handler 旧实现完全同源
+        ///（ResolveCandidates→ApplyTauntRestriction(edict 豁免=false)→ExcludeUnselectable；
+        /// 候选&gt;1 弹选、=1 取首、空=空转；PromptValue=参照攻/命）。SpecKey 写 ApprovedSpecKeys。
+        /// 返回受体列表（空=空转）；调用方须置 TargetsResolvedBySpec 防 kinds 兜底误解析。</summary>
+        private static async UniTask<List<Entity>> ResolveSegmentedTargetsAsync(
+            AtomicEffectInstance atomic, EffectExecutionContext context,
+            List<Entity> resolvedReferences, int atomIndex)
+        {
+            var none = new List<Entity>();
+            var reference = resolvedReferences != null ? resolvedReferences.FirstOrDefault() : null;
+            if (reference == null || !reference.IsAlive)
+            {
+                context.Refs.Remove("ref"); // 清上一轮/上一原子残留（重放重入防读到过期参照）
+                return none; // 参照空/亡=空转（旧 handler 早退口径）
+            }
+
+            context.Refs["ref"] = reference;
+            context.ApprovedSpecKeys.Add($"atom:{atomIndex}/spec:0/role:reference");
+
+            var row = AtomicEffectTable.GetByHashId(atomic.RowHashId);
+            if (row == null || !TargetAxisRules.TryParseDomain(row.Domain, out var victimAxis))
+            {
+                TideLog.Warn($"[EffectExecutor] 分段原子 {atomic.Type}（行 {atomic.RowHashId}）行 Domain='"
+                             + (row != null ? row.Domain : "行缺失") + "' 不可产轴——受体空转");
+                return none;
+            }
+
+            var candidates = EffectHandlerRegistry.ResolveCandidates(
+                row.GetTargetKindList(), "", context, victimAxis);
+            candidates = TargetResolver.ExcludeUnselectable(
+                TargetResolver.ApplyTauntRestriction(candidates, context, false), context.Controller);
+            if (candidates.Count == 0) return none; // 受体域空=空转（旧 handler 口径）
+
+            Entity victim = candidates[0];
+            if (candidates.Count > 1)
+            {
+                var picked = await TargetSelectionService.RequestAsync(new TargetSelectionRequest
+                {
+                    Candidates = candidates,
+                    MinCount = 1,
+                    MaxCount = 1,
+                    Chooser = context.Controller,
+                    Title = "选择" + row.DisplayName + "的"
+                            + (atomic.Type == AtomicEffectType.LivingArmor ? "落点" : "受害者"),
+                    PromptSource = (Entity)context.CastCard ?? context.Source,
+                    PromptAtom = atomic.Type,
+                    PromptValue = atomic.Type == AtomicEffectType.LivingArmor
+                        ? Math.Max(0, EntityEffectExtensions.GetLife(reference))
+                        : Math.Max(0, EntityEffectExtensions.GetPower(reference)),
+                    SpecKey = $"atom:{atomIndex}/spec:1/role:target",
+                    SpecRole = Attribute.TargetSpecRole.Target, // 步5 AI 分派（受体窗打脸优先）
+                });
+                if (picked != null && picked.Count > 0) victim = picked[0];
+            }
+            if (victim == null || !victim.IsAlive) return none;
+
+            context.ApprovedSpecKeys.Add($"atom:{atomIndex}/spec:1/role:target");
+            return new List<Entity> { victim };
         }
 
         // 错边黑白发放（CollectWrongSideHits/FlushWrongSideGrants/SnapshotHealInverted/TargetSide）
@@ -1402,7 +1512,8 @@ namespace CardCore
         /// 0 速卡无法在对手回合响应打出。
         /// 结算消费点见 GameActions.ResolveCardCastAsync（Option Y：扣费在响应窗口之后）。
         /// </summary>
-        public bool PushCardCast(Card card, Player controller, List<Entity> targets, int modeIndex = 0)
+        public bool PushCardCast(Card card, Player controller, List<Entity> targets, int modeIndex = 0,
+            List<Entity> references = null)
         {
             if (card == null || controller == null) return false;
             if (_isResolving) return false; // 结算中不可声明（与 SpeedCounter.CanActivate 同口径）
@@ -1428,6 +1539,7 @@ namespace CardCore
                 Controller = controller,
                 ActivationSpeed = castSpeed,
                 Targets = targets != null ? new List<Entity>(targets) : new List<Entity>(),
+                Refs = references != null && references.Count > 0 ? new List<Entity>(references) : null,
                 ModeIndex = modeIndex, // 抉择：声明期选定模式（随 cast 上栈，对手可见、结算按此付费）
             };
 

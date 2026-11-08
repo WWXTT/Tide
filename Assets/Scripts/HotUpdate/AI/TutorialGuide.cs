@@ -34,7 +34,8 @@ namespace SynergyUI
     ///   不再钉死——打错了靠「重置考验」重来），对手场上存活生物清零即完成；探针=PollFieldClear
     ///   （UI 侧逐帧轮询，栈收口后调用）；
     /// luckuse——自由等待步（2026-10-20 教学二）：闸全放行。判据分档（PollLuckUse）：场上有运势
-    ///   引擎单位=运势段口径（全部掷毕=横置且无待发主动奖励）；场上无运势单位=自由等待——己方卡
+    ///   引擎单位=运势段口径（2026-11-08 运势奖励效果化改版：主干钉自动=掷骰走准备阶段——统计
+    ///   六只运势单位的 LuckRolledEvent，全部至少掷过一次即完成，成败不论）；场上无运势单位=自由等待——己方卡
     ///   的引擎奖励**真实触发**（KeywordAppliedEvent「元素充盈/团结」发布点与 LaunchReward
     ///   同帧，段六/六b）或等待中击杀对手（终段「击杀对手」/段六备用击杀线）即闩锁完成；
     ///   都不满足=不推进；
@@ -112,6 +113,11 @@ namespace SynergyUI
         /// 消费即清（PollLuckUse 推进时）+ Begin/JumpTo 清零——防上一步期间的历史触发误过本步。</summary>
         private static bool _engineRewardFired;
 
+        /// <summary>luckuse 步运势掷骰记账（2026-11-08 运势奖励效果化改版）：主干钉自动后掷骰走
+        /// 准备阶段（OnRoutedEvent）——按引擎卡记 LuckRolledEvent（成败都发），六只全掷过即推进。
+        /// 消费即清 + Begin/JumpTo 清零（同 _engineRewardFired 口径，防跨步残留误过下个等待步）。</summary>
+        private static readonly HashSet<CardCore.Card> _luckRolledEngineCards = new HashSet<CardCore.Card>();
+
         /// <summary>luckuse 步击杀捕获（2026-10-20 教学二终段「击杀对手」）：等待步在位时玩家胜利
         ///（NotifyGameOver 探针）即闩锁。终段之后无换场步、IsScriptedContinuation=false 走正常终局
         /// 弹窗（引导完成与否不拦终局）；本闩锁主要兜「等待步中把对手打死」的备用击杀线（如段六
@@ -153,6 +159,7 @@ namespace SynergyUI
             _deathTollSixFired = false;
             _engineRewardFired = false;
             _luckKillFired = false;
+            _luckRolledEngineCards.Clear();
             foreach (var s in guideOverride ?? tutorial?.guide ?? new List<TutorialGuideStepSpec>())
                 if (s != null && !string.IsNullOrEmpty(s.type))
                     _steps.Add(s);
@@ -182,6 +189,7 @@ namespace SynergyUI
             RuleHooks.OnTutorialHumanResponded = NotifyHumanResponded;
             EventManager.Instance.Subscribe<TurnStartEvent>(NotifyTurnStarted); // end 步 waitTurnStart 推进口（2026-10-20）
             EventManager.Instance.Subscribe<KeywordAppliedEvent>(OnKeywordApplied); // deathtoll 步触发捕获（2026-10-20）
+            EventManager.Instance.Subscribe<LuckRolledEvent>(OnLuckRolled); // luckuse 步运势掷骰记账（2026-11-08 运势奖励效果化）
 
             if (Active)
                 TideLog.Info($"[TutorialGuide] 引导开始：{_steps.Count} 步——第 1 步 {Describe(_steps[0])}");
@@ -200,6 +208,7 @@ namespace SynergyUI
             _deathTollSixFired = false; // 段重置重入：清陈旧闩锁（重铺后计数归零，触发须重新挣得）
             _engineRewardFired = false; // 同上：重铺后引擎状态归零，触发须重新挣得
             _luckKillFired = false; // 同上：段重置后击杀须重新达成
+            _luckRolledEngineCards.Clear(); // 同上：重铺后运势掷骰须重新挣得（2026-11-08 运势段改版）
             while (_missed.Count < _steps.Count) _missed.Add(false);
             while (_missed.Count > _steps.Count) _missed.RemoveAt(_missed.Count - 1);
             Active = true;
@@ -218,8 +227,10 @@ namespace SynergyUI
             _deathTollSixFired = false;
             _engineRewardFired = false;
             _luckKillFired = false;
+            _luckRolledEngineCards.Clear();
             EventManager.Instance.Unsubscribe<TurnStartEvent>(NotifyTurnStarted);
             EventManager.Instance.Unsubscribe<KeywordAppliedEvent>(OnKeywordApplied);
+            EventManager.Instance.Unsubscribe<LuckRolledEvent>(OnLuckRolled);
             RuleHooks.TutorialAttackGate = null;
             RuleHooks.TutorialEndTurnGate = null;
             RuleHooks.TutorialGuardFilter = null;
@@ -543,8 +554,9 @@ namespace SynergyUI
         }
 
         /// <summary>luckuse 步探针（2026-10-20 教学二运势段）：**双判据**自由等待步——
-        /// ① 场上有运势引擎单位（段三b）：己方运势单位全部用毕即完成——全部已横置（两段式第一击
-        /// 掷骰即横置，掷不中也算用毕）且无它们来源的待发主动奖励（掷达标的第二击「发动」完毕）；
+        /// ① 场上有运势引擎单位（段三b；2026-11-08 运势奖励效果化改版）：主干钉自动=掷骰走准备阶段
+        /// （OnRoutedEvent，成败都发 LuckRolledEvent）——六只运势单位全部至少掷过一次即完成
+        ///（_luckRolledEngineCards 记账，成败不论；不再查横置/待发主动奖励——主动两击流程已随迁移退役）；
         /// ② 场上无运势单位（段六元素充盈/段六b团结复用本步型）：己方卡引擎奖励**真实触发**
         ///（_engineRewardFired 闩锁——KeywordAppliedEvent 与 LaunchReward 同帧，触发=奖励在途）
         /// 即完成。UI 侧逐帧轮询（栈收口、表现播毕后才调，防结算中途瞬态误判）。两判据都不满足
@@ -568,14 +580,14 @@ namespace SynergyUI
                 {
                     _engineRewardFired = false; // 消费即清：防本步完成前的历史触发误过下个等待步
                     _luckKillFired = false;
+                    _luckRolledEngineCards.Clear();
                     Advance(missed: false);
                 }
                 return;
             }
             foreach (var c in units)
-                if (!c.IsTapped()) return; // 有未掷骰的（第一击未做）
-            foreach (var pe in core.StackEngine.GetActivatableVoluntaryEffects(p1))
-                if (pe != null && units.Any(u => ReferenceEquals(pe.Source, u))) return; // 有待发奖励未发动（第二击未做）
+                if (!_luckRolledEngineCards.Contains(c)) return; // 有未掷骰的（准备阶段自动掷骰——尚未轮到/回合未结束）
+            _luckRolledEngineCards.Clear(); // 消费即清（同判据②口径）
             Advance(missed: false);
         }
 
@@ -637,6 +649,16 @@ namespace SynergyUI
                 && (e.Keyword == "元素充盈" || e.Keyword == "团结")
                 && e.Target.GetController() == GameCore.Instance?.Player1)
                 _engineRewardFired = true;
+        }
+
+        /// <summary>luckuse 步运势掷骰记账（2026-11-08 运势奖励效果化改版）：LuckRolledEvent 成败都发
+        ///（BranchEngines.OnRoutedEvent——准备阶段自动掷骰），按引擎卡记己方掷骰；步型守卫同
+        /// _engineRewardFired（只认 luckuse 在位时的掷骰，防段前历史掷骰误记账）。</summary>
+        private static void OnLuckRolled(LuckRolledEvent e)
+        {
+            if (e?.EngineCard == null || e.Controller != GameCore.Instance?.Player1) return;
+            if (Current == null || Current.type != "luckuse") return;
+            _luckRolledEngineCards.Add(e.EngineCard);
         }
 
         private static void Advance(bool missed)

@@ -137,6 +137,11 @@ namespace CardCore
         /// </summary>
         public List<Entity> Targets { get; set; }
 
+        /// <summary>参照单位列表（步5 2026-11-08 目标选择重构 §3.3）：声明期 Reference spec 选位
+        /// 显式随实例入栈——网络意图/重放/栈快照按角色携带（不混进 Targets 平铺数组）；执行器把它
+        /// 种进 context.Refs（v1 单参照=首元素）。null/空=无参照（普通效果）。</summary>
+        public List<Entity> Refs { get; set; }
+
         /// <summary>
         /// 效果解析上下文
         /// </summary>

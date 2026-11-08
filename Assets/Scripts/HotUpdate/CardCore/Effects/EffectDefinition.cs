@@ -603,6 +603,13 @@ namespace CardCore
         /// <summary>数值随机幅度 0..1（2026-09-13 定案）：&gt;0 时结算读 GetRolledValue()——
         /// 每目标独立掷 [Value−span, Value+span]（span=round(|Value|×幅度)）；计价按名义 Value（锚点不漂移）。</summary>
         public float RandomAmplitude;
+        /// <summary>数值静态上界（步6 §4.1，2026-11-08）：作者声明——校验器/分布告警用，
+        /// **不参与计价**（防按上界定价杀死成长型效果）；0=未声明。</summary>
+        public int ValueMax;
+        /// <summary>结算期动态值表达式（步6 §4.2）：v1 白名单 ref.power|ref.life|ref.cost
+        ///（读 context.Ref 活值，经 EffectExecutionContext.ResolveValue 求值）；空=旧路径
+        /// GetRolledValue（value±amp 掷值）。计价不读它（定价恒按 Value 名义值）。</summary>
+        public string ValueExpr;
         public string StringValue;
         /// <summary>来源表行 ID（2026-10-03 计价行身份修复）：同枚举多行（变体行各自锚价，如规则光环 7 行）
         /// 时计价按此行取锚——null/缺行回落 GetByType（末行，旧口径）。运行时字段，不入网络 DTO。</summary>
@@ -651,6 +658,20 @@ namespace CardCore
         /// null=未声明 → 消费口回落旧 TargetKinds/Domain 口径（ResolveCandidates axis 参数缺省）。
         /// 运行时字段，不入网络 DTO。</summary>
         public TargetAxis Axis;
+
+        // ---- 参照域（2026-11-08 目标选择重构 §2.1/§2.3）：converter 从行 RefDomain 三列构建，
+        //      ReferenceAxis != null 即「分段原子」标记（活体炸弹/护甲）。----
+        /// <summary>参照轴：参照候选只做可见性过滤（ExcludeUnselectable 潜行/隐藏语义），
+        /// **不做**可指性过滤（帷幕/守护/edict）、不触发 OnTargeted 等被指定事件；参照不进
+        /// context.Targets（进 Refs）。运行时字段，不入网络 DTO。</summary>
+        public TargetAxis ReferenceAxis;
+        /// <summary>参照域 kinds 视图（行 RefDomain 派生；SideLock 等区级消费口用）。</summary>
+        public List<int> ReferenceKinds;
+        /// <summary>参照收集时机（Cast=声明期选/Resolve=结算期问/Auto=不弹窗自动取）。</summary>
+        public Attribute.RefPick RefPick;
+        /// <summary>参照候选为空是否空转（v1 恒 true；false 留扩展位）。</summary>
+        public bool RefRequired = true;
+
         /// <summary>极性（表级解析：-1=对对手释放有益 / +1=对己方释放有益 / 0=中性；错边折价输入）。</summary>
         public float Polarity;
 

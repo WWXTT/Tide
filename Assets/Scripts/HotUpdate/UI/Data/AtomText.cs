@@ -103,9 +103,13 @@ namespace SynergyUI
             // 行域新语法 + 实例 kinds 单值 → 按 converter 同口径收窄（NarrowByKinds）后两轴短语
             //（2026-11-06 收口：此前回显行 Domain 原文——"双方战场:生物;双方战场:结界; 双方角色"
             // 病句源；kinds 收窄语义与 CardEffectConverter 产轴一致）。
+            // 参照域行（步4 2026-11-08）：kinds 不再收窄受体域——{target} 恒为整行 Domain 短语
+            //（参照域独立，{reference} 走 RefDomain）。
             if (!string.IsNullOrEmpty(cfg?.Domain) && atom?.kinds != null && atom.kinds.Count > 0
                 && TargetAxisRules.TryParseDomain(cfg.Domain, out var rowAxis))
             {
+                if (!string.IsNullOrEmpty(cfg.RefDomain))
+                    return AxisPhraseOf(rowAxis, sel, count);
                 var narrowed = TargetAxisRules.NarrowByKinds(rowAxis, atom.kinds);
                 return narrowed != null && narrowed.Selectors.Count > 0
                     ? AxisPhraseOf(narrowed, sel, count) : AxisPhraseOf(rowAxis, sel, count);
@@ -202,9 +206,10 @@ namespace SynergyUI
                && (categories & TargetCategory.Card) == 0 ? "个" : "张";
 
         /// <summary>条目有效轴（展示口径，2026-11-06 极性定案）：实例 domain（新语法）优先 →
-        /// 行 Domain；kinds 显式 → NarrowByKinds（实例收窄/代价锁侧/参照族优先）；否则极性收窄
+        /// 行 Domain；kinds 显式 → NarrowByKinds（实例收窄/代价锁侧）；否则极性收窄
         ///（NarrowByPolarity——非场地效果按极性定侧，与 converter 产轴同口径）。
-        /// null=无域或参照族形态（kinds 收窄空——第二段域由 handler 自管）。</summary>
+        /// 参照域行（步4 2026-11-08）：kinds 不承载受体域语义——恒极性收窄整行 Domain
+        ///（参照域独立走 {reference}→RefDomain，不再有「kinds 收窄空挂 null」形态）。</summary>
         private static TargetAxis EffectiveAxisOf(AtomicEffectConfig cfg, AtomicEffectEntry atom)
         {
             TargetAxis axis = null;
@@ -213,6 +218,8 @@ namespace SynergyUI
             else if (!string.IsNullOrEmpty(cfg?.Domain) && TargetAxisRules.TryParseDomain(cfg.Domain, out var rowAxis))
                 axis = rowAxis;
             if (axis == null) return null;
+            if (!string.IsNullOrEmpty(cfg?.RefDomain))
+                return TargetAxisRules.NarrowByPolarity(axis, cfg?.Polarity ?? 0f);
             if (atom?.kinds != null && atom.kinds.Count > 0)
             {
                 var narrowed = TargetAxisRules.NarrowByKinds(axis, atom.kinds);
@@ -321,6 +328,16 @@ namespace SynergyUI
                 else if (quantified) noun = effCount + "张" + noun;
             }
             string body = tpl.Replace("{value}", number).Replace("{target}", noun);
+            // {reference} → 参照域短语（步4 §2.1：参照域独立于 Domain；存量模板不含此占位符——
+            // 本口为零影响扩展，新模板可写「以{reference}为参照」）。
+            if (body.Contains("{reference}"))
+            {
+                string refNoun = "参照";
+                if (!string.IsNullOrEmpty(cfg?.RefDomain)
+                    && TargetAxisRules.TryParseDomain(cfg.RefDomain, out var refAxis))
+                    refNoun = AxisPhraseOf(refAxis, true, -1);
+                body = body.Replace("{reference}", refNoun);
+            }
             // {衍生物} → 模板卡名（2026-10-09 衍生物召唤配套）：SummonToken 的 str 指向真实生物卡——
             // 未填/未解析显「未指定模板」/原样 ID；表行括注「{衍生物}=字符串参数指向…」整段折叠为卡名
             if (body.Contains("{衍生物}"))
@@ -583,10 +600,10 @@ namespace SynergyUI
                 // 派生门槛引擎（IsDerivedThresholdEngine 单源：拼点/死亡计数/元素充盈）
                 // ——2026-10-09 自平衡统一：x=Then 奖励锚价推导，随奖励计费实时变
                 case BranchEngineKind.DeathToll:
-                    // 2026-10-19 手牌/场上改案完整句：此卡在手牌或场上时计数双方生物死亡（类似死亡=
+                    // 2026-11-08 阶段3 只扫战场：此卡在场上时计数双方生物死亡（手牌不计数；类似死亡=
                     // CardDestroyEvent 生物：战斗死亡+消灭；牺牲直送非死亡无事件不计），满 6 不再计数，
                     // 计数≥x 触发奖励（触发不清零），使用后清零
-                    return $"此卡在手牌或场上时计数双方生物死亡，计数大于等于{CostDerivationService.RewardThresholdOf(ToInstances(then), fxId)}时触发奖励（满6不再计数，使用后清零）";
+                    return $"此卡在场上时计数双方生物死亡，计数大于等于{CostDerivationService.RewardThresholdOf(ToInstances(then), fxId)}时触发奖励（满6不再计数，使用后清零）";
                 case BranchEngineKind.ManaSurplus:
                     // 2026-11-06 判据七完整句：双方施放·整条连锁结算完成后（只能是自动效果），
                     // 双方剩余元素（未横置地牌+钱包）之差恰==x 触发（差每+1踩一档各一次）

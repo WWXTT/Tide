@@ -231,8 +231,8 @@ namespace TideSim
                     case "tide-trigger-on-play":
                         Assert(_redPlays >= 1, "① 红确实出牌（火苗 1 灰走钱包，全程不横置地）");
                         Assert(_fullness.Count == 1, $"① 充盈触发恰 1 次（实际 {_fullness.Count}）");
-                        Assert(_fullness.Count == 1 && _fullness[0].Contains("使用结算后") && _fullness[0].Contains("== 2"),
-                            $"① 触发口=使用结算后·判据恰等（明细：{_fullness.FirstOrDefault() ?? "无"}）");
+                        Assert(_fullness.Count == 1 && _fullness[0].Contains("效果结算后") && _fullness[0].Contains("== 2"),
+                            $"① 触发口=效果结算后·判据恰等（明细：{_fullness.FirstOrDefault() ?? "无"}）");
                         Assert(_monumentDamage.Count == 1 && _monumentDamage[0].Dmg == 2
                             && _monumentDamage[0].Target == "火苗",
                             $"① 潮痕碑奖励=2 伤落在火苗（实际 {DescribeDamage()}）");

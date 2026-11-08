@@ -1,7 +1,7 @@
 [
   {
     "ID": "f7119394",
-    "TextHash": "f7119394",
+    "TextHash": "73875fcd",
     "EnumName": "吸血",
     "DisplayName": "赋予{target}吸血：造成伤害时，为自身恢复等量生命",
     "EffectType": "GrantLifesteal",
@@ -19,7 +19,7 @@
   },
   {
     "ID": "ed308353",
-    "TextHash": "ed308353",
+    "TextHash": "dfd896d4",
     "EnumName": "隐密",
     "DisplayName": "赋予{target}隐密：不会成为攻击和效果的目标",
     "EffectType": "GrantConcealed",
@@ -37,7 +37,7 @@
   },
   {
     "ID": "91535cec",
-    "TextHash": "9011f23a",
+    "TextHash": "83a9e46b",
     "EnumName": "守护",
     "DisplayName": "赋予{target}守护：角色受到伤害时改写为自己受到等量伤害",
     "EffectType": "GrantGuardian",
@@ -55,7 +55,7 @@
   },
   {
     "ID": "f1bd9a67",
-    "TextHash": "f1bd9a67",
+    "TextHash": "1393fe3c",
     "EnumName": "碾压",
     "DisplayName": "赋予{target}碾压：战斗伤害结算时，对目标以及目标相邻左右侧生物造成相同的战斗伤害",
     "EffectType": "GrantOverwhelm",
@@ -73,7 +73,7 @@
   },
   {
     "ID": "307eb123",
-    "TextHash": "307eb123",
+    "TextHash": "afc2d88b",
     "EnumName": "溅射",
     "DisplayName": "赋予{target}溅射：战斗结算时，对随机对手单位造成溢出的战斗伤害",
     "EffectType": "GrantSplash",
@@ -91,7 +91,7 @@
   },
   {
     "ID": "4cf22304",
-    "TextHash": "4cf22304",
+    "TextHash": "954bd74b",
     "EnumName": "警戒",
     "DisplayName": "赋予{target}警戒：战斗结算时，横置状态也会触发战斗伤害",
     "EffectType": "GrantVigilance",
@@ -109,7 +109,7 @@
   },
   {
     "ID": "073f18c7",
-    "TextHash": "073f18c7",
+    "TextHash": "4453b96a",
     "EnumName": "先攻",
     "DisplayName": "赋予{target}先攻：战斗结算时，先造成战斗伤害，如果目标死亡，则无法反击",
     "EffectType": "GrantFirstStrike",
@@ -127,7 +127,7 @@
   },
   {
     "ID": "fe714786",
-    "TextHash": "fe714786",
+    "TextHash": "ac3f847c",
     "EnumName": "不灭",
     "DisplayName": "赋予{target}不灭：不受消灭效果影响",
     "EffectType": "GrantIndestructible",
@@ -145,7 +145,7 @@
   },
   {
     "ID": "1e60cb92",
-    "TextHash": "1e60cb92",
+    "TextHash": "74b5f0c1",
     "EnumName": "系命",
     "DisplayName": "赋予{target}系命：造成伤害时，为角色恢复等量生命",
     "EffectType": "GrantLifelink",
@@ -163,7 +163,7 @@
   },
   {
     "ID": "ea1df378",
-    "TextHash": "ea1df378",
+    "TextHash": "fafd12d1",
     "EnumName": "再生",
     "DisplayName": "赋予{target}再生：己方准备阶段恢复自身全部生命值",
     "EffectType": "GrantRegeneration",
@@ -181,7 +181,7 @@
   },
   {
     "ID": "c253788f",
-    "TextHash": "c253788f",
+    "TextHash": "3ddb2ab4",
     "EnumName": "缴械",
     "DisplayName": "赋予{target}缴械：攻击时被攻击单位无法反击",
     "EffectType": "GrantDisarm",
@@ -199,7 +199,7 @@
   },
   {
     "ID": "407eb771",
-    "TextHash": "407eb771",
+    "TextHash": "b0d9d6d1",
     "EnumName": "帷幕",
     "DisplayName": "赋予{target}帷幕：敌方效果只能指定帷幕单位",
     "EffectType": "GrantTaunt",
@@ -217,7 +217,7 @@
   },
   {
     "ID": "8c988c18",
-    "TextHash": "8c988c18",
+    "TextHash": "29b82b21",
     "EnumName": "连击",
     "DisplayName": "赋予{target}连击：先额外造成一次战斗伤害，再进行正常的战斗结算",
     "EffectType": "GrantDoubleStrike",
@@ -235,7 +235,7 @@
   },
   {
     "ID": "20c06d52",
-    "TextHash": "20c06d52",
+    "TextHash": "fffe9c7a",
     "EnumName": "剧毒",
     "DisplayName": "赋予{target}剧毒：受到其战斗伤害的生物被消灭",
     "EffectType": "GrantVenom",
@@ -254,7 +254,7 @@
   },
   {
     "ID": "764236ed",
-    "TextHash": "764236ed",
+    "TextHash": "05aea4f5",
     "EnumName": "绝缘体",
     "DisplayName": "赋予{target}绝缘体：不受指示物的效果影响",
     "EffectType": "GrantInsulator",
@@ -273,7 +273,7 @@
   },
   {
     "ID": "89529e0e",
-    "TextHash": "89529e0e",
+    "TextHash": "76195ed4",
     "EnumName": "病原体",
     "DisplayName": "赋予{target}病原体：受到伤害时，对伤害来源附加一层毒素",
     "EffectType": "GrantPathogen",
@@ -291,7 +291,7 @@
   },
   {
     "ID": "a81e2068",
-    "TextHash": "a81e2068",
+    "TextHash": "019e0250",
     "EnumName": "狩猎",
     "DisplayName": "赋予{target}狩猎：回合结束时，如果处于可行动状态，随机对对手单位发起一次攻击",
     "EffectType": "GrantHunt",

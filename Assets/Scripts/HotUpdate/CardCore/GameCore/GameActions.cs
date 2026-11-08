@@ -436,10 +436,16 @@ namespace CardCore
         /// fromZone：出牌来源区（默认手牌；Graveyard = IPlaySource「墓地视手牌中使用」路径）。
         /// </summary>
         public static bool PlayCard(GameCore core, Player player, Card card, List<Entity> targets = null, Zone fromZone = Zone.Hand, int modeIndex = 0)
-            => PlayCard(core, player, card, targets, fromZone, modeIndex, out _);
+            => PlayCard(core, player, card, targets, fromZone, modeIndex, null, out _);
 
         /// <summary>同 <see cref="PlayCard(GameCore,Player,Card,List{Entity},Zone,int)"/>，附带精确拒绝原因（网络 Error 帧直读——2026-09-26 联机排查：通用「门禁」文案无法区分 费用/目标/时点）。</summary>
         public static bool PlayCard(GameCore core, Player player, Card card, List<Entity> targets, Zone fromZone, int modeIndex, out string rejectReason)
+            => PlayCard(core, player, card, targets, fromZone, modeIndex, null, out rejectReason);
+
+        /// <summary>步5（2026-11-08 目标选择重构 §3.3）：references=声明期 Reference spec 选位
+        ///（网络意图/重放按 SpecKey 对齐显式携带）——随 cast 入栈（EffectInstance.Refs），执行器种进
+        /// context.Refs；null=无参照（普通效果，行为与旧重载一致）。</summary>
+        public static bool PlayCard(GameCore core, Player player, Card card, List<Entity> targets, Zone fromZone, int modeIndex, List<Entity> references, out string rejectReason)
         {
             rejectReason = null;
             if (core == null || player == null || card == null) { rejectReason = "内部错误：空参数"; return false; }
@@ -526,7 +532,7 @@ namespace CardCore
             if (core.StackEngine.GetPendingCastCards(player).Contains(card))
             { rejectReason = "该卡已在施放中（连锁上待结算——不可二次声明）"; return false; }
 
-            if (!core.StackEngine.PushCardCast(card, player, targets, modeIndex))
+            if (!core.StackEngine.PushCardCast(card, player, targets, modeIndex, references))
             {
                 // 理论不可达（声明预检已过）；S3b 后零移动——直接失败（卡从未动过）
                 card._pendingCastFromZone = Zone.None;
@@ -558,6 +564,11 @@ namespace CardCore
 
         /// <summary>同 <see cref="PlayCardInResponse(GameCore,Player,Card,List{Entity},int)"/>，附带精确拒绝原因。</summary>
         public static bool PlayCardInResponse(GameCore core, Player player, Card card, List<Entity> targets, int modeIndex, out string rejectReason)
+            => PlayCardInResponse(core, player, card, targets, modeIndex, null, out rejectReason);
+
+        /// <summary>步5（2026-11-08 目标选择重构 §3.3）：references=声明期 Reference spec 选位
+        ///（网络意图/重放按 SpecKey 对齐显式携带）——随 cast 入栈（EffectInstance.Refs）。</summary>
+        public static bool PlayCardInResponse(GameCore core, Player player, Card card, List<Entity> targets, int modeIndex, List<Entity> references, out string rejectReason)
         {
             rejectReason = null;
             if (core == null || player == null || card == null) { rejectReason = "内部错误：空参数"; return false; }
@@ -612,7 +623,7 @@ namespace CardCore
             if (core.StackEngine.GetPendingCastCards(player).Contains(card))
             { rejectReason = "该卡已在施放中（连锁上待结算——不可二次声明）"; return false; }
 
-            if (!core.StackEngine.PushCardCast(card, player, targets, modeIndex))
+            if (!core.StackEngine.PushCardCast(card, player, targets, modeIndex, references))
             {
                 // S3b：零移动回退（卡留手牌，Push 失败不动卡）
                 rejectReason = "速度门拒绝（响应卡速度须高于记速器）";
@@ -765,7 +776,7 @@ namespace CardCore
             // 4. 结算：法术 → 效果全结算后离区入墓；永久物 → 登记触发式 + 入场
             if (card.IsSpellCard())
             {
-                await ResolveSpellEffectsAsync(core, player, card, cast.Targets, cast.ModeIndex, cast);
+                await ResolveSpellEffectsAsync(core, player, card, cast.Targets, cast.ModeIndex, cast, cast.Refs);
             }
             else
             {
@@ -776,12 +787,12 @@ namespace CardCore
             // _pendingCastFromZone 使命结束——残留会让下一轮（同卡实例复用/验证器夹具）读到过期来源。
             card._pendingCastFromZone = Zone.None;
 
-            // 使用结算记账 + 团结评估（2026-11-06 判据七·充盈改造）：充盈不再在本口中段直调——
-            // 成功结算先记账（NoteCastSettled），整条连锁结算完成的稳定点由 StackEngine.FinishResolution
-            // 统一 flush（FlushCardCastSettled：双方评估、恰==x、差=未横置地+钱包）；团结引擎仍在本拍评估。
+            // 使用结算记账（2026-11-06 判据七·充盈改造；2026-11-08 阶段3）：充盈/团结均不在本口直调
+            // ——成功结算先记账（NoteCastSettled），整条连锁结算完成的稳定点由 StackEngine.FinishResolution
+            // 统一 flush（FlushCardCastSettled 补发 CardCastSettledEvent → 充盈双方评估·恰==x；
+            // 团结随本事件经 OnRoutedEvent 按奖励效果时机评估——OnCardCastSettled 直调已删）。
             // 发动无效/效果无效/付费失败上方早退不达此；效果费支付不走此口。
             BranchEngines.NoteCastSettled(player, card, cast.ModeIndex);
-            BranchEngines.OnCardCastSettled(player);
         }
 
         /// <summary>施放卡声明期收集（效果无效 fizz 场景的飞行色）：所选模式首个原子的行基准主色。</summary>
@@ -1433,7 +1444,7 @@ namespace CardCore
         /// </summary>
         private static async Cysharp.Threading.Tasks.UniTask ResolveSpellEffectsAsync(
             GameCore core, Player player, Card card, List<Entity> targets, int modeIndex = 0,
-            EffectInstance cast = null)
+            EffectInstance cast = null, List<Entity> references = null)
         {
             var defs = GetCastableEffectDefinitions(card); // P12：模式序号索引非充能列表
             EffectDefinition chosen = null;
@@ -1466,6 +1477,7 @@ namespace CardCore
                     Source = player,
                     Controller = player,
                     Targets = targets != null ? new List<Entity>(targets) : new List<Entity>(),
+                    Refs = references != null && references.Count > 0 ? new List<Entity>(references) : null,
                     ModeIndex = 0, // 法术效果禁嵌抉择（装载校验拦）——modeIndex 已被效果抉择占用，执行层恒 0
                     CastCard = card, // 施放宿主卡（状态门「本回合第一张抽到的卡」需要卡身份）
                     RespondedEntry = castEntry?.RespondedEntry, // E1-1：cast 的响应绑定透传给法术效果上下文（反制读它）

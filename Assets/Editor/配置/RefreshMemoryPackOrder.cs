@@ -115,6 +115,7 @@ namespace CardCore.Tools
                 // Drawbacks 标签已随减费归入代价体系退役 2026-09-16）
                 ("AtomicEffectInstance", "TargetKinds"),
                 ("AtomicEffectInstance", "ManaList"),
+                ("AtomicEffectInstance", "Domain"), // 并行会话 2026-11-08 引擎奖励效果化：MemoryPackDTOs 尾部追加（AEI_Domain）——注册行缺失阻塞编译，代补
                 ("SerializableAtomicEffectEntry", "Amplitude"), // amp 数值随机（2026-10-31 阶段D：手工定值退役并入哈希）
                 ("SerializableManaAmount", "manaType"),
                 ("SerializableManaAmount", "amount"),
@@ -191,6 +192,7 @@ namespace CardCore.Tools
                 ("StackItemDTO", "ModeIndex"),
                 ("StackItemDTO", "Targets"), ("StackItemDTO", "ActivationSpeed"),
                 ("StackItemDTO", "StackObjectType"),
+                ("StackItemDTO", "References"), // 参照选位（2026-11-08 目标选择重构·协议 v10）
 
                 // ---- NetZoneCards（区域全量）----
                 ("NetZoneCards", "Seat"), ("NetZoneCards", "Zone"), ("NetZoneCards", "Cards"),
@@ -201,6 +203,7 @@ namespace CardCore.Tools
                 // ---- 上行 intent ----
                 ("MsgIntentPlayCard", "CardRuntimeId"), ("MsgIntentPlayCard", "Targets"),
                 ("MsgIntentPlayCard", "FromZone"), ("MsgIntentPlayCard", "ModeIndex"),
+                ("MsgIntentPlayCard", "References"), // 参照选位（2026-11-08 目标选择重构·协议 v10）
                 ("MsgIntentBuildCard", "CardRuntimeId"), ("MsgIntentBuildCard", "Color"), // 2026-10-29 P7 建造（协议 v4）
                 // MsgIntentTapForElement 已删（2026-10-11 现取现用：无手动横置）——两个 tag 常量同批移除（2026-10-22）
                 ("MsgIntentAddToElementPool", "CardRuntimeId"),
@@ -209,6 +212,7 @@ namespace CardCore.Tools
                 ("MsgIntentDeclareBlock", "Blocker"), ("MsgIntentDeclareBlock", "Attacker"),
                 ("MsgIntentActivateEffect", "SourceCardRuntimeId"), ("MsgIntentActivateEffect", "EffectId"),
                 ("MsgIntentActivateEffect", "Targets"), ("MsgIntentActivateEffect", "PaidBoost"),
+                ("MsgIntentActivateEffect", "References"), // 参照选位（2026-11-08 目标选择重构·协议 v10）
                 ("MsgIntentActivateHeroSkill", "EffectIndex"),
 
                 // ---- 反问请求/应答 ----
@@ -217,6 +221,7 @@ namespace CardCore.Tools
                 ("MsgSelectRequest", "AllowCancel"), ("MsgSelectRequest", "TimeoutSeconds"),
                 ("MsgSelectRequest", "Min"), ("MsgSelectRequest", "Max"),
                 ("MsgSelectRequest", "Labels"), ("MsgSelectRequest", "Candidates"),
+                ("MsgSelectRequest", "SpecKey"), // spec 计划关联键（2026-11-08 目标选择重构·协议 v10）
                 ("MsgSelectResponse", "RequestId"), ("MsgSelectResponse", "Indices"),
                 ("MsgTextRequest", "RequestId"), ("MsgTextRequest", "ChooserSeat"),
                 ("MsgTextRequest", "Title"), ("MsgTextRequest", "Default"),

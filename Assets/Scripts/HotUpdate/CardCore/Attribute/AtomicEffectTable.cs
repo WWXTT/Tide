@@ -213,6 +213,23 @@ namespace CardCore.Attribute
                 config.Domain = entry.Domain;
                 config.Polarity = Math.Clamp(entry.Polarity, -1f, 1f);
 
+                // 参照域三列（2026-11-08 目标选择重构 §2.1）：仅 RefDomain 非空的行视为分段原子——
+                // 装载校验：RefDomain 须能产轴（TryParseDomain）、RefPick 须为合法枚举名；
+                // 非法告警不拦行（RefDomain 非法=参照轴不生效；RefPick 非法=converter 按 Cast 兜底）。
+                if (!string.IsNullOrEmpty(entry.RefDomain))
+                {
+                    config.RefDomain = entry.RefDomain;
+                    config.RefPick = entry.RefPick;
+                    config.RefFilter = entry.RefFilter;
+                    config.RefRequired = entry.RefRequired;
+                    if (!CardCore.TargetAxisRules.TryParseDomain(entry.RefDomain, out _))
+                        TideLog.Warn($"[AtomicEffectTable] RefDomain='{entry.RefDomain}' 非法选择器语法"
+                                     + $"（EnumName={entry.EnumName}）——参照轴不生效（步4 起参照回落旧 kinds 路径）");
+                    if (!string.IsNullOrEmpty(entry.RefPick) && !Enum.TryParse<RefPick>(entry.RefPick, out _))
+                        TideLog.Warn($"[AtomicEffectTable] RefPick='{entry.RefPick}' 非法（EnumName={entry.EnumName}，"
+                                     + "应为 Cast/Resolve/Auto）——converter 按 Cast 兜底");
+                }
+
                 // 可装载范围（2026-09-11；2026-10-06 中文化；2026-10-07 仅可转换）：
                 // 空 = 未声明 = 普通行（无特殊位——主干/奖励资格走派生谓词，不再兜底全开）
                 config.MountKinds = entry.MountKinds ?? "";
@@ -403,6 +420,13 @@ namespace CardCore.Attribute
             // 旧 EffectDomain 词表 token=legacy 回落 kinds（试点期兼容，P2 删）。
             // Region/Category 两列（P1-a/b 试点形态）已随本契约删除——JSON 中的残留键装载层忽略。----
             public string Domain;
+
+            // ---- 参照域三列（2026-11-08 目标选择重构 §2.1）：仅分段原子行（活体炸弹/护甲）声明，其余行留空 ----
+            public string RefDomain;   // 参照域声明（复用 Domain 选择器文法）
+            public string RefPick;     // 参照收集时机枚举名：Cast/Resolve/Auto
+            public string RefFilter;   // 参照侧属性过滤 token（Armored/Damaged/…；2026-11-08 护盾猛击参照化）
+            public bool RefRequired;   // 参照候选为空是否空转（bool 列；xlsm 回导 0/1、"true"/"false"
+                                       // 由 Newtonsoft 绑定 bool 天然三态归一）
 
             public float Polarity;        // 极性 [-1,1]：-1=对对手释放有益 / +1=对己方释放有益 / 0=中性
 

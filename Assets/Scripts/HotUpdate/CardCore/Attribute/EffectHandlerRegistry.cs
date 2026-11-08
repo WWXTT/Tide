@@ -66,14 +66,26 @@ namespace CardCore.Attribute
             if (effect == null || context == null) return false;
 
             // 调用方已预选目标（玩家施放指定 / per-target 步骤逐个传入）则沿用；否则走交互解析（候选>需求时弹选择）。
+            // TargetsResolvedBySpec（步3 换轨）=执行器已按 spec 计划解析封口——空 Targets 也不再回落
+            //（分段原子受体域空=空转，防 kinds 旧口径兜底误解析出参照候选）。
             bool hasPreselectedTargets = context.Targets != null && context.Targets.Count > 0;
-            if (!hasPreselectedTargets)
+            if (!hasPreselectedTargets && !context.TargetsResolvedBySpec)
                 context.Targets = await ResolveTargetsInteractiveAsync(effect, context);
 
             if (!PrepareForExecution(effect, context, out var handler, skipTargetResolution: true))
                 return false;
 
-            await handler.ExecuteAsync(effect, context);
+            // 铁律守卫作用域（2026-11-08 §1.1）：handler 执行期发起的选择请求须带已批准 SpecKey，
+            // 否则 TargetSelectionService 内 GuardHandlerScope 报 Error（先叫后清零）。
+            TargetSelectionService.BeginHandlerScope(context);
+            try
+            {
+                await handler.ExecuteAsync(effect, context);
+            }
+            finally
+            {
+                TargetSelectionService.EndHandlerScope();
+            }
             return true;
         }
 
@@ -409,8 +421,13 @@ namespace CardCore.Attribute
         {
             if (def == null || atom == null || context == null) return new List<Entity>();
 
-            var kinds = atom.TargetKinds ?? new List<int>();
+            // 分段原子（步4）：域源切 RefDomain——kinds=ReferenceKinds、axis=ReferenceAxis、
+            // 候选过滤只做可见性（ExcludeUnselectable，无帷幕/守护，§2.3）；受体侧由执行器
+            // ResolveSegmentedTargetsAsync 从行 Domain 解析（不经本口）。
+            bool refAtom = atom.ReferenceAxis != null;
+            var kinds = (refAtom ? atom.ReferenceKinds : atom.TargetKinds) ?? new List<int>();
             if (kinds.Count == 0) return new List<Entity>(); // 无域原子：handler 自结算
+            var resolveAxis = refAtom ? atom.ReferenceAxis : atom.Axis;
 
             bool noWindow = def.ActivationType == EffectActivationType.Mandatory; // 强制类无目标选择窗口
             bool randomPick = atom.EffectiveRandomTarget(def);
@@ -421,7 +438,7 @@ namespace CardCore.Attribute
                 && !SelectionModeRules.IsTakeAll(def.SelectionMode)
                 && preselectQueue != null && preselectQueue.Count > 0)
             {
-                var pool = ResolveCandidates(kinds, atom.Filter ?? "", context, atom.Axis);
+                var pool = ResolveCandidates(kinds, atom.Filter ?? "", context, resolveAxis);
                 int quota = effCount == -1 ? int.MaxValue : Math.Max(1, effCount);
                 var kept = new List<Entity>();
                 for (int i = 0; i < preselectQueue.Count && kept.Count < quota; i++)
@@ -439,9 +456,9 @@ namespace CardCore.Attribute
                     // 选择层同口径过滤后的候选序补足（跨双方墓地选 N 等逐原子多目标卡）。
                     if (quota != int.MaxValue && kept.Count < quota)
                     {
-                        bool edictFill = TargetResolver.IsEdict(atom.Type);
-                        var fill = TargetResolver.ExcludeUnselectable(
-                            TargetResolver.ApplyTauntRestriction(pool, context, edictFill), context.Controller);
+                        var fillPool = refAtom ? pool
+                            : TargetResolver.ApplyTauntRestriction(pool, context, TargetResolver.IsEdict(atom.Type));
+                        var fill = TargetResolver.ExcludeUnselectable(fillPool, context.Controller);
                         foreach (var c in fill)
                         {
                             if (kept.Count >= quota) break;
@@ -455,7 +472,7 @@ namespace CardCore.Attribute
             // 全隐藏区（对方手牌/双方牌库）：隐藏信息不进选择——自结算（与组合层早退口径一致）
             if (TargetKindRules.AllHiddenZone(kinds)) return new List<Entity>();
 
-            var candidates = ResolveCandidates(kinds, atom.Filter ?? "", context, atom.Axis);
+            var candidates = ResolveCandidates(kinds, atom.Filter ?? "", context, resolveAxis);
             GameActions.Crumb($"atom-targets {def.Id}/{atom.Type} kinds={TargetKindRules.Format(kinds)} "
                 + $"pre={preselectQueue?.Count ?? 0} cands={candidates.Count} mode={def.SelectionMode} cnt={atom.EffectiveTargetCount(def)}");
             if (candidates.Count == 0) return candidates;
@@ -477,7 +494,8 @@ namespace CardCore.Attribute
             //（2026-11-02 多目标定案：每原子数量档 effCount>0 优先——带 value 的原子设 N 个随机目标即抽 N）
             if (atom.EffectiveRandomTarget(def))
             {
-                var pool = TargetResolver.ApplyTauntRestriction(candidates, context, edictExempt);
+                var pool = refAtom ? candidates
+                    : TargetResolver.ApplyTauntRestriction(candidates, context, edictExempt);
                 int take = effCount > 0 ? effCount
                     : (noneAsSingle || SelectionModeRules.IsPickOne(def.SelectionMode) ? 1 : pool.Count);
                 if (take >= pool.Count) return pool;
@@ -485,8 +503,11 @@ namespace CardCore.Attribute
             }
 
             // 选一/选多：交互选取——两道过滤（帷幕收窄 + 弹窗显示域；AI/无头自动取前 N 同口径）
-            candidates = TargetResolver.ExcludeUnselectable(
-                TargetResolver.ApplyTauntRestriction(candidates, context, edictExempt), context.Controller);
+            //（分段原子只做可见性过滤——参照无帷幕/守护语义，§2.3）
+            candidates = refAtom
+                ? TargetResolver.ExcludeUnselectable(candidates, context.Controller)
+                : TargetResolver.ExcludeUnselectable(
+                    TargetResolver.ApplyTauntRestriction(candidates, context, edictExempt), context.Controller);
             if (candidates.Count == 0) return candidates;
 
             // 结算期问选取消闸（2026-10-20 定案）：法术 cast 上下文（CastCard 非空）=类自动效果
@@ -517,6 +538,7 @@ namespace CardCore.Attribute
                     PromptSource = (Entity)context.CastCard ?? context.Source,
                     PromptEffectId = def.Id,
                     PromptAtom = atom.Type, // AI 候选排序（2026-11-01）
+                    SpecRole = refAtom ? TargetSpecRole.Reference : TargetSpecRole.Target, // 步5 AI 分派
                     AllowCancel = allowCancelDecl,
                 });
             }
@@ -534,6 +556,7 @@ namespace CardCore.Attribute
                     PromptSource = (Entity)context.CastCard ?? context.Source,
                     PromptEffectId = def.Id,
                     PromptAtom = atom.Type, // AI 候选排序（2026-11-01）
+                    SpecRole = refAtom ? TargetSpecRole.Reference : TargetSpecRole.Target, // 步5 AI 分派
                     AllowCancel = allowCancelDecl,
                 });
             }
@@ -552,6 +575,7 @@ namespace CardCore.Attribute
                 PromptSource = (Entity)context.CastCard ?? context.Source,
                 PromptEffectId = def.Id,
                 PromptAtom = atom.Type, // AI 候选排序（2026-11-01）
+                SpecRole = refAtom ? TargetSpecRole.Reference : TargetSpecRole.Target, // 步5 AI 分派
                 AllowCancel = allowCancelDecl,
             });
         }
@@ -571,14 +595,18 @@ namespace CardCore.Attribute
             if (noWindow) return none; // 强制类无选择窗口——整效果自动全取
 
             var specs = new List<AtomTargetSpec>();
-            foreach (var atom in def.Effects)
+            for (int atomIndex = 0; atomIndex < def.Effects.Count; atomIndex++)
             {
+                var atom = def.Effects[atomIndex];
                 if (atom == null) continue;
                 // 引擎主干=条件载体不执行（与执行器 IsEngineTrunk 同判）
                 if (atom.Branch?.Settle == BranchSettleKind.Engine
                     || ComposerCatalog.EngineKindOf(atom.Type) != BranchEngineKind.None) continue;
 
-                var kinds = atom.TargetKinds ?? new List<int>();
+                // 分段原子（步4）：域源切 RefDomain——kinds=ReferenceKinds、axis=ReferenceAxis、
+                // 候选只做可见性过滤（无帷幕/守护——参照不是被施加效果的对象，§2.3）。
+                bool refAtom = atom.ReferenceAxis != null;
+                var kinds = (refAtom ? atom.ReferenceKinds : atom.TargetKinds) ?? new List<int>();
                 if (kinds.Count == 0) continue; // 无域原子：handler 自结算
                 if (atom.DeferSelect == 1) continue; // 效果处理时选——结算期问（必须选）
                 if (TargetKindRules.AllHiddenZone(kinds)) continue; // 隐藏区不进选择
@@ -588,11 +616,17 @@ namespace CardCore.Attribute
                 if (effCount == 0 || SelectionModeRules.IsTakeAll(def.SelectionMode))
                     continue; // 全取：结算期自动全取
 
-                var candidates = ResolveCandidates(kinds, atom.Filter ?? "", context, atom.Axis);
+                var candidates = ResolveCandidates(kinds, atom.Filter ?? "", context,
+                    refAtom ? atom.ReferenceAxis : atom.Axis);
                 if (candidates.Count == 0) continue;
-                bool edictExempt = TargetResolver.IsEdict(atom.Type);
-                candidates = TargetResolver.ExcludeUnselectable(
-                    TargetResolver.ApplyTauntRestriction(candidates, context, edictExempt), context.Controller);
+                if (refAtom)
+                    candidates = TargetResolver.ExcludeUnselectable(candidates, context.Controller);
+                else
+                {
+                    bool edictExempt = TargetResolver.IsEdict(atom.Type);
+                    candidates = TargetResolver.ExcludeUnselectable(
+                        TargetResolver.ApplyTauntRestriction(candidates, context, edictExempt), context.Controller);
+                }
                 if (candidates.Count == 0) continue;
 
                 specs.Add(new AtomTargetSpec
@@ -603,9 +637,140 @@ namespace CardCore.Attribute
                     Candidates = candidates,
                     // 任意档（-1）必弹选；固定 N 档 allSemantics=false（effCount>0，同声明期旧判）
                     AutoTake = effCount > 0 && ShouldAutoTake(kinds, candidates.Count, effCount, false),
+                    // spec 计划元数据（步4 起随域切换填齐；CollectSpecPlan 同口径）
+                    SpecKey = $"atom:{atomIndex}/spec:0/role:{(refAtom ? "reference" : "target")}",
+                    Role = refAtom ? TargetSpecRole.Reference : TargetSpecRole.Target,
+                    AtomIndex = atomIndex,
+                    Axis = refAtom ? atom.ReferenceAxis : atom.Axis,
+                    RefPick = atom.RefPick,
+                    RefRequired = atom.RefRequired,
+                    AiMode = AiPickMode.Enumerate,
                 });
             }
             return specs;
+        }
+
+        /// <summary>参照候选解析（步4 §2.3 单源）：RefDomain 轴取候选 + **仅可见性过滤**
+        ///（ExcludeUnselectable 潜行/隐藏/对方手牌隐藏语义）——不做可指性过滤（帷幕/守护/edict
+        /// 豁免），参照不进 context.Targets、不触发 OnTargeted 等被指定事件。</summary>
+        public static List<Entity> ResolveReferenceCandidates(AtomicEffectInstance atom, EffectExecutionContext context)
+        {
+            if (atom == null || atom.ReferenceAxis == null || context == null) return new List<Entity>();
+            return TargetResolver.ExcludeUnselectable(
+                ResolveCandidates(atom.ReferenceKinds ?? new List<int>(), "", context, atom.ReferenceAxis),
+                context.Controller);
+        }
+
+        /// <summary>spec 计划收集（2026-11-08 目标选择重构 §3.1/§3.5，步5 起唯一入口）：
+        /// ① Reference spec 前置（RefDomain 分段原子，候选=ResolveReferenceCandidates 可见性口径，
+        ///    AiMode=Enumerate——参照是唯一有意义的决策维度）；
+        /// ② Target spec：非分段交互原子按**同受体域分组共享**（沉默+消灭同域→单 spec 单窗同目标；
+        ///    弹回+回收跨域→各自 spec——跨域并列卡的分段选目标语义保持）。计划原文的「全体原子域
+        ///    交集」按此分组口径落地（全体交集会把跨域并列卡判空，与既有断言冲突）；
+        /// ③ 分段受体 spec 尾置（AiMode=Auto——LAE 不展开，结算期引擎/AiOrder 代选：打脸/取首）。
+        /// 顺序固定 Reference→Target（人类窗口序）；SpecKey 全局唯一（§3.3）。</summary>
+        public static List<AtomTargetSpec> CollectSpecPlan(EffectDefinition def, EffectExecutionContext context)
+        {
+            var specs = new List<AtomTargetSpec>();
+            if (def == null || def.Effects == null || context == null) return specs;
+            if (def.ActivationType == EffectActivationType.Mandatory) return specs; // 强制类无选择窗口
+
+            var perAtom = CollectAtomTargetSpecs(def, context);
+
+            // ① Reference specs（RefDomain 分段原子——CollectAtomTargetSpecs 已按 RefDomain 域源产出）
+            specs.AddRange(perAtom.Where(s => s.Role == TargetSpecRole.Reference));
+
+            // ② Target specs：同域分组共享（分组键=kinds 序列+filter+effCount+轴短语——受体域等价）
+            var targets = perAtom.Where(s => s.Role != TargetSpecRole.Reference).ToList();
+            var groups = new List<List<AtomTargetSpec>>();
+            foreach (var s in targets)
+            {
+                var g = groups.FirstOrDefault(x => SameTargetGroup(x[0], s));
+                if (g != null) g.Add(s);
+                else groups.Add(new List<AtomTargetSpec> { s });
+            }
+            foreach (var g in groups)
+            {
+                var first = g[0];
+                var shared = g.Count > 1;
+                specs.Add(new AtomTargetSpec
+                {
+                    SpecKey = shared
+                        ? $"effect/spec:{specs.Count(s => s.Role == TargetSpecRole.Target)}/role:target"
+                        : first.SpecKey,
+                    Role = TargetSpecRole.Target,
+                    AtomIndex = shared ? -1 : first.AtomIndex,
+                    AtomIndices = shared ? g.Select(x => x.AtomIndex).ToList() : null,
+                    // 组内首原子=偏好锚（SimpleAI 有害/有益排序按原子 Type 判定——共享组不丢偏好）
+                    Atom = first.Atom,
+                    Axis = first.Axis,
+                    Kinds = first.Kinds,
+                    EffCount = first.EffCount,
+                    Candidates = first.Candidates,
+                    AutoTake = first.AutoTake,
+                    Random = first.Random,
+                    Defer = first.Defer,
+                    AiMode = AiPickMode.Enumerate,
+                });
+            }
+
+            // ③ 分段受体 spec（AiMode=Auto——候选结算期解析，参照就位后 PromptValue=参照攻/命）
+            for (int i = 0; i < def.Effects.Count; i++)
+            {
+                var atom = def.Effects[i];
+                if (atom?.ReferenceAxis == null) continue;
+                var row = AtomicEffectTable.GetByHashId(atom.RowHashId);
+                TargetAxis victimAxis = null;
+                List<int> victimKinds = null;
+                if (row != null && TargetAxisRules.TryParseDomain(row.Domain, out var va))
+                {
+                    victimAxis = va;
+                    victimKinds = row.GetTargetKindList();
+                }
+                specs.Add(new AtomTargetSpec
+                {
+                    SpecKey = $"atom:{i}/spec:1/role:target",
+                    Role = TargetSpecRole.Target,
+                    AtomIndex = i,
+                    Atom = atom,
+                    Axis = victimAxis,
+                    Kinds = victimKinds,
+                    EffCount = 1,
+                    Candidates = null, // 结算期解析（依赖参照就位）
+                    AutoTake = false,
+                    RefRequired = true,
+                    AiMode = AiPickMode.Auto,
+                });
+            }
+            return specs;
+        }
+
+        /// <summary>同域分组判定（② 的分组键）：kinds 序列 + filter + effCount + 轴短语等价
+        ///（随机/defer 档不并组——结算期自解析语义不同）。</summary>
+        private static bool SameTargetGroup(AtomTargetSpec a, AtomTargetSpec b)
+        {
+            if (a.Random || b.Random || a.Defer || b.Defer) return false;
+            if (a.EffCount != b.EffCount || a.AutoTake != b.AutoTake) return false;
+            if ((a.Kinds ?? new List<int>()).SequenceEqual(b.Kinds ?? new List<int>()) == false) return false;
+            if ((a.Atom?.Filter ?? "") != (b.Atom?.Filter ?? "")) return false;
+            return (a.Axis?.Zh ?? "") == (b.Axis?.Zh ?? "");
+        }
+
+        /// <summary>原子下标 → 所属 spec（步5 执行器/LAE 消费口）：同域共享组按 AtomIndices 命中；
+        /// 分段原子命中其 reference spec（受体 spec 由执行器在参照就位后单独解析）。</summary>
+        public static AtomTargetSpec SpecOfAtom(List<AtomTargetSpec> plan, int atomIndex)
+        {
+            if (plan == null) return null;
+            foreach (var s in plan)
+            {
+                if (s.Role == TargetSpecRole.Reference && s.AtomIndex == atomIndex) return s;
+                if (s.Role == TargetSpecRole.Target)
+                {
+                    if (s.AtomIndices != null && s.AtomIndices.Contains(atomIndex)) return s;
+                    if (s.AtomIndices == null && s.AtomIndex == atomIndex) return s;
+                }
+            }
+            return null;
         }
 
         /// <summary>
@@ -627,16 +792,19 @@ namespace CardCore.Attribute
             if (!def.PerAtomTargets)
                 return await AskCompositionDeclarationAsync(def, context, title);
 
-            // 逐原子规格单源（CollectAtomTargetSpecs）：跳过条件/候选两道过滤/AutoTake 预判与
-            // 结算路径同口径——此处只剩弹选问询（2026-11-02 LAE 动作空间 v8 抽取重构，行为零变化：
-            // 选一档（effCount<=1，含被数量档压过的缺省 1）Min=Max=1；任意档（-1）0..候选数；
-            // 固定 N 档 Min=min(N,候选) Max=N——与旧内联三分支殊途同归）。
-            var specs = CollectAtomTargetSpecs(def, context);
-            if (specs.Count == 0) return none;
+            // 逐原子规格 → spec 计划单源（步5 §3.2）：Reference（RefPick=Cast）先问、Target spec 后问；
+            // 同域共享组只问**一次**（沉默+消灭同域并列→单窗同目标）；分段受体 Auto spec 不问
+            //（结算期引擎/策略代选）。窗口序=计划序（参照先/目标后）；跳过条件/候选口径与
+            // CollectAtomTargetSpecs 同源（此处只剩弹选问询）。
+            var plan = CollectSpecPlan(def, context);
+            var askable = plan
+                .Where(s => s.Role == TargetSpecRole.Reference ? s.RefPick == RefPick.Cast : !s.AutoTake)
+                .Where(s => s.Candidates != null && s.Candidates.Count > 0)
+                .ToList();
+            if (askable.Count == 0) return none;
             var collected = new List<Entity>();
-            foreach (var spec in specs)
+            foreach (var spec in askable)
             {
-                if (spec.AutoTake) continue; // 免弹自动取（ShouldAutoTake 同判）——结算期自动
                 TargetSelectionRequest req;
                 // 2026-11-02 多目标定案：每原子数量档 effCount>1 压过选一模式提示——声明期问选 N 个
                 //（与结算路径 ResolveAtomTargetsAsync 同口径，预选队列 quota 本就按 effCount）；
@@ -668,6 +836,9 @@ namespace CardCore.Attribute
                 req.Chooser = context.Controller;
                 req.PromptSource = (Entity)context.CastCard ?? context.Source;
                 req.PromptEffectId = def.Id;
+                req.PromptAtom = spec.Atom?.Type; // AI 候选排序（2026-11-01）
+                req.SpecKey = spec.SpecKey;       // §3.3 显式关联键（网络/重放对齐）
+                req.SpecRole = spec.Role;         // AI 按角色分派（步5）
                 req.AllowCancel = true; // 预选可取消=撤销发动
                 var picked = await TargetSelectionService.RequestAsync(req);
                 if (picked == null || picked.Count == 0) return null; // 取消（任意档确认 0 个视同取消）
@@ -773,6 +944,31 @@ namespace CardCore.Attribute
         }
     }
 
+    /// <summary>spec 角色（2026-11-08 目标选择重构 §1.2）：Target=受体（进 context.Targets，
+    /// 走可指性过滤+被指定事件）；Reference=参照（进 context.Refs，只做可见性过滤）。</summary>
+    public enum TargetSpecRole
+    {
+        Target,
+        Reference,
+    }
+
+    /// <summary>参照收集时机（§2.2）：Cast=声明期选（取消参照=撤销发动）；Resolve=结算期问；
+    /// Auto=不弹窗、引擎按确定性规则取（无头模拟/回放稳定）。</summary>
+    public enum RefPick
+    {
+        Cast,
+        Resolve,
+        Auto,
+    }
+
+    /// <summary>AI 动作空间模式（§3.5，不影响人类弹窗次数）：Enumerate=LAE 为该 spec 逐候选
+    ///（或组合）生成动作行；Auto=LAE 只生成一行，由引擎/AiOrder 代选（Auto≠取首）。</summary>
+    public enum AiPickMode
+    {
+        Enumerate,
+        Auto,
+    }
+
     /// <summary>逐原子交互选择规格（CollectAtomTargetSpecs 产出，2026-11-02 LAE 动作空间 v8）：
     /// 一个"结算期会弹选"原子的问选参数+已过滤候选。声明期收集器（人类弹选）、LAE（动作行展开）、
     /// SimpleAI（预选排序）三方单源消费。</summary>
@@ -789,5 +985,30 @@ namespace CardCore.Attribute
         /// <summary>ShouldAutoTake 命中（候选≤需求/纯 Self 域）：结算期引擎自动取前 N 个——
         /// 不占选择权，AI/玩家均无需预选。</summary>
         public bool AutoTake;
+
+        // ---- 2026-11-08 目标选择重构 §1.2 新增（spec 计划元数据；步1 无消费方，行为零变化）----
+        /// <summary>显式关联键（§3.3）：atom:{atomIndex}/spec:{specIndex}/role:{role}；
+        /// effect-level 目标 spec 用 effect/spec:{specIndex}/role:target。网络/重放/触发重入/
+        /// AI 代选按此键对齐——禁止用「本效果第几次弹窗」隐含序号。</summary>
+        public string SpecKey;
+        /// <summary>spec 角色：Target=受体；Reference=参照。</summary>
+        public TargetSpecRole Role;
+        /// <summary>主序列原子下标；effect-level target spec 为 -1。</summary>
+        public int AtomIndex = -1;
+        /// <summary>受体/参照轴（RefDomain/Domain 产轴后由 spec 计划填充；null=旧 kinds 路径）。</summary>
+        public TargetAxis Axis;
+        /// <summary>Reference 专用：参照收集时机（Cast/Resolve/Auto）。</summary>
+        public RefPick RefPick;
+        /// <summary>Reference 专用：参照候选为空是否空转（v1 恒 true；false 留扩展位）。</summary>
+        public bool RefRequired = true;
+        /// <summary>AI 动作空间模式（Enumerate/Auto；默认 Enumerate）。</summary>
+        public AiPickMode AiMode;
+        /// <summary>随机抽取档（spec 级，沿用原子 rand 口径）。</summary>
+        public bool Random;
+        /// <summary>延迟选择档（spec 级，沿用原子 defer 口径）。</summary>
+        public bool Defer;
+        /// <summary>共享组成员（步5 同域分组）：同受体域并列原子共享本 spec 一次解析/一次窗口；
+        /// null/单元素=单原子 spec。执行器按原子下标 → spec 查找用。</summary>
+        public List<int> AtomIndices;
     }
 }

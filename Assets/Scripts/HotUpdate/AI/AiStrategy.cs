@@ -906,8 +906,10 @@ namespace CardCore.AI
                 || req.PromptAtom == AtomicEffectType.ModifyPower)
                 return OrderBuffTargets(core, me, list);
 
-            // 活体炸弹主伤：打脸。
-            if (req.PromptAtom == AtomicEffectType.BurstDamage)
+            // 活体炸弹主伤：打脸。（步5 spec 驱动：注册表分派替代类型相等特判——受体窗请求
+            // 由引擎 spec 计划发起并带 SpecRole=Target；参照窗同表命中但候选全己方，
+            // OrderBurstVictimTargets 对己方候选稳定保序，两侧行为与旧口径一致。）
+            if (req.PromptAtom != null && FaceFirstVictimAtoms.Contains(req.PromptAtom.Value))
                 return OrderBurstVictimTargets(core, me, list);
 
             // 血偿直伤（5 伤）/ 活体炸弹奖励（2 伤）：前者只处理生命 >4 的目标（没有就打脸）；
@@ -942,7 +944,7 @@ namespace CardCore.AI
             => OrderBuffTargets(core, me, candidates?.ToList() ?? new List<Entity>());
 
         /// <summary>有害目标排序：红套直伤=打脸——角色优先，角色不可指才回落生物威胁降序；
-        /// 候选全是己方生物时（活体炸弹的参照）取攻击力最高。</summary>
+        /// 候选全是己方生物时（参照 spec——SpecRole=Reference 的参照窗）取攻击力最高。</summary>
         public override IEnumerable<Entity> OrderHarmfulTargets(GameCore core, Player me, IEnumerable<Entity> candidates)
         {
             var list = candidates?.ToList() ?? new List<Entity>();
@@ -1058,6 +1060,14 @@ namespace CardCore.AI
                     ? PowerOf(core, c) : int.MinValue)
                 .ToList();
         }
+
+        /// <summary>受体窗打脸优先的原子注册表（步5 spec 驱动分派）：命中即走
+        /// OrderBurstVictimTargets——替代原「PromptAtom == BurstDamage」类型相等特判，
+        /// 行为零变化（含参照窗命中时的稳定保序路径）。</summary>
+        private static readonly HashSet<AtomicEffectType> FaceFirstVictimAtoms = new HashSet<AtomicEffectType>
+        {
+            AtomicEffectType.BurstDamage,
+        };
 
         /// <summary>活体炸弹主伤：直接打脸（角色优先），敌方生物按攻击力降序兜底。</summary>
         private static List<Entity> OrderBurstVictimTargets(GameCore core, Player me, List<Entity> list)
