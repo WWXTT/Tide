@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using CardCore.Attribute; // 破败仪典（2026-11-09）：AddCounters 内发布 CounterChangedEvent 需此引用
 
 namespace CardCore
 {
@@ -379,7 +380,9 @@ namespace CardCore
         /// 自动效果压制（2026-10-19 关键词=自动效果定案；2026-10-31 沉睡并入同口）：本体关键词
         /// （印刷/Setting/Temp 轨）在持有者沉睡或被失效（原缄默）期间**读取为假**（统一读数=
         /// SuppressRules.IsAutoSuppressed，实时状态读）；光环投递轨不受压制影响——
-        /// 光环域整体退出压制（2026-10-31 失效改名定案：来源/受益者两侧都不压）。</summary>
+        /// 光环域整体退出压制（2026-10-31 失效改名定案：来源/受益者两侧都不压）。
+        /// 2026-11-09 用户定案：绝缘体在场的失效/沉睡层=死层（不参与压制），故绝缘体单位
+        /// 的关键词恒读真——判定在 SuppressRules，本口不另设分支。</summary>
         public static bool HasKeyword(this Entity entity, string keyword)
         {
             if (entity == null) return false;
@@ -399,7 +402,7 @@ namespace CardCore
         /// <summary>
         /// 添加指示物（Entity 级：角色/卡牌同构）。amount 可为负（攻/血/费指示物带符号）。
         /// source = 施加方（指示物来源定案：正量登记，净量归零丢弃；GetCounterSource 查询）。
-        /// 返回实际落账增量（铭刻 +1 含在内；被绝缘体清零=0；负量移除返回负值）——调用方
+        /// 返回实际落账增量（铭刻 +1 含在内；属性类被绝缘体清零=0；负量移除返回负值）——调用方
         /// CounterChangedEvent 一律发此返回值（2026-10-31 实际增量子单源定案：战报/浮字/卡面
         /// 三层读数不漂移）。
         /// 回合时钟重载已删（2026-10-08 死路径清理）：限时持续由 CounterSpec 的
@@ -423,24 +426,50 @@ namespace CardCore
                     && RuleAuraSystem.ScopeHits(RuleAuraComponents.NoHealAura, side))
                     return 0;
 
-                // 绝缘体压制闸（2026-10-31 特殊裁定改版：「不拦指示物添加」）：作用于战场单位
-                //（「持有单位」——手牌卡（含印刷绝缘体）不拦费用指示物投放）。
-                // 清零面收窄为两类：①沉睡/缄默=压制型，与绝缘体时序互压——绝缘体生效期间后加
-                // =被压制（裁定「反过来压制沉睡/缄默」；先在的沉睡/缄默则压住绝缘体=HasKeyword
-                // 实时读假，本闸自然放行，无循环）；②StatKind 属性类=加时回写式（层只是账目），
-                // 清零=属性变化不发生（回写/反写账目不漂移）。其余指示物（毒素/冻结/沉默/护甲/
-                // 圣盾/保护…）**层照常落账**（铭刻 +1 同沾、事件报真实增量），效果走读数压制
-                //（GetEffectiveCounterCount）。负量（移除）不拦；系统指示物（CounterClass.System
-                ///——引擎主干内部驱动，如耐久）豁免。绝缘体本体关键词经 HasKeyword 收口：沉睡/
-                // 失效期间读取为假=绝缘体失效（2026-10-31 实时状态读定案）。
+                // 破败仪典（2026-11-09）：受光环影响一方的单位与角色获得的护甲转换为等量易损——
+                // 排在禁疗令之后（同侧并存时拦下优先：护甲不加无从转换）、铭刻/绝缘体闸之前
+                //（转换后的易损投放走递归咽喉，铭刻 +1 照沾；绝缘体不拦易损——层照落、效果走读数）。
+                // 转换返回 0（护甲零落账，调用方 CounterChangedEvent 按实际增量发零）；易损侧补发
+                // CounterChangedEvent 驱动浮字/粒子，战报经 KeywordAppliedEvent 单条播报。
+                if (counterType == Attribute.KeywordRules.ArmorCounter
+                    && side != null
+                    && RuleAuraSystem.ScopeHits(RuleAuraComponents.ArmorDecay, side))
+                {
+                    int converted = entity.AddCounters(Attribute.CounterRules.VulnerableCounter, amount, source, kind);
+                    if (converted > 0)
+                        EventManager.Instance.Publish(new CounterChangedEvent
+                        {
+                            Target = entity,
+                            CounterType = Attribute.CounterRules.VulnerableCounter,
+                            Amount = converted,
+                            Source = source,
+                        });
+                    EventManager.Instance.Publish(new KeywordAppliedEvent
+                    {
+                        Target = entity,
+                        Keyword = RuleAuraComponents.ArmorDecay,
+                        Detail = $"破败光环：{EffectText.Name(entity)} 获得的护甲 {amount} 层转换为等量易损（护甲不落账）",
+                        Source = RuleAuraSystem.CarrierOf(RuleAuraComponents.ArmorDecay),
+                    });
+                    return 0;
+                }
+
+                // 绝缘体压制闸（2026-11-09 用户定案：失效/沉睡同样「能加，但效果无效」）：
+                // 加时清零面只剩 StatKind 属性类（属性层是加时回写式，层只是账目——清零=
+                // 属性变化不发生，回写/反写账目不漂移）。其余指示物（毒素/冻结/沉默/护甲/
+                // 圣盾/保护/失效/沉睡…）**层一律照常落账**（铭刻 +1 同沾、事件报真实增量），
+                // 效果走读数压制：常规指示物读 GetEffectiveCounterCount；失效/沉睡两个压制源
+                // 的特殊性在 SuppressRules.IsAutoSuppressed——绝缘体在场时它们是死层（不压
+                // 自动效果、不横置、不拦主动）。负量（移除）不拦；系统指示物
+                //（CounterClass.System——引擎主干内部驱动，如耐久）豁免。作用面=战场单位
+                //（「持有单位」——手牌卡（含印刷绝缘体）不拦费用指示物投放）；生效判定走
+                // InsulatorRules.IsActive（只读本体关键词，不读压制读数，防递归）。
                 if (kind == Attribute.CounterGrantKind.Effect
                     && entity is Card insCard
-                    && insCard.GetZone() == Zone.Battlefield
-                    && insCard.HasKeyword(Attribute.KeywordRules.Insulator)
-                    && (spec == null || spec.Class != Attribute.CounterClass.System)
-                    && (counterType == Attribute.KeywordRules.SleepCounter
-                        || counterType == Attribute.CounterRules.NullifyCounter
-                        || (spec != null && spec.StatKind != Attribute.StatCounterKind.None)))
+                    && Attribute.InsulatorRules.IsActive(insCard)
+                    && spec != null
+                    && spec.Class != Attribute.CounterClass.System
+                    && spec.StatKind != Attribute.StatCounterKind.None)
                     return 0;
 
                 // 铭刻（2026-10-31）：只作用于**场上单位**（战场卡——生物+结界）：受光环影响一方的
@@ -479,8 +508,9 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 效果口径读数（2026-10-31 绝缘体特殊裁定改版）：指示物**效果生效**判定一律走此口——
-        /// 绝缘体单位（战场卡且绝缘体未被沉睡/缄默压）读数为 0=效果不生效；系统指示物
+        /// 效果口径读数（2026-10-31 绝缘体特殊裁定改版；2026-11-09 失效/沉睡并入死层定案）：
+        /// 指示物**效果生效**判定一律走此口——绝缘体单位（InsulatorRules.IsActive；失效/沉睡
+        /// 对绝缘体为死层，不再参与本判定）读数为 0=效果不生效；系统指示物
         /// （CounterClass.System——耐久/倒计时等引擎主干）豁免照读。账面层不受影响：UI 层数
         /// 显示、回合末衰减倒数、清除反写、AI 观察、来源生命周期仍读 GetCounterCount——
         /// 「不拦指示物添加」=层照常落账可见，只有效果被压。角色（Player）无绝缘体（表
@@ -728,14 +758,30 @@ namespace CardCore.Attribute
         Effect,
     }
 
+    /// <summary>绝缘体生效判定（2026-11-09 用户定案：「能加，但效果无效」的唯一判据）。
+    /// 战场卡 + 本体关键词持有——**不读沉睡/失效**：两者对绝缘体都是死层，读它们会形成
+    /// GetEffectiveCounterCount → HasKeyword → SuppressRules → 本口 的递归。单向依赖：
+    /// HasKeyword / SuppressRules / GetEffectiveCounterCount 都经本口，本口只读原始持有。
+    /// 光环轨不参与：绝缘体在表里是「不可作为连接光环」（位 7 拉黑），连接/规则光环都不会
+    /// 投递这个词——故只看 _keywords（AddKeyword 的真身）。</summary>
+    public static class InsulatorRules
+    {
+        public static bool IsActive(Entity entity)
+            => entity is Card card
+               && card.GetZone() == Zone.Battlefield
+               && card._keywords.Contains(KeywordRules.Insulator);
+    }
+
     /// <summary>自动效果压制统一读数口（2026-10-31 定案）：沉睡与失效（原缄默，id 仍 Nullify）
     /// 同为自动效果压制源——持有期间本体关键词与触发式全部**读取为假**（实时状态读，
-    /// 非施加时锁死）：HasKeyword、TriggerEngine.FindMatchingEffects、GuardianRules.FindGuardian、
-    /// KeywordRules 战斗法师改写口同读此处。分工差异不并入本口：光环域整体退出压制
+    /// 非施加时锁死）：HasKeyword、TriggerEngine.FindMatchingEffects、GuardianRules.FindGuardian
+    /// 同读此处。分工差异不并入本口：光环域整体退出压制
     ///（2026-10-31 失效改名定案——沉睡/失效都不压光环来源/载体/受益者）；沉睡另拦主动发动
     ///（CanActivate 0.6）与重置（SleepCounter.BlocksUntap）；失效不拦主动
-    ///（与沉默对称：沉默拦主动、失效拦自动）。计数原语供 UI 快照读数（CardOverlayItem/
-    /// BattleHoverInfoProvider 压制行删除线）与实体口同源，防两处口径漂移。</summary>
+    ///（与沉默对称：沉默拦主动、失效拦自动）。
+    /// **2026-11-09 用户定案**：绝缘体在场时本口恒 false——失效/沉睡层照常落账、正常倒数，
+    /// 但零效果（不压关键词/触发式/主动/重置）。计数原语供 UI 快照读数（CardOverlayItem/
+    /// BattleHoverInfoProvider 压制行删除线），UI 侧须先过 InsulatorRules.IsActive 再划线。</summary>
     public static class SuppressRules
     {
         /// <summary>主动效果是否被压（沉默&gt;0 或 沉睡&gt;0）——镜像 CanActivate 闸
@@ -747,9 +793,11 @@ namespace CardCore.Attribute
         public static bool IsAutoSuppressed(int nullify, int sleep)
             => nullify > 0 || sleep > 0;
 
-        /// <summary>是否被自动效果压制（沉睡&gt;0 或 失效&gt;0）</summary>
+        /// <summary>是否被自动效果压制（沉睡&gt;0 或 失效&gt;0；绝缘体在场时恒 false——
+        /// 两者对该单位是死层，2026-11-09 定案）</summary>
         public static bool IsAutoSuppressed(Entity entity)
             => entity != null
+               && !InsulatorRules.IsActive(entity)
                && IsAutoSuppressed(entity.GetCounterCount(CounterRules.NullifyCounter),
                    entity.GetCounterCount(KeywordRules.SleepCounter));
     }

@@ -136,6 +136,8 @@ namespace SynergyUI
                 PromptTutorialRetryAsync().Forget(); // 教学一/二败局：考验原地重开（终局撤销+重铺）
             else if (BattleEntry.TutorialId == TutorialProgressManager.BasicsId)
                 PromptTutorialCompleteAsync().Forget(); // 教学第一阶段（basics）通关：结算弹窗，确定回主菜单
+            else if (BattleEntry.TutorialId == TutorialProgressManager.BasicsPlusId)
+                PromptTutorialCompleteAsync("你已完成基础教学一·进阶").Forget(); // 关键词课通关（2026-11-09）：落档在 ReportBattleResult win 路径已统一处理
             else if (BattleEntry.TutorialId == TutorialProgressManager.AdvancedId)
                 PromptTutorialCompleteAsync("你已完成第二课的教学").Forget(); // 第二课（主动效果）通关：同 basics 结算口径
         }
@@ -191,6 +193,7 @@ namespace SynergyUI
         {
             if (_activeDirector != null && _activeDirector != this) return;
             if (Core == null) return;
+            if (BattleEntry.TutorialId != TutorialProgressManager.AdvancedId) return; // advanced 段七专属（2026-11-09：basics_plus 段5 系命回血同型事件不可误触发）
             if (_phaseIndex != 7) return; // 段七（诅5红+祝5绿）在账
             if (e?.Target != Core.Player1 || e.Amount - e.Overfill <= 0) return;
             if (!TutorialGuide.Active || TutorialGuide.Current == null
@@ -276,6 +279,13 @@ namespace SynergyUI
                 var doneStep = TutorialGuide.Steps[TutorialGuide.Steps.Count - 1];
                 if (doneStep != null && doneStep.type == "victory" && !string.IsNullOrEmpty(doneStep.audio))
                     PlayTutorialVoiceAsync(doneStep.audio).Forget();
+                // completeOnConfirm 收尾步（2026-11-09 basics_plus）：确认即整课完成——落档+结算弹窗
+                //（无需打到终局；胜利落档口 ReportBattleResult 不经过，此处显式 MarkTutorialCompleted）
+                if (doneStep != null && doneStep.completeOnConfirm)
+                {
+                    TutorialProgressManager.Instance.MarkTutorialCompleted(BattleEntry.TutorialId);
+                    PromptTutorialCompleteAsync("你已完成基础教学一·进阶").Forget();
+                }
             }
 
             // 考验开局（2026-10-17）：过场卡（basics_12·aiTurnOnConfirm）确定即把回合交给对手——
@@ -359,7 +369,8 @@ namespace SynergyUI
             Ctrl.Board?.Resync();
             _refreshField();
             _refreshFans();
-            _toast.Show("新考验开始！");
+            // 过渡 toast 按课分流（2026-11-09 basics_plus）：关键词课 11 段是连续讲解，无「考验」语义
+            _toast.Show(BattleEntry.TutorialId == TutorialProgressManager.BasicsPlusId ? "下一段" : "新考验开始！");
             if (TutorialGuide.Steps[stepIndex] != null)
                 ShowIntroPanel(TutorialGuide.Steps[stepIndex]); // 段首解说卡在换场后弹出
         }
@@ -406,10 +417,13 @@ namespace SynergyUI
                 var token = raw.Trim();
                 if (token.Length == 0) continue;
                 BattleRevealDirector.Solo(token);
-                // 解闸类 token 须随后对账：zone:role 解柱闸建柱（对手柱建后隐藏）；all=操作预告段
-                // 解除对手隐藏，RefreshField 让对手柱当场显现（2026-10-18）；hand 解手牌闸填手牌；
-                // units 解单位闸（RefreshField 建单位=生物出场）
-                if (token == "zone:role" || token == "all" || token == "units") _refreshField();
+                // 解闸/藏柱类 token 须随后对账：zone:role 解柱闸建柱（对手柱建后隐藏），all=操作
+                // 预告段解除双方柱隐藏，RefreshField 让柱当场显隐（2026-10-18；2026-11-09 己方柱
+                // 同口——独占段 activation/right/mid/p1-land/p1-field 藏柱也靠这次对账消费标记）；
+                // hand 解手牌闸填手牌；units 解单位闸（RefreshField 建单位=生物出场）
+                if (token == "zone:role" || token == "all" || token == "units"
+                    || token == "zone:activation" || token == "zone:right" || token == "zone:mid"
+                    || token == "zone:p1-land" || token == "zone:p1-field") _refreshField();
                 else if (token == "hand") _refreshFans();
             }
         }
@@ -530,19 +544,16 @@ namespace SynergyUI
             if (_voiceSource != null && _voiceSource.isPlaying) _voiceSource.Stop();
         }
 
-        /// <summary>toast 底层横幅文案：overrideText（守卫提示等）优先；否则教学「第x/n步 hint」；
-        /// 无内容=清底层。顶层临时提示（选择/响应窗）在位时遮住底层，关窗清空自动回落。
-        /// intro 讲解步统一追加「（点击横幅继续）」尾注（hint 自带点击提示时不重复）。</summary>
+        /// <summary>toast 底层横幅文案：overrideText（守卫提示等）优先；否则教学文案（2026-11-09 删减定案）：
+        /// intro 点击推进步只显「第x/n步 点击确认继续」（完整讲解在解说卡+配音，横幅只留推进提示）；
+        /// 其余操作/等待步不出教学文案——error-tip 回归临时错误提示原用途。无内容=清底层。
+        /// 顶层临时提示（选择/响应窗）在位时遮住底层，关窗清空自动回落。</summary>
         public void RefreshBanner(string overrideText = null)
         {
             string text = overrideText;
-            if (text == null && TutorialGuide.Active && TutorialGuide.Current != null)
-            {
-                int idx = TutorialGuide.StepIndex;
-                text = $"【教学 第{idx + 1}/{TutorialGuide.Steps.Count}步】{TutorialGuide.Current.hint}";
-                if (TutorialGuide.Current.type == "intro" && !text.Contains("点击"))
-                    text += "（点击横幅继续）";
-            }
+            if (text == null && TutorialGuide.Active && TutorialGuide.Current != null
+                && TutorialGuide.Current.type == "intro")
+                text = $"【教学 第{TutorialGuide.StepIndex + 1}/{TutorialGuide.Steps.Count}步】点击确认继续";
             _toast.SetBase(text);
         }
 
@@ -824,7 +835,8 @@ namespace SynergyUI
             // 教学二败局重开（2026-10-21 用户定案「绑右上重置同款」）：旧 ApplyMidTransition 会把
             // 场面铺回早期考验段。死亡时刻通常在 AI 考验回合（必杀直伤）——重铺后驱动 AI 收完回合，
             // 玩家新考验回合自然准备抽牌=命运之牌（不手动补抽，否则双抽）；己方回合死才交回合。
-            if (BattleEntry.TutorialId == TutorialProgressManager.AdvancedId
+            if ((BattleEntry.TutorialId == TutorialProgressManager.AdvancedId
+                 || BattleEntry.TutorialId == TutorialProgressManager.BasicsPlusId) // 多段课同款分段回退（2026-11-09 basics_plus）
                 && _phaseIndex > 0 && _phaseStarts.Count > _phaseIndex
                 && TutorialGuide.Steps.Count > _phaseStarts[_phaseIndex]
                 && TutorialGuide.Steps[_phaseStarts[_phaseIndex]] != null

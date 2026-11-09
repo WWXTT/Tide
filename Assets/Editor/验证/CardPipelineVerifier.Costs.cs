@@ -225,6 +225,86 @@ namespace CardCore.Editor
                        $"付完代价钱包总量不变（{walletBefore} → {pool1.TempElements.Values.Sum()}——代价不再产出元素）");
                 Assert(core.ZoneManager.GetCards(p1, Zone.Hand).Count == handBefore - 1,
                        "代价执行真发生（弃 1 手牌——填充卡离手）");
+
+                // ---- ⑥ 法术主动行代价·声明期闸（2026-11-09 补闸回归）----
+                // 潮汐族形态：法术唯一主动效果行带 Payload 代价（资敌抽1=蓝生成面）。此前 payloadCosts
+                // 只收非主动行，「仅主动行带代价」的法术在无代价早退处整段跳闸——③地牌门槛的法术
+                // 模式分支不可达：0基价+代价净费归零的法术无同色地也照常声明入栈弹连锁窗。
+                var gateData = new CardData
+                {
+                    ID = "VERIFY_SPELL_GATE", CardName = "法术闸卡", Supertype = Cardtype.Spell,
+                    Effects = new List<CardEffectData>
+                    {
+                        new CardEffectData
+                        {
+                            Id = "VERIFY_SPELL_GATE_EFF",
+                            TriggerTiming = (int)TriggerTiming.Activate_Active,
+                            ActivationType = (int)EffectActivationType.Voluntary,
+                            Costs = new List<CostEntry>
+                                { new CostEntry { payloads = new List<AtomicEffectEntry> {
+                                    Atom(AtomicEffectType.DrawCard, value: 1,
+                                         kinds: new List<int> { (int)CardCore.TargetKind.EnemyDeck }) } } },
+                        },
+                    },
+                };
+                CardCostService.EnsureCost(gateData);
+                var gateCard = InjectCard(core, p1, gateData);
+                var savedPool = new List<CardCore.PooledCard>(pool1.PooledCards);
+                pool1.PooledCards.Clear(); // 清池=0 蓝地（段末还原；净费 0 不依赖池——隔离③地牌闸单变量）
+                try
+                {
+                    EnsureMainPhase(core, p1);
+                    var modeDefs = GameActions.GetCastableEffectDefinitions(gateCard);
+                    var grants = CardCostService.PayloadGrantByColor(
+                        modeDefs != null && modeDefs.Count > 0 ? modeDefs[0].Costs : null);
+                    int blueGrant = grants.TryGetValue(ManaType.Blue, out var bg) ? bg : 0;
+                    Assert(blueGrant >= 1, $"前置：资敌抽1代价=蓝生成面 ≥1（实际 {blueGrant}）");
+
+                    // ⑥A 0 蓝地：闸拒且 PlayCard 拒绝（不再入栈弹连锁窗），拒绝原因可读
+                    string gateReject = GameActions.GetPayloadGateReject(core, p1, gateCard);
+                    Assert(gateReject != null && gateReject.Contains("蓝地"),
+                           $"0 蓝地 → 闸拒且原因含「蓝地」（实际：{gateReject}）");
+                    Assert(!GameActions.PlayCard(core, p1, gateCard, null, Zone.Hand, 0, out var playWhy)
+                           && playWhy == gateReject,
+                           $"0 蓝地 PlayCard 拒绝（实际：{playWhy}）——不声明、不入栈");
+
+                    // ⑥B 补足等量蓝地：过闸（等于放行）→ 声明+排干结算照走
+                    // （地生物锁色候选=推导费∪主动效果锚价——costList 只是显示缓存；主动效果挂
+                    // 抽卡原子=蓝锚价 → 可显式锁蓝；裸无费生物会被 TryAddToPool 以「无可锁定产色」拒）
+                    for (int i = 0; i < blueGrant; i++)
+                    {
+                        var landData = new CardData
+                        {
+                            ID = "VERIFY_GATE_LAND" + i, CardName = "闸蓝地" + i, Supertype = Cardtype.Creature,
+                            Power = 1, Life = 1,
+                            Effects = new List<CardEffectData>
+                            {
+                                new CardEffectData
+                                {
+                                    Id = "VERIFY_GATE_LAND" + i + "_EFF",
+                                    TriggerTiming = (int)TriggerTiming.Activate_Active,
+                                    ActivationType = (int)EffectActivationType.Voluntary,
+                                    AtomicEffects = new List<AtomicEffectEntry> {
+                                        Atom(AtomicEffectType.DrawCard, value: 1,
+                                             kinds: new List<int> { (int)CardCore.TargetKind.OwnDeck }) },
+                                },
+                            },
+                        };
+                        var landCard = new CardWrapper(landData);
+                        landCard.SetController(p1);
+                        Assert(core.ElementPool.TryAddToPool(landCard, p1, ManaType.Blue, out var landWhy),
+                               $"补第 {i + 1}/{blueGrant} 个蓝地入池（实际：{landWhy}）");
+                    }
+                    Assert(GameActions.GetPayloadGateReject(core, p1, gateCard) == null,
+                           $"蓝地 {blueGrant} = 蓝生成面 {blueGrant} → 过闸（等于放行）");
+                    Assert(PlayCardSync(core, p1, gateCard), "蓝地足量 → PlayCard 声明+排干结算成功");
+                    Assert(gateCard.GetZone() == Zone.Graveyard, "法术结算完成入墓（闸不拦合法施放）");
+                }
+                finally
+                {
+                    pool1.PooledCards.Clear();
+                    foreach (var pc in savedPool) pool1.PooledCards.Add(pc);
+                }
             }
             finally
             {
@@ -727,6 +807,43 @@ namespace CardCore.Editor
                 foreach (var c in core.ZoneManager.GetCards(p1, Zone.FieldZone).Where(IsP5).ToList())
                     core.ZoneManager.MoveCard(c, p1, Zone.FieldZone, Zone.Graveyard);
             }
+        }
+
+        // ======================================== 费用取整（2026-11-09 逐色进位定案） ========================================
+
+        /// <summary>费用取整（2026-11-09 定案）：①卡费全整数且与支付口径逐色一致；
+        /// ②逐色进位（双半色卡 D=2 而非总额进位的 1）；③效果费卡侧进位、效果组合侧仍小数。</summary>
+        private static void TestCostCeiling(GameCore core, Player p1, Player p2)
+        {
+            // ① 全表整数 + 与 NormalizeBill 一致
+            foreach (var c in SynergyUI.CardCatalog.LoadAll())
+            {
+                c.ResetCache();
+                var r = CardCostService.Derive(c);
+                foreach (var color in r.DerivedCost.NonzeroColors())
+                    Assert(System.Math.Abs(r.DerivedCost[color] - System.Math.Round(r.DerivedCost[color])) < 1e-4f,
+                        $"卡费全整数：{c.CardName} {color}={r.DerivedCost[color]}");
+                var pay = ElementPaymentValidator.NormalizeBill(CardCostService.GetRuntimeCost(c, 0));
+                foreach (var color in r.DerivedCost.NonzeroColors())
+                    Assert(pay.TryGetValue(color, out var v) && v == (int)r.DerivedCost[color],
+                        $"卡费=支付口径：{c.CardName} {color}");
+            }
+            // ② 逐色进位夹具（免费底=1：a/g 都开、无效果）
+            var half = new CardData { ID = "VERIFY_CEIL_22", CardName = "进位·2/2",
+                Supertype = Cardtype.Creature, AttackAbility = true, GuardAbility = true, Power = 2, Life = 2 };
+            half.ResetCache();
+            var hr = CardCostService.Derive(half);
+            Assert(hr.DerivedCost[ManaType.Red] == 1f && hr.DerivedCost[ManaType.Green] == 1f && hr.DerivedTotal == 2,
+                $"逐色进位不是总额进位：2/2（免费底1）→ 红1绿1 D=2（实际 {hr.DerivedCost}）");
+            // ③ 效果费两侧口径
+            var fx = new CardEffectData { Id = "VERIFY_CEIL_HEAL", TriggerTiming = (int)TriggerTiming.Activate_Active,
+                ActivationType = (int)EffectActivationType.Voluntary,
+                AtomicEffects = new List<AtomicEffectEntry> { Atom(AtomicEffectType.Heal, value: 1,
+                    kinds: new List<int> { (int)TargetKind.OwnLivingUnit }) } };
+            var fee = CostDerivationService.DeriveElementCosts(CardEffectConverter.ConvertOne(fx, "VERIFY_CEIL"), 0);
+            Assert(System.Math.Abs(fee[ManaType.Green] - 0.5f) < 1e-3f, "效果组合阶段保留小数：回复1=0.5绿");
+            var ceilFee = ElementPaymentValidator.CeilBill(fee);
+            Assert(ceilFee[ManaType.Green] == 1f, "卡组合阶段逐色进位：0.5绿 → 1绿");
         }
 
     }

@@ -1387,28 +1387,6 @@
       ]
     },
     {
-      "id": "F660BB7F",
-      "name": "元素合成：获得1个临时任意元素",
-      "hash": "F660BB7F",
-      "timing": 19,
-      "activation": 2,
-      "cost": [
-        0.0,
-        0.0,
-        0.0,
-        3.0,
-        0.0
-      ],
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "6d711f7a"
-          }
-        }
-      ]
-    },
-    {
       "id": "2C78A233",
       "name": "登场时，一个己方单位获得2层攻击力增加指示物；若操控地数量≤3，抽1张卡",
       "hash": "E3DDEFC5",
@@ -2621,7 +2599,7 @@
     {
       "id": "0909E61B",
       "name": "以己方生物为参照，对一个对方单位造成等同其攻击力的伤害；若本回合使用的第一张卡，对一个目标造成2点伤害",
-      "hash": "DA0BD39B",
+      "hash": "CABB8F1F",
       "timing": 19,
       "activation": 2,
       "cost": [
@@ -3161,7 +3139,7 @@
       "activation": 1,
       "cost": [
         0.0,
-        6.0,
+        9.0,
         0.0,
         0.0,
         0.0
@@ -3734,6 +3712,161 @@
               4
             ],
             "count": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "61D64777",
+      "name": "牺牲：送墓一个己方单位，获得1个临时彩元素",
+      "hash": "232C94DC",
+      "timing": 19,
+      "activation": 2,
+      "selection": 0,
+      "count": 1,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "84136d36",
+            "count": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "871ED866",
+      "name": "对对方单位附加1层沉睡",
+      "hash": "871ED866",
+      "timing": 19,
+      "activation": 2,
+      "selection": 0,
+      "count": 1,
+      "cost": [
+        0.0,
+        0.0,
+        3.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "9bbc7348",
+            "kinds": [
+              2
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "7899C88A",
+      "name": "对对方单位附加1层失效",
+      "hash": "086639B2",
+      "timing": 19,
+      "activation": 2,
+      "selection": 0,
+      "count": 1,
+      "cost": [
+        0.0,
+        0.0,
+        2.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "c770c18f",
+            "kinds": [
+              2,
+              4
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "AC81853B",
+      "name": "赋予一个己方单位绝缘体",
+      "hash": "AC81853B",
+      "timing": 19,
+      "activation": 2,
+      "selection": 0,
+      "count": 1,
+      "cost": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "costPin": 1,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "764236ed",
+            "kinds": [
+              1
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "CFE6FF68",
+      "name": "驱散一个对方单位",
+      "hash": "CFE6FF68",
+      "timing": 19,
+      "activation": 2,
+      "selection": 0,
+      "count": 1,
+      "cost": [
+        0.0,
+        3.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "22f33a1a",
+            "kinds": [
+              2
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "40CEACFC",
+      "name": "对对方单位造成1点伤害",
+      "hash": "40CEACFC",
+      "timing": 19,
+      "activation": 2,
+      "selection": 0,
+      "count": 1,
+      "cost": [
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "a4b823fc",
+            "kinds": [
+              2
+            ]
           }
         }
       ]

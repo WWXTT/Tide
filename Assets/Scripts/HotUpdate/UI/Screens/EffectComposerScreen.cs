@@ -358,6 +358,7 @@ namespace SynergyUI
             { "延迟死亡", RuleAuraComponents.DelayedDeathAura },       // 单位死亡→下个回合结束时死亡（DeathRules 改写）
             { "牌库顶当手牌", RuleAuraComponents.TopDeckAsHandAura },  // 牌库顶当手牌使用（TopDeckPlaySource 授权）
             { "铭刻", RuleAuraComponents.InscriptionAura },            // 单位被添加指示物时层数+1（AddCounters 咽喉）
+            { "破败仪典", RuleAuraComponents.ArmorDecay },             // 护甲转易损（AddCounters 一口；易损生效全移 2026-11-09 随改版转全局默认，ApplyDamage 覆盖口退役）
         };
 
         /// <summary>保护行 EnumName → 档位 str（2026-10-30 指示物化定案：目标=己方单位含角色
@@ -621,13 +622,13 @@ namespace SynergyUI
             TriggerTiming.OnTakeDamage => "受到伤害时：这张卡每次受到伤害。",
             TriggerTiming.OnTurnStart => "回合开始时：每回合的系统起点（系统专用——效果时点请挂准备阶段）。",
             TriggerTiming.OnTurnEnd => "回合结束时：每个回合结束的时点。",
-            TriggerTiming.OnAttack => "攻击宣言时：这张卡宣言攻击。",
-            TriggerTiming.OnAttacked => "被攻击时：这张卡被指定为攻击目标。",
-            TriggerTiming.OnBlockDeclare => "阻拦宣言时：阻拦被宣言。",
+            TriggerTiming.OnAttack => "攻击宣言时：这张卡宣言攻击（生物专属自动效果，计费 ×1.5）。",
+            TriggerTiming.OnAttacked => "被攻击时：这张卡被指定为攻击目标（生物专属自动效果，计费 ×1.5）。",
+            TriggerTiming.OnBlockDeclare => "阻拦宣言时：阻拦被宣言（生物专属自动效果，计费 ×1.5）。",
             TriggerTiming.OnCardPlayed => "使用卡牌时：使用宣言的时点（付费前，含法术）。",
             TriggerTiming.OnSpellCast => "施放法术时：有法术被使用。",
-            TriggerTiming.OnTap => "横置时：这张卡被横置。",
-            TriggerTiming.OnUntap => "重置时：这张卡被重置。",
+            TriggerTiming.OnTap => "横置时：这张卡被横置（生物专属自动效果，计费 ×1.5）。",
+            TriggerTiming.OnUntap => "重置时：这张卡被重置（生物专属自动效果，计费 ×1.5）。",
             TriggerTiming.OnTargeted => "被指定为目标时：有效果以这张卡为目标。",
             TriggerTiming.OnOtherCreatureEnter => "其他生物进场时（这张卡自己进场不算）。",
             TriggerTiming.OnScry => "占卜时：任一玩家结算占卜（查看并排列牌库顶）的那一刻——双方占卜都触发。",
@@ -642,7 +643,8 @@ namespace SynergyUI
         //（引擎 0 速语义完备见 SpeedSystem；速度>0 只剩法术提速份额与存量数据）
         // 2026-10-29 P9 作用次数下拉退役；2026-10-30 定案：效果无每回合生效次数上限，
         // 组合阶段不再有次数选项（take-effect 组隐藏）——2026-11-05 时机两档收敛（均 ×1），
-        // 周期多次的价值由结界耐久经济承担，计价不再按次数加价。
+        // 2026-11-09 再拆生物专属档（攻/守/横置 ×1.5）；周期多次的价值由结界耐久经济承担，
+        // 生物专属多次由宿主自身行动承担，计价均不按次数加价。
         private static readonly int[] CountTiers = { 1, 2, 3, 0 };
 
         // 描述条文案（原子/奖励原子两处共用——面向新玩家白话口径，不谈名义值/锚点等内部概念）

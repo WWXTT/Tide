@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using CardCore.Attribute;
@@ -72,30 +72,31 @@ namespace CardCore
     ///   宣言攻击结算/守卫拦截/主动发动效果各消耗 1 层（实际受伤不消耗——2026-11-02 改版）
     /// - 先攻/连击：先攻步先行结算（死者不反击）；连击两步均结算
     /// - 缴械：攻击结算时被攻击的目标无法反击（对角色目标同样生效——压制角色反伤）
-        /// - 碾压（2026-10-16 改版）：战斗伤害结算时对**宣言原目标**及其左右同排相邻生物各造成一次
-    ///   相同的战斗伤害——守卫拦截只拦住原目标的主战斗伤害（目标改写为守卫者），战斗仍发生在
-    ///   原被攻击者那一格，溅射域恒取原目标邻格（受拦截不受影响）；攻击角色时原目标=角色（Player），
-    ///   溅射域=角色格左右邻格的生物（RoleAdjacentResolver 注入，8×7 布局下角色居侧列端头各仅一格在盘）
+        /// - 碾压（2026-11-09 溅射域改版）：战斗伤害结算时对**宣言原目标**及其左右邻格占用者各造成
+    ///   一次相同的战斗伤害——占用者不限类别：生物/结界（耐久体，全额扣耐久）/角色（邻格=角色格时
+    ///   直伤角色）照打；守卫拦截只拦住原目标的主战斗伤害（目标改写为守卫者），战斗仍发生在
+    ///   原被攻击者那一格，溅射域恒取原目标邻格（受拦截不受影响）；攻角色时原目标=角色（Player），
+    ///   溅射域=角色格左右邻格（RoleAdjacentResolver 注入，7×7 布局下角色居侧列端头各仅一格在盘）；
+    ///   地牌行与单位区不同排，E/W 邻格天然不含地牌
     /// - 剧毒/吸血/系命/圣盾/护甲/坚韧：伤害经 KeywordRules.ApplyDamage 统一结算
     /// </summary>
     public class CombatSystem
     {
         /// <summary>
-        /// 邻接解析扩展点（碾压）：目标随从 → 其左右同排邻格的生物。
+        /// 邻接解析扩展点（碾压）：目标随从 → 其左右同排（E/W）邻格占用者。
         /// 默认 null = 碾压只打主目标；棋盘层接线时注入 BoardState 邻接查询
         /// （保持核心 ↔ 棋盘单向依赖：核心定义扩展点，表现层注入实现）。
-        /// 2026-10-04 碾压语义修订：溅射域从「6 邻格随从」收窄为「左右同排生物」——
-        /// 后排斜邻与地牌行的地牌不入溅射域（接线方注入 BoardState.FlankNeighbors）。
-        /// 2026-10-16 改版：本口只管**随从**枢轴；攻角色（Player 目标）的溅射域走 RoleAdjacentResolver。
+        /// 2026-11-09 溅射域改版：占用者不限类别——生物/结界照返，邻格为角色格时返该方
+        /// Player（占用实体统一走 Entity）——旧「只返生物」口径退役。
         /// </summary>
-        public static Func<Card, IEnumerable<Card>> AdjacentResolver;
+        public static Func<Card, IEnumerable<Entity>> AdjacentResolver;
 
         /// <summary>
-        /// 角色邻接解析扩展点（碾压攻角色，2026-10-16 改版）：防守方角色 → 角色格左右（E/W）
-        /// 邻格的生物。默认 null = 攻角色无溅射；棋盘层接线注入 BoardState.FlankNeighborsOfRole
+        /// 角色邻接解析扩展点（碾压攻角色）：防守方角色 → 角色格左右（E/W）邻格占用者
+        ///（生物/结界）。默认 null = 攻角色无溅射；棋盘层接线注入 BoardState.FlankNeighborsOfRole
         ///（与 AdjacentResolver 同惯例成对设置/清空——BattleController / NetRoom / TideHeadlessDriver）。
         /// </summary>
-        public static Func<Player, IEnumerable<Card>> RoleAdjacentResolver;
+        public static Func<Player, IEnumerable<Entity>> RoleAdjacentResolver;
 
         // ======================= 角色参战（2026-10-07 弹药定案，武器系统退役） =======================
         // 战斗为双向结算：角色（玩家）被攻击同样有反伤——反伤力=GetPower(player)
@@ -412,6 +413,25 @@ namespace CardCore
             int attackerPower = GetPower(attacker);
             // 溅射（2026-11-01）：主目标伤害前的生命快照，用于算溢出
             int splashLifeSnapshot = target is Card splashTargetCard ? splashTargetCard.GetLife() : 0;
+            // 碾压（2026-11-09 用户定案）：邻格域必须在伤害结算**前**物化——结界主目标被直毁会
+            // 同步移墓（CounterRules.LoseDurability），伤害后再 AdjacentResolver(pivot) 取不到格，
+            // 邻格整段落空。此处一次性快照左右邻格（此时 pivot 仍在场），结算后直接用快照。
+            var overwhelmPivot = declaredTarget ?? target; // 枢轴=宣言原目标（无拦截时与 target 同一）
+            List<Entity> flankSnapshot = null;
+            Player flankSide = null;
+            if (overwhelmPivot is Player rolePivot)
+            {
+                if (RoleAdjacentResolver != null)
+                {
+                    flankSnapshot = RoleAdjacentResolver(rolePivot).ToList();
+                    flankSide = rolePivot;
+                }
+            }
+            else if (overwhelmPivot is Card pivotCard && AdjacentResolver != null)
+            {
+                flankSnapshot = AdjacentResolver(pivotCard).ToList();
+                flankSide = pivotCard.GetController();
+            }
             // 双向结算：随从目标按层引擎力量反击；角色（玩家）目标反伤直读 GetPower
             //（2026-10-07 弹药定案：反伤力=HeroAttackCounter 层数，武器扩展点已退役）
             int targetPower = target is Card ? GetPower(target)
@@ -479,59 +499,58 @@ namespace CardCore
                     CounterRules.RemoveHeroAttackAmmo(counterattacking);
             }
 
-            // ---- 碾压（2026-10-04 语义修订，表行锚=红3；2026-10-16 枢轴改版）：战斗伤害结算时
-            //      对**宣言原目标**以及其左右同排相邻生物造成与主目标相同的战斗伤害（attackerPower，
-            //      已锁力量）——守卫拦截只拦住原目标的主战斗伤害（战斗发生在原被攻击者那一格），
-            //      溅射域恒取原目标邻格、受拦截不受影响；攻角色时原目标=角色（Player），溅射域=
-            //      角色格左右邻格生物（RoleAdjacentResolver）；结界等非生物不入溅射域（IsLivingUnit） ----
+            // ---- 碾压（2026-11-09 溅射域改版，表行锚=红3）：战斗伤害结算时
+            //      对**宣言原目标**以及其左右邻格占用者造成与主目标相同的战斗伤害（attackerPower，
+            //      已锁力量）——占用者不限类别：生物/结界（耐久体，ApplyDamage 全额扣耐久）/
+            //      角色（邻格=防守方角色格时直伤角色）照打（旧「只打生物 IsLivingUnit」口径退役）；
+            //      守卫拦截只拦住原目标的主战斗伤害（战斗发生在原被攻击者那一格），溅射域恒取
+            //      原目标邻格、受拦截不受影响；攻角色时原目标=角色（Player），溅射域=
+            //      角色格左右邻格（RoleAdjacentResolver）。地牌行与单位区不同排，E/W 不含地牌 ----
             if (attacker.IsAlive && attacker.HasKeyword(KeywordRules.Overwhelm))
             {
-                var pivot = declaredTarget ?? target; // 溅射枢轴=宣言原目标（无拦截时与 target 同一）
-                IEnumerable<Card> flanks = null;
-                Entity flankSide = null; // 同侧判定锚（防守方）
-                if (pivot is Player role)
+                if (flankSnapshot != null)
                 {
-                    if (RoleAdjacentResolver != null)
+                    foreach (var adjacent in flankSnapshot)
                     {
-                        flanks = RoleAdjacentResolver(role);
-                        flankSide = role; // 防守方=角色自己（Player 即控制者，CanAttackTarget 同口径）
-                    }
-                }
-                else if (pivot is Card pivotCard && AdjacentResolver != null)
-                {
-                    flanks = AdjacentResolver(pivotCard);
-                    flankSide = pivotCard.GetController();
-                }
-                if (flanks != null)
-                {
-                    foreach (var adjacent in flanks)
-                    {
-                        if (adjacent == null || adjacent == attacker || adjacent == pivot || !adjacent.IsAlive)
+                        if (adjacent == null || adjacent == attacker || adjacent == overwhelmPivot || !adjacent.IsAlive)
                             continue; // 枢轴自身经正常步结算，不重复吃溅射；攻击者不误伤
-                        if (!adjacent.IsLivingUnit())
-                            continue; // 只打生物：结界（耐久体）与地牌不吃碾压溅射
-                        if (adjacent.GetController() != flankSide)
-                            continue; // 只打原目标同侧（防守方）的生物
-                        DealCombatDamage(attacker, adjacent, attackerPower);
+                        if (adjacent is Card adjCard)
+                        {
+                            if (adjCard.GetController() != flankSide)
+                                continue; // 只打原目标同侧（防守方）占用者（生物/结界同门）
+                            DealCombatDamage(attacker, adjCard, attackerPower);
+                        }
+                        else if (adjacent is Player adjRole && adjRole == flankSide)
+                        {
+                            // 邻格=防守方角色格：溅射直伤角色（对方角色格不与防守方单位区同行，几何不可达，判同侧兜底）
+                            DealCombatDamage(attacker, adjRole, attackerPower);
+                        }
                     }
                 }
             }
 
-            // ---- 溅射（2026-11-01 新增，红3）：战斗结算时，对对手随机单位造成溢出的战斗伤害 ----
+            // ---- 溅射（2026-11-01 新增，红3；2026-11-09 连锁改版）：战斗结算时，对对手随机单位
+            //      造成溢出的战斗伤害；溅射伤害再次溢出则连锁再溅。每跳溢出量=溅射量−受害者
+            //      溅前生命快照（与主目标同口径），量只减不增、已溅者不复选——链必然收敛 ----
             if (attacker.IsAlive && attacker.HasKeyword(KeywordRules.Splash) && target is Card splashHit)
             {
                 int overflow = attackerPower - splashLifeSnapshot;
-                if (overflow > 0)
+                var splashed = new HashSet<Card> { splashHit }; // 已吃溅射者（含被护盾挡下幸存的）不再复选
+                while (overflow > 0 && attacker.IsAlive)
                 {
                     var splashOwner = splashHit.GetController();
-                    var pool = new System.Collections.Generic.List<Card>();
+                    var pool = new List<Card>();
                     var defenderField = GameCore.Instance?.ZoneManager?.GetCards(splashOwner, Zone.Battlefield);
                     if (defenderField != null)
                         foreach (var c in defenderField)
-                            if (c != null && c.IsAlive && c != splashHit && c != attacker && c.IsLivingUnit())
+                            if (c != null && c.IsAlive && !splashed.Contains(c) && c != attacker && c.IsLivingUnit())
                                 pool.Add(c);
-                    if (pool.Count > 0)
-                        DealCombatDamage(attacker, pool[GameRng.Next(0, pool.Count)], overflow);
+                    if (pool.Count == 0) break;
+                    var victim = pool[GameRng.Next(0, pool.Count)];
+                    splashed.Add(victim);
+                    int victimLife = victim.GetLife(); // 溅前生命快照，用于算下一跳溢出
+                    DealCombatDamage(attacker, victim, overflow);
+                    overflow -= victimLife;
                 }
             }
 

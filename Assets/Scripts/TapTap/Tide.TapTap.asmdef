@@ -1,0 +1,23 @@
+{
+    "name": "Tide.TapTap",
+    "rootNamespace": "Tide.TapTap",
+    "references": [
+        "Tide.HotUpdate",
+        "UniTask",
+        "UnityEngine.UI",
+        "Unity.TextMeshPro",
+        "TapSDK.Core.Runtime",
+        "TapSDK.Login.Runtime",
+        "TapSDK.CloudSave.Runtime",
+        "TapSDK.OnlineBattle.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

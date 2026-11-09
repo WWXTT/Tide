@@ -148,6 +148,9 @@ namespace CardCore.Editor
                 Assert(offenders.Count == 0,
                        $"规则一巡检：全表 {cardsData.Count} 张 D≤Ĉ+结构费（不符 {offenders.Count}：{string.Join(",", offenders.Select(o => o.ID))}）");
 
+                Crumb("→TestCostCeiling");
+                TestCostCeiling(core, p1, p2); // 费用取整（2026-11-09 逐色进位定案）：全表整数/支付口径/两侧口径
+
                 // 极性校验（2026-11-02 定案）：代价型原子指向自己不得计正费——效果栏一律 0 费
                 //（CostDerivationService.AccumulateElementCost 极性裁定）+ 本断言拦截 0 容忍；
                 // 代价语义走代价栏（payloads·色锁抵扣），打击对手改指对侧。只扫正式池（夹具是

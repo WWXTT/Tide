@@ -131,6 +131,10 @@ namespace SynergyUI
         /// <summary>预置规则光环（RuleAuraSystem 常量 id，如 "NoAttackAura"）：静默入场不走登场
         /// 效果，seeder 直接 RuleAuraSystem.Activate（载体=本卡）——预置仪典的正规等价路径。</summary>
         public string activateRuleAura;
+
+        /// <summary>开局当前生命（0=满血）：用于吸血/系命/再生这类「已经受伤」的开局
+        ///（2026-11-09 教学一·进阶）——入场后 SetLife 钳在 (0, 卡面最大生命) 区间。</summary>
+        public int currentLife;
     }
 
     /// <summary>教学预设场面·指示物（key/层数；长档紊乱等层=剩余回合的计数指示物）。</summary>
@@ -344,6 +348,10 @@ namespace SynergyUI
                 // 守护（2026-11-05 简化定案）：固定保护己方角色、关键词在场即生效——静默播种
                 // 无需任何补调（旧配对制的弹选补调已随配对表退役）。
                 if (unit.tapped) card.Tap();
+                // 带伤开局（2026-11-09 教学一·进阶）：currentLife 钳在 (0, 卡面最大生命)——
+                // 满血/越界不写（卡面原值口径不变）；须在关键词补齐后（光环改最大生命的情形取活值）。
+                if (unit.currentLife > 0 && unit.currentLife < card.GetMaxLife())
+                    card.SetLife(unit.currentLife);
                 GameActions.RegisterCardTriggeredEffects(core, card, owner); // 静默入场不接触发式，显式补
                 foreach (var counter in unit.counters ?? new List<TutorialCounterSpec>())
                 {

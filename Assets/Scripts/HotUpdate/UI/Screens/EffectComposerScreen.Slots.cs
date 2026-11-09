@@ -190,23 +190,32 @@ namespace SynergyUI
             return false;
         }
 
-        /// <summary>宿主时机档位闸（2026-11-05 两档定案，仿 ChargeShapeError）：非结界宿主（生物等）
-        /// 挂周期/观察族多次时机 → 违规文本（null=合规）。ValidateZones 消费（保存禁用+描述条提示）
-        /// ——兜住载入旧数据/直改 JSON 的直存；效果库模式无宿主不查；攻/守/横置族与引擎载荷豁免
-        ///（与 EffectEligibility.RejectReason 生物臂同口径——结界宿主全开=耐久即次数池）。</summary>
+        /// <summary>宿主时机档位闸（2026-11-05 两档定案；2026-11-09 生物专属档拆分）：
+        /// 时机三档与宿主一一对应——生物=单次+生物专属（攻/守/横置 ×1.5）；结界=单次+周期/观察族；
+        /// 法术=仅单次（一次性形态）。违规=保存禁用。效果库模式无宿主不查；引擎载荷豁免
+        ///（效果头时机=奖励发射窗，与计价 TimingCostFactor 同口径——但结界挂攻/守/横置不豁免：
+        /// 该时机对结界无语义）。</summary>
         private string HostTimingTierError()
         {
-            if (_editingCard == null || _editingCard.Supertype == Cardtype.Enchantment) return null;
+            if (_editingCard == null) return null;
             var h = _graph?.header;
             if (h == null) return null;
             var t = (TriggerTiming)h.TriggerTiming;
             if (t == TriggerTiming.Activate_Active || t == TriggerTiming.Activate_Instant
                 || t == TriggerTiming.Activate_Response)
                 return null; // 主动档无时机（现付）
-            if (!EffectEligibility.IsEnchantExclusiveTiming(t) || GraphHasEnginePayload(_graph)) return null;
             string zh = TimingZh.TryGetValue(t, out var name) ? name : t.ToString();
-            return $"本卡宿主（{_editingCard.CardName}）挂不住周期性多次时机「{zh}」——结界专属（耐久即次数池）；"
-                   + "请改单次时机（登场/死亡等）或攻/守/横置族，或把卡改为结界配耐久";
+            if (_editingCard.Supertype == Cardtype.Enchantment && EffectEligibility.IsTapAnchoredTiming(t))
+                return $"本卡宿主（{_editingCard.CardName}）挂不住生物专属时机「{zh}」——攻/守/横置族是生物专属自动效果"
+                       + "（结界不横置、无从触发）；请改单次时机或周期/观察族多次时机，或把卡改为生物";
+            if (_editingCard.Supertype == Cardtype.Spell && CostDerivationService.IsRepeatTiming(t))
+                return $"本卡宿主（{_editingCard.CardName}）是一次性法术，挂不住反复触发时机「{zh}」；"
+                       + "请改单次时机（登场）或改为自动/驻场宿主";
+            if (GraphHasEnginePayload(_graph)) return null; // 引擎载荷：时机=奖励发射窗（以上宿主硬闸不豁免）
+            if (_editingCard.Supertype == Cardtype.Creature && EffectEligibility.IsEnchantExclusiveTiming(t))
+                return $"本卡宿主（{_editingCard.CardName}）挂不住周期性多次时机「{zh}」——结界专属（耐久即次数池）；"
+                       + "请改单次时机（登场/死亡等）或生物专属的攻/守/横置族，或把卡改为结界配耐久";
+            return null;
         }
 
 
@@ -592,10 +601,10 @@ namespace SynergyUI
             //（选中后显示卡牌列表，不带衍生物的卡均可选）、模拟目标数量恒 1
             if (type == AtomicEffectType.Morph)
                 MakeHint(inject, "模拟（仅主动）：变成场上目标单位（跳过其场地光环）——目标数量恒 1；"
-                    + "发动主动效果按变形前后费差以任意元素补差");
+                    + "发动主动效果按变形前后费差以彩元素补差");
             else if (type == AtomicEffectType.GrantMorph)
                 MakeHint(inject, "变形（仅主动）：引用卡不在此填——在卡牌合成界面选择（选中后显示卡牌列表，"
-                    + "不带衍生物的卡均可选）；目标数量恒 1，发动主动效果按变形前后费差以任意元素补差");
+                    + "不带衍生物的卡均可选）；目标数量恒 1，发动主动效果按变形前后费差以彩元素补差");
         }
 
     }

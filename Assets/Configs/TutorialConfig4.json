@@ -1,0 +1,669 @@
+{
+  "tutorials": [
+    {
+      "id": "basics_plus",
+      "name": "基础教学一·进阶",
+      "rngSeed": 20261109,
+      "_说明": "教学一·进阶（2026-11-09 关键词课）：复用教学二多段结构（scenario=段0 先攻/连击、skipScenario=段1 碾压/溅射、phaseScenarios[0..8]=段2..10 缴械警戒/隐密帷幕/吸血系命/剧毒不灭/再生/守护/狩猎/病原体/绝缘体）+收尾 completeOnConfirm 步。38 步引导、10 个 midTransition、5 个 AI 回合（段5 系命反击演示/段7 空过/段8 守护吃 8 点溢出/段9 空过/段10 病原体三来源染毒）。攻击免费（TryDeclareAttack 无费用门槛）、法术全 0 费——bank 全零。新卡见 TutorialCards「教学·先攻甲」等 46 张（id=C_+HashCard 探针计算）；新效果 D43C324C 全体减攻 / 40CEACFC 一点伤害。段5 吸血/系命与段9 狩猎吸血用 units.currentLife 播种带伤开局（TutorialUnitSpec 新列）。段3 普通三只先行送死再上缴械（2026-11-09 用户修订）；段1 连击打 2/8 与先攻乙同死（2026-11-09 用户修订：文案按引擎快照反击定稿）；段2 溅射按连锁新实现讲解。",
+      "scenario": {
+        "startTurn": 10,
+        "firstPlayer": "P1",
+        "_s1": "段0·先攻/连击（2026-11-09 修订版）：四只 4/2（先攻甲/连击甲/先攻乙/连击乙）对两只 2/4+两只 2/8。先攻甲→2/4甲（一步打死无伤活）、连击甲→2/4乙（首段打死无伤活）、先攻乙→2/8甲（只打 4 被反击 2 死、目标剩 4）、连击乙→2/8乙（两段 8 打死但死前反击锁定同死）。",
+        "player": {
+          "life": 30,
+          "fatigue": 0,
+          "bank": [0, 0, 0, 0, 0, 0],
+          "lands": [],
+          "units": [
+            { "card": "C_8E45017F", "x": 2, "z": 2 },
+            { "card": "C_732BCF71", "x": 3, "z": 2 },
+            { "card": "C_271AA1F8", "x": 4, "z": 2 },
+            { "card": "C_082B62DB", "x": 5, "z": 2 }
+          ],
+          "hand": [],
+          "deck": ["C_E98E60F2", "C_E98E60F2"],
+          "grave": []
+        },
+        "ai": {
+          "life": 30,
+          "fatigue": 0,
+          "bank": [0, 0, 0, 0, 0, 0],
+          "lands": [],
+          "units": [
+            { "card": "C_FC5BC585", "x": 2, "z": 4 },
+            { "card": "C_6DBC9CDC", "x": 3, "z": 4 },
+            { "card": "C_036D0A6A", "x": 4, "z": 4 },
+            { "card": "C_2C6CAC92", "x": 5, "z": 4 }
+          ],
+          "hand": [],
+          "deck": ["C_DA499FAE", "C_DA499FAE"],
+          "grave": []
+        }
+      },
+      "skipScenario": {
+        "startTurn": 10,
+        "firstPlayer": "P1",
+        "_s2": "段1·碾压/溅射：第一排 2/6/结界6耐/2/6（碾压一穿三——邻格吃全额攻击力），第二排三只 2/2 分散（溅射 6 打 2 溢出 4 溅死第二只、余 2 连锁溅死第三只——2026-11-09 连锁新实现按新讲）。",
+        "player": {
+          "life": 30,
+          "fatigue": 0,
+          "bank": [0, 0, 0, 0, 0, 0],
+          "lands": [],
+          "units": [
+            { "card": "C_3AFBFB85", "x": 2, "z": 2 },
+            { "card": "C_B9F338E2", "x": 3, "z": 2 }
+          ],
+          "hand": [],
+          "deck": ["C_E98E60F2", "C_E98E60F2"],
+          "grave": []
+        },
+        "ai": {
+          "life": 30,
+          "fatigue": 0,
+          "bank": [0, 0, 0, 0, 0, 0],
+          "lands": [],
+          "units": [
+            { "card": "C_0FDF4A1D", "x": 2, "z": 4 },
+            { "card": "C_9914CF8A", "x": 3, "z": 4, "counters": [{ "key": "Durability", "value": 6 }] },
+            { "card": "C_FF042960", "x": 4, "z": 4 },
+            { "card": "C_AC584F8A", "x": 1, "z": 5 },
+            { "card": "C_7E1B7AA1", "x": 3, "z": 5 },
+            { "card": "C_17BD0D3E", "x": 5, "z": 5 }
+          ],
+          "hand": [],
+          "deck": ["C_DA499FAE", "C_DA499FAE"],
+          "grave": []
+        }
+      },
+      "guide": [
+        {
+          "type": "intro",
+          "hint": "先看【先攻】和【连击】的区别。你场上有两只先攻 4/2、两只连击 4/2；对面是两只 2/4 和两只 2/8。先用第一只先攻打 2/4——先攻抢在反击前出手，4 点正好打死它，自己不掉血。再用连击打另一只 2/4——连击打两段，第一段就把它打死了，自己也不掉血。然后换大目标：用第二只先攻打 2/8——先攻只打了 4 点，2/8 还剩 4 点，它的反击照样落地，你的 4/2 会被打死。最后用连击打另一只 2/8——两段共 8 点把它打死，但它的反击在死前已经锁定，连击方也活不了。记住：先攻是抢时点，一步打死才无伤；连击是两次伤害，打得死大目标，但一样要挨反击。"
+        },
+        {
+          "type": "attack",
+          "attacker": "C_8E45017F",
+          "target": "C_FC5BC585",
+          "hint": "用【教学·先攻甲】攻击对面的 2/4——先攻抢在反击前出手"
+        },
+        {
+          "type": "attack",
+          "attacker": "C_732BCF71",
+          "target": "C_6DBC9CDC",
+          "hint": "用【教学·连击甲】攻击另一只 2/4"
+        },
+        {
+          "type": "attack",
+          "attacker": "C_271AA1F8",
+          "target": "C_036D0A6A",
+          "hint": "用【教学·先攻乙】攻击一只 2/8——先攻不够打死它"
+        },
+        {
+          "type": "attack",
+          "attacker": "C_082B62DB",
+          "target": "C_2C6CAC92",
+          "hint": "用【教学·连击乙】攻击另一只 2/8"
+        },
+        {
+          "type": "intro",
+          "reveal": "midTransition",
+          "hint": "刚才先攻和连击都得跟对手换命。现在看【碾压】和【溅射】——两个都是「打一个、伤一片」。对面第一排是 2/6 生物、6 耐久结界、2/6 生物，第二排分散站着三只 2/2。先用碾压 6/2 打中间的 6 耐久结界：结界碎掉，左右两只 2/6 各吃 6 点，一起死——碾压吃站位，目标两边有单位才赚。再用溅射 6/3 打第二排一只 2/2：主目标死，溢出的 4 点随机溅到另一只 2/2 把它打死；溅出的伤害没用完还会继续溅——剩下的 2 点把第三只也带走。碾压吃排列，溅射吃溢出，这就是两者的区别。"
+        },
+        {
+          "type": "attack",
+          "attacker": "C_3AFBFB85",
+          "target": "C_9914CF8A",
+          "hint": "用【教学·碾压】攻击中间的 6 耐久结界"
+        },
+        {
+          "type": "attack",
+          "attacker": "C_B9F338E2",
+          "target": "C_AC584F8A",
+          "hint": "用【教学·溅射】攻击第二排任意一只 2/2"
+        },
+        {
+          "type": "intro",
+          "reveal": "midTransition",
+          "hint": "现在看【缴械】和【警戒】。先用三只普通 3/3 去撞对面的三只怪，看它们怎么被反击打死：打横置的 4/4 警戒——警戒横置也能反击，一记 4 点把你的 3/3 反杀；打 4/8 先攻——它的先攻反击先落地，你的 3/3 连一下都没摸到就死了；打 2/8 连击——它两段反击共 4 点，同样把你的 3/3 打死。然后换三只缴械 3/3 上场打同样的目标：缴械压住一切反击——警戒不能反、先攻不能反、连击也不能反，三只缴械一点血都不掉。缴械压的是「反击」本身。"
+        },
+        {
+          "type": "attack",
+          "attacker": "C_BA6BE8EC",
+          "target": "C_7348D471",
+          "hint": "先用普通生物【教学·白板3/3甲】攻击横置的警戒——看它被反击打死"
+        },
+        {
+          "type": "attack",
+          "attacker": "C_5DBE70BB",
+          "target": "C_64AA066B",
+          "hint": "用【教学·白板3/3乙】攻击 4/8 先攻——它连一下都没摸到就死了"
+        },
+        {
+          "type": "attack",
+          "attacker": "C_0EDE312A",
+          "target": "C_AC582815",
+          "hint": "用【教学·白板3/3丙】攻击 2/8 连击——两段反击把它打死"
+        },
+        {
+          "type": "attack",
+          "attacker": "C_202A366E",
+          "target": "C_7348D471",
+          "hint": "用【教学·缴械甲】攻击残血的警戒——缴械压住反击"
+        },
+        {
+          "type": "attack",
+          "attacker": "C_5654ABA8",
+          "target": "C_64AA066B",
+          "hint": "用【教学·缴械乙】攻击 4/8 先攻"
+        },
+        {
+          "type": "attack",
+          "attacker": "C_AB547E9C",
+          "target": "C_AC582815",
+          "hint": "用【教学·缴械丙】攻击 2/8 连击"
+        },
+        {
+          "type": "intro",
+          "reveal": "midTransition",
+          "hint": "现在看【隐密】和【帷幕】——一个保自己，一个保别人。对面有一只 2/2 隐密、一只 2/7 帷幕、一只 8/8。你手里有两张消灭法术。先打第一张：隐密不能点；帷幕在场，8/8 也不能点，你只能点帷幕。帷幕替 8/8 挡了这一发，自己死。再打第二张：帷幕没了，隐密仍然不能点，8/8 暴露出来，被消灭。隐密只保自己，帷幕保的是队友。"
+        },
+        {
+          "type": "play",
+          "card": "C_C635DB5D",
+          "hint": "打出【教学·14】——只能点帷幕"
+        },
+        {
+          "type": "intro",
+          "hint": "帷幕已经替 8/8 挡刀死去——现在对面的 8/8 暴露了，而隐密仍然点不到。打出第二张消灭，点掉 8/8。"
+        },
+        {
+          "type": "play",
+          "card": "C_DE95C8CC",
+          "hint": "打出【教学·消灭乙】——点掉暴露的 8/8"
+        },
+        {
+          "type": "intro",
+          "reveal": "midTransition",
+          "hint": "现在看【吸血】和【系命】——一个回生物自己，一个回角色。你场上一只吸血 3/3 和一只系命 3/3，两只都只剩 1 点生命；你的角色 20/30。先用吸血甲打 2/2：造成 3 点把它打死，自己从 1 回到 3；它死前反击 2 点，吸血甲剩 1 血活下来——这口吸血救了它的命。再用吸血乙打 3/3：同样回到 3，但 3 点反击正好把它打死——回满也救不了等量互换。然后用系命甲打另一只 3/3：造成 3 点，角色从 20 回到 23；系命甲自己被反击打死，回血照算。最后结束回合——对手剩下的 2/2 会来打系命乙，看它反击时给角色回多少血。"
+        },
+        {
+          "type": "attack",
+          "attacker": "C_E8B8EE22",
+          "target": "C_AC584F8A",
+          "hint": "用【教学·吸血甲】（1 血）攻击 2/2"
+        },
+        {
+          "type": "attack",
+          "attacker": "C_9460C612",
+          "target": "C_BA6BE8EC",
+          "hint": "用【教学·吸血乙】（1 血）攻击 3/3——回满也会死"
+        },
+        {
+          "type": "attack",
+          "attacker": "C_E5D9D557",
+          "target": "C_5DBE70BB",
+          "hint": "用【教学·系命甲】攻击另一只 3/3——回的是角色"
+        },
+        {
+          "type": "end",
+          "waitTurnStart": true,
+          "hint": "点击结束回合——对手的 2/2 会攻击系命乙，看反击回血"
+        },
+        {
+          "type": "intro",
+          "reveal": "midTransition",
+          "hint": "刚才系命乙在对手回合反击，又给角色回了 3 点血——角色现在 26 点。吸血回自己，系命回角色，反击时同样生效。现在看【剧毒】和【不灭】的交互。你场上两只 2/2 剧毒，对面一只 8/8 白板、一只 8/8 不灭。先用剧毒甲打 8/8 白板：只打 2 点，但剧毒在伤害结算后直接消灭它——剧毒不看生命；剧毒甲自己会被 8 点反击打死，以小换大。再用剧毒乙打 8/8 不灭：同样打 2 点、触发剧毒，但【不灭】把「消灭」拦住了——它只掉 2 点，没有死；剧毒乙也被反击打死。剧毒怕不灭；不灭只拦消灭，不拦掉血。"
+        },
+        {
+          "type": "attack",
+          "attacker": "C_DCDC05A7",
+          "target": "C_8C47525E",
+          "hint": "用【教学·剧毒甲】攻击 8/8 白板——以小换大"
+        },
+        {
+          "type": "attack",
+          "attacker": "C_52A944EE",
+          "target": "C_750FFED3",
+          "hint": "用【教学·剧毒乙】攻击 8/8 不灭——消灭被拦住"
+        },
+        {
+          "type": "intro",
+          "reveal": "midTransition",
+          "hint": "现在看【再生】。你场上有一只 3/5 再生，只剩 1 点生命。点击结束回合——到下个己方准备阶段，它会恢复全部生命。它不能复活：已经死的生物不会因为再生回来。"
+        },
+        {
+          "type": "end",
+          "waitTurnStart": true,
+          "hint": "点击结束回合"
+        },
+        {
+          "type": "intro",
+          "reveal": "midTransition",
+          "hint": "刚才再生在准备阶段回满了。现在看【守护】。你场上有一只 2/7 守护，角色 30 点生命。对面是一只 8/8——攻击力比守护的生命还高。结束回合，对手会攻击你的角色：角色受到的伤害会改由守护承受，连超出守护生命的部分也一并吃下——守护倒下，角色分毫无伤。看这次角色掉不掉血。"
+        },
+        {
+          "type": "end",
+          "waitTurnStart": true,
+          "hint": "点击结束回合"
+        },
+        {
+          "type": "intro",
+          "reveal": "midTransition",
+          "hint": "刚才守护用命替角色挡下了全部 8 点——这就是它的价值：只要守护在场，角色受到的伤害就无限次改由守护承受。现在看【狩猎】，还有关键词的组合。你场上一只 4/2 狩猎、一只 4/2 狩猎+吸血（只剩 1 点生命），对面空场。结束回合——两只狩猎都会在你的回合结束时自动攻击对手：普通狩猎咬角色 4 点；带吸血的那只咬完还把伤害变成自己的血，从 1 回到满。狩猎自己未横置才会触发；关键词是可以组合的。"
+        },
+        {
+          "type": "end",
+          "waitTurnStart": true,
+          "hint": "点击结束回合——看回合末谁动手"
+        },
+        {
+          "type": "intro",
+          "reveal": "midTransition",
+          "hint": "现在看【病原体】。你场上是两只 2/4 病原体。点击结束回合，看对手怎么撞上来：连击小兵打两下、普通 3/3 打一下、还有一张法术点一下——每一种伤害，都会给伤害来源挂上毒素：普通攻击 1 层、连击两下 2 层、主动效果的伤害也是 1 层。毒素在来源回合结束时发作，掉等于层数的血。"
+        },
+        {
+          "type": "end",
+          "waitTurnStart": true,
+          "hint": "点击结束回合"
+        },
+        {
+          "type": "intro",
+          "reveal": "midTransition",
+          "hint": "刚才病原体给每个伤害来源都挂了毒，回合末一起发作。现在看【绝缘体】。你场上有三只生物：两只带狩猎（其中一只还带吸血），和一只天生印着绝缘体的 4/4。对手接下来会对两只狩猎下手——一只挂沉睡、一只挂失效，还会对天生绝缘的 4/4 挂上同样的沉睡+失效。看清楚区别：普通生物会被压住，绝缘体毫发无伤——指示物照挂、层数照常倒数，效果全部无效。点击结束回合，看对手动手。"
+        },
+        {
+          "type": "end",
+          "waitTurnStart": true,
+          "hint": "点击结束回合——对手会挂出四个指示物法术"
+        },
+        {
+          "type": "intro",
+          "hint": "对手动完手了：一只狩猎沉睡了，带吸血的狩猎被失效，而天生绝缘的 4/4 挂上同样的东西却毫无反应——层照挂、照常倒数、效果全无。现在你来赋予绝缘体，走两条通道：先用法术【教学·绝缘赋予】点给沉睡的那只狩猎，再把结界【教学·绝缘光环】放到带吸血的狩猎旁边——连接光环会把它也变成绝缘体。赋予完成后，它们身上的沉睡和失效立刻变成死层——被沉睡压住无法重置的狩猎，下个准备阶段也会照常站起来。"
+        },
+        {
+          "type": "play",
+          "card": "C_01835F2B",
+          "hint": "打出【教学·绝缘赋予】——指定沉睡的那只狩猎"
+        },
+        {
+          "type": "play",
+          "card": "C_12705A5A",
+          "hint": "打出【教学·绝缘光环】，放在带吸血狩猎旁边的空格"
+        },
+        {
+          "type": "end",
+          "waitTurnStart": true,
+          "hint": "点击结束回合——回合末看带吸血的狩猎照常开火（失效已是死层）"
+        },
+        {
+          "type": "intro",
+          "hint": "对手又挂了两层沉睡——被绝缘的它们横置照常解除、狩猎照常生效。但赋予的绝缘体和印刷的不同：它会被拆掉。再结束一次回合，看对手怎么拆。"
+        },
+        {
+          "type": "end",
+          "waitTurnStart": true,
+          "hint": "点击结束回合——对手会驱散与无效齐下"
+        },
+        {
+          "type": "intro",
+          "completeOnConfirm": true,
+          "hint": "看结果：法术赋予的绝缘体被驱散整个抹掉，光环来源被无效后光环赋予的绝缘体也失效了——而天生印刷的绝缘体驱不散，驱散只清掉了它身上的其他指示物。赋予的东西会被拆，印刷的天生在。到这里，17 个关键词都过了一遍：先攻、连击、碾压、溅射、缴械、警戒、隐密、帷幕、吸血、系命、再生、守护、剧毒、病原体、绝缘体、不灭、狩猎。最终考验由你来设计。点确定完成本课。"
+        }
+      ],
+      "aiScript": [
+        {
+          "turn": 1,
+          "actions": [
+            { "type": "attack", "attacker": "C_7E1B7AA1", "target": "C_6CE1BAAF" }
+          ]
+        },
+        {
+          "turn": 2,
+          "actions": [
+            { "type": "end" }
+          ]
+        },
+        {
+          "turn": 3,
+          "actions": [
+            { "type": "attack", "attacker": "C_8C47525E", "target": "hero" }
+          ]
+        },
+        {
+          "turn": 4,
+          "actions": [
+            { "type": "end" }
+          ]
+        },
+        {
+          "turn": 5,
+          "actions": [
+            { "type": "wallet", "target": "Red", "mode": 3 },
+            { "type": "attack", "attacker": "C_DD519F03", "target": "C_E3CADDFD" },
+            { "type": "attack", "attacker": "C_BA6BE8EC", "target": "C_6454E497" },
+            { "type": "play", "card": "C_2730BF8F", "targets": "C_6454E497" }
+          ]
+        },
+        {
+          "turn": 6,
+          "actions": [
+            { "type": "wallet", "target": "Blue", "mode": 15 },
+            { "type": "play", "card": "C_BA2BFFAD", "targets": "C_030E8991" },
+            { "type": "play", "card": "C_3AC147C9", "targets": "C_59A3BB05" },
+            { "type": "play", "card": "C_63FAF37B", "targets": "C_7FD01D48" },
+            { "type": "play", "card": "C_C55C98E2", "targets": "C_7FD01D48" }
+          ]
+        },
+        {
+          "turn": 7,
+          "actions": [
+            { "type": "wallet", "target": "Blue", "mode": 8 },
+            { "type": "play", "card": "C_0BFA4FD0", "targets": "C_030E8991" },
+            { "type": "play", "card": "C_04425248", "targets": "C_59A3BB05" }
+          ]
+        },
+        {
+          "turn": 8,
+          "actions": [
+            { "type": "wallet", "target": "Blue", "mode": 9 },
+            { "type": "wallet", "target": "Red", "mode": 9 },
+            { "type": "play", "card": "C_483E94BC", "targets": "C_030E8991" },
+            { "type": "play", "card": "C_2D514294", "targets": "C_12705A5A" },
+            { "type": "play", "card": "C_4082D33D", "targets": "C_7FD01D48" }
+          ]
+        }
+      ],
+      "phaseScenarios": [
+        {
+          "startTurn": 10,
+          "firstPlayer": "P1",
+          "_s3": "段2·缴械/警戒（2026-11-09 修订：先三只普通 3/3 送死再上缴械）：白板3/3甲→横置警戒（被 4 点反杀，警戒 4→1）；白板3/3乙→先攻巨兽（先攻反击先落地，0 输出死）；白板3/3丙→连击巨兽（两段反击 4 点死，巨兽 8→5）。缴械甲→警戒（1 血补刀死）；缴械乙→先攻巨兽（8→5 无反击）；缴械丙→连击巨兽（5→2 无反击）。",
+          "player": {
+            "life": 30,
+            "fatigue": 0,
+            "bank": [0, 0, 0, 0, 0, 0],
+            "lands": [],
+            "units": [
+              { "card": "C_BA6BE8EC", "x": 2, "z": 2 },
+              { "card": "C_5DBE70BB", "x": 3, "z": 2 },
+              { "card": "C_0EDE312A", "x": 4, "z": 2 },
+              { "card": "C_202A366E", "x": 1, "z": 1 },
+              { "card": "C_5654ABA8", "x": 2, "z": 1 },
+              { "card": "C_AB547E9C", "x": 3, "z": 1 }
+            ],
+            "hand": [],
+            "deck": ["C_E98E60F2", "C_E98E60F2"],
+            "grave": []
+          },
+          "ai": {
+            "life": 30,
+            "fatigue": 0,
+            "bank": [0, 0, 0, 0, 0, 0],
+            "lands": [],
+            "units": [
+              { "card": "C_7348D471", "x": 2, "z": 4, "tapped": true },
+              { "card": "C_64AA066B", "x": 3, "z": 4 },
+              { "card": "C_AC582815", "x": 4, "z": 4 }
+            ],
+            "hand": [],
+            "deck": ["C_DA499FAE", "C_DA499FAE"],
+            "grave": []
+          }
+        },
+        {
+          "startTurn": 10,
+          "firstPlayer": "P1",
+          "_s4": "段3·隐密/帷幕：第一发消灭候选只剩帷幕（Concealed 滤目标+Taunt 收窄对方侧）；帷幕死后第二发只剩 8/8。中间非换场 intro 等第一发结算。",
+          "player": {
+            "life": 30,
+            "fatigue": 0,
+            "bank": [0, 9, 0, 0, 0, 0],
+            "lands": [],
+            "units": [],
+            "hand": ["C_C635DB5D", "C_DE95C8CC"],
+            "deck": ["C_E98E60F2", "C_E98E60F2"],
+            "grave": []
+          },
+          "ai": {
+            "life": 30,
+            "fatigue": 0,
+            "bank": [0, 0, 0, 0, 0, 0],
+            "lands": [],
+            "units": [
+              { "card": "C_3D2CBFE6", "x": 2, "z": 4 },
+              { "card": "C_98135A73", "x": 3, "z": 4 },
+              { "card": "C_8C47525E", "x": 4, "z": 4 }
+            ],
+            "hand": [],
+            "deck": ["C_DA499FAE", "C_DA499FAE"],
+            "grave": []
+          }
+        },
+        {
+          "startTurn": 10,
+          "firstPlayer": "P1",
+          "_s5": "段4·吸血/系命（2026-11-09 修订：活/死双演示+对手回合反击回血）：玩家 20/30。吸血甲(cl1)打 2/2甲：回 3 挨反击 2 剩 1 活；吸血乙(cl1)打 3/3甲：回 3 挨 3 死；系命甲打 3/3乙：角色 20→23、自己死；end 后 AI turn1 白板2/2乙打系命乙：系命乙 3→1 反击 3 杀 2/2、角色 23→26、系命乙活。",
+          "player": {
+            "life": 20,
+            "maxLife": 30,
+            "fatigue": 0,
+            "bank": [0, 0, 0, 0, 0, 0],
+            "lands": [],
+            "units": [
+              { "card": "C_E8B8EE22", "x": 2, "z": 2, "currentLife": 1 },
+              { "card": "C_9460C612", "x": 3, "z": 2, "currentLife": 1 },
+              { "card": "C_E5D9D557", "x": 1, "z": 1 },
+              { "card": "C_6CE1BAAF", "x": 2, "z": 1 }
+            ],
+            "hand": [],
+            "deck": ["C_E98E60F2", "C_E98E60F2"],
+            "grave": []
+          },
+          "ai": {
+            "life": 30,
+            "fatigue": 0,
+            "bank": [0, 0, 0, 0, 0, 0],
+            "lands": [],
+            "units": [
+              { "card": "C_AC584F8A", "x": 3, "z": 4 },
+              { "card": "C_BA6BE8EC", "x": 4, "z": 4 },
+              { "card": "C_5DBE70BB", "x": 5, "z": 4 },
+              { "card": "C_7E1B7AA1", "x": 3, "z": 5 }
+            ],
+            "hand": [],
+            "deck": ["C_DA499FAE", "C_DA499FAE"],
+            "grave": []
+          }
+        },
+        {
+          "startTurn": 10,
+          "firstPlayer": "P1",
+          "_s6": "段5·剧毒/不灭：剧毒甲打 8/8 白板（伤害后 TryKill 消灭、自己挨 8 反击死）；剧毒乙打不灭 8/8（消灭被 DeathRules 拦、只掉 2、自己也死）。",
+          "player": {
+            "life": 30,
+            "fatigue": 0,
+            "bank": [0, 0, 0, 0, 0, 0],
+            "lands": [],
+            "units": [
+              { "card": "C_DCDC05A7", "x": 2, "z": 2 },
+              { "card": "C_52A944EE", "x": 3, "z": 2 }
+            ],
+            "hand": [],
+            "deck": ["C_E98E60F2", "C_E98E60F2"],
+            "grave": []
+          },
+          "ai": {
+            "life": 30,
+            "fatigue": 0,
+            "bank": [0, 0, 0, 0, 0, 0],
+            "lands": [],
+            "units": [
+              { "card": "C_8C47525E", "x": 3, "z": 4 },
+              { "card": "C_750FFED3", "x": 4, "z": 4 }
+            ],
+            "hand": [],
+            "deck": ["C_DA499FAE", "C_DA499FAE"],
+            "grave": []
+          }
+        },
+        {
+          "startTurn": 10,
+          "firstPlayer": "P1",
+          "_s7": "段6·再生：3/5 带 currentLife 1 播种；end→AI turn2 空过→己方准备阶段 RunStandbyAutomation 回满 5。",
+          "player": {
+            "life": 30,
+            "fatigue": 0,
+            "bank": [0, 0, 0, 0, 0, 0],
+            "lands": [],
+            "units": [
+              { "card": "C_629A3AF5", "x": 2, "z": 2, "currentLife": 1 }
+            ],
+            "hand": [],
+            "deck": ["C_E98E60F2", "C_E98E60F2"],
+            "grave": []
+          },
+          "ai": {
+            "life": 30,
+            "fatigue": 0,
+            "bank": [0, 0, 0, 0, 0, 0],
+            "lands": [],
+            "units": [],
+            "hand": [],
+            "deck": ["C_DA499FAE", "C_DA499FAE"],
+            "grave": []
+          }
+        },
+        {
+          "startTurn": 10,
+          "firstPlayer": "P1",
+          "_s8": "段7·守护（2026-11-09 修订：溢出伤害转移演示）：AI 8/8 打角色→全额改由 2/7 守护承受（守护改写单跳、超出生命的部分也吃下）→守护 7-8 死、角色 30 不动。",
+          "player": {
+            "life": 30,
+            "fatigue": 0,
+            "bank": [0, 0, 0, 0, 0, 0],
+            "lands": [],
+            "units": [
+              { "card": "C_E73AEE6F", "x": 2, "z": 2 }
+            ],
+            "hand": [],
+            "deck": ["C_E98E60F2", "C_E98E60F2"],
+            "grave": []
+          },
+          "ai": {
+            "life": 30,
+            "fatigue": 0,
+            "bank": [0, 0, 0, 0, 0, 0],
+            "lands": [],
+            "units": [
+              { "card": "C_8C47525E", "x": 3, "z": 4 }
+            ],
+            "hand": [],
+            "deck": ["C_DA499FAE", "C_DA499FAE"],
+            "grave": []
+          }
+        },
+        {
+          "startTurn": 10,
+          "firstPlayer": "P1",
+          "_s9": "段8·狩猎+组合（2026-11-09 修订）：玩家回合末两只狩猎自动出击（payTap=false 不横置）：狩猎咬角色 4；狩猎吸血(cl1)咬角色 4 并吸血回满 2。AI 空场=目标唯一确定。",
+          "player": {
+            "life": 30,
+            "fatigue": 0,
+            "bank": [0, 0, 0, 0, 0, 0],
+            "lands": [],
+            "units": [
+              { "card": "C_030E8991", "x": 2, "z": 2 },
+              { "card": "C_59A3BB05", "x": 3, "z": 2, "currentLife": 1 }
+            ],
+            "hand": [],
+            "deck": ["C_E98E60F2", "C_E98E60F2"],
+            "grave": []
+          },
+          "ai": {
+            "life": 30,
+            "fatigue": 0,
+            "bank": [0, 0, 0, 0, 0, 0],
+            "lands": [],
+            "units": [],
+            "hand": [],
+            "deck": ["C_DA499FAE", "C_DA499FAE"],
+            "grave": []
+          }
+        },
+        {
+          "startTurn": 10,
+          "firstPlayer": "P1",
+          "_s10": "段9·病原体（2026-11-09 修订：三来源染毒）：AI turn5=连击小兵(1/3)打病原体乙（两下各 1、乙 4→2、小兵挨反击 2 剩 1、染 2 层）→白板3/3甲打病原体甲（甲 4→1、3/3 挨反击 2 剩 1、染 1 层）→play 一点法术点病原体甲（甲死、来源染 1 层）→AI 回合末毒素发作：小兵 -2 死、3/3 -1 死、来源层结算按引擎实际（效果伤害 source 归属待验证）。",
+          "player": {
+            "life": 30,
+            "fatigue": 0,
+            "bank": [0, 0, 0, 0, 0, 0],
+            "lands": [],
+            "units": [
+              { "card": "C_6454E497", "x": 2, "z": 2 },
+              { "card": "C_E3CADDFD", "x": 3, "z": 2 }
+            ],
+            "hand": [],
+            "deck": ["C_E98E60F2", "C_E98E60F2"],
+            "grave": []
+          },
+          "ai": {
+            "life": 30,
+            "fatigue": 0,
+            "bank": [0, 0, 0, 0, 0, 0],
+            "lands": [],
+            "units": [
+              { "card": "C_BA6BE8EC", "x": 3, "z": 4 },
+              { "card": "C_DD519F03", "x": 4, "z": 4 }
+            ],
+            "hand": ["C_2730BF8F"],
+            "deck": ["C_DA499FAE", "C_DA499FAE"],
+            "grave": []
+          }
+        },
+        {
+          "startTurn": 10,
+          "firstPlayer": "P1",
+          "_s11": "段10·绝缘体（2026-11-09 三改：法术赋予+光环授予双通道+驱散引出赋予/印刷之别）：P1=狩猎(2,2)+狩猎吸血(3,2)+绝缘体本体(1,1 印刷)、手牌=[绝缘光环结界, 绝缘赋予法术]。AI turn6 沉睡/失效四连（本体层照落+全无效=印刷死层）；玩家回合：法术赋予→狩猎（Temp 轨入 _keywords=压制豁免成立）、光环落位(4,2)（自动落位=首空格仅邻狩猎吸血——表位7拉黑+IsActive 盲=光环通道两缺口，不符清单③）、狩猎攻击横置；回合末狩猎吸血应照常开火（IsActive 盲则哑火）。AI turn7 再沉睡×2（死层+不拦重置）；AI turn8 拆通道：驱散→狩猎（Temp 赋予+层全清）、无效→光环来源（原子域=生物指不到结界+光环域退出压制=缺口）、驱散→本体（印刷驱不散、只清其他指示物）。",
+          "player": {
+            "life": 30,
+            "fatigue": 0,
+            "landCapBonus": 4,
+            "bank": [0, 0, 0, 0, 0, 0],
+            "lands": [
+              { "card": "C_CD942636", "tokenType": "Gray" },
+              { "card": "C_CD942636", "tokenType": "Gray" },
+              { "card": "C_CD942636", "tokenType": "Gray" },
+              { "card": "C_CD942636", "tokenType": "Gray" },
+              { "card": "C_CD942636", "tokenType": "Gray" },
+              { "card": "C_CD942636", "tokenType": "Gray" },
+              { "card": "C_CD942636", "tokenType": "Gray" },
+              { "card": "C_CD942636", "tokenType": "Gray" },
+              { "card": "C_CD942636", "tokenType": "Gray" },
+              { "card": "C_11B82155", "tokenType": "Blue" },
+              { "card": "C_11B82155", "tokenType": "Blue" }
+            ],
+            "units": [
+              { "card": "C_030E8991", "x": 2, "z": 2, "tapped": true },
+              { "card": "C_59A3BB05", "x": 3, "z": 2, "tapped": true },
+              { "card": "C_7FD01D48", "x": 1, "z": 1 }
+            ],
+            "hand": ["C_12705A5A", "C_01835F2B"],
+            "deck": ["C_E98E60F2", "C_E98E60F2", "C_E98E60F2"],
+            "grave": []
+          },
+          "ai": {
+            "life": 30,
+            "fatigue": 0,
+            "bank": [0, 0, 0, 0, 0, 0],
+            "lands": [],
+            "units": [],
+            "hand": ["C_BA2BFFAD", "C_3AC147C9", "C_63FAF37B", "C_C55C98E2", "C_0BFA4FD0", "C_04425248", "C_483E94BC", "C_2D514294", "C_4082D33D"],
+            "deck": ["C_DA499FAE", "C_DA499FAE", "C_DA499FAE"],
+            "grave": []
+          }
+        }
+      ]
+    }
+  ]
+}

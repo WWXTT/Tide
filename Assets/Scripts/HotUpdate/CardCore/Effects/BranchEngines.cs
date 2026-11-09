@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Cysharp.Threading.Tasks;
@@ -185,7 +185,8 @@ namespace CardCore
                                 {
                                     int turns = Math.Max(1, payload.CountdownTurns);
                                     int cd = card.GetCounterCount(Attribute.CounterRules.CountdownCounter);
-                                    bool asleep = card.GetCounterCount(Attribute.KeywordRules.SleepCounter) > 0;
+                                    // 效果口径（2026-11-09）：绝缘体单位的沉睡层是死层，倒计时照常即走即发
+                                    bool asleep = card.GetEffectiveCounterCount(Attribute.KeywordRules.SleepCounter) > 0;
                                     // 声明时机门（2026-11-05 时机两档定案：倒计时按**声明时机**发射）：
                                     // 主动档宿主（TriggerTiming∈{19,20,21}——判主动权威口径）归零=待发，
                                     // 不随宿主回合开始自动发奖（发射窗=玩家主动发动）；自动档照旧即发即重挂。

@@ -147,10 +147,12 @@ namespace SynergyUI
 
                 _heroes[owner] = v;
             }
-            // 教学介绍段对手柱显隐（2026-10-18 用户定案：创建流程不动，建后隐藏）：讲角色/右侧区
-            // 只显自己，读到操作预告段（Solo("all")）才显露；非教学局标记恒 false 零影响。每次对账幂等同步。
-            if (owner == 1)
-                v.Root.gameObject.SetActive(!BattleRevealDirector.HideOpponentHero);
+            // 教学介绍段柱显隐（2026-10-18 对手柱 / 2026-11-09 己方柱）：创建流程不动，建后按标记
+            // 隐藏——独占段只显当前讲的区块（basics_03 讲完角色，basics_04 起藏柱至操作预告段 all）；
+            // 非教学局标记恒 false 零影响。每次对账幂等同步。
+            v.Root.gameObject.SetActive(owner == 1
+                ? !BattleRevealDirector.HideOpponentHero
+                : !BattleRevealDirector.HideSelfHero);
             // 立柱数值（2026-10-16）：常态只显 HP；护甲>0 缀「(+x)」；获得攻击力（HeroAttack 弹药>0）
             // 追加「Ac:x」——无攻击力不占位，弹药打空自动回落纯 HP。
             // 2026-10-17 角色状态展示：非读数层指示物续拼「名×n」摘要（读数层 Ac/护甲已表达）——

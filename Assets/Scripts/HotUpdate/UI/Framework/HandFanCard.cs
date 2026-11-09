@@ -355,9 +355,11 @@ namespace SynergyUI
         }
 
         /// <summary>费用方格刷新（对账/切行共用）：特殊行选中且带账单优先；
-        /// 多主动法术=选中行 ActiveEffectCosts（净费口径）；其余=卡净费 Costs（旧口径）。充能行无固定
-        /// 账单（现付 1 点待选色）→维持当前模式费显示。代价组（Cost2，2026-11-03 双组改版）=选中行
-        /// 效果级代价（ActiveEffectPayloadCosts，2026-11-06 逐行化），无则回落卡级 PayloadCost
+        /// 多主动法术=选中行 ActiveEffectCosts（净费口径）；单主动法术=该效果净费+代价组
+        ///（2026-11-09 定案——法术卡面费构筑期不占、真账在锚价，卡净费恒 0 无信息量）；
+        /// 生物/结界=卡净费 Costs（旧口径）。充能行无固定账单（现付 1 点待选色）→维持当前
+        /// 显示。代价组（Cost2，2026-11-03 双组改版）=选中行效果级代价
+        ///（ActiveEffectPayloadCosts，2026-11-06 逐行化），无则回落卡级 PayloadCost
         /// ——恒随卡（与费用行选择无关），无代价自动隐藏 Cost2。</summary>
         private void UpdateEffectCost()
         {
@@ -378,6 +380,14 @@ namespace SynergyUI
                     var payCosts = _chromeItem.ActiveEffectPayloadCosts;
                     if (payCosts != null && m < payCosts.Count && payCosts[m] != null)
                         pay = payCosts[m]; // 该模式行带效果级代价——代价组随行
+                }
+                else if (_chromeItem.Supertype == Cardtype.Spell && _chromeItem.ActiveEffectCost != null)
+                {
+                    // 单主动法术（2026-11-09）：费用组=该效果净费（发动费−抵扣）、
+                    // 代价组=该效果级代价——与行级方格同源口径
+                    cost = _chromeItem.ActiveEffectCost;
+                    if (_chromeItem.ActiveEffectPayloadCost != null)
+                        pay = _chromeItem.ActiveEffectPayloadCost;
                 }
             }
             // null=0费卡（CardOverlayItem 零费不落 Costs）→传全零显单块灰「0」占位（2026-11-03）

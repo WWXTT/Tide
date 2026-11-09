@@ -77,21 +77,32 @@ namespace CardCore
         }
 
         /// <summary>ElementCost 账单归一为 ManaType→int（2026-10-04 位置数组化主入口；跳过 ≤0 项）。
-        /// 取整口径同上——支付终点逐色进1。</summary>
+        /// 取整口径同上——支付终点逐色进1（复用 CeilBill 单源，防两套 ε）。</summary>
         public static Dictionary<ManaType, int> NormalizeBill(ElementCost cost)
         {
             var bill = new Dictionary<ManaType, int>();
-            if (cost == null) return bill;
-            foreach (var color in cost.NonzeroColors())
-            {
-                int amount = (int)Math.Ceiling(cost[color] - 1e-4f);
-                if (amount > 0) bill[color] = amount;
-            }
+            var ceil = CeilBill(cost);
+            foreach (var color in ceil.NonzeroColors())
+                bill[color] = (int)ceil[color];
             return bill;
         }
 
-        /// <summary>填链：需求色的候选货币按支付序排列（2026-10-28 四色重构；2026-10-23 任意元素）：
-        /// 红/蓝/绿=[本色,任意]（三色缺口只有本色或任意元素能付——灰不垫三色）；
+        /// <summary>逐色向上取整（返回 ElementCost 容器；ε=1e-4 与 NormalizeBill 同款）。
+        /// 2026-11-09 定案：卡组合阶段口径单源——卡费/卡面主动效果费与支付终点同一进位规则。</summary>
+        public static ElementCost CeilBill(ElementCost cost)
+        {
+            var r = new ElementCost();
+            if (cost == null) return r;
+            foreach (var c in cost.NonzeroColors())
+            {
+                int n = (int)Math.Ceiling(cost[c] - 1e-4f);
+                if (n > 0) r[c] = n;
+            }
+            return r;
+        }
+
+        /// <summary>填链：需求色的候选货币按支付序排列（2026-10-28 四色重构；2026-10-23 彩元素）：
+        /// 红/蓝/绿=[本色,任意]（三色缺口只有本色或彩元素能付——灰不垫三色）；
         /// 灰=通用费：红/蓝/绿/任意都能付（黑白删除后不再垫灰）；
         /// 黑/白（过渡态——P2 删除枚举成员后不再出现）落 `_` 默认=[本色]；
         /// 任意=万能货币（42e883b2 元素合成生成），恒处链**末位**垫付——链内前序耗尽才消耗，

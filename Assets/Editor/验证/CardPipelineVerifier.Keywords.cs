@@ -389,33 +389,83 @@ namespace CardCore.Editor
             GameActions.DrainStack(core);
             Assert(tank.GetLife() == 1 && doubleS.IsAlive, "连击：伤害结算两次（5命 −2×2 = 1）");
 
-            // ---- 11. 碾压：邻接受击（注入邻接扩展点；2026-10-04 语义修订=左右同排生物） ----
+            // ---- 11. 碾压（2026-11-09 溅射域改版）：邻格占用者不限类别——生物/结界/角色照打 ----
             ResetField(); // 段界清场（容量 9）
             var hammer = Make(p1, 4, 9, "Overwhelm");
             var pivot = Make(p2, 1, 9);
             var neighbor = Make(p2, 1, 9);
-            // 相邻结界（无生命单位，耐久 3）：溅射域只含生物——结界不吃溅射（耐久不扣）
+            // 相邻结界（无生命单位）：溅射全额扣耐久（旧「只打生物 IsLivingUnit」口径退役）。
+            // 耐久垫高到 9+（铭刻光环 +1 时基线 10）——避免归零直送墓干扰断言锚
             var wardStone = new CardWrapper(new CardData
             {
                 ID = "VERIFY_KW_ENCH", CardName = "侧翼结界", Supertype = Cardtype.Enchantment,
             });
             wardStone.SetController(p2);
             Assert(core.ZoneManager.TryAddToBattlefield(wardStone, p2), "侧翼结界入场成功");
-            wardStone.AddCounters(CardCore.Attribute.CounterRules.DurabilityCounter, 3);
-            // 基线快照（铭刻光环在场时指示物添加 +1——3 或 4 均为合法基线；断言锚「不因溅射变化」）
+            wardStone.AddCounters(CardCore.Attribute.CounterRules.DurabilityCounter, 9);
+            // 基线快照（铭刻光环在场时指示物添加 +1——9 或 10 均为合法基线）
             int wardBase = wardStone.GetCounterCount(CardCore.Attribute.CounterRules.DurabilityCounter);
             used.Add(wardStone);
+            int p2LifeTrample = p2.Life;
             CardCore.CombatSystem.AdjacentResolver = c => c == pivot
-                ? new[] { neighbor, wardStone } : System.Array.Empty<Card>();
+                ? new Entity[] { neighbor, wardStone, p2 } : System.Array.Empty<Entity>();
             GameActions.DeclareAttack(core, p1, hammer, pivot);
             GameActions.DrainStack(core);
-            Assert(pivot.GetLife() == 5 && neighbor.GetLife() == 5, "碾压：目标与相邻随从各受 4 点（无反击）");
+            Assert(pivot.GetLife() == 5 && neighbor.GetLife() == 5, "碾压：目标与相邻随从各受 4 点");
             Assert(wardStone.IsAlive
-                   && wardStone.GetCounterCount(CardCore.Attribute.CounterRules.DurabilityCounter) == wardBase,
-                   $"碾压：溅射只打生物——相邻结界耐久不扣（{wardBase}→{wardBase}）——实际 alive={wardStone.IsAlive} " +
+                   && wardStone.GetCounterCount(CardCore.Attribute.CounterRules.DurabilityCounter) == wardBase - 4,
+                   $"碾压：相邻结界吃溅射——耐久全额扣（{wardBase}→{wardBase - 4}）——实际 alive={wardStone.IsAlive} " +
                    $"耐久={wardStone.GetCounterCount(CardCore.Attribute.CounterRules.DurabilityCounter)} " +
                    $"区={wardStone.GetZone()}");
+            Assert(p2.Life == p2LifeTrample - 4, "碾压：邻格=防守方角色格——溅射直伤角色 4 点");
+
+            // ---- 11-2. 碾压被拦截：守卫改写主目标，溅射仍以宣言原目标的邻格计算 ----
+            ResetField(); // 段界清场（容量 9）
+            var ram = Make(p1, 5, 9, "Overwhelm");
+            var crushPrey = Make(p2, 1, 9);       // 宣言原目标（碾压溅射枢轴）
+            var flanker = Make(p2, 1, 9);      // 原目标邻格生物
+            var interceptor = Make(p2, 2, 6);  // 守卫（速度1响应改写主目标）
+            CardCore.CombatSystem.AdjacentResolver = c => c == crushPrey
+                ? new Entity[] { flanker } : System.Array.Empty<Entity>();
+            Assert(GameActions.DeclareAttack(core, p1, ram, crushPrey), "碾压拦截段：攻击原目标宣言上栈");
+            Assert(core.StackEngine.PushGuardDeclaration(interceptor, core.StackEngine.Peek(), p2),
+                   "碾压拦截段：守卫速度1响应入栈");
+            GameActions.DrainStack(core); // 守卫先结（目标改写）→ 攻击结算（战斗发生在守卫那格）
+            Assert(interceptor.GetLife() == 1 && interceptor.IsTapped(),
+                   "碾压被拦截：守卫承担主战斗伤害（6−5）并横置");
+            Assert(crushPrey.GetLife() == 9 && !crushPrey.IsTapped(),
+                   "碾压被拦截：原目标免主战斗伤害（战斗发生在守卫那格）");
+            Assert(flanker.GetLife() == 4, "碾压被拦截：溅射仍按宣言原目标邻格结算（9−5）");
             CardCore.CombatSystem.AdjacentResolver = null;
+
+            // ---- 11b. 溅射连锁（2026-11-09 改版，红3）：战斗结算对随机对手单位造成溢出伤害；
+            //      溅射伤害再次溢出则继续连锁。夹具对称（受害者同攻同命）——链路结局与随机选谁无关 ----
+            ResetField(); // 段界清场（容量 9）
+            var splasher = Make(p1, 6, 9, "Splash");
+            var splashBait = Make(p2, 0, 1); // 主目标 1 命：溢出 6−1=5
+            var chainA = Make(p2, 0, 2);
+            var chainB = Make(p2, 0, 2);
+            int p2LifeSplash = p2.Life;
+            GameActions.DeclareAttack(core, p1, splasher, splashBait);
+            GameActions.DrainStack(core);
+            // 链路：主目标吃 6 死 → 首溅 5（2 命死，余 3）→ 次溅 3（另一只 2 命死，余 1）→ 池空终止
+            Assert(!splashBait.IsAlive && !chainA.IsAlive && !chainB.IsAlive,
+                   "溅射连锁：主目标与两只溅射受害者全灭（6 攻：1命→溅5；2命→溅3；2命→余1 池空止）");
+            Assert(splasher.IsAlive && p2.Life == p2LifeSplash,
+                   "溅射连锁：0 攻受害者不反击；溅射只打单位，不波及角色");
+
+            // 恰好耗尽：溅射量=受害者生命 → 连锁终止（对称双胞胎，另一只必然幸存满命）
+            ResetField(); // 段界清场（容量 9）
+            var pincher = Make(p1, 3, 9, "Splash");
+            var pinchBait = Make(p2, 0, 1); // 溢出 3−1=2
+            var pinchA = Make(p2, 0, 2);
+            var pinchB = Make(p2, 0, 2);
+            GameActions.DeclareAttack(core, p1, pincher, pinchBait);
+            GameActions.DrainStack(core);
+            Assert(!pinchBait.IsAlive
+                   && ((!pinchA.IsAlive) != (!pinchB.IsAlive)) // 恰一只被溅死
+                   && (pinchA.IsAlive ? pinchA.GetLife() : pinchB.GetLife()) == 2,
+                   "溅射恰尽：溢出 2 恰好击杀 2 命受害者后连锁终止（幸存者满命 2）");
 
             // ---- 12. 毒刺/冰晶已删（2026-10-15 战斗伤害改写族整体退役——KeywordRules 改写链仅余舍身
             //      （2026-10-30 改版战斗法师，散射无配对）；毒素指示物随毒刺失去唯一施加口，回合末发作例程断言一并退役）----
@@ -700,23 +750,67 @@ namespace CardCore.Editor
             Assert(pmTwin.GetPower() == 1 && pmTwin.GetMaxLife() == 3,
                    "±1 层对消共存：-1/-1×2 与 +1/+1×1（净 -1/-1）");
 
-                // ---- 18d. 易损（2026-10-09 生效自减改版，同毒素档）：受到伤害每层 +1（防护层前放大），
-                //      生效后层数减半（floor）；退出衰退族（无回合末倒数） ----
+                // ---- 18d. 易损（2026-10-09 生效自减；2026-11-09 改版：生效后全部移除，不再减半）：
+                //      受到伤害每层 +1（防护层前放大）；退出衰退族（无回合末倒数） ----
                 var brittle = Make(p2, 2, 15);
                 brittle.AddCounters(CardCore.Attribute.CounterRules.VulnerableCounter, 2);
                 Attribute.KeywordRules.ApplyDamage(p1, brittle, 3, false);
                 Assert(brittle.GetLife() == 10
-                       && brittle.GetCounterCount(CardCore.Attribute.CounterRules.VulnerableCounter) == 1,
-                       "易损：3 伤 + 2 层 = 5 伤（防护层前放大），生效后减半（2→1）");
+                       && brittle.GetCounterCount(CardCore.Attribute.CounterRules.VulnerableCounter) == 0,
+                       "易损：3 伤 + 2 层 = 5 伤（防护层前放大），生效后全部移除（2→0）");
                 CardCore.Attribute.CounterRules.OnTurnEnd(p2, core.ZoneManager);
-                Assert(brittle.GetCounterCount(CardCore.Attribute.CounterRules.VulnerableCounter) == 1,
+                Assert(brittle.GetCounterCount(CardCore.Attribute.CounterRules.VulnerableCounter) == 0,
                        "易损：持有者回合末不倒数（生效自减档——已退出衰退族；施加方回合末同样不结算）");
                 Attribute.KeywordRules.ApplyDamage(p1, brittle, 3, false);
-                Assert(brittle.GetLife() == 6
-                       && brittle.GetCounterCount(CardCore.Attribute.CounterRules.VulnerableCounter) == 0,
-                       "易损第二击：余 1 层 → 3 伤 +1 = 4 伤，层清零");
-                Attribute.KeywordRules.ApplyDamage(p1, brittle, 3, false);
-                Assert(brittle.GetLife() == 3, "易损层耗尽后裸伤（无放大）");
+                Assert(brittle.GetLife() == 7, "易损第二击：层已全部移除 → 裸伤 3（无放大）");
+
+            // ---- 18d-2. 破败仪典（2026-11-09 新增，改写族·表行 91f35ec1）：受光环影响一方获得的护甲
+            //      转换为等量易损（易损生效全移已是全局默认——18d 口径，光环只剩转换一半）。仅对方档
+            //      （scope=Opponent）验证单侧命中——控制者侧护甲照常落账。----
+            ResetField(); // 段界清场（P11 容量 9）
+            var decayVictim = Make(p2, 2, 15);
+            var decayOwnUnit = Make(p1, 2, 15);
+            decayVictim.AddCounters(CardCore.Attribute.KeywordRules.ArmorCounter, 2); // 光环激活前的存量护甲
+            var decayCarrier = new CardWrapper(new CardData
+            {
+                ID = "VERIFY_DECAY_CARRIER", CardName = "破败验证载体", Supertype = Cardtype.Enchantment, Durability = 9,
+            });
+            decayCarrier.SetController(p1);
+            Assert(core.ZoneManager.TryAddToBattlefield(decayCarrier, p1), "破败仪典段：载体入场成功");
+            var decaySaveId = CardCore.RuleAuraSystem.IsActive(CardCore.RuleAuraComponents.ArmorDecay)
+                ? CardCore.RuleAuraComponents.ArmorDecay : null;
+            var decaySaveCarrier = CardCore.RuleAuraSystem.CarrierOf(CardCore.RuleAuraComponents.ArmorDecay);
+            var decaySaveCtrl = CardCore.RuleAuraSystem.ControllerOf(CardCore.RuleAuraComponents.ArmorDecay);
+            CardCore.RuleAuraSystem.Activate(CardCore.RuleAuraComponents.ArmorDecay, decayCarrier, p1,
+                (int)CardCore.RuleAuraScope.Opponent); // 仅对方档：p2 命中、p1 不命中
+            try
+            {
+                int decayRemoved = decayVictim.AddCounters(CardCore.Attribute.KeywordRules.ArmorCounter, -1);
+                Assert(decayRemoved == -1
+                       && decayVictim.GetCounterCount(CardCore.Attribute.KeywordRules.ArmorCounter) == 1,
+                       "破败仪典：存量护甲负量移除照常（返回 -1、不拦不转换）");
+                int decayDelta = decayVictim.AddCounters(CardCore.Attribute.KeywordRules.ArmorCounter, 3);
+                Assert(decayDelta == 0
+                       && decayVictim.GetCounterCount(CardCore.Attribute.KeywordRules.ArmorCounter) == 1
+                       && decayVictim.GetCounterCount(CardCore.Attribute.CounterRules.VulnerableCounter) == 3,
+                       "破败仪典：受影响单位获得护甲 3 层 → 转换等量易损（返回 0、护甲不涨）");
+                decayOwnUnit.AddCounters(CardCore.Attribute.KeywordRules.ArmorCounter, 2);
+                Assert(decayOwnUnit.GetCounterCount(CardCore.Attribute.KeywordRules.ArmorCounter) == 2
+                       && decayOwnUnit.GetCounterCount(CardCore.Attribute.CounterRules.VulnerableCounter) == 0,
+                       "破败仪典（仅对方档）：控制者侧护甲照常落账（ScopeHits 单侧命中）");
+                // 易损放大在防护层前：3+3=6 → 存量护甲 1 吸 1 → 落 5 血（15→10）；易损全部移除（非减半）
+                Attribute.KeywordRules.ApplyDamage(p1, decayVictim, 3, false);
+                Assert(decayVictim.GetLife() == 10
+                       && decayVictim.GetCounterCount(CardCore.Attribute.KeywordRules.ArmorCounter) == 0
+                       && decayVictim.GetCounterCount(CardCore.Attribute.CounterRules.VulnerableCounter) == 0,
+                       "破败仪典：易损 3 层放大 3+3=6（护甲吸收放大后的量 1 点）→ 落 5 血，生效后全部移除");
+            }
+            finally
+            {
+                CardCore.RuleAuraSystem.Reset(); // 还原（同丰盈段惯例：整槽清空+按存档回挂）
+                if (decaySaveId != null) CardCore.RuleAuraSystem.Activate(decaySaveId, decaySaveCarrier, decaySaveCtrl);
+                core.ZoneManager.MoveCard(decayCarrier, p1, Zone.Battlefield, Zone.Graveyard);
+            }
 
             // ---- 18e. 紊乱原子：附加后不能以玩家为目标（攻击与效果同口径） ----
             var dizzy = Make(p2, 2, 5);

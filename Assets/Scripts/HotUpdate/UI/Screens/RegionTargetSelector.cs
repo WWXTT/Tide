@@ -23,7 +23,7 @@ namespace SynergyUI
     /// 打开时压掉浏览三件（title/lines/cards）并复位 Region 活跃态；IsOpen 供
     /// BattleScreen.RefreshRegion/OpenRegion 闭流防串台。
     /// 红瞄准面片（2026-10-16 晚定案·选中才上盘）：开窗不铺候选面片，选中/取消选中在候选
-    /// 地块 Show/Hide 红瞄准（与 sel-frame 同拍·全尺寸单档）。单位/施放立牌经注入的
+    /// 地块 Show/Hide 红瞄准（与卡面 Outline 选中高亮同拍·全尺寸单档）。单位/施放立牌经注入的
     /// boardCellOf（BattleScreen→BattleFieldView.TryGetOnBoardCell）定位；角色候选经
     /// roleCellOf（BattleScreen→BoardState.CharacterCell）定位角色格——选中角色地块同样出面片。
     /// 关窗单口清（ClearAll）。
@@ -75,7 +75,7 @@ namespace SynergyUI
         private readonly TMP_Dropdown _dropdown;   // Select/Dropdown：类别/颜色/费用/维度档宣言（2026-11-03 信息轴）
 
         private readonly List<int> _picked = new List<int>();
-        private readonly List<Image> _frames = new List<Image>();
+        private readonly List<Outline> _frames = new List<Outline>(); // 选中高亮=ACard 根烘焙 Outline 开关（2026-11-09 用户定案：退役代码创建的 sel-frame）
         private (uint id, int x, int z)?[] _reticles; // 本轮候选地块登记（选中才上盘；索引对齐候选；null=无实体/纯选项路径）
         private const uint RoleAimIdBase = uint.MaxValue; // 角色候选面片伪键基（角色无 RuntimeId；高位不与卡的低位顺序号冲突）
         private int _min, _max;
@@ -624,22 +624,12 @@ namespace SynergyUI
             face.Bind();
             face.Apply(item, CardOverlayLayout.Full);
 
-            // 选中高亮框（首子物体外扩 6px；ignoreLayout 防被卡片根 VLG 排版挪位）
-            var frameGo = new GameObject("sel-frame", typeof(RectTransform));
-            frameGo.transform.SetParent(rt, false);
-            frameGo.transform.SetAsFirstSibling();
-            var frt = (RectTransform)frameGo.transform;
-            frt.anchorMin = Vector2.zero;
-            frt.anchorMax = Vector2.one;
-            frt.offsetMin = new Vector2(-6f, -6f);
-            frt.offsetMax = new Vector2(6f, 6f);
-            var fimg = frameGo.AddComponent<Image>();
-            fimg.sprite = UiKit.RoundedSprite;
-            fimg.type = Image.Type.Sliced;
-            fimg.color = UiStyle.SelectedRowBg;
-            frameGo.AddComponent<LayoutElement>().ignoreLayout = true;
-            frameGo.SetActive(false);
-            _frames.Add(fimg);
+            // 选中高亮（2026-11-09 用户定案）：退役代码创建的 sel-frame 外扩底图——改开关
+            // ACard 根烘焙的 Outline（红描边，prefab 默认关）：未选恒关、选中亮（单选互斥同拍清）。
+            // 模板缺 Outline 时高亮缺位不炸（null 占位，点击/瞄准面片照常）。
+            var outline = rt.GetComponent<Outline>();
+            if (outline != null) outline.enabled = false;
+            _frames.Add(outline);
 
             var btn = rt.gameObject.AddComponent<Button>();
             btn.transition = Selectable.Transition.None;
@@ -655,7 +645,7 @@ namespace SynergyUI
             if (_picked.Contains(idx))
             {
                 _picked.Remove(idx);
-                if (_frames[idx] != null) _frames[idx].gameObject.SetActive(false);
+                if (_frames[idx] != null) _frames[idx].enabled = false;
                 SyncReticles();
                 return;
             }
@@ -663,10 +653,10 @@ namespace SynergyUI
             if (_max == 1) // 单选互斥：清其它高亮
             {
                 _picked.Clear();
-                foreach (var f in _frames) if (f != null) f.gameObject.SetActive(false);
+                foreach (var f in _frames) if (f != null) f.enabled = false;
             }
             _picked.Add(idx);
-            if (_frames[idx] != null) _frames[idx].gameObject.SetActive(true);
+            if (_frames[idx] != null) _frames[idx].enabled = true;
             SyncReticles();
         }
 

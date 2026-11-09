@@ -67,6 +67,8 @@ namespace CardCore
                 new SetPowerHandler(),
                 new SetLifeHandler(),
                 new SetCostHandler(),
+                // 攻守互换（2026-11-09 新增，蓝2）：攻击力与生命值上限两值互换——Set 系同款直写口径
+                new SwapPowerLifeHandler(),
                 new ModifyCostHandler(),
 
                 // 信息族 — 强夺（宣言卡名夺对手手牌）/ 窃取（宣言卡名夺对手牌库·2026-10-31）/
@@ -156,9 +158,8 @@ namespace CardCore
                 // 衍生物生成（落区三档：战场/手牌/牌组，费用按落区系数计价）
                 new SummonTokenHandler(),
 
-                // 资源族 — 元素合成/任意元素（2026-10-23：光合作用退役，表行 42e883b2 改生成
-                // 任意元素——万能货币落临时钱包，各支付链末位垫付）
-                new GainAnyElementHandler(),
+                // 元素合成（GainAnyElementHandler）2026-11-09 整链删除：表行/教学条目零消费者
+                //（教学二改挂牺牲送墓产彩）——枚举位/AI 白名单/验证器色表同批清理。
                 // 资源族 — 成长（2026-10-11：灵气复苏改+1，绿3，各自池可无限重复；2026-10-15 封顶退役）
                 new IncreaseLandCapHandler(),
 

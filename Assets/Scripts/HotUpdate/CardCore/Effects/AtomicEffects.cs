@@ -88,7 +88,8 @@ namespace CardCore
         GrantTaunt,
         GrantDivineShield,
         GrantOverwhelm,
-        /// <summary>溅射（2026-11-01 新增，红3）：战斗结算时，对对手随机单位造成溢出的战斗伤害。</summary>
+        /// <summary>溅射（2026-11-01 新增，红3；2026-11-09 连锁改版）：战斗结算时，对对手随机单位
+        /// 造成溢出的战斗伤害；溅射伤害再次溢出则连锁再溅（结算见 CombatSystem.ResolvePair）。</summary>
         GrantSplash,
         /// <summary>坚韧（2026-10-08 指示物化；同日更名——原 GrantArmor 与护甲 AddArmor 命名倒挂纠正；
         /// 2026-10-09 生效自减改版）：对目标附加 {value} 层坚韧指示物（ToughnessCounter）——
@@ -318,7 +319,7 @@ namespace CardCore
         Erase,
 
         // 光合作用（GrantPhotosynthesis）2026-10-23 退役：表行 42e883b2「元素合成」改挂 GainAnyElement
-        //（生成任意元素，非关键词族；旧语义=回合开始获得 {value} 个临时绿色元素）——
+        //（生成彩元素，非关键词族；旧语义=回合开始获得 {value} 个临时绿色元素）——
         // handler 与枚举位已随 2026-10-30 枚举收拢删除。
 
         /// <summary>变形赋予（2026-10-13 临摹/变形赋予定案，表行价 0·同临摹后付）：
@@ -327,7 +328,7 @@ namespace CardCore
         /// 合成器输入框；数量恒 1）。复制面与临摹一致：连身份一起复制（卡名/ID/类别/攻血费/
         /// 印刷关键词）+ 以其文本效果取代自身（跳过其规则光环步），附加 1 层变形指示物
         ///（MorphStateCounter，中性 Resident）——换区/净化解除即纯回滚原形态；
-        /// 变为结界形态自动非横置+初始化耐久；发动主动效果按变形前后费差以任意元素补差（并入灰档——六色支付链皆可垫付）。
+        /// 变为结界形态自动非横置+初始化耐久；发动主动效果按变形前后费差以彩元素补差（并入灰档——六色支付链皆可垫付）。
         /// 消费口=GrantMorphHandler（MorphSystem.ApplyForm）。</summary>
         GrantMorph,
 
@@ -357,12 +358,9 @@ namespace CardCore
         /// CanBeTrunkRow/CanBeRewardRow 排除——门槛行不得作主干/奖励。</summary>
         SituationGate,
 
-        /// <summary>元素合成/生成任意元素（2026-10-23 定案，白3·无目标资源行——表行 42e883b2，
-        /// 接替退役的光合作用）：控制者获得 {value} 个**任意元素**（默认 1，ManaType.Any）——
-        /// 万能货币落临时钱包（任一回合结束清空），支付时沿各色支付链末位垫付、可代替任何
-        /// 颜色元素（含黑白本色费）。非关键词族（Grant 前缀与 MountKinds 关键词位退役——
-        /// 无目标原子，时机/挂载由效果声明驱动）。生成受全类型累计钳（AddMana 内钳）。</summary>
-        GainAnyElement,
+        // 元素合成（GainAnyElement）2026-11-09 整链删除（原子行 6d711f7a/教学条目 F660BB7F 同批退役）：
+        // 教学二改挂牺牲（84136d36 送墓产彩）后零消费者——彩元素产出归牺牲/效果授予族，
+        // 不再单列「生成彩元素」资源原子。handler/注册/AI 白名单/验证器色表同批清。
 
         /// <summary>除外回收（2026-10-29 阶段3a，蓝3——表行 e301f1af）：将所选目标卡从除外区
         /// 返回其持有者手牌（域=己方除外区；非除外区目标跳过）。</summary>
@@ -409,11 +407,12 @@ namespace CardCore
         LivingArmor,
 
         /// <summary>绝缘体（2026-10-31 新增，绿3 表行「绝缘体」764236ed·关键词表）：持有单位不受
-        /// 指示物的效果影响——特殊裁定改版（同日「不拦指示物添加」）：层照常落账，效果判定走
-        /// GetEffectiveCounterCount 效果口径读数（绝缘体单位=0）；沉睡/缄默（压制型·时序互压：
-        /// 生效期间后加即清零）与 StatKind 属性类（回写式）在 AddCounters 咽喉清零；
-        /// 负量（移除）不拦；系统指示物（CounterClass.System——引擎主干内部驱动，如耐久）豁免。
-        /// 表行 MountKinds=关键词,不可作为连接光环（免疫洞防线，同无实体/守护）。</summary>
+        /// 指示物的效果影响——2026-11-09 用户定案全量口径「能加，但效果无效」：全部指示物层照常
+        /// 落账，效果判定走效果口径读数（GetEffectiveCounterCount；绝缘体单位=0）；失效/沉睡
+        /// 两个压制源=死层（层照常落账并正常倒数，但不横置、不拦重置、不压自动/主动——判定在
+        /// SuppressRules.IsAutoSuppressed，见 InsulatorRules）；StatKind 属性类（回写式）仍在
+        /// AddCounters 咽喉清零；负量（移除）不拦；系统指示物（CounterClass.System——引擎主干
+        /// 内部驱动，如耐久）豁免。表行 MountKinds=关键词,不可作为连接光环（免疫洞防线，同无实体/守护）。</summary>
         GrantInsulator,
 
         /// ============ 四色费用指示物（2026-10-31：通用费用增加/减少拆四色，增减各 4 行共 8 行表行） ============
@@ -538,6 +537,21 @@ namespace CardCore
         /// 事件，指示物随换区清除；入池未横置（对手下回合周期即可产色）。区域移动
         /// Battlefield→ElementPool 走 ZoneManager，入池事件 PublishPoolAdd。</summary>
         SealUnit,
+
+        /// <summary>攻守互换（2026-11-09 新增，蓝2 表行 b5998037「攻守互换」·一般效果表）：
+        /// 将{target}（表域=双方战场:生物，极性 0 中性）的攻击力与生命值上限**两值互换**——
+        /// 走系统的设置属性路径（Set 族口径：SetPower 直写本体 + _maxLife 直写，本局永久、
+        /// 跨区保留、净化不清）。读数走系统读数（GetPower/GetMaxLife 含连接光环——交换当前值
+        /// 后光环照常叠加，SetPowerHandler 同款口径）；当前生命保持不动、超出新上限钳至新上限
+        ///（LifeDown 同款钳口——只压不抬），有效生命（含光环）归零标死交 SBA、死亡来源=施加方。
+        /// 消费口=SwapPowerLifeHandler。</summary>
+        SwapPowerLife,
+
+        /// <summary>破败仪典（2026-11-09 新增，场地光环族——RuleAuraComponents.ArmorDecay）：
+        /// 受光环影响一方的单位与角色获得的护甲转换为等量易损指示物（AddCounters 咽喉改写）。
+        /// 同日易损改版生效后全部移除转全局默认，光环原「生效全移」覆盖口退役（只剩护甲转易损一半）。
+        /// 表行 EffectType 仍=ModifyGameRule（未翻新过渡态），str=规则短名兜底投放。</summary>
+        AuraArmorDecay,
     }
 
     /// <summary>

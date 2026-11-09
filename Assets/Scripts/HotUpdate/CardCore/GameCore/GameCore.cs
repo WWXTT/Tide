@@ -225,7 +225,7 @@ namespace CardCore
         {
             // 狩猎（2026-11-01 新增关键词·绿3）：回合方战场可行动单位随机对防守方发起一次攻击——
             // 系统区首位（组合根显式调，同归土惯例）：①直到回合结束的力量加成仍在
-            //（DurationTracker 尚未清）②Temp 轨授予的狩猎尚未清（ClearZoneKeywords 在后）
+            //（DurationTracker 尚未清）②Temp 轨授予的狩猎常驻（2026-11-09 换区清除口径，回合末不再清）
             // ③狩猎击杀对手由随后的 CheckGameOver 兜住。同步结算，无守卫响应窗口。
             this.CombatSystem.ResolveHuntAttacks(e.TurnPlayer);
 
@@ -255,14 +255,11 @@ namespace CardCore
             // 费用≤己方绿色地牌数的生物。排延迟死亡之后——同回合末刚入墓的生物可被复活。
             RuleAuraSystem.ReviveAtTurnEnd(e.TurnPlayer);
 
-            // Temp 轨关键词回合末到期（2026-09-13 定案：生物赋予的关键词固定持续 1 回合——
-            // 魔法 Setting 轨与光环照旧不经此口）：每个回合末清双方战场 Temp 授予
-            foreach (var pl in new[] { _player1, _player2 })
-            {
-                if (pl == null) continue;
-                foreach (var c in ZoneManager.GetCards(pl, Zone.Battlefield).ToList())
-                    Attribute.KeywordRules.ClearZoneKeywords(c);
-            }
+            // Temp 轨关键词=换区清除（2026-11-09 用户定案，取代 2026-09-13「固定持续 1 回合」）：
+            // 授予的关键词跨回合保留，只在该卡离开战场换区时经 KeywordRules.ClearZoneKeywords
+            //（Zones.cs 换区钩子）清除。回合末不再清双方战场 Temp 授予——教学段11「赋予 vs 印刷」
+            // 需要赋予档活到被驱散。魔法 Setting 轨与光环本来就不经此口，口径不变。
+            // 注意：狩猎等「回合末触发」关键词被赋予后同样跨回合常驻，属新口径的预期后果。
 
             // 临时卡（2026-10-10 指示物化）：PurgeTemporaryHandCards 退役——回合末口统一为
             // CounterRules.OnTurnEnd ②临时例程（全区域扫描，见上方调用）——不在战场的挂标卡

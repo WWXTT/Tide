@@ -566,7 +566,7 @@ namespace CardCore.Editor
             foreach (var orphan in core.ZoneManager.GetCards(p1, Zone.ElementPool).ToList())
                 core.ZoneManager.GetZoneContainer(p1).Remove(orphan, Zone.ElementPool);
 
-            // ---- 1. 表行锚（2026-11-03 改版：0费 Pol=0 域={1}——自选N送墓每个+1临时任意元素） ----
+            // ---- 1. 表行锚（2026-11-03 改版：0费 Pol=0 域={1}——自选N送墓每个+1临时彩元素） ----
             var cfg = CardCore.Attribute.AtomicEffectTable.GetByType(AtomicEffectType.Sacrifice);
             Assert(cfg != null && cfg.TotalUnitCost == 0f && cfg.Polarity == 0f
                    && cfg.GetTargetKindList().SequenceEqual(new[] { 1 })
@@ -595,7 +595,7 @@ namespace CardCore.Editor
             Assert(rowCandidates.Contains(p1) && !rowCandidates.Contains(p2),
                    "牺牲候选域收窄：表行域={1}（己方单位）→ 仅己方角色（旧双方域作废）");
 
-            // ---- 3. 行为：持有者交出单位（规则送墓非死亡；不灭无从拦）——每个 +1 临时任意元素 ----
+            // ---- 3. 行为：持有者交出单位（规则送墓非死亡；不灭无从拦）——每个 +1 临时彩元素 ----
             int seq = 0;
             Card Spawn(Player owner, int power, int life, params string[] keywords)
             {
@@ -639,7 +639,7 @@ namespace CardCore.Editor
             Assert(sacDestroyEvents == 0, "牺牲非死亡：全批不发 CardDestroyEvent（死亡时点不触发）");
             Assert(core.ElementPool.GetAvailableManaCount(ManaType.Any, p1) == anyP1 + 1
                    && core.ElementPool.GetAvailableManaCount(ManaType.Any, p2) == anyP2 + 1,
-                   "牺牲入账：每送墓一个单位 +1 临时任意元素（交出方各 +1，任一回合结束清空）");
+                   "牺牲入账：每送墓一个单位 +1 临时彩元素（交出方各 +1，任一回合结束清空）");
 
             // ---- 3b. 多选 {value}（2026-11-03 改版）：候选序前 N 送墓（战场序优先、地牌殿后——3 候选取 2） ----
             var u1 = Spawn(p1, 1, 1);
@@ -675,7 +675,7 @@ namespace CardCore.Editor
             Assert(core.ZoneManager.GetCards(p1, Zone.ElementPool).Contains(land),
                    "牺牲多选：地牌殿后不占前 2 席（候选序=战场序→地牌序）");
             Assert(core.ElementPool.GetAvailableManaCount(ManaType.Any, p1) == anyP1b + 2,
-                   "牺牲多选入账：2 个单位 = +2 临时任意元素");
+                   "牺牲多选入账：2 个单位 = +2 临时彩元素");
 
             // ---- 3c. 地牌扩池（2026-11-03 定案：牺牲范围=场上地牌+生物+结界）：地牌出池入墓照计 Any ----
             int anyP1c = core.ElementPool.GetAvailableManaCount(ManaType.Any, p1);
@@ -689,7 +689,7 @@ namespace CardCore.Editor
             Assert(!core.ElementPool.GetPool(p1).PooledCards.Any(pc => pc.SourceCard == land),
                    "牺牲扩池：出池落账（PooledCards 移除）");
             Assert(core.ElementPool.GetAvailableManaCount(ManaType.Any, p1) == anyP1c + 1,
-                   "牺牲扩池入账：地牌送墓同计 +1 临时任意元素");
+                   "牺牲扩池入账：地牌送墓同计 +1 临时彩元素");
 
             // ---- 4. 帷幕豁免：牺牲类选择权在目标方——帷幕只约束对手的选择（机制口与表行域解耦：
             //      手工四单位类域——域收窄后真实卡只能以己方角色为作用对象，豁免机制本段独立验证） ----
@@ -746,7 +746,7 @@ namespace CardCore.Editor
             Assert(core.ZoneManager.IsCardInZone(enchant, p2, Zone.Graveyard),
                    "牺牲并池：持有者交出唯一无生命单位（结界规则送墓——摒弃覆盖并入牺牲）");
             Assert(core.ElementPool.GetAvailableManaCount(ManaType.Any, p2) == anyP2b + 1,
-                   "牺牲并池入账：结界送墓同计 +1 临时任意元素");
+                   "牺牲并池入账：结界送墓同计 +1 临时彩元素");
         }
 
         // ======================================== 守护（2026-11-05 简化定案：固定护角色） ========================================
@@ -990,15 +990,16 @@ namespace CardCore.Editor
             => CardCore.PendingEffect.Create(def, source, controller, controller,
                 CardCore.PhaseType.Main, 0);
 
-        // ======================================== P9：时机两档 + 无次数上限 + 效果适用卡型（2026-11-05 修订） ========================================
+        // ======================================== P9：时机三档 + 无次数上限 + 效果适用卡型（2026-11-09 修订） ========================================
 
-        /// <summary>P9 断言（2026-11-05 两档收敛修订）：①周期/观察族多次时机挂生物→拒（收回
-        /// 2026-10-30 放开）、结界→过、法术→拒（含合成器候选谓词）；攻/守/横置族归多次档但生物能挂
-        ///（定案·宿主自身行动承担次数）、结界拒（不横置）；引擎载荷豁免（发射窗非重复语义）；
-        /// ②一次性触发三卡型通过；③关键词挂法术拒；④两档系数均 ×1（OnPlay/OnDeath/OnDraw/
-        /// OnStandbyPhase/OnDealDamage/OnAttack）+ IsRepeatTiming 两档归类；⑤全链推导同证
-        ///（登场/抽牌时/造成伤害时均红5——原 7.5/10 随期望次数口径作废）；⑥历史次数档 limit=2/3/-1
-        /// 运行时不再拦（同回合全上栈）；⑦内容审计——教学/训练全表无「生物+周期多次时机」。</summary>
+        /// <summary>P9 断言（2026-11-05 两档收敛；2026-11-09 生物专属档拆分）：①周期/观察族多次时机挂
+        /// 生物→拒（收回 2026-10-30 放开）、结界→过、法术→拒（含合成器候选谓词）；攻/守/横置族为
+        /// 生物专属自动效果——生物过（×1.5·宿主自身行动承担次数）、结界拒（不横置）、法术拒；
+        /// 引擎载荷豁免（发射窗非重复语义）；②一次性触发三卡型通过；③关键词挂法术拒；
+        /// ④三档系数——单次/多次 ×1、攻/守/横置 ×1.5（CreatureOnly 表驱动）+ IsRepeatTiming 归类；
+        /// ⑤全链推导同证（登场/抽牌/伤害红5；攻击/横置红7.5）；⑥历史次数档 limit=2/3/-1
+        /// 运行时不再拦（同回合全上栈）；⑦内容审计——教学/训练全表无「生物+周期多次时机」、
+        /// 无「结界+攻/守/横置族」。</summary>
         private static void TestP9TimingTiersAndEligibility(GameCore core, Player p1)
         {
             EnsureMainPhase(core, p1);
@@ -1012,7 +1013,7 @@ namespace CardCore.Editor
             };
             var repeatDef = Def(TriggerTiming.OnDraw, CardCore.AtomicEffectType.DrawCard); // 周期多次档（抽牌时）
             var onceDef = Def(TriggerTiming.OnPlay, CardCore.AtomicEffectType.DealDamage); // 单次档（登场）
-            var tapDef = Def(TriggerTiming.OnAttack, CardCore.AtomicEffectType.DrawCard);  // 攻/守/横置族（多次档·生物可挂）
+            var tapDef = Def(TriggerTiming.OnAttack, CardCore.AtomicEffectType.DrawCard);  // 攻/守/横置族（生物专属 ×1.5）
             var engineDef = new CardCore.EffectDefinition                                   // 引擎载荷+周期时机（豁免口）
             {
                 Id = "VERIFY_P9_ENG",
@@ -1051,11 +1052,15 @@ namespace CardCore.Editor
             };
             Assert(SynergyUI.CardComposerScreen.HostRejectReason(Cardtype.Creature, repeatGraph) != null,
                    "P9-1d 合成器候选分区谓词：周期多次图不进生物候选（原因可读）");
-            // 攻/守/横置族（2026-11-05 定案）：归多次档但生物能挂——宿主自身行动承担次数；结界不横置拒
+            // 攻/守/横置族（2026-11-09 生物专属档）：归生物专属但生物能挂——宿主自身行动承担次数；结界不横置拒
             Assert(CardCore.EffectEligibility.RejectReason(Cardtype.Creature, tapDef) == null,
-                   "P9-1e 攻/守/横置族（多次档）挂生物：过（定案——横置锚天然限频）");
+                   "P9-1e 攻/守/横置族（生物专属 ×1.5）挂生物：过（横置锚天然限频）");
             Assert(CardCore.EffectEligibility.RejectReason(Cardtype.Enchantment, tapDef) != null,
-                   "P9-1e2 攻/守/横置族挂结界：拒（结界不横置）");
+                   "P9-1e2 攻/守/横置族挂结界：拒（结界不横置、无从触发）");
+            Assert(CardCore.EffectEligibility.HostCanTakeTiming(Cardtype.Creature, TriggerTiming.OnAttack)
+                   && !CardCore.EffectEligibility.HostCanTakeTiming(Cardtype.Enchantment, TriggerTiming.OnAttack)
+                   && !CardCore.EffectEligibility.HostCanTakeTiming(Cardtype.Spell, TriggerTiming.OnAttack),
+                   "P9-1e3 合成器时机下拉宿主过滤：攻/守/横置族仅生物可见");
             // 引擎载荷豁免：效果头时机=奖励发射窗，非重复语义（倒计时/运势/充盈存量生物卡合法）
             Assert(CardCore.EffectEligibility.RejectReason(Cardtype.Creature, engineDef) == null,
                    "P9-1f 引擎载荷+周期时机挂生物：过（发射窗豁免——与计价 TimingCostFactor 同口径）");
@@ -1085,15 +1090,23 @@ namespace CardCore.Editor
                    && CardCore.EffectEligibility.RejectReason(Cardtype.Enchantment, kwDef) == null,
                    "P9-3b 关键词挂生物/结界：可挂");
 
-            // ---- 4. 时机两档系数均 ×1（表 TimingFactor 仅 Once/Repeat 两行；多次成本由耐久承担）----
+            // ---- 4. 时机三档系数：单次/多次 ×1；生物专属（攻/守/横置）×1.5 ----
             float F(TriggerTiming t) => CardCore.CostDerivationService.TimingCostFactorOf(t);
             Assert(System.Math.Abs(F(TriggerTiming.OnPlay) - 1f) < 1e-4f
                    && System.Math.Abs(F(TriggerTiming.OnDeath) - 1f) < 1e-4f
                    && System.Math.Abs(F(TriggerTiming.OnDraw) - 1f) < 1e-4f
                    && System.Math.Abs(F(TriggerTiming.OnStandbyPhase) - 1f) < 1e-4f
                    && System.Math.Abs(F(TriggerTiming.OnDealDamage) - 1f) < 1e-4f
-                   && System.Math.Abs(F(TriggerTiming.OnAttack) - 1f) < 1e-4f,
-                   "P9-4 时机两档系数均 ×1：登场/死亡/抽牌/准备阶段/造成伤害/攻击宣言");
+                   && System.Math.Abs(F(TriggerTiming.OnAttack) - 1.5f) < 1e-4f
+                   && System.Math.Abs(F(TriggerTiming.OnAttacked) - 1.5f) < 1e-4f
+                   && System.Math.Abs(F(TriggerTiming.OnBlockDeclare) - 1.5f) < 1e-4f
+                   && System.Math.Abs(F(TriggerTiming.OnTap) - 1.5f) < 1e-4f
+                   && System.Math.Abs(F(TriggerTiming.OnUntap) - 1.5f) < 1e-4f,
+                   "P9-4 时机三档：单次/多次 ×1；攻/守/横置族（生物专属）×1.5");
+            Assert(System.Math.Abs(F(TriggerTiming.OnAttack)
+                                   - CardCore.ValueSystemConfigManager.Instance.GetOrCreateConfig()
+                                       .TimingFactorConfig.CreatureOnly) < 1e-4f,
+                   "P9-4a 生物专属档系数取自 ValueSystemConfig.TimingFactor.CreatureOnly（改表即同步计价）");
             bool Once(TriggerTiming t) => !CardCore.CostDerivationService.IsRepeatTiming(t);
             Assert(Once(TriggerTiming.OnPlay) && Once(TriggerTiming.OnDeath) && Once(TriggerTiming.OnDestroy)
                    && Once(TriggerTiming.OnExile) && Once(TriggerTiming.OnLeaveBattlefield)
@@ -1102,9 +1115,9 @@ namespace CardCore.Editor
                    && !Once(TriggerTiming.OnDraw) && !Once(TriggerTiming.OnTurnEnd) && !Once(TriggerTiming.OnStandbyPhase)
                    && !Once(TriggerTiming.OnDealDamage) && !Once(TriggerTiming.OnAttack) && !Once(TriggerTiming.OnTap)
                    && !Once(TriggerTiming.OnCardPlayed) && !Once(TriggerTiming.OnSummon),
-                   "P9-4b 两档归类（FiresOncePerPaidLifetime 唯一判定）：8 单次档；抽牌/回合末/准备/伤害/攻击/横置/使用卡牌/召唤进场归多次档");
+                   "P9-4b 单次/多次归类（FiresOncePerPaidLifetime 唯一判定）：8 单次档；抽牌/回合末/准备/伤害/攻击/横置/使用卡牌/召唤进场归多次档");
 
-            // ---- 5. 全链推导同证：登场/抽牌时/造成伤害时均 ×1 → 红5（原 7.5/10 作废）----
+            // ---- 5. 全链推导同证：单次/多次 ×1 → 红5；生物专属攻/守/横置 ×1.5 → 红7.5 ----
             CardCore.EffectDefinition TimingDef(TriggerTiming t) => CardEffectConverter.ConvertOne(new CardEffectData
             {
                 Id = "VERIFY_P9_T" + (int)t,
@@ -1115,7 +1128,10 @@ namespace CardCore.Editor
             Assert(System.Math.Abs(RedOf(TimingDef(TriggerTiming.OnPlay)) - 5f) < 1e-4f
                    && System.Math.Abs(RedOf(TimingDef(TriggerTiming.OnDraw)) - 5f) < 1e-4f
                    && System.Math.Abs(RedOf(TimingDef(TriggerTiming.OnDealDamage)) - 5f) < 1e-4f,
-                   "P9-5 时机两档均 ×1 入价：登场红5 / 抽牌时红5 / 造成伤害时红5");
+                   "P9-5 时机单次/多次均 ×1 入价：登场红5 / 抽牌时红5 / 造成伤害时红5");
+            Assert(System.Math.Abs(RedOf(TimingDef(TriggerTiming.OnAttack)) - 7.5f) < 1e-4f
+                   && System.Math.Abs(RedOf(TimingDef(TriggerTiming.OnTap)) - 7.5f) < 1e-4f,
+                   "P9-5b 生物专属攻/守/横置 ×1.5 入价：攻击宣言时红7.5 / 横置时红7.5");
 
             // ---- 6. 历史次数档 limit=2/3/-1 无运行时限流（同回合全部入栈）----
             CardCore.EffectDefinition RuntimeDef(int limit) => CardEffectConverter.ConvertOne(new CardEffectData
@@ -1140,14 +1156,15 @@ namespace CardCore.Editor
             }
             RetireCards(core, p1, src);
 
-            // ---- 7. 内容审计：教学/预组 + 训练全表无「生物卡 + 周期/观察族多次时机」----
-            AssertCreatureRepeatTimingAudit();
+            // ---- 7. 内容审计：教学/预组 + 训练全表——生物不挂周期/观察族；结界不挂攻/守/横置族 ----
+            AssertHostTimingAudit();
         }
 
-        /// <summary>内容审计（2026-11-05 两档定案）：教学/预组+训练全表——生物卡不得挂周期/观察族
-        /// 多次时机（EffectEligibility.IsEnchantExclusiveTiming；引擎载荷豁免——效果头时机只是奖励
-        /// 发射窗；攻/守/横置族豁免）。与装载期 CardLoader.ValidateCreatureShape 同口径，命中点名。</summary>
-        private static void AssertCreatureRepeatTimingAudit()
+        /// <summary>内容审计（2026-11-05 两档定案；2026-11-09 生物专属档拆分）：教学/预组+训练全表——
+        /// 生物卡不得挂周期/观察族多次时机；结界卡不得挂攻/守/横置族（生物专属自动效果）。
+        /// 引擎载荷仅豁免生物臂（效果头时机=奖励发射窗）；结界+攻守横置即便带引擎载荷也不放行。
+        /// 与装载期 CardLoader.ValidateCreatureShape / ValidateEnchantShape 同口径，命中点名。</summary>
+        private static void AssertHostTimingAudit()
         {
             var hits = new List<string>();
             void Scan(string cardsPath, string fxPath, string label)
@@ -1172,7 +1189,9 @@ namespace CardCore.Editor
                 foreach (var c in (cardsRoot["cards"] as Newtonsoft.Json.Linq.JArray)
                          ?? new Newtonsoft.Json.Linq.JArray())
                 {
-                    if ((string)c["supertype"] != "Creature") continue;
+                    string supertype = (string)c["supertype"];
+                    bool creature = supertype == "Creature", enchant = supertype == "Enchantment";
+                    if (!creature && !enchant) continue;
                     foreach (var idTok in (c["effectIds"] as Newtonsoft.Json.Linq.JArray)
                              ?? new Newtonsoft.Json.Linq.JArray())
                     {
@@ -1181,9 +1200,13 @@ namespace CardCore.Editor
                         if (t == (int)TriggerTiming.Activate_Active || t == (int)TriggerTiming.Activate_Instant
                             || t == (int)TriggerTiming.Activate_Response)
                             continue;
-                        if (CardCore.EffectEligibility.IsEnchantExclusiveTiming((TriggerTiming)t)
+                        if (creature && CardCore.EffectEligibility.IsEnchantExclusiveTiming((TriggerTiming)t)
                             && !engine.Contains(id))
-                            hits.Add($"{label} {(string)c["cardName"]}({(string)c["id"]}) 效果 {id} timing={(TriggerTiming)t}");
+                            hits.Add($"{label} {(string)c["cardName"]}({(string)c["id"]}) 效果 {id} timing={(TriggerTiming)t}"
+                                     + "——生物+周期多次时机");
+                        if (enchant && CardCore.EffectEligibility.IsTapAnchoredTiming((TriggerTiming)t))
+                            hits.Add($"{label} {(string)c["cardName"]}({(string)c["id"]}) 效果 {id} timing={(TriggerTiming)t}"
+                                     + "——结界+攻/守/横置族（生物专属）");
                     }
                 }
             }
@@ -1191,10 +1214,10 @@ namespace CardCore.Editor
                  SynergyUI.CardDataPaths.TutorialFileIn("TutorialEffects.json"), "教学");
             Scan(SynergyUI.CardDataPaths.TrainingFileIn("TrainingCards.json"),
                  SynergyUI.CardDataPaths.TrainingFileIn("TrainingEffects.json"), "训练");
-            foreach (var h in hits) Debug.LogError($"[P9-7 内容审计] 生物+周期多次时机：{h}");
+            foreach (var h in hits) Debug.LogError($"[P9-7 内容审计] 宿主+时机不合规：{h}");
             Assert(hits.Count == 0,
-                   $"P9-7 内容审计：教学/训练全表无「生物卡+周期/观察族多次时机」（命中 {hits.Count}"
-                   + "——改挂单次时机/攻守横置族，或改宿主为结界配耐久；引擎载荷已豁免）");
+                   $"P9-7 内容审计：教学/训练全表无「生物+周期/观察族多次时机」、无「结界+攻/守/横置族」（命中 {hits.Count}"
+                   + "——生物改挂单次时机/攻守横置族或改宿主为结界配耐久；结界改挂单次/周期观察族或改宿主为生物）");
         }
 
     }

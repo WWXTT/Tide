@@ -101,8 +101,9 @@ namespace CardCore.Editor
             Assert(wardUnit.GetLife() == wardLife - 2, "无实体：战斗伤害同为 1（累计 -2）");
             RetireCards(core, p1, wardUnit);
 
-            // 绝缘体（2026-11-05 用户口径：**不拦添加**——层照常落账，效果走 GetEffectiveCounterCount
-            // 读数压制；时序互压无特判：先在沉睡压住后获绝缘，沉睡自然走完前绝缘不生效）。
+            // 绝缘体（2026-11-09 用户口径：**全部指示物不拦添加**——层照常落账，效果走效果口径
+            // 读数压制；失效/沉睡两个压制源=死层：层照常落账并正常倒数，但不横置、不拦重置、
+            // 不压自动/主动，正反序一致）。
             var insUnit = SpawnTier(core, p1, 2, 5);
             insUnit.AddKeyword(CardCore.Attribute.KeywordRules.Insulator, CardCore.KeywordLane.Temp, insUnit);
             var insCtl = SpawnTier(core, p1, 2, 5);
@@ -118,17 +119,59 @@ namespace CardCore.Editor
             Assert(insCtl.GetCounterCount(CardCore.Attribute.KeywordRules.FreezeCounter) == 2
                    && insCtl.GetEffectiveCounterCount(CardCore.Attribute.KeywordRules.FreezeCounter) == 2,
                    "绝缘体对照：无关键词单位冻结正常上 2 层且生效");
-            // 时序互压例（2026-11-05 用户口径）：无绝缘单位先被加沉睡、再被赋予绝缘——沉睡自然
-            // 走完前绝缘不生效（HasKeyword 沉睡期读假），其后新加冻结不被压制、照常生效
+
+            // 失效层：照常落账 + 零效果（正序）
+            var insNull = SpawnTier(core, p1, 2, 5);
+            insNull.AddKeyword(CardCore.Attribute.KeywordRules.Insulator, CardCore.KeywordLane.Temp, insNull);
+            int nullDelta = insNull.AddCounters(CardCore.Attribute.CounterRules.NullifyCounter, 1, p2);
+            Assert(nullDelta == 1
+                   && insNull.GetCounterCount(CardCore.Attribute.CounterRules.NullifyCounter) == 1
+                   && insNull.HasKeyword(CardCore.Attribute.KeywordRules.Insulator)
+                   && !CardCore.Attribute.SuppressRules.IsAutoSuppressed(insNull),
+                   $"绝缘体：失效层照常落账、零效果（+{nullDelta} 层；绝缘体仍真、自动效果不被压）");
+
+            // 沉睡层（真实原子口）：照常落账、不横置、不拦重置、不压效果
+            var insSleep = SpawnTier(core, p1, 2, 5);
+            insSleep.AddKeyword(CardCore.Attribute.KeywordRules.Insulator, CardCore.KeywordLane.Temp, insSleep);
+            new SleepHandler().Execute(
+                new AtomicEffectInstance { Type = AtomicEffectType.Sleep, Value = 1 },
+                new EffectExecutionContext
+                {
+                    Source = p2, Controller = p2,
+                    Targets = new List<Entity> { insSleep },
+                    ZoneManager = core.ZoneManager, ElementPool = core.ElementPool,
+                });
+            Assert(insSleep.GetCounterCount(CardCore.Attribute.KeywordRules.SleepCounter) == 1
+                   && !insSleep.IsTapped()
+                   && insSleep.GetEffectiveCounterCount(CardCore.Attribute.KeywordRules.SleepCounter) == 0
+                   && !CardCore.Attribute.SuppressRules.IsAutoSuppressed(insSleep),
+                   "绝缘体：沉睡层照常落账、不横置、零效果");
+            Assert(!CardCore.Attribute.SleepFreezeUntapBlockRule.Instance.BlocksUntap(insSleep),
+                   "绝缘体：沉睡层不拦重置（效果口径）");
+
+            // 反序：先失效后获绝缘——失效层转死层，绝缘体不被压
+            var lateIns = SpawnTier(core, p1, 2, 5);
+            lateIns.AddCounters(CardCore.Attribute.CounterRules.NullifyCounter, 1, p2);
+            lateIns.AddKeyword(CardCore.Attribute.KeywordRules.Insulator, CardCore.KeywordLane.Temp, lateIns);
+            Assert(lateIns.GetCounterCount(CardCore.Attribute.CounterRules.NullifyCounter) == 1
+                   && lateIns.HasKeyword(CardCore.Attribute.KeywordRules.Insulator)
+                   && !CardCore.Attribute.SuppressRules.IsAutoSuppressed(lateIns),
+                   "绝缘体反序：先失效后获绝缘——失效层被无效化（正反序一致）");
+
+            // 时序：先沉睡后获绝缘——沉睡转死层，绝缘体立刻生效，其后新加冻结照常落账但效果读 0
             var insOrder = SpawnTier(core, p1, 2, 5);
             insOrder.AddCounters(CardCore.Attribute.KeywordRules.SleepCounter, 1, p2);
             insOrder.AddKeyword(CardCore.Attribute.KeywordRules.Insulator, CardCore.KeywordLane.Temp, insOrder);
-            insOrder.AddCounters(CardCore.Attribute.KeywordRules.FreezeCounter, 1, p2);
-            Assert(insOrder.GetCounterCount(CardCore.Attribute.KeywordRules.FreezeCounter) == 1
-                   && insOrder.GetEffectiveCounterCount(CardCore.Attribute.KeywordRules.FreezeCounter) == 1,
-                   "绝缘体时序：先在沉睡压住后获绝缘——其后新加冻结照常生效（生效顺序决定，无特判）");
+            int orderFreeze = insOrder.AddCounters(CardCore.Attribute.KeywordRules.FreezeCounter, 1, p2);
+            Assert(orderFreeze == 1
+                   && insOrder.HasKeyword(CardCore.Attribute.KeywordRules.Insulator)
+                   && insOrder.GetEffectiveCounterCount(CardCore.Attribute.KeywordRules.FreezeCounter) == 0,
+                   "绝缘体反序：先沉睡后获绝缘——沉睡转死层，其后冻结照常落账但效果读 0");
             RetireCards(core, p1, insUnit);
             RetireCards(core, p1, insCtl);
+            RetireCards(core, p1, insNull);
+            RetireCards(core, p1, insSleep);
+            RetireCards(core, p1, lateIns);
             RetireCards(core, p1, insOrder);
 
             // ---- 2. 倒计时（槽级载荷）：奖励推导费换算回合；归零发奖并重置 ----

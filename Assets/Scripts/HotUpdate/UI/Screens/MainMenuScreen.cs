@@ -102,7 +102,8 @@ namespace SynergyUI
             // 文案跟随下一课进度（教学三=毕业连战：三套预组三场全胜过课）
             var next = p.NextTutorialId;
             if (_teachingLabel != null)
-                _teachingLabel.text = next == TutorialProgressManager.AdvancedId ? "基础教学二"
+                _teachingLabel.text = next == TutorialProgressManager.BasicsPlusId ? "基础教学一·进阶"
+                    : next == TutorialProgressManager.AdvancedId ? "基础教学二"
                     : next == TutorialProgressManager.LunzhuanId ? "基础教学三"
                     : "基础教学一";
         }

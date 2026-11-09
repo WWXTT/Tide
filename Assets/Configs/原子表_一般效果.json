@@ -522,10 +522,10 @@
   },
   {
     "ID": "84136d36",
-    "TextHash": "4bfd611f",
+    "TextHash": "6865efcf",
     "Domain": "己方战场:卡",
     "EnumName": "牺牲",
-    "DisplayName": "自行选择{target}规则送墓（共{value}个单位），每送墓一个单位，获得一点临时任意元素",
+    "DisplayName": "自行选择{target}规则送墓（共{value}个单位），每送墓一个单位，获得一点临时彩元素",
     "EffectType": "Sacrifice",
     "TargetFilter": null,
     "Polarity": 0,
@@ -590,23 +590,6 @@
       3,
       0,
       0
-    ]
-  },
-  {
-    "ID": "6d711f7a",
-    "TextHash": "6d711f7a",
-    "EnumName": "元素合成",
-    "DisplayName": "获得{value}个临时任意元素（可代替任何元素支付，回合结束消失）",
-    "EffectType": "GainAnyElement",
-    "TargetFilter": null,
-    "Polarity": 1,
-    "MountKinds": "",
-    "Tags": null,
-    "ManaList": [
-      0,
-      0,
-      0,
-      3
     ]
   },
   {
@@ -933,6 +916,24 @@
     "MountKinds": "",
     "Tags": null,
     "参数": "Dimension",
+    "ManaList": [
+      0,
+      0,
+      2,
+      0
+    ]
+  },
+  {
+    "ID": "b5998037",
+    "TextHash": "b5998037",
+    "Domain": "双方战场:生物",
+    "EnumName": "攻守互换",
+    "DisplayName": "将{target}的攻击力与生命值上限互换",
+    "EffectType": "SwapPowerLife",
+    "TargetFilter": null,
+    "Polarity": 0,
+    "MountKinds": "不可作为连接光环,不可随机",
+    "Tags": null,
     "ManaList": [
       0,
       0,

@@ -14,10 +14,12 @@ namespace GameBoard
     ///
     /// 失效口径（live-query 天然成立，无物化状态可失联）：
     /// - 来源须持续在场：离场/未落格自然无贡献（断链即失效）；
-    /// - 光环域整体退出压制（2026-10-31 失效改名定案）：来源被「失效」（原缄默，id 仍 Nullify）
-    ///   不压光环——净化/沉默/失效都不能影响箭头与条目（箭头是卡面数据）；
+    /// - 失效只压载体（2026-11-09 用户定案，取代 2026-10-31「光环域整体退出压制」）：**光环载体
+    ///   本身被失效（原缄默，id 仍 Nullify）时整条光环断供**——受益者随之失去该光环赋予的
+    ///   属性/关键词/效果；清掉载体失效层即恢复。沉睡不压载体（分工：沉睡拦主动、失效拦自动）。
     /// - 受益者不可被干扰：光环不物化、不入 _keywords/_counters——净化/沉默/失效打在受益者
     ///   身上都不能影响光环（读数经 EntityEffectExtensions.GetPower/GetLife/HasKeyword 并入）。
+    ///   唯一例外：绝缘体受益者整卡跳过「效果授予」条目（GetGrantedEffectAuras）。
     ///
     /// 接线（CombatSystem.AdjacentResolver 同惯例）：组合根 Attach(BoardState) 注入占用查询
     /// 并订阅失效事件；未注入（纯核心测试/headless 无棋盘）时 Enabled=false，全部查询 O(1) 早退=无光环。
@@ -372,6 +374,8 @@ namespace GameBoard
                 {
                     var source = fieldZone[i];
                     if (source == null || !source.IsAlive || ReferenceEquals(source, beneficiary)) continue;
+                    // 2026-11-09 失效只压载体：载体被失效（Nullify）→ 整条光环断供
+                    if (source.GetCounterCount(CounterRules.NullifyCounter) > 0) continue;
                     var dataF = (source as CardWrapper)?.GetData();
                     if (dataF?.LinkAuras == null || dataF.LinkAuras.Count == 0) continue;
                     foreach (var aura in dataF.LinkAuras)
@@ -392,10 +396,12 @@ namespace GameBoard
                 {
                     var source = battlefield[i];
                     if (source == null || !source.IsAlive || ReferenceEquals(source, beneficiary)) continue;
+                    // 2026-11-09 失效只压载体：载体被失效（Nullify）→ 整条光环断供
+                    if (source.GetCounterCount(CounterRules.NullifyCounter) > 0) continue;
 
                     var data = (source as CardWrapper)?.GetData();
                     if (data?.LinkAuras == null || data.LinkAuras.Count == 0) continue;
-                    // 2026-10-31 失效改名定案：光环域整体退出压制——来源被失效不拦（旧 NullifyCounter 来源闸已删）
+                    // 2026-11-09 失效只压载体：来源被失效已在循环头 continue 断供（旧「光环域整体退出压制」已废）
 
                     // 条目级作用面（2026-10-08 actuating-range 定案）：scope==0 随卡面箭头几何（生物=占据者同一/
                     // 角色=落格即本方角色格）；作用面档（1=己方/2=双方/3=对方）按侧别命中。旧卡级方向档已由

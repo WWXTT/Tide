@@ -373,30 +373,45 @@ namespace GameBoard
             return count;
         }
 
-        /// <summary>卡所在格左右同排（E/W 两向）邻格占用生物（碾压 AdjacentResolver 接线用；
-        /// 未落格 = 空枚举）。2026-10-04 碾压语义修订：溅射只打目标左右两侧生物——
-        /// 不再吃六邻格（后排斜邻/贴边地牌行的地牌不入溅射域）。施放占位卡非在场生物——滤除。</summary>
-        public IEnumerable<Card> FlankNeighbors(Card card)
+        /// <summary>卡所在格左右同排（E/W 两向）邻格占用者（碾压 AdjacentResolver 接线用；
+        /// 未落格 = 空枚举）。2026-11-09 碾压溅射域改版：占用者不限类别——生物/结界照返，
+        /// 邻格为角色格时返该方 Player（核心无角色卡实体，按格判归属）；地牌行与单位区
+        /// 不同排，E/W 邻格天然不含地牌。</summary>
+        public IEnumerable<Entity> FlankNeighbors(Card card)
         {
             if (!TryGetCell(card, out int x, out int z)) yield break;
-            foreach (var dir in new[] { BoardDirection.E, BoardDirection.W })
+            foreach (var occupant in FlankOccupants(x, z))
             {
-                var (nx, nz) = BoardMath.Neighbor(x, z, dir);
-                var neighbor = CardAt(nx, nz);
-                if (neighbor != null && neighbor != card)
-                    yield return neighbor;
+                if (occupant is Card c && c == card) continue;
+                yield return occupant;
             }
         }
 
-        /// <summary>角色格左右同排（E/W 两向）邻格占用生物（碾压 RoleAdjacentResolver 接线用，
-        /// 2026-10-16 碾压攻角色改版：溅射域=角色格左右邻格生物）。8×7 布局下角色格居左右列端头
-        ///（P1=(0,1)/P2=(7,5)）——E/W 仅一格在盘（对方侧出界自然跳过）。</summary>
-        public IEnumerable<Card> FlankNeighborsOfRole(Player player)
+        /// <summary>角色格左右同排（E/W 两向）邻格占用者（碾压 RoleAdjacentResolver 接线用，
+        /// 2026-11-09 溅射域改版：占用者不限类别——生物/结界照返，邻格为角色格返 Player）。
+        /// 7×7 布局下角色格居侧列端头（P1=(0,1)/P2=(6,5)）——E/W 仅一格在盘
+        ///（对方侧出界自然跳过），实际恒为防守方单位格。</summary>
+        public IEnumerable<Entity> FlankNeighborsOfRole(Player player)
         {
             var (x, z) = CharacterCell(player);
+            foreach (var occupant in FlankOccupants(x, z))
+                yield return occupant;
+        }
+
+        /// <summary>左右邻格占用者单源（FlankNeighbors/FlankNeighborsOfRole 共用）：
+        /// 角色格 → 该方 Player（按 CharacterCell 布局常量判归属）；其余格 → 格上卡（无占用不出）。</summary>
+        private IEnumerable<Entity> FlankOccupants(int x, int z)
+        {
             foreach (var dir in new[] { BoardDirection.E, BoardDirection.W })
             {
                 var (nx, nz) = BoardMath.Neighbor(x, z, dir);
+                if (!BoardMath.InBounds(nx, nz)) continue;
+                if (BoardLayout.RoleOf(nx, nz) == CellRole.Character)
+                {
+                    if (_p1 != null && BoardLayout.CharacterCell(0) == (nx, nz)) yield return _p1;
+                    else if (_p2 != null && BoardLayout.CharacterCell(1) == (nx, nz)) yield return _p2;
+                    continue;
+                }
                 var neighbor = CardAt(nx, nz);
                 if (neighbor != null)
                     yield return neighbor;

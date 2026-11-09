@@ -22,6 +22,13 @@ namespace CardCore
         /// 旧长教学的「不进序列」口径随之退役。</summary>
         public const string BasicsId = "basics";
 
+        /// <summary>第一课·进阶关卡 id（2026-11-09 关键词课）：basics 之后、advanced 之前的
+        /// 脚本化教学局——17 个关键词（先攻/连击/碾压/溅射/缴械/警戒/隐密/帷幕/吸血/系命/再生/
+        /// 守护/剧毒/病原体/绝缘体/不灭/狩猎）11 段对照演示（TutorialConfig4.json 条目）。
+        /// 进 CourseOrder 后已通关老档 IsTutorialDone 翻回 false（教学按钮重现/联机重新门禁）——
+        /// 补完本课即恢复，设计使然。</summary>
+        public const string BasicsPlusId = "basics_plus";
+
         /// <summary>第三课·创作管线关卡 id（无战斗剧本——TutorialCreationFlow 走查制，
         /// 不是 TutorialConfig 条目；StartTutorialBattle 对本 id 分流到 BeginLesson）。</summary>
         public const string CreationLessonId = "chuangzuo";
@@ -39,11 +46,11 @@ namespace CardCore
         ///（旧档残留 lunzhuanAttempted 键 2026-10-21 随判据退役，反序列化自动忽略）。</summary>
         public const string LunzhuanId = "lunzhuan";
 
-        /// <summary>新手课程序列（2026-10-19 三课制定案）：basics 攻防 → advanced 进阶机制 →
-        /// lunzhuan 末日降临 Boss，三课全胜=教学整体完成（IsTutorialDone）。
+        /// <summary>新手课程序列：basics 攻防 → basics_plus 关键词（2026-11-09 插入）→ advanced
+        /// 进阶机制 → lunzhuan 末日降临 Boss，全部完成=教学整体完成（IsTutorialDone）。
         /// chuangzao（创作管线走查）已取消（2026-10-17）——走查机制休眠保留，旧档 completed 残留惰性、
-        /// currentTutorial=chuangzuo 序列外自动作废（NextTutorialId 现行口径）。</summary>
-        public static readonly string[] CourseOrder = { BasicsId, AdvancedId, LunzhuanId };
+        /// currentTutorial=chuangzao 序列外自动作废（NextTutorialId 现行口径）。</summary>
+        public static readonly string[] CourseOrder = { BasicsId, BasicsPlusId, AdvancedId, LunzhuanId };
 
         private const string SAVE_FILE = "TutorialProgress.json";
 

@@ -25,6 +25,12 @@ namespace SynergyUI
         /// 不动**，由 BattleFieldView 建柱后按本标记 SetActive 隐藏；Solo("all")（操作预告段）/End 解除。</summary>
         public static bool HideOpponentHero { get; private set; }
 
+        /// <summary>己方英雄柱隐藏（2026-11-09 教学一修订：basics_03 讲完角色格后，后续独占段
+        ///（发动区/右列/元素池/场地）须同步藏柱——柱非 tile，_keep 不辖）：创建流程不动，由
+        /// ReconcileHero 每次对账按本标记 SetActive（与 HideOpponentHero 同口）；独占段 token 置位
+        ///（调用方随后 _refreshField 消费），zone:role/all/End 解除。</summary>
+        public static bool HideSelfHero { get; private set; }
+
         /// <summary>单位出场闸（2026-10-19 教学二段一「生物出场」）：true=BattleFieldView 对账不出场
         /// 单位（存量全清——重置回介绍段也走此口径）；Solo("units")/End 解除，随后 RefreshField
         /// 建单位（入场演出随建触发）。</summary>
@@ -40,6 +46,7 @@ namespace SynergyUI
             SuppressHeroes = true;
             SuppressHandFan = true;
             HideOpponentHero = true;
+            HideSelfHero = true;
             SuppressUnits = true;
             ApplyKeep();
         }
@@ -49,9 +56,12 @@ namespace SynergyUI
         /// 卡组/墓/除外右列**（总览不藏区）；all=全显+解除对手柱隐藏；zone:mid=中线信息条；
         /// zone:role=仅己方角色格（对手柱照常建、建后按 HideOpponentHero 隐藏）；
         /// zone:activation=己方单位区 12 格（发动区）；zone:right=仅己方卡组/墓/除外三格；
-        /// zone:p1-land=己方地牌行；hand=解手牌闸（调用方随后 RefreshFans）；
-        /// units=解单位闸（2026-10-19 教学二「生物出场」——调用方随后 RefreshField 建单位）。
-        /// 解闸类 token（zone:role/hand/units）不改变盘面保持。</summary>
+        /// zone:p1-land=己方地牌行**含行首彩元素格**（2026-11-09：AnyElementCell 随元素池亮——讲彩元素）；
+        /// zone:p1-field=仅己方场地格（2026-11-09 basics_07 讲场地）；hand=解手牌闸（调用方随后
+        /// RefreshFans）；units=解单位闸（2026-10-19 教学二「生物出场」——调用方随后 RefreshField 建单位）。
+        /// 解闸类 token（zone:role/hand/units）不改变盘面保持。
+        /// 独占段 token（activation/right/mid/p1-land/p1-field·2026-11-09）不含角色格——置
+        /// HideSelfHero 藏己方柱（柱非 tile，调用方随后 _refreshField 对账消费标记）。</summary>
         public static void Solo(string token)
         {
             if (!_active || string.IsNullOrEmpty(token)) return;
@@ -68,6 +78,7 @@ namespace SynergyUI
                 }
                 case "all":
                     HideOpponentHero = false; // 操作预告段：对手到此才显露（调用方随后 RefreshField 显柱）
+                    HideSelfHero = false;
                     _keep.Clear(); // 空=全显
                     ApplyKeep();
                     return;
@@ -82,16 +93,19 @@ namespace SynergyUI
                     return; // 单位模型非 tile：解闸即可，盘面保持不变
                 case "zone:role":
                     SuppressHeroes = false; // 解除英雄柱闸（调用方随后 RefreshField 建柱——对手柱建后隐藏）
+                    HideSelfHero = false;
                     _keep.Clear();
                     AddCell(BoardLayout.CharacterCell(0)); // 仅己方角色格
                     ApplyKeep();
                     return;
                 case "zone:activation":
+                    HideSelfHero = true; // 独占段不含角色格：藏柱（对账随调用方 _refreshField）
                     _keep.Clear();
                     AddCells(BoardLayout.UnitCells(0)); // 己方单位区两行 12 格=发动区
                     ApplyKeep();
                     return;
                 case "zone:right":
+                    HideSelfHero = true;
                     _keep.Clear();
                     AddCell((BoardLayout.P1DeckX, BoardLayout.P1DeckZ));   // 卡组
                     AddCell((BoardLayout.P1GraveX, BoardLayout.P1GraveZ)); // 墓地
@@ -99,13 +113,22 @@ namespace SynergyUI
                     ApplyKeep();
                     return;
                 case "zone:mid":
+                    HideSelfHero = true;
                     _keep.Clear();
                     for (int x = 0; x < BoardLayout.Width; x++) AddCell((x, BoardLayout.MiddleZ));
                     ApplyKeep();
                     return;
                 case "zone:p1-land":
+                    HideSelfHero = true;
                     _keep.Clear();
                     AddCells(BoardLayout.LandCells(0));
+                    AddCell(BoardLayout.AnyElementCell(0)); // 行首彩元素格（2026-11-09）：随元素池亮
+                    ApplyKeep();
+                    return;
+                case "zone:p1-field":
+                    HideSelfHero = true;
+                    _keep.Clear();
+                    AddCell(BoardLayout.FieldCell(0)); // 仅己方场地格（2026-11-09 basics_07）
                     ApplyKeep();
                     return;
                 default:
@@ -121,6 +144,7 @@ namespace SynergyUI
             SuppressHeroes = false;
             SuppressHandFan = false;
             HideOpponentHero = false;
+            HideSelfHero = false;
             SuppressUnits = false;
             _keep.Clear();
             ApplyKeep();

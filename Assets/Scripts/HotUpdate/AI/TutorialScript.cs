@@ -134,6 +134,7 @@ namespace SynergyUI
             "Configs/TutorialConfig.json",  // 第一课（basics 攻防）
             "Configs/TutorialConfig2.json", // 第二课（advanced 进阶机制）
             "Configs/TutorialConfig3.json", // 第三课（lunzhuan 末日降临 Boss）
+            "Configs/TutorialConfig4.json", // 第一课·进阶（basics_plus 关键词课，2026-11-09）
         };
 
         private static Dictionary<string, TutorialConfig> _byId;

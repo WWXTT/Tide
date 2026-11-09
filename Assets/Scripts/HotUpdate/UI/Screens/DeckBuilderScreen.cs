@@ -1063,9 +1063,12 @@ namespace SynergyUI
 
             _skillLabel.text = "英雄技能：" + NameOf(marked);
             // 发动费口径同旧统计区技能预览：各主动效果现付锚价（多效果显示区间）；每回合一次
+            // 2026-11-09 逐色进位：卡侧发动费=引擎实扣整数（否则会出现「发动费用：4.5蓝」）
             var anchors = HeroSkillSystem.SkillEffectsOf(new CardWrapper(marked))
                 .Select(f => CostDerivationService.DeriveElementCosts(f))
-                .Where(c => c != null).ToList();
+                .Where(c => c != null)
+                .Select(c => ElementPaymentValidator.CeilBill(c))
+                .ToList();
             string costText;
             if (anchors.Count == 0)
                 costText = "发动费用：无（每回合一次）";

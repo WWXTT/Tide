@@ -424,7 +424,7 @@ namespace SynergyUI
 
         /// <summary>费用文本化：非零色按序拼「N色」（如 2红1蓝；全零=0）。
         /// 2026-10-12 小数直通：效果级预览按真值显示小数（0.6绿/3.6红——整数不带小数位）；
-        /// 卡层合成价由 CardCostService L3 整卡取整，不经此口。</summary>
+        /// 卡层费用由 CardCostService 在代价抵扣前逐色向上取整（2026-11-09 定案），不经此口。</summary>
         private static string CostZh(ElementCost cost)
         {
             if (cost == null || cost.IsZero) return "0";

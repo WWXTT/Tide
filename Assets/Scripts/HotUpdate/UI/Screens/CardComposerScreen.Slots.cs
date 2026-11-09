@@ -239,11 +239,13 @@ namespace SynergyUI
         /// <summary>效果级净费（2026-11-06 方格改版数据源）：带效果级代价的主动效果=发动费−抵扣
         ///（EffectActivationGate.NetBill 单源：先灰后最高费用色、逐色 ≥0）；无代价行 null
         ///（调用方回落锚价/模式费账单）。原「发动费→抵扣→净费」公式文本随本改版退役——
-        /// 信息由 CostSquares 双组承载（费用组=净费、代价组=EffectPayloadCostOf）。</summary>
+        /// 信息由 CostSquares 双组承载（费用组=净费、代价组=EffectPayloadCostOf）。
+        /// 2026-11-09 逐色进位：返回值=卡侧显示/支付整数口径；<see cref="ActiveEffectCostParts"/>
+        /// 仍出真值（它是代价抵扣计算的输入，勿在彼处取整）。</summary>
         internal static ElementCost ActiveEffectNetCost(CardEffectData fx)
         {
             var (fee, pts, net, atom) = ActiveEffectCostParts(fx);
-            return fee == null ? null : net;
+            return fee == null ? null : ElementPaymentValidator.CeilBill(net);
         }
 
         /// <summary>效果级代价分色面 → ElementCost（Cost2 代价组数据源，2026-11-06）：经 ConvertOne

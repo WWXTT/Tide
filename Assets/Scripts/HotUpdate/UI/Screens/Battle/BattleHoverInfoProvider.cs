@@ -32,6 +32,15 @@ namespace SynergyUI
         private string _hoverKey;                  // 当前悬停内容键（防逐帧重绘）
         private string _hoverSrcKey;               // 悬停源键（hit+btn+视图版本，2026-10-18 性能）：未变跳过整段文本构建
 
+        // 主动效果预制体行（2026-11-09 hover 改版：主动效果弃纯文本行，改用 effect 行预制体——
+        // 与 ACard effect 行同源模板，完整信息=效果名(text)/速度徽章(lbl-skill-speed)/全文+费用(des)）。
+        // 行实例挂 hover-info（自带 VLG+CSF——随 label 堆叠自适应）；预制体缺失回落旧纯文本行。
+        private readonly List<RectTransform> _effectRows = new List<RectTransform>();
+        private List<(string label, string line)> _pendingEffectRows; // CardHoverInfo 收集、SetHoverInfo 消费
+        private int? _pendingEffectSpeed;                                // 行速度徽章（EffectSpeedOf 单源·全行同值）
+        private static GameObject _effectRowPrefab;     // 静态缓存防 HotUpdateAssets 句柄累积（ACardView 卡背同口径）
+        private static bool _effectRowPrefabTried;
+
         private BattleViewData View => _view();
         private GameCore Core => _core();
         private Player P1 => _p1();
@@ -143,6 +152,9 @@ namespace SynergyUI
         internal void Clear()
         {
             _hoverSrcKey = null; // 源键随清（重进同格也走一次完整构建，防漏版）
+            _pendingEffectRows = null;
+            _pendingEffectSpeed = null;
+            DestroyEffectRows();
             if (_hoverKey == null) return;
             _hoverKey = null;
             if (_hoverInfo != null && _hoverInfo.gameObject.activeSelf) _hoverInfo.gameObject.SetActive(false);
@@ -152,7 +164,9 @@ namespace SynergyUI
         /// 主动效果（带发动费用）/自动效果（2026-10-30 起不再带次数读数）/关键词（带完整解说）/状态（指示物完整解说
         /// +受到的连接光环清单），空段整段省略。数据口径与手牌卡面（CardOverlayItem.FromHand）同链：
         /// 主动=TriggerTiming∈{Activate_Active, Activate_Instant}，其余（含响应式）归自动；
-        /// 解说=KeywordEffectMapper/CounterText；光环=LinkAuraSystem.GetApplicableAuras 反查。</summary>
+        /// 解说=KeywordEffectMapper/CounterText；光环=LinkAuraSystem.GetApplicableAuras 反查。
+        /// 2026-11-09：主动段改 effect 行预制体渲染（效果名/速度徽章/全文+费用——见 RebuildEffectRows），
+        /// 预制体在位=主动行出面板文本段之下、自动/关键词/状态照旧文本。</summary>
         private string CardHoverInfo(BattleCardView card)
         {
             var data = _dataOf(card);
@@ -163,15 +177,21 @@ namespace SynergyUI
 
             // 压制态（2026-10-31 删除线定案）：沉默/失效/沉睡 → 主动/自动段行与本体关键词行
             // 划线灰显（TMP 富文本 Bind 处已开；状态段=压制本身的解说不划）
+            // 2026-11-09 用户定案：绝缘体单位上的失效/沉睡是死层——不划线（同引擎口径）。
             var sup = CardOverlayItem.SuppressionOf(card.Runtime);
-            bool activeSuppressed = SuppressRules.IsActiveSuppressed(sup.silence, sup.sleep);
-            bool autoSuppressed = SuppressRules.IsAutoSuppressed(sup.nullify, sup.sleep);
+            bool insulatorActive = CardOverlayItem.IsInsulatorActive(card);
+            bool activeSuppressed = !insulatorActive && SuppressRules.IsActiveSuppressed(sup.silence, sup.sleep);
+            bool autoSuppressed = !insulatorActive && SuppressRules.IsAutoSuppressed(sup.nullify, sup.sleep);
 
             // 场地段（2026-10-29 P8）：场地卡（结界+场地标记）专属——落位固定+顶替语义提示
             if (data != null && data.IsField)
                 sections.Add("【场地】\n场地·每方一张——落位固定己方场地格；再打场地=顶替（旧场地入墓）");
 
             List<string> actives = null, autos = null;
+            var effectRows = new List<(string label, string line)>(); // 主动行数据（2026-11-09 预制体行）
+            int activeIdx = 0;
+            _pendingEffectRows = null; // 防跨悬停残留（换卡不带上一张的行）
+            _pendingEffectSpeed = null;
             if (data?.Effects != null)
             {
                 foreach (var fx in data.Effects)
@@ -182,10 +202,14 @@ namespace SynergyUI
                     if (string.IsNullOrEmpty(text)) continue;
                     if (timing == TriggerTiming.Activate_Active || timing == TriggerTiming.Activate_Instant)
                     {
-                        string cost = fx.AnchorCost != null && !fx.AnchorCost.IsZero
-                            ? "（费用 " + BattleView.CostTextOf(fx.AnchorCost) + "）" : "";
-                        (actives ??= new List<string>())
-                            .Add(CardOverlayItem.SuppressedText(text + cost, activeSuppressed));
+                        // 2026-11-09 逐色进位：悬停费用=引擎发动时实扣整数（与支付终点同 ε）
+                        var anchorBill = ElementPaymentValidator.CeilBill(fx.AnchorCost);
+                        string cost = anchorBill != null && !anchorBill.IsZero
+                            ? "（费用 " + BattleView.CostTextOf(anchorBill) + "）" : "";
+                        string line = CardOverlayItem.SuppressedText(text + cost, activeSuppressed);
+                        (actives ??= new List<string>()).Add(line);
+                        activeIdx++;
+                        effectRows.Add((string.IsNullOrEmpty(fx.DisplayName) ? $"作用 {activeIdx}" : fx.DisplayName, line));
                     }
                     else
                     {
@@ -195,7 +219,17 @@ namespace SynergyUI
             }
             // 卡级代价显示口已随 2026-11-06「代价全面并入效果级」定案退役——效果级 Costs 的
             // 「，【代价】…」由 RenderEffectSummary 拼进主动行文本
-            if (actives != null) sections.Add("【主动效果】\n" + string.Join("\n", actives));
+            if (actives != null)
+            {
+                if (effectRows.Count > 0 && EffectRowPrefab != null)
+                {
+                    // 预制体行（2026-11-09）：主动行不进文本段（行实例随面板堆叠在文本下方——
+                    // 行自带效果名/速度/全文，信息更全；单 TMP 面板无法内嵌，位置限制记录在案）
+                    _pendingEffectRows = effectRows;
+                    _pendingEffectSpeed = CardOverlayItem.EffectSpeedOf(data);
+                }
+                else sections.Add("【主动效果】\n" + string.Join("\n", actives));
+            }
             if (autos != null) sections.Add("【自动效果】\n" + string.Join("\n", autos));
 
             // 关键词：运行态优先（含授予/净化合并），回落印刷；完整解说=关键词表 description
@@ -305,14 +339,84 @@ namespace SynergyUI
         /// <summary>悬停信息文本（文本未变不重写）。替换文字后在显示态强排自动布局——隐藏状态下刷新无效，须等 SetActive 之后。</summary>
         private void SetHoverInfo(string text)
         {
-            if (string.IsNullOrEmpty(text)) { Clear(); return; }
-            if (_hoverKey == "info:" + text) return;
-            _hoverKey = "info:" + text;
+            var rows = _pendingEffectRows;
+            var speed = _pendingEffectSpeed;
+            _pendingEffectRows = null;
+            _pendingEffectSpeed = null;
+            if (string.IsNullOrEmpty(text) && rows == null) { Clear(); return; }
+            // 内容键并入行签名（2026-11-09）：主动行不进文本后，同文本不同主动的两卡会撞键
+            //（去重跳过=沿用上一张的行）——行标签序列一并入键杜绝。
+            string key = "info:" + text + "\u0001";
+            if (rows != null) foreach (var r in rows) key += r.label + "\u0001";
+            if (_hoverKey == key) return;
+            _hoverKey = key;
             if (_hoverInfo == null) return;
             bool replaced = _hoverInfoLabel.text != text;
             if (replaced) _hoverInfoLabel.text = text;
+            RebuildEffectRows(rows, speed);
             if (!_hoverInfo.gameObject.activeSelf) _hoverInfo.gameObject.SetActive(true);
-            if (replaced) LayoutRebuilder.ForceRebuildLayoutImmediate(_hoverInfo);
+            if (replaced || rows != null) LayoutRebuilder.ForceRebuildLayoutImmediate(_hoverInfo);
+        }
+
+        // ======================================== 主动效果预制体行（2026-11-09） ========================================
+
+        /// <summary>effect 行预制体（ACard effect 行同源模板：text=效果名/text/lbl-skill-speed=速度徽章/
+        /// des=全文+费用）。加载失败只试一次（空转回落纯文本行——错误日志由 HotUpdateAssets 侧单发）。</summary>
+        private static GameObject EffectRowPrefab
+        {
+            get
+            {
+                if (_effectRowPrefab == null && !_effectRowPrefabTried)
+                {
+                    _effectRowPrefab = Tide.HotUpdate.HotUpdateAssets.Load<GameObject>("effect", UiKit.PrefabPath("effect"));
+                    _effectRowPrefabTried = true;
+                }
+                return _effectRowPrefab;
+            }
+        }
+
+        /// <summary>行集重建：旧行全毁→逐主动实例化填值。行内 Button 拆除+Graphic 射线关闭
+        ///（ACard 行可点选施放模式，hover 行纯展示——不可拦盘面射线）。</summary>
+        private void RebuildEffectRows(List<(string label, string line)> rows, int? speed)
+        {
+            DestroyEffectRows();
+            if (rows == null || rows.Count == 0 || _hoverInfo == null) return;
+            var prefab = EffectRowPrefab;
+            if (prefab == null) return;
+            foreach (var row in rows)
+            {
+                var go = UnityEngine.Object.Instantiate(prefab, _hoverInfo, false);
+                go.name = "effect-row";
+                var rt = (RectTransform)go.transform;
+                _effectRows.Add(rt);
+                foreach (var btn in go.GetComponentsInChildren<Button>(true)) UnityEngine.Object.Destroy(btn);
+                foreach (var g in go.GetComponentsInChildren<Graphic>(true)) g.raycastTarget = false;
+                var nameTmp = rt.Find("text") != null ? rt.Find("text").GetComponent<TMP_Text>() : null;
+                if (nameTmp != null) nameTmp.text = row.label;
+                var speedT = rt.Find("text/lbl-skill-speed");
+                if (speedT != null)
+                {
+                    speedT.gameObject.SetActive(speed != null);
+                    if (speed != null)
+                    {
+                        var st = speedT.GetComponent<TMP_Text>();
+                        if (st != null) st.text = "发动速度" + speed.Value; // 与 ACardView.SetSpeedBadge 同文案
+                    }
+                }
+                var desTmp = rt.Find("des") != null ? rt.Find("des").GetComponent<TMP_Text>() : null;
+                if (desTmp != null)
+                {
+                    desTmp.richText = true; // SuppressedText 删除线（与 _hoverInfoLabel 同口径）
+                    desTmp.text = row.line;
+                }
+            }
+        }
+
+        private void DestroyEffectRows()
+        {
+            for (int i = _effectRows.Count - 1; i >= 0; i--)
+                if (_effectRows[i] != null) UnityEngine.Object.Destroy(_effectRows[i].gameObject);
+            _effectRows.Clear();
         }
 
         internal static bool TryParseTile(string hitName, out int x, out int z)
@@ -397,7 +501,7 @@ namespace SynergyUI
                     // 万能元素展示格（Any·只做展示）：余额读数随悬停补齐
                     int anyN = pv != null && (int)ManaType.Any < pv.WalletByColor.Length
                         ? pv.WalletByColor[(int)ManaType.Any] : 0;
-                    return $"{who}格 · 任意元素 · 钱包余额 {anyN}（可代替任何元素支付，回合结束消失；不由地牌产出）";
+                    return $"{who}格 · 彩元素 · 钱包余额 {anyN}（可代替任何元素支付，回合结束消失；不由地牌产出）";
                 }
                 case CellRole.Field:
                 {

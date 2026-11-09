@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -128,7 +128,8 @@ namespace CardCore.Attribute
     /// - 换区口径按型（2026-10-08 晚补裁决）：Resident/Decay/System **换区清**（战场减益与常驻层
     ///   不跟卡走；倒计时引擎重挂兜底）；Exception 生效自减**换区不清**（护甲/圣盾/复生/潜行/毒素/
     ///   坚韧/易损/角色攻击/诅咒/祝福跨区存活——诅咒活过牌库→手牌正依赖此档；
-    ///   坚韧/易损 2026-10-09 自 Resident/Decay 迁入：生效=受伤拦减/放大，随后层数减半 floor）。
+    ///   坚韧/易损 2026-10-09 自 Resident/Decay 迁入：生效=受伤拦减/放大——坚韧生效后减半 floor，
+    ///   易损 2026-11-09 改全部移除）。
     /// - 清除口收敛为四：换区 ClearAll（清非 Exception）｜净化 PurgeAll（全清）｜
     ///   解减益 ClearNegative（极性口径）｜Decay 自然归零。
     /// - 消耗型（Exception 全员 + Resident 的技能计数/耐久）由各自事件消耗（TickPolicy=External 标注归属）。
@@ -156,13 +157,14 @@ namespace CardCore.Attribute
         public const string NullifyCounter = "Nullify";
         /// <summary>
         /// 易损（2026-10-09 生效自减定案，同毒素档，表行 e83505b8/AddVulnerable）：无持续时间、只有层数——
-        /// 每次受到伤害时每层使受到的伤害 +1，生效后层数减半（向下取整，1 层生效一次即清零）。
-        /// 放大+减半口=KeywordRules.ApplyDamage 第 0 步；换区不清（生效自减档）、净化/解减益可清。
+        /// 每次受到伤害时每层使受到的伤害 +1，生效后层数全部移除（2026-11-09 改版：原为减半 floor）。
+        /// 放大+移除口=KeywordRules.ApplyDamage 第 0 步；换区不清（生效自减档）、净化/解减益可清。
         /// </summary>
         public const string VulnerableCounter = "Vulnerable";
         /// <summary>
         /// 坚韧（2026-10-09 生效自减改版，表行 a8f7f476/GrantToughness）：每次受到伤害时每层使伤害 −1，
-        /// 实际拦到伤害即生效——生效后层数减半（向下取整，易损的正面镜像）；可叠加。
+        /// 实际拦到伤害即生效——生效后层数减半（向下取整；易损的正面镜像——2026-11-09 起易损改全部
+        /// 移除，镜像仅余拦减/放大向）；可叠加。
         /// Entity 级（角色可持有——旧关键词形态 is Card 死线随之消解）；换区不清（生效自减档）、净化可清。
         /// 施加口=GrantToughnessHandler；拦减+减半口=KeywordRules.ApplyPreventionLayers 第 3 层。
         /// </summary>
@@ -371,8 +373,8 @@ namespace CardCore.Attribute
             // 毒素：层=伤害基数——持有者每回合末受到=层数的伤害，随后层数减半（floor）。
             // 例程在 OnTurnEnd ①（ProcessToxinException）；换区不清、净化可清
             Register(new CounterSpec { Id = ToxinCounter, Polarity = CounterPolarity.Negative, Class = CounterClass.Exception, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.External, DisplayName = "毒素" });
-            // 易损（2026-10-09 生效自减改版，自 Decay 迁入，同毒素档）：受伤每层 +1 → 生效后层数减半
-            //（floor）；无回合末倒数；放大+减半口=KeywordRules.ApplyDamage 第 0 步；换区不清、净化/解减益可清
+            // 易损（2026-10-09 生效自减改版，自 Decay 迁入；2026-11-09 改全部移除）：受伤每层 +1 →
+            // 生效后层数全部移除；无回合末倒数；放大+移除口=KeywordRules.ApplyDamage 第 0 步；换区不清、净化/解减益可清
             Register(new CounterSpec { Id = VulnerableCounter, Polarity = CounterPolarity.Negative, Class = CounterClass.Exception, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.External, DisplayName = "易损" });
             // 角色攻击：弹药读数，攻击/反击结算后全烧（RemoveHeroAttackAmmo）
             Register(new CounterSpec { Id = HeroAttackCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.Exception, LayerRole = CounterLayerRole.Reading, TickPolicy = CounterTickPolicy.External, DisplayName = "角色攻击" });
@@ -438,7 +440,7 @@ namespace CardCore.Attribute
             // 沉睡：持有期间无法重置+效果无效；层=持续回合，倒数在回合末（2026-10-08 从回合开始挪回合末——
             // 层归零后下回合开始自然恢复重置）
             Register(new CounterSpec { Id = KeywordRules.SleepCounter, Polarity = CounterPolarity.Negative, Class = CounterClass.Decay, LayerRole = CounterLayerRole.Clock, TickPolicy = CounterTickPolicy.TurnEndTickDown, BlocksUntap = true, DisplayName = "沉睡" });
-            //（易损 2026-10-09 迁入 Exception 生效自减——受伤放大后层数减半，见上区块）
+            //（易损 2026-10-09 迁入 Exception 生效自减——受伤放大后层数全部移除，见上区块）
             // 锁定：层=剩余回合，手牌区同样倒数（锁定原子只锁手牌——被锁卡无法打出故不换区，与换区清无冲突）
             Register(new CounterSpec { Id = LockCounter, Polarity = CounterPolarity.Negative, Class = CounterClass.Decay, LayerRole = CounterLayerRole.Clock, TickPolicy = CounterTickPolicy.TurnEndTickDown, DisplayName = "锁定" });
             // 保护三档（2026-10-30 指示物化）：层=持续到自己第 N 个回合结束；Entity 级（角色可持有——
@@ -727,7 +729,8 @@ namespace CardCore.Attribute
         /// 换区清除（ZoneContainer.Move 调用；发动区豁免由调用方保证）：清**非 Exception** 类
         ///（Resident 常驻 / Decay 衰减 / System 倒计时——属性层先反向回写；战场减益不跟卡走）；
         /// **Exception 生效自减不清**（护甲/圣盾/复生/潜行/毒素/坚韧/易损/角色攻击/诅咒/祝福跨区存活
-        /// ——诅咒活过牌库→手牌正依赖此档；坚韧/易损 2026-10-09 迁入，减半消耗在伤害管线内）。
+        /// ——诅咒活过牌库→手牌正依赖此档；坚韧/易损 2026-10-09 迁入，消耗在伤害管线内——坚韧减半、
+        /// 易损 2026-11-09 改全部移除）。
         /// </summary>
         public static void ClearAll(Card card) => ClearCounters(card, purgeAll: false);
 
@@ -999,8 +1002,9 @@ namespace CardCore.Attribute
 
         public bool BlocksUntap(Card card)
             => card != null
-               // 效果口径读数（2026-10-31 绝缘体裁定）：冻结层对绝缘体单位不挡重置
-               //（沉睡=压制型，绝缘体生效期间添加即清零，账面即真相）
+               // 效果口径读数（2026-10-31 绝缘体裁定）：冻结/沉睡层对绝缘体单位不挡重置
+               //（2026-11-09 用户定案：沉睡与失效同为死层——层照常落账并正常倒数，只是零效果；
+               // 冻结本就走效果口径，两者经同一口天然一致）
                && card._counters.Any(kv => card.GetEffectiveCounterCount(kv.Key) > 0
                                            && CounterRules.Find(kv.Key).BlocksUntap);
 

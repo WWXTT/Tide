@@ -399,7 +399,7 @@
   {
     "ID": "c770c18f",
     "TextHash": "c770c18f",
-    "Domain": "双方战场:生物",
+    "Domain": "双方战场:生物,结界",
     "EnumName": "失效",
     "DisplayName": "对{target}附加{value}层失效指示物（不可发动自动效果）",
     "EffectType": "AddNullify",
@@ -455,10 +455,10 @@
   },
   {
     "ID": "86e0fa7c",
-    "TextHash": "86e0fa7c",
+    "TextHash": "38d17432",
     "Domain": "双方战场:生物; 双方角色",
     "EnumName": "易损",
-    "DisplayName": "对{target}附加{value}层易损指示物，受到伤害时，每层使受到的最终伤害加1，生效后层数减半（向下取整）",
+    "DisplayName": "对{target}附加{value}层易损指示物，受到伤害时，每层使受到的最终伤害加1，生效后移除",
     "EffectType": "AddVulnerable",
     "TargetFilter": null,
     "Polarity": -1,
@@ -466,7 +466,7 @@
     "Tags": "生效自减型",
     "ManaList": [
       0,
-      1,
+      0.5,
       0,
       0
     ]

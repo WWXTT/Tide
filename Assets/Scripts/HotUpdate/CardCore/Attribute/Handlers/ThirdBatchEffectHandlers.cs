@@ -81,7 +81,7 @@ namespace CardCore.Attribute.Handlers
     /// 旧「地牌非单位不入池」口径作废）**规则送墓**。裁定：**非效果死亡**——不经 DeathRules、不发
     /// CardDestroyEvent（OnDeath/亡语/消灭替代/击杀统计全不触发），不灭/复生无从拦截（非死亡路径天然
     /// 绕过）；地牌先出池（余量写回卡——摧毁/抹除同口）再入墓；送墓归属=卡牌持有者。
-    /// 每送墓一个单位，该持有者临时钱包 +1 任意元素（AddMana 官方口，任一回合结束清空）。
+    /// 每送墓一个单位，该持有者临时钱包 +1 彩元素（AddMana 官方口，任一回合结束清空）。
     /// 候选不足 {value} 个时全量送墓；空场空转（不空发整卡、不入账）。
     /// 同步路径（触发式/headless）：自动选候选前 N 个（TargetSelectionService 代替选取同口径）。</summary>
     public class SacrificeHandler : AtomicEffectHandlerBase
@@ -126,7 +126,7 @@ namespace CardCore.Attribute.Handlers
                         MinCount = count,
                         MaxCount = count,
                         Chooser = holder, // 持有者自行选择（选择权在目标方——域收窄己方后恒自选）
-                        Title = $"{holder.Name}：选择 {count} 个单位送入墓地（每个 +1 任意元素）",
+                        Title = $"{holder.Name}：选择 {count} 个单位送入墓地（每个 +1 彩元素）",
                         AllowCancel = false,
                         PromptSource = (Entity)context.CastCard ?? context.Source,
                     });
@@ -154,7 +154,7 @@ namespace CardCore.Attribute.Handlers
             return sent;
         }
 
-        /// <summary>每送墓一个单位 +1 **临时任意元素**（万能货币落临时钱包，任一回合结束清空；
+        /// <summary>每送墓一个单位 +1 **临时彩元素**（万能货币落临时钱包，任一回合结束清空；
         /// 支付沿各色链尾垫付）。AddMana 官方口（ElementPoolGainEvent 可观测），入账方=交出单位的一方。</summary>
         private static void GrantAny(Player holder, int sent, EffectExecutionContext context)
         {
@@ -195,7 +195,7 @@ namespace CardCore.Attribute.Handlers
         }
 
         protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => $"自行选择 {Math.Max(1, effect.Value > 0 ? effect.Value : 1)} 个场上单位（含地牌）规则送墓；每送墓一个单位，获得一点临时任意元素（非效果死亡，不触发死亡时点）";
+            => $"自行选择 {Math.Max(1, effect.Value > 0 ? effect.Value : 1)} 个场上单位（含地牌）规则送墓；每送墓一个单位，获得一点临时彩元素（非效果死亡，不触发死亡时点）";
     }
 
     /// <summary>消灭（2026-10-09 吞噬机制移除定案：原吞噬行改名，EffectType 沿用 Devour 枚举位）——

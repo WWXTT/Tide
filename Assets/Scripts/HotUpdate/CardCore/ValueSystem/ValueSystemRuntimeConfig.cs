@@ -50,8 +50,8 @@ namespace CardCore
     /// **作用次数档已退役**（2026-10-30 定案）：效果不再有每回合生效次数上限，
     /// TriggerLimit1/2/3/Infinite 与 TriggerLimitFactor 整删（此前已零消费，TriggerCostFactor 恒 1）。
     /// **发动时机系数已迁出本段**：2026-10-30 起配在 Category=TimingFactor——2026-11-05 收敛为
-    /// 单次/多次两档（均 ×1，多次成本由耐久承担，见 TimingFactorConfig），旧 TimingOnceFactor×0.8 /
-    /// TimingRepeatFactor×1 两档与 31 行期望次数表先后删除。
+    /// 单次/多次两档，2026-11-09 再拆出生物专属档（攻/守/横置 ×1.5，仅生物可挂，
+    /// 见 TimingFactorConfig），旧 TimingOnceFactor×0.8 / TimingRepeatFactor×1 两档与 31 行期望次数表先后删除。
     /// 速度档已随 2026-10-19 速度计价退役整删——三类卡分类把发动速度特化为法术专属类特性
     ///（速度=3−槽数、其余主动默认 0），不再是可购溢价轴。
     /// </summary>
@@ -79,20 +79,24 @@ namespace CardCore
     }
 
     /// <summary>
-    /// 发动时机系数（表 Category=TimingFactor；2026-11-05 两档收敛定案）——时机只分**单次/多次**两档，
-    /// 且两档系数均为 1：**多次生效的成本由耐久承担**（结界每次触发 −1 耐久、0.5 蓝/点——耐久即次数池，
-    /// 不再按次数加价）；单据 FiresOncePerPaidLifetime 归类（CostDerivation 单源）。
-    /// 单次=登场/死亡/破坏/除外/离场/墓地回场/游戏开始/角色死亡（付清后只发生一次）；
-    /// 多次=回合/阶段/抽牌/伤害/事件观察族（仅结界可挂）+ 攻/守/横置族（生物可挂——宿主自身行动承担次数）。
-    /// 旧 31 行逐时机期望次数表（2026-10-30 上线）同日整删——「存活期望 1.5 回合/暂定 2」口径退役。
-    /// 主动发动（Activate_*）与引擎载荷恒 1（TimingCostFactor 内判，不乘表）；消费方
-    /// CostDerivation.TimingCostFactor[Of]/IsRepeatTiming；合成器时机下拉档位标签与本段同源。
+    /// 发动时机系数（表 Category=TimingFactor；2026-11-05 两档收敛，2026-11-09 拆出生物专属档）——
+    /// 三档：单次 / 多次（周期·观察族，结界专属）/ 生物专属（攻/守/横置族）。
+    /// · 单次 Once=1：付清后只发生一次（登场/死亡/破坏/除外/离场/墓地回场/游戏开始/角色死亡）；
+    /// · 多次 Repeat=1：回合/阶段/抽牌/伤害/事件观察族——仅结界可挂，额外次数已由耐久支付
+    ///   （每次触发 −1 耐久、0.5 蓝/点——耐久即次数池），不按次数加价；
+    /// · 生物专属 CreatureOnly=1.5：攻/守/横置族——只有生物能挂（结界不横置、法术不驻场，
+    ///   无从触发），宿主自身行动承担次数，按 ×1.5 计费。
+    /// 单据 FiresOncePerPaidLifetime 判单次，EffectEligibility.IsTapAnchoredTiming 判生物专属
+    /// （CostDerivation 单源）；主动发动（Activate_*）与引擎载荷恒 1（TimingCostFactor 内判，不乘表）。
+    /// 消费方 CostDerivation.TimingCostFactor[Of]/IsRepeatTiming；合成器时机下拉档位标签与本段同源。
+    /// 旧 31 行逐时机期望次数表（2026-10-30 上线）已整删——「存活期望 1.5 回合/暂定 2」口径退役。
     /// </summary>
     [Serializable]
     public class TimingFactorConfig
     {
-        public float Once = 1f;   // 单次档（FiresOncePerPaidLifetime=true 的时机）：基准 ×1
-        public float Repeat = 1f; // 多次档：×1——额外次数已由耐久支付（结界），不按次数加价
+        public float Once = 1f;           // 单次档（FiresOncePerPaidLifetime=true 的时机）：基准 ×1
+        public float Repeat = 1f;         // 多次档（周期/观察族，结界专属）：×1——额外次数已由耐久支付，不按次数加价
+        public float CreatureOnly = 1.5f; // 生物专属档（攻/守/横置族）：×1.5——只有生物可挂（结界不横置、法术不驻场）
     }
 
     // 注：TimingModifier / CostValue / EffectValue / TriggerValue / CardTypeValue 五类配置
@@ -102,6 +106,8 @@ namespace CardCore
     // 2026-10-30 再修订：两档合表改为逐时机期望触发次数（TimingFactorConfig，Category=TimingFactor）。
     // 2026-11-05 定案：期望次数口径退役——收敛为单次/多次两档且均 ×1（多次成本由结界耐久承担），
     // TimingFactorConfig 缩为 Once/Repeat 两字段，31 行逐时机表整删。
+    // 2026-11-09 修订：攻/守/横置族为生物专属状态（结界不横置、法术不驻场），从多次档拆出
+    // CreatureOnly=1.5 单列计价，只有生物可挂；Repeat 回归周期/观察族结界专属口径。
 
     /// <summary>
     /// 开局/全局规则数值（表 Category=GameRules，2026-10-13 迁表定案：逻辑不动、数值出代码——

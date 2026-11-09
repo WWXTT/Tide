@@ -652,6 +652,26 @@ namespace CardCore.Editor
             // 清理填充物（保证重复运行稳定）
             foreach (var f in fillers) container1.Remove(f, Zone.Battlefield);
             container1.Remove(tokenCard, Zone.Graveyard);
+
+            // ---- 9. 碾压邻接口探针（2026-11-09 溅射域改版）：角色格返 Player、单位格返占用卡 ----
+            foreach (var p in new[] { p1, p2 })
+                foreach (var c in core.ZoneManager.GetCards(p, Zone.Battlefield).ToList())
+                    core.ZoneManager.GetZoneContainer(p).Remove(c, Zone.Battlefield);
+            var probePawn = new CardWrapper(new CardData
+            {
+                ID = "VERIFY_BOARD_FLANK", CardName = "邻接探针",
+                Supertype = Cardtype.Creature, Power = 1, Life = 5,
+            });
+            probePawn.SetController(p1);
+            Assert(core.ZoneManager.TryAddToBattlefield(probePawn, p1), "邻接探针入场成功");
+            board.PinCard(probePawn, 1, 1); // P1 近己方行首格——W 邻格 (0,1)=P1 角色格
+            var probeFlanks = board.FlankNeighbors(probePawn).ToList();
+            Assert(probeFlanks.Count == 1 && ReferenceEquals(probeFlanks[0], p1),
+                   "碾压邻接：单位格西邻=角色格——FlankNeighbors 返该方 Player（IEnumerable<Entity> 新签名）");
+            var probeRoleFlanks = board.FlankNeighborsOfRole(p1).ToList();
+            Assert(probeRoleFlanks.Count == 1 && ReferenceEquals(probeRoleFlanks[0], probePawn),
+                   "碾压邻接：FlankNeighborsOfRole 收角色格 E 向邻格占用者");
+            core.ZoneManager.GetZoneContainer(p1).Remove(probePawn, Zone.Battlefield);
         }
 
         /// <summary>棋盘占用快照（排序串，用于确定性对比）</summary>

@@ -40,7 +40,7 @@ namespace GameBoard
         Middle,
 
         /// <summary>万能元素展示格（2026-10-29 P11 改独立角色·只做展示；当晚对座镜像修订迁 (1,0)）：
-        /// P1 (1,0)／P2=镜像像 (6,6)。任意元素余额的图标/数字/描边环展示位（BattleFieldView.ReconcileLands）——
+        /// P1 (1,0)／P2=镜像像 (6,6)。彩元素余额的图标/数字/描边环展示位（BattleFieldView.ReconcileLands）——
         /// 旧 CellRole.Extra（额外区格·点击开额外区面板）已随 P11 定案整删：额外区无盘面入口，
         /// 衍生物模板区 Zone.Extra 本身保留（P9b 域，无嵌套校验亦不在本包）。</summary>
         Any,
@@ -121,7 +121,7 @@ namespace GameBoard
 
         /// <summary>地牌行固定元素序（玩家自身视角左→右）：灰红蓝绿——
         /// LandCells(player)[i] 的元素身份恒为本序第 i 位（引擎落格/UI 图标/悬停文案共用单源）。
-        /// 任意元素（Any）→ 万能展示格（AnyElementCell——视觉叠加展示，不入四色序/不占 Land 格角色）。</summary>
+        /// 彩元素（Any）→ 万能展示格（AnyElementCell——视觉叠加展示，不入四色序/不占 Land 格角色）。</summary>
         public static readonly CardCore.ManaType[] LandCellElementOrder =
         {
             CardCore.ManaType.Gray, CardCore.ManaType.Red,
@@ -130,7 +130,7 @@ namespace GameBoard
 
         /// <summary>固定元素格映射：元素 → 该玩家地牌行格（LandCellElementOrder 序）。
         /// 未知色回落序首（灰格——防御口径）；
-        /// 任意元素（Any）→ 万能展示格（AnyElementCell——视觉叠加展示，不入 LandCellElementOrder
+        /// 彩元素（Any）→ 万能展示格（AnyElementCell——视觉叠加展示，不入 LandCellElementOrder
         /// 四色序/不占 Land 格角色）。</summary>
         public static (int x, int z) LandCellOfElement(int player, CardCore.ManaType element)
         {
@@ -142,7 +142,7 @@ namespace GameBoard
             return cells[i];
         }
 
-        /// <summary>万能元素展示格：地盘行 (1,0)／P2=镜像像 (6,6)。任意元素不由地牌产出、
+        /// <summary>万能元素展示格：地盘行 (1,0)／P2=镜像像 (6,6)。彩元素不由地牌产出、
         /// 永不叠地牌卡：该格只作视觉叠加（图标+钱包余额数字+余额&gt;0 描边环，
         /// BattleFieldView.ReconcileLands）；格角色=Any（只做展示，无点击行为——
         /// 旧「点击开额外区面板」口径已随 P11 额外区格整删退役）。</summary>

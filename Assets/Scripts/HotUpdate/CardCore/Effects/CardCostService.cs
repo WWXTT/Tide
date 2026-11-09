@@ -25,11 +25,12 @@ namespace CardCore
     /// <summary>统一计价结果 —— 规则一·平衡的完整输出。</summary>
     public sealed class CardCostResult
     {
-        /// <summary>推导档位 Ĉ = 取整前推导总额（S+E+K）所在档（0=无内容；UI 卡面费数字）。
-        /// 2026-10-22 恒推导定案：不读存档 costList——档位由推导总额自决，无「声明」概念。</summary>
+        /// <summary>推导档位 Ĉ = 实际卡费总额（逐色进位后）钳档帽（0=无内容；UI 卡面费数字）。
+        /// 2026-10-22 恒推导定案：不读存档 costList——档位由推导自决，无「声明」概念；
+        /// 2026-11-09 逐色进位定案：口径从 round(S+E+K) 改实际卡费总额。</summary>
         public int DerivedTier;
 
-        /// <summary>推导价 D(Ĉ)，逐色 AwayFromZero 取整（即支付价）。</summary>
+        /// <summary>推导价 D(Ĉ)，逐色向上取整（=支付价；2026-11-09 定案，ε=1e-4 与 NormalizeBill 同规则）。</summary>
         public ElementCost DerivedCost = new ElementCost();
 
         /// <summary>身材费 S（灰桶）。</summary>
@@ -44,7 +45,7 @@ namespace CardCore
         /// <summary>挂载效果定义数 N_active。</summary>
         public int ActiveEffectCount;
 
-        /// <summary>D 逐色取整后的总和。</summary>
+        /// <summary>D 逐色向上取整后的总和（恒整数）。</summary>
         public int DerivedTotal;
 
         /// <summary>抵扣需求 Req = max(0, D_total − C_total)（信息行——2026-09-11 规则一简化后不再有当量抵扣）。</summary>
@@ -83,8 +84,9 @@ namespace CardCore
     ///   身材费 S(灰)  = (攻+血) / StatUnit（StatUnit=2：1费=2属性）。
     ///   关键词费 K    = Σ 关键词对应 Grant 原子的 BaseCost（固定费，颜色=原子亲和）。
     ///   卡层组合费用  = CardCompositionCost（底盘预算：超槽加价 / 剩余抵价，不参与锚价）。
-    ///   D(Ĉ) = S灰 + 挂载包 + 卡层调整（减免发生在组合层：包总额一次取整，最大余数法分色）；D 只算一次，不迭代。
-    ///   档位 Ĉ = round(S+E+K)（取整前推导总额）所在档（2026-10-22 恒推导定案：不读存档 costList，
+    ///   D(Ĉ) = S灰 + 挂载包 + 卡层调整（减免发生在组合层：E/K 合计一次取整、最大余数法分色；
+    ///   卡费在代价抵扣前**逐色向上取整**——2026-11-09 定案，与支付终点 NormalizeBill 同 ε 同规则）；D 只算一次，不迭代。
+    ///   档位 Ĉ = 实际卡费总额（逐色进位后）钳档帽（2026-10-22 恒推导定案：不读存档 costList，
     ///   无循环依赖、无「声明」）；支付/地牌锁色/UI/召唤门槛全走推导值——costList 仅为显示缓存
     ///   （EnsureCost 装载时刷新，与推导不一致仅告警）。
     ///   **阶梯减价/延迟折已整删（2026-10-31 用户定案：f=d(Ĉ) 退役——无前中后期卡组概念，
@@ -140,7 +142,8 @@ namespace CardCore
 
                 float defTotal = 0f;
                 // 作用次数档已随 2026-10-30 无上限定案整删——不再对非生物卡型归一次数分量；
-                // 时机两档（2026-11-05 收敛均 ×1）由 CostDerivation 内乘，多次成本由结界耐久承担。
+                // 时机三档（2026-11-09：单次/多次 ×1；攻/守/横置生物专属 ×1.5）由 CostDerivation 内乘，
+                // 多次成本由结界耐久承担，生物专属次数由宿主自身行动承担。
                 var defCost = CostDerivationService.DeriveElementCosts(def, 0); // 法术宿主永久档由迁移回填承载（Duration=Permanent）
                 foreach (var color in defCost.NonzeroColors())
                 {
@@ -153,15 +156,15 @@ namespace CardCore
                 result.Breakdown.Add(new CostBreakdownLine("E", $"效果 {def.DisplayName ?? def.Id} (锚价)", defTotal));
             }
 
-            // ---- 4) 推导档位 Ĉ（2026-10-22 恒推导定案）：round(S+E+K) 所在档——
-            // 延迟折 f=d(Ĉ) 已整删（2026-10-31 定案），档位仅作 UI 卡面费数字，不再参与计价。
+            // ---- 4) 取整前推导总额（规则一对照用）----
+            // 档位 Ĉ 的赋值已移至 DerivedTotal 之后（2026-11-09 逐色进位定案：口径=实际卡费总额钳档帽——
+            // 旧 round(S+E+K) 档位概念源自已退役的延迟折 d(Ĉ)，现在只作显示数字）。
             // 档帽=地牌槽自然封顶 LandCurveCap 单源（2026-11-03 接入；旧独立 MaxTier=14 退役——
-            // 池侧 14 硬顶 2026-10-15 已退役，此处是最后一处残留；成长效果加槽无上限，不影响本显示钳）。----
+            // 池侧 14 硬顶 2026-10-15 已退役，此处是最后一处残留；成长效果加槽无上限，不影响本显示钳）。
             float rawTotal = statValue + keywordTotal + effectTotal;
-            result.DerivedTier = rawTotal > 0f
-                ? Math.Clamp(TideMath.RoundToInt(rawTotal), 1, (int)cfg.GameRulesConfig.LandCurveCap) : 0;
 
-            // ---- 5) L2 组合：E/K 汇桶 + S 拆轴色入桶（2026-11-02 基地红绿：攻红/血绿），总额一次取整，最大余数法分色（无延迟折）----
+            // ---- 5) L2 组合：E/K 汇桶 + S 拆轴色入桶（2026-11-02 基地红绿：攻红/血绿），E/K 总额一次取整、最大余数法分色（无延迟折）；
+            // 卡费出口的逐色向上取整见 5b ----
             // 底盘预算（2026-09-10 攻/守效果化，取代旧挂载口曲线）：取整后落位——
             // 退费先灰后最高色（法术常无灰分量），加价入灰。
             // 底盘（2026-10-22 最终定案，取代 10-15 生物按槽加价）：结构项=攻/守+效果槽，
@@ -218,7 +221,17 @@ namespace CardCore
                 result.Breakdown.Add(new CostBreakdownLine("C", "具备充能 +1 灰（充能资格加价，2026-11-06 opt-in）", chargeFee, ManaType.Gray));
             }
 
-            // ---- 5b) 代价抵扣（2026-10-28 P1 定案：代价 = 构筑期抵扣；2026-10-31 色锁定案+指向化） ----
+            // ---- 5b) 卡费逐色向上取整（2026-11-09 定案：卡组合阶段费用恒为整数）----
+            // 口径 = 支付终点同款逐色进1（ε=1e-4）：卡上每色数字 == 实际每色扣费。
+            // 进位在代价抵扣之前——抵扣是整数点，作用于玩家真正要付的整数卡费
+            //（否则会出现「显示 1 红、红代价却抵不掉」的不一致）。
+            // 进位尾差 ceilDrift 只喂规则一比较，不计超模。
+            int ceilDrift = CeilBucketsInPlace(mounted);
+            if (ceilDrift > 0)
+                result.Breakdown.Add(new CostBreakdownLine("C",
+                    $"逐色进位 +{ceilDrift}（0.5/点 身材·耐久进 1——卡组合阶段费用取整）", ceilDrift));
+
+            // ---- 5c) 代价抵扣（2026-10-28 P1 定案：代价 = 构筑期抵扣；2026-10-31 色锁定案+指向化） ----
             // 施放期代价行（卡级行任指 + 非主动效果行）逐原子 PayloadUnitGrant 求和，
             // 只在代价原子可产出色（行 ManaList 非零色）内逐点扣、每色下限 0（溢出丢弃）——
             // 单个代价至多把对应色费用清零，不溢出到他色。衍生物内容全价不抵扣（ContentPrice*）。
@@ -244,22 +257,27 @@ namespace CardCore
             result.S = (int)Math.Round(statValue, MidpointRounding.AwayFromZero);
             result.K = (int)Math.Round(keywordTotal, MidpointRounding.AwayFromZero);
             result.EAnchor = (int)Math.Round(effectTotal, MidpointRounding.AwayFromZero);
-            // 2026-11-03 属性费真实小数：总额四舍五入（AwayFromZero）入 DerivedTotal——
-            // 与 Ĉ=round(S+E+K) 同侧取整，规则一 D≤Ĉ 只剩取整漂移
+            // 2026-11-09 逐色进位定案：DerivedCost 已恒整数——总额取整仅清浮点尾差（必然整数）。
             result.DerivedTotal = (int)Math.Round(result.DerivedCost.Total, MidpointRounding.AwayFromZero);
+            // 推导档位 Ĉ = 实际卡费总额钳档帽（0=无内容；仅作 UI 卡面费数字，不参与计价）
+            result.DerivedTier = result.DerivedTotal > 0
+                ? Math.Clamp(result.DerivedTotal, 1, (int)cfg.GameRulesConfig.LandCurveCap) : 0;
 
             // ---- 6) 规则一：D ≤ Ĉ + 结构费 直判（2026-10-31 阶梯减价删除后锚含结构费）----
-            // 延迟折删除后 D = round(S+E+K) + 结构加价 − 底盘抵价：结构加价是「内容+结构」锚内的
+            // 延迟折删除后 D = ceil(真值) + 结构加价 − 底盘抵价 − 代价抵扣：结构加价是「内容+结构」锚内的
             // 真实费用（超槽=多占预算），不再视为超模；Req>0 只可能来自取整漂移——巡检兜底用。
-            // 代价抵扣（5b）先于本判——净费参与。对照值 Ĉ₁=max(1, round(S+E+K)) 上不钳档帽
+            // 代价抵扣（5c）先于本判——净费参与。对照值 Ĉ₁=max(1, ceil(S+E+K)) 上不钳档帽
             //（2026-10-29）：若照钳后档判，rawTotal>档帽的卡 Ĉ 恒钉上限而 D 随内容增长，
             // D≤Ĉ 结构性不可满足（教学三 Boss 末日降临 rawTotal34→档14/D26 即此——时值旧帽14）；下钳 1 与档位口径一致。
-            int ruleTier = rawTotal > 0f ? Math.Max(1, TideMath.RoundToInt(rawTotal)) : 0;
+            // 规则一按「进位前」比较（round → ceil 同步换，2026-11-09）：逐色进位漂移不算超模——
+            // ceilBase = ceil(抵扣前真值) − 实抵（抵扣是整数点，恒等）。
+            int ruleTier = rawTotal > 0f ? Math.Max(1, (int)Math.Ceiling(rawTotal - 1e-4f)) : 0;
             // 充能加价（+1 灰）与结构费同为资格/结构加价——计入规则一对照额度，不判超模。
-            result.OffsetRequirement = Math.Max(0, result.DerivedTotal - ruleTier - surcharge - chargeFee);
+            int ceilBase = result.DerivedTotal - ceilDrift;
+            result.OffsetRequirement = Math.Max(0, ceilBase - ruleTier - surcharge - chargeFee);
             result.Conformant = result.OffsetRequirement == 0;
             result.Breakdown.Add(new CostBreakdownLine("Req",
-                $"规则一 D{result.DerivedTotal} ≤ Ĉ{ruleTier}+结构{surcharge}+充能{chargeFee}", result.OffsetRequirement));
+                $"规则一 D{result.DerivedTotal} ≤ Ĉ{ruleTier}+结构{surcharge}+充能{chargeFee}（逐色进位 +{ceilDrift} 不计超模）", result.OffsetRequirement));
 
             // ---- 6b) 黑白获得汇总已删（2026-10-28 P1 定案）：代价=构筑期抵扣（5b），不再发放任何元素；
             // Grants 字段留空不填（引用清理 P4 处理）----
@@ -397,14 +415,16 @@ namespace CardCore
         }
 
         /// <summary>存档 costList 与推导不一致 → 告警（仅观测不阻塞——编辑器定位陈旧费用快照用；
-        /// 运行时支付价恒走推导，与存档无关）。空存档（null/全零）不算陈旧——首次装载/新生卡常态。</summary>
+        /// 运行时支付价恒走推导，与存档无关）。空存档（null/全零）不算陈旧——首次装载/新生卡常态。
+        /// 2026-11-09 逐色进位：比对改进位口径——旧档带 .5 的快照（0.5 ↔ 1）不算陈旧，
+        /// 避免 84 张旧 costList 每张刷一条 Warning。</summary>
         private static void WarnIfCostStale(CardData card, ElementCost derived)
         {
             var stored = card.Cost;
             if (stored == null || stored.IsZero) return;
             foreach (ManaType color in Enum.GetValues(typeof(ManaType)))
             {
-                if (Math.Abs(stored[color] - derived[color]) > 0.001f)
+                if (Math.Abs((int)Math.Ceiling(stored[color] - 1e-4f) - derived[color]) > 0.001f)
                 {
                     TideLog.Warn($"[CardCostService] 卡 {card.ID}({card.CardName}) 存档费用 {stored} 与推导 {derived} 不一致" +
                         "——已按恒推导定案刷新显示缓存（调原子表/内容后重存卡表即可消除本告警）");
@@ -486,7 +506,7 @@ namespace CardCore
             // 卡层组合费用：抉择价差溢价已废（2026-09-21）——身材费拆轴色入桶（2026-11-02 基地红绿）；
             // 抉择的弹性费在结构项计槽（每分支一个效果槽，CountEffectSlots），对模式均匀。
 
-            // ---- 第二遍：L2 组合 + 整卡取整（与 Derive 的 ApportionMounted 同口径）----
+            // ---- 第二遍：L2 组合 + 逐色进位（与 Derive 的 ApportionMounted/5b 同口径）----
             // 支付按所选模式（延迟折已删，各模式费随各自总额全额，不读存档 costList）。
             for (int m = 0; m < modeCount; m++)
             {
@@ -494,10 +514,11 @@ namespace CardCore
                 ApplyChassis(card, mounted); // 底盘（2026-10-10 可支配）：超槽加价入灰 / 剩余抵价（先灰后最高色）
                 if (card.ChargeAbility)
                 {
-                    // 充能加价（2026-11-06 opt-in 定案）：与 Derive 主管同口径 +1 灰，先于 PrePayload 留影
+                    // 充能加价（2026-11-06 opt-in 定案）：与 Derive 主管同口径 +1 灰，先于逐色进位
                     mounted.TryGetValue(ManaType.Gray, out var g);
                     mounted[ManaType.Gray] = g + 1;
                 }
+                CeilBucketsInPlace(mounted); // 逐色进位（2026-11-09 定案，与 Derive 5b 同口径）——进位后 prePayloadOut 即整数快照
                 if (prePayloadOut != null) prePayloadOut.Add(ToElementCost(mounted)); // P7：抵扣前留影
                 // 代价抵扣（2026-10-31 色锁定案+指向化）：抉择卡逐模式吃同一笔施放期代价
                 //（色锁单源——只扣可产出色；主动效果行不在此桶，各模式容量不同，实抵随模式自决）。
@@ -1307,11 +1328,31 @@ namespace CardCore
             if (offset > 0) CardCompositionCost.ReduceBuckets(mounted, offset);
         }
 
+        /// <summary>卡费逐色向上取整（in-place；2026-11-09 卡组合阶段定案）：各色 ceil(值−1e-4)、
+        /// ≤1e-5 色剔除，返回进位尾差合计（0.5→1 记 1——规则一比较剔除用，不计超模）。
+        /// Derive（5b）与 DeriveModeCosts 两处共用防口径漂移；进位先于代价抵扣
+        ///（抵扣是整数点，作用于玩家真正要付的整数卡费）。与支付终点
+        /// ElementPaymentValidator.CeilBill/NormalizeBill 同 ε 同规则（幂等）。</summary>
+        private static int CeilBucketsInPlace(Dictionary<ManaType, float> mounted)
+        {
+            int drift = 0;
+            foreach (var color in mounted.Keys.ToList())
+            {
+                float raw = mounted[color];
+                float ceil = (float)Math.Ceiling(raw - 1e-4f);
+                if (ceil <= 1e-5f) { mounted.Remove(color); continue; }
+                drift += (int)Math.Round(ceil - raw, MidpointRounding.AwayFromZero);
+                mounted[color] = ceil;
+            }
+            return drift;
+        }
+
         /// <summary>
         /// 组合层计价（2026-11-03 底盘分配改版口径）：**E/K 桶**（效果锚+关键词）合计一次
         /// AwayFromZero 取整、最大余数法把整数实付分摊回颜色（余数大者优先，并列取桶值大者，
         /// 再并列按枚举序）；**身材桶（statAdd）不再参与取整**——属性费真实小数直通
-        ///（0.5/点，与效果锚价同款真实小数路线；显示 0.## 直显，支付 NormalizeBill 逐色进 1）。
+        ///（0.5/点，与效果锚价同款真实小数路线；显示 0.## 直显）。卡层出口由
+        /// CeilBucketsInPlace 逐色向上取整（2026-11-09 定案），支付终点 NormalizeBill 同规则（幂等）。
         /// statAdd：身材费轴色桶（攻红/血绿/耐久蓝，StatBucketsOf 单源；结构费/抵价由
         /// ApplyChassis 在取整后另行落位）。返回 float 桶（≤1e-5 剔除）。
         /// </summary>

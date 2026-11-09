@@ -64,6 +64,13 @@ namespace TideSim
                 return red == 0 && blue == 0 && free == 0 ? 0 : 1;
             }
 
+            // 教学一·进阶关键词课回归（2026-11-09）：basics_plus 配置结构 + 11 段引擎断言。
+            // 独立参数（不并入 --tutorial-scenario 聚合）——段2 碾压「结界主目标直毁即时移墓→
+            // 邻格溅射落空」为已知引擎×文本不符（见 docs/教学一进阶·引擎不符清单.md），两条红
+            // 待引擎补齐后转绿再并入聚合口。
+            if (args.Length > 0 && args[0] == "--keyword-scenario")
+                return KeywordTutorialCheck.Run();
+
             var options = SimOptions.Parse(args);
             if (options.Games <= 0) { Console.WriteLine("--games 必须 > 0"); return 2; }
             if (options.MaxTurns <= 0) { Console.WriteLine("--max-turns 必须 > 0"); return 2; }
@@ -81,6 +88,7 @@ namespace TideSim
             Console.WriteLine("          [--detail] [--quiet] [--match-log]");
             Console.WriteLine("  TideSim --scenario            场景回归（红快攻策略闸门直调断言）");
             Console.WriteLine("  TideSim --tutorial-scenario   教学式固定盘面回归（红快攻9场景 + 蓝充盈6场景 + 自由分支10场景）");
+            Console.WriteLine("  TideSim --keyword-scenario    教学一·进阶关键词课回归（basics_plus 结构 + 11 段引擎断言）");
             Console.WriteLine("  TideSim --charge-probe        规则探针（充能系统动作化 + 参照族声明域）");
             Console.WriteLine();
             Console.WriteLine("口径：");

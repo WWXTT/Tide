@@ -12,7 +12,7 @@ namespace SynergyUI
     /// 2026-10-18 扩容：攻击选目标悬停/宣言同用（CombatChoreographer）——守卫拦截不转移
     /// （守卫者瞬移赴原目标格挡打，贴片原地即=守卫者脚下）。
     /// 选中才上盘（2026-10-16 晚定案：开窗不铺候选半透明档，选中/取消选中随
-    /// RegionTargetSelector.Toggle 全量对拍 Show/Hide——与卡面 sel-frame 高亮同拍；
+    /// RegionTargetSelector.Toggle 全量对拍 Show/Hide——与卡面 Outline 选中高亮同拍；
     /// 原候选档缩尺/半透明材质随定案退役，只留全尺寸单档）。
     /// 生命周期随选择窗：关窗按登记逐 id Hide（2026-10-18 改——原 ClearAll 单口会连坐
     /// 攻击链贴片：连锁响应开窗期间 CombatChoreographer 钉的贴片不受本窗关合影响）。

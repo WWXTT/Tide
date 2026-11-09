@@ -921,8 +921,8 @@
     {
       "id": "D08B6731",
       "name": "训练·运势重锤",
-      "hash": "DFC5BDB1",
-      "timing": 33,
+      "hash": "C0A494DB",
+      "timing": 7,
       "activation": 1,
       "limit": 1,
       "steps": [
@@ -934,7 +934,7 @@
               "settle": 3,
               "engine": 2,
               "engineParam": 3,
-              "effectId": "9DD0AAFB",
+              "effectId": "2556CF50",
               "then": []
             }
           }
@@ -1303,6 +1303,32 @@
             "value": 8,
             "kinds": [
               1
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "2556CF50",
+      "name": "引擎奖励·运势·造成伤害×3",
+      "hash": "2556CF50",
+      "timing": 7,
+      "activation": 1,
+      "cost": [
+        0.0,
+        4.5,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "a4b823fc",
+            "value": 3,
+            "kinds": [
+              2
             ]
           }
         }

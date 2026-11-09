@@ -196,33 +196,9 @@ namespace CardCore.Attribute.Handlers
     // ======================= 资源转化 =======================
 
     // 采掘（Mine）2026-10-11 资源重做退役（表行 4fd4c954 同批删除）；光合作用
-    //（GrantPhotosynthesis）2026-10-23 退役：表行 42e883b2「元素合成」改挂 GainAnyElement
-    //（生成任意元素——非关键词族）。两者 handler 与枚举位均删（枚举收拢 2026-10-30）。
-
-    /// <summary>
-    /// 元素合成/生成任意元素（2026-10-23 定案，白3·无目标资源行，表行 42e883b2）：控制者获得
-    /// {value} 个**任意元素**（默认 1，ManaType.Any）——万能货币落临时钱包（任一回合结束清空），
-    /// 支付时沿各色支付链末位垫付、可代替任何颜色元素（含黑白本色费——ChainFor 各链尾 Any）。
-    /// 非 Grant 关键词族（旧光合作用是「回合开始产绿」，本行不挂关键词位/无目标）；
-    /// 时机/挂载由效果声明驱动，handler 零特判——不感知时机/挂载，只管入账
-    /// （AddMana 内含全类型累计钳，钳掉部分不入账）。
-    /// </summary>
-    public class GainAnyElementHandler : AtomicEffectHandlerBase
-    {
-        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.GainAnyElement;
-
-        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
-        {
-            if (context.Controller == null || context.ElementPool == null) return;
-            int amount = context.GetValueAfterModifiers(effect.Value > 0 ? effect.Value : 1);
-            if (amount <= 0) return;
-            var from = context.Source as Card ?? context.CastCard as Card;
-            context.ElementPool.AddMana(context.Controller, ManaType.Any, from, amount);
-        }
-
-        protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => $"获得 {(effect.Value > 0 ? effect.Value : 1)} 个任意元素（可代替任何元素支付，回合结束消失）";
-    }
+    // 元素合成（GainAnyElementHandler）2026-11-09 整链删除：原子行 6d711f7a 与教学条目
+    // F660BB7F 同批退役（教学二改挂牺牲 84136d36 送墓产彩，零消费者）——枚举位/注册/AI 白名单
+    // （SimpleAI）/验证器色表（CardPipelineVerifier.Regen）同批清理。
 
     // ======================= 控制相关 =======================
 

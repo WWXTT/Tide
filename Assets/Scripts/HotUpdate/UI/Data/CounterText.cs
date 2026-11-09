@@ -22,7 +22,7 @@ namespace SynergyUI
             { CounterRules.SpellShieldCounter, "每层抵消一次对手效果对自身的作用（效果执行时被移出目标列表），消耗 1 层" },
             { CounterRules.ToughnessCounter, "每次受到伤害时每层使伤害 −1；实际拦到即生效，随后层数减半（向下取整）" },
             { CounterRules.ToxinCounter, "持有者每回合结束受到等同于当前层数的伤害，随后层数减半（向下取整）" },
-            { CounterRules.VulnerableCounter, "每次受到伤害时每层使受到的伤害 +1；生效后层数减半（向下取整）" },
+            { CounterRules.VulnerableCounter, "每次受到伤害时每层使受到的伤害 +1；生效后层数全部移除" },
             { CounterRules.HeroAttackCounter, "层数=角色攻击力弹药；角色攻击或反击结算后全部移除" },
             { CounterRules.CurseCounter, "抽到该卡时自动执行诅咒分支效果并消耗 1 层（跨区存活）" },
             { CounterRules.BlessingCounter, "抽到该卡时自动执行祝福分支效果并消耗 1 层（跨区存活）" },

@@ -67,12 +67,14 @@ namespace CardCore.Attribute
         // 无实体关键词 id "Spellban" 已删（2026-11-02 指示物化）：改走 CounterRules.SpellbanCounter
         //（GrantSpellbanHandler 挂层；衰退型层=持续回合，钳口=ApplyDamage 守护改写之后——见下文）
         /// <summary>绝缘体（2026-10-31，绿3 表行 764236ed）：持有单位不受指示物的效果影响——
-        /// 特殊裁定改版（同日「不拦指示物添加」）：①层照常落账（毒素/冻结/沉默/护甲/圣盾/保护…
-        /// UI 可见、铭刻同沾、事件报真实增量），效果判定走效果口径读数
-        /// EntityEffectExtensions.GetEffectiveCounterCount（绝缘体单位=0）；②沉睡/缄默=压制型，
-        /// 时序互压——绝缘体生效期间后加即清零（「反过来压制」），先在的压住绝缘体（HasKeyword
-        /// 实时读假，无循环）；③StatKind 属性类（攻/血/±1，加时回写式）添加即清零=属性变化不发生
-        ///（回写账目不漂移）；④System 指示物豁免；⑤压制面限战场单位（手牌卡不拦费用指示物）。</summary>
+        /// 2026-11-09 用户定案全量口径「能加，但效果无效」：①层照常落账（毒素/冻结/沉默/护甲/
+        /// 圣盾/保护/失效/沉睡… UI 可见、铭刻同沾、事件报真实增量），效果判定走效果口径读数
+        /// EntityEffectExtensions.GetEffectiveCounterCount（绝缘体单位=0）；②失效/沉睡=死层：
+        /// 层照常落账并正常倒数，但不横置、不拦重置、不压自动/主动（SuppressRules.IsAutoSuppressed
+        /// 对绝缘体恒 false，正反序一致——先失效后获绝缘同样作废）；③StatKind 属性类（攻/血/±1，
+        /// 加时回写式）添加即清零=属性变化不发生（回写账目不漂移）；④System 指示物豁免；
+        /// ⑤压制面限战场单位（手牌卡不拦费用指示物）；⑥生效判定=InsulatorRules.IsActive
+        ///（只读本体关键词，不读压制读数——防 GetEffectiveCounterCount↔HasKeyword 递归）。</summary>
         public const string Insulator = "Insulator";
         /// <summary>病原体（2026-10-31 复活改版，绿5 表行「病原体」）：持有者**实际受到伤害**时
         /// 对伤害来源附加 1 层毒素指示物（CounterRules.ToxinCounter——来源回合末发作：
@@ -101,7 +103,8 @@ namespace CardCore.Attribute
         public const string DoubleStrike = "DoubleStrike";
         public const string Disarm = "Disarm";
         public const string Overwhelm = "Overwhelm";
-        /// <summary>溅射（2026-11-01 新增，红3）：战斗结算时，对对手随机单位造成溢出的战斗伤害。</summary>
+        /// <summary>溅射（2026-11-01 新增，红3；2026-11-09 连锁改版）：战斗结算时，对对手随机单位
+        /// 造成溢出的战斗伤害；溅射伤害再次溢出则连锁再溅（结算见 CombatSystem.ResolvePair）。</summary>
         public const string Splash = "Splash";
         // 复生关键词 id "Reborn" 已删（2026-10-08 指示物化）：改走 CounterRules.RebornCounter
         //（GrantRebornHandler 挂层；TryReborn 每层一次死亡替代，消耗 1 层）
@@ -332,20 +335,20 @@ namespace CardCore.Attribute
             amount = ProtectionRules.ModifyDamage(target, amount);
             if (amount <= 0) return 0;
 
-            // 0. 易损指示物（2026-10-09 生效自减定案，同毒素档）：受到伤害时每层使受到的伤害 +1，
-            //    生效后层数减半（floor，1 层生效一次即清零）——替代结算后、防护层前生效
+            // 0. 易损指示物（2026-10-09 生效自减定案；2026-11-09 改版：生效后全部移除，不再减半）：
+            //    受到伤害时每层使受到的伤害 +1，生效后层数全部移除——替代结算后、防护层前生效
             //   （圣盾/护甲吸收的是放大后的量——凡放大即生效，毒素同口径）。
+            //    破败仪典的「生效后全移」覆盖口随本改版退役（已是全局默认，光环只剩护甲转易损）。
             int vulnerable = target.GetEffectiveCounterCount(CounterRules.VulnerableCounter);
             if (vulnerable > 0)
             {
                 amount += vulnerable;
-                int vulnHalved = vulnerable / 2;
-                target.AddCounters(CounterRules.VulnerableCounter, -(vulnerable - vulnHalved));
+                target.AddCounters(CounterRules.VulnerableCounter, -vulnerable);
                 EventManager.Instance.Publish(new KeywordAppliedEvent
                 {
                     Target = target,
                     Keyword = CounterRules.VulnerableCounter,
-                    Detail = $"易损放大 +{vulnerable} 点（生效减半，余 {vulnHalved} 层）",
+                    Detail = $"易损放大 +{vulnerable} 点（生效后全部移除）",
                     Source = source
                 });
             }
@@ -657,7 +660,8 @@ namespace CardCore.Attribute
             }
 
             // 3. 坚韧指示物（2026-10-09 生效自减改版）：每层使本次受到的伤害 −1，实际拦到伤害即生效
-            //    ——生效后层数减半（floor，易损的正面镜像）；可叠加；Entity 级——角色读数同走此口。
+            //    ——生效后层数减半（floor；易损的正面镜像——2026-11-09 起易损改全部移除，镜像仅余
+            //    拦减/放大向，消耗口径已分家）；可叠加；Entity 级——角色读数同走此口。
             //    圣盾/护甲全挡提前 return（坚韧未触及→不减半）。
             //    施加口=GrantToughnessHandler（GrantToughness 原子，表行 a8f7f476）；换区不清、净化可清。
             int toughness = target.GetEffectiveCounterCount(CounterRules.ToughnessCounter);

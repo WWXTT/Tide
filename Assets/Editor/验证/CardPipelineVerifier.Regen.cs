@@ -122,7 +122,7 @@ namespace CardCore.Editor
             { AtomicEffectType.RecoverToHand, SpecColor.Green },              // 特例：回收=绿
             { AtomicEffectType.ShuffleIntoDeck, SpecColor.Green },            // 特例：洗回=绿
             { AtomicEffectType.RecoverFromExile, SpecColor.Green },           // 特例：除外回收=绿
-            { AtomicEffectType.GainAnyElement, SpecColor.Green },             // 特例：元素合成=绿
+            // 元素合成（GainAnyElement）2026-11-09 整链删除——教学二改挂牺牲，零消费者
             { AtomicEffectType.ReturnFromGraveyard, SpecColor.Green },        // 苏生=墓地资源回流
             { AtomicEffectType.IncreaseLandCap, SpecColor.Green },            // 成长=资源（地牌槽）
             { AtomicEffectType.RemoveDebuffs, SpecColor.Green },              // 净化=解除负面（2026-10-28 P2a 先例）
@@ -169,6 +169,7 @@ namespace CardCore.Editor
             { AtomicEffectType.GrantTaunt, SpecColor.Blue },                  // 帷幕=指定限制（能否被指定）
             { AtomicEffectType.AddDurabilityUp, SpecColor.Blue },             // 特例：耐久=蓝（2026-11-03 定案：结界耐久轴同口径——身材耐久桶同日灰→蓝，0.5蓝/点）
             { AtomicEffectType.SealUnit, SpecColor.Red },                     // 封印=场面移除（2026-11-05 确认定案红；11-03 蓝3 口径作废）
+            { AtomicEffectType.SwapPowerLife, SpecColor.Blue },               // 特例：攻守互换=蓝（2026-11-09 用户定案 2蓝——属性重排双轴对消，轴映射红被特例覆盖）
             // ---- 场面/生存双成分（红|绿）----
             { AtomicEffectType.GrantLifesteal, SpecColor.Red },                  // 吸血=红（2026-11-03 用户定案·不随吸取双色同构）
             { AtomicEffectType.GrantLifelink, SpecColor.Red | SpecColor.Green },   // 系命=伤害+回复 双色

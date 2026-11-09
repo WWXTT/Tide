@@ -169,7 +169,9 @@ namespace SynergyUI
                     {
                         // 2026-11-06：净费/代价公式文本退役——费用组=净费、代价组=效果级代价，进行级方格
                         it.ActiveEffectText = text;
-                        it.ActiveEffectCost = CardComposerScreen.ActiveEffectNetCost(fx) ?? fx.AnchorCost;
+                        // 2026-11-09 逐色进位：卡侧主动效果费=引擎发动时实扣的整数（与支付终点同 ε）
+                        it.ActiveEffectCost = ElementPaymentValidator.CeilBill(
+                            CardComposerScreen.ActiveEffectNetCost(fx) ?? fx.AnchorCost);
                         it.ActiveEffectPayloadCost = CardComposerScreen.EffectPayloadCostOf(fx);
                         continue;
                     }
@@ -222,6 +224,19 @@ namespace SynergyUI
             return (silence, nullify, sleep);
         }
 
+        /// <summary>绝缘体是否在场（2026-11-09 死层定案）：本地模式读引擎活卡；网络模式无
+        /// CoreCard，退回快照关键词（手牌/牌库不会持有 Resident 类失效/沉睡层，误判无副作用）。</summary>
+        public static bool IsInsulatorActive(BattleCardView v)
+        {
+            if (v == null) return false;
+            if (v.CoreCard != null) return CardCore.Attribute.InsulatorRules.IsActive(v.CoreCard);
+            var kws = v.Runtime?.Keywords;
+            if (kws == null) return false;
+            foreach (var k in kws)
+                if (k == CardCore.Attribute.KeywordRules.Insulator) return true;
+            return false;
+        }
+
         /// <summary>压制行样式（2026-10-31 定案）：被压的效果/关键词行删除线+灰字——TMP 富文本
         ///（ACard 四行区 des 与战场悬停面板均已开富文本）。suppressed=false 原样返回。</summary>
         public static string SuppressedText(string text, bool suppressed)
@@ -269,9 +284,14 @@ namespace SynergyUI
             }
 
             // 压制态（2026-10-31 删除线定案）：沉默/失效/沉睡层数 → 主动/被动行与本体关键词芯片划线灰显
+            // 2026-11-09 用户定案：绝缘体单位上的失效/沉睡是死层（层可见、不生效）——不划线；
+            // 与引擎 SuppressRules.IsAutoSuppressed(Entity) 同判（此处只有快照计数，故先判绝缘体）。
             var sup = SuppressionOf(v.Runtime);
-            bool activeSuppressed = CardCore.Attribute.SuppressRules.IsActiveSuppressed(sup.silence, sup.sleep);
-            bool autoSuppressed = CardCore.Attribute.SuppressRules.IsAutoSuppressed(sup.nullify, sup.sleep);
+            bool insulatorActive = IsInsulatorActive(v);
+            bool activeSuppressed = !insulatorActive
+                                    && CardCore.Attribute.SuppressRules.IsActiveSuppressed(sup.silence, sup.sleep);
+            bool autoSuppressed = !insulatorActive
+                                  && CardCore.Attribute.SuppressRules.IsAutoSuppressed(sup.nullify, sup.sleep);
 
             // keys 芯片：运行态关键词优先（含授予/净化），回落印刷；本体关键词被压（沉睡/失效）
             // → 芯片划线灰显（与引擎 HasKeyword 读假同口：SuppressRules.IsAutoSuppressed）
@@ -314,8 +334,10 @@ namespace SynergyUI
                     it.ActiveEffectLabels.Add(SpellEffectLabel(fx, i));
                     it.ActiveEffectLines.Add(string.IsNullOrEmpty(text)
                         ? "" : SuppressedText(text, activeSuppressed)); // 2026-11-06：公式文本退役——纯摘要
-                    it.ActiveEffectCosts.Add(CardComposerScreen.ActiveEffectNetCost(fx)
-                                             ?? CardCostService.GetRuntimeCost(data, i)); // 费用组=净费（无代价=模式费）
+                    // 费用组=净费（无代价=模式费）；2026-11-09 逐色进位——卡侧费=引擎实扣整数
+                    it.ActiveEffectCosts.Add(ElementPaymentValidator.CeilBill(
+                        CardComposerScreen.ActiveEffectNetCost(fx)
+                        ?? CardCostService.GetRuntimeCost(data, i)));
                     it.ActiveEffectPayloadCosts.Add(CardComposerScreen.EffectPayloadCostOf(fx)); // 代价组=效果级代价
                 }
             }
@@ -349,7 +371,9 @@ namespace SynergyUI
                     {
                         // 被压（沉默/沉睡拦主动）整行划线灰显；2026-11-06：公式文本退役、费用组=净费
                         it.ActiveEffectText = SuppressedText(text, activeSuppressed);
-                        it.ActiveEffectCost = CardComposerScreen.ActiveEffectNetCost(fx) ?? fx.AnchorCost;
+                        // 2026-11-09 逐色进位：卡侧主动效果费=引擎发动时实扣的整数（与支付终点同 ε）
+                        it.ActiveEffectCost = ElementPaymentValidator.CeilBill(
+                            CardComposerScreen.ActiveEffectNetCost(fx) ?? fx.AnchorCost);
                         it.ActiveEffectPayloadCost = CardComposerScreen.EffectPayloadCostOf(fx);
                         continue;
                     }

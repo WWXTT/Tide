@@ -25,18 +25,18 @@
       "supertype": "Creature",
       "attackAbility": true,
       "guardAbility": true,
-      "power": 2,
-      "life": 1,
+      "power": 1,
+      "life": 2,
       "costList": [
         0.0,
-        0.5,
         0.0,
-        0.0
+        0.0,
+        1.0
       ],
       "tags": [
         "教学"
       ],
-      "hash": "3D10E1A5"
+      "hash": "1BD7389C"
     },
     {
       "id": "C_C279F399",
@@ -50,7 +50,7 @@
         0.0,
         1.0,
         0.0,
-        0.5
+        1.0
       ],
       "tags": [
         "教学"
@@ -68,9 +68,9 @@
       "life": 2,
       "costList": [
         0.0,
-        0.5,
+        1.0,
         0.0,
-        0.5
+        1.0
       ],
       "tags": [
         "教学"
@@ -108,9 +108,9 @@
       "life": 8,
       "costList": [
         0.0,
-        3.5,
+        4.0,
         0.0,
-        3.5
+        4.0
       ],
       "tags": [
         "教学"
@@ -128,7 +128,7 @@
       "life": 1,
       "costList": [
         0.0,
-        2.5,
+        3.0,
         0.0,
         0.0
       ],
@@ -202,7 +202,7 @@
       "life": 9,
       "costList": [
         0.0,
-        3.5,
+        4.0,
         0.0,
         4.0
       ],
@@ -224,7 +224,7 @@
         0.0,
         1.0,
         0.0,
-        4.0
+        3.0
       ],
       "keywords": [
         "Indestructible"
@@ -245,9 +245,9 @@
       "life": 2,
       "costList": [
         0.0,
-        0.5,
+        1.0,
         0.0,
-        0.5
+        1.0
       ],
       "keywords": [
         "Stealth"
@@ -484,9 +484,9 @@
       "life": 7,
       "costList": [
         0.0,
-        0.5,
+        1.0,
         0.0,
-        5.0
+        4.0
       ],
       "tags": [
         "教学"
@@ -507,7 +507,7 @@
       "life": 2,
       "costList": [
         0.0,
-        0.5,
+        1.0,
         0.0,
         1.0
       ],
@@ -515,9 +515,9 @@
         "教学"
       ],
       "effectIds": [
-        "F660BB7F"
+        "61D64777"
       ],
-      "hash": "95DC98E5"
+      "hash": "BCCE2FEB"
     },
     {
       "id": "C_FFDF953C",
@@ -532,7 +532,7 @@
         0.0,
         1.0,
         0.0,
-        1.5
+        2.0
       ],
       "tags": [
         "教学"
@@ -553,7 +553,7 @@
       "life": 2,
       "costList": [
         0.0,
-        0.5,
+        1.0,
         0.0,
         1.0
       ],
@@ -576,7 +576,7 @@
       "life": 2,
       "costList": [
         0.0,
-        0.5,
+        1.0,
         0.0,
         1.0
       ],
@@ -599,7 +599,7 @@
       "life": 2,
       "costList": [
         0.0,
-        0.5,
+        1.0,
         0.0,
         1.0
       ],
@@ -622,7 +622,7 @@
       "life": 2,
       "costList": [
         0.0,
-        0.5,
+        1.0,
         0.0,
         1.0
       ],
@@ -645,7 +645,7 @@
       "life": 2,
       "costList": [
         0.0,
-        0.5,
+        1.0,
         0.0,
         1.0
       ],
@@ -668,7 +668,7 @@
       "life": 2,
       "costList": [
         0.0,
-        0.5,
+        1.0,
         0.0,
         1.0
       ],
@@ -691,9 +691,9 @@
       "life": 1,
       "costList": [
         0.0,
-        0.5,
+        1.0,
         0.0,
-        0.5
+        1.0
       ],
       "tags": [
         "教学"
@@ -714,7 +714,7 @@
       "life": 2,
       "costList": [
         0.0,
-        0.5,
+        1.0,
         0.0,
         1.0
       ],
@@ -737,7 +737,7 @@
       "life": 2,
       "costList": [
         0.0,
-        0.5,
+        1.0,
         0.0,
         1.0
       ],
@@ -760,7 +760,7 @@
       "life": 2,
       "costList": [
         0.0,
-        0.5,
+        1.0,
         0.0,
         1.0
       ],
@@ -783,7 +783,7 @@
       "life": 2,
       "costList": [
         0.0,
-        0.5,
+        1.0,
         0.0,
         1.0
       ],
@@ -806,7 +806,7 @@
       "life": 2,
       "costList": [
         0.0,
-        0.5,
+        1.0,
         0.0,
         1.0
       ],
@@ -829,7 +829,7 @@
       "life": 2,
       "costList": [
         0.0,
-        0.5,
+        1.0,
         0.0,
         1.0
       ],
@@ -852,7 +852,7 @@
       "life": 2,
       "costList": [
         0.0,
-        0.5,
+        1.0,
         0.0,
         1.0
       ],
@@ -987,7 +987,7 @@
       "life": 2,
       "costList": [
         0.0,
-        0.5,
+        1.0,
         0.0,
         1.0
       ],
@@ -1010,7 +1010,7 @@
       "life": 2,
       "costList": [
         0.0,
-        0.5,
+        1.0,
         0.0,
         1.0
       ],
@@ -1053,9 +1053,9 @@
       "life": 1,
       "costList": [
         0.0,
-        1.5,
+        2.0,
         4.0,
-        0.5
+        1.0
       ],
       "keywords": [
         "Vigilance"
@@ -1079,9 +1079,9 @@
       "life": 1,
       "costList": [
         0.0,
-        1.5,
+        2.0,
         4.0,
-        0.5
+        1.0
       ],
       "keywords": [
         "Vigilance"
@@ -1304,9 +1304,9 @@
       "life": 4,
       "costList": [
         0.0,
-        0.5,
+        1.0,
         0.0,
-        1.5
+        2.0
       ],
       "tags": [
         "ThemeBlueSurplus",
@@ -1324,7 +1324,7 @@
       "life": 5,
       "costList": [
         0.0,
-        1.5,
+        2.0,
         0.0,
         2.0
       ],
@@ -1426,7 +1426,7 @@
         0.0,
         0.0,
         0.0,
-        3.0
+        2.0
       ],
       "tags": [
         "ThemeGreenCountdown",
@@ -1448,7 +1448,7 @@
         0.0,
         0.0,
         0.0,
-        10.5
+        10.0
       ],
       "tags": [
         "ThemeGreenCountdown",
@@ -1519,7 +1519,7 @@
         0.0,
         0.0,
         0.0,
-        4.5
+        4.0
       ],
       "hash": "C4A9FF45"
     },
@@ -1585,7 +1585,7 @@
         0.0,
         0.0,
         0.0,
-        2.5
+        3.0
       ],
       "hash": "15509DE4"
     },
@@ -1648,9 +1648,9 @@
       ],
       "costList": [
         0.0,
-        0.5,
+        1.0,
         0.0,
-        1.5
+        2.0
       ],
       "hash": "8E2D7455"
     },
@@ -1672,7 +1672,7 @@
         0.0,
         0.0,
         0.0,
-        2.5
+        3.0
       ],
       "hash": "4E62DE55"
     },
@@ -1940,7 +1940,7 @@
         0.0,
         0.0,
         0.0,
-        4.5
+        4.0
       ],
       "tags": [
         "ThemeBlueSurplus",
@@ -2301,7 +2301,1106 @@
         0.0,
         0.0
       ],
-      "hash": "DAD5FB36"
+      "hash": "45146D01"
+    },
+    {
+      "id": "C_8E45017F",
+      "cardName": "教学·先攻甲",
+      "supertype": "Creature",
+      "attackAbility": true,
+      "power": 4,
+      "life": 2,
+      "costList": [
+        0.0,
+        3.0,
+        0.0,
+        0.0
+      ],
+      "keywords": [
+        "FirstStrike"
+      ],
+      "tags": [
+        "教学"
+      ],
+      "hash": "8E45017F"
+    },
+    {
+      "id": "C_271AA1F8",
+      "cardName": "教学·先攻乙",
+      "supertype": "Creature",
+      "attackAbility": true,
+      "power": 4,
+      "life": 2,
+      "costList": [
+        0.0,
+        3.0,
+        0.0,
+        0.0
+      ],
+      "keywords": [
+        "FirstStrike"
+      ],
+      "tags": [
+        "教学"
+      ],
+      "hash": "271AA1F8"
+    },
+    {
+      "id": "C_732BCF71",
+      "cardName": "教学·连击甲",
+      "supertype": "Creature",
+      "attackAbility": true,
+      "power": 4,
+      "life": 2,
+      "costList": [
+        0.0,
+        7.0,
+        0.0,
+        0.0
+      ],
+      "keywords": [
+        "DoubleStrike"
+      ],
+      "tags": [
+        "教学"
+      ],
+      "hash": "732BCF71"
+    },
+    {
+      "id": "C_082B62DB",
+      "cardName": "教学·连击乙",
+      "supertype": "Creature",
+      "attackAbility": true,
+      "power": 4,
+      "life": 2,
+      "costList": [
+        0.0,
+        7.0,
+        0.0,
+        0.0
+      ],
+      "keywords": [
+        "DoubleStrike"
+      ],
+      "tags": [
+        "教学"
+      ],
+      "hash": "082B62DB"
+    },
+    {
+      "id": "C_FC5BC585",
+      "cardName": "教学·白板2/4甲",
+      "supertype": "Creature",
+      "attackAbility": true,
+      "power": 2,
+      "life": 4,
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "tags": [
+        "教学"
+      ],
+      "hash": "FC5BC585"
+    },
+    {
+      "id": "C_6DBC9CDC",
+      "cardName": "教学·白板2/4乙",
+      "supertype": "Creature",
+      "attackAbility": true,
+      "power": 2,
+      "life": 4,
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "tags": [
+        "教学"
+      ],
+      "hash": "6DBC9CDC"
+    },
+    {
+      "id": "C_036D0A6A",
+      "cardName": "教学·白板2/8甲",
+      "supertype": "Creature",
+      "attackAbility": true,
+      "power": 2,
+      "life": 8,
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        3.0
+      ],
+      "tags": [
+        "教学"
+      ],
+      "hash": "036D0A6A"
+    },
+    {
+      "id": "C_2C6CAC92",
+      "cardName": "教学·白板2/8乙",
+      "supertype": "Creature",
+      "attackAbility": true,
+      "power": 2,
+      "life": 8,
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        3.0
+      ],
+      "tags": [
+        "教学"
+      ],
+      "hash": "2C6CAC92"
+    },
+    {
+      "id": "C_3AFBFB85",
+      "cardName": "教学·碾压",
+      "supertype": "Creature",
+      "attackAbility": true,
+      "power": 6,
+      "life": 2,
+      "costList": [
+        0.0,
+        7.0,
+        0.0,
+        0.0
+      ],
+      "keywords": [
+        "Overwhelm"
+      ],
+      "tags": [
+        "教学"
+      ],
+      "hash": "3AFBFB85"
+    },
+    {
+      "id": "C_B9F338E2",
+      "cardName": "教学·溅射",
+      "supertype": "Creature",
+      "attackAbility": true,
+      "power": 6,
+      "life": 3,
+      "costList": [
+        0.0,
+        7.0,
+        0.0,
+        1.0
+      ],
+      "keywords": [
+        "Splash"
+      ],
+      "tags": [
+        "教学"
+      ],
+      "hash": "B9F338E2"
+    },
+    {
+      "id": "C_0FDF4A1D",
+      "cardName": "教学·白板2/6甲",
+      "supertype": "Creature",
+      "attackAbility": true,
+      "power": 2,
+      "life": 6,
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        2.0
+      ],
+      "tags": [
+        "教学"
+      ],
+      "hash": "0FDF4A1D"
+    },
+    {
+      "id": "C_FF042960",
+      "cardName": "教学·白板2/6乙",
+      "supertype": "Creature",
+      "attackAbility": true,
+      "power": 2,
+      "life": 6,
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        2.0
+      ],
+      "tags": [
+        "教学"
+      ],
+      "hash": "FF042960"
+    },
+    {
+      "id": "C_9914CF8A",
+      "cardName": "教学·结界",
+      "supertype": "Enchantment",
+      "tags": [
+        "教学"
+      ],
+      "durability": 6,
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "hash": "9914CF8A"
+    },
+    {
+      "id": "C_AC584F8A",
+      "cardName": "教学·白板2/2甲",
+      "supertype": "Creature",
+      "attackAbility": true,
+      "power": 2,
+      "life": 2,
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "教学"
+      ],
+      "hash": "AC584F8A"
+    },
+    {
+      "id": "C_7E1B7AA1",
+      "cardName": "教学·白板2/2乙",
+      "supertype": "Creature",
+      "attackAbility": true,
+      "power": 2,
+      "life": 2,
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "教学"
+      ],
+      "hash": "7E1B7AA1"
+    },
+    {
+      "id": "C_17BD0D3E",
+      "cardName": "教学·白板2/2丙",
+      "supertype": "Creature",
+      "attackAbility": true,
+      "power": 2,
+      "life": 2,
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "教学"
+      ],
+      "hash": "17BD0D3E"
+    },
+    {
+      "id": "C_202A366E",
+      "cardName": "教学·缴械甲",
+      "supertype": "Creature",
+      "attackAbility": true,
+      "power": 3,
+      "life": 3,
+      "costList": [
+        0.0,
+        1.0,
+        6.0,
+        1.0
+      ],
+      "keywords": [
+        "Disarm"
+      ],
+      "tags": [
+        "教学"
+      ],
+      "hash": "202A366E"
+    },
+    {
+      "id": "C_5654ABA8",
+      "cardName": "教学·缴械乙",
+      "supertype": "Creature",
+      "attackAbility": true,
+      "power": 3,
+      "life": 3,
+      "costList": [
+        0.0,
+        1.0,
+        6.0,
+        1.0
+      ],
+      "keywords": [
+        "Disarm"
+      ],
+      "tags": [
+        "教学"
+      ],
+      "hash": "5654ABA8"
+    },
+    {
+      "id": "C_AB547E9C",
+      "cardName": "教学·缴械丙",
+      "supertype": "Creature",
+      "attackAbility": true,
+      "power": 3,
+      "life": 3,
+      "costList": [
+        0.0,
+        1.0,
+        6.0,
+        1.0
+      ],
+      "keywords": [
+        "Disarm"
+      ],
+      "tags": [
+        "教学"
+      ],
+      "hash": "AB547E9C"
+    },
+    {
+      "id": "C_7348D471",
+      "cardName": "教学·警戒",
+      "supertype": "Creature",
+      "attackAbility": true,
+      "power": 4,
+      "life": 4,
+      "costList": [
+        0.0,
+        1.0,
+        3.0,
+        1.0
+      ],
+      "keywords": [
+        "Vigilance"
+      ],
+      "tags": [
+        "教学"
+      ],
+      "hash": "7348D471"
+    },
+    {
+      "id": "C_64AA066B",
+      "cardName": "教学·先攻巨兽",
+      "supertype": "Creature",
+      "attackAbility": true,
+      "power": 4,
+      "life": 8,
+      "costList": [
+        0.0,
+        3.0,
+        0.0,
+        3.0
+      ],
+      "keywords": [
+        "FirstStrike"
+      ],
+      "tags": [
+        "教学"
+      ],
+      "hash": "64AA066B"
+    },
+    {
+      "id": "C_AC582815",
+      "cardName": "教学·连击巨兽",
+      "supertype": "Creature",
+      "attackAbility": true,
+      "power": 2,
+      "life": 8,
+      "costList": [
+        0.0,
+        6.0,
+        0.0,
+        3.0
+      ],
+      "keywords": [
+        "DoubleStrike"
+      ],
+      "tags": [
+        "教学"
+      ],
+      "hash": "AC582815"
+    },
+    {
+      "id": "C_0EDE312A",
+      "cardName": "教学·白板3/3丙",
+      "supertype": "Creature",
+      "attackAbility": true,
+      "power": 3,
+      "life": 3,
+      "costList": [
+        0.0,
+        1.0,
+        0.0,
+        1.0
+      ],
+      "tags": [
+        "教学"
+      ],
+      "hash": "0EDE312A"
+    },
+    {
+      "id": "C_3D2CBFE6",
+      "cardName": "教学·隐密",
+      "supertype": "Creature",
+      "attackAbility": true,
+      "power": 2,
+      "life": 2,
+      "costList": [
+        0.0,
+        0.0,
+        5.0,
+        0.0
+      ],
+      "keywords": [
+        "Concealed"
+      ],
+      "tags": [
+        "教学"
+      ],
+      "hash": "3D2CBFE6"
+    },
+    {
+      "id": "C_98135A73",
+      "cardName": "教学·帷幕",
+      "supertype": "Creature",
+      "attackAbility": true,
+      "power": 2,
+      "life": 7,
+      "costList": [
+        0.0,
+        0.0,
+        3.0,
+        3.0
+      ],
+      "keywords": [
+        "Taunt"
+      ],
+      "tags": [
+        "教学"
+      ],
+      "hash": "98135A73"
+    },
+    {
+      "id": "C_DE95C8CC",
+      "cardName": "教学·消灭乙",
+      "supertype": "Spell",
+      "tags": [
+        "教学"
+      ],
+      "effectIds": [
+        "23E6AFE9"
+      ],
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "hash": "DE95C8CC"
+    },
+    {
+      "id": "C_E8B8EE22",
+      "cardName": "教学·吸血甲",
+      "supertype": "Creature",
+      "attackAbility": true,
+      "power": 3,
+      "life": 3,
+      "costList": [
+        0.0,
+        4.0,
+        0.0,
+        1.0
+      ],
+      "keywords": [
+        "Lifesteal"
+      ],
+      "tags": [
+        "教学"
+      ],
+      "hash": "E8B8EE22"
+    },
+    {
+      "id": "C_9460C612",
+      "cardName": "教学·吸血乙",
+      "supertype": "Creature",
+      "attackAbility": true,
+      "power": 3,
+      "life": 3,
+      "costList": [
+        0.0,
+        4.0,
+        0.0,
+        1.0
+      ],
+      "keywords": [
+        "Lifesteal"
+      ],
+      "tags": [
+        "教学"
+      ],
+      "hash": "9460C612"
+    },
+    {
+      "id": "C_E5D9D557",
+      "cardName": "教学·系命甲",
+      "supertype": "Creature",
+      "attackAbility": true,
+      "power": 3,
+      "life": 3,
+      "costList": [
+        0.0,
+        1.0,
+        0.0,
+        4.0
+      ],
+      "keywords": [
+        "Lifelink"
+      ],
+      "tags": [
+        "教学"
+      ],
+      "hash": "E5D9D557"
+    },
+    {
+      "id": "C_6CE1BAAF",
+      "cardName": "教学·系命乙",
+      "supertype": "Creature",
+      "attackAbility": true,
+      "power": 3,
+      "life": 3,
+      "costList": [
+        0.0,
+        1.0,
+        0.0,
+        4.0
+      ],
+      "keywords": [
+        "Lifelink"
+      ],
+      "tags": [
+        "教学"
+      ],
+      "hash": "6CE1BAAF"
+    },
+    {
+      "id": "C_BA6BE8EC",
+      "cardName": "教学·白板3/3甲",
+      "supertype": "Creature",
+      "attackAbility": true,
+      "power": 3,
+      "life": 3,
+      "costList": [
+        0.0,
+        1.0,
+        0.0,
+        1.0
+      ],
+      "tags": [
+        "教学"
+      ],
+      "hash": "BA6BE8EC"
+    },
+    {
+      "id": "C_5DBE70BB",
+      "cardName": "教学·白板3/3乙",
+      "supertype": "Creature",
+      "attackAbility": true,
+      "power": 3,
+      "life": 3,
+      "costList": [
+        0.0,
+        1.0,
+        0.0,
+        1.0
+      ],
+      "tags": [
+        "教学"
+      ],
+      "hash": "5DBE70BB"
+    },
+    {
+      "id": "C_DCDC05A7",
+      "cardName": "教学·剧毒甲",
+      "supertype": "Creature",
+      "attackAbility": true,
+      "power": 2,
+      "life": 2,
+      "costList": [
+        0.0,
+        3.0,
+        0.0,
+        0.0
+      ],
+      "keywords": [
+        "Venom"
+      ],
+      "tags": [
+        "教学"
+      ],
+      "hash": "DCDC05A7"
+    },
+    {
+      "id": "C_52A944EE",
+      "cardName": "教学·剧毒乙",
+      "supertype": "Creature",
+      "attackAbility": true,
+      "power": 2,
+      "life": 2,
+      "costList": [
+        0.0,
+        3.0,
+        0.0,
+        0.0
+      ],
+      "keywords": [
+        "Venom"
+      ],
+      "tags": [
+        "教学"
+      ],
+      "hash": "52A944EE"
+    },
+    {
+      "id": "C_750FFED3",
+      "cardName": "教学·不灭",
+      "supertype": "Creature",
+      "attackAbility": true,
+      "power": 8,
+      "life": 8,
+      "costList": [
+        0.0,
+        3.0,
+        0.0,
+        5.0
+      ],
+      "keywords": [
+        "Indestructible"
+      ],
+      "tags": [
+        "教学"
+      ],
+      "hash": "750FFED3"
+    },
+    {
+      "id": "C_629A3AF5",
+      "cardName": "教学·再生",
+      "supertype": "Creature",
+      "attackAbility": true,
+      "power": 3,
+      "life": 5,
+      "costList": [
+        0.0,
+        1.0,
+        0.0,
+        7.0
+      ],
+      "keywords": [
+        "Regeneration"
+      ],
+      "tags": [
+        "教学"
+      ],
+      "hash": "629A3AF5"
+    },
+    {
+      "id": "C_E73AEE6F",
+      "cardName": "教学·守护",
+      "supertype": "Creature",
+      "attackAbility": true,
+      "power": 2,
+      "life": 7,
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        4.0
+      ],
+      "keywords": [
+        "Guardian"
+      ],
+      "tags": [
+        "教学"
+      ],
+      "hash": "E73AEE6F"
+    },
+    {
+      "id": "C_030E8991",
+      "cardName": "教学·狩猎",
+      "supertype": "Creature",
+      "attackAbility": true,
+      "power": 4,
+      "life": 2,
+      "costList": [
+        0.0,
+        4.0,
+        0.0,
+        0.0
+      ],
+      "keywords": [
+        "Hunt"
+      ],
+      "tags": [
+        "教学"
+      ],
+      "hash": "030E8991"
+    },
+    {
+      "id": "C_59A3BB05",
+      "cardName": "教学·狩猎吸血",
+      "supertype": "Creature",
+      "attackAbility": true,
+      "power": 4,
+      "life": 2,
+      "costList": [
+        0.0,
+        7.0,
+        0.0,
+        0.0
+      ],
+      "keywords": [
+        "Hunt",
+        "Lifesteal"
+      ],
+      "tags": [
+        "教学"
+      ],
+      "hash": "59A3BB05"
+    },
+    {
+      "id": "C_6454E497",
+      "cardName": "教学·病原体甲",
+      "supertype": "Creature",
+      "attackAbility": true,
+      "power": 2,
+      "life": 4,
+      "costList": [
+        0.0,
+        3.0,
+        0.0,
+        1.0
+      ],
+      "keywords": [
+        "Pathogen"
+      ],
+      "tags": [
+        "教学"
+      ],
+      "hash": "6454E497"
+    },
+    {
+      "id": "C_E3CADDFD",
+      "cardName": "教学·病原体乙",
+      "supertype": "Creature",
+      "attackAbility": true,
+      "power": 2,
+      "life": 4,
+      "costList": [
+        0.0,
+        3.0,
+        0.0,
+        1.0
+      ],
+      "keywords": [
+        "Pathogen"
+      ],
+      "tags": [
+        "教学"
+      ],
+      "hash": "E3CADDFD"
+    },
+    {
+      "id": "C_DD519F03",
+      "cardName": "教学·连击小兵",
+      "supertype": "Creature",
+      "attackAbility": true,
+      "power": 1,
+      "life": 3,
+      "costList": [
+        0.0,
+        6.0,
+        0.0,
+        1.0
+      ],
+      "keywords": [
+        "DoubleStrike"
+      ],
+      "tags": [
+        "教学"
+      ],
+      "hash": "DD519F03"
+    },
+    {
+      "id": "C_2730BF8F",
+      "cardName": "教学·一点法术",
+      "supertype": "Spell",
+      "tags": [
+        "教学"
+      ],
+      "effectIds": [
+        "40CEACFC"
+      ],
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "hash": "2730BF8F"
+    },
+    {
+      "id": "C_7FD01D48",
+      "cardName": "教学·绝缘体",
+      "supertype": "Creature",
+      "attackAbility": true,
+      "power": 4,
+      "life": 4,
+      "costList": [
+        6.0,
+        1.0,
+        0.0,
+        1.0
+      ],
+      "keywords": [
+        "Insulator"
+      ],
+      "tags": [
+        "教学"
+      ],
+      "hash": "7FD01D48"
+    },
+    {
+      "id": "C_12705A5A",
+      "cardName": "教学·绝缘光环",
+      "supertype": "Enchantment",
+      "arrows": "UpperLeft,LowerLeft",
+      "tags": [
+        "教学"
+      ],
+      "durability": 9,
+      "linkAuras": [
+        {
+          "keyword": "Insulator"
+        }
+      ],
+      "costList": [
+        7.0,
+        0.0,
+        2.0,
+        0.0
+      ],
+      "hash": "12705A5A"
+    },
+    {
+      "id": "C_BA2BFFAD",
+      "cardName": "教学·沉睡术甲",
+      "supertype": "Spell",
+      "tags": [
+        "教学"
+      ],
+      "effectIds": [
+        "871ED866"
+      ],
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "hash": "BA2BFFAD"
+    },
+    {
+      "id": "C_63FAF37B",
+      "cardName": "教学·沉睡术乙",
+      "supertype": "Spell",
+      "tags": [
+        "教学"
+      ],
+      "effectIds": [
+        "871ED866"
+      ],
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "hash": "63FAF37B"
+    },
+    {
+      "id": "C_0BFA4FD0",
+      "cardName": "教学·沉睡术丙",
+      "supertype": "Spell",
+      "tags": [
+        "教学"
+      ],
+      "effectIds": [
+        "871ED866"
+      ],
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "hash": "0BFA4FD0"
+    },
+    {
+      "id": "C_04425248",
+      "cardName": "教学·沉睡术丁",
+      "supertype": "Spell",
+      "tags": [
+        "教学"
+      ],
+      "effectIds": [
+        "871ED866"
+      ],
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "hash": "04425248"
+    },
+    {
+      "id": "C_3AC147C9",
+      "cardName": "教学·无效术甲",
+      "supertype": "Spell",
+      "tags": [
+        "教学"
+      ],
+      "effectIds": [
+        "7899C88A"
+      ],
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "hash": "4B7D55DF"
+    },
+    {
+      "id": "C_C55C98E2",
+      "cardName": "教学·无效术乙",
+      "supertype": "Spell",
+      "tags": [
+        "教学"
+      ],
+      "effectIds": [
+        "7899C88A"
+      ],
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "hash": "A6DC0140"
+    },
+    {
+      "id": "C_01835F2B",
+      "cardName": "教学·绝缘赋予",
+      "supertype": "Spell",
+      "tags": [
+        "教学"
+      ],
+      "effectIds": [
+        "AC81853B"
+      ],
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "hash": "01835F2B"
+    },
+    {
+      "id": "C_483E94BC",
+      "cardName": "教学·驱散术甲",
+      "supertype": "Spell",
+      "tags": [
+        "教学"
+      ],
+      "effectIds": [
+        "CFE6FF68"
+      ],
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "hash": "483E94BC"
+    },
+    {
+      "id": "C_4082D33D",
+      "cardName": "教学·驱散术乙",
+      "supertype": "Spell",
+      "tags": [
+        "教学"
+      ],
+      "effectIds": [
+        "CFE6FF68"
+      ],
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "hash": "4082D33D"
+    },
+    {
+      "id": "C_2D514294",
+      "cardName": "教学·无效术丙",
+      "supertype": "Spell",
+      "tags": [
+        "教学"
+      ],
+      "effectIds": [
+        "7899C88A"
+      ],
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "hash": "D4177AA5"
+    },
+    {
+      "id": "C_CD942636",
+      "cardName": "教学·灰源",
+      "supertype": "Creature",
+      "attackAbility": true,
+      "chargeAbility": true,
+      "power": 1,
+      "life": 1,
+      "costList": [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "教学"
+      ],
+      "hash": "CD942636"
     }
   ]
 }

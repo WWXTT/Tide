@@ -349,9 +349,9 @@ namespace CardCore.Attribute.Handlers
     }
 
     /// <summary>
-    /// 易损指示物（2026-10-09 生效自减定案，同毒素档，自 Decay 迁入）：无持续时间、只有层数——
-    /// 每次受到伤害时每层使伤害 +1，生效后层数减半（floor，1 层生效一次即清零；KeywordRules.ApplyDamage
-    /// 第 0 步放大+减半——圣盾/护甲吸收放大后的量）；换区不清、净化/解减益可清。
+    /// 易损指示物（2026-10-09 生效自减定案，自 Decay 迁入）：无持续时间、只有层数——
+    /// 每次受到伤害时每层使伤害 +1，生效后层数全部移除（2026-11-09 改版：原为减半 floor；
+    /// KeywordRules.ApplyDamage 第 0 步放大+移除——圣盾/护甲吸收放大后的量）；换区不清、净化/解减益可清。
     /// </summary>
     public class AddVulnerableHandler : AtomicEffectHandlerBase
     {
@@ -377,7 +377,7 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => "附加一层易损指示物（每次受到伤害每层+1，生效后层数减半）";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "附加一层易损指示物（每次受到伤害每层+1，生效后全部移除）";
     }
 
     /// <summary>
@@ -760,6 +760,8 @@ namespace CardCore.Attribute.Handlers
     /// 挂 TriggerEngine.FindMatchingEffects）+ 拦本体关键词（EntityEffectExtensions.HasKeyword 收口）。
     /// 2026-10-31 改名定案：光环域整体退出——不压连接光环来源/规则光环载体（受益者侧本就不除光环）。
     /// 与沉默对称：沉默拦主动、失效拦自动。
+    /// 2026-11-09 用户定案：绝缘体单位——层照常落账（可见、不衰减），但零效果（死层，
+    /// SuppressRules.IsAutoSuppressed 对绝缘体恒 false）；本 handler 只负责发放，不再被闸清零。
     /// </summary>
     public class AddNullifyHandler : AtomicEffectHandlerBase
     {
@@ -799,6 +801,7 @@ namespace CardCore.Attribute.Handlers
     /// 层=持续回合数，持有者回合末 −1、归零解除（无法重置+效果无效期间持续）。
     /// 效果/指示物分离原则：本原子只负责**赋予指示物**——持续规则由指示物自身承载
     ///（CounterRules.OnTurnEnd ③块倒数；TriggerEngine/CanActivate 拦效果）。
+    /// 2026-11-09 用户定案：绝缘体单位不横置、不拦重置、不压效果——层照常落账（死层）。
     /// 本原子 Value 未显式时一律兜底 1 层。
     /// </summary>
     public class SleepHandler : AtomicEffectHandlerBase
@@ -815,9 +818,13 @@ namespace CardCore.Attribute.Handlers
 
                 // 沉睡=横置进沉睡（横置即上限：不能攻击/守卫；重置被指示物拦）。
                 // 不走 ShouldTap（警戒 2026-09-10 已重定义为「横置也能反击」，无横置抵扣）。
-                target.Tap();
+                // 2026-11-09 用户定案：绝缘体单位——沉睡层照常落账（可见、正常倒数），但零效果：
+                // 不横置（Tap 排在 AddCounters 之前，必须先判，否则会留下「层在、横置也吃」的错位）。
+                bool insulatorActive = InsulatorRules.IsActive(target);
+                if (!insulatorActive) target.Tap();
                 int actualDelta = target.AddCounters(KeywordRules.SleepCounter, amount, context.Source);
-                PublishEvent(new TapEvent { TappedEntity = target, IsUntapping = false });
+                if (!insulatorActive)
+                    PublishEvent(new TapEvent { TappedEntity = target, IsUntapping = false });
                 PublishEvent(new CounterChangedEvent
                 {
                     Target = target,

@@ -241,17 +241,17 @@ namespace SynergyUI
             // 2026-10-09 定案不开放玩家选择；**回合开始 2026-10-20 起同样收归系统专用**——
             // 自动抽牌/倒计时递减等系统行为专属，效果时点改挂「准备阶段」）
             //
-            // 2026-11-05 两档收敛定案：时机只分「单次/多次」两档、系数均 ×1（多次成本由结界耐久
-            // 承担，不按次数加价）——尾缀 ×N 退役改档位标签，分类单源=FiresOncePerPaidLifetime。
-            // 宿主过滤：非结界宿主（生物等）滤掉周期/观察族多次时机（结界专属——耐久即次数池；
-            // 攻/守/横置族归多次档但生物可挂，保留）；效果库模式无宿主两档全开；结界宿主全开。
-            bool hostFiltersRepeat = _editingCard != null && _editingCard.Supertype != Cardtype.Enchantment;
+            // 2026-11-05 两档收敛；2026-11-09 生物专属档拆分：时机三档——
+            // 单次 ×1 / 多次（周期·观察族，仅结界，×1）/ 生物专属（攻/守/横置族，仅生物，×1.5）。
+            // 宿主过滤：生物=单次+生物专属；结界=单次+周期/观察族；法术=仅登场——HostCanTakeTiming 单源；
+            // 效果库模式无宿主全开。
+            bool hostFilters = _editingCard != null;
             _timings = TimingZh.Keys.Where(t => t != TriggerTiming.OnTurnStart)
-                .Where(t => !hostFiltersRepeat || !EffectEligibility.IsEnchantExclusiveTiming(t))
+                .Where(t => !hostFilters || EffectEligibility.HostCanTakeTiming(_editingCard.Supertype, t))
                 .OrderBy(t => CostDerivationService.FiresOncePerPaidLifetime(t) ? 0 : 1) // LINQ 稳定排序——组内维持表序
                 .ToList();
             var labels = _timings
-                .Select(t => $"{TimingZh[t]} · {(CostDerivationService.IsRepeatTiming(t) ? "多次" : "单次")}")
+                .Select(t => $"{TimingZh[t]} · {TimingTierZh(t)}")
                 .ToList();
             _timingDropdown.SetOptions(labels, 0);
             SyncTimingDropdown();
@@ -262,14 +262,22 @@ namespace SynergyUI
             };
             float onceF = CostDerivationService.TimingCostFactorOf(TriggerTiming.OnPlay);
             float repF = CostDerivationService.TimingCostFactorOf(TriggerTiming.OnDraw);
+            float creatureF = CostDerivationService.TimingCostFactorOf(TriggerTiming.OnAttack);
             _timingDropdown.Describe(
-                $"触发时机（单次 ×{onceF:0.###} / 多次 ×{repF:0.###}——多次的成本由耐久承担，不按次数加价）："
+                $"触发时机（单次 ×{onceF:0.###} / 多次 ×{repF:0.###} / 生物专属 ×{creatureF:0.###}）："
                 + "单次=付清这张卡后只发生一次（登场/死亡/破坏/除外/离场/墓地回场）；"
                 + "多次中的周期/观察族（回合/阶段/抽牌/伤害/事件观察）为结界专属——每触发 −1 耐久（0.5 蓝/点），耐久归零销毁；"
-                + "攻/守/横置族虽归多次档，生物也可挂（宿主自身行动承担次数）。"
-                + "两档系数在 ValueSystemConfig 表 TimingFactor 段改，改表即同步这里与计价。"
+                + "攻/守/横置族为生物专属自动效果——只有生物可挂（结界不横置、法术不驻场，无从触发），按 ×1.5 计费（宿主自身行动承担次数）。"
+                + "三档系数在 ValueSystemConfig 表 TimingFactor 段改，改表即同步这里与计价。"
                 + "自由分支奖励仍限每张卡每回合 1 次；其余效果无次数限制，仅同一效果每回合超过 30 次按自循环截断。点选项看各时机说明。",
                 idx => idx >= 0 && idx < _timings.Count ? TimingDescZh(_timings[idx]) : null);
+        }
+
+        /// <summary>时机档位标签（三档单源）：生物专属（攻/守/横置）/ 多次（周期·观察族）/ 单次。</summary>
+        private static string TimingTierZh(TriggerTiming t)
+        {
+            if (EffectEligibility.IsTapAnchoredTiming(t)) return "生物专属";
+            return CostDerivationService.IsRepeatTiming(t) ? "多次" : "单次";
         }
 
         private void SyncTimingDropdown()

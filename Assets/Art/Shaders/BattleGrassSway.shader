@@ -122,7 +122,9 @@ Shader "Tide/BattleGrassSway"
             float wave = sin(t * _SwayFrequency + phase);
             float shiver = sin(t * _SwayFrequency * 2.33 + phase * 1.61 + positionOS.y * 3.1) * 0.35;
 
-            float3 dirOS = mul((float3x3)unity_WorldToObject, dirWS);
+            // DOTS_INSTANCING_ON 变体下裸 unity_WorldToObject 未声明——须经 SpaceTransforms 访问器
+            //（与上方 UNITY_MATRIX_M 同款全实例化路径安全口径）
+            float3 dirOS = mul((float3x3)GetWorldToObjectMatrix(), dirWS);
             positionOS.xz += dirOS.xz * ((wave + shiver) * _SwayAmount * mask * valid);
         }
         ENDHLSL

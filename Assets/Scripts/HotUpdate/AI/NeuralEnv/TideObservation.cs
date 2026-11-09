@@ -493,7 +493,7 @@ namespace CardCore.AI.NeuralEnv
             // g[17..28] 临时钱包（现取现用：效果授予元素，回合末清空）——原六色块（维度 v3 冻结）：
             // 2026-10-28 P2 席位收缩删白/黑后实际四色（Gray/Red/Blue/Green=枚举 0..3），
             // g[21][22]/g[27][28] 死位恒 0（同 g[34..37] 口径）；
-            // Any 任意元素（2026-10-23）不进观测，AI 感知其支付力走 CanAfford 规则口（PlanBill 含链尾 Any）
+            // Any 彩元素（2026-10-23）不进观测，AI 感知其支付力走 CanAfford 规则口（PlanBill 含链尾 Any）
             for (int i = 0; i <= (int)ManaType.Green; i++) g[17 + i] = ep.GetPool(me).TempElements[(ManaType)i];
             for (int i = 0; i <= (int)ManaType.Green; i++) g[23 + i] = ep.GetPool(opp).TempElements[(ManaType)i];
             g[29] = core.StackEngine.IsEmpty ? 0f : 1f; // 栈占用（二值）

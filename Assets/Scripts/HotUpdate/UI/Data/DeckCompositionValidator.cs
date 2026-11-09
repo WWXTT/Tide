@@ -384,10 +384,12 @@ namespace SynergyUI
             }
         }
 
-        /// <summary>费用串「红2+蓝0.5+灰1」（展示序红蓝绿灰）；空/全零=「0」。</summary>
+        /// <summary>费用串「红2+蓝0.5+灰1」（展示序红蓝绿灰）；空/全零=「0」。
+        /// 2026-11-09 逐色进位：入参先 CeilBill 再拼文案（只影响显示——门槛判定已有 NormalizeBill，不动）。</summary>
         public static string FormatCost(ElementCost cost)
         {
             if (cost == null || cost.IsZero) return "0";
+            cost = ElementPaymentValidator.CeilBill(cost);
             return string.Join("+", DisplayOrder
                 .Where(c => cost[c] > 0f)
                 .Select(c => $"{ColorZh(c)}{cost[c]:0.#}"));

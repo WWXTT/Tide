@@ -295,6 +295,12 @@ namespace CardCore
         // 倒计时/死亡计数等引擎主干层不沾）。极性 0=恒双方（2026-11-06 定案，无单侧档）。----
         public const string InscriptionAura = "InscriptionAura";       // 铭刻（单位加层+1）
 
+        // ---- 破败仪典（2026-11-09 新增，改写族）：受光环影响一方的单位与角色**获得的护甲**
+        // 转换为等量易损指示物（改写口=EntityEffectExtensions.AddCounters 咽喉——护甲原子/
+        // 活体护甲全收；负量移除照常不拦）。原「易损生效后全移」覆盖口（KeywordRules.ApplyDamage
+        // 易损步）同日随易损改版退役——全移已是全局默认。禁疗令同侧并存时拦下优先（护甲根本不加，无从转换）。----
+        public const string ArmorDecay = "ArmorDecay";               // 破败仪典（护甲转易损）
+
         // ---- 阶段D·EffectType 唯一化（2026-10-31）：场地光环行类型 → 规则短名静态映射 ----
         // 源=上方常量，与原子表光环族行对应（枚举名↔短名↔中文行名见各常量行注；
         // 窥渊/毒蚀/霜蚀 2026-11-02 整链删除，不在映射内）；
@@ -327,6 +333,7 @@ namespace CardCore
             { AtomicEffectType.AuraDelayedDeath, DelayedDeathAura },
             { AtomicEffectType.AuraTopDeckAsHand, TopDeckAsHandAura },
             { AtomicEffectType.AuraInscription, InscriptionAura },
+            { AtomicEffectType.AuraArmorDecay, ArmorDecay },
         };
 
         /// <summary>是否场地光环行类型（阶段D 新型——投放/识别口用）。</summary>

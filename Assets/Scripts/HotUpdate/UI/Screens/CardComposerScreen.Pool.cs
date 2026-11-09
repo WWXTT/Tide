@@ -303,7 +303,9 @@ namespace SynergyUI
             }
             badge.gameObject.SetActive(true);
             var num = badge.GetComponentInChildren<TMP_Text>(true);
-            if (num != null) num.text = ((int)Mathf.Round(cost.Total)).ToString();
+            // 2026-11-09：Unity Mathf.Round 是银行家舍入（4.5→4）本就不对；改逐色进位同款 ceil 兜底
+            //（调用方多已传进位后整数，两者一致——防直传真值时显示偏低）
+            if (num != null) num.text = Mathf.CeilToInt(cost.Total - 1e-4f).ToString();
         }
 
         private static string TypeStatLine(CardData card)

@@ -126,7 +126,9 @@ namespace CardCore
         /// <summary>
         /// 出一张卡的可付性（2026-10-28 P1 定案）：净费可付 ∧ 代价可支付。
         /// 净费=CanAfford（卡费〔已含代价抵扣〕+同玩家 pending 声明承诺统一混付规划）；
-        /// 代价可支付=CostPayability.AllPayable（与 EvaluatePayloadGate 同口径，两处单源）。
+        /// 代价可支付=CostPayability.AllPayable（与 EvaluatePayloadGate 同口径，两处单源；
+        /// 2026-11-09 补闸：法术所选模式〔主动行〕的 Payload 代价一并验付——结算期执行器现付，
+        /// 声明期此前零闸）。
         /// 出牌声明预检（PlayCard/PlayCardInResponse）与 AI 枚举（LegalActionEnumerator）共用。
         /// </summary>
         public static bool CanAffordCast(GameCore core, Player player, Card card, int modeIndex)
@@ -141,8 +143,16 @@ namespace CardCore
 
             // 代价可支付闸（声明期——整卡不可用，非结算期失败）
             var specialCosts = CollectCardSpecialCosts(card);
-            if (specialCosts == null || specialCosts.Count == 0) return true;
-            return CostPayability.AllPayable(specialCosts, new CostContext
+            var spellModeCosts = CollectSpellModeCosts(card, modeIndex); // 法术主动行代价镜像（2026-11-09）
+            if ((specialCosts == null || specialCosts.Count == 0)
+                && (spellModeCosts == null || spellModeCosts.Count == 0)) return true;
+            var gateCosts = specialCosts ?? new List<CostInstance>();
+            if (spellModeCosts != null)
+            {
+                gateCosts = new List<CostInstance>(gateCosts);
+                gateCosts.AddRange(spellModeCosts);
+            }
+            return CostPayability.AllPayable(gateCosts, new CostContext
             {
                 Payer = player,
                 ZoneManager = core.ZoneManager,

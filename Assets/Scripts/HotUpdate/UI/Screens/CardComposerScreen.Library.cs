@@ -494,7 +494,8 @@ namespace SynergyUI
             }
             var meta2 = UiKit.FindDeep(row, "meta")?.GetComponent<TMP_Text>();
             if (meta2 != null) meta2.text = item.Tag ?? "";
-            BindCostBadge(row, graph?.header?.AnchorCost);
+            var badgeCost = graph?.header?.AnchorCost; // 2026-11-09 逐色进位：效果库行费标=卡侧整数口径（效果组合界面另直读真值）
+            BindCostBadge(row, badgeCost == null ? null : ElementPaymentValidator.CeilBill(badgeCost));
             var rowBtn = row.GetComponent<UnityEngine.UI.Button>();
             if (rowBtn != null)
             {

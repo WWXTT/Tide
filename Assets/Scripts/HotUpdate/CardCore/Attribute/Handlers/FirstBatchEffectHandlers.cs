@@ -546,6 +546,59 @@ namespace CardCore.Attribute.Handlers
     }
 
     /// <summary>
+    /// 攻守互换（2026-11-09 新增，蓝2 表行 b5998037）：将{target}（双方战场生物）的攻击力与
+    /// 生命值上限两值互换——走系统的设置属性路径（Set 族：直写本体、跨区保留、净化不清）。
+    /// 读数走系统读数（GetPower/GetMaxLife 含连接光环——交换当前值后光环照常叠加）；
+    /// 当前生命保持不动、超出新上限钳至新上限（LifeDown 同款钳口——只压不抬），
+    /// 有效生命（含光环）归零标死交 SBA、死亡来源=施加方（对齐 LifeDown/永久血减归因口径）。
+    /// </summary>
+    public class SwapPowerLifeHandler : AtomicEffectHandlerBase
+    {
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.SwapPowerLife;
+
+        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            foreach (var target in context.Targets)
+            {
+                if (!(target is Card card) || !card.IsAlive) continue;
+
+                int oldPower = card.GetPower();
+                int oldMax = card.GetMaxLife();
+                int oldLife = card.GetLife();
+
+                card.SetPower(oldMax);      // 新攻=旧上限（系统设置属性路径）
+                card._maxLife = oldPower;   // 新上限=旧攻（上限直写=系统惯例，SetLifeHandler 同款）
+                if (card._life > card._maxLife) card._life = card._maxLife;
+                if (card._life + GameBoard.LinkAuraSystem.GetLifeBonus(card) <= 0)
+                {
+                    // 归零标死交 SBA——死亡来源=施加方（AddPermanentLifeDown 同口径）
+                    card._pendingDeathSource = context.Source;
+                    card.IsAlive = false;
+                }
+
+                PublishEvent(new StatSetEvent
+                {
+                    Target = card,
+                    StatType = StatType.Power,
+                    OldValue = oldPower,
+                    NewValue = card.GetPower(),
+                    Source = context.Source
+                });
+                PublishEvent(new StatSetEvent
+                {
+                    Target = card,
+                    StatType = StatType.Life,
+                    OldValue = oldLife,
+                    NewValue = card.GetLife(),
+                    Source = context.Source
+                });
+            }
+        }
+
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "将攻击力与生命值上限互换";
+    }
+
+    /// <summary>
     /// 设置费用（新增原子）：直接改卡的基本费用（_baseCost），持续到游戏结束——
     /// 与设置攻击力/生命值同族（直改基本属性、跨区保留），区别于费用指示物（仅手牌、离手消失）。
     /// 目标=手牌卡。

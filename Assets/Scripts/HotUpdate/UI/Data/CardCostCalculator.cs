@@ -28,10 +28,10 @@ namespace SynergyUI
 
         public sealed class Result
         {
-            /// <summary>推导价 D_total（逐色取整后总和）。</summary>
+            /// <summary>推导价 D_total（逐色向上取整后总和——恒整数，2026-11-09 定案）。</summary>
             public float Total;
 
-            /// <summary>档位=推导档 Ĉ（round(S+E+K) 所在档；恒推导，无声明。仅作 UI 卡面费数字——延迟折已删）。</summary>
+            /// <summary>档位=推导档 Ĉ（实际卡费总额钳档帽；恒推导，无声明。仅作 UI 卡面费数字——延迟折已删）。</summary>
             public int ManaCost;
 
             /// <summary>规则一缺口 Req = max(0, D_total − Ĉ)（2026-09-11 简化：D≤Ĉ 直判，无当量抵扣）。</summary>

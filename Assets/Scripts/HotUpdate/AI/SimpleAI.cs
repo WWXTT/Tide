@@ -154,8 +154,9 @@ namespace SynergyUI
             AtomicEffectType.Heal,
             AtomicEffectType.ReturnToHand, AtomicEffectType.SummonToken,
             AtomicEffectType.ReturnFromGraveyard, AtomicEffectType.RecoverToHand,
-            // 资源族（2026-10-11：Mine 已删；2026-10-23：Photosynthesis 已换 GainAnyElement）
-            AtomicEffectType.Untap, AtomicEffectType.AddArmor, AtomicEffectType.GainAnyElement,
+            // 资源族（2026-10-11：Mine 已删；2026-10-23：Photosynthesis 已换 GainAnyElement——
+            // 后者 2026-11-09 亦删，彩元素产出归牺牲族）
+            AtomicEffectType.Untap, AtomicEffectType.AddArmor,
             // 参照族增益不在此列（G6 收口 2026-11-08）：走 IsBeneficialAtom 的 ReferenceAxis×正极性
             // 数据臂（参照贴附类——活体护甲等）
             // 强化族（GrantX 关键词与数值强化；单向属性增益——攻击力/生命值/±1/费用减少）

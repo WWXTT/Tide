@@ -149,7 +149,8 @@ namespace CardCore
 
             // 0.6 沉睡指示物（2026-09-11 定案）：沉睡期间效果无效——主动同样不可发动
             //（触发式在 TriggerEngine.FindMatchingEffects 拦，双口合流）。
-            if (source != null && source.GetCounterCount(Attribute.KeywordRules.SleepCounter) > 0)
+            // 2026-11-09：效果口径读数——绝缘体单位的沉睡层是死层（层照常落账），不拦主动。
+            if (source != null && source.GetEffectiveCounterCount(Attribute.KeywordRules.SleepCounter) > 0)
             { reason = "该卡在沉睡中——不能发动"; return false; }
 
             // 1. 速度检查（由 SpeedCounter 处理，这里不重复）
@@ -181,7 +182,7 @@ namespace CardCore
             // 技能发动费（2026-11-01 定案，推翻 2026-10-18「免锚价+抉择另收1灰」）：
             // 技能源照走锚价预检（与法术施放/主动效果同价源；UI 技能栏费用显示同为锚价口径）；
             // 特殊代价（牺牲等效果机制）不属「费用」，照收——技能卡禁带代价由资格闸拦（CanBeSkillCard）
-            // 临摹/变形发动补价（2026-10-23 开放元素限制——并入灰档=任意元素可补差；灰档支付链六色皆可垫付）：
+            // 临摹/变形发动补价（2026-10-23 开放元素限制——并入灰档=彩元素可补差；灰档支付链六色皆可垫付）：
             // 被变形卡的主动效果按变形前后声明费差额补差——预检与 ExecuteAsync 现付段同口径（付不出=不可发动）
             {
                 int morphFee = Attribute.MorphSystem.ActivationSurcharge(source);
@@ -330,7 +331,7 @@ namespace CardCore
             // 与 CanActivate 预检同口径；抉择技能 instance.ModeIndex=所选效果序号，per-mode 计价天然成立
             //（结界发动费抵扣臂已随 2026-10-15 拆分定案退役：免费点今折免费耐久底抵卡价
             //——2026-11-04 碑族0费改版，旧 DurabilityBonusOf/EnchantSpeedBonusOf 两向落位均退役。）
-            // 临摹/变形发动补价（2026-10-23 开放元素限制——并入灰档=任意元素可补差，落在底盘抵扣之后——底盘属原卡，
+            // 临摹/变形发动补价（2026-10-23 开放元素限制——并入灰档=彩元素可补差，落在底盘抵扣之后——底盘属原卡，
             // 不抵变形溢价）：被变形卡的主动效果按变形前后声明费差额补差并入本次账单；
             // 触发式（ElementCostPrepaid）不经此段；付不出沿用空转口径
             if (effect.IsActivatedEffect && !effect.ElementCostPrepaid)

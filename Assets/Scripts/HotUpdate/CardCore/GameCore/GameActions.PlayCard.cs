@@ -725,6 +725,28 @@ namespace CardCore
             return result;
         }
 
+        /// <summary>法术所选模式（主动效果行）的效果级 Payload 代价（2026-11-09 补闸）：
+        /// 法术施放=使用该主动效果——其代价行不进 <see cref="CollectCardSpecialCosts"/>（非主动行专收），
+        /// 结算期由执行器现付（EffectExecutionEngine「主动效果的效果级代价唯一真执行点」）。
+        /// 声明期闸（EvaluatePayloadGate ①可支付/③地牌、CanAffordCast.AllPayable）在此并入
+        /// ——此前零闸：0基价+代价净费归零（GetCardCost NetBill）的法术无同色地也照常入栈。
+        /// ElementConsume 行不收（与 GetCardCost 净费/执行器 specialCosts 同剔除口径）。
+        /// 非法术/无代价返回 null。</summary>
+        private static List<CostInstance> CollectSpellModeCosts(Card card, int modeIndex)
+        {
+            var data = card is CardWrapper cw ? cw.GetData() : null;
+            if (data == null || data.Supertype != Cardtype.Spell) return null;
+            var defs = GetCastableEffectDefinitions(card);
+            var modeDef = defs != null && defs.Count > 0
+                ? defs[Math.Clamp(modeIndex, 0, defs.Count - 1)] : null;
+            if (modeDef == null || !modeDef.IsActivatedEffect || modeDef.Costs == null) return null;
+            var rows = new List<CostInstance>();
+            foreach (var c in modeDef.Costs)
+                if (c != null && c.Type == CostType.Payload && c.Payloads != null && c.Payloads.Count > 0)
+                    rows.Add(c);
+            return rows.Count > 0 ? rows : null;
+        }
+
         /// <summary>
         /// 出牌两阶段·第一阶段（2026-10-04 定案；2026-10-28 P1 改版）：有代价的卡声明期先算代价——
         /// 预选代价目标。代价也是完整效果：按其自身域以**支付者视角**解析候选（与结算期
@@ -769,6 +791,9 @@ namespace CardCore
         ///    主动效果，「使用主动效果时同理」——所选模式（modeIndex）效果的效果级代价行一并计入
         ///    （与 GetCardCost 锚价净费同口径）。每色代价合计 > 施放者该色地牌数 → 发动无效（等于放行）。
         /// 全无域原子则只过①③（可发动，结算按无目标执行）。
+        /// 2026-11-09 补闸：法术所选模式（主动行）的 Payload 代价并入①③——此前 payloadCosts 只收
+        /// 非主动行，「仅主动行带代价」的法术在无代价早退处整段跳闸（③法术模式分支不可达）：
+        /// 0基价+代价净费归零的法术无同色地也照常声明入栈弹连锁窗（如 代价2蓝 需 2 蓝地）。
         /// </summary>
         private static string EvaluatePayloadGate(GameCore core, Player player, Card card, int modeIndex,
             out List<CostInstance> payloadCosts, out List<List<Entity>> candidates)
@@ -781,12 +806,17 @@ namespace CardCore
             foreach (var c in specialCosts)
                 if (c != null && c.Type == CostType.Payload && c.Payloads != null && c.Payloads.Count > 0)
                     payloadCosts.Add(c);
+            // 法术所选模式（主动行）代价：不进 payloadCosts（②预选/结算期 cast 付费步均为非主动行口径
+            // ——主动行代价由执行器结算段现付），只并入①可支付/③地牌两道声明期闸
+            var spellModeCosts = CollectSpellModeCosts(card, modeIndex);
             // 2026-11-03 用户定案：弃牌代价「另有一张」闸——本卡自身不算可弃手牌（声明期闸，整卡不可用）。
             // 必须早于下方「无代价」早退：法术的代价行挂在**主动效果**上（不 Collected 进 specialCosts）。
             var discardReject = CheckDiscardCostSelfExclusion(core, player, card, modeIndex);
             if (discardReject != null) { payloadCosts = null; candidates = null; return discardReject; }
 
-            if (payloadCosts.Count == 0) { payloadCosts = null; return null; } // 无代价：两阶段退化为一阶段（费用门禁）
+            bool hasModeCosts = spellModeCosts != null && spellModeCosts.Count > 0;
+            if (payloadCosts.Count == 0 && !hasModeCosts)
+            { payloadCosts = null; return null; } // 无代价：两阶段退化为一阶段（费用门禁）
 
             // ① 可支付门槛（声明期闸——与 CanAffordCast 同口径）：不可支付返回拒绝原因（UI/AI 直读）
             var costCtx = new CostContext
@@ -796,7 +826,13 @@ namespace CardCore
                 ElementPool = core.ElementPool,
                 Source = player,
             };
-            var payReject = CostPayability.RejectReason(specialCosts, costCtx);
+            List<CostInstance> gateCosts = specialCosts;
+            if (hasModeCosts) // 法术模式行代价一并验付（与 CanAffordCast.AllPayable 镜像同口径）
+            {
+                gateCosts = new List<CostInstance>(specialCosts);
+                gateCosts.AddRange(spellModeCosts);
+            }
+            var payReject = CostPayability.RejectReason(gateCosts, costCtx);
             if (payReject != null) return payReject;
 
             // ③ 地牌门槛（2026-10-31 代价地牌统一定案+指向化分账）：施放口只算非主动行；

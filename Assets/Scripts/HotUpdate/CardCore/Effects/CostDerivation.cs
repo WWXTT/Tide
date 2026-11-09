@@ -34,8 +34,8 @@ namespace CardCore
                 return effect.AnchorCostPin != null ? effect.AnchorCostPin.Clone() : new ElementCost();
 
             // 逐色累加（float 全程不取整——2026-10-30 真实小数定案，10-18「合成期取整出整数」退役：
-            // 舍入只在支付终点 NormalizeBill 向上取整；卡级挂载折扣 d(C) 小数后的整卡取整仍在
-            // CardCostService.ApportionMounted（L3））。
+            // 本层恒出真值小数；卡层 CardCostService 在代价抵扣前逐色向上取整，支付终点 NormalizeBill
+            // 同规则（幂等）；E/K 整数分摊仍在 CardCostService.ApportionMounted（L3））。
             var byColor = new Dictionary<ManaType, float>();
             if (effect != null)
             {
@@ -66,8 +66,9 @@ namespace CardCore
 
             // 2026-10-04 费用位置数组化：输出统一为 ElementCost（序数序天然确定，非零即入）——
             // 真实小数出账（2026-10-30 定案，逆转 10-18 合成期取整）：效果费保留真值小数（如 0.6绿），
-            // 展示层直通；舍入只发生在支付终点（ElementPaymentValidator.NormalizeBill 向上取整——
-            // 大于 0 也消耗 1）。卡级底盘取整（ApportionMounted L3）不在此处。
+            // 展示层直通；卡层 CardCostService 在代价抵扣前逐色向上取整，支付终点
+            //（ElementPaymentValidator.NormalizeBill，大于 0 也消耗 1）同规则（幂等）。
+            // 卡级底盘分摊（ApportionMounted L3）不在此处。
             var result = new ElementCost();
             foreach (var kv in byColor)
             {
@@ -414,10 +415,11 @@ namespace CardCore
         ///——速度=3−槽数是法术的类特性而非可购溢价，旧规给速 2 效果 ×2 属历史遗留多收；
         /// 其余主动效果速度已全归默认 0。SpeedFactor/SpeedTier 配置位同批整删。）</summary>
 
-        /// <summary>发动时机计价系数（2026-11-05 两档收敛定案，表 Category=TimingFactor 仅 Once/Repeat 两行）：
-        /// 时机只分单次/多次两档且均 ×1——**多次生效的成本由耐久承担**（结界每次触发 −1 耐久、
-        /// 0.5 蓝/点——耐久即次数池），不按次数加价；单据 FiresOncePerPaidLifetime 归类。
-        /// 引擎载荷豁免：重复性属引擎通道，效果头时机=奖励发射窗，不代表主干发射次数；
+        /// <summary>发动时机计价系数（表 Category=TimingFactor 三档）：单次 / 多次（周期·观察族，
+        /// 结界专属）/ 生物专属（攻/守/横置族 ×1.5——只有生物可挂）。多次档仍 ×1：**多次生效的成本
+        /// 由耐久承担**（结界每次触发 −1 耐久、0.5 蓝/点——耐久即次数池），不按次数加价；生物专属档
+        /// 按 ×1.5 计费（宿主自身行动承担次数）。单据 FiresOncePerPaidLifetime / IsTapAnchoredTiming
+        /// 归类。引擎载荷豁免：重复性属引擎通道，效果头时机=奖励发射窗，不代表主干发射次数；
         /// 非触发式（主动现付）不乘（恒 1）。</summary>
         public static float TimingCostFactor(EffectDefinition def)
         {
@@ -427,23 +429,27 @@ namespace CardCore
         }
 
         /// <summary>时机系数单口（计价 TimingCostFactor 与时机下拉档位标签展示同源）：
-        /// 表 Category=TimingFactor 两行（Once/Repeat，均 1.0）——单据 FiresOncePerPaidLifetime
-        /// 两档归类。改表即同步改计价与展示；主动三档恒 1（发动时现付，不乘表）。</summary>
+        /// 表 Category=TimingFactor 三档——单次 Once / 多次 Repeat（周期·观察族，结界专属）/
+        /// 生物专属 CreatureOnly（攻/守/横置族，仅生物可挂，×1.5）。改表即同步改计价与展示；
+        /// 主动三档恒 1（发动时现付，不乘表）。</summary>
         public static float TimingCostFactorOf(TriggerTiming timing)
         {
             var f = ValueSystemConfigManager.Instance.GetOrCreateConfig().TimingFactorConfig;
+            if (EffectEligibility.IsTapAnchoredTiming(timing)) return f.CreatureOnly;
             return FiresOncePerPaidLifetime(timing) ? f.Once : f.Repeat;
         }
 
         /// <summary>多次档判定（2026-11-05 两档定案配套；合成器宿主过滤/装载校验/验证器共用）：
         /// !FiresOncePerPaidLifetime——回合/阶段/抽牌/伤害/事件观察族 + 攻/守/横置族 + OnSummon。
-        /// 注意「多次档」≠「生物禁挂」：攻/守/横置族（EffectEligibility.IsTapAnchoredTiming）虽归
-        /// 多次档，生物仍可挂（宿主自身行动承担次数）——周期/观察族才是结界专属（耐久即次数池）。</summary>
+        /// 注意：攻/守/横置族虽归多次档，但**只有生物可挂**（EffectEligibility.IsTapAnchoredTiming；
+        /// 计价另走 CreatureOnly ×1.5，不再按 Repeat ×1）——周期/观察族才是结界专属（耐久即次数池）。</summary>
         public static bool IsRepeatTiming(TriggerTiming t) => !FiresOncePerPaidLifetime(t);
 
-        /// <summary>一发时机分类——**两档归类的唯一判定**（2026-10-16 入档；2026-10-30 与计价解耦；
-        /// 2026-11-05 两档收敛定案后为单次/多次档的唯一单源）：付费后整个生命期望=1——
+        /// <summary>一发时机分类——**单次档的唯一判定**（2026-10-16 入档；2026-10-30 与计价解耦；
+        /// 2026-11-05 两档收敛定案后为单次档的唯一单源）：付费后整个生命期望=1——
         /// 登场/死亡/游戏开始·角色死亡（每局一发）/破坏·除外·离场·墓地回场（付费后基本一次）。
+        /// 非单次再分两族：周期/观察族（Repeat，结界专属）与攻/守/横置族（CreatureOnly ×1.5，生物专属，
+        /// EffectEligibility.IsTapAnchoredTiming）。
         /// OnSummon 进场**不入档**：OnPlay 超集（token/复活/换主控可不付二次费再触发），有真实二次机会
         /// ——归多次档（系数仍 ×1）。事件观察族（OnOtherCreature* 等）与每回合可复现时机（攻防/横置/
         /// 阶段/抽牌/伤害）期望&gt;1 不入档。消费方：TimingCostFactorOf / IsRepeatTiming /
@@ -479,9 +485,9 @@ namespace CardCore
             if (n > 1f)
                 amount *= n;
 
-            // 发动时机计价（2026-11-05 两档收敛：表 TimingFactor 仅 Once/Repeat 两行且均 ×1——
-            // 多次生效的成本由结界耐久承担，不按次数加价；引擎载荷/非触发式恒 ×1 在 TimingCostFactor 内判）。
-            // 系数判 ≠1 即乘（两档调离 1 时自动生效）。
+            // 发动时机计价（表 TimingFactor 三档：单次/多次 ×1 + 生物专属攻/守/横置 ×1.5；
+            // 多次生效的成本由结界耐久承担；引擎载荷/非触发式恒 ×1 在 TimingCostFactor 内判）。
+            // 系数判 ≠1 即乘（三档调离 1 时自动生效）。
             float timingFactor = TimingCostFactor(def);
             if (Math.Abs(timingFactor - 1f) > 0.001f)
                 amount *= timingFactor;
@@ -783,7 +789,8 @@ namespace CardCore
             float n = QuantityFactor(atom, def);
             if ((domain == null || domain.Count == 0) && n > 1f) n = 1f; // 无目标域不乘数量（同 ComputeAtomCost）
             AddFactor(factors, "数量档", n);
-            AddFactor(factors, "时机档", TimingCostFactor(def));
+            bool creatureOnly = def != null && EffectEligibility.IsTapAnchoredTiming(def.TriggerTiming);
+            AddFactor(factors, creatureOnly ? "生物专属档" : "时机档", TimingCostFactor(def));
             if (IsSymmetricBothSides(atom, def, domain))
                 AddFactor(factors, "双方减半", SymmetricDiscountFactor);
             return (baseExpr, factors);

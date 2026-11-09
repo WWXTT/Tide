@@ -340,5 +340,23 @@
       0,
       0
     ]
+  },
+  {
+    "ID": "91f35ec1",
+    "TextHash": "f8d9d708",
+    "EnumName": "破败仪典",
+    "DisplayName": "受光环影响一方的单位与角色获得的护甲转换为等量易损",
+    "EffectType": "ModifyGameRule",
+    "TargetFilter": null,
+    "Polarity": -1,
+    "MountKinds": "场地光环",
+    "Tags": null,
+    "ManaList": [
+      6,
+      0,
+      0,
+      0
+    ],
+    "特殊": "护甲负量移除照常不转换；禁疗令同侧并存时拦下优先；护甲原子/活体护甲正量投放同收"
   }
 ]

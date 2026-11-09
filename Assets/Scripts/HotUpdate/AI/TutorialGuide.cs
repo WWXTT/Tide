@@ -69,6 +69,8 @@ namespace SynergyUI
         public bool waitTurnStart; // end 步标记（2026-10-20 倒计时段）：点击结束回合**不立即推进**——
                               // 等玩家**下个回合开始**（TurnStartEvent）才完成。段切换（midTransition）重铺
                               // 会吞掉 pending 的回合翻转，倒计时归零直发的报酬必须先在回合开始落地再换场。
+        public bool completeOnConfirm; // intro 步标记（2026-11-09 教学一·进阶收尾）：确认本步即整课
+                              // 完成——引导链收尾时 BattleTutorialDirector 落档+弹结算窗（无需打到终局）。
     }
 
     /// <summary>
@@ -490,7 +492,7 @@ namespace SynergyUI
 
         /// <summary>activate 步探针（2026-10-23 元素合成步）：玩家侧主动效果发动入栈成功
         ///（GameActions.ActivateEffect 主路径尾部 RuleHooks 发射）即推进——元素合成无目标无连锁等待，
-        /// 宣言即教学事实完成；任意元素入账紧随其后。</summary>
+        /// 宣言即教学事实完成；彩元素入账紧随其后。</summary>
         private static void NotifyEffectActivated(Player player, Card source)
         {
             var step = Current;

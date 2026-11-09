@@ -753,7 +753,7 @@ namespace CardCore.Editor
                 $"客户端拒绝摘要漂移的服务器（{clientDrift}）");
 
             var echoTampered = NetMatchHandshake.BuildMatchManifest(0,
-                deckIds.Reverse().ToArray(), deckIds.Length);
+                Enumerable.Reverse(deckIds).ToArray(), deckIds.Length);
             Assert(!NetMatchHandshake.VerifyMatchManifest(echoTampered, deckIds, out var echoReason)
                    && echoReason.Contains("回显"),
                 $"客户端拒绝卡组回显不符（{echoReason}）");
