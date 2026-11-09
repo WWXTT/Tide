@@ -84,7 +84,8 @@ namespace CardCore
                 new AddArmorHandler(),
                 new GrantToughnessHandler(),
                 new AddToxinHandler(),
-                // 报复（2026-10-16 新增，红1/层）：受伤反噬指示物——触发口=KeywordRules.ApplyDamage 尾段
+                // 荆棘（2026-10-16 新增，红1/层；2026-11-09 改名，原「报复」）：受伤反噬指示物
+                //——触发口=KeywordRules.ApplyDamage 尾段
                 new GrantRetaliationHandler(),
 
                 // 圣盾/复生/潜行（2026-10-08 指示物化）：GrantXxx 原子类型与 refId 不变，

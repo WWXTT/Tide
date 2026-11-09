@@ -17,7 +17,9 @@ namespace Tide.Launch
     /// 编辑器：Tide.HotUpdate 由 Unity 编译，直接反射调用入口；
     /// 真机：先补 AOT 泛型元数据，再 Assembly.Load 热更 DLL。
     /// </summary>
-    public static class HotUpdateLoader
+    // partial（2026-11-09 本会话补）：嵌套 [MemoryPackable] MpAotProbe 要求外层类型同为 partial
+    //（MEMPACK042 挡全域编译重载）——探针本体是并行 AOT 门禁工作的，此处只补外层声明。
+    public static partial class HotUpdateLoader
     {
         /// <summary>
         /// 需要补 AOT 泛型元数据的程序集列表。
@@ -74,6 +76,32 @@ namespace Tide.Launch
             // 吞成「连接失败」文案，委托体根本没执行）。泛型分析器清单只记出 <byte>，漏 <bool>。
             // 显式锚定强制生成；若日后分析器命中，此行属无害冗余，勿删。
             _ = Cysharp.Threading.Tasks.UniTask.RunOnThreadPool<bool>(() => true);
+            // MemoryPack 值类型组合锚（2026-11-09 首次出包被 AotAudit 拦截）：热更侧新增网络消息
+            // 字段产生 (int,bool,bool)/(bool) 的 WriteUnmanaged/ReadUnmanaged——值类型实参不共享，
+            // AOT 侧零实例化则真机收发消息 MissingMethodException。走序列化门面而非手搓 writer
+            //（MemoryPackWriter/Reader 的 OptionalState 无公开构造，外部拿不到实例）：bool=内建
+            // BooleanFormatter 路径；MpAotProbe=源生成 formatter 的 (int,bool,bool) 三字段整体
+            // 读写路径，两趟往返即强制 il2cpp 生成对应组合。探针往返纯内存操作、正常不抛；
+            // try/catch 兜死防静态构造异常杀启动（若生成器缺席致 formatter 未注册，仅锚失效
+            // 并落 [FirstChance] 日志，启动不受影响）。
+            try
+            {
+                _ = MemoryPack.MemoryPackSerializer.Serialize(new MpAotProbe());
+                _ = MemoryPack.MemoryPackSerializer.Deserialize<MpAotProbe>(MemoryPack.MemoryPackSerializer.Serialize(new MpAotProbe()));
+                _ = MemoryPack.MemoryPackSerializer.Deserialize<bool>(MemoryPack.MemoryPackSerializer.Serialize(true));
+            }
+            catch (Exception) { }
+        }
+
+        /// <summary>MemoryPack 探针载荷（(int,bool,bool) 字段组合）——只为 AOT 侧实例化
+        /// WriteUnmanaged/ReadUnmanaged&lt;Int32,Boolean,Boolean&gt;，无业务语义。嵌套+外层 partial
+        ///（MEMPACK042 要求包含类型同为 partial）。</summary>
+        [MemoryPack.MemoryPackable]
+        internal partial struct MpAotProbe
+        {
+            public int A;
+            public bool B;
+            public bool C;
         }
 
         /// <summary>资源寻址地址（.dll.bytes 文件经 AddressByFileName 规则保留 .dll 段）</summary>

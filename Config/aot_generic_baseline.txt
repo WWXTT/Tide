@@ -8,109 +8,107 @@ ArrayFormatter<Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	#
 ArrayFormatter<Single>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
 ArrayFormatter<String>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
 ArrayFormatter<UInt32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<<ExecutePayloadAsync>g__ExecuteAtomAsync|0>d>	noise	编译器生成（本地函数 g__ 闭包/状态机）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<<ExecuteReferencedEffectAsync>g__ExecuteAtomAsync|0>d>	noise	编译器生成（本地函数 g__ 闭包/状态机）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<ApplyThenToSharedTargetsAsync>d__26>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<DamageFxCoreAsync>d__29>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<ExecuteAsync>d__16>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<ExecuteAsync>d__2>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<ExecuteFlatAsync>d__17>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<ExecuteStepSequenceAsync>d__19>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<ExecuteThenRewardsAsync>d__28>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<Fire>d__5>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<FlightFxCoreAsync>d__45>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<PayReplayRoundCostsAsync>d__39>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<PlayDeathExitAsync>d__17>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<ResolveAsync>d__10>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<ResolveCardCastAsync>d__31>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<ReturnAsync>d__77>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<StartupSyncAsync>d__26>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.TapTap.dll.bytes
-AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<TakeTurnAsync>d__11>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<TakeTurnAsync>d__22>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Int32>,<ExecuteAsync>d__3>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Int32>,<ResolveChargeDeclarationAsync>d__63>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<String>,<ExecuteAsync>d__2>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<<ExecutePayloadAsync>g__ExecuteAtomAsync|0>d>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<<ExecuteReferencedEffectAsync>g__ExecuteAtomAsync|0>d>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<ApplyThenToSharedTargetsAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<DamageFxCoreAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<ExecuteAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<ExecuteFlatAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<ExecuteStepSequenceAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<ExecuteThenRewardsAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<Fire>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<FlightFxCoreAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<PayReplayRoundCostsAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<PlayDeathExitAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<ResolveAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<ResolveCardCastAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<ReturnAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<StartupSyncAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.TapTap.dll.bytes
+AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<TakeTurnAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Int32>,<ExecuteAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Int32>,<ResolveChargeDeclarationAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<String>,<ExecuteAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
 AsyncUniTaskMethodBuilder<Boolean>	safe	AOT 侧 HotUpdateLoader.LoadDeviceAsync 本身即 async UniTask<bool>（原生实例化，无需锚点）	# ← Tide.HotUpdate.dll.bytes,Tide.TapTap.dll.bytes
-AsyncUniTaskMethodBuilder<Boolean>.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<ActivateHeroSkill>d__70>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder<Boolean>.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<CoinStageAsync>d__30>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder<Boolean>.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<CoinStageForcedAsync>d__31>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder<Boolean>.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<ExecuteAsync>d__13>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder<Boolean>.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<ExecutePayloadAtomAsync>d__3>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder<Boolean>.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<PayPayloadsAsync>d__0>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder<Boolean>.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<UseHeroSkillAsync>d__25>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder<Boolean>.AwaitUnsafeOnCompleted<Awaiter<String>,<AskCardNameAsync>d__4>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<Boolean>.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<ActivateHeroSkill>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<Boolean>.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<CoinStageAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<Boolean>.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<CoinStageForcedAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<Boolean>.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<ExecuteAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<Boolean>.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<ExecutePayloadAtomAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<Boolean>.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<PayPayloadsAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<Boolean>.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<UseHeroSkillAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<Boolean>.AwaitUnsafeOnCompleted<Awaiter<String>,<AskCardNameAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
 AsyncUniTaskMethodBuilder<Int32>	anchored	HotUpdateLoader.cs 静态构造既有锚（AsyncUniTaskMethodBuilder<int>）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder<Int32>.AwaitUnsafeOnCompleted<Awaiter<Int32>,<PickMoveDestinationAsync>d__98>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder<Int32>.AwaitUnsafeOnCompleted<Awaiter<Int32>,<RequestOneIndexAsync>d__23>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder<Int32>.AwaitUnsafeOnCompleted<Awaiter<List<Int32>>,<SelectOneAsync>d__19>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder<Int32>.AwaitUnsafeOnCompleted<Awaiter<List<Int32>>,<SelectOneAsync>d__54>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder<Int32>.AwaitUnsafeOnCompleted<Awaiter<ValueTuple<Int32,List<Int32>,List<Int32>>>,<RequestOneIndexAsync>d__23>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder<List<Card>>.AwaitUnsafeOnCompleted<Awaiter<Int32>,<ArrangeAsync>d__2>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder<List<Entity>>.AwaitUnsafeOnCompleted<Awaiter<List<Int32>>,<RequestAsync>d__22>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder<List<Entity>>.AwaitUnsafeOnCompleted<Awaiter<ValueTuple<Int32,List<Int32>,List<Int32>>>,<RequestAsync>d__22>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<Int32>.AwaitUnsafeOnCompleted<Awaiter<Int32>,<PickMoveDestinationAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<Int32>.AwaitUnsafeOnCompleted<Awaiter<Int32>,<RequestOneIndexAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<Int32>.AwaitUnsafeOnCompleted<Awaiter<List<Int32>>,<SelectOneAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<Int32>.AwaitUnsafeOnCompleted<Awaiter<ValueTuple<Int32,List<Int32>,List<Int32>>>,<RequestOneIndexAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<List<Card>>.AwaitUnsafeOnCompleted<Awaiter<Int32>,<ArrangeAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<List<Entity>>.AwaitUnsafeOnCompleted<Awaiter<List<Int32>>,<RequestAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<List<Entity>>.AwaitUnsafeOnCompleted<Awaiter<ValueTuple<Int32,List<Int32>,List<Int32>>>,<RequestAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
 AsyncUniTaskMethodBuilder<List<Int32>>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder<List<Int32>>.AwaitUnsafeOnCompleted<Awaiter<List<Int32>>,<SelectAsync>d__48>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder<List<Int32>>.AwaitUnsafeOnCompleted<Awaiter<List<Int32>>,<SelectIndicesAsync>d__50>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder<List<Int32>>.AwaitUnsafeOnCompleted<Awaiter<ValueTuple<Int32,List<Int32>,List<Int32>>>,<Run>d__59>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder<List<Int32>>.AwaitUnsafeOnCompleted<Awaiter<ValueTuple<Int32,List<Int32>,List<Int32>>>,<RunChoice>d__53>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder<List<Int32>>.AwaitUnsafeOnCompleted<Awaiter<ValueTuple<Int32,List<Int32>,List<Int32>>>,<SelectAsync>d__18>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<List<Int32>>.AwaitUnsafeOnCompleted<Awaiter<List<Int32>>,<SelectAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<List<Int32>>.AwaitUnsafeOnCompleted<Awaiter<List<Int32>>,<SelectIndicesAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<List<Int32>>.AwaitUnsafeOnCompleted<Awaiter<ValueTuple<Int32,List<Int32>,List<Int32>>>,<Run>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<List<Int32>>.AwaitUnsafeOnCompleted<Awaiter<ValueTuple<Int32,List<Int32>,List<Int32>>>,<RunChoice>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<List<Int32>>.AwaitUnsafeOnCompleted<Awaiter<ValueTuple<Int32,List<Int32>,List<Int32>>>,<SelectAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
 AsyncUniTaskMethodBuilder<Nullable<Boolean>>	anchored	HotUpdateLoader.cs 静态构造既有锚（AsyncUniTaskMethodBuilder<bool?>）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder<Nullable<Boolean>>.AwaitUnsafeOnCompleted<TaskAwaiter<Nullable<Boolean>>,<ShowAsync>d__5>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder<Nullable<Boolean>>.AwaitUnsafeOnCompleted<TaskAwaiter<Nullable<Boolean>>,<ShowTipPromptAsync>d__248>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<Nullable<Boolean>>.AwaitUnsafeOnCompleted<TaskAwaiter<Nullable<Boolean>>,<ShowAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<Nullable<Boolean>>.AwaitUnsafeOnCompleted<TaskAwaiter<Nullable<Boolean>>,<ShowTipPromptAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
 AsyncUniTaskMethodBuilder<Nullable<Int32>>	anchored	HotUpdateLoader.cs 静态构造既有锚（AsyncUniTaskMethodBuilder<int?>）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder<Nullable<Int32>>.AwaitUnsafeOnCompleted<Awaiter<List<Int32>>,<PickRegionOptionAsync>d__107>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder<ResponseOption>.AwaitUnsafeOnCompleted<Awaiter<List<Int32>>,<ShowResponseAsync>d__60>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<Nullable<Int32>>.AwaitUnsafeOnCompleted<Awaiter<List<Int32>>,<PickRegionOptionAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<ResponseOption>.AwaitUnsafeOnCompleted<Awaiter<List<Int32>>,<ShowResponseAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
 AsyncUniTaskMethodBuilder<String>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes,Tide.TapTap.dll.bytes
-AsyncUniTaskMethodBuilder<String>.AwaitUnsafeOnCompleted<Awaiter<String>,<AskDimensionAsync>d__5>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder<String>.AwaitUnsafeOnCompleted<Awaiter<String>,<LoginAsync>d__17>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.TapTap.dll.bytes
-AsyncUniTaskMethodBuilder<String>.AwaitUnsafeOnCompleted<Awaiter<String>,<PromptTextAsync>d__56>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder<String>.AwaitUnsafeOnCompleted<Awaiter<String>,<RequestTextAsync>d__24>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder<String>.AwaitUnsafeOnCompleted<Awaiter<String>,<SelectTextAsync>d__55>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder<String>.AwaitUnsafeOnCompleted<Awaiter<ValueTuple<Int32,String,String>>,<PromptTextModalAsync>d__58>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder<String>.AwaitUnsafeOnCompleted<Awaiter<ValueTuple<Int32,String,String>>,<RunTextInputAsync>d__57>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder<String>.AwaitUnsafeOnCompleted<Awaiter<ValueTuple<Int32,String,String>>,<SelectTextAsync>d__20>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder<String>.AwaitUnsafeOnCompleted<Awaiter<ValueTuple<String,String,Boolean>>,<AskDimensionAsync>d__5>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder<String>.AwaitUnsafeOnCompleted<TaskAwaiter<String>,<EnsureLoginAndConnectAsync>d__14>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.TapTap.dll.bytes
+AsyncUniTaskMethodBuilder<String>.AwaitUnsafeOnCompleted<Awaiter<String>,<AskDimensionAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<String>.AwaitUnsafeOnCompleted<Awaiter<String>,<EnsureLoginAndConnectAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.TapTap.dll.bytes
+AsyncUniTaskMethodBuilder<String>.AwaitUnsafeOnCompleted<Awaiter<String>,<EnsureReadyAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.TapTap.dll.bytes
+AsyncUniTaskMethodBuilder<String>.AwaitUnsafeOnCompleted<Awaiter<String>,<LoginAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.TapTap.dll.bytes
+AsyncUniTaskMethodBuilder<String>.AwaitUnsafeOnCompleted<Awaiter<String>,<PromptTextAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<String>.AwaitUnsafeOnCompleted<Awaiter<String>,<RequestTextAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<String>.AwaitUnsafeOnCompleted<Awaiter<String>,<SelectTextAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<String>.AwaitUnsafeOnCompleted<Awaiter<ValueTuple<Int32,String,String>>,<PromptTextModalAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<String>.AwaitUnsafeOnCompleted<Awaiter<ValueTuple<Int32,String,String>>,<RunTextInputAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<String>.AwaitUnsafeOnCompleted<Awaiter<ValueTuple<Int32,String,String>>,<SelectTextAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<String>.AwaitUnsafeOnCompleted<Awaiter<ValueTuple<String,String,Boolean>>,<AskDimensionAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<String>.AwaitUnsafeOnCompleted<TaskAwaiter<String>,<EnsureLoginAndConnectAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.TapTap.dll.bytes
 AsyncUniTaskMethodBuilder<ValueTuple<String,String,Boolean>>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder<ValueTuple<String,String,Boolean>>.AwaitUnsafeOnCompleted<Awaiter<Int32>,<PickOptionAsync>d__6>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<ValueTuple<String,String,Boolean>>.AwaitUnsafeOnCompleted<Awaiter<Int32>,<PickOptionAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
 AsyncUniTaskMethodBuilder<ValueTuple<String,String>>	anchored	HotUpdateLoader.cs 静态构造既有锚（AsyncUniTaskMethodBuilder<(string,string)>）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder<ValueTuple<String,String>>.AwaitUnsafeOnCompleted<Awaiter<ValueTuple<String,String>>,<DeckPickStageAsync>d__33>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<ConnectAsync>d__47>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<LoginFromUiAsync>d__10>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.TapTap.dll.bytes
-AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<NetUseCardAsync>d__143>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<PerformAsync>d__75>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<RunAsync>d__27>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<RunAsync>d__2>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.TapTap.dll.bytes
-AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<TryAutoUpload>d__4>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.TapTap.dll.bytes
-AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<List<Int32>>,<NetSelectAsync>d__160>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Boolean>>,<ConfirmCopyPresetAsync>d__115>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Boolean>>,<ConfirmDeleteDeckAsync>d__117>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Boolean>>,<ConfirmForceDeleteCardAsync>d__141>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Boolean>>,<ConfirmForceDeleteEffectAsync>d__126>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Boolean>>,<HandleReplacedLegacyAsync>d__127>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Boolean>>,<LoginFlow>d__14>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.TapTap.dll.bytes
-AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Boolean>>,<OnConcede>d__106>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Boolean>>,<PromptGauntletOverAsync>d__70>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Boolean>>,<PromptTutorialCompleteAsync>d__69>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Boolean>>,<PromptTutorialRetryAsync>d__68>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Boolean>>,<StartGauntletOpeningAsync>d__113>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Int32>>,<ActivateSkillAsync>d__105>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Int32>>,<NetActivateSkillAsync>d__155>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Int32>>,<NetAttackFlowAsync>d__153>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Int32>>,<NetGuardFlowAsync>d__154>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Int32>>,<NetPlaceLandAsync>d__147>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Int32>>,<NetSelectAsync>d__160>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Int32>>,<NetUseCardAsync>d__143>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Int32>>,<OnClickUnitEffectButton>d__33>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Int32>>,<PickLandColorAsync>d__77>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Int32>>,<PromptModeThenPickCell>d__96>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<String>,<JoinTapRoom>d__9>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.TapTap.dll.bytes
-AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<String>,<LoginFlow>d__14>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.TapTap.dll.bytes
-AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<String>,<NetTextAsync>d__162>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<String>,<RefreshTapRooms>d__8>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.TapTap.dll.bytes
-AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<String>,<StartTapHost>d__7>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.TapTap.dll.bytes
-AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<String>,<WarmupInternal>d__19>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.TapTap.dll.bytes
-AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<ValueTuple<String,String>>,<RunAsync>d__27>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<ValueTuple<String,String>>.AwaitUnsafeOnCompleted<Awaiter<ValueTuple<String,String>>,<DeckPickStageAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<ConnectAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<LoginFromUiAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.TapTap.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<NetUseCardAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<PerformAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<RunAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes,Tide.TapTap.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<TryAutoUpload>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.TapTap.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<List<Int32>>,<NetSelectAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Boolean>>,<ConfirmCopyPresetAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Boolean>>,<ConfirmDeleteDeckAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Boolean>>,<ConfirmForceDeleteCardAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Boolean>>,<ConfirmForceDeleteEffectAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Boolean>>,<HandleReplacedLegacyAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Boolean>>,<LoginFlow>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.TapTap.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Boolean>>,<OnConcede>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Boolean>>,<PromptGauntletOverAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Boolean>>,<PromptTutorialCompleteAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Boolean>>,<PromptTutorialRetryAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Boolean>>,<StartGauntletOpeningAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Int32>>,<ActivateSkillAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Int32>>,<NetActivateSkillAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Int32>>,<NetAttackFlowAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Int32>>,<NetGuardFlowAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Int32>>,<NetPlaceLandAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Int32>>,<NetSelectAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Int32>>,<NetUseCardAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Int32>>,<OnClickUnitEffectButton>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Int32>>,<PickLandColorAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Int32>>,<PromptModeThenPickCell>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<String>,<JoinTapRoom>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.TapTap.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<String>,<LoginFlow>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.TapTap.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<String>,<NetTextAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<String>,<RefreshTapRooms>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.TapTap.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<String>,<StartTapHost>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.TapTap.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<String>,<WarmupInternal>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.TapTap.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<ValueTuple<String,String>>,<RunAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
 Awaiter<Boolean>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes,Tide.TapTap.dll.bytes
 Awaiter<Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
 Awaiter<List<Int32>>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
@@ -131,6 +129,7 @@ MemoryPackReader.ReadUnmanaged<Boolean,Int32,Int32,Int32,Int32,Int32>	safe	初�
 MemoryPackReader.ReadUnmanaged<Boolean,Int32,Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
 MemoryPackReader.ReadUnmanaged<Boolean>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
 MemoryPackReader.ReadUnmanaged<Double>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackReader.ReadUnmanaged<Int32,Boolean,Boolean>	anchored	HotUpdateLoader.cs 静态构造 2026-11-09 MemoryPack 探针锚（mpReader.ReadUnmanaged<int,bool,bool>，新网络消息字段组合）	# ← Tide.HotUpdate.dll.bytes
 MemoryPackReader.ReadUnmanaged<Int32,Boolean,UInt32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
 MemoryPackReader.ReadUnmanaged<Int32,Boolean>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
 MemoryPackReader.ReadUnmanaged<Int32,Int32,Int32,Int32,Boolean,UInt32,Int32,Int32,Int32,Boolean,Boolean>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
@@ -157,7 +156,9 @@ MemoryPackWriter<!!0>.WriteArray<String>	safe	初始存量快照（2026-11-09）
 MemoryPackWriter<!!0>.WriteUnmanaged<Boolean,Boolean>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
 MemoryPackWriter<!!0>.WriteUnmanaged<Boolean,Int32,Int32,Int32,Int32,Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
 MemoryPackWriter<!!0>.WriteUnmanaged<Boolean,Int32,Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackWriter<!!0>.WriteUnmanaged<Boolean>	anchored	HotUpdateLoader.cs 静态构造 2026-11-09 MemoryPack 探针锚（mpWriter.WriteUnmanaged(true)；哑 IBufferWriter=类→__Canon 共享覆盖运行时 writer）	# ← Tide.HotUpdate.dll.bytes
 MemoryPackWriter<!!0>.WriteUnmanaged<Double>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackWriter<!!0>.WriteUnmanaged<Int32,Boolean,Boolean>	anchored	HotUpdateLoader.cs 静态构造 2026-11-09 MemoryPack 探针锚（mpWriter.WriteUnmanaged(1,true,false)）	# ← Tide.HotUpdate.dll.bytes
 MemoryPackWriter<!!0>.WriteUnmanaged<Int32,Boolean,UInt32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
 MemoryPackWriter<!!0>.WriteUnmanaged<Int32,Boolean>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
 MemoryPackWriter<!!0>.WriteUnmanaged<Int32,Int32,Int32,Int32,Boolean,UInt32,Int32,Int32,Int32,Boolean,Boolean>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes

@@ -13,6 +13,8 @@ using System.Text.RegularExpressions;
 //   - 新增（DLL 有、基线无）→ exit 3，打包门禁拦截；
 //   - 删除（基线有、DLL 无）→ 提示可清理，不失败；
 //   - anchored 条目做弱校验（warn-only）：锚点目录里 grep API 名 + 类型实参关键字。
+// 噪声归一（§3.1.4）：编译器生成条目（async 状态机 <X>d__N / 本地函数 g__ / <>c 闭包）的
+// 身份键剥掉 d__ 编号再入基线对账——编号每次重编都会漂移，不归一则改一行代码就假报警。
 // 门禁豁免两类：定义在 patchAOTAssemblies（mscorlib/System/System.Core，运行时由补充元数据
 // 兜底——集合须与 Assets/Scripts/Launch/HotUpdateLoader.cs 的 PatchAotAssemblies 一致）与
 // 定义在热更程序集自身（HybridCLR 解释执行，无 AOT 实例化需求）。
@@ -250,6 +252,10 @@ static void ScanFile(string path, Dictionary<string, Entry> acc, HashSet<string>
 
 static void Add(Dictionary<string, Entry> acc, string kind, string sig, string defAsm, bool valueHint, string source)
 {
+    // 噪声归一（§3.1.4，2026-11-09 首次出包拦截实录）：async 状态机编号 d__N 随重编漂移，
+    // 不归一的话改一行代码就产生「新增+可清理」假报警。归一只剥编号（<X>d__248/249 → <X>d__），
+    // 方法改名仍会如实进出（应见）。
+    if (IsCompilerNoise(sig)) sig = Regex.Replace(sig, @"d__\d+", "d__");
     if (!acc.TryGetValue(sig, out var e))
     {
         e = new Entry { Kind = kind, Sig = sig, DefAsm = defAsm, ValueHint = valueHint };
@@ -269,14 +275,16 @@ static (string Display, string Asm) ParentOf(MetadataReader md, NameProvider p, 
     _ => ("?", "?"),
 };
 
-/// <summary>编译器生成名归 noise（§3.1.4：只打标不丢弃，避免每次新增 async 方法都报警）。</summary>
+/// <summary>编译器生成名归 noise（§3.1.4：只打标不丢弃，避免每次新增 async 方法都报警）。
+/// d__ 匹配不要求尾随数字——归一化后的键（&lt;X&gt;d__）也要能判中。</summary>
 static bool IsCompilerNoise(string sig)
     => sig.Contains("<>")                                    // <>c / <>c__DisplayClass / <>f__AnonymousType
-    || Regex.IsMatch(sig, @"<\w+>d__\d+")                    // <Xxx>d__N async/迭代状态机
+    || Regex.IsMatch(sig, @"<\w+>d__")                       // <Xxx>d__N async/迭代状态机（含归一化后无编号形态）
     || sig.Contains("g__")                                   // 本地函数生成名 g__Xxx|0（闭包/状态机尾巴）
     || sig.Contains("__AnonymousType");
 
-/// <summary>载入基线：sig\t处置\t备注（# 注释行跳过）。格式/处置词非法 → 抛错（exit 2）。</summary>
+/// <summary>载入基线：sig\t处置\t备注（# 注释行跳过）。格式/处置词非法 → 抛错（exit 2）。
+/// 键同扫侧做噪声归一（d__N 剥编号），存量带编号的行载入时自动并入归一键。</summary>
 static Dictionary<string, (string Disp, string Note)> LoadBaseline(string path)
 {
     var map = new Dictionary<string, (string, string)>(StringComparer.Ordinal);
@@ -290,6 +298,7 @@ static Dictionary<string, (string Disp, string Note)> LoadBaseline(string path)
         string note = parts.Length > 2 ? string.Join("\t", parts.Skip(2)).Trim() : "";
         if (disp is not ("anchored" or "safe" or "noise"))
             throw new FormatException($"基线处置非法（{disp}，须 anchored|safe|noise）：{line}");
+        if (IsCompilerNoise(sig)) sig = Regex.Replace(sig, @"d__\d+", "d__");
         map[sig] = (disp, note);
     }
     return map;

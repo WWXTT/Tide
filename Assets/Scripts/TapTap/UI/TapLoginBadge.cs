@@ -74,6 +74,11 @@ namespace SynergyUI
             TapAccountService.OnChanged += OnAccountChanged;           // 联机侧（PUBLIC_PROFILE 手动登录/登出）
             CloudSave.TapAccountService.OnAccountChanged += OnAccountChanged; // 云侧（basic_info 静默登录/登出）
             Refresh();
+
+            // 装配即对账当前态：启动静默续登可能先于本页装配完成——OnAccountChanged 事件
+            // 在订阅前已发过（被错过），不补发则已登录玩家停在登录页（真机再次进入复现）。
+            // 兑现 ITapModule.AttachLaunchLogin 文档承诺的"已登录→true 触发自动进主菜单"。
+            if (IsLoggedIn) _screen?.NotifyLoginStateChanged(true);
         }
 
         private void OnDestroy()

@@ -307,5 +307,42 @@
       0
     ],
     "特殊裁定": "狩猎攻击不吃横置代价（打完仍可行动），按正常战斗结算并触发其他效果；回合末同步结算，无守卫响应窗口"
+  },
+  {
+    "ID": "879fe2c2",
+    "TextHash": "879fe2c2",
+    "EnumName": "暴击",
+    "DisplayName": "赋予{target}暴击：造成的战斗伤害翻倍",
+    "EffectType": "GrantCrit",
+    "Domain": "己方战场:生物",
+    "TargetFilter": null,
+    "Polarity": 1,
+    "MountKinds": "关键词",
+    "Tags": null,
+    "ManaList": [
+      0,
+      5,
+      0,
+      0
+    ],
+    "特殊裁定": "只翻倍战斗伤害；圣盾/护甲吸收的是翻倍后的量"
+  },
+  {
+    "ID": "f44a982e",
+    "TextHash": "f44a982e",
+    "EnumName": "报复",
+    "DisplayName": "赋予{target}报复：受到伤害时，对伤害来源造成等量伤害",
+    "EffectType": "GrantRetaliate",
+    "Domain": "己方战场:生物",
+    "TargetFilter": null,
+    "Polarity": 1,
+    "MountKinds": "关键词",
+    "Tags": null,
+    "ManaList": [
+      0,
+      5,
+      0,
+      0
+    ]
   }
 ]

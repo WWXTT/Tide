@@ -88,6 +88,14 @@ namespace CardCore.Attribute.Handlers
             (AtomicEffectType.GrantOverwhelm, "Overwhelm", "赋予碾压"),
             (AtomicEffectType.GrantSplash, "Splash", "赋予溅射"),
             (AtomicEffectType.GrantDisarm, "Disarm", "赋予缴械"),
+            // 报复（2026-11-09 新增，红5）：受到实际伤害时对伤害来源造成等量伤害——
+            // 触发口=KeywordRules.ApplyDamage 尾段（荆棘段后、病原体前）；反噬期间重入门
+            // 拦报复关键词（等量互弹死循环封口）。与荆棘指示物（原「报复」，2026-11-09 改名）
+            // 独立并存：荆棘=层数伤害+生效减半，本条=等量反弹不减。
+            (AtomicEffectType.GrantRetaliate, "Retaliate", "赋予报复（受到伤害时，对伤害来源造成等量伤害）"),
+            // 暴击（2026-11-09 新增，红5）：造成的战斗伤害翻倍（改写口=ApplyDamage 延时保护后、
+            // 防护层前——圣盾/护甲吸收翻倍后的量；效果伤害不翻倍）
+            (AtomicEffectType.GrantCrit, "Crit", "赋予暴击（造成的战斗伤害翻倍）"),
 
             // 蓝色 - 规避/控制
             (AtomicEffectType.GrantVigilance, "Vigilance", "赋予警戒"),
@@ -134,7 +142,7 @@ namespace CardCore.Attribute.Handlers
             //「不可作为连接光环」（免疫洞防线，同守护）。
             (AtomicEffectType.GrantInsulator, "Insulator", "赋予绝缘体（不受指示物的效果影响）"),
             // 病原体（2026-10-31 复活改版，绿5）：受到伤害时对伤害来源附加 1 层毒素——
-            // 触发口=KeywordRules.ApplyDamage 管线尾段（实际落定才触发，同报复/潜行失效口径；
+            // 触发口=KeywordRules.ApplyDamage 管线尾段（实际落定才触发，同荆棘/报复口径；
             // 旧病原体=战斗伤害改写挂剧毒，2026-10-08 退役，本位全新语义复活·id 复用）
             (AtomicEffectType.GrantPathogen, "Pathogen", "赋予病原体（受到伤害时，对伤害来源附加一层毒素）"),
             // 复生已移出关键词族（2026-10-08 指示物化）：GrantReborn 原子改由 GrantRebornHandler

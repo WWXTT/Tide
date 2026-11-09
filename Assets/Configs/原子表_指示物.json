@@ -361,10 +361,10 @@
   },
   {
     "ID": "7b796d9e",
-    "TextHash": "7b796d9e",
+    "TextHash": "626598da",
     "Domain": "双方战场:生物; 双方角色",
-    "EnumName": "报复",
-    "DisplayName": "对{target}附加{value}层报复指示物，受到伤害时对伤害来源造成等于层数的伤害，生效后层数减半（向下取整）",
+    "EnumName": "荆棘",
+    "DisplayName": "对{target}附加{value}层荆棘指示物，受到伤害时对伤害来源造成等于层数的伤害，生效后层数减半（向下取整）",
     "EffectType": "GrantRetaliation",
     "TargetFilter": null,
     "Polarity": 1,

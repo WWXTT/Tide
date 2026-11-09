@@ -251,7 +251,8 @@ namespace CardCore.Attribute.Handlers
     }
 
     /// <summary>
-    /// 报复原子（2026-10-16 新增，红1/层，生效自减档）：对目标附加 {value} 层报复指示物
+    /// 荆棘原子（2026-10-16 新增，红1/层，生效自减档；2026-11-09 改名——原「报复」让名给
+    /// 等量反噬的新关键词，运行时 id/表行 ID 不变）：对目标附加 {value} 层荆棘指示物
     ///（CounterRules.RetaliationCounter）——持有者实际受到伤害时对伤害来源造成等于层数的伤害，
     /// 生效后层数减半（floor，1 层生效一次即清零）；可叠加。Entity 级；换区不清、净化可清。
     /// 触发口=KeywordRules.ApplyDamage 管线尾段（吸血后、剧毒前——先减半再反击，互带几何衰减防互弹）。
@@ -281,7 +282,7 @@ namespace CardCore.Attribute.Handlers
         }
 
         protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => "附加一层报复指示物（受到伤害时对伤害来源造成等于层数的伤害，生效后层数减半）";
+            => "附加一层荆棘指示物（受到伤害时对伤害来源造成等于层数的伤害，生效后层数减半）";
     }
 
     /// <summary>

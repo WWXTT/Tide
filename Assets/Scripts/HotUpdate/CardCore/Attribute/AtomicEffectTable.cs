@@ -242,7 +242,9 @@ namespace CardCore.Attribute
                 // 特殊/参数两列（2026-10-31 阶段B）：特殊=引擎实况声明（展示层只读）；参数=实例 str
                 // 需求声明（装载校验口 CardLoader.ValidateAtomParams）。缺键=None/不声明。
                 // 参数列非法值告警回落 None（表内只应出现四值，拼错在装载期点名）。
-                config.Special = entry.特殊;
+                // 2026-11-09 键名对齐定案：DTO 字段/装载行改「特殊裁定」——与表列名/xlsm 列名一致
+                //（原字段名「特殊」与表键「特殊裁定」错位，16 行解说 14 行读不进恒 null）。
+                config.Special = entry.特殊裁定;
                 if (!string.IsNullOrEmpty(entry.参数))
                 {
                     if (Enum.TryParse<AtomicParamKind>(entry.参数, out var paramKind))
@@ -442,7 +444,8 @@ namespace CardCore.Attribute
             public int Budget;           // 奖励锚价上限（BuildGatePremium 派生源；0=无门槛语义）
 
             // ---- 阶段B 新列（2026-10-31）：只在有值的行写键，其余行缺省（不写键）----
-            public string 特殊;          // 特殊声明：文案没说、但引擎实际这么做的规则（中文短句；展示层追加）
+            //（2026-11-09 键名对齐：字段名随表列名「特殊裁定」——原先叫「特殊」与表键错位断链）
+            public string 特殊裁定;      // 特殊声明：文案没说、但引擎实际这么做的规则（中文短句；展示层追加）
             public string 参数;          // 实例级字符串参数声明：None/CardRef/CardName/Dimension（缺省 None）
         }
 

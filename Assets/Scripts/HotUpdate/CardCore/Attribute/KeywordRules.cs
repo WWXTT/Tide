@@ -20,8 +20,10 @@ namespace CardCore.Attribute
         /// 伤害管线（效果 TakeDamage 与战斗 CombatSystem 两条路径都经 ApplyDamage）：
         /// 替代引擎（光环层）→ 圣盾指示物（每层挡一次任意伤害，消耗 1 层）→
         /// 护甲指示物（逐点吸收）→ 坚韧指示物（每层 −1，生效后层数减半）→ 落血；
-        /// 吸血（恢复随从自身）/系命（回复角色）→ 报复指示物（2026-10-16 新增：受伤落定后
-        /// 对来源反噬=层数的伤害、生效后减半——先减半再反击，互带几何衰减防互弹）
+        /// 吸血（恢复随从自身）/系命（回复角色）→ 荆棘指示物（2026-10-16 新增、2026-11-09 改名
+        /// 原「报复」：受伤落定后对来源反噬=层数的伤害、生效后减半——先减半再反击，互带几何衰减防互弹）
+        /// → 报复关键词（2026-11-09 新增：受伤落定后对来源反噬等量伤害——反噬期间重入门拦截，
+        /// 互带时每次原始伤害至多反弹一次）
         /// → 病原体关键词（2026-10-31 复活改版：受伤落定后对来源附加 1 层毒素）。
         /// 【穿透伤害已删（2026-10-31 定案）】「绕过防护」的生态位由既有的生命值上限降低
         ///（LifeDown——非伤害路径直降上限，天然不经防护层）承担，伤害族不再分穿透档。
@@ -33,6 +35,10 @@ namespace CardCore.Attribute
     /// </summary>
     public static class KeywordRules
     {
+        /// <summary>报复关键词（Retaliate）反噬重入门：反噬造伤期间拦一切报复关键词触发——
+        /// 等量反弹若再触发报复=无限互弹，置位封死（荆棘反噬不经此门，其生效减半天然收敛）。</summary>
+        [ThreadStatic] private static bool _retaliateBounceGuard;
+
         /// <summary>护甲指示物名（AddArmor 原子写入，伤害先扣）</summary>
         public const string ArmorCounter = "Armor";
 
@@ -78,10 +84,17 @@ namespace CardCore.Attribute
         public const string Insulator = "Insulator";
         /// <summary>病原体（2026-10-31 复活改版，绿5 表行「病原体」）：持有者**实际受到伤害**时
         /// 对伤害来源附加 1 层毒素指示物（CounterRules.ToxinCounter——来源回合末发作：
-        /// 受到=层数的伤害后减半）。触发口=ApplyDamage 管线尾段（报复后、剧毒前——实际落定才触发，
-        /// 完全挡住不触发；null 来源无从感染）。旧病原体（战斗伤害改写挂剧毒指示物）
+        /// 受到=层数的伤害后减半）。触发口=ApplyDamage 管线尾段（荆棘/报复关键词后、剧毒前——
+        /// 实际落定才触发，完全挡住不触发；null 来源无从感染）。旧病原体（战斗伤害改写挂剧毒指示物）
         /// 2026-10-08 已退役，本位=全新语义复活（运行时 id 复用 Pathogen）。</summary>
         public const string Pathogen = "Pathogen";
+        /// <summary>报复（2026-11-09 新增，红5 表行「报复」·GrantRetaliate）：持有者**实际受到伤害**
+        ///（防护层后落定，同荆棘/病原体口径——完全挡住不触发）时，对伤害来源造成**等量**（=本次
+        /// 实际落定量 dealt）的伤害。反噬走完整 ApplyDamage 管线（对方圣盾/护甲/坚韧照常拦截，
+        /// 荆棘/病原体照常响应）；反噬期间重入门拦报复关键词——双方互带时每次原始伤害至多反弹
+        /// 一次，封死等量互弹死循环（荆棘反噬仍可触发本关键词、荆棘侧生效减半天然收敛）。
+        /// 自伤/null 来源/来源已死不触发（同荆棘门）；沉睡/失效期间 HasKeyword 读假=不触发。</summary>
+        public const string Retaliate = "Retaliate";
         /// <summary>地牌特性（2026-09-13 英雄技能·培育）：持有者可横置产 1 元素（色随自身费用构成）。
         /// GameActions.TapCreatureForElement 是横置口。</summary>
         public const string LandTrait = "LandTrait";
@@ -106,6 +119,10 @@ namespace CardCore.Attribute
         /// <summary>溅射（2026-11-01 新增，红3；2026-11-09 连锁改版）：战斗结算时，对对手随机单位
         /// 造成溢出的战斗伤害；溅射伤害再次溢出则连锁再溅（结算见 CombatSystem.ResolvePair）。</summary>
         public const string Splash = "Splash";
+        /// <summary>暴击（2026-11-09 新增，红5 表行「暴击」879fe2c2）：持有者造成的**战斗伤害**翻倍——
+        /// 改写口=ApplyDamage 延时保护之后、防护层之前（圣盾/护甲/坚韧吸收的是翻倍后的量；
+        /// 效果伤害不吃暴击；反击/碾压溅射同为战斗伤害，各发独立翻倍）。</summary>
+        public const string Crit = "Crit";
         // 复生关键词 id "Reborn" 已删（2026-10-08 指示物化）：改走 CounterRules.RebornCounter
         //（GrantRebornHandler 挂层；TryReborn 每层一次死亡替代，消耗 1 层）
         public const string Indestructible = "Indestructible";
@@ -319,8 +336,8 @@ namespace CardCore.Attribute
             // 持有期间每次受到的伤害固定变为 1——战斗+非战斗同口。守护改写**之后**生效：伤害真正落到
             // 持有者头上才钳 1（守护者承受的仍是原额，不沾持有者减免）；替代引擎之后（伤害封顶类替代件
             // 先算，本口后钳）。衰退型（层=持续回合）不按次消耗；读数走效果口径（绝缘体单位=0）。
-            // 钳后照走延时保护/易损放大/防护层/落血（易损可把 1 放大回抬——层效果照计；护甲/圣盾
-            // 照常吸收钳后余量。改写类与旧禁魔石归零同口径，非防护层）。
+            // 钳后照走延时保护/暴击翻倍/防护层/易损放大/落血（易损在防护层后放大剩余量，可把 1 抬回——
+            // 层效果照计；护甲/圣盾照常吸收钳后余量。改写类与旧禁魔石归零同口径，非防护层）。
             if (amount > 1 && target.GetEffectiveCounterCount(CounterRules.SpellbanCounter) > 0)
             {
                 amount = 1;
@@ -329,16 +346,36 @@ namespace CardCore.Attribute
             }
 
             // 延时保护（2026-10-30 指示物化，GrantProtection 原子族——读护盾指示物层改写）：
-            // 守护改写之后、易损/防护层之前——HalveShield=ceil(amount/2)、NullShield=0（全免提前出管线：
+            // 守护改写之后、暴击翻倍/防护层之前——HalveShield=ceil(amount/2)、NullShield=0（全免提前出管线：
             // 击杀/吸血/系命/报复/剧毒全链不触发）。
             // LifeFloor（生命锁）不在此口——落血位钳（本方法 Player 分支与 LifeLossHandler 同口）。
             amount = ProtectionRules.ModifyDamage(target, amount);
             if (amount <= 0) return 0;
 
-            // 0. 易损指示物（2026-10-09 生效自减定案；2026-11-09 改版：生效后全部移除，不再减半）：
-            //    受到伤害时每层使受到的伤害 +1，生效后层数全部移除——替代结算后、防护层前生效
-            //   （圣盾/护甲吸收的是放大后的量——凡放大即生效，毒素同口径）。
-            //    破败仪典的「生效后全移」覆盖口随本改版退役（已是全局默认，光环只剩护甲转易损）。
+            // 0. 暴击（2026-11-09 新增，红5 表行「暴击」879fe2c2）：来源造成的**战斗伤害**翻倍——
+            //    延时保护之后、防护层之前（圣盾/护甲/坚韧吸收的是翻倍后的量；效果伤害不吃暴击；
+            //    反击/碾压溅射同为战斗伤害，各发独立翻倍）。本口接 2026-11-09 易损移位后空出的
+            //    数值修正臂（防护层前）。
+            if (isCombat && source != null && source.HasKeyword(Crit))
+            {
+                amount *= 2;
+                EventManager.Instance.Publish(new KeywordAppliedEvent
+                {
+                    Target = source,
+                    Keyword = Crit,
+                    Detail = $"暴击：战斗伤害翻倍 → {amount} 点",
+                    Source = source
+                });
+            }
+
+            ApplyPreventionLayers(source, target, ref amount);
+            if (amount <= 0) return 0;
+
+            // 0.5 易损指示物（2026-10-09 生效自减定案；2026-11-09 双改版：①生效后全部移除，不再减半
+            //     ②移防护层**之后**——完全挡住（圣盾/护甲/坚韧/免疫盾全免）不放大、不消耗层；
+            //    部分吸收 → 剩余量 +层数放大（圣盾/护甲吸收的是放大**前**的量——护甲先吸再放大，
+            //    与移位前终值相等；全挡是唯一行为差异点）。
+            //    破败仪典的「生效后全移」覆盖口随全移改版退役（已是全局默认，光环只剩护甲转易损）。
             int vulnerable = target.GetEffectiveCounterCount(CounterRules.VulnerableCounter);
             if (vulnerable > 0)
             {
@@ -352,9 +389,6 @@ namespace CardCore.Attribute
                     Source = source
                 });
             }
-
-            ApplyPreventionLayers(source, target, ref amount);
-            if (amount <= 0) return 0;
 
             //（毒刺/冰晶关键词改写已随 2026-10-15 整体退役删除；梦魇 2026-10-13、病原体 2026-10-08 先后退役；
             //  剧毒=落定追加式消灭，见管线尾部。）
@@ -539,12 +573,12 @@ namespace CardCore.Attribute
                 }
             }
 
-            // 6.5 报复指示物（2026-10-16 新增，红1/层）：持有者**实际受到伤害**（防护层后仍有剩余
-            //     落定——圣盾/护甲/坚韧完全挡住不触发（战斗法师散射改写已随 2026-11-01 退役删除）；
+            // 6.5 荆棘指示物（2026-10-16 新增，红1/层；2026-11-09 改名——原「报复」让名给新关键词）：
+            //     持有者**实际受到伤害**（防护层后仍有剩余落定——圣盾/护甲/坚韧完全挡住不触发；
             //     与潜行受伤失效同口径）时，对伤害来源造成等于层数的伤害（非战斗伤害、来源=持有者
             //     ——可被来源侧守护/圣盾/护甲/坚韧正常拦截），生效后层数减半（floor）。
-            //     **先减半再反击**：双方互带报复时层数几何衰减，天然封死无限互弹；自伤（来源=自身）
-            //     不触发——报复对象须为外部伤害来源；毒素等 null 来源无从反噬（同吸血/系命门）。
+            //     **先减半再反击**：双方互带荆棘时层数几何衰减，天然封死无限互弹；自伤（来源=自身）
+            //     不触发——反噬对象须为外部伤害来源；毒素等 null 来源无从反噬（同吸血/系命门）。
             //     持有者被本次伤害打死仍触发（伤害已落定为唯一门——濒死反咬一口）。
             //     2026-10-31 阶段B dealt 口径：实际扣除 0（生命锁兜住）不触发。
             if (dealt > 0 && source != null && source.IsAlive && !ReferenceEquals(source, target))
@@ -558,17 +592,40 @@ namespace CardCore.Attribute
                     {
                         Target = target,
                         Keyword = CounterRules.RetaliationCounter,
-                        Detail = $"报复反噬：{EffectText.Name(target)} 对 {EffectText.Name(source)} 造成 {retaliation} 点伤害（生效减半，余 {retaliateHalved} 层）",
+                        Detail = $"荆棘反噬：{EffectText.Name(target)} 对 {EffectText.Name(source)} 造成 {retaliation} 点伤害（生效减半，余 {retaliateHalved} 层）",
                         Source = target
                     });
                     ApplyDamage(target, source, retaliation, isCombat: false);
                 }
             }
 
-            // 6.6 病原体（2026-10-31 复活改版，绿5 关键词）：持有者**实际受到伤害**（同报复/潜行失效
-            //     口径——圣盾/护甲/坚韧完全挡住不触发；dealt=0 不触发）时，对伤害来源附加 1 层毒素
+            // 6.5b 报复关键词（2026-11-09 新增，红5 表行「报复」·GrantRetaliate）：持有者**实际
+            //     受到伤害**（同荆棘口径——防护层后落定，完全挡住不触发；dealt=0 不触发）时，对
+            //     伤害来源造成**等量**（=dealt）的伤害（非战斗伤害、来源=持有者——对方圣盾/护甲/
+            //     坚韧照常拦截，其荆棘/病原体照常响应）。反噬期间重入门拦一切报复关键词触发——
+            //     双方互带时每次原始伤害至多反弹一次，封死等量互弹死循环；荆棘反噬（非本段造伤）
+            //     照常触发受害侧报复关键词，荆棘侧生效减半天然收敛整链。自伤（来源=自身）不触发、
+            //     null 来源无从反噬、来源已死不反噬（同荆棘门）；持有者被本次伤害打死仍触发
+            //     （濒死反咬）；沉睡/失效期间 HasKeyword 读假=不触发（本体关键词统一压制口）。
+            if (dealt > 0 && source != null && source.IsAlive && !ReferenceEquals(source, target)
+                && !_retaliateBounceGuard && target.HasKeyword(Retaliate))
+            {
+                EventManager.Instance.Publish(new KeywordAppliedEvent
+                {
+                    Target = target,
+                    Keyword = Retaliate,
+                    Detail = $"报复反噬：{EffectText.Name(target)} 对 {EffectText.Name(source)} 造成 {dealt} 点伤害（等量）",
+                    Source = target
+                });
+                _retaliateBounceGuard = true;
+                try { ApplyDamage(target, source, dealt, isCombat: false); }
+                finally { _retaliateBounceGuard = false; }
+            }
+
+            // 6.6 病原体（2026-10-31 复活改版，绿5 关键词）：持有者**实际受到伤害**（同荆棘/报复口径
+            //     ——圣盾/护甲/坚韧完全挡住不触发；dealt=0 不触发）时，对伤害来源附加 1 层毒素
             //     指示物（ToxinCounter——来源回合末发作掉血+减半，见 CounterRules.ProcessToxinException）。
-            //     附加不出伤害、无递归链；与报复同持有时：报复反噬造伤可再触发受害侧病原体（正常
+            //     附加不出伤害、无递归链；与荆棘/报复关键词同持有时：反噬造伤可再触发受害侧病原体（正常
             //     交叉感染）。null 来源（毒素发作等）无从感染；来源已死不感染（同吸血/系命门）；
             //     自伤照染（来源=自身——字面口径，附加计数无递归风险）。持有者被本次伤害打死仍触发
             //     （濒死感染，同报复门）；沉睡/失效期间 HasKeyword 读假=不触发（本体关键词统一压制口）。

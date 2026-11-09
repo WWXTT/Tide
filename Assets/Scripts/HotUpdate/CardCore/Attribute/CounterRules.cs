@@ -151,7 +151,7 @@ namespace CardCore.Attribute
         /// + 拦本体关键词（HasKeyword 收口，先攻/剧毒/守护/再生等一概失效）。
         /// 【2026-10-31 改名定案：光环域整体退出】不再压光环——连接光环来源（LinkAuraSystem）/
         /// 规则光环载体（RuleAuraSystem）被失效照常生效，打在受益者身上同样不除光环（光环不物化）。
-        /// 指示物能力（圣盾/坚韧/潜行/报复）不归此管——由净化/减益解除清除。
+        /// 指示物能力（圣盾/坚韧/潜行/荆棘）不归此管——由净化/减益解除清除。
         /// 与沉默对称：沉默拦主动（CanActivate）、失效拦自动。换区清除。
         /// </summary>
         public const string NullifyCounter = "Nullify";
@@ -170,8 +170,9 @@ namespace CardCore.Attribute
         /// </summary>
         public const string ToughnessCounter = "Toughness";
         /// <summary>
-        /// 报复（2026-10-16 新增，红1/层，表行/GrantRetaliation）：持有者**实际受到伤害**（防护层后
-        /// 仍有剩余落定——完全挡住不触发；战斗法师散射改写已随 2026-11-01 退役删除）时，对伤害来源造成等于层数的
+        /// 荆棘（2026-10-16 新增，红1/层，表行/GrantRetaliation；2026-11-09 改名——原「报复」让名
+        /// 给等量反噬的新关键词，运行时 id 仍 Retaliation，同嘲讽→帷幕先例）：持有者**实际受到伤害**
+        /// （防护层后仍有剩余落定——完全挡住不触发）时，对伤害来源造成等于层数的
         /// 伤害（非战斗伤害，来源=持有者），生效后层数减半（向下取整）。自伤（来源=自身）不触发；
         /// 双方互带时先减半再反击=层数几何衰减，天然封死无限互弹。
         /// Entity 级；换区不清（生效自减档）、净化可清。施加口=GrantRetaliationHandler；
@@ -367,14 +368,15 @@ namespace CardCore.Attribute
             // 坚韧（2026-10-09 生效自减改版，自 Resident 迁入）：受伤每层 −1——实际拦到伤害即生效，
             // 生效后层数减半（floor）；拦减口=KeywordRules.ApplyPreventionLayers 第 3 层；换区不清、净化可清
             Register(new CounterSpec { Id = ToughnessCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.Exception, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.External, DisplayName = "坚韧" });
-            // 报复（2026-10-16 新增，红1/层）：受伤反噬——实际受到伤害时对来源造成=层数的伤害，
-            // 先减半再反击（互带几何衰减防互弹）；触发口=KeywordRules.ApplyDamage 管线尾段
-            Register(new CounterSpec { Id = RetaliationCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.Exception, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.External, DisplayName = "报复" });
+            // 荆棘（2026-10-16 新增，红1/层；2026-11-09 改名，原「报复」）：受伤反噬——实际受到伤害时
+            // 对来源造成=层数的伤害，先减半再反击（互带几何衰减防互弹）；触发口=KeywordRules.ApplyDamage 管线尾段
+            Register(new CounterSpec { Id = RetaliationCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.Exception, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.External, DisplayName = "荆棘" });
             // 毒素：层=伤害基数——持有者每回合末受到=层数的伤害，随后层数减半（floor）。
             // 例程在 OnTurnEnd ①（ProcessToxinException）；换区不清、净化可清
             Register(new CounterSpec { Id = ToxinCounter, Polarity = CounterPolarity.Negative, Class = CounterClass.Exception, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.External, DisplayName = "毒素" });
-            // 易损（2026-10-09 生效自减改版，自 Decay 迁入；2026-11-09 改全部移除）：受伤每层 +1 →
-            // 生效后层数全部移除；无回合末倒数；放大+移除口=KeywordRules.ApplyDamage 第 0 步；换区不清、净化/解减益可清
+            // 易损（2026-10-09 生效自减改版，自 Decay 迁入；2026-11-09 双改版：①全部移除 ②移防护层后）：
+            // 受伤每层 +1 → 生效后层数全部移除；无回合末倒数；放大+移除口=KeywordRules.ApplyDamage
+            // 防护层后（完全挡住不放大不消耗——圣盾/护甲/坚韧先吸收，剩余量才放大）；换区不清、净化/解减益可清
             Register(new CounterSpec { Id = VulnerableCounter, Polarity = CounterPolarity.Negative, Class = CounterClass.Exception, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.External, DisplayName = "易损" });
             // 角色攻击：弹药读数，攻击/反击结算后全烧（RemoveHeroAttackAmmo）
             Register(new CounterSpec { Id = HeroAttackCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.Exception, LayerRole = CounterLayerRole.Reading, TickPolicy = CounterTickPolicy.External, DisplayName = "角色攻击" });

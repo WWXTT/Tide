@@ -337,7 +337,8 @@ namespace CardCore
         /// 横置状态不在此恢复。消费口=RemoveDebuffsHandler（EntityEffectExtensions.RemoveAllDebuffs）。</summary>
         RemoveDebuffs,
 
-         /// <summary>报复（2026-10-16 新增，红1/层，表行）：对目标附加 {value} 层报复指示物
+         /// <summary>荆棘（2026-10-16 新增，红1/层，表行；2026-11-09 改名——原「报复」让名给
+        /// 等量反噬的新关键词，运行时 id/表行 ID 不变）：对目标附加 {value} 层荆棘指示物
         ///（RetaliationCounter，Exception 生效自减——换区不清）——持有者实际受到伤害时对
         /// 伤害来源造成等于层数的伤害（非战斗伤害，来源=持有者），生效后层数减半（floor）。
         /// 触发口=KeywordRules.ApplyDamage 管线尾段（吸血后、剧毒前）。</summary>
@@ -552,6 +553,22 @@ namespace CardCore
         /// 同日易损改版生效后全部移除转全局默认，光环原「生效全移」覆盖口退役（只剩护甲转易损一半）。
         /// 表行 EffectType 仍=ModifyGameRule（未翻新过渡态），str=规则短名兜底投放。</summary>
         AuraArmorDecay,
+
+        /// <summary>暴击（2026-11-09 新增，红5 表行「暴击」879fe2c2·关键词表）：授予「暴击」
+        /// 关键词——持有者造成的**战斗伤害**翻倍。改写口=KeywordRules.ApplyDamage 延时保护之后、
+        /// 防护层之前（圣盾/护甲/坚韧吸收的是翻倍后的量；效果伤害不吃暴击；反击/碾压溅射同为
+        /// 战斗伤害，各发独立翻倍；无实体钳 1 在前——钳后余量照翻，易损放大在其后）。
+        /// GrantKeywordHandler 通用路径（GrantKeywordHandlerFactory.Specs 登记）。</summary>
+        GrantCrit,
+
+        /// <summary>报复（2026-11-09 新增，红5 表行「报复」·关键词表）：授予「报复」关键词——
+        /// 持有者受到实际伤害（防护层后落定，同荆棘口径——完全挡住不触发）时，对伤害来源造成
+        /// **等量**（=本次实际落定量）的伤害。反噬走完整 ApplyDamage 管线（对方圣盾/护甲/坚韧
+        /// 照常拦截，荆棘/病原体照常响应）；反噬期间重入门拦报复关键词——双方互带时每次原始
+        /// 伤害至多反弹一次，封死等量互弹死循环。触发口=KeywordRules.ApplyDamage 管线尾段
+        ///（荆棘段后、病原体前）。GrantKeywordHandler 通用路径（GrantKeywordHandlerFactory.Specs
+        /// 登记）。</summary>
+        GrantRetaliate,
     }
 
     /// <summary>

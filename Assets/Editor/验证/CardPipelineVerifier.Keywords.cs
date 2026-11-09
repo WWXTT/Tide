@@ -750,19 +750,33 @@ namespace CardCore.Editor
             Assert(pmTwin.GetPower() == 1 && pmTwin.GetMaxLife() == 3,
                    "±1 层对消共存：-1/-1×2 与 +1/+1×1（净 -1/-1）");
 
-                // ---- 18d. 易损（2026-10-09 生效自减；2026-11-09 改版：生效后全部移除，不再减半）：
-                //      受到伤害每层 +1（防护层前放大）；退出衰退族（无回合末倒数） ----
+                // ---- 18d. 易损（2026-10-09 生效自减；2026-11-09 双改版：全部移除 + 移防护层后）：
+                //      受到伤害每层 +1（防护层后放大剩余量——完全挡住不消耗）；退出衰退族（无回合末倒数） ----
                 var brittle = Make(p2, 2, 15);
                 brittle.AddCounters(CardCore.Attribute.CounterRules.VulnerableCounter, 2);
                 Attribute.KeywordRules.ApplyDamage(p1, brittle, 3, false);
                 Assert(brittle.GetLife() == 10
                        && brittle.GetCounterCount(CardCore.Attribute.CounterRules.VulnerableCounter) == 0,
-                       "易损：3 伤 + 2 层 = 5 伤（防护层前放大），生效后全部移除（2→0）");
+                       "易损：3 伤 + 2 层 = 5 伤（防护层后放大剩余量），生效后全部移除（2→0）");
                 CardCore.Attribute.CounterRules.OnTurnEnd(p2, core.ZoneManager);
                 Assert(brittle.GetCounterCount(CardCore.Attribute.CounterRules.VulnerableCounter) == 0,
                        "易损：持有者回合末不倒数（生效自减档——已退出衰退族；施加方回合末同样不结算）");
                 Attribute.KeywordRules.ApplyDamage(p1, brittle, 3, false);
                 Assert(brittle.GetLife() == 7, "易损第二击：层已全部移除 → 裸伤 3（无放大）");
+
+            // ---- 18d-1. 易损移位（2026-11-09 定案：放大口移防护层后）——完全挡住不放大、不消耗层 ----
+            ResetField(); // 段界清场（P11 容量 9——18d 遗留 + 本段新卡）
+            var shieldedBrittle = Make(p2, 2, 15, CardCore.Attribute.CounterRules.DivineShieldCounter);
+            shieldedBrittle.AddCounters(CardCore.Attribute.CounterRules.VulnerableCounter, 2);
+            Attribute.KeywordRules.ApplyDamage(p1, shieldedBrittle, 3, false);
+            Assert(shieldedBrittle.GetLife() == 15
+                   && shieldedBrittle.GetCounterCount(CardCore.Attribute.CounterRules.VulnerableCounter) == 2
+                   && shieldedBrittle.GetCounterCount(CardCore.Attribute.CounterRules.DivineShieldCounter) == 0,
+                   "易损移位：圣盾全挡 → 不放大、易损层保留（圣盾照常消耗）");
+            Attribute.KeywordRules.ApplyDamage(p1, shieldedBrittle, 3, false);
+            Assert(shieldedBrittle.GetLife() == 10
+                   && shieldedBrittle.GetCounterCount(CardCore.Attribute.CounterRules.VulnerableCounter) == 0,
+                   "易损移位：后续无盾 3 伤 + 2 层 = 5 伤，生效后全部移除");
 
             // ---- 18d-2. 破败仪典（2026-11-09 新增，改写族·表行 91f35ec1）：受光环影响一方获得的护甲
             //      转换为等量易损（易损生效全移已是全局默认——18d 口径，光环只剩转换一半）。仅对方档
@@ -798,12 +812,12 @@ namespace CardCore.Editor
                 Assert(decayOwnUnit.GetCounterCount(CardCore.Attribute.KeywordRules.ArmorCounter) == 2
                        && decayOwnUnit.GetCounterCount(CardCore.Attribute.CounterRules.VulnerableCounter) == 0,
                        "破败仪典（仅对方档）：控制者侧护甲照常落账（ScopeHits 单侧命中）");
-                // 易损放大在防护层前：3+3=6 → 存量护甲 1 吸 1 → 落 5 血（15→10）；易损全部移除（非减半）
+                // 易损放大在防护层后（2026-11-09 移位）：3 → 存量护甲 1 吸 1 → 剩 2 + 易损 3 = 5 → 落 5 血（15→10）；易损全部移除（非减半）
                 Attribute.KeywordRules.ApplyDamage(p1, decayVictim, 3, false);
                 Assert(decayVictim.GetLife() == 10
                        && decayVictim.GetCounterCount(CardCore.Attribute.KeywordRules.ArmorCounter) == 0
                        && decayVictim.GetCounterCount(CardCore.Attribute.CounterRules.VulnerableCounter) == 0,
-                       "破败仪典：易损 3 层放大 3+3=6（护甲吸收放大后的量 1 点）→ 落 5 血，生效后全部移除");
+                       "破败仪典：护甲先吸 1 → 易损放大剩余 2+3=5 → 落 5 血，生效后全部移除（防护层后口径）");
             }
             finally
             {
@@ -811,6 +825,33 @@ namespace CardCore.Editor
                 if (decaySaveId != null) CardCore.RuleAuraSystem.Activate(decaySaveId, decaySaveCarrier, decaySaveCtrl);
                 core.ZoneManager.MoveCard(decayCarrier, p1, Zone.Battlefield, Zone.Graveyard);
             }
+
+            // ---- 18d-3. 暴击（2026-11-09 新增，红5 表行「暴击」879fe2c2）：战斗伤害翻倍——
+            //      延时保护后、防护层前（圣盾/护甲吸收翻倍后的量）；效果伤害不吃暴击 ----
+            ResetField(); // 段界清场（P11 容量 9——本段 5 张新卡）
+            var critter = Make(p1, 3, 5, CardCore.Attribute.KeywordRules.Crit);
+            var critPrey = Make(p2, 1, 15);
+            Attribute.KeywordRules.ApplyDamage(critter, critPrey, 3, false);
+            Assert(critPrey.GetLife() == 12, "暴击：效果伤害（isCombat=false）不翻倍");
+            Attribute.KeywordRules.ApplyDamage(critter, critPrey, 3, true);
+            Assert(critPrey.GetLife() == 6, "暴击：战斗伤害翻倍（12 − 3×2 = 6）");
+            var critWarded = Make(p2, 1, 15, CardCore.Attribute.CounterRules.DivineShieldCounter);
+            Attribute.KeywordRules.ApplyDamage(critter, critWarded, 3, true);
+            Assert(critWarded.GetLife() == 15
+                   && critWarded.GetCounterCount(CardCore.Attribute.CounterRules.DivineShieldCounter) == 0,
+                   "暴击×圣盾：圣盾挡下翻倍后的 6 点（防护层前翻倍）、照常消耗");
+            var critArmored = Make(p2, 1, 15);
+            critArmored.AddCounters(CardCore.Attribute.KeywordRules.ArmorCounter, 2);
+            Attribute.KeywordRules.ApplyDamage(critter, critArmored, 3, true);
+            Assert(critArmored.GetLife() == 11
+                   && critArmored.GetCounterCount(CardCore.Attribute.KeywordRules.ArmorCounter) == 0,
+                   "暴击×护甲：护甲吸收翻倍后的量（3×2−2=4 落血，15→11）");
+            var critBrittle = Make(p2, 1, 15);
+            critBrittle.AddCounters(CardCore.Attribute.CounterRules.VulnerableCounter, 2);
+            Attribute.KeywordRules.ApplyDamage(critter, critBrittle, 3, true);
+            Assert(critBrittle.GetLife() == 7,
+                   "暴击×易损：先翻倍 3×2=6，防护层后易损再 +2 → 8 伤（15→7）");
+            ResetField(); // 段界清场（本段 5 张常驻卡——还后续段原始起步容量）
 
             // ---- 18e. 紊乱原子：附加后不能以玩家为目标（攻击与效果同口径） ----
             var dizzy = Make(p2, 2, 5);

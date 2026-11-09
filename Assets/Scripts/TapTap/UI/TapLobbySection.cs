@@ -43,7 +43,12 @@ namespace SynergyUI.Online
             UiKit.Button("btn-tap-back", tapBtns, "返回",
                 onClick: () => _screen.ShowEntryPanel());
             UiKit.Label("lbl-tap-rooms", panelTap, "公开房间（点条目加入；空=暂无，可自己创建）：", 13);
-            _tapRoomListNode = UiKit.ScrollColumn("list-tap-rooms", panelTap).Content;
+            // 2026-11-09 修（双机联机实录）：ScrollColumn 根节点原先没有 Size，而 panel-taptap 是
+            // childControlHeight=true / forceExpandHeight=false 的 VLG → 列表高度被压成 ~17px，
+            // 房间条目只剩一条缝，raycast 点不到（客人侧完全无法加入）。与其它屏一致：显式给高度。
+            var tapRoomList = UiKit.ScrollColumn("list-tap-rooms", panelTap);
+            UiKit.Size(tapRoomList.Rect, h: 320f);
+            _tapRoomListNode = tapRoomList.Content;
 
             _screen.RegisterTapPanel(panelTap); // 纳入 LobbyScreen.ShowPanel 换页集
         }
