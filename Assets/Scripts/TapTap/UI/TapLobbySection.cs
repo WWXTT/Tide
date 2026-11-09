@@ -167,5 +167,8 @@ namespace SynergyUI.Online
 
         /// <summary>昵称兜底：TapTap 登录名（未登录为空——上层继续随机兜底）。</summary>
         public string FallbackNickname() => TapLobbyController.LoginName;
+
+        /// <summary>本机 TapTap openId（2026-11-09 协议 v11 对局记录：进房自报）；未登录返回空。</summary>
+        public string OpenIdOf() => TapAccountService.Current?.OpenId ?? "";
     }
 }

@@ -12,11 +12,27 @@ namespace SynergyUI
     /// 所有屏幕（含主菜单）统一生命周期：Show=实例化各自预制体、离屏=销毁自己的实例
     /// （UIScreen.PrefabAssetPath 声明预制体，详见 UIManager/UIScreen）。
     ///
-    /// 编辑器域重载/重编译：OnEnable 以"组件有则复用"幂等重建（界面回到主菜单）。
+    /// 编辑器域重载/重编译：OnEnable 以"组件有则复用"幂等重建（界面回到启动页，2026-11-09 登录迁移）。
     /// </summary>
     public sealed class UIBootstrap : MonoBehaviour
     {
         private UIManager _manager;
+
+        /// <summary>当前活动界面管理器（2026-11-09 登录迁移）：登出/云恢复等跨屏跳转
+        ///（清栈回启动页）经 <see cref="ReturnToLaunch"/> 走此口，不经屏实例互相持有。</summary>
+        public static UIManager ActiveManager { get; private set; }
+
+        /// <summary>清空导航栈回启动页（2026-11-09 登录迁移定案：登出=回登录界面、云恢复=回页
+        /// 后已登录则自动续进主菜单）。无管理器时静默 no-op（启动竞态兜底）。</summary>
+        public static void ReturnToLaunch()
+        {
+            if (ActiveManager == null)
+            {
+                Debug.LogWarning("[UINav] ReturnToLaunch：无活动 UIManager（启动竞态？），忽略");
+                return;
+            }
+            ActiveManager.ResetTo<LaunchScreen>();
+        }
 
         /// <summary>进 Play 清引擎/事件总线单例（2026-10-14，域重载关闭防护）：静态单例跨 Play
         /// 存活时，上一局已销毁屏的订阅链会让本局事件逐条抛 MissingReferenceException——
@@ -72,23 +88,26 @@ namespace SynergyUI
                 if (PrivacyConsentDialog.IsOpen) return;
 
                 // 域重载/重编译防护：热重载会丢 _manager 引用但孤儿屏实例仍在根下
-                // （根下只可能有运行时屏实例，无烘焙内容）——重建前清一次再回主菜单。
+                // （根下只可能有运行时屏实例，无烘焙内容）——重建前清一次再回启动页。
                 var rootRect = (RectTransform)transform;
                 for (int i = rootRect.childCount - 1; i >= 0; i--)
                     Destroy(rootRect.GetChild(i).gameObject);
 
                 _manager = new UIManager(rootRect);
+                ActiveManager = _manager;
                 // 隐私同意闸（2026-10-24 TapTap 上架）：仅联机（TapTap）风味需要。
                 // 判据=运行时风味（Tide.TapTap 热更程序集是否在场）——本地单机包无第三方 SDK、
-                // 不采集个人信息，按合规口径不出同意弹窗，直接进主菜单。
+                // 不采集个人信息，按合规口径不出同意弹窗，直接进首屏。
+                // 首屏（2026-11-09 登录迁移定案）=启动页 LaunchScreen：TapTap 登录迁入启动页，
+                // 游客可进；单机风味/编辑器（登录不可用）由启动页自动放行进主菜单。
                 bool needConsent = Tide.HotUpdate.TapBridge.HasModule && !PrivacyConsent.IsGranted;
-                if (!needConsent) { _manager.Show<MainMenuScreen>(); }
+                if (!needConsent) { _manager.Show<LaunchScreen>(); }
                 else
                 {
                     PrivacyConsentDialog.Open(rootRect, () =>
                     {
                         Tide.HotUpdate.TapBridge.Module?.InitOnStartup();
-                        _manager.Show<MainMenuScreen>();
+                        _manager.Show<LaunchScreen>();
                     });
                 }
             }

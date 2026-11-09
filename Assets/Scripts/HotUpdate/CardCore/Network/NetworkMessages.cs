@@ -53,6 +53,8 @@ namespace CardCore.Network
         RoomSettings = 130,          // 上行：房主配置模式（MsgRoomSettings：先后手方式+洗牌；仅椅位0、仅 Waiting）
         RoomReady = 131,             // 上行：准备 toggle（MsgRoomReady；Waiting 相位）
         RoomStart = 132,             // 上行：房主开始（空载荷；校验双方就座+客人已准备 → 进选卡组相位）
+        MatchSummary = 133,          // 下行：终局摘要（MsgMatchSummary，2026-11-09 协议 v11 对局记录——
+                                     // 双座位各收一份：对手完整卡组+自建内容 payload+胜负，客户端落 EncounterRecord）
     }
 
     /// <summary>协议版本常量。信封 ProtocolVersion 读到 0 视为 legacy（无版本草稿期数据）。
@@ -81,10 +83,14 @@ namespace CardCore.Network
     /// 机制删除后曾留读兼容）——成员 5→4，MemoryPack 载荷布局变更，新旧端互拒（无兼容层）。
     /// v10（2026-11-08 目标选择重构步5）：MsgIntentPlayCard/MsgIntentActivateEffect 新增
     /// References（参照选位分角色上送）、StackItemDTO 新增 References、MsgSelectRequest 新增
-    /// SpecKey（spec 计划显式关联键，§3.3）——布局变更，新旧端互拒（无兼容层）。</summary>
+    /// SpecKey（spec 计划显式关联键，§3.3）——布局变更，新旧端互拒（无兼容层）。
+    /// v11（2026-11-09 自建内容跨端+对局记录）：MsgDeckSubmit 新增 AddedCards/AddedEffects/AddedRows
+    ///（卡组闭包中非基础池内容完整 JSON——对端缺卡不再拒局）、MsgMatchManifest 新增
+    /// OpponentCards/Effects/Rows（渲染用内容定义，卡组构成仍隐藏）、新消息 MsgMatchSummary
+    ///（终局摘要：对手完整卡组+自建内容+胜负，落对局记录）——布局变更，新旧端互拒（无兼容层）。</summary>
     public static class NetworkProtocol
     {
-        public const ushort Version = 10;
+        public const ushort Version = 11;
 
         /// <summary>接收侧版本闸（v8 起）：信封版本与本端不符 = 新旧端互拒（无兼容层）。
         /// 0=legacy 草稿期数据，同样失配。</summary>

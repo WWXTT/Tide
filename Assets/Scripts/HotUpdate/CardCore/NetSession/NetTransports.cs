@@ -25,6 +25,13 @@ namespace CardCore.Network
         /// <summary>进房昵称（RoomState 广播用）。</summary>
         string Nickname { get; set; }
 
+        /// <summary>进房方自报 TapTap openId（2026-11-09 协议 v11：随终局摘要回传对手做对局记录；
+        /// 局域网/AI 为空）。</summary>
+        string OpenId { get; set; }
+
+        /// <summary>AI 填位标记（2026-11-09 协议 v11：AI 局不下发终局摘要——对手内容=本机预组，无记录价值）。</summary>
+        bool IsAi { get; set; }
+
         /// <summary>事件流出队游标（NetEventProjector 全局列表下标，房间按局重置）。</summary>
         int EventCursor { get; set; }
 

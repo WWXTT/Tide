@@ -25,7 +25,7 @@ namespace SynergyUI
         private Button _teachingButton;
         private TMP_Text _teachingLabel;
         private RectTransform _matchNode;
-        private RectTransform[] _comboNodes = new RectTransform[3]; // 卡组/卡面/效果三组合界面
+        private readonly RectTransform[] _comboNodes = new RectTransform[4]; // 卡组/卡面/效果/对局记录四入口
 
         protected override void Build()
         {
@@ -38,6 +38,9 @@ namespace SynergyUI
             BindButton("btn-deck", () => Manager.Show<DeckBuilderScreen>());
             BindButton("btn-card", () => Manager.Show<CardComposerScreen>());
             BindButton("btn-effect", () => Manager.Show<EffectComposerScreen>());
+            // 对局记录（2026-11-09 协议 v11 对局记录）：联机对局终局摘要的查看/导入入口
+            //（含局域网局；空态提示——EncounterStore 空时屏内自显提示行）
+            BindButton("btn-history", () => Manager.Show<MatchHistoryScreen>());
 
             // 木桩测试（2026-10-22，接管原 2026-10-16 测试开局入口；2026-11-03 对手统一预组策略 AI）：
             // 进入战场先弹选项面板（先后手/洗牌/元素池），确认后走五段式开局变体（固定先后手=跳过
@@ -58,14 +61,16 @@ namespace SynergyUI
             _comboNodes[0] = Find("btn-deck");
             _comboNodes[1] = Find("btn-card");
             _comboNodes[2] = Find("btn-effect");
+            _comboNodes[3] = Find("btn-history"); // 对局记录随组合界面解锁（2026-11-09）
 
             // 教学按钮文案节点（label 在 btn-teaching 子级；预制体不烘焙文字，运行时按进度写）
             var teachingLabel = _teachingNode != null ? FindUnder(_teachingNode, "label") : null;
             _teachingLabel = teachingLabel != null ? teachingLabel.GetComponentInChildren<TMP_Text>(true) : null;
 
-            // TapTap 挂件（2026-10-24 预编译隔离）：登录徽章 + 云存档入口经桥装段挂接
+            // TapTap 挂件（2026-10-24 预编译隔离；2026-11-09 登录迁移改版）：右下云存档入口经桥装段
+            // 挂接（入口文案含昵称/退出登录在面板）——登录入口已迁启动页 LaunchScreen。
             //（TapBridge.Module 由 HotUpdateEntry.Start 扫域安装；本地单机风味无 Tide.TapTap
-            // 程序集=Module null，徽章与云存档入口整体缺席，主菜单只剩本地方案）。
+            // 程序集=Module null，云存档入口整体缺席，主菜单只剩本地方案）。
             TapBridge.Module?.OnMainMenuBuilt(this);
         }
 

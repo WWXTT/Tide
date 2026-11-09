@@ -104,6 +104,19 @@ namespace CardCore
         /// </summary>
         public static string ExportMarkdown(string path)
         {
+            var text = ExportMarkdownText();
+            if (text == null) return null;
+            var dir = Path.GetDirectoryName(Path.GetFullPath(path));
+            if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+            File.WriteAllText(path, text, new UTF8Encoding(false));
+            return path;
+        }
+
+        /// <summary>导出 markdown 战报为字符串（2026-11-09 协议 v11 对局记录：网络局战报由
+        /// 房主侧引擎事件流渲染——客人端无本地引擎，终局摘要携带全文，双端对局记录同源）。
+        /// 无条目返回 null。</summary>
+        public static string ExportMarkdownText()
+        {
             if (_entries.Count == 0) return null;
 
             var sb = new StringBuilder();
@@ -143,10 +156,7 @@ namespace CardCore
             foreach (var g in _entries.GroupBy(e => e.EventType).OrderByDescending(g => g.Count()))
                 sb.AppendLine($"- {g.Key} × {g.Count()}");
 
-            var dir = Path.GetDirectoryName(Path.GetFullPath(path));
-            if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
-            File.WriteAllText(path, sb.ToString(), new UTF8Encoding(false));
-            return path;
+            return sb.ToString();
         }
     }
 }

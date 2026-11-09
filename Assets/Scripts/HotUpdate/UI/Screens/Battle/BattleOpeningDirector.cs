@@ -36,13 +36,14 @@ namespace SynergyUI
 
         // 联机五段式（2026-10-28 开局流程改版）：段三掷币结果=服务器权威注入（掷币模式照常演出/
         // 固定先后手模式快进直出浮字），段四=NetworkDeckPanel（30s 服务器权威倒计时+各自选卡组），
-        // 段五=netEngage(cardIds, skill, tokenCardIds, tokenBindings) 发 DeckSubmit 握手（UI 关闭后、
-        // 对局开始前——用户定案时序）。token 两块=P9b 衍生物区/槽绑定（随机预组=null——模板仍在
-        // cardIds 内随组直提）。
+        // 段五=netEngage(deckName, cardIds, skill, tokenCardIds, tokenBindings) 发 DeckSubmit 握手
+        //（UI 关闭后、对局开始前——用户定案时序）。token 两块=P9b 衍生物区/槽绑定（随机预组=null
+        //——模板仍在 cardIds 内随组直提）。deckName（2026-11-09 协议 v11）=真实卡组名（随机=null），
+        // 随提交上送、终局摘要回显（对局记录 OwnDeckName）。
         private readonly bool _network;
         private readonly bool _netPlayerFirst;       // 服务器先手结果（FirstSeatThisMatch 对 own seat）
         private readonly bool _netCoinAnimation;     // true=掷币模式（演出）；false=固定先后手（快进）
-        private readonly Action<string[], string, string[], List<DeckTokenBinding>> _netEngage;
+        private readonly Action<string, string[], string, string[], List<DeckTokenBinding>> _netEngage;
 
         private BattleDeckPickStage _pickStage;
         private bool _deckPicking;        // 段四输入期（点击归卡堆，不作跳过）
@@ -61,7 +62,7 @@ namespace SynergyUI
             bool? fixedPlayerFirst = null, bool dummy = false,
             RectTransform overlayParent = null, Action onCancelled = null,
             bool network = false, bool netPlayerFirst = false, bool netCoinAnimation = true,
-            Action<string[], string, string[], List<DeckTokenBinding>> netEngage = null)
+            Action<string, string[], string, string[], List<DeckTokenBinding>> netEngage = null)
         {
             _running = running;
             _field = field;
@@ -261,7 +262,7 @@ namespace SynergyUI
                     tokenBindings = data.tokenBindings;
             }
             Debug.Log($"[BattleOpening] 段五（网络）确认卡组「{pick.DeckName ?? "随机预组"}」（{cardIds.Length}张）——提交握手");
-            _netEngage?.Invoke(cardIds, skill, tokenIds, tokenBindings);
+            _netEngage?.Invoke(pick.DeckName, cardIds, skill, tokenIds, tokenBindings);
         }
 
         /// <summary>段四：候选卡组建堆 → 双选两轮/教学三连战单轮；返回卡组名（null=随机）。

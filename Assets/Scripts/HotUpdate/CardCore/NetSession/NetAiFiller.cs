@@ -96,6 +96,7 @@ namespace CardCore.Network
                     RoomId = "",
                     WantSeat = -1,
                     Nickname = _nickname,
+                    IsAi = true, // v11 对局记录：AI 填位——终局摘要不下发 AI 局
                 });
                 var submit = new MsgDeckSubmit
                 {

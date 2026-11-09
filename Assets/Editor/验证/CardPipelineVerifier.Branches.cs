@@ -829,7 +829,8 @@ namespace CardCore.Editor
         /// <summary>
         /// ①冻结（2026-11-02 回退指示物版·表行 973884b1，费用 1→2 蓝）：横置+挂冻结指示物——
         /// 层=持续回合，持有期间无法重置，持有者回合末 −1 归零解除；
-        /// ②生物赋予关键词固定 Temp 1 回合（回合末清，魔法 Setting/光环照旧）；
+        /// ②效果层赋予关键词=Temp 轨换区清除（2026-11-09 定案，取代 2026-09-13「固定 Temp 1 回合
+        /// 回合末清」——授予跨回合保留，离场换区才清；魔法 Setting/光环照旧）；
         /// ③计价梯三族（2026-10-09 清理：Duration 档计价随三轨统一退役，断言已删——价梯以 CounterSpec 为准）。
         /// </summary>
         private static void TestTierConsolidation(GameCore core, Player p1, Player p2)
@@ -861,7 +862,8 @@ namespace CardCore.Editor
                    "冻结解除：层归零（下回合可重置）");
             RetireCards(core, p1, frozenUnit);
 
-            // ---- 2. 关键词赋予通道（2026-11-07 特判）：他人/自己=Temp 1 回合——回合末清；
+            // ---- 2. 关键词赋予通道（2026-11-09 换区清除定案，取代 2026-09-13「固定 Temp 1 回合」）：
+            //      他人/自己=Temp 轨——跨回合保留，换区时经 KeywordRules.ClearZoneKeywords 清除；
             //      Printed（卡牌组合界面直加的本体关键词）才是永久/免疫，Setting 文本轨不再由效果层写入 ----
             var granter = SpawnTier(core, p1, 2, 2);
             var receiver = SpawnTier(core, p1, 2, 2);
@@ -873,7 +875,7 @@ namespace CardCore.Editor
             };
             var grantAtom = new CardCore.AtomicEffectInstance { Type = AtomicEffectType.GrantTaunt, Value = 1 };
             CardCore.Attribute.EffectHandlerRegistry.ExecuteEffect(grantAtom, grantCtx);
-            // 同一来源自赋予（目标=自己）——同样走赋予通道，回合末清
+            // 同一来源自赋予（目标=自己）——同样走赋予通道，换区清
             var selfGrantCtx = new EffectExecutionContext
             {
                 Source = granter, Controller = p1, ZoneManager = core.ZoneManager, ElementPool = core.ElementPool,
@@ -885,10 +887,15 @@ namespace CardCore.Editor
             Assert(receiver.HasKeyword(CardCore.Attribute.KeywordRules.Taunt), "生物赋予：关键词生效");
             Assert(granter.HasKeyword(CardCore.Attribute.KeywordRules.Vigilance), "自赋予：关键词生效");
             EventManager.Instance.Publish(new TurnEndEvent { TurnPlayer = p1, TurnNumber = 700 });
+            Assert(receiver.HasKeyword(CardCore.Attribute.KeywordRules.Taunt)
+                   && granter.HasKeyword(CardCore.Attribute.KeywordRules.Vigilance),
+                   "赋予跨回合保留：回合末不清（2026-11-09 换区清除定案——声明永久被覆写为 Temp）");
+            core.ZoneManager.MoveCard(receiver, p1, Zone.Battlefield, Zone.Graveyard);
             Assert(!receiver.HasKeyword(CardCore.Attribute.KeywordRules.Taunt),
-                   "赋予他人固定 1 回合：回合末到期（声明永久被覆写为 Temp）");
+                   "赋予他人（Temp 轨）：换区清除——离场即清，非回合末到期");
+            core.ZoneManager.MoveCard(granter, p1, Zone.Battlefield, Zone.Graveyard);
             Assert(!granter.HasKeyword(CardCore.Attribute.KeywordRules.Vigilance),
-                   "自赋予也走赋予通道（Temp）：回合末清（2026-11-07 特判——印刷关键词才永久）");
+                   "自赋予也走赋予通道（Temp 轨）：同样换区清除（印刷关键词才永久）");
             RetireCards(core, p1, granter, receiver);
 
             // 2026-10-09 清理：计价梯三族（控制权 1.2/1.6/3.0、Grant 四档、费用修改两档）断言删除——

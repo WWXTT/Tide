@@ -1,0 +1,215 @@
+# aot_generic_baseline.txt — 由 AotAudit 生成/维护，与热更 DLL 一一对应（«AOT泛型门禁_实施计划» §3.2）
+# 格式：<签名>	<处置: anchored|safe|noise>	<备注>
+# 门禁口径：值类型实参 × 定义程序集非 patchAOT（mscorlib|System|System.Core + 门面 netstandard）非热更自身
+# anchored=已在 AOT 侧锚点（Assets/Scripts/Launch/HotUpdateLoader.cs 静态构造，弱校验）
+# safe=评估安全（写理由：共享形态覆盖/补充元数据兜底/该组合不可达等）；noise=编译器生成名（async 状态机/闭包/匿名类型）
+ArrayFormatter<Byte>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+ArrayFormatter<Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+ArrayFormatter<Single>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+ArrayFormatter<String>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+ArrayFormatter<UInt32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<<ExecutePayloadAsync>g__ExecuteAtomAsync|0>d>	noise	编译器生成（本地函数 g__ 闭包/状态机）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<<ExecuteReferencedEffectAsync>g__ExecuteAtomAsync|0>d>	noise	编译器生成（本地函数 g__ 闭包/状态机）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<ApplyThenToSharedTargetsAsync>d__26>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<DamageFxCoreAsync>d__29>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<ExecuteAsync>d__16>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<ExecuteAsync>d__2>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<ExecuteFlatAsync>d__17>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<ExecuteStepSequenceAsync>d__19>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<ExecuteThenRewardsAsync>d__28>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<Fire>d__5>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<FlightFxCoreAsync>d__45>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<PayReplayRoundCostsAsync>d__39>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<PlayDeathExitAsync>d__17>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<ResolveAsync>d__10>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<ResolveCardCastAsync>d__31>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<ReturnAsync>d__77>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<StartupSyncAsync>d__26>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.TapTap.dll.bytes
+AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<TakeTurnAsync>d__11>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<TakeTurnAsync>d__22>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Int32>,<ExecuteAsync>d__3>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Int32>,<ResolveChargeDeclarationAsync>d__63>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<String>,<ExecuteAsync>d__2>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<Boolean>	safe	AOT 侧 HotUpdateLoader.LoadDeviceAsync 本身即 async UniTask<bool>（原生实例化，无需锚点）	# ← Tide.HotUpdate.dll.bytes,Tide.TapTap.dll.bytes
+AsyncUniTaskMethodBuilder<Boolean>.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<ActivateHeroSkill>d__70>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<Boolean>.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<CoinStageAsync>d__30>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<Boolean>.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<CoinStageForcedAsync>d__31>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<Boolean>.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<ExecuteAsync>d__13>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<Boolean>.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<ExecutePayloadAtomAsync>d__3>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<Boolean>.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<PayPayloadsAsync>d__0>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<Boolean>.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<UseHeroSkillAsync>d__25>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<Boolean>.AwaitUnsafeOnCompleted<Awaiter<String>,<AskCardNameAsync>d__4>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<Int32>	anchored	HotUpdateLoader.cs 静态构造既有锚（AsyncUniTaskMethodBuilder<int>）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<Int32>.AwaitUnsafeOnCompleted<Awaiter<Int32>,<PickMoveDestinationAsync>d__98>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<Int32>.AwaitUnsafeOnCompleted<Awaiter<Int32>,<RequestOneIndexAsync>d__23>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<Int32>.AwaitUnsafeOnCompleted<Awaiter<List<Int32>>,<SelectOneAsync>d__19>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<Int32>.AwaitUnsafeOnCompleted<Awaiter<List<Int32>>,<SelectOneAsync>d__54>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<Int32>.AwaitUnsafeOnCompleted<Awaiter<ValueTuple<Int32,List<Int32>,List<Int32>>>,<RequestOneIndexAsync>d__23>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<List<Card>>.AwaitUnsafeOnCompleted<Awaiter<Int32>,<ArrangeAsync>d__2>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<List<Entity>>.AwaitUnsafeOnCompleted<Awaiter<List<Int32>>,<RequestAsync>d__22>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<List<Entity>>.AwaitUnsafeOnCompleted<Awaiter<ValueTuple<Int32,List<Int32>,List<Int32>>>,<RequestAsync>d__22>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<List<Int32>>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<List<Int32>>.AwaitUnsafeOnCompleted<Awaiter<List<Int32>>,<SelectAsync>d__48>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<List<Int32>>.AwaitUnsafeOnCompleted<Awaiter<List<Int32>>,<SelectIndicesAsync>d__50>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<List<Int32>>.AwaitUnsafeOnCompleted<Awaiter<ValueTuple<Int32,List<Int32>,List<Int32>>>,<Run>d__59>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<List<Int32>>.AwaitUnsafeOnCompleted<Awaiter<ValueTuple<Int32,List<Int32>,List<Int32>>>,<RunChoice>d__53>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<List<Int32>>.AwaitUnsafeOnCompleted<Awaiter<ValueTuple<Int32,List<Int32>,List<Int32>>>,<SelectAsync>d__18>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<Nullable<Boolean>>	anchored	HotUpdateLoader.cs 静态构造既有锚（AsyncUniTaskMethodBuilder<bool?>）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<Nullable<Boolean>>.AwaitUnsafeOnCompleted<TaskAwaiter<Nullable<Boolean>>,<ShowAsync>d__5>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<Nullable<Boolean>>.AwaitUnsafeOnCompleted<TaskAwaiter<Nullable<Boolean>>,<ShowTipPromptAsync>d__248>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<Nullable<Int32>>	anchored	HotUpdateLoader.cs 静态构造既有锚（AsyncUniTaskMethodBuilder<int?>）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<Nullable<Int32>>.AwaitUnsafeOnCompleted<Awaiter<List<Int32>>,<PickRegionOptionAsync>d__107>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<ResponseOption>.AwaitUnsafeOnCompleted<Awaiter<List<Int32>>,<ShowResponseAsync>d__60>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<String>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes,Tide.TapTap.dll.bytes
+AsyncUniTaskMethodBuilder<String>.AwaitUnsafeOnCompleted<Awaiter<String>,<AskDimensionAsync>d__5>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<String>.AwaitUnsafeOnCompleted<Awaiter<String>,<LoginAsync>d__17>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.TapTap.dll.bytes
+AsyncUniTaskMethodBuilder<String>.AwaitUnsafeOnCompleted<Awaiter<String>,<PromptTextAsync>d__56>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<String>.AwaitUnsafeOnCompleted<Awaiter<String>,<RequestTextAsync>d__24>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<String>.AwaitUnsafeOnCompleted<Awaiter<String>,<SelectTextAsync>d__55>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<String>.AwaitUnsafeOnCompleted<Awaiter<ValueTuple<Int32,String,String>>,<PromptTextModalAsync>d__58>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<String>.AwaitUnsafeOnCompleted<Awaiter<ValueTuple<Int32,String,String>>,<RunTextInputAsync>d__57>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<String>.AwaitUnsafeOnCompleted<Awaiter<ValueTuple<Int32,String,String>>,<SelectTextAsync>d__20>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<String>.AwaitUnsafeOnCompleted<Awaiter<ValueTuple<String,String,Boolean>>,<AskDimensionAsync>d__5>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<String>.AwaitUnsafeOnCompleted<TaskAwaiter<String>,<EnsureLoginAndConnectAsync>d__14>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.TapTap.dll.bytes
+AsyncUniTaskMethodBuilder<ValueTuple<String,String,Boolean>>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<ValueTuple<String,String,Boolean>>.AwaitUnsafeOnCompleted<Awaiter<Int32>,<PickOptionAsync>d__6>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<ValueTuple<String,String>>	anchored	HotUpdateLoader.cs 静态构造既有锚（AsyncUniTaskMethodBuilder<(string,string)>）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<ValueTuple<String,String>>.AwaitUnsafeOnCompleted<Awaiter<ValueTuple<String,String>>,<DeckPickStageAsync>d__33>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<ConnectAsync>d__47>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<LoginFromUiAsync>d__10>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.TapTap.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<NetUseCardAsync>d__143>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<PerformAsync>d__75>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<RunAsync>d__27>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<RunAsync>d__2>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.TapTap.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<TryAutoUpload>d__4>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.TapTap.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<List<Int32>>,<NetSelectAsync>d__160>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Boolean>>,<ConfirmCopyPresetAsync>d__115>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Boolean>>,<ConfirmDeleteDeckAsync>d__117>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Boolean>>,<ConfirmForceDeleteCardAsync>d__141>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Boolean>>,<ConfirmForceDeleteEffectAsync>d__126>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Boolean>>,<HandleReplacedLegacyAsync>d__127>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Boolean>>,<LoginFlow>d__14>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.TapTap.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Boolean>>,<OnConcede>d__106>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Boolean>>,<PromptGauntletOverAsync>d__70>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Boolean>>,<PromptTutorialCompleteAsync>d__69>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Boolean>>,<PromptTutorialRetryAsync>d__68>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Boolean>>,<StartGauntletOpeningAsync>d__113>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Int32>>,<ActivateSkillAsync>d__105>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Int32>>,<NetActivateSkillAsync>d__155>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Int32>>,<NetAttackFlowAsync>d__153>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Int32>>,<NetGuardFlowAsync>d__154>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Int32>>,<NetPlaceLandAsync>d__147>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Int32>>,<NetSelectAsync>d__160>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Int32>>,<NetUseCardAsync>d__143>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Int32>>,<OnClickUnitEffectButton>d__33>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Int32>>,<PickLandColorAsync>d__77>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Int32>>,<PromptModeThenPickCell>d__96>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<String>,<JoinTapRoom>d__9>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.TapTap.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<String>,<LoginFlow>d__14>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.TapTap.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<String>,<NetTextAsync>d__162>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<String>,<RefreshTapRooms>d__8>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.TapTap.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<String>,<StartTapHost>d__7>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.TapTap.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<String>,<WarmupInternal>d__19>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.TapTap.dll.bytes
+AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<ValueTuple<String,String>>,<RunAsync>d__27>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+Awaiter<Boolean>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes,Tide.TapTap.dll.bytes
+Awaiter<Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+Awaiter<List<Int32>>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+Awaiter<Nullable<Boolean>>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes,Tide.TapTap.dll.bytes
+Awaiter<Nullable<Int32>>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+Awaiter<String>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes,Tide.TapTap.dll.bytes
+Awaiter<ValueTuple<Int32,List<Int32>,List<Int32>>>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+Awaiter<ValueTuple<Int32,String,String>>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+Awaiter<ValueTuple<String,String,Boolean>>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+Awaiter<ValueTuple<String,String>>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackFormatterProvider.IsRegistered<Nullable<Int32>>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackFormatterProvider.Register<Nullable<Int32>>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackReader.DangerousReadUnmanaged<Int32,Nullable<Int32>,Nullable<Int32>>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackReader.DangerousReadUnmanaged<Nullable<Int32>>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackReader.ReadArray<String>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackReader.ReadUnmanaged<Boolean,Boolean>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackReader.ReadUnmanaged<Boolean,Int32,Int32,Int32,Int32,Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackReader.ReadUnmanaged<Boolean,Int32,Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackReader.ReadUnmanaged<Boolean>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackReader.ReadUnmanaged<Double>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackReader.ReadUnmanaged<Int32,Boolean,UInt32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackReader.ReadUnmanaged<Int32,Boolean>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackReader.ReadUnmanaged<Int32,Int32,Int32,Int32,Boolean,UInt32,Int32,Int32,Int32,Boolean,Boolean>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackReader.ReadUnmanaged<Int32,Int32,Int32,Int32,Int32,Boolean>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackReader.ReadUnmanaged<Int32,Int32,Int32,Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackReader.ReadUnmanaged<Int32,Int32,Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackReader.ReadUnmanaged<Int32,Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackReader.ReadUnmanaged<Int32,Single>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackReader.ReadUnmanaged<Int32,UInt32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackReader.ReadUnmanaged<Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackReader.ReadUnmanaged<Int64>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackReader.ReadUnmanaged<NetworkMessageType,UInt32,UInt16,Int64>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackReader.ReadUnmanaged<Single,Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackReader.ReadUnmanaged<Single>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackReader.ReadUnmanaged<UInt16>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackReader.ReadUnmanaged<UInt32,Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackReader.ReadUnmanaged<UInt32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackReader.ReadUnmanagedArray<Byte>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackReader.ReadUnmanagedArray<Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackReader.ReadUnmanagedArray<Single>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackReader.ReadUnmanagedArray<UInt32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackWriter<!!0>.DangerousWriteUnmanaged<Int32,Nullable<Int32>,Nullable<Int32>>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackWriter<!!0>.WriteArray<String>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackWriter<!!0>.WriteUnmanaged<Boolean,Boolean>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackWriter<!!0>.WriteUnmanaged<Boolean,Int32,Int32,Int32,Int32,Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackWriter<!!0>.WriteUnmanaged<Boolean,Int32,Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackWriter<!!0>.WriteUnmanaged<Double>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackWriter<!!0>.WriteUnmanaged<Int32,Boolean,UInt32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackWriter<!!0>.WriteUnmanaged<Int32,Boolean>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackWriter<!!0>.WriteUnmanaged<Int32,Int32,Int32,Int32,Boolean,UInt32,Int32,Int32,Int32,Boolean,Boolean>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackWriter<!!0>.WriteUnmanaged<Int32,Int32,Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackWriter<!!0>.WriteUnmanaged<Int32,Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackWriter<!!0>.WriteUnmanaged<Int32,UInt32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackWriter<!!0>.WriteUnmanaged<Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackWriter<!!0>.WriteUnmanaged<Int64>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackWriter<!!0>.WriteUnmanaged<Single,Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackWriter<!!0>.WriteUnmanaged<Single>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackWriter<!!0>.WriteUnmanaged<UInt32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackWriter<!!0>.WriteUnmanagedArray<Byte>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackWriter<!!0>.WriteUnmanagedArray<Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackWriter<!!0>.WriteUnmanagedArray<Single>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackWriter<!!0>.WriteUnmanagedArray<UInt32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackWriter<!!0>.WriteUnmanagedWithObjectHeader<Boolean>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackWriter<!!0>.WriteUnmanagedWithObjectHeader<Int32,Int32,Int32,Int32,Int32,Boolean>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackWriter<!!0>.WriteUnmanagedWithObjectHeader<Int32,Int32,Int32,Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackWriter<!!0>.WriteUnmanagedWithObjectHeader<Int32,Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackWriter<!!0>.WriteUnmanagedWithObjectHeader<Int32,Single>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackWriter<!!0>.WriteUnmanagedWithObjectHeader<Int32,UInt32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackWriter<!!0>.WriteUnmanagedWithObjectHeader<Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackWriter<!!0>.WriteUnmanagedWithObjectHeader<Int64>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackWriter<!!0>.WriteUnmanagedWithObjectHeader<NetworkMessageType,UInt32,UInt16,Int64>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackWriter<!!0>.WriteUnmanagedWithObjectHeader<Single,Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+MemoryPackWriter<!!0>.WriteUnmanagedWithObjectHeader<UInt32,Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+NullableFormatter<Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+Tensor<Single>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+UniTask.RunOnThreadPool<Boolean>	anchored	HotUpdateLoader.cs 静态构造 2026-11-09 A1 新锚（RunOnThreadPool<bool>，真机联机 100% 失败事故根因）	# ← Tide.HotUpdate.dll.bytes
+UniTask.WhenAny<List<Int32>,List<Int32>>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+UniTask.WhenAny<String,String>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+UniTask<Boolean>	anchored	RunOnThreadPool<bool> 调用返回值隐式实例化（HotUpdateLoader A1 同批）	# ← Tide.HotUpdate.dll.bytes,Tide.TapTap.dll.bytes
+UniTask<Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+UniTask<List<Int32>>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+UniTask<Nullable<Boolean>>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes,Tide.TapTap.dll.bytes
+UniTask<Nullable<Int32>>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+UniTask<String>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes,Tide.TapTap.dll.bytes
+UniTask<ValueTuple<Int32,List<Int32>,List<Int32>>>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+UniTask<ValueTuple<Int32,String,String>>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+UniTask<ValueTuple<String,String,Boolean>>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+UniTask<ValueTuple<String,String>>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+UniTaskCompletionSource<Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+UniTaskCompletionSource<List<Int32>>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+UniTaskCompletionSource<String>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+UniTaskExtensions.ContinueWith<List<Int32>>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+UniTaskExtensions.ContinueWith<String>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+UniTaskExtensions.Forget<Boolean>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.TapTap.dll.bytes
+UnityAction<Boolean>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+UnityAction<Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+UnityAction<Single>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+UnityAction<String>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+UnityEvent<Boolean>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+UnityEvent<Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+UnityEvent<Single>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+UnityEvent<String>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes

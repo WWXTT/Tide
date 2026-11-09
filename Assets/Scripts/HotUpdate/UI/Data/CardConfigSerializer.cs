@@ -153,6 +153,11 @@ namespace SynergyUI
             return CardLoader.LoadCardsFromText(File.ReadAllText(path));
         }
 
+        /// <summary>CardData → 卡表条目（Cards.json 行形状；2026-11-09 协议 v11 自建内容跨端：
+        /// DeckSubmit 载荷/对局记录存储用——与写盘同一映射源，序列化形状与主表逐字段一致）。
+        /// 主表口径（效果 upsert 落玩家 Effects.json——对本地已存在的效果是幂等 no-op）。</summary>
+        public static CardConfigEntry EntryOf(CardData card) => ToEntry(card, CardTable.Main);
+
         // 把 CardData 映射回 JSON 条目。
         private static CardConfigEntry ToEntry(CardData card, CardTable table = CardTable.Main)
         {

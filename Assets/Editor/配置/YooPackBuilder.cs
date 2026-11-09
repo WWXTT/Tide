@@ -322,6 +322,11 @@ namespace Tide.HotUpdateTools
 
             if (!EnsureStreamingAssetsReady(flavor)) return false; // 快照新鲜=秒级同步复用；过期/缺失/风味不符=全量重建；失败即中止出包
 
+            // AOT 泛型缺口门禁（2026-11-09 阶段C2）：放在快照重建之后——过期路径会经 BuildCurrentTarget
+            // 重编热更 DLL，审计必须对着定稿 DLL 跑；新增未处置的值类型泛型即拦（真机
+            // MissingMethodException 前移到打包前，规则与基线见 AotGenericAudit / Config/aot_generic_baseline.txt）
+            if (!AotGenericAudit.RunGate()) return false;
+
             string ext = target == BuildTarget.Android ? ".apk"
                 : (target == BuildTarget.StandaloneWindows64 || target == BuildTarget.StandaloneWindows) ? ".exe" : "";
             string outDir = Path.Combine("Builds", target.ToString());

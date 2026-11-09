@@ -62,6 +62,43 @@ namespace CardCore.Network
         public string TemplateId;
     }
 
+    /// <summary>自建卡内容 payload（2026-11-09 协议 v11 自建内容跨端定案）：提交方卡组闭包中
+    /// 「非基础池」的卡（出自玩家 Cards.json 或内容包）随 DeckSubmit 携带完整内容 JSON——
+    /// 接收端装进瞬态覆盖层（TransientNetContent）参与校验/渲染，对局结束随终局摘要落
+    /// 对局记录（EncounterRecord.cards）。卡 ID=冻结稳定 ID，内容核对走 Digest 三层指纹。</summary>
+    [MemoryPackable]
+    public partial class MsgCardPayload
+    {
+        [MemoryPackOrder(TagTable.MCP_CardId)]
+        public string CardId;
+
+        [MemoryPackOrder(TagTable.MCP_CardJson)]
+        public string CardJson;
+    }
+
+    /// <summary>自建效果 payload：效果完整内容 JSON（效果 ID=内容哈希，同 ID 即同内容）。</summary>
+    [MemoryPackable]
+    public partial class MsgEffectPayload
+    {
+        [MemoryPackOrder(TagTable.MEP_EffectId)]
+        public string EffectId;
+
+        [MemoryPackOrder(TagTable.MEP_EffectJson)]
+        public string EffectJson;
+    }
+
+    /// <summary>内容包原子行 payload：效果闭包引用的、基础原子表之外的词条行（RowJson=原子行 JSON）。
+    /// 接收端 add-if-missing 进瞬态覆盖层；「导入对手卡组」时同语义入本地。</summary>
+    [MemoryPackable]
+    public partial class MsgAtomRowPayload
+    {
+        [MemoryPackOrder(TagTable.MAR_RefId)]
+        public string RefId;
+
+        [MemoryPackOrder(TagTable.MAR_RowJson)]
+        public string RowJson;
+    }
+
     /// <summary>上行：卡组提交（对局开始前）。CardIds 为 Cards.json 卡 ID（2026-11-05 起为冻结
     /// 稳定 ID，非内容哈希——内容核对走 Digest）；Digest 为提交方本地按同一卡组计算的内容摘要
     ///（三段），服务器与自身计算结果比对。
@@ -69,7 +106,10 @@ namespace CardCore.Network
     /// 且为合格技能结界，否则按无技能开局），不参与 Digest 摘要口径。
     /// TokenCardIds/TokenBindings（2026-10-29 P9b 协议 v5）：衍生物区与槽绑定——参与 Digest
     /// 摘要（TokenSig）并由服务器校验（槽须绑定、绑定值 ∈ 区、模板类型合规；详见
-    /// NetMatchHandshake.ValidateDeckSubmit）。随机预组直提时两块为空数组（模板仍在 CardIds 内）。</summary>
+    /// NetMatchHandshake.ValidateDeckSubmit）。随机预组直提时两块为空数组（模板仍在 CardIds 内）。
+    /// Added（2026-11-09 协议 v11 自建内容跨端）：卡组闭包中非基础池的卡/效果/原子行完整内容——
+    /// 服务器装瞬态覆盖层后校验（此前对端缺卡直接拒局，自建卡无法跨玩家对战）；对局结束随
+    /// 终局摘要回传双方落对局记录。字段为 null/空数组=无自建内容（存量行为）。</summary>
     [MemoryPackable]
     public partial class MsgDeckSubmit
     {
@@ -90,11 +130,23 @@ namespace CardCore.Network
 
         [MemoryPackOrder(TagTable.MDS_TokenBindings)]
         public MsgDeckTokenBinding[] TokenBindings;
+
+        [MemoryPackOrder(TagTable.MDS_AddedCards)]
+        public MsgCardPayload[] AddedCards;
+
+        [MemoryPackOrder(TagTable.MDS_AddedEffects)]
+        public MsgEffectPayload[] AddedEffects;
+
+        [MemoryPackOrder(TagTable.MDS_AddedRows)]
+        public MsgAtomRowPayload[] AddedRows;
     }
 
     /// <summary>下行：对局清单（双座位 DeckSubmit 校验通过后下发）。
     /// OwnCardIds=己方卡组回显（与提交序一致）；对手只给数量（卡组构成隐藏）；
-    /// OwnDeckDigest=服务器按该座位卡组计算的原子行摘要，客户端与本地计算比对。</summary>
+    /// OwnDeckDigest=服务器按该座位卡组计算的原子行摘要，客户端与本地计算比对。
+    /// OpponentCards/Effects/Rows（2026-11-09 协议 v11）：对手卡组闭包中非基础池的卡/效果/原子行
+    /// 内容——供客人端渲染对手自建卡（快照按 CardId 查本地表会缺行）；**只传内容定义不传卡组
+    /// 构成**，局内隐藏口径不变（数量照旧，多张同名卡不可推断）。终局后完整卡组经 MsgMatchSummary 下发。</summary>
     [MemoryPackable]
     public partial class MsgMatchManifest
     {
@@ -109,5 +161,68 @@ namespace CardCore.Network
 
         [MemoryPackOrder(TagTable.MMM_OwnDeckDigest)]
         public NetDeckDigest OwnDeckDigest;
+
+        [MemoryPackOrder(TagTable.MMM_OpponentCards)]
+        public MsgCardPayload[] OpponentCards;
+
+        [MemoryPackOrder(TagTable.MMM_OpponentEffects)]
+        public MsgEffectPayload[] OpponentEffects;
+
+        [MemoryPackOrder(TagTable.MMM_OpponentRows)]
+        public MsgAtomRowPayload[] OpponentRows;
+    }
+
+    /// <summary>下行：终局摘要（2026-11-09 协议 v11 对局记录定案）：对局结束时双座位各收一份，
+    /// 视角=收件人的对手——对手昵称/开位 ID/完整卡组（名字/主列表/技能/衍生物区+槽绑定——
+    /// 对局已结束，局内「卡组构成隐藏」口径不再适用）+对手自建内容 payload+收件人胜负。
+    /// 客户端收到后落 EncounterRecord（含战报导出）并随云存档同步；「导入对手卡组」在对局
+    /// 记录屏操作，默认不进玩家库。对 AI 局不下发（无对手内容可记）。</summary>
+    [MemoryPackable]
+    public partial class MsgMatchSummary
+    {
+        [MemoryPackOrder(TagTable.MMS_MatchId)]
+        public string MatchId;
+
+        [MemoryPackOrder(TagTable.MMS_FinishedAtUnix)]
+        public long FinishedAtUnix;
+
+        [MemoryPackOrder(TagTable.MMS_OpponentName)]
+        public string OpponentName;
+
+        [MemoryPackOrder(TagTable.MMS_OpponentOpenId)]
+        public string OpponentOpenId;
+
+        [MemoryPackOrder(TagTable.MMS_Win)]
+        public bool Win; // 收件人视角：true=收件人获胜
+
+        [MemoryPackOrder(TagTable.MMS_OwnDeckName)]
+        public string OwnDeckName;
+
+        [MemoryPackOrder(TagTable.MMS_OpponentDeckName)]
+        public string OpponentDeckName;
+
+        [MemoryPackOrder(TagTable.MMS_OpponentCardIds)]
+        public string[] OpponentCardIds;
+
+        [MemoryPackOrder(TagTable.MMS_OpponentSkillCardId)]
+        public string OpponentSkillCardId;
+
+        [MemoryPackOrder(TagTable.MMS_OpponentTokenCardIds)]
+        public string[] OpponentTokenCardIds;
+
+        [MemoryPackOrder(TagTable.MMS_OpponentTokenBindings)]
+        public MsgDeckTokenBinding[] OpponentTokenBindings;
+
+        [MemoryPackOrder(TagTable.MMS_Cards)]
+        public MsgCardPayload[] Cards;
+
+        [MemoryPackOrder(TagTable.MMS_Effects)]
+        public MsgEffectPayload[] Effects;
+
+        [MemoryPackOrder(TagTable.MMS_AtomRows)]
+        public MsgAtomRowPayload[] AtomRows;
+
+        [MemoryPackOrder(TagTable.MMS_Log)]
+        public string Log; // 战报 markdown 全文（服务器引擎事件流渲染——客人端无本地引擎，随摘要携带）
     }
 }

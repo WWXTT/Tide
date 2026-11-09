@@ -201,11 +201,10 @@ namespace CloudSave
                 int written = SaveBundleCodec.Unpack(data);
                 if (written < 0) return false;
 
-                // 进度管理器惰性单例整体重置——下次访问按新落盘数据重建（DeckSerializer 等
-                // 文件型序列化器无内存态，无需重置）。旧实例事件订阅随之失效，UI 在 OnRestored 重订。
-                TutorialProgressManager.ResetForCloudRestore();
-                ChallengeProgressManager.ResetForCloudRestore();
-                ElementUnlockManager.ResetForCloudRestore();
+                // 全量重载（2026-11-09 定案）：落盘后静态缓存（内容包/卡目录/效果库/词条表）与
+                // 教学/挑战/元素解锁进度单例确定性失效——不再依赖 mtime 盯盘的节流刷新；
+                // UI 层经 OnRestored 清栈回启动页整树重建，双保险保证读到新数据。
+                SynergyUI.GameDataReload.ReloadAllCaches();
                 _lastSyncAt = DateTime.Now;
                 Debug.Log($"[CloudSync] 云存档已还原（{written} 文件）——管理器已重置");
                 OnRestored?.Invoke();
@@ -275,10 +274,12 @@ namespace CloudSave
         private static int CountFiles()
         {
             int count = 0;
-            foreach (string root in new[] { "TutorialProgress.json", "ChallengeProgress.json", "ElementUnlock.json" })
+            foreach (string root in new[] { "TutorialProgress.json", "ChallengeProgress.json" }) // 2026-11-09：ElementUnlock 出云
                 if (System.IO.File.Exists(System.IO.Path.Combine(TidePaths.PersistentDataPath, root))) count++;
             if (System.IO.Directory.Exists(SynergyUI.CardDataPaths.CardDir))
                 count += System.IO.Directory.GetFiles(SynergyUI.CardDataPaths.CardDir, "*.json").Length;
+            if (System.IO.Directory.Exists(CardCore.EncounterStore.Dir))
+                count += System.IO.Directory.GetFiles(CardCore.EncounterStore.Dir, "*.json").Length;
             return count;
         }
 

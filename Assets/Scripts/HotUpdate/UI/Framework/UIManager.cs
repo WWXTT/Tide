@@ -61,6 +61,19 @@ namespace SynergyUI
             return screen;
         }
 
+        /// <summary>清空整个导航栈并进入新界面（2026-11-09 登录迁移：登出/云恢复统一回启动页）。
+        /// 逐层 Deactivate（退订+OnExit+销毁各自层级）后 Show——历史全弃，Back 不可回到被清界面。</summary>
+        public T ResetTo<T>() where T : UIScreen, new()
+        {
+            Debug.Log("[UINav] ResetTo<" + typeof(T).Name + ">（depth " + _stack.Count + "→0）调用栈：\n" + Environment.StackTrace);
+            while (_stack.Count > 0)
+            {
+                var top = _stack.Pop();
+                Deactivate(top);
+            }
+            return Show<T>();
+        }
+
         /// <summary>返回上一界面。若已在栈底则无操作。</summary>
         public void Back()
         {

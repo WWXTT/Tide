@@ -102,6 +102,7 @@ namespace CardCore
                 MergeTutorialEffects(); // 教学副表合并（2026-10-16）
                 MergeTrainingEffects(); // 训练副表合并（2026-11-03）：训练卡 effectIds 引用解析
                 MergePackEffects(); // 内容包效果合并（G2 2026-11-08）：装包效果并入解析面
+                MergeNetEffects(); // 瞬态网络内容（2026-11-09 协议 v11）：对局期对手自建效果并入解析面
             }
             catch (Exception e)
             {
@@ -174,6 +175,20 @@ namespace CardCore
             foreach (var it in ContentPackRegistry.AllEffects())
             {
                 if (_byId.ContainsKey(it.id)) continue; // 撞号保先装表
+                _byId[it.id] = it;
+                _items.Add(it);
+            }
+        }
+
+        /// <summary>瞬态网络内容合并（2026-11-09 协议 v11 自建内容跨端）：对局期对端效果并入解析面
+        ///（add-if-missing，本地同 id 行优先）；对局结束 TransientNetContent.Clear 出解析面。
+        /// 装载闭环/摘要计算（NetMatchHandshake.CheckCardClosure/ComputeDeckDigest 经 Get）随之覆盖。</summary>
+        private static void MergeNetEffects()
+        {
+            foreach (var it in Network.TransientNetContent.Effects)
+            {
+                if (it == null || string.IsNullOrEmpty(it.id)) continue;
+                if (_byId.ContainsKey(it.id)) continue;
                 _byId[it.id] = it;
                 _items.Add(it);
             }

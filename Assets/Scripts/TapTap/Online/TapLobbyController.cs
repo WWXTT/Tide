@@ -6,7 +6,6 @@ using Cysharp.Threading.Tasks;
 using TapSDK.Core;
 using TapSDK.Login;
 using TapSDK.OnlineBattle;
-using UnityEngine;
 
 namespace SynergyUI.Online
 {
@@ -17,7 +16,6 @@ namespace SynergyUI.Online
     /// </summary>
     public static class TapLobbyController
     {
-        private static bool _sdkInited;
         private static bool _busy;
         private static bool _roomStale; // 传输关闭时未显式退房——下次连接前先退净，防残留房间态
 
@@ -40,17 +38,12 @@ namespace SynergyUI.Online
             _busy = true;
             try
             {
-                if (!_sdkInited)
-                {
-                    TapTapSDK.Init(new TapTapSdkOptions
-                    {
-                        clientId = TapOnlineConfig.ClientId,
-                        clientToken = TapOnlineConfig.ClientToken,
-                        region = TapTapRegionType.CN,
-                        enableLog = Application.isEditor,
-                    });
-                    _sdkInited = true;
-                }
+                // 初始化竞态修复（2026-11-09 A3）：进程内只允许一处 TapTapSDK.Init——原先这里
+                // 自行 Init 后立刻取账号，与启动链（TapCloudSaveBootstrap/账号服务预热）的 Init
+                // 相撞，重复 Init 重置 SDK 状态导致 GetCurrentTapAccount 报「SDK not initialized」。
+                // 改走账号服务的幂等 Init+终态等待（EnsureReadyAsync），就绪后再登录。
+                var initFail = await TapAccountService.EnsureReadyAsync();
+                if (initFail != null) return initFail;
 
                 // 静默续登优先（SDK 有账号缓存），无账号才拉起 TapTap 登录
                 var account = await TapTapLogin.Instance.GetCurrentTapAccount();

@@ -48,6 +48,12 @@ namespace CardCore.Network
         private readonly List<SynergyUI.DeckTokenBinding>[] _deckTokenBindings =
             new List<SynergyUI.DeckTokenBinding>[2];
 
+        // 自建内容跨端 + 对局记录（2026-11-09 协议 v11）：按椅位存提交原件（内容载荷/卡组名）——
+        // Manifest 期把对手内容下发对方客户端渲染、终局期组装 MsgMatchSummary 双端落对局记录。
+        // 服务器替落预组的座位 _submits 为 null（预组内容双方本地恒有，无需载荷）。
+        private readonly MsgDeckSubmit[] _submits = new MsgDeckSubmit[2];
+        private readonly string[] _deckNames = new string[2];
+
         private int _firstSeat = -1;          // 本局先手椅位（未开局 -1）
         private bool _roomStateDirty = true;  // RoomState 待广播
         private bool _gameOver;
@@ -199,6 +205,8 @@ namespace CardCore.Network
             conn.ChairSeat = seat;
             conn.MatchSeat = -1;
             conn.Nickname = string.IsNullOrEmpty(join.Nickname) ? $"玩家{seat + 1}" : join.Nickname;
+            conn.OpenId = join.OpenId ?? ""; // v11 对局记录：进房方自报（观战/局域网/AI 为空）
+            conn.IsAi = join.IsAi;           // v11：AI 填位标记——AI 局不下发终局摘要
             _chairs[seat] = conn;
             _ready[seat] = false; // 新入座者未准备（重进房/换人：准备态不继承）
             _roomStateDirty = true;
@@ -270,6 +278,11 @@ namespace CardCore.Network
             var submit = NetworkSerializer.DeserializePayload<MsgDeckSubmit>(msg);
             if (submit == null) { SendError(conn, "DeckSubmit 载荷损坏", "DeckSubmit"); return; }
 
+            // v11 自建内容跨端：先装瞬态覆盖层再校验——提交方随卡组携带非基础池卡/效果/词条的
+            // 完整内容，校验/摘要按「本地表+覆盖层」计算（此前对端缺卡恒拒局，自建卡无法跨玩家
+            // 对战）。被拒提交的残留载荷无害（add-if-missing 不覆盖本地、不落盘，Teardown 统一清）。
+            TransientNetContent.Install(submit.AddedCards, submit.AddedEffects, submit.AddedRows);
+
             if (!NetMatchHandshake.ValidateDeckSubmit(submit, out var reason))
             {
                 SendError(conn, reason, "DeckSubmit"); // 拒绝后保持等该座位重提
@@ -280,6 +293,8 @@ namespace CardCore.Network
             _skillIds[conn.ChairSeat] = SanitizeSkillCardId(submit.SkillCardId, submit.CardIds, conn.ChairSeat);
             _deckTokens[conn.ChairSeat] = submit.TokenCardIds ?? Array.Empty<string>();
             _deckTokenBindings[conn.ChairSeat] = NetMatchHandshake.FromWireBindings(submit.TokenBindings);
+            _submits[conn.ChairSeat] = submit;
+            _deckNames[conn.ChairSeat] = submit.DeckName;
             if (_deckIds[0] != null && _deckIds[1] != null)
             {
                 _pickDeadlineUtc = null; // 双方确认完毕：倒计时退役
@@ -436,9 +451,16 @@ namespace CardCore.Network
             {
                 var conn = _chairs[chair];
                 if (conn == null) continue;
-                conn.SendPayload(NetworkMessageType.MatchManifest, NetMatchHandshake.BuildMatchManifest(
+                var manifest = NetMatchHandshake.BuildMatchManifest(
                     conn.MatchSeat, _deckIds[chair], _deckIds[1 - chair].Length,
-                    _deckTokens[chair], _deckTokenBindings[chair]));
+                    _deckTokens[chair], _deckTokenBindings[chair]);
+                // v11：对手自建内容随清单下发（卡/效果/词条定义——对方客户端渲染对手卡用；
+                // 只传内容定义不传卡组构成，局内隐藏口径不变；终局完整卡组走 MatchSummary）
+                var opponent = _submits[1 - chair];
+                manifest.OpponentCards = opponent?.AddedCards ?? Array.Empty<MsgCardPayload>();
+                manifest.OpponentEffects = opponent?.AddedEffects ?? Array.Empty<MsgEffectPayload>();
+                manifest.OpponentRows = opponent?.AddedRows ?? Array.Empty<MsgAtomRowPayload>();
+                conn.SendPayload(NetworkMessageType.MatchManifest, manifest);
             }
 
             _gameOver = false;
@@ -454,15 +476,61 @@ namespace CardCore.Network
             _phase = NetRoomPhase.Finished;
             _roomStateDirty = true;
             MarkSnapshotDirty(); // 终局快照：静默判定对 Finished 恒真
+            SendMatchSummaries(e); // v11 对局记录：终局摘要双座位各发一份
         }
 
-        /// <summary>终局/重置收口：卸反问桥、退订终局、拆棋盘接线。</summary>
+        /// <summary>终局摘要（2026-11-09 协议 v11 对局记录）：双座位各收一份，视角=收件人的对手——
+        /// 对手完整卡组（对局已结束，局内「卡组构成隐藏」不再适用）+ 自建内容载荷 + 收件人胜负 +
+        /// 战报全文（房主侧引擎事件流渲染——客人端无本地引擎，战报只能随摘要携带）。AI 填位局
+        /// 不下发（对手内容=本机预组，无记录价值）；替落预组座位（_submits 空）照发——卡组数据
+        /// 在 _deckIds 系列恒有。客户端收到后落 EncounterRecord 随云存档同步。</summary>
+        private void SendMatchSummaries(GameOverEvent e)
+        {
+            if (_chairs.Any(c => c == null || c.IsAi)) return;
+            // 胜者座位（Player 无座位字段——工程口径=ReferenceEquals 对 Player1/Player2，TurnEngine 同款）
+            var core = GameCore.Instance;
+            int winnerSeat = -1;
+            if (e.Winner != null && core != null)
+            {
+                if (ReferenceEquals(e.Winner, core.Player1)) winnerSeat = 0;
+                else if (ReferenceEquals(e.Winner, core.Player2)) winnerSeat = 1;
+            }
+            string log = MatchLogService.ExportMarkdownText();
+            long finishedAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            for (int chair = 0; chair < 2; chair++)
+            {
+                int opp = 1 - chair;
+                var oppSubmit = _submits[opp];
+                bool win = winnerSeat >= 0 && winnerSeat == _chairs[chair].MatchSeat;
+                _chairs[chair].SendPayload(NetworkMessageType.MatchSummary, new MsgMatchSummary
+                {
+                    FinishedAtUnix = finishedAt,
+                    OpponentName = _chairs[opp].Nickname,
+                    OpponentOpenId = _chairs[opp].OpenId ?? "",
+                    Win = win,
+                    OwnDeckName = _deckNames[chair] ?? "",
+                    OpponentDeckName = _deckNames[opp] ?? "",
+                    OpponentCardIds = _deckIds[opp] ?? Array.Empty<string>(),
+                    OpponentSkillCardId = _skillIds[opp],
+                    OpponentTokenCardIds = _deckTokens[opp] ?? Array.Empty<string>(),
+                    OpponentTokenBindings = oppSubmit?.TokenBindings,
+                    Cards = oppSubmit?.AddedCards,
+                    Effects = oppSubmit?.AddedEffects,
+                    AtomRows = oppSubmit?.AddedRows,
+                    Log = log,
+                });
+                TideLog.Info($"[NetRoom] 终局摘要已下发 → 座位 {chair}（对手 {_chairs[opp].Nickname}，{(win ? "胜" : "负")}）");
+            }
+        }
+
+        /// <summary>终局/重置收口：卸反问桥、退订终局、拆棋盘接线、清瞬态内容覆盖层（v11）。</summary>
         private void TeardownMatch()
         {
             _selector?.AbortPending();
             _selector?.Detach();
             _selector = null;
             EventManager.Instance.Unsubscribe<GameOverEvent>(OnGameOver);
+            TransientNetContent.Clear(); // v11：对局期装载的对端自建内容出索引（默认不显示铁律）
             CombatSystem.AdjacentResolver = null;
             CombatSystem.RoleAdjacentResolver = null;
             GameBoard.LinkAuraSystem.Detach();
@@ -484,6 +552,8 @@ namespace CardCore.Network
             _skillIds[seat] = null;
             _deckTokens[seat] = null;
             _deckTokenBindings[seat] = null;
+            _submits[seat] = null;
+            _deckNames[seat] = null;
         }
 
         private static List<CardData> BuildDeck(string[] cardIds, string[] tokenCardIds, List<string> missing)
@@ -537,6 +607,10 @@ namespace CardCore.Network
                     _deckTokens[1] = null;
                     _deckTokenBindings[0] = null;
                     _deckTokenBindings[1] = null;
+                    _submits[0] = null;
+                    _submits[1] = null;
+                    _deckNames[0] = null;
+                    _deckNames[1] = null;
                     _pickDeadlineUtc = null;
                     _firstSeat = -1;
                     _ready[0] = false;
@@ -572,6 +646,10 @@ namespace CardCore.Network
             _deckTokens[1] = null;
             _deckTokenBindings[0] = null;
             _deckTokenBindings[1] = null;
+            _submits[0] = null;
+            _submits[1] = null;
+            _deckNames[0] = null;
+            _deckNames[1] = null;
             _firstSeat = -1;
             _pickDeadlineUtc = null;
             _ready[0] = false;

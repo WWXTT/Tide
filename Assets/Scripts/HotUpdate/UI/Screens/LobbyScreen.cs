@@ -203,11 +203,19 @@ namespace SynergyUI
                 ok = await UniTask.RunOnThreadPool(() =>
                 {
                     try { client.Connect(host, port); return true; }
-                    catch (Exception) { return false; }
+                    catch (Exception ex)
+                    {
+                        // 连接层异常（拒绝/不可达）——类型必须落日志，不能只吞成 false
+                        TideLog.Warn($"[Lobby] 连接异常（{host}:{port}）{ex.GetType().Name}: {ex.Message}");
+                        return false;
+                    }
                 });
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                // 异步路径异常（含 AOT 泛型缺口的 MissingMethodException）原先被静默吞成
+                // 「连接失败」文案（2026-11-09 真机实录），logcat 零痕迹——类型+栈必须可见
+                TideLog.Error($"[Lobby] 连接异常（{host}:{port}）{ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}");
                 ok = false;
             }
             if (!ok)
@@ -222,7 +230,8 @@ namespace SynergyUI
         }
 
         /// <summary>客户端就位：接管连接 → 发协议 JoinRoom（首条消息——分座由 NetRoom 定）。
-        /// TCP 直连与 TapTap 传输（已就绪再构造）两路共用。public=Tide.TapTap 联机段跨程序集同路调用。</summary>
+        /// TCP 直连与 TapTap 传输（已就绪再构造）两路共用。public=Tide.TapTap 联机段跨程序集同路调用。
+        /// OpenId（2026-11-09 协议 v11）：TapTap 已登录时随进房自报（对局记录对手身份；局域网空）。</summary>
         public void AdoptClientAndJoin(NetGameClient client, int wantSeat, string nickname)
         {
             _client = client;
@@ -233,6 +242,7 @@ namespace SynergyUI
                 RoomId = "",
                 WantSeat = wantSeat,
                 Nickname = nickname,
+                OpenId = _tapSection?.OpenIdOf() ?? "",
             });
             SetStatus("已连接，等待进房…");
         }

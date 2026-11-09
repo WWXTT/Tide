@@ -20,6 +20,7 @@ namespace CardCore.Network
         public event Action<MsgLobbyState> OnLobbyState; // 大厅层（阶段三匹配界面，2026-09-24）
         public event Action<MsgRoomState> OnRoomState;
         public event Action<MsgMatchManifest> OnManifest;
+        public event Action<MsgMatchSummary> OnMatchSummary; // 终局摘要（2026-11-09 协议 v11 对局记录）
         public event Action<MsgGameStateSync> OnSnapshot;
         public event Action<NetEvent[]> OnEventBatch;
         public event Action<MsgSelectRequest> OnSelectRequest;
@@ -89,6 +90,10 @@ namespace CardCore.Network
 
                 case NetworkMessageType.MatchManifest:
                     OnManifest?.Invoke(NetworkSerializer.DeserializePayload<MsgMatchManifest>(msg));
+                    break;
+
+                case NetworkMessageType.MatchSummary: // v11 终局摘要（对局记录——客户端落 EncounterStore）
+                    OnMatchSummary?.Invoke(NetworkSerializer.DeserializePayload<MsgMatchSummary>(msg));
                     break;
 
                 case NetworkMessageType.GameStateSyncV2:

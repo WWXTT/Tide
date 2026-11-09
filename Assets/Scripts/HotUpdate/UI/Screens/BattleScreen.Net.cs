@@ -61,6 +61,7 @@ namespace SynergyUI
             _netClient.OnTextRequest += NetOnTextRequest;
             _netClient.OnRoomState += NetOnRoomState;
             _netClient.OnManifest += NetOnManifest;
+            _netClient.OnMatchSummary += NetOnMatchSummary; // v11 终局摘要 → 对局记录
             _netClient.OnError += e => _toast.Show($"被拒（{e?.Context}）：{e?.Reason}");
             _netClient.OnDisconnected += NetOnDisconnected;
 
@@ -82,8 +83,10 @@ namespace SynergyUI
         }
 
         /// <summary>网络五段式段五（确认出战）：UI 已关、对局开始前——发 DeckSubmit 握手（摘要主线程算）。
-        /// tokenCardIds/tokenBindings（P9b 2026-10-29）：衍生物区/槽绑定随提交上送并计入摘要口径。</summary>
-        private void NetEngageStaged(string[] cardIds, string skillCardId,
+        /// tokenCardIds/tokenBindings（P9b 2026-10-29）：衍生物区/槽绑定随提交上送并计入摘要口径。
+        /// Added*（2026-11-09 协议 v11 自建内容跨端）：卡组闭包全部卡/效果/词条内容随提交携带——
+        /// 服务器装瞬态覆盖层后校验，对端缺卡不再恒拒局；DeckName=真实卡组名（终局摘要回显）。</summary>
+        private void NetEngageStaged(string deckName, string[] cardIds, string skillCardId,
             string[] tokenCardIds, List<DeckTokenBinding> tokenBindings)
         {
             if (_netClient == null || cardIds == null || cardIds.Length == 0) return;
@@ -91,23 +94,31 @@ namespace SynergyUI
             _netSubmittedTokenIds = tokenCardIds;
             _netSubmittedTokenBindings = tokenBindings;
             var digest = NetMatchHandshake.ComputeDeckDigest(cardIds, tokenCardIds, tokenBindings); // 主线程（确认点击）——服务器泵同帧串行，天然安全
+            NetDeckPayload.BuildForDeck(cardIds, tokenCardIds, skillCardId,
+                out var addedCards, out var addedEffects, out var addedRows);
             _netClient.Send(NetworkMessageType.DeckSubmit, new MsgDeckSubmit
             {
-                DeckName = "net",
+                DeckName = string.IsNullOrEmpty(deckName) ? "随机卡组" : deckName,
                 CardIds = cardIds,
                 Digest = digest,
                 SkillCardId = skillCardId,
                 TokenCardIds = tokenCardIds ?? Array.Empty<string>(),
                 TokenBindings = NetMatchHandshake.ToWireBindings(tokenBindings),
+                AddedCards = addedCards,
+                AddedEffects = addedEffects,
+                AddedRows = addedRows,
             });
-            Debug.Log($"[BattleScreen] 已确认卡组（{cardIds.Length}张）——等待对手确认与开局…");
+            Debug.Log($"[BattleScreen] 已确认卡组（{cardIds.Length}张，载荷卡{addedCards.Length}/效果{addedEffects.Length}/词条{addedRows.Length}）——等待对手确认与开局…");
             _toast.Show("已确认卡组——等待对手与开局…");
         }
 
-        /// <summary>开局清单到达（双方确认完毕）：校验回显→收口段四面板→对局开始（等首快照）。</summary>
+        /// <summary>开局清单到达（双方确认完毕）：校验回显→收口段四面板→对局开始（等首快照）。
+        /// v11：对手自建内容（OpponentCards/Effects/Rows）装瞬态覆盖层——快照按 CardId 查表渲染
+        /// 对手卡、终局导入对手卡组均有据（本地已有同 ID 跳过；对局结束 NetShutdown 统一清）。</summary>
         private void NetOnManifest(MsgMatchManifest manifest)
         {
             if (manifest == null) return;
+            TransientNetContent.Install(manifest.OpponentCards, manifest.OpponentEffects, manifest.OpponentRows);
             if (_netSubmittedDeckIds != null
                 && !NetMatchHandshake.VerifyMatchManifest(manifest, _netSubmittedDeckIds,
                     _netSubmittedTokenIds, _netSubmittedTokenBindings, out var reason))
@@ -119,6 +130,35 @@ namespace SynergyUI
             }
             _opening?.NetDeckPanel?.ForceClose(); // 服务器代提/双方已齐——面板收口（不再本地提交）
             Debug.Log($"[BattleScreen] 网络开局清单校验通过（OwnSeat={manifest.OwnSeat}）——对局开始");
+        }
+
+        /// <summary>终局摘要到达（2026-11-09 协议 v11 对局记录）：落 EncounterRecord（对手完整卡组+
+        /// 自建内容载荷+胜负+服务器渲染战报全文），随云存档同步；对手内容默认不进玩家库——
+        /// 「导入对手卡组」在对局记录屏操作（OpponentDeckImporter）。</summary>
+        private void NetOnMatchSummary(MsgMatchSummary summary)
+        {
+            if (summary == null) return;
+            var record = new EncounterRecord
+            {
+                matchId = summary.MatchId, // 服务器不分配——Append 落盘时自动生成
+                finishedAtUnix = summary.FinishedAtUnix > 0
+                    ? summary.FinishedAtUnix : DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+                opponentName = string.IsNullOrEmpty(summary.OpponentName) ? "对手" : summary.OpponentName,
+                opponentOpenId = summary.OpponentOpenId ?? "",
+                win = summary.Win,
+                ownDeckName = summary.OwnDeckName ?? "",
+                opponentDeckName = summary.OpponentDeckName ?? "",
+                opponentCardIds = summary.OpponentCardIds ?? Array.Empty<string>(),
+                opponentSkillCardId = summary.OpponentSkillCardId,
+                opponentTokenCardIds = summary.OpponentTokenCardIds ?? Array.Empty<string>(),
+                opponentTokenBindings = summary.OpponentTokenBindings,
+                cards = summary.Cards,
+                effects = summary.Effects,
+                atomRows = summary.AtomRows,
+                log = summary.Log,
+            };
+            EncounterStore.Append(record);
+            Debug.Log($"[BattleScreen] 对局记录已入账：vs {record.opponentName}（{record.opponentDeckName}）——{(record.win ? "胜" : "负")}");
         }
 
         /// <summary>快照到达：BuildNet → 投影器 ApplySnapshot（渲染扇出与本地同轨）+ 双扇对账。</summary>
@@ -801,7 +841,8 @@ namespace SynergyUI
             MarkGameOverUi("连接断开——对局作废（断线重连属后续里程碑）");
         }
 
-        /// <summary>网络局收口（OnExit）：拆连接；房主侧会话服务器一并停机（重开=回房间屏重建）。</summary>
+        /// <summary>网络局收口（OnExit）：拆连接；房主侧会话服务器一并停机（重开=回房间屏重建）；
+        /// 瞬态内容覆盖层清空（v11——对手自建内容出索引，默认不显示铁律）。</summary>
         private void NetShutdown()
         {
             if (_netClient != null)
@@ -812,12 +853,14 @@ namespace SynergyUI
                 _netClient.OnTextRequest -= NetOnTextRequest;
                 _netClient.OnRoomState -= NetOnRoomState;
                 _netClient.OnManifest -= NetOnManifest;
+                _netClient.OnMatchSummary -= NetOnMatchSummary;
                 _netClient.OnDisconnected -= NetOnDisconnected;
                 NetClientRuntime.Unbind(_netClient);
                 _netClient.Close();
                 _netClient = null;
             }
-            NetSessionServer.Current?.Stop(); // 房主侧：非 host 为 no-op
+            NetSessionServer.Current?.Stop(); // 房主侧：非 host 为 no-op（Stop 内 Teardown 也清覆盖层）
+            TransientNetContent.Clear(); // 纯客人侧兜底（房主已在 TeardownMatch 清过——幂等）
             _netSnapshot = null;
         }
 

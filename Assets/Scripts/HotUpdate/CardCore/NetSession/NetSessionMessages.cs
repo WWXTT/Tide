@@ -34,7 +34,9 @@ namespace CardCore.Network
     }
 
     /// <summary>上行：进房（连接后第一条消息）。WantSeat=0/1 指定椅子位（被占即拒）、-1 任意空位；
-    /// AsSpectator=true 一律登记观战（观战全信息——2026-09-23 定案）。</summary>
+    /// AsSpectator=true 一律登记观战（观战全信息——2026-09-23 定案）。
+    /// OpenId/IsAi（2026-11-09 协议 v11 对局记录）：TapTap 开位 ID（服务器不持有 TapTap 档案，
+    /// 由进房方自报，随终局摘要回传对手；局域网为空）与 AI 填位标记（AI 局不下发终局摘要）。</summary>
     [MemoryPackable]
     public partial class MsgJoinRoom
     {
@@ -49,6 +51,12 @@ namespace CardCore.Network
 
         [MemoryPackOrder(TagTable.MJR_Nickname)]
         public string Nickname;
+
+        [MemoryPackOrder(TagTable.MJR_OpenId)]
+        public string OpenId;
+
+        [MemoryPackOrder(TagTable.MJR_IsAi)]
+        public bool IsAi;
     }
 
     /// <summary>下行：房间全量状态（任何成员变化/阶段迁移时广播）。

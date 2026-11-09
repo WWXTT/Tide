@@ -17,7 +17,14 @@ namespace Tide.HotUpdate
         /// <summary>启动装配（原 CloudSave.TapCloudSaveBootstrap.Init：SDK Init→静默登录→启动同步旁路）。</summary>
         void InitOnStartup();
 
-        /// <summary>主菜单 Build 期挂件：登录徽章 Attach + 云存档入口构建。</summary>
+        /// <summary>启动页登录区装配（2026-11-09 登录迁移：登录从主菜单徽章迁入启动页）：
+        /// 在 <paramref name="screen"/>.LoginSlot 注入登录按钮/账号态并接线
+        /// screen.NotifyLoginStateChanged（已登录→true 触发自动进主菜单）。
+        /// 返回登录可用性：false=编辑器/未配置/平台不支持——启动页按游客自动放行。</summary>
+        bool AttachLaunchLogin(LaunchScreen screen);
+
+        /// <summary>主菜单 Build 期挂件：云存档入口构建（2026-11-09 起右上登录徽章退役，
+        /// 账号信息并入右下云存档入口，登录入口只在启动页）。</summary>
         void OnMainMenuBuilt(MainMenuScreen menu);
 
         /// <summary>主菜单进场：静默续登 Warmup + 云存档事件订阅 + 挂起恢复询问补问。</summary>
@@ -41,6 +48,10 @@ namespace Tide.HotUpdate
 
         /// <summary>昵称兜底（TapTap 登录名；未登录返回空）。</summary>
         string FallbackNickname();
+
+        /// <summary>本机 TapTap openId（2026-11-09 协议 v11 对局记录：进房自报，随终局摘要回传
+        /// 对手；未登录/单机风味返回空）。</summary>
+        string OpenIdOf();
     }
 
     /// <summary>

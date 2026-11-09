@@ -158,16 +158,18 @@ namespace CardCore.Editor
                 ben.RemoveCounters(CardCore.Attribute.CounterRules.SilenceCounter, 1);
                 ben.RemoveCounters(CardCore.Attribute.CounterRules.NullifyCounter, 1);
 
-                // ---- 4. 失效不压来源（2026-10-31 失效改名定案：光环域整体退出压制——
-                //      来源被失效（原缄默，id 仍 Nullify）光环照常投递）；净化不压箭头（箭头=卡面数据）----
+                // ---- 4. 失效只压载体（2026-11-09 定案，取代 2026-10-31「光环域整体退出压制」）：
+                //      失效已开通以结界为目标——来源被失效（原缄默，id 仍 Nullify）时整条光环断供，
+                //      受益者随之失去光环赋予的属性/关键词；受益者侧失效不剥光环=段3 已锚；
+                //      净化不压箭头（箭头=卡面数据）----
                 src.AddCounters(CardCore.Attribute.CounterRules.NullifyCounter, 1, p1);
                 GameBoard.LinkAuraSystem.InvalidateCache();
-                Assert(ben.GetPower() == 5 && ben.HasKeyword("Taunt"),
-                       "失效不压光环来源：加成照常（2026-10-31 定案——失效只压关键词与触发式）");
+                Assert(ben.GetPower() == 3 && !ben.HasKeyword("Taunt"),
+                       "失效压光环载体：整条光环断供——加成与关键词随来源失效消失（2026-11-09 定案——失效已可指结界）");
                 src.RemoveCounters(CardCore.Attribute.CounterRules.NullifyCounter, 1);
                 GameBoard.LinkAuraSystem.InvalidateCache();
                 Assert(ben.GetPower() == 5 && ben.HasKeyword("Taunt"),
-                       "对照：解除后光环仍常（上断言非偶然；净化也不压箭头——箭头是卡面数据）");
+                       "对照：解除失效后光环恢复（清掉载体失效层即恢复；净化不压箭头——箭头是卡面数据）");
 
                 // ---- 4c. 属性光环负值（Power）：LayerEngine 战斗读数同减。
                 //      2026-10-09 清理：Life 负值/Both（六类属性光环方案）未实施——两断言删除，待方案落地再回锚 ----

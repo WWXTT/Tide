@@ -19,9 +19,10 @@ namespace SynergyUI.Online
 
     /// <summary>
     /// TapTap 登录门面（2026-10-23 登录接入）：主菜单登录入口 + 启动静默续登的单一登录态源。
-    /// 与联机侧 TapLobbyController.EnsureLoginAndConnectAsync 互不依赖——那边自带
-    /// Init+静默登录（TapTapSDK 重复 Init 属设计内场景：状态机代际号处理二次会话，串行安全），
-    /// 这边先登好的账号缓存会被那边的静默路径直接复用。
+    /// 联机侧 TapLobbyController.EnsureLoginAndConnectAsync 经 EnsureReadyAsync 复用本类的
+    /// 幂等 Init+终态等待（2026-11-09 A3 定案：进程内只允许一处 TapTapSDK.Init——重复 Init
+    /// 会重置 SDK 状态，紧跟的取账号报「SDK not initialized」）；两边账号缓存同源，
+    /// 先登好的会被静默路径直接复用。
     /// 线程纪律：Init 终态回调由 SDK 保证主线程；Task await 自主线程发起、经 Unity
     /// SynchronizationContext 回主线程；超时分支（WhenAny 败给 Delay 的计时线程）显式
     /// SwitchToMainThread 收口——OnChanged 恒主线程派发，订阅方可直接碰 UI。
@@ -73,6 +74,11 @@ namespace SynergyUI.Online
 
         /// <summary>首次进主菜单预热：Init + 静默续登（有缓存账号则无感登录；无缓存不弹任何 UI）。</summary>
         public static void Warmup() => WarmupInternal().Forget();
+
+        /// <summary>联机侧就绪口（2026-11-09 A3 初始化竞态修复）：复用本类幂等 Init+终态等待——
+        /// 进程内只允许一处 TapTapSDK.Init，联机侧不得自行 Init（重复 Init 重置 SDK 状态，
+        /// 紧跟的取账号报「SDK not initialized」）。返回 null=就绪，否则=用户可读失败文案。</summary>
+        public static async UniTask<string> EnsureReadyAsync() => await InitAndWaitAsync();
 
         /// <summary>登录（主菜单按钮）：静默优先，无缓存拉起 TapTap 授权。
         /// 返回 null=成功（或已登录），否则=用户可读错误文案。</summary>

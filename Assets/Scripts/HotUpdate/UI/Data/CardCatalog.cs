@@ -102,6 +102,7 @@ namespace SynergyUI
                 MergeTutorialCards(); // 教学独立卡表（2026-10-16）：副表合并入索引，教学局按 id 组卡可取
                 MergeTrainingCards(); // 训练独立卡表（2026-11-03）：训练桥/验证器按 id 可取，玩家面经 LoadPlayPool 隔离
                 MergePackCards(); // 内容包卡合并（G2 2026-11-08）：装包卡并入索引（卸包=断链由此自然成立）
+                MergeNetCards(); // 瞬态网络内容（2026-11-09 协议 v11）：对局期对手自建卡并入（默认不进玩家池）
                 return _cache;
             }
             finally
@@ -201,6 +202,22 @@ namespace SynergyUI
             }
         }
 
+        /// <summary>瞬态网络内容合并（2026-11-09 协议 v11 自建内容跨端）：联机对局期对端随
+        /// DeckSubmit/Manifest 携带的卡并入索引——校验/渲染/引擎装载按 ID 可取；本地同 ID 行
+        /// 优先（add-if-missing，内容分裂由握手摘要拒绝）。默认不进玩家池（LoadPlayPool 过滤），
+        /// 对局结束 TransientNetContent.Clear 即出索引。覆盖层无盘面痕迹——装/清经其显式 Invalidate
+        /// 驱动本 LoadAll 重合并（mtime 盯盘看不见它）。</summary>
+        private static void MergeNetCards()
+        {
+            foreach (var card in CardCore.Network.TransientNetContent.Cards)
+            {
+                if (card == null || string.IsNullOrEmpty(card.ID)) continue;
+                if (_byId.ContainsKey(card.ID)) continue;
+                _byId[card.ID] = card;
+                _cache.Add(card);
+            }
+        }
+
         /// <summary>按运行时实例 ID 查表（2026-10-17 修）：Seeder/SummonToken 同 id 多张唯一化为
         /// 衍生物式 `模板#N` 实例 ID——带后缀直查必 miss（印刷基准悬空=受伤生命不变红、
         /// 卡面名字退化为实例串）。本口剥 `#N` 后缀按基础 id 查；无后缀原样。</summary>
@@ -262,9 +279,10 @@ namespace SynergyUI
         public static bool IsTrainingCard(CardData card)
             => card?.Tags != null && card.Tags.Contains("训练池");
 
-        /// <summary>玩家可用卡池：LoadAll 去除教学专用卡、衍生物模板卡与训练专用卡
+        /// <summary>玩家可用卡池：LoadAll 去除教学专用卡、衍生物模板卡、训练专用卡与瞬态网络内容卡
         ///（各消费面统一走此口，勿各自手写 tag 判断）。</summary>
         public static List<CardData> LoadPlayPool()
-            => LoadAll().Where(c => !IsTeachingCard(c) && !IsTokenCard(c) && !IsTrainingCard(c)).ToList();
+            => LoadAll().Where(c => !IsTeachingCard(c) && !IsTokenCard(c) && !IsTrainingCard(c)
+                                    && !CardCore.Network.TransientNetContent.IsTransientCard(c.ID)).ToList();
     }
 }

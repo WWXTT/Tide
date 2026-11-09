@@ -9,18 +9,21 @@ using UnityEngine;
 namespace CloudSave
 {
     /// <summary>
-    /// 云存档打包/还原（2026-10-23）：把散落 persistentDataPath 的多文件 JSON 进度
-    /// （教程/挑战/元素解锁 + Card/ 卡组与自建卡效果）收成单个 envelope JSON 上传（≤10MB），
+    /// 云存档打包/还原（2026-10-23 建；2026-11-09 口径改版：教学/挑战进度 + Card/ 自建内容 +
+    /// Encounters/ 对局记录。ElementUnlock 出云——本版无故事模式全原子解锁；联机对局日志与
+    /// 遇到的对手内容（卡/效果/卡组载荷）随 Encounters 同步，默认不进玩家库——「导入对手卡组」
+    /// 落本地后才进表）。单 envelope JSON 上传（≤10MB，超限先剥最旧对局记录的战报正文），
     /// 下载后逐文件写回。Tutorial/ 种子目录不进云（随包只读，EnsureBootstrap 自会刷新）。
     /// 目录自守护：编辑器/TideServer 的 CardDir 是仓库源（Assets/CardData），一律拒打包拒还原。
     /// </summary>
     public static class SaveBundleCodec
     {
         private const int Schema = 1;
-        private static readonly string[] RootFiles = { "TutorialProgress.json", "ChallengeProgress.json", "ElementUnlock.json" };
+        private static readonly string[] RootFiles = { "TutorialProgress.json", "ChallengeProgress.json" };
         private static string CloudDir => Path.Combine(TidePaths.PersistentDataPath, ".cloud");
         private static string StagingPath => Path.Combine(CloudDir, "staging_bundle.json");
         private static string LocalMetaPath => Path.Combine(CloudDir, "local_meta.json");
+        private static string EncounterDir => CardCore.EncounterStore.Dir;
 
         /// <summary>玩家卡组目录是否为持久化目录（仓库源=编辑器/TideServer，云存档禁区）。</summary>
         private static bool CardDirIsPersistent =>
@@ -54,6 +57,13 @@ namespace CloudSave
                     foreach (string file in Directory.GetFiles(CardDataPaths.CardDir, "*.json"))
                         files["Card/" + Path.GetFileName(file)] = File.ReadAllText(file);
                 }
+                // 对局记录（2026-11-09）：Encounters/ 平铺一层——append-only 事实（对局日志+对手
+                // 内容载荷），与进度/卡组不同源（EncounterStore 写、本处只收发）
+                if (Directory.Exists(EncounterDir))
+                {
+                    foreach (string file in Directory.GetFiles(EncounterDir, "*.json"))
+                        files["Encounters/" + Path.GetFileName(file)] = File.ReadAllText(file);
+                }
                 if (files.Count == 0)
                 {
                     Debug.LogWarning("[CloudSync] 无可打包的进度文件，跳过");
@@ -62,13 +72,13 @@ namespace CloudSave
 
                 savedAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
                 var bundle = new SaveBundle { schema = Schema, savedAt = savedAt, files = files };
-                string json = TideJson.ToJson(bundle, false);
-                if (System.Text.Encoding.UTF8.GetByteCount(json) > TapSdkConfig.MaxArchiveBytes)
+                if (!TrimToSize(bundle.files, TapSdkConfig.MaxArchiveBytes))
                 {
-                    Debug.LogError($"[CloudSync] 打包体积 {System.Text.Encoding.UTF8.GetByteCount(json)} 超服务上限 {TapSdkConfig.MaxArchiveBytes}——放弃上传");
+                    Debug.LogError($"[CloudSync] 打包体积超服务上限 {TapSdkConfig.MaxArchiveBytes}（剥完战报仍超限）——放弃上传");
                     return null;
                 }
 
+                string json = TideJson.ToJson(bundle, false);
                 Directory.CreateDirectory(CloudDir);
                 File.WriteAllText(StagingPath, json);
                 WriteLocalSavedAt(savedAt);
@@ -79,6 +89,36 @@ namespace CloudSave
                 Debug.LogError($"[CloudSync] 打包失败：{ex.Message}");
                 return null;
             }
+        }
+
+        /// <summary>打包体积护栏（2026-11-09 对局记录口径）：超限时按 matchId（等长定长=时间序）
+        /// 从最旧对局记录起剥战报正文（只改内存 files 副本，本地文件不动——回本地重读仍有全文）；
+        /// 剥无可剥仍超限返回 false（放弃上传）。</summary>
+        private static bool TrimToSize(Dictionary<string, string> files, int maxBytes)
+        {
+            while (System.Text.Encoding.UTF8.GetByteCount(TideJson.ToJson(files, false)) > maxBytes)
+            {
+                string oldestKey = null;
+                foreach (var kv in files)
+                {
+                    if (!kv.Key.StartsWith("Encounters/", StringComparison.Ordinal)) continue;
+                    var record = TryParseEncounter(kv.Value);
+                    if (record == null || string.IsNullOrEmpty(record.log)) continue;
+                    if (oldestKey == null || string.CompareOrdinal(kv.Key, oldestKey) < 0) oldestKey = kv.Key;
+                }
+                if (oldestKey == null) return false;
+                var trimmed = TryParseEncounter(files[oldestKey]);
+                trimmed.log = null;
+                files[oldestKey] = TideJson.ToJson(trimmed, false);
+            }
+            return true;
+        }
+
+        private static EncounterRecord TryParseEncounter(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return null;
+            try { return TideJson.FromJson<EncounterRecord>(json); }
+            catch { return null; }
         }
 
         // ======================================== 还原 ========================================
@@ -107,12 +147,16 @@ namespace CloudSave
                 int written = 0;
                 foreach (var kv in bundle.files)
                 {
-                    // 路径白名单：根三文件 + Card/ 平铺一层——拒绝任何越界相对路径（../ 等）
+                    if (string.IsNullOrEmpty(kv.Value)) continue; // 剥除占位/空条目
+                    // 路径白名单：根两文件 + Card/ 平铺一层 + Encounters/ 平铺一层——拒绝任何
+                    // 越界相对路径（../ 等）。旧档案的 ElementUnlock.json（2026-11-09 出云）落未知条目跳过。
                     string dest;
                     if (RootFiles.Contains(kv.Key))
                         dest = Path.Combine(TidePaths.PersistentDataPath, kv.Key);
                     else if (kv.Key.StartsWith("Card/", StringComparison.Ordinal) && !kv.Key.Contains(".."))
                         dest = Path.Combine(CardDataPaths.CardDir, Path.GetFileName(kv.Key));
+                    else if (kv.Key.StartsWith("Encounters/", StringComparison.Ordinal) && !kv.Key.Contains(".."))
+                        dest = Path.Combine(EncounterDir, Path.GetFileName(kv.Key));
                     else
                     {
                         Debug.LogWarning($"[CloudSync] 云端存档含未知条目 {kv.Key}，跳过");
@@ -123,7 +167,10 @@ namespace CloudSave
                     written++;
                 }
 
-                // 权威快照收尾：删掉云端没有的本地卡组文件（Cards/Effects 表是种子补缺语义，不删）
+                // 权威快照收尾：删掉云端没有的本地卡组文件（Cards/Effects 表是种子补缺语义，不删）。
+                // Encounters/ 有意**不删**（2026-11-09）：对局记录是 append-only 事实——多设备各自
+                // 入账的记录互不可删，恢复=按 matchId 并集合并（云端同键覆盖=同一局的双方视角以
+                // 云端为准），与 Card/ 的「设备 B 删过的卡组不该复活」语义不同源。
                 if (Directory.Exists(CardDataPaths.CardDir))
                 {
                     foreach (string file in Directory.GetFiles(CardDataPaths.CardDir, "*.json"))
@@ -196,13 +243,18 @@ namespace CloudSave
                 foreach (string file in Directory.GetFiles(CardDataPaths.CardDir, "*.json"))
                     if (new DateTimeOffset(File.GetLastWriteTimeUtc(file)).ToUnixTimeSeconds() > settledAt) return true;
             }
+            if (Directory.Exists(EncounterDir)) // 对局记录入账即脏（2026-11-09）
+            {
+                foreach (string file in Directory.GetFiles(EncounterDir, "*.json"))
+                    if (new DateTimeOffset(File.GetLastWriteTimeUtc(file)).ToUnixTimeSeconds() > settledAt) return true;
+            }
             return false;
         }
 
         // ======================================== 处女档判定 ========================================
 
         /// <summary>
-        /// 处女档=本机看不出任何玩家痕迹（无教学完成/进行中、无挑战战绩、无用户卡组、
+        /// 处女档=本机看不出任何玩家痕迹（无教学完成/进行中、无挑战战绩、无用户卡组、无对局记录、
         /// 自建卡表与种子一致）。仅此时允许免询问自动恢复云端——换机/重装场景一步到位；
         /// 有任何痕迹一律走询问（防误覆盖）。文件级直读（不经管理器，避免触发首次建档副作用）。
         /// </summary>
@@ -226,6 +278,9 @@ namespace CloudSave
                         return false; // 存在任一用户卡组文件
                     }
                 }
+
+                if (Directory.Exists(EncounterDir)
+                    && Directory.GetFiles(EncounterDir, "*.json").Length > 0) return false; // 打过联机局
 
                 // 自建卡/效果表与随包种子一致（空壳）——内容比较，防"只建过卡没建卡组"被误判处女档
                 if (!MatchesSeed("Cards.json") || !MatchesSeed("Effects.json")) return false;

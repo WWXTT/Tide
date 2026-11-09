@@ -333,6 +333,37 @@ namespace CardCore.Serialization
         public const int MMM_OwnCardIds = 1186475388;
         public const int MMM_OpponentCardCount = 750558643;
         public const int MMM_OwnDeckDigest = 1791650654;
+        public const int MMM_OpponentCards = -784281127;   // v11 对手自建内容 payload（渲染用；卡组构成仍隐藏）
+        public const int MMM_OpponentEffects = 132756444;
+        public const int MMM_OpponentRows = -576926193;
+
+        // ---- 自建内容跨端 payload（v11 对局记录+对手内容上云定案；值=FNV-1a(名) 转 int32，零撞号已核）----
+        public const int MCP_CardId = 562067335;
+        public const int MCP_CardJson = -525724844;
+        public const int MEP_EffectId = -1167984450;
+        public const int MEP_EffectJson = -1046722447;
+        public const int MAR_RefId = 673218868;
+        public const int MAR_RowJson = 1081615994;
+        public const int MDS_AddedCards = 1607500155;
+        public const int MDS_AddedEffects = 2097256202;
+        public const int MDS_AddedRows = -267714343;
+
+        // ---- MsgMatchSummary（v11 终局摘要：双座位各收一份，视角=收件人的对手）----
+        public const int MMS_MatchId = 517542727;
+        public const int MMS_FinishedAtUnix = -1388488232;
+        public const int MMS_OpponentName = -1165407645;
+        public const int MMS_OpponentOpenId = -2030439723;
+        public const int MMS_Win = 514214013;
+        public const int MMS_OwnDeckName = -89498147;
+        public const int MMS_OpponentDeckName = 1253992418;
+        public const int MMS_OpponentCardIds = -444598832;
+        public const int MMS_OpponentSkillCardId = 892439674;
+        public const int MMS_OpponentTokenCardIds = -548054461;
+        public const int MMS_OpponentTokenBindings = -1463178445;
+        public const int MMS_Cards = 1544258080;
+        public const int MMS_Effects = -2090101919;
+        public const int MMS_AtomRows = 1250763953;
+        public const int MMS_Log = 219159277;    // 战报 markdown 全文（服务器渲染——客人端无本地引擎）
 
         // ---- MsgError ----
         public const int MErr_Reason = 259789666;
@@ -343,6 +374,8 @@ namespace CardCore.Serialization
         public const int MJR_WantSeat = 1047967055;
         public const int MJR_AsSpectator = 1232633580;
         public const int MJR_Nickname = 841072657;
+        public const int MJR_OpenId = 981065552;   // v11：TapTap openId（对局记录对手身份；局域网空）
+        public const int MJR_IsAi = 1542445315;    // v11：AI 填位标记（对局记录跳过 AI 局）
 
         // ---- MsgRoomState ----
         public const int MRS_RoomId = 2098723049;

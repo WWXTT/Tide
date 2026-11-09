@@ -16,10 +16,15 @@ namespace SynergyUI.Online
         /// <summary>启动装配：云存档链路（SDK Init→静默登录→启动同步旁路；编辑器/PC 空转只留日志）。</summary>
         public void InitOnStartup() => CloudSave.TapCloudSaveBootstrap.Init();
 
+        /// <summary>启动页登录区装配（2026-11-09 登录迁移）：登录 UI 注入 LoginSlot；
+        /// 返回登录可用性（false=编辑器/未配置——启动页游客自动放行）。</summary>
+        public bool AttachLaunchLogin(LaunchScreen screen) => TapLoginBadge.Attach(screen);
+
+        /// <summary>主菜单挂件（2026-11-09 登录迁移改版）：右上登录徽章退役（登录只在启动页），
+        /// 仅保留右下云存档入口（入口文案含昵称，面板内提供退出登录）。</summary>
         public void OnMainMenuBuilt(MainMenuScreen menu)
         {
-            TapLoginBadge.Attach(menu.Root);       // 右上登录徽章（编辑器/未配置时 Attach 内闸不实例化）
-            _cloudMenu.Build(menu);                // 右下云存档入口
+            _cloudMenu.Build(menu);
         }
 
         public void OnMainMenuEnter(MainMenuScreen menu)

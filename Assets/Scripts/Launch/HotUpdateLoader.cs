@@ -68,6 +68,12 @@ namespace Tide.Launch
             // typeof 显式锚保类型加载；方法族由 link.xml System.Net.Sockets 命名空间保全。
             _ = typeof(System.Net.Sockets.UdpClient);
             _ = typeof(System.Net.Sockets.TcpListener);
+            // AOT 泛型锚（2026-11-09 真机联机 100% 失败实录）：热更侧 LobbyScreen.ConnectAsync
+            // 用 UniTask.RunOnThreadPool<bool>（同步委托返回 bool）——值类型实参不共享泛型，
+            // AOT 侧零引用则 il2cpp 不生成该组合，热更首调即 MissingMethodException（被 catch
+            // 吞成「连接失败」文案，委托体根本没执行）。泛型分析器清单只记出 <byte>，漏 <bool>。
+            // 显式锚定强制生成；若日后分析器命中，此行属无害冗余，勿删。
+            _ = Cysharp.Threading.Tasks.UniTask.RunOnThreadPool<bool>(() => true);
         }
 
         /// <summary>资源寻址地址（.dll.bytes 文件经 AddressByFileName 规则保留 .dll 段）</summary>

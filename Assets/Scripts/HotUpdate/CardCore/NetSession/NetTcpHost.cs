@@ -40,6 +40,10 @@ namespace CardCore.Network
         public int MatchSeat { get; set; } = -1;
         /// <summary>进房昵称（RoomState 广播用）。</summary>
         public string Nickname { get; set; } = "";
+        /// <summary>进房方自报 TapTap openId（2026-11-09 协议 v11 对局记录）。</summary>
+        public string OpenId { get; set; } = "";
+        /// <summary>AI 填位标记（2026-11-09 协议 v11：AI 局不下发终局摘要）。</summary>
+        public bool IsAi { get; set; }
         /// <summary>事件流出队游标（NetEventProjector 全局列表下标，房间按局重置）。</summary>
         public int EventCursor { get; set; }
         /// <summary>静默点快照脏标记（本 tick 有事件/intent 且转入静默时置位，发完清零）。</summary>

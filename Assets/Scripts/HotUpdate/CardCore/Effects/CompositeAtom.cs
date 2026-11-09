@@ -88,7 +88,8 @@ namespace CardCore
         }
 
         /// <summary>按 id 取词条（未装/不可用 → null）。可用 = body 全部引用内置原子行（深度 1）。
-        /// 上下文优先（候选定义——校验期视图）。</summary>
+        /// 上下文优先（候选定义——校验期视图）；瞬态网络内容兜底（2026-11-09 协议 v11：
+        /// 对局期对端词条 add-if-missing，本地已装定义优先）。</summary>
         public static CompositeAtomDef Get(string id)
         {
             if (string.IsNullOrEmpty(id) || !id.StartsWith("@", StringComparison.Ordinal)) return null;
@@ -96,7 +97,8 @@ namespace CardCore
                 foreach (var d in _context)
                     if (d != null && d.id == id) return d;
             EnsureLoaded();
-            return _byId.TryGetValue(id, out var def) ? def : null;
+            if (_byId.TryGetValue(id, out var def)) return def;
+            return Network.TransientNetContent.GetAtomDef(id);
         }
 
         private static void EnsureLoaded()

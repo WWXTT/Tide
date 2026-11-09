@@ -123,6 +123,8 @@ namespace SynergyUI.Online
         public int ChairSeat { get; set; } = -2;
         public int MatchSeat { get; set; } = -1;
         public string Nickname { get; set; } = "";
+        public string OpenId { get; set; } = ""; // 2026-11-09 协议 v11 对局记录（进房方自报）
+        public bool IsAi { get; set; }           // 2026-11-09 协议 v11：AI 局不下发终局摘要（TapTap 侧恒 false）
         public int EventCursor { get; set; }
         public bool SnapshotDirty { get; set; }
 

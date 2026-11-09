@@ -117,6 +117,23 @@ namespace SynergyUI
             return ids;
         }
 
+        /// <summary>瘦 DTO 直写（2026-11-09 协议 v11 导入对手卡组）：按 id upsert 进 Effects.json——
+        /// 网络载荷/对局记录里的效果行（发送端按 Effects.json 行形状序列化）免经图转换往返。
+        /// dto.id 为空=拒写（返回 null）。</summary>
+        public static string SaveDto(CardCore.EffectSlimDto dto)
+        {
+            if (dto == null || string.IsNullOrEmpty(dto.id)) return null;
+            string path = FilePathOf(false, false);
+            var wrapper = ReadWrapper(false, false) ?? new Wrapper { items = new List<CardCore.EffectSlimDto>() };
+            wrapper.items ??= new List<CardCore.EffectSlimDto>();
+            int existing = wrapper.items.FindIndex(i => i != null && i.id == dto.id);
+            if (existing >= 0) wrapper.items[existing] = dto;
+            else wrapper.items.Add(dto);
+            Directory.CreateDirectory(Path.GetDirectoryName(path));
+            File.WriteAllText(path, CardCore.EffectSlim.EmitCompact(wrapper.items));
+            return path;
+        }
+
         /// <summary>卡牌保存链路：批量落库（EffectIdsOf 的底层共用口；同 2026-10-26 已存在不重写口径）。</summary>
         public static void EnsureEffectsSaved(List<CardEffectData> effects, bool tutorial = false)
         {
