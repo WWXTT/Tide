@@ -30,6 +30,10 @@
     <Compile Include="..\Assets\Scripts\HotUpdate\CardCore\**\*.cs" LinkBase="Shared\CardCore" />
     <Compile Include="..\Assets\Scripts\HotUpdate\AI\SimpleAI.cs" Link="Shared\SynergyUI\SimpleAI.cs" />
     <Compile Include="..\Assets\Scripts\HotUpdate\AI\AiStrategy.cs" Link="Shared\SynergyUI\AiStrategy.cs" />
+    <!-- 2026-11-09 拆分：AiStrategy 三主题策略各自成文件（类型名不变）。 -->
+    <Compile Include="..\Assets\Scripts\HotUpdate\AI\RedAggroStrategy.cs" Link="Shared\SynergyUI\RedAggroStrategy.cs" />
+    <Compile Include="..\Assets\Scripts\HotUpdate\AI\GreenRampStrategy.cs" Link="Shared\SynergyUI\GreenRampStrategy.cs" />
+    <Compile Include="..\Assets\Scripts\HotUpdate\AI\BlueControlStrategy.cs" Link="Shared\SynergyUI\BlueControlStrategy.cs" />
     <Compile Include="..\Assets\Scripts\HotUpdate\AI\AiDuelRunner.cs" Link="Shared\SynergyUI\AiDuelRunner.cs" />
     <!-- 教学预设场面数据类+静默注入器（2026-11-04 教学场景回归）：tutorial-scenario 入口直接复用
          教学侧同一份 TutorialScenarioSeeder，不复制注入逻辑（盘面口径与教学模式零漂移）。 -->
