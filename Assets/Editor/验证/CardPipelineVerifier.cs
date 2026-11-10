@@ -244,6 +244,8 @@ namespace CardCore.Editor
             TestInformationFlow(core, p1, p2);
             Crumb("→TestKeywords");
             TestKeywords(core, p1, p2);
+            Crumb("→TestDamageChain");
+            TestDamageChain(core, p1, p2); // 伤害管线重构 Phase 2-4（2026-11-09 草案）：层序/golden 对拍/循环链
             Crumb("→TestAttackGuard");
             TestAttackGuard(core, p1, p2);
             Crumb("→TestRandomness");

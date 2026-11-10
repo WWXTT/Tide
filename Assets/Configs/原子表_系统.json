@@ -357,19 +357,5 @@
     "GateId": "CostGate",
     "Budget": 3,
     "特殊裁定": "代价挪入有限分支（2026-11-06）：选中后第二槽填代价原子（一般效果行·双侧域，全价≤3）——减免等值费用。展示期合成/保存回写卡级代价行，本门不落盘。"
-  },
-  {
-    "ID": "479e3d5f",
-    "TextHash": "479e3d5f",
-    "EnumName": "预言",
-    "DisplayName": "隐藏预言对手下回合首张出牌的类别，命中则触发奖励",
-    "EffectType": "ProphecyNextCard",
-    "TargetFilter": null,
-    "Polarity": 1,
-    "MountKinds": "有限分支,不可全体",
-    "Tags": null,
-    "参数": "Dimension",
-    "ManaList": null,
-    "Budget": 3
   }
 ]

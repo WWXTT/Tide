@@ -641,6 +641,8 @@ namespace CardCore
         public void OnNewTurn(int turnNumber)
         {
             _usageTracker.OnNewTurn(turnNumber);
+            // §11：每卡过载预算随回合清账——移除已挂卡的过载指示物（下回合开始失效）
+            CardEffectBudget.Instance.OnNewTurn(turnNumber);
             // 整账重置播报（EffectId=null 语义）：UI (x/y) 读数随回合归零，订阅方全量重查
             EventManager.Instance.Publish(new EffectUsageChangedEvent());
         }
@@ -651,6 +653,7 @@ namespace CardCore
         public void Reset()
         {
             _usageTracker.Reset();
+            CardEffectBudget.Instance.Reset(); // §11：新局清预算台账（旧卡实例连指示物一并消亡）
             // 关键词生效次数闸已随坚韧指示物化（2026-10-08）整体退役——无全局关键词态需清
         }
 

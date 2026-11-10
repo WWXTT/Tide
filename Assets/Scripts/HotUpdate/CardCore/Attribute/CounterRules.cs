@@ -214,6 +214,11 @@ namespace CardCore.Attribute
         /// <summary>耐久（2026-09-13 装备系统）：武器/效果装备的使用期限——反伤/主动攻击/转移/主动效果各 -1，
         /// 归零销毁入墓（Smash 同款直毁）。正面常驻（净化可削——对位手段）。</summary>
         public const string DurabilityCounter = "Durability";
+        /// <summary>过载（2026-11-09 §11 裁定；2026-11-10 实现）：每卡效果预算（CardEffectBudget）
+        /// 一回合累计 30 次发动/触发/高危关键词后挂载——主动/自动/自动触发型关键词失效、攻守拒绝宣言。
+        /// System 类：不可净化、不可换区清除（ClearCounters 例外），只在下回合开始移除；
+        /// 不受绝缘体豁免（读取走裸计数）。</summary>
+        public const string OverloadCounter = "Overload";
         /// <summary>
         /// 角色攻击（2026-10-07 角色参战定案·弹药原子，例外类）：层数=角色攻击力读数（GetPower(Player) 直读）。
         /// 角色攻击或反击结算后**全部移除**（RemoveHeroAttackAmmo）——攻击与反击共用同一份弹药，
@@ -397,6 +402,9 @@ namespace CardCore.Attribute
             // 标记跟卡跨区（沉墓/洗牌库的复制体同样到期出局）；负面极性——净化/解减益可清
             //（净化救临时卡=统一指示物的交互点）
             Register(new CounterSpec { Id = TempCounter, Polarity = CounterPolarity.Negative, Class = CounterClass.Exception, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.External, DisplayName = "临时" });
+            // 过载（2026-11-09 §11 裁定）：每卡 30 次预算挂载的系统冻结指示物——不可净化/换区清
+            //（ClearCounters 开例外），下回合开始由 CardEffectBudget.OnNewTurn 移除
+            Register(new CounterSpec { Id = OverloadCounter, Polarity = CounterPolarity.Negative, Class = CounterClass.System, LayerRole = CounterLayerRole.Display, TickPolicy = CounterTickPolicy.External, DisplayName = "过载" });
 
             // ---- 常驻（Resident：不随时间衰退，换区清；消费型标 External 注明归属）----
             //（坚韧 2026-10-09 迁入 Exception 生效自减——受伤拦减后层数减半，见上区块）
@@ -748,6 +756,8 @@ namespace CardCore.Attribute
             var removed = new List<string>();
             foreach (var kv in card._counters)
             {
+                if (kv.Key == OverloadCounter)
+                    continue; // 过载=系统冻结（§11.4）：换区/净化都不清，只由 CardEffectBudget.OnNewTurn 移除
                 var spec = Find(kv.Key);
                 if (!purgeAll && spec.Class == CounterClass.Exception)
                     continue; // 生效自减类跨区存活

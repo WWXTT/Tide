@@ -939,6 +939,10 @@ namespace CardCore.Editor
             GameActions.DrainStack(core);
 
             // ---- 2b. 自馈闸门（2026-10-30）：同一来源实例+效果 Id 每回合上限 30 次 ----
+            //（2026-11-10 §11 每卡过载预算与旧 per-effect 闸叠加：同一源卡在本段前已累计 4 次
+            //  每卡预算——隔离旧闸语义须先清每卡台账（模拟回合更替），否则 31 连发会在第 26 发
+            //  先撞每卡 30 过载，旧闸「前 30 入栈」被提前截断）
+            CardEffectBudget.Instance.OnNewTurn(999);
             var loopDef = Convert(new CardEffectData
             {
                 Id = "VERIFY_CAP_LOOP",
@@ -955,6 +959,8 @@ namespace CardCore.Editor
             core.StackEngine.Clear(); // 不结算 30 个空抽，只验证入栈闸门
 
             // ---- 3. 旧档 N=2 / 无限档同回合并触发全部入栈 ----
+            //（§2b 末尾源卡已挂过载——先清每卡预算再验「旧档不再静默丢弃」的旧闸语义）
+            CardEffectBudget.Instance.OnNewTurn(999);
             var twiceDeclared = Convert(new CardEffectData
             {
                 Id = "VERIFY_CAP_5",

@@ -794,11 +794,22 @@ namespace CardCore.Attribute
             => nullify > 0 || sleep > 0;
 
         /// <summary>是否被自动效果压制（沉睡&gt;0 或 失效&gt;0；绝缘体在场时恒 false——
-        /// 两者对该单位是死层，2026-11-09 定案）</summary>
+        /// 两者对该单位是死层，2026-11-09 定案）。
+        /// 【2026-11-10 语义修复】过载**不在本口**：本读数被 HasKeyword 全局读与
+        /// GuardianRules.FindGuardian 等静态关键词消费——过载只压「自动触发/主动/高危关键词/
+        /// 攻守宣言」（§11.5 四压制口），不能经此泄漏成「压所有关键词」。触发队列口
+        /// （TriggerEngine.FindMatchingEffects / StackEngine.ProcessTriggeredEffects）
+        /// 另行显式查 IsOverloaded。</summary>
         public static bool IsAutoSuppressed(Entity entity)
             => entity != null
                && !InsulatorRules.IsActive(entity)
                && IsAutoSuppressed(entity.GetCounterCount(CounterRules.NullifyCounter),
                    entity.GetCounterCount(KeywordRules.SleepCounter));
+
+        /// <summary>过载读数（§11.4）：只读 Overload 指示物裸计数——不受绝缘体影响、
+        /// 不吃层效果（系统冻结豁免）。过载期间主动/自动效果与自动触发型关键词失效；
+        /// 静态关键词（守护/警戒/先攻等）与指示物不压（§11.5）。</summary>
+        public static bool IsOverloaded(Entity entity)
+            => entity != null && entity.GetCounterCount(CounterRules.OverloadCounter) > 0;
     }
 }

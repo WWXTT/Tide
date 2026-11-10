@@ -279,6 +279,31 @@ namespace CardCore.Attribute
         // 台账 Limit/值求和/每回合次数闸整链删除（Guardian 2026-10-08 配对制已先行作废其记账）。
 
         /// <summary>
+        /// 统一伤害结算入口（兼容 facade，2026-11-09《伤害管线与循环链接口草案》Phase 1：
+        /// 抽接口、不换实现）：只经 DamageResolverRegistry 选解析器并转交，默认恒
+        /// LegacyDamageResolver → ApplyDamageLegacy（原实现整段平移，行为零漂移）；
+        /// Chain 路径（DamagePipeline/Aftermath/DamageChain）由后续阶段经 Registry
+        /// opt-in 接入——facade 不写规则、不写关键词分支。guardRerouted=true 是旧守护
+        /// 递归专用语义（Chain 路径将由 RedirectPolicy 承担），只有 Legacy 有，直接短路；
+        /// 外部调用面恒 false。结算口径与段序见 ApplyDamageLegacy。
+        /// </summary>
+        public static int ApplyDamage(Entity source, Entity target, int amount, bool isCombat, bool guardRerouted = false)
+        {
+            if (guardRerouted)
+                return ApplyDamageLegacy(source, target, amount, isCombat, guardRerouted: true);
+
+            var request = new CardCore.Damage.DamageRequest
+            {
+                Source = source,
+                Target = target,
+                Amount = amount,
+                Kind = isCombat ? CardCore.Damage.DamageKind.Combat : CardCore.Damage.DamageKind.Effect,
+                Tags = CardCore.Damage.DamageTags.None,
+            };
+            return CardCore.Damage.DamageResolverRegistry.For(source, target).Resolve(request).Dealt;
+        }
+
+        /// <summary>
         /// 统一伤害结算：修正并施加伤害，返回实际造成的伤害量。
         /// 只改状态不发事件——DamageEvent/CombatDamageEvent 等由调用方按路径发布。
         /// （穿透档已删 2026-10-31：一切伤害照走防护层；绕过伤害的需求走 LifeDown 降上限。）
@@ -286,7 +311,10 @@ namespace CardCore.Attribute
         /// 满血溢出概念之前；角色与单位同式，结界=实际扣掉的耐久。DamageEvent/吸血/系命/报复/剧毒
         /// 与返回值统一按 dealt 结算，不再用钳前 amount（生命锁兜住时五者全按 0）。
         /// </summary>
-        public static int ApplyDamage(Entity source, Entity target, int amount, bool isCombat, bool guardRerouted = false)
+        /// <remarks>2026-11-09 草案 Phase 1：原 ApplyDamage 实现整段平移改名，由 facade 经
+        /// LegacyDamageResolver 转入。迁移红线（草案 §7.1）：内部自递归（守护改写/荆棘/报复）
+        /// 必须直调本方法、不经 facade——否则旧卡会一半 Legacy、一半 Chain，行为不可预测。</remarks>
+        public static int ApplyDamageLegacy(Entity source, Entity target, int amount, bool isCombat, bool guardRerouted = false)
         {
             if (amount <= 0 || target == null || !target.IsAlive) return 0;
 
@@ -320,6 +348,8 @@ namespace CardCore.Attribute
                 var guardian = GuardianRules.FindGuardian(target);
                 if (guardian != null && !ReferenceEquals(guardian, target))
                 {
+                    // §11.2.1 OnTargeted 白名单（计入不压——守护是静态规则，过载不拦改写；只计数）
+                    CardEffectBudget.CommitKeyword(guardian);
                     if (CardCore.GameCore.Instance != null)
                         CardCore.GameCore.Instance.PublishEvent(new KeywordAppliedEvent
                         {
@@ -328,7 +358,7 @@ namespace CardCore.Attribute
                             Detail = $"守护改写：{EffectText.Name(target)} 受到的伤害转由 {EffectText.Name(guardian)} 承受",
                             Source = guardian,
                         });
-                    return ApplyDamage(source, guardian, amount, isCombat, guardRerouted: true);
+                    return ApplyDamageLegacy(source, guardian, amount, isCombat, guardRerouted: true);
                 }
             }
 
@@ -355,10 +385,11 @@ namespace CardCore.Attribute
             // 0. 暴击（2026-11-09 新增，红5 表行「暴击」879fe2c2）：来源造成的**战斗伤害**翻倍——
             //    延时保护之后、防护层之前（圣盾/护甲/坚韧吸收的是翻倍后的量；效果伤害不吃暴击；
             //    反击/碾压溅射同为战斗伤害，各发独立翻倍）。本口接 2026-11-09 易损移位后空出的
-            //    数值修正臂（防护层前）。
-            if (isCombat && source != null && source.HasKeyword(Crit))
+            //    数值修正臂（防护层前）。§11 高危关键词：过载不触发（结算后计）。
+            if (isCombat && source != null && source.HasKeyword(Crit) && CardEffectBudget.KeywordAllowed(source))
             {
                 amount *= 2;
+                CardEffectBudget.CommitKeyword(source);
                 EventManager.Instance.Publish(new KeywordAppliedEvent
                 {
                     Target = source,
@@ -547,11 +578,13 @@ namespace CardCore.Attribute
 
             // 6. 吸血（恢复随从自身）/ 系命（回复角色）——伤害事件的后果，按实际造成的伤害结算
             //（2026-10-31 阶段B dealt 口径：生命锁兜住时实际扣除 0 → 不回复也不播报）
+            //（§11 高危关键词：过载不触发，各关键词独立计数）
             if (dealt > 0 && source != null && source.IsAlive)
             {
-                if (source.HasKeyword(Lifesteal) && source is Card stealer)
+                if (source.HasKeyword(Lifesteal) && source is Card stealer && CardEffectBudget.KeywordAllowed(stealer))
                 {
                     stealer.Heal(dealt);
+                    CardEffectBudget.CommitKeyword(stealer);
                     EventManager.Instance.Publish(new KeywordAppliedEvent
                     {
                         Target = stealer,
@@ -560,9 +593,10 @@ namespace CardCore.Attribute
                         Source = target
                     });
                 }
-                if (source.HasKeyword(Lifelink) && source.GetController() is Player owner)
+                if (source.HasKeyword(Lifelink) && source.GetController() is Player owner && CardEffectBudget.KeywordAllowed(source))
                 {
                     owner.Life += dealt;
+                    CardEffectBudget.CommitKeyword(source);
                     EventManager.Instance.Publish(new KeywordAppliedEvent
                     {
                         Target = owner,
@@ -595,7 +629,7 @@ namespace CardCore.Attribute
                         Detail = $"荆棘反噬：{EffectText.Name(target)} 对 {EffectText.Name(source)} 造成 {retaliation} 点伤害（生效减半，余 {retaliateHalved} 层）",
                         Source = target
                     });
-                    ApplyDamage(target, source, retaliation, isCombat: false);
+                    ApplyDamageLegacy(target, source, retaliation, isCombat: false);
                 }
             }
 
@@ -608,7 +642,7 @@ namespace CardCore.Attribute
             //     null 来源无从反噬、来源已死不反噬（同荆棘门）；持有者被本次伤害打死仍触发
             //     （濒死反咬）；沉睡/失效期间 HasKeyword 读假=不触发（本体关键词统一压制口）。
             if (dealt > 0 && source != null && source.IsAlive && !ReferenceEquals(source, target)
-                && !_retaliateBounceGuard && target.HasKeyword(Retaliate))
+                && !_retaliateBounceGuard && target.HasKeyword(Retaliate) && CardEffectBudget.KeywordAllowed(target))
             {
                 EventManager.Instance.Publish(new KeywordAppliedEvent
                 {
@@ -617,8 +651,9 @@ namespace CardCore.Attribute
                     Detail = $"报复反噬：{EffectText.Name(target)} 对 {EffectText.Name(source)} 造成 {dealt} 点伤害（等量）",
                     Source = target
                 });
+                CardEffectBudget.CommitKeyword(target);
                 _retaliateBounceGuard = true;
-                try { ApplyDamage(target, source, dealt, isCombat: false); }
+                try { ApplyDamageLegacy(target, source, dealt, isCombat: false); }
                 finally { _retaliateBounceGuard = false; }
             }
 
@@ -630,9 +665,11 @@ namespace CardCore.Attribute
             //     自伤照染（来源=自身——字面口径，附加计数无递归风险）。持有者被本次伤害打死仍触发
             //     （濒死感染，同报复门）；沉睡/失效期间 HasKeyword 读假=不触发（本体关键词统一压制口）。
             //     绝缘体来源：毒素层照常落账、发作走效果口径读数（2026-10-31 绝缘体裁定自动覆盖）。
-            if (dealt > 0 && source != null && source.IsAlive && target.HasKeyword(Pathogen))
+            if (dealt > 0 && source != null && source.IsAlive && target.HasKeyword(Pathogen)
+                && CardEffectBudget.KeywordAllowed(target))
             {
                 int pathogenDelta = source.AddCounters(CounterRules.ToxinCounter, 1, target);
+                CardEffectBudget.CommitKeyword(target);
                 EventManager.Instance.Publish(new CounterChangedEvent
                 {
                     Target = source,
@@ -656,10 +693,11 @@ namespace CardCore.Attribute
             //    消灭走 TryKill 消灭口径（不灭经 DeathRules 裁决拦截）；伤害本身已致死的不再重复。
             if (isCombat && dealt > 0 && source != null && source.IsAlive
                 && target is Card venomTarget && venomTarget.IsAlive && !venomTarget.IsNonLivingUnit()
-                && source.HasKeyword(Venom))
+                && source.HasKeyword(Venom) && CardEffectBudget.KeywordAllowed(source))
             {
                 DeathRules.TryKill(venomTarget, DeathCause.DestroyEffect, source,
                     CardCore.GameCore.Instance?.ZoneManager);
+                CardEffectBudget.CommitKeyword(source);
             }
 
             return dealt;

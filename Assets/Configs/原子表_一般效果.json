@@ -940,5 +940,19 @@
       2,
       0
     ]
+  },
+  {
+    "ID": "479e3d5f",
+    "TextHash": "479e3d5f",
+    "EnumName": "预言",
+    "DisplayName": "隐藏预言对手下回合首张出牌的类别，命中则触发奖励",
+    "EffectType": "ProphecyNextCard",
+    "TargetFilter": null,
+    "Polarity": 1,
+    "MountKinds": "有限分支,不可全体",
+    "Tags": null,
+    "参数": "Dimension",
+    "ManaList": null,
+    "Budget": 3
   }
 ]

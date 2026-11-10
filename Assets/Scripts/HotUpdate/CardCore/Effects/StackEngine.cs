@@ -188,11 +188,25 @@ namespace CardCore
                     continue;
                 }
 
+                // §11 每卡过载闸（2026-11-09 裁定）：触发式按**源卡**预算（光环合成条目 Source=受益者
+                // → 计入受益者，§11.2.2）；过载即丢弃（强制触发也丢，MandatorySkipped 口径），
+                // 不入栈、不扣耐久（§11.7：失败不扣耐久）。玩家/系统源不预算（默认跳过）。
+                if (next.Source is Card budgetSrc
+                    && !CardEffectBudget.Instance.CanCommit(budgetSrc, out var overloadReason))
+                {
+                    TideLog.Warn($"[Overload] 触发式丢弃（MandatorySkipped）：src={budgetSrc.ID} effect={next.Effect.Id} {overloadReason}");
+                    continue;
+                }
+
                 // 触发式无每回合生效次数上限（2026-10-30 定案）：满足时点的每次触发都入栈。
                 // 唯一的每回合 1 次保留在自由分支引擎奖励——由 BranchEngines 按卡自限，不在此闸。
                 var instance = EffectInstance.FromPendingEffect(next);
                 PushWithResponse(instance);
                 next.IsOnStack = true;
+
+                // §11.3：触发式在入栈口计数（本次结算不受自己刚挂的过载影响——第 30 次照常结算）
+                if (next.Source is Card committedSrc)
+                    CardEffectBudget.Instance.Commit(committedSrc, CardEffectCommitKind.Triggered, out _);
 
                 // 入栈即记账（2026-09-13 修复；2026-10-30 起仅作读数——条件计数/卡面统计，无闸门）：
                 // 同批多个触发出队时，结算期记账会让读数滞后。
@@ -577,6 +591,11 @@ namespace CardCore
             if (!_speedCounter.CanActivate(GuardStackSpeed, EffectActivationType.Voluntary, _stack.Count == 0))
             { reason = "守卫速度门拒绝（记速器已高于守卫速度）"; return false; }
 
+            // §11 过载闸（2026-11-09 裁定）：守卫宣言按主动效果处理——过载卡拒绝宣言
+            //（角色守卫无预算——预算只挂卡实例）
+            if (guarder is Card guardBudget && !CardEffectBudget.Instance.CanCommit(guardBudget, out var guardOverload))
+            { reason = guardOverload; return false; }
+
             _speedCounter.RaiseTo(GuardStackSpeed); // ★ 记速器抬到 1：攻方须 >1 连锁、守方 1 速不能再响应
 
             var instance = new EffectInstance
@@ -593,6 +612,10 @@ namespace CardCore
             _consecutivePassCount = 0;
             _waitingForPlayer = true;
             GameActions.Crumb($"CF-guard-push guarder={(guarder as Card)?.ID ?? (guarder as Player)?.Name} stack={_stack.Count} ctr={_speedCounter.CurrentSpeed}");
+
+            // §11.3：守卫宣言成功后计数
+            if (guarder is Card guardCommitted)
+                CardEffectBudget.Instance.Commit(guardCommitted, CardEffectCommitKind.Guard, out _);
 
             EventManager.Instance.Publish(new StackAddEvent { AddedObject = instance, AddingPlayer = controller });
             return true;

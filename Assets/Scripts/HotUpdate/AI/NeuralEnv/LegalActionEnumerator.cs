@@ -474,6 +474,8 @@ namespace CardCore.AI.NeuralEnv
                 var src = bf[i];
                 // 结界禁主动效果（2026-10-15 改版）——镜像引擎 ActivateEffect 来源闸，直接跳过
                 if (Attribute.CounterRules.UsesDurabilityEconomy(src)) continue;
+                // §11 预检：过载卡主动效果失效——不入动作空间（不记账；运行时闸在 GameActions）
+                if (Attribute.SuppressRules.IsOverloaded(src)) continue;
                 foreach (var def in GetEffectDefinitions(src))
                 {
                     if (!def.IsActivatedEffect) continue;
@@ -547,6 +549,7 @@ namespace CardCore.AI.NeuralEnv
             for (int i = 0; i < bf.Count; i++)
             {
                 var atk = bf[i];
+                if (Attribute.SuppressRules.IsOverloaded(atk)) continue; // §11 预检：过载卡拒绝宣言——不入动作空间（不记账）
                 if (!core.CombatSystem.CanDeclareAttack(atk, me)) continue;
 
                 for (int j = 0; j < oppBf.Count; j++)

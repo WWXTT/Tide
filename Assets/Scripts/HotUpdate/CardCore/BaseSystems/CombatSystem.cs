@@ -150,6 +150,11 @@ namespace CardCore
                 // 无资格卡不能宣言攻击。次数上限已撤（横置即上限）——AttacksThisTurn 只作台账统计
                 if (!card.HasAttackAbility())
                 { reason = "该单位不具备攻击能力"; return false; }
+
+                // §11 过载（2026-11-10）：过载卡拒绝攻击宣言（按主动效果失效）——单源预检，
+                // UI/LAE/SimpleAI/GameActions.DeclareAttack 全经此读到同一拒绝口径
+                if (Attribute.SuppressRules.IsOverloaded(card))
+                { reason = "过载：本回合主动/自动效果已失效"; return false; }
             }
 
             // 禁攻令（2026-10-29）：受光环影响方不能宣言攻击——单位按控制者、角色按宣言方判命中
@@ -395,6 +400,9 @@ namespace CardCore
                 // 0 攻不打（否则纯自杀：0 攻打 3 攻会被反击打死）。
                 if (hunter.IsTapped()) continue;
                 if (GetPower(hunter) <= 0) continue;
+                // §11 高危关键词：过载狩猎者回合末额外攻击不触发（狩猎不走 CanDeclareAttack，须自带闸；
+                // 结算后计）
+                if (!CardCore.CardEffectBudget.KeywordAllowed(hunter)) continue;
 
                 var candidates = pool.Where(t => CanAttackTarget(hunter, t, turnPlayer)).ToList();
                 if (candidates.Count == 0) continue; // 防守方无合法目标（全潜行/无存活）——空转不播报
@@ -403,6 +411,7 @@ namespace CardCore
                                   + $" tgt={(target as Card)?.ID ?? (target as Player)?.Name}");
                 // 结算与普通攻击同管线（重检在 CanAttackTarget 已过、无守卫改写——declaredTarget=target）
                 ResolveAttackResolution(hunter, target, target, turnPlayer, payTap: false, guardBlocker: null);
+                CardCore.CardEffectBudget.CommitKeyword(hunter);
             }
         }
 
@@ -499,16 +508,23 @@ namespace CardCore
                     CounterRules.RemoveHeroAttackAmmo(counterattacking);
             }
 
-            // ---- 碾压（2026-11-09 溅射域改版，表行锚=红3）：战斗伤害结算时
-            //      对**宣言原目标**以及其左右邻格占用者造成与主目标相同的战斗伤害（attackerPower，
-            //      已锁力量）——占用者不限类别：生物/结界（耐久体，ApplyDamage 全额扣耐久）/
-            //      角色（邻格=防守方角色格时直伤角色）照打（旧「只打生物 IsLivingUnit」口径退役）；
+            // ---- 碾压（2026-11-09 溅射域改版，表行锚=红3）：对**宣言原目标**以及其左右邻格占用者
+            //      造成与主目标相同的战斗伤害（attackerPower，已锁力量）——占用者不限类别：生物/
+            //      结界（耐久体，ApplyDamage 全额扣耐久）/角色（邻格=防守方角色格时直伤角色）照打；
             //      守卫拦截只拦住原目标的主战斗伤害（战斗发生在原被攻击者那一格），溅射域恒取
-            //      原目标邻格、受拦截不受影响；攻角色时原目标=角色（Player），溅射域=
-            //      角色格左右邻格（RoleAdjacentResolver）。地牌行与单位区不同排，E/W 不含地牌 ----
-            if (attacker.IsAlive && attacker.HasKeyword(KeywordRules.Overwhelm))
+            //      原目标邻格、受拦截不受影响。
+            //      2026-11-10 草案 Phase 5 传播边化 + 同日回正：链路由（ChainOptIn 显式接线）时
+            //      走显式边事件（FollowUpEvent+Visited 每目标每链一次）；**默认 Legacy**——
+            //      原内联段整段保留（默认切换须显式批准，测试全绿不构成授权）----
+            if (attacker.IsAlive && attacker.HasKeyword(KeywordRules.Overwhelm)
+                && CardCore.CardEffectBudget.KeywordAllowed(attacker)) // §11 高危：过载碾压不触发
             {
-                if (flankSnapshot != null)
+                if (CardCore.Damage.DamageResolverRegistry.IsChainRouted(attacker, target))
+                {
+                    CardCore.Damage.ChainDamageResolver.Instance.RunOverwhelmEdge(
+                        attacker, overwhelmPivot, flankSnapshot, flankSide, attackerPower);
+                }
+                else if (flankSnapshot != null)
                 {
                     foreach (var adjacent in flankSnapshot)
                     {
@@ -527,31 +543,44 @@ namespace CardCore
                         }
                     }
                 }
+                CardCore.CardEffectBudget.CommitKeyword(attacker); // §11.3：结算后计（每次攻击触发=1）
             }
 
             // ---- 溅射（2026-11-01 新增，红3；2026-11-09 连锁改版）：战斗结算时，对对手随机单位
             //      造成溢出的战斗伤害；溅射伤害再次溢出则连锁再溅。每跳溢出量=溅射量−受害者
-            //      溅前生命快照（与主目标同口径），量只减不增、已溅者不复选——链必然收敛 ----
-            if (attacker.IsAlive && attacker.HasKeyword(KeywordRules.Splash) && target is Card splashHit)
+            //      溅前生命快照（与主目标同口径），量只减不增、已溅者不复选——链必然收敛。
+            //      2026-11-10 传播边化 + 同日回正：链路由时 splashed 局部集合由 ChainContext.Visited
+            //      承接；默认 Legacy——原内联段整段保留 ----
+            if (attacker.IsAlive && attacker.HasKeyword(KeywordRules.Splash) && target is Card splashHit
+                && CardCore.CardEffectBudget.KeywordAllowed(attacker)) // §11 高危：过载溅射不触发
             {
-                int overflow = attackerPower - splashLifeSnapshot;
-                var splashed = new HashSet<Card> { splashHit }; // 已吃溅射者（含被护盾挡下幸存的）不再复选
-                while (overflow > 0 && attacker.IsAlive)
+                if (CardCore.Damage.DamageResolverRegistry.IsChainRouted(attacker, target))
                 {
-                    var splashOwner = splashHit.GetController();
-                    var pool = new List<Card>();
-                    var defenderField = GameCore.Instance?.ZoneManager?.GetCards(splashOwner, Zone.Battlefield);
-                    if (defenderField != null)
-                        foreach (var c in defenderField)
-                            if (c != null && c.IsAlive && !splashed.Contains(c) && c != attacker && c.IsLivingUnit())
-                                pool.Add(c);
-                    if (pool.Count == 0) break;
-                    var victim = pool[GameRng.Next(0, pool.Count)];
-                    splashed.Add(victim);
-                    int victimLife = victim.GetLife(); // 溅前生命快照，用于算下一跳溢出
-                    DealCombatDamage(attacker, victim, overflow);
-                    overflow -= victimLife;
+                    CardCore.Damage.ChainDamageResolver.Instance.RunSplashEdge(
+                        attacker, splashHit, attackerPower, splashLifeSnapshot);
                 }
+                else
+                {
+                    int overflow = attackerPower - splashLifeSnapshot;
+                    var splashed = new HashSet<Card> { splashHit }; // 已吃溅射者（含被护盾挡下幸存的）不再复选
+                    while (overflow > 0 && attacker.IsAlive)
+                    {
+                        var splashOwner = splashHit.GetController();
+                        var pool = new List<Card>();
+                        var defenderField = GameCore.Instance?.ZoneManager?.GetCards(splashOwner, Zone.Battlefield);
+                        if (defenderField != null)
+                            foreach (var c in defenderField)
+                                if (c != null && c.IsAlive && !splashed.Contains(c) && c != attacker && c.IsLivingUnit())
+                                    pool.Add(c);
+                        if (pool.Count == 0) break;
+                        var victim = pool[GameRng.Next(0, pool.Count)];
+                        splashed.Add(victim);
+                        int victimLife = victim.GetLife(); // 溅前生命快照，用于算下一跳溢出
+                        DealCombatDamage(attacker, victim, overflow);
+                        overflow -= victimLife;
+                    }
+                }
+                CardCore.CardEffectBudget.CommitKeyword(attacker); // §11.3：结算后计（整条溢出链=1 次触发）
             }
 
             // 风怒关键词已删除（2026-09-03 原子表整体修正）——攻击后不再重置自己

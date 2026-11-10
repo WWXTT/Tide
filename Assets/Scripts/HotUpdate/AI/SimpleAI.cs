@@ -375,6 +375,7 @@ namespace SynergyUI
                 foreach (var def in GetEffectDefinitions(source))
                 {
                     if (!def.IsActivatedEffect) continue; // 只管主动；触发式由引擎事件驱动
+                    if (CardCore.Attribute.SuppressRules.IsOverloaded(source)) continue; // §11 预检：过载卡主动失效
                     if (!executor.CanActivate(def, source, me, me, phase, core.TurnEngine.TurnNumber)) continue;
                     if (GameActions.ActivateEffect(core, me, def, source))
                         any = true;
@@ -723,6 +724,7 @@ namespace SynergyUI
             foreach (var unit in battlefield)
             {
                 if (core.IsGameOver) return;
+                if (CardCore.Attribute.SuppressRules.IsOverloaded(unit)) continue; // §11 预检：过载卡拒绝攻击宣言
                 if (!core.CombatSystem.CanDeclareAttack(unit, me)) continue;
                 var target = _strategy.PickAttackTarget(core, me, unit, opp); // 攻击决策经策略
                 if (target == null) continue;

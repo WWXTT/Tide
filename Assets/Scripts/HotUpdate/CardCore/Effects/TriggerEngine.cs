@@ -171,6 +171,13 @@ namespace CardCore
                     && SuppressRules.IsAutoSuppressed(registered.Source))
                     continue;
 
+                // §11 过载（2026-11-10）：过载源的触发式全拦——**光环授予合成条目不豁免**
+                //（§11.2.2：受益者过载→其身上的授予效果失效；计数/闸在 ProcessTriggeredEffects
+                // 入栈口按受益者走 CanCommit，此处为枚举期前置丢弃，双保险）。
+                // 注意：只拦触发式——静态关键词（守护/警戒/先攻）与指示物不经本口（§11.5）。
+                if (registered.Source != null && SuppressRules.IsOverloaded(registered.Source))
+                    continue;
+
                 // 禁自动令光环（2026-11-06 改版，原禁发令=拦主动发动）：受光环影响的单位与角色
                 // 不能发动自动效果——触发式全拦（同失效口径：登场/回合末/亡语等一律）；
                 // 作用面按源卡控制者一侧判（固定双方规则=Scope 恒 Both，两侧同拦）；

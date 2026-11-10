@@ -418,11 +418,14 @@ namespace CardCore
                 // 攻击台账清零（纯统计——横置即上限，唯一动作门槛是横置态本身）
                 card.AttacksThisTurn = 0;
 
-                // 再生（2026-09-13 定案；2026-10-26 文案定稿「己方准备阶段恢复自身全部生命值」）
-                if (card.IsAlive && card.HasKeyword(KeywordRules.Regeneration) && card.GetLife() < card.GetMaxLife())
+                // 再生（2026-09-13 定案；2026-10-26 文案定稿「己方准备阶段恢复自身全部生命值」；
+                // §11 高危关键词：过载期间不触发——结算前闸、生效后计）
+                if (card.IsAlive && card.HasKeyword(KeywordRules.Regeneration) && card.GetLife() < card.GetMaxLife()
+                    && CardEffectBudget.KeywordAllowed(card))
                 {
                     int regenAmount = card.GetMaxLife() - card.GetLife();
                     card.Heal(regenAmount);
+                    CardEffectBudget.CommitKeyword(card);
                     PublishEvent(new Attribute.HealEvent { Target = card, Amount = regenAmount });
                 }
 

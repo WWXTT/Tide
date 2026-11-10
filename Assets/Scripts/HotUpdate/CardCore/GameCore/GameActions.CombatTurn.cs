@@ -46,8 +46,23 @@ namespace CardCore
             if (!combat.TryDeclareAttack(attacker, player, out reason)) return false;
             if (!combat.TryAttackTarget(attacker, target, player, out reason)) return false;
 
+            // §11 过载闸（2026-11-09 裁定）：过载卡拒绝攻击宣言（按主动效果失效处理）
+            if (attacker is Card atkBudget && !CardEffectBudget.Instance.CanCommit(atkBudget, out var atkOverload))
+            {
+                reason = atkOverload;
+                Crumb($"CF-attack-reject src={atkBudget.ID} reason={atkOverload}");
+                return false;
+            }
+
             if (!core.StackEngine.PushAttackDeclaration(attacker, target, player))
             { reason = "攻击入栈被拒（速度门/栈结算中）"; return false; }
+            // §11.3：攻击宣言成功后计数
+            if (attacker is Card atkCommitted)
+                CardEffectBudget.Instance.Commit(atkCommitted, CardEffectCommitKind.Attack, out _);
+            // §11.2.1 OnTargeted 白名单（计入不压——嘲讽/隐密是静态防御性关键词）：被指定为攻击目标记 1 次
+            if (target is Card tgtCard
+                && (target.HasKeyword(Attribute.KeywordRules.Taunt) || target.HasKeyword(Attribute.KeywordRules.Concealed)))
+                CardEffectBudget.CommitKeyword(tgtCard);
             RuleHooks.OnTutorialAttackDeclared?.Invoke(player, attacker, target);
             return true;
         }
@@ -208,12 +223,25 @@ namespace CardCore
                 core.TurnEngine.CurrentPhase?.Phase ?? PhaseType.Standby,
                 paidBoost: paidBoost);
 
+            // §11 过载闸（2026-11-09 裁定）：主动效果入栈前查源卡预算
+            if (source != null && !CardEffectBudget.Instance.CanCommit(source, out var actOverload))
+            {
+                reason = actOverload;
+                Crumb($"CF-activate-reject def={effect.Id} reason={actOverload} src={source.ID}");
+                return false;
+            }
+
             var activated = core.StackEngine.PlayerActivateVoluntary(pending);
             if (!activated)
             {
                 reason = $"发动入栈被拒（速度门/栈结算中，记速器 {core.StackEngine.SpeedCounter.CurrentSpeed}）";
                 Crumb($"CF-activate-reject def={effect.Id} reason=速度门或入栈失败 ctr={core.StackEngine.SpeedCounter.CurrentSpeed} stack={core.StackEngine.StackSize}");
             }
+
+            // §11.3：主动/自愿触发在成功入栈后计数（本次结算不受自己刚挂的过载影响）
+            if (activated && source != null)
+                CardEffectBudget.Instance.Commit(source,
+                    effect.IsActivatedEffect ? CardEffectCommitKind.Active : CardEffectCommitKind.Triggered, out _);
 
             // 发动成功 → 消耗发动代价（仅主动；固定代价，不发不扣）：横置（恒横置，警戒不抵扣）
             //——生物每回合一次；技能区法术=英雄技能每回合一次（回合开始 Untap 重置）。
@@ -277,6 +305,14 @@ namespace CardCore
                 core.TurnEngine.TurnPlayer,
                 core.TurnEngine.CurrentPhase?.Phase ?? PhaseType.Standby);
 
+            // §11 过载闸：响应路径同口径（入栈前查源卡预算）
+            if (!CardEffectBudget.Instance.CanCommit(source, out var respOverload))
+            {
+                reason = respOverload;
+                Crumb($"CF-activate-reject def={effect.Id} reason={respOverload} src={source.ID}");
+                return false;
+            }
+
             var activated = core.StackEngine.PlayerActivateVoluntary(pending);
             if (!activated)
             {
@@ -284,6 +320,10 @@ namespace CardCore
                 Crumb($"CF-activate-reject def={effect.Id} reason=速度门或入栈失败 ctr={core.StackEngine.SpeedCounter.CurrentSpeed} stack={core.StackEngine.StackSize}");
                 return false;
             }
+
+            // §11.3：成功入栈后计数
+            CardEffectBudget.Instance.Commit(source,
+                effect.IsActivatedEffect ? CardEffectCommitKind.Active : CardEffectCommitKind.Triggered, out _);
 
             // 发动成功 → 消耗发动代价（与 ActivateEffect 同口径：横置=每回合一次闸）
             if (effect.IsActivatedEffect && Attribute.KeywordRules.ShouldTap(source))

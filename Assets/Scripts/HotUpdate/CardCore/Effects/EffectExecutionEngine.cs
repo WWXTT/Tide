@@ -77,10 +77,13 @@ namespace CardCore
             EventManager.Instance.Publish(new EffectUsageChangedEvent { EffectId = effect?.Id, Source = source });
         }
 
-        /// <summary>退账并播报（发动层无效退回入栈记账——读数须同步回退）。</summary>
+        /// <summary>退账并播报（发动层无效退回入栈记账——读数须同步回退）。
+        /// §11：每卡效果预算同步退款（发动无效不计入 30 计数）。</summary>
         private void RefundUse(EffectDefinition effect, Entity source)
         {
             _usageTracker.RefundActivation(UsageKey(effect, source));
+            if (source is Card budgetCard)
+                CardEffectBudget.Instance.Refund(budgetCard);
             EventManager.Instance.Publish(new EffectUsageChangedEvent { EffectId = effect?.Id, Source = source });
         }
 
@@ -108,6 +111,13 @@ namespace CardCore
             out string reason)
         {
             reason = null;
+            // §11 过载（2026-11-10）：过载源主动效果失效——单源预检（CanActivate 同路径；
+            // 主消费者=技能预检/UI/网络/AI 候选）。运行时硬闸在 GameActions（入栈前 CanCommit）。
+            if (source is Card olCard && CardEffectBudget.Instance.IsOverloaded(olCard))
+            {
+                reason = "过载：本回合主动/自动效果已失效";
+                return false;
+            }
             // 0.45 技能效果数值上限（2026-11-02 定案）：技能源（技能栏法术）效果只允许 value=1——
             // value≥2 的效果不可经技能栏发动。构筑期校验（CanBeSkillCard/SkillIneligibleReason）
             // 同口径先行；此闸兜底数据被运行时改写/网络路径绕过构筑闸的情形，拒绝时报卡名+效果。
