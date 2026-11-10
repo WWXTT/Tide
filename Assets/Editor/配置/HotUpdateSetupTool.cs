@@ -68,8 +68,8 @@ namespace Tide.HotUpdateTools
             AddGroup(package, "AotDll", AotDllFolder);
             AddGroup(package, "Scene", "Assets/Scenes", "CollectAllExceptLaunch");
             AddGroup(package, "Configs", "Assets/Configs");
-            AddGroup(package, "CardData", "Assets/CardData");
-            AddGroup(package, "TutorialData", "Assets/TutorialData");
+            AddGroup(package, "CardData", "Assets/Data/CardData");
+            AddGroup(package, "TutorialData", "Assets/Data/TutorialData");
             AddGroup(package, "AIModel", "Assets/Art/AIModels");
             // Assets/Art 运行时资产（prefab/贴图/材质/shader/vfx）：白名单过滤，模型库与 AIModels 子树出局（各有专组）；
             // 相对路径寻址（去 Assets/ 前缀）——BattleHex 网格/预制体等同名异扩展在文件名寻址下撞址（2026-10-18 审计）

@@ -244,12 +244,7 @@
     "Polarity": 1,
     "MountKinds": "指示物,可以作为连接光环,不可随机",
     "Tags": "换区清除型",
-    "ManaList": [
-      0,
-      0.5,
-      0,
-      0
-    ]
+    "Tier": "Dm1_25"
   },
   {
     "ID": "d00b4a7d",
@@ -262,12 +257,7 @@
     "Polarity": -1,
     "MountKinds": "指示物,不可随机",
     "Tags": "换区清除型",
-    "ManaList": [
-      0,
-      0.5,
-      0,
-      0
-    ]
+    "Tier": "Dm1_25"
   },
   {
     "ID": "7a97f666",
@@ -280,12 +270,7 @@
     "Polarity": 1,
     "MountKinds": "指示物,可以作为连接光环,不可随机",
     "Tags": "换区清除型",
-    "ManaList": [
-      0,
-      0,
-      0,
-      0.5
-    ]
+    "Tier": "Dm1_25"
   },
   {
     "ID": "d3d792bb",
@@ -298,12 +283,7 @@
     "Polarity": -1,
     "MountKinds": "指示物,不可随机",
     "Tags": "换区清除型",
-    "ManaList": [
-      0,
-      0,
-      0,
-      0.5
-    ]
+    "Tier": "Dm1_25"
   },
   {
     "ID": "977df9e1",
@@ -334,12 +314,7 @@
     "Polarity": 1,
     "MountKinds": "指示物",
     "Tags": "生效自减型",
-    "ManaList": [
-      0,
-      0,
-      0,
-      0.5
-    ]
+    "Tier": "Dm1_25"
   },
   {
     "ID": "3d68a8bf",
@@ -352,12 +327,7 @@
     "Polarity": -1,
     "MountKinds": "指示物",
     "Tags": "生效自减型",
-    "ManaList": [
-      0,
-      0.5,
-      0,
-      0
-    ]
+    "Tier": "Dm1_25"
   },
   {
     "ID": "7b796d9e",
@@ -464,12 +434,7 @@
     "Polarity": -1,
     "MountKinds": "指示物",
     "Tags": "生效自减型",
-    "ManaList": [
-      0,
-      0.5,
-      0,
-      0
-    ]
+    "Tier": "Dm1_25"
   },
   {
     "ID": "08a9fbf6",
@@ -556,12 +521,7 @@
     "Polarity": 0,
     "MountKinds": "系统,指示物",
     "Tags": "换区清除型",
-    "ManaList": [
-      0,
-      0,
-      0.5,
-      0
-    ]
+    "Tier": "Dm1_25"
   },
   {
     "ID": "f4918303",
@@ -611,11 +571,6 @@
     "Polarity": 1,
     "MountKinds": "指示物,不可随机",
     "Tags": "换区清除型",
-    "ManaList": [
-      0,
-      0,
-      0.5,
-      0
-    ]
+    "Tier": "Dm1_25"
   }
 ]

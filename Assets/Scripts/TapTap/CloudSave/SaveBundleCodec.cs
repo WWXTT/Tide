@@ -297,7 +297,7 @@ namespace CloudSave
         {
             string local = Path.Combine(CardDataPaths.CardDir, fileName);
             if (!File.Exists(local)) return true; // 缺文件=种子引导未跑过或空环境，不构成玩家痕迹
-            string seed = CardDataPaths.PackTextReader?.Invoke("CardData/" + fileName);
+            string seed = CardDataPaths.PackTextReader?.Invoke("Data/CardData/" + fileName);
             if (string.IsNullOrEmpty(seed)) return true; // 取不到种子（宿主未装配）——无从比较，放行
             return File.ReadAllText(local) == seed;
         }

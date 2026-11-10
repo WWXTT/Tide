@@ -18,9 +18,9 @@ namespace CardCore
         // EnsureLoaded 时合并（重复 id 保正式表首条——与主表内重复 id 同口径）。
         private const string TutorialConfigRelative = "Tutorial/TutorialEffects.json";
         // 训练独立效果表（2026-11-03 训练池分家）：训练卡的 effectIds 引用在此解析——
-        // 文件在 Assets/TrainingData，随开发仓库走（不进热更包、不下发玩家设备）。
+        // 文件在 Assets/Data/TrainingData，随开发仓库走（不进热更包、不下发玩家设备）。
         // 合并口径同教学副表：重复 id 保先装表（主表>教学>训练）。
-        private const string TrainingConfigRelative = "TrainingData/TrainingEffects.json";
+        private const string TrainingConfigRelative = "Data/TrainingData/TrainingEffects.json";
 
         [Serializable]
         private class Wrapper { public List<EffectSlimDto> items; }

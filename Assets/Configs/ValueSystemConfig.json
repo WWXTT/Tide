@@ -1,122 +1,74 @@
-[
-  {
-    "Category": "CardCost",
-    "Key": "StatUnit",
-    "Value": 2.0,
-    "Des": "1费=StatUnit点属性（攻血各 1/StatUnit 元素，灰）"
-  },
-  {
-    "Category": "CardCost",
-    "Key": "SymmetricDiscountFactor",
-    "Value": 0.5,
-    "Des": "双方同时作用减半系数（2026-10-05 迁表；规则光环不在此列——2026-10-29 去对称让利，表价即实价）"
-  },
-  {
-    "Category": "CardCost",
-    "Key": "DurabilityUnitCost",
-    "Value": 0.5,
-    "Des": "耐久单价 0.5/点（色=蓝——2026-11-03 耐久改蓝定案，计价入蓝桶；2026-10-16 回调口径；2026-10-10 的 1 灰/点口径退役）"
-  },
-  {
-    "Category": "CardCost",
-    "Key": "RuleAuraSingleSideFactor",
-    "Value": 1.5,
-    "Des": "场地光环单侧溢价（2026-10-30 定案）：极性 ±1 行作用面收窄单侧（+1 仅己方/−1 仅对方）=表价×1.5；固定双方行（IsFixedBothRule）与存量 value=Both 恒 ×1；补行——此前仅代码默认"
-  },
-  {
-    "Category": "CardComposition",
-    "Key": "ChassisBudget",
-    "Value": 3.0,
-    "Des": "底盘额度（2026-10-10 可支配定案，经济依据=入组1+抽牌2）：结构项（攻/守/效果槽各1）占用，剩余按卡型支配——法术抵价或提速(SpeedBonus)、生物/地牌全额抵价、结界抵发动费或转耐久；衍生物无底盘"
-  },
-  {
-    "Category": "CardComposition",
-    "Key": "ChassisItemRate",
-    "Value": 1.0,
-    "Des": "底盘单项费率：攻/守/每个效果槽各占 1"
-  },
-  {
-    "Category": "PricingTier",
-    "Key": "TargetCount1",
-    "Value": 1.0,
-    "Des": "目标数量1：计价基准（2026-10-05 档位化，CostDerivation.QuantityFactor 消费）"
-  },
-  {
-    "Category": "PricingTier",
-    "Key": "TargetCount2",
-    "Value": 1.5,
-    "Des": "目标数量2：×1.5"
-  },
-  {
-    "Category": "PricingTier",
-    "Key": "TargetCount3",
-    "Value": 2.0,
-    "Des": "目标数量3：×2"
-  },
-  {
-    "Category": "PricingTier",
-    "Key": "TargetCountAll",
-    "Value": 3.0,
-    "Des": "目标数量全部（0=域内全取；-1任意同此档）：×3"
-  },
-  {
-    "Category": "TimingFactor",
-    "Key": "Once",
-    "Value": 1.0,
-    "Des": "单次生效（登场/死亡/破坏/除外/离场/墓地回场/游戏开始/角色死亡）：×1 基准（2026-11-05 两档收敛定案）"
-  },
-  {
-    "Category": "TimingFactor",
-    "Key": "Repeat",
-    "Value": 1.0,
-    "Des": "多次生效（回合/阶段/抽牌/伤害/事件观察族，仅结界可挂——耐久即次数池）：×1——额外次数已由耐久支付，不按次数加价"
-  },
-  {
-    "Category": "TimingFactor",
-    "Key": "CreatureOnly",
-    "Value": 1.5,
-    "Des": "生物专属（攻/守/横置族）：×1.5——只有生物可挂（结界不横置、法术不驻场，无从触发）；宿主自身行动承担次数（2026-11-09 用户定案）"
-  },
-  {
-    "Category": "GameRules",
-    "Key": "InitialLife",
-    "Value": 30.0,
-    "Des": "初始生命（2026-10-13 迁表：逻辑不动数值出代码；Reset 跨局复位同用；流失扣上限总量受此封顶）"
-  },
-  {
-    "Category": "GameRules",
-    "Key": "OpeningHandSize",
-    "Value": 6.0,
-    "Des": "起手手牌数（双方对称抽满；教学 skipOpeningDraw/挑战 p2ExtraOpeningDraws 在此之上调整）"
-  },
-  {
-    "Category": "GameRules",
-    "Key": "DefaultHandLimit",
-    "Value": 7.0,
-    "Des": "手牌上限基值（仅回合末强制选弃，抽牌时不截断；IHandLimitModifier 修改链之上叠加，纳川仪典光环→+自己蓝色地牌数〔2026-10-30 改版，原固定15〕）"
-  },
-  {
-    "Category": "GameRules",
-    "Key": "BattlefieldCapacityPerPlayer",
-    "Value": 9.0,
-    "Des": "每玩家战场单位容量（=单位区 4+5，2026-10-29 P11 盘面重塑 6-7-6；计数语义与棋盘格无关；BoardLayout.UnitCellsPerPlayer 单源引用本值；控制权变更不受此闸）"
-  },
-  {
-    "Category": "GameRules",
-    "Key": "LandCurveCap",
-    "Value": 10.0,
-    "Des": "标准地牌槽曲线自然封顶 [1..10]（2026-10-15：7→10，每次回合开始双方同步 +1——先后手无差；成长等效果增加在此之外无限制；=曲线末端=ElementPool 池钳 MAX_POOL_SIZE 同源）"
-  },
-  {
-    "Category": "GameRules",
-    "Key": "SecondPlayerArmorBonus",
-    "Value": 5.0,
-    "Des": "后手开局护甲补偿（2026-10-30 迁表：后手角色 +N 层护甲指示物 ArmorCounter——本地木桩局/联机 NetRoom/教学固定先后手开局注入共用 GameCore.SecondPlayerArmorBonus 单口；改表即改数值）"
-  },
-  {
-    "Category": "GameRules",
-    "Key": "MaxTriggersPerTurnPerEffect",
-    "Value": 30.0,
-    "Des": "自馈闸门（2026-10-30 定案）：同一来源实例+效果Id每回合最多触发次数——常规触发远低于30，只截断自循环；引擎载荷/结界耐久不叠闸"
-  }
-]
+{
+  "CardCost": {
+    // 1费=StatUnit点属性（攻血各 1/StatUnit 元素，灰）
+    "StatUnit": 2.0,
+    // 双方同时作用减半系数（2026-10-05 迁表；规则光环不在此列——2026-10-29 去对称让利，表价即实价）
+    "SymmetricDiscountFactor": 0.5,
+    // 耐久单价 0.5/点（色=蓝——2026-11-03 耐久改蓝定案，计价入蓝桶；2026-10-16 回调口径；2026-10-10 的 1 灰/点口径退役）
+    "DurabilityUnitCost": 0.5,
+    // 场地光环单侧溢价（2026-10-30 定案）：极性 ±1 行作用面收窄单侧（+1 仅己方/−1 仅对方）=表价×1.5；固定双方行（IsFixedBothRule）与存量 value=Both 恒 ×1；补行——此前仅代码默认
+    "RuleAuraSingleSideFactor": 1.5
+  },
+  "CardComposition": {
+    // 底盘额度（2026-10-10 可支配定案，经济依据=入组1+抽牌2）：结构项（攻/守/效果槽各1）占用，剩余按卡型支配——法术抵价或提速(SpeedBonus)、生物/地牌全额抵价、结界抵发动费或转耐久；衍生物无底盘
+    "ChassisBudget": 3.0,
+    // 底盘单项费率：攻/守/每个效果槽各占 1
+    "ChassisItemRate": 1.0
+  },
+  "PricingTier": {
+    // 目标数量1：计价基准（2026-10-05 档位化，CostDerivation.QuantityFactor 消费）
+    "TargetCount1": 1.0,
+    // 目标数量2：×1.5
+    "TargetCount2": 1.5,
+    // 目标数量3：×2
+    "TargetCount3": 2.0,
+    // 目标数量全部（0=域内全取；-1任意同此档）：×3
+    "TargetCountAll": 3.0
+  },
+  "TimingFactor": {
+    // 桶默认·单次生效（登场/死亡/破坏/除外/离场/墓地回场/游戏开始/角色死亡）：×1 基准。2026-11-10 时机系数规格起退化为兜底——TimingWeights.json Enabled=true 且行命中时计价读行 Factor（影子模式恒走本段）
+    "Once": 1.0,
+    // 桶默认·多次生效（回合/阶段/抽牌/伤害/事件观察族，仅结界可挂）：×1——影子模式=现行价；新口径下次数由时机系数 f 计价（耐久只付血量）
+    "Repeat": 1.0,
+    // 桶默认·生物专属（攻/守/横置族）：影子期间 ×1.5（旧价不变）；段 2b 切换（TimingWeights Enabled:true）时同批改 1.0——次数已由 f 计价，不再叠加（2026-11-09 定案，2026-11-10 规格修订）
+    "CreatureOnly": 1.5
+  },
+  "AtomTier": {
+    // 档位推导截距＝卡底座（一张牌的价值）。档位名=d 值（Dm/Dp±位移）——同档异语义共用（伤害1与洗回1都是P=1），语义名退役
+    "Base": 3.0,
+    // 每档位移价（1 档 d = 2 费）
+    "Slope": 2.0,
+    // P=0：载体（模拟/变形/牺牲/预言）——语义仅供理解，不入价格
+    "Dm1_5": -1.5,
+    // P=0.5：数值增量（回血/护甲/攻/血/耐久/毒素/易损/展示；永久属性基础单价，durationFactor 永久档×2 后=1）
+    "Dm1_25": -1.25,
+    // P=1：数值 1 点、回到循环起点（伤害/洗回/激励/占卜/静默/锁定/坚韧=2血×0.5）——1伤害=1费=洗回1张同位
+    "Dm1": -1.0,
+    // P=2：恢复可用性（抽/回收/磨/窃取/发动无效/移动/筛选展示/回响/流失/攻守互换）
+    "Dm0_5": -0.5,
+    // P=3：等价交换（消灭/摧毁/弹回/弹回牌库顶/弃牌/封印/强夺/驱散/净化/效果无效/跳过结束阶段）
+    "D0": 0.0,
+    // P=5：不可逆/获得资产（除外/控制/苏生/检索/跳过准备阶段/跳过主要阶段）
+    "Dp1": 1.0,
+    // P=6：永久移除/归属改写（抹除/操控）
+    "Dp1_5": 1.5,
+    // P=9：整回合（跳过回合/额外回合）
+    "Dp3": 3.0
+  },
+  "GameRules": {
+    // 初始生命（2026-10-13 迁表：逻辑不动数值出代码；Reset 跨局复位同用；流失扣上限总量受此封顶）
+    "InitialLife": 30.0,
+    // 起手手牌数（双方对称抽满；教学 skipOpeningDraw/挑战 p2ExtraOpeningDraws 在此之上调整）
+    "OpeningHandSize": 6.0,
+    // 手牌上限基值（仅回合末强制选弃，抽牌时不截断；IHandLimitModifier 修改链之上叠加，纳川仪典光环→+自己蓝色地牌数〔2026-10-30 改版，原固定15〕）
+    "DefaultHandLimit": 7.0,
+    // 每玩家战场单位容量（=单位区 4+5，2026-10-29 P11 盘面重塑 6-7-6；计数语义与棋盘格无关；BoardLayout.UnitCellsPerPlayer 单源引用本值；控制权变更不受此闸）
+    "BattlefieldCapacityPerPlayer": 9.0,
+    // 标准地牌槽曲线自然封顶 [1..10]（2026-10-15：7→10，每次回合开始双方同步 +1——先后手无差；成长等效果增加在此之外无限制；=曲线末端=ElementPool 池钳 MAX_POOL_SIZE 同源）
+    "LandCurveCap": 10.0,
+    // 后手开局护甲补偿（2026-10-30 迁表：后手角色 +N 层护甲指示物 ArmorCounter——本地木桩局/联机 NetRoom/教学固定先后手开局注入共用 GameCore.SecondPlayerArmorBonus 单口；改表即改数值）
+    "SecondPlayerArmorBonus": 5.0,
+    // 自馈闸门（2026-10-30 定案）：同一来源实例+效果Id每回合最多触发次数——常规触发远低于30，只截断自循环；引擎载荷/结界耐久不叠闸
+    "MaxTriggersPerTurnPerEffect": 30.0
+  }
+}

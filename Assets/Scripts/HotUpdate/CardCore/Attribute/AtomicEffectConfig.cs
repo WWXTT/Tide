@@ -42,6 +42,17 @@ namespace CardCore.Attribute
         /// <summary>费用合计基数（各色份额之和）——原 BaseCost 的标量消费者过渡用。</summary>
         public float TotalUnitCost => ManaList?.Total ?? 0f;
 
+        // ---- 双轨计价（2026-11-10 定案；同日改版）：Tier 写法行装载后 ManaList 已是展开值
+        //      （AtomColorRules 生成色 × 档位价），计价/支付/展示全走 ManaList 照旧；以下两字段纯溯源——
+        //      验证器对账（P9-8：价差>0.01 报出）与合成器「该行是档位写法」判别用，直写 ManaList 行为 null。----
+        /// <summary>档位名（AtomTierConfig 同名字段，d 值名：Dm1_5/Dm1_25/Dm1/Dm0_5/D0/Dp1/Dp1_5/Dp3）
+        /// ——表行以 Tier 写价时非空。</summary>
+        public string Tier;
+
+        /// <summary>生成色（AtomColorRules.For 产出的 ManaType 枚举名 Gray/Red/Blue/Green；
+        /// 同 Tier，纯溯源）。</summary>
+        public string Color;
+
         /// <summary>费用乘数（不同目标范围对费用的影响）</summary>
         public float CostMultiplier;
 

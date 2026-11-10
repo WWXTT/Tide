@@ -365,8 +365,9 @@ namespace CardCore.Attribute.Handlers
         protected override string DescribeTemplate(AtomicEffectInstance effect) => "从墓地回收到手牌";
     }
 
-    /// <summary>除外回收（2026-10-29 阶段3a，蓝3——表行 e301f1af）：将所选目标卡从除外区返回
-    /// 其持有者手牌（域=己方除外区；目标不在除外区则跳过该目标——防域外交错引用）。</summary>
+    /// <summary>除外回收（2026-10-29 阶段3a；表行 0afb06ce）：将所选目标卡从除外区洗回
+    /// 其持有者牌库（2026-11-10 改版：回手牌→回牌库，用户表侧 DisplayName 改定；落位与
+    /// 「洗回」同口径=随机+洗牌。域=己方除外区；目标不在除外区则跳过该目标——防域外交错引用）。</summary>
     public class RecoverFromExileHandler : AtomicEffectHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.RecoverFromExile;
@@ -378,12 +379,13 @@ namespace CardCore.Attribute.Handlers
                 if (!(target is Card card) || card.GetZone() != Zone.Exile) continue;
                 var owner = card.GetOwner() ?? card.GetController();
                 if (context.ZoneManager == null || owner == null) continue;
-                context.ZoneManager.MoveCard(card, owner, Zone.Exile, Zone.Hand);
-                PublishEvent(new CardReturnToHandEvent { Card = card, Source = context.Source });
+                context.ZoneManager.GetZoneContainer(owner).Move(card, Zone.Exile, Zone.Deck);
+                context.ZoneManager.ShuffleDeck(owner);
+                PublishEvent(new CardShuffleIntoDeckEvent { Card = card, Source = context.Source });
             }
         }
 
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => "将目标卡从除外区返回手牌";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "将目标卡从除外区洗回牌库";
     }
 
     /// <summary>

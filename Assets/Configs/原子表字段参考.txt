@@ -133,6 +133,33 @@
 SkipTurn×4（整回合/End/Standby/Main 相位档）、ModifyGameRule×21（场地光环族，
 实例 str=规则短名各自取锚）、GrantProtection×3（单体——己方单位域；全体档 2026-10-30 退役）。
 
+2026-11-09 战斗管线拆分 + 循环控制（草案全文 docs/伤害管线与循环链接口草案.md）：
+  ① 单事件伤害抽 7 层管线（Target100 / Replace200 / Redirect300 / Amplify400 / Prevent500 /
+     FinalModify600 / Apply700，DamagePipeline.cs）——两处已裁决差异：暴击先于减半、
+     守护改写后不重跑替代；其余段算法与事件文案逐行平移 Legacy（KeywordRules.ApplyDamageLegacy）。
+  ② 循环链 DamageChain：LoopPolicy 五档（OneBounce/UntilDeath/Halve/ConsumeCounter/ChainBudget）
+     + LoopCost 四类（None/Life/Counter/Durability），v1 只实现 None/Life；
+     MaxEvents=256 / MaxDepth=64 / StopOnStateRepeat=true 是安全断言（命中记日志并结束）。
+  ③ 每卡 30 次 → 过载指示物（CardEffectBudget）：按卡实例计数，计入组合主动/自动、攻击/守卫宣言、
+     高危 11 关键词；所有指示物与耐久支付移出计数；不可净化，只在下回合开始移除。
+
+2026-11-10 公式化费用（三轴：值 / 颜色 / 时机）：
+  ① 原子价双轨：新增 Tier 列（d 值档名 Dm1_5=-1.5 / Dm1_25=-1.25 / Dm1=-1 / Dm0_5=-0.5 /
+     D0=0 / Dp1=1 / Dp1_5=1.5 / Dp3=3），价 = Base(3) + Slope(2) × d，配置在
+     ValueSystemConfig.AtomTier 段（Base/Slope + 八档，改一行全档跟随）。
+     Tier 行不再写 ManaList——解析期由 AtomColorRules 生成色 + PriceOf 价展开为单色 ManaList，
+     下游 TotalUnitCost/magnitude/分色零改；找不到锚点的行（双色/关键词/光环/压制阶梯指示物/
+     复合动态原子）继续直写 ManaList。同行 Tier+ManaList = 双源冲突（装载期 Error，取直写）；
+     未知档位/多色/未收录色 = Error 不计价，不静默回落。验证器 P9-8 零容忍对账。
+  ② 颜色生成：AtomColorRules 从验证器搬到 CardCore/Attribute（SpecColorOf + SpecRowOverrides +
+     SpecColorExempt 三层），从「只报不改的审计」转为「Tier 行的颜色生成器」；
+     验证器 P9-8g 全表对账「生成色 vs 显式色」，不等即 Fail，迁移期白名单 SpecColorPending
+     逐行点名、迁移完必须为 0。
+  ③ 时机系数：f(t) = min(E[N(t)], Cutoff=3)（等效法术次数，f(法术)=1）；单次档 E[N]=p、
+     周期/观察族 E[N]=λ×L、攻/守/横置族 E[N]=λ×Lc；权重表 Assets/Configs/TimingWeights.json
+     （35 行，Enabled=false 影子模式）；触发一次消耗 D×1/3 点耐久（D 点恒兑现 3 次），
+     耐久费 0.5 蓝/点只表达血量、不再兼作次数价。规格见 docs/时机系数规格_v0.1.md。
+
 【EffectType 族谱（按 MountKinds 分组的当前实测，2026-10-31 阶段B 复核）】
 普通行（MountKinds 空串 x44）: 造成伤害/全体伤害 回复生命 吸取 角色攻击力增加 抽卡 弃牌
     弹回 回收 除外 洗回 检索 苏生 占卜 激励(Untap) 生命流失 锁定 控制(原获得控制)
@@ -301,7 +328,17 @@ SkipTurn×4（整回合/End/Standby/Main 相位档）、ModifyGameRule×21（场
   分区名 no-op 保留位：Hand Graveyard Deck Exile Battlefield Activation
   属性比较式：Power>5 / Life<=3 / Power=2 等格式。Mortal(凡躯) 已随 2026-10-13 神佑删除退役。
 
-【费用构成 ManaList（2026-10-04 位置数组定案——唯一费用列；2026-10-28 P2a 收缩 4 位）】
+【费用构成 ManaList / Tier（双轨·2026-11-10 定案——二选一，同行不可并存）】
+  A. Tier 写法（能由公式推导的行·推荐）：只写 "Tier" 列，不写 ManaList。
+     价 = Base + Slope × d（ValueSystemConfig.AtomTier：Base=3 卡底座 / Slope=2；
+     八档 Dm1_5=-1.5→0、Dm1_25=-1.25→0.5、Dm1=-1→1、Dm0_5=-0.5→2、D0=0→3、Dp1=1→5、
+     Dp1_5=1.5→6、Dp3=3→9）；颜色由 AtomColorRules 生成（单色，未收录/多色行不可 Tier）。
+     装载期就地展开为单色 ManaList（ElementCost.FromValue(生成色, 档位价)），下游零改。
+     注意：这是**基础单价**，magnitude/持续档/数量档仍在外层乘——永久属性行写 Dm1_25(0.5)，
+     永久档 ×2 后最终价 1，不是写 1。
+  B. ManaList 直写（找不到锚点的行）：双色（吸取 红|绿）、关键词、光环、压制阶梯指示物、
+     复合/动态原子（召唤衍生物/活体炸弹/活体护甲/护盾猛击）。值如下述位置数组。
+
   float 位置数组：下标 = 色序（0=灰 1=红 2=蓝 3=绿，长度=4）。白/黑席位 2026-10-28 退役：
   原含白/黑份额 33 行按语义改色（伤害/弃牌/磨牌/除外/夺控/改写控制权→红；沉默/缄默/紊乱/
   费用增加/易损/放血/沉睡→蓝；回复/防护/复生/净化/解除负面/重放/费用减少→绿（注：费用降低指示物
@@ -313,6 +350,8 @@ SkipTurn×4（整回合/End/Standby/Main 相位档）、ModifyGameRule×21（场
   末两位为退役席位、全量数据恒 0）——读取经 ElementCost 迁移（长度 6 → 取前 4 + 任意位）；
   运行时统一 ElementCost（5 位，任意位不进卡费）。
   旧 EffectColor+BaseCost+EffectTier 三列已删（墓碑）。
+  配色规范（README《效果颜色规范》2026-11-02 定案）单源 = CardCore/Attribute/AtomColorRules.cs
+  （SpecColorOf + SpecRowOverrides + SpecColorExempt）——Tier 行的颜色由它生成，直写行的颜色由人按它改。
 
 【其它字段】
   ID         = 行主键 8-hex：sha256(DisplayName.Trim()) 前 8 位（原子引用键——Effects.json
@@ -333,20 +372,28 @@ SkipTurn×4（整回合/End/Standby/Main 相位档）、ModifyGameRule×21（场
                CardLoader.ValidateAtomParams，非法值告警回落 None；表内不写键=缺省 None。
 
 【计价口径速查（CostDerivation）】
+  · 原子价档位（Tier 写法·2026-11-10）：P = Base(3) + Slope(2) × d → 0/0.5/1/2/3/5/6/9 八档；
+    每档=一行写法共享，改一档=全表该档行一起变价
+  · 时机系数（2026-11-10）：f(t) = min(E[N(t)], 3)——单次档 E[N]=p / 周期观察族 λ×L /
+    攻守横置族 λ×Lc；f(法术)=1；权重表 Assets/Configs/TimingWeights.json（Enabled=false 影子模式）；
+    结界每次触发消耗 D×1/3 点耐久（D 点恒兑现 3 次），耐久费只算血量、不再兼作次数价
   · 指示物原子（Tags 三型）: 行锚 × max(1,|value|)
   · 修改族档价（ModifyPower/Life/Cost 无表行，硬编码）: 限时 0.5 / 换区持续 1.5 / 永久 2.0；改写族 3.0
   · Grant 关键词梯: Once ×1.0 / 临时 ×1.2 / 换区持续 ×1.6 / 永久 ×2.0
   · 控制权三档: 回合级 ×1.2 / 离场 ×1.6 / 改持有者 ×3.0
   · 规则光环: 单价 × 成本乘数 × 持续档；表价即实价（2026-10-29 去对称让利）；对称仪典 3/6 档
-  · 数量档位 1/1.5/2/全部3；触发档位同口径（原「期望 4 目标」口径已退役）
+  · 数量档位 1/1.5/2/全部3（触发次数档已随 2026-10-30 无上限定案退役，改由时机系数承担）
 
 【改表的连锁反应】
-  · 表指纹（CardIdentityService.TableFingerprint）只哈希：
-      EnumName | ManaList | TargetKinds | TargetFilter | Polarity
-    改任一 → 表指纹变 → 全体卡身份哈希换血 → manifest 作废 → 重训+重导出。
-    （改 DisplayName/ID/MountKinds/Tags 不动指纹。）
-  · 卡/效果 ID（ContentHasher）：费用不入哈希；ID 漂移只来自 名字/类型/身材/关键词/光环/效果内容。
+  · 身份哈希（CardIdentityService）2026-11-05 起**锚定冻结 ID**：表内容编辑（含新增无人引用的行）
+    不再换血；整表指纹盐已拆。行为语义大改按冻结纪律「新建行（新 ID）、旧行退役」。
+  · 卡/效果 ID（ContentHasher）：费用不入哈希（改 Tier/价不动 ID）；ID 漂移只来自
+    名字/类型/身材/关键词/光环/效果内容。
+  · **改 Tier、或改 AtomTier.Base/Slope = 全表变价**：卡费实时重推（EnsureCost），卡表 costList
+    缓存随之刷新；受影响面 = 全部 Tier 行。直写 ManaList 行不受 AtomTier 影响。
+  · **改颜色**（Tier 行改 AtomColorRules / 直写行改 ManaList 色位）= 卡费颜色桶变化 →
+    卡组可用性校验与配色审查受影响；验证器 P9-8g 会比对生成色与显式色。
+  · **改时机系数**（TimingWeights.Lambda/Expected/Factor）= 乘在效果面价上，触发式效果价变；
+    Enabled=false 时只对账不生效。
   · ID 列不用手写：跑 Tools/重推导测试卡表费用与ID 自动重推；DisplayName 撞名→ID 撞号（工具告警）。
-  · 改完表的标准动作：Tools/重推导测试卡表费用与ID → Tools/端到端验证。
-  · 2026-10-08 注意：Cards.json/Effects.json 清空重建中——重建时 refId 全部按新表 ID 书写；
-    重建完成前 loadcheck/verify 门禁在 V0 装载段必然失败（非表问题）。
+  · 改完表的标准动作：Tools/重推导测试卡表费用与ID → Tools/端到端验证（含验证器 P9-8 双轨对账）。

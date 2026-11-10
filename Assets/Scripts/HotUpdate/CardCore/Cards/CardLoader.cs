@@ -252,9 +252,11 @@ namespace CardCore
         }
 
         /// <summary>结界形态校验（2026-10-15 深夜三类卡改版；2026-11-05 充能系统动作化修订；
-        /// 2026-11-09 生物专属时机收回）：只挂自动/光环，主动全拒；攻/守/横置族为生物专属自动效果
-        ///（结界不横置、无从触发）→ Error 点名（引擎载荷也不放行——该时机对结界无语义）。
-        /// 耐久语义保留（受击−1/被动触发−1）。</summary>
+        /// 2026-11-09 生物专属时机收回；2026-11-10 资格层新口径）：只挂自动/光环，主动全拒；
+        /// 攻/守/横置族（4 值——OnAttacked 已解绑为双宿主）为生物专属自动效果（结界不横置、无从触发）
+        /// → Error 点名（引擎载荷也不放行——该时机对结界无语义）；OnTurnStart 任何宿主 Error 点名
+        ///（系统专用——不能靠 Factor=0 静默变免费；引擎载荷豁免，raw 值经 NormalizeEngineTiming 归一）。
+        /// 耐久语义保留（受击−1/被动触发按时机系数口径）。</summary>
         private static void ValidateEnchantShape(List<CardData> cards)
         {
             foreach (var card in cards)
@@ -271,19 +273,28 @@ namespace CardCore
                                       "（结界只挂自动/光环，主动效果已退役）——构筑期拦截");
                         continue;
                     }
+                    if (t == (int)TriggerTiming.OnTurnStart && !HasEngineEntry(e))
+                    {
+                        TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：结界效果 {e.Id} 时机" +
+                                      "「OnTurnStart」——回合开始已收归系统专用（任何宿主禁挂），" +
+                                      "玩家侧由 OnStandbyPhase 承接——装载期拦截");
+                        continue;
+                    }
                     if (EffectEligibility.IsTapAnchoredTiming((TriggerTiming)t))
                         TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：结界效果 {e.Id} 时机" +
-                                      $"「{(TriggerTiming)t}」为攻/守/横置族——生物专属自动效果" +
-                                      "（结界不横置、无从触发）——构筑期拦截");
+                                      $"「{(TriggerTiming)t}」为攻/守/横置族（4 值）——生物专属自动效果" +
+                                      "（结界不横置，无从触发）——构筑期拦截");
                 }
             }
         }
 
-        /// <summary>生物形态校验（2026-11-05 时机两档定案；2026-11-09 生物专属档拆分）：生物（及非结界宿主）
-        /// 效果挂周期/观察族多次时机（回合/阶段/抽牌/伤害/被指向/使用/事件观察——EffectEligibility.
-        /// IsEnchantExclusiveTiming）→ Error 点名卡/效果/时机（防直改 JSON 或旧档绕过合成器；
-        /// 结界=耐久即次数池放行；攻/守/横置族=生物专属档放行（计价 ×1.5——宿主自身行动承担次数）；
-        /// 引擎载荷放行——settle=Engine 的效果头时机只是奖励发射窗，与计价豁免同口径）。可见不炸——坏卡点名。</summary>
+        /// <summary>生物形态校验（2026-11-05 时机两档定案；2026-11-09 生物专属档拆分；2026-11-10
+        /// 资格层对齐时机系数新口径）：生物（及非结界宿主）效果时机按 <see cref="EffectEligibility.
+        /// CreatureCanTakeTiming"/> 单源判（与 RejectReason/HostCanTakeTiming 三处同口径）——
+        /// 单次档/攻守横置族（4 值）/双宿主（OnAttacked）/E[N]≤1 低频多次档放行；
+        /// E[N]&gt;1 的周期时机（结界专属——耐久即次数池）与 OnTurnStart（系统专用）→ Error 点名
+        /// 卡/效果/时机（防直改 JSON 或旧档绕过合成器；引擎载荷放行——settle=Engine 的效果头时机
+        /// 只是奖励发射窗，与计价豁免同口径）。可见不炸——坏卡点名。</summary>
         private static void ValidateCreatureShape(List<CardData> cards)
         {
             foreach (var card in cards)
@@ -296,11 +307,19 @@ namespace CardCore
                     if (t == (int)TriggerTiming.Activate_Active || t == (int)TriggerTiming.Activate_Instant
                         || t == (int)TriggerTiming.Activate_Response)
                         continue; // 主动档无时机（现付）
-                    if (!EffectEligibility.IsEnchantExclusiveTiming((TriggerTiming)t)) continue;
-                    if (HasEngineEntry(e)) continue; // 引擎载荷：时机=奖励发射窗，非重复语义
+                    if (HasEngineEntry(e)) continue; // 引擎载荷：时机=奖励发射窗，非重复语义（OnTurnStart 由 NormalizeEngineTiming 归一）
+                    if (t == (int)TriggerTiming.OnTurnStart)
+                    {
+                        TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：效果 {e.Id} 时机"
+                                      + "「OnTurnStart」——回合开始已收归系统专用（任何宿主禁挂），"
+                                      + "玩家侧由 OnStandbyPhase 承接——装载期拦截");
+                        continue;
+                    }
+                    if (EffectEligibility.CreatureCanTakeTiming((TriggerTiming)t)) continue;
                     TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：效果 {e.Id} 时机"
-                                  + $"「{(TriggerTiming)t}」为周期性多次档——结界专属（耐久即次数池），"
-                                  + "生物只能挂单次时机或攻/守/横置族（生物专属 ×1.5）——装载期拦截");
+                                  + $"「{(TriggerTiming)t}」期望触发 >1 次（E[N]={TimingWeights.ExpectedOf((TriggerTiming)t):0.##}）"
+                                  + "——周期时机为结界专属（耐久即次数池），生物只能挂单次/攻守横置族/"
+                                  + "双宿主（OnAttacked）/低频（E[N]≤1）时机——装载期拦截");
                 }
             }
         }

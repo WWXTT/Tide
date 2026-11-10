@@ -119,10 +119,10 @@ namespace CardCore.Editor.Tests
             string root = Path.Combine(Application.dataPath, "..");
             // A1 卡表合并哈希
             var a1 = Of("A1");
-            var files = new List<string> { "Assets/CardData/Cards.json", "Assets/CardData/Effects.json" };
+            var files = new List<string> { "Assets/Data/CardData/Cards.json", "Assets/Data/CardData/Effects.json" };
             // 2026-11-03 训练池分家：训练表（TrainingData）纳入指纹——训练内容不再住主表，
             // 不并入则训练表内容漂移（换号/改行）失去对账；文件缺失（旧副本未同步）跳过不计。
-            foreach (var tf in new[] { "Assets/TrainingData/TrainingCards.json", "Assets/TrainingData/TrainingEffects.json" })
+            foreach (var tf in new[] { "Assets/Data/TrainingData/TrainingCards.json", "Assets/Data/TrainingData/TrainingEffects.json" })
                 if (File.Exists(Path.Combine(root, tf))) files.Add(tf);
             var cfgDir = Path.Combine(root, "Assets", "Configs");
             files.AddRange(Directory.GetFiles(cfgDir, "原子表_*.json").Select(p => "Assets/Configs/" + Path.GetFileName(p)));

@@ -56,7 +56,7 @@ namespace CardCore
                 new BounceToBottomHandler(),
                 new ReturnFromGraveyardHandler(),
                 new RecoverToHandHandler(),
-                // 除外回收（2026-10-29 阶段3a）：除外区目标卡返回手牌（域=己方除外区）
+                // 除外回收（2026-10-29 阶段3a；2026-11-10 改版回牌库）：除外区目标卡洗回持有者牌库（域=己方除外区）
                 new RecoverFromExileHandler(),
                 new LookAtTopCardsHandler(),
 

@@ -4,6 +4,8 @@ using System.Linq;
 using UnityEngine;
 using UnityEditor;
 using GameBoard;
+using CardCore.Attribute; // AtomColorRules（2026-11-10 双轨定案：规范色单源自本文件搬迁——SpecColorOf/SpecRowOverrides/SpecColorExempt）
+using static CardCore.Attribute.AtomColorRules; // FlagsOf/SpecOf/ColorZh（随三件套搬迁——裸调用点零改动）
 using CardCore.Attribute.Handlers;
 using Cysharp.Threading.Tasks;
 
@@ -62,175 +64,11 @@ namespace CardCore.Editor
             RunDiscountExclusiveAudit(); // 2026-11-02 减费三选一校验：只报不改——收尾统计
         }
 
-        // ======================================== 颜色校验（2026-11-02 README《效果颜色规范（2026-11-02 定案）》落地——只报不改） ========================================
-
-        /// <summary>规范色位（六轴落四色：信息/节奏=蓝、资源/生存=绿、规则=灰、场面=红；
-        /// README 第二步多成分拆色 = Flags 组合（吸取=伤害+回复=红|绿）。</summary>
-        [System.Flags]
-        private enum SpecColor { None = 0, Gray = 1, Red = 2, Blue = 4, Green = 8 }
-
-        /// <summary>EffectType → 应得色，**硬编码**（README 落地条款：不新开配置表）：
-        /// 三步走轴映射（改变场面数字=红 / 资源数量=绿 / 行动许可·信息=蓝 / 规则·属性定义=灰，
-        /// 先命中先定色）+ 逐原子特例表优先 + 纯工具（衍生物/变形/复制等）=灰。
-        /// **只作校验依据——不据此改任何原子 ManaList，改色由人决定。**
-        /// 系统表不计价行（引擎主干/门槛/Attack 族，ManaList null 或全零）装载后不参与比对，
-        /// 下列对应条目仅为行将来计价时预留的口径。</summary>
-        private static readonly Dictionary<AtomicEffectType, SpecColor> SpecColorOf =
-            new Dictionary<AtomicEffectType, SpecColor>
-        {
-            // ---- 场面（红）：改变场上数字（攻/血/存亡）----
-            { AtomicEffectType.DealDamage, SpecColor.Red },
-            { AtomicEffectType.LifeLoss, SpecColor.Red },                    // 流失=扣上限直伤（伤害族；表 2026-11-05 回红定案，11-03 绿口径作废）
-            { AtomicEffectType.DrainLife, SpecColor.Red | SpecColor.Green }, // 特例：吸取=伤害(红)+回复(绿) 双色
-            { AtomicEffectType.AddHeroAttack, SpecColor.Red },               // 特例：加攻=红
-            { AtomicEffectType.Devour, SpecColor.Red },                      // 特例：消灭=红
-            { AtomicEffectType.Smash, SpecColor.Red },                       // 摧毁=场面移除
-            { AtomicEffectType.Sacrifice, SpecColor.Red },
-            { AtomicEffectType.Exile, SpecColor.Red },                       // 特例：除外=红（从场上移除=场面）
-            { AtomicEffectType.ReturnToHand, SpecColor.Red },                // 弹回=从场上移除（除外同口径；表 2026-11-05 回红定案，11-04 蓝口径作废）
-            { AtomicEffectType.BounceToTop, SpecColor.Red },
-            { AtomicEffectType.BounceToBottom, SpecColor.Red },
-            { AtomicEffectType.GainControl, SpecColor.Red },
-            { AtomicEffectType.ChangeOwner, SpecColor.Red },
-            { AtomicEffectType.AddPowerUp, SpecColor.Red },                   // 改攻击力=红
-            { AtomicEffectType.AddPowerDown, SpecColor.Red },
-            { AtomicEffectType.AddLifeDown, SpecColor.Green },                // 定案 2026-11-02：生命值族全绿（用户表侧改定；旧「减血=伤害族红」作废）
-            { AtomicEffectType.AddPermanentPowerUp, SpecColor.Red },          // 永久攻血四轴（2026-11-02 拆分定案，原双属性±两行退役）：攻=红
-            { AtomicEffectType.AddPermanentPowerDown, SpecColor.Red },
-            { AtomicEffectType.AddPermanentLifeUp, SpecColor.Green },         // 血=绿（生命值族同口径）
-            { AtomicEffectType.AddPermanentLifeDown, SpecColor.Green },
-            { AtomicEffectType.Purify, SpecColor.Red },                       // 驱散=全剥关键词/指示物（削场面）
-            { AtomicEffectType.AddToxin, SpecColor.Red },                     // 毒素=回合末造伤（伤害族）
-            { AtomicEffectType.GrantRetaliation, SpecColor.Red },             // 报复=反噬伤害
-            { AtomicEffectType.GrantVenom, SpecColor.Red },                   // 特例：剧毒=红
-            { AtomicEffectType.GrantPathogen, SpecColor.Red },                // 病原体=毒素族
-            { AtomicEffectType.GrantOverwhelm, SpecColor.Red },               // 碾压=战斗场面
-            { AtomicEffectType.GrantSplash, SpecColor.Red },                  // 溅射=战斗场面
-            { AtomicEffectType.GrantFirstStrike, SpecColor.Red },             // 先攻=战斗顺序（场面）
-            { AtomicEffectType.GrantDoubleStrike, SpecColor.Red },            // 连击=战斗场面
-            { AtomicEffectType.GrantHunt, SpecColor.Red },                    // 狩猎=回合末攻击（场面）
-            { AtomicEffectType.AddVulnerable, SpecColor.Red },                // 特例：易损=红
-            { AtomicEffectType.BurstDamage, SpecColor.Red },
-            { AtomicEffectType.ShieldSlam, SpecColor.Red },                   // 护盾猛击=护甲转伤害（伤害产出族）
-            { AtomicEffectType.MoveUnit, SpecColor.Red },                     // 移动=场面（位置族）
-            { AtomicEffectType.Attack, SpecColor.Red },                       // 系统行（预留）
-            // ---- 资源/生存（绿）：手牌/牌库/墓地/元素池/生命总量/减伤/防护 ----
-            { AtomicEffectType.Heal, SpecColor.Green },
-            { AtomicEffectType.DrawCard, SpecColor.Green },                   // 特例：抽卡=绿
-            { AtomicEffectType.DiscardCard, SpecColor.Green },                // 特例：弃牌=绿
-            { AtomicEffectType.MillCard, SpecColor.Green },                   // 特例：磨牌=绿
-            { AtomicEffectType.RecoverToHand, SpecColor.Green },              // 特例：回收=绿
-            { AtomicEffectType.ShuffleIntoDeck, SpecColor.Green },            // 特例：洗回=绿
-            { AtomicEffectType.RecoverFromExile, SpecColor.Green },           // 特例：除外回收=绿
-            // 元素合成（GainAnyElement）2026-11-09 整链删除——教学二改挂牺牲，零消费者
-            { AtomicEffectType.ReturnFromGraveyard, SpecColor.Green },        // 苏生=墓地资源回流
-            { AtomicEffectType.IncreaseLandCap, SpecColor.Green },            // 成长=资源（地牌槽）
-            { AtomicEffectType.RemoveDebuffs, SpecColor.Green },              // 净化=解除负面（2026-10-28 P2a 先例）
-            { AtomicEffectType.AddLifeUp, SpecColor.Green },                  // 改生命/回复=绿
-            { AtomicEffectType.AddArmor, SpecColor.Green },                   // 护甲=绿（属性与卡体）
-            { AtomicEffectType.GrantToughness, SpecColor.Green },             // 坚韧=减伤=生存（减半同口径）
-            { AtomicEffectType.GrantProtection, SpecColor.Gray },             // 特例：减半=伤害规则改写（2026-11-05 定案灰；旧绿/蓝作废）
-            { AtomicEffectType.GrantReborn, SpecColor.Green },                // 复生=生存
-            { AtomicEffectType.GrantDivineShield, SpecColor.Green },          // 圣盾=生存
-            { AtomicEffectType.GrantGuardian, SpecColor.Green },              // 守护=拦截保护
-            { AtomicEffectType.GrantIndestructible, SpecColor.Green },        // 不灭=生存
-            { AtomicEffectType.GrantRegeneration, SpecColor.Green },          // 再生=生存
-            { AtomicEffectType.LivingArmor, SpecColor.Green },                // 活体护甲=护甲族
-            { AtomicEffectType.Guard, SpecColor.Green },                      // 系统行（预留）
-            { AtomicEffectType.SetLife, SpecColor.Green },                    // 系统行（预留）
-            // ---- 信息/节奏（蓝）：行动许可·能不能被指定·看到什么·反制打断 ----
-            { AtomicEffectType.SearchDeck, SpecColor.Blue },                  // 特例：检索=蓝
-            { AtomicEffectType.LookAtTopCards, SpecColor.Blue },              // 特例：占卜=蓝
-            { AtomicEffectType.DiscoverCard, SpecColor.Blue },                // 发现=检索族（信息）
-            { AtomicEffectType.RevealByDimension, SpecColor.Blue },           // 筛选展示=信息
-            { AtomicEffectType.RevealCard, SpecColor.Blue },                  // 展示=信息
-            { AtomicEffectType.DeclareHand, SpecColor.Blue },                 // 特例：宣言（强夺）=蓝
-            { AtomicEffectType.DeclareDeck, SpecColor.Blue },                 // 特例：宣言（窃取）=蓝
-            { AtomicEffectType.DeclareDeckTop, SpecColor.Blue },              // 特例：宣言/预言（禁言）=蓝
-            { AtomicEffectType.ProphecyNextCard, SpecColor.Blue },            // 特例：预言=蓝（引擎行·预留）
-            { AtomicEffectType.Untap, SpecColor.Blue },                       // 激励=解除横置（行动许可）
-            { AtomicEffectType.LockCard, SpecColor.Blue },                    // 锁定=无法使用（行动许可）
-            { AtomicEffectType.NegateActivation, SpecColor.Blue },            // 反制打断=节奏
-            { AtomicEffectType.NegateEffect, SpecColor.Blue },
-            { AtomicEffectType.TakeExtraTurn, SpecColor.Blue },               // 额外回合=节奏
-            { AtomicEffectType.SkipTurn, SpecColor.Blue },                    // 跳过阶段/回合=节奏（四相位档同）
-            { AtomicEffectType.GrantStealth, SpecColor.Blue },                // 特例：潜行=蓝
-            { AtomicEffectType.GrantConcealed, SpecColor.Blue },              // 隐密=潜行持续版
-            { AtomicEffectType.Silence, SpecColor.Blue },
-            { AtomicEffectType.AddNullify, SpecColor.Blue },                  // 特例：失效=蓝
-            { AtomicEffectType.Freeze, SpecColor.Blue },                      // 特例：冻结=蓝
-            { AtomicEffectType.RushSickness, SpecColor.Blue },                // 特例：紊乱=蓝
-            { AtomicEffectType.GrantDepravity, SpecColor.Green },             // 放血=反疗封锁=生存轴对侧（2026-11-05 定案绿；旧蓝作废）
-            { AtomicEffectType.GrantReplay, SpecColor.Blue },                 // 重放=节奏（重复施放）
-            { AtomicEffectType.Sleep, SpecColor.Blue },                       // 沉睡=行动封锁
-            { AtomicEffectType.GrantSpellShield, SpecColor.Blue },            // 法术护盾=反制
-            { AtomicEffectType.GrantVigilance, SpecColor.Blue },              // 警戒=攻击不横置（行动许可）
-            { AtomicEffectType.GrantDisarm, SpecColor.Blue },                 // 缴械=压制反击（行动许可）
-            { AtomicEffectType.GrantTaunt, SpecColor.Blue },                  // 帷幕=指定限制（能否被指定）
-            { AtomicEffectType.AddDurabilityUp, SpecColor.Blue },             // 特例：耐久=蓝（2026-11-03 定案：结界耐久轴同口径——身材耐久桶同日灰→蓝，0.5蓝/点）
-            { AtomicEffectType.SealUnit, SpecColor.Red },                     // 封印=场面移除（2026-11-05 确认定案红；11-03 蓝3 口径作废）
-            { AtomicEffectType.SwapPowerLife, SpecColor.Blue },               // 特例：攻守互换=蓝（2026-11-09 用户定案 2蓝——属性重排双轴对消，轴映射红被特例覆盖）
-            // ---- 场面/生存双成分（红|绿）----
-            { AtomicEffectType.GrantLifesteal, SpecColor.Red },                  // 吸血=红（2026-11-03 用户定案·不随吸取双色同构）
-            { AtomicEffectType.GrantLifelink, SpecColor.Red | SpecColor.Green },   // 系命=伤害+回复 双色
-            // ---- 规则/工具（灰）：规则改写·属性定义·纯工具 ----
-            { AtomicEffectType.ModifyGameRule, SpecColor.Gray },              // 特例：各仪典/各禁令=灰（行级细化见 SpecRowOverrides）
-            { AtomicEffectType.Erase, SpecColor.Gray },                       // 特例：通用抹除=灰
-            { AtomicEffectType.GrantSpellban, SpecColor.Gray },               // 特例：无实体=灰（伤害规则改写；表 2026-11-05 确认回灰，11-03 蓝5 作废）
-            { AtomicEffectType.GrantInsulator, SpecColor.Gray },              // 绝缘体=拦获得（规则改写，无实体同口径）
-            { AtomicEffectType.SummonToken, SpecColor.Gray },                 // 第三步：衍生物=纯工具
-            { AtomicEffectType.EchoCopy, SpecColor.Blue },                   // 回响=复制重演=节奏（2026-11-05 定案蓝；旧灰「纯工具」作废）
-            { AtomicEffectType.GrantTemporary, SpecColor.Gray },              // 遗忘=消失标记（纯工具）
-            { AtomicEffectType.SetPower, SpecColor.Gray },                    // 系统行（预留）
-            { AtomicEffectType.SetCost, SpecColor.Gray },                     // 系统行（预留）
-            { AtomicEffectType.DeclareVictory, SpecColor.Gray },              // 系统行（预留）
-            { AtomicEffectType.Morph, SpecColor.Gray },                       // 模拟=纯工具（动态费用行·预留）
-            { AtomicEffectType.GrantMorph, SpecColor.Gray },                  // 变形=纯工具（动态费用行·预留）
-            //（Charge 充能条目已随 2026-11-05 充能系统动作化改版删除——表行已删，充能不再是原子效果）
-            { AtomicEffectType.SituationGate, SpecColor.Gray },               // 门槛行=引擎条件（预留）
-            { AtomicEffectType.EngineCountdown, SpecColor.Gray },             // 引擎主干族（均预留）
-            { AtomicEffectType.EngineLuckRoll, SpecColor.Gray },
-            { AtomicEffectType.EngineClash, SpecColor.Gray },
-            { AtomicEffectType.EngineDeathToll, SpecColor.Gray },
-            { AtomicEffectType.EngineManaSurplus, SpecColor.Gray },
-            { AtomicEffectType.EngineUnity, SpecColor.Gray },
-            { AtomicEffectType.EngineCurseOnDraw, SpecColor.Gray },
-            { AtomicEffectType.EngineBlessingOnDraw, SpecColor.Gray },
-        };
-
-        /// <summary>按原子行覆盖（键=表行中文短名 EnumName 列——进表指纹=身份稳定；**全表生效**，
-        /// 不限 ModifyGameRule——光环表 EffectType 全同 ModifyGameRule，EffectType 映射不够用，行级
-        /// 定案只能落这里；键=短名跨表须唯一）：2026-11-02 用户定案批次，优先于 SpecColorOf；
-        /// 未列行沿用 EffectType 映射。</summary>
-        private static readonly Dictionary<string, SpecColor> SpecRowOverrides =
-            new Dictionary<string, SpecColor>
-        {
-            // ---- 关键词表 ----
-            { "系命", SpecColor.Green },                    // 定案 2026-11-02：系命=绿（覆盖字典 红+绿）
-            // ---- 光环表（ModifyGameRule 默认灰）——2026-11-05 光环表侧仪典/禁令族全量改灰（工作区改动，
-            // 总额保持），11-02 彩色覆盖八行随之作废删除（丰盈仪典/禁攻令/禁守令/禁发令/禁召令/禁抽令/
-            // 禁高费令/牌库顶当手牌），回落字典默认灰——与 README「各仪典/各禁令=灰」同口径 ----
-            // ---- 一般效果表 ----
-            { "抽卡", SpecColor.Blue },                     // 定案 2026-11-02：蓝（字典绿作废）
-            { "激励", SpecColor.Red },                      // 定案 2026-11-02：红（字典蓝作废）
-            { "磨牌", SpecColor.Blue },                     // 定案 2026-11-02：蓝（字典绿作废）
-            { "弃牌", SpecColor.Blue },                     // 定案 2026-11-02：蓝（字典绿作废）
-            { "移动", SpecColor.Gray },                     // 定案 2026-11-02：灰（字典红作废）
-            // ---- 指示物表 ----
-            { "减半", SpecColor.Gray },                     // 定案 2026-11-05：灰（字典同批改灰；11-02 蓝/更早绿均作废）
-            // 属性减少 override 随行删除（2026-11-02 属性±行退役——用户定案「只能分开加减」）
-            // 灵视 2026-11-02 回默认灰（旧蓝覆盖随本批作废——用户定案「按应值改：灵视→灰」）
-        };
-
-        /// <summary>豁免清单：费用增减四色行（AddCostUp/Down×灰红蓝绿）**已按四色处理**
-        ///（2026-11-02 用户裁定：每行只动对应色，不动）——不按「费用增减=灰」特例报，恒放行。</summary>
-        private static readonly HashSet<AtomicEffectType> SpecColorExempt = new HashSet<AtomicEffectType>
-        {
-            AtomicEffectType.AddCostUpGray, AtomicEffectType.AddCostUpRed,
-            AtomicEffectType.AddCostUpBlue, AtomicEffectType.AddCostUpGreen,
-            AtomicEffectType.AddCostDownGray, AtomicEffectType.AddCostDownRed,
-            AtomicEffectType.AddCostDownBlue, AtomicEffectType.AddCostDownGreen,
-        };
+        // ======================================== 颜色校验（2026-11-02 README《效果颜色规范（2026-11-02 定案）》落地；2026-11-10 双轨定案升 Fail） ========================================
+        // 规范色单源（SpecColor 枚举 + SpecColorOf/SpecRowOverrides/SpecColorExempt 三件套）已于
+        // 2026-11-10 搬迁至 CardCore.Attribute.AtomColorRules 公开——本文件只消费不再持有副本；
+        // 搬迁动力：Tier 写法（原子表双轨计价）的颜色由该单源生成（AtomicEffectTable.BuildConfig），
+        // 审计与生成必须同源。搬迁时补录三缺行：GrantRetaliate（荆棘改名漏跟）/GrantCrit/ProtectionHalve。
 
         /// <summary>关键词 id → 规范色（印刷/引用化本体关键词的行色反查：扫 Grant 族表行经
         /// GrantKeywordHandlerFactory 建 map；惰性一份）。</summary>
@@ -251,74 +89,42 @@ namespace CardCore.Editor
             return map;
         }
 
-        /// <summary>费用构成 → 规范色位集（非零色并集；任意不计入——不进卡费）。</summary>
-        private static SpecColor FlagsOf(CardCore.ElementCost c)
-        {
-            var f = SpecColor.None;
-            if (c == null) return f;
-            foreach (var m in c.NonzeroColors())
-                f |= SpecOf(m);
-            return f;
-        }
-
-        private static SpecColor SpecOf(CardCore.ManaType m)
-        {
-            switch (m)
-            {
-                case CardCore.ManaType.Gray: return SpecColor.Gray;
-                case CardCore.ManaType.Red: return SpecColor.Red;
-                case CardCore.ManaType.Blue: return SpecColor.Blue;
-                case CardCore.ManaType.Green: return SpecColor.Green;
-                default: return SpecColor.None; // 任意（Any）不进卡费
-            }
-        }
-
-        private static string ColorZh(SpecColor c)
-        {
-            if (c == SpecColor.None) return "无";
-            var parts = new List<string>();
-            if ((c & SpecColor.Gray) != 0) parts.Add("灰");
-            if ((c & SpecColor.Red) != 0) parts.Add("红");
-            if ((c & SpecColor.Blue) != 0) parts.Add("蓝");
-            if ((c & SpecColor.Green) != 0) parts.Add("绿");
-            return string.Join("+", parts);
-        }
+        /// <summary>费用构成 → 规范色位集 / 色集中文：已随三件套迁至 AtomColorRules.FlagsOf/SpecOf/ColorZh
+        ///（2026-11-10 搬迁）——本文件经 using CardCore.Attribute 直接调用同名公开方法，不再持有副本。</summary>
 
         /// <summary>
-        /// 颜色校验收尾（README《效果颜色规范（2026-11-02 定案)》落地——**只报不改**）：
-        /// ① 原子级——五分表全部计价行，现值色集 ≠ 应得色集 → 逐条 Warning「原子名 / 现值 / 应值」；
-        /// ② 卡级（混色借用三档）——本家=内容色最大份额色（代价抵扣前逐色推导费，剔除身材灰 S 与
-        /// 结构加价灰——计价内核口径，规范侧攻=红/血=绿，不把身材灰当异色防全体带身材卡误报）：
-        /// Ĉ1-2 异色分量>总费50% 报警 / Ĉ3-6 主效果（非 Then 奖励）异色报警 / Ĉ7-9 任何异色报警。
-        /// Console 收尾统计：「原子符合 X / 不符合 Y（前 10 条）；卡级违规 K 张（前 10 张）」。
-        /// 改色由人决定——本口不写任何数据。
+        /// 颜色校验收尾（2026-11-10 双轨定案升 Fail：原「只报不改」→「生成值 vs 显式值」对账，不等即 Fail）：
+        /// ① 原子级——五分表全部计价行，AtomColorRules.For 生成的应得色集（行级覆盖优先，与 Tier
+        /// 展开口同源）≠ 表行显式 ManaList 色集 → 逐条 **Error**。白名单 SpecColorPending 已随
+        /// B/C 组色迁移收尾清零删除（2026-11-10）——零容忍，无候补口。
+        /// 未收录 → Error 缺行请补（= AtomColorRules.SpecColorOf 缺行）。
+        /// ② 卡级分色校验已于 2026-11-02 删除（没有「本家色」）；③ 代价色对齐（弱版）不变。
+        /// 本口仍不写任何数据——改色由人按定案改。
         /// </summary>
         private static void RunColorAudit()
         {
             CardCore.Attribute.AtomicEffectTable.Reload(); // 读现值（上游已写盘，此口只读）
             CardCore.EffectsLibrary.Reload();
 
-            // ---------- ① 原子级 ----------
+            // ---------- ① 原子级（生成值 vs 显式值，不等即 Fail；白名单已删——零容忍） ----------
             int atomOk = 0;
-            var atomBad = new List<string>();
+            var atomFail = new List<string>();
             foreach (var cfg in CardCore.Attribute.AtomicEffectTable.GetAll())
             {
                 if (cfg == null || cfg.ManaList == null || cfg.ManaList.IsZero) continue; // 不计价行（引擎主干/系统/门槛）不比对
                 if (!System.Enum.TryParse<AtomicEffectType>(cfg.EnumName, out var t)) continue; // 解析失败装载期已告警
-                if (SpecColorExempt.Contains(t)) { atomOk++; continue; }
-                if (!SpecColorOf.TryGetValue(t, out var want))
-                {
-                    atomBad.Add($"{cfg.DisplayName} / 现值{ColorZh(FlagsOf(cfg.ManaList))} / 应值未收录——SpecColorOf 缺行请补");
-                    continue;
-                }
-                if (SpecRowOverrides.TryGetValue(cfg.DisplayName, out var rowWant))
-                    want = rowWant; // 行级定案覆盖（全表生效——光环族 EffectType 全同，行级判色唯一落点）
+                if (AtomColorRules.SpecColorExempt.Contains(t)) { atomOk++; continue; }
+                var want = AtomColorRules.For(t, cfg.DisplayName); // 行级定案覆盖内含（生成/审计同源）
                 var cur = FlagsOf(cfg.ManaList);
-                if (cur == want) atomOk++;
-                else atomBad.Add($"{cfg.DisplayName} / 现值{ColorZh(cur)} / 应值{ColorZh(want)}");
+                if (want == SpecColor.None)
+                    atomFail.Add($"{cfg.DisplayName} / 现值{ColorZh(cur)} / 应值未收录——AtomColorRules.SpecColorOf 缺行请补");
+                else if (cur != want)
+                    atomFail.Add($"{cfg.DisplayName} / 现值{ColorZh(cur)} / 应值{ColorZh(want)}——生成值≠显式值");
+                else
+                    atomOk++;
             }
-            foreach (var m in atomBad)
-                Debug.LogWarning($"[颜色][原子] {m}");
+            foreach (var m in atomFail)
+                Debug.LogError($"[颜色][原子][FAIL] {m}");
 
             // ---------- ② 卡级（主表 + 教学副表）----------
             var cards = new List<CardCore.CardData>();
@@ -431,9 +237,10 @@ namespace CardCore.Editor
                 }
             }
 
-            Debug.Log("[颜色校验] 原子符合 " + atomOk + " / 不符合 " + atomBad.Count +
-                      "（前 10 条：" + (atomBad.Count == 0 ? "无" : string.Join("；", atomBad.Take(10))) +
-                      "）——只报不改，改色由人决定。卡级分色校验已于 2026-11-02 删除：没有「本家色」，" +
+            Debug.Log("[颜色校验] 原子符合 " + atomOk + " / 不符合(Fail) " + atomFail.Count +
+                      "（前 10 条：" + (atomFail.Count == 0 ? "无" : string.Join("；", atomFail.Take(10))) +
+                      "）——2026-11-10 起生成值≠显式值即 FAIL（AtomColorRules 单源；白名单已随" +
+                      "B/C 组色迁移收尾清零删除——零容忍）。卡级分色校验已于 2026-11-02 删除：没有「本家色」，" +
                       "卡可带任意颜色效果，可用性由卡组校验负责。代价色对齐（弱版·2026-11-05 恢复）：无交集 " +
                       costMisalign + " 条" + (costMisalign == 0 ? "" : "（见 [颜色][代价对齐] 警告——抵扣恒0，表侧对色候选）"));
         }

@@ -10,12 +10,7 @@
     "Polarity": -1,
     "MountKinds": "",
     "Tags": "伤害产出族",
-    "ManaList": [
-      0,
-      1,
-      0,
-      0
-    ]
+    "Tier": "Dm1"
   },
   {
     "ID": "599fcc9a",
@@ -28,12 +23,7 @@
     "Polarity": 1,
     "MountKinds": "",
     "Tags": null,
-    "ManaList": [
-      0,
-      0,
-      0,
-      0.5
-    ]
+    "Tier": "Dm1_25"
   },
   {
     "ID": "af7bd26e",
@@ -50,7 +40,7 @@
       0,
       1,
       0,
-      1
+      0.5
     ]
   },
   {
@@ -64,12 +54,7 @@
     "Polarity": 1,
     "MountKinds": "",
     "Tags": null,
-    "ManaList": [
-      0,
-      0,
-      2,
-      0
-    ]
+    "Tier": "Dm0_5"
   },
   {
     "ID": "43ac095e",
@@ -82,12 +67,7 @@
     "Polarity": -1,
     "MountKinds": "不可随机",
     "Tags": null,
-    "ManaList": [
-      0,
-      0,
-      3,
-      0
-    ]
+    "Tier": "D0"
   },
   {
     "ID": "c3673dae",
@@ -100,12 +80,7 @@
     "Polarity": -1,
     "MountKinds": "",
     "Tags": null,
-    "ManaList": [
-      0,
-      3,
-      0,
-      0
-    ]
+    "Tier": "D0"
   },
   {
     "ID": "c03ef9fe",
@@ -118,12 +93,7 @@
     "Polarity": 1,
     "MountKinds": "",
     "Tags": null,
-    "ManaList": [
-      0,
-      0,
-      0,
-      2
-    ]
+    "Tier": "Dm0_5"
   },
   {
     "ID": "63a5dc1a",
@@ -136,12 +106,7 @@
     "Polarity": -1,
     "MountKinds": "",
     "Tags": null,
-    "ManaList": [
-      0,
-      5,
-      0,
-      0
-    ]
+    "Tier": "Dp1"
   },
   {
     "ID": "9af09c90",
@@ -154,12 +119,7 @@
     "Polarity": 1,
     "MountKinds": "",
     "Tags": null,
-    "ManaList": [
-      0,
-      0,
-      0,
-      1
-    ]
+    "Tier": "Dm1"
   },
   {
     "ID": "c2abbd1f",
@@ -172,12 +132,7 @@
     "MountKinds": "不可全体",
     "Tags": null,
     "参数": "CardName",
-    "ManaList": [
-      0,
-      0,
-      5,
-      0
-    ]
+    "Tier": "Dp1"
   },
   {
     "ID": "38c7d7a4",
@@ -190,12 +145,7 @@
     "Polarity": 1,
     "MountKinds": "",
     "Tags": null,
-    "ManaList": [
-      0,
-      0,
-      0,
-      5
-    ]
+    "Tier": "Dp1"
   },
   {
     "ID": "361a6544",
@@ -208,12 +158,7 @@
     "Polarity": 1,
     "MountKinds": "不可随机",
     "Tags": null,
-    "ManaList": [
-      0,
-      0,
-      1,
-      0
-    ]
+    "Tier": "Dm1"
   },
   {
     "ID": "46607eb2",
@@ -226,12 +171,7 @@
     "Polarity": -1,
     "MountKinds": "不可随机",
     "Tags": "衰退型",
-    "ManaList": [
-      0,
-      0,
-      1,
-      0
-    ],
+    "Tier": "Dm1",
     "特殊裁定": "对手有手牌被展示时，可以选择锁定被展示的卡，没有时改为随机，不可指定"
   },
   {
@@ -245,12 +185,7 @@
     "Polarity": 1,
     "MountKinds": "",
     "Tags": null,
-    "ManaList": [
-      0,
-      1,
-      0,
-      0
-    ]
+    "Tier": "Dm1"
   },
   {
     "ID": "7b8c45bc",
@@ -263,12 +198,7 @@
     "Polarity": -1,
     "MountKinds": "",
     "Tags": null,
-    "ManaList": [
-      0,
-      2,
-      0,
-      0
-    ]
+    "Tier": "Dm0_5"
   },
   {
     "ID": "3c4f3a60",
@@ -281,12 +211,7 @@
     "Polarity": -1,
     "MountKinds": "不可全体",
     "Tags": null,
-    "ManaList": [
-      0,
-      5,
-      0,
-      0
-    ]
+    "Tier": "Dp1"
   },
   {
     "ID": "c3d65a3d",
@@ -298,12 +223,7 @@
     "Polarity": -1,
     "MountKinds": "不可全体",
     "Tags": null,
-    "ManaList": [
-      0,
-      0,
-      2,
-      0
-    ]
+    "Tier": "Dm0_5"
   },
   {
     "ID": "f1cf5ce6",
@@ -315,12 +235,7 @@
     "Polarity": -1,
     "MountKinds": "不可全体",
     "Tags": null,
-    "ManaList": [
-      0,
-      0,
-      3,
-      0
-    ]
+    "Tier": "D0"
   },
   {
     "ID": "22f33a1a",
@@ -333,12 +248,7 @@
     "Polarity": 0,
     "MountKinds": "",
     "Tags": null,
-    "ManaList": [
-      0,
-      3,
-      0,
-      0
-    ]
+    "Tier": "D0"
   },
   {
     "ID": "ea2c9eb3",
@@ -351,12 +261,7 @@
     "Polarity": 1,
     "MountKinds": "",
     "Tags": null,
-    "ManaList": [
-      0,
-      0,
-      0,
-      3
-    ]
+    "Tier": "D0"
   },
   {
     "ID": "799fb440",
@@ -369,12 +274,7 @@
     "Polarity": -1,
     "MountKinds": "不可全体",
     "Tags": null,
-    "ManaList": [
-      0,
-      0,
-      9,
-      0
-    ]
+    "Tier": "Dp3"
   },
   {
     "ID": "a50b8c19",
@@ -387,12 +287,7 @@
     "Polarity": -1,
     "MountKinds": "",
     "Tags": null,
-    "ManaList": [
-      0,
-      3,
-      0,
-      0
-    ]
+    "Tier": "D0"
   },
   {
     "ID": "70150d27",
@@ -405,12 +300,7 @@
     "Polarity": -1,
     "MountKinds": "",
     "Tags": null,
-    "ManaList": [
-      0,
-      3,
-      0,
-      0
-    ]
+    "Tier": "D0"
   },
   {
     "ID": "96155537",
@@ -423,12 +313,7 @@
     "Polarity": -1,
     "MountKinds": "",
     "Tags": null,
-    "ManaList": [
-      6,
-      0,
-      0,
-      0
-    ]
+    "Tier": "Dp1_5"
   },
   {
     "ID": "f3ca462e",
@@ -459,12 +344,7 @@
     "Polarity": 0,
     "MountKinds": "系统,动态费用",
     "Tags": "换区清除型",
-    "ManaList": [
-      0,
-      0,
-      0,
-      0
-    ]
+    "Tier": "Dm1_5"
   },
   {
     "ID": "dccd2254",
@@ -478,12 +358,7 @@
     "MountKinds": "系统,动态费用",
     "Tags": "换区清除型",
     "参数": "CardRef",
-    "ManaList": [
-      0,
-      0,
-      0,
-      0
-    ]
+    "Tier": "Dm1_5"
   },
   {
     "ID": "cab6ae97",
@@ -495,12 +370,7 @@
     "Polarity": 1,
     "MountKinds": "",
     "Tags": null,
-    "ManaList": [
-      0,
-      0,
-      0,
-      3
-    ]
+    "Tier": "D0"
   },
   {
     "ID": "85b7e5ac",
@@ -513,12 +383,7 @@
     "Polarity": 0,
     "MountKinds": "",
     "Tags": null,
-    "ManaList": [
-      0,
-      0,
-      2,
-      0
-    ]
+    "Tier": "Dm0_5"
   },
   {
     "ID": "84136d36",
@@ -531,12 +396,7 @@
     "Polarity": 0,
     "MountKinds": "不可全体",
     "Tags": null,
-    "ManaList": [
-      0,
-      0,
-      0,
-      0
-    ]
+    "Tier": "Dm1_5"
   },
   {
     "ID": "9d6b3aef",
@@ -549,12 +409,7 @@
     "Polarity": -1,
     "MountKinds": "不可全体",
     "Tags": null,
-    "ManaList": [
-      0,
-      6,
-      0,
-      0
-    ]
+    "Tier": "Dp1_5"
   },
   {
     "ID": "e81b5f7e",
@@ -567,12 +422,7 @@
     "Polarity": -1,
     "MountKinds": "不可随机",
     "Tags": null,
-    "ManaList": [
-      0,
-      0,
-      2,
-      0
-    ]
+    "Tier": "Dm0_5"
   },
   {
     "ID": "831af31d",
@@ -585,12 +435,7 @@
     "Polarity": -1,
     "MountKinds": "",
     "Tags": null,
-    "ManaList": [
-      0,
-      3,
-      0,
-      0
-    ]
+    "Tier": "D0"
   },
   {
     "ID": "c5340751",
@@ -603,12 +448,7 @@
     "Polarity": 1,
     "MountKinds": "不可作为连接光环,不可随机",
     "Tags": "",
-    "ManaList": [
-      0,
-      1,
-      0,
-      0
-    ]
+    "Tier": "Dm1"
   },
   {
     "ID": "8ae22c02",
@@ -621,12 +461,7 @@
     "Polarity": -1,
     "MountKinds": "不可作为连接光环,不可随机",
     "Tags": "",
-    "ManaList": [
-      0,
-      1,
-      0,
-      0
-    ]
+    "Tier": "Dm1"
   },
   {
     "ID": "0afd7173",
@@ -639,12 +474,7 @@
     "Polarity": 1,
     "MountKinds": "不可作为连接光环,不可随机",
     "Tags": "",
-    "ManaList": [
-      0,
-      0,
-      0,
-      1
-    ]
+    "Tier": "Dm1"
   },
   {
     "ID": "e97b8001",
@@ -657,30 +487,20 @@
     "Polarity": -1,
     "MountKinds": "不可作为连接光环,不可随机",
     "Tags": "",
-    "ManaList": [
-      0,
-      0,
-      0,
-      1
-    ]
+    "Tier": "Dm1"
   },
   {
     "ID": "0afb06ce",
-    "TextHash": "fd926da6",
+    "TextHash": "fba3aef2",
     "Domain": "己方除外区:卡",
     "EnumName": "除外回收",
-    "DisplayName": "将{target}从除外区返回手牌",
+    "DisplayName": "将{target}从除外区返回卡组",
     "EffectType": "RecoverFromExile",
     "TargetFilter": null,
     "Polarity": 1,
     "MountKinds": "",
     "Tags": null,
-    "ManaList": [
-      0,
-      0,
-      0,
-      3
-    ]
+    "Tier": "D0"
   },
   {
     "ID": "5756fa58",
@@ -692,12 +512,7 @@
     "Polarity": 1,
     "MountKinds": "",
     "Tags": null,
-    "ManaList": [
-      0,
-      0,
-      9,
-      0
-    ]
+    "Tier": "Dp3"
   },
   {
     "ID": "0da83d4b",
@@ -709,12 +524,7 @@
     "Polarity": -1,
     "MountKinds": "不可全体",
     "Tags": null,
-    "ManaList": [
-      0,
-      0,
-      3,
-      0
-    ]
+    "Tier": "D0"
   },
   {
     "ID": "0c2e45ba",
@@ -726,12 +536,7 @@
     "Polarity": -1,
     "MountKinds": "不可全体",
     "Tags": null,
-    "ManaList": [
-      0,
-      0,
-      5,
-      0
-    ]
+    "Tier": "Dp1"
   },
   {
     "ID": "7d1275e9",
@@ -743,12 +548,7 @@
     "Polarity": -1,
     "MountKinds": "不可全体",
     "Tags": null,
-    "ManaList": [
-      0,
-      0,
-      5,
-      0
-    ]
+    "Tier": "Dp1"
   },
   {
     "ID": "9a143fed",
@@ -761,12 +561,7 @@
     "MountKinds": "不可全体",
     "Tags": null,
     "参数": "CardName",
-    "ManaList": [
-      0,
-      0,
-      3,
-      0
-    ]
+    "Tier": "D0"
   },
   {
     "ID": "5d05c712",
@@ -779,12 +574,7 @@
     "MountKinds": "不可全体",
     "Tags": null,
     "参数": "CardName",
-    "ManaList": [
-      0,
-      0,
-      2,
-      0
-    ]
+    "Tier": "Dm0_5"
   },
   {
     "ID": "f9848d5e",
@@ -797,12 +587,7 @@
     "MountKinds": "不可全体",
     "Tags": null,
     "参数": "Dimension",
-    "ManaList": [
-      0,
-      0,
-      1,
-      0
-    ]
+    "Tier": "Dm1"
   },
   {
     "ID": "c69e2b96",
@@ -816,7 +601,7 @@
     "MountKinds": "不可全体",
     "Tags": "位置族",
     "ManaList": [
-      2,
+      1,
       0,
       0,
       0
@@ -897,12 +682,7 @@
     "Polarity": -1,
     "MountKinds": "",
     "Tags": null,
-    "ManaList": [
-      0,
-      3,
-      0,
-      0
-    ]
+    "Tier": "D0"
   },
   {
     "ID": "f1992573",
@@ -916,12 +696,7 @@
     "MountKinds": "",
     "Tags": null,
     "参数": "Dimension",
-    "ManaList": [
-      0,
-      0,
-      2,
-      0
-    ]
+    "Tier": "Dm0_5"
   },
   {
     "ID": "b5998037",
@@ -934,12 +709,7 @@
     "Polarity": 0,
     "MountKinds": "不可作为连接光环,不可随机",
     "Tags": null,
-    "ManaList": [
-      0,
-      0,
-      2,
-      0
-    ]
+    "Tier": "Dm0_5"
   },
   {
     "ID": "479e3d5f",

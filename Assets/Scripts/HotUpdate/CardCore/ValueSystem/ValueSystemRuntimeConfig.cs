@@ -1,15 +1,19 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using CardCore.Attribute; // AtomicEffectTable
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace CardCore
 {
     /// <summary>
     /// 价值系统运行时配置
     /// 用于卡牌和效果价值计算。
-    /// 各子配置的字段名 = ValueSystemConfig.json 的 Key（Category+\"Config\" 对应同类字段），
-    /// 表值由 ValueSystemConfigManager 按名反射灌入；字段初始化器仅为表缺失时的代码兜底。
+    /// 各子配置的字段名 = ValueSystemConfig.json 的 section 字段名（section 名+\"Config\" 对应同类字段，
+    /// 2026-11-10 由 Category/Key/Value/Des KV 数组结构化为 section 对象），表值由
+    /// ValueSystemConfigManager 按 section PopulateObject 灌入；字段初始化器仅为表缺失时的代码兜底。
     /// </summary>
     [Serializable]
     public class ValueSystemRuntimeConfig
@@ -19,6 +23,7 @@ namespace CardCore
         public CardCompositionConfig CardCompositionConfig = new CardCompositionConfig();
         public PricingTierConfig PricingTierConfig = new PricingTierConfig();
         public TimingFactorConfig TimingFactorConfig = new TimingFactorConfig();
+        public AtomTierConfig AtomTierConfig = new AtomTierConfig();
         public GameRulesConfig GameRulesConfig = new GameRulesConfig();
     }
 
@@ -79,24 +84,75 @@ namespace CardCore
     }
 
     /// <summary>
-    /// 发动时机系数（表 Category=TimingFactor；2026-11-05 两档收敛，2026-11-09 拆出生物专属档）——
-    /// 三档：单次 / 多次（周期·观察族，结界专属）/ 生物专属（攻/守/横置族）。
+    /// 发动时机系数（表 Category=TimingFactor）——2026-11-10 时机系数规格 v0.1 起**退化为桶默认**：
+    /// TimingWeights.json（35 行逐时机 f）Enabled=true 且行命中时计价读行 Factor，本段只在
+    /// 影子模式（Enabled=false，默认——恒走本段，不动任何卡价）与新时机缺权重行时兜底：
     /// · 单次 Once=1：付清后只发生一次（登场/死亡/破坏/除外/离场/墓地回场/游戏开始/角色死亡）；
-    /// · 多次 Repeat=1：回合/阶段/抽牌/伤害/事件观察族——仅结界可挂，额外次数已由耐久支付
-    ///   （每次触发 −1 耐久、0.5 蓝/点——耐久即次数池），不按次数加价；
-    /// · 生物专属 CreatureOnly=1.5：攻/守/横置族——只有生物能挂（结界不横置、法术不驻场，
-    ///   无从触发），宿主自身行动承担次数，按 ×1.5 计费。
+    /// · 多次 Repeat=1：回合/阶段/抽牌/伤害/事件观察族——仅结界可挂；
+    /// · 生物专属 CreatureOnly=1.5：攻/守/横置族——只有生物能挂（结界不横置、法术不驻场）。
+    /// **段 2b 切换单**（Enabled:false→true 同批）：本值 1.5 → 1.0——新口径下攻/守/横置族次数由
+    /// 横置承担、已由 f 计价，不再叠加 1.5（缺行兜底也不该多收）；影子期间保持 1.5 = 旧价不变。
     /// 单据 FiresOncePerPaidLifetime 判单次，EffectEligibility.IsTapAnchoredTiming 判生物专属
     /// （CostDerivation 单源）；主动发动（Activate_*）与引擎载荷恒 1（TimingCostFactor 内判，不乘表）。
     /// 消费方 CostDerivation.TimingCostFactor[Of]/IsRepeatTiming；合成器时机下拉档位标签与本段同源。
-    /// 旧 31 行逐时机期望次数表（2026-10-30 上线）已整删——「存活期望 1.5 回合/暂定 2」口径退役。
+    /// 旧 31 行逐时机期望次数表（2026-10-30 上线）已整删；2026-11-05 收敛两档 ×1；
+    /// 2026-11-09 拆出生物专属档 ×1.5；2026-11-10 起由 TimingWeights.json 逐时机表接管（影子开关）。
     /// </summary>
     [Serializable]
     public class TimingFactorConfig
     {
-        public float Once = 1f;           // 单次档（FiresOncePerPaidLifetime=true 的时机）：基准 ×1
-        public float Repeat = 1f;         // 多次档（周期/观察族，结界专属）：×1——额外次数已由耐久支付，不按次数加价
-        public float CreatureOnly = 1.5f; // 生物专属档（攻/守/横置族）：×1.5——只有生物可挂（结界不横置、法术不驻场）
+        public float Once = 1f;           // 桶默认·单次档（FiresOncePerPaidLifetime=true 的时机）：基准 ×1
+        public float Repeat = 1f;         // 桶默认·多次档（周期/观察族，结界专属）：×1（影子模式=现行价；新口径下次数由 f 计价）
+        public float CreatureOnly = 1.5f; // 桶默认·生物专属档（攻/守/横置族）：影子期间 ×1.5（旧价不变）；段 2b 切换时改 1.0（次数已由 f 计价）
+    }
+
+    /// <summary>
+    /// 原子档位计价（表 Category=AtomTier，2026-11-10 双轨定案；同日改版）——原子表 Tier 写法的
+    /// 价格公式：价格 = Base + Slope × d（d=档位位移）。**档位名直接用 d 值**（Dm1/D0/Dp1…），
+    /// 不用语义名——同一档位会被不同语义共用（伤害 1 与洗回 1 都是 P=1，一个是「数值」一个是
+    /// 「循环」），语义名会误导；同档异语义不是巧合：1 伤害 = 1 费 = 洗回 1 张 都在「比基准低
+    /// 1 档」的位置上。一档一价全行共享：调一个档位 = 改 ValueSystemConfig 一行，全表跟随；
+    /// 原子表「能推的不写 ManaList」，只写 Tier（颜色走 AtomColorRules.For 单源生成）。
+    /// 关键词/光环/压制阶梯指示物等不在 d 轴的行直写 ManaList 不受影响；Tier 与 ManaList 同行 =
+    /// 双源冲突装载期 Error（AtomicEffectTable.BuildConfig 单口展开）。
+    /// 八档代入（现表值 Base=3/Slope=2，覆盖表内现有全部价格档）：
+    /// Dm1_5 −1.5→0 / Dm1_25 −1.25→0.5 / Dm1 −1→1 / Dm0_5 −0.5→2 / D0 0→3 / Dp1 1→5 /
+    /// Dp1_5 1.5→6 / Dp3 3→9。
+    /// 每档的同类语义清单（仅供理解，不入价格）见 ValueSystemConfig.json 的 Des 列；
+    /// 对账口=验证器 P9-8 双轨段（价差/色差零容忍）。
+    /// </summary>
+    [Serializable]
+    public class AtomTierConfig
+    {
+        public float Base = 3f;      // 档位推导截距＝卡底座（一张牌的价值）
+        public float Slope = 2f;     // 每档位移价（1 档 d = 2 费）
+        public float Dm1_5 = -1.5f;  // P=0：载体（模拟/变形/牺牲/预言）
+        public float Dm1_25 = -1.25f; // P=0.5：数值增量（回血/护甲/攻/血/耐久/毒素/易损/展示；永久属性基础单价×2后=1）
+        public float Dm1 = -1f;      // P=1：数值 1 点、回到循环起点（伤害/洗回/激励/占卜/锁定/静默/坚韧=2×0.5）
+        public float Dm0_5 = -0.5f;  // P=2：恢复可用性（抽/回收/磨/窃取/发动无效/移动/筛选展示/回响/流失/攻守互换）
+        public float D0 = 0f;        // P=3：等价交换（消灭/摧毁/弹回/弃牌/封印/强夺/驱散/净化/效果无效/跳过结束阶段）
+        public float Dp1 = 1f;       // P=5：不可逆/获得资产（除外/控制/苏生/检索/跳过准备/主要阶段）
+        public float Dp1_5 = 1.5f;   // P=6：永久移除/归属改写（抹除/操控）
+        public float Dp3 = 3f;       // P=9：整回合（跳过回合/额外回合）
+
+        /// <summary>档位名 → d。按名反射本类 float 字段、跳过 Base/Slope——加档位 = 加字段即接通
+        ///（与装载器 section 按名映射同精神，不维护第二份映射）。未知档位返回 false：
+        /// 装载期 Error 点名行，不静默回落。</summary>
+        public bool TryGetD(string tier, out float d)
+        {
+            d = 0f;
+            if (string.IsNullOrEmpty(tier)) return false;
+            if (tier == nameof(Base) || tier == nameof(Slope)) return false;
+            var field = typeof(AtomTierConfig).GetField(tier);
+            if (field == null || field.FieldType != typeof(float)) return false;
+            d = (float)field.GetValue(this);
+            return true;
+        }
+
+        /// <summary>档位名 → 价格 = Base + Slope×d。未知档位返回 NaN（毒值显性传播）——
+        /// 调用方须先 TryGetD 把关，勿裸调。</summary>
+        public float PriceOf(string tier)
+            => TryGetD(tier, out var d) ? Base + Slope * d : float.NaN;
     }
 
     // 注：TimingModifier / CostValue / EffectValue / TriggerValue / CardTypeValue 五类配置
@@ -207,7 +263,8 @@ namespace CardCore
 
     /// <summary>
     /// 价值系统配置管理器 - 单例。
-    /// 首次取用时从 Assets/Configs/ValueSystemConfig.json（ValueSystem.xlsm 导出）灌入配置，
+    /// 首次取用时从 Assets/Configs/ValueSystemConfig.json 灌入配置（2026-11-10 结构化迁移：
+    /// section 对象，section 名=Category、字段名=Key、Des 已转 // 行注释；顶层裸数组旧格式仅回滚兼容），
     /// 文件缺失/解析失败则退回 ValueSystemRuntimeConfig 字段初始化器的代码默认值。
     /// </summary>
     public class ValueSystemConfigManager
@@ -257,8 +314,11 @@ namespace CardCore
 
         /// <summary>
         /// 读表并灌入配置，返回 null 表示放弃（调用方退回代码默认值）。
-        /// 映射纯按名：Category+"Config" → ValueSystemRuntimeConfig 同名字段，Key → 子配置同名字段——
-        /// 表里加行、代码加同名字段即自动接通，不维护第二份映射。未知 Category/Key 告警跳过（暴露表结构漂移）。
+        /// 2026-11-10 结构化迁移：顶层 { = section 对象（section 名=Category、字段名=Key，Des 转行注释）——
+        /// section → ValueSystemRuntimeConfig 同名字段（+"Config"）定位后 JsonConvert.PopulateObject 整段灌入
+        /// （MissingMemberHandling.Error：未知 Key 硬错，不再 Warn 跳过）。表里加字段、代码加同名字段即接通。
+        /// 顶层 [ = 旧 KV 数组（xlsm 导出器口径）——回滚兼容分支保留：按 Category 分组转 section 后走同一
+        /// PopulateObject 管线，不再有第二套逐条反射灌入。
         /// </summary>
         private static ValueSystemRuntimeConfig LoadFromJson()
         {
@@ -270,84 +330,109 @@ namespace CardCore
                 return null;
             }
 
-            var config = new ValueSystemRuntimeConfig(); // 字段初始化器 = 兜底默认值，表值逐条覆盖
-            int applied = ApplyEntries(raw, config);
+            var config = new ValueSystemRuntimeConfig(); // 字段初始化器 = 兜底默认值，表值逐段覆盖
+            string trimmed = raw.TrimStart();
+            string sectionsJson;
+            if (trimmed.StartsWith("{"))
+            {
+                sectionsJson = raw; // 新格式：section 对象（// 行注释 JObject.Parse 直接容忍）
+            }
+            else if (trimmed.StartsWith("["))
+            {
+                // 旧格式 KV 数组（迁移前导出器口径）：转 section 对象复用同一灌入管线（回滚零行为差）
+                try
+                {
+                    sectionsJson = LegacyKvToSections(raw);
+                }
+                catch (Exception e)
+                {
+                    TideLog.Warn($"[ValueSystemConfigManager] 解析 {ConfigRelativePath}（旧 KV 数组）失败: {e.Message}，使用代码默认值");
+                    return config;
+                }
+            }
+            else
+            {
+                TideLog.Warn($"[ValueSystemConfigManager] 配置顶层既非对象也非数组：{ConfigRelativePath}，使用代码默认值");
+                return null;
+            }
 
             // CostOffsetConfig.json 已删（2026-09-14 代价原子化）：CardCost 三行（StatUnit/
             // KeywordsShareDelayDiscount/MaxTier）已回迁本表；DelayDiscount 行与 KeywordsShareDelayDiscount
             // 已随 2026-10-31 阶梯减价删除整链退役；机制行与当量行随抵消系统退役。
+            int applied = ApplySections(sectionsJson, config);
             if (applied == 0)
                 TideLog.Warn($"[ValueSystemConfigManager] 未从 {ConfigRelativePath} 灌入任何条目");
             return config;
         }
 
-        /// <summary>解析 KV 条目并反射灌入（Category+"Config" → 同名字段；表加行+代码加同名字段即接通）。</summary>
-        private static int ApplyEntries(string raw, ValueSystemRuntimeConfig config)
+        /// <summary>section 对象装载（新格式；旧 KV 数组经 LegacyKvToSections 转换后同走此口）。
+        /// 未知 section / 无同名字段 = Error 点名；section 内未知 Key 由 PopulateObject
+        /// （MissingMemberHandling.Error）抛错转 Error 点名——表结构漂移装载期显性暴露，不静默跳过。</summary>
+        private static int ApplySections(string raw, ValueSystemRuntimeConfig config)
         {
-            List<ValueSystemConfigEntry> entries;
+            JObject root;
             try
             {
-                entries = ParseEntries(raw);
+                root = JObject.Parse(raw);
             }
             catch (Exception e)
             {
-                TideLog.Warn($"[ValueSystemConfigManager] 解析 {ConfigRelativePath} 失败: {e.Message}，跳过该文件");
+                TideLog.Warn($"[ValueSystemConfigManager] 解析 {ConfigRelativePath} 失败: {e.Message}，使用代码默认值");
                 return 0;
             }
-            if (entries == null) return 0;
 
             int applied = 0;
-            foreach (var entry in entries)
+            var hits = new List<string>();
+            foreach (var prop in root.Properties())
             {
-                if (entry == null || string.IsNullOrEmpty(entry.Category) || string.IsNullOrEmpty(entry.Key))
-                    continue;
-
-                var section = typeof(ValueSystemRuntimeConfig).GetField(entry.Category + "Config");
+                var section = typeof(ValueSystemRuntimeConfig).GetField(prop.Name + "Config");
                 if (section == null)
                 {
-                    TideLog.Warn($"[ValueSystemConfigManager] 未知 Category='{entry.Category}'（Key={entry.Key}），已跳过");
+                    TideLog.Error($"[ValueSystemConfigManager] 未知 section '{prop.Name}'（ValueSystemRuntimeConfig 无 {prop.Name}Config 字段），未灌入");
                     continue;
                 }
-
-                var field = section.FieldType.GetField(entry.Key);
-                if (field == null)
+                if (!(prop.Value is JObject sec))
                 {
-                    TideLog.Warn($"[ValueSystemConfigManager] {entry.Category} 无同名字段 '{entry.Key}'，已跳过");
+                    TideLog.Error($"[ValueSystemConfigManager] section '{prop.Name}' 不是对象，未灌入");
                     continue;
                 }
-
-                field.SetValue(section.GetValue(config), Convert.ChangeType(entry.Value, field.FieldType));
-                applied++;
+                try
+                {
+                    JsonConvert.PopulateObject(sec.ToString(), section.GetValue(config),
+                        new JsonSerializerSettings { MissingMemberHandling = MissingMemberHandling.Error });
+                }
+                catch (Exception e)
+                {
+                    TideLog.Error($"[ValueSystemConfigManager] section '{prop.Name}' 灌入失败（未知 Key 或类型不符）: {e.Message}");
+                    continue;
+                }
+                applied += sec.Count;
+                hits.Add($"{prop.Name}({sec.Count})");
             }
+            if (hits.Count > 0)
+                TideLog.Info($"[ValueSystemConfigManager] 结构化装载 {hits.Count} section 命中：{string.Join("/", hits)}——共 {applied} 字段");
             return applied;
         }
 
-        /// <summary>解析 JSON（导出器每个 sheet 产出顶层裸数组，JsonUtility 需包一层；同 AtomicEffectTable.ParseEntries 惯例）</summary>
-        private static List<ValueSystemConfigEntry> ParseEntries(string raw)
+        /// <summary>旧格式 KV 数组（Category/Key/Value/Des 裸数组）→ section 对象：按 Category 分组，
+        /// Key→字段名、Value→字段值（Des 丢弃）。回滚兼容分支，结构与语义不再演进。</summary>
+        private static string LegacyKvToSections(string raw)
         {
-            if (string.IsNullOrEmpty(raw)) return null;
-            string trimmed = raw.TrimStart();
-            string wrapped = trimmed.StartsWith("[")
-                ? "{\"items\":" + raw + "}"
-                : raw; // 已是对象（含 items）则直接用
-                    var wrapper = TideJson.FromJson<ValueSystemConfigWrapper>(wrapped);
-            return wrapper?.items;
-        }
-
-        // ======================================== JSON DTO ========================================
-
-        [Serializable]
-        private class ValueSystemConfigEntry
-        {
-            public string Category; // TargetModifier / TimingModifier / CostValue / ...（+Config = 同名字段）
-            public string Key;      // 子配置同名字段名
-            public float Value;     // 灌入值（int 字段自动转换）
-        }
-
-        [Serializable]
-        private class ValueSystemConfigWrapper
-        {
-            public List<ValueSystemConfigEntry> items;
+            var root = new JObject();
+            foreach (var item in JArray.Parse(raw).OfType<JObject>())
+            {
+                string category = (string)item["Category"];
+                string key = (string)item["Key"];
+                if (string.IsNullOrEmpty(category) || string.IsNullOrEmpty(key)) continue;
+                var sec = root[category] as JObject;
+                if (sec == null)
+                {
+                    sec = new JObject();
+                    root[category] = sec;
+                }
+                sec[key] = item["Value"];
+            }
+            return root.ToString();
         }
     }
 }

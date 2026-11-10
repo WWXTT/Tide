@@ -516,7 +516,7 @@ namespace SynergyUI
             {
                 if (serial != _voiceSerial) return; // 段已切换：丢弃本次加载
                 var clip = Tide.HotUpdate.HotUpdateAssets.Load<AudioClip>(
-                    audio, "Assets/TutorialData/TutorialAudio/" + audio + ".mp3");
+                    audio, "Assets/Data/TutorialData/TutorialAudio/" + audio + ".mp3");
                 if (clip == null)
                 {
                     Debug.Log($"[BattleScreen] 教学语音未找到（文字照常）：{audio}");

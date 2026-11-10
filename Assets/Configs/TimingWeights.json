@@ -1,0 +1,49 @@
+{
+  "_Des": "时机系数权重表 v0.1（2026-11-10 定案）。f = min(E[N], Cutoff)；E[N] 单次档=p、周期观察族=Lambda*L、攻守横置族=Lambda*Lc。Base=典型耐久（次数天花板），DurabilitySharePerTrigger=每次触发消耗的耐久比例（D*share=1 次）。规格见 docs/时机系数规格_v0.1.md",
+  "Enabled": false,
+  "_EnabledDes": "影子开关：false=只算出 f 并对账、计价仍用旧 TimingFactor 桶；true=实际乘 f。切换前必须先看验证器「新旧价差清单」与卡费曲线",
+  "Base": 3.0,
+  "Cutoff": 3.0,
+  "DurabilitySharePerTrigger": 0.3333333,
+  "Weights": [
+    { "Timing": "OnPlay", "Bucket": "Once", "Lambda": 0.0, "Expected": 1.0, "Factor": 1.0, "Note": "登场：打出即结算，必然一次（基准）" },
+    { "Timing": "OnGameStart", "Bucket": "Once", "Lambda": 0.0, "Expected": 1.0, "Factor": 1.0, "Note": "游戏开始：每局一次，必然" },
+    { "Timing": "OnLeaveBattlefield", "Bucket": "Once", "Lambda": 0.0, "Expected": 0.8, "Factor": 0.8, "Note": "离场：任意非战场区；亡语超集，命中率最高" },
+    { "Timing": "OnDeath", "Bucket": "Once", "Lambda": 0.0, "Expected": 0.6, "Factor": 0.6, "Note": "死亡：抹除/除外不发死亡事件，天然漏发" },
+    { "Timing": "OnDestroy", "Bucket": "Once", "Lambda": 0.0, "Expected": 0.55, "Factor": 0.55, "Note": "被破坏：特定死因，命中率略低于死亡" },
+    { "Timing": "OnRoleDeath", "Bucket": "Once", "Lambda": 0.0, "Expected": 0.5, "Factor": 0.5, "Note": "角色死亡：每局至多一次，通常已是终局" },
+    { "Timing": "OnReturnFromGraveyard", "Bucket": "Once", "Lambda": 0.0, "Expected": 0.2, "Factor": 0.2, "Note": "墓地回场：需要专门复活源" },
+    { "Timing": "OnExile", "Bucket": "Once", "Lambda": 0.0, "Expected": 0.12, "Factor": 0.12, "Note": "被除外：稀有触发口" },
+
+    { "Timing": "OnStandbyPhase", "Bucket": "Repeat", "Lambda": 1.0, "Expected": 4.0, "Factor": 3.0, "Note": "准备阶段：每回合一次，封顶耐久" },
+    { "Timing": "OnTurnEnd", "Bucket": "Repeat", "Lambda": 1.0, "Expected": 4.0, "Factor": 3.0, "Note": "回合结束：每回合一次" },
+    { "Timing": "OnPhaseStart", "Bucket": "Repeat", "Lambda": 3.0, "Expected": 12.0, "Factor": 3.0, "Note": "阶段开始：准备/主/战斗三段" },
+    { "Timing": "OnPhaseEnd", "Bucket": "Repeat", "Lambda": 3.0, "Expected": 12.0, "Factor": 3.0, "Note": "阶段结束：同上" },
+    { "Timing": "OnDraw", "Bucket": "Repeat", "Lambda": 1.2, "Expected": 4.8, "Factor": 3.0, "Note": "抽牌：系统抽1+效果抽牌" },
+    { "Timing": "OnDealDamage", "Bucket": "Repeat", "Lambda": 1.5, "Expected": 6.0, "Factor": 3.0, "Note": "造成伤害：战斗1+效果0.5" },
+    { "Timing": "OnTakeDamage", "Bucket": "Repeat", "Lambda": 1.5, "Expected": 6.0, "Factor": 3.0, "Note": "受到伤害：同造成伤害" },
+    { "Timing": "OnTargeted", "Bucket": "Repeat", "Lambda": 1.2, "Expected": 4.8, "Factor": 3.0, "Note": "被指定：对手效果指定" },
+    { "Timing": "OnCardPlayed", "Bucket": "Repeat", "Lambda": 2.0, "Expected": 8.0, "Factor": 3.0, "Note": "使用卡牌：每回合出2张" },
+    { "Timing": "OnCardCastSettled", "Bucket": "Repeat", "Lambda": 2.0, "Expected": 8.0, "Factor": 3.0, "Note": "效果结算后：同使用卡牌" },
+    { "Timing": "OnAtomicEffectActivation", "Bucket": "Repeat", "Lambda": 4.0, "Expected": 16.0, "Factor": 3.0, "Note": "原子发动：每张牌1-2原子" },
+    { "Timing": "OnAtomicEffectStartApplying", "Bucket": "Repeat", "Lambda": 4.0, "Expected": 16.0, "Factor": 3.0, "Note": "原子开始作用：同上" },
+    { "Timing": "OnAtomicEffectResolution", "Bucket": "Repeat", "Lambda": 4.0, "Expected": 16.0, "Factor": 3.0, "Note": "原子结算完成：同上" },
+    { "Timing": "OnSummon", "Bucket": "Repeat", "Lambda": 0.7, "Expected": 2.8, "Factor": 2.8, "Note": "进场：token/复活可二次触发，故归多次档" },
+    { "Timing": "OnOtherCreatureEnter", "Bucket": "Repeat", "Lambda": 0.7, "Expected": 2.8, "Factor": 2.8, "Note": "其他生物进场：观察者时点" },
+    { "Timing": "OnOtherCreatureDeath", "Bucket": "Repeat", "Lambda": 0.6, "Expected": 2.4, "Factor": 2.4, "Note": "其他生物死亡：观察者时点" },
+    { "Timing": "OnSpellCast", "Bucket": "Repeat", "Lambda": 0.5, "Expected": 2.0, "Factor": 2.0, "Note": "施放法术：法术占比约25%" },
+    { "Timing": "OnScry", "Bucket": "Repeat", "Lambda": 0.15, "Expected": 0.6, "Factor": 0.6, "Note": "占卜：低频；低于1次按期望兑现" },
+
+    { "Timing": "OnAttack", "Bucket": "TapAnchored", "Lambda": 1.0, "Expected": 3.0, "Factor": 3.0, "Note": "攻击宣言：横置限频，每兽每回合1次" },
+    { "Timing": "OnAttacked", "Bucket": "Universal", "Lambda": 1.0, "Expected": 3.0, "Factor": 3.0, "Note": "被攻击：受攻数<=攻击者数；双宿主（生物/结界都可挂），计价按 Repeat 桶/E[N]" },
+    { "Timing": "OnBlockDeclare", "Bucket": "TapAnchored", "Lambda": 0.3, "Expected": 0.9, "Factor": 0.9, "Note": "阻拦宣言：守卫数量有限" },
+    { "Timing": "OnTap", "Bucket": "TapAnchored", "Lambda": 1.8, "Expected": 5.4, "Factor": 3.0, "Note": "横置：攻击+主动发动" },
+    { "Timing": "OnUntap", "Bucket": "TapAnchored", "Lambda": 2.5, "Expected": 7.5, "Factor": 3.0, "Note": "重置：回合开始重置全部横置" },
+
+    { "Timing": "Activate_Active", "Bucket": "Active", "Lambda": 0.0, "Expected": 0.0, "Factor": 1.0, "Note": "主动发动：现付，不进时序" },
+    { "Timing": "Activate_Instant", "Bucket": "Active", "Lambda": 0.0, "Expected": 0.0, "Factor": 1.0, "Note": "瞬间发动：现付" },
+    { "Timing": "Activate_Response", "Bucket": "Active", "Lambda": 0.0, "Expected": 0.0, "Factor": 1.0, "Note": "响应发动：现付" },
+
+    { "Timing": "OnTurnStart", "Bucket": "Disabled", "Lambda": 0.0, "Expected": 0.0, "Factor": 0.0, "Note": "回合开始：系统专用，效果时点不准挂；玩家侧由 OnStandbyPhase 承接" }
+  ]
+}

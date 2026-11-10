@@ -53,6 +53,10 @@ namespace TideSim
             if (args.Length > 0 && args[0] == "--charge-probe")
                 return ChargeProbe.Run();
 
+            // 临时探针（2026-11-10 双轨收尾·D 组，跑完删）：三池磁盘 costList vs 现推导对账
+            if (args.Length > 0 && args[0] == "--cost-audit")
+                return CostAuditProbe.Run();
+
             // 教学式固定盘面场景回归（2026-11-04）：红快攻（血偿/连击准入+拆波）+ 蓝·元素充盈
             //（潮痕碑/深潭碑 触发·不触发·每回合封顶）+ 自由分支引擎主干 7 种（2026-11-06：
             // 倒计时/运势/拼枪/死亡计数/团结/附加诅咒/附加祝福）三套串跑，一次命令覆盖全部场景

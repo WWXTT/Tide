@@ -429,11 +429,17 @@ namespace CardCore
         }
 
         /// <summary>时机系数单口（计价 TimingCostFactor 与时机下拉档位标签展示同源）：
-        /// 表 Category=TimingFactor 三档——单次 Once / 多次 Repeat（周期·观察族，结界专属）/
-        /// 生物专属 CreatureOnly（攻/守/横置族，仅生物可挂，×1.5）。改表即同步改计价与展示；
-        /// 主动三档恒 1（发动时现付，不乘表）。</summary>
+        /// 表 TimingWeights.json 每时机一行 f = min(E[N], Cutoff)（2026-11-10 时机系数规格 v0.1，
+        /// 35 行全枚举覆盖）——<b>Enabled=true（段 2b）才计价读行 Factor</b>；Enabled=false（影子模式，
+        /// 默认）与缺行一律回落表 Category=TimingFactor 桶默认：单次 Once / 多次 Repeat（周期·观察族，
+        /// 结界专属）/ 生物专属 CreatureOnly（攻/守/横置族 4 值，仅生物可挂）。主动三档行恒 1（现付不进
+        /// 时序）、OnTurnStart 行 0（系统专用）。**2026-11-10 资格层新口径：OnAttacked 解绑为双宿主时机
+        ///（IsUniversalRepeatTiming）——回落 Repeat 桶 1.0（旧 1.5）、表期读行 Factor=3.0，无生物专属溢价**。
+        /// 改 Enabled/表行即同步改计价与展示；切换检查单见验证器 P9-9。</summary>
         public static float TimingCostFactorOf(TriggerTiming timing)
         {
+            if (TimingWeights.Enabled && TimingWeights.TryGet(timing, out var row))
+                return row.Factor;
             var f = ValueSystemConfigManager.Instance.GetOrCreateConfig().TimingFactorConfig;
             if (EffectEligibility.IsTapAnchoredTiming(timing)) return f.CreatureOnly;
             return FiresOncePerPaidLifetime(timing) ? f.Once : f.Repeat;

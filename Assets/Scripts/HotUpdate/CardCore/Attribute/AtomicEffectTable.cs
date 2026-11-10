@@ -188,7 +188,50 @@ namespace CardCore.Attribute
                 // 2026-10-28 P2 席位收缩后下标序 = [灰,红,蓝,绿,任意]（5 位，表内现行 4 位补零）：
                 // 旧两列与兜底合成（2f0fcf4 解析器先迁、数据未迁的过渡态）已随全表数据迁移删除。
                 // null/空 = 不计价行。
-                config.ManaList = ParsePositionalMana(entry.ManaList);
+                //
+                // 2026-11-10 双轨定案（同日改版）：Tier 是档位写法——解析期就地展开成等价单色
+                // ManaList = AtomColorRules.For(行) 色 × PriceOf(Tier) 价（ValueSystemConfig.AtomTier
+                // 段公式 Base+Slope×d；档名=d 值 Dm1/D0/Dp1…；颜色不再走表列，AtomColorRules 单源生成），
+                // 下游 TotalUnitCost/magnitude/分色 全部照旧，CostDerivation 零改。四形态：
+                //   有 Tier 无 ManaList → 档位展开；无 Tier 有 ManaList → 现状原样（关键词/光环/压制阶梯指示物）；
+                //   两者都有 → 双源冲突 Error 点名行，取直写 ManaList（不许静默取一个——验证器 P9-8 复核）；
+                //   两者都无 → 零价载体行（现状）。未知档位/色不可生成（未收录·豁免·多色）Error 点名
+                //   本行不计价，不静默回落——多色行（吸取 红|绿）与费用增减四色行走直写 ManaList。
+                bool tierWritten = !string.IsNullOrEmpty(entry.Tier);
+                bool manaWritten = entry.ManaList != null && entry.ManaList.Count > 0;
+                if (tierWritten && manaWritten)
+                {
+                    TideLog.Error($"[AtomicEffectTable] Tier 与 ManaList 双源冲突（EnumName={entry.EnumName}，"
+                                  + $"ID={entry.ID}）——按直写 ManaList 装载，请清空其一");
+                    config.ManaList = ParsePositionalMana(entry.ManaList);
+                }
+                else if (tierWritten)
+                {
+                    var tierCfg = CardCore.ValueSystemConfigManager.Instance.GetOrCreateConfig().AtomTierConfig;
+                    var spec = AtomColorRules.For(type, entry.EnumName);
+                    if (!tierCfg.TryGetD(entry.Tier, out _))
+                    {
+                        TideLog.Error($"[AtomicEffectTable] 未知档位 '{entry.Tier}'（EnumName={entry.EnumName}，"
+                                      + $"ID={entry.ID}）——AtomTier 表无同名字段，本行不计价；加档位或改拼写");
+                        config.ManaList = null;
+                    }
+                    else if (!AtomColorRules.TryGetSingleColor(spec, out var tierColor))
+                    {
+                        TideLog.Error($"[AtomicEffectTable] 行色不可 Tier 生成（EnumName={entry.EnumName}，"
+                                      + $"ID={entry.ID}，生成色={spec}）——AtomColorRules 未收录/豁免/多色行请直写 ManaList");
+                        config.ManaList = null;
+                    }
+                    else
+                    {
+                        config.ManaList = ElementCost.FromValue(tierColor, tierCfg.PriceOf(entry.Tier));
+                        config.Tier = entry.Tier;                 // 溯源（展开值已进 ManaList，此字段仅供对账/合成器判别）
+                        config.Color = tierColor.ToString();
+                    }
+                }
+                else
+                {
+                    config.ManaList = ParsePositionalMana(entry.ManaList);
+                }
 
                 // 表 Tags 列（2026-10-06 产出族迁表 + 中文化）先入，表色随后追加（逗号连接）——
                 // GetTagList() 两侧消费：ComposerCatalog.OutcomeConditionsFor 族匹配（伤害产出族 等）、
@@ -447,6 +490,13 @@ namespace CardCore.Attribute
             //（2026-11-09 键名对齐：字段名随表列名「特殊裁定」——原先叫「特殊」与表键错位断链）
             public string 特殊裁定;      // 特殊声明：文案没说、但引擎实际这么做的规则（中文短句；展示层追加）
             public string 参数;          // 实例级字符串参数声明：None/CardRef/CardName/Dimension（缺省 None）
+
+            // ---- 双轨计价（2026-11-10 定案；同日改版）：Tier=档位名（AtomTierConfig 字段名，d 值名
+            // ---- Dm1/D0/Dp1…）——解析期展开成等价单色 ManaList（色=AtomColorRules.For 单源生成 ×
+            // ---- 价=PriceOf），与 ManaList 互斥（双源冲突装载期 Error，直写向量优先）。
+            // ---- 颜色不走表列（Color 列已随改版退役，JSON 残留键装载层忽略）；关键词/光环/压制阶梯
+            // ---- 指示物等不在 d 轴的行直写 ManaList 不受影响；两者都无 = 零价载体行。----
+            public string Tier;
         }
 
         [Serializable]

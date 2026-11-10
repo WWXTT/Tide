@@ -215,6 +215,8 @@ namespace CardCore.Editor
                 TestActiveEffectCost(core, p1, p2);
                 Crumb("→TestP9TimingTiersAndEligibility");
                 TestP9TimingTiersAndEligibility(core, p1);
+                Crumb("→TestP9AtomTierDualTrack");
+                TestP9AtomTierDualTrack(); // P9-8 双轨计价对账（2026-11-10 定案）：Tier/ManaList 互斥+档位/颜色合法+展开正确+八档价快照
             Crumb("→TestSleep");
             TestSleep(core, p1, p2);
             Crumb("→TestCharge");

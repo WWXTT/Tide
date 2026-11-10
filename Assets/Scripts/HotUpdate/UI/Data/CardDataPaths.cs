@@ -5,12 +5,13 @@ namespace SynergyUI
 {
     /// <summary>
     /// 卡牌用户数据路径收口（2026-09-24 立；2026-10-18 热更迁移：种子源从 StreamingAssets 迁至
-    /// Assets/CardData 与 Assets/TutorialData——进 YooAsset 热更包对应组，随包可热更）：
-    /// - **编辑器**：Assets/CardData（合成卡即入池、git 可追踪用户数据，即改即见）。
+    /// Assets/CardData 与 Assets/TutorialData；2026-11-10 立数据门户 Data/：三池+Packs 统一迁
+    /// Assets/Data/{CardData,TutorialData,TrainingData,Packs}——进 YooAsset 热更包对应组，随包可热更）：
+    /// - **编辑器**：Assets/Data/CardData（合成卡即入池、git 可追踪用户数据，即改即见）。
     /// - **打包后**：persistentDataPath/Card（玩家包内只读）——首启 EnsureBootstrap 经
     ///   HotUpdateAssets.LoadText 从热更包读种子写入（旧 File.Copy 通道在安卓 jar 下本就失效，退役）。
     /// - **服务器（TideServer）**：TidePaths 无装配回落——DataPath 直探 Assets/CardData 读仓库源
-    ///   （CardData 存在则引导空转，只读不开局外存档）。
+    ///   （Assets/Data/CardData 存在则引导空转，只读不开局外存档）。
     /// 全部卡牌数据读写（Cards/Effects/卡组）一律经此取路径，不得再直连 StreamingAssets。
     /// </summary>
     public static class CardDataPaths
@@ -45,7 +46,7 @@ namespace SynergyUI
 
         /// <summary>玩家端种子读取器（宿主装配模式，同 TideLog.Sink）：Unity 侧由 HotUpdateEntry
         /// 装配为 HotUpdateAssets.LoadText（真机从热更包读种子）；TideServer 不装配——EnsureBootstrap
-        /// 空转不落盘，直接走 CardDir 的仓库源回落。参数为 "CardData/x.json" 形式相对路径。</summary>
+        /// 空转不落盘，直接走 CardDir 的仓库源回落。参数为 "Data/CardData/x.json" 形式相对路径。</summary>
         public static System.Func<string, string> PackTextReader;
 
         /// <summary>卡牌用户数据目录（编辑器=仓库源；玩家=persistent 首启引导；TideServer=仓库源回落）。</summary>
@@ -54,11 +55,11 @@ namespace SynergyUI
             get
             {
 #if UNITY_EDITOR
-                return Path.Combine(TidePaths.DataPath, "CardData");
+                return Path.Combine(TidePaths.DataPath, "Data", "CardData");
 #else
                 string persistent = Path.Combine(TidePaths.PersistentDataPath, "Card");
                 if (Directory.Exists(persistent)) return persistent;
-                string source = Path.Combine(TidePaths.DataPath, "CardData");
+                string source = Path.Combine(TidePaths.DataPath, "Data", "CardData");
                 if (Directory.Exists(source)) return source; // TideServer：无装配直读仓库源
                 return persistent; // 设备首启：EnsureBootstrap 负责建目录
 #endif
@@ -69,22 +70,22 @@ namespace SynergyUI
         public static string FileIn(string fileName) => Path.Combine(CardDir, fileName);
 
         /// <summary>教学资源目录内文件完整路径（教学卡表/卡组引用，2026-10-17 教学卡分家定案：
-        /// 不与正式卡 CardData 混放；2026-10-18 迁 Assets/TutorialData，真机经 EnsureTutorialBootstrap
-        /// 从热更包引导到 persistent，只读）。</summary>
+        /// 不与正式卡 CardData 混放；2026-10-18 迁 Assets/TutorialData，2026-11-10 迁 Assets/Data/TutorialData，
+        /// 真机经 EnsureTutorialBootstrap 从热更包引导到 persistent，只读）。</summary>
         public static string TutorialFileIn(string fileName) => Path.Combine(TutorialDir, fileName);
 
-        /// <summary>教学数据目录（编辑器=仓库源 Assets/TutorialData；玩家=persistent/Tutorial；
+        /// <summary>教学数据目录（编辑器=仓库源 Assets/Data/TutorialData；玩家=persistent/Tutorial；
         /// TideServer=仓库源回落）。2026-10-22 起同时承载三套预组卡组（只读）。</summary>
         public static string TutorialDir
         {
             get
             {
 #if UNITY_EDITOR
-                return Path.Combine(TidePaths.DataPath, "TutorialData");
+                return Path.Combine(TidePaths.DataPath, "Data", "TutorialData");
 #else
                 string persistent = Path.Combine(TidePaths.PersistentDataPath, "Tutorial");
                 if (Directory.Exists(persistent)) return persistent;
-                string source = Path.Combine(TidePaths.DataPath, "TutorialData");
+                string source = Path.Combine(TidePaths.DataPath, "Data", "TutorialData");
                 if (Directory.Exists(source)) return source; // TideServer：无装配直读仓库源
                 return persistent;
 #endif
@@ -100,7 +101,7 @@ namespace SynergyUI
         /// 装卸唯一写口=ContentPackRegistry（装卸即失效两目录缓存）。</summary>
         public static string PackFileIn(string fileName) => Path.Combine(PackDir, fileName);
 
-        /// <summary>内容包根目录（G2 2026-11-08）：编辑器=Assets/Packs（即装即见，与 CardData 同
+        /// <summary>内容包根目录（G2 2026-11-08）：编辑器=Assets/Data/Packs（即装即见，与 CardData 同
         /// 仓库内口径）；玩家=persistent/Packs（工坊/导入落此，不经 EnsureBootstrap 下发）；
         /// TideServer=仓库源回落（无头对拍同读）。目录缺失=无包，装载自然为空。</summary>
         public static string PackDir
@@ -108,18 +109,18 @@ namespace SynergyUI
             get
             {
 #if UNITY_EDITOR
-                return Path.Combine(TidePaths.DataPath, "Packs");
+                return Path.Combine(TidePaths.DataPath, "Data", "Packs");
 #else
                 string persistent = Path.Combine(TidePaths.PersistentDataPath, "Packs");
                 if (Directory.Exists(persistent)) return persistent;
-                string source = Path.Combine(TidePaths.DataPath, "Packs");
+                string source = Path.Combine(TidePaths.DataPath, "Data", "Packs");
                 if (Directory.Exists(source)) return source;
                 return persistent;
 #endif
             }
         }
 
-        /// <summary>训练数据目录（编辑器=仓库源 Assets/TrainingData；TideServer=仓库源回落；
+        /// <summary>训练数据目录（编辑器=仓库源 Assets/Data/TrainingData；TideServer=仓库源回落；
         /// 玩家构建=persistent/Training，**不经 EnsureBootstrap 下发**——训练内容只随开发侧
         /// 仓库走，玩家设备上该目录不存在=合并装载自然为空，天然不可见）。</summary>
         public static string TrainingDir
@@ -127,11 +128,11 @@ namespace SynergyUI
             get
             {
 #if UNITY_EDITOR
-                return Path.Combine(TidePaths.DataPath, "TrainingData");
+                return Path.Combine(TidePaths.DataPath, "Data", "TrainingData");
 #else
                 string persistent = Path.Combine(TidePaths.PersistentDataPath, "Training");
                 if (Directory.Exists(persistent)) return persistent;
-                string source = Path.Combine(TidePaths.DataPath, "TrainingData");
+                string source = Path.Combine(TidePaths.DataPath, "Data", "TrainingData");
                 if (Directory.Exists(source)) return source; // TideServer：无装配直读仓库源
                 return persistent;
 #endif
@@ -149,9 +150,9 @@ namespace SynergyUI
         {
 #if !UNITY_EDITOR
             if (_bootstrapped || PackTextReader == null) return; // 未装配宿主：不置位，装配后重试
-            SeedDirectory(Path.Combine(TidePaths.PersistentDataPath, "Card"), "CardData", CardSeedFiles,
+            SeedDirectory(Path.Combine(TidePaths.PersistentDataPath, "Card"), "Data/CardData", CardSeedFiles,
                 overwrite: false);
-            SeedDirectory(Path.Combine(TidePaths.PersistentDataPath, "Tutorial"), "TutorialData", TutorialSeedFiles,
+            SeedDirectory(Path.Combine(TidePaths.PersistentDataPath, "Tutorial"), "Data/TutorialData", TutorialSeedFiles,
                 overwrite: true);
             _bootstrapped = true;
 #endif

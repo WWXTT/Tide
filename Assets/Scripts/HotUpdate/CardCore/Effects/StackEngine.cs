@@ -212,8 +212,9 @@ namespace CardCore
                 // 同批多个触发出队时，结算期记账会让读数滞后。
                 _executor.RecordQueuedActivation(next.Effect, next.Source);
 
-                // 结界被动触发消耗（2026-10-10 耐久即次数池定案）：战场结界的触发式效果
-                // 每次入栈 −1 耐久（非光环被动的次数上限就是耐久，计费侧已剥离次数档防双重计费）。
+                // 结界被动触发消耗（2026-10-10 耐久即次数池定案；2026-11-10 时机系数规格 §4 改单口）：
+                // ConsumeTriggerDurabilityShare 影子开关两口径——旧 −1/次 ↔ 新 D/3 累计（每满 3 次触发
+                // 扣整份入场耐久 D，D 恒兑现 3 次，次数自由度移交时机系数 f 计价）。
                 // 豁免：登场族（OnPlay/OnSummon/OnReturnFromGraveyard——入场结算属出牌/入场流程，
                 // 仪典载体不受影响）；光环条目=存在经济常驻，不经触发路径；离场族触发时源卡已离场
                 //（下方战场判定不过）→ 自然不消耗，兼防"耗尽→销毁→亡语→再耗"递归。
@@ -223,7 +224,8 @@ namespace CardCore
                     && trigCard.GetZone() == Zone.Battlefield
                     && !IsEntranceTiming(next.Effect.TriggerTiming))
                 {
-                    Attribute.CounterRules.LoseDurability(GameCore.Instance, trigCard, 1, "被动触发（耐久即次数池）");
+                    Attribute.CounterRules.ConsumeTriggerDurabilityShare(
+                        GameCore.Instance, trigCard, "被动触发（耐久即次数池）");
                 }
 
                 EventManager.Instance.Publish(new StackAddEvent

@@ -194,7 +194,9 @@ namespace SynergyUI
         /// 时机三档与宿主一一对应——生物=单次+生物专属（攻/守/横置 ×1.5）；结界=单次+周期/观察族；
         /// 法术=仅单次（一次性形态）。违规=保存禁用。效果库模式无宿主不查；引擎载荷豁免
         ///（效果头时机=奖励发射窗，与计价 TimingCostFactor 同口径——但结界挂攻/守/横置不豁免：
-        /// 该时机对结界无语义）。</summary>
+        /// 该时机对结界无语义）。2026-11-10 资格层新口径：生物多次档按 E[N] 判
+        ///（CreatureCanTakeTiming 单源——与 RejectReason/装载校验同口径），OnAttacked 双宿主放行；
+        /// OnTurnStart 任何宿主拒（系统专用——引擎载荷豁免，raw 值经归一化）。</summary>
         private string HostTimingTierError()
         {
             if (_editingCard == null) return null;
@@ -206,15 +208,18 @@ namespace SynergyUI
                 return null; // 主动档无时机（现付）
             string zh = TimingZh.TryGetValue(t, out var name) ? name : t.ToString();
             if (_editingCard.Supertype == Cardtype.Enchantment && EffectEligibility.IsTapAnchoredTiming(t))
-                return $"本卡宿主（{_editingCard.CardName}）挂不住生物专属时机「{zh}」——攻/守/横置族是生物专属自动效果"
-                       + "（结界不横置、无从触发）；请改单次时机或周期/观察族多次时机，或把卡改为生物";
+                return $"本卡宿主（{_editingCard.CardName}）挂不住生物专属时机「{zh}」——攻/守/横置族（4 值）是生物专属自动效果"
+                       + "（结界不横置，无从触发）；请改单次/周期/观察/双宿主（被攻击）时机，或把卡改为生物";
             if (_editingCard.Supertype == Cardtype.Spell && CostDerivationService.IsRepeatTiming(t))
                 return $"本卡宿主（{_editingCard.CardName}）是一次性法术，挂不住反复触发时机「{zh}」；"
                        + "请改单次时机（登场）或改为自动/驻场宿主";
             if (GraphHasEnginePayload(_graph)) return null; // 引擎载荷：时机=奖励发射窗（以上宿主硬闸不豁免）
-            if (_editingCard.Supertype == Cardtype.Creature && EffectEligibility.IsEnchantExclusiveTiming(t))
-                return $"本卡宿主（{_editingCard.CardName}）挂不住周期性多次时机「{zh}」——结界专属（耐久即次数池）；"
-                       + "请改单次时机（登场/死亡等）或生物专属的攻/守/横置族，或把卡改为结界配耐久";
+            if (t == TriggerTiming.OnTurnStart)
+                return "回合开始已收归系统专用——效果时点不准挂（任何宿主），玩家侧由「准备阶段」承接";
+            if (_editingCard.Supertype == Cardtype.Creature && !EffectEligibility.CreatureCanTakeTiming(t))
+                return $"本卡宿主（{_editingCard.CardName}）挂不住期望触发 >1 次的周期时机「{zh}」"
+                       + $"（E[N]={CardCore.TimingWeights.ExpectedOf(t):0.##}）——结界专属（耐久即次数池）；"
+                       + "请改单次/攻守横置/双宿主（被攻击）/低频（E[N]≤1）时机，或把卡改为结界配耐久";
             return null;
         }
 

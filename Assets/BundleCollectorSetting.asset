@@ -82,7 +82,7 @@ MonoBehaviour:
       AssetTags: 
       ActiveRuleName: EnableGroup
       Collectors:
-      - CollectPath: Assets/CardData
+      - CollectPath: Assets/Data/CardData
         CollectorGUID: 506a4fc18f755a846a0b3baca8df777d
         CollectorType: 0
         AddressRuleName: AddressByFileName
@@ -95,7 +95,7 @@ MonoBehaviour:
       AssetTags: 
       ActiveRuleName: EnableGroup
       Collectors:
-      - CollectPath: Assets/TutorialData
+      - CollectPath: Assets/Data/TutorialData
         CollectorGUID: ce656f466697aea46be46f16bdd54bc6
         CollectorType: 0
         AddressRuleName: AddressByFileName
