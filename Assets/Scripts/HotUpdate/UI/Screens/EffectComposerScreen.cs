@@ -89,7 +89,12 @@ namespace SynergyUI
                     return ComposeMode.FreeBranch;
                 if (first.branch != null && (BranchSettleKind)first.branch.settle == BranchSettleKind.Engine)
                     return ComposeMode.Parallel; // 引擎载荷只配引擎主干行——非引擎行的旧载荷按并列单行展示
-                if (first.branch != null && !BranchEntryRules.IsPhantom(first.branch))
+                // 2026-11-10：有限分支第一槽可 1~2 原子——门/奖励挂最后一个原子；任一真实
+                // Gate/Outcome 载荷即判有限分支（不再只看首原子）。
+                if (g.steps != null && g.steps.Any(s => s != null && s.kind == 0
+                        && s.atomic?.branch != null && !BranchEntryRules.IsPhantom(s.atomic.branch)
+                        && ((BranchSettleKind)s.atomic.branch.settle == BranchSettleKind.Gate
+                            || (BranchSettleKind)s.atomic.branch.settle == BranchSettleKind.Outcome)))
                     return ComposeMode.LimitedBranch;
             }
             return ComposeMode.Parallel;
@@ -246,8 +251,9 @@ namespace SynergyUI
         }
 
         /// <summary>单效果代价冲突（2026-11-08 效果级化单源——合成器保存闸直调，卡级聚合口逐效果转发）：
-        /// ④ 逐行全价 ≤3（CostRowPrice 同源）；①②③ 带代价行的效果须为「单主干+支付代价门」形态。
-        /// 正常保存链路（代价门剥除后单主干无分支）天然合规——本口拦手写数据/旁路。</summary>
+        /// ④ 逐行全价 ≤3（CostRowPrice 同源）；①②③ 带代价行的效果不得同时挂普通分支/光环。
+        /// 2026-11-10：有限分支第一槽 1~2 原子 + 代价门合法（保存后无分支、1~2 主干原子）——
+        /// 「并列两效果不许代价」旧闸删除；正常链路天然合规，本口拦手写数据/旁路。</summary>
         public static string EffectCostConflictOf(CardEffectData fx, string cardName = null)
         {
             if (fx == null || fx.Costs == null) return null;
@@ -267,8 +273,6 @@ namespace SynergyUI
             if (!hasCost) return null;
             if (IsBranchEffect(fx))
                 return $"{who}：已挂代价，不能再选分支——同一效果只能三选一（有限分支/自由分支/代价）";
-            if (IsParallelTwoEffect(fx))
-                return $"{who}：并列添加了两个效果，不允许再挂代价";
             if (IsAuraEffectData(fx))
                 return $"{who}：光环类（结界的场地光环/仪典行）不允许挂代价";
             return null;

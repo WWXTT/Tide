@@ -170,6 +170,11 @@ namespace CardCore.Network
 
         [MemoryPackOrder(TagTable.MMM_OpponentRows)]
         public MsgAtomRowPayload[] OpponentRows;
+
+        /// <summary>对手卡组费用分布（S7b 2026-11-10 掷币段展示）：9 桶=费用 1..9+（TotalCost
+        /// 四舍五入、&lt;1 归 1、&gt;9 归 9）；对手未提交（预组替落）=空数组——客户端按全 0 桶渲染。</summary>
+        [MemoryPackOrder(TagTable.MMM_OpponentCostHistogram)]
+        public int[] OpponentCostHistogram;
     }
 
     /// <summary>下行：终局摘要（2026-11-09 协议 v11 对局记录定案）：对局结束时双座位各收一份，
@@ -224,5 +229,9 @@ namespace CardCore.Network
 
         [MemoryPackOrder(TagTable.MMS_Log)]
         public string Log; // 战报 markdown 全文（服务器引擎事件流渲染——客人端无本地引擎，随摘要携带）
+
+        /// <summary>排位局标记（S8）：客户端只对 Ranked 终局按卡组内容指纹记账（DeckRatingStore）。</summary>
+        [MemoryPackOrder(TagTable.MMS_Ranked)]
+        public bool Ranked;
     }
 }

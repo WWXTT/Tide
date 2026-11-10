@@ -28,11 +28,16 @@ namespace CardCore.Network
         /// <summary>选卡组倒计时时长（秒；2026-10-28 用户定案 30s，服务器权威）。</summary>
         public const int DeckPickSeconds = 30;
 
+        /// <summary>排位接受窗时长（秒；S8 2026-11-10 定案 5s——双座位满起算，双方都须点「接受」，
+        /// 任一拒绝/超时=广播 Error("排位未接受","Ranked") 并解散，双方各自回 Idle 不自动重排）。</summary>
+        public const int RankedAckSeconds = 5;
+
         private readonly string _roomId;
         private readonly Random _rng;
         private readonly int? _seed;
         private readonly bool _autoStartWhenAllReady; // 无真人房主（无头房主）拓扑：双座满即自动开局（默认模式掷币+随机）
         private readonly string _password; // S5（2026-11-10）房间密码：空/null=无密码房（JoinRoom 不校验）
+        private readonly bool _ranked;     // S8（2026-11-10）排位房：双座满后走 RankedAck 双接受窗（替代准备/房主开局）
 
         // S5：随 JoinRoom 上报的卡组名（房间侧按椅位存——INetChannel 接口在 NetTransports.cs，
         // 不为本轮扩口；RoomState Players 快照带出供座位卡展示。退位即清）
@@ -63,6 +68,10 @@ namespace CardCore.Network
         private bool _roomStateDirty = true;  // RoomState 待广播
         private bool _gameOver;
 
+        // S8 排位接受窗：双座满起算 5s；_rankedAck 按椅位三态（null=未报）
+        private readonly bool?[] _rankedAck = new bool?[2];
+        private DateTime? _rankedAckDeadlineUtc;
+
         // 就绪层状态（2026-10-28）：模式（0先后手/1洗牌）+ 按椅位准备态 + 选卡组倒计时
         private int _settingsFirstMove;       // 0=掷币 1=房主(椅0)先 2=客人(椅1)先
         private int _settingsShuffle;         // 0=随机洗牌 1=固定牌序
@@ -76,15 +85,17 @@ namespace CardCore.Network
 
         /// <summary>seed=null 用时间随机（生产）；钉种子（M3 对拍）时先手椅位与引擎随机流均确定。
         /// autoStartWhenAllReady=无头房主（MatchHost 等）：双座满即开局（跳过准备/房主确认）。
-        /// password（S5 2026-11-10）：房间密码——非空时 JoinRoom 须携带同值；默认 null=无密码（既有调用零改动）。</summary>
+        /// password（S5 2026-11-10）：房间密码——非空时 JoinRoom 须携带同值；默认 null=无密码（既有调用零改动）。
+        /// ranked（S8 2026-11-10）：排位房——双座满进 5s 双接受窗（RankedAck），收齐双 true 自动开局。</summary>
         public NetRoom(string roomId, int? seed = null, bool autoStartWhenAllReady = false,
-            string password = null)
+            string password = null, bool ranked = false)
         {
             _roomId = roomId ?? "";
             _seed = seed;
             _rng = seed.HasValue ? new Random(seed.Value) : new Random();
             _autoStartWhenAllReady = autoStartWhenAllReady;
             _password = password;
+            _ranked = ranked;
         }
 
         public NetRoomPhase Phase => _phase;
@@ -149,6 +160,10 @@ namespace CardCore.Network
 
                     case NetworkMessageType.RoomStart:
                         HandleRoomStart(conn);
+                        break;
+
+                    case NetworkMessageType.RankedAck: // S8 排位：椅子位接受应答
+                        HandleRankedAck(conn, msg);
                         break;
 
                     case NetworkMessageType.Ping:
@@ -222,11 +237,54 @@ namespace CardCore.Network
             _joinDeckNames[seat] = join.DeckName ?? ""; // S5：大厅选中卡组随进房上报（RoomState 快照带出）
             _chairs[seat] = conn;
             _ready[seat] = false; // 新入座者未准备（重进房/换人：准备态不继承）
+            _rankedAck[seat] = null; // S8：接受态不继承（换人重报）
             _roomStateDirty = true;
 
             // 2026-10-28 就绪层：真人房主房等待 RoomStart；无头房主房（autoStart）双座满即开局
             if (_autoStartWhenAllReady && _chairs[0] != null && _chairs[1] != null)
                 BeginDeckPickPhase();
+
+            // S8 排位：双座满进 5s 双接受窗（替代准备/房主开局——收齐双 true 服务器自动开局）
+            if (_ranked && _chairs[0] != null && _chairs[1] != null)
+                _rankedAckDeadlineUtc = DateTime.UtcNow.AddSeconds(RankedAckSeconds);
+        }
+
+        /// <summary>排位接受应答（S8；仅排位房+Waiting+玩家椅）。双方都 true → 开局；
+        /// 任一 false → 广播 Error 并解散（双方回 Idle，不自动重排——2026-11-10 定案）。</summary>
+        private void HandleRankedAck(INetChannel conn, NetworkMessage msg)
+        {
+            if (!_ranked) { SendError(conn, "本房间不是排位房", "RankedAck"); return; }
+            if (conn.ChairSeat != 0 && conn.ChairSeat != 1) { SendError(conn, "非玩家座位不能应答排位", "RankedAck"); return; }
+            if (_phase != NetRoomPhase.Waiting) { SendError(conn, "当前阶段不能应答排位", "RankedAck"); return; }
+            var ack = NetworkSerializer.DeserializePayload<MsgRankedAck>(msg);
+            if (ack == null) { SendError(conn, "RankedAck 载荷损坏", "RankedAck"); return; }
+
+            _rankedAck[conn.ChairSeat] = ack.Accepted;
+            _roomStateDirty = true;
+            if (_rankedAck[0] == true && _rankedAck[1] == true)
+            {
+                _rankedAckDeadlineUtc = null; // 收齐双 true——开局（房主收齐 ack 才开局的权威侧）
+                BeginDeckPickPhase();
+                return;
+            }
+            if (_rankedAck[0] == false || _rankedAck[1] == false)
+                RejectRanked("排位未接受");
+        }
+
+        /// <summary>排位匹配失败收口（S8）：广播 Error(Ranked) + 双方退房断开——两端各自回 Idle。</summary>
+        private void RejectRanked(string reason)
+        {
+            _rankedAckDeadlineUtc = null;
+            TideLog.Info($"[NetRoom] 排位收口：{reason}——广播并解散");
+            BroadcastError(reason, "Ranked");
+            for (int seat = 0; seat < 2; seat++)
+            {
+                var c = _chairs[seat];
+                if (c == null) continue;
+                OnDisconnect(c); // 清椅/准备态/接受态（Waiting 相位收口路径）
+                c.Close();       // 客户端 OnDisconnected → 回列表/Idle
+            }
+            _roomStateDirty = true;
         }
 
         // ============================================================ 就绪层（2026-10-28 开局流程改版） ============================================================
@@ -473,6 +531,10 @@ namespace CardCore.Network
                 manifest.OpponentCards = opponent?.AddedCards ?? Array.Empty<MsgCardPayload>();
                 manifest.OpponentEffects = opponent?.AddedEffects ?? Array.Empty<MsgEffectPayload>();
                 manifest.OpponentRows = opponent?.AddedRows ?? Array.Empty<MsgAtomRowPayload>();
+                // S7b 掷币段展示：对手费用直方图按对手 DeckSubmit 主列表统计（替落预组=空数组）
+                manifest.OpponentCostHistogram = opponent != null
+                    ? NetMatchHandshake.CostHistogramOf(opponent.CardIds)
+                    : Array.Empty<int>();
                 conn.SendPayload(NetworkMessageType.MatchManifest, manifest);
             }
 
@@ -531,6 +593,7 @@ namespace CardCore.Network
                     Effects = oppSubmit?.AddedEffects,
                     AtomRows = oppSubmit?.AddedRows,
                     Log = log,
+                    Ranked = _ranked, // S8：客户端只对排位局按卡组内容指纹记账（DeckRatingStore）
                 });
                 TideLog.Info($"[NetRoom] 终局摘要已下发 → 座位 {chair}（对手 {_chairs[opp].Nickname}，{(win ? "胜" : "负")}）");
             }
@@ -604,6 +667,9 @@ namespace CardCore.Network
 
             _chairs[conn.ChairSeat] = null;
             _joinDeckNames[conn.ChairSeat] = null; // S5：退位即清卡组名（快照空座位不带残值）
+            _rankedAck[conn.ChairSeat] = null;     // S8：接受态随退位清（残座未决窗=对方超时收口）
+            if (_rankedAckDeadlineUtc != null && (_chairs[0] == null || _chairs[1] == null))
+                _rankedAckDeadlineUtc = null; // S8：缺员即撤接受窗（RejectRanked/正常开局外的第三路）
             switch (_phase)
             {
                 case NetRoomPhase.Waiting:
@@ -711,6 +777,7 @@ namespace CardCore.Network
         public void FlushDownlink(GameCore core)
         {
             PumpDeckPickCountdown();
+            PumpRankedAckWindow();
 
             if (_roomStateDirty)
             {
@@ -813,6 +880,15 @@ namespace CardCore.Network
                 StartMatch();
         }
 
+        /// <summary>排位接受窗泵（S8；每 tick，FlushDownlink 头部）：双座满 5s 内未收齐双 true →
+        /// 广播 Error("排位未接受","Ranked") 并解散——双方各自回 Idle（不自动重排）。</summary>
+        private void PumpRankedAckWindow()
+        {
+            if (_rankedAckDeadlineUtc == null) return;
+            if (DateTime.UtcNow < _rankedAckDeadlineUtc.Value) return;
+            RejectRanked($"排位未接受（{RankedAckSeconds} 秒内未确认）");
+        }
+
         // ============================================================ 杂项 ============================================================
 
         private IEnumerable<INetChannel> AllMembers()
@@ -865,9 +941,9 @@ namespace CardCore.Network
         private void SendError(INetChannel conn, string reason, string context)
             => conn.SendPayload(NetworkMessageType.Error, new MsgError { Reason = reason, Context = context });
 
-        private void BroadcastError(string reason)
+        private void BroadcastError(string reason, string context = "Room")
         {
-            var err = new MsgError { Reason = reason, Context = "Room" };
+            var err = new MsgError { Reason = reason, Context = context };
             foreach (var member in AllMembers())
                 member.SendPayload(NetworkMessageType.Error, err);
         }

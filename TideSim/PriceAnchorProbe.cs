@@ -79,6 +79,48 @@ namespace TideSim
                 var red = CardCore.CostDerivationService.DeriveElementCosts(d)[CardCore.ManaType.Red];
                 Console.WriteLine($"⑧OnDraw伤5 limit={limit,2}: 红{red:0.####}");
             }
+
+            // ⑨ 拼点收口（R4 配套）：外层声明 Activate_*（端到端拼点夹具形态——主动档无事件锚）
+            // → converter 回落自然缺省 OnAttack（评估窗口恢复）；对齐声明值（教学/现网数据形态）原样透传。
+            CardCore.CardEffectData ClashFx(int timing) => new CardCore.CardEffectData
+            {
+                Id = "PROBE_CLASH",
+                TriggerTiming = timing,
+                AtomicEffects = new List<CardCore.AtomicEffectEntry>
+                {
+                    new CardCore.AtomicEffectEntry
+                    {
+                        refId = CardCore.Attribute.AtomicEffectTable.GetByEnumName("EngineClash")?.HashId,
+                        branch = new CardCore.BranchEntryData
+                        {
+                            settle = (int)CardCore.BranchSettleKind.Engine,
+                            engine = (int)CardCore.BranchEngineKind.Clash,
+                            engineParam = 1,
+                            then = new List<CardCore.AtomicEffectEntry> { N(CardCore.AtomicEffectType.DrawCard, 1) },
+                        },
+                    },
+                },
+            };
+            var clashLazy = CardCore.CardEffectConverter.ConvertOne(ClashFx((int)CardCore.TriggerTiming.Activate_Active), "PROBE_CLASH");
+            var clashAligned = CardCore.CardEffectConverter.ConvertOne(ClashFx((int)CardCore.TriggerTiming.OnAttack), "PROBE_CLASH");
+            Console.WriteLine($"⑨拼点外层 Activate_Active → def.TriggerTiming={clashLazy?.TriggerTiming}（期望 OnAttack 回落）");
+            Console.WriteLine($"⑨拼点外层 OnAttack 对齐   → def.TriggerTiming={clashAligned?.TriggerTiming}（期望 OnAttack 透传）");
+            Console.WriteLine(clashLazy?.TriggerTiming == CardCore.TriggerTiming.OnAttack
+                              && clashAligned?.TriggerTiming == CardCore.TriggerTiming.OnAttack
+                ? "⑨ PASS：主动档声明回落缺省、对齐值透传"
+                : "⑨ FAIL：收口未生效");
+
+            // ⑩ 端到端拼点门槛现值：then=抽1 的 RewardThresholdOf（端到端夹具差额 5−2=3 是否仍达标）
+            var clashPayload = new CardCore.BranchPayload
+            {
+                Settle = CardCore.BranchSettleKind.Engine,
+                EngineKind = CardCore.BranchEngineKind.Clash,
+                EngineParam = 1,
+                Then = new List<CardCore.AtomicEffectInstance>
+                    { CardCore.CardEffectConverter.ConvertAtomForUI(N(CardCore.AtomicEffectType.DrawCard, 1)) },
+            };
+            int th = CardCore.CostDerivationService.RewardThresholdOf(clashPayload.Then, clashPayload.EffectId);
+            Console.WriteLine($"⑩拼点门槛（then=抽1）：{th}（端到端夹具差额 3 {(3 >= th ? ">=" : "<")} 门槛 —— {(3 >= th ? "达标" : "不达标·夹具须调")}）");
             return 0;
         }
 
@@ -88,7 +130,7 @@ namespace TideSim
                 refId = CardCore.Attribute.AtomicEffectTable.GetByEnumName(type)?.HashId, value = value,
             };
         private static CardCore.AtomicEffectEntry N(CardCore.AtomicEffectType type, int value)
-            => CardCore.AtomicEffectEntry.New(type, value);
+            => CardCore.AtomRefs.New(type, value);
 
         private static void Atom()
         {

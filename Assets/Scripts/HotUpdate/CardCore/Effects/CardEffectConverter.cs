@@ -162,7 +162,8 @@ namespace CardCore
             {
                 if (atom?.Branch?.EngineKind == BranchEngineKind.Countdown && atom.Branch.CountdownTurns <= 0)
                     atom.Branch.CountdownTurns = CostDerivationService.CountdownTurnsOf(
-                        atom.Branch.EngineParam, atom.Branch.Then, atom.Branch.EffectId); // 公式与 UI 短文案同源（效果引用费并入换算）
+                        atom.Branch.EngineParam, atom.Branch.Then, atom.Branch.EffectId,
+                        def.TriggerTiming); // 公式与 UI 短文案同源（单原子费×宿主时机系数）
             }
 
             // ---- 组合层域预计算（2026-09-10 目标域模型）----
@@ -331,7 +332,19 @@ namespace CardCore
                     // 引擎评估窗口由玩家在合成器选（BranchEngines.RewardTimingOf 运行时同源读此值）。
                     // 不再随奖励效果时机反钉（2026-11-08 阶段3 旧口径）：R4 允许主动效果作奖励——
                     // 引用时机反钉会令事件类型永不匹配（主动档 Activate_* 无事件锚=引擎永不评估）。
+                    // 主动三档声明值收口（R4 配套）：评估须有事件锚——Activate_* 无事件=死档，
+                    // 声明值回落自然缺省（同旧 RewardTimingOfEngine 解析失败路径）并告警可见
+                    //（合成器时机下拉不含主动档，此口收直改 JSON/旧夹具数据）。
                     def.ActivationType = EffectActivationType.Automatic;
+                    if (def.TriggerTiming == TriggerTiming.Activate_Active
+                        || def.TriggerTiming == TriggerTiming.Activate_Instant
+                        || def.TriggerTiming == TriggerTiming.Activate_Response)
+                    {
+                        TideLog.Warn($"[CardEffectConverter] 卡 {sourceCardId} 效果 {data.Id} 自动引擎"
+                                     + $"（{ComposerCatalog.EngineZhOf(engineKind)}）外层时机={def.TriggerTiming}"
+                                     + "（主动档无事件锚=引擎永不评估）——已回落自然缺省 " + ehp.Timing);
+                        def.TriggerTiming = ehp.Timing;
+                    }
                 }
                 else
                 {

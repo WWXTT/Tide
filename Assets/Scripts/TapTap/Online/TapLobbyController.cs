@@ -28,6 +28,9 @@ namespace SynergyUI.Online
         public static string LoginName { get; private set; } = "";
         public static bool IsServiceConnected => !string.IsNullOrEmpty(SelfPlayerId);
 
+        /// <summary>最近一次 CreateRoom/CreateRankedRoom 的 SDK 房间 id（S8 排位：匹配循环排除自房候选）。</summary>
+        public static string LastCreatedRoomId { get; private set; } = "";
+
         /// <summary>传输侧断开时标记房间态可能残留（终局/异常退出路径——Close 无异步口）。</summary>
         public static void MarkRoomStale() => _roomStale = true;
 
@@ -103,16 +106,29 @@ namespace SynergyUI.Online
         ///（如本地组合服务器启动异常）也走同一 LastError 通道。</summary>
         public static void SetLastError(string text) => LastError = text;
 
-        /// <summary>密码 → customProperties JSON（S6b：SDK 不校验密码——随房间元数据广播，
-        /// 真门禁=本地 NetRoom 的 JoinRoom.Password 校验；空密码=空串不发）。</summary>
-        private static string PasswordPropsJson(string password) =>
-            string.IsNullOrEmpty(password)
-                ? ""
-                : $"{{\"pwd\":\"{password.Replace("\\", "\\\\").Replace("\"", "\\\"")}\"}}";
+        /// <summary>房间元数据 → customProperties JSON（S6b 密码；S8 排位同义 JSON：
+        /// ranked/fp/rate——SDK 只做广播，真门禁=本地 NetRoom）。空串键全跳过。</summary>
+        private static string PropsJson(string password, bool ranked,
+            string deckFingerprint, int winRatePermille)
+        {
+            var parts = new List<string>();
+            if (!string.IsNullOrEmpty(password))
+                parts.Add($"\"pwd\":\"{Esc(password)}\"");
+            if (ranked)
+            {
+                parts.Add("\"ranked\":true");
+                if (!string.IsNullOrEmpty(deckFingerprint)) parts.Add($"\"fp\":\"{Esc(deckFingerprint)}\"");
+                parts.Add($"\"rate\":{winRatePermille}");
+            }
+            return parts.Count == 0 ? "" : "{" + string.Join(",", parts) + "}";
+        }
+
+        private static string Esc(string s) => s.Replace("\\", "\\\\").Replace("\"", "\\\"");
 
         /// <summary>创建房间（房主；登录内置——未登录自动走登录链）。失败/超时返回 null（读 LastError）；
-        /// 15s 超时（S1-B5）；密码写 roomConfig.customProperties（S6b）。</summary>
-        public static async UniTask<RoomInfo> CreateRoomAsync(string roomName, string password)
+        /// 15s 超时（S1-B5）；密码/排位元数据写 roomConfig.customProperties（S6b/S8）。</summary>
+        public static async UniTask<RoomInfo> CreateRoomAsync(string roomName, string password,
+            bool ranked = false, string deckFingerprint = null, int winRatePermille = -1)
         {
             var loginErr = await EnsureLoginAndConnectAsync();
             if (loginErr != null) { LastError = loginErr; return null; }
@@ -125,11 +141,12 @@ namespace SynergyUI.Online
                         maxPlayerCount = 2,
                         type = TapOnlineConfig.RoomType,
                         name = roomName,
-                        customProperties = PasswordPropsJson(password), // S6b：密码随房间元数据
+                        customProperties = PropsJson(password, ranked, deckFingerprint, winRatePermille),
                     },
                     playerConfig = new PlayerConfig(),
                 }).AsUniTask().Timeout(SdkTimeout);
                 if (room == null) { LastError = "创建 TapTap 房间失败（SDK 空返回）"; return null; }
+                LastCreatedRoomId = room.id ?? "";
                 LastError = null;
                 return room;
             }

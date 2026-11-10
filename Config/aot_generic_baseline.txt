@@ -28,6 +28,7 @@ AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<TakeTurnAsync
 AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Int32>,<ExecuteAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
 AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Int32>,<ResolveChargeDeclarationAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
 AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<String>,<ExecuteAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<String>,<JoinCandidate>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）·2026-11-10 排位浮窗 JoinCandidate 新增	# ← Tide.HotUpdate.dll.bytes
 AsyncUniTaskMethodBuilder<Boolean>	safe	AOT 侧 HotUpdateLoader.LoadDeviceAsync 本身即 async UniTask<bool>（原生实例化，无需锚点）	# ← Tide.HotUpdate.dll.bytes,Tide.TapTap.dll.bytes
 AsyncUniTaskMethodBuilder<Boolean>.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<ActivateHeroSkill>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
 AsyncUniTaskMethodBuilder<Boolean>.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<CoinStageAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
@@ -51,15 +52,19 @@ AsyncUniTaskMethodBuilder<List<Int32>>.AwaitUnsafeOnCompleted<Awaiter<List<Int32
 AsyncUniTaskMethodBuilder<List<Int32>>.AwaitUnsafeOnCompleted<Awaiter<ValueTuple<Int32,List<Int32>,List<Int32>>>,<Run>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
 AsyncUniTaskMethodBuilder<List<Int32>>.AwaitUnsafeOnCompleted<Awaiter<ValueTuple<Int32,List<Int32>,List<Int32>>>,<RunChoice>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
 AsyncUniTaskMethodBuilder<List<Int32>>.AwaitUnsafeOnCompleted<Awaiter<ValueTuple<Int32,List<Int32>,List<Int32>>>,<SelectAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<List<RoomBasicInfo>>.AwaitUnsafeOnCompleted<Awaiter<String>,<GetRoomListAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）·2026-11-10 TapLobbyController 房间列表 15s 超时新增	# ← Tide.TapTap.dll.bytes
 AsyncUniTaskMethodBuilder<Nullable<Boolean>>	anchored	HotUpdateLoader.cs 静态构造既有锚（AsyncUniTaskMethodBuilder<bool?>）	# ← Tide.HotUpdate.dll.bytes
 AsyncUniTaskMethodBuilder<Nullable<Boolean>>.AwaitUnsafeOnCompleted<TaskAwaiter<Nullable<Boolean>>,<ShowAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
 AsyncUniTaskMethodBuilder<Nullable<Boolean>>.AwaitUnsafeOnCompleted<TaskAwaiter<Nullable<Boolean>>,<ShowTipPromptAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
 AsyncUniTaskMethodBuilder<Nullable<Int32>>	anchored	HotUpdateLoader.cs 静态构造既有锚（AsyncUniTaskMethodBuilder<int?>）	# ← Tide.HotUpdate.dll.bytes
 AsyncUniTaskMethodBuilder<Nullable<Int32>>.AwaitUnsafeOnCompleted<Awaiter<List<Int32>>,<PickRegionOptionAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
 AsyncUniTaskMethodBuilder<ResponseOption>.AwaitUnsafeOnCompleted<Awaiter<List<Int32>>,<ShowResponseAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<RoomInfo>.AwaitUnsafeOnCompleted<Awaiter<String>,<CreateRoomAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）·2026-11-10 TapLobbyController 建房 15s 超时新增	# ← Tide.TapTap.dll.bytes
+AsyncUniTaskMethodBuilder<RoomInfo>.AwaitUnsafeOnCompleted<Awaiter<String>,<JoinRoomAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）·2026-11-10 TapLobbyController 进房 15s 超时新增	# ← Tide.TapTap.dll.bytes
 AsyncUniTaskMethodBuilder<String>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes,Tide.TapTap.dll.bytes
 AsyncUniTaskMethodBuilder<String>.AwaitUnsafeOnCompleted<Awaiter<String>,<AskDimensionAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
 AsyncUniTaskMethodBuilder<String>.AwaitUnsafeOnCompleted<Awaiter<String>,<EnsureLoginAndConnectAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.TapTap.dll.bytes
+AsyncUniTaskMethodBuilder<String>.AwaitUnsafeOnCompleted<Awaiter<String>,<EnsureLoginAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）·2026-11-10 TapLobbyController 登录 15s 超时新增（取代 TaskAwaiter 旧形态）	# ← Tide.TapTap.dll.bytes
 AsyncUniTaskMethodBuilder<String>.AwaitUnsafeOnCompleted<Awaiter<String>,<EnsureReadyAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.TapTap.dll.bytes
 AsyncUniTaskMethodBuilder<String>.AwaitUnsafeOnCompleted<Awaiter<String>,<LoginAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.TapTap.dll.bytes
 AsyncUniTaskMethodBuilder<String>.AwaitUnsafeOnCompleted<Awaiter<String>,<PromptTextAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
@@ -69,7 +74,6 @@ AsyncUniTaskMethodBuilder<String>.AwaitUnsafeOnCompleted<Awaiter<ValueTuple<Int3
 AsyncUniTaskMethodBuilder<String>.AwaitUnsafeOnCompleted<Awaiter<ValueTuple<Int32,String,String>>,<RunTextInputAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
 AsyncUniTaskMethodBuilder<String>.AwaitUnsafeOnCompleted<Awaiter<ValueTuple<Int32,String,String>>,<SelectTextAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
 AsyncUniTaskMethodBuilder<String>.AwaitUnsafeOnCompleted<Awaiter<ValueTuple<String,String,Boolean>>,<AskDimensionAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskMethodBuilder<String>.AwaitUnsafeOnCompleted<TaskAwaiter<String>,<EnsureLoginAndConnectAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.TapTap.dll.bytes
 AsyncUniTaskMethodBuilder<ValueTuple<String,String,Boolean>>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
 AsyncUniTaskMethodBuilder<ValueTuple<String,String,Boolean>>.AwaitUnsafeOnCompleted<Awaiter<Int32>,<PickOptionAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
 AsyncUniTaskMethodBuilder<ValueTuple<String,String>>	anchored	HotUpdateLoader.cs 静态构造既有锚（AsyncUniTaskMethodBuilder<(string,string)>）	# ← Tide.HotUpdate.dll.bytes
@@ -102,11 +106,8 @@ AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Int32>>,<N
 AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Int32>>,<OnClickUnitEffectButton>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
 AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Int32>>,<PickLandColorAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
 AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Nullable<Int32>>,<PromptModeThenPickCell>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<String>,<JoinTapRoom>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.TapTap.dll.bytes
 AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<String>,<LoginFlow>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.TapTap.dll.bytes
 AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<String>,<NetTextAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
-AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<String>,<RefreshTapRooms>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.TapTap.dll.bytes
-AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<String>,<StartTapHost>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.TapTap.dll.bytes
 AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<String>,<WarmupInternal>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.TapTap.dll.bytes
 AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<ValueTuple<String,String>>,<RunAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
 Awaiter<Boolean>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes,Tide.TapTap.dll.bytes
@@ -129,7 +130,6 @@ MemoryPackReader.ReadUnmanaged<Boolean,Int32,Int32,Int32,Int32,Int32>	safe	初�
 MemoryPackReader.ReadUnmanaged<Boolean,Int32,Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
 MemoryPackReader.ReadUnmanaged<Boolean>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
 MemoryPackReader.ReadUnmanaged<Double>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackReader.ReadUnmanaged<Int32,Boolean,Boolean>	anchored	HotUpdateLoader.cs 静态构造 2026-11-09 MemoryPack 探针锚（mpReader.ReadUnmanaged<int,bool,bool>，新网络消息字段组合）	# ← Tide.HotUpdate.dll.bytes
 MemoryPackReader.ReadUnmanaged<Int32,Boolean,UInt32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
 MemoryPackReader.ReadUnmanaged<Int32,Boolean>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
 MemoryPackReader.ReadUnmanaged<Int32,Int32,Int32,Int32,Boolean,UInt32,Int32,Int32,Int32,Boolean,Boolean>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
@@ -158,7 +158,6 @@ MemoryPackWriter<!!0>.WriteUnmanaged<Boolean,Int32,Int32,Int32,Int32,Int32>	safe
 MemoryPackWriter<!!0>.WriteUnmanaged<Boolean,Int32,Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
 MemoryPackWriter<!!0>.WriteUnmanaged<Boolean>	anchored	HotUpdateLoader.cs 静态构造 2026-11-09 MemoryPack 探针锚（mpWriter.WriteUnmanaged(true)；哑 IBufferWriter=类→__Canon 共享覆盖运行时 writer）	# ← Tide.HotUpdate.dll.bytes
 MemoryPackWriter<!!0>.WriteUnmanaged<Double>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackWriter<!!0>.WriteUnmanaged<Int32,Boolean,Boolean>	anchored	HotUpdateLoader.cs 静态构造 2026-11-09 MemoryPack 探针锚（mpWriter.WriteUnmanaged(1,true,false)）	# ← Tide.HotUpdate.dll.bytes
 MemoryPackWriter<!!0>.WriteUnmanaged<Int32,Boolean,UInt32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
 MemoryPackWriter<!!0>.WriteUnmanaged<Int32,Boolean>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
 MemoryPackWriter<!!0>.WriteUnmanaged<Int32,Int32,Int32,Int32,Boolean,UInt32,Int32,Int32,Int32,Boolean,Boolean>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
@@ -203,9 +202,11 @@ UniTask<ValueTuple<String,String>>	safe	初始存量快照（2026-11-09）·未�
 UniTaskCompletionSource<Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
 UniTaskCompletionSource<List<Int32>>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
 UniTaskCompletionSource<String>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+UniTaskExtensions.AsUniTask<String>	safe	2026-11-10 TapLobbyController「Task.AsUniTask().Timeout(15s)」SDK 超时模式新增·String 引用类型→il2cpp __Canon 共享覆盖（同族 ContinueWith<String>/UniTask<String> 先例）	# ← Tide.TapTap.dll.bytes
 UniTaskExtensions.ContinueWith<List<Int32>>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
 UniTaskExtensions.ContinueWith<String>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
 UniTaskExtensions.Forget<Boolean>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.TapTap.dll.bytes
+UniTaskExtensions.Timeout<String>	safe	2026-11-10 TapLobbyController「Task.AsUniTask().Timeout(15s)」SDK 超时模式新增·String 引用类型→il2cpp __Canon 共享覆盖（同族 ContinueWith<String>/UniTask<String> 先例）	# ← Tide.TapTap.dll.bytes
 UnityAction<Boolean>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
 UnityAction<Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
 UnityAction<Single>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes

@@ -417,8 +417,9 @@ namespace SynergyUI
             }
             else if (isEffectRef)
             {
-                row.gameObject.SetActive(true);
-                BindEffectRefField(row, atom);
+                // 2026-11-10：诅咒/祝福载荷效果改由奖励槽「载荷效果」行承载（原子+效果双通道同区）；
+                // 主原子卡的旧 EffectRef 输入行隐藏，避免两套入口。
+                row.gameObject.SetActive(false);
             }
             else
             {
@@ -607,21 +608,37 @@ namespace SynergyUI
         private static bool IsCurseEngine(BranchEngineKind kind)
             => kind == BranchEngineKind.CurseOnDraw || kind == BranchEngineKind.BlessingOnDraw;
 
-        /// <summary>附加诅咒/祝福载荷校验（2026-11-06 载荷效果化——保存闸）：主干 str=效果库条目 id，
-        /// 须解析成功且通过载荷资格（主动∧极性匹配引擎行——祝福+1/诅咒−1）。null=合规。
+        /// <summary>附加诅咒/祝福载荷校验（2026-11-10 双通道）：原子 Then（≤1）与主动·并列效果引用
+        /// 至少一个；效果引用须解析成功、主动、极性匹配（祝福+1/诅咒−1）、并列形状。null=合规。
         /// 槽区校验与 ZonesAllValid 共用；装载期 ValidateAtomParams 同口径兜底直改 JSON。</summary>
         private static string CursePayloadError(AtomicEffectEntry atom, BranchEngineKind kind)
         {
             bool blessing = kind == BranchEngineKind.BlessingOnDraw;
-            if (string.IsNullOrEmpty(atom?.str))
+            var b = atom?.branch;
+            var fx = !string.IsNullOrEmpty(b?.effectId) ? b.effectId : atom?.str;
+            bool hasAtom = b?.then != null && b.then.Count > 0;
+            if (!hasAtom && string.IsNullOrEmpty(fx))
                 return blessing
-                    ? "附加祝福：载荷=主动·极性+1 的组合效果——点主干卡「载荷效果」行选择（未选不可保存）"
-                    : "附加诅咒：载荷=主动·极性−1 的组合效果——点主干卡「载荷效果」行选择（未选不可保存）";
-            var data = EffectsLibrary.Resolve(atom.str);
-            if (data == null) return $"载荷效果 '{atom.str}' 不在效果库（悬空——效果可能已被删除），请改选";
+                    ? "附加祝福：载荷=单个原子 和/或 主动·极性+1 的并列效果——点本槽选原子，或点「载荷效果」行选组合效果"
+                    : "附加诅咒：载荷=单个原子 和/或 主动·极性−1 的并列效果——点本槽选原子，或点「载荷效果」行选组合效果";
+            if (b?.then != null && b.then.Count > 1)
+                return $"载荷原子 {b.then.Count} 个——附加诅咒/祝福只收单个原子（并列组合请用效果引用）";
+            if (hasAtom)
+            {
+                var row = AtomicEffectTable.GetByHashId(b.then[0]?.refId);
+                if (row == null) return $"载荷原子 {b.then[0]?.refId} 不在原子表——请改选";
+                if (!ComposerCatalog.CanBeRewardRow(row)) return $"载荷原子 {row.DisplayName} 无奖励资格——请改选";
+                bool positive = row.Polarity >= 0.5f, negative = row.Polarity <= -0.5f;
+                if ((blessing && !positive) || (!blessing && !negative))
+                    return $"载荷原子 {row.DisplayName} 极性不匹配（祝福只收 +1 / 诅咒只收 −1）——请改选";
+            }
+            if (string.IsNullOrEmpty(fx)) return null;
+            var data = EffectsLibrary.Resolve(fx);
+            if (data == null) return $"载荷效果 '{fx}' 不在效果库（悬空——效果可能已被删除），请改选";
             var rowCfg = AtomicEffectTable.GetByHashId(atom.refId);
-            var reason = EffectEligibility.CursePayloadRejectReason(data, rowCfg?.Polarity ?? 0f);
-            return reason != null ? $"载荷效果 '{atom.str}' {reason}——请改选" : null;
+            var reason = EffectEligibility.CursePayloadRejectReason(data, rowCfg?.Polarity ?? 0f)
+                         ?? EffectEligibility.BranchRewardRejectReason(data);
+            return reason != null ? $"载荷效果 '{fx}' {reason}——请改选" : null;
         }
 
         /// <summary>EffectRef 行选择控件（2026-11-06 载荷效果化）：InputField 只读显示位
@@ -703,7 +720,8 @@ namespace SynergyUI
                     .Where(g => g != null && !string.IsNullOrEmpty(g.id))
                     .Select(g => new { graph = g, data = EffectsLibrary.Resolve(g.id) })
                     .Where(t => t.data != null
-                                && EffectEligibility.CursePayloadRejectReason(t.data, polarity) == null)
+                                && EffectEligibility.CursePayloadRejectReason(t.data, polarity) == null
+                                && EffectEligibility.BranchRewardRejectReason(t.data) == null)
                     .Where(t => string.IsNullOrEmpty(key)
                                 || (t.graph.name ?? "").Contains(key, StringComparison.OrdinalIgnoreCase)
                                 || (t.graph.id ?? "").Contains(key, StringComparison.OrdinalIgnoreCase))
@@ -765,14 +783,14 @@ namespace SynergyUI
         {
             var row = UiKit.Row("fx-reward-ref", area, spacing: 6f);
             if (head != null) row.SetSiblingIndex(head.GetSiblingIndex() + 1); // 紧随摘要行
-            UiKit.Size(UiKit.Label("lbl", row, "奖励效果：", 12, UiStyle.TextSecondary), w: 62f);
+            UiKit.Size(UiKit.Label("lbl", row, "载荷效果：", 12, UiStyle.TextSecondary), w: 62f);
             var state = UiKit.Label("state", row, "", 12);
             UiKit.Size(state, fw: 1f);
             void RefreshState()
             {
                 var fxg = string.IsNullOrEmpty(b.effectId) ? null : EffectsLibrary.Get(b.effectId);
                 state.text = string.IsNullOrEmpty(b.effectId)
-                    ? "（未选——可选组合效果作奖励，与下方原子奖励并存）"
+                    ? "（未选——可选主动·并列组合效果；与原子载荷可并存）"
                     : fxg != null ? $"已选：{fxg.name}（{b.effectId}）" : $"[断链] {b.effectId}";
             }
             RefreshState();
@@ -784,8 +802,8 @@ namespace SynergyUI
                 refresh?.Invoke();
             }, height: 26f, fontSize: 12);
             UiKit.Described(state,
-                "选择奖励效果（组合效果）：条件达成时先结算该组合效果、再结算原子奖励——"
-                + "两通道费合计须在分支预算内（超限禁存）；门槛/倒计时随合计费自动推导。");
+                "选择载荷效果（2026-11-10）：只列主动发动、并列形状（1~2 原子、无代价/无嵌套分支）且极性匹配的组合效果；"
+                + "抽到被诅咒/祝福的卡时先结算该效果、再结算原子载荷；附加费=载荷费减半入卡价。");
         }
 
         /// <summary>分支奖励效果校验（2026-11-07 分支奖励效果化——保存闸）：须在效果库解析成功、
@@ -814,7 +832,9 @@ namespace SynergyUI
         {
             if (_rewardFxModal != null) { _rewardFxModal.Close(); _rewardFxModal = null; } // 重复点开=换窗
             var selfId = _graph?.id;
-            var modal = UiKit.ModalBox(Root, "选择奖励效果（组合效果·与原子奖励并存）", width: 660f, height: 600f);
+            var trunkCfg = AtomicEffectTable.GetByHashId(FirstKind0Atom()?.refId);
+            float cursePolarity = trunkCfg?.Polarity ?? 0f;
+            var modal = UiKit.ModalBox(Root, "选择载荷效果（附加诅咒/祝福·主动·并列效果）", width: 660f, height: 600f);
             _rewardFxModal = modal;
 
             var searchRow = UiKit.Row("search", modal.Panel, spacing: 8f);
@@ -841,6 +861,7 @@ namespace SynergyUI
                     .Where(g => g != null && !string.IsNullOrEmpty(g.id) && g.id != selfId)
                     .Select(g => new { graph = g, data = EffectsLibrary.Resolve(g.id) })
                     .Where(t => t.data != null
+                                && EffectEligibility.CursePayloadRejectReason(t.data, cursePolarity) == null
                                 && EffectEligibility.BranchRewardRejectReason(t.data) == null)
                     .Where(t => string.IsNullOrEmpty(key)
                                 || (t.graph.name ?? "").Contains(key, StringComparison.OrdinalIgnoreCase)

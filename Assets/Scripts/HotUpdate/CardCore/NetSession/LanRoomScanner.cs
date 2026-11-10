@@ -8,7 +8,9 @@ using CardCore;
 
 namespace CardCore.Network
 {
-    /// <summary>扫描到的局域网房间条目（键 = 房主地址:游戏端口）。</summary>
+    /// <summary>扫描到的局域网房间条目（键 = 房主地址:游戏端口）。
+    /// RoomName/HasPassword（S6b ver2 追加段）：房名与密码标志——ver1 信标无此两段时为空/false。
+    /// Ranked/DeckFingerprint/WinRate（S8 ver3 追加段）：排位元数据（LAN 排位不可达——位保留为协议完整）。</summary>
     public sealed class LanRoomEntry
     {
         public string Host;      // 房主可达地址（探测目标或应答来源）
@@ -17,6 +19,11 @@ namespace CardCore.Network
         public string HostNick;
         public string Seats;     // 如 "1/2"
         public string Phase;     // Waiting/DeckSubmit/Playing/Finished
+        public string RoomName;  // S6b：房名（ver2 第 8 段；空=旧信标→UI 回退 HostNick）
+        public bool HasPassword; // S6b：密码标志（ver2 第 9 段 "1"/"0"）
+        public bool Ranked;      // S8：排位房标记（ver3 第 10 段 "1"/"0"）
+        public string DeckFingerprint; // S8：卡组内容指纹（ver3 第 11 段；":" 内联不撞段分隔）
+        public int WinRate;      // S8：胜率千分比（ver3 第 12 段；-1=无战绩）
         public int LastSeenMs;
 
         public string Key => Host + ":" + TcpPort;
@@ -120,7 +127,9 @@ namespace CardCore.Network
             }
         }
 
-        /// <summary>解析 TIDEROOM|ver|roomId|hostNick|tcpPort|seats|phase 行（TCP 带换行取首行）。</summary>
+        /// <summary>解析 TIDEROOM|ver|roomId|hostNick|tcpPort|seats|phase[|roomName|hasPwd[|ranked|fp|rate]] 行
+        ///（TCP 带换行取首行）。追加式：ver2 房名/密码在第 8/9 段、ver3 排位三段在第 10-12 段——
+        /// 旧串按段数截取照常解析（段分隔不校验 ver 值，双向兼容）。</summary>
         private void HandlePayloadText(string text, string sourceIp)
         {
             if (string.IsNullOrEmpty(text)) return;
@@ -137,6 +146,11 @@ namespace CardCore.Network
                 HostNick = p[3],
                 Seats = p[5],
                 Phase = p[6],
+                RoomName = p.Length >= 8 ? p[7] : "",                    // S6b ver2：房名
+                HasPassword = p.Length >= 9 && p[8] == "1",              // S6b ver2：密码标志
+                Ranked = p.Length >= 10 && p[9] == "1",                  // S8 ver3：排位标记
+                DeckFingerprint = p.Length >= 11 ? p[10] : "",           // S8 ver3：卡组指纹
+                WinRate = p.Length >= 12 && int.TryParse(p[11], out var rate) ? rate : -1, // S8 ver3：胜率‰
                 LastSeenMs = Environment.TickCount,
             };
             lock (_lock) { _rooms[entry.Key] = entry; }

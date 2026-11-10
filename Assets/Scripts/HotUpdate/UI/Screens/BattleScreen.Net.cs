@@ -72,43 +72,40 @@ namespace SynergyUI
             {
                 bool coinAnim = BattleEntry.NetCoinToss; // 一次性消费（防跨局残留，同 Client 口径）
                 bool playerFirst = BattleEntry.NetPlayerFirst;
+                // S7a：LobbyScreen 相位到达时已提前提交 DeckSubmit——消费标记+提交快照
+                //（manifest 回显校验数据就地转正），段四整段跳过（不建 NetDeckPanel/不等待选卡）。
+                bool deckSubmitted = BattleEntry.NetDeckSubmitted;
+                BattleEntry.NetDeckSubmitted = false; // 一次性消费（防跨局残留）
+                int[] myHistogram = null;
+                if (deckSubmitted && NetDeckSubmit.TakeLast(out var ids, out var tokenIds, out var bindings))
+                {
+                    _netSubmittedDeckIds = ids;
+                    _netSubmittedTokenIds = tokenIds;
+                    _netSubmittedTokenBindings = bindings;
+                    myHistogram = NetMatchHandshake.CostHistogramOf(ids); // S7b 掷币段我方分布快照
+                }
                 _opening = new BattleOpeningDirector(() => _running, _field, lunzhuan: false,
                     engage: null, overlayParent: Root,
                     network: true, netPlayerFirst: playerFirst, netCoinAnimation: coinAnim,
-                    netEngage: NetEngageStaged);
+                    netEngage: NetEngageStaged,
+                    netDeckSubmitted: deckSubmitted, netMyCostHistogram: myHistogram);
                 _opening.RunAsync().Forget();
             }
 
             Debug.Log($"[BattleScreen] 网络对局已接入（{_netClient.Remote}）——{(StagedOpeningActive() ? "五段式开局（掷币+选卡组）" : "等待首快照")}");
         }
 
-        /// <summary>网络五段式段五（确认出战）：UI 已关、对局开始前——发 DeckSubmit 握手（摘要主线程算）。
-        /// tokenCardIds/tokenBindings（P9b 2026-10-29）：衍生物区/槽绑定随提交上送并计入摘要口径。
-        /// Added*（2026-11-09 协议 v11 自建内容跨端）：卡组闭包全部卡/效果/词条内容随提交携带——
-        /// 服务器装瞬态覆盖层后校验，对端缺卡不再恒拒局；DeckName=真实卡组名（终局摘要回显）。</summary>
+        /// <summary>网络五段式段五（确认出战；S7a 后仅兜底路径可达——提前提交已跳过段四）：
+        /// 发送逻辑已平移 NetDeckSubmit.SendRaw（两处共用单源），此处只留提交快照转正+提示。</summary>
         private void NetEngageStaged(string deckName, string[] cardIds, string skillCardId,
             string[] tokenCardIds, List<DeckTokenBinding> tokenBindings)
         {
             if (_netClient == null || cardIds == null || cardIds.Length == 0) return;
+            if (!NetDeckSubmit.SendRaw(_netClient, deckName, cardIds, skillCardId, tokenCardIds, tokenBindings))
+                return;
             _netSubmittedDeckIds = cardIds;
             _netSubmittedTokenIds = tokenCardIds;
             _netSubmittedTokenBindings = tokenBindings;
-            var digest = NetMatchHandshake.ComputeDeckDigest(cardIds, tokenCardIds, tokenBindings); // 主线程（确认点击）——服务器泵同帧串行，天然安全
-            NetDeckPayload.BuildForDeck(cardIds, tokenCardIds, skillCardId,
-                out var addedCards, out var addedEffects, out var addedRows);
-            _netClient.Send(NetworkMessageType.DeckSubmit, new MsgDeckSubmit
-            {
-                DeckName = string.IsNullOrEmpty(deckName) ? "随机卡组" : deckName,
-                CardIds = cardIds,
-                Digest = digest,
-                SkillCardId = skillCardId,
-                TokenCardIds = tokenCardIds ?? Array.Empty<string>(),
-                TokenBindings = NetMatchHandshake.ToWireBindings(tokenBindings),
-                AddedCards = addedCards,
-                AddedEffects = addedEffects,
-                AddedRows = addedRows,
-            });
-            Debug.Log($"[BattleScreen] 已确认卡组（{cardIds.Length}张，载荷卡{addedCards.Length}/效果{addedEffects.Length}/词条{addedRows.Length}）——等待对手确认与开局…");
             _toast.Show("已确认卡组——等待对手与开局…");
         }
 
@@ -119,6 +116,7 @@ namespace SynergyUI
         {
             if (manifest == null) return;
             TransientNetContent.Install(manifest.OpponentCards, manifest.OpponentEffects, manifest.OpponentRows);
+            _opening?.RefreshNetCostHistogram(manifest.OpponentCostHistogram); // S7b：掷币段对手分布加载中→实数据
             if (_netSubmittedDeckIds != null
                 && !NetMatchHandshake.VerifyMatchManifest(manifest, _netSubmittedDeckIds,
                     _netSubmittedTokenIds, _netSubmittedTokenBindings, out var reason))
@@ -158,6 +156,13 @@ namespace SynergyUI
                 log = summary.Log,
             };
             EncounterStore.Append(record);
+            // S8 排位记账：只对 ranked 终局按卡组内容指纹 +1（改卡=指纹变=旧战绩不命中）；
+            // 指纹=开局排位时 RankedMatchmaking 定格（普通局/无指纹不记）
+            if (summary.Ranked && !string.IsNullOrEmpty(RankedMatchmaking.Fingerprint))
+            {
+                DeckRatingStore.Record(RankedMatchmaking.Fingerprint, summary.Win);
+                Debug.Log($"[BattleScreen] 排位战绩已记账（{(summary.Win ? "胜" : "负")}）：{RankedMatchmaking.Fingerprint}");
+            }
             Debug.Log($"[BattleScreen] 对局记录已入账：vs {record.opponentName}（{record.opponentDeckName}）——{(record.win ? "胜" : "负")}");
         }
 

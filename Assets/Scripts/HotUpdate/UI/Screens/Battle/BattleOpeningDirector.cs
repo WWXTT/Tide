@@ -4,6 +4,7 @@ using System.Linq;
 using CardCore;
 using CardCore.Network;
 using Cysharp.Threading.Tasks;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -44,6 +45,8 @@ namespace SynergyUI
         private readonly bool _netPlayerFirst;       // 服务器先手结果（FirstSeatThisMatch 对 own seat）
         private readonly bool _netCoinAnimation;     // true=掷币模式（演出）；false=固定先后手（快进）
         private readonly Action<string, string[], string, string[], List<DeckTokenBinding>> _netEngage;
+        private readonly bool _netDeckSubmitted; // S7a：LobbyScreen 已提前提交 DeckSubmit——段四整段跳过
+        private readonly int[] _netMyCostHistogram; // S7b：我方卡组费用分布（StartNetFan 快照传入）
 
         private BattleDeckPickStage _pickStage;
         private bool _deckPicking;        // 段四输入期（点击归卡堆，不作跳过）
@@ -52,6 +55,11 @@ namespace SynergyUI
 
         /// <summary>网络段四面板（BattleScreen.NetOnRoomState 转发倒计时/manifest 强制收口用）。</summary>
         internal NetworkDeckPanel NetDeckPanel { get; private set; }
+
+        // S7b 掷币段费用对比面板（仅 network+已提前提交路径）：两套 9 柱（我/对手）——对手列
+        // manifest 到达前显示加载中（RefreshNetCostHistogram 由 BattleScreen.NetOnManifest 驱动）
+        private RectTransform _netCostPanel;
+        private RectTransform _oppCostColumn; // 对手列容器（刷新时重建柱组）
 
         /// <summary>开场在途（BattleScreen.PollFieldPointer 顶部闸——开场期点击不进游戏分支）。</summary>
         public bool Active { get; private set; }
@@ -62,7 +70,8 @@ namespace SynergyUI
             bool? fixedPlayerFirst = null, bool dummy = false,
             RectTransform overlayParent = null, Action onCancelled = null,
             bool network = false, bool netPlayerFirst = false, bool netCoinAnimation = true,
-            Action<string, string[], string, string[], List<DeckTokenBinding>> netEngage = null)
+            Action<string, string[], string, string[], List<DeckTokenBinding>> netEngage = null,
+            bool netDeckSubmitted = false, int[] netMyCostHistogram = null)
         {
             _running = running;
             _field = field;
@@ -76,6 +85,8 @@ namespace SynergyUI
             _netPlayerFirst = netPlayerFirst;
             _netCoinAnimation = netCoinAnimation;
             _netEngage = netEngage;
+            _netDeckSubmitted = netDeckSubmitted;
+            _netMyCostHistogram = netMyCostHistogram;
         }
 
         private bool Dead => _disposed || _field == null || !_running();
@@ -102,8 +113,12 @@ namespace SynergyUI
                 {
                     // 联机（2026-10-28）：先手=服务器权威（选卡组相位进入时已定）。掷币模式照常演出
                     //（结果注入）；固定先后手=快进演出直出结果浮字。
+                    // S7b（2026-11-10）：掷币段并排展示双方卡组费用分布（我方=提前提交的卡组、
+                    // 对手=manifest.OpponentCostHistogram——未到显示加载中，NetOnManifest 刷新）。
+                    if (_netDeckSubmitted) BuildNetCostPanel();
                     playerFirst = await CoinStageForcedAsync(_netPlayerFirst, _netCoinAnimation);
                     Debug.Log("[BattleOpening] 段三（网络）先后手落定 playerFirst=" + playerFirst + "（服务器权威）");
+                    CloseNetCostPanel(); // 硬币结果一出随掷币段收口
                 }
                 else if (_fixedPlayerFirst.HasValue)
                 {
@@ -116,9 +131,17 @@ namespace SynergyUI
                     Debug.Log("[BattleOpening] 段三 硬币落定 playerFirst=" + playerFirst);
                 }
 
-                // ---- 段四+段五（联机分支）：网络选卡组面板（30s 倒计时）→ 确认后发 DeckSubmit 握手 ----
+                // ---- 段四+段五（联机分支）。S7a（2026-11-10）：LobbyScreen 已在相位到达时用大厅
+                //      选中卡组提前提交（netDeckSubmitted）——整段跳过（不建 NetDeckPanel、不等待
+                //      选卡），掷币（段三）照常，manifest 抵达即校验、硬币结束等首快照。
+                //      未提前提交（兜底路径）= 旧流：选卡组面板 → 确认发 DeckSubmit 握手。----
                 if (_network)
                 {
+                    if (_netDeckSubmitted)
+                    {
+                        Debug.Log("[BattleOpening] 段四+段五（网络·S7a）：卡组已提前提交——跳过选卡段，等 manifest/首快照");
+                        return;
+                    }
                     await NetworkDeckPickAsync();
                     return; // 段五=握手提交（netEngage 内），对局开始=manifest→首快照（BattleScreen 收口）
                 }
@@ -221,7 +244,8 @@ namespace SynergyUI
 
         /// <summary>段四+段五（网络，2026-10-28）：NetworkDeckPanel 各自选卡组（30s 服务器权威倒计时）
         /// → 确认即关 UI、发 DeckSubmit 握手（卡组数据交换在对局开始前完成——用户定案时序）。
-        /// 服务器超时代提/握手已完成（manifest 强制收口）=不发本地提交，直接等 manifest 开战。</summary>
+        /// S7a 后仅兜底路径可达（提前提交失败/异常局）；服务器超时代提/握手已完成（manifest
+        /// 强制收口）=不发本地提交，直接等 manifest 开战。</summary>
         private async UniTask NetworkDeckPickAsync()
         {
             NetDeckPanel = new NetworkDeckPanel(_overlayParent);
@@ -263,6 +287,71 @@ namespace SynergyUI
             }
             Debug.Log($"[BattleOpening] 段五（网络）确认卡组「{pick.DeckName ?? "随机预组"}」（{cardIds.Length}张）——提交握手");
             _netEngage?.Invoke(pick.DeckName, cardIds, skill, tokenIds, tokenBindings);
+        }
+
+        // ======================================== S7b：掷币段费用对比面板 ========================================
+
+        /// <summary>建费用对比面板（掷币段起、硬币落定收口）：并排「我方分布 / 对手分布」两套 9 柱。
+        /// 挂 overlay 顶部居中；对手列初始=加载中（manifest 到达经 RefreshNetCostHistogram 刷新）。</summary>
+        private void BuildNetCostPanel()
+        {
+            CloseNetCostPanel();
+            if (_overlayParent == null || _netMyCostHistogram == null) return;
+            _netCostPanel = UiKit.Panel("net-cost-panel", _overlayParent, pad: 10f, spacing: 6f);
+            _netCostPanel.anchorMin = _netCostPanel.anchorMax = new Vector2(0.5f, 1f);
+            _netCostPanel.pivot = new Vector2(0.5f, 1f);
+            _netCostPanel.anchoredPosition = new Vector2(0f, -24f);
+            UiKit.Size(_netCostPanel, w: 620f);
+            var cols = UiKit.Row("row-cols", _netCostPanel, spacing: 16f);
+            UiKit.Size(cols, fw: 1f);
+            var mine = UiKit.Column("col-mine", cols, spacing: 2f);
+            UiKit.Size(mine, fw: 1f);
+            UiKit.Label("lbl-mine", mine, "我方分布", 13, UiStyle.TextSecondary,
+                TextAnchor.MiddleCenter, FontStyle.Bold);
+            BuildHistogramInto(mine, _netMyCostHistogram);
+            _oppCostColumn = UiKit.Column("col-opp", cols, spacing: 2f);
+            UiKit.Size(_oppCostColumn, fw: 1f);
+            UiKit.Label("lbl-opp-title", _oppCostColumn, "对手分布", 13, UiStyle.TextSecondary,
+                TextAnchor.MiddleCenter, FontStyle.Bold);
+            UiKit.Label("lbl-opp-loading", _oppCostColumn, "对手分布加载中…", 13, UiStyle.TextFaint,
+                TextAnchor.MiddleCenter);
+        }
+
+        /// <summary>对手直方图刷新（BattleScreen.NetOnManifest 驱动）：清对手列重画（标题保留）。</summary>
+        internal void RefreshNetCostHistogram(int[] histogram)
+        {
+            var col = _oppCostColumn;
+            if (col == null) return; // 掷币段已收口/未建——迟到 manifest 无害丢弃
+            for (int i = col.childCount - 1; i >= 0; i--)
+                UnityEngine.Object.Destroy(col.GetChild(i).gameObject);
+            BuildHistogramInto(col, histogram);
+        }
+
+        /// <summary>9 柱费用图（复用联机屏卡组池柱图视觉：8px 柱宽、最高 40px、下标 1..8/9+）。</summary>
+        private static void BuildHistogramInto(RectTransform parent, int[] histogram)
+        {
+            var buckets = new int[9];
+            if (histogram != null)
+                for (int i = 0; i < 9 && i < histogram.Length; i++) buckets[i] = histogram[i];
+            int max = Math.Max(1, buckets.Max());
+            var chart = UiKit.Row("row-hist", parent, spacing: 2f);
+            for (int c = 1; c <= 9; c++)
+            {
+                var col = UiKit.Column("col-" + c, chart, spacing: 1f, align: TextAnchor.UpperCenter);
+                var bar = UiKit.Row("bar-" + c, col, spacing: 0f);
+                UiKit.BgRow(bar, UiStyle.BarFill);
+                UiKit.Size(bar, w: 8f, h: buckets[c - 1] * 40f / max);
+                UiKit.Label("lbl-col-" + c, col, c == 9 ? "9+" : c.ToString(), 10,
+                    UiStyle.TextFaint, TextAnchor.MiddleCenter);
+            }
+        }
+
+        /// <summary>收口费用面板（硬币结果一出/离开掷币段；幂等）。</summary>
+        private void CloseNetCostPanel()
+        {
+            if (_netCostPanel != null) UnityEngine.Object.Destroy(_netCostPanel.gameObject);
+            _netCostPanel = null;
+            _oppCostColumn = null;
         }
 
         /// <summary>段四：候选卡组建堆 → 双选两轮/教学三连战单轮；返回卡组名（null=随机）。

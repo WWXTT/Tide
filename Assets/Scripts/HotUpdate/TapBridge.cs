@@ -41,7 +41,8 @@ namespace Tide.HotUpdate
     }
 
     /// <summary>公开房间摘要（S6b 双源列表用）——中性 DTO：Tide.TapTap 侧从 TapSDK
-    /// RoomBasicInfo/RoomInfo 映射。HotUpdate 程序集不得见 TapSDK 类型（隔离纪律）。</summary>
+    /// RoomBasicInfo/RoomInfo 映射。HotUpdate 程序集不得见 TapSDK 类型（隔离纪律）。
+    /// Ranked/DeckFingerprint/WinRate（S8）：排位房元数据（customProperties 同义 JSON）。</summary>
     public sealed class TapRoomEntry
     {
         public string RoomId;
@@ -50,6 +51,12 @@ namespace Tide.HotUpdate
         public int MaxPlayerCount;
         /// <summary>是否有密码（房间 customProperties 带 pwd——列表行提示用）。</summary>
         public bool HasPassword;
+        /// <summary>排位房标记（S8：普通列表 UI 滤掉，排位匹配器专用）。</summary>
+        public bool Ranked;
+        /// <summary>房主卡组内容指纹（S8 匹配窗口判定）。</summary>
+        public string DeckFingerprint;
+        /// <summary>房主胜率千分比（-1=无战绩）。</summary>
+        public int WinRate;
     }
 
     /// <summary>联机屏 TapTap 段缝（S6b 双源改版；实现住 Tide.TapTap）：
@@ -66,16 +73,26 @@ namespace Tide.HotUpdate
         /// <summary>最近一次异步口失败/超时的可读文案（对应方法返回 null 时有效）。</summary>
         string LastError { get; }
 
+        /// <summary>最近一次 CreateRoom/CreateRankedRoom 的 SDK 房间 id（S8：匹配循环排除自房）。</summary>
+        string LastCreatedRoomId { get; }
+
         /// <summary>登录+连接对战服务（幂等，已连接直过）。返回 null=成功，否则=可读错误。</summary>
         UniTask<string> EnsureLoginAsync();
 
-        /// <summary>公开房间列表（已滤满员与 ranked 房）。返回 null=失败（读 LastError）。</summary>
+        /// <summary>公开房间列表（滤满员；含 ranked 房及其元数据——普通列表 UI 侧滤 Ranked，
+        /// 排位匹配器专用候选）。返回 null=失败（读 LastError）。</summary>
         UniTask<List<TapRoomEntry>> ListRoomsAsync();
 
         /// <summary>TapTap 建房：SDK 建房（密码写 customProperties）+ 本地组合传输会话服务器
         ///（同 password）已 Start(0)。成功返回该服务器（BeginHostSession/回环入座由 LobbyScreen
-        /// 收尾）；失败返回 null（读 LastError）。</summary>
+        /// 收尾）；失败返回 null（读 LastError）。排位房用 CreateRankedRoomAsync。</summary>
         UniTask<NetSessionServer> CreateRoomAsync(string roomName, string password);
+
+        /// <summary>TapTap 排位建房（S8）：ranked/fingerprint/rate 写 customProperties 同义 JSON、
+        /// 本地服务器 ranked=true（双接受窗）。返回同上；**LastCreatedRoomId** 记本房 id
+        ///（匹配循环排除自房候选）。</summary>
+        UniTask<NetSessionServer> CreateRankedRoomAsync(string roomName,
+            string deckFingerprint, int winRatePermille);
 
         /// <summary>加入指定房间：SDK JoinRoom + TapClientTransport 就绪的客户端
         ///（进房协议 JoinRoom〔含密码/卡组名〕由 LobbyScreen 统一发送——密码真门禁=NetRoom）。

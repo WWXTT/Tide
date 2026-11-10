@@ -451,7 +451,7 @@ namespace CardCore
                 return;
             }
             bool hit = BranchEngines.EvaluateActiveCondition(kind, payload,
-                context.Source as Card, context.Controller, out var detail);
+                context.Source as Card, context.Controller, context.ResolvingEffect, out var detail);
             EventManager.Instance.Publish(new KeywordAppliedEvent
             {
                 Target = context.Source, Keyword = zh,

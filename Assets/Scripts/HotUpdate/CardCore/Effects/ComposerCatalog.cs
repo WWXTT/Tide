@@ -43,6 +43,25 @@ namespace CardCore
         public static bool IsEngineTrunkRow(Attribute.AtomicEffectConfig row)
             => HasMountBit(row, MountKind.EngineTrunk);
 
+        /// <summary>2026-11-10 用户定案：自由分支前 6 种引擎奖励=**单个原子**——
+        /// 倒计时/运势/拼枪/死亡计数/元素充盈/团结；不允许组合效果引用。
+        /// 附加诅咒/祝福是例外（.IsCursePayloadEngine：原子 + 主动·并列效果引用双通道）。</summary>
+        public static bool IsAtomOnlyEngine(BranchEngineKind kind)
+            => kind == BranchEngineKind.Countdown || kind == BranchEngineKind.LuckRoll
+               || kind == BranchEngineKind.Clash || kind == BranchEngineKind.DeathToll
+               || kind == BranchEngineKind.ManaSurplus || kind == BranchEngineKind.Unity;
+
+        /// <summary>附加诅咒/附加祝福载荷引擎（双通道：原子 Then + 主动·并列效果引用）。</summary>
+        public static bool IsCursePayloadEngine(BranchEngineKind kind)
+            => kind == BranchEngineKind.CurseOnDraw || kind == BranchEngineKind.BlessingOnDraw;
+
+        /// <summary>引擎奖励门槛 x 的机制上限（2026-11-10 用户定案：计算引擎自身的限制）：
+        /// 元素充盈差值封顶 6、死亡计数满值 6——奖励费×时机系数推导出的 x 超过此值即
+        /// 条件永远不可达（死档），UI 禁存/装载期点名；其余引擎 -1=无固定上限（拼点差额、
+        /// 倒计时回合、运势/团结手填参数）。</summary>
+        public static int EngineThresholdCap(BranchEngineKind kind)
+            => kind == BranchEngineKind.ManaSurplus || kind == BranchEngineKind.DeathToll ? 6 : -1;
+
         /// <summary>组合内限重复行（2026-10-09 全局唯一定案 → 2026-10-19 放开修订）：仅引擎主干
         /// （位 5，倒计时等引擎状态按卡单台账共槽）与规则光环仪典（位 6，运行时同名一槽）维持
         /// 「同一效果一个组合中只出现一次（并列与奖励均计入）」；其余行放开可重复——逐原子目标制下

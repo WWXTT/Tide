@@ -1,3 +1,36 @@
 {
-  "items": []
+  "items": [
+    {
+      "id": "B0F02F29",
+      "name": "登场时，为己方战场的1个生物或己方角色回复6点生命；为己方战场的1个生物添加6层攻击力增加指示物",
+      "hash": "B0F02F29",
+      "activation": 1,
+      "limit": -1,
+      "duration": 2,
+      "selection": 0,
+      "cost": [
+        0.0,
+        3.0,
+        0.0,
+        3.6,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "599fcc9a",
+            "value": 6
+          }
+        },
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "39a3106c",
+            "value": 6
+          }
+        }
+      ]
+    }
+  ]
 }

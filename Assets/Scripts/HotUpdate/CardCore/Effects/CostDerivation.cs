@@ -339,9 +339,19 @@ namespace CardCore
         /// payload.EffectId 非空按引用效果锚价；否则按 Then 原子列奖励推导费（旧手写数据通道）。
         /// 两通道皆空=0 费。</summary>
         private static ElementCost CursePayloadFullCost(BranchPayload payload)
-            => !string.IsNullOrEmpty(payload?.EffectId)
-                ? ReferencedEffectCostByColor(payload.EffectId)
-                : RewardDerivedCostByColor(payload?.Then);
+        {
+            // 2026-11-10 用户定案：载荷=原子 Then + 主动·并列效果引用双通道，可并存——附加费
+            // 必须两通道求和后再减半（此前 EffectId 优先会漏算 Then 原子）。
+            var cost = new ElementCost();
+            if (!string.IsNullOrEmpty(payload?.EffectId))
+            {
+                var byColor = ReferencedEffectCostByColor(payload.EffectId);
+                foreach (var c in byColor.NonzeroColors()) cost[c] += byColor[c];
+            }
+            var thenCost = RewardDerivedCostByColor(payload?.Then);
+            foreach (var c in thenCost.NonzeroColors()) cost[c] += thenCost[c];
+            return cost;
+        }
 
         // 引用效果解析深度闸（防手写数据自引用循环 A→A→…：资格过滤已拦引擎主干作载荷，
         // 此闸只兜直改 JSON 的环——4 层足够任何合法链）
@@ -389,9 +399,22 @@ namespace CardCore
         public static int RewardThresholdOf(List<AtomicEffectInstance> then, string effectId)
             => Math.Max(1, (int)Math.Round(BranchRewardDerivedCost(then, effectId), MidpointRounding.AwayFromZero));
 
+        /// <summary>自由分支 6 引擎门槛（2026-11-10 用户定案）：**基础原子费**（不乘时机系数——
+        /// 引擎奖励的时机/条件由引擎概率模型承担，时机系数只留给普通效果；再乘会双重计费）。
+        /// hostTiming 保留签名兼容，不参与计算。附加诅咒/祝福不走本口。</summary>
+        public static int EngineRewardThreshold(List<AtomicEffectInstance> then, TriggerTiming hostTiming)
+            => Math.Max(1, (int)Math.Round(RewardDerivedCost(then), MidpointRounding.AwayFromZero));
+
+        /// <summary>自由分支 6 引擎奖励费（基础单原子锚价，不乘时机系数）——≤6 过滤/显示同口径。</summary>
+        public static float EngineRewardCost(List<AtomicEffectInstance> then, TriggerTiming hostTiming)
+            => RewardDerivedCost(then);
+
         /// <summary>倒计时初值回合（与 converter 换算同源）：声明 param&gt;0 用声明值；
-        /// 缺省 0=按奖励推导费自动换算（1费=1回合，向上取整下限 1——2026-11-07 效果引用费并入）。</summary>
-        public static int CountdownTurnsOf(int param, List<AtomicEffectInstance> then, string effectId = null)
+        /// 缺省 0=按奖励推导费自动换算（1费=1回合，向上取整下限 1——2026-11-07 效果引用费并入）。
+        /// 2026-11-10：引擎奖励不乘时机系数（时机只留给普通效果；倒计时等待本身已由 1费=1回合表达），
+        /// hostTiming 保留签名兼容但不参与计算。</summary>
+        public static int CountdownTurnsOf(int param, List<AtomicEffectInstance> then, string effectId = null,
+            TriggerTiming? hostTiming = null)
             => param > 0 ? param
             : Math.Max(1, (int)Math.Ceiling(BranchRewardDerivedCost(then, effectId)));
 
@@ -429,17 +452,17 @@ namespace CardCore
         }
 
         /// <summary>时机系数单口（计价 TimingCostFactor 与时机下拉档位标签展示同源）：
-        /// 表 TimingWeights.json 每时机一行 f = min(E[N], Cutoff)（2026-11-10 时机系数规格 v0.1，
-        /// 35 行全枚举覆盖）——**已生效（2026-11-10 段 2b 切正：影子开关已删，不保留旧口径分支）**，
-        /// 计价直接读行 Factor；缺行/表不可读回落 Category=TimingFactor 桶默认：单次 Once /
-        /// 多次 Repeat（周期·观察族，结界专属）/ 生物专属 CreatureOnly（攻/守/横置族 4 值，仅生物可挂）。
-        /// 主动三档行恒 1（现付不进时序）、OnTurnStart 行 0（系统专用）。
-        /// **OnAttacked 为双宿主时机（IsUniversalRepeatTiming）——表读 3.0，无生物专属溢价**。
-        /// 改表行即同步改计价与展示。</summary>
+        /// **2026-11-10 用户定案 B（箭头版）：f = 1.2 ^ (E[N] − 1)**（E[N]=预估触发次数，
+        /// 表 TimingWeights.json 的 Expected 列）——与连接光环箭头计价完全同构
+        ///（CardCostService 箭头档 ×1.2^(n−1)：1 支=1、2 支=1.2）；取代旧 f=min(E[N],Cutoff)
+        /// 线性封顶。OnPlay/OnGameStart 等 E[N]=1 → f=1；E[N]&lt;1 的低频时机 f&lt;1（折扣）；
+        /// 主动三档 Expected=0 → 1（现付不进时序）；OnTurnStart 系统专用 → 0；
+        /// 缺行/表不可读回落 Category=TimingFactor 桶默认。改表 Expected 即同步改计价与展示。</summary>
         public static float TimingCostFactorOf(TriggerTiming timing)
         {
+            if (timing == TriggerTiming.OnTurnStart) return 0f; // 系统专用（表行 Expected=0 但语义是禁用）
             if (TimingWeights.TryGet(timing, out var row))
-                return row.Factor;
+                return row.Expected <= 0f ? 1f : (float)Math.Pow(1.2, row.Expected - 1.0);
             var f = ValueSystemConfigManager.Instance.GetOrCreateConfig().TimingFactorConfig;
             if (EffectEligibility.IsTapAnchoredTiming(timing)) return f.CreatureOnly;
             return FiresOncePerPaidLifetime(timing) ? f.Once : f.Repeat;

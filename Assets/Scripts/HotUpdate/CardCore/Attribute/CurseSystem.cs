@@ -185,18 +185,25 @@ namespace CardCore
         private static async UniTask ExecutePayloadAsync(
             CursePayload payload, Card drawnCard, CardDrawEvent trigger, GameCore core)
         {
-            // 引擎 Then 载荷（2026-10-08 旧通道）：per 原子弹选目标（无头自动选首）——仅无效果引用时走
-            if (payload.FromEngine && string.IsNullOrEmpty(payload.EffectId))
+            // 2026-11-10 用户定案：附加诅咒/祝福载荷 = 原子 Then 通道 + 主动·并列效果引用双通道
+            // ——两通道可并存，先结算引用效果、再结算原子（与分支奖励发射口同序）。
+            var engCtx = new EffectExecutionContext
             {
-                var engCtx = new EffectExecutionContext
-                {
-                    Source = (Entity)payload.SourceCard ?? payload.Caster,
-                    Controller = payload.Caster,
-                    ZoneManager = core?.ZoneManager,
-                    ElementPool = core?.ElementPool,
-                    ModeIndex = -1,
-                };
+                Source = (Entity)payload.SourceCard ?? payload.Caster,
+                Controller = payload.Caster,
+                ZoneManager = core?.ZoneManager,
+                ElementPool = core?.ElementPool,
+                ModeIndex = -1,
+            };
+
+            if (payload.FromEngine && payload.InlineSteps != null && payload.InlineSteps.Count > 0)
                 await EffectExecutor.ExecuteThenRewardsAsync(payload.InlineSteps, engCtx, null);
+
+            if (string.IsNullOrEmpty(payload.EffectId)) return;
+            var def = ResolveDef(payload.EffectId);
+            if (def == null)
+            {
+                TideLog.Warn($"[CurseSystem] 诅咒载荷缺失: {payload.EffectId}（Effects.json 无此条，层已消耗）");
                 return;
             }
 
@@ -210,13 +217,6 @@ namespace CardCore
                 ElementPool = core?.ElementPool,
                 CastCard = drawnCard,
             };
-
-            var def = ResolveDef(payload.EffectId);
-            if (def == null)
-            {
-                TideLog.Warn($"[CurseSystem] 诅咒载荷缺失: {payload.EffectId}（Effects.json 无此条，层已消耗）");
-                return;
-            }
 
             // 2026-11-06 晚定案（自由分支场景回归抓实）：引擎载荷（FromEngine·效果引用主通道）=组合效果，
             // 原子按**自身域**解析目标——与 Then 通道 ExecuteThenRewardsAsync 逐原子解析同口径。

@@ -373,21 +373,18 @@ namespace SynergyUI
                     if (_selSlot == SelKind.Reward)
                     {
                         var b = BranchOfSlot(0);
-                        // 附加诅咒/祝福（2026-11-06 载荷效果化）：无 Then 奖励口——载荷=主干卡「载荷效果」行
+                        // 2026-11-10 用户定案：
+                        // · 附加诅咒/祝福：原子 Then（单个）+ 主动·并列效果引用双通道——原子照常点库落槽，
+                        //   组合效果走「载荷效果」行（不入本库）。
+                        // · 自由分支前 6 引擎：奖励=单个原子，按原子费×宿主时机系数 ≤6 过滤；无效果引用。
                         if (b != null && IsCurseEngine((BranchEngineKind)b.engine))
                         {
-                            contextZh = "附加诅咒/祝福：载荷=效果组合引用——点主干卡「载荷效果」行选择（不填原子奖励）";
-                            return _ => false;
+                            contextZh = "载荷（单个原子——点库落槽；主动·并列组合效果走「载荷效果」行，双通道可并存）";
+                            return lp => lp.CanBeBranchReward && !lp.IsWrongSideOnly;
                         }
-                        // 引擎奖励双通道（2026-11-10 R4 修订，推翻 2026-11-08 阶段4 单通道）：
-                        // 原子奖励照旧点库落槽（2026-11-08 曾停供——then 通道恢复），组合效果引用走
-                        // 奖励区「奖励效果」行弹层，两通道费合计并入预算。
-                        // 自由分支奖励：上限恒 6（2026-11-02 减费三选一：原 5 放宽一档——玩家在 1-6 费区间自由调，
-                        // 门槛随计费推导、超上限红闪禁存；预言分支走 RewardCapOf 押注行 Budget）
-                        int cap = RewardCapOf(b);
-                        contextZh = $"Then 奖励（非错边——仅示 ≤{cap} 费原子）";
+                        contextZh = "Then 奖励（单个原子——原子费×宿主时机系数 ≤6）";
                         return lp => b != null && lp.CanBeBranchReward && !lp.IsWrongSideOnly
-                                     && RewardWithinFilterCap(lp.Entry(), cap);
+                                     && EngineRewardWithinCap(lp.Entry(), b);
                     }
                     contextZh = "主干（引擎行——倒计时/拼点/运势/死亡计数/元素充盈/团结/附加诅咒·祝福）";
                     return lp => lp.IsEngineTrunk;
@@ -405,15 +402,18 @@ namespace SynergyUI
                             contextZh = "代价（一般效果行·双侧域·与效果同色——减免等值费用 ≤3）";
                             return lp => CostGateCandidate(lp, costColors);
                         }
-                        // 有限分支奖励：上限=该门槛 Budget（RewardFilterCap 单源；预言分支 RewardCapOf 猜法档）
+                        // 有限分支第二槽（2026-11-10）：奖励=单个原子，与第一槽颜色并集同色，
+                        // ≤ 门 Budget；不再接受组合效果引用（第一槽才是组合效果的位置）。
                         int cap = RewardCapOf(b);
+                        var slotColors = CostGateColors();
                         contextZh = b != null
-                            ? $"Then 奖励（非错边——仅示 ≤{cap} 费原子）"
-                            : null; // 无门槛无奖励口——门槛卡区校验已提示
+                            ? $"Then 奖励（单个原子·与第一槽同色·≤{cap} 费）"
+                            : null;
                         return lp => b != null && lp.CanBeBranchReward && !lp.IsWrongSideOnly
+                                     && RewardColorAllowed(lp, slotColors)
                                      && RewardWithinFilterCap(lp.Entry(), cap);
                     }
-                    contextZh = "主干（普通原子·非错边——引擎行请切自由分支）";
+                    contextZh = "主干（1~2 原子内联·非错边——引擎行请切自由分支）";
                     return lp => lp.CanBeTrunk && !lp.IsWrongSideOnly && !lp.IsEngineTrunk
                                  && (lp.Cfg?.GetTargetKindList()?.Count ?? 0) > 0;
                 }
@@ -886,14 +886,15 @@ namespace SynergyUI
                     {
                         var fb = BranchOfSlot(0);
                         if (fb == null) { ShowToast("主干未定——先到右侧选引擎主干行"); break; }
-                        if (IsCurseEngine((BranchEngineKind)fb.engine))
+                        // 2026-11-10：前 6 引擎=单原子（原子费×时机系数 ≤6）；附加诅咒/祝福=原子 +
+                        // 主动·并列效果引用双通道（原子照常落槽）。
+                        if (!RewardCanDrop(payload, fb))
                         {
-                            ShowToast("附加诅咒/祝福的载荷=效果组合引用（主动·极性匹配）——点主干卡「载荷效果」行选择，不再填原子奖励");
+                            ShowToast(ComposerCatalog.IsCursePayloadEngine((BranchEngineKind)fb.engine)
+                                ? "载荷原子不合资格（非错边、可作奖励的原子）"
+                                : "奖励原子不合资格（前 6 引擎：单个原子，原子费×时机系数 ≤6）");
                             break;
                         }
-                        //（2026-11-10 R4：引擎分支原子通道恢复——2026-11-08 阶段4 的「引擎奖励=效果
-                        // 引用单通道」拦截退役，双通道=点库落原子 + 「奖励效果」行选组合效果）
-                        if (!RewardCanDrop(payload, fb)) { ShowToast("选中块=奖励——挂载位不合或超出预算（≤6 费）"); break; }
                         if (payload.IsKeywordAtom) ApplyKeywordHeader();
                         DropBranchReward(payload, 0);
                     }
@@ -925,7 +926,8 @@ namespace SynergyUI
                         if (payload.IsEngineTrunk) { ShowToast("引擎行是自由分支主干——请切「自由分支」形态"); break; }
                         if (!ParallelCanDrop(payload)) { ShowToast("该原子不可作主干（场地光环/门槛行不入效果栏）"); break; }
                         if (payload.IsKeywordAtom) ApplyKeywordHeader();
-                        ReplaceBranchTrunk(EntryForEffectSlot(payload), keepBranch: true); // 换主干保留门槛/奖励
+                        // 2026-11-10：第一槽 1~2 原子；按当前选中槽落子（0/1），门/奖励迁到最后原子
+                        ReplaceLimitedTrunk(EntryForEffectSlot(payload), _selSlotIndex, keepBranch: true);
                     }
                     RefreshLibrary(keepScroll: true);
                     break;

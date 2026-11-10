@@ -31,12 +31,56 @@ namespace SynergyUI
             RefreshSlots();
         }
 
+        /// <summary>有限分支主干原子列表（2026-11-10：第一槽 1~2 个内联原子；超过 2 截断）。</summary>
+        private List<AtomicEffectEntry> LimitedTrunkAtoms()
+            => (_graph?.steps ?? new List<EffectStepData>())
+                .Where(s => s != null && s.kind == 0 && s.atomic != null)
+                .Select(s => s.atomic).Take(2).ToList();
+
+        /// <summary>有限分支门/奖励的挂载原子：优先带真实分支的原子（新数据=最后一个原子），
+        /// 否则回落最后一个主干原子（空组合=null）。</summary>
+        private AtomicEffectEntry LimitedBranchAtom()
+        {
+            var atoms = LimitedTrunkAtoms();
+            for (int i = atoms.Count - 1; i >= 0; i--)
+                if (atoms[i].branch != null && !BranchEntryRules.IsPhantom(atoms[i].branch))
+                    return atoms[i];
+            return atoms.Count > 0 ? atoms[atoms.Count - 1] : null;
+        }
+
+        /// <summary>有限分支第一槽落子（2026-11-10：索引 0/1，最多 2 原子）。落第二原子时把门/奖励
+        /// 分支从旧最后原子迁到新原子；换第一原子时分支留在最后原子。</summary>
+        private void ReplaceLimitedTrunk(AtomicEffectEntry entry, int slotIndex, bool keepBranch)
+        {
+            _graph.steps ??= new List<EffectStepData>();
+            var trunks = _graph.steps.Where(s => s != null && s.kind == 0 && s.atomic != null).ToList();
+            int idx = Mathf.Clamp(slotIndex, 0, 1);
+            var oldLast = trunks.Count > 0 ? trunks[trunks.Count - 1].atomic : null;
+            var branch = keepBranch ? oldLast?.branch : null;
+            if (branch != null && BranchEntryRules.IsPhantom(branch)) branch = null;
+
+            if (idx < trunks.Count)
+                trunks[idx].atomic = entry;
+            else
+                _graph.steps.Add(new EffectStepData { kind = 0, atomic = entry });
+
+            // 分支恒挂"最后一个主干原子"：先把所有真实分支摘掉，再挂到新的最后原子
+            foreach (var s in _graph.steps)
+                if (s?.kind == 0 && s.atomic != null && s.atomic != entry) s.atomic.branch = null;
+            var atoms = LimitedTrunkAtoms();
+            if (atoms.Count > 0 && branch != null) atoms[atoms.Count - 1].branch = branch;
+            _expandedAtoms.Add(entry);
+            _selSlot = SelKind.Parallel;
+            _selSlotIndex = atoms.Count - 1;
+            RefreshSlots();
+        }
+
         /// <summary>右栏门槛行点击 → 写入 branch{settle=Gate, gateId, then=原奖励保留}——
         /// 历史 Outcome 载荷被整体换成 Gate（产出条件不再新建，2026-10-23 裁定）；
         /// 写入后选中自动切奖励块（下一步必是填奖励），右栏随 RefreshLibrary 切奖励候选。</summary>
         private void ApplySituationGate(ComposerCatalog.GateSpec gate)
         {
-            var atom = FirstKind0Atom();
+            var atom = LimitedBranchAtom() ?? FirstKind0Atom();
             if (atom == null) { ShowToast("先到右侧选一颗主干原子——门槛挂在主干上"); return; }
             var b = atom.branch ?? new BranchEntryData();
             b.then ??= new List<AtomicEffectEntry>();
@@ -102,7 +146,7 @@ namespace SynergyUI
             //（prefab head 烘焙了自带 Button 会吃掉点击不冒泡到卡根——2026-10-23 用户反馈修正）
             void SelectGate()
             {
-                if (FirstKind0Atom() == null) { ShowToast("先选主干原子——门槛挂在主干上"); return; }
+                if (LimitedBranchAtom() == null) { ShowToast("先选主干原子——门槛挂在主干上"); return; }
                 SelectSlot(SelKind.Gate, 0);
             }
             var img = card.GetComponent<Image>();
@@ -136,7 +180,7 @@ namespace SynergyUI
             // 校验：门槛未选（主干空由主干区报——此处只管有主干没门槛）
             _slotZones.Add(MakeZone(card, () =>
             {
-                var a = FirstKind0Atom();
+                var a = LimitedBranchAtom();
                 if (a == null) return null;
                 return a.branch == null || BranchEntryRules.IsPhantom(a.branch)
                     ? "门槛未选——点击门槛卡后到右侧选择有限分支" : null;
@@ -159,6 +203,8 @@ namespace SynergyUI
         {
             bool free = (BranchSettleKind)b.settle == BranchSettleKind.Engine;
             bool costGate = IsCostGate(b);         // 代价门（2026-11-06）：第二槽=代价原子（减免等值费用）
+            bool curse = free && IsCurseEngine((BranchEngineKind)b.engine);
+            bool atomOnly = free && ComposerCatalog.IsAtomOnlyEngine((BranchEngineKind)b.engine);
             bool manualParams = free || costGate;  // 手控参数=自由主干（引擎）/代价门
             var reward = b.then?.FirstOrDefault();
             // 非自由主干：参数随预算自动生成（落槽/换门/载入统一归一）——代价门例外（减免量=代价
@@ -184,7 +230,11 @@ namespace SynergyUI
             {
                 title.text = costGate
                     ? $"代价（减免 ≤{CostDiscountCap}）"
-                    : $"Then 奖励（预算 {RewardCapOf(b)} 以内）";
+                    : curse
+                        ? "载荷（单个原子 / 主动·并列效果引用）"
+                        : atomOnly
+                            ? "Then 奖励（单个原子，原子费×时机系数 ≤6）"
+                            : $"Then 奖励（预算 {RewardCapOf(b)} 以内）";
                 UiKit.Size(title, fw: 1f);
             }
 
@@ -202,7 +252,7 @@ namespace SynergyUI
                     // 奖励效果引用前缀（2026-11-07 分支奖励效果化）：双通道=先效果后原子
                     //（2026-11-10 R4：引擎分支同口径——2026-11-08 阶段4 单通道摘要退役）
                     string fxPrefix = "";
-                    if (!costGate && !string.IsNullOrEmpty(b.effectId))
+                    if (curse && !string.IsNullOrEmpty(b.effectId))
                     {
                         var fxg = EffectsLibrary.Get(b.effectId);
                         fxPrefix = $"【效果】{(fxg != null ? fxg.name : b.effectId + "(悬空)")}｜";
@@ -221,9 +271,13 @@ namespace SynergyUI
                     {
                         text.text = costGate
                             ? "选中后点击库中的代价原子填入（一般效果行·双侧域·与效果同色，全价 ≤3）"
-                            : fxPrefix.Length > 0
-                                ? fxPrefix + "（可再点库追加原子奖励——合计 ≤ 分支预算）"
-                                : "选中后点击库中的奖励原子填入，或点「奖励效果」行选择组合效果（合计 ≤ 分支预算）";
+                            : curse
+                                ? fxPrefix.Length > 0
+                                    ? fxPrefix + "（可再点库追加单个载荷原子——双通道并存）"
+                                    : "点本槽在右栏选单个载荷原子，或点「载荷效果」行选主动·并列组合效果（两者可并存）"
+                                : atomOnly
+                                    ? "点本槽在右栏选单个奖励原子（原子费×宿主时机系数 ≤6）"
+                                    : "选中后点击库中的奖励原子填入（单个原子，与第一槽同色且 ≤ 门预算）";
                     }
                 }
                 RefreshName();
@@ -256,9 +310,9 @@ namespace SynergyUI
                 });
             }
 
-            // ——「奖励效果」选择行（2026-11-07 分支奖励效果化）：非代价门分支通用——
-            // 奖励=组合效果引用+原子双通道：效果经弹层选择（右栏库不列组合效果），原子照旧点库落槽
-            if (!costGate) MakeRewardFxRow(area, b, head, RefreshText);
+            // ——「载荷效果」选择行（2026-11-10）：只有附加诅咒/祝福有主动·并列效果引用通道；
+            // 自由分支前 6 引擎=单原子、有限分支第二槽=单原子，均不显示本行。——
+            if (curse) MakeRewardFxRow(area, b, head, RefreshText);
 
             // 原子表行四参数 des + 每原子目标行/衍生物行（2026-10-09 下沉定案；持续行随层化退役）：
             // 仅自由主干（引擎）奖励手控参数——非自由主干参数随预算自动生成，行隐藏
@@ -388,30 +442,10 @@ namespace SynergyUI
             //（与装载期 ValidateAtomParams 同口径）；引用费超上限照旧拦。超限=GuideFrame 红框+禁存。
             _slotZones.Add(MakeZone(area, () =>
             {
-                // 奖励效果引用校验先行（2026-11-07）：悬空/资格不符/自引用——then 空单通道同样必查
-                if (!costGate)
-                {
-                    var fxErr = BranchRewardFxError(b);
-                    if (fxErr != null) return fxErr;
-                }
-                if (b.then == null || b.then.Count == 0)
-                {
-                    if (!costGate && !string.IsNullOrEmpty(b.effectId))
-                    {
-                        // 效果引用单通道：引用费即全部奖励费——同预算闸
-                        float refOnly = CostDerivationService.ReferencedEffectCostByColor(b.effectId).Total;
-                        int capOnly = RewardCapOf(b);
-                        return refOnly > capOnly
-                            ? $"奖励超出分支可实现费用（{refOnly:0.#}/{capOnly}）——换更便宜的奖励效果"
-                            : null;
-                    }
-                    if (costGate) return "代价未填——点本区选中后到右栏挑一个代价原子（一般效果行·双侧域·与效果同色，减免 ≤3）";
-                    return free
-                        ? "Then 奖励未填——点本区选中后到右栏挑一个奖励原子（1-6 费），或点「奖励效果」行选择组合效果"
-                        : "Then 奖励未填——点本区选中后到右栏挑一个奖励原子（≤门槛预算），或点「奖励效果」行选择组合效果，或删除门槛";
-                }
                 if (costGate)
                 {
+                    if (b.then == null || b.then.Count == 0)
+                        return "代价未填——点本区选中后到右栏挑一个代价原子（一般效果行·双侧域·与效果同色，减免 ≤3）";
                     // 代价门全价=逐原子 PayloadUnitGrant（与卡级代价行 CostRowPrice 同锚）；
                     // 存量代价行未改动（与合成快照一致）豁免——绕过UI数据可超上限，零漂移往返
                     if (CostGateUnchanged(b.then)) return null;
@@ -421,13 +455,62 @@ namespace SynergyUI
                         ? $"代价减免 {pts:0.#} 点超上限（≤{CostDiscountCap}）——调低数值或换原子"
                         : null;
                 }
+
+                if (curse)
+                {
+                    // 双通道：原子 Then（≤1）+ 主动·并列效果引用（branch.effectId / legacy atom.str）
+                    var err = CursePayloadError(FirstKind0Atom(), (BranchEngineKind)b.engine);
+                    if (err != null) return err;
+                    if (b.then != null && b.then.Count > 1)
+                        return "载荷原子超过 1 个——附加诅咒/祝福只收单个原子（并列组合请用效果引用）";
+                    return null;
+                }
+
+                if (!string.IsNullOrEmpty(b.effectId))
+                    return atomOnly
+                        ? "前 6 引擎奖励只收单个原子——删除 effectId（组合效果请用并列/有限分支/光环）"
+                        : "有限分支第二槽只收原子——组合效果请放进第一槽或改用自由分支";
+
+                if (b.then == null || b.then.Count == 0)
+                    return atomOnly
+                        ? "奖励未填——点本区选中后到右栏挑一个奖励原子（原子费×宿主时机系数 ≤6）"
+                        : "奖励未填——点本区选中后到右栏挑一个奖励原子（与第一槽同色，≤门槛预算）";
+                if (b.then.Count > 1)
+                    return "奖励原子超过 1 个——本槽只收单个原子";
+
+                if (atomOnly)
+                {
+                    var inst = CardEffectConverter.ConvertAtomForUI(b.then[0]);
+                    var insts = inst == null ? new List<AtomicEffectInstance>() : new List<AtomicEffectInstance> { inst };
+                    var timing = (TriggerTiming)_graph.header.TriggerTiming;
+                    float cost = CostDerivationService.EngineRewardCost(insts, timing);
+                    if (cost > FreeBranchFeeCap)
+                        return $"奖励超出 6 费上限（{cost:0.#}/6，基础原子费）——换更便宜的原子";
+                    int engineCap = ComposerCatalog.EngineThresholdCap((BranchEngineKind)b.engine);
+                    if (engineCap > 0)
+                    {
+                        int x = CostDerivationService.EngineRewardThreshold(insts, timing);
+                        if (x > engineCap)
+                            return $"{ComposerCatalog.EngineZhOf((BranchEngineKind)b.engine)}门槛 x={x} 超过引擎自身上限 {engineCap}"
+                                   + "——条件永远不可达（死档）；请降奖励数值或换更便宜的原子";
+                    }
+                    return null;
+                }
+
+                if (_mode == ComposeMode.LimitedBranch)
+                {
+                    var cfg = AtomicEffectTable.GetByHashId(b.then[0].refId);
+                    if (!RewardColorAllowed(new LibPayload(default, cfg), CostGateColors()))
+                    {
+                        var colors = CostGateColors();
+                        return "奖励原子与第一槽不同色——只能加第一槽包含的颜色（当前："
+                               + (colors.Count == 0 ? "无彩" : string.Join("/", colors.Select(ManaTypeNames.ZhNameOf))) + "）";
+                    }
+                }
                 int cap = RewardCapOf(b);
-                float refCost = string.IsNullOrEmpty(b.effectId)
-                    ? 0f : CostDerivationService.ReferencedEffectCostByColor(b.effectId).Total;
-                float cost = refCost + RewardCost(b.then[0]);
-                return cost > cap
-                    ? $"奖励超出分支可实现费用（{cost:0.#}/{cap}）——"
-                      + (free ? "调低数值或换更便宜的原子/效果" : "参数已按预算自动生成仍超出——换更便宜的原子或效果")
+                float rewardCost = RewardCost(b.then[0]);
+                return rewardCost > cap
+                    ? $"奖励超出门槛预算（{rewardCost:0.#}/{cap}）——换更便宜的原子"
                     : null;
             }));
             RefreshText();
@@ -477,6 +560,9 @@ namespace SynergyUI
 
         private BranchEntryData BranchOfSlot(int slotIndex)
         {
+            // 2026-11-10：有限分支的门/奖励恒挂"最后一个主干原子"（第一槽可 1~2 原子）；
+            // 其余形态仍按槽位索引取。
+            if (_mode == ComposeMode.LimitedBranch) return LimitedBranchAtom()?.branch;
             var steps = _graph.steps ?? new List<EffectStepData>();
             if (slotIndex < 0 || slotIndex >= steps.Count) return null;
             var s = steps[slotIndex];
@@ -549,6 +635,37 @@ namespace SynergyUI
             return Mathf.Max(derived, declared) <= cap;
         }
 
+        /// <summary>有限分支第二槽同色过滤（2026-11-10）：无色/纯灰原子放行；有彩原子须落在
+        /// 第一槽颜色并集内（与代价同色口径同源）。</summary>
+        private static bool RewardColorAllowed(LibPayload lp, HashSet<ManaType> colors)
+        {
+            var mana = lp?.Cfg?.ManaList;
+            if (mana == null) return true; // 零费/无表价行=无色
+            bool hasColor = false;
+            foreach (var c in mana.NonzeroColors())
+                if (c != ManaType.Gray && c != ManaType.Any && mana[c] > 0f) { hasColor = true; break; }
+            if (!hasColor) return true;
+            return CardCostService.PayloadColorAllowed(mana, colors);
+        }
+
+        /// <summary>自由分支前 6 引擎奖励过滤（2026-11-10）：原子费 × 宿主效果头时机系数 ≤6。
+        /// 表价也按同一系数放大后取大值，防「推导价≤6 但表价过 6」漏进。</summary>
+        private bool EngineRewardWithinCap(AtomicEffectEntry entry, BranchEntryData b)
+        {
+            if (b == null || !ComposerCatalog.IsAtomOnlyEngine((BranchEngineKind)b.engine)) return false;
+            var inst = CardEffectConverter.ConvertAtomForUI(entry);
+            if (inst == null) return false;
+            var timing = (TriggerTiming)(_graph?.header?.TriggerTiming ?? (int)TriggerTiming.Activate_Active);
+            var insts = new List<AtomicEffectInstance> { inst };
+            float derived = CostDerivationService.RewardDerivedCost(insts); // 引擎奖励不乘时机系数
+            float declared = AtomicEffectTable.GetByHashId(entry?.refId)?.TotalUnitCost ?? 0f;
+            if (Mathf.Max(derived, declared) > FreeBranchFeeCap) return false;
+            int engineCap = ComposerCatalog.EngineThresholdCap((BranchEngineKind)b.engine);
+            if (engineCap > 0 && CostDerivationService.EngineRewardThreshold(insts, timing) > engineCap)
+                return false;
+            return true;
+        }
+
         /// <summary>原子引用 → 枚举（行缺失回退 DealDamage——门行兜底口径同旧）。</summary>
         private static AtomicEffectType ResolveType(AtomicEffectEntry a)
         {
@@ -591,9 +708,19 @@ namespace SynergyUI
             switch (kind)
             {
                 case SelKind.Parallel:
-                    _expandedAtoms.Remove(_graph.steps[index]?.atomic); // 悬挂条目 ClampSelection 兜底剪除
+                {
+                    var removed = _graph.steps[index]?.atomic;
+                    var branch = removed?.branch;
+                    _expandedAtoms.Remove(removed); // 悬挂条目 ClampSelection 兜底剪除
                     _graph.steps.RemoveAt(index);
+                    // 有限分支：删掉带分支的原子时，把门/奖励迁到新的最后原子（保持"挂最后原子"）
+                    if (_mode == ComposeMode.LimitedBranch && branch != null)
+                    {
+                        var atoms = LimitedTrunkAtoms();
+                        if (atoms.Count > 0) atoms[atoms.Count - 1].branch = branch;
+                    }
                     break;
+                }
                 case SelKind.Reward:
                     var br = BranchOfSlot(index);
                     br?.then?.Clear();
@@ -618,6 +745,12 @@ namespace SynergyUI
             if (!(payload is LibPayload lp)) return false;
             if (IsCostGate(b)) return CostGateCandidate(lp, CostGateColors());
             if (!lp.CanBeBranchReward || lp.IsWrongSideOnly) return false;
+            if (b != null && IsCurseEngine((BranchEngineKind)b.engine)) return true; // 原子载荷无 6 费帽
+            if (b != null && ComposerCatalog.IsAtomOnlyEngine((BranchEngineKind)b.engine))
+                return EngineRewardWithinCap(lp.Entry(), b);
+            if (_mode == ComposeMode.LimitedBranch)
+                return RewardColorAllowed(lp, CostGateColors())
+                       && RewardWithinFilterCap(lp.Entry(), RewardCapOf(b));
             return RewardWithinFilterCap(lp.Entry(), RewardCapOf(b));
         }
 
@@ -647,6 +780,8 @@ namespace SynergyUI
                 if (kinds != null) entry.kinds = kinds; // p<0 锁己方·p>0 锁对方——代价域收窄/镜像
             }
             b.then = new List<AtomicEffectEntry> { entry };
+            // 前 6 引擎=原子单通道：清掉任何残留效果引用（旧数据/切引擎）
+            if (free && ComposerCatalog.IsAtomOnlyEngine((BranchEngineKind)b.engine)) b.effectId = null;
             if (free || costGate) _expandedRewards.Add(b); // 自由主干/代价门=落槽展开手控；其余不展开（参数自动生成）
             _selSlot = SelKind.Reward;
             _selRewardSlot = slotIndex;

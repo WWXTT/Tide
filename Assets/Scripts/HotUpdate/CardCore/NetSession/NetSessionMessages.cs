@@ -65,6 +65,26 @@ namespace CardCore.Network
 
         [MemoryPackOrder(TagTable.MJR_DeckName)]
         public string DeckName;
+
+        [MemoryPackOrder(TagTable.MJR_Ranked)]
+        public bool Ranked;
+
+        [MemoryPackOrder(TagTable.MJR_DeckFingerprint)]
+        public string DeckFingerprint;
+
+        /// <summary>卡组胜率（S8 排位匹配）：千分比 0..1000，-1=无战绩（首战）。</summary>
+        [MemoryPackOrder(TagTable.MJR_WinRate)]
+        public int WinRate;
+    }
+
+    /// <summary>上行：排位接受应答（134，S8 排位）。椅子位各自上报（Waiting+Ranked 相位有效）；
+    /// 服务器收齐双 true → RoomStart 语义开局（进选卡组相位）；任一 false/5s 超时 →
+    /// 广播 Error("排位未接受","Ranked") 并解散——双方各自收敛回 Idle（不自动重排，2026-11-10 定案）。</summary>
+    [MemoryPackable]
+    public partial class MsgRankedAck
+    {
+        [MemoryPackOrder(TagTable.MRA_Accepted)]
+        public bool Accepted;
     }
 
     /// <summary>下行：房间全量状态（任何成员变化/阶段迁移时广播）。

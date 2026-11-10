@@ -398,7 +398,7 @@ namespace SynergyUI
                     if (s.kind == 0 && s.atomic != null)
                     {
                         // 引擎主干行短式正文（2026-10-09 八引擎定案「自由分支·{名}{x}」）；非引擎行照表行模板
-                        string body = EngineShortBody(s.atomic) ?? RenderAtomEntry(s.atomic, h);
+                        string body = EngineShortBody(s.atomic, (TriggerTiming)h.TriggerTiming) ?? RenderAtomEntry(s.atomic, h);
                         var suffix = BranchSuffix(s.atomic);
                         // 条件载体行（2026-11-01）：宿主原子行本身就是同一条局面门时，正文=条件从句本身，
                         // 直接以分支后缀成句（「如果生命值≤7，…」），不重复渲染前置条件（旧文本会出现
@@ -599,9 +599,10 @@ namespace SynergyUI
         /// 其余引擎（运势/团结/附加诅咒/祝福）x=engineParam（EngineParamRange 钳制显示）。
         /// 非引擎行/引擎身份未定义返回 null（调用方回退表行长模板——原子库列表行长文案保留完整玩法说明）。</summary>
         /// <summary>引擎短文案公开口（验证器锚定用；合成器摘要走 Render 主路径消费同函数）。</summary>
-        public static string EngineShortBodyFor(AtomicEffectEntry atom) => EngineShortBody(atom);
+        public static string EngineShortBodyFor(AtomicEffectEntry atom,
+            TriggerTiming timing = TriggerTiming.Activate_Active) => EngineShortBody(atom, timing);
 
-        private static string EngineShortBody(AtomicEffectEntry atom)
+        private static string EngineShortBody(AtomicEffectEntry atom, TriggerTiming timing)
         {
             var cfg = AtomicEffectTable.GetByHashId(atom.refId);
             if (!ComposerCatalog.IsEngineTrunkRow(cfg)) return null;
@@ -624,16 +625,16 @@ namespace SynergyUI
                     // 2026-11-08 阶段3 只扫战场：此卡在场上时计数双方生物死亡（手牌不计数；类似死亡=
                     // CardDestroyEvent 生物：战斗死亡+消灭；牺牲直送非死亡无事件不计），满 6 不再计数，
                     // 计数≥x 触发奖励（触发不清零），使用后清零
-                    return $"此卡在场上时计数双方生物死亡，计数大于等于{CostDerivationService.RewardThresholdOf(ToInstances(then), fxId)}时触发奖励（满6不再计数，使用后清零）";
+                    return $"此卡在场上时计数双方生物死亡，计数大于等于{CostDerivationService.EngineRewardThreshold(ToInstances(then), timing)}时触发奖励（满6不再计数，使用后清零）";
                 case BranchEngineKind.ManaSurplus:
                     // 2026-11-06 判据七完整句：双方施放·整条连锁结算完成后（只能是自动效果），
                     // 双方剩余元素（未横置地牌+钱包）之差恰==x 触发（差每+1踩一档各一次）
-                    return $"任一方使用卡牌、整条连锁结算完成后，双方剩余元素的差恰好等于{CostDerivationService.RewardThresholdOf(ToInstances(then), fxId)}时触发奖励（仅自动，差额封顶6）";
+                    return $"任一方使用卡牌、整条连锁结算完成后，双方剩余元素的差恰好等于{CostDerivationService.EngineRewardThreshold(ToInstances(then), timing)}时触发奖励（仅自动，差额封顶6）";
                 case BranchEngineKind.Clash:
-                    x = CostDerivationService.RewardThresholdOf(ToInstances(then), fxId);
+                    x = CostDerivationService.EngineRewardThreshold(ToInstances(then), timing);
                     break;
                 case BranchEngineKind.Countdown:
-                    x = CostDerivationService.CountdownTurnsOf(atom.branch?.engineParam ?? 0, ToInstances(then), fxId);
+                    x = CostDerivationService.CountdownTurnsOf(atom.branch?.engineParam ?? 0, ToInstances(then), fxId, timing);
                     break;
                 default: // 运势点数线/团结邻位数/附加诅咒·祝福张数——手填参数（EngineParamRange 钳制显示）
                     ComposerCatalog.EngineParamRange(kind, out var mn, out var mx);

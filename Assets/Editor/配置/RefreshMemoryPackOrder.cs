@@ -252,6 +252,7 @@ namespace CardCore.Tools
                 ("MsgMatchManifest", "OpponentCardCount"), ("MsgMatchManifest", "OwnDeckDigest"),
                 ("MsgMatchManifest", "OpponentCards"), ("MsgMatchManifest", "OpponentEffects"),
                 ("MsgMatchManifest", "OpponentRows"), // v11 对手自建内容三载荷（S5 补登）
+                ("MsgMatchManifest", "OpponentCostHistogram"), // S7b：对手费用直方图
 
                 // ---- v11 自建内容跨端 payload（2026-11-09；当时手加 TagTable 未登记——S5 补登防刷新洗掉）----
                 ("MsgCardPayload", "CardId"), ("MsgCardPayload", "CardJson"),
@@ -267,6 +268,7 @@ namespace CardCore.Tools
                 ("MsgMatchSummary", "OpponentTokenBindings"), ("MsgMatchSummary", "Cards"),
                 ("MsgMatchSummary", "Effects"), ("MsgMatchSummary", "AtomRows"),
                 ("MsgMatchSummary", "Log"),
+                ("MsgMatchSummary", "Ranked"), // S8：排位局记账标记
 
                 // ---- 会话层（M2，2026-09-23：Error 载荷 + 房间状态机，见 网络协议.md §12）----
                 ("MsgError", "Reason"), ("MsgError", "Context"),
@@ -276,6 +278,11 @@ namespace CardCore.Tools
                 ("MsgJoinRoom", "OpenId"), ("MsgJoinRoom", "IsAi"),
                 // S5（2026-11-10）房间密码+选卡上报
                 ("MsgJoinRoom", "Password"), ("MsgJoinRoom", "DeckName"),
+                // S8（2026-11-10）排位模式：进房上报排位标记/指纹/胜率
+                ("MsgJoinRoom", "Ranked"), ("MsgJoinRoom", "DeckFingerprint"), ("MsgJoinRoom", "WinRate"),
+
+                // ---- MsgRankedAck（S8 排位接受应答）----
+                ("MsgRankedAck", "Accepted"),
                 ("MsgRoomState", "RoomId"), ("MsgRoomState", "Phase"),
                 ("MsgRoomState", "Players"), ("MsgRoomState", "SpectatorCount"),
                 ("MsgRoomState", "FirstSeatThisMatch"),
@@ -370,6 +377,7 @@ namespace CardCore.Tools
                 "MsgDeckSubmit" => "MDS",
                 "MsgDeckTokenBinding" => "MTB",
                 "MsgMatchManifest" => "MMM",
+                "MsgRankedAck" => "MRA",        // S8 排位接受应答
                 "MsgCardPayload" => "MCP",       // v11 自建内容三 payload + 终局摘要（S5 补登——与 TagTable 既有前缀对齐）
                 "MsgEffectPayload" => "MEP",
                 "MsgAtomRowPayload" => "MAR",

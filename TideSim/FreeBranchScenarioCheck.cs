@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -134,13 +134,14 @@ namespace TideSim
             return _fail == 0 ? 0 : 1;
         }
 
-        /// <summary>引擎奖励效果化迁移校验（2026-11-08 阶段2验收）：合并库（主∪教∪训）全部
-        /// settle=Engine 分支——branch.then 清空、effectId 可解析（converter 双通道归一后读）。
-        /// 附加诅咒/祝福 str 通道存量（CC0DE003/4）同过：converter 落 EffectId。</summary>
+        /// <summary>引擎分支载荷迁移校验（2026-11-10 用户定案）：
+        /// · 前 6 引擎（倒计时/运势/拼枪/死亡计数/元素充盈/团结）：then=单个原子、effectId 空；
+        /// · 附加诅咒/祝福：then（≤1）与主动·并列效果引用至少一个，effectId 可解析。
+        /// 合并库（主∪教∪训）全扫。</summary>
         private static void VerifyEngineRewardFxMigrated()
         {
             Console.WriteLine();
-            Console.WriteLine("【迁移校验】引擎分支奖励效果化：全库 settle=3 then 清空 + effectId 可解析");
+            Console.WriteLine("【迁移校验】2026-11-10：前 6 引擎=单原子；诅咒/祝福=原子+主动·并列效果引用");
             int checkedCount = 0;
             foreach (var dto in EffectsLibrary.GetAll())
             {
@@ -155,11 +156,22 @@ namespace TideSim
                     var def = fx != null ? CardEffectConverter.ConvertOne(fx, dto.id) : null;
                     var payload = def?.Effects?.Select(a => a?.Branch).FirstOrDefault(x =>
                         x != null && x.Settle == BranchSettleKind.Engine && x.EngineKind == (BranchEngineKind)b.engine);
-                    Assert(payload != null && payload.Then.Count == 0,
-                        $"迁移：{dto.id}「{dto.name}」引擎分支 then 未清空（实际 {payload?.Then.Count ?? -1} 原子）");
-                    Assert(payload != null && !string.IsNullOrEmpty(payload.EffectId)
-                           && EffectsLibrary.Get(payload.EffectId) != null,
-                        $"迁移：{dto.id}「{dto.name}」effectId 悬空（实际 '{payload?.EffectId}'）");
+                    Assert(payload != null, $"迁移：{dto.id}「{dto.name}」引擎载荷未转换");
+                    if (payload == null) continue;
+                    if (ComposerCatalog.IsAtomOnlyEngine(payload.EngineKind))
+                    {
+                        Assert(payload.Then.Count == 1 && string.IsNullOrEmpty(payload.EffectId),
+                            $"迁移：{dto.id}「{dto.name}」前 6 引擎须单原子、无 effectId（实际 Then {payload.Then.Count} / '{payload.EffectId}'）");
+                    }
+                    else if (ComposerCatalog.IsCursePayloadEngine(payload.EngineKind))
+                    {
+                        Assert(payload.Then.Count <= 1
+                               && (payload.Then.Count == 1 || !string.IsNullOrEmpty(payload.EffectId)),
+                            $"迁移：{dto.id}「{dto.name}」诅咒/祝福载荷须原子(≤1)或主动·并列效果引用至少一个");
+                        if (!string.IsNullOrEmpty(payload.EffectId))
+                            Assert(EffectsLibrary.Get(payload.EffectId) != null,
+                                $"迁移：{dto.id}「{dto.name}」effectId 悬空（实际 '{payload.EffectId}'）");
+                    }
                 }
             }
             Assert(checkedCount >= 40, $"迁移覆盖面：全库引擎分支 ≥ 40 条（实际 {checkedCount}）");

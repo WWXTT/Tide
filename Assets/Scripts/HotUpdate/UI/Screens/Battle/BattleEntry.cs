@@ -45,6 +45,12 @@ namespace SynergyUI
         public static bool NetCoinToss = true;
         public static bool NetPlayerFirst;
 
+        /// <summary>网络局卡组已提前提交（S7a 2026-11-10 跳过战斗选卡组）：LobbyScreen 在
+        /// DeckSubmit 相位用大厅 SelectedDeck 发完 DeckSubmit 后置 true 再移交——战斗屏
+        /// 五段式跳过段四（不建 NetDeckPanel、不等待选卡），掷币照常，manifest 抵达即校验。
+        /// 一次性消费（StartNetFan 读取）。本地/AI 路径恒 false 不受影响。</summary>
+        public static bool NetDeckSubmitted;
+
         /// <summary>教学局关卡 id（TutorialLibrary 条目；缺省 "basics" 基础教学）。
         /// 入口方接线：BattleEntry.Mode = BattleMode.Tutorial 后 Show&lt;BattleScreen&gt;。</summary>
         public static string TutorialId = "basics";

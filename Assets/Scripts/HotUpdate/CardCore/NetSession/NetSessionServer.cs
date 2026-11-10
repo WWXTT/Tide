@@ -25,10 +25,11 @@ namespace CardCore.Network
         private readonly System.Action<string> _log;
 
         public NetSessionServer(string roomId, System.Action<string> log = null, int? seed = null,
-            INetTransportHost host = null, bool autoStartWhenAllReady = false, string password = null)
+            INetTransportHost host = null, bool autoStartWhenAllReady = false, string password = null,
+            bool ranked = false)
         {
             _host = host ?? new NetTcpHost();
-            _room = new NetRoom(roomId, seed, autoStartWhenAllReady, password); // S5：房间密码透传（默认 null=无密码，既有调用零改动）
+            _room = new NetRoom(roomId, seed, autoStartWhenAllReady, password, ranked); // S5 密码/S8 排位透传（默认零改动）
             _log = log;
         }
 

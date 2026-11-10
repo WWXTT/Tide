@@ -12,6 +12,18 @@ using UnityEngine;
 
 namespace SynergyUI
 {
+    /// <summary>进房参数聚合（S8）：S6b 的 password/deckName + 排位三件——
+    /// AdoptClientAndJoin/ConnectAsync/ConnectLoopback 一路透传（AOT 安全普通类，替代参数续膨胀）。</summary>
+    public sealed class JoinOptions
+    {
+        public string Password;
+        public string DeckName;
+        public bool Ranked;
+        public string DeckFingerprint;
+        /// <summary>胜率千分比（-1=无战绩）。</summary>
+        public int WinRate = -1;
+    }
+
     /// <summary>
     /// 联机对战屏（2026-10-21 P2P 复活；S6a 起绑定三栏 v2 预制体——视觉真源=Assets/Art/Prefab/
     /// LobbyUI.prefab，DSH 2026-11-10 搭建；Build 只做深度按名绑定+接线）：
@@ -51,14 +63,20 @@ namespace SynergyUI
         /// 静态记住名字，重进屏恢复。</summary>
         public DeckData SelectedDeck { get; private set; }
 
+        /// <summary>选中卡组的内容指纹（S8：排位匹配/记账键——随选中刷新；无选中为空）。</summary>
+        private string _selectedFingerprint = "";
+
         // ---- 中栏（S6a）：页签 + 普通（建房+房间列表）/排位 ----
         private UnityEngine.UI.Button _tabNormalBtn, _tabRankedBtn, _createRoomBtn, _refreshBtn, _rankedStartBtn;
         private TMP_InputField _roomNameInput, _roomPwdInput;
         private TMP_Text _rankedDeckLabel, _rankedRateLabel, _rankedStateLabel;
 
-        // ---- 右栏（S6a 绑定，S6c 填充）----
+        // ---- 右栏（S6c 对战历史）----
         private UnityEngine.UI.Button _copyDeckBtn, _replayBtn;
-        private RectTransform _historyList; // list-history content（S6c 动态行）
+        private RectTransform _historyList; // list-history content（历史动态行挂它）
+        private EncounterRecord _selectedRecord; // 选中行（btn-copy-deck 的判定源）
+        private readonly List<EncounterRecord> _historyRecords = new List<EncounterRecord>(); // 行序对齐（选中底色按引用对账）
+        private readonly List<UnityEngine.UI.Image> _historyRowBgs = new List<UnityEngine.UI.Image>();
 
         // S2 双座位卡（seat-0/seat-1）：昵称/身份 tag/在线点/准备态四件按椅位索引存取
         private readonly TMP_Text[] _seatNickLabels = new TMP_Text[2];
@@ -70,6 +88,9 @@ namespace SynergyUI
         //（S6b 房间列表双源统一）——段对象仍要（登录态/OpenId 经它取），不再调段 Build。
         // 本地单机风味 Module=null。
         private ITapLobbySection _tapSection;
+
+        /// <summary>TapTap 段（S8：RankedMatchmaking 驱动登录态/候选拉取/建房；可能为 null=单机风味）。</summary>
+        internal ITapLobbySection TapSection => _tapSection;
 
         private NetGameClient _client;
         private NetSessionServer _server; // 房主侧（自建自管，OnExit/离开时停机）
@@ -86,6 +107,8 @@ namespace SynergyUI
         // 局域网自动发现（2026-10-28 加入流改造）：房主信标 + 客人扫描，唯一房间自动直入
         private LanRoomBeacon _beacon;
         private volatile string _beaconPayload = "";
+        private string _lanRoomName = "";  // S6b：局域网房名快照（信标 payload ver2 带出；建房时记录）
+        private bool _lanRoomHasPassword;  // S6b：密码标志（信标第 9 段；密码本体绝不上广播）
         private LanRoomScanner _scanner;
         private bool _scanLoopRunning;
         private bool _autoJoinArmed;
@@ -133,7 +156,7 @@ namespace SynergyUI
             _rankedDeckLabel = FindText("lbl-ranked-deck");
             _rankedRateLabel = FindText("lbl-ranked-rate");
             _rankedStateLabel = FindText("lbl-ranked-state");
-            _rankedStartBtn = BindButton("btn-ranked-start", () => SetStatus("排位赛即将开放，敬请期待"));
+            _rankedStartBtn = BindButton("btn-ranked-start", () => RankedMatchmaking.Start(this)); // S8：排位匹配（须登录+选中卡组——RefreshRankedGate 管）
 
             // ---- 中栏房间页（S2/S3 结构沿用：座位/模式/操作/底部）----
             for (int seat = 0; seat < 2; seat++)
@@ -163,12 +186,11 @@ namespace SynergyUI
             _addAiNode = Find("btn-add-ai");
             _quitBtn = BindButton("btn-room-quit", QuitRoom);
 
-            // ---- 右栏：对战历史（S6c 填充；本轮绑定+重播恒灰）----
+            // ---- 右栏：对战历史（S6c：EncounterStore 列表+选中+复制对手卡组；重播恒灰）----
             Find("panel-history"); // 存在性诊断
             var historyScroll = FindScroll("list-history");
             _historyList = historyScroll != null ? historyScroll.Content : null;
-            _copyDeckBtn = BindButton("btn-copy-deck",
-                () => SetStatus("对战记录功能即将开放（可在主菜单「对战记录」查看已有记录）"));
+            _copyDeckBtn = BindButton("btn-copy-deck", ImportSelectedRecord); // 选中+有卡组数据才可点（UpdateCopyDeckButton 管）
             _replayBtn = BindButton("btn-replay", null); // 重播不做（SPEC 定案）——恒灰
             if (_replayBtn != null) _replayBtn.interactable = false;
 
@@ -192,12 +214,16 @@ namespace SynergyUI
             _modeShuffle = 0;
             ShowPanel(_panelNormal);
             SetStatus("选择左侧卡组后创建或加入房间");
-            RefreshSelfInfo();  // S6a ③：登录态/游客
+            RankedMatchmaking.StateChanged -= OnRankedStateChanged; // 防重（屏实例缓存复用）
+            RankedMatchmaking.StateChanged += OnRankedStateChanged;
+            RefreshSelfInfo();  // S6a ③：登录态/游客（含排位门禁/状态行）
             RefreshDeckPool();  // S6a ④：卡组池（重进恢复选中）
+            RefreshHistory();   // S6c：对战历史（战斗返回重新 OnEnter 天然刷新）
         }
 
         public override void OnExit()
         {
+            RankedMatchmaking.StateChanged -= OnRankedStateChanged; // 浮窗独立存活——本屏只退订刷新
             if (_handedOver) return; // 连接已移交战斗屏（BattleEntry.Client）——不拆
             TeardownSession();
         }
@@ -209,6 +235,7 @@ namespace SynergyUI
         ///（OS 随机端口——信标广播实际端口，手动 IP 已退役）。</summary>
         private void StartHostRoom()
         {
+            if (RankedMatchmaking.IsBusy) { SetError("排位匹配进行中——请先在浮窗取消匹配"); return; } // S9
             if (SelectedDeck == null) { SetError("请先在左侧选择一套卡组"); return; } // S6b 定案：无卡组不能建房
             if (_server != null)
             {
@@ -247,10 +274,12 @@ namespace SynergyUI
                 return;
             }
 
+            _lanRoomName = roomName;                              // S6b：房名/密码标志进信标（ver2）
+            _lanRoomHasPassword = !string.IsNullOrEmpty(pwd);     // 密码本体不上广播——只带"有无"标志
             BeginHostSession(server,
                 $"本机地址（告诉对手）：{string.Join(" / ", LocalIpv4Addresses().Select(ip => $"{ip}:{server.Port}"))}",
                 "局域网房间");
-            ConnectLoopback(server.Port, password: pwd); // 房主回环入座（密码随协议上报——自家门禁同口径）
+            ConnectLoopback(server.Port, opts: BuildJoinOptions(pwd)); // 回环入座（密码/卡组名随协议上报）
             StartBeacon(); // 局域网信标：开房即可被发现；绑定失败不阻塞建房
         }
 
@@ -268,14 +297,14 @@ namespace SynergyUI
                 return; // 留在列表页
             }
             BeginHostSession(server, $"TapTap 房间「{roomName}」——对手在房间列表点选加入", "TapTap 房间");
-            ConnectLoopback(server.Port, nick, pwd); // 房主回环入座（在线昵称；密码/卡组名随协议上报）
+            ConnectLoopback(server.Port, nick, BuildJoinOptions(pwd)); // 回环入座（密码/卡组名随协议上报）
         }
 
         // 手动 IP 加入路径已随 v2 面板退役（S5 定案：加入入口只留房间列表）——
         // 加入=列表行（LAN room-{i} / TapTap tap-room-{i}）/ 唯一房间自动直入（ConnectToRoom）。
 
         private async UniTaskVoid ConnectAsync(string host, int port, int wantSeat, string nickname = null,
-            string password = null)
+            JoinOptions opts = null)
         {
             // S1 昵称定案：默认=局域网解析；TapTap 建房的回环入座经 ConnectLoopback 传入在线昵称
             if (string.IsNullOrEmpty(nickname)) nickname = ResolveLanNickname();
@@ -310,17 +339,16 @@ namespace SynergyUI
                 return;
             }
 
-            // S6b：密码与选中卡组名随进房协议上报（LAN 直连/房主回环两用；TapTap 客人走 AdoptClientAndJoin 同口）
-            AdoptClientAndJoin(client, wantSeat, nickname, password,
-                SelectedDeck != null ? SelectedDeck.name : null);
+            // S6b/S8：密码/卡组名/排位三件随进房协议上报（LAN 直连/房主回环两用）
+            AdoptClientAndJoin(client, wantSeat, nickname, opts);
         }
 
         /// <summary>客户端就位：接管连接 → 发协议 JoinRoom（首条消息——分座由 NetRoom 定）。
         /// TCP 直连与 TapTap 传输（已就绪再构造）两路共用。public=Tide.TapTap 联机段跨程序集同路调用。
         /// OpenId（2026-11-09 协议 v11）：TapTap 已登录时随进房自报（对局记录对手身份；局域网空）。
-        /// password/deckName（S6b）：房间密码（NetRoom 校验）与大厅选中卡组名（座位卡展示；S7 自动提交）。</summary>
+        /// opts（S6b/S8 JoinOptions）：密码（NetRoom 校验）/卡组名/排位标记+指纹+胜率。</summary>
         public void AdoptClientAndJoin(NetGameClient client, int wantSeat, string nickname,
-            string password = null, string deckName = null)
+            JoinOptions opts = null)
         {
             _client = client;
             _lastNickname = nickname; // S1：进房昵称即本端昵称快照（MySeatOf 对账口径），两路统一在此落定
@@ -332,11 +360,33 @@ namespace SynergyUI
                 WantSeat = wantSeat,
                 Nickname = nickname,
                 OpenId = _tapSection?.OpenIdOf() ?? "",
-                Password = password ?? "", // S6b：房间密码（服务端 NetRoom 校验；空=无密码房直过）
-                DeckName = deckName ?? "", // S6b：选中卡组名（RoomState 座位快照带出）
+                Password = opts?.Password ?? "",              // S6b：房间密码（NetRoom 校验）
+                DeckName = opts?.DeckName ?? "",              // S6b：选中卡组名（座位快照带出）
+                Ranked = opts?.Ranked ?? false,               // S8：排位房进房标记
+                DeckFingerprint = opts?.DeckFingerprint ?? "",// S8：卡组内容指纹
+                WinRate = opts?.WinRate ?? -1,                // S8：胜率千分比
             });
             SetStatus("已连接，等待进房…");
         }
+
+        /// <summary>进房参数组装（S8）：密码取输入框；卡组名/指纹/胜率取当前选中——ranked=true 时
+        /// 附带排位三件（RankedMatchmaking 与常规两路共用）。</summary>
+        internal JoinOptions BuildJoinOptions(string password = null, bool ranked = false)
+        {
+            var deck = SelectedDeck;
+            return new JoinOptions
+            {
+                Password = password ?? RoomPasswordInput,
+                DeckName = deck != null ? deck.name : "",
+                Ranked = ranked,
+                DeckFingerprint = ranked ? _selectedFingerprint : "",
+                WinRate = ranked ? DeckRatingStore.PermilleOf(_selectedFingerprint) : -1,
+            };
+        }
+
+        /// <summary>发排位接受应答（S8：RankedMatchmaking 浮窗「接受」/取消时的 false）。</summary>
+        internal void SendRankedAck(bool accepted)
+            => _client?.Send(NetworkMessageType.RankedAck, new MsgRankedAck { Accepted = accepted });
 
         /// <summary>局域网昵称（2026-11-10 定案）：v2 无昵称输入框——首用「玩家{随机}」并在
         /// _lastNickname 稳定保持（开房/信标/回环入座多次解析须同名；重进屏沿用上次）。
@@ -377,7 +427,8 @@ namespace SynergyUI
                 _selfHintLabel.text = loggedIn
                     ? "登录账号可跨网络联机与排位"
                     : "登录 TapTap 后可跨网络联机与排位";
-            if (_rankedStateLabel != null) _rankedStateLabel.text = "排位赛即将开放";
+            RefreshRankedStateLabel();
+            RefreshNormalGate(); // 排位须登录——登录态变化联动按钮门禁
         }
 
         /// <summary>卡组池刷新（S6a ④；OnEnter 调）：DeckCatalog 全量过滤预组、按名排序、
@@ -390,13 +441,51 @@ namespace SynergyUI
                 .OrderBy(d => d.name, StringComparer.CurrentCulture)
                 .ToList();
             SelectedDeck = _decks.FirstOrDefault(d => d.name == _lastSelectedDeckName);
+            RefreshSelectedFingerprint(); // S8：指纹随选中刷新（排位页胜率/JoinOptions/信标共用）
             RebuildDeckRows();
-            bool empty = _decks.Count == 0;
-            if (_deckEmptyLabel != null) _deckEmptyLabel.gameObject.SetActive(empty);
-            if (_createRoomBtn != null) _createRoomBtn.interactable = !empty;
-            if (_refreshBtn != null) _refreshBtn.interactable = !empty;
-            if (_rankedStartBtn != null) _rankedStartBtn.interactable = !empty;
+            RefreshNormalGate();
             UpdateRankedDeckLabel();
+        }
+
+        /// <summary>选中卡组指纹刷新（S8：DeckRatingStore 三段口径；无选中=空串）。</summary>
+        private void RefreshSelectedFingerprint()
+        {
+            var deck = SelectedDeck;
+            _selectedFingerprint = deck != null
+                ? DeckRatingStore.FingerprintOf(deck.cardIds, deck.tokenCardIds, deck.tokenBindings)
+                : "";
+        }
+
+        /// <summary>常规页门禁（S6a 空态 + S9 匹配中置灰：创建/刷新不可点——匹配期间不能进常规房间）。</summary>
+        private void RefreshNormalGate()
+        {
+            bool empty = _decks == null || _decks.Count == 0;
+            bool blocked = empty || RankedMatchmaking.IsBusy;
+            if (_createRoomBtn != null) _createRoomBtn.interactable = !blocked;
+            if (_refreshBtn != null) _refreshBtn.interactable = !blocked;
+            if (_rankedStartBtn != null)
+                _rankedStartBtn.interactable = !empty && !RankedMatchmaking.IsBusy
+                    && (_tapSection != null && _tapSection.IsLoggedIn); // S8 定案：排位必须登录
+        }
+
+        /// <summary>排位页状态行（S8：由 RankedMatchmaking.StateChanged/进场刷新）。</summary>
+        private void RefreshRankedStateLabel()
+        {
+            if (_rankedStateLabel == null) return;
+            _rankedStateLabel.text = RankedMatchmaking.State switch
+            {
+                RankedMatchState.Searching => "匹配中…（同率优先，10s 后放宽）",
+                RankedMatchState.Matched => "已匹配对手——5 秒内点浮窗「接受」",
+                RankedMatchState.Accepted => "已接受——等待对手…",
+                _ => _tapSection != null && _tapSection.IsLoggedIn ? "未在匹配" : "排位需要 TapTap 登录",
+            };
+        }
+
+        /// <summary>匹配状态迁移回调（S8：门禁+排位页刷新）。</summary>
+        private void OnRankedStateChanged()
+        {
+            RefreshNormalGate();
+            RefreshRankedStateLabel();
         }
 
         /// <summary>重建卡组行（动态行挂 list-decks 的 content；行=圆角底+名字+费用分布 9 柱，
@@ -463,6 +552,7 @@ namespace SynergyUI
         {
             SelectedDeck = deck;
             _lastSelectedDeckName = deck != null ? deck.name : "";
+            RefreshSelectedFingerprint(); // S8：指纹/胜率随选中联动
             for (int i = 0; i < _deckRowBgs.Count && i < _decks.Count; i++)
                 if (_deckRowBgs[i] != null)
                     _deckRowBgs[i].color = _decks[i] == deck ? UiStyle.SelectedRowBg : UiStyle.RowBg;
@@ -470,11 +560,110 @@ namespace SynergyUI
             if (deck != null) SetStatus($"已选择卡组「{deck.name}」");
         }
 
-        /// <summary>排位页出战卡组联动（S6a：占位展示；S7 随 JoinRoom 上报）。</summary>
+        /// <summary>排位页出战卡组+胜率（S8 真数据：指纹键取 DeckRatingStore——改卡=指纹变=胜率归零）。</summary>
         private void UpdateRankedDeckLabel()
         {
             if (_rankedDeckLabel != null)
                 _rankedDeckLabel.text = SelectedDeck != null ? $"出战卡组：{SelectedDeck.name}" : "未选择卡组";
+            if (_rankedRateLabel != null)
+                _rankedRateLabel.text = SelectedDeck != null ? DeckRatingStore.Describe(_selectedFingerprint) : "";
+        }
+
+        // ============================================================ 右栏：对战历史（S6c——EncounterStore 列表/选中/复制对手卡组） ============================================================
+
+        /// <summary>历史列表刷新（S6c；OnEnter 调——战斗返回重新 OnEnter 天然刷新）：
+        /// finishedAtUnix 倒序（最新在前）；空态=提示行。</summary>
+        private void RefreshHistory()
+        {
+            var records = EncounterStore.LoadAll()
+                .Where(r => r != null)
+                .OrderByDescending(r => r.finishedAtUnix)
+                .ToList();
+            _selectedRecord = null; // 列表重建——选中态不跨刷新保留
+            _historyRecords.Clear();
+            _historyRowBgs.Clear();
+            UpdateCopyDeckButton();
+            if (_historyList == null) return;
+            for (int i = _historyList.childCount - 1; i >= 0; i--)
+                UnityEngine.Object.Destroy(_historyList.GetChild(i).gameObject);
+            if (records.Count == 0)
+            {
+                UiKit.Label("lbl-history-empty", _historyList, "暂无对战记录——联机对局结束后自动入账",
+                    14, UiStyle.TextFaint, wrap: true);
+                return;
+            }
+            for (int i = 0; i < records.Count; i++)
+                BuildHistoryRow(records[i], i);
+        }
+
+        /// <summary>历史行（S6c）：圆角底 64 高，主列=胜负·对手名（胜 ToastGreen/负 ErrorRed）+
+        /// 双方卡组「A」 vs 「B」，右侧时间 MM-dd HH:mm；整行可点选中。</summary>
+        private void BuildHistoryRow(EncounterRecord record, int index)
+        {
+            var row = UiKit.Row("history-" + index, _historyList, spacing: 8f);
+            UiKit.Size(row, fw: 1f, h: 64f);
+            var bg = UiKit.BgRow(row, UiStyle.RowBg);
+            bg.raycastTarget = true; // 整行点击
+            _historyRecords.Add(record);
+            _historyRowBgs.Add(bg);
+            var main = UiKit.Column("col-main", row, spacing: 2f);
+            UiKit.Size(main, fw: 1f); // 主列弹性占宽，时间靠右
+            UiKit.Label("lbl-result", main,
+                $"{(record.win ? "胜" : "负")} · {record.opponentName}", 16,
+                record.win ? UiStyle.ToastGreen : UiStyle.ErrorRed, style: FontStyle.Bold);
+            UiKit.Label("lbl-decks", main,
+                $"「{record.ownDeckName}」 vs 「{record.opponentDeckName}」", 16, UiStyle.TextDim, wrap: true);
+            var time = DateTimeOffset.FromUnixTimeSeconds(record.finishedAtUnix).LocalDateTime;
+            UiKit.Label("lbl-time", row, time.ToString("MM-dd HH:mm"), 16, UiStyle.TextFaint);
+            var captured = record;
+            var click = row.gameObject.AddComponent<UnityEngine.UI.Button>();
+            click.targetGraphic = bg;
+            click.onClick.AddListener(() => SelectRecord(captured));
+        }
+
+        /// <summary>选中历史行（S6c）：底色 SelectedRowBg + 记 _selectedRecord + 复制按钮解禁。</summary>
+        private void SelectRecord(EncounterRecord record)
+        {
+            _selectedRecord = record;
+            for (int i = 0; i < _historyRowBgs.Count && i < _historyRecords.Count; i++)
+                if (_historyRowBgs[i] != null)
+                    _historyRowBgs[i].color = _historyRecords[i] == record
+                        ? UiStyle.SelectedRowBg
+                        : UiStyle.RowBg;
+            UpdateCopyDeckButton();
+        }
+
+        /// <summary>复制对手卡组按钮态（S6c）：选中且 opponentCardIds 非空才可点。</summary>
+        private void UpdateCopyDeckButton()
+        {
+            if (_copyDeckBtn == null) return;
+            _copyDeckBtn.interactable = _selectedRecord != null
+                && _selectedRecord.opponentCardIds != null
+                && _selectedRecord.opponentCardIds.Length > 0;
+        }
+
+        /// <summary>复制对手卡组（S6c：btn-copy-deck）：确认框 → 复用 OpponentDeckImporter.Import
+        ///（包合成/upsert/卡组落库一条不改）→ 结果框（同 MatchHistoryScreen 口径）。</summary>
+        private void ImportSelectedRecord()
+        {
+            var r = _selectedRecord;
+            if (r == null) return; // 按钮已置灰——防御
+            UiKit.ConfirmBox(Root, "复制对手卡组",
+                $"将把对手 {r.opponentName} 的卡组「{r.opponentDeckName}」及其自建卡/效果导入本地"
+                + "（本地已有同 ID 内容保留本地版本）。确认导入？",
+                "导入", ImportSelectedRecordCore,
+                "取消", null, danger: false);
+        }
+
+        private void ImportSelectedRecordCore()
+        {
+            string error = OpponentDeckImporter.Import(_selectedRecord, out var summary);
+            if (error != null)
+            {
+                UiKit.ConfirmBox(Root, "导入失败", error, "知道了", null, "关闭", null, danger: true);
+                return;
+            }
+            UiKit.ConfirmBox(Root, "复制对手卡组", summary ?? "导入完成。", "好的", null, "关闭", null, danger: false);
         }
 
         // ============================================================ 局域网自动发现（2026-10-28：房主 LanRoomBeacon 应答 + 客人 LanRoomScanner 探测） ============================================================
@@ -488,7 +677,10 @@ namespace SynergyUI
             _beacon.Start(); // UDP/TCP 全绑定失败也继续建房——手输 IP 路径不受影响
         }
 
-        /// <summary>信标 payload 快照刷新（主线程调用；格式 ver|roomId|hostNick|tcpPort|seats|phase）。</summary>
+        /// <summary>信标 payload 快照刷新（主线程调用；格式
+        /// ver|roomId|hostNick|tcpPort|seats|phase|roomName|hasPwd|ranked|fingerprint|rate——
+        /// S6b ver2 房名+密码标志；S8 ver3 排位三段。房名内段分隔符替换全角；指纹段用「:」内联无冲突；
+        /// 常规 LAN 房 ranked 恒 0（排位必须 TapTap 登录——S8 定案，信标位保留为协议完整）。</summary>
         private void UpdateBeaconPayload()
         {
             if (_server == null) return;
@@ -499,7 +691,9 @@ namespace SynergyUI
             if (_roomState?.Players != null)
                 foreach (var pl in _roomState.Players)
                     if (pl != null && pl.Connected) seated++;
-            _beaconPayload = $"1|p2p|{_lastNickname}|{_server.Port}|{seated}/2|{phase}";
+            var roomName = (_lanRoomName ?? "").Replace("|", "｜"); // 段分隔守卫——房名自由文本
+            _beaconPayload = $"3|p2p|{_lastNickname}|{_server.Port}|{seated}/2|{phase}|{roomName}|{(_lanRoomHasPassword ? 1 : 0)}"
+                + "|0||-1"; // S8 ver3：ranked=0/fp 空/rate=-1（LAN 排位不可达——定案 2）
         }
 
         /// <summary>客人侧：进加入面板即扫描；唯一房间自动直入（加入不应自己找房主——2026-10-28 定案）。</summary>
@@ -568,7 +762,11 @@ namespace SynergyUI
             for (int i = 0; i < rooms.Count; i++)
             {
                 var entry = rooms[i];
-                UiKit.Button("room-" + i, _roomList, $"加入 {entry.HostNick} 的房间（{entry.Seats}）",
+                // S6b：ver2 信标带房名/密码标志——行文案与 TapTap 列表同构；旧信标（无房名）回退昵称
+                var display = !string.IsNullOrEmpty(entry.RoomName)
+                    ? entry.RoomName
+                    : $"{entry.HostNick} 的房间";
+                UiKit.Button("room-" + i, _roomList, $"{display}（{entry.Seats}）" + (entry.HasPassword ? "·有密码" : ""),
                     () => ConnectToRoom(entry.Host, entry.TcpPort, entry.HostNick), UiStyle.BtnPrimary,
                     height: 44f, fontSize: 16); // S3：基准按钮规格
             }
@@ -596,7 +794,8 @@ namespace SynergyUI
             }
         }
 
-        /// <summary>拉 TapTap 公开房间列表（S6b）：满员/ranked 已在段侧滤；状态写 lbl-rooms-count。</summary>
+        /// <summary>拉 TapTap 公开房间列表（S6b/S8）：段侧只滤满员（ranked 房带元数据返回——
+        /// 常规行构建时 UI 侧滤 Ranked，排位匹配器专用候选）；状态写 lbl-rooms-count。</summary>
         private async UniTaskVoid RefreshTapRoomsAsync()
         {
             if (_tapSection == null || _tapListBusy) return;
@@ -623,17 +822,20 @@ namespace SynergyUI
             finally { _tapListBusy = false; }
         }
 
-        /// <summary>TapTap 房间行动态构建（挂 list-rooms content；有密码房行尾标注）。</summary>
+        /// <summary>TapTap 房间行动态构建（挂 list-rooms content；有密码房行尾标注；
+        /// ranked 房不进常规列表——S8 排位走匹配器双接受流）。</summary>
         private void RefreshTapRoomRows(List<TapRoomEntry> rooms)
         {
             ClearRoomRows();
-            for (int i = 0; i < rooms.Count; i++)
+            int row = 0;
+            foreach (var entry in rooms)
             {
-                var entry = rooms[i];
-                UiKit.Button("tap-room-" + i, _roomList,
+                if (entry.Ranked) continue; // S8：排位房只做匹配候选，不列常规列表
+                UiKit.Button("tap-room-" + row, _roomList,
                     $"{entry.Name}（{entry.PlayerCount}/{entry.MaxPlayerCount}）" + (entry.HasPassword ? "·有密码" : ""),
                     () => JoinTapEntryAsync(entry).Forget(),
                     height: 44f, fontSize: 16);
+                row++;
             }
         }
 
@@ -641,6 +843,8 @@ namespace SynergyUI
         /// 进房协议（Password/DeckName）走 AdoptClientAndJoin 统一口；失败 SetError 留在列表。</summary>
         private async UniTaskVoid JoinTapEntryAsync(TapRoomEntry entry)
         {
+            if (RankedMatchmaking.IsBusy) { SetError("排位匹配进行中——请先在浮窗取消匹配"); return; } // S9
+            if (entry.Ranked) return; // 排位房不进常规列表流（S8：排位走匹配器双接受）
             if (SelectedDeck == null) { SetError("请先在左侧选择一套卡组"); return; } // S6b：无卡组不能加入
             if (_tapSection == null || string.IsNullOrEmpty(entry.RoomId)) return;
             string pwd = RoomPasswordInput;
@@ -652,7 +856,7 @@ namespace SynergyUI
                 return; // 留在列表
             }
             BeginGuestSession($"TapTap 房间「{entry.Name}」", "TapTap 房间");
-            AdoptClientAndJoin(client, wantSeat: -1, ResolveOnlineNickname(), pwd, SelectedDeck.name);
+            AdoptClientAndJoin(client, wantSeat: -1, ResolveOnlineNickname(), BuildJoinOptions(pwd));
         }
 
         /// <summary>按发现结果直连（房间列表/唯一房间自动直入共用；手动 IP 路径已退役）。
@@ -660,10 +864,11 @@ namespace SynergyUI
         private void ConnectToRoom(string host, int port, string hostNick)
         {
             StopScan();
+            if (RankedMatchmaking.IsBusy) { SetError("排位匹配进行中——请先在浮窗取消匹配"); return; } // S9
             if (SelectedDeck == null) { SetError("请先在左侧选择一套卡组"); return; } // S6b：无卡组不能加入
             SetStatus($"发现房间（{(string.IsNullOrEmpty(hostNick) ? host : hostNick)}），正在加入 {host}:{port} …");
             BeginGuestSession($"目标（自动发现）：{host}:{port}", "局域网房间");
-            ConnectAsync(host, port, wantSeat: -1, password: RoomPasswordInput).Forget();
+            ConnectAsync(host, port, wantSeat: -1, opts: BuildJoinOptions()).Forget();
         }
 
         // ============================================================ TapTap 桥装段与跨程序集会话助手（Tide.TapTap 的 TapLobbySection 经此驱动本屏；跨程序集须 public） ============================================================
@@ -700,9 +905,9 @@ namespace SynergyUI
 
         /// <summary>房主回环入座（127.0.0.1，后台线程连接避免 UI 卡帧；LAN/TapTap 建房同路）。
         /// nickname 缺省=局域网解析；TapTap 建房传入登录昵称（S1 昵称来源定案）。
-        /// password（S6b）：自家房间密码——回环入座同受 NetRoom 门禁；卡组名取 SelectedDeck。</summary>
-        public void ConnectLoopback(int port, string nickname = null, string password = null)
-            => ConnectAsync("127.0.0.1", port, wantSeat: 0, nickname, password).Forget();
+        /// opts（S6b/S8）：自家密码（回环入座同受门禁）/排位三件。</summary>
+        public void ConnectLoopback(int port, string nickname = null, JoinOptions opts = null)
+            => ConnectAsync("127.0.0.1", port, wantSeat: 0, nickname, opts).Forget();
 
         public void ShowEntryPanel() => ShowPanel(_panelNormal); // v2：入口页=普通页（跨程序集兼容名保留）
         public void ShowRoomPanel() => ShowPanel(_panelRoom);
@@ -733,10 +938,18 @@ namespace SynergyUI
         {
             _roomState = room;
             UpdateBeaconPayload(); // 座位/阶段变化刷新信标快照（主线程）
+            RankedMatchmaking.OnRoomState(room); // S8：排位双座满 → 5s 接受窗（非匹配态内部自滤）
 
-            // 房主开局 → 选卡组相位（先手已定+30s 倒计时）：双方移交战场走五段式（掷币+选卡组+握手）
+            // 房主开局 → 选卡组相位（先手已定+30s 倒计时）。S7a（2026-11-10 跳过战斗选卡组）：
+            // 先用大厅选中卡组**提前提交** DeckSubmit（公共提交器——payload/digest 单源），
+            // 战斗屏五段式跳过段四不再弹选卡面板；提交失败（理论不可达——进房门禁已拦无卡组）
+            // 走服务器 30s 代提兜底，移交照常。
             if (room.Phase == (int)NetRoomPhase.DeckSubmit && !_handedOver)
             {
+                if (SelectedDeck != null && NetDeckSubmit.Send(_client, SelectedDeck))
+                    BattleEntry.NetDeckSubmitted = true;
+                else
+                    TideLog.Warn("[Lobby] S7a 提前提交失败（无选中卡组？）——依赖服务器 30s 代提兜底");
                 HandOverToBattle(room);
                 return;
             }
@@ -923,6 +1136,7 @@ namespace SynergyUI
         {
             if (_client == null) return;
             _handedOver = true;
+            RankedMatchmaking.OnBattleHandedOver(); // S8：排位匹配完成——关浮窗回 Idle（指纹留作终局记账）
             UnwireClientEvents(_client); // 战斗屏接手下行事件（含 manifest 校验——选卡组确认后到）
             int mySeat = MySeatOf(room);
             bool coinMode = room.FirstMoveMode == 0;
@@ -932,7 +1146,7 @@ namespace SynergyUI
             BattleEntry.Mode = BattleMode.Network;
             BattleEntry.Client = _client;
             BattleEntry.Nickname = _lastNickname;
-            BattleEntry.StagedOpening = true; // 网络五段式（2026-10-28：掷币+战场选卡组）
+            BattleEntry.StagedOpening = true; // 网络五段式（2026-10-28：掷币+选卡组；S7a 已提前提交时段四跳过）
             BattleEntry.NetCoinToss = coinMode;
             BattleEntry.NetPlayerFirst = playerFirst;
             SetStatus("房主已开局——进入战场（掷币+选卡组）");
@@ -949,6 +1163,9 @@ namespace SynergyUI
                 TeardownSession();
                 ResetToEntry();
             }
+            // S8：排位未接受/超时（服务器已断开）——匹配状态收敛回 Idle（不自动重排）
+            if (err.Context == "Ranked")
+                RankedMatchmaking.NotifyError();
         }
 
         private void OnDisconnected()
@@ -984,8 +1201,9 @@ namespace SynergyUI
             ShowPanel(_panelNormal); // v2：回中栏普通页
         }
 
-        /// <summary>拆本屏持有的会话（连接+房主服务器+AI 填位+TapTap 房间态）。</summary>
-        private void TeardownSession()
+        /// <summary>拆本屏持有的会话（连接+房主服务器+AI 填位+TapTap 房间态）。
+        /// internal=S8：RankedMatchmaking 拆自开等待房/断候选连接同用本口。</summary>
+        internal void TeardownSession()
         {
             if (_client != null)
             {

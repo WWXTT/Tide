@@ -364,6 +364,8 @@ namespace CardCore.Serialization
         public const int MMS_Effects = -2090101919;
         public const int MMS_AtomRows = 1250763953;
         public const int MMS_Log = 219159277;    // 战报 markdown 全文（服务器渲染——客人端无本地引擎）
+        public const int MMS_Ranked = 1261688995; // S8：排位局记账标记（同上配方实算）
+        public const int MMM_OpponentCostHistogram = -1156878767; // S7b：对手费用直方图（DSH 同源 Hash32 实算抄入·零撞号）
 
         // ---- MsgError ----
         public const int MErr_Reason = 259789666;
@@ -381,6 +383,13 @@ namespace CardCore.Serialization
         // 「Tools/刷新属性排序」——该工具会按自己的字面表重写全部常量，冲掉本表既有手工值（已踩）。
         public const int MJR_Password = 1021396469; // S5：房间密码（空=无密码）
         public const int MJR_DeckName = 1371443254; // S5：进房上报的选中卡组名
+        // S8（2026-11-10）排位模式：值=同上配方实算（已核零撞号）
+        public const int MJR_Ranked = 653408864;          // S8：排位房进房标记
+        public const int MJR_DeckFingerprint = 605637085; // S8：卡组内容指纹（排位匹配/记账键）
+        public const int MJR_WinRate = 1410631775;        // S8：胜率千分比（-1=无战绩）
+
+        // ---- MsgRankedAck ----
+        public const int MRA_Accepted = 961448421; // S8：排位接受应答（同上配方实算）
 
         // ---- MsgRoomState ----
         public const int MRS_RoomId = 2098723049;

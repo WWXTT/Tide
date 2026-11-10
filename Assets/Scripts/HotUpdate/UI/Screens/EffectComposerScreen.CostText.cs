@@ -317,19 +317,20 @@ namespace SynergyUI
             return "";
         }
 
-        /// <summary>附加诅咒/祝福附加费标量（双通道）：效果引用（str）按引用效果锚价 ceil 减半；
-        /// 旧 Then 原子列按首奖励原子推导费减半（与卡价 CursePayloadFullCost 同口径——EffectId 优先）。</summary>
+        /// <summary>附加诅咒/祝福附加费标量（2026-11-10 双通道）：效果引用（branch.effectId 优先，
+        /// legacy atom.str 兼容）+ Then 原子 合计后 ceil 减半——与 CostDerivation.CursePayloadFullCost 同口径。</summary>
         private static float CurseSurchargeHalfOf(AtomicEffectEntry atom, BranchEntryData b)
         {
-            if (!string.IsNullOrEmpty(atom?.str))
-            {
-                var full = CostDerivationService.ReferencedEffectCostByColor(atom.str);
-                return (float)Math.Ceiling(full.Total / 2f);
-            }
-            var inst = b?.then != null && b.then.Count > 0 ? CardEffectConverter.ConvertAtomForUI(b.then[0]) : null;
-            return inst != null
-                ? CostDerivationService.EngineBranchSurchargeHalf(new List<AtomicEffectInstance> { inst })
-                : 0f;
+            var fxId = !string.IsNullOrEmpty(b?.effectId) ? b.effectId : atom?.str;
+            var insts = new List<AtomicEffectInstance>();
+            if (b?.then != null)
+                foreach (var t in b.then)
+                {
+                    var inst = CardEffectConverter.ConvertAtomForUI(t);
+                    if (inst != null) insts.Add(inst);
+                }
+            float full = CostDerivationService.BranchRewardDerivedCost(insts, fxId);
+            return full > 0f ? (float)Math.Ceiling(full / 2f) : 0f;
         }
 
         /// <summary>全部校验区合规（无副作用查询：只跑 Check 判空，不动红框/错误标签——与 ValidateZones 互不干扰）。</summary>

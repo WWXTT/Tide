@@ -1,5 +1,5 @@
 {
-  "_Des": "时机系数权重表 v0.1（2026-11-10 定案）。f = min(E[N], Cutoff)；E[N] 单次档=p、周期观察族=Lambda*L、攻守横置族=Lambda*Lc。Base=典型耐久（次数天花板），DurabilitySharePerTrigger=每次触发消耗的耐久比例（D*share=1 次）。规格见 docs/时机系数规格_v0.1.md",
+  "_Des": "时机系数权重表 v0.2（2026-11-10 用户定案 B·箭头版）。f = 1.2 ^ (E[N] − 1)（Expected 预估触发次数；与连接箭头 ×1.2^(n−1) 完全同构：1 次=1、2 次=1.2），旧 f=min(E[N],Cutoff) 线性封顶废止。E[N] 单次档=p、周期观察族=Lambda*L、攻守横置族=Lambda*Lc。Factor 列仅留档/展示，计价读 Expected。Base=典型耐久，DurabilitySharePerTrigger=每次触发消耗的耐久比例（D*share=1 次）。规格见 docs/时机系数规格_v0.1.md",
   "Base": 3.0,
   "Cutoff": 3.0,
   "DurabilitySharePerTrigger": 0.3333333,

@@ -368,13 +368,11 @@ namespace CardCore
                     if (eff == null) continue;
                     foreach (var atom in EnumerateAtomEntries(eff))
                     {
-                        // 引擎分支收口（2026-11-08 阶段3 曾限「奖励只允许效果引用」；**2026-11-10 R4
-                        // 双通道修订**）：settle=Engine 的分支——then 原子列与 effectId 效果引用至少
-                        // 一个（附加诅咒/祝福 str 旧手写通道同判）→ 全空 Error；effectId 须在效果库
-                        // 解析且通过奖励资格（R4 单谓词 BranchRewardRejectReason——任意发动档的并列
-                        ///无代价/无嵌套分支/无无域原子效果）。then 原子照走通用奖励资格（CanBeRewardRow
-                        // 构筑期校验，见 ValidateEffectShape）；自动三外层时机=引擎评估窗口由玩家声明，
-                        // 不再要求与奖励效果时机一致（主动效果作奖励时机恒不匹配=永不触发的死档）。
+                        // 引擎分支收口（2026-11-10 用户定案重写）：
+                        // · 自由分支前 6 种（倒计时/运势/拼枪/死亡计数/元素充盈/团结）：奖励=**单个原子**，
+                        //   禁止 effectId/str 效果引用；原子行须可作奖励。
+                        // · 附加诅咒/祝福：原子 Then（≤1）+ 主动·并列效果引用 双通道，至少一个；
+                        //   引用须在效果库解析、主动发动、并列形状（无代价/无嵌套/无无域/≤2 原子）、极性匹配。
                         // 命中引擎闸即跳过下方通用段，防同因双报。
                         var branch = atom?.branch;
                         if (branch != null && branch.settle == (int)BranchSettleKind.Engine)
@@ -383,22 +381,91 @@ namespace CardCore
                             var engZh = ComposerCatalog.EngineZhOf(eng);
                             bool hasThen = branch.then != null && branch.then.Count > 0;
                             var engFx = !string.IsNullOrEmpty(branch.effectId) ? branch.effectId : atom.str;
-                            if (!hasThen && string.IsNullOrEmpty(engFx))
-                                TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}：{engZh}分支"
-                                              + "缺少奖励（then 原子列 / effectId 效果引用至少一个；附加诅咒/祝福 str 通道同判）"
-                                              + "——装载期拦截");
-                            else if (!string.IsNullOrEmpty(branch.effectId))
+                            var engRow = Attribute.AtomicEffectTable.GetByHashId(atom?.refId);
+                            if (ComposerCatalog.IsAtomOnlyEngine(eng))
                             {
-                                var engReward = EffectsLibrary.Resolve(branch.effectId);
-                                if (engReward == null)
+                                if (!hasThen)
                                     TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}：{engZh}分支"
-                                                  + $"奖励效果 '{branch.effectId}' 未能在效果库解析到条目 id——装载期拦截");
+                                                  + "缺少原子奖励（前 6 引擎奖励=单个原子，禁止组合效果引用）——装载期拦截");
+                                else if (branch.then.Count > 1)
+                                    TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}：{engZh}分支"
+                                                  + $"携带 {branch.then.Count} 个原子奖励——前 6 引擎只收单个原子——装载期拦截");
+                                else if (!string.IsNullOrEmpty(branch.effectId) || !string.IsNullOrEmpty(atom.str))
+                                    TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}：{engZh}分支"
+                                                  + "带效果引用（effectId/str）——前 6 引擎只收原子，组合效果请改用并列/有限分支/光环——装载期拦截");
                                 else
                                 {
-                                    var engReason = EffectEligibility.BranchRewardRejectReason(engReward);
-                                    if (engReason != null)
+                                    var rewardRow = Attribute.AtomicEffectTable.GetByHashId(branch.then[0]?.refId);
+                                    if (rewardRow == null)
                                         TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}：{engZh}分支"
-                                                      + $"奖励效果 '{branch.effectId}' 不符合奖励资格——{engReason}（装载期拦截）");
+                                                      + $"奖励原子 {branch.then[0]?.refId} 不在原子表——装载期拦截");
+                                    else if (!ComposerCatalog.CanBeRewardRow(rewardRow))
+                                        TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}：{engZh}分支"
+                                                      + $"奖励原子 {rewardRow.DisplayName} 无奖励资格（引擎行/场地光环/动态费用）——装载期拦截");
+                                    else
+                                    {
+                                        // 2026-11-10：引擎门槛 x 还要过引擎自身的机制上限（充盈差值/死亡计数
+                                        // 满值=6）——奖励费×时机系数推过上限即条件永远不可达（死档）。
+                                        int engineCap = ComposerCatalog.EngineThresholdCap(eng);
+                                        if (engineCap > 0)
+                                        {
+                                            var rewardInst = CardEffectConverter.ConvertAtomForUI(branch.then[0]);
+                                            if (rewardInst != null)
+                                            {
+                                                int x = CostDerivationService.EngineRewardThreshold(
+                                                    new List<AtomicEffectInstance> { rewardInst },
+                                                    (TriggerTiming)eff.TriggerTiming);
+                                                if (x > engineCap)
+                                                    TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}：{engZh}分支"
+                                                                  + $"门槛 x={x} 超过引擎自身上限 {engineCap}——条件永远不可达（死档）"
+                                                                  + "；请降奖励数值/换更便宜原子或换时机——装载期警告");
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            else if (ComposerCatalog.IsCursePayloadEngine(eng))
+                            {
+                                if (!hasThen && string.IsNullOrEmpty(engFx))
+                                    TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}：{engZh}分支"
+                                                  + "缺少载荷（原子 / 主动·并列效果引用至少一个）——装载期拦截");
+                                if (branch.then != null && branch.then.Count > 1)
+                                    TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}：{engZh}分支"
+                                                  + $"载荷原子 {branch.then.Count} 个——只收单个原子（并列组合走效果引用）——装载期拦截");
+                                if (hasThen)
+                                {
+                                    var payloadCfg = Attribute.AtomicEffectTable.GetByHashId(branch.then[0]?.refId);
+                                    if (payloadCfg == null)
+                                        TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}：{engZh}分支"
+                                                      + $"载荷原子 {branch.then[0]?.refId} 不在原子表——装载期拦截");
+                                    else
+                                    {
+                                        if (!ComposerCatalog.CanBeRewardRow(payloadCfg))
+                                            TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}：{engZh}分支"
+                                                          + $"载荷原子 {payloadCfg.DisplayName} 无奖励资格——装载期拦截");
+                                        bool wantPositive = eng == BranchEngineKind.BlessingOnDraw;
+                                        bool positive = payloadCfg.Polarity >= 0.5f, negative = payloadCfg.Polarity <= -0.5f;
+                                        if ((wantPositive && !positive) || (!wantPositive && !negative))
+                                            TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}：{engZh}分支"
+                                                          + $"载荷原子 {payloadCfg.DisplayName} 极性不匹配（祝福只收 +1 / 诅咒只收 −1）——装载期拦截");
+                                    }
+                                }
+                                if (!string.IsNullOrEmpty(engFx))
+                                {
+                                    var payloadData = EffectsLibrary.Resolve(engFx);
+                                    if (payloadData == null)
+                                        TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}：{engZh}分支"
+                                                      + $"载荷效果 '{engFx}' 未能在效果库解析到条目 id——装载期拦截");
+                                    else
+                                    {
+                                        var curseReason = EffectEligibility.CursePayloadRejectReason(
+                                            payloadData, engRow?.Polarity ?? 0f);
+                                        var parallelReason = EffectEligibility.BranchRewardRejectReason(payloadData);
+                                        var reason = curseReason ?? parallelReason;
+                                        if (reason != null)
+                                            TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}：{engZh}分支"
+                                                          + $"载荷效果 '{engFx}' 不符合资格——{reason}（装载期拦截）");
+                                    }
                                 }
                             }
                         }
@@ -463,7 +530,8 @@ namespace CardCore
                                               + "——装载期拦截");
                             else
                             {
-                                var reason = EffectEligibility.CursePayloadRejectReason(payloadData, row.Polarity);
+                                var reason = EffectEligibility.CursePayloadRejectReason(payloadData, row.Polarity)
+                                             ?? EffectEligibility.BranchRewardRejectReason(payloadData);
                                 if (reason != null)
                                     TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}："
                                                   + $"原子行「{row.DisplayName}」的载荷效果 '{atom.str}' 不符合附加诅咒/祝福"

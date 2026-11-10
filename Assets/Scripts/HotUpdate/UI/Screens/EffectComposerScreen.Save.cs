@@ -292,6 +292,17 @@ namespace SynergyUI
                 header = header,
                 steps = steps ?? new List<EffectStepData>(),
             };
+            // 2026-11-10：诅咒/祝福 legacy atom.str（效果 id）归一进 branch.effectId——新「载荷效果」行
+            // 读 branch.effectId；保留 atom.str 供 converter 旧通道兜底。
+            foreach (var s in graph.steps)
+            {
+                var a = s?.kind == 0 ? s.atomic : null;
+                var b = a?.branch;
+                if (b == null || b.settle != (int)BranchSettleKind.Engine) continue;
+                var ek = (BranchEngineKind)b.engine;
+                if (!ComposerCatalog.IsCursePayloadEngine(ek)) continue;
+                if (string.IsNullOrEmpty(b.effectId) && !string.IsNullOrEmpty(a.str)) b.effectId = a.str;
+            }
             note = NormalizeLoadedGraph(graph);
             return graph;
         }
@@ -320,10 +331,13 @@ namespace SynergyUI
             if (IsAuraMode(InferMode(_graph))) return;
             var steps = _graph.steps ?? new List<EffectStepData>();
             var trunks = steps.Where(s => s?.kind == 0 && s.atomic != null).ToList();
-            if (trunks.Count != 1 || trunks[0].atomic.branch != null) return; // 并列两槽/已有分支不承载
+            // 2026-11-10：有限分支第一槽可 1~2 原子；代价门挂最后一个原子。
+            if (trunks.Count < 1 || trunks.Count > 2) return;
+            if (trunks.Any(t => t.atomic.branch != null)) return; // 已有分支（普通门）不承载代价
+            var last = trunks[trunks.Count - 1].atomic;
             var copy = JsonUtility.FromJson<ListAtomWrap>(
                 JsonUtility.ToJson(new ListAtomWrap { items = payloads })).items;
-            trunks[0].atomic.branch = new BranchEntryData
+            last.branch = new BranchEntryData
             {
                 settle = (int)BranchSettleKind.Gate,
                 gateId = ComposerCatalog.CostGateId,
@@ -331,7 +345,7 @@ namespace SynergyUI
             };
             // 未改动快照（保存/槽区校验的零漂移豁免依据）
             _costGateOriginalJson = JsonUtility.ToJson(
-                new ListAtomWrap { items = trunks[0].atomic.branch.then });
+                new ListAtomWrap { items = last.branch.then });
         }
 
         [Serializable]
@@ -444,17 +458,8 @@ namespace SynergyUI
                 notes.Add($"主干超两槽——已截断保留前 {ParallelSlotCount}（丢弃 {trunks - ParallelSlotCount} 个）");
             }
 
-            // 并列/分支互斥归一（2026-10-09 定案）：并列图两槽齐=并列形态——槽级 branch 载荷一律拆除
-            //（含 kind=1 折叠产物与引擎行残留：分支只存活于单原子形态；第二槽引擎行拆成裸原子，用户可手删）
-            if (!auraGraph && steps.Count >= ParallelSlotCount)
-            {
-                int clearedBranches = 0;
-                foreach (var s in steps)
-                    if (s?.kind == 0 && s.atomic?.branch != null)
-                    { s.atomic.branch = null; clearedBranches++; }
-                if (clearedBranches > 0)
-                    notes.Add($"并列两槽与分支互斥——已拆除 {clearedBranches} 槽残留分支载荷");
-            }
+            // 2026-11-10 用户定案：有限分支第一槽可 1~2 原子，门/奖励挂最后一个原子——
+            // 两原子 + 分支是合法形态，不再执行"并列两槽拆分支"归一（旧口径已废）。
             return notes.Count > 0 ? string.Join("；", notes) : null;
         }
 

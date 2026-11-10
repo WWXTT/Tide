@@ -23,12 +23,14 @@ namespace SynergyUI.Online
         public bool IsLoggedIn => !string.IsNullOrEmpty(TapLobbyController.LoginName);
         public string LoginName => TapLobbyController.LoginName;
         public string LastError => TapLobbyController.LastError;
+        public string LastCreatedRoomId => TapLobbyController.LastCreatedRoomId;
 
         public async UniTask<string> EnsureLoginAsync()
             => await TapLobbyController.EnsureLoginAndConnectAsync();
 
-        /// <summary>公开房间列表（S6b 双源）：滤满员房与 ranked 房（排位 S8 才有——普通列表不显示），
-        /// RoomBasicInfo → 中性 TapRoomEntry（HasPassword 由 customProperties 带 pwd 判定）。</summary>
+        /// <summary>公开房间列表（S6b/S8）：滤满员；**含 ranked 房及其元数据**（customProperties
+        /// 同义 JSON：ranked/fp/rate）——普通列表 UI 侧滤 Ranked，排位匹配器专用候选。
+        /// 手写轻提取（我们自己写的 JSON 格式，无嵌套无转义歧义）。</summary>
         public async UniTask<List<TapRoomEntry>> ListRoomsAsync()
         {
             var rooms = await TapLobbyController.GetRoomListAsync();
@@ -36,28 +38,57 @@ namespace SynergyUI.Online
             return rooms
                 .Where(r => r != null && !string.IsNullOrEmpty(r.id))
                 .Where(r => !(r.maxPlayerCount > 0 && r.playerCount >= r.maxPlayerCount)) // 满员不列
-                .Where(r => !(r.customProperties ?? "").Contains("ranked")) // ranked 房 S8 才有
-                .Select(r => new TapRoomEntry
+                .Select(r =>
                 {
-                    RoomId = r.id,
-                    Name = r.name,
-                    PlayerCount = r.playerCount,
-                    MaxPlayerCount = r.maxPlayerCount,
-                    HasPassword = (r.customProperties ?? "").Contains("pwd"),
+                    var props = r.customProperties ?? "";
+                    return new TapRoomEntry
+                    {
+                        RoomId = r.id,
+                        Name = r.name,
+                        PlayerCount = r.playerCount,
+                        MaxPlayerCount = r.maxPlayerCount,
+                        HasPassword = props.Contains("pwd"),
+                        Ranked = props.Contains("\"ranked\":true"),
+                        DeckFingerprint = PropValue(props, "fp"),
+                        WinRate = int.TryParse(PropValue(props, "rate"), out var rate) ? rate : -1,
+                    };
                 })
                 .ToList();
+        }
+
+        /// <summary>从自写 props JSON 提取字符串字段值（"key":"value"——无嵌套；找不到返回 null）。</summary>
+        private static string PropValue(string json, string key)
+        {
+            var marker = $"\"{key}\":\"";
+            int start = json.IndexOf(marker, StringComparison.Ordinal);
+            if (start < 0) return null;
+            start += marker.Length;
+            int end = json.IndexOf('"', start);
+            return end > start ? json.Substring(start, end - start) : null;
         }
 
         /// <summary>TapTap 建房（S6b）：SDK 建房（密码写 customProperties——真门禁=NetRoom）+
         /// 本地组合传输会话服务器（TCP 回环腿=房主自己/AI 填位，TapTap 腿=远端客人；同 password）
         /// 已 Start(0)。失败返回 null（LastError 文案含本地服务器启动失败路径）。</summary>
         public async UniTask<NetSessionServer> CreateRoomAsync(string roomName, string password)
+            => await CreateRoomCore(roomName, password, ranked: false, null, -1);
+
+        /// <summary>排位建房（S8）：ranked/fp/rate 入 customProperties；本地服务器 ranked=true
+        ///（双接受窗）——回环入座时 JoinRoom 也带 Ranked=true（LobbyScreen 侧 JoinOptions）。</summary>
+        public async UniTask<NetSessionServer> CreateRankedRoomAsync(string roomName,
+            string deckFingerprint, int winRatePermille)
+            => await CreateRoomCore(roomName, null, ranked: true, deckFingerprint, winRatePermille);
+
+        private static async UniTask<NetSessionServer> CreateRoomCore(string roomName, string password,
+            bool ranked, string deckFingerprint, int winRatePermille)
         {
-            var room = await TapLobbyController.CreateRoomAsync(roomName, password);
+            var room = await TapLobbyController.CreateRoomAsync(roomName, password, ranked,
+                deckFingerprint, winRatePermille);
             if (room == null) return null;
             var server = new NetSessionServer("taptap", msg => Debug.Log(msg),
                 host: new CompositeTransportHost(new NetTcpHost(), new TapBattleTransportHost()),
-                password: string.IsNullOrEmpty(password) ? null : password);
+                password: string.IsNullOrEmpty(password) ? null : password,
+                ranked: ranked);
             try
             {
                 server.Start(0);

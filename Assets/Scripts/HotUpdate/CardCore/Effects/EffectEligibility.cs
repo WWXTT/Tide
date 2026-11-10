@@ -66,8 +66,11 @@ namespace CardCore
             var timing = (TriggerTiming)data.TriggerTiming;
             if (timing < 0 || timing > TriggerTiming.OnCardCastSettled) return "时机值非法";
             var def = CardEffectConverter.ConvertOne(data, data.Id ?? "");
-            if (def.IsActivatedEffect) return "主动效果不可被光环授予（只授予触发式）";
-            if (!CostDerivationService.IsRepeatTiming(timing)) return "单次时机不可被光环授予（只授予多次触发时机）";
+            if (def.IsActivatedEffect) return "主动效果不可被光环授予（只授予自动触发式）";
+            // 2026-11-10 用户定案：连接光环可赋予**所有自动触发效果**（含 OnPlay 登场单次档）；
+            // 旧「只授予多次触发时机」硬闸删除。仍要求真实事件锚（OnTurnStart 由 RejectReason 拒）。
+            if (TriggerTimingDefaults.GetEventType(timing) == null)
+                return "该时机没有真实事件锚，不可被光环授予（只授予自动触发效果）";
             var creatureArm = RejectReason(Cardtype.Creature, def);
             if (creatureArm != null) return creatureArm; // 周期/观察族=结界专属、场地光环原子等
             if (def.ActivationType == EffectActivationType.Voluntary) return "可选触发不可被光环授予（授予=自动效果）";

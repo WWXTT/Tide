@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
+using CardCore;
 
 namespace TideSim
 {
@@ -57,6 +59,30 @@ namespace TideSim
             if (args.Length > 0 && args[0] == "--cost-audit")
                 return CostAuditProbe.Run();
 
+            // 临时探针（2026-11-10 R4 收尾·端到端计价锚 8 红取证，跑完删）：复现验证器失败夹具现值
+            if (args.Length > 0 && args[0] == "--price-anchor")
+                return PriceAnchorProbe.Run();
+
+            // 引擎概率采样（2026-11-10 用户定案：8 自由分支统一概率定价）：
+            // 跑对局并对引擎评估点计数，输出 .ztmp/engine-prob.csv（totals + 指标直方图）。
+            // 用法：TideSim --engine-prob --games 150 --matchup all --quiet [--seed S]
+            if (args.Length > 0 && args[0] == "--engine-prob")
+            {
+                var po = SimOptions.Parse(args.Length > 1 ? args[1..] : Array.Empty<string>());
+                EngineProbabilityProbe.Reset();
+                EngineProbabilityProbe.Enabled = true;
+                int rc = DeckSim.Run(po);
+                string dir = Path.Combine(Directory.GetCurrentDirectory(), ".ztmp");
+                Directory.CreateDirectory(dir);
+                string path = Path.Combine(dir, "engine-prob.csv");
+                File.WriteAllText(path, EngineProbabilityProbe.ToCsv(), new System.Text.UTF8Encoding(false));
+                Console.WriteLine($"[engine-prob] 写入 {path}");
+                foreach (var kv in EngineProbabilityProbe.Summary())
+                    Console.WriteLine($"[engine-prob] {kv.Key}: eval={kv.Value.eval} hit={kv.Value.hit}");
+                EngineProbabilityProbe.Enabled = false;
+                return rc;
+            }
+
             // 教学式固定盘面场景回归（2026-11-04）：红快攻（血偿/连击准入+拆波）+ 蓝·元素充盈
             //（潮痕碑/深潭碑 触发·不触发·每回合封顶）+ 自由分支引擎主干 7 种（2026-11-06：
             // 倒计时/运势/拼枪/死亡计数/团结/附加诅咒/附加祝福）三套串跑，一次命令覆盖全部场景
@@ -94,6 +120,7 @@ namespace TideSim
             Console.WriteLine("  TideSim --tutorial-scenario   教学式固定盘面回归（红快攻9场景 + 蓝充盈6场景 + 自由分支10场景）");
             Console.WriteLine("  TideSim --keyword-scenario    教学一·进阶关键词课回归（basics_plus 结构 + 11 段引擎断言）");
             Console.WriteLine("  TideSim --charge-probe        规则探针（充能系统动作化 + 参照族声明域）");
+            Console.WriteLine("  TideSim --engine-prob [--games N --matchup all --quiet]  引擎触发概率采样 → .ztmp/engine-prob.csv");
             Console.WriteLine();
             Console.WriteLine("口径：");
             Console.WriteLine("  · 策略显式绑定：红·快攻→RedAggro / 绿·慢速→GreenRamp / 蓝·控制→BlueControl");

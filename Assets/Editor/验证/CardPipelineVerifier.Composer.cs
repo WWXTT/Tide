@@ -924,31 +924,31 @@ namespace CardCore.Editor
                    "计价锚：法术 1 槽（遗留 Choice 不计槽）→ 速度 2（3−槽数回归）");
 
             // ---- 法术全额计价（2026-10-31 阶梯减价删除：S+E+K 不再打折）+ 槽位从速度扣（2026-10-15 改版）----
-            // 恒推导（2026-10-22 定案；2026-10-30 时机系数改期望次数——OnDeath ×1）：
-            // Ĉ=E=红4.0+蓝2.0（现表锚价——Draw/伤害均吃同档时机）=6→档6，
-            // 全额 红4+蓝2=6 分色 → 红4蓝2；免费点全投提速不抵价。
+            // 恒推导（2026-10-22 定案；**2026-11-10 时机系数切正+Tier 公式定价**——OnDeath f=0.6
+            // 直乘、原子单价走 AtomTier 档价）：E=伤4(Tier 价)+抽1(蓝 1.2)=总额 4 → 档4，
+            // 分色 红3+蓝1；免费点全投提速不抵价。
             var fbEffect = MakeEffect("DealDamage", 4);
             fbEffect.AtomicEffects.Add(AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1));
             var fb = CardCostService.Derive(MakeCostCard(Cardtype.Spell, null, null, fbEffect));
-            Assert((int)fb.DerivedCost[ManaType.Red] == 4 && (int)fb.DerivedCost[ManaType.Blue] == 2,
-                   $"计价锚：法术 4伤+1抽 = 红4+蓝2（2026-10-31 无延迟折：E=红4.0+蓝2.0→Ĉ=6 全额 6 分色）");
-            Assert(fb.DerivedTier == 6,
-                   "计价锚：法术档位随总额自决 Ĉ=6（恒推导定案，旧「未声明档」口径已废；档位现仅作 UI 费数字）");
+            Assert((int)fb.DerivedCost[ManaType.Red] == 3 && (int)fb.DerivedCost[ManaType.Blue] == 1,
+                   $"计价锚：法术 4伤+1抽 = 红3+蓝1（2026-11-10 公式定价：OnDeath f=0.6 直乘+Tier 档价 → 总额 4 分色）");
+            Assert(fb.DerivedTier == 4,
+                   "计价锚：法术档位随总额自决 Ĉ=4（恒推导定案，旧「未声明档」口径已废；档位现仅作 UI 费数字）");
             var fbSpeedCard = MakeCostCard(Cardtype.Spell, null, null, fbEffect);
             fbSpeedCard.SpeedBonus = 2; // 字段退役——脏数据不得影响
             var fbSpeed = CardCostService.Derive(fbSpeedCard);
-            Assert((int)fbSpeed.DerivedCost[ManaType.Red] == 4 && (int)fbSpeed.DerivedCost[ManaType.Blue] == 2,
-                   $"计价锚：法术无抵价恒红4+蓝2（SpeedBonus 字段退役写值无效）");
+            Assert((int)fbSpeed.DerivedCost[ManaType.Red] == 3 && (int)fbSpeed.DerivedCost[ManaType.Blue] == 1,
+                   $"计价锚：法术无抵价恒红3+蓝1（SpeedBonus 字段退役写值无效）");
             Assert(DeriveTotal(MakeCostCard(Cardtype.Spell, null, null, MakeEffect("Heal", 2))) == 1,
                    "计价锚：回2命 = 1费（锚价→档1 取整 1；法术无抵价通道——2026-10-15 改版翻转旧「−抵价2→0」）");
 
             // ---- 全额计价：档位随总额自决（延迟折已删——高费卡不再打折）；
-            //      真值 红7.5(4.5+3伤)+绿4.5 逐色进位 → 红8绿5 D=13 ----
+            //      真值 红6.3(4.5+伤3×0.6)+绿4.5 逐色进位 → 红7绿5 D=12（2026-11-10 f=0.6 直乘）----
             var bigBody = MakeCostCard(Cardtype.Creature, 9, 9, MakeEffect("DealDamage", 3));
             bigBody.Cost[(int)ManaType.Gray] = 9; // 存档快照（显示缓存）——不参与推导
             var big = CardCostService.Derive(bigBody);
-            Assert(big.DerivedTotal == 13 && big.OffsetRequirement == 0,
-                   $"计价锚：9/9 挂3伤 → 无延迟折全额：红7.5绿4.5 逐色进位 → 红8绿5 D=13（2026-11-09 逐色进位后：旧 12 → 新 13；Req=0——进位漂移不计超模）");
+            Assert(big.DerivedTotal == 12 && big.OffsetRequirement == 0,
+                   $"计价锚：9/9 挂3伤 → 无延迟折全额：红6.3绿4.5 逐色进位 → 红7绿5 D=12（2026-11-10 公式定价 f(OnDeath)=0.6；Req=0——进位漂移不计超模）");
             var midTier = MakeCostCard(Cardtype.Creature, 9, 9, MakeEffect("DealDamage", 3));
             midTier.Cost[(int)ManaType.Gray] = 5; // 同内容、不同存档快照
             var mid = CardCostService.Derive(midTier);
@@ -956,24 +956,24 @@ namespace CardCore.Editor
                    "计价锚：存档费用快照不参与推导——同内容不同 costList 推导全同（恒推导定案回归锚）");
 
             // ---- 两效果=超 1 槽（结构项4>3 加灰）；全额后结构加价计入规则一锚 ----
-            // Ĉ=S2+E(红3.0+蓝2.0 现表)=7，全额 7 + 超1槽1灰 → D=8；Req=max(0, 8−(7+1))=0
+            // Ĉ=S2(红1绿1)+E(伤3×0.6=1.8红+抽1×0.6=1.2蓝)=6，全额 6 + 超1槽1灰 → D=6；Req=0
             var chooser = MakeCostCard(Cardtype.Creature, 2, 2, MakeEffect("DealDamage", 3), MakeEffect("DrawCard", 1));
             chooser.Cost[(int)ManaType.Gray] = 4; // 存档快照不参与
             var ch = CardCostService.Derive(chooser);
-            Assert(ch.DerivedTotal == 8 && ch.OffsetRequirement == 0,
-                   $"计价锚：两效果 Ĉ=7 全额(S2+E5)=7，超1槽+1灰 → D=8（灰3红3蓝2；结构费计入规则一锚 → Req=0）");
+            Assert(ch.DerivedTotal == 6 && ch.OffsetRequirement == 0,
+                   $"计价锚：两效果 Ĉ=6 全额(S2+E3.0)=6，超1槽+1灰 → D=6（红3蓝1绿1灰1；结构费计入规则一锚 → Req=0；2026-11-10 公式定价 f=0.6）");
 
-            // ---- 超槽加价入灰（1/1 挂三效果：真值 S(0.5红+0.5绿)+E(3×蓝2.0 现表)=7，
-            //      逐色进位红1绿1 + 蓝6 + 超2槽2灰 → D=10 灰2蓝6红1绿1；结构费入锚 → Req=0）----
+            // ---- 超槽加价入灰（1/1 挂三效果：真值 S(0.5红+0.5绿)+E(3×抽1×0.6=3.6蓝)，
+            //      逐色进位红1绿1 + 蓝4 + 超2槽2灰 → D=8 灰2蓝4红1绿1；结构费入锚 → Req=0）----
             var tripleMount = MakeCostCard(Cardtype.Creature, 1, 1,
                 MakeEffect("DrawCard", 1), MakeEffect("DrawCard", 1), MakeEffect("DrawCard", 1));
             tripleMount.Cost[(int)ManaType.Gray] = 9; // 存档快照不参与
             var tm = CardCostService.Derive(tripleMount);
-            Assert(tm.DerivedTotal == 10,
-                   $"计价锚：1/1 挂三效果 全额 E=3×蓝2.0=6 + 双半色逐色进位红1绿1 + 超2槽2灰 → D=10（灰2蓝6红1绿1，Req=0——结构费计入锚；2026-11-09 逐色进位后：旧 9 → 新 10）");
+            Assert(tm.DerivedTotal == 8,
+                   $"计价锚：1/1 挂三效果 全额 E=3×蓝1.2=3.6 + 双半色逐色进位红1绿1 + 超2槽2灰 → D=8（灰2蓝4红1绿1，Req=0——结构费计入锚；2026-11-10 公式定价 f=0.6）");
 
             // ---- 规则一（2026-10-31 阶梯减价删除后）：D≤Ĉ+结构费 直判 ----
-            // 与上方同内容 → 推导全同（D=8=Ĉ7+结构1 恰符）；旧「低声明→缺口」口径退役。
+            // 与上方同内容 → 推导全同（D=6=Ĉ6 恰符）；旧「低声明→缺口」口径退役。
             var overBaseline = MakeCostCard(Cardtype.Creature, 2, 2, MakeEffect("DealDamage", 3), MakeEffect("DrawCard", 1));
             overBaseline.Cost[(int)ManaType.Gray] = 3; // 低存档快照：不改变推导
             var ov = CardCostService.Derive(overBaseline);
@@ -994,12 +994,12 @@ namespace CardCore.Editor
             // 2026-10-09 清理：关键词计价两锚（嘲讽绿桶时代口径）删除——表色现锚 Green（P2a 白→绿，上方现行断言），
             // 关键词计价现行=行锚×max(1,层数)（2026-10-08 关键词不叠加定案）
 
-            // ---- 推导档（恒推导定案）：5/5 挂 3伤（1 效果底盘恰耗尽）→ 真值 红5.5绿2.5，
-            //      逐色进位 红6绿3 → D=9=Ĉ（档位口径=实际卡费总额钳档帽，2026-11-09）----
+            // ---- 推导档（恒推导定案）：5/5 挂 3伤 → 真值 红4.3(2.5+1.8)绿2.5，
+            //      逐色进位 红5绿3 → D=8=Ĉ（2026-11-10 公式定价 f(OnDeath)=0.6）----
             var noCost = MakeCostCard(Cardtype.Creature, 5, 5, MakeEffect("DealDamage", 3));
             var nc = CardCostService.Derive(noCost);
-            Assert(nc.DerivedTier == 9 && nc.DerivedTotal == 9,
-                   $"计价锚：无存档费推导档 Ĉ=D=9（红6绿3；2026-11-09 逐色进位后：旧 8/8 → 新 9/9；实际 Ĉ={nc.DerivedTier} D={nc.DerivedTotal}）");
+            Assert(nc.DerivedTier == 8 && nc.DerivedTotal == 8,
+                   $"计价锚：无存档费推导档 Ĉ=D=8（红5绿3；2026-11-10 公式定价 f=0.6 直乘；实际 Ĉ={nc.DerivedTier} D={nc.DerivedTotal}）");
 
             // ---- 跨边当量锚点已删（2026-09-10：改由 Polarity 错边折价承担，见 TestTargetDomainModel f 段）----
 

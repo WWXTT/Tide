@@ -92,24 +92,24 @@ namespace SynergyUI
                             atom.branch = b;
                             if (IsCurseEngine(engineKind))
                             {
-                                // 附加诅咒/祝福（2026-11-06 载荷效果化）：载荷=效果库组合效果引用
-                                //（主干卡「载荷效果」行选择——主动·极性匹配），不再是 Then 原子奖励
-                                MakeHint(slot, $"{ComposerCatalog.EngineZhOf(engineKind)}：载荷=效果组合"
+                                // 附加诅咒/祝福（2026-11-10 用户定案）：载荷=单个原子 + 主动·并列组合效果
+                                // 引用双通道，可并存；张数=附加张数（每张各自完整载荷）；附加费=载荷费减半入卡价。
+                                MakeHint(slot, $"{ComposerCatalog.EngineZhOf(engineKind)}：载荷=单个原子 和/或 主动·并列效果"
                                     + (engineKind == BranchEngineKind.BlessingOnDraw
                                         ? "（主动·极性+1——附加祝福给自己牌库）"
                                         : "（主动·极性−1——附加诅咒给对手牌库）")
-                                    + "，点主干卡「载荷效果」行选择；张数=附加张数（每张各自完整载荷）；"
+                                    + "——原子点本槽落库，组合效果点「载荷效果」行；两者可并存；"
                                     + "附加费=载荷费减半入卡价；抽到该卡时自动结算（一次性）");
+                                MakeRewardSlot(slot, b);
                                 _slotZones.Add(MakeZone(slot, () => CursePayloadError(atom, engineKind)));
                             }
                             else
                             {
-                                // 双通道（2026-11-10 R4，推翻 2026-11-08 阶段4 单通道）：奖励=原子（点库
-                                // 落槽）或并列组合效果（点「奖励效果」行弹层）或两者并存——合计费 ≤6，
-                                // 门槛随合计费实时推导（自动三评估窗口=发动条外层时机，玩家可选）
-                                MakeHint(slot, $"{ComposerCatalog.EngineZhOf(engineKind)}门槛=奖励费实时推导"
-                                    + "（奖励=原子或并列组合效果〔1-6 费〕——原子点库落槽、组合效果点奖励区"
-                                    + "「奖励效果」行选择，两者可并存；门槛随合计费变；同一张卡每回合只触发一次）"
+                                // 前 6 引擎（2026-11-10 用户定案）：奖励=单个原子，原子费×宿主时机系数 ≤6；
+                                // 不允许组合效果引用。门槛=原子费×系数实时推导。
+                                MakeHint(slot, $"{ComposerCatalog.EngineZhOf(engineKind)}门槛=奖励原子费×时机系数"
+                                    + "（奖励=单个原子——点本槽到右栏选；原子费×宿主效果头时机系数 ≤6；"
+                                    + "门槛随原子费变；同一张卡每回合只触发一次）"
                                     + $"——见顶栏预览「自由分支·{ComposerCatalog.EngineZhOf(engineKind)}x」");
                                 MakeRewardSlot(slot, b);
                             }
@@ -132,29 +132,47 @@ namespace SynergyUI
                 }
                 case ComposeMode.LimitedBranch:
                 {
-                    // 有限分支：单主干槽（普通原子）+ 门槛卡（点选）+ 槽内 Then 奖励块
-                    var slot = MakeSlot("主干（原子槽 1）");
-                    if (slot == null) break; // 模板缺失——MakeSlot 已报
-                    MarkSelected(slot, SelKind.Parallel, 0);
-                    SelectOnClick(slot, SelKind.Parallel, 0, false);
-                    var atom = FirstKind0Atom();
-                    if (atom != null)
+                    // 有限分支（2026-11-10 用户定案）：第一槽=1~2 个内联原子（不引用效果 ID）；
+                    // 门/奖励/代价挂在**最后一个主干原子**上；第一个槽可留空第二原子=单原子形态。
+                    var trunkAtoms = LimitedTrunkAtoms();
+                    var branchAtom = LimitedBranchAtom();
+                    for (int i = 0; i < ParallelSlotCount; i++)
                     {
-                        MakeAtomCard(slot, atom, 0, SelKind.Parallel);
-                        if (atom.branch != null
-                            && (BranchSettleKind)atom.branch.settle == BranchSettleKind.Engine)
-                            atom.branch = null; // 引擎载荷不配普通原子（切形态残留兜底）
+                        int idx = i;
+                        var slot = MakeSlot(i == 0 ? "主干（原子槽 1）" : "主干（原子槽 2，可选）");
+                        if (slot == null) continue; // 模板缺失——MakeSlot 已报
+                        MarkSelected(slot, SelKind.Parallel, i);
+                        SelectOnClick(slot, SelKind.Parallel, i, false);
+                        if (i < trunkAtoms.Count)
+                        {
+                            var atom = trunkAtoms[i];
+                            MakeAtomCard(slot, atom, i, SelKind.Parallel);
+                            if (atom.branch != null
+                                && (BranchSettleKind)atom.branch.settle == BranchSettleKind.Engine)
+                                atom.branch = null; // 引擎载荷不配普通原子（切形态残留兜底）
+                            if (ReferenceEquals(atom, branchAtom))
+                            {
+                                MakeGateCard(slot, atom);
+                                var ab = atom.branch;
+                                if (ab != null && !BranchEntryRules.IsPhantom(ab)) MakeRewardSlot(slot, ab);
+                            }
+                        }
+                        else
+                        {
+                            MakeHint(slot, i == 0
+                                ? "主干为空——到右侧选 1~2 个原子（引擎行请切「自由分支」）"
+                                : "可选第二原子——与第一原子组成并列效果；留空=单原子");
+                        }
                     }
-                    else MakeHint(slot, "主干为空——到右侧选择一颗普通原子（引擎行请切「自由分支」形态）");
-                    MakeGateCard(slot, atom);
-                    var lb = atom?.branch;
-                    if (lb != null && !BranchEntryRules.IsPhantom(lb)) MakeRewardSlot(slot, lb);
-                    _slotZones.Add(MakeZone(slot, () =>
+                    _slotZones.Add(MakeZone(_slotArea.Content, () =>
                     {
-                        var a = FirstKind0Atom();
-                        if (a == null) return "主干为空——到右侧选择一颗普通原子";
-                        return ComposerCatalog.IsEngineTrunkRow(AtomicEffectTable.GetByHashId(a.refId))
-                            ? "有限分支主干须为普通原子——引擎行请切「自由分支」形态" : null;
+                        var atoms = LimitedTrunkAtoms();
+                        if (atoms.Count == 0) return "主干为空——到右侧选择 1~2 个原子";
+                        foreach (var a in atoms)
+                            if (ComposerCatalog.IsEngineTrunkRow(AtomicEffectTable.GetByHashId(a.refId)))
+                                return "有限分支主干须为普通原子——引擎行请切「自由分支」形态";
+                        if (atoms.Count > 2) return "第一槽最多 2 个原子（并列形状）";
+                        return null;
                     }));
                     break;
                 }
@@ -307,7 +325,10 @@ namespace SynergyUI
                     break;
                 case ComposeMode.FreeBranch:
                 case ComposeMode.LimitedBranch:
-                    _selSlotIndex = 0; // 分支形态单主干——选中恒槽 0
+                    // 2026-11-10：自由分支单主干；有限分支第一槽可 1~2 原子——选中允许 0/1。
+                    _selSlotIndex = _mode == ComposeMode.LimitedBranch
+                        ? Mathf.Clamp(_selSlotIndex, 0, 1)
+                        : 0;
                     if (_selSlot == SelKind.Reward && BranchOfSlot(0) == null) _selSlot = SelKind.Parallel;
                     if (_selSlot == SelKind.Gate && _mode != ComposeMode.LimitedBranch) _selSlot = SelKind.Parallel;
                     if (_selSlot != SelKind.Parallel && _selSlot != SelKind.Reward && _selSlot != SelKind.Gate)

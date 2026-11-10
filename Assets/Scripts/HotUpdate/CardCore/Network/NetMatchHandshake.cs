@@ -398,6 +398,22 @@ namespace CardCore.Network
             };
         }
 
+        /// <summary>卡组费用直方图（S7b 2026-11-10 掷币段展示——服务器/客户端单源）：9 桶=费用
+        /// 1..9+（CardData.TotalCost 四舍五入、&lt;1 归 1、&gt;9 归 9）；缺卡跳过（校验另有口径）。</summary>
+        public static int[] CostHistogramOf(IReadOnlyList<string> cardIds)
+        {
+            var buckets = new int[9];
+            if (cardIds == null) return buckets;
+            foreach (var id in cardIds)
+            {
+                var card = CardCatalog.GetById(id);
+                if (card == null) continue;
+                int c = Math.Max(1, Math.Min(9, (int)Math.Round(card.TotalCost, MidpointRounding.AwayFromZero)));
+                buckets[c - 1]++;
+            }
+            return buckets;
+        }
+
         /// <summary>客户端校验对局清单：己方卡组回显对账 + 服务器摘要与本地按同一卡组计算的摘要一致
         /// （双向握手；摘要含 P9b TokenSig——绑定不同即不一致）。失败即本地中止进局（reason 供 UI 展示）。</summary>
         public static bool VerifyMatchManifest(MsgMatchManifest manifest,

@@ -902,7 +902,9 @@ namespace CardCore.Editor
             });
             Assert(unlimited.TriggerLimitPerTurn == -1, "历史列：显式无限（-1）原样透传");
 
-            // 历史档不再溢价：同一 OnDraw 伤害 5 在 limit 1/2/3/-1 下同价（时机两档均 ×1 → 红5）
+            // 历史档不再溢价：同一 OnDraw 伤害 5 在 limit 1/2/3/-1 下同价
+            //（2026-11-10 时机系数切正：f(OnDraw)=λ1.2×L4 封顶 3.0 直乘 → 红5×3=红15；
+            //  旧「时机两档均 ×1 → 红5」口径随公式定价退役——同价性断言本身不变）
             CardCore.EffectDefinition TrigDef(int limit) => CardEffectConverter.ConvertOne(new CardEffectData
             {
                 Id = $"VERIFY_CAP_P{limit}",
@@ -911,11 +913,11 @@ namespace CardCore.Editor
                 AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(CardCore.AtomicEffectType.DealDamage, value: 5) },
             }, "VERIFY_CAP_P");
             float RedCostOf(CardCore.EffectDefinition d) => CardCore.CostDerivationService.DeriveElementCosts(d)[CardCore.ManaType.Red];
-            Assert(System.Math.Abs(RedCostOf(TrigDef(1)) - 5f) < 1e-4f
-                   && System.Math.Abs(RedCostOf(TrigDef(2)) - 5f) < 1e-4f
-                   && System.Math.Abs(RedCostOf(TrigDef(3)) - 5f) < 1e-4f
-                   && System.Math.Abs(RedCostOf(TrigDef(-1)) - 5f) < 1e-4f,
-                   "历史次数档零消费：limit 1/2/3/-1 同价（OnDraw 多次档 ×1 → 红5）");
+            Assert(System.Math.Abs(RedCostOf(TrigDef(1)) - 15f) < 1e-4f
+                   && System.Math.Abs(RedCostOf(TrigDef(2)) - 15f) < 1e-4f
+                   && System.Math.Abs(RedCostOf(TrigDef(3)) - 15f) < 1e-4f
+                   && System.Math.Abs(RedCostOf(TrigDef(-1)) - 15f) < 1e-4f,
+                   "历史次数档零消费：limit 1/2/3/-1 同价（OnDraw f=3.0 直乘 → 红15——2026-11-10 时机系数切正）");
 
             // ---- 2. 运行时：同回合 3 次触发全部上栈（无闸门）----
             var src = SpawnCapSource(core, p1);

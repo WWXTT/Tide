@@ -543,8 +543,15 @@
               "settle": 3,
               "engine": 1,
               "engineParam": 2,
-              "effectId": "C578A49D",
-              "then": []
+              "then": [
+                {
+                  "refId": "a4b823fc",
+                  "value": 2,
+                  "kinds": [
+                    2
+                  ]
+                }
+              ]
             }
           }
         }
@@ -566,8 +573,14 @@
               "settle": 3,
               "engine": 2,
               "engineParam": 1,
-              "effectId": "A335E361",
-              "then": []
+              "then": [
+                {
+                  "refId": "a4b823fc",
+                  "kinds": [
+                    2
+                  ]
+                }
+              ]
             }
           }
         }
@@ -589,8 +602,15 @@
               "settle": 3,
               "engine": 2,
               "engineParam": 2,
-              "effectId": "F7F2D3C3",
-              "then": []
+              "then": [
+                {
+                  "refId": "a4b823fc",
+                  "value": 2,
+                  "kinds": [
+                    2
+                  ]
+                }
+              ]
             }
           }
         }
@@ -612,8 +632,15 @@
               "settle": 3,
               "engine": 2,
               "engineParam": 3,
-              "effectId": "496D84D2",
-              "then": []
+              "then": [
+                {
+                  "refId": "a4b823fc",
+                  "value": 3,
+                  "kinds": [
+                    2
+                  ]
+                }
+              ]
             }
           }
         }
@@ -635,8 +662,15 @@
               "settle": 3,
               "engine": 2,
               "engineParam": 4,
-              "effectId": "641B5EAE",
-              "then": []
+              "then": [
+                {
+                  "refId": "a4b823fc",
+                  "value": 4,
+                  "kinds": [
+                    2
+                  ]
+                }
+              ]
             }
           }
         }
@@ -658,8 +692,15 @@
               "settle": 3,
               "engine": 2,
               "engineParam": 5,
-              "effectId": "0B6DEF6D",
-              "then": []
+              "then": [
+                {
+                  "refId": "a4b823fc",
+                  "value": 5,
+                  "kinds": [
+                    2
+                  ]
+                }
+              ]
             }
           }
         }
@@ -681,8 +722,15 @@
               "settle": 3,
               "engine": 2,
               "engineParam": 6,
-              "effectId": "9DD0AAFB",
-              "then": []
+              "then": [
+                {
+                  "refId": "a4b823fc",
+                  "value": 6,
+                  "kinds": [
+                    2
+                  ]
+                }
+              ]
             }
           }
         }
@@ -703,8 +751,15 @@
             "branch": {
               "settle": 3,
               "engine": 3,
-              "effectId": "30423ED2",
-              "then": []
+              "then": [
+                {
+                  "refId": "a4b823fc",
+                  "value": 6,
+                  "kinds": [
+                    2
+                  ]
+                }
+              ]
             }
           }
         }
@@ -725,8 +780,15 @@
             "branch": {
               "settle": 3,
               "engine": 4,
-              "effectId": "32768F97",
-              "then": []
+              "then": [
+                {
+                  "refId": "a4b823fc",
+                  "value": 6,
+                  "kinds": [
+                    2
+                  ]
+                }
+              ]
             }
           }
         }
@@ -747,8 +809,14 @@
             "branch": {
               "settle": 3,
               "engine": 5,
-              "effectId": "5244FA6F",
-              "then": []
+              "then": [
+                {
+                  "refId": "a4b823fc",
+                  "kinds": [
+                    2
+                  ]
+                }
+              ]
             }
           }
         }
@@ -769,8 +837,15 @@
             "branch": {
               "settle": 3,
               "engine": 5,
-              "effectId": "A2FE44F2",
-              "then": []
+              "then": [
+                {
+                  "refId": "a4b823fc",
+                  "value": 2,
+                  "kinds": [
+                    2
+                  ]
+                }
+              ]
             }
           }
         }
@@ -791,8 +866,15 @@
             "branch": {
               "settle": 3,
               "engine": 5,
-              "effectId": "700A320B",
-              "then": []
+              "then": [
+                {
+                  "refId": "a4b823fc",
+                  "value": 3,
+                  "kinds": [
+                    2
+                  ]
+                }
+              ]
             }
           }
         }
@@ -813,8 +895,15 @@
             "branch": {
               "settle": 3,
               "engine": 5,
-              "effectId": "82BEE13D",
-              "then": []
+              "then": [
+                {
+                  "refId": "a4b823fc",
+                  "value": 4,
+                  "kinds": [
+                    2
+                  ]
+                }
+              ]
             }
           }
         }
@@ -835,8 +924,15 @@
             "branch": {
               "settle": 3,
               "engine": 5,
-              "effectId": "2A0EDEB3",
-              "then": []
+              "then": [
+                {
+                  "refId": "a4b823fc",
+                  "value": 5,
+                  "kinds": [
+                    2
+                  ]
+                }
+              ]
             }
           }
         }
@@ -857,8 +953,15 @@
             "branch": {
               "settle": 3,
               "engine": 5,
-              "effectId": "A439A146",
-              "then": []
+              "then": [
+                {
+                  "refId": "a4b823fc",
+                  "value": 6,
+                  "kinds": [
+                    2
+                  ]
+                }
+              ]
             }
           }
         }
@@ -981,13 +1084,13 @@
           "kind": 0,
           "atom": {
             "refId": "2a8db836",
-            "str": "CC0DE001",
             "branch": {
               "settle": 3,
               "engine": 6,
               "engineParam": 1,
               "tactivate": 2,
-              "then": []
+              "then": [],
+              "effectId": "CC0DE001"
             }
           }
         }
@@ -1004,13 +1107,13 @@
           "kind": 0,
           "atom": {
             "refId": "8e89caae",
-            "str": "CC0DE002",
             "branch": {
               "settle": 3,
               "engine": 7,
               "engineParam": 1,
               "tactivate": 2,
-              "then": []
+              "then": [],
+              "effectId": "CC0DE002"
             }
           }
         }
@@ -1031,8 +1134,11 @@
             "branch": {
               "settle": 3,
               "engine": 4,
-              "effectId": "194E7CAD",
-              "then": []
+              "then": [
+                {
+                  "refId": "03c85bc4"
+                }
+              ]
             }
           }
         }
@@ -1054,8 +1160,15 @@
               "settle": 3,
               "engine": 8,
               "engineParam": 4,
-              "effectId": "F946B51E",
-              "then": []
+              "then": [
+                {
+                  "refId": "a4b823fc",
+                  "value": 4,
+                  "kinds": [
+                    2
+                  ]
+                }
+              ]
             }
           }
         }
@@ -1131,8 +1244,14 @@
             "branch": {
               "settle": 3,
               "engine": 5,
-              "effectId": "5244FA6F",
-              "then": []
+              "then": [
+                {
+                  "refId": "a4b823fc",
+                  "kinds": [
+                    2
+                  ]
+                }
+              ]
             }
           }
         }
@@ -1153,8 +1272,11 @@
             "branch": {
               "settle": 3,
               "engine": 5,
-              "effectId": "5004AFA1",
-              "then": []
+              "then": [
+                {
+                  "refId": "03c85bc4"
+                }
+              ]
             }
           }
         }
@@ -1175,8 +1297,15 @@
             "branch": {
               "settle": 3,
               "engine": 5,
-              "effectId": "A2FE44F2",
-              "then": []
+              "then": [
+                {
+                  "refId": "a4b823fc",
+                  "value": 2,
+                  "kinds": [
+                    2
+                  ]
+                }
+              ]
             }
           }
         }
@@ -1197,8 +1326,14 @@
             "branch": {
               "settle": 3,
               "engine": 5,
-              "effectId": "269D2661",
-              "then": []
+              "then": [
+                {
+                  "refId": "973884b1",
+                  "kinds": [
+                    2
+                  ]
+                }
+              ]
             }
           }
         }
@@ -1436,8 +1571,15 @@
               "settle": 3,
               "engine": 1,
               "engineParam": 3,
-              "effectId": "FBE8AC66",
-              "then": []
+              "then": [
+                {
+                  "refId": "407eb771",
+                  "value": 0,
+                  "kinds": [
+                    1
+                  ]
+                }
+              ]
             }
           }
         }
@@ -1498,8 +1640,11 @@
               "settle": 3,
               "engine": 1,
               "engineParam": 2,
-              "effectId": "EE60165C",
-              "then": []
+              "then": [
+                {
+                  "refId": "03c85bc4"
+                }
+              ]
             }
           }
         }
@@ -1600,8 +1745,15 @@
               "settle": 3,
               "engine": 1,
               "engineParam": 3,
-              "effectId": "7C65BC0E",
-              "then": []
+              "then": [
+                {
+                  "refId": "4cf22304",
+                  "value": 0,
+                  "kinds": [
+                    1
+                  ]
+                }
+              ]
             }
           }
         }
@@ -1622,8 +1774,15 @@
               "settle": 3,
               "engine": 1,
               "engineParam": 3,
-              "effectId": "1BBBAB5B",
-              "then": []
+              "then": [
+                {
+                  "refId": "a81e2068",
+                  "value": 0,
+                  "kinds": [
+                    1
+                  ]
+                }
+              ]
             }
           }
         }
@@ -1671,8 +1830,15 @@
               "settle": 3,
               "engine": 1,
               "engineParam": 1,
-              "effectId": "F6B7BFE1",
-              "then": []
+              "then": [
+                {
+                  "refId": "599fcc9a",
+                  "value": 2,
+                  "kinds": [
+                    1
+                  ]
+                }
+              ]
             }
           }
         }
@@ -1747,8 +1913,14 @@
             "branch": {
               "settle": 3,
               "engine": 5,
-              "effectId": "2F38FF7E",
-              "then": []
+              "then": [
+                {
+                  "refId": "43ac095e",
+                  "kinds": [
+                    6
+                  ]
+                }
+              ]
             }
           }
         }
@@ -1769,8 +1941,15 @@
             "branch": {
               "settle": 3,
               "engine": 5,
-              "effectId": "F786FF4A",
-              "then": []
+              "then": [
+                {
+                  "refId": "599fcc9a",
+                  "value": 2,
+                  "kinds": [
+                    1
+                  ]
+                }
+              ]
             }
           }
         }
@@ -1791,8 +1970,14 @@
             "branch": {
               "settle": 3,
               "engine": 5,
-              "effectId": "7E9A402E",
-              "then": []
+              "then": [
+                {
+                  "refId": "c3673dae",
+                  "kinds": [
+                    2
+                  ]
+                }
+              ]
             }
           }
         }
@@ -2247,8 +2432,15 @@
             "branch": {
               "settle": 3,
               "engine": 5,
-              "effectId": "A2FE44F2",
-              "then": []
+              "then": [
+                {
+                  "refId": "a4b823fc",
+                  "value": 2,
+                  "kinds": [
+                    2
+                  ]
+                }
+              ]
             }
           }
         }
@@ -2269,8 +2461,18 @@
             "branch": {
               "settle": 3,
               "engine": 5,
-              "effectId": "290FA5F0",
-              "then": []
+              "then": [
+                {
+                  "refId": "85b7e5ac",
+                  "kinds": [
+                    1,
+                    2,
+                    3,
+                    4
+                  ],
+                  "count": 1
+                }
+              ]
             }
           }
         }

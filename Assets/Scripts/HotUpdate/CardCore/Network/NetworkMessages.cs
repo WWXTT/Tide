@@ -29,6 +29,7 @@ namespace CardCore.Network
         IntentActivateHeroSkill = 112, // 英雄技能发动（MsgIntentActivateHeroSkill——2026-10-21 协议补课；离散位在会话层消息之后）
         IntentBuildCard = 113,       // 充能（2026-11-05 系统动作化改义）：任意手牌卡宣充能（MsgIntentBuildCard；结算期反问选色——Color 恒 −1 协议兼容）
         TextResponse = 114,          // 文本反问应答（MsgTextResponse——2026-10-31 阶段C：卡名宣言开放集输入）
+        RankedAck = 134,             // 上行：排位接受应答（MsgRankedAck——S8 排位：椅子位各自上报，双 true 服务器开局；上行段尾追加）
 
         // ---- 下行（服务器→客户端）----
         SelectRequest = 115,         // 反问请求（MsgSelectRequest）
@@ -87,10 +88,14 @@ namespace CardCore.Network
     /// v11（2026-11-09 自建内容跨端+对局记录）：MsgDeckSubmit 新增 AddedCards/AddedEffects/AddedRows
     ///（卡组闭包中非基础池内容完整 JSON——对端缺卡不再拒局）、MsgMatchManifest 新增
     /// OpponentCards/Effects/Rows（渲染用内容定义，卡组构成仍隐藏）、新消息 MsgMatchSummary
-    ///（终局摘要：对手完整卡组+自建内容+胜负，落对局记录）——布局变更，新旧端互拒（无兼容层）。</summary>
+    ///（终局摘要：对手完整卡组+自建内容+胜负，落对局记录）——布局变更，新旧端互拒（无兼容层）。
+    /// v12（2026-11-10 S8 排位模式）：MsgJoinRoom 新增 Ranked/DeckFingerprint/WinRate（排位标记
+    /// 与卡组内容指纹/胜率随进房上报）、MsgMatchSummary 新增 Ranked（终局只对排位局记账）、
+    /// 新消息 MsgRankedAck（双 true 才开局，5s 超时/任一拒绝=解散）、MsgMatchManifest 新增
+    /// OpponentCostHistogram（S7b 掷币段对手费用分布 9 桶）——布局变更，新旧端互拒（无兼容层）。</summary>
     public static class NetworkProtocol
     {
-        public const ushort Version = 11;
+        public const ushort Version = 12;
 
         /// <summary>接收侧版本闸（v8 起）：信封版本与本端不符 = 新旧端互拒（无兼容层）。
         /// 0=legacy 草稿期数据，同样失配。</summary>
