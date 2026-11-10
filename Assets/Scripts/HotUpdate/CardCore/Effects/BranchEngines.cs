@@ -237,9 +237,10 @@ namespace CardCore
             }
         }
 
-        /// <summary>自动三引擎（运势/拼枪/团结）的统一事件评估口（2026-11-08 阶段3·奖励效果时机判定）：
+        /// <summary>自动三引擎（运势/拼枪/团结）的统一事件评估口（2026-11-08 阶段3·奖励效果时机判定；
+        /// 2026-11-10 R4：时机=外层效果头声明值，不再读引用效果时机）：
         /// GameCore.PublishEventRouted 在总线分发之后逐事件调用。时机=<see cref="RewardTimingOf"/>
-        ///（解析 payload.EffectId → 奖励效果 TriggerTiming；失败回落 def.TriggerTiming=转换器归一值）
+        ///（def.TriggerTiming=转换器归一值——玩家在合成器选的引擎评估窗口）
         /// 映射的事件类型 == 当前事件类型才评估。归属过滤（<see cref="ExcludedByOwnership"/>）：
         /// 拼枪仅攻击方、团结仅施放者；运势沿用双方各评估；事件无法归属时双方各评估一次。
         /// 不走 TriggerPayloadFilter——载荷过滤是「来源卡自身参战」语义（伤害源==自己等），
@@ -272,7 +273,7 @@ namespace CardCore
                                 && payload.EngineKind != BranchEngineKind.Clash
                                 && payload.EngineKind != BranchEngineKind.Unity) continue;
                             if (ExcludedByOwnership(payload.EngineKind, e, player)) continue;
-                            if (TriggerTimingDefaults.GetEventType(RewardTimingOf(payload, def)) != eventType) continue;
+                            if (TriggerTimingDefaults.GetEventType(RewardTimingOf(def)) != eventType) continue;
 
                             switch (payload.EngineKind)
                             {
@@ -373,18 +374,13 @@ namespace CardCore
             }
         }
 
-        /// <summary>引擎奖励效果时机（2026-11-08 阶段3）：解析 payload.EffectId → 引用效果
-        /// TriggerTiming（ResolveRewardFx 同缓存——库 DTO 实例失效）；失败（无引用/悬空）回落
-        /// def.TriggerTiming（转换器归一值=奖励时机或自然缺省）。与 CardEffectConverter 引擎头归一同源。</summary>
-        private static TriggerTiming RewardTimingOf(BranchPayload payload, EffectDefinition def)
-        {
-            if (!string.IsNullOrEmpty(payload?.EffectId))
-            {
-                var refDef = ResolveRewardFx(payload.EffectId);
-                if (refDef != null) return refDef.TriggerTiming;
-            }
-            return def != null ? def.TriggerTiming : TriggerTiming.OnStandbyPhase;
-        }
+        /// <summary>引擎奖励效果时机（2026-11-08 阶段3 曾解析 payload.EffectId → 引用效果
+        /// TriggerTiming；**2026-11-10 R4 修订**：以效果头时机为准——def.TriggerTiming=转换器
+        /// 归一值（声明值，OnTurnStart 收归 OnStandbyPhase）。运势/拼枪/团结的评估窗口由玩家
+        /// 在合成器外层时机选（converter/装载闸同口径），不再读引用效果时机——R4 允许主动效果
+        /// 作奖励后，引用时机反钉会令事件类型永不匹配（引擎永不评估）。</summary>
+        private static TriggerTiming RewardTimingOf(EffectDefinition def)
+            => def != null ? def.TriggerTiming : TriggerTiming.OnStandbyPhase;
 
         /// <summary>归属过滤（2026-11-08 阶段3）：拼枪仅攻击方（AttackDeclarationEvent）、
         /// 团结仅施放者（CardPlayEvent/CardCastSettledEvent）——事件可归属且归属方≠player 时跳过；

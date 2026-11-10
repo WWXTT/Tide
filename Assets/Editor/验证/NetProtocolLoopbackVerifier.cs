@@ -60,6 +60,7 @@ namespace CardCore.Editor
                 RunSelectorSection(deck);
                 RunHandshakeSection();
                 RunSocketSection();
+                RunPasswordSection();
                 RunM3Section();
             }
             catch (Exception ex)
@@ -1022,6 +1023,53 @@ namespace CardCore.Editor
                     $"终局回合 {lastTurn}（先手椅位 {firstSeat}）");
 
                 a.Close(); b.Close(); spec.Close();
+            }
+            finally
+            {
+                server.Stop();
+            }
+        }
+
+        // ============================================================
+        // 第六b段（S5 2026-11-10）：房间密码 + 进房上报卡组名——
+        // 密码房错误密码 JoinRoom 被拒（Error 帧）；正确密码入座成功；
+        // JoinRoom.DeckName 随 RoomState 座位快照带出（座位卡展示口径）。
+        // ============================================================
+
+        private static void RunPasswordSection()
+        {
+            Section("6b. 房间密码 + 进房上报卡组名（S5）");
+
+            var server = new NetSessionServer("pw-verify", null, password: "测试密码123");
+            server.Start(0); // OS 分配空闲口
+            try
+            {
+                // 错误密码 → JoinRoom 被拒
+                var wrong = new SocketTestClient(); wrong.Connect(server.Port);
+                wrong.Send(NetworkMessageType.JoinRoom, new MsgJoinRoom
+                    { RoomId = "pw-verify", WantSeat = -1, Nickname = "错的", Password = "wrong" });
+                PumpAndReceive(server, 300, wrong);
+                Assert(wrong.Errors.Any(e => e.Context == "JoinRoom" && e.Reason.Contains("密码")),
+                    "密码房错误密码 JoinRoom 被拒（Error.Context=JoinRoom 且 Reason 含「密码」）");
+                wrong.Close();
+
+                // 正确密码 → 入座成功 + DeckName 随座位快照带出
+                var ok = new SocketTestClient(); ok.Connect(server.Port);
+                ok.Send(NetworkMessageType.JoinRoom, new MsgJoinRoom
+                {
+                    RoomId = "pw-verify", WantSeat = 0, Nickname = "房主",
+                    Password = "测试密码123", DeckName = "红快攻",
+                });
+                PumpAndReceive(server, 300, ok);
+                Assert(ok.LastRoomState != null
+                    && ok.LastRoomState.Phase == (int)NetRoomPhase.Waiting
+                    && ok.LastRoomState.Players[0].Connected
+                    && ok.LastRoomState.Players[0].Nickname == "房主",
+                    "密码房正确密码 JoinRoom 入座成功（RoomState=Waiting）");
+                Assert(ok.LastRoomState != null && ok.LastRoomState.Players[0].DeckName == "红快攻",
+                    "JoinRoom 上报的 DeckName 随 RoomState 座位快照带出");
+                Assert(ok.Errors.Count == 0, "正确密码路径零 Error 帧");
+                ok.Close();
             }
             finally
             {

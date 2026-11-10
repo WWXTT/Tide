@@ -244,15 +244,38 @@ namespace CardCore.Tools
                 ("MsgDeckSubmit", "DeckName"), ("MsgDeckSubmit", "CardIds"), ("MsgDeckSubmit", "Digest"),
                 ("MsgDeckSubmit", "SkillCardId"), // 英雄技能标记卡（2026-10-31 阶段D：手工定值退役并入哈希；不参与 Digest）
                 ("MsgDeckSubmit", "TokenCardIds"), ("MsgDeckSubmit", "TokenBindings"), // P9b 两块（协议 v5）
+                ("MsgDeckSubmit", "AddedCards"), ("MsgDeckSubmit", "AddedEffects"),
+                ("MsgDeckSubmit", "AddedRows"), // v11 自建内容三载荷（当时手加未登记——S5 补登）
                 ("MsgDeckTokenBinding", "CardId"), ("MsgDeckTokenBinding", "EffectIndex"),
                 ("MsgDeckTokenBinding", "TemplateId"), // P9b 绑定条目（协议 v5）
                 ("MsgMatchManifest", "OwnSeat"), ("MsgMatchManifest", "OwnCardIds"),
                 ("MsgMatchManifest", "OpponentCardCount"), ("MsgMatchManifest", "OwnDeckDigest"),
+                ("MsgMatchManifest", "OpponentCards"), ("MsgMatchManifest", "OpponentEffects"),
+                ("MsgMatchManifest", "OpponentRows"), // v11 对手自建内容三载荷（S5 补登）
+
+                // ---- v11 自建内容跨端 payload（2026-11-09；当时手加 TagTable 未登记——S5 补登防刷新洗掉）----
+                ("MsgCardPayload", "CardId"), ("MsgCardPayload", "CardJson"),
+                ("MsgEffectPayload", "EffectId"), ("MsgEffectPayload", "EffectJson"),
+                ("MsgAtomRowPayload", "RefId"), ("MsgAtomRowPayload", "RowJson"),
+
+                // ---- MsgMatchSummary（v11 终局摘要：双座位各收一份，视角=收件人的对手）----
+                ("MsgMatchSummary", "MatchId"), ("MsgMatchSummary", "FinishedAtUnix"),
+                ("MsgMatchSummary", "OpponentName"), ("MsgMatchSummary", "OpponentOpenId"),
+                ("MsgMatchSummary", "Win"), ("MsgMatchSummary", "OwnDeckName"),
+                ("MsgMatchSummary", "OpponentDeckName"), ("MsgMatchSummary", "OpponentCardIds"),
+                ("MsgMatchSummary", "OpponentSkillCardId"), ("MsgMatchSummary", "OpponentTokenCardIds"),
+                ("MsgMatchSummary", "OpponentTokenBindings"), ("MsgMatchSummary", "Cards"),
+                ("MsgMatchSummary", "Effects"), ("MsgMatchSummary", "AtomRows"),
+                ("MsgMatchSummary", "Log"),
 
                 // ---- 会话层（M2，2026-09-23：Error 载荷 + 房间状态机，见 网络协议.md §12）----
                 ("MsgError", "Reason"), ("MsgError", "Context"),
                 ("MsgJoinRoom", "RoomId"), ("MsgJoinRoom", "WantSeat"),
                 ("MsgJoinRoom", "AsSpectator"), ("MsgJoinRoom", "Nickname"),
+                // v11（2026-11-09）当时手加进 TagTable 未登记于此——补登（否则刷新会洗掉这两条）
+                ("MsgJoinRoom", "OpenId"), ("MsgJoinRoom", "IsAi"),
+                // S5（2026-11-10）房间密码+选卡上报
+                ("MsgJoinRoom", "Password"), ("MsgJoinRoom", "DeckName"),
                 ("MsgRoomState", "RoomId"), ("MsgRoomState", "Phase"),
                 ("MsgRoomState", "Players"), ("MsgRoomState", "SpectatorCount"),
                 ("MsgRoomState", "FirstSeatThisMatch"),
@@ -260,6 +283,7 @@ namespace CardCore.Tools
                 ("MsgRoomState", "GuestReady"), ("MsgRoomState", "DeckPickSecondsLeft"),
                 ("MsgRoomSeatInfo", "Seat"), ("MsgRoomSeatInfo", "Nickname"),
                 ("MsgRoomSeatInfo", "Connected"),
+                ("MsgRoomSeatInfo", "DeckName"), // S5：座位卡组名
 
                 // ---- 房间就绪层（2026-10-28 开局流程改版：房主配模式+客人准备+房主开局）----
                 ("MsgRoomSettings", "FirstMoveMode"), ("MsgRoomSettings", "ShuffleMode"),
@@ -346,6 +370,10 @@ namespace CardCore.Tools
                 "MsgDeckSubmit" => "MDS",
                 "MsgDeckTokenBinding" => "MTB",
                 "MsgMatchManifest" => "MMM",
+                "MsgCardPayload" => "MCP",       // v11 自建内容三 payload + 终局摘要（S5 补登——与 TagTable 既有前缀对齐）
+                "MsgEffectPayload" => "MEP",
+                "MsgAtomRowPayload" => "MAR",
+                "MsgMatchSummary" => "MMS",
                 "MsgError" => "MErr",
                 "MsgJoinRoom" => "MJR",
                 "MsgRoomState" => "MRS",

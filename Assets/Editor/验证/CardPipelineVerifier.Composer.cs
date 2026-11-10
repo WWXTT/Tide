@@ -91,6 +91,79 @@ namespace CardCore.Editor
                    && CardCore.CostDerivationService.RewardThreshold(null) == 1,
                    "派生门槛公式：DrawCard(1) 锚价 2 → 门槛 2；无奖励下限 1（随计费变）");
 
+            // ---- 1a-2. 分支奖励 R4 单谓词同步锚（2026-11-10 双通道修订：引擎奖励与分支奖励同口径）----
+            System.Func<int, int, CardCore.AtomicEffectEntry[], CardCore.CardEffectData> r4Fx =
+                (timing, activation, atoms) => new CardCore.CardEffectData
+                {
+                    Id = "EFF_R4_PIPELINE_PROBE",
+                    TriggerTiming = timing,
+                    ActivationType = activation,
+                    SelectionMode = -1,
+                    TargetCount = -2,
+                    AtomicEffects = atoms.ToList(),
+                };
+            System.Func<CardCore.AtomicEffectType, int, CardCore.AtomicEffectEntry> r4Entry = (type, value) =>
+                new CardCore.AtomicEffectEntry
+                {
+                    refId = CardCore.Attribute.AtomicEffectTable.GetByType(type)?.HashId,
+                    value = value,
+                };
+            var healFx = r4Fx((int)CardCore.TriggerTiming.Activate_Active, 2,
+                new[] { r4Entry(CardCore.AtomicEffectType.Heal, 2) });
+            var healFxAuto = r4Fx((int)CardCore.TriggerTiming.OnDraw, 1,
+                new[] { r4Entry(CardCore.AtomicEffectType.Heal, 2) });
+            Assert(CardCore.EffectEligibility.BranchRewardRejectReason(healFx) == null
+                   && CardCore.EffectEligibility.BranchRewardRejectReason(healFxAuto) == null
+                   && CardCore.EffectEligibility.EngineRewardRejectReason(healFx, CardCore.BranchEngineKind.LuckRoll) == null,
+                   "R4 奖励资格：任意发动档的并列效果均放行（转发口同语义——不再按发动档分档）");
+            var tripleFx = r4Fx((int)CardCore.TriggerTiming.Activate_Active, 2,
+                new[] { r4Entry(CardCore.AtomicEffectType.Heal, 2), r4Entry(CardCore.AtomicEffectType.DrawCard, 1),
+                        r4Entry(CardCore.AtomicEffectType.DealDamage, 1) });
+            var tripleReason = CardCore.EffectEligibility.BranchRewardRejectReason(tripleFx);
+            Assert(tripleReason != null && tripleReason.Contains("并列"),
+                   "R4 奖励资格：组合效果仅并列（3 原子主干拒绝——实际：" + (tripleReason ?? "null") + "）");
+            var costFx = r4Fx((int)CardCore.TriggerTiming.Activate_Active, 2,
+                new[] { r4Entry(CardCore.AtomicEffectType.Heal, 2) });
+            costFx.Costs = new List<CardCore.CostEntry>
+                { new CardCore.CostEntry { CostType = (int)CardCore.CostType.Payload, Value = 1 } };
+            var costReason = CardCore.EffectEligibility.BranchRewardRejectReason(costFx);
+            Assert(costReason != null && costReason.Contains("代价"),
+                   "R4 奖励资格：代价不作为奖励（带 Costs 行拒绝——实际：" + (costReason ?? "null") + "）");
+            // 自由分支原子奖励合法（双通道）：引擎分支挂 then 原子列——converter 保真不折叠
+            var engineThenFx = new CardCore.CardEffectData
+            {
+                Id = "EFF_R4_PIPELINE_ENGINE",
+                TriggerTiming = (int)CardCore.TriggerTiming.OnStandbyPhase,
+                ActivationType = 1,
+                SelectionMode = -1,
+                TargetCount = -2,
+                Steps = new List<CardCore.EffectStepData>
+                {
+                    new CardCore.EffectStepData
+                    {
+                        kind = 0,
+                        atomic = new CardCore.AtomicEffectEntry
+                        {
+                            refId = CardCore.Attribute.AtomicEffectTable.GetByType(CardCore.AtomicEffectType.EngineLuckRoll)?.HashId,
+                            branch = new CardCore.BranchEntryData
+                            {
+                                settle = (int)CardCore.BranchSettleKind.Engine,
+                                engine = (int)CardCore.BranchEngineKind.LuckRoll,
+                                engineParam = 3,
+                                then = new List<CardCore.AtomicEffectEntry> { r4Entry(CardCore.AtomicEffectType.DrawCard, 1) },
+                            },
+                        },
+                    },
+                },
+            };
+            var engineThenDef = CardCore.CardEffectConverter.ConvertOne(engineThenFx, "R4_PROBE");
+            var engineThenAtom = engineThenDef?.Effects != null && engineThenDef.Effects.Count > 0
+                ? engineThenDef.Effects[0] : null;
+            Assert(engineThenAtom != null && engineThenAtom.Branch != null
+                   && engineThenAtom.Branch.Settle == CardCore.BranchSettleKind.Engine
+                   && engineThenAtom.Branch.Then != null && engineThenAtom.Branch.Then.Count == 1,
+                   "R4 双通道：引擎分支 then 原子列 converter 保真（Then 非空不折叠——自由分支原子奖励合法）");
+
             // ---- 1b. MountKinds 数据驱动（2026-10-07 晚终版：关键词默认可−消耗型拉黑；位3=属性变更；位7=光环专属）----
             // 光环关键词资格（2026-11-05 用户定案：位 7「不可作为连接光环」黑名单整链退役，
             // 关键词表重建后不再携带拉黑位——黑名单/守护拉黑/下拉排除三组断言同批删除，

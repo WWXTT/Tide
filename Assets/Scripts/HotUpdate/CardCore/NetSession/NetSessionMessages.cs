@@ -36,7 +36,9 @@ namespace CardCore.Network
     /// <summary>上行：进房（连接后第一条消息）。WantSeat=0/1 指定椅子位（被占即拒）、-1 任意空位；
     /// AsSpectator=true 一律登记观战（观战全信息——2026-09-23 定案）。
     /// OpenId/IsAi（2026-11-09 协议 v11 对局记录）：TapTap 开位 ID（服务器不持有 TapTap 档案，
-    /// 由进房方自报，随终局摘要回传对手；局域网为空）与 AI 填位标记（AI 局不下发终局摘要）。</summary>
+    /// 由进房方自报，随终局摘要回传对手；局域网为空）与 AI 填位标记（AI 局不下发终局摘要）。
+    /// Password/DeckName（S5 2026-11-10 房间密码+选卡上报）：密码空=无密码房直进；
+    /// DeckName=大厅选中的卡组名随进房上报（空=未选），RoomState 座位快照带出。</summary>
     [MemoryPackable]
     public partial class MsgJoinRoom
     {
@@ -57,6 +59,12 @@ namespace CardCore.Network
 
         [MemoryPackOrder(TagTable.MJR_IsAi)]
         public bool IsAi;
+
+        [MemoryPackOrder(TagTable.MJR_Password)]
+        public string Password;
+
+        [MemoryPackOrder(TagTable.MJR_DeckName)]
+        public string DeckName;
     }
 
     /// <summary>下行：房间全量状态（任何成员变化/阶段迁移时广播）。
@@ -118,7 +126,8 @@ namespace CardCore.Network
         public bool Ready;
     }
 
-    /// <summary>房间椅子位信息（RoomState.Players 元素）。</summary>
+    /// <summary>房间椅子位信息（RoomState.Players 元素）。DeckName（S5 2026-11-10）：
+    /// 本座位随 JoinRoom 上报的卡组名（座位卡展示双方卡组；空=未选/退位）。</summary>
     [MemoryPackable]
     public partial class MsgRoomSeatInfo
     {
@@ -130,6 +139,9 @@ namespace CardCore.Network
 
         [MemoryPackOrder(TagTable.MRSI_Connected)]
         public bool Connected;
+
+        [MemoryPackOrder(TagTable.MRSI_DeckName)]
+        public string DeckName;
     }
 
     /// <summary>房间阶段（RoomState.Phase 取值；int 传输，新增值只追加）。</summary>

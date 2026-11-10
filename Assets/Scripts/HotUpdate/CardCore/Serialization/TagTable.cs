@@ -376,6 +376,11 @@ namespace CardCore.Serialization
         public const int MJR_Nickname = 841072657;
         public const int MJR_OpenId = 981065552;   // v11：TapTap openId（对局记录对手身份；局域网空）
         public const int MJR_IsAi = 1542445315;    // v11：AI 填位标记（对局记录跳过 AI 局）
+        // S5（2026-11-10）房间密码+选卡上报。值=MurmurHash3(UTF8「类.属性」, seed 0x53796E67)，
+        // 取 RefreshMemoryPackOrder 内部 Hash32 实算（已核与该表既有值零撞号）。⚠️ 不要跑
+        // 「Tools/刷新属性排序」——该工具会按自己的字面表重写全部常量，冲掉本表既有手工值（已踩）。
+        public const int MJR_Password = 1021396469; // S5：房间密码（空=无密码）
+        public const int MJR_DeckName = 1371443254; // S5：进房上报的选中卡组名
 
         // ---- MsgRoomState ----
         public const int MRS_RoomId = 2098723049;
@@ -392,6 +397,7 @@ namespace CardCore.Serialization
         public const int MRSI_Seat = 914327639;
         public const int MRSI_Nickname = 807757571;
         public const int MRSI_Connected = 531597507;
+        public const int MRSI_DeckName = 1935616342; // S5：座位卡组名（同源哈希；零撞号已核）
 
         // ---- MsgRoomSettings ----
         public const int MRSet_FirstMoveMode = 142664050;

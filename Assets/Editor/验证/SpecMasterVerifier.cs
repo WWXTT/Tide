@@ -435,6 +435,81 @@ namespace CardCore.Editor.Tests
                     e3.FailWith("[FAIL] 技能 value=1 校验缺失（SkillValueViolations 不存在或无 value≥2 拒绝）");
             }
             catch (Exception ex) { e3.FailWith("[FAIL] E3 读取异常：" + ex.Message); }
+
+            // E5 分支奖励 R4 数据面审计（2026-11-10 R4 双通道落地配套）：全卡宇宙扫 branch.effectId
+            // 引用（Engine/Gate/Outcome 三 settle 通用）——须解析且过 BranchRewardRejectReason 单谓词
+            //（并列 1~2 原子·无代价·无嵌套分支·无无域原子·非引擎主干/光环）；引擎分支 then 原子列
+            // 合法（双通道——只查非空原子 refId 可解析）；代价门哨兵（CostGate）零落盘。
+            var e5 = Of("E5");
+            try
+            {
+                int refTotal = 0, badRef = 0, engineThen = 0, badThen = 0, costSentinel = 0;
+                var cards = LoadCardUniverse();
+                foreach (var card in cards)
+                {
+                    if (card?.Effects == null) continue;
+                    foreach (var fx in card.Effects)
+                    {
+                        if (fx == null) continue;
+                        IEnumerable<AtomicEffectEntry> Atoms()
+                        {
+                            if (fx.Steps != null)
+                                foreach (var s in fx.Steps)
+                                {
+                                    if (s?.kind == 0 && s.atomic != null) yield return s.atomic;
+                                    if (s?.kind == 1 && s.thenSteps != null)
+                                        foreach (var t in s.thenSteps) if (t != null) yield return t;
+                                }
+                            if (fx.AtomicEffects != null)
+                                foreach (var a in fx.AtomicEffects) if (a != null) yield return a;
+                        }
+                        string where = $"卡「{(string.IsNullOrEmpty(card.CardName) ? card.ID : card.CardName)}」效果 {fx.Id}";
+                        foreach (var atom in Atoms())
+                        {
+                            var b = atom?.branch;
+                            if (b == null) continue;
+                            if (b.settle == (int)BranchSettleKind.Gate && b.gateId == ComposerCatalog.CostGateId)
+                            {
+                                costSentinel++;
+                                e5.FailWith($"[FAIL] {where}：代价门哨兵（CostGate）落盘——代价应存效果 Costs 行");
+                                continue;
+                            }
+                            if (b.settle == (int)BranchSettleKind.Engine)
+                            {
+                                if (b.then != null)
+                                    foreach (var t in b.then)
+                                    {
+                                        engineThen++;
+                                        if (t != null && CardCore.Attribute.AtomicEffectTable.GetByHashId(t.refId) == null)
+                                        {
+                                            badThen++;
+                                            e5.FailWith($"[FAIL] {where}：引擎分支 then 原子 {t.refId} 悬空");
+                                        }
+                                    }
+                            }
+                            if (string.IsNullOrEmpty(b.effectId)) continue;
+                            refTotal++;
+                            var data = EffectsLibrary.Resolve(b.effectId);
+                            if (data == null)
+                            {
+                                badRef++;
+                                e5.FailWith($"[FAIL] {where}：奖励效果引用 '{b.effectId}' 悬空（不在效果库）");
+                                continue;
+                            }
+                            var reason = EffectEligibility.BranchRewardRejectReason(data);
+                            if (reason != null)
+                            {
+                                badRef++;
+                                e5.FailWith($"[FAIL] {where}：奖励效果 '{b.effectId}' 违反 R4 资格——{reason}");
+                            }
+                        }
+                    }
+                }
+                e5.Line($"branch.effectId 引用 {refTotal} 条（悬空/资格不符 {badRef}）；"
+                        + $"引擎分支 then 原子 {engineThen} 个（悬空 {badThen}）；代价门哨兵落盘 {costSentinel} 处"
+                        + (e5.Fail ? "" : "——R4 数据面全合规"));
+            }
+            catch (Exception ex) { e5.FailWith("[FAIL] E5 读取异常：" + ex.Message); }
         }
 
         // ======================================== 辅助 ========================================

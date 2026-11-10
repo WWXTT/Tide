@@ -32,6 +32,11 @@ namespace CardCore.Network
         private readonly Random _rng;
         private readonly int? _seed;
         private readonly bool _autoStartWhenAllReady; // 无真人房主（无头房主）拓扑：双座满即自动开局（默认模式掷币+随机）
+        private readonly string _password; // S5（2026-11-10）房间密码：空/null=无密码房（JoinRoom 不校验）
+
+        // S5：随 JoinRoom 上报的卡组名（房间侧按椅位存——INetChannel 接口在 NetTransports.cs，
+        // 不为本轮扩口；RoomState Players 快照带出供座位卡展示。退位即清）
+        private readonly string[] _joinDeckNames = new string[2];
 
         private NetRoomPhase _phase = NetRoomPhase.Waiting;
         private readonly INetChannel[] _chairs = new INetChannel[2];
@@ -70,13 +75,16 @@ namespace CardCore.Network
         private NetworkTargetSelector _selector;
 
         /// <summary>seed=null 用时间随机（生产）；钉种子（M3 对拍）时先手椅位与引擎随机流均确定。
-        /// autoStartWhenAllReady=无头房主（MatchHost 等）：双座满即开局（跳过准备/房主确认）。</summary>
-        public NetRoom(string roomId, int? seed = null, bool autoStartWhenAllReady = false)
+        /// autoStartWhenAllReady=无头房主（MatchHost 等）：双座满即开局（跳过准备/房主确认）。
+        /// password（S5 2026-11-10）：房间密码——非空时 JoinRoom 须携带同值；默认 null=无密码（既有调用零改动）。</summary>
+        public NetRoom(string roomId, int? seed = null, bool autoStartWhenAllReady = false,
+            string password = null)
         {
             _roomId = roomId ?? "";
             _seed = seed;
             _rng = seed.HasValue ? new Random(seed.Value) : new Random();
             _autoStartWhenAllReady = autoStartWhenAllReady;
+            _password = password;
         }
 
         public NetRoomPhase Phase => _phase;
@@ -175,6 +183,10 @@ namespace CardCore.Network
             if (_phase == NetRoomPhase.Finished)
             { SendError(conn, "对局已结束（单局串行——全员断开后房间回 Waiting 再进）", "JoinRoom"); return; }
 
+            // S5 房间密码闸：无密码房（_password 空）零影响；密码房校验观战与玩家位一视同仁
+            if (!string.IsNullOrEmpty(_password) && (join.Password ?? "") != _password)
+            { SendError(conn, "密码错误", "JoinRoom"); return; }
+
             if (join.AsSpectator)
             {
                 conn.ChairSeat = -1;
@@ -207,6 +219,7 @@ namespace CardCore.Network
             conn.Nickname = string.IsNullOrEmpty(join.Nickname) ? $"玩家{seat + 1}" : join.Nickname;
             conn.OpenId = join.OpenId ?? ""; // v11 对局记录：进房方自报（观战/局域网/AI 为空）
             conn.IsAi = join.IsAi;           // v11：AI 填位标记——AI 局不下发终局摘要
+            _joinDeckNames[seat] = join.DeckName ?? ""; // S5：大厅选中卡组随进房上报（RoomState 快照带出）
             _chairs[seat] = conn;
             _ready[seat] = false; // 新入座者未准备（重进房/换人：准备态不继承）
             _roomStateDirty = true;
@@ -590,6 +603,7 @@ namespace CardCore.Network
             }
 
             _chairs[conn.ChairSeat] = null;
+            _joinDeckNames[conn.ChairSeat] = null; // S5：退位即清卡组名（快照空座位不带残值）
             switch (_phase)
             {
                 case NetRoomPhase.Waiting:
@@ -829,6 +843,7 @@ namespace CardCore.Network
                     Seat = i,
                     Nickname = conn?.Nickname ?? "",
                     Connected = conn != null,
+                    DeckName = conn != null ? (_joinDeckNames[i] ?? "") : "", // S5：进房上报的卡组名（座位卡展示）
                 };
             }
             return new MsgRoomState

@@ -511,6 +511,34 @@ namespace SynergyUI
         [Serializable]
         private sealed class ListStepWrap { public List<EffectStepData> items; }
 
+        /// <summary>只读预览 def（2026-11-10 R4 阶段3）：BuildCardEffect 克隆 → 剥代价门哨兵并把
+        /// payloads 合成**临时** Costs（镜像 OnSave 回写——净费/代价组预览=保存落库后的真实账单），
+        /// → ConvertOne。全程只动克隆对象，不写回 _graph.header.Costs / steps（落盘是 OnSave 的职责）。
+        /// 代价门空（未填）时 Costs 同步清空——预览与保存形态一致。</summary>
+        private EffectDefinition PreviewEffectWithCosts()
+        {
+            var effect = BuildCardEffect();
+            if (effect == null) return null;
+            foreach (var s in effect.Steps ?? new List<EffectStepData>())
+            {
+                if (s?.kind != 0 || s.atomic?.branch == null || !IsCostGate(s.atomic.branch)) continue;
+                if (s.atomic.branch.then != null && s.atomic.branch.then.Count > 0)
+                {
+                    var originalRow = effect.Costs != null && effect.Costs.Count > 0 ? effect.Costs[0] : null;
+                    var row = originalRow != null // 克隆保留 CostType/ManaType 等字段只换 payloads（同 OnSave）
+                        ? JsonUtility.FromJson<CostEntry>(JsonUtility.ToJson(originalRow))
+                        : new CostEntry { CostType = (int)CostType.Payload, Value = 1 };
+                    row.payloads = s.atomic.branch.then;
+                    row.payload = null;
+                    effect.Costs = new List<CostEntry> { row };
+                }
+                else effect.Costs = null;
+                s.atomic.branch = null; // 哨兵剥除——预览不携带视图合成态
+                break;
+            }
+            return CardEffectConverter.ConvertOne(effect, "COMPOSER_COST_PREVIEW");
+        }
+
         /// <summary>扁平投影：kind=0 原子 + 其槽级 branch.then 奖励 + 遗留 kind=1 门奖励。</summary>
         private static List<AtomicEffectEntry> ProjectLinear(List<EffectStepData> steps)
         {

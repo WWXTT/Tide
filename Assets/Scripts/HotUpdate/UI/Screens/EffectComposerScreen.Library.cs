@@ -379,13 +379,9 @@ namespace SynergyUI
                             contextZh = "附加诅咒/祝福：载荷=效果组合引用——点主干卡「载荷效果」行选择（不填原子奖励）";
                             return _ => false;
                         }
-                        // 引擎奖励分支（2026-11-08 阶段4·奖励=效果引用单通道）：库不再供应原子——
-                        // then 原子通道对引擎奖励退役，选择走奖励区「奖励效果」行弹层
-                        if (b != null && (BranchSettleKind)b.settle == BranchSettleKind.Engine)
-                        {
-                            contextZh = "引擎奖励=组合效果引用——点奖励区「奖励效果」行选择（不再填原子奖励）";
-                            return _ => false;
-                        }
+                        // 引擎奖励双通道（2026-11-10 R4 修订，推翻 2026-11-08 阶段4 单通道）：
+                        // 原子奖励照旧点库落槽（2026-11-08 曾停供——then 通道恢复），组合效果引用走
+                        // 奖励区「奖励效果」行弹层，两通道费合计并入预算。
                         // 自由分支奖励：上限恒 6（2026-11-02 减费三选一：原 5 放宽一档——玩家在 1-6 费区间自由调，
                         // 门槛随计费推导、超上限红闪禁存；预言分支走 RewardCapOf 押注行 Budget）
                         int cap = RewardCapOf(b);
@@ -895,14 +891,9 @@ namespace SynergyUI
                             ShowToast("附加诅咒/祝福的载荷=效果组合引用（主动·极性匹配）——点主干卡「载荷效果」行选择，不再填原子奖励");
                             break;
                         }
-                        // 引擎奖励分支（2026-11-08 阶段4）：then 原子通道退役——库已不供原子，
-                        // 本闸拦旁路/旧选中态残留（防御，与 CurrentSlotPredicate 同口径）
-                        if ((BranchSettleKind)fb.settle == BranchSettleKind.Engine)
-                        {
-                            ShowToast("引擎分支奖励=效果引用——点奖励区「奖励效果」行选择，不再填原子奖励");
-                            break;
-                        }
-                        if (!RewardCanDrop(payload, fb)) { ShowToast("选中块=奖励——挂载位不合或超出预算（≤5 费）"); break; }
+                        //（2026-11-10 R4：引擎分支原子通道恢复——2026-11-08 阶段4 的「引擎奖励=效果
+                        // 引用单通道」拦截退役，双通道=点库落原子 + 「奖励效果」行选组合效果）
+                        if (!RewardCanDrop(payload, fb)) { ShowToast("选中块=奖励——挂载位不合或超出预算（≤6 费）"); break; }
                         if (payload.IsKeywordAtom) ApplyKeywordHeader();
                         DropBranchReward(payload, 0);
                     }

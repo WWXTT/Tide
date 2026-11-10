@@ -1,180 +1,108 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using CardCore.Network;
 using Cysharp.Threading.Tasks;
-using TapSDK.OnlineBattle;
-using TMPro;
 using Tide.HotUpdate;
 using UnityEngine;
 
 namespace SynergyUI.Online
 {
     /// <summary>
-    /// 联机屏的 TapTap 段（2026-10-23 接入，2026-10-24 预编译隔离自 LobbyScreen 迁入本程序集）：
-    /// 入口钮 + TapTap 面板（登录/建房/房间列表浏览加入）。面板 RectTransform 经
-    /// LobbyScreen.RegisterTapPanel 交回，换页仍走 LobbyScreen.ShowPanel 统一口；
-    /// 建房/加入经跨程序集助手（BeginHostSession/BeginGuestSession/ConnectLoopback/AdoptClientAndJoin）
-    /// 驱动屏本体，与局域网两路径完全同构。本地单机风味本类不编译——联机屏只剩局域网两面板。
+    /// 联机屏的 TapTap 段（S6b 双源改版）：不再持有 UI——以 ITapLobbySection 身份供
+    /// LobbyScreen 驱动（登录态/房间列表/建房/加入/退房），SDK 细节封装在 TapLobbyController。
+    /// 失败通道=返回 null + TapLobbyController.LastError 可读文案（不用元组——AOT 纪律）。
+    /// 本地单机风味本类不编译（联机屏只剩局域网路径）。
     /// </summary>
     public sealed class TapLobbySection : ITapLobbySection
     {
         private readonly LobbyScreen _screen;
-        private TMP_Text _tapStatusLabel;
-        private RectTransform _tapRoomListNode;
-        private List<RoomBasicInfo> _tapRooms;
-        private bool _tapBusy;
 
         public TapLobbySection(LobbyScreen screen) => _screen = screen;
 
-        public void Build(RectTransform root, RectTransform entryButtonsRow)
+        public bool IsLoggedIn => !string.IsNullOrEmpty(TapLobbyController.LoginName);
+        public string LoginName => TapLobbyController.LoginName;
+        public string LastError => TapLobbyController.LastError;
+
+        public async UniTask<string> EnsureLoginAsync()
+            => await TapLobbyController.EnsureLoginAndConnectAsync();
+
+        /// <summary>公开房间列表（S6b 双源）：滤满员房与 ranked 房（排位 S8 才有——普通列表不显示），
+        /// RoomBasicInfo → 中性 TapRoomEntry（HasPassword 由 customProperties 带 pwd 判定）。</summary>
+        public async UniTask<List<TapRoomEntry>> ListRoomsAsync()
         {
-            // ---- 入口钮（插在「加入房间」与「返回主菜单」之间——按钮序与原版一致）----
-            UiKit.Button("btn-taptap", entryButtonsRow, "TapTap 联机（房间列表）",
-                onClick: () => { _screen.ShowTapPanel(); RefreshTapRooms().Forget(); });
-
-            // ---- TapTap 联机面板（进面板自动登录；建房=房主，房间列表=客人加入）----
-            var panelTap = UiKit.Column("panel-taptap", root);
-            _tapStatusLabel = UiKit.Label("lbl-tap-status", panelTap, "进入即自动登录 TapTap…", 13, wrap: true);
-            var tapBtns = UiKit.Row("row-tap-btns", panelTap);
-            UiKit.Button("btn-tap-create", tapBtns, "创建房间（房主）",
-                onClick: () => StartTapHost().Forget(), bg: UiStyle.BtnPrimary);
-            UiKit.Button("btn-tap-refresh", tapBtns, "刷新房间列表",
-                onClick: () => RefreshTapRooms().Forget());
-            UiKit.Button("btn-tap-back", tapBtns, "返回",
-                onClick: () => _screen.ShowEntryPanel());
-            UiKit.Label("lbl-tap-rooms", panelTap, "公开房间（点条目加入；空=暂无，可自己创建）：", 13);
-            // 2026-11-09 修（双机联机实录）：ScrollColumn 根节点原先没有 Size，而 panel-taptap 是
-            // childControlWidth/Height=true + forceExpand=false 的 VLG → 根节点被按 Image 的
-            // preferred(sprite≈32px) 定宽定高，房间条目只剩一条缝，raycast 点不到（客人侧无法加入）。
-            // 与其它屏同款做法：宽度弹性铺满 + 高度显式（不能只给 fh，父级自身高度也由子项撑）。
-            var tapRoomList = UiKit.ScrollColumn("list-tap-rooms", panelTap);
-            UiKit.Size(tapRoomList.Rect, fw: 1f, h: 320f);
-            _tapRoomListNode = tapRoomList.Content;
-
-            _screen.RegisterTapPanel(panelTap); // 纳入 LobbyScreen.ShowPanel 换页集
-        }
-
-        /// <summary>TapTap 建房（房主）：登录 → CreateRoom → 组合传输（TCP 回环 + TapTap 客人腿）
-        /// → 本进程 NetSessionServer（权威）→ 回环入座椅位 0（与局域网开房同一路径）。</summary>
-        private async UniTaskVoid StartTapHost()
-        {
-            if (_tapBusy) { SetTapStatus("处理中，请稍候…"); return; }
-            _tapBusy = true;
-            try
-            {
-                SetTapStatus("TapTap 登录中…");
-                var err = await TapLobbyController.EnsureLoginAndConnectAsync();
-                if (err != null) { SetTapStatus(err); return; }
-
-                var nickname = _screen.ResolveNickname();
-                var room = await TapLobbyController.CreateRoomAsync(
-                    string.IsNullOrEmpty(nickname) ? "潮汐对战房" : $"{nickname}的房间");
-                if (room == null) { SetTapStatus("创建 TapTap 房间失败（详见 Console）"); return; }
-
-                // 组合传输：TCP 腿=127.0.0.1 回环（房主自己 + AI 填位，现有路径零改动）；
-                // TapTap 腿=远端客人（定向消息，快照按座位过滤后送达）
-                var server = new NetSessionServer("taptap", msg => Debug.Log(msg),
-                    host: new CompositeTransportHost(new NetTcpHost(), new TapBattleTransportHost()));
-                try { server.Start(0); }
-                catch (Exception ex)
+            var rooms = await TapLobbyController.GetRoomListAsync();
+            if (rooms == null) return null; // LastError 已在控制器侧
+            return rooms
+                .Where(r => r != null && !string.IsNullOrEmpty(r.id))
+                .Where(r => !(r.maxPlayerCount > 0 && r.playerCount >= r.maxPlayerCount)) // 满员不列
+                .Where(r => !(r.customProperties ?? "").Contains("ranked")) // ranked 房 S8 才有
+                .Select(r => new TapRoomEntry
                 {
-                    SetTapStatus($"本地会话服务器启动失败：{ex.Message}");
-                    await TapLobbyController.LeaveAndDisconnectAsync();
-                    return;
-                }
-
-                _screen.BeginHostSession(server,
-                    $"TapTap 房间「{room.name}」已创建——对手在「TapTap 联机」的房间列表点选加入");
-                _screen.ConnectLoopback(server.Port); // 房主回环入座（后台线程连接，避免 UI 卡帧）
-            }
-            finally { _tapBusy = false; }
+                    RoomId = r.id,
+                    Name = r.name,
+                    PlayerCount = r.playerCount,
+                    MaxPlayerCount = r.maxPlayerCount,
+                    HasPassword = (r.customProperties ?? "").Contains("pwd"),
+                })
+                .ToList();
         }
 
-        /// <summary>刷新 TapTap 公开房间列表（RoomType 过滤本游戏房间）。</summary>
-        private async UniTaskVoid RefreshTapRooms()
+        /// <summary>TapTap 建房（S6b）：SDK 建房（密码写 customProperties——真门禁=NetRoom）+
+        /// 本地组合传输会话服务器（TCP 回环腿=房主自己/AI 填位，TapTap 腿=远端客人；同 password）
+        /// 已 Start(0)。失败返回 null（LastError 文案含本地服务器启动失败路径）。</summary>
+        public async UniTask<NetSessionServer> CreateRoomAsync(string roomName, string password)
         {
-            if (_tapBusy) { SetTapStatus("处理中，请稍候…"); return; }
-            _tapBusy = true;
+            var room = await TapLobbyController.CreateRoomAsync(roomName, password);
+            if (room == null) return null;
+            var server = new NetSessionServer("taptap", msg => Debug.Log(msg),
+                host: new CompositeTransportHost(new NetTcpHost(), new TapBattleTransportHost()),
+                password: string.IsNullOrEmpty(password) ? null : password);
             try
             {
-                SetTapStatus("登录并拉取房间列表…");
-                var err = await TapLobbyController.EnsureLoginAndConnectAsync();
-                if (err != null) { SetTapStatus(err); return; }
-                var rooms = await TapLobbyController.GetRoomListAsync();
-                if (rooms == null) { SetTapStatus("拉取房间列表失败（详见 Console）"); return; }
-                _tapRooms = rooms;
-                RebuildTapRoomList();
-                SetTapStatus(rooms.Count == 0
-                    ? "暂无公开房间——可点「创建房间」当房主"
-                    : $"共 {rooms.Count} 个房间（点条目加入；满员房不显示）");
+                server.Start(0);
             }
-            finally { _tapBusy = false; }
-        }
-
-        /// <summary>加入指定 TapTap 房间（客人）：JoinRoom 成功 → TapClientTransport（对端=房主）
-        /// → 协议 JoinRoom 进房分座。</summary>
-        private async UniTaskVoid JoinTapRoom(RoomBasicInfo room)
-        {
-            if (_tapBusy || room == null || string.IsNullOrEmpty(room.id)) return;
-            _tapBusy = true;
-            try
+            catch (Exception ex)
             {
-                SetTapStatus($"加入「{room.name}」…");
-                var err = await TapLobbyController.EnsureLoginAndConnectAsync();
-                if (err != null) { SetTapStatus(err); return; }
-                var joined = await TapLobbyController.JoinRoomAsync(room.id);
-                if (joined == null) { SetTapStatus("加入失败：房间可能已满或已开局"); return; }
-                if (string.IsNullOrEmpty(joined.ownerId)) { SetTapStatus("房间数据异常（无房主）"); return; }
-
-                var transport = new TapClientTransport(joined.ownerId, TapLobbyController.SelfPlayerId);
-                var client = new NetGameClient();
-                client.Connect(transport); // 传输就绪（JoinRoom 已成功）——后续统一走协议 JoinRoom
-                _screen.BeginGuestSession($"TapTap 房间「{joined.name}」");
-                _screen.AdoptClientAndJoin(client, wantSeat: -1, _screen.ResolveNickname());
+                TapLobbyController.SetLastError($"本地会话服务器启动失败：{ex.Message}");
+                await TapLobbyController.LeaveAndDisconnectAsync(); // SDK 侧房间不残留
+                return null;
             }
-            finally { _tapBusy = false; }
+            return server; // BeginHostSession/回环入座由 LobbyScreen 收尾（两路同构）
         }
 
-        /// <summary>重建房间列表行（刷新时整组重排——条目≤20 无虚拟化必要；满员房跳过）。</summary>
-        private void RebuildTapRoomList()
+        /// <summary>加入指定房间（S6b）：SDK JoinRoom（无密码参——密码经协议 JoinRoom 由 NetRoom
+        /// 校验，由 LobbyScreen 统一发送）+ TapClientTransport 就绪的客户端。失败返回 null。</summary>
+        public async UniTask<NetGameClient> JoinRoomAsync(string roomId, string password)
         {
-            if (_tapRoomListNode == null) return;
-            for (int i = _tapRoomListNode.childCount - 1; i >= 0; i--)
-                UnityEngine.Object.Destroy(_tapRoomListNode.GetChild(i).gameObject);
-            var rooms = _tapRooms ?? new List<RoomBasicInfo>();
-            int row = 0;
-            foreach (var r in rooms)
-            {
-                if (r == null || string.IsNullOrEmpty(r.id)) continue;
-                if (r.maxPlayerCount > 0 && r.playerCount >= r.maxPlayerCount) continue; // 满员
-                var captured = r;
-                UiKit.Button($"btn-tap-room-{row}", _tapRoomListNode,
-                    $"{captured.name}（{captured.playerCount}/{captured.maxPlayerCount}）",
-                    onClick: () => JoinTapRoom(captured).Forget());
-                row++;
-            }
+            var joined = await TapLobbyController.JoinRoomAsync(roomId);
+            if (joined == null) return null;
+            var transport = new TapClientTransport(joined.ownerId, TapLobbyController.SelfPlayerId);
+            var client = new NetGameClient();
+            client.Connect(transport); // 传输就绪（SDK JoinRoom 已成功）
+            return client;
         }
 
-        private void SetTapStatus(string text)
+        public async UniTask<string> LeaveAsync()
         {
-            if (_tapStatusLabel != null) _tapStatusLabel.text = text;
-            Debug.Log($"[Lobby·TapTap] {text}");
+            await TapLobbyController.LeaveAndDisconnectAsync();
+            return null; // 吞错口径沿用（两腿 15s 超时兜底在控制器）
         }
 
-        /// <summary>拆会话收口（LobbyScreen.TeardownSession 调用）：退房+断服务
-        ///（对局移交后不走这里——战斗屏接管期间保持连接）。</summary>
+        /// <summary>S6a 起 v2 三栏无独立 TapTap 面板——留空（接口兼容保留）。</summary>
+        public void Build(RectTransform root, RectTransform entryButtonsRow) { }
+
+        /// <summary>拆会话收口（LobbyScreen.TeardownSession 调）：退房+断对战服务。</summary>
         public void Teardown()
         {
-            if (TapLobbyController.IsServiceConnected || _tapBusy)
+            if (TapLobbyController.IsServiceConnected)
                 TapLobbyController.LeaveAndDisconnectAsync().Forget();
-            _tapRooms = null;
-            _tapBusy = false;
         }
 
-        /// <summary>昵称兜底：TapTap 登录名（未登录为空——上层继续随机兜底）。</summary>
+        /// <summary>昵称兜底（TapTap 登录名；未登录为空——上层继续兜底）。</summary>
         public string FallbackNickname() => TapLobbyController.LoginName;
 
-        /// <summary>本机 TapTap openId（2026-11-09 协议 v11 对局记录：进房自报）；未登录返回空。</summary>
+        /// <summary>本机 TapTap openId（协议 v11 对局记录：进房自报）；未登录返回空。</summary>
         public string OpenIdOf() => TapAccountService.Current?.OpenId ?? "";
     }
 }

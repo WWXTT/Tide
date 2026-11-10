@@ -127,11 +127,17 @@ namespace CardCore
 
         /// <summary>
         /// 可否作自由分支/有限分支的 Then 奖励效果引用（2026-11-07 分支奖励效果化定案·资格谓词单源
-        /// ——合成器奖励效果选择器 / 槽区保存闸 / 装载期 ValidateAtomParams 共用）：
+        /// ——合成器奖励效果选择器 / 槽区保存闸 / 装载期 ValidateAtomParams 共用；**2026-11-10 R4
+        /// 修订**：引擎奖励与一般分支奖励合并为同一谓词，不再按发动档分档）：
         /// 非引擎主干（引擎主干自持事件经济，作奖励=奖励永不发射）∧ 非光环形态（箭头/连接光环条目=
-        /// 驻场持续语义，奖励是单次结算）∧ 无场地光环步（RuleAura 驻场全局唯一）∧ 非空原子。
-        /// 不限发动方式与极性——奖励发射口 LaunchReward 自理（主动档入待发队列/自动档直发），
-        /// 奖励目标由控制者结算期弹选（极性=目标侧语义，与诅咒/祝福载荷的极性闸不同源）。
+        /// 驻场持续语义，奖励是单次结算）∧ 无场地光环步（RuleAura 驻场全局唯一）∧ 非空原子
+        /// ∧ **无代价行**（代价=费用抵扣不是奖励——全价≤3、同色逐行抵扣口径）∧ **无任何嵌套分支**
+        ///（含遗留 kind=1 门步折算后的 Gate/Outcome 载荷——奖励=并列整效果单次结算，条件/引擎
+        /// 嵌套请拆独立效果；深扫递归 Then）∧ **无 Domain 原子**（奖励发射/目标解析走域管线——
+        /// 与「无Domain不参与效果组合」同口径，深扫含嵌套 Then）∧ **并列形状（1~2 主干原子）**
+        ///（与合成器并列槽同口径——奖励是扁平并列效果，不是长链编排）。
+        /// 不限发动方式与极性——奖励发射口 LaunchReward 自理（固定三直发/自动三按外层效果头时机
+        /// 评估），奖励目标由控制者结算期弹选（极性=目标侧语义，与诅咒/祝福载荷的极性闸不同源）。
         /// 输入契约同 <see cref="CursePayloadRejectReason"/>：完整卡内效果（EffectsLibrary.Resolve 还原）。
         /// 自引用（分支奖励引用宿主效果自身）由选择器排除+运行时深度闸兜底，不在本谓词判。
         /// </summary>
@@ -142,62 +148,38 @@ namespace CardCore
             if (timing < 0 || timing > TriggerTiming.OnCardCastSettled) return "时机值非法";
             if (data.ArrowDirections != 0 || (data.LinkAuras != null && data.LinkAuras.Count > 0))
                 return "光环形态效果不可作分支奖励（箭头/光环条目=驻场持续语义，奖励是单次结算）";
+            if (data.Costs != null && data.Costs.Count > 0)
+                return "带代价行的效果不可作分支奖励（代价=费用抵扣不是奖励——全价≤3、同色逐行抵扣）";
             var def = CardEffectConverter.ConvertOne(data, data.Id ?? "");
             if (def == null) return "空效果";
             if (CardEffectConverter.EngineKindOfDefinition(def) != BranchEngineKind.None)
                 return "引擎主干不作分支奖励（引擎不经奖励管线，条件永不评估）";
             if (HasRuleAuraAtom(def)) return "场地光环步不可作分支奖励（驻场全局唯一语义）";
-            bool sawAtom = false;
+            int trunkCount = 0;
             foreach (var a in AtomsDeepOf(def))
             {
                 if (a == null) continue;
-                sawAtom = true;
-                break;
+                if (a.Branch != null)
+                    return "分支嵌套效果不可作奖励（奖励=并列整效果单次结算——条件/引擎嵌套请拆独立效果）";
+                var row = CardCore.Attribute.AtomicEffectTable.GetByType(a.Type);
+                if (row != null && row.GetTargetKindList().Count == 0)
+                    return "效果含无目标域原子（检索/强夺等无域行）——不可作奖励";
+                trunkCount++;
             }
-            if (!sawAtom) return "空效果（无原子）";
+            if (trunkCount == 0) return "空效果（无原子）";
+            if (trunkCount > 2)
+                return $"非并列形状不可作奖励（主干原子 {trunkCount} 个超两槽——奖励=1~2 原子的并列效果）";
             return null;
         }
 
-        /// <summary>
-        /// 引擎奖励效果引用的发动档资格（2026-11-08 规则地基定案·资格谓词单源——合成器奖励效果
-        /// 选择器 / 槽区保存闸 / 验证器共用）：先复用 <see cref="BranchRewardRejectReason"/>
-        ///（非引擎主干/非光环形态/非空原子），再按引擎奖励类型分档——
-        /// 主动奖励引擎（倒计时/死亡计数/元素充盈，ComposerCatalog.IsActiveRewardEngine）：
-        /// 奖励必须是主动效果（def.IsActivatedEffect——Activate_*；发射口 LaunchReward **直发**，
-        /// 2026-11-08 阶段3 定案：固定三主干触发立即生效，主动奖励不入待发队列、忽略 tactivate）；
-        /// 自动奖励引擎（运势/拼枪/团结，IsAutomaticRewardEngine）：奖励必须是自动效果
-        ///（IsTriggeredEffect ∧ ActivationType==Automatic）且时机有真实事件锚
-        ///（TriggerTimingDefaults.GetEventType 非空——达标直发）。
-        /// 无 Domain 原子不入引擎奖励（2026-11-08 阶段4 入闸）：奖励发射/目标解析走域管线——
-        /// 含无域行（检索/强夺/跳过阶段等，与「无Domain不参与效果组合」同口径）的效果整体拒绝，
-        /// 深扫含嵌套 Then（奖励内嵌奖励同为发射内容）。
-        /// 载荷引擎（附加诅咒/祝福）不经发动档闸——载荷资格另走 CursePayloadRejectReason，
-        /// Then 原子旧兼容通道照 BranchRewardRejectReason 通用口径。
-        /// 输入契约同 <see cref="CursePayloadRejectReason"/>：完整卡内效果（EffectsLibrary.Resolve 还原）。
-        /// </summary>
+        /// <summary>引擎奖励效果引用资格（2026-11-08 阶段4 曾按发动档分档——主动奖励引擎只收主动/
+        /// 自动奖励引擎只收自动且带真实时机；**2026-11-10 R4 修订**：分档闸整删，引擎奖励与一般
+        /// 分支奖励合并走 <see cref="BranchRewardRejectReason"/> 同一谓词——任意发动档的并列效果
+        /// 均可作奖励，发射/评估时机由引擎自理（固定三直发；自动三按外层效果头时机评估——
+        /// 否则主动效果作运势奖励时事件类型永不匹配）。engine 参数保留仅为调用方签名兼容。
+        /// 载荷引擎（附加诅咒/祝福）载荷资格另走 CursePayloadRejectReason，不经本口。</summary>
         public static string EngineRewardRejectReason(CardEffectData data, BranchEngineKind engine)
-        {
-            var common = BranchRewardRejectReason(data);
-            if (common != null) return common;
-            if (!ComposerCatalog.IsActiveRewardEngine(engine) && !ComposerCatalog.IsAutomaticRewardEngine(engine))
-                return null; // 非奖励引擎（载荷/None）：只吃通用闸
-            var def = CardEffectConverter.ConvertOne(data, data.Id ?? "");
-            if (def == null) return "空效果";
-            if (ComposerCatalog.IsActiveRewardEngine(engine) && !def.IsActivatedEffect)
-                return "该引擎奖励只能挂主动效果";
-            if (ComposerCatalog.IsAutomaticRewardEngine(engine)
-                && !(def.IsTriggeredEffect
-                     && def.ActivationType == EffectActivationType.Automatic
-                     && TriggerTimingDefaults.GetEventType(def.TriggerTiming) != null))
-                return "该引擎奖励只能挂自动效果，且必须有真实触发时机";
-            foreach (var a in AtomsDeepOf(def))
-            {
-                var row = CardCore.Attribute.AtomicEffectTable.GetByType(a.Type);
-                if (row != null && row.GetTargetKindList().Count == 0)
-                    return "效果含无目标域原子（检索/强夺等无域行）——不可作引擎奖励";
-            }
-            return null;
-        }
+            => BranchRewardRejectReason(data);
 
         /// <summary>逐卡型拒绝原因（null=可挂载）。多特征叠加时任一命中即拒。
         /// 2026-11-10 资格层新口径：OnTurnStart 任何宿主拒（引擎载荷豁免——raw 值经归一化）；

@@ -32,7 +32,8 @@ namespace SynergyUI
             if (_costLabel != null)
                 UiKit.Described(_costLabel,
                     "费用预览：合计费用＋黑白获得；悬浮此处看完整费用构成（逐原子公式链）。"
-                    + "分支 Then 奖励免费（不计合计）；奖励超出可实现费用时按槽区红框提示调整后才能保存。");
+                    + "分支奖励免费（不计合计）；代价是费用抵扣（不是奖励——全价≤3、同色逐行抵扣，"
+                    + "预览显示「全费−代价=净费」）；奖励超出可实现费用时按槽区红框提示调整后才能保存。");
             // 费用徽标（2026-10-26 改版）：prefab 侧=公用 CostSquares 预制体实例（根挂 CostSquaresView）——
             // 逐色块展示合计费用（与右栏行/卡面费用方格同构），0/无效组合隐藏
             _costBadgeNode = Find("cost-badge") as RectTransform;

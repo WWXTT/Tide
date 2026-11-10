@@ -13,7 +13,7 @@ namespace SynergyUI
     /// 查看界面——列表（时间/对手/胜负）→ 详情（对手卡组摘要 + 战报全文）+「导入对手卡组」
     ///（OpponentDeckImporter——对手自建内容默认不进玩家库，导入是显式动作）。
     /// 纯代码构建（同 LobbyScreen 模式，prefab 化留待美术换皮）；空态=「暂无对局记录」。
-    /// 主菜单入口 MainMenuScreen（btn-history）。
+    /// 联机屏入口 LobbyScreen（btn-history）。
     /// </summary>
     public sealed class MatchHistoryScreen : UIScreen
     {
@@ -41,7 +41,7 @@ namespace SynergyUI
             var listScroll = UiKit.ScrollColumn("list-records", _panelList);
             _listContent = listScroll.Content;
             UiKit.Size(listScroll.Rect.transform as RectTransform, fw: 1f, fh: 1f);
-            UiKit.Button("btn-history-back", _panelList, "返回主菜单", () => Manager.Back());
+            UiKit.Button("btn-history-back", _panelList, "返回", () => Manager.Back()); // S1：联机屏也有入口——Back 回来源屏
 
             // ---- 详情面板 ----
             _panelDetail = UiKit.Column("panel-detail", Root);

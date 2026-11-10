@@ -104,9 +104,12 @@ namespace SynergyUI
                             }
                             else
                             {
-                                MakeHint(slot, $"{ComposerCatalog.EngineZhOf(engineKind)}门槛=奖励引用费实时推导"
-                                    + "（奖励=组合效果引用·点奖励区「奖励效果」行选择，无需参数；奖励费 ≤6，"
-                                    + "门槛随引用费变；同一张卡每回合只触发一次）"
+                                // 双通道（2026-11-10 R4，推翻 2026-11-08 阶段4 单通道）：奖励=原子（点库
+                                // 落槽）或并列组合效果（点「奖励效果」行弹层）或两者并存——合计费 ≤6，
+                                // 门槛随合计费实时推导（自动三评估窗口=发动条外层时机，玩家可选）
+                                MakeHint(slot, $"{ComposerCatalog.EngineZhOf(engineKind)}门槛=奖励费实时推导"
+                                    + "（奖励=原子或并列组合效果〔1-6 费〕——原子点库落槽、组合效果点奖励区"
+                                    + "「奖励效果」行选择，两者可并存；门槛随合计费变；同一张卡每回合只触发一次）"
                                     + $"——见顶栏预览「自由分支·{ComposerCatalog.EngineZhOf(engineKind)}x」");
                                 MakeRewardSlot(slot, b);
                             }

@@ -201,7 +201,9 @@ namespace SynergyUI
                 //「合计 X｜代价抵扣 Y｜净费 Z」，与引擎发动闸/徽标费用组同源
                 var special = def.Costs != null
                     ? def.Costs.Where(c => c != null && c.Type != CostType.ElementConsume).ToList() : null;
-                if (def.IsActivatedEffect && special != null && special.Count > 0
+                //（2026-11-10 R4 阶段3：去 IsActivatedEffect 前置——非主动效果带代价门同样显示
+                //  「全费 − 代价 = 净费」；def 经 PreviewEffectWithCosts 合成临时 Costs）
+                if (special != null && special.Count > 0
                     && EffectActivationGate.DeductionPoints(special) > 0)
                 {
                     var net = EffectActivationGate.NetBill(total, special);
@@ -226,8 +228,10 @@ namespace SynergyUI
         }
 
         /// <summary>费用徽标双组（2026-11-06 方格改版：原「代价→净费」③段公式文本退役）：
-        /// 费用组=净费（光环=条目合计；并列=推导合计；带效果级代价=发动费−抵扣=NetBill）；
-        /// 代价组=效果级代价分色面（PayloadGrantByColor——Cost2，有代价才显组）。无效组合=null。</summary>
+        /// 费用组=净费（光环=条目合计；并列=推导合计；带效果级代价=全费−抵扣=NetBill——
+        /// 2026-11-10 R4 阶段3 起不限主动档：非主动效果带代价门同样显示净费）；
+        /// 代价组=效果级代价分色面（PayloadGrantByColor——Cost2，有代价才显组）。
+        /// def 经 PreviewEffectWithCosts（代价门哨兵→临时 Costs 只读合成）。无效组合=null。</summary>
         private (ElementCost fee, ElementCost pay) CostBadgeCosts()
         {
             try
@@ -238,13 +242,15 @@ namespace SynergyUI
                     return (n > 0 ? auraTotal : null, null);
                 }
                 if (!ZonesAllValid()) return (null, null);
-                var def = CardEffectConverter.ConvertOne(BuildCardEffect(), "COMPOSER_COST_PREVIEW");
+                var def = PreviewEffectWithCosts();
                 if (def == null) return (null, null);
                 var badge = CostDerivationService.DeriveElementCosts(def, 0);
                 var special = def.Costs != null
                     ? def.Costs.Where(c => c != null && c.Type != CostType.ElementConsume).ToList()
                     : null;
-                if (def.IsActivatedEffect && special != null && special.Count > 0
+                //（2026-11-10 R4 阶段3：去 IsActivatedEffect 前置——非主动效果带代价门同样
+                //  费用组=净费；代价组仍显示代价分色面 PayloadGrantByColor）
+                if (special != null && special.Count > 0
                     && EffectActivationGate.DeductionPoints(special) > 0)
                     badge = EffectActivationGate.NetBill(badge, special); // 带代价行——费用组=净费
                 var grant = special != null && special.Count > 0
@@ -274,8 +280,10 @@ namespace SynergyUI
             return (total, lines.Count);
         }
 
-        /// <summary>分支段文本（2026-10-09 定案）：引擎/其余分支只声明「分支（奖励免费）」；**附加诅咒/祝福
-        /// 例外**（同日附加指示物定案）——不再奖励免费：按分支实际载荷费用减半向上取整入价
+        /// <summary>分支段文本（2026-10-09 定案）：引擎/其余分支只声明「分支（奖励免费）」；
+        /// **代价门**（2026-11-10 R4 阶段3）显示「代价（减免 N）」——代价=费用抵扣不是奖励
+        ///（N=逐原子全价 PayloadUnitGrant 合计，≤3 上限由槽区校验拦）；
+        /// **附加诅咒/祝福例外**（同日附加指示物定案）——不再奖励免费：按分支实际载荷费用减半向上取整入价
         ///（2026-11-06 载荷效果化：载荷=效果库组合效果引用——按引用效果锚价取费；
         /// EngineBranchSurchargeHalfOf 与卡价 DeriveElementCosts.EngineBranchSurcharge 同源）；
         /// 超上限提示由槽区校验红框承载（保存已禁），未设载荷的分支不列（槽区校验拦）。</summary>
@@ -293,6 +301,15 @@ namespace SynergyUI
                     float half = CurseSurchargeHalfOf(step.atomic, b);
                     if (half > 0f) return $"分支（{ComposerCatalog.EngineZhOf(ek)}费减半：{half:0.#}）";
                     continue; // 未设载荷——槽区校验已拦（CursePayloadError），费用段不列
+                }
+                if (IsCostGate(b))
+                {
+                    // 代价门（2026-11-10 R4 阶段3）：代价=费用抵扣不是奖励——减免量=逐原子全价合计
+                    //（与槽区校验/保存回写同锚；未填由槽区红框拦，费用段不列）
+                    if (b.then == null || b.then.Count == 0) continue;
+                    float pts = 0f;
+                    foreach (var a in b.then) pts += CostAtomPrice(a);
+                    return $"代价（减免 {pts:0.#}）";
                 }
                 if (b.then?.FirstOrDefault() == null) continue;
                 return "分支（奖励免费）";
@@ -342,10 +359,12 @@ namespace SynergyUI
 
         /// <summary>并列费用分账单源（ParallelCostText 悬浮全文与顶栏明细 CostSummaryText 共用）：
         /// body=「费用：逐原子公式链」（空组合=""）；total=合计真值（真实小数）；
-        /// def=装载后效果定义（费用徽标双组 CostBadgeCosts 消费——省一次重复 ConvertOne）。</summary>
+        /// def=装载后效果定义（费用徽标双组 CostBadgeCosts 消费——省一次重复 ConvertOne）。
+        /// 2026-11-10 R4 阶段3：def 经 PreviewEffectWithCosts 构造——代价门哨兵剥除+临时 Costs
+        /// 合成（净费/代价组预览=保存后真实账单；不写回 _graph）。</summary>
         private (string body, ElementCost total, EffectDefinition def) ParallelCostBreakdown()
         {
-            var def = CardEffectConverter.ConvertOne(BuildCardEffect(), "COMPOSER_COST_PREVIEW");
+            var def = PreviewEffectWithCosts();
             if (def == null) return ("", new ElementCost(), null);
             var total = CostDerivationService.DeriveElementCosts(def, 0);
 

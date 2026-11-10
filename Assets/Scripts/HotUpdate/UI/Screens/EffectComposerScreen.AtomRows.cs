@@ -755,15 +755,14 @@ namespace SynergyUI
 
         // ======================================== 分支奖励效果（2026-11-07 分支奖励效果化） ========================================
 
-        /// <summary>槽内「奖励效果」选择行（2026-11-07 分支奖励效果化）：自由分支（非附加诅咒/祝福）与
-        /// 有限分支的 Then 奖励=组合效果引用+原子双通道——效果经弹层选择（右栏库仍只列原子），原子照旧
-        /// 点库落槽；两通道费合计并入分支预算（超限禁存）与引擎门槛/倒计时换算推导。
-        /// 引擎奖励分支（2026-11-08 阶段4）：本行=奖励唯一通道——then 原子已退役，选择弹层按
-        /// EngineRewardRejectReason 分档过滤（固定三只列主动/自动三只列自动且带真实时机/无 Domain 不列）。</summary>
+        /// <summary>槽内「奖励效果」选择行（2026-11-07 分支奖励效果化；**2026-11-10 R4 修订**：
+        /// 引擎分支与有限分支共用同一双通道——奖励=组合效果引用+原子并存，效果经弹层选择（右栏库仍
+        /// 只列原子），原子照旧点库落槽；两通道费合计并入分支预算（超限禁存）与引擎门槛/倒计时换算
+        /// 推导。2026-11-08 阶段4 的「引擎奖励单通道/时机锁定」文案随 R4 退役——弹层统一按
+        /// BranchRewardRejectReason 单谓词过滤（只列并列、无代价、无嵌套分支、无无域原子的效果，
+        /// 任意发动档；自动三评估窗口=外层时机由玩家在发动条选）。</summary>
         private void MakeRewardFxRow(RectTransform area, BranchEntryData b, RectTransform head, Action refresh)
         {
-            var eng = (BranchEngineKind)b.engine;
-            bool engineReward = (BranchSettleKind)b.settle == BranchSettleKind.Engine && !IsCurseEngine(eng);
             var row = UiKit.Row("fx-reward-ref", area, spacing: 6f);
             if (head != null) row.SetSiblingIndex(head.GetSiblingIndex() + 1); // 紧随摘要行
             UiKit.Size(UiKit.Label("lbl", row, "奖励效果：", 12, UiStyle.TextSecondary), w: 62f);
@@ -773,9 +772,7 @@ namespace SynergyUI
             {
                 var fxg = string.IsNullOrEmpty(b.effectId) ? null : EffectsLibrary.Get(b.effectId);
                 state.text = string.IsNullOrEmpty(b.effectId)
-                    ? engineReward
-                        ? "（未选——引擎奖励=组合效果引用，点「选择」；运势/拼枪/团结先选奖励以确定时机）"
-                        : "（未选——可选组合效果作奖励，与下方原子奖励并存）"
+                    ? "（未选——可选组合效果作奖励，与下方原子奖励并存）"
                     : fxg != null ? $"已选：{fxg.name}（{b.effectId}）" : $"[断链] {b.effectId}";
             }
             RefreshState();
@@ -786,19 +783,15 @@ namespace SynergyUI
                 RefreshState();
                 refresh?.Invoke();
             }, height: 26f, fontSize: 12);
-            UiKit.Described(state, engineReward
-                ? (ComposerCatalog.IsActiveRewardEngine(eng)
-                    ? "选择奖励效果（引擎奖励单通道）：条件达成时直发该组合效果——只列主动效果；"
-                      + "选中后不能再追加原子奖励，引用费并入引擎门槛推导（超限禁存）。"
-                    : "选择奖励效果（引擎奖励单通道）：条件达成时直发该组合效果——只列自动且带真实触发时机的效果；"
-                      + "选中后时机随该效果锁定，不能再追加原子奖励，引用费并入引擎门槛推导（超限禁存）。")
-                : "选择奖励效果（组合效果）：条件达成时先结算该组合效果、再结算原子奖励——"
-                  + "两通道费合计须在分支预算内（超限禁存）；门槛/倒计时随合计费自动推导。");
+            UiKit.Described(state,
+                "选择奖励效果（组合效果）：条件达成时先结算该组合效果、再结算原子奖励——"
+                + "两通道费合计须在分支预算内（超限禁存）；门槛/倒计时随合计费自动推导。");
         }
 
         /// <summary>分支奖励效果校验（2026-11-07 分支奖励效果化——保存闸）：须在效果库解析成功、
-        /// 通过奖励资格（非引擎主干/非光环/非空——单源 EffectEligibility.BranchRewardRejectReason）、
-        /// 且不得引用本效果自身（自引用环）。null=合规。与装载期 ValidateAtomParams 同口径。</summary>
+        /// 通过奖励资格（R4 单谓词 EffectEligibility.BranchRewardRejectReason——并列/无代价/无嵌套
+        /// 分支/无无域原子/非引擎主干/非光环）、且不得引用本效果自身（自引用环）。null=合规。
+        /// 与装载期 ValidateAtomParams 同口径（自由/有限/引擎分支统一）。</summary>
         private string BranchRewardFxError(BranchEntryData b)
         {
             var fxId = b?.effectId;
@@ -810,55 +803,18 @@ namespace SynergyUI
             return reason != null ? $"奖励效果 '{fxId}' {reason}——请改选" : null;
         }
 
-        /// <summary>引擎奖励效果校验（2026-11-08 阶段4——保存闸·引擎奖励分支专用）：悬空/自引用/
-        /// 发动档不符/无 Domain 原子——资格单源 EffectEligibility.EngineRewardRejectReason
-        ///（与装载期 ValidateAtomParams 引擎闸同口径）。null=合规。</summary>
-        private string EngineRewardFxError(BranchEntryData b, BranchEngineKind engine)
-        {
-            var fxId = b?.effectId;
-            if (string.IsNullOrEmpty(fxId)) return null;
-            if (fxId == _graph?.id) return "引擎奖励效果不能引用本效果自身（自引用环）——请改选";
-            var data = EffectsLibrary.Resolve(fxId);
-            if (data == null) return $"奖励效果 '{fxId}' 不在效果库（悬空——效果可能已被删除），请改选";
-            var reason = EffectEligibility.EngineRewardRejectReason(data, engine);
-            return reason != null ? $"奖励效果 '{fxId}' {reason}——请改选" : null;
-        }
-
-        /// <summary>引擎奖励摘要三段式（2026-11-08 阶段4）：「效果名｜主动/自动｜时机」——
-        /// 主动效果不设时机（Activate_* 三档），无时机段；自动效果带 AtomText.TimingZh 时机中文。
-        /// 输入=EffectsLibrary.Get 的瘦条目（activation：0=强制 1=自动 2=主动）。</summary>
-        private static string EngineRewardSummary(EffectSlimDto fx)
-        {
-            if (fx == null) return "";
-            bool active = fx.activation == (int)EffectActivationType.Voluntary;
-            string timing = "";
-            if (!active)
-            {
-                var t = (TriggerTiming)fx.timing;
-                timing = "｜" + (AtomText.TimingZh.TryGetValue(t, out var tz) ? tz : t.ToString());
-            }
-            return $"【效果】{(string.IsNullOrEmpty(fx.name) ? fx.id : fx.name)}｜{(active ? "主动" : "自动")}{timing}";
-        }
-
-        /// <summary>分支奖励效果选择弹层（2026-11-07 分支奖励效果化）：搜索 + 效果库列表（主∪教学——
-        /// 训练表不随包下发不入，重复 id 保主表，与载荷效果弹层同口径）。只列奖励资格通过的组合效果
-        ///（资格单源 BranchRewardRejectReason）；排除本效果自身防自引用环。选中写 b.effectId。
-        /// 引擎奖励分支（2026-11-08 阶段4）：资格升档走 EngineRewardRejectReason——固定三只列主动效果、
-        /// 运势/拼枪/团结只列自动且带真实时机的效果、无 Domain 效果不列；选中即清 then 旧原子
-        ///（引擎奖励=效果引用单通道），自动三时机随选中同步锁定（ApplyEngineHeaderLock）。</summary>
+        /// <summary>分支奖励效果选择弹层（2026-11-07 分支奖励效果化；**2026-11-10 R4**：自由分支与
+        /// 有限分支共用同一选择器）：搜索 + 效果库列表（主∪教学——训练表不随包下发不入，重复 id 保
+        /// 主表，与载荷效果弹层同口径）。只列奖励资格通过的组合效果（资格单源 R4 单谓词
+        /// BranchRewardRejectReason——只列并列、无代价、无嵌套分支、无无域原子的效果，任意发动档）；
+        /// 排除本效果自身防自引用环。选中写 b.effectId——不清 then（双通道并存）。</summary>
         private UiKit.Modal _rewardFxModal;
 
         private void OpenRewardFxPicker(BranchEntryData b)
         {
             if (_rewardFxModal != null) { _rewardFxModal.Close(); _rewardFxModal = null; } // 重复点开=换窗
             var selfId = _graph?.id;
-            var eng = (BranchEngineKind)b.engine;
-            bool engineReward = (BranchSettleKind)b.settle == BranchSettleKind.Engine && !IsCurseEngine(eng);
-            bool activeTier = ComposerCatalog.IsActiveRewardEngine(eng);
-            var modal = UiKit.ModalBox(Root, engineReward
-                ? $"选择奖励效果——{ComposerCatalog.EngineZhOf(eng)}（引擎奖励单通道·"
-                  + (activeTier ? "只列主动效果）" : "只列自动且带真实时机的效果·选中即锁定时机）")
-                : "选择奖励效果（组合效果·与原子奖励并存）", width: 660f, height: 600f);
+            var modal = UiKit.ModalBox(Root, "选择奖励效果（组合效果·与原子奖励并存）", width: 660f, height: 600f);
             _rewardFxModal = modal;
 
             var searchRow = UiKit.Row("search", modal.Panel, spacing: 8f);
@@ -885,9 +841,7 @@ namespace SynergyUI
                     .Where(g => g != null && !string.IsNullOrEmpty(g.id) && g.id != selfId)
                     .Select(g => new { graph = g, data = EffectsLibrary.Resolve(g.id) })
                     .Where(t => t.data != null
-                                && (engineReward
-                                    ? EffectEligibility.EngineRewardRejectReason(t.data, eng) == null
-                                    : EffectEligibility.BranchRewardRejectReason(t.data) == null))
+                                && EffectEligibility.BranchRewardRejectReason(t.data) == null)
                     .Where(t => string.IsNullOrEmpty(key)
                                 || (t.graph.name ?? "").Contains(key, StringComparison.OrdinalIgnoreCase)
                                 || (t.graph.id ?? "").Contains(key, StringComparison.OrdinalIgnoreCase))
@@ -899,10 +853,8 @@ namespace SynergyUI
                 {
                     if (shown++ >= cap) break;
                     var pick = c.graph;
-                    // 引擎奖励行 meta：主动/自动档位 + 时机（主动不设时机——只有自动档带）+ 费 + 原子数
                     var timing = (TriggerTiming)pick.header.TriggerTiming;
                     string timingZh = AtomText.TimingZh.TryGetValue(timing, out var tz) ? tz : timing.ToString();
-                    bool active = (EffectActivationType)pick.header.ActivationType == EffectActivationType.Voluntary;
                     int atomN = 0;
                     foreach (var s in pick.steps ?? new List<EffectStepData>())
                         if (s?.kind == 0 && s.atomic != null) atomN++;
@@ -910,31 +862,19 @@ namespace SynergyUI
                     UiKit.Size(UiKit.Label("name", line,
                         string.IsNullOrEmpty(pick.name) ? pick.id : pick.name, 13), w: 220f);
                     UiKit.Size(UiKit.Label("meta", line,
-                        engineReward
-                            ? $"{(active ? "主动" : $"自动·{timingZh}")}·{c.cost:0.#} 费·{atomN} 原子"
-                            : $"{timingZh}·{c.cost:0.#} 费·{atomN} 原子", 12, UiStyle.TextFaint), fw: 1f);
+                        $"{timingZh}·{c.cost:0.#} 费·{atomN} 原子", 12, UiStyle.TextFaint), fw: 1f);
                     bool current = b.effectId == pick.id;
                     UiKit.Button("btn-pick", line, current ? "已选 ✓" : "选择", () =>
                     {
                         b.effectId = pick.id;
-                        if (engineReward)
-                        {
-                            // 引擎奖励单通道：选中即清 then 旧原子（旧数据残留随重选归一）
-                            b.then?.Clear();
-                            _expandedRewards.Remove(b);
-                        }
-                        RefreshSlots(); // 摘要/校验/门槛预览随写刷新；自动三时机随奖励同步+锁定
+                        RefreshSlots(); // 摘要/校验/门槛预览随写刷新（then 保留——双通道并存）
                         _rewardFxModal?.Close();
                         _rewardFxModal = null;
                     }, bg: current ? UiStyle.SelectedRowBg : null, height: 30f, fontSize: 13);
                 }
                 UiKit.Label("count", scroll.Content,
                     candidates.Count == 0
-                        ? engineReward
-                            ? (activeTier
-                                ? "（无可选效果——该引擎奖励只挂主动效果且不可含无目标域原子，先在效果表组合）"
-                                : "（无可选效果——该引擎奖励只挂自动且带真实触发时机的效果，不可含无目标域原子，先在效果表组合）")
-                        : "（无可选效果——奖励不可挂引擎主干/光环形态，先在效果表组合）"
+                        ? "（无可选效果——奖励只收并列·无代价·无嵌套分支的组合效果，先在效果表组合）"
                         : shown < candidates.Count ? $"共 {candidates.Count} 条，仅列前 {cap} 条——用搜索缩小范围"
                         : $"共 {candidates.Count} 条", 12, UiStyle.TextHint);
             }
@@ -1010,15 +950,14 @@ namespace SynergyUI
                 : null;
         }
 
-        /// <summary>引擎效果头锁定（2026-10-09 自由分支九项定案；2026-11-08 规则地基定案修订）：
-        /// 首槽引擎在案 → 速度/生效次数按 ComposerCatalog.EngineHeaderPresetOf 归一；发动方式按
-        /// EngineActivationPinOf 单值钉（四类主动行=仅主动、其余引擎行=仅自动——下拉锁定）；
+        /// <summary>引擎效果头锁定（2026-10-09 自由分支九项定案；2026-11-08 规则地基定案修订；
+        /// **2026-11-10 R4 修订**）：首槽引擎在案 → 速度/生效次数按 ComposerCatalog.EngineHeaderPresetOf
+        /// 归一；发动方式按 EngineActivationPinOf 单值钉（四类主动行=仅主动、其余引擎行=仅自动——下拉锁定）；
         /// 时机——主动钉 Activate_*；自动固定组（倒计时/死亡计数/元素充盈）钉预设时机；
-        /// 自然缺省组（运势/拼点/团结，FreeTiming）时机可改：预设 Timing 仅作**无奖励时的占位缺省**，
-        /// 只在落槽瞬间且图值缺省 OnPlay(0) 时补（防新效果落在「奖励等下次入场」死档），其余刷新不动用户值。
-        /// 2026-11-08 阶段4（自动三时机随奖励钉）：运势/拼枪/团结的时机=奖励效果 TriggerTiming——
-        /// 奖励在案即同步并锁死下拉（OnTurnStart 收归 OnStandbyPhase，与转换器/装载闸同规则）；
-        /// 无奖励=下拉锁定占位显示「先选奖励效果以确定时机」，保存由奖励区红框（无 effectId）拦下。
+        /// 自然缺省组（运势/拼点/团结，FreeTiming）时机可改：外层时机=引擎评估窗口由玩家选
+        ///（2026-11-08 阶段4「时机随奖励效果钉」随 R4 退役——主动效果作奖励时引用时机反钉会令
+        /// 事件类型永不匹配；预设 Timing 仅作落槽瞬间且图值缺省 OnPlay(0) 时的占位缺省），
+        /// 无奖励/有奖励均解锁下拉（时机影响 BranchEngines.OnRoutedEvent 的评估窗口）。
         /// 引擎主干零计价——limit=-1 档无费用影响。
         /// 消费点：RefreshSlots 尾部（覆盖引擎落槽/换引擎/载入/选中奖励四路径）。</summary>
         private BranchEngineKind? _lastEngineLockKind; // 落槽种类跟踪：FreeTiming 缺省只在切换瞬间补，刷新不覆写用户值
@@ -1033,7 +972,6 @@ namespace SynergyUI
             bool freeTiming = locked && preset.Value.FreeTiming;
             bool justLanded = engKind != _lastEngineLockKind; // null→kind 落槽 / kindA→kindB 换引擎
             _lastEngineLockKind = engKind;
-            bool autoRewardEngine = engKind != null && ComposerCatalog.IsAutomaticRewardEngine(engKind.Value);
 
             // 发动方式单值钉（2026-11-08 规则地基）：四类主动行=主动、其余引擎行=自动；null=非引擎主干
             var actPin = EngineActivationPin();
@@ -1043,19 +981,12 @@ namespace SynergyUI
                 if (actPin != null)
                 {
                     // 钉死组（全部在册引擎行）：发动方式恒钉值；时机=主动钉 Activate_*、自动固定组钉预设；
-                    // 自然缺省组时机可改——只在落槽瞬间补占位缺省
+                    // 自然缺省组时机可改——只在落槽瞬间补占位缺省，其余刷新不动用户值
+                    //（2026-11-10 R4：不再随奖励效果时机反钉——评估窗口由玩家在此选）
                     h.ActivationType = (int)actPin.Value;
                     if (freeTiming)
                     {
                         if (justLanded && h.TriggerTiming == 0) h.TriggerTiming = (int)preset.Value.Timing;
-                        // 阶段4：自动三（运势/拼枪/团结）时机随奖励效果钉——奖励在案即同步
-                        //（选中/载入/换引擎后仍以奖励为准，刷新幂等）；无奖励=保持占位缺省不动
-                        if (autoRewardEngine)
-                        {
-                            var rewardData = EngineRewardDataOf();
-                            if (rewardData != null)
-                                h.TriggerTiming = (int)NormalizedRewardTiming(rewardData.TriggerTiming);
-                        }
                     }
                     else
                     {
@@ -1081,44 +1012,14 @@ namespace SynergyUI
             SyncActivationVisibility();
             SyncTimingDropdown();
 
-            // 禁用面（2026-11-08 规则地基修订）：发动下拉=引擎主干一律锁定（主动行/自动引擎行均单值钉）；
-            // 时机=自动固定组锁、自然缺省组（运势/拼点/团结）解锁——**阶段4修订**：自动三时机由奖励效果
-            // 决定，恒锁定；未选奖励时占位显示引导语（先选奖励效果以确定时机），保存被奖励区红框拦下；
+            // 禁用面（2026-11-08 规则地基修订；2026-11-10 R4）：发动下拉=引擎主干一律锁定
+            //（主动行/自动引擎行均单值钉）；时机=自动固定组锁、自然缺省组（运势/拼点/团结）解锁
+            //——评估窗口=外层时机由玩家选（2026-11-08 阶段4「先选奖励以确定时机」占位锁随 R4 退役）；
             // 速度组已退役无控件；次数选项已整删。
             if (_activationDropdown != null)
                 _activationDropdown.Interactable = actPin == null;
             if (_timingDropdown != null)
-            {
-                if (autoRewardEngine)
-                {
-                    _timingDropdown.Interactable = false;
-                    if (EngineRewardDataOf() == null)
-                    {
-                        // 未选奖励/悬空：占位引导语覆写头部显示（SyncTimingDropdown 已跑——
-                        // 改选/选中奖励后再次 SyncTimingDropdown 恢复正常档位显示）
-                        var tmp = _timingDropdown.Root.GetComponent<TMP_Dropdown>();
-                        if (tmp != null && tmp.captionText != null)
-                            tmp.captionText.text = "先选奖励效果以确定时机";
-                    }
-                }
-                else _timingDropdown.Interactable = !locked || freeTiming;
-            }
-        }
-
-        /// <summary>首槽引擎分支的奖励效果数据（2026-11-08 阶段4）：branch.effectId 的库解析结果。
-        /// null=未选/悬空/非引擎分支——时机钉与下拉占位共用的取数口。</summary>
-        private CardEffectData EngineRewardDataOf()
-        {
-            var fxId = BranchOfSlot(0)?.effectId;
-            return string.IsNullOrEmpty(fxId) ? null : EffectsLibrary.Resolve(fxId);
-        }
-
-        /// <summary>奖励时机同步归一（与转换器/装载闸 NormalizeEngineTiming 同规则）：
-        /// OnTurnStart 收归 OnStandbyPhase（系统专用时点——下拉不提供）；其余值原样透传。</summary>
-        private static TriggerTiming NormalizedRewardTiming(int raw)
-        {
-            var t = (TriggerTiming)raw;
-            return t == TriggerTiming.OnTurnStart ? TriggerTiming.OnStandbyPhase : t;
+                _timingDropdown.Interactable = !locked || freeTiming;
         }
 
         /// <summary>费用指示物行判定（四色增减 8 行，2026-10-31 四色化）——奖励槽数量钉 1 定案配套

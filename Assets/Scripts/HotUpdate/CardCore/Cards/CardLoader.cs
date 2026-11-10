@@ -338,14 +338,8 @@ namespace CardCore
             return false;
         }
 
-        /// <summary>引擎时机归一（2026-11-08 阶段3·外层一致性比对用）：校验枚举合法；
-        /// OnTurnStart 收归 OnStandbyPhase（与 ConvertOne 顶部同规则）；非法值 → null。</summary>
-        private static TriggerTiming? NormalizeEngineTiming(int raw)
-        {
-            if (raw < 0 || !Enum.IsDefined(typeof(TriggerTiming), raw)) return null;
-            var t = (TriggerTiming)raw;
-            return t == TriggerTiming.OnTurnStart ? TriggerTiming.OnStandbyPhase : t;
-        }
+        //（引擎时机归一 NormalizeEngineTiming 已随 2026-11-10 R4「自动三外层时机一致性」硬错删除退役——
+        //  外层时机=引擎评估窗口由玩家声明，转换器 ConvertOne 顶部归一兜底不变。）
 
         /// <summary>
         /// 装载期参数校验（2026-10-31 阶段B 原子表「参数」列配套，可见不炸——坏行点名）：
@@ -356,8 +350,9 @@ namespace CardCore
         /// 注入的卡目录——与 ValidateMountHosts 同一解析器）。
         /// EffectRef（2026-11-06 附加诅咒/祝福载荷效果化）的 str 须在 EffectsLibrary 解析到条目
         /// 且通过载荷资格（EffectEligibility.CursePayloadRejectReason——主动∧极性匹配引擎行）。
-        /// 引擎分支收口（2026-11-08 阶段3）：settle=Engine 的分支 then 非空/无 effectId/奖励资格不符/
-        /// 外层时机与奖励时机不一致 → Error（见方法内引擎闸）；引擎主干行 Param=None，不经行参数段。
+        /// 引擎分支收口（2026-11-08 阶段3 立；**2026-11-10 R4 双通道修订**）：settle=Engine 的分支
+        /// then/effectId 至少一个、effectId 须过奖励资格（R4 单谓词 BranchRewardRejectReason）→ Error；
+        /// 代价门哨兵（CostGate）不得落 Steps → Error。引擎主干行 Param=None，不经行参数段。
         /// </summary>
         private static void ValidateAtomParams(List<CardData> cards)
         {
@@ -373,52 +368,49 @@ namespace CardCore
                     if (eff == null) continue;
                     foreach (var atom in EnumerateAtomEntries(eff))
                     {
-                        // 引擎分支收口（2026-11-08 阶段3·奖励只允许效果引用）：settle=Engine 的分支
-                        // ——then 原子列非空 → Error；无 effectId（附加诅咒/祝福 str 旧手写通道同判）
-                        // → Error；effectId 走 EngineRewardRejectReason（发动档/真实时机/通用资格）
-                        // → Error；自动三（运势/拼枪/团结）另查外层时机与奖励效果时机一致 → Error。
-                        // 引擎闸已内含通用奖励资格（EngineRewardRejectReason 复用 BranchRewardRejectReason）
-                        // ——命中引擎闸即跳过下方通用段，防同因双报。
+                        // 引擎分支收口（2026-11-08 阶段3 曾限「奖励只允许效果引用」；**2026-11-10 R4
+                        // 双通道修订**）：settle=Engine 的分支——then 原子列与 effectId 效果引用至少
+                        // 一个（附加诅咒/祝福 str 旧手写通道同判）→ 全空 Error；effectId 须在效果库
+                        // 解析且通过奖励资格（R4 单谓词 BranchRewardRejectReason——任意发动档的并列
+                        ///无代价/无嵌套分支/无无域原子效果）。then 原子照走通用奖励资格（CanBeRewardRow
+                        // 构筑期校验，见 ValidateEffectShape）；自动三外层时机=引擎评估窗口由玩家声明，
+                        // 不再要求与奖励效果时机一致（主动效果作奖励时机恒不匹配=永不触发的死档）。
+                        // 命中引擎闸即跳过下方通用段，防同因双报。
                         var branch = atom?.branch;
                         if (branch != null && branch.settle == (int)BranchSettleKind.Engine)
                         {
                             var eng = (BranchEngineKind)branch.engine;
                             var engZh = ComposerCatalog.EngineZhOf(eng);
+                            bool hasThen = branch.then != null && branch.then.Count > 0;
                             var engFx = !string.IsNullOrEmpty(branch.effectId) ? branch.effectId : atom.str;
-                            if (branch.then != null && branch.then.Count > 0)
+                            if (!hasThen && string.IsNullOrEmpty(engFx))
                                 TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}：{engZh}分支"
-                                              + "携带 then 原子列——引擎分支奖励只允许效果引用（2026-11-08 阶段3），装载期拦截");
-                            else if (string.IsNullOrEmpty(engFx))
-                                TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}：{engZh}分支"
-                                              + "缺少奖励效果引用（effectId；附加诅咒/祝福 str 通道同判）——装载期拦截");
-                            else
+                                              + "缺少奖励（then 原子列 / effectId 效果引用至少一个；附加诅咒/祝福 str 通道同判）"
+                                              + "——装载期拦截");
+                            else if (!string.IsNullOrEmpty(branch.effectId))
                             {
-                                var engReward = EffectsLibrary.Resolve(engFx);
+                                var engReward = EffectsLibrary.Resolve(branch.effectId);
                                 if (engReward == null)
                                     TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}：{engZh}分支"
-                                                  + $"奖励效果 '{engFx}' 未能在效果库解析到条目 id——装载期拦截");
+                                                  + $"奖励效果 '{branch.effectId}' 未能在效果库解析到条目 id——装载期拦截");
                                 else
                                 {
-                                    var engReason = EffectEligibility.EngineRewardRejectReason(engReward, eng);
+                                    var engReason = EffectEligibility.BranchRewardRejectReason(engReward);
                                     if (engReason != null)
                                         TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}：{engZh}分支"
-                                                      + $"奖励效果 '{engFx}' 不符合引擎奖励资格——{engReason}（装载期拦截）");
-                                    else if (ComposerCatalog.IsAutomaticRewardEngine(eng))
-                                    {
-                                        // 自动三：外层时机必须与奖励效果时机一致（转换器同口径归一：
-                                        // OnTurnStart 收归 OnStandbyPhase；数据侧已随阶段2迁移对齐）
-                                        var rt = NormalizeEngineTiming(engReward.TriggerTiming);
-                                        var outer = NormalizeEngineTiming(eff.TriggerTiming);
-                                        if (rt == null)
-                                            TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}：{engZh}分支"
-                                                          + $"奖励效果 '{engFx}' 时机值 {engReward.TriggerTiming} 非法——装载期拦截");
-                                        else if (outer != rt)
-                                            TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}：{engZh}分支"
-                                                          + $"外层时机 {eff.TriggerTiming} 与奖励效果时机 {(int)rt} 不一致（运行时按奖励时机评估）"
-                                                          + "——装载期拦截（修表侧对齐）");
-                                    }
+                                                      + $"奖励效果 '{branch.effectId}' 不符合奖励资格——{engReason}（装载期拦截）");
                                 }
                             }
+                        }
+                        else if (branch != null && branch.settle == (int)BranchSettleKind.Gate
+                                 && branch.gateId == ComposerCatalog.CostGateId)
+                        {
+                            // 代价门哨兵禁落盘（2026-11-10）：「支付代价」门分支是合成器编辑视图合成态
+                            //（SynthesizeCostGateView），保存时 OnSave 剥除并回写 header.Costs——
+                            // Steps 里出现即为直改 JSON/旧版半存档，装载期点名（运行时不消费该哨兵）。
+                            TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}："
+                                          + "代价门哨兵分支（CostGate）不得落盘——代价应存于效果 Costs 行"
+                                          + "（合成器保存回写；直改 JSON 请把 payloads 写进 header.costs）——装载期拦截");
                         }
                         else if (!string.IsNullOrEmpty(atom?.branch?.effectId))
                         {

@@ -326,12 +326,12 @@ namespace CardCore
             {
                 if (ehp.FreeTiming)
                 {
-                    // 自然缺省组（运势/拼枪/团结·2026-11-08 阶段3）：一律自动；时机=奖励效果时机
-                    //（首个引擎载荷 payload.EffectId → 引用条目 TriggerTiming——与 BranchEngines.
-                    // RewardTimingOf 运行时同源）。解析失败（无引用/悬空/非法值）回落自然缺省并告警
-                    //（引擎分支硬校验在装载期 ValidateAtomParams——本口保运行时不炸）。
+                    // 自然缺省组（运势/拼枪/团结·2026-11-10 R4 双通道修订）：一律自动；时机=效果头
+                    // **声明值**（构造期已按顶部归一：OnTurnStart 收归 OnStandbyPhase）——外层时机=
+                    // 引擎评估窗口由玩家在合成器选（BranchEngines.RewardTimingOf 运行时同源读此值）。
+                    // 不再随奖励效果时机反钉（2026-11-08 阶段3 旧口径）：R4 允许主动效果作奖励——
+                    // 引用时机反钉会令事件类型永不匹配（主动档 Activate_* 无事件锚=引擎永不评估）。
                     def.ActivationType = EffectActivationType.Automatic;
-                    def.TriggerTiming = RewardTimingOfEngine(def, ehp.Timing, sourceCardId, data.Id);
                 }
                 else
                 {
@@ -382,36 +382,9 @@ namespace CardCore
             return BranchEngineKind.None;
         }
 
-        /// <summary>自动三引擎（运势/拼枪/团结）的奖励效果时机（2026-11-08 阶段3·转换器侧）：
-        /// 首个引擎载荷 payload.EffectId → 效果库条目 TriggerTiming——与 BranchEngines.RewardTimingOf
-        /// 运行时同源。解析失败（无引用/悬空/越界/主动档值）回落自然缺省 fallback 并告警
-        ///（时机归一同 ConvertOne 顶部：OnTurnStart 收归 OnStandbyPhase）。</summary>
-        private static TriggerTiming RewardTimingOfEngine(EffectDefinition def, TriggerTiming fallback,
-            string sourceCardId, string effectId)
-        {
-            foreach (var atom in def.Effects)
-            {
-                var b = atom?.Branch;
-                if (b == null || b.Settle != BranchSettleKind.Engine) continue;
-                var fx = string.IsNullOrEmpty(b.EffectId) ? null : EffectsLibrary.Resolve(b.EffectId);
-                if (fx != null
-                    && fx.TriggerTiming >= 0
-                    && Enum.IsDefined(typeof(TriggerTiming), fx.TriggerTiming)
-                    && fx.TriggerTiming != (int)TriggerTiming.Activate_Active
-                    && fx.TriggerTiming != (int)TriggerTiming.Activate_Instant
-                    && fx.TriggerTiming != (int)TriggerTiming.Activate_Response)
-                {
-                    var t = (TriggerTiming)fx.TriggerTiming;
-                    if (t == TriggerTiming.OnTurnStart) t = TriggerTiming.OnStandbyPhase; // 系统专用收归（同顶部归一）
-                    return t;
-                }
-                break; // 首个引擎载荷即权威——解析失败即回落（多载荷同拍告警一次）
-            }
-            TideLog.Warn($"[CardEffectConverter] 卡 {sourceCardId} 效果 {effectId} 自动引擎"
-                         + $"（{ComposerCatalog.EngineZhOf(EngineKindOfDefinition(def))}）奖励效果时机解析失败"
-                         + $"（effectId 空/悬空/非触发值）——时机回落自然缺省 {fallback}");
-            return fallback;
-        }
+        //（自动三奖励效果时机 RewardTimingOfEngine 已随 2026-11-10 R4 删除退役：自动三时机=效果头
+        //  声明值（玩家在合成器选引擎评估窗口），不再随奖励效果时机反钉——主动效果作奖励时
+        //  引用时机反钉会令事件类型永不匹配（Activate_* 无事件锚=引擎永不评估）。）
 
         // ======================================== 关键词型原子主动校验（2026-10-02 定案） ========================================
 

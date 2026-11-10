@@ -152,19 +152,15 @@ namespace SynergyUI
         /// 跨级克隆进槽，视觉不再代码构建——slot-title 标题行 + head 摘要行 + editor 参数区。
         /// 非自由主干（局面门/产出条件——预算=门槛 Budget/条件 2）奖励参数按预算自动生成不可控
         /// ——editor 恒隐藏、head 摘要无展开箭头（点击=选中奖励块）；
-        /// 自由主干（引擎）奖励无上限引擎封顶 5——维持手控：head 点击展开 editor 编辑数值。</summary>
+        /// 自由主干（引擎）奖励无上限引擎封顶 6——维持手控：head 点击展开 editor 编辑数值。
+        /// 奖励=双通道（2026-11-07 分支奖励效果化；**2026-11-10 R4 修订**推翻 2026-11-08 阶段4
+        /// 单通道——引擎分支恢复 then 原子+effectId 组合效果两通道并存，附加诅咒/祝福不经本槽）。</summary>
         private void MakeRewardSlot(RectTransform slot, BranchEntryData b)
         {
             bool free = (BranchSettleKind)b.settle == BranchSettleKind.Engine;
             bool costGate = IsCostGate(b);         // 代价门（2026-11-06）：第二槽=代价原子（减免等值费用）
-            var engineKind = (BranchEngineKind)b.engine;
-            // 引擎奖励分支（2026-11-08 阶段4·奖励=效果引用单通道）：固定三+自动三奖励引擎的槽只保留
-            // 「奖励效果」行——then 原子槽/dd-tactivate/参数区全隐藏，旧 then 残留只报错不编辑
-            //（附加诅咒/祝福不经本槽——RefreshSlots 走载荷效果行分支）
-            bool engineReward = free && !IsCurseEngine(engineKind);
-            bool manualParams = (free && !engineReward) || costGate; // 手控参数=自由主干（引擎奖励除外）/代价门
-            // 引擎奖励分支恒视 then 为空（旧残留由槽区校验拦+选择奖励时清除）——下游原子 UI 全数隐藏
-            var reward = engineReward ? null : b.then?.FirstOrDefault();
+            bool manualParams = free || costGate;  // 手控参数=自由主干（引擎）/代价门
+            var reward = b.then?.FirstOrDefault();
             // 非自由主干：参数随预算自动生成（落槽/换门/载入统一归一）——代价门例外（减免量=代价
             // 全价口径 PayloadUnitGrant，不做预算上探；超限由 editor 回退闸与槽区校验拦）
             if (reward != null && !costGate) AutoFitRewardParams(reward, b);
@@ -186,12 +182,9 @@ namespace SynergyUI
             if (title == null) Debug.LogError("[EffectComposer] tpl-reward-slot 缺 slot-title——检查 EffectUI.prefab");
             else
             {
-                // 引擎奖励分支（2026-11-08 阶段4）：槽=奖励效果单通道——标题不再挂预算口径
                 title.text = costGate
                     ? $"代价（减免 ≤{CostDiscountCap}）"
-                    : engineReward
-                        ? "奖励效果（引擎奖励·效果引用）"
-                        : $"Then 奖励（预算 {RewardCapOf(b)} 以内）";
+                    : $"Then 奖励（预算 {RewardCapOf(b)} 以内）";
                 UiKit.Size(title, fw: 1f);
             }
 
@@ -206,47 +199,31 @@ namespace SynergyUI
             {
                 if (text != null)
                 {
-                    // 引擎奖励分支（2026-11-08 阶段4）：摘要=「效果名｜主动/自动｜时机」三段式
-                    //（主动效果无时机段——主动三档本就不设时机）；悬空引用照实报
-                    if (engineReward)
+                    // 奖励效果引用前缀（2026-11-07 分支奖励效果化）：双通道=先效果后原子
+                    //（2026-11-10 R4：引擎分支同口径——2026-11-08 阶段4 单通道摘要退役）
+                    string fxPrefix = "";
+                    if (!costGate && !string.IsNullOrEmpty(b.effectId))
                     {
-                        string fx = "";
-                        if (!string.IsNullOrEmpty(b.effectId))
-                        {
-                            var fxg = EffectsLibrary.Get(b.effectId);
-                            fx = fxg != null ? EngineRewardSummary(fxg) : $"【效果】{b.effectId}（悬空）";
-                        }
-                        text.text = fx.Length > 0
-                            ? fx
-                            : "点「奖励效果」行选择组合效果（引擎奖励=效果引用，不再填原子奖励）";
+                        var fxg = EffectsLibrary.Get(b.effectId);
+                        fxPrefix = $"【效果】{(fxg != null ? fxg.name : b.effectId + "(悬空)")}｜";
+                    }
+                    if (reward != null)
+                    {
+                        // 代价门合成视图可含多原子（存量代价行多 payload）——首原子成句+尾注计数，
+                        // 未展示原子保存时原样回写不动；代价原子走代价渲染口（资敌主语「对手…」）
+                        string more = b.then != null && b.then.Count > 1 ? $" 等{b.then.Count}个原子" : "";
+                        string body = costGate
+                            ? AtomText.RenderCostAtomEntry(reward)
+                            : AtomText.RenderRewardAtomEntry(reward);
+                        text.text = (manualParams ? (expanded ? "▼ " : "▶ ") : "") + fxPrefix + body + more;
                     }
                     else
                     {
-                        // 奖励效果引用前缀（2026-11-07 分支奖励效果化）：双通道=先效果后原子
-                        string fxPrefix = "";
-                        if (!costGate && !string.IsNullOrEmpty(b.effectId))
-                        {
-                            var fxg = EffectsLibrary.Get(b.effectId);
-                            fxPrefix = $"【效果】{(fxg != null ? fxg.name : b.effectId + "(悬空)")}｜";
-                        }
-                        if (reward != null)
-                        {
-                            // 代价门合成视图可含多原子（存量代价行多 payload）——首原子成句+尾注计数，
-                            // 未展示原子保存时原样回写不动；代价原子走代价渲染口（资敌主语「对手…」）
-                            string more = b.then != null && b.then.Count > 1 ? $" 等{b.then.Count}个原子" : "";
-                            string body = costGate
-                                ? AtomText.RenderCostAtomEntry(reward)
-                                : AtomText.RenderRewardAtomEntry(reward);
-                            text.text = (manualParams ? (expanded ? "▼ " : "▶ ") : "") + fxPrefix + body + more;
-                        }
-                        else
-                        {
-                            text.text = costGate
-                                ? "选中后点击库中的代价原子填入（一般效果行·双侧域·与效果同色，全价 ≤3）"
-                                : fxPrefix.Length > 0
-                                    ? fxPrefix + "（可再点库追加原子奖励——合计 ≤ 分支预算）"
-                                    : "选中后点击库中的奖励原子填入，或点「奖励效果」行选择组合效果（合计 ≤ 分支预算）";
-                        }
+                        text.text = costGate
+                            ? "选中后点击库中的代价原子填入（一般效果行·双侧域·与效果同色，全价 ≤3）"
+                            : fxPrefix.Length > 0
+                                ? fxPrefix + "（可再点库追加原子奖励——合计 ≤ 分支预算）"
+                                : "选中后点击库中的奖励原子填入，或点「奖励效果」行选择组合效果（合计 ≤ 分支预算）";
                     }
                 }
                 RefreshName();
@@ -260,14 +237,11 @@ namespace SynergyUI
                 BindCardButton(delNode, "删除", true, () =>
                 {
                     b.then?.Clear();
-                    if (engineReward) b.effectId = null; // 引擎奖励：删除=清奖励效果引用（then 防御性同清）
                     _expandedRewards.Remove(b);
                     RefreshSlots();
                     RefreshLibrary(); // 全局唯一（隐藏口径）：奖励删除后该原子回归库
                 });
-                delNode.gameObject.SetActive(engineReward
-                    ? !string.IsNullOrEmpty(b.effectId)
-                    : reward != null);
+                delNode.gameObject.SetActive(reward != null);
             }
             if (head != null)
             {
@@ -277,8 +251,8 @@ namespace SynergyUI
                 headBtn.onClick.RemoveAllListeners();
                 headBtn.onClick.AddListener(() =>
                 {
-                    if (free && !engineReward) ToggleRewardExpand(b);          // 自由主干=展开手控（多卡独立展开）
-                    else SelectSlot(SelKind.Reward, 0);                          // 非自由主干/引擎奖励=仅选中（无原子参数可编）
+                    if (free) ToggleRewardExpand(b);               // 自由主干=展开手控（多卡独立展开）
+                    else SelectSlot(SelKind.Reward, 0);            // 非自由主干=仅选中（无原子参数可编）
                 });
             }
 
@@ -287,15 +261,12 @@ namespace SynergyUI
             if (!costGate) MakeRewardFxRow(area, b, head, RefreshText);
 
             // 原子表行四参数 des + 每原子目标行/衍生物行（2026-10-09 下沉定案；持续行随层化退役）：
-            // 仅自由主干（引擎）奖励手控参数——非自由主干参数随预算自动生成，行隐藏；
-            // 引擎奖励分支（2026-11-08 阶段4）无原子通道——des/目标行/衍生物行/des 参数区全隐藏
+            // 仅自由主干（引擎）奖励手控参数——非自由主干参数随预算自动生成，行隐藏
             var rewardCfg = AtomicEffectTable.GetByHashId(reward?.refId);
-            if (!engineReward)
-            {
-                // 传实例（2026-11-06 代价门第二槽修复）：代价原子的锁侧镜像 kinds（如对方牌库）
-                // 必须进作用范围行——此前只按表行极性收窄，代价实例锁侧被吞
-                BindAtomDes(area, rewardCfg, reward);
-            }
+            // 传实例（2026-11-06 代价门第二槽修复）：代价原子的锁侧镜像 kinds（如对方牌库）
+            // 必须进作用范围行——此前只按表行极性收窄，代价实例锁侧被吞。
+            // 双通道（2026-11-10 R4）：效果引用单通道时无原子可显示——des 行隐藏，避免残留「—」占位。
+            if (reward != null) BindAtomDes(area, rewardCfg, reward);
             else UiKit.FindDeep(area, "des")?.gameObject.SetActive(false);
             if (manualParams && reward != null)
             {
@@ -412,28 +383,11 @@ namespace SynergyUI
             // 2026-10-09 定案：上限统一走 RewardFilterCap——自由分支（引擎）恒 6（2026-11-02 减费三选一：
             // 1-5 放宽一档；此前 -1 直通=「校验恒满足」根因）；有限分支=门槛 Budget（全局上界 1~3）。
             // 2026-11-07 分支奖励效果化：奖励效果引用费并入合计（双通道至少其一非空即不空转）。
-            // 引擎奖励分支（2026-11-08 阶段4·效果引用单通道）：then 非空（旧通道残留）/无 effectId/
-            // 奖励资格不符（发动档·无 Domain——EngineRewardRejectReason 单源）→ 红框+禁存
-            //（与装载期 ValidateAtomParams 引擎闸同口径）；引用费超上限照旧拦。
-            // 超限=GuideFrame 红框脉冲+描述条文本+禁存。
+            // **2026-11-10 R4**：引擎分支恢复双通道——then/effectId 至少一个（2026-11-08 阶段4 的
+            // 「引擎分支不再支持 Then 原子」红框退役）；奖励资格走 R4 单谓词 BranchRewardRejectReason
+            //（与装载期 ValidateAtomParams 同口径）；引用费超上限照旧拦。超限=GuideFrame 红框+禁存。
             _slotZones.Add(MakeZone(area, () =>
             {
-                if (engineReward)
-                {
-                    if (b.then != null && b.then.Count > 0)
-                        return "引擎分支不再支持 Then 原子奖励——点「删除」清除旧原子，或重选奖励效果（装载期同样拦截）";
-                    if (string.IsNullOrEmpty(b.effectId))
-                        return ComposerCatalog.IsAutomaticRewardEngine(engineKind)
-                            ? "奖励效果未选——先选奖励效果以确定时机（点「奖励效果」行选择）"
-                            : "奖励效果未选——点「奖励效果」行选择组合效果";
-                    var fxErr = EngineRewardFxError(b, engineKind);
-                    if (fxErr != null) return fxErr;
-                    float refOnly = CostDerivationService.ReferencedEffectCostByColor(b.effectId).Total;
-                    int capOnly = RewardCapOf(b);
-                    return refOnly > capOnly
-                        ? $"奖励超出分支可实现费用（{refOnly:0.#}/{capOnly}）——换更便宜的奖励效果"
-                        : null;
-                }
                 // 奖励效果引用校验先行（2026-11-07）：悬空/资格不符/自引用——then 空单通道同样必查
                 if (!costGate)
                 {

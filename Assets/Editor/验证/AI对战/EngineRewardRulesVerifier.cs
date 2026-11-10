@@ -18,10 +18,12 @@ namespace CardCore.Editor.Tests
     ///   （运势/拼枪/团结）、载荷引擎（附加诅咒/祝福，两旗皆假）互斥分区；
     ///   行级主动行（附加诅咒/附加祝福——模拟/变形 2026-11-08 退役出组合）与自动引擎行（其余六行）互斥分区，
     ///   原子表 EngineTrunk 位全行有钉（新行未登记会被抓）。
-    /// B EngineRewardRejectReason 正反例：先吃 BranchRewardRejectReason 通用闸
-    ///   （引擎主干/光环形态/空效果），再按奖励档分档——主动奖励引擎只收主动效果（Activate_*），
-    ///   自动奖励引擎只收自动效果（真实触发时机 ∧ Automatic）；载荷引擎/None 不经发动档闸；
-    ///   B5（2026-11-08 阶段4）：含无 Domain 原子（检索等无域行）的效果整体拒绝（两档同拒·混合同拒）。
+    /// B 奖励资格 R4 单谓词（2026-11-10 修订：引擎奖励与一般分支奖励合并走
+    ///   BranchRewardRejectReason，不再按发动档分档——任意发动档的并列效果均放行；
+    ///   EngineRewardRejectReason 保留为转发口）。
+    ///   正例=并列形状（1~2 主干原子·任意发动档）；反例=引擎主干/光环形态/空效果/
+    ///   带代价行（代价=费用抵扣不是奖励）/无 Domain 原子（检索等无域行·混合同拒）/
+    ///   嵌套分支（直挂载荷与遗留 kind=1 门步折算同拒）/超并列（>2 主干原子）。
     /// C 发动方式钉：EngineActivationPinOf 期望值（主动行→Voluntary、自动引擎行→Automatic、
     ///   非引擎→null）；EngineActivationFree 已随双选面整删（反射证不存在）；
     ///   EngineHeaderPresetOf——固定三引擎保持原时机、运势/拼枪/团结转自然缺省（FreeTiming，
@@ -179,94 +181,130 @@ namespace CardCore.Editor.Tests
                 $"A4 全部引擎主干行均有发动方式钉（无钉：{string.Join("、", unpinned)}；期望无）");
         }
 
-        // ======================================== B EngineRewardRejectReason 正反例 ========================================
+        // ======================================== B 奖励资格 R4 单谓词（正反例） ========================================
 
         private static void RunRejectReasonChecks()
         {
-            Log.AppendLine("[Verify·B] ---- 引擎奖励发动档资格（正反例）----");
+            Log.AppendLine("[Verify·B] ---- 奖励资格 R4 单谓词（2026-11-10：引擎奖励与分支奖励同口径，不限发动档）----");
 
             // 夹具：主动效果（Activate_*）/ 自动效果（OnDraw=真实触发事件锚）/ 声明档与时机错配
             var activeFx = Fx((int)TriggerTiming.Activate_Active, 2, Entry(AtomicEffectType.Heal, value: 2));
             var autoFx = Fx((int)TriggerTiming.OnDraw, 1, Entry(AtomicEffectType.Heal, value: 2));
-            var declaredAutoButActivateTiming = Fx((int)TriggerTiming.Activate_Active, 1, Entry(AtomicEffectType.Heal, value: 2));
-            var declaredVoluntaryButTriggered = Fx((int)TriggerTiming.OnDraw, 2, Entry(AtomicEffectType.Heal, value: 2));
 
-            // B1 主动奖励引擎（倒计时/死亡计数/元素充盈）：只收主动效果
-            foreach (var engine in ActiveRewardEngines)
+            // B1 任意发动档都可通过新谓词（R4：分档闸整删——主动奖励引擎不再只收主动、自动奖励引擎
+            // 不再只收自动；发射/评估时机由引擎自理）。全部六奖励引擎 + 载荷/None 同一放行面。
+            foreach (var engine in ActiveRewardEngines.Concat(AutomaticRewardEngines)
+                         .Concat(PayloadEngines).Concat(new[] { BranchEngineKind.None }))
             {
-                var ok = EffectEligibility.EngineRewardRejectReason(activeFx, engine);
-                Check(ok == null, $"B1 {engine} 挂主动效果（Activate_*）通过（实际：{ok ?? "无"}）");
-                var bad = EffectEligibility.EngineRewardRejectReason(autoFx, engine);
-                Check(bad != null && bad.Contains("主动"),
-                    $"B1 {engine} 挂自动效果被拒（实际：{bad ?? "null"}，期望点名只能挂主动）");
+                var a = EffectEligibility.BranchRewardRejectReason(activeFx);
+                var b = EffectEligibility.BranchRewardRejectReason(autoFx);
+                Check(a == null && b == null,
+                    $"B1 {engine} 主动形态：{a ?? "过"} / 自动形态：{b ?? "过"}（期望任意发动档并列效果均放行）");
+                // 转发口等价（旧签名保留兼容——消费点不换即同语义）
+                var fwd = EffectEligibility.EngineRewardRejectReason(activeFx, engine);
+                Check(fwd == a, $"B1 {engine} EngineRewardRejectReason 转发与 BranchRewardRejectReason 等价（{fwd ?? "过"} vs {a ?? "过"}）");
             }
 
-            // B2 自动奖励引擎（运势/拼枪/团结）：只收自动效果且须真实触发时机
-            foreach (var engine in AutomaticRewardEngines)
-            {
-                var ok = EffectEligibility.EngineRewardRejectReason(autoFx, engine);
-                Check(ok == null, $"B2 {engine} 挂自动效果（OnDraw 真实事件锚）通过（实际：{ok ?? "无"}）");
-                var bad = EffectEligibility.EngineRewardRejectReason(activeFx, engine);
-                Check(bad != null && bad.Contains("自动"),
-                    $"B2 {engine} 挂主动效果被拒（实际：{bad ?? "null"}，期望点名只能挂自动）");
-                // 声明自动但时机=主动三档：非触发式 → 无真实触发时机
-                var noTiming = EffectEligibility.EngineRewardRejectReason(declaredAutoButActivateTiming, engine);
-                Check(noTiming != null && noTiming.Contains("自动"),
-                    $"B2 {engine} 声明自动但时机=主动档被拒（实际：{noTiming ?? "null"}）");
-                // 声明主动但时机=触发式：ActivationType != Automatic
-                var wrongDecl = EffectEligibility.EngineRewardRejectReason(declaredVoluntaryButTriggered, engine);
-                Check(wrongDecl != null && wrongDecl.Contains("自动"),
-                    $"B2 {engine} 时机真实但声明主动被拒（实际：{wrongDecl ?? "null"}）");
-            }
+            // B2 并列形状正例：单原子/双原子主干均通过（1~2 主干原子=并列形状）
+            var dualFx = Fx((int)TriggerTiming.Activate_Active, 2,
+                Entry(AtomicEffectType.Heal, value: 2), Entry(AtomicEffectType.DrawCard));
+            var dualOk = EffectEligibility.BranchRewardRejectReason(dualFx);
+            Check(dualOk == null, $"B2 双原子并列效果通过（实际：{dualOk ?? "无"}）");
 
-            // B3 通用闸透传（先复用 BranchRewardRejectReason）：引擎主干/光环形态/空效果
+            // B3 通用闸（引擎主干/光环形态/空效果——R4 保留）
             var trunkFx = Fx((int)TriggerTiming.Activate_Active, 2,
                 new AtomicEffectEntry
                 {
                     refId = Row(AtomicEffectType.EngineCountdown)?.HashId,
                     branch = new BranchEntryData { settle = (int)BranchSettleKind.Engine, engine = (int)BranchEngineKind.Countdown },
                 });
-            var trunkReason = EffectEligibility.EngineRewardRejectReason(trunkFx, BranchEngineKind.DeathToll);
+            var trunkReason = EffectEligibility.BranchRewardRejectReason(trunkFx);
             Check(trunkReason != null && trunkReason.Contains("引擎主干"),
                 $"B3 引擎主干作奖励被拒（实际：{trunkReason ?? "null"}，期望点名引擎主干）");
 
             var auraFx = Fx((int)TriggerTiming.Activate_Active, 2, Entry(AtomicEffectType.Heal, value: 2));
             auraFx.ArrowDirections = 1;
-            var auraReason = EffectEligibility.EngineRewardRejectReason(auraFx, BranchEngineKind.Countdown);
+            var auraReason = EffectEligibility.BranchRewardRejectReason(auraFx);
             Check(auraReason != null && auraReason.Contains("光环形态"),
                 $"B3 光环形态效果作奖励被拒（实际：{auraReason ?? "null"}）");
 
             var emptyFx = Fx((int)TriggerTiming.Activate_Active, 2);
-            var emptyReason = EffectEligibility.EngineRewardRejectReason(emptyFx, BranchEngineKind.LuckRoll);
+            var emptyReason = EffectEligibility.BranchRewardRejectReason(emptyFx);
             Check(emptyReason != null && emptyReason.Contains("空效果"),
                 $"B3 空效果（无原子）被拒（实际：{emptyReason ?? "null"}）");
 
-            // B4 载荷引擎与 None：不经发动档闸——主动/自动两形态都过通用闸即放行
-            foreach (var engine in PayloadEngines.Concat(new[] { BranchEngineKind.None }))
-            {
-                var a = EffectEligibility.EngineRewardRejectReason(activeFx, engine);
-                var b = EffectEligibility.EngineRewardRejectReason(autoFx, engine);
-                Check(a == null && b == null,
-                    $"B4 {engine} 不经发动档闸（主动形态：{a ?? "过"} / 自动形态：{b ?? "过"}，期望双双放行）");
-            }
+            // B4 带代价行拒（R4 新增：代价=费用抵扣不是奖励——全价≤3、同色逐行抵扣口径）
+            var costFx = Fx((int)TriggerTiming.Activate_Active, 2, Entry(AtomicEffectType.Heal, value: 2));
+            costFx.Costs = new List<CostEntry>
+                { new CostEntry { CostType = (int)CostType.Payload, Value = 1 } };
+            var costReason = EffectEligibility.BranchRewardRejectReason(costFx);
+            Check(costReason != null && costReason.Contains("代价"),
+                $"B4 带代价行的效果作奖励被拒（实际：{costReason ?? "null"}，期望点名代价非奖励）");
 
-            // B5 无 Domain 原子（2026-11-08 阶段4 入闸）：含无域行（检索等——与「无Domain不参与
-            // 效果组合」同口径）的效果整体不可作引擎奖励——奖励发射/目标解析走域管线；
-            // 发动档先行（B1/B2 口径优先命中），档位匹配时由无域条款拒绝。两档引擎同拒。
+            // B5 无 Domain 原子（2026-11-08 阶段4 入闸·R4 保留）：含无域行（检索等——与
+            // 「无Domain不参与效果组合」同口径）的效果整体不可作奖励——奖励发射/目标解析走域管线。
             var domainlessActiveFx = Fx((int)TriggerTiming.Activate_Active, 2, Entry(AtomicEffectType.SearchDeck));
             var domainlessAutoFx = Fx((int)TriggerTiming.OnDraw, 1, Entry(AtomicEffectType.SearchDeck));
-            var dl1 = EffectEligibility.EngineRewardRejectReason(domainlessActiveFx, BranchEngineKind.Countdown);
+            var dl1 = EffectEligibility.BranchRewardRejectReason(domainlessActiveFx);
             Check(dl1 != null && dl1.Contains("无目标域"),
-                $"B5 主动档引擎奖励含无Domain原子（检索）被拒（实际：{dl1 ?? "null"}）");
-            var dl2 = EffectEligibility.EngineRewardRejectReason(domainlessAutoFx, BranchEngineKind.LuckRoll);
+                $"B5 主动档奖励含无Domain原子（检索）被拒（实际：{dl1 ?? "null"}）");
+            var dl2 = EffectEligibility.BranchRewardRejectReason(domainlessAutoFx);
             Check(dl2 != null && dl2.Contains("无目标域"),
-                $"B5 自动档引擎奖励含无Domain原子（检索）被拒（实际：{dl2 ?? "null"}）");
+                $"B5 自动档奖励含无Domain原子（检索）被拒（实际：{dl2 ?? "null"}）");
             // 混合（带域+无域并存）同拒——条款按「任一原子无域」整体拒绝
             var mixedFx = Fx((int)TriggerTiming.Activate_Active, 2,
                 Entry(AtomicEffectType.Heal, value: 2), Entry(AtomicEffectType.SearchDeck));
-            var dl3 = EffectEligibility.EngineRewardRejectReason(mixedFx, BranchEngineKind.DeathToll);
+            var dl3 = EffectEligibility.BranchRewardRejectReason(mixedFx);
             Check(dl3 != null && dl3.Contains("无目标域"),
                 $"B5 无Domain原子与带域原子混合仍被拒（实际：{dl3 ?? "null"}）");
+
+            // B6 嵌套分支拒（R4 新增）：奖励=并列整效果单次结算——直挂分支载荷/遗留 kind=1 门步
+            // 折算后的分支均拒（深扫含 Then 递归）。
+            var nestedFx = Fx((int)TriggerTiming.Activate_Active, 2,
+                new AtomicEffectEntry
+                {
+                    refId = Row(AtomicEffectType.Heal)?.HashId, value = 2,
+                    branch = new BranchEntryData
+                    {
+                        settle = (int)BranchSettleKind.Gate,
+                        gateId = "LifeBelowOpp",
+                        then = new List<AtomicEffectEntry> { Entry(AtomicEffectType.DrawCard) },
+                    },
+                });
+            var nestedReason = EffectEligibility.BranchRewardRejectReason(nestedFx);
+            Check(nestedReason != null && nestedReason.Contains("分支嵌套"),
+                $"B6 直挂分支载荷的效果作奖励被拒（实际：{nestedReason ?? "null"}）");
+
+            // kind=1 门步折算形态：Steps=[原子步, 门步(产出条件+then)] → 折算为主干原子 Branch——同拒
+            var gateFoldFx = new CardEffectData
+            {
+                Id = "EFF_ENGINE_RULE_PROBE",
+                DisplayName = "引擎奖励规则探针",
+                TriggerTiming = (int)TriggerTiming.Activate_Active,
+                ActivationType = 2,
+                SelectionMode = -1,
+                TargetCount = -2,
+                Steps = new List<EffectStepData>
+                {
+                    new EffectStepData { kind = 0, atomic = Entry(AtomicEffectType.Heal, value: 2) },
+                    new EffectStepData
+                    {
+                        kind = 1,
+                        conditionId = "DmgKillsTarget",
+                        thenSteps = new List<AtomicEffectEntry> { Entry(AtomicEffectType.DrawCard) },
+                    },
+                },
+            };
+            var foldReason = EffectEligibility.BranchRewardRejectReason(gateFoldFx);
+            Check(foldReason != null && foldReason.Contains("分支嵌套"),
+                $"B6 遗留 kind=1 门步折算后的分支同拒（实际：{foldReason ?? "null"}）");
+
+            // B7 超并列拒（R4 新增）：主干原子 >2（两槽口径）不可作奖励
+            var tripleFx = Fx((int)TriggerTiming.Activate_Active, 2,
+                Entry(AtomicEffectType.Heal, value: 2), Entry(AtomicEffectType.DrawCard), Entry(AtomicEffectType.DealDamage));
+            var tripleReason = EffectEligibility.BranchRewardRejectReason(tripleFx);
+            Check(tripleReason != null && tripleReason.Contains("并列"),
+                $"B7 三原子主干超并列形状被拒（实际：{tripleReason ?? "null"}，期望点名非并列形状）");
         }
 
         // ======================================== C 发动方式钉 / 预设档 ========================================

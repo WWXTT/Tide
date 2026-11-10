@@ -1,5 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using CardCore.Network;
+using Cysharp.Threading.Tasks;
 using SynergyUI;
 using UnityEngine;
 
@@ -37,13 +40,55 @@ namespace Tide.HotUpdate
         ITapLobbySection CreateLobbySection(LobbyScreen screen);
     }
 
-    /// <summary>联机屏 TapTap 段缝（实现住 Tide.TapTap；面板 RectTransform 交回 LobbyScreen 统一换页）。</summary>
+    /// <summary>公开房间摘要（S6b 双源列表用）——中性 DTO：Tide.TapTap 侧从 TapSDK
+    /// RoomBasicInfo/RoomInfo 映射。HotUpdate 程序集不得见 TapSDK 类型（隔离纪律）。</summary>
+    public sealed class TapRoomEntry
+    {
+        public string RoomId;
+        public string Name;
+        public int PlayerCount;
+        public int MaxPlayerCount;
+        /// <summary>是否有密码（房间 customProperties 带 pwd——列表行提示用）。</summary>
+        public bool HasPassword;
+    }
+
+    /// <summary>联机屏 TapTap 段缝（S6b 双源改版；实现住 Tide.TapTap）：
+    /// 登录态/房间列表/建房/加入/退房全经本口；异步口失败=返回 null（读 LastError 文案）——
+    /// 不用元组返回（HybridCLR AOT 纪律）。Build 留空实现（S6a 起 v2 三栏无独立 TapTap 面板）。</summary>
     public interface ITapLobbySection
     {
-        /// <summary>建 TapTap 面板并往联机入口按钮排插入「TapTap 联机」入口钮（含全部绑定）。</summary>
+        /// <summary>已登录 TapTap（LoginName 非空）——房间列表双源判定。</summary>
+        bool IsLoggedIn { get; }
+
+        /// <summary>TapTap 登录名（未登录为空）。</summary>
+        string LoginName { get; }
+
+        /// <summary>最近一次异步口失败/超时的可读文案（对应方法返回 null 时有效）。</summary>
+        string LastError { get; }
+
+        /// <summary>登录+连接对战服务（幂等，已连接直过）。返回 null=成功，否则=可读错误。</summary>
+        UniTask<string> EnsureLoginAsync();
+
+        /// <summary>公开房间列表（已滤满员与 ranked 房）。返回 null=失败（读 LastError）。</summary>
+        UniTask<List<TapRoomEntry>> ListRoomsAsync();
+
+        /// <summary>TapTap 建房：SDK 建房（密码写 customProperties）+ 本地组合传输会话服务器
+        ///（同 password）已 Start(0)。成功返回该服务器（BeginHostSession/回环入座由 LobbyScreen
+        /// 收尾）；失败返回 null（读 LastError）。</summary>
+        UniTask<NetSessionServer> CreateRoomAsync(string roomName, string password);
+
+        /// <summary>加入指定房间：SDK JoinRoom + TapClientTransport 就绪的客户端
+        ///（进房协议 JoinRoom〔含密码/卡组名〕由 LobbyScreen 统一发送——密码真门禁=NetRoom）。
+        /// 失败返回 null（读 LastError）。</summary>
+        UniTask<NetGameClient> JoinRoomAsync(string roomId, string password);
+
+        /// <summary>退房+断对战服务。返回 null=成功（吞错口径沿用——超时兜底在控制器）。</summary>
+        UniTask<string> LeaveAsync();
+
+        /// <summary>S6a 起无独立面板——留空实现（接口兼容保留）。</summary>
         void Build(RectTransform root, RectTransform entryButtonsRow);
 
-        /// <summary>拆会话收口（原 TeardownSession 的 TapTap 段：退房+断对战服务）。</summary>
+        /// <summary>拆会话收口（退房+断对战服务；LobbyScreen.TeardownSession 调）。</summary>
         void Teardown();
 
         /// <summary>昵称兜底（TapTap 登录名；未登录返回空）。</summary>
