@@ -241,11 +241,10 @@ namespace SynergyUI
             // 2026-10-09 定案不开放玩家选择；**回合开始 2026-10-20 起同样收归系统专用**——
             // 自动抽牌/倒计时递减等系统行为专属，效果时点改挂「准备阶段」）
             //
-            // 2026-11-05 两档收敛；2026-11-09 生物专属档拆分；2026-11-10 时机系数规格（影子开关）：
-            // TimingWeights.json 逐时机 f——Enabled=true 时计价读行 Factor，影子模式（默认）走
-            // ValueSystemConfig TimingFactor 桶（单次 ×1 / 多次 ×1 / 生物专属 ×1.5）。
-            // 宿主过滤：生物=单次+生物专属；结界=单次+周期/观察族；法术=仅登场——HostCanTakeTiming 单源；
-            // 效果库模式无宿主全开。
+            // 2026-11-05 两档收敛；2026-11-09 生物专属档拆分；2026-11-10 时机系数规格（段 2b 已切正，影子开关已删）：
+            // TimingWeights.json 逐时机 f 直接参与计价（缺行回落 ValueSystemConfig TimingFactor 桶）。
+            // 宿主过滤：生物=单次+攻/守/横置族+双宿主 OnAttacked+E[N]≤1 低频；结界=全时机（除攻/守/横置族与
+            // OnTurnStart）；法术=仅登场——HostCanTakeTiming 单源；效果库模式无宿主全开。
             bool hostFilters = _editingCard != null;
             _timings = TimingZh.Keys.Where(t => t != TriggerTiming.OnTurnStart)
                 .Where(t => !hostFilters || EffectEligibility.HostCanTakeTiming(_editingCard.Supertype, t))
@@ -270,8 +269,8 @@ namespace SynergyUI
                 + "多次中的周期/观察族（回合/阶段/抽牌/伤害/事件观察）为结界专属——触发消耗耐久"
                 + "（旧口径每触发 −1；新口径每满 3 次触发扣整份耐久 D，见时机系数规格 §4），耐久归零销毁；"
                 + "攻/守/横置族为生物专属自动效果——只有生物可挂（结界不横置、法术不驻场，无从触发），次数由横置限频承担。"
-                + "系数单源：TimingWeights.json 逐时机 f（Enabled=true 实际乘 f；影子模式走 ValueSystemConfig "
-                + "TimingFactor 桶 ×1/×1/×1.5），改表即同步这里与计价。"
+                + "系数单源：TimingWeights.json 逐时机 f（直接参与计价，2026-11-10 段 2b 已切正；"
+                + "缺行才回落 ValueSystemConfig TimingFactor 桶），改表即同步这里与计价。"
                 + "自由分支奖励仍限每张卡每回合 1 次；其余效果无次数限制，仅同一效果每回合超过 30 次按自循环截断。点选项看各时机说明。",
                 idx => idx >= 0 && idx < _timings.Count ? TimingDescZh(_timings[idx]) : null);
         }

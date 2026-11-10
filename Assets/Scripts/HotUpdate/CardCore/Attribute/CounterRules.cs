@@ -561,13 +561,11 @@ namespace CardCore.Attribute
                : new CounterSpec { Id = id, Polarity = CounterPolarity.Positive, DisplayName = id };
 
         /// <summary>
-        /// 结界被动触发的耐久消耗单口（StackEngine 触发入栈消费；2026-11-10 时机系数规格 §4/§7）——
-        /// 影子开关两口径：
-        /// · TimingWeights.Enabled=false（影子模式，默认）＝旧口径：每次触发 −1 耐久（D 点耐久 = D 次）；
-        /// · Enabled=true＝新口径（累计）：每触发 <see cref="DurabilityTriggerCounter"/> 计数 +1，
-        ///   每满 TriggersPerDeduction（=1/share，现值 3）次扣**整份**入场耐久 D
-        ///  （CardCompositionCost.TotalDurabilityOf 单源=印刷值）并清零计数——D 点耐久恒兑现 3 次触发，
-        ///   D 只表达血量，次数自由度移交时机系数（f 计价），两条腿不再互相污染。
+        /// 结界被动触发的耐久消耗单口（StackEngine 触发入栈消费；2026-11-10 时机系数规格 §4，已生效）——
+        /// 累计口径：每触发 <see cref="DurabilityTriggerCounter"/> 计数 +1，每满 TriggersPerDeduction
+        /// （=1/share，现值 3）次扣**整份**入场耐久 D（CardCompositionCost.TotalDurabilityOf 单源=印刷值）
+        /// 并清零计数——D 点耐久恒兑现 3 次触发，D 只表达血量，次数自由度移交时机系数（f 计价），
+        /// 两条腿不再互相污染。旧「每次触发 −1」口径已删（2026-11-10 段 2b 切正，不保留影子开关）。
         /// 效果按每次触发照常结算，不因计数未满而推迟（入栈在前、扣耐久在后，第 3 次照常结算）；
         /// 受伤扣耐久 1:1（KeywordRules/DamagePipeline）不经本口。计数为 System 指示物：
         /// 换区清（重进场从零起算）、UI 全隐藏、随卡快照进网络同步。
@@ -576,7 +574,7 @@ namespace CardCore.Attribute
         {
             if (core?.ZoneManager == null || enchant == null) return;
             int per = TimingWeights.TriggersPerDeduction;
-            if (!TimingWeights.Enabled || per <= 1)
+            if (per <= 1)
             {
                 LoseDurability(core, enchant, 1, reason);
                 return;

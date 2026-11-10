@@ -1120,29 +1120,9 @@ namespace CardCore.Editor
                    && CardCore.EffectEligibility.RejectReason(Cardtype.Enchantment, kwDef) == null,
                    "P9-3b 关键词挂生物/结界：可挂");
 
-            // ---- 4. 时机系数（2026-11-10 时机系数规格 v0.1 影子开关）：影子模式=TimingFactor 桶
-            //      （单次/多次 ×1；生物专属 ×1.5）；Enabled=true=TimingWeights 逐时机 f。
-            //      断言随模式取期望（单源一致性），段 2b 切换后无需改码；硬锚只钉影子桶值。----
-            bool timingNewMode = CardCore.TimingWeights.Enabled;
+            // ---- 4. 时机系数（2026-11-10 时机系数规格 v0.1，段 2b 已切正：影子开关删除）：
+            //      TimingCostFactorOf = TimingWeights 逐时机 f；缺行/表不可读才回落 TimingFactor 桶（安全侧）。----
             float F(TriggerTiming t) => CardCore.CostDerivationService.TimingCostFactorOf(t);
-            if (!timingNewMode)
-            {
-                Assert(System.Math.Abs(F(TriggerTiming.OnPlay) - 1f) < 1e-4f
-                       && System.Math.Abs(F(TriggerTiming.OnDeath) - 1f) < 1e-4f
-                       && System.Math.Abs(F(TriggerTiming.OnDraw) - 1f) < 1e-4f
-                       && System.Math.Abs(F(TriggerTiming.OnStandbyPhase) - 1f) < 1e-4f
-                       && System.Math.Abs(F(TriggerTiming.OnDealDamage) - 1f) < 1e-4f
-                       && System.Math.Abs(F(TriggerTiming.OnAttacked) - 1f) < 1e-4f
-                       && System.Math.Abs(F(TriggerTiming.OnAttack) - 1.5f) < 1e-4f
-                       && System.Math.Abs(F(TriggerTiming.OnBlockDeclare) - 1.5f) < 1e-4f
-                       && System.Math.Abs(F(TriggerTiming.OnTap) - 1.5f) < 1e-4f
-                       && System.Math.Abs(F(TriggerTiming.OnUntap) - 1.5f) < 1e-4f,
-                       "P9-4 影子模式时机桶：单次/多次 ×1（OnAttacked 2026-11-10 起归 Repeat 桶 ×1.0——旧 1.5）；"
-                       + "攻/守/横置族 4 值（生物专属）×1.5（Enabled=false 不动其他卡价）");
-                Assert(System.Math.Abs(F(TriggerTiming.OnAttack) - TimingBucketFactorOf(TriggerTiming.OnAttack)) < 1e-4f,
-                       "P9-4a 生物专属档系数取自 ValueSystemConfig.TimingFactor.CreatureOnly（改表即同步计价）");
-            }
-            else
             {
                 // 单源一致性：新表模式下 35 时机全部 = 行 Factor（缺行回落桶）；语义锚（校准不变式）：
                 // OnPlay=1（法术锚点）/主动三档=1（现付）/OnTurnStart=0（系统专用禁用）。
@@ -1183,7 +1163,7 @@ namespace CardCore.Editor
             Assert(System.Math.Abs(RedOf(TimingDef(TriggerTiming.OnPlay)) - 5f * WantF(TriggerTiming.OnPlay)) < 1e-4f
                    && System.Math.Abs(RedOf(TimingDef(TriggerTiming.OnDraw)) - 5f * WantF(TriggerTiming.OnDraw)) < 1e-4f
                    && System.Math.Abs(RedOf(TimingDef(TriggerTiming.OnDealDamage)) - 5f * WantF(TriggerTiming.OnDealDamage)) < 1e-4f,
-                   $"P9-5 时机系数入价：红5×f（当前 {(timingNewMode ? "新表" : "影子")}——登场 {5f * WantF(TriggerTiming.OnPlay):0.###} / 抽牌 {5f * WantF(TriggerTiming.OnDraw):0.###} / 造成伤害 {5f * WantF(TriggerTiming.OnDealDamage):0.###}）");
+                   $"P9-5 时机系数入价：红5×f（新表已切正——登场 {5f * WantF(TriggerTiming.OnPlay):0.###} / 抽牌 {5f * WantF(TriggerTiming.OnDraw):0.###} / 造成伤害 {5f * WantF(TriggerTiming.OnDealDamage):0.###}）");
             Assert(System.Math.Abs(RedOf(TimingDef(TriggerTiming.OnAttack)) - 5f * WantF(TriggerTiming.OnAttack)) < 1e-4f
                    && System.Math.Abs(RedOf(TimingDef(TriggerTiming.OnTap)) - 5f * WantF(TriggerTiming.OnTap)) < 1e-4f,
                    $"P9-5b 生物专属攻/守/横置入价：红5×f（攻击宣言 {5f * WantF(TriggerTiming.OnAttack):0.###} / 横置 {5f * WantF(TriggerTiming.OnTap):0.###}）");
@@ -1376,9 +1356,9 @@ namespace CardCore.Editor
                       + (hits.Count > 0 ? string.Join("\n", hits) : "（无——所有表值均偏离代码默认值）"));
         }
 
-        // ======================================== P9-9：时机系数权重表对账 + 影子价差清单（2026-11-10 时机系数规格 v0.1 §5/§7，只报不改） ========================================
+        // ======================================== P9-9：时机系数权重表对账 + 价差清单（2026-11-10 时机系数规格 v0.1 §5，只报不改） ========================================
 
-        /// <summary>桶默认系数（TimingFactorConfig 单源镜像——影子模式计价值 / 新表缺行兜底值；
+        /// <summary>桶默认系数（TimingFactorConfig 单源镜像——新表缺行兜底值；
         /// 与 CostDerivation.TimingCostFactorOf 的回落链同口径）。</summary>
         private static float TimingBucketFactorOf(TriggerTiming t)
         {
@@ -1395,8 +1375,8 @@ namespace CardCore.Editor
             return TimingBucketFactorOf(def.TriggerTiming);
         }
 
-        /// <summary>新口径时机系数（TimingWeights 行 Factor，缺行回落桶；非触发/引擎载荷恒 1）。
-        /// 与 TimingCostFactorOf 的 Enabled=true 分支同口径——影子模式下照算（价差清单的「新」侧）。</summary>
+        /// <summary>时机系数（TimingWeights 行 Factor，缺行回落桶；非触发/引擎载荷恒 1）——
+        /// 与 TimingCostFactorOf 同口径（段 2b 已切正：影子开关删除）。</summary>
         private static float TimingNewFactorOf(CardCore.EffectDefinition def)
         {
             if (def == null || !def.IsTriggeredEffect
@@ -1501,8 +1481,7 @@ namespace CardCore.Editor
 
             // ---- ⑤ 35 行 f 表全量打印 ----
             var sb = new System.Text.StringBuilder();
-            sb.AppendLine($"[P9-9e f 表] TimingWeights.json：Enabled={CardCore.TimingWeights.Enabled}"
-                          + $"（{(CardCore.TimingWeights.Enabled ? "段2b 已切换：计价乘 f" : "影子模式：计价走旧桶，本表只对账")}）"
+            sb.AppendLine($"[P9-9e f 表] TimingWeights.json：已切正（段 2b·2026-11-10，影子开关已删：计价直接乘行 f）"
                           + $" Cutoff={cutoff:0.###} Base={CardCore.TimingWeights.Base:0.###}"
                           + $" share={CardCore.TimingWeights.DurabilitySharePerTrigger:0.######}"
                           + $" 每满 {CardCore.TimingWeights.TriggersPerDeduction} 次触发扣整份耐久 D（D 恒兑现 3 次）");

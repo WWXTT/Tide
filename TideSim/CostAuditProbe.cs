@@ -19,8 +19,8 @@ namespace TideSim
             diffs += AuditPool(SynergyUI.CardDataPaths.TutorialFileIn("TutorialCards.json"), "教学");
             diffs += AuditPool(SynergyUI.CardDataPaths.TrainingFileIn("TrainingCards.json"), "训练");
             Console.WriteLine(diffs == 0
-                ? "结论：三池 costList 与现推导零差异——B/C 组价色零变化，无须重推写回。"
-                : $"结论：差异 {diffs} 张（上方清单——归因见各行）。");
+                ? "结论：三池 costList 与现推导零差异（时机系数已切正，无须重推写回）。"
+                : $"结论：差异 {diffs} 张（上方清单——切正后建议跑 Tools/重推导测试卡表费用与ID 对齐）。");
             return diffs == 0 ? 0 : 1;
         }
 
@@ -51,8 +51,8 @@ namespace TideSim
                 float oldSum = old4.Sum(), curSum = cur.Sum();
                 bool colorSwap = Math.Abs(oldSum - curSum) < 0.01f; // 总和不变=色变特征
                 string why = colorSwap
-                    ? "色变特征（总价不变·分量位移——B组/吸血链路或既有色漂）"
-                    : "推导口径漂移（并行 CostDerivation 改动或既有漂移，非 B/C 色变）";
+                    ? "色变特征（总价不变·分量位移：颜色桶迁移/卡面配色改动）"
+                    : "时机系数切正后 f 生效（触发式效果价变）或推导口径差异——重推后应对齐";
                 Console.WriteLine($"  ✗ [{label}] {card.CardName}({card.ID}) 旧[{Fmt(old4)}] → 新[{Fmt(cur)}]"
                                   + $"（Σ {oldSum:0.##}→{curSum:0.##}）——{why}");
             }

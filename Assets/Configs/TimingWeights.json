@@ -1,7 +1,5 @@
 {
   "_Des": "时机系数权重表 v0.1（2026-11-10 定案）。f = min(E[N], Cutoff)；E[N] 单次档=p、周期观察族=Lambda*L、攻守横置族=Lambda*Lc。Base=典型耐久（次数天花板），DurabilitySharePerTrigger=每次触发消耗的耐久比例（D*share=1 次）。规格见 docs/时机系数规格_v0.1.md",
-  "Enabled": false,
-  "_EnabledDes": "影子开关：false=只算出 f 并对账、计价仍用旧 TimingFactor 桶；true=实际乘 f。切换前必须先看验证器「新旧价差清单」与卡费曲线",
   "Base": 3.0,
   "Cutoff": 3.0,
   "DurabilitySharePerTrigger": 0.3333333,

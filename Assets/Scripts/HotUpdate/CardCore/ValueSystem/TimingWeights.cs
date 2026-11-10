@@ -23,7 +23,6 @@ namespace CardCore
     [Serializable]
     public class TimingWeightFile
     {
-        public bool Enabled;                     // 影子开关（§7 落地开关）：false=计价仍走旧 TimingFactor 桶；true=计价实际乘 f
         public float Base;                       // 典型耐久（次数天花板；与卡表 durability 分布对齐）
         public float Cutoff;                     // f 封顶（与 Base 同值——Cutoff 是次数、Base 是耐久点，改一个必须同时看另一个）
         public float DurabilitySharePerTrigger;  // 每次触发消耗的耐久比例（D×share = 1 次触发；1/3 → D 恒兑现 3 次）
@@ -36,12 +35,9 @@ namespace CardCore
     /// 35 行 × 6 列数据表不适合每列一个 C# 字段，见规格 §8）。
     ///
     /// 消费方：CostDerivationService.TimingCostFactorOf（计价）与 CounterRules.ConsumeTriggerDurabilityShare
-    /// （耐久消耗）两口，均受 <see cref="Enabled"/> 影子开关约束（规格 §7 落地开关）：
-    /// · false（默认，段 2a 影子模式）——计价恒走旧 TimingFactor 桶（×1/×1/×1.5）、耐久消耗保持旧口径
-    ///   （触发一次 −1）——不动任何卡价，只出验证器对账清单与卡费曲线；
-    /// · true（段 2b）——计价实际乘行 Factor、耐久走 D/3 累计口径；两口径同批切换，勿单边开。
-    /// 切换前必看验证器 P9-9「旧系数 vs 新 f」全表清单与受影响效果/卡数量、价差合计（唯一判据）。
-    /// 文件缺失/解析失败：两口回落旧口径并告警一次（安全侧）；Invalidate 后重读。
+    /// （耐久消耗）两口，**2026-11-10 段 2b 已切正：影子开关删除，不保留旧口径分支**——
+    /// 计价直接读行 Factor、耐久走 D/3 累计口径；缺行/表不可读才回落 TimingFactor 桶（安全侧兜底）。
+    /// 文件缺失/解析失败：告警一次并回落桶默认；Invalidate 后重读。
     /// </summary>
     public static class TimingWeights
     {
@@ -60,13 +56,7 @@ namespace CardCore
         /// <summary>装载版本号（Invalidate 递增——编辑器改表后重跑验证器取新读数）。</summary>
         public static int Version => _version;
 
-        /// <summary>影子开关：表不可读视为 false（恒旧口径，安全侧）。</summary>
-        public static bool Enabled
-        {
-            get { var t = Table; return t != null && t.Enabled; }
-        }
-
-        /// <summary>f 封顶（表不可读返回 0——只在 Enabled 时被计价消费，恒与 Base 同值联动）。</summary>
+        /// <summary>f 封顶（表不可读返回 0——计价消费方须先 TryGet 命中行；缺行由调用方回落桶默认）。</summary>
         public static float Cutoff => Table?.Cutoff ?? 0f;
 
         /// <summary>典型耐久（次数天花板；与 Cutoff 同值联动——§9 风险 1：一个是次数一个是耐久点，改一个必须同时看另一个）。</summary>
