@@ -35,6 +35,13 @@ namespace CardCore.Network
         /// <summary>事件流出队游标（NetEventProjector 全局列表下标，房间按局重置）。</summary>
         int EventCursor { get; set; }
 
+        /// <summary>战报行流出队游标（2026-11-11 C 案 v15：房间行流历史下标，房间按局重置）。</summary>
+        int LogCursor { get; set; }
+
+        /// <summary>事件流订阅意愿（2026-11-11 C 案）：AI 填位（NetClientBrain 观察靠事件）=true；
+        /// 人类/观战=false（行流上线后停发 NetEventBatch，省 90%+ 下行）。</summary>
+        bool WantsEvents { get; set; }
+
         /// <summary>静默点快照脏标记（本 tick 有事件/intent 且转入静默时置位，发完清零）。</summary>
         bool SnapshotDirty { get; set; }
 

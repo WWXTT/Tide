@@ -619,14 +619,9 @@ namespace SynergyUI
         }
 
         /// <summary>效果短名：按 EffectId 查本地效果库显示名（2026-11-05 ID 冻结收口接线——
-        /// 此前只截 ID 前 8 位）；查无（含 EFF_ 内嵌遗留口径）回落截断。</summary>
-        public static string EffectShortName(string effectId)
-        {
-            if (string.IsNullOrEmpty(effectId)) return "?";
-            var dto = EffectsLibrary.Get(effectId);
-            if (!string.IsNullOrEmpty(dto?.name)) return dto.name;
-            return effectId.Length <= 10 ? effectId : effectId.Substring(0, 8) + "…";
-        }
+        /// 此前只截 ID 前 8 位）；查无（含 EFF_ 内嵌遗留口径）回落截断。
+        /// 2026-11-11 C 案下沉转发：实现单源=MatchLogRenderer（CardCore，服务端行流 R2 共用）。</summary>
+        public static string EffectShortName(string effectId) => CardCore.MatchLogRenderer.EffectShortName(effectId);
     }
 
     /// <summary>

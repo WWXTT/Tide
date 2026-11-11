@@ -1,7 +1,9 @@
-﻿#if UNITY_EDITOR
+#if UNITY_EDITOR
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Text.RegularExpressions;
 using UnityEditor;
 using UnityEngine;
 
@@ -12,38 +14,122 @@ namespace CardCore.Tools
         private const string OUTPUT_PATH = "Assets/Scripts/HotUpdate/CardCore/Serialization/TagTable.cs"; // 热更重组后实际位置（旧 Assets/Scripts/CardCore 已不存在，2026-10-10 修正）
         private const uint SYNERGY_TAG_SEED = 0x53796E67;
 
+        /// <summary>常量行（保值读取用）：缩进 + 名 + 值 + 分号 + 行尾注释原样捕获。</summary>
+        private static readonly Regex ConstLineRegex =
+            new Regex(@"^(\s*)public const int (\w+) = (-?\d+);(.*)$", RegexOptions.Compiled);
+
+        /// <summary>
+        /// 生成标签表（2026-11-11 改为**保值生成**）。
+        ///
+        /// **为什么改**：v11/v13/S7b 有一批手算标签（全量强转口径 / 早期配方），与当前公式
+        /// `Murmur32("类.属性", 0x53796E67) &amp; 0x7FFFFFFF` 不一致；旧版"全量重算"会在无提示的情况下
+        /// 改写 30+ 个**已上线**的 MemoryPackOrder —— 而 MemoryPackOrder = 字段序列化顺序，改值即改
+        /// 线格式。真实缺口：`MsgRoomSettings.Seed`/`MsgRoomState.Seed`（v13）压根没登记，跑工具会直接
+        /// 删掉常量；另有 29 个 v11 手算值 + 1 个 S7b 直方图会被静默改成公式值。
+        ///
+        /// **现在**：已有常量一律沿用现表**现值**（值 + 原行含注释原样保留），只给新字段按公式取号；
+        /// 守门把"会改/会删/会撞/解析不全"四种情况全部变成显式报错，绝不静默改写。
+        /// </summary>
         [MenuItem("Tools/刷新属性排序（新增序列化字段时使用）")]
         public static void GenerateTagTable()
         {
-            var tags = GetTagDefinitions();
-            var generated = GenerateCode(tags);
+            var defs = GetTagDefinitions();
+            var existing = ReadExisting();
 
-            // 检测碰撞（全部哈希标签查重）
-            var usedTags = new System.Collections.Generic.Dictionary<int, string>();
-            bool hasCollision = false;
-
-            foreach (var (className, propName, tag) in tags)
+            // ---- 守门 1：登记表内部重复（(类,属性) 二次登记＝复制粘贴事故）----
+            var seenDefs = new HashSet<string>();
+            var dupDefs = new List<string>();
+            foreach (var (cls, prop, _) in defs)
+                if (!seenDefs.Add(cls + "." + prop)) dupDefs.Add(cls + "." + prop);
+            if (dupDefs.Count > 0)
             {
-                if (usedTags.TryGetValue(tag, out var existing))
-                {
-                    Debug.LogError($"Tag collision: {className}.{propName} vs {existing} = {tag}");
-                    hasCollision = true;
-                }
-                else
-                {
-                    usedTags[tag] = $"{className}.{propName}";
-                }
-            }
-
-            if (hasCollision)
-            {
-                Debug.LogError("存在标签碰撞，请检查并修改属性名！");
+                Debug.LogError("[TagTable] 登记重复，已中止：" + string.Join("、", dupDefs));
                 return;
             }
 
-            File.WriteAllText(OUTPUT_PATH, generated);
+            // ---- 保值组装：有现值→沿用（原行一并保留）；无→按公式取号（新字段）----
+            var tags = new (string className, string propName, int tag, string line)[defs.Length];
+            var frozen = new List<string>();  // 现值≠公式：历史手算批（冻结，禁止重算）
+            var fresh = new List<string>();   // 本次新字段（按公式取号）
+            for (int i = 0; i < defs.Length; i++)
+            {
+                var (cls, prop, _) = defs[i];
+                string name = GetVarPrefix(cls) + "_" + prop;
+                if (existing.TryGetValue(name, out var old))
+                {
+                    tags[i] = (cls, prop, old.Value, old.Line); // ★ 保值：值与原行（含注释）原样沿用
+                    if (old.Value != StableTag(cls, prop)) frozen.Add(name);
+                }
+                else
+                {
+                    tags[i] = (cls, prop, StableTag(cls, prop), null);
+                    fresh.Add(name);
+                }
+            }
+
+            // ---- 守门 2：最终值全表唯一（新字段撞上冻结值＝生成器歧义——改字段名，不许改已上线值）----
+            var byValue = new Dictionary<int, string>();
+            var collisions = new List<string>();
+            foreach (var (cls, prop, tag, _) in tags)
+            {
+                string who = cls + "." + prop;
+                if (byValue.TryGetValue(tag, out var other)) collisions.Add($"{tag}: {other} vs {who}");
+                else byValue[tag] = who;
+            }
+            if (collisions.Count > 0)
+            {
+                Debug.LogError("[TagTable] 标签值碰撞，已中止（改字段名，勿改已上线值）：" + string.Join("；", collisions));
+                return;
+            }
+
+            // ---- 守门 3：旧表里有、登记表里没有的常量（重生成会删掉它 → 引用处编译错）----
+            var produced = new HashSet<string>();
+            foreach (var (cls, prop, _, _) in tags) produced.Add(GetVarPrefix(cls) + "_" + prop);
+            var dropped = new List<string>();
+            foreach (var name in existing.Keys) if (!produced.Contains(name)) dropped.Add(name);
+            if (dropped.Count > 0)
+            {
+                Debug.LogError("[TagTable] 以下常量未登记（重生成会删除；若确属退役请先手工删表再跑）："
+                    + string.Join("、", dropped));
+                return;
+            }
+
+            // ---- 守门 4：常量行解析不全（格式漂移会让"保值"静默失效）----
+            int rawConstLines = CountRawConstLines();
+            if (rawConstLines != existing.Count)
+            {
+                Debug.LogError($"[TagTable] 常量行解析不全（原文 {rawConstLines} 行 / 解析 {existing.Count} 行）——检查格式，已中止");
+                return;
+            }
+
+            File.WriteAllText(OUTPUT_PATH, GenerateCode(tags, frozen), new UTF8Encoding(true)); // Unity 口径：UTF-8 BOM
             AssetDatabase.Refresh();
-            Debug.Log($"TagTable.cs 已生成，共 {tags.Length} 个标签（纯哈希口径——手工定值段已随 2026-10-31 阶段D 全量重排退役）");
+            Debug.Log($"[TagTable.cs] 已生成：共 {tags.Length} 个标签（保值 {tags.Length - fresh.Count}、新算 {fresh.Count}"
+                + (fresh.Count > 0 ? "：" + string.Join("、", fresh) : "")
+                + $"）；非公式值 {frozen.Count} 条已冻结：{string.Join("、", frozen)}");
+        }
+
+        /// <summary>读现表：常量名 → (值, 原行)。原行原样沿用＝保值的同时保住手工注释（v13/S7b 溯源注释不丢）。</summary>
+        private static Dictionary<string, (int Value, string Line)> ReadExisting()
+        {
+            var map = new Dictionary<string, (int, string)>();
+            if (!File.Exists(OUTPUT_PATH)) return map; // 首建（空仓）＝全公式取号
+            foreach (var line in File.ReadAllLines(OUTPUT_PATH))
+            {
+                var m = ConstLineRegex.Match(line);
+                if (m.Success) map[m.Groups[2].Value] = (int.Parse(m.Groups[3].Value), line);
+            }
+            return map;
+        }
+
+        /// <summary>原文里 "public const int" 出现次数（守门 4 对账用）。</summary>
+        private static int CountRawConstLines()
+        {
+            if (!File.Exists(OUTPUT_PATH)) return 0;
+            int n = 0;
+            foreach (var line in File.ReadAllLines(OUTPUT_PATH))
+                if (line.IndexOf("public const int ", StringComparison.Ordinal) >= 0) n++;
+            return n;
         }
 
         private static (string className, string propName, int tag)[] GetTagDefinitions()
@@ -289,12 +375,17 @@ namespace CardCore.Tools
                 ("MsgRoomState", "FirstSeatThisMatch"),
                 ("MsgRoomState", "FirstMoveMode"), ("MsgRoomState", "ShuffleMode"),
                 ("MsgRoomState", "GuestReady"), ("MsgRoomState", "DeckPickSecondsLeft"),
+                // v13 本局随机种子（开局定死回显）：2026-11-11 补登记——现值 -210878657 为全量强转口径，
+                // 属"冻结值"（见 GenerateTagTable 保值生成），登记后跑工具沿用现值、不改线格式
+                ("MsgRoomState", "Seed"),
                 ("MsgRoomSeatInfo", "Seat"), ("MsgRoomSeatInfo", "Nickname"),
                 ("MsgRoomSeatInfo", "Connected"),
                 ("MsgRoomSeatInfo", "DeckName"), // S5：座位卡组名
 
                 // ---- 房间就绪层（2026-10-28 开局流程改版：房主配模式+客人准备+房主开局）----
                 ("MsgRoomSettings", "FirstMoveMode"), ("MsgRoomSettings", "ShuffleMode"),
+                // v13 房主钉种子（0=随机）：2026-11-11 补登记——现值 -191934453 为全量强转口径（冻结值）
+                ("MsgRoomSettings", "Seed"),
                 ("MsgRoomReady", "Ready"),
 
                 // ---- 大厅层（L1，2026-09-24：房间列表/自动匹配/AI 填位，见 网络协议.md §13）----
@@ -306,6 +397,11 @@ namespace CardCore.Tools
                 ("MsgLobbyCreateRoom", "RoomName"),
                 ("MsgLobbyJoinRoom", "RoomId"),
                 ("MsgLobbyAddAi", "RoomId"), ("MsgLobbyAddAi", "Nickname"),
+
+                // ---- MsgNetLogBatch / NetLogLine（v15 C 案战报行流，2026-11-11：与 TagTable 手算抄入值同配方同值）----
+                ("MsgNetLogBatch", "Lines"),
+                ("NetLogLine", "Kind"), ("NetLogLine", "Flags"),
+                ("NetLogLine", "EventId"), ("NetLogLine", "Text"),
             };
 
             var result = new (string className, string propName, int tag)[raw.Length];
@@ -314,12 +410,15 @@ namespace CardCore.Tools
             return result;
         }
 
-        private static string GenerateCode((string className, string propName, int tag)[] tags)
+        private static string GenerateCode((string className, string propName, int tag, string line)[] tags,
+            List<string> frozen)
         {
             var sb = new StringBuilder();
             sb.AppendLine("// 此文件由 Tools/刷新属性排序（新增序列化字段时使用）自动生成，请勿手动修改");
             sb.AppendLine("// 如需添加新属性，请修改 RefreshMemoryPackOrder.cs 中的 GetTagDefinitions()");
-            sb.AppendLine("// 纯哈希口径（2026-10-31 阶段D 全量重排：手工定值段退役，无保留位概念）");
+            sb.AppendLine("// 生成口径（2026-11-11 起＝保值生成）：已有常量沿用现表现值（整行含注释原样保留），仅新字段");
+            sb.AppendLine("// 按 Murmur32(\"类.属性\", 0x53796E67) & 0x7FFFFFFF 取号；末尾「冻结值」段＝历史手算批，重算");
+            sb.AppendLine("// 它们＝改 MemoryPackOrder＝改已上线线格式，禁止（工具守门会拦）。");
             sb.AppendLine();
             sb.AppendLine("namespace CardCore.Serialization");
             sb.AppendLine("{");
@@ -327,7 +426,7 @@ namespace CardCore.Tools
             sb.AppendLine("    {");
 
             string currentClass = null;
-            foreach (var (className, propName, tag) in tags)
+            foreach (var (className, propName, tag, line) in tags)
             {
                 if (currentClass != className)
                 {
@@ -336,12 +435,24 @@ namespace CardCore.Tools
                     currentClass = className;
                 }
 
-                string varPrefix = GetVarPrefix(className);
-                sb.AppendLine($"        public const int {varPrefix}_{propName} = {tag};");
+                // 保值行：原样写回（注释/格式不丢）；新字段：标准行
+                sb.AppendLine(line ?? $"        public const int {GetVarPrefix(className)}_{propName} = {tag};");
+            }
+
+            if (frozen.Count > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine("        // ---- 冻结值（非公式推导，禁止重算：已上线线格式契约）----");
+                sb.AppendLine("        // 来源：全量强转口径 / v11 早期手算配方；现值即协议布局。改值＝改字段序列化顺序。");
+                foreach (var (className, propName, tag, _) in tags)
+                {
+                    string name = GetVarPrefix(className) + "_" + propName;
+                    if (frozen.Contains(name)) sb.AppendLine($"        // {name} = {tag}");
+                }
             }
 
             sb.AppendLine();
-            sb.AppendLine($"        // 共 {tags.Length} 个标签（纯哈希口径）");
+            sb.AppendLine($"        // 共 {tags.Length} 个标签（保值生成：{tags.Length - frozen.Count} 条公式值 + {frozen.Count} 条冻结值）");
             sb.AppendLine("    }");
             sb.AppendLine("}");
 
@@ -395,6 +506,8 @@ namespace CardCore.Tools
                 "MsgLobbyCreateRoom" => "MLCR",
                 "MsgLobbyJoinRoom" => "MLJR",
                 "MsgLobbyAddAi" => "MLAA",
+                "MsgNetLogBatch" => "MNLB",       // v15 C 案战报行流（2026-11-11）
+                "NetLogLine" => "NLL",            // v15 同上
                 _ => className
             };
         }

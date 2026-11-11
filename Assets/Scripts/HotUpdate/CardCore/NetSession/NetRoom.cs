@@ -98,6 +98,16 @@ namespace CardCore.Network
         private BoardState _board;
         private NetworkTargetSelector _selector;
 
+        // 战报行流（2026-11-11 C 案）：服务端逐视角渲染（MatchLogLineStream 三条：seat0/seat1 观侧
+        // 遮蔽 + 观战 -1 中立实名全信息），行历史按座位积累、FlushDownlink 按成员游标切片下发。
+        // 订阅必须先于 core.InitGame（InstallLogStreams 注释——晚订漏首回合头行=整局零行）。
+        private readonly Dictionary<int, MatchLogLineStream> _logStreams = new Dictionary<int, MatchLogLineStream>();
+        private readonly Dictionary<int, List<MatchLogLine>> _logHistory = new Dictionary<int, List<MatchLogLine>>();
+        private readonly Dictionary<int, int> _logBase = new Dictionary<int, int>(); // 截头偏移（游标换算：绝对行号-偏移=窗口下标）
+        private Action<MatchLogEntry> _onLogAppended;
+        private const int MaxLogLines = 4096;   // 单视角行历史上限（实测长局 ~800 行；截头防御镜像 NetEventProjector.MaxEvents）
+        private const int TrimLogBatch = 256;   // 分批截头（均摊 O(1)——逐条 RemoveAt(0) 是 O(n)/行）
+
         /// <summary>seed=null 用时间随机（生产）；钉种子（M3 对拍）时先手椅位与引擎随机流均确定。
         /// autoStartWhenAllReady=无头房主（MatchHost 等）：双座满即开局（跳过准备/房主确认）。
         /// password（S5 2026-11-10）：房间密码——非空时 JoinRoom 须携带同值；默认 null=无密码（既有调用零改动）。
@@ -480,6 +490,9 @@ namespace CardCore.Network
                 _roomStateDirty = true;
                 return;
             }
+            // 战报行流安装（2026-11-11 C 案）：必须先于 InitGame——订阅赶在 Reset→StartGame 的
+            // 首发TurnStartEvent 之前，否则行流 armed 永假=整局零行（见 InstallLogStreams 注释）。
+            InstallLogStreams();
             core.InitGame(CardLoader.BuildDeck(deckFirst, 1, _deckTokenBindings[_firstSeat]),
                 CardLoader.BuildDeck(deckSecond, 1, _deckTokenBindings[1 - _firstSeat]), _matchSeed,
                 lockDeckOrder: _settingsShuffle == 1,
@@ -524,17 +537,22 @@ namespace CardCore.Network
             };
             _selector.Attach();
 
-            // 座位映射（椅位 → 引擎座位）+ 事件游标对齐（InitGame 已 ClearAll）
+            // 座位映射（椅位 → 引擎座位）+ 事件/行流游标对齐（InitGame 已 ClearAll；行流历史由
+            // InstallLogStreams 清）。WantsEvents：AI 填位吃事件流（NetClientBrain 观察），人类走行流。
             foreach (var chair in _chairs.Where(c => c != null))
             {
                 chair.MatchSeat = chair.ChairSeat == _firstSeat ? 0 : 1;
                 chair.EventCursor = 0;
+                chair.LogCursor = 0;
+                chair.WantsEvents = chair.IsAi;
                 chair.SnapshotDirty = true;
             }
             foreach (var spec in _spectators)
             {
                 spec.MatchSeat = -1;
                 spec.EventCursor = 0; // 先于开局的观战者从头看整局（InitGame 的 ClearAll 已清缓冲）
+                spec.LogCursor = 0;
+                spec.WantsEvents = false;
                 spec.SnapshotDirty = true;
             }
 
@@ -635,6 +653,7 @@ namespace CardCore.Network
             _selector?.Detach();
             _selector = null;
             EventManager.Instance.Unsubscribe<GameOverEvent>(OnGameOver);
+            TeardownLogStreams(); // 战报行流退订+清史（2026-11-11 C 案：漏退订=跨局串行）
             TransientNetContent.Clear(); // v11：对局期装载的对端自建内容出索引（默认不显示铁律）
             CombatSystem.AdjacentResolver = null;
             CombatSystem.RoleAdjacentResolver = null;
@@ -649,6 +668,62 @@ namespace CardCore.Network
         /// 后续任何本地目标反问都挂死在死选择器上（网络人类 120s 超时后才自动代选）。
         /// TeardownMatch 幂等，与 ResetIfEmpty 重复调用无副作用。</summary>
         public void TeardownIfActive() => TeardownMatch();
+
+        /// <summary>战报行流安装（2026-11-11 C 案）：**必须在 core.InitGame 之前调用**——InitGame 内含
+        /// Reset→MatchLogService.ClearAll→洗牌→起手→StartGame（GameCore.Reset 接线 EnsureStarted+ClearAll，
+        /// StartGame 紧接着发第一发 TurnStartEvent）。订阅晚于它 ⇒ 行流 armed 永 false ⇒ 整局零行。
+        /// 三视角：seat0/seat1 观侧（isSelf=引擎座位归属，R1/R2 遮蔽生效）、观战 -1 中立实名全信息
+        ///（isSelf=null，与观战快照口径一致）。线程：Appended 在引擎发布线程同步触发，与 Pump/FlushDownlink
+        /// 同逻辑线程，无锁（沿用 NetEventProjector 纪律）。</summary>
+        private void InstallLogStreams()
+        {
+            TeardownLogStreams(); // 幂等重装（StartMatch 可重入）
+            foreach (int seat in new[] { 0, 1, -1 })
+            {
+                _logStreams[seat] = new MatchLogLineStream(
+                    seat < 0 ? null : p => NetEntityMapper.SeatOf(p) == seat, // 引擎座位（Player1=0），非椅位
+                    redactEffectSummary: seat >= 0,                           // R2：座位流只出效果短名（观战全信息出 Description）
+                    redactHidden: seat >= 0);                                 // R1（E3）：座位流遮对手隐藏区入手；观战 isSelf=null 恒不遮
+                _logHistory[seat] = new List<MatchLogLine>(1024);
+                _logBase[seat] = 0;
+            }
+            _onLogAppended = entry =>
+            {
+                foreach (var kv in _logStreams)
+                {
+                    var history = _logHistory[kv.Key];
+                    try { kv.Value.Append(entry, history); }
+                    catch (Exception ex) // 渲染异常不中断对局（与 NetEventProjector.ErrorCount 同风格）
+                    {
+                        TideLog.Error($"[NetRoom] 战报行流渲染异常（seat={kv.Key} {entry.EventType}）：{ex.Message}");
+                        continue;
+                    }
+                    if (history.Count > MaxLogLines)
+                    {
+                        int drop = Math.Min(history.Count - MaxLogLines + TrimLogBatch, history.Count);
+                        history.RemoveRange(0, drop);
+                        _logBase[kv.Key] += drop;
+                    }
+                }
+            };
+            MatchLogService.Appended += _onLogAppended;
+        }
+
+        /// <summary>行流退订（TeardownMatch 调；漏掉会跨局串行——下一局开局前事件被旧流吃掉）。
+        /// 只停积累（退订+清流）：行历史留档供终局后读取（V11 对拍/排查），下次 InstallLogStreams 清。</summary>
+        private void TeardownLogStreams()
+        {
+            if (_onLogAppended != null)
+            {
+                MatchLogService.Appended -= _onLogAppended;
+                _onLogAppended = null;
+            }
+            _logStreams.Clear();
+        }
+
+        /// <summary>验证口（V11 对拍）：读当前行流历史快照（seat=0/1/-1；未安装返回 null）。</summary>
+        internal List<MatchLogLine> LogHistorySnapshot(int seat)
+            => _logHistory.TryGetValue(seat, out var h) ? new List<MatchLogLine>(h) : null;
 
         /// <summary>清空某座位的卡组提交态（缺卡中止回退用——镜像 DeckSubmit 相位断线重置块的字段集）。</summary>
         private void ResetSeatDeck(int seat)
@@ -890,13 +965,16 @@ namespace CardCore.Network
 
             if (_phase != NetRoomPhase.Playing && _phase != NetRoomPhase.Finished) return;
 
-            // ---- 事件流：全局投影缓冲按游标切片，逐成员按视角过滤（观战直通）----
+            // ---- 事件流：全局投影缓冲按游标切片，逐成员按视角过滤（观战直通）。
+            // P3（2026-11-11 C 案）人类/观战停发：日志与终局已由行流承载（NetLogBatch），事件流
+            // 只喂 AI 填位客户端（NetClientBrain 靠事件观察）——WantsEvents 在 StartMatch 座位映射置位。----
             var events = NetEventProjector.Events;
             int total = events.Count;
             var hiddenBySeat = new Dictionary<int, HashSet<uint>>();
             bool sentAny = false;
             foreach (var member in AllMembers())
             {
+                if (!member.WantsEvents) continue;
                 if (member.EventCursor >= total) continue;
                 HashSet<uint> hidden = null;
                 if (member.MatchSeat >= 0)
@@ -919,6 +997,42 @@ namespace CardCore.Network
                 sentAny = true;
             }
             if (sentAny) MarkSnapshotDirty();
+
+            // ---- 战报行流（2026-11-11 C 案 v15）：每座位一条渲染历史，成员按 LogCursor 切片 64 行/批。
+            // 服务端渲染好的最终行（观侧遮蔽/时序旗标已定），客户端纯 append；TCP 有序 ⇒ 无需序号。
+            // 观战取 -1 流（中立实名全信息）；截头时游标按绝对行号换算（- base 偏移=窗口下标）。
+            // 发过行 ⇒ MarkSnapshotDirty（接棒事件流段的置脏语义——人类停发事件后，对手行动引发的
+            // 快照节奏由行流段驱动，否则纯真人房快照停摆）。----
+            bool sentAnyLines = false;
+            foreach (var member in AllMembers())
+            {
+                int seat = member.MatchSeat < 0 ? -1 : member.MatchSeat;
+                if (!_logHistory.TryGetValue(seat, out var history) || history.Count == 0) continue;
+                int base0 = _logBase.TryGetValue(seat, out var b) ? b : 0;
+                int total0 = base0 + history.Count; // 绝对行数
+                if (member.LogCursor >= total0) continue;
+                int start = Math.Max(member.LogCursor - base0, 0); // 游标→窗口下标（截头只影响已读过段）
+                for (int offset = start; offset < history.Count; offset += 64)
+                {
+                    int take = Math.Min(64, history.Count - offset);
+                    var chunk = new NetLogLine[take];
+                    for (int i = 0; i < take; i++)
+                    {
+                        var line = history[offset + i];
+                        chunk[i] = new NetLogLine
+                        {
+                            Kind = line.Kind,
+                            Flags = line.Flags,
+                            EventId = line.EventId,
+                            Text = line.Text,
+                        };
+                    }
+                    member.SendPayload(NetworkMessageType.NetLogBatch, new MsgNetLogBatch { Lines = chunk });
+                }
+                member.LogCursor = total0;
+                sentAnyLines = true;
+            }
+            if (sentAnyLines) MarkSnapshotDirty();
 
             // ---- 快照：稳定决策点取样（§7 时点约束收口：不在结算中 + 无未决反问——
             // 栈非空但优先权等待是稳定决策点，快照含 StackV2/PrioritySeat 正是客户端的让行依据）----

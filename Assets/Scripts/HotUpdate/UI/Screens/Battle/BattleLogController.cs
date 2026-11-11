@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using CardCore;
 using CardCore.Attribute;
+using CardCore.Network;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using TMPro;
@@ -22,8 +23,10 @@ namespace SynergyUI
 
         private UiKit.Scroll _logList;
         private RectTransform _logLineTemplate;    // content 直属隐藏模板 lbl（战报行克隆源，样式归 prefab）
-        private bool _logArmed;                    // 战报武装（首个回合行前静默：建局事件不入史，2026-10-17）
-        private readonly List<(string text, string cls)> _standbyDeferred = new(); // 挂起的回合自然抽牌行（待〔准备阶段〕行落定，2026-10-17）
+        // 时序整理单源（2026-11-11 C 案 P1）：建局静默/自然抽挂起/阶段行放行下沉 MatchLogLineStream，
+        // 本地与服务端行流共用同一实现——本地 ProcessEntry 只委托消费，行序不再二次分叉。
+        private readonly MatchLogLineStream _stream;
+        private readonly List<MatchLogLine> _sink = new List<MatchLogLine>(8); // Append 产出暂存（每条清空）
         private RectTransform _logListRect;        // log-list 高度动画目标（0↔700）
         private float _logListTarget;
         /// <summary>面板开↔收起实际切换通知（2026-11-11 btn-abstract 常驻改版）：手动 Toggle、
@@ -40,7 +43,13 @@ namespace SynergyUI
         private const float LogListOpenHeight = 700f; // 展开定高（2026-10-16 晚改版：固定 0↔700，超出在面板内滚动）
         private const float LogListSpeed = 3500f; // px/s（700px≈0.2s 展开）
 
-        public BattleLogController(Func<Player, bool> isSelf) => _isSelf = isSelf;
+        public BattleLogController(Func<Player, bool> isSelf)
+        {
+            _isSelf = isSelf;
+            // 本地口径：双 redact=false（效果摘要照出 Description、对手 AI 的检索入手照出卡名——
+            // 与导出/改造前逐字一致；E3 修订：R1 遮蔽只属联机服务座行流）
+            _stream = new MatchLogLineStream(isSelf, redactEffectSummary: false, redactHidden: false);
+        }
 
         /// <summary>控件绑定（Build 期一次）：滚动区+面板矩形；ClickSwallow 截断面板内点击冒泡
         ///（滚日志不误触 btn-log 收起）；初始收起（烘焙 700→开局不闪空面板）。</summary>
@@ -95,9 +104,8 @@ namespace SynergyUI
         /// <summary>本地战报事件桥（2026-10-18 B1 日志中间层收敛）：改订 MatchLogService.Appended
         /// 全事件流，行文本经唯一映射 MatchLogRenderer.Render(e, isSelf) 渲染——原 14 事件白名单与
         /// BattleEventText 三面口径退役。时序口径不变：①接线在 StartNewGame 之前（首回合头行不漏）；
-        /// ②首个回合行前静默（_logArmed 挡建局事件——起手抽/护甲注入不入史）；③回合自然抽牌挂起
-        /// （_standbyDeferred——引擎构造期订阅先抽牌，直接落行会写到回合/阶段头上，挂到〔准备阶段〕
-        /// 行落定后放行）。</summary>
+        /// ②首个回合行前静默与③回合自然抽挂起/阶段行放行（2026-11-11 C 案下沉行流 _stream 承担
+        /// ——建局事件不入史；自然抽挂到〔准备阶段〕行落定后放行）。</summary>
         public void Wire()
         {
             MatchLogService.Appended += OnAppended;
@@ -137,25 +145,15 @@ namespace SynergyUI
             }
         }
 
-        /// <summary>单条入史（即时路径与回放放行共用）：时序整理（武装/挂起）+ 行入列。</summary>
+        /// <summary>单条入史（即时路径与回放放行共用）：时序整理（武装/挂起/放行）已下沉
+        /// MatchLogLineStream（2026-11-11 C 案 P1）——本方法只委托行流并逐行入列，行为与
+        /// 改造前逐字等价（三规则的唯一实现挪进共享类，服务端行流产出同一行序）。</summary>
         private void ProcessEntry(MatchLogEntry entry)
         {
-            var e = entry.Event;
-            if (e is TurnStartEvent)
-            {
-                _logArmed = true;
-                FlushStandbyDeferred(); // 兜底放行上回合挂起残留（正常在阶段行已放空）
-            }
-            if (!_logArmed) return; // 建局事件（起手抽牌/护甲注入等）不入史——首个回合行前静默
-            var line = MatchLogRenderer.Render(e, _isSelf);
-            if (string.IsNullOrEmpty(line.Text)) return;
-            if (e is CardDrawEvent d && d.FirstDrawOfTurn)
-            {
-                _standbyDeferred.Add((line.Text, line.Class)); // 回合自然抽：挂至〔准备阶段〕行后
-                return;
-            }
-            Append(line.Text, line.Class);
-            if (e is PhaseStartEvent) FlushStandbyDeferred(); // 〔准备阶段〕行落定后放行挂起的自然抽
+            _stream.Append(entry, _sink);
+            for (int i = 0; i < _sink.Count; i++)
+                Append(_sink[i].Text, _sink[i].Class);
+            _sink.Clear();
         }
 
         /// <summary>退订（OnExit 调用——Deactivate 内 FlushSubscriptions 与 OnExit 同步相邻无帧隙，语义等价）。</summary>
@@ -165,26 +163,23 @@ namespace SynergyUI
             _unsubscribers.Clear();
         }
 
-        // ==== 联机局入口（2026-11-11 联机日志改版：NetEvent 流走同一面板/同款时序整理） ====
-        // 联机局无本地引擎→MatchLogService.Appended 无事件，Wire 不调用；行源=BattleScreen.Net.cs
-        // 收 NetEvent 批 → NetLogRenderer 渲染 → 此处入口。时序整理（建局静默/回合自然抽挂起/
-        // 阶段行放行）与本地 ProcessEntry 同款，事件类型以字符串判型（NetEvent 无 IGameEvent 可判）。
+        // ==== 联机局入口（2026-11-11 C 案 v15 行流：服务端已完成渲染与时序整理，客户端纯入列） ====
+        // 联机局无本地引擎→MatchLogService.Appended 无事件，Wire 不调用；行源=NetLogBatch
+        //（服务端 MatchLogLineStream 产出——建局静默/自然抽挂起/阶段行放行/连锁旗标全在服务端单源）。
 
-        /// <summary>联机局开局重置（StartNetFan 调，须先于事件到达）：建局静默/挂起/连锁自动
-        /// 开合标记/回放缓冲复位——本类跨 Mount 存留，防上一局的武装状态串进新局。</summary>
+        /// <summary>联机局开局重置（StartNetFan 调，须先于行流到达）：时序态（本类行流与联机共用
+        /// Reset）/连锁自动开合标记/回放缓冲复位——本类跨 Mount 存留，防上一局状态串进新局。</summary>
         public void ResetForNetMatch()
         {
-            _logArmed = false;
-            _standbyDeferred.Clear();
+            _stream.Reset();      // 行流时序态（2026-11-11 C 案）
             _autoOpened = false;
             SetLogTarget(0f); // 单源写入：上一局日志若开着，此处收起也走 PanelToggled（摘要行随之隐藏）
             _holding = false;
             _heldEntries.Clear();
         }
 
-        /// <summary>联机局连锁自动开合（同本地 AutoToggleForChain 语义）：真连锁结算开始→展开、
-        /// 连锁结束→收起（只收自动开的）。判据由 NetEvent 侧近似（TopItem.IsPhaseWindow 不进投影，
-        /// 但 RealCount≥2 时栈顶必为真实对象——与本地判据等价）。</summary>
+        /// <summary>联机局连锁自动开合（旗标由服务端判定下发）：真连锁结算开始→展开、连锁结束→
+        /// 收起（只收自动开的）。</summary>
         public void NetChainAutoToggle(bool chainStart, bool chainEnd)
         {
             if (chainStart)
@@ -202,29 +197,18 @@ namespace SynergyUI
             }
         }
 
-        /// <summary>联机局行入口：时序整理（同本地 ProcessEntry）+ 行入列。
-        /// 首个回合行前静默（建局事件不入史）；回合自然抽挂起至〔准备阶段〕阶段行落定后放行。</summary>
-        public void AppendNet(string eventType, string text, string cls, bool firstDrawOfTurn)
+        /// <summary>联机局行入口（v15 行流）：Kind→Class 走行流单源表，纯入列——零时序整理、
+        /// 零渲染（服务端已定稿）。</summary>
+        public void AppendServerLine(NetLogLine line)
         {
-            if (eventType == nameof(TurnStartEvent))
-            {
-                _logArmed = true;
-                FlushStandbyDeferred(); // 兜底放行上回合挂起残留（正常在阶段行已放空）
-            }
-            if (!_logArmed) return;
-            if (firstDrawOfTurn && !string.IsNullOrEmpty(text))
-            {
-                _standbyDeferred.Add((text, cls)); // 回合自然抽：挂至〔准备阶段〕行后
-                return;
-            }
-            Append(text, cls);
-            if (eventType == nameof(PhaseStartEvent)) FlushStandbyDeferred(); // 阶段行落定后放行挂起的自然抽
+            if (line == null || string.IsNullOrEmpty(line.Text)) return;
+            Append(line.Text, MatchLogLineStream.ClassOf(line.Kind));
         }
 
         // ==== 结算回放逐步放行（2026-10-19 逆结算步进定案） ====
         // Hold 后新条目缓冲不入史；回放导演每放一步调 ReleaseUpTo(全局条数边界)——边界计数源=
         // MatchLogService.Entries.Count（步快照捕获点同帧读），事件同步发布无竞态，缓冲序=落史序。
-        // ReleaseAll=轮末收尾/看门狗/退屏全放。_logArmed/_standbyDeferred 语义在放出时照常运行。
+        // ReleaseAll=轮末收尾/看门狗/退屏全放。行流时序态（武装/挂起）在放出时照常运行。
 
         private bool _holding;
         private int _holdBase; // Hold 时 MatchLogService.Entries.Count（全局序换算基准）
@@ -260,14 +244,6 @@ namespace SynergyUI
             foreach (var e in _heldEntries) ProcessEntry(e);
             _heldEntries.Clear();
             _holding = false;
-        }
-
-        /// <summary>放行挂起的回合自然抽牌行（〔准备阶段〕行落定后调用；兜底点=下回合头行前）。</summary>
-        private void FlushStandbyDeferred()
-        {
-            for (int i = 0; i < _standbyDeferred.Count; i++)
-                Append(_standbyDeferred[i].text, _standbyDeferred[i].cls);
-            _standbyDeferred.Clear();
         }
 
         /// <summary>外部行入口（终局呈现等非订阅路径）。</summary>

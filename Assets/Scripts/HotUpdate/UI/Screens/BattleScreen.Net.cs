@@ -66,9 +66,9 @@ namespace SynergyUI
                 OnPlaceLand = NetOnFanPlaceLand,
             });
 
-            _log?.ResetForNetMatch(); // 联机战报开局复位（2026-11-11 日志改版：建局静默/挂起/连锁开合标记——须先于事件到达）
+            _log?.ResetForNetMatch(); // 联机战报开局复位（2026-11-11 C 案：时序态/连锁开合标记——须先于行流到达）
             _netClient.OnSnapshot += NetOnSnapshot;
-            _netClient.OnEventBatch += NetOnEvents;
+            _netClient.OnLogBatch += NetOnLogLines; // v15 C 案：服务端渲染行流（唯一行源——事件流已停发）
             _netClient.OnSelectRequest += NetOnSelectRequest;
             _netClient.OnTextRequest += NetOnTextRequest;
             _netClient.OnRoomState += NetOnRoomState;
@@ -893,45 +893,27 @@ namespace SynergyUI
             });
         }
 
-        // ---- 网络局下行事件（2026-11-11 日志改版：NetAppendLogLight 三行轻日志退役——
-        // 全量 NetEvent 经 NetLogRenderer 渲染成木桩同款行/分色，经 _log.AppendNet 时序入列） ----
+        // ---- 网络局战报行流（2026-11-11 C 案 v15 P3 定稿）：服务端 MatchLogRenderer 逐视角渲染好
+        // 的最终行——本端零渲染零时序整理，连锁开合按服务端旗标驱动，终局收口按 GameOver 旗标
+        //（终局双保险：行流旗标 + RoomState Finished / MatchSummary；断线兜底 NetOnDisconnected）。
 
-        private void NetOnEvents(NetEvent[] events)
+        private void NetOnLogLines(NetLogLine[] lines)
         {
-            if (events == null) return;
-            int me = _view?.NetViewerSeat ?? _netSnapshot?.ViewerSeat ?? -1;
-            foreach (var e in events)
+            if (lines == null) return;
+            foreach (var line in lines)
             {
-                if (e == null) continue;
-                if (e.EventType == nameof(GameOverEvent))
+                if (line == null) continue;
+                _log.NetChainAutoToggle(
+                    (line.Flags & (byte)MatchLogLineFlags.ChainStart) != 0,
+                    (line.Flags & (byte)MatchLogLineFlags.ChainEnd) != 0);
+                _log.AppendServerLine(line);
+                if ((line.Flags & (byte)MatchLogLineFlags.GameOver) != 0 && !_gameEnded)
                 {
-                    var winner = NetLogRenderer.Entity(e, nameof(GameOverEvent.Winner));
-                    string reason = NetLogRenderer.Str(e, nameof(GameOverEvent.Reason));
-                    bool win = me >= 0 && winner != null && winner.Seat == me;
-                    if (!_gameEnded)
-                    {
-                        _gameEnded = true;
-                        MarkGameOverUi($"{(win ? "胜利" : "失败")}——{(win ? "我方" : "对手")}获胜（{reason}）");
-                    }
-                    // 不 continue：终局 ★ 行同款入史（与木桩一致）
+                    _gameEnded = true;
+                    bool win = line.Text != null && line.Text.Contains("我方获胜"); // 行文本=本座观侧口径
+                    MarkGameOverUi($"{(win ? "胜利" : "失败")}——{line.Text}");
                 }
-                NetAppendLog(e, me);
             }
-        }
-
-        /// <summary>联机战报行（2026-11-11 改版）：NetLogRenderer 全量渲染（与木桩同款文案/分色/
-        /// 观侧）→ 连锁自动开合信号 → _log.AppendNet 时序入列（建局静默/自然抽挂起同本地口径）。
-        /// 连锁开合判据：StackResolutionStartEvent.RealCount≥2=真连锁展开、StackEmptyEvent.HadRealItems
-        /// =收起（TopItem.IsPhaseWindow 不进投影，RealCount≥2 时栈顶必真实对象——判据等价）。</summary>
-        private void NetAppendLog(NetEvent e, int viewerSeat)
-        {
-            if (e.EventType == nameof(StackResolutionStartEvent))
-                _log.NetChainAutoToggle(NetLogRenderer.Int(e, nameof(StackResolutionStartEvent.RealCount)) >= 2, false);
-            else if (e.EventType == nameof(StackEmptyEvent))
-                _log.NetChainAutoToggle(false, NetLogRenderer.Bool(e, nameof(StackEmptyEvent.HadRealItems)));
-            var line = NetLogRenderer.Render(e, viewerSeat);
-            if (line.Text == null && !line.FirstDraw) return; // 未映射事件零开销直过
-            _log.AppendNet(e.EventType, line.Text, line.Class, line.FirstDraw);
         }
 
         private void NetOnRoomState(MsgRoomState room)
@@ -992,12 +974,13 @@ namespace SynergyUI
             if (_netClient != null)
             {
                 _netClient.OnSnapshot -= NetOnSnapshot;
-                _netClient.OnEventBatch -= NetOnEvents;
+                _netClient.OnLogBatch -= NetOnLogLines; // v15 C 案：行流退订
                 _netClient.OnSelectRequest -= NetOnSelectRequest;
                 _netClient.OnTextRequest -= NetOnTextRequest;
                 _netClient.OnRoomState -= NetOnRoomState;
                 _netClient.OnManifest -= NetOnManifest;
                 _netClient.OnMatchSummary -= NetOnMatchSummary;
+                _netClient.OnError -= NetOnError; // 2026-11-11 补漏：九订八退残留（此前靠 Close 兜底）
                 _netClient.OnDisconnected -= NetOnDisconnected;
                 NetClientRuntime.Unbind(_netClient);
                 _netClient.Close();

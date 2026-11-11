@@ -126,6 +126,8 @@ namespace SynergyUI.Online
         public string OpenId { get; set; } = ""; // 2026-11-09 协议 v11 对局记录（进房方自报）
         public bool IsAi { get; set; }           // 2026-11-09 协议 v11：AI 局不下发终局摘要（TapTap 侧恒 false）
         public int EventCursor { get; set; }
+        public int LogCursor { get; set; }       // 2026-11-11 C 案 v15：战报行流出队游标（房间按局重置）
+        public bool WantsEvents { get; set; }    // C 案：事件流订阅意愿（人类走行流——TapTap 侧恒 false，语义对齐）
         public bool SnapshotDirty { get; set; }
 
         internal TapBattleChannel(TapBattleTransportHost owner, string playerId)

@@ -56,6 +56,8 @@ namespace CardCore.Network
         RoomStart = 132,             // 上行：房主开始（空载荷；校验双方就座+客人已准备 → 进选卡组相位）
         MatchSummary = 133,          // 下行：终局摘要（MsgMatchSummary，2026-11-09 协议 v11 对局记录——
                                      // 双座位各收一份：对手完整卡组+自建内容 payload+胜负，客户端落 EncounterRecord）
+        NetLogBatch = 135,           // 下行：战报行流批次（MsgNetLogBatch，2026-11-11 v15 C 案——
+                                     // 服务端 MatchLogRenderer 逐视角渲染好的最终行，64 行/批按 LogCursor 切片）
     }
 
     /// <summary>协议版本常量。信封 ProtocolVersion 读到 0 视为 legacy（无版本草稿期数据）。
@@ -98,10 +100,13 @@ namespace CardCore.Network
     /// ——布局变更，新旧端互拒（无兼容层）。
     /// v14（2026-11-11 服务器权威回合计时）：MsgGameStateSync 新增 TurnSecondsLeft（本回合剩余
     /// 可用秒数——HUD「可用时间」格倒计时源；服务器到点代打：栈上有待响应者=替其让行，否则替
-    /// 回合方结束回合）——布局变更，新旧端互拒（无兼容层）。</summary>
+    /// 回合方结束回合）——布局变更，新旧端互拒不兼容（无兼容层）。
+    /// v15（2026-11-11 C 案战报行流）：新消息 MsgNetLogBatch（NetLogLine[]：Kind/Flags/EventId/Text）
+    /// ——服务端渲染好的战报行逐行下发（64 行/批），客户端零渲染纯 append。纯新增消息、存量载荷
+    /// 布局零改；升版防旧端（不识别 135）与新端互连时日志空白半开死等（v6 先例）。</summary>
     public static class NetworkProtocol
     {
-        public const ushort Version = 14;
+        public const ushort Version = 15;
 
         /// <summary>接收侧版本闸（v8 起）：信封版本与本端不符 = 新旧端互拒（无兼容层）。
         /// 0=legacy 草稿期数据，同样失配。</summary>

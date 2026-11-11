@@ -86,7 +86,8 @@ namespace SynergyUI
         private BattleProjector _projector;        // 唯一投影器（2026-10-18 B2 拆分·Battle/BattleProjector.cs）
         private BattleDecisionHub _decision;       // 决策中枢：守卫窗/响应窗/不连锁三义键（2026-10-18 B3 拆分·Battle/BattleDecisionHub.cs）
         private BattleChainStage _chainStage;      // 连锁链舞台：chain 节点克隆卡面（2026-10-19·Battle/BattleChainStage.cs）
-        private BattleResolutionDirector _director; // 逆结算步进回放导演（2026-10-19·Battle/BattleResolutionDirector.cs）
+        private BattlePlayhead _director;     // 剧本播放器（2026-11-11 演出统一 S1·Battle/Playback/BattlePlayhead.cs——原步进导演能力搬迁；字段名沿用，S5 全量换口径时再正名）
+        private LocalFilmSource _localSource; // 本地实时帧生产者（2026-11-11 S1·Battle/Playback/LocalFilmSource.cs——投影器三钩子→帧）
         private BattleOpeningDirector _opening;     // 五段式开局导演（2026-10-19 掷币演出挪战场·Battle/BattleOpeningDirector.cs）
 
         // ---- 网络模式（2026-10-21 P2P 复活）：本屏不建 BattleController——快照驱动渲染 + intent 上行 ----
@@ -162,10 +163,11 @@ namespace SynergyUI
             _castStage = new BattleAiCastStage(() => Root, () => _view, () => _field, () => P1, _decision.UnitAnchorOf);
             _chainStage = new BattleChainStage(); // 连锁链（2026-10-19）：chain 节点+模板已在 prefab，Bind 只定位隐藏
             _chainStage.Bind(Root);
-            // 逆结算步进回放导演（2026-10-19）：先于投影器构造——投影器钩子要绑它的入口；
+            // 剧本播放器（2026-11-11 演出统一 S1）：先于投影器构造——投影器钩子经 LocalFilmSource 产帧投它；
             // 依赖全走 Func 惰性取（_log/_choreo 等在其构建期可能尚未就绪）
-            _director = new BattleResolutionDirector(() => Core, () => _projector, () => _log, () => _field,
+            _director = new BattlePlayhead(() => Core, () => _projector, () => _log, () => _field,
                 () => _chainStage, () => _choreo, RefreshFans);
+            _localSource = new LocalFilmSource(_director, () => Core, () => _projector);
             _hudTicker = new BattleHudTicker(() => _view, NetTurnClockText);
             _tutorial = new BattleTutorialDirector(() => Root, () => Core, () => _ctrl, () => _field, _toast,
                 ShowTipPromptAsync, () => Manager.Back(), RefreshField, RefreshFans, OnEndTurnFan,
@@ -177,7 +179,7 @@ namespace SynergyUI
                 e => { if (e?.Card != null) _field?.InterruptCasting(e.Card.RuntimeId); },
                 e => { if (e?.Player == null || _field == null) return; _field.HeroFatigueHitAsync(e.Player == P2 ? 1 : 0, e.Damage).Forget(); },
                 CapturePaid, CaptureArrival, OnGameOverFan, () => _pendingPins.Clear(),
-                _director.OnResolutionStart, _director.OnStepResolved, _director.OnRoundStackEmpty,
+                _localSource.OnResolutionStart, _localSource.OnStepResolved, _localSource.OnRoundStackEmpty,
                 (e, castCell) => _field?.PlayEffectDamageAsync(e.Source, e.Target, e.Damage, p => p == P2 ? 1 : 0, castCell, e.EffectTint).Forget(),
                 e => _field?.PlayEffectHealAsync(e.Target, e.Amount - e.Overfill, p => p == P2 ? 1 : 0).Forget(),
                 e => _field?.PlayCounterFloatAsync(e.Target, e.CounterType, e.Amount, p => p == P2 ? 1 : 0).Forget(),

@@ -1,6 +1,8 @@
 ﻿// 此文件由 Tools/刷新属性排序（新增序列化字段时使用）自动生成，请勿手动修改
 // 如需添加新属性，请修改 RefreshMemoryPackOrder.cs 中的 GetTagDefinitions()
-// 纯哈希口径（2026-10-31 阶段D 全量重排：手工定值段退役，无保留位概念）
+// 生成口径（2026-11-11 起＝保值生成）：已有常量沿用现表现值（整行含注释原样保留），仅新字段
+// 按 Murmur32("类.属性", 0x53796E67) & 0x7FFFFFFF 取号；末尾「冻结值」段＝历史手算批，重算
+// 它们＝改 MemoryPackOrder＝改已上线线格式，禁止（工具守门会拦）。
 
 namespace CardCore.Serialization
 {
@@ -323,6 +325,9 @@ namespace CardCore.Serialization
         public const int MDS_SkillCardId = 1834786867;
         public const int MDS_TokenCardIds = 1248031784;
         public const int MDS_TokenBindings = 1711324094;
+        public const int MDS_AddedCards = 1607500155;
+        public const int MDS_AddedEffects = 2097256202;
+        public const int MDS_AddedRows = -267714343;
 
         // ---- MsgDeckTokenBinding ----
         public const int MTB_CardId = 1865613195;
@@ -337,19 +342,21 @@ namespace CardCore.Serialization
         public const int MMM_OpponentCards = -784281127;   // v11 对手自建内容 payload（渲染用；卡组构成仍隐藏）
         public const int MMM_OpponentEffects = 132756444;
         public const int MMM_OpponentRows = -576926193;
+        public const int MMM_OpponentCostHistogram = -1156878767; // S7b：对手费用直方图（DSH 同源 Hash32 实算抄入·零撞号）
 
-        // ---- 自建内容跨端 payload（v11 对局记录+对手内容上云定案；值=FNV-1a(名) 转 int32，零撞号已核）----
+        // ---- MsgCardPayload ----
         public const int MCP_CardId = 562067335;
         public const int MCP_CardJson = -525724844;
+
+        // ---- MsgEffectPayload ----
         public const int MEP_EffectId = -1167984450;
         public const int MEP_EffectJson = -1046722447;
+
+        // ---- MsgAtomRowPayload ----
         public const int MAR_RefId = 673218868;
         public const int MAR_RowJson = 1081615994;
-        public const int MDS_AddedCards = 1607500155;
-        public const int MDS_AddedEffects = 2097256202;
-        public const int MDS_AddedRows = -267714343;
 
-        // ---- MsgMatchSummary（v11 终局摘要：双座位各收一份，视角=收件人的对手）----
+        // ---- MsgMatchSummary ----
         public const int MMS_MatchId = 517542727;
         public const int MMS_FinishedAtUnix = -1388488232;
         public const int MMS_OpponentName = -1165407645;
@@ -366,7 +373,6 @@ namespace CardCore.Serialization
         public const int MMS_AtomRows = 1250763953;
         public const int MMS_Log = 219159277;    // 战报 markdown 全文（服务器渲染——客人端无本地引擎）
         public const int MMS_Ranked = 1261688995; // S8：排位局记账标记（同上配方实算）
-        public const int MMM_OpponentCostHistogram = -1156878767; // S7b：对手费用直方图（DSH 同源 Hash32 实算抄入·零撞号）
 
         // ---- MsgError ----
         public const int MErr_Reason = 259789666;
@@ -379,12 +385,8 @@ namespace CardCore.Serialization
         public const int MJR_Nickname = 841072657;
         public const int MJR_OpenId = 981065552;   // v11：TapTap openId（对局记录对手身份；局域网空）
         public const int MJR_IsAi = 1542445315;    // v11：AI 填位标记（对局记录跳过 AI 局）
-        // S5（2026-11-10）房间密码+选卡上报。值=MurmurHash3(UTF8「类.属性」, seed 0x53796E67)，
-        // 取 RefreshMemoryPackOrder 内部 Hash32 实算（已核与该表既有值零撞号）。⚠️ 不要跑
-        // 「Tools/刷新属性排序」——该工具会按自己的字面表重写全部常量，冲掉本表既有手工值（已踩）。
         public const int MJR_Password = 1021396469; // S5：房间密码（空=无密码）
         public const int MJR_DeckName = 1371443254; // S5：进房上报的选中卡组名
-        // S8（2026-11-10）排位模式：值=同上配方实算（已核零撞号）
         public const int MJR_Ranked = 653408864;          // S8：排位房进房标记
         public const int MJR_DeckFingerprint = 605637085; // S8：卡组内容指纹（排位匹配/记账键）
         public const int MJR_WinRate = 1410631775;        // S8：胜率千分比（-1=无战绩）
@@ -443,6 +445,50 @@ namespace CardCore.Serialization
         public const int MLAA_RoomId = 97705085;
         public const int MLAA_Nickname = 1153192151;
 
-        // 共 269 个标签（纯哈希口径）
+        // ---- MsgNetLogBatch ----
+        public const int MNLB_Lines = 191093110;  // 战报行批（NetLogLine[]）
+
+        // ---- NetLogLine ----
+        public const int NLL_Kind = 778670979;    // 语义色编码（MatchLogLineKind 0..6）
+        public const int NLL_Flags = 194371587;   // 时序旗标（MatchLogLineFlags）
+        public const int NLL_EventId = 660569595; // 源事件锚（挂起放行会乱序，勿作去重键）
+        public const int NLL_Text = 1583350492;   // 服务端渲染好的最终文本
+
+        // ---- 冻结值（非公式推导，禁止重算：已上线线格式契约）----
+        // 来源：全量强转口径 / v11 早期手算配方；现值即协议布局。改值＝改字段序列化顺序。
+        // MDS_AddedCards = 1607500155
+        // MDS_AddedEffects = 2097256202
+        // MDS_AddedRows = -267714343
+        // MMM_OpponentCards = -784281127
+        // MMM_OpponentEffects = 132756444
+        // MMM_OpponentRows = -576926193
+        // MMM_OpponentCostHistogram = -1156878767
+        // MCP_CardId = 562067335
+        // MCP_CardJson = -525724844
+        // MEP_EffectId = -1167984450
+        // MEP_EffectJson = -1046722447
+        // MAR_RefId = 673218868
+        // MAR_RowJson = 1081615994
+        // MMS_MatchId = 517542727
+        // MMS_FinishedAtUnix = -1388488232
+        // MMS_OpponentName = -1165407645
+        // MMS_OpponentOpenId = -2030439723
+        // MMS_Win = 514214013
+        // MMS_OwnDeckName = -89498147
+        // MMS_OpponentDeckName = 1253992418
+        // MMS_OpponentCardIds = -444598832
+        // MMS_OpponentSkillCardId = 892439674
+        // MMS_OpponentTokenCardIds = -548054461
+        // MMS_OpponentTokenBindings = -1463178445
+        // MMS_Cards = 1544258080
+        // MMS_Effects = -2090101919
+        // MMS_AtomRows = 1250763953
+        // MMS_Log = 219159277
+        // MJR_OpenId = 981065552
+        // MJR_IsAi = 1542445315
+        // MRS_Seed = -210878657
+        // MRSet_Seed = -191934453
+
+        // 共 315 个标签（保值生成：283 条公式值 + 32 条冻结值）
     }
 }

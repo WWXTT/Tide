@@ -23,6 +23,7 @@ namespace CardCore.Network
         public event Action<MsgMatchSummary> OnMatchSummary; // 终局摘要（2026-11-09 协议 v11 对局记录）
         public event Action<MsgGameStateSync> OnSnapshot;
         public event Action<NetEvent[]> OnEventBatch;
+        public event Action<NetLogLine[]> OnLogBatch; // 战报行流批次（2026-11-11 v15 C 案：服务端渲染好的最终行）
         public event Action<MsgSelectRequest> OnSelectRequest;
         public event Action<MsgTextRequest> OnTextRequest; // 文本反问（2026-10-31 阶段C：卡名宣言输入窗）
         public event Action<MsgError> OnError;
@@ -122,6 +123,11 @@ namespace CardCore.Network
                     var batch = NetworkSerializer.DeserializePayload<MsgNetEventBatch>(msg);
                     if (batch?.Events != null && batch.Events.Length > 0)
                         OnEventBatch?.Invoke(batch.Events);
+                    break;
+                case NetworkMessageType.NetLogBatch: // v15 C 案：服务端渲染好的战报行（纯 append）
+                    var logBatch = NetworkSerializer.DeserializePayload<MsgNetLogBatch>(msg);
+                    if (logBatch?.Lines != null && logBatch.Lines.Length > 0)
+                        OnLogBatch?.Invoke(logBatch.Lines);
                     break;
 
                 case NetworkMessageType.SelectRequest:

@@ -45,8 +45,14 @@ namespace CardCore
         /// <summary>中立口径（导出/播报）：玩家实名，无观侧替换。</summary>
         public static string Render(IGameEvent e) => Render(e, null).Text;
 
-        /// <summary>观侧口径（唯一映射主入口）：isSelf 非 null 时输出对局视角文案。</summary>
-        public static Line Render(IGameEvent e, Func<Player, bool> isSelf)
+        /// <summary>观侧口径（唯一映射主入口）：isSelf 非 null 时输出对局视角文案。
+        /// redactEffectSummary（2026-11-11 C 案 R2，默认 false=本地/导出零变化）：true=效果执行摘要
+        /// 只出「　→ 效果短名」不出 Description（服务器拼装文本可能内嵌隐藏卡名/实掷数值）。
+        /// redactHidden（2026-11-11 C 案 E3 修订，默认 false）：R1 隐藏区入手遮蔽闸——本地木桩局
+        /// isSelf 非 null（p => p == P1）但对手是 AI，卡名照出（本地逐字不变铁律）；只有联机
+        /// 服务端座位行流传 true。观战/导出（isSelf=null）恒不遮（全信息口径）。</summary>
+        public static Line Render(IGameEvent e, Func<Player, bool> isSelf, bool redactEffectSummary = false,
+            bool redactHidden = false)
         {
             switch (e)
             {
@@ -91,7 +97,17 @@ namespace CardCore
                 case CardDrawEvent d:
                     return new Line($"{Who(d.Player, isSelf)} 抽 {Math.Max(1, d.DrawCount)} 张", "");
                 case CardEnterHandEvent hand:
-                    if (hand.IsDraw) return Empty; // 逐张抽牌不出行（数量行已覆盖+私有信息；建局静默由 UI _logArmed 承担）
+                    if (hand.IsDraw) return Empty; // 逐张抽牌不出行（数量行已覆盖+私有信息；建局静默由行流 _armed 承担）
+                    // R1 遮蔽（2026-11-11 C 案 §3.2 + E3 修订）：redactHidden（仅联机服务端座位行流）
+                    // 且接收方=对手且来区是隐藏区（牌库/无来源）、卡未被展示（RevealRules.IsExposed）
+                    // → 卡名遮蔽「未知卡」——服务端逐视角渲染天然全知，隐藏信息遮蔽在此单点收口。
+                    // 本地木桩局（redactHidden=false）与观战/导出（isSelf=null 全信息口径）不遮：
+                    // 公开区来卡（墓地/战场/除外等）与已展示卡恒不遮。
+                    if (redactHidden
+                        && (hand.FromZone == Zone.Deck || hand.FromZone == Zone.None)
+                        && isSelf != null && !isSelf(hand.Player) && !RevealRules.IsExposed(hand.Card))
+                        return new Line($"{Who(hand.Player, isSelf)} 获得 未知卡（来自 {ZoneZh(hand.FromZone)}）",
+                            "log-line--effect");
                     return new Line($"{Who(hand.Player, isSelf)} 获得 {Name(hand.Card)}（来自 {ZoneZh(hand.FromZone)}）",
                         "log-line--effect");
 
@@ -258,6 +274,15 @@ namespace CardCore
                     return new Line($"〔技能〕{Who(skill.Player, isSelf)} 发动英雄技能「{Name(skill.SkillCard)}」", "log-line--effect");
                 case EffectExecutionSummaryEvent sum:
                 {
+                    // R2 遮蔽（2026-11-11 C 案 §3.2，联机行流 redactEffectSummary=true）：
+                    // Description 是引擎拼装文本，可能内嵌隐藏卡名/实掷数值——只出「　→ 效果短名」
+                    //（短名=公开信息，效果挂在公开卡上）。EffectId 缺失时整行不出（防泄露兜底）。
+                    // 本地/导出口径（false）行为不变。
+                    if (redactEffectSummary)
+                    {
+                        if (string.IsNullOrEmpty(sum.EffectId)) return Empty;
+                        return new Line("　→ " + EffectShortName(sum.EffectId), "log-line--effect");
+                    }
                     if (string.IsNullOrEmpty(sum.Description)) return Empty;
                     string text = sum.Description;
                     if (isSelf != null && sum.Controller != null)
@@ -542,6 +567,16 @@ namespace CardCore
 
         /// <summary>实体短名（转发 EffectText）</summary>
         public static string Name(Entity entity) => EffectText.Name(entity);
+
+        /// <summary>效果短名（EffectsLibrary 瘦名，超长 ID 截断——2026-11-11 C 案自 BattleView 下沉
+        /// CardCore 单源：服务端行流 R2 遮蔽与 UI 栈链文案共用；BattleView.EffectShortName 转发此口）。</summary>
+        public static string EffectShortName(string effectId)
+        {
+            if (string.IsNullOrEmpty(effectId)) return "?";
+            var dto = EffectsLibrary.Get(effectId);
+            if (!string.IsNullOrEmpty(dto?.name)) return dto.name;
+            return effectId.Length <= 10 ? effectId : effectId.Substring(0, 8) + "…";
+        }
 
         /// <summary>同名聚合的紧凑卡牌清单（转发 EffectText）</summary>
         public static string DescribeCards(List<Card> cards) => EffectText.DescribeCards(cards);
