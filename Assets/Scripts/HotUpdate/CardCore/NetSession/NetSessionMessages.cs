@@ -124,10 +124,16 @@ namespace CardCore.Network
         /// <summary>选卡组倒计时剩秒（DeckSubmit 相位；-1=非倒计时）。服务器权威，整秒推送。</summary>
         [MemoryPackOrder(TagTable.MRS_DeckPickSecondsLeft)]
         public int DeckPickSecondsLeft;
+
+        /// <summary>本局随机种子（v13 2026-11-11）：开局（进选卡组相位）定死后的实际值回显——
+        /// 客户端对局日志展示/复制复现用；0=未开局。</summary>
+        [MemoryPackOrder(TagTable.MRS_Seed)]
+        public int Seed;
     }
 
     /// <summary>上行：房主配置房间模式（136）。仅椅位0（房主）、仅 Waiting 相位；
-    /// 先后手 0=掷币/1=房主先手/2=客人先手；洗牌 0=随机/1=固定牌序。</summary>
+    /// 先后手 0=掷币/1=房主先手/2=客人先手；洗牌 0=随机/1=固定牌序。
+    /// Seed（v13）：钉对局随机种子；0=开局由服务器随机定死（回显 RoomState.Seed）。</summary>
     [MemoryPackable]
     public partial class MsgRoomSettings
     {
@@ -136,6 +142,9 @@ namespace CardCore.Network
 
         [MemoryPackOrder(TagTable.MRSet_ShuffleMode)]
         public int ShuffleMode;
+
+        [MemoryPackOrder(TagTable.MRSet_Seed)]
+        public int Seed;
     }
 
     /// <summary>上行：准备 toggle（137，Waiting 相位；客人侧 UI。房主不准备——开局权在房主）。</summary>

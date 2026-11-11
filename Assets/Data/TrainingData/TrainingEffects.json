@@ -254,7 +254,7 @@
         0.0,
         0.0,
         0.0,
-        1.2,
+        1.859,
         0.0
       ],
       "steps": [
@@ -543,7 +543,7 @@
       "cost": [
         0.0,
         0.0,
-        6.0,
+        3.456,
         0.0,
         0.0
       ],
@@ -564,7 +564,7 @@
       "activation": 1,
       "cost": [
         0.0,
-        3.0,
+        1.728,
         0.0,
         0.0,
         0.0
@@ -877,7 +877,7 @@
     {
       "id": "5F98CD72",
       "name": "训练·倒计时汲牌",
-      "hash": "368B2FAF",
+      "hash": "74DFCA9C",
       "timing": 33,
       "activation": 1,
       "steps": [
@@ -903,7 +903,7 @@
     {
       "id": "EDC375CA",
       "name": "训练·倒计时圣盾",
-      "hash": "B339889C",
+      "hash": "92961AA4",
       "timing": 33,
       "activation": 1,
       "steps": [
@@ -931,7 +931,7 @@
     {
       "id": "D08B6731",
       "name": "训练·运势重锤",
-      "hash": "C0A494DB",
+      "hash": "C2A4BD6C",
       "timing": 7,
       "activation": 1,
       "limit": 1,
@@ -961,7 +961,7 @@
     {
       "id": "46239714",
       "name": "训练·充盈回响",
-      "hash": "E3F52EB8",
+      "hash": "4889F5E9",
       "timing": 35,
       "activation": 1,
       "limit": 1,
@@ -986,7 +986,7 @@
     {
       "id": "293ECF43",
       "name": "训练·同心一击",
-      "hash": "AA63736D",
+      "hash": "73CADF10",
       "timing": 35,
       "activation": 1,
       "limit": 1,
@@ -1343,7 +1343,7 @@
       "activation": 1,
       "cost": [
         0.0,
-        9.0,
+        4.32,
         0.0,
         0.0,
         0.0

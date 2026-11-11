@@ -35,9 +35,11 @@ namespace SynergyUI
             string skillCardId, string[] tokenCardIds, List<DeckTokenBinding> tokenBindings)
         {
             if (client == null || cardIds == null || cardIds.Length == 0) return false;
-            var digest = NetMatchHandshake.ComputeDeckDigest(cardIds, tokenCardIds, tokenBindings); // 主线程调用约定
+            // 2026-11-11 顺序定案：先组载荷（只读）再算摘要——摘要必须与随提交下发的内容同源同一刻；
+            // 反过来（旧序：先算摘要后组载荷）一旦载荷侧有任何归一化/落盘，两端摘要必分叉。
             NetDeckPayload.BuildForDeck(cardIds, tokenCardIds, skillCardId,
                 out var addedCards, out var addedEffects, out var addedRows);
+            var digest = NetMatchHandshake.ComputeDeckDigest(cardIds, tokenCardIds, tokenBindings); // 主线程调用约定
             client.Send(NetworkMessageType.DeckSubmit, new MsgDeckSubmit
             {
                 DeckName = string.IsNullOrEmpty(deckName) ? "未命名卡组" : deckName,

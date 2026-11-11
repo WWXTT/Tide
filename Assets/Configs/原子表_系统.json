@@ -113,18 +113,6 @@
     "ManaList": null
   },
   {
-    "ID": "d1ddfd78",
-    "TextHash": "00c1a3d8",
-    "EnumName": "死亡计数",
-    "DisplayName": "自由分支·死亡计数：此卡在场上时，记录对双方生物死亡数量，计数≥x，则触发奖励并重置死亡计数（最大值6）",
-    "EffectType": "EngineDeathToll",
-    "TargetFilter": null,
-    "Polarity": 0,
-    "MountKinds": "引擎主干",
-    "Tags": null,
-    "ManaList": null
-  },
-  {
     "ID": "fd645778",
     "TextHash": "dbaf032d",
     "EnumName": "元素充盈",

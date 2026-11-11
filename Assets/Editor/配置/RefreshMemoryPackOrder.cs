@@ -1,4 +1,4 @@
-#if UNITY_EDITOR
+﻿#if UNITY_EDITOR
 using System;
 using System.IO;
 using System.Text;
@@ -185,6 +185,7 @@ namespace CardCore.Tools
                 ("MsgGameStateSync", "PrioritySeat"), ("MsgGameStateSync", "ZoneCards"),
                 ("MsgGameStateSync", "Hands"), ("MsgGameStateSync", "StackV2"),
                 ("MsgGameStateSync", "RevealedZoneCards"), // 展示卡·信息轴（2026-10-31 阶段D：手工定值退役并入哈希）
+                ("MsgGameStateSync", "TurnSecondsLeft"), // v14 服务器权威回合计时（HUD 可用时间倒计时）
 
                 // ---- StackItemDTO（栈条目：EffectInstance 投影。EffectDisplayName/旧 Stack 字段
                 //      已删（2026-09-22 线上去文本，墓碑 2026-10-10 清理）；显示名客户端按 EffectId 查表）----

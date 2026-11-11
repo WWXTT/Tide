@@ -125,9 +125,19 @@ namespace TideSim
                 Console.WriteLine($"  {d?.CardName}（{id}）← {CardCostService.GetRuntimeCost(d)}");
             }
             foreach (var entry in file.scenarios)
+            {
+                // 2026-11-10 死亡计数改版：旧“门槛→Then 奖励”四场景退役（手牌计数 + 效果原子 value 增幅
+                // 的覆盖待新增场景；数据迁移形状由下方 VerifyEngineRewardFxMigrated 守）。
+                if (entry.id != null && entry.id.StartsWith("deathtoll-"))
+                {
+                    Console.WriteLine($"—— {entry.id}：旧死亡计数场景退役（2026-11-10 改版）");
+                    continue;
+                }
                 RunScenario(entry);
+            }
 
             VerifyEngineRewardFxMigrated();
+            VerifyAmplificationRoundTrip();
 
             Console.WriteLine();
             Console.WriteLine(_fail == 0 ? "自由分支场景回归：通过" : $"自由分支场景回归：失败 {_fail} 项");
@@ -138,6 +148,126 @@ namespace TideSim
         /// · 前 6 引擎（倒计时/运势/拼枪/死亡计数/元素充盈/团结）：then=单个原子、effectId 空；
         /// · 附加诅咒/祝福：then（≤1）与主动·并列效果引用至少一个，effectId 可解析。
         /// 合并库（主∪教∪训）全扫。</summary>
+        /// <summary>amplification 端到端（2026-11-10）：效果原子 → CardEffectData JSON → Converter，
+        /// 守 branch{settle:Engine,engine:DeathToll,engineParam:9}、Then 空、无 effectId。
+        /// 卡保存链路（CardEffectData 落盘/回读）与运行时转换共用同一 AtomicEffectEntry DTO。</summary>
+        private static void VerifyAmplificationRoundTrip()
+        {
+            Assert(!ComposerCatalog.IsAtomOnlyEngine(BranchEngineKind.DeathToll),
+                "退役：DeathToll 不再作为自由分支奖励引擎");
+            Assert(ComposerCatalog.EngineHeaderPresetOf(BranchEngineKind.DeathToll) == null,
+                "退役：DeathToll 无自由分支头预设");
+            Assert(AtomicEffectTable.GetByType(AtomicEffectType.EngineDeathToll) == null,
+                "退役：EngineDeathToll 表行已移除");
+            var damage = AtomicEffectTable.GetByType(AtomicEffectType.DealDamage);
+            if (damage == null) { Assert(false, "amplification：缺 DealDamage 原子行"); return; }
+            var atom = new AtomicEffectEntry
+            {
+                refId = damage.HashId,
+                value = 2,
+                kinds = new List<int> { 2 },
+                branch = new BranchEntryData
+                {
+                    settle = (int)BranchSettleKind.Engine,
+                    engine = (int)BranchEngineKind.DeathToll,
+                    engineParam = 9,
+                },
+            };
+            var fx = new CardEffectData
+            {
+                Id = "FXAMP",
+                DisplayName = "增幅往返",
+                TriggerTiming = (int)TriggerTiming.OnOtherCreatureDeath,
+                ActivationType = (int)EffectActivationType.Automatic,
+                Steps = new List<EffectStepData>
+                {
+                    new EffectStepData { kind = 0, atomic = atom },
+                },
+            };
+            string json = JsonConvert.SerializeObject(fx);
+            var back = JsonConvert.DeserializeObject<CardEffectData>(json);
+            Assert(back?.Steps != null && back.Steps.Count == 1 && back.Steps[0].atomic?.branch != null,
+                "amplification：CardEffectData 落盘回读保留 branch");
+            var def = CardEffectConverter.ConvertOne(back, "AMP_TEST");
+            var a = def?.Effects != null && def.Effects.Count > 0 ? def.Effects[0] : null;
+            Assert(a?.Branch != null
+                   && a.Branch.Settle == BranchSettleKind.Engine
+                   && a.Branch.EngineKind == BranchEngineKind.DeathToll
+                   && a.Branch.EngineParam == 9,
+                "amplification：Converter 保留 engineParam=9");
+            Assert(a?.Branch.Then.Count == 0 && string.IsNullOrEmpty(a.Branch.EffectId),
+                "amplification：增幅标记不得带 Then/effectId");
+
+            // 卡保存链路：CardConfigCompact 发射 → CardLoader 回读 → Converter
+            var entry = new CardConfigEntry
+            {
+                id = "C_AMP_TEST",
+                cardName = "增幅往返测试",
+                supertype = nameof(Cardtype.Creature),
+                power = 1,
+                life = 1,
+                effects = new List<CardEffectData> { fx },
+            };
+            string cardJson = CardConfigCompact.EmitCompact(new List<CardConfigEntry> { entry });
+            var loaded = CardLoader.LoadCardsFromText(cardJson);
+            Assert(loaded != null && loaded.Count == 1 && loaded[0].Effects != null
+                   && loaded[0].Effects.Count == 1,
+                "amplification：卡保存/回读保留效果");
+            var defCard = CardEffectConverter.ConvertOne(loaded[0].Effects[0], "C_AMP_TEST");
+            var ac = defCard?.Effects != null && defCard.Effects.Count > 0 ? defCard.Effects[0] : null;
+            var ampCard = new CardData
+            {
+                ID = "C_AMP_COST", CardName = "增幅费用测试", Supertype = Cardtype.Creature,
+                Power = 1, Life = 1, Effects = new List<CardEffectData> { fx },
+            };
+            var normalFx = JsonConvert.DeserializeObject<CardEffectData>(JsonConvert.SerializeObject(fx));
+            normalFx.Steps[0].atomic.branch = null;
+            var normalCard = new CardData
+            {
+                ID = "C_AMP_NORMAL", CardName = "常规费用测试", Supertype = Cardtype.Creature,
+                Power = 1, Life = 1, Effects = new List<CardEffectData> { normalFx },
+            };
+            var normalDef = CardEffectConverter.ConvertOne(normalFx, "C_AMP_NORMAL");
+            var ampAtom = defCard.Effects[0];
+            var normalAtom = normalDef.Effects[0];
+            float ampCost = CostDerivationService.ComputeAtomCostByColor(
+                ampAtom, defCard, null, AtomicEffectTable.GetByHashId(ampAtom.RowHashId)).Values.Sum();
+            float normalCost = CostDerivationService.ComputeAtomCostByColor(
+                normalAtom, normalDef, null, AtomicEffectTable.GetByHashId(normalAtom.RowHashId)).Values.Sum();
+            var heal = AtomicEffectTable.GetByType(AtomicEffectType.Heal);
+            Assert(heal != null, "amplification：Heal 原子行存在");
+            if (heal != null)
+            {
+                var healAtom = new AtomicEffectEntry
+                {
+                    refId = heal.HashId, value = 1,
+                    branch = new BranchEntryData { settle = (int)BranchSettleKind.Engine,
+                        engine = (int)BranchEngineKind.DeathToll, engineParam = 9 },
+                };
+                var healFx = new CardEffectData
+                {
+                    Id = "FXAMPHEAL", TriggerTiming = (int)TriggerTiming.OnPlay,
+                    ActivationType = (int)EffectActivationType.Automatic,
+                    Steps = new List<EffectStepData> { new EffectStepData { kind = 0, atomic = healAtom } },
+                };
+                var healDef = CardEffectConverter.ConvertOne(healFx, "AMP_HEAL");
+                Assert(healDef?.Effects != null && healDef.Effects.Count > 0, "amplification：Heal 转换成功");
+                if (healDef?.Effects == null || healDef.Effects.Count == 0) return;
+                float healCost = CostDerivationService.ComputeAtomCostByColor(
+                    healDef.Effects[0], healDef, null, heal).Values.Sum();
+                Assert(Math.Abs(healCost - 2f) < 0.01f,
+                    $"amplification：回复1 基准0.5+增幅1.5=2（实际 {healCost:0.##}）");
+
+            }
+            Assert(Math.Abs(ampCost - normalCost * CostDerivationService.DeathTollAmplificationMultiplier) < 0.01f,
+                $"amplification：费用=基准×4（实际 {ampCost:0.##} vs {normalCost:0.##}）");
+            Assert(ac?.Branch != null
+                   && ac.Branch.Settle == BranchSettleKind.Engine
+                   && ac.Branch.EngineKind == BranchEngineKind.DeathToll
+                   && ac.Branch.EngineParam == 9
+                   && ac.Branch.Then.Count == 0,
+                "amplification：卡保存链路保留 engineParam=9 且无奖励");
+        }
         private static void VerifyEngineRewardFxMigrated()
         {
             Console.WriteLine();
@@ -158,7 +288,13 @@ namespace TideSim
                         x != null && x.Settle == BranchSettleKind.Engine && x.EngineKind == (BranchEngineKind)b.engine);
                     Assert(payload != null, $"迁移：{dto.id}「{dto.name}」引擎载荷未转换");
                     if (payload == null) continue;
-                    if (ComposerCatalog.IsAtomOnlyEngine(payload.EngineKind))
+                    if (payload.EngineKind == BranchEngineKind.DeathToll)
+                    {
+                        // 2026-11-10 死亡计数改版：效果原子上的 value 增幅标记，不再有 Then/effectId。
+                        Assert(payload.Then.Count == 0 && string.IsNullOrEmpty(payload.EffectId),
+                            $"迁移：{dto.id}「{dto.name}」死亡计数=value 增幅标记，不得带 Then/effectId（实际 Then {payload.Then.Count} / '{payload.EffectId}'）");
+                    }
+                    else if (ComposerCatalog.IsAtomOnlyEngine(payload.EngineKind))
                     {
                         Assert(payload.Then.Count == 1 && string.IsNullOrEmpty(payload.EffectId),
                             $"迁移：{dto.id}「{dto.name}」前 6 引擎须单原子、无 effectId（实际 Then {payload.Then.Count} / '{payload.EffectId}'）");
@@ -463,39 +599,35 @@ namespace TideSim
 
                     case "deathtoll-effectref":
                     {
-                        // ⑲ 分支奖励效果化（2026-11-07）：教学·53=死亡计数引擎，branch.effectId=540FB6C9
-                        //「对目标造成1点伤害」+ Then 抽1——双通道（先效果后原子）结算 + 门槛含引用效果费。
-                        Assert(EngineEffectIdOf(_engine, BranchEngineKind.DeathToll) == "540FB6C9",
-                            $"⑲ 载荷通道=branch.effectId 直落（converter；实际 {EngineEffectIdOf(_engine, BranchEngineKind.DeathToll) ?? "null"}）");
+                        // ⑲ 2026-11-10 新规：死亡计数=单原子奖励（1 伤），无 effectId；
+                        // 门槛=基础原子费=1，计数 6≥1 触发一次。
+                        Assert(string.IsNullOrEmpty(EngineEffectIdOf(_engine, BranchEngineKind.DeathToll)),
+                            $"⑲ 前 6 引擎无 effectId（实际 {EngineEffectIdOf(_engine, BranchEngineKind.DeathToll) ?? "null"}）");
                         var dtFx = RewardFxBriefOf(_engine, BranchEngineKind.DeathToll);
-                        int xWith = CostDerivationService.RewardThresholdOf(dtFx?.Then, dtFx?.EffectId);
-                        int xPure = CostDerivationService.RewardThreshold(dtFx?.Then);
-                        Assert(xWith > xPure,
-                            $"⑲ 门槛推导含引用效果费（双通道 {xWith} > 纯 Then {xPure}——抽1票2+引用1伤）");
-                        Assert(Kw("死亡计数") == 1 && KwDetail("死亡计数").Contains($"≥ {xWith}"),
-                            $"⑲ 计数 6≥{xWith} 恰 1 次触发（实际 {Kw("死亡计数")}，明细：{KwDetail("死亡计数")}）");
+                        Assert(dtFx != null && dtFx.Then != null && dtFx.Then.Count == 1,
+                            $"⑲ 奖励=单原子（实际 {dtFx?.Then?.Count ?? -1}）");
+                        int x = CostDerivationService.RewardThresholdOf(dtFx?.Then, null);
+                        Assert(x == 1, $"⑲ 门槛=基础原子费 1（实际 {x}）");
+                        Assert(Kw("死亡计数") == 1 && KwDetail("死亡计数").Contains($"≥ {x}"),
+                            $"⑲ 计数 6≥{x} 恰 1 次触发（实际 {Kw("死亡计数")}，明细：{KwDetail("死亡计数")}）");
                         Assert(_engineDamage.Any(d => d.dmg == 1),
-                            $"⑲ 引用效果执行=引擎源 1 伤事件（实际 {DescribeDamage()}）");
-                        Assert(_redDraws.Count == 1,
-                            $"⑲ Then 原子执行=红抽 1（实际 [{string.Join(",", _redDraws)}]）");
+                            $"⑲ 奖励执行=引擎源 1 伤事件（实际 {DescribeDamage()}）");
                         break;
                     }
-
                     case "gate-effectref":
                     {
-                        // ⑳ 有限分支奖励效果化（2026-11-07）：教学·54 登场抽1 + DeckAboveOpp 门 →
-                        // 奖励=引用效果 540FB6C9（1 伤）+ Then 抽1——门达标双通道一并结算。
+                        // ⑳ 2026-11-10 新规：有限分支第二槽只收单原子——教学·54 登场抽1，
+                        // DeckAboveOpp 门达标后奖励 1 伤（不再有引用效果/额外抽）。
                         Assert(_redPlays == 1, $"⑳ 红打出教学·54 恰 1 次（实际 {_redPlays}）");
                         Assert(Unit(core, p2, "教学·54") != null, "⑳ 教学·54 落红场");
-                        Assert(_redDraws.Count == 2,
-                            $"⑳ 主原子抽1+Then抽1=共 2（实际 [{string.Join(",", _redDraws)}]）");
+                        Assert(_redDraws.Count == 1,
+                            $"⑳ 主原子抽1=共 1（实际 [{string.Join(",", _redDraws)}]）");
                         Assert(_allDamage.Any(x => x.Contains("教学·54") && x.Contains("−1")),
-                            $"⑳ 引用效果执行=1 伤来自教学·54（实际 {string.Join("；", _allDamage)}）");
+                            $"⑳ 奖励单原子=1 伤来自教学·54（实际 {string.Join("；", _allDamage)}）");
                         Assert(Unit(core, p1, "教学·3") == null,
-                            "⑳ 蓝受害者被引用效果 1 伤击杀（不在场）");
+                            "⑳ 蓝受害者被奖励 1 伤击杀（不在场）");
                         break;
                     }
-
                     case "unity-fire":
                         Assert(BranchEngines.UnityAdjacentCountOf != null && BranchEngines.UnityAdjacentCountOf(_engine) == 4,
                             $"⑦ 施放前邻接占用=4（实际 {BranchEngines.UnityAdjacentCountOf?.Invoke(_engine) ?? -1}）——盘面钉位成立");
@@ -781,51 +913,13 @@ namespace TideSim
             {
                 string tollRow = AtomicEffectTable.GetByType(AtomicEffectType.EngineDeathToll)?.HashId;
                 string drawRow = AtomicEffectTable.GetByType(AtomicEffectType.DrawCard)?.HashId;
-                if (string.IsNullOrEmpty(tollRow) || string.IsNullOrEmpty(drawRow))
+                string dealRow = AtomicEffectTable.GetByType(AtomicEffectType.DealDamage)?.HashId;
+                if (string.IsNullOrEmpty(drawRow) || string.IsNullOrEmpty(dealRow))
                 {
-                    Console.WriteLine("    [注入] 夹具行缺失：EngineDeathToll/DrawCard 原子行不可解析——⑲⑳ 场景将失败");
+                    Console.WriteLine("    [注入] 夹具行缺失：DrawCard/DealDamage 原子行不可解析——⑳㉓ 场景将失败");
                     return;
                 }
-
-                var tollFx = new CardEffectData
-                {
-                    Id = "FXDT",
-                    DisplayName = "死亡计数·效果引用奖励（注入）",
-                    TriggerTiming = (int)TriggerTiming.OnPlay,
-                    ActivationType = (int)EffectActivationType.Automatic,
-                    Steps = new List<EffectStepData>
-                    {
-                        new EffectStepData
-                        {
-                            kind = 0,
-                            atomic = new AtomicEffectEntry
-                            {
-                                refId = tollRow,
-                                branch = new BranchEntryData
-                                {
-                                    settle = 3,
-                                    engine = (int)BranchEngineKind.DeathToll,
-                                    effectId = RewardFxRefId,
-                                    then = new List<AtomicEffectEntry> { new AtomicEffectEntry { refId = drawRow } },
-                                },
-                            },
-                        },
-                    },
-                };
-                var tollCard = new CardData
-                {
-                    ID = "C_FXDT001",
-                    CardName = "教学·53",
-                    Supertype = Cardtype.Creature,
-                    Power = 1,
-                    Life = 2,
-                    AttackAbility = true,
-                    GuardAbility = true,
-                    ChargeAbility = true,
-                    Cost = new ElementCost(new[] { 1f, 0f, 0f, 0f, 0f, 0f }),
-                    Tags = new List<string> { "教学" },
-                    Effects = new List<CardEffectData> { tollFx },
-                };
+                AtomicEffectEntry OneDamage() => new AtomicEffectEntry { refId = dealRow, value = 1, kinds = new List<int> { 2 } };
 
                 var gateFx = new CardEffectData
                 {
@@ -843,10 +937,10 @@ namespace TideSim
                                 refId = drawRow,
                                 branch = new BranchEntryData
                                 {
+                                    // 2026-11-10 新规：有限分支第二槽只收单原子（不再用 effectId）
                                     settle = 1,
                                     gateId = "DeckAboveOpp",
-                                    effectId = RewardFxRefId,
-                                    then = new List<AtomicEffectEntry> { new AtomicEffectEntry { refId = drawRow } },
+                                    then = new List<AtomicEffectEntry> { OneDamage() },
                                 },
                             },
                         },
@@ -875,12 +969,12 @@ namespace TideSim
                     Console.WriteLine("    [注入] CardCatalog 私有字段反射失败——⑲⑳ 场景将失败");
                     return;
                 }
-                foreach (var c in new[] { tollCard, gateCard })
+                foreach (var c in new[] { gateCard })
                 {
                     byId[c.ID] = c;
                     if (cache.All(x => x?.ID != c.ID)) cache.Add(c);
                 }
-                Console.WriteLine("    [注入] 分支奖励效果化夹具就绪：教学·53（死亡计数·双通道）/教学·54（登场门·双通道）→ 引用 " + RewardFxRefId);
+                Console.WriteLine("    [注入] 分支奖励效果化夹具就绪：教学·54（登场门·单原子 1 伤）");
                 InjectLuckTimingFixture();
             }
             catch (Exception e)
@@ -976,7 +1070,11 @@ namespace TideSim
                                             settle = 3,
                                             engine = (int)BranchEngineKind.LuckRoll,
                                             engineParam = 1, // x=1 双骰恒中（掷骰行为与时机解耦读数）
-                                            effectId = LuckFx26Id,
+                                            // 2026-11-10 新规：前 6 引擎只收单个原子（不再用 effectId）
+                                            then = new List<AtomicEffectEntry>
+                                            {
+                                                new AtomicEffectEntry { refId = dealRow, value = 1, kinds = new List<int> { 2 } },
+                                            },
                                         },
                                     },
                                 },

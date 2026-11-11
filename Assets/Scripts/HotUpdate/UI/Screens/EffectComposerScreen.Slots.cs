@@ -148,8 +148,9 @@ namespace SynergyUI
                             var atom = trunkAtoms[i];
                             MakeAtomCard(slot, atom, i, SelKind.Parallel);
                             if (atom.branch != null
-                                && (BranchSettleKind)atom.branch.settle == BranchSettleKind.Engine)
-                                atom.branch = null; // 引擎载荷不配普通原子（切形态残留兜底）
+                                && (BranchSettleKind)atom.branch.settle == BranchSettleKind.Engine
+                                && (BranchEngineKind)atom.branch.engine != BranchEngineKind.DeathToll)
+                                atom.branch = null; // 引擎载荷不配普通原子（DeathToll 增幅标记例外）
                             if (ReferenceEquals(atom, branchAtom))
                             {
                                 MakeGateCard(slot, atom);
@@ -444,7 +445,11 @@ namespace SynergyUI
             if (text != null)
             {
                 // 2026-10-24 定案：换行/溢出表现归预制体（Text Wrapping Mode 在 prefab 上改）——代码只填字
-                text.text = (expanded ? "▼ " : "▶ ") + AtomText.RenderAtomEntry(atom, _graph.header);
+                text.text = (expanded ? "▼ " : "▶ ") + AtomText.RenderAtomEntry(atom, _graph.header)
+                    + (atom?.branch != null
+                       && (BranchSettleKind)atom.branch.settle == BranchSettleKind.Engine
+                       && (BranchEngineKind)atom.branch.engine == BranchEngineKind.DeathToll
+                        ? "［死亡计数增幅］" : "");
                 UiKit.Size(text, fw: 1f);
             }
 
@@ -484,6 +489,46 @@ namespace SynergyUI
                 MakeAtomEditorInline(card, atom, selKind, text);
         }
 
+        /// <summary>prefab 的 amplification Toggle（2026-11-10 用户定案）：只对带 {value} 的非引擎原子、
+        /// 且无其他分支时显示。打开=DeathToll 增幅（engineParam=9=计数上限 9）；关闭=拆标记。
+        /// 切换后 RefreshName 同步 lbl-effect-name / lbl-effect-cost。</summary>
+        private void BindAmplificationToggle(RectTransform editor, AtomicEffectEntry atom, SelKind selKind)
+        {
+            var toggle = UiKit.FindDeep(editor, "amplification")?.GetComponent<Toggle>();
+            if (toggle == null || atom == null)
+            {
+                if (toggle != null) toggle.gameObject.SetActive(false);
+                return;
+            }
+            var cfg = AtomicEffectTable.GetByHashId(atom.refId);
+            bool eligible = selKind == SelKind.Parallel && cfg != null
+                            && !ComposerCatalog.IsEngineTrunkRow(cfg)
+                            && !string.IsNullOrEmpty(cfg.Description) && cfg.Description.Contains("{value}");
+            var branch = atom.branch;
+            bool isDt = branch != null
+                        && (BranchSettleKind)branch.settle == BranchSettleKind.Engine
+                        && (BranchEngineKind)branch.engine == BranchEngineKind.DeathToll;
+            bool hasOther = branch != null && !isDt;
+            toggle.gameObject.SetActive(eligible && !hasOther);
+            if (!eligible || hasOther) return;
+
+            toggle.SetIsOnWithoutNotify(isDt && branch.engineParam == 9);
+            toggle.onValueChanged.RemoveAllListeners();
+            toggle.onValueChanged.AddListener(on =>
+            {
+                if (on)
+                    atom.branch = new BranchEntryData
+                    {
+                        settle = (int)BranchSettleKind.Engine,
+                        engine = (int)BranchEngineKind.DeathToll,
+                        engineParam = 9, // 增幅：积累上限 9
+                    };
+                else
+                    atom.branch = null;
+                RefreshName(); // lbl-effect-name + lbl-effect-cost
+                RefreshAll();
+            });
+        }
         /// <summary>prefab 烘焙的卡片头部小按钮绑定（组件缺失补建；visible=false 直接隐藏）。</summary>
         private static void BindCardButton(RectTransform node, string label, bool visible, Action onClick)
         {
@@ -514,6 +559,7 @@ namespace SynergyUI
                 return;
             }
             editor.gameObject.SetActive(true);
+            BindAmplificationToggle(editor, atom, selKind); // 2026-11-10：prefab 的 amplification Toggle
             // 2026-10-09 prefab 重组：editor 只剩 field-value（内含数值输入+slider-amp）——
             // 动态提示直接挂 editor 根（原 dd-trunk* 主干下拉遗留已随设置盒重排清场）
             var inject = editor;

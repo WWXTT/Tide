@@ -111,7 +111,9 @@ namespace SynergyUI
         private UiKit.Scroll _catalogList;
         private UiKit.Scroll _deckList;
         private UiKit.Scroll _decksList;
-        private RectTransform _statsZone;   // v2：非滚动统计容器（常驻 stats-row 行）
+        private RectTransform _statsZone;   // v2：非滚动统计容器（stats-row 预制体实例 + tip 常驻）
+        private RectTransform _statsRow;    // 2026-11-10 预制体化：stats-row 嵌套实例（烘焙正本——代码只绑定不生成）
+        private TMP_Text _statsTip;         // stats-zone/tip：构成检测（硬约束+地源 advisory）提示行
         private RectTransform _overlay;
         private RectTransform _catalogFilter; // facet-color（v2 改名，旧 catalog-filter）
         private RectTransform _facetKind;     // 卡型 chips 固定容器
@@ -144,6 +146,8 @@ namespace SynergyUI
             _toast = FindText("lbl-toast");
             _deckList = FindScroll("list-deck");
             _statsZone = Find("stats-zone"); // v2 非滚动（RectMask 都不再需要——纯容器）
+            _statsRow = Find("stats-row");   // 2026-11-10 预制体化：嵌套 stats-row 实例（烘焙真源）
+            _statsTip = FindText("tip");     // 构成检测提示位
             _deckCount = FindUnder(Find("hdr-deck"), "count")?.GetComponentInChildren<TMP_Text>(true);
 
             // ---- 中栏：只读卡面 + 英雄技能栏（2026-10-28 preview-panel 重构：烘焙 ACard 360×648
@@ -1098,82 +1102,28 @@ namespace SynergyUI
 
         // ======================================== 统计区（左栏底部·非滚动容器） ========================================
 
+        /// <summary>统计区刷新（2026-11-10 预制体化改版）：stats-row 预制体（嵌套进 stats-zone）为
+        /// 烘焙正本——费用曲线 10 档柱组（tier 0..8/9+）+颜色分布，代码只按名绑定填数，不再克隆
+        /// tpl-stat/tpl-stat-bar；构成检测提示行写 stats-zone/tip（类型比例行随改版退役——无烘焙位）。</summary>
         private void RefreshStats()
         {
-            if (_statsZone == null || _deckTemplates == null) return;
-            ClearStatsClones();
+            if (_statsZone == null) return;
             var cards = _deckCardIds
                 .Select(id => CardCatalog.GetById(id))
                 .Where(c => c != null)
                 .ToList();
 
-            BuildCompositionCheck();          // 构成检测（全宽 140）
-            BuildCostCurve(cards);            // 曲线（左列 300×164）
-            BuildColorDistribution(cards);    // 颜色（右列 300×164）
-            BuildTypeRatio(cards);            // 类型行（全宽 20，无标题）
+            RefreshStatsTip();
+            RefreshCostCurve(cards);
+            RefreshColorDistribution();
         }
 
-        /// <summary>清统计区克隆块（stats-row 及其内部双列块都属刷新范围；stats-row 为预制体
-        /// 常驻行本体保留——只清其子级，防曲线/颜色块跨刷新累积）。</summary>
-        private void ClearStatsClones()
+        /// <summary>构成检测 → stats-zone/tip（口径不变：DeckCompositionValidator 硬约束=断链/形状/
+        /// 技能/黑白代价（任一不过不可保存）+ 地源 advisory（不拦保存——施放费须有足够可放地的卡，
+        /// 整卡全施放面不可付才报「无法释放」）——加卡/删卡实时刷新）。</summary>
+        private void RefreshStatsTip()
         {
-            var row = UiKit.FindDeep(_statsZone, "stats-row");
-            if (row != null)
-            {
-                for (int i = row.childCount - 1; i >= 0; i--)
-                {
-                    var inner = row.GetChild(i);
-                    inner.SetParent(null);
-                    UnityEngine.Object.Destroy(inner.gameObject);
-                }
-            }
-            for (int i = _statsZone.childCount - 1; i >= 0; i--)
-            {
-                var child = _statsZone.GetChild(i);
-                if (child.name == "stats-row") continue;
-                child.SetParent(null);
-                UnityEngine.Object.Destroy(child.gameObject);
-            }
-        }
-
-        /// <summary>统计块克隆（tpl-stat）：写标题/块尺寸；返回块根。width=null=全宽入 stats-zone，
-        /// 有 width=入 stats-row 双列。typeLine=true 隐藏标题行（类型行 20 高单行形态）。</summary>
-        private RectTransform CloneStat(string title, float height, float? width, bool typeLine)
-        {
-            var parent = width.HasValue ? UiKit.FindDeep(_statsZone, "stats-row") : _statsZone;
-            var block = Clone(_deckTemplates, "tpl-stat", parent);
-            if (block == null) return null;
-            var le = block.GetComponent<LayoutElement>();
-            if (le != null)
-            {
-                if (width.HasValue) le.preferredWidth = width.Value;
-                le.preferredHeight = height;
-            }
-            if (typeLine) SetVisible(block, "header", false);
-            else
-            {
-                var headerRt = UiKit.FindDeep(block, "header");
-                SetText(headerRt, "label", title);
-            }
-            return block;
-        }
-
-        /// <summary>块正文 TMP（body/label——富文本烘焙：构成检测多行/颜色分布彩点都走它）。</summary>
-        private static TMP_Text StatBodyLabel(RectTransform block)
-            => UiKit.FindDeep(UiKit.FindDeep(block, "body"), "label")?.GetComponent<TMP_Text>();
-
-        /// <summary>构成检测块（统计区首块常显）：硬约束=断链/形状/技能/黑白代价（任一不过不可
-        /// 保存）+ 地源（advisory 不拦保存——施放费须有足够可放地的卡，整卡全施放面不可付才报
-        /// 「无法释放」）——加卡/删卡实时刷新；口径=DeckCompositionValidator（主题违色已随主题
-        /// 约束删除——2026-10-26）。</summary>
-        private void BuildCompositionCheck()
-        {
-            var block = CloneStat("构成检测", 150f, null, false);
-            if (block != null) block.SetSiblingIndex(0); // stats-row 为常驻 idx0——检测块置顶（S3 评审 P1：曲线/颜色曾压顶）
-            if (block == null) return;
-            var body = StatBodyLabel(block);
-            if (body == null) return;
-
+            if (_statsTip == null) return;
             var report = DeckCompositionValidator.Check(
                 _nameField != null ? _nameField.text : _currentDeckName, _deckCardIds);
             var landShort = DeckCompositionValidator.CheckLandSupport(_deckCardIds);
@@ -1222,83 +1172,73 @@ namespace SynergyUI
             }
             if (landShort.Count > maxLandRows)
                 lines.Add($"<color=#{red}>……另有 {landShort.Count - maxLandRows} 张卡地源不足无法释放</color>");
-            body.text = string.Join("\n", lines);
+            _statsTip.text = string.Join("\n", lines);
         }
 
-        /// <summary>费用曲线：1-9 档（>9 并入 9+）条形分布（tpl-stat-bar ×9 克隆进 body）。
-        /// 列内序 bar/tier/count（2026-10-26 顶歪修复）：tier=费用档贴柱底一行（x 轴），count=张数值
-        /// 挪到最底且挂固定高度 LE（模板烘焙 17）——旧序 count 夹在柱与档位间，空值 TMP 高 0 vs
-        /// 有值 16 → 柱底基线错 16px；现空值恒占行，基线/x 轴/数值行三线恒齐。</summary>
-        private void BuildCostCurve(List<CardData> cards)
+        /// <summary>费用曲线：绑定 stats-row/body 烘焙柱组（tier 标签 0..8、9+——0 起点与粗分档
+        /// 【0-2】【3-5】【6-8】【9+】同源）。柱高=张数/最大值×52（bar 的 LE preferredHeight，
+        /// 空值 2），count=张数（0 藏字）；列序无关——按烘焙 tier 文本对桶。</summary>
+        private void RefreshCostCurve(List<CardData> cards)
         {
-            var block = CloneStat("费用曲线", 170f, 308f, false);
-            if (block == null) return;
-            var body = UiKit.FindDeep(block, "body");
-            var bodyLabel = StatBodyLabel(block);
-            if (bodyLabel != null) bodyLabel.gameObject.SetActive(false); // 曲线块用柱条不用文本
-            if (body == null || _deckTemplates == null) return;
-
-            var tiers = new int[10]; // 0 位弃用；1..9；>9 并入 9（标签显示 9+）
+            var body = _statsRow != null ? UiKit.FindDeep(_statsRow, "body") : null;
+            if (body == null) return;
+            var tiers = new int[10]; // 0..8 各一档；≥9 归第 10 档（对齐烘焙 tier「9+」）
             foreach (var card in cards)
+                tiers[Mathf.Clamp(Mathf.RoundToInt(card.TotalCost), 0, 9)]++;
+            int max = Mathf.Max(1, tiers.Max());
+            for (int i = 0; i < body.childCount; i++)
             {
-                int tier = Mathf.Clamp(Mathf.RoundToInt(card.TotalCost), 1, 9);
-                tiers[tier]++;
-            }
-
-            int max = tiers.Skip(1).Max();
-            for (int tier = 1; tier <= 9; tier++)
-            {
-                int count = tiers[tier];
-                var barCol = Clone(_deckTemplates, "tpl-stat-bar", body);
-                if (barCol == null) continue;
-                var bar = UiKit.FindDeep(barCol, "bar");
+                var col = body.GetChild(i) as RectTransform;
+                if (col == null || col.name != "stat-bar") continue;
+                int t = TierIndexOf(UiKit.FindDeep(col, "tier")?.GetComponent<TMP_Text>());
+                if (t < 0) continue; // 烘焙标签改样——跳过该列（宁缺勿错桶）
+                var bar = UiKit.FindDeep(col, "bar");
                 var barLe = bar != null ? bar.GetComponent<LayoutElement>() : null;
                 if (barLe != null)
-                    barLe.preferredHeight = count > 0
-                        ? Mathf.Max(6f, (int)(52f * count / Mathf.Max(1, max))) : 2f;
-                SetText(barCol, "count", count > 0 ? count.ToString() : "");
-                SetText(barCol, "tier", tier == 9 ? "9+" : tier.ToString());
+                    barLe.preferredHeight = tiers[t] > 0
+                        ? Mathf.Max(6f, (int)(52f * tiers[t] / max)) : 2f;
+                SetText(col, "count", tiers[t] > 0 ? tiers[t].ToString() : "");
             }
         }
 
-        /// <summary>颜色分布：四色计数（彩点+数字，富文本——色值取 UiStyle.Dot* 令牌）。
-        /// 两行制沿用（2026-10-26 修复；2026-10-29 P4 色序清尾后黑白删除=四组）：单行多组在运行时
-        /// 标签宽约 284px（块308−VLG边距16）下有断行歧义——TMP 按空格断行会把「●」留在上行尾、
-        /// 色字挪下行。显式两行（红蓝绿/灰）三组/行最宽形态（两位数计数）约 221px，余量 60px+。
-        /// 组内串含空格，勿再回并单行。字体 PZD 无 U+00A0 字形——不可用不换行空格方案。</summary>
-        private void BuildColorDistribution(List<CardData> cards)
+        /// <summary>烘焙 tier 标签→桶序：「0」..「8」直取、「9+」→9；认不出（标签被手改变样）
+        /// 返回 -1（调用方跳过该列）。</summary>
+        private static int TierIndexOf(TMP_Text tier)
         {
-            var block = CloneStat("颜色分布", 170f, 308f, false);
-            if (block == null) return;
-            var body = StatBodyLabel(block);
-            if (body == null) return;
+            var s = tier != null ? (tier.text ?? "").Trim() : "";
+            if (s == "9+") return 9;
+            return int.TryParse(s, out int v) && v >= 0 && v <= 8 ? v : -1;
+        }
 
-            var pairs = new[] {
-                (UIColor.Red, UiStyle.DotRed, "红"), (UIColor.Blue, UiStyle.DotBlue, "蓝"),
-                (UIColor.Green, UiStyle.DotGreen, "绿"), (UIColor.Gray, UiStyle.DotGray, "灰") };
-            var lines = new List<string>[] { new List<string>(), new List<string>() };
-            for (int i = 0; i < pairs.Length; i++)
+        /// <summary>颜色分布：写「颜色分布」标题 header 的正文 label（标题之外那个 TMP——烘焙
+        /// 占位即彩点富文本）。文案=CostChartView.ColorLineOf 单源（两行制表格式，色值=UiStyle.Dot*
+        /// 令牌——与烘焙占位一致；多色卡各计一次）。</summary>
+        private void RefreshColorDistribution()
+        {
+            var content = StatsHeaderBodyLabel("颜色分布");
+            if (content == null) return;
+            content.text = CostChartView.ColorLineOf(_deckCardIds);
+        }
+
+        /// <summary>stats-row 两 header 同名——按标题文本定位（「费用曲线」/「颜色分布」），
+        /// 返回该 header 的正文 TMP=标题 label 之外的第一个 label（费用曲线 header 无正文→null）。</summary>
+        private TMP_Text StatsHeaderBodyLabel(string title)
+        {
+            if (_statsRow == null) return null;
+            for (int i = 0; i < _statsRow.childCount; i++)
             {
-                int count = cards.Count(c => CardSorter.HasCostColor(c, pairs[i].Item1));
-                lines[i / 3].Add($"<color=#{ColorUtility.ToHtmlStringRGB(pairs[i].Item2)}>●</color> {pairs[i].Item3} {count}");
+                var header = _statsRow.GetChild(i) as RectTransform;
+                if (header == null || header.name != "header") continue;
+                TMP_Text titleText = null, bodyText = null;
+                foreach (var t in header.GetComponentsInChildren<TMP_Text>(true))
+                {
+                    if (t.text == title) { titleText = t; continue; }
+                    if (bodyText == null) bodyText = t;
+                }
+                if (titleText == null) continue; // 非目标 header
+                return bodyText;
             }
-            body.text = string.Join("   ", lines[0]) + "\n" + string.Join("   ", lines[1]);
-        }
-
-        /// <summary>类型比例：生物/法术/结界计数（单行无标题形态——header 显隐切换）。</summary>
-        private void BuildTypeRatio(List<CardData> cards)
-        {
-            int creatures = cards.Count(c => c.Supertype == Cardtype.Creature);
-            int spells = cards.Count(c => c.Supertype == Cardtype.Spell);
-            int enchantments = cards.Count(c => c.Supertype == Cardtype.Enchantment);
-            int other = cards.Count - creatures - spells - enchantments;
-
-            var block = CloneStat(null, 20f, null, true);
-            if (block == null) return;
-            var body = StatBodyLabel(block);
-            if (body != null)
-                body.text = $"类型：生物 {creatures} · 法术 {spells} · 结界 {enchantments}"
-                            + (other > 0 ? $" · 其他 {other}" : "");
+            return null;
         }
 
         // ======================================== 右栏：卡组列表 ========================================

@@ -61,6 +61,10 @@ namespace SynergyUI
             // 变形目标形态解析器：组合根注入（CardCore 不依赖 UI 层）
             CardCore.Attribute.Handlers.SummonTokenHandler.ResolveTemplate = CardCatalog.GetById;
 
+            // 对局种子钉子（2026-11-11 日志复现链）：未显式钉（null）→ 本局新抽并沿用——随机分布
+            // 与旧「不钉用环境流」等价，但本地全路径统一进 GameRng 检查点（日志种子行可展示/可复制）。
+            var seed = rngSeed ?? System.Guid.NewGuid().GetHashCode();
+
             bool myRandom = myDeck == null, aiRandom = aiDeck == null;
             if (myDeck == null) myDeck = RandomDeckFrom(catalog);
             if (aiDeck == null) aiDeck = RandomDeckFrom(catalog);
@@ -73,7 +77,7 @@ namespace SynergyUI
 
             if (scenario != null)
             {
-                GameCore.Instance.InitGame(myDeck, aiDeck, rngSeed: rngSeed, lockDeckOrder: true,
+                GameCore.Instance.InitGame(myDeck, aiDeck, rngSeed: seed, lockDeckOrder: true,
                     skipOpeningDraw: true, deferStart: true,
                     skillCardId1: mySkill, skillCardId2: aiSkill,
                     tokenBindings1: myTokenBindings, tokenBindings2: aiTokenBindings,
@@ -93,7 +97,7 @@ namespace SynergyUI
 
             // 硬币先手（对局准备流程）：穿进 InitGame 的自动 StartGame（Player2 先手=AI 起跳）
             var first = playerFirst == false ? GameCore.Instance.Player2 : null;
-            GameCore.Instance.InitGame(myDeck, aiDeck, rngSeed: rngSeed, lockDeckOrder: lockDeckOrder,
+            GameCore.Instance.InitGame(myDeck, aiDeck, rngSeed: seed, lockDeckOrder: lockDeckOrder,
                 p2LandCapBonus: aiLandCapBonus, p2ExtraOpeningDraws: aiExtraOpeningDraws,
                 skillCardId1: mySkill, skillCardId2: aiSkill, startingPlayer: first,
                 tokenBindings1: myTokenBindings, tokenBindings2: aiTokenBindings,

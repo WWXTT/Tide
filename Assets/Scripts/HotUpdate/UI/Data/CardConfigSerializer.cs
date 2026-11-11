@@ -155,17 +155,22 @@ namespace SynergyUI
 
         /// <summary>CardData → 卡表条目（Cards.json 行形状；2026-11-09 协议 v11 自建内容跨端：
         /// DeckSubmit 载荷/对局记录存储用——与写盘同一映射源，序列化形状与主表逐字段一致）。
-        /// 主表口径（效果 upsert 落玩家 Effects.json——对本地已存在的效果是幂等 no-op）。</summary>
-        public static CardConfigEntry EntryOf(CardData card) => ToEntry(card, CardTable.Main);
+        /// 主表口径（效果 upsert 落玩家 Effects.json——对本地已存在的效果是幂等 no-op）。
+        /// persistEffects=false（2026-11-11 联机握手修复）：**只读序列化**——不 upsert 效果表。
+        /// 载荷构建属读路径，落盘副作用会让「提交前算的摘要」与「服务器校验时算的摘要」分叉
+        ///（写表→mtime 变→TransientNetContent.Install 的强制 Reload 读到新 hash→ContentSig 假拒）。</summary>
+        public static CardConfigEntry EntryOf(CardData card, bool persistEffects = true)
+            => ToEntry(card, CardTable.Main, persistEffects);
 
         // 把 CardData 映射回 JSON 条目。
-        private static CardConfigEntry ToEntry(CardData card, CardTable table = CardTable.Main)
+        private static CardConfigEntry ToEntry(CardData card, CardTable table = CardTable.Main,
+            bool persistEffects = true)
         {
             // 关键词引用化（2026-09-24 定案）：本体关键词=effectIds 直接引用原子 refId（Grant 族反查），
             // keywords 列退役——仅承接反查失败的遗留 id（引擎专用词），装载端合并去重。
             // HashCard 读运行时 Keywords 列表（物化结果）——引用化前后卡 ID 稳定，卡组引用不断链。
             var effectIds = EffectLibrarySerializer.EffectIdsOf(
-                card.Effects, table == CardTable.Tutorial);
+                card.Effects, table == CardTable.Tutorial, persistEffects);
             var unmappedKeywords = new List<string>();
             foreach (var kw in card.Keywords ?? new List<string>())
             {

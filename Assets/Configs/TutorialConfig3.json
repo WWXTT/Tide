@@ -3,7 +3,7 @@
     {
       "id": "lunzhuan",
       "name": "毕业连战·三套预组",
-      "_说明": "第三课·毕业连战（2026-11-02 教学三改版：末日降临 Boss 战整链退役——heroLockCard/引导 7 步/aiScript 幻卡清算/rngSeed 全删）。新语义=预组三连战：主菜单教学按钮入口 LunzhuanGauntlet.Begin()，战前规则弹窗→五段式开场（段二角色就位恢复播放）→段四单轮选我方卡组（玩家档+预组+随机，无倒计时；第 2/3 场与败局再战沿用已选卡组跳过重选）→段五对手=LunzhuanGauntlet.OpponentName（CardDataPaths.PresetDeckNames 原序：红·快攻→蓝·控制→绿·慢速）→AI 正式对手开打（MakePacedAi+AutoMatch 主题策略，不锁牌库、不钉种子、不装被动响应器，走 BattleScreen.EngageLocalBattle lunzhuan 分流——不经 BattleTutorialDirector.StartGame）。三场全胜=MarkTutorialCompleted 过课（三课全胜=教学整体完成，主菜单教学按钮隐藏/联机外露）；败局不清胜场——弹窗「再战当前对手」（保留胜场+沿用卡组重掷币）或「返回主菜单」（进度作废）。胜场记账=LunzhuanGauntlet.ReportWin（终局弹窗链唯一记账口）；TutorialFlow.ReportBattleResult 对本课连战拦截不落档（防第一胜即过课）。本条目仅存 id/name：id 不变保旧档 completed 兼容；无 guide/aiScript/scenario=引导不激活、剧本 AI 不装配。语音资产 TutorialAudio/lunzhuan_01..05.mp3 随引导步退役闲置（文件保留）。"
+      "_说明": "第四课·毕业连战（2026-11-02 改版·2026-11-11 重编号教学三→教学四：末日降临 Boss 战整链退役——heroLockCard/引导 7 步/aiScript 幻卡清算/rngSeed 全删）。新语义=预组三连战：主菜单教学按钮入口 LunzhuanGauntlet.Begin()，战前规则弹窗→五段式开场（段二角色就位恢复播放）→段四单轮选我方卡组（玩家档+预组+随机，无倒计时；第 2/3 场与败局再战沿用已选卡组跳过重选）→段五对手=LunzhuanGauntlet.OpponentName（CardDataPaths.PresetDeckNames 原序：红·快攻→蓝·控制→绿·慢速）→AI 正式对手开打（MakePacedAi+AutoMatch 主题策略，不锁牌库、不钉种子、不装被动响应器，走 BattleScreen.EngageLocalBattle lunzhuan 分流——不经 BattleTutorialDirector.StartGame）。三场全胜=MarkTutorialCompleted 过课（四课全胜=教学整体完成，主菜单教学按钮隐藏/联机外露）；败局不清胜场——弹窗「再战当前对手」（保留胜场+沿用卡组重掷币）或「返回主菜单」（进度作废）。胜场记账=LunzhuanGauntlet.ReportWin（终局弹窗链唯一记账口）；TutorialFlow.ReportBattleResult 对本课连战拦截不落档（防第一胜即过课）。本条目仅存 id/name：id 不变保旧档 completed 兼容；无 guide/aiScript/scenario=引导不激活、剧本 AI 不装配。语音资产 TutorialAudio/lunzhuan_01..05.mp3 随引导步退役闲置（文件保留）。"
     }
   ]
 }

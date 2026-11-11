@@ -233,7 +233,6 @@ namespace CardCore
             AtomicEffectType.EngineCountdown,
             AtomicEffectType.EngineLuckRoll,
             AtomicEffectType.EngineClash,
-            AtomicEffectType.EngineDeathToll,
             AtomicEffectType.EngineManaSurplus,
             AtomicEffectType.EngineCurseOnDraw,
             AtomicEffectType.EngineBlessingOnDraw,

@@ -382,6 +382,19 @@ namespace CardCore
                             bool hasThen = branch.then != null && branch.then.Count > 0;
                             var engFx = !string.IsNullOrEmpty(branch.effectId) ? branch.effectId : atom.str;
                             var engRow = Attribute.AtomicEffectTable.GetByHashId(atom?.refId);
+                            // 2026-11-10 死亡计数改版：挂在效果原子上的 value 增幅标记，
+                            // 不再收奖励 Then/effectId；原子行本身必须有 {value} 描述（否则增幅无意义）。
+                            if (eng == BranchEngineKind.DeathToll)
+                            {
+                                if (hasThen || !string.IsNullOrEmpty(branch.effectId) || !string.IsNullOrEmpty(atom.str))
+                                    TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}：{engZh}分支"
+                                                  + "是效果原子上的 value 增幅标记，不再收 Then/效果引用——装载期拦截");
+                                else if (engRow == null || string.IsNullOrEmpty(engRow.Description)
+                                         || !engRow.Description.Contains("{value}"))
+                                    TideLog.Warn($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}：{engZh}分支"
+                                                 + "挂在无 {value} 的原子行上，增幅无处生效");
+                                continue;
+                            }
                             if (ComposerCatalog.IsAtomOnlyEngine(eng))
                             {
                                 if (!hasThen)

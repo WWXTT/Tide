@@ -13,11 +13,16 @@ namespace SynergyUI
     internal sealed class BattleHudTicker
     {
         private readonly Func<BattleViewData> _view;
+        private readonly Func<string> _timeText; // 可用时间格取值（2026-11-11 v14：联机=服务器权威回合计时；null=本地 ∞）
         private double _accum; // 刷新节流（4Hz）
 
         private BattleViewData View => _view();
 
-        public BattleHudTicker(Func<BattleViewData> view) => _view = view;
+        public BattleHudTicker(Func<BattleViewData> view, Func<string> timeText = null)
+        {
+            _view = view;
+            _timeText = timeText;
+        }
 
         /// <summary>每帧驱动（Updater 转发）：4Hz 到点重写各功能格。</summary>
         public void Tick()
@@ -26,8 +31,8 @@ namespace SynergyUI
             if (_accum < 0.25f) return;
             _accum = 0;
             RefreshChainSpeed(); // 记速器 4Hz 兜底重写（格装台晚于本屏/栈事件间隙同周期覆盖）
-            // 人机对局：时间无限（不建钟不掉秒）——可用时间一格（P11 合一）显示当前操作方，恒 ∞
-            BattleHudRow.SetStatusValue(BattleHudRow.TimeCol, "∞");
+            // 人机本地局：时间无限（不建钟不掉秒）；联机局（v14）=服务器权威回合计时本地掉表
+            BattleHudRow.SetStatusValue(BattleHudRow.TimeCol, _timeText != null ? _timeText() : "∞");
         }
 
         /// <summary>连锁速度格（中线 x3）喂文（2026-10-15 接线）：本地引擎记速器实值——

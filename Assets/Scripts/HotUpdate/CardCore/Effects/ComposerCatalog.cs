@@ -30,7 +30,6 @@ namespace CardCore
                 case AtomicEffectType.EngineCountdown: return BranchEngineKind.Countdown;
                 case AtomicEffectType.EngineLuckRoll: return BranchEngineKind.LuckRoll;
                 case AtomicEffectType.EngineClash: return BranchEngineKind.Clash;
-                case AtomicEffectType.EngineDeathToll: return BranchEngineKind.DeathToll;
                 case AtomicEffectType.EngineManaSurplus: return BranchEngineKind.ManaSurplus;
                 case AtomicEffectType.EngineUnity: return BranchEngineKind.Unity;
                 case AtomicEffectType.EngineCurseOnDraw: return BranchEngineKind.CurseOnDraw;
@@ -48,7 +47,7 @@ namespace CardCore
         /// 附加诅咒/祝福是例外（.IsCursePayloadEngine：原子 + 主动·并列效果引用双通道）。</summary>
         public static bool IsAtomOnlyEngine(BranchEngineKind kind)
             => kind == BranchEngineKind.Countdown || kind == BranchEngineKind.LuckRoll
-               || kind == BranchEngineKind.Clash || kind == BranchEngineKind.DeathToll
+               || kind == BranchEngineKind.Clash
                || kind == BranchEngineKind.ManaSurplus || kind == BranchEngineKind.Unity;
 
         /// <summary>附加诅咒/附加祝福载荷引擎（双通道：原子 Then + 主动·并列效果引用）。</summary>
@@ -60,7 +59,7 @@ namespace CardCore
         /// 条件永远不可达（死档），UI 禁存/装载期点名；其余引擎 -1=无固定上限（拼点差额、
         /// 倒计时回合、运势/团结手填参数）。</summary>
         public static int EngineThresholdCap(BranchEngineKind kind)
-            => kind == BranchEngineKind.ManaSurplus || kind == BranchEngineKind.DeathToll ? 6 : -1;
+            => kind == BranchEngineKind.ManaSurplus ? 6 : -1;
 
         /// <summary>组合内限重复行（2026-10-09 全局唯一定案 → 2026-10-19 放开修订）：仅引擎主干
         /// （位 5，倒计时等引擎状态按卡单台账共槽）与规则光环仪典（位 6，运行时同名一槽）维持
@@ -77,7 +76,7 @@ namespace CardCore
             BranchEngineKind.Countdown => "倒计时",
             BranchEngineKind.LuckRoll => "运势",
             BranchEngineKind.Clash => "拼点",
-            BranchEngineKind.DeathToll => "死亡计数",
+            BranchEngineKind.DeathToll => "死亡计数增幅",
             BranchEngineKind.ManaSurplus => "元素充盈",
             BranchEngineKind.Unity => "团结",
             BranchEngineKind.CurseOnDraw => "附加诅咒",
@@ -116,8 +115,7 @@ namespace CardCore
         public static bool IsDerivedThresholdEngine(BranchEngineKind kind) => kind switch
         {
             BranchEngineKind.Clash => true,
-            BranchEngineKind.DeathToll => true,
-            BranchEngineKind.ManaSurplus => true,
+            BranchEngineKind.ManaSurplus => true, // 2026-11-10：DeathToll 退出派生门槛（改 value 增幅）
             _ => false,
         };
 
@@ -139,7 +137,7 @@ namespace CardCore
         /// 元素充盈——奖励只能挂主动效果（Activate_*；发射口 LaunchReward **直发**——固定三主干触发
         /// 立即生效，主动奖励不入待发队列、忽略 tactivate）。资格闸=EffectEligibility.EngineRewardRejectReason。</summary>
         public static bool IsActiveRewardEngine(BranchEngineKind kind)
-            => kind == BranchEngineKind.Countdown || kind == BranchEngineKind.DeathToll
+            => kind == BranchEngineKind.Countdown
                || kind == BranchEngineKind.ManaSurplus;
 
         /// <summary>自动奖励引擎：运势/拼点/团结——奖励只能挂自动效果（真实触发时机，达标直发）。</summary>
@@ -195,7 +193,6 @@ namespace CardCore
         {
             BranchEngineKind.Countdown => new EngineHeaderPreset(EffectActivationType.Automatic, TriggerTiming.OnStandbyPhase, 0, -1),
             BranchEngineKind.LuckRoll => new EngineHeaderPreset(EffectActivationType.Automatic, TriggerTiming.OnStandbyPhase, 0, -1, freeTiming: true),
-            BranchEngineKind.DeathToll => new EngineHeaderPreset(EffectActivationType.Automatic, TriggerTiming.OnOtherCreatureDeath, 0, -1),
             BranchEngineKind.Clash => new EngineHeaderPreset(EffectActivationType.Automatic, TriggerTiming.OnAttack, 0, -1, freeTiming: true),
             BranchEngineKind.ManaSurplus => new EngineHeaderPreset(EffectActivationType.Automatic, TriggerTiming.OnCardCastSettled, 0, -1),
             BranchEngineKind.Unity => new EngineHeaderPreset(EffectActivationType.Automatic, TriggerTiming.OnCardPlayed, 0, -1, freeTiming: true),

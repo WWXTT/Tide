@@ -684,7 +684,7 @@
         0.0,
         1.0,
         0.0,
-        2.0
+        3.0
       ],
       "tags": [
         "训练池"
@@ -897,7 +897,7 @@
       "costList": [
         0.0,
         0.0,
-        6.0,
+        3.0,
         0.0
       ],
       "tags": [
@@ -915,7 +915,7 @@
       "supertype": "Enchantment",
       "costList": [
         0.0,
-        3.0,
+        2.0,
         0.0,
         0.0
       ],
@@ -948,7 +948,7 @@
       "effectIds": [
         "5F98CD72"
       ],
-      "hash": "1A8E36DD"
+      "hash": "919B4687"
     },
     {
       "id": "C_AF392E7C",
@@ -970,7 +970,7 @@
       "effectIds": [
         "EDC375CA"
       ],
-      "hash": "0664D7EB"
+      "hash": "5AFFFE23"
     },
     {
       "id": "C_B07879C9",
@@ -992,7 +992,7 @@
         0.0,
         1.0
       ],
-      "hash": "5F6DD32B"
+      "hash": "C95AF1EF"
     },
     {
       "id": "C_C2E5E44D",
@@ -1011,7 +1011,7 @@
         "46239714"
       ],
       "durability": 3,
-      "hash": "06C2ABE7"
+      "hash": "EA244D01"
     },
     {
       "id": "C_3CFC2A32",
@@ -1033,7 +1033,7 @@
       "effectIds": [
         "293ECF43"
       ],
-      "hash": "BDD64679"
+      "hash": "DD13C4A5"
     },
     {
       "id": "C_E5EBDFE5",

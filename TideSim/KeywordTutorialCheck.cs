@@ -11,7 +11,7 @@ using SynergyUI;
 namespace TideSim
 {
     /// <summary>
-    /// 教学一·进阶（basics_plus 关键词课，2026-11-09）配置与引擎回归：
+    /// 教学二·关键词课（basics_plus，2026-11-09 建·2026-11-11 升格教学二）配置与引擎回归：
     /// · 结构校验：TutorialConfig4.json 装载（本地 DTO 镜像——不引 UI 侧 TutorialScript/TutorialGuide）、
     ///   38 步 / 10 换场 / 11 段盘面 / completeOnConfirm 收尾、全部引用卡 id 在教学卡表、
     ///   guide 攻击步 attacker/target 落在所属段盘面、aiScript 5 回合的 attacker/target 可解析。
@@ -95,7 +95,7 @@ namespace TideSim
                 return 1;
             }
 
-            Console.WriteLine("【关键词课回归】教学一·进阶：结构校验 + 11 段引擎断言（basics_plus）");
+            Console.WriteLine("【关键词课回归】教学二：结构校验 + 11 段引擎断言（basics_plus）");
             ValidateStructure(course);
 
             var segments = BuildSegments(course);

@@ -14,7 +14,7 @@ namespace SynergyUI
     /// 战场五段式开局编排器（2026-10-19 掷币演出挪战场定案）：
     /// 1 地块就位（等 BattleBoardAssemble 浮起落位）→ 2 角色就位（立柱自板下升起）→
     /// 3 硬币先后手（镜头推近板心+BattleCoinToss）→
-    /// 4 战场选卡组（BattleDeckPickStage·双选两轮/教学三连战单轮·后续场沿用已选）→ 5 交班段五：
+    /// 4 战场选卡组（BattleDeckPickStage·双选两轮/教学四连战单轮·后续场沿用已选）→ 5 交班段五：
     /// 组装卡组喂 BattleScreen.EngageLocalBattle（StartNewGame/教学装配/AI 先手 kickoff 全在段五）。
     ///
     /// 演出期任意点击=当前段快进（skip 旗标，段四选卡组除外——须真实输入）；相机推拉自持
@@ -27,7 +27,7 @@ namespace SynergyUI
     {
         private readonly Func<bool> _running;
         private readonly BattleFieldView _field;
-        private readonly bool _lunzhuan;      // 教学三毕业连战（2026-11-02 改版）：段四单轮选我方（后续场沿用）、段五对手=预组序列
+        private readonly bool _lunzhuan;      // 教学四毕业连战（2026-11-02 改版·2026-11-11 重编号）：段四单轮选我方（后续场沿用）、段五对手=预组序列
         private readonly bool _dummy;          // 木桩测试局（2026-10-23）：段四改掷币后弹 UI 选卡窗
         private readonly Action<List<CardData>, string, List<CardData>, string, bool?,
             List<DeckTokenBinding>, List<DeckTokenBinding>> _engage;
@@ -46,7 +46,6 @@ namespace SynergyUI
         private readonly bool _netCoinAnimation;     // true=掷币模式（演出）；false=固定先后手（快进）
         private readonly Action<string, string[], string, string[], List<DeckTokenBinding>> _netEngage;
         private readonly bool _netDeckSubmitted; // S7a：LobbyScreen 已提前提交 DeckSubmit——段四整段跳过
-        private readonly int[] _netMyCostHistogram; // S7b：我方卡组费用分布（StartNetFan 快照传入）
 
         private BattleDeckPickStage _pickStage;
         private bool _deckPicking;        // 段四输入期（点击归卡堆，不作跳过）
@@ -55,11 +54,6 @@ namespace SynergyUI
 
         /// <summary>网络段四面板（BattleScreen.NetOnRoomState 转发倒计时/manifest 强制收口用）。</summary>
         internal NetworkDeckPanel NetDeckPanel { get; private set; }
-
-        // S7b 掷币段费用对比面板（仅 network+已提前提交路径）：两套 9 柱（我/对手）——对手列
-        // manifest 到达前显示加载中（RefreshNetCostHistogram 由 BattleScreen.NetOnManifest 驱动）
-        private RectTransform _netCostPanel;
-        private RectTransform _oppCostColumn; // 对手列容器（刷新时重建柱组）
 
         /// <summary>开场在途（BattleScreen.PollFieldPointer 顶部闸——开场期点击不进游戏分支）。</summary>
         public bool Active { get; private set; }
@@ -71,7 +65,7 @@ namespace SynergyUI
             RectTransform overlayParent = null, Action onCancelled = null,
             bool network = false, bool netPlayerFirst = false, bool netCoinAnimation = true,
             Action<string, string[], string, string[], List<DeckTokenBinding>> netEngage = null,
-            bool netDeckSubmitted = false, int[] netMyCostHistogram = null)
+            bool netDeckSubmitted = false)
         {
             _running = running;
             _field = field;
@@ -86,7 +80,6 @@ namespace SynergyUI
             _netCoinAnimation = netCoinAnimation;
             _netEngage = netEngage;
             _netDeckSubmitted = netDeckSubmitted;
-            _netMyCostHistogram = netMyCostHistogram;
         }
 
         private bool Dead => _disposed || _field == null || !_running();
@@ -113,12 +106,10 @@ namespace SynergyUI
                 {
                     // 联机（2026-10-28）：先手=服务器权威（选卡组相位进入时已定）。掷币模式照常演出
                     //（结果注入）；固定先后手=快进演出直出结果浮字。
-                    // S7b（2026-11-10）：掷币段并排展示双方卡组费用分布（我方=提前提交的卡组、
-                    // 对手=manifest.OpponentCostHistogram——未到显示加载中，NetOnManifest 刷新）。
-                    if (_netDeckSubmitted) BuildNetCostPanel();
+                    // S7b 摘要窗（2026-11-10 改版）：双方卡组分布不再掷币段独立展示——常驻摘要窗
+                    //（btn-abstract 点开 self/opp-deck-row）归 BattleScreen.Net。
                     playerFirst = await CoinStageForcedAsync(_netPlayerFirst, _netCoinAnimation);
                     Debug.Log("[BattleOpening] 段三（网络）先后手落定 playerFirst=" + playerFirst + "（服务器权威）");
-                    CloseNetCostPanel(); // 硬币结果一出随掷币段收口
                 }
                 else if (_fixedPlayerFirst.HasValue)
                 {
@@ -151,11 +142,9 @@ namespace SynergyUI
                 if (Dead) return;
 
                 // ---- 段五交班：组装卡组（旧 PreMatchScreen.OnStart 门槛口径平移）→ Engage ----
-                // 教学三毕业连战（2026-11-02 改版）：对手=连战当前场预组（LunzhuanGauntlet.OpponentName
-                // 按胜场索引：红·快攻→蓝·控制→绿·慢速），不再镜像我方。
-                // 隐藏镜像局（2026-11-02）：对手=我方卡组（OpponentDeckName 镜像取用——同卡组
-                // 同序镜像对决，EngageLocalBattle 按 Mirror 锁牌库序）。
-                var aiDeckName = _lunzhuan ? LunzhuanGauntlet.OpponentDeckName : aiName;
+                // 教学四毕业连战（2026-11-02 改版·2026-11-11 重编号）：对手=连战当前场预组
+                //（LunzhuanGauntlet.OpponentName 按胜场索引：红·快攻→蓝·控制→绿·慢速）。
+                var aiDeckName = _lunzhuan ? LunzhuanGauntlet.OpponentName : aiName;
                 var myDeck = BuildDeckOf(myName, "我方");
                 var aiDeck = BuildDeckOf(aiDeckName, "对方");
                 var mySkill = myDeck != null ? SkillOf(myName) : null;
@@ -166,8 +155,7 @@ namespace SynergyUI
                 Debug.Log($"[BattleOpening] 段五 交班开战：我方={myName ?? "随机"}({myDeck?.Count ?? 0}张) "
                     + $"对方={aiDeckName ?? "随机"}({aiDeck?.Count ?? 0}张) playerFirst={playerFirst}"
                     + (_lunzhuan
-                        ? (LunzhuanGauntlet.Mirror ? "（隐藏镜像局·锁牌库序=相同牌序）"
-                            : $"（连战第 {LunzhuanGauntlet.Wins + 1} 场·已胜 {LunzhuanGauntlet.Wins}）")
+                        ? $"（连战第 {LunzhuanGauntlet.Wins + 1} 场·已胜 {LunzhuanGauntlet.Wins}）"
                         : ""));
                 _engage(myDeck, mySkill, aiDeck, aiSkill, playerFirst, myTokens, aiTokens);
             }
@@ -289,72 +277,7 @@ namespace SynergyUI
             _netEngage?.Invoke(pick.DeckName, cardIds, skill, tokenIds, tokenBindings);
         }
 
-        // ======================================== S7b：掷币段费用对比面板 ========================================
-
-        /// <summary>建费用对比面板（掷币段起、硬币落定收口）：并排「我方分布 / 对手分布」两套 9 柱。
-        /// 挂 overlay 顶部居中；对手列初始=加载中（manifest 到达经 RefreshNetCostHistogram 刷新）。</summary>
-        private void BuildNetCostPanel()
-        {
-            CloseNetCostPanel();
-            if (_overlayParent == null || _netMyCostHistogram == null) return;
-            _netCostPanel = UiKit.Panel("net-cost-panel", _overlayParent, pad: 10f, spacing: 6f);
-            _netCostPanel.anchorMin = _netCostPanel.anchorMax = new Vector2(0.5f, 1f);
-            _netCostPanel.pivot = new Vector2(0.5f, 1f);
-            _netCostPanel.anchoredPosition = new Vector2(0f, -24f);
-            UiKit.Size(_netCostPanel, w: 620f);
-            var cols = UiKit.Row("row-cols", _netCostPanel, spacing: 16f);
-            UiKit.Size(cols, fw: 1f);
-            var mine = UiKit.Column("col-mine", cols, spacing: 2f);
-            UiKit.Size(mine, fw: 1f);
-            UiKit.Label("lbl-mine", mine, "我方分布", 13, UiStyle.TextSecondary,
-                TextAnchor.MiddleCenter, FontStyle.Bold);
-            BuildHistogramInto(mine, _netMyCostHistogram);
-            _oppCostColumn = UiKit.Column("col-opp", cols, spacing: 2f);
-            UiKit.Size(_oppCostColumn, fw: 1f);
-            UiKit.Label("lbl-opp-title", _oppCostColumn, "对手分布", 13, UiStyle.TextSecondary,
-                TextAnchor.MiddleCenter, FontStyle.Bold);
-            UiKit.Label("lbl-opp-loading", _oppCostColumn, "对手分布加载中…", 13, UiStyle.TextFaint,
-                TextAnchor.MiddleCenter);
-        }
-
-        /// <summary>对手直方图刷新（BattleScreen.NetOnManifest 驱动）：清对手列重画（标题保留）。</summary>
-        internal void RefreshNetCostHistogram(int[] histogram)
-        {
-            var col = _oppCostColumn;
-            if (col == null) return; // 掷币段已收口/未建——迟到 manifest 无害丢弃
-            for (int i = col.childCount - 1; i >= 0; i--)
-                UnityEngine.Object.Destroy(col.GetChild(i).gameObject);
-            BuildHistogramInto(col, histogram);
-        }
-
-        /// <summary>9 柱费用图（复用联机屏卡组池柱图视觉：8px 柱宽、最高 40px、下标 1..8/9+）。</summary>
-        private static void BuildHistogramInto(RectTransform parent, int[] histogram)
-        {
-            var buckets = new int[9];
-            if (histogram != null)
-                for (int i = 0; i < 9 && i < histogram.Length; i++) buckets[i] = histogram[i];
-            int max = Math.Max(1, buckets.Max());
-            var chart = UiKit.Row("row-hist", parent, spacing: 2f);
-            for (int c = 1; c <= 9; c++)
-            {
-                var col = UiKit.Column("col-" + c, chart, spacing: 1f, align: TextAnchor.UpperCenter);
-                var bar = UiKit.Row("bar-" + c, col, spacing: 0f);
-                UiKit.BgRow(bar, UiStyle.BarFill);
-                UiKit.Size(bar, w: 8f, h: buckets[c - 1] * 40f / max);
-                UiKit.Label("lbl-col-" + c, col, c == 9 ? "9+" : c.ToString(), 10,
-                    UiStyle.TextFaint, TextAnchor.MiddleCenter);
-            }
-        }
-
-        /// <summary>收口费用面板（硬币结果一出/离开掷币段；幂等）。</summary>
-        private void CloseNetCostPanel()
-        {
-            if (_netCostPanel != null) UnityEngine.Object.Destroy(_netCostPanel.gameObject);
-            _netCostPanel = null;
-            _oppCostColumn = null;
-        }
-
-        /// <summary>段四：候选卡组建堆 → 双选两轮/教学三连战单轮；返回卡组名（null=随机）。
+        /// <summary>段四：候选卡组建堆 → 双选两轮/教学四连战单轮；返回卡组名（null=随机）。
         /// 连战后续场次（2026-11-02 改版）：LunzhuanGauntlet.Picked=沿用已选卡组跳过重选
         ///（MyDeckName=null=首轮选了随机，同样沿用）。
         /// 木桩局（2026-10-23 用户改案）不走 3D 卡堆——掷币后弹 DummyDeckPanel（双方卡组下拉选
@@ -363,10 +286,8 @@ namespace SynergyUI
         {
             if (_lunzhuan && LunzhuanGauntlet.Picked)
             {
-                Debug.Log(LunzhuanGauntlet.Mirror
-                    ? $"[BattleOpening] 段四（隐藏镜像局）沿用卡组 {LunzhuanGauntlet.MyDeckName}——对手=同卡组镜像"
-                    : $"[BattleOpening] 段四（连战第 {LunzhuanGauntlet.Wins + 1} 场）沿用卡组 "
-                      + $"{LunzhuanGauntlet.MyDeckName ?? "随机"}——对手={LunzhuanGauntlet.OpponentName}");
+                Debug.Log($"[BattleOpening] 段四（连战第 {LunzhuanGauntlet.Wins + 1} 场）沿用卡组 "
+                    + $"{LunzhuanGauntlet.MyDeckName ?? "随机"}——对手={LunzhuanGauntlet.OpponentName}");
                 return (LunzhuanGauntlet.MyDeckName, null); // 对手名段五按预组序列自取（不消费本返回值）
             }
             if (_dummy)
@@ -513,11 +434,14 @@ namespace SynergyUI
             public readonly bool? PlayerFirst;
             public readonly bool Shuffle;
             public readonly bool FullPool;
-            public Options(bool? playerFirst, bool shuffle, bool fullPool)
+            /// <summary>随机种子钉子（2026-11-11 日志复现链）：0=每局新抽；钉值=复现局。</summary>
+            public readonly int Seed;
+            public Options(bool? playerFirst, bool shuffle, bool fullPool, int seed)
             {
                 PlayerFirst = playerFirst;
                 Shuffle = shuffle;
                 FullPool = fullPool;
+                Seed = seed;
             }
         }
 
@@ -585,7 +509,8 @@ namespace SynergyUI
                 {
                     Debug.Log("[UI点击] btn-start");
                     _result = new Options(
-                        _idx[0] == 0 ? (bool?)null : _idx[0] == 1, _idx[1] == 0, _idx[2] == 1);
+                        _idx[0] == 0 ? (bool?)null : _idx[0] == 1, _idx[1] == 0, _idx[2] == 1,
+                        SeedFieldValue()); // 随机种子钉子（input-seed；空/非法=0=每局新抽）
                 });
             }
             var back = ButtonOf("btn-back");
@@ -595,6 +520,18 @@ namespace SynergyUI
                 back.onClick.AddListener(() => { Debug.Log("[UI点击] btn-back"); _cancelled = true; });
             }
             Refresh();
+        }
+
+        /// <summary>随机种子输入读取（2026-11-11）：input-seed 烘焙整数输入（未烘焙=恒 0=每局新抽）；
+        /// 空/非法（负数/非整数）按 0 收口，不阻塞确认。</summary>
+        private int SeedFieldValue()
+        {
+            var node = _root != null ? UiKit.FindDeep(_root, "input-seed") : null;
+            var field = node != null ? node.GetComponent<TMPro.TMP_InputField>() : null;
+            if (field == null) return 0;
+            var t = (field.text ?? "").Trim();
+            if (t.Length == 0) return 0;
+            return int.TryParse(t, out int v) && v > 0 ? v : 0;
         }
 
         /// <summary>循环选钮接线（点击换档+刷新文案；重入先清旧监听）。</summary>

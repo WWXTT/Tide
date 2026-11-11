@@ -96,6 +96,8 @@ namespace SynergyUI
         private string[] _netSubmittedDeckIds;      // 网络五段式段五提交的卡组（manifest 对账用，2026-10-28）
         private string[] _netSubmittedTokenIds;     // P9b 提交的衍生物区（摘要对账用；随机预组=null）
         private List<DeckTokenBinding> _netSubmittedTokenBindings; // P9b 提交的槽绑定（摘要对账用）
+        private int _netTurnSecondsLeft = -1;       // v14 回合计时：快照携带的剩余秒数（<0=无计时）
+        private float _netTurnClockAt;              // v14 回合计时：该快照收到时刻（realtimeSinceStartup）
         private bool NetActive => _netClient != null && !_netClient.Disconnected;
 
         /// <summary>排队全量刷扇（转发投影器置脏——冲刷在 Updater 帧首执行）。</summary>
@@ -164,7 +166,7 @@ namespace SynergyUI
             // 依赖全走 Func 惰性取（_log/_choreo 等在其构建期可能尚未就绪）
             _director = new BattleResolutionDirector(() => Core, () => _projector, () => _log, () => _field,
                 () => _chainStage, () => _choreo, RefreshFans);
-            _hudTicker = new BattleHudTicker(() => _view);
+            _hudTicker = new BattleHudTicker(() => _view, NetTurnClockText);
             _tutorial = new BattleTutorialDirector(() => Root, () => Core, () => _ctrl, () => _field, _toast,
                 ShowTipPromptAsync, () => Manager.Back(), RefreshField, RefreshFans, OnEndTurnFan,
                 () => _gameEnded, v => _gameEnded = v,
@@ -225,6 +227,7 @@ namespace SynergyUI
             // 2026-10-18 拆分：订阅白名单/行渲染/开关动画收进 BattleLogController，本屏只 Bind+转发）
             if (_log == null) _log = new BattleLogController(p => p == P1); // 跨 Mount 存留（_logArmed 跨局口径与旧字段一致）
             _log.Bind(FindScroll("log-list"), FindOptional("log-list"));
+            _log.BindSeed(FindOptional("log-list")); // 种子行（lbl-seed/btn-copy-seed——2026-11-11 日志复现链）
             BindBattleButton("btn-log", "对局日志", _log.Toggle);
 
             // 不入连锁（2026-10-15）：守卫响应窗口让过口——2026-10-17 短暂挪入 Region 后挪回根级

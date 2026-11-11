@@ -69,11 +69,13 @@ namespace SynergyUI
         // ---- 中栏（S6a）：页签 + 普通（建房+房间列表）/排位 ----
         private UnityEngine.UI.Button _tabNormalBtn, _tabRankedBtn, _createRoomBtn, _refreshBtn, _rankedStartBtn;
         private TMP_InputField _roomNameInput, _roomPwdInput;
+        private TMP_InputField _seedInput; // v13 房主钉随机种子（input-seed；空/0=随机——开局服务器定死回显）
         private TMP_Text _rankedDeckLabel, _rankedRateLabel, _rankedStateLabel;
 
         // ---- 右栏（S6c 对战历史）----
         private UnityEngine.UI.Button _copyDeckBtn, _replayBtn;
         private RectTransform _historyList; // list-history content（历史动态行挂它）
+        private TMP_Text _historyEmptyLabel; // panel-history 烘焙空态位（无记录时显示——同 lbl-deck-empty 模式）
         private EncounterRecord _selectedRecord; // 选中行（btn-copy-deck 的判定源）
         private readonly List<EncounterRecord> _historyRecords = new List<EncounterRecord>(); // 行序对齐（选中底色按引用对账）
         private readonly List<UnityEngine.UI.Image> _historyRowBgs = new List<UnityEngine.UI.Image>();
@@ -146,6 +148,10 @@ namespace SynergyUI
             _tabRankedBtn = BindButton("btn-tab-ranked", () => ShowCenterTab(ranked: true));
             _roomNameInput = FindInput("input-room-name"); // S6b 接建房（房名+密码）；本轮先绑
             _roomPwdInput = FindInput("input-room-pwd");
+            // v13 房主钉种子（2026-11-11）：房间页 input-seed（可选烘焙——未烘焙=无钉种子能力，静默）；
+            // 结束编辑即上报（模式钮共用 SendRoomSettings 会带上当前输入值）
+            _seedInput = FindOptional("input-seed")?.GetComponent<TMP_InputField>();
+            if (_seedInput != null) _seedInput.onEndEdit.AddListener(_ => SendRoomSettings());
             _createRoomBtn = BindButton("btn-create-room", StartHostRoom); // 空态置灰由 RefreshDeckPool 管
             _refreshBtn = BindButton("btn-refresh", RefreshRooms); // S6b：双源刷新（登录=TapTap / 未登录=局域网重扫）
             _scanLabel = FindText("lbl-rooms-count"); // 扫描/计数状态行（S6a=局域网扫描；S6b 双源）
@@ -186,10 +192,19 @@ namespace SynergyUI
             _addAiNode = Find("btn-add-ai");
             _quitBtn = BindButton("btn-room-quit", QuitRoom);
 
+            // ---- 返回主界面（2026-11-10 真机补钮）：房间页=退房（QuitRoom 按房主/客人语义分口），
+            //      列表/排位页=退屏 ----
+            BindButton("btn-lobby-back", () =>
+            {
+                if (_panelRoom != null && _panelRoom.gameObject.activeSelf) QuitRoom();
+                else Manager.Back();
+            });
+
             // ---- 右栏：对战历史（S6c：EncounterStore 列表+选中+复制对手卡组；重播恒灰）----
             Find("panel-history"); // 存在性诊断
             var historyScroll = FindScroll("list-history");
             _historyList = historyScroll != null ? historyScroll.Content : null;
+            _historyEmptyLabel = FindOptional("lbl-history-empty")?.GetComponent<TMP_Text>(); // 可选：烘焙空态位
             _copyDeckBtn = BindButton("btn-copy-deck", ImportSelectedRecord); // 选中+有卡组数据才可点（UpdateCopyDeckButton 管）
             _replayBtn = BindButton("btn-replay", null); // 重播不做（SPEC 定案）——恒灰
             if (_replayBtn != null) _replayBtn.interactable = false;
@@ -212,6 +227,7 @@ namespace SynergyUI
             _handedOver = false;
             _modeFirst = 0;
             _modeShuffle = 0;
+            NormalizeCenterPanelWidths();
             ShowPanel(_panelNormal);
             SetStatus("选择左侧卡组后创建或加入房间");
             RankedMatchmaking.StateChanged -= OnRankedStateChanged; // 防重（屏实例缓存复用）
@@ -443,6 +459,7 @@ namespace SynergyUI
             SelectedDeck = _decks.FirstOrDefault(d => d.name == _lastSelectedDeckName);
             RefreshSelectedFingerprint(); // S8：指纹随选中刷新（排位页胜率/JoinOptions/信标共用）
             RebuildDeckRows();
+            if (_deckEmptyLabel != null) _deckEmptyLabel.gameObject.SetActive(_decks.Count == 0); // 烘焙空态位切显隐
             RefreshNormalGate();
             UpdateRankedDeckLabel();
         }
@@ -488,8 +505,54 @@ namespace SynergyUI
             RefreshRankedStateLabel();
         }
 
-        /// <summary>重建卡组行（动态行挂 list-decks 的 content；行=圆角底+名字+费用分布 9 柱，
-        /// 整行可点选中——底色 RowBg / 选中 SelectedRowBg）。</summary>
+        // ---- 动态行=共用行预制体实例化（2026-11-10 定案：界面元素烘焙进预制体由用户在编辑器
+        //      排版可改，代码只绑定填数——禁止代码拼装临时 UI；锚点/行高/底色/按钮全由预制体
+        //      携带，此处只做顶锚拉伸的布局保险）----
+
+        /// <summary>实例化行预制体到 content（deck-row/room-row/history-row 共用模式，同
+        /// CostChartView.Create 口）。行高=预制体根尺寸（顶锚拉伸锚定——content VLG
+        /// childControlHeight=false 靠 rect 高排位）；缺预制体 LogError 暴露断线，不代码兜底。</summary>
+        private static RectTransform InstantiateRow(string prefabName, RectTransform content,
+            string instanceName)
+        {
+            var go = HotUpdateAssets.Load<GameObject>(prefabName, UiKit.PrefabPath(prefabName));
+            if (go == null)
+            {
+                Debug.LogError($"[Lobby] 行预制体缺失：{UiKit.PrefabPath(prefabName)}——动态行不会出现");
+                return null;
+            }
+            var inst = UnityEngine.Object.Instantiate(go, content, false);
+            inst.name = instanceName;
+            var rt = (RectTransform)inst.transform;
+            float height = rt.rect.height; // 预制体行高（锚定方式无关——取实例当前高再改锚）
+            rt.anchorMin = new Vector2(0f, 1f);
+            rt.anchorMax = new Vector2(1f, 1f);
+            rt.pivot = new Vector2(0.5f, 1f);
+            rt.sizeDelta = new Vector2(0f, height);
+            return rt;
+        }
+
+        /// <summary>行内按名找 TMP 写文本（可选换色——胜负态等）。</summary>
+        private static void SetRowText(RectTransform row, string node, string text, Color? color = null)
+        {
+            var t = UiKit.FindDeep(row, node)?.GetComponent<TMP_Text>();
+            if (t == null) return;
+            t.text = text ?? "";
+            if (color.HasValue) t.color = color.Value;
+        }
+
+        /// <summary>整行点击接线（Button 由预制体烘焙；缺件补挂——组件非视觉元素，不属拼装）。</summary>
+        private static void WireRowClick(RectTransform row, Action onClick)
+        {
+            var btn = row.GetComponent<UnityEngine.UI.Button>();
+            if (btn == null) btn = row.gameObject.AddComponent<UnityEngine.UI.Button>();
+            btn.onClick.RemoveAllListeners();
+            btn.onClick.AddListener(() => onClick());
+        }
+
+        /// <summary>重建卡组行（deck-row 预制体实例挂 list-decks content；结构=用户手作：根=行底
+        /// Image（选中换色），子=deckname / body 4 柱 stat-bar / header 颜色分布）——数据绑定走
+        /// CostChartView.BindDeckRow 单源（战局摘要 self/opp 行共用），此处只管实例化/选中色/点击。</summary>
         private void RebuildDeckRows()
         {
             _deckRowBgs.Clear();
@@ -499,52 +562,15 @@ namespace SynergyUI
             for (int i = 0; i < _decks.Count; i++)
             {
                 var deck = _decks[i];
-                var row = UiKit.Row("deck-" + i, _deckList, spacing: 10f);
-                UiKit.Size(row, fw: 1f, h: 72f);
-                var bg = UiKit.BgRow(row, deck == SelectedDeck ? UiStyle.SelectedRowBg : UiStyle.RowBg);
-                bg.raycastTarget = true; // BgRow 默认不挡点击——整行点击须开 raycast
+                var row = InstantiateRow("deck-row", _deckList, "deck-" + i);
+                if (row == null) return;
+                var bg = row.GetComponent<UnityEngine.UI.Image>(); // 行底烘焙在根——选中态换色
                 _deckRowBgs.Add(bg);
-                var nameLbl = UiKit.Label("lbl-deck-name", row, deck.name, 16, UiStyle.TextPrimary);
-                UiKit.Size(nameLbl.rectTransform, fw: 1f); // 名字弹性占宽，费用图靠右
-                BuildCostChart(row, deck);
+                if (bg != null) bg.color = deck == SelectedDeck ? UiStyle.SelectedRowBg : UiStyle.RowBg;
+                CostChartView.BindDeckRow(row, deck.name, deck.cardIds);
                 var captured = deck;
-                var click = row.gameObject.AddComponent<UnityEngine.UI.Button>();
-                click.targetGraphic = bg;
-                click.onClick.AddListener(() => SelectDeck(captured));
+                WireRowClick(row, () => SelectDeck(captured));
             }
-        }
-
-        /// <summary>9 柱费用分布图（S6a ④）：TotalCost 取整入桶 1..9（>9 归 9、<1 归 1）；
-        /// 柱高=张数/最大值×40，柱下标 1..8、9+。</summary>
-        private static void BuildCostChart(RectTransform row, DeckData deck)
-        {
-            var chart = UiKit.Row("row-cost", row, spacing: 2f);
-            var buckets = CostBucketsOf(deck);
-            int max = Math.Max(1, buckets.Max());
-            for (int c = 1; c <= 9; c++)
-            {
-                var col = UiKit.Column("col-" + c, chart, spacing: 1f, align: TextAnchor.UpperCenter);
-                var bar = UiKit.Row("bar-" + c, col, spacing: 0f);
-                UiKit.BgRow(bar, UiStyle.BarFill); // 统计柱定案色（deck-ui-plan §2）
-                UiKit.Size(bar, w: 8f, h: buckets[c - 1] * 40f / max);
-                UiKit.Label("lbl-col-" + c, col, c == 9 ? "9+" : c.ToString(), 10,
-                    UiStyle.TextFaint, TextAnchor.MiddleCenter);
-            }
-        }
-
-        /// <summary>费用桶（S6a ④）：deck.cardIds 逐张 GetById 取 TotalCost 取整——桶 1..9。</summary>
-        private static int[] CostBucketsOf(DeckData deck)
-        {
-            var buckets = new int[9];
-            if (deck?.cardIds == null) return buckets;
-            foreach (var id in deck.cardIds)
-            {
-                var card = CardCatalog.GetById(id);
-                if (card == null) continue;
-                int c = Math.Max(1, Math.Min(9, (int)Math.Round(card.TotalCost, MidpointRounding.AwayFromZero)));
-                buckets[c - 1]++;
-            }
-            return buckets;
         }
 
         /// <summary>选中卡组（S6a ④）：行底色即时刷新+排位页出战卡组联动+静态记住（重进屏保持）。</summary>
@@ -586,39 +612,31 @@ namespace SynergyUI
             if (_historyList == null) return;
             for (int i = _historyList.childCount - 1; i >= 0; i--)
                 UnityEngine.Object.Destroy(_historyList.GetChild(i).gameObject);
-            if (records.Count == 0)
-            {
-                UiKit.Label("lbl-history-empty", _historyList, "暂无对战记录——联机对局结束后自动入账",
-                    14, UiStyle.TextFaint, wrap: true);
-                return;
-            }
+            if (_historyEmptyLabel != null)
+                _historyEmptyLabel.gameObject.SetActive(records.Count == 0); // 烘焙空态位（未烘焙=静默无提示）
+            if (records.Count == 0) return;
             for (int i = 0; i < records.Count; i++)
                 BuildHistoryRow(records[i], i);
         }
 
-        /// <summary>历史行（S6c）：圆角底 64 高，主列=胜负·对手名（胜 ToastGreen/负 ErrorRed）+
-        /// 双方卡组「A」 vs 「B」，右侧时间 MM-dd HH:mm；整行可点选中。</summary>
+        /// <summary>历史行（S6c；history-row 预制体实例）：节点契约=根：行底 Image+Button，子：
+        /// lbl-result（胜负·对手名，胜 ToastGreen/负 ErrorRed）/ lbl-decks（双方卡组「A」 vs 「B」）/
+        /// lbl-time（MM-dd HH:mm）；整行可点选中。</summary>
         private void BuildHistoryRow(EncounterRecord record, int index)
         {
-            var row = UiKit.Row("history-" + index, _historyList, spacing: 8f);
-            UiKit.Size(row, fw: 1f, h: 64f);
-            var bg = UiKit.BgRow(row, UiStyle.RowBg);
-            bg.raycastTarget = true; // 整行点击
+            var row = InstantiateRow("history-row", _historyList, "history-" + index);
+            if (row == null) return;
             _historyRecords.Add(record);
-            _historyRowBgs.Add(bg);
-            var main = UiKit.Column("col-main", row, spacing: 2f);
-            UiKit.Size(main, fw: 1f); // 主列弹性占宽，时间靠右
-            UiKit.Label("lbl-result", main,
-                $"{(record.win ? "胜" : "负")} · {record.opponentName}", 16,
-                record.win ? UiStyle.ToastGreen : UiStyle.ErrorRed, style: FontStyle.Bold);
-            UiKit.Label("lbl-decks", main,
-                $"「{record.ownDeckName}」 vs 「{record.opponentDeckName}」", 16, UiStyle.TextDim, wrap: true);
+            _historyRowBgs.Add(row.GetComponent<UnityEngine.UI.Image>()); // 行底烘焙在根——选中换色
+            SetRowText(row, "lbl-result",
+                $"{(record.win ? "胜" : "负")} · {record.opponentName}",
+                record.win ? UiStyle.ToastGreen : UiStyle.ErrorRed);
+            SetRowText(row, "lbl-decks",
+                $"「{record.ownDeckName}」 vs 「{record.opponentDeckName}」");
             var time = DateTimeOffset.FromUnixTimeSeconds(record.finishedAtUnix).LocalDateTime;
-            UiKit.Label("lbl-time", row, time.ToString("MM-dd HH:mm"), 16, UiStyle.TextFaint);
+            SetRowText(row, "lbl-time", time.ToString("MM-dd HH:mm"));
             var captured = record;
-            var click = row.gameObject.AddComponent<UnityEngine.UI.Button>();
-            click.targetGraphic = bg;
-            click.onClick.AddListener(() => SelectRecord(captured));
+            WireRowClick(row, () => SelectRecord(captured));
         }
 
         /// <summary>选中历史行（S6c）：底色 SelectedRowBg + 记 _selectedRecord + 复制按钮解禁。</summary>
@@ -766,10 +784,20 @@ namespace SynergyUI
                 var display = !string.IsNullOrEmpty(entry.RoomName)
                     ? entry.RoomName
                     : $"{entry.HostNick} 的房间";
-                UiKit.Button("room-" + i, _roomList, $"{display}（{entry.Seats}）" + (entry.HasPassword ? "·有密码" : ""),
-                    () => ConnectToRoom(entry.Host, entry.TcpPort, entry.HostNick), UiStyle.BtnPrimary,
-                    height: 44f, fontSize: 16); // S3：基准按钮规格
+                BuildRoomRow("room-" + i,
+                    $"{display}（{entry.Seats}）" + (entry.HasPassword ? "·有密码" : ""),
+                    () => ConnectToRoom(entry.Host, entry.TcpPort, entry.HostNick));
             }
+        }
+
+        /// <summary>房间列表行（双源共用：LAN room-{i} / TapTap tap-room-{i}；room-row 预制体实例）：
+        /// 节点契约=根：底图+Button，子：lbl-room（整行文案「房名（人数）·有密码」——版式预制体定）。</summary>
+        private void BuildRoomRow(string name, string text, Action onClick)
+        {
+            var row = InstantiateRow("room-row", _roomList, name);
+            if (row == null) return;
+            SetRowText(row, "lbl-room", text);
+            WireRowClick(row, onClick);
         }
 
         /// <summary>清空房间列表动态行（双源共用同一 content）。</summary>
@@ -831,10 +859,9 @@ namespace SynergyUI
             foreach (var entry in rooms)
             {
                 if (entry.Ranked) continue; // S8：排位房只做匹配候选，不列常规列表
-                UiKit.Button("tap-room-" + row, _roomList,
+                BuildRoomRow("tap-room-" + row,
                     $"{entry.Name}（{entry.PlayerCount}/{entry.MaxPlayerCount}）" + (entry.HasPassword ? "·有密码" : ""),
-                    () => JoinTapEntryAsync(entry).Forget(),
-                    height: 44f, fontSize: 16);
+                    () => JoinTapEntryAsync(entry).Forget());
                 row++;
             }
         }
@@ -1000,6 +1027,7 @@ namespace SynergyUI
 
             if (_modeFirstBtn != null) _modeFirstBtn.gameObject.SetActive(_isHost);
             if (_modeShuffleBtn != null) _modeShuffleBtn.gameObject.SetActive(_isHost);
+            if (_seedInput != null) _seedInput.gameObject.SetActive(_isHost); // v13：钉种子=房主专属
             if (_startBtn != null)
             {
                 _startBtn.gameObject.SetActive(_isHost);
@@ -1072,6 +1100,24 @@ namespace SynergyUI
             SendRoomSettings();
         }
 
+        /// <summary>钉种子输入读取（v13）：空/0=随机；非法（负数/非整数）提示并清回空。</summary>
+        private int RoomSeedInput
+        {
+            get
+            {
+                if (_seedInput == null) return 0;
+                var t = _seedInput.text.Trim();
+                if (t.Length == 0) return 0;
+                if (!int.TryParse(t, out int v) || v < 0)
+                {
+                    SetError("随机种子须为非负整数（留空=每局随机）");
+                    _seedInput.SetTextWithoutNotify("");
+                    return 0;
+                }
+                return v;
+            }
+        }
+
         private void SendRoomSettings()
         {
             if (_client == null) return;
@@ -1079,6 +1125,7 @@ namespace SynergyUI
             {
                 FirstMoveMode = _modeFirst,
                 ShuffleMode = _modeShuffle,
+                Seed = RoomSeedInput, // v13：钉种子随模式同报（空/0=随机）
             });
             RefreshRoomUi(); // 乐观刷新（服务器回显随后校正）
         }
@@ -1105,14 +1152,22 @@ namespace SynergyUI
                 return;
             }
             if (_aiFiller != null) return;
-            _aiFiller = NetAiFiller.FromPlayPool($"AI-{UnityEngine.Random.Range(100, 999)}");
+            // 2026-11-11 定案：AI 对手默认**用玩家当前选中的同一套卡组**（同卡表/同技能/同衍生物绑定），
+            // 房主「加 AI」即等于开一局同卡组镜像对局；无选中卡组才回落随机预组（历史口径）。
+            string aiNick = $"AI-{UnityEngine.Random.Range(100, 999)}";
+            var deck = SelectedDeck;
+            _aiFiller = deck != null && deck.cardIds != null && deck.cardIds.Count > 0
+                ? new NetAiFiller(aiNick, deck.cardIds.ToArray(), deck.skillCardId, 60,
+                    deck.tokenCardIds != null && deck.tokenCardIds.Count > 0 ? deck.tokenCardIds.ToArray() : null,
+                    deck.tokenBindings, deck.name)
+                : NetAiFiller.FromPlayPool(aiNick);
             if (_aiFiller == null)
             {
                 SetError("AI 填位失败：本地卡表为空");
                 return;
             }
             _aiFiller.Start(_server.Port);
-            SetStatus("AI 对手正在入座…");
+            SetStatus(deck != null ? $"AI 对手（同我方卡组「{deck.name}」）正在入座…" : "AI 对手正在入座…");
         }
 
         /// <summary>本端椅位（S3 定案：按角色定座——本房间恒双人位，房主=椅 0、客人=椅 1，AI 只是房主的客位。
@@ -1146,6 +1201,10 @@ namespace SynergyUI
             BattleEntry.Mode = BattleMode.Network;
             BattleEntry.Client = _client;
             BattleEntry.Nickname = _lastNickname;
+            // S7b 摘要窗（2026-11-10 改版）：双方卡组名随移交带出（对手=RoomState 座位快照 DeckName）
+            BattleEntry.NetMyDeckName = SelectedDeck != null ? SelectedDeck.name : "";
+            var oppSeat = room.Players != null ? room.Players.FirstOrDefault(p => p != null && p.Seat != mySeat) : null;
+            BattleEntry.NetOpponentDeckName = oppSeat != null ? oppSeat.DeckName : "";
             BattleEntry.StagedOpening = true; // 网络五段式（2026-10-28：掷币+选卡组；S7a 已提前提交时段四跳过）
             BattleEntry.NetCoinToss = coinMode;
             BattleEntry.NetPlayerFirst = playerFirst;
@@ -1245,12 +1304,49 @@ namespace SynergyUI
             else StopScan();
         }
 
+        /// <summary>中栏三页等宽（2026-11-10）：panel-center 的 VLG 宽=当前活动子页 preferred——
+        /// 常规/排位/房间换页时中栏宽度跳变的根因。以三页中最大（=房间页）为准，三页 LE
+        /// preferredWidth 钉同值（每次 OnEnter 重测——重进屏随预制体手改自动刷新）。</summary>
+        private void NormalizeCenterPanelWidths()
+        {
+            var panels = new[] { _panelNormal, _panelRanked, _panelRoom };
+            // 布局输入要求组件 enabled——全页瞬时激活测宽（同帧还原，不可见）
+            var wasActive = new bool[panels.Length];
+            for (int i = 0; i < panels.Length; i++)
+                if (panels[i] != null)
+                {
+                    wasActive[i] = panels[i].gameObject.activeSelf;
+                    panels[i].gameObject.SetActive(true);
+                }
+            float widest = 0f;
+            foreach (var p in panels)
+            {
+                if (p == null) continue;
+                UnityEngine.UI.LayoutRebuilder.ForceRebuildLayoutImmediate(p);
+                widest = Mathf.Max(widest, UnityEngine.UI.LayoutUtility.GetPreferredWidth(p));
+            }
+            for (int i = 0; i < panels.Length; i++)
+                if (panels[i] != null && !wasActive[i]) panels[i].gameObject.SetActive(false);
+            if (widest < 1f) return; // 布局不可测（极端：全 null/空内容）——不钉
+            foreach (var p in panels)
+            {
+                if (p == null) continue;
+                var le = p.GetComponent<UnityEngine.UI.LayoutElement>();
+                if (le == null) le = p.gameObject.AddComponent<UnityEngine.UI.LayoutElement>();
+                le.preferredWidth = widest;
+            }
+        }
+
         /// <summary>页签切换（S6a ②）：切中栏普通/排位页。</summary>
         private void ShowCenterTab(bool ranked) => ShowPanel(ranked ? _panelRanked : _panelNormal);
 
-        /// <summary>页签选中态（S6a ②）：选中=BtnPrimary 主色底白字；未选=BtnBg 中性底。</summary>
+        /// <summary>页签选中态（S6a ②）：选中=BtnPrimary 主色底白字；未选=BtnBg 中性底。
+        /// 房间页（2026-11-10）：两页签整列收起——进房无换页出口，返回走 btn-lobby-back 退房。</summary>
         private void RefreshTabVisuals()
         {
+            bool inRoom = _panelRoom != null && _panelRoom.gameObject.activeSelf;
+            if (_tabNormalBtn != null) _tabNormalBtn.gameObject.SetActive(!inRoom);
+            if (_tabRankedBtn != null) _tabRankedBtn.gameObject.SetActive(!inRoom);
             bool rankedActive = _panelRanked != null && _panelRanked.gameObject.activeSelf;
             bool normalActive = _panelNormal != null && _panelNormal.gameObject.activeSelf;
             ApplyTabVisual(_tabNormalBtn, normalActive);

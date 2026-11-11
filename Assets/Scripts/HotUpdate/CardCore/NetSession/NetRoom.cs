@@ -28,6 +28,13 @@ namespace CardCore.Network
         /// <summary>选卡组倒计时时长（秒；2026-10-28 用户定案 30s，服务器权威）。</summary>
         public const int DeckPickSeconds = 30;
 
+        /// <summary>每回合可用时间（秒；2026-11-11 用户定案「联机也按真人方式跑」——服务器权威计时，
+        /// 到点代打：栈上有待响应者=替其让行，否则替回合方结束回合）。调档只改这一个常量。</summary>
+        public const int TurnSeconds = 90;
+
+        /// <summary>超时代打后的宽限（秒）：让行/结束回合后若栈上仍有待响应，下一拍不会立刻再罚。</summary>
+        public const int TurnTimeoutGraceSeconds = 10;
+
         /// <summary>排位接受窗时长（秒；S8 2026-11-10 定案 5s——双座位满起算，双方都须点「接受」，
         /// 任一拒绝/超时=广播 Error("排位未接受","Ranked") 并解散，双方各自回 Idle 不自动重排）。</summary>
         public const int RankedAckSeconds = 5;
@@ -75,9 +82,17 @@ namespace CardCore.Network
         // 就绪层状态（2026-10-28）：模式（0先后手/1洗牌）+ 按椅位准备态 + 选卡组倒计时
         private int _settingsFirstMove;       // 0=掷币 1=房主(椅0)先 2=客人(椅1)先
         private int _settingsShuffle;         // 0=随机洗牌 1=固定牌序
+        private int _settingsSeed;            // v13 房主钉种子（0=开局随机定死）
+        private int _matchSeed;               // 本局实际种子（BeginDeckPickPhase 定死；0=未开局——RoomState.Seed 回显）
         private readonly bool[] _ready = new bool[2];
         private DateTime? _pickDeadlineUtc;   // 选卡组倒计时截止（DeckSubmit 相位；null=未在倒计时）
         private int _lastPickSecond = -1;     // 上次广播的剩秒（整秒去重）
+
+        // 回合计时（v14 2026-11-11 服务器权威）：按「回合号+回合方」重置；快照携带剩余秒数供 HUD 倒计时，
+        // 到点由 PumpTurnClock 代打（真人/AI 一视同仁——AI 由 NetClientBrain 驱动，同样受此钟约束）。
+        private DateTime? _turnDeadlineUtc;
+        private int _clockTurn = -1;
+        private int _clockActiveSeat = -1;
 
         // 对局接线（搬 TideHeadlessDriver.ResetCore 骨架）
         private BoardState _board;
@@ -298,8 +313,11 @@ namespace CardCore.Network
             if (s == null) { SendError(conn, "RoomSettings 载荷损坏", "RoomSettings"); return; }
             if (s.FirstMoveMode < 0 || s.FirstMoveMode > 2 || s.ShuffleMode < 0 || s.ShuffleMode > 1)
             { SendError(conn, "模式取值非法", "RoomSettings"); return; }
+            if (s.Seed < 0)
+            { SendError(conn, "随机种子须为非负整数", "RoomSettings"); return; }
             _settingsFirstMove = s.FirstMoveMode;
             _settingsShuffle = s.ShuffleMode;
+            _settingsSeed = s.Seed; // v13：0=开局随机定死；钉值=复现局
             _roomStateDirty = true;
         }
 
@@ -324,15 +342,18 @@ namespace CardCore.Network
             BeginDeckPickPhase();
         }
 
-        /// <summary>进入选卡组相位（房主 RoomStart / autoStart 双座满共用）：先手确定 + 倒计时起算 + 广播。</summary>
+        /// <summary>进入选卡组相位（房主 RoomStart / autoStart 双座满共用）：先手确定 + 倒计时起算 + 广播。
+        /// v13：本局种子在此定死（房主钉值 ?? ctor 种子 ?? 随机）——此后设置冻结，RoomState.Seed 回显。</summary>
         private void BeginDeckPickPhase()
         {
             _firstSeat = _settingsFirstMove == 1 ? 0 : _settingsFirstMove == 2 ? 1 : _rng.Next(2);
+            _matchSeed = _settingsSeed != 0 ? _settingsSeed : (_seed ?? _rng.Next());
             _pickDeadlineUtc = DateTime.UtcNow.AddSeconds(DeckPickSeconds);
             _lastPickSecond = -1;
             _phase = NetRoomPhase.DeckSubmit;
             _roomStateDirty = true;
-            TideLog.Info($"[NetRoom] 开局：先手椅位 {_firstSeat}（模式 {_settingsFirstMove}/{_settingsShuffle}），选卡组倒计时 {DeckPickSeconds}s");
+            TideLog.Info($"[NetRoom] 开局：先手椅位 {_firstSeat}（模式 {_settingsFirstMove}/{_settingsShuffle}），"
+                + $"种子 {_matchSeed}{(_settingsSeed != 0 ? "（房主钉）" : "")}，选卡组倒计时 {DeckPickSeconds}s");
         }
 
         private void HandleDeckSubmit(INetChannel conn, NetworkMessage msg)
@@ -460,7 +481,7 @@ namespace CardCore.Network
                 return;
             }
             core.InitGame(CardLoader.BuildDeck(deckFirst, 1, _deckTokenBindings[_firstSeat]),
-                CardLoader.BuildDeck(deckSecond, 1, _deckTokenBindings[1 - _firstSeat]), _seed,
+                CardLoader.BuildDeck(deckSecond, 1, _deckTokenBindings[1 - _firstSeat]), _matchSeed,
                 lockDeckOrder: _settingsShuffle == 1,
                 skillCardId1: _skillIds[_firstSeat], skillCardId2: _skillIds[1 - _firstSeat]);
             core.Player1.IsAI = false; // 人类在环：反问走 NetworkTargetSelector
@@ -540,6 +561,11 @@ namespace CardCore.Network
 
             _gameOver = false;
             _phase = NetRoomPhase.Playing;
+            // v14：回合计时起钟（本局第一拍由 PumpTurnClock 按回合号/回合方重置；此处先给满时长，
+            // 保证 StartMatch 当拍下发的首快照就带 TurnSecondsLeft）
+            _turnDeadlineUtc = DateTime.UtcNow.AddSeconds(TurnSeconds);
+            _clockTurn = -1;
+            _clockActiveSeat = -1;
             _roomStateDirty = true;
             EventManager.Instance.Subscribe<GameOverEvent>(OnGameOver);
         }
@@ -602,6 +628,9 @@ namespace CardCore.Network
         /// <summary>终局/重置收口：卸反问桥、退订终局、拆棋盘接线、清瞬态内容覆盖层（v11）。</summary>
         private void TeardownMatch()
         {
+            _turnDeadlineUtc = null; // v14 回合计时停钟
+            _clockTurn = -1;
+            _clockActiveSeat = -1;
             _selector?.AbortPending();
             _selector?.Detach();
             _selector = null;
@@ -754,6 +783,8 @@ namespace CardCore.Network
             var engine = core.StackEngine;
             if (engine == null || engine.IsResolving) return;
 
+            PumpTurnClock(core); // 回合计时（v14）：到点代打——真人/AI 同口径
+
             bool stackSettled = engine.IsEmpty && !engine.HasPendingEffects;
             if (!stackSettled)
             {
@@ -773,10 +804,80 @@ namespace CardCore.Network
             }
         }
 
+        // ============================================================ 回合计时（v14 2026-11-11） ============================================================
+
+        /// <summary>本回合剩余秒数（快照 TurnSecondsLeft 取值；负数=无计时）。</summary>
+        public int TurnSecondsLeft
+        {
+            get
+            {
+                if (_phase != NetRoomPhase.Playing || _gameOver || _turnDeadlineUtc == null) return -1;
+                double left = (_turnDeadlineUtc.Value - DateTime.UtcNow).TotalSeconds;
+                return left <= 0 ? 0 : (int)Math.Ceiling(left);
+            }
+        }
+
+        /// <summary>回合计时泵（每 tick，PumpEngine 头部）：回合号/回合方变化 → 重置满时长；
+        /// 到点 → 代打（栈上有待响应者=替其让行；否则替回合方结束回合），随后给宽限秒数防连罚。
+        /// 真人/AI 一视同仁：AI 客人同样受此钟约束（brain 在 20ms 内响应，正常局不会触发）。
+        /// 代打走 NetworkIntentApplier（与客户端 intent 同一校验路径，拒绝只记日志不抛）。</summary>
+        private void PumpTurnClock(GameCore core)
+        {
+            var te = core.TurnEngine;
+            if (te == null) return;
+
+            int turn = te.TurnNumber;
+            int active = NetEntityMapper.SeatOf(te.TurnPlayer);
+            if (turn != _clockTurn || active != _clockActiveSeat)
+            {
+                _clockTurn = turn;
+                _clockActiveSeat = active;
+                _turnDeadlineUtc = DateTime.UtcNow.AddSeconds(TurnSeconds);
+                return;
+            }
+            if (_turnDeadlineUtc == null)
+            {
+                _turnDeadlineUtc = DateTime.UtcNow.AddSeconds(TurnSeconds);
+                return;
+            }
+            if (DateTime.UtcNow < _turnDeadlineUtc.Value) return;
+
+            // 到点：优先权在别处（响应窗口）= 替响应方让行；否则替回合方结束回合
+            var engine = core.StackEngine;
+            int holder = engine != null ? NetEntityMapper.SeatOf(engine.CurrentPriorityHolder) : -1;
+            bool stackPending = engine != null && !engine.IsEmpty;
+            if (stackPending && holder >= 0 && holder != active)
+                AutoPlayTimeout(core, holder, NetworkMessageType.IntentPassPriority,
+                    $"{TurnSeconds}s 响应超时——已自动让行");
+            else
+                AutoPlayTimeout(core, active, NetworkMessageType.IntentEndTurn,
+                    $"{TurnSeconds}s 回合超时——已自动结束回合");
+
+            _turnDeadlineUtc = DateTime.UtcNow.AddSeconds(TurnTimeoutGraceSeconds); // 宽限：防同一拍连罚
+            MarkSnapshotDirty(); // 剩余秒数随快照回零
+        }
+
+        /// <summary>超时代打（无 payload 的 intent——EndTurn/PassPriority 均不需要载荷）。
+        /// 拒绝只记日志：宁可本回合拖延，绝不因代打异常拆局。</summary>
+        private void AutoPlayTimeout(GameCore core, int seat, NetworkMessageType type, string reason)
+        {
+            string error;
+            bool ok = NetworkIntentApplier.Apply(core, seat,
+                NetworkSerializer.BuildEnvelope<object>(type, null), out error);
+            if (ok)
+            {
+                TideLog.Info($"[NetRoom] 超时代打：座位 {seat} → {type}（{reason}）");
+                BroadcastError(reason, "TurnTimeout"); // 双端可见（客户端 NetOnError 以提示口径显示）
+            }
+            else
+            {
+                TideLog.Warn($"[NetRoom] 超时代打被拒（座位 {seat} / {type}）：{error}——{reason}");
+            }
+        }
+
         /// <summary>下行出队：RoomState 广播 → 事件流（按座位过滤，观战全信息）→ 静默点快照。</summary>
         public void FlushDownlink(GameCore core)
-        {
-            PumpDeckPickCountdown();
+        {            PumpDeckPickCountdown();
             PumpRankedAckWindow();
 
             if (_roomStateDirty)
@@ -828,6 +929,7 @@ namespace CardCore.Network
             if (!stable) return;
 
             var snapshotCache = new Dictionary<(int seat, bool full), MsgGameStateSync>();
+            int turnLeft = TurnSecondsLeft; // v14：同一拍所有座位共用同一剩余秒数
             foreach (var member in AllMembers())
             {
                 if (!member.SnapshotDirty) continue;
@@ -836,6 +938,7 @@ namespace CardCore.Network
                 if (!snapshotCache.TryGetValue(key, out var snapshot))
                 {
                     snapshot = NetSnapshotBuilder.Build(core, member.MatchSeat, full);
+                    if (snapshot != null) snapshot.TurnSecondsLeft = turnLeft;
                     snapshotCache[key] = snapshot;
                 }
                 member.SendPayload(NetworkMessageType.GameStateSyncV2, snapshot);
@@ -935,6 +1038,7 @@ namespace CardCore.Network
                 DeckPickSecondsLeft = _phase == NetRoomPhase.DeckSubmit && _pickDeadlineUtc.HasValue
                     ? Math.Max(0, (int)Math.Ceiling((_pickDeadlineUtc.Value - DateTime.UtcNow).TotalSeconds))
                     : -1,
+                Seed = _matchSeed, // v13：开局定死回显（0=未开局）——客户端日志展示/复制复现
             };
         }
 

@@ -482,7 +482,11 @@ namespace SynergyUI
             //（条目在 LinkAuras）；规则光环=只留仪典步（条目/杂步属其他形态）
             if (_mode == ComposeMode.Parallel)
                 foreach (var s in saved)
-                    if (s?.kind == 0 && s.atomic != null) s.atomic.branch = null;
+                    if (s?.kind == 0 && s.atomic != null
+                        && !(s.atomic.branch != null
+                             && (BranchSettleKind)s.atomic.branch.settle == BranchSettleKind.Engine
+                             && (BranchEngineKind)s.atomic.branch.engine == BranchEngineKind.DeathToll))
+                        s.atomic.branch = null; // 2026-11-10：DeathToll 增幅标记挂在效果原子上，并列保存不得剥除
             else if (_mode == ComposeMode.LinkAura)
                 saved.RemoveAll(s => s.kind == 0);
             else if (_mode == ComposeMode.RangeAura)

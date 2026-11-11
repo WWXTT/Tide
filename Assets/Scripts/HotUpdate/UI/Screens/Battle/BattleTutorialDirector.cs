@@ -126,20 +126,20 @@ namespace SynergyUI
         public void PromptBattleOver(bool win)
         {
             if (BattleEntry.Mode != BattleMode.Tutorial) return;
-            // 教学三毕业连战（2026-11-02 改版）：胜场记账+场间/再战/通关弹窗链全归连战口
+            // 教学四毕业连战（2026-11-02 改版·2026-11-11 重编号）：胜场记账+场间/再战/通关弹窗链全归连战口
             if (BattleEntry.TutorialId == TutorialProgressManager.LunzhuanId)
             {
                 PromptGauntletOverAsync(win).Forget();
                 return;
             }
             if (!win)
-                PromptTutorialRetryAsync().Forget(); // 教学一/二败局：考验原地重开（终局撤销+重铺）
+                PromptTutorialRetryAsync().Forget(); // 教学一/二/三败局：考验原地重开（终局撤销+重铺）
             else if (BattleEntry.TutorialId == TutorialProgressManager.BasicsId)
                 PromptTutorialCompleteAsync().Forget(); // 教学第一阶段（basics）通关：结算弹窗，确定回主菜单
             else if (BattleEntry.TutorialId == TutorialProgressManager.BasicsPlusId)
-                PromptTutorialCompleteAsync("你已完成基础教学一·进阶").Forget(); // 关键词课通关（2026-11-09）：落档在 ReportBattleResult win 路径已统一处理
+                PromptTutorialCompleteAsync("你已完成第二课的教学").Forget(); // 关键词课通关（2026-11-09 建·2026-11-11 升格教学二）：落档在 ReportBattleResult win 路径已统一处理
             else if (BattleEntry.TutorialId == TutorialProgressManager.AdvancedId)
-                PromptTutorialCompleteAsync("你已完成第二课的教学").Forget(); // 第二课（主动效果）通关：同 basics 结算口径
+                PromptTutorialCompleteAsync("你已完成第三课的教学").Forget(); // 第三课（主动效果，2026-11-11 重编号）通关：同 basics 结算口径
         }
 
         /// <summary>引导/守卫提示接线（教学步骤事件驱动，幂等——重入只补绑防重复订阅）。
@@ -284,7 +284,7 @@ namespace SynergyUI
                 if (doneStep != null && doneStep.completeOnConfirm)
                 {
                     TutorialProgressManager.Instance.MarkTutorialCompleted(BattleEntry.TutorialId);
-                    PromptTutorialCompleteAsync("你已完成基础教学一·进阶").Forget();
+                    PromptTutorialCompleteAsync("你已完成第二课的教学").Forget();
                 }
             }
 
@@ -869,73 +869,22 @@ namespace SynergyUI
 
         /// <summary>教学三毕业连战终局（2026-11-02 改版：末日降临 Boss 战退役——胜场记账+弹窗链）：
         /// 胜=LunzhuanGauntlet.ReportWin——满 3 场=MarkTutorialCompleted 过课+通关弹窗（确定回主菜单，
-        /// 三课全胜=教学按钮隐藏/联机外露）；未满=场间弹窗（继续挑战=Replace 重入战屏重放开场：
+        /// 四课全胜=教学按钮隐藏/联机外露）；未满=场间弹窗（继续挑战=Replace 重入战屏重放开场：
         /// 重掷币+沿用已选卡组、对手=预组序列下一场）。败=**胜场保留**（用户定案）——「再战当前
         /// 对手」（同卡组同预组重掷币：Wins/Picked 均不变）或返回。取消/拆屏=留在终局画面
         ///（「返回主菜单」键直回，连战态由下次主菜单入口 Begin 作废）。
-        /// 隐藏镜像局（2026-11-02 用户需求）：三战全胜且自组卡组引用预组卡种类&lt;3（HiddenMirrorEligible）
-        /// → 通关弹窗改双键「镜像对决/完成教学」——镜像=AI 用刚才通关的同款卡组、双方锁牌库序
-        /// （相同牌序）再战一场（BeginMirror+Replace 重入）；镜像局胜负不记账（Active 保持 true，
-        /// ReportBattleResult 拦截照旧），胜=结算回主菜单、败=可再战复现同局。
+        /// 隐藏镜像局（2026-11-02 用户需求）已于 2026-11-11 按用户要求整链删除——三战全胜
+        /// 直接进通关弹窗，不再有「镜像对决」加时赛（LunzhuanGauntlet 镜像成员同批退役）。
         /// ReportBattleResult 已对连战拦截——过课落档只发生在本口。</summary>
         private async UniTaskVoid PromptGauntletOverAsync(bool win)
         {
-            if (LunzhuanGauntlet.Mirror)
-            {
-                // 隐藏镜像局终局：不进胜场记账（连战已过课收口，本局为加时赛）。
-                if (win)
-                {
-                    if (await _showTip("镜像对决胜利！你战胜了使用同款卡组的自己。", "确定", null) == true)
-                    {
-                        LunzhuanGauntlet.End();
-                        _back(); // 战场→主菜单
-                    }
-                }
-                else
-                {
-                    var again = await _showTip("镜像对决失败——同卡组同牌序，再战一次？", "再战镜像", "返回主菜单");
-                    if (again == true && GameEnded)
-                    {
-                        if (_replayOpening != null)
-                        {
-                            _replayOpening(); // 重开战场=镜像局复现（段四跳过沿用卡组·段五对手=我方卡组·锁牌库序）
-                            return;
-                        }
-                    }
-                    if (again == null) return; // 拆屏回落（终局画面「返回主菜单」键仍可用）
-                    LunzhuanGauntlet.End();
-                    _back();
-                }
-                return;
-            }
             if (win)
             {
                 if (LunzhuanGauntlet.ReportWin())
                 {
                     TutorialProgressManager.Instance.MarkTutorialCompleted(TutorialProgressManager.LunzhuanId);
-                    if (LunzhuanGauntlet.HiddenMirrorEligible())
-                    {
-                        // 隐藏关卡开启（2026-11-02）：自组卡组（引用预组卡不足 3 种）→ 镜像对决。
-                        var mirror = await _showTip(
-                            "三战全胜！检测到你使用的是原创卡组（引用预组卡不足 3 种）——隐藏关卡「镜像对决」开启：\n"
-                            + "AI 将使用你刚才通关的卡组，与你相同的牌序，展开一场势均力敌的镜像对决！",
-                            "镜像对决", "完成教学");
-                        if (mirror == true && GameEnded)
-                        {
-                            if (_replayOpening != null)
-                            {
-                                LunzhuanGauntlet.BeginMirror();
-                                _replayOpening(); // 重开战场=五段开场重放（段四跳过沿用卡组·段五对手=我方卡组镜像·锁牌库序）
-                                return;
-                            }
-                        }
-                        if (mirror == null) return; // 拆屏回落（终局画面「返回主菜单」键仍可用）
-                        LunzhuanGauntlet.End();
-                        _back(); // 「完成教学」/注入缺位兜底——战场→主菜单
-                        return;
-                    }
                     LunzhuanGauntlet.End(); // 连战收口（完成态不再进任何分支）
-                    if (await _showTip("你已完成第三课的教学——毕业连战三战全胜！", "确定", null) == true)
+                    if (await _showTip("你已完成第四课的教学——毕业连战三战全胜！", "确定", null) == true)
                         _back(); // 战场→主菜单
                     return;
                 }

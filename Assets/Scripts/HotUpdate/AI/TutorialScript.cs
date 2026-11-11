@@ -122,8 +122,9 @@ namespace SynergyUI
 
     /// <summary>
     /// 教学配置库（仿 AtomicEffectTable 惯例：静态表 + TidePaths.ReadConfigText + Reload 免重启）。
-    /// 按课拆档（2026-10-19 三课制）：第一课 TutorialConfig.json + 第二课 TutorialConfig2.json +
-    /// 第三课 TutorialConfig3.json，三档合并装载进同一 id 表——消费方（BattleScreen/TutorialFlow
+    /// 按课拆档（2026-11-11 课程重编号：basics_plus 升格教学二，原教学二/三顺延为三/四）：
+    /// 教学一 TutorialConfig.json + 教学二 TutorialConfig4.json + 教学三 TutorialConfig2.json +
+    /// 教学四 TutorialConfig3.json，四档合并装载进同一 id 表——消费方（BattleScreen/TutorialFlow
     /// 按 id Get）零改动；跨档重复 id 保先装档并 Warn（与 EffectsLibrary 教学副表合并同口径）。
     /// Get 按 id 取条目；BuildDeck 把卡 id 序列解析为 CardData 卡组（缺失 id 记警告跳过，不炸局）。
     /// </summary>
@@ -131,10 +132,10 @@ namespace SynergyUI
     {
         private static readonly string[] ConfigRelativePaths =
         {
-            "Configs/TutorialConfig.json",  // 第一课（basics 攻防）
-            "Configs/TutorialConfig2.json", // 第二课（advanced 进阶机制）
-            "Configs/TutorialConfig3.json", // 第三课（lunzhuan 末日降临 Boss）
-            "Configs/TutorialConfig4.json", // 第一课·进阶（basics_plus 关键词课，2026-11-09）
+            "Configs/TutorialConfig.json",  // 教学一（basics 攻防）
+            "Configs/TutorialConfig2.json", // 教学三（advanced 主动效果·2026-11-11 重编号）
+            "Configs/TutorialConfig3.json", // 教学四（lunzhuan 毕业连战·2026-11-11 重编号）
+            "Configs/TutorialConfig4.json", // 教学二（basics_plus 关键词课·2026-11-11 升格）
         };
 
         private static Dictionary<string, TutorialConfig> _byId;

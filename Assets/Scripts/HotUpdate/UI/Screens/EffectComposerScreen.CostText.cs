@@ -653,7 +653,11 @@ namespace SynergyUI
                         {
                             if (seen >= ParallelSlotCount) continue;
                             seen++;
-                            if (s.atomic != null) s.atomic.branch = null;
+                            if (s.atomic != null
+                                && !(s.atomic.branch != null
+                                     && (BranchSettleKind)s.atomic.branch.settle == BranchSettleKind.Engine
+                                     && (BranchEngineKind)s.atomic.branch.engine == BranchEngineKind.DeathToll))
+                                s.atomic.branch = null; // 2026-11-10：DeathToll 增幅标记保留
                         }
                         kept.Add(s);
                     }

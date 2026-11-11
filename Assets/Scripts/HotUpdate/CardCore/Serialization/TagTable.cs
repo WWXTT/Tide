@@ -1,4 +1,4 @@
-// 此文件由 Tools/刷新属性排序（新增序列化字段时使用）自动生成，请勿手动修改
+﻿// 此文件由 Tools/刷新属性排序（新增序列化字段时使用）自动生成，请勿手动修改
 // 如需添加新属性，请修改 RefreshMemoryPackOrder.cs 中的 GetTagDefinitions()
 // 纯哈希口径（2026-10-31 阶段D 全量重排：手工定值段退役，无保留位概念）
 
@@ -216,6 +216,7 @@ namespace CardCore.Serialization
         public const int MGSS_Hands = 1371201158;
         public const int MGSS_StackV2 = 1464117104;
         public const int MGSS_RevealedZoneCards = 2054002893;
+        public const int MGSS_TurnSecondsLeft = 224912618;   // v14 服务器权威回合计时（与 RefreshMemoryPackOrder 同口径：Murmur32("MsgGameStateSync.TurnSecondsLeft", 0x53796E67) & 0x7FFFFFFF）
 
         // ---- StackItemDTO ----
         public const int SID_Source = 887547856;
@@ -401,6 +402,7 @@ namespace CardCore.Serialization
         public const int MRS_ShuffleMode = 796602489;
         public const int MRS_GuestReady = 1593869558;
         public const int MRS_DeckPickSecondsLeft = 1036775331;
+        public const int MRS_Seed = -210878657; // v13：本局随机种子（开局定死回显；0=未开局。手算全量强转口径）
 
         // ---- MsgRoomSeatInfo ----
         public const int MRSI_Seat = 914327639;
@@ -411,6 +413,7 @@ namespace CardCore.Serialization
         // ---- MsgRoomSettings ----
         public const int MRSet_FirstMoveMode = 142664050;
         public const int MRSet_ShuffleMode = 535227049;
+        public const int MRSet_Seed = -191934453; // v13：房主钉种子（0=随机。手算全量强转口径）
 
         // ---- MsgRoomReady ----
         public const int MRReady_Ready = 1268044497;

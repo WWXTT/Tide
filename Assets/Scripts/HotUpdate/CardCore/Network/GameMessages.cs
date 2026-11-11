@@ -53,6 +53,12 @@ namespace CardCore.Network
 
         [MemoryPackOrder(TagTable.MGSS_RevealedZoneCards)]
         public NetZoneCards[] RevealedZoneCards; // 展示卡（信息轴 2026-10-02）：隐藏区中被展示的卡——恒全量下发（双方可见），空区省略
+
+        /// <summary>本回合剩余可用秒数（协议 v14 2026-11-11 服务器权威计时）：回合方的决策倒计时源，
+        /// 客户端按收到时刻本地掉表（上表毫秒级帧间不补发）；≥0=有效倒计时（0=已到点，服务器下一拍代打），
+        /// 负数=无计时（未开局/终局）。</summary>
+        [MemoryPackOrder(TagTable.MGSS_TurnSecondsLeft)]
+        public int TurnSecondsLeft = -1;
     }
 
     /// <summary>玩家状态（公开面 + 己方私密面经 Hands 单独承载）。</summary>

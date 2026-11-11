@@ -747,6 +747,11 @@ namespace CardCore
                     if (inst != null) payload.Then.Add(inst);
                 }
             }
+            // 2026-11-10 死亡计数改版：DeathToll 是效果原子上的 value 增幅标记，
+            // 不再需要 Then/effectId——空载荷也要保留（否则增幅标记被折叠掉）。
+            if (payload.Settle == BranchSettleKind.Engine
+                && payload.EngineKind == BranchEngineKind.DeathToll)
+                return payload;
             // 无载荷的条件空转——折叠为无分支（EffectId 引用通道同计：2026-11-06 附加诅咒/祝福
             // 载荷=组合效果引用，Then 空但有引用不折叠）
             return payload.Then.Count > 0 || !string.IsNullOrEmpty(payload.EffectId) ? payload : null;

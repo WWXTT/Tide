@@ -22,7 +22,7 @@ namespace CardCore
         /// 旧长教学的「不进序列」口径随之退役。</summary>
         public const string BasicsId = "basics";
 
-        /// <summary>第一课·进阶关卡 id（2026-11-09 关键词课）：basics 之后、advanced 之前的
+        /// <summary>第二课·关键词课关卡 id（2026-11-09 建·2026-11-11 升格教学二）：basics 之后、advanced 之前的
         /// 脚本化教学局——17 个关键词（先攻/连击/碾压/溅射/缴械/警戒/隐密/帷幕/吸血/系命/再生/
         /// 守护/剧毒/病原体/绝缘体/不灭/狩猎）11 段对照演示（TutorialConfig4.json 条目）。
         /// 进 CourseOrder 后已通关老档 IsTutorialDone 翻回 false（教学按钮重现/联机重新门禁）——
@@ -33,21 +33,22 @@ namespace CardCore
         /// 不是 TutorialConfig 条目；StartTutorialBattle 对本 id 分流到 BeginLesson）。</summary>
         public const string CreationLessonId = "chuangzuo";
 
-        /// <summary>第二课·进阶机制关卡 id（2026-10-19 三课制）：脚本化教学局教四大进阶机制——
+        /// <summary>第三课·主动效果关卡 id（2026-10-19 建·2026-11-11 重编号教学二→教学三）：脚本化教学局教四大进阶机制——
         /// 代价生成黑白元素资源、全时点卡的自动效果、不同速度主动效果连锁、规则光环唯一性
         /// （TutorialConfig2.json 条目，教学卡在 TutorialData）。2026-10-21 进度标识由拼音 jinjie
         /// 改英文 advanced——旧档 completed 残留 jinjie 失效（需重上第二课）；教学卡组/语音资产
         /// 仍按 jinjie 文件名寻址，与本 id 无耦合。</summary>
         public const string AdvancedId = "advanced";
 
-        /// <summary>第三课·末日降临 Boss 挑战关卡 id（2026-10-18 真实对局流程版，2026-10-19 挪入
-        /// 第三课位）：走战场五段式开局教学三变体（掷币+战场选卡组·BattleOpeningDirector），AI 镜像
-        /// 玩家卡组后被幻卡清算、召唤末日降临。课序挪位不改 id——旧档 completed 天然兼容
-        ///（旧档残留 lunzhuanAttempted 键 2026-10-21 随判据退役，反序列化自动忽略）。</summary>
+        /// <summary>第四课·毕业连战关卡 id（2026-10-18 建·2026-11-02 改版为预组三连战
+        /// LunzhuanGauntlet（Boss 战退役）·2026-11-11 重编号教学三→教学四）：走战场五段式开局
+        /// （掷币+战场选卡组·BattleOpeningDirector），三场全胜过课。课序挪位不改 id——旧档
+        /// completed 天然兼容（旧档残留 lunzhuanAttempted 键 2026-10-21 随判据退役，反序列化自动忽略）。</summary>
         public const string LunzhuanId = "lunzhuan";
 
-        /// <summary>新手课程序列：basics 攻防 → basics_plus 关键词（2026-11-09 插入）→ advanced
-        /// 进阶机制 → lunzhuan 末日降临 Boss，全部完成=教学整体完成（IsTutorialDone）。
+        /// <summary>新手课程序列（2026-11-11 重编号：basics_plus 升格教学二，原教学二/三顺延三/四）：
+        /// basics 攻防 → basics_plus 关键词 → advanced 主动效果 → lunzhuan 毕业连战，
+        /// 全部完成=教学整体完成（IsTutorialDone）。
         /// chuangzao（创作管线走查）已取消（2026-10-17）——走查机制休眠保留，旧档 completed 残留惰性、
         /// currentTutorial=chuangzao 序列外自动作废（NextTutorialId 现行口径）。</summary>
         public static readonly string[] CourseOrder = { BasicsId, BasicsPlusId, AdvancedId, LunzhuanId };

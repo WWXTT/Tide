@@ -84,11 +84,12 @@ namespace SynergyUI
         }
 
         /// <summary>教学门禁（2026-10-19 三课制·2026-10-25 本地对战退役改版）：教学未整体完成=
-        /// btn-teaching 在、btn-match 藏；IsTutorialDone（三课全胜）反转——教学按钮隐藏、联机入口
+        /// btn-teaching 在、btn-match 藏；IsTutorialDone（四课全胜）反转——教学按钮隐藏、联机入口
         /// 外露（考验三未胜不换装=依旧不给用；本地对战按钮已退役，打 AI 走木桩测试难度档）。
-        /// 三个组合界面按钮（2026-10-21 提前）：教学二（advanced）完成即显示——供自组卡组备战
-        /// （教学三毕业连战的卡组来源），此前隐藏。btn-teaching 文案按进度显示：基础教学一/二/三
-        ///（2026-11-02 教学三连战改版上线——原「内容尚未完成」置灰闸退役）。
+        /// 三个组合界面按钮（2026-10-21 提前）：教学三（advanced）完成即显示——供自组卡组备战
+        /// （教学四毕业连战的卡组来源），此前隐藏。btn-teaching 文案按进度显示：基础教学一/二/三/四
+        ///（2026-11-02 教学三连战改版上线——原「内容尚未完成」置灰闸退役；2026-11-11 课程重编号：
+        /// basics_plus 关键词课升格教学二，原教学二/三顺延为教学三/四）。
         /// public=云存档控制器跨程序集（Tide.TapTap）重订调用。</summary>
         public void RefreshTutorialGates()
         {
@@ -96,30 +97,31 @@ namespace SynergyUI
             bool done = p.IsTutorialDone;
             if (_teachingNode != null) _teachingNode.gameObject.SetActive(!done);
             if (_matchNode != null) _matchNode.gameObject.SetActive(done); // 联机入口（2026-10-21 P2P 复活；2026-10-25 起 done 态唯一对战主入口）
-            bool comboUnlocked = p.CompletedTutorials.Contains(TutorialProgressManager.AdvancedId); // 教学二完成（三课全胜时必含 advanced，无需再兜底）
+            bool comboUnlocked = p.CompletedTutorials.Contains(TutorialProgressManager.AdvancedId); // 教学三（advanced）完成（四课全胜时必含 advanced，无需再兜底）
             foreach (var node in _comboNodes)
                 if (node != null) node.gameObject.SetActive(comboUnlocked);
 
-            // 文案跟随下一课进度（教学三=毕业连战：三套预组三场全胜过课）
+            // 文案跟随下一课进度（教学四=毕业连战：三套预组三场全胜过课）
             var next = p.NextTutorialId;
             if (_teachingLabel != null)
-                _teachingLabel.text = next == TutorialProgressManager.BasicsPlusId ? "基础教学一·进阶"
-                    : next == TutorialProgressManager.AdvancedId ? "基础教学二"
-                    : next == TutorialProgressManager.LunzhuanId ? "基础教学三"
+                _teachingLabel.text = next == TutorialProgressManager.BasicsPlusId ? "基础教学二"
+                    : next == TutorialProgressManager.AdvancedId ? "基础教学三"
+                    : next == TutorialProgressManager.LunzhuanId ? "基础教学四"
                     : "基础教学一";
         }
 
-        /// <summary>「基础教学」入口（2026-10-19 三课制：纯进度路由，无任何询问/跳过路径）：
-        /// 按 CourseOrder 推进——basics 攻防 → advanced 进阶机制 → lunzhuan 毕业连战（预组三连战，
-        /// 2026-11-02 改版）；三课全胜=教学整体完成（教学按钮隐藏，本口不可达）。</summary>
+        /// <summary>「基础教学」入口（纯进度路由，无任何询问/跳过路径）：
+        /// 按 CourseOrder 推进——basics 攻防 → basics_plus 关键词（2026-11-11 升格教学二）→
+        /// advanced 主动效果 → lunzhuan 毕业连战（预组三连战，2026-11-02 改版）；
+        /// 四课全胜=教学整体完成（教学按钮隐藏，本口不可达）。</summary>
         private void EnterTutorialFlow()
         {
             if (TutorialProgressManager.Instance.IsTutorialDone) return; // 换装漏网兜底
             StartTutorialBattleWithSplit();
         }
 
-        /// <summary>开教学局（2026-10-19 三课制：序列=basics→advanced→lunzhuan 纯对战局）。
-        /// 第三课 lunzhuan 毕业连战（2026-11-02 改版）：LunzhuanGauntlet.Begin() 开新一轮（每次
+        /// <summary>开教学局（序列=basics→basics_plus→advanced→lunzhuan 纯对战局）。
+        /// 第四课 lunzhuan 毕业连战（2026-11-02 改版）：LunzhuanGauntlet.Begin() 开新一轮（每次
         /// 入口从头计胜场），走战场五段式开局（段四首场单轮选我方卡组、后续场沿用；对手=预组序列），
         /// 三场全胜过课。</summary>
         private void StartTutorialBattleWithSplit()

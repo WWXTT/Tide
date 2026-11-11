@@ -52,8 +52,18 @@ namespace CardCore.Attribute
             if (!PrepareForExecution(effect, context, out var handler))
                 return false;
 
-            handler.Execute(effect, context);
-            return true;
+            int originalValue = effect.Value;
+            int bonus = DeathTollBonusOf(effect, context);
+            if (bonus > 0) effect.Value += bonus;
+            try
+            {
+                handler.Execute(effect, context);
+                return true;
+            }
+            finally
+            {
+                effect.Value = originalValue;
+            }
         }
 
         /// <summary>
@@ -78,15 +88,39 @@ namespace CardCore.Attribute
             // 铁律守卫作用域（2026-11-08 §1.1）：handler 执行期发起的选择请求须带已批准 SpecKey，
             // 否则 TargetSelectionService 内 GuardHandlerScope 报 Error（先叫后清零）。
             TargetSelectionService.BeginHandlerScope(context);
+            int originalValue = effect.Value;
+            int bonus = DeathTollBonusOf(effect, context);
+            if (bonus > 0) effect.Value += bonus;
             try
             {
                 await handler.ExecuteAsync(effect, context);
             }
             finally
             {
+                effect.Value = originalValue;
                 TargetSelectionService.EndHandlerScope();
             }
             return true;
+        }
+
+        /// <summary>死亡计数增幅（2026-11-10 用户定案）：宿主卡手牌累计 DeathTollCounter；
+        /// 该卡之后所有 {value} 原子都吃同一增幅，直到离场（计数器由 CounterRules 换区口径保证）。
+        /// 增幅 = min(9, floor(deaths / 该原子每 +1 value 的费))；1 死亡=1 费，不同原子单价不同；普通计数上限6、增幅9。
+        /// 只对描述含 {value} 的行生效；动态 valueExpr 不在此口（保持原值）。</summary>
+        private static int DeathTollBonusOf(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            if (context == null || context.IsCostPayload) return 0;
+            var host = context.CastCard ?? context.Source as Card;
+            if (host == null) return 0;
+            int deaths = host.GetCounterCount(Attribute.CounterRules.DeathTollCounter);
+            if (deaths <= 0) return 0;
+            var cfg = AtomicEffectTable.GetByHashId(effect.RowHashId);
+            if (cfg == null || string.IsNullOrEmpty(cfg.Description) || !cfg.Description.Contains("{value}"))
+                return 0;
+            if (!string.IsNullOrEmpty(effect.ValueExpr)) return 0;
+            float step = CostDerivationService.ValueStepFee(effect, context.ResolvingEffect);
+            if (step <= 0.0001f) return 0;
+            return Math.Min(9, Math.Max(0, (int)Math.Floor(deaths / step)));
         }
 
         /// <summary>

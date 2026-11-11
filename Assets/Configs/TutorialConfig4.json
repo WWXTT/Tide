@@ -2,9 +2,9 @@
   "tutorials": [
     {
       "id": "basics_plus",
-      "name": "基础教学一·进阶",
+      "name": "基础教学二",
       "rngSeed": 20261109,
-      "_说明": "教学一·进阶（2026-11-09 关键词课）：复用教学二多段结构（scenario=段0 先攻/连击、skipScenario=段1 碾压/溅射、phaseScenarios[0..8]=段2..10 缴械警戒/隐密帷幕/吸血系命/剧毒不灭/再生/守护/狩猎/病原体/绝缘体）+收尾 completeOnConfirm 步。38 步引导、10 个 midTransition、5 个 AI 回合（段5 系命反击演示/段7 空过/段8 守护吃 8 点溢出/段9 空过/段10 病原体三来源染毒）。攻击免费（TryDeclareAttack 无费用门槛）、法术全 0 费——bank 全零。新卡见 TutorialCards「教学·先攻甲」等 46 张（id=C_+HashCard 探针计算）；新效果 D43C324C 全体减攻 / 40CEACFC 一点伤害。段5 吸血/系命与段9 狩猎吸血用 units.currentLife 播种带伤开局（TutorialUnitSpec 新列）。段3 普通三只先行送死再上缴械（2026-11-09 用户修订）；段1 连击打 2/8 与先攻乙同死（2026-11-09 用户修订：文案按引擎快照反击定稿）；段2 溅射按连锁新实现讲解。",
+      "_说明": "教学二·关键词课（2026-11-09 建·2026-11-11 升格教学二）：复用原教学二（现教学三）多段结构（scenario=段0 先攻/连击、skipScenario=段1 碾压/溅射、phaseScenarios[0..8]=段2..10 缴械警戒/隐密帷幕/吸血系命/剧毒不灭/再生/守护/狩猎/病原体/绝缘体）+收尾 completeOnConfirm 步。38 步引导、10 个 midTransition、5 个 AI 回合（段5 系命反击演示/段7 空过/段8 守护吃 8 点溢出/段9 空过/段10 病原体三来源染毒）。攻击免费（TryDeclareAttack 无费用门槛）、法术全 0 费——bank 全零。新卡见 TutorialCards「教学·先攻甲」等 46 张（id=C_+HashCard 探针计算）；新效果 D43C324C 全体减攻 / 40CEACFC 一点伤害。段5 吸血/系命与段9 狩猎吸血用 units.currentLife 播种带伤开局（TutorialUnitSpec 新列）。段3 普通三只先行送死再上缴械（2026-11-09 用户修订）；段1 连击打 2/8 与先攻乙同死（2026-11-09 用户修订：文案按引擎快照反击定稿）；段2 溅射按连锁新实现讲解。",
       "scenario": {
         "startTurn": 10,
         "firstPlayer": "P1",

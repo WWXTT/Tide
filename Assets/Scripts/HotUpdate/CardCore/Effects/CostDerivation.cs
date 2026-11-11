@@ -424,7 +424,8 @@ namespace CardCore
         /// 奖励发射由 BranchEngines 每卡每回合 1 次全局规则自限）。</summary>
         internal static bool HasEnginePayload(EffectDefinition def)
         {
-            bool Of(AtomicEffectInstance a) => a?.Branch != null && a.Branch.Settle == BranchSettleKind.Engine;
+            bool Of(AtomicEffectInstance a) => a?.Branch != null && a.Branch.Settle == BranchSettleKind.Engine
+                && a.Branch.EngineKind != BranchEngineKind.DeathToll; // 增幅标记不是奖励载荷，宿主仍吃时机系数
             if (def.Effects != null)
                 foreach (var a in def.Effects)
                     if (Of(a)) return true;
@@ -493,11 +494,23 @@ namespace CardCore
                || timing == TriggerTiming.OnLeaveBattlefield
                || timing == TriggerTiming.OnReturnFromGraveyard;
 
+        /// <summary>死亡计数 amplification：+3×原子基准费=总费×4（用户定案）。</summary>
+        public const float DeathTollAmplificationMultiplier = 4f;
+
+        private static bool IsAmplifiedDeathToll(AtomicEffectInstance atom)
+            => atom?.Branch != null
+               && atom.Branch.Settle == BranchSettleKind.Engine
+               && atom.Branch.EngineKind == BranchEngineKind.DeathToll
+               && atom.Branch.EngineParam >= 9;
         private static float ComputeAtomCost(AtomicEffectInstance atom, EffectDefinition def, List<int> domain, AtomicEffectConfig cfg)
         {
             // 系数链全程不取整（2026-10-12 起）——效果出口逐色取整见 DeriveElementCosts 头注（2026-10-18）。
             float amount = ComputeAtomBaseAmount(atom, def, cfg);
+            // 2026-11-10 死亡计数 amplification（用户定案）：+3×**原子基准费**——
+            // 基准0.5绿 → +1.5；总费=基准×4，后续数量/时机系数照乘。
+            bool amp = IsAmplifiedDeathToll(atom);
             if (amount <= 0f) return 0f;
+            if (amp) amount *= DeathTollAmplificationMultiplier;
 
             // 错边拆分已删（2026-10-28 P1 定案）：黑白获得经济退役——极性不再参与计价拆分，
             // 有害原子锁己方域照常全价计费（自缚设计的代价语义由代价栏抵扣承担）。
@@ -532,6 +545,23 @@ namespace CardCore
             return amount;
         }
 
+        /// <summary>amplification 的增幅费（用户定案）：+3×该原子正常总费（基准×系数链后的费）。
+        /// UI 费用构成/测试共用；实现=临时摘 branch 求正常费，再乘 3。</summary>
+        public static float AmplificationFeeOf(AtomicEffectInstance atom, EffectDefinition def, List<int> domain)
+        {
+            if (!IsAmplifiedDeathToll(atom) || def == null) return 0f;
+            var b = atom.Branch;
+            atom.Branch = null;
+            try
+            {
+                var cfg = ResolvePricingConfig(atom);
+                return 3f * ComputeAtomCost(atom, def, domain, cfg);
+            }
+            finally
+            {
+                atom.Branch = b;
+            }
+        }
         /// <summary>双方同时作用减半系数（2026-10-03 用户定案；2026-10-05 迁表 CardCost.SymmetricDiscountFactor）。</summary>
         public static float SymmetricDiscountFactor => ValueSystemConfigManager.Instance.GetOrCreateConfig().CardCostConfig.SymmetricDiscountFactor;
 
@@ -995,6 +1025,27 @@ namespace CardCore
             if (atom == null) return 0;
             var cfg = ResolvePricingConfig(atom); // 行身份（2026-10-03）：变体行按 RowHashId 取锚
             return (int)Math.Round(ComputeAtomBaseAmount(atom, PayloadGrantDef, cfg), MidpointRounding.AwayFromZero); // 小数直通：末尾一次约等于
+        }
+
+        /// <summary>该原子 {value}+1 的费用（2026-11-10 死亡计数增幅）：按 Value=1→2 的
+        /// ComputeAtomBaseAmount 差分取单位费；计价链同源，不另写映射。非 {value} 行/无定义返回 0。</summary>
+        public static float ValueStepFee(AtomicEffectInstance atom, EffectDefinition def)
+        {
+            if (atom == null || def == null) return 0f;
+            var cfg = ResolvePricingConfig(atom);
+            int old = atom.Value;
+            try
+            {
+                atom.Value = 1;
+                float one = ComputeAtomBaseAmount(atom, def, cfg);
+                atom.Value = 2;
+                float two = ComputeAtomBaseAmount(atom, def, cfg);
+                return Math.Max(0f, two - one);
+            }
+            finally
+            {
+                atom.Value = old;
+            }
         }
 
         /// <summary>Payload 计价合成组合层（Duration=Once、TargetCount=1）。</summary>

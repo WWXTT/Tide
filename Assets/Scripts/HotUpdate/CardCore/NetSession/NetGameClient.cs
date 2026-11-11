@@ -31,6 +31,16 @@ namespace CardCore.Network
         public bool Disconnected { get; private set; }
         public string Remote => _io != null ? _io.Remote : "";
 
+        // ---- 下行末态缓存（2026-11-11 交接补投修复）----
+        // 场景：房主开局即 StartMatch（双方卡组到齐就开），MatchManifest + 首帧 GameStateSync 由服务器
+        // 立刻下发；而客户端此刻正处在「大厅已摘事件 → 战斗屏还没挂事件」的交接窗口
+        //（SwallowToBattle 过场）——事件订阅为空，这两帧被静默丢弃，战斗屏此后永远等不到开局数据
+        //（空场/无手牌/阶段格空/卡堆空，且服务器快照只在事件后才重发=永不自愈）。
+        // 末态缓存把这三类下行留一份，战斗屏挂载时补投（幂等：先到者已消费则重复应用无害）。
+        public MsgRoomState LastRoomState { get; private set; }
+        public MsgMatchManifest LastManifest { get; private set; }
+        public MsgGameStateSync LastSnapshot { get; private set; }
+
         private INetClientTransport _io;
 
         /// <summary>TCP 直连（阻塞，失败抛——调用方在线程池上跑）。局域网/回环路径。</summary>
@@ -85,11 +95,14 @@ namespace CardCore.Network
 
                 case NetworkMessageType.RoomState:
                     var room = NetworkSerializer.DeserializePayload<MsgRoomState>(msg);
+                    LastRoomState = room;
                     OnRoomState?.Invoke(room);
                     break;
 
                 case NetworkMessageType.MatchManifest:
-                    OnManifest?.Invoke(NetworkSerializer.DeserializePayload<MsgMatchManifest>(msg));
+                    var manifest = NetworkSerializer.DeserializePayload<MsgMatchManifest>(msg);
+                    LastManifest = manifest;
+                    OnManifest?.Invoke(manifest);
                     break;
 
                 case NetworkMessageType.MatchSummary: // v11 终局摘要（对局记录——客户端落 EncounterStore）
@@ -98,7 +111,11 @@ namespace CardCore.Network
 
                 case NetworkMessageType.GameStateSyncV2:
                     var snap = NetworkSerializer.DeserializePayload<MsgGameStateSync>(msg);
-                    if (snap != null) OnSnapshot?.Invoke(snap);
+                    if (snap != null)
+                    {
+                        LastSnapshot = snap;
+                        OnSnapshot?.Invoke(snap);
+                    }
                     break;
 
                 case NetworkMessageType.NetEventBatch:
@@ -136,6 +153,9 @@ namespace CardCore.Network
         public void Close()
         {
             Disconnected = true;
+            LastRoomState = null; // 末态缓存随连接收口（下一局新实例，防串局补投）
+            LastManifest = null;
+            LastSnapshot = null;
             _io?.Close();
         }
     }

@@ -24,6 +24,11 @@ namespace CardCore.Network
         private readonly string[] _deckIds;
         private readonly string _skillCardId;
         private readonly int _turnCap;
+        // 2026-11-11「AI 默认用玩家同一套卡组」：衍生物区/槽绑定随卡组一起提交（否则 TokenSig
+        // 与玩家侧卡组摘要口径分叉）；null/空=无衍生物（既有调用零改动）。
+        private readonly string[] _tokenCardIds;
+        private readonly List<SynergyUI.DeckTokenBinding> _tokenBindings;
+        private readonly string _deckName;
         private readonly NetDeckDigest _digest; // 构造期预计算（调用方线程——生产=主线程；摘要计算的非线程安全共享态见下注）
 
         private NetworkStream _stream;
@@ -40,17 +45,23 @@ namespace CardCore.Network
         /// <summary>回环线程句柄（Stop 后由 GC 回收；IsAlive 可观测）。</summary>
         public Thread Thread { get; private set; }
 
-        /// <summary>卡组与技能显式版（测试夹具用）。</summary>
-        public NetAiFiller(string nickname, string[] deckIds, string skillCardId = null, int turnCap = 60)
+        /// <summary>卡组与技能显式版（测试夹具用；2026-11-11 追加衍生物区/绑定/卡组名——
+        /// 房主「加 AI」默认直接用玩家选中的那套卡组，按同口径提交）。</summary>
+        public NetAiFiller(string nickname, string[] deckIds, string skillCardId = null, int turnCap = 60,
+            string[] tokenCardIds = null, List<SynergyUI.DeckTokenBinding> tokenBindings = null,
+            string deckName = null)
         {
             _nickname = nickname;
             _deckIds = deckIds;
             _skillCardId = skillCardId;
             _turnCap = turnCap;
+            _tokenCardIds = tokenCardIds;
+            _tokenBindings = tokenBindings;
+            _deckName = deckName;
             // 摘要在构造期（调用方线程）算好，不在回环线程现算：ComputeDeckDigest 走共享
             // 转换静态量非线程安全——生产路径摘要=主线程算、服务器泵=主线程验天然串行；
             // 测试里多填位线程并发现算会互相打穿（p2pcheck 实测：后算方 0 行 vs 服务器 2 行）。
-            _digest = NetMatchHandshake.ComputeDeckDigest(deckIds);
+            _digest = NetMatchHandshake.ComputeDeckDigest(deckIds, tokenCardIds, tokenBindings);
         }
 
         /// <summary>便捷工厂：随机预组一套（NetPresetDecks 三选一，恒过校验；2026-10-28「不选=随机」同源）。
@@ -100,10 +111,12 @@ namespace CardCore.Network
                 });
                 var submit = new MsgDeckSubmit
                 {
-                    DeckName = $"ai-{_nickname}",
+                    DeckName = string.IsNullOrEmpty(_deckName) ? $"ai-{_nickname}" : _deckName,
                     CardIds = _deckIds,
                     Digest = _digest,
                     SkillCardId = _skillCardId,
+                    TokenCardIds = _tokenCardIds ?? Array.Empty<string>(),
+                    TokenBindings = NetMatchHandshake.ToWireBindings(_tokenBindings),
                 };
 
                 while (!_stop && !_disconnected && !Done)

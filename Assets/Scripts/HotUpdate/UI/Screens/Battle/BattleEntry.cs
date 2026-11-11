@@ -51,6 +51,13 @@ namespace SynergyUI
         /// 一次性消费（StartNetFan 读取）。本地/AI 路径恒 false 不受影响。</summary>
         public static bool NetDeckSubmitted;
 
+        /// <summary>网络局双方卡组名（S7b 摘要窗 2026-11-10 改版·掷币段独立面板退役）：
+        /// LobbyScreen 移交时随带（我方=大厅选中卡组名；对手=RoomState 座位快照 DeckName），
+        /// BattleScreen 卡组摘要窗 self/opp-deck-row 行标题消费。
+        /// 一次性消费（StartNetFan 读取置空防跨局残留）。</summary>
+        public static string NetMyDeckName;
+        public static string NetOpponentDeckName;
+
         /// <summary>教学局关卡 id（TutorialLibrary 条目；缺省 "basics" 基础教学）。
         /// 入口方接线：BattleEntry.Mode = BattleMode.Tutorial 后 Show&lt;BattleScreen&gt;。</summary>
         public static string TutorialId = "basics";
@@ -127,10 +134,15 @@ namespace SynergyUI
         public static bool DummyFullPool;
 
         /// <summary>木桩局对手难度（2026-10-23 选卡组弹窗）：0=木桩（ScriptedAi 无剧本全让过）、
-        /// 1=脚本（2026-10-24 接入预组控制脚本：MakePacedAi+AutoMatch 按对方预组 Theme 标签映到
+        /// 1=脚本（2026-11-24 接入预组控制脚本：MakePacedAi+AutoMatch 按对方预组 Theme 标签映到
         /// 红快攻/蓝控制/绿慢速主题策略；响应行为归驱动自身内置启发，不加外部约束）、
-        /// 2=AI（正式对手：MakePacedAi+AutoMatch 策略）。仅木桩分支消费（DummyOptionsPanel 弹窗写入
+        /// 2=AI（正式对手：MakePacedAi+AutoMatch 策略）。仅木桩分支消费（DummyOptionsPanel 弹窗写入、
         /// DummyDeckPanel 段四消费），其他模式不读无需入口清。</summary>
         public static int DummyDifficulty;
+
+        /// <summary>木桩局随机种子钉子（2026-11-11 日志复现链）：DummyOptionsPanel「input-seed」
+        /// 确认值（0=每局新抽——BattleController.StartNewGame 统一抽定）。一次性消费
+        ///（EngageLocalBattle 木桩分支读取后置零）。</summary>
+        public static int DummySeed;
     }
 }

@@ -4,6 +4,7 @@ using System.Linq;
 
 namespace CardCore.Attribute
 {
+    using CardCore;
     /// <summary>
     /// 指示物极性（定案）：正面=增益/资源，负面=减益/妨害。
     /// </summary>
@@ -786,12 +787,18 @@ namespace CardCore.Attribute
         /// </summary>
         public static void ClearAll(Card card) => ClearCounters(card, purgeAll: false);
 
+        /// <summary>换区清除（2026-11-10 死亡计数改版）：带 from/to 的换区口径——
+        /// **手牌→战场**保留死亡计数增幅（DeathTollCounter），其余换区照常清；
+        /// 战场→任何区仍清（“从战场离开才清”）。无 from/to 的 ClearAll 用于净化/重置，全清。</summary>
+        public static void ClearAll(Card card, Zone from, Zone to)
+            => ClearCounters(card, purgeAll: false, from, to);
+
         /// <summary>
         /// 清除核心（分类驱动）：purgeAll=false 为换区口径（保留 Exception）；
         /// purgeAll=true 为净化口径（全清——效果级移除是跨区类的唯一强清口）。
         /// 被清的属性层先反向回写。
         /// </summary>
-        private static void ClearCounters(Card card, bool purgeAll)
+        private static void ClearCounters(Card card, bool purgeAll, Zone? from = null, Zone? to = null)
         {
             if (card == null || card._counters.Count == 0) return;
 
@@ -800,6 +807,10 @@ namespace CardCore.Attribute
             {
                 if (kv.Key == OverloadCounter)
                     continue; // 过载=系统冻结（§11.4）：换区/净化都不清，只由 CardEffectBudget.OnNewTurn 移除
+                // 2026-11-10 死亡计数改版：手牌→战场保留计数增幅（从战场离开才清，见 ClearAll 重载）。
+                if (!purgeAll && kv.Key == DeathTollCounter
+                    && from == Zone.Hand && to == Zone.Battlefield)
+                    continue;
                 var spec = Find(kv.Key);
                 if (!purgeAll && spec.Class == CounterClass.Exception)
                     continue; // 生效自减类跨区存活

@@ -50,7 +50,7 @@ namespace SynergyUI
         /// 对局终局上报（BattleScreen 胜负弹窗时调用）：教学局胜=关卡完成落档（负=进行中保留，
         /// 回菜单再点教学按钮重开）；挑战模式=按难度落战绩档（2026-10-06）。
         /// 其余对局（普通本地）忽略。
-        /// 教学三毕业连战（2026-11-02 改版）例外：连战进行中单场胜利不落档——过课判据=三场全胜，
+        /// 教学四毕业连战（2026-11-02 改版·2026-11-11 重编号）例外：连战进行中单场胜利不落档——过课判据=三场全胜，
         /// 记账与落档归终局弹窗链（BattleTutorialDirector.PromptGauntletOverAsync 调
         /// LunzhuanGauntlet.ReportWin，满 3 胜才 MarkTutorialCompleted）。
         /// </summary>

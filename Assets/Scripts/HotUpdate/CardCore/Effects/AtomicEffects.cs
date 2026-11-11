@@ -247,7 +247,8 @@ namespace CardCore
         EngineLuckRoll,
         /// <summary>引擎主干·拼点：双方各从手牌展示一张生物（取攻击力最高，无生物=0）比攻击力，差额≥门槛（=奖励锚价）触发奖励。</summary>
         EngineClash,
-        /// <summary>引擎主干·死亡计数：双方生物死亡累计≥x 触发奖励（预算=x）。</summary>
+        /// <summary>引擎主干·死亡计数（2026-11-10 退役出自由分支；枚举保留仅作旧号兼容，
+        /// 新形态=效果原子 amplification 标记）。</summary>
         EngineDeathToll,
         /// <summary>引擎主干·元素充盈：己方元素池上限与对手的差≥x（门槛=Then 锚价推导）触发奖励。</summary>
         EngineManaSurplus,

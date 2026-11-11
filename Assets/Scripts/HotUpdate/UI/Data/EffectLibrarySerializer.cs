@@ -97,8 +97,12 @@ namespace SynergyUI
         /// tutorial=true 时效果行写教学表（2026-10-22 教学卡引用不跨表）。
         /// 2026-10-26 复制零写入定案：id 在合并视图（主∪教学，EffectsLibrary.Get 同源）已可解析=
         /// 同内容条目已存在——只取引用不落盘（预组复制/卡组合保存引用教学表同内容行时不再跨表
-        /// upsert 出重复条目）；内容有变（新 id）才写。</summary>
-        public static List<string> EffectIdsOf(List<CardEffectData> effects, bool tutorial = false)
+        /// upsert 出重复条目）；内容有变（新 id）才写。
+        /// persist=false（2026-11-11 联机握手修复）：只取引用、**任何情况都不落盘**——网络载荷构建
+        /// 属读路径（旧口径在存储 hash 与现算内容指纹不等时会 Save → 写主表 + mtime 变 →
+        /// 服务器校验前的强制 Reload 读到新 hash，同一进程两端也算出不同 ContentSig 而假拒局）。</summary>
+        public static List<string> EffectIdsOf(List<CardEffectData> effects, bool tutorial = false,
+            bool persist = true)
         {
             var ids = new List<string>();
             if (effects == null) return ids;
@@ -110,8 +114,11 @@ namespace SynergyUI
                 // 内容变了也不再换号——改为更新同一行（旧行 hash 与现值不等即视为内容变更）。
                 string contentHash = ContentHasher.HashEffect(graph);
                 graph.id = string.IsNullOrEmpty(fx.Id) ? contentHash : fx.Id;
-                var existing = EffectsLibrary.Get(graph.id);
-                if (existing == null || existing.hash != contentHash) Save(graph, tutorial);
+                if (persist)
+                {
+                    var existing = EffectsLibrary.Get(graph.id);
+                    if (existing == null || existing.hash != contentHash) Save(graph, tutorial);
+                }
                 ids.Add(graph.id);
             }
             return ids;

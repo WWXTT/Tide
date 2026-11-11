@@ -53,8 +53,10 @@ namespace SynergyUI
             var card = CardCatalog.GetById(cardId);
             if (card == null) return;
 
-            // 行 JSON 与 Cards.json 同构（EntryOf=写盘同源映射；效果 upsert 对本地已有行幂等）
-            var entry = CardConfigSerializer.EntryOf(card);
+            // 行 JSON 与 Cards.json 同构（EntryOf=写盘同源映射）；persistEffects=false = 只读序列化
+            //（2026-11-11 握手修复：旧口径在此 upsert 效果表，写表→mtime 变→服务器校验前的
+            //  TransientNetContent.Install 强制 Reload 读到新 hash，ContentSig 假拒局）
+            var entry = CardConfigSerializer.EntryOf(card, persistEffects: false);
             cards.Add(new MsgCardPayload { CardId = card.ID, CardJson = TideJson.ToJson(entry) });
 
             // 效果闭包：卡效果 id（materialized Effects——含冻结 id）逐个带库行

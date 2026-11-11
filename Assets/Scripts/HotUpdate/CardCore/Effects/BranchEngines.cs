@@ -282,8 +282,6 @@ namespace CardCore
                                     int x = Math.Max(1, Math.Min(6, payload.EngineParam));
                                     int d1 = GameRng.Next(1, 7), d2 = GameRng.Next(1, 7);
                                     bool luckHit = d1 >= x && d2 >= x;
-                                    EngineProbabilityProbe.Record(BranchEngineKind.LuckRoll,
-                                        Math.Min(d1, d2), luckHit); // p(x)=P(双骰都≥x)
                                     // 表现层结构化观察口（成败都发·与主动路径同源）：头顶浮字
                                     EventManager.Instance.Publish(new LuckRolledEvent
                                     {
@@ -324,7 +322,6 @@ namespace CardCore
                                     int theirs = PowerOf(theirsPick);
                                     int threshold = CostDerivationService.EngineRewardThreshold(payload.Then, def.TriggerTiming);
                                     bool success = mine - theirs >= threshold;
-                                    EngineProbabilityProbe.Record(BranchEngineKind.Clash, mine - theirs, success);
                                     EventManager.Instance.Publish(new ClashResolvedEvent // 成败两态必发（2026-10-20 表现观察口）
                                     {
                                         EngineCard = card,
@@ -357,7 +354,6 @@ namespace CardCore
                                     ComposerCatalog.EngineParamRange(BranchEngineKind.Unity, out int uMin, out int uMax);
                                     int x = Math.Max(uMin, Math.Min(uMax, payload.EngineParam));
                                     int n = UnityAdjacentCountOf != null ? UnityAdjacentCountOf(card) : 0;
-                                    EngineProbabilityProbe.Record(BranchEngineKind.Unity, n, n >= x);
                                     if (n < x) break;
 
                                     if (EngineCapReached(card, def)) break; // 每卡每回合 1 次（2026-10-22 全局规则）
@@ -457,37 +453,24 @@ namespace CardCore
 
         private static void EvaluateDeathTollEngines(Player player, ZoneManager zm, GameCore core)
         {
-            // 2026-11-08 阶段3：只扫战场——手牌不再计数（引擎须驻场观察死亡；
-            // 手牌卡的存量计数由 System 指示物换区清机制自理）。
-            foreach (var card in zm.GetCards(player, Zone.Battlefield).ToList())
+            // 2026-11-10 用户定案：死亡计数只在**手牌中**累计；进战场后冻结、不再加；
+            // 不再有门槛奖励——计数留作该卡 {value} 的增幅（离场才清，见 CounterRules.ClearAll 重载）。
+            foreach (var card in zm.GetCards(player, Zone.Hand).ToList())
             {
-                if (card == null || !card.IsAlive) continue; // 只扫战场存活卡（与其它评估口同口径）
+                if (card == null || !card.IsAlive) continue;
                 foreach (var (def, payload) in EnginePayloadsOf(card, BranchEngineKind.DeathToll))
                 {
                     int count = card.GetCounterCount(Attribute.CounterRules.DeathTollCounter);
-                    if (count >= DeathTollCap) break; // 满值不再计数（同卡单载荷一份——旧制口径）
-
+                    int cap = payload.EngineParam > 0 ? payload.EngineParam : DeathTollCap; // 增幅9/普通6
+                    if (count >= cap) break; // 满值不再计数
                     card.AddCounters(Attribute.CounterRules.DeathTollCounter, 1);
                     count++;
-                    // 2026-10-09 自平衡统一（沿旧制）：门槛=Then 奖励锚价推导——奖励越贵需死亡越多
-                    int x = CostDerivationService.EngineRewardThreshold(payload.Then, def.TriggerTiming);
-                    if (x > DeathTollCap)
-                    {
-                        TideLog.Warn($"[BranchEngines] 死亡计数门槛 x={x} 超过满值 {DeathTollCap}（死档）"
-                                     + $"——卡 {NameOf(card)} 奖励费×时机系数过高，请降奖励或换时机");
-                        break;
-                    }
-                    EngineProbabilityProbe.Record(BranchEngineKind.DeathToll, count, count >= x);
-                    if (count < x) break;
-                    if (EngineCapReached(card, def)) break; // 每卡每回合 1 次（2026-10-22 全局规则）
-
                     EventManager.Instance.Publish(new KeywordAppliedEvent
                     {
                         Target = card, Keyword = "死亡计数",
-                        Detail = $"此卡计数 {count} ≥ {x}：执行奖励（满值 {DeathTollCap}，触发不清零，使用后清零）",
+                        Detail = $"手牌计数 +1 → {count}（满值 {cap}；进战场冻结，离场清零，增幅 value）",
                     });
-                    LaunchReward(payload, null, card, player, core);
-                    RecordEngineFire(card, def);
+                    _ = def;
                     break;
                 }
             }
@@ -533,16 +516,10 @@ namespace CardCore
                 }
                 case BranchEngineKind.DeathToll:
                 {
-                    int count = card != null ? card.GetCounterCount(Attribute.CounterRules.DeathTollCounter) : 0;
-                    int x = CostDerivationService.EngineRewardThreshold(payload.Then, def.TriggerTiming);
-                    if (x > DeathTollCap)
-                    {
-                        detail = $"死亡计数门槛 x={x} 超过满值 {DeathTollCap}（死档）——奖励费×时机系数过高";
-                        return false;
-                    }
-                    bool success = count >= x;
-                    detail = $"死亡计数 {count}{(success ? " ≥ " : " < ")}{x}（满值 {DeathTollCap}，触发不清零，使用后清零）";
-                    return success;
+                    // 2026-11-10：死亡计数改为被动 value 增幅（手牌累计、进战场冻结、离场清零），
+                    // 不再有“计数≥x 触发奖励”的主动发动口。
+                    detail = "死亡计数为被动增幅：手牌累计，进战场冻结，离场清零";
+                    return false;
                 }
                 case BranchEngineKind.Unity:
                 {
@@ -619,7 +596,6 @@ namespace CardCore
                     int mine = core.ElementPool?.GetRemainingElementTotal(owner) ?? 0;
                     int theirs = core.ElementPool?.GetRemainingElementTotal(opponent) ?? 0;
                     int diff = Math.Min(mine - theirs, SurplusCap);
-                    EngineProbabilityProbe.Record(BranchEngineKind.ManaSurplus, diff, diff == x);
                     if (diff != x) continue; // 判据七（==x）：差恰等于门槛才触发（≥x 随判据六退役）
 
                     if (EngineCapReached(card, def)) break; // 每卡每回合 1 次（2026-10-22 全局规则）

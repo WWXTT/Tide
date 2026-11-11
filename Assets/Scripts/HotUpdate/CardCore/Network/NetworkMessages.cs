@@ -92,10 +92,16 @@ namespace CardCore.Network
     /// v12（2026-11-10 S8 排位模式）：MsgJoinRoom 新增 Ranked/DeckFingerprint/WinRate（排位标记
     /// 与卡组内容指纹/胜率随进房上报）、MsgMatchSummary 新增 Ranked（终局只对排位局记账）、
     /// 新消息 MsgRankedAck（双 true 才开局，5s 超时/任一拒绝=解散）、MsgMatchManifest 新增
-    /// OpponentCostHistogram（S7b 掷币段对手费用分布 9 桶）——布局变更，新旧端互拒（无兼容层）。</summary>
+    /// OpponentCostHistogram（S7b 掷币段对手费用分布 9 桶）——布局变更，新旧端互拒（无兼容层）。
+    /// v13（2026-11-11 随机种子钉子）：MsgRoomSettings 新增 Seed（房主钉对局随机种子，0=开局随机
+    /// 定死）、MsgRoomState 新增 Seed（开局定死后的实际种子回显——客户端对局日志展示/复制复现）
+    /// ——布局变更，新旧端互拒（无兼容层）。
+    /// v14（2026-11-11 服务器权威回合计时）：MsgGameStateSync 新增 TurnSecondsLeft（本回合剩余
+    /// 可用秒数——HUD「可用时间」格倒计时源；服务器到点代打：栈上有待响应者=替其让行，否则替
+    /// 回合方结束回合）——布局变更，新旧端互拒（无兼容层）。</summary>
     public static class NetworkProtocol
     {
-        public const ushort Version = 12;
+        public const ushort Version = 14;
 
         /// <summary>接收侧版本闸（v8 起）：信封版本与本端不符 = 新旧端互拒（无兼容层）。
         /// 0=legacy 草稿期数据，同样失配。</summary>

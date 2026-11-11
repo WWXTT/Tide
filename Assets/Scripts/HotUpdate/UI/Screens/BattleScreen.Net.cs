@@ -25,6 +25,15 @@ namespace SynergyUI
         // 反问 = Region 选项列表（实体候选按 CardId 查表渲染卡名）；
         // 表现 MVP = 战报轻日志+浮字级演出（伤害/治疗粒度的 3D 演出接 NetEvent 载荷属后续里程碑）。
 
+        // ---- S7b 卡组摘要窗（2026-11-10 改版：掷币段独立分布面板退役）----
+        // btn-abstract（BattleUI 烘焙常驻按钮）点开/收起 self-deck-row / opp-deck-row 两行
+        //（deck-row 嵌套实例，烘焙默认隐藏）。我方行=本地已提交卡组实时绑；对手行=manifest
+        // 9 桶直方图粗化（颜色行空），终局 MatchSummary 对手卡表揭晓后补全。
+        private RectTransform _abstractSelfRow;
+        private RectTransform _abstractOppRow;
+        private bool _abstractOpen;
+        private string _netMyDeckName = "", _netOppDeckName = ""; // BattleEntry 移交快照（行标题）
+
         /// <summary>网络对局接入（LobbyScreen 移交的连接一次性消费）。</summary>
         private void StartNetFan()
         {
@@ -62,12 +71,16 @@ namespace SynergyUI
             _netClient.OnRoomState += NetOnRoomState;
             _netClient.OnManifest += NetOnManifest;
             _netClient.OnMatchSummary += NetOnMatchSummary; // v11 终局摘要 → 对局记录
-            _netClient.OnError += e => _toast.Show($"被拒（{e?.Context}）：{e?.Reason}");
+            _netClient.OnError += NetOnError;
             _netClient.OnDisconnected += NetOnDisconnected;
 
             // 网络五段式（2026-10-28 开局流程改版）：就绪开局（DeckSubmit 相位）即战场演出——
             // 地块/角色就位→掷币（服务器权威结果注入/固定模式快进）→网络选卡组面板（30s 服务器
             // 权威倒计时）→确认发 DeckSubmit 握手；对局开始=manifest 校验通过+首快照（既有链路）。
+            _netMyDeckName = BattleEntry.NetMyDeckName ?? "";       // S7b 摘要窗行标题（一次性消费）
+            _netOppDeckName = BattleEntry.NetOpponentDeckName ?? "";
+            BattleEntry.NetMyDeckName = BattleEntry.NetOpponentDeckName = null;
+            SetupAbstractWindow(); // 卡组摘要窗（btn-abstract 常驻——点开 self/opp-deck-row）
             if (StagedOpeningActive())
             {
                 bool coinAnim = BattleEntry.NetCoinToss; // 一次性消费（防跨局残留，同 Client 口径）
@@ -76,23 +89,62 @@ namespace SynergyUI
                 //（manifest 回显校验数据就地转正），段四整段跳过（不建 NetDeckPanel/不等待选卡）。
                 bool deckSubmitted = BattleEntry.NetDeckSubmitted;
                 BattleEntry.NetDeckSubmitted = false; // 一次性消费（防跨局残留）
-                int[] myHistogram = null;
                 if (deckSubmitted && NetDeckSubmit.TakeLast(out var ids, out var tokenIds, out var bindings))
                 {
                     _netSubmittedDeckIds = ids;
                     _netSubmittedTokenIds = tokenIds;
                     _netSubmittedTokenBindings = bindings;
-                    myHistogram = NetMatchHandshake.CostHistogramOf(ids); // S7b 掷币段我方分布快照
+                    BindAbstractSelfRow(ids); // S7b 摘要窗我方行（提前提交路径——ids 已在案）
                 }
                 _opening = new BattleOpeningDirector(() => _running, _field, lunzhuan: false,
                     engage: null, overlayParent: Root,
                     network: true, netPlayerFirst: playerFirst, netCoinAnimation: coinAnim,
                     netEngage: NetEngageStaged,
-                    netDeckSubmitted: deckSubmitted, netMyCostHistogram: myHistogram);
+                    netDeckSubmitted: deckSubmitted);
                 _opening.RunAsync().Forget();
             }
 
+            // 2026-11-11 交接窗口补投：服务器「卡组到齐即开局」，manifest+首帧快照常在大厅已摘事件、
+            // 本屏还没挂事件的过场里到达（事件订阅为空=静默丢弃，本屏此后永等不到开局数据）。
+            // 末态缓存（NetGameClient.Last*）在此补投一次；随后等装台完成补刷 3D 字段
+            //（首帧对账在棋盘未就绪时会被 Apply 自跳过，且服务器快照只在事件后才重发=不会自愈）。
+            ReplayCachedDownlink();
+            NetEnsureFieldAppliedAsync().Forget();
+
             Debug.Log($"[BattleScreen] 网络对局已接入（{_netClient.Remote}）——{(StagedOpeningActive() ? "五段式开局（掷币+选卡组）" : "等待首快照")}");
+        }
+
+        /// <summary>交接窗口补投（2026-11-11）：把 NetGameClient 缓存的 RoomState/Manifest/首快照
+        /// 按序喂给本屏已挂的处理器（顺序：房态→清单→快照；清单先到=摘要窗对手行与覆盖层就位）。
+        /// 重复应用幂等（清单=回显校验+绑行，快照=全量对账）。</summary>
+        private void ReplayCachedDownlink()
+        {
+            if (_netClient == null) return;
+            var room = _netClient.LastRoomState;
+            var manifest = _netClient.LastManifest;
+            var snap = _netClient.LastSnapshot;
+            if (room == null && manifest == null && snap == null) return;
+            if (room != null) NetOnRoomState(room);
+            if (manifest != null) NetOnManifest(manifest);
+            if (snap != null) NetOnSnapshot(snap);
+            TideLog.Info($"[BattleScreen] 交接窗口补投：房态={room != null} 清单={manifest != null} 首快照={snap != null}");
+        }
+
+        /// <summary>装台完成后的 3D 补刷（2026-11-11）：首帧快照常早于棋盘装台（Apply 自跳过），
+        /// 服务器不会再自发快照——这里等 BattleBoardGrid 就绪后把当前视图对账一次。
+        /// 幂等（Apply 是全量对账）；30s 等不到装台=放弃。</summary>
+        private async UniTaskVoid NetEnsureFieldAppliedAsync()
+        {
+            float deadline = Time.realtimeSinceStartup + 30f;
+            while (_running && Time.realtimeSinceStartup < deadline)
+            {
+                if (_view != null && BattleBoardGrid.Ready) break;
+                await UniTask.Yield();
+            }
+            if (!_running || _view == null || !BattleBoardGrid.Ready) return;
+            _projector.ApplySnapshot(_view);
+            RefreshFansNet();
+            Debug.Log("[BattleScreen] 网络首帧视图补刷完成（装台后·幂等对账）");
         }
 
         /// <summary>网络五段式段五（确认出战；S7a 后仅兜底路径可达——提前提交已跳过段四）：
@@ -106,7 +158,46 @@ namespace SynergyUI
             _netSubmittedDeckIds = cardIds;
             _netSubmittedTokenIds = tokenCardIds;
             _netSubmittedTokenBindings = tokenBindings;
+            _netMyDeckName = string.IsNullOrEmpty(deckName) ? "随机预组" : deckName; // S7b 摘要窗行标题
+            BindAbstractSelfRow(cardIds);
             _toast.Show("已确认卡组——等待对手与开局…");
+        }
+
+        // ======================================== S7b 卡组摘要窗（btn-abstract） ========================================
+
+        /// <summary>摘要窗接线（网络局 StartNetFan 调）：btn-abstract 点击=开/收 self/opp-deck-row
+        ///（deck-row 嵌套实例，烘焙默认隐藏——非网络局不接，点击无效果）。</summary>
+        private void SetupAbstractWindow()
+        {
+            var btnNode = UiKit.FindDeep(Root, "btn-abstract");
+            var btn = btnNode != null ? btnNode.GetComponentInChildren<UnityEngine.UI.Button>(true) : null;
+            if (btn == null)
+            {
+                Debug.LogError("[BattleScreen] 摘要窗缺节点：btn-abstract（检查 BattleUI.prefab）");
+                return;
+            }
+            btn.onClick.RemoveAllListeners();
+            btn.onClick.AddListener(ToggleAbstractWindow);
+            _abstractSelfRow = UiKit.FindDeep(Root, "self-deck-row");
+            _abstractOppRow = UiKit.FindDeep(Root, "opp-deck-row");
+            _abstractOpen = false;
+            if (_abstractSelfRow != null) _abstractSelfRow.gameObject.SetActive(false);
+            if (_abstractOppRow != null) _abstractOppRow.gameObject.SetActive(false);
+        }
+
+        private void ToggleAbstractWindow()
+        {
+            _abstractOpen = !_abstractOpen;
+            if (_abstractSelfRow != null) _abstractSelfRow.gameObject.SetActive(_abstractOpen);
+            if (_abstractOppRow != null) _abstractOppRow.gameObject.SetActive(_abstractOpen);
+        }
+
+        /// <summary>摘要窗我方行绑定（S7a 提前提交路径与 NetEngageStaged 兜底路径共用）。</summary>
+        private void BindAbstractSelfRow(string[] cardIds)
+        {
+            if (_abstractSelfRow == null) return;
+            CostChartView.BindDeckRow(_abstractSelfRow,
+                string.IsNullOrEmpty(_netMyDeckName) ? "我方卡组" : _netMyDeckName, cardIds);
         }
 
         /// <summary>开局清单到达（双方确认完毕）：校验回显→收口段四面板→对局开始（等首快照）。
@@ -116,7 +207,11 @@ namespace SynergyUI
         {
             if (manifest == null) return;
             TransientNetContent.Install(manifest.OpponentCards, manifest.OpponentEffects, manifest.OpponentRows);
-            _opening?.RefreshNetCostHistogram(manifest.OpponentCostHistogram); // S7b：掷币段对手分布加载中→实数据
+            // S7b 摘要窗对手行：manifest 9 桶直方图粗化成 4 档（颜色行置空——对手卡表终局才揭晓）
+            if (_abstractOppRow != null)
+                CostChartView.BindDeckRowHistogram(_abstractOppRow,
+                    string.IsNullOrEmpty(_netOppDeckName) ? "对手卡组" : _netOppDeckName,
+                    manifest.OpponentCostHistogram);
             if (_netSubmittedDeckIds != null
                 && !NetMatchHandshake.VerifyMatchManifest(manifest, _netSubmittedDeckIds,
                     _netSubmittedTokenIds, _netSubmittedTokenBindings, out var reason))
@@ -156,6 +251,11 @@ namespace SynergyUI
                 log = summary.Log,
             };
             EncounterStore.Append(record);
+            // S7b 摘要窗对手行补全：终局对手完整卡表揭晓——颜色分布此时才有据（4 桶费用不变）
+            if (_abstractOppRow != null)
+                CostChartView.BindDeckRow(_abstractOppRow,
+                    string.IsNullOrEmpty(record.opponentDeckName) ? "对手卡组" : record.opponentDeckName,
+                    record.opponentCardIds);
             // S8 排位记账：只对 ranked 终局按卡组内容指纹 +1（改卡=指纹变=旧战绩不命中）；
             // 指纹=开局排位时 RankedMatchmaking 定格（普通局/无指纹不记）
             if (summary.Ranked && !string.IsNullOrEmpty(RankedMatchmaking.Fingerprint))
@@ -171,8 +271,22 @@ namespace SynergyUI
         {
             if (snap == null) return;
             _netSnapshot = snap;
+            // v14 回合计时：服务器给「采样时剩余秒数」，本端按收到时刻本地掉表（补发只在决策点）
+            _netTurnSecondsLeft = snap.TurnSecondsLeft;
+            _netTurnClockAt = Time.realtimeSinceStartup;
             _projector.ApplySnapshot(BattleView.BuildNet(snap));
             RefreshFansNet();
+        }
+
+        /// <summary>可用时间格文案（2026-11-11 v14 服务器权威回合计时）：联机局按服务器剩余秒数
+        /// 本地掉表成 m:ss；本地局（∞）/无快照/终局 = 占位。4Hz 由 BattleHudTicker 取用。</summary>
+        private string NetTurnClockText()
+        {
+            if (!NetActive || _netSnapshot == null) return "∞";
+            if (_netTurnSecondsLeft < 0) return "—";
+            float elapsed = Time.realtimeSinceStartup - _netTurnClockAt;
+            int left = Mathf.Max(0, Mathf.CeilToInt(_netTurnSecondsLeft - elapsed));
+            return left >= 60 ? $"{left / 60}:{left % 60:00}" : $"{left}s";
         }
 
         /// <summary>网络局双扇对账：己方手牌正面（快照 OwnRuntimeIds）；对手=数量背面+展示卡翻正面。</summary>
@@ -828,6 +942,7 @@ namespace SynergyUI
         private void NetOnRoomState(MsgRoomState room)
         {
             if (room == null) return;
+            if (room.Seed != 0) _log.ShowSeed(room.Seed); // v13：开局定死的实际种子——日志种子行（展示/复制复现）
             // 选卡组相位：服务器权威倒计时整秒校准转发（面板本地走字+此处校准）
             if (room.Phase == (int)NetRoomPhase.DeckSubmit)
                 _opening?.NetDeckPanel?.OnServerSeconds(room.DeckPickSecondsLeft);
@@ -844,6 +959,35 @@ namespace SynergyUI
             if (_gameEnded) return;
             _gameEnded = true;
             MarkGameOverUi("连接断开——对局作废（断线重连属后续里程碑）");
+        }
+
+        /// <summary>服务器拒绝（2026-11-11 静默死局修复）：DeckSubmit 被拒=本局**永远开不了**
+        /// （服务器在等该座位交卡组，而 S7a 已提前提交、五段式跳过选卡面板 → 没有重交入口），
+        /// 旧口径只弹一条 toast，停在空战场「双方无手牌、无法推进」且无任何报错。
+        /// 收口：明示原因 + 退回大厅重来（本盘连接/服务器出屏 NetShutdown 统一拆除）。
+        /// 其余上下文（非法 intent 等）保持原口径：仅 toast。</summary>
+        private void NetOnError(MsgError e)
+        {
+            if (e == null) return;
+            // 回合计时（v14）：超时代打属规则内事件，不按「被拒」措辞弹（会被误读成操作违法）
+            if (e.Context == "TurnTimeout")
+            {
+                _toast.Show(e.Reason ?? "回合超时——服务器已代为处理");
+                return;
+            }
+            _toast.Show($"被拒（{e.Context}）：{e.Reason}");
+            if (e.Context != "DeckSubmit" || _gameEnded) return;
+            _gameEnded = true;
+            TideLog.Error($"[BattleScreen] 卡组提交被拒（{e.Reason}）——本局无法开局，退回大厅");
+            RejectDeckAndBackAsync(e.Reason).Forget();
+        }
+
+        private async UniTaskVoid RejectDeckAndBackAsync(string reason)
+        {
+            _toast.Show($"卡组提交被拒——本局无法开局：{reason}");
+            await UniTask.Delay(2500); // 让提示可读再退出（toast 随屏销毁）
+            if (!_gameEnded) return;
+            Manager.Back();
         }
 
         /// <summary>网络局收口（OnExit）：拆连接；房主侧会话服务器一并停机（重开=回房间屏重建）；

@@ -540,7 +540,7 @@
       "effectIds": [
         "03271DDF"
       ],
-      "hash": "CFF08451"
+      "hash": "DF3948C9"
     },
     {
       "id": "C_2E00FB6A",
@@ -563,7 +563,7 @@
       "effectIds": [
         "6BCD785C"
       ],
-      "hash": "CB1777D1"
+      "hash": "CC812F17"
     },
     {
       "id": "C_052EB2FB",
@@ -586,7 +586,7 @@
       "effectIds": [
         "1BB8B2DA"
       ],
-      "hash": "9E97A9F6"
+      "hash": "FB6CEDF2"
     },
     {
       "id": "C_2D6E5BFB",
@@ -609,7 +609,7 @@
       "effectIds": [
         "B3A90B8C"
       ],
-      "hash": "ED3A12F6"
+      "hash": "01F05C52"
     },
     {
       "id": "C_B5C0296B",
@@ -632,7 +632,7 @@
       "effectIds": [
         "BC5252DD"
       ],
-      "hash": "DE6E69AB"
+      "hash": "E9544E45"
     },
     {
       "id": "C_D04CC69F",
@@ -655,7 +655,7 @@
       "effectIds": [
         "179CECE8"
       ],
-      "hash": "F781B3B9"
+      "hash": "5C158553"
     },
     {
       "id": "C_E2122348",
@@ -678,7 +678,7 @@
       "effectIds": [
         "60011B78"
       ],
-      "hash": "EE8ECFC0"
+      "hash": "95CA6F57"
     },
     {
       "id": "C_CD77F233",
@@ -701,7 +701,7 @@
       "effectIds": [
         "AE2C3BF2"
       ],
-      "hash": "8AAC3927"
+      "hash": "72698181"
     },
     {
       "id": "C_E84B9F8A",
@@ -714,7 +714,7 @@
       "life": 2,
       "costList": [
         0.0,
-        1.0,
+        9.0,
         0.0,
         1.0
       ],
@@ -724,7 +724,7 @@
       "effectIds": [
         "07F57EE1"
       ],
-      "hash": "B37A1696"
+      "hash": "00095F30"
     },
     {
       "id": "C_96610366",
@@ -747,7 +747,7 @@
       "effectIds": [
         "6B9F7621"
       ],
-      "hash": "E8CA45E8"
+      "hash": "C0096EE0"
     },
     {
       "id": "C_5EAB2F1B",
@@ -770,7 +770,7 @@
       "effectIds": [
         "64CDFD65"
       ],
-      "hash": "951A0C7D"
+      "hash": "35648A4D"
     },
     {
       "id": "C_0C94B65F",
@@ -793,7 +793,7 @@
       "effectIds": [
         "E2D48807"
       ],
-      "hash": "C4731880"
+      "hash": "326DC542"
     },
     {
       "id": "C_0E166CA4",
@@ -816,7 +816,7 @@
       "effectIds": [
         "AD5DD5DB"
       ],
-      "hash": "465A7ED9"
+      "hash": "7835FFE0"
     },
     {
       "id": "C_AE964832",
@@ -839,7 +839,7 @@
       "effectIds": [
         "14B9EF4F"
       ],
-      "hash": "ED319B0D"
+      "hash": "70ADC462"
     },
     {
       "id": "C_A9ED8C5A",
@@ -862,7 +862,7 @@
       "effectIds": [
         "CD0C3750"
       ],
-      "hash": "2392CE37"
+      "hash": "10712B01"
     },
     {
       "id": "C_94DA8F61",
@@ -936,7 +936,7 @@
         0.0,
         0.0
       ],
-      "hash": "D6733603"
+      "hash": "F0DA96D1"
     },
     {
       "id": "C_CC0DE002",
@@ -954,7 +954,7 @@
         0.0,
         0.0
       ],
-      "hash": "204C30FE"
+      "hash": "11FF0B88"
     },
     {
       "id": "C_CC0DE003",
@@ -965,7 +965,7 @@
       "costList": [
         0.0,
         0.0,
-        0.0,
+        3.0,
         0.0
       ],
       "tags": [
@@ -974,7 +974,7 @@
       "effectIds": [
         "CC0DE005"
       ],
-      "hash": "E82459CD"
+      "hash": "DDC86148"
     },
     {
       "id": "C_BD0822E9",
@@ -997,7 +997,7 @@
       "effectIds": [
         "29C47333"
       ],
-      "hash": "A8C21A37"
+      "hash": "1AED2A26"
     },
     {
       "id": "C_6E58021B",
@@ -1112,7 +1112,7 @@
         "38B76368"
       ],
       "durability": 2,
-      "hash": "7FA01CD2"
+      "hash": "89F2491F"
     },
     {
       "id": "C_339E9C1F",
@@ -1132,7 +1132,7 @@
         "B3EC27CE"
       ],
       "durability": 2,
-      "hash": "A3F3E63A"
+      "hash": "76A8072B"
     },
     {
       "id": "C_EF25C2FD",
@@ -1152,7 +1152,7 @@
         "72E637F4"
       ],
       "durability": 2,
-      "hash": "523D745C"
+      "hash": "7A460BE9"
     },
     {
       "id": "C_4B282868",
@@ -1172,7 +1172,7 @@
         "3A891EB7"
       ],
       "durability": 2,
-      "hash": "EAA568A7"
+      "hash": "DEA49A4C"
     },
     {
       "id": "C_D0AF2ABB",
@@ -1374,7 +1374,7 @@
       ],
       "power": 9,
       "life": 9,
-      "hash": "98A2848C"
+      "hash": "C5D4AD40"
     },
     {
       "id": "C_704F7F1C",
@@ -1396,7 +1396,7 @@
       ],
       "power": 5,
       "life": 5,
-      "hash": "75BA95DE"
+      "hash": "C07ADE9A"
     },
     {
       "id": "C_6673D86B",
@@ -1543,7 +1543,7 @@
         0.0,
         2.0
       ],
-      "hash": "5DD9F397"
+      "hash": "43D54E86"
     },
     {
       "id": "C_BFE245C2",
@@ -1565,7 +1565,7 @@
         0.0,
         1.0
       ],
-      "hash": "AAA468B5"
+      "hash": "AA68BFD3"
     },
     {
       "id": "C_17CED892",
@@ -1587,7 +1587,7 @@
         0.0,
         3.0
       ],
-      "hash": "15509DE4"
+      "hash": "EB8B1B77"
     },
     {
       "id": "C_0D72F2B6",
@@ -1609,7 +1609,7 @@
         0.0,
         2.0
       ],
-      "hash": "615267F1"
+      "hash": "2C435CC0"
     },
     {
       "id": "C_0C3A881F",
@@ -1674,7 +1674,7 @@
         0.0,
         3.0
       ],
-      "hash": "4E62DE55"
+      "hash": "7BECE823"
     },
     {
       "id": "C_DDB09243",
@@ -1770,7 +1770,7 @@
         "643BFF5D"
       ],
       "durability": 4,
-      "hash": "7F95E083"
+      "hash": "E1C99089"
     },
     {
       "id": "C_8B12838C",
@@ -1790,7 +1790,7 @@
         "B3EC27CE"
       ],
       "durability": 4,
-      "hash": "329B5A93"
+      "hash": "B65AE29B"
     },
     {
       "id": "C_5E135B65",
@@ -1810,7 +1810,7 @@
         "302E1C7E"
       ],
       "durability": 4,
-      "hash": "5BAD55C5"
+      "hash": "8EDD8424"
     },
     {
       "id": "C_7B43F386",
@@ -1830,7 +1830,7 @@
         "3A891EB7"
       ],
       "durability": 4,
-      "hash": "3138F707"
+      "hash": "85412774"
     },
     {
       "id": "C_40F826F1",
@@ -1850,7 +1850,7 @@
         "735B2360"
       ],
       "durability": 4,
-      "hash": "FF4D56D9"
+      "hash": "126ECF5A"
     },
     {
       "id": "C_F65A8F31",
@@ -2045,7 +2045,7 @@
         "1FB7E6DA"
       ],
       "durability": 4,
-      "hash": "D9D4118A"
+      "hash": "BDCBB315"
     },
     {
       "id": "C_2BD6EDE2",
@@ -2065,7 +2065,7 @@
         "79655260"
       ],
       "durability": 4,
-      "hash": "9D7AB36C"
+      "hash": "0235B307"
     },
     {
       "id": "C_AAA266D0",

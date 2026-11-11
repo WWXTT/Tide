@@ -29,6 +29,9 @@ namespace SynergyUI
         private bool _autoOpened;                   // 连锁自动展开标记（2026-11-03：连锁结束只收自己开的——手动展开不关）
         private int _activeLineCount;               // 在役行数（池化口径：trim 按活动行计，池中 inactive 不算——childCount 含 inactive 不可用）
         private readonly Stack<TMP_Text> _linePool = new(); // 回收行池（2026-10-24 对象池定案：超限行回收复用不再 Destroy）
+        private TMP_Text _seedLabel;                // 种子行（lbl-seed——BattleUI 烘焙，可缺）
+        private UnityEngine.UI.Button _seedCopyBtn; // 复制钮（btn-copy-seed——点击=种子数字进剪贴板）
+        private string _seedDigits = "";            // 当前展示种子（复制源）
 
         private const float LogListOpenHeight = 700f; // 展开定高（2026-10-16 晚改版：固定 0↔700，超出在面板内滚动）
         private const float LogListSpeed = 3500f; // px/s（700px≈0.2s 展开）
@@ -56,6 +59,33 @@ namespace SynergyUI
                 _logListRect.gameObject.AddComponent<ClickSwallow>();
                 _logListRect.sizeDelta = new Vector2(_logListRect.sizeDelta.x, 0f);
             }
+        }
+
+        /// <summary>种子行绑定（Build 期；节点由 BattleUI 烘焙在 log-list 面板内——lbl-seed 文本位 +
+        /// btn-copy-seed 复制钮，未烘焙 LogWarning 一次提示补位；排版随预制体）。</summary>
+        public void BindSeed(RectTransform scope)
+        {
+            if (scope == null) return;
+            _seedLabel = UiKit.FindDeep(scope, "lbl-seed")?.GetComponent<TMP_Text>();
+            _seedCopyBtn = UiKit.FindDeep(scope, "btn-copy-seed")?.GetComponent<UnityEngine.UI.Button>();
+            if (_seedLabel == null || _seedCopyBtn == null)
+            {
+                Debug.LogWarning("[BattleLog] 日志种子行未烘焙（lbl-seed / btn-copy-seed）——随机种子展示待预制体补位");
+                return;
+            }
+            _seedCopyBtn.onClick.RemoveAllListeners();
+            _seedCopyBtn.onClick.AddListener(() =>
+            {
+                if (_seedDigits.Length > 0) GUIUtility.systemCopyBuffer = _seedDigits;
+            });
+        }
+
+        /// <summary>种子展示刷新（2026-11-11 日志复现链）：本地=GameRng.Capture（StartNewGame 已钉）；
+        /// 联机=RoomState.Seed（服务器开局定死回显）。值进复制源+文案。</summary>
+        public void ShowSeed(int seed)
+        {
+            _seedDigits = seed.ToString();
+            if (_seedLabel != null) _seedLabel.text = "随机种子：" + _seedDigits;
         }
 
         /// <summary>本地战报事件桥（2026-10-18 B1 日志中间层收敛）：改订 MatchLogService.Appended

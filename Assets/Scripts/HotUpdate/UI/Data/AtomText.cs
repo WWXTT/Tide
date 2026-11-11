@@ -282,6 +282,12 @@ namespace SynergyUI
         {
             if (atom == null || string.IsNullOrEmpty(atom.refId)) return "原子效果";
             string tpl = cfg != null && !string.IsNullOrEmpty(cfg.Description) ? cfg.Description : atom.refId;
+            // 2026-11-10 amplification：{value} 处标注死亡计数增幅（不把层数烘进基础值）。
+            if (atom.branch != null
+                && (BranchSettleKind)atom.branch.settle == BranchSettleKind.Engine
+                && (BranchEngineKind)atom.branch.engine == BranchEngineKind.DeathToll
+                && atom.branch.engineParam >= 9)
+                tpl = tpl.Replace("{value}", "{value}（+死亡计数增幅）");
 
             int v = atom.value;
             int span = atom.amp > 0f ? TideMath.RoundToInt(Math.Abs(v) * atom.amp) : 0;
@@ -479,6 +485,9 @@ namespace SynergyUI
         {
             var b = atom?.branch;
             if (BranchEntryRules.IsPhantom(b)) return ""; // 含 null；JsonUtility 幽灵 settle 不当真分支
+            if ((BranchSettleKind)b.settle == BranchSettleKind.Engine
+                && (BranchEngineKind)b.engine == BranchEngineKind.DeathToll)
+                return ""; // amplification 标记不是自由分支奖励
             string reward = b.then != null && b.then.Count > 0
                 ? RenderRewardAtomEntry(b.then[0]) : "（未设奖励）";
             switch ((BranchSettleKind)b.settle)
@@ -622,10 +631,8 @@ namespace SynergyUI
                 // 派生门槛引擎（IsDerivedThresholdEngine 单源：拼点/死亡计数/元素充盈）
                 // ——2026-10-09 自平衡统一：x=Then 奖励锚价推导，随奖励计费实时变
                 case BranchEngineKind.DeathToll:
-                    // 2026-11-08 阶段3 只扫战场：此卡在场上时计数双方生物死亡（手牌不计数；类似死亡=
-                    // CardDestroyEvent 生物：战斗死亡+消灭；牺牲直送非死亡无事件不计），满 6 不再计数，
-                    // 计数≥x 触发奖励（触发不清零），使用后清零
-                    return $"此卡在场上时计数双方生物死亡，计数大于等于{CostDerivationService.EngineRewardThreshold(ToInstances(then), timing)}时触发奖励（满6不再计数，使用后清零）";
+                    // 2026-11-10 改版：只在手牌累计双方生物死亡（满6）；进战场冻结，离场清零。
+                    return "手牌累计双方生物死亡（满6/增幅9）；此卡 {value} 增幅（1死亡=1费，离场清零）";
                 case BranchEngineKind.ManaSurplus:
                     // 2026-11-06 判据七完整句：双方施放·整条连锁结算完成后（只能是自动效果），
                     // 双方剩余元素（未横置地牌+钱包）之差恰==x 触发（差每+1踩一档各一次）

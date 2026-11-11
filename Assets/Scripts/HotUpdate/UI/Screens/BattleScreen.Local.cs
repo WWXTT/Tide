@@ -72,7 +72,7 @@ namespace SynergyUI
                 if (BattleEntry.Mode == BattleMode.Tutorial
                     && BattleEntry.TutorialId == TutorialProgressManager.LunzhuanId)
                 {
-                    // 教学三毕业连战（2026-11-02 改版）：首场战前规则说明弹窗后走五段式开场
+                    // 教学四毕业连战（2026-11-02 改版·2026-11-11 重编号）：首场战前规则说明弹窗后走五段式开场
                     StartGauntletOpeningAsync().Forget();
                     return;
                 }
@@ -84,7 +84,7 @@ namespace SynergyUI
             EngageLocalBattle(mirrorDeck, mirrorSkill, challengeDeck, challengeSkill, testScenario);
         }
 
-        /// <summary>教学三毕业连战开局（2026-11-02 改版：末日降临 Boss 战退役）：首场（未选过
+        /// <summary>教学四毕业连战开局（2026-11-02 改版：末日降临 Boss 战退役）：首场（未选过
         /// 卡组）先弹规则说明（TipPanel 双键：开始连战/返回主菜单）；确认或后续场次（Picked=true
         /// ——场间弹窗「继续挑战」与败局「再战」均经 Manager.Replace 重入，不再打扰）直接走五段式
         /// 开场（段四首场单轮选我方卡组、后续沿用已选；段五对手=LunzhuanGauntlet.OpponentName
@@ -94,7 +94,7 @@ namespace SynergyUI
             if (!LunzhuanGauntlet.Picked)
             {
                 var ok = await ShowTipPromptAsync(
-                    "教学三·毕业连战：用你的卡组（或直接选一套预组）依次击败三套预组——红·快攻、蓝·控制、绿·慢速。\n"
+                    "教学四·毕业连战：用你的卡组（或直接选一套预组）依次击败三套预组——红·快攻、蓝·控制、绿·慢速。\n"
                     + "三场全胜即完成教学；任一场失败可保留胜场，重整旗鼓再战当前对手。",
                     "开始连战", "返回主菜单");
                 if (!_running) return; // 拆屏（面板随 Root 销毁自清）
@@ -149,6 +149,7 @@ namespace SynergyUI
             BattleEntry.DummyPlayerFirst = picked.PlayerFirst;
             BattleEntry.DummyShuffle = picked.Shuffle;
             BattleEntry.DummyFullPool = picked.FullPool;
+            BattleEntry.DummySeed = picked.Seed; // 2026-11-11 随机种子钉子（0=每局新抽）
             Debug.Log("[BattleScreen] 木桩选项：先后手=" + (picked.PlayerFirst == null ? "掷硬币"
                     : picked.PlayerFirst == true ? "我方先手" : "对方先手")
                 + " 洗牌=" + picked.Shuffle + " 元素池充满=" + picked.FullPool);
@@ -174,19 +175,21 @@ namespace SynergyUI
             // 抽卡飞入（时序红线——先于 StartNewGame，详见 BattleProjector.WireEarly 注释）
             _projector.WireEarly();
 
+            // 木桩种子钉子（2026-11-11 日志复现链）：一次性消费——0=每局新抽（StartNewGame 统一抽定）
+            int dummySeed = BattleEntry.DummyTest ? BattleEntry.DummySeed : 0;
+            BattleEntry.DummySeed = 0;
+            int? dummyRngSeed = dummySeed != 0 ? dummySeed : (int?)null;
+
             if (BattleEntry.Mode == BattleMode.Tutorial
                 && BattleEntry.TutorialId == TutorialProgressManager.LunzhuanId)
-                // 教学三毕业连战（2026-11-02 改版）：不走教学装配（引导/课规/剧本 AI/锁牌库/被动
-                // 响应器全不装）——AI 正式对手（MakePacedAi+AutoMatch 按预组 Theme 标签映主题策略，
-                // 木桩难度 2 同款；响应行为归驱动自身内置启发），常规洗牌常规开局（不钉种子——
-                // 同对手重战不复现同局）。胜负不直接落档：TutorialFlow 连战拦截 + 终局弹窗链
-                //（LunzhuanGauntlet.ReportWin，三场全胜才 MarkTutorialCompleted）。
-                // 隐藏镜像局（2026-11-02）：Mirror=锁牌库序——双方同卡组同列表序开局
-                //（相同的牌序·镜像口径，AI 策略 AutoMatch 照常按卡组自适配）。
+                // 教学四毕业连战（2026-11-02 改版·2026-11-11 重编号）：不走教学装配（引导/课规/
+                // 剧本 AI/被动响应器全不装）——AI 正式对手（MakePacedAi+AutoMatch 按预组 Theme
+                // 标签映主题策略，木桩难度 2 同款；响应行为归驱动自身内置启发），常规洗牌常规
+                // 开局（不钉种子——同对手重战不复现同局）。胜负不直接落档：TutorialFlow 连战
+                // 拦截 + 终局弹窗链（LunzhuanGauntlet.ReportWin，三场全胜才 MarkTutorialCompleted）。
             {
                 _ctrl.StartNewGame(matchDeck, aiDeck,
                     MakePacedAi(aiDeck != null ? AiStrategy.AutoMatch(aiDeck) : null),
-                    lockDeckOrder: LunzhuanGauntlet.Mirror,
                     mySkillCardId: matchSkill, aiSkillCardId: aiSkill,
                     playerFirst: playerFirst, secondArmorBonus: GameCore.SecondPlayerArmorBonus,
                     myTokenBindings: myTokenBindings, aiTokenBindings: aiTokenBindings);
@@ -236,9 +239,11 @@ namespace SynergyUI
                     && DummyTestFlow.TryBuildFullPool(myDummy, aiDummy, BattleEntry.DummyShuffle,
                         playerFirst != false, out var scen, out var mySeeded, out var aiSeeded))
                     _ctrl.StartNewGame(mySeeded, aiSeeded, dummyDriver,
+                        rngSeed: dummyRngSeed,
                         scenario: scen, mySkillCardId: myDummySkill, aiSkillCardId: aiDummySkill);
                 else
                     _ctrl.StartNewGame(myDummy, aiDummy, dummyDriver,
+                        rngSeed: dummyRngSeed,
                         lockDeckOrder: !BattleEntry.DummyShuffle,
                         mySkillCardId: myDummySkill, aiSkillCardId: aiDummySkill, playerFirst: playerFirst,
                         secondArmorBonus: GameCore.SecondPlayerArmorBonus,
@@ -290,6 +295,11 @@ namespace SynergyUI
             // 对账订阅表（2026-10-18 B2 投影单点化——唯一投影器 Battle/BattleProjector：
             // 事件→置脏/演出载荷钩子/终局流转；本屏不再直订引擎对账事件）
             _projector.Wire();
+
+            // 对局种子展示（2026-11-11 日志复现链）：本地局 StartNewGame 已钉（木桩钉值/新抽）——
+            // GameRng 检查点单源；联机局走 NetOnRoomState 的 RoomState.Seed
+            var seedCp = CardCore.GameRng.Capture();
+            if (seedCp.Seeded) _log.ShowSeed(seedCp.Seed);
 
             WireLocalUi(); // 扇/Region/响应窗接线（2026-10-19 抽出——原位调用，行为零变）
 
