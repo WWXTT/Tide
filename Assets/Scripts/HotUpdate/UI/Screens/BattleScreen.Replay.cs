@@ -15,7 +15,7 @@ namespace SynergyUI
     public sealed partial class BattleScreen : UIScreen
     {
         private ReplayFilmSource _replaySource; // 回放剧本源（一次性消费——OnExit 随屏清）
-        private BattleFxOpExecutor _fxExecutor; // 回放演出执行器（op→PlaybackFx 分发）
+        private BattleFxOpExecutor _fxExecutor; // 数据演出执行器（二期 A：Build 期建——本地实时/回放共用，op→PlaybackFx 分发）
 
         /// <summary>复盘局启动（OnEnter 的 Replay 分支）：装台等棋盘就绪后整包投帧；面板展开铺时间轴。</summary>
         private void StartReplayFan()
@@ -38,7 +38,6 @@ namespace SynergyUI
                 if (lbl != null) lbl.text = "退出复盘";
             }
 
-            _fxExecutor = new BattleFxOpExecutor(() => _field);
             var sink = new ReplayStageSink(this);
             _log.ShowTimeline(); // 面板展开（SetLogTarget 单源——摘要行随 PanelToggled 隐藏）
             _log.BeginTimeline(_replaySource.TimelineLines(), frame => _director.SeekTo(frame));
@@ -81,7 +80,8 @@ namespace SynergyUI
         }
 
         /// <summary>回放舞台（IBattleStageSink 的战斗屏实现）：视图=ApplyReplayView 渲染扇出；
-        /// 演出=执行器（PlaybackFx ref 口）；时间轴=日志游标；战斗=CombatShot 回放器；视觉门=战场在途门。</summary>
+        /// 演出=执行器（PlaybackFx ref 口）；时间轴=日志游标；战斗=CombatShot 回放器；视觉门=战场在途门。
+        /// AppendLines=空实现（回放行已随 BeginTimeline 预铺全量——入列口只有实时模式消费）。</summary>
         private sealed class ReplayStageSink : IBattleStageSink
         {
             private readonly BattleScreen _s;
@@ -89,7 +89,50 @@ namespace SynergyUI
 
             public void ApplyView(BattleViewData view) => _s.ApplyReplayView(view);
             public UniTask ExecuteFxAsync(BattleFxOp op) => _s._fxExecutor != null ? _s._fxExecutor.ExecuteAsync(op) : UniTask.CompletedTask;
+            public void AppendLines(IReadOnlyList<BattleLogLine> lines) { }
             public void AdvanceTimeline(int frameIndex) => _s._log.SetTimelineCursor(frameIndex);
+            public UniTask PlayCombatAsync(CombatShot shot) => _s._field != null ? _s._field.PlayCombatShotAsync(shot) : UniTask.CompletedTask;
+            public UniTask WaitVisualsIdleAsync() => _s._field != null ? _s._field.WaitVisualsIdleAsync() : UniTask.CompletedTask;
+        }
+
+        /// <summary>本地实时舞台（二期 A·LiveData）：与回放舞台同协议——视图走投影器 ApplySnapshot
+        ///（View 所有权单点+悬停缓存跟随）+引擎路径刷扇；演出=同一执行器；行=战报控制器入列；
+        /// 战斗=编舞器捕获开演（本地精度来源——CombatShot 载荷留剧本给回放）；视觉门=战场在途门。</summary>
+        private sealed class LiveStageSink : IBattleStageSink
+        {
+            private readonly BattleScreen _s;
+            public LiveStageSink(BattleScreen s) { _s = s; }
+
+            public void ApplyView(BattleViewData view)
+            {
+                _s._projector?.ApplySnapshot(view);
+                _s.RefreshFans(); // 手牌扇随快照同频（引擎路径——播放期自动 Flush 被抑制）
+            }
+
+            public UniTask ExecuteFxAsync(BattleFxOp op) => _s._fxExecutor != null ? _s._fxExecutor.ExecuteAsync(op) : UniTask.CompletedTask;
+            public void AppendLines(IReadOnlyList<BattleLogLine> lines) => _s._log?.AppendLines(lines);
+            public void AdvanceTimeline(int frameIndex) { } // 实时无时间轴（行随帧直入列）
+            public UniTask PlayCombatAsync(CombatShot shot)
+            {
+                _s._choreo?.PerformCapturedNow(); // 攻击步开演（严格结算序；shot 留剧本——回放用）
+                return UniTask.CompletedTask;
+            }
+
+            public UniTask WaitVisualsIdleAsync() => _s._field != null ? _s._field.WaitVisualsIdleAsync() : UniTask.CompletedTask;
+        }
+
+        /// <summary>联机/观战舞台（二期 C·LiveData）：视图=投影器 ApplySnapshot+网络刷扇（帧生产者
+        /// 空闲期口同链）；演出=同一执行器（PlaybackFx ref 口——座位按观看视角重排）；行=屏侧
+        /// NetAppendLines（连锁开合+终局收口）；战斗=CombatShot 回放器（网络无编舞器捕获）；视觉门同。</summary>
+        private sealed class NetStageSink : IBattleStageSink
+        {
+            private readonly BattleScreen _s;
+            public NetStageSink(BattleScreen s) { _s = s; }
+
+            public void ApplyView(BattleViewData view) => _s.NetApplyView(view);
+            public UniTask ExecuteFxAsync(BattleFxOp op) => _s._fxExecutor != null ? _s._fxExecutor.ExecuteAsync(op) : UniTask.CompletedTask;
+            public void AppendLines(IReadOnlyList<BattleLogLine> lines) => _s.NetAppendLines(lines);
+            public void AdvanceTimeline(int frameIndex) { } // 实时无时间轴
             public UniTask PlayCombatAsync(CombatShot shot) => _s._field != null ? _s._field.PlayCombatShotAsync(shot) : UniTask.CompletedTask;
             public UniTask WaitVisualsIdleAsync() => _s._field != null ? _s._field.WaitVisualsIdleAsync() : UniTask.CompletedTask;
         }

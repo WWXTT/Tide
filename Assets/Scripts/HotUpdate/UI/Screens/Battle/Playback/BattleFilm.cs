@@ -12,8 +12,8 @@ namespace SynergyUI
     /// <summary>剧本帧：局面快照 + 战报行 + 演出指令（纯数据，可录制可跨端回放）。
     /// 三种生产者（LocalFilmSource/NetFilmSource/ReplayFilmSource）产出同一种帧，
     /// 由唯一播放器 BattlePlayhead 按帧解释（方案 §2）。
-    /// S1 本地 Live 只填 Step 帧的 Kind/Label/CardRid/IsAttack/Remaining/View/LogBoundary/LastEventId；
-    /// Lines/PreOps/Ops/Combat 自 S2 演出指令数据化起填；Input/End 自 S2/S4 起用。</summary>
+    /// Step 帧填 Kind/Label/CardRid/IsAttack/Remaining/View/LastEventId；
+    /// Lines/PreOps/Ops/Combat 自 S2 演出指令数据化起填（二期 A 起本地实时同填）；Input/End 自 S2/S4 起用。</summary>
     public sealed class BattleFrame
     {
         public BattleFrameKind Kind;
@@ -23,12 +23,11 @@ namespace SynergyUI
         public int Remaining;         // 步后余栈（日志证据链用）
         public BattleViewData View;   // 本帧要应用的局面（可空：联机事件帧常常没有快照）
         public uint LastEventId;      // 建帧时最后一条日志事件的 EventId（S2 行→帧映射：第一个 LastEventId >= line.EventId 的帧）
-        public List<BattleLogLine> Lines = new();   // S2 起：本帧放行的战报行（Live 旧路径仍走 Hold/ReleaseUpTo）
-        public List<BattleFxOp> PreOps = new();     // S2 起：应用 View 之前（死亡预持等）
-        public List<BattleFxOp> Ops = new();        // S2 起：应用 View 之后（伤害/回复/拼点/飞行/浮字…）
-        public CombatShot Combat;     // S2 起：攻击步的战斗演出（可空）
+        public List<BattleLogLine> Lines = new();   // 本帧放行的战报行（二期 A 起建帧期填充——LiveData 随帧入列/回放时间轴预铺）
+        public List<BattleFxOp> PreOps = new();     // 应用 View 之前（死亡预持等）
+        public List<BattleFxOp> Ops = new();        // 应用 View 之后（伤害/回复/拼点/飞行/浮字…）
+        public CombatShot Combat;     // 攻击步的战斗演出（可空）
         public BattleInputRecord Input; // Input 帧载荷（v1 只记录/展示）
-        public int LogBoundary;       // 过渡字段（S1/S2 本地 Live 沿用日志 Hold 水位=MatchLogService.Entries.Count；S5 Hold/ReleaseUpTo 退役后删除）
     }
 
     /// <summary>战报行（帧内）（2026-11-11 方案 §2.1·对接 C 案行流）：Kind/Flags 沿用

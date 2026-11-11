@@ -356,81 +356,135 @@ namespace CardCore.Editor
             PadDeck(core, p1, 15, "VERIFY_0922_P1_");
             PadDeck(core, p2, 15, "VERIFY_0922_P2_");
 
-            // ---- 5. 死亡计数（2026-11-08 阶段3 只扫战场）：此卡在场上时计数双方生物死亡——
-            //      计数 ≥ 门槛（Then 锚价推导，DrawCard(1)=2 → 门槛 2）即触发奖励（每次递增都触发，
-            //      触发不清零）；满值 6 达满不再计数；离场换区清零、手牌不计数。
-            //      （engineParam 旧值 2 为死数据不参与判定；旧「手牌/场上双面口径」退役）----
+            // ---- 5. 死亡计数增幅（2026-11-10 改版定案）：**只在手牌中累计**——双方生物每死 1 只 +1
+            //      （增幅档 engineParam=9 → 满值 9；普通档 0 → 满值 6）；**奖励引擎退役**——不再有
+            //      门槛→Then 奖励（死亡零抽牌）；进战场**冻结**（手牌→战场换区保留计数，场上死亡
+            //      不再累计）；离场**清零**（战场→任何区清，含回手）；计数留作该卡 {value} 原子的增幅：
+            //      执行期 bonus = min(9, floor(计数 / 每 +1 value 的费))（1死亡=1费，单价随原子行），
+            //      经 EffectHandlerRegistry 临时加到 value、结算后还原；计价侧增幅标记（engineParam≥9）
+            //      原子费 ×4（DeathTollAmplificationMultiplier）。----
             var tollData = new CardData
             {
-                ID = "VERIFY_ENGINE_TOLL", CardName = "验证死亡计数", Supertype = Cardtype.Creature, Power = 3, Life = 3,
+                ID = "VERIFY_ENGINE_TOLL", CardName = "验证死亡计数增幅", Supertype = Cardtype.Creature, Power = 3, Life = 3,
             };
             tollData.Effects.Add(new CardEffectData
             {
                 Id = "VERIFY_TOLL_MAIN",
-                TriggerTiming = (int)CardCore.TriggerTiming.Activate_Active, // 引擎宿主惰性化（同倒计时段注）
+                TriggerTiming = (int)CardCore.TriggerTiming.Activate_Active, // 宿主惰性化（同倒计时段注）——增幅标记不随施放/入场自动结算
                 AtomicEffects = new List<AtomicEffectEntry>
                 {
-                    EngineAtom(CardCore.AtomicEffectType.DrawCard, 1, CardCore.BranchEngineKind.DeathToll, 2,
-                        AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1)),
+                    AmpAtom(CardCore.AtomicEffectType.DealDamage, 2, 9), // 增幅档：2 伤 + engineParam=9
                 },
             });
             var tollDef = CardEffectConverter.ConvertOne(tollData.Effects[0], tollData.ID);
             Assert(tollDef.Effects.Count == 1 && tollDef.Effects[0].Branch != null
                    && tollDef.Effects[0].Branch.Settle == CardCore.BranchSettleKind.Engine
                    && tollDef.Effects[0].Branch.EngineKind == CardCore.BranchEngineKind.DeathToll
-                   && tollDef.Effects[0].Branch.Then.Count == 1,
-                   "死亡计数：槽级载荷 → 主干原子 Branch 引擎 + Then 奖励转存");
-            int tollGray = (int)CardCore.CostDerivationService.DeriveElementCosts(tollDef)[CardCore.ManaType.Gray];
-            Assert(tollGray == 0, "死亡计数计价：引擎零计价（门槛=Then 锚价推导只是判定条件，非收费）");
+                   && tollDef.Effects[0].Branch.EngineParam == 9
+                   && tollDef.Effects[0].Branch.Then.Count == 0,
+                   "死亡计数增幅：效果原子 branch 载荷（Engine/DeathToll/engineParam=9）——Then 空（奖励引擎退役）");
+            var tollAtom = tollDef.Effects[0];
+            // 计价（2026-11-10 定案）：增幅标记原子费 = 基准 ×4；增幅费口 AmplificationFeeOf = +3×正常总费
+            var plainTollDef = CardEffectConverter.ConvertOne(new CardEffectData
+            {
+                Id = "VERIFY_TOLL_PLAIN",
+                TriggerTiming = (int)CardCore.TriggerTiming.Activate_Active,
+                AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(CardCore.AtomicEffectType.DealDamage, 2) },
+            }, tollData.ID);
+            float tollAmpFee = CardCore.CostDerivationService.ComputeAtomCostByColor(
+                tollAtom, tollDef, null,
+                CardCore.Attribute.AtomicEffectTable.GetByHashId(tollAtom.RowHashId)).Values.Sum();
+            float tollPlainFee = CardCore.CostDerivationService.ComputeAtomCostByColor(
+                plainTollDef.Effects[0], plainTollDef, null,
+                CardCore.Attribute.AtomicEffectTable.GetByHashId(plainTollDef.Effects[0].RowHashId)).Values.Sum();
+            Assert(tollPlainFee > 0f
+                   && System.Math.Abs(tollAmpFee - tollPlainFee * CardCore.CostDerivationService.DeathTollAmplificationMultiplier) < 0.01f,
+                   $"死亡计数计价：增幅标记原子费 = 基准 ×4（实际 amp={tollAmpFee:0.##} plain={tollPlainFee:0.##}）——旧「引擎零计价」随奖励引擎退役");
+            Assert(System.Math.Abs(CardCore.CostDerivationService.AmplificationFeeOf(tollAtom, tollDef, null)
+                       - (tollAmpFee - tollPlainFee)) < 0.01f,
+                   "死亡计数计价：增幅费 AmplificationFeeOf = +3×正常总费（与 ×4 口径同源）");
 
+            // 运行时：A=增幅档宿主（满 9）；B=普通档宿主（满 6）——双双入手（改版后计数载体=手牌）
             var tollCard = new CardWrapper(tollData);
             tollCard.SetController(p1);
-            Assert(core.ZoneManager.TryAddToBattlefield(tollCard, p1), "死亡计数：引擎宿主入场（阶段3 只扫战场）");
+            Assert(core.ZoneManager.TryAddToBattlefield(tollCard, p1), "死亡计数：增幅宿主占位入场（转手前置）");
+            core.ZoneManager.MoveCard(tollCard, p1, Zone.Battlefield, Zone.Hand); // 载体进手牌
+            var toll6Data = new CardData
+            {
+                ID = "VERIFY_ENGINE_TOLL6", CardName = "验证死亡计数普通档", Supertype = Cardtype.Creature, Power = 3, Life = 3,
+            };
+            toll6Data.Effects.Add(new CardEffectData
+            {
+                Id = "VERIFY_TOLL6_MAIN",
+                TriggerTiming = (int)CardCore.TriggerTiming.Activate_Active,
+                AtomicEffects = new List<AtomicEffectEntry>
+                {
+                    AmpAtom(CardCore.AtomicEffectType.Heal, 1, 0), // 普通档：engineParam=0 → 满值 6、无 ×4 计价标记
+                },
+            });
+            var toll6Card = new CardWrapper(toll6Data);
+            toll6Card.SetController(p1);
+            Assert(CardEffectConverter.ConvertOne(toll6Data.Effects[0], toll6Data.ID).Effects[0].Branch.EngineParam == 0,
+                   "死亡计数：普通档载荷 engineParam=0（<9 不吃 ×4 计价、满值 6）");
+            core.ZoneManager.TryAddToBattlefield(toll6Card, p1);
+            core.ZoneManager.MoveCard(toll6Card, p1, Zone.Battlefield, Zone.Hand);
 
-            var tollVictims = new Card[10];
-            for (int i = 0; i < tollVictims.Length; i++)
-                tollVictims[i] = i % 2 == 0 ? SpawnTier(core, p2, 1, 1) : SpawnTier(core, p1, 1, 1); // 双方交替死
             int deckAtToll = core.ZoneManager.GetCards(p1, Zone.Deck).Count;
             System.Func<int> tollCount = () =>
                 tollCard.GetCounterCount(CardCore.Attribute.CounterRules.DeathTollCounter);
+            System.Func<int> toll6Count = () =>
+                toll6Card.GetCounterCount(CardCore.Attribute.CounterRules.DeathTollCounter);
             System.Func<string> tollState = () =>
-                $"count={tollCount()} deck={core.ZoneManager.GetCards(p1, Zone.Deck).Count} tollZone={tollCard.GetZone()}";
-            void TollKill(int i)
+                $"A={tollCount()} B={toll6Count()} deck={core.ZoneManager.GetCards(p1, Zone.Deck).Count} tollZone={tollCard.GetZone()}";
+            int tollKillSeq = 0;
+            void TollKill()
             {
-                CardCore.Attribute.KeywordRules.ApplyDamage(i % 2 == 0 ? p2 : p1, tollVictims[i], 99, false);
+                var victim = tollKillSeq % 2 == 0 ? SpawnTier(core, p2, 1, 1) : SpawnTier(core, p1, 1, 1); // 双方交替死
+                tollKillSeq++;
+                CardCore.Attribute.KeywordRules.ApplyDamage(tollKillSeq % 2 == 1 ? p2 : p1, victim, 99, false);
                 core.SBAEngine.CheckAndExecute(); // 直接 ApplyDamage 不经栈——手动泵 SBA 送墓（标死→死透→CardDestroyEvent）
-                Crumb($"toll kill{i + 1}: " + tollState());
+                Crumb($"toll kill{tollKillSeq}: " + tollState());
             }
-            TollKill(0); // 对手侧 1 死（场上计数）
-            Assert(tollCount() == 1 && core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckAtToll,
-                   "死亡计数：场上计数——对手生物死亡 +1（1 < 门槛 2 未触发）");
-            TollKill(1); // 己方侧 +1 → 累计 2（双方口径）
-            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckAtToll - 1 && tollCount() == 2,
-                   "死亡计数：双方生物死亡累计 2 ≥ 门槛 2（推导）触发（抽 1）——触发不清零（计数保持 2）");
-            TollKill(2); // 累计 3（同回合已发过——收口）
-            TollKill(3); // 累计 4（同上）
-            TollKill(4); // 累计 5（同上）
-            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckAtToll - 1 && tollCount() == 5,
-                   "死亡计数：2026-11-05 时机两档——每卡每回合 1 次：同回合后续递增不再发奖（计数照累计至 5）");
-            TollKill(5); // 累计 6 = 满值（同回合已发过——不再发）
-            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckAtToll - 1 && tollCount() == 6,
-                   "死亡计数：满值 6 计数封顶（同回合已发过不再触发）——计数停在 6");
-            TollKill(6); // 满值后死亡：不再计数不再触发
-            Assert(tollCount() == 6 && core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckAtToll - 1,
-                   "死亡计数：满值 6 达满不再计数——超出死亡不 +1 不触发");
-            core.ZoneManager.MoveCard(tollCard, p1, Zone.Battlefield, Zone.Hand); // 离场 → 换区
-            Assert(tollCount() == 0, "死亡计数：离场换区清零（系统指示物换区清）");
-            TollKill(7); // 手牌中死亡 → 不计数
-            Assert(tollCount() == 0 && core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckAtToll - 1,
-                   "死亡计数：手牌不计数（2026-11-08 阶段3）——离场后死亡不入账");
-            core.ZoneManager.MoveCard(tollCard, p1, Zone.Hand, Zone.Battlefield); // 回场重计
-            TollKill(8); // 回场后：累计 1
-            Assert(tollCount() == 1 && core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckAtToll - 1,
-                   "死亡计数：回场后重新计数（换区清后从 0 起，1 < 2 未触发）");
-            TollKill(9); // 回场累计 2 ≥ 门槛——发奖台账不清（同回合不再发）
-            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckAtToll - 1 && tollCount() == 2,
-                   "死亡计数：换区重计后计数恢复（累计 2）——发奖台账每卡每回合 1 次同回合不再发（2026-11-05）");
-            core.ZoneManager.MoveCard(tollCard, p1, Zone.Battlefield, Zone.Graveyard);
+            TollKill(); TollKill(); // 对手侧 + 己方各 1 死
+            Assert(tollCount() == 2 && toll6Count() == 2
+                   && core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckAtToll,
+                   "死亡计数：手牌累计双方生物死亡（对手/己方各 +1 → A=2 B=2）——死亡零抽牌（奖励引擎退役）");
+            for (int i = 0; i < 8; i++) TollKill(); // 累计 10 死：A 封顶 9、B 封顶 6
+            Assert(tollCount() == 9 && toll6Count() == 6
+                   && core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckAtToll,
+                   $"死亡计数：满值封顶不再计数（增幅档 engineParam=9 → 9；普通档 0 → 6）——实际 {tollState()}");
+            core.ZoneManager.MoveCard(tollCard, p1, Zone.Hand, Zone.Battlefield); // 进战场
+            Assert(tollCount() == 9, "死亡计数：手牌→战场换区**保留**计数（冻结载体——ClearAll(Hand,Battlefield) 豁免口）");
+            TollKill(); // 场上死亡：A 已冻结不加、B 满值不加
+            Assert(tollCount() == 9 && toll6Count() == 6,
+                   "死亡计数：进战场后冻结——场上死亡不再累计（EvaluateDeathTollEngines 只扫手牌）");
+
+            // 增幅消费：执行 A 的 {value} 原子（DealDamage 2）——bonus=min(9,floor(计数/每+1费)) 临时加值
+            var bigVictim = SpawnTier(core, p2, 0, 50); // 大血靶（不会死于本段伤害）
+            float tollStep = CardCore.CostDerivationService.ValueStepFee(tollAtom, tollDef);
+            int tollBonus9 = tollStep > 0.0001f ? System.Math.Min(9, (int)System.Math.Floor(9f / tollStep)) : 0;
+            Crumb($"toll amplification: step={tollStep:0.###} deaths=9 → bonus={tollBonus9}");
+            System.Func<int> AmpDeal = () =>
+            {
+                int before = bigVictim.GetLife();
+                Assert(CardCore.Attribute.EffectHandlerRegistry.ExecuteEffect(tollAtom, new EffectExecutionContext
+                {
+                    Source = p1, Controller = p1, CastCard = tollCard, ResolvingEffect = tollDef, // 增幅单价 ValueStepFee 读 def——缺此位则 step=0 零增幅
+                    Targets = new List<Entity> { bigVictim },
+                    ZoneManager = core.ZoneManager, ElementPool = core.ElementPool,
+                }), "死亡计数增幅：DealDamage 经执行器结算（handler 就绪）");
+                return before - bigVictim.GetLife();
+            };
+            int ampDamage = AmpDeal();
+            Assert(ampDamage == 2 + tollBonus9 && tollBonus9 > 0
+                   && tollAtom.Value == 2,
+                   $"死亡计数增幅：执行期 value 2+{tollBonus9}（bonus=min(9,floor(9/step={tollStep:0.##})) 实际伤害 {ampDamage}）——结算后原子 value 还原 2");
+            core.ZoneManager.MoveCard(tollCard, p1, Zone.Battlefield, Zone.Hand); // 离场 → 清零
+            Assert(tollCount() == 0, "死亡计数：离场清零（战场→手：ClearAll 无豁免——增幅随计数消失）");
+            Assert(AmpDeal() == 2,
+                   "死亡计数增幅：离场清零后执行同原子——零增幅回落基础 2（计数=增幅的唯一来源）");
+            core.ZoneManager.MoveCard(tollCard, p1, Zone.Hand, Zone.Graveyard);
+            core.ZoneManager.MoveCard(toll6Card, p1, Zone.Hand, Zone.Graveyard);
 
             // ---- 6. 元素充盈（2026-11-06 判据七 ==x·双方）：仅自动——任一方施放的卡成功结算、且整条
             //      连锁结算完成后（NoteCastSettled 记账 → StackEngine.FinishResolution 稳定点

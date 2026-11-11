@@ -985,7 +985,8 @@ namespace SynergyUI
             // 先用大厅选中卡组**提前提交** DeckSubmit（公共提交器——payload/digest 单源），
             // 战斗屏五段式跳过段四不再弹选卡面板；提交失败（理论不可达——进房门禁已拦无卡组）
             // 走服务器 30s 代提兜底，移交照常。
-            // v16：观战者（MySeatOf=-1）不移交——真观战屏随战斗演出重构落地，本期留大厅看状态。
+            // v16：观战者（MySeatOf=-1）在选卡组相位留大厅；二期 C：对局开始（Playing）移交战场
+            // 观战（同战斗屏——NetSpectator 跳五段式/不录制/交互关闭）。
             if (room.Phase == (int)NetRoomPhase.DeckSubmit && !_handedOver)
             {
                 if (MySeatOf(room) < 0)
@@ -999,6 +1000,11 @@ namespace SynergyUI
                 else
                     TideLog.Warn("[Lobby] S7a 提前提交失败（无选中卡组？）——依赖服务器 30s 代提兜底");
                 HandOverToBattle(room);
+                return;
+            }
+            if (room.Phase == (int)NetRoomPhase.Playing && !_handedOver && MySeatOf(room) < 0)
+            {
+                HandOverToSpectate(room); // 二期 C：观战者进战斗屏（快照+行流+FxOnly 演出同帧推进）
                 return;
             }
 
@@ -1343,6 +1349,30 @@ namespace SynergyUI
             BattleEntry.NetPlayerFirst = playerFirst;
             SetStatus("房主已开局——进入战场（掷币+选卡组）");
             TideLog.Info($"[Lobby] 移交战场：mySeat={mySeat} 先手椅位={room.FirstSeatThisMatch} 掷币演出={coinMode} playerFirst={playerFirst}");
+            BattleStageDirector.SwallowToBattleAsync(() => Manager.Show<BattleScreen>()).Forget();
+        }
+
+        /// <summary>观战移交（二期 C·2026-11-11）：对局开始（Playing 相位）观战者进同一战斗屏——
+        /// 跳过五段式（无掷币/选卡组）、不录制剧本、交互被 MyTurn=false 天然关闭；行历史/快照由
+        /// 服务器按 LogCursor/SnapshotDirty 正常下发（观战中途加入从加入点起，已知限制）。</summary>
+        private void HandOverToSpectate(MsgRoomState room)
+        {
+            if (_client == null) return;
+            _handedOver = true;
+            UnwireClientEvents(_client); // 战斗屏接手下行事件
+            var seats = room.Players != null ? room.Players.Where(p => p != null && p.Connected).ToList() : null;
+            string p0 = seats != null && seats.Any(p => p.Seat == 0) ? seats.First(p => p.Seat == 0).Nickname : "玩家";
+            string p1 = seats != null && seats.Any(p => p.Seat == 1) ? seats.First(p => p.Seat == 1).Nickname : "玩家";
+            BattleEntry.Mode = BattleMode.Network;
+            BattleEntry.Client = _client;
+            BattleEntry.Nickname = _lastNickname;
+            BattleEntry.NetSpectator = true;   // 观战标记（战斗屏一次性消费）
+            BattleEntry.StagedOpening = false; // 无五段式——等首快照直接观战
+            BattleEntry.NetDeckSubmitted = false;
+            BattleEntry.NetMyDeckName = null;
+            BattleEntry.NetOpponentDeckName = null;
+            SetStatus("对局开始——进入战场观战");
+            TideLog.Info($"[Lobby] 观战移交战场：{p0} vs {p1}（观战 {room.SpectatorCount} 人）");
             BattleStageDirector.SwallowToBattleAsync(() => Manager.Show<BattleScreen>()).Forget();
         }
 

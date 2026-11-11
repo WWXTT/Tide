@@ -14,9 +14,11 @@ namespace CardCore.Editor.Tests
     /// 2026-11-08 规则地基·阶段 1 验证（引擎奖励/发动档单一事实源）。
     /// 本文件只写测试：不改数据、不改核心实现；失败只报告。
     ///
-    /// A 三类引擎奖励类型映射：主动奖励引擎（倒计时/死亡计数/元素充盈）、自动奖励引擎
+    /// A 三类引擎奖励类型映射：主动奖励引擎（倒计时/元素充盈；死亡计数 2026-11-10 改版退出——
+    ///   转效果原子 value 增幅标记，不再是奖励引擎）、自动奖励引擎
     ///   （运势/拼枪/团结）、载荷引擎（附加诅咒/祝福，两旗皆假）互斥分区；
-    ///   行级主动行（附加诅咒/附加祝福——模拟/变形 2026-11-08 退役出组合）与自动引擎行（其余六行）互斥分区，
+    ///   行级主动行（附加诅咒/附加祝福——模拟/变形 2026-11-08 退役出组合）与自动引擎行（其余五行；
+    ///   EngineDeathToll 主干表行已随 2026-11-10 改版删除）互斥分区，
     ///   原子表 EngineTrunk 位全行有钉（新行未登记会被抓）。
     /// B 奖励资格 R4 单谓词（2026-11-10 修订：引擎奖励与一般分支奖励合并走
     ///   BranchRewardRejectReason，不再按发动档分档——任意发动档的并列效果均放行；
@@ -38,8 +40,9 @@ namespace CardCore.Editor.Tests
         private static readonly StringBuilder Log = new StringBuilder();
 
         // 三档枚举面（期望值钉死——目录谓词与钉值表改动的看门断言）
+        // 2026-11-10 死亡计数改版：DeathToll 退出奖励引擎（转 value 增幅标记，两旗皆假）。
         private static readonly BranchEngineKind[] ActiveRewardEngines =
-            { BranchEngineKind.Countdown, BranchEngineKind.DeathToll, BranchEngineKind.ManaSurplus };
+            { BranchEngineKind.Countdown, BranchEngineKind.ManaSurplus };
         private static readonly BranchEngineKind[] AutomaticRewardEngines =
             { BranchEngineKind.LuckRoll, BranchEngineKind.Clash, BranchEngineKind.Unity };
         private static readonly BranchEngineKind[] PayloadEngines =
@@ -52,7 +55,7 @@ namespace CardCore.Editor.Tests
         private static readonly AtomicEffectType[] AutomaticRowTypes =
         {
             AtomicEffectType.EngineCountdown, AtomicEffectType.EngineLuckRoll, AtomicEffectType.EngineClash,
-            AtomicEffectType.EngineDeathToll, AtomicEffectType.EngineManaSurplus, AtomicEffectType.EngineUnity,
+            AtomicEffectType.EngineManaSurplus, AtomicEffectType.EngineUnity,
         };
 
         [MenuItem("Tools/验证/引擎奖励规则（E2E）")]
@@ -131,10 +134,13 @@ namespace CardCore.Editor.Tests
                 if (a && b) both.Add(k);
             }
             Check(activeHit.Count == ActiveRewardEngines.Length && !activeHit.Except(ActiveRewardEngines).Any(),
-                $"A1 主动奖励引擎={string.Join("/", activeHit)}（期望 倒计时/死亡计数/元素充盈）");
+                $"A1 主动奖励引擎={string.Join("/", activeHit)}（期望 倒计时/元素充盈；死亡计数 2026-11-10 改版退出）");
             Check(autoHit.Count == AutomaticRewardEngines.Length && !autoHit.Except(AutomaticRewardEngines).Any(),
                 $"A1 自动奖励引擎={string.Join("/", autoHit)}（期望 运势/拼枪/团结）");
             Check(both.Count == 0, $"A1 三类互斥：无引擎同时命中两档（违规：{string.Join("/", both)}）");
+            Check(!ComposerCatalog.IsActiveRewardEngine(BranchEngineKind.DeathToll)
+                  && !ComposerCatalog.IsAutomaticRewardEngine(BranchEngineKind.DeathToll),
+                "A1 死亡计数两旗皆假（2026-11-10 改版：转效果原子 value 增幅标记，非奖励引擎）");
             Check(PayloadEngines.All(k => !ComposerCatalog.IsActiveRewardEngine(k)
                                        && !ComposerCatalog.IsAutomaticRewardEngine(k)),
                 "A1 载荷引擎（附加诅咒/祝福）两旗皆假（奖励资格另走 CursePayloadRejectReason）");
@@ -151,7 +157,7 @@ namespace CardCore.Editor.Tests
             Check(rowActive.Count == ActiveRowTypes.Length && !rowActive.Except(ActiveRowTypes).Any(),
                 $"A2 主动行={string.Join("/", rowActive)}（期望 附加诅咒/附加祝福）");
             Check(rowAuto.Count == AutomaticRowTypes.Length && !rowAuto.Except(AutomaticRowTypes).Any(),
-                $"A2 自动引擎行={string.Join("/", rowAuto)}（期望 倒计时/运势/拼点/死亡计数/元素充盈/团结六行）");
+                $"A2 自动引擎行={string.Join("/", rowAuto)}（期望 倒计时/运势/拼点/元素充盈/团结五行——EngineDeathToll 行已随 2026-11-10 增幅化删除）");
             Check(!rowActive.Intersect(rowAuto).Any(), "A2 行级两集互斥");
             var nonEngine = new[] { AtomicEffectType.DealDamage, AtomicEffectType.Heal, AtomicEffectType.GateLifeBelow };
             Check(nonEngine.All(t => !ComposerCatalog.IsActiveFreeBranchRow(t)
@@ -176,7 +182,8 @@ namespace CardCore.Editor.Tests
                     || ComposerCatalog.EngineActivationPinOf(t) == null)
                     unpinned.Add(cfg.EnumName ?? cfg.HashId);
             }
-            Check(trunkRows >= 8, $"A4 原子表引擎主干行 {trunkRows} 行（期望 ≥8——模拟/变形已退役挂「系统」位）");
+            Check(trunkRows == rowActive.Count + rowAuto.Count && trunkRows == 7,
+                $"A4 原子表引擎主干行 {trunkRows} 行（=主动行{rowActive.Count}+自动行{rowAuto.Count} 互斥并集；2026-11-10 死亡计数主干行删除后=7）");
             Check(unpinned.Count == 0,
                 $"A4 全部引擎主干行均有发动方式钉（无钉：{string.Join("、", unpinned)}；期望无）");
         }
@@ -329,11 +336,13 @@ namespace CardCore.Editor.Tests
                 BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
             Check(resurrected == null, "C2 EngineActivationFree 已随双选面整删（反射无此方法）");
 
-            // C3 预设档：固定三引擎保持原固定时机；运势/拼枪/团结转自然缺省（占位缺省=原时机）；诅咒/祝福保持主动
+            // C3 预设档：固定两引擎保持原固定时机（死亡计数 2026-11-10 改版退出——预设档 null 防复活）；
+            // 运势/拼枪/团结转自然缺省（占位缺省=原时机）；诅咒/祝福保持主动
+            Check(ComposerCatalog.EngineHeaderPresetOf(BranchEngineKind.DeathToll) == null,
+                "C3 死亡计数无自由分支头预设（2026-11-10 改版：增幅标记挂效果原子，非引擎宿主形态）");
             var fixedExpect = new[]
             {
                 (BranchEngineKind.Countdown, TriggerTiming.OnStandbyPhase),
-                (BranchEngineKind.DeathToll, TriggerTiming.OnOtherCreatureDeath),
                 (BranchEngineKind.ManaSurplus, TriggerTiming.OnCardCastSettled),
             };
             foreach (var (kind, timing) in fixedExpect)

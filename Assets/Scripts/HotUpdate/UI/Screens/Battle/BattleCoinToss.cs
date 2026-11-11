@@ -13,7 +13,7 @@ namespace SynergyUI
     /// 结果先定后演（Random.value&lt;0.5 与旧 PreMatch 同源 50/50），自旋终角按结果钉死胜方面朝上
     /// （2026-10-26 定案：终态平躺落格 0.1 高、翻转 0/180、去 -32° 镜头微倾不朝向相机）；
     /// 落地装饰=Impact 爆点（金）+ world 浮字（BattleFieldView.FloatTextAsync 公开转发）。
-    /// 纯演出件：发生在引擎开局前，不接投影器/DeferOrRun/视觉门；物件不带 Collider（不扰棋盘射线）。
+    /// 纯演出件：发生在引擎开局前，不接投影器/演出路由/视觉门；物件不带 Collider（不扰棋盘射线）。
     /// 动画风格对齐 BattleBoardAssemble：realtimeSinceStartup 计时+缓动+终态钉死，skipRequested
     /// 跳过=直接落定终态（效果照发，结果不变）。
     /// </summary>

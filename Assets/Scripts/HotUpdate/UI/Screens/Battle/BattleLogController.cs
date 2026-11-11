@@ -18,15 +18,10 @@ namespace SynergyUI
     /// </summary>
     public sealed class BattleLogController
     {
-        private readonly Func<Player, bool> _isSelf; // 观侧判（本地局人类恒 P1）
         private readonly List<Action> _unsubscribers = new List<Action>();
 
         private UiKit.Scroll _logList;
         private RectTransform _logLineTemplate;    // content 直属隐藏模板 lbl（战报行克隆源，样式归 prefab）
-        // 时序整理单源（2026-11-11 C 案 P1）：建局静默/自然抽挂起/阶段行放行下沉 MatchLogLineStream，
-        // 本地与服务端行流共用同一实现——本地 ProcessEntry 只委托消费，行序不再二次分叉。
-        private readonly MatchLogLineStream _stream;
-        private readonly List<MatchLogLine> _sink = new List<MatchLogLine>(8); // Append 产出暂存（每条清空）
         private RectTransform _logListRect;        // log-list 高度动画目标（0↔700）
         private float _logListTarget;
         /// <summary>面板开↔收起实际切换通知（2026-11-11 btn-abstract 常驻改版）：手动 Toggle、
@@ -157,10 +152,8 @@ namespace SynergyUI
 
         public BattleLogController(Func<Player, bool> isSelf)
         {
-            _isSelf = isSelf;
-            // 本地口径：双 redact=false（效果摘要照出 Description、对手 AI 的检索入手照出卡名——
-            // 与导出/改造前逐字一致；E3 修订：R1 遮蔽只属联机服务座行流）
-            _stream = new MatchLogLineStream(isSelf, redactEffectSummary: false, redactHidden: false);
+            // 观侧判（isSelf）已随二期 A 收编进 LocalFilmSource 行流——行文本/遮蔽口径由帧 Lines 携带；
+            // 参数保留仅为屏侧构造契约稳定（p => p == P1），本类不再持状态。
         }
 
         /// <summary>控件绑定（Build 期一次）：滚动区+面板矩形；ClickSwallow 截断面板内点击冒泡
@@ -213,11 +206,9 @@ namespace SynergyUI
             if (_seedLabel != null) _seedLabel.text = "随机种子：" + _seedDigits;
         }
 
-        /// <summary>本地战报事件桥（2026-10-18 B1 日志中间层收敛）：改订 MatchLogService.Appended
-        /// 全事件流，行文本经唯一映射 MatchLogRenderer.Render(e, isSelf) 渲染——原 14 事件白名单与
-        /// BattleEventText 三面口径退役。时序口径不变：①接线在 StartNewGame 之前（首回合头行不漏）；
-        /// ②首个回合行前静默与③回合自然抽挂起/阶段行放行（2026-11-11 C 案下沉行流 _stream 承担
-        /// ——建局事件不入史；自然抽挂到〔准备阶段〕行落定后放行）。</summary>
+        /// <summary>本地战报事件桥（二期 A·2026-11-11 LiveData 统一后收窄）：只订连锁自动开合——
+        /// 行文本/时序整理（建局静默/自然抽挂起/阶段行放行）单源在 LocalFilmSource 的行流，
+        /// 行经帧 Lines/轮外即时口入列（AppendLines）；接线时序红线不变（先于 StartNewGame）。</summary>
         public void Wire()
         {
             MatchLogService.Appended += OnAppended;
@@ -226,9 +217,7 @@ namespace SynergyUI
 
         private void OnAppended(MatchLogEntry entry)
         {
-            AutoToggleForChain(entry.Event); // 连锁自动开合（置于 Hold 检查前——结算回放缓冲期事件也照常驱动面板）
-            if (_holding) { _heldEntries.Add(entry); return; } // 结算回放期缓冲（2026-10-19 步进放行）
-            ProcessEntry(entry);
+            AutoToggleForChain(entry?.Event); // 连锁自动开合（面板开合随事件即时——行入列归帧生产者）
         }
 
         /// <summary>连锁自动开合（2026-11-03 用户定案）：真连锁开始逆处理→展开、连锁结束→收起。
@@ -257,17 +246,6 @@ namespace SynergyUI
             }
         }
 
-        /// <summary>单条入史（即时路径与回放放行共用）：时序整理（武装/挂起/放行）已下沉
-        /// MatchLogLineStream（2026-11-11 C 案 P1）——本方法只委托行流并逐行入列，行为与
-        /// 改造前逐字等价（三规则的唯一实现挪进共享类，服务端行流产出同一行序）。</summary>
-        private void ProcessEntry(MatchLogEntry entry)
-        {
-            _stream.Append(entry, _sink);
-            for (int i = 0; i < _sink.Count; i++)
-                Append(_sink[i].Text, _sink[i].Class);
-            _sink.Clear();
-        }
-
         /// <summary>退订（OnExit 调用——Deactivate 内 FlushSubscriptions 与 OnExit 同步相邻无帧隙，语义等价）。</summary>
         public void Dispose()
         {
@@ -279,15 +257,12 @@ namespace SynergyUI
         // 联机局无本地引擎→MatchLogService.Appended 无事件，Wire 不调用；行源=NetLogBatch
         //（服务端 MatchLogLineStream 产出——建局静默/自然抽挂起/阶段行放行/连锁旗标全在服务端单源）。
 
-        /// <summary>联机局开局重置（StartNetFan 调，须先于行流到达）：时序态（本类行流与联机共用
-        /// Reset）/连锁自动开合标记/回放缓冲复位——本类跨 Mount 存留，防上一局状态串进新局。</summary>
+        /// <summary>联机局开局重置（StartNetFan 调，须先于行流到达）：连锁自动开合标记复位——
+        /// 本类跨 Mount 存留，防上一局状态串进新局。</summary>
         public void ResetForNetMatch()
         {
-            _stream.Reset();      // 行流时序态（2026-11-11 C 案）
             _autoOpened = false;
             SetLogTarget(0f); // 单源写入：上一局日志若开着，此处收起也走 PanelToggled（摘要行随之隐藏）
-            _holding = false;
-            _heldEntries.Clear();
         }
 
         /// <summary>联机局连锁自动开合（旗标由服务端判定下发）：真连锁结算开始→展开、连锁结束→
@@ -317,45 +292,21 @@ namespace SynergyUI
             Append(line.Text, MatchLogLineStream.ClassOf(line.Kind));
         }
 
-        // ==== 结算回放逐步放行（2026-10-19 逆结算步进定案） ====
-        // Hold 后新条目缓冲不入史；回放导演每放一步调 ReleaseUpTo(全局条数边界)——边界计数源=
-        // MatchLogService.Entries.Count（步快照捕获点同帧读），事件同步发布无竞态，缓冲序=落史序。
-        // ReleaseAll=轮末收尾/看门狗/退屏全放。行流时序态（武装/挂起）在放出时照常运行。
+        // ==== 结算回放逐步放行（2026-10-19 逆结算步进定案；二期 A·LiveData 统一收口） ====
+        // 旧 Hold/水位放行已退役：行由 LocalFilmSource 行流产出，随帧 Lines（播放器 AppendLines 口）
+        // /轮外即时口/轮末尾行（收尾放出）入列——本类只管入列渲染与面板开合。
 
-        private bool _holding;
-        private int _holdBase; // Hold 时 MatchLogService.Entries.Count（全局序换算基准）
-        private readonly List<MatchLogEntry> _heldEntries = new List<MatchLogEntry>();
-
-        /// <summary>开始缓冲（回放导演激活时调；幂等）。</summary>
-        public void Hold()
+        /// <summary>帧行入列（二期 A·播放器 AppendLines 口）：本地实时逐帧放行——行文本/时序
+        /// 已由帧生产者定稿，本口纯入列。Text=遮蔽版口径（本地局 FullText 同值）。</summary>
+        public void AppendLines(IReadOnlyList<BattleLogLine> lines)
         {
-            if (_holding) return;
-            _holding = true;
-            _holdBase = MatchLogService.Entries.Count;
-        }
-
-        /// <summary>缓冲在途（Hold↔Release 窗口）——日志可见性判别口（2026-10-20 定案「UI 真相源=
-        /// 日志」）：false=新行此刻入史可见（消费方可即时对账，如角色HP读数渲染宣言帧中间态）；
-        /// true=行缓冲中、随回放步放行（终值归步进快照/命中节拍）。比 SuppressAutoFlush 早一拍
-        /// （Hold 在 StackResolutionStart、抑制在首个 StackResolutionEnd）——正好拦住步内事件。</summary>
-        public bool IsHeld => _holding;
-
-        /// <summary>放行至全局条数边界（步快照捕获点的日志水位）：按序放出缓冲条目。</summary>
-        public void ReleaseUpTo(int globalCount)
-        {
-            if (!_holding) return;
-            int take = Mathf.Clamp(globalCount - _holdBase, 0, _heldEntries.Count);
-            for (int i = 0; i < take; i++) ProcessEntry(_heldEntries[i]);
-            if (take > 0) _heldEntries.RemoveRange(0, take);
-        }
-
-        /// <summary>全量放行并结束缓冲（收尾/看门狗/退屏调；幂等于未 Hold）。</summary>
-        public void ReleaseAll()
-        {
-            if (!_holding) return;
-            foreach (var e in _heldEntries) ProcessEntry(e);
-            _heldEntries.Clear();
-            _holding = false;
+            if (lines == null) return;
+            for (int i = 0; i < lines.Count; i++)
+            {
+                var l = lines[i];
+                if (l == null) continue;
+                Append(l.Text, string.IsNullOrEmpty(l.Class) ? MatchLogLineStream.ClassOf(l.Kind) : l.Class);
+            }
         }
 
         /// <summary>分类色/字形单源（Append 与时间轴 BeginTimeline 共用）。</summary>

@@ -65,10 +65,6 @@ namespace SynergyUI
         private CombatChoreographer _choreo;         // 战斗编舞（2026-10-13 攻击演出：3D 寻路箭头选目标+走位/反击/死亡漩涡）
         private BattleCellPicker _cellPicker;        // 通用选格器（2026-10-14 手牌出牌接线：放地色格/永久物空格箭头选择）
 
-        /// <summary>最近一次实付账单（seat→每色实付，2026-10-15 出场粒子颜色口径）：
-        /// ElementPoolPayEvent 捕获 → CastPlayed 入场时组装配荷。触发器付费插队属已知近似（颜色可能串）。</summary>
-        private readonly Dictionary<int, Dictionary<int, float>> _lastPaidBySeat = new Dictionary<int, Dictionary<int, float>>();
-
         /// <summary>永久物出牌时玩家所选落位格（RuntimeId→格）：入场事件补钉
         ///（BoardState.Resync 尾清不在场钉——不能先钉后出牌）；回合切换清残单。</summary>
         private readonly Dictionary<uint, (int x, int z)> _pendingPins = new Dictionary<uint, (int x, int z)>();
@@ -163,12 +159,16 @@ namespace SynergyUI
             _castStage = new BattleAiCastStage(() => Root, () => _view, () => _field, () => P1, _decision.UnitAnchorOf);
             _chainStage = new BattleChainStage(); // 连锁链（2026-10-19）：chain 节点+模板已在 prefab，Bind 只定位隐藏
             _chainStage.Bind(Root);
-            // 剧本播放器（2026-11-11 演出统一 S1）：先于投影器构造——投影器钩子经 LocalFilmSource 产帧投它；
-            // 依赖全走 Func 惰性取（_log/_choreo 等在其构建期可能尚未就绪）
-            _director = new BattlePlayhead(() => Core, () => _projector, () => _log, () => _field,
+            // 剧本播放器（2026-11-11 演出统一 S1；二期 A 起 LiveData/Replay 同帧体）：先于投影器构造
+            //——投影器钩子经 LocalFilmSource 产帧投它；依赖全走 Func 惰性取（_choreo 等构建期可能未就绪）
+            _director = new BattlePlayhead(() => Core, () => _projector, () => _field,
                 () => _chainStage, () => _choreo, RefreshFans);
-            // S2：+编舞器引用（攻击步拉 CombatShot 入剧本）；播放器可空位留给无头录制（验证器）
-            _localSource = new LocalFilmSource(_director, () => Core, () => _projector, () => _choreo);
+            // 演出执行器（二期 A：本地实时/回放共用——投影器演出 op 经 Present 路由到它）
+            _fxExecutor = new BattleFxOpExecutor(() => _field);
+            // 帧生产者+演出单源路由（二期 A）：轮内 op 挂帧随播、轮外 op 即时执行；轮外行即时入列
+            _localSource = new LocalFilmSource(_director, () => Core, () => _projector, () => _choreo,
+                op => _fxExecutor.ExecuteAsync(op).Forget(),
+                line => _log?.AppendLines(new[] { line }));
             _hudTicker = new BattleHudTicker(() => _view, NetTurnClockText);
             _tutorial = new BattleTutorialDirector(() => Root, () => Core, () => _ctrl, () => _field, _toast,
                 ShowTipPromptAsync, () => Manager.Back(), RefreshField, RefreshFans, OnEndTurnFan,
@@ -178,22 +178,9 @@ namespace SynergyUI
             _projector = new BattleProjector(() => Core, () => _ctrl, ApplyProjection, RefreshView,
                 () => _fanFlyArmed = true, ArmDrawFlyIn,
                 e => { if (e?.Card != null) _field?.InterruptCasting(e.Card.RuntimeId); },
-                e => { if (e?.Player == null || _field == null) return; _field.HeroFatigueHitAsync(e.Player == P2 ? 1 : 0, e.Damage).Forget(); },
-                CapturePaid, CaptureArrival, OnGameOverFan, () => _pendingPins.Clear(),
-                _localSource, // 2026-11-11 S2：投影器三生命周期钩子直接透传帧生产者（兼演出 op 双轨录制）
-                (e, castCell) => _field?.PlayEffectDamageAsync(e.Source, e.Target, e.Damage, p => p == P2 ? 1 : 0, castCell, e.EffectTint).Forget(),
-                e => _field?.PlayEffectHealAsync(e.Target, e.Amount - e.Overfill, p => p == P2 ? 1 : 0).Forget(),
-                e => _field?.PlayCounterFloatAsync(e.Target, e.CounterType, e.Amount, p => p == P2 ? 1 : 0).Forget(),
-                e => _field?.HoldForEffectDeath(e),
-                (e, castCell) => _field?.PresentEffectDeathAsync(e.Source, e.DestroyedCard, e.Reason, p => p == P2 ? 1 : 0, castCell, e.EffectTint).Forget(),
-                (e, castCell) => _field?.PlayEffectFlightAsync(e.Source, e.Target, p => p == P2 ? 1 : 0, castCell, e.Tint).Forget(),
-                e => _field?.PlayClashResolvedAsync(e.EngineCard, e.MyPower, e.TheirPower, e.Threshold, e.Success, p => p == P2 ? 1 : 0).Forget(),
-                e => _field?.PlayLuckRollAsync(e.EngineCard, e.D1, e.D2, e.Success, p => p == P2 ? 1 : 0).Forget(), // 运势掷骰：来源单位头顶浮字（投掷结果+通过与否·主动/自动两路同源）
-                () => _log != null && _log.IsHeld, // 日志缓冲探针（2026-10-20「UI 真相源=日志」）：HP 读数按日志可见性即时/随步对账
-                OnPhaseAnnounced, // 阶段播报（2026-10-26 阶段字事件序喂数）：PhaseStartEvent 载荷→阶段队列入队
-                OnDeckMark, // 诅咒/祝福牌库标记（2026-10-26）：施加=卡堆顶爆发+脉冲；施加/消层都刷新牌库预览条
-                OnKeywordGranted, // 赋予关键词爆发粒子（2026-11-01）：极性×颜色 8 种——Heal/Hit 两族
-                OnCounterGranted); // 赋予指示物爆发粒子（2026-11-01）：EffectTint!=null 即赋予，极性走 CounterRules
+                OnGameOverFan, () => _pendingPins.Clear(),
+                () => _director != null && _director.Busy, // 表现在途探针（2026-10-20「真相源=行可见」；二期 A 接 BattlePlayhead.Busy——轮始即真，接替旧日志 Hold 口径）
+                _localSource); // 生命周期钩子+演出 op 单源路由（Present：轮内挂帧/轮外即时）
 
             // 悬浮完整卡面（ACard 预览）2026-10-15 退役：prefab 节点已删，场上卡详情=hover-info 四段文本
 
@@ -253,6 +240,7 @@ namespace SynergyUI
                 _log.Tick();         // 日志面板高度动画（BattleLogController·2026-10-18 拆分）
                 _toast.Tick();      // error-tip 滑入/到时收（BattleToastHub·2026-10-18 拆分）
                 _director?.Tick();  // 步进回放看门狗（2026-10-19：超时无进展强制收口）
+                _netSource?.Tick(); // 联机帧生产者（二期 C：空闲期放行积压行+落地暂存快照）
                 TickTutorialResetButton(); // 常驻考验重置门控（2026-10-19）：显隐+可点性逐帧评估
                 PollTutorialJumpKey();    // T 键测试跳段（2026-10-21）：教学局直跳最终考验
                 PollFieldClearStep();     // 教学自由清场步（2026-10-19 教学二段一）：栈收口+表现播毕后空场即推进
@@ -444,7 +432,7 @@ namespace SynergyUI
                 _lblMode.text = BattleEntry.DummyTest && BattleEntry.Mode == BattleMode.LocalAI ? "木桩 · 测试"
                     : BattleEntry.Mode == BattleMode.Tutorial ? $"教学 · {BattleEntry.TutorialId}"
                     : BattleEntry.Mode == BattleMode.Challenge ? $"挑战 · 难度{BattleEntry.ChallengeDifficulty}"
-                    : BattleEntry.Mode == BattleMode.Network ? "联机 · P2P"
+                    : BattleEntry.Mode == BattleMode.Network ? (BattleEntry.NetSpectator ? "联机 · 观战" : "联机 · P2P")
                     : BattleEntry.Mode == BattleMode.Replay ? "复盘"
                     : "本地 · AI";
 
@@ -475,7 +463,12 @@ namespace SynergyUI
             else if (netMode)
                 StartNetFan();
             else
+            {
+                // 本地局舞台（二期 A·LiveData）：帧体视图/演出/行/战斗全走播放器同一协议（回放同构；
+                // 战斗=编舞器捕获开演保持本地精度）。先于 StartLocalFan 挂台——staged 开局段五才开局也不漏帧。
+                _director.SetLiveSink(new LiveStageSink(this));
                 StartLocalFan();
+            }
         }
 
         public override void OnExit()

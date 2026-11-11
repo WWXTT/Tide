@@ -28,6 +28,7 @@ namespace CardCore.Network
         public event Action<MsgGameStateSync> OnSnapshot;
         public event Action<NetEvent[]> OnEventBatch;
         public event Action<NetLogLine[]> OnLogBatch; // 战报行流批次（2026-11-11 v15 C 案：服务端渲染好的最终行）
+        public event Action<NetLogLine[]> OnLogFull;  // 终局全量无遮蔽行（二期 B·v18 MatchLogFull：按 EventId 回填 FullText）
         public event Action<MsgSelectRequest> OnSelectRequest;
         public event Action<MsgTextRequest> OnTextRequest; // 文本反问（2026-10-31 阶段C：卡名宣言输入窗）
         // 系统通道
@@ -169,6 +170,12 @@ namespace CardCore.Network
                     var logBatch = NetworkSerializer.DeserializePayload<MsgNetLogBatch>(msg);
                     if (logBatch?.Lines != null && logBatch.Lines.Length > 0)
                         OnLogBatch?.Invoke(logBatch.Lines);
+                    break;
+
+                case NetworkMessageType.MatchLogFull: // 二期 B·v18：终局全量无遮蔽行（分批到达——按 EventId 增量回填）
+                    var logFull = NetworkSerializer.DeserializePayload<MsgNetLogBatch>(msg);
+                    if (logFull?.Lines != null && logFull.Lines.Length > 0)
+                        OnLogFull?.Invoke(logFull.Lines);
                     break;
 
                 case NetworkMessageType.SelectRequest:

@@ -60,6 +60,9 @@ namespace CardCore.Network
                                      // 服务端 MatchLogRenderer 逐视角渲染好的最终行，64 行/批按 LogCursor 切片）
         SeatSwap = 136,              // 上行：座位↔观战切换（MsgSeatSwap，2026-11-11 v16 多成员房间——
                                      // 座上转观战释放椅位 / 观战者入座；仅 Waiting、排位房拒）
+        MatchLogFull = 137,          // 下行：终局全量无遮蔽战报行（复用 MsgNetLogBatch 载荷，二期 B·v18
+                                     // 演出统一——redactHidden/redactEffectSummary 全 false 的按座位视角
+                                     // 全量行，客户端按 EventId 回填 FullText 复盘无遮蔽；64 行/批）
     }
 
     /// <summary>
@@ -116,6 +119,7 @@ namespace CardCore.Network
                 case NetworkMessageType.NetEventBatch:
                 case NetworkMessageType.GameStateSyncV2:
                 case NetworkMessageType.NetLogBatch:
+                case NetworkMessageType.MatchLogFull:
                 case NetworkMessageType.MatchSummary:
                     return NetworkChannel.Battle;
 
@@ -187,10 +191,14 @@ namespace CardCore.Network
     /// 回环入座标记，房主不可转移）、MsgRoomState 新增 HostName（房主昵称；空=无房主）、
     /// MsgRoomSeatInfo 新增 Ready/IsAi/IsHost（逐座位准备态与身份；准备态从单 GuestReady 升为
     /// 逐座——房主可落任意椅/观战，非房主全员准备才可开局）、MsgError 新增 Channel（拒绝帧归属
-    /// 房间/对战通道，客户端分道提示）。布局变更，新旧端互拒（无兼容层）。</summary>
+    /// 房间/对战通道，客户端分道提示）。布局变更，新旧端互拒不兼容（无兼容层）。
+    /// v18（2026-11-11 二期 B 演出统一·联机数据面）：新下行 MsgMatchLogFull（复用 MsgNetLogBatch
+    /// 载荷——终局全量无遮蔽行按座位视角，64 行/批）；连接级事件流订阅从 WantsEvents bool 升为
+    /// EventFeed 枚举（None/FxOnly/Full——人类座位/观战改 FxOnly=演出白名单事件子集，语义面变更
+    /// 而非线格式变更，但旧端无白名单过滤会收到全量事件与新版分叉）。升版互拒。</summary>
     public static class NetworkProtocol
     {
-        public const ushort Version = 17;
+        public const ushort Version = 18;
 
         /// <summary>接收侧版本闸（v8 起）：信封版本与本端不符 = 新旧端互拒（无兼容层）。
         /// 0=legacy 草稿期数据，同样失配。</summary>

@@ -10,15 +10,17 @@ namespace SynergyUI
     /// <summary>
     /// 本地实时帧生产者（2026-11-11 战斗演出统一重构 S1 起·Battle/Playback/LocalFilmSource.cs）：
     /// 投影器钩子（StackResolutionStart/End/StackEmpty）→ 建 BattleFrame。
-    /// S2 扩展（2026-11-11 演出数据化+本地录制）：
+    /// 二期 A（2026-11-11 LiveData 统一）职责收拢为单源演出路由：
     /// ① 帧累积进 <see cref="Film"/>（与播放器解耦——播放器只管 Live 表现，无头录制可传 null 播放器）；
     /// ② 自持一条 MatchLogLineStream（与 UI 战报同规则同源）订阅 MatchLogService.Appended 逐行录制，
-    ///    终局按「第一个 LastEventId >= line.EventId 的帧」归帧写 Lines/FrameIndex（方案 §2.1）；
-    /// ③ <see cref="Capture"/> 接投影器/屏侧演出钩子的 BattleFxOp（双轨录制——闭包照旧执行，op 只入剧本）；
+    ///    **建帧期即归帧填 Lines/FrameIndex**（实时随帧入列——接替旧日志 Hold/水位放行）；步帧之后的
+    ///    轮末尾行经播放器收尾放出；轮外行（回合头/自然抽/阶段）即时入列；
+    /// ③ <see cref="Present"/>=演出单源路由：轮内 op 挂帧（随帧经 IBattleStageSink 数据指令执行——
+    ///    闭包延迟队列已退役），轮外 op 即时执行（DeathHold 例外：引擎时点恒即时持票）；
     /// ④ 攻击步从编舞器拉 CombatShot；⑤ OnGameStart 补帧 #0（View 开局局面）+ 建剧本头；
     /// ⑥ OnGameOver 封卷（End 帧+行归帧+BattleFilmStore 落盘）。
-    /// 轮外事件（回合切换/自然抽/疲劳——两次结算轮之间）不产帧：其演出 op 丢弃、行按 EventId 归帧
-    /// （FrameIndex=-1 的帧前历史行照进时间轴）——v1 已知限制：轮外粒子表现回放由视图对账覆盖。
+    /// 轮外事件（回合切换/自然抽/疲劳——两次结算轮之间）不产帧：其演出 op 即时执行、行即时入列
+    ///——v1 已知限制：轮外粒子表现回放由视图对账覆盖。
     /// </summary>
     public sealed class LocalFilmSource : IDisposable
     {
@@ -26,12 +28,15 @@ namespace SynergyUI
         private readonly Func<GameCore> _core;
         private readonly Func<BattleProjector> _projector;
         private readonly Func<CombatChoreographer> _choreo; // 攻击步拉 CombatShot（可空）
+        private readonly Action<BattleFxOp> _immediateFx;   // 轮外演出即时执行（屏侧注入——LiveData 执行器；null=无表现）
+        private readonly Action<BattleLogLine> _immediateLine; // 轮外/无剧本行即时入列（屏侧注入——战报控制器）
 
         /// <summary>录制中剧本（GameStart 建、GameOver 封卷；null=未开局——镜像局续局/教学换场安全）。</summary>
         public BattleFilm Film { get; private set; }
 
         private readonly MatchLogLineStream _lineStream;    // 行录制（本地口径：双 redact=false，与 UI 战报逐字同源）
         private readonly List<BattleLogLine> _lines = new(); // 全量录制行（终局一次性归帧——挂起自然抽乱序，逐条即时归帧会错桶）
+        private int _attachedCount;                          // 已归帧/已即时入列的行数（_lines 前缀——步帧建帧期消费）
         private readonly List<BattleFxOp> _pendingPre = new(); // 轮内捕获的 PreOps（死亡预持）——随下一帧冲刷
         private readonly List<BattleFxOp> _pendingOps = new();  // 轮内捕获的 Ops——随下一帧冲刷
         private bool _inRound;                               // 结算轮内（StackResolutionStart↔StackEmpty）
@@ -39,12 +44,15 @@ namespace SynergyUI
         private bool _finalized;                             // 本剧本已封卷（教学换场多次 GameOver 防双存）
 
         public LocalFilmSource(BattlePlayhead playhead, Func<GameCore> core, Func<BattleProjector> projector,
-            Func<CombatChoreographer> choreo = null)
+            Func<CombatChoreographer> choreo = null,
+            Action<BattleFxOp> immediateFx = null, Action<BattleLogLine> immediateLine = null)
         {
             _playhead = playhead;
             _core = core;
             _projector = projector;
             _choreo = choreo;
+            _immediateFx = immediateFx;
+            _immediateLine = immediateLine;
             // 本地录制口径与 BattleLogController 一致（isSelf=人类恒 P1、双 redact=false——C 案 E3：R1 只属联机座位流）
             _lineStream = new MatchLogLineStream(p => p == _core()?.Player1, redactEffectSummary: false, redactHidden: false);
         }
@@ -62,23 +70,33 @@ namespace SynergyUI
 
         private void OnLogAppended(MatchLogEntry entry)
         {
-            if (Film == null || entry == null) return;
+            if (entry == null) return;
             var sink = new List<MatchLogLine>(2);
             _lineStream.Append(entry, sink);
             for (int i = 0; i < sink.Count; i++)
                 _lines.Add(new BattleLogLine
                 {
                     EventId = sink[i].EventId,
-                    FrameIndex = -1, // 归帧在终局一次性完成（方案 §2.1 映射规则）
+                    FrameIndex = -1, // 归帧在建帧期/终局完成（方案 §2.1 映射规则）
                     Text = sink[i].Text,
                     FullText = sink[i].Text, // 本地无遮蔽——FullText=Text（联机 S4 起终局全量行回填）
                     Kind = sink[i].Kind,
                     Flags = sink[i].Flags,
                     Class = sink[i].Class,
                 });
+            if (Film == null || !_inRound)
+                EmitImmediateLines(); // 轮外行（回合头/自然抽/阶段）与无剧本兜底：即时入列（不产帧）
         }
 
-        // ==== 投影器生命周期钩子（BattleScreen 传给投影器；S1 起为播放器产帧，S2 起兼录剧本） ====
+        /// <summary>未归帧行即时入列（轮外路径——引擎泵在播放期被冻结，与帧行无交错）。</summary>
+        private void EmitImmediateLines()
+        {
+            for (int i = _attachedCount; i < _lines.Count; i++)
+                _immediateLine?.Invoke(_lines[i]);
+            _attachedCount = _lines.Count;
+        }
+
+        // ==== 投影器生命周期钩子（BattleScreen 传给投影器；产帧+录剧本单源） ====
 
         /// <summary>开局（GameStartEvent=起手抽后）：建剧本+帧 #0（View 开局局面——回放先把棋盘/角色/手牌
         /// 落到开局态再播第一步；Live 不入播放队列——纯局面帧不建回放会话）。</summary>
@@ -88,6 +106,7 @@ namespace SynergyUI
             _pendingFinalize = false;
             _inRound = false;
             _lines.Clear();
+            _attachedCount = 0;
             _pendingPre.Clear();
             _pendingOps.Clear();
             _lastPaid.Clear();
@@ -114,15 +133,15 @@ namespace SynergyUI
                 Film.Frames.Add(new BattleFrame { Kind = BattleFrameKind.View, View = opening, Label = "开局" });
         }
 
-        /// <summary>逆结算回合开始：转播放器按住日志（会话延迟到首帧落地才建——空轮零开销）；标记轮内（op 录制窗口）。</summary>
+        /// <summary>逆结算回合开始：转播放器标记轮始（会话延迟到首帧落地才建——空轮零开销）；标记轮内（op 录制窗口）。</summary>
         public void OnResolutionStart(StackResolutionStartEvent e)
         {
             _inRound = true;
             _playhead?.BeginRound();
         }
 
-        /// <summary>逆结算单步完成：捕获快照+日志水位建 Step 帧入队（S1 原样）+ 挂轮内捕获的
-        /// PreOps/Ops/CombatShot 入剧本（S2）。卡牌步快照补链头（2026-10-19 实测修复）：快照在对象
+        /// <summary>逆结算单步完成：捕获快照建 Step 帧入队 + 未归帧行随帧填 Lines/FrameIndex + 挂轮内捕获的
+        /// PreOps/Ops/CombatShot 入剧本。卡牌步快照补链头（2026-10-19 实测修复）：快照在对象
         /// 出栈后捕获，ChainCards 已不含本卡——无连锁的单发施放整段同步完成（无响应窗 await、置脏
         /// 对账被抑制丢弃），链上从未建过克隆=左侧恒无展示。补回后链舞台在回放期建槽（结算期只增不删口径不变）。</summary>
         public void OnStepResolved(StackResolutionEndEvent e)
@@ -142,7 +161,6 @@ namespace SynergyUI
             {
                 Kind = BattleFrameKind.Step,
                 View = snapshot,
-                LogBoundary = entries.Count,
                 LastEventId = entries.Count > 0 ? entries[entries.Count - 1].EventId : 0u, // 行→帧映射锚
                 CardRid = card != null ? card.RuntimeId : 0u,
                 Label = card != null ? MatchLogRenderer.Name(card) // 卡名单源=EffectText（观侧口径与战报一致）
@@ -155,16 +173,18 @@ namespace SynergyUI
                 IsAttack = item != null && item.IsAttackDeclaration,
                 Remaining = e != null ? e.StackSize : 0,
             };
-            // S2：轮内捕获的演出指令随帧入剧本（先冲刷再入队——帧归属唯一）
+            // 轮内捕获的演出指令随帧入剧本（先冲刷再入队——帧归属唯一）
             FlushPendingInto(frame);
+            // 未归帧行随帧填 Lines（二期 A：实时随帧入列；FrameIndex=剧本帧号——回放时间轴跳转目标）
+            AttachLinesTo(frame);
             if (frame.IsAttack && _choreo != null)
                 frame.Combat = _choreo().CaptureShot(SeatOf); // 攻击步战斗演出（编舞器捕获态——出栈时伤害已齐）
             Film?.Frames.Add(frame);
             _playhead?.Enqueue(frame);
         }
 
-        /// <summary>逆结算轮末（栈排干）：转播放器（空轮即时还原日志/有会话标记可收尾）；轮内窗口关闭。
-        /// 终局已至（GameOver 落在栈解退中段）则此刻封卷——End 帧恒为末帧（余步帧先录完）。</summary>
+        /// <summary>逆结算轮末（栈排干）：未归帧行转播放器作轮末尾行（有会话=随收尾放出/空轮=即时入列）；
+        /// 轮内窗口关闭。终局已至（GameOver 落在栈解退中段）则此刻封卷——End 帧恒为末帧（余步帧先录完）。</summary>
         public void OnRoundStackEmpty(StackEmptyEvent e)
         {
             _inRound = false;
@@ -173,15 +193,56 @@ namespace SynergyUI
                 _pendingFinalize = false;
                 FinalizeFilm();
             }
-            _playhead?.NotifyRoundEmpty();
+            if (_playhead != null)
+            {
+                if (_attachedCount < _lines.Count)
+                {
+                    var tail = _lines.GetRange(_attachedCount, _lines.Count - _attachedCount);
+                    _attachedCount = _lines.Count;
+                    _playhead.NotifyRoundEmpty(tail);
+                }
+                else
+                    _playhead.NotifyRoundEmpty();
+            }
+            else
+                EmitImmediateLines(); // 无头录制：尾行只入剧本，无 UI 可喂
         }
 
-        // ==== 演出指令录制（投影器/屏侧演出钩子捕获时调——闭包照旧执行，op 只进剧本） ====
+        // ==== 演出路由（二期 A 单源：投影器各钩子只构造 op 进此口——闭包路径退役） ====
 
-        /// <summary>演出指令捕获（结算轮内挂到下一帧；轮外丢弃——轮外表现回放由视图对账覆盖）。
-        /// 例外=Paid（扣费粒子）：付费发生在入栈期（结算轮开始前），轮外照录挂下一结算步
-        ///（出牌→付费→该卡结算步——即使被反制也有步帧；时序近似 v1）。
-        /// pre=true 进 PreOps（死亡预持——回放在应用 View 之前执行）。</summary>
+        /// <summary>演出指令路由：轮内挂帧（随帧经舞台数据指令执行）；轮外即时执行
+        ///（回放由视图对账覆盖——v1 已知限制）。例外：Paid（扣费粒子）发生在入栈期（轮外）
+        /// 照录挂下一结算步并即时演；DeathHold（死亡预持）恒即时执行（引擎时点持票——防对账抢先
+        /// 销毁尸体），轮内另录进 PreOps（回放先于 View 应用）。pre=true 进 PreOps。</summary>
+        public void Present(BattleFxOp op, bool pre = false)
+        {
+            if (op == null) return;
+            if (Film == null || _finalized)
+            {
+                _immediateFx?.Invoke(op); // 未开局/已封卷——照演（表现不因录制态缺席）
+                return;
+            }
+            if (op.Kind == BattleFxKind.DeathHold)
+            {
+                _immediateFx?.Invoke(op); // 引擎时点同步持票（与轮内外无关）
+                if (_inRound) Capture(op, pre: true);
+                return;
+            }
+            if (_inRound)
+            {
+                Capture(op, pre);
+                return;
+            }
+            if (op.Kind == BattleFxKind.Paid)
+            {
+                Capture(op);             // 轮外付费挂下一结算步（出牌→付费→该卡结算步）
+                _immediateFx?.Invoke(op);
+                return;
+            }
+            _immediateFx?.Invoke(op);    // 轮外演出：即时执行不入剧本（回放由视图对账覆盖）
+        }
+
+        /// <summary>演出指令捕获（挂帧录制口——Present 的轮内路径；验证器/无头直接调）。</summary>
         public void Capture(BattleFxOp op, bool pre = false)
         {
             if (op == null || Film == null || _finalized) return;
@@ -189,36 +250,36 @@ namespace SynergyUI
             (pre ? _pendingPre : _pendingOps).Add(op);
         }
 
-        // ---- 入场/付费录制（2026-11-11 P0-2 收口：自屏侧 CaptureArrival/CapturePaid 迁来——
-        // 录制职责归帧生产者单源，无头/联机（无 BattleScreen）同样可录；规则与屏侧逐字同源） ----
+        // ---- 入场/付费路由（2026-11-11 P0-2 收口自屏侧迁来；规则与屏侧逐字同源） ----
 
         private readonly Dictionary<int, Dictionary<int, float>> _lastPaid = new(); // seat→最近实付（入场粒子颜色口径）
 
-        /// <summary>付费事件（投影器透传）：记最近实付账本 + 录 Paid op（扣费粒子——与屏侧同闸：
-        /// 「打出:」且栈上有施放中法术）。</summary>
+        /// <summary>付费事件（投影器透传）：记最近实付账本 + 打出法术的扣费粒子走 Present
+        ///（「打出:」且栈上有施放中法术）。</summary>
         public void OnPaid(ElementPoolPayEvent e)
         {
-            if (Film == null || e?.Player == null || _finalized) return;
+            if (e?.Player == null) return;
             var paid = new Dictionary<int, float>();
             if (e.PaidCost != null)
                 foreach (var kv in e.PaidCost)
                     if (kv.Value > 0.0001f) paid[kv.Key] = kv.Value;
             int seat = SeatOf(e.Player);
             _lastPaid[seat] = paid;
+            if (Film == null || _finalized) return;
             if (paid.Count > 0 && e.SourceNote != null && e.SourceNote.StartsWith("打出:", StringComparison.Ordinal))
             {
                 var spell = (_core()?.StackEngine?.GetPendingCastCards(e.Player) ?? new List<Card>())
                     .FirstOrDefault(c => c != null && c.IsSpellCard()); // S3b A 切源：读栈不读区
                 if (spell != null)
-                    Capture(new BattleFxOp { Kind = BattleFxKind.Paid, Seat = seat, Paid = paid });
+                    Present(new BattleFxOp { Kind = BattleFxKind.Paid, Seat = seat, Paid = paid });
             }
         }
 
-        /// <summary>入场事件（投影器透传）：CastPlayed 入场粒子 op（颜色=最近实付，无账单回落印刷费
-        /// ——与屏侧 CaptureArrival 同规则；零费不录）。</summary>
+        /// <summary>入场事件（投影器透传）：CastPlayed 入场粒子走 Present（颜色=最近实付，
+        /// 无账单回落印刷费——零费不演）。</summary>
         public void OnArrival(CardPutToBattlefieldEvent e)
         {
-            if (Film == null || e?.Source != EnterSource.CastPlayed || e.Card == null || _finalized) return;
+            if (e?.Source != EnterSource.CastPlayed || e.Card == null || Film == null || _finalized) return;
             int seat = SeatOf(e.Controller);
             Dictionary<int, float> paid;
             if (_lastPaid.TryGetValue(seat, out var last) && last.Count > 0)
@@ -233,7 +294,7 @@ namespace SynergyUI
                     paid[(int)m] = cost[m];
             }
             if (paid.Count > 0)
-                Capture(new BattleFxOp
+                Present(new BattleFxOp
                 {
                     Kind = BattleFxKind.Arrival,
                     Target = FxRef.Of(e.Card, SeatOf),
@@ -246,6 +307,19 @@ namespace SynergyUI
         {
             if (_pendingPre.Count > 0) { frame.PreOps.AddRange(_pendingPre); _pendingPre.Clear(); }
             if (_pendingOps.Count > 0) { frame.Ops.AddRange(_pendingOps); _pendingOps.Clear(); }
+        }
+
+        /// <summary>未归帧行随帧填 Lines/FrameIndex（二期 A：实时随帧入列——行序=产出序）。</summary>
+        private void AttachLinesTo(BattleFrame frame)
+        {
+            if (_attachedCount >= _lines.Count) return;
+            int frameIndex = Film?.Frames.Count ?? 0; // 本帧在剧本中的序号（帧 #0=开局 View 已在列）
+            for (int i = _attachedCount; i < _lines.Count; i++)
+            {
+                _lines[i].FrameIndex = frameIndex;
+                frame.Lines.Add(_lines[i]);
+            }
+            _attachedCount = _lines.Count;
         }
 
         /// <summary>终局（GameOverEvent）：End 帧（终局快照）+ 全量行归帧 + 落盘 Films/&lt;matchId&gt;.film.gz。
@@ -279,7 +353,7 @@ namespace SynergyUI
                 LastEventId = entries.Count > 0 ? entries[entries.Count - 1].EventId : 0u,
             };
             Film.Frames.Add(endFrame);
-            AssignLinesToFrames(); // 全量行一次性归帧（挂起自然抽的乱序 EventId 在终局视角可整体二分）
+            AssignLinesToFrames(); // 未归帧行（终局行/兜底）一次性归帧——挂起自然抽的乱序 EventId 在终局视角可整体二分
             try
             {
                 BattleFilmStore.Save(Film);
@@ -291,15 +365,16 @@ namespace SynergyUI
             }
         }
 
-        /// <summary>行→帧映射（方案 §2.1）：FrameIndex=第一个 LastEventId >= line.EventId 的帧；
-        /// 帧的 LastEventId 单调不减（EventId 事件流内严格递增）——逐行线性推进双指针。
-        /// 行按录制序（挂起放行序）挂帧——时间轴顺序=行序，帧桶内多行共存。</summary>
+        /// <summary>行→帧映射（方案 §2.1，二期 A 收窄为未归帧行）：FrameIndex=第一个
+        /// LastEventId >= line.EventId 的帧；帧的 LastEventId 单调不减（EventId 事件流内严格递增）
+        /// ——逐行线性推进双指针。建帧期已随帧的行（FrameIndex>=0）不再动。</summary>
         private void AssignLinesToFrames()
         {
             var frames = Film.Frames;
             for (int i = 0; i < _lines.Count; i++)
             {
                 var line = _lines[i];
+                if (line.FrameIndex >= 0) continue; // 建帧期已归（实时随帧/轮外即时入列——序已定）
                 int f = 0;
                 while (f < frames.Count && frames[f].LastEventId < line.EventId) f++;
                 if (f >= frames.Count) f = frames.Count - 1; // 超末帧（终局行等）归 End 帧

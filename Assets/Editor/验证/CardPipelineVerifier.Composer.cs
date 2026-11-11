@@ -61,10 +61,11 @@ namespace CardCore.Editor
                    && CardCore.MountKindExtensions.ParseCsv("有限分支").Count == 1
                    && CardCore.MountKindExtensions.ParseCsv("有限分支").Contains(CardCore.MountKind.SituationGate),
                    "MountKinds 词表：可（3）/不可（7）中文与数字双轨解析通过；数字轨 7/8/9 分别命中 NoLinkAura/有限分支/动态费用");
-            // 引擎参数范围与奖励预算（2026-10-09 自平衡统一：全引擎预算 -1——门槛=Then 锚价推导，
-            // 「死亡计数/元素充盈 预算=x」旧制退役；手填参数=运势点数线/倒计时/团结 x/附加诅咒·祝福张数）
+            // 引擎参数范围与奖励预算（2026-10-09 自平衡统一：全引擎预算 -1；2026-11-10 死亡计数改版——
+            // engineParam=增幅档/满值：0=普通满 6、9=增幅满 9 兼 ×4 计价标记，不再派生门槛；
+            // 手填参数=运势点数线/倒计时/团结 x/附加诅咒·祝福张数）
             CardCore.ComposerCatalog.EngineParamRange(CardCore.BranchEngineKind.DeathToll, out int rMin, out int rMax);
-            Assert(rMin == 0 && rMax == 99, "引擎参数范围：死亡计数区间退役落 default [0,99]（派生门槛引擎无手填参数）");
+            Assert(rMin == 0 && rMax == 99, "引擎参数范围：死亡计数落 default [0,99]（2026-11-10 改版=增幅档/满值：0=普通 6、9=增幅 9）");
             CardCore.ComposerCatalog.EngineParamRange(CardCore.BranchEngineKind.LuckRoll, out int rMin2, out int rMax2);
             Assert(rMin2 == 1 && rMax2 == 6, "引擎参数范围：运势 x∈[1,6]（双骰≥x；x=6 双 6 才中=1/36）");
             CardCore.ComposerCatalog.EngineParamRange(CardCore.BranchEngineKind.Unity, out int rMin3, out int rMax3);
@@ -77,14 +78,14 @@ namespace CardCore.Editor
                    && CardCore.ComposerCatalog.EngineRewardBudget(CardCore.BranchEngineKind.LuckRoll, 1) == -1,
                    "引擎奖励预算：全引擎 -1 自平衡（可实现上限由 UI 侧 RewardFilterCap 封顶 5）");
             Assert(CardCore.ComposerCatalog.IsDerivedThresholdEngine(CardCore.BranchEngineKind.Clash)
-                   && CardCore.ComposerCatalog.IsDerivedThresholdEngine(CardCore.BranchEngineKind.DeathToll)
                    && CardCore.ComposerCatalog.IsDerivedThresholdEngine(CardCore.BranchEngineKind.ManaSurplus)
+                   && !CardCore.ComposerCatalog.IsDerivedThresholdEngine(CardCore.BranchEngineKind.DeathToll)
                    && !CardCore.ComposerCatalog.IsDerivedThresholdEngine(CardCore.BranchEngineKind.Unity)
                    && !CardCore.ComposerCatalog.IsDerivedThresholdEngine(CardCore.BranchEngineKind.LuckRoll)
                    && !CardCore.ComposerCatalog.IsDerivedThresholdEngine(CardCore.BranchEngineKind.Countdown)
                    && !CardCore.ComposerCatalog.IsDerivedThresholdEngine(CardCore.BranchEngineKind.CurseOnDraw)
                    && !CardCore.ComposerCatalog.IsDerivedThresholdEngine(CardCore.BranchEngineKind.BlessingOnDraw),
-                   "派生门槛引擎单源：拼点/死亡计数/元素充盈（门槛=Then 锚价，无手填参数）；"
+                   "派生门槛引擎单源：拼点/元素充盈（门槛=Then 锚价，无手填参数）；死亡计数 2026-11-10 改版退出（value 增幅·无门槛）；"
                    + "团结/运势/倒计时/附加诅咒/附加祝福仍手填（团结 x∈[1,6] 门槛=x）");
             Assert(CardCore.CostDerivationService.RewardThreshold(new List<CardCore.AtomicEffectInstance>
                        { CardCore.CardEffectConverter.ConvertAtomForUI(AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1)) }) == 2
@@ -473,17 +474,32 @@ namespace CardCore.Editor
             Assert(SynergyUI.AtomText.Render(cfg, atom, null) == "对对方战场的1个生物、对方战场的1个结界或对方角色造成3点伤害", "描述渲染：amp=0 → 模板+轴短语（极性定侧·无随机区间·或连接·量词标类别前）");
             // 槽级载荷后缀（两槽定案）：引擎/产出条件/局面门三族文本
             // 引擎短式（2026-10-09 短式化→后统一「，【奖励】」后缀形——与代价「，代价：」同族）：
-            // 引擎身份+x 在正文，后缀只接奖励（条件在正文）
+            // 引擎身份+x 在正文，后缀只接奖励（条件在正文）；死亡计数（2026-11-10 改版）=效果原子上的
+            // value 增幅标记非奖励引擎——BranchSuffix 恒空串、EngineDeathToll 主干表行已删（防复活）。
             var engineSuffix = SynergyUI.AtomText.BranchSuffix(
-                EngineAtom(CardCore.AtomicEffectType.DrawCard, 1, CardCore.BranchEngineKind.DeathToll, 2,
+                EngineAtom(CardCore.AtomicEffectType.DrawCard, 1, CardCore.BranchEngineKind.Clash, 2,
                     Atom("DrawCard", 1)));
             Assert(engineSuffix.StartsWith("，【奖励】") && engineSuffix.Contains("抽") && !engineSuffix.Contains("["),
                    $"载荷后缀（引擎短式）：「{engineSuffix}」——只接奖励（条件在正文）");
-            var engineBody = SynergyUI.AtomText.EngineShortBodyFor(
-                EngineAtom(CardCore.AtomicEffectType.EngineDeathToll, 1, CardCore.BranchEngineKind.DeathToll, 2,
-                    Atom("DrawCard", 1)));
-            Assert(engineBody == "此卡在场上时计数双方生物死亡，计数大于等于2时触发奖励（满6不再计数，使用后清零）",
-                   $"引擎短文案（2026-11-08 阶段3 只扫战场·死亡计数完整句）：「{engineBody}」——门槛=Then 锚价推导（DrawCard1=2），engineParam 死数据不参与");
+            Assert(SynergyUI.AtomText.BranchSuffix(AmpAtom(CardCore.AtomicEffectType.DealDamage, 2, 9)) == "",
+                   "载荷后缀（死亡计数增幅）：BranchSuffix 恒空串——增幅标记不是自由分支奖励（2026-11-10 改版）");
+            Assert(CardCore.Attribute.AtomicEffectTable.GetByType(CardCore.AtomicEffectType.EngineDeathToll) == null,
+                   "死亡计数：EngineDeathToll 引擎主干表行已退役（2026-11-10 改版——枚举墓碑，表行删除防复活）");
+            Assert(SynergyUI.AtomText.EngineShortBodyFor(
+                       EngineAtom(CardCore.AtomicEffectType.EngineDeathToll, 1, CardCore.BranchEngineKind.DeathToll, 2,
+                           Atom("DrawCard", 1))) == null
+                   && SynergyUI.AtomText.EngineShortBodyFor(AmpAtom(CardCore.AtomicEffectType.DealDamage, 2, 9)) == null,
+                   "引擎短文案：死亡计数主干行已删/增幅挂非主干行 → null（增幅说明走 Render 的 {value} 标注，不走引擎短式）");
+            var ampRender = SynergyUI.AtomText.Render(
+                CardCore.Attribute.AtomicEffectTable.GetByType(CardCore.AtomicEffectType.DealDamage),
+                AmpAtom(CardCore.AtomicEffectType.DealDamage, 3, 9), null);
+            Assert(ampRender.Contains("（+死亡计数增幅）") && ampRender.Contains("3"),
+                   $"描述渲染（死亡计数增幅）：「{ampRender}」——engineParam≥9 时 {{value}} 处标注增幅（不烘进基础值）");
+            var ampRenderPlain = SynergyUI.AtomText.Render(
+                CardCore.Attribute.AtomicEffectTable.GetByType(CardCore.AtomicEffectType.DealDamage),
+                AmpAtom(CardCore.AtomicEffectType.DealDamage, 3, 0), null);
+            Assert(!ampRenderPlain.Contains("死亡计数增幅"),
+                   $"描述渲染（普通档计数）：「{ampRenderPlain}」——engineParam<9 不标增幅（纯计数无 ×4 计价）");
             var outcomeSuffix = SynergyUI.AtomText.BranchSuffix(
                 OutcomeAtom(CardCore.AtomicEffectType.DealDamage, 3, "DmgKillsTarget", Atom("DrawCard", 1)));
             Assert(outcomeSuffix.Contains("如果消灭了目标") && outcomeSuffix.Contains("，") && outcomeSuffix.Contains("抽"),
@@ -584,13 +600,14 @@ namespace CardCore.Editor
                 };
             }
 
-            // ---- ① 并列两效果 + 代价 → 违规（互斥） ----
+            // ---- ① 并列两效果 + 代价 → 合规（2026-11-10 旧「并列不许代价」闸删除；
+            //      代价行全价 ≤3 与分支/光环形态冲突仍由 EffectCostConflictOf 拦） ----
             var parallel2 = ParallelFx(Atom(AtomicEffectType.DealDamage, 1), Atom(AtomicEffectType.DrawCard, 1));
             var cardParallel = SpellOf(parallel2);
             SetCost(cardParallel, Atom(AtomicEffectType.DealDamage, 1));
             string rParallel = SynergyUI.EffectComposerScreen.DiscountConflictOf(cardParallel);
-            Assert(rParallel != null && rParallel.Contains("并列添加了两个效果"),
-                   $"并列两效果+代价 → 报错（实际：{rParallel ?? "未报"}）");
+            Assert(rParallel == null,
+                   $"并列两效果+代价 → 合规（2026-11-10 旧互斥闸删除；实际：{rParallel ?? "未报"}）");
             // 反例：并列单原子 + 代价 → 合规（代价=并列槽位添加的合法形态）
             var cardSingle = SpellOf(ParallelFx(Atom(AtomicEffectType.DealDamage, 1)));
             SetCost(cardSingle, Atom(AtomicEffectType.DealDamage, 1));
@@ -930,15 +947,15 @@ namespace CardCore.Editor
             var fbEffect = MakeEffect("DealDamage", 4);
             fbEffect.AtomicEffects.Add(AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1));
             var fb = CardCostService.Derive(MakeCostCard(Cardtype.Spell, null, null, fbEffect));
-            Assert((int)fb.DerivedCost[ManaType.Red] == 3 && (int)fb.DerivedCost[ManaType.Blue] == 1,
-                   $"计价锚：法术 4伤+1抽 = 红3+蓝1（2026-11-10 公式定价：OnDeath f=0.6 直乘+Tier 档价 → 总额 4 分色）");
-            Assert(fb.DerivedTier == 4,
-                   "计价锚：法术档位随总额自决 Ĉ=4（恒推导定案，旧「未声明档」口径已废；档位现仅作 UI 费数字）");
+            Assert((int)fb.DerivedCost[ManaType.Red] == 4 && (int)fb.DerivedCost[ManaType.Blue] == 2,
+                   $"计价锚：法术 4伤+1抽 = 红4+蓝2（2026-11-10 时机系数切正：OnPlay E[N]=1→f=1；伤4+抽2=总额6 分色）");
+            Assert(fb.DerivedTier == 6,
+                   "计价锚：法术档位随总额自决 Ĉ=6（恒推导定案，旧「未声明档」口径已废；档位现仅作 UI 费数字）");
             var fbSpeedCard = MakeCostCard(Cardtype.Spell, null, null, fbEffect);
             fbSpeedCard.SpeedBonus = 2; // 字段退役——脏数据不得影响
             var fbSpeed = CardCostService.Derive(fbSpeedCard);
-            Assert((int)fbSpeed.DerivedCost[ManaType.Red] == 3 && (int)fbSpeed.DerivedCost[ManaType.Blue] == 1,
-                   $"计价锚：法术无抵价恒红3+蓝1（SpeedBonus 字段退役写值无效）");
+            Assert((int)fbSpeed.DerivedCost[ManaType.Red] == 4 && (int)fbSpeed.DerivedCost[ManaType.Blue] == 2,
+                   $"计价锚：法术无抵价恒红4+蓝2（SpeedBonus 字段退役写值无效）");
             Assert(DeriveTotal(MakeCostCard(Cardtype.Spell, null, null, MakeEffect("Heal", 2))) == 1,
                    "计价锚：回2命 = 1费（锚价→档1 取整 1；法术无抵价通道——2026-10-15 改版翻转旧「−抵价2→0」）");
 
@@ -947,8 +964,8 @@ namespace CardCore.Editor
             var bigBody = MakeCostCard(Cardtype.Creature, 9, 9, MakeEffect("DealDamage", 3));
             bigBody.Cost[(int)ManaType.Gray] = 9; // 存档快照（显示缓存）——不参与推导
             var big = CardCostService.Derive(bigBody);
-            Assert(big.DerivedTotal == 12 && big.OffsetRequirement == 0,
-                   $"计价锚：9/9 挂3伤 → 无延迟折全额：红6.3绿4.5 逐色进位 → 红7绿5 D=12（2026-11-10 公式定价 f(OnDeath)=0.6；Req=0——进位漂移不计超模）");
+            Assert(big.DerivedTotal == 13 && big.OffsetRequirement == 0,
+                   $"计价锚：9/9 挂3伤 → 红8绿5 D=13（2026-11-10 时机系数切正：OnPlay f=1；真值 红8.1绿4.5 逐色进位）");
             var midTier = MakeCostCard(Cardtype.Creature, 9, 9, MakeEffect("DealDamage", 3));
             midTier.Cost[(int)ManaType.Gray] = 5; // 同内容、不同存档快照
             var mid = CardCostService.Derive(midTier);
@@ -960,8 +977,8 @@ namespace CardCore.Editor
             var chooser = MakeCostCard(Cardtype.Creature, 2, 2, MakeEffect("DealDamage", 3), MakeEffect("DrawCard", 1));
             chooser.Cost[(int)ManaType.Gray] = 4; // 存档快照不参与
             var ch = CardCostService.Derive(chooser);
-            Assert(ch.DerivedTotal == 6 && ch.OffsetRequirement == 0,
-                   $"计价锚：两效果 Ĉ=6 全额(S2+E3.0)=6，超1槽+1灰 → D=6（红3蓝1绿1灰1；结构费计入规则一锚 → Req=0；2026-11-10 公式定价 f=0.6）");
+            Assert(ch.DerivedTotal == 8 && ch.OffsetRequirement == 0,
+                   $"计价锚：两效果 Ĉ=8 全额(S2+E4.8)=8，超1槽+1灰 → D=8（灰1红4蓝2绿1；结构费计入规则一锚 → Req=0；2026-11-10 f=1）");
 
             // ---- 超槽加价入灰（1/1 挂三效果：真值 S(0.5红+0.5绿)+E(3×抽1×0.6=3.6蓝)，
             //      逐色进位红1绿1 + 蓝4 + 超2槽2灰 → D=8 灰2蓝4红1绿1；结构费入锚 → Req=0）----
@@ -969,8 +986,8 @@ namespace CardCore.Editor
                 MakeEffect("DrawCard", 1), MakeEffect("DrawCard", 1), MakeEffect("DrawCard", 1));
             tripleMount.Cost[(int)ManaType.Gray] = 9; // 存档快照不参与
             var tm = CardCostService.Derive(tripleMount);
-            Assert(tm.DerivedTotal == 8,
-                   $"计价锚：1/1 挂三效果 全额 E=3×蓝1.2=3.6 + 双半色逐色进位红1绿1 + 超2槽2灰 → D=8（灰2蓝4红1绿1，Req=0——结构费计入锚；2026-11-10 公式定价 f=0.6）");
+            Assert(tm.DerivedTotal == 10,
+                   $"计价锚：1/1 挂三效果 全额 E=3×蓝2.0=6 + 双半色逐色进位红1绿1 + 超2槽2灰 → D=10（灰2蓝6红1绿1，Req=0——结构费计入锚；2026-11-10 f=1）");
 
             // ---- 规则一（2026-10-31 阶梯减价删除后）：D≤Ĉ+结构费 直判 ----
             // 与上方同内容 → 推导全同（D=6=Ĉ6 恰符）；旧「低声明→缺口」口径退役。
@@ -998,8 +1015,8 @@ namespace CardCore.Editor
             //      逐色进位 红5绿3 → D=8=Ĉ（2026-11-10 公式定价 f(OnDeath)=0.6）----
             var noCost = MakeCostCard(Cardtype.Creature, 5, 5, MakeEffect("DealDamage", 3));
             var nc = CardCostService.Derive(noCost);
-            Assert(nc.DerivedTier == 8 && nc.DerivedTotal == 8,
-                   $"计价锚：无存档费推导档 Ĉ=D=8（红5绿3；2026-11-10 公式定价 f=0.6 直乘；实际 Ĉ={nc.DerivedTier} D={nc.DerivedTotal}）");
+            Assert(nc.DerivedTier == 9 && nc.DerivedTotal == 9,
+                   $"计价锚：无存档费推导档 Ĉ=D=9（红6绿3；2026-11-10 f=1 直乘；实际 Ĉ={nc.DerivedTier} D={nc.DerivedTotal}）");
 
             // ---- 跨边当量锚点已删（2026-09-10：改由 Polarity 错边折价承担，见 TestTargetDomainModel f 段）----
 

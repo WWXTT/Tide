@@ -322,10 +322,9 @@ namespace CardCore.Editor.Tests
             var core = GameCore.Instance;
             var ctrl = new BattleController();
             BattleProjector projector = null;
-            var film = new LocalFilmSource(null, () => core, () => projector, null); // 纯录制：无播放器/无编舞；投影器晚绑定（下两行赋值）
+            var film = new LocalFilmSource(null, () => core, () => projector, null); // 纯录制：无播放器/无编舞/无即时演出；投影器晚绑定（下行赋值）
             projector = new BattleProjector(() => core, () => ctrl,
-                _ => { }, () => { }, () => { }, _ => { }, _ => { }, _ => { }, _ => { }, _ => { }, _ => { },
-                () => { }, film); // 演出闭包全空（无头无表现）——op 双轨录制与快照捕获照走（与投影表现解耦）
+                _ => { }, () => { }, () => { }, _ => { }, _ => { }, _ => { }, () => { }, null, film); // 钩子全空（无头无表现）——op 构造与快照捕获照走（演出经 Present 路由，无即时执行器）
             projector.WireEarly();
             projector.Wire();
             film.Wire(); // 行录制（先于 InitGame——首回合头行不漏）
@@ -399,13 +398,13 @@ namespace CardCore.Editor.Tests
 
         /// <summary>同步时钟播放器（delay/yield 全同步完成——回放整链在 Load 调用栈内推到底，可同步断言）。</summary>
         private static BattlePlayhead NewSyncPlayhead()
-            => new BattlePlayhead(() => null, () => null, () => null, () => null, () => null, () => null, null,
+            => new BattlePlayhead(() => null, () => null, () => null, () => null, () => null, null,
                 delay: _ => UniTask.CompletedTask, yield: () => UniTask.CompletedTask);
 
         /// <summary>桩舞台（计数对账+null 视图即时抛错；游标回退合法——SeekTo 回跳续播的正常表现）。</summary>
         private sealed class StubSink : IBattleStageSink
         {
-            public int AppliedViews, FxExecuted, CombatPlayed, Cursor = -1, MaxCursor = -1;
+            public int AppliedViews, FxExecuted, CombatPlayed, AppendedLines, Cursor = -1, MaxCursor = -1;
 
             public void ApplyView(BattleViewData view)
             {
@@ -417,6 +416,11 @@ namespace CardCore.Editor.Tests
             {
                 FxExecuted++;
                 return UniTask.CompletedTask;
+            }
+
+            public void AppendLines(IReadOnlyList<BattleLogLine> lines)
+            {
+                if (lines != null) AppendedLines += lines.Count;
             }
 
             public void AdvanceTimeline(int frameIndex)

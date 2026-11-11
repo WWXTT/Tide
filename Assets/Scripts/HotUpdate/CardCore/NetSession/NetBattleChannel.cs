@@ -22,11 +22,6 @@ namespace CardCore.Network
     /// </summary>
     public sealed class NetBattleChannel
     {
-        /// <summary>测试钩子（2026-11-11 P3 门禁修复）：强制玩家/观战连接也收事件流——
-        /// 网络协议回环验证器的「事件投影/隐藏过滤/终局」断言仍走客户端事件流。
-        /// 生产恒 false（人类走战报行流）；只由 NetProtocolLoopbackVerifier 置位并 finally 复位。</summary>
-        public static bool ForceEventsForTests;
-
         /// <summary>选卡组倒计时时长（秒；2026-10-28 用户定案 30s，服务器权威）。</summary>
         public const int DeckPickSeconds = 30;
 
@@ -82,6 +77,12 @@ namespace CardCore.Network
         private readonly Dictionary<int, MatchLogLineStream> _logStreams = new Dictionary<int, MatchLogLineStream>();
         private readonly Dictionary<int, List<MatchLogLine>> _logHistory = new Dictionary<int, List<MatchLogLine>>();
         private readonly Dictionary<int, int> _logBase = new Dictionary<int, int>(); // 截头偏移（游标换算：绝对行号-偏移=窗口下标）
+        // 终局全量行（二期 B·v18 MatchLogFull）：与遮蔽行同点渲染的双 redact=false 视角流
+        //（文案仍按座位观侧——「我方/对方」措辞；遮蔽只差 R1/R2），终局最后一拍按成员一次性下发。
+        private readonly Dictionary<int, MatchLogLineStream> _logFullStreams = new Dictionary<int, MatchLogLineStream>();
+        private readonly Dictionary<int, List<MatchLogLine>> _logFullHistory = new Dictionary<int, List<MatchLogLine>>();
+        private bool _logFullPending;               // 终局已至——下一次 FlushDownlink 末尾发全量行
+        private bool _logFullSent;                  // 本局全量行已发（一次性；重开局 StartMatch 复位）
         private Action<MatchLogEntry> _onLogAppended;
         private const int MaxLogLines = 4096;   // 单视角行历史上限（实测长局 ~800 行；截头防御镜像 NetEventProjector.MaxEvents）
         private const int TrimLogBatch = 256;   // 分批截头（均摊 O(1)——逐条 RemoveAt(0) 是 O(n)/行）
@@ -342,13 +343,14 @@ namespace CardCore.Network
             _selector.Attach();
 
             // 座位映射（椅位 → 引擎座位）+ 事件/行流游标对齐（InitGame 已 ClearAll；行流历史由
-            // InstallLogStreams 清）。WantsEvents：AI 填位吃事件流（NetClientBrain 观察），人类走行流。
+            // InstallLogStreams 清）。EventFeed（二期 B·v18）：AI 填位=Full（NetClientBrain 观察）；
+            // 人类座位/观战=FxOnly（演出白名单事件子集——日志由行流承担）。
             foreach (var chair in _room.Chairs.Where(c => c != null))
             {
                 chair.MatchSeat = chair.ChairSeat == _firstSeat ? 0 : 1;
                 chair.EventCursor = 0;
                 chair.LogCursor = 0;
-                chair.WantsEvents = chair.IsAi || ForceEventsForTests; // 测试钩子：门禁沿用事件流断言
+                chair.EventFeed = chair.IsAi ? EventFeed.Full : EventFeed.FxOnly;
                 chair.SnapshotDirty = true;
             }
             foreach (var spec in _room.Spectators)
@@ -356,7 +358,7 @@ namespace CardCore.Network
                 spec.MatchSeat = -1;
                 spec.EventCursor = 0; // 先于开局的观战者从头看整局（InitGame 的 ClearAll 已清缓冲）
                 spec.LogCursor = 0;
-                spec.WantsEvents = ForceEventsForTests; // 测试钩子：门禁沿用观战事件流断言（生产停发）
+                spec.EventFeed = EventFeed.FxOnly; // 观战演出数据前提（二期 C NetFilmSource 消费）
                 spec.SnapshotDirty = true;
             }
 
@@ -382,6 +384,8 @@ namespace CardCore.Network
             }
 
             _gameOver = false;
+            _logFullPending = false; // 二期 B：全量行终局一次性下发标记复位
+            _logFullSent = false;
             _room.EnterPhase(NetRoomPhase.Playing);
             // v14：回合计时起钟（本局第一拍由 PumpTurnClock 按回合号/回合方重置；此处先给满时长，
             // 保证 StartMatch 当拍下发的首快照就带 TurnSecondsLeft）
@@ -396,6 +400,7 @@ namespace CardCore.Network
         {
             if (_room.Phase != NetRoomPhase.Playing) return;
             _gameOver = true;
+            _logFullPending = true; // 二期 B·v18：终局最后一拍发全量无遮蔽行（MatchLogFull）
             _room.EnterPhase(NetRoomPhase.Finished);
             _room.MarkSnapshotDirty(); // 终局快照：静默判定对 Finished 恒真
             SendMatchSummaries(e); // v11 对局记录：终局摘要双座位各发一份
@@ -489,13 +494,23 @@ namespace CardCore.Network
                     redactHidden: seat >= 0);                                 // R1（E3）：座位流遮对手隐藏区入手；观战 isSelf=null 恒不遮
                 _logHistory[seat] = new List<MatchLogLine>(1024);
                 _logBase[seat] = 0;
+                // 二期 B·v18 全量行：同视角观侧文案、双 redact=false（终局 MatchLogFull 下发用）
+                _logFullStreams[seat] = new MatchLogLineStream(
+                    seat < 0 ? null : p => NetEntityMapper.SeatOf(p) == seat,
+                    redactEffectSummary: false, redactHidden: false);
+                _logFullHistory[seat] = new List<MatchLogLine>(1024);
             }
             _onLogAppended = entry =>
             {
                 foreach (var kv in _logStreams)
                 {
                     var history = _logHistory[kv.Key];
-                    try { kv.Value.Append(entry, history); }
+                    var fullHistory = _logFullHistory[kv.Key];
+                    try
+                    {
+                        kv.Value.Append(entry, history);
+                        _logFullStreams[kv.Key].Append(entry, fullHistory);
+                    }
                     catch (Exception ex) // 渲染异常不中断对局（与 NetEventProjector.ErrorCount 同风格）
                     {
                         TideLog.Error($"[NetRoom] 战报行流渲染异常（seat={kv.Key} {entry.EventType}）：{ex.Message}");
@@ -507,6 +522,8 @@ namespace CardCore.Network
                         history.RemoveRange(0, drop);
                         _logBase[kv.Key] += drop;
                     }
+                    if (fullHistory.Count > MaxLogLines) // 全量史同步截头（终局一次性下发——超长防御）
+                        fullHistory.RemoveRange(0, fullHistory.Count - MaxLogLines);
                 }
             };
             MatchLogService.Appended += _onLogAppended;
@@ -522,11 +539,16 @@ namespace CardCore.Network
                 _onLogAppended = null;
             }
             _logStreams.Clear();
+            _logFullStreams.Clear();
         }
 
         /// <summary>验证口（V11 对拍）：读当前行流历史快照（seat=0/1/-1；未安装返回 null）。</summary>
         internal List<MatchLogLine> LogHistorySnapshot(int seat)
             => _logHistory.TryGetValue(seat, out var h) ? new List<MatchLogLine>(h) : null;
+
+        /// <summary>验证口（V11.f）：读当前全量行历史快照（v18 MatchLogFull 下发源；未安装返回 null）。</summary>
+        internal List<MatchLogLine> LogFullHistorySnapshot(int seat)
+            => _logFullHistory.TryGetValue(seat, out var h) ? new List<MatchLogLine>(h) : null;
 
         /// <summary>清空某座位的卡组提交态（缺卡中止回退用——镜像 DeckSubmit 相位断线重置块的字段集）。</summary>
         private void ResetSeatDeck(int seat)
@@ -679,18 +701,20 @@ namespace CardCore.Network
             if (_room.Phase != NetRoomPhase.Playing && _room.Phase != NetRoomPhase.Finished) return;
 
             // ---- 事件流：全局投影缓冲按游标切片，逐成员按视角过滤（观战直通）。
-            // P3（2026-11-11 C 案）人类/观战停发：日志与终局已由行流承载（NetLogBatch），事件流
-            // 只喂 AI 填位客户端（NetClientBrain 靠事件观察）——WantsEvents 在 StartMatch 座位映射置位。----
+            // 二期 B（v18 EventFeed）：AI 填位=Full（NetClientBrain 观察，隐藏过滤照旧）；
+            // 人类座位/观战=FxOnly（演出白名单子集——NetFxEventWhitelist 单源，逐条过滤）；
+            // None 不发。日志与终局文本由行流/MatchLogFull 承担。----
             var events = NetEventProjector.Events;
             int total = events.Count;
             var hiddenBySeat = new Dictionary<int, HashSet<uint>>();
             bool sentAny = false;
             foreach (var member in _room.AllMembers())
             {
-                if (!member.WantsEvents) continue;
+                if (member.EventFeed == EventFeed.None) continue;
                 if (member.EventCursor >= total) continue;
+                var fxOnly = member.EventFeed == EventFeed.FxOnly;
                 HashSet<uint> hidden = null;
-                if (member.MatchSeat >= 0)
+                if (!fxOnly && member.MatchSeat >= 0)
                 {
                     if (!hiddenBySeat.TryGetValue(member.MatchSeat, out hidden))
                     {
@@ -699,12 +723,18 @@ namespace CardCore.Network
                     }
                 }
 
+                var chunk = new List<NetEvent>(64);
                 for (int offset = member.EventCursor; offset < total; offset += 64)
                 {
-                    var chunk = new NetEvent[Math.Min(64, total - offset)];
-                    for (int i = 0; i < chunk.Length; i++)
-                        chunk[i] = NetEventSeatFilter.Filter(events[offset + i], hidden);
-                    member.SendPayload(NetworkMessageType.NetEventBatch, new MsgNetEventBatch { Events = chunk });
+                    chunk.Clear();
+                    for (int i = 0; i < 64 && offset + i < total; i++)
+                    {
+                        var e = events[offset + i];
+                        if (fxOnly && !NetFxEventWhitelist.Allows(e.EventType)) continue; // 演出白名单
+                        chunk.Add(!fxOnly ? NetEventSeatFilter.Filter(e, hidden) : e);
+                    }
+                    if (chunk.Count > 0)
+                        member.SendPayload(NetworkMessageType.NetEventBatch, new MsgNetEventBatch { Events = chunk.ToArray() });
                 }
                 member.EventCursor = total;
                 sentAny = true;
@@ -770,6 +800,37 @@ namespace CardCore.Network
                 }
                 member.SendPayload(NetworkMessageType.GameStateSyncV2, snapshot);
                 member.SnapshotDirty = false;
+            }
+
+            // ---- 终局全量行（二期 B·v18 MatchLogFull）：GameOver 置 pending，最后一拍事件/行/快照
+            // 之后按成员视角一次性下发（64 行/批分帧）。AI 填位局照发（本地回环客户端按需忽略）；
+            // 观战发 -1 全量。行文本=双 redact=false 的同座位观侧全量版（客户端按 EventId 回填）。----
+            if (_logFullPending && !_logFullSent && _room.Phase == NetRoomPhase.Finished)
+            {
+                _logFullSent = true;
+                foreach (var member in _room.AllMembers())
+                {
+                    int seat = member.MatchSeat < 0 ? -1 : member.MatchSeat;
+                    if (!_logFullHistory.TryGetValue(seat, out var full) || full.Count == 0) continue;
+                    for (int offset = 0; offset < full.Count; offset += 64)
+                    {
+                        int take = Math.Min(64, full.Count - offset);
+                        var chunk = new NetLogLine[take];
+                        for (int i = 0; i < take; i++)
+                        {
+                            var line = full[offset + i];
+                            chunk[i] = new NetLogLine
+                            {
+                                Kind = line.Kind,
+                                Flags = line.Flags,
+                                EventId = line.EventId,
+                                Text = line.Text,
+                            };
+                        }
+                        member.SendPayload(NetworkMessageType.MatchLogFull, new MsgNetLogBatch { Lines = chunk });
+                    }
+                    TideLog.Info($"[NetRoom] 终局全量行已下发 → {(seat < 0 ? "观战" : "座位 " + seat)}（{full.Count} 行）");
+                }
             }
         }
 

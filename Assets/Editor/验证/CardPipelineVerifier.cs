@@ -51,6 +51,21 @@ namespace CardCore.Editor
             return e;
         }
 
+        /// <summary>效果原子 + 死亡计数增幅标记（2026-11-10 改版）：settle=3 · engine=DeathToll ·
+        /// engineParam=增幅档（≥9 兼计价 ×4 标记与计数满值；0=普通满 6），**无 Then**——
+        /// 死亡计数不再是自由分支奖励引擎，计数留作该原子 {value} 的增幅。</summary>
+        static AtomicEffectEntry AmpAtom(AtomicEffectType trunk, int value, int engineParam)
+        {
+            var e = AtomRefs.New(trunk, value);
+            e.branch = new CardCore.BranchEntryData
+            {
+                settle = (int)CardCore.BranchSettleKind.Engine,
+                engine = (int)CardCore.BranchEngineKind.DeathToll,
+                engineParam = engineParam,
+            };
+            return e;
+        }
+
         /// <summary>主干原子 + 槽级 Branch 载荷（settle=2 产出条件；如 DmgKillsTarget 读主干 per-target 产出）。</summary>
         static AtomicEffectEntry OutcomeAtom(AtomicEffectType trunk, int value,
             string outcomeId, params AtomicEffectEntry[] then)

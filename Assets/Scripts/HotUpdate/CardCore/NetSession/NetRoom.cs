@@ -63,6 +63,9 @@ namespace CardCore.Network
 
         private readonly NetBattleChannel _battle;
 
+        /// <summary>对战通道（验证口 V11.f 读行流/全量行历史快照；房间侧其余职责不外露）。</summary>
+        internal NetBattleChannel Battle => _battle;
+
         /// <summary>seed=null 用时间随机（生产）；钉种子（M3 对拍）时先手椅位与引擎随机流均确定。
         /// autoStartWhenAllReady=无头房主（MatchHost 等）：双座满即开局（跳过准备/房主确认）。
         /// password（S5 2026-11-10）：房间密码——非空时 JoinRoom 须携带同值；默认 null=无密码（既有调用零改动）。

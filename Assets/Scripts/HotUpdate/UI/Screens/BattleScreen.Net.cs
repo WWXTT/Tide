@@ -35,8 +35,10 @@ namespace SynergyUI
         private RectTransform _abstractOppRow;
         private bool _abstractOpen;
         private string _netMyDeckName = "", _netOppDeckName = ""; // BattleEntry 移交快照（行标题）
+        private NetFilmSource _netSource; // 联机帧生产者（二期 C：事件/行/快照 → 帧投播放器，玩家座位兼录制）
 
-        /// <summary>网络对局接入（LobbyScreen 移交的连接一次性消费）。</summary>
+        /// <summary>网络对局接入（LobbyScreen 移交的连接一次性消费）。观战（NetSpectator）同屏
+        /// 走同一路径（viewerSeat=-1 不录制；交互被 MyTurn=false 天然关闭）。</summary>
         private void StartNetFan()
         {
             _netClient = BattleEntry.Client;
@@ -67,8 +69,20 @@ namespace SynergyUI
             });
 
             _log?.ResetForNetMatch(); // 联机战报开局复位（2026-11-11 C 案：时序态/连锁开合标记——须先于行流到达）
+
+            // 联机帧生产者+播放器接线（二期 C）：FxOnly 事件+行流+快照 → 帧投 BattlePlayhead（LiveData
+            // 与本地实时同播放器/同舞台协议）；节拍 350ms/步 + 积压>6 压缩追帧。玩家座位兼录制剧本
+            //（观战 NetSpectator 不录制）。
+            bool spectate = BattleEntry.NetSpectator;
+            _netSource = new NetFilmSource(_director, BattleView.BuildNet, NetApplyView, NetAppendLines,
+                spectate ? "" : _netMyDeckName, spectate ? "" : _netOppDeckName, record: !spectate);
+            _director.SetLiveSink(new NetStageSink(this));
+            _director.SetLivePacing(350, 6, 0); // 联机节拍：350ms/步·积压>6 压缩·零导拍（低延迟）
+
             _netClient.OnSnapshot += NetOnSnapshot;
-            _netClient.OnLogBatch += NetOnLogLines; // v15 C 案：服务端渲染行流（唯一行源——事件流已停发）
+            _netClient.OnLogBatch += NetOnLogLines; // v15 C 案：服务端渲染行流（帧生产者归帧/空闲放出）
+            _netClient.OnEventBatch += NetOnEvents; // 二期 B/C：FxOnly 演出事件（帧生产者切步帧）
+            _netClient.OnLogFull += NetOnLogFull;   // 二期 B/C：终局全量行（FullText 回填+剧本重写）
             _netClient.OnSelectRequest += NetOnSelectRequest;
             _netClient.OnTextRequest += NetOnTextRequest;
             _netClient.OnRoomState += NetOnRoomState;
@@ -83,6 +97,7 @@ namespace SynergyUI
             _netMyDeckName = BattleEntry.NetMyDeckName ?? "";       // S7b 摘要窗行标题（一次性消费）
             _netOppDeckName = BattleEntry.NetOpponentDeckName ?? "";
             BattleEntry.NetMyDeckName = BattleEntry.NetOpponentDeckName = null;
+            BattleEntry.NetSpectator = false; // 一次性消费（防跨局残留——观战者进入即复位）
             SetupAbstractWindow(); // 卡组摘要窗（btn-abstract 常驻——点开 self/opp-deck-row）
             if (StagedOpeningActive())
             {
@@ -249,7 +264,9 @@ namespace SynergyUI
             if (summary == null) return;
             var record = new EncounterRecord
             {
-                matchId = summary.MatchId, // 服务器不分配——Append 落盘时自动生成
+                matchId = _netSource != null && !string.IsNullOrEmpty(_netSource.MatchId)
+                    ? _netSource.MatchId // 二期 C：本局 id 与剧本共用（复盘入口按 id 命中 Films）
+                    : summary.MatchId,  // 兜底（未收到首快照的理论路径——Append 自动生成）
                 finishedAtUnix = summary.FinishedAtUnix > 0
                     ? summary.FinishedAtUnix : DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
                 opponentName = string.IsNullOrEmpty(summary.OpponentName) ? "对手" : summary.OpponentName,
@@ -282,7 +299,8 @@ namespace SynergyUI
             Debug.Log($"[BattleScreen] 对局记录已入账：vs {record.opponentName}（{record.opponentDeckName}）——{(record.win ? "胜" : "负")}");
         }
 
-        /// <summary>快照到达：BuildNet → 投影器 ApplySnapshot（渲染扇出与本地同轨）+ 双扇对账。</summary>
+        /// <summary>快照到达：交互数据即时更新（反问候选/计时），渲染投帧生产者
+        ///（首帧定格视角；播放期暂存待空闲落地——二期 C）。</summary>
         private void NetOnSnapshot(MsgGameStateSync snap)
         {
             if (snap == null) return;
@@ -290,8 +308,48 @@ namespace SynergyUI
             // v14 回合计时：服务器给「采样时剩余秒数」，本端按收到时刻本地掉表（补发只在决策点）
             _netTurnSecondsLeft = snap.TurnSecondsLeft;
             _netTurnClockAt = Time.realtimeSinceStartup;
-            _projector.ApplySnapshot(BattleView.BuildNet(snap));
+            _netSource?.OnSnapshot(snap);
+        }
+
+        /// <summary>快照视图直刷（帧生产者空闲期口——投影器 ApplySnapshot 渲染扇出+双扇对账）。</summary>
+        private void NetApplyView(BattleViewData view)
+        {
+            if (view == null) return;
+            _projector.ApplySnapshot(view);
             RefreshFansNet();
+        }
+
+        /// <summary>FxOnly 事件批次 → 帧生产者（切步帧/映射演出指令）。</summary>
+        private void NetOnEvents(NetEvent[] events) => _netSource?.OnEventBatch(events);
+
+        /// <summary>终局全量行 → 帧生产者（FullText 回填 + 剧本重写）。</summary>
+        private void NetOnLogFull(NetLogLine[] lines) => _netSource?.OnLogFull(lines);
+
+        /// <summary>行入列（帧生产者放行口=帧 Lines/空闲期即时）：连锁开合旗标 + 纯入列 + 终局收口。</summary>
+        private void NetAppendLines(IReadOnlyList<BattleLogLine> lines)
+        {
+            if (lines == null) return;
+            for (int i = 0; i < lines.Count; i++)
+            {
+                var line = lines[i];
+                if (line == null || string.IsNullOrEmpty(line.Text)) continue;
+                _log.NetChainAutoToggle(
+                    (line.Flags & (byte)MatchLogLineFlags.ChainStart) != 0,
+                    (line.Flags & (byte)MatchLogLineFlags.ChainEnd) != 0);
+                _log.Append(line.Text, string.IsNullOrEmpty(line.Class)
+                    ? MatchLogLineStream.ClassOf(line.Kind) : line.Class);
+                if ((line.Flags & (byte)MatchLogLineFlags.GameOver) != 0 && !_gameEnded)
+                {
+                    _gameEnded = true;
+                    if (_netSnapshot != null && _netSnapshot.ViewerSeat < 0)
+                        MarkGameOverUi($"对局结束——{line.Text}"); // 观战：中立文案（无胜负归属）
+                    else
+                    {
+                        bool win = line.Text.Contains("我方获胜"); // 行文本=本座观侧口径
+                        MarkGameOverUi($"{(win ? "胜利" : "失败")}——{line.Text}");
+                    }
+                }
+            }
         }
 
         /// <summary>可用时间格文案（2026-11-11 v14 服务器权威回合计时）：联机局按服务器剩余秒数
@@ -893,28 +951,11 @@ namespace SynergyUI
             });
         }
 
-        // ---- 网络局战报行流（2026-11-11 C 案 v15 P3 定稿）：服务端 MatchLogRenderer 逐视角渲染好
-        // 的最终行——本端零渲染零时序整理，连锁开合按服务端旗标驱动，终局收口按 GameOver 旗标
-        //（终局双保险：行流旗标 + RoomState Finished / MatchSummary；断线兜底 NetOnDisconnected）。
+        // ---- 网络局战报行流（2026-11-11 C 案 v15；二期 C 帧化）：服务端 MatchLogRenderer 逐视角
+        // 渲染好的最终行——经帧生产者归帧（播放期随帧放行/空闲期即时入列），连锁开合按服务端
+        // 旗标、终局收口按 GameOver 旗标（双保险：RoomState Finished / MatchSummary；断线兜底）。
 
-        private void NetOnLogLines(NetLogLine[] lines)
-        {
-            if (lines == null) return;
-            foreach (var line in lines)
-            {
-                if (line == null) continue;
-                _log.NetChainAutoToggle(
-                    (line.Flags & (byte)MatchLogLineFlags.ChainStart) != 0,
-                    (line.Flags & (byte)MatchLogLineFlags.ChainEnd) != 0);
-                _log.AppendServerLine(line);
-                if ((line.Flags & (byte)MatchLogLineFlags.GameOver) != 0 && !_gameEnded)
-                {
-                    _gameEnded = true;
-                    bool win = line.Text != null && line.Text.Contains("我方获胜"); // 行文本=本座观侧口径
-                    MarkGameOverUi($"{(win ? "胜利" : "失败")}——{line.Text}");
-                }
-            }
-        }
+        private void NetOnLogLines(NetLogLine[] lines) => _netSource?.OnLogLines(lines);
 
         private void NetOnRoomState(MsgRoomState room)
         {
@@ -923,16 +964,21 @@ namespace SynergyUI
             // 选卡组相位：服务器权威倒计时整秒校准转发（面板本地走字+此处校准）
             if (room.Phase == (int)NetRoomPhase.DeckSubmit)
                 _opening?.NetDeckPanel?.OnServerSeconds(room.DeckPickSecondsLeft);
-            // 对局中断线作废（M2 策略）：服务器广播 Error+Finished——留守侧收口为终局态
-            if (room.Phase == (int)NetRoomPhase.Finished && !_gameEnded)
+            // 终局三信号之一：房态 Finished（帧生产者封卷剧本——幂等）
+            if (room.Phase == (int)NetRoomPhase.Finished)
             {
-                _gameEnded = true;
-                MarkGameOverUi("对局作废（对手断线/房间关闭）——返回主菜单");
+                _netSource?.OnMatchFinished();
+                if (!_gameEnded)
+                {
+                    _gameEnded = true;
+                    MarkGameOverUi("对局作废（对手断线/房间关闭）——返回主菜单");
+                }
             }
         }
 
         private void NetOnDisconnected()
         {
+            _netSource?.OnMatchFinished(); // 断线=终局信号（剧本保遮蔽版落盘——全量行不再到达）
             if (_gameEnded) return;
             _gameEnded = true;
             MarkGameOverUi("连接断开——对局作废（断线重连属后续里程碑）");
@@ -971,10 +1017,14 @@ namespace SynergyUI
         /// 瞬态内容覆盖层清空（v11——对手自建内容出索引，默认不显示铁律）。</summary>
         private void NetShutdown()
         {
+            _netSource?.OnMatchFinished(); // 剧本封卷兜底（幂等——行流旗标/房态已触发则跳过）
+            _netSource = null;
             if (_netClient != null)
             {
                 _netClient.OnSnapshot -= NetOnSnapshot;
                 _netClient.OnLogBatch -= NetOnLogLines; // v15 C 案：行流退订
+                _netClient.OnEventBatch -= NetOnEvents; // 二期 C：FxOnly 事件退订
+                _netClient.OnLogFull -= NetOnLogFull;   // 二期 C：全量行退订
                 _netClient.OnSelectRequest -= NetOnSelectRequest;
                 _netClient.OnTextRequest -= NetOnTextRequest;
                 _netClient.OnRoomState -= NetOnRoomState;

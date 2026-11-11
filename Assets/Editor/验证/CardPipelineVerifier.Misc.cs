@@ -913,11 +913,11 @@ namespace CardCore.Editor
                 AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(CardCore.AtomicEffectType.DealDamage, value: 5) },
             }, "VERIFY_CAP_P");
             float RedCostOf(CardCore.EffectDefinition d) => CardCore.CostDerivationService.DeriveElementCosts(d)[CardCore.ManaType.Red];
-            Assert(System.Math.Abs(RedCostOf(TrigDef(1)) - 15f) < 1e-4f
-                   && System.Math.Abs(RedCostOf(TrigDef(2)) - 15f) < 1e-4f
-                   && System.Math.Abs(RedCostOf(TrigDef(3)) - 15f) < 1e-4f
-                   && System.Math.Abs(RedCostOf(TrigDef(-1)) - 15f) < 1e-4f,
-                   "历史次数档零消费：limit 1/2/3/-1 同价（OnDraw f=3.0 直乘 → 红15——2026-11-10 时机系数切正）");
+            Assert(System.Math.Abs(RedCostOf(TrigDef(1)) - 10f) < 1e-2f
+                   && System.Math.Abs(RedCostOf(TrigDef(2)) - 10f) < 1e-2f
+                   && System.Math.Abs(RedCostOf(TrigDef(3)) - 10f) < 1e-2f
+                   && System.Math.Abs(RedCostOf(TrigDef(-1)) - 10f) < 1e-2f,
+                   "历史次数档零消费：limit 1/2/3/-1 同价（OnDraw E[N]=4.8 → f=1.2^3.8≈2.0 直乘 → 红10）");
 
             // ---- 2. 运行时：同回合 3 次触发全部上栈（无闸门）----
             var src = SpawnCapSource(core, p1);
@@ -1131,11 +1131,17 @@ namespace CardCore.Editor
                 bool srcOk = true;
                 foreach (TriggerTiming t in System.Enum.GetValues(typeof(TriggerTiming)))
                 {
-                    float want = CardCore.TimingWeights.TryGet(t, out var w) ? w.Factor : TimingBucketFactorOf(t);
+                    // 2026-11-10 用户定案 B：Factor 列仅留档/展示，计价读 Expected 公式
+                    // f=1.2^(E[N]−1)（OnTurnStart 系统专用恒 0；缺行才回落桶）。
+                    float want;
+                    if (t == TriggerTiming.OnTurnStart) want = 0f;
+                    else if (CardCore.TimingWeights.TryGet(t, out var w))
+                        want = w.Expected <= 0f ? 1f : (float)System.Math.Pow(1.2, w.Expected - 1.0);
+                    else want = TimingBucketFactorOf(t);
                     if (System.Math.Abs(F(t) - want) > 1e-4f) { srcOk = false; break; }
                 }
                 Assert(srcOk,
-                       "P9-4 新表模式单源：35 时机 TimingCostFactorOf = TimingWeights 行 Factor（缺行回落桶；λ 校准改表后断言零改动）");
+                       "P9-4 新表模式单源：TimingCostFactorOf = TimingWeights.Expected 公式 f=1.2^(E−1)（Factor 列仅展示）");
                 Assert(System.Math.Abs(F(TriggerTiming.OnPlay) - 1f) < 1e-4f
                        && System.Math.Abs(F(TriggerTiming.Activate_Active) - 1f) < 1e-4f
                        && System.Math.Abs(F(TriggerTiming.Activate_Instant) - 1f) < 1e-4f

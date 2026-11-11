@@ -1,7 +1,51 @@
 using System.Collections.Generic;
+using CardCore;
+using CardCore.Attribute;
 
 namespace CardCore.Network
 {
+    /// <summary>事件流订阅档位（二期 B·2026-11-11 协议 v18，替代旧 WantsEvents bool）：
+    /// 人类座位/观战不再「全有或全无」——FxOnly 给出逐事件演出所需的白名单子集（伤害/死亡/
+    /// 入场/属性/战斗/骨架），全量日志仍由行流+终局 MatchLogFull 承担。</summary>
+    public enum EventFeed
+    {
+        /// <summary>不发事件流（快照+行流即可的最小端）。</summary>
+        None = 0,
+        /// <summary>演出白名单子集（白名单单源=NetFxEventWhitelist）：人类座位/观战。</summary>
+        FxOnly = 1,
+        /// <summary>全量事件（隐藏过滤后）：AI 填位客户端（NetClientBrain 观察现状不变）。</summary>
+        Full = 2,
+    }
+
+    /// <summary>演出事件白名单（二期 B·方案 §3-B 表单源）：EventFeed.FxOnly 出队过滤用——
+    /// 帧切分/伤害治疗/死亡入场/属性状态/战斗拼点运势/效果视觉/回合骨架。漏类型=联机缺演出，
+    /// 补表即回退（Full 一行兜底）；V11.f 回环段断言覆盖。</summary>
+    public static class NetFxEventWhitelist
+    {
+        private static readonly HashSet<string> Names = new HashSet<string>
+        {
+            // 帧切分
+            nameof(StackResolutionStartEvent), nameof(StackResolutionEndEvent), nameof(StackEmptyEvent),
+            // 伤害/治疗
+            nameof(AtomicDamageEvent), nameof(CombatDamageEvent), nameof(HealEvent), nameof(LifeChangeEvent),
+            // 死亡/入场
+            nameof(CardDestroyEvent), nameof(CardPutToBattlefieldEvent),
+            // 属性/状态
+            nameof(CounterChangedEvent), nameof(StatModifyEvent), nameof(StatSetEvent),
+            nameof(KeywordEvent), nameof(FreezeEvent),
+            // 战斗/拼点/运势
+            nameof(AttackDeclarationEvent), nameof(AttackResolvedEvent), nameof(BlockDeclarationEvent),
+            nameof(ClashResolvedEvent), nameof(LuckRolledEvent),
+            // 效果视觉
+            nameof(EffectFlightEvent), nameof(FatigueEvent), nameof(ElementPoolPayEvent),
+            // 骨架
+            nameof(TurnStartEvent), nameof(PhaseStartEvent),
+        };
+
+        /// <summary>事件类型是否在演出白名单内。</summary>
+        public static bool Allows(string eventType) => !string.IsNullOrEmpty(eventType) && Names.Contains(eventType);
+    }
+
     /// <summary>
     /// 会话层对一条成员连接的全部依赖（传输无关，2026-10-21 P2P 定案抽取）：
     /// 出站帧写（单写者=逻辑线程）+ 入站队列（IO 侧生产，逻辑线程 TryReceive 消费）
@@ -42,9 +86,10 @@ namespace CardCore.Network
         /// <summary>战报行流出队游标（2026-11-11 C 案 v15：房间行流历史下标，房间按局重置）。</summary>
         int LogCursor { get; set; }
 
-        /// <summary>事件流订阅意愿（2026-11-11 C 案）：AI 填位（NetClientBrain 观察靠事件）=true；
-        /// 人类/观战=false（行流上线后停发 NetEventBatch，省 90%+ 下行）。</summary>
-        bool WantsEvents { get; set; }
+        /// <summary>事件流订阅档位（二期 B·2026-11-11 协议 v18，替代旧 WantsEvents bool）：
+        /// AI 填位=Full（NetClientBrain 观察靠事件，现状不变）；人类座位/观战=FxOnly（演出白名单
+        /// 事件子集——逐事件 3D 演出的数据前提，日志由行流承担）；None=不发。</summary>
+        EventFeed EventFeed { get; set; }
 
         /// <summary>静默点快照脏标记（本 tick 有事件/intent 且转入静默时置位，发完清零）。</summary>
         bool SnapshotDirty { get; set; }

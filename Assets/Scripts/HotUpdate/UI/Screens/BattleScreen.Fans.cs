@@ -78,60 +78,9 @@ namespace SynergyUI
             }
         }
 
-        // ---- 出场粒子汇聚载荷组装（2026-10-15 用户定案：实付颜色口径；浓度 ∝ 费用） ----
-
-        private void CapturePaid(ElementPoolPayEvent e)
-        {
-            int seat = e.Player == P1 ? 0 : 1;
-            var paid = new Dictionary<int, float>();
-            if (e.PaidCost != null)
-                foreach (var kv in e.PaidCost)
-                    if (kv.Value > 0.0001f) paid[kv.Key] = kv.Value;
-            _lastPaidBySeat[seat] = paid;
-
-            // 法术扣费粒子（2026-10-20 用户定案「沿用生物召唤元素粒子飘向使用区域」）：
-            // 打出实付 + 付费者施放中法术 → 实付色粒子自地格汇聚至施放者角色格
-            //（S3b 收口 2026-11-05：施放贴片格已随「栈没有实体」退役——粒子改汇向角色格）。
-            // 生物不动（CastPlayed 入场汇聚 EnqueueArrival 已覆盖，防双份）；效果费/技能费
-            // SourceNote 非「打出:」口径天然排除。
-            if (paid.Count > 0 && e.SourceNote != null && e.SourceNote.StartsWith("打出:", StringComparison.Ordinal))
-            {
-                // S3b A 切源：读栈（施放中法术）不读区
-                var spell = (Core?.StackEngine?.GetPendingCastCards(e.Player) ?? new List<Card>())
-                    .FirstOrDefault(c => c != null && c.IsSpellCard());
-                if (spell != null && _ctrl?.Board != null)
-                {
-                    var (hx, hz) = _ctrl.Board.CharacterCell(e.Player);
-                    _field?.PlayCastPay(seat, paid, hx, hz);
-                    // 2026-11-11 P0-2 收口：扣费粒子录制迁投影器→LocalFilmSource.OnPaid（无头/联机同源）
-                }
-            }
-        }
-
-        /// <summary>CastPlayed 入场 → 取该 seat 最近实付账单组装配荷；无账单/零费回落卡面印刷费色，
-        /// 仍无则不登记（模型即时显现）。付费→入场为同步紧邻事件；触发器付费插队=颜色近似（已注释知）。</summary>
-        private void CaptureArrival(CardPutToBattlefieldEvent e)
-        {
-            if (e.Source != EnterSource.CastPlayed || _field == null) return;
-            int seat = e.Controller == P1 ? 0 : 1;
-
-            Dictionary<int, float> paid;
-            if (_lastPaidBySeat.TryGetValue(seat, out var last) && last.Count > 0)
-            {
-                paid = last;
-            }
-            else
-            {
-                paid = new Dictionary<int, float>();
-                var cost = GameActions.GetCardCost(e.Card); // 印刷费全口径（抉择/指示物层同引擎单源）
-                foreach (var m in cost.NonzeroColors())
-                    paid[(int)m] = cost[m];
-            }
-
-            if (paid.Count > 0)
-                _field.EnqueueArrival(e.Card.RuntimeId, seat, paid);
-            // 2026-11-11 P0-2 收口：入场粒子录制迁投影器→LocalFilmSource.OnArrival（无头/联机同源）
-        }
+        // ---- 出场粒子/扣费粒子（2026-11-11 P0-2 迁投影器；二期 A 起屏侧闭包退役）：
+        //      LocalFilmSource.OnPaid/OnArrival 单源构造 op（Paid/Arrival）经 Present 路由
+        //      ——轮内挂帧随播/轮外即时执行；实付账本/印刷费回落规则逐字同源。 ----
 
         /// <summary>轻刷（转发投影器——构建+仅 2D 信息栏，原口径见 BattleProjector.RefreshLocal）。</summary>
         private void RefreshLocal() => _projector.RefreshLocal();

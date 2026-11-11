@@ -59,19 +59,12 @@ namespace CardCore.Editor
                 RunIntentSection(deck);
                 RunSelectorSection(deck);
                 RunHandshakeSection();
-                // 2026-11-11 P3 门禁修复：人类/观战默认停发事件流（走战报行流），本验证器 6/7 段
-                // 仍断言客户端事件投影/隐藏过滤/终局——用测试钩子临时恢复事件流，段末 finally 复位。
-                NetBattleChannel.ForceEventsForTests = true;
-                try
-                {
-                    RunSocketSection();
-                    RunPasswordSection();
-                    RunM3Section();
-                }
-                finally
-                {
-                    NetBattleChannel.ForceEventsForTests = false;
-                }
+                // 二期 B（v18 EventFeed）：人类座位/观战=FxOnly（演出白名单子集）——测试钩子已删，
+                // 6/7 段断言改为白名单语义 + MatchLogFull 终局全量行；隐藏过滤函数覆盖改走直调取证。
+                RunSocketSection();
+                RunNetFilmSection(); // 二期 C：FxOnly 流 → NetFilmSource 帧生产/行归帧/录制回填（数据层）
+                RunPasswordSection();
+                RunM3Section();
             }
             catch (Exception ex)
             {
@@ -998,7 +991,8 @@ namespace CardCore.Editor
                     server.Pump();
                     a.Receive(5); b.Receive(5); spec.Receive(5);
 
-                    if (a.Events.Any(e => e.EventType == nameof(GameOverEvent))) break;
+                    // 二期 B：人类座位事件流=FxOnly 白名单（不含 GameOverEvent）——终局信号改房态
+                    if (a.LastRoomState?.Phase == (int)NetRoomPhase.Finished) break;
 
                     var snap = a.LastSnapshot ?? b.LastSnapshot;
                     if (!conceded && snap != null && snap.CurrentTurn > 30)
@@ -1018,11 +1012,12 @@ namespace CardCore.Editor
                     a.Receive(10); b.Receive(10); spec.Receive(10);
                     if (a.LastRoomState?.Phase == (int)NetRoomPhase.Finished
                         && b.LastRoomState?.Phase == (int)NetRoomPhase.Finished
-                        && spec.LastRoomState?.Phase == (int)NetRoomPhase.Finished)
+                        && spec.LastRoomState?.Phase == (int)NetRoomPhase.Finished
+                        && a.FullLines.Count > 0 && spec.FullLines.Count > 0) // 全量行到达才算冲刷完
                         break;
                 }
 
-                Assert(a.Events.Any(e => e.EventType == nameof(GameOverEvent)), "整局到达终局（GameOverEvent 到达客户端）");
+                Assert(a.LastRoomState?.Phase == (int)NetRoomPhase.Finished, "整局到达终局（RoomState(Finished)——FxOnly 无 GameOverEvent）");
                 Assert(a.LastRoomState?.Phase == (int)NetRoomPhase.Finished
                     && b.LastRoomState?.Phase == (int)NetRoomPhase.Finished
                     && spec.LastRoomState?.Phase == (int)NetRoomPhase.Finished,
@@ -1034,21 +1029,41 @@ namespace CardCore.Editor
                 int lastTurn = Math.Max(a.LastSnapshot?.CurrentTurn ?? 0, b.LastSnapshot?.CurrentTurn ?? 0);
                 Assert(lastTurn >= 3, $"回合推进 ≥3（实际 {lastTurn}——SkipStandby/EndTurn/折返链路通）");
 
-                // ---- 6f. 隐藏过滤（玩家侧）与观战全信息（2026-09-23 定案）----
-                Assert(a.Events.Count > 0 && spec.Events.Count > 0, "事件流到达（玩家+观战）");
-                var aOppDraws = a.Events.Where(e => e.EventType == nameof(CardDrawEvent))
-                    .Where(e => SeatOfParam(e, "Player") == 1 - a.MyEngineSeat).ToList();
-                Assert(aOppDraws.Count > 0, "A 的事件流含对手抽牌事件（抽牌发生本身可见）");
-                Assert(aOppDraws.All(e => HiddenOrAbsent(e, "DrawnCard")),
-                    "A 的对手抽牌事件不携带 DrawnCard 引用（服务器出队按座位过滤）");
-                var aSelfDraws = a.Events.Where(e => e.EventType == nameof(CardDrawEvent))
-                    .Where(e => SeatOfParam(e, "Player") == a.MyEngineSeat).ToList();
-                Assert(aSelfDraws.Count > 0 && aSelfDraws.All(e => !HiddenOrAbsent(e, "DrawnCard")),
-                    "A 的自己抽牌事件携带 DrawnCard（己方手牌可见）");
+                // ---- 6f. FxOnly 语义（二期 B·v18）：白名单子集到达 + 零非白名单泄漏 ----
+                Assert(a.Events.Count > 0 && spec.Events.Count > 0, "事件流到达（玩家+观战——FxOnly）");
+                Assert(a.Events.Any(e => e.EventType == nameof(StackResolutionEndEvent))
+                        && spec.Events.Any(e => e.EventType == nameof(StackResolutionEndEvent)),
+                    "FxOnly 含帧切分事件（StackResolutionEnd——NetFilmSource 步帧依据）");
+                int distinctTypes = a.Events.Select(e => e.EventType).Distinct().Count();
+                Assert(distinctTypes >= 3,
+                    $"FxOnly 类型多样性（{distinctTypes} 种 ≥3——帧切分+骨架+演出类必有）");
+                Assert(a.Events.Concat(spec.Events).All(e => NetFxEventWhitelist.Allows(e.EventType)),
+                    "FxOnly 零非白名单泄漏（抽牌/入墓/连锁询问等不出事件流）");
+                Assert(!a.Events.Any(e => e.EventType == nameof(CardDrawEvent))
+                    && !a.Events.Any(e => e.EventType == nameof(GameOverEvent)),
+                    "抽牌/终局事件不进 FxOnly（行流/房态承担）");
 
-                var specDraws = spec.Events.Where(e => e.EventType == nameof(CardDrawEvent)).ToList();
-                Assert(specDraws.Count > 0 && specDraws.Any(e => !HiddenOrAbsent(e, "DrawnCard")),
-                    "观战全信息：抽牌事件携带 DrawnCard");
+                // 隐藏过滤函数覆盖（直调取证——FxOnly 不走座位过滤，Full 档位过滤逻辑在此保全）：
+                // 取一条**对手**抽牌事件（己方抽牌本就可见），Filter(hidden) 后 DrawnCard 置 Null、
+                // 无 hidden 保留；无对手抽牌（理论不可达）则跳过本条。
+                var oppDraw = NetEventProjector.Events
+                    .Where(e => e.EventType == nameof(CardDrawEvent) && SeatOfParam(e, "Player") == 1 - a.MyEngineSeat)
+                    .FirstOrDefault();
+                if (oppDraw != null)
+                {
+                    var hidden = NetEventSeatFilter.HiddenCardIds(GameCore.Instance, a.MyEngineSeat);
+                    // 抽牌事件发生在对局中——该卡终局可能已离手（打出/入墓），不在当前 hidden 集；
+                    // 注入该卡 RuntimeId 模拟「抽牌时刻在手」，验证过滤函数契约（hidden 命中 ⇒ 置 Null）。
+                    var drawnRid = oppDraw.Params?.FirstOrDefault(p => p.FieldName == "DrawnCard")
+                        ?.EntityRefs?[0]?.RuntimeId ?? 0;
+                    if (drawnRid != 0 && !hidden.Contains(drawnRid)) hidden.Add(drawnRid);
+                    var filtered = NetEventSeatFilter.Filter(oppDraw, hidden);
+                    Assert(filtered != null && HiddenOrAbsent(filtered, "DrawnCard"),
+                        "NetEventSeatFilter.Filter 置 Null DrawnCard（Full 档隐藏过滤函数行为保全）");
+                    var raw = NetEventSeatFilter.Filter(oppDraw, null);
+                    Assert(raw != null && !HiddenOrAbsent(raw, "DrawnCard"),
+                        "无 hidden 集时 DrawnCard 保留（观战/己方口径）");
+                }
 
                 // ---- 6f-2. v15 战报行流（P3 后人类/观战的唯一行源；2026-11-11 C 案）----
                 Assert(a.LogLines.Count > 0 && spec.LogLines.Count > 0, "战报行流到达（玩家+观战）");
@@ -1056,6 +1071,26 @@ namespace CardCore.Editor
                     "A 行流含回合骨架行（服务端 MatchLogRenderer 渲染）");
                 Assert(a.LogLines.Any(l => (l.Flags & (byte)MatchLogLineFlags.GameOver) != 0),
                     "A 行流含 GameOver 旗标（终局收口单源）");
+
+                // ---- 6f-3. v18 终局全量行（二期 B·MatchLogFull）：行数对齐 + R1/R2 替换差 + EventId 对齐 ----
+                Assert(a.FullLines.Count > 0 && b.FullLines.Count > 0 && spec.FullLines.Count > 0,
+                    $"MatchLogFull 到达三方（A×{a.FullLines.Count}/B×{b.FullLines.Count}/观战×{spec.FullLines.Count}）");
+                Assert(a.FullLines.Count == a.LogLines.Count,
+                    $"座位视角全量行数=遮蔽行数（{a.FullLines.Count} vs {a.LogLines.Count}——遮蔽只替换文本不减行）");
+                int idAligned = 0;
+                for (int i = 0; i < Math.Min(a.FullLines.Count, a.LogLines.Count); i++)
+                    if (a.FullLines[i].EventId == a.LogLines[i].EventId) idAligned++;
+                Assert(idAligned == Math.Min(a.FullLines.Count, a.LogLines.Count),
+                    $"全量行与遮蔽行 EventId 逐行对齐（{idAligned}/{a.LogLines.Count}）");
+                int textDiff = 0;
+                for (int i = 0; i < Math.Min(a.FullLines.Count, a.LogLines.Count); i++)
+                    if (a.FullLines[i].Text != a.LogLines[i].Text) textDiff++;
+                // R1/R2 替换差 = 卡组/对局相关（本段 socket 标准卡组可能无可遮蔽行——文本差异的服务端
+                // 真值对账在 TideServer V11.f；此处只取证不断言）
+                Debug.Log($"[NetVerify] 全量↔遮蔽文本差异 {textDiff} 行（R1/R2 有则必达——0=本局无可遮蔽行）");
+                Assert(spec.FullLines.Count == spec.LogLines.Count
+                    && !spec.FullLines.Where((l, i) => i < spec.LogLines.Count && l.Text != spec.LogLines[i].Text).Any(),
+                    "观战视角全量行=行流（-1 流本就无遮蔽——逐行同文）");
 
                 var specSnap = spec.FirstSnapshot ?? spec.LastSnapshot;
                 Assert(specSnap != null && specSnap.Hands.All(h => h.Count == 0
@@ -1072,12 +1107,119 @@ namespace CardCore.Editor
                     $"快照 A×{a.SnapshotsReceived}/B×{b.SnapshotsReceived}，Error A×{a.Errors.Count}/B×{b.Errors.Count}，" +
                     $"终局回合 {lastTurn}（先手椅位 {firstSeat}）");
 
+                // 二期 C 段 8 素材：FxOnly 事件流/行流/全量行/首快照（黑盒客户端实收数据）
+                _fxEvents = a.Events.ToArray();
+                _fxLines = a.LogLines.ToArray();
+                _fxFull = a.FullLines.ToArray();
+                _fxSnapshot = a.FirstSnapshot ?? a.LastSnapshot;
+
                 a.Close(); b.Close(); spec.Close();
             }
             finally
             {
                 server.Stop();
             }
+        }
+
+        // ============================================================
+        // 第六c段（二期 C·2026-11-11）：联机帧生产数据层——FxOnly 事件流 + 行流 + 快照
+        // → NetFilmSource 帧切割/演出映射/行归帧/录制封卷/MatchLogFull 回填，全程真数据。
+        // ============================================================
+
+        private static NetEvent[] _fxEvents;
+        private static NetLogLine[] _fxLines, _fxFull;
+        private static MsgGameStateSync _fxSnapshot;
+
+        private static void RunNetFilmSection()
+        {
+            Section("6c. 联机帧生产（NetFilmSource：切帧/映射/行归帧/录制回填）");
+            if (_fxEvents == null || _fxEvents.Length == 0 || _fxLines == null || _fxLines.Length == 0)
+            {
+                Assert(false, "素材缺失（段 6 未产 FxOnly 流——前置段失败？）");
+                return;
+            }
+            int mySeat2 = _fxSnapshot?.ViewerSeat ?? 0;
+            Assert(mySeat2 == 0 || mySeat2 == 1, $"首快照带观看座位（{mySeat2}）");
+
+            // 帧生产单测（播放器=null：帧只进剧本不驱动播放循环——同步时钟下「等下一帧」会自旋
+            // 卡死编辑器主线程；播放循环本身由回放验证器 C/D 段覆盖）。
+            int applied = 0, emitted = 0;
+            var source = new NetFilmSource(null,
+                snap => snap == null ? null : BattleView.BuildNet(snap),
+                _ => applied++,
+                lines => emitted += lines.Count,
+                "我方", "对手", record: true);
+
+            source.OnSnapshot(_fxSnapshot); // 首快照：视角定格+建剧本+帧 #0
+            source.OnEventBatch(_fxEvents); // 整局 FxOnly 流（帧切割+映射——帧进剧本）
+            source.OnLogLines(_fxLines);    // 整局行流（无播放器=空闲，即时放出路径）
+            source.OnMatchFinished();       // 封卷落盘（未归帧行按 EventId 归帧）
+
+            // 帧切割：步帧数=StackResolutionEnd 数；LastEventId 严格递增；末态无积压行
+            int stepEnds = _fxEvents.Count(e => e.EventType == nameof(StackResolutionEndEvent));
+            Assert(source.Film != null && source.Film.Frames.Count == stepEnds + 1,
+                $"步帧数==StackResolutionEnd+1（{source.Film?.Frames.Count ?? 0} vs {stepEnds}+1——帧 #0 开局 View）");
+            bool mono = true;
+            for (int i = 1; i < source.Film.Frames.Count; i++)
+                if (source.Film.Frames[i].LastEventId <= source.Film.Frames[i - 1].LastEventId) { mono = false; break; }
+            Assert(mono, "帧 LastEventId 严格递增（帧序=事件序）");
+            Assert(source.Film.Frames[0].Kind == BattleFrameKind.View && source.Film.Frames[0].View != null,
+                "帧 #0=开局 View（首快照）");
+            source.Tick();
+            Assert(emitted >= _fxLines.Length - CountFramedLines(source.Film),
+                $"全量行都有着落（帧内 {CountFramedLines(source.Film)} + 放出 {emitted} >= 行流 {_fxLines.Length}）");
+
+            // 演出映射：帧内 op 总数>0（FxOnly→op 映射在链——真局必有伤害/指示物/入场类指令）
+            int opCount = 0, preCount = 0, combatShots = 0;
+            foreach (var f in source.Film.Frames)
+            {
+                opCount += f.Ops.Count;
+                preCount += f.PreOps.Count;
+                if (f.Combat != null) combatShots++;
+            }
+            Assert(opCount > 0, $"帧内演出指令 {opCount} 条（>0——映射在链；PreOps×{preCount}）");
+            Assert(emitted > 0 || CountFramedLines(source.Film) > 0, "行有出路（放出/归帧）");
+
+            // 录制封卷：剧本可读回 + MatchLogFull 回填 FullText（有差异行的局全量必达）
+            var id = source.MatchId;
+            Assert(!string.IsNullOrEmpty(id) && BattleFilmStore.Has(id), $"剧本已落盘（{id}）");
+            int before = CountFullTexts(source.Film);
+            source.OnLogFull(_fxFull);
+            int after = CountFullTexts(source.Film);
+            Assert(after >= before && BattleFilmStore.Has(id), "MatchLogFull 回填后剧本重写（FullText 增量落盘）");
+            var reloaded = BattleFilmStore.Load(id);
+            Assert(reloaded != null && reloaded.Frames.Count == source.Film.Frames.Count,
+                "回填版读回帧数一致");
+            Assert(CountFullTexts(reloaded) == after,
+                $"读回 FullText 行数==回填后内存值（{CountFullTexts(reloaded)} vs {after}）");
+            int serverDiff = 0;
+            var byId = new Dictionary<uint, string>();
+            foreach (var l in _fxFull) if (l != null && !byId.ContainsKey(l.EventId)) byId[l.EventId] = l.Text;
+            foreach (var l in _fxLines) if (byId.TryGetValue(l.EventId, out var t) && t != l.Text) serverDiff++;
+            if (serverDiff > 0)
+                Assert(after > before || after > 0,
+                    $"服务端存在 R1/R2 差异行 {serverDiff}——回填后 FullText 非零（{after}）");
+            BattleFilmStore.Delete(id);
+
+            Debug.Log($"[NetVerify] 6c：{source.Film.Frames.Count} 帧 / op×{opCount}(pre×{preCount}) / Combat×{combatShots}"
+                      + $" / 行放出{emitted}+帧内{CountFramedLines(source.Film)}"
+                      + $" / FullText {before}→{after}（服务端差异行 {serverDiff}）");
+        }
+
+        private static int CountFramedLines(BattleFilm film)
+        {
+            int n = 0;
+            foreach (var f in film.Frames) n += f.Lines.Count;
+            return n;
+        }
+
+        private static int CountFullTexts(BattleFilm film)
+        {
+            int n = 0;
+            foreach (var f in film.Frames)
+                foreach (var l in f.Lines)
+                    if (!string.IsNullOrEmpty(l.FullText)) n++;
+            return n;
         }
 
         // ============================================================
@@ -1244,6 +1386,7 @@ namespace CardCore.Editor
             public int SnapshotsReceived;
             public readonly List<NetEvent> Events = new List<NetEvent>();
             public readonly List<NetLogLine> LogLines = new List<NetLogLine>(); // v15 战报行流（2026-11-11 C 案）
+            public readonly List<NetLogLine> FullLines = new List<NetLogLine>(); // v18 终局全量行（二期 B·MatchLogFull）
             public readonly List<MsgSelectRequest> PendingSelects = new List<MsgSelectRequest>();
             public readonly List<MsgError> Errors = new List<MsgError>();
 
@@ -1309,6 +1452,10 @@ namespace CardCore.Editor
                     case NetworkMessageType.NetLogBatch: // v15 战报行流（服务端渲染好的最终行）
                         var log = NetworkSerializer.DeserializePayload<MsgNetLogBatch>(msg);
                         if (log?.Lines != null) LogLines.AddRange(log.Lines);
+                        break;
+                    case NetworkMessageType.MatchLogFull: // v18 终局全量行（二期 B——分批到达）
+                        var full = NetworkSerializer.DeserializePayload<MsgNetLogBatch>(msg);
+                        if (full?.Lines != null) FullLines.AddRange(full.Lines);
                         break;
                     case NetworkMessageType.SelectRequest:
                         var request = NetworkSerializer.DeserializePayload<MsgSelectRequest>(msg);
@@ -1456,12 +1603,13 @@ namespace CardCore.Editor
                 }
 
                 // 锁步整局：每 tick 服务器泵 → 客户端收 → 大脑决策（修订锁步——行动是下行序列的纯函数）
+                // 二期 B：人类座位事件流=FxOnly（无 GameOverEvent）——终局信号改房态 Finished。
                 var sw = System.Diagnostics.Stopwatch.StartNew();
                 while (sw.ElapsedMilliseconds < 120000)
                 {
                     server.Pump();
                     a.Receive(5); b.Receive(5);
-                    if (a.Events.Any(e => e.EventType == nameof(GameOverEvent))) break;
+                    if (a.LastRoomState?.Phase == (int)NetRoomPhase.Finished) break;
                     a.Brain.Think(a, turnConcedeCap: 40);
                     b.Brain.Think(b, turnConcedeCap: 40);
                 }
@@ -1472,11 +1620,12 @@ namespace CardCore.Editor
                     server.Pump();
                     a.Receive(10); b.Receive(10);
                     if (a.LastRoomState?.Phase == (int)NetRoomPhase.Finished
-                        && b.LastRoomState?.Phase == (int)NetRoomPhase.Finished)
+                        && b.LastRoomState?.Phase == (int)NetRoomPhase.Finished
+                        && a.FullLines.Count > 0) // 全量行到达才算冲刷完
                         break;
                 }
 
-                record.ReachedGameOver = a.Events.Any(e => e.EventType == nameof(GameOverEvent));
+                record.ReachedGameOver = a.LastRoomState?.Phase == (int)NetRoomPhase.Finished;
                 record.ClientDisconnected = a.Disconnected || b.Disconnected;
                 record.FinalTurn = a.LastSnapshot?.CurrentTurn ?? -1;
                 record.FirstSeat = a.LastRoomState?.FirstSeatThisMatch ?? -1;

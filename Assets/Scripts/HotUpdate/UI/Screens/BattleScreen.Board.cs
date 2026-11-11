@@ -154,47 +154,9 @@ namespace SynergyUI
         private static string PhaseTileText(PhaseType phase, bool myTurn)
             => $"【{(myTurn ? "己方" : "对手")}{BattleView.PhaseZh(phase)}阶段】";
 
-        /// <summary>相位事件播报（投影器 PhaseStartEvent 钩子，引擎发布序同步入队）：本地局阶段字正源
-        ///（2026-10-26 定案：StartNewTurn 同帧连发 准备→主要，状态对账只读终态会吞瞬态——事件序逐条
-        /// 入队按 1s/拍播出）。网络局不订引擎事件到不了这里，快照喂数维持旧径（联机时序另立任务）。</summary>
-        private void OnPhaseAnnounced(PhaseStartEvent e)
-        {
-            if (e == null || e.ActivePlayer == null) return;
-            bool mine = e.ActivePlayer == P1;
-            BattleHudRow.SetPhase(PhaseTileText(e.Phase, mine), mine);
-        }
-
-        /// <summary>诅咒/祝福牌库标记钩子（CounterChangedEvent·2026-10-26）：施加（Amount>0）=
-        /// 卡堆顶爆发+脉冲（PlayDeckMarkAsync——灰 Heal/Hit 路由，2026-11-01 catalog 重分配后祝福=HealNova/
-        /// 诅咒=ShadowExplosion 旧观感回归）；施加与消层（抽到发作 Amount=0）都刷新开着的牌库预览条。</summary>
-        private void OnDeckMark(CounterChangedEvent e)
-        {
-            if (e == null || e.Target == null) return;
-            if (e.Amount > 0)
-                _field?.PlayDeckMarkAsync(e.Target, p => p == P2 ? 1 : 0,
-                    e.CounterType == CounterRules.BlessingCounter).Forget();
-            RefreshDeckPreviewIfOpen(e.Target as Card);
-        }
-
-        /// <summary>赋予关键词爆发粒子（KeywordEvent·2026-11-01「极性×颜色 8 种」定案）：GrantKeywordHandler
-        /// 落地即发（IsAdd 唯一发布口）——减益（IsDebuff 单源，现仅缴械）播 Hit 族、增益播 Heal 族，
-        /// 颜色=原子行基准主色（EffectTint）无基准回落来源卡费用主色。目标不在视图（手牌/牌库等）静默。</summary>
-        private void OnKeywordGranted(KeywordEvent e)
-            => _field?.PlayGrantBurstAsync(e?.Target, e?.Source, p => p == P2 ? 1 : 0, e != null ? e.EffectTint : null,
-                e != null && e.IsDebuff).Forget();
-
-        /// <summary>赋予指示物爆发粒子（CounterChangedEvent·2026-11-01）：EffectTint!=null 即赋予 handler
-        /// 发布（衰减/吸收/引擎投放天然排除）——极性=CounterPolarity（与战报「被附加/获得」措辞同源），
-        /// Neutral（变形等状态标记）不播；目标不在视图静默。</summary>
-        private void OnCounterGranted(CounterChangedEvent e)
-        {
-            if (e == null || e.Target == null || e.Amount <= 0) return;
-            var spec = CounterRules.Find(e.CounterType);
-            if (spec == null) return;
-            if (spec.Polarity == CounterPolarity.Neutral) return;
-            _field?.PlayGrantBurstAsync(e.Target, e.Source, p => p == P2 ? 1 : 0, e.EffectTint,
-                spec.Polarity == CounterPolarity.Negative).Forget();
-        }
+        // 相位播报/牌库标记/赋予粒子四钩已随二期 A 数据化退役（2026-11-11）：投影器只构造
+        // BattleFxOp（PhaseAnnounce/DeckMark/KeywordBurst/CounterBurst）经 LocalFilmSource.Present
+        // 路由——轮内挂帧随播/轮外即时执行；执行侧=BattleFxOpExecutor（PlaybackFx ref 口同实现）。
 
         /// <summary>角色【发动】键高亮门禁（2026-10-16 三键改版）：有技能卡且挂主动效果；
         /// 深判定（费用/每回合一次/阶段）留引擎在发动时裁决，拒绝走点击 toast。</summary>
@@ -770,18 +732,6 @@ namespace SynergyUI
             items = marked.Select(CardOverlayItem.FromLiveCard).ToList();
             title = $"{(ownerIdx == 0 ? "己方" : "对方")}牌库 · 诅咒 {curse} · 祝福 {marked.Count - curse}";
             return true;
-        }
-
-        /// <summary>标记变化（施加/消层）刷新开着的预览条：属主匹配才重建，标记清空即收。</summary>
-        private void RefreshDeckPreviewIfOpen(Card card)
-        {
-            if (_deckPreviewOwner < 0 || _regionSelector == null) return;
-            var ownerPlayer = card != null ? (card.GetOwner() ?? card.GetController()) : null;
-            if (ownerPlayer != null && (ownerPlayer == P1 ? 0 : 1) != _deckPreviewOwner) return;
-            if (BuildDeckPreview(_deckPreviewOwner, out var title, out var items))
-                _regionSelector.ShowPreview(title, items);
-            else
-                CloseDeckPreview();
         }
 
         // TempWalletLines（临时元素 Region 面板行）：2026-10-14 技能格定案随 RegionKind.Temp 一并退役

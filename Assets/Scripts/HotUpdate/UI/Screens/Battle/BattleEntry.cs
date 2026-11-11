@@ -63,6 +63,11 @@ namespace SynergyUI
         public static string NetMyDeckName;
         public static string NetOpponentDeckName;
 
+        /// <summary>观战移交（二期 C·2026-11-11）：观战者对局开始（Playing 相位）时 LobbyScreen 移交
+        /// 战场——跳过五段式（无掷币/选卡组）、不录制剧本（帧生产者 record=false）、交互被
+        /// MyTurn=false 天然关闭。一次性消费（StartNetFan 读取置 false 防跨局残留）。</summary>
+        public static bool NetSpectator;
+
         /// <summary>教学局关卡 id（TutorialLibrary 条目；缺省 "basics" 基础教学）。
         /// 入口方接线：BattleEntry.Mode = BattleMode.Tutorial 后 Show&lt;BattleScreen&gt;。</summary>
         public static string TutorialId = "basics";

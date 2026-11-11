@@ -119,13 +119,16 @@ namespace SynergyUI
         {
             if (BattleEntry.Mode == BattleMode.Replay) { Manager.Back(); return; } // 复盘退出（键文案已改）
             if (_gameEnded) { Manager.Back(); return; } // 终局：退出通道（旧弹窗取消键职责迁移）
-            if (await ShowTipPromptAsync("投降确认", "确认", "取消") != true) return; // 取消/拆屏=不动
             if (NetActive)
             {
-                // 网络局：认输 intent——终局经事件流回传（MarkGameOverUi），再走返回通道
+                // 观战（二期 C）：无对局可投降——直回（连接随 OnExit NetShutdown 收口）
+                if (_netSnapshot != null && _netSnapshot.ViewerSeat < 0) { Manager.Back(); return; }
+                if (await ShowTipPromptAsync("投降确认", "确认", "取消") != true) return; // 取消/拆屏=不动
+                // 网络局：认输 intent——终局经行流 GameOver 旗标回传（MarkGameOverUi），再走返回通道
                 _netClient.Send<object>(NetworkMessageType.IntentConcede, null);
                 return;
             }
+            if (await ShowTipPromptAsync("投降确认", "确认", "取消") != true) return; // 取消/拆屏=不动
             Core.EndGame(P2, GameOverReason.Concede);
             RefreshLocal();
         }
