@@ -110,11 +110,15 @@ namespace SynergyUI
                 {
                     if (valid)
                     {
+                        // 本帧点击已由选格裁决：ConfirmAsync 同步退 Active 后宿主路由同帧复活，
+                        // 不消费则同一次点击漏进棋盘路由（2026-11-11 放地后顺带弹开地牌格展示窗修复）
+                        BattlePointer.ConsumeConfirm();
                         await ConfirmAsync(x, z, epoch);
                         return;
                     }
                     if (!BattlePointer.ConfirmWasSlide)
                     {
+                        BattlePointer.ConsumeConfirm(); // 点击取消=已消费裁决（同上）
                         Debug.Log("[CellPicker] 选格取消（点击无效格）");
                         Cancel();
                         return;

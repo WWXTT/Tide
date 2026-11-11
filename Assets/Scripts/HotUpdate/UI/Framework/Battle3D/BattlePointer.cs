@@ -52,6 +52,13 @@ namespace SynergyUI
         /// <summary>裁决点（射线/点击落点）：触摸=手指原始点位；PC=鼠标。</summary>
         public static Vector2 AimPoint => _fingerId >= 0 ? _raw : (Vector2)Input.mousePosition;
 
+        /// <summary>消费本帧确认（2026-11-11 修复：选格/选目标确认点击同帧漏进宿主棋盘路由——
+        /// 放地点格后顺带弹开该地牌格 Information 窗）。箭头类消费者（选格器/编舞器）就
+        /// ConfirmPressed 裁决完毕、同步退选择态后调用：其让路挡板（Active/IsTargeting）当帧
+        /// 即失效，宿主路由同帧复活会把同一次点击二次路由。Sample 帧号守卫同帧幂等，不会复活
+        /// 已消费确认。</summary>
+        public static void ConsumeConfirm() => ConfirmPressed = false;
+
         /// <summary>每帧采样（消费者循环入口调用；同帧幂等）。</summary>
         public static void Sample()
         {

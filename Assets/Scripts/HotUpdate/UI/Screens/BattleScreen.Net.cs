@@ -25,10 +25,12 @@ namespace SynergyUI
         // 反问 = Region 选项列表（实体候选按 CardId 查表渲染卡名）；
         // 表现 MVP = 战报轻日志+浮字级演出（伤害/治疗粒度的 3D 演出接 NetEvent 载荷属后续里程碑）。
 
-        // ---- S7b 卡组摘要窗（2026-11-10 改版：掷币段独立分布面板退役）----
-        // btn-abstract（BattleUI 烘焙常驻按钮）点开/收起 self-deck-row / opp-deck-row 两行
-        //（deck-row 嵌套实例，烘焙默认隐藏）。我方行=本地已提交卡组实时绑；对手行=manifest
-        // 9 桶直方图粗化（颜色行空），终局 MatchSummary 对手卡表揭晓后补全。
+        // ---- S7b 卡组摘要窗（2026-11-11 改版：btn-abstract 挪入 log-list content 常驻）----
+        // btn-abstract 烘焙常驻日志 content 内（日志展开期间可点）点击=开/收 self/opp-deck-row
+        // 两行（deck-row 嵌套实例，烘焙默认隐藏，现为 log-list 直属子级——在 viewport Mask 之外，
+        // 面板收起不随高度动画消失，故日志关闭/重开一律自动隐藏：挂 BattleLogController.PanelToggled）。
+        // 我方行=本地已提交卡组实时绑；对手行=manifest 9 桶直方图粗化（颜色行空），
+        // 终局 MatchSummary 对手卡表揭晓后补全。
         private RectTransform _abstractSelfRow;
         private RectTransform _abstractOppRow;
         private bool _abstractOpen;
@@ -64,6 +66,7 @@ namespace SynergyUI
                 OnPlaceLand = NetOnFanPlaceLand,
             });
 
+            _log?.ResetForNetMatch(); // 联机战报开局复位（2026-11-11 日志改版：建局静默/挂起/连锁开合标记——须先于事件到达）
             _netClient.OnSnapshot += NetOnSnapshot;
             _netClient.OnEventBatch += NetOnEvents;
             _netClient.OnSelectRequest += NetOnSelectRequest;
@@ -166,7 +169,9 @@ namespace SynergyUI
         // ======================================== S7b 卡组摘要窗（btn-abstract） ========================================
 
         /// <summary>摘要窗接线（网络局 StartNetFan 调）：btn-abstract 点击=开/收 self/opp-deck-row
-        ///（deck-row 嵌套实例，烘焙默认隐藏——非网络局不接，点击无效果）。</summary>
+        ///（deck-row 嵌套实例，烘焙默认隐藏——非网络局不接，点击无效果）。2026-11-11 按钮挪入
+        /// log-list content 常驻：两行为 log-list 直属子级（Mask 外），日志面板开合（PanelToggled）
+        /// 一律重置隐藏——关闭/重开都不复活摘要。</summary>
         private void SetupAbstractWindow()
         {
             var btnNode = UiKit.FindDeep(Root, "btn-abstract");
@@ -183,6 +188,8 @@ namespace SynergyUI
             _abstractOpen = false;
             if (_abstractSelfRow != null) _abstractSelfRow.gameObject.SetActive(false);
             if (_abstractOppRow != null) _abstractOppRow.gameObject.SetActive(false);
+            _log.PanelToggled -= HideAbstractWindow; // 幂等订阅（防重入叠挂）
+            _log.PanelToggled += HideAbstractWindow;
         }
 
         private void ToggleAbstractWindow()
@@ -190,6 +197,15 @@ namespace SynergyUI
             _abstractOpen = !_abstractOpen;
             if (_abstractSelfRow != null) _abstractSelfRow.gameObject.SetActive(_abstractOpen);
             if (_abstractOppRow != null) _abstractOppRow.gameObject.SetActive(_abstractOpen);
+        }
+
+        /// <summary>日志关闭/重开自动隐藏双方卡组摘要（2026-11-11 btn-abstract 常驻改版：
+        /// 摘要行为 log-list 直属子级、Mask 外，面板收起时不会随高度动画消失——开合切换一律归零）。</summary>
+        private void HideAbstractWindow()
+        {
+            _abstractOpen = false;
+            if (_abstractSelfRow != null) _abstractSelfRow.gameObject.SetActive(false);
+            if (_abstractOppRow != null) _abstractOppRow.gameObject.SetActive(false);
         }
 
         /// <summary>摘要窗我方行绑定（S7a 提前提交路径与 NetEngageStaged 兜底路径共用）。</summary>
@@ -877,67 +893,46 @@ namespace SynergyUI
             });
         }
 
-        // ---- 网络局下行事件（表现 MVP：终局+战报轻日志） ----
+        // ---- 网络局下行事件（2026-11-11 日志改版：NetAppendLogLight 三行轻日志退役——
+        // 全量 NetEvent 经 NetLogRenderer 渲染成木桩同款行/分色，经 _log.AppendNet 时序入列） ----
 
         private void NetOnEvents(NetEvent[] events)
         {
             if (events == null) return;
+            int me = _view?.NetViewerSeat ?? _netSnapshot?.ViewerSeat ?? -1;
             foreach (var e in events)
             {
                 if (e == null) continue;
                 if (e.EventType == nameof(GameOverEvent))
                 {
-                    var winner = NetParamEntity(e, nameof(GameOverEvent.Winner));
-                    string reason = NetParamString(e, nameof(GameOverEvent.Reason));
-                    int me = _view?.NetViewerSeat ?? -1;
+                    var winner = NetLogRenderer.Entity(e, nameof(GameOverEvent.Winner));
+                    string reason = NetLogRenderer.Str(e, nameof(GameOverEvent.Reason));
                     bool win = me >= 0 && winner != null && winner.Seat == me;
                     if (!_gameEnded)
                     {
                         _gameEnded = true;
                         MarkGameOverUi($"{(win ? "胜利" : "失败")}——{(win ? "我方" : "对手")}获胜（{reason}）");
                     }
-                    continue;
+                    // 不 continue：终局 ★ 行同款入史（与木桩一致）
                 }
-                NetAppendLogLight(e);
+                NetAppendLog(e, me);
             }
         }
 
-        /// <summary>轻量战报行（schema-less 参数直取；完整战报中间层随演出里程碑接入）。</summary>
-        private void NetAppendLogLight(NetEvent e)
+        /// <summary>联机战报行（2026-11-11 改版）：NetLogRenderer 全量渲染（与木桩同款文案/分色/
+        /// 观侧）→ 连锁自动开合信号 → _log.AppendNet 时序入列（建局静默/自然抽挂起同本地口径）。
+        /// 连锁开合判据：StackResolutionStartEvent.RealCount≥2=真连锁展开、StackEmptyEvent.HadRealItems
+        /// =收起（TopItem.IsPhaseWindow 不进投影，RealCount≥2 时栈顶必真实对象——判据等价）。</summary>
+        private void NetAppendLog(NetEvent e, int viewerSeat)
         {
-            int me = _view?.NetViewerSeat ?? -1;
-            string line = null;
-            switch (e.EventType)
-            {
-                case nameof(CardPlayEvent):
-                    line = $"{WhoText(NetParamEntity(e, nameof(CardPlayEvent.Player)), me)} 打出 " +
-                           $"{BattleView.EntityTextOf(NetParamEntity(e, nameof(CardPlayEvent.PlayedCard)), me)}";
-                    break;
-                case nameof(DamageEvent):
-                    line = $"{BattleView.EntityTextOf(NetParamEntity(e, nameof(DamageEvent.Target)), me)} " +
-                           $"受到 {NetParamInt(e, nameof(DamageEvent.Amount))} 点伤害";
-                    break;
-                case nameof(CardDrawEvent):
-                    line = $"{WhoText(NetParamEntity(e, nameof(CardDrawEvent.Player)), me)} 抽了一张牌";
-                    break;
-            }
-            if (line != null) _log.Append(line, "log-line--net");
+            if (e.EventType == nameof(StackResolutionStartEvent))
+                _log.NetChainAutoToggle(NetLogRenderer.Int(e, nameof(StackResolutionStartEvent.RealCount)) >= 2, false);
+            else if (e.EventType == nameof(StackEmptyEvent))
+                _log.NetChainAutoToggle(false, NetLogRenderer.Bool(e, nameof(StackEmptyEvent.HadRealItems)));
+            var line = NetLogRenderer.Render(e, viewerSeat);
+            if (line.Text == null && !line.FirstDraw) return; // 未映射事件零开销直过
+            _log.AppendNet(e.EventType, line.Text, line.Class, line.FirstDraw);
         }
-
-        private static string WhoText(NetEntityRef r, int viewerSeat)
-            => r != null && r.IsPlayer ? (r.Seat == viewerSeat ? "我方" : "对手") : "?";
-
-        private static NetParam NetParamOf(NetEvent e, string field)
-            => e.Params?.FirstOrDefault(p => p != null && p.FieldName == field);
-
-        private static NetEntityRef NetParamEntity(NetEvent e, string field)
-            => NetParamOf(e, field)?.EntityRefs?.FirstOrDefault();
-
-        private static long NetParamInt(NetEvent e, string field)
-            => NetParamOf(e, field)?.IntValue ?? 0;
-
-        private static string NetParamString(NetEvent e, string field)
-            => NetParamOf(e, field)?.StringValue;
 
         private void NetOnRoomState(MsgRoomState room)
         {

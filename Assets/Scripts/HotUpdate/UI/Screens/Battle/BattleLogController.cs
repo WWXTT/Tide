@@ -26,6 +26,10 @@ namespace SynergyUI
         private readonly List<(string text, string cls)> _standbyDeferred = new(); // 挂起的回合自然抽牌行（待〔准备阶段〕行落定，2026-10-17）
         private RectTransform _logListRect;        // log-list 高度动画目标（0↔700）
         private float _logListTarget;
+        /// <summary>面板开↔收起实际切换通知（2026-11-11 btn-abstract 常驻改版）：手动 Toggle、
+        /// 本地/联机连锁自动开合、联机开局复位同一单源发出——btn-abstract 卡组摘要行随日志
+        /// 关闭/重开自动隐藏等消费方挂此事件。</summary>
+        public event Action PanelToggled;
         private bool _autoOpened;                   // 连锁自动展开标记（2026-11-03：连锁结束只收自己开的——手动展开不关）
         private int _activeLineCount;               // 在役行数（池化口径：trim 按活动行计，池中 inactive 不算——childCount 含 inactive 不可用）
         private readonly Stack<TMP_Text> _linePool = new(); // 回收行池（2026-10-24 对象池定案：超限行回收复用不再 Destroy）
@@ -119,7 +123,7 @@ namespace SynergyUI
             {
                 if (_logListTarget <= 0f)
                 {
-                    _logListTarget = LogListOpenHeight;
+                    SetLogTarget(LogListOpenHeight);
                     _autoOpened = true;
                 }
             }
@@ -127,7 +131,7 @@ namespace SynergyUI
             {
                 if (_autoOpened)
                 {
-                    _logListTarget = 0f;
+                    SetLogTarget(0f);
                     _autoOpened = false;
                 }
             }
@@ -159,6 +163,62 @@ namespace SynergyUI
         {
             foreach (var unsub in _unsubscribers) unsub();
             _unsubscribers.Clear();
+        }
+
+        // ==== 联机局入口（2026-11-11 联机日志改版：NetEvent 流走同一面板/同款时序整理） ====
+        // 联机局无本地引擎→MatchLogService.Appended 无事件，Wire 不调用；行源=BattleScreen.Net.cs
+        // 收 NetEvent 批 → NetLogRenderer 渲染 → 此处入口。时序整理（建局静默/回合自然抽挂起/
+        // 阶段行放行）与本地 ProcessEntry 同款，事件类型以字符串判型（NetEvent 无 IGameEvent 可判）。
+
+        /// <summary>联机局开局重置（StartNetFan 调，须先于事件到达）：建局静默/挂起/连锁自动
+        /// 开合标记/回放缓冲复位——本类跨 Mount 存留，防上一局的武装状态串进新局。</summary>
+        public void ResetForNetMatch()
+        {
+            _logArmed = false;
+            _standbyDeferred.Clear();
+            _autoOpened = false;
+            SetLogTarget(0f); // 单源写入：上一局日志若开着，此处收起也走 PanelToggled（摘要行随之隐藏）
+            _holding = false;
+            _heldEntries.Clear();
+        }
+
+        /// <summary>联机局连锁自动开合（同本地 AutoToggleForChain 语义）：真连锁结算开始→展开、
+        /// 连锁结束→收起（只收自动开的）。判据由 NetEvent 侧近似（TopItem.IsPhaseWindow 不进投影，
+        /// 但 RealCount≥2 时栈顶必为真实对象——与本地判据等价）。</summary>
+        public void NetChainAutoToggle(bool chainStart, bool chainEnd)
+        {
+            if (chainStart)
+            {
+                if (_logListTarget <= 0f)
+                {
+                    SetLogTarget(LogListOpenHeight);
+                    _autoOpened = true;
+                }
+            }
+            else if (chainEnd && _autoOpened)
+            {
+                SetLogTarget(0f);
+                _autoOpened = false;
+            }
+        }
+
+        /// <summary>联机局行入口：时序整理（同本地 ProcessEntry）+ 行入列。
+        /// 首个回合行前静默（建局事件不入史）；回合自然抽挂起至〔准备阶段〕阶段行落定后放行。</summary>
+        public void AppendNet(string eventType, string text, string cls, bool firstDrawOfTurn)
+        {
+            if (eventType == nameof(TurnStartEvent))
+            {
+                _logArmed = true;
+                FlushStandbyDeferred(); // 兜底放行上回合挂起残留（正常在阶段行已放空）
+            }
+            if (!_logArmed) return;
+            if (firstDrawOfTurn && !string.IsNullOrEmpty(text))
+            {
+                _standbyDeferred.Add((text, cls)); // 回合自然抽：挂至〔准备阶段〕行后
+                return;
+            }
+            Append(text, cls);
+            if (eventType == nameof(PhaseStartEvent)) FlushStandbyDeferred(); // 阶段行落定后放行挂起的自然抽
         }
 
         // ==== 结算回放逐步放行（2026-10-19 逆结算步进定案） ====
@@ -279,14 +339,16 @@ namespace SynergyUI
             return lineGo.GetComponent<TMP_Text>();
         }
 
-        /// <summary>回收最旧活动行入池（改名 lbl#pool+熄活；模板/池行跳过；无行可回收=计数漂移就地清零防死循环）。</summary>
+        /// <summary>回收最旧活动行入池（改名 lbl#pool+熄活；模板/池行/非战报常驻行跳过；
+        /// 无行可回收=计数漂移就地清零防死循环）。2026-11-11 btn-abstract 常驻 content（active
+        /// 且层级在首）——回收只认名 lbl 的战报行，否则按钮会被改名熄活吃掉。</summary>
         private void RecycleOldestLine()
         {
             var content = _logList.Content;
             for (int i = 0; i < content.childCount; i++)
             {
                 var ch = content.GetChild(i);
-                if (!ch.gameObject.activeSelf) continue;          // 模板/池行（inactive 不占 VLG 行序）
+                if (!ch.gameObject.activeSelf || ch.name != "lbl") continue; // 模板/池行（inactive）+ 常驻非战报行（btn-abstract）
                 ch.gameObject.name = "lbl#pool";
                 ch.gameObject.SetActive(false);
                 _activeLineCount--;
@@ -300,8 +362,17 @@ namespace SynergyUI
         public void Toggle()
         {
             _autoOpened = false; // 手动操作即接管——连锁结束不再替用户收面板
-            _logListTarget = _logListTarget > 0f ? 0f : LogListOpenHeight;
+            SetLogTarget(_logListTarget > 0f ? 0f : LogListOpenHeight);
             Debug.Log($"[BattleLog] btn-log 切换：目标高度 {_logListTarget:0}（展开={_logListTarget > 0f}）");
+        }
+
+        /// <summary>目标高度单源写入（2026-11-11）：开↔收起实际切换时发 PanelToggled——
+        /// 手动/本地连锁/联机连锁/开局复位全路径同口，btn-abstract 摘要行随日志关闭/重开自动隐藏。</summary>
+        private void SetLogTarget(float target)
+        {
+            if (Mathf.Approximately(_logListTarget, target)) return;
+            _logListTarget = target;
+            PanelToggled?.Invoke();
         }
 
         /// <summary>面板高度动画（Updater 每帧）。</summary>

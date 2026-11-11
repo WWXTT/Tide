@@ -257,6 +257,11 @@ namespace SynergyUI
             int x, z;
             if (!TryParseTile(hitName, out x, out z)) { CloseRegion(); return; }
 
+            // 格子按压反馈（2026-11-11 木桩测试需求）：命中任意格（单位/地牌/特殊/角色/空格）
+            // 整格按下-回弹、挂件随格同动——纯视觉 fire-and-forget，在 role 分发前触发，
+            // 不改任何路由分支、不进结算链
+            BattleTilePress.Play(_field, x, z);
+
             // 特殊格分流（两侧列 x0/x7 不承载单位/地牌——BoardLayout 保证）
             var role = BoardLayout.RoleOf(x, z);
             if (role != CellRole.Unit && role != CellRole.Land && role != CellRole.Edge)

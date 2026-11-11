@@ -216,11 +216,15 @@ namespace SynergyUI
                 {
                     if (valid)
                     {
+                        // 同 BattleCellPicker（2026-11-11）：ConfirmTargetAsync 同步退 IsTargeting 后
+                        // 宿主路由同帧复活——消费确认防同一次攻击确认点击漏进棋盘路由
+                        BattlePointer.ConsumeConfirm();
                         await ConfirmTargetAsync(x, z);
                         return;
                     }
                     if (!BattlePointer.ConfirmWasSlide)
                     {
+                        BattlePointer.ConsumeConfirm(); // 点击取消=已消费裁决（同上）
                         Debug.Log("[CombatChoreo] 目标选择取消（点击无效格）");
                         CancelTargeting();
                         return;

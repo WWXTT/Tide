@@ -273,6 +273,41 @@ namespace SynergyUI
         private static int PrioritySeatOf(BattleViewData d)
             => d.StackNotEmpty ? (d.MyPriority ? 0 : 1) : (d.MyTurn ? 0 : 1);
 
+        // ==== 格子按压反馈供料（2026-11-11 木桩测试·BattleTilePress 消费） ====
+
+        /// <summary>收集格面世界锚定挂件（2026-11-11 木桩测试·按压反馈）：单位 wrapper（unit-{rid}）、
+        /// 施放占格图标（cast-{rid}）、角色柱（hero-*）世界坐标锚定挂 _root 不钉 tile，按压动画须
+        /// 与 tile 同拍同深下沉回升（钉 tile 的挂件——读数三槽/地牌计数条/元素图标/高光环/特殊格
+        /// 道具/生物箭头——天然随 tile 动，不在此列）。编舞持有中的单位跳过（位姿归编舞器独占，
+        /// 抢写打架）。返回新列表（可 null=该格无世界锚定件）。</summary>
+        internal List<Transform> CollectPressAnchors(int x, int z)
+        {
+            List<Transform> list = null;
+            foreach (var kv in _units)
+            {
+                var v = kv.Value;
+                if (v == null || v.Wrapper == null || v.X != x || v.Z != z) continue;
+                if (IsHeld(kv.Key)) continue; // 演出持有：位姿归编舞器
+                (list ?? (list = new List<Transform>())).Add(v.Wrapper);
+            }
+            foreach (var kv in _castings)
+            {
+                var go = kv.Value;
+                if (go == null) continue;
+                if (!_castingCells.TryGetValue(kv.Key, out var cell) || cell.x != x || cell.y != z) continue;
+                (list ?? (list = new List<Transform>())).Add(go.transform);
+            }
+            foreach (var kv in _heroes)
+            {
+                var h = kv.Value;
+                if (h == null || h.Root == null) continue;
+                var heroCell = BoardLayout.CharacterCell(kv.Key);
+                if (heroCell.x != x || heroCell.z != z) continue;
+                (list ?? (list = new List<Transform>())).Add(h.Root);
+            }
+            return list;
+        }
+
         // ======================================== 通用 ========================================
 
         private static bool _tmpFontChecked, _tmpFontOk;
