@@ -167,7 +167,8 @@ namespace SynergyUI
             // 依赖全走 Func 惰性取（_log/_choreo 等在其构建期可能尚未就绪）
             _director = new BattlePlayhead(() => Core, () => _projector, () => _log, () => _field,
                 () => _chainStage, () => _choreo, RefreshFans);
-            _localSource = new LocalFilmSource(_director, () => Core, () => _projector);
+            // S2：+编舞器引用（攻击步拉 CombatShot 入剧本）；播放器可空位留给无头录制（验证器）
+            _localSource = new LocalFilmSource(_director, () => Core, () => _projector, () => _choreo);
             _hudTicker = new BattleHudTicker(() => _view, NetTurnClockText);
             _tutorial = new BattleTutorialDirector(() => Root, () => Core, () => _ctrl, () => _field, _toast,
                 ShowTipPromptAsync, () => Manager.Back(), RefreshField, RefreshFans, OnEndTurnFan,
@@ -179,7 +180,7 @@ namespace SynergyUI
                 e => { if (e?.Card != null) _field?.InterruptCasting(e.Card.RuntimeId); },
                 e => { if (e?.Player == null || _field == null) return; _field.HeroFatigueHitAsync(e.Player == P2 ? 1 : 0, e.Damage).Forget(); },
                 CapturePaid, CaptureArrival, OnGameOverFan, () => _pendingPins.Clear(),
-                _localSource.OnResolutionStart, _localSource.OnStepResolved, _localSource.OnRoundStackEmpty,
+                _localSource, // 2026-11-11 S2：投影器三生命周期钩子直接透传帧生产者（兼演出 op 双轨录制）
                 (e, castCell) => _field?.PlayEffectDamageAsync(e.Source, e.Target, e.Damage, p => p == P2 ? 1 : 0, castCell, e.EffectTint).Forget(),
                 e => _field?.PlayEffectHealAsync(e.Target, e.Amount - e.Overfill, p => p == P2 ? 1 : 0).Forget(),
                 e => _field?.PlayCounterFloatAsync(e.Target, e.CounterType, e.Amount, p => p == P2 ? 1 : 0).Forget(),
@@ -444,28 +445,34 @@ namespace SynergyUI
                     : BattleEntry.Mode == BattleMode.Tutorial ? $"教学 · {BattleEntry.TutorialId}"
                     : BattleEntry.Mode == BattleMode.Challenge ? $"挑战 · 难度{BattleEntry.ChallengeDifficulty}"
                     : BattleEntry.Mode == BattleMode.Network ? "联机 · P2P"
+                    : BattleEntry.Mode == BattleMode.Replay ? "复盘"
                     : "本地 · AI";
 
             // 战场 3D 摆位 + 装台（2026-10-13 战场重做；2026-10-18 网络簇整删后仅本地直连）
             _field = new BattleFieldView();
             _field.HeroLifeShownChanged = OnHeroLifeShownChanged; // 角色HP读数节拍（2026-10-20）：命中拍释放时同拍重写 2D 生命标签
-            // 战斗编舞（2026-10-13）：3D 寻路箭头选攻击目标 + 战斗演出（走位/受击/死亡漩涡吸走）；
+            // 战斗编舞（2026-10-13）：3D 寻路箭头选攻击目标 + 战斗演出（走位/受击/死亡漩涡）；
             // 事件订阅须先于本屏刷新订阅（宣言即 hold 位姿），OnEnter 建立即满足。
             // 网络局不订引擎事件（2026-10-21）：房主侧引擎事件来自服务器房（全信息），订阅会触发
             // 走位/受击演出读本地 Core（null）——网络局表现走快照对账+轻事件，编舞器不参与。
+            // 复盘局同网络局不订事件（2026-11-11 演出统一 S2）：无引擎可订，战斗演出走 CombatShot 回放器。
+            bool replayMode = BattleEntry.Mode == BattleMode.Replay;
             bool netMode = BattleEntry.Mode == BattleMode.Network && BattleEntry.Client != null;
-            if (netMode) NetCellPins.ClearAll(); // 跨局钉格清（RuntimeId 每局重起，防串号）
-            _choreo = new CombatChoreographer(_field, () => _view, RefreshField, listenEvents: !netMode, selfPlayer: () => P1);
+            if (netMode || replayMode) NetCellPins.ClearAll(); // 跨局钉格清（RuntimeId 每局重起，防串号）
+            _choreo = new CombatChoreographer(_field, () => _view, RefreshField, listenEvents: !netMode && !replayMode, selfPlayer: () => P1);
             _choreo.ReplayDriven = true; // 战斗演出改由步进回放导演驱动（2026-10-19 严格结算序：攻击步到位才开演）
             _cellPicker = new BattleCellPicker();
             BattleStageDirector.MountBoardAndDawnAsync().Forget(); // 转场③④：装载棋盘（分区表注入）→ 日出
             // 棋盘就绪后首刷（英雄柱/初始摆位）：staged 开局局挪到段五起步——段一~四无 Core 恒不就绪，
-            // 45s deadline 会在选卡组期空转（2026-10-19 掷币演出挪战场）。网络局无 Core（首刷=首快照）
-            if (!StagedOpeningActive() && !netMode)
+            // 45s deadline 会在选卡组期空转（2026-10-19 掷币演出挪战场）。网络局无 Core（首刷=首快照）；
+            // 复盘局首刷=剧本帧 #0（StartReplayFan 等棋盘就绪后 Load）
+            if (!StagedOpeningActive() && !netMode && !replayMode)
                 RefreshFieldWhenBoardReady().Forget();
 
             _regionSelector?.ForceIdle(); // 跨局残留清算（2026-10-17）：上局退出时在途选择孤悬的 IsOpen/busy 在此钉回
-            if (netMode)
+            if (replayMode)
+                StartReplayFan();
+            else if (netMode)
                 StartNetFan();
             else
                 StartLocalFan();
@@ -485,6 +492,7 @@ namespace SynergyUI
             _opening = null;
             _director?.Shutdown(); // 步进回放收闸（2026-10-19）：先于日志/投影器退订——hold 解除、缓冲日志全放
             _log?.Dispose(); // 战报订阅退订（2026-10-18 拆分——原随基类 FlushSubscriptions，Deactivate 内同帧等价）
+            _localSource?.Dispose(); // 帧生产者行录制退订（2026-11-11 S2——MatchLogService.Appended）
             _projector?.Dispose(); // 投影订阅退订（B2 同上口径）
             //（结业镜像局会话标记 2026-10-19 随三课制整删——此处原 ClearAssessment 调用退役）
             TutorialGuide.End();            // 引导闸卸载防跨局残留

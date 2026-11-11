@@ -3,14 +3,17 @@ using System;
 namespace CardCore.Network
 {
     /// <summary>
-    /// 会话服务器组合根（M2）：INetTransportHost（TCP 第一实现）+ NetRoom（单房间状态机）+ 逻辑线程泵。
+    /// 会话服务器组合根（M2；v17 2026-11-11 房间/对战通道拆分）：INetTransportHost（TCP 第一实现）+
+    /// NetRoom（房间通道）+ NetBattleChannel（对战通道，被 NetRoom 持有）+ 逻辑线程泵。
     ///
     /// 单逻辑线程定案（网络协议.md §9.4）的落地形态：
     /// - IO 线程（accept/读）只入队；**一切房间/引擎状态只在本类 Pump 里碰**。
     /// - Pump 的宿主：编辑器菜单 = EditorApplication.update；batchmode = 阻塞自旋；
     ///   验证器 = 同步直调（三宿主同一份泵代码）；P2P 房主运行时 = UIBootstrap.Update（2026-10-21）。
     /// - 出站单写者 = Pump 线程（INetChannel.Send 注释）。
-    /// - 引擎推进在 NetRoom.PumpEngine：相位由玩家 intent 驱动（与全部无头驱动器同口径，
+    /// - 上行按 NetworkChannels 归类进房间/对战两个分派口（NetRoom.OnMessage → 房间 /
+    ///   NetBattleChannel.HandleMessage）；下行也按通道分道出队（房态先发，再发对战帧）。
+    /// - 引擎推进在 NetRoom.PumpEngine（转发对战通道）：相位由玩家 intent 驱动（与全部无头驱动器同口径，
     ///   不调 GameCore.Update——其空栈分支会自由滑阶段）；UniTask 链在逻辑线程同步收敛
     ///   （人类反问经 NetworkTargetSelector 的 TCS 内联完成）。
     /// </summary>
@@ -75,17 +78,17 @@ namespace CardCore.Network
                 _room.OnDisconnect(dropped);
             _room.ResetIfEmpty();
 
-            // ② 上行：逐连接排干入站队列 → 房间状态机/intent/反问分派
+            // ② 上行：逐连接排干入站队列 → 通道归类 → 房间/对战分派（v17）
             foreach (var conn in _host.Connections)
             {
                 while (conn.TryReceive(out var msg))
                     _room.OnMessage(GameCore.Instance, conn, msg);
             }
 
-            // ③ 引擎推进（响应窗口排干 + End 折返——相位由 intent 驱动，见 NetRoom.PumpEngine）
+            // ③ 引擎推进（对战通道：响应窗口排干 + End 折返——相位由 intent 驱动）
             _room.PumpEngine(GameCore.Instance);
 
-            // ④ 下行出队：RoomState 广播 → 事件流（按座位过滤）→ 静默点快照
+            // ④ 下行出队：房间通道房态广播 → 对战通道事件流/行流/快照
             _room.FlushDownlink(GameCore.Instance);
         }
     }

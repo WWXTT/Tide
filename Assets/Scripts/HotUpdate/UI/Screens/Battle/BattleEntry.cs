@@ -19,6 +19,11 @@ namespace SynergyUI
         /// 本端（房主/客人同一路径）以 NetGameClient 客户端运行——快照/事件流驱动渲染、intent 上行。
         /// 入口方接线：LobbyScreen 收到 MatchManifest 后把同一条连接经 Client 字段移交战斗屏。</summary>
         Network,
+        /// <summary>复盘回放（2026-11-11 演出统一 S2·方案 §2.6）：不建 BattleController/NetGameClient——
+        /// BattleFilmStore 剧本整包投 BattlePlayhead（Replay 模式）；交互全关（无出牌/无结束回合）、
+        /// 战报面板=时间轴（全量行预铺、点击跳转 SeekTo）、认输键改「退出复盘」。v1 入口=调试
+        /// （Tools/验证/战斗回放）；大厅 btn-replay 接线属 S4。</summary>
+        Replay,
     }
 
     /// <summary>
@@ -144,5 +149,9 @@ namespace SynergyUI
         /// 确认值（0=每局新抽——BattleController.StartNewGame 统一抽定）。一次性消费
         ///（EngageLocalBattle 木桩分支读取后置零）。</summary>
         public static int DummySeed;
+
+        /// <summary>复盘剧本 id（2026-11-11 演出统一 S2）：Replay 模式一次性消费——StartReplayFan
+        /// 读 BattleFilmStore.Load 后即置空（防跨局残留）。空/缺本=复盘入口退回（toast+Back）。</summary>
+        public static string ReplayFilmId;
     }
 }

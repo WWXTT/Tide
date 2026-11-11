@@ -59,9 +59,19 @@ namespace CardCore.Editor
                 RunIntentSection(deck);
                 RunSelectorSection(deck);
                 RunHandshakeSection();
-                RunSocketSection();
-                RunPasswordSection();
-                RunM3Section();
+                // 2026-11-11 P3 门禁修复：人类/观战默认停发事件流（走战报行流），本验证器 6/7 段
+                // 仍断言客户端事件投影/隐藏过滤/终局——用测试钩子临时恢复事件流，段末 finally 复位。
+                NetBattleChannel.ForceEventsForTests = true;
+                try
+                {
+                    RunSocketSection();
+                    RunPasswordSection();
+                    RunM3Section();
+                }
+                finally
+                {
+                    NetBattleChannel.ForceEventsForTests = false;
+                }
             }
             catch (Exception ex)
             {
@@ -163,6 +173,24 @@ namespace CardCore.Editor
             var single = new MsgNetEventBatch { Events = new[] { events[events.Count / 2] } };
             AssertDeepEqual(single.Events, RoundTripBatch(single).Events, "单条口径");
 
+            // ---- 1b-2. v15 战报行流线格式（2026-11-11 C 案）：MsgNetLogBatch 信封+帧往返无损 ----
+            var logBatch = new MsgNetLogBatch
+            {
+                Lines = new[]
+                {
+                    new NetLogLine { Kind = (byte)MatchLogLineKind.Turn, Flags = (byte)MatchLogLineFlags.TurnStart,
+                        EventId = 11, Text = "—— 回合 1：A ——" },
+                    new NetLogLine { Kind = (byte)MatchLogLineKind.Card, Flags = 0,
+                        EventId = 12, Text = "A 使用 火苗" },
+                },
+            };
+            var logRt = RoundTripLogBatch(logBatch);
+            Assert(logRt.Lines != null && logRt.Lines.Length == 2
+                && logRt.Lines[0].EventId == 11 && logRt.Lines[0].Kind == (byte)MatchLogLineKind.Turn
+                && logRt.Lines[0].Flags == (byte)MatchLogLineFlags.TurnStart
+                && logRt.Lines[1].Text == "A 使用 火苗",
+                "战报行流 MsgNetLogBatch 信封+帧往返无损（Kind/Flags/EventId/Text）");
+
             // ---- 1c. 终局快照对账（双视角） ----
             VerifySnapshot(core, 0);
             VerifySnapshot(core, 1);
@@ -204,6 +232,21 @@ namespace CardCore.Editor
             if (!decoder.TryDecode(out var decoded) || decoder.TryDecode(out _))
                 throw new InvalidOperationException("帧解码失败或多余帧");
             return NetworkSerializer.DeserializePayload<MsgNetEventBatch>(decoded);
+        }
+
+        /// <summary>MsgNetLogBatch 全链路往返（v15 战报行流）：DTO → 信封 → 帧（三段切分）→ 解码。</summary>
+        private static MsgNetLogBatch RoundTripLogBatch(MsgNetLogBatch batch)
+        {
+            var wire = NetworkSerializer.SerializeMessage(NetworkMessageType.NetLogBatch, batch);
+            var envelope = NetworkSerializer.DeserializeEnvelope(wire);
+            var frame = FrameCodec.Frame(envelope);
+            var decoder = new FrameCodec.FrameDecoder();
+            decoder.Append(frame.Take(2).ToArray());
+            decoder.Append(frame.Skip(2).Take(frame.Length / 3).ToArray());
+            decoder.Append(frame.Skip(2 + frame.Length / 3).ToArray());
+            if (!decoder.TryDecode(out var decoded) || decoder.TryDecode(out _))
+                throw new InvalidOperationException("战报行流帧解码失败或多余帧");
+            return NetworkSerializer.DeserializePayload<MsgNetLogBatch>(decoded);
         }
 
         private static MsgGameStateSync RoundTripSnapshot(MsgGameStateSync snapshot)
@@ -1007,6 +1050,13 @@ namespace CardCore.Editor
                 Assert(specDraws.Count > 0 && specDraws.Any(e => !HiddenOrAbsent(e, "DrawnCard")),
                     "观战全信息：抽牌事件携带 DrawnCard");
 
+                // ---- 6f-2. v15 战报行流（P3 后人类/观战的唯一行源；2026-11-11 C 案）----
+                Assert(a.LogLines.Count > 0 && spec.LogLines.Count > 0, "战报行流到达（玩家+观战）");
+                Assert(a.LogLines.Any(l => l.Text != null && l.Text.Contains("回合")),
+                    "A 行流含回合骨架行（服务端 MatchLogRenderer 渲染）");
+                Assert(a.LogLines.Any(l => (l.Flags & (byte)MatchLogLineFlags.GameOver) != 0),
+                    "A 行流含 GameOver 旗标（终局收口单源）");
+
                 var specSnap = spec.FirstSnapshot ?? spec.LastSnapshot;
                 Assert(specSnap != null && specSnap.Hands.All(h => h.Count == 0
                     || (h.OwnRuntimeIds != null && h.OwnRuntimeIds.Length == h.Count)),
@@ -1193,6 +1243,7 @@ namespace CardCore.Editor
             public MsgGameStateSync FirstSnapshot;
             public int SnapshotsReceived;
             public readonly List<NetEvent> Events = new List<NetEvent>();
+            public readonly List<NetLogLine> LogLines = new List<NetLogLine>(); // v15 战报行流（2026-11-11 C 案）
             public readonly List<MsgSelectRequest> PendingSelects = new List<MsgSelectRequest>();
             public readonly List<MsgError> Errors = new List<MsgError>();
 
@@ -1254,6 +1305,10 @@ namespace CardCore.Editor
                     case NetworkMessageType.NetEventBatch:
                         var batch = NetworkSerializer.DeserializePayload<MsgNetEventBatch>(msg);
                         if (batch?.Events != null) Events.AddRange(batch.Events);
+                        break;
+                    case NetworkMessageType.NetLogBatch: // v15 战报行流（服务端渲染好的最终行）
+                        var log = NetworkSerializer.DeserializePayload<MsgNetLogBatch>(msg);
+                        if (log?.Lines != null) LogLines.AddRange(log.Lines);
                         break;
                     case NetworkMessageType.SelectRequest:
                         var request = NetworkSerializer.DeserializePayload<MsgSelectRequest>(msg);

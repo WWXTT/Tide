@@ -37,8 +37,10 @@ namespace CardCore.Network
         private readonly List<NetEvent> _events = new List<NetEvent>();
         private volatile bool _stop;
         private bool _disconnected;
-        private bool _readySent;   // 就绪层（2026-10-28）：入座即准备（一次性）
-        private bool _startSent;   // 就绪层：落在椅位0 时替房主开局（一次性；p2pcheck 双 AI 拓扑）
+        private bool _readySent;   // 就绪层重发闸（v17：逐座 Ready 回显；1s 内至多一次）
+        private DateTime _readySentAt;
+        // 2026-11-11 v17 定案：AI **只自动准备、永不开局**（原先落椅 0 会替发 RoomStart=AI 自动开局，
+        // 已删）——开局权恒在房主连接（真人），双 AI+房主观战也须房主点「开始」。
         private bool _submitSent;  // 卡组提交一次性（2026-10-28 刷屏修复）：提交→manifest 到达有空窗，
                                    // 旧逻辑空窗内每 20ms 重发→服务器回「本座位已提交过卡组」Error 刷屏
 
@@ -142,33 +144,30 @@ namespace CardCore.Network
             }
         }
 
-        /// <summary>就绪层自动机（2026-10-28 开局流程改版）：入座即准备；
-        /// 落在椅位0（房主位）且双方就座+客人已备时替房主开局——p2pcheck 双 AI 拓扑由先入座者扮房主；
-        /// 真人房主房中 AI 恒在椅位1，只准备。</summary>
+        /// <summary>就绪层自动机（v17 2026-11-11）：入座即**自动准备**（逐座 Ready 回显为准——
+        /// 房间复位后再次准备），**永不发 RoomStart**（开局权恒在房主，双 AI 局也等房主点开始）。
+        /// 重发闸：同一座位 1s 内最多一次（正常一次就落定，防被拒时刷屏）。</summary>
         private void PumpRoomReadiness()
         {
             if (_roomState == null || _roomState.Phase != (int)NetRoomPhase.Waiting || _roomState.Players == null)
                 return;
             int mySeat = -1;
+            bool ready = false;
             for (int i = 0; i < _roomState.Players.Length; i++)
-                if (_roomState.Players[i] != null && _roomState.Players[i].Connected
-                    && _roomState.Players[i].Nickname == _nickname) { mySeat = i; break; }
-            if (mySeat < 0) return;
-
-            if (!_readySent)
             {
-                _readySent = true;
-                Send(NetworkMessageType.RoomReady, new MsgRoomReady { Ready = true });
+                var p = _roomState.Players[i];
+                if (p != null && p.Connected && p.Nickname == _nickname)
+                {
+                    mySeat = i;
+                    ready = p.Ready;
+                    break;
+                }
             }
-
-            bool bothSeated = _roomState.Players.Length == 2
-                && _roomState.Players[0] != null && _roomState.Players[0].Connected
-                && _roomState.Players[1] != null && _roomState.Players[1].Connected;
-            if (mySeat == 0 && !_startSent && bothSeated && _roomState.GuestReady)
-            {
-                _startSent = true;
-                Send(NetworkMessageType.RoomStart, (object)null);
-            }
+            if (mySeat < 0 || ready) { _readySent = ready; return; }
+            if (_readySent && (DateTime.UtcNow - _readySentAt).TotalSeconds < 1.0) return;
+            _readySent = true;
+            _readySentAt = DateTime.UtcNow;
+            Send(NetworkMessageType.RoomReady, new MsgRoomReady { Ready = true });
         }
 
         public void Send<T>(NetworkMessageType type, T payload) where T : class

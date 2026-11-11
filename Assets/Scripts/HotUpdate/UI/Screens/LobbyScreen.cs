@@ -96,10 +96,16 @@ namespace SynergyUI
 
         private NetGameClient _client;
         private NetSessionServer _server; // 房主侧（自建自管，OnExit/离开时停机）
-        private NetAiFiller _aiFiller;
+        private readonly List<NetAiFiller> _aiFillers = new List<NetAiFiller>(); // v16 多成员房间：多 AI（上限=空椅数；双 AI+自身观战=镜像局）
         private bool _isHost;
         private bool _handedOver; // 已移交战斗屏：OnExit 不拆连接
         private MsgRoomState _roomState;
+        private bool _joinedRanked; // v16：进房时排位标记（排位房不支持换座/加 AI——SeatSwap 服务端拒，UI 同步隐藏）
+
+        // v16 多成员房间：座位↔观战切换（btn-spectate——BakeLobbySpectateNodes 菜单烘焙）+ 观战计数行
+        private UnityEngine.UI.Button _spectateBtn;
+        private TMP_Text _spectateBtnLabel;
+        private TMP_Text _spectatorsLabel;
 
         // 就绪层模式镜像（2026-10-28：0先后手=掷币/1房主先/2客先；0洗牌=随机/1固定）——
         // 房主循环钮本地换档即发 RoomSettings，服务端 RoomState 回显为权威展示源
@@ -190,6 +196,10 @@ namespace SynergyUI
             _roomHintLabel = FindText("lbl-room-hint");
             BindButton("btn-add-ai", AddAiOpponent);
             _addAiNode = Find("btn-add-ai");
+            // v16 多成员房间：座位↔观战切换钮 + 观战计数行（节点由 Tools/烘焙/大厅观战节点 菜单烘焙进 prefab）
+            _spectateBtn = BindButton("btn-spectate", ToggleSpectate);
+            _spectateBtnLabel = _spectateBtn != null ? _spectateBtn.GetComponentInChildren<TMP_Text>(true) : null;
+            _spectatorsLabel = FindText("lbl-spectators");
             _quitBtn = BindButton("btn-room-quit", QuitRoom);
 
             // ---- 返回主界面（2026-11-10 真机补钮）：房间页=退房（QuitRoom 按房主/客人语义分口），
@@ -368,6 +378,7 @@ namespace SynergyUI
         {
             _client = client;
             _lastNickname = nickname; // S1：进房昵称即本端昵称快照（MySeatOf 对账口径），两路统一在此落定
+            _joinedRanked = opts?.Ranked ?? false; // v16：排位房不支持换座/加 AI（UI 显隐+服务器闸双保险）
             WireClientEvents(client);
             NetClientRuntime.Bind(client);
             client.Send(NetworkMessageType.JoinRoom, new MsgJoinRoom
@@ -381,6 +392,7 @@ namespace SynergyUI
                 Ranked = opts?.Ranked ?? false,               // S8：排位房进房标记
                 DeckFingerprint = opts?.DeckFingerprint ?? "",// S8：卡组内容指纹
                 WinRate = opts?.WinRate ?? -1,                // S8：胜率千分比
+                IsHost = _isHost,                             // v17：房主自报（服务器只认首个声明者）
             });
             SetStatus("已连接，等待进房…");
         }
@@ -932,9 +944,11 @@ namespace SynergyUI
 
         /// <summary>房主回环入座（127.0.0.1，后台线程连接避免 UI 卡帧；LAN/TapTap 建房同路）。
         /// nickname 缺省=局域网解析；TapTap 建房传入登录昵称（S1 昵称来源定案）。
-        /// opts（S6b/S8）：自家密码（回环入座同受门禁）/排位三件。</summary>
+        /// opts（S6b/S8）：自家密码（回环入座同受门禁）/排位三件。
+        /// v17：wantSeat=-1（任意空位）——房主身份随连接自报，不再依赖「必须坐椅 0」；
+        /// 双椅已被占时房主自动转观战（仍保留开局权）。</summary>
         public void ConnectLoopback(int port, string nickname = null, JoinOptions opts = null)
-            => ConnectAsync("127.0.0.1", port, wantSeat: 0, nickname, opts).Forget();
+            => ConnectAsync("127.0.0.1", port, wantSeat: -1, nickname, opts).Forget();
 
         public void ShowEntryPanel() => ShowPanel(_panelNormal); // v2：入口页=普通页（跨程序集兼容名保留）
         public void ShowRoomPanel() => ShowPanel(_panelRoom);
@@ -971,8 +985,15 @@ namespace SynergyUI
             // 先用大厅选中卡组**提前提交** DeckSubmit（公共提交器——payload/digest 单源），
             // 战斗屏五段式跳过段四不再弹选卡面板；提交失败（理论不可达——进房门禁已拦无卡组）
             // 走服务器 30s 代提兜底，移交照常。
+            // v16：观战者（MySeatOf=-1）不移交——真观战屏随战斗演出重构落地，本期留大厅看状态。
             if (room.Phase == (int)NetRoomPhase.DeckSubmit && !_handedOver)
             {
+                if (MySeatOf(room) < 0)
+                {
+                    SetStatus("[等卡组] 观战中——对局由座位玩家进行");
+                    RefreshRoomUi();
+                    return;
+                }
                 if (SelectedDeck != null && NetDeckSubmit.Send(_client, SelectedDeck))
                     BattleEntry.NetDeckSubmitted = true;
                 else
@@ -984,22 +1005,35 @@ namespace SynergyUI
             var phaseText = room.Phase == (int)NetRoomPhase.Waiting ? "等待就座"
                 : room.Phase == (int)NetRoomPhase.Playing ? "对战中" : "已结束";
             int mySeat = MySeatOf(room);
-            var opp = room.Players != null ? room.Players.FirstOrDefault(p => p != null && p.Seat != mySeat) : null;
-            // S1-B7：GuestReady 恒为客人（椅位 1）自己的准备态——房主读它=对手状态，客人读它=自己状态。
-            // 原先不分角色统一写成「对手：X（未准备）」，客人误以为在等对手点准备，实际该点的是自己
-            string oppText;
-            if (_isHost)
+            bool waiting = room.Phase == (int)NetRoomPhase.Waiting;
+            if (mySeat < 0)
             {
-                if (opp == null || opp.Seat < 0 || !opp.Connected)
+                // v16/v17 观战者状态行（对局中只看不动；房间回 Waiting 后可「入座参战」）
+                SetStatus(room.Phase == (int)NetRoomPhase.Playing
+                    ? $"[对战中] 观战中 · 观战 {room.SpectatorCount} 人——对局结束后房间复位"
+                    : $"[{phaseText}] 观战中 · 观战 {room.SpectatorCount} 人"
+                      + (_isHost && waiting ? "——双座准备后由你点「开始对战」" : ""));
+                RefreshRoomUi();
+                return;
+            }
+            // v17：准备态逐座读（房主可落任意椅——不能再假定「椅 0=我/椅 1=对手」）
+            bool selfReady = SeatReady(room, mySeat);
+            bool hostSeat = _isHost;
+            string oppText;
+            if (hostSeat)
+            {
+                var other = room.Players != null
+                    ? room.Players.FirstOrDefault(p => p != null && p.Seat != mySeat && p.Seat >= 0) : null;
+                if (other == null || !other.Connected)
                     oppText = "等待对手加入…";
-                else if (room.GuestReady)
+                else if (AllNonHostSeatsReady(room))
                     oppText = "对手已准备，可点「开始对战」";
                 else
-                    oppText = $"对手：{opp.Nickname}（未准备）——等对手点「准备」";
+                    oppText = $"对手：{other.Nickname}（未准备）——等对手点「准备」";
             }
             else
             {
-                oppText = room.GuestReady
+                oppText = selfReady
                     ? "你已准备，等待房主开始…"
                     : "你：未准备——点下方「准备」，房主才能开局";
             }
@@ -1007,8 +1041,11 @@ namespace SynergyUI
             RefreshRoomUi();
         }
 
-        /// <summary>房间面板就绪层刷新：双座位卡（S2）/模式展示（服务器回显权威）/房主开始钮门槛/
-        /// 客人准备钮（S2 主色/中性底切换）/常驻引导行（S1）/退出钮角色文案（S1：房主=解散房间）。</summary>
+        /// <summary>房间面板就绪层刷新：双座位卡（S2）/模式展示（服务器回显权威）/房主开局钮门槛/
+        /// 非房主准备钮（S2 主色/中性底切换）/常驻引导行（S1）/退出钮角色文案（S1：房主=解散房间）。
+        /// v17 通道拆分（2026-11-11）：**开局权/模式配置权跟房主连接走，不跟座位**——房主可落椅 0/
+        /// 椅 1/观战（双 AI+自身观战镜像是房主在观战位点开始）；非房主座位（真人/AI）逐座准备，
+        /// 全部准备才置亮开始钮。服务器 HandleRoomStart/HandleRoomReady 同口径。</summary>
         private void RefreshRoomUi()
         {
             if (_roomState == null) return;
@@ -1021,51 +1058,77 @@ namespace SynergyUI
             if (_modeShuffleLabel != null) _modeShuffleLabel.text = ShuffleLabels[shuffle];
 
             int mySeat = MySeatOf(_roomState);
-            var opp = _roomState.Players != null
-                ? _roomState.Players.FirstOrDefault(p => p != null && p.Seat != mySeat && p.Seat >= 0) : null;
-            bool oppReady = opp != null && opp.Connected && _roomState.GuestReady;
+            bool waiting = _roomState.Phase == (int)NetRoomPhase.Waiting;
+            bool seated = mySeat >= 0;
+            bool selfReady = SeatReady(_roomState, mySeat);
+            bool bothSeated = BothSeatsOccupied(_roomState);
+            bool allReady = AllNonHostSeatsReady(_roomState);
 
-            if (_modeFirstBtn != null) _modeFirstBtn.gameObject.SetActive(_isHost);
-            if (_modeShuffleBtn != null) _modeShuffleBtn.gameObject.SetActive(_isHost);
-            if (_seedInput != null) _seedInput.gameObject.SetActive(_isHost); // v13：钉种子=房主专属
+            // 房主：模式/种子/开始 全程可见（Waiting），与座位无关（观战位上也能开局）
+            if (_modeFirstBtn != null) _modeFirstBtn.gameObject.SetActive(_isHost && waiting);
+            if (_modeShuffleBtn != null) _modeShuffleBtn.gameObject.SetActive(_isHost && waiting);
+            if (_seedInput != null) _seedInput.gameObject.SetActive(_isHost && waiting); // v13：钉种子=房主专属
             if (_startBtn != null)
             {
-                _startBtn.gameObject.SetActive(_isHost);
-                _startBtn.interactable = oppReady;
+                _startBtn.gameObject.SetActive(_isHost && waiting);
+                _startBtn.interactable = bothSeated && allReady;
             }
             if (_readyBtn != null)
             {
-                _readyBtn.gameObject.SetActive(!_isHost);
+                // v17：非房主座位才需要准备（房主座位服务器恒 Ready=false）
+                _readyBtn.gameObject.SetActive(seated && !_isHost && waiting);
                 var lbl = _readyBtn.GetComponentInChildren<TMP_Text>(true);
-                if (lbl != null) lbl.text = _roomState.GuestReady ? "取消准备" : "准备（让房主开局）"; // S1：点明这是客人自己的动作
+                if (lbl != null) lbl.text = selfReady ? "取消准备" : "准备（等房主开局）";
                 // S2：未准备=主色底白字引导点击；已准备=中性底（文案不变）
                 var readyImg = _readyBtn.GetComponent<UnityEngine.UI.Image>();
-                if (readyImg != null) readyImg.color = _roomState.GuestReady ? UiStyle.BtnBg : UiStyle.BtnPrimary;
-                if (lbl != null) lbl.color = _roomState.GuestReady ? UiStyle.TextBody : UiStyle.White;
+                if (readyImg != null) readyImg.color = selfReady ? UiStyle.BtnBg : UiStyle.BtnPrimary;
+                if (lbl != null) lbl.color = selfReady ? UiStyle.TextBody : UiStyle.White;
             }
+
+            // v16：观战切换钮（仅非排位房；Waiting 才显示；观战者须有空位才可入座）。
+            // v17：房主也可转观战（自身观战+双 AI 对打的入口；转观战不丢开局权）。
+            if (_spectateBtn != null)
+            {
+                bool show = !_joinedRanked && waiting;
+                _spectateBtn.gameObject.SetActive(show);
+                if (show)
+                {
+                    if (_spectateBtnLabel != null) _spectateBtnLabel.text = seated ? "转为观战" : "入座参战";
+                    _spectateBtn.interactable = seated || FreeChairCount(_roomState) > 0;
+                }
+            }
+            if (_spectatorsLabel != null)
+                _spectatorsLabel.text = _roomState.SpectatorCount > 0 ? $"观战 ×{_roomState.SpectatorCount}" : "";
+            if (_addAiNode != null)
+                _addAiNode.gameObject.SetActive(_isHost && !_joinedRanked && waiting); // v16：随阶段/排位联动显隐
+
             if (_roomHintLabel != null)
             {
-                // S1：常驻引导——真机实录里客人不知道要点「准备」、房主不知道在等什么
-                if (_isHost)
-                    _roomHintLabel.text = opp == null || !opp.Connected ? "等待对手加入…"
-                        : _roomState.GuestReady ? "对手已准备，点「开始对战」"
+                if (_isHost && !seated)
+                    _roomHintLabel.text = !bothSeated ? "观战中——点「加 AI」补满两个座位"
+                        : allReady ? "双座已准备——点「开始对战」（你在观战位）"
+                        : "观战中——等座位玩家准备";
+                else if (!seated)
+                    _roomHintLabel.text = waiting ? "观战中——点「入座参战」回到空位（无空位时不可入座）" : "观战中——对局由座位玩家进行";
+                else if (_isHost)
+                    _roomHintLabel.text = !bothSeated ? "等待对手加入…"
+                        : allReady ? "对手已准备，点「开始对战」"
                         : "对手已入座，等待对手点「准备」";
                 else
-                    _roomHintLabel.text = _roomState.GuestReady ? "已准备，等待房主开始…" : "点「准备」，让房主开始对战";
+                    _roomHintLabel.text = selfReady ? "已准备，等待房主开始…" : "点「准备」，等待房主开始对战";
             }
             if (_quitBtn != null)
             {
                 var quitLbl = _quitBtn.GetComponentInChildren<TMP_Text>(true);
-                if (quitLbl != null) quitLbl.text = _isHost ? "解散房间" : "离开房间"; // S1：房主离开=整房解散（语义如实）
+                if (quitLbl != null) quitLbl.text = _isHost ? "解散房间" : "离开房间"; // S1：房主离开=整房解散
             }
         }
 
-        /// <summary>双座位卡填座（S2；S3 座位判定改角色口径）：Players 恒 2 元素（按 Seat 落卡防乱序）——
-        /// 「你」标记按角色座位号（_isHost?0:1，不比昵称——同名双默认名会双标）；AI- 前缀=AI；
-        /// 在线点绿/灰；准备态只有椅位 1（GuestReady 恒指客人）有意义。</summary>
+        /// <summary>双座位卡填座（S2；v16「你」标记= MySeatOf 昵称匹配——观战者恒无标记；
+        /// v17：身份/准备态逐座读服务端字段——房主可落任意椅，AI 不再靠昵称前缀猜）。</summary>
         private void RefreshSeatCards()
         {
-            int mySeat = _isHost ? 0 : 1; // S3：角色定座——isSelf 用座位号比较
+            int mySeat = MySeatOf(_roomState); // v16：昵称匹配（-1=观战，双卡均无「你」）
             var players = _roomState?.Players;
             for (int i = 0; i < 2; i++)
             {
@@ -1073,22 +1136,25 @@ namespace SynergyUI
                 int seat = p != null && p.Seat >= 0 && p.Seat < 2 ? p.Seat : i; // 防 Players 乱序
                 bool connected = p != null && p.Connected;
                 string nick = !string.IsNullOrEmpty(p?.Nickname) ? p.Nickname : "等待加入…";
-                bool isAi = connected && nick.StartsWith("AI-", StringComparison.Ordinal);
-                bool isSelf = seat == mySeat;
-                string tag = isAi ? "AI"
-                    : (seat == 0 ? "房主" : "客人") + (isSelf ? "·你" : "");
+                bool isAi = connected && (p.IsAi || nick.StartsWith("AI-", StringComparison.Ordinal));
+                bool isHost = connected && p.IsHost;
+                bool isSelf = seat == mySeat && mySeat >= 0;
+                string tag = isAi ? "AI" : isHost ? "房主" : "玩家";
+                if (isSelf) tag += "·你";
                 if (_seatNickLabels[seat] != null) _seatNickLabels[seat].text = connected ? nick : "等待加入…";
-                if (_seatTagLabels[seat] != null) _seatTagLabels[seat].text = connected ? tag : (seat == 0 ? "房主" : "客人");
+                if (_seatTagLabels[seat] != null) _seatTagLabels[seat].text = connected ? tag : "空位";
                 if (_seatDots[seat] != null) _seatDots[seat].color = connected ? UiStyle.DotGreen : UiStyle.DotGray;
                 if (_seatReadyLabels[seat] != null)
-                    _seatReadyLabels[seat].text = seat == 1 && connected
-                        ? (_roomState.GuestReady ? "已准备" : "未准备") : "";
+                    _seatReadyLabels[seat].text = !connected ? ""
+                        : isHost ? "房主（无需准备）"
+                        : p.Ready ? "已准备" : "未准备";
             }
         }
 
         private void CycleFirstMoveMode()
         {
-            if (!_isHost) return;
+            if (!_isHost) return; // v17：模式配置权跟房主连接（服务器 HandleRoomSettings 同口径）
+            if (_roomState == null || _roomState.Phase != (int)NetRoomPhase.Waiting) return;
             _modeFirst = (_modeFirst + 1) % 3;
             SendRoomSettings();
         }
@@ -1096,6 +1162,7 @@ namespace SynergyUI
         private void CycleShuffleMode()
         {
             if (!_isHost) return;
+            if (_roomState == null || _roomState.Phase != (int)NetRoomPhase.Waiting) return;
             _modeShuffle = (_modeShuffle + 1) % 2;
             SendRoomSettings();
         }
@@ -1133,16 +1200,30 @@ namespace SynergyUI
         private void ToggleReady()
         {
             if (_client == null || _roomState == null || _roomState.Phase != (int)NetRoomPhase.Waiting) return;
-            _client.Send(NetworkMessageType.RoomReady, new MsgRoomReady { Ready = !_roomState.GuestReady });
+            int mySeat = MySeatOf(_roomState);
+            if (mySeat < 0 || _isHost) return; // v17：准备=非房主座位（房主开局、不准备）
+            _client.Send(NetworkMessageType.RoomReady, new MsgRoomReady { Ready = !SeatReady(_roomState, mySeat) });
         }
 
         private void HostStartMatch()
         {
             if (_client == null || _roomState == null || _roomState.Phase != (int)NetRoomPhase.Waiting) return;
+            if (!_isHost) return; // v17：开局权跟房主连接（服务器 HandleRoomStart 同口径）
             _client.Send(NetworkMessageType.RoomStart, (object)null);
         }
 
-        /// <summary>房主加 AI 对手（回环填位——对房间就是普通客户端；就绪层下 AI 自动准备，房主即可开局）。</summary>
+        /// <summary>座位↔观战切换（v16）：座上=转观战释放座位；观战=入座参战。仅 Waiting、
+        /// 方向由当前推导态决定（服务器按载荷方向执行，与现态不符回 Error）。</summary>
+        private void ToggleSpectate()
+        {
+            if (_client == null || _roomState == null || _roomState.Phase != (int)NetRoomPhase.Waiting) return;
+            bool toSpectator = MySeatOf(_roomState) >= 0;
+            _client.Send(NetworkMessageType.SeatSwap, new MsgSeatSwap { ToSpectator = toSpectator });
+            SetStatus(toSpectator ? "正在转为观战…" : "正在入座…");
+        }
+
+        /// <summary>房主加 AI（回环填位——对房间就是普通客户端；就绪层下 AI 自动准备、**永不开局**）。
+        /// v16 多成员房间：解除单实例（上限=空椅数）——双 AI+自身观战=AI 镜像局，开局须房主自己点开始。</summary>
         private void AddAiOpponent()
         {
             if (!_isHost || _server == null) return;
@@ -1151,36 +1232,88 @@ namespace SynergyUI
                 SetStatus("只在等待阶段可以加 AI");
                 return;
             }
-            if (_aiFiller != null) return;
-            // 2026-11-11 定案：AI 对手默认**用玩家当前选中的同一套卡组**（同卡表/同技能/同衍生物绑定），
-            // 房主「加 AI」即等于开一局同卡组镜像对局；无选中卡组才回落随机预组（历史口径）。
+            // v17：回收已退场的 AI 填位（AI 打完/断线后 Thread 收尾）——否则空椅被旧计数永久占住
+            _aiFillers.RemoveAll(f => f == null || f.Thread == null || !f.Thread.IsAlive);
+            if (FreeChairCount(_roomState) - _aiFillers.Count <= 0)
+            {
+                SetStatus("没有空座位——先「转为观战」释放自己的座位，再加 AI");
+                return;
+            }
+            // 2026-11-11 定案：AI 默认**用玩家当前选中的同一套卡组**（同卡表/同技能/同衍生物绑定）——
+            // 双 AI 即同卡组镜像对局；无选中卡组才回落随机预组（历史口径）。
             string aiNick = $"AI-{UnityEngine.Random.Range(100, 999)}";
             var deck = SelectedDeck;
-            _aiFiller = deck != null && deck.cardIds != null && deck.cardIds.Count > 0
+            var filler = deck != null && deck.cardIds != null && deck.cardIds.Count > 0
                 ? new NetAiFiller(aiNick, deck.cardIds.ToArray(), deck.skillCardId, 60,
                     deck.tokenCardIds != null && deck.tokenCardIds.Count > 0 ? deck.tokenCardIds.ToArray() : null,
                     deck.tokenBindings, deck.name)
                 : NetAiFiller.FromPlayPool(aiNick);
-            if (_aiFiller == null)
+            if (filler == null)
             {
                 SetError("AI 填位失败：本地卡表为空");
                 return;
             }
-            _aiFiller.Start(_server.Port);
-            SetStatus(deck != null ? $"AI 对手（同我方卡组「{deck.name}」）正在入座…" : "AI 对手正在入座…");
+            _aiFillers.Add(filler);
+            filler.Start(_server.Port);
+            SetStatus(deck != null ? $"AI（同我方卡组「{deck.name}」）正在入座…（已加 {_aiFillers.Count} 个）" : $"AI 正在入座…（已加 {_aiFillers.Count} 个）");
         }
 
-        /// <summary>本端椅位（S3 定案：按角色定座——本房间恒双人位，房主=椅 0、客人=椅 1，AI 只是房主的客位。
-        /// 昵称匹配仅留日志对账，不再是判定依据：两人同名（如同为 TapTap 默认名）时会双方同标
-        /// 「你」、先手判定（HandOverToBattle 的 mySeat）取错座）。</summary>
+        /// <summary>本端椅位（v16 多成员房间改**昵称匹配**口径，推翻 S3 角色定座——多成员下房主可
+        /// 转观战、客人可落椅 0、第三人满员自动观战，角色定座必错）。-1=观战（服务器给观战者命名
+        /// 「观战者N」，恰好匹配不上=正确推导）。S3 曾以「同名双默认名双标你」拒此口径，现接受该
+        /// 退化：座位权威在服务器 ChairSeat（intent/准备/开局全按连接归属），客户端误判只影响
+        /// 「你」标记与先手演出侧显示，不影响对局合法性。</summary>
         private int MySeatOf(MsgRoomState room)
         {
-            int seat = _isHost ? 0 : 1;
+            if (room?.Players == null || string.IsNullOrEmpty(_lastNickname)) return -1;
+            foreach (var p in room.Players)
+                if (p != null && p.Connected && p.Seat >= 0 && p.Seat < 2 && p.Nickname == _lastNickname)
+                    return p.Seat;
+            return -1; // 不在 Players（观战/未进房）
+        }
+
+        /// <summary>空椅数（v16：加 AI 上限/入座钮可点性共用）。</summary>
+        private static int FreeChairCount(MsgRoomState room)
+        {
+            int free = 0;
             if (room?.Players != null)
                 foreach (var p in room.Players)
-                    if (p != null && p.Seat == seat && p.Connected && p.Nickname != _lastNickname)
-                        TideLog.Warn($"[Lobby] 椅位昵称对账不一致（椅{seat} 实际={p.Nickname} 本端={_lastNickname}）——以角色定座为准");
-            return seat;
+                    if (p == null || !p.Connected) free++;
+            return free;
+        }
+
+        /// <summary>某座位是否已准备（v17：逐座 Ready 字段；座位空/断线=false）。</summary>
+        private static bool SeatReady(MsgRoomState room, int seat)
+        {
+            if (room?.Players == null || seat < 0 || seat >= 2) return false;
+            var p = room.Players.FirstOrDefault(x => x != null && x.Seat == seat);
+            return p != null && p.Connected && p.Ready;
+        }
+
+        /// <summary>双座是否都有人（v17：开局钮门槛之一）。</summary>
+        private static bool BothSeatsOccupied(MsgRoomState room)
+        {
+            if (room?.Players == null) return false;
+            for (int i = 0; i < 2; i++)
+            {
+                var p = room.Players.FirstOrDefault(x => x != null && x.Seat == i);
+                if (p == null || !p.Connected) return false;
+            }
+            return true;
+        }
+
+        /// <summary>全体非房主座位是否都已准备（v17：房主观战时=双座都要准备；房主落座时=对手座位准备）。</summary>
+        private static bool AllNonHostSeatsReady(MsgRoomState room)
+        {
+            if (room?.Players == null) return false;
+            for (int i = 0; i < 2; i++)
+            {
+                var p = room.Players.FirstOrDefault(x => x != null && x.Seat == i);
+                if (p == null || !p.Connected) return false;
+                if (p.IsHost) continue;
+                if (!p.Ready) return false;
+            }
+            return true;
         }
 
         // ============================================================ 开局移交 / 收尾 ============================================================
@@ -1271,8 +1404,8 @@ namespace SynergyUI
                 if (!_client.Disconnected) _client.Close(); // S1：战斗屏已 Close 过的连接不再重复收口
                 _client = null;
             }
-            _aiFiller?.Stop();
-            _aiFiller = null;
+            foreach (var filler in _aiFillers) filler?.Stop(); // v16：多 AI 全停
+            _aiFillers.Clear();
             _scanLoopRunning = false;
             try { _scanner?.StopScan(); } catch (Exception) { }
             StopHostServer();

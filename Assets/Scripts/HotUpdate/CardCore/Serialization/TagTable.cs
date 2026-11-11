@@ -1,4 +1,4 @@
-﻿// 此文件由 Tools/刷新属性排序（新增序列化字段时使用）自动生成，请勿手动修改
+// 此文件由 Tools/刷新属性排序（新增序列化字段时使用）自动生成，请勿手动修改
 // 如需添加新属性，请修改 RefreshMemoryPackOrder.cs 中的 GetTagDefinitions()
 // 生成口径（2026-11-11 起＝保值生成）：已有常量沿用现表现值（整行含注释原样保留），仅新字段
 // 按 Murmur32("类.属性", 0x53796E67) & 0x7FFFFFFF 取号；末尾「冻结值」段＝历史手算批，重算
@@ -377,6 +377,7 @@ namespace CardCore.Serialization
         // ---- MsgError ----
         public const int MErr_Reason = 259789666;
         public const int MErr_Context = 1082803286;
+        public const int MErr_Channel = 379140953; // v17：拒绝帧归属通道（NetworkChannel；0=Room）
 
         // ---- MsgJoinRoom ----
         public const int MJR_RoomId = 883321649;
@@ -390,6 +391,7 @@ namespace CardCore.Serialization
         public const int MJR_Ranked = 653408864;          // S8：排位房进房标记
         public const int MJR_DeckFingerprint = 605637085; // S8：卡组内容指纹（排位匹配/记账键）
         public const int MJR_WinRate = 1410631775;        // S8：胜率千分比（-1=无战绩）
+        public const int MJR_IsHost = 1596988382;         // v17：房主自报（P2P 房主进程回环入座）
 
         // ---- MsgRankedAck ----
         public const int MRA_Accepted = 961448421; // S8：排位接受应答（同上配方实算）
@@ -405,12 +407,16 @@ namespace CardCore.Serialization
         public const int MRS_GuestReady = 1593869558;
         public const int MRS_DeckPickSecondsLeft = 1036775331;
         public const int MRS_Seed = -210878657; // v13：本局随机种子（开局定死回显；0=未开局。手算全量强转口径）
+        public const int MRS_HostName = 1059879627; // v17：房主昵称（空=无房主；房主可落任意椅/观战）
 
         // ---- MsgRoomSeatInfo ----
         public const int MRSI_Seat = 914327639;
         public const int MRSI_Nickname = 807757571;
         public const int MRSI_Connected = 531597507;
         public const int MRSI_DeckName = 1935616342; // S5：座位卡组名（同源哈希；零撞号已核）
+        public const int MRSI_Ready = 1336235016;    // v17：逐座准备态（非房主座位才可置 true）
+        public const int MRSI_IsAi = 617273901;      // v17：AI 填位标记（座位卡「AI」）
+        public const int MRSI_IsHost = 870912976;    // v17：本座位是否房主（房主观战=两座皆 false）
 
         // ---- MsgRoomSettings ----
         public const int MRSet_FirstMoveMode = 142664050;
@@ -489,6 +495,10 @@ namespace CardCore.Serialization
         // MRS_Seed = -210878657
         // MRSet_Seed = -191934453
 
-        // 共 315 个标签（保值生成：283 条公式值 + 32 条冻结值）
+        // ---- MsgSeatSwap ----
+        // v16（2026-11-11 多成员房间）。值=同 S5/S8 手算配方实算抄入（全表零撞号已核，勿跑刷新工具）。
+        public const int MSSw_ToSpectator = 2064321602; // 座位↔观战切换方向（true=转观战释放椅位）
+
+        // 共 316 个标签（保值生成：284 条公式值 + 32 条冻结值）
     }
 }

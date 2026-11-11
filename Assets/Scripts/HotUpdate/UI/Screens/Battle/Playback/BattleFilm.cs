@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using CardCore;
 
 namespace SynergyUI
 {
@@ -63,15 +65,100 @@ namespace SynergyUI
         public List<BattleFrame> Frames = new();
     }
 
-    // ==== S2 演出指令数据化占位（方案 §2.2 本阶段空壳，S2 补 BattleFxKind/FxRef/BattleFxOp 全字段/CombatShot/CombatHit） ====
+    // ==== 演出指令数据化（2026-11-11 S2·方案 §2.2：闭包→数据，可录制可跨端回放） ====
 
-    /// <summary>演出指令（数据而非闭包）：S1 空壳占位——帧模型先立形状，S2 由投影器各事件钩子
-    /// 在捕获时构造、回放执行器按帧解释。</summary>
-    public sealed class BattleFxOp { }
+    /// <summary>演出指令种类（与投影器各演出钩子一一对应；DrawFlyIn v1 未录制=已知限制，视图对账覆盖）。</summary>
+    public enum BattleFxKind
+    {
+        Damage,        // 效果伤害（AtomicDamageEvent·非战斗）
+        Heal,          // 回复（HealEvent·扣溢后实效）
+        Flight,        // 效果飞行（EffectFlightEvent——效果无效/不适用，发动照播）
+        Death,         // 效果死亡演出（碎裂+消灭族飞行）
+        DeathHold,     // 效果死亡预持（PreOps——防对账抢先销毁尸体）
+        Arrival,       // 入场粒子汇聚（CastPlayed）
+        Paid,          // 法术扣费粒子（打出实付→施放者角色格）
+        Fatigue,       // 疲劳受击（红闪脉冲+浮字）
+        CounterFloat,  // 属性指示物浮字（白名单在执行侧过滤）
+        CounterBurst,  // 赋予指示物爆发粒子
+        KeywordBurst,  // 赋予关键词爆发粒子
+        DeckMark,      // 诅咒/祝福牌库标记
+        Clash,         // 拼点结果浮字
+        LuckRoll,      // 运势掷骰浮字
+        PhaseAnnounce, // 阶段播报（HUD 阶段格）
+        DrawFlyIn,     // 抽卡飞入（v1 未录制——轮外事件，视图对账覆盖；已知限制）
+    }
 
-    /// <summary>攻击步战斗演出载荷：S1 空壳占位——S2 编舞器捕获时写入攻击帧，回放按 shot 播
-    /// 「飞行→命中→伤害浮字→死亡退场」。</summary>
-    public sealed class CombatShot { }
+    /// <summary>视图空间引用（不持有引擎对象）：单位=Rid（0=无效）；角色=IsPlayer+Seat。
+    /// Name/CardId 供日志/兜底展示；捕获时从引擎实体解析，回放按 Rid/Seat 查场上单位/立柱。</summary>
+    public sealed class FxRef
+    {
+        public uint Rid;
+        public int Seat = -1;
+        public string CardId;
+        public bool IsPlayer;
+        public string Name;
+
+        /// <summary>引擎实体 → 视图引用（捕获时求值——回放期实体已亡）：卡记 Rid/CardId/名+Controller
+        /// 座位（非场上来源=施法者立柱锚回放归属；场上单位锚优先走 Rid 查 _units，Seat 备而不用）；
+        /// 角色记 IsPlayer/Seat；null 实体返回 null（调用方跳过该引用）。</summary>
+        public static FxRef Of(Entity e, Func<Player, int> seatOf)
+        {
+            if (e is Player p)
+                return new FxRef { IsPlayer = true, Seat = seatOf != null ? seatOf(p) : -1, Name = p.Name };
+            if (e is Card c)
+            {
+                var ctrl = c.GetController();
+                return new FxRef
+                {
+                    Rid = c.RuntimeId,
+                    CardId = c.ID,
+                    Name = MatchLogRenderer.Name(c),
+                    Seat = ctrl != null && seatOf != null ? seatOf(ctrl) : -1,
+                };
+            }
+            return null;
+        }
+    }
+
+    /// <summary>演出指令（数据而非闭包，方案 §2.2）：投影器/屏侧各演出钩子在捕获时构造
+    /// （双轨录制——闭包照旧执行），挂到当前步帧的 PreOps/Ops；回放由 BattleFxOpExecutor 按帧解释。</summary>
+    public sealed class BattleFxOp
+    {
+        public BattleFxKind Kind;
+        public FxRef Source, Target;
+        public int Amount;
+        public int Tint = -1;                 // ManaType，-1=无（捕获时已解析好颜色）
+        public int CastX = -1, CastZ = -1;    // 法术位（-1=无）
+        public int Reason;                    // DestroyReason / GameOverReason / PhaseType 等
+        public bool Flag;                     // Success / blessing / debuff / IsAdd
+        public int D1, D2, Threshold;         // 拼点=双方战力 / 运势=骰值
+        public int Seat = -1;                 // 疲劳/抽牌/阶段播报归属
+        public string Text;                   // counterType / 备注文案
+        public Dictionary<int, float> Paid;   // 入场/扣费粒子实付账单（色→量；可空）
+
+        /// <summary>演出色（捕获时写入 Tint 的 ManaType 还原；-1=null 无基准）。</summary>
+        public ManaType? TintOf => Tint >= 0 ? (ManaType?)Tint : null;
+    }
+
+    /// <summary>攻击步战斗演出载荷（方案 §2.2 CombatShot）：编舞器攻击步捕获时写入帧（本地实时），
+    /// 回放按 shot 播「攻击者飞向目标→命中/受击→伤害浮字→死亡退场」；守卫闪现/反击/溅射的
+    /// 精细走位 v1 不还原（已知差异——战报行照常）。</summary>
+    public sealed class CombatShot
+    {
+        public FxRef Attacker, Target, Blocker;   // Blocker=守卫拦截者（可空——v1 只记不改演）
+        public int TargetX, TargetZ;              // 攻击临格参照（目标格）
+        public List<CombatHit> Hits = new();      // 逐笔命中（含反击）
+    }
+
+    /// <summary>单笔战斗命中：Target/Amount 必有；Lethal v1 恒 false（死亡归 Death 指令/视图）；
+    /// IsCounter=该笔是守方反击（Attacker==原目标）。</summary>
+    public sealed class CombatHit
+    {
+        public FxRef Target;
+        public int Amount;
+        public bool Lethal;
+        public bool IsCounter;
+    }
 
     /// <summary>Input 帧载荷（v1 只记录/展示）：Kind 0=Intent 1=Select 2=Text 3=Response；
     /// Text=玩家选了什么（卡名/目标/让过…）。回放不弹窗不等待。</summary>

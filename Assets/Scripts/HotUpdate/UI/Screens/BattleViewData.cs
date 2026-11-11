@@ -22,7 +22,9 @@ namespace SynergyUI
     {
         public uint RuntimeId;
         public string CardId;
-        public Card CoreCard;                        // 本地模式引擎对象（交互回调用）；网络模式 null
+        [NonSerialized] public Card CoreCard;        // 本地模式引擎对象（交互回调用）；网络模式 null。
+                                                     // 2026-11-11 演出统一 S2：剧本序列化（TideJson）跳过——
+                                                     // 回放无引擎，实体引用不进 Film（Rid/CardId 足以重建表现）
         public SerializableRuntimeCardState Runtime; // 运行态（两种模式统一口径）
 
         // 静态信息（CardCatalog 查表填充；miss 时退化为 ID）

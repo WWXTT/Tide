@@ -16,9 +16,13 @@ namespace CardCore.Network
     /// </summary>
     public sealed class NetGameClient
     {
-        // ---- 下行回调（Pump 调用线程=主线程触发） ----
+        // ---- 下行回调（Pump 调用线程=主线程触发；v17 按通道分组） ----
+        // 大厅通道
         public event Action<MsgLobbyState> OnLobbyState; // 大厅层（阶段三匹配界面，2026-09-24）
+        // 房间通道（与对局无关，对局中照常投递——房聊/房主变化等新内容的落点）
         public event Action<MsgRoomState> OnRoomState;
+        public event Action<MsgError> OnRoomError;       // 房间通道拒绝（v17：Context 归属房间操作）
+        // 对战通道（随对局起停）
         public event Action<MsgMatchManifest> OnManifest;
         public event Action<MsgMatchSummary> OnMatchSummary; // 终局摘要（2026-11-09 协议 v11 对局记录）
         public event Action<MsgGameStateSync> OnSnapshot;
@@ -26,7 +30,8 @@ namespace CardCore.Network
         public event Action<NetLogLine[]> OnLogBatch; // 战报行流批次（2026-11-11 v15 C 案：服务端渲染好的最终行）
         public event Action<MsgSelectRequest> OnSelectRequest;
         public event Action<MsgTextRequest> OnTextRequest; // 文本反问（2026-10-31 阶段C：卡名宣言输入窗）
-        public event Action<MsgError> OnError;
+        // 系统通道
+        public event Action<MsgError> OnError;           // 全部拒绝（兼容口；v17 起房间拒绝另发 OnRoomError）
         public event Action OnDisconnected;
 
         public bool Disconnected { get; private set; }
@@ -83,23 +88,58 @@ namespace CardCore.Network
                 {
                     Reason = NetworkProtocol.MismatchText(msg.ProtocolVersion),
                     Context = "ProtocolVersion",
+                    Channel = (int)NetworkChannel.System,
                 });
                 MarkDisconnected();
                 return;
             }
 
+            // v17 通道分道：房间/对战/大厅/系统各进各的分派口（新增房间内容只改房间分派）。
+            switch (NetworkChannels.Of(msg.Type))
+            {
+                case NetworkChannel.Lobby:
+                    DispatchLobby(msg);
+                    break;
+                case NetworkChannel.Room:
+                    DispatchRoom(msg);
+                    break;
+                case NetworkChannel.Battle:
+                    DispatchBattle(msg);
+                    break;
+                default:
+                    DispatchSystem(msg);
+                    break;
+            }
+        }
+
+        private void DispatchLobby(NetworkMessage msg)
+        {
             switch (msg.Type)
             {
                 case NetworkMessageType.LobbyState:
                     OnLobbyState?.Invoke(NetworkSerializer.DeserializePayload<MsgLobbyState>(msg));
                     break;
+            }
+        }
 
+        /// <summary>房间通道：房态（对局中照常投递——房间 UI/房聊等消费）。</summary>
+        private void DispatchRoom(NetworkMessage msg)
+        {
+            switch (msg.Type)
+            {
                 case NetworkMessageType.RoomState:
                     var room = NetworkSerializer.DeserializePayload<MsgRoomState>(msg);
                     LastRoomState = room;
                     OnRoomState?.Invoke(room);
                     break;
+            }
+        }
 
+        /// <summary>对战通道：清单/快照/事件/行流/反问/终局摘要。</summary>
+        private void DispatchBattle(NetworkMessage msg)
+        {
+            switch (msg.Type)
+            {
                 case NetworkMessageType.MatchManifest:
                     var manifest = NetworkSerializer.DeserializePayload<MsgMatchManifest>(msg);
                     LastManifest = manifest;
@@ -124,6 +164,7 @@ namespace CardCore.Network
                     if (batch?.Events != null && batch.Events.Length > 0)
                         OnEventBatch?.Invoke(batch.Events);
                     break;
+
                 case NetworkMessageType.NetLogBatch: // v15 C 案：服务端渲染好的战报行（纯 append）
                     var logBatch = NetworkSerializer.DeserializePayload<MsgNetLogBatch>(msg);
                     if (logBatch?.Lines != null && logBatch.Lines.Length > 0)
@@ -137,16 +178,18 @@ namespace CardCore.Network
                 case NetworkMessageType.TextRequest:
                     OnTextRequest?.Invoke(NetworkSerializer.DeserializePayload<MsgTextRequest>(msg));
                     break;
-
-                case NetworkMessageType.Error:
-                    var err = NetworkSerializer.DeserializePayload<MsgError>(msg);
-                    if (err != null)
-                    {
-                        TideLog.Info($"[NetGameClient] 拒绝（{err.Context}）：{err.Reason}");
-                        OnError?.Invoke(err);
-                    }
-                    break;
             }
+        }
+
+        /// <summary>系统通道：拒绝帧（v17 按 MsgError.Channel 分道——房间拒绝另发 OnRoomError）。</summary>
+        private void DispatchSystem(NetworkMessage msg)
+        {
+            if (msg.Type != NetworkMessageType.Error) return;
+            var err = NetworkSerializer.DeserializePayload<MsgError>(msg);
+            if (err == null) return;
+            TideLog.Info($"[NetGameClient] 拒绝（{err.Context}）：{err.Reason}");
+            if (err.Channel == (int)NetworkChannel.Room) OnRoomError?.Invoke(err);
+            OnError?.Invoke(err);
         }
 
         private void MarkDisconnected()

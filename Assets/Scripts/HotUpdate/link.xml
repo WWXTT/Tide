@@ -27,8 +27,10 @@
     <type fullname="Newtonsoft.Json.Linq.JArray" preserve="all" />
     <type fullname="Newtonsoft.Json.Linq.JContainer" preserve="all" />
     <type fullname="Newtonsoft.Json.Linq.JObject" preserve="all" />
+    <type fullname="Newtonsoft.Json.Linq.JProperty" preserve="all" />
     <type fullname="Newtonsoft.Json.Linq.JToken" preserve="all" />
     <type fullname="Newtonsoft.Json.MemberSerialization" preserve="all" />
+    <type fullname="Newtonsoft.Json.MissingMemberHandling" preserve="all" />
     <type fullname="Newtonsoft.Json.NullValueHandling" preserve="all" />
     <type fullname="Newtonsoft.Json.Serialization.DefaultContractResolver" preserve="all" />
     <type fullname="Newtonsoft.Json.Serialization.IContractResolver" preserve="all" />
@@ -67,6 +69,7 @@
     <type fullname="Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder" preserve="all" />
     <type fullname="Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder`1" preserve="all" />
     <type fullname="Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder" preserve="all" />
+    <type fullname="Cysharp.Threading.Tasks.DelayType" preserve="all" />
     <type fullname="Cysharp.Threading.Tasks.PlayerLoopTiming" preserve="all" />
     <type fullname="Cysharp.Threading.Tasks.SwitchToMainThreadAwaitable" preserve="all" />
     <type fullname="Cysharp.Threading.Tasks.SwitchToMainThreadAwaitable/Awaiter" preserve="all" />
@@ -200,6 +203,9 @@
     <type fullname="UnityEngine.Vector3" preserve="all" />
     <type fullname="UnityEngine.Vector4" preserve="all" />
   </assembly>
+  <assembly fullname="UnityEngine.IMGUIModule">
+    <type fullname="UnityEngine.GUIUtility" preserve="all" />
+  </assembly>
   <assembly fullname="UnityEngine.InputLegacyModule">
     <type fullname="UnityEngine.Input" preserve="all" />
     <type fullname="UnityEngine.Touch" preserve="all" />
@@ -328,7 +334,7 @@
     <type fullname="System.Action`1" preserve="all" />
     <type fullname="System.Action`2" preserve="all" />
     <type fullname="System.Action`3" preserve="all" />
-    <type fullname="System.Action`4" preserve="all" />
+    <type fullname="System.Action`5" preserve="all" />
     <type fullname="System.Action`7" preserve="all" />
     <type fullname="System.Activator" preserve="all" />
     <type fullname="System.AggregateException" preserve="all" />
@@ -411,13 +417,19 @@
     <type fullname="System.IDisposable" preserve="all" />
     <type fullname="System.IEquatable`1" preserve="all" />
     <type fullname="System.IFormatProvider" preserve="all" />
+    <type fullname="System.IO.Compression.CompressionMode" preserve="all" />
+    <type fullname="System.IO.Compression.GZipStream" preserve="all" />
     <type fullname="System.IO.Directory" preserve="all" />
     <type fullname="System.IO.DirectoryInfo" preserve="all" />
     <type fullname="System.IO.File" preserve="all" />
+    <type fullname="System.IO.FileInfo" preserve="all" />
     <type fullname="System.IO.FileNotFoundException" preserve="all" />
     <type fullname="System.IO.FileSystemInfo" preserve="all" />
+    <type fullname="System.IO.MemoryStream" preserve="all" />
     <type fullname="System.IO.Path" preserve="all" />
     <type fullname="System.IO.Stream" preserve="all" />
+    <type fullname="System.IO.StreamReader" preserve="all" />
+    <type fullname="System.IO.TextReader" preserve="all" />
     <type fullname="System.IO.TextWriter" preserve="all" />
     <type fullname="System.Int16" preserve="all" />
     <type fullname="System.Int32" preserve="all" />
@@ -488,6 +500,7 @@
     <type fullname="System.Text.UTF8Encoding" preserve="all" />
     <type fullname="System.ThreadStaticAttribute" preserve="all" />
     <type fullname="System.Threading.CancellationToken" preserve="all" />
+    <type fullname="System.Threading.CancellationTokenSource" preserve="all" />
     <type fullname="System.Threading.Interlocked" preserve="all" />
     <type fullname="System.Threading.Monitor" preserve="all" />
     <type fullname="System.Threading.ParameterizedThreadStart" preserve="all" />

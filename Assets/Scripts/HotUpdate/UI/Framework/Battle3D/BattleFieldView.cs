@@ -182,7 +182,11 @@ namespace SynergyUI
             foreach (var t in _unitFxTails.Values) t.TrySetResult(); // 链尾收口防悬挂
             _unitFxTails.Clear(); // 单位串行链不跨局
             HideCastingPreview(); // 声明期预览贴片不跨局
-            if (_root != null) Object.Destroy(_root.gameObject);
+            if (_root != null) // 编辑器（验证器冒烟）DestroyImmediate——Destroy 在非 Play 是告警+永久残留
+            {
+                if (Application.isPlaying) Object.Destroy(_root.gameObject);
+                else Object.DestroyImmediate(_root.gameObject);
+            }
         }
 
         /// <summary>幂等全量对账；返回是否实际应用（数据空/棋盘未就绪=false）。</summary>

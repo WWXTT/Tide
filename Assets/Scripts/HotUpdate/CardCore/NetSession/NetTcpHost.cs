@@ -44,6 +44,8 @@ namespace CardCore.Network
         public string OpenId { get; set; } = "";
         /// <summary>AI 填位标记（2026-11-09 协议 v11：AI 局不下发终局摘要）。</summary>
         public bool IsAi { get; set; }
+        /// <summary>房主标记（v17 通道拆分：随 JoinRoom 自报——开局权/模式配置权恒在房主连接）。</summary>
+        public bool IsHost { get; set; }
         /// <summary>事件流出队游标（NetEventProjector 全局列表下标，房间按局重置）。</summary>
         public int EventCursor { get; set; }
         /// <summary>战报行流出队游标（2026-11-11 C 案 v15：房间行流历史下标，房间按局重置）。</summary>

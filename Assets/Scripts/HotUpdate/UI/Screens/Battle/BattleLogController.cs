@@ -16,7 +16,7 @@ namespace SynergyUI
     /// Updater 每帧 Tick、OnExit 时 Dispose 退订（EventManager 直订自管退订，不走 UIScreen 基类登记）。
     /// 行文本渲染单源=BattleEventText.ForLocal（本类只做订阅白名单+时序整理+入列）。
     /// </summary>
-    internal sealed class BattleLogController
+    public sealed class BattleLogController
     {
         private readonly Func<Player, bool> _isSelf; // 观侧判（本地局人类恒 P1）
         private readonly List<Action> _unsubscribers = new List<Action>();
@@ -42,6 +42,118 @@ namespace SynergyUI
 
         private const float LogListOpenHeight = 700f; // 展开定高（2026-10-16 晚改版：固定 0↔700，超出在面板内滚动）
         private const float LogListSpeed = 3500f; // px/s（700px≈0.2s 展开）
+
+        // ==== 回放时间轴（2026-11-11 演出统一 S2·方案 §2.8：日志即进度条） ====
+        // 进入 Replay：全量行一次预铺（池化行，**上限 TimelineMaxLines=1000——超出按步降采样**
+        // （均匀抽行、末行必留），不走 Append 的 300 实时行回收——复盘「点任意一段跳转」前半局必须
+        // 可达，300 截头曾致前半局不可点）；当前行高亮加粗、之前常态、之后暗淡；点击任意行=
+        // onSeekFrame(FrameIndex) → BattlePlayhead.SeekTo 从该段首续播。行可点=克隆行补挂 Button
+        //（非视觉组件+transition 关，不改版式不加节点）+ TMP 自身 raycastTarget；回放文本=
+        // FullText ?? Text（本地同值/联机无遮蔽）。
+        private const int TimelineMaxLines = 1000; // 时间轴铺行上限（方案 §2.8；超长局按步降采样——跳转粒度仍=帧）
+        private readonly List<(TMP_Text label, int frameIndex, Color baseColor, FontStyle baseStyle)> _timeline = new();
+        private bool _timelineMode; // 时间轴在铺（Append 入列即剥行点击——池化行复用防陈旧 Seek 监听）
+
+        /// <summary>展开面板（复盘入口——与连锁自动开合同口 SetLogTarget，走 PanelToggled 单源）。</summary>
+        public void ShowTimeline()
+        {
+            _autoOpened = false; // 手动口径——连锁逻辑不替复盘收面板
+            SetLogTarget(LogListOpenHeight);
+        }
+
+        /// <summary>铺时间轴（进入 Replay 一次调）：清现有行→预铺+行点击跳转；播放推进由
+        /// SetTimelineCursor 高亮。onSeekFrame 收「该行归属帧号」（FrameIndex=-1 的帧前历史行=回开头 0）。
+        /// 超过 TimelineMaxLines 按步降采样（均匀抽行+末行必留——被抽掉段的跳转由相邻保留行承载）。</summary>
+        public void BeginTimeline(IReadOnlyList<BattleLogLine> lines, Action<int> onSeekFrame)
+        {
+            ClearTimeline();
+            _timelineMode = true;
+            if (lines == null || _logList?.Content == null || onSeekFrame == null) return;
+            int count = lines.Count;
+            int step = count > TimelineMaxLines ? (count + TimelineMaxLines - 1) / TimelineMaxLines : 1; // 均匀抽样步长
+            int laid = 0;
+            for (int i = 0; i < count; i += step)
+            {
+                LayTimelineLine(lines[i], i, count, onSeekFrame);
+                laid++;
+            }
+            if (count > 0 && (count - 1) % step != 0) // 末行（终局行）必在盘——抽样没踩中时补铺
+                LayTimelineLine(lines[count - 1], count - 1, count, onSeekFrame);
+            if (_logListRect != null) _logList.ScrollToBottom();
+            if (step > 1)
+                Debug.Log($"[BattleLog] 时间轴降采样：{count} 行 → 抽样步长 {step}（铺 {laid + ((count - 1) % step != 0 ? 1 : 0)} 行，跳转粒度仍=帧）");
+        }
+
+        /// <summary>铺一行时间轴（克隆模板+样式+点击跳转；池化复用剥陈旧监听）。</summary>
+        private void LayTimelineLine(BattleLogLine src, int index, int total, Action<int> onSeekFrame)
+        {
+            var (color, style) = StyleOf(src.Class);
+            var label = TakeLine();
+            if (label == null) return;
+            _activeLineCount++;
+            label.text = string.IsNullOrEmpty(src.FullText) ? src.Text : src.FullText; // 回放=无遮蔽版
+            label.color = color;
+            label.fontStyle = (FontStyles)style;
+            label.raycastTarget = true; // TMP 自身作行点击射线目标（Button 无 graphic 也能收）
+            int frameIndex = src.FrameIndex < 0 ? 0 : src.FrameIndex; // 帧前历史行（开局块）跳回开头
+            var btn = label.GetComponent<UnityEngine.UI.Button>();
+            if (btn == null)
+            {
+                btn = label.gameObject.AddComponent<UnityEngine.UI.Button>(); // 非视觉组件（铁律内许可）
+                btn.transition = UnityEngine.UI.Selectable.Transition.None; // 零视觉侵扰
+            }
+            btn.onClick.RemoveAllListeners(); // 池化复用防陈旧监听
+            btn.onClick.AddListener(() =>
+            {
+                Debug.Log($"[BattleLog] 时间轴点击：行 {index}/{total} → 帧 {frameIndex}");
+                onSeekFrame(frameIndex);
+            });
+            _timeline.Add((label, frameIndex, color, style));
+        }
+
+        /// <summary>时间轴游标（播放器每帧调）：FrameIndex<=游标=已播（常态/当前行加粗）、之后暗淡；
+        /// 自动静默滚动跟当前行。</summary>
+        public void SetTimelineCursor(int frameIndex)
+        {
+            if (!_timelineMode || _timeline.Count == 0) return;
+            int current = -1;
+            for (int i = 0; i < _timeline.Count; i++)
+            {
+                var t = _timeline[i];
+                bool played = t.frameIndex <= frameIndex; // 帧前历史行（0）恒已播
+                var c = t.baseColor;
+                c.a = played ? 1f : 0.4f; // 之后=暗淡
+                t.label.color = c;
+                t.label.fontStyle = (FontStyles)t.baseStyle;
+                if (played) current = i;
+            }
+            if (current >= 0)
+            {
+                _timeline[current].label.fontStyle = FontStyles.Bold; // 当前行高亮（叠加原样式取 Bold）
+                if (_timeline.Count > 1)
+                    _logList.Rect.verticalNormalizedPosition =
+                        Mathf.Clamp01(1f - current / (float)(_timeline.Count - 1)); // 滚动跟手
+            }
+        }
+
+        /// <summary>清时间轴（退复盘/换剧本）：行全量回池+剥点击；模式位归零（Append 恢复直入列）。</summary>
+        private void ClearTimeline()
+        {
+            _timelineMode = false;
+            for (int i = 0; i < _timeline.Count; i++)
+            {
+                var label = _timeline[i].label;
+                if (label == null) continue; // 池中 fake-null（Content 重建随毁）
+                var btn = label.GetComponent<UnityEngine.UI.Button>();
+                if (btn != null) btn.onClick.RemoveAllListeners();
+                label.gameObject.name = "lbl#pool";
+                label.gameObject.SetActive(false);
+                label.raycastTarget = true; // 模板默认态还原
+                _activeLineCount--;
+                _linePool.Push(label);
+            }
+            _timeline.Clear();
+        }
 
         public BattleLogController(Func<Player, bool> isSelf)
         {
@@ -246,6 +358,18 @@ namespace SynergyUI
             _holding = false;
         }
 
+        /// <summary>分类色/字形单源（Append 与时间轴 BeginTimeline 共用）。</summary>
+        private static (Color color, FontStyle style) StyleOf(string cls) => cls switch
+        {
+            "log-line--turn" => (UiStyle.LogTurn, FontStyle.Bold),
+            "log-line--phase" => (UiStyle.LogPhase, FontStyle.Normal),
+            "log-line--combat" => (UiStyle.LogCombat, FontStyle.Normal),
+            "log-line--effect" => (UiStyle.LogEffect, FontStyle.Normal), // 淡绿：效果发动/结算/指示物
+            "log-line--card" => (UiStyle.LogCard, FontStyle.Normal),     // 灰：卡的打出/放置
+            "log-line--system" => (UiStyle.LogSystem, FontStyle.Normal),
+            _ => (UiStyle.LogBase, FontStyle.Normal),
+        };
+
         /// <summary>外部行入口（终局呈现等非订阅路径）。</summary>
         public void Append(string text, string cls)
         {
@@ -254,46 +378,48 @@ namespace SynergyUI
 
             // 2026-10-16 定案：战报行不再代码新建——克隆 content 直属隐藏模板 lbl（用户手调的
             // TMP 字体/字号/对齐/折行/CSF 全由 prefab 接管），代码只填文本与分类色。
-            if (_logLineTemplate == null)
-            {
-                for (int i = 0; i < _logList.Content.childCount; i++)
-                {
-                    var ch = _logList.Content.GetChild(i);
-                    if (ch.name == "lbl" && !ch.gameObject.activeSelf)
-                    {
-                        _logLineTemplate = (RectTransform)ch;
-                        break;
-                    }
-                }
-                if (_logLineTemplate == null)
-                {
-                    Debug.LogWarning("[BattleLog] log-list content 缺隐藏模板 lbl，战报行丢弃");
-                    return;
-                }
-            }
+            // 模板查找单源=EnsureLineTemplate（2026-11-11 P0 收口：与 TakeLine/BeginTimeline 共用）。
+            if (!EnsureLineTemplate()) return;
 
-            var (color, style) = cls switch
-            {
-                "log-line--turn" => (UiStyle.LogTurn, FontStyle.Bold),
-                "log-line--phase" => (UiStyle.LogPhase, FontStyle.Normal),
-                "log-line--combat" => (UiStyle.LogCombat, FontStyle.Normal),
-                "log-line--effect" => (UiStyle.LogEffect, FontStyle.Normal), // 淡绿：效果发动/结算/指示物
-                "log-line--card" => (UiStyle.LogCard, FontStyle.Normal),     // 灰：卡的打出/放置
-                "log-line--system" => (UiStyle.LogSystem, FontStyle.Normal),
-                _ => (UiStyle.LogBase, FontStyle.Normal),
-            };
+            var (color, style) = StyleOf(cls);
             var label = TakeLine();
             if (label == null) return;
             _activeLineCount++;
             label.text = text;
             label.color = color;
             label.fontStyle = (FontStyles)style; // 枚举位同值（Normal/Bold）
+            if (!_timelineMode)
+            {
+                // 池行可能带着时间轴期的 Button+监听复用（2026-11-11 S2）——非时间轴行剥监听防误跳转
+                var stale = label.GetComponent<UnityEngine.UI.Button>();
+                if (stale != null) stale.onClick.RemoveAllListeners();
+            }
 
             while (_activeLineCount > MaxActiveLines) RecycleOldestLine();
             _logList.ScrollToBottom(); // 新增即滚底（2026-10-16 晚改版：行高由 VLG+CSF 自适应，见 prefab log-list content）
         }
 
-        private const int MaxActiveLines = 300; // 在役行上限（同旧口径 300：超出回收最旧行）
+        private const int MaxActiveLines = 300; // 在役行上限（同旧口径 300：超出回收最旧行——仅 Append 实时行路径；
+                                                 // 时间轴铺行走独立 TimelineMaxLines（见 BeginTimeline——复盘须前半局可达）
+
+        /// <summary>行模板惰性查找单源（2026-11-11 P0 修复：此前只在 Append 内做——回放全新屏
+        /// 无任何 Append，BeginTimeline→TakeLine 直接解引用 null 模板炸 NRE）。Append/TakeLine 共用。</summary>
+        private bool EnsureLineTemplate()
+        {
+            if (_logLineTemplate != null) return true;
+            if (_logList?.Content == null) return false;
+            for (int i = 0; i < _logList.Content.childCount; i++)
+            {
+                var ch = _logList.Content.GetChild(i);
+                if (ch.name == "lbl" && !ch.gameObject.activeSelf)
+                {
+                    _logLineTemplate = (RectTransform)ch;
+                    return true;
+                }
+            }
+            Debug.LogWarning("[BattleLog] log-list content 缺隐藏模板 lbl，战报行丢弃");
+            return false;
+        }
 
         /// <summary>取一行（2026-10-24 对象池）：优先出池复用（回队尾+重激活），池空才克隆模板；
         /// 池中 fake-null（Content 重建随毁）逐个丢弃。复用行文本/色/字形由调用方全覆盖写。</summary>
@@ -309,6 +435,7 @@ namespace SynergyUI
                 go.SetActive(true);
                 return pooled;
             }
+            if (!EnsureLineTemplate()) return null; // 模板未就绪（P0：TakeLine 亦可能首达——回放屏无 Append）
             var lineGo = UnityEngine.Object.Instantiate(_logLineTemplate.gameObject, _logList.Content, false);
             lineGo.name = "lbl";
             lineGo.SetActive(true);
@@ -317,7 +444,8 @@ namespace SynergyUI
 
         /// <summary>回收最旧活动行入池（改名 lbl#pool+熄活；模板/池行/非战报常驻行跳过；
         /// 无行可回收=计数漂移就地清零防死循环）。2026-11-11 btn-abstract 常驻 content（active
-        /// 且层级在首）——回收只认名 lbl 的战报行，否则按钮会被改名熄活吃掉。</summary>
+        /// 且层级在首）——回收只认名 lbl 的战报行，否则按钮会被改名熄活吃掉。时间轴行被回收时
+        /// 联动剔除 _timeline 记账（游标/高亮不再指向死行）。</summary>
         private void RecycleOldestLine()
         {
             var content = _logList.Content;
@@ -328,7 +456,14 @@ namespace SynergyUI
                 ch.gameObject.name = "lbl#pool";
                 ch.gameObject.SetActive(false);
                 _activeLineCount--;
-                _linePool.Push(ch.GetComponent<TMP_Text>());
+                var pooled = ch.GetComponent<TMP_Text>();
+                _linePool.Push(pooled);
+                for (int t = 0; t < _timeline.Count; t++) // 时间轴记账联动（命中即剔——label 引用同一 TMP）
+                    if (ReferenceEquals(_timeline[t].label, pooled))
+                    {
+                        _timeline.RemoveAt(t);
+                        break;
+                    }
                 return;
             }
             _activeLineCount = 0; // 实物与计数漂移（理论不可达）——校正退出

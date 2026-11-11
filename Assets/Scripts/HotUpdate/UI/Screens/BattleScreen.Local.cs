@@ -171,6 +171,8 @@ namespace SynergyUI
         {
             // 本地战报桥须先于 StartNewGame 接线（时序红线——详见 BattleLogController.Wire 注释）
             _log.Wire();
+            // 剧本行录制同红线（2026-11-11 S2）：帧生产者自持行流——首回合头行前事件即入剧本
+            _localSource.Wire();
 
             // 抽卡飞入（时序红线——先于 StartNewGame，详见 BattleProjector.WireEarly 注释）
             _projector.WireEarly();

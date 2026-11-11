@@ -58,6 +58,82 @@ namespace CardCore.Network
                                      // 双座位各收一份：对手完整卡组+自建内容 payload+胜负，客户端落 EncounterRecord）
         NetLogBatch = 135,           // 下行：战报行流批次（MsgNetLogBatch，2026-11-11 v15 C 案——
                                      // 服务端 MatchLogRenderer 逐视角渲染好的最终行，64 行/批按 LogCursor 切片）
+        SeatSwap = 136,              // 上行：座位↔观战切换（MsgSeatSwap，2026-11-11 v16 多成员房间——
+                                     // 座上转观战释放椅位 / 观战者入座；仅 Waiting、排位房拒）
+    }
+
+    /// <summary>
+    /// 逻辑通道（v17 2026-11-11 房间/对战通道拆分，见 网络协议.md §16）：同一条 TCP 连接上按
+    /// 消息类型分道——房间通道承载与对局无关的成员/座位/就绪/房主内容（对局中照常可用，
+    /// 后续房聊等新内容只加在房间通道），对战通道承载 intent/事件/快照/反问/战报/
+    /// 终局摘要（随对局起停）。两通道独立分派与出队，互不共享状态机闸门。
+    /// </summary>
+    public enum NetworkChannel : int
+    {
+        /// <summary>房间通道（成员/座位/就绪/房主/房态；Waiting..Finished 全程可用）。</summary>
+        Room = 0,
+        /// <summary>对战通道（卡组提交/intent/反问/事件/快照/战报/终局摘要）。</summary>
+        Battle = 1,
+        /// <summary>大厅通道（房间列表/匹配/AI 填位——入房前的相位）。</summary>
+        Lobby = 2,
+        /// <summary>系统通道（Ping/Pong/Error 等与业务相位无关的帧）。</summary>
+        System = 3,
+    }
+
+    /// <summary>
+    /// 通道归类（单源真值，客户端/服务器/文档同一口径）：**按消息类型静态归类，不改线格式**——
+    /// 新增房间内容（房聊等）只需在 <see cref="Of"/> 里落到 Room 分支，对战链路零改动。
+    /// 分派纪律：服务器 <c>NetRoom</c> 按本归类进房间/对战两个处理器；客户端 <c>NetGameClient</c>
+    /// 按本归类进两套事件面（房间事件对局中照常投递）。
+    /// </summary>
+    public static class NetworkChannels
+    {
+        /// <summary>消息所属通道（None/Ping/Pong/Error=System）。</summary>
+        public static NetworkChannel Of(NetworkMessageType type)
+        {
+            if (type >= NetworkMessageType.LobbyHello && type <= NetworkMessageType.LobbyAddAi)
+                return NetworkChannel.Lobby;
+
+            switch (type)
+            {
+                // ---- 房间通道（与对局无关：成员/座位/就绪/房主/房态）----
+                case NetworkMessageType.JoinRoom:
+                case NetworkMessageType.RoomState:
+                case NetworkMessageType.RoomSettings:
+                case NetworkMessageType.RoomReady:
+                case NetworkMessageType.RoomStart:
+                case NetworkMessageType.SeatSwap:
+                case NetworkMessageType.RankedAck: // 排位接受窗属房间相位（进 DeckSubmit 前的门槛）
+                    return NetworkChannel.Room;
+
+                // ---- 对战通道（随对局起停）----
+                case NetworkMessageType.DeckSubmit:
+                case NetworkMessageType.MatchManifest:
+                case NetworkMessageType.SelectRequest:
+                case NetworkMessageType.SelectResponse:
+                case NetworkMessageType.TextRequest:
+                case NetworkMessageType.TextResponse:
+                case NetworkMessageType.NetEventBatch:
+                case NetworkMessageType.GameStateSyncV2:
+                case NetworkMessageType.NetLogBatch:
+                case NetworkMessageType.MatchSummary:
+                    return NetworkChannel.Battle;
+
+                default:
+                    if (IsIntent(type)) return NetworkChannel.Battle;
+                    return NetworkChannel.System; // None/Ping/Pong/Error
+            }
+        }
+
+        /// <summary>intent 段（100..108 连续九连 + 离散位 112/113；分派口 NetRoom→对战通道同口径）。</summary>
+        public static bool IsIntent(NetworkMessageType type)
+            => (type >= NetworkMessageType.IntentPlayCard && type <= NetworkMessageType.IntentConcede)
+               || type == NetworkMessageType.IntentActivateHeroSkill
+               || type == NetworkMessageType.IntentBuildCard;
+
+        public static bool IsRoom(NetworkMessageType type) => Of(type) == NetworkChannel.Room;
+        public static bool IsBattle(NetworkMessageType type) => Of(type) == NetworkChannel.Battle;
+        public static bool IsLobby(NetworkMessageType type) => Of(type) == NetworkChannel.Lobby;
     }
 
     /// <summary>协议版本常量。信封 ProtocolVersion 读到 0 视为 legacy（无版本草稿期数据）。
@@ -103,10 +179,18 @@ namespace CardCore.Network
     /// 回合方结束回合）——布局变更，新旧端互拒不兼容（无兼容层）。
     /// v15（2026-11-11 C 案战报行流）：新消息 MsgNetLogBatch（NetLogLine[]：Kind/Flags/EventId/Text）
     /// ——服务端渲染好的战报行逐行下发（64 行/批），客户端零渲染纯 append。纯新增消息、存量载荷
-    /// 布局零改；升版防旧端（不识别 135）与新端互连时日志空白半开死等（v6 先例）。</summary>
+    /// 布局零改；升版防旧端（不识别 135）与新端互连时日志空白半开死等（v6 先例）。
+    /// v16（2026-11-11 多成员房间）：新上行 MsgSeatSwap（ToSpectator——座上转观战释放椅位 /
+    /// 观战者入座，仅 Waiting 相位、排位房拒）；JoinRoom 满员（WantSeat 任意位+双椅占用）从拒绝
+    /// 改为真人自动转观战（AI 仍拒）。纯新增消息+行为放宽，升版防旧端语义分叉。
+    /// v17（2026-11-11 房间/对战通道拆分）：MsgJoinRoom 新增 IsHost（房主自报——P2P 房主进程
+    /// 回环入座标记，房主不可转移）、MsgRoomState 新增 HostName（房主昵称；空=无房主）、
+    /// MsgRoomSeatInfo 新增 Ready/IsAi/IsHost（逐座位准备态与身份；准备态从单 GuestReady 升为
+    /// 逐座——房主可落任意椅/观战，非房主全员准备才可开局）、MsgError 新增 Channel（拒绝帧归属
+    /// 房间/对战通道，客户端分道提示）。布局变更，新旧端互拒（无兼容层）。</summary>
     public static class NetworkProtocol
     {
-        public const ushort Version = 15;
+        public const ushort Version = 17;
 
         /// <summary>接收侧版本闸（v8 起）：信封版本与本端不符 = 新旧端互拒（无兼容层）。
         /// 0=legacy 草稿期数据，同样失配。</summary>

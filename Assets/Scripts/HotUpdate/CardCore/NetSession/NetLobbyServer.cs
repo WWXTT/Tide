@@ -274,7 +274,12 @@ namespace CardCore.Network
         }
 
         private void SendLobbyError(INetChannel conn, string reason, string context)
-            => conn.SendPayload(NetworkMessageType.Error, new MsgError { Reason = reason, Context = context });
+            => conn.SendPayload(NetworkMessageType.Error, new MsgError
+            {
+                Reason = reason,
+                Context = context,
+                Channel = (int)NetworkChannel.Lobby, // v17：拒绝帧归属通道（大厅）
+            });
 
         // ============================================================ AI 填位（回环客户端） ============================================================
 

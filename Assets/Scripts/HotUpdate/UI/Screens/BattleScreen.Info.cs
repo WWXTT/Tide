@@ -113,9 +113,11 @@ namespace SynergyUI
         }
 
         /// <summary>投降确认（2026-10-17 提示弹窗改 TipPanel：确定、第二键=取消——无超时
-        /// 不会误投降；Region 只留给对局中目标/效果选择）。终局后本键=返回主菜单（MarkGameOverUi 改文案）。</summary>
+        /// 不会误投降；Region 只留给对局中目标选择）。终局后本键=返回主菜单（MarkGameOverUi 改文案）。
+        /// 复盘局（2026-11-11 S2）：本键=「退出复盘」直回（无对局可投降）。</summary>
         private async UniTaskVoid OnConcede()
         {
+            if (BattleEntry.Mode == BattleMode.Replay) { Manager.Back(); return; } // 复盘退出（键文案已改）
             if (_gameEnded) { Manager.Back(); return; } // 终局：退出通道（旧弹窗取消键职责迁移）
             if (await ShowTipPromptAsync("投降确认", "确认", "取消") != true) return; // 取消/拆屏=不动
             if (NetActive)

@@ -14,7 +14,7 @@ namespace SynergyUI
     /// 当前步高亮、已结算变暗；整轮完成由回放导演调 Dissolve 消散。
     /// 仅卡牌施放占链位（攻击/守卫/触发效果/SBA 不进链——2026-10-19 用户定案）。
     /// </summary>
-    internal sealed class BattleChainStage
+    public sealed class BattleChainStage
     {
         private RectTransform _chainRect;   // chain 容器（Bind 定位；缺节点=整链静默不显）
         private GameObject _template;       // 克隆模板（chain 下首个 ACard 实例，Bind 即隐藏）

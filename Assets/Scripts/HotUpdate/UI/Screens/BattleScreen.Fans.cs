@@ -103,6 +103,7 @@ namespace SynergyUI
                 {
                     var (hx, hz) = _ctrl.Board.CharacterCell(e.Player);
                     _field?.PlayCastPay(seat, paid, hx, hz);
+                    // 2026-11-11 P0-2 收口：扣费粒子录制迁投影器→LocalFilmSource.OnPaid（无头/联机同源）
                 }
             }
         }
@@ -129,6 +130,7 @@ namespace SynergyUI
 
             if (paid.Count > 0)
                 _field.EnqueueArrival(e.Card.RuntimeId, seat, paid);
+            // 2026-11-11 P0-2 收口：入场粒子录制迁投影器→LocalFilmSource.OnArrival（无头/联机同源）
         }
 
         /// <summary>轻刷（转发投影器——构建+仅 2D 信息栏，原口径见 BattleProjector.RefreshLocal）。</summary>

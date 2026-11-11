@@ -32,6 +32,10 @@ namespace CardCore.Network
         /// <summary>AI 填位标记（2026-11-09 协议 v11：AI 局不下发终局摘要——对手内容=本机预组，无记录价值）。</summary>
         bool IsAi { get; set; }
 
+        /// <summary>房主标记（v17 2026-11-11 通道拆分）：随 JoinRoom 自报，服务器只认首个声明者。
+        /// 房主=本进程宿主（P2P 不可转移）：开局权/模式配置权恒在此连接，退出=解散整房。</summary>
+        bool IsHost { get; set; }
+
         /// <summary>事件流出队游标（NetEventProjector 全局列表下标，房间按局重置）。</summary>
         int EventCursor { get; set; }
 

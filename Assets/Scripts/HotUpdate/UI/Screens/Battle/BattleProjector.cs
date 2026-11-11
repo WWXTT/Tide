@@ -18,7 +18,7 @@ namespace SynergyUI
     /// 起手抽与首个回合自然抽同在开局内发完；Wire（对账订阅表）在 StartNewGame 之后（原序），
     /// 开局内事件由尾段补偿刷兜底。
     /// </summary>
-    internal sealed class BattleProjector : IDisposable
+    public sealed class BattleProjector : IDisposable
     {
         private readonly Func<GameCore> _core;
         private readonly Func<BattleController> _ctrl;
@@ -32,9 +32,8 @@ namespace SynergyUI
         private readonly Action<CardPutToBattlefieldEvent> _onArrival; // 入场演出载荷组装
         private readonly Action<GameOverEvent> _onGameOver;   // 终局流转（弹窗/重试链——决策流，非投影）
         private readonly Action _clearPendingPins;            // TurnStart 清出牌选格残单
-        private readonly Action<StackResolutionStartEvent> _onResolutionStart; // 逆结算回合开始（2026-10-19 步进回放）
-        private readonly Action<StackResolutionEndEvent> _onStepResolved;      // 逆结算单步完成（步载荷=ResolvedItem）
-        private readonly Action<StackEmptyEvent> _onRoundStackEmpty;           // 逆结算轮末（栈排干）
+        private readonly LocalFilmSource _film;               // 本地帧生产者（2026-11-11 演出统一 S2：三生命周期钩子
+        // 透传给它；各演出钩子捕获 BattleFxOp 双轨录制——闭包照旧执行，op 只进剧本）
         private readonly Action<AtomicDamageEvent, (int x, int z)?> _onEffectDamage; // 效果伤害演出（弹体→爆点+浮字+受击，2026-10-19 Arctibyte 接入；
         // 2026-10-20 时序定案：携发动位抓拍——法术伤害弹体从法术位起飞、先等费用粒子到位）
         private readonly Action<HealEvent> _onEffectHeal;             // 回复演出（绿火花+浮字）
@@ -70,9 +69,7 @@ namespace SynergyUI
             Action<CardActivationFailedEvent> onActivationFailed, Action<FatigueEvent> onFatigue,
             Action<ElementPoolPayEvent> onPaid, Action<CardPutToBattlefieldEvent> onArrival,
             Action<GameOverEvent> onGameOver, Action clearPendingPins,
-            Action<StackResolutionStartEvent> onResolutionStart = null,
-            Action<StackResolutionEndEvent> onStepResolved = null,
-            Action<StackEmptyEvent> onRoundStackEmpty = null,
+            LocalFilmSource film = null,
             Action<AtomicDamageEvent, (int x, int z)?> onEffectDamage = null,
             Action<HealEvent> onEffectHeal = null,
             Action<CounterChangedEvent> onCounterFloat = null,
@@ -99,9 +96,7 @@ namespace SynergyUI
             _onArrival = onArrival;
             _onGameOver = onGameOver;
             _clearPendingPins = clearPendingPins;
-            _onResolutionStart = onResolutionStart;
-            _onStepResolved = onStepResolved;
-            _onRoundStackEmpty = onRoundStackEmpty;
+            _film = film;
             _onEffectDamage = onEffectDamage;
             _onEffectHeal = onEffectHeal;
             _onCounterFloat = onCounterFloat;
@@ -122,7 +117,7 @@ namespace SynergyUI
         /// <summary>抽卡飞入对（StartNewGame 之前——时序红线见类注释）。</summary>
         public void WireEarly()
         {
-            On<GameStartEvent>(_ => _onGameStart());
+            On<GameStartEvent>(e => { _onGameStart(); _film?.OnGameStart(e); }); // 后者=剧本开卷（帧 #0+头）
             On<CardEnterHandEvent>(e =>
             {
                 if (e != null && e.IsDraw) _armDrawFlyIn(e.Player); // 抽牌武装须同步（刷扇可合帧：armed 集合随后统一消费）
@@ -149,12 +144,32 @@ namespace SynergyUI
                     // 死亡时序定案（2026-10-20）——消灭飞行体从法术位起飞、先等费用粒子到位
                     var castCell = ResolveCastFxCell(e.Source);
                     DeferOrRun(() => _onDeathPresent?.Invoke(e, castCell)); // 演出：碎裂+消灭表现随回放步放出
+                    // S2 双轨录制：预持进 PreOps（回放先于 View 应用），死亡演出进 Ops
+                    if (_film != null)
+                    {
+                        _film.Capture(new BattleFxOp { Kind = BattleFxKind.DeathHold, Target = FxRef.Of(e.DestroyedCard, SeatOf) }, pre: true);
+                        _film.Capture(new BattleFxOp
+                        {
+                            Kind = BattleFxKind.Death,
+                            Source = FxRef.Of(e.Source, SeatOf),
+                            Target = FxRef.Of(e.DestroyedCard, SeatOf),
+                            Reason = (int)e.Reason,
+                            Tint = e.EffectTint.HasValue ? (int)e.EffectTint.Value : -1,
+                            CastX = castCell?.x ?? -1,
+                            CastZ = castCell?.z ?? -1,
+                        });
+                    }
                 }
                 QueueFans(); QueueField();
             });
             // 施放类型图标收口（2026-10-15 发动区改版回归修复）：入场/离开发动区/发动失败即时刷新——
             // 白板卡结算零事件（无指示物/无效果），缺此订阅图标滞留、3D 模型要等回合结束才上
-            On<CardPutToBattlefieldEvent>(e => { DeferOrRun(() => _onArrival(e)); QueueFans(); QueueField(); }); // 入场演出载荷组装（2026-10-15 出场浮现；回放抑制期延迟随步放出）
+            On<CardPutToBattlefieldEvent>(e => // 入场演出载荷组装（2026-10-15 出场浮现；回放抑制期延迟随步放出）
+            {
+                DeferOrRun(() => _onArrival(e));
+                _film?.OnArrival(e); // S2 录制（屏侧 CaptureArrival 只组表现——无头/联机录制归此单源）
+                QueueFans(); QueueField();
+            });
             // CardLeaveActivationEvent 已随 S3b 删发动区退役——结算离区刷新改由
             // StackResolutionEndEvent（步出栈）+ CardActivationFailedEvent（失败）双口驱动
             On<StackResolutionEndEvent>(_ => { QueueFans(); QueueField(); }); // 结算步完成：图标/卡面转 linger
@@ -163,25 +178,74 @@ namespace SynergyUI
                 _onActivationFailed(e);
                 QueueFans(); QueueField();
             });
-            On<StackResolutionStartEvent>(e => _onResolutionStart?.Invoke(e)); // 逆结算回合开始（2026-10-19 步进回放）
-            On<StackResolutionEndEvent>(e => _onStepResolved?.Invoke(e));      // 逆结算单步完成
-            On<StackEmptyEvent>(e => { _onRoundStackEmpty?.Invoke(e); QueueField(); }); // 栈清空=一批结算完成的全量对账兜底
+            On<StackResolutionStartEvent>(e => _film?.OnResolutionStart(e)); // 逆结算回合开始（2026-10-19 步进回放）
+            On<StackResolutionEndEvent>(e => _film?.OnStepResolved(e));      // 逆结算单步完成
+            On<StackEmptyEvent>(e => { _film?.OnRoundStackEmpty(e); QueueField(); }); // 栈清空=一批结算完成的全量对账兜底
             On<CounterChangedEvent>(e => // 指示物→对手卡翻面/攻生→头顶数值；属性族附浮字（白名单外零成本直返）
             {
                 // 诅咒/祝福牌库标记（2026-10-26）：施加与消层（抽到发作 Amount=0）都过此钩——
                 // 屏侧按 Amount 分流（爆发只在施加时播；预览条随施加/消层实时重建）
-                if (_onDeckMark != null && e != null
-                    && (e.CounterType == CounterRules.CurseCounter || e.CounterType == CounterRules.BlessingCounter))
-                    DeferOrRun(() => _onDeckMark(e));
-                else if (_onCounterGranted != null && e != null && e.EffectTint != null && e.Amount > 0)
+                bool curseBless = e != null
+                    && (e.CounterType == CounterRules.CurseCounter || e.CounterType == CounterRules.BlessingCounter);
+                if (curseBless)
+                {
+                    if (_onDeckMark != null) DeferOrRun(() => _onDeckMark(e));
+                }
+                else if (e != null && e.EffectTint != null && e.Amount > 0 && _onCounterGranted != null)
                     DeferOrRun(() => _onCounterGranted(e)); // 赋予指示物爆发粒子（2026-11-01）：EffectTint!=null=赋予 handler 发布
                 if (_onCounterFloat != null) DeferOrRun(() => _onCounterFloat(e));
+                // S2 双轨录制（与表现钩子解耦——无头录制无钩子照录；分流与屏侧同判据）
+                if (_film != null && e != null)
+                {
+                    if (curseBless)
+                    {
+                        if (e.Amount > 0) // 爆发只在施加时录（消层无粒子）
+                            _film.Capture(new BattleFxOp
+                            {
+                                Kind = BattleFxKind.DeckMark,
+                                Target = FxRef.Of(e.Target, SeatOf),
+                                Amount = e.Amount,
+                                Flag = e.CounterType == CounterRules.BlessingCounter,
+                            });
+                    }
+                    else if (e.EffectTint != null && e.Amount > 0)
+                    {
+                        var polarity = CounterRules.Find(e.CounterType)?.Polarity ?? CounterPolarity.Neutral;
+                        if (polarity != CounterPolarity.Neutral) // 中性（变形等状态标记）不播——与屏侧同闸
+                            _film.Capture(new BattleFxOp
+                            {
+                                Kind = BattleFxKind.CounterBurst,
+                                Source = FxRef.Of(e.Source, SeatOf),
+                                Target = FxRef.Of(e.Target, SeatOf),
+                                Tint = (int)e.EffectTint.Value,
+                                Flag = polarity == CounterPolarity.Negative,
+                            });
+                    }
+                    _film.Capture(new BattleFxOp // 浮字指令恒录（白名单过滤在执行侧——与屏侧同表）
+                    {
+                        Kind = BattleFxKind.CounterFloat,
+                        Target = FxRef.Of(e.Target, SeatOf),
+                        Text = e.CounterType,
+                        Amount = e.Amount,
+                    });
+                }
                 QueueFans(); QueueField();
             });
             On<KeywordEvent>(e => // 赋予关键词爆发粒子（2026-11-01）：IsAdd 全仓唯一发布点=GrantKeywordHandler
             {                            //——印刷关键词入轨走 AddKeyword 纯状态口不发事件，钩子天然只捕「赋予落地」
-                if (e != null && e.IsAdd && _onKeywordGranted != null)
-                    DeferOrRun(() => _onKeywordGranted(e));
+                if (e != null && e.IsAdd)
+                {
+                    if (_onKeywordGranted != null) DeferOrRun(() => _onKeywordGranted(e));
+                    if (_film != null) // S2 双轨录制（与表现钩子解耦）
+                        _film.Capture(new BattleFxOp
+                        {
+                            Kind = BattleFxKind.KeywordBurst,
+                            Source = FxRef.Of(e.Source, SeatOf),
+                            Target = FxRef.Of(e.Target, SeatOf),
+                            Tint = e.EffectTint.HasValue ? (int)e.EffectTint.Value : -1,
+                            Flag = e.IsDebuff,
+                        });
+                }
             });
             On<RevealCardsEvent>(_ => QueueFans());
             // 棋盘数字条：黑白钱包与地牌横置跨回合清零（TurnStart）、角色生命（LifeChange）、
@@ -192,6 +256,8 @@ namespace SynergyUI
                                   // 同帧瞬态 Standby 不再被合帧对账吞掉）——对账置脏照旧（网络局不 Wire，快照喂数不变）
                 QueueField();
                 _onPhaseAnnounced?.Invoke(e);
+                if (_film != null && e != null) // S2 录制（阶段播报多在轮外——Capture 自行按轮内闸丢弃）
+                    _film.Capture(new BattleFxOp { Kind = BattleFxKind.PhaseAnnounce, Seat = SeatOf(e.ActivePlayer), Reason = (int)e.Phase });
             });
             On<LifeChangeEvent>(e => // 角色HP读数·日志即真相源（2026-10-20 用户定案）：引擎同帧瞬达、
             {                       // 步进快照只带终值——中间值（宣言帧拼点奖励 30→24 等）只能靠"日志行
@@ -202,34 +268,67 @@ namespace SynergyUI
                 if (_logHeld == null || !_logHeld()) RefreshField();
                 QueueField();
             });
-            On<FatigueEvent>(e => DeferOrRun(() => _onFatigue(e))); // 疲劳受击演出（红闪脉冲+头顶浮字——信息性表演占视觉门；回放抑制期延迟随步放出）
+            On<FatigueEvent>(e => // 疲劳受击演出（红闪脉冲+头顶浮字——信息性表演占视觉门；回放抑制期延迟随步放出）
+            {
+                DeferOrRun(() => _onFatigue(e));
+                if (_film != null && e != null)
+                    _film.Capture(new BattleFxOp { Kind = BattleFxKind.Fatigue, Seat = SeatOf(e.Player), Amount = e.Damage });
+            });
             On<AtomicDamageEvent>(e => // 效果伤害演出（2026-10-19：法术/效果伤害此前零专属表现——教学二 1 伤卡根因）；
             {                            // IsCombatDamage 过滤防与战斗编舞双播（战斗伤害走 CombatChoreographer 受击节拍）
-                if (!e.IsCombatDamage && _onEffectDamage != null)
+                // 发动位抓拍须在事件期（回放期法术卡已入墓离区——事件期它还在发动区）：
+                // 费用粒子→弹体从法术位起飞→目标受击/死亡的时序链（2026-10-20 用户定案）
+                if (!e.IsCombatDamage)
                 {
-                    // 发动位抓拍须在事件期（回放期法术卡已入墓离区——事件期它还在发动区）：
-                    // 费用粒子→弹体从法术位起飞→目标受击/死亡的时序链（2026-10-20 用户定案）
                     var castCell = ResolveCastFxCell(e.Source);
-                    DeferOrRun(() => _onEffectDamage(e, castCell));
+                    if (_onEffectDamage != null)
+                        DeferOrRun(() => _onEffectDamage(e, castCell));
+                    // S2 双轨录制（与表现钩子解耦——无头录制无钩子照录）
+                    if (_film != null)
+                        _film.Capture(new BattleFxOp
+                        {
+                            Kind = BattleFxKind.Damage,
+                            Source = FxRef.Of(e.Source, SeatOf),
+                            Target = FxRef.Of(e.Target, SeatOf),
+                            Amount = e.Damage,
+                            Tint = e.EffectTint.HasValue ? (int)e.EffectTint.Value : -1,
+                            CastX = castCell?.x ?? -1,
+                            CastZ = castCell?.z ?? -1,
+                        });
                 }
                 QueueField();
             });
             On<HealEvent>(e => // 回复演出（绿火花+浮字；溢出截断在屏侧算实效）
             {
                 if (_onEffectHeal != null) DeferOrRun(() => _onEffectHeal(e));
+                if (_film != null && e != null)
+                    _film.Capture(new BattleFxOp { Kind = BattleFxKind.Heal, Target = FxRef.Of(e.Target, SeatOf), Amount = e.Amount - e.Overfill });
                 QueueField();
             });
             On<EffectFlightEvent>(e => // 效果飞行演出（2026-10-20 定案：效果无效/不适用≠发动无效——
             {                          // 费已付弹体照飞；发动无效在 ResolveCardCastAsync 早退=零表现零事件）
+                var castCell = ResolveCastFxCell(e.Source); // 事件期抓拍（回放期法术卡已入墓）
                 if (_onEffectFlight != null)
-                {
-                    var castCell = ResolveCastFxCell(e.Source); // 事件期抓拍（回放期法术卡已入墓）
                     DeferOrRun(() => _onEffectFlight(e, castCell));
-                }
+                if (_film != null) // S2 双轨录制（与表现钩子解耦）
+                    _film.Capture(new BattleFxOp
+                    {
+                        Kind = BattleFxKind.Flight,
+                        Source = FxRef.Of(e.Source, SeatOf),
+                        Target = FxRef.Of(e.Target, SeatOf),
+                        Tint = e.Tint.HasValue ? (int)e.Tint.Value : -1,
+                        CastX = castCell?.x ?? -1,
+                        CastZ = castCell?.z ?? -1,
+                    });
                 QueueField();
             });
             On<ElementPoolGainEvent>(_ => QueueField());
-            On<ElementPoolPayEvent>(e => { DeferOrRun(() => _onPaid(e)); QueueField(); }); // 最近实付账单（入场演出颜色口径——须与入场载荷同步延迟，防后步付费覆写前步颜色）
+            On<ElementPoolPayEvent>(e => // 最近实付账单（入场演出颜色口径——须与入场载荷同步延迟，防后步付费覆写前步颜色）
+            {
+                DeferOrRun(() => _onPaid(e));
+                _film?.OnPaid(e); // S2 录制（屏侧 CapturePaid 只管表现——无头/联机录制归此单源）
+                QueueField();
+            });
             // 放地入池（2026-10-14）：入池路径只发本事件（移区不发 CardMove/ZoneChange）——手牌收卡+地格计数即时对账
             On<ElementPoolAddEvent>(_ => { QueueFans(); QueueField(); });
             // 攻击宣言（2026-10-14 优先权半场高光）：宣言即优先权翻转（守卫窗口对手持有）
@@ -237,13 +336,34 @@ namespace SynergyUI
             On<ClashResolvedEvent>(e => // 拼点演出（2026-10-20：攻击宣言期引擎结算同步到——差值浮字随展示翻面同拍）
             {
                 if (_onClashResolved != null) DeferOrRun(() => _onClashResolved(e)); // 回放抑制期延迟随步放出
+                if (_film != null && e != null) // S2 双轨录制（与表现钩子解耦）
+                    _film.Capture(new BattleFxOp
+                    {
+                        Kind = BattleFxKind.Clash,
+                        Target = FxRef.Of(e.EngineCard, SeatOf),
+                        D1 = e.MyPower, D2 = e.TheirPower, Threshold = e.Threshold, Flag = e.Success,
+                    });
             });
             On<LuckRolledEvent>(e => // 运势掷骰浮字（2026-10-20 一步点击定案：主动/自动两路掷骰同源结构化事件——成败都发）
             {
                 if (_onLuckRoll != null)
                     DeferOrRun(() => _onLuckRoll(e)); // 回放抑制期延迟随步放出
+                if (_film != null && e != null) // S2 双轨录制（与表现钩子解耦）
+                    _film.Capture(new BattleFxOp
+                    {
+                        Kind = BattleFxKind.LuckRoll,
+                        Target = FxRef.Of(e.EngineCard, SeatOf),
+                        D1 = e.D1, D2 = e.D2, Flag = e.Success,
+                    });
             });
-            On<GameOverEvent>(_onGameOver);
+            On<GameOverEvent>(e => { _onGameOver(e); _film?.OnGameOver(e); }); // 后者=剧本封卷（End 帧+行归帧+落盘）
+        }
+
+        /// <summary>座位归属（S2 录制辅助：0=我方 1=对手；未知 -1）。</summary>
+        private int SeatOf(Player p)
+        {
+            var core = _core();
+            return p == null || core == null ? -1 : p == core.Player2 ? 1 : 0;
         }
 
         private void On<T>(Action<T> handler) where T : class, IGameEvent

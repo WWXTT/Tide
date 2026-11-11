@@ -24,13 +24,13 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 	// }} 
 
 	// {{ AOT generic types
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<CardCore.Attribute.EffectHandlerRegistry.<AskCompositionDeclarationAsync>d__22,object>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<CardCore.Attribute.EffectHandlerRegistry.<CollectDeclarationTargetsAsync>d__21,object>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<CardCore.Attribute.EffectHandlerRegistry.<AskCompositionDeclarationAsync>d__23,object>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<CardCore.Attribute.EffectHandlerRegistry.<CollectDeclarationTargetsAsync>d__22,object>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<CardCore.Attribute.EffectHandlerRegistry.<ExecuteEffectAsync>d__5,byte>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<CardCore.Attribute.EffectHandlerRegistry.<ResolveAtomTargetsAsync>d__15,object>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<CardCore.Attribute.EffectHandlerRegistry.<ResolveCompositionTargetsAsync>d__9,object>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<CardCore.Attribute.EffectHandlerRegistry.<ResolveRewardTargetsAsync>d__13,object>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<CardCore.Attribute.EffectHandlerRegistry.<ResolveTargetsInteractiveAsync>d__14,object>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<CardCore.Attribute.EffectHandlerRegistry.<ResolveAtomTargetsAsync>d__16,object>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<CardCore.Attribute.EffectHandlerRegistry.<ResolveCompositionTargetsAsync>d__10,object>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<CardCore.Attribute.EffectHandlerRegistry.<ResolveRewardTargetsAsync>d__14,object>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<CardCore.Attribute.EffectHandlerRegistry.<ResolveTargetsInteractiveAsync>d__15,object>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<CardCore.Attribute.Handlers.DeckArrangeHelper.<ArrangeAsync>d__2,object>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<CardCore.Attribute.Handlers.DeclareDeckHandler.<ExecuteAsync>d__2>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<CardCore.Attribute.Handlers.DeclareDeckTopHandler.<ExecuteAsync>d__2>
@@ -108,61 +108,88 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleDeckPickStage.<FlyToDeckAsync>d__32>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleDeckPickStage.<PickAsync>d__21,System.ValueTuple<object,object>>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleEffectFx.<PlayOrbAsync>d__24>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleFieldView.<>c__DisplayClass103_0.<<PresentDeathByRefAsync>b__0>d>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleFieldView.<>c__DisplayClass43_0.<<PresentEffectDeathAsync>b__0>d>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleFieldView.<ArcMoveAsync>d__112>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleFieldView.<ClashFxCoreAsync>d__39>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleFieldView.<DamageFxCoreAsync>d__29>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleFieldView.<DamageRefCoreAsync>d__97>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleFieldView.<DeadHoldAsync>d__18,byte>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleFieldView.<FlightFxCoreAsync>d__45>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleFieldView.<FlightRefCoreAsync>d__101>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleFieldView.<FloatTextAsync>d__47>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleFieldView.<HealFxCoreAsync>d__31>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleFieldView.<HealRefCoreAsync>d__99>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleFieldView.<HeroFatigueHitAsync>d__22>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleFieldView.<HeroImpactPulseAsync>d__21>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleFieldView.<PlayClashByRefAsync>d__108>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleFieldView.<PlayClashResolvedAsync>d__37>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleFieldView.<PlayCombatShotAsync>d__111>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleFieldView.<PlayCounterFloatAsync>d__40>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleFieldView.<PlayCounterFloatByRefAsync>d__104>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleFieldView.<PlayDamageByRefAsync>d__96>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleFieldView.<PlayDeathExitAsync>d__17>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleFieldView.<PlayEffectDamageAsync>d__28>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleFieldView.<PlayEffectFlightAsync>d__44>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleFieldView.<PlayEffectHealAsync>d__30>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleFieldView.<PlayFlightByRefAsync>d__100>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleFieldView.<PlayGrantBurstAsync>d__35>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleFieldView.<PlayGrantBurstByRefAsync>d__105>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleFieldView.<PlayHealByRefAsync>d__98>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleFieldView.<PlayLuckRollAsync>d__38>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleFieldView.<PlayLuckRollByRefAsync>d__109>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleFieldView.<PresentDeathByRefAsync>d__103>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleFieldView.<PresentEffectDeathAsync>d__43>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleFieldView.<RunUnitFxAsync>d__67>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleFieldView.<SinkUnderBoardAsync>d__19,byte>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleFieldView.<TryRouteCastChainAsync>d__95,byte>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleFieldView.<WaitCastPayArrived>d__9>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleFieldView.<WaitVisualsIdleAsync>d__65>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleOpeningDirector.<BeatAsync>d__40>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleOpeningDirector.<CoinStageAsync>d__30,byte>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleOpeningDirector.<CoinStageForcedAsync>d__31,byte>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleOpeningDirector.<DeckPickStageAsync>d__33,System.ValueTuple<object,object>>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleOpeningDirector.<NetworkDeckPickAsync>d__32>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleOpeningDirector.<PlaceHeroesAsync>d__29>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleOpeningDirector.<WaitBoardAssembledAsync>d__28>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleOpeningDirector.<BeatAsync>d__41>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleOpeningDirector.<CoinStageAsync>d__31,byte>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleOpeningDirector.<CoinStageForcedAsync>d__32,byte>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleOpeningDirector.<DeckPickStageAsync>d__34,System.ValueTuple<object,object>>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleOpeningDirector.<NetworkDeckPickAsync>d__33>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleOpeningDirector.<PlaceHeroesAsync>d__30>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleOpeningDirector.<WaitBoardAssembledAsync>d__29>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattlePlayhead.<RunReplayFrameAsync>d__39>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattlePlayhead.<WaitIdleAsync>d__43>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleResolutionDirector.<WaitIdleAsync>d__30>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleScreen.<<MakePacedAi>b__122_0>d>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleScreen.<NetPickUnitCellAsync>d__144,byte>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleScreen.<PickCellAsync>d__151,object>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleScreen.<NetPickUnitCellAsync>d__157,byte>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleScreen.<PickCellAsync>d__164,object>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleScreen.<PickMoveDestinationAsync>d__98,int>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleScreen.<PickRegionOptionAsync>d__107,System.Nullable<int>>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleScreen.<ShowTipPromptAsync>d__248,System.Nullable<byte>>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleScreen.<ShowTipPromptAsync>d__267,System.Nullable<byte>>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleStageDirector.<TweenLightX>d__31>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleTutorialDirector.<<MakePacedScriptedAi>b__57_0>d>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.BattleVfxFx.<TryPlayProjectileAsync>d__28,byte>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.CombatChoreographer.<ConfirmTargetAsync>d__46>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.CombatChoreographer.<DelayChainAware>d__80>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.CombatChoreographer.<FlyAsync>d__84,byte>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.CombatChoreographer.<ReturnAsync>d__77>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.CombatChoreographer.<WaitChainIdleAsync>d__81>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.CombatChoreographer.<DelayChainAware>d__81>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.CombatChoreographer.<FlyAsync>d__85,byte>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.CombatChoreographer.<ReturnAsync>d__78>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.CombatChoreographer.<WaitChainIdleAsync>d__82>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.DummyDeckPanel.<ShowAsync>d__13,object>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.DummyOptionsPanel.<ShowAsync>d__9,object>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.NetworkDeckPanel.<WaitAsync>d__15,object>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.NeuralAiDriver.<TakeTurnAsync>d__6>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.Online.TapAccountService.<InitAndWaitAsync>d__20,object>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.Online.TapAccountService.<LoginAsync>d__17,object>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.Online.TapLobbyController.<CreateRoomAsync>d__15,object>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.Online.TapLobbyController.<EnsureLoginAndConnectAsync>d__14,object>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.Online.TapLobbyController.<GetRoomListAsync>d__16,object>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.Online.TapLobbyController.<JoinRoomAsync>d__17,object>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.Online.TapLobbyController.<LeaveAndDisconnectAsync>d__18>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.Online.TapAccountService.<EnsureReadyAsync>d__17,object>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.Online.TapAccountService.<InitAndWaitAsync>d__21,object>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.Online.TapAccountService.<LoginAsync>d__18,object>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.Online.TapLobbyController.<CreateRoomAsync>d__26,object>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.Online.TapLobbyController.<EnsureLoginAndConnectAsync>d__18,object>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.Online.TapLobbyController.<GetRoomListAsync>d__27,object>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.Online.TapLobbyController.<JoinRoomAsync>d__28,object>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.Online.TapLobbyController.<LeaveAndDisconnectAsync>d__29>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.Online.TapLobbySection.<CreateRankedRoomAsync>d__14,object>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.Online.TapLobbySection.<CreateRoomAsync>d__13,object>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.Online.TapLobbySection.<CreateRoomCore>d__15,object>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.Online.TapLobbySection.<EnsureLoginAsync>d__10,object>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.Online.TapLobbySection.<JoinRoomAsync>d__16,object>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.Online.TapLobbySection.<LeaveAsync>d__17,object>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.Online.TapLobbySection.<ListRoomsAsync>d__11,object>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.RankedMatchmaking.<HostWaitingRoom>d__36>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.RankedMatchmaking.<JoinCandidate>d__35>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.RegionTargetSelector.<PromptTextAsync>d__56,object>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.RegionTargetSelector.<PromptTextModalAsync>d__58,object>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.RegionTargetSelector.<Run>d__59,object>
@@ -182,13 +209,13 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.SimpleAI.<TakeTurnAsync>d__22>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.SimpleAI.<UseHeroSkillAsync>d__25,byte>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask.<>c<SynergyUI.TipPromptHost.<ShowAsync>d__5,System.Nullable<byte>>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<CardCore.Attribute.EffectHandlerRegistry.<AskCompositionDeclarationAsync>d__22,object>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<CardCore.Attribute.EffectHandlerRegistry.<CollectDeclarationTargetsAsync>d__21,object>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<CardCore.Attribute.EffectHandlerRegistry.<AskCompositionDeclarationAsync>d__23,object>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<CardCore.Attribute.EffectHandlerRegistry.<CollectDeclarationTargetsAsync>d__22,object>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<CardCore.Attribute.EffectHandlerRegistry.<ExecuteEffectAsync>d__5,byte>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<CardCore.Attribute.EffectHandlerRegistry.<ResolveAtomTargetsAsync>d__15,object>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<CardCore.Attribute.EffectHandlerRegistry.<ResolveCompositionTargetsAsync>d__9,object>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<CardCore.Attribute.EffectHandlerRegistry.<ResolveRewardTargetsAsync>d__13,object>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<CardCore.Attribute.EffectHandlerRegistry.<ResolveTargetsInteractiveAsync>d__14,object>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<CardCore.Attribute.EffectHandlerRegistry.<ResolveAtomTargetsAsync>d__16,object>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<CardCore.Attribute.EffectHandlerRegistry.<ResolveCompositionTargetsAsync>d__10,object>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<CardCore.Attribute.EffectHandlerRegistry.<ResolveRewardTargetsAsync>d__14,object>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<CardCore.Attribute.EffectHandlerRegistry.<ResolveTargetsInteractiveAsync>d__15,object>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<CardCore.Attribute.Handlers.DeckArrangeHelper.<ArrangeAsync>d__2,object>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<CardCore.Attribute.Handlers.DeclareDeckHandler.<ExecuteAsync>d__2>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<CardCore.Attribute.Handlers.DeclareDeckTopHandler.<ExecuteAsync>d__2>
@@ -266,61 +293,88 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleDeckPickStage.<FlyToDeckAsync>d__32>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleDeckPickStage.<PickAsync>d__21,System.ValueTuple<object,object>>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleEffectFx.<PlayOrbAsync>d__24>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleFieldView.<>c__DisplayClass103_0.<<PresentDeathByRefAsync>b__0>d>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleFieldView.<>c__DisplayClass43_0.<<PresentEffectDeathAsync>b__0>d>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleFieldView.<ArcMoveAsync>d__112>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleFieldView.<ClashFxCoreAsync>d__39>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleFieldView.<DamageFxCoreAsync>d__29>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleFieldView.<DamageRefCoreAsync>d__97>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleFieldView.<DeadHoldAsync>d__18,byte>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleFieldView.<FlightFxCoreAsync>d__45>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleFieldView.<FlightRefCoreAsync>d__101>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleFieldView.<FloatTextAsync>d__47>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleFieldView.<HealFxCoreAsync>d__31>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleFieldView.<HealRefCoreAsync>d__99>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleFieldView.<HeroFatigueHitAsync>d__22>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleFieldView.<HeroImpactPulseAsync>d__21>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleFieldView.<PlayClashByRefAsync>d__108>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleFieldView.<PlayClashResolvedAsync>d__37>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleFieldView.<PlayCombatShotAsync>d__111>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleFieldView.<PlayCounterFloatAsync>d__40>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleFieldView.<PlayCounterFloatByRefAsync>d__104>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleFieldView.<PlayDamageByRefAsync>d__96>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleFieldView.<PlayDeathExitAsync>d__17>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleFieldView.<PlayEffectDamageAsync>d__28>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleFieldView.<PlayEffectFlightAsync>d__44>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleFieldView.<PlayEffectHealAsync>d__30>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleFieldView.<PlayFlightByRefAsync>d__100>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleFieldView.<PlayGrantBurstAsync>d__35>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleFieldView.<PlayGrantBurstByRefAsync>d__105>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleFieldView.<PlayHealByRefAsync>d__98>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleFieldView.<PlayLuckRollAsync>d__38>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleFieldView.<PlayLuckRollByRefAsync>d__109>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleFieldView.<PresentDeathByRefAsync>d__103>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleFieldView.<PresentEffectDeathAsync>d__43>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleFieldView.<RunUnitFxAsync>d__67>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleFieldView.<SinkUnderBoardAsync>d__19,byte>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleFieldView.<TryRouteCastChainAsync>d__95,byte>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleFieldView.<WaitCastPayArrived>d__9>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleFieldView.<WaitVisualsIdleAsync>d__65>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleOpeningDirector.<BeatAsync>d__40>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleOpeningDirector.<CoinStageAsync>d__30,byte>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleOpeningDirector.<CoinStageForcedAsync>d__31,byte>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleOpeningDirector.<DeckPickStageAsync>d__33,System.ValueTuple<object,object>>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleOpeningDirector.<NetworkDeckPickAsync>d__32>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleOpeningDirector.<PlaceHeroesAsync>d__29>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleOpeningDirector.<WaitBoardAssembledAsync>d__28>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleOpeningDirector.<BeatAsync>d__41>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleOpeningDirector.<CoinStageAsync>d__31,byte>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleOpeningDirector.<CoinStageForcedAsync>d__32,byte>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleOpeningDirector.<DeckPickStageAsync>d__34,System.ValueTuple<object,object>>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleOpeningDirector.<NetworkDeckPickAsync>d__33>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleOpeningDirector.<PlaceHeroesAsync>d__30>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleOpeningDirector.<WaitBoardAssembledAsync>d__29>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattlePlayhead.<RunReplayFrameAsync>d__39>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattlePlayhead.<WaitIdleAsync>d__43>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleResolutionDirector.<WaitIdleAsync>d__30>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleScreen.<<MakePacedAi>b__122_0>d>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleScreen.<NetPickUnitCellAsync>d__144,byte>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleScreen.<PickCellAsync>d__151,object>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleScreen.<NetPickUnitCellAsync>d__157,byte>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleScreen.<PickCellAsync>d__164,object>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleScreen.<PickMoveDestinationAsync>d__98,int>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleScreen.<PickRegionOptionAsync>d__107,System.Nullable<int>>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleScreen.<ShowTipPromptAsync>d__248,System.Nullable<byte>>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleScreen.<ShowTipPromptAsync>d__267,System.Nullable<byte>>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleStageDirector.<TweenLightX>d__31>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleTutorialDirector.<<MakePacedScriptedAi>b__57_0>d>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.BattleVfxFx.<TryPlayProjectileAsync>d__28,byte>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.CombatChoreographer.<ConfirmTargetAsync>d__46>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.CombatChoreographer.<DelayChainAware>d__80>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.CombatChoreographer.<FlyAsync>d__84,byte>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.CombatChoreographer.<ReturnAsync>d__77>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.CombatChoreographer.<WaitChainIdleAsync>d__81>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.CombatChoreographer.<DelayChainAware>d__81>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.CombatChoreographer.<FlyAsync>d__85,byte>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.CombatChoreographer.<ReturnAsync>d__78>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.CombatChoreographer.<WaitChainIdleAsync>d__82>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.DummyDeckPanel.<ShowAsync>d__13,object>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.DummyOptionsPanel.<ShowAsync>d__9,object>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.NetworkDeckPanel.<WaitAsync>d__15,object>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.NeuralAiDriver.<TakeTurnAsync>d__6>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.Online.TapAccountService.<InitAndWaitAsync>d__20,object>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.Online.TapAccountService.<LoginAsync>d__17,object>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.Online.TapLobbyController.<CreateRoomAsync>d__15,object>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.Online.TapLobbyController.<EnsureLoginAndConnectAsync>d__14,object>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.Online.TapLobbyController.<GetRoomListAsync>d__16,object>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.Online.TapLobbyController.<JoinRoomAsync>d__17,object>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.Online.TapLobbyController.<LeaveAndDisconnectAsync>d__18>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.Online.TapAccountService.<EnsureReadyAsync>d__17,object>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.Online.TapAccountService.<InitAndWaitAsync>d__21,object>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.Online.TapAccountService.<LoginAsync>d__18,object>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.Online.TapLobbyController.<CreateRoomAsync>d__26,object>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.Online.TapLobbyController.<EnsureLoginAndConnectAsync>d__18,object>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.Online.TapLobbyController.<GetRoomListAsync>d__27,object>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.Online.TapLobbyController.<JoinRoomAsync>d__28,object>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.Online.TapLobbyController.<LeaveAndDisconnectAsync>d__29>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.Online.TapLobbySection.<CreateRankedRoomAsync>d__14,object>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.Online.TapLobbySection.<CreateRoomAsync>d__13,object>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.Online.TapLobbySection.<CreateRoomCore>d__15,object>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.Online.TapLobbySection.<EnsureLoginAsync>d__10,object>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.Online.TapLobbySection.<JoinRoomAsync>d__16,object>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.Online.TapLobbySection.<LeaveAsync>d__17,object>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.Online.TapLobbySection.<ListRoomsAsync>d__11,object>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.RankedMatchmaking.<HostWaitingRoom>d__36>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.RankedMatchmaking.<JoinCandidate>d__35>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.RegionTargetSelector.<PromptTextAsync>d__56,object>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.RegionTargetSelector.<PromptTextModalAsync>d__58,object>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask<SynergyUI.RegionTargetSelector.<Run>d__59,object>
@@ -358,29 +412,35 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.BattleFieldView.<LingerCastingAsync>d__1>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.BattleFieldView.UnitVisual.<RollStatsAsync>d__32>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.BattleHudRow.<PlayPhaseRingAsync>d__48>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.BattleOpeningDirector.<RunAsync>d__27>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.BattleOpeningDirector.<RunAsync>d__28>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.BattlePlayhead.<FinishAsync>d__40>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.BattlePlayhead.<RunPlaybackAsync>d__38>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.BattleResolutionDirector.<FinishAsync>d__27>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.BattleResolutionDirector.<RunReplayAsync>d__26>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.BattleScreen.<ActivateSkillAsync>d__105>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.BattleScreen.<NetActivateSkillAsync>d__155>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.BattleScreen.<NetAttackFlowAsync>d__153>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.BattleScreen.<NetGuardFlowAsync>d__154>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.BattleScreen.<NetPlaceLandAsync>d__147>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.BattleScreen.<NetSelectAsync>d__160>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.BattleScreen.<NetTextAsync>d__162>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.BattleScreen.<NetUseCardAsync>d__143>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.BattleScreen.<NetActivateSkillAsync>d__168>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.BattleScreen.<NetAttackFlowAsync>d__166>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.BattleScreen.<NetEnsureFieldAppliedAsync>d__136>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.BattleScreen.<NetGuardFlowAsync>d__167>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.BattleScreen.<NetPlaceLandAsync>d__160>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.BattleScreen.<NetSelectAsync>d__173>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.BattleScreen.<NetTextAsync>d__175>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.BattleScreen.<NetUseCardAsync>d__156>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.BattleScreen.<OnClickUnitEffectButton>d__33>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.BattleScreen.<OnConcede>d__106>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.BattleScreen.<PickLandColorAsync>d__77>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.BattleScreen.<PromptModeThenPickCell>d__96>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.BattleScreen.<PulseAutoTargetGlowAsync>d__254>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.BattleScreen.<PulseAutoTargetGlowAsync>d__273>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.BattleScreen.<RefreshFieldWhenBoardReady>d__59>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.BattleScreen.<RejectDeckAndBackAsync>d__180>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.BattleScreen.<RunAiFirstTurnAsync>d__118>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.BattleScreen.<SpellDeclarationFlow>d__75>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.BattleScreen.<StartDummyOpeningAsync>d__115>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.BattleScreen.<StartGauntletOpeningAsync>d__113>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.BattleScreen.<StartReplayWhenBoardReadyAsync>d__185>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.BattleStageDirector.<MountBoardAndDawnAsync>d__25>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.BattleStageDirector.<SwallowToBattleAsync>d__24>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.BattleTilePress.<RunAsync>d__10>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.BattleTutorialDirector.<AutoEndTurnAfterHealFxAsync>d__41>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.BattleTutorialDirector.<ConsumeMidTransitionAsync>d__43>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.BattleTutorialDirector.<PlayTutorialVoiceAsync>d__52>
@@ -391,20 +451,23 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.BattleVfxFx.<ReleaseSlotAfter>d__18>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.BattleZoneProps.<PulseDeckAsync>d__28>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.CardComposerScreen.<ConfirmForceDeleteCardAsync>d__141>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.CombatChoreographer.<PerformAsync>d__75>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.CombatChoreographer.<PerformAsync>d__76>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.CombatChoreographer.<TargetingLoopAsync>d__45>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.CombatChoreographer.<TrackArrowsAsync>d__82>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.CombatChoreographer.<TrackArrowsAsync>d__83>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.DeckBuilderScreen.<ConfirmCopyPresetAsync>d__115>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.DeckBuilderScreen.<ConfirmDeleteDeckAsync>d__117>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.EffectComposerScreen.<ConfirmForceDeleteEffectAsync>d__125>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.EffectComposerScreen.<HandleReplacedLegacyAsync>d__126>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.LobbyScreen.<ConnectAsync>d__47>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.LobbyScreen.<RunScanLoopAsync>d__55>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.Online.TapAccountService.<WarmupInternal>d__19>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.Online.TapLobbySection.<JoinTapRoom>d__9>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.Online.TapLobbySection.<RefreshTapRooms>d__8>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.Online.TapLobbySection.<StartTapHost>d__7>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.TapLoginBadge.<LoginFlow>d__14>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.EffectComposerScreen.<ConfirmForceDeleteEffectAsync>d__127>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.EffectComposerScreen.<HandleReplacedLegacyAsync>d__128>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.LaunchScreen.<AutoAdvance>d__18>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.LobbyScreen.<ConnectAsync>d__94>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.LobbyScreen.<CreateTapRoomAsync>d__93>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.LobbyScreen.<JoinTapEntryAsync>d__131>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.LobbyScreen.<RefreshTapRoomsAsync>d__129>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.LobbyScreen.<RunScanLoopAsync>d__123>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.Online.TapAccountService.<WarmupInternal>d__20>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.RankedMatchmaking.<RunLoop>d__33>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.RankedMatchmaking.<ScanOnce>d__34>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid.<>c<SynergyUI.TapLoginBadge.<LoginFlow>d__17>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<CloudSave.CloudSyncService.CloudSyncHost.<TryAutoUpload>d__4>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<CloudSave.TapAccountService.<LoginFromUiAsync>d__10>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<CloudSave.TapCloudSaveBootstrap.BootInitCallback.<RunAsync>d__2>
@@ -416,29 +479,35 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.BattleFieldView.<LingerCastingAsync>d__1>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.BattleFieldView.UnitVisual.<RollStatsAsync>d__32>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.BattleHudRow.<PlayPhaseRingAsync>d__48>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.BattleOpeningDirector.<RunAsync>d__27>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.BattleOpeningDirector.<RunAsync>d__28>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.BattlePlayhead.<FinishAsync>d__40>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.BattlePlayhead.<RunPlaybackAsync>d__38>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.BattleResolutionDirector.<FinishAsync>d__27>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.BattleResolutionDirector.<RunReplayAsync>d__26>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.BattleScreen.<ActivateSkillAsync>d__105>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.BattleScreen.<NetActivateSkillAsync>d__155>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.BattleScreen.<NetAttackFlowAsync>d__153>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.BattleScreen.<NetGuardFlowAsync>d__154>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.BattleScreen.<NetPlaceLandAsync>d__147>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.BattleScreen.<NetSelectAsync>d__160>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.BattleScreen.<NetTextAsync>d__162>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.BattleScreen.<NetUseCardAsync>d__143>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.BattleScreen.<NetActivateSkillAsync>d__168>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.BattleScreen.<NetAttackFlowAsync>d__166>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.BattleScreen.<NetEnsureFieldAppliedAsync>d__136>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.BattleScreen.<NetGuardFlowAsync>d__167>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.BattleScreen.<NetPlaceLandAsync>d__160>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.BattleScreen.<NetSelectAsync>d__173>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.BattleScreen.<NetTextAsync>d__175>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.BattleScreen.<NetUseCardAsync>d__156>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.BattleScreen.<OnClickUnitEffectButton>d__33>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.BattleScreen.<OnConcede>d__106>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.BattleScreen.<PickLandColorAsync>d__77>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.BattleScreen.<PromptModeThenPickCell>d__96>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.BattleScreen.<PulseAutoTargetGlowAsync>d__254>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.BattleScreen.<PulseAutoTargetGlowAsync>d__273>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.BattleScreen.<RefreshFieldWhenBoardReady>d__59>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.BattleScreen.<RejectDeckAndBackAsync>d__180>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.BattleScreen.<RunAiFirstTurnAsync>d__118>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.BattleScreen.<SpellDeclarationFlow>d__75>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.BattleScreen.<StartDummyOpeningAsync>d__115>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.BattleScreen.<StartGauntletOpeningAsync>d__113>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.BattleScreen.<StartReplayWhenBoardReadyAsync>d__185>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.BattleStageDirector.<MountBoardAndDawnAsync>d__25>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.BattleStageDirector.<SwallowToBattleAsync>d__24>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.BattleTilePress.<RunAsync>d__10>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.BattleTutorialDirector.<AutoEndTurnAfterHealFxAsync>d__41>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.BattleTutorialDirector.<ConsumeMidTransitionAsync>d__43>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.BattleTutorialDirector.<PlayTutorialVoiceAsync>d__52>
@@ -449,20 +518,23 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.BattleVfxFx.<ReleaseSlotAfter>d__18>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.BattleZoneProps.<PulseDeckAsync>d__28>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.CardComposerScreen.<ConfirmForceDeleteCardAsync>d__141>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.CombatChoreographer.<PerformAsync>d__75>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.CombatChoreographer.<PerformAsync>d__76>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.CombatChoreographer.<TargetingLoopAsync>d__45>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.CombatChoreographer.<TrackArrowsAsync>d__82>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.CombatChoreographer.<TrackArrowsAsync>d__83>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.DeckBuilderScreen.<ConfirmCopyPresetAsync>d__115>
 	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.DeckBuilderScreen.<ConfirmDeleteDeckAsync>d__117>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.EffectComposerScreen.<ConfirmForceDeleteEffectAsync>d__125>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.EffectComposerScreen.<HandleReplacedLegacyAsync>d__126>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.LobbyScreen.<ConnectAsync>d__47>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.LobbyScreen.<RunScanLoopAsync>d__55>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.Online.TapAccountService.<WarmupInternal>d__19>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.Online.TapLobbySection.<JoinTapRoom>d__9>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.Online.TapLobbySection.<RefreshTapRooms>d__8>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.Online.TapLobbySection.<StartTapHost>d__7>
-	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.TapLoginBadge.<LoginFlow>d__14>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.EffectComposerScreen.<ConfirmForceDeleteEffectAsync>d__127>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.EffectComposerScreen.<HandleReplacedLegacyAsync>d__128>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.LaunchScreen.<AutoAdvance>d__18>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.LobbyScreen.<ConnectAsync>d__94>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.LobbyScreen.<CreateTapRoomAsync>d__93>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.LobbyScreen.<JoinTapEntryAsync>d__131>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.LobbyScreen.<RefreshTapRoomsAsync>d__129>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.LobbyScreen.<RunScanLoopAsync>d__123>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.Online.TapAccountService.<WarmupInternal>d__20>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.RankedMatchmaking.<RunLoop>d__33>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.RankedMatchmaking.<ScanOnce>d__34>
+	// Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoid<SynergyUI.TapLoginBadge.<LoginFlow>d__17>
 	// Cysharp.Threading.Tasks.CompilerServices.IStateMachineRunnerPromise<System.Nullable<byte>>
 	// Cysharp.Threading.Tasks.CompilerServices.IStateMachineRunnerPromise<System.Nullable<int>>
 	// Cysharp.Threading.Tasks.CompilerServices.IStateMachineRunnerPromise<System.ValueTuple<object,object,byte>>
@@ -894,6 +966,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 	// Cysharp.Threading.Tasks.UniTaskCompletionSourceCore<byte>
 	// Cysharp.Threading.Tasks.UniTaskCompletionSourceCore<int>
 	// Cysharp.Threading.Tasks.UniTaskCompletionSourceCore<object>
+	// Cysharp.Threading.Tasks.UniTaskExtensions.<>c__32<object>
 	// Cysharp.Threading.Tasks.UniTaskExtensions.<>c__51<byte>
 	// MemoryPack.Formatters.ArrayFormatter<byte>
 	// MemoryPack.Formatters.ArrayFormatter<float>
@@ -909,6 +982,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 	// MemoryPack.MemoryPackFormatter<object>
 	// System.Action<CardCore.AI.NeuralEnv.TideAction>
 	// System.Action<CardCore.EventManager.SubscriptionEntry>
+	// System.Action<CardCore.MatchLogLine>
 	// System.Action<Cysharp.Threading.Tasks.UniTask>
 	// System.Action<MemoryPack.Internal.BufferSegment>
 	// System.Action<MonsterRig.ScatterSim.Piece>
@@ -928,6 +1002,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 	// System.Action<System.ValueTuple<int,object,int>>
 	// System.Action<System.ValueTuple<int,object>>
 	// System.Action<System.ValueTuple<object,byte>>
+	// System.Action<System.ValueTuple<object,int,UnityEngine.Color,int>>
 	// System.Action<System.ValueTuple<object,int,int>>
 	// System.Action<System.ValueTuple<object,int>>
 	// System.Action<System.ValueTuple<object,object,byte>>
@@ -952,7 +1027,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 	// System.Action<object,System.Nullable<System.ValueTuple<int,int>>>
 	// System.Action<object,object,int>
 	// System.Action<object,object,object,object,System.Nullable<byte>,object,object>
-	// System.Action<object,object,object,object>
+	// System.Action<object,object,object,object,object>
 	// System.Action<object,object,object>
 	// System.Action<object,object>
 	// System.Action<object>
@@ -994,6 +1069,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 	// System.Collections.Concurrent.ConcurrentQueue<object>
 	// System.Collections.Generic.ArraySortHelper<CardCore.AI.NeuralEnv.TideAction>
 	// System.Collections.Generic.ArraySortHelper<CardCore.EventManager.SubscriptionEntry>
+	// System.Collections.Generic.ArraySortHelper<CardCore.MatchLogLine>
 	// System.Collections.Generic.ArraySortHelper<Cysharp.Threading.Tasks.UniTask>
 	// System.Collections.Generic.ArraySortHelper<MemoryPack.Internal.BufferSegment>
 	// System.Collections.Generic.ArraySortHelper<MonsterRig.ScatterSim.Piece>
@@ -1013,6 +1089,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 	// System.Collections.Generic.ArraySortHelper<System.ValueTuple<int,object,int>>
 	// System.Collections.Generic.ArraySortHelper<System.ValueTuple<int,object>>
 	// System.Collections.Generic.ArraySortHelper<System.ValueTuple<object,byte>>
+	// System.Collections.Generic.ArraySortHelper<System.ValueTuple<object,int,UnityEngine.Color,int>>
 	// System.Collections.Generic.ArraySortHelper<System.ValueTuple<object,int,int>>
 	// System.Collections.Generic.ArraySortHelper<System.ValueTuple<object,int>>
 	// System.Collections.Generic.ArraySortHelper<System.ValueTuple<object,object,byte>>
@@ -1036,6 +1113,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 	// System.Collections.Generic.ArraySortHelper<ulong>
 	// System.Collections.Generic.Comparer<CardCore.AI.NeuralEnv.TideAction>
 	// System.Collections.Generic.Comparer<CardCore.EventManager.SubscriptionEntry>
+	// System.Collections.Generic.Comparer<CardCore.MatchLogLine>
 	// System.Collections.Generic.Comparer<Cysharp.Threading.Tasks.UniTask>
 	// System.Collections.Generic.Comparer<MemoryPack.Internal.BufferSegment>
 	// System.Collections.Generic.Comparer<MonsterRig.ScatterSim.Piece>
@@ -1049,6 +1127,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 	// System.Collections.Generic.Comparer<System.Collections.Generic.KeyValuePair<int,object>>
 	// System.Collections.Generic.Comparer<System.Collections.Generic.KeyValuePair<object,byte>>
 	// System.Collections.Generic.Comparer<System.Collections.Generic.KeyValuePair<object,int>>
+	// System.Collections.Generic.Comparer<System.DateTime>
 	// System.Collections.Generic.Comparer<System.Guid>
 	// System.Collections.Generic.Comparer<System.Nullable<byte>>
 	// System.Collections.Generic.Comparer<System.Nullable<int>>
@@ -1123,6 +1202,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 	// System.Collections.Generic.Comparer<System.ValueTuple<int,object,object>>
 	// System.Collections.Generic.Comparer<System.ValueTuple<int,object>>
 	// System.Collections.Generic.Comparer<System.ValueTuple<object,byte>>
+	// System.Collections.Generic.Comparer<System.ValueTuple<object,int,UnityEngine.Color,int>>
 	// System.Collections.Generic.Comparer<System.ValueTuple<object,int,int>>
 	// System.Collections.Generic.Comparer<System.ValueTuple<object,int>>
 	// System.Collections.Generic.Comparer<System.ValueTuple<object,object,byte>>
@@ -1141,11 +1221,13 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 	// System.Collections.Generic.Comparer<byte>
 	// System.Collections.Generic.Comparer<float>
 	// System.Collections.Generic.Comparer<int>
+	// System.Collections.Generic.Comparer<long>
 	// System.Collections.Generic.Comparer<object>
 	// System.Collections.Generic.Comparer<uint>
 	// System.Collections.Generic.Comparer<ulong>
 	// System.Collections.Generic.ComparisonComparer<CardCore.AI.NeuralEnv.TideAction>
 	// System.Collections.Generic.ComparisonComparer<CardCore.EventManager.SubscriptionEntry>
+	// System.Collections.Generic.ComparisonComparer<CardCore.MatchLogLine>
 	// System.Collections.Generic.ComparisonComparer<Cysharp.Threading.Tasks.UniTask>
 	// System.Collections.Generic.ComparisonComparer<MemoryPack.Internal.BufferSegment>
 	// System.Collections.Generic.ComparisonComparer<MonsterRig.ScatterSim.Piece>
@@ -1159,6 +1241,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 	// System.Collections.Generic.ComparisonComparer<System.Collections.Generic.KeyValuePair<int,object>>
 	// System.Collections.Generic.ComparisonComparer<System.Collections.Generic.KeyValuePair<object,byte>>
 	// System.Collections.Generic.ComparisonComparer<System.Collections.Generic.KeyValuePair<object,int>>
+	// System.Collections.Generic.ComparisonComparer<System.DateTime>
 	// System.Collections.Generic.ComparisonComparer<System.Guid>
 	// System.Collections.Generic.ComparisonComparer<System.Nullable<byte>>
 	// System.Collections.Generic.ComparisonComparer<System.Nullable<int>>
@@ -1225,6 +1308,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 	// System.Collections.Generic.ComparisonComparer<System.ValueTuple<int,object,object>>
 	// System.Collections.Generic.ComparisonComparer<System.ValueTuple<int,object>>
 	// System.Collections.Generic.ComparisonComparer<System.ValueTuple<object,byte>>
+	// System.Collections.Generic.ComparisonComparer<System.ValueTuple<object,int,UnityEngine.Color,int>>
 	// System.Collections.Generic.ComparisonComparer<System.ValueTuple<object,int,int>>
 	// System.Collections.Generic.ComparisonComparer<System.ValueTuple<object,int>>
 	// System.Collections.Generic.ComparisonComparer<System.ValueTuple<object,object,byte>>
@@ -1243,6 +1327,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 	// System.Collections.Generic.ComparisonComparer<byte>
 	// System.Collections.Generic.ComparisonComparer<float>
 	// System.Collections.Generic.ComparisonComparer<int>
+	// System.Collections.Generic.ComparisonComparer<long>
 	// System.Collections.Generic.ComparisonComparer<object>
 	// System.Collections.Generic.ComparisonComparer<uint>
 	// System.Collections.Generic.ComparisonComparer<ulong>
@@ -1496,6 +1581,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 	// System.Collections.Generic.HashSetEqualityComparer<uint>
 	// System.Collections.Generic.ICollection<CardCore.AI.NeuralEnv.TideAction>
 	// System.Collections.Generic.ICollection<CardCore.EventManager.SubscriptionEntry>
+	// System.Collections.Generic.ICollection<CardCore.MatchLogLine>
 	// System.Collections.Generic.ICollection<Cysharp.Threading.Tasks.UniTask>
 	// System.Collections.Generic.ICollection<MemoryPack.Internal.BufferSegment>
 	// System.Collections.Generic.ICollection<MonsterRig.ScatterSim.Piece>
@@ -1535,6 +1621,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 	// System.Collections.Generic.ICollection<System.ValueTuple<int,object,int>>
 	// System.Collections.Generic.ICollection<System.ValueTuple<int,object>>
 	// System.Collections.Generic.ICollection<System.ValueTuple<object,byte>>
+	// System.Collections.Generic.ICollection<System.ValueTuple<object,int,UnityEngine.Color,int>>
 	// System.Collections.Generic.ICollection<System.ValueTuple<object,int,int>>
 	// System.Collections.Generic.ICollection<System.ValueTuple<object,int>>
 	// System.Collections.Generic.ICollection<System.ValueTuple<object,object,byte>>
@@ -1560,6 +1647,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 	// System.Collections.Generic.ICollection<ulong>
 	// System.Collections.Generic.IComparer<CardCore.AI.NeuralEnv.TideAction>
 	// System.Collections.Generic.IComparer<CardCore.EventManager.SubscriptionEntry>
+	// System.Collections.Generic.IComparer<CardCore.MatchLogLine>
 	// System.Collections.Generic.IComparer<Cysharp.Threading.Tasks.UniTask>
 	// System.Collections.Generic.IComparer<MemoryPack.Internal.BufferSegment>
 	// System.Collections.Generic.IComparer<MonsterRig.ScatterSim.Piece>
@@ -1573,6 +1661,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 	// System.Collections.Generic.IComparer<System.Collections.Generic.KeyValuePair<int,object>>
 	// System.Collections.Generic.IComparer<System.Collections.Generic.KeyValuePair<object,byte>>
 	// System.Collections.Generic.IComparer<System.Collections.Generic.KeyValuePair<object,int>>
+	// System.Collections.Generic.IComparer<System.DateTime>
 	// System.Collections.Generic.IComparer<System.Guid>
 	// System.Collections.Generic.IComparer<System.ValueTuple<int,float,float>>
 	// System.Collections.Generic.IComparer<System.ValueTuple<int,float>>
@@ -1580,6 +1669,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 	// System.Collections.Generic.IComparer<System.ValueTuple<int,object,int>>
 	// System.Collections.Generic.IComparer<System.ValueTuple<int,object>>
 	// System.Collections.Generic.IComparer<System.ValueTuple<object,byte>>
+	// System.Collections.Generic.IComparer<System.ValueTuple<object,int,UnityEngine.Color,int>>
 	// System.Collections.Generic.IComparer<System.ValueTuple<object,int,int>>
 	// System.Collections.Generic.IComparer<System.ValueTuple<object,int>>
 	// System.Collections.Generic.IComparer<System.ValueTuple<object,object,byte>>
@@ -1598,12 +1688,14 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 	// System.Collections.Generic.IComparer<byte>
 	// System.Collections.Generic.IComparer<float>
 	// System.Collections.Generic.IComparer<int>
+	// System.Collections.Generic.IComparer<long>
 	// System.Collections.Generic.IComparer<object>
 	// System.Collections.Generic.IComparer<uint>
 	// System.Collections.Generic.IComparer<ulong>
 	// System.Collections.Generic.IDictionary<object,object>
 	// System.Collections.Generic.IEnumerable<CardCore.AI.NeuralEnv.TideAction>
 	// System.Collections.Generic.IEnumerable<CardCore.EventManager.SubscriptionEntry>
+	// System.Collections.Generic.IEnumerable<CardCore.MatchLogLine>
 	// System.Collections.Generic.IEnumerable<Cysharp.Threading.Tasks.UniTask>
 	// System.Collections.Generic.IEnumerable<MemoryPack.Internal.BufferSegment>
 	// System.Collections.Generic.IEnumerable<MonsterRig.ScatterSim.Piece>
@@ -1644,6 +1736,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 	// System.Collections.Generic.IEnumerable<System.ValueTuple<int,object,object>>
 	// System.Collections.Generic.IEnumerable<System.ValueTuple<int,object>>
 	// System.Collections.Generic.IEnumerable<System.ValueTuple<object,byte>>
+	// System.Collections.Generic.IEnumerable<System.ValueTuple<object,int,UnityEngine.Color,int>>
 	// System.Collections.Generic.IEnumerable<System.ValueTuple<object,int,int>>
 	// System.Collections.Generic.IEnumerable<System.ValueTuple<object,int>>
 	// System.Collections.Generic.IEnumerable<System.ValueTuple<object,object,byte>>
@@ -1670,6 +1763,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 	// System.Collections.Generic.IEnumerable<ushort>
 	// System.Collections.Generic.IEnumerator<CardCore.AI.NeuralEnv.TideAction>
 	// System.Collections.Generic.IEnumerator<CardCore.EventManager.SubscriptionEntry>
+	// System.Collections.Generic.IEnumerator<CardCore.MatchLogLine>
 	// System.Collections.Generic.IEnumerator<Cysharp.Threading.Tasks.UniTask>
 	// System.Collections.Generic.IEnumerator<MemoryPack.Internal.BufferSegment>
 	// System.Collections.Generic.IEnumerator<MonsterRig.ScatterSim.Piece>
@@ -1710,6 +1804,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 	// System.Collections.Generic.IEnumerator<System.ValueTuple<int,object,object>>
 	// System.Collections.Generic.IEnumerator<System.ValueTuple<int,object>>
 	// System.Collections.Generic.IEnumerator<System.ValueTuple<object,byte>>
+	// System.Collections.Generic.IEnumerator<System.ValueTuple<object,int,UnityEngine.Color,int>>
 	// System.Collections.Generic.IEnumerator<System.ValueTuple<object,int,int>>
 	// System.Collections.Generic.IEnumerator<System.ValueTuple<object,int>>
 	// System.Collections.Generic.IEnumerator<System.ValueTuple<object,object,byte>>
@@ -1747,6 +1842,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 	// System.Collections.Generic.IEqualityComparer<ulong>
 	// System.Collections.Generic.IList<CardCore.AI.NeuralEnv.TideAction>
 	// System.Collections.Generic.IList<CardCore.EventManager.SubscriptionEntry>
+	// System.Collections.Generic.IList<CardCore.MatchLogLine>
 	// System.Collections.Generic.IList<Cysharp.Threading.Tasks.UniTask>
 	// System.Collections.Generic.IList<MemoryPack.Internal.BufferSegment>
 	// System.Collections.Generic.IList<MonsterRig.ScatterSim.Piece>
@@ -1766,6 +1862,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 	// System.Collections.Generic.IList<System.ValueTuple<int,object,int>>
 	// System.Collections.Generic.IList<System.ValueTuple<int,object>>
 	// System.Collections.Generic.IList<System.ValueTuple<object,byte>>
+	// System.Collections.Generic.IList<System.ValueTuple<object,int,UnityEngine.Color,int>>
 	// System.Collections.Generic.IList<System.ValueTuple<object,int,int>>
 	// System.Collections.Generic.IList<System.ValueTuple<object,int>>
 	// System.Collections.Generic.IList<System.ValueTuple<object,object,byte>>
@@ -1830,6 +1927,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 	// System.Collections.Generic.KeyValuePair<ulong,int>
 	// System.Collections.Generic.List.Enumerator<CardCore.AI.NeuralEnv.TideAction>
 	// System.Collections.Generic.List.Enumerator<CardCore.EventManager.SubscriptionEntry>
+	// System.Collections.Generic.List.Enumerator<CardCore.MatchLogLine>
 	// System.Collections.Generic.List.Enumerator<Cysharp.Threading.Tasks.UniTask>
 	// System.Collections.Generic.List.Enumerator<MemoryPack.Internal.BufferSegment>
 	// System.Collections.Generic.List.Enumerator<MonsterRig.ScatterSim.Piece>
@@ -1849,6 +1947,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 	// System.Collections.Generic.List.Enumerator<System.ValueTuple<int,object,int>>
 	// System.Collections.Generic.List.Enumerator<System.ValueTuple<int,object>>
 	// System.Collections.Generic.List.Enumerator<System.ValueTuple<object,byte>>
+	// System.Collections.Generic.List.Enumerator<System.ValueTuple<object,int,UnityEngine.Color,int>>
 	// System.Collections.Generic.List.Enumerator<System.ValueTuple<object,int,int>>
 	// System.Collections.Generic.List.Enumerator<System.ValueTuple<object,int>>
 	// System.Collections.Generic.List.Enumerator<System.ValueTuple<object,object,byte>>
@@ -1872,6 +1971,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 	// System.Collections.Generic.List.Enumerator<ulong>
 	// System.Collections.Generic.List<CardCore.AI.NeuralEnv.TideAction>
 	// System.Collections.Generic.List<CardCore.EventManager.SubscriptionEntry>
+	// System.Collections.Generic.List<CardCore.MatchLogLine>
 	// System.Collections.Generic.List<Cysharp.Threading.Tasks.UniTask>
 	// System.Collections.Generic.List<MemoryPack.Internal.BufferSegment>
 	// System.Collections.Generic.List<MonsterRig.ScatterSim.Piece>
@@ -1891,6 +1991,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 	// System.Collections.Generic.List<System.ValueTuple<int,object,int>>
 	// System.Collections.Generic.List<System.ValueTuple<int,object>>
 	// System.Collections.Generic.List<System.ValueTuple<object,byte>>
+	// System.Collections.Generic.List<System.ValueTuple<object,int,UnityEngine.Color,int>>
 	// System.Collections.Generic.List<System.ValueTuple<object,int,int>>
 	// System.Collections.Generic.List<System.ValueTuple<object,int>>
 	// System.Collections.Generic.List<System.ValueTuple<object,object,byte>>
@@ -1914,6 +2015,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 	// System.Collections.Generic.List<ulong>
 	// System.Collections.Generic.ObjectComparer<CardCore.AI.NeuralEnv.TideAction>
 	// System.Collections.Generic.ObjectComparer<CardCore.EventManager.SubscriptionEntry>
+	// System.Collections.Generic.ObjectComparer<CardCore.MatchLogLine>
 	// System.Collections.Generic.ObjectComparer<Cysharp.Threading.Tasks.UniTask>
 	// System.Collections.Generic.ObjectComparer<MemoryPack.Internal.BufferSegment>
 	// System.Collections.Generic.ObjectComparer<MonsterRig.ScatterSim.Piece>
@@ -1927,6 +2029,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 	// System.Collections.Generic.ObjectComparer<System.Collections.Generic.KeyValuePair<int,object>>
 	// System.Collections.Generic.ObjectComparer<System.Collections.Generic.KeyValuePair<object,byte>>
 	// System.Collections.Generic.ObjectComparer<System.Collections.Generic.KeyValuePair<object,int>>
+	// System.Collections.Generic.ObjectComparer<System.DateTime>
 	// System.Collections.Generic.ObjectComparer<System.Guid>
 	// System.Collections.Generic.ObjectComparer<System.Nullable<byte>>
 	// System.Collections.Generic.ObjectComparer<System.Nullable<int>>
@@ -1993,6 +2096,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 	// System.Collections.Generic.ObjectComparer<System.ValueTuple<int,object,object>>
 	// System.Collections.Generic.ObjectComparer<System.ValueTuple<int,object>>
 	// System.Collections.Generic.ObjectComparer<System.ValueTuple<object,byte>>
+	// System.Collections.Generic.ObjectComparer<System.ValueTuple<object,int,UnityEngine.Color,int>>
 	// System.Collections.Generic.ObjectComparer<System.ValueTuple<object,int,int>>
 	// System.Collections.Generic.ObjectComparer<System.ValueTuple<object,int>>
 	// System.Collections.Generic.ObjectComparer<System.ValueTuple<object,object,byte>>
@@ -2011,6 +2115,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 	// System.Collections.Generic.ObjectComparer<byte>
 	// System.Collections.Generic.ObjectComparer<float>
 	// System.Collections.Generic.ObjectComparer<int>
+	// System.Collections.Generic.ObjectComparer<long>
 	// System.Collections.Generic.ObjectComparer<object>
 	// System.Collections.Generic.ObjectComparer<uint>
 	// System.Collections.Generic.ObjectComparer<ulong>
@@ -2122,6 +2227,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 	// System.Collections.Generic.TreeWalkPredicate<ulong>
 	// System.Collections.ObjectModel.ReadOnlyCollection<CardCore.AI.NeuralEnv.TideAction>
 	// System.Collections.ObjectModel.ReadOnlyCollection<CardCore.EventManager.SubscriptionEntry>
+	// System.Collections.ObjectModel.ReadOnlyCollection<CardCore.MatchLogLine>
 	// System.Collections.ObjectModel.ReadOnlyCollection<Cysharp.Threading.Tasks.UniTask>
 	// System.Collections.ObjectModel.ReadOnlyCollection<MemoryPack.Internal.BufferSegment>
 	// System.Collections.ObjectModel.ReadOnlyCollection<MonsterRig.ScatterSim.Piece>
@@ -2141,6 +2247,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 	// System.Collections.ObjectModel.ReadOnlyCollection<System.ValueTuple<int,object,int>>
 	// System.Collections.ObjectModel.ReadOnlyCollection<System.ValueTuple<int,object>>
 	// System.Collections.ObjectModel.ReadOnlyCollection<System.ValueTuple<object,byte>>
+	// System.Collections.ObjectModel.ReadOnlyCollection<System.ValueTuple<object,int,UnityEngine.Color,int>>
 	// System.Collections.ObjectModel.ReadOnlyCollection<System.ValueTuple<object,int,int>>
 	// System.Collections.ObjectModel.ReadOnlyCollection<System.ValueTuple<object,int>>
 	// System.Collections.ObjectModel.ReadOnlyCollection<System.ValueTuple<object,object,byte>>
@@ -2164,6 +2271,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 	// System.Collections.ObjectModel.ReadOnlyCollection<ulong>
 	// System.Comparison<CardCore.AI.NeuralEnv.TideAction>
 	// System.Comparison<CardCore.EventManager.SubscriptionEntry>
+	// System.Comparison<CardCore.MatchLogLine>
 	// System.Comparison<Cysharp.Threading.Tasks.UniTask>
 	// System.Comparison<MemoryPack.Internal.BufferSegment>
 	// System.Comparison<MonsterRig.ScatterSim.Piece>
@@ -2177,6 +2285,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 	// System.Comparison<System.Collections.Generic.KeyValuePair<int,object>>
 	// System.Comparison<System.Collections.Generic.KeyValuePair<object,byte>>
 	// System.Comparison<System.Collections.Generic.KeyValuePair<object,int>>
+	// System.Comparison<System.DateTime>
 	// System.Comparison<System.Guid>
 	// System.Comparison<System.Nullable<byte>>
 	// System.Comparison<System.Nullable<int>>
@@ -2235,6 +2344,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 	// System.Comparison<System.ValueTuple<int,object,object>>
 	// System.Comparison<System.ValueTuple<int,object>>
 	// System.Comparison<System.ValueTuple<object,byte>>
+	// System.Comparison<System.ValueTuple<object,int,UnityEngine.Color,int>>
 	// System.Comparison<System.ValueTuple<object,int,int>>
 	// System.Comparison<System.ValueTuple<object,int>>
 	// System.Comparison<System.ValueTuple<object,object,byte>>
@@ -2253,6 +2363,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 	// System.Comparison<byte>
 	// System.Comparison<float>
 	// System.Comparison<int>
+	// System.Comparison<long>
 	// System.Comparison<object>
 	// System.Comparison<uint>
 	// System.Comparison<ulong>
@@ -2362,6 +2473,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 	// System.Func<float,byte>
 	// System.Func<float,double>
 	// System.Func<float,float>
+	// System.Func<int,Cysharp.Threading.Tasks.UniTask>
 	// System.Func<int,UnityEngine.Vector4>
 	// System.Func<int,byte>
 	// System.Func<int,float>
@@ -2441,7 +2553,9 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 	// System.Func<object,int,byte>
 	// System.Func<object,int,object>
 	// System.Func<object,int>
+	// System.Func<object,long>
 	// System.Func<object,object,Cysharp.Threading.Tasks.UniTask<object>>
+	// System.Func<object,object,byte>
 	// System.Func<object,object,int,object>
 	// System.Func<object,object,object,Cysharp.Threading.Tasks.UniTask<System.Nullable<byte>>>
 	// System.Func<object,object,object,Cysharp.Threading.Tasks.UniTask<int>>
@@ -2632,10 +2746,12 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 	// System.Linq.EnumerableSorter<int,float>
 	// System.Linq.EnumerableSorter<int,int>
 	// System.Linq.EnumerableSorter<int>
+	// System.Linq.EnumerableSorter<object,System.DateTime>
 	// System.Linq.EnumerableSorter<object,System.Guid>
 	// System.Linq.EnumerableSorter<object,byte>
 	// System.Linq.EnumerableSorter<object,float>
 	// System.Linq.EnumerableSorter<object,int>
+	// System.Linq.EnumerableSorter<object,long>
 	// System.Linq.EnumerableSorter<object,object>
 	// System.Linq.EnumerableSorter<object,uint>
 	// System.Linq.EnumerableSorter<object>
@@ -2696,10 +2812,12 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 	// System.Linq.OrderedEnumerable<int,float>
 	// System.Linq.OrderedEnumerable<int,int>
 	// System.Linq.OrderedEnumerable<int>
+	// System.Linq.OrderedEnumerable<object,System.DateTime>
 	// System.Linq.OrderedEnumerable<object,System.Guid>
 	// System.Linq.OrderedEnumerable<object,byte>
 	// System.Linq.OrderedEnumerable<object,float>
 	// System.Linq.OrderedEnumerable<object,int>
+	// System.Linq.OrderedEnumerable<object,long>
 	// System.Linq.OrderedEnumerable<object,object>
 	// System.Linq.OrderedEnumerable<object,uint>
 	// System.Linq.OrderedEnumerable<object>
@@ -2721,6 +2839,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 	// System.Nullable<uint>
 	// System.Predicate<CardCore.AI.NeuralEnv.TideAction>
 	// System.Predicate<CardCore.EventManager.SubscriptionEntry>
+	// System.Predicate<CardCore.MatchLogLine>
 	// System.Predicate<Cysharp.Threading.Tasks.UniTask>
 	// System.Predicate<MemoryPack.Internal.BufferSegment>
 	// System.Predicate<MonsterRig.ScatterSim.Piece>
@@ -2740,6 +2859,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 	// System.Predicate<System.ValueTuple<int,object,int>>
 	// System.Predicate<System.ValueTuple<int,object>>
 	// System.Predicate<System.ValueTuple<object,byte>>
+	// System.Predicate<System.ValueTuple<object,int,UnityEngine.Color,int>>
 	// System.Predicate<System.ValueTuple<object,int,int>>
 	// System.Predicate<System.ValueTuple<object,int>>
 	// System.Predicate<System.ValueTuple<object,object,byte>>
@@ -3883,7 +4003,6 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 	// System.ValueTuple<byte,byte>
 	// System.ValueTuple<byte,int>
 	// System.ValueTuple<byte,object>
-	// System.ValueTuple<int,UnityEngine.Color,object>
 	// System.ValueTuple<int,byte>
 	// System.ValueTuple<int,float,float>
 	// System.ValueTuple<int,float>
@@ -3894,6 +4013,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 	// System.ValueTuple<int,object,object>
 	// System.ValueTuple<int,object>
 	// System.ValueTuple<object,byte>
+	// System.ValueTuple<object,int,UnityEngine.Color,int>
 	// System.ValueTuple<object,int,int>
 	// System.ValueTuple<object,int,object,object>
 	// System.ValueTuple<object,int>
@@ -3972,26 +4092,42 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,CardCore.StackEngine.<ResolveTop>d__11>(Cysharp.Threading.Tasks.UniTask.Awaiter&,CardCore.StackEngine.<ResolveTop>d__11&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattleCellPicker.<ConfirmAsync>d__14>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattleCellPicker.<ConfirmAsync>d__14&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattleController.<RunAiTurnAsync>d__29>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattleController.<RunAiTurnAsync>d__29&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattleFieldView.<>c__DisplayClass103_0.<<PresentDeathByRefAsync>b__0>d>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattleFieldView.<>c__DisplayClass103_0.<<PresentDeathByRefAsync>b__0>d&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattleFieldView.<>c__DisplayClass43_0.<<PresentEffectDeathAsync>b__0>d>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattleFieldView.<>c__DisplayClass43_0.<<PresentEffectDeathAsync>b__0>d&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattleFieldView.<ClashFxCoreAsync>d__39>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattleFieldView.<ClashFxCoreAsync>d__39&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattleFieldView.<DamageFxCoreAsync>d__29>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattleFieldView.<DamageFxCoreAsync>d__29&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattleFieldView.<DamageRefCoreAsync>d__97>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattleFieldView.<DamageRefCoreAsync>d__97&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattleFieldView.<FlightFxCoreAsync>d__45>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattleFieldView.<FlightFxCoreAsync>d__45&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattleFieldView.<FlightRefCoreAsync>d__101>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattleFieldView.<FlightRefCoreAsync>d__101&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattleFieldView.<HealFxCoreAsync>d__31>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattleFieldView.<HealFxCoreAsync>d__31&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattleFieldView.<HealRefCoreAsync>d__99>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattleFieldView.<HealRefCoreAsync>d__99&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattleFieldView.<PlayClashByRefAsync>d__108>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattleFieldView.<PlayClashByRefAsync>d__108&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattleFieldView.<PlayClashResolvedAsync>d__37>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattleFieldView.<PlayClashResolvedAsync>d__37&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattleFieldView.<PlayCombatShotAsync>d__111>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattleFieldView.<PlayCombatShotAsync>d__111&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattleFieldView.<PlayCounterFloatAsync>d__40>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattleFieldView.<PlayCounterFloatAsync>d__40&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattleFieldView.<PlayCounterFloatByRefAsync>d__104>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattleFieldView.<PlayCounterFloatByRefAsync>d__104&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattleFieldView.<PlayDamageByRefAsync>d__96>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattleFieldView.<PlayDamageByRefAsync>d__96&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattleFieldView.<PlayEffectDamageAsync>d__28>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattleFieldView.<PlayEffectDamageAsync>d__28&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattleFieldView.<PlayEffectFlightAsync>d__44>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattleFieldView.<PlayEffectFlightAsync>d__44&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattleFieldView.<PlayEffectHealAsync>d__30>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattleFieldView.<PlayEffectHealAsync>d__30&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattleFieldView.<PlayFlightByRefAsync>d__100>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattleFieldView.<PlayFlightByRefAsync>d__100&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattleFieldView.<PlayGrantBurstAsync>d__35>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattleFieldView.<PlayGrantBurstAsync>d__35&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattleFieldView.<PlayGrantBurstByRefAsync>d__105>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattleFieldView.<PlayGrantBurstByRefAsync>d__105&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattleFieldView.<PlayHealByRefAsync>d__98>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattleFieldView.<PlayHealByRefAsync>d__98&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattleFieldView.<PlayLuckRollAsync>d__38>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattleFieldView.<PlayLuckRollAsync>d__38&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattleFieldView.<PlayLuckRollByRefAsync>d__109>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattleFieldView.<PlayLuckRollByRefAsync>d__109&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattleFieldView.<PresentDeathByRefAsync>d__103>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattleFieldView.<PresentDeathByRefAsync>d__103&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattleFieldView.<PresentEffectDeathAsync>d__43>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattleFieldView.<PresentEffectDeathAsync>d__43&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattleFieldView.<RunUnitFxAsync>d__67>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattleFieldView.<RunUnitFxAsync>d__67&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattleFieldView.<WaitCastPayArrived>d__9>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattleFieldView.<WaitCastPayArrived>d__9&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattleOpeningDirector.<PlaceHeroesAsync>d__29>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattleOpeningDirector.<PlaceHeroesAsync>d__29&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattleOpeningDirector.<PlaceHeroesAsync>d__30>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattleOpeningDirector.<PlaceHeroesAsync>d__30&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattlePlayhead.<RunReplayFrameAsync>d__39>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattlePlayhead.<RunReplayFrameAsync>d__39&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattlePlayhead.<WaitIdleAsync>d__43>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattlePlayhead.<WaitIdleAsync>d__43&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattleScreen.<<MakePacedAi>b__122_0>d>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattleScreen.<<MakePacedAi>b__122_0>d&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattleTutorialDirector.<<MakePacedScriptedAi>b__57_0>d>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattleTutorialDirector.<<MakePacedScriptedAi>b__57_0>d&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.CombatChoreographer.<ConfirmTargetAsync>d__46>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.CombatChoreographer.<ConfirmTargetAsync>d__46&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.NeuralAiDriver.<TakeTurnAsync>d__6>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.NeuralAiDriver.<TakeTurnAsync>d__6&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.Online.TapLobbyController.<LeaveAndDisconnectAsync>d__29>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.Online.TapLobbyController.<LeaveAndDisconnectAsync>d__29&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.ScriptedAi.<TakeTurnAsync>d__11>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.ScriptedAi.<TakeTurnAsync>d__11&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.SimpleAI.<DoCombatAsync>d__41>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.SimpleAI.<DoCombatAsync>d__41&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.SimpleAI.<PaceAsync>d__14>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.SimpleAI.<PaceAsync>d__14&)
@@ -4014,9 +4150,11 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<byte>,CardCore.ProphecySystem.<ResolveAsync>d__10>(Cysharp.Threading.Tasks.UniTask.Awaiter<byte>&,CardCore.ProphecySystem.<ResolveAsync>d__10&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<byte>,CloudSave.CloudSyncService.<StartupSyncAsync>d__26>(Cysharp.Threading.Tasks.UniTask.Awaiter<byte>&,CloudSave.CloudSyncService.<StartupSyncAsync>d__26&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<byte>,SynergyUI.BattleFieldView.<DamageFxCoreAsync>d__29>(Cysharp.Threading.Tasks.UniTask.Awaiter<byte>&,SynergyUI.BattleFieldView.<DamageFxCoreAsync>d__29&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<byte>,SynergyUI.BattleFieldView.<DamageRefCoreAsync>d__97>(Cysharp.Threading.Tasks.UniTask.Awaiter<byte>&,SynergyUI.BattleFieldView.<DamageRefCoreAsync>d__97&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<byte>,SynergyUI.BattleFieldView.<FlightFxCoreAsync>d__45>(Cysharp.Threading.Tasks.UniTask.Awaiter<byte>&,SynergyUI.BattleFieldView.<FlightFxCoreAsync>d__45&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<byte>,SynergyUI.BattleFieldView.<FlightRefCoreAsync>d__101>(Cysharp.Threading.Tasks.UniTask.Awaiter<byte>&,SynergyUI.BattleFieldView.<FlightRefCoreAsync>d__101&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<byte>,SynergyUI.BattleFieldView.<PlayDeathExitAsync>d__17>(Cysharp.Threading.Tasks.UniTask.Awaiter<byte>&,SynergyUI.BattleFieldView.<PlayDeathExitAsync>d__17&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<byte>,SynergyUI.CombatChoreographer.<ReturnAsync>d__77>(Cysharp.Threading.Tasks.UniTask.Awaiter<byte>&,SynergyUI.CombatChoreographer.<ReturnAsync>d__77&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<byte>,SynergyUI.CombatChoreographer.<ReturnAsync>d__78>(Cysharp.Threading.Tasks.UniTask.Awaiter<byte>&,SynergyUI.CombatChoreographer.<ReturnAsync>d__78&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<byte>,SynergyUI.ScriptedAi.<TakeTurnAsync>d__11>(Cysharp.Threading.Tasks.UniTask.Awaiter<byte>&,SynergyUI.ScriptedAi.<TakeTurnAsync>d__11&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<byte>,SynergyUI.SimpleAI.<TakeTurnAsync>d__22>(Cysharp.Threading.Tasks.UniTask.Awaiter<byte>&,SynergyUI.SimpleAI.<TakeTurnAsync>d__22&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<int>,CardCore.Attribute.Handlers.MoveUnitHandler.<ExecuteAsync>d__3>(Cysharp.Threading.Tasks.UniTask.Awaiter<int>&,CardCore.Attribute.Handlers.MoveUnitHandler.<ExecuteAsync>d__3&)
@@ -4036,45 +4174,48 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,CardCore.GameActions.<SettleResponseWindowAsync>d__52>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,CardCore.GameActions.<SettleResponseWindowAsync>d__52&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,CardCore.GameCore.<EnforceHandLimitAsync>d__65>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,CardCore.GameCore.<EnforceHandLimitAsync>d__65&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,CloudSave.CloudSyncService.<StartupSyncAsync>d__26>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,CloudSave.CloudSyncService.<StartupSyncAsync>d__26&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,SynergyUI.BattleOpeningDirector.<NetworkDeckPickAsync>d__32>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,SynergyUI.BattleOpeningDirector.<NetworkDeckPickAsync>d__32&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,SynergyUI.BattleOpeningDirector.<NetworkDeckPickAsync>d__33>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,SynergyUI.BattleOpeningDirector.<NetworkDeckPickAsync>d__33&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,SynergyUI.RankedMatchmaking.<HostWaitingRoom>d__36>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,SynergyUI.RankedMatchmaking.<HostWaitingRoom>d__36&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,SynergyUI.RankedMatchmaking.<JoinCandidate>d__35>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,SynergyUI.RankedMatchmaking.<JoinCandidate>d__35&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.YieldAwaitable.Awaiter,CloudSave.CloudTasks.<AwaitOnMain>d__1>(Cysharp.Threading.Tasks.YieldAwaitable.Awaiter&,CloudSave.CloudTasks.<AwaitOnMain>d__1&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.YieldAwaitable.Awaiter,SynergyUI.BattleAttackArrow.<FadeOutAsync>d__23>(Cysharp.Threading.Tasks.YieldAwaitable.Awaiter&,SynergyUI.BattleAttackArrow.<FadeOutAsync>d__23&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.YieldAwaitable.Awaiter,SynergyUI.BattleBoardAssemble.<PlayAsync>d__9>(Cysharp.Threading.Tasks.YieldAwaitable.Awaiter&,SynergyUI.BattleBoardAssemble.<PlayAsync>d__9&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.YieldAwaitable.Awaiter,SynergyUI.BattleDeckPickStage.<FlyToDeckAsync>d__32>(Cysharp.Threading.Tasks.YieldAwaitable.Awaiter&,SynergyUI.BattleDeckPickStage.<FlyToDeckAsync>d__32&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.YieldAwaitable.Awaiter,SynergyUI.BattleEffectFx.<PlayOrbAsync>d__24>(Cysharp.Threading.Tasks.YieldAwaitable.Awaiter&,SynergyUI.BattleEffectFx.<PlayOrbAsync>d__24&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.YieldAwaitable.Awaiter,SynergyUI.BattleFieldView.<ArcMoveAsync>d__112>(Cysharp.Threading.Tasks.YieldAwaitable.Awaiter&,SynergyUI.BattleFieldView.<ArcMoveAsync>d__112&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.YieldAwaitable.Awaiter,SynergyUI.BattleFieldView.<FloatTextAsync>d__47>(Cysharp.Threading.Tasks.YieldAwaitable.Awaiter&,SynergyUI.BattleFieldView.<FloatTextAsync>d__47&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.YieldAwaitable.Awaiter,SynergyUI.BattleFieldView.<HeroFatigueHitAsync>d__22>(Cysharp.Threading.Tasks.YieldAwaitable.Awaiter&,SynergyUI.BattleFieldView.<HeroFatigueHitAsync>d__22&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.YieldAwaitable.Awaiter,SynergyUI.BattleFieldView.<HeroImpactPulseAsync>d__21>(Cysharp.Threading.Tasks.YieldAwaitable.Awaiter&,SynergyUI.BattleFieldView.<HeroImpactPulseAsync>d__21&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.YieldAwaitable.Awaiter,SynergyUI.BattleFieldView.<WaitVisualsIdleAsync>d__65>(Cysharp.Threading.Tasks.YieldAwaitable.Awaiter&,SynergyUI.BattleFieldView.<WaitVisualsIdleAsync>d__65&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.YieldAwaitable.Awaiter,SynergyUI.BattleOpeningDirector.<BeatAsync>d__40>(Cysharp.Threading.Tasks.YieldAwaitable.Awaiter&,SynergyUI.BattleOpeningDirector.<BeatAsync>d__40&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.YieldAwaitable.Awaiter,SynergyUI.BattleOpeningDirector.<PlaceHeroesAsync>d__29>(Cysharp.Threading.Tasks.YieldAwaitable.Awaiter&,SynergyUI.BattleOpeningDirector.<PlaceHeroesAsync>d__29&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.YieldAwaitable.Awaiter,SynergyUI.BattleOpeningDirector.<WaitBoardAssembledAsync>d__28>(Cysharp.Threading.Tasks.YieldAwaitable.Awaiter&,SynergyUI.BattleOpeningDirector.<WaitBoardAssembledAsync>d__28&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.YieldAwaitable.Awaiter,SynergyUI.BattleOpeningDirector.<BeatAsync>d__41>(Cysharp.Threading.Tasks.YieldAwaitable.Awaiter&,SynergyUI.BattleOpeningDirector.<BeatAsync>d__41&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.YieldAwaitable.Awaiter,SynergyUI.BattleOpeningDirector.<PlaceHeroesAsync>d__30>(Cysharp.Threading.Tasks.YieldAwaitable.Awaiter&,SynergyUI.BattleOpeningDirector.<PlaceHeroesAsync>d__30&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.YieldAwaitable.Awaiter,SynergyUI.BattleOpeningDirector.<WaitBoardAssembledAsync>d__29>(Cysharp.Threading.Tasks.YieldAwaitable.Awaiter&,SynergyUI.BattleOpeningDirector.<WaitBoardAssembledAsync>d__29&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.YieldAwaitable.Awaiter,SynergyUI.BattleResolutionDirector.<WaitIdleAsync>d__30>(Cysharp.Threading.Tasks.YieldAwaitable.Awaiter&,SynergyUI.BattleResolutionDirector.<WaitIdleAsync>d__30&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.YieldAwaitable.Awaiter,SynergyUI.BattleStageDirector.<TweenLightX>d__31>(Cysharp.Threading.Tasks.YieldAwaitable.Awaiter&,SynergyUI.BattleStageDirector.<TweenLightX>d__31&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.YieldAwaitable.Awaiter,SynergyUI.BattleTutorialDirector.<<MakePacedScriptedAi>b__57_0>d>(Cysharp.Threading.Tasks.YieldAwaitable.Awaiter&,SynergyUI.BattleTutorialDirector.<<MakePacedScriptedAi>b__57_0>d&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.YieldAwaitable.Awaiter,SynergyUI.CombatChoreographer.<DelayChainAware>d__80>(Cysharp.Threading.Tasks.YieldAwaitable.Awaiter&,SynergyUI.CombatChoreographer.<DelayChainAware>d__80&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.YieldAwaitable.Awaiter,SynergyUI.CombatChoreographer.<WaitChainIdleAsync>d__81>(Cysharp.Threading.Tasks.YieldAwaitable.Awaiter&,SynergyUI.CombatChoreographer.<WaitChainIdleAsync>d__81&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.YieldAwaitable.Awaiter,SynergyUI.CombatChoreographer.<DelayChainAware>d__81>(Cysharp.Threading.Tasks.YieldAwaitable.Awaiter&,SynergyUI.CombatChoreographer.<DelayChainAware>d__81&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.YieldAwaitable.Awaiter,SynergyUI.CombatChoreographer.<WaitChainIdleAsync>d__82>(Cysharp.Threading.Tasks.YieldAwaitable.Awaiter&,SynergyUI.CombatChoreographer.<WaitChainIdleAsync>d__82&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.YieldAwaitable.Awaiter,SynergyUI.NeuralAiDriver.<TakeTurnAsync>d__6>(Cysharp.Threading.Tasks.YieldAwaitable.Awaiter&,SynergyUI.NeuralAiDriver.<TakeTurnAsync>d__6&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<System.Runtime.CompilerServices.TaskAwaiter,CardCore.TideDelay.<After>d__0>(System.Runtime.CompilerServices.TaskAwaiter&,CardCore.TideDelay.<After>d__0&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<System.Runtime.CompilerServices.TaskAwaiter,SynergyUI.Online.TapLobbyController.<LeaveAndDisconnectAsync>d__18>(System.Runtime.CompilerServices.TaskAwaiter&,SynergyUI.Online.TapLobbyController.<LeaveAndDisconnectAsync>d__18&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<System.Nullable<byte>>.AwaitUnsafeOnCompleted<System.Runtime.CompilerServices.TaskAwaiter<System.Nullable<byte>>,SynergyUI.BattleScreen.<ShowTipPromptAsync>d__248>(System.Runtime.CompilerServices.TaskAwaiter<System.Nullable<byte>>&,SynergyUI.BattleScreen.<ShowTipPromptAsync>d__248&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<System.Nullable<byte>>.AwaitUnsafeOnCompleted<System.Runtime.CompilerServices.TaskAwaiter<System.Nullable<byte>>,SynergyUI.BattleScreen.<ShowTipPromptAsync>d__267>(System.Runtime.CompilerServices.TaskAwaiter<System.Nullable<byte>>&,SynergyUI.BattleScreen.<ShowTipPromptAsync>d__267&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<System.Nullable<byte>>.AwaitUnsafeOnCompleted<System.Runtime.CompilerServices.TaskAwaiter<System.Nullable<byte>>,SynergyUI.TipPromptHost.<ShowAsync>d__5>(System.Runtime.CompilerServices.TaskAwaiter<System.Nullable<byte>>&,SynergyUI.TipPromptHost.<ShowAsync>d__5&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<System.Nullable<int>>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,SynergyUI.BattleScreen.<PickRegionOptionAsync>d__107>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,SynergyUI.BattleScreen.<PickRegionOptionAsync>d__107&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<System.ValueTuple<object,object,byte>>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<int>,CardCore.Attribute.Handlers.ProphecyHandlerUtil.<PickOptionAsync>d__6>(Cysharp.Threading.Tasks.UniTask.Awaiter<int>&,CardCore.Attribute.Handlers.ProphecyHandlerUtil.<PickOptionAsync>d__6&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<System.ValueTuple<object,object>>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattleDeckPickStage.<PickAsync>d__21>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattleDeckPickStage.<PickAsync>d__21&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<System.ValueTuple<object,object>>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<System.ValueTuple<object,object>>,SynergyUI.BattleOpeningDirector.<DeckPickStageAsync>d__33>(Cysharp.Threading.Tasks.UniTask.Awaiter<System.ValueTuple<object,object>>&,SynergyUI.BattleOpeningDirector.<DeckPickStageAsync>d__33&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<System.ValueTuple<object,object>>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,SynergyUI.BattleOpeningDirector.<DeckPickStageAsync>d__33>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,SynergyUI.BattleOpeningDirector.<DeckPickStageAsync>d__33&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<System.ValueTuple<object,object>>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<System.ValueTuple<object,object>>,SynergyUI.BattleOpeningDirector.<DeckPickStageAsync>d__34>(Cysharp.Threading.Tasks.UniTask.Awaiter<System.ValueTuple<object,object>>&,SynergyUI.BattleOpeningDirector.<DeckPickStageAsync>d__34&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<System.ValueTuple<object,object>>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,SynergyUI.BattleOpeningDirector.<DeckPickStageAsync>d__34>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,SynergyUI.BattleOpeningDirector.<DeckPickStageAsync>d__34&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<System.ValueTuple<object,object>>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.YieldAwaitable.Awaiter,SynergyUI.BattleDeckPickStage.<PickAsync>d__21>(Cysharp.Threading.Tasks.YieldAwaitable.Awaiter&,SynergyUI.BattleDeckPickStage.<PickAsync>d__21&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<byte>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,CardCore.Attribute.EffectHandlerRegistry.<ExecuteEffectAsync>d__5>(Cysharp.Threading.Tasks.UniTask.Awaiter&,CardCore.Attribute.EffectHandlerRegistry.<ExecuteEffectAsync>d__5&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<byte>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.CombatChoreographer.<FlyAsync>d__84>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.CombatChoreographer.<FlyAsync>d__84&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<byte>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.CombatChoreographer.<FlyAsync>d__85>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.CombatChoreographer.<FlyAsync>d__85&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<byte>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.ScriptedAi.<ExecuteAsync>d__13>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.ScriptedAi.<ExecuteAsync>d__13&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<byte>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.SimpleAI.<PlayBestAffordableCardAsync>d__28>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.SimpleAI.<PlayBestAffordableCardAsync>d__28&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<byte>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.SimpleAI.<UseHeroSkillAsync>d__25>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.SimpleAI.<UseHeroSkillAsync>d__25&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<byte>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<byte>,CardCore.CostCompensationService.<ExecutePayloadAtomAsync>d__3>(Cysharp.Threading.Tasks.UniTask.Awaiter<byte>&,CardCore.CostCompensationService.<ExecutePayloadAtomAsync>d__3&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<byte>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<byte>,CardCore.CostCompensationService.<PayPayloadsAsync>d__0>(Cysharp.Threading.Tasks.UniTask.Awaiter<byte>&,CardCore.CostCompensationService.<PayPayloadsAsync>d__0&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<byte>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<byte>,CardCore.GameActions.<ActivateHeroSkill>d__70>(Cysharp.Threading.Tasks.UniTask.Awaiter<byte>&,CardCore.GameActions.<ActivateHeroSkill>d__70&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<byte>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<byte>,SynergyUI.BattleOpeningDirector.<CoinStageAsync>d__30>(Cysharp.Threading.Tasks.UniTask.Awaiter<byte>&,SynergyUI.BattleOpeningDirector.<CoinStageAsync>d__30&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<byte>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<byte>,SynergyUI.BattleOpeningDirector.<CoinStageForcedAsync>d__31>(Cysharp.Threading.Tasks.UniTask.Awaiter<byte>&,SynergyUI.BattleOpeningDirector.<CoinStageForcedAsync>d__31&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<byte>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<byte>,SynergyUI.BattleFieldView.<TryRouteCastChainAsync>d__95>(Cysharp.Threading.Tasks.UniTask.Awaiter<byte>&,SynergyUI.BattleFieldView.<TryRouteCastChainAsync>d__95&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<byte>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<byte>,SynergyUI.BattleOpeningDirector.<CoinStageAsync>d__31>(Cysharp.Threading.Tasks.UniTask.Awaiter<byte>&,SynergyUI.BattleOpeningDirector.<CoinStageAsync>d__31&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<byte>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<byte>,SynergyUI.BattleOpeningDirector.<CoinStageForcedAsync>d__32>(Cysharp.Threading.Tasks.UniTask.Awaiter<byte>&,SynergyUI.BattleOpeningDirector.<CoinStageForcedAsync>d__32&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<byte>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<byte>,SynergyUI.ScriptedAi.<ExecuteAsync>d__13>(Cysharp.Threading.Tasks.UniTask.Awaiter<byte>&,SynergyUI.ScriptedAi.<ExecuteAsync>d__13&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<byte>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<byte>,SynergyUI.SimpleAI.<UseHeroSkillAsync>d__25>(Cysharp.Threading.Tasks.UniTask.Awaiter<byte>&,SynergyUI.SimpleAI.<UseHeroSkillAsync>d__25&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<byte>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,CardCore.Attribute.EffectHandlerRegistry.<ExecuteEffectAsync>d__5>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,CardCore.Attribute.EffectHandlerRegistry.<ExecuteEffectAsync>d__5&)
@@ -4083,20 +4224,22 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<byte>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,CloudSave.CloudSyncService.<RestoreFromCloudAsync>d__28>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,CloudSave.CloudSyncService.<RestoreFromCloudAsync>d__28&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<byte>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,CloudSave.CloudSyncService.<UploadAsync>d__27>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,CloudSave.CloudSyncService.<UploadAsync>d__27&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<byte>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,CloudSave.TapAccountService.<EnsureLoginAsync>d__9>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,CloudSave.TapAccountService.<EnsureLoginAsync>d__9&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<byte>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,SynergyUI.BattleScreen.<NetPickUnitCellAsync>d__144>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,SynergyUI.BattleScreen.<NetPickUnitCellAsync>d__144&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<byte>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,SynergyUI.BattleScreen.<NetPickUnitCellAsync>d__157>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,SynergyUI.BattleScreen.<NetPickUnitCellAsync>d__157&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<byte>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.YieldAwaitable.Awaiter,SynergyUI.BattleCoinToss.<PlayAsync>d__14>(Cysharp.Threading.Tasks.YieldAwaitable.Awaiter&,SynergyUI.BattleCoinToss.<PlayAsync>d__14&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<byte>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.YieldAwaitable.Awaiter,SynergyUI.BattleFieldView.<DeadHoldAsync>d__18>(Cysharp.Threading.Tasks.YieldAwaitable.Awaiter&,SynergyUI.BattleFieldView.<DeadHoldAsync>d__18&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<byte>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.YieldAwaitable.Awaiter,SynergyUI.BattleFieldView.<SinkUnderBoardAsync>d__19>(Cysharp.Threading.Tasks.YieldAwaitable.Awaiter&,SynergyUI.BattleFieldView.<SinkUnderBoardAsync>d__19&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<byte>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.YieldAwaitable.Awaiter,SynergyUI.BattleVfxFx.<TryPlayProjectileAsync>d__28>(Cysharp.Threading.Tasks.YieldAwaitable.Awaiter&,SynergyUI.BattleVfxFx.<TryPlayProjectileAsync>d__28&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<byte>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.YieldAwaitable.Awaiter,SynergyUI.CombatChoreographer.<FlyAsync>d__84>(Cysharp.Threading.Tasks.YieldAwaitable.Awaiter&,SynergyUI.CombatChoreographer.<FlyAsync>d__84&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<byte>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.YieldAwaitable.Awaiter,SynergyUI.CombatChoreographer.<FlyAsync>d__85>(Cysharp.Threading.Tasks.YieldAwaitable.Awaiter&,SynergyUI.CombatChoreographer.<FlyAsync>d__85&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<int>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<System.ValueTuple<int,object,object>>,CardCore.TargetSelectionService.<RequestOneIndexAsync>d__23>(Cysharp.Threading.Tasks.UniTask.Awaiter<System.ValueTuple<int,object,object>>&,CardCore.TargetSelectionService.<RequestOneIndexAsync>d__23&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<int>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<int>,CardCore.TargetSelectionService.<RequestOneIndexAsync>d__23>(Cysharp.Threading.Tasks.UniTask.Awaiter<int>&,CardCore.TargetSelectionService.<RequestOneIndexAsync>d__23&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<int>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<int>,SynergyUI.BattleScreen.<PickMoveDestinationAsync>d__98>(Cysharp.Threading.Tasks.UniTask.Awaiter<int>&,SynergyUI.BattleScreen.<PickMoveDestinationAsync>d__98&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<int>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,CardCore.Network.NetworkTargetSelector.<SelectOneAsync>d__19>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,CardCore.Network.NetworkTargetSelector.<SelectOneAsync>d__19&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<int>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,SynergyUI.RegionTargetSelector.<SelectOneAsync>d__54>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,SynergyUI.RegionTargetSelector.<SelectOneAsync>d__54&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.SwitchToMainThreadAwaitable.Awaiter,SynergyUI.Online.TapAccountService.<InitAndWaitAsync>d__20>(Cysharp.Threading.Tasks.SwitchToMainThreadAwaitable.Awaiter&,SynergyUI.Online.TapAccountService.<InitAndWaitAsync>d__20&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.SwitchToMainThreadAwaitable.Awaiter,SynergyUI.Online.TapAccountService.<InitAndWaitAsync>d__21>(Cysharp.Threading.Tasks.SwitchToMainThreadAwaitable.Awaiter&,SynergyUI.Online.TapAccountService.<InitAndWaitAsync>d__21&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,CardCore.Network.NetworkTargetSelector.<SelectAsync>d__18>(Cysharp.Threading.Tasks.UniTask.Awaiter&,CardCore.Network.NetworkTargetSelector.<SelectAsync>d__18&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,CardCore.Network.NetworkTargetSelector.<SelectTextAsync>d__20>(Cysharp.Threading.Tasks.UniTask.Awaiter&,CardCore.Network.NetworkTargetSelector.<SelectTextAsync>d__20&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.Online.TapLobbySection.<CreateRoomCore>d__15>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.Online.TapLobbySection.<CreateRoomCore>d__15&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.Online.TapLobbySection.<LeaveAsync>d__17>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.Online.TapLobbySection.<LeaveAsync>d__17&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<System.ValueTuple<int,object,object>>,CardCore.Network.NetworkTargetSelector.<SelectAsync>d__18>(Cysharp.Threading.Tasks.UniTask.Awaiter<System.ValueTuple<int,object,object>>&,CardCore.Network.NetworkTargetSelector.<SelectAsync>d__18&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<System.ValueTuple<int,object,object>>,CardCore.Network.NetworkTargetSelector.<SelectTextAsync>d__20>(Cysharp.Threading.Tasks.UniTask.Awaiter<System.ValueTuple<int,object,object>>&,CardCore.Network.NetworkTargetSelector.<SelectTextAsync>d__20&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<System.ValueTuple<int,object,object>>,CardCore.TargetSelectionService.<RequestAsync>d__22>(Cysharp.Threading.Tasks.UniTask.Awaiter<System.ValueTuple<int,object,object>>&,CardCore.TargetSelectionService.<RequestAsync>d__22&)
@@ -4106,20 +4249,31 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<System.ValueTuple<int,object,object>>,SynergyUI.RegionTargetSelector.<RunTextInputAsync>d__57>(Cysharp.Threading.Tasks.UniTask.Awaiter<System.ValueTuple<int,object,object>>&,SynergyUI.RegionTargetSelector.<RunTextInputAsync>d__57&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<System.ValueTuple<object,object,byte>>,CardCore.Attribute.Handlers.ProphecyHandlerUtil.<AskDimensionAsync>d__5>(Cysharp.Threading.Tasks.UniTask.Awaiter<System.ValueTuple<object,object,byte>>&,CardCore.Attribute.Handlers.ProphecyHandlerUtil.<AskDimensionAsync>d__5&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<int>,CardCore.Attribute.Handlers.DeckArrangeHelper.<ArrangeAsync>d__2>(Cysharp.Threading.Tasks.UniTask.Awaiter<int>&,CardCore.Attribute.Handlers.DeckArrangeHelper.<ArrangeAsync>d__2&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,CardCore.Attribute.EffectHandlerRegistry.<AskCompositionDeclarationAsync>d__22>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,CardCore.Attribute.EffectHandlerRegistry.<AskCompositionDeclarationAsync>d__22&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,CardCore.Attribute.EffectHandlerRegistry.<CollectDeclarationTargetsAsync>d__21>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,CardCore.Attribute.EffectHandlerRegistry.<CollectDeclarationTargetsAsync>d__21&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,CardCore.Attribute.EffectHandlerRegistry.<ResolveAtomTargetsAsync>d__15>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,CardCore.Attribute.EffectHandlerRegistry.<ResolveAtomTargetsAsync>d__15&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,CardCore.Attribute.EffectHandlerRegistry.<ResolveCompositionTargetsAsync>d__9>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,CardCore.Attribute.EffectHandlerRegistry.<ResolveCompositionTargetsAsync>d__9&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,CardCore.Attribute.EffectHandlerRegistry.<ResolveRewardTargetsAsync>d__13>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,CardCore.Attribute.EffectHandlerRegistry.<ResolveRewardTargetsAsync>d__13&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,CardCore.Attribute.EffectHandlerRegistry.<ResolveTargetsInteractiveAsync>d__14>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,CardCore.Attribute.EffectHandlerRegistry.<ResolveTargetsInteractiveAsync>d__14&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,CardCore.Attribute.EffectHandlerRegistry.<AskCompositionDeclarationAsync>d__23>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,CardCore.Attribute.EffectHandlerRegistry.<AskCompositionDeclarationAsync>d__23&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,CardCore.Attribute.EffectHandlerRegistry.<CollectDeclarationTargetsAsync>d__22>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,CardCore.Attribute.EffectHandlerRegistry.<CollectDeclarationTargetsAsync>d__22&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,CardCore.Attribute.EffectHandlerRegistry.<ResolveAtomTargetsAsync>d__16>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,CardCore.Attribute.EffectHandlerRegistry.<ResolveAtomTargetsAsync>d__16&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,CardCore.Attribute.EffectHandlerRegistry.<ResolveCompositionTargetsAsync>d__10>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,CardCore.Attribute.EffectHandlerRegistry.<ResolveCompositionTargetsAsync>d__10&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,CardCore.Attribute.EffectHandlerRegistry.<ResolveRewardTargetsAsync>d__14>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,CardCore.Attribute.EffectHandlerRegistry.<ResolveRewardTargetsAsync>d__14&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,CardCore.Attribute.EffectHandlerRegistry.<ResolveTargetsInteractiveAsync>d__15>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,CardCore.Attribute.EffectHandlerRegistry.<ResolveTargetsInteractiveAsync>d__15&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,CardCore.Attribute.Handlers.ProphecyHandlerUtil.<AskDimensionAsync>d__5>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,CardCore.Attribute.Handlers.ProphecyHandlerUtil.<AskDimensionAsync>d__5&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,CardCore.EffectExecutor.<ResolveSegmentedTargetsAsync>d__20>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,CardCore.EffectExecutor.<ResolveSegmentedTargetsAsync>d__20&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,CardCore.GameActions.<CollectSpellDeclarationTargetsAsync>d__41>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,CardCore.GameActions.<CollectSpellDeclarationTargetsAsync>d__41&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,CardCore.TargetSelectionService.<RequestAsync>d__22>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,CardCore.TargetSelectionService.<RequestAsync>d__22&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,CardCore.TargetSelectionService.<RequestTextAsync>d__24>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,CardCore.TargetSelectionService.<RequestTextAsync>d__24&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,SynergyUI.BattleDecisionHub.<ShowResponseAsync>d__60>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,SynergyUI.BattleDecisionHub.<ShowResponseAsync>d__60&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,SynergyUI.BattleScreen.<PickCellAsync>d__151>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,SynergyUI.BattleScreen.<PickCellAsync>d__151&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,SynergyUI.Online.TapAccountService.<LoginAsync>d__17>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,SynergyUI.Online.TapAccountService.<LoginAsync>d__17&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,SynergyUI.BattleScreen.<PickCellAsync>d__164>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,SynergyUI.BattleScreen.<PickCellAsync>d__164&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,SynergyUI.Online.TapAccountService.<EnsureReadyAsync>d__17>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,SynergyUI.Online.TapAccountService.<EnsureReadyAsync>d__17&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,SynergyUI.Online.TapAccountService.<LoginAsync>d__18>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,SynergyUI.Online.TapAccountService.<LoginAsync>d__18&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,SynergyUI.Online.TapLobbyController.<CreateRoomAsync>d__26>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,SynergyUI.Online.TapLobbyController.<CreateRoomAsync>d__26&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,SynergyUI.Online.TapLobbyController.<EnsureLoginAndConnectAsync>d__18>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,SynergyUI.Online.TapLobbyController.<EnsureLoginAndConnectAsync>d__18&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,SynergyUI.Online.TapLobbyController.<GetRoomListAsync>d__27>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,SynergyUI.Online.TapLobbyController.<GetRoomListAsync>d__27&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,SynergyUI.Online.TapLobbyController.<JoinRoomAsync>d__28>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,SynergyUI.Online.TapLobbyController.<JoinRoomAsync>d__28&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,SynergyUI.Online.TapLobbySection.<CreateRankedRoomAsync>d__14>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,SynergyUI.Online.TapLobbySection.<CreateRankedRoomAsync>d__14&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,SynergyUI.Online.TapLobbySection.<CreateRoomAsync>d__13>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,SynergyUI.Online.TapLobbySection.<CreateRoomAsync>d__13&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,SynergyUI.Online.TapLobbySection.<CreateRoomCore>d__15>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,SynergyUI.Online.TapLobbySection.<CreateRoomCore>d__15&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,SynergyUI.Online.TapLobbySection.<EnsureLoginAsync>d__10>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,SynergyUI.Online.TapLobbySection.<EnsureLoginAsync>d__10&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,SynergyUI.Online.TapLobbySection.<JoinRoomAsync>d__16>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,SynergyUI.Online.TapLobbySection.<JoinRoomAsync>d__16&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,SynergyUI.Online.TapLobbySection.<ListRoomsAsync>d__11>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,SynergyUI.Online.TapLobbySection.<ListRoomsAsync>d__11&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,SynergyUI.RegionTargetSelector.<PromptTextAsync>d__56>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,SynergyUI.RegionTargetSelector.<PromptTextAsync>d__56&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,SynergyUI.RegionTargetSelector.<SelectAsync>d__48>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,SynergyUI.RegionTargetSelector.<SelectAsync>d__48&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,SynergyUI.RegionTargetSelector.<SelectIndicesAsync>d__50>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,SynergyUI.RegionTargetSelector.<SelectIndicesAsync>d__50&)
@@ -4129,13 +4283,10 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.YieldAwaitable.Awaiter,SynergyUI.DummyOptionsPanel.<ShowAsync>d__9>(Cysharp.Threading.Tasks.YieldAwaitable.Awaiter&,SynergyUI.DummyOptionsPanel.<ShowAsync>d__9&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.YieldAwaitable.Awaiter,SynergyUI.NetworkDeckPanel.<WaitAsync>d__15>(Cysharp.Threading.Tasks.YieldAwaitable.Awaiter&,SynergyUI.NetworkDeckPanel.<WaitAsync>d__15&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.YieldAwaitable.Awaiter,SynergyUI.RegionTargetSelector.<Run>d__59>(Cysharp.Threading.Tasks.YieldAwaitable.Awaiter&,SynergyUI.RegionTargetSelector.<Run>d__59&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<System.Runtime.CompilerServices.TaskAwaiter,SynergyUI.Online.TapLobbyController.<EnsureLoginAndConnectAsync>d__14>(System.Runtime.CompilerServices.TaskAwaiter&,SynergyUI.Online.TapLobbyController.<EnsureLoginAndConnectAsync>d__14&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<System.Runtime.CompilerServices.TaskAwaiter<object>,SynergyUI.Online.TapAccountService.<InitAndWaitAsync>d__20>(System.Runtime.CompilerServices.TaskAwaiter<object>&,SynergyUI.Online.TapAccountService.<InitAndWaitAsync>d__20&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<System.Runtime.CompilerServices.TaskAwaiter<object>,SynergyUI.Online.TapAccountService.<LoginAsync>d__17>(System.Runtime.CompilerServices.TaskAwaiter<object>&,SynergyUI.Online.TapAccountService.<LoginAsync>d__17&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<System.Runtime.CompilerServices.TaskAwaiter<object>,SynergyUI.Online.TapLobbyController.<CreateRoomAsync>d__15>(System.Runtime.CompilerServices.TaskAwaiter<object>&,SynergyUI.Online.TapLobbyController.<CreateRoomAsync>d__15&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<System.Runtime.CompilerServices.TaskAwaiter<object>,SynergyUI.Online.TapLobbyController.<EnsureLoginAndConnectAsync>d__14>(System.Runtime.CompilerServices.TaskAwaiter<object>&,SynergyUI.Online.TapLobbyController.<EnsureLoginAndConnectAsync>d__14&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<System.Runtime.CompilerServices.TaskAwaiter<object>,SynergyUI.Online.TapLobbyController.<GetRoomListAsync>d__16>(System.Runtime.CompilerServices.TaskAwaiter<object>&,SynergyUI.Online.TapLobbyController.<GetRoomListAsync>d__16&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<System.Runtime.CompilerServices.TaskAwaiter<object>,SynergyUI.Online.TapLobbyController.<JoinRoomAsync>d__17>(System.Runtime.CompilerServices.TaskAwaiter<object>&,SynergyUI.Online.TapLobbyController.<JoinRoomAsync>d__17&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<System.Runtime.CompilerServices.TaskAwaiter,SynergyUI.Online.TapLobbyController.<EnsureLoginAndConnectAsync>d__18>(System.Runtime.CompilerServices.TaskAwaiter&,SynergyUI.Online.TapLobbyController.<EnsureLoginAndConnectAsync>d__18&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<System.Runtime.CompilerServices.TaskAwaiter<object>,SynergyUI.Online.TapAccountService.<InitAndWaitAsync>d__21>(System.Runtime.CompilerServices.TaskAwaiter<object>&,SynergyUI.Online.TapAccountService.<InitAndWaitAsync>d__21&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<System.Runtime.CompilerServices.TaskAwaiter<object>,SynergyUI.Online.TapAccountService.<LoginAsync>d__18>(System.Runtime.CompilerServices.TaskAwaiter<object>&,SynergyUI.Online.TapAccountService.<LoginAsync>d__18&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.AwaitUnsafeOnCompleted<System.Runtime.CompilerServices.TaskAwaiter<object>,SynergyUI.Online.TapLobbyController.<EnsureLoginAndConnectAsync>d__18>(System.Runtime.CompilerServices.TaskAwaiter<object>&,SynergyUI.Online.TapLobbyController.<EnsureLoginAndConnectAsync>d__18&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<CardCore.Attribute.Handlers.DeclareDeckHandler.<ExecuteAsync>d__2>(CardCore.Attribute.Handlers.DeclareDeckHandler.<ExecuteAsync>d__2&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<CardCore.Attribute.Handlers.DeclareDeckTopHandler.<ExecuteAsync>d__2>(CardCore.Attribute.Handlers.DeclareDeckTopHandler.<ExecuteAsync>d__2&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<CardCore.Attribute.Handlers.DeclareHandHandler.<ExecuteAsync>d__2>(CardCore.Attribute.Handlers.DeclareHandHandler.<ExecuteAsync>d__2&)
@@ -4191,52 +4342,70 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.BattleController.<RunAiTurnAsync>d__29>(SynergyUI.BattleController.<RunAiTurnAsync>d__29&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.BattleDeckPickStage.<FlyToDeckAsync>d__32>(SynergyUI.BattleDeckPickStage.<FlyToDeckAsync>d__32&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.BattleEffectFx.<PlayOrbAsync>d__24>(SynergyUI.BattleEffectFx.<PlayOrbAsync>d__24&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.BattleFieldView.<>c__DisplayClass103_0.<<PresentDeathByRefAsync>b__0>d>(SynergyUI.BattleFieldView.<>c__DisplayClass103_0.<<PresentDeathByRefAsync>b__0>d&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.BattleFieldView.<>c__DisplayClass43_0.<<PresentEffectDeathAsync>b__0>d>(SynergyUI.BattleFieldView.<>c__DisplayClass43_0.<<PresentEffectDeathAsync>b__0>d&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.BattleFieldView.<ArcMoveAsync>d__112>(SynergyUI.BattleFieldView.<ArcMoveAsync>d__112&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.BattleFieldView.<ClashFxCoreAsync>d__39>(SynergyUI.BattleFieldView.<ClashFxCoreAsync>d__39&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.BattleFieldView.<DamageFxCoreAsync>d__29>(SynergyUI.BattleFieldView.<DamageFxCoreAsync>d__29&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.BattleFieldView.<DamageRefCoreAsync>d__97>(SynergyUI.BattleFieldView.<DamageRefCoreAsync>d__97&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.BattleFieldView.<FlightFxCoreAsync>d__45>(SynergyUI.BattleFieldView.<FlightFxCoreAsync>d__45&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.BattleFieldView.<FlightRefCoreAsync>d__101>(SynergyUI.BattleFieldView.<FlightRefCoreAsync>d__101&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.BattleFieldView.<FloatTextAsync>d__47>(SynergyUI.BattleFieldView.<FloatTextAsync>d__47&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.BattleFieldView.<HealFxCoreAsync>d__31>(SynergyUI.BattleFieldView.<HealFxCoreAsync>d__31&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.BattleFieldView.<HealRefCoreAsync>d__99>(SynergyUI.BattleFieldView.<HealRefCoreAsync>d__99&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.BattleFieldView.<HeroFatigueHitAsync>d__22>(SynergyUI.BattleFieldView.<HeroFatigueHitAsync>d__22&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.BattleFieldView.<HeroImpactPulseAsync>d__21>(SynergyUI.BattleFieldView.<HeroImpactPulseAsync>d__21&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.BattleFieldView.<PlayClashByRefAsync>d__108>(SynergyUI.BattleFieldView.<PlayClashByRefAsync>d__108&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.BattleFieldView.<PlayClashResolvedAsync>d__37>(SynergyUI.BattleFieldView.<PlayClashResolvedAsync>d__37&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.BattleFieldView.<PlayCombatShotAsync>d__111>(SynergyUI.BattleFieldView.<PlayCombatShotAsync>d__111&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.BattleFieldView.<PlayCounterFloatAsync>d__40>(SynergyUI.BattleFieldView.<PlayCounterFloatAsync>d__40&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.BattleFieldView.<PlayCounterFloatByRefAsync>d__104>(SynergyUI.BattleFieldView.<PlayCounterFloatByRefAsync>d__104&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.BattleFieldView.<PlayDamageByRefAsync>d__96>(SynergyUI.BattleFieldView.<PlayDamageByRefAsync>d__96&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.BattleFieldView.<PlayDeathExitAsync>d__17>(SynergyUI.BattleFieldView.<PlayDeathExitAsync>d__17&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.BattleFieldView.<PlayEffectDamageAsync>d__28>(SynergyUI.BattleFieldView.<PlayEffectDamageAsync>d__28&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.BattleFieldView.<PlayEffectFlightAsync>d__44>(SynergyUI.BattleFieldView.<PlayEffectFlightAsync>d__44&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.BattleFieldView.<PlayEffectHealAsync>d__30>(SynergyUI.BattleFieldView.<PlayEffectHealAsync>d__30&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.BattleFieldView.<PlayFlightByRefAsync>d__100>(SynergyUI.BattleFieldView.<PlayFlightByRefAsync>d__100&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.BattleFieldView.<PlayGrantBurstAsync>d__35>(SynergyUI.BattleFieldView.<PlayGrantBurstAsync>d__35&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.BattleFieldView.<PlayGrantBurstByRefAsync>d__105>(SynergyUI.BattleFieldView.<PlayGrantBurstByRefAsync>d__105&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.BattleFieldView.<PlayHealByRefAsync>d__98>(SynergyUI.BattleFieldView.<PlayHealByRefAsync>d__98&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.BattleFieldView.<PlayLuckRollAsync>d__38>(SynergyUI.BattleFieldView.<PlayLuckRollAsync>d__38&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.BattleFieldView.<PlayLuckRollByRefAsync>d__109>(SynergyUI.BattleFieldView.<PlayLuckRollByRefAsync>d__109&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.BattleFieldView.<PresentDeathByRefAsync>d__103>(SynergyUI.BattleFieldView.<PresentDeathByRefAsync>d__103&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.BattleFieldView.<PresentEffectDeathAsync>d__43>(SynergyUI.BattleFieldView.<PresentEffectDeathAsync>d__43&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.BattleFieldView.<RunUnitFxAsync>d__67>(SynergyUI.BattleFieldView.<RunUnitFxAsync>d__67&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.BattleFieldView.<WaitCastPayArrived>d__9>(SynergyUI.BattleFieldView.<WaitCastPayArrived>d__9&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.BattleFieldView.<WaitVisualsIdleAsync>d__65>(SynergyUI.BattleFieldView.<WaitVisualsIdleAsync>d__65&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.BattleOpeningDirector.<BeatAsync>d__40>(SynergyUI.BattleOpeningDirector.<BeatAsync>d__40&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.BattleOpeningDirector.<NetworkDeckPickAsync>d__32>(SynergyUI.BattleOpeningDirector.<NetworkDeckPickAsync>d__32&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.BattleOpeningDirector.<PlaceHeroesAsync>d__29>(SynergyUI.BattleOpeningDirector.<PlaceHeroesAsync>d__29&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.BattleOpeningDirector.<WaitBoardAssembledAsync>d__28>(SynergyUI.BattleOpeningDirector.<WaitBoardAssembledAsync>d__28&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.BattleOpeningDirector.<BeatAsync>d__41>(SynergyUI.BattleOpeningDirector.<BeatAsync>d__41&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.BattleOpeningDirector.<NetworkDeckPickAsync>d__33>(SynergyUI.BattleOpeningDirector.<NetworkDeckPickAsync>d__33&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.BattleOpeningDirector.<PlaceHeroesAsync>d__30>(SynergyUI.BattleOpeningDirector.<PlaceHeroesAsync>d__30&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.BattleOpeningDirector.<WaitBoardAssembledAsync>d__29>(SynergyUI.BattleOpeningDirector.<WaitBoardAssembledAsync>d__29&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.BattlePlayhead.<RunReplayFrameAsync>d__39>(SynergyUI.BattlePlayhead.<RunReplayFrameAsync>d__39&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.BattlePlayhead.<WaitIdleAsync>d__43>(SynergyUI.BattlePlayhead.<WaitIdleAsync>d__43&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.BattleResolutionDirector.<WaitIdleAsync>d__30>(SynergyUI.BattleResolutionDirector.<WaitIdleAsync>d__30&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.BattleScreen.<<MakePacedAi>b__122_0>d>(SynergyUI.BattleScreen.<<MakePacedAi>b__122_0>d&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.BattleStageDirector.<TweenLightX>d__31>(SynergyUI.BattleStageDirector.<TweenLightX>d__31&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.BattleTutorialDirector.<<MakePacedScriptedAi>b__57_0>d>(SynergyUI.BattleTutorialDirector.<<MakePacedScriptedAi>b__57_0>d&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.CombatChoreographer.<ConfirmTargetAsync>d__46>(SynergyUI.CombatChoreographer.<ConfirmTargetAsync>d__46&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.CombatChoreographer.<DelayChainAware>d__80>(SynergyUI.CombatChoreographer.<DelayChainAware>d__80&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.CombatChoreographer.<ReturnAsync>d__77>(SynergyUI.CombatChoreographer.<ReturnAsync>d__77&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.CombatChoreographer.<WaitChainIdleAsync>d__81>(SynergyUI.CombatChoreographer.<WaitChainIdleAsync>d__81&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.CombatChoreographer.<DelayChainAware>d__81>(SynergyUI.CombatChoreographer.<DelayChainAware>d__81&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.CombatChoreographer.<ReturnAsync>d__78>(SynergyUI.CombatChoreographer.<ReturnAsync>d__78&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.CombatChoreographer.<WaitChainIdleAsync>d__82>(SynergyUI.CombatChoreographer.<WaitChainIdleAsync>d__82&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.NeuralAiDriver.<TakeTurnAsync>d__6>(SynergyUI.NeuralAiDriver.<TakeTurnAsync>d__6&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.Online.TapLobbyController.<LeaveAndDisconnectAsync>d__18>(SynergyUI.Online.TapLobbyController.<LeaveAndDisconnectAsync>d__18&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.Online.TapLobbyController.<LeaveAndDisconnectAsync>d__29>(SynergyUI.Online.TapLobbyController.<LeaveAndDisconnectAsync>d__29&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.RankedMatchmaking.<HostWaitingRoom>d__36>(SynergyUI.RankedMatchmaking.<HostWaitingRoom>d__36&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.RankedMatchmaking.<JoinCandidate>d__35>(SynergyUI.RankedMatchmaking.<JoinCandidate>d__35&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.ScriptedAi.<TakeTurnAsync>d__11>(SynergyUI.ScriptedAi.<TakeTurnAsync>d__11&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.SimpleAI.<DoCombatAsync>d__41>(SynergyUI.SimpleAI.<DoCombatAsync>d__41&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.SimpleAI.<PaceAsync>d__14>(SynergyUI.SimpleAI.<PaceAsync>d__14&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.SimpleAI.<StageCastAsync>d__16>(SynergyUI.SimpleAI.<StageCastAsync>d__16&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.SimpleAI.<StageHoldAsync>d__15>(SynergyUI.SimpleAI.<StageHoldAsync>d__15&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder.Start<SynergyUI.SimpleAI.<TakeTurnAsync>d__22>(SynergyUI.SimpleAI.<TakeTurnAsync>d__22&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<System.Nullable<byte>>.Start<SynergyUI.BattleScreen.<ShowTipPromptAsync>d__248>(SynergyUI.BattleScreen.<ShowTipPromptAsync>d__248&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<System.Nullable<byte>>.Start<SynergyUI.BattleScreen.<ShowTipPromptAsync>d__267>(SynergyUI.BattleScreen.<ShowTipPromptAsync>d__267&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<System.Nullable<byte>>.Start<SynergyUI.TipPromptHost.<ShowAsync>d__5>(SynergyUI.TipPromptHost.<ShowAsync>d__5&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<System.Nullable<int>>.Start<SynergyUI.BattleScreen.<PickRegionOptionAsync>d__107>(SynergyUI.BattleScreen.<PickRegionOptionAsync>d__107&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<System.ValueTuple<object,object,byte>>.Start<CardCore.Attribute.Handlers.ProphecyHandlerUtil.<PickOptionAsync>d__6>(CardCore.Attribute.Handlers.ProphecyHandlerUtil.<PickOptionAsync>d__6&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<System.ValueTuple<object,object>>.Start<SynergyUI.BattleDeckPickStage.<PickAsync>d__21>(SynergyUI.BattleDeckPickStage.<PickAsync>d__21&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<System.ValueTuple<object,object>>.Start<SynergyUI.BattleOpeningDirector.<DeckPickStageAsync>d__33>(SynergyUI.BattleOpeningDirector.<DeckPickStageAsync>d__33&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<System.ValueTuple<object,object>>.Start<SynergyUI.BattleOpeningDirector.<DeckPickStageAsync>d__34>(SynergyUI.BattleOpeningDirector.<DeckPickStageAsync>d__34&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<byte>.Start<CardCore.Attribute.EffectHandlerRegistry.<ExecuteEffectAsync>d__5>(CardCore.Attribute.EffectHandlerRegistry.<ExecuteEffectAsync>d__5&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<byte>.Start<CardCore.Attribute.Handlers.ProphecyHandlerUtil.<AskCardNameAsync>d__4>(CardCore.Attribute.Handlers.ProphecyHandlerUtil.<AskCardNameAsync>d__4&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<byte>.Start<CardCore.CostCompensationService.<ExecutePayloadAtomAsync>d__3>(CardCore.CostCompensationService.<ExecutePayloadAtomAsync>d__3&)
@@ -4250,11 +4419,12 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<byte>.Start<SynergyUI.BattleCoinToss.<PlayAsync>d__14>(SynergyUI.BattleCoinToss.<PlayAsync>d__14&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<byte>.Start<SynergyUI.BattleFieldView.<DeadHoldAsync>d__18>(SynergyUI.BattleFieldView.<DeadHoldAsync>d__18&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<byte>.Start<SynergyUI.BattleFieldView.<SinkUnderBoardAsync>d__19>(SynergyUI.BattleFieldView.<SinkUnderBoardAsync>d__19&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<byte>.Start<SynergyUI.BattleOpeningDirector.<CoinStageAsync>d__30>(SynergyUI.BattleOpeningDirector.<CoinStageAsync>d__30&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<byte>.Start<SynergyUI.BattleOpeningDirector.<CoinStageForcedAsync>d__31>(SynergyUI.BattleOpeningDirector.<CoinStageForcedAsync>d__31&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<byte>.Start<SynergyUI.BattleScreen.<NetPickUnitCellAsync>d__144>(SynergyUI.BattleScreen.<NetPickUnitCellAsync>d__144&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<byte>.Start<SynergyUI.BattleFieldView.<TryRouteCastChainAsync>d__95>(SynergyUI.BattleFieldView.<TryRouteCastChainAsync>d__95&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<byte>.Start<SynergyUI.BattleOpeningDirector.<CoinStageAsync>d__31>(SynergyUI.BattleOpeningDirector.<CoinStageAsync>d__31&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<byte>.Start<SynergyUI.BattleOpeningDirector.<CoinStageForcedAsync>d__32>(SynergyUI.BattleOpeningDirector.<CoinStageForcedAsync>d__32&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<byte>.Start<SynergyUI.BattleScreen.<NetPickUnitCellAsync>d__157>(SynergyUI.BattleScreen.<NetPickUnitCellAsync>d__157&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<byte>.Start<SynergyUI.BattleVfxFx.<TryPlayProjectileAsync>d__28>(SynergyUI.BattleVfxFx.<TryPlayProjectileAsync>d__28&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<byte>.Start<SynergyUI.CombatChoreographer.<FlyAsync>d__84>(SynergyUI.CombatChoreographer.<FlyAsync>d__84&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<byte>.Start<SynergyUI.CombatChoreographer.<FlyAsync>d__85>(SynergyUI.CombatChoreographer.<FlyAsync>d__85&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<byte>.Start<SynergyUI.ScriptedAi.<ExecuteAsync>d__13>(SynergyUI.ScriptedAi.<ExecuteAsync>d__13&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<byte>.Start<SynergyUI.SimpleAI.<PlayBestAffordableCardAsync>d__28>(SynergyUI.SimpleAI.<PlayBestAffordableCardAsync>d__28&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<byte>.Start<SynergyUI.SimpleAI.<UseHeroSkillAsync>d__25>(SynergyUI.SimpleAI.<UseHeroSkillAsync>d__25&)
@@ -4262,12 +4432,12 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<int>.Start<CardCore.TargetSelectionService.<RequestOneIndexAsync>d__23>(CardCore.TargetSelectionService.<RequestOneIndexAsync>d__23&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<int>.Start<SynergyUI.BattleScreen.<PickMoveDestinationAsync>d__98>(SynergyUI.BattleScreen.<PickMoveDestinationAsync>d__98&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<int>.Start<SynergyUI.RegionTargetSelector.<SelectOneAsync>d__54>(SynergyUI.RegionTargetSelector.<SelectOneAsync>d__54&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.Start<CardCore.Attribute.EffectHandlerRegistry.<AskCompositionDeclarationAsync>d__22>(CardCore.Attribute.EffectHandlerRegistry.<AskCompositionDeclarationAsync>d__22&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.Start<CardCore.Attribute.EffectHandlerRegistry.<CollectDeclarationTargetsAsync>d__21>(CardCore.Attribute.EffectHandlerRegistry.<CollectDeclarationTargetsAsync>d__21&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.Start<CardCore.Attribute.EffectHandlerRegistry.<ResolveAtomTargetsAsync>d__15>(CardCore.Attribute.EffectHandlerRegistry.<ResolveAtomTargetsAsync>d__15&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.Start<CardCore.Attribute.EffectHandlerRegistry.<ResolveCompositionTargetsAsync>d__9>(CardCore.Attribute.EffectHandlerRegistry.<ResolveCompositionTargetsAsync>d__9&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.Start<CardCore.Attribute.EffectHandlerRegistry.<ResolveRewardTargetsAsync>d__13>(CardCore.Attribute.EffectHandlerRegistry.<ResolveRewardTargetsAsync>d__13&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.Start<CardCore.Attribute.EffectHandlerRegistry.<ResolveTargetsInteractiveAsync>d__14>(CardCore.Attribute.EffectHandlerRegistry.<ResolveTargetsInteractiveAsync>d__14&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.Start<CardCore.Attribute.EffectHandlerRegistry.<AskCompositionDeclarationAsync>d__23>(CardCore.Attribute.EffectHandlerRegistry.<AskCompositionDeclarationAsync>d__23&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.Start<CardCore.Attribute.EffectHandlerRegistry.<CollectDeclarationTargetsAsync>d__22>(CardCore.Attribute.EffectHandlerRegistry.<CollectDeclarationTargetsAsync>d__22&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.Start<CardCore.Attribute.EffectHandlerRegistry.<ResolveAtomTargetsAsync>d__16>(CardCore.Attribute.EffectHandlerRegistry.<ResolveAtomTargetsAsync>d__16&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.Start<CardCore.Attribute.EffectHandlerRegistry.<ResolveCompositionTargetsAsync>d__10>(CardCore.Attribute.EffectHandlerRegistry.<ResolveCompositionTargetsAsync>d__10&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.Start<CardCore.Attribute.EffectHandlerRegistry.<ResolveRewardTargetsAsync>d__14>(CardCore.Attribute.EffectHandlerRegistry.<ResolveRewardTargetsAsync>d__14&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.Start<CardCore.Attribute.EffectHandlerRegistry.<ResolveTargetsInteractiveAsync>d__15>(CardCore.Attribute.EffectHandlerRegistry.<ResolveTargetsInteractiveAsync>d__15&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.Start<CardCore.Attribute.Handlers.DeckArrangeHelper.<ArrangeAsync>d__2>(CardCore.Attribute.Handlers.DeckArrangeHelper.<ArrangeAsync>d__2&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.Start<CardCore.Attribute.Handlers.ProphecyHandlerUtil.<AskDimensionAsync>d__5>(CardCore.Attribute.Handlers.ProphecyHandlerUtil.<AskDimensionAsync>d__5&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.Start<CardCore.EffectExecutor.<ResolveSegmentedTargetsAsync>d__20>(CardCore.EffectExecutor.<ResolveSegmentedTargetsAsync>d__20&)
@@ -4278,17 +4448,26 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.Start<CardCore.TargetSelectionService.<RequestTextAsync>d__24>(CardCore.TargetSelectionService.<RequestTextAsync>d__24&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.Start<CloudSave.CloudTasks.<AwaitOnMain>d__0<object>>(CloudSave.CloudTasks.<AwaitOnMain>d__0<object>&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.Start<Cysharp.Threading.Tasks.UniTaskExtensions.<ContinueWith>d__60<object>>(Cysharp.Threading.Tasks.UniTaskExtensions.<ContinueWith>d__60<object>&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.Start<Cysharp.Threading.Tasks.UniTaskExtensions.<Timeout>d__45<object>>(Cysharp.Threading.Tasks.UniTaskExtensions.<Timeout>d__45<object>&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.Start<SynergyUI.BattleDecisionHub.<ShowResponseAsync>d__60>(SynergyUI.BattleDecisionHub.<ShowResponseAsync>d__60&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.Start<SynergyUI.BattleScreen.<PickCellAsync>d__151>(SynergyUI.BattleScreen.<PickCellAsync>d__151&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.Start<SynergyUI.BattleScreen.<PickCellAsync>d__164>(SynergyUI.BattleScreen.<PickCellAsync>d__164&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.Start<SynergyUI.DummyDeckPanel.<ShowAsync>d__13>(SynergyUI.DummyDeckPanel.<ShowAsync>d__13&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.Start<SynergyUI.DummyOptionsPanel.<ShowAsync>d__9>(SynergyUI.DummyOptionsPanel.<ShowAsync>d__9&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.Start<SynergyUI.NetworkDeckPanel.<WaitAsync>d__15>(SynergyUI.NetworkDeckPanel.<WaitAsync>d__15&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.Start<SynergyUI.Online.TapAccountService.<InitAndWaitAsync>d__20>(SynergyUI.Online.TapAccountService.<InitAndWaitAsync>d__20&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.Start<SynergyUI.Online.TapAccountService.<LoginAsync>d__17>(SynergyUI.Online.TapAccountService.<LoginAsync>d__17&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.Start<SynergyUI.Online.TapLobbyController.<CreateRoomAsync>d__15>(SynergyUI.Online.TapLobbyController.<CreateRoomAsync>d__15&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.Start<SynergyUI.Online.TapLobbyController.<EnsureLoginAndConnectAsync>d__14>(SynergyUI.Online.TapLobbyController.<EnsureLoginAndConnectAsync>d__14&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.Start<SynergyUI.Online.TapLobbyController.<GetRoomListAsync>d__16>(SynergyUI.Online.TapLobbyController.<GetRoomListAsync>d__16&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.Start<SynergyUI.Online.TapLobbyController.<JoinRoomAsync>d__17>(SynergyUI.Online.TapLobbyController.<JoinRoomAsync>d__17&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.Start<SynergyUI.Online.TapAccountService.<EnsureReadyAsync>d__17>(SynergyUI.Online.TapAccountService.<EnsureReadyAsync>d__17&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.Start<SynergyUI.Online.TapAccountService.<InitAndWaitAsync>d__21>(SynergyUI.Online.TapAccountService.<InitAndWaitAsync>d__21&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.Start<SynergyUI.Online.TapAccountService.<LoginAsync>d__18>(SynergyUI.Online.TapAccountService.<LoginAsync>d__18&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.Start<SynergyUI.Online.TapLobbyController.<CreateRoomAsync>d__26>(SynergyUI.Online.TapLobbyController.<CreateRoomAsync>d__26&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.Start<SynergyUI.Online.TapLobbyController.<EnsureLoginAndConnectAsync>d__18>(SynergyUI.Online.TapLobbyController.<EnsureLoginAndConnectAsync>d__18&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.Start<SynergyUI.Online.TapLobbyController.<GetRoomListAsync>d__27>(SynergyUI.Online.TapLobbyController.<GetRoomListAsync>d__27&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.Start<SynergyUI.Online.TapLobbyController.<JoinRoomAsync>d__28>(SynergyUI.Online.TapLobbyController.<JoinRoomAsync>d__28&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.Start<SynergyUI.Online.TapLobbySection.<CreateRankedRoomAsync>d__14>(SynergyUI.Online.TapLobbySection.<CreateRankedRoomAsync>d__14&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.Start<SynergyUI.Online.TapLobbySection.<CreateRoomAsync>d__13>(SynergyUI.Online.TapLobbySection.<CreateRoomAsync>d__13&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.Start<SynergyUI.Online.TapLobbySection.<CreateRoomCore>d__15>(SynergyUI.Online.TapLobbySection.<CreateRoomCore>d__15&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.Start<SynergyUI.Online.TapLobbySection.<EnsureLoginAsync>d__10>(SynergyUI.Online.TapLobbySection.<EnsureLoginAsync>d__10&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.Start<SynergyUI.Online.TapLobbySection.<JoinRoomAsync>d__16>(SynergyUI.Online.TapLobbySection.<JoinRoomAsync>d__16&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.Start<SynergyUI.Online.TapLobbySection.<LeaveAsync>d__17>(SynergyUI.Online.TapLobbySection.<LeaveAsync>d__17&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.Start<SynergyUI.Online.TapLobbySection.<ListRoomsAsync>d__11>(SynergyUI.Online.TapLobbySection.<ListRoomsAsync>d__11&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.Start<SynergyUI.RegionTargetSelector.<PromptTextAsync>d__56>(SynergyUI.RegionTargetSelector.<PromptTextAsync>d__56&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.Start<SynergyUI.RegionTargetSelector.<PromptTextModalAsync>d__58>(SynergyUI.RegionTargetSelector.<PromptTextModalAsync>d__58&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder<object>.Start<SynergyUI.RegionTargetSelector.<Run>d__59>(SynergyUI.RegionTargetSelector.<Run>d__59&)
@@ -4306,20 +4485,25 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattleEffectFx.Runner.<LifeAsync>d__4>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattleEffectFx.Runner.<LifeAsync>d__4&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattleFieldView.<LingerCastingAsync>d__1>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattleFieldView.<LingerCastingAsync>d__1&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattleHudRow.<PlayPhaseRingAsync>d__48>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattleHudRow.<PlayPhaseRingAsync>d__48&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattleOpeningDirector.<RunAsync>d__27>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattleOpeningDirector.<RunAsync>d__27&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattleOpeningDirector.<RunAsync>d__28>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattleOpeningDirector.<RunAsync>d__28&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattlePlayhead.<FinishAsync>d__40>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattlePlayhead.<FinishAsync>d__40&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattlePlayhead.<RunPlaybackAsync>d__38>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattlePlayhead.<RunPlaybackAsync>d__38&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattleResolutionDirector.<FinishAsync>d__27>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattleResolutionDirector.<FinishAsync>d__27&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattleResolutionDirector.<RunReplayAsync>d__26>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattleResolutionDirector.<RunReplayAsync>d__26&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattleScreen.<PulseAutoTargetGlowAsync>d__254>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattleScreen.<PulseAutoTargetGlowAsync>d__254&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattleScreen.<PulseAutoTargetGlowAsync>d__273>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattleScreen.<PulseAutoTargetGlowAsync>d__273&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattleScreen.<RejectDeckAndBackAsync>d__180>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattleScreen.<RejectDeckAndBackAsync>d__180&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattleScreen.<RunAiFirstTurnAsync>d__118>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattleScreen.<RunAiFirstTurnAsync>d__118&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattleStageDirector.<MountBoardAndDawnAsync>d__25>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattleStageDirector.<MountBoardAndDawnAsync>d__25&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattleTutorialDirector.<AutoEndTurnAfterHealFxAsync>d__41>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattleTutorialDirector.<AutoEndTurnAfterHealFxAsync>d__41&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattleTutorialDirector.<ConsumeMidTransitionAsync>d__43>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattleTutorialDirector.<ConsumeMidTransitionAsync>d__43&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattleTutorialDirector.<PromptTutorialRetryAsync>d__68>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattleTutorialDirector.<PromptTutorialRetryAsync>d__68&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.BattleVfxFx.<ReleaseSlotAfter>d__18>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.BattleVfxFx.<ReleaseSlotAfter>d__18&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.CombatChoreographer.<PerformAsync>d__75>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.CombatChoreographer.<PerformAsync>d__75&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.CombatChoreographer.<PerformAsync>d__76>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.CombatChoreographer.<PerformAsync>d__76&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.CombatChoreographer.<TargetingLoopAsync>d__45>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.CombatChoreographer.<TargetingLoopAsync>d__45&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.LobbyScreen.<RunScanLoopAsync>d__55>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.LobbyScreen.<RunScanLoopAsync>d__55&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.Online.TapLobbySection.<StartTapHost>d__7>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.Online.TapLobbySection.<StartTapHost>d__7&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.LaunchScreen.<AutoAdvance>d__18>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.LaunchScreen.<AutoAdvance>d__18&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.LobbyScreen.<RunScanLoopAsync>d__123>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.LobbyScreen.<RunScanLoopAsync>d__123&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.RankedMatchmaking.<RunLoop>d__33>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.RankedMatchmaking.<RunLoop>d__33&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter,SynergyUI.RankedMatchmaking.<ScanOnce>d__34>(Cysharp.Threading.Tasks.UniTask.Awaiter&,SynergyUI.RankedMatchmaking.<ScanOnce>d__34&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<byte>>,SynergyUI.BattleScreen.<OnConcede>d__106>(Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<byte>>&,SynergyUI.BattleScreen.<OnConcede>d__106&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<byte>>,SynergyUI.BattleScreen.<StartGauntletOpeningAsync>d__113>(Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<byte>>&,SynergyUI.BattleScreen.<StartGauntletOpeningAsync>d__113&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<byte>>,SynergyUI.BattleTutorialDirector.<PromptGauntletOverAsync>d__70>(Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<byte>>&,SynergyUI.BattleTutorialDirector.<PromptGauntletOverAsync>d__70&)
@@ -4328,52 +4512,56 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<byte>>,SynergyUI.CardComposerScreen.<ConfirmForceDeleteCardAsync>d__141>(Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<byte>>&,SynergyUI.CardComposerScreen.<ConfirmForceDeleteCardAsync>d__141&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<byte>>,SynergyUI.DeckBuilderScreen.<ConfirmCopyPresetAsync>d__115>(Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<byte>>&,SynergyUI.DeckBuilderScreen.<ConfirmCopyPresetAsync>d__115&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<byte>>,SynergyUI.DeckBuilderScreen.<ConfirmDeleteDeckAsync>d__117>(Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<byte>>&,SynergyUI.DeckBuilderScreen.<ConfirmDeleteDeckAsync>d__117&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<byte>>,SynergyUI.EffectComposerScreen.<ConfirmForceDeleteEffectAsync>d__125>(Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<byte>>&,SynergyUI.EffectComposerScreen.<ConfirmForceDeleteEffectAsync>d__125&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<byte>>,SynergyUI.EffectComposerScreen.<HandleReplacedLegacyAsync>d__126>(Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<byte>>&,SynergyUI.EffectComposerScreen.<HandleReplacedLegacyAsync>d__126&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<byte>>,SynergyUI.TapLoginBadge.<LoginFlow>d__14>(Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<byte>>&,SynergyUI.TapLoginBadge.<LoginFlow>d__14&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<byte>>,SynergyUI.EffectComposerScreen.<ConfirmForceDeleteEffectAsync>d__127>(Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<byte>>&,SynergyUI.EffectComposerScreen.<ConfirmForceDeleteEffectAsync>d__127&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<byte>>,SynergyUI.EffectComposerScreen.<HandleReplacedLegacyAsync>d__128>(Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<byte>>&,SynergyUI.EffectComposerScreen.<HandleReplacedLegacyAsync>d__128&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<byte>>,SynergyUI.TapLoginBadge.<LoginFlow>d__17>(Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<byte>>&,SynergyUI.TapLoginBadge.<LoginFlow>d__17&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<int>>,SynergyUI.BattleScreen.<ActivateSkillAsync>d__105>(Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<int>>&,SynergyUI.BattleScreen.<ActivateSkillAsync>d__105&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<int>>,SynergyUI.BattleScreen.<NetActivateSkillAsync>d__155>(Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<int>>&,SynergyUI.BattleScreen.<NetActivateSkillAsync>d__155&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<int>>,SynergyUI.BattleScreen.<NetAttackFlowAsync>d__153>(Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<int>>&,SynergyUI.BattleScreen.<NetAttackFlowAsync>d__153&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<int>>,SynergyUI.BattleScreen.<NetGuardFlowAsync>d__154>(Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<int>>&,SynergyUI.BattleScreen.<NetGuardFlowAsync>d__154&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<int>>,SynergyUI.BattleScreen.<NetPlaceLandAsync>d__147>(Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<int>>&,SynergyUI.BattleScreen.<NetPlaceLandAsync>d__147&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<int>>,SynergyUI.BattleScreen.<NetSelectAsync>d__160>(Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<int>>&,SynergyUI.BattleScreen.<NetSelectAsync>d__160&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<int>>,SynergyUI.BattleScreen.<NetUseCardAsync>d__143>(Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<int>>&,SynergyUI.BattleScreen.<NetUseCardAsync>d__143&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<int>>,SynergyUI.BattleScreen.<NetActivateSkillAsync>d__168>(Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<int>>&,SynergyUI.BattleScreen.<NetActivateSkillAsync>d__168&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<int>>,SynergyUI.BattleScreen.<NetAttackFlowAsync>d__166>(Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<int>>&,SynergyUI.BattleScreen.<NetAttackFlowAsync>d__166&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<int>>,SynergyUI.BattleScreen.<NetGuardFlowAsync>d__167>(Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<int>>&,SynergyUI.BattleScreen.<NetGuardFlowAsync>d__167&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<int>>,SynergyUI.BattleScreen.<NetPlaceLandAsync>d__160>(Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<int>>&,SynergyUI.BattleScreen.<NetPlaceLandAsync>d__160&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<int>>,SynergyUI.BattleScreen.<NetSelectAsync>d__173>(Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<int>>&,SynergyUI.BattleScreen.<NetSelectAsync>d__173&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<int>>,SynergyUI.BattleScreen.<NetUseCardAsync>d__156>(Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<int>>&,SynergyUI.BattleScreen.<NetUseCardAsync>d__156&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<int>>,SynergyUI.BattleScreen.<OnClickUnitEffectButton>d__33>(Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<int>>&,SynergyUI.BattleScreen.<OnClickUnitEffectButton>d__33&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<int>>,SynergyUI.BattleScreen.<PickLandColorAsync>d__77>(Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<int>>&,SynergyUI.BattleScreen.<PickLandColorAsync>d__77&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<int>>,SynergyUI.BattleScreen.<PromptModeThenPickCell>d__96>(Cysharp.Threading.Tasks.UniTask.Awaiter<System.Nullable<int>>&,SynergyUI.BattleScreen.<PromptModeThenPickCell>d__96&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<System.ValueTuple<object,object>>,SynergyUI.BattleOpeningDirector.<RunAsync>d__27>(Cysharp.Threading.Tasks.UniTask.Awaiter<System.ValueTuple<object,object>>&,SynergyUI.BattleOpeningDirector.<RunAsync>d__27&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<System.ValueTuple<object,object>>,SynergyUI.BattleOpeningDirector.<RunAsync>d__28>(Cysharp.Threading.Tasks.UniTask.Awaiter<System.ValueTuple<object,object>>&,SynergyUI.BattleOpeningDirector.<RunAsync>d__28&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<byte>,CloudSave.CloudSyncService.CloudSyncHost.<TryAutoUpload>d__4>(Cysharp.Threading.Tasks.UniTask.Awaiter<byte>&,CloudSave.CloudSyncService.CloudSyncHost.<TryAutoUpload>d__4&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<byte>,CloudSave.TapAccountService.<LoginFromUiAsync>d__10>(Cysharp.Threading.Tasks.UniTask.Awaiter<byte>&,CloudSave.TapAccountService.<LoginFromUiAsync>d__10&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<byte>,CloudSave.TapCloudSaveBootstrap.BootInitCallback.<RunAsync>d__2>(Cysharp.Threading.Tasks.UniTask.Awaiter<byte>&,CloudSave.TapCloudSaveBootstrap.BootInitCallback.<RunAsync>d__2&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<byte>,SynergyUI.BattleOpeningDirector.<RunAsync>d__27>(Cysharp.Threading.Tasks.UniTask.Awaiter<byte>&,SynergyUI.BattleOpeningDirector.<RunAsync>d__27&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<byte>,SynergyUI.BattleScreen.<NetUseCardAsync>d__143>(Cysharp.Threading.Tasks.UniTask.Awaiter<byte>&,SynergyUI.BattleScreen.<NetUseCardAsync>d__143&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<byte>,SynergyUI.CombatChoreographer.<PerformAsync>d__75>(Cysharp.Threading.Tasks.UniTask.Awaiter<byte>&,SynergyUI.CombatChoreographer.<PerformAsync>d__75&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<byte>,SynergyUI.LobbyScreen.<ConnectAsync>d__47>(Cysharp.Threading.Tasks.UniTask.Awaiter<byte>&,SynergyUI.LobbyScreen.<ConnectAsync>d__47&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,SynergyUI.BattleScreen.<NetPlaceLandAsync>d__147>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,SynergyUI.BattleScreen.<NetPlaceLandAsync>d__147&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,SynergyUI.BattleScreen.<NetSelectAsync>d__160>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,SynergyUI.BattleScreen.<NetSelectAsync>d__160&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,SynergyUI.BattleScreen.<NetTextAsync>d__162>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,SynergyUI.BattleScreen.<NetTextAsync>d__162&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<byte>,SynergyUI.BattleOpeningDirector.<RunAsync>d__28>(Cysharp.Threading.Tasks.UniTask.Awaiter<byte>&,SynergyUI.BattleOpeningDirector.<RunAsync>d__28&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<byte>,SynergyUI.BattleScreen.<NetUseCardAsync>d__156>(Cysharp.Threading.Tasks.UniTask.Awaiter<byte>&,SynergyUI.BattleScreen.<NetUseCardAsync>d__156&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<byte>,SynergyUI.CombatChoreographer.<PerformAsync>d__76>(Cysharp.Threading.Tasks.UniTask.Awaiter<byte>&,SynergyUI.CombatChoreographer.<PerformAsync>d__76&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<byte>,SynergyUI.LobbyScreen.<ConnectAsync>d__94>(Cysharp.Threading.Tasks.UniTask.Awaiter<byte>&,SynergyUI.LobbyScreen.<ConnectAsync>d__94&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,SynergyUI.BattleScreen.<NetPlaceLandAsync>d__160>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,SynergyUI.BattleScreen.<NetPlaceLandAsync>d__160&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,SynergyUI.BattleScreen.<NetSelectAsync>d__173>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,SynergyUI.BattleScreen.<NetSelectAsync>d__173&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,SynergyUI.BattleScreen.<NetTextAsync>d__175>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,SynergyUI.BattleScreen.<NetTextAsync>d__175&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,SynergyUI.BattleScreen.<SpellDeclarationFlow>d__75>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,SynergyUI.BattleScreen.<SpellDeclarationFlow>d__75&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,SynergyUI.BattleScreen.<StartDummyOpeningAsync>d__115>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,SynergyUI.BattleScreen.<StartDummyOpeningAsync>d__115&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,SynergyUI.Online.TapAccountService.<WarmupInternal>d__19>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,SynergyUI.Online.TapAccountService.<WarmupInternal>d__19&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,SynergyUI.Online.TapLobbySection.<JoinTapRoom>d__9>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,SynergyUI.Online.TapLobbySection.<JoinTapRoom>d__9&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,SynergyUI.Online.TapLobbySection.<RefreshTapRooms>d__8>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,SynergyUI.Online.TapLobbySection.<RefreshTapRooms>d__8&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,SynergyUI.Online.TapLobbySection.<StartTapHost>d__7>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,SynergyUI.Online.TapLobbySection.<StartTapHost>d__7&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,SynergyUI.TapLoginBadge.<LoginFlow>d__14>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,SynergyUI.TapLoginBadge.<LoginFlow>d__14&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,SynergyUI.LobbyScreen.<CreateTapRoomAsync>d__93>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,SynergyUI.LobbyScreen.<CreateTapRoomAsync>d__93&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,SynergyUI.LobbyScreen.<JoinTapEntryAsync>d__131>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,SynergyUI.LobbyScreen.<JoinTapEntryAsync>d__131&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,SynergyUI.LobbyScreen.<RefreshTapRoomsAsync>d__129>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,SynergyUI.LobbyScreen.<RefreshTapRoomsAsync>d__129&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,SynergyUI.Online.TapAccountService.<WarmupInternal>d__20>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,SynergyUI.Online.TapAccountService.<WarmupInternal>d__20&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,SynergyUI.RankedMatchmaking.<ScanOnce>d__34>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,SynergyUI.RankedMatchmaking.<ScanOnce>d__34&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.UniTask.Awaiter<object>,SynergyUI.TapLoginBadge.<LoginFlow>d__17>(Cysharp.Threading.Tasks.UniTask.Awaiter<object>&,SynergyUI.TapLoginBadge.<LoginFlow>d__17&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.YieldAwaitable.Awaiter,SynergyUI.BattleCellPicker.<LoopAsync>d__13>(Cysharp.Threading.Tasks.YieldAwaitable.Awaiter&,SynergyUI.BattleCellPicker.<LoopAsync>d__13&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.YieldAwaitable.Awaiter,SynergyUI.BattleFieldView.UnitVisual.<RollStatsAsync>d__32>(Cysharp.Threading.Tasks.YieldAwaitable.Awaiter&,SynergyUI.BattleFieldView.UnitVisual.<RollStatsAsync>d__32&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.YieldAwaitable.Awaiter,SynergyUI.BattleHudRow.<PlayPhaseRingAsync>d__48>(Cysharp.Threading.Tasks.YieldAwaitable.Awaiter&,SynergyUI.BattleHudRow.<PlayPhaseRingAsync>d__48&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.YieldAwaitable.Awaiter,SynergyUI.BattleResolutionDirector.<RunReplayAsync>d__26>(Cysharp.Threading.Tasks.YieldAwaitable.Awaiter&,SynergyUI.BattleResolutionDirector.<RunReplayAsync>d__26&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.YieldAwaitable.Awaiter,SynergyUI.BattleScreen.<NetEnsureFieldAppliedAsync>d__136>(Cysharp.Threading.Tasks.YieldAwaitable.Awaiter&,SynergyUI.BattleScreen.<NetEnsureFieldAppliedAsync>d__136&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.YieldAwaitable.Awaiter,SynergyUI.BattleScreen.<RefreshFieldWhenBoardReady>d__59>(Cysharp.Threading.Tasks.YieldAwaitable.Awaiter&,SynergyUI.BattleScreen.<RefreshFieldWhenBoardReady>d__59&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.YieldAwaitable.Awaiter,SynergyUI.BattleScreen.<StartReplayWhenBoardReadyAsync>d__185>(Cysharp.Threading.Tasks.YieldAwaitable.Awaiter&,SynergyUI.BattleScreen.<StartReplayWhenBoardReadyAsync>d__185&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.YieldAwaitable.Awaiter,SynergyUI.BattleStageDirector.<SwallowToBattleAsync>d__24>(Cysharp.Threading.Tasks.YieldAwaitable.Awaiter&,SynergyUI.BattleStageDirector.<SwallowToBattleAsync>d__24&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.YieldAwaitable.Awaiter,SynergyUI.BattleTilePress.<RunAsync>d__10>(Cysharp.Threading.Tasks.YieldAwaitable.Awaiter&,SynergyUI.BattleTilePress.<RunAsync>d__10&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.YieldAwaitable.Awaiter,SynergyUI.BattleTutorialDirector.<AutoEndTurnAfterHealFxAsync>d__41>(Cysharp.Threading.Tasks.YieldAwaitable.Awaiter&,SynergyUI.BattleTutorialDirector.<AutoEndTurnAfterHealFxAsync>d__41&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.YieldAwaitable.Awaiter,SynergyUI.BattleTutorialDirector.<ConsumeMidTransitionAsync>d__43>(Cysharp.Threading.Tasks.YieldAwaitable.Awaiter&,SynergyUI.BattleTutorialDirector.<ConsumeMidTransitionAsync>d__43&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.YieldAwaitable.Awaiter,SynergyUI.BattleTutorialDirector.<PlayTutorialVoiceAsync>d__52>(Cysharp.Threading.Tasks.YieldAwaitable.Awaiter&,SynergyUI.BattleTutorialDirector.<PlayTutorialVoiceAsync>d__52&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.YieldAwaitable.Awaiter,SynergyUI.BattleTutorialDirector.<ShowIntroPanelAfterCombatAsync>d__46>(Cysharp.Threading.Tasks.YieldAwaitable.Awaiter&,SynergyUI.BattleTutorialDirector.<ShowIntroPanelAfterCombatAsync>d__46&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.YieldAwaitable.Awaiter,SynergyUI.BattleZoneProps.<PulseDeckAsync>d__28>(Cysharp.Threading.Tasks.YieldAwaitable.Awaiter&,SynergyUI.BattleZoneProps.<PulseDeckAsync>d__28&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.YieldAwaitable.Awaiter,SynergyUI.CombatChoreographer.<PerformAsync>d__75>(Cysharp.Threading.Tasks.YieldAwaitable.Awaiter&,SynergyUI.CombatChoreographer.<PerformAsync>d__75&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.YieldAwaitable.Awaiter,SynergyUI.CombatChoreographer.<PerformAsync>d__76>(Cysharp.Threading.Tasks.YieldAwaitable.Awaiter&,SynergyUI.CombatChoreographer.<PerformAsync>d__76&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.YieldAwaitable.Awaiter,SynergyUI.CombatChoreographer.<TargetingLoopAsync>d__45>(Cysharp.Threading.Tasks.YieldAwaitable.Awaiter&,SynergyUI.CombatChoreographer.<TargetingLoopAsync>d__45&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.YieldAwaitable.Awaiter,SynergyUI.CombatChoreographer.<TrackArrowsAsync>d__82>(Cysharp.Threading.Tasks.YieldAwaitable.Awaiter&,SynergyUI.CombatChoreographer.<TrackArrowsAsync>d__82&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<System.Runtime.CompilerServices.TaskAwaiter<object>,SynergyUI.Online.TapAccountService.<WarmupInternal>d__19>(System.Runtime.CompilerServices.TaskAwaiter<object>&,SynergyUI.Online.TapAccountService.<WarmupInternal>d__19&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<Cysharp.Threading.Tasks.YieldAwaitable.Awaiter,SynergyUI.CombatChoreographer.<TrackArrowsAsync>d__83>(Cysharp.Threading.Tasks.YieldAwaitable.Awaiter&,SynergyUI.CombatChoreographer.<TrackArrowsAsync>d__83&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.AwaitUnsafeOnCompleted<System.Runtime.CompilerServices.TaskAwaiter<object>,SynergyUI.Online.TapAccountService.<WarmupInternal>d__20>(System.Runtime.CompilerServices.TaskAwaiter<object>&,SynergyUI.Online.TapAccountService.<WarmupInternal>d__20&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<CloudSave.CloudSyncService.CloudSyncHost.<TryAutoUpload>d__4>(CloudSave.CloudSyncService.CloudSyncHost.<TryAutoUpload>d__4&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<CloudSave.TapAccountService.<LoginFromUiAsync>d__10>(CloudSave.TapAccountService.<LoginFromUiAsync>d__10&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<CloudSave.TapCloudSaveBootstrap.BootInitCallback.<RunAsync>d__2>(CloudSave.TapCloudSaveBootstrap.BootInitCallback.<RunAsync>d__2&)
@@ -4385,29 +4573,35 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.BattleFieldView.<LingerCastingAsync>d__1>(SynergyUI.BattleFieldView.<LingerCastingAsync>d__1&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.BattleFieldView.UnitVisual.<RollStatsAsync>d__32>(SynergyUI.BattleFieldView.UnitVisual.<RollStatsAsync>d__32&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.BattleHudRow.<PlayPhaseRingAsync>d__48>(SynergyUI.BattleHudRow.<PlayPhaseRingAsync>d__48&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.BattleOpeningDirector.<RunAsync>d__27>(SynergyUI.BattleOpeningDirector.<RunAsync>d__27&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.BattleOpeningDirector.<RunAsync>d__28>(SynergyUI.BattleOpeningDirector.<RunAsync>d__28&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.BattlePlayhead.<FinishAsync>d__40>(SynergyUI.BattlePlayhead.<FinishAsync>d__40&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.BattlePlayhead.<RunPlaybackAsync>d__38>(SynergyUI.BattlePlayhead.<RunPlaybackAsync>d__38&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.BattleResolutionDirector.<FinishAsync>d__27>(SynergyUI.BattleResolutionDirector.<FinishAsync>d__27&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.BattleResolutionDirector.<RunReplayAsync>d__26>(SynergyUI.BattleResolutionDirector.<RunReplayAsync>d__26&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.BattleScreen.<ActivateSkillAsync>d__105>(SynergyUI.BattleScreen.<ActivateSkillAsync>d__105&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.BattleScreen.<NetActivateSkillAsync>d__155>(SynergyUI.BattleScreen.<NetActivateSkillAsync>d__155&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.BattleScreen.<NetAttackFlowAsync>d__153>(SynergyUI.BattleScreen.<NetAttackFlowAsync>d__153&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.BattleScreen.<NetGuardFlowAsync>d__154>(SynergyUI.BattleScreen.<NetGuardFlowAsync>d__154&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.BattleScreen.<NetPlaceLandAsync>d__147>(SynergyUI.BattleScreen.<NetPlaceLandAsync>d__147&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.BattleScreen.<NetSelectAsync>d__160>(SynergyUI.BattleScreen.<NetSelectAsync>d__160&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.BattleScreen.<NetTextAsync>d__162>(SynergyUI.BattleScreen.<NetTextAsync>d__162&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.BattleScreen.<NetUseCardAsync>d__143>(SynergyUI.BattleScreen.<NetUseCardAsync>d__143&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.BattleScreen.<NetActivateSkillAsync>d__168>(SynergyUI.BattleScreen.<NetActivateSkillAsync>d__168&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.BattleScreen.<NetAttackFlowAsync>d__166>(SynergyUI.BattleScreen.<NetAttackFlowAsync>d__166&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.BattleScreen.<NetEnsureFieldAppliedAsync>d__136>(SynergyUI.BattleScreen.<NetEnsureFieldAppliedAsync>d__136&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.BattleScreen.<NetGuardFlowAsync>d__167>(SynergyUI.BattleScreen.<NetGuardFlowAsync>d__167&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.BattleScreen.<NetPlaceLandAsync>d__160>(SynergyUI.BattleScreen.<NetPlaceLandAsync>d__160&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.BattleScreen.<NetSelectAsync>d__173>(SynergyUI.BattleScreen.<NetSelectAsync>d__173&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.BattleScreen.<NetTextAsync>d__175>(SynergyUI.BattleScreen.<NetTextAsync>d__175&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.BattleScreen.<NetUseCardAsync>d__156>(SynergyUI.BattleScreen.<NetUseCardAsync>d__156&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.BattleScreen.<OnClickUnitEffectButton>d__33>(SynergyUI.BattleScreen.<OnClickUnitEffectButton>d__33&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.BattleScreen.<OnConcede>d__106>(SynergyUI.BattleScreen.<OnConcede>d__106&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.BattleScreen.<PickLandColorAsync>d__77>(SynergyUI.BattleScreen.<PickLandColorAsync>d__77&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.BattleScreen.<PromptModeThenPickCell>d__96>(SynergyUI.BattleScreen.<PromptModeThenPickCell>d__96&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.BattleScreen.<PulseAutoTargetGlowAsync>d__254>(SynergyUI.BattleScreen.<PulseAutoTargetGlowAsync>d__254&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.BattleScreen.<PulseAutoTargetGlowAsync>d__273>(SynergyUI.BattleScreen.<PulseAutoTargetGlowAsync>d__273&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.BattleScreen.<RefreshFieldWhenBoardReady>d__59>(SynergyUI.BattleScreen.<RefreshFieldWhenBoardReady>d__59&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.BattleScreen.<RejectDeckAndBackAsync>d__180>(SynergyUI.BattleScreen.<RejectDeckAndBackAsync>d__180&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.BattleScreen.<RunAiFirstTurnAsync>d__118>(SynergyUI.BattleScreen.<RunAiFirstTurnAsync>d__118&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.BattleScreen.<SpellDeclarationFlow>d__75>(SynergyUI.BattleScreen.<SpellDeclarationFlow>d__75&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.BattleScreen.<StartDummyOpeningAsync>d__115>(SynergyUI.BattleScreen.<StartDummyOpeningAsync>d__115&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.BattleScreen.<StartGauntletOpeningAsync>d__113>(SynergyUI.BattleScreen.<StartGauntletOpeningAsync>d__113&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.BattleScreen.<StartReplayWhenBoardReadyAsync>d__185>(SynergyUI.BattleScreen.<StartReplayWhenBoardReadyAsync>d__185&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.BattleStageDirector.<MountBoardAndDawnAsync>d__25>(SynergyUI.BattleStageDirector.<MountBoardAndDawnAsync>d__25&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.BattleStageDirector.<SwallowToBattleAsync>d__24>(SynergyUI.BattleStageDirector.<SwallowToBattleAsync>d__24&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.BattleTilePress.<RunAsync>d__10>(SynergyUI.BattleTilePress.<RunAsync>d__10&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.BattleTutorialDirector.<AutoEndTurnAfterHealFxAsync>d__41>(SynergyUI.BattleTutorialDirector.<AutoEndTurnAfterHealFxAsync>d__41&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.BattleTutorialDirector.<ConsumeMidTransitionAsync>d__43>(SynergyUI.BattleTutorialDirector.<ConsumeMidTransitionAsync>d__43&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.BattleTutorialDirector.<PlayTutorialVoiceAsync>d__52>(SynergyUI.BattleTutorialDirector.<PlayTutorialVoiceAsync>d__52&)
@@ -4418,25 +4612,30 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.BattleVfxFx.<ReleaseSlotAfter>d__18>(SynergyUI.BattleVfxFx.<ReleaseSlotAfter>d__18&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.BattleZoneProps.<PulseDeckAsync>d__28>(SynergyUI.BattleZoneProps.<PulseDeckAsync>d__28&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.CardComposerScreen.<ConfirmForceDeleteCardAsync>d__141>(SynergyUI.CardComposerScreen.<ConfirmForceDeleteCardAsync>d__141&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.CombatChoreographer.<PerformAsync>d__75>(SynergyUI.CombatChoreographer.<PerformAsync>d__75&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.CombatChoreographer.<PerformAsync>d__76>(SynergyUI.CombatChoreographer.<PerformAsync>d__76&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.CombatChoreographer.<TargetingLoopAsync>d__45>(SynergyUI.CombatChoreographer.<TargetingLoopAsync>d__45&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.CombatChoreographer.<TrackArrowsAsync>d__82>(SynergyUI.CombatChoreographer.<TrackArrowsAsync>d__82&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.CombatChoreographer.<TrackArrowsAsync>d__83>(SynergyUI.CombatChoreographer.<TrackArrowsAsync>d__83&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.DeckBuilderScreen.<ConfirmCopyPresetAsync>d__115>(SynergyUI.DeckBuilderScreen.<ConfirmCopyPresetAsync>d__115&)
 		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.DeckBuilderScreen.<ConfirmDeleteDeckAsync>d__117>(SynergyUI.DeckBuilderScreen.<ConfirmDeleteDeckAsync>d__117&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.EffectComposerScreen.<ConfirmForceDeleteEffectAsync>d__125>(SynergyUI.EffectComposerScreen.<ConfirmForceDeleteEffectAsync>d__125&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.EffectComposerScreen.<HandleReplacedLegacyAsync>d__126>(SynergyUI.EffectComposerScreen.<HandleReplacedLegacyAsync>d__126&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.LobbyScreen.<ConnectAsync>d__47>(SynergyUI.LobbyScreen.<ConnectAsync>d__47&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.LobbyScreen.<RunScanLoopAsync>d__55>(SynergyUI.LobbyScreen.<RunScanLoopAsync>d__55&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.Online.TapAccountService.<WarmupInternal>d__19>(SynergyUI.Online.TapAccountService.<WarmupInternal>d__19&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.Online.TapLobbySection.<JoinTapRoom>d__9>(SynergyUI.Online.TapLobbySection.<JoinTapRoom>d__9&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.Online.TapLobbySection.<RefreshTapRooms>d__8>(SynergyUI.Online.TapLobbySection.<RefreshTapRooms>d__8&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.Online.TapLobbySection.<StartTapHost>d__7>(SynergyUI.Online.TapLobbySection.<StartTapHost>d__7&)
-		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.TapLoginBadge.<LoginFlow>d__14>(SynergyUI.TapLoginBadge.<LoginFlow>d__14&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.EffectComposerScreen.<ConfirmForceDeleteEffectAsync>d__127>(SynergyUI.EffectComposerScreen.<ConfirmForceDeleteEffectAsync>d__127&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.EffectComposerScreen.<HandleReplacedLegacyAsync>d__128>(SynergyUI.EffectComposerScreen.<HandleReplacedLegacyAsync>d__128&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.LaunchScreen.<AutoAdvance>d__18>(SynergyUI.LaunchScreen.<AutoAdvance>d__18&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.LobbyScreen.<ConnectAsync>d__94>(SynergyUI.LobbyScreen.<ConnectAsync>d__94&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.LobbyScreen.<CreateTapRoomAsync>d__93>(SynergyUI.LobbyScreen.<CreateTapRoomAsync>d__93&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.LobbyScreen.<JoinTapEntryAsync>d__131>(SynergyUI.LobbyScreen.<JoinTapEntryAsync>d__131&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.LobbyScreen.<RefreshTapRoomsAsync>d__129>(SynergyUI.LobbyScreen.<RefreshTapRoomsAsync>d__129&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.LobbyScreen.<RunScanLoopAsync>d__123>(SynergyUI.LobbyScreen.<RunScanLoopAsync>d__123&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.Online.TapAccountService.<WarmupInternal>d__20>(SynergyUI.Online.TapAccountService.<WarmupInternal>d__20&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.RankedMatchmaking.<RunLoop>d__33>(SynergyUI.RankedMatchmaking.<RunLoop>d__33&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.RankedMatchmaking.<ScanOnce>d__34>(SynergyUI.RankedMatchmaking.<ScanOnce>d__34&)
+		// System.Void Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskVoidMethodBuilder.Start<SynergyUI.TapLoginBadge.<LoginFlow>d__17>(SynergyUI.TapLoginBadge.<LoginFlow>d__17&)
 		// Cysharp.Threading.Tasks.Internal.StateTuple<Cysharp.Threading.Tasks.UniTask.Awaiter<byte>> Cysharp.Threading.Tasks.Internal.StateTuple.Create<Cysharp.Threading.Tasks.UniTask.Awaiter<byte>>(Cysharp.Threading.Tasks.UniTask.Awaiter<byte>)
 		// Cysharp.Threading.Tasks.UniTask<byte> Cysharp.Threading.Tasks.UniTask.RunOnThreadPool<byte>(System.Func<byte>,bool,System.Threading.CancellationToken)
 		// Cysharp.Threading.Tasks.UniTask<System.ValueTuple<int,object,object>> Cysharp.Threading.Tasks.UniTask.WhenAny<object,object>(Cysharp.Threading.Tasks.UniTask<object>,Cysharp.Threading.Tasks.UniTask<object>)
+		// Cysharp.Threading.Tasks.UniTask<object> Cysharp.Threading.Tasks.UniTaskExtensions.AsUniTask<object>(System.Threading.Tasks.Task<object>,bool)
 		// Cysharp.Threading.Tasks.UniTask<object> Cysharp.Threading.Tasks.UniTaskExtensions.ContinueWith<object>(Cysharp.Threading.Tasks.UniTask,System.Func<object>)
 		// System.Void Cysharp.Threading.Tasks.UniTaskExtensions.Forget<byte>(Cysharp.Threading.Tasks.UniTask<byte>)
+		// Cysharp.Threading.Tasks.UniTask<object> Cysharp.Threading.Tasks.UniTaskExtensions.Timeout<object>(Cysharp.Threading.Tasks.UniTask<object>,System.TimeSpan,Cysharp.Threading.Tasks.DelayType,Cysharp.Threading.Tasks.PlayerLoopTiming,System.Threading.CancellationTokenSource)
 		// System.Void MemoryPack.IMemoryPackFormatter<object>.Serialize<object>(MemoryPack.MemoryPackWriter<object>&,object&)
 		// byte[] MemoryPack.Internal.MemoryMarshalEx.AllocateUninitializedArray<byte>(int,bool)
 		// float[] MemoryPack.Internal.MemoryMarshalEx.AllocateUninitializedArray<float>(int,bool)
@@ -4476,6 +4675,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 		// System.Void MemoryPack.MemoryPackReader.ReadUnmanaged<byte,byte>(byte&,byte&)
 		// System.Void MemoryPack.MemoryPackReader.ReadUnmanaged<byte,int,int,int,int,int>(byte&,int&,int&,int&,int&,int&)
 		// System.Void MemoryPack.MemoryPackReader.ReadUnmanaged<byte,int,int>(byte&,int&,int&)
+		// System.Void MemoryPack.MemoryPackReader.ReadUnmanaged<byte,uint,byte>(byte&,uint&,byte&)
 		// System.Void MemoryPack.MemoryPackReader.ReadUnmanaged<byte>(byte&)
 		// System.Void MemoryPack.MemoryPackReader.ReadUnmanaged<double>(double&)
 		// System.Void MemoryPack.MemoryPackReader.ReadUnmanaged<float,int>(float&,int&)
@@ -4484,7 +4684,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 		// System.Void MemoryPack.MemoryPackReader.ReadUnmanaged<int,byte>(int&,byte&)
 		// System.Void MemoryPack.MemoryPackReader.ReadUnmanaged<int,float>(int&,float&)
 		// System.Void MemoryPack.MemoryPackReader.ReadUnmanaged<int,int,int,int,byte,uint,int,int,int,byte,byte>(int&,int&,int&,int&,byte&,uint&,int&,int&,int&,byte&,byte&)
-		// System.Void MemoryPack.MemoryPackReader.ReadUnmanaged<int,int,int,int,int,byte>(int&,int&,int&,int&,int&,byte&)
+		// System.Void MemoryPack.MemoryPackReader.ReadUnmanaged<int,int,int,int,int,int,byte>(int&,int&,int&,int&,int&,int&,byte&)
 		// System.Void MemoryPack.MemoryPackReader.ReadUnmanaged<int,int,int,int>(int&,int&,int&,int&)
 		// System.Void MemoryPack.MemoryPackReader.ReadUnmanaged<int,int,int>(int&,int&,int&)
 		// System.Void MemoryPack.MemoryPackReader.ReadUnmanaged<int,int>(int&,int&)
@@ -4522,6 +4722,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 		// System.Void MemoryPack.MemoryPackWriter<object>.WriteUnmanaged<byte,byte>(byte&,byte&)
 		// System.Void MemoryPack.MemoryPackWriter<object>.WriteUnmanaged<byte,int,int,int,int,int>(byte&,int&,int&,int&,int&,int&)
 		// System.Void MemoryPack.MemoryPackWriter<object>.WriteUnmanaged<byte,int,int>(byte&,int&,int&)
+		// System.Void MemoryPack.MemoryPackWriter<object>.WriteUnmanaged<byte>(byte&)
 		// System.Void MemoryPack.MemoryPackWriter<object>.WriteUnmanaged<double>(double&)
 		// System.Void MemoryPack.MemoryPackWriter<object>.WriteUnmanaged<float,int>(float&,int&)
 		// System.Void MemoryPack.MemoryPackWriter<object>.WriteUnmanaged<float>(float&)
@@ -4538,11 +4739,13 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 		// System.Void MemoryPack.MemoryPackWriter<object>.WriteUnmanagedArray<float>(float[])
 		// System.Void MemoryPack.MemoryPackWriter<object>.WriteUnmanagedArray<int>(int[])
 		// System.Void MemoryPack.MemoryPackWriter<object>.WriteUnmanagedArray<uint>(uint[])
+		// System.Void MemoryPack.MemoryPackWriter<object>.WriteUnmanagedWithObjectHeader<byte,uint,byte>(byte,byte&,uint&,byte&)
 		// System.Void MemoryPack.MemoryPackWriter<object>.WriteUnmanagedWithObjectHeader<byte>(byte,byte&)
 		// System.Void MemoryPack.MemoryPackWriter<object>.WriteUnmanagedWithObjectHeader<float,int>(byte,float&,int&)
 		// System.Void MemoryPack.MemoryPackWriter<object>.WriteUnmanagedWithObjectHeader<int,float>(byte,int&,float&)
-		// System.Void MemoryPack.MemoryPackWriter<object>.WriteUnmanagedWithObjectHeader<int,int,int,int,int,byte>(byte,int&,int&,int&,int&,int&,byte&)
+		// System.Void MemoryPack.MemoryPackWriter<object>.WriteUnmanagedWithObjectHeader<int,int,int,int,int,int,byte>(byte,int&,int&,int&,int&,int&,int&,byte&)
 		// System.Void MemoryPack.MemoryPackWriter<object>.WriteUnmanagedWithObjectHeader<int,int,int,int>(byte,int&,int&,int&,int&)
+		// System.Void MemoryPack.MemoryPackWriter<object>.WriteUnmanagedWithObjectHeader<int,int,int>(byte,int&,int&,int&)
 		// System.Void MemoryPack.MemoryPackWriter<object>.WriteUnmanagedWithObjectHeader<int,int>(byte,int&,int&)
 		// System.Void MemoryPack.MemoryPackWriter<object>.WriteUnmanagedWithObjectHeader<int,uint,ushort,long>(byte,int&,uint&,ushort&,long&)
 		// System.Void MemoryPack.MemoryPackWriter<object>.WriteUnmanagedWithObjectHeader<int,uint>(byte,int&,uint&)
@@ -4635,9 +4838,11 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
 		// System.Linq.IOrderedEnumerable<System.ValueTuple<int,float,float>> System.Linq.Enumerable.OrderByDescending<System.ValueTuple<int,float,float>,float>(System.Collections.Generic.IEnumerable<System.ValueTuple<int,float,float>>,System.Func<System.ValueTuple<int,float,float>,float>)
 		// System.Linq.IOrderedEnumerable<System.ValueTuple<int,int>> System.Linq.Enumerable.OrderByDescending<System.ValueTuple<int,int>,int>(System.Collections.Generic.IEnumerable<System.ValueTuple<int,int>>,System.Func<System.ValueTuple<int,int>,int>)
 		// System.Linq.IOrderedEnumerable<int> System.Linq.Enumerable.OrderByDescending<int,float>(System.Collections.Generic.IEnumerable<int>,System.Func<int,float>)
+		// System.Linq.IOrderedEnumerable<object> System.Linq.Enumerable.OrderByDescending<object,System.DateTime>(System.Collections.Generic.IEnumerable<object>,System.Func<object,System.DateTime>)
 		// System.Linq.IOrderedEnumerable<object> System.Linq.Enumerable.OrderByDescending<object,byte>(System.Collections.Generic.IEnumerable<object>,System.Func<object,byte>)
 		// System.Linq.IOrderedEnumerable<object> System.Linq.Enumerable.OrderByDescending<object,float>(System.Collections.Generic.IEnumerable<object>,System.Func<object,float>)
 		// System.Linq.IOrderedEnumerable<object> System.Linq.Enumerable.OrderByDescending<object,int>(System.Collections.Generic.IEnumerable<object>,System.Func<object,int>)
+		// System.Linq.IOrderedEnumerable<object> System.Linq.Enumerable.OrderByDescending<object,long>(System.Collections.Generic.IEnumerable<object>,System.Func<object,long>)
 		// System.Linq.IOrderedEnumerable<object> System.Linq.Enumerable.OrderByDescending<object,uint>(System.Collections.Generic.IEnumerable<object>,System.Func<object,uint>)
 		// System.Collections.Generic.IEnumerable<object> System.Linq.Enumerable.Reverse<object>(System.Collections.Generic.IEnumerable<object>)
 		// System.Collections.Generic.IEnumerable<object> System.Linq.Enumerable.ReverseIterator<object>(System.Collections.Generic.IEnumerable<object>)

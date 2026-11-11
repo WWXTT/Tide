@@ -22,7 +22,9 @@ namespace CardCore.Network
     // ============================================================
 
     /// <summary>下行：Error 帧载荷（99）。intent 拒绝 / 握手拒绝 / 房间操作拒绝共用；
-    /// Context 标注来源（如 "IntentPlayCard" / "DeckSubmit" / "JoinRoom"），Reason 为人可读原因。</summary>
+    /// Context 标注来源（如 "IntentPlayCard" / "DeckSubmit" / "JoinRoom"），Reason 为人可读原因。
+    /// Channel（v17 2026-11-11 通道拆分）：拒绝帧归属通道（NetworkChannel 值）——客户端按它把
+    /// 房间拒绝投给房间事件面、对战拒绝投给对战事件面（对局中房聊等房间拒绝不进战斗提示）。</summary>
     [MemoryPackable]
     public partial class MsgError
     {
@@ -31,6 +33,10 @@ namespace CardCore.Network
 
         [MemoryPackOrder(TagTable.MErr_Context)]
         public string Context;
+
+        /// <summary>归属通道（NetworkChannel 值；0=Room——旧发送方缺省同义）。</summary>
+        [MemoryPackOrder(TagTable.MErr_Channel)]
+        public int Channel;
     }
 
     /// <summary>上行：进房（连接后第一条消息）。WantSeat=0/1 指定椅子位（被占即拒）、-1 任意空位；
@@ -38,7 +44,9 @@ namespace CardCore.Network
     /// OpenId/IsAi（2026-11-09 协议 v11 对局记录）：TapTap 开位 ID（服务器不持有 TapTap 档案，
     /// 由进房方自报，随终局摘要回传对手；局域网为空）与 AI 填位标记（AI 局不下发终局摘要）。
     /// Password/DeckName（S5 2026-11-10 房间密码+选卡上报）：密码空=无密码房直进；
-    /// DeckName=大厅选中的卡组名随进房上报（空=未选），RoomState 座位快照带出。</summary>
+    /// DeckName=大厅选中的卡组名随进房上报（空=未选），RoomState 座位快照带出。
+    /// IsHost（v17 2026-11-11 通道拆分）：房主自报——P2P 房主进程的回环入座置 true（服务器据此
+    /// 授予开局/模式配置权；房主不可转移、退出=解散，故只认首个声明者，见 NetRoom.HandleJoin）。</summary>
     [MemoryPackable]
     public partial class MsgJoinRoom
     {
@@ -75,6 +83,10 @@ namespace CardCore.Network
         /// <summary>卡组胜率（S8 排位匹配）：千分比 0..1000，-1=无战绩（首战）。</summary>
         [MemoryPackOrder(TagTable.MJR_WinRate)]
         public int WinRate;
+
+        /// <summary>房主自报（v17）：P2P 房主进程回环入座=true；服务器只认首个声明者（房主不可转移）。</summary>
+        [MemoryPackOrder(TagTable.MJR_IsHost)]
+        public bool IsHost;
     }
 
     /// <summary>上行：排位接受应答（134，S8 排位）。椅子位各自上报（Waiting+Ranked 相位有效）；
@@ -117,9 +129,15 @@ namespace CardCore.Network
         [MemoryPackOrder(TagTable.MRS_ShuffleMode)]
         public int ShuffleMode;
 
-        /// <summary>客人（椅位1）准备态——房主「开始」的门槛。</summary>
+        /// <summary>客人（椅位1）准备态——**兼容字段**：v17 起语义=「全体非房主座位均已准备」
+        /// （房主可落任意椅/观战，逐座准备态见 MsgRoomSeatInfo.Ready）。房主「开始」的门槛。</summary>
         [MemoryPackOrder(TagTable.MRS_GuestReady)]
         public bool GuestReady;
+
+        /// <summary>房主昵称（v17 通道拆分）：空=当前无房主（房主已退出/房间解散中）。
+        /// 房主身份不随座位走——可落椅 0/椅 1 或观战，开局权与模式配置权恒在房主连接。</summary>
+        [MemoryPackOrder(TagTable.MRS_HostName)]
+        public string HostName;
 
         /// <summary>选卡组倒计时剩秒（DeckSubmit 相位；-1=非倒计时）。服务器权威，整秒推送。</summary>
         [MemoryPackOrder(TagTable.MRS_DeckPickSecondsLeft)]
@@ -155,8 +173,19 @@ namespace CardCore.Network
         public bool Ready;
     }
 
+    /// <summary>上行：座位↔观战切换（v16 2026-11-11 多成员房间，仅 Waiting 相位、排位房拒）。
+    /// ToSpectator=true：座上释放椅位转观战；false：观战者入任意空位（满拒）。带方向防连点竞态。</summary>
+    [MemoryPackable]
+    public partial class MsgSeatSwap
+    {
+        [MemoryPackOrder(TagTable.MSSw_ToSpectator)]
+        public bool ToSpectator;
+    }
+
     /// <summary>房间椅子位信息（RoomState.Players 元素）。DeckName（S5 2026-11-10）：
-    /// 本座位随 JoinRoom 上报的卡组名（座位卡展示双方卡组；空=未选/退位）。</summary>
+    /// 本座位随 JoinRoom 上报的卡组名（座位卡展示双方卡组；空=未选/退位）。
+    /// v17（2026-11-11 通道拆分）：Ready=该座位准备态（非房主座位才可置 true）、IsAi=AI 填位、
+    /// IsHost=该座位是否为房主（房主观战时两个座位都不是房主，UI 用 RoomState.HostName 显示房主）。</summary>
     [MemoryPackable]
     public partial class MsgRoomSeatInfo
     {
@@ -171,6 +200,18 @@ namespace CardCore.Network
 
         [MemoryPackOrder(TagTable.MRSI_DeckName)]
         public string DeckName;
+
+        /// <summary>逐座准备态（v17）：房主座位恒 false（开局权在房主，无需准备）。</summary>
+        [MemoryPackOrder(TagTable.MRSI_Ready)]
+        public bool Ready;
+
+        /// <summary>AI 填位（v17：座位卡「AI」标记不必再靠昵称前缀猜）。</summary>
+        [MemoryPackOrder(TagTable.MRSI_IsAi)]
+        public bool IsAi;
+
+        /// <summary>本座位是否房主（v17；房主观战=两座皆 false）。</summary>
+        [MemoryPackOrder(TagTable.MRSI_IsHost)]
+        public bool IsHost;
     }
 
     /// <summary>房间阶段（RoomState.Phase 取值；int 传输，新增值只追加）。</summary>

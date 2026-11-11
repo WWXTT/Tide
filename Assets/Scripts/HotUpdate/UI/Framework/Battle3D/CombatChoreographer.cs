@@ -488,6 +488,41 @@ namespace SynergyUI
             AssembleAndPerform();
         }
 
+        /// <summary>战斗演出数据捕获（2026-11-11 演出统一 S2·方案 §2.2 CombatShot）：攻击步出栈时
+        /// LocalFilmSource 调——把当前捕获态（攻击者/目标/伤害缓冲）转成可录制数据挂帧；不消费捕获
+        /// （开演仍归 PerformCapturedNow）。无捕获返回 null；守卫拦截下 Target 已被改写为守卫者
+        /// （原目标只存格）——v1 已知差异：回放不还原守卫闪现/反击走位。</summary>
+        public CombatShot CaptureShot(Func<Player, int> seatOf)
+        {
+            if (!_capturing) return null;
+            var shot = new CombatShot
+            {
+                Attacker = FxRef.Of(_attackerEntity, seatOf),
+                Target = FxRef.Of(_targetEntity, seatOf),
+            };
+            // 目标格（回放飞行参照）：角色目标=防守方角色格；单位目标=当前视图格
+            if (_heroTarget)
+            {
+                var hc = BoardLayout.CharacterCell(_attackingIsSelf ? 1 : 0);
+                shot.TargetX = hc.x;
+                shot.TargetZ = hc.z;
+            }
+            else
+            {
+                var cell = CellOf(_targetId);
+                if (cell.HasValue) { shot.TargetX = cell.Value.x; shot.TargetZ = cell.Value.z; }
+            }
+            // 命中缓冲：攻击者的笔=主击；其余（守方反击/溅射第三方）标 IsCounter
+            foreach (var d in _damages)
+                shot.Hits.Add(new CombatHit
+                {
+                    Target = FxRef.Of(d.Defender, seatOf),
+                    Amount = d.Damage,
+                    IsCounter = !ReferenceEquals(d.Attacker, _attackerEntity),
+                });
+            return shot;
+        }
+
         private void ClearCapture()
         {
             ClearGazePins(); // 战斗注视全清（取消/Dispose/新宣言防漏）

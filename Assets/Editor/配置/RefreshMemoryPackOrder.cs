@@ -359,6 +359,7 @@ namespace CardCore.Tools
 
                 // ---- 会话层（M2，2026-09-23：Error 载荷 + 房间状态机，见 网络协议.md §12）----
                 ("MsgError", "Reason"), ("MsgError", "Context"),
+                ("MsgError", "Channel"), // v17：拒绝帧归属通道（房间/对战）
                 ("MsgJoinRoom", "RoomId"), ("MsgJoinRoom", "WantSeat"),
                 ("MsgJoinRoom", "AsSpectator"), ("MsgJoinRoom", "Nickname"),
                 // v11（2026-11-09）当时手加进 TagTable 未登记于此——补登（否则刷新会洗掉这两条）
@@ -367,6 +368,7 @@ namespace CardCore.Tools
                 ("MsgJoinRoom", "Password"), ("MsgJoinRoom", "DeckName"),
                 // S8（2026-11-10）排位模式：进房上报排位标记/指纹/胜率
                 ("MsgJoinRoom", "Ranked"), ("MsgJoinRoom", "DeckFingerprint"), ("MsgJoinRoom", "WinRate"),
+                ("MsgJoinRoom", "IsHost"), // v17：房主自报（P2P 房主进程回环入座）
 
                 // ---- MsgRankedAck（S8 排位接受应答）----
                 ("MsgRankedAck", "Accepted"),
@@ -378,9 +380,13 @@ namespace CardCore.Tools
                 // v13 本局随机种子（开局定死回显）：2026-11-11 补登记——现值 -210878657 为全量强转口径，
                 // 属"冻结值"（见 GenerateTagTable 保值生成），登记后跑工具沿用现值、不改线格式
                 ("MsgRoomState", "Seed"),
+                ("MsgRoomState", "HostName"), // v17：房主昵称（空=无房主）
                 ("MsgRoomSeatInfo", "Seat"), ("MsgRoomSeatInfo", "Nickname"),
                 ("MsgRoomSeatInfo", "Connected"),
                 ("MsgRoomSeatInfo", "DeckName"), // S5：座位卡组名
+                ("MsgRoomSeatInfo", "Ready"),    // v17：逐座准备态
+                ("MsgRoomSeatInfo", "IsAi"),     // v17：AI 填位
+                ("MsgRoomSeatInfo", "IsHost"),   // v17：座位是否房主
 
                 // ---- 房间就绪层（2026-10-28 开局流程改版：房主配模式+客人准备+房主开局）----
                 ("MsgRoomSettings", "FirstMoveMode"), ("MsgRoomSettings", "ShuffleMode"),
@@ -402,6 +408,9 @@ namespace CardCore.Tools
                 ("MsgNetLogBatch", "Lines"),
                 ("NetLogLine", "Kind"), ("NetLogLine", "Flags"),
                 ("NetLogLine", "EventId"), ("NetLogLine", "Text"),
+
+                // ---- MsgSeatSwap（v16 多成员房间，2026-11-11：座位↔观战切换）----
+                ("MsgSeatSwap", "ToSpectator"),
             };
 
             var result = new (string className, string propName, int tag)[raw.Length];
@@ -508,6 +517,7 @@ namespace CardCore.Tools
                 "MsgLobbyAddAi" => "MLAA",
                 "MsgNetLogBatch" => "MNLB",       // v15 C 案战报行流（2026-11-11）
                 "NetLogLine" => "NLL",            // v15 同上
+                "MsgSeatSwap" => "MSSw",          // v16 多成员房间（2026-11-11）
                 _ => className
             };
         }
