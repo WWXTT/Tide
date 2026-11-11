@@ -216,8 +216,7 @@ namespace SynergyUI
             _historyList = historyScroll != null ? historyScroll.Content : null;
             _historyEmptyLabel = FindOptional("lbl-history-empty")?.GetComponent<TMP_Text>(); // 可选：烘焙空态位
             _copyDeckBtn = BindButton("btn-copy-deck", ImportSelectedRecord); // 选中+有卡组数据才可点（UpdateCopyDeckButton 管）
-            _replayBtn = BindButton("btn-replay", null); // 重播不做（SPEC 定案）——恒灰
-            if (_replayBtn != null) _replayBtn.interactable = false;
+            _replayBtn = BindButton("btn-replay", StartReplayFromRecord); // D：联机复盘入口（选中+剧本在库才可点——UpdateReplayButton 管）
 
             // ---- TapTap 桥装段：v2 无独立面板（S6b 房间列表双源统一）——段对象仍创建
             //      （登录名/OpenId 经它取），不再调段 Build（旧节点已不存在）----
@@ -621,6 +620,7 @@ namespace SynergyUI
             _historyRecords.Clear();
             _historyRowBgs.Clear();
             UpdateCopyDeckButton();
+            UpdateReplayButton();
             if (_historyList == null) return;
             for (int i = _historyList.childCount - 1; i >= 0; i--)
                 UnityEngine.Object.Destroy(_historyList.GetChild(i).gameObject);
@@ -661,6 +661,7 @@ namespace SynergyUI
                         ? UiStyle.SelectedRowBg
                         : UiStyle.RowBg;
             UpdateCopyDeckButton();
+            UpdateReplayButton();
         }
 
         /// <summary>复制对手卡组按钮态（S6c）：选中且 opponentCardIds 非空才可点。</summary>
@@ -670,6 +671,27 @@ namespace SynergyUI
             _copyDeckBtn.interactable = _selectedRecord != null
                 && _selectedRecord.opponentCardIds != null
                 && _selectedRecord.opponentCardIds.Length > 0;
+        }
+
+        /// <summary>复盘按钮态（D·btn-replay）：选中记录且剧本在库（Films/&lt;matchId&gt;.film.gz）才可点
+        ///——旧记录（二期 C 之前/断线未封卷）无剧本恒灰。</summary>
+        private void UpdateReplayButton()
+        {
+            if (_replayBtn == null) return;
+            _replayBtn.interactable = _selectedRecord != null
+                && BattleFilmStore.Has(_selectedRecord.matchId);
+        }
+
+        /// <summary>联机复盘入口（D·btn-replay）：Replay 模式+剧本 id 填 BattleEntry，走与开局移交
+        /// 同一吞场通道进战斗屏（StartReplayFan 等棋盘就绪后整包投帧——时间轴取无遮蔽 FullText）。</summary>
+        private void StartReplayFromRecord()
+        {
+            var r = _selectedRecord;
+            if (r == null || !BattleFilmStore.Has(r.matchId)) return; // 按钮已置灰——防御
+            BattleEntry.Mode = BattleMode.Replay;
+            BattleEntry.ReplayFilmId = r.matchId;
+            TideLog.Info($"[Lobby] 复盘入口：{r.matchId}（vs {r.opponentName}）");
+            BattleStageDirector.SwallowToBattleAsync(() => Manager.Show<BattleScreen>()).Forget();
         }
 
         /// <summary>复制对手卡组（S6c：btn-copy-deck）：确认框 → 复用 OpponentDeckImporter.Import
