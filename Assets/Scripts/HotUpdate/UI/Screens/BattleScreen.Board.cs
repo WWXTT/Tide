@@ -194,6 +194,9 @@ namespace SynergyUI
                 if (hitName == "hud-tile-end-turn")
                 {
                     Debug.Log("[HUD地块] 点击：结束回合");
+                    // 按压反馈同棋盘格（2026-11-12）：改名认领格走 PlayHud 直喂 Transform——
+                    // 纯视觉先于各闸（对手回合被拦也照压=点击有响应），不改路由不进结算链
+                    BattleTilePress.PlayHud(BattleHudRow.EndTurnTile);
                     CloseRegion();
                     if (IsTargetSelecting()) return; // Region 抉择/反问在身：先完成选择再推进（非模态须自防重入）
                     if (NetActive) { OnEndTurnFan(); return; } // 网络局：视图闸在 NetEndTurn（Core 侧门不适用）

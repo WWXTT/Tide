@@ -28,8 +28,18 @@ namespace Tide.Launch
         /// netstandard 门面 dll（拷贝步骤 File.Exists 恒 miss，真机端只落一条 YooAsset 内部 LogError
         /// + 兜底 Warn）——四件套原本照 HybridCLR 文档（.NET Standard 档示例）抄来，本档位补它无意义。
         /// 若未来切 .NET Standard 2.1 档再把它加回（届时裁剪产物会自动产出）。
+        /// 2026-11-12 加 MemoryPack.Core：热更网络消息的 ReadUnmanaged/WriteUnmanaged 等值类型泛型
+        /// 组合全家族改由补充元数据兜底（AotAudit 门禁同步豁免该 DefAsm；下方 MpAotProbe 探针锚
+        /// 退为元数据缺席时的兜底冗余，保留）——终结「每加一个消息字段组合补一个探针锚」的维护循环。
+        /// 注意程序集真名带 .Core（NuGet 拆包命名），裁剪产物=
+        /// HybridCLRData/AssembliesPostIl2CppStrip/&lt;target&gt;/MemoryPack.Core.dll。
+        /// 补充元数据只兜「AOT 未原生实例化的组合」，已实例化的仍走原生代码，网络热路径无全量回归。
+        /// 2026-11-12 加 UniTask：AsUniTask&lt;T&gt;/Timeout&lt;T&gt;/UniTask&lt;T&gt; 等泛型组合在
+        /// AOT 侧零实例化（16:49 真机实录 AsUniTask&lt;String&gt; 报 MissingMethodException，
+        /// 调用链 RefreshTapRoomsAsync→…→Connect().AsUniTask().Timeout()），改由补充元数据兜底；
+        /// 下方 builder/RunOnThreadPool 锚点退为兜底冗余，保留勿删。
         /// </summary>
-        public static readonly string[] PatchAotAssemblies = { "mscorlib", "System", "System.Core" };
+        public static readonly string[] PatchAotAssemblies = { "mscorlib", "System", "System.Core", "MemoryPack.Core", "UniTask" };
 
         public const string HotAssemblyName = "Tide.HotUpdate";
 

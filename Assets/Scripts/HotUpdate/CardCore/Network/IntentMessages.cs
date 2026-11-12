@@ -13,8 +13,9 @@ namespace CardCore.Network
     /// <summary>出牌三路合一：FromZone=Hand（主阶段出牌）/ Graveyard（墓地视手牌）。
     /// 服务器按"栈非空且请求者持优先权"分派 PlayCardInResponse（响应出牌，来源限手牌），
     /// 否则走 PlayCard（主阶段+回合玩家门禁）。ModeIndex=抉择模式（宣言即公开）。
-    /// 永久物落格（2026-10-28）：快照不承载棋盘坐标（位置权威=客户端表现层）——选格钉在
-    /// 客户端 NetCellPins（BuildNet 消费），无需协议带格。</summary>
+    /// 永久物落格：v19 起携带 CellX/CellZ（声明期落格、服务端权威钉格并随快照回传实际格）；
+    /// 2026-10-28 旧案「位置权威=客户端表现层、选格钉 NetCellPins」随之退役为快照无坐标时的
+    /// fallback（详见 网络协议.md v19）。</summary>
     [MemoryPackable]
     public partial class MsgIntentPlayCard
     {
@@ -35,6 +36,16 @@ namespace CardCore.Network
         /// null/空=无参照。后加字段（旧客户端缺省反序列化为 null——版本闸 v10 拒旧端）。</summary>
         [MemoryPackOrder(TagTable.MsgIntentPlayCard_References)]
         public NetEntityRef[] References;
+
+        /// <summary>声明期落格（2026-11-12 v19）：**绝对棋盘坐标**（客户端发送前已按 ViewerSeat
+        /// 镜像换算）；-1=未指定（AI/旧逻辑/法术/场地卡）。仅永久物（生物/结界）由客户端携带；
+        /// 服务端校验（己方单位格+空格）后 PinCard 钉格，快照回传实际格。</summary>
+        [MemoryPackOrder(TagTable.MsgIntentPlayCard_CellX)]
+        public int CellX = -1;
+
+        /// <summary>落格 Z（同 CellX；两者须成对携带/成对缺省）。</summary>
+        [MemoryPackOrder(TagTable.MsgIntentPlayCard_CellZ)]
+        public int CellZ = -1;
     }
 
     // MsgIntentTapForElement 已删（2026-10-11 现取现用：无手动横置意图）——原 101 空位已随

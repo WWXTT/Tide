@@ -15,8 +15,8 @@ using System.Text.RegularExpressions;
 //   - anchored 条目做弱校验（warn-only）：锚点目录里 grep API 名 + 类型实参关键字。
 // 噪声归一（§3.1.4）：编译器生成条目（async 状态机 <X>d__N / 本地函数 g__ / <>c 闭包）的
 // 身份键剥掉 d__ 编号再入基线对账——编号每次重编都会漂移，不归一则改一行代码就假报警。
-// 门禁豁免两类：定义在 patchAOTAssemblies（mscorlib/System/System.Core，运行时由补充元数据
-// 兜底——集合须与 Assets/Scripts/Launch/HotUpdateLoader.cs 的 PatchAotAssemblies 一致）与
+// 门禁豁免两类：定义在 patchAOTAssemblies（mscorlib/System/System.Core/MemoryPack.Core/UniTask，运行时
+// 由补充元数据兜底——集合须与 Assets/Scripts/Launch/HotUpdateLoader.cs 的 PatchAotAssemblies 一致）与
 // 定义在热更程序集自身（HybridCLR 解释执行，无 AOT 实例化需求）。
 //
 // 用法（在仓库根执行）：
@@ -30,8 +30,12 @@ using System.Text.RegularExpressions;
 const int ExitOk = 0;
 const int ExitNew = 3;
 const int ExitEnv = 2;
-// 与 HotUpdateLoader.PatchAotAssemblies 保持一致（该列表变更时同步改这里与源码两侧）
-string[] patchAssemblies = { "mscorlib", "System", "System.Core" };
+// 与 HotUpdateLoader.PatchAotAssemblies 保持一致（该列表变更时同步改这里与源码两侧）。
+// 2026-11-12 加 MemoryPack.Core：热更值类型泛型组合全家族由补充元数据兜底（拍板见
+// HotUpdateLoader 注释），门禁同步豁免该 DefAsm——注意真名带 .Core（NuGet 拆包命名）。
+// 2026-11-12 加 UniTask：AsUniTask<T>/Timeout<T>/UniTask<T> 等泛型在 AOT 侧零实例化
+//（16:49 真机实录 AsUniTask<String> 报错），全族由补充元数据兜底，门禁同步豁免。
+string[] patchAssemblies = { "mscorlib", "System", "System.Core", "MemoryPack.Core", "UniTask" };
 // BCL 门面豁免：Unity .NET Framework 档位下热更 DLL 对 mscorlib/System 系类型的 AssemblyRef
 // 大多指向 netstandard 门面（编译期引用；il2cpp 裁剪产物里并无此文件），运行时类型统一回
 // mscorlib/System——与 patchAOT 同由补充元数据兜底，故并入豁免。若未来切 .NET Standard 档
@@ -54,7 +58,7 @@ static int Run(string[] args, string[] patchAssemblies, string[] bclFacadeAssemb
     var inputs = new List<string>();
     string? baselinePath = null, reportPath = null, emitPath = null, contains = null;
     string target = "Android", anchorDir = "Assets/Scripts/Launch";
-    bool all = false;
+    bool all = false, autoNoise = false;
     for (int i = 0; i < args.Length; i++)
     {
         string Take() => i + 1 < args.Length ? args[++i] : throw new ArgumentException($"参数 {args[i]} 缺值");
@@ -66,6 +70,7 @@ static int Run(string[] args, string[] patchAssemblies, string[] bclFacadeAssemb
             case "--target": target = Take(); break;
             case "--anchor-dir": anchorDir = Take(); break;
             case "--contains": contains = Take(); break;
+            case "--auto-noise": autoNoise = true; break;
             case "--all": all = true; break;
             case "-h" or "--help": PrintHelp(); return ExitOk;
             default:
@@ -126,6 +131,25 @@ static int Run(string[] args, string[] patchAssemblies, string[] bclFacadeAssemb
     if (baselinePath != null && !baselineMissing) baseline = LoadBaseline(baselinePath);
 
     var fresh = gated.Where(e => !baseline.ContainsKey(e.Sig)).ToList();
+
+    // ---- --auto-noise：新增里的编译器噪声自动落基线（2026-11-12）----
+    // 噪声判定与基线载入同一正则源（IsCompilerNoise），零人工判断可自动处置；
+    // 其余新增（safe/anchored 判断题）仍走人工三选一。只在配 --baseline 且文件存在时生效。
+    if (autoNoise && baselinePath != null && !baselineMissing && fresh.Any(e => e.Noise))
+    {
+        var noiseFresh = fresh.Where(e => e.Noise).OrderBy(e => e.Sig, StringComparer.Ordinal).ToList();
+        var sb2 = new StringBuilder();
+        sb2.AppendLine($"# --auto-noise 自动处置（{DateTime.Now:yyyy-MM-dd}）：新增里的编译器生成条目");
+        foreach (var e in noiseFresh)
+        {
+            sb2.AppendLine($"{e.Sig}\tnoise\t编译器生成（--auto-noise 自动处置）\t# ← {string.Join(",", e.Sources.Select(Path.GetFileName))}");
+            baseline[e.Sig] = ("noise", "编译器生成（--auto-noise 自动处置）");
+        }
+        File.AppendAllText(baselinePath, sb2.ToString());
+        fresh = fresh.Where(e => !e.Noise).ToList();
+        Console.WriteLine($"[AotAudit] --auto-noise：{noiseFresh.Count} 条编译器生成已自动落基线并计为已处置");
+    }
+
     var removed = baseline.Keys.Where(sig => !entries.TryGetValue(sig, out var e) || !e.Gated)
         .OrderBy(s => s, StringComparer.Ordinal).ToList();
     int a = baseline.Values.Count(v => v.Disp == "anchored");
@@ -195,8 +219,9 @@ static void PrintHelp()
     Console.WriteLine("  --report <path>      全量报告落盘（kind/sig/defAsm/value/gated/sources）");
     Console.WriteLine("  --anchor-dir <dir>   anchored 弱校验的锚点目录（默认 Assets/Scripts/Launch）");
     Console.WriteLine("  --target <name>      目标平台（保留位，默认 Android，暂不区分行为）");
-    Console.WriteLine("  --contains <kw>      过滤输出（调试用；不影响 exit 判定范围）");
-    Console.WriteLine("  --all                输出全部条目（含豁免类）");
+        Console.WriteLine("  --contains <kw>      过滤输出（调试用；不影响 exit 判定范围）");
+        Console.WriteLine("  --auto-noise         新增里的编译器生成条目（噪声正则同源）自动落基线标 noise（须配 --baseline）");
+        Console.WriteLine("  --all                输出全部条目（含豁免类）");
     Console.WriteLine("退出码：0=通过；3=有新增未处置；2=环境/参数错误");
 }
 

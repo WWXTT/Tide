@@ -14,6 +14,9 @@ namespace CloudSave
     /// · 启动（登录成功后）：拉云端列表比对 savedAt——无云端且本地有玩家数据=上传；
     ///   云端较新=处女档免询问自动恢复，否则经 <see cref="OnRestoreSuggested"/> 请 UI 询问；
     ///   本地较新=上传。
+    /// · 设备识别（2026-11-12 定案）：云端档案 extra 带 deviceId（本机=Unity deviceUniqueIdentifier，
+    ///   取不到回落本安装 GUID）；启动对账发现云端设备≠本机=设备变更——**不自动上传也不自动下载**，
+    ///   经 OnRestoreSuggested(DeviceChanged) 交玩家选「使用云端 / 使用当前设备」。
     /// · 运行期：宿主 MonoBehaviour 每 <see cref="TapSdkConfig.AutoUploadPollSeconds"/> 秒查
     ///   mtime 脏判定（不改各存档管理器的写盘代码），脏且非处女档即防抖上传；
     ///   OnApplicationPause/Quit 冲刷一次。
@@ -24,10 +27,31 @@ namespace CloudSave
         private static string _archiveUuid;
         private static string _archiveFileId;
         private static long _cloudSavedAt;
+        private static string _cloudDeviceId; // 云端档案归属设备（extra.deviceId；旧档案为空）
         private static DateTime _lastSyncAt;
         private static bool _busy;
         private static float _failCooldownUntil;
         private static bool _pendingRestorePrompt;
+        private static RestorePromptReason _pendingReason;
+        private static bool _promptRaised;        // 本次会话已发起过恢复询问（防双 Init 重复弹窗）
+        private static long _promptedCloudSavedAt; // 上次询问对应的云端 savedAt（云端变新才重新问）
+
+        /// <summary>恢复询问的起因（UI 文案分流：云端较新 / 设备变更）。</summary>
+        public enum RestorePromptReason
+        {
+            None = 0,
+            CloudNewer = 1,
+            DeviceChanged = 2,
+        }
+
+        /// <summary>待答复询问的起因（仅 PendingRestorePrompt=true 时有效）。</summary>
+        public static RestorePromptReason PendingReason => _pendingReason;
+
+        /// <summary>云端档案归属设备 id（空=旧档案未带设备识别）。</summary>
+        public static string CloudDeviceId => _cloudDeviceId;
+
+        /// <summary>当前本机设备 id（UI 文案可显示短码）。</summary>
+        public static string LocalDeviceId => SaveBundleCodec.EnsureDeviceId();
 
         /// <summary>状态/账号/云端档案引用变化（主菜单入口与面板的刷新接线点，主线程触发）。</summary>
         public static event Action OnStateChanged;
@@ -77,32 +101,51 @@ namespace CloudSave
                 {
                     Debug.Log("[CloudSync] 云端无存档——本地非处女档时上传");
                     if (!SaveBundleCodec.IsPristineLocal())
-                        await UploadAsync("startup_no_cloud");
+                        await UploadCoreAsync("startup_no_cloud");
                 }
                 else
                 {
                     _archiveUuid = own.Uuid;
                     _archiveFileId = own.FileId;
                     _cloudSavedAt = ParseExtraSavedAt(own.Extra);
+                    _cloudDeviceId = ParseExtraDeviceId(own.Extra);
                     long local = SaveBundleCodec.ReadLocalSavedAt();
-                    Debug.Log($"[CloudSync] 云端 savedAt={_cloudSavedAt} 本地 savedAt={local}（云端改于 {own.ModifiedTime}）");
+                    string localDevice = SaveBundleCodec.EnsureDeviceId();
+                    bool deviceChanged = !string.IsNullOrEmpty(_cloudDeviceId)
+                        && !string.IsNullOrEmpty(localDevice)
+                        && !string.Equals(_cloudDeviceId, localDevice, StringComparison.Ordinal);
+                    string dismissKey = DevicePromptKey(_cloudDeviceId, _cloudSavedAt);
+                    Debug.Log($"[CloudSync] 云端 savedAt={_cloudSavedAt} 本地 savedAt={local}"
+                        + $" 云端设备={ShortId(_cloudDeviceId)} 本机设备={ShortId(localDevice)}"
+                        + $"（云端改于 {own.ModifiedTime}）");
 
-                    if (_cloudSavedAt > local)
+                    if (deviceChanged && !SaveBundleCodec.IsDevicePromptDismissed(dismissKey))
+                    {
+                        // 2026-11-12 定案：设备变更一律不自动上传/下载——交玩家选「当前数据/云端数据」
+                        Debug.Log("[CloudSync] 设备变更——不自动同步，等待玩家选择使用当前还是云端数据");
+                        RaiseRestorePrompt(RestorePromptReason.DeviceChanged);
+                    }
+                    else if (deviceChanged)
+                    {
+                        // 本设备已答复过「使用当前设备」：只补传本地较新的情况；云端较新也不自动覆盖本地
+                        if (!SaveBundleCodec.IsPristineLocal() && local > _cloudSavedAt)
+                            await UploadCoreAsync("device_dismissed_local_newer");
+                    }
+                    else if (_cloudSavedAt > local)
                     {
                         if (SaveBundleCodec.IsPristineLocal())
                         {
                             Debug.Log("[CloudSync] 处女档+云端较新——免询问自动恢复");
-                            await RestoreFromCloudAsync();
+                            await RestoreCoreAsync();
                         }
                         else
                         {
-                            _pendingRestorePrompt = true; // 无 UI 订阅（如对局中）时挂起，主菜单 OnEnter 补问
-                            OnRestoreSuggested?.Invoke(_cloudSavedAt);
+                            RaiseRestorePrompt(RestorePromptReason.CloudNewer); // 无 UI 订阅（如对局中）时挂起，主菜单 OnEnter 补问
                         }
                     }
                     else if (local > _cloudSavedAt)
                     {
-                        await UploadAsync("startup_local_newer");
+                        await UploadCoreAsync("startup_local_newer");
                     }
                 }
                 _lastSyncAt = DateTime.Now;
@@ -122,7 +165,7 @@ namespace CloudSave
             }
         }
 
-        /// <summary>打包上传（手动按钮与自动/启动链共用）。成功=true。</summary>
+        /// <summary>打包上传（手动按钮/自动轮询共用；启动对账走 UploadCoreAsync）。成功=true。</summary>
         public static async UniTask<bool> UploadAsync(string reason)
         {
             if (!TapSdkConfig.CloudSaveSupported || !TapSdkConfig.IsCredentialsReady) return false;
@@ -140,6 +183,15 @@ namespace CloudSave
 
             _busy = true;
             Notify();
+            try { return await UploadCoreAsync(reason); }
+            finally { _busy = false; Notify(); }
+        }
+
+        /// <summary>上传主体（不做 _busy 闸）：StartupSync 已持锁时直调本口。
+        /// 2026-11-12 修：原实现 StartupSync 持 _busy 后又调公开 UploadAsync，被闸挡住——
+        /// 「启动无云端→上传」「本地较新→上传」「处女档自动恢复」三条分支实际全是死路。</summary>
+        private static async UniTask<bool> UploadCoreAsync(string reason)
+        {
             try
             {
                 string stagingPath = SaveBundleCodec.Pack(out long savedAt);
@@ -157,8 +209,9 @@ namespace CloudSave
                 _archiveUuid = result.Uuid;
                 _archiveFileId = result.FileId;
                 _cloudSavedAt = savedAt;
+                _cloudDeviceId = SaveBundleCodec.EnsureDeviceId();
                 _lastSyncAt = DateTime.Now;
-                Debug.Log($"[CloudSync] 上传成功（{reason}）uuid={_archiveUuid} savedAt={savedAt}");
+                Debug.Log($"[CloudSync] 上传成功（{reason}）uuid={_archiveUuid} savedAt={savedAt} 设备={ShortId(_cloudDeviceId)}");
                 Notify();
                 return true;
             }
@@ -174,14 +227,9 @@ namespace CloudSave
                 Debug.LogWarning($"[CloudSync] 上传失败：{ex.Message}");
                 return false;
             }
-            finally
-            {
-                _busy = false;
-                Notify();
-            }
         }
 
-        /// <summary>下载还原（自动/询问确认/手动按钮共用）：落盘→管理器重置→OnRestored。成功=true。</summary>
+        /// <summary>下载还原（手动/询问确认共用；启动对账走 RestoreCoreAsync）：落盘→管理器重置→OnRestored。</summary>
         public static async UniTask<bool> RestoreFromCloudAsync()
         {
             if (!TapSdkConfig.CloudSaveSupported || string.IsNullOrEmpty(_archiveUuid))
@@ -194,6 +242,15 @@ namespace CloudSave
             _busy = true;
             _pendingRestorePrompt = false;
             Notify();
+            try { return await RestoreCoreAsync(); }
+            finally { _busy = false; Notify(); }
+        }
+
+        /// <summary>还原主体（不做 _busy 闸）：StartupSync 已持锁时直调本口（同 UploadCoreAsync 的修复口径）。</summary>
+        private static async UniTask<bool> RestoreCoreAsync()
+        {
+            string restoredFromDevice = _cloudDeviceId; // 还原前记下来源设备（还原后云端归属改记本机）
+            long restoredFromSavedAt = _cloudSavedAt;
             try
             {
                 byte[] data = await CloudTasks.AwaitOnMain(
@@ -205,6 +262,10 @@ namespace CloudSave
                 // 教学/挑战/元素解锁进度单例确定性失效——不再依赖 mtime 盯盘的节流刷新；
                 // UI 层经 OnRestored 清栈回启动页整树重建，双保险保证读到新数据。
                 SynergyUI.GameDataReload.ReloadAllCaches();
+                // 还原后本机接管这份档案：Unpack 已把本地指纹的 deviceId 写成本机；再记「该云端档案
+                // 已答复过」，防下次启动因云端 extra 仍挂旧设备 id 而重复弹窗（首次上传后云端自然改记本机）。
+                SaveBundleCodec.MarkDevicePromptDismissed(DevicePromptKey(restoredFromDevice, restoredFromSavedAt));
+                _cloudDeviceId = SaveBundleCodec.EnsureDeviceId();
                 _lastSyncAt = DateTime.Now;
                 Debug.Log($"[CloudSync] 云存档已还原（{written} 文件）——管理器已重置");
                 OnRestored?.Invoke();
@@ -221,18 +282,28 @@ namespace CloudSave
                 Debug.LogWarning($"[CloudSync] 还原失败：{ex.Message}");
                 return false;
             }
-            finally
-            {
-                _busy = false;
-                Notify();
-            }
         }
 
-        /// <summary>主菜单对挂起的恢复询问给出的答复（false=本轮不再问，保留云端不动作）。</summary>
+        /// <summary>主菜单对挂起的恢复询问给出的答复（false=使用当前设备数据）。
+        /// 设备变更场景：false 时本地有玩家数据就上传覆盖云端（云端归属改记本机）；处女档不上传。</summary>
         public static void AnswerRestorePrompt(bool accept)
         {
+            var reason = _pendingReason;
             _pendingRestorePrompt = false;
-            if (accept) RestoreFromCloudAsync().Forget();
+            _pendingReason = RestorePromptReason.None;
+            if (accept)
+            {
+                RestoreFromCloudAsync().Forget();
+                return;
+            }
+            if (reason == RestorePromptReason.DeviceChanged)
+            {
+                SaveBundleCodec.MarkDevicePromptDismissed(DevicePromptKey(_cloudDeviceId, _cloudSavedAt));
+                if (!SaveBundleCodec.IsPristineLocal())
+                    UploadAsync("device_changed_keep_local").Forget();
+                else
+                    Debug.Log("[CloudSync] 设备变更：本机为处女档——保留云端，不上传空进度");
+            }
         }
 
         /// <summary>退出登录：清云端档案引用（换账号后 StartupSync 重新发现）。</summary>
@@ -241,8 +312,12 @@ namespace CloudSave
             _archiveUuid = null;
             _archiveFileId = null;
             _cloudSavedAt = 0;
+            _cloudDeviceId = null;
             _lastSyncAt = default;
             _pendingRestorePrompt = false;
+            _pendingReason = RestorePromptReason.None;
+            _promptRaised = false;
+            _promptedCloudSavedAt = 0;
             Notify();
         }
 
@@ -258,7 +333,25 @@ namespace CloudSave
 
         private static void Notify() => OnStateChanged?.Invoke();
 
-        private static string ExtraJson(long savedAt) => $"{{\"savedAt\":{savedAt}}}";
+        /// <summary>发起恢复询问（设备变更/云端较新共用）：挂起标记 + 会话级去重（双 Init 会跑两遍对账）。</summary>
+        private static void RaiseRestorePrompt(RestorePromptReason reason)
+        {
+            if (_promptRaised && _promptedCloudSavedAt == _cloudSavedAt) return; // 同一份云端档案本次会话已问过
+            _promptRaised = true;
+            _promptedCloudSavedAt = _cloudSavedAt;
+            _pendingRestorePrompt = true;
+            _pendingReason = reason;
+            OnRestoreSuggested?.Invoke(_cloudSavedAt);
+        }
+
+        /// <summary>云端 extra：savedAt + 归属设备 id（设备识别 2026-11-12）。</summary>
+        private static string ExtraJson(long savedAt)
+        {
+            string device = SaveBundleCodec.EnsureDeviceId();
+            return string.IsNullOrEmpty(device)
+                ? $"{{\"savedAt\":{savedAt}}}"
+                : $"{{\"savedAt\":{savedAt},\"deviceId\":\"{device}\"}}";
+        }
 
         private static long ParseExtraSavedAt(string extra)
         {
@@ -270,6 +363,20 @@ namespace CloudSave
             }
             catch { return 0; }
         }
+
+        private static string ParseExtraDeviceId(string extra)
+        {
+            if (string.IsNullOrEmpty(extra)) return "";
+            try { return TideJson.FromJson<ExtraMirror>(extra)?.deviceId ?? ""; }
+            catch { return ""; }
+        }
+
+        /// <summary>「已答复使用当前设备」的键：同一台来源设备+同一份云端时间戳才复用答复。</summary>
+        private static string DevicePromptKey(string deviceId, long savedAt)
+            => string.IsNullOrEmpty(deviceId) ? "" : deviceId + "@" + savedAt;
+
+        private static string ShortId(string id)
+            => string.IsNullOrEmpty(id) ? "无" : (id.Length <= 8 ? id : id.Substring(0, 8));
 
         private static int CountFiles()
         {
@@ -287,6 +394,7 @@ namespace CloudSave
         private class ExtraMirror
         {
             public long savedAt;
+            public string deviceId; // 2026-11-12：档案归属设备（旧档案无此字段=空=不判设备变更）
         }
 
         // ======================================== 轮询宿主 ========================================

@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using Cysharp.Threading.Tasks;
+using GameBoard;
 using MemoryPack;
 
 namespace CardCore.Network
@@ -15,8 +16,13 @@ namespace CardCore.Network
     /// </summary>
     public static class NetworkIntentApplier
     {
-        /// <summary>应用一条上行 intent。返回 是否被引擎接受；false 时 error 说明拒绝原因。</summary>
-        public static bool Apply(GameCore core, int seat, NetworkMessage msg, out string error)
+        /// <summary>应用一条上行 intent。返回 是否被引擎接受；false 时 error 说明拒绝原因。
+        /// board（v19 落格坐标权威化，可空）：对战通道传入宿主 BoardState——IntentPlayCard 的
+        /// CellX/CellZ 声明期校验（己方单位格+空格）+ 声明成功即 PinCard（钉子活到 cast 结算
+        /// 入场，Resync 钉优先落所选格）。null=无棋盘环境（超时代打/旧测试口）：带格 intent
+        /// 的选格被忽略，服务端按 first-free 落位。</summary>
+        public static bool Apply(GameCore core, int seat, NetworkMessage msg, out string error,
+            BoardState board = null)
         {
             error = null;
             if (core == null) { error = "core 未初始化"; return false; }
@@ -44,19 +50,39 @@ namespace CardCore.Network
 
                     var fromZone = (Zone)intent.FromZone;
 
+                    // v19 落格校验（声明期、出牌口之前——失败零副作用）：CellX/CellZ 为**绝对坐标**，
+                    // 须为请求者己方单位格且当前空格（占用真值=AutoResync 后的盘面）。
+                    // -1=未指定（AI/法术/场地卡），服务端按 first-free 落位（兼容路径）。
+                    if (board != null && intent.CellX >= 0
+                        && !TryValidatePickCell(board, seat, intent.CellX, intent.CellZ, out error))
+                        return false;
+
                     // 响应出牌分派：栈上有待响应对象、非结算中、优先权在请求者手、来源限手牌
                     // （与 PlayCardInResponse 自身门禁一致——此处预分派只是让"同一个消息类型"
                     //   覆盖两种出牌时点；引擎入口仍有全部校验，分派错误只会得到 false）。
+                    bool ok;
+                    string reason;
                     if (fromZone == Zone.Hand
                         && !core.StackEngine.IsEmpty && !core.StackEngine.IsResolving
                         && core.StackEngine.CurrentPriorityHolder == player)
                     {
-                        return Ok(GameActions.PlayCardInResponse(core, player, card, targets, intent.ModeIndex, references, out var respReason),
-                            respReason, out error);
+                        ok = GameActions.PlayCardInResponse(core, player, card, targets, intent.ModeIndex, references, out reason);
+                    }
+                    else
+                    {
+                        ok = GameActions.PlayCard(core, player, card, targets, fromZone, intent.ModeIndex, references, out reason);
                     }
 
-                    return Ok(GameActions.PlayCard(core, player, card, targets, fromZone, intent.ModeIndex, references, out var reason),
-                        reason, out error);
+                    // v19 声明成功即钉（本地局 PlayCardFinal 同款时点）：永久物钉玩家所选格——
+                    // S3b 后声明期卡留手牌，钉子活到 cast 结算入场（BoardState.Resync 钉优先）。
+                    // 法术不落格、场地卡由 BoardState 固定落 FieldCell（客户端不送格）；响应出牌
+                    // 通常为法术（CellX=-1 不进此口），但永久物响应路径同样收口，不依赖该假设。
+                    if (ok && board != null && intent.CellX >= 0
+                        && !card.IsSpellCard() && !card.IsFieldCard())
+                    {
+                        board.PinCard(card, intent.CellX, intent.CellZ);
+                    }
+                    return Ok(ok, reason, out error);
                 }
 
                 // IntentTapForElement 已删（2026-10-11 现取现用：地牌横置=付费时系统自动动作，
@@ -173,6 +199,27 @@ namespace CardCore.Network
                     error = $"消息类型 {msg.Type} 不是上行 intent（SelectResponse 须路由到选择器，非本口）";
                     return false;
             }
+        }
+
+        /// <summary>v19 落格校验：请求者己方单位格 + 当前空格。越界/非单位格/对手格/已占格
+        /// 均拒（文案随 Error 帧回发，客户端可读）。占用真值来自 AutoResync 后的盘面；
+        /// 同格并发声明由 Resync 的钉子"同批先到先得"收敛（后到者 first-free）。</summary>
+        private static bool TryValidatePickCell(BoardState board, int seat, int x, int z, out string error)
+        {
+            error = null;
+            if (!BoardMath.InBounds(x, z)
+                || BoardLayout.RoleOf(x, z) != CellRole.Unit
+                || BoardLayout.OwnerOf(x, z) != seat)
+            {
+                error = $"非法落格：({x},{z}) 非座位 {seat} 的己方单位格";
+                return false;
+            }
+            if (board.CardAt(x, z) != null)
+            {
+                error = $"非法落格：({x},{z}) 已被占用";
+                return false;
+            }
+            return true;
         }
 
         /// <summary>bool → (bool, error) 统一出口：拒绝时给可读原因。</summary>

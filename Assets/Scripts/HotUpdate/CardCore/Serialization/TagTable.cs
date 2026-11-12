@@ -1,4 +1,4 @@
-// 此文件由 Tools/刷新属性排序（新增序列化字段时使用）自动生成，请勿手动修改
+﻿// 此文件由 Tools/刷新属性排序（新增序列化字段时使用）自动生成，请勿手动修改
 // 如需添加新属性，请修改 RefreshMemoryPackOrder.cs 中的 GetTagDefinitions()
 // 生成口径（2026-11-11 起＝保值生成）：已有常量沿用现表现值（整行含注释原样保留），仅新字段
 // 按 Murmur32("类.属性", 0x53796E67) & 0x7FFFFFFF 取号；末尾「冻结值」段＝历史手算批，重算
@@ -246,6 +246,8 @@ namespace CardCore.Serialization
         public const int MsgIntentPlayCard_FromZone = 933788219;
         public const int MsgIntentPlayCard_ModeIndex = 1969366828;
         public const int MsgIntentPlayCard_References = 271658474;
+        public const int MsgIntentPlayCard_CellX = 591000053;
+        public const int MsgIntentPlayCard_CellZ = 986477751;
 
         // ---- MsgIntentBuildCard ----
         public const int MsgIntentBuildCard_CardRuntimeId = 77691148;
@@ -311,6 +313,8 @@ namespace CardCore.Serialization
         public const int RCS_BuildPaid = 81947996;
         public const int RCS_LockedColor = 1684315828;
         public const int RCS_DelayedDeath = 747753030;
+        public const int RCS_CellX = 1722965036;
+        public const int RCS_CellZ = 1859498192;
 
         // ---- NetDeckDigest ----
         public const int NDD_AtomicRowsHash = 1017044835;
@@ -460,6 +464,9 @@ namespace CardCore.Serialization
         public const int NLL_EventId = 660569595; // 源事件锚（挂起放行会乱序，勿作去重键）
         public const int NLL_Text = 1583350492;   // 服务端渲染好的最终文本
 
+        // ---- MsgSeatSwap ----
+        public const int MSSw_ToSpectator = 2064321602; // 座位↔观战切换方向（true=转观战释放椅位）
+
         // ---- 冻结值（非公式推导，禁止重算：已上线线格式契约）----
         // 来源：全量强转口径 / v11 早期手算配方；现值即协议布局。改值＝改字段序列化顺序。
         // MDS_AddedCards = 1607500155
@@ -495,10 +502,6 @@ namespace CardCore.Serialization
         // MRS_Seed = -210878657
         // MRSet_Seed = -191934453
 
-        // ---- MsgSeatSwap ----
-        // v16（2026-11-11 多成员房间）。值=同 S5/S8 手算配方实算抄入（全表零撞号已核，勿跑刷新工具）。
-        public const int MSSw_ToSpectator = 2064321602; // 座位↔观战切换方向（true=转观战释放椅位）
-
-        // 共 316 个标签（保值生成：284 条公式值 + 32 条冻结值）
+        // 共 326 个标签（保值生成：294 条公式值 + 32 条冻结值）
     }
 }

@@ -65,7 +65,9 @@
 |---|---|---|
 | F1 | 主菜单 → btn-deck → DeckBuilderScreen → btn-back 返回 | 两次点击各有回响；`Show<DeckBuilderScreen>` 与 `Back（弹 DeckBuilderScreen）` 各就位 |
 | F2 | 主菜单 → btn-teststart → 木桩选项面板 btn-start → 段三掷币 → 选卡窗 btn-start → 开局 | `Show<BattleScreen>` → `[UI点击] btn-start`（选项）→ `[BattleScreen] 木桩选项：` → `[BattleOpening] 段三` → `[UI点击] btn-start`（选卡）→ `段四（木桩弹窗）` → `段五 交班开战`。**注意**：`[木桩] 选项面板已显示（等待确认）` 在 await 前打印，不作面板存在证据；当前包 AOT 泛型缺陷（`UniTask<Nullable<Options>>` builder 未实例化）导致面板弹不出 → F2=FAIL+根因行+附录，**不加白名单**（见报告「F2 阻塞缺陷附录」） |
-| Fp | F 段污染检测 | f.log 窗口内非脚本点击/切换/外部强停/装包 → F1/F2 全判 INVALID（建议重跑） |
+| F3 | 联机复盘跳转（2026-11-12 二期 D）：前置=先完成一局联机对战（终局自动落 EncounterRecord+剧本）→ 大厅 → 点对战历史行选中 → btn-replay → 复盘屏 → 点时间轴某行跳帧 → 认输键「退出复盘」退出 | 选中无剧本旧记录时 btn-replay 保持灰（`[BattleLog]`/UI 无跳转）；有剧本记录点击后：`[Lobby] 复盘入口：<matchId>（vs <对手名>）` → `[UINav] Show<BattleScreen>` → `[BattleLog] 时间轴降采样：…`（时间轴预铺）→ 点击行后 `[BattleLog] 时间轴点击：行 N/M → 帧 K` + `[Playhead] 回放帧 K kind=…`（续播证据）→ 退出 `[UINav] Back` |
+| F4 | 观战演出（2026-11-12 二期 C）：建房 → 加两个 AI（自动准备）→ btn-spectate 房主转观战 → 点开始 → 双 AI 对局观战到底 | `[Lobby] 观战移交战场：<p0> vs <p1>（观战 N 人）` → `[UINav] Show<BattleScreen>` → `[BattleScreen] 网络对局已接入`（无五段式——等待首快照）→ 对局中 `[Playhead] 帧 N kind=…` 持续推进（观战=FxOnly 逐事件演出）+ 战报面板行随行流递增；终局 `[UINav]` 退出无 FATAL/看门狗（`[Playhead] 看门狗` 命中即 FAIL） |
+| Fp | F 段污染检测 | f.log 窗口内非脚本点击/切换/外部强停/装包 → F1-F4 全判 INVALID（建议重跑） |
 
 INVALID 语义：段被外部干预污染，结果不可信——不计 PASS/FAIL，退出码非 0，提示重跑。
 

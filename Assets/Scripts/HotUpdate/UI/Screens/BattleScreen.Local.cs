@@ -325,9 +325,11 @@ namespace SynergyUI
         private void WireLocalUi()
         {
             // 手牌扇交互接线（2026-10-14；SpUse 钩子随 2026-11-01 上卡退役）：
-            // 悬停显「放置/使用」按钮+可发动流光（对手扇不注入=无按钮）
+            // 2026-11-12 点选制（OwnerSide）：点击选中才亮「放置/使用」钮、费用栏常驻、
+            // 扇外点击收扇到最小；可发动流光照旧对账刷新（对手扇不注入=无按钮）
             _selfFan?.SetInteractions(new FanInteractions
             {
+                OwnerSide = true,
                 CanUse = FanCanUse,
                 CanPlaceLand = FanCanPlaceLand,
                 OnUse = OnFanUse,

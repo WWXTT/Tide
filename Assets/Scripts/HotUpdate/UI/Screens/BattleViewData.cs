@@ -436,10 +436,10 @@ namespace SynergyUI
             FillPlayerNet(d.Self, snap, me);
             FillPlayerNet(d.Opp, snap, them);
 
-            FillUnitsNet(d.SelfUnits, snap, me, ownerIsOpponent: false);
-            FillUnitsNet(d.OppUnits, snap, them, ownerIsOpponent: true);
-            FillLandsNet(d.SelfLands, snap, me, ownerIsOpponent: false);
-            FillLandsNet(d.OppLands, snap, them, ownerIsOpponent: true);
+            FillUnitsNet(d.SelfUnits, snap, me, ownerIsOpponent: false, viewerSeat: me);
+            FillUnitsNet(d.OppUnits, snap, them, ownerIsOpponent: true, viewerSeat: me);
+            FillLandsNet(d.SelfLands, snap, me, ownerIsOpponent: false, viewerSeat: me);
+            FillLandsNet(d.OppLands, snap, them, ownerIsOpponent: true, viewerSeat: me);
             FillHandNet(d.SelfHand, snap, me);
 
             // 施放卡（S3b 收口 2026-11-05「栈没有实体」）：网络侧读 StackV2 施放条目源卡
@@ -502,15 +502,38 @@ namespace SynergyUI
                 v.Skill = FromRuntime(fields[0], null, seat != snap.ViewerSeat);
         }
 
-        private static void FillUnitsNet(List<BattleCardView> list, MsgGameStateSync snap, int seat, bool ownerIsOpponent)
+        private static void FillUnitsNet(List<BattleCardView> list, MsgGameStateSync snap, int seat,
+            bool ownerIsOpponent, int viewerSeat)
         {
+            // v19 快照坐标优先（2026-11-12 落格坐标权威化）：服务端 BoardState 真值随快照下发
+            //（**绝对坐标**）——有坐标一律直采并按观察者镜像（ViewerSeat==1 翻转、观战 -1 保持
+            // 绝对口径）。根治房主读 NetCellPins 钉格 / 对手按 first-free 重建的双方分裂。
+            var units = ZoneCardsNet(snap, seat, Zone.Battlefield);
+            bool hasCells = units.Any(u => u != null && u.CellX >= 0);
+            if (hasCells)
+            {
+                foreach (var s in units)
+                {
+                    var view = FromRuntime(s, null, ownerIsOpponent);
+                    if (s.CellX >= 0)
+                    {
+                        int x = s.CellX, z = s.CellZ;
+                        if (viewerSeat == 1) (x, z) = BoardLayout.MirrorSeat(x, z); // 绝对→观察者
+                        view.X = x;
+                        view.Z = z;
+                    }
+                    list.Add(view); // 个别未落格卡（容量外）X/Z 保持 -1（悬浮语义）
+                }
+                return;
+            }
+
+            // ---- 旧快照 fallback（无 CellX/CellZ：v19 前快照/无棋盘环境测试口）----
             // 列表序 i → **观察者视角**格位：己方恒 P1 半场（z3/4）、对手恒 P2 半场（z1/2）。
             // 服务器 BoardState.Resync 是绝对坐标（seat1 己方=z1/2）——若直接填绝对坐标，
             // 1 号座位观察者的整片战场（双方单位+地牌）都落不进渲染行、恒空白（2026-09-30 修复）。
             // 列表序与服务器 AssignCells first-free 逐格对应，观察者侧仅做半场归一。
-            // 2026-10-28 网络选格：快照不承载坐标（位置权威=客户端表现层）——己方单位先落
-            // NetCellPins 钉格（出牌/放地选格时写入），其余按格序 first-free 避开已占钉格。
-            var units = ZoneCardsNet(snap, seat, Zone.Battlefield);
+            // 2026-10-28 网络选格：己方单位先落 NetCellPins 钉格（出牌选格时写入——本端选格兜底），
+            // 其余按格序 first-free 避开已占钉格。
             var cells = BoardLayout.UnitCells(ownerIsOpponent ? 1 : 0);
             var used = new HashSet<int>();
             int CellKey(int x, int z) => x * 100 + z;
@@ -562,18 +585,26 @@ namespace SynergyUI
             }
         }
 
-        private static void FillLandsNet(List<BattleCardView> list, MsgGameStateSync snap, int seat, bool ownerIsOpponent)
+        private static void FillLandsNet(List<BattleCardView> list, MsgGameStateSync snap, int seat,
+            bool ownerIsOpponent, int viewerSeat)
         {
-            // 同 FillUnitsNet：观察者视角归一（己方地牌行 z6、对手 z0）。
-            // 固定元素格（2026-10-14 晚定案）：与服务器 BoardState.AssignLandCells 同构——
-            // 颜色 → BoardLayout.LandCellOfElement 固定格（灰红蓝绿黑白），同色全部同格。
-            // 锁色权威在 Runtime.LockedColor（快照侧 BuildZone 覆写）；无锁色（-1）不落格。
+            // v19 快照坐标优先（同 FillUnitsNet）：服务端地牌固定色格真值随快照下发（绝对坐标）
+            //——直采并按观察者镜像；无坐标（旧快照）走锁色→固定元素格映射（与服务器
+            // AssignLandCells 同构，灰红蓝绿黑白，同色全部同格）。锁色权威在 Runtime.LockedColor
+            //（快照侧 BuildZone 覆写）；两径皆未命中不落格。
             var lands = ZoneCardsNet(snap, seat, Zone.ElementPool);
             int owner = ownerIsOpponent ? 1 : 0;
             foreach (var s in lands)
             {
                 var view = FromRuntime(s, null, ownerIsOpponent);
-                if (s.LockedColor >= 0)
+                if (s.CellX >= 0)
+                {
+                    int x = s.CellX, z = s.CellZ;
+                    if (viewerSeat == 1) (x, z) = BoardLayout.MirrorSeat(x, z); // 绝对→观察者
+                    view.X = x;
+                    view.Z = z;
+                }
+                else if (s.LockedColor >= 0)
                 {
                     var cell = BoardLayout.LandCellOfElement(owner, (ManaType)s.LockedColor);
                     if (cell.x >= 0) { view.X = cell.x; view.Z = cell.z; }
@@ -627,9 +658,10 @@ namespace SynergyUI
     }
 
     /// <summary>
-    /// 网络局选格钉（2026-10-28 放地/永久物出牌选格）：快照不承载棋盘坐标（位置权威=客户端
-    /// 表现层），本表登记本端为卡选定的落格，BuildNet/FillUnitsNet 消费（钉格须属己方单位区，
-    /// 否则按无钉 first-free——与本地 BoardState._pinnedCells 同语义）。卡离场随快照修剪；
+    /// 网络局选格钉（2026-10-28 放地/永久物出牌选格；**v19 2026-11-12 降级为兜底**）：位置权威
+    /// 已随协议 v19 收归服务端（intent 带格钉格+快照回传绝对坐标）；本表仅在 FillUnitsNet 的
+    /// 「快照无坐标」fallback 路径消费（v19 前快照/无棋盘环境），正常路径不读——防房主端钉子
+    /// 覆盖服务端权威格。写入侧 NetPickUnitCellAsync 照旧登记（出牌选格兜底）。卡离场随快照修剪；
     /// 跨局残留由 BattleScreen.OnEnter（网络局）ClearAll 收口（RuntimeId 每局重起，防串号）。
     /// </summary>
     public static class NetCellPins

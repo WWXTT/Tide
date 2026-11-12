@@ -112,14 +112,14 @@ namespace SynergyUI
         private int _modeFirst;
         private int _modeShuffle;
 
-        // 局域网自动发现（2026-10-28 加入流改造）：房主信标 + 客人扫描，唯一房间自动直入
+        // 局域网自动发现（2026-10-28 加入流改造；2026-11-12 取消「唯一房间自动直入」）：
+        // 房主信标 + 客人扫描，房间一律由玩家点行加入（自动直入会让客人无法自选、退房后又被拉回）
         private LanRoomBeacon _beacon;
         private volatile string _beaconPayload = "";
         private string _lanRoomName = "";  // S6b：局域网房名快照（信标 payload ver2 带出；建房时记录）
         private bool _lanRoomHasPassword;  // S6b：密码标志（信标第 9 段；密码本体绝不上广播）
         private LanRoomScanner _scanner;
         private bool _scanLoopRunning;
-        private bool _autoJoinArmed;
         private string _scanSignature;
         private TMP_Text _scanLabel; // v2：扫描/房间计数状态行=lbl-rooms-count
         private RectTransform _roomList; // v2：list-rooms content（双源动态行挂它：LAN room-{i} / TapTap tap-room-{i}）
@@ -361,6 +361,7 @@ namespace SynergyUI
                 SetError($"连接失败：{host}:{port}（不可达/房未开）");
                 client.Close();
                 if (_isHost) StopHostServer();
+                else ResetToEntry(); // 加入失败不是「房间态」：回列表可重选（否则停在空房间页，退房又触发重扫）
                 return;
             }
 
@@ -442,11 +443,14 @@ namespace SynergyUI
         // ============================================================ 左栏：自身信息 + 卡组池（S6a ③④） ============================================================
 
         /// <summary>自身信息（S6a ③）：已登录 TapTap=登录名+「TapTap 已登录」；
-        /// 未登录=「游客」+「局域网模式（未登录 TapTap）」，hint 提示登录可排位。</summary>
+        /// 未登录=「游客」+「局域网模式（未登录 TapTap）」，hint 提示登录可排位。
+        /// 2026-11-12 修：登录态以 IsLoggedIn（TapAccountService）为准——LoginName 此前要等
+        /// 连上对战服务才有值，静默登录成功但未连接时会误显「游客」；名字仅作展示、空则兜底「TapTap玩家」。</summary>
         private void RefreshSelfInfo()
         {
-            var loginName = _tapSection?.FallbackNickname(); // =TapLobbyController.LoginName（未登录为空）
-            bool loggedIn = !string.IsNullOrEmpty(loginName);
+            bool loggedIn = _tapSection != null && _tapSection.IsLoggedIn;
+            var loginName = loggedIn ? _tapSection.FallbackNickname() : null;
+            if (loggedIn && string.IsNullOrEmpty(loginName)) loginName = "TapTap玩家";
             if (_selfNickLabel != null) _selfNickLabel.text = loggedIn ? loginName : "游客";
             if (_selfStateLabel != null)
                 _selfStateLabel.text = loggedIn ? "TapTap 已登录" : "局域网模式（未登录 TapTap）";
@@ -454,6 +458,10 @@ namespace SynergyUI
                 _selfHintLabel.text = loggedIn
                     ? "登录账号可跨网络联机与排位"
                     : "登录 TapTap 后可跨网络联机与排位";
+            // 登录态→列表源的取证行（2026-11-12）：真机排查「已登录仍显示游客/局域网」时需要一条回响
+            TideLog.Info(loggedIn
+                ? $"[Lobby] 登录态：TapTap 已登录（{loginName}）——房间列表走 TapTap"
+                : "[Lobby] 登录态：游客——房间列表走局域网");
             RefreshRankedStateLabel();
             RefreshNormalGate(); // 排位须登录——登录态变化联动按钮门禁
         }
@@ -748,12 +756,12 @@ namespace SynergyUI
                 + "|0||-1"; // S8 ver3：ranked=0/fp 空/rate=-1（LAN 排位不可达——定案 2）
         }
 
-        /// <summary>客人侧：进加入面板即扫描；唯一房间自动直入（加入不应自己找房主——2026-10-28 定案）。</summary>
+        /// <summary>客人侧：进加入面板即扫描；只列房间不自动加入（2026-11-12 改：
+        /// 旧「唯一房间自动直入」会让非房主失去自选权，且退房回列表后立刻被重新拉入同一房）。</summary>
         private void StartScan()
         {
             if (_scanner == null) _scanner = new LanRoomScanner();
             _scanner.StartScan();
-            _autoJoinArmed = true;
             _scanSignature = null;
             if (_scanLabel != null) _scanLabel.text = "正在搜索局域网房间…";
             RefreshRoomRows(new List<LanRoomEntry>());
@@ -790,22 +798,15 @@ namespace SynergyUI
             {
                 _scanSignature = sig;
                 RefreshRoomRows(rooms);
+                TideLog.Info($"[Lobby] 扫描到 {rooms.Count} 个局域网房间（点行加入，不自动加入）");
             }
 
             string label;
-            if (rooms.Count == 1) label = $"发现房间（{rooms[0].HostNick}，{rooms[0].Seats}）——正在加入…";
-            else if (rooms.Count > 1) label = $"发现 {rooms.Count} 个房间——点选加入";
+            if (rooms.Count > 0) label = $"发现 {rooms.Count} 个房间——点选加入";
             else if (_scanner != null && !_scanner.Scanning && Environment.TickCount - _scanner.StartedAtMs > 5000)
                 label = "未发现房间——确认房主已创建房间后点「刷新」";
             else label = "正在搜索局域网房间…";
             if (_scanLabel.text != label) _scanLabel.text = label;
-
-            if (rooms.Count == 1 && _autoJoinArmed)
-            {
-                _autoJoinArmed = false; // 唯一房间直接进入
-                var only = rooms[0];
-                ConnectToRoom(only.Host, only.TcpPort, only.HostNick);
-            }
         }
 
         private void RefreshRoomRows(List<LanRoomEntry> rooms)
@@ -848,9 +849,10 @@ namespace SynergyUI
         ///（顺带停扫描线程）；未登录→局域网扫描（TapTap 拉取为一次性 await，无循环可停）。</summary>
         private void RefreshRooms()
         {
-            if (UseTapRooms) RefreshTapRoomsAsync().Forget();
+            if (UseTapRooms) { TideLog.Info("[Lobby] 房间列表源=TapTap"); RefreshTapRoomsAsync().Forget(); }
             else
             {
+                TideLog.Info("[Lobby] 房间列表源=局域网");
                 _roomsFromTap = false;
                 StartScan();
             }

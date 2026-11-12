@@ -3,11 +3,6 @@
 # 门禁口径：值类型实参 × 定义程序集非 patchAOT（mscorlib|System|System.Core + 门面 netstandard）非热更自身
 # anchored=已在 AOT 侧锚点（Assets/Scripts/Launch/HotUpdateLoader.cs 静态构造，弱校验）
 # safe=评估安全（写理由：共享形态覆盖/补充元数据兜底/该组合不可达等）；noise=编译器生成名（async 状态机/闭包/匿名类型）
-ArrayFormatter<Byte>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-ArrayFormatter<Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-ArrayFormatter<Single>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-ArrayFormatter<String>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-ArrayFormatter<UInt32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
 AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<<ExecutePayloadAsync>g__ExecuteAtomAsync|0>d>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
 AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<<ExecuteReferencedEffectAsync>g__ExecuteAtomAsync|0>d>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
 AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<ApplyThenToSharedTargetsAsync>d__>	noise	编译器生成（async 状态机/闭包/匿名类型）	# ← Tide.HotUpdate.dll.bytes
@@ -120,71 +115,6 @@ Awaiter<ValueTuple<Int32,List<Int32>,List<Int32>>>	safe	初始存量快照（202
 Awaiter<ValueTuple<Int32,String,String>>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
 Awaiter<ValueTuple<String,String,Boolean>>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
 Awaiter<ValueTuple<String,String>>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackFormatterProvider.IsRegistered<Nullable<Int32>>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackFormatterProvider.Register<Nullable<Int32>>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackReader.DangerousReadUnmanaged<Int32,Nullable<Int32>,Nullable<Int32>>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackReader.DangerousReadUnmanaged<Nullable<Int32>>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackReader.ReadArray<String>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackReader.ReadUnmanaged<Boolean,Boolean>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackReader.ReadUnmanaged<Boolean,Int32,Int32,Int32,Int32,Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackReader.ReadUnmanaged<Boolean,Int32,Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackReader.ReadUnmanaged<Boolean>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackReader.ReadUnmanaged<Double>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackReader.ReadUnmanaged<Int32,Boolean,UInt32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackReader.ReadUnmanaged<Int32,Boolean>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackReader.ReadUnmanaged<Int32,Int32,Int32,Int32,Boolean,UInt32,Int32,Int32,Int32,Boolean,Boolean>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackReader.ReadUnmanaged<Int32,Int32,Int32,Int32,Int32,Boolean>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackReader.ReadUnmanaged<Int32,Int32,Int32,Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackReader.ReadUnmanaged<Int32,Int32,Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackReader.ReadUnmanaged<Int32,Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackReader.ReadUnmanaged<Int32,Single>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackReader.ReadUnmanaged<Int32,UInt32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackReader.ReadUnmanaged<Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackReader.ReadUnmanaged<Int64>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackReader.ReadUnmanaged<NetworkMessageType,UInt32,UInt16,Int64>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackReader.ReadUnmanaged<Single,Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackReader.ReadUnmanaged<Single>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackReader.ReadUnmanaged<UInt16>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackReader.ReadUnmanaged<UInt32,Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackReader.ReadUnmanaged<UInt32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackReader.ReadUnmanagedArray<Byte>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackReader.ReadUnmanagedArray<Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackReader.ReadUnmanagedArray<Single>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackReader.ReadUnmanagedArray<UInt32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackWriter<!!0>.DangerousWriteUnmanaged<Int32,Nullable<Int32>,Nullable<Int32>>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackWriter<!!0>.WriteArray<String>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackWriter<!!0>.WriteUnmanaged<Boolean,Boolean>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackWriter<!!0>.WriteUnmanaged<Boolean,Int32,Int32,Int32,Int32,Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackWriter<!!0>.WriteUnmanaged<Boolean,Int32,Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackWriter<!!0>.WriteUnmanaged<Boolean>	anchored	HotUpdateLoader.cs 静态构造 2026-11-09 MemoryPack 探针锚（mpWriter.WriteUnmanaged(true)；哑 IBufferWriter=类→__Canon 共享覆盖运行时 writer）	# ← Tide.HotUpdate.dll.bytes
-MemoryPackWriter<!!0>.WriteUnmanaged<Double>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackWriter<!!0>.WriteUnmanaged<Int32,Boolean,UInt32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackWriter<!!0>.WriteUnmanaged<Int32,Boolean>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackWriter<!!0>.WriteUnmanaged<Int32,Int32,Int32,Int32,Boolean,UInt32,Int32,Int32,Int32,Boolean,Boolean>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackWriter<!!0>.WriteUnmanaged<Int32,Int32,Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackWriter<!!0>.WriteUnmanaged<Int32,Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackWriter<!!0>.WriteUnmanaged<Int32,UInt32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackWriter<!!0>.WriteUnmanaged<Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackWriter<!!0>.WriteUnmanaged<Int64>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackWriter<!!0>.WriteUnmanaged<Single,Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackWriter<!!0>.WriteUnmanaged<Single>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackWriter<!!0>.WriteUnmanaged<UInt32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackWriter<!!0>.WriteUnmanagedArray<Byte>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackWriter<!!0>.WriteUnmanagedArray<Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackWriter<!!0>.WriteUnmanagedArray<Single>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackWriter<!!0>.WriteUnmanagedArray<UInt32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackWriter<!!0>.WriteUnmanagedWithObjectHeader<Boolean>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackWriter<!!0>.WriteUnmanagedWithObjectHeader<Int32,Int32,Int32,Int32,Int32,Boolean>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackWriter<!!0>.WriteUnmanagedWithObjectHeader<Int32,Int32,Int32,Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackWriter<!!0>.WriteUnmanagedWithObjectHeader<Int32,Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackWriter<!!0>.WriteUnmanagedWithObjectHeader<Int32,Single>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackWriter<!!0>.WriteUnmanagedWithObjectHeader<Int32,UInt32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackWriter<!!0>.WriteUnmanagedWithObjectHeader<Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackWriter<!!0>.WriteUnmanagedWithObjectHeader<Int64>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackWriter<!!0>.WriteUnmanagedWithObjectHeader<NetworkMessageType,UInt32,UInt16,Int64>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackWriter<!!0>.WriteUnmanagedWithObjectHeader<Single,Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-MemoryPackWriter<!!0>.WriteUnmanagedWithObjectHeader<UInt32,Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
-NullableFormatter<Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
 Tensor<Single>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
 UniTask.RunOnThreadPool<Boolean>	anchored	HotUpdateLoader.cs 静态构造 2026-11-09 A1 新锚（RunOnThreadPool<bool>，真机联机 100% 失败事故根因）	# ← Tide.HotUpdate.dll.bytes
 UniTask.WhenAny<List<Int32>,List<Int32>>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
@@ -215,3 +145,7 @@ UnityEvent<Boolean>	safe	初始存量快照（2026-11-09）·未逐条复核	# �
 UnityEvent<Int32>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
 UnityEvent<Single>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
 UnityEvent<String>	safe	初始存量快照（2026-11-09）·未逐条复核	# ← Tide.HotUpdate.dll.bytes
+# --auto-noise 自动处置（2026-11-12）：新增里的编译器生成条目
+AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<DamageRefCoreAsync>d__>	noise	编译器生成（--auto-noise 自动处置）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<FlightRefCoreAsync>d__>	noise	编译器生成（--auto-noise 自动处置）	# ← Tide.HotUpdate.dll.bytes
+AsyncUniTaskMethodBuilder<Boolean>.AwaitUnsafeOnCompleted<Awaiter<Boolean>,<TryRouteCastChainAsync>d__>	noise	编译器生成（--auto-noise 自动处置）	# ← Tide.HotUpdate.dll.bytes

@@ -64,7 +64,7 @@ namespace Tide.HotUpdate
     /// 不用元组返回（HybridCLR AOT 纪律）。Build 留空实现（S6a 起 v2 三栏无独立 TapTap 面板）。</summary>
     public interface ITapLobbySection
     {
-        /// <summary>已登录 TapTap（LoginName 非空）——房间列表双源判定。</summary>
+        /// <summary>已登录 TapTap（TapAccountService.openId 非空）——房间列表双源判定。</summary>
         bool IsLoggedIn { get; }
 
         /// <summary>TapTap 登录名（未登录为空）。</summary>

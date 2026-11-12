@@ -214,12 +214,80 @@ namespace CloudSave
             // settledAt=本地落盘对齐时刻（打包/还原完成时取当下）——脏判定用 mtime>settledAt，
             // 而非 mtime>savedAt：还原后文件 mtime=还原时刻，必然晚于云端 savedAt，用 savedAt
             // 比对会把刚还原的内容误判为本地新改动而触发无意义的反向上传。
-            Directory.CreateDirectory(CloudDir);
-            File.WriteAllText(LocalMetaPath, TideJson.ToJson(new LocalMeta
+            var meta = ReadLocalMeta() ?? new LocalMeta();
+            meta.savedAt = savedAt;
+            meta.settledAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            meta.deviceId = EnsureDeviceId();
+            WriteLocalMeta(meta);
+        }
+
+        private static LocalMeta ReadLocalMeta()
+        {
+            try
             {
-                savedAt = savedAt,
-                settledAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
-            }, false));
+                if (!File.Exists(LocalMetaPath)) return null;
+                return TideJson.FromJson<LocalMeta>(File.ReadAllText(LocalMetaPath));
+            }
+            catch { return null; }
+        }
+
+        private static void WriteLocalMeta(LocalMeta meta)
+        {
+            try
+            {
+                Directory.CreateDirectory(CloudDir);
+                File.WriteAllText(LocalMetaPath, TideJson.ToJson(meta, false));
+            }
+            catch (Exception ex) { Debug.LogWarning($"[CloudSync] 本地指纹写入失败：{ex.Message}"); }
+        }
+
+        // ======================================== 设备识别（2026-11-12） ========================================
+
+        private static string DeviceIdPath => Path.Combine(CloudDir, "device_id.txt");
+
+        /// <summary>
+        /// 设备标识（云存档归属判定）：优先 Unity 设备唯一标识（Android=SSAID 派生——同设备
+        /// 重装/清数据不变，换设备才变；模拟器克隆实例若共用 SSAID 会误判同设备，属系统层限制）；
+        /// 取不到时回落本安装生成的 GUID（持久化在 .cloud/device_id.txt）。
+        /// 用途：云端档案 extra 里带 deviceId；启动对账时与本地不一致=设备变更，交玩家选边。
+        /// </summary>
+        public static string EnsureDeviceId()
+        {
+            string id = null;
+            try { id = SystemInfo.deviceUniqueIdentifier; } catch (Exception) { }
+            if (!string.IsNullOrEmpty(id) && id != "0" && id != "unknown") return id;
+            return ReadOrCreateInstallId();
+        }
+
+        private static string ReadOrCreateInstallId()
+        {
+            try
+            {
+                Directory.CreateDirectory(CloudDir);
+                if (File.Exists(DeviceIdPath))
+                {
+                    string existing = File.ReadAllText(DeviceIdPath).Trim();
+                    if (existing.Length >= 8) return existing;
+                }
+                string created = Guid.NewGuid().ToString("N");
+                File.WriteAllText(DeviceIdPath, created);
+                return created;
+            }
+            catch { return ""; }
+        }
+
+        /// <summary>本设备是否已对该云端档案（设备+时间戳）答复过「使用当前设备」——防每次启动重复弹窗。</summary>
+        public static bool IsDevicePromptDismissed(string key)
+            => !string.IsNullOrEmpty(key) && ReadLocalMeta()?.cloudPromptDismissed == key;
+
+        /// <summary>记录「该云端档案已由本设备答复使用当前数据」（云端再变新/换设备时 key 变，会重新询问）。</summary>
+        public static void MarkDevicePromptDismissed(string key)
+        {
+            if (string.IsNullOrEmpty(key)) return;
+            var meta = ReadLocalMeta();
+            if (meta == null) meta = new LocalMeta { settledAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds() };
+            meta.cloudPromptDismissed = key;
+            WriteLocalMeta(meta);
         }
 
         /// <summary>本地存档是否有上次打包/还原之后的改动（mtime 与 settledAt 比对；自动上传轮询用）。</summary>
@@ -324,6 +392,8 @@ namespace CloudSave
         {
             public long savedAt;   // 云端身份指纹（最近打包/还原的 savedAt）
             public long settledAt; // 本地落盘对齐时刻（脏判定基准；0=从未对齐）
+            public string deviceId; // 最近一次打包/还原的本机 deviceId（对照云端 extra 用）
+            public string cloudPromptDismissed; // 已答复「使用当前设备」的云端档案键（设备id@云端savedAt）
         }
 
         // 私有数据类的字段镜像（Newtonsoft 按名映射；只取判定所需字段）

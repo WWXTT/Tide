@@ -195,10 +195,14 @@ namespace CardCore.Network
     /// v18（2026-11-11 二期 B 演出统一·联机数据面）：新下行 MsgMatchLogFull（复用 MsgNetLogBatch
     /// 载荷——终局全量无遮蔽行按座位视角，64 行/批）；连接级事件流订阅从 WantsEvents bool 升为
     /// EventFeed 枚举（None/FxOnly/Full——人类座位/观战改 FxOnly=演出白名单事件子集，语义面变更
-    /// 而非线格式变更，但旧端无白名单过滤会收到全量事件与新版分叉）。升版互拒。</summary>
+    /// 而非线格式变更，但旧端无白名单过滤会收到全量事件与新版分叉）。升版互拒。
+    /// v19（2026-11-12 落格坐标权威化）：MsgIntentPlayCard 新增 CellX/CellZ（声明期落格，-1=未指定）；
+    /// SerializableRuntimeCardState 新增 CellX/CellZ（快照内绝对棋盘坐标，-1=非盘面卡）——服务端按
+    /// 玩家选格钉格并回传，客户端按 ViewerSeat 镜像到观察者坐标（根治双方生物落格不一致）。
+    /// 布局变更，新旧端互拒（无兼容层）。</summary>
     public static class NetworkProtocol
     {
-        public const ushort Version = 18;
+        public const ushort Version = 19;
 
         /// <summary>接收侧版本闸（v8 起）：信封版本与本端不符 = 新旧端互拒（无兼容层）。
         /// 0=legacy 草稿期数据，同样失配。</summary>

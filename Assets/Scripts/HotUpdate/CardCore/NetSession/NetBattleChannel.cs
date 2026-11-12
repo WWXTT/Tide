@@ -236,7 +236,7 @@ namespace CardCore.Network
             if (conn.MatchSeat < 0)
             { _room.SendError(conn, "观战连接不能发 intent", msg.Type.ToString(), NetworkChannel.Battle); return; }
 
-            if (!NetworkIntentApplier.Apply(core, conn.MatchSeat, msg, out var error))
+            if (!NetworkIntentApplier.Apply(core, conn.MatchSeat, msg, out var error, _board)) // v19：传宿主棋盘（落格校验+钉格）
             {
                 _room.SendError(conn, error, msg.Type.ToString(), NetworkChannel.Battle); // §5 拒绝语义：Error 帧回发（M2 落地）
                 return;
@@ -794,7 +794,7 @@ namespace CardCore.Network
                 var key = (member.MatchSeat, full);
                 if (!snapshotCache.TryGetValue(key, out var snapshot))
                 {
-                    snapshot = NetSnapshotBuilder.Build(core, member.MatchSeat, full);
+                    snapshot = NetSnapshotBuilder.Build(core, member.MatchSeat, full, _board); // v19：快照携带盘面绝对坐标
                     if (snapshot != null) snapshot.TurnSecondsLeft = turnLeft;
                     snapshotCache[key] = snapshot;
                 }

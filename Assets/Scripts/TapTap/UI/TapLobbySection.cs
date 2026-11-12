@@ -20,8 +20,23 @@ namespace SynergyUI.Online
 
         public TapLobbySection(LobbyScreen screen) => _screen = screen;
 
-        public bool IsLoggedIn => !string.IsNullOrEmpty(TapLobbyController.LoginName);
-        public string LoginName => TapLobbyController.LoginName;
+        /// <summary>2026-11-12 修：登录态原取 TapLobbyController.LoginName——它只在
+        /// EnsureLoginAndConnectAsync（连上对战服务）后才赋值，静默登录成功但尚未连服务时
+        /// 会被判成「游客」并整屏退回局域网（真机双模拟器实录：TapTap 已登录、大厅仍显示游客+局域网）。
+        /// 账号态改以 TapAccountService（openId）为准；对战服务连接由列表/建房/加入口的
+        /// EnsureLoginAndConnectAsync 惰性完成。</summary>
+        public bool IsLoggedIn => TapAccountService.IsLoggedIn;
+
+        /// <summary>登录名（账号名优先；账号态已登录但 SDK 未给昵称时返回空串——由 FallbackNickname 兜底）。</summary>
+        public string LoginName
+        {
+            get
+            {
+                var name = TapAccountService.Current?.Name;
+                if (!string.IsNullOrEmpty(name)) return name;
+                return TapLobbyController.LoginName;
+            }
+        }
         public string LastError => TapLobbyController.LastError;
         public string LastCreatedRoomId => TapLobbyController.LastCreatedRoomId;
 
@@ -130,8 +145,9 @@ namespace SynergyUI.Online
                 TapLobbyController.LeaveAndDisconnectAsync().Forget();
         }
 
-        /// <summary>昵称兜底（TapTap 登录名；未登录为空——上层继续兜底）。</summary>
-        public string FallbackNickname() => TapLobbyController.LoginName;
+        /// <summary>昵称兜底（2026-11-12 修：改走 LoginName——账号名优先，未连上对战服务也能取到
+        /// 静默登录名；未登录为空——上层继续兜底）。</summary>
+        public string FallbackNickname() => LoginName;
 
         /// <summary>本机 TapTap openId（协议 v11 对局记录：进房自报）；未登录返回空。</summary>
         public string OpenIdOf() => TapAccountService.Current?.OpenId ?? "";

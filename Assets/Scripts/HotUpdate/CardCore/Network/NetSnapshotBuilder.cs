@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using CardCore.Serialization;
+using GameBoard;
 
 namespace CardCore.Network
 {
@@ -42,12 +43,18 @@ namespace CardCore.Network
         public static MsgGameStateSync Build(GameCore core, int viewerSeat)
             => Build(core, viewerSeat, fullInfo: false);
 
+        public static MsgGameStateSync Build(GameCore core, int viewerSeat, bool fullInfo)
+            => Build(core, viewerSeat, fullInfo, null);
+
         /// <summary>
         /// 全量快照（viewerSeat 视角）。fullInfo=true 为**观战全信息**视角（2026-09-23 定案，
         /// M2 会话层）：双方手牌 RuntimeIds 皆下发、双方手牌区皆进 ZoneCards——直播/复盘口径；
         /// 仅允许 viewerSeat=-1（观战）携带，玩家座位一律 false（隐藏信息口径不变）。
+        /// board（v19 落格坐标权威化，可空）：宿主 BoardState——盘面区（Battlefield/ElementPool）
+        /// 的卡状态覆盖 CellX/CellZ（**绝对棋盘坐标**，客户端按 ViewerSeat 镜像到观察者坐标）。
+        /// null=无棋盘环境（旧测试/无宿主），坐标恒 -1，客户端走 first-free fallback。
         /// </summary>
-        public static MsgGameStateSync Build(GameCore core, int viewerSeat, bool fullInfo)
+        public static MsgGameStateSync Build(GameCore core, int viewerSeat, bool fullInfo, BoardState board)
         {
             if (core == null) return null;
             if (fullInfo && viewerSeat >= 0) viewerSeat = -1; // 防误用：全信息只在观战视角合法
@@ -72,9 +79,9 @@ namespace CardCore.Network
                 if (player == null) continue;
 
                 foreach (var zone in PublicZones)
-                    zones.Add(BuildZone(core, seat, player, zone));
+                    zones.Add(BuildZone(core, seat, player, zone, board));
                 if (seat == viewerSeat || fullInfo)
-                    zones.Add(BuildZone(core, seat, player, Zone.Hand));
+                    zones.Add(BuildZone(core, seat, player, Zone.Hand, board));
             }
             snapshot.ZoneCards = zones.ToArray();
 
@@ -172,7 +179,7 @@ namespace CardCore.Network
             }).ToArray();
         }
 
-        private static NetZoneCards BuildZone(GameCore core, int seat, Player player, Zone zone)
+        private static NetZoneCards BuildZone(GameCore core, int seat, Player player, Zone zone, BoardState board)
         {
             // viewer/fullInfo 手牌区走 S3b 口径（剔除施放中——与 HandCount/OwnRuntimeIds 同源）；
             // 公开区照实全量（施放中卡不在公开区，无需过滤）
@@ -180,6 +187,22 @@ namespace CardCore.Network
                 ? UsableHand(core, player)
                 : core.ZoneManager.GetCards(player, zone) ?? new System.Collections.Generic.List<Card>();
             var states = cards.Select(ToSortedCardState).ToArray();
+
+            // v19 盘面区带绝对坐标：Battlefield（单位+场地卡——场地卡在 FieldCell 格）与
+            // ElementPool（地牌色格）按 BoardState 真值覆盖；TryGetCell 未命中保持 -1
+            //（未落格/容量外），客户端走 fallback。手牌/墓地/除外等非盘面区天然不命中。
+            if (board != null && (zone == Zone.Battlefield || zone == Zone.ElementPool))
+            {
+                for (int i = 0; i < cards.Count; i++)
+                {
+                    if (cards[i] == null || states[i] == null) continue;
+                    if (board.TryGetCell(cards[i], out int cx, out int cz))
+                    {
+                        states[i].CellX = cx;
+                        states[i].CellZ = cz;
+                    }
+                }
+            }
 
             // 地牌权威态在 PooledCard 包装（锁色/横置不在卡字段上）：按包装覆盖——
             // 否则网络端恒显「未锁色」且横置态丢失（2026-09-30 联机修复同位；2026-10-11 锁色化）

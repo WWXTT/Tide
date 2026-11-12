@@ -92,12 +92,20 @@ namespace GameBoard
 
             // 施放占格投影已退役（S3b 收口 2026-11-05）：Resync 不再把施放卡落单位区格
 
-            // 落位钉子清理：本轮未落格的卡（离场/换区）钉子不保留
+            // 落位钉子清理：**已离场**（卡自身 Zone 已非 战场/手牌/牌库）的卡钉子不保留。
+            // 判据按卡 Zone 字段、非本轮 _cellOf（v19 联机落格权威化修正）：声明期即钉的卡
+            //（出牌选格后尚未入场——S3b 后卡留手牌，牌库顶施放同理，入场发生在 cast 结算）
+            // 不落格但仍在局，钉子必须活到入场 Resync 才能钉优先生效；旧判据（不在 _cellOf
+            // 即清）会在每次 Resync 尾部把声明期钉子洗掉（回退 first-free）。回手卡钉子保留
+            //（重打出落旧格=粘滞语义）；墓/除外/无区=离场，清。
             if (_pinnedCells.Count > 0)
             {
                 var stale = new List<Card>();
                 foreach (var card in _pinnedCells.Keys)
-                    if (!_cellOf.ContainsKey(card)) stale.Add(card);
+                {
+                    var z = card.GetZone();
+                    if (z != Zone.Battlefield && z != Zone.Hand && z != Zone.Deck) stale.Add(card);
+                }
                 foreach (var card in stale) _pinnedCells.Remove(card);
             }
         }

@@ -291,6 +291,7 @@ namespace CardCore.Tools
                 ("MsgIntentPlayCard", "CardRuntimeId"), ("MsgIntentPlayCard", "Targets"),
                 ("MsgIntentPlayCard", "FromZone"), ("MsgIntentPlayCard", "ModeIndex"),
                 ("MsgIntentPlayCard", "References"), // 参照选位（2026-11-08 目标选择重构·协议 v10）
+                ("MsgIntentPlayCard", "CellX"), ("MsgIntentPlayCard", "CellZ"), // 落格坐标（2026-11-12 协议 v19）
                 ("MsgIntentBuildCard", "CardRuntimeId"), ("MsgIntentBuildCard", "Color"), // 2026-10-29 P7 建造（协议 v4）
                 // MsgIntentTapForElement 已删（2026-10-11 现取现用：无手动横置）——两个 tag 常量同批移除（2026-10-22）
                 ("MsgIntentAddToElementPool", "CardRuntimeId"),
@@ -323,6 +324,7 @@ namespace CardCore.Tools
                 ("RuntimeCardState", "BuildPaid"), // 2026-10-29 P7 建造已建额（协议 v4 快照手牌卡状态）
                 ("RuntimeCardState", "LockedColor"), // 地牌锁色（2026-10-31 阶段D：手工定值退役并入哈希）
                 ("RuntimeCardState", "DelayedDeath"), // 延迟死亡标记（2026-10-31 阶段D：手工定值退役并入哈希）
+                ("RuntimeCardState", "CellX"), ("RuntimeCardState", "CellZ"), // 快照落格（2026-11-12 协议 v19 绝对坐标）
 
                 // ---- 开局握手（2026-09-22：DeckSubmit/MatchManifest + 卡组闭包原子行摘要）----
                 ("NetDeckDigest", "AtomicRowsHash"), ("NetDeckDigest", "AtomicRowCount"),

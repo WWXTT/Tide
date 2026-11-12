@@ -217,9 +217,21 @@ namespace CloudSave
                 "取消", null, danger: true);
         }
 
-        /// <summary>启动同步发现云端较新（启动时主菜单未就绪则进场补问）——询问是否恢复。</summary>
+        /// <summary>启动同步发现「云端较新」或「设备变更」（启动时主菜单未就绪则进场补问）——
+        /// 设备变更时让玩家自选：使用云端（覆盖本机）还是使用当前设备（本机为准，有进度则上传覆盖云端）。</summary>
         private void OnCloudRestoreSuggested(long cloudSavedAt = 0)
         {
+            if (CloudSyncServiceRef.PendingReason == CloudSyncServiceRef.RestorePromptReason.DeviceChanged)
+            {
+                UiKit.ConfirmBox(_root, "云端存档来自其他设备",
+                    $"云端存档（{FormatCloudTime(CloudSyncServiceRef.SuggestedCloudSavedAt)}）来自另一台设备，"
+                    + "与本机数据不是同一份。要使用哪一份？\n\n"
+                    + "· 使用云端：下载云端存档覆盖本机\n"
+                    + "· 使用当前设备：以本机为准（本机有进度时会上传覆盖云端）",
+                    "使用云端", () => CloudSyncServiceRef.AnswerRestorePrompt(true),
+                    "使用当前设备", () => CloudSyncServiceRef.AnswerRestorePrompt(false), danger: true);
+                return;
+            }
             UiKit.ConfirmBox(_root, "云端有更新的存档",
                 $"云端存档（{FormatCloudTime(CloudSyncServiceRef.SuggestedCloudSavedAt)}）比本机新。"
                 + "是否恢复到本机？本机当前进度将被覆盖。",

@@ -12,9 +12,10 @@ namespace SynergyUI
     /// （同 CardOverlayCard 的挂载模式——prefab 本体不带脚本）。承担四件事：
     /// ① IPointerEnter/Exit 悬停上报，转发给所属 HandFanView 重排目标；
     /// ② 布局 tween 状态（当前值/目标值），由 HandFanView.Tick 统一推进；
-    /// ③ 悬停显隐按钮层（btn：放置/使用+费用方格；2026-11-01 SpUse 退役——充能并入
-    ///    卡面效果行选中、事件全走 Use 钮）：
-    ///    条件由宿主屏注入的交互钩子（FanInteractions）评估；指针从卡面移到按钮上
+    /// ③ btn 悬浮层（放置/使用+费用方格；2026-11-01 SpUse 退役——充能并入
+    ///    卡面效果行选中、事件全走 Use 钮）：2026-11-12 点选制改版——主人扇（OwnerSide）
+    ///    费用栏（CostSquares）常驻，Use/Place 只在「本卡被点击选中」且条件达成时亮
+    ///    （悬停不再显钮；条件评估走 FanInteractions 钩子）；指针从卡面移到按钮上
     ///    （子孙物体）不收悬停态——Exit 事件按射线落点是否本卡子孙判留；
     /// ④ 可发动边缘雾光（AHandCard/Flowing 节点，2026-10-15 雾气改版）：Flowing 是用户在
     ///    手牌预制体上摆位的常开占位层（垫在嵌套 ACard 卡面之下）；运行时归一为「卡面四边
@@ -116,7 +117,9 @@ namespace SynergyUI
             // 指针移到本卡子孙（放置/发动按钮）上=仍是本卡悬停态：不收按钮、不退悬停布局
             var over = eventData.pointerCurrentRaycast.gameObject;
             if (over != null && over.transform.IsChildOf(transform)) return;
-            HideActionButtons();
+            // 主人扇按钮跟点选走（2026-11-12 点选制）：悬停退出不收钮——选中卡在不在指针下都保持亮；
+            // 其余扇（对手卡背查阅等）维持悬停显隐旧口径
+            if (Fan?.Hooks?.OwnerSide != true) HideActionButtons();
             Fan?.NotifyHover(this, false);
         }
 
@@ -203,8 +206,11 @@ namespace SynergyUI
 
         // ---- 按钮层（放置/发动） ----
 
-        /// <summary>按交互钩子条件刷新按钮层显隐（悬停进入/扇区对账后触发；无钩子=对手扇常态隐藏）。
-        /// SpUse 钮退役（2026-11-01）：充能可用性并入 CanUse（宿主屏合并口径），此处只剩放置/使用两钮。</summary>
+        /// <summary>刷新按钮层显隐（悬停进入/点选变更/扇区对账后触发；无钩子=对手扇常态隐藏）。
+        /// 2026-11-12 点选制：主人扇（OwnerSide）btn 层常开（费用栏 CostSquares 常驻），
+        /// Use/Place 只在本卡被点选（Fan.SelectedCard）且钩子条件达成时亮——未选中/条件不达一律不亮；
+        /// 其余扇维持旧口径（悬停+条件达成整层显隐）。SpUse 钮退役（2026-11-01）：
+        /// 充能可用性并入 CanUse（宿主屏合并口径），此处只剩放置/使用两钮。</summary>
         public void RefreshActionButtons()
         {
             EnsureChromeRefs();
@@ -214,9 +220,20 @@ namespace SynergyUI
                 HideActionButtons();
                 return;
             }
-            bool canUse = hooks.CanUse != null && hooks.CanUse(this);
-            bool canPlace = hooks.CanPlaceLand != null && hooks.CanPlaceLand(this);
-            Face.SetActionLayerVisible(canUse || canPlace);
+            bool canUse, canPlace;
+            if (hooks.OwnerSide)
+            {
+                Face.SetActionLayerVisible(true); // 费用栏常驻：btn 层（透明底板）恒开，显隐下沉到两钮
+                bool selected = Fan.SelectedCard == this;
+                canUse = selected && hooks.CanUse != null && hooks.CanUse(this);
+                canPlace = selected && hooks.CanPlaceLand != null && hooks.CanPlaceLand(this);
+            }
+            else
+            {
+                canUse = hooks.CanUse != null && hooks.CanUse(this);
+                canPlace = hooks.CanPlaceLand != null && hooks.CanPlaceLand(this);
+                Face.SetActionLayerVisible(canUse || canPlace);
+            }
             if (UseButton != null && UseButton.gameObject.activeSelf != canUse)
                 UseButton.gameObject.SetActive(canUse);
             if (PlaceButton != null && PlaceButton.gameObject.activeSelf != canPlace)
@@ -239,8 +256,22 @@ namespace SynergyUI
             if (CostSquares == null) CostSquares = squares;
         }
 
-        /// <summary>收起按钮层（出扇/复用/发起流程时）。</summary>
-        public void HideActionButtons() => Face?.SetActionLayerVisible(false);
+        /// <summary>收起按钮（出扇/复用/发起流程时）。主人扇（2026-11-12 点选制）只收
+        /// Use/Place 两钮——btn 层保持开（CostSquares 费用栏常驻），费用数据由
+        /// SetHandChrome→UpdateEffectCost 对账刷新；其余扇整层收（旧口径）。</summary>
+        public void HideActionButtons()
+        {
+            if (Fan?.Hooks != null && Fan.Hooks.OwnerSide)
+            {
+                Face?.SetActionLayerVisible(true);
+                if (UseButton != null && UseButton.gameObject.activeSelf)
+                    UseButton.gameObject.SetActive(false);
+                if (PlaceButton != null && PlaceButton.gameObject.activeSelf)
+                    PlaceButton.gameObject.SetActive(false);
+                return;
+            }
+            Face?.SetActionLayerVisible(false);
+        }
 
         /// <summary>手牌卡按钮文案+费用方格（2026-10-30 定案；2026-11-01 抉择上卡+SpUse 退役）：
         /// 卡费只在手牌展示（btn/CostSquares，SetCards 对账时刷新；多主动法术=当前选中效果行费用）；
@@ -328,9 +359,11 @@ namespace SynergyUI
         }
 
         /// <summary>切换选中效果行（模式行点击入口）：边框/费用/使用钮文案联动（费用=该模式现付费）。
-        /// 与特殊行互斥——选中模式行即退出充能特殊态。纯 UI 态，不设回合/阶段闸（出牌闸在「使用」链上）。</summary>
+        /// 与特殊行互斥——选中模式行即退出充能特殊态。纯 UI 态，不设回合/阶段闸（出牌闸在「使用」链上）。
+        /// 行点击=点选本卡（2026-11-12 点选制）：按钮随选中亮（条件达成时）。</summary>
         public void SelectEffectMode(int index)
         {
+            Fan?.SetSelected(this);
             var rows = Face != null ? Face.ActiveEffectRows : null;
             int n = rows != null && rows.Count > 0 ? rows.Count
                 : (_chromeItem?.ActiveEffectCosts?.Count ?? 0);
@@ -343,9 +376,11 @@ namespace SynergyUI
         }
 
         /// <summary>特殊行点击（充能，2026-11-01 上卡）：选中→Use 钮文案/边框/费用切换为该特殊态；
-        /// **再点选中行=取消**回普通使用（回落原选中模式行）。无特殊行数据空转。</summary>
+        /// **再点选中行=取消**回普通使用（回落原选中模式行）。无特殊行数据空转。
+        /// 行点击=点选本卡（2026-11-12 点选制）。</summary>
         public void SelectSpEffect(int index)
         {
+            Fan?.SetSelected(this);
             int n = _chromeItem?.SpEffectKinds?.Count ?? 0;
             if (n == 0) return;
             SelectedSpEffect = SelectedSpEffect == index ? -1 : Mathf.Clamp(index, 0, n - 1);
@@ -402,16 +437,17 @@ namespace SynergyUI
             if (lbl != null) lbl.text = text;
         }
 
-        /// <summary>按钮点击（Button.onClick 接线）：先收按钮再交宿主屏接管（宿主会隐藏手牌扇）。</summary>
+        /// <summary>按钮点击（Button.onClick 接线）：主人扇保持点选态（2026-11-12——被拒可原地
+        /// 重试；出牌/选格流程由宿主隐藏手牌扇=SetVisible(false) 清选），其余扇先收按钮再交宿主接管。</summary>
         public void OnUseClicked()
         {
-            HideActionButtons();
+            if (Fan?.Hooks?.OwnerSide != true) HideActionButtons();
             Fan?.Hooks?.OnUse?.Invoke(this);
         }
 
         public void OnPlaceClicked()
         {
-            HideActionButtons();
+            if (Fan?.Hooks?.OwnerSide != true) HideActionButtons();
             Fan?.Hooks?.OnPlaceLand?.Invoke(this);
         }
 

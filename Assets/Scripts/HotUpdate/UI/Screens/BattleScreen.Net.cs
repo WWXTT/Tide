@@ -59,9 +59,11 @@ namespace SynergyUI
                 : null;
 
             // 手牌扇交互（网络版：可发动性按视图近似评估，真校验交服务器 Error 反馈；
-            // SpUse 钩子随 2026-11-01 上卡退役——特殊行可用性并入 CanUse）
+            // SpUse 钩子随 2026-11-01 上卡退役——特殊行可用性并入 CanUse；
+            // 2026-11-12 点选制（OwnerSide）：点击选中才亮钮、费用栏常驻、扇外点击收扇）
             _selfFan?.SetInteractions(new FanInteractions
             {
+                OwnerSide = true,
                 CanUse = NetFanCanUse,
                 CanPlaceLand = NetFanCanPlaceLand,
                 OnUse = NetOnFanUse,
@@ -578,20 +580,40 @@ namespace SynergyUI
             // 永久物（2026-10-28 用户反馈：结界/生物不再 first-free 自动落位）——棋盘选格后发
             else if (data.Supertype != Cardtype.Spell && !await NetPickUnitCellAsync(card)) return;
 
+            // v19 落格上行：选格结果（观察者坐标）→ 绝对坐标（ViewerSeat==1 镜像换算）随 intent 携带；
+            // 服务端校验（己方单位格+空格）后 PinCard 权威钉格、快照回传实际格。法术/场地卡恒 -1。
+            int cellX = -1, cellZ = -1;
+            if (_netPickX >= 0)
+            {
+                int viewerSeat = _view?.NetViewerSeat ?? _netSnapshot?.ViewerSeat ?? 0;
+                int x = _netPickX, z = _netPickZ;
+                if (viewerSeat == 1) (x, z) = BoardLayout.MirrorSeat(x, z); // 观察者→绝对
+                cellX = x; cellZ = z;
+            }
+            _netPickX = _netPickZ = -1; // 消费即清（防下张法术误带）
+
             _netClient.Send(NetworkMessageType.IntentPlayCard, new MsgIntentPlayCard
             {
                 CardRuntimeId = card.RuntimeId,
                 FromZone = (int)Zone.Hand,
                 ModeIndex = modeIndex,
                 Targets = null, // 声明期目标不预收：结算期经 SelectRequest 反问（服务器候选集权威）
+                CellX = cellX,
+                CellZ = cellZ,
             });
         }
 
+        /// <summary>网络局选格暂存（v19）：观察者坐标——NetUseCardAsync 换算绝对坐标随 intent 上行。
+        /// 字段带出而非元组返回（AOT 口径：不引入 UniTask&lt;Nullable&lt;ValueTuple&gt;&gt; 新泛型组合）。</summary>
+        private int _netPickX = -1, _netPickZ = -1;
+
         /// <summary>网络永久物选格（光圈候选=己方单位区空格，同本地 BeginUseCellPicking 交互）：
-        /// 点格=写 NetCellPins 钉并返回 true（随发 intent，快照落位即所选格）；取消返回 false。
+        /// 点格=记 _netPickX/_netPickZ（NetUseCardAsync 镜像换算绝对坐标随 intent 上行——v19 服务端
+        /// 权威钉格）+ 写 NetCellPins 兜底（仅快照无坐标的 fallback 路径消费）；取消返回 false。
         /// 满区 toast 拦截。</summary>
         private async UniTask<bool> NetPickUnitCellAsync(BattleCardView card)
         {
+            _netPickX = _netPickZ = -1;
             var options = NetEmptyUnitCells();
             if (options.Count == 0) { _toast.Show("单位区已满——无法打出"); return false; }
 
@@ -604,9 +626,11 @@ namespace SynergyUI
                 RestoreFanNet();
                 return false;
             }
-            NetCellPins.Pin(card.RuntimeId, picked.Opt.X, picked.Opt.Z);
+            _netPickX = picked.Opt.X;
+            _netPickZ = picked.Opt.Z;
+            NetCellPins.Pin(card.RuntimeId, _netPickX, _netPickZ); // 兜底：仅快照无坐标的旧路径消费
             RestoreFanNet();
-            Debug.Log($"[HandPlay] 网络永久物选格：{card.Name} → ({picked.Opt.X},{picked.Opt.Z})（钉随快照生效）");
+            Debug.Log($"[HandPlay] 网络永久物选格：{card.Name} → 观察者格 ({_netPickX},{_netPickZ})（v19 随 intent 上行，服务端权威钉格）");
             return true;
         }
 

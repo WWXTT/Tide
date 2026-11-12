@@ -74,6 +74,16 @@ namespace CardCore.Serialization
         [MemoryPackOrder(TagTable.RCS_IsFrozen)]
         public bool IsFrozen;
 
+        /// <summary>快照落格（2026-11-12 v19）：**绝对棋盘坐标**（服务端 BoardState 真值）；
+        /// -1=非盘面卡/未落格。单向导出：FromCard 恒 -1，NetSnapshotBuilder 对
+        /// Battlefield/ElementPool 区覆盖；ApplyToCard 不回灌（卡零坐标字段铁律不变）。</summary>
+        [MemoryPackOrder(TagTable.RCS_CellX)]
+        public int CellX = -1;
+
+        /// <summary>落格 Z（同 CellX）。</summary>
+        [MemoryPackOrder(TagTable.RCS_CellZ)]
+        public int CellZ = -1;
+
         public static SerializableRuntimeCardState FromCard(Card card)
         {
             var dto = new SerializableRuntimeCardState

@@ -32,6 +32,9 @@ namespace SynergyUI
         private const float UpSeconds = 0.10f;   // 回弹段（easeOut 减速收停）
         private const float TotalSeconds = DownSeconds + HoldSeconds + UpSeconds; // 0.20s
 
+        /// <summary>HUD 认领格专用键（棋盘格键=x&lt;&lt;32|z 恒小非负值——long.MinValue 必不撞）。</summary>
+        private const long HudKey = long.MinValue;
+
         /// <summary>在途按压状态（键=格 x&lt;&lt;32|z；同格连点=顶掉重放）。</summary>
         private sealed class PressState
         {
@@ -55,15 +58,29 @@ namespace SynergyUI
             if (BattleBoardAssemble.Running) return; // 拼装/开场浮起段不触发
             var tile = BattleTileFx.TileOf(x, z);
             if (tile == null) return;
+            var anchors = field != null ? field.CollectPressAnchors(x, z) : null;
+            Start((long)x << 32 | (uint)z, tile, anchors);
+        }
 
-            var key = (long)x << 32 | (uint)z;
+        /// <summary>HUD 认领格按压（2026-11-12 需求：结束回合同款按下-回弹）：hud-tile-* 认领时已
+        /// 改名脱离 tile-{x}-{z} 名录——BattleTileFx.TileOf 按名寻址不到，由持有方直喂 Transform
+        ///（现消费方=BattleHudRow.EndTurnTile）。平贴文字/暗金角标钉格下天然随格动、无世界锚定挂件；
+        /// 观感参数/连点重入/拼装窗闸与棋盘格同款。</summary>
+        public static void PlayHud(Transform tile)
+        {
+            if (BattleBoardAssemble.Running) return; // 中线行随浮起拼装同走——飞行位基线不采
+            if (tile == null) return;
+            Start(HudKey, tile, null);
+        }
+
+        /// <summary>共用起压（两入口收敛）：重入钉回原位顶掉重放、偏移记账态建卡、起播。</summary>
+        private static void Start(long key, Transform tile, List<Transform> anchors)
+        {
             if (_running.TryGetValue(key, out var prev))
             {
                 Restore(prev);     // 连点重入：先钉回原位再整段重放（旧循环下帧发现易主静默退场）
                 _running.Remove(key);
             }
-
-            var anchors = field != null ? field.CollectPressAnchors(x, z) : null;
 
             // tile 偏移走父空间：世界深度 ÷ 父级 Y 缩放（棋盘根轴对齐无旋转，Y 轴独立换算即可）
             float parentScaleY = tile.parent != null ? Mathf.Max(0.0001f, Mathf.Abs(tile.parent.lossyScale.y)) : 1f;

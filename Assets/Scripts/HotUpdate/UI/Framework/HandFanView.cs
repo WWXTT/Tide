@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace SynergyUI
@@ -8,9 +9,15 @@ namespace SynergyUI
     /// <summary>手牌扇交互钩子（宿主屏注入，2026-10-14 手牌出牌接线）：条件评估与点击接管
     /// 全在宿主屏完成（UI Framework 不耦合引擎）；null 钩子或 null 委托=该项不可用。
     /// 未注入钩子的扇区（对手扇常态）不显示按钮层。SpUse 钩子已随 2026-11-01 上卡
-    /// 改版退役——充能=卡面效果行选中经 Use 钮分流，可用性并入 CanUse。</summary>
+    /// 改版退役——充能=卡面效果行选中经 Use 钮分流，可用性并入 CanUse。
+    /// 2026-11-12 点选制改版：OwnerSide=true 的扇区（本地玩家出牌扇）改为点击选中制——
+    /// 卡体点击=选中/再点取消，Use/Place 只在选中且条件达成时亮（悬停不再显钮），
+    /// btn 费用栏（CostSquares）常驻，扇外点击收扇到最小档。</summary>
     public sealed class FanInteractions
     {
+        /// <summary>主人扇标记：true=本地玩家出牌扇（点选制+费用栏常驻+扇外点击收扇）；
+        /// 对手扇不设（卡体点击只走 OnCardClick 查阅窗）。</summary>
+        public bool OwnerSide;
         public Func<HandFanCard, bool> CanUse;
         public Func<HandFanCard, bool> CanPlaceLand;
         public Action<HandFanCard> OnUse;
@@ -53,6 +60,9 @@ namespace SynergyUI
             public float IdleSinkRatio = 0.5f;         // 未悬停整扇收缩（2026-10-14 晚定案）：向屏幕外缘
                                                        // 沉入=卡高×此值（底部扇下沉/顶部扇上收），
                                                        // 屏幕视觉比例约减半；悬停任一卡即展开
+            public float CollapseSinkRatio = 0.9f;     // 扇外点击收扇到最小（2026-11-12）：比 IdleSink 更深
+                                                       // 的档位——收扇后未悬停时整扇沉入=卡高×此值，
+                                                       // 只露卡顶窄条；悬停仍临时展开，离手回落收缩位
             public float TweenSpeed = 14f;             // exp 缓动速率（1/s）
         }
 
@@ -69,46 +79,105 @@ namespace SynergyUI
         private GameObject _prefab;
         private Vector2 _cardSize;   // 动态读取的卡牌尺寸（卡面改版只动 prefab，布局自适应）
         private HandFanCard _hovered;
+        private HandFanCard _selected; // 点选中的卡（2026-11-12 点选制）：Use/Place 只跟选中卡亮
+        private bool _collapsed;       // 扇外点击收扇（2026-11-12）：已收最小档——悬停仍临时展开，离手回落收缩位
         private FanInteractions _hooks;
         private float _glowPhase;    // 可发动流光脉冲相位（Tick 推进）
-        private float _sinkT = 1f;   // 未悬停收缩插值（1=收起 0=展开；Tick 缓动，RebuildTargets 消费）
+        private float _sinkT;        // 收缩插值（比率值：0=展开 · IdleSinkRatio=常态收缩 · CollapseSinkRatio=最小档；
+                                     // Tick 缓动，RebuildTargets 直接乘卡高消费）
         private Vector2? _drawOrigin; // 抽卡飞入起点（挂载层坐标系；单次消费，对账末恒清防滞留）
+        private readonly List<RaycastResult> _clickHits = new List<RaycastResult>(); // 扇外点击检测射线缓冲（复用防 GC）
 
         /// <summary>交互钩子（宿主屏注入；null=无交互——按钮层永不显示）。</summary>
         public FanInteractions Hooks => _hooks;
+
+        /// <summary>当前点选中的卡（2026-11-12 点选制；null=未选）——Use/Place 按钮只在本卡选中时亮。</summary>
+        public HandFanCard SelectedCard => _selected;
 
         public HandFanView(RectTransform layer, Config cfg)
         {
             _layer = layer;
             _cfg = cfg;
+            _sinkT = cfg.IdleSinkRatio; // 起步=常态收缩档（旧口径 1×IdleSink 同视觉）
         }
 
-        /// <summary>注入交互钩子（对手扇不注入）；注入后悬停卡即时重评估按钮层。</summary>
+        /// <summary>注入交互钩子（对手扇不注入）；注入后即时重评估按钮层——主人扇（点选制）
+        /// 逐卡重评（存量实例补亮常驻费用栏），其余扇只评悬停卡。</summary>
         public void SetInteractions(FanInteractions hooks)
         {
             _hooks = hooks;
-            _hovered?.RefreshActionButtons();
+            if (hooks != null && hooks.OwnerSide)
+                foreach (var c in _cards) c.RefreshActionButtons();
+            else
+                _hovered?.RefreshActionButtons();
         }
 
-        /// <summary>卡体点击转发（HandFanCard.OnPointerClick）：宿主经 FanInteractions.OnCardClick
-        /// 接管——对方手牌扇开「对方手牌」Information（2026-11-03）；未挂=无操作（不影响 Use/Place 钮）。</summary>
+        /// <summary>卡体点击转发（HandFanCard.OnPointerClick）：主人扇（OwnerSide）先做点选
+        /// （2026-11-12 点选制：选中/再点同卡取消——按钮随之亮灭），再转发 OnCardClick 钩子
+        /// （对方手牌扇开「对方手牌」Information，2026-11-03；未挂=无操作）。</summary>
         internal void NotifyCardClicked(HandFanCard card)
         {
+            if (_hooks != null && _hooks.OwnerSide)
+                SetSelected(_selected == card ? null : card); // 再点同卡=取消选牌
             var cb = _hooks?.OnCardClick;
             if (cb != null) cb(card);
         }
 
+        /// <summary>设置点选卡（2026-11-12 点选制；null=清选）：新旧两卡各自重评按钮层
+        /// （旧卡收钮、新卡按 CanUse/CanPlaceLand 条件亮钮）。卡面效果行点击也经此选中本卡。</summary>
+        internal void SetSelected(HandFanCard card)
+        {
+            if (_selected == card) return;
+            var old = _selected;
+            _selected = card;
+            if (old != null) old.RefreshActionButtons();
+            if (card != null) card.RefreshActionButtons();
+        }
+
+        /// <summary>收扇到最小档（2026-11-12：点击手牌以外的区域触发）——清点选+置收缩态。
+        /// 悬停中的扇不立即改位（悬停展开优先），指针离手后由 Tick 缓动沉到 CollapseSinkRatio。</summary>
+        public void Collapse()
+        {
+            SetSelected(null);
+            _collapsed = true;
+        }
+
+        /// <summary>扇外点击检测（Tick 轮询，仅主人扇）：按下左键/触点且射线落点不在本扇
+        /// 挂载层子树下（含 3D 战场/其他面板/空处）→ 收扇。悬停展开中指针必在本扇上，
+        /// 天然不触发。</summary>
+        private void PollOutsideClick()
+        {
+            if (_hooks == null || !_hooks.OwnerSide) return;
+            if (_layer == null || !_layer.gameObject.activeInHierarchy) return;
+            if (!Input.GetMouseButtonDown(0)) return; // 触摸0合成鼠标事件——移动端同轨
+            var es = EventSystem.current;
+            if (es == null) return;
+            var ped = new PointerEventData(es) { position = Input.mousePosition };
+            es.RaycastAll(ped, _clickHits);
+            for (int i = 0; i < _clickHits.Count; i++)
+            {
+                var hit = _clickHits[i].gameObject;
+                if (hit != null && hit.transform.IsChildOf(_layer)) return; // 落点在本扇（卡/按钮/touch-shield）=扇内
+            }
+            _clickHits.Clear();
+            Collapse();
+        }
+
         /// <summary>整扇显隐（2026-10-14 放地/出牌选格期隐藏手牌）：挂载层 SetActive，
-        /// 对账/Tick 照常（卡实例状态不丢）。隐藏时清悬停（ deactivated 卡不派发 PointerExit，
-        /// 防 _hovered 悬挂令扇区复现后滞留展开态）。</summary>
+        /// 对账/Tick 照常（卡实例状态不丢）。隐藏时清悬停+点选（deactivated 卡不派发
+        /// PointerExit，防 _hovered/_selected 悬挂令扇区复现后滞留展开态/亮钮态）；
+        /// 复显时收缩态复位（选格/出牌流程回来=常态收缩档，不滞留收扇）。</summary>
         public void SetVisible(bool visible)
         {
             if (_layer == null) return;
-            if (!visible && _hovered != null)
+            if (!visible)
             {
+                bool had = _hovered != null || _selected != null;
                 _hovered = null;
-                RebuildTargets();
+                SetSelected(null);
+                if (had) RebuildTargets();
             }
+            else _collapsed = false;
             if (_layer.gameObject.activeSelf != visible)
                 _layer.gameObject.SetActive(visible);
         }
@@ -256,7 +325,9 @@ namespace SynergyUI
             _alive.Clear();
 
             if (_hovered != null && !_cards.Contains(_hovered)) _hovered = null;
+            if (_selected != null && !_cards.Contains(_selected)) _selected = null; // 选牌已离手（打出/被弃）——清选
             _hovered?.RefreshActionButtons(); // 对账后悬停卡按钮条件可能已变（费用/上限）
+            _selected?.RefreshActionButtons(); // 点选卡同评（2026-11-12 点选制：回合/费用变化即时收亮钮）
             _drawOrigin = null; // 未消费即弃（防武装后该拍无新卡、起点滞留到后续对账误飞）
             RebuildTargets();
         }
@@ -286,8 +357,9 @@ namespace SynergyUI
             float cardH = _cardSize.y * _cfg.BaseScale;
             float spacing = n <= 1 ? 0f : Mathf.Min(cardW * _cfg.FullSpacingRatio, _cfg.MaxFanWidth / (n - 1));
             float push = _cfg.NeighborPushRatio * cardW;
-            // 未悬停收缩（2026-10-14 晚定案）：整扇向屏幕外缘沉入（底部扇向下/顶部扇向上），视觉比例约减半
-            float sinkY = (_cfg.TopSide ? 1f : -1f) * _sinkT * _cfg.IdleSinkRatio * cardH;
+            // 未悬停收缩（2026-10-14 晚定案）：整扇向屏幕外缘沉入（底部扇向下/顶部扇向上）；
+            // 2026-11-12 起为两档比率（常态 IdleSink / 收扇 CollapseSink）——_sinkT 即当前比率，直接乘卡高
+            float sinkY = (_cfg.TopSide ? 1f : -1f) * _sinkT * cardH;
 
             int hoverIdx = -1;
             if (_hovered != null)
@@ -360,15 +432,17 @@ namespace SynergyUI
 
         /// <summary>帧驱动：全部活跃卡向目标 exp 缓动（宿主挂 UiKit.Updater 调用）；
         /// 流光相位统一推进（可发动卡的边缘光带巡游）。
-        /// 收缩插值同步缓动（无悬停卡→收起/有→展开），过渡期间逐帧重排目标。</summary>
+        /// 收缩插值同步缓动（悬停→展开 0；未悬停→常态 IdleSink / 已收扇 CollapseSink 档），
+        /// 过渡期间逐帧重排目标；主人扇另轮询扇外点击收扇（PollOutsideClick）。</summary>
         public void Tick()
         {
+            PollOutsideClick(); // 扇外点击收扇（2026-11-12）：须在空扇早退前——空扇无收缩可言但态照记
             _glowPhase += Time.deltaTime * 4.5f;
             TickDissolving(); // 先推退场（手牌清空早退前——见方法注）
             if (_cards.Count == 0) return;
             float t = 1f - Mathf.Exp(-Mathf.Min(Time.deltaTime, 0.05f) * _cfg.TweenSpeed);
 
-            float sinkTarget = _hovered == null ? 1f : 0f;
+            float sinkTarget = _hovered == null ? (_collapsed ? _cfg.CollapseSinkRatio : _cfg.IdleSinkRatio) : 0f;
             if (Mathf.Abs(sinkTarget - _sinkT) > 0.001f)
             {
                 _sinkT += (sinkTarget - _sinkT) * t;

@@ -28,6 +28,8 @@ MonoBehaviour:
   - mscorlib
   - System
   - System.Core
+  - MemoryPack.Core
+  - UniTask
   outputLinkFile: Scripts/HotUpdate/link.xml
   outputAOTGenericReferenceFile: Scripts/HotUpdate/AOTGenericReferences.cs
   maxGenericReferenceIteration: 10

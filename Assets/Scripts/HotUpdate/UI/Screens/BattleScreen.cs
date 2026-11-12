@@ -194,6 +194,7 @@ namespace SynergyUI
                     Center = new Vector2(0f, -375f), // 卡心离屏底 ~165px（悬停抬起后不越界）
                     HoverScaleMul = 1.93f, // 悬停放大 1.38×1.4（2026-10-21 用户反馈仍看不清）——只调己方扇，对手卡背无放大需求
                     IdleSinkRatio = 0.65f, // 收缩再下沉（2026-10-21：收缩态仍压己方地牌池——配合数字/图标调换）
+                    CollapseSinkRatio = 0.8f, // 扇外点击收扇到最小（2026-11-12）：只露卡顶 ~40px 名条——悬停临时展开
                 });
             var oppLayer = FanLayer("opp-fan-layer");
             if (oppLayer != null)
