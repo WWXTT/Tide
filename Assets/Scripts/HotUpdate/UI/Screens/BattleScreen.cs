@@ -45,6 +45,7 @@ namespace SynergyUI
         private BattleLogController _log;                              // 战报控制器（2026-10-18 拆分·Battle/BattleLogController.cs；Build 惰性建存留跨局）
         private TMP_Text _lblPhase, _lblStack, _lblPriority;
         private Button _btnConcede;
+        private Button _replayPauseBtn; // 回放暂停/播放/重播钮（2026-11-12 阶段2·仅回放局显示）
         // 英雄区/临时元素（2026-10-16 技能格撤销定案）：技能格退役——技能发动=角色格头顶【发动】钮
         //（OnClickHeroZone 链路）、技能介绍=角色格悬停两侧同挂（2026-11-02 定案：角色描述含技能描述）、
         // 角色生命/弹药=角色格悬停（黑白元素格已随 2026-10-28 元素缩编退役）。
@@ -241,6 +242,7 @@ namespace SynergyUI
                 _log.Tick();         // 日志面板高度动画（BattleLogController·2026-10-18 拆分）
                 _toast.Tick();      // error-tip 滑入/到时收（BattleToastHub·2026-10-18 拆分）
                 _director?.Tick();  // 步进回放看门狗（2026-10-19：超时无进展强制收口）
+                UpdateReplayPauseLabel(); // 回放暂停钮文案（2026-11-12 阶段2：暂停/播放/重播——只在变化时写）
                 _netSource?.Tick(); // 联机帧生产者（二期 C：空闲期放行积压行+落地暂存快照）
                 TickTutorialResetButton(); // 常驻考验重置门控（2026-10-19）：显隐+可点性逐帧评估
                 PollTutorialJumpKey();    // T 键测试跳段（2026-10-21）：教学局直跳最终考验
@@ -341,6 +343,15 @@ namespace SynergyUI
             // 无出牌入口；prefab 本无此节点，先前绑定即静默空转）
             // btn-pass-priority 绑定已随 2026-10-18 网络簇整删退役（让优先权=网络模式专属；prefab 节点留置不接线）
             _btnConcede = BindButton("btn-concede", () => OnConcede().Forget());
+
+            // 回放暂停/播放（2026-11-12 阶段2·节点烘焙见 Tools/烘焙/战斗回放控件；未烘焙=静默无钮）
+            _replayPauseBtn = FindOptional("btn-replay-pause")?.GetComponentInChildren<Button>(true);
+            if (_replayPauseBtn != null)
+            {
+                _replayPauseBtn.onClick.RemoveAllListeners();
+                _replayPauseBtn.onClick.AddListener(OnReplayPauseClicked);
+                _replayPauseBtn.gameObject.SetActive(false); // 非回放局隐藏（StartReplayFan 打开）
+            }
 
             // ---- 我方信息栏（下）----
             _selfBank = FindTextOptional("lbl-self-bank");

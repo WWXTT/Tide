@@ -18,12 +18,26 @@ public static class BakeLobbySpectateNodes
     [MenuItem("Tools/烘焙/大厅观战节点")]
     public static void Bake()
     {
-        var root = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath);
+        // 2026-11-12 修复：LoadAssetAtPath + Instantiate 挂资产内部节点 → 克隆落在活动场景、
+        // SavePrefabAsset 存不含克隆的旧内容（假成功）。改走 LoadPrefabContents 隔离实例正道。
+        var root = PrefabUtility.LoadPrefabContents(PrefabPath);
         if (root == null)
         {
             Debug.LogError($"[烘焙] 找不到 {PrefabPath}");
             return;
         }
+        try
+        {
+            BakeIntoContents(root);
+        }
+        finally
+        {
+            PrefabUtility.UnloadPrefabContents(root);
+        }
+    }
+
+    private static void BakeIntoContents(GameObject root)
+    {
         bool dirty = false;
 
         var btnAddAi = FindDeep(root.transform, "btn-add-ai");
@@ -74,7 +88,7 @@ public static class BakeLobbySpectateNodes
 
         if (dirty)
         {
-            PrefabUtility.SavePrefabAsset(root);
+            PrefabUtility.SaveAsPrefabAsset(root, PrefabPath);
             Debug.Log("[烘焙] LobbyUI.prefab 已保存——摆位是可跑默认值，请在编辑器里手调至满意");
         }
         else Debug.Log("[烘焙] 无变更（全部节点已在）");

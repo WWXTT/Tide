@@ -57,7 +57,10 @@ namespace CardCore.AI
     {
         private static GameBoard.BoardState _board;
 
-        public static DuelResult Run(DuelConfig cfg)
+        /// <summary>controller（2026-11-12 AI 复盘录制）：外部注入的对战编排器——自建棋盘经
+        /// BindBoard 接管到它上（投影器 CaptureSnapshot 读 ctrl.Board 取格位）；null=自建（现状）。
+        /// 可选参数：TideSim/验证器/驱动现有调用零改动。</summary>
+        public static DuelResult Run(DuelConfig cfg, SynergyUI.BattleController controller = null)
         {
             var result = new DuelResult();
             if (cfg == null || cfg.Deck1 == null || cfg.Deck1.Count == 0
@@ -118,7 +121,8 @@ namespace CardCore.AI
                 core.Player2.IsAI = true;
                 if (cfg.ApplySecondPlayerArmor && GameCore.SecondPlayerArmorBonus > 0)
                     core.Player2.AddCounters(KeywordRules.ArmorCounter, GameCore.SecondPlayerArmorBonus, core.Player2);
-                AttachBoard(core);
+                var ctrl = controller ?? new BattleController();
+                AttachBoard(core, ctrl);
 
                 AiStrategyRegistry.Bind(core.Player1, cfg.Strategy1 ?? AiStrategy.General);
                 AiStrategyRegistry.Bind(core.Player2, cfg.Strategy2 ?? AiStrategy.General);
@@ -126,7 +130,6 @@ namespace CardCore.AI
 
                 var ai1 = new SimpleAI(cfg.Strategy1 ?? AiStrategy.General);
                 var ai2 = new SimpleAI(cfg.Strategy2 ?? AiStrategy.General);
-                var ctrl = new BattleController();
 
                 if (cfg.Detail)
                     Log($"[game] seed={cfg.Seed} P1={cfg.Label1}（{(cfg.Strategy1 ?? AiStrategy.General).Key}）" +
@@ -202,7 +205,7 @@ namespace CardCore.AI
         }
 
         // 棋盘接线（与旧 AiBattleDriver/DeckStats 同口径）
-        private static void AttachBoard(GameCore core)
+        private static void AttachBoard(GameCore core, BattleController ctrl = null)
         {
             DetachBoard();
             _board = new GameBoard.BoardState(core, core.Player1, core.Player2,
@@ -212,6 +215,7 @@ namespace CardCore.AI
             CombatSystem.RoleAdjacentResolver = _board.FlankNeighborsOfRole;
             BranchEngines.UnityAdjacentCountOf = _board.AdjacentOccupantCount;
             GameBoard.LinkAuraSystem.Attach(_board);
+            ctrl?.BindBoard(_board); // 2026-11-12 复盘录制：外部 ctrl 接管同一棋盘（投影器快照读 ctrl.Board）
         }
 
         private static void DetachBoard()

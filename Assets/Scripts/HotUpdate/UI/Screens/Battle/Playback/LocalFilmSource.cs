@@ -43,9 +43,12 @@ namespace SynergyUI
         private bool _pendingFinalize;                       // GameOver 已至、栈解退中段——待轮末封卷（End 恒为末帧）
         private bool _finalized;                             // 本剧本已封卷（教学换场多次 GameOver 防双存）
 
+        private readonly string _matchId;                  // 外部指定剧本 id（2026-11-12 AI 复盘录制；null=自造 local-…）
+
         public LocalFilmSource(BattlePlayhead playhead, Func<GameCore> core, Func<BattleProjector> projector,
             Func<CombatChoreographer> choreo = null,
-            Action<BattleFxOp> immediateFx = null, Action<BattleLogLine> immediateLine = null)
+            Action<BattleFxOp> immediateFx = null, Action<BattleLogLine> immediateLine = null,
+            string matchId = null)
         {
             _playhead = playhead;
             _core = core;
@@ -53,6 +56,7 @@ namespace SynergyUI
             _choreo = choreo;
             _immediateFx = immediateFx;
             _immediateLine = immediateLine;
+            _matchId = matchId;
             // 本地录制口径与 BattleLogController 一致（isSelf=人类恒 P1、双 redact=false——C 案 E3：R1 只属联机座位流）
             _lineStream = new MatchLogLineStream(p => p == _core()?.Player1, redactEffectSummary: false, redactHidden: false);
         }
@@ -118,8 +122,8 @@ namespace SynergyUI
                 Header = new BattleFilmHeader
                 {
                     Version = 1,
-                    MatchId = "local-" + DateTime.Now.ToString("yyyyMMdd-HHmmss")
-                              + (seedCp.Seeded ? "-" + seedCp.Seed : ""),
+                    MatchId = _matchId ?? ("local-" + DateTime.Now.ToString("yyyyMMdd-HHmmss")
+                              + (seedCp.Seeded ? "-" + seedCp.Seed : "")),
                     Mode = (int)BattleEntry.Mode,
                     ViewerSeat = 0,
                     SelfName = core?.Player1?.Name ?? "我方",
@@ -336,6 +340,10 @@ namespace SynergyUI
             }
             FinalizeFilm();
         }
+
+        /// <summary>外部封卷口（2026-11-12 AI 复盘录制）：回合上限/异常路径没有 GameOver 落盘——
+        /// 调用方在跑完对局后兜底封卷（End 帧+行归帧+落盘）。幂等：已封卷空转。</summary>
+        public new void Finalize() => FinalizeFilm();
 
         /// <summary>封卷本体（轮末/轮外终局共用）：End 帧+行归帧+落盘。</summary>
         private void FinalizeFilm()

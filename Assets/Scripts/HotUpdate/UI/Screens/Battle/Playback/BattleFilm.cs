@@ -54,6 +54,10 @@ namespace SynergyUI
         public string SelfName, OppName;
         public int Seed;
         public long CreatedAtUnix;
+        /// <summary>双方卡表（2026-11-12 阶段2·回放摘要用；null=旧剧本未存——只显示名字）。
+        /// 记的是卡 ID（CardData.ID / DeckData.cardIds 同源），不含衍生 token 亦可接受。</summary>
+        public string[] SelfCardIds;
+        public string[] OppCardIds;
     }
 
     /// <summary>战斗剧本：Header + 帧序列。帧 #0 恒为 View（开局局面）——回放先把棋盘/角色/手牌

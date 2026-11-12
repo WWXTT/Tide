@@ -50,7 +50,9 @@ namespace SynergyUI
         public readonly List<RectTransform> SpEffectRows = new List<RectTransform>();
         private GameObject _back;
         private GameObject _actionLayer;
-        private CanvasGroup _group;
+        // 卡根 CanvasGroup 已删（2026-11-12 用户定案）：原为横置卡 0.62 半透明而建，唯一真实
+        // 喂入=Information 地牌格窗的横置地（横置区分仍走地牌格 hover-info）；手牌扇飞入淡入/
+        // 消融的共用件改由 HandFanCard 惰性自建（原兜底转正），连锁台本就自建一份不再叠乘。
         private Transform _faceRoot; // 六区卡面宿主（AHandCard 嵌套时=子实例 ACard；独立 ACard=卡根）
         private bool _bound, _faceUp = true;
 
@@ -105,8 +107,6 @@ namespace SynergyUI
             //（HandFanCard）按悬停条件显式开启；预览卡/合成器卡面/对手扇一律不可见
             _actionLayer = transform.Find("btn")?.gameObject;
             if (_actionLayer != null && _actionLayer.activeSelf) _actionLayer.SetActive(false);
-            _group = gameObject.GetComponent<CanvasGroup>();
-            if (_group == null) _group = gameObject.AddComponent<CanvasGroup>();
             _bound = true;
         }
 
@@ -201,8 +201,6 @@ namespace SynergyUI
             // 旧布局（des 溢出行背景），Apply 尾部强刷两遍（首遍按 HLG ctlW 定宽、次遍按新宽
             // 重算 preferred 高度，覆盖克隆行/新实例的 0 宽初帧）
             RefreshFormLayout();
-
-            if (_group != null) _group.alpha = item.IsTapped ? 0.62f : 1f;
 
             // 运行态刷新锚（本地模式才有引擎对象；null=静态渲染不订阅）
             _runtimeCard = full ? item.RuntimeCard : null;

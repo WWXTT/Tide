@@ -699,7 +699,7 @@ namespace SynergyUI
             BattleEntry.Mode = BattleMode.Replay;
             BattleEntry.ReplayFilmId = r.matchId;
             TideLog.Info($"[Lobby] 复盘入口：{r.matchId}（vs {r.opponentName}）");
-            BattleStageDirector.SwallowToBattleAsync(() => Manager.Show<BattleScreen>()).Forget();
+            EnterBattleViaSwallow();
         }
 
         /// <summary>复制对手卡组（S6c：btn-copy-deck）：确认框 → 复用 OpponentDeckImporter.Import
@@ -798,11 +798,11 @@ namespace SynergyUI
             {
                 _scanSignature = sig;
                 RefreshRoomRows(rooms);
-                TideLog.Info($"[Lobby] 扫描到 {rooms.Count} 个局域网房间（点行加入，不自动加入）");
+                TideLog.Info($"[Lobby] 扫描到 {rooms.Count} 个局域网房间（点「进入房间」加入，不自动加入）");
             }
 
             string label;
-            if (rooms.Count > 0) label = $"发现 {rooms.Count} 个房间——点选加入";
+            if (rooms.Count > 0) label = $"发现 {rooms.Count} 个房间——点「进入房间」加入";
             else if (_scanner != null && !_scanner.Scanning && Environment.TickCount - _scanner.StartedAtMs > 5000)
                 label = "未发现房间——确认房主已创建房间后点「刷新」";
             else label = "正在搜索局域网房间…";
@@ -815,24 +815,40 @@ namespace SynergyUI
             for (int i = 0; i < rooms.Count; i++)
             {
                 var entry = rooms[i];
-                // S6b：ver2 信标带房名/密码标志——行文案与 TapTap 列表同构；旧信标（无房名）回退昵称
+                // S6b：ver2 信标带房名/密码标志——旧信标（无房名）回退「昵称的房间」
                 var display = !string.IsNullOrEmpty(entry.RoomName)
                     ? entry.RoomName
                     : $"{entry.HostNick} 的房间";
-                BuildRoomRow("room-" + i,
-                    $"{display}（{entry.Seats}）" + (entry.HasPassword ? "·有密码" : ""),
-                    () => ConnectToRoom(entry.Host, entry.TcpPort, entry.HostNick));
+                BuildRoomRow("room-" + i, display,
+                    $"房主：{entry.HostNick} · {entry.Seats}",
+                    entry.HasPassword,
+                    pwd => ConnectToRoom(entry.Host, entry.TcpPort, entry.HostNick, pwd));
             }
         }
 
         /// <summary>房间列表行（双源共用：LAN room-{i} / TapTap tap-room-{i}；room-row 预制体实例）：
-        /// 节点契约=根：底图+Button，子：lbl-room（整行文案「房名（人数）·有密码」——版式预制体定）。</summary>
-        private void BuildRoomRow(string name, string text, Action onClick)
+        /// 节点契约=根：底图（无 Button——不整行点击，加入只走行内按钮），子：lbl-room（房名，
+        /// 弹性吃满剩余宽）、lbl-host（房主/人数）、input-pwd（行内密码输入——有密码房才显示，
+        /// 无密码房隐藏不占行宽）、btn-enter（「进入房间」按钮）。密码房空密码点进入=SetError
+        /// 不发连接；进入密码=onEnter(行内输入)。</summary>
+        private void BuildRoomRow(string name, string roomName, string hostText, bool hasPassword,
+            Action<string> onEnter)
         {
             var row = InstantiateRow("room-row", _roomList, name);
             if (row == null) return;
-            SetRowText(row, "lbl-room", text);
-            WireRowClick(row, onClick);
+            SetRowText(row, "lbl-room", roomName);
+            SetRowText(row, "lbl-host", hostText);
+            var pwdInput = UiKit.FindDeep(row, "input-pwd")?.GetComponent<TMP_InputField>();
+            if (pwdInput != null) pwdInput.gameObject.SetActive(hasPassword);
+            var enterBtn = UiKit.FindDeep(row, "btn-enter")?.GetComponent<UnityEngine.UI.Button>();
+            if (enterBtn == null) return;
+            enterBtn.onClick.RemoveAllListeners();
+            enterBtn.onClick.AddListener(() =>
+            {
+                string pwd = pwdInput != null && pwdInput.gameObject.activeSelf ? pwdInput.text.Trim() : "";
+                if (hasPassword && pwd.Length == 0) { SetError("该房间需要密码——请先在行内输入密码"); return; }
+                onEnter(pwd);
+            });
         }
 
         /// <summary>清空房间列表动态行（双源共用同一 content）。</summary>
@@ -881,13 +897,13 @@ namespace SynergyUI
                 if (_scanLabel != null)
                     _scanLabel.text = rooms.Count == 0
                         ? "暂无公开房间——可点「创建房间」当房主"
-                        : $"共 {rooms.Count} 个房间（点条目加入）";
+                        : $"共 {rooms.Count} 个房间（点「进入房间」加入）";
             }
             finally { _tapListBusy = false; }
         }
 
-        /// <summary>TapTap 房间行动态构建（挂 list-rooms content；有密码房行尾标注；
-        /// ranked 房不进常规列表——S8 排位走匹配器双接受流）。</summary>
+        /// <summary>TapTap 房间行动态构建（挂 list-rooms content；TapRoomEntry 无房主字段——
+        /// lbl-host 显示在线人数；ranked 房不进常规列表——S8 排位走匹配器双接受流）。</summary>
         private void RefreshTapRoomRows(List<TapRoomEntry> rooms)
         {
             ClearRoomRows();
@@ -895,22 +911,23 @@ namespace SynergyUI
             foreach (var entry in rooms)
             {
                 if (entry.Ranked) continue; // S8：排位房只做匹配候选，不列常规列表
-                BuildRoomRow("tap-room-" + row,
-                    $"{entry.Name}（{entry.PlayerCount}/{entry.MaxPlayerCount}）" + (entry.HasPassword ? "·有密码" : ""),
-                    () => JoinTapEntryAsync(entry).Forget());
+                BuildRoomRow("tap-room-" + row, entry.Name,
+                    $"{entry.PlayerCount}/{entry.MaxPlayerCount} 人",
+                    entry.HasPassword,
+                    pwd => JoinTapEntryAsync(entry, pwd).Forget());
                 row++;
             }
         }
 
         /// <summary>加入 TapTap 公开房间（S6b）：须先选卡组；SDK 加入+传输就绪由段侧完成，
-        /// 进房协议（Password/DeckName）走 AdoptClientAndJoin 统一口；失败 SetError 留在列表。</summary>
-        private async UniTaskVoid JoinTapEntryAsync(TapRoomEntry entry)
+        /// 进房协议（Password/DeckName）走 AdoptClientAndJoin 统一口；密码=行内输入
+        ///（BuildRoomRow 按钮回调传入）；失败 SetError 留在列表。</summary>
+        private async UniTaskVoid JoinTapEntryAsync(TapRoomEntry entry, string pwd)
         {
             if (RankedMatchmaking.IsBusy) { SetError("排位匹配进行中——请先在浮窗取消匹配"); return; } // S9
             if (entry.Ranked) return; // 排位房不进常规列表流（S8：排位走匹配器双接受）
             if (SelectedDeck == null) { SetError("请先在左侧选择一套卡组"); return; } // S6b：无卡组不能加入
             if (_tapSection == null || string.IsNullOrEmpty(entry.RoomId)) return;
-            string pwd = RoomPasswordInput;
             SetStatus($"加入「{entry.Name}」…");
             var client = await _tapSection.JoinRoomAsync(entry.RoomId, pwd);
             if (client == null)
@@ -922,16 +939,17 @@ namespace SynergyUI
             AdoptClientAndJoin(client, wantSeat: -1, ResolveOnlineNickname(), BuildJoinOptions(pwd));
         }
 
-        /// <summary>按发现结果直连（房间列表/唯一房间自动直入共用；手动 IP 路径已退役）。
-        /// S6b：须先选卡组；密码取 input-room-pwd、卡组名=SelectedDeck 随协议上报。</summary>
-        private void ConnectToRoom(string host, int port, string hostNick)
+        /// <summary>按发现结果直连（房间列表「进入房间」按钮触发；手动 IP 路径已退役）。
+        /// S6b：须先选卡组；pwd=行内密码输入（BuildRoomRow 按钮回调传入，无密码房传空串——
+        /// 不再回退面板 input-room-pwd 防建房密码残留误报）、卡组名=SelectedDeck 随协议上报。</summary>
+        private void ConnectToRoom(string host, int port, string hostNick, string pwd = null)
         {
             StopScan();
             if (RankedMatchmaking.IsBusy) { SetError("排位匹配进行中——请先在浮窗取消匹配"); return; } // S9
             if (SelectedDeck == null) { SetError("请先在左侧选择一套卡组"); return; } // S6b：无卡组不能加入
             SetStatus($"发现房间（{(string.IsNullOrEmpty(hostNick) ? host : hostNick)}），正在加入 {host}:{port} …");
             BeginGuestSession($"目标（自动发现）：{host}:{port}", "局域网房间");
-            ConnectAsync(host, port, wantSeat: -1, opts: BuildJoinOptions()).Forget();
+            ConnectAsync(host, port, wantSeat: -1, opts: BuildJoinOptions(pwd ?? "")).Forget();
         }
 
         // ============================================================ TapTap 桥装段与跨程序集会话助手（Tide.TapTap 的 TapLobbySection 经此驱动本屏；跨程序集须 public） ============================================================
@@ -1348,6 +1366,16 @@ namespace SynergyUI
 
         // ============================================================ 开局移交 / 收尾 ============================================================
 
+        /// <summary>进战场统一通道（2026-11-12 用户定案：**先隐藏联机界面再播吞场过渡**——动画仍是
+        /// 主页进战场同款，只是大厅不再浮在动画之上）：屏根 SetActive(false) 只做视觉让位，正式离屏
+        /// 仍由吞场末段 Show&lt;BattleScreen&gt; 的 UIManager.Deactivate 走 OnExit+DestroyRoot 全套
+        ///（对已隐藏层级照常有效）。顺带吞屏窗口内大厅不可再点——复盘双击/重复移交绝源。</summary>
+        private void EnterBattleViaSwallow()
+        {
+            if (Root != null) Root.gameObject.SetActive(false);
+            BattleStageDirector.SwallowToBattleAsync(() => Manager.Show<BattleScreen>()).Forget();
+        }
+
         /// <summary>选卡组相位到达（房主已开局）：双方移交战场走五段式（掷币演出+战场选卡组+握手开战）。
         /// 先手表现参数在此解析：掷币模式=照常 3D 演出（结果=服务器权威注入）；固定先后手=快进直出浮字。</summary>
         private void HandOverToBattle(MsgRoomState room)
@@ -1373,7 +1401,7 @@ namespace SynergyUI
             BattleEntry.NetPlayerFirst = playerFirst;
             SetStatus("房主已开局——进入战场（掷币+选卡组）");
             TideLog.Info($"[Lobby] 移交战场：mySeat={mySeat} 先手椅位={room.FirstSeatThisMatch} 掷币演出={coinMode} playerFirst={playerFirst}");
-            BattleStageDirector.SwallowToBattleAsync(() => Manager.Show<BattleScreen>()).Forget();
+            EnterBattleViaSwallow();
         }
 
         /// <summary>观战移交（二期 C·2026-11-11）：对局开始（Playing 相位）观战者进同一战斗屏——
@@ -1397,7 +1425,7 @@ namespace SynergyUI
             BattleEntry.NetOpponentDeckName = null;
             SetStatus("对局开始——进入战场观战");
             TideLog.Info($"[Lobby] 观战移交战场：{p0} vs {p1}（观战 {room.SpectatorCount} 人）");
-            BattleStageDirector.SwallowToBattleAsync(() => Manager.Show<BattleScreen>()).Forget();
+            EnterBattleViaSwallow();
         }
 
         private void OnServerError(MsgError err)

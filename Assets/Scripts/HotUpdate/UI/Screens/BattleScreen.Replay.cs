@@ -41,6 +41,10 @@ namespace SynergyUI
             var sink = new ReplayStageSink(this);
             _log.ShowTimeline(); // 面板展开（SetLogTarget 单源——摘要行随 PanelToggled 隐藏）
             _log.BeginTimeline(_replaySource.TimelineLines(), frame => _director.SeekTo(frame));
+            _replayPauseBtn?.gameObject.SetActive(true); // 仅回放局显示（2026-11-12 阶段2·未烘焙=静默无钮）
+            _director?.SetPaused(false);                 // 进屏默认播放（跳转保持暂停态的复位口也在此）
+            SetupAbstractWindow();                       // 任务 C：回放局也给 btn-abstract 接线
+            BindAbstractRowsFromFilm(_replaySource.Film);// 任务 C：两行卡表（旧剧本无卡表只显名字）
             StartReplayWhenBoardReadyAsync(sink).Forget();
         }
 
@@ -61,6 +65,24 @@ namespace SynergyUI
         {
             ApplyProjection(d);
             RefreshReplayFans(d);
+        }
+
+        /// <summary>暂停/播放钮（回放局·2026-11-12 阶段2）：播完=从头上重播；否则切暂停/续播。</summary>
+        private void OnReplayPauseClicked()
+        {
+            if (_director == null || !_director.IsReplay) return;
+            if (_director.ReplayFinished) { _director.SeekTo(0); _director.SetPaused(false); return; }
+            _director.SetPaused(!_director.Paused);
+        }
+
+        /// <summary>钮文案逐帧刷新（暂停/播放/重播）——只在文案变化时写。</summary>
+        private void UpdateReplayPauseLabel()
+        {
+            if (_replayPauseBtn == null || _director == null || !_director.IsReplay) return;
+            var label = _replayPauseBtn.GetComponentInChildren<TMP_Text>(true);
+            if (label == null) return;
+            string text = _director.ReplayFinished ? "重播" : _director.Paused ? "播放" : "暂停";
+            if (label.text != text) label.text = text;
         }
 
         /// <summary>回放手牌扇（View 驱动）：己方=SelfHand 全正面（剧本快照正面口径）；对手=按 HandCount

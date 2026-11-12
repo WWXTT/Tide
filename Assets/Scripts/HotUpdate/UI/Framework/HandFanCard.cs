@@ -99,7 +99,7 @@ namespace SynergyUI
         private RectTransform _burnRoot;  // Dissolve 层（卡根下运行时建：Image+逐卡烧蚀材质）
         private Material _burnMat;        // 逐卡实例（_Progress 由 TickDissolve 推进；池复用留用）
         private float _burnT;             // 消融进度 0..1
-        private CanvasGroup _cardGroup;   // 卡根 CanvasGroup（ACardView.Bind 必建，飞入淡入共用件——消融期独占 alpha）
+        private CanvasGroup _cardGroup;   // 卡根 CanvasGroup（本类惰性自建——飞入淡入/消融共用件，消融期独占 alpha；2026-11-12 ACardView 停建后兜底转正）
         private static bool _burnWarned;
         private const float BurnDuration = 0.5f; // 烧蚀线全程扫完时长
 
@@ -568,7 +568,7 @@ namespace SynergyUI
             Flying = false;
             HideActionButtons();
             SetPlayable(false); // 雾光目标转淡出（TickGlow 由退场驱动链继续推）
-            _cardGroup = GetComponent<CanvasGroup>(); // ACardView.Bind 必建；极端缺件兜底
+            _cardGroup = GetComponent<CanvasGroup>(); // 飞入淡入可能已建（共用件）；未建=自建（2026-11-12 ACardView 停建后转正路径）
             if (_cardGroup == null) _cardGroup = gameObject.AddComponent<CanvasGroup>();
             _cardGroup.blocksRaycasts = false; // 退场卡不再接指针
             _cardGroup.alpha = 1f;

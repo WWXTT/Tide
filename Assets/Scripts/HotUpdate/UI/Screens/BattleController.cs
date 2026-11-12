@@ -215,6 +215,12 @@ namespace SynergyUI
             }
         }
 
+        /// <summary>外部棋盘接管口（2026-11-12 AI 复盘录制）：AiDuelRunner 自建棋盘后经此把
+        /// BoardState 挂到本控制器——BattleProjector.CaptureSnapshot 读 ctrl.Board 取单位/地牌格位，
+        /// 不接棋盘时格位恒 X/Z=-1（回放棋盘空一片）。只赋 _board：不建层、不接静态解析器
+        ///（那些建层方 AttachBoard 已做）；棋盘生命周期仍归建层方（录制器不调本口时行为零变化）。</summary>
+        public void BindBoard(GameBoard.BoardState board) => _board = board;
+
         /// <summary>
         /// AI 响应策略装配（2026-11-02 响应窗任务A）：AiResponder 装配为按玩家查表
         /// （AiStrategyRegistry.PickFor → strategy.PickResponse；查不到/不作主=null → GameActions

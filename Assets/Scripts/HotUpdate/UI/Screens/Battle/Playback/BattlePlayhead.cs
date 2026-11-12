@@ -91,6 +91,21 @@ namespace SynergyUI
         /// <summary>回放模式（Load 过剧本）。</summary>
         public bool IsReplay => _film != null;
 
+        /// <summary>回放暂停（2026-11-12 阶段2）：true=帧间等待（当前帧的演出/节拍播完即停）。
+        /// 只服务回放屏；LiveData 不接此口。</summary>
+        public bool Paused { get; private set; }
+
+        /// <summary>回放已播完（播到 End 帧收卷；Shutdown/Load 复位）。</summary>
+        public bool ReplayFinished { get; private set; }
+
+        /// <summary>回放暂停切换（2026-11-12 阶段2）：暂停期间不计入看门狗「无进展」。</summary>
+        public void SetPaused(bool paused)
+        {
+            if (Paused == paused) return;
+            Paused = paused;
+            _lastProgressAt = Time.time; // 暂停期间不计入看门狗"无进展"
+        }
+
         public BattlePlayhead(Func<GameCore> core, Func<BattleProjector> projector,
             Func<BattleFieldView> field, Func<BattleChainStage> chain,
             Func<CombatChoreographer> choreo, Action refreshFans,
@@ -192,6 +207,7 @@ namespace SynergyUI
             _sawRoundEmpty = true; // 剧本完整——队列干即收，不等输入
             _lastProgressAt = Time.time;
             _playbackRunning = true;
+            ReplayFinished = false; // 须在开头 FinishCore()（会置 true）之后——重播/跳转复位收卷位
             RunPlaybackAsync(_epoch).Forget();
         }
 
@@ -221,6 +237,12 @@ namespace SynergyUI
                 }
                 while (epoch == _epoch && _active)
                 {
+                    if (Paused)                 // 暂停（2026-11-12 阶段2）：不动队列、不推进游标、不喂看门狗
+                    {
+                        _lastProgressAt = Time.time;
+                        await _yield();
+                        continue;
+                    }
                     if (_queue.Count == 0)
                     {
                         if (_sawRoundEmpty) break; // 队列干+轮末已至——收尾（回放恒真=剧本播完即收）
@@ -303,6 +325,7 @@ namespace SynergyUI
             _active = false;
             _roundArmed = false;
             _queue.Clear();
+            if (_film != null) ReplayFinished = true; // 回放收卷（2026-11-12 阶段2·播完=重播；Load 末尾复位）
             _core()?.ReleasePresentationHold();
             _field()?.ReleaseAllHeldStats(); // 数值节拍兜底：看门狗/退屏强收口防冻结读数卡死在旧值
             FlushTailLines(); // 轮末尾行落史（接替旧日志 ReleaseAll——行序=产出序）
@@ -325,10 +348,12 @@ namespace SynergyUI
             _sink?.AppendLines(lines);
         }
 
-        /// <summary>看门狗（Updater 每帧）：回放会话超时无进展强制收口——防演出挂死冻死整局。</summary>
+        /// <summary>看门狗（Updater 每帧）：回放会话超时无进展强制收口——防演出挂死冻死整局。
+        /// 暂停期豁免（2026-11-12 阶段2）：暂停 15s 以上不得被强制收口（硬要求——与
+        /// RunPlaybackAsync 暂停闸两处缺一不可）。</summary>
         public void Tick()
         {
-            if (!_active) return;
+            if (!_active || Paused) return;
             if (Time.time - _lastProgressAt <= WatchdogSeconds) return;
             Debug.LogWarning("[Playhead] 看门狗：帧回放 15s 无进展——强制收口（疑演出挂死/事件时序异常）");
             _epoch++; // 作废在途回放协程
@@ -346,6 +371,8 @@ namespace SynergyUI
         {
             _film = null;
             _sink = null;
+            Paused = false;        // 回放控制位复位（2026-11-12 阶段2——跨局防串）
+            ReplayFinished = false;
             if (!_active) { _roundArmed = false; return; }
             _epoch++;
             FinishCore();

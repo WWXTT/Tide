@@ -48,6 +48,11 @@ namespace CardCore.Editor.Tests
         private int _games = 1;
         private int _seed = 20261104;   // 单局=该 seed；批量=基数（第 i 局用 seed+i，第 1 局与单局同 seed）
 
+        // 复盘日志（2026-11-12 方案·非常驻）：默认关——勾选后才把本局按联机同格式落盘
+        //（Films/<matchId>.film.gz + 可选 Encounters 记录，大厅历史行可点「复盘」）。v1 只支持单局+双脚本。
+        private bool _recordFilm;
+        private bool _writeHistory;
+
         private static readonly string[] StrategyLabels =
             AiStrategy.Options.Select(o => o.label).ToArray();
 
@@ -90,6 +95,18 @@ namespace CardCore.Editor.Tests
             _games = EditorGUILayout.IntField("局数（>1 批量换边，写报告）", _games);
             _games = Mathf.Max(1, _games);
             _seed = EditorGUILayout.IntField("seed（单局=本局；批量=基数，第 i 局 seed+i）", _seed);
+
+            EditorGUILayout.Space();
+            using (new EditorGUI.DisabledScope(!ReplayRecordable()))
+            {
+                _recordFilm = EditorGUILayout.ToggleLeft("生成复盘日志（联机同格式 film，大厅可复盘）", _recordFilm);
+                using (new EditorGUI.DisabledScope(!_recordFilm))
+                {
+                    _writeHistory = EditorGUILayout.ToggleLeft("同时写入大厅对战历史（选中行可点「复盘」）", _writeHistory);
+                }
+                if (!ReplayRecordable())
+                    EditorGUILayout.HelpBox("复盘录制 v1 只支持「单局 + 双方脚本大脑」；批量局与神经网络局不录。", MessageType.None);
+            }
 
             EditorGUILayout.Space();
             using (new EditorGUI.DisabledScope(!DecksReady()))
@@ -137,6 +154,11 @@ namespace CardCore.Editor.Tests
         private bool DecksReady()
             => (_p1Deck != DragDropIndex || HasDeck(_p1Path))
                && (_p2Deck != DragDropIndex || HasDeck(_p2Path));
+
+        /// <summary>复盘录制可用（2026-11-12 方案 §3.5）：v1 只录「单局 + 双方脚本大脑」——
+        /// 神经大脑走 AiBattleDriver 手动回合循环，不是 AiDuelRunner，不在范围。</summary>
+        private bool ReplayRecordable()
+            => _games <= 1 && _p1Brain == (int)AiBrain.Script && _p2Brain == (int)AiBrain.Script;
 
         // ======================================== 运行 ========================================
 
@@ -198,8 +220,11 @@ namespace CardCore.Editor.Tests
             {
                 if (_games <= 1)
                 {
-                    new AiBattleDriver().RunFullGame(p1, p2, _maxTurns, brain1, brain2, policy,
-                        strategy1, strategy2, skill1, skill2, tokens1, tokens2, _seed, detail: true);
+                    if (_recordFilm && brain1 == AiBrain.Script && brain2 == AiBrain.Script)
+                        RunWithReplayRecord(p1, p2, strategy1, strategy2, skill1, skill2, tokens1, tokens2);
+                    else
+                        new AiBattleDriver().RunFullGame(p1, p2, _maxTurns, brain1, brain2, policy,
+                            strategy1, strategy2, skill1, skill2, tokens1, tokens2, _seed, detail: true);
                 }
                 else
                 {
@@ -212,6 +237,52 @@ namespace CardCore.Editor.Tests
             {
                 policy?.Dispose();
             }
+        }
+
+        /// <summary>单局 + 复盘录制（2026-11-12 方案）：AiDuelRunner 外圈套录制器，产出
+        /// Films/&lt;matchId&gt;.film.gz + Logs/SimLog_&lt;matchId&gt;.md（+勾选时 Encounters 记录行）。
+        /// 落盘后弹窗汇报帧/行/演出数与三件路径。</summary>
+        private void RunWithReplayRecord(List<CardData> p1, List<CardData> p2,
+            AiStrategy strategy1, AiStrategy strategy2,
+            string skill1, string skill2,
+            List<SynergyUI.DeckTokenBinding> tokens1, List<SynergyUI.DeckTokenBinding> tokens2)
+        {
+            string deck1 = _DeckLabel(_p1Deck), deck2 = _DeckLabel(_p2Deck);
+            var cfg = new DuelConfig
+            {
+                Deck1 = p1,
+                Deck2 = p2,
+                SkillCardId1 = skill1,
+                SkillCardId2 = skill2,
+                TokenBindings1 = tokens1,
+                TokenBindings2 = tokens2,
+                Strategy1 = strategy1 ?? AiStrategy.General,
+                Strategy2 = strategy2 ?? AiStrategy.General,
+                Seed = _seed,
+                MaxTurns = _maxTurns,
+                Detail = true,
+            };
+            var rec = AiBattleReplayRecorder.Run(cfg, new AiBattleReplayRecorder.Options
+            {
+                SelfName = $"P1·{deck1}",
+                OppName = $"AI·{deck2}",
+                OwnDeckName = deck1,
+                OppDeckName = deck2,
+                WriteEncounterRecord = _writeHistory, // 非常驻：勾「写入大厅对战历史」才写记录行
+            });
+            string duel = rec.Duel == null ? "未运行"
+                : rec.Duel.Errors.Count > 0 ? $"异常：{string.Join("；", rec.Duel.Errors)}"
+                : rec.Duel.Winner != null
+                    ? $"{(ReferenceEquals(rec.Duel.Winner, GameCore.Instance.Player1) ? cfg.Label1 : cfg.Label2)}" +
+                      $" 胜（{rec.Duel.Reason}，{rec.Duel.TotalTurns} 回合）"
+                    : $"未完（{rec.Duel.Reason}，{rec.Duel.TotalTurns} 回合）";
+            string summary = rec.Error != null
+                ? $"录制失败：{rec.Error}\n对局：{duel}"
+                : $"帧 {rec.Frames} / 行 {rec.Lines} / 演出 {rec.Ops}（战斗 {rec.CombatFrames}）\n" +
+                  $"剧本：{rec.FilmPath}\n记录：{rec.RecordPath ?? "未写"}\n战报：{rec.LogPath ?? "无"}\n" +
+                  $"对局：{duel}";
+            Debug.Log($"[复盘录制] matchId={rec.MatchId} {summary.Replace("\n", "｜")}");
+            EditorUtility.DisplayDialog("复盘录制", summary, "好");
         }
 
         /// <summary>下拉项可读名（诊断用）。</summary>

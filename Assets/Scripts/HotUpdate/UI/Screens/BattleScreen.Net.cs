@@ -185,8 +185,9 @@ namespace SynergyUI
 
         // ======================================== S7b 卡组摘要窗（btn-abstract） ========================================
 
-        /// <summary>摘要窗接线（网络局 StartNetFan 调）：btn-abstract 点击=开/收 self/opp-deck-row
-        ///（deck-row 嵌套实例，烘焙默认隐藏——非网络局不接，点击无效果）。2026-11-11 按钮挪入
+        /// <summary>摘要窗接线（网络局 StartNetFan / 回放局 StartReplayFan 均可调——2026-11-12
+        /// 阶段2 去除「仅网络局」前提）：btn-abstract 点击=开/收 self/opp-deck-row
+        ///（deck-row 嵌套实例，烘焙默认隐藏）。2026-11-11 按钮挪入
         /// log-list content 常驻：两行为 log-list 直属子级（Mask 外），日志面板开合（PanelToggled）
         /// 一律重置隐藏——关闭/重开都不复活摘要。</summary>
         private void SetupAbstractWindow()
@@ -231,6 +232,24 @@ namespace SynergyUI
             if (_abstractSelfRow == null) return;
             CostChartView.BindDeckRow(_abstractSelfRow,
                 string.IsNullOrEmpty(_netMyDeckName) ? "我方卡组" : _netMyDeckName, cardIds);
+        }
+
+        /// <summary>回放摘要行绑定（2026-11-12 阶段2）：剧本头带卡表走 BindDeckRow，
+        /// 旧剧本（null）只填名字+「剧本无卡表」，图表留空——不报错。</summary>
+        private void BindAbstractRowsFromFilm(BattleFilm film)
+        {
+            var h = film?.Header;
+            if (h == null) return;
+            if (_abstractSelfRow != null)
+                CostChartView.BindDeckRow(_abstractSelfRow,
+                    (string.IsNullOrEmpty(h.SelfName) ? "我方卡组" : h.SelfName)
+                    + (h.SelfCardIds == null ? "（剧本无卡表）" : ""),
+                    h.SelfCardIds ?? Array.Empty<string>());
+            if (_abstractOppRow != null)
+                CostChartView.BindDeckRow(_abstractOppRow,
+                    (string.IsNullOrEmpty(h.OppName) ? "对手卡组" : h.OppName)
+                    + (h.OppCardIds == null ? "（剧本无卡表）" : ""),
+                    h.OppCardIds ?? Array.Empty<string>());
         }
 
         /// <summary>开局清单到达（双方确认完毕）：校验回显→收口段四面板→对局开始（等首快照）。

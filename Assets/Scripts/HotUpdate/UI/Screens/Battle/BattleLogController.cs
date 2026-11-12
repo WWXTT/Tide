@@ -49,6 +49,12 @@ namespace SynergyUI
         private readonly List<(TMP_Text label, int frameIndex, Color baseColor, FontStyle baseStyle)> _timeline = new();
         private bool _timelineMode; // 时间轴在铺（Append 入列即剥行点击——池化行复用防陈旧 Seek 监听）
 
+        // ==== 回合跳转钮（2026-11-12 阶段2：时间轴按「第N回合」直达——与行点击两套入口并存） ====
+        private readonly List<GameObject> _turnJumps = new();          // 回合跳转钮（随 ClearTimeline 销毁）
+        private static readonly System.Text.RegularExpressions.Regex TurnNoRegex =
+            new(@"回合\s*(\d+)", System.Text.RegularExpressions.RegexOptions.Compiled);
+        private static bool _turnJumpTplWarned; // 缺模板只警一次（防刷屏）
+
         /// <summary>展开面板（复盘入口——与连锁自动开合同口 SetLogTarget，走 PanelToggled 单源）。</summary>
         public void ShowTimeline()
         {
@@ -58,7 +64,8 @@ namespace SynergyUI
 
         /// <summary>铺时间轴（进入 Replay 一次调）：清现有行→预铺+行点击跳转；播放推进由
         /// SetTimelineCursor 高亮。onSeekFrame 收「该行归属帧号」（FrameIndex=-1 的帧前历史行=回开头 0）。
-        /// 超过 TimelineMaxLines 按步降采样（均匀抽行+末行必留——被抽掉段的跳转由相邻保留行承载）。</summary>
+        /// 超过 TimelineMaxLines 按步降采样（均匀抽行+末行必留——被抽掉段的跳转由相邻保留行承载）。
+        /// 回合跳转钮按全量行插入（2026-11-12 阶段2）——不受降采样影响，钮数=回合数。</summary>
         public void BeginTimeline(IReadOnlyList<BattleLogLine> lines, Action<int> onSeekFrame)
         {
             ClearTimeline();
@@ -67,16 +74,56 @@ namespace SynergyUI
             int count = lines.Count;
             int step = count > TimelineMaxLines ? (count + TimelineMaxLines - 1) / TimelineMaxLines : 1; // 均匀抽样步长
             int laid = 0;
-            for (int i = 0; i < count; i += step)
+            int turnNo = 0;
+            for (int i = 0; i < count; i++)
             {
-                LayTimelineLine(lines[i], i, count, onSeekFrame);
-                laid++;
+                var line = lines[i];
+                if ((line.Flags & (byte)MatchLogLineFlags.TurnStart) != 0)
+                {
+                    var m = TurnNoRegex.Match(line.FullText ?? line.Text ?? "");
+                    turnNo = m.Success && int.TryParse(m.Groups[1].Value, out var n) ? n : turnNo + 1;
+                    LayTurnJump(line, turnNo, onSeekFrame); // 先插钮（保持"回合头之前"的行序）
+                }
+                if (i % step == 0)
+                {
+                    LayTimelineLine(line, i, count, onSeekFrame);
+                    laid++;
+                }
             }
             if (count > 0 && (count - 1) % step != 0) // 末行（终局行）必在盘——抽样没踩中时补铺
                 LayTimelineLine(lines[count - 1], count - 1, count, onSeekFrame);
             if (_logListRect != null) _logList.ScrollToBottom();
             if (step > 1)
                 Debug.Log($"[BattleLog] 时间轴降采样：{count} 行 → 抽样步长 {step}（铺 {laid + ((count - 1) % step != 0 ? 1 : 0)} 行，跳转粒度仍=帧）");
+        }
+
+        /// <summary>回合跳转钮（2026-11-12 阶段2）：克隆 content 下的隐藏模板 tpl-turn-jump，
+        /// 文本「第N回合」，点击跳该回合首帧（=回合头行的 FrameIndex；-1 归 0）。
+        /// 模板=预制体烘焙（Tools/烘焙/战斗回放控件），缺模板=Warning 一次并跳过，不崩。</summary>
+        private void LayTurnJump(BattleLogLine line, int turnNo, Action<int> onSeekFrame)
+        {
+            if (_logList?.Content == null) return;
+            var row = UiKit.CloneTemplateFrom(_logList.Content, "tpl-turn-jump", _logList.Content);
+            if (row == null)
+            {
+                if (!_turnJumpTplWarned)
+                {
+                    _turnJumpTplWarned = true;
+                    Debug.LogWarning("[BattleLog] log-list content 缺隐藏模板 tpl-turn-jump——回合跳转钮跳过（跑 Tools/烘焙/战斗回放控件）");
+                }
+                return;
+            }
+            row.SetAsLastSibling();
+            var label = row.GetComponentInChildren<TMP_Text>(true);
+            if (label != null) label.text = $"第{turnNo}回合";
+            var btn = row.GetComponentInChildren<UnityEngine.UI.Button>(true);
+            int frameIndex = line.FrameIndex < 0 ? 0 : line.FrameIndex;
+            if (btn != null)
+            {
+                btn.onClick.RemoveAllListeners();
+                btn.onClick.AddListener(() => onSeekFrame(frameIndex));
+            }
+            _turnJumps.Add(row.gameObject);
         }
 
         /// <summary>铺一行时间轴（克隆模板+样式+点击跳转；池化复用剥陈旧监听）。</summary>
@@ -131,7 +178,8 @@ namespace SynergyUI
             }
         }
 
-        /// <summary>清时间轴（退复盘/换剧本）：行全量回池+剥点击；模式位归零（Append 恢复直入列）。</summary>
+        /// <summary>清时间轴（退复盘/换剧本）：行全量回池+剥点击；回合跳转钮销毁；模式位归零
+        ///（Append 恢复直入列）。</summary>
         private void ClearTimeline()
         {
             _timelineMode = false;
@@ -148,6 +196,9 @@ namespace SynergyUI
                 _linePool.Push(label);
             }
             _timeline.Clear();
+            for (int i = 0; i < _turnJumps.Count; i++) // 回合跳转钮（2026-11-12 阶段2）——克隆体不回池直接销毁
+                if (_turnJumps[i] != null) UnityEngine.Object.Destroy(_turnJumps[i]);
+            _turnJumps.Clear();
         }
 
         public BattleLogController(Func<Player, bool> isSelf)
