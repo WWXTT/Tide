@@ -164,8 +164,9 @@ namespace SynergyUI
             //——投影器钩子经 LocalFilmSource 产帧投它；依赖全走 Func 惰性取（_choreo 等构建期可能未就绪）
             _director = new BattlePlayhead(() => Core, () => _projector, () => _field,
                 () => _chainStage, () => _choreo, RefreshFans);
-            // 演出执行器（二期 A：本地实时/回放共用——投影器演出 op 经 Present 路由到它）
-            _fxExecutor = new BattleFxOpExecutor(() => _field);
+            // 演出执行器（二期 A：本地实时/回放共用——投影器演出 op 经 Present 路由到它；
+            // DrawFlyIn 回调=扇区武装（live 即时演/回放 PreOps 驱动同口，2026-11-13 阶段1））
+            _fxExecutor = new BattleFxOpExecutor(() => _field, ArmDrawFlyInSeat);
             // 帧生产者+演出单源路由（二期 A）：轮内 op 挂帧随播、轮外 op 即时执行；轮外行即时入列
             _localSource = new LocalFilmSource(_director, () => Core, () => _projector, () => _choreo,
                 op => _fxExecutor.ExecuteAsync(op).Forget(),
@@ -177,7 +178,7 @@ namespace SynergyUI
                 () => Manager.Replace<BattleScreen>(), // 教学三重开战场（2026-10-19）：弹栈重入=五段开场重放
                 () => _director != null && _director.Busy); // 表现在途探针（2026-10-20 运势段被截修复）：回放导演 Busy
             _projector = new BattleProjector(() => Core, () => _ctrl, ApplyProjection, RefreshView,
-                () => _fanFlyArmed = true, ArmDrawFlyIn,
+                () => _fanFlyArmed = true,
                 e => { if (e?.Card != null) _field?.InterruptCasting(e.Card.RuntimeId); },
                 OnGameOverFan, () => _pendingPins.Clear(),
                 () => _director != null && _director.Busy, // 表现在途探针（2026-10-20「真相源=行可见」；二期 A 接 BattlePlayhead.Busy——轮始即真，接替旧日志 Hold 口径）

@@ -101,10 +101,30 @@ namespace SynergyUI
         {
             var castCell = CastCellOf(op);
             if (castCell != null) await WaitCastPayArrived(CastSeatOf(op));
+            var mana = (op.TintOf ?? ManaType.Gray);
+            // 范围伤害（L4-4·2026-11-13 阶段2）：AOE 伤害在目标处播 Area 大件（1.2s），命中链
+            //（Cast→弹体→Hit）退为回落——缺条目/并发满自动回旧链，不喧宾夺主。
+            if (op.Flag)
+            {
+                bool area = false;
+                if (BattleVfxFx.Enabled)
+                {
+                    try { area = BattleVfxFx.TryPlayArea(mana, et.ImpactAnchor, 1f); }
+                    catch (Exception ex) { BattleVfxFx.NoteFailure(ex); }
+                }
+                if (area)
+                {
+                    if (et.Unit != null && !et.Unit.DeathExitStarted)
+                        et.Unit.Anim?.Play(MonsterAction.Hit);
+                    else if (et.Unit == null)
+                        HeroImpactPulseAsync(et.HeroOwner).Forget();
+                    await FloatTextAsync(et.FloatParent, et.FloatHeight, "-" + op.Amount, StatDownColor);
+                    return;
+                }
+            }
             var src = castCell != null
                 ? CastingAnchor(castCell.Value.x, castCell.Value.z) + Vector3.up * 0.35f
                 : ResolveFxSourceAnchor(op.Source);
-            var mana = (op.TintOf ?? ManaType.Gray);
             var tint = BattleCastArrival.ManaColor(mana);
             bool used = await TryRouteCastChainAsync(mana, src, et.ImpactAnchor);
             if (!used)
@@ -119,7 +139,8 @@ namespace SynergyUI
             await FloatTextAsync(et.FloatParent, et.FloatHeight, "-" + op.Amount, StatDownColor);
         }
 
-        /// <summary>回复（ref 版·镜像 PlayEffectHealAsync）：绿火花+「+N」浮字；单位目标入串行链。</summary>
+        /// <summary>回复（ref 版·镜像 PlayEffectHealAsync）：效果色火花+「+N」浮字（L4-1：
+        /// op.Tint 捕获时已解析——Heal 原子带效果基准色，其余来源 null=回落绿）；单位目标入串行链。</summary>
         public async UniTask PlayHealByRefAsync(BattleFxOp op)
         {
             if (op.Amount <= 0) return;
@@ -128,21 +149,22 @@ namespace SynergyUI
             BeginVisual();
             try
             {
-                if (et.Unit != null) await RunUnitFxAsync(op.Target.Rid, () => HealRefCoreAsync(et, op.Amount));
-                else await HealRefCoreAsync(et, op.Amount);
+                if (et.Unit != null) await RunUnitFxAsync(op.Target.Rid, () => HealRefCoreAsync(et, op.Amount, op.TintOf));
+                else await HealRefCoreAsync(et, op.Amount, op.TintOf);
             }
             finally { EndVisual(); }
         }
 
-        private async UniTask HealRefCoreAsync(EffectTarget et, int amount)
+        private async UniTask HealRefCoreAsync(EffectTarget et, int amount, ManaType? tint)
         {
             Vector3 ground = et.Unit != null && et.Unit.Wrapper != null
                 ? et.Unit.Wrapper.position
                 : et.FloatParent != null ? et.FloatParent.position : et.ImpactAnchor;
+            var mana = tint ?? ManaType.Green; // 回复吃效果色（L4-1）；无基准=绿（回复旧行为）
             bool healed = false;
             if (BattleVfxFx.Enabled)
             {
-                try { healed = BattleVfxFx.TryPlayHeal(ManaType.Green, ground + Vector3.up * SparkLift, 1f); }
+                try { healed = BattleVfxFx.TryPlayHeal(mana, ground + Vector3.up * SparkLift, 1f); }
                 catch (Exception ex) { BattleVfxFx.NoteFailure(ex); }
             }
             if (!healed) BattleEffectFx.PlaySpark(ground + Vector3.up * SparkLift, SparkUpColor);
@@ -213,7 +235,9 @@ namespace SynergyUI
             bool destroyFamily = op.Reason == (int)DestroyReason.Destroyed || op.Reason == (int)DestroyReason.Smashed;
             bool heldTaken = _effectDeathHeld.Remove(card.Rid);
             if (!heldTaken && !destroyFamily) return; // 编舞器接管/无预持且非消灭族=零动作
-            var et = destroyFamily ? ResolveFxTarget(card) : null;
+            // 2026-11-13 补位（L3-5）：目标恒解析——非消灭族死因（Combat/Annihilated/LegendaryRule）
+            // 此前 et 恒 null=只有碎裂退场、零爆点；现在要拿 ImpactAnchor 补一枚 Death 角色爆点。
+            var et = ResolveFxTarget(card);
             bool fly = destroyFamily && et?.Unit?.Wrapper != null;
             var castCell = CastCellOf(op);
             BeginVisual();
@@ -242,6 +266,22 @@ namespace SynergyUI
                             BattleEffectFx.PlayImpact(et.ImpactAnchor, tint);
                         }
                         BattleEffectFx.PlaySpark(et.Unit.Wrapper.position + Vector3.up * SparkLift, DestroySparkColor, 16000f);
+                    }
+                    else if (et != null)
+                    {
+                        // 补位（L3-5·2026-11-13）：非消灭族死因补一记短爆——PixPlays Blast 四色
+                        // （此前从未入表）。缺条目/并发满=回落紫 Spark（消灭印记同色，与消灭族尾巴一致）。
+                        var mana = op.TintOf ?? ManaType.Gray;
+                        bool burst = false;
+                        if (BattleVfxFx.Enabled)
+                        {
+                            try { burst = BattleVfxFx.TryPlayDeath(mana, et.ImpactAnchor, 1f); }
+                            catch (Exception ex) { BattleVfxFx.NoteFailure(ex); }
+                        }
+                        if (!burst)
+                            BattleEffectFx.PlaySpark(et.Unit?.Wrapper != null
+                                ? et.Unit.Wrapper.position + Vector3.up * SparkLift
+                                : et.ImpactAnchor, DestroySparkColor);
                     }
                     if (heldTaken)
                     {
@@ -287,8 +327,46 @@ namespace SynergyUI
             finally { EndVisual(); }
         }
 
+        // ==== 值浮字统一入口（2026-11-13 战场数值 P2·§4.3）====
+        // 与伤害/回复共用 FloatTextAsync/锚点/字号（CreateStatsText 单源），差异三则：
+        // · 不占视觉门（装饰层——多指示物不拖 AI 节拍；伤害/回复/疲劳仍占门属战斗节拍）；
+        // · 颜色由 op.Polarity 三档（+1 绿/-1 红/0 灰），Text=生产侧拼好的短标签（含符号）；
+        // · 同目标并发堆叠（§3.2）：每条起点 +0.28 高度、最多 4 条，超出按 0.18s 间隔排队。
+        private static readonly Color ValueNeutralColor = new Color(0.9f, 0.9f, 0.9f); // §3.2 中性 #E6E6E6
+        private readonly Dictionary<uint, int> _valueFloatStack = new Dictionary<uint, int>();
+
+        /// <summary>值浮字（ValueFloat op）：标签/极性由 BattleProjector 经 ValueFloatRules 单源拼好。
+        /// 不在视图/已退场静默；同单位走 RunUnitFxAsync 串行链（与伤害/回复同链防穿插）。</summary>
+        public async UniTask PlayValueFloatByRefAsync(BattleFxOp op)
+        {
+            if (op == null || string.IsNullOrEmpty(op.Text)) return;
+            var et = ResolveFxTarget(op.Target);
+            if (et == null) return; // 目标不在视图（未上场/已退场/未建柱）——静默不报错
+            Color color = op.Polarity > 0 ? StatUpColor : op.Polarity < 0 ? StatDownColor : ValueNeutralColor;
+
+            // 堆叠：同目标并发计数（角色键=高位标记|Seat，单位键=Rid）
+            uint stackKey = op.Target.IsPlayer
+                ? 0x80000000u | (uint)Math.Max(0, op.Target.Seat)
+                : op.Target.Rid;
+            _valueFloatStack.TryGetValue(stackKey, out int depth);
+            if (depth >= 4) await UniTask.Delay(180 * (depth - 3)); // 超出 4 条按 0.18s/条排队（§3.2）
+            _valueFloatStack[stackKey] = depth + 1;
+            float lift = Mathf.Min(depth, 3) * 0.28f;
+
+            async UniTask Core()
+            {
+                try { await FloatTextAsync(et.FloatParent, et.FloatHeight + lift, op.Text, color); }
+                finally
+                {
+                    if (--_valueFloatStack[stackKey] <= 0) _valueFloatStack.Remove(stackKey);
+                }
+            }
+            if (et.Unit != null) await RunUnitFxAsync(op.Target.Rid, Core); // 同单位串行链
+            else await Core();
+        }
+
         /// <summary>赋予爆发粒子（ref 版·CounterBurst/KeywordBurst 共口·镜像 PlayGrantBurstAsync：
-        /// 减益=Hit 族/增益=Heal 族，颜色=捕获 Tint）。</summary>
+        /// 减益=Hit 族/增益=Shield→Heal 族，颜色=捕获 Tint）。</summary>
         public async UniTask PlayGrantBurstByRefAsync(BattleFxOp op)
         {
             var et = ResolveFxTarget(op?.Target);
@@ -304,7 +382,14 @@ namespace SynergyUI
             bool played = false;
             if (BattleVfxFx.Enabled)
             {
-                try { played = op.Flag ? BattleVfxFx.TryPlayHit(mana, at, 1f) : BattleVfxFx.TryPlayHeal(mana, at, 1f); }
+                try
+                {
+                    // 2026-11-13 补位（L4-5）：正面赋予改走 Shield「罩住」件（红/绿两条配置此前零消费者），
+                    // 缺色（蓝/灰）回落 Heal——先有画面，观感后调。
+                    played = op.Flag
+                        ? BattleVfxFx.TryPlayHit(mana, at, 1f)
+                        : (BattleVfxFx.TryPlayShield(mana, at, 1f) || BattleVfxFx.TryPlayHeal(mana, at, 1f));
+                }
                 catch (Exception ex) { BattleVfxFx.NoteFailure(ex); }
             }
             if (!played) BattleEffectFx.PlaySpark(at, BattleCastArrival.ManaColor(mana));
@@ -318,7 +403,9 @@ namespace SynergyUI
             {
                 BattleZoneProps.PulseDeck(seat);
                 Vector3 at = top + Vector3.up * 0.3f;
-                var color = ManaType.Gray;
+                // 2026-11-13 补位（L4-2）：祝福/诅咒不再同灰——祝福走红档暖黄爆（SparkleExplosionYellow），
+                // 诅咒维持灰档暗爆（ShadowExplosion）；缺条目回落 Spark（暖绿/暗紫旧色）。
+                var color = blessing ? ManaType.Red : ManaType.Gray;
                 bool played = false;
                 if (BattleVfxFx.Enabled)
                 {
@@ -372,24 +459,113 @@ namespace SynergyUI
             PlayCastPay(seat, paid, hx, hz);
         }
 
-        // ======================================== 战斗演出回放（CombatShotPlayer v1） ========================================
+        /// <summary>轻入场（2026-11-13 补位 L2-1）：召唤/复活/衍生物/控制权变更——单位脚下播一枚
+        /// Summon 角色汇聚件（PixPlays Aura 四色，此前从未入表）；**不走** BattleCastArrival 的
+        /// 2s 消融（模型即显，纯叠加，绝不遮挡入场）。单位不在视图/已退场静默返回；
+        /// 缺条目/并发满回落灰色 Spark。一次性件不占视觉门、不占用单位串行链。</summary>
+        public void PlaySummonArrivalByRef(uint rid, int seat, Dictionary<int, float> paid)
+        {
+            if (rid == 0) return;
+            if (!_units.TryGetValue(rid, out var v) || v.Wrapper == null || v.Dead) return;
+            var mana = BattleCastArrival.DominantManaType(paid);
+            Vector3 at = v.Wrapper.position + Vector3.up * SparkLift;
+            bool played = false;
+            if (BattleVfxFx.Enabled)
+            {
+                try { played = BattleVfxFx.TryPlaySummon(mana, at, 1f); }
+                catch (Exception ex) { BattleVfxFx.NoteFailure(ex); }
+            }
+            if (!played) BattleEffectFx.PlaySpark(at, BattleCastArrival.ManaColor(mana));
+        }
 
-        /// <summary>战斗演出回放（方案 §2.2 CombatShot v1）：攻击者飞向目标临格（sin 半弧）→攻击前扑→
-        /// 目标受击+逐笔伤害浮字（反击笔挂攻击者）→幸存者飞回。守卫闪现/反击/溅射走位不还原（已知差异）；
-        /// 死亡退场归 Death 指令（PreOps/Ops）；角色攻击者原地不动只播目标侧受击。占视觉门。</summary>
+        /// <summary>放地入池短闪（L2-2·2026-11-13 阶段4）：对应元素地格顶面一枚小 Hit 件
+        ///（0.8s 一次性自灭——不走 BattleTileFx 候选波：那是选择期状态标志、会被对账 ClearAll 清）。
+        /// 缺条目/并发满回落元素色 Spark；未装台静默。</summary>
+        public void PlayLandPulseByRef(BattleFxOp op)
+        {
+            if (op == null || op.Seat < 0 || !BattleBoardGrid.Ready) return;
+            var element = op.TintOf ?? ManaType.Any;
+            var (x, z) = GameBoard.BoardLayout.LandCellOfElement(op.Seat, element);
+            Vector3 at = CastingAnchor(x, z) + Vector3.up * 0.1f;
+            bool played = false;
+            if (BattleVfxFx.Enabled)
+            {
+                try { played = BattleVfxFx.TryPlayHit(element == ManaType.Any ? ManaType.Gray : element, at, 0.7f); }
+                catch (Exception ex) { BattleVfxFx.NoteFailure(ex); }
+            }
+            if (!played) BattleEffectFx.PlaySpark(at, BattleTileFx.ElementColorOf((int)element));
+        }
+
+        /// <summary>离场微拖尾（L2-2·阶段4）：弃牌/牌库弃置/除外——起点（op 格≥0=战场除外直送；
+        /// 否则牌堆顶近似）→ 对应漩涡格心一枚灰 Orb（0.35s 单程短拖尾）。占视觉门；未装台静默。</summary>
+        public async UniTask PlayDepartByRefAsync(BattleFxOp op)
+        {
+            if (op == null || op.Seat < 0 || !BattleBoardGrid.Ready) return;
+            var cell = op.Reason == 1 ? BattleZoneProps.ExileCellOf(op.Seat) : BattleZoneProps.GraveCellOf(op.Seat);
+            Vector3 dst = CastingAnchor(cell.x, cell.z) + Vector3.up * 0.15f;
+            // src/dst 先算再占门（异常须发生在 BeginVisual 之前——编辑器冒烟守卫契约）
+            Vector3 src;
+            if (op.CastX >= 0 && op.CastZ >= 0) src = CastingAnchor(op.CastX, op.CastZ) + Vector3.up * 0.5f;
+            else if (BattleZoneProps.DeckTopWorldPosition(op.Seat, out var top)) src = top;
+            else return;
+            BeginVisual();
+            try { await BattleEffectFx.PlayOrbAsync(src, dst, BattleCastArrival.ManaColor(ManaType.Gray)); }
+            finally { EndVisual(); }
+        }
+
+        // ======================================== 战斗演出回放（CombatShotPlayer） ========================================
+
+        /// <summary>守卫挡位偏移（镜像 CombatChoreographer.GuardCoverOffset=0.7）：原目标格心向
+        /// 攻击侧挪——与被保护者错开身位（L3-1 闪现赴挡落点）。</summary>
+        private const float ReplayGuardCoverOffset = 0.7f;
+
+        /// <summary>战斗演出回放（方案 §2.2 CombatShot；2026-11-13 阶段3 精度批）：攻击者飞向目标临格
+        ///（sin 半弧）→攻击前扑→目标受击+逐笔伤害浮字（反击笔挂攻击者+受击退让；致死笔加强爆+大字）
+        /// →幸存者飞回。守卫闪现赴挡（Blocker+Original 格：现身→挡位→归位）；角色攻击者立柱前扑脉冲
+        ///（L3-3）。死亡退场归 Death 指令（PreOps/Ops）。旧剧本缺字段容错（Blocker null/Lethal false/
+        /// Original=-1 → 退化 v1 行为）。占视觉门。</summary>
         public async UniTask PlayCombatShotAsync(CombatShot shot)
         {
             if (shot?.Attacker == null || shot.Target == null) return;
             var attEt = ResolveFxTarget(shot.Attacker);
-            var tgtEt = ResolveFxTarget(shot.Target);
-            // 目标锚兜底：目标不在视图（已死被收/未建）→目标格地面锚（格坐标由捕获携带）
-            Vector3 tgtAnchor = tgtEt?.ImpactAnchor
-                ?? (shot.TargetX >= 0 ? CastingAnchor(shot.TargetX, shot.TargetZ) + Vector3.up * 0.8f : Vector3.zero);
-            if (tgtEt == null && shot.TargetX < 0) return;
+            var tgtEt0 = ResolveFxTarget(shot.Target);
+            if (tgtEt0 == null && shot.TargetX < 0) return;
 
             BeginVisual();
             try
             {
+                // 守卫闪现赴挡（L3-1）：拦截者瞬移到原目标格向攻击侧偏移的挡位（Aura 现身件），
+                // 战后归位。守卫不在视图/旧剧本无载荷=静默跳过（退化为 v1 目标侧演出）。
+                Transform guardWrapper = null;
+                Vector3 guardHome = Vector3.zero;
+                if (shot.Blocker != null && shot.OriginalX >= 0)
+                {
+                    var guardEt = ResolveFxTarget(shot.Blocker);
+                    var guardUnit = guardEt?.Unit;
+                    if (guardUnit != null && guardUnit.Wrapper != null && !guardUnit.Dead)
+                    {
+                        Vector3 attackerPos = attEt?.ImpactAnchor
+                            ?? (shot.Attacker.IsPlayer && shot.Attacker.Seat >= 0 && _heroes.TryGetValue(shot.Attacker.Seat, out var ahv) && ahv.Root != null
+                                ? ahv.Root.position + Vector3.up * 1.1f
+                                : Vector3.zero);
+                        Vector3 origAnchor = CastingAnchor(shot.OriginalX, shot.OriginalZ);
+                        Vector3 dir = attackerPos - origAnchor;
+                        dir.y = 0f;
+                        Vector3 cover = dir.sqrMagnitude > 0.01f
+                            ? origAnchor + dir.normalized * ReplayGuardCoverOffset
+                            : origAnchor;
+                        guardWrapper = guardUnit.Wrapper;
+                        guardHome = guardWrapper.position;
+                        guardWrapper.position = cover;
+                        BattleVfxFx.TryPlaySummon(ManaType.Gray, cover + Vector3.up * SparkLift, 1f); // 现身汇聚（缺件静默）
+                        Debug.Log($"[PlaybackFx] 守卫闪现赴挡：rid={shot.Blocker.Rid} → ({shot.OriginalX},{shot.OriginalZ}) 偏移 {ReplayGuardCoverOffset}");
+                    }
+                }
+                // 闪现后重解析目标锚（拦截者已在挡位——飞行临格按新位算）
+                var tgtEt = ResolveFxTarget(shot.Target);
+                Vector3 tgtAnchor = tgtEt?.ImpactAnchor
+                    ?? (shot.TargetX >= 0 ? CastingAnchor(shot.TargetX, shot.TargetZ) + Vector3.up * 0.8f : Vector3.zero);
+
                 var attUnit = attEt?.Unit;
                 Transform wrapper = attUnit?.Wrapper;
                 Vector3 home = wrapper != null ? wrapper.position : Vector3.zero;
@@ -406,22 +582,69 @@ namespace SynergyUI
                     moved = true;
                 }
                 attUnit?.Anim?.Play(MonsterAction.Attack);
+                if (attUnit == null && shot.Attacker.IsPlayer && shot.Attacker.Seat >= 0)
+                    HeroImpactPulseAsync(shot.Attacker.Seat).Forget(); // 英雄攻方立柱前扑脉冲（L3-3）
                 await UniTask.Delay(180); // 攻击前扑到命中节拍（同编舞 ImpactDelayMs）
-                // 逐笔命中：主击挂目标、反击笔挂攻击者（就地浮字+受击拍）
+                // 逐笔命中：主击挂目标、反击笔挂攻击者（就地浮字+受击拍+退让；致死笔加强爆+大字）
+                Vector3 hitFrom = wrapper != null ? wrapper.position : tgtAnchor;
                 for (int i = 0; i < shot.Hits.Count; i++)
                 {
                     var hit = shot.Hits[i];
                     var hitEt = ResolveFxTarget(hit.Target);
                     if (hitEt == null) continue;
-                    if (hitEt.Unit != null && !hitEt.Unit.DeathExitStarted) hitEt.Unit.Anim?.Play(MonsterAction.Hit);
-                    else if (hitEt.Unit == null) HeroImpactPulseAsync(hitEt.HeroOwner).Forget();
-                    FloatTextAsync(hitEt.FloatParent, hitEt.FloatHeight,
-                        (hit.IsCounter ? "↩-" : "-") + hit.Amount, StatDownColor).Forget();
+                    if (hitEt.Unit != null && !hitEt.Unit.DeathExitStarted)
+                    {
+                        hitEt.Unit.Anim?.Play(MonsterAction.Hit);
+                        if (hitEt.Unit.Wrapper != null)
+                            RecoilAsync(hitEt.Unit.Wrapper, hitFrom).Forget(); // 受击退让（L3-2：反击/溅射第三方同款）
+                    }
+                    else if (hitEt.Unit == null)
+                        HeroImpactPulseAsync(hitEt.HeroOwner).Forget();
+                    if (hit.Lethal)
+                    {
+                        // 致死特写（L3-4）：目标处加强爆（Area 大件 1.2s）+大字浮标
+                        bool burst = false;
+                        try { burst = BattleVfxFx.TryPlayArea(ManaType.Red, hitEt.ImpactAnchor, 1.3f); }
+                        catch (Exception ex) { BattleVfxFx.NoteFailure(ex); }
+                        FloatTextAsync(hitEt.FloatParent, hitEt.FloatHeight,
+                            (hit.IsCounter ? "↩-" : "-") + hit.Amount, StatDownColor, ClashFontSize).Forget();
+                        if (!burst)
+                            BattleEffectFx.PlayImpact(hitEt.ImpactAnchor, BattleCastArrival.ManaColor(ManaType.Red));
+                    }
+                    else
+                        FloatTextAsync(hitEt.FloatParent, hitEt.FloatHeight,
+                            (hit.IsCounter ? "↩-" : "-") + hit.Amount, StatDownColor).Forget();
                 }
                 await UniTask.Delay(340); // 命中后缓冲（同编舞 AttackBeatMs 尾段）
                 if (moved) await ArcMoveAsync(wrapper, wrapper.position, home, 0.7f, 13f);
+                if (guardWrapper != null) // 守卫归位（L3-1 尾段：挡完回原格）
+                    await ArcMoveAsync(guardWrapper, guardWrapper.position, guardHome, 0.7f, 13f);
             }
             finally { EndVisual(); }
+        }
+
+        /// <summary>受击退让（L3-2·反击/溅射走位近似）：受击者沿攻击来向快速被推 0.35 格再弹回
+        ///（180ms 往返，fire-and-forget 不占节拍）；wrapper 中途销毁自动中止。</summary>
+        private static async UniTaskVoid RecoilAsync(Transform t, Vector3 attackFrom)
+        {
+            if (t == null) return;
+            Vector3 home = t.position;
+            Vector3 dir = home - attackFrom;
+            dir.y = 0f;
+            if (dir.sqrMagnitude < 0.01f) return;
+            Vector3 pushed = home + dir.normalized * 0.35f;
+            const float half = 0.09f;
+            float t0 = Time.realtimeSinceStartup;
+            while (t != null)
+            {
+                float k = Mathf.Clamp01((Time.realtimeSinceStartup - t0) / (half * 2f));
+                // 去程快回程缓：k<0.5 推出、k>=0.5 弹回
+                float bend = k < 0.5f ? k * 2f : (1f - k) * 2f;
+                t.position = Vector3.Lerp(home, pushed, bend);
+                if (k >= 1f) break;
+                await UniTask.Yield();
+            }
+            if (t != null) t.position = home;
         }
 
         /// <summary>sin 半弧位移（编舞飞行同数学：拔起-掠行-落定；realtime 驱动——不受 Time.timeScale 影响）。</summary>

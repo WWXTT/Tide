@@ -5,7 +5,10 @@ using UnityEngine;
 namespace SynergyUI
 {
     /// <summary>战斗 VFX 路由角色（Phase 1=Cast/Projectile/Hit 主链 + Area/Heal 可选；
-    /// Buff/Shield 预留 Phase 2；Summon 预留——召唤演出由 BattleCastArrival 独占，不经本表）。</summary>
+    /// Buff=BattleZoneProps 牌库常驻；Shield=正面赋予（指示物/关键词）「罩住」件；
+    /// Summon/Death=2026-11-13 补位批（L2-1 轻入场 / L3-5 非消灭族死亡爆点）——
+    /// 两角色此前**零条目零调用**，本批用 PixPlays 从未入表的 ElementalAuras / ElementalBlastVFX 各 4 件填上。
+    /// Summon 只管「召唤/复活/衍生物/控制权变更」的**轻入场**，不替代 BattleCastArrival 的 CastPlayed 消融。</summary>
     public enum VfxRole
     {
         Cast = 0,
@@ -16,6 +19,9 @@ namespace SynergyUI
         Buff = 5,
         Shield = 6,
         Summon = 7,
+        /// <summary>非消灭族死亡轻爆点（Combat/Annihilated/LegendaryRule）——消灭族仍走 Area。</summary>
+        Death = 8,
+        // 预留 Discard = 9：弃牌/送墓/除外消散——需先有「送墓」数据指令（回放侧当前无 op），本批未接。
     }
 
     /// <summary>路由单条：颜色+角色 → 粒子 prefab（普通 prefab 序列化引用——热更程序集挂

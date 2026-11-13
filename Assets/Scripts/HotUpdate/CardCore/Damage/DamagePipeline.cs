@@ -404,7 +404,16 @@ namespace CardCore.Damage
         {
             int vulnerable = ctx.Target.GetEffectiveCounterCount(CounterRules.VulnerableCounter);
             ctx.Amount += vulnerable;
-            ctx.Target.AddCounters(CounterRules.VulnerableCounter, -vulnerable);
+            int vulnUsed = ctx.Target.AddCounters(CounterRules.VulnerableCounter, -vulnerable);
+            // 全移除补 CounterChangedEvent（2026-11-13 A2，与 Legacy 同口径）
+            if (vulnUsed != 0)
+                EventManager.Instance.Publish(new CounterChangedEvent
+                {
+                    Target = ctx.Target,
+                    CounterType = CounterRules.VulnerableCounter,
+                    Amount = vulnUsed,
+                    AfterNote = $"放大 +{vulnerable} 后全移",
+                });
             EventManager.Instance.Publish(new KeywordAppliedEvent
             {
                 Target = ctx.Target,
@@ -470,7 +479,16 @@ namespace CardCore.Damage
             int shieldLayers = ctx.Target.GetEffectiveCounterCount(CounterRules.DivineShieldCounter);
             if (shieldLayers <= 0) return amount;
 
-            ctx.Target.AddCounters(CounterRules.DivineShieldCounter, -1);
+            int shieldUsed = ctx.Target.AddCounters(CounterRules.DivineShieldCounter, -1);
+            // 消耗补 CounterChangedEvent（2026-11-13 A2，与 Legacy 同口径）
+            if (shieldUsed != 0)
+                EventManager.Instance.Publish(new CounterChangedEvent
+                {
+                    Target = ctx.Target,
+                    CounterType = CounterRules.DivineShieldCounter,
+                    Amount = shieldUsed,
+                    AfterNote = $"抵挡 {amount} 点；余 {shieldLayers - 1} 层",
+                });
             EventManager.Instance.Publish(new KeywordAppliedEvent
             {
                 Target = ctx.Target,
@@ -493,7 +511,16 @@ namespace CardCore.Damage
             if (armor <= 0) return amount;
 
             int absorbed = Math.Min(armor, amount);
-            ctx.Target.AddCounters(KeywordRules.ArmorCounter, -absorbed);
+            int armorUsed = ctx.Target.AddCounters(KeywordRules.ArmorCounter, -absorbed);
+            // 消耗补 CounterChangedEvent（2026-11-13 A2，与 Legacy 同口径）
+            if (armorUsed != 0)
+                EventManager.Instance.Publish(new CounterChangedEvent
+                {
+                    Target = ctx.Target,
+                    CounterType = KeywordRules.ArmorCounter,
+                    Amount = armorUsed,
+                    AfterNote = $"吸收 {absorbed} 点；余 {armor - absorbed} 层",
+                });
             EventManager.Instance.Publish(new KeywordAppliedEvent
             {
                 Target = ctx.Target,
@@ -517,7 +544,16 @@ namespace CardCore.Damage
 
             int remaining = Math.Max(0, amount - toughness);
             int toughHalved = toughness / 2;
-            ctx.Target.AddCounters(CounterRules.ToughnessCounter, -(toughness - toughHalved));
+            int toughUsed = ctx.Target.AddCounters(CounterRules.ToughnessCounter, -(toughness - toughHalved));
+            // 消耗补 CounterChangedEvent（2026-11-13 A2，与 Legacy 同口径）
+            if (toughUsed != 0)
+                EventManager.Instance.Publish(new CounterChangedEvent
+                {
+                    Target = ctx.Target,
+                    CounterType = CounterRules.ToughnessCounter,
+                    Amount = toughUsed,
+                    AfterNote = $"减免 {toughness} 点；余 {toughHalved} 层",
+                });
             EventManager.Instance.Publish(new KeywordAppliedEvent
             {
                 Target = ctx.Target,

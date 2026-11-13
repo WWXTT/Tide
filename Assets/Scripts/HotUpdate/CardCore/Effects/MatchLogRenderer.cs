@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using CardCore.Attribute;
+using CardCore.Effects; // ValueText/ValueFloatRules（2026-11-13 P4·D7：染色单源与极性判定）
 
 namespace CardCore
 {
@@ -34,12 +35,61 @@ namespace CardCore
         /// 事件流零变化。</summary>
         public static bool AllowHiddenInfo = false;
 
-        /// <summary>渲染结果：文本 + 语义类（UI 侧映射样式，现役值=log-line--turn/phase/combat/effect/card/system，空=默认行）。</summary>
+        /// <summary>数值关键词白名单（2026-11-13 P1 附录 A 扩表）：有数值产出的 KeywordAppliedEvent
+        /// 才出行——消耗/回复/放大类 Detail 自带数值与去向；其余关键词仍由结先行覆盖（防刷屏口径不变）。
+        /// 覆盖：防护三消耗（圣盾/护甲/坚韧）+ 易损 + 反噬二（荆棘/报复）+ 回复二（吸血/系命）
+        /// + 病原体 + 复生 + 法术护盾 + 潜行失效 + 暴击 + 生命锁 + 破败/放血光环 + 重放 + 旧三样
+        ///（守护/运势/耐久）。毒素发作不入（回合末 TurnEndCounterSummaryEvent 汇总行承载，防双行）。</summary>
+        private static readonly HashSet<string> NumericKeywordWhitelist = new HashSet<string>
+        {
+            KeywordRules.Guardian,
+            "运势",
+            CounterRules.DurabilityCounter,
+            KeywordRules.ArmorCounter,
+            CounterRules.DivineShieldCounter,
+            CounterRules.ToughnessCounter,
+            CounterRules.VulnerableCounter,
+            CounterRules.RetaliationCounter,
+            KeywordRules.Retaliate,
+            KeywordRules.Lifesteal,
+            KeywordRules.Lifelink,
+            KeywordRules.Pathogen,
+            CounterRules.RebornCounter,
+            CounterRules.SpellShieldCounter,
+            CounterRules.StealthCounter,
+            KeywordRules.Crit,
+            "延时保护",
+            RuleAuraComponents.ArmorDecay,
+            RuleAuraComponents.HealInversion,
+            CounterRules.ReplayCounter,
+        };
+
+        /// <summary>Detail 不带主语的关键词（渲染补 Target 名前缀——「护甲指示物吸收 3 点」式）；
+        /// 带主语的（荆棘/报复/病原体/生命锁/重放/破败/放血/守护/运势）不补。</summary>
+        private static readonly HashSet<string> BareDetailKeywords = new HashSet<string>
+        {
+            CounterRules.DurabilityCounter,
+            KeywordRules.ArmorCounter,
+            CounterRules.DivineShieldCounter,
+            CounterRules.ToughnessCounter,
+            CounterRules.VulnerableCounter,
+            KeywordRules.Lifesteal,
+            KeywordRules.Lifelink,
+            CounterRules.RebornCounter,
+            CounterRules.SpellShieldCounter,
+            CounterRules.StealthCounter,
+            KeywordRules.Crit,
+        };
+
+        /// <summary>渲染结果：文本 + 语义类（UI 侧映射样式，现役值=log-line--turn/phase/combat/effect/card/system，空=默认行）
+        /// + 行极性（2026-11-13 P4·D7）：+1 增益/−1 减益/0 中性——richValues 出口对数值 token 染色用。</summary>
         public struct Line
         {
             public string Text;
             public string Class;
-            public Line(string text, string cls) { Text = text; Class = cls; }
+            public int Polarity;
+            public Line(string text, string cls) { Text = text; Class = cls; Polarity = 0; }
+            public Line(string text, string cls, int polarity) { Text = text; Class = cls; Polarity = polarity; }
         }
 
         /// <summary>中立口径（导出/播报）：玩家实名，无观侧替换。</summary>
@@ -50,9 +100,22 @@ namespace CardCore
         /// 只出「　→ 效果短名」不出 Description（服务器拼装文本可能内嵌隐藏卡名/实掷数值）。
         /// redactHidden（2026-11-11 C 案 E3 修订，默认 false）：R1 隐藏区入手遮蔽闸——本地木桩局
         /// isSelf 非 null（p => p == P1）但对手是 AI，卡名照出（本地逐字不变铁律）；只有联机
-        /// 服务端座位行流传 true。观战/导出（isSelf=null）恒不遮（全信息口径）。</summary>
+        /// 服务端座位行流传 true。观战/导出（isSelf=null）恒不遮（全信息口径）。
+        /// richValues（2026-11-13 P4·D7，默认 false=纯文本）：true=行内数值 token 按行极性染
+        /// 增益绿/减益红（ValueText 单源）——本地 UI 流/服务端座位流/观战流传 true；
+        /// 导出 markdown/Editor 控制台/验证器恒 false（无标签纯文本）。</summary>
         public static Line Render(IGameEvent e, Func<Player, bool> isSelf, bool redactEffectSummary = false,
-            bool redactHidden = false)
+            bool redactHidden = false, bool richValues = false)
+        {
+            var line = RenderCore(e, isSelf, redactEffectSummary, redactHidden);
+            if (richValues && !string.IsNullOrEmpty(line.Text) && line.Polarity != 0)
+                line.Text = ValueText.Colorize(line.Text, line.Polarity);
+            return line;
+        }
+
+        /// <summary>映射主体（Render 的原 switch——极性标注见各 case）。</summary>
+        private static Line RenderCore(IGameEvent e, Func<Player, bool> isSelf, bool redactEffectSummary,
+            bool redactHidden)
         {
             switch (e)
             {
@@ -215,28 +278,49 @@ namespace CardCore
 
                 // ==== 生命 ====
                 case LifeChangeEvent life:
-                    return new Line($"{Who(life.Player, isSelf)} 生命 {life.OldLife} → {life.NewLife}",
-                        life.NewLife < life.OldLife ? "log-line--combat" : "log-line--effect");
+                    // 2026-11-13 P1：`20 → 25` 统一为 `20→25`（与 StatModify/StatSet 同式）
+                    return new Line($"{Who(life.Player, isSelf)} 生命 {life.OldLife}→{life.NewLife}",
+                        life.NewLife < life.OldLife ? "log-line--combat" : "log-line--effect",
+                        life.NewLife < life.OldLife ? -1 : 1);
                 case LifeLossEvent ll:
-                    return new Line($"{Who(ll.Player, isSelf)} 生命流失 {ll.Amount}", "log-line--combat");
+                    return new Line($"{Who(ll.Player, isSelf)} 生命流失 {ll.Amount}", "log-line--combat", -1);
                 case FatigueEvent fatigue:
                     return new Line($"{Who(fatigue.Player, isSelf)} 疲劳，受到 {fatigue.Damage} 伤害（空牌库抽牌）",
-                        "log-line--combat");
+                        "log-line--combat", -1);
                 case HealEvent heal:
                 {
                     // 2026-11-01 修复：原「Source!=null → Empty（由结先行呈现）」在倒计时奖励/分支奖励上
                     // 根本没有对应的「结」行（战报里 22→24 却一行回复都没有）——治疗一律出行，来源附括号。
                     string healSrc = heal.Source is Card hc && heal.Source != heal.Target ? $"（{Name(hc)}）" : "";
-                    return new Line($"〔回复〕{EntityName(heal.Target, isSelf)} 回复 {heal.Amount} 生命{healSrc}", "log-line--effect");
+                    return new Line($"〔回复〕{EntityName(heal.Target, isSelf)} 回复 {heal.Amount} 生命{healSrc}", "log-line--effect", 1);
                 }
 
                 // ==== 状态改写（B1 补缺：属性增减/冻结） ====
                 case StatModifyEvent stat:
                     return new Line($"{EntityName(stat.Target, isSelf)} {StatZh(stat.StatType)} {stat.OldValue}→{stat.NewValue}（{(stat.Delta >= 0 ? "+" : "")}{stat.Delta}）",
-                        "log-line--effect");
+                        "log-line--effect", stat.Delta >= 0 ? 1 : -1);
                 case StatSetEvent set: // 设置型属性改写（2026-11-04 审计补缺）：与增减行同构，标「设为」区分
-                    return new Line($"{EntityName(set.Target, isSelf)} {StatZh(set.StatType)} {set.OldValue}→{set.NewValue}（设为）",
-                        "log-line--effect");
+                {
+                    // 2026-11-13 P1：补差值（「设为，+2」）——与 StatModify 行信息量对齐
+                    int setDelta = set.NewValue - set.OldValue;
+                    string deltaNote = setDelta == 0 ? "设为" : $"设为，{(setDelta > 0 ? "+" : "")}{setDelta}";
+                    return new Line($"{EntityName(set.Target, isSelf)} {StatZh(set.StatType)} {set.OldValue}→{set.NewValue}（{deltaNote}）",
+                        "log-line--effect", setDelta >= 0 ? 1 : -1);
+                }
+                case CostModifyEvent cost: // 费用变化（2026-11-13 G6）：手牌费用无战场锚——只日志+HUD
+                {
+                    string costName = cost.Target is Card cc ? Name(cc) : EntityName(cost.Target, isSelf);
+                    return new Line($"{costName} 的费用 {cost.OldCost}→{cost.NewCost}（{(cost.Delta >= 0 ? "+" : "")}{cost.Delta}）",
+                        "log-line--effect", cost.Delta >= 0 ? 1 : -1); // 费升=更贵=红（减益）
+                }
+                case AddManaEvent mana: // 临时元素直投（2026-11-13 G7）：离散仪典逐色发布，逐条出行
+                    return new Line($"{Who(mana.Player, isSelf)} 获得 {ManaZh(mana.ManaType)}×{mana.Amount} 临时元素",
+                        "log-line--effect", 1);
+                case CurveShiftEvent curve when curve.NewCap > curve.OldCap: // 上限提升（2026-11-13 G8）：建局注入 OldCap==NewCap 不出行
+                    return new Line($"{Who(curve.Player, isSelf)} 地牌槽上限 {curve.OldCap}→{curve.NewCap}",
+                        "log-line--effect", 1);
+                case CurveShiftEvent _:
+                    return Empty; // 建局注入/上限未变：无信息量
                 case FreezeEvent freeze:
                     return new Line($"{EntityName(freeze.Target, isSelf)} 被冻结", "log-line--effect");
 
@@ -295,16 +379,13 @@ namespace CardCore
                     }
                     return new Line("　→ " + text, "log-line--effect");
                 }
-                case KeywordAppliedEvent kw when kw.Keyword == KeywordRules.Guardian
-                                                 // || kw.Keyword == KeywordRules.BattleMage // 战斗法师散射播报 2026-11-01 退役注释（原舍身；表行/常量同批）
-                                                 || kw.Keyword == "运势" // 主动运势两段式（2026-10-20）：掷骰结果须玩家可见（成败都播报；自动路径同享）
-                                                 || kw.Keyword == CounterRules.DurabilityCounter: // 耐久经济（2026-11-04）：扣层/归零此前在本白名单外=战报零播报；Detail 自带原因与剩余数
+                case KeywordAppliedEvent kw when NumericKeywordWhitelist.Contains(kw.Keyword):
                 {
                     if (string.IsNullOrEmpty(kw.Detail)) return Empty;
                     string text = kw.Detail;
-                    // 耐久 Detail 不带主语（「耐久 -1（战斗伤害；剩余 2）」）——补挂载单位名，
-                    // 否则多结界在场分不清是谁的耐久；守护/运势 Detail 自带完整句式不补。
-                    if (kw.Keyword == CounterRules.DurabilityCounter && kw.Target != null)
+                    // 无主语 Detail（「护甲指示物吸收 3 点」式）——补挂载者名，多单位在场才分得清；
+                    // 荆棘/报复/病原体/生命锁/重放/破败/放血等 Detail 自带完整句式不补。
+                    if (BareDetailKeywords.Contains(kw.Keyword) && kw.Target != null)
                         text = $"{EntityName(kw.Target, isSelf)} {text}";
                     if (isSelf != null)
                         text = text.Replace("Player 1", "【己方角色】").Replace("Player 2", "【对方角色】");
@@ -349,11 +430,13 @@ namespace CardCore
                     // 变化后读数（2026-11-04 用户定案）：属性/耐久变化行一并给出变化后的数值——
                     // AfterNote 由发布口定格（延迟渲染不能现查），null=无附注照旧行文。
                     string tail = string.IsNullOrEmpty(ctr.AfterNote) ? "" : $"（{ctr.AfterNote}）";
+                    // 行极性（2026-11-13 P4·D7）：与浮字同判定（§3.4——负极性加层=红/减层=绿，正极性反之）
+                    ValueFloatRules.TryBuild(ctr.CounterType, ctr.Amount, out _, out int ctrPolarity);
                     return ctr.Amount > 0
                         ? new Line(CounterRules.IsNegative(ctr.CounterType)
                             ? $"{who} 被附加 {ctr.Amount} 层{name}{tail}"
-                            : $"{who} 获得 {ctr.Amount} 层{name}{tail}", "log-line--effect")
-                        : new Line($"{who} 失去 {-ctr.Amount} 层{name}{tail}", "log-line--effect");
+                            : $"{who} 获得 {ctr.Amount} 层{name}{tail}", "log-line--effect", ctrPolarity)
+                        : new Line($"{who} 失去 {-ctr.Amount} 层{name}{tail}", "log-line--effect", ctrPolarity);
                 }
 
                 // ==== 骨架/终局 ====

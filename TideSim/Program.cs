@@ -53,6 +53,22 @@ namespace TideSim
             if (args.Length > 0 && args[0] == "--charge-probe")
                 return ChargeProbe.Run();
 
+            // 红套改版取证（2026-11-13）：己方仅 1 生物时两张直伤法术的连锁 + 代价只付一次
+            if (args.Length > 0 && args[0] == "--chain-cast")
+                return ChainCastCheck.Run();
+
+            // 数据指纹复算（2026-11-13 临时）：手工改效果数据后回填 JSON hash 列
+            if (args.Length > 1 && args[0] == "--data-hash")
+            {
+                var ids = new string[args.Length - 1];
+                System.Array.Copy(args, 1, ids, 0, ids.Length);
+                return DataHashProbe.Run(ids);
+            }
+
+            // 卡组校验·效果组合合法性（2026-11-13）：代价×门奖励互斥（活体炸弹改版回归）
+            if (args.Length > 0 && args[0] == "--deck-rule")
+                return DeckRuleCheck.Run();
+
             // 临时探针（2026-11-10 双轨收尾·D 组，跑完删）：三池磁盘 costList vs 现推导对账
             if (args.Length > 0 && args[0] == "--cost-audit")
                 return CostAuditProbe.Run();
@@ -61,8 +77,8 @@ namespace TideSim
             if (args.Length > 0 && args[0] == "--price-anchor")
                 return PriceAnchorProbe.Run();
 
-            // 教学式固定盘面场景回归（2026-11-04）：红快攻（血偿/连击准入+拆波）+ 蓝·元素充盈
-            //（潮痕碑/深潭碑 触发·不触发·每回合封顶）+ 自由分支引擎主干 7 种（2026-11-06：
+            // 教学式固定盘面场景回归（2026-11-04；2026-11-13 红套削弱版：血偿/活体炸弹准入+斩杀排序+拆波）
+            // 蓝·元素充盈（潮痕碑/深潭碑 触发·不触发·每回合封顶）+ 自由分支引擎主干 7 种（2026-11-06：
             // 倒计时/运势/拼枪/死亡计数/团结/附加诅咒/附加祝福）三套串跑，一次命令覆盖全部场景
             if (args.Length > 0 && args[0] == "--tutorial-scenario")
             {
@@ -98,6 +114,9 @@ namespace TideSim
             Console.WriteLine("  TideSim --tutorial-scenario   教学式固定盘面回归（红快攻9场景 + 蓝充盈6场景 + 自由分支10场景）");
             Console.WriteLine("  TideSim --keyword-scenario    教学二关键词课回归（basics_plus 结构 + 11 段引擎断言）");
             Console.WriteLine("  TideSim --charge-probe        规则探针（充能系统动作化 + 参照族声明域）");
+            Console.WriteLine("  TideSim --chain-cast          连锁直伤探针（代价失败=效果无效 / 参照发动时快照 / 两张各付一次代价）");
+            Console.WriteLine("  TideSim --deck-rule           卡组校验探针（代价×门奖励互斥；活体炸弹改版回归）");
+            Console.WriteLine("  TideSim --data-hash <ids…>    数据内容指纹复算（手工改效果数据后回填 JSON hash 列）");
             Console.WriteLine();
             Console.WriteLine("口径：");
             Console.WriteLine("  · 策略显式绑定：红·快攻→RedAggro / 绿·慢速→GreenRamp / 蓝·控制→BlueControl");

@@ -227,7 +227,9 @@ namespace SynergyUI
                     {
                         BattleZoneProps.PulseDeck(owner);
                         Vector3 at = top + Vector3.up * 0.3f; // 堆顶之上的小抬升（低于 SparkLift——堆顶已抬空）
-                        var color = ManaType.Gray; // 灰档（祝福 Heal/诅咒 Hit 同灰，极性分色系）
+                        // 2026-11-13 补位（L4-2）：祝福/诅咒不再同灰——祝福走红档暖黄爆（SparkleExplosionYellow），
+                        // 诅咒维持灰档暗爆（ShadowExplosion）；缺条目回落 Spark（暖绿/暗紫旧色）。
+                        var color = blessing ? ManaType.Red : ManaType.Gray;
                         bool played = false;
                         if (BattleVfxFx.Enabled)
                         {
@@ -272,13 +274,20 @@ namespace SynergyUI
             bool played = false;
             if (BattleVfxFx.Enabled)
             {
-                try { played = debuff ? BattleVfxFx.TryPlayHit(mana, at, 1f) : BattleVfxFx.TryPlayHeal(mana, at, 1f); }
+                try
+                {
+                    // 2026-11-13 补位（L4-5）：正面赋予改走 Shield「罩住」件（红/绿两条配置此前零消费者），
+                    // 缺色（蓝/灰）回落 Heal——先有画面，观感后调。
+                    played = debuff
+                        ? BattleVfxFx.TryPlayHit(mana, at, 1f)
+                        : (BattleVfxFx.TryPlayShield(mana, at, 1f) || BattleVfxFx.TryPlayHeal(mana, at, 1f));
+                }
                 catch (Exception ex) { BattleVfxFx.NoteFailure(ex); }
             }
             if (!played)
                 BattleEffectFx.PlaySpark(at, BattleCastArrival.ManaColor(mana));
 #if UNITY_EDITOR
-            Debug.Log($"[GrantFx] 赋予爆发：{(debuff ? "减益Hit" : "增益Heal")} 色={mana}" // 演出取证口（构建不打）
+            Debug.Log($"[GrantFx] 赋予爆发：{(debuff ? "减益Hit" : "增益Shield/Heal")} 色={mana}" // 演出取证口（构建不打）
                       + $" 路由={(played ? "VFX" : "Spark兜底")}{(effectTint == null ? "（无基准·回落来源主色）" : "")}");
 #endif
             return UniTask.CompletedTask;
@@ -405,7 +414,9 @@ namespace SynergyUI
             if (!heldTaken && !destroyFamily) return; // 编舞器接管/无预持且非消灭族=零动作
 
             var rid = card.RuntimeId;
-            var et = destroyFamily ? ResolveEffectTarget(card, null) : null;
+            // 2026-11-13 补位（L3-5）：目标恒解析——非消灭族死因（Combat/Annihilated/LegendaryRule）
+            // 此前 et 恒 null=只有碎裂退场、零爆点；现在要拿 ImpactAnchor 补一枚 Death 角色爆点。
+            var et = ResolveEffectTarget(card, null);
             bool fly = destroyFamily && et?.Unit?.Wrapper != null; // 消灭飞行体需目标在视图
 
             BeginVisual();
@@ -440,6 +451,25 @@ namespace SynergyUI
 #if UNITY_EDITOR
                         Debug.Log($"[EffectFx] 消灭演出 目标=单位{rid % 10000} 路由={(areaRouted ? "AOE" : "旧链")} 弹体={(src != null ? 1 : 0)}"
                                   + $"{(castCell != null ? $" 法术位({castCell.Value.x},{castCell.Value.z})" : "")}");
+#endif
+                    }
+                    else if (et != null)
+                    {
+                        // 补位（L3-5·2026-11-13）：非消灭族死因补一记短爆——PixPlays Blast 四色
+                        // （此前从未入表）。缺条目/并发满=回落紫 Spark（消灭印记同色）。
+                        var mana = effectTint ?? DominantCostMana(source);
+                        bool burst = false;
+                        if (BattleVfxFx.Enabled)
+                        {
+                            try { burst = BattleVfxFx.TryPlayDeath(mana, et.ImpactAnchor, 1f); }
+                            catch (Exception ex) { BattleVfxFx.NoteFailure(ex); }
+                        }
+                        if (!burst)
+                            BattleEffectFx.PlaySpark(et.Unit?.Wrapper != null
+                                ? et.Unit.Wrapper.position + Vector3.up * SparkLift
+                                : et.ImpactAnchor, DestroySparkColor);
+#if UNITY_EDITOR
+                        Debug.Log($"[EffectFx] 死亡爆点 目标=单位{rid % 10000} reason={reason} 色={mana} 路由={(burst ? "DeathVFX" : "Spark兜底")}");
 #endif
                     }
                     // 段④：碎裂退场（预持接管时）

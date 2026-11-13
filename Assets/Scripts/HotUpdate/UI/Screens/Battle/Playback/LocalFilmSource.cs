@@ -19,8 +19,9 @@ namespace SynergyUI
     ///    闭包延迟队列已退役），轮外 op 即时执行（DeathHold 例外：引擎时点恒即时持票）；
     /// ④ 攻击步从编舞器拉 CombatShot；⑤ OnGameStart 补帧 #0（View 开局局面）+ 建剧本头；
     /// ⑥ OnGameOver 封卷（End 帧+行归帧+BattleFilmStore 落盘）。
-    /// 轮外事件（回合切换/自然抽/疲劳——两次结算轮之间）不产帧：其演出 op 即时执行、行即时入列
-    ///——v1 已知限制：轮外粒子表现回放由视图对账覆盖。
+        /// 轮外事件（回合切换/自然抽/疲劳——两次结算轮之间）不产帧：行即时入列；演出 op 自
+        /// 2026-11-13 阶段1（方案 A）起即时演 + 照录挂下一结算步/End 帧（OutOfBand 标记）——
+        /// 回放轮外表现与 live 对齐（此前靠视图对账覆盖=粒子丢失，v1 已知限制就此收口）。
     /// </summary>
     public sealed class LocalFilmSource : IDisposable
     {
@@ -58,7 +59,10 @@ namespace SynergyUI
             _immediateLine = immediateLine;
             _matchId = matchId;
             // 本地录制口径与 BattleLogController 一致（isSelf=人类恒 P1、双 redact=false——C 案 E3：R1 只属联机座位流）
-            _lineStream = new MatchLogLineStream(p => p == _core()?.Player1, redactEffectSummary: false, redactHidden: false);
+            // richValues=true（2026-11-13 P4·D7）：本地实时面板与回放剧本行文本=染色后（TMP 富文本；
+            // 回放 TideJson 原样存——旧剧本无标签照常显示）
+            _lineStream = new MatchLogLineStream(p => p == _core()?.Player1, redactEffectSummary: false, redactHidden: false,
+                richValues: true);
         }
 
         /// <summary>行录制接线（EngageLocalBattle 内与 _log.Wire() 同点位——先于 StartNewGame，首回合头行不漏）。</summary>
@@ -214,10 +218,13 @@ namespace SynergyUI
 
         // ==== 演出路由（二期 A 单源：投影器各钩子只构造 op 进此口——闭包路径退役） ====
 
-        /// <summary>演出指令路由：轮内挂帧（随帧经舞台数据指令执行）；轮外即时执行
-        ///（回放由视图对账覆盖——v1 已知限制）。例外：Paid（扣费粒子）发生在入栈期（轮外）
-        /// 照录挂下一结算步并即时演；DeathHold（死亡预持）恒即时执行（引擎时点持票——防对账抢先
-        /// 销毁尸体），轮内另录进 PreOps（回放先于 View 应用）。pre=true 进 PreOps。</summary>
+        /// <summary>演出指令路由：轮内挂帧（随帧经舞台数据指令执行）；轮外即时执行 + 照录挂
+        /// 下一结算步/End 帧（2026-11-13 阶段1·方案 A——粒子无法从局面重建，轮外 op 入剧本
+        /// 回放才对齐 live；OutOfBand=true 标记已即时演，LiveData 帧回放跳过防双播，回放剧本
+        /// 正常消费）。例外：Paid（扣费粒子）发生在入栈期（轮外）照录挂下一结算步并即时演
+        ///（沿旧路径不标 OutOfBand——到位置时刻登记依赖即时执行）；DeathHold（死亡预持）
+        /// 恒即时执行（引擎时点持票——防对账抢先销毁尸体），轮内另录进 PreOps（回放先于
+        /// View 应用），轮外不录（PreOps 时序对不上后续帧）。pre=true 进 PreOps。</summary>
         public void Present(BattleFxOp op, bool pre = false)
         {
             if (op == null) return;
@@ -243,14 +250,17 @@ namespace SynergyUI
                 _immediateFx?.Invoke(op);
                 return;
             }
-            _immediateFx?.Invoke(op);    // 轮外演出：即时执行不入剧本（回放由视图对账覆盖）
+            // 轮外演出（阶段播报/自然抽飞入/疲劳/轮外一切 op）：即时演 + 照录挂下一帧
+            //（易错点④：绝不挂当前帧——上一轮演出压到下一轮=错桶；终无后续步则 End 帧兜底冲刷）
+            op.OutOfBand = true;
+            Capture(op, pre);
+            _immediateFx?.Invoke(op);
         }
 
-        /// <summary>演出指令捕获（挂帧录制口——Present 的轮内路径；验证器/无头直接调）。</summary>
+        /// <summary>演出指令捕获（挂帧录制口——Present 的录制路径；验证器/无头直接调）。</summary>
         public void Capture(BattleFxOp op, bool pre = false)
         {
             if (op == null || Film == null || _finalized) return;
-            if (!_inRound && op.Kind != BattleFxKind.Paid) return;
             (pre ? _pendingPre : _pendingOps).Add(op);
         }
 
@@ -279,14 +289,17 @@ namespace SynergyUI
             }
         }
 
-        /// <summary>入场事件（投影器透传）：CastPlayed 入场粒子走 Present（颜色=最近实付，
-        /// 无账单回落印刷费——零费不演）。</summary>
+        /// <summary>入场事件（投影器透传，2026-11-13 补位扩源）：CastPlayed 走原口径（2s 消融+地格汇聚，
+        /// 颜色=最近实付，无账单回落印刷费）；其余来源（效果召唤/墓地复活/衍生物/控制权变更）此前
+        /// **零表现**——本批一律记一条「轻入场」op（Flag=true，颜色=印刷费主色，无费=灰），实时与回放
+        /// 都在单位脚下播 Aura 汇聚件。CastPlayed 的零费卡仍不演（对消融演出无意义）。</summary>
         public void OnArrival(CardPutToBattlefieldEvent e)
         {
-            if (e?.Source != EnterSource.CastPlayed || e.Card == null || Film == null || _finalized) return;
+            if (e?.Card == null || Film == null || _finalized) return;
+            bool castPlayed = e.Source == EnterSource.CastPlayed;
             int seat = SeatOf(e.Controller);
             Dictionary<int, float> paid;
-            if (_lastPaid.TryGetValue(seat, out var last) && last.Count > 0)
+            if (castPlayed && _lastPaid.TryGetValue(seat, out var last) && last.Count > 0)
             {
                 paid = last;
             }
@@ -297,13 +310,14 @@ namespace SynergyUI
                 foreach (var m in cost.NonzeroColors())
                     paid[(int)m] = cost[m];
             }
-            if (paid.Count > 0)
+            if (!castPlayed || paid.Count > 0)
                 Present(new BattleFxOp
                 {
                     Kind = BattleFxKind.Arrival,
                     Target = FxRef.Of(e.Card, SeatOf),
                     Seat = seat,
                     Paid = paid,
+                    Flag = !castPlayed, // true=轻入场（Aura）/ false=CastPlayed 消融
                 });
         }
 
@@ -360,6 +374,7 @@ namespace SynergyUI
                 Label = "终局",
                 LastEventId = entries.Count > 0 ? entries[entries.Count - 1].EventId : 0u,
             };
+            FlushPendingInto(endFrame); // 轮外尾 op（终局前疲劳/阶段播报等）兜底冲刷——无后续步帧时不再丢
             Film.Frames.Add(endFrame);
             AssignLinesToFrames(); // 未归帧行（终局行/兜底）一次性归帧——挂起自然抽的乱序 EventId 在终局视角可整体二分
             try

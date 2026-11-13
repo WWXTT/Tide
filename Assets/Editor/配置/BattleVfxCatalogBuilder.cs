@@ -19,6 +19,7 @@ namespace Tide.HotUpdateTools
     ///
         /// 角色映射：四色主链 Cast/Projectile/Hit + Area/Heal + Buff/Shield；
         /// Beam 三件无角色仍不入表。同 (color,role) 多条=首条为主（调序换件）。
+        /// 2026-11-13 补位批：加 Summon（轻入场 Aura）/ Death（非消灭族爆点 Blast）各 4 条。
         /// 2026-11-01 释放件重分配（黑白退役收尾）：四色 Heal/Hit 全配位（赋予爆发 8 种=极性2×颜色4），
         /// 原白/黑两系 11 件移入四色空位（明细见 BuildSpecs 分组注释）。
         /// 缺件 Debug.LogError 跳过——Find 视 null prefab 为缺配自动降级 BattleEffectFx。
@@ -42,6 +43,8 @@ namespace Tide.HotUpdateTools
                 case VfxRole.Heal: return 1.0f;
                 case VfxRole.Buff: return 1.2f;
                 case VfxRole.Shield: return 1.2f;
+                case VfxRole.Summon: return 1.2f;   // 2026-11-13 补位：轻入场 Aura（脚下汇聚，勿盖住模型）
+                case VfxRole.Death: return 1.4f;    // 2026-11-13 补位：非消灭族死亡爆点（略大于 Hit）
                 default: return 1.0f;
             }
         }
@@ -87,7 +90,12 @@ namespace Tide.HotUpdateTools
 
         /// <summary>驻留类节点销毁时长（秒；快节点用 VfxEntry 默认 0.8）。</summary>
         private static float LifeFor(VfxRole role)
-            => role == VfxRole.Area || role == VfxRole.Heal ? 1.2f : 0.8f;
+        {
+            if (role == VfxRole.Area || role == VfxRole.Heal) return 1.2f;
+            if (role == VfxRole.Summon) return 1.0f; // 轻入场留一拍（≥ 单位显现节拍）
+            if (role == VfxRole.Death) return 0.9f;  // 死亡爆点短于 Area（碎裂退场同期开演）
+            return 0.8f;
+        }
 
         private struct Spec
         {
@@ -241,6 +249,19 @@ namespace Tide.HotUpdateTools
             l.Add(new Spec(ManaType.Gray, VfxRole.Area, $"{syn}/FX_ShardRock_Explosion_01.prefab"));
             l.Add(new Spec(ManaType.Gray, VfxRole.Area, $"{etf}/Combat/Explosions/MysticExplosion/MysticExplosionDark.prefab")); // 次选（原黑）
             l.Add(new Spec(ManaType.Gray, VfxRole.Area, $"{syn}/FX_Explosion_01.prefab")); // 次选
+
+            // ---- 补位批（2026-11-13）：Summon / Death 两角色此前**零条目**（枚举占位、无人查表），
+            // 用的是 PixPlays 里从未进过任何表现的 ElementalAuras / ElementalBlastVFX（两组 8 件全未用）。
+            // 口径=「先有画面，观感后调」：Aura 作轻入场汇聚（L2-1：召唤/复活/衍生物/控制权变更）、
+            // Blast 作非消灭族死亡爆点（L3-5：Combat/Annihilated/LegendaryRule）。消灭族仍走 Area，勿混。----
+            l.Add(new Spec(ManaType.Red, VfxRole.Summon, $"{pix}/ElementalAuras/FireAura/Version_URP/FireAura.prefab"));
+            l.Add(new Spec(ManaType.Blue, VfxRole.Summon, $"{pix}/ElementalAuras/WaterAura/Version_URP/WaterAura.prefab"));
+            l.Add(new Spec(ManaType.Green, VfxRole.Summon, $"{pix}/ElementalAuras/WindAura/Version_URP/WindAura.prefab"));
+            l.Add(new Spec(ManaType.Gray, VfxRole.Summon, $"{pix}/ElementalAuras/EarthAura/Version_URP/EarthAura.prefab"));
+            l.Add(new Spec(ManaType.Red, VfxRole.Death, $"{pix}/ElementalBlastVFX/FireBlast/Version_URP/FireBlast.prefab"));
+            l.Add(new Spec(ManaType.Blue, VfxRole.Death, $"{pix}/ElementalBlastVFX/WaterBlast/Version_URP/WaterBlast.prefab"));
+            l.Add(new Spec(ManaType.Green, VfxRole.Death, $"{pix}/ElementalBlastVFX/WindBlast/Version_URP/WindBlast.prefab"));
+            l.Add(new Spec(ManaType.Gray, VfxRole.Death, $"{pix}/ElementalBlastVFX/EarthBlast/Version_URP/EarthBlast.prefab"));
 
             return l;
         }

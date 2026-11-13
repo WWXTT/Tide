@@ -131,7 +131,13 @@ namespace SynergyUI
                 _s.RefreshFans(); // 手牌扇随快照同频（引擎路径——播放期自动 Flush 被抑制）
             }
 
-            public UniTask ExecuteFxAsync(BattleFxOp op) => _s._fxExecutor != null ? _s._fxExecutor.ExecuteAsync(op) : UniTask.CompletedTask;
+            public UniTask ExecuteFxAsync(BattleFxOp op)
+            {
+                // 轮外 op（阶段播报/自然抽飞入/疲劳——2026-11-13 阶段1 方案 A）录制时已即时演出，
+                // live 帧回放跳过防双播；回放/联机舞台不查此标记（剧本消费全量执行）。
+                if (op != null && op.OutOfBand) return UniTask.CompletedTask;
+                return _s._fxExecutor != null ? _s._fxExecutor.ExecuteAsync(op) : UniTask.CompletedTask;
+            }
             public void AppendLines(IReadOnlyList<BattleLogLine> lines) => _s._log?.AppendLines(lines);
             public void AdvanceTimeline(int frameIndex) { } // 实时无时间轴（行随帧直入列）
             public UniTask PlayCombatAsync(CombatShot shot)

@@ -330,6 +330,12 @@ namespace CardCore
             if (instance.Refs != null && instance.Refs.Count > 0 && instance.Refs[0] != null)
                 context.Refs["ref"] = instance.Refs[0];
 
+            // 参照**在发动时取**（2026-11-13 定案）：参照族（活体炸弹/活体护甲）在代价执行前先定参照
+            // 并快照攻/命——代价把参照自己消灭/移走后，本次结算照常进行、数值回落快照，不再空转。
+            // 声明期 References（instance.Refs）已给的直接用；AI/无头路径（只传声明期预选目标）在此
+            // 用与结算同源的 ResolveAtomTargetsAsync 提前解析参照 atom（只解析参照、不碰受体窗）。
+            await PreResolveActivationRefAsync(effect, instance, context);
+
             // 代价支付：元素代价由配置表自动推导（费用唯一权威），经 ElementCostPayment 纯支付
             // （浓度上限校验 + 混付；兑换通道已随抵消系统退役——黑白获取只经卡结算）；
             // 卡内效果（ElementCostPrepaid）的元素费已随卡牌档位费收讫，跳过以防双计；游戏中途授予的动态效果照付。
@@ -503,6 +509,36 @@ namespace CardCore
                 ResolvedEffect = instance.SourceEffect,
                 Context = resolution
             });
+        }
+
+        /// <summary>参照**发动时取**（2026-11-13 定案）：分段原子（活体炸弹/活体护甲）在代价执行前
+        /// 先定参照并快照攻/命。三条来源按优先级：
+        /// ① 声明期 References（instance.Refs，网络/重放显式上送）——已在 context.Refs；
+        /// ② 声明期预选目标（context.Targets，本地 AI/人类声明期收集器下发）；
+        /// ③ 与结算同源的 ResolveAtomTargetsAsync 现解析（参照 atom 自身域，不触碰受体窗）。
+        /// 之后代价即使把参照消灭/移走，结算照常（数值回落快照），不再走「参照亡=空转」。
+        /// 非参照族（ReferenceAxis==null）零开销直返。</summary>
+        private async Cysharp.Threading.Tasks.UniTask PreResolveActivationRefAsync(
+            EffectDefinition effect, EffectInstance instance, EffectExecutionContext context)
+        {
+            if (effect == null || context == null) return;
+            var refAtom = effect.Effects?.FirstOrDefault(a => a != null && a.ReferenceAxis != null);
+            if (refAtom == null) return;
+
+            if (context.Ref == null && instance?.Refs != null && instance.Refs.Count > 0)
+                context.Refs["ref"] = instance.Refs[0];
+
+            if (context.Ref == null && effect.PerAtomTargets)
+            {
+                // 声明期预选（本地上游）→ 引擎现解析（AI 无预选时的权威路径）
+                var queue = context.Targets != null ? new List<Entity>(context.Targets) : new List<Entity>();
+                var picked = await EffectHandlerRegistry.ResolveAtomTargetsAsync(effect, refAtom, context, queue);
+                var reference = picked != null ? picked.FirstOrDefault() : null;
+                if (reference != null && reference.IsAlive)
+                    context.Refs["ref"] = reference;
+            }
+
+            context.CaptureRefSnapshot(); // 只在参照存活时写快照（死参照不覆盖）
         }
 
     }

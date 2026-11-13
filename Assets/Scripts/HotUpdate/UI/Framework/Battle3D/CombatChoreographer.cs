@@ -491,7 +491,7 @@ namespace SynergyUI
         /// <summary>战斗演出数据捕获（2026-11-11 演出统一 S2·方案 §2.2 CombatShot）：攻击步出栈时
         /// LocalFilmSource 调——把当前捕获态（攻击者/目标/伤害缓冲）转成可录制数据挂帧；不消费捕获
         /// （开演仍归 PerformCapturedNow）。无捕获返回 null；守卫拦截下 Target 已被改写为守卫者
-        /// （原目标只存格）——v1 已知差异：回放不还原守卫闪现/反击走位。</summary>
+        /// ——Blocker/Original 格/Lethal（2026-11-13 阶段3）随 shot 携带，回放据此还原闪现赴挡与致死特写。</summary>
         public CombatShot CaptureShot(Func<Player, int> seatOf)
         {
             if (!_capturing) return null;
@@ -512,14 +512,24 @@ namespace SynergyUI
                 var cell = CellOf(_targetId);
                 if (cell.HasValue) { shot.TargetX = cell.Value.x; shot.TargetZ = cell.Value.z; }
             }
-            // 命中缓冲：攻击者的笔=主击；其余（守方反击/溅射第三方）标 IsCounter
+            // 命中缓冲：攻击者的笔=主击；其余（守方反击/溅射第三方）标 IsCounter；
+            // Lethal（2026-11-13 阶段3·L3-4）：捕获时按受击者剩余生命判定（出栈时伤害已落定）
             foreach (var d in _damages)
                 shot.Hits.Add(new CombatHit
                 {
                     Target = FxRef.Of(d.Defender, seatOf),
                     Amount = d.Damage,
                     IsCounter = !ReferenceEquals(d.Attacker, _attackerEntity),
+                    Lethal = d.Defender != null && d.Defender.GetLife() <= 0,
                 });
+            // 守卫拦截载荷（2026-11-13 阶段3·L3-1）：Target 已改写为拦截者（=Blocker 同人），
+            // Original 格=最初目标格——回放按「闪现赴挡：现身→原目标格向攻击侧偏移挡位→战后归位」还原
+            if (_blocked && _originalTargetCell.HasValue)
+            {
+                shot.Blocker = shot.Target;
+                shot.OriginalX = _originalTargetCell.Value.x;
+                shot.OriginalZ = _originalTargetCell.Value.z;
+            }
             return shot;
         }
 

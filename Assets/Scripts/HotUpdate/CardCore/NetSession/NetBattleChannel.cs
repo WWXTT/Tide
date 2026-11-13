@@ -491,13 +491,17 @@ namespace CardCore.Network
                 _logStreams[seat] = new MatchLogLineStream(
                     seat < 0 ? null : p => NetEntityMapper.SeatOf(p) == seat, // 引擎座位（Player1=0），非椅位
                     redactEffectSummary: seat >= 0,                           // R2：座位流只出效果短名（观战全信息出 Description）
-                    redactHidden: seat >= 0);                                 // R1（E3）：座位流遮对手隐藏区入手；观战 isSelf=null 恒不遮
+                    redactHidden: seat >= 0,                                  // R1（E3）：座位流遮对手隐藏区入手；观战 isSelf=null 恒不遮
+                    richValues: true);                                        // D7（2026-11-13 P4）：座位/观战行流上面板——数值染绿/红
                 _logHistory[seat] = new List<MatchLogLine>(1024);
                 _logBase[seat] = 0;
                 // 二期 B·v18 全量行：同视角观侧文案、双 redact=false（终局 MatchLogFull 下发用）
+                // richValues=true（2026-11-13 P4·D7）：FullText 回填复盘剧本——复盘行同染（与座位/观战流一致；
+                // 长期存档走 MsgMatchSummary.Log=纯文本通道，不经此流）
                 _logFullStreams[seat] = new MatchLogLineStream(
                     seat < 0 ? null : p => NetEntityMapper.SeatOf(p) == seat,
-                    redactEffectSummary: false, redactHidden: false);
+                    redactEffectSummary: false, redactHidden: false,
+                    richValues: true);
                 _logFullHistory[seat] = new List<MatchLogLine>(1024);
             }
             _onLogAppended = entry =>

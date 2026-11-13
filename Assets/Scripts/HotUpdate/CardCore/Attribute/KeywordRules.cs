@@ -411,7 +411,16 @@ namespace CardCore.Attribute
             if (vulnerable > 0)
             {
                 amount += vulnerable;
-                target.AddCounters(CounterRules.VulnerableCounter, -vulnerable);
+                int vulnUsed = target.AddCounters(CounterRules.VulnerableCounter, -vulnerable);
+                // 全移除补 CounterChangedEvent（2026-11-13 A2：易损生效后全移——层变化此前无结构化事件）
+                if (vulnUsed != 0)
+                    EventManager.Instance.Publish(new CounterChangedEvent
+                    {
+                        Target = target,
+                        CounterType = CounterRules.VulnerableCounter,
+                        Amount = vulnUsed,
+                        AfterNote = $"放大 +{vulnerable} 后全移",
+                    });
                 EventManager.Instance.Publish(new KeywordAppliedEvent
                 {
                     Target = target,
@@ -595,8 +604,20 @@ namespace CardCore.Attribute
                 }
                 if (source.HasKeyword(Lifelink) && source.GetController() is Player owner && CardEffectBudget.KeywordAllowed(source))
                 {
+                    int ownerLifeBefore = owner.Life;
                     owner.Life += dealt;
                     CardEffectBudget.CommitKeyword(source);
+                    // 系命补 LifeChangeEvent（2026-11-13 A5）：Player.Life 裸属性直写不发事件——
+                    // 战报「生命 x→y」行 + 血条刷新此前全漏（G4/G5）。
+                    if (owner.Life != ownerLifeBefore)
+                        EventManager.Instance.Publish(new LifeChangeEvent
+                        {
+                            Player = owner,
+                            OldLife = ownerLifeBefore,
+                            NewLife = owner.Life,
+                            Source = source,
+                            Cause = LifeChangeCause.Lifelink,
+                        });
                     EventManager.Instance.Publish(new KeywordAppliedEvent
                     {
                         Target = owner,
@@ -621,7 +642,16 @@ namespace CardCore.Attribute
                 if (retaliation > 0)
                 {
                     int retaliateHalved = retaliation / 2;
-                    target.AddCounters(CounterRules.RetaliationCounter, -(retaliation - retaliateHalved));
+                    int thornRemoved = target.AddCounters(CounterRules.RetaliationCounter, -(retaliation - retaliateHalved));
+                    // 荆棘层变化补 CounterChangedEvent（2026-11-13 A2：消耗型层数此前无结构化事件——浮字/卡面零感知）
+                    if (thornRemoved != 0)
+                        EventManager.Instance.Publish(new CounterChangedEvent
+                        {
+                            Target = target,
+                            CounterType = CounterRules.RetaliationCounter,
+                            Amount = thornRemoved,
+                            AfterNote = $"反噬生效；余 {retaliateHalved} 层",
+                        });
                     EventManager.Instance.Publish(new KeywordAppliedEvent
                     {
                         Target = target,
@@ -629,7 +659,17 @@ namespace CardCore.Attribute
                         Detail = $"荆棘反噬：{EffectText.Name(target)} 对 {EffectText.Name(source)} 造成 {retaliation} 点伤害（生效减半，余 {retaliateHalved} 层）",
                         Source = target
                     });
-                    ApplyDamageLegacy(target, source, retaliation, isCombat: false);
+                    // 反噬伤害补 AtomicDamageEvent（2026-11-13 A3）：复用现成效果伤害演出/联机白名单
+                    //（G3：反噬此前只发管线观测 DamageEvent——无渲染分支，战报里这次伤害凭空消失）。
+                    int thornDealt = ApplyDamageLegacy(target, source, retaliation, isCombat: false);
+                    if (thornDealt > 0)
+                        EventManager.Instance.Publish(new AtomicDamageEvent
+                        {
+                            Source = target,
+                            Target = source,
+                            Damage = thornDealt,
+                            IsCombatDamage = false,
+                        });
                 }
             }
 
@@ -653,8 +693,18 @@ namespace CardCore.Attribute
                 });
                 CardEffectBudget.CommitKeyword(target);
                 _retaliateBounceGuard = true;
-                try { ApplyDamageLegacy(target, source, dealt, isCombat: false); }
+                int bounceDealt;
+                try { bounceDealt = ApplyDamageLegacy(target, source, dealt, isCombat: false); }
                 finally { _retaliateBounceGuard = false; }
+                // 报复反噬伤害补 AtomicDamageEvent（2026-11-13 A3，与荆棘同口径）
+                if (bounceDealt > 0)
+                    EventManager.Instance.Publish(new AtomicDamageEvent
+                    {
+                        Source = target,
+                        Target = source,
+                        Damage = bounceDealt,
+                        IsCombatDamage = false,
+                    });
             }
 
             // 6.6 病原体（2026-10-31 复活改版，绿5 关键词）：持有者**实际受到伤害**（同荆棘/报复口径
@@ -719,7 +769,16 @@ namespace CardCore.Attribute
             int shieldLayers = target.GetEffectiveCounterCount(CounterRules.DivineShieldCounter);
             if (shieldLayers > 0)
             {
-                target.AddCounters(CounterRules.DivineShieldCounter, -1);
+                int shieldUsed = target.AddCounters(CounterRules.DivineShieldCounter, -1);
+                // 消耗补 CounterChangedEvent（2026-11-13 A2：层数消耗此前只在 KeywordAppliedEvent.Detail——无结构化事件，浮字/卡面零感知）
+                if (shieldUsed != 0)
+                    EventManager.Instance.Publish(new CounterChangedEvent
+                    {
+                        Target = target,
+                        CounterType = CounterRules.DivineShieldCounter,
+                        Amount = shieldUsed,
+                        AfterNote = $"抵挡 {amount} 点；余 {shieldLayers - 1} 层",
+                    });
                 EventManager.Instance.Publish(new KeywordAppliedEvent
                 {
                     Target = target,
@@ -738,8 +797,17 @@ namespace CardCore.Attribute
             if (armor > 0)
             {
                 int absorbed = Math.Min(armor, amount);
-                target.AddCounters(ArmorCounter, -absorbed);
+                int armorUsed = target.AddCounters(ArmorCounter, -absorbed);
                 amount -= absorbed;
+                // 消耗补 CounterChangedEvent（2026-11-13 A2，与圣盾同口径）
+                if (armorUsed != 0)
+                    EventManager.Instance.Publish(new CounterChangedEvent
+                    {
+                        Target = target,
+                        CounterType = ArmorCounter,
+                        Amount = armorUsed,
+                        AfterNote = $"吸收 {absorbed} 点；余 {armor - absorbed} 层",
+                    });
                 EventManager.Instance.Publish(new KeywordAppliedEvent
                 {
                     Target = target,
@@ -764,7 +832,16 @@ namespace CardCore.Attribute
             {
                 amount = Math.Max(0, amount - toughness);
                 int toughHalved = toughness / 2;
-                target.AddCounters(CounterRules.ToughnessCounter, -(toughness - toughHalved));
+                int toughUsed = target.AddCounters(CounterRules.ToughnessCounter, -(toughness - toughHalved));
+                // 消耗补 CounterChangedEvent（2026-11-13 A2，与圣盾/护甲同口径）
+                if (toughUsed != 0)
+                    EventManager.Instance.Publish(new CounterChangedEvent
+                    {
+                        Target = target,
+                        CounterType = CounterRules.ToughnessCounter,
+                        Amount = toughUsed,
+                        AfterNote = $"减免 {toughness} 点；余 {toughHalved} 层",
+                    });
                 EventManager.Instance.Publish(new KeywordAppliedEvent
                 {
                     Target = target,

@@ -682,6 +682,24 @@ namespace CardCore
         /// <summary>主参照（Refs["ref"] 便捷口；null=本次执行无参照）。</summary>
         public Entity Ref => Refs.TryGetValue("ref", out var e) ? e : null;
 
+        /// <summary>参照在**发动时**（代价执行前）的攻击力快照（-1=未取）。
+        /// 2026-11-13 定案：参照在发动时取，发动后参照丢失（被代价消灭/离场）**不影响本次结算**——
+        /// 数值回落本快照，而不是按已亡实体的活值/空转处理。</summary>
+        public int RefPowerSnapshot = -1;
+
+        /// <summary>参照在发动时的生命快照（-1=未取；活体护甲用）。</summary>
+        public int RefLifeSnapshot = -1;
+
+        /// <summary>取/刷新参照快照（只在参照存活时写——死亡实体不覆盖既有快照）。
+        /// 时点：效果发动（代价执行前）由 EffectExecutionEngine 调用一次。</summary>
+        public void CaptureRefSnapshot()
+        {
+            var r = Ref;
+            if (r == null || !r.IsAlive) return;
+            RefPowerSnapshot = Math.Max(0, EntityEffectExtensions.GetPower(r));
+            RefLifeSnapshot = Math.Max(0, EntityEffectExtensions.GetLife(r));
+        }
+
         /// <summary>本次执行已批准的 spec 计划键（目标选择重构铁律守卫 §1.1）：引擎按 spec 计划
         /// 调用 handler 前写入；handler 作用域内发起的选择请求 SpecKey 不在集合中 →
         /// TideLog.Error 点名（先叫后清零，不拦截行为）。</summary>
@@ -772,12 +790,22 @@ namespace CardCore
             else
             {
                 var reference = Ref;
-                if (reference == null) return 0; // 参照缺失=空转（分段原子 RefRequired=v1 恒 true）
+                // 参照丢失（被代价消灭/离场）不空转：回落发动时快照（2026-11-13 定案）。
+                bool refLive = reference != null && reference.IsAlive;
                 switch (atom.ValueExpr)
                 {
-                    case "ref.power": v = EntityEffectExtensions.GetPower(reference); break;
-                    case "ref.life": v = EntityEffectExtensions.GetLife(reference); break;
-                    case "ref.cost": v = reference is Card rc ? (int)GameActions.GetCardCost(rc, 0).Total : 0; break;
+                    case "ref.power":
+                        v = refLive ? EntityEffectExtensions.GetPower(reference)
+                                    : (RefPowerSnapshot >= 0 ? RefPowerSnapshot : 0);
+                        break;
+                    case "ref.life":
+                        v = refLive ? EntityEffectExtensions.GetLife(reference)
+                                    : (RefLifeSnapshot >= 0 ? RefLifeSnapshot : 0);
+                        break;
+                    case "ref.cost":
+                        if (reference == null) return 0; // 费用参照离场无快照口径（v1 未用）
+                        v = reference is Card rc ? (int)GameActions.GetCardCost(rc, 0).Total : 0;
+                        break;
                     default:
                         TideLog.Warn($"[ResolveValue] 动态值表达式 '{atom.ValueExpr}' 超白名单（v1 仅 ref.power|ref.life|ref.cost）——按 0 空转");
                         return 0;

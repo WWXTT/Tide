@@ -492,6 +492,27 @@ namespace CardCore
         public int OldLife { get; set; }
         public int NewLife { get; set; }
         public Entity Source { get; set; }
+        /// <summary>变更来源分类（2026-11-13 战场数值表现统一）：供表现层去重——伤害/回复/
+        /// 疲劳路径各自已有专属演出与浮字，LifeChange 只承载血条刷新，不再重复出值浮字。
+        /// 默认 None=未标注（旧发布点），表现层视同 Damage 口径。</summary>
+        public LifeChangeCause Cause { get; set; }
+    }
+
+    /// <summary>生命变更来源（2026-11-13）：None=未标注；Damage/Heal/Fatigue=管线事件链伴随；
+    /// LifeLoss=流失；Lifelink=系命；Modify/Set=属性修改/设置（StatModify/StatSet 同源）；
+    /// Lock=生命锁钳制；Reborn=复生回 1。</summary>
+    public enum LifeChangeCause
+    {
+        None = 0,
+        Damage,
+        Heal,
+        Fatigue,
+        LifeLoss,
+        Lifelink,
+        Modify,
+        Set,
+        Lock,
+        Reborn,
     }
 
     /// <summary>

@@ -404,14 +404,64 @@ namespace SynergyUI
                                 Flag = polarity == CounterPolarity.Negative,
                             });
                     }
-                    ops.Add(new BattleFxOp // 浮字恒构造（白名单过滤在执行侧）
-                    {
-                        Kind = BattleFxKind.CounterFloat,
+                    ops.Add(new BattleFxOp // 值浮字（2026-11-13 P3 统一入口）：全指示物类型经
+                    {                       // ValueFloatRules 拼标签+极性（与本地 Projector 同单源；"*"/零增量/未知 id 拦截）
+                        Kind = BattleFxKind.ValueFloat,
                         Target = FxRefOf(RefOf(e, "Target"), viewSeatOf),
-                        Text = counterType,
+                        Text = CardCore.Effects.ValueFloatRules.TryBuild(counterType, amount, out var vfLabel, out var vfPolarity)
+                            ? vfLabel : null,
                         Amount = amount,
+                        Polarity = vfPolarity,
                     });
                     return ops;
+                }
+                case nameof(StatModifyEvent):
+                {
+                    // 属性直改值浮字（2026-11-13 P3·与本地同式）：差 0 不出；标签单源 ValueFloatRules
+                    int oldV = IntOf(e, "OldValue"), newV = IntOf(e, "NewValue");
+                    if (newV == oldV) break;
+                    return One(new BattleFxOp
+                    {
+                        Kind = BattleFxKind.ValueFloat,
+                        Target = FxRefOf(RefOf(e, "Target"), viewSeatOf),
+                        Text = CardCore.Effects.ValueFloatRules.StatDeltaLabel((StatType)IntOf(e, "StatType"), newV - oldV),
+                        Amount = newV - oldV,
+                        Polarity = newV > oldV ? 1 : -1,
+                    });
+                }
+                case nameof(StatSetEvent):
+                {
+                    int oldV = IntOf(e, "OldValue"), newV = IntOf(e, "NewValue");
+                    if (newV == oldV) break;
+                    return One(new BattleFxOp
+                    {
+                        Kind = BattleFxKind.ValueFloat,
+                        Target = FxRefOf(RefOf(e, "Target"), viewSeatOf),
+                        Text = CardCore.Effects.ValueFloatRules.StatDeltaLabel((StatType)IntOf(e, "StatType"), newV - oldV),
+                        Amount = newV - oldV,
+                        Polarity = newV > oldV ? 1 : -1,
+                    });
+                }
+                case nameof(LifeChangeEvent):
+                {
+                    // 角色生命值浮字（2026-11-13 P3·Cause 分流与本地一致）：伤害/回复/疲劳路径的
+                    // LifeChange 不出值（各自 op 已承载——防双播）；Cause 缺省 0=None=旧端伴随口径
+                    //（不出）。Lifelink/Modify/Set/Lock 才出 ±N。
+                    int oldL = IntOf(e, "OldLife"), newL = IntOf(e, "NewLife");
+                    int cause = IntOf(e, "Cause");
+                    bool visible = cause == (int)LifeChangeCause.Lifelink
+                                   || cause == (int)LifeChangeCause.Modify
+                                   || cause == (int)LifeChangeCause.Set
+                                   || cause == (int)LifeChangeCause.Lock;
+                    if (!visible || newL == oldL) break;
+                    return One(new BattleFxOp
+                    {
+                        Kind = BattleFxKind.ValueFloat,
+                        Target = FxRefOf(RefOf(e, "Player"), viewSeatOf),
+                        Text = CardCore.Effects.ValueFloatRules.Sign(newL - oldL),
+                        Amount = newL - oldL,
+                        Polarity = newL > oldL ? 1 : -1,
+                    });
                 }
                 case nameof(KeywordEvent):
                 {

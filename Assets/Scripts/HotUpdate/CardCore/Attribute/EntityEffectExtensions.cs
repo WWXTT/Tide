@@ -98,7 +98,7 @@ namespace CardCore
         /// **无光环时溢出纯浪费**（生命钳在上限，不加上限——生命恢复计价因此享 0.8 系优惠，
         /// Heal 原子行 绿0.5→0.4）。角色与生物同口径。
         /// </summary>
-        public static void Heal(this Entity entity, int amount)
+        public static void Heal(this Entity entity, int amount, ManaType? effectTint = null)
         {
             // 禁疗令（2026-10-29 1b）：受光环影响一方的角色与单位不能回复生命——咽喉最前拦截
             //（先于反疗改写/丰盈溢出；治疗五入口全经此口，一处收口全覆盖）。
@@ -109,6 +109,9 @@ namespace CardCore
             //——改写口/重入闸/光源归因见 RuleAuraComponents.TryRewriteHealAsDamage；
             // 治疗五入口（Heal 原子/吸血/吸取/再生双路）全经此咽喉，一处收口全覆盖。
             if (amount > 0 && RuleAuraComponents.TryRewriteHealAsDamage(entity, amount)) return;
+
+            int lifeBefore = entity.GetLife(); // 事件收口（2026-11-13 A4）：HealEvent 单点发布——
+            // 吸血/系命/再生/吸取/溢出五路全在此拿「实际回血量」，调用方不再各自补发（防同次回复双行）。
 
             if (entity is Player player)
             {
@@ -163,6 +166,28 @@ namespace CardCore
                     GameActions.Crumb($"[HEAL] 未救回 {card.ID} life={card._life} " +
                                       $"bonus={GameBoard.LinkAuraSystem.GetLifeBonus(card)} zone={card.GetZone()}");
                 }
+            }
+
+            // HealEvent 单点收口（2026-11-13 A4 战报补全）：按**实际回血量**发布（Amount=实得、
+            // Overfill=截断量）；实得 0（满血/被拦）不发——零值行零浮字。此前仅 Heal 原子/吸取
+            // 两处 handler 手动发布，吸血/系命（直接 stealer.Heal）/再生/溢出全漏（G4）。
+            // effectTint（2026-11-13 战场美术 L4-1）：Heal 原子发布方传原子行费用基准主色——
+            // 回复粒子吃效果色；其余调用方缺省 null=表现层回落绿。
+            // 发布走 GameCore 路由口（与被删的 handler PublishEvent 同语义——触发器 OnRoutedEvent
+            // 须能看见 HealEvent：奖励时点订阅在路由层，裸 EventManager 发布触发器不可见）。
+            int healed = entity.GetLife() - lifeBefore;
+            if (healed > 0)
+            {
+                var healedEvent = new HealEvent
+                {
+                    Target = entity,
+                    Amount = healed,
+                    Overfill = Math.Max(0, amount - healed),
+                    Source = null,
+                    EffectTint = effectTint,
+                };
+                if (GameCore.Instance != null) GameCore.Instance.PublishEvent(healedEvent);
+                else EventManager.Instance.Publish(healedEvent);
             }
         }
 

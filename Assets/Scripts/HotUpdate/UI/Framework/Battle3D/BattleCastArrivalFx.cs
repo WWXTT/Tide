@@ -473,7 +473,14 @@ namespace SynergyUI
         /// <summary>卡的最高主色（用户口径 2026-10-15）：实付中红/蓝/绿占比最高者；三色皆无=灰。
         /// 消融淡光边与全部粒子统一用色。</summary>
         private static Color DominantChromatic(IReadOnlyDictionary<int, float> paid)
+            => ManaColor(DominantManaType(paid));
+
+        /// <summary>实付账单主色（ManaType 版·2026-11-13 补位批抽出）：选色规则同 DominantChromatic——
+        /// 红/蓝/绿占比最高者，三色全无（含 Any 万能元素）= 灰。VFX 路由（轻入场 Aura / 死亡爆点 Blast）
+        /// 与消融边共用单源，避免两处各写一份选色逻辑。</summary>
+        public static ManaType DominantManaType(IReadOnlyDictionary<int, float> paid)
         {
+            if (paid == null) return ManaType.Gray;
             ManaType best = ManaType.Gray;
             float bestV = 0f;
             foreach (var kv in paid)
@@ -482,7 +489,7 @@ namespace SynergyUI
                 if (m != ManaType.Red && m != ManaType.Blue && m != ManaType.Green) continue;
                 if (kv.Value > bestV) { bestV = kv.Value; best = m; }
             }
-            return bestV > 0.0001f ? ManaColor(best) : ManaColor(ManaType.Gray);
+            return bestV > 0.0001f ? best : ManaType.Gray;
         }
 
         /// <summary>四色+灰→粒子色（UiStyle 方格色直映；2026-10-20 用户定案：**不做白化 lerp**——

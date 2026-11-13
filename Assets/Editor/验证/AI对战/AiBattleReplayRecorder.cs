@@ -55,7 +55,7 @@ namespace CardCore.Editor.Tests
             BattleProjector projector = null;
             var film = new LocalFilmSource(null, () => core, () => projector, null, matchId: result.MatchId);
             projector = new BattleProjector(() => core, () => ctrl,
-                _ => { }, () => { }, () => { }, _ => { }, _ => { }, _ => { }, () => { }, null, film); // 钩子全空（无头无表现）
+                _ => { }, () => { }, () => { }, _ => { }, _ => { }, () => { }, null, film); // 钩子全空（无头无表现）
             int SeatOf(Player p) => p == null ? -1 : p == core.Player2 ? 1 : 0;
 
             // 补丁①（帧前 Resync·方案 §3.3.1）：订阅序在 projector.Wire() 之前——步帧快照构建前

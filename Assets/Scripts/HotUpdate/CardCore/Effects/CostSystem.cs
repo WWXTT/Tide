@@ -329,7 +329,9 @@ namespace CardCore
         /// 强制支付一组代价（cast 付费步与主动/动态效果共用的唯一路径；2026-10-28 P1：只执行、不发放）。
         /// Payload 在此异步执行（恒可付=强制效果；可支付闸在声明期 CostPayability）。
         /// 逐原子按其自身域解析目标执行（声明期预选目标按 atomIndex 沿用，不重选）；
-        /// 某原子没有作用于有效目标（无可用目标）→ 该原子不执行（其余原子照常）。
+        /// **任一原子执行失败（无有效目标）→ 整体返回 false**（2026-11-13 定案：代价执行失败=效果无效——
+        /// 调用方（cast 付费步/EffectExecutionEngine）据此中止本卡效果；旧口径「该原子跳过、其余照常」
+        /// 会让响应窗内代价目标消失的第二张法术白嫖发动）。
         /// </summary>
         public static async Cysharp.Threading.Tasks.UniTask<bool> PayPayloadsAsync(
             List<CostInstance> costs, CostContext ctx)
@@ -337,6 +339,7 @@ namespace CardCore
             if (costs == null || costs.Count == 0) return true;
             if (ctx?.Payer == null) return false;
 
+            bool paid = true;
             foreach (var cost in costs)
             {
                 if (cost == null) continue;
@@ -346,10 +349,11 @@ namespace CardCore
                 {
                     var atom = atoms[i];
                     if (atom == null) continue;
-                    await ExecutePayloadAtomAsync(atom, ctx, i);
+                    if (!await ExecutePayloadAtomAsync(atom, ctx, i))
+                        paid = false; // 代价执行失败 → 本效果无效（调用方中止）
                 }
             }
-            return true;
+            return paid;
         }
 
         /// <summary>旧名转发（2026-10-28 P1 改名 PayPayloadsAsync；保留防调用点漏改）。</summary>

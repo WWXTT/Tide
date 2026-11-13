@@ -191,6 +191,9 @@ namespace SynergyUI
         /// <summary>墓地格（公开访问，2026-10-13 战斗编舞）：死亡漩涡吸走演出取吸入口世界坐标。</summary>
         public static (int x, int z) GraveCellOf(int owner) => GraveCell(owner);
 
+        /// <summary>除外格（公开访问，2026-11-13 战场美术 L2-2）：离场微拖尾（弃牌/除外→漩涡）终点。</summary>
+        public static (int x, int z) ExileCellOf(int owner) => ExileCell(owner);
+
         private static (int x, int z) ExileCell(int owner)
             => owner == 0 ? (BoardLayout.P1ExileX, BoardLayout.P1ExileZ)
                           : BoardLayout.MirrorSeat(BoardLayout.P1ExileX, BoardLayout.P1ExileZ);

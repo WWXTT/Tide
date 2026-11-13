@@ -262,13 +262,18 @@ namespace CardCore
         {
             var none = new List<Entity>();
             var reference = resolvedReferences != null ? resolvedReferences.FirstOrDefault() : null;
+            // 参照**在发动时取**（2026-11-13）：本次解析若取不到活参照（如代价先把参照消灭/移走），
+            // 回落发动期已定的参照（context.Refs["ref"]）——不空转、不清 Refs，数值走快照。
             if (reference == null || !reference.IsAlive)
+                reference = context.Ref;
+            if (reference == null)
             {
-                context.Refs.Remove("ref"); // 清上一轮/上一原子残留（重放重入防读到过期参照）
-                return none; // 参照空/亡=空转（旧 handler 早退口径）
+                context.Refs.Remove("ref"); // 无参照（非参照族/未声明）=空转
+                return none;
             }
 
             context.Refs["ref"] = reference;
+            context.CaptureRefSnapshot(); // 只在新参照存活时刷新快照（死参照保留发动期快照）
             context.ApprovedSpecKeys.Add($"atom:{atomIndex}/spec:0/role:reference");
 
             var row = AtomicEffectTable.GetByHashId(atomic.RowHashId);

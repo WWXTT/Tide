@@ -42,6 +42,8 @@
     <Compile Include="..\Assets\Scripts\HotUpdate\UI\Data\CardDataPaths.cs" Link="Shared\SynergyUI\CardDataPaths.cs" />
     <Compile Include="..\Assets\Scripts\HotUpdate\UI\Data\DeckTokenSupport.cs" Link="Shared\SynergyUI\DeckTokenSupport.cs" />
     <Compile Include="..\Assets\Scripts\HotUpdate\UI\Data\DeckData.cs" Link="Shared\SynergyUI\DeckData.cs" />
+    <!-- 卡组校验单源（2026-11-13 deck-rule）：效果组合合法性硬约束随卡组面走，不在 TideSim 复制逻辑 -->
+    <Compile Include="..\Assets\Scripts\HotUpdate\UI\Data\DeckCompositionValidator.cs" Link="Shared\SynergyUI\DeckCompositionValidator.cs" />
     <Compile Include="..\Assets\Scripts\HotUpdate\UI\Data\ContentHasher.cs" Link="Shared\SynergyUI\ContentHasher.cs" />
     <Compile Include="..\Assets\Scripts\HotUpdate\UI\Data\EffectGraphData.cs" Link="Shared\SynergyUI\EffectGraphData.cs" />
     <Compile Include="..\Assets\Scripts\HotUpdate\UI\Data\KeywordCatalog.cs" Link="Shared\SynergyUI\KeywordCatalog.cs" />

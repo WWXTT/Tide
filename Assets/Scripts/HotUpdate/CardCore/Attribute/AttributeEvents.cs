@@ -22,6 +22,10 @@ namespace CardCore.Attribute
         /// <summary>效果基础色（2026-10-20 定案：弹体/爆点按所用效果的基础色）：发布方填
         /// 原子行费用基准主色（effect.AnchorTint()）；null=无基准（表现层回落来源卡费用主色）。</summary>
         public ManaType? EffectTint { get; set; }
+        /// <summary>范围伤害标志（2026-11-13 战场美术阶段2·L4-4）：同批多目标效果伤害（发布方
+        /// 按 context.Targets.Count&gt;1 置位）——表现层 AOE 伤害走 Area 大件、命中链退为回落。
+        /// 反噬/溅射/单发默认 false。</summary>
+        public bool IsArea { get; set; }
     }
 
     /// <summary>治疗事件</summary>
@@ -32,6 +36,10 @@ namespace CardCore.Attribute
         /// <summary>溢出量：治疗超出上限被截断的部分（发布方计算）。</summary>
         public int Overfill { get; set; }
         public Entity Source { get; set; }
+        /// <summary>效果基础色（2026-11-13 战场美术阶段2·L4-1）：与 AtomicDamageEvent 同口径
+        ///——Heal 原子发布时填原子行费用基准主色（effect.AnchorTint()）；其余来源（吸血/系命/
+        /// 再生/溢出——Entity.Heal 收口直发）恒 null，表现层回落绿（回复旧行为）。</summary>
+        public ManaType? EffectTint { get; set; }
     }
 
     /// <summary>指示物增减事件（护甲吸收池、±1/±1 层等）</summary>

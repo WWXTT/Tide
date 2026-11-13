@@ -531,7 +531,8 @@ namespace CardCore.Attribute.Handlers
         private void Resolve(AtomicEffectInstance effect, EffectExecutionContext context, Entity victim)
         {
             var reference = context.Ref ?? context.PrimaryTarget;
-            if (reference == null || !reference.IsAlive || victim == null || !victim.IsAlive) return;
+            // 参照已亡/离场不空转（2026-11-13 定案）：数值由 ResolveValue 回落发动时快照。
+            if (reference == null || victim == null || !victim.IsAlive) return;
 
             int dmg = Math.Max(0, context.ResolveValue(effect));
             if (dmg <= 0) return;
@@ -581,7 +582,8 @@ namespace CardCore.Attribute.Handlers
         private void Resolve(AtomicEffectInstance effect, EffectExecutionContext context, Entity receiver)
         {
             var reference = context.Ref ?? context.PrimaryTarget;
-            if (reference == null || !reference.IsAlive || receiver == null || !receiver.IsAlive) return;
+            // 参照已亡/离场不空转（2026-11-13 定案）：数值由 ResolveValue 回落发动时快照。
+            if (reference == null || receiver == null || !receiver.IsAlive) return;
 
             int stacks = Math.Max(0, context.ResolveValue(effect));
             if (stacks <= 0) return;

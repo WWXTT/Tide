@@ -52,6 +52,7 @@ namespace CardCore
         private readonly Func<Player, bool> _isSelf; // null=中立实名口径（观战/导出——R1 遮蔽不生效）
         private readonly bool _redactEffectSummary;  // R2：效果摘要只出短名（联机座位 true / 本地·观战 false）
         private readonly bool _redactHidden;         // R1：隐藏区入手遮蔽（E3 修订：联机座位 true；本地木桩/观战/导出 false）
+        private readonly bool _richValues;           // D7（2026-11-13 P4）：行内数值 token 染色（本地 UI/服务端座位/观战 true；导出/控制台 false）
         private bool _armed;                          // 建局静默（首个回合头行前不入史）
         private readonly List<MatchLogLine> _standby = new List<MatchLogLine>(2); // 挂起的回合自然抽
         private MatchLogLineFlags _pendingFlags;      // 空行事件旗标前递兜底（现役旗标判据均必搭产出行，防御位）
@@ -60,11 +61,15 @@ namespace CardCore
         /// <param name="redactEffectSummary">R2：效果摘要只出短名、不出 Description（联机座位=true）。</param>
         /// <param name="redactHidden">R1：对手隐藏区入手遮「未知卡」（E3：联机座位=true——本地木桩
         /// isSelf 非 null 但对手是 AI，卡名照出=本地逐字不变铁律；观战 isSelf=null 全信息）。</param>
-        public MatchLogLineStream(Func<Player, bool> isSelf, bool redactEffectSummary, bool redactHidden)
+        /// <param name="richValues">D7：行内数值按行极性染绿/红（本地面板/服务端座位行流/观战=true；
+        /// 默认 false=纯文本——导出 markdown 与 Editor 控制台不得含富文本标签）。</param>
+        public MatchLogLineStream(Func<Player, bool> isSelf, bool redactEffectSummary, bool redactHidden,
+            bool richValues = false)
         {
             _isSelf = isSelf;
             _redactEffectSummary = redactEffectSummary;
             _redactHidden = redactHidden;
+            _richValues = richValues;
         }
 
         /// <summary>喂一条日志条目，产出 0..n 行追加到 sink（含挂起放行/旗标前递）。</summary>
@@ -77,7 +82,7 @@ namespace CardCore
                 Flush(sink); // 兜底放行上回合挂起残留（正常在阶段行已放空）
             }
             if (!_armed) return; // 建局事件（起手抽牌/护甲注入等）不入史——首个回合头行前静默
-            var line = MatchLogRenderer.Render(e, _isSelf, _redactEffectSummary, _redactHidden);
+            var line = MatchLogRenderer.Render(e, _isSelf, _redactEffectSummary, _redactHidden, _richValues);
             var flags = FlagsOf(e);
             if (string.IsNullOrEmpty(line.Text))
             {

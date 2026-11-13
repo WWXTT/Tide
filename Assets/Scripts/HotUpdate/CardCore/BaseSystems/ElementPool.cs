@@ -317,12 +317,15 @@ namespace CardCore
         {
             if (player == null) return;
             var pool = GetPool(player);
+            int capBefore = GetLandCap(player); // 事件收口（2026-11-13 G8）：战报「上限 x→y」须旧值——改曲线前定格
             pool.Curve = curve;
 
             PublishRouted(new CurveShiftEvent
             {
                 Player = player,
                 NewCurve = curve,
+                OldCap = capBefore,
+                NewCap = GetLandCap(player),
                 Reason = reason
             });
         }
@@ -336,11 +339,14 @@ namespace CardCore
         {
             if (player == null) return false;
             var pool = GetPool(player);
+            int capBefore = GetLandCap(player); // 事件收口（2026-11-13 G8）：上限 x→y 旧值定格
             pool.LandCapBonus++;
             PublishRouted(new CurveShiftEvent
             {
                 Player = player,
                 NewCurve = pool.Curve, // 曲线对象未换——事件仅作 Trigger/Layer 可见的通知载体
+                OldCap = capBefore,
+                NewCap = GetLandCap(player),
                 Reason = "成长:地牌上限+1",
             });
             return true;
@@ -715,6 +721,10 @@ namespace CardCore
         public ResourceCurve NewCurve { get; set; }
         /// <summary>变更原因（InitGame / 成长 / 变速效果 ID 等，调试用）</summary>
         public string Reason { get; set; }
+        /// <summary>上限旧值/新值（2026-11-13 G8 战报补全）：发布口定格——战报「地牌槽上限 x→y」；
+        /// 建局 InitGame 注入曲线时两值相等（渲染层判 OldCap==NewCap 不出行）。</summary>
+        public int OldCap { get; set; }
+        public int NewCap { get; set; }
     }
 
     // 保留旧事件名的兼容性

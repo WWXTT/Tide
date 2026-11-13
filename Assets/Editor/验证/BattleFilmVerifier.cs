@@ -191,6 +191,9 @@ namespace CardCore.Editor.Tests
                     counts.TryGetValue(k, out var n);
                     if (n < min) throw new Exception($"{k} 捕获 {n} 条 < {min}——捕获链缺口");
                 }
+                // 计数日志先于 Require（2026-11-13：E 红时也可见全 Kind 分布——归因并行漂移 vs 链路缺口）
+                Debug.Log("[回放验证] E：op 捕获 " + string.Join("，",
+                    counts.OrderBy(kv => kv.Key.ToString()).Select(kv => $"{kv.Key}={kv.Value}")));
                 // 核心链必载：效果伤害/死亡预持+死亡演出/入场粒子/属性浮字（红快攻局必然发生）
                 Require(BattleFxKind.Damage, 1);
                 Require(BattleFxKind.DeathHold, 1);
@@ -200,9 +203,7 @@ namespace CardCore.Editor.Tests
                 // Paid 软断言：扣费粒子只在「施放中法术」付费时录（生物入场粒子由 Arrival 承载防双份）
                 // ——该 seed 局 23 条付费全是生物/结界打出（实测无一张法术施放），=0 是卡组事实非链路缺口
                 counts.TryGetValue(BattleFxKind.Paid, out var paidN);
-                Debug.Log("[回放验证] E：op 捕获 " + string.Join("，",
-                    counts.OrderBy(kv => kv.Key.ToString()).Select(kv => $"{kv.Key}={kv.Value}"))
-                    + (paidN == 0 ? "（Paid=0：本局无法术施放——法术扣费链由 A 序列化/F 分发覆盖）" : ""));
+                if (paidN == 0) Debug.Log("[回放验证] E：Paid=0——本局无法术施放（法术扣费链由 A 序列化/F 分发覆盖）");
             });
 
             // F：执行冒烟（P0-2 补强——C 桩 sink 不触 PlaybackFx；本段对全部 Kind 走真执行器+
@@ -324,7 +325,7 @@ namespace CardCore.Editor.Tests
             BattleProjector projector = null;
             var film = new LocalFilmSource(null, () => core, () => projector, null); // 纯录制：无播放器/无编舞/无即时演出；投影器晚绑定（下行赋值）
             projector = new BattleProjector(() => core, () => ctrl,
-                _ => { }, () => { }, () => { }, _ => { }, _ => { }, _ => { }, () => { }, null, film); // 钩子全空（无头无表现）——op 构造与快照捕获照走（演出经 Present 路由，无即时执行器）
+                _ => { }, () => { }, () => { }, _ => { }, _ => { }, () => { }, null, film); // 钩子全空（无头无表现）——op 构造与快照捕获照走（演出经 Present 路由，无即时执行器）
             projector.WireEarly();
             projector.Wire();
             film.Wire(); // 行录制（先于 InitGame——首回合头行不漏）

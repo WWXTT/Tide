@@ -11,9 +11,11 @@ using SynergyUI;
 namespace TideSim
 {
     /// <summary>
-    /// 教学式固定盘面场景回归（2026-11-04）——红快攻三条新策略的**行为级**验证：
+    /// 教学式固定盘面场景回归（2026-11-04 建，2026-11-13 削弱版改版）——红快攻策略的**行为级**验证：
     /// · 血偿：只打生命 &gt;4 的敌方单位；没有就留手（手里没别的牌可出才考虑打脸）。
-    /// · 连击：只贴「能攻击且攻击力 ≥4」的己方单位；1/1、火灵·守（不可攻击）一律不贴。
+    /// · 活体炸弹：参照必须是「活得过自己代价」的那只——只剩 1 只己方生物时留手；
+    ///   2 只时参照取「不会被对手代价挑走的那只」，主伤 + 首卡奖励落脸。
+    /// · 斩杀线：活体炸弹先（首卡 +2）→ 血偿收尾，9 伤正好杀；顺序反了参照会被血偿代价吃掉。
     /// · 拆波：对手有未横置守卫或留费 ≥4，且我方 ≥2 只同攻（≥2）可攻击单位 →
     ///   出牌循环前先打一轮（先攻后铺）；混编（4攻+2攻）不拆。
     ///
@@ -21,8 +23,9 @@ namespace TideSim
     /// （Assets/Configs/TutorialConfig2.json）同构，直接反序列化成教学侧同一 TutorialScenario
     /// 数据类，经 TutorialScenarioSeeder 静默注入（教学直入口径：InitGame(deferStart) →
     /// 棋盘 → Seeder.Apply → StartGame），随后 SimpleAI(RedAggro) 以 TakeTurn 走完整回合。
-    /// 断言只认外部证据：牌去了哪个区 / 事件先后（CardPlayEvent vs AttackDeclarationEvent），
+    /// 断言只认外部证据：牌去了哪个区 / 生命读数 / 事件先后（CardPlayEvent vs AttackDeclarationEvent），
     /// 不读策略内部状态下结论。
+    /// 两张法术「只有先结算的那张付代价」的引擎级口径见 TideSim/ChainCastCheck.cs（--chain-cast）。
     /// 用法：dotnet run --project TideSim -- --tutorial-scenario
     /// </summary>
     internal static class TutorialScenarioCheck
@@ -89,7 +92,8 @@ namespace TideSim
                 return 1;
             }
 
-            Console.WriteLine("【教学场景回归】红快攻：血偿/连击准入 + 拆波（固定盘面，注入走 TutorialScenarioSeeder）");
+            Console.WriteLine("【教学场景回归】红快攻（2026-11-13 削弱版）：血偿/活体炸弹准入 + 斩杀线排序 + 拆波"
+                              + "（固定盘面，注入走 TutorialScenarioSeeder）");
             foreach (var entry in file.scenarios)
                 RunScenario(entry);
 
@@ -152,10 +156,13 @@ namespace TideSim
                     case "blood-hold-1hp":
                         // 2026-11-04 修订：手里还有别的牌时留着；别的牌打完后就是「无牌可出」→ 打脸，不打 1/1。
                         // 小怪可能被火苗的攻击换掉（正常解场），所以只认「血偿的 5 伤落在脸上」这一条硬证据
+                        // 2026-11-13 代价改版：血偿代价=消灭一个己方生物——先下场的火苗是唯一候选，
+                        // 被代价消灭（原「火苗已下场」断言随之改为打出轨迹+墓地证据）。
                         Assert(p2.Life == 25, "① 血偿 5 伤落在脸（30→25），没有浪费在 1/1 上");
                         Assert(In(core, p1, Zone.Graveyard, "血偿") != null, "① 血偿没浪费在小怪上（进了墓地=打脸）");
                         Assert(p2.Life == 25, $"① 5 伤打脸（30→25，实际 {p2.Life}）");
-                        Assert(Unit(core, p1, "火苗") != null, "① 出牌循环照常运转（火苗已下场）");
+                        Assert(_trace.Any(t => t.Kind == "play" && t.Detail == "火苗"), "① 出牌循环照常运转（火苗已打出）");
+                        Assert(In(core, p1, Zone.Graveyard, "火苗") != null, "① 火苗作为血偿代价被消灭（唯一候选，进墓地）");
                         break;
 
                     case "blood-hit-7hp":
@@ -163,20 +170,33 @@ namespace TideSim
                         Assert(Life(Unit(core, p2, "教学·8")) == 2, "② 5 伤砸在 7 血单位身上（7→2）");
                         break;
 
-                    case "combo-hold-no-carrier":
-                        Assert(In(core, p1, Zone.Hand, "追击") != null, "③ 连击没有 ≥4 攻载体：留手");
-                        var atk = Unit(core, p1, "火灵·攻");
-                        var def = Unit(core, p1, "火灵·守");
-                        Assert(atk != null && !atk.HasKeyword(KeywordRules.DoubleStrike)
-                            && (def == null || !def.HasKeyword(KeywordRules.DoubleStrike)),
-                            "③ 1/1 火灵·攻与不可攻击的火灵·守都没吃到连击");
-                        Assert(Unit(core, p1, "火苗") != null, "③ 出牌循环照常运转（火苗已下场）");
+                    case "burst-hold-one-creature":
+                        // 2026-11-13：炸弹=参照攻（门奖励已删）。只有 1 只生物时它等于「拿它换 2 点」，
+                        // 不能终结 → ShouldHold 扣住（只下火苗，炸弹留手）。
+                        Assert(In(core, p1, Zone.Hand, "活体炸弹") != null, "③ 只有 1 只生物：活体炸弹留手（还在手）");
+                        Assert(Unit(core, p1, "火苗") != null, "③ 正常出牌循环（火苗已下场）");
+                        Assert(p2.Life == 28, $"③ 炸弹没打出去（只掉了火苗的 2 点攻击，30→28，实际 {p2.Life}）");
                         break;
 
-                    case "combo-hit-4atk":
-                        Assert(In(core, p1, Zone.Graveyard, "追击") != null, "④ 连击对 4 攻载体：出手（已进墓地）");
-                        var big = Unit(core, p1, "预组·28");
-                        Assert(big != null && big.HasKeyword(KeywordRules.DoubleStrike), "④ 预组·28（4/5）获得连击");
+                    case "burst-hit-two-creatures":
+                        // 2 只生物但炸弹不能终结（2 < 30）、也没有血偿凑斩杀 → ShouldHold 扣住：
+                        // 不为 2 点伤害白送一只生物。本回合只走攻击（火苗 2 + 预组·28 4 = 6）。
+                        Assert(In(core, p1, Zone.Hand, "活体炸弹") != null, "④ 2 只生物但炸不终结：留手（还在手）");
+                        Assert(Unit(core, p1, "预组·28") != null, "④ 两只生物都没被牺牲");
+                        Assert(p2.Life == 24, $"④ 只走攻击（火苗 2 + 预组·28 4 = 6，30→24，实际 {p2.Life}）");
+                        break;
+
+                    case "burst-combo-lethal":
+                        // 场景：P2 7 命。排序=活体炸弹先（参照攻 2）→ 血偿收尾（5）= 7 斩杀。
+                        // 两张的代价各吃一只己方生物（炸弹挑预组·28、血偿吃火苗）。
+                        Assert(p2.Life <= 0, $"⑨ 本回合斩杀（P2 生命 {p2.Life}）");
+                        Assert(In(core, p1, Zone.Graveyard, "活体炸弹") != null, "⑨ 活体炸弹已结算（进墓地）");
+                        Assert(In(core, p1, Zone.Graveyard, "血偿") != null, "⑨ 血偿已结算（进墓地）");
+                        {
+                            int seqBomb = _trace.Where(t => t.Kind == "play" && t.Detail == "活体炸弹").Select(t => t.Seq).FirstOrDefault();
+                            int seqBlood = _trace.Where(t => t.Kind == "play" && t.Detail == "血偿").Select(t => t.Seq).FirstOrDefault();
+                            Assert(seqBomb > 0 && seqBlood > 0 && seqBomb < seqBlood, "⑨ 排序：活体炸弹先打、血偿收尾");
+                        }
                         break;
 
                     case "wave-split-same-atk":
@@ -197,19 +217,6 @@ namespace TideSim
                         Assert(p2.Life == 25, $"⑧ 5 伤打脸（30→25，实际 {p2.Life}）");
                         Assert(Life(Unit(core, p2, "教学·3")) == 1, "⑧ 小怪没吃伤害（仍 1 血）");
                         break;
-
-                    case "combo-at-attack":
-                    {
-                        int firstAtk = FirstSeq("attack");
-                        int playChase = _trace.Where(t => t.Kind == "play" && t.Detail == "追击").Select(t => t.Seq).FirstOrDefault();
-                        Assert(playChase > 0, "⑨ 追击出手");
-                        Assert(playChase > firstAtk, "⑨ 追击在第一次攻击宣言之后才出（主阶段留手，不是提前甩）");
-                        var carrier28 = Unit(core, p1, "预组·28");
-                        Assert(carrier28 != null && carrier28.HasKeyword(KeywordRules.DoubleStrike), "⑨ 4 攻载体吃到连击");
-                        Assert(_trace.Any(t => t.Kind == "attack" && t.Detail == "预组·28" && t.Seq > playChase),
-                            "⑨ 贴完连击后立刻跟着这一击宣言（攻击前一拍）");
-                        break;
-                    }
 
                     case "wave-split-guard":
                         Assert(_earlyCombatProbe, "⑦ 策略闸（守卫臂）：对手未横置守卫 → WantEarlyCombat=true");

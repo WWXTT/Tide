@@ -171,6 +171,23 @@ namespace SynergyUI
         public static bool TryPlayHeal(ManaType color, Vector3 at, float scale)
             => PlayOneShot(color, VfxRole.Heal, at, scale);
 
+        /// <summary>轻入场（2026-11-13 补位 L2-1）：召唤/复活/衍生物/控制权变更——单位脚下播一枚
+        /// Aura 汇聚件。缺条目/未启用/异常返回 false（调用方回落 Spark，绝不遮挡单位显现——
+        /// 本节点不参与 BattleCastArrival 的模型消融，纯叠加）。</summary>
+        public static bool TryPlaySummon(ManaType color, Vector3 at, float scale)
+            => PlayOneShot(color, VfxRole.Summon, at, scale);
+
+        /// <summary>非消灭族死亡轻爆点（2026-11-13 补位 L3-5）：Combat/Annihilated/LegendaryRule
+        /// 死因此前只有碎裂退场、零爆点；消灭族仍走 Area（勿在本节点重复）。</summary>
+        public static bool TryPlayDeath(ManaType color, Vector3 at, float scale)
+            => PlayOneShot(color, VfxRole.Death, at, scale);
+
+        /// <summary>正面赋予「罩住」件（2026-11-13 补位 L4-5）：护盾/增益类指示物与关键词赋予——
+        /// 红/绿两条 Shield 配置此前零调用点，本口即其唯一消费者；缺色（蓝/灰）返回 false，
+        /// 调用方回落 Heal（观感连续性：先有画面，后调含义）。</summary>
+        public static bool TryPlayShield(ManaType color, Vector3 at, float scale)
+            => PlayOneShot(color, VfxRole.Shield, at, scale);
+
         /// <summary>常驻实例（2026-10-26 牌库标记氛围）：查表实例化+调校，但**不占并发槽、不自动
         /// 销毁**——生命周期归调用方（BattleZoneProps 随装台建/随拆台亡；与 PlayOneShot 一次性
         /// 口径分离）。缺条目/未启用/异常返回 null（调用方降级为无常驻件，不回退一次性件）。</summary>

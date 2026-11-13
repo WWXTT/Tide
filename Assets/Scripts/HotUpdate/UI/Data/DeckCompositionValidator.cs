@@ -91,6 +91,10 @@ namespace SynergyUI
                 foreach (var err in CheckShape(card))
                     report.ShapeErrors.Add(err);
 
+                // 效果组合合法性（2026-11-13 定案）——代价/分支奖励不得并存，见 CheckEffectLegality
+                foreach (var err in CheckEffectLegality(card))
+                    report.ShapeErrors.Add(err);
+
                 // 统计=出牌费构成（含该色册数/费点合计；灰也计入）
                 if (card.Cost != null && !card.Cost.IsZero)
                 {
@@ -155,6 +159,87 @@ namespace SynergyUI
                 }
             }
             return errors;
+        }
+
+        // ======================================== 效果组合合法性（2026-11-13 硬约束） ========================================
+
+        /// <summary>效果组合合法性（2026-11-13 用户定案，卡组面硬约束）：同一效果上
+        /// ① **代价与门奖励不能并存**——带效果级代价行（CostType.Payload）的效果不得再挂分支奖励
+        ///   （有限分支 Gate/Outcome 的 then、自由分支 Engine 的 then）；与合成器「代价/有限分支/
+        ///   自由分支三选一」同一口径，此处兜住绕过合成器的手作/导入数据（先例：活体炸弹曾同时挂
+        ///   「消灭一个己方生物」代价与「本回合首卡 +2」门奖励）。
+        /// ② **自由分支与有限分支不能叠加**——同一效果不得同时挂 Engine 与 Gate/Outcome 奖励。
+        /// ③ **奖励不能再被分支强化**——奖励原子自身带 branch（then 里套 then）= 被两种分支叠加强化。
+        /// 返回人读错误串（空=合规）。</summary>
+        public static List<string> CheckEffectLegality(CardData card)
+        {
+            var errors = new List<string>();
+            if (card?.Effects == null) return errors;
+            string name = string.IsNullOrEmpty(card.CardName) ? card.ID : card.CardName;
+
+            foreach (var fx in card.Effects)
+            {
+                if (fx == null) continue;
+                string fxName = string.IsNullOrEmpty(fx.DisplayName) ? (fx.Id ?? "?") : fx.DisplayName;
+                bool hasCost = HasPayloadCost(fx);
+                bool limited = false, free = false, nested = false;
+
+                foreach (var st in fx.Steps ?? new List<EffectStepData>())
+                {
+                    if (st == null) continue;
+                    if (st.kind == 0)
+                    {
+                        ScanBranch(st.atomic?.branch, ref limited, ref free, ref nested);
+                    }
+                    else if (st.kind == 1)
+                    {
+                        // 旧步骤形态的产出条件门（then/else 奖励）
+                        if ((st.thenSteps?.Count ?? 0) > 0 || (st.elseSteps?.Count ?? 0) > 0)
+                        {
+                            limited = true;
+                            if (HasBranchAtom(st.thenSteps) || HasBranchAtom(st.elseSteps)) nested = true;
+                        }
+                    }
+                }
+                foreach (var atom in fx.AtomicEffects ?? new List<AtomicEffectEntry>())
+                    if (atom != null) ScanBranch(atom.branch, ref limited, ref free, ref nested);
+
+                if (hasCost && (limited || free))
+                    errors.Add($"{name}：效果「{fxName}」同时挂了代价与分支奖励"
+                               + "（代价和门奖励不能并存——代价/有限分支/自由分支三选一）");
+                if (limited && free)
+                    errors.Add($"{name}：效果「{fxName}」同时挂了有限分支与自由分支奖励（自由分支和有限分支不能叠加）");
+                if (nested)
+                    errors.Add($"{name}：效果「{fxName}」的分支奖励里再嵌分支（不能被两种分支叠加强化）");
+            }
+            return errors;
+        }
+
+        /// <summary>效果级代价行里是否有实际原子（Payload 只执行不发放；空行不算代价）。</summary>
+        private static bool HasPayloadCost(CardEffectData fx)
+        {
+            if (fx?.Costs == null) return false;
+            foreach (var c in fx.Costs)
+                if (c != null && c.CostType == (int)CostType.Payload && c.AllPayloads().Count > 0) return true;
+            return false;
+        }
+
+        /// <summary>扫一条槽级分支载荷：settle=1/2 → 有限分支（Gate/Outcome），settle=3 → 自由分支（Engine）；
+        /// 奖励原子自带 branch → 嵌套强化。</summary>
+        private static void ScanBranch(BranchEntryData b, ref bool limited, ref bool free, ref bool nested)
+        {
+            if (BranchEntryRules.IsPhantom(b)) return; // 幽灵分支（settle=0）不算
+            if (b.settle == (int)BranchSettleKind.Engine) free = true;
+            else limited = true; // Gate / Outcome
+            if (HasBranchAtom(b.then)) nested = true; // 奖励原子自身带分支=叠加强化
+        }
+
+        private static bool HasBranchAtom(List<AtomicEffectEntry> atoms)
+        {
+            if (atoms == null) return false;
+            foreach (var a in atoms)
+                if (a != null && !BranchEntryRules.IsPhantom(a.branch)) return true;
+            return false;
         }
 
         // ======================================== 黑白代价覆盖（2026-10-26 硬约束） ========================================

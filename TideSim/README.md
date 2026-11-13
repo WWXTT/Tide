@@ -49,6 +49,15 @@ dotnet run --project TideSim -- --games 50 --matchup red-blue --seed 20261104
 - `--detail`：逐回合/逐出牌/技能/结果日志
 - `--quiet`：只打汇总
 
+回归入口（不跑对局）：
+
+```powershell
+dotnet run --project TideSim -- --scenario          # 红快攻策略闸（血偿/活体炸弹准入 + 拆波）
+dotnet run --project TideSim -- --tutorial-scenario # 固定盘面（红快攻9场景 + 蓝充盈 + 自由分支）
+dotnet run --project TideSim -- --chain-cast        # 连锁直伤：两张法术各付一次代价（1 生物时第二张效果无效）+ 参照快照
+dotnet run --project TideSim -- --deck-rule         # 卡组校验：代价×门奖励互斥（含改版前活体炸弹负例）
+```
+
 ## 预检（跑批量前自动执行）
 
 - 三套预组可读、卡表 ID 全部解析

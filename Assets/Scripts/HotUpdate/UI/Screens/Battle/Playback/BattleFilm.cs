@@ -70,7 +70,8 @@ namespace SynergyUI
 
     // ==== 演出指令数据化（2026-11-11 S2·方案 §2.2：闭包→数据，可录制可跨端回放） ====
 
-    /// <summary>演出指令种类（与投影器各演出钩子一一对应；DrawFlyIn v1 未录制=已知限制，视图对账覆盖）。</summary>
+    /// <summary>演出指令种类（与投影器各演出钩子一一对应；2026-11-13 阶段1 起全 Kind 均可录制
+    ///——轮外 op（DrawFlyIn/PhaseAnnounce/Fatigue 等）经方案 A 挂下一结算步/End 帧）。</summary>
     public enum BattleFxKind
     {
         Damage,        // 效果伤害（AtomicDamageEvent·非战斗）
@@ -88,7 +89,10 @@ namespace SynergyUI
         Clash,         // 拼点结果浮字
         LuckRoll,      // 运势掷骰浮字
         PhaseAnnounce, // 阶段播报（HUD 阶段格）
-        DrawFlyIn,     // 抽卡飞入（v1 未录制——轮外事件，视图对账覆盖；已知限制）
+        DrawFlyIn,     // 抽卡飞入（卡堆脉冲+扇区起点武装——轮外自然抽/轮内效果抽都录；PreOps 先于 View 建 新卡）
+        LandPulse,     // 放地入池短闪（L2-2·2026-11-13 阶段4）：对应元素地格顶面一枚小 Hit 件（Tint=锁定色）
+        Depart,        // 离场微拖尾（L2-2）：弃牌/牌库弃置/除外——起点（战场格/牌堆顶）→对应漩涡一枚灰 Orb（Reason 0=墓地 1=除外；战场→墓归死亡链不播）
+        ValueFloat,    // 值浮字统一入口（2026-11-13 战场数值 P2·§4.3）：Text=拼好的短标签（含符号），Amount=差值，Polarity=+1 增益/-1 减益/0 中性；不占视觉门
     }
 
     /// <summary>视图空间引用（不持有引擎对象）：单位=Rid（0=无效）；角色=IsPlayer+Seat。
@@ -138,23 +142,30 @@ namespace SynergyUI
         public int Seat = -1;                 // 疲劳/抽牌/阶段播报归属
         public string Text;                   // counterType / 备注文案
         public Dictionary<int, float> Paid;   // 入场/扣费粒子实付账单（色→量；可空）
+        public bool OutOfBand;                // 轮外捕获标记（2026-11-13 阶段1·方案A）：该 op 录制时已在
+        public int Polarity;                 // 值浮字极性（ValueFloat 专用·2026-11-13 P2）：+1=增益绿/-1=减益红/0=中性灰（Text/Amount 由生产侧拼好）
+                                              // live 即时演出——LiveData 帧回放跳过防双播；回放/联机剧本正常执行
 
         /// <summary>演出色（捕获时写入 Tint 的 ManaType 还原；-1=null 无基准）。</summary>
         public ManaType? TintOf => Tint >= 0 ? (ManaType?)Tint : null;
     }
 
     /// <summary>攻击步战斗演出载荷（方案 §2.2 CombatShot）：编舞器攻击步捕获时写入帧（本地实时），
-    /// 回放按 shot 播「攻击者飞向目标→命中/受击→伤害浮字→死亡退场」；守卫闪现/反击/溅射的
-    /// 精细走位 v1 不还原（已知差异——战报行照常）。</summary>
+    /// 回放按 shot 播「攻击者飞向目标→命中/受击→伤害浮字→死亡退场」；2026-11-13 阶段3 起还原
+    /// 守卫闪现赴挡（Blocker+Original 格）、反击/溅射受击退让、英雄攻方立柱脉冲、致死特写。</summary>
     public sealed class CombatShot
     {
-        public FxRef Attacker, Target, Blocker;   // Blocker=守卫拦截者（可空——v1 只记不改演）
+        public FxRef Attacker, Target, Blocker;   // Blocker=守卫拦截者（拦截时=Target 同人；旧剧本 null=未拦截）
         public int TargetX, TargetZ;              // 攻击临格参照（目标格）
+        /// <summary>原攻击目标格（守卫挡位参照——L3-1）：拦截发生时的最初目标格，守卫现身挡在其
+        /// 向攻击侧偏移 GuardCoverOffset 处；-1=无拦截（旧剧本缺字段同 -1 容错）。</summary>
+        public int OriginalX = -1, OriginalZ = -1;
         public List<CombatHit> Hits = new();      // 逐笔命中（含反击）
     }
 
-    /// <summary>单笔战斗命中：Target/Amount 必有；Lethal v1 恒 false（死亡归 Death 指令/视图）；
-    /// IsCounter=该笔是守方反击（Attacker==原目标）。</summary>
+    /// <summary>单笔战斗命中：Target/Amount 必有；Lethal=捕获时按受击者剩余生命判定（致死笔
+    /// 回放加强爆+大字，2026-11-13 L3-4；旧剧本缺字段=false 容错）；IsCounter=该笔是守方反击
+    ///（Attacker==原目标）。</summary>
     public sealed class CombatHit
     {
         public FxRef Target;

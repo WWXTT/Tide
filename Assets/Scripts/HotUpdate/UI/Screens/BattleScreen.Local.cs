@@ -495,14 +495,16 @@ namespace SynergyUI
             }
         }
 
-        /// <summary>抽卡飞入武装（2026-10-17 抽卡演出）：抽牌对账前把卡堆顶世界坐标注入对应
-        /// 手牌扇（新卡从卡堆弧线飞入扇位）+ 卡堆 XZ 脉冲。起手抽牌（_fanFlyArmed=false）与
-        /// 教学介绍段（SuppressHandFan——防起点滞留到解除后的对账误飞）不注入；卡堆/相机/
-        /// 坐标转换任一失败静默=新建卡维持原吸附行为。</summary>
-        private void ArmDrawFlyIn(Player player)
+        /// <summary>抽卡飞入武装（座位版·2026-11-13 阶段1 起 DrawFlyIn op 执行口，live/回放单源）：
+        /// 把卡堆顶世界坐标注入对应手牌扇（新卡从卡堆弧线飞入扇位）+ 卡堆 XZ 脉冲。
+        /// live 沿用旧闸——起手抽牌（_fanFlyArmed=false）与教学介绍段（SuppressHandFan——防起点
+        /// 滞留到解除后的对账误飞）不注入；回放恒武装（剧本 IsDraw 已是定案，无引擎态可查）。
+        /// 卡堆/相机/坐标转换任一失败静默=新建卡维持原吸附行为。</summary>
+        private void ArmDrawFlyInSeat(int owner)
         {
-            if (!_fanFlyArmed || BattleRevealDirector.SuppressHandFan) return;
-            int owner = player == P2 ? 1 : 0;
+            if (BattleRevealDirector.SuppressHandFan) return;
+            bool replay = _director != null && _director.IsReplay;
+            if (!replay && !_fanFlyArmed) return;
             var fan = owner == 0 ? _selfFan : _oppFan;
             if (fan == null) return;
             var cam = BattleStageDirector.WorldCam;

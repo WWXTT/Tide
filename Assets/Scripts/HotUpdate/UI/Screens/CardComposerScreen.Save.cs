@@ -376,6 +376,21 @@ namespace SynergyUI
             bool replacing = !_editingPresetSource // 预设卡恒另存（源档=教学数据，覆盖替换概念不适用）
                              && !string.IsNullOrEmpty(_editingOriginalId) && _editingOriginalId != savedId;
 
+            // 功能内容查重闸（2026-11-13 用户定案：牌库不允许保存一模一样的卡）：名称不参与功能身份
+            //（ContentHasher 类注释同口径——名字不同但功能相同=重复），SealCard 跳过 NM 段全库比对；
+            // 命中异 id 同封印（只有名字不同的另一张卡）→ 拒存。自身（savedId）与被替换旧卡不比对。
+            string seal = ContentHasher.SealCard(_card);
+            foreach (var other in CardCatalog.LoadAll())
+            {
+                if (other == null || other.ID == savedId || other.ID == _editingOriginalId) continue;
+                if (ContentHasher.SealCard(other) == seal)
+                {
+                    ShowToast($"已存在功能完全相同的卡「{other.CardName}」（{other.ID}）——"
+                              + "只有名称不同不算新卡，修改内容或删除旧卡后再保存");
+                    return;
+                }
+            }
+
             // 覆盖替换前置检查（2026-09-24 定案）：旧卡被卡组引用则拦截（删除会使卡组引用悬空）
             if (replacing)
             {

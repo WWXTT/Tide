@@ -52,7 +52,29 @@ namespace SynergyUI
         public static string HashCard(CardData card)
         {
             var sb = new StringBuilder();
-            sb.Append("NM:").Append(card.CardName ?? "").Append('|');
+            AppendCard(sb, card, includeName: true);
+            return MurmurHash3.Hash32(sb.ToString()).ToString("X8");
+        }
+
+        /// <summary>卡牌行为封印（2026-11-13 牌库查重）：与 HashCard 同一组合，两处差异——
+        /// ①**跳过 NM（CardName）段**：名称不参与功能身份（类注释口径：名字不同但功能相同 = 重复）；
+        /// ②**补 AB 段（攻/守/充能资格三件套）**：功能字段但 HashCard 历史未含（ID 冻结不改口径），
+        /// 只差攻/守资格的同身材卡不是「一模一样」（火灵·攻/守实测同封印的误报源）。
+        /// HashCard 口径零改动（卡 id / 存量身份不漂移）。消费口：卡组合保存查重闸。</summary>
+        public static string SealCard(CardData card)
+        {
+            var sb = new StringBuilder();
+            AppendCard(sb, card, includeName: false);
+            sb.Append("AB:").Append(card.AttackAbility ? 1 : 0).Append(',')
+              .Append(card.GuardAbility ? 1 : 0).Append(',')
+              .Append(card.ChargeAbility ? 1 : 0).Append('|');
+            return MurmurHash3.Hash32(sb.ToString()).ToString("X8");
+        }
+
+        private static void AppendCard(StringBuilder sb, CardData card, bool includeName)
+        {
+            if (includeName)
+                sb.Append("NM:").Append(card.CardName ?? "").Append('|');
             sb.Append("ST:").Append((int)card.Supertype).Append('|');
             sb.Append("P:").Append(card.Power ?? 0).Append('|');
             sb.Append("L:").Append(card.Life ?? 0).Append('|');
@@ -98,8 +120,6 @@ namespace SynergyUI
                     sb.Append(HashEffectOf(fx)).Append(';');
                 }
             }
-
-            return MurmurHash3.Hash32(sb.ToString()).ToString("X8");
         }
 
         /// <summary>效果行为封印（G2 内容包容器 2026-11-08）：与 HashEffect 同一组合，

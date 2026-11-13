@@ -803,6 +803,7 @@ namespace CardCore.Attribute
             if (card == null || card._counters.Count == 0) return;
 
             var removed = new List<string>();
+            var removedLayers = new List<int>();
             foreach (var kv in card._counters)
             {
                 if (kv.Key == OverloadCounter)
@@ -816,6 +817,7 @@ namespace CardCore.Attribute
                     continue; // 生效自减类跨区存活
                 RevertStat(card, kv.Key, spec.StatKind);
                 removed.Add(kv.Key);
+                removedLayers.Add(kv.Value);
             }
 
             if (removed.Count == 0) return;
@@ -824,6 +826,20 @@ namespace CardCore.Attribute
             // ClearAll（换区）/PurgeAll（净化）两口统一在此驱动；先还原再发计数事件
             if (removed.Contains(MorphStateCounter))
                 MorphSystem.RestoreIfMorphed(card);
+
+            // 净化逐类播报（2026-11-13 A1）：purgeAll=净化口径逐类发 CounterChangedEvent（Amount=负层数）
+            //——此前只发 "*"（渲染空行），一次清空多个数值零播报（G1）；换区清（purgeAll=false）不发
+            //（离场行已表达，3.5 豁免规则 2）。"*" 仍发——HUD 复位靠它。
+            if (purgeAll)
+                for (int i = 0; i < removed.Count; i++)
+                    EventManager.Instance.Publish(new CounterChangedEvent
+                    {
+                        Target = card,
+                        CounterType = removed[i],
+                        Amount = -Math.Abs(removedLayers[i]),
+                        Source = null,
+                        AfterNote = "净化",
+                    });
 
             foreach (var id in removed)
             {
@@ -847,7 +863,17 @@ namespace CardCore.Attribute
             if (entity is Card card) ClearCounters(card, purgeAll: true);
             else if (entity != null)
             {
-                // Player：无属性回写，直接清计数（毒素/护甲可指向玩家）
+                // Player：无属性回写，直接清计数（毒素/护甲可指向玩家）；
+                // 净化逐类播报（2026-11-13 A1，与 Card 口径一致）——"*" 仍发供 HUD 复位。
+                foreach (var kv in entity._counters)
+                    EventManager.Instance.Publish(new CounterChangedEvent
+                    {
+                        Target = entity,
+                        CounterType = kv.Key,
+                        Amount = -Math.Abs(kv.Value),
+                        Source = null,
+                        AfterNote = "净化",
+                    });
                 entity._counters.Clear();
                 EventManager.Instance.Publish(new CounterChangedEvent
                 {

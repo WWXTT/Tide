@@ -45,10 +45,8 @@ namespace CardCore.Attribute.Handlers
 
             if (context.Controller != null && drained > 0)
             {
-                int lifeBefore = context.Controller.GetLife();
+                // HealEvent 已收口 Entity.Heal 单点发布（2026-11-13 A4：实际回血量口径）
                 context.Controller.Heal(drained);
-                int overfill = System.Math.Max(0, drained - (context.Controller.GetLife() - lifeBefore));
-                PublishEvent(new HealEvent { Target = context.Controller, Amount = drained, Overfill = overfill, Source = context.Source });
             }
         }
 

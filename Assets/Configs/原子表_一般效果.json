@@ -291,10 +291,10 @@
   },
   {
     "ID": "70150d27",
-    "TextHash": "70150d27",
-    "Domain": "双方战场:结界; 双方元素池:卡",
+    "TextHash": "dd4b2698",
+    "Domain": "双方战场:结界",
     "EnumName": "摧毁",
-    "DisplayName": "摧毁{target}（仅地牌/结界）",
+    "DisplayName": "摧毁{target}（仅结界）",
     "EffectType": "Smash",
     "TargetFilter": null,
     "Polarity": -1,

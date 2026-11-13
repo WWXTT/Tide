@@ -287,6 +287,18 @@ namespace CardCore.Damage
             var result = _pipeline.Resolve(ev.Request, ev.Generation);
             if (ev.Keyword == FollowUpEvent.RootKeyword)
                 ctx.RootResult = result;
+            // 反噬伤害补 AtomicDamageEvent（2026-11-13 A3）：链上荆棘/报复此前只发管线观测
+            // DamageEvent（无渲染分支）——战报/浮字/联机对这次伤害零感知（G3）。按实际落定值发布。
+            else if (result.Dealt > 0 && !result.Fizzled
+                     && ev.Request != null
+                     && (ev.Keyword == KeywordRules.Retaliate || ev.Keyword == CounterRules.RetaliationCounter))
+                EventManager.Instance.Publish(new AtomicDamageEvent
+                {
+                    Source = ev.Request.Source,
+                    Target = ev.Request.Target,
+                    Damage = result.Dealt,
+                    IsCombatDamage = false,
+                });
 
             // 2. 后效：事件、吸血、荆棘/报复入队……（规则各自门禁；不许递归 ApplyDamage）
             if (!result.Fizzled)

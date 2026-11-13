@@ -30,7 +30,8 @@ namespace CardCore.Attribute.Handlers
                     Target = target,
                     Damage = dmg,
                     IsCombatDamage = false,
-                    EffectTint = effect.AnchorTint()
+                    EffectTint = effect.AnchorTint(),
+                    IsArea = context.Targets.Count > 1, // 范围伤害（2026-11-13 战场美术 L4-4）：同批多目标——表现层 AOE 走 Area 大件
                 });
             }
         }
@@ -247,16 +248,9 @@ namespace CardCore.Attribute.Handlers
                 // 2026-09-13 数值随机定案：每目标独立掷（掷值在修饰链前；幅度 0 恒名义值）
                 int amount = context.GetValueAfterModifiers(effect.GetRolledValue());
                 int lifeBefore = target.GetLife();
-                target.Heal(amount);
-                int overfill = System.Math.Max(0, amount - (target.GetLife() - lifeBefore)); // 超上限截断部分
+                target.Heal(amount, effect.AnchorTint()); // 回复吃效果色（2026-11-13 战场美术 L4-1）
                 context.LastOutcome.RecordHeal(target, lifeBefore, amount);
-                PublishEvent(new HealEvent
-                {
-                    Target = target,
-                    Amount = amount,
-                    Overfill = overfill,
-                    Source = context.Source
-                });
+                // HealEvent 已收口 Entity.Heal 单点发布（2026-11-13 A4：实际回血量口径，防同次回复双行）
             }
         }
 

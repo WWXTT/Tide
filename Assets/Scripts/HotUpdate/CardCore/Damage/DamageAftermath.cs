@@ -187,8 +187,19 @@ namespace CardCore.Damage
             }
             if (r.Source.HasKeyword(KeywordRules.Lifelink) && r.Source.GetController() is Player owner && CardEffectBudget.KeywordAllowed(r.Source))
             {
+                int ownerLifeBefore = owner.Life;
                 owner.Life += r.Dealt;
                 CardEffectBudget.CommitKeyword(r.Source);
+                // 系命补 LifeChangeEvent（2026-11-13 A5，与 Legacy 同口径）
+                if (owner.Life != ownerLifeBefore)
+                    EventManager.Instance.Publish(new LifeChangeEvent
+                    {
+                        Player = owner,
+                        OldLife = ownerLifeBefore,
+                        NewLife = owner.Life,
+                        Source = r.Source,
+                        Cause = LifeChangeCause.Lifelink,
+                    });
                 EventManager.Instance.Publish(new KeywordAppliedEvent
                 {
                     Target = owner,
@@ -221,7 +232,16 @@ namespace CardCore.Damage
             if (layers <= 0) return;
 
             int halved = layers / 2;
-            r.FinalTarget.AddCounters(CounterRules.RetaliationCounter, -(layers - halved));
+            int thornUsed = r.FinalTarget.AddCounters(CounterRules.RetaliationCounter, -(layers - halved));
+            // 荆棘层变化补 CounterChangedEvent（2026-11-13 A2，与 Legacy 同口径）
+            if (thornUsed != 0)
+                EventManager.Instance.Publish(new CounterChangedEvent
+                {
+                    Target = r.FinalTarget,
+                    CounterType = CounterRules.RetaliationCounter,
+                    Amount = thornUsed,
+                    AfterNote = $"反噬生效；余 {halved} 层",
+                });
             EventManager.Instance.Publish(new KeywordAppliedEvent
             {
                 Target = r.FinalTarget,
