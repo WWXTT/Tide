@@ -440,7 +440,7 @@ namespace CardCore
         /// ClashResolvedEvent，死亡计数只读不清，团结读注入邻接数）→ 达标发放 Then 奖励
         ///（组合目标逐个适用，无组合目标回落奖励弹选），未达标落空播报。
         /// 附加诅咒·祝福=施放时已部署（OnCardCastResolved），手动发动为提示性空转（不重复部署）。
-        /// 不走每卡每回合引擎发射账——主动发动受横置/次数档自理（运势主动同口径）。</summary>
+        /// 不走引擎发射账——主动发动受横置/次数档自理（运势主动同口径）。</summary>
         private static async UniTask ApplyActiveEngineTrunkAsync(BranchPayload payload, BranchEngineKind kind,
             EffectExecutionContext context, List<string> fragments)
         {

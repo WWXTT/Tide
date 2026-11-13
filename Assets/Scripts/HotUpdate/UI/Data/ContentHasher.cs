@@ -56,15 +56,19 @@ namespace SynergyUI
             return MurmurHash3.Hash32(sb.ToString()).ToString("X8");
         }
 
-        /// <summary>卡牌行为封印（2026-11-13 牌库查重）：与 HashCard 同一组合，两处差异——
+        /// <summary>卡牌行为封印（2026-11-13 牌库查重）：与 HashCard 同一组合，差异——
         /// ①**跳过 NM（CardName）段**：名称不参与功能身份（类注释口径：名字不同但功能相同 = 重复）；
         /// ②**补 AB 段（攻/守/充能资格三件套）**：功能字段但 HashCard 历史未含（ID 冻结不改口径），
-        /// 只差攻/守资格的同身材卡不是「一模一样」（火灵·攻/守实测同封印的误报源）。
-        /// HashCard 口径零改动（卡 id / 存量身份不漂移）。消费口：卡组合保存查重闸。</summary>
+        /// 只差攻/守资格的同身材卡不是「一模一样」（火灵·攻/守实测同封印的误报源）；
+        /// ③**补 D（结界耐久）/SPD（法术提速）段**：同样是功能字段且 HashCard 未含——耐久 2/4 的
+        /// 两张碑不是同一张卡（2026-11-13 全库清重复时补：否则会把「同效果不同耐久」误判成重复）。
+        /// HashCard 口径零改动（卡 id / 存量身份不漂移）；SealCard 不落盘，仅查重比对用。</summary>
         public static string SealCard(CardData card)
         {
             var sb = new StringBuilder();
             AppendCard(sb, card, includeName: false);
+            sb.Append("D:").Append(card.Durability).Append('|');
+            sb.Append("SPD:").Append(card.SpeedBonus).Append('|');
             sb.Append("AB:").Append(card.AttackAbility ? 1 : 0).Append(',')
               .Append(card.GuardAbility ? 1 : 0).Append(',')
               .Append(card.ChargeAbility ? 1 : 0).Append('|');

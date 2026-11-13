@@ -110,7 +110,7 @@ namespace TideSim
             {
                 "C_138CE290", "C_138CE290", "C_138CE290", "C_138CE290", "C_138CE290", "C_138CE290",
                 "C_57BA44EC", "C_57BA44EC", "C_5F93DCDD", "C_5F93DCDD",
-                "C_5705F9FE", "C_5705F9FE", "C_E105FABA", "C_E105FABA", "C_5BB0FCD6", "C_5BB0FCD6",
+                "C_5705F9FE", "C_5705F9FE", "C_E105FABA", "C_E105FABA", "C_138CE290", "C_138CE290",
             };
             var list = new List<CardData>();
             foreach (var id in ids)

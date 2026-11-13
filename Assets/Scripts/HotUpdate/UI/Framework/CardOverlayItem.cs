@@ -154,13 +154,37 @@ namespace SynergyUI
             if (d.Keywords != null && d.Keywords.Count > 0)
                 it.KeywordChips = d.Keywords.Where(k => !string.IsNullOrEmpty(k)).Select(KeywordZh).ToList();
 
-            // effect / passives 拆分：主动=首个 TriggerTiming∈{Activate_Active, Activate_Instant}
-            //（挂载顺序决定谁上 effect 区——合成端 ↑↓ 排序的控制点），其余归被动
+            // effect / passives 拆分（2026-11-13 多主动预览对齐手牌口径）：主动=TriggerTiming∈
+            // {Activate_Active, Activate_Instant}；**法术可施放主动 ≥2 时不再「首个上 effect 区、
+            // 其余混进自动效果」**——按 GetCastableEffects 序逐效果成行（ActiveEffectLines，ACardView
+            // 克隆 effect 行渲染，与 FromHand 同口径；行序=引擎 modeIndex 严格对位），这些效果不再
+            // 并入 ActiveEffectText/PassiveLines。单主动卡与生物/结界的自动效果仍走原拆分。
+            var castable = d.Supertype == Cardtype.Spell ? CostDerivationService.GetCastableEffects(d) : null;
+            var rowSet = castable != null && castable.Count >= 2 ? new HashSet<CardEffectData>(castable) : null;
+            if (rowSet != null)
+            {
+                it.ActiveEffectLines = new List<string>();
+                it.ActiveEffectLabels = new List<string>();
+                it.ActiveEffectCosts = new List<ElementCost>();
+                it.ActiveEffectPayloadCosts = new List<ElementCost>();
+                for (int i = 0; i < castable.Count; i++)
+                {
+                    var fx = castable[i];
+                    var text = AtomText.RenderEffectSummary(new EffectGraphData(fx.DisplayName) { header = fx, steps = fx.Steps }, d);
+                    it.ActiveEffectLabels.Add(SpellEffectLabel(fx, i));
+                    it.ActiveEffectLines.Add(text ?? "");
+                    // 费用组=净费（无代价=模式费）；2026-11-09 逐色进位：卡侧费=引擎实扣整数
+                    it.ActiveEffectCosts.Add(ElementPaymentValidator.CeilBill(
+                        CardComposerScreen.ActiveEffectNetCost(fx)
+                        ?? CardCostService.GetRuntimeCost(d, i)));
+                    it.ActiveEffectPayloadCosts.Add(CardComposerScreen.EffectPayloadCostOf(fx));
+                }
+            }
             if (d.Effects != null)
             {
                 foreach (var fx in d.Effects)
                 {
-                    if (fx == null) continue;
+                    if (fx == null || rowSet != null && rowSet.Contains(fx)) continue;
                     var timing = (TriggerTiming)fx.TriggerTiming;
                     var isActive = timing == TriggerTiming.Activate_Active || timing == TriggerTiming.Activate_Instant;
                     var text = AtomText.RenderEffectSummary(new EffectGraphData(fx.DisplayName) { header = fx, steps = fx.Steps }, d);

@@ -349,27 +349,27 @@
             },
             {
               "type": "play",
-              "card": "C_94DA8F61"
+              "card": "C_DA499FAE"
             },
             {
               "type": "play",
-              "card": "C_94DA8F61#2"
+              "card": "C_DA499FAE#2"
             },
             {
               "type": "play",
-              "card": "C_94DA8F61#3"
+              "card": "C_DA499FAE#3"
             },
             {
               "type": "play",
-              "card": "C_94DA8F61#4"
+              "card": "C_DA499FAE#4"
             },
             {
               "type": "play",
-              "card": "C_94DA8F61#5"
+              "card": "C_DA499FAE#5"
             },
             {
               "type": "play",
-              "card": "C_94DA8F61#6"
+              "card": "C_DA499FAE#6"
             }
           ]
         },
@@ -702,12 +702,12 @@
             "lands": [],
             "units": [],
             "hand": [
-              "C_94DA8F61",
-              "C_94DA8F61",
-              "C_94DA8F61",
-              "C_94DA8F61",
-              "C_94DA8F61",
-              "C_94DA8F61"
+              "C_DA499FAE",
+              "C_DA499FAE",
+              "C_DA499FAE",
+              "C_DA499FAE",
+              "C_DA499FAE",
+              "C_DA499FAE"
             ],
             "deck": [
               "C_C635DB5D",
@@ -1000,7 +1000,7 @@
               "C_1F9D64E0",
               "C_D824053B",
               "C_D78B3E37",
-              "C_0E5F4B96"
+              "C_DA499FAE"
             ],
             "deck": [
               "C_CA42AAF8",

@@ -671,7 +671,7 @@ namespace CardCore
         // 全部原子共享同一份选中目标；null=未声明→回落原子域交集推导（存量兼容）。
         public List<int> TargetKinds;
         // 历史字段·无运行时/计价消费方（2026-10-30 定案：效果不再有每回合生效次数上限）。
-        // 保留只为存档/内容哈希稳定；自由分支引擎奖励的每卡每回合 1 次由 BranchEngines 自限。
+        // 保留只为存档/内容哈希稳定；2026-11-13 起引擎奖励也无每回合次数上限（频率由耐久/挂载价付费）。
         public int TriggerLimitPerTurn;
         // 动态分支引擎头字段（EngineKind/EngineParam）已随 2026-10-05 两槽定案载荷化退役——
         // 引擎条件挂槽级原子 branch 载荷（BranchEntryData.engine/engineParam）。

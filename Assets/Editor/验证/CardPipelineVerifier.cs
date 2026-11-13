@@ -126,6 +126,11 @@ namespace CardCore.Editor
             Crumb($"cards loaded={cardsData.Count} (catalog={catalogCount}, fixtures={cardsData.Count - catalogCount})");
             Debug.Log($"[Verify] 加载卡牌数据 {cardsData.Count} 张（正式池 {catalogCount} + 夹具 {cardsData.Count - catalogCount}）");
 
+            // 牌库查重（2026-11-13 用户定案）：与卡组合保存闸同一判定，不依赖对局，先跑——
+            // 数据回归（如预组又混进「只有名字不同」的第二张卡）在开打前就点名。
+            Crumb("→TestCardLibraryDedupe");
+            TestCardLibraryDedupe(cardsData.Take(catalogCount).ToList());
+
             var core = GameCore.Instance;
             // 构筑规则（2026-10-11 定案：30-60 张、卡可重复）：夹具组卡仍各取一册（便于断言口径）。
             var deckData = new List<CardData>();

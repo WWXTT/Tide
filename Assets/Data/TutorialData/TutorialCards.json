@@ -1,4 +1,4 @@
-﻿{
+{
   "cards": [
     {
       "id": "C_DA499FAE",
@@ -34,7 +34,8 @@
         1.0
       ],
       "tags": [
-        "教学"
+        "教学",
+        "训练池"
       ],
       "hash": "1BD7389C"
     },
@@ -53,7 +54,8 @@
         1.0
       ],
       "tags": [
-        "教学"
+        "教学",
+        "训练池"
       ],
       "hash": "C279F399"
     },
@@ -865,26 +867,6 @@
       "hash": "10712B01"
     },
     {
-      "id": "C_94DA8F61",
-      "cardName": "教学·34",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "guardAbility": true,
-      "illustration": "Kojikocy",
-      "power": 1,
-      "life": 1,
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "教学"
-      ],
-      "hash": "94DA8F61"
-    },
-    {
       "id": "C_95187C1C",
       "cardName": "教学·11",
       "supertype": "Spell",
@@ -1023,26 +1005,6 @@
       "hash": "6E58021B"
     },
     {
-      "id": "C_0E5F4B96",
-      "cardName": "教学·4",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "guardAbility": true,
-      "illustration": "Kojikocy",
-      "power": 1,
-      "life": 1,
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "教学"
-      ],
-      "hash": "0E5F4B96"
-    },
-    {
       "id": "C_11B82155",
       "cardName": "教学·35",
       "supertype": "Creature",
@@ -1067,32 +1029,6 @@
         "4E21BFCF"
       ],
       "hash": "F751C8E2"
-    },
-    {
-      "id": "C_9D044165",
-      "cardName": "试作·元素井",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "guardAbility": true,
-      "illustration": "Morinphen",
-      "power": 1,
-      "life": 1,
-      "costList": [
-        0.0,
-        2.0,
-        4.0,
-        1.0
-      ],
-      "keywords": [
-        "Vigilance"
-      ],
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "4E21BFCF"
-      ],
-      "hash": "55545CF7"
     },
     {
       "id": "C_6A87E23A",
@@ -1180,7 +1116,8 @@
       "supertype": "Spell",
       "tags": [
         "ThemeBlueSurplus",
-        "教学"
+        "教学",
+        "训练池"
       ],
       "effectIds": [
         "37833543"
@@ -2120,9 +2057,10 @@
         "教学"
       ],
       "effectIds": [
-        "6AAD18EB"
+        "6AAD18EB",
+        "C2F5F7ED"
       ],
-      "hash": "8A2A1F78"
+      "hash": "4F506A01"
     },
     {
       "id": "C_57BA44EC",
@@ -2187,26 +2125,6 @@
         0.0
       ],
       "hash": "138CE290"
-    },
-    {
-      "id": "C_5BB0FCD6",
-      "cardName": "余烬",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "tags": [
-        "ThemeRedClash",
-        "教学"
-      ],
-      "effectIds": [],
-      "power": 2,
-      "life": 2,
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "hash": "5BB0FCD6"
     },
     {
       "id": "C_E105FABA",
@@ -2325,27 +2243,6 @@
       "hash": "8E45017F"
     },
     {
-      "id": "C_271AA1F8",
-      "cardName": "教学·先攻乙",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "power": 4,
-      "life": 2,
-      "costList": [
-        0.0,
-        3.0,
-        0.0,
-        0.0
-      ],
-      "keywords": [
-        "FirstStrike"
-      ],
-      "tags": [
-        "教学"
-      ],
-      "hash": "271AA1F8"
-    },
-    {
       "id": "C_732BCF71",
       "cardName": "教学·连击甲",
       "supertype": "Creature",
@@ -2367,27 +2264,6 @@
       "hash": "732BCF71"
     },
     {
-      "id": "C_082B62DB",
-      "cardName": "教学·连击乙",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "power": 4,
-      "life": 2,
-      "costList": [
-        0.0,
-        7.0,
-        0.0,
-        0.0
-      ],
-      "keywords": [
-        "DoubleStrike"
-      ],
-      "tags": [
-        "教学"
-      ],
-      "hash": "082B62DB"
-    },
-    {
       "id": "C_FC5BC585",
       "cardName": "教学·白板2/4甲",
       "supertype": "Creature",
@@ -2406,24 +2282,6 @@
       "hash": "FC5BC585"
     },
     {
-      "id": "C_6DBC9CDC",
-      "cardName": "教学·白板2/4乙",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "power": 2,
-      "life": 4,
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "tags": [
-        "教学"
-      ],
-      "hash": "6DBC9CDC"
-    },
-    {
       "id": "C_036D0A6A",
       "cardName": "教学·白板2/8甲",
       "supertype": "Creature",
@@ -2440,24 +2298,6 @@
         "教学"
       ],
       "hash": "036D0A6A"
-    },
-    {
-      "id": "C_2C6CAC92",
-      "cardName": "教学·白板2/8乙",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "power": 2,
-      "life": 8,
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        3.0
-      ],
-      "tags": [
-        "教学"
-      ],
-      "hash": "2C6CAC92"
     },
     {
       "id": "C_3AFBFB85",
@@ -2520,24 +2360,6 @@
       "hash": "0FDF4A1D"
     },
     {
-      "id": "C_FF042960",
-      "cardName": "教学·白板2/6乙",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "power": 2,
-      "life": 6,
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        2.0
-      ],
-      "tags": [
-        "教学"
-      ],
-      "hash": "FF042960"
-    },
-    {
       "id": "C_9914CF8A",
       "cardName": "教学·结界",
       "supertype": "Enchantment",
@@ -2552,60 +2374,6 @@
         0.0
       ],
       "hash": "9914CF8A"
-    },
-    {
-      "id": "C_AC584F8A",
-      "cardName": "教学·白板2/2甲",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "power": 2,
-      "life": 2,
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "教学"
-      ],
-      "hash": "AC584F8A"
-    },
-    {
-      "id": "C_7E1B7AA1",
-      "cardName": "教学·白板2/2乙",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "power": 2,
-      "life": 2,
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "教学"
-      ],
-      "hash": "7E1B7AA1"
-    },
-    {
-      "id": "C_17BD0D3E",
-      "cardName": "教学·白板2/2丙",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "power": 2,
-      "life": 2,
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "教学"
-      ],
-      "hash": "17BD0D3E"
     },
     {
       "id": "C_202A366E",
@@ -2627,48 +2395,6 @@
         "教学"
       ],
       "hash": "202A366E"
-    },
-    {
-      "id": "C_5654ABA8",
-      "cardName": "教学·缴械乙",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "power": 3,
-      "life": 3,
-      "costList": [
-        0.0,
-        1.0,
-        6.0,
-        1.0
-      ],
-      "keywords": [
-        "Disarm"
-      ],
-      "tags": [
-        "教学"
-      ],
-      "hash": "5654ABA8"
-    },
-    {
-      "id": "C_AB547E9C",
-      "cardName": "教学·缴械丙",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "power": 3,
-      "life": 3,
-      "costList": [
-        0.0,
-        1.0,
-        6.0,
-        1.0
-      ],
-      "keywords": [
-        "Disarm"
-      ],
-      "tags": [
-        "教学"
-      ],
-      "hash": "AB547E9C"
     },
     {
       "id": "C_7348D471",
@@ -2734,24 +2460,6 @@
       "hash": "AC582815"
     },
     {
-      "id": "C_0EDE312A",
-      "cardName": "教学·白板3/3丙",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "power": 3,
-      "life": 3,
-      "costList": [
-        0.0,
-        1.0,
-        0.0,
-        1.0
-      ],
-      "tags": [
-        "教学"
-      ],
-      "hash": "0EDE312A"
-    },
-    {
       "id": "C_3D2CBFE6",
       "cardName": "教学·隐密",
       "supertype": "Creature",
@@ -2794,24 +2502,6 @@
       "hash": "98135A73"
     },
     {
-      "id": "C_DE95C8CC",
-      "cardName": "教学·消灭乙",
-      "supertype": "Spell",
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "23E6AFE9"
-      ],
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "hash": "DE95C8CC"
-    },
-    {
       "id": "C_E8B8EE22",
       "cardName": "教学·吸血甲",
       "supertype": "Creature",
@@ -2831,27 +2521,6 @@
         "教学"
       ],
       "hash": "E8B8EE22"
-    },
-    {
-      "id": "C_9460C612",
-      "cardName": "教学·吸血乙",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "power": 3,
-      "life": 3,
-      "costList": [
-        0.0,
-        4.0,
-        0.0,
-        1.0
-      ],
-      "keywords": [
-        "Lifesteal"
-      ],
-      "tags": [
-        "教学"
-      ],
-      "hash": "9460C612"
     },
     {
       "id": "C_E5D9D557",
@@ -2875,27 +2544,6 @@
       "hash": "E5D9D557"
     },
     {
-      "id": "C_6CE1BAAF",
-      "cardName": "教学·系命乙",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "power": 3,
-      "life": 3,
-      "costList": [
-        0.0,
-        1.0,
-        0.0,
-        4.0
-      ],
-      "keywords": [
-        "Lifelink"
-      ],
-      "tags": [
-        "教学"
-      ],
-      "hash": "6CE1BAAF"
-    },
-    {
       "id": "C_BA6BE8EC",
       "cardName": "教学·白板3/3甲",
       "supertype": "Creature",
@@ -2912,24 +2560,6 @@
         "教学"
       ],
       "hash": "BA6BE8EC"
-    },
-    {
-      "id": "C_5DBE70BB",
-      "cardName": "教学·白板3/3乙",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "power": 3,
-      "life": 3,
-      "costList": [
-        0.0,
-        1.0,
-        0.0,
-        1.0
-      ],
-      "tags": [
-        "教学"
-      ],
-      "hash": "5DBE70BB"
     },
     {
       "id": "C_DCDC05A7",
@@ -2951,27 +2581,6 @@
         "教学"
       ],
       "hash": "DCDC05A7"
-    },
-    {
-      "id": "C_52A944EE",
-      "cardName": "教学·剧毒乙",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "power": 2,
-      "life": 2,
-      "costList": [
-        0.0,
-        3.0,
-        0.0,
-        0.0
-      ],
-      "keywords": [
-        "Venom"
-      ],
-      "tags": [
-        "教学"
-      ],
-      "hash": "52A944EE"
     },
     {
       "id": "C_750FFED3",
@@ -3101,27 +2710,6 @@
       "hash": "6454E497"
     },
     {
-      "id": "C_E3CADDFD",
-      "cardName": "教学·病原体乙",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "power": 2,
-      "life": 4,
-      "costList": [
-        0.0,
-        3.0,
-        0.0,
-        1.0
-      ],
-      "keywords": [
-        "Pathogen"
-      ],
-      "tags": [
-        "教学"
-      ],
-      "hash": "E3CADDFD"
-    },
-    {
       "id": "C_DD519F03",
       "cardName": "教学·连击小兵",
       "supertype": "Creature",
@@ -3222,60 +2810,6 @@
       "hash": "BA2BFFAD"
     },
     {
-      "id": "C_63FAF37B",
-      "cardName": "教学·沉睡术乙",
-      "supertype": "Spell",
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "871ED866"
-      ],
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "hash": "63FAF37B"
-    },
-    {
-      "id": "C_0BFA4FD0",
-      "cardName": "教学·沉睡术丙",
-      "supertype": "Spell",
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "871ED866"
-      ],
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "hash": "0BFA4FD0"
-    },
-    {
-      "id": "C_04425248",
-      "cardName": "教学·沉睡术丁",
-      "supertype": "Spell",
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "871ED866"
-      ],
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "hash": "04425248"
-    },
-    {
       "id": "C_3AC147C9",
       "cardName": "教学·无效术甲",
       "supertype": "Spell",
@@ -3292,24 +2826,6 @@
         0.0
       ],
       "hash": "4B7D55DF"
-    },
-    {
-      "id": "C_C55C98E2",
-      "cardName": "教学·无效术乙",
-      "supertype": "Spell",
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "7899C88A"
-      ],
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "hash": "A6DC0140"
     },
     {
       "id": "C_01835F2B",
@@ -3346,42 +2862,6 @@
         0.0
       ],
       "hash": "483E94BC"
-    },
-    {
-      "id": "C_4082D33D",
-      "cardName": "教学·驱散术乙",
-      "supertype": "Spell",
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "CFE6FF68"
-      ],
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "hash": "4082D33D"
-    },
-    {
-      "id": "C_2D514294",
-      "cardName": "教学·无效术丙",
-      "supertype": "Spell",
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "7899C88A"
-      ],
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "hash": "D4177AA5"
     },
     {
       "id": "C_CD942636",

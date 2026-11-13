@@ -421,7 +421,7 @@ namespace CardCore
         /// <summary>效果是否携带引擎载荷（settle=Engine——扁平 Effects 与节点化 Steps 双扫）。
         /// 引擎效果头被 EngineHeaderPresetOf 归一为无限档（-1），但主干原子部署单发、奖励由引擎
         /// 自平衡付费——不适用触发限流（2026-10-09 修复；2026-10-30 起仅供时机系数豁免——
-        /// 奖励发射由 BranchEngines 每卡每回合 1 次全局规则自限）。</summary>
+        /// 奖励发射 2026-11-13 起无每回合上限（结界宿主耐久付费）。</summary>
         internal static bool HasEnginePayload(EffectDefinition def)
         {
             bool Of(AtomicEffectInstance a) => a?.Branch != null && a.Branch.Settle == BranchSettleKind.Engine
@@ -450,6 +450,17 @@ namespace CardCore
             if (def == null || !def.IsTriggeredEffect) return 1f;
             if (HasEnginePayload(def)) return 1f;
             return TimingCostFactorOf(def.TriggerTiming);
+        }
+
+        /// <summary>宿主挂载系数（2026-11-13 定案：「法术买速度 / 结界买次数」）：自动效果的时机系数 f
+        /// 只对**生物宿主**计费——生物用元素买频率（卡层价=原价×f，无发动上限）；结界宿主价=原价，
+        /// 频率改由耐久支付（每次发动 −f，见 <see cref="Attribute.CounterRules.ConsumeTriggerDurability"/>）。
+        /// 主动/非触发效果恒 1（现付不进时序；法术速度是类特性不入价）。</summary>
+        public static float HostMountFactor(EffectDefinition def, Cardtype hostType)
+        {
+            if (hostType != Cardtype.Creature) return 1f;
+            if (def == null || !def.IsTriggeredEffect) return 1f;
+            return TimingCostFactor(def);
         }
 
         /// <summary>时机系数单口（计价 TimingCostFactor 与时机下拉档位标签展示同源）：
@@ -527,12 +538,10 @@ namespace CardCore
             if (n > 1f)
                 amount *= n;
 
-            // 发动时机计价（表 TimingFactor 三档：单次/多次 ×1 + 生物专属攻/守/横置 ×1.5；
-            // 多次生效的成本由结界耐久承担；引擎载荷/非触发式恒 ×1 在 TimingCostFactor 内判）。
-            // 系数判 ≠1 即乘（三档调离 1 时自动生效）。
-            float timingFactor = TimingCostFactor(def);
-            if (Math.Abs(timingFactor - 1f) > 0.001f)
-                amount *= timingFactor;
+            // 发动时机计价（2026-11-13 定案改版）：**时机系数 f 不再进效果锚价（锚价=原价）**——
+            // 生物宿主在卡层按「原价×f」收（宿主用元素买频率，无发动上限）；结界宿主的频率由耐久支付
+            //（卡层价=原价，每次发动 −f，见 CounterRules.ConsumeTriggerDurability）。
+            // f 单口仍在 HostMountFactor/TimingCostFactor 保留，供卡层挂载与展示消费。
 
             // 发动速度计价已退役（2026-10-19：速度特化法术专属=类特性非溢价——旧 ×1.5/×2 档随拆）。
 
@@ -827,12 +836,12 @@ namespace CardCore
             => PricingDomain(effect, atom, ResolveVisitDomain(effect, modeIndex));
 
         /// <summary>单原子计价公式展开（效果合成器顶栏费用预览——把参与变量写全，如
-        /// 「基准1红×5×数量档1.5×时机档2」）：数值真源仍是 ComputeAtomCost，本口只展开显示构成——
+        /// 「基准1红×5×数量档1.5」）：数值真源仍是 ComputeAtomCost，本口只展开显示构成——
         /// 基准量＋逐段系数链（系数=1 不列），分档判定复用同一批 primitives
-        ///（BaseExprOf 各分档 / QuantityFactor / TimingCostFactor /
-        /// IsSymmetricBothSides），不另立计价口径。系数顺序与 ComputeAtomCost
-        /// 管线一致：基准内系（量级/表乘数/持续/控制/赋予档）→数量档→时机档→双方减半
-        ///（触发档已随 2026-10-30 无上限定案删除；错边拆分已随黑白获得经济删除，2026-10-28 P1）。
+        ///（BaseExprOf 各分档 / QuantityFactor / IsSymmetricBothSides），不另立计价口径。
+        /// 系数顺序与 ComputeAtomCost 管线一致：基准内系（量级/表乘数/持续/控制/赋予档）→数量档→双方减半
+        ///（触发档已随 2026-10-30 无上限定案删除；时机档随 2026-11-13 宿主分叉改版退出锚价——
+        /// 生物宿主挂载时由卡层 ×f，结界宿主改由耐久 −f；错边拆分已随黑白获得经济删除，2026-10-28 P1）。
         /// 基准内的乘法在数值侧折叠为一次 round（ComputeAtomBaseAmount），展开链只作显示——
         /// 末端结果由调用方取 DeriveElementCosts 实值，不重算。</summary>
         public static (string baseExpr, List<string> factorExprs) AtomCostFormula(
@@ -848,8 +857,8 @@ namespace CardCore
             float n = QuantityFactor(atom, def);
             if ((domain == null || domain.Count == 0) && n > 1f) n = 1f; // 无目标域不乘数量（同 ComputeAtomCost）
             AddFactor(factors, "数量档", n);
-            bool creatureOnly = def != null && EffectEligibility.IsTapAnchoredTiming(def.TriggerTiming);
-            AddFactor(factors, creatureOnly ? "生物专属档" : "时机档", TimingCostFactor(def));
+            // 时机档已随 2026-11-13 定案退出效果锚价：锚价=原价；f 只在**生物卡挂载**时由卡层乘
+            //（HostMountFactor），结界卡改由耐久每次发动 −f——本展开不再列时机档。
             if (IsSymmetricBothSides(atom, def, domain))
                 AddFactor(factors, "双方减半", SymmetricDiscountFactor);
             return (baseExpr, factors);

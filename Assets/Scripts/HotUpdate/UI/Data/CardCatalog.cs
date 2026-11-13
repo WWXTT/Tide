@@ -260,8 +260,9 @@ namespace SynergyUI
 
         // ======================================== 教学卡隔离（2026-10-06 第一课起） ========================================
 
-        /// <summary>教学专用卡判定（tags 含「教学」）：不进玩家侧卡池面——随机组卡/卡组构筑/
-        /// 卡牌编辑器预览/联机 AI 填位一律排除；教学局按 id 组卡（TutorialLibrary.BuildDeck→GetById）
+        /// <summary>教学专用卡判定（tags 含「教学」）：不进玩家侧卡池面——随机组卡/卡牌编辑器预览/
+        /// 联机 AI 填位一律排除（**卡组构筑例外**：2026-11-13 起构筑走 LoadBuildPool，预组卡与
+        /// 预设段另存的自建卡都带此 tag，必须可见）；教学局按 id 组卡（TutorialLibrary.BuildDeck→GetById）
         /// 不经此判定，教学卡照常可取。卡名约定：教学卡不带语义名（教学生物N 编号），名字留给玩家。</summary>
         public static bool IsTeachingCard(CardData card)
             => card?.Tags != null && card.Tags.Contains("教学");
@@ -280,9 +281,43 @@ namespace SynergyUI
             => card?.Tags != null && card.Tags.Contains("训练池");
 
         /// <summary>玩家可用卡池：LoadAll 去除教学专用卡、衍生物模板卡、训练专用卡与瞬态网络内容卡
-        ///（各消费面统一走此口，勿各自手写 tag 判断）。</summary>
+        ///（随机组卡/卡牌编辑器/联机填位等消费面统一走此口，勿各自手写 tag 判断）。
+        /// 卡组构筑不走此口——见 LoadBuildPool（预组/自建卡带教学 tag，这里会整片滤掉）。</summary>
         public static List<CardData> LoadPlayPool()
             => LoadAll().Where(c => !IsTeachingCard(c) && !IsTokenCard(c) && !IsTrainingCard(c)
                                     && !CardCore.Network.TransientNetContent.IsTransientCard(c.ID)).ToList();
+
+        /// <summary>卡组构筑卡池（2026-11-13 用户定案「卡组构筑的卡池显示全卡——自定义和预组的全部卡」）：
+        /// LoadAll 只去掉**衍生物模板**（额外区随卡自动引用，不作主牌）、**训练池**（RL 专用，不面向
+        /// 玩家）与**瞬态网络内容**（对手卡不进本地面）。**教学卡照常入池**——三套预组卡全带
+        /// tags=教学，从预设段另存的自建卡也会继承该 tag；沿用 LoadPlayPool 会把预组卡与这类自建卡
+        /// 整片滤掉（构筑面曾因此近乎空池）。仅卡组构筑消费：随机组卡/卡牌编辑器/联机填位
+        /// 仍走 LoadPlayPool（教学卡隔离不变）。</summary>
+        public static List<CardData> LoadBuildPool()
+            => LoadAll().Where(c => c != null && !string.IsNullOrEmpty(c.ID)
+                                    && !IsTokenCard(c) && !IsTrainingCard(c)
+                                    && !CardCore.Network.TransientNetContent.IsTransientCard(c.ID)).ToList();
+
+        // ======================================== 牌库查重（2026-11-13 定案） ========================================
+
+        /// <summary>功能重复卡（2026-11-13 用户定案「牌库不允许保存一模一样的卡」）：按
+        /// ContentHasher.SealCard 比对功能身份（名称/标签/立绘不参与），返回第一张与 card 功能完全
+        /// 相同的另一张卡；null=无重复。savedId=本次保存落盘的 id（既有卡沿用原 id，须豁免自身）；
+        /// replacedId=保存后会被删掉的旧卡 id（覆盖替换豁免——旧卡即将不存在）。
+        /// 消费口：卡组合保存闸（CardComposerScreen.OnSave）与端到端验证共用本判定（单源）。
+        /// 2026-11-13 全库清重复后，教学/训练表的同身材占位卡已并成一张（引用改 #N 实例），
+        /// 全库任一功能封印只对应一个卡 id；本闸再加一道「新保存」防线。</summary>
+        public static CardData FindFunctionalDuplicate(CardData card, string savedId, string replacedId = null)
+        {
+            if (card == null) return null;
+            string seal = ContentHasher.SealCard(card);
+            foreach (var other in LoadAll())
+            {
+                if (other == null || string.IsNullOrEmpty(other.ID)) continue;
+                if (other.ID == savedId || other.ID == replacedId) continue;
+                if (ContentHasher.SealCard(other) == seal) return other;
+            }
+            return null;
+        }
     }
 }

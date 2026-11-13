@@ -150,6 +150,13 @@ namespace SynergyUI
                     if (CardSorter.HasCostColor(card, UIColor.Green)) green++;
                     if (CardSorter.HasCostColor(card, UIColor.Gray)) gray++;
                 }
+            return ColorLineOf(red, blue, green, gray);
+        }
+
+        /// <summary>四色计数 → 文案（2026-11-13 拆口）：格式与 ColorLineOf(cardIds) 单源同款；
+        /// 卡组构筑屏改喂 DeckStatsAccountant 单元口径计数（代价色优先/全 0 灰），经由本口呈现。</summary>
+        public static string ColorLineOf(int red, int blue, int green, int gray)
+        {
             return $"<color=#{ColorUtility.ToHtmlStringRGB(UiStyle.DotRed)}>●</color> 红 {red}\t"
                 + $"<color=#{ColorUtility.ToHtmlStringRGB(UiStyle.DotBlue)}>●</color> 蓝 {blue}\n"
                 + $"<color=#{ColorUtility.ToHtmlStringRGB(UiStyle.DotGreen)}>●</color> 绿 {green}\t"

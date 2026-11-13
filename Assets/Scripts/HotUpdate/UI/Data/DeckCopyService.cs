@@ -14,8 +14,8 @@ namespace SynergyUI
     /// - 旧深拷贝方案退役（10-22 逐卡克隆+「·副本」名分叉新 id+剥「教学」tag+逐张落主表）：
     ///   每次复制向主表倾倒数十字副本卡、删组不清卡致孤儿累积，效果也曾落分叉行。
     /// - 已知后果：预组卡日后改内容→内容哈希 id 变→副本组断链（标「不可用」），重新复制即可；
-    ///   副本组内卡带「教学」tag 被 LoadPlayPool 过滤——构筑卡池已并入「玩家卡组已引用的卡」
-    ///   补齐加回/重标技能（DeckBuilderScreen.PlayPoolWithDeckReferenced）。
+    ///   副本组内卡带「教学」tag 被 LoadPlayPool 过滤——构筑卡池自 2026-11-13 改走
+    ///   CardCatalog.LoadBuildPool（保留教学卡=预组与自建卡全可见），副本卡加回/重标技能不受影响。
     /// </summary>
     public static class DeckCopyService
     {

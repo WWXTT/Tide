@@ -48,6 +48,9 @@ namespace SynergyUI
         /// <summary>特殊效果行（2026-11-01 上卡）：SpEffectLines≥1 时 Apply 填充——
         /// 全为克隆行（模板行留给单行/首模式行），追加在模式行之后、passives 之前；交互同上。</summary>
         public readonly List<RectTransform> SpEffectRows = new List<RectTransform>();
+        /// <summary>effect 模板行（烘焙 effect 实例）——单主动口径 ActiveEffectRows 为空、
+        /// 模板行即展示行；构筑屏预览接线主动行点击（2026-11-13 预览点行切换英雄技能）用。</summary>
+        public RectTransform EffectTemplateRow => _effectBlock;
         private GameObject _back;
         private GameObject _actionLayer;
         // 卡根 CanvasGroup 已删（2026-11-12 用户定案）：原为横置卡 0.62 半透明而建，唯一真实
@@ -551,7 +554,7 @@ namespace SynergyUI
             }
         }
 
-        private static void SetRowCost(RectTransform row, ElementCost fee, ElementCost payload)
+        internal static void SetRowCost(RectTransform row, ElementCost fee, ElementCost payload)
         {
             if (row == null) return;
             var t = row.Find("text/lbl-skill-cost");
@@ -576,7 +579,7 @@ namespace SynergyUI
         /// <summary>剥离克隆行费用方格里的未对账色块（双保险）：播放态 Clear 的 Destroy 延帧
         /// 生效，同帧克隆会把 pending-destroy 色块原样拷进新行（拷贝件不进对账表=永久双块）——
         /// 克隆落地即剥，DestroyImmediate 同帧生效；保留组标签（Cost1/Cost2）与模板块。</summary>
-        private static void StripGhostSquares(RectTransform clone)
+        internal static void StripGhostSquares(RectTransform clone)
         {
             if (clone == null) return;
             var cost = clone.Find("text/lbl-skill-cost");
@@ -601,3 +604,4 @@ namespace SynergyUI
         }
     }
 }
+

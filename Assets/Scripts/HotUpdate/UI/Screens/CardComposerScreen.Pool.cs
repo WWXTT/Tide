@@ -268,8 +268,8 @@ namespace SynergyUI
                 nameText.color = broken ? UiStyle.ErrorRed : new Color(0.88f, 0.9f, 0.93f); // 行池复用须显式还原
             }
             var metaText = UiKit.FindDeep(row, "meta")?.GetComponent<TMP_Text>();
-            if (metaText != null) metaText.text = TypeStatLine(card);
-            BindCostBadge(row, card.Cost);
+            if (metaText != null) metaText.text = CardRowText.TypeStatOf(card);
+            CardRowText.BindCostNode(row, card); // 费用=消耗+代价（2026-11-13 统一缩略写法，构筑界面同源）
 
             var img = row.GetComponent<Image>();
             if (img != null) img.color = selected ? UiStyle.SelectedRowBg : _poolRowBgDefault; // 池行复用须显式还原
@@ -286,12 +286,13 @@ namespace SynergyUI
             Describe(row, (item.Preset
                     ? $"点击载入预设卡「{displayName}」到中间编辑（预设=教学数据源档，保存＝另存新卡、不可删）"
                     : $"点击载入「{displayName}」到中间编辑（保存=覆盖替换旧卡）")
-                + $"｜{TypeStatLine(card)}"
+                + $"｜{CardRowText.TypeStatOf(card)}"
                 + (detailParts.Count > 0 ? "\n" + string.Join("\n", detailParts) : "")
                 + (broken ? "\n⚠该卡有效果引用断链（库效果已删/换代），装载时该效果会被跳过" : ""));
         }
 
-        /// <summary>费用徽标写值（v2 行模板：cost 圆片+数字；无费用数据=隐藏——池行复用须显式还原）。</summary>
+        /// <summary>费用徽标写值（效果库行专用——卡池行的卡费走 CardRowText.BindCostNode 统一口径）：
+        /// 无费用数据/全零=隐藏（行池复用须显式还原）。</summary>
         private static void BindCostBadge(RectTransform row, ElementCost cost)
         {
             var badge = UiKit.FindDeep(row, "cost");
@@ -306,26 +307,6 @@ namespace SynergyUI
             // 2026-11-09：Unity Mathf.Round 是银行家舍入（4.5→4）本就不对；改逐色进位同款 ceil 兜底
             //（调用方多已传进位后整数，两者一致——防直传真值时显示偏低）
             if (num != null) num.text = Mathf.CeilToInt(cost.Total - 1e-4f).ToString();
-        }
-
-        private static string TypeStatLine(CardData card)
-        {
-            switch (card.Supertype)
-            {
-                case Cardtype.Creature:
-                    return $"生物 {(card.Power ?? 0)}/{(card.Life ?? 0)}";
-                case Cardtype.Enchantment:
-                    return $"{(card.IsField ? "场地" : "")}结界 耐久{CardCompositionCost.TotalDurabilityOf(card)}"; // 2026-10-17：恒有耐久（派生单源）；场地标记（P8）前缀
-                case Cardtype.Spell:
-                {
-                    // 速度归卡类别（2026-11-06 定案·单源 EffectSpeedOf=与引擎 GetCardCastSpeed 同口）：
-                    // 法术 meta 补「速度X」对齐生物/结界的额外信息档；生物速度恒0、结界无速度概念不显
-                    var speed = CardOverlayItem.EffectSpeedOf(card);
-                    return "法术" + (speed.HasValue ? $" 速度{speed.Value}" : "");
-                }
-                default:
-                    return CardSorter.TypeName(card);
-            }
         }
 
         private static string KeywordZh(string keywordId)

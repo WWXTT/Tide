@@ -215,11 +215,10 @@ namespace CardCore.Attribute
         /// <summary>耐久（2026-09-13 装备系统）：武器/效果装备的使用期限——反伤/主动攻击/转移/主动效果各 -1，
         /// 归零销毁入墓（Smash 同款直毁）。正面常驻（净化可削——对位手段）。</summary>
         public const string DurabilityCounter = "Durability";
-        /// <summary>触发计数（2026-11-10 时机系数规格 §4 累计口径）：结界被动触发的累计层——
-        /// 每满 TimingWeights.TriggersPerDeduction（=3）次扣整份入场耐久 D 并清零（D 恒兑现 3 次触发，
-        /// D 只表达血量）。System 类（引擎主干——铭刻/绝缘体不沾）+ Reading 层（全 UI 隐藏，
-        /// 不入可见面）+ 换区清（重进场从零起算）；随卡快照 Counters 进网络同步
-        ///（客机/主机扣耐久时点一致）。仅 ConsumeTriggerDurabilityShare 单口读写。</summary>
+        /// <summary>触发计数（2026-11-10 规格 §4；**2026-11-13 定案后退役**）：旧「每满 3 次触发扣整份
+        /// 入场耐久 D」的累计层——现耐久改按「每次发动 −时机系数 f」直接扣（浮点累计在卡实例上，
+        /// 见 ConsumeTriggerDurability），本计数不再读写。保留注册只为旧存档/快照 Counters 兼容
+        ///（Reading 层、UI 全隐藏、换区清）。</summary>
         public const string DurabilityTriggerCounter = "DurabilityTrigger";
         /// <summary>过载（2026-11-09 §11 裁定；2026-11-10 实现）：每卡效果预算（CardEffectBudget）
         /// 一回合累计 30 次发动/触发/高危关键词后挂载——主动/自动/自动触发型关键词失效、攻守拒绝宣言。
@@ -562,36 +561,22 @@ namespace CardCore.Attribute
                : new CounterSpec { Id = id, Polarity = CounterPolarity.Positive, DisplayName = id };
 
         /// <summary>
-        /// 结界被动触发的耐久消耗单口（StackEngine 触发入栈消费；2026-11-10 时机系数规格 §4，已生效）——
-        /// 累计口径：每触发 <see cref="DurabilityTriggerCounter"/> 计数 +1，每满 TriggersPerDeduction
-        /// （=1/share，现值 3）次扣**整份**入场耐久 D（CardCompositionCost.TotalDurabilityOf 单源=印刷值）
-        /// 并清零计数——D 点耐久恒兑现 3 次触发，D 只表达血量，次数自由度移交时机系数（f 计价），
-        /// 两条腿不再互相污染。旧「每次触发 −1」口径已删（2026-11-10 段 2b 切正，不保留影子开关）。
-        /// 效果按每次触发照常结算，不因计数未满而推迟（入栈在前、扣耐久在后，第 3 次照常结算）；
-        /// 受伤扣耐久 1:1（KeywordRules/DamagePipeline）不经本口。计数为 System 指示物：
-        /// 换区清（重进场从零起算）、UI 全隐藏、随卡快照进网络同步。
+        /// 结界自动效果发动的耐久成本单口（2026-11-13 定案「结界用耐久买次数」·A 口径）：
+        /// **每次发动扣「时机系数」f**（f = CostDerivationService.TimingCostFactorOf，1.2^(E[N]−1)）；
+        /// f 可为小数（0.93~15.4）→ **浮点累计、满 1 扣 1**（卡面耐久恒整数，累计器存在卡实例上）。
+        /// 覆盖普通被动触发（StackEngine 入栈口）与引擎奖励直发（BranchEngines.FireRewards）；
+        /// 生物宿主不扣（频率已在挂载价 ×f 里付），受伤扣耐久 1:1 不经本口。
+        /// 旧「每 3 次触发扣整份入场耐久 D」口径已随 2026-11-13 改版退役（D 只表达血量，次数= f 累计）。
         /// </summary>
-        public static void ConsumeTriggerDurabilityShare(CardCore.GameCore core, Card enchant, string reason)
+        public static void ConsumeTriggerDurability(CardCore.GameCore core, Card enchant, float factor, string reason)
         {
-            if (core?.ZoneManager == null || enchant == null) return;
-            int per = TimingWeights.TriggersPerDeduction;
-            if (per <= 1)
-            {
-                LoseDurability(core, enchant, 1, reason);
-                return;
-            }
-            int count = enchant.GetCounterCount(DurabilityTriggerCounter) + 1;
-            if (count < per)
-            {
-                enchant.AddCounters(DurabilityTriggerCounter, 1);
-                return;
-            }
-            int cur = enchant.GetCounterCount(DurabilityTriggerCounter);
-            if (cur > 0) enchant.AddCounters(DurabilityTriggerCounter, -cur); // 满份清零（负量直落账）
-            int d = 1;
-            if (enchant is CardWrapper w && w.GetData() != null)
-                d = Math.Max(1, CardCompositionCost.TotalDurabilityOf(w.GetData()));
-            LoseDurability(core, enchant, d, $"{reason}；累计 {per} 次扣整份耐久 {d}");
+            if (core?.ZoneManager == null || enchant == null || factor <= 0f) return;
+            if (enchant is CardWrapper w && (w.GetData() == null || w.GetData().Durability <= 0)) return; // 非耐久体不扣
+            enchant.DurabilityCostAccumulator += factor;
+            int whole = (int)Math.Floor(enchant.DurabilityCostAccumulator);
+            if (whole <= 0) return;
+            enchant.DurabilityCostAccumulator -= whole;
+            LoseDurability(core, enchant, whole, $"{reason}（时机系数 {factor:0.##}）");
         }
 
         /// <summary>加层口统一层数解析（2026-10-31 晚定案）：系统指示物（Class=System，

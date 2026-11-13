@@ -34,9 +34,9 @@ namespace CardCore
     /// 刻意独立于 ValueSystemConfig.json 的字段级灌入（该表 2026-11-10 已结构化为 section 对象）——
     /// 35 行 × 6 列数据表不适合每列一个 C# 字段，见规格 §8）。
     ///
-    /// 消费方：CostDerivationService.TimingCostFactorOf（计价）与 CounterRules.ConsumeTriggerDurabilityShare
-    /// （耐久消耗）两口，**2026-11-10 段 2b 已切正：影子开关删除，不保留旧口径分支**——
-    /// 计价直接读行 Factor、耐久走 D/3 累计口径；缺行/表不可读才回落 TimingFactor 桶（安全侧兜底）。
+    /// 消费方：CostDerivationService.TimingCostFactorOf / HostMountFactor（生物挂载价 ×f）与
+    /// CounterRules.ConsumeTriggerDurability（结界每次发动 −f）——**2026-11-13 定案：f 不再进效果锚价**，
+    /// 只在生物宿主卡层乘、结界宿主换成耐久扣。缺行/表不可读才回落 TimingFactor 桶（安全侧兜底）。
     /// 文件缺失/解析失败：告警一次并回落桶默认；Invalidate 后重读。
     /// </summary>
     public static class TimingWeights
@@ -62,11 +62,13 @@ namespace CardCore
         /// <summary>典型耐久（次数天花板；与 Cutoff 同值联动——§9 风险 1：一个是次数一个是耐久点，改一个必须同时看另一个）。</summary>
         public static float Base => Table?.Base ?? 0f;
 
-        /// <summary>每次触发消耗的耐久比例（表不可读返回 0=按旧口径处理）。</summary>
+        /// <summary>每次触发消耗的耐久比例（表不可读返回 0）。**2026-11-13 定案后退役**：
+        /// 结界耐久改按「每次发动 −时机系数 f」（A 口径浮点累计），本列与 TriggersPerDeduction
+        /// 仅留档/展示，不再有运行时消费方。</summary>
         public static float DurabilitySharePerTrigger => Table?.DurabilitySharePerTrigger ?? 0f;
 
-        /// <summary>每满 N 次触发扣整份耐久 D（= 1/share 四舍五入；share=1/3 → 3）。
-        /// share 缺失/非法时返回 1（退化为逐次扣——ConsumeTriggerDurabilityShare 影子关闭态不走本值）。</summary>
+        /// <summary>每满 N 次触发扣整份耐久 D（旧口径；2026-11-13 退役，仅留档）。
+        /// share 缺失/非法时返回 1。</summary>
         public static int TriggersPerDeduction
         {
             get

@@ -145,9 +145,11 @@ namespace CardCore
                 // 时机三档（2026-11-09：单次/多次 ×1；攻/守/横置生物专属 ×1.5）由 CostDerivation 内乘，
                 // 多次成本由结界耐久承担，生物专属次数由宿主自身行动承担。
                 var defCost = CostDerivationService.DeriveElementCosts(def, 0); // 法术宿主永久档由迁移回填承载（Duration=Permanent）
+                // 宿主挂载系数（2026-11-13）：生物自动效果=原价×f；结界=原价（频率由耐久付）。
+                float mountFactor = CostDerivationService.HostMountFactor(def, card.Supertype);
                 foreach (var color in defCost.NonzeroColors())
                 {
-                    var amount = defCost[color];
+                    var amount = defCost[color] * mountFactor;
                     effBuckets.TryGetValue(color, out var prev);
                     effBuckets[color] = prev + amount;
                     effectTotal += amount;
@@ -325,10 +327,11 @@ namespace CardCore
             {
                 if (def == null || def.IsActivatedEffect) continue;
                 var defCost = CostDerivationService.DeriveElementCosts(def, 0);
+                float mountFactor = CostDerivationService.HostMountFactor(def, card.Supertype); // 生物×f / 结界原价
                 foreach (var color in defCost.NonzeroColors())
                 {
                     effBuckets.TryGetValue(color, out var prev);
-                    effBuckets[color] = prev + defCost[color];
+                    effBuckets[color] = prev + defCost[color] * mountFactor;
                 }
             }
 
@@ -483,10 +486,11 @@ namespace CardCore
                     if (def == null) continue;
                     if (def.IsActivatedEffect) continue;
                     var defCost = CostDerivationService.DeriveElementCosts(def, m); // 法术宿主永久档由迁移回填承载（Duration=Permanent）
+                    float mountFactor = CostDerivationService.HostMountFactor(def, card.Supertype); // 生物×f / 结界原价
                     foreach (var color in defCost.NonzeroColors())
                     {
                         effBuckets.TryGetValue(color, out var prev);
-                        effBuckets[color] = prev + defCost[color];
+                        effBuckets[color] = prev + defCost[color] * mountFactor;
                     }
                 }
                 modeBuckets.Add(effBuckets);

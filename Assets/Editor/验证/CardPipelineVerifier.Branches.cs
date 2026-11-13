@@ -610,17 +610,17 @@ namespace CardCore.Editor
             Crumb("surge geq-proof: " + surgeState());
             Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == capBase,
                    "元素充盈：差 3 越过门槛 2 不触发（==x——限一卡本回合预算全新，若 ≥x 必发）");
-            // 差恰 2：限一卡首次恰等触发（旧宿主本回合已发过被每卡每回合 1 次收口）
+            // 差恰 2：两门槛2宿主每次达标都触发（2026-11-13 起无每回合上限——同回合可重复）
             SurgeWallets(p1Red: 5, p2Red: 4); // 施放付 1 → remain2=3 → 差 = 5−3 = 2
             Assert(SurgeCast(SurgeSpell(), "eq-proof"), "元素充盈：1费载体（付后差恰2）打出");
             Crumb("surge eq-proof: " + surgeState());
-            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == capBase - 1,
-                   "元素充盈：差恰 2 限一卡首发（引擎抽1）；旧宿主本回合已发过不再发（每卡每回合 1 次）");
+            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == capBase - 2,
+                   "元素充盈：差恰 2 两门槛2宿主各发 1（引擎抽1×2；2026-11-13 起无每回合上限）");
             SurgeWallets(p1Red: 5, p2Red: 4); // 复位（否则上一载体的付款把差滑到 3——封口证据须钉回恰 2）
             Assert(SurgeCast(SurgeSpell(), "cap2"), "元素充盈：限一段载体③（付后差仍2）打出");
             Crumb("surge cap2: " + surgeState());
-            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == capBase - 1,
-                   "元素充盈：两卡本回合均已发过——同差重复评估均收口（每卡每回合 1 次）");
+            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == capBase - 4,
+                   "元素充盈：同差重复评估——两宿主再次各发 1（无每回合上限，同差可重复触发）");
 
             // 双方触发面（判据七）：非出牌支付不触发 + 己方回合自触发——评估不再分施放者侧
             EnsureMainPhase(core, p1);

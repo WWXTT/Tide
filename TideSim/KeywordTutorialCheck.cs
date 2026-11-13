@@ -156,7 +156,8 @@ namespace TideSim
                     if (!string.IsNullOrEmpty(a?.target) && a.target != "hero" && a.type != "wallet") referenced.Add(a.target);
                     if (!string.IsNullOrEmpty(a?.targets)) referenced.Add(a.targets);
                 }
-            var missing = referenced.Where(id => CardCatalog.GetById(id) == null).ToList();
+            // 实例 id（同卡多册的 `模板#N`）按模板 id 查表——同 id 多张唯一化后，引用可精确到 #N
+            var missing = referenced.Where(id => CardCatalog.GetById(BaseId(id)) == null).ToList();
             Assert(missing.Count == 0, $"全部 {referenced.Count} 个引用卡 id 在教学卡表（缺失：{string.Join(",", missing)}）");
 
             // guide 攻击步：attacker∈所属段 P1 units，target∈所属段 P2 units 或 hero
@@ -169,8 +170,8 @@ namespace TideSim
                 if (seg < 0 || seg >= segments.Count) { bad++; continue; }
                 var p1Ids = segments[seg].player.units.Select(u => u.card).ToHashSet();
                 var p2Ids = segments[seg].ai.units.Select(u => u.card).ToHashSet();
-                if (!p1Ids.Contains(s.attacker)) bad++;
-                if (!(s.target == "hero" || p2Ids.Contains(s.target))) bad++;
+                if (!p1Ids.Contains(BaseId(s.attacker))) bad++;
+                if (!(s.target == "hero" || p2Ids.Contains(BaseId(s.target)))) bad++;
             }
             Assert(bad == 0, $"guide 攻击步 attacker/target 全部落段（异常 {bad} 处）");
 
@@ -187,19 +188,27 @@ namespace TideSim
                 {
                     if (a?.type == "attack")
                     {
-                        if (!aiIds.Contains(a.attacker)) badAi++;
-                        if (!(a.target == "hero" || p1Ids.Contains(a.target))) badAi++;
+                        if (!aiIds.Contains(BaseId(a.attacker))) badAi++;
+                        if (!(a.target == "hero" || p1Ids.Contains(BaseId(a.target)))) badAi++;
                     }
                     else if (a?.type == "play")
                     {
-                        if (!segments[seg].ai.hand.Contains(a.card)) badAi++;
+                        if (!segments[seg].ai.hand.Contains(BaseId(a.card))) badAi++;
                         // play 目标可为对方场上单位（含玩家先打出的结界=原手牌 id）
-                        if (!string.IsNullOrEmpty(a.targets) && !(p1Ids.Contains(a.targets) || p1Hand.Contains(a.targets))) badAi++;
+                        if (!string.IsNullOrEmpty(a.targets) && !(p1Ids.Contains(BaseId(a.targets)) || p1Hand.Contains(BaseId(a.targets)))) badAi++;
                     }
                     else if (a?.type == "wallet" || a?.type == "end") { /* target=颜色名/mode=数量，不校验卡 id */ }
                 }
             }
             Assert(badAi == 0, $"aiScript attacker/target/play 全部可解析（异常 {badAi} 处）");
+        }
+
+        /// <summary>实例 id `模板#N` → 模板 id（结构校验查表/落段用；无 # 原样）。</summary>
+        private static string BaseId(string id)
+        {
+            if (string.IsNullOrEmpty(id)) return id;
+            int i = id.IndexOf('#');
+            return i > 0 ? id.Substring(0, i) : id;
         }
 
         private static void CollectIds(TutorialSideState side, HashSet<string> into)
@@ -312,19 +321,19 @@ namespace TideSim
             {
                 var p1 = core.Player1; var p2 = core.Player2;
                 Assert(Attack(core, p1, "C_8E45017F", OnField(core, p2, "C_FC5BC585")), "先攻甲→2/4甲 宣言成功");
-                Assert(Attack(core, p1, "C_732BCF71", OnField(core, p2, "C_6DBC9CDC")), "连击甲→2/4乙 宣言成功");
-                Assert(Attack(core, p1, "C_271AA1F8", OnField(core, p2, "C_036D0A6A")), "先攻乙→2/8甲 宣言成功");
-                Assert(Attack(core, p1, "C_082B62DB", OnField(core, p2, "C_2C6CAC92")), "连击乙→2/8乙 宣言成功");
+                Assert(Attack(core, p1, "C_732BCF71", OnField(core, p2, "C_FC5BC585#2")), "连击甲→2/4乙 宣言成功");
+                Assert(Attack(core, p1, "C_8E45017F#2", OnField(core, p2, "C_036D0A6A")), "先攻乙→2/8甲 宣言成功");
+                Assert(Attack(core, p1, "C_732BCF71#2", OnField(core, p2, "C_036D0A6A#2")), "连击乙→2/8乙 宣言成功");
 
                 Assert(OnField(core, p1, "C_8E45017F") != null, "先攻甲一步打死 2/4：无伤存活");
                 Assert(OnField(core, p2, "C_FC5BC585") == null, "2/4甲 已死");
                 Assert(OnField(core, p1, "C_732BCF71") != null, "连击甲首段打死 2/4：无伤存活");
-                Assert(OnField(core, p2, "C_6DBC9CDC") == null, "2/4乙 已死");
-                Assert(OnField(core, p1, "C_271AA1F8") == null, "先攻乙打 2/8：被 2 点反击打死");
+                Assert(OnField(core, p2, "C_FC5BC585#2") == null, "2/4乙 已死");
+                Assert(OnField(core, p1, "C_8E45017F#2") == null, "先攻乙打 2/8：被 2 点反击打死");
                 var t28a = OnField(core, p2, "C_036D0A6A");
                 Assert(t28a != null && t28a.GetLife() == 4, $"2/8甲 只挨 4 点（剩 {t28a?.GetLife() ?? -1}）");
-                Assert(OnField(core, p1, "C_082B62DB") == null, "连击乙两段打死 2/8：死前反击锁定，同归于尽");
-                Assert(OnField(core, p2, "C_2C6CAC92") == null, "2/8乙 已死（连击 8 点全额）");
+                Assert(OnField(core, p1, "C_732BCF71#2") == null, "连击乙两段打死 2/8：死前反击锁定，同归于尽");
+                Assert(OnField(core, p2, "C_036D0A6A#2") == null, "2/8乙 已死（连击 8 点全额）");
             }
             finally { EndSegment(core); }
         }
@@ -343,14 +352,14 @@ namespace TideSim
                 EventManager.Instance.Subscribe(onDmg);
                 Assert(Attack(core, p1, "C_3AFBFB85", OnField(core, p2, "C_9914CF8A")), "碾压→结界 宣言成功");
                 Assert(OnField(core, p2, "C_9914CF8A") == null, "6 耐结界被 6 点打碎");
-                Assert(OnField(core, p2, "C_0FDF4A1D") == null && OnField(core, p2, "C_FF042960") == null, "碾压邻格全额：左右两只 2/6 一起死");
+                Assert(OnField(core, p2, "C_0FDF4A1D") == null && OnField(core, p2, "C_0FDF4A1D#2") == null, "碾压邻格全额：左右两只 2/6 一起死");
                 Assert(OnField(core, p1, "C_3AFBFB85") != null, "结界反击力 0：碾压方无伤存活");
 
-                Assert(Attack(core, p1, "C_B9F338E2", OnField(core, p2, "C_AC584F8A")), "溅射→2/2甲 宣言成功");
-                Assert(OnField(core, p2, "C_AC584F8A") == null, "溅射主目标死");
+                Assert(Attack(core, p1, "C_B9F338E2", OnField(core, p2, "C_138CE290")), "溅射→2/2甲 宣言成功");
+                Assert(OnField(core, p2, "C_138CE290") == null, "溅射主目标死");
                 // 注：本断言与上一条碾压断言耦合——主目标结界被直毁即时移墓致邻格溅射落空（不符清单①），
                 // 残存的 2/6 混入溅射随机池吃掉余量；碾压侧修复后本池只剩两只 2/2、连锁全灭应转绿。
-                Assert(OnField(core, p2, "C_7E1B7AA1") == null && OnField(core, p2, "C_17BD0D3E") == null,
+                Assert(OnField(core, p2, "C_138CE290#2") == null && OnField(core, p2, "C_138CE290#3") == null,
                     "溢出 4 连锁：另两只 2/2 全灭（6-2=4 溅死一只、余 2 再溅死一只）");
                 Assert(OnField(core, p1, "C_B9F338E2") != null, "溅射方存活");
                 EventManager.Instance.Unsubscribe(onDmg);
@@ -368,25 +377,25 @@ namespace TideSim
             {
                 var p1 = core.Player1; var p2 = core.Player2;
                 Assert(Attack(core, p1, "C_BA6BE8EC", OnField(core, p2, "C_7348D471")), "普通甲→横置警戒 宣言成功");
-                Assert(Attack(core, p1, "C_5DBE70BB", OnField(core, p2, "C_64AA066B")), "普通乙→先攻巨兽 宣言成功");
-                Assert(Attack(core, p1, "C_0EDE312A", OnField(core, p2, "C_AC582815")), "普通丙→连击巨兽 宣言成功");
+                Assert(Attack(core, p1, "C_BA6BE8EC#2", OnField(core, p2, "C_64AA066B")), "普通乙→先攻巨兽 宣言成功");
+                Assert(Attack(core, p1, "C_BA6BE8EC#3", OnField(core, p2, "C_AC582815")), "普通丙→连击巨兽 宣言成功");
                 Assert(OnField(core, p1, "C_BA6BE8EC") == null, "普通甲被横置警戒反击打死（警戒横置也能反）");
                 var vig = OnField(core, p2, "C_7348D471");
                 Assert(vig != null && vig.GetLife() == 1, $"警戒挨 3（4→1，实际 {vig?.GetLife() ?? -1}）");
-                Assert(OnField(core, p1, "C_5DBE70BB") == null, "普通乙被先攻反击先落地打死（0 输出）");
+                Assert(OnField(core, p1, "C_BA6BE8EC#2") == null, "普通乙被先攻反击先落地打死（0 输出）");
                 var fsBig = OnField(core, p2, "C_64AA066B");
                 Assert(fsBig != null && fsBig.GetLife() == 8, $"先攻巨兽零损（8，实际 {fsBig?.GetLife() ?? -1}）");
-                Assert(OnField(core, p1, "C_0EDE312A") == null, "普通丙被连击两段反击打死");
+                Assert(OnField(core, p1, "C_BA6BE8EC#3") == null, "普通丙被连击两段反击打死");
                 var dsBig = OnField(core, p2, "C_AC582815");
                 Assert(dsBig != null && dsBig.GetLife() == 5, $"连击巨兽挨 3（8→5，实际 {dsBig?.GetLife() ?? -1}）");
 
                 Assert(Attack(core, p1, "C_202A366E", OnField(core, p2, "C_7348D471")), "缴械甲→警戒 宣言成功");
-                Assert(Attack(core, p1, "C_5654ABA8", OnField(core, p2, "C_64AA066B")), "缴械乙→先攻巨兽 宣言成功");
-                Assert(Attack(core, p1, "C_AB547E9C", OnField(core, p2, "C_AC582815")), "缴械丙→连击巨兽 宣言成功");
+                Assert(Attack(core, p1, "C_202A366E#2", OnField(core, p2, "C_64AA066B")), "缴械乙→先攻巨兽 宣言成功");
+                Assert(Attack(core, p1, "C_202A366E#3", OnField(core, p2, "C_AC582815")), "缴械丙→连击巨兽 宣言成功");
                 Assert(OnField(core, p2, "C_7348D471") == null, "缴械甲补刀残血警戒");
                 Assert(OnField(core, p1, "C_202A366E") != null && OnField(core, p1, "C_202A366E").GetLife() == 3, "缴械甲无伤（反击被压制）");
-                Assert(OnField(core, p1, "C_5654ABA8") != null && OnField(core, p1, "C_5654ABA8").GetLife() == 3, "缴械乙无伤（先攻反击被压制）");
-                Assert(OnField(core, p1, "C_AB547E9C") != null && OnField(core, p1, "C_AB547E9C").GetLife() == 3, "缴械丙无伤（连击反击被压制）");
+                Assert(OnField(core, p1, "C_202A366E#2") != null && OnField(core, p1, "C_202A366E#2").GetLife() == 3, "缴械乙无伤（先攻反击被压制）");
+                Assert(OnField(core, p1, "C_202A366E#3") != null && OnField(core, p1, "C_202A366E#3").GetLife() == 3, "缴械丙无伤（连击反击被压制）");
                 var fs2 = OnField(core, p2, "C_64AA066B");
                 var ds2 = OnField(core, p2, "C_AC582815");
                 Assert(fs2 != null && fs2.GetLife() == 5 && ds2 != null && ds2.GetLife() == 2, "两只巨兽各再挨 3（8→5 / 5→2）");
@@ -421,7 +430,7 @@ namespace TideSim
                 var filtered2 = TargetResolver.ApplyTauntRestriction(TargetResolver.ExcludeUnselectable(pool2, p1), ctx);
                 Assert(filtered2.Count == 1 && ReferenceEquals(filtered2[0], big), "第二发候选=仅 8/8（帷幕死后暴露，隐密仍不可选）");
 
-                Assert(Cast(core, p1, "C_DE95C8CC", new List<Entity> { big }), "消灭乙点 8/8 成功");
+                Assert(Cast(core, p1, "C_C635DB5D#2", new List<Entity> { big }), "消灭乙点 8/8 成功");
                 Assert(OnField(core, p2, "C_8C47525E") == null, "8/8 被消灭");
                 Assert(OnField(core, p2, "C_3D2CBFE6") != null, "隐密全程不可点、存活到最后");
             }
@@ -442,26 +451,26 @@ namespace TideSim
                 Assert(lsA != null && lsA.GetLife() == 1 && llA != null && llA.GetLife() == 3,
                     $"currentLife 播种生效（吸血甲 1 血，实际 {lsA?.GetLife() ?? -1}；系命甲满 3）");
 
-                Assert(Attack(core, p1, "C_E8B8EE22", OnField(core, p2, "C_AC584F8A")), "吸血甲→2/2甲 宣言成功");
+                Assert(Attack(core, p1, "C_E8B8EE22", OnField(core, p2, "C_138CE290")), "吸血甲→2/2甲 宣言成功");
                 var lsA2 = OnField(core, p1, "C_E8B8EE22");
                 Assert(lsA2 != null && lsA2.GetLife() == 1, $"吸血甲先回 3 再挨 2 反击、1 血存活（实际 {lsA2?.GetLife() ?? -1}）");
-                Assert(OnField(core, p2, "C_AC584F8A") == null, "2/2甲 被打死");
+                Assert(OnField(core, p2, "C_138CE290") == null, "2/2甲 被打死");
 
-                Assert(Attack(core, p1, "C_9460C612", OnField(core, p2, "C_BA6BE8EC")), "吸血乙→3/3甲 宣言成功");
-                Assert(OnField(core, p1, "C_9460C612") == null, "吸血乙回满 3 仍被 3 点反击打死（等量互换救不回）");
+                Assert(Attack(core, p1, "C_E8B8EE22#2", OnField(core, p2, "C_BA6BE8EC")), "吸血乙→3/3甲 宣言成功");
+                Assert(OnField(core, p1, "C_E8B8EE22#2") == null, "吸血乙回满 3 仍被 3 点反击打死（等量互换救不回）");
 
-                Assert(Attack(core, p1, "C_E5D9D557", OnField(core, p2, "C_5DBE70BB")), "系命甲→3/3乙 宣言成功");
+                Assert(Attack(core, p1, "C_E5D9D557", OnField(core, p2, "C_BA6BE8EC#2")), "系命甲→3/3乙 宣言成功");
                 Assert(p1.Life == 23, $"系命甲主动攻击：角色 20→23（实际 {p1.Life}）");
                 Assert(OnField(core, p1, "C_E5D9D557") == null, "系命甲正常被反击打死（回血照算）");
 
                 GameActions.EndTurn(core, p1);
                 Pump(core);
-                Assert(Attack(core, p2, "C_7E1B7AA1", OnField(core, p1, "C_6CE1BAAF")), "AI 2/2乙→系命乙 宣言成功");
+                Assert(Attack(core, p2, "C_138CE290#2", OnField(core, p1, "C_E5D9D557#2")), "AI 2/2乙→系命乙 宣言成功");
                 GameActions.EndTurn(core, p2);
-                var llB = OnField(core, p1, "C_6CE1BAAF");
+                var llB = OnField(core, p1, "C_E5D9D557#2");
                 Assert(llB != null && llB.GetLife() == 1, $"系命乙挨 2 反击 3 杀掉 2/2、自身 1 血存活（实际 {llB?.GetLife() ?? -1}）");
                 Assert(p1.Life == 26, $"系命反击回血：角色 23→26（实际 {p1.Life}）");
-                Assert(OnField(core, p2, "C_7E1B7AA1") == null, "2/2乙 被反击打死");
+                Assert(OnField(core, p2, "C_138CE290#2") == null, "2/2乙 被反击打死");
             }
             finally { EndSegment(core); }
         }
@@ -479,10 +488,10 @@ namespace TideSim
                 Assert(OnField(core, p2, "C_8C47525E") == null, "剧毒伤害结算后直接消灭 8/8（不看生命）");
                 Assert(OnField(core, p1, "C_DCDC05A7") == null, "剧毒甲被 8 点反击打死（以小换大）");
 
-                Assert(Attack(core, p1, "C_52A944EE", OnField(core, p2, "C_750FFED3")), "剧毒乙→8/8不灭 宣言成功");
+                Assert(Attack(core, p1, "C_DCDC05A7#2", OnField(core, p2, "C_750FFED3")), "剧毒乙→8/8不灭 宣言成功");
                 var indes = OnField(core, p2, "C_750FFED3");
                 Assert(indes != null && indes.GetLife() == 6, $"不灭拦住消灭：只掉 2（8→6，实际 {indes?.GetLife() ?? -1}）");
-                Assert(OnField(core, p1, "C_52A944EE") == null, "剧毒乙被反击打死");
+                Assert(OnField(core, p1, "C_DCDC05A7#2") == null, "剧毒乙被反击打死");
             }
             finally { EndSegment(core); }
         }
@@ -558,8 +567,8 @@ namespace TideSim
                 GameActions.EndTurn(core, p1);
                 Pump(core); // AI 回合主阶段
 
-                Assert(Attack(core, p2, "C_DD519F03", OnField(core, p1, "C_E3CADDFD")), "AI 连击小兵→病原体乙 宣言成功");
-                var rat = OnField(core, p1, "C_E3CADDFD");
+                Assert(Attack(core, p2, "C_DD519F03", OnField(core, p1, "C_6454E497#2")), "AI 连击小兵→病原体乙 宣言成功");
+                var rat = OnField(core, p1, "C_6454E497#2");
                 Assert(rat != null && rat.GetLife() == 2, $"病原体乙挨两段各 1（4→2，实际 {rat?.GetLife() ?? -1}）");
                 var soldier = OnField(core, p2, "C_DD519F03");
                 Assert(soldier != null && soldier.GetLife() == 1 && soldier.GetCounterCount(CounterRules.ToxinCounter) == 2,
@@ -607,8 +616,8 @@ namespace TideSim
                 core.ElementPool.AddMana(p2, ManaType.Blue, null, 15);
                 Assert(Cast(core, p2, "C_BA2BFFAD", new List<Entity> { OnField(core, p1, "C_030E8991") }), "AI 沉睡→狩猎 成功");
                 Assert(Cast(core, p2, "C_3AC147C9", new List<Entity> { OnField(core, p1, "C_59A3BB05") }), "AI 失效→狩猎吸血 成功");
-                Assert(Cast(core, p2, "C_63FAF37B", new List<Entity> { OnField(core, p1, "C_7FD01D48") }), "AI 沉睡→绝缘体本体 成功");
-                Assert(Cast(core, p2, "C_C55C98E2", new List<Entity> { OnField(core, p1, "C_7FD01D48") }), "AI 失效→绝缘体本体 成功");
+                Assert(Cast(core, p2, "C_BA2BFFAD#2", new List<Entity> { OnField(core, p1, "C_7FD01D48") }), "AI 沉睡→绝缘体本体 成功");
+                Assert(Cast(core, p2, "C_3AC147C9#2", new List<Entity> { OnField(core, p1, "C_7FD01D48") }), "AI 失效→绝缘体本体 成功");
                 Assert(hunter.GetCounterCount(KeywordRules.SleepCounter) == 1, "狩猎挂 1 层沉睡（层照落）");
                 Assert(vamp.GetCounterCount(CounterRules.NullifyCounter) == 1, "狩猎吸血挂 1 层失效");
                 Assert(SuppressRules.IsAutoSuppressed(hunter), "未绝缘：沉睡压制生效（狩猎关键词被压）");
@@ -639,8 +648,8 @@ namespace TideSim
                 // —— AI turn7：再沉睡×2（死层不横置不压制） ——
                 Pump(core);
                 core.ElementPool.AddMana(p2, ManaType.Blue, null, 8);
-                Assert(Cast(core, p2, "C_0BFA4FD0", new List<Entity> { OnField(core, p1, "C_030E8991") }), "AI 再沉睡→狩猎 成功");
-                Assert(Cast(core, p2, "C_04425248", new List<Entity> { OnField(core, p1, "C_59A3BB05") }), "AI 再沉睡→狩猎吸血 成功");
+                Assert(Cast(core, p2, "C_BA2BFFAD#3", new List<Entity> { OnField(core, p1, "C_030E8991") }), "AI 再沉睡→狩猎 成功");
+                Assert(Cast(core, p2, "C_BA2BFFAD#4", new List<Entity> { OnField(core, p1, "C_59A3BB05") }), "AI 再沉睡→狩猎吸血 成功");
                 DumpField(core, p1, "回合7后P1");
                 Assert(hunter.GetCounterCount(KeywordRules.SleepCounter) == 1 && vamp.GetCounterCount(KeywordRules.SleepCounter) == 1,
                     "绝缘下沉睡层照挂（账面 1+1）");
@@ -660,11 +669,11 @@ namespace TideSim
                 Assert(!hunter.HasKeyword(KeywordRules.Insulator), "法术赋予的绝缘体被驱散整个抹掉（Temp 轨）");
                 Assert(hunter.GetCounterCount(KeywordRules.SleepCounter) == 0, "驱散顺带清光狩猎身上的指示物");
                 var auraSrc = OnField(core, p1, "C_12705A5A");
-                Assert(Cast(core, p2, "C_2D514294", auraSrc != null ? new List<Entity> { auraSrc } : null),
+                Assert(Cast(core, p2, "C_3AC147C9#3", auraSrc != null ? new List<Entity> { auraSrc } : null),
                     "AI 无效→绝缘光环来源（光环结界）【失效原子域=生物，指结界被拒则红】");
                 Assert(!GameBoard.LinkAuraSystem.HasAuraKeyword(vamp, KeywordRules.Insulator),
                     "光环来源被无效→光环赋予的绝缘体失效【需光环受压制新口径】");
-                Assert(Cast(core, p2, "C_4082D33D", new List<Entity> { OnField(core, p1, "C_7FD01D48") }), "AI 驱散→绝缘体本体（拆印刷）");
+                Assert(Cast(core, p2, "C_483E94BC#2", new List<Entity> { OnField(core, p1, "C_7FD01D48") }), "AI 驱散→绝缘体本体（拆印刷）");
                 var innate2 = OnField(core, p1, "C_7FD01D48");
                 Assert(innate2 != null && innate2.HasKeyword(KeywordRules.Insulator), "印刷的绝缘体驱不散（Printed 轨保留）");
                 Assert(innate2.GetCounterCount(KeywordRules.SleepCounter) == 0 && innate2.GetCounterCount(CounterRules.NullifyCounter) == 0,

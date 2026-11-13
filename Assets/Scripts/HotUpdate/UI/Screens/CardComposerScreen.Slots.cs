@@ -228,8 +228,11 @@ namespace SynergyUI
 
         // ======================================== 效果槽（effect 区=主动 / passives 区=其余） ========================================
 
-        /// <summary>主动效果判据（CardOverlayItem.FromCardDataFull 同源）：首个主动上 effect 区，其余归被动。</summary>
-        private static bool IsActiveEffect(CardEffectData fx)
+        /// <summary>主动效果判据（CardOverlayItem.FromCardDataFull / FromHand 同源）：主动=时机 ∈
+        /// {Activate_Active, Activate_Instant}。预览侧多主动法术（≥2）逐效果成行（ActiveEffectLines），
+        /// 单主动卡才「首个上 effect 区」，其余（自动/触发）归被动。
+        /// internal（2026-11-13）：DeckStatsAccountant 卡组统计口径复用。</summary>
+        internal static bool IsActiveEffect(CardEffectData fx)
         {
             if (fx == null) return false;
             var t = (TriggerTiming)fx.TriggerTiming;

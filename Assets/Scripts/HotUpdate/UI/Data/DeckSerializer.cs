@@ -133,7 +133,7 @@ namespace SynergyUI
         /// <summary>旧档衍生物区规范化（P9b 2026-10-29）：P9b 前模板卡直接混在 cardIds 内
         /// （IsTokenTemplate 标记、不计张数）——读取时统一迁入 tokenCardIds（去重保序），
         /// 保存后即新档形态。内存态规范化不写回文件；卡表查不到的 id 不动（断链另报）。
-        /// 超容量只告警不截断（只读预组兜底；玩家侧由保存口校验拦截）。</summary>
+        /// 2026-11-13 自动引用改版：区不再有容量上限（构筑侧随卡组内容实时重算）。</summary>
         private static DeckData NormalizeTokens(DeckData deck)
         {
             if (deck?.cardIds == null || deck.cardIds.Count == 0) return deck;
@@ -150,9 +150,6 @@ namespace SynergyUI
             foreach (var id in moved)
                 if (!deck.tokenCardIds.Contains(id))
                     deck.tokenCardIds.Add(id);
-            if (deck.tokenCardIds.Count > DeckTokenSupport.TokenZoneCapacity)
-                Debug.LogWarning($"[DeckSerializer] 卡组「{deck.name}」衍生物区 {deck.tokenCardIds.Count} 个"
-                                 + $"超上限 {DeckTokenSupport.TokenZoneCapacity}（旧档照读；玩家侧保存口会拦截）");
             return deck;
         }
 

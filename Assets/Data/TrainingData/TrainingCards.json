@@ -1,25 +1,6 @@
 {
   "cards": [
     {
-      "id": "C_7E05D6C3",
-      "cardName": "训练·01",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "guardAbility": true,
-      "power": 1,
-      "life": 2,
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "tags": [
-        "训练池"
-      ],
-      "hash": "7E05D6C3"
-    },
-    {
       "id": "C_475D0B69",
       "cardName": "训练·02",
       "supertype": "Creature",
@@ -56,25 +37,6 @@
         "训练池"
       ],
       "hash": "4D7154FA"
-    },
-    {
-      "id": "C_4F2BEDE7",
-      "cardName": "训练·04",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "guardAbility": true,
-      "power": 3,
-      "life": 2,
-      "costList": [
-        0.0,
-        1.0,
-        0.0,
-        1.0
-      ],
-      "tags": [
-        "训练池"
-      ],
-      "hash": "4F2BEDE7"
     },
     {
       "id": "C_C8F2AFC2",
@@ -439,25 +401,6 @@
       "hash": "589F490C"
     },
     {
-      "id": "C_2CD3049F",
-      "cardName": "训练·再生卫队",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "guardAbility": true,
-      "power": 3,
-      "life": 3,
-      "costList": [
-        0.0,
-        1.0,
-        0.0,
-        1.0
-      ],
-      "tags": [
-        "训练池"
-      ],
-      "hash": "2CD3049F"
-    },
-    {
       "id": "C_0BCC9D84",
       "cardName": "训练·沉睡卫队",
       "supertype": "Creature",
@@ -500,25 +443,6 @@
         "ed308353"
       ],
       "hash": "25099780"
-    },
-    {
-      "id": "C_DA89C5CA",
-      "cardName": "训练·寒锥",
-      "supertype": "Spell",
-      "tags": [
-        "训练池"
-      ],
-      "effectIds": [
-        "7ABD0919"
-      ],
-      "speedBonus": 2,
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "hash": "DA89C5CA"
     },
     {
       "id": "C_3CE53AB8",
@@ -897,7 +821,7 @@
       "costList": [
         0.0,
         0.0,
-        3.0,
+        2.0,
         0.0
       ],
       "tags": [
@@ -915,7 +839,7 @@
       "supertype": "Enchantment",
       "costList": [
         0.0,
-        2.0,
+        1.0,
         0.0,
         0.0
       ],

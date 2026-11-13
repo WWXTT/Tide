@@ -867,8 +867,8 @@ namespace CardCore.Editor
         /// 触发式端到端（2026-10-30）：①历史列仍按存档口径透传（EffectSlim/内容哈希稳定，但零消费——
         /// 同价证明）；②同一效果同回合连续多次触发全部入栈、不静默丢弃；③用时台账既作读数
         ///（条件计数/卡面统计）又作**自馈闸门**计数——同一来源实例+效果 Id 每回合上限 30 次，
-        /// 第 31 次截断（只防自循环，常规触发远低于此）；④自由分支引擎奖励的每卡每回合 1 次由
-        /// BranchEngines 自限（见 TestBranchEngines 元素充盈段）。
+        /// 第 31 次截断（只防自循环，常规触发远低于此）；④自由分支引擎奖励 2026-11-13 起也取消每回合上限
+        /// （频率由结界耐久/生物挂载价付费，见 TestBranchEngines 元素充盈段）。
         /// </summary>
         private static void TestTriggerCap(GameCore core, Player p1, Player p2)
         {
@@ -1669,6 +1669,96 @@ namespace CardCore.Editor
             foreach (var h in colorFail) Debug.LogError($"[P9-8g 色差] {h}");
             Assert(colorFail.Count == 0,
                    $"P9-8g 全表色对账：生成色=显式色 0 不符 / 0 候补（命中 {colorFail.Count}——AtomColorRules 单源，与 RunColorAudit 同口径；白名单已随色迁移收尾删除）");
+        }
+
+        // ======================================== 牌库查重（2026-11-13 用户定案） ========================================
+
+        /// <summary>牌库查重端到端（2026-11-13 用户定案：牌库不允许保存一模一样的卡）：
+        /// ① 全库（主表+教学表+训练表）无功能重复卡——名称/标签/立绘不参与功能身份
+        ///   （ContentHasher.SealCard 口径，含身材/耐久/提速/资格/关键词/效果）；同身材占位卡
+        ///   （白板甲/乙/丙、先攻甲/乙…）已按 2026-11-13 定案并入同一张卡，场景/教程引用改 #N 实例。
+        /// ② 三套预组内无「两个不同 id 但功能完全相同」的卡（同名多册合法；火苗/余烬 的回归闸）；
+        /// ③ 保存闸单源 CardCatalog.FindFunctionalDuplicate（卡组合 OnSave 同一函数）：
+        ///   改名克隆被判重、原卡自身保存放行、改过功能的新卡放行。</summary>
+        private static void TestCardLibraryDedupe(List<CardData> catalogCards)
+        {
+            string SealOf(CardData c) => SynergyUI.ContentHasher.SealCard(c);
+
+            // ① 全库功能重复=0（catalogCards=CardCatalog.LoadAll 正式池，已含教学+训练副表）
+            var allDup = catalogCards
+                .Where(c => c != null && !string.IsNullOrEmpty(c.ID))
+                .GroupBy(SealOf)
+                .Where(g => g.Count() > 1)
+                .Select(g => string.Join("、", g.Select(c => $"{c.CardName}({c.ID})")))
+                .ToList();
+            Assert(allDup.Count == 0,
+                   $"牌库查重①：全库（主+教学+训练）无功能重复卡（重复 {allDup.Count} 组"
+                   + (allDup.Count > 0 ? "——" + string.Join("；", allDup) : "") + "）");
+
+            // ② 预组内不同 id 同功能=0（同名多册按 id 去重后比封印）
+            var deckHits = new List<string>();
+            foreach (var deck in SynergyUI.DeckCatalog.LoadPresets())
+            {
+                var firstBySeal = new Dictionary<string, CardData>();
+                foreach (var id in (deck.cardIds ?? new List<string>()).Distinct())
+                {
+                    var card = SynergyUI.CardCatalog.GetById(id);
+                    if (card == null) continue;
+                    string seal = SealOf(card);
+                    if (firstBySeal.TryGetValue(seal, out var first) && first.ID != card.ID)
+                        deckHits.Add($"{deck.name}：{first.CardName}({first.ID}) ≈ {card.CardName}({card.ID})");
+                    else
+                        firstBySeal[seal] = card;
+                }
+            }
+            Assert(deckHits.Count == 0,
+                   $"牌库查重②：三套预组内无功能重复卡（命中 {deckHits.Count}"
+                   + (deckHits.Count > 0 ? "——" + string.Join("；", deckHits) : "") + "）");
+
+            // 余烬（C_5BB0FCD6）与火苗功能完全相同，已按本规则并入火苗——卡表不得再有该条目
+            Assert(SynergyUI.CardCatalog.GetById("C_5BB0FCD6") == null,
+                   "牌库查重②：余烬（C_5BB0FCD6）已从卡表移除（与火苗功能重复，预组改用 10 张火苗）");
+
+            // ③ 保存闸：卡表内功能唯一的卡做夹具（全库清重复后每张卡都唯一）
+            var unique = catalogCards.FirstOrDefault(c => c != null && c.ID == "C_FFF2FD83"); // 预组·28 4/5
+            Assert(unique != null, "牌库查重③ 夹具：卡表取到功能唯一的「预组·28」（C_FFF2FD83）");
+            if (unique == null) return;
+
+            var renamed = CloneForDedupe(unique, "预组·28·改名");
+            string renamedId = "C_" + SynergyUI.ContentHasher.HashCard(renamed);
+            var hit = SynergyUI.CardCatalog.FindFunctionalDuplicate(renamed, renamedId);
+            Assert(hit != null && hit.ID == unique.ID,
+                   $"牌库查重③：改名克隆被判为「{hit?.CardName}」({hit?.ID}) 的重复——保存闸拒绝"
+                   + "（与卡组合 OnSave 同一函数）");
+
+            Assert(SynergyUI.CardCatalog.FindFunctionalDuplicate(unique, unique.ID) == null,
+                   "牌库查重③：原卡自身保存放行（savedId 豁免，不会把自己判成重复）");
+
+            var buffed = CloneForDedupe(unique, "预组·28·强化");
+            buffed.Power = (unique.Power ?? 0) + 1;
+            Assert(SynergyUI.CardCatalog.FindFunctionalDuplicate(buffed, "C_VERIFY_DEDUPE_BUFFED") == null,
+                   "牌库查重③：功能不同（攻击 +1）的新卡放行——查重只拦「一模一样」");
+        }
+
+        /// <summary>查重夹具克隆：只复制参与 SealCard 的功能字段（名称换成新名，模拟「只有名字不同」）。</summary>
+        private static CardData CloneForDedupe(CardData src, string newName)
+        {
+            return new CardData
+            {
+                ID = null,
+                CardName = newName,
+                Supertype = src.Supertype,
+                Power = src.Power,
+                Life = src.Life,
+                ArrowDirections = src.ArrowDirections,
+                IsField = src.IsField,
+                Keywords = src.Keywords != null ? new List<string>(src.Keywords) : new List<string>(),
+                LinkAuras = src.LinkAuras != null ? new List<LinkAuraData>(src.LinkAuras) : null,
+                Effects = src.Effects != null ? new List<CardEffectData>(src.Effects) : new List<CardEffectData>(),
+                AttackAbility = src.AttackAbility,
+                GuardAbility = src.GuardAbility,
+                ChargeAbility = src.ChargeAbility,
+            };
         }
 
     }

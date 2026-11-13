@@ -632,10 +632,10 @@ namespace TideSim
                         Assert(BranchEngines.UnityAdjacentCountOf != null && BranchEngines.UnityAdjacentCountOf(_engine) == 4,
                             $"⑦ 施放前邻接占用=4（实际 {BranchEngines.UnityAdjacentCountOf?.Invoke(_engine) ?? -1}）——盘面钉位成立");
                         Assert(_redPlays == 2, $"⑦ 红同回合连出两张（实际 {_redPlays}）");
-                        Assert(Kw("团结") == 1, $"⑦ 首张结算触发、次张每卡每回合封顶（实际 {Kw("团结")}，明细：{KwDetail("团结")}）");
-                        Assert(_engineDamage.Count == 1 && _engineDamage[0].dmg == 4 && _engineDamage[0].target == p1.Name,
-                            $"⑦ 奖励=4 伤恰一次落蓝角色（实际 {DescribeDamage()}）");
-                        Assert(p1.Life == 22, $"⑦ 蓝终态 22（30−引擎4伤−两张新火苗攻击各2；盘面四火苗已横置不参与）——实际 {p1.Life}");
+                        Assert(Kw("团结") == 2, $"⑦ 两张各触发一次（2026-11-13 起无每回合上限；实际 {Kw("团结")}，明细：{KwDetail("团结")}）");
+                        Assert(_engineDamage.Count == 2 && _engineDamage.All(d => d.dmg == 4 && d.target == p1.Name),
+                            $"⑦ 奖励=4 伤×2 各落蓝角色（实际 {DescribeDamage()}）");
+                        Assert(p1.Life == 18, $"⑦ 蓝终态 18（30−引擎4伤×2−两张新火苗攻击各2；盘面四火苗已横置不参与）——实际 {p1.Life}");
                         break;
 
                     case "unity-miss":
@@ -713,9 +713,9 @@ namespace TideSim
                         Assert(_redAttacks == 2, $"⑬ 两次攻击宣言（实际 {_redAttacks}）");
                         Assert(_clashes.Count == 2 && _clashes.All(c => c.ok && c.my == 7 && c.their == 0),
                             $"⑬ 每宣必评估且均命中——评估无每回合上限（实际 {string.Join("/", _clashes.Select(c => $"{c.my}vs{c.their}:{c.ok}"))}）");
-                        Assert(Kw("拼枪") == 1 && _engineDamage.Count == 1 && _engineDamage[0].dmg == 6,
-                            $"⑬ 奖励发射每卡每回合封顶 1 发（播报 {Kw("拼枪")} 伤 {DescribeDamage()}）");
-                        Assert(p1.Life == 10, $"⑬ 蓝终态 10（30−引擎6−攻击7×2）——实际 {p1.Life}");
+                        Assert(Kw("拼枪") == 2 && _engineDamage.Count == 2 && _engineDamage.All(d => d.dmg == 6),
+                            $"⑬ 两次宣言各发一发（2026-11-13 起无每回合上限；播报 {Kw("拼枪")} 伤 {DescribeDamage()}）");
+                        Assert(p1.Life == 4, $"⑬ 蓝终态 4（30−引擎6×2−攻击7×2）——实际 {p1.Life}");
                         break;
 
                     case "deathtoll-repeat":

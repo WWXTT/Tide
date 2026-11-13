@@ -30,7 +30,7 @@ namespace CardCore
 
         /// <summary>自馈闸门（2026-10-30 用户定案：循环效果上限 30 次）：同一来源实例 + effect.Id
         /// 每回合最多入栈 N 次（表 GameRules.MaxTriggersPerTurnPerEffect，默认 30）——常规触发远低于此，
-        /// 只截断自循环（抽牌时抽牌/受伤时造成伤害等）。引擎载荷不叠闸（BranchEngines 每卡每回合 1 次）；
+        /// 只截断自循环（抽牌时抽牌/受伤时造成伤害等）。引擎载荷不叠闸（2026-11-13 起引擎奖励也无每回合上限）；
         /// 结界耐久经济不叠闸（耐久即次数池，耗尽自毁）。记账走既有效果用量台账（回合开始清零）。</summary>
         public bool TriggerLoopGuardReached(EffectDefinition effect, Entity source = null)
         {
@@ -53,7 +53,7 @@ namespace CardCore
 
         /// <summary>触发式入栈即记账（2026-09-13 修复：结算期记账在同批多触发下读账滞后）；
         /// 2026-10-30 起台账只作读数 + 自馈闸门计数（不再有「一回合一次」限制——
-        /// 唯一保留的每回合 1 次是自由分支引擎奖励，BranchEngines 自限）。</summary>
+        /// 自由分支引擎奖励 2026-11-13 起也取消每回合上限）。</summary>
         public void RecordQueuedActivation(EffectDefinition effect, Entity source = null)
             => RecordUse(effect, source);
 

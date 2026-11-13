@@ -4,7 +4,8 @@
       "id": "basics_plus",
       "name": "基础教学二",
       "rngSeed": 20261109,
-      "_说明": "教学二·关键词课（2026-11-09 建·2026-11-11 升格教学二）：复用原教学二（现教学三）多段结构（scenario=段0 先攻/连击、skipScenario=段1 碾压/溅射、phaseScenarios[0..8]=段2..10 缴械警戒/隐密帷幕/吸血系命/剧毒不灭/再生/守护/狩猎/病原体/绝缘体）+收尾 completeOnConfirm 步。38 步引导、10 个 midTransition、5 个 AI 回合（段5 系命反击演示/段7 空过/段8 守护吃 8 点溢出/段9 空过/段10 病原体三来源染毒）。攻击免费（TryDeclareAttack 无费用门槛）、法术全 0 费——bank 全零。新卡见 TutorialCards「教学·先攻甲」等 46 张（id=C_+HashCard 探针计算）；新效果 D43C324C 全体减攻 / 40CEACFC 一点伤害。段5 吸血/系命与段9 狩猎吸血用 units.currentLife 播种带伤开局（TutorialUnitSpec 新列）。段3 普通三只先行送死再上缴械（2026-11-09 用户修订）；段1 连击打 2/8 与先攻乙同死（2026-11-09 用户修订：文案按引擎快照反击定稿）；段2 溅射按连锁新实现讲解。",
+      "_说明": "教学二·关键词课（2026-11-09 建·2026-11-11 升格教学二）：复用原教学二（现教学三）多段结构（scenario=段0 先攻/连击、skipScenario=段1 碾压/溅射、phaseScenarios[0..8]=段2..10 缴械警戒/隐密帷幕/吸血系命/剧毒不灭/再生/守护/狩猎/病原体/绝缘体）+收尾 completeOnConfirm 步。38 步引导、10 个 midTransition、5 个 AI 回合（段5 系命反击演示/段7 空过/段8 守护吃 8 点溢出/段9 空过/段10 病原体三来源染毒）。攻击免费（TryDeclareAttack 无费用门槛）、法术全 0 费——bank 全零。新卡见 TutorialCards「教学·先攻甲」等（同身材变体已按 2026-11-13 查重并卡，详见 _查重说明；id=C_+HashCard 探针计算）；新效果 D43C324C 全体减攻 / 40CEACFC 一点伤害。段5 吸血/系命与段9 狩猎吸血用 units.currentLife 播种带伤开局（TutorialUnitSpec 新列）。段3 普通三只先行送死再上缴械（2026-11-09 用户修订）；段1 连击打 2/8 与先攻乙同死（2026-11-09 用户修订：文案按引擎快照反击定稿）；段2 溅射按连锁新实现讲解。",
+      "_查重说明": "2026-11-13 牌库查重：教学/训练表同身材占位卡已并成一张，本档同 id 多册的单位/手牌按 #N 实例引用（如 C_8E45017F#2）；文案里的甲/乙沿用旧称，只代表第 N 只。",
       "scenario": {
         "startTurn": 10,
         "firstPlayer": "P1",
@@ -17,8 +18,8 @@
           "units": [
             { "card": "C_8E45017F", "x": 2, "z": 2 },
             { "card": "C_732BCF71", "x": 3, "z": 2 },
-            { "card": "C_271AA1F8", "x": 4, "z": 2 },
-            { "card": "C_082B62DB", "x": 5, "z": 2 }
+            { "card": "C_8E45017F", "x": 4, "z": 2 },
+            { "card": "C_732BCF71", "x": 5, "z": 2 }
           ],
           "hand": [],
           "deck": ["C_E98E60F2", "C_E98E60F2"],
@@ -31,9 +32,9 @@
           "lands": [],
           "units": [
             { "card": "C_FC5BC585", "x": 2, "z": 4 },
-            { "card": "C_6DBC9CDC", "x": 3, "z": 4 },
+            { "card": "C_FC5BC585", "x": 3, "z": 4 },
             { "card": "C_036D0A6A", "x": 4, "z": 4 },
-            { "card": "C_2C6CAC92", "x": 5, "z": 4 }
+            { "card": "C_036D0A6A", "x": 5, "z": 4 }
           ],
           "hand": [],
           "deck": ["C_DA499FAE", "C_DA499FAE"],
@@ -65,10 +66,10 @@
           "units": [
             { "card": "C_0FDF4A1D", "x": 2, "z": 4 },
             { "card": "C_9914CF8A", "x": 3, "z": 4, "counters": [{ "key": "Durability", "value": 6 }] },
-            { "card": "C_FF042960", "x": 4, "z": 4 },
-            { "card": "C_AC584F8A", "x": 1, "z": 5 },
-            { "card": "C_7E1B7AA1", "x": 3, "z": 5 },
-            { "card": "C_17BD0D3E", "x": 5, "z": 5 }
+            { "card": "C_0FDF4A1D", "x": 4, "z": 4 },
+            { "card": "C_138CE290", "x": 1, "z": 5 },
+            { "card": "C_138CE290", "x": 3, "z": 5 },
+            { "card": "C_138CE290", "x": 5, "z": 5 }
           ],
           "hand": [],
           "deck": ["C_DA499FAE", "C_DA499FAE"],
@@ -89,20 +90,20 @@
         {
           "type": "attack",
           "attacker": "C_732BCF71",
-          "target": "C_6DBC9CDC",
+          "target": "C_FC5BC585#2",
           "hint": "用【教学·连击甲】攻击另一只 2/4"
         },
         {
           "type": "attack",
-          "attacker": "C_271AA1F8",
+          "attacker": "C_8E45017F#2",
           "target": "C_036D0A6A",
-          "hint": "用【教学·先攻乙】攻击一只 2/8——先攻不够打死它"
+          "hint": "用【教学·先攻甲（第二只）】攻击一只 2/8——先攻不够打死它"
         },
         {
           "type": "attack",
-          "attacker": "C_082B62DB",
-          "target": "C_2C6CAC92",
-          "hint": "用【教学·连击乙】攻击另一只 2/8"
+          "attacker": "C_732BCF71#2",
+          "target": "C_036D0A6A#2",
+          "hint": "用【教学·连击甲（第二只）】攻击另一只 2/8"
         },
         {
           "type": "intro",
@@ -118,7 +119,7 @@
         {
           "type": "attack",
           "attacker": "C_B9F338E2",
-          "target": "C_AC584F8A",
+          "target": "C_138CE290",
           "hint": "用【教学·溅射】攻击第二排任意一只 2/2"
         },
         {
@@ -134,15 +135,15 @@
         },
         {
           "type": "attack",
-          "attacker": "C_5DBE70BB",
+          "attacker": "C_BA6BE8EC#2",
           "target": "C_64AA066B",
-          "hint": "用【教学·白板3/3乙】攻击 4/8 先攻——它连一下都没摸到就死了"
+          "hint": "用【教学·白板3/3甲（第二只）】攻击 4/8 先攻——它连一下都没摸到就死了"
         },
         {
           "type": "attack",
-          "attacker": "C_0EDE312A",
+          "attacker": "C_BA6BE8EC#3",
           "target": "C_AC582815",
-          "hint": "用【教学·白板3/3丙】攻击 2/8 连击——两段反击把它打死"
+          "hint": "用【教学·白板3/3甲（第三只）】攻击 2/8 连击——两段反击把它打死"
         },
         {
           "type": "attack",
@@ -152,15 +153,15 @@
         },
         {
           "type": "attack",
-          "attacker": "C_5654ABA8",
+          "attacker": "C_202A366E#2",
           "target": "C_64AA066B",
-          "hint": "用【教学·缴械乙】攻击 4/8 先攻"
+          "hint": "用【教学·缴械甲（第二只）】攻击 4/8 先攻"
         },
         {
           "type": "attack",
-          "attacker": "C_AB547E9C",
+          "attacker": "C_202A366E#3",
           "target": "C_AC582815",
-          "hint": "用【教学·缴械丙】攻击 2/8 连击"
+          "hint": "用【教学·缴械甲（第三只）】攻击 2/8 连击"
         },
         {
           "type": "intro",
@@ -178,8 +179,8 @@
         },
         {
           "type": "play",
-          "card": "C_DE95C8CC",
-          "hint": "打出【教学·消灭乙】——点掉暴露的 8/8"
+          "card": "C_C635DB5D#2",
+          "hint": "打出【教学·14（第二张）】——点掉暴露的 8/8"
         },
         {
           "type": "intro",
@@ -189,19 +190,19 @@
         {
           "type": "attack",
           "attacker": "C_E8B8EE22",
-          "target": "C_AC584F8A",
+          "target": "C_138CE290",
           "hint": "用【教学·吸血甲】（1 血）攻击 2/2"
         },
         {
           "type": "attack",
-          "attacker": "C_9460C612",
+          "attacker": "C_E8B8EE22#2",
           "target": "C_BA6BE8EC",
-          "hint": "用【教学·吸血乙】（1 血）攻击 3/3——回满也会死"
+          "hint": "用【教学·吸血甲（第二只）】（1 血）攻击 3/3——回满也会死"
         },
         {
           "type": "attack",
           "attacker": "C_E5D9D557",
-          "target": "C_5DBE70BB",
+          "target": "C_BA6BE8EC#2",
           "hint": "用【教学·系命甲】攻击另一只 3/3——回的是角色"
         },
         {
@@ -222,9 +223,9 @@
         },
         {
           "type": "attack",
-          "attacker": "C_52A944EE",
+          "attacker": "C_DCDC05A7#2",
           "target": "C_750FFED3",
-          "hint": "用【教学·剧毒乙】攻击 8/8 不灭——消灭被拦住"
+          "hint": "用【教学·剧毒甲（第二只）】攻击 8/8 不灭——消灭被拦住"
         },
         {
           "type": "intro",
@@ -314,7 +315,7 @@
         {
           "turn": 1,
           "actions": [
-            { "type": "attack", "attacker": "C_7E1B7AA1", "target": "C_6CE1BAAF" }
+            { "type": "attack", "attacker": "C_138CE290#2", "target": "C_E5D9D557#2" }
           ]
         },
         {
@@ -339,7 +340,7 @@
           "turn": 5,
           "actions": [
             { "type": "wallet", "target": "Red", "mode": 3 },
-            { "type": "attack", "attacker": "C_DD519F03", "target": "C_E3CADDFD" },
+            { "type": "attack", "attacker": "C_DD519F03", "target": "C_6454E497#2" },
             { "type": "attack", "attacker": "C_BA6BE8EC", "target": "C_6454E497" },
             { "type": "play", "card": "C_2730BF8F", "targets": "C_6454E497" }
           ]
@@ -350,16 +351,16 @@
             { "type": "wallet", "target": "Blue", "mode": 15 },
             { "type": "play", "card": "C_BA2BFFAD", "targets": "C_030E8991" },
             { "type": "play", "card": "C_3AC147C9", "targets": "C_59A3BB05" },
-            { "type": "play", "card": "C_63FAF37B", "targets": "C_7FD01D48" },
-            { "type": "play", "card": "C_C55C98E2", "targets": "C_7FD01D48" }
+            { "type": "play", "card": "C_BA2BFFAD#2", "targets": "C_7FD01D48" },
+            { "type": "play", "card": "C_3AC147C9#2", "targets": "C_7FD01D48" }
           ]
         },
         {
           "turn": 7,
           "actions": [
             { "type": "wallet", "target": "Blue", "mode": 8 },
-            { "type": "play", "card": "C_0BFA4FD0", "targets": "C_030E8991" },
-            { "type": "play", "card": "C_04425248", "targets": "C_59A3BB05" }
+            { "type": "play", "card": "C_BA2BFFAD#3", "targets": "C_030E8991" },
+            { "type": "play", "card": "C_BA2BFFAD#4", "targets": "C_59A3BB05" }
           ]
         },
         {
@@ -368,8 +369,8 @@
             { "type": "wallet", "target": "Blue", "mode": 9 },
             { "type": "wallet", "target": "Red", "mode": 9 },
             { "type": "play", "card": "C_483E94BC", "targets": "C_030E8991" },
-            { "type": "play", "card": "C_2D514294", "targets": "C_12705A5A" },
-            { "type": "play", "card": "C_4082D33D", "targets": "C_7FD01D48" }
+            { "type": "play", "card": "C_3AC147C9#3", "targets": "C_12705A5A" },
+            { "type": "play", "card": "C_483E94BC#2", "targets": "C_7FD01D48" }
           ]
         }
       ],
@@ -385,11 +386,11 @@
             "lands": [],
             "units": [
               { "card": "C_BA6BE8EC", "x": 2, "z": 2 },
-              { "card": "C_5DBE70BB", "x": 3, "z": 2 },
-              { "card": "C_0EDE312A", "x": 4, "z": 2 },
+              { "card": "C_BA6BE8EC", "x": 3, "z": 2 },
+              { "card": "C_BA6BE8EC", "x": 4, "z": 2 },
               { "card": "C_202A366E", "x": 1, "z": 1 },
-              { "card": "C_5654ABA8", "x": 2, "z": 1 },
-              { "card": "C_AB547E9C", "x": 3, "z": 1 }
+              { "card": "C_202A366E", "x": 2, "z": 1 },
+              { "card": "C_202A366E", "x": 3, "z": 1 }
             ],
             "hand": [],
             "deck": ["C_E98E60F2", "C_E98E60F2"],
@@ -420,7 +421,7 @@
             "bank": [0, 9, 0, 0, 0, 0],
             "lands": [],
             "units": [],
-            "hand": ["C_C635DB5D", "C_DE95C8CC"],
+            "hand": ["C_C635DB5D", "C_C635DB5D"],
             "deck": ["C_E98E60F2", "C_E98E60F2"],
             "grave": []
           },
@@ -451,9 +452,9 @@
             "lands": [],
             "units": [
               { "card": "C_E8B8EE22", "x": 2, "z": 2, "currentLife": 1 },
-              { "card": "C_9460C612", "x": 3, "z": 2, "currentLife": 1 },
+              { "card": "C_E8B8EE22", "x": 3, "z": 2, "currentLife": 1 },
               { "card": "C_E5D9D557", "x": 1, "z": 1 },
-              { "card": "C_6CE1BAAF", "x": 2, "z": 1 }
+              { "card": "C_E5D9D557", "x": 2, "z": 1 }
             ],
             "hand": [],
             "deck": ["C_E98E60F2", "C_E98E60F2"],
@@ -465,10 +466,10 @@
             "bank": [0, 0, 0, 0, 0, 0],
             "lands": [],
             "units": [
-              { "card": "C_AC584F8A", "x": 3, "z": 4 },
+              { "card": "C_138CE290", "x": 3, "z": 4 },
               { "card": "C_BA6BE8EC", "x": 4, "z": 4 },
-              { "card": "C_5DBE70BB", "x": 5, "z": 4 },
-              { "card": "C_7E1B7AA1", "x": 3, "z": 5 }
+              { "card": "C_BA6BE8EC", "x": 5, "z": 4 },
+              { "card": "C_138CE290", "x": 3, "z": 5 }
             ],
             "hand": [],
             "deck": ["C_DA499FAE", "C_DA499FAE"],
@@ -486,7 +487,7 @@
             "lands": [],
             "units": [
               { "card": "C_DCDC05A7", "x": 2, "z": 2 },
-              { "card": "C_52A944EE", "x": 3, "z": 2 }
+              { "card": "C_DCDC05A7", "x": 3, "z": 2 }
             ],
             "hand": [],
             "deck": ["C_E98E60F2", "C_E98E60F2"],
@@ -601,7 +602,7 @@
             "lands": [],
             "units": [
               { "card": "C_6454E497", "x": 2, "z": 2 },
-              { "card": "C_E3CADDFD", "x": 3, "z": 2 }
+              { "card": "C_6454E497", "x": 3, "z": 2 }
             ],
             "hand": [],
             "deck": ["C_E98E60F2", "C_E98E60F2"],
@@ -658,7 +659,7 @@
             "bank": [0, 0, 0, 0, 0, 0],
             "lands": [],
             "units": [],
-            "hand": ["C_BA2BFFAD", "C_3AC147C9", "C_63FAF37B", "C_C55C98E2", "C_0BFA4FD0", "C_04425248", "C_483E94BC", "C_2D514294", "C_4082D33D"],
+            "hand": ["C_BA2BFFAD", "C_3AC147C9", "C_BA2BFFAD", "C_3AC147C9", "C_BA2BFFAD", "C_BA2BFFAD", "C_483E94BC", "C_3AC147C9", "C_483E94BC"],
             "deck": ["C_DA499FAE", "C_DA499FAE", "C_DA499FAE"],
             "grave": []
           }

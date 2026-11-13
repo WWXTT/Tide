@@ -356,7 +356,7 @@ namespace CardCore
                 }
                 def.BaseSpeed = ehp.Speed;
                 // 历史字段归一（2026-10-30 起无消费方）：引擎预设兜底仍保留存档值（哈希稳定）。
-                // 自由分支每卡每回合 1 次由 BranchEngines 自限，不再读本列。
+                // 自由分支 2026-11-13 起无每回合上限，本列不再读。
                 def.TriggerLimitPerTurn = data.TriggerLimitPerTurn > 0 ? data.TriggerLimitPerTurn : ehp.Limit;
                 def.ElementCostPrepaid = !(def.TriggerTiming == TriggerTiming.Activate_Active
                                            || def.TriggerTiming == TriggerTiming.Activate_Instant

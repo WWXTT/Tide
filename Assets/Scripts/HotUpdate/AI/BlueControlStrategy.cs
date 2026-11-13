@@ -6,9 +6,13 @@ using CardCore.Attribute;
 
 namespace CardCore.AI
 {
-    /// 以**带充盈的结界**（潜影碑/深潜碑）为引擎，潜影碑的充盈伤害是主制胜轴；
-    /// 用乱锋/弹回/薄壁控场，寒锥/回潮只作找牌与防自抽干（回潮前期不主动回收）。
-    /// 潜行（英雄技能「隐匿」）只保护带充盈的结界，绝不给角色；不再围绕磨牌/疲劳斩杀。
+    /// 2026-11-13 蓝套改版（碑阵续航）：以**带充盈的结界**（潮痕碑=充盈·2伤 / 深潭碑=充盈·回响复制）
+    /// 为核心——先把结界尽量铺下去，再靠「剩余元素差恰好=门槛」反复触发充盈：
+    /// · 潮痕碑是主制胜轴（每次触发 2 伤）；
+    /// · 深潭碑触发回响，把**两类碑**源源不断复制进手牌（复制体当回合必须打出，否则「遗忘」到期出局）；
+    /// · 碑的耐久按「每 3 次触发扣整份耐久」消耗——回响断档就会把碑打光，所以回响落点只认碑、
+    ///   两类按场上数量补齐；碑阵死光后用回潮把墓地里的碑洗回牌库，再抽回来续循环。
+    /// 乱锋作控制、回潮兼防自抽干；潜行（英雄技能「隐匿」）只保护带充盈的结界，绝不给角色。
     /// </summary>
     public sealed class BlueControlStrategy : AiStrategy
     {
@@ -30,9 +34,9 @@ namespace CardCore.AI
         public override float CardPlayScore(GameCore core, Player me, Card card,
             Func<Card, bool> containsHarmfulAtom, Func<Card, float> totalCost)
         {
-            // 蓝套 v4（2026-11-04 口径回归）：充盈控制，不再做「双方过牌 + 洗回 + 磨空牌库」。
-            // - 潜影碑（充盈·2 伤）= 主引擎；深潜碑（充盈·磨 1）只作低优先填充，不围绕磨牌/疲劳赢。
-            // - 乱锋/弹回 = 控制；薄壁 = 保护；寒锥/回潮只作找牌/防自抽干，回潮前期不主动回收。
+            // 蓝套 2026-11-13（碑阵）：充盈控制——结界（碑）铺场是第一位，回响续牌、回潮洗碑回收。
+            // - 潮痕碑（充盈·2 伤）= 主制胜轴；深潭碑（充盈·回响复制）= 续航源（复制回伤害/复制两类碑）。
+            // - 乱锋 = 控制；潮汐 = 过牌；回潮 = 洗碑回收 / 防自抽干。
             // - 潜行（英雄技能）只给带充盈的结界，见 WantHeroSkill/OrderTargetCandidates。
             float score = 0f;
             bool oppHasBoard = me.Opponent != null
@@ -43,9 +47,11 @@ namespace CardCore.AI
             if (IsOverflow(card))
             {
                 bool overflowDamage = HasBranchAtom(card, AtomicEffectType.DealDamage);
-                bool overflowMill = HasBranchAtom(card, AtomicEffectType.MillCard);
-                // 潜影碑（伤害）是主引擎；深潜碑（磨牌）只作最后填充——磨牌不作为制胜轴。
-                score += overflowDamage ? 1200f : overflowMill ? 0f : 450f;
+                bool overflowCopy = HasBranchAtom(card, AtomicEffectType.EchoCopy);
+                // 2026-11-13 蓝套改版：充盈碑=引擎本体，两张都进最高档——潮痕碑（充盈·2伤）是主制胜轴，
+                // 深潭碑（充盈·回响复制）是续航源（回响不断把两类碑补进手牌，耐久才接得上）。
+                // 旧口径「深潜碑（磨牌）只作低优先填充、不围绕磨牌赢」随回响改版退役。
+                score += overflowDamage || overflowCopy ? 1200f : 450f;
             }
 
             // 控制轴：紊乱/弹回/冻结/沉默/易伤——对手有场面才值钱。
@@ -71,9 +77,13 @@ namespace CardCore.AI
             if (hand <= 4 && HasBranchAtom(card, AtomicEffectType.DrawCard))
                 score += 120f;
 
-            // 回潮（洗回双方墓地）：只在自抽干风险时作保险；前期主动洗回=给对手续牌，降权。
+            // 回潮（洗回双方墓地）：2026-11-13 改版——碑阵要续航，**墓地里有碑就先洗碑回牌库再抽**；
+            // 墓地没碑时仍只作防自抽干保险（前期主动洗回=给对手续牌，降权）。
             if (HasBranchAtom(card, AtomicEffectType.ShuffleIntoDeck))
-                score += myDeck <= 5 ? 600f : -800f;
+            {
+                int graveMonuments = CountGraveMonuments(core, me);
+                score += graveMonuments > 0 ? 700f + graveMonuments * 50f : (myDeck <= 5 ? 600f : -800f);
+            }
 
             if (InfoAxisAtoms.Any(t => HasBranchAtom(card, t))) score += 100f;
 
@@ -133,12 +143,13 @@ namespace CardCore.AI
                 var t = BestBounceTarget(core, me);
                 return t != null ? new List<Entity> { t } : new List<Entity>();
             }
-            // 回潮（0 费洗回）：优先洗「回潮 + 潮汐」——2 费无条件抽牌是过牌引擎，加速摸到需要的卡
+            // 回潮（洗回）：2026-11-13 改版——优先把**阵亡的碑**洗回牌库（碑=引擎，抽回来才能续循环），
+            // 其次才洗潮汐/回潮这类过牌消耗品（旧口径只洗这两张，碑死了永远回不来）。
             if (HasBranchAtom(card, AtomicEffectType.ShuffleIntoDeck))
             {
                 var grave = core.ZoneManager.GetCards(me, Zone.Graveyard) ?? new List<Card>();
                 var picks = new List<Entity>();
-                foreach (var name in new[] { "回潮", "潮汐" })
+                foreach (var name in new[] { "潮痕碑", "深潭碑", "潮汐", "回潮" })
                 {
                     var c = grave.FirstOrDefault(x => x is IHasName n && n.CardName == name && !picks.Contains(x));
                     if (c != null) picks.Add(c);
@@ -196,6 +207,67 @@ namespace CardCore.AI
             foreach (var atom in ModeAtoms(card, 0))
                 if (atom != null && atom.Type == AtomicEffectType.EngineManaSurplus) return true;
             return false;
+        }
+
+        // ==================== 充盈碑阵（2026-11-13 蓝套改版） ====================
+
+        /// <summary>充盈碑（潮痕碑=充盈·2伤 / 深潭碑=充盈·回响复制）：带 ManaSurplus 引擎的场上卡。
+        /// 判据走 CardHasAtom 同源的「主序列 + 槽级 branch.Then」扫描（手牌/战场两态同口）。</summary>
+        private static bool IsFullnessMonument(Card c)
+            => c != null && c.IsAlive && HasBranchAtom(c, AtomicEffectType.EngineManaSurplus);
+
+        /// <summary>碑的奖励类型：伤害碑（Then=造成伤害）/复制碑（Then=回响复制）。</summary>
+        private static bool MonumentIsDamage(Card c) => HasBranchAtom(c, AtomicEffectType.DealDamage);
+        private static bool MonumentIsCopy(Card c) => HasBranchAtom(c, AtomicEffectType.EchoCopy);
+
+        /// <summary>己方场上某一类碑的数量（damage=true 伤害碑 / false 复制碑）——回响选目标
+        /// 「哪类少补哪类」用。</summary>
+        private static int CountOwnMonuments(GameCore core, Player me, bool damage)
+        {
+            int n = 0;
+            foreach (var c in core.ZoneManager.GetCards(me, Zone.Battlefield) ?? new List<Card>())
+            {
+                if (!IsFullnessMonument(c)) continue;
+                if (damage ? MonumentIsDamage(c) : MonumentIsCopy(c)) n++;
+            }
+            return n;
+        }
+
+        /// <summary>己方墓地里的碑数量——回潮洗回价值（碑阵续航靠「洗回→再抽→再下」）。</summary>
+        private static int CountGraveMonuments(GameCore core, Player me)
+        {
+            int n = 0;
+            foreach (var c in core.ZoneManager.GetCards(me, Zone.Graveyard) ?? new List<Card>())
+                if (HasBranchAtom(c, AtomicEffectType.EngineManaSurplus)) n++;
+            return n;
+        }
+
+        /// <summary>回响落点（2026-11-13 蓝套改版）：**只优先复制充盈碑**——
+        /// ① 两类碑都要续：场上数量少的一类优先（相等时先补伤害碑）；
+        /// ② 己方碑略高于对面碑（同名复制，先拿自己的；镜像局对面碑也能补给）；
+        /// ③ 耐久 ≤1 的碑最优先（下次触发就碎，复制体=满耐久接力）；
+        /// ④ 没有碑可选才兜底复制对面的大身材单位（多一份战力），己方普通卡垫底。
+        /// 复制体带「遗忘」，回合末不在战场即出局——**必须在当回合打出去**。</summary>
+        private static int EchoCopyScore(GameCore core, Player me, Entity e)
+        {
+            if (!(e is Card c) || !c.IsAlive) return int.MinValue;
+            bool own = ReferenceEquals(c.GetController(), me);
+            if (!IsFullnessMonument(c))
+            {
+                int power = c.IsLivingUnit() ? core.LayerEngine.CalculatePower(c) : 0;
+                int life = c.IsLivingUnit() ? c.GetLife() : 40;
+                return (own ? 0 : 120) + power + life;
+            }
+            bool dmg = MonumentIsDamage(c);
+            int dmgCount = CountOwnMonuments(core, me, damage: true);
+            int copyCount = CountOwnMonuments(core, me, damage: false);
+            bool wanted = dmg ? dmgCount <= copyCount : copyCount < dmgCount;
+            int durability = c.GetCounterCount(CounterRules.DurabilityCounter);
+            int score = 3000 + (wanted ? 400 : 0) + (own ? 120 : 0);
+            // 耐久 ≤1：这块碑下一次触发就碎——复制体=满耐久接力。**复制碑（深潭碑）优先保住**：
+            // 回响源一断，两类碑都补不进手牌，整个循环停摆。
+            if (durability <= 1) score += dmg ? 250 : 700;
+            return score;
         }
 
         // ==================== 铺地（2026-11-02 打断玩法必要脚手架） ====================
@@ -414,6 +486,10 @@ namespace CardCore.AI
             var list = req?.Candidates;
             if (list == null || list.Count <= 1) return list;
             var opp = me?.Opponent;
+
+            // 回响落点（2026-11-13 蓝套改版）：充盈触发时优先复制两类碑（伤害/复制），把引擎续进手牌。
+            if (req.PromptAtom == AtomicEffectType.EchoCopy)
+                return list.OrderByDescending(e => EchoCopyScore(core, me, e)).ToList();
 
             // 潜行目标（2026-11-04 用户口径）：潜行只给**带充盈的己方结界**，不给角色。
             // 隐匿效果域已收窄到己方无生命单位（kind 3）；这里再按充盈价值排序：
