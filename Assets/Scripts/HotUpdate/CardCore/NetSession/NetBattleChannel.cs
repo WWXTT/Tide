@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using CardCore.Attribute;
+using Cysharp.Threading.Tasks;
 using GameBoard;
 using SynergyUI;
 
@@ -236,12 +237,98 @@ namespace CardCore.Network
             if (conn.MatchSeat < 0)
             { _room.SendError(conn, "观战连接不能发 intent", msg.Type.ToString(), NetworkChannel.Battle); return; }
 
+            // 动态数量声明预选在途：独占声明线（客户端处于选目标窗，正常不会再发 intent——
+            // 此闸只兜并发双击/迟到消息，防两次声明竞态）。投降仍放行（终局优先）。
+            if (_declarationPending && msg.Type != NetworkMessageType.IntentConcede)
+            {
+                _room.SendError(conn, "目标选择中——请先完成当前选择", msg.Type.ToString(), NetworkChannel.Battle);
+                return;
+            }
+
+            // 声明期预选（2026-11-14 动态数量）：法术/英雄技能含动态数量原子且目标未预选——
+            // 服务器先经 SelectRequest 问客户端「选几个目标」（候选集服务器权威），拿到数量再声明；
+            // 普通出牌/技能仍走原「结算期反问」流程（TryBuild* 只在动态数量时返回 true）。
+            if (NetworkIntentApplier.TryBuildPlayCardPreselect(core, conn.MatchSeat, msg,
+                    out var playIntent, out var playEffect, out var playCtx))
+            {
+                PreselectPlayCardAsync(core, conn, msg, playIntent, playEffect, playCtx).Forget();
+                return;
+            }
+            if (NetworkIntentApplier.TryBuildHeroSkillPreselect(core, conn.MatchSeat, msg,
+                    out var skillIntent, out var skillEffect, out var skillCtx))
+            {
+                PreselectHeroSkillAsync(core, conn, msg, skillIntent, skillEffect, skillCtx).Forget();
+                return;
+            }
+
             if (!NetworkIntentApplier.Apply(core, conn.MatchSeat, msg, out var error, _board)) // v19：传宿主棋盘（落格校验+钉格）
             {
                 _room.SendError(conn, error, msg.Type.ToString(), NetworkChannel.Battle); // §5 拒绝语义：Error 帧回发（M2 落地）
                 return;
             }
             _room.MarkSnapshotDirty();
+        }
+
+        /// <summary>声明期预选在途（单飞闸）。</summary>
+        private bool _declarationPending;
+
+        /// <summary>动态数量·法术声明：服务器先收集目标/数量（可取消=撤销发动），再走完整出牌门禁。</summary>
+        private async UniTaskVoid PreselectPlayCardAsync(GameCore core, INetChannel conn, NetworkMessage msg,
+            MsgIntentPlayCard intent, EffectDefinition effect, EffectExecutionContext ctx)
+        {
+            _declarationPending = true;
+            try
+            {
+                var decl = await Attribute.EffectHandlerRegistry.CollectDeclarationTargetsAsync(effect, ctx);
+                if (_room.Phase != NetRoomPhase.Playing) return; // 选择期间终局/退房：放弃声明
+                if (decl == null)
+                {
+                    _room.SendError(conn, "已取消发动（目标选择取消）", msg.Type.ToString(), NetworkChannel.Battle);
+                    return;
+                }
+                if (!NetworkIntentApplier.ApplyPlayCardPreselected(core, conn.MatchSeat, intent, decl, _board,
+                        out var error))
+                {
+                    _room.SendError(conn, error, msg.Type.ToString(), NetworkChannel.Battle);
+                    return;
+                }
+                _room.MarkSnapshotDirty();
+            }
+            catch (Exception ex)
+            {
+                TideLog.Error($"[NetRoom] 动态数量声明预选异常（出牌）：{ex}");
+                _room.SendError(conn, "目标选择异常——本次发动取消", msg.Type.ToString(), NetworkChannel.Battle);
+            }
+            finally { _declarationPending = false; }
+        }
+
+        /// <summary>动态数量·英雄技能声明：同出牌口径（先选目标/数量，再预检+声明）。</summary>
+        private async UniTaskVoid PreselectHeroSkillAsync(GameCore core, INetChannel conn, NetworkMessage msg,
+            MsgIntentActivateHeroSkill intent, EffectDefinition effect, EffectExecutionContext ctx)
+        {
+            _declarationPending = true;
+            try
+            {
+                var decl = await Attribute.EffectHandlerRegistry.CollectDeclarationTargetsAsync(effect, ctx);
+                if (_room.Phase != NetRoomPhase.Playing) return; // 选择期间终局/退房：放弃声明
+                if (decl == null)
+                {
+                    _room.SendError(conn, "已取消发动（目标选择取消）", msg.Type.ToString(), NetworkChannel.Battle);
+                    return;
+                }
+                if (!NetworkIntentApplier.ApplyHeroSkillPreselected(core, conn.MatchSeat, intent, decl, out var error))
+                {
+                    _room.SendError(conn, error, msg.Type.ToString(), NetworkChannel.Battle);
+                    return;
+                }
+                _room.MarkSnapshotDirty();
+            }
+            catch (Exception ex)
+            {
+                TideLog.Error($"[NetRoom] 动态数量声明预选异常（技能）：{ex}");
+                _room.SendError(conn, "目标选择异常——本次发动取消", msg.Type.ToString(), NetworkChannel.Battle);
+            }
+            finally { _declarationPending = false; }
         }
 
         // ============================================================ 开局 / 终局 ============================================================

@@ -342,9 +342,32 @@ namespace SynergyUI
                             return;
                         }
                         _graph.header.ActivationType = pick.value;
+                        NormalizeDynamicCountsForActivation(); // 切到自动：动态数量收 1（结算会再兜底）
                     }
                     SyncActivationVisibility();
+                    RefreshSlots(); // 动态数量档随主动/自动切换重绑（dd-num 选项面）
+                    RefreshName();
                 };
+        }
+
+        /// <summary>动态数量仅主动效果可用（2026-11-14）：发动方式切离主动时，把主干原子的
+        /// count=-3 收为 1 并提示——防 UI 显示动态但保存/装载被归一的口径分裂。</summary>
+        private void NormalizeDynamicCountsForActivation()
+        {
+            if (_graph?.header == null
+                || _graph.header.ActivationType == (int)EffectActivationType.Voluntary) return;
+            int cleared = 0;
+            foreach (var s in _graph.steps ?? new List<EffectStepData>())
+            {
+                if (s?.kind != 0 || s.atomic == null) continue;
+                if (s.atomic.count == AtomicEffectInstance.DynamicTargetCount)
+                {
+                    s.atomic.count = 1;
+                    cleared++;
+                }
+            }
+            if (cleared > 0)
+                ShowToast($"动态数量仅主动效果可用——已把 {cleared} 个原子收为 1 个目标");
         }
 
         /// <summary>宿主形状谓词（2026-10-15 深夜三类卡改版）：结界禁主动（只挂自动/光环）、

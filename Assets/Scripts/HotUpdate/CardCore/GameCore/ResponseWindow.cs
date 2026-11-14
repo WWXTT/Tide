@@ -41,6 +41,9 @@ namespace CardCore
         /// <summary>手牌响应卡（Kind=HandCard）声明期预选目标（2026-10-20）：
         /// null=未收集（无交互原子/AI——结算期照常反问代选）。</summary>
         public List<Entity> Targets;
+        /// <summary>手牌响应卡动态数量（2026-11-14）：随 Targets 一起收集——声明期选了几个，
+        /// PlayCardInResponse 扣费/执行就按几份（null=无动态数量）。</summary>
+        public List<int> DynamicCounts;
         //（充能色字段已随 2026-11-05 充能系统动作化改版删除：充能=速度0系统动作，不经响应窗。）
     }
 

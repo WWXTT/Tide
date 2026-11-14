@@ -81,11 +81,12 @@ namespace SynergyUI
         private static string SkillFeeZh(EffectDefinition fx)
         {
             var c = CostDerivationService.DeriveElementCosts(fx);
-            if (c == null || c.IsZero) return "免费";
+            bool dynamic = CostDerivationService.HasDynamicAtom(fx); // 动态数量：实际=基础×目标数
+            if (c == null || c.IsZero) return dynamic ? "免费起" : "免费";
             var parts = new List<string>();
             foreach (var k in c.NonzeroColors())
                 parts.Add($"{Math.Max(1, (int)Math.Ceiling(c[k]))}{ManaTypeNames.ZhNameOf(k)}");
-            return $"付{string.Join("", parts)}";
+            return $"付{string.Join("", parts)}{(dynamic ? "起（动态×目标数）" : "")}";
         }
 
         private async UniTaskVoid ActivateSkillAsync(int effectIndex = 0)
@@ -106,7 +107,22 @@ namespace SynergyUI
                 if (picked == null) return; // 缺 Region=无交互（本已点「发动」，静默取消）
                 effectIndex = picked.Value;
             }
-            bool ok = GameActions.ActivateHeroSkill(Core, P1, effectIndex, out var skillReason);
+            // 动态数量（2026-11-14）：技能效果含动态原子→发动前先选目标/数量（可取消=不发动）
+            List<Entity> targets = null;
+            List<int> dynamicCounts = null;
+            var fx = effects != null && effectIndex >= 0 && effectIndex < effects.Count ? effects[effectIndex] : null;
+            if (fx != null && CostDerivationService.HasDynamicAtom(fx))
+            {
+                var decl = await GameActions.CollectEffectDeclarationTargetsAsync(fx, skill, P1);
+                if (decl == null)
+                {
+                    _toast.Show("已取消发动（目标选择取消）");
+                    return;
+                }
+                targets = decl.Targets;
+                dynamicCounts = decl.DynamicCounts;
+            }
+            bool ok = GameActions.ActivateHeroSkill(Core, P1, effectIndex, targets, dynamicCounts, out var skillReason);
             if (!ok) _toast.Show(skillReason ?? "无法发动技能（本回合已用/阶段不对/费用付不出）"); // 引擎真因（2026-11-03 失败提示细化）
             else _ctrl.SettleResponseWindow().Forget(); // 无候选自动双 Pass，无害
             RefreshField(); // 地牌横置/角色弹药随对账刷新（旧渲染链字段已不绑）

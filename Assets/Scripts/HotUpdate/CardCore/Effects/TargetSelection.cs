@@ -176,6 +176,9 @@ namespace CardCore
             GameActions.Crumb($"target-select cands={req.Candidates.Count} min={req.MinCount} chooser={req.Chooser?.Name} ui={(Current != null ? Current.GetType().Name : "null→auto")}");
 
             // AI / 无头 → 即时自动选择（取前 MinCount 个）；策略排序钩子先重排候选
+            // 2026-11-14：**任意档（count=-1，MinCount=0）**改为取排序后的全部候选——
+            // 由策略钩子截断返回列表来控制「选几个」（如绿套牺牲按需祭 1~N 张）；钩子未截断=全取。
+            // 旧行为（MinCount=0 → AutoSelect 返回空）会让 AI 的任意档效果直接空转。
             if (Current == null || (req.Chooser != null && req.Chooser.IsAI))
             {
                 var order = AiOrder;
@@ -184,7 +187,9 @@ namespace CardCore
                     var ordered = order(req);
                     if (ordered != null && ordered.Count > 0) req.Candidates = ordered;
                 }
-                return AutoSelect(req.Candidates, req.MinCount);
+                int take = req.MinCount;
+                if (req.MinCount <= 0 && req.MaxCount > 1) take = req.Candidates.Count;
+                return AutoSelect(req.Candidates, take);
             }
 
             float timeout = req.TimeoutSeconds > 0f ? req.TimeoutSeconds : ComputeTimeout();

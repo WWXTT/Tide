@@ -193,7 +193,10 @@ namespace SynergyUI
                 if (zone == Zone.Hand || zone == Zone.Deck)
                 { parts.Add(region); continue; }             // 手牌/牌库：纯区域词（量词与「的卡」由模板语境承载）
                 string cats = JoinZh(TargetCategoryRules.ZhOf(s.Categories).Split(',').ToList(), orJoin);
-                string quant = count < 0 ? "" : count == 0 ? "全部" : count + MeasureWordOf(s.Categories);
+                // 动态数量（2026-11-14）：无固定数——量词用「若干」（数量在发动时选）
+                string quant = count == AtomicEffectInstance.DynamicTargetCount
+                    ? "若干" + MeasureWordOf(s.Categories)
+                    : count < 0 ? "" : count == 0 ? "全部" : count + MeasureWordOf(s.Categories);
                 parts.Add(region + "的" + quant + cats);
             }
             return JoinZh(parts, orJoin);
@@ -310,6 +313,7 @@ namespace SynergyUI
                 int hc = header != null ? header.TargetCount : -2;
                 effCount = hc == 0 || (hc >= 1 && hc <= 3) ? hc : 1;
             }
+            bool dynamicCount = effCount == AtomicEffectInstance.DynamicTargetCount; // 动态数量：发动时选，量词「若干」
             bool quantified = effCount >= 1 && effCount <= 3;
             string noun;
             if (atom.count == 0)
@@ -321,9 +325,13 @@ namespace SynergyUI
             }
             else
             {
-                noun = TargetNoun(cfg, atom, header, quantified ? effCount : -1);
-                if (noun == "目标" && (cfgKinds?.Count ?? 0) > 0 && quantified)
-                    noun = effCount + "个目标"; // 回退名词非域非类别——保旧口径（2026-11-06「2个目标」）
+                noun = TargetNoun(cfg, atom, header, dynamicCount ? AtomicEffectInstance.DynamicTargetCount
+                    : quantified ? effCount : -1);
+                if (noun == "目标" && (cfgKinds?.Count ?? 0) > 0)
+                {
+                    if (quantified) noun = effCount + "个目标"; // 回退名词非域非类别——保旧口径（2026-11-06「2个目标」）
+                    else if (dynamicCount) noun = "若干目标";
+                }
             }
             // 费用增减指示物（2026-11-07 定案）：{target} 解析为「x张 / 全部 单侧手牌」——
             // 域=极性解析后的单一手牌，全域=该手牌下全部卡（表模板「为{target}中的卡添加…」）。

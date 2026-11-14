@@ -33,7 +33,8 @@ namespace CardCore
         /// 指示物，在下方指示物层统一套算）。层序恒定：恒推导基价 → 法术锚价 → 四色费用指示物层；
         /// 预检/扣费/pending/UI 预览全消费面共用本口，不另开口径。
         /// </summary>
-        public static ElementCost GetCardCost(Card card, int modeIndex = 0)
+        public static ElementCost GetCardCost(Card card, int modeIndex = 0,
+            IReadOnlyList<int> dynamicCounts = null)
         {
             ElementCost cost;
             var data = (card as CardCore.CardWrapper)?.GetData();
@@ -50,7 +51,8 @@ namespace CardCore
             //    在此对「基价+锚价」整笔施放账单色锁补扣（法术施放账单=整笔，不拆基价/锚价容量）。
             if (data != null && data.Supertype == Cardtype.Spell)
             {
-                var anchor = SpellCastAnchor(card, modeIndex);
+                // 动态数量（2026-11-14）：声明期选目标数在锚价推导时生效——选 N 个=base×N。
+                var anchor = SpellCastAnchor(card, modeIndex, dynamicCounts);
                 var modeDefs = GetCastableEffectDefinitions(card);
                 var modeDef = modeDefs != null && modeDefs.Count > 0
                     ? modeDefs[Math.Clamp(modeIndex, 0, modeDefs.Count - 1)] : null;
@@ -103,7 +105,8 @@ namespace CardCore
         /// 施放时抉择其一，锚价并入 cast 账单现付，无额外费用）。modeIndex=效果序号（GetCardCost 单源消费）。
         /// 与 CardCostService.Derive 同口径。非法术/无效果返回空。
         /// </summary>
-        public static ElementCost SpellCastAnchor(Card card, int effectIndex)
+        public static ElementCost SpellCastAnchor(Card card, int effectIndex,
+            IReadOnlyList<int> dynamicCounts = null)
         {
             var data = card is CardWrapper wrapper ? wrapper.GetData() : null;
             if (data == null || data.Supertype != Cardtype.Spell) return new ElementCost();
@@ -111,7 +114,7 @@ namespace CardCore
             if (defs == null || defs.Count == 0) return new ElementCost();
             var def = defs[Math.Clamp(effectIndex, 0, defs.Count - 1)];
             if (def == null) return new ElementCost();
-            return CostDerivationService.DeriveElementCosts(def, 0) ?? new ElementCost();
+            return CostDerivationService.DeriveElementCosts(def, 0, dynamicCounts) ?? new ElementCost();
         }
 
         /// <summary>
@@ -131,10 +134,11 @@ namespace CardCore
         /// 声明期此前零闸）。
         /// 出牌声明预检（PlayCard/PlayCardInResponse）与 AI 枚举（LegalActionEnumerator）共用。
         /// </summary>
-        public static bool CanAffordCast(GameCore core, Player player, Card card, int modeIndex)
+        public static bool CanAffordCast(GameCore core, Player player, Card card, int modeIndex,
+            IReadOnlyList<int> dynamicCounts = null)
         {
             if (core == null || player == null || card == null) return false;
-            if (!CanAfford(core.ElementPool, GetCardCost(card, modeIndex), player,
+            if (!CanAfford(core.ElementPool, GetCardCost(card, modeIndex, dynamicCounts), player,
                     GetPendingCastCosts(core, player)))
                 return false;
 

@@ -87,7 +87,7 @@ namespace CardCore
         public int limit;              // TriggerLimitPerTurn（历史列·无消费方；保留存档/哈希稳定）
         public int duration;           // DurationType
         public int selection = -1;     // SelectionMode（-1=None；0-5=六值定案 2026-09-16）——初始值=省略哨兵
-        public int count = -2;         // TargetCount（>0=N；0=全部；-1=任意[玩家自选数量=0费]；-2=未声明）——初始值=省略哨兵
+        public int count = -2;         // TargetCount（>0=N；0=全部；-1=任意[玩家自选数量=0费]；-3=动态数量[base×N，仅主动效果]；-2=未声明）——初始值=省略哨兵
         public int random;             // RandomTarget（0/1——目标随机正交标志，与"选多少"无关）
         public List<int> kinds;        // 效果级作用范围（2026-10-04 相同目标定案）：null=未声明（空列不写，向后兼容）
         public int dropZone;           // SummonDropZone

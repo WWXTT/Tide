@@ -464,7 +464,8 @@ namespace CardCore
         public string domain;         // 域词表声明（2026-11-04 P0-1）：单中文 token（EffectDomain 词表 28 token）；
                                       // null=未声明走 kinds 旧口径。非空时优先于 kinds 与表行 TargetKinds
                                       //（converter 双读第一优先级）；不在表行 Domain 允许集内=告警但生效（迁移期排错）
-        public int count = -2;        // 每原子目标数量（2026-10-09：档 1/2/3；-2=未声明回落效果级 TargetCount）
+        public int count = -2;        // 每原子目标数量（2026-10-09：档 1/2/3；-2=未声明回落效果级 TargetCount；
+                                      // -3=动态数量[2026-11-14：发动时选 1..候选数，费用=基础×N 不享档位]）
         public int rand = -1;         // 每原子目标随机（2026-10-09：1=随机抽不弹窗/0=弹窗；-1=未声明回落效果级 RandomTarget）
         public int defer;             // 每原子目标选择方式（2026-10-20：0=发动前预选=默认/1=效果处理时选——结算期必须选不可取消）
         public BranchEntryData branch; // 槽级分支载荷（2026-10-05 两槽定案）：null=无分支

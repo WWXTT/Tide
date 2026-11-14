@@ -4226,13 +4226,41 @@
       "timing": 19,
       "activation": 2,
       "selection": 0,
-      "count": 1,
+      "count": -1,
       "steps": [
         {
           "kind": 0,
           "atom": {
             "refId": "84136d36"
           }
+        }
+      ]
+    },
+    {
+      "id": "FXGREEN09",
+      "name": "登场时，为己方角色添加2层护甲；若为本回合使用的第一张卡，为一手牌添加2层绿色费用减少指示物",
+      "hash": "36D7FCB7",
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "9ff1954d",
+            "value": 2,
+            "domain": "己方角色"
+          }
+        },
+        {
+          "kind": 1,
+          "gid": "FirstCardThisTurn",
+          "then": [
+            {
+              "refId": "48083c16",
+              "value": 2,
+              "kinds": [
+                5
+              ]
+            }
+          ]
         }
       ]
     }

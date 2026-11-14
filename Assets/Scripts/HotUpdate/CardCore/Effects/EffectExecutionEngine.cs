@@ -267,6 +267,10 @@ namespace CardCore
 
             var effect = instance.Definition;
 
+            // 动态数量（2026-11-14）：声明期收集表落在本次执行的原子图上——计价（若需现付）/
+            // 目标选取（按 N 消费预选队列）同表；幂等。
+            CostDerivationService.ApplyDynamicCounts(effect, instance.DynamicCounts);
+
             // 发动层无效（2026-10-04 两层无效定案，NegateActivation 标记）：发动本身作废——净零成本跳过：
             // 不移除潜行（未真正发动过效果）、不扣元素费/特殊代价（主动=不扣费，横置为声明期代价不重置）、
             // 不结算原子；触发式退还入栈时的发动次数记账（不计入发动次数）。

@@ -32,6 +32,11 @@ namespace CardCore
         ///（网络意图/重放按 SpecKey 对齐显式携带）——随 cast 入栈（EffectInstance.Refs），执行器种进
         /// context.Refs；null=无参照（普通效果，行为与旧重载一致）。</summary>
         public static bool PlayCard(GameCore core, Player player, Card card, List<Entity> targets, Zone fromZone, int modeIndex, List<Entity> references, out string rejectReason)
+            => PlayCard(core, player, card, targets, fromZone, modeIndex, references, null, out rejectReason);
+
+        /// <summary>动态数量版（2026-11-14）：dynamicCounts=声明期收集的动态数量（下标=效果原子序，
+        /// 0=非动态）——预检/扣费按 base×N，随 cast 透传到结算执行（ResolveCardCastAsync 同表扣费）。</summary>
+        public static bool PlayCard(GameCore core, Player player, Card card, List<Entity> targets, Zone fromZone, int modeIndex, List<Entity> references, IReadOnlyList<int> dynamicCounts, out string rejectReason)
         {
             rejectReason = null;
             if (core == null || player == null || card == null) { rejectReason = "内部错误：空参数"; return false; }
@@ -104,8 +109,8 @@ namespace CardCore
             // 同玩家已声明的施放费用一并计入，防同笔 bank 超发——结算付不出只入墓、不回卷；
             // 2026-10-16 恢复旧序（回调 10-11「补偿先付垫本卡」）：代价补偿黑/白不预计算垫本卡
             //——CanAffordCast 不虚拟并入，补偿须本卡发动成功、代价强制执行完成后才入账
-            var cost = GetCardCost(card, modeIndex);
-            if (!CanAffordCast(core, player, card, modeIndex))
+            var cost = GetCardCost(card, modeIndex, dynamicCounts);
+            if (!CanAffordCast(core, player, card, modeIndex, dynamicCounts))
             { rejectReason = CostRejectText(core, player, cost); return false; }
 
             // ---- 声明（使用时点·S3b 2026-11-04 删发动区）：设控制者 → 重复施放闸 → cast 上栈 → 使用宣言 ----
@@ -118,7 +123,7 @@ namespace CardCore
             if (core.StackEngine.GetPendingCastCards(player).Contains(card))
             { rejectReason = "该卡已在施放中（连锁上待结算——不可二次声明）"; return false; }
 
-            if (!core.StackEngine.PushCardCast(card, player, targets, modeIndex, references))
+            if (!core.StackEngine.PushCardCast(card, player, targets, modeIndex, references, dynamicCounts))
             {
                 // 理论不可达（声明预检已过）；S3b 后零移动——直接失败（卡从未动过）
                 card._pendingCastFromZone = Zone.None;
@@ -155,6 +160,10 @@ namespace CardCore
         /// <summary>步5（2026-11-08 目标选择重构 §3.3）：references=声明期 Reference spec 选位
         ///（网络意图/重放按 SpecKey 对齐显式携带）——随 cast 入栈（EffectInstance.Refs）。</summary>
         public static bool PlayCardInResponse(GameCore core, Player player, Card card, List<Entity> targets, int modeIndex, List<Entity> references, out string rejectReason)
+            => PlayCardInResponse(core, player, card, targets, modeIndex, references, null, out rejectReason);
+
+        /// <summary>动态数量版（2026-11-14）：同 PlayCard 计数透传（响应出牌同门）。</summary>
+        public static bool PlayCardInResponse(GameCore core, Player player, Card card, List<Entity> targets, int modeIndex, List<Entity> references, IReadOnlyList<int> dynamicCounts, out string rejectReason)
         {
             rejectReason = null;
             if (core == null || player == null || card == null) { rejectReason = "内部错误：空参数"; return false; }
@@ -198,8 +207,8 @@ namespace CardCore
             // 费用预检（含本玩家已声明的施放承诺；不支付——cast 结算时才扣；抉择按所选模式；
             // 2026-09-14 代价强制：原价账单预检，混付口径同 PlayCard；
             // 2026-10-16 恢复旧序：同 PlayCard 走 CanAffordCast——代价补偿黑/白不预计算垫本卡）
-            var cost = GetCardCost(card, modeIndex);
-            if (!CanAffordCast(core, player, card, modeIndex))
+            var cost = GetCardCost(card, modeIndex, dynamicCounts);
+            if (!CanAffordCast(core, player, card, modeIndex, dynamicCounts))
             { rejectReason = CostRejectText(core, player, cost); return false; }
 
             card.SetController(player);
@@ -209,7 +218,7 @@ namespace CardCore
             if (core.StackEngine.GetPendingCastCards(player).Contains(card))
             { rejectReason = "该卡已在施放中（连锁上待结算——不可二次声明）"; return false; }
 
-            if (!core.StackEngine.PushCardCast(card, player, targets, modeIndex, references))
+            if (!core.StackEngine.PushCardCast(card, player, targets, modeIndex, references, dynamicCounts))
             {
                 // S3b：零移动回退（卡留手牌，Push 失败不动卡）
                 rejectReason = "速度门拒绝（响应卡速度须高于记速器）";
@@ -296,7 +305,7 @@ namespace CardCore
             // ③ 代价强制执行（只执行、不发放）。
             // 被「效果无效」只跳效果、已付代价不回卷；被「发动无效」则全免（上方 1 已拦）。
             var specialCosts = CollectCardSpecialCosts(card);
-            var cost = GetCardCost(card, cast.ModeIndex);
+            var cost = GetCardCost(card, cast.ModeIndex, cast.DynamicCounts);
             var preselected = card._pendingCostTargets;
             card._pendingCostTargets = null; // 消费点即清空（防跨次使用泄漏；付费步一次性）
 
@@ -362,7 +371,8 @@ namespace CardCore
             // 4. 结算：法术 → 效果全结算后离区入墓；永久物 → 登记触发式 + 入场
             if (card.IsSpellCard())
             {
-                await ResolveSpellEffectsAsync(core, player, card, cast.Targets, cast.ModeIndex, cast, cast.Refs);
+                await ResolveSpellEffectsAsync(core, player, card, cast.Targets, cast.ModeIndex, cast, cast.Refs,
+                    cast.DynamicCounts);
             }
             else
             {
@@ -529,8 +539,9 @@ namespace CardCore
                 if (obj == null || !obj.IsCardCast || obj.Controller != player) continue;
                 if (!(obj.Source is Card castCard)) continue;
 
-                // 抉择按各自声明的模式计承诺
-                var cost = GetCardCost(castCard, obj.ModeIndex);
+                // 抉择按各自声明的模式计承诺；动态数量按各自声明期选定的 N 计（防两发动态法术
+                // 同窗口声明时第二发按 base 少算承诺、账面超发）
+                var cost = GetCardCost(castCard, obj.ModeIndex, obj.DynamicCounts);
                 sum.Add(cost);
             }
             return sum;
@@ -566,22 +577,22 @@ namespace CardCore
         /// <summary>
         /// 声明期目标收集（2026-10-20 法术发动流程改案）：法术发动（PlayCard/PlayCardInResponse）
         /// **前**逐原子预选目标——调用方（BattleScreen 主路径 / 响应窗泵手牌卡分支）拿到结果再声明。
-        /// 返回：null=玩家取消（终止发动——主路径撤销、响应路径记 declined）；空表=无交互原子
-        /// （直通声明，结算期照常自解析）；非空=预选目标（按原子序，结算期经预选队列有序消费）。
+        /// 返回：null=玩家取消（终止发动——主路径撤销、响应路径记 declined）；空结果=无交互原子
+        /// （直通声明，结算期照常自解析）；非空=预选目标+动态数量表（按原子序，结算期经预选队列有序消费）。
         /// 口径单源=EffectHandlerRegistry.CollectDeclarationTargetsAsync（与结算路径同谓词）；
         /// 教学闸/费用门不在此口——调用方先过、PlayCard 内终审（本口零引擎副作用）。
         /// caster 显式传参：响应路径施法者可能非回合玩家。
         /// </summary>
-        public static async Cysharp.Threading.Tasks.UniTask<List<Entity>> CollectSpellDeclarationTargetsAsync(
+        public static async Cysharp.Threading.Tasks.UniTask<DeclarationTargets> CollectSpellDeclarationTargetsAsync(
             Card card, Player caster, int modeIndex)
         {
             var core = GameCore.Instance;
-            if (card == null || caster == null || core?.ZoneManager == null) return new List<Entity>();
+            if (card == null || caster == null || core?.ZoneManager == null) return DeclarationTargets.Empty(0);
 
             var defs = GetCastableEffectDefinitions(card); // P12：模式序号索引非充能列表
-            if (defs == null || defs.Count == 0) return new List<Entity>();
+            if (defs == null || defs.Count == 0) return DeclarationTargets.Empty(0);
             var chosen = defs[Math.Clamp(modeIndex, 0, defs.Count - 1)];
-            if (chosen == null) return new List<Entity>();
+            if (chosen == null) return DeclarationTargets.Empty(0);
 
             var ctx = new EffectExecutionContext
             {
@@ -596,6 +607,29 @@ namespace CardCore
         }
 
         /// <summary>
+        /// 主动效果/英雄技能发动前目标收集（2026-11-14 动态数量配套）：与法术声明收集同源
+        /// （CollectDeclarationTargetsAsync 单链），供本地 UI/网络服务器在 CanActivate 预检**之前**
+        /// 选定动态数量原子的目标数——扣费按 base×N、执行按 N 消费预选。0 费/无动态原子的效果
+        /// 调用方可不走本口（行为不变）。
+        /// </summary>
+        public static async Cysharp.Threading.Tasks.UniTask<DeclarationTargets> CollectEffectDeclarationTargetsAsync(
+            EffectDefinition effect, Card source, Player caster, int modeIndex = 0)
+        {
+            var core = GameCore.Instance;
+            if (effect == null || source == null || caster == null || core?.ZoneManager == null)
+                return DeclarationTargets.Empty(0);
+            var ctx = new EffectExecutionContext
+            {
+                Source = source,
+                Controller = caster,
+                ZoneManager = core.ZoneManager,
+                ElementPool = core.ElementPool,
+                ModeIndex = modeIndex,
+            };
+            return await Attribute.EffectHandlerRegistry.CollectDeclarationTargetsAsync(effect, ctx);
+        }
+
+        /// <summary>
         /// 结算法术的施放效果（经本核心的 EffectExecutor），完成后离开发动区入墓。
         /// 2026-10-15 深夜三类卡改版：法术=1~3 个主动效果——施放时弹窗抉择其一（modeIndex=效果序号，
         /// 声明期随 CardPlayEvent 公开），此处只执行所选那条；锚价已并入 cast 账单
@@ -604,7 +638,8 @@ namespace CardCore
         /// </summary>
         private static async Cysharp.Threading.Tasks.UniTask ResolveSpellEffectsAsync(
             GameCore core, Player player, Card card, List<Entity> targets, int modeIndex = 0,
-            EffectInstance cast = null, List<Entity> references = null)
+            EffectInstance cast = null, List<Entity> references = null,
+            IReadOnlyList<int> dynamicCounts = null)
         {
             var defs = GetCastableEffectDefinitions(card); // P12：模式序号索引非充能列表
             EffectDefinition chosen = null;
@@ -638,6 +673,8 @@ namespace CardCore
                     Controller = player,
                     Targets = targets != null ? new List<Entity>(targets) : new List<Entity>(),
                     Refs = references != null && references.Count > 0 ? new List<Entity>(references) : null,
+                    DynamicCounts = dynamicCounts != null && dynamicCounts.Count > 0
+                        ? new List<int>(dynamicCounts) : null, // 动态数量（2026-11-14）：执行价/执行数同表
                     ModeIndex = 0, // 法术效果禁嵌抉择（装载校验拦）——modeIndex 已被效果抉择占用，执行层恒 0
                     CastCard = card, // 施放宿主卡（状态门「本回合第一张抽到的卡」需要卡身份）
                     RespondedEntry = castEntry?.RespondedEntry, // E1-1：cast 的响应绑定透传给法术效果上下文（反制读它）

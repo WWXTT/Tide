@@ -213,7 +213,8 @@ namespace SynergyUI
         /// 本口仍是终态单点（法术带 targets、生物/结界 targets=null 照旧）。
         /// 返回声明成败——法术流的乐观 UI（藏卡+转正贴片）由调用方按 false 清理（拒绝无引擎事件，
         /// 扇区/贴片不会随后续对账自愈）。</summary>
-        private bool PlayCardFinal(BattleCardView card, List<Entity> targets, int modeIndex)
+        private bool PlayCardFinal(BattleCardView card, List<Entity> targets, int modeIndex,
+            List<int> dynamicCounts = null)
         {
             var core = Core;
             if (core == null || P1 == null) return false;
@@ -227,7 +228,7 @@ namespace SynergyUI
             //（TopDeckPlaySource/IPlaySource 授权）；其余路径恒手牌（墓地施放已随 2026-10-30 归土改版退役）。
             bool ok = GameActions.PlayCard(core, P1, card.CoreCard, targets,
                 card.CoreCard != null && card.CoreCard.GetZone() == Zone.Deck ? Zone.Deck : Zone.Hand,
-                modeIndex, out reject);
+                modeIndex, null, dynamicCounts, out reject);
             if (ok)
             {
                 // 出牌选格钉提前到声明成功即转 BoardState（2026-10-15 发动格拆除）：施放类型图标=玩家所选格，
@@ -309,9 +310,9 @@ namespace SynergyUI
 
             try
             {
-                var targets = await GameActions.CollectSpellDeclarationTargetsAsync(card, P1, modeIndex);
+                var decl = await GameActions.CollectSpellDeclarationTargetsAsync(card, P1, modeIndex);
 
-                if (targets == null)
+                if (decl == null)
                 {
                     // 玩家取消——撤销发动：拆预览+还原手牌扇+选格单作废（引擎零状态）
                     _field?.HideCastingPreview();
@@ -323,7 +324,7 @@ namespace SynergyUI
 
                 // 确认：预览贴片转正（选格单经 PlayCardFinal 声明成功 PinCard——PlaceCasting 钉优先落同格）
                 _field?.PromoteCastingPreview(card, cellX, cellZ);
-                if (!PlayCardFinal(view, targets, modeIndex))
+                if (!PlayCardFinal(view, decl.Targets, modeIndex, decl.DynamicCounts))
                 {
                     // 声明被引擎终审拒（如弃牌代价·手牌无目标）：镜像取消路径清理。转正件已进
                     // _castings 正片表，HideCastingPreview 够不着——走 InterruptCasting 即清口

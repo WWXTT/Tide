@@ -318,6 +318,12 @@ namespace CardCore
         public static bool ActivateHeroSkill(GameCore core, Player player, int effectIndex, out string reason)
             => HeroSkillSystem.TryActivateSkill(core, player, effectIndex, out reason);
 
+        /// <summary>动态数量/预选版（2026-11-14）：技能主动效果发动前已选目标与动态数量——
+        /// 预检与结算扣费按 base×N（与法术施放同口径）。</summary>
+        public static bool ActivateHeroSkill(GameCore core, Player player, int effectIndex,
+            List<Entity> targets, IReadOnlyList<int> dynamicCounts, out string reason)
+            => HeroSkillSystem.TryActivateSkill(core, player, effectIndex, targets, dynamicCounts, out reason);
+
         /// <summary>
         /// 主阶段：横置带地牌特性的生物产 1 元素（2026-09-13 英雄技能·培育赋予的特性）。
         /// 颜色随该生物费用构成（多色时自动取首个有份额的颜色；无费用→灰）。

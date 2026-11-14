@@ -166,9 +166,18 @@ namespace CardCore
         /// <summary>带原因版（2026-11-03 失败提示细化）：既有 Crumb 取证分支同步升级为用户可读
         /// reason（Crumb 保留作验证器取证），闸序零变化。</summary>
         public static bool ActivateEffect(GameCore core, Player player, EffectDefinition effect, Card source, int paidBoost, out string reason)
+            => ActivateEffect(core, player, effect, source, null, null, paidBoost, out reason);
+
+        /// <summary>动态数量版（2026-11-14）：targets=声明期预选目标、dynamicCounts=每原子动态数量
+        /// （下标=效果原子序）。计数先落到 effect 原子，CanActivate/结算扣费按 base×N；预选目标随
+        /// PendingEffect 入栈（结算期有序消费，不再弹窗）。null=旧行为（结算期各自解析）。</summary>
+        public static bool ActivateEffect(GameCore core, Player player, EffectDefinition effect, Card source,
+            List<Entity> targets, IReadOnlyList<int> dynamicCounts, int paidBoost, out string reason)
         {
             reason = null;
             if (core == null || player == null || effect == null) { reason = "内部错误：空参数"; return false; }
+            // 动态数量：预检/扣费/执行三处同表（ActivateEffect 入口统一落表，幂等）
+            CostDerivationService.ApplyDynamicCounts(effect, dynamicCounts);
             if (core.TurnEngine.TurnPlayer != player)
             {
                 reason = "只能在你的回合发动主动效果";
@@ -222,6 +231,9 @@ namespace CardCore
                 core.TurnEngine.TurnPlayer,
                 core.TurnEngine.CurrentPhase?.Phase ?? PhaseType.Standby,
                 paidBoost: paidBoost);
+            // 动态数量（2026-11-14）：声明期预选目标随待发入栈（结算期有序消费，不再弹窗）
+            if (targets != null && targets.Count > 0)
+                pending.SelectedTargets = new List<Entity>(targets);
 
             // §11 过载闸（2026-11-09 裁定）：主动效果入栈前查源卡预算
             if (source != null && !CardEffectBudget.Instance.CanCommit(source, out var actOverload))

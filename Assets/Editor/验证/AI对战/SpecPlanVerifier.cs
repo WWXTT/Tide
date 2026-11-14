@@ -207,7 +207,7 @@ namespace CardCore.Editor.Tests
                     var prevSelector = TargetSelectionService.Current;
                     var counter = new CountingSelector();
                     int askCount = 0;
-                    List<Entity> declaration = null;
+                    DeclarationTargets declaration = null;
                     TargetSelectionService.Current = counter;
                     p1.IsAI = false;
                     try
@@ -217,8 +217,9 @@ namespace CardCore.Editor.Tests
                     }
                     finally { TargetSelectionService.Current = prevSelector; p1.IsAI = true; }
                     string declInfo = declaration == null ? "null(取消)"
-                        : string.Join("+", declaration.Select(e => e is IHasName n ? n.CardName : "?").ToArray());
-                    checks.Add(new Check(askCount == 1 && declaration != null && declaration.Count == 1 && ReferenceEquals(declaration[0], big),
+                        : string.Join("+", declaration.Targets.Select(e => e is IHasName n ? n.CardName : "?").ToArray());
+                    checks.Add(new Check(askCount == 1 && declaration != null && declaration.Targets.Count == 1
+                            && ReferenceEquals(declaration.Targets[0], big),
                         $"声明期=1 窗（参照·Cast 档·首候选=巨像），实际 窗 {askCount} 个 预选={declInfo}"));
 
                     // 结算期=1 窗（受害者·引擎 spec 发起）：直接驱动执行器（不经 PlayCard 优先权机制）
@@ -230,7 +231,7 @@ namespace CardCore.Editor.Tests
                         var cast = new EffectInstance
                         {
                             Definition = def, Source = p1, Controller = p1,
-                            Targets = new List<Entity>(declaration), CastCard = tCard, ModeIndex = 0,
+                            Targets = new List<Entity>(declaration.Targets), CastCard = tCard, ModeIndex = 0,
                         };
                         core.StackEngine.GetExecutor().ExecuteAsync(cast, skipElementCost: true).GetAwaiter().GetResult();
                         settleAsks = counter.Asks.Count - askCount;
@@ -241,7 +242,7 @@ namespace CardCore.Editor.Tests
 
                     // 取消参照=撤销发动：桩取消 → 声明期收集返回 null 且不再追问
                     var counter2 = new CountingSelector { CancelNext = true };
-                    List<Entity> cancelled = new List<Entity>();
+                    DeclarationTargets cancelled = null;
                     TargetSelectionService.Current = counter2;
                     p1.IsAI = false;
                     try { cancelled = GameActions.CollectSpellDeclarationTargetsAsync(tCard, p1, 0).GetAwaiter().GetResult(); }

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Cysharp.Threading.Tasks;
 using GameBoard;
@@ -44,45 +45,7 @@ namespace CardCore.Network
                     if (!NetEntityDirectory.TryResolveAll(core, intent.Targets, out var targets))
                     { error = "目标解析失败"; return false; }
 
-                    // 参照选位（步5 协议 v10 §3.3）：分角色上送——解析失败按无参照降级
-                    //（参照域空转语义由引擎承担），不整卡拒绝。
-                    NetEntityDirectory.TryResolveAll(core, intent.References, out var references);
-
-                    var fromZone = (Zone)intent.FromZone;
-
-                    // v19 落格校验（声明期、出牌口之前——失败零副作用）：CellX/CellZ 为**绝对坐标**，
-                    // 须为请求者己方单位格且当前空格（占用真值=AutoResync 后的盘面）。
-                    // -1=未指定（AI/法术/场地卡），服务端按 first-free 落位（兼容路径）。
-                    if (board != null && intent.CellX >= 0
-                        && !TryValidatePickCell(board, seat, intent.CellX, intent.CellZ, out error))
-                        return false;
-
-                    // 响应出牌分派：栈上有待响应对象、非结算中、优先权在请求者手、来源限手牌
-                    // （与 PlayCardInResponse 自身门禁一致——此处预分派只是让"同一个消息类型"
-                    //   覆盖两种出牌时点；引擎入口仍有全部校验，分派错误只会得到 false）。
-                    bool ok;
-                    string reason;
-                    if (fromZone == Zone.Hand
-                        && !core.StackEngine.IsEmpty && !core.StackEngine.IsResolving
-                        && core.StackEngine.CurrentPriorityHolder == player)
-                    {
-                        ok = GameActions.PlayCardInResponse(core, player, card, targets, intent.ModeIndex, references, out reason);
-                    }
-                    else
-                    {
-                        ok = GameActions.PlayCard(core, player, card, targets, fromZone, intent.ModeIndex, references, out reason);
-                    }
-
-                    // v19 声明成功即钉（本地局 PlayCardFinal 同款时点）：永久物钉玩家所选格——
-                    // S3b 后声明期卡留手牌，钉子活到 cast 结算入场（BoardState.Resync 钉优先）。
-                    // 法术不落格、场地卡由 BoardState 固定落 FieldCell（客户端不送格）；响应出牌
-                    // 通常为法术（CellX=-1 不进此口），但永久物响应路径同样收口，不依赖该假设。
-                    if (ok && board != null && intent.CellX >= 0
-                        && !card.IsSpellCard() && !card.IsFieldCard())
-                    {
-                        board.PinCard(card, intent.CellX, intent.CellZ);
-                    }
-                    return Ok(ok, reason, out error);
+                    return ApplyPlayCardCore(core, seat, player, intent, targets, null, board, false, out error);
                 }
 
                 // IntentTapForElement 已删（2026-10-11 现取现用：地牌横置=付费时系统自动动作，
@@ -166,6 +129,11 @@ namespace CardCore.Network
                         .FirstOrDefault(def => def.Id == intent.EffectId);
                     if (effect == null) { error = $"源卡无该效果 EffectId={intent.EffectId}"; return false; }
 
+                    // 动态数量（2026-11-14）：单位主动效果的联机声明期预选尚未接（UI 不发送本 intent）；
+                    // 直接放行会按 base×1 少收——显式拒绝，待接线后开放。
+                    if (CostDerivationService.HasDynamicAtom(effect))
+                    { error = "动态数量主动效果暂不支持联机发动（无声明期预选通道）"; return false; }
+
                     if (!NetEntityDirectory.TryResolveAll(core, intent.Targets, out var targets))
                     { error = "目标解析失败"; return false; }
 
@@ -240,9 +208,11 @@ namespace CardCore.Network
         /// <summary>
         /// 带目标的主动激活。ActivateEffect 公共入口无 targets 参数（目标由效果配置自动解析）；
         /// 网络侧与 LegalActionEnumerator.Apply 同款：经 PendingEffect.Create 携带预选目标。
+        /// 动态数量（2026-11-14）在联机单位主动效果上暂未接预选，入口处已显式拒绝——
+        /// 本口只承担「预选目标随待发入栈」的旧职责，不改动既有门禁顺序。
         /// </summary>
         private static bool ActivateWithTargets(GameCore core, Player player, EffectDefinition effect,
-            Card source, System.Collections.Generic.List<Entity> targets, int paidBoost, out string reason)
+            Card source, List<Entity> targets, int paidBoost, out string reason)
         {
             reason = null;
             if (targets == null || targets.Count == 0)
@@ -260,6 +230,152 @@ namespace CardCore.Network
             if (activated && effect.IsActivatedEffect && source != null && Attribute.KeywordRules.ShouldTap(source))
                 source.Tap();
             return activated;
+        }
+
+        // ======================================== 声明期动态数量预选（2026-11-14） ========================================
+
+        /// <summary>出牌前动态数量预选探测（服务器权威）：仅「法术 + 目标未预选 + 所选模式含动态数量原子」
+        /// 返回 true——NetBattleChannel 先走 CollectDeclarationTargetsAsync（经 SelectRequest 问客户端），
+        /// 拿到「选了几个」再声明；普通出牌不改变既有「结算期反问」流程。</summary>
+        public static bool TryBuildPlayCardPreselect(GameCore core, int seat, NetworkMessage msg,
+            out MsgIntentPlayCard intent, out EffectDefinition effect, out EffectExecutionContext context)
+        {
+            intent = null; effect = null; context = null;
+            if (core == null || msg?.Type != NetworkMessageType.IntentPlayCard) return false;
+            intent = MemoryPackSerializer.Deserialize<MsgIntentPlayCard>(msg.Payload);
+            if (intent == null || (intent.Targets != null && intent.Targets.Length > 0)) return false;
+            var player = NetEntityDirectory.SeatToPlayer(core, seat);
+            if (player == null) return false;
+            var card = NetEntityDirectory.ResolveCard(core, intent.CardRuntimeId);
+            if (card == null || !card.IsSpellCard()) return false;
+            var defs = GameActions.GetCastableEffectDefinitions(card);
+            if (defs == null || defs.Count == 0) return false;
+            var def = defs[Math.Clamp(intent.ModeIndex, 0, defs.Count - 1)];
+            if (def == null || !CostDerivationService.HasDynamicAtom(def)) return false;
+            effect = def;
+            context = new EffectExecutionContext
+            {
+                Source = card, // 声明期卡在手（与 CollectSpellDeclarationTargetsAsync 同口径）
+                Controller = player,
+                ZoneManager = core.ZoneManager,
+                ElementPool = core.ElementPool,
+                CastCard = card,
+                ModeIndex = intent.ModeIndex,
+            };
+            return true;
+        }
+
+        /// <summary>英雄技能发动前动态数量预选探测（同出牌口径；技能效果 Source=技能卡）。</summary>
+        public static bool TryBuildHeroSkillPreselect(GameCore core, int seat, NetworkMessage msg,
+            out MsgIntentActivateHeroSkill intent, out EffectDefinition effect, out EffectExecutionContext context)
+        {
+            intent = null; effect = null; context = null;
+            if (core == null || msg?.Type != NetworkMessageType.IntentActivateHeroSkill) return false;
+            intent = MemoryPackSerializer.Deserialize<MsgIntentActivateHeroSkill>(msg.Payload);
+            if (intent == null) return false;
+            var player = NetEntityDirectory.SeatToPlayer(core, seat);
+            if (player == null) return false;
+            var skillCard = HeroSkillSystem.ResolveSkillCard(core, player);
+            if (skillCard == null) return false;
+            var effects = HeroSkillSystem.SkillEffectsOf(skillCard);
+            if (effects == null || effects.Count == 0) return false;
+            var def = effects[Math.Clamp(intent.EffectIndex, 0, effects.Count - 1)];
+            if (def == null || !CostDerivationService.HasDynamicAtom(def)) return false;
+            effect = def;
+            context = new EffectExecutionContext
+            {
+                Source = skillCard,
+                Controller = player,
+                ZoneManager = core.ZoneManager,
+                ElementPool = core.ElementPool,
+                ModeIndex = 0,
+            };
+            return true;
+        }
+
+        /// <summary>预选结果落账：出牌（声明期选完目标/数量后再走完整 PlayCard 门禁）。</summary>
+        public static bool ApplyPlayCardPreselected(GameCore core, int seat, MsgIntentPlayCard intent,
+            DeclarationTargets decl, BoardState board, out string error)
+        {
+            var player = NetEntityDirectory.SeatToPlayer(core, seat);
+            if (player == null) { error = $"未知座位 {seat}"; return false; }
+            return ApplyPlayCardCore(core, seat, player, intent, decl?.Targets, decl?.DynamicCounts,
+                board, true, out error);
+        }
+
+        /// <summary>预选结果落账：英雄技能（计数先落原子→预检/结算 base×N）。</summary>
+        public static bool ApplyHeroSkillPreselected(GameCore core, int seat, MsgIntentActivateHeroSkill intent,
+            DeclarationTargets decl, out string error)
+        {
+            var player = NetEntityDirectory.SeatToPlayer(core, seat);
+            if (player == null) { error = $"未知座位 {seat}"; return false; }
+            return Ok(GameActions.ActivateHeroSkill(core, player, intent.EffectIndex,
+                    decl?.Targets, decl?.DynamicCounts, out var reason),
+                reason, out error);
+        }
+
+        /// <summary>出牌核心（原 IntentPlayCard 分支体）：targets/dynamicCounts 显式给——普通 intent
+        /// （结算期反问，null 计数）与声明期预选（动态数量）两路共用同一门禁/钉格/响应分派。</summary>
+        private static bool ApplyPlayCardCore(GameCore core, int seat, Player player, MsgIntentPlayCard intent,
+            List<Entity> targets, IReadOnlyList<int> dynamicCounts, BoardState board, bool preselected,
+            out string error)
+        {
+            error = null;
+            var card = NetEntityDirectory.ResolveCard(core, intent.CardRuntimeId);
+            if (card == null) { error = $"卡不存在 RuntimeId={intent.CardRuntimeId}"; return false; }
+
+            // 动态数量（2026-11-14）：必须由服务器声明期预选收集数量——客户端直送 targets 无计数表，
+            // 会按 base×1 少收；显式拒绝而非静默错价（precollected=服务端预选路径，恒可信）。
+            if (!preselected)
+            {
+                var chosenDefs = GameActions.GetCastableEffectDefinitions(card);
+                var chosenDef = chosenDefs != null && chosenDefs.Count > 0
+                    ? chosenDefs[Math.Clamp(intent.ModeIndex, 0, chosenDefs.Count - 1)] : null;
+                if (chosenDef != null && CostDerivationService.HasDynamicAtom(chosenDef))
+                { error = "动态数量效果须在声明期由服务器收集目标（不可由客户端直送目标）"; return false; }
+            }
+
+            // 参照选位（步5 协议 v10 §3.3）：分角色上送——解析失败按无参照降级
+            //（参照域空转语义由引擎承担），不整卡拒绝。
+            NetEntityDirectory.TryResolveAll(core, intent.References, out var references);
+
+            var fromZone = (Zone)intent.FromZone;
+
+            // v19 落格校验（声明期、出牌口之前——失败零副作用）：CellX/CellZ 为**绝对坐标**，
+            // 须为请求者己方单位格且当前空格（占用真值=AutoResync 后的盘面）。
+            // -1=未指定（AI/法术/场地卡），服务端按 first-free 落位（兼容路径）。
+            if (board != null && intent.CellX >= 0
+                && !TryValidatePickCell(board, seat, intent.CellX, intent.CellZ, out error))
+                return false;
+
+            // 响应出牌分派：栈上有待响应对象、非结算中、优先权在请求者手、来源限手牌
+            // （与 PlayCardInResponse 自身门禁一致——此处预分派只是让"同一个消息类型"
+            //   覆盖两种出牌时点；引擎入口仍有全部校验，分派错误只会得到 false）。
+            bool ok;
+            string reason;
+            if (fromZone == Zone.Hand
+                && !core.StackEngine.IsEmpty && !core.StackEngine.IsResolving
+                && core.StackEngine.CurrentPriorityHolder == player)
+            {
+                ok = GameActions.PlayCardInResponse(core, player, card, targets, intent.ModeIndex,
+                    references, dynamicCounts, out reason);
+            }
+            else
+            {
+                ok = GameActions.PlayCard(core, player, card, targets, fromZone, intent.ModeIndex,
+                    references, dynamicCounts, out reason);
+            }
+
+            // v19 声明成功即钉（本地局 PlayCardFinal 同款时点）：永久物钉玩家所选格——
+            // S3b 后声明期卡留手牌，钉子活到 cast 结算入场（BoardState.Resync 钉优先）。
+            // 法术不落格、场地卡由 BoardState 固定落 FieldCell（客户端不送格）；响应出牌
+            // 通常为法术（CellX=-1 不进此口），但永久物响应路径同样收口，不依赖该假设。
+            if (ok && board != null && intent.CellX >= 0
+                && !card.IsSpellCard() && !card.IsFieldCard())
+            {
+                board.PinCard(card, intent.CellX, intent.CellZ);
+            }
+            return Ok(ok, reason, out error);
         }
     }
 }

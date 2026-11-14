@@ -262,7 +262,11 @@ namespace CardCore
                                     Crumb($"CF-declined card={(choice.SourceCard as IHasName)?.CardName}（声明期目标选择取消——本轮窗口不再询问）");
                                     choice = null; // 本轮让过（其余候选下轮照常收集）
                                 }
-                                else choice.Targets = pre;
+                                else
+                                {
+                                    choice.Targets = pre.Targets;
+                                    choice.DynamicCounts = pre.DynamicCounts; // 动态数量同表随响应下发
+                                }
                             }
                         }
                         // 挂死兜底不在引擎侧（2026-10-17 定案）：UniTask.Delay 型超时在链孤悬时
@@ -303,7 +307,8 @@ namespace CardCore
                     return core.StackEngine.PushGuardDeclaration(opt.SourceCard, opt.AttackInstance, p);
                 case ResponseOption.ResponseKind.HandCard:
                     return opt.SourceCard != null
-                        && PlayCardInResponse(core, p, opt.SourceCard, opt.Targets, opt.ModeIndex);
+                        && PlayCardInResponse(core, p, opt.SourceCard, opt.Targets, opt.ModeIndex,
+                            null, opt.DynamicCounts, out _);
                 case ResponseOption.ResponseKind.ActivatedAbility:
                     return opt.Definition != null && opt.SourceCard != null
                         && ActivateEffectInResponse(core, p, opt.Definition, opt.SourceCard);

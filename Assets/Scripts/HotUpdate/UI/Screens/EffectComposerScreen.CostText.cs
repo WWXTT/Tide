@@ -215,6 +215,9 @@ namespace SynergyUI
                 }
                 var pay = PayZh(total);
                 if (pay != CostZh(total)) sumLine += $"｜对战实付 {pay}（小数逐色进1）";
+                // 动态数量（2026-11-14）：构筑期无目标数——预览按 1 个基础价显示，发动时按实际数×基础
+                if (CostDerivationService.HasDynamicAtom(def))
+                    sumLine += "｜动态数量：发动时按实际目标数×基础计费（预览按 1 个）";
                 if (branch.Length > 0) sumLine += "｜" + branch;
                 lines.Add(sumLine);
                 // ③「代价→净费」段已随 2026-11-06 方格改版退役——信息进费用徽标双组

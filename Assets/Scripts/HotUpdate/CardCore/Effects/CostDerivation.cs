@@ -14,6 +14,33 @@ namespace CardCore
     /// </summary>
     public static class CostDerivationService
     {
+        /// <summary>把声明期收集的动态数量写入原子（下标=def.Effects 原子序；0/越界忽略）。
+        /// 幂等：只覆盖动态数量原子（TargetCount==-3）；非动态原子同下标不会误写。
+        /// 契约：声明期收集器（CollectDeclarationTargetsAsync）产表 → 预检/计价/执行三处同表，
+        /// 保证「选几个 = 收几份 = 打几个」。</summary>
+        public static void ApplyDynamicCounts(EffectDefinition def, IReadOnlyList<int> dynamicCounts)
+        {
+            if (def?.Effects == null || dynamicCounts == null || dynamicCounts.Count == 0) return;
+            int n = Math.Min(def.Effects.Count, dynamicCounts.Count);
+            for (int i = 0; i < n; i++)
+            {
+                var atom = def.Effects[i];
+                if (atom == null || atom.TargetCount != AtomicEffectInstance.DynamicTargetCount) continue;
+                // 非负即写（0=本原子未选/非交互——清掉旧一次发动的解析值，防 def 复用串价）
+                if (dynamicCounts[i] >= 0) atom.ResolvedDynamicCount = dynamicCounts[i];
+            }
+        }
+
+        /// <summary>效果是否含动态数量原子（主序列；主动效果发动前据此预选目标）。
+        /// 分支奖励/代价原子不收动态（装载归一）——只扫主序列。</summary>
+        public static bool HasDynamicAtom(EffectDefinition def)
+        {
+            if (def?.Effects == null) return false;
+            foreach (var atom in def.Effects)
+                if (atom != null && atom.TargetCount == AtomicEffectInstance.DynamicTargetCount) return true;
+            return false;
+        }
+
         /// <summary>
         /// 推导一个效果定义的元素消耗代价（不含卡牌显式声明的特殊代价）。
         /// 同色多笔代价会按颜色合并为一笔，便于上层抵消按颜色聚合处理。
@@ -22,11 +49,13 @@ namespace CardCore
         /// priceAsPermanent（三轨制 2026-09-09）：法术宿主置 true——魔法卡赋予全是设置类
         /// （永久直改），**计价按永久效果档估算**；运行时支付路径不传（默认 false，按实例持续）。
         /// </summary>
-        public static ElementCost DeriveElementCosts(EffectDefinition effect, int modeIndex = 0)
+        public static ElementCost DeriveElementCosts(EffectDefinition effect, int modeIndex = 0,
+            IReadOnlyList<int> dynamicCounts = null)
         {
-            // 锚价钉死（2026-10-20 教学段七配套）：手作行 cost 列为权威——直出不推导
-            //（null/空=0 费钉死）；法术施放锚价/合成器预览等全部消费面同口单源。
-            // 缺省不钉=实时推导（历史唯一口径，正式表零影响）。
+            // 动态数量（2026-11-14）：声明期收集结果先行落进原子（base×N 计价与执行同源）——
+            // 幂等；未传（构筑预览/AI 估值）= 未解析，按 base×1 计。
+            ApplyDynamicCounts(effect, dynamicCounts);
+
             // 锚价钉死（2026-10-20 教学段七配套）：手作行 cost 列为权威——直出不推导
             //（null/空=0 费钉死）；法术施放锚价/合成器预览等全部消费面同口单源。
             // 缺省不钉=实时推导（历史唯一口径，正式表零影响）。
@@ -212,6 +241,10 @@ namespace CardCore
         /// -1 任意同全部档；-2 未声明=单目标基准）。原"整数 ×N / 期望 4"口径退役。</summary>
         private static float QuantityFactor(AtomicEffectInstance atom, EffectDefinition def)
         {
+            // 动态数量（2026-11-14 用户定案）：**不吃 PricingTier 档位减免**——费用直接乘实际目标数
+            //（1:1，2 个=2×，3 个=3×；未解析=base×1 起价）。先于 SummonToken/全取档判定。
+            if (atom != null && atom.TargetCount == AtomicEffectInstance.DynamicTargetCount)
+                return atom.ResolvedDynamicCount > 0 ? atom.ResolvedDynamicCount : 1f;
             if (atom != null && atom.Type == AtomicEffectType.SummonToken) return 1f;
             if (SelectionModeRules.IsTakeAll(def.SelectionMode)) return Tiers.TargetCountFactor(0);
             return Tiers.TargetCountFactor(atom != null ? atom.EffectiveTargetCount(def) : def.TargetCount);
@@ -839,9 +872,16 @@ namespace CardCore
 
             // 管线系数（ComputeAtomCost 同序同条件；速度档已随速度计价退役 2026-10-19；
             // 错边拆分已随黑白获得经济删除 2026-10-28 P1）
+            bool dynamic = atom.TargetCount == AtomicEffectInstance.DynamicTargetCount;
             float n = QuantityFactor(atom, def);
             if ((domain == null || domain.Count == 0) && n > 1f) n = 1f; // 无目标域不乘数量（同 ComputeAtomCost）
-            AddFactor(factors, "数量档", n);
+            if (dynamic)
+            {
+                // 动态数量：已解析且可乘=「动态×N」；未解析/无目标域=列说明（数值侧 base×1）。
+                if (n > 1f) AddFactor(factors, "动态×", n);
+                else factors.Add("动态数量（基础×N·不享数量档）");
+            }
+            else AddFactor(factors, "数量档", n);
             // 时机档已随 2026-11-13 定案退出效果锚价：锚价=原价；f 只在**生物卡挂载**时由卡层乘
             //（HostMountFactor），结界卡改由耐久每次触发 −1——本展开不再列时机档。
             if (IsSymmetricBothSides(atom, def, domain))

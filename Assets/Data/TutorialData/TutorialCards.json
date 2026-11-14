@@ -2884,7 +2884,8 @@
       "power": 2,
       "life": 8,
       "keywords": [
-        "Guardian"
+        "Guardian",
+        "Taunt"
       ],
       "tags": [
         "ThemeGreenCountdown",
@@ -2894,10 +2895,10 @@
       "costList": [
         2.0,
         0.0,
-        0.0,
+        3.0,
         1.0
       ],
-      "hash": "D1D6C529"
+      "hash": "26428440"
     },
     {
       "id": "C_B0EF3C08",
@@ -2942,6 +2943,27 @@
         0.0
       ],
       "hash": "AC7FC01F"
+    },
+    {
+      "id": "C_F245F2F9",
+      "cardName": "小精灵",
+      "supertype": "Creature",
+      "power": 1,
+      "life": 1,
+      "tags": [
+        "ThemeGreenCountdown",
+        "教学"
+      ],
+      "effectIds": [
+        "FXGREEN09"
+      ],
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "hash": "F245F2F9"
     }
   ]
 }

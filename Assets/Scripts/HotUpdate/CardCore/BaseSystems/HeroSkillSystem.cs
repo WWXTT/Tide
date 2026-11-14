@@ -337,6 +337,12 @@ namespace CardCore
         /// <summary>带原因版（2026-11-03 失败提示细化）：同步核（守卫+预检+ActivateEffect 全链同步，
         /// 伪异步仅签名兼容）——UI toast / 网络泵线程直读拒绝文案。</summary>
         public static bool TryActivateSkill(GameCore core, Player player, int effectIndex, out string reason)
+            => TryActivateSkill(core, player, effectIndex, null, null, out reason);
+
+        /// <summary>动态数量版（2026-11-14）：skills 的主动效果在发动前由调用方预选目标并带动态计数——
+        /// 计数先落到 effect 原子（TryActivate 预检与结算扣费同表），预选目标随 ActivateEffect 入栈。</summary>
+        public static bool TryActivateSkill(GameCore core, Player player, int effectIndex,
+            List<Entity> targets, IReadOnlyList<int> dynamicCounts, out string reason)
         {
             reason = null;
             if (core == null || player == null) { reason = "内部错误：空参数"; return false; }
@@ -356,6 +362,8 @@ namespace CardCore
             var effects = SkillEffectsOf(skillCard);
             if (effects.Count == 0) { reason = "技能卡无可发动效果"; return false; } // 卡面无主动效果（防御性）
             var effect = effects[Math.Clamp(effectIndex, 0, effects.Count - 1)];
+            // 动态数量（2026-11-14）：计数先落原子——TryActivate 预检与结算扣费按 base×N
+            CostDerivationService.ApplyDynamicCounts(effect, dynamicCounts);
 
             // CanActivate 预检（费用可付性含自动横置地牌、目标域非空）——
             // 栈机器 TryActivateEffect 只管速度门，此处不过会在不可付时照样入栈白横置
@@ -368,7 +376,8 @@ namespace CardCore
                     core.TurnEngine.TurnNumber, out reason))
                 return false;
 
-            if (!GameActions.ActivateEffect(core, player, effect, skillCard, 0, out reason)) return false;
+            if (!GameActions.ActivateEffect(core, player, effect, skillCard, targets, dynamicCounts, 0, out reason))
+                return false;
 
             // 遥测：发动计数（升级机制已退役；快照/RL 观察口径保留）
             int totalUses = skillCard.GetCounterCount(CounterRules.SkillUseCounter) + 1;

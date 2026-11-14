@@ -362,8 +362,94 @@ namespace CardCore
             //（充能形态契约段已随 2026-11-05 充能系统动作化改版删除：充能不再是卡上效果，
             //  原子表行已删——不会再有 Charge 原子进转换链。）
 
+            // 动态数量装载归一（2026-11-14）：仅主动效果 + 每原子口径；互斥随机/结算期选择。
+            NormalizeDynamicCounts(def, sourceCardId);
+
             return def;
         }
+
+        /// <summary>动态数量装载归一（2026-11-14 定案）：-3=发动时选 1..候选数个目标、base×N 计价，
+        /// **只在主动效果的主序列原子成立**——① 触发式/自动效果的元素费在构筑期已入卡价，无发动时
+        /// 二次收费时点，收 1；② 随机目标（不弹窗）与结算期选择（defer=1，扣费后才选）与「发动时
+        /// 选数量再计费」冲突，强制关闭；③ 召唤衍生物用自身 num 数量（模板费×个），不收动态；
+        /// ④ 分支奖励/代价原子恒收 1（奖励免费/代价另算）。效果级 -3 归一未声明（逐原子专用）。</summary>
+        private static void NormalizeDynamicCounts(EffectDefinition def, string sourceCardId)
+        {
+            if (def == null) return;
+            if (def.TargetCount == AtomicEffectInstance.DynamicTargetCount)
+            {
+                TideLog.Warn($"[CardEffectConverter] 卡 {sourceCardId} 效果 {def.Id}：效果级 count=-3（动态数量）"
+                             + "不支持——动态数量只在每原子 dd-num 行声明；已归一为未声明");
+                def.TargetCount = -2;
+            }
+
+            bool active = def.IsActivatedEffect;
+            if (def.Effects != null)
+                foreach (var atom in def.Effects)
+                    NormalizeDynamicAtom(atom, active && def.PerAtomTargets, sourceCardId, def.Id, refBranch: false);
+
+            // 代价栏原子（payload）不收动态（代价按单次执行计价）
+            if (def.Costs != null)
+                foreach (var cost in def.Costs)
+                {
+                    if (cost?.Payloads == null) continue;
+                    foreach (var p in cost.Payloads)
+                        NormalizeDynamicAtom(p, false, sourceCardId, def.Id, refBranch: false);
+                }
+        }
+
+        /// <summary>单原子动态归一（含 Then 奖励递归；refBranch=奖励=恒收 1）。</summary>
+        private static void NormalizeDynamicAtom(AtomicEffectInstance atom, bool active, string sourceCardId,
+            string effectId, bool refBranch)
+        {
+            if (atom == null) return;
+            if (atom.SubEffects != null)
+                foreach (var sub in atom.SubEffects)
+                    // 元效果子原子不在声明期 spec 计划（不预选计数）——不收动态，恒收 1
+                    NormalizeDynamicAtom(sub, false, sourceCardId, effectId, refBranch);
+            if (atom.Branch?.Then != null)
+                foreach (var reward in atom.Branch.Then)
+                    NormalizeDynamicAtom(reward, active, sourceCardId, effectId, refBranch: true);
+
+            if (atom.TargetCount != AtomicEffectInstance.DynamicTargetCount) return;
+            if (refBranch || !active)
+            {
+                TideLog.Warn($"[CardEffectConverter] 卡 {sourceCardId} 效果 {effectId} 原子 {atom.Type}："
+                             + (refBranch ? "分支奖励/代价原子" : "非主动效果（触发式/自动）")
+                             + "不支持动态数量——已收为 1");
+                atom.TargetCount = 1;
+                return;
+            }
+            if (atom.Type == AtomicEffectType.SummonToken)
+            {
+                TideLog.Warn($"[CardEffectConverter] 卡 {sourceCardId} 效果 {effectId} 原子 SummonToken："
+                             + "召唤数量由自身数量档承载，不收动态数量——已收为 1");
+                atom.TargetCount = 1;
+                return;
+            }
+            // 隐蔽域（对方手牌/对方牌库）：信息不可指定，恒随机——动态数量要求手动选数量，冲突。
+            if (atom.TargetKinds != null && TargetKindRules.AllHiddenZone(atom.TargetKinds))
+            {
+                TideLog.Warn($"[CardEffectConverter] 卡 {sourceCardId} 效果 {effectId} 原子 {atom.Type}："
+                             + "隐蔽域不收动态数量（目标恒随机）——已收为 1 并保持随机");
+                atom.TargetCount = 1;
+                atom.RandomTarget = 1;
+                return;
+            }
+            if (atom.RandomTarget != 0)
+            {
+                TideLog.Warn($"[CardEffectConverter] 卡 {sourceCardId} 效果 {effectId} 原子 {atom.Type}："
+                             + "动态数量与目标随机互斥（随机不弹选数量）——随机已关闭");
+                atom.RandomTarget = 0;
+            }
+            if (atom.DeferSelect != 0)
+            {
+                TideLog.Warn($"[CardEffectConverter] 卡 {sourceCardId} 效果 {effectId} 原子 {atom.Type}："
+                             + "动态数量须在扣费前选目标（预选档）——结算期选择已收为预选");
+                atom.DeferSelect = 0;
+            }
+        }
+
 
         /// <summary>效果内首个引擎载荷种类（扁平 Effects 与节点化 Steps 原子双扫；无=None）。
         /// 触发管线排除口（2026-10-20 定案）：RegisterEffect 用它识别引擎主干——不入触发队列/栈。</summary>
@@ -767,6 +853,13 @@ namespace CardCore
                 TideLog.Error($"[CardEffectConverter] 代价栏 Payload 契约拒绝：原子[{entry?.refId}] count=0（全域）"
                               + "——代价只允许单目标多选（A2 定案 2026-11-05），已剔除");
                 return null;
+            }
+            // 动态数量（2026-11-14）：代价按单次执行计价，不收动态——收 1
+            if (entry.count == AtomicEffectInstance.DynamicTargetCount)
+            {
+                TideLog.Warn($"[CardEffectConverter] 代价栏 Payload 原子[{entry?.refId}] 声明动态数量"
+                             + "——代价不收动态数量，已收为 1");
+                atom.TargetCount = 1;
             }
             int requiredSide = CostDerivationService.PayloadCostRequiredSideLock(atom.Polarity);
             if (requiredSide != 0 && CostDerivationService.SideLock(atom.TargetKinds) == requiredSide) return atom;

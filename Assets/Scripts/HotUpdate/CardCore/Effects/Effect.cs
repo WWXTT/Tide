@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 
@@ -141,6 +141,12 @@ namespace CardCore
         /// 显式随实例入栈——网络意图/重放/栈快照按角色携带（不混进 Targets 平铺数组）；执行器把它
         /// 种进 context.Refs（v1 单参照=首元素）。null/空=无参照（普通效果）。</summary>
         public List<Entity> Refs { get; set; }
+
+        /// <summary>动态数量（2026-11-14）：声明期收集的每原子目标数（下标=效果 def.Effects，
+        /// 0=非动态）。随 cast 入栈——结算期扣费（ResolveCardCastAsync→GetCardCost）与执行
+        /// （EffectExecutor 应用后按 N 消费预选队列）同表，防「选 N 个却按 base 收」。
+        /// null/空=无动态数量（行为与旧实例一致）。</summary>
+        public List<int> DynamicCounts { get; set; }
 
         /// <summary>
         /// 效果解析上下文

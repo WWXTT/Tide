@@ -646,7 +646,7 @@ namespace CardCore.Attribute
                 if (TargetKindRules.AllHiddenZone(kinds)) continue; // 隐藏区不进选择
 
                 if (atom.EffectiveRandomTarget(def)) continue; // 随机：结算期自动抽取
-                int effCount = atom.EffectiveTargetCount(def);
+                int effCount = atom.DeclaredTargetCount(def); // 声明值（动态 -3 保留：动态=任意数量窗）
                 if (effCount == 0 || SelectionModeRules.IsTakeAll(def.SelectionMode))
                     continue; // 全取：结算期自动全取
 
@@ -663,14 +663,18 @@ namespace CardCore.Attribute
                 }
                 if (candidates.Count == 0) continue;
 
+                bool dynamic = effCount == AtomicEffectInstance.DynamicTargetCount;
                 specs.Add(new AtomTargetSpec
                 {
                     Atom = atom,
                     Kinds = kinds,
                     EffCount = effCount,
                     Candidates = candidates,
-                    // 任意档（-1）必弹选；固定 N 档 allSemantics=false（effCount>0，同声明期旧判）
-                    AutoTake = effCount > 0 && ShouldAutoTake(kinds, candidates.Count, effCount, false),
+                    // 动态/任意档（-3/-1）必弹选；固定 N 档 allSemantics=false（effCount>0，同声明期旧判）
+                    // 动态数量单候选=唯一解，免弹自动取 1（与固定档 ShouldAutoTake 同省操作口径）
+                    AutoTake = dynamic
+                        ? ShouldAutoTake(kinds, candidates.Count, need: 1, allSemantics: false)
+                        : effCount > 0 && ShouldAutoTake(kinds, candidates.Count, effCount, false),
                     // spec 计划元数据（步4 起随域切换填齐；CollectSpecPlan 同口径）
                     SpecKey = $"atom:{atomIndex}/spec:0/role:{(refAtom ? "reference" : "target")}",
                     Role = refAtom ? TargetSpecRole.Reference : TargetSpecRole.Target,
@@ -814,17 +818,25 @@ namespace CardCore.Attribute
         /// ②只收集「结算期会弹选」的交互原子——defer（效果处理时选）/无域/引擎主干/全隐藏域/
         /// 全取/强制/随机/自动取档一律跳过（结算期照常自解析，互不干扰）。
         /// 返回序=原子执行序：结算期经预选队列有序消费对齐归属（多原子不互抢）。
-        /// 返回：null=玩家取消（调用方终止发动）；空表=无需问询（直通声明）；非空=预选目标。
+        /// 2026-11-14 动态数量：动态原子（count=-3）走「任意数量」窗（1..候选数）——选几个即 base×N，
+        /// 选定数量按原子下标写进 <see cref="DeclarationTargets.DynamicCounts"/>，随声明线带给计价/执行。
+        /// 返回：null=玩家取消（调用方终止发动）；空结果=无需问询（直通声明）；非空=预选目标+动态计数。
         /// </summary>
-        public static async UniTask<List<Entity>> CollectDeclarationTargetsAsync(
+        public static async UniTask<DeclarationTargets> CollectDeclarationTargetsAsync(
             EffectDefinition def, EffectExecutionContext context, string title = "选择目标")
         {
-            var none = new List<Entity>();
-            if (def == null || context == null) return none;
+            if (def == null || context == null) return DeclarationTargets.Empty(0);
+            int atomCount = def.Effects?.Count ?? 0;
 
             // header 域（PerAtomTargets=false）：组合目标共享一次问选
             if (!def.PerAtomTargets)
-                return await AskCompositionDeclarationAsync(def, context, title);
+            {
+                var shared = await AskCompositionDeclarationAsync(def, context, title);
+                if (shared == null) return null;
+                var wrap = DeclarationTargets.Empty(atomCount);
+                wrap.Targets.AddRange(shared);
+                return wrap;
+            }
 
             // 逐原子规格 → spec 计划单源（步5 §3.2）：Reference（RefPick=Cast）先问、Target spec 后问；
             // 同域共享组只问**一次**（沉默+消灭同域并列→单窗同目标）；分段受体 Auto spec 不问
@@ -835,22 +847,35 @@ namespace CardCore.Attribute
                 .Where(s => s.Role == TargetSpecRole.Reference ? s.RefPick == RefPick.Cast : !s.AutoTake)
                 .Where(s => s.Candidates != null && s.Candidates.Count > 0)
                 .ToList();
-            if (askable.Count == 0) return none;
-            var collected = new List<Entity>();
+            var collected = DeclarationTargets.Empty(atomCount);
+            // 动态数量·免弹档（单候选/Self 域）：唯一解=1——显式记数，防联机「须预选」闸误拒。
+            foreach (var spec in plan)
+                if (spec.EffCount == AtomicEffectInstance.DynamicTargetCount && spec.AutoTake)
+                    collected.SetDynamic(spec.AtomIndex, 1, spec.AtomIndices);
+            if (askable.Count == 0) return collected;
             foreach (var spec in askable)
             {
                 TargetSelectionRequest req;
+                bool dynamic = spec.EffCount == AtomicEffectInstance.DynamicTargetCount;
                 // 2026-11-02 多目标定案：每原子数量档 effCount>1 压过选一模式提示——声明期问选 N 个
                 //（与结算路径 ResolveAtomTargetsAsync 同口径，预选队列 quota 本就按 effCount）；
                 // 候选不足按实有收口（MinCount=候选数）。
-                if (spec.EffCount <= 1)
+                if (dynamic) // 动态数量：选 1..候选数，选几个收几份（不享数量档）
+                {
+                    req = new TargetSelectionRequest
+                    {
+                        Candidates = spec.Candidates, MinCount = 1, MaxCount = spec.Candidates.Count,
+                        Title = title + "（动态数量：选几个收几份费用）",
+                    };
+                }
+                else if (spec.EffCount <= 1)
                 {
                     req = new TargetSelectionRequest
                     {
                         Candidates = spec.Candidates, MinCount = 1, MaxCount = 1, Title = title,
                     };
                 }
-                else if (spec.EffCount == -1) // 任意：玩家自选数量
+                else if (spec.EffCount == -1) // 任意：玩家自选数量（旧口径——费用按 0 计）
                 {
                     req = new TargetSelectionRequest
                     {
@@ -876,7 +901,9 @@ namespace CardCore.Attribute
                 req.AllowCancel = true; // 预选可取消=撤销发动
                 var picked = await TargetSelectionService.RequestAsync(req);
                 if (picked == null || picked.Count == 0) return null; // 取消（任意档确认 0 个视同取消）
-                collected.AddRange(picked);
+                collected.Targets.AddRange(picked);
+                if (dynamic)
+                    collected.SetDynamic(spec.AtomIndex, picked.Count, spec.AtomIndices);
             }
             return collected;
         }

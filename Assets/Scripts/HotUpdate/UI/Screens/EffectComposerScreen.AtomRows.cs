@@ -174,9 +174,13 @@ namespace SynergyUI
         ///（隐蔽信息不可指定，随机必须开启不可改；己方牌库可自查不入列；指示物授予注入的 {1..8} 全域
         /// 不参与判定——单位指示物仍可手指定；已展示卡运行时经预选透传点名）；②pinCountOne——
         /// 费用减少指示物奖励数量钉 1（分支奖励计价=REWARD_SHIM TargetCount=1，数量本不改价——钉 1 使
-        /// UI=计价=行为）。</summary>
+        /// UI=计价=行为）。
+        /// 2026-11-14 动态数量（用户定案）：dd-num 在 1/2/3/全部 之外增「动态」档——仅**主干原子**
+        /// 开放（allowDynamic=true 由槽位传入；奖励/代价原子不收）；动态=任意数量目标窗（1..候选数），
+        /// 费用=基准×实际目标数（不享数量档减免）。选中时若效果还是自动，自动切「主动」并提示
+        /// （动态必须发动时计费；结界/光环/引擎钉档拒绝）。allowDynamic=false 不出现该档。</summary>
         private void BindAtomTargetRow(RectTransform host, AtomicEffectEntry atom, Action refresh,
-            bool pinCountOne = false, bool costGate = false)
+            bool pinCountOne = false, bool costGate = false, bool allowDynamic = false)
         {
             var row = UiKit.FindDeep(host, "placeholder");
             if (row == null)
@@ -210,6 +214,16 @@ namespace SynergyUI
             bool isKeywordRow = mounts.Contains(MountKind.Keyword);
             bool isCounterRow = !isKeywordRow && mounts.Contains(MountKind.Counter);
             bool grantRow = isKeywordRow || isCounterRow;
+            // 动态数量开放面（2026-11-14）：主干原子（槽位 allowDynamic）+ 非召唤行
+            //（召唤数量由自身 num 数量档承载）+ 非 NoWhole（动态同样能选到全取，等价整体档）。
+            // 是否「主动效果」不在选项面拦——选中动态时若效果还是自动，自动切主动并提示
+            //（动态数量必须发动时计费；结界宿主的宿主形状闸仍会拒绝）。
+            bool summonRow = cfg.EnumName == nameof(AtomicEffectType.SummonToken);
+            bool dynamicAllowed = allowDynamic && !summonRow
+                                  && !IsAuraMode(_mode) // 光环载体入场即生效，无发动时计费
+                                  && !hiddenDomain // 隐蔽域强制随机，不能手动选数量
+                                  && !mounts.Contains(MountKind.NoWhole)
+                                  && !pinCountOne && !costGate;
             // 目标数量按名取 dd-num（行内现有多枚下拉：dd-num/dd-select——不再靠「首个下拉」隐式命中）
             var ddNumNode = UiKit.FindDeep(row, "dd-num");
             if (ddNumNode == null)
@@ -238,20 +252,64 @@ namespace SynergyUI
                     Debug.LogWarning($"[EffectComposer] 原子 {cfg.EnumName}（{atom.refId}）域仅 Self——目标数量已收为 1");
                     atom.count = 1;
                 }
+                if (atom.count == AtomicEffectInstance.DynamicTargetCount && (!allowsMulti || !dynamicAllowed))
+                {
+                    Debug.LogWarning($"[EffectComposer] 原子 {cfg.EnumName}（{atom.refId}）不可用动态数量"
+                                   + "（仅主动效果主干/非召唤/非不可全体/可多选域）——数量已收为 1");
+                    atom.count = 1;
+                }
                 int[] tiers = costGate ? new[] { 1, 2, 3 } // 代价门恒 1/2/3（禁整体档——A2 定案，创作期即拦）
                     : pinCountOne ? new[] { 1 }
-                    : allowsAll ? CountTiers
-                    : allowsMulti ? new[] { 1, 2, 3 }
+                    : allowsAll ? (dynamicAllowed ? new[] { 1, 2, 3, 0, AtomicEffectInstance.DynamicTargetCount } : CountTiers)
+                    : allowsMulti ? (dynamicAllowed ? new[] { 1, 2, 3, AtomicEffectInstance.DynamicTargetCount } : new[] { 1, 2, 3 })
                     : new[] { 1 };
                 ddCount = BindTierDropdown(ddNumNode, tiers, atom.count,
                     v =>
                     {
                         atom.count = v;
+                        if (v == AtomicEffectInstance.DynamicTargetCount)
+                        {
+                            // 动态数量=声明期选目标再计费：随机/结算期选择均冲突（转换器同口径归一）
+                            atom.rand = 0;
+                            atom.defer = 0;
+                            // 动态数量只在主动效果成立（费用发动时现付）：自动效果选中即自动切主动
+                            if (_graph?.header != null
+                                && _graph.header.ActivationType != (int)EffectActivationType.Voluntary)
+                            {
+                                var actPin = EngineActivationPin(); // 引擎主干钉档：自动钉死的行不可切主动
+                                if (HostForbidsVoluntary || IsAuraMode(_mode)
+                                    || (actPin != null && actPin.Value != EffectActivationType.Voluntary))
+                                {
+                                    ShowToast("该效果不能改为主动（宿主/引擎/光环形态）——动态数量不可用（已保持 1 个目标）");
+                                    atom.count = 1;
+                                    if (ddCount != null)
+                                    {
+                                        ddCount.SetValueWithoutNotify(Mathf.Max(0, Array.IndexOf(tiers, 1)));
+                                        ddCount.RefreshShownValue();
+                                    }
+                                }
+                                else
+                                {
+                                    _graph.header.ActivationType = (int)EffectActivationType.Voluntary;
+                                    _activationDropdown?.SetIndex(
+                                        ActivationIndex((int)EffectActivationType.Voluntary));
+                                    SyncActivationVisibility();
+                                    ShowToast("动态数量需发动时计费——已把效果发动方式切换为「主动」");
+                                }
+                                refresh?.Invoke();
+                                return;
+                            }
+                        }
                         refresh?.Invoke(); // 数量影响计价/摘要——随改随刷
                     },
-                    "目标数量：这个原子发动时选取几个目标——点选项看各档说明。",
+                    "目标数量：这个原子发动时选取几个目标——点选项看各档说明。"
+                    + "「动态」=发动时自由选目标数，费用按基准×实际目标数收（不享数量档减免，仅主动效果开放）。",
+                    labelOf: v => v == AtomicEffectInstance.DynamicTargetCount ? "动态"
+                                : v == 0 ? "全部" : v.ToString(),
                     optionDesc: v => v switch
                     {
+                        AtomicEffectInstance.DynamicTargetCount =>
+                            "动态数量：发动时弹窗自由选 1~候选数个目标，选几个就收几份基础费（1:1，不享数量档减免）；仅主动效果（法术/主动技能）可用。",
                         0 => "域内全取：不弹窗，作用域内所有面积目标（仅战场/手牌开放；费用 3 倍）。",
                         1 => "发动时弹窗由你选 1 个目标（基础价）。",
                         2 => "弹窗由你选 2 个目标（费用 1.5 倍）。",
@@ -359,13 +417,23 @@ namespace SynergyUI
             void SyncWholeDependents()
             {
                 bool whole = atom.count == 0;
-                if (whole && atom.rand == 1)
+                bool dynamic = atom.count == AtomicEffectInstance.DynamicTargetCount;
+                if ((whole || dynamic) && atom.rand == 1)
                 {
                     atom.rand = 0;
                     if (tg != null) tg.SetIsOnWithoutNotify(false);
                 }
-                if (tg != null && !hiddenDomain) tg.interactable = !whole;
-                if (ddDefer != null) ddDefer.interactable = !hiddenDomain && atom.rand != 1 && !whole;
+                if (dynamic && atom.defer != 0)
+                {
+                    atom.defer = 0;
+                    if (ddDefer != null)
+                    {
+                        ddDefer.SetValueWithoutNotify(0);
+                        ddDefer.RefreshShownValue();
+                    }
+                }
+                if (tg != null && !hiddenDomain) tg.interactable = !whole && !dynamic;
+                if (ddDefer != null) ddDefer.interactable = !hiddenDomain && atom.rand != 1 && !whole && !dynamic;
             }
             SyncWholeDependents(); // 存量 count=0 初次绑定即生效
             if (ddCount != null) ddCount.onValueChanged.AddListener(_ => SyncWholeDependents());

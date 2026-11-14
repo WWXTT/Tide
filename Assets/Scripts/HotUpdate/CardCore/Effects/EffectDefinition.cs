@@ -97,7 +97,8 @@ namespace CardCore
         /// <summary>目标选择模式（六值定案 2026-09-16：数量 1/N/全 × 范围宽 单/多；None=无目标/区域自结算）。
         /// 一个 {target} 只能从一个范围选择——0/1/2 要求组合域单一 TargetKind（构筑期校验）。</summary>
         public SelectionMode SelectionMode = SelectionMode.None;
-        /// <summary>目标数量：&gt;0=N，0=全部，-1=任意（旧语义保留）；-2=未声明回落表级 TargetCount。</summary>
+        /// <summary>目标数量：&gt;0=N，0=全部，-1=任意（旧语义保留），-3=动态数量（仅逐原子口径；
+        /// 效果级 -3 装载归一为未声明——动态数量只在每原子行开放）；-2=未声明回落表级 TargetCount。</summary>
         public int TargetCount = -2;
         /// <summary>目标随机（2026-09-16 自 SelectionMode 移出为正交标志）：不弹选择，从完整候选域按种子
         /// 随机抽取（TargetCount 管抽取个数；帷幕收窄生效、潜行可被随机命中——不可被"选"≠不可被随机/范围波及）。
@@ -625,9 +626,16 @@ namespace CardCore
         public Dictionary<ManaType, float> Mana;
         /// <summary>解析后有效目标域（entry 显式收窄 ?? 表级默认；converter 填）。</summary>
         public List<int> TargetKinds;
-        /// <summary>每原子目标数量覆盖（2026-10-09：entry.count；-2=未声明回落效果级 def.TargetCount）。
-        /// 解析/定价读 EffectiveTargetCount(def) 取有效值。</summary>
+        /// <summary>动态数量哨兵（2026-11-14 定案）：-3=发动时由玩家选 1..候选数个目标，
+        /// 费用=该原子基准费×实际目标数（**不享 PricingTier 数量档减免**，直乘）。仅主动效果可用
+        /// （触发式/自动效果的元素费在构筑期已入卡价，无发动时二次收费时点——converter 装载收 1）。</summary>
+        public const int DynamicTargetCount = -3;
+        /// <summary>每原子目标数量覆盖（2026-10-09：entry.count；-2=未声明回落效果级 def.TargetCount；
+        /// -3=动态数量 DynamicTargetCount）。解析/定价读 EffectiveTargetCount(def)/DeclaredTargetCount 取有效值。</summary>
         public int TargetCount = -2;
+        /// <summary>动态数量本发动已选定值（&gt;0；0=未选）：声明期预选写入，计价按 base×N、执行按 N 消费预选队列。
+        /// 运行时字段，不入网络 DTO（网络/重放按声明期收集结果随 cast 透传）。</summary>
+        public int ResolvedDynamicCount;
         /// <summary>每原子目标随机覆盖（2026-10-09：entry.rand；-1=未声明回落效果级 def.RandomTarget）。
         /// 解析读 EffectiveRandomTarget(def) 取有效值。</summary>
         public int RandomTarget = -1;
@@ -635,9 +643,22 @@ namespace CardCore
         /// 结算期必须选不可取消（类自动效果）。声明期收集器与预选归属段双消费。</summary>
         public int DeferSelect;
 
-        /// <summary>每原子有效目标数量（2026-10-09）：实例声明（1/2/3）优先；-2 未声明回落效果级 def.TargetCount。</summary>
-        public int EffectiveTargetCount(EffectDefinition def)
+        /// <summary>声明数量（含动态哨兵 -3；不解析已选值）：声明期收集器用它区分「动态=任意数量窗」。</summary>
+        public int DeclaredTargetCount(EffectDefinition def)
             => TargetCount != -2 ? TargetCount : (def != null ? def.TargetCount : 1);
+
+        /// <summary>每原子有效目标数量（2026-10-09）：实例声明（1/2/3）优先；-2 未声明回落效果级 def.TargetCount。
+        /// 动态数量（-3）：本发动已选 N&gt;0 → N；未选（AI/兜底路径）→ 1（与未解析计价 base×1 同口径）。</summary>
+        public int EffectiveTargetCount(EffectDefinition def)
+        {
+            int c = DeclaredTargetCount(def);
+            if (c == DynamicTargetCount)
+                return ResolvedDynamicCount > 0 ? ResolvedDynamicCount : 1;
+            return c;
+        }
+
+        /// <summary>是否动态数量原子（声明哨兵 -3，与是否已解析无关）。</summary>
+        public bool IsDynamicTargetCount => TargetCount == DynamicTargetCount;
 
         /// <summary>每原子有效目标随机（2026-10-09）：实例声明优先（1=随机抽不弹窗/0=弹窗）；-1 未声明回落效果级 def.RandomTarget。</summary>
         public bool EffectiveRandomTarget(EffectDefinition def)

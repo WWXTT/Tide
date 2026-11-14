@@ -565,7 +565,7 @@ namespace SynergyUI
             if (defs.Count == 0) return;
             if (defs.Count == 1)
             {
-                ActivateUnitEffect(card, defs[0]);
+                await ActivateUnitEffectAsync(card, defs[0]);
                 return;
             }
 
@@ -575,7 +575,7 @@ namespace SynergyUI
             int? picked = await PickRegionOptionAsync("选择效果", options);
             if (picked == null) return;
             if (picked.Value < 0 || picked.Value >= defs.Count) return;
-            ActivateUnitEffect(card, defs[picked.Value]);
+            await ActivateUnitEffectAsync(card, defs[picked.Value]);
         }
 
         /// <summary>该卡的待发主动奖励（BRANCH_REWARD·自由分支 tactivate=2 条件达成入队）：
@@ -612,11 +612,28 @@ namespace SynergyUI
         }
 
         /// <summary>发动单位主动效果（本地局）：入栈后无响应候选自动双 Pass（技能发动同款）；
-        /// 生物横置/结界耐久消耗随 RefreshField 对账刷新。</summary>
-        private void ActivateUnitEffect(BattleCardView card, EffectDefinition def)
+        /// 生物横置/结界耐久消耗随 RefreshField 对账刷新。
+        /// 2026-11-14 动态数量：含动态原子的效果发动前先选目标（1..候选数，可取消=不发动），
+        /// 选中数量随 ActivateEffect 落原子——结算扣费 base×N、执行按 N 消费预选。</summary>
+        private async UniTask ActivateUnitEffectAsync(BattleCardView card, EffectDefinition def)
         {
+            List<Entity> targets = null;
+            List<int> dynamicCounts = null;
+            if (def != null && CardCore.CostDerivationService.HasDynamicAtom(def))
+            {
+                var decl = await GameActions.CollectEffectDeclarationTargetsAsync(def, card.CoreCard, P1);
+                if (decl == null)
+                {
+                    _toast.Show("已取消发动（目标选择取消）");
+                    RefreshField();
+                    return;
+                }
+                targets = decl.Targets;
+                dynamicCounts = decl.DynamicCounts;
+                CardCore.CostDerivationService.ApplyDynamicCounts(def, dynamicCounts);
+            }
             Debug.Log($"[BattleScreen] 单位效果发动：{card.Name}（{card.CardId}）→ {def.DisplayName ?? def.Id}");
-            bool ok = GameActions.ActivateEffect(Core, P1, def, card.CoreCard, 0, out var activateReason);
+            bool ok = GameActions.ActivateEffect(Core, P1, def, card.CoreCard, targets, dynamicCounts, 0, out var activateReason);
             if (!ok) _toast.Show(activateReason ?? "无法发动（费用/横置/耐久/阶段门禁）"); // 引擎真因（2026-11-03 失败提示细化）
             else _ctrl.SettleResponseWindow().Forget();
             RefreshField();

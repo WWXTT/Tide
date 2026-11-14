@@ -343,7 +343,7 @@ namespace SynergyUI
                 // 多效果显示「最低~最高」区间，发动时弹窗择一现付；单效果只显示该价）。
                 // 2026-11-01 锚价现付定案：引擎发动扣费同源此价——单效果直显逐色实价（不再折灰总额）
                 var anchorCosts = HeroSkillSystem.SkillEffectsOf(skill)
-                    .Select(CostDerivationService.DeriveElementCosts)
+                    .Select(fx => CostDerivationService.DeriveElementCosts(fx))
                     .Where(c => c != null).ToList();
                 if (anchorCosts.Count == 0) v.Skill.CostText = "0";
                 else if (anchorCosts.Count == 1) v.Skill.CostText = CostTextOf(anchorCosts[0]);

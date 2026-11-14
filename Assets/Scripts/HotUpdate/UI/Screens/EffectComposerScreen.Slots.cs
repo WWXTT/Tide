@@ -480,7 +480,8 @@ namespace SynergyUI
             // 模拟/变形目标数量钉 1（2026-10-30 定案：目标恒单个——数量下拉禁改；2026-11-08 变形
             // 对齐同口径——「变成{target}」恒单目标）；其余行走默认
             BindAtomTargetRow(card, atom, RefreshCard,
-                pinCountOne: IsImitateEntry(atom) || IsGrantMorphEntry(atom));
+                pinCountOne: IsImitateEntry(atom) || IsGrantMorphEntry(atom),
+                allowDynamic: true); // 动态数量（2026-11-14）：仅主动效果主干预选数量生效（函数内再判）
             BindAtomDerivativeRow(card, atom);
 
             if (expanded)

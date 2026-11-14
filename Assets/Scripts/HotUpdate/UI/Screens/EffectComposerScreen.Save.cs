@@ -492,6 +492,13 @@ namespace SynergyUI
             else if (_mode == ComposeMode.RangeAura)
                 saved.RemoveAll(s => s.kind == 0
                     && !IsRitualStepRow(AtomicEffectTable.GetByHashId(s.atomic?.refId)));
+            // 动态数量仅主动效果（2026-11-14）：非主动保存前收 1（与转换器装载归一/UI 切换同口径，
+            // 防直改/旧数据把动态数量带进卡价）——须在 Steps 深拷贝落库**之前**改 saved。
+            if (effect.ActivationType != (int)EffectActivationType.Voluntary)
+                foreach (var s in saved)
+                    if (s?.kind == 0 && s.atomic != null
+                        && s.atomic.count == AtomicEffectInstance.DynamicTargetCount)
+                        s.atomic.count = 1;
             effect.Steps = saved.Count > 0
                 ? JsonUtility.FromJson<ListStepWrap>(JsonUtility.ToJson(new ListStepWrap { items = saved })).items
                 : null;
@@ -501,7 +508,8 @@ namespace SynergyUI
             effect.TargetKinds = null;
             // 目标数量档 1/2/3（全部档 2026-10-09 退役，AOE 另出专用原子行）：存量 0/-1 归一未声明
             //（converter 回落 1）——效果级值此后仅作未声明原子的回落，编辑口在每原子卡面行
-            if (effect.TargetCount == 0 || effect.TargetCount == -1) effect.TargetCount = -2;
+            if (effect.TargetCount == 0 || effect.TargetCount == -1
+                || effect.TargetCount == AtomicEffectInstance.DynamicTargetCount) effect.TargetCount = -2;
             // 持续行退役（2026-10-09 指示物层化定案）：UI 不再编辑持续档——哨兵清空回落 Once 锚（1.0×）
             effect.Duration = -1;
             effect.DurationValue = 0;

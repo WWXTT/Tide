@@ -1060,6 +1060,31 @@ namespace CardCore
                         TideLog.Warn($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}："
                                        + "目标随机与任意数量(-1)互斥——随机抽取需固定个数，动态数量将退化为全取");
 
+                    // 动态数量装载诊断（2026-11-14；转换器已归一，此处为直改 JSON 点名）：
+                    // 仅主动效果、非召唤、随机/结算期选择互斥。
+                    bool activatedEff = eff.TriggerTiming == (int)TriggerTiming.Activate_Active
+                                        || eff.TriggerTiming == (int)TriggerTiming.Activate_Instant
+                                        || eff.TriggerTiming == (int)TriggerTiming.Activate_Response;
+                    void CheckDynamic(AtomicEffectEntry atom, string where)
+                    {
+                        if (atom == null || atom.count != AtomicEffectInstance.DynamicTargetCount) return;
+                        if (!activatedEff)
+                            TideLog.Warn($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id} 原子 {atom.refId}({where})："
+                                           + "动态数量仅主动效果可用（触发式费用已入卡价）——装载会收为 1");
+                        var drow = AtomicEffectTable.GetByHashId(atom.refId);
+                        if (drow?.EnumName == nameof(AtomicEffectType.SummonToken))
+                            TideLog.Warn($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id} 原子 {atom.refId}({where})："
+                                           + "召唤数量由自身数量档承载——动态数量装载会收为 1");
+                        if (atom.rand == 1)
+                            TideLog.Warn($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id} 原子 {atom.refId}({where})："
+                                           + "动态数量与目标随机互斥——装载会关闭随机");
+                        if (atom.defer != 0)
+                            TideLog.Warn($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id} 原子 {atom.refId}({where})："
+                                           + "动态数量须在扣费前选目标——装载会收为预选");
+                    }
+                    foreach (var a in eff.AtomicEffects ?? new List<AtomicEffectEntry>()) CheckDynamic(a, "主序列");
+                    foreach (var s in eff.Steps ?? new List<EffectStepData>()) CheckDynamic(s?.atomic, "步骤");
+
                     // 固有全域原子告警块已删（2026-09-21 退役——全域用 TargetKinds+全取档组合表达）
 
                     // 槽级分支载荷校验（2026-10-05 两槽定案；2026-10-07 奖励资格派生化）：

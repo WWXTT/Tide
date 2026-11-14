@@ -912,7 +912,8 @@ namespace CardCore.AI.NeuralEnv
             var rows = new List<List<Entity>> { new List<Entity>() }; // 笛卡尔种子（空行）
             foreach (var spec in specs)
             {
-                if (spec.EffCount == -1 || (spec.AutoTake && spec.EffCount <= 1)) continue; // 运行时自选/单目标免弹——不预选
+                if (spec.EffCount == -1 || spec.EffCount == -3
+                    || (spec.AutoTake && spec.EffCount <= 1)) continue; // 运行时自选/动态数量/单目标免弹——不预选
 
                 var atomRows = new List<List<Entity>>();
                 if (spec.AutoTake)
