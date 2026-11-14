@@ -433,8 +433,7 @@ namespace SynergyUI
         }
 
         /// <summary>卡型可见性（2026-10-16 二次改版；2026-11-06 opt-in 修订）：四区模板恒 inactive（槽行运行时克隆）；
-        /// 此处只管 add 四钮（容量 0 隐藏）——basicability 行可见性归 SyncBasicAbility（充能暂不
-        /// 开放后非生物整区收起，见其 2026-11-08 注）。</summary>
+        /// 此处只管 add 四钮（容量 0 隐藏）——basicability 行可见性归 SyncBasicAbility（非生物整区收起）。</summary>
         private void SyncZoneVisibility()
         {
             SyncBasicAbility();
@@ -442,9 +441,8 @@ namespace SynergyUI
             if (_selType != null && SlotCapacity(_selType.Value) == 0) DeselectSlot();
         }
 
-        // ---- basicability（2026-11-06 opt-in 改版：ac/dc/rc 三开关正向绑 AttackAbility/GuardAbility/
-        //      ChargeAbility，默认关=不带——「添加了才有」；ac/dc 生物专属、rc 全卡型。
-        //      2026-11-08 充能暂不开放：rc 编辑口收起——绑定/数据保留，重开=去 SyncBasicAbility 恒藏行） ----
+        // ---- basicability（2026-11-06 opt-in 改版：ac/dc 两开关正向绑 AttackAbility/GuardAbility，
+        //      默认关=不带——「添加了才有」；ac/dc 生物专属） ----
 
         private void BindBasicAbility()
         {
@@ -457,10 +455,6 @@ namespace SynergyUI
                 on => _card.GuardAbility = on,
                 "具备守卫能力（basicability，2026-11-06 opt-in）：默认不带；开启占 1 点底盘预算，关闭释放（关键词槽 +1、免费属性点 +2）",
                 affectsKeywordSlots: true);
-            _chargeToggle = BindAbilityToggle("rc", "具备充能",
-                on => _card.ChargeAbility = on,
-                "具备充能能力（basicability，2026-11-06 opt-in）：默认不带；开启=该卡可宣充能（己方主阶段空栈、一回合一次、结算期选色免费落层），卡费固定 +1 灰",
-                affectsKeywordSlots: false);
             SyncBasicAbility();
         }
 
@@ -475,11 +469,11 @@ namespace SynergyUI
             {
                 apply(on);
                 _card.ResetCache();
-                if (affectsKeywordSlots) RefreshSlots(); // 关键词槽容量随攻/守开关变化（add 按钮态同步；充能不影响）
+                if (affectsKeywordSlots) RefreshSlots(); // 关键词槽容量随攻/守开关变化（add 按钮态同步）
                 Recalculate();
                 ShowToast(on ? $"已具备：{label}" : affectsKeywordSlots
                     ? $"已关闭：{label}——关键词槽 +1（现上限 {KeywordCapacity}）"
-                    : $"已关闭：{label}——该卡不再可宣充能");
+                    : $"已关闭：{label}");
             });
             Describe(toggle, desc);
             return toggle;
@@ -502,9 +496,8 @@ namespace SynergyUI
             rt.anchoredPosition = anchors.Item5;
         }
 
-        /// <summary>三开关回显与行可见性（2026-11-06 opt-in）：攻/守行仅生物可见（资格清空归
-        /// ApplyKindToCard 切型口，与关键词「切型即清」同口径）。2026-11-08 充能暂不开放：
-        /// rc 行恒藏（回显保留防池化残亮）——区只剩攻/守行，随其生物专属走：非生物整区收起。</summary>
+        /// <summary>两开关回显与行可见性（2026-11-06 opt-in）：攻/守行仅生物可见（资格清空归
+        /// ApplyKindToCard 切型口，与关键词「切型即清」同口径）——非生物整区收起。</summary>
         private void SyncBasicAbility()
         {
             if (_basicAbilityZone != null)
@@ -518,11 +511,6 @@ namespace SynergyUI
             {
                 _guardToggle.SetIsOnWithoutNotify(_card.GuardAbility);
                 _guardToggle.gameObject.SetActive(_kind == CardKind.Creature);
-            }
-            if (_chargeToggle != null)
-            {
-                _chargeToggle.SetIsOnWithoutNotify(_card.ChargeAbility);
-                _chargeToggle.gameObject.SetActive(false); // 充能暂不开放（2026-11-08）：编辑口收起
             }
         }
 

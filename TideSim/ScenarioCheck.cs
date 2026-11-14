@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using CardCore;
@@ -39,7 +39,7 @@ namespace TideSim
                 tokenBindings1: null, tokenBindings2: null, ai1: true, ai2: true);
             var p1 = core.Player1;
             var p2 = core.Player2;
-            // 2026-11-06 充能加价对账：火苗 0费→1灰，「手里还有付得起的牌」判据需 1 点钱包灰兜底
+            // 火苗 0费→1灰（2026-11-06 加价口径），「手里还有付得起的牌」判据需 1 点钱包灰兜底
             //（策略闸测试与出牌经济解耦——不挂地牌，避免牵动留费/拆波判据）
             core.ElementPool.AddMana(p1, ManaType.Gray, null, 1);
             var strategy = AiStrategy.RedAggro;
@@ -139,10 +139,9 @@ namespace TideSim
                 Supertype = Cardtype.Creature,
                 Power = power,
                 Life = life,
-                // 2026-11-06 opt-in 改版：夹具单位保留旧默认口径（攻/守/充能齐备），行为零漂移
+                // 2026-11-06 opt-in 改版：夹具单位保留旧默认口径（攻/守齐备），行为零漂移
                 AttackAbility = true,
                 GuardAbility = true,
-                ChargeAbility = true,
                 Keywords = guardian ? new List<string> { "Guardian" } : new List<string>(),
             });
     }

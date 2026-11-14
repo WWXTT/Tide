@@ -156,8 +156,12 @@ namespace SynergyUI
                     //（弹选清账后续排）没走完时直接施放会叠上未空栈=速度0非法连锁。教学剧本全部
                     // 串行动作，正常路径此处恒空栈零开销；DrainStack 幂等。
                     GameActions.DrainStack(core);
-                    bool ok = GameActions.PlayCard(core, me, card, ResolveTargets(core, me, action.targets),
-                        Zone.Hand, action.mode, out var reason);
+                    var targets = ResolveTargets(core, me, action.targets);
+                    // 2026-11-15 目标选择对齐：动态数量法术按「目标张数=本次选的 N」计费/执行
+                    //（与人类声明期「选几个收几份」同口径；无动态原子=null，行为不变）
+                    var counts = BuildDynamicCounts(CastDefOf(card, action.mode), targets?.Count ?? 0);
+                    bool ok = GameActions.PlayCard(core, me, card, targets,
+                        Zone.Hand, action.mode, null, counts, out var reason);
                     if (!ok) return LogResult(action, false, $"出牌被拒：{reason}");
                     GameActions.DrainStack(core); // cast 已上栈：双 Pass 结算付费（AI 无响应；
                                                    // 付费步系统自动横置地牌——2026-10-11 现取现用）
@@ -178,9 +182,19 @@ namespace SynergyUI
                 }
                 case "skill":
                 {
-                    bool ok = await GameActions.ActivateHeroSkill(core, me);
+                    // 2026-11-15 目标选择对齐：targets 与人类「结算帧选择窗」同口径下发——
+                    // 脚本可精确指定祭哪几张/选哪几个（缺省/"auto"=引擎按策略代选，行为同旧）。
+                    // mode=效果序号（多效果技能抉择，单效果恒 0）；动态数量按目标张数计 N。
+                    var skillCard = HeroSkillSystem.ResolveSkillCard(core, me);
+                    var effects = skillCard != null ? HeroSkillSystem.SkillEffectsOf(skillCard) : null;
+                    var def = effects != null && effects.Count > 0
+                        ? effects[Math.Clamp(action.mode, 0, effects.Count - 1)] : null;
+                    var targets = ResolveTargets(core, me, action.targets);
+                    var counts = BuildDynamicCounts(def, targets?.Count ?? 0);
+                    bool ok = GameActions.ActivateHeroSkill(core, me,
+                        Math.Max(0, action.mode), targets, counts, out var skillReason);
                     if (ok) GameActions.DrainStack(core);
-                    return LogResult(action, ok, "英雄技能被拒（费用/横置/沉默/已用）");
+                    return LogResult(action, ok, skillReason ?? "英雄技能被拒（费用/横置/沉默/已用）");
                 }
                 case "activate":
                 {
@@ -188,6 +202,7 @@ namespace SynergyUI
                     // mode=第几个主动效果（0 起，缺省首个 IsActivatedEffect）。宣动成功后**不排干栈**——
                     // await SettleResponseWindowAsync 开响应窗给人类玩家连锁（教学核心演示位），
                     // 双 Pass 结算后才继续（镜像 attack 口径）。
+                    // 2026-11-15：targets=预选目标集（同人类结算期选择窗），动态数量按目标张数计 N。
                     var source = FindOnBattlefield(core, me, action.card);
                     if (source == null) return LogResult(action, false, $"场上无 {action.card}");
                     var defs = CardEffectConverter.ConvertAll(
@@ -202,8 +217,10 @@ namespace SynergyUI
                     }
                     if (def == null)
                         return LogResult(action, false, $"{action.card} 无主动效果（或序号越界）");
-                    if (!GameActions.ActivateEffect(core, me, def, source))
-                        return LogResult(action, false, "主动效果宣动被拒（主阶段/横置/速度门）");
+                    var actTargets = ResolveTargets(core, me, action.targets);
+                    var actCounts = BuildDynamicCounts(def, actTargets?.Count ?? 0);
+                    if (!GameActions.ActivateEffect(core, me, def, source, actTargets, actCounts, 0, out var actReason))
+                        return LogResult(action, false, actReason ?? "主动效果宣动被拒（主阶段/横置/速度门）");
                     await GameActions.SettleResponseWindowAsync(core); // 连锁窗口：人类玩家可响应
                     return true;
                 }
@@ -283,6 +300,32 @@ namespace SynergyUI
                 else list.Add(entity);
             }
             return list.Count > 0 ? list : null;
+        }
+
+        /// <summary>法术所选模式的施放效果（modeIndex 索引可施放列表；null=非目标卡/越界）。</summary>
+        private static EffectDefinition CastDefOf(Card card, int modeIndex)
+        {
+            if (card == null) return null;
+            var castable = GameActions.GetCastableEffectDefinitions(card);
+            if (castable == null || castable.Count == 0) return null;
+            return castable[Math.Clamp(modeIndex, 0, castable.Count - 1)];
+        }
+
+        /// <summary>动态数量表（2026-11-15 目标选择对齐）：脚本用 **targets 张数** 表达「这次选了几个」——
+        /// 与人类「选 N 个目标、按 N 计费」同口径；效果无动态原子（-3）时返回 null（普通预选，行为不变）。
+        /// 下标=效果原子序（ApplyDynamicCounts 契约）。</summary>
+        private static List<int> BuildDynamicCounts(EffectDefinition def, int count)
+        {
+            if (def?.Effects == null || count <= 0) return null;
+            var counts = new List<int>(def.Effects.Count);
+            bool any = false;
+            foreach (var atom in def.Effects)
+            {
+                int n = atom != null && atom.TargetCount == AtomicEffectInstance.DynamicTargetCount ? count : 0;
+                counts.Add(n);
+                any |= n > 0;
+            }
+            return any ? counts : null;
         }
     }
 }

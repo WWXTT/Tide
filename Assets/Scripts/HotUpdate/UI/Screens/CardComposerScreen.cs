@@ -42,8 +42,8 @@ namespace SynergyUI
     /// · 容量按型：生物=代价1+主动1+自动1+关键词3（每关一个攻/守 +1）；法术=主动1~3（速度加成=3−槽数）；
     ///   结界=光环恰好 1（必填，规则或连接；保存闸）+自动0~2（passives 槽容量 3=光环1+自动2）；
     ///   代价三类卡通用；关键词生物专属（切型即清）；
-    /// · basicability 区（具备攻击/具备守卫/具备充能 Toggle）：**正向绑定资格位，默认不带**
-    ///   （2026-11-06 opt-in 改版——攻/守/充能三系统动作统一「添加了才有」；ac/dc 生物专属、rc 全卡型；旧 NoAttack/NoGuard 反相绑定退役）；
+    /// · basicability 区（具备攻击/具备守卫 Toggle）：**正向绑定资格位，默认不带**
+    ///   （2026-11-06 opt-in 改版——攻/守两系统动作统一「添加了才有」；ac/dc 生物专属；旧 NoAttack/NoGuard 反相绑定退役）；
     /// · 名称可缺省——留空保存=用生成的卡 ID 当卡名；生物属性必填（输入框留空=未填拦保存）；
     /// · type 区 ID 钮：仅在保存过卡后出现（num 显卡 ID，点击复制——方便衍生物填 ID）；
     /// · type 区 "CostSquares " 文本节点＝卡费文字公式（方格退役，口径参考效果组合界面费用公式）；
@@ -231,10 +231,10 @@ namespace SynergyUI
         private readonly Dictionary<ZoneId, UnityEngine.UI.Button> _addButtons = new Dictionary<ZoneId, UnityEngine.UI.Button>(); // add-slot 四钮
         //（_costParamValue 已随 2026-11-08 代价效果级化整删——代价槽退役）
 
-        // ---- basicability 区（2026-11-06 opt-in 改版：prefab ac/dc/rc 三 Toggle「具备攻击/具备守卫/具备充能」
-        //      → AttackAbility/GuardAbility/ChargeAbility 正向绑定，默认关=不带；ac/dc 生物专属、rc 全卡型） ----
+        // ---- basicability 区（2026-11-06 opt-in 改版：prefab ac/dc 两 Toggle「具备攻击/具备守卫」
+        //      → AttackAbility/GuardAbility 正向绑定，默认关=不带；仅生物） ----
         private RectTransform _basicAbilityZone;
-        private Toggle _attackToggle, _guardToggle, _chargeToggle;
+        private Toggle _attackToggle, _guardToggle;
 
         // ======================================== 装配 ========================================
 
@@ -409,7 +409,7 @@ namespace SynergyUI
                 {
                 CardKind.Creature => "生物：有攻击/生命可参战，可挂自动效果（禁连接光环）",
                 CardKind.Spell => "法术：挂 1~3 个主动效果（施放时择一发动），速度=3−槽数动态算",
-                _ => "结界：耐久体，只挂自动效果与连接光环（禁主动——充能=资格位，任意卡型在基础能力区勾选「具备充能」）",
+                _ => "结界：耐久体，只挂自动效果与连接光环（禁主动）",
                 });
                 _kindButtons[captured] = btn;
             }

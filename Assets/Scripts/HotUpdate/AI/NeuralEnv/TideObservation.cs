@@ -434,7 +434,7 @@ namespace CardCore.AI.NeuralEnv
             Cards[b + 10] = c.GetCounterCount(CounterRules.SilenceCounter) > 0 ? 1f : 0f;
             Cards[b + 11] = c.GetCounterCount(CounterRules.CostUpCounter)
                           - (c.GetCounterCount(CounterRules.CostDownGrayCounter)   // 2026-10-31 P12 四色
-                          + c.GetCounterCount(CounterRules.CostDownRedCounter)    // 充能投放，逐色只减对应费
+                          + c.GetCounterCount(CounterRules.CostDownRedCounter)    // 费用降低指示物投放，逐色只减对应费
                           + c.GetCounterCount(CounterRules.CostDownBlueCounter)
                           + c.GetCounterCount(CounterRules.CostDownGreenCounter)); // 费用层净量（合计）
             Cards[b + 12] = c.HasKeyword(KeywordRules.Taunt) ? 1f : 0f;

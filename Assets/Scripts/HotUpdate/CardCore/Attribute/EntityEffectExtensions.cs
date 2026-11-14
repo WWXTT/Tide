@@ -29,7 +29,7 @@ namespace CardCore
 
         // ---- 战斗底盘能力（2026-09-10 攻/守效果化；2026-11-06 opt-in 改版）：资格经卡数据声明，缺省不带 ----
         // 扩展方法口径（与 IsTapped 同款）：CombatSystem/AI 拿到的是 Card 基类引用。
-        // 裸 Card（衍生物/临时卡，无卡数据）从严 = 无攻无守无充能。
+        // 裸 Card（衍生物/临时卡，无卡数据）从严 = 无攻无守。
 
         /// <summary>攻击资格（速度0主动效果，2026-09-16 战斗接入栈机器）：卡面声明才有（2026-11-06
         /// opt-in 改版——生物不再默认自带）；仅生物。无资格卡不能宣言攻击。</summary>
@@ -44,11 +44,6 @@ namespace CardCore
             => card is CardWrapper w && w.GetData() is CardData d
                && d.Supertype == Cardtype.Creature && d.GuardAbility
                && !RuleAuraSystem.ScopeHits(RuleAuraComponents.NoGuardAura, card.GetController());
-
-        /// <summary>充能资格（2026-11-06 充能 opt-in 改版）：卡面声明才有——GameActions.CanCharge
-        /// 首闸 / UI 充能行与亮钮 / AI 枚举同口。任意卡型可声明（与攻/守不同：不限生物）。</summary>
-        public static bool HasChargeAbility(this Card card)
-            => card is CardWrapper w && w.GetData() is CardData d && d.ChargeAbility;
 
         /// <summary>获取生命值（含连接光环加成；伤害扣 _life 原值，断链自动回落）</summary>
         public static int GetLife(this Entity entity)

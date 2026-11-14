@@ -256,8 +256,8 @@ namespace SynergyUI
                 return;
             }
 
-            // 形状拦截（2026-10-15 深夜三类卡改版；2026-11-05 充能系统动作化修订）：
-            // 法术=主动 1~3（总效果数 ≤4）；结界=主动全拒（充能不再是卡上效果，P12 修订收回）。
+            // 形状拦截（2026-10-15 深夜三类卡改版）：
+            // 法术=主动 1~3（总效果数 ≤4）；结界=主动全拒。
             if (_kind == CardKind.Spell)
             {
                 int count = _card.Effects?.Count ?? 0;
@@ -286,7 +286,7 @@ namespace SynergyUI
                     if (t == (int)TriggerTiming.Activate_Active || t == (int)TriggerTiming.Activate_Instant
                         || t == (int)TriggerTiming.Activate_Response)
                     {
-                        ShowToast($"结界效果「{e.DisplayName ?? e.Id}」为主动效果——结界只挂自动/光环（充能已是系统动作）");
+                        ShowToast($"结界效果「{e.DisplayName ?? e.Id}」为主动效果——结界只挂自动/光环");
                         return;
                     }
                 }

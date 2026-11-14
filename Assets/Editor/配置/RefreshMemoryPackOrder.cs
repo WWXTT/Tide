@@ -292,7 +292,7 @@ namespace CardCore.Tools
                 ("MsgIntentPlayCard", "FromZone"), ("MsgIntentPlayCard", "ModeIndex"),
                 ("MsgIntentPlayCard", "References"), // 参照选位（2026-11-08 目标选择重构·协议 v10）
                 ("MsgIntentPlayCard", "CellX"), ("MsgIntentPlayCard", "CellZ"), // 落格坐标（2026-11-12 协议 v19）
-                ("MsgIntentBuildCard", "CardRuntimeId"), ("MsgIntentBuildCard", "Color"), // 2026-10-29 P7 建造（协议 v4）
+                // MsgIntentBuildCard 已删（2026-11-15 充能整链删除；号位 113 不复用）——两个 tag 常量同批移除
                 // MsgIntentTapForElement 已删（2026-10-11 现取现用：无手动横置）——两个 tag 常量同批移除（2026-10-22）
                 ("MsgIntentAddToElementPool", "CardRuntimeId"),
                 ("MsgIntentAddToElementPool", "ModeIndex"), // 抉择放地模式（2026-10-31 阶段D：手工定值退役并入哈希）

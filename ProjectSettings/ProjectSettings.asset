@@ -988,7 +988,7 @@ PlayerSettings:
   qualitySettingsNames:
   - Good
   projectName: EmbracingTheUniverse
-  organizationId: weiwutangtang
+  organizationId: 
   cloudEnabled: 0
   legacyClampBlendShapeWeights: 1
   hmiLoadingImage: {fileID: 0}

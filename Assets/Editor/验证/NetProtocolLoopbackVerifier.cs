@@ -515,17 +515,6 @@ namespace CardCore.Editor
                                 accepted = ApplyIntent(seat, NetworkMessageType.IntentAddToElementPool,
                                     new MsgIntentAddToElementPool { CardRuntimeId = choice.Card.RuntimeId, ModeIndex = -1 });
                                 break;
-                            case TideActionType.Charge:
-                                // v11 充能动作化（2026-11-05）：线上通道=IntentBuildCard（消息名/号不动只换语义），
-                                // 宣言期零选色（颜色在结算期反问，AI/无头自动取最大余量色）——
-                                // 缺本分支时 Charge 行落 default 被误发成 IntentEndTurn（Charge×60 假覆盖 +
-                                // PlayLand/EndTurn 饿死的根因）
-                                accepted = ApplyIntent(seat, NetworkMessageType.IntentBuildCard, new MsgIntentBuildCard
-                                {
-                                    CardRuntimeId = choice.Card.RuntimeId,
-                                    Color = 0,
-                                });
-                                break;
                             case TideActionType.Activate:
                                 accepted = ApplyIntent(seat, NetworkMessageType.IntentActivateEffect, new MsgIntentActivateEffect
                                 {

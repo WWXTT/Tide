@@ -420,7 +420,7 @@ namespace CardCore
 
         /// ============ 四色费用指示物（2026-10-31：通用费用增加/减少拆四色，增减各 4 行共 8 行表行） ============
         /// 每层 ±1 对应色净费分量（GetCardCost 逐色套层钳 0，不串色）；仅手牌生效，换区清除
-        ///（Resident）；计数器 id=CostUpGray..Green / 复用充能已投放的 CostDownGray..Green。
+        ///（Resident）；计数器 id=CostUpGray..Green / CostDownGray..Green（减费唯一投放口）。
         /// _costModifier 只是 StatKind 聚合读数（主路径读各色计数器，同 P12 四色减口径）。
         AddCostUpGray,
         AddCostUpRed,
@@ -507,10 +507,11 @@ namespace CardCore
         /// GrantKeywordHandler 通用路径（GrantKeywordHandlerFactory.Specs 登记）。</summary>
         GrantPathogen,
 
-        /// <summary>狩猎（2026-11-01 新增，绿3 表行「狩猎」6eaa0d3f·关键词表；2026-11-14 重做）：
-        /// 授予「狩猎」关键词——回合结束时，持有单位**不管横置态**（未横置闸已删）强行随机对
-        /// 防守方（对方单位∪角色，CanAttackTarget 口径）发起一次攻击；本次战斗击杀防守方
-        /// 任一单位（直杀/溅射/碾压同认，击杀角色不算）则重置自身（解除横置，发 UntapEvent）。
+        /// <summary>狩猎（2026-11-01 新增，绿3 表行「狩猎」6eaa0d3f·关键词表；2026-11-14 重做；
+        /// 2026-11-15 改目标）：授予「狩猎」关键词——回合结束时，持有单位**不管横置态**（未横置闸已删）
+        /// 强行**自动攻击防守方生命值最少的目标**（生物与角色一起按当前生命取最低——同血角色优先，
+        /// 生物同血取战场序最左；结界等无生命耐久体不参与）；本次战斗击杀防守方任一单位（直杀/
+        /// 溅射/碾压同认，击杀角色不算）则重置自身（解除横置，发 UntapEvent）。
         /// 攻击不吃横置代价（出击不改变自身横置态——重置只经击杀奖励口）；战斗计算与事件链
         /// 与普通攻击同口径（潜行消耗/ResolvePair 关键词管线/AttackResolvedEvent 照常）；
         /// 回合末同步结算、无守卫响应窗口。

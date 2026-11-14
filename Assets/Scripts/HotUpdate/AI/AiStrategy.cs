@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using CardCore;
@@ -149,6 +149,9 @@ namespace CardCore.AI
         /// 默认 false（只在打不出时才当地）。</summary>
         public virtual bool WantLand(GameCore core, Player me, Card card) => false;
 
+        /// <summary>回合中补铺地（2026-11-14）：true=出牌循环每轮后再跑一次铺地（绿套早期要顶地数，
+        /// 当前 SimpleAI 只在回合开始铺一次，T2 常常只铺 1 块就进循环）。默认 false。</summary>
+        public virtual bool WantsLandTopUp(GameCore core, Player me) => false;
         /// <summary>地牌锁色选择（2026-11-01）：null=缺省主色；绿套前 3 块绿、之后灰。</summary>
         public virtual ManaType? LandColorChoice(GameCore core, Player me, Card card) => null;
 
@@ -283,9 +286,11 @@ namespace CardCore.AI
         protected TradeEvaluation EvaluateTrade(GameCore core, Card unit, Card enemy)
         {
             int myPower = core.LayerEngine.CalculatePower(unit);
-            int myLife = unit.GetLife();
+            // 防护（护甲）算进有效生命（2026-11-15 用户口径）：解场估值此前只看 GetLife，
+            // 把「带满护甲、根本打不死」的生物当成能击杀 → AI 会去撞一个伤害全被吃掉的靶子。
+            int myLife = unit.GetLife() + unit.GetEffectiveCounterCount(KeywordRules.ArmorCounter);
             int enemyPower = core.LayerEngine.CalculatePower(enemy);
-            int enemyLife = enemy.GetLife();
+            int enemyLife = enemy.GetLife() + enemy.GetEffectiveCounterCount(KeywordRules.ArmorCounter);
 
             // 反击资格（镜像 CombatSystem.ResolvePair）：横置者只能挨打，警戒例外；缴械压制目标反击。
             bool canCounter = (!enemy.IsTapped() || enemy.HasKeyword(KeywordRules.Vigilance))
@@ -388,6 +393,12 @@ namespace CardCore.AI
         /// 见 GameActions.SettleResponseWindowAsync 的 ?? 兜底）。默认 null=与策略化之前同行为。
         /// 装配：AiStrategyRegistry 按玩家查表（ResponseWindowService.AiResponder → PickFor）。</summary>
         public virtual ResponseOption PickResponse(GameCore core, Player me, List<ResponseOption> options) => null;
+
+        /// <summary>主动技能/场上能力发动闸（2026-11-15 用户口径）：`SimpleAI` 在「自愿队列 / 场上能力」
+        /// 两条通道发动前先问策略——返回 false 即跳过这次发动。默认 true=与之前同行为。
+        /// 绿套用它把「牺牲」锁进固定脚本（T3 不许祭、T5 只祭小精灵），否则启发式会一次烧 3 张。</summary>
+        public virtual bool AllowVoluntaryActivation(GameCore core, Player me, Card source, string effectName)
+            => true;
 
         /// <summary>出牌目标接管（2026-11-04）：null=不接管（回落通用择优）；空表=本次不满足，别打。</summary>
         public virtual List<Entity> PickSpellTargets(GameCore core, Player me, Card card, int modeIndex) => null;

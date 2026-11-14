@@ -40,7 +40,6 @@ namespace SynergyUI
             // 系统动作资格位（2026-11-06 opt-in）：攻/守仅生物带入（脏数据不带入——装载端同降级口径）
             _card.AttackAbility = src.AttackAbility && src.Supertype == Cardtype.Creature;
             _card.GuardAbility = src.GuardAbility && src.Supertype == Cardtype.Creature;
-            _card.ChargeAbility = src.ChargeAbility;
             _card.SpeedBonus = src.SpeedBonus;
             _card.ResetCache();
             _card.AggregateEffectAuras(true);
@@ -84,7 +83,7 @@ namespace SynergyUI
             //（卡级 PayloadCost 已随 2026-11-08 代价效果级化整删）
             _card.ArrowDirections = default;
             _card.LinkAuras = null;
-            _card.AttackAbility = _card.GuardAbility = _card.ChargeAbility = false; // 资格位复位（2026-11-06 opt-in：新建默认不带）
+            _card.AttackAbility = _card.GuardAbility = false; // 资格位复位（2026-11-06 opt-in：新建默认不带）
             _card.SpeedBonus = 0;
             _card.ResetCache();
             _editingOriginalId = null;
@@ -558,9 +557,8 @@ namespace SynergyUI
 
         // ========================================（系统效果直加段已删 2026-11-05） ========================================
 
-        // 充能直加行（AddChargeDirectRow/FillChargeDirect）已随 2026-11-05 充能系统动作化改版删除：
-        // 充能不再是卡上效果——改为任意手牌卡可宣的速度0系统动作（引擎 GameActions.DeclareCharge，
-        // 结算期反问元素类别），卡组合界面不再提供充能挂载。
+        // 充能直加行（AddChargeDirectRow/FillChargeDirect）已随 2026-11-05 改版删除；
+        // 2026-11-15 充能整链删除——卡组合界面不再提供充能挂载。
 
     }
 }

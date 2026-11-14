@@ -2372,9 +2372,9 @@
       "life": 3,
       "costList": [
         1.0,
-        3.0,
         0.0,
-        0.0
+        0.0,
+        3.0
       ],
       "keywords": [
         "Lifesteal"
@@ -2537,9 +2537,9 @@
       "life": 2,
       "costList": [
         1.0,
-        6.0,
+        3.0,
         0.0,
-        0.0
+        3.0
       ],
       "keywords": [
         "Hunt",
@@ -2730,11 +2730,10 @@
       "cardName": "教学·灰源",
       "supertype": "Creature",
       "attackAbility": true,
-      "chargeAbility": true,
       "power": 1,
       "life": 1,
       "costList": [
-        1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -2780,7 +2779,7 @@
         0.0,
         0.0
       ],
-      "hash": "A92F5E99"
+      "hash": "2591BE50"
     },
     {
       "id": "C_60D27A90",
@@ -2799,7 +2798,7 @@
         0.0,
         0.0
       ],
-      "hash": "60D27A90"
+      "hash": "869E7FE5"
     },
     {
       "id": "C_21E4EAC1",
@@ -2856,7 +2855,7 @@
         0.0,
         0.0
       ],
-      "hash": "91CE77A8"
+      "hash": "832609A5"
     },
     {
       "id": "C_76B63B4D",
@@ -2875,7 +2874,26 @@
         0.0,
         0.0
       ],
-      "hash": "76B63B4D"
+      "hash": "92129581"
+    },
+    {
+      "id": "C_33367D9D",
+      "cardName": "减半",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeGreenCountdown",
+        "教学"
+      ],
+      "effectIds": [
+        "6229F9B6"
+      ],
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "hash": "FA00E427"
     },
     {
       "id": "C_D1D6C529",
@@ -2909,21 +2927,22 @@
       "attackAbility": true,
       "guardAbility": true,
       "keywords": [
-        "Hunt",
-        "Lifesteal"
+        "Lifelink"
       ],
       "tags": [
         "ThemeGreenCountdown",
         "教学"
       ],
-      "effectIds": [],
-      "costList": [
-        8.0,
-        6.0,
-        0.0,
-        0.0
+      "effectIds": [
+        "FXGREEN11"
       ],
-      "hash": "B0EF3C08"
+      "costList": [
+        9.0,
+        0.0,
+        0.0,
+        3.0
+      ],
+      "hash": "52F593DE"
     },
     {
       "id": "C_AC7FC01F",
@@ -2942,7 +2961,7 @@
         0.0,
         0.0
       ],
-      "hash": "AC7FC01F"
+      "hash": "C2C07B15"
     },
     {
       "id": "C_F245F2F9",
@@ -2963,7 +2982,30 @@
         0.0,
         1.0
       ],
-      "hash": "F245F2F9"
+      "hash": "310B634B"
+    },
+    {
+      "id": "C_046A30F8",
+      "cardName": "荒原猎兽",
+      "supertype": "Creature",
+      "power": 7,
+      "life": 1,
+      "attackAbility": true,
+      "guardAbility": true,
+      "tags": [
+        "ThemeGreenCountdown",
+        "教学"
+      ],
+      "effectIds": [
+        "FXGREEN11"
+      ],
+      "costList": [
+        4.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "hash": "18BCF9E5"
     }
   ]
 }

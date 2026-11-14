@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using CardCore;
@@ -220,6 +220,8 @@ namespace SynergyUI
             //    出口 = 无进展：费用花完 / 手牌打空 / 无可发动效果
             for (int i = 0; i < MaxActionRounds && !core.IsGameOver; i++)
             {
+                // 2026-11-14 用户定案：6 费前**先补满地再出牌**（策略钩子；默认 false 行为不变）
+                if (_strategy.WantsLandTopUp(core, me)) PlayLands(core, me);
                 // 出牌/技能源已 async 化（含出牌舞台等待）；`|` 非短路——每轮仍全试一遍再判进展
                 //（墓地出牌臂已随 2026-10-30 归土改版整删——归土=回合末自动复活，无 AI 动作位）
                 // 2026-11-01：绿套·成长期技能先于出牌（策略钩子 SkillBeforeCards）——1 费回春藤
@@ -233,9 +235,7 @@ namespace SynergyUI
                 await PaceAsync(); // 人机节奏：本轮动作落地后等表现层演完再做下一个动作
             }
 
-            // 2.5 充能（2026-11-05 系统动作化改版，低优先级）：动作耗尽后把手牌各卡宣一次充能
-            //     （速度0系统动作·免费落层——一张卡一回合一次；颜色由引擎结算期反问代选=最大余量色）。
-            ChargeIdleElements(core, me);
+            // 2.5 充能已删除（2026-11-15 彻底删除充能机制）
 
             // 3. 战前排干栈：让本回合发动/触发的效果先落地（增益类才影响攻击结算）
             SettleStack(core);
@@ -268,25 +268,6 @@ namespace SynergyUI
         }
 
         // ======================================== 资源准备 ========================================
-
-        /// <summary>充能（2026-11-05 系统动作化改版，低优先级）：主循环无进展后，把手牌各卡宣一次
-        /// 充能（速度0系统动作·**免费落层**——一张卡一回合一次，CanCharge 闸内拒；上限跨回合逐补，
-        /// 颜色由引擎结算期反问代选=最大余量色）。失败即静默跳过——不阻塞回合推进。
-        /// 对手回合响应档已随改版退役（充能=速度0系统动作，0 速无法接链）。</summary>
-        private static void ChargeIdleElements(GameCore core, Player me)
-        {
-            if (core.TurnEngine.TurnPlayer != me
-                || core.TurnEngine.CurrentPhase?.Phase != PhaseType.Main) return;
-            var hand = core.ZoneManager.GetCards(me, Zone.Hand) ?? new List<Card>();
-            // S3b：剔施放中的卡（不可二次声明/不可弃）
-            hand = hand.Where(c => !core.StackEngine.IsPendingCast(c)).ToList();
-            foreach (var card in hand)
-            {
-                // 充能=速度0系统动作须空栈——宣一张结算一张（结算期反问代选色+落层）再宣下一张
-                if (GameActions.DeclareCharge(core, me, card, out _))
-                    SettleStack(core);
-            }
-        }
 
         /// <summary>
         /// 补地（定案策略）：只放"暂时打不出来"的生物（能付起的留手打出）——
@@ -348,7 +329,7 @@ namespace SynergyUI
         /// <summary>发动引擎已入队的可选待发效果（触发式可选项，"把能发动的都发动"）。
         /// 控制器过滤（2026-10-20）：待发桶双方共享且 GetActivatableVoluntaryEffects 无视激活方——
         /// 不滤会把玩家掷骰入队的 BRANCH_REWARD 当自己的发射（目标被 AI 代选）。</summary>
-        private static bool DrainVoluntaryQueue(GameCore core)
+        private bool DrainVoluntaryQueue(GameCore core)
         {
             bool any = false;
             var me = core.StackEngine.CurrentPriorityHolder;
@@ -357,6 +338,9 @@ namespace SynergyUI
             foreach (var effect in pending)
             {
                 if (effect.Controller != me) continue; // 只发动自己队列里的待发
+                // 策略闸（2026-11-15）：自愿队列也必须经策略同意（绿套用它把「牺牲」锁进脚本）
+                if (!_strategy.AllowVoluntaryActivation(core, me, effect.Source as Card, null))
+                    continue;
                 if (core.StackEngine.PlayerActivateVoluntary(effect))
                     any = true;
             }
@@ -364,7 +348,7 @@ namespace SynergyUI
         }
 
         /// <summary>枚举场上卡的主动能力并逐个发动（CanActivate 预检 + 引擎权威校验）。</summary>
-        private static bool ActivateBattlefieldAbilities(GameCore core, Player me)
+        private bool ActivateBattlefieldAbilities(GameCore core, Player me)
         {
             bool any = false;
             var battlefield = new List<Card>(core.ZoneManager.GetCards(me, Zone.Battlefield) ?? new List<Card>());
@@ -376,6 +360,7 @@ namespace SynergyUI
                 {
                     if (!def.IsActivatedEffect) continue; // 只管主动；触发式由引擎事件驱动
                     if (CardCore.Attribute.SuppressRules.IsOverloaded(source)) continue; // §11 预检：过载卡主动失效
+                    if (!_strategy.AllowVoluntaryActivation(core, me, source, def.DisplayName)) continue; // 策略闸
                     if (!executor.CanActivate(def, source, me, me, phase, core.TurnEngine.TurnNumber)) continue;
                     if (GameActions.ActivateEffect(core, me, def, source))
                         any = true;
@@ -393,6 +378,19 @@ namespace SynergyUI
             var hand = core.ZoneManager.GetCards(me, Zone.Hand) ?? new List<Card>();
             // S3b：剔施放中的卡（不可二次声明/不可弃）
             hand = hand.Where(c => !core.StackEngine.IsPendingCast(c)).ToList();
+            // 诊断探针（2026-11-15，TIDE_DEBUG_PLAY=1）：逐张手牌打印「可打/留手/评分」，
+            // 用来定位「手里有牌却整回合不出」的卡点。
+            if (Environment.GetEnvironmentVariable("TIDE_DEBUG_PLAY") == "1")
+            {
+                foreach (var dc in hand)
+                {
+                    string dn = (dc as CardWrapper)?.GetData()?.CardName ?? dc.ID;
+                    Console.WriteLine($"[dbg-play] T{core.TurnEngine.TurnNumber} {me.Name} {dn} canPlay={CanPlayCard(core, me, dc, Zone.Hand)}"
+                        + $" hold={_strategy.ShouldHold(core, me, dc)}"
+                        + $" score={_strategy.CardPlayScore(core, me, dc, ContainsHarmfulAtom, TotalCost):F0}"
+                        + $" cost={TotalCost(dc):F0} mana={core.ElementPool.GetTotalAvailableMana(me)}");
+                }
+            }
             var ordered = hand
                 .Where(c => CanPlayCard(core, me, c, Zone.Hand))
                 .Where(c => !_strategy.ShouldHold(core, me, c)) // 攒牌闸（2026-10-31 红快攻斩杀线）：刻意留手

@@ -64,22 +64,6 @@ namespace CardCore.Network
                     return Ok(GameActions.AddToElementPool(core, player, card, colorChoice), out error);
                 }
 
-                case NetworkMessageType.IntentBuildCard:
-                {
-                    // 充能（2026-11-05 系统动作化改版，消息名/号不动只换语义）：速度0系统动作宣入
-                    //（仿攻击宣言——宣言期零选色，颜色在结算期经 TargetSelectionService 反问
-                    // 下发 SelectRequest 由客户端下拉选择；AI/无头自动取最大余量色）。
-                    // 拒绝文案直读 CanCharge 门禁（时点/每回合规额/余量等逐项可读——Ok(bool,reason) 出口）
-                    var intent = MemoryPackSerializer.Deserialize<MsgIntentBuildCard>(msg.Payload);
-                    if (intent == null) { error = "IntentBuildCard 载荷损坏"; return false; }
-
-                    var card = NetEntityDirectory.ResolveCard(core, intent.CardRuntimeId);
-                    if (card == null) { error = $"卡不存在 RuntimeId={intent.CardRuntimeId}"; return false; }
-
-                    return Ok(GameActions.DeclareCharge(core, player, card, out var chargeReason),
-                        chargeReason, out error);
-                }
-
                 case NetworkMessageType.IntentSkipStandby:
                     return Ok(GameActions.SkipElementPool(core, player), out error);
 

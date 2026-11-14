@@ -239,8 +239,6 @@ namespace CardCore.Editor
                 TestP9AtomTierDualTrack(); // P9-8 双轨计价对账（2026-11-10 定案）：Tier/ManaList 互斥+档位/颜色合法+展开正确+八档价快照
             Crumb("→TestSleep");
             TestSleep(core, p1, p2);
-            Crumb("→TestCharge");
-            TestCharge(core, p1, p2);
             Crumb("→TestP8FieldCards");
             TestP8FieldCards(core, p1, p2);
                 Crumb("→TestBoard");
@@ -480,7 +478,7 @@ namespace CardCore.Editor
                     CardName = "一费哨兵",
                     Supertype = Cardtype.Creature,
                     Power = 1, Life = 1,
-                    AttackAbility = true, GuardAbility = true, ChargeAbility = true,
+                    AttackAbility = true, GuardAbility = true,
                     Effects = new List<CardEffectData>(),
                 });
                 oneFee.SetController(p1);

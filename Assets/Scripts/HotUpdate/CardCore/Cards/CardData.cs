@@ -235,11 +235,10 @@ namespace CardCore
         }
 
         // ---- 战斗底盘（2026-09-10 攻/守效果化；2026-11-06 opt-in 改版）----
-        // 攻/守/充能 = 三系统动作的资格位：**默认不带，卡面声明才有**（组合界面 basicability
-        // ac/dc/rc 三开关，正向绑定）。旧 NoAttack/NoGuard opt-out 模型同日翻转退役。
-        // 计价：攻/守仍占底盘结构项（CardCompositionCost——数学与旧口径同构翻转，底盘分配不动）；
-        // 充能=推导费固定 +1 灰（CardCostService 三口）。资格见 EntityEffectExtensions / CombatSystem /
-        // EffectExecutionEngine / GameActions.CanCharge（充能首闸）。
+        // 攻/守 = 两系统动作的资格位：**默认不带，卡面声明才有**（组合界面 basicability
+        // ac/dc 开关，正向绑定）。旧 NoAttack/NoGuard opt-out 模型同日翻转退役。
+        // 计价：攻/守仍占底盘结构项（CardCompositionCost——数学与旧口径同构翻转，底盘分配不动）。
+        // 资格见 EntityEffectExtensions / CombatSystem / EffectExecutionEngine。
         [TideSerialized]
         private bool _attackAbility;
         /// <summary>攻击资格：速度0主动效果（结算期横置支付）。仅生物有意义（装载端非生物记 Error 降级）。</summary>
@@ -249,13 +248,6 @@ namespace CardCore
         private bool _guardAbility;
         /// <summary>守卫资格：速度1响应拦截。仅生物有意义（装载端非生物记 Error 降级）。</summary>
         public bool GuardAbility { get => _guardAbility; set => _guardAbility = value; }
-
-        [TideSerialized]
-        private bool _chargeAbility;
-        /// <summary>充能资格（2026-11-06 充能 opt-in 改版）：默认不可充——GameActions.CanCharge 首闸
-        /// 放行 + UI 充能行/亮钮按此过滤；计价=推导费固定 +1 灰（Derive/DeriveModeCosts/
-        /// ContentPriceByColor 三口同加，不动底盘分配）。任意卡型可声明。</summary>
-        public bool ChargeAbility { get => _chargeAbility; set => _chargeAbility = value; }
 
         // ===== 装备系统（2026-09-13 第二十一批：万智神器×炉石武器——箭头佩带+驱动）=====
         [TideSerialized]
@@ -842,7 +834,7 @@ namespace CardCore
         /// </summary>
         public CardData GetData() => _data;
 
-        // 建造已建额已删（2026-10-31 P12：建造→充能改版——预付账本整体退役，充能进度改挂
+        // 建造已建额已删（2026-10-31 P12 改版——预付账本整体退役，进度改挂
         // 四色费用降低指示物 CostDownGray/Red/Blue/Green（Resident 换区清，ClearAll 统一口；
         // 快照经 CounterEntryDTO 可见）。实例级诉求（同名副本/跨玩家隔离）由指示物天然满足。）
 

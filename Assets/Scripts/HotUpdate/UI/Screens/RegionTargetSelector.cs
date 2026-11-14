@@ -58,6 +58,7 @@ namespace SynergyUI
         private readonly Button _btnSelect;
         private readonly RectTransform _content;
         private readonly RectTransform _template;
+        private readonly RectTransform _isolationTemplate; // 区域隔断模板（content/Isolation·2026-11-15 分组规格；缺失=null→不分组静默退化）
         private readonly RectTransform _viewport;
         private readonly Func<Card, (int x, int z)?> _boardCellOf; // 实体→场上格（null=宿主未注入，无面片）
         private readonly Func<Player, bool> _isLocalPlayer;        // 角色→己方/对方判别（null=一律按对方侧文案）
@@ -129,6 +130,7 @@ namespace SynergyUI
             _viewport = region.Find("viewport") as RectTransform;
             _content = region.Find("viewport/content") as RectTransform;
             _template = region.Find("viewport/content/ACard") as RectTransform;
+            _isolationTemplate = region.Find("viewport/content/Isolation") as RectTransform; // 2026-11-15 分组隔断：只按名绑定，缺失不报错（平铺退化）
             var btnHide = region.Find("btn-hide");
             _btnHide = btnHide != null ? btnHide.GetComponent<Button>() : null;
             _btnHideLabel = btnHide != null ? btnHide.GetComponentInChildren<TMP_Text>(true) : null;
@@ -212,7 +214,8 @@ namespace SynergyUI
             // 提示并入 label-num（2026-10-17 定案）：效果发动的目标选择——buildPrompt 按 PromptSource/
             // EffectId 渲染完整效果文直写面板；取消口=AllowCancel（主动效果「取消不发动」）
             string prompt = _buildPrompt != null ? _buildPrompt(request) : request.Title;
-            return await Run(items, reticles, request.MinCount, request.MaxCount, request.Title, timeoutSeconds,
+            var entries = BuildPickEntries(request, items); // 归属×区域分组+隔断条目（2026-11-15 规格）
+            return await Run(entries, reticles, request.MinCount, request.MaxCount, request.Title, timeoutSeconds,
                 prompt, request.AllowCancel);
         }
 
@@ -244,9 +247,12 @@ namespace SynergyUI
             for (int i = 0; i < labels.Count; i++)
                 items.Add(new CardOverlayItem { Key = "L" + i, Name = labels[i] });
             // 纯选项路径（响应窗/抉择）：提示=hint 优先（调用方写明「在响应什么」），回落 title——
-            // 同写 label-num（2026-10-17 并入）
+            // 同写 label-num（2026-10-17 并入）。无实体信息→不分组（全候选条目平铺，规格 §6.2）
             string prompt = string.IsNullOrWhiteSpace(hint) ? title : hint;
-            return await Run(items, null, min, max, title, timeoutSeconds, prompt, allowCancel); // 纯选项路径无实体→无面片
+            var entries = new List<PickEntry>(items.Count);
+            for (int i = 0; i < items.Count; i++)
+                entries.Add(new PickEntry { CandidateIndex = i, Item = items[i] });
+            return await Run(entries, null, min, max, title, timeoutSeconds, prompt, allowCancel); // 纯选项路径无实体→无面片
         }
 
         /// <summary>下拉识别白名单前缀（与 ProphecyHandlerUtil 维度目录单源注释对应）。</summary>
@@ -442,16 +448,127 @@ namespace SynergyUI
             return win == 0 ? uiResult : null; // 超时=取消（TargetSelectionService 口径）
         }
 
+        // ==================== 区域分组与隔断（2026-11-15 规格·目标选择窗_区域分区与隔断） ====================
+
+        /// <summary>呈现条目：候选卡或区域隔断。候选条目携带引擎候选下标（CandidateIndex）——
+        /// 显示序与候选序解耦（分组重排只影响呈现），回传仍按候选下标升序，引擎侧
+        /// TargetSelectionService.MapIndices 语义不变。</summary>
+        private sealed class PickEntry
+        {
+            public bool IsIsolation;        // true=隔断（Isolation 模板实例，不参与选择/计数/面片/波）
+            public int CandidateIndex = -1; // 引擎候选下标（隔断恒 -1）
+            public CardOverlayItem Item;    // 候选卡面（隔断 null）
+            public string LeftLabel;        // 隔断左列标签（null=隐藏该列——首端隔断）
+            public string RightLabel;       // 隔断右列标签（null=隐藏该列——尾端隔断）
+        }
+
+        /// <summary>分组桶：「归属×区域」键 + 候选下标集（组内保持引擎候选原序——按序追加）。</summary>
+        private sealed class PickGroup
+        {
+            public int SideRank;   // 己方0 / 对方1
+            public int ZoneRank;   // 角色0→战场1→元素池2→手牌3→墓地4→牌库5→除外6→技能栏7→发动区8→其他9
+            public string Label;   // 「归属字+区域字」标签（区域字单源 ZoneZh/角色）
+            public int FirstIndex; // 该组首个候选的引擎下标（同 rank 组间排序稳定键）
+            public readonly List<int> Indices = new List<int>();
+        }
+
+        /// <summary>按「归属×区域」把候选组装成呈现条目：单组或隔断模板缺失=平铺不插隔断
+        ///（静默退化，规格 §7）；多组=首端隔断只写右列、组间左右都写（左=前组/右=后组）、
+        /// 尾端只写左列。归属：Player 候选判自己、卡按 GetController()??GetOwner() 对注入的
+        /// _isLocalPlayer 判侧（null 判侧一律按对方——与角色文案口径一致）；区域：卡 GetZone()
+        /// 走 ZoneZh 单源、Player 候选归「角色」组（「角色格即区域格」既有口径，牌库折叠格
+        /// 不另造组）；未知实体防御性归「对方其他」末组。</summary>
+        private List<PickEntry> BuildPickEntries(TargetSelectionRequest request, IReadOnlyList<CardOverlayItem> items)
+        {
+            var groups = new List<PickGroup>();
+            for (int i = 0; i < items.Count; i++)
+            {
+                var e = request.Candidates != null && i < request.Candidates.Count ? request.Candidates[i] : null;
+                int sideRank, zoneRank;
+                string zoneWord;
+                if (e is Player role)
+                {
+                    sideRank = IsOwnSide(role) ? 0 : 1;
+                    zoneRank = 0;
+                    zoneWord = "角色";
+                }
+                else if (e is Card card)
+                {
+                    sideRank = IsOwnSide(card.GetController() ?? card.GetOwner()) ? 0 : 1;
+                    zoneRank = ZoneRankOf(card.GetZone());
+                    zoneWord = MatchLogRenderer.ZoneZh(card.GetZone());
+                }
+                else
+                {
+                    sideRank = 1; // 防御性兜底（规格 §4.1）：未知实体归对方末组
+                    zoneRank = 9;
+                    zoneWord = "其他";
+                }
+                string label = (sideRank == 0 ? "己方" : "对方") + zoneWord;
+                var g = groups.Find(x => x.SideRank == sideRank && x.ZoneRank == zoneRank && x.Label == label);
+                if (g == null)
+                {
+                    g = new PickGroup { SideRank = sideRank, ZoneRank = zoneRank, Label = label, FirstIndex = i };
+                    groups.Add(g);
+                }
+                g.Indices.Add(i);
+            }
+            groups.Sort((a, b) => a.SideRank != b.SideRank ? a.SideRank.CompareTo(b.SideRank)
+                : a.ZoneRank != b.ZoneRank ? a.ZoneRank.CompareTo(b.ZoneRank)
+                : a.FirstIndex.CompareTo(b.FirstIndex)); // 组间固定序（规格 §4.2），不按候选出现先后
+
+            var entries = new List<PickEntry>(items.Count);
+            if (groups.Count <= 1 || _isolationTemplate == null)
+            {
+                for (int i = 0; i < items.Count; i++)
+                    entries.Add(new PickEntry { CandidateIndex = i, Item = items[i] });
+                return entries;
+            }
+            entries.Add(new PickEntry { IsIsolation = true, RightLabel = groups[0].Label }); // 首端：只留右列
+            for (int gi = 0; gi < groups.Count; gi++)
+            {
+                if (gi > 0) // 组间：左=前一组、右=后一组
+                    entries.Add(new PickEntry { IsIsolation = true, LeftLabel = groups[gi - 1].Label, RightLabel = groups[gi].Label });
+                for (int k = 0; k < groups[gi].Indices.Count; k++)
+                {
+                    int idx = groups[gi].Indices[k];
+                    entries.Add(new PickEntry { CandidateIndex = idx, Item = items[idx] });
+                }
+            }
+            entries.Add(new PickEntry { IsIsolation = true, LeftLabel = groups[groups.Count - 1].Label }); // 尾端：只留左列
+            return entries;
+        }
+
+        /// <summary>归属判侧：注入的 _isLocalPlayer；未注入/无主一律按对方（与角色候选文案同口径）。</summary>
+        private bool IsOwnSide(Player p) => _isLocalPlayer != null && p != null && _isLocalPlayer(p);
+
+        /// <summary>区域组序（规格 §4.2：同归属内 角色→战场→元素池→手牌→墓地→牌库→除外→
+        /// 技能栏→发动区→其他；None/Extra 等未知落「其他」末组，标签由 ZoneZh 直出）。</summary>
+        private static int ZoneRankOf(Zone zone) => zone switch
+        {
+            Zone.Battlefield => 1,
+            Zone.ElementPool => 2,
+            Zone.Hand => 3,
+            Zone.Graveyard => 4,
+            Zone.Deck => 5,
+            Zone.Exile => 6,
+            Zone.FieldZone => 7,
+            Zone.Activation => 8,
+            _ => 9,
+        };
+
         // ==================== 选择面装配与驱动 ====================
 
-        private async UniTask<List<int>> Run(IReadOnlyList<CardOverlayItem> items,
+        private async UniTask<List<int>> Run(List<PickEntry> entries,
             IReadOnlyList<(uint id, int x, int z)?> reticles,
             int min, int max, string title, float timeoutSeconds,
             string prompt = null, bool allowCancel = false)
         {
+            int candidateCount = 0; // 候选条目数（隔断不计——计数/兜底/面片登记全按它，规格 §5.3）
+            for (int i = 0; i < entries.Count; i++) if (!entries[i].IsIsolation) candidateCount++;
             bool usable = _region != null && _labelNum != null && _btnSelect != null
-                && _content != null && _template != null && items.Count > 0 && max > 0;
-            if (!usable || _busy) return AutoPick(items.Count, min); // 缺节点/重入：退化自动选
+                && _content != null && _template != null && candidateCount > 0 && max > 0;
+            if (!usable || _busy) return AutoPick(candidateCount, min); // 缺节点/重入：退化自动选
 
             if (_previewActive) ClosePreview(); // 真实目标选择开窗——「渲染目标选择」自动让位（2026-10-26 用户定案）
             _onWindowNeedsSpace?.Invoke(); // Select 窗被选择占用——Information 让位（2026-11-03 需求4：连锁/响应同径）
@@ -484,19 +601,27 @@ namespace SynergyUI
 
             ClearInstances();
             _frames.Clear();
+            for (int i = 0; i < candidateCount; i++) _frames.Add(null); // 按候选下标索引预填（2026-11-15 分组规格：
+            // 显示序与候选下标解耦——BuildCard 按下标写入，隔断不占帧位）
 
             // 红瞄准面片（2026-10-16 晚定案·选中才上盘）：开窗只登记不上盘，选中/取消选中随 Toggle 对拍 Show/Hide
-            _reticles = reticles != null ? CopyReticles(reticles, items.Count) : null;
+            _reticles = reticles != null ? CopyReticles(reticles, candidateCount) : null;
             if (_reticles != null)
             {
                 int onBoard = 0;
                 for (int i = 0; i < _reticles.Length; i++) if (_reticles[i].HasValue) onBoard++;
-                Debug.Log($"[RegionTarget] 选择窗开：候选{items.Count} 其中带地块{onBoard}——瞄准面片选中才上盘（现 {BattleTargetReticle.Count}），候选波逐帧补点亮（现 GlowOn={BattleTileFx.GlowOn}）");
+                Debug.Log($"[RegionTarget] 选择窗开：候选{candidateCount} 其中带地块{onBoard}——瞄准面片选中才上盘（现 {BattleTargetReticle.Count}），候选波逐帧补点亮（现 GlowOn={BattleTileFx.GlowOn}）");
             }
 
             var tcs = new UniTaskCompletionSource<List<int>>();
             _activeTcs = tcs; // Cancel 外部收口挂点（2026-10-16）
-            for (int i = 0; i < items.Count; i++) BuildCard(i, items[i], tcs);
+            int isolationSeq = 0;
+            for (int i = 0; i < entries.Count; i++)
+            {
+                var e = entries[i];
+                if (e.IsIsolation) BuildIsolation(e, isolationSeq++);
+                else BuildCard(e.CandidateIndex, e.Item, tcs);
+            }
             RefreshLabel();
             _btnSelect.onClick.AddListener(() =>
             {
@@ -519,7 +644,7 @@ namespace SynergyUI
             List<int> result = win == 0 ? uiResult : null;
             if (result == null)
                 result = _picked.Count >= _min && _picked.Count <= _max
-                    ? Sorted() : AutoPick(items.Count, _min);
+                    ? Sorted() : AutoPick(candidateCount, _min);
 
             // 收尾：清实例+清面片+清候选波+还原浏览三件+Region 复位进入前活跃态
             _btnSelect.onClick.RemoveAllListeners();
@@ -605,6 +730,32 @@ namespace SynergyUI
 
         /// <summary>实例化一张候选卡：去 cost 费用行/btn 层，ACardView 全卡面 + 根 Button 点击切换。
         /// 2026-10-30：按 AHandCard 战场尺寸渲染（ApplyBattleFaceScale 单源）。</summary>
+        /// <summary>实例化一个区域隔断（2026-11-15 规格·Isolation 模板）：左右两列竖排标签写
+        /// 邻组「归属×区域」名（null=隐藏该列——首端只留右列/尾端只留左列）。纯展示不可交互：
+        /// 不挂 Button/ACardView/Outline、不进 _picked/_frames、根 Image 关 raycast（prefab 漏改
+        /// 兜底）；排版（竖排/字号/宽100）全由预制体携带，代码只写 text 与 SetActive。</summary>
+        private void BuildIsolation(PickEntry entry, int seq)
+        {
+            var rt = UnityEngine.Object.Instantiate(_isolationTemplate, _content, false);
+            rt.gameObject.SetActive(true);
+            rt.name = "isolation-" + seq;
+            var img = rt.GetComponent<Image>();
+            if (img != null) img.raycastTarget = false;
+            BindIsolationColumn(rt.Find("Left"), entry.LeftLabel);
+            BindIsolationColumn(rt.Find("Right"), entry.RightLabel);
+        }
+
+        /// <summary>隔断单列绑定：label=null 隐藏该列（端点隔断），否则写文本并显示；
+        /// 预制体缺列节点=静默跳过（不生成替代 UI）。</summary>
+        private static void BindIsolationColumn(Transform node, string label)
+        {
+            if (node == null) return;
+            if (label == null) { node.gameObject.SetActive(false); return; }
+            node.gameObject.SetActive(true);
+            var t = node.GetComponentInChildren<TMP_Text>(true);
+            if (t != null) t.text = label;
+        }
+
         private void BuildCard(int idx, CardOverlayItem item, UniTaskCompletionSource<List<int>> tcs)
         {
             var rt = UnityEngine.Object.Instantiate(_template, _content, false);
@@ -629,7 +780,7 @@ namespace SynergyUI
             // 模板缺 Outline 时高亮缺位不炸（null 占位，点击/瞄准面片照常）。
             var outline = rt.GetComponent<Outline>();
             if (outline != null) outline.enabled = false;
-            _frames.Add(outline);
+            _frames[idx] = outline; // 按候选下标写入（Run 预填 null 对齐——隔断不占帧位，规格 §6.1）
 
             var btn = rt.gameObject.AddComponent<Button>();
             btn.transition = Selectable.Transition.None;
@@ -716,12 +867,17 @@ namespace SynergyUI
             return r;
         }
 
-        /// <summary>清 content 下全部实例（模板本体保留）。</summary>
+        /// <summary>清 content 下全部实例（ACard/Isolation 两个模板本体保留——收窗后 content
+        /// 只允许剩这两个，规格 §3）。</summary>
         private void ClearInstances()
         {
             for (int i = _content.childCount - 1; i >= 0; i--)
-                if (!ReferenceEquals(_content.GetChild(i), _template))
-                    Destroy(_content.GetChild(i).gameObject);
+            {
+                var t = _content.GetChild(i);
+                if (ReferenceEquals(t, _template)) continue;
+                if (_isolationTemplate != null && ReferenceEquals(t, _isolationTemplate)) continue;
+                Destroy(t.gameObject);
+            }
         }
 
         /// <summary>压掉浏览态三件（title/lines/cards——BattleRegionPanel 的代码子物体；名字单源

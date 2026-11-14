@@ -482,10 +482,9 @@ namespace CardCore
             => CanBeTrunkRow(row) && !HasMountBit(row, MountKind.EngineTrunk)
                && !HasMountBit(row, MountKind.DynamicCost);
 
-        // ========================================（充能识别族已删 2026-11-05） ========================================
-        // IsChargeAtom/IsChargeRow/IsChargeEffect/HasChargeEffect 整族随「充能系统动作化」改版删除：
-        // 充能不再是卡上原子效果（原子表行 16073886、ChargeHandler、转换器形态契约同批退役），
-        // 改为任意手牌卡可宣的速度0系统动作（GameActions.DeclareCharge → 结算期反问元素类别）。
+        // ========================================（充能识别族已删） ========================================
+        // IsChargeAtom/IsChargeRow/IsChargeEffect/HasChargeEffect 整族随 2026-11-05 改版删除；
+        // 2026-11-15 充能整链删除——充能不再是卡上原子效果，也不再是系统动作。
 
         /// <summary>关键词型 Grant 判定（2026-10-02 定案；2026-11-07 关键词特判后恒 false）：
         /// Grant 行且**该行**目标域恰为 {Self}（纯自指）才算关键词型。

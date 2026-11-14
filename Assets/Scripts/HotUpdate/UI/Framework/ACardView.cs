@@ -40,14 +40,10 @@ namespace SynergyUI
         private TMP_Text _nameText, _effectText, _passivesText, _keysText, _statesText;
         private RectTransform _effectBlock, _passivesBlock, _keysBlock, _statesBlock;
         private readonly List<RectTransform> _effectRowClones = new List<RectTransform>(); // 多主动效果行克隆（SyncEffectRows 增删）
-        private readonly List<RectTransform> _spRowClones = new List<RectTransform>();      // 特殊效果行克隆（充能，SyncSpEffectRows 增删）
         /// <summary>多主动法术效果行（2026-11-01 抉择上卡）：ActiveEffectLines≥2 时 Apply 填充——
         /// 模板行（effect）+ 克隆行，顺序=效果序（引擎 modeIndex 对位）。交互（点击切选/Outline 选中
         /// 边框/CostSquares 费用联动）由手牌宿主 HandFanCard 接线；非手牌消费面（连锁台/预览卡）纯展示。</summary>
         public readonly List<RectTransform> ActiveEffectRows = new List<RectTransform>();
-        /// <summary>特殊效果行（2026-11-01 上卡）：SpEffectLines≥1 时 Apply 填充——
-        /// 全为克隆行（模板行留给单行/首模式行），追加在模式行之后、passives 之前；交互同上。</summary>
-        public readonly List<RectTransform> SpEffectRows = new List<RectTransform>();
         /// <summary>effect 模板行（烘焙 effect 实例）——单主动口径 ActiveEffectRows 为空、
         /// 模板行即展示行；构筑屏预览接线主动行点击（2026-11-13 预览点行切换英雄技能）用。</summary>
         public RectTransform EffectTemplateRow => _effectBlock;
@@ -155,17 +151,13 @@ namespace SynergyUI
 
             SetText(_nameText, item.Name);
 
-            // effect 区：多主动法术逐效果成行（2026-11-01 抉择上卡）+ 特殊行（同日上卡，
-            // 追加在模式行之后）——克隆烘焙 effect 行（Button+Outline 已烘在 prefab，交宿主接线）；
-            // 两者皆无时保持单行 ActiveEffectText 原口径（克隆行回收、行列表清空）。
+            // effect 区：多主动法术逐效果成行（2026-11-01 抉择上卡）——克隆烘焙 effect 行
+            //（Button+Outline 已烘在 prefab，交宿主接线）；无模式行时保持单行 ActiveEffectText 原口径。
             bool effectRows = full && item.ActiveEffectLines != null && item.ActiveEffectLines.Count > 1;
-            bool spRows = full && item.SpEffectLines != null && item.SpEffectLines.Count > 0;
-            if (effectRows || spRows)
+            if (effectRows)
             {
                 SetActive(_effectBlock, true);
-                if (effectRows) SyncEffectRows(item);
-                else ResetSingleRow(item);   // 只有特殊行的卡：模板行回落单行口径（无文案=藏行）
-                SyncSpEffectRows(item);
+                SyncEffectRows(item);
             }
             else
             {
@@ -194,10 +186,19 @@ namespace SynergyUI
             SetActive(_keysBlock, hasKeys);
             if (hasKeys) SetText(_keysText, string.Join("　", item.KeywordChips));
 
-            // states 区（指示物行——2026-10-30 prefab 补节点后接线）：名称×层数并一行
+            // states 区（指示物行——2026-10-30 prefab 补节点后接线；2026-11-15 横置并入）：
+            // 名称×层数并一行 +「已横置」常显项（地牌/生物横置态——地牌从 PooledCard 覆写进 Runtime）
             bool hasCounters = full && item.CounterChips != null && item.CounterChips.Count > 0;
-            SetActive(_statesBlock, hasCounters);
-            if (hasCounters) SetText(_statesText, string.Join("　", item.CounterChips.Select(c => c.Name + "×" + c.Layers)));
+            bool tapped = full && item.IsTapped;
+            bool hasStates = hasCounters || tapped;
+            SetActive(_statesBlock, hasStates);
+            if (hasStates)
+            {
+                var parts = new List<string>();
+                if (hasCounters) parts.AddRange(item.CounterChips.Select(c => c.Name + "×" + c.Layers));
+                if (tapped) parts.Add("已横置");
+                SetText(_statesText, string.Join("　", parts)); // 全角空格分隔（既有行内风格）
+            }
 
             // des 自适应链同步重建（2026-11-06）：行 CSF(竖=Preferred) 随 TMP 换行 preferredHeight
             // 拉高行块、content VLG/CSF 跟着重排——TMP 赋值只标脏到帧末，池复用/同帧读位会看到
@@ -353,93 +354,16 @@ namespace SynergyUI
             }
         }
 
-        /// <summary>效果行收起（单行/非 Full 口径）：模式+特殊克隆全回收、对外行列表清空
+        /// <summary>效果行收起（单行/非 Full 口径）：模式克隆全回收、对外行列表清空
         ///（模板行显隐由调用方管）。</summary>
         private void ClearEffectRows()
         {
             ActiveEffectRows.Clear();
-            SpEffectRows.Clear();
             for (int i = _effectRowClones.Count - 1; i >= 0; i--)
             {
                 if (_effectRowClones[i] != null) Destroy(_effectRowClones[i].gameObject);
                 _effectRowClones.RemoveAt(i);
             }
-            for (int i = _spRowClones.Count - 1; i >= 0; i--)
-            {
-                if (_spRowClones[i] != null) Destroy(_spRowClones[i].gameObject);
-                _spRowClones.RemoveAt(i);
-            }
-        }
-
-        /// <summary>模板行回落单行口径（只有特殊行、无模式行的卡）：模式克隆回收，
-        /// ActiveEffectText 照旧渲染（空=藏行，effect 区只剩特殊行）。</summary>
-        private void ResetSingleRow(CardOverlayItem item)
-        {
-            ActiveEffectRows.Clear();
-            for (int i = _effectRowClones.Count - 1; i >= 0; i--)
-            {
-                if (_effectRowClones[i] != null) Destroy(_effectRowClones[i].gameObject);
-                _effectRowClones.RemoveAt(i);
-            }
-            bool hasActive = !string.IsNullOrEmpty(item.ActiveEffectText);
-            SetActive(_effectBlock, hasActive);
-            if (hasActive) SetText(_effectText, item.ActiveEffectText);
-        }
-
-        /// <summary>特殊效果行同步（充能，2026-11-01 上卡）：克隆模板行，兄弟序恒排在
-        /// 最后一个 effect 行（模板/模式克隆）之后、passives 之前——行序=Item 平行表序。
-        /// 无特殊行（含 SpEffectLines=null——纯多主动法术）清空回收。</summary>
-        private void SyncSpEffectRows(CardOverlayItem item)
-        {
-            int need = item?.SpEffectLines?.Count ?? 0;
-            if (need == 0)
-            {
-                SpEffectRows.Clear();
-                for (int i = _spRowClones.Count - 1; i >= 0; i--)
-                {
-                    if (_spRowClones[i] != null) Destroy(_spRowClones[i].gameObject);
-                    _spRowClones.RemoveAt(i);
-                }
-                return;
-            }
-            var parent = _effectBlock.parent;
-            ClearTemplateRowCost(); // 克隆源先清费用方格（防拷入未对账色块→双块，见方法注）
-            while (_spRowClones.Count < need)
-            {
-                var clone = Instantiate(_effectBlock.gameObject, parent, false).transform as RectTransform;
-                StripGhostSquares(clone);
-                clone.name = "effect-sp" + (_spRowClones.Count + 1); // effect-sp1、effect-sp2…（特殊行）
-                _spRowClones.Add(clone);
-            }
-            for (int i = _spRowClones.Count - 1; i >= need; i--) // 多余克隆回收（换绑行数减少）
-            {
-                if (_spRowClones[i] != null) Destroy(_spRowClones[i].gameObject);
-                _spRowClones.RemoveAt(i);
-            }
-            int lastEffectSibling = LastEffectSiblingIndex();
-            for (int i = 0; i < _spRowClones.Count; i++)
-                if (_spRowClones[i] != null)
-                    _spRowClones[i].SetSiblingIndex(lastEffectSibling + 1 + i);
-
-            SpEffectRows.Clear();
-            for (int i = 0; i < need; i++)
-            {
-                var row = _spRowClones[i];
-                if (row == null) continue;
-                SetActive(row, true);
-                SetText(TextOf(row, "text"), i < item.SpEffectLabels.Count ? item.SpEffectLabels[i] : null);
-                SetText(TextOf(row, "des"), item.SpEffectLines[i]);
-                SpEffectRows.Add(row);
-            }
-        }
-
-        /// <summary>最后一个 effect 行的兄弟序（最后的模式克隆；无克隆=模板行自身）。</summary>
-        private int LastEffectSiblingIndex()
-        {
-            var last = _effectBlock;
-            for (int i = 0; i < _effectRowClones.Count; i++)
-                if (_effectRowClones[i] != null) last = _effectRowClones[i];
-            return last.GetSiblingIndex();
         }
 
         // ==================== 类型块解析助手 ====================
@@ -507,13 +431,12 @@ namespace SynergyUI
         }
 
         /// <summary>effect 行 lbl-skill-speed 速度标签（2026-11-06）：类别驱动（CardOverlayItem.
-        /// EffectSpeed 单源）——模板行与全部模式/充能克隆行统一设置；结界（null）/旧版 prefab
+        /// EffectSpeed 单源）——模板行与全部模式克隆行统一设置；结界（null）/旧版 prefab
         /// 未铺节点=静默藏。</summary>
         private void ApplySpeedBadges(int? speed)
         {
             SetSpeedBadge(_effectBlock, speed);
             for (int i = 0; i < ActiveEffectRows.Count; i++) SetSpeedBadge(ActiveEffectRows[i], speed);
-            for (int i = 0; i < SpEffectRows.Count; i++) SetSpeedBadge(SpEffectRows[i], speed);
         }
 
         private static void SetSpeedBadge(RectTransform row, int? speed)
@@ -533,7 +456,7 @@ namespace SynergyUI
         /// 双组——费用组=该效果净费（带效果级代价=发动费−抵扣；模式行按 ActiveEffectCosts 对位/
         /// 单行=ActiveEffectCost，0 费显灰 0 占位与手牌扇 0 费定案同口径）、代价组=**该行效果级代价**
         ///（ActiveEffectPayloadCost(s)；2026-11-06 代价全面并入效果级——效果行不回落卡级施放桶，
-        /// 非主动效果行的施放期代价走手牌扇/预览费条卡级口径）；无固定账单（充能现付待选色/null）=藏节点。</summary>
+        /// 非主动效果行的施放期代价走手牌扇/预览费条卡级口径）。</summary>
         private void ApplyRowCosts(CardOverlayItem item)
         {
             for (int i = 0; i < ActiveEffectRows.Count; i++)
@@ -546,12 +469,6 @@ namespace SynergyUI
             }
             if (ActiveEffectRows.Count == 0)
                 SetRowCost(_effectBlock, item.ActiveEffectCost, item.ActiveEffectPayloadCost); // 单行口径（模板行）
-            for (int i = 0; i < SpEffectRows.Count; i++)
-            {
-                var fee = item.SpEffectCosts != null && i < item.SpEffectCosts.Count
-                    ? item.SpEffectCosts[i] : null;
-                SetRowCost(SpEffectRows[i], fee, item.PayloadCost); // 充能行非效果行——卡级施放桶口径
-            }
         }
 
         internal static void SetRowCost(RectTransform row, ElementCost fee, ElementCost payload)

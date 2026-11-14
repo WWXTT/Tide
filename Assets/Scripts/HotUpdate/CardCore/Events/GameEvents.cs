@@ -715,7 +715,7 @@ namespace CardCore
 
     /// <summary>
     /// 连锁应答事件：询问后选择了响应并成功应用——日志行「xx连锁了xx」。
-    /// 仅无既有内容行的响应种类发布（充能）；响应出牌走 CardPlayEvent.IsResponseCast、
+    /// 仅无既有内容行的响应种类发布；响应出牌走 CardPlayEvent.IsResponseCast、
     /// 守卫/效果发动各有专属行，不重复发。
     /// </summary>
     public class ChainRespondedEvent : GameEventBase

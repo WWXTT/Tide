@@ -145,8 +145,6 @@ namespace CardCore
                         GameCore.Instance?.CombatSystem?.ResolveGuardDeclaration(top);
                     else if (top.IsAttackDeclaration)
                         GameCore.Instance?.CombatSystem?.ResolveAttackDeclaration(top);
-                    else if (top.IsChargeDeclaration)
-                        await GameActions.ResolveChargeDeclarationAsync(top);
                     else if (top.IsCardCast)
                         await GameActions.ResolveCardCastAsync(top);
                     else
@@ -273,7 +271,6 @@ namespace CardCore
             _priorityHolder = newTurnPlayer;
             _consecutivePassCount = 0;
             _waitingForPlayer = false;
-            _chargedThisTurn.Clear(); // 充能每回合规额清零（2026-11-05：一张卡一回合只能发动一次）
         }
 
         public void Clear()
@@ -281,7 +278,6 @@ namespace CardCore
             _stack.Clear();
             _speedCounter.Reset();
             _pendingQueue.Clear();
-            _chargedThisTurn.Clear();
             _waitingForPlayer = false;
             _consecutivePassCount = 0;
         }
@@ -291,7 +287,6 @@ namespace CardCore
             => o == null ? "null"
              : o.IsAttackDeclaration ? $"ATK:{(o.Source as Card)?.ID ?? o.Source?.ToString()}"
              : o.IsGuardDeclaration ? $"GRD:{(o.Source as Card)?.ID ?? o.Source?.ToString()}"
-             : o.IsChargeDeclaration ? $"CHG:{(o.Source as Card)?.ID}"
              : o.IsCardCast ? $"CAST:{(o.Source as Card)?.ID}"
              : o.IsSBA ? "SBA"
              : o.IsPhaseWindow ? "PHASE-WIN"
@@ -330,8 +325,6 @@ namespace CardCore
                         GameCore.Instance?.CombatSystem?.ResolveGuardDeclaration(top);
                     else if (top.IsAttackDeclaration)
                         GameCore.Instance?.CombatSystem?.ResolveAttackDeclaration(top);
-                    else if (top.IsChargeDeclaration)
-                        await GameActions.ResolveChargeDeclarationAsync(top);
                     else if (top.IsCardCast)
                         await GameActions.ResolveCardCastAsync(top);
                     else

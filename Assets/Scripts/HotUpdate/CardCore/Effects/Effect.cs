@@ -271,15 +271,6 @@ namespace CardCore
         public int ModeIndex { get; set; }
 
         /// <summary>
-        /// 充能宣言标记（2026-11-05 充能系统动作化改版）：充能=速度0规则动作（仿攻击宣言）——
-        /// 任意手牌卡一回合一次可宣，Source=手牌卡、Controller=充能方；宣言期零支付零选色，
-        /// ResolveStack 交 GameActions.ResolveChargeDeclarationAsync 消费（结算期反问元素类别
-        /// ——下拉只列该卡具有且未充满的颜色，确定后 +1 层同色费用降低指示物并展示）。
-        /// 旧 P12「充能=卡上 Charge 原子主动效果」整链已退役（ChargeHandler/PendingEffect.ChargeColor）。
-        /// </summary>
-        public bool IsChargeDeclaration { get; set; }
-
-        /// <summary>
         /// 创建时间
         /// </summary>
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

@@ -23,11 +23,6 @@ namespace CardCore
         private SpeedCounter _speedCounter = new SpeedCounter();
         private PendingEffectQueue _pendingQueue;
         private EffectExecutor _executor;
-        // 充能每回合规额台账（2026-11-05 系统动作化改版）：单卡一回合一次——宣入即记账、
-        // 结算期不再记；回合开始清零（OnTurnStart）。旧口径键=充能效果Id@卡（效果台账）已随
-        // 充能效果链退役，充能不再是卡上效果，改按卡实例直记。
-        private readonly HashSet<Card> _chargedThisTurn = new HashSet<Card>();
-
         private Player _activePlayer;
         private Player _priorityHolder;
         private bool _waitingForPlayer = false;
@@ -146,7 +141,6 @@ namespace CardCore
             _speedCounter.Reset();
             _pendingQueue.Clear();
             _stack.Clear();
-            _chargedThisTurn.Clear();
             _waitingForPlayer = false;
             _consecutivePassCount = 0;
             _isResolving = false; // 跨局残留清算（2026-10-17）：上局结算中被重开打断时，finally 不会跑——
@@ -495,55 +489,6 @@ namespace CardCore
             EventManager.Instance.Publish(new StackAddEvent { AddedObject = instance, AddingPlayer = controller });
             return true;
         }
-
-        /// <summary>充能宣言栈对象速度（2026-11-05 充能系统动作化改版）：充能=速度0规则动作（同攻击）——
-        /// 宣言本就要求空栈（连锁中不可宣），宣言期零支付零选色，颜色在结算期反问。</summary>
-        public const int ChargeStackSpeed = 0;
-
-        /// <summary>
-        /// 充能宣言入栈（2026-11-05 充能系统动作化改版，仿 PushAttackDeclaration）：充能=速度0
-        /// 系统动作，任意手牌卡一回合一次可宣（资格/每回合规额闸在 GameActions.DeclareCharge 单源）。
-        /// 宣言期零支付零选色——对手获响应窗口（标准双 Pass 流）；结算消费见 ResolveStack 的
-        /// IsChargeDeclaration 分支（GameActions.ResolveChargeDeclarationAsync：反问元素类别→
-        /// +1 层同色费用降低指示物→展示，**不再支付元素**——旧 P12 现付 1 点制随改版退役）。
-        /// 入栈成功即记本回合规额（MarkChargeUsed——结算期不再记）。
-        /// </summary>
-        public bool PushChargeDeclaration(Card card, Player controller)
-        {
-            if (card == null || controller == null) return false;
-            if (_stack.Count > 0) return false; // 连锁中不可宣（速度0=空栈首动，同攻击宣言）
-            if (_isResolving) return false;     // 结算中不可声明（与玩家声明口同口径）
-            SyncActivePlayerFromTurn();
-            if (!_speedCounter.CanActivate(ChargeStackSpeed, EffectActivationType.Voluntary, _stack.Count == 0))
-                return false;
-
-            var instance = new EffectInstance
-            {
-                IsChargeDeclaration = true,
-                Source = card,
-                Controller = controller,
-                ActivationSpeed = ChargeStackSpeed, // 基速0——不抬记速器（同攻击宣言，无 RaiseTo 调用）
-                Targets = new List<Entity>(),
-            };
-
-            PushWithResponse(instance);
-            _priorityHolder = controller.Opponent; // 对手先获响应机会（同攻宣防守方先响应口径）
-            _consecutivePassCount = 0;
-            _waitingForPlayer = true;
-            GameActions.Crumb($"CF-charge-push card={card.ID} by={controller.Name} stack={_stack.Count}");
-
-            EventManager.Instance.Publish(new StackAddEvent { AddedObject = instance, AddingPlayer = controller });
-            return true;
-        }
-
-        /// <summary>充能每回合规额记账（入栈成功口——GameActions.DeclareCharge 调用；结算期不记）。</summary>
-        public void MarkChargeUsed(Card card)
-        {
-            if (card != null) _chargedThisTurn.Add(card);
-        }
-
-        /// <summary>该卡本回合是否已充能（一张卡一回合只能发动一次；回合开始清零）。</summary>
-        public bool IsChargeUsed(Card card) => card != null && _chargedThisTurn.Contains(card);
 
         /// <summary>
         /// 守卫拦截入栈（速度1响应，2026-09-16 定案）：Targets=[被拦截的攻击宣言对象]。

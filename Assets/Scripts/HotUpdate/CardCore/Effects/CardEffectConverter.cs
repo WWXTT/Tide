@@ -583,6 +583,17 @@ namespace CardCore
             return false;
         }
 
+        /// <summary>「域内单目标」行的数量收口告警去重键（行 + 声明档）——ConvertOne 在预检/预览链路
+        /// 会被高频调用，同一行走同一档只报一次，避免日志被刷屏。</summary>
+        private static readonly HashSet<string> SingleTargetCountWarned = new HashSet<string>();
+
+        private static void WarnSingleTargetCountCoerced(string rowId, string type, int declared)
+        {
+            if (!SingleTargetCountWarned.Add(rowId + ":" + declared)) return;
+            TideLog.Warn($"[CardEffectConverter] 原子 {type}（行 {rowId}）行模板无 {{target}}（域内单目标）"
+                         + $"——声明数量 {declared} 已收为 1（张数走 value，数量档会重复计费）");
+        }
+
         /// <summary>引用型唯一转换口（2026-09-14 彻底引用化）：refId → 表行 → 运行时实例。
         /// 枚举/默认域/Filter/极性/MountKinds 全部从行解析；增量只读 value/str/amp/kinds/branch。
         /// branch 载荷递归转换（Then 奖励同引用化口径；引擎倒计时初值换算在 ConvertOne 收口）。</summary>
@@ -707,6 +718,16 @@ namespace CardCore
             {
                 TideLog.Warn($"[CardEffectConverter] 原子 {type}（行 {entry.refId}）域仅角色/Self"
                              + "——目标数量已收为 1");
+                effectiveCount = 1;
+            }
+
+            // 域内单目标（2026-11-15 用户定案）：行模板不含 {target} 的域行=默认从目标域取 1 个目标——
+            // 数量档恒 1（2/3/全部/动态一律收口；结算期不弹多选，计价相应不吃数量档）。
+            // 防「{target}{value}」双计：这类行的张数由 value 表达，数量档再乘一次就是重复收费。
+            if (effectiveCount != 1 && config.IsSingleTargetRow)
+            {
+                if (effectiveCount != -2) // -2=未声明（本口回落效果级=1），不属数据错误
+                    WarnSingleTargetCountCoerced(entry.refId, type.ToString(), effectiveCount);
                 effectiveCount = 1;
             }
 

@@ -182,7 +182,7 @@ namespace SynergyUI
             LibHeader(_kind switch
             {
                 CardKind.Spell => $"主动效果（{graphs.Count}）——点击=填入主动槽（1~3·施放时择一发动）",
-                CardKind.Enchantment => $"主动效果（{graphs.Count}）——结界禁主动（充能已是系统动作，任意手牌卡可宣）",
+                CardKind.Enchantment => $"主动效果（{graphs.Count}）——结界禁主动",
                 _ => $"主动效果（{graphs.Count}）——点击=填入主动槽（生物×1）",
             });
             if (graphs.Count == 0)
@@ -582,7 +582,7 @@ namespace SynergyUI
                              || t == (int)TriggerTiming.Activate_Response;
             if (_kind == CardKind.Enchantment && activated)
             {
-                ShowToast("结界禁主动效果（只挂自动/光环——充能已是系统动作，任意手牌卡可宣）");
+                ShowToast("结界禁主动效果（只挂自动/光环）");
                 return;
             }
             if (_kind == CardKind.Spell && !activated)

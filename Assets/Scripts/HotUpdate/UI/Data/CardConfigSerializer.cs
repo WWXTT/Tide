@@ -209,11 +209,10 @@ namespace SynergyUI
                 durability = card.Durability,
                 isField = card.IsField, // 场地标记（2026-10-29 P8）：结界专属——发射端只写偏离默认（true 才落列）
                 speedBonus = card.SpeedBonus, // 卡型速度：法术提速份额（2026-10-15 缺省 2=剩余全投提速；结界/生物恒 0）
-                // 系统动作资格位（2026-11-06 opt-in 改版）：攻/守/充能正向拷贝——漏拷则 Save 后
-                // 永远 false，资格/计价（充能 +1 灰）全错。
+                // 系统动作资格位（2026-11-06 opt-in 改版）：攻/守正向拷贝——漏拷则 Save 后
+                // 永远 false，资格/计价全错。
                 attackAbility = card.AttackAbility,
                 guardAbility = card.GuardAbility,
-                chargeAbility = card.ChargeAbility,
                 //（卡级代价列 payloads/payload/costRows 已随 2026-11-08 代价效果级化整删——
                 //  代价唯一形态=效果级 Costs，随效果序列化；卡表不再落代价列。）
             };

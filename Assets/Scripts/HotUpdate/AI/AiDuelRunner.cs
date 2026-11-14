@@ -24,6 +24,8 @@ namespace CardCore.AI
         public int Seed;
         public int MaxTurns = 200;
         public bool ApplySecondPlayerArmor = true;
+        /// <summary>固定排序：按 Deck1/Deck2 的排列发牌（不洗牌），用于固定起手验证。</summary>
+        public bool LockDeckOrder;
         public bool Detail;
         public string Label1 = "P1";
         public string Label2 = "P2";
@@ -116,6 +118,7 @@ namespace CardCore.AI
                 core.InitGame(cfg.Deck1, cfg.Deck2, copiesPerCard: 1, rngSeed: cfg.Seed,
                     skillCardId1: cfg.SkillCardId1, skillCardId2: cfg.SkillCardId2,
                     tokenBindings1: cfg.TokenBindings1, tokenBindings2: cfg.TokenBindings2,
+                    lockDeckOrder: cfg.LockDeckOrder,
                     ai1: true, ai2: true);
                 core.Player1.IsAI = true;
                 core.Player2.IsAI = true;

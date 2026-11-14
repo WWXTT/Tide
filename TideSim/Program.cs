@@ -13,6 +13,9 @@ namespace TideSim
         public bool Detail;
         public bool Quiet;
         public bool MatchLog;   // 导出与 Unity 窗口同源的 MatchLog_*.md，用于逐行对账
+        /// <summary>固定排序（2026-11-15）：按卡组 JSON 的排列发牌，不做洗牌——
+        /// 用来复现「固定起手」下的指定操作序列。</summary>
+        public bool LockDeckOrder;
 
         public static SimOptions Parse(string[] args)
         {
@@ -27,6 +30,7 @@ namespace TideSim
                 else if (a == "--detail") o.Detail = true;
                 else if (a == "--quiet") o.Quiet = true;
                 else if (a == "--match-log") o.MatchLog = true;
+                else if (a == "--lock-order") o.LockDeckOrder = true;
             }
             return o;
         }
@@ -49,10 +53,6 @@ namespace TideSim
             if (args.Length > 0 && args[0] == "--scenario")
                 return ScenarioCheck.Run();
 
-            // 临时探针：充能系统动作化端到端（验收用，跑完删）
-            if (args.Length > 0 && args[0] == "--charge-probe")
-                return ChargeProbe.Run();
-
             // 牺牲原子改版探针（2026-11-14 basics_10 修复验收）：域=候选声明 + handler 送墓入账
             if (args.Length > 0 && args[0] == "--sacrifice-probe")
                 return SacrificeProbe.Run();
@@ -60,6 +60,22 @@ namespace TideSim
             // 红套改版取证（2026-11-13）：己方仅 1 生物时两张直伤法术的连锁 + 代价只付一次
             if (args.Length > 0 && args[0] == "--chain-cast")
                 return ChainCastCheck.Run();
+
+            // 沃土「代价：一个敌方单位 +6 护甲」探针（2026-11-15 临时，验完删）
+            if (args.Length > 0 && args[0] == "--bloom-cost-probe")
+                return BloomCostProbe.Run();
+
+            // 枯竭「全取」探针（2026-11-15 临时，验完删）：对手元素池一次抹光
+            if (args.Length > 0 && args[0] == "--erase-all-probe")
+                return EraseAllProbe.Run();
+
+            // 绿预组数据探针（2026-11-15 临时，跑完删）：推导费 / 选择模式 / 效果推导价 / 指纹
+            if (args.Length > 0 && args[0] == "--green-probe")
+            {
+                var ids = new string[args.Length - 1];
+                System.Array.Copy(args, 1, ids, 0, ids.Length);
+                return GreenDeckProbe.Run(ids);
+            }
 
             // 数据指纹复算（2026-11-13 临时）：手工改效果数据后回填 JSON hash 列
             if (args.Length > 1 && args[0] == "--data-hash")
@@ -99,7 +115,8 @@ namespace TideSim
             if (args.Length > 0 && args[0] == "--keyword-scenario")
                 return KeywordTutorialCheck.Run();
 
-            // 狩猎重做探针（2026-11-14）：删未横置闸+击杀对手单位重置自身——横置强击/重置/幂等三场景。
+            // 狩猎探针（2026-11-14 删未横置闸+击杀重置；2026-11-15 目标改「生物∪角色比生命」）：
+            // 横置强击/角色兜底/重置幂等/最低生命择敌/耐久体排除/角色参与比大小 六场景。
             if (args.Length > 0 && args[0] == "--hunt-reset")
                 return HuntResetProbe.Run();
 
@@ -121,8 +138,7 @@ namespace TideSim
             Console.WriteLine("  TideSim --scenario            场景回归（红快攻策略闸门直调断言）");
             Console.WriteLine("  TideSim --tutorial-scenario   教学式固定盘面回归（红快攻9场景 + 蓝充盈6场景 + 自由分支10场景）");
             Console.WriteLine("  TideSim --keyword-scenario    教学二关键词课回归（basics_plus 结构 + 11 段引擎断言）");
-            Console.WriteLine("  TideSim --hunt-reset          狩猎重做探针（横置强击 + 击杀重置 + 幂等三场景）");
-            Console.WriteLine("  TideSim --charge-probe        规则探针（充能系统动作化 + 参照族声明域）");
+            Console.WriteLine("  TideSim --hunt-reset          狩猎探针（生物∪角色比生命择敌 + 横置强击 + 击杀重置 + 幂等）");
             Console.WriteLine("  TideSim --chain-cast          连锁直伤探针（代价失败=效果无效 / 参照发动时快照 / 两张各付一次代价）");
             Console.WriteLine("  TideSim --deck-rule           卡组校验探针（代价×门奖励互斥；活体炸弹改版回归）");
             Console.WriteLine("  TideSim --data-hash <ids…>    数据内容指纹复算（手工改效果数据后回填 JSON hash 列）");

@@ -478,9 +478,10 @@ namespace SynergyUI
                 ValidateZones();
             }
             // 模拟/变形目标数量钉 1（2026-10-30 定案：目标恒单个——数量下拉禁改；2026-11-08 变形
-            // 对齐同口径——「变成{target}」恒单目标）；其余行走默认
+            // 对齐同口径——「变成{target}」恒单目标）；域内单目标行（2026-11-15 定案：行模板不含
+            // {target} 的域行=默认从目标域取 1 个，数量档钉 1 防「数量档 × value」重复收费）；其余行走默认
             BindAtomTargetRow(card, atom, RefreshCard,
-                pinCountOne: IsImitateEntry(atom) || IsGrantMorphEntry(atom),
+                pinCountOne: IsImitateEntry(atom) || IsGrantMorphEntry(atom) || IsSingleTargetRow(atom),
                 allowDynamic: true); // 动态数量（2026-11-14）：仅主动效果主干预选数量生效（函数内再判）
             BindAtomDerivativeRow(card, atom);
 

@@ -213,16 +213,6 @@ namespace CardCore
 
             var mounted = ApportionMounted(effBuckets, kwBuckets, StatBucketsOf(card, cc, applyFreeBase: true));
             ApplyChassis(card, mounted);
-            // 充能加价（2026-11-06 充能 opt-in 定案）：开启充能资格 = 推导费固定 +1 灰——
-            // 不占底盘结构项（攻/守走 ChassisItems，充能不动底盘分配）。计入 PrePayload 留影
-            //（充能上限基数含本灰——灰 1 层可充回，属设计涌现）。
-            int chargeFee = card.ChargeAbility ? 1 : 0;
-            if (chargeFee > 0)
-            {
-                mounted.TryGetValue(ManaType.Gray, out var g);
-                mounted[ManaType.Gray] = g + chargeFee;
-                result.Breakdown.Add(new CostBreakdownLine("C", "具备充能 +1 灰（充能资格加价，2026-11-06 opt-in）", chargeFee, ManaType.Gray));
-            }
 
             // ---- 5b) 卡费逐色向上取整（2026-11-09 定案：卡组合阶段费用恒为整数）----
             // 口径 = 支付终点同款逐色进1（ε=1e-4）：卡上每色数字 == 实际每色扣费。
@@ -275,12 +265,11 @@ namespace CardCore
             // 规则一按「进位前」比较（round → ceil 同步换，2026-11-09）：逐色进位漂移不算超模——
             // ceilBase = ceil(抵扣前真值) − 实抵（抵扣是整数点，恒等）。
             int ruleTier = rawTotal > 0f ? Math.Max(1, (int)Math.Ceiling(rawTotal - 1e-4f)) : 0;
-            // 充能加价（+1 灰）与结构费同为资格/结构加价——计入规则一对照额度，不判超模。
             int ceilBase = result.DerivedTotal - ceilDrift;
-            result.OffsetRequirement = Math.Max(0, ceilBase - ruleTier - surcharge - chargeFee);
+            result.OffsetRequirement = Math.Max(0, ceilBase - ruleTier - surcharge);
             result.Conformant = result.OffsetRequirement == 0;
             result.Breakdown.Add(new CostBreakdownLine("Req",
-                $"规则一 D{result.DerivedTotal} ≤ Ĉ{ruleTier}+结构{surcharge}+充能{chargeFee}（逐色进位 +{ceilDrift} 不计超模）", result.OffsetRequirement));
+                $"规则一 D{result.DerivedTotal} ≤ Ĉ{ruleTier}+结构{surcharge}（逐色进位 +{ceilDrift} 不计超模）", result.OffsetRequirement));
 
             // ---- 6b) 黑白获得汇总已删（2026-10-28 P1 定案）：代价=构筑期抵扣（5b），不再发放任何元素；
             // Grants 字段留空不填（引用清理 P4 处理）----
@@ -344,12 +333,6 @@ namespace CardCore
             {
                 mounted.TryGetValue(ManaType.Gray, out var g);
                 mounted[ManaType.Gray] = g + structureFee;
-            }
-            if (card.ChargeAbility)
-            {
-                // 充能加价（2026-11-06 opt-in 定案）：衍生物模板带充能资格同样 +1 灰（与 Derive 同口径）
-                mounted.TryGetValue(ManaType.Gray, out var g);
-                mounted[ManaType.Gray] = g + 1;
             }
             return mounted;
         }
@@ -517,12 +500,6 @@ namespace CardCore
             {
                 var mounted = ApportionMounted(modeBuckets[m], kwBuckets, statBuckets);
                 ApplyChassis(card, mounted); // 底盘（2026-10-10 可支配）：超槽加价入灰 / 剩余抵价（先灰后最高色）
-                if (card.ChargeAbility)
-                {
-                    // 充能加价（2026-11-06 opt-in 定案）：与 Derive 主管同口径 +1 灰，先于逐色进位
-                    mounted.TryGetValue(ManaType.Gray, out var g);
-                    mounted[ManaType.Gray] = g + 1;
-                }
                 CeilBucketsInPlace(mounted); // 逐色进位（2026-11-09 定案，与 Derive 5b 同口径）——进位后 prePayloadOut 即整数快照
                 if (prePayloadOut != null) prePayloadOut.Add(ToElementCost(mounted)); // P7：抵扣前留影
                 // 代价抵扣（2026-10-31 色锁定案+指向化）：抉择卡逐模式吃同一笔施放期代价

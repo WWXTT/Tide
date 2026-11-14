@@ -128,8 +128,7 @@ namespace CardCore
                 new AddCostDownBlueHandler(),
                 new AddCostDownGreenHandler(),
 
-                //（充能处理器注册已随 2026-11-05 充能系统动作化改版删除：充能=速度0系统动作，
-                //  结算走 GameActions.ResolveChargeDeclarationAsync，不再是卡上原子效果。）
+                //（充能处理器注册已删：2026-11-05 改版退役、2026-11-15 充能整链删除。）
 
                 // 角色攻击弹药（2026-10-07 角色参战定案，Entity 级）：给角色附加攻击指示物，
                 // 攻击/反击结算后烧除（CounterRules.RemoveHeroAttackAmmo）

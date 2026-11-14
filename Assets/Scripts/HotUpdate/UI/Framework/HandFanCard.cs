@@ -12,8 +12,8 @@ namespace SynergyUI
     /// （同 CardOverlayCard 的挂载模式——prefab 本体不带脚本）。承担四件事：
     /// ① IPointerEnter/Exit 悬停上报，转发给所属 HandFanView 重排目标；
     /// ② 布局 tween 状态（当前值/目标值），由 HandFanView.Tick 统一推进；
-    /// ③ btn 悬浮层（放置/使用+费用方格；2026-11-01 SpUse 退役——充能并入
-    ///    卡面效果行选中、事件全走 Use 钮）：2026-11-12 点选制改版——主人扇（OwnerSide）
+    /// ③ btn 悬浮层（放置/使用+费用方格；2026-11-01 SpUse 退役——事件全走 Use 钮）：
+    ///    2026-11-12 点选制改版——主人扇（OwnerSide）
     ///    费用栏（CostSquares）常驻，Use/Place 只在「本卡被点击选中」且条件达成时亮
     ///    （悬停不再显钮；条件评估走 FanInteractions 钩子）；指针从卡面移到按钮上
     ///    （子孙物体）不收悬停态——Exit 事件按射线落点是否本卡子孙判留；
@@ -34,7 +34,7 @@ namespace SynergyUI
         [System.NonSerialized] public ACardView Face;
 
         /// <summary>发动按钮（btn/Use，prefab 用户摆位，Create 时接线）——SpUse 钮退役后唯一出牌口
-        ///（2026-11-01 上卡）：普通=召唤/使用/发动，特殊行选中=充能（文案随选切换）。</summary>
+        ///（2026-11-01 上卡）：文案随卡型 召唤/使用/发动。</summary>
         [System.NonSerialized] public Button UseButton;
 
         /// <summary>放置按钮（btn/Place——作为地牌放入元素池）。</summary>
@@ -47,11 +47,6 @@ namespace SynergyUI
         ///（SelectEffectMode——Outline 选中边框+CostSquares 费用联动），「使用」按此模式直入施放
         ///（本地/网络的「选择要发动的效果」模式窗退役）。池复用换卡（对账键变更）归零。</summary>
         public int SelectedEffectMode;
-
-        /// <summary>特殊效果行选中（2026-11-01 上卡）：-1=未选（普通使用）；≥0=SpEffectRows
-        /// 对位行序——Use 钮文案随选变「充能」并按此分流施放；**再点选中行=取消**回普通使用。
-        /// 与 SelectedEffectMode 互斥单向：选模式行清特殊选中；取消特殊后回退到原选中模式行。</summary>
-        public int SelectedSpEffect = -1;
 
         private string _chromeKey;            // 上次 SetHandChrome 绑定的对账键——变更=池复用换卡，选行复位
         private CardOverlayItem _chromeItem;  // 行费用联动数据源（SelectEffectMode 重刷 CostSquares 用）
@@ -210,7 +205,7 @@ namespace SynergyUI
         /// 2026-11-12 点选制：主人扇（OwnerSide）btn 层常开（费用栏 CostSquares 常驻），
         /// Use/Place 只在本卡被点选（Fan.SelectedCard）且钩子条件达成时亮——未选中/条件不达一律不亮；
         /// 其余扇维持旧口径（悬停+条件达成整层显隐）。SpUse 钮退役（2026-11-01）：
-        /// 充能可用性并入 CanUse（宿主屏合并口径），此处只剩放置/使用两钮。</summary>
+        /// 此处只剩放置/使用两钮。</summary>
         public void RefreshActionButtons()
         {
             EnsureChromeRefs();
@@ -275,7 +270,7 @@ namespace SynergyUI
 
         /// <summary>手牌卡按钮文案+费用方格（2026-10-30 定案；2026-11-01 抉择上卡+SpUse 退役）：
         /// 卡费只在手牌展示（btn/CostSquares，SetCards 对账时刷新；多主动法术=当前选中效果行费用）；
-        /// 使用钮文案=普通（召唤/使用/发动）或特殊行选中（充能）。
+        /// 使用钮文案=召唤/使用/发动。
         /// 按钮显隐不在此处——RefreshActionButtons 按钩子逐钮评估。效果行接线（点击切选/边框）同拍完成。</summary>
         public void SetHandChrome(CardOverlayItem item)
         {
@@ -284,7 +279,6 @@ namespace SynergyUI
             if (_chromeKey != item.Key)
             {
                 SelectedEffectMode = 0;   // 池复用换卡：选行复位（默认第一模式行）
-                SelectedSpEffect = -1;    // 特殊行未选（普通使用）
                 _chromeKey = item.Key;
             }
             _chromeItem = item;
@@ -293,56 +287,30 @@ namespace SynergyUI
             UpdateEffectCost();
         }
 
-        /// <summary>使用钮文案（2026-11-01 SpUse 退役·事件全走 Use）：特殊行选中=充能；
-        /// 否则按卡型 召唤/使用/发动。SetHandChrome 与切行共用。</summary>
+        /// <summary>使用钮文案（2026-11-01 SpUse 退役·事件全走 Use）：按卡型 召唤/使用/发动。
+        /// SetHandChrome 与切行共用。</summary>
         private void UpdateUseLabel()
         {
             if (_chromeItem == null) return;
-            string text;
-            var spKind = SelectedSpKind;
-            if (spKind == SpEffectKind.Charge) text = "充能";
-            else
-            {
-                var type = _chromeItem.Supertype;
-                text = type == Cardtype.Creature ? "召唤"
-                    : type == Cardtype.Spell ? "使用" : "发动";
-            }
+            var type = _chromeItem.Supertype;
+            string text = type == Cardtype.Creature ? "召唤"
+                : type == Cardtype.Spell ? "使用" : "发动";
             SetButtonLabel(UseButton, text);
         }
 
-        /// <summary>当前选中特殊行种类（null=未选/越界）——宿主屏（BattleScreen）Use 钮分流消费。</summary>
-        public SpEffectKind? SelectedSpKind
-        {
-            get
-            {
-                var kinds = _chromeItem?.SpEffectKinds;
-                if (SelectedSpEffect < 0 || kinds == null || SelectedSpEffect >= kinds.Count) return null;
-                return kinds[SelectedSpEffect];
-            }
-        }
-
-        /// <summary>效果行接线（SetHandChrome 对账拍）：模式行点击=切换施放模式（清特殊选中）；
-        /// 特殊行点击=选中（**再点同行=取消**回普通使用）。Outline 互斥：特殊选中时只在特殊行，
-        /// 否则在选中模式行。ACardView.Apply 克隆/复用行对象，此处每拍 RemoveAllListeners 再挂
+        /// <summary>效果行接线（SetHandChrome 对账拍）：模式行点击=切换施放模式。
+        /// ACardView.Apply 克隆/复用行对象，此处每拍 RemoveAllListeners 再挂
         ///（防对账叠加；prefab onClick 本空），行序=Item 平行表序。</summary>
         private void WireEffectRows()
         {
             var rows = Face != null ? Face.ActiveEffectRows : null;
-            var spRows = Face != null ? Face.SpEffectRows : null;
             int modeCount = rows != null ? rows.Count : 0;
             int selMode = modeCount > 0 ? Mathf.Clamp(SelectedEffectMode, 0, modeCount - 1) : 0;
             for (int i = 0; i < modeCount; i++)
             {
                 if (rows[i] == null) continue;
                 int idx = i; // 闭包捕获
-                WireRow(rows[i], () => SelectEffectMode(idx), SelectedSpEffect < 0 && i == selMode);
-            }
-            int spCount = spRows != null ? spRows.Count : 0;
-            for (int i = 0; i < spCount; i++)
-            {
-                if (spRows[i] == null) continue;
-                int idx = i;
-                WireRow(spRows[i], () => SelectSpEffect(idx), SelectedSpEffect == idx);
+                WireRow(rows[i], () => SelectEffectMode(idx), i == selMode);
             }
         }
 
@@ -359,7 +327,7 @@ namespace SynergyUI
         }
 
         /// <summary>切换选中效果行（模式行点击入口）：边框/费用/使用钮文案联动（费用=该模式现付费）。
-        /// 与特殊行互斥——选中模式行即退出充能特殊态。纯 UI 态，不设回合/阶段闸（出牌闸在「使用」链上）。
+        /// 纯 UI 态，不设回合/阶段闸（出牌闸在「使用」链上）。
         /// 行点击=点选本卡（2026-11-12 点选制）：按钮随选中亮（条件达成时）。</summary>
         public void SelectEffectMode(int index)
         {
@@ -369,31 +337,15 @@ namespace SynergyUI
                 : (_chromeItem?.ActiveEffectCosts?.Count ?? 0);
             if (n <= 1) return;
             SelectedEffectMode = Mathf.Clamp(index, 0, n - 1);
-            SelectedSpEffect = -1;
             WireEffectRows();
             UpdateUseLabel();
             UpdateEffectCost();
         }
 
-        /// <summary>特殊行点击（充能，2026-11-01 上卡）：选中→Use 钮文案/边框/费用切换为该特殊态；
-        /// **再点选中行=取消**回普通使用（回落原选中模式行）。无特殊行数据空转。
-        /// 行点击=点选本卡（2026-11-12 点选制）。</summary>
-        public void SelectSpEffect(int index)
-        {
-            Fan?.SetSelected(this);
-            int n = _chromeItem?.SpEffectKinds?.Count ?? 0;
-            if (n == 0) return;
-            SelectedSpEffect = SelectedSpEffect == index ? -1 : Mathf.Clamp(index, 0, n - 1);
-            WireEffectRows();
-            UpdateUseLabel();
-            UpdateEffectCost();
-        }
-
-        /// <summary>费用方格刷新（对账/切行共用）：特殊行选中且带账单优先；
-        /// 多主动法术=选中行 ActiveEffectCosts（净费口径）；单主动法术=该效果净费+代价组
-        ///（2026-11-09 定案——法术卡面费构筑期不占、真账在锚价，卡净费恒 0 无信息量）；
-        /// 生物/结界=卡净费 Costs（旧口径）。充能行无固定账单（现付 1 点待选色）→维持当前
-        /// 显示。代价组（Cost2，2026-11-03 双组改版）=选中行效果级代价
+        /// <summary>费用方格刷新（对账/切行共用）：多主动法术=选中行 ActiveEffectCosts（净费口径）；
+        /// 单主动法术=该效果净费+代价组（2026-11-09 定案——法术卡面费构筑期不占、真账在锚价，
+        /// 卡净费恒 0 无信息量）；生物/结界=卡净费 Costs（旧口径）。
+        /// 代价组（Cost2，2026-11-03 双组改版）=选中行效果级代价
         ///（ActiveEffectPayloadCosts，2026-11-06 逐行化），无则回落卡级 PayloadCost
         /// ——恒随卡（与费用行选择无关），无代价自动隐藏 Cost2。</summary>
         private void UpdateEffectCost()
@@ -401,11 +353,6 @@ namespace SynergyUI
             if (CostSquares == null || _chromeItem == null) return;
             ElementCost cost = _chromeItem.Costs;
             ElementCost pay = _chromeItem.PayloadCost;
-            var spCosts = _chromeItem.SpEffectCosts;
-            if (SelectedSpEffect >= 0 && spCosts != null && SelectedSpEffect < spCosts.Count
-                && spCosts[SelectedSpEffect] != null)
-                cost = spCosts[SelectedSpEffect];
-            else
             {
                 var modeCosts = _chromeItem.ActiveEffectCosts;
                 if (modeCosts != null && modeCosts.Count > 1)

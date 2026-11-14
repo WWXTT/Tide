@@ -125,10 +125,10 @@ namespace CardCore.Attribute
             { CardCore.AtomicEffectType.GrantDisarm, SpecColor.Blue },                 // 缴械=压制反击（行动许可）
             { CardCore.AtomicEffectType.GrantTaunt, SpecColor.Blue },                  // 帷幕=指定限制（能否被指定）
             { CardCore.AtomicEffectType.AddDurabilityUp, SpecColor.Gray },             // 2026-11-14 基础属性归灰：耐久=灰（2026-11-03「耐久=蓝」作废；0.5 灰/点）
-            { CardCore.AtomicEffectType.SealUnit, SpecColor.Red },                     // 封印=场面移除（2026-11-05 确认定案红；11-03 蓝3 口径作废）
+            { CardCore.AtomicEffectType.SealUnit, SpecColor.Red },                     // 封印=场面移除（2026-11-05 确认定案红；11-03 蓝3 口径作废；2026-11-15 曾试改绿供沃土代价用，同日回退=代价改回「对手+6甲」）
             { CardCore.AtomicEffectType.SwapPowerLife, SpecColor.Gray },               // 2026-11-14 基础属性归灰：攻守互换=灰（原 2026-11-09 蓝2 作废——属性重排归基础属性轴）
             // ---- 场面/生存双成分（红|绿）----
-            { CardCore.AtomicEffectType.GrantLifesteal, SpecColor.Red },                  // 吸血=红（2026-11-03 用户定案·不随吸取双色同构；表侧行待段3颜色迁移）
+            { CardCore.AtomicEffectType.GrantLifesteal, SpecColor.Green },                // 吸血=绿（2026-11-14 用户定案：与系命同属生命回复；表侧行已改绿，旧红口径作废）
             { CardCore.AtomicEffectType.GrantLifelink, SpecColor.Red | SpecColor.Green },   // 系命=伤害+回复 双色（行级定案绿见 SpecRowOverrides）
             // ---- 规则/工具（灰）：规则改写·属性定义·纯工具 ----
             { CardCore.AtomicEffectType.ModifyGameRule, SpecColor.Gray },              // 特例：各仪典/各禁令=灰（行级细化见 SpecRowOverrides）

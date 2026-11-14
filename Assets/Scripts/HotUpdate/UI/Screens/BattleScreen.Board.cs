@@ -695,6 +695,53 @@ namespace SynergyUI
         private List<BattleCardView> LandsOfOwnerIdx(int ownerIdx)
             => ownerIdx == 0 ? _view?.SelfLands : _view?.OppLands;
 
+        // ---- 主动产色（2026-11-15 地牌主动横置：Information 地牌格窗【生成】按钮的屏侧落点）----
+
+        /// <summary>该格第一张未横置地牌（引擎池序；一格锁色必然相同，选哪张不影响产物）。</summary>
+        private PooledCard FirstUntappedLandAt(int x, int z)
+        {
+            if (Core?.ElementPool == null || _ctrl?.Board == null) return null;
+            foreach (var pc in Core.ElementPool.GetPooledCards(P1))
+            {
+                if (pc?.SourceCard == null || pc.IsTapped || pc.FreezeLayers > 0) continue;
+                if (_ctrl.Board.TryGetCell(pc.SourceCard, out int cx, out int cz) && cx == x && cz == z) return pc;
+            }
+            return null;
+        }
+
+        /// <summary>【生成】点击（2026-11-15 定案，同日修订时点闸）：**持有优先权（扳机）**——
+        /// 双方回合均可（典型：对手回合响应窗口先兑现费用再打扳机）；或己方主阶段（原口径）。
+        /// 横置该格一张未横置地牌 → 1 个锁定色元素进临时钱包（任一回合结束清空，无净增益）。
+        /// 自动付费链（PlanBill/ TryPayBillWithAutoTap）零改动——钱包与地牌横置一并被付费规划消耗。</summary>
+        private void GenerateFromLand(int x, int z)
+        {
+            if (TutorialGuide.Active) { _toast.Show("教学进行中——暂不可主动产色"); return; }
+            if (NetActive) { _toast.Show("联机模式暂不支持主动产色"); return; } // 阶段 3 改走 intent
+            var se = Core?.StackEngine;
+            bool holdsPriority = se != null && se.CurrentPriorityHolder == P1;
+            bool ownMain = Core?.TurnEngine != null && Core.TurnEngine.TurnPlayer == P1
+                && Core.TurnEngine.CurrentPhase?.Phase == PhaseType.Main;
+            if (!holdsPriority && !ownMain)
+            {
+                bool oppTurn = Core?.TurnEngine != null && Core.TurnEngine.TurnPlayer != P1;
+                _toast.Show(oppTurn
+                    ? "对手回合——需持有优先权（扳机）才能主动产色"
+                    : "当前时点不可主动产色（需持有优先权或己方主阶段）");
+                return;
+            }
+
+            var pc = FirstUntappedLandAt(x, z);
+            if (pc == null) { _toast.Show("该格地牌均已横置"); _infoCtl?.Refresh(); return; }
+
+            if (!GameActions.TapLandForElement(Core, P1, pc.SourceCard, out var reason))
+            { _toast.Show(reason); return; }
+
+            string name = (pc.SourceCard as CardWrapper)?.GetData()?.CardName ?? pc.SourceCard.ID;
+            _toast.Show($"已横置 {name}：生成 1 个{BattleView.ManaZh(pc.LockedColor)}临时元素（回合结束消失）");
+            RefreshField();      // 同步重建 _view → 地格计数/描边对账（ViewVersion++，悬停缓存作废）
+            _infoCtl?.Refresh(); // 兜底：同帧立即重拉卡面（RefreshField 同步完成后读到的是新横置态）
+        }
+
         // ---- 牌库标记预览（2026-10-26 诅咒/祝福显示层补充——效果描述不提，纯可见性增强） ----
 
         private List<Card> MarkedDeckCards(Player owner)

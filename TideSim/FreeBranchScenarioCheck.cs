@@ -961,7 +961,6 @@ namespace TideSim
                     Life = 2,
                     AttackAbility = true,
                     GuardAbility = true,
-                    ChargeAbility = true,
                     Cost = new ElementCost(new[] { 1f, 0f, 0f, 0f, 0f, 0f }),
                     Tags = new List<string> { "教学" },
                     Effects = new List<CardEffectData> { gateFx },
@@ -1052,7 +1051,6 @@ namespace TideSim
                     Life = 2,
                     AttackAbility = true,
                     GuardAbility = true,
-                    ChargeAbility = true,
                     Cost = new ElementCost(new[] { 1f, 0f, 0f, 0f, 0f, 0f }),
                     Tags = new List<string> { "教学" },
                     Effects = new List<CardEffectData>

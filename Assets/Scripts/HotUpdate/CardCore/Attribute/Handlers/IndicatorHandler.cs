@@ -696,7 +696,7 @@ namespace CardCore.Attribute.Handlers
 
     /// <summary>
     /// 四色费用指示物（2026-10-31 通用费用增减四色化——增减各 4 行表行，每层 ±1 对应色净费分量，
-    /// GetCardCost 逐色套层钳 0；仅手牌生效、换区清除）。减四色复用充能已投放的
+    /// GetCardCost 逐色套层钳 0；仅手牌生效、换区清除）。减四色复用费用降低指示物投放的
     /// CostDownGray/Red/Blue/Green 计数器；增四色为 CostUpGray/Red/Blue/Green（同档对称）。
     /// </summary>
     public class AddCostUpGrayHandler : StatCounterAtomHandlerBase

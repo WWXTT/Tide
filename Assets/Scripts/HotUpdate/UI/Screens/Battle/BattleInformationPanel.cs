@@ -28,8 +28,13 @@ namespace SynergyUI
         private readonly Func<int, List<BattleCardView>> _landsOf; // ownerIdx→该方场上地牌（地牌格查阅）
         private readonly List<ACardView> _pool = new List<ACardView>();
 
+        // 主动产色（2026-11-15 地牌主动横置）：Func 现取——教学/联机/时点态在窗开着时也会变
+        private readonly Func<bool> _canGenerateLand; // 显隐闸（本地局+非教学等；时点不置灰，点错由屏侧 toast 解释）
+        private readonly Action<int, int> _generateLand; // (x,z)→屏侧 GenerateFromLand（引擎口在屏侧）
+
         private RectTransform _node;
         private Button _btnHide;
+        private Button _btnGenerate; // Information/btn-generate：地牌格窗内【生成】（2026-11-15 烘焙节点）
         private RectTransform _content;
         private RectTransform _template;
         private TMP_Text _labelTitle; // Information/label-title：区域名+张数（2026-11-03 用户补建）
@@ -43,10 +48,13 @@ namespace SynergyUI
 
         public bool IsOpen => _node != null && _node.gameObject.activeSelf;
 
-        public BattleInformationPanel(Func<GameCore> core, Func<int, List<BattleCardView>> landsOf)
+        public BattleInformationPanel(Func<GameCore> core, Func<int, List<BattleCardView>> landsOf,
+            Func<bool> canGenerateLand = null, Action<int, int> generateLand = null)
         {
             _core = core;
             _landsOf = landsOf;
+            _canGenerateLand = canGenerateLand;
+            _generateLand = generateLand;
         }
 
         /// <summary>装配（prefab 用户节点：btn-hide/viewport/content/ACard 模板）。默认隐藏。</summary>
@@ -67,10 +75,21 @@ namespace SynergyUI
             if (_template != null) _template.gameObject.SetActive(false); // 只做克隆源，不参与展示
             var titleNode = _node.Find("label-title");
             _labelTitle = titleNode != null ? titleNode.GetComponentInChildren<TMP_Text>(true) : null;
+            _btnGenerate = _node.Find("btn-generate")?.GetComponent<Button>(); // 【生成】（2026-11-15 主动产色）
+            if (_btnGenerate != null)
+            {
+                _btnGenerate.onClick.RemoveAllListeners();
+                _btnGenerate.onClick.AddListener(OnGenerateClicked);
+                var lbl = _btnGenerate.GetComponentInChildren<TMP_Text>(true);
+                if (lbl != null) lbl.text = "生成"; // 文案回写防烘焙漂移（btn-hide 同惯例）
+                _btnGenerate.gameObject.SetActive(false); // 默认隐藏（RefreshGenerateButton 按来源现算）
+            }
             if (_btnHide == null || _content == null)
                 Debug.LogError("[Information] prefab 缺节点（btn-hide/viewport/content）——区域查阅窗不可用");
             if (_labelTitle == null)
                 Debug.LogWarning("[Information] 缺 label-title——区域名/张数不显示（prefab 2026-11-03 补建节点）");
+            if (_btnGenerate == null)
+                Debug.LogWarning("[Information] 缺 btn-generate——地牌格主动产色按钮不显示（prefab 2026-11-15 烘焙节点）");
             _node.gameObject.SetActive(false);
         }
 
@@ -82,6 +101,7 @@ namespace SynergyUI
             _node.gameObject.SetActive(true);
             ResetScroll();
             Refresh();
+            RefreshGenerateButton();
         }
 
         /// <summary>开地牌格（ownerIdx 方 x,z 格上的全部地牌）。</summary>
@@ -92,6 +112,7 @@ namespace SynergyUI
             _node.gameObject.SetActive(true);
             ResetScroll();
             Refresh();
+            RefreshGenerateButton();
         }
 
         /// <summary>关窗（btn-hide 同口）。来源记账一并清。</summary>
@@ -100,6 +121,7 @@ namespace SynergyUI
             if (_node == null || !_node.gameObject.activeSelf) return;
             _node.gameObject.SetActive(false);
             _zone = null; _zoneOwner = null; _landOwnerIdx = -1;
+            RefreshGenerateButton(); // _node 已关=IsOpen false 必隐藏（显式置隐防下次开残留）
         }
 
         /// <summary>按来源重拉重列（屏侧 RefreshRegion 联动——查看期间区域变动对账；未开零开销）。
@@ -145,6 +167,24 @@ namespace SynergyUI
             Fill(items);
             if (_labelTitle != null) _labelTitle.text = $"{what} · {items.Count} 张"; // 标题=区域名+当前张数（Refresh 随对账更新）
             Debug.Log($"[Information] {what} 列卡 {items.Count} 张");
+            RefreshGenerateButton();
+        }
+
+        /// <summary>【生成】显隐单源（2026-11-15 主动产色）：窗开 + 屏侧闸过 + 来源=己方地牌格。
+        /// 只按来源/局种显隐，不按时点（优先权/阶段翻转频繁，置灰会滞后）——点错由屏侧 toast 解释。</summary>
+        private void RefreshGenerateButton()
+        {
+            if (_btnGenerate == null) return;
+            bool show = IsOpen && _canGenerateLand != null && _canGenerateLand()
+                        && !_zone.HasValue && _landOwnerIdx == 0;
+            if (_btnGenerate.gameObject.activeSelf != show) _btnGenerate.gameObject.SetActive(show);
+        }
+
+        /// <summary>【生成】点击：转发屏侧 GenerateFromLand(x,z)（闸/引擎调用/toast 全在屏侧）。</summary>
+        private void OnGenerateClicked()
+        {
+            if (!IsOpen || _zone.HasValue || _landOwnerIdx != 0) return;
+            _generateLand?.Invoke(_landX, _landZ);
         }
 
         private static string ZoneZh(Zone zone)

@@ -405,202 +405,6 @@ namespace CardCore.Editor
             }
         }
 
-        // ======================================== 充能（2026-10-31 P12：建造→充能；四色费用降低指示物） ========================================
-
-        /// <summary>
-        /// 充能回归（2026-11-05 系统动作化改版重写——旧 P12「充能=卡上 Charge 原子主动效果」链整体退役）：
-        /// 充能=速度0系统动作（仿攻击宣言：空栈首动·宣言期零支付零选色·对手响应窗口），任意手牌卡
-        /// **一回合一次**、结算期反问元素类别（无头/AI 自动取最大余量色）→ **免费落层**（不支付元素）。
-        /// ① 普通卡可宣（无充能效果门槛）：入栈不换区·栈上他卡再宣被拒（速度0须空栈）；结算=最大余量色
-        ///    +1 层（2红3灰夹具 → 灰3&gt;红2 → CostDownGray=1·红层0）·Exposed=1·钱包不变·净费灰−1；
-        /// ② 一张卡一回合一次：同回合第二宣拒（reason 含「一回合」）·跨回合恢复；
-        /// ③ 颜色域=「卡具有且未充满」：单色卡（法术锚价红2）逐回合充 2/2 后 CanCharge 拒（含「没有可充颜色」）；
-        /// ④ 法术补差：层并入模式 0 锚价套算（cast 账单红 2→1）；
-        /// ⑤ 对手回合拒（reason 含「自己的回合」）；战场源拒（reason 含「手牌」）；
-        /// ⑥ 换区清除：层与 Exposed 全清；
-        /// ⑦ 副本/跨玩家隔离（指示物实例级）。
-        /// </summary>
-        private static void TestCharge(GameCore core, Player p1, Player p2)
-        {
-            EnsureMainPhase(core, p1);
-            var pool1 = core.ElementPool.GetPool(p1);
-            var snapWallet = new Dictionary<ManaType, int>(pool1.TempElements);
-            int snapIndex = pool1.GlobalTurnIndex;
-            pool1.GlobalTurnIndex = 9; // 防上限钳干扰（TestActiveEffectCost 同口径）
-            foreach (var t in AllManaTypes()) pool1.TempElements[t] = 20;
-
-            // 夹具：钉死锚价 {红2,灰3} 的非主动效果（E 桶直出）——**不带任何充能效果**
-            //（2026-11-05 系统动作化：充能不再要求卡面载体，任意手牌卡可宣）
-            CardEffectData PricedOnPlay(string id, float red, float gray)
-            {
-                var eff = new CardEffectData
-                {
-                    Id = id + "_E1",
-                    TriggerTiming = (int)TriggerTiming.OnPlay, // 非主动：锚价入卡费 E 桶（主动=运行时现付不占卡费）
-                    AnchorCostPinned = 1,                       // 锚价钉死：直出不推导（P5/P7b 同机制）
-                    AnchorCost = new ElementCost(),
-                };
-                eff.AnchorCost[ManaType.Red] = red;
-                eff.AnchorCost[ManaType.Gray] = gray;
-                return eff;
-            }
-            CardData MultiColorData(string id) => new CardData
-            {
-                ID = id, CardName = "P12·充" + id, Supertype = Cardtype.Enchantment,
-                // 2026-11-06 opt-in：充能资格=卡面声明——+1 灰入推导费（含 PrePayload 留影，
-                // 充能上限基数含本灰——灰 1 层可充回属设计涌现）：抵扣前 2红4灰·充 1 灰层后净 2红3灰
-                ChargeAbility = true,
-                Effects = new List<CardEffectData> { PricedOnPlay(id, 2, 3) },
-            };
-
-            try
-            {
-                // ---- ① 普通卡宣言：入栈不换区·空栈门·结算免费落层（最大余量色） ----
-                var dataA = MultiColorData("VERIFY_P12_A");
-                CardCostService.GetPrePayloadCost(dataA, 0, out var preA, out _);
-                Assert((int)preA[ManaType.Red] == 2 && (int)preA[ManaType.Gray] == 4,
-                       $"P12① 前置：钉死锚价夹具抵扣前卡费 = 2红4灰（含充能费 1 灰；实际 红{preA[ManaType.Red]:0.#}灰{preA[ManaType.Gray]:0.#}）");
-                var f1 = InjectCard(core, p1, dataA);
-                var f1b = InjectCard(core, p1, MultiColorData("VERIFY_P12_B"));
-                int redBefore = (int)pool1.TempElements[ManaType.Red];
-                int grayBefore = (int)pool1.TempElements[ManaType.Gray];
-                bool ok1 = GameActions.DeclareCharge(core, p1, f1, out var r1);
-                bool stackLive = ok1 && core.StackEngine.StackSize > 0;
-                bool stackTopCharge = ok1 && core.StackEngine.PeekStack() != null
-                                       && core.StackEngine.PeekStack().IsChargeDeclaration;
-                bool stackGate = !GameActions.DeclareCharge(core, p1, f1b, out var rStack)
-                                 && rStack != null && rStack.Contains("空栈");
-                Assert(ok1 && stackLive && stackTopCharge && stackGate && f1.GetZone() == Zone.Hand,
-                       $"P12① 充能宣言入栈成功（CHG 栈对象·卡仍在手牌·栈上他卡再宣被拒「{rStack ?? "?"}」·拒因 {r1 ?? "无"}）");
-                GameActions.DrainStack(core);
-                var n1 = GameActions.GetCardCost(f1);
-                Assert(f1.GetCounterCount(CardCore.Attribute.CounterRules.CostDownGrayCounter) == 1
-                       && f1.GetCounterCount(CardCore.Attribute.CounterRules.CostDownRedCounter) == 0
-                       && f1.GetCounterCount(CardCore.Attribute.CounterRules.ExposedCounter) == 1
-                       && (int)pool1.TempElements[ManaType.Red] == redBefore
-                       && (int)pool1.TempElements[ManaType.Gray] == grayBefore
-                       && (int)n1[ManaType.Red] == 2 && (int)n1[ManaType.Gray] == 3,
-                       $"P12① 结算：免费落最大余量色（灰4>红2→灰） CostDownGray=1·红层0·Exposed=1·钱包不动·净费 2红3灰（4灰−1层）"
-                       + $"（实际 红{n1[ManaType.Red]:0.#}灰{n1[ManaType.Gray]:0.#}·灰层 {f1.GetCounterCount(CardCore.Attribute.CounterRules.CostDownGrayCounter)}"
-                       + $"·钱包 红{redBefore}→{(int)pool1.TempElements[ManaType.Red]}灰{grayBefore}→{(int)pool1.TempElements[ManaType.Gray]}）");
-
-                // ---- ② 一张卡一回合一次：同回合第二宣拒 ----
-                bool sameTurn = GameActions.DeclareCharge(core, p1, f1, out var rOnce);
-                bool onceGate = !sameTurn && rOnce != null && rOnce.Contains("一回合");
-                Assert(onceGate,
-                       $"P12② 一回合一次：同回合再宣被拒（{rOnce ?? "未拒"}）");
-
-                // ---- ⑤a 对手回合拒 + 战场源拒 ----
-                EndTurnPumped(core, p1); // 推进到 p2 回合
-                bool oppTurnOk = !GameActions.CanCharge(core, p1, f1, out var rOpp)
-                                 && rOpp != null && rOpp.Contains("自己的回合");
-                EndTurnPumped(core, p2); // 回 p1
-                EnsureMainPhase(core, p1);
-                foreach (var t in AllManaTypes()) pool1.TempElements[t] = 20; // 回合末钱包清空→回填
-                var fBf = InjectCard(core, p1, MultiColorData("VERIFY_P12_BF"));
-                Assert(core.ZoneManager.TryMoveToBattlefield(fBf, p1, Zone.Hand),
-                       "P12⑤ 前置：夹具卡入战场（占格直入）");
-                bool fieldOk = !GameActions.CanCharge(core, p1, fBf, out var rField)
-                               && rField != null && rField.Contains("手牌");
-                Assert(oppTurnOk && fieldOk,
-                       $"P12⑤ 对手回合拒「{rOpp}」·战场源拒「{rField}」");
-
-                // ---- ③ 锚价卡逐回合充到满（2026-11-06 opt-in 后夹具费=锚红2+充能费灰1 双色）：
-                //      余量序自动落色 红2 →（平局1/1·色序灰先）灰1 → 红1 →「没有可充颜色」 ----
-                var spellData = new CardData
-                {
-                    ID = "VERIFY_P12_S", CardName = "P12·充能法术", Supertype = Cardtype.Spell,
-                    ChargeAbility = true, // 充能资格：+1 灰并入施放账单（纯法术基价 0→1 灰）
-                    Effects = new List<CardEffectData>
-                    {
-                        new CardEffectData
-                        {
-                            Id = "VERIFY_P12_S_E", TriggerTiming = (int)TriggerTiming.Activate_Active,
-                            AnchorCostPinned = 1, AnchorCost = new ElementCost(), // 主动锚价：施放时现付（不进卡费）
-                            AtomicEffects = new List<AtomicEffectEntry> { Atom(AtomicEffectType.DealDamage) },
-                        },
-                    },
-                };
-                spellData.Effects[0].AnchorCost[ManaType.Red] = 2;
-                var fs = InjectCard(core, p1, spellData);
-                var sBill0 = GameActions.GetCardCost(fs, 0);
-                Assert((int)sBill0[ManaType.Red] == 2 && (int)sBill0[ManaType.Gray] == 1,
-                       $"P12③/④ 前置：法术 cast 账单红 2 灰 1（锚价现付+充能费并入；实际 {sBill0}）");
-                bool c1 = GameActions.DeclareCharge(core, p1, fs, out _); // 余量红2>灰1 → 红
-                GameActions.DrainStack(core);
-                var sBill1 = GameActions.GetCardCost(fs, 0);
-                bool step1 = c1 && (int)sBill1[ManaType.Red] == 1
-                             && fs.GetCounterCount(CardCore.Attribute.CounterRules.CostDownRedCounter) == 1;
-                EndTurnPumped(core, p1);
-                EnsureMainPhase(core, p1);
-                foreach (var t in AllManaTypes()) pool1.TempElements[t] = 20;
-                bool c2 = GameActions.DeclareCharge(core, p1, fs, out _); // 红1=灰1 平局→色序灰先
-                GameActions.DrainStack(core);
-                bool step2 = c2 && fs.GetCounterCount(CardCore.Attribute.CounterRules.CostDownGrayCounter) == 1;
-                EndTurnPumped(core, p1);
-                EnsureMainPhase(core, p1);
-                foreach (var t in AllManaTypes()) pool1.TempElements[t] = 20;
-                bool c3 = GameActions.DeclareCharge(core, p1, fs, out _); // 仅剩红 1 → 红
-                GameActions.DrainStack(core);
-                bool fullGate = !GameActions.CanCharge(core, p1, fs, out var rFull)
-                                && rFull != null && rFull.Contains("没有可充颜色");
-                Assert(step1 && step2 && c3 && fullGate
-                       && fs.GetCounterCount(CardCore.Attribute.CounterRules.CostDownRedCounter) == 2,
-                       $"P12③/④ 逐层充到满：红2(锚)·灰1(充能费)→红·灰·红→充满拒「{rFull ?? "可充(未拒)"}」"
-                       + $"（step红={step1} step灰={step2}）");
-
-                // ---- ⑦ 副本/跨玩家隔离（指示物实例级） ----
-                var ca = InjectCard(core, p1, dataA);
-                var cb = InjectCard(core, p1, dataA);
-                bool a1 = GameActions.DeclareCharge(core, p1, ca, out _);
-                GameActions.DrainStack(core);
-                var nb = GameActions.GetCardCost(cb);
-                Assert(a1 && (int)nb[ManaType.Red] == 2 && (int)nb[ManaType.Gray] == 4
-                       && cb.GetCounterCount(CardCore.Attribute.CounterRules.CostDownGrayCounter) == 0,
-                       $"P12⑦ 副本隔离：A 充 1 灰后 B 净费仍 2红4灰·B 灰层 0（实际 {nb}）");
-                var theirs = InjectCard(core, p2, dataA);
-                var nTheirs = GameActions.GetCardCost(theirs);
-                Assert((int)nTheirs[ManaType.Red] == 2
-                       && theirs.GetCounterCount(CardCore.Attribute.CounterRules.CostDownGrayCounter) == 0,
-                       $"P12⑦ 跨玩家隔离：p2 同名实例净费 2红4灰·灰层 0（实际 {nTheirs}）");
-
-                // ---- ⑥ 换区清除：层与 Exposed 全清（免费落层无可退元素） ----
-                var f6 = InjectCard(core, p1, dataA);
-                int walletRed6 = (int)pool1.TempElements[ManaType.Red];
-                bool f6ok = GameActions.DeclareCharge(core, p1, f6, out _);
-                GameActions.DrainStack(core);
-                core.ZoneManager.MoveCard(f6, p1, Zone.Hand, Zone.Graveyard);
-                var n6 = GameActions.GetCardCost(f6);
-                Assert(f6ok && (int)pool1.TempElements[ManaType.Red] == walletRed6
-                       && f6.GetCounterCount(CardCore.Attribute.CounterRules.CostDownGrayCounter) == 0
-                       && f6.GetCounterCount(CardCore.Attribute.CounterRules.ExposedCounter) == 0
-                       && (int)n6[ManaType.Red] == 2 && (int)n6[ManaType.Gray] == 4,
-                       $"P12⑥ 换区清除：充 1 灰后移出手牌——灰层/Exposed 归零·净费回 2红4灰·钱包不动"
-                       + $"（红 {walletRed6}→{(int)pool1.TempElements[ManaType.Red]}）");
-            }
-            finally
-            {
-                pool1.GlobalTurnIndex = snapIndex;
-                pool1.TempElements.Clear();
-                foreach (var kv in snapWallet) pool1.TempElements[kv.Key] = kv.Value;
-                // 本段注入物清理：手牌/墓/战场/元素池残留直移除——不污染后续段落
-                bool IsP12(Card c)
-                {
-                    var d = (c as CardWrapper)?.GetData();
-                    return d != null && d.ID != null && d.ID.StartsWith("VERIFY_P12");
-                }
-                foreach (var pl in new[] { p1, p2 })
-                {
-                    foreach (var c in core.ZoneManager.GetCards(pl, Zone.Hand).Where(IsP12).ToList())
-                        core.ZoneManager.MoveCard(c, pl, Zone.Hand, Zone.Graveyard);
-                    foreach (var c in core.ZoneManager.GetCards(pl, Zone.Graveyard).Where(IsP12).ToList())
-                        core.ZoneManager.GetZoneContainer(pl).Remove(c, Zone.Graveyard);
-                    foreach (var c in core.ZoneManager.GetCards(pl, Zone.Battlefield).Where(IsP12).ToList())
-                        core.ZoneManager.GetZoneContainer(pl).Remove(c, Zone.Battlefield);
-                }
-            }
-        }
-
         // ======================================== 场地格（2026-10-29 P8 定案） ========================================
 
         /// <summary>
@@ -625,8 +429,7 @@ namespace CardCore.Editor
             foreach (var t in AllManaTypes()) pool1.TempElements[t] = 20;
 
             // 夹具：钉死锚价 3 灰的（场地/普通）结界——免费出牌口径可复算；Durability=4 印刷耐久
-            // charge=true 仅 P8⑦ 充能夹具用（2026-11-06 opt-in：资格=卡面声明·+1 灰入推导费）
-            CardData FieldData(string id, bool isField = true, bool charge = false)
+            CardData FieldData(string id, bool isField = true)
             {
                 var eff = new CardEffectData
                 {
@@ -639,7 +442,7 @@ namespace CardCore.Editor
                 return new CardData
                 {
                     ID = id, CardName = "P8·" + id, Supertype = Cardtype.Enchantment,
-                    IsField = isField, Durability = 4, ChargeAbility = charge,
+                    IsField = isField, Durability = 4,
                     Effects = new List<CardEffectData> { eff },
                 };
             }
@@ -771,18 +574,12 @@ namespace CardCore.Editor
                        && f3.GetZone() == Zone.Graveyard,
                        "P8⑥ 耐久归零 → 按结界规则销毁入墓（Smashed 直毁）");
 
-                // ---- ⑦ 充能可用（2026-11-05 系统动作化 + 2026-11-06 opt-in 资格）+ 入场后进度作废 ----
-                // 夹具=普通场地卡（钉死 3 灰 + 充能费 1 灰）；进度挂 CostDownGray 层
-                var fBuild = InjectCard(core, p1, FieldData("VERIFY_P8_G", charge: true));
-                bool bOk = GameActions.DeclareCharge(core, p1, fBuild, out var bReject);
+                // ---- ⑦ 场地卡可直接打出（2026-11-15 充能整链删除后保留入场口径） ----
+                var fBuild = InjectCard(core, p1, FieldData("VERIFY_P8_G"));
+                Assert(GameActions.PlayCard(core, p1, fBuild), "P8⑦ 场地卡打出（钉死 3 灰）");
                 GameActions.DrainStack(core);
-                Assert(bOk && fBuild.GetCounterCount(CardCore.Attribute.CounterRules.CostDownGrayCounter) == 1,
-                       $"P8⑦ 充能在场地卡可用：手牌充 1 灰成功（拒因 {bReject ?? "无"}）");
-                Assert(GameActions.PlayCard(core, p1, fBuild), "P8⑦ 已充能场地卡可打出（净费=4−1=3 灰，含充能费）");
-                GameActions.DrainStack(core);
-                Assert(fBuild.GetZone() == Zone.Battlefield
-                       && fBuild.GetCounterCount(CardCore.Attribute.CounterRules.CostDownGrayCounter) == 0,
-                       "P8⑦ 入场后充能进度随换区清零（指示物 Resident 口径——预付不退、不转移）");
+                Assert(fBuild.GetZone() == Zone.Battlefield,
+                       "P8⑦ 场地卡入场（净费 3 灰，无充能层）");
 
                 // ---- ⑧ 盘面视图（表现层数据道，验收7）：BuildLocal 场地卡落 (0,2) + 耐久显示基准 ----
                 // 身份键=RuntimeId（BattleScreen 对账同键）；诊断附带 SelfUnits 计数。

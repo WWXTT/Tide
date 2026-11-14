@@ -314,13 +314,16 @@ namespace CardCore.Attribute.Handlers
         {
             if (context.ZoneManager == null || context.Controller == null) return;
 
-            int count = effect.Value > 0 ? context.GetValueAfterModifiers(effect.Value) : 1;
+            int count = context.Targets != null && context.Targets.Count > 0
+                ? context.Targets.Count
+                : (effect.Value > 0 ? context.GetValueAfterModifiers(effect.Value) : 1); // 2026-11-14：张数=目标数（模板无 {value}）
             // 正式召唤闸已拆（2026-10-10：游戏王额外区适配遗物——额外区全面移除后死因不再区分）：
             // 墓地生物一律可回场（打出/弃置/送墓/衍生物同规）；类型闸=生物（表行「{target}生物从墓地
             // 返回到己方战场」——墓地混有法术/结界，不可裸取前 N 张）。
-            var revivable = context.ZoneManager.GetCards(context.Controller, Zone.Graveyard)
-                .Where(c => c is IHasSupertype ht && ht.Supertype == Cardtype.Creature)
-                .ToList();
+            var revivable = context.Targets != null && context.Targets.Count > 0
+                ? context.Targets.OfType<Card>().Where(c => (c as IHasSupertype)?.Supertype == Cardtype.Creature).ToList()
+                : context.ZoneManager.GetCards(context.Controller, Zone.Graveyard)
+                    .Where(c => c is IHasSupertype ht && ht.Supertype == Cardtype.Creature).ToList();
             for (int i = 0; i < count && i < revivable.Count; i++)
             {
                 var card = revivable[i];
@@ -345,12 +348,13 @@ namespace CardCore.Attribute.Handlers
         {
             if (context.ZoneManager == null || context.Controller == null) return;
 
-            int count = effect.Value > 0 ? context.GetValueAfterModifiers(effect.Value) : 1;
-            // 优先回收已选目标卡；无目标时取控制者墓地前 N 张（快照避免迭代中移动）
+            // 2026-11-14 修复（回收类表病）：**张数=目标数**——「取几张」由 count/目标选择表达，
+            // 不再读 value（回收行模板无 {value}；value 只作旧数据/无目标兜底的回退张数）。
             var targeted = context.Targets?.OfType<Card>().ToList();
+            int fallback = effect.Value > 0 ? context.GetValueAfterModifiers(effect.Value) : 1;
             List<Card> toRecover = (targeted != null && targeted.Count > 0)
-                ? targeted.Take(count).ToList()
-                : context.ZoneManager.GetCards(context.Controller, Zone.Graveyard).Take(count).ToList();
+                ? targeted.ToList()                                   // 选了几张就回几张
+                : context.ZoneManager.GetCards(context.Controller, Zone.Graveyard).Take(fallback).ToList();
 
             foreach (var card in toRecover)
             {

@@ -424,8 +424,6 @@ namespace SynergyUI
         /// <summary>「使用」按钮条件（2026-11-01 SpUse 退役·合并口径）：
         /// 普通出牌=任一模式 CanAffordCast（含声明承诺 pending——代价补偿黑/白不预计算垫本卡，
         /// 2026-10-16 恢复旧序）+永久物另需单位区空格（满场不可出）；
-        /// 特殊行=充能（2026-11-05 系统动作化；2026-11-06 opt-in：卡面声明资格、本回合未充过且有
-        /// 可充颜色——点击时 CanCharge 终审；免费落层、颜色结算期反问）。
         /// 法术多主动（2026-11-01 抉择上卡）：使用钮按卡面效果行选中模式直入施放
         ///（选中行不可付时点击 toast 拒——亮钮条件仍是任一模式可付）。</summary>
         private bool FanCanUse(HandFanCard fan)
@@ -433,18 +431,7 @@ namespace SynergyUI
             if (!FanGateQuiet()) return false;
             var card = FanCardOf(fan);
             if (card == null) return false;
-            if (CardCastableNow(card)) return true;
-            var data = (card as CardWrapper)?.GetData();
-            if (data == null) return false;
-            // 充能（2026-11-05 系统动作化；2026-11-06 opt-in）：卡面声明 chargeAbility 的手牌卡——
-            // 本回合未充过（一张卡一回合一次）且还有可充颜色（卡具有且未充满）即亮；
-            // 颜色在结算期经引擎反问选。
-            if (card.GetZone() == Zone.Hand && data.ChargeAbility && !GameActions.ChargeUsedThisTurn(Core, card))
-            {
-                var info = GameActions.GetHandCardChargeInfo(Core, P1, card);
-                if (info.WindowOpen && info.RemainingByColor.Count > 0) return true;
-            }
-            return false;
+            return CardCastableNow(card);
         }
 
         /// <summary>卡当前可发动（无主阶段闸——闸由调用方外置）；法术=可付即可，永久物另需空格。
@@ -658,10 +645,9 @@ namespace SynergyUI
             return null;
         }
 
-        /// <summary>「使用」点击（2026-10-14 定案；2026-11-01 抉择上卡+充能上卡·SpUse 退役）：
-        /// 特殊行选中=充能（ChargeCardAsync——2026-11-05 系统动作化：宣言入栈，结算期反问选色）；
-        /// 普通=法术按卡面效果行选中模式直入声明流（模式窗退役）、永久物=模式窗（多模式）→选格、
-        /// 生物=直入召唤。再点选中特殊行取消即回本链。</summary>
+        /// <summary>「使用」点击（2026-10-14 定案；2026-11-01 抉择上卡·SpUse 退役）：
+        /// 法术按卡面效果行选中模式直入声明流（模式窗退役）、永久物=模式窗（多模式）→选格、
+        /// 生物=直入召唤。</summary>
         private void OnFanUse(HandFanCard fan)
         {
             if (NetActive) { NetOnFanUse(fan); return; } // 网络局：intent 上行（目标结算期反问）
@@ -671,14 +657,6 @@ namespace SynergyUI
             var data = (card as CardWrapper)?.GetData();
             if (data == null) return;
             var view = BattleView.FromRuntime(SerializableRuntimeCardState.FromCard(card), card, false);
-
-            // 充能上卡（2026-11-01）：卡面特殊行选中时 Use 钮承载对应入口（SpUse 退役）
-            var spKind = fan.SelectedSpKind;
-            if (spKind == SpEffectKind.Charge)
-            {
-                ChargeCardAsync(card); // 充能=速度0系统动作宣入（结算期反问元素类别）
-                return;
-            }
 
             if (data.Supertype == Cardtype.Spell)
             {
@@ -715,19 +693,6 @@ namespace SynergyUI
                 return;
             }
             BeginUseCellPicking(view, card, modeIndex);
-        }
-
-        /// <summary>充能（2026-11-05 系统动作化改版）：把充能作为速度0系统动作宣入栈（仿攻击宣言，
-        /// 对手获响应窗口）——**发动期不选色**：颜色在结算期经引擎反问下拉选择（只列此卡具有
-        /// 且未充满的颜色；本地=Select 窗下拉、网络=SelectRequest、AI/无头/超时自动取最大余量色）。
-        /// 确定后免费 +1 层同色费用降低指示物并展示此卡（不支付元素）；卡留手牌——净费随 RefreshLocal 回写。</summary>
-        private void ChargeCardAsync(Card card)
-        {
-            if (GameActions.DeclareCharge(Core, P1, card, out var reason))
-                _toast.Show("充能已宣入（响应窗口后结算——届时选择元素类别）");
-            else
-                _toast.Show($"充能失败：{reason}");
-            RefreshLocal();
         }
 
         /// <summary>模式窗变体（永久物出牌）：选完模式进入召唤出牌（恒普通召唤）→选格——文案口径同模式窗旧链，

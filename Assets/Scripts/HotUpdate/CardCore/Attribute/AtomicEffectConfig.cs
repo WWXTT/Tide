@@ -202,6 +202,19 @@ namespace CardCore.Attribute
         /// </summary>
         public List<int> GetTargetKindList() => KindListOf(Domain);
 
+        /// <summary>行模板是否写目标名词占位（{target}）——模板决定「这个原子有没有可指名的目标」。</summary>
+        public bool HasTargetNoun
+            => !string.IsNullOrEmpty(Description)
+               && Description.IndexOf("{target}", StringComparison.Ordinal) >= 0;
+
+        /// <summary>「域内单目标」行（2026-11-15 用户定案）：**声明了目标域（Domain）但模板不含 {target}**
+        /// ——默认从目标域中取 1 个目标（目标由域隐含，不写名词占位）；目标数量档恒 1、不开「动态」档，
+        /// 计价不吃数量档（防「数量档 × value」重复收费，如「弃掉{value}张手牌」）。
+        /// **无 Domain 且无 {target} 的行不属此类**——沿用代码内既有默认目标（抽牌/检索等 handler 自结算）。
+        /// 消费口三处同判（单源）：CardEffectConverter（装载收口 count=1）/
+        /// CostDerivation.QuantityFactor（数量档恒 1）/ EffectComposerScreen.Slots（合成器 pinCountOne）。</summary>
+        public bool IsSingleTargetRow => !string.IsNullOrEmpty(Domain) && !HasTargetNoun;
+
         /// <summary>战场 selector 是否含结界类别（派生无生命位 3/4 的条件）。</summary>
         private bool wantNonLivingFor(CardCore.TargetSelector s)
             => (s.Categories & CardCore.TargetCategory.Enchantment) != 0;

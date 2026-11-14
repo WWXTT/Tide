@@ -436,22 +436,13 @@ namespace SynergyUI
             return !_gameEnded && d != null && d.MyTurn && d.Phase == PhaseType.Main && !IsTargetSelecting();
         }
 
-        /// <summary>网络「使用」条件（2026-11-01 SpUse 退役·合并口径）：普通出牌=NetCardCastableNet；
-        /// 特殊行=充能（卡面声明 chargeAbility 才有——颜色余量服务器 CanCharge 终审，客户端不预闸）。</summary>
+        /// <summary>网络「使用」条件（2026-11-01 SpUse 退役·合并口径）：普通出牌=NetCardCastableNet。</summary>
         private bool NetFanCanUse(HandFanCard fan)
         {
             if (!NetFanGate()) return false;
             var card = NetHandViewOf(fan);
             if (card == null) return false;
-            if (NetCardCastableNet(card)) return true;
-            // 充能（2026-11-05 系统动作化；2026-11-06 opt-in）：卡面声明充能资格的手牌卡一回合一次
-            // 可宣（协议 114 改义承载）——客户端近似闸（服务器真校验兜底）。
-            var data = DataOf(card);
-            if (data == null || !data.ChargeAbility) return false;
-            CardCostService.GetPrePayloadCost(data, 0, out var preCost, out _);
-            foreach (var c in preCost.NonzeroColors())
-                if (c != ManaType.Any && preCost[c] > 0f) return true;
-            return false;
+            return NetCardCastableNet(card);
         }
 
         /// <summary>网络逐卡可发动（2026-10-28 可用性精确化，取代「主阶段全亮」近似）：
@@ -522,8 +513,7 @@ namespace SynergyUI
         }
 
         /// <summary>网络「使用」点击（2026-11-01 上卡·SpUse 退役）：
-        /// 特殊行选中=充能（IntentBuildCard 114）上行；普通=多主动法术按卡面效果行
-        /// 选中模式（selectedMode 上行）。服务器终审一切。</summary>
+        /// 多主动法术按卡面效果行选中模式（selectedMode 上行）。服务器终审一切。</summary>
         private void NetOnFanUse(HandFanCard fan)
         {
             var card = NetHandViewOf(fan);
@@ -535,23 +525,7 @@ namespace SynergyUI
                     _toast.Show(!_view.MyTurn ? "对手回合，暂不可操作" : "当前不是主要阶段");
                 return;
             }
-            var spKind = fan.SelectedSpKind;
-            if (spKind == SpEffectKind.Charge) { NetChargeAsync(card); return; }
             NetUseCardAsync(card, fan.SelectedEffectMode).Forget();
-        }
-
-        /// <summary>网络充能（2026-11-05 系统动作化改版）：**不选色直发** IntentBuildCard（协议 114，
-        /// Color 恒 −1——颜色改由服务器结算期反问下发 SelectRequest）。服务器 DeclareCharge 终审。</summary>
-        private void NetChargeAsync(BattleCardView card)
-        {
-            if (DataOf(card) == null || _netClient == null) return;
-
-            _netClient.Send(NetworkMessageType.IntentBuildCard, new MsgIntentBuildCard
-            {
-                CardRuntimeId = card.RuntimeId,
-                Color = -1, // 2026-11-05：充能色在服务器结算期反问（字段保留协议兼容，恒 −1）
-            });
-            _toast.Show("充能已宣入（服务器终审——结算期选择元素类别）");
         }
 
         /// <summary>网络出牌：模式抉择（Region）→ 永久物（生物/结界）

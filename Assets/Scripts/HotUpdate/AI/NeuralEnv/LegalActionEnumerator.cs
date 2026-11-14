@@ -28,9 +28,7 @@ namespace CardCore.AI.NeuralEnv
         RespondActivate = 9,     // 响应发动（主动；镜像 NetworkIntentApplier.ActivateWithTargets）
         Guard = 10,              // 守卫宣言（拦截栈上的攻击宣言对象）
         TapCreature = 11,        // 横置带地牌特性(LandTrait)的生物产 1 元素进临时钱包（主阶段；产色自动=费用首色）
-        Charge = 12,             // 充能（2026-11-05 系统动作化改版：任意手牌卡宣充能——速度0系统动作入栈，
-                                  // 一张卡一回合一次；**不再承载选色**——颜色结算期反问由引擎代选；
-                                  // CanCharge 单源闸）。
+        Charge = 12,             // 墓碑位（2026-11-15 充能整链删除，不复用编号；枚举器不再产生本动作）
     }
 
     /// <summary>一个可执行动作：模型输出离散下标 → 桥接按此结构调用 GameActions.*。</summary>
@@ -39,7 +37,11 @@ namespace CardCore.AI.NeuralEnv
         public TideActionType Type;
         public Card Card;                 // 来源卡（PlayCard/PlayLand/Activate/Guard 等；EndTurn/PassPriority 为 null）
         public Entity Target;             // 攻击目标（=Targets[0] 的兼容别名）；其余为 null
-        public List<Entity> Targets;      // 展开的目标组合（null = 无目标/随机/任意数量 → 引擎自动解析）
+        public List<Entity> Targets;      // 展开的目标组合（null = 无目标/随机 → 引擎自动解析；任意数量/动态数量现在也展开成显式目标集）
+        /// <summary>动态数量（2026-11-15 目标选择对齐）：下标=效果原子序，值=本次所选目标数（0=该原子非动态）。
+        /// null=非动态。Apply 时随 targets 一起交给引擎（base×N 计价 + 按 N 消费预选队列）。
+        /// 任意数量（-1）不需要它——目标集本身就是选择结果。</summary>
+        public List<int> DynamicCounts;
         public EffectDefinition Effect;   // Activate/RespondActivate/VoluntaryTrigger 的效果定义
         public int ModeIndex;             // 抉择模式下标（非抉择恒 0；HeroSkill 行恒 0——技能卡在 Card 上）
         public PendingEffect Pending;     // VoluntaryTrigger/RespondActivate 的待发对象（引擎队列实例）
@@ -85,7 +87,9 @@ namespace CardCore.AI.NeuralEnv
             {
                 string t = TargetsKey();
                 string ctx = ResponseContext ? "R" : "M";
-                return $"{(int)Type}|{Card?.ID ?? "-"}|{Effect?.Id ?? "-"}|{t}|{ModeIndex}|{ctx}|-";
+                string d = DynamicCounts == null || DynamicCounts.Count == 0
+                    ? "-" : string.Join(".", DynamicCounts);
+                return $"{(int)Type}|{Card?.ID ?? "-"}|{Effect?.Id ?? "-"}|{t}|{ModeIndex}|{ctx}|{d}";
             }
         }
 
@@ -126,6 +130,13 @@ namespace CardCore.AI.NeuralEnv
     {
         /// <summary>多目标（Multiple/MultipleUnion）组合枚举上限（契约第 4 节：每效果 24 组截断）。</summary>
         private const int MaxTargetCombos = 24;
+
+        /// <summary>任意数量/动态数量的子集行上限（2026-11-15 目标选择对齐）：每 spec 最多 64 行
+        /// （1..N 按数量升序、同数量按候选序字典序）——覆盖小数量全组合 + 全取行。</summary>
+        private const int MaxSubsetRows = 64;
+
+        /// <summary>单效果展开总行上限（多 spec 笛卡尔合并后）——防组合爆炸拖垮动作表/掩码。</summary>
+        private const int MaxExpansionRows = 128;
 
         /// <summary>动作表硬上限（v3 契约 §6：与 Python MAX_ACTIONS / OnnxTidePolicy.MaxActions 三处同步）。
         /// 超限时保留前 MaxActions-1 行 + 恒保末位兜底行（Main=EndTurn / 响应=PassPriority）——
@@ -170,7 +181,6 @@ namespace CardCore.AI.NeuralEnv
             EnumeratePlayLand(core, me, zm);
             EnumeratePlayCard(core, me, zm);
             EnumerateActivate(core, me, zm);
-            EnumerateCharge(core, me, zm);
             EnumerateAttack(core, me, opp, zm);
             EnumerateHeroSkill(core, me);
             EnumerateVoluntaryTriggers(core, me);
@@ -258,15 +268,18 @@ namespace CardCore.AI.NeuralEnv
                 case TideActionType.PlayCard:
                     // v10 牌库顶变体行：卡在牌库（TopDeckAsHandAura 授权）→ fromZone=Deck
                     //（引擎 PlayCard 内 TopDeckPlaySource 终审，未授权安全拒）；否则照旧手牌源
+                    // 2026-11-15 目标选择对齐：预选目标 + 动态数量原样交给引擎（结算期不再反问）
                     return GameActions.PlayCard(core, me, a.Card, a.Targets,
-                        core.ZoneManager.IsCardInZone(a.Card, me, Zone.Deck) ? Zone.Deck : Zone.Hand, a.ModeIndex);
+                        core.ZoneManager.IsCardInZone(a.Card, me, Zone.Deck) ? Zone.Deck : Zone.Hand,
+                        a.ModeIndex, null, a.DynamicCounts, out _);
                 case TideActionType.PlayLand:
                     // ModeIndex 复用为锁色选择（2026-10-11：-1=缺省主色，否则=ManaType 枚举值）
                     return GameActions.AddToElementPool(core, me, a.Card,
                         a.ModeIndex >= 0 ? (ManaType)a.ModeIndex : (ManaType?)null);
                 case TideActionType.Activate:
                 case TideActionType.RespondActivate:
-                    return ActivateWithTargets(core, me, a.Effect, a.Card, a.Targets);
+                    return ActivateWithTargets(core, me, a.Effect, a.Card, a.Targets, a.DynamicCounts,
+                        a.Type == TideActionType.RespondActivate);
                 case TideActionType.Attack:
                     return a.HeroAttacker
                         ? GameActions.DeclareAttack(core, me, me, a.Target) // 角色=攻击者（弹药即攻击力）
@@ -274,24 +287,22 @@ namespace CardCore.AI.NeuralEnv
                 case TideActionType.EndTurn:
                     return GameActions.EndTurn(core, me);
                 case TideActionType.HeroSkill:
-                    // 不走栈（HeroSkillSystem.ActivateAsync 直执行）；async 在无头双方 IsAI 下同步收敛
-                    //（SimpleAI.UseHeroSkill 同款 GetResult 先例）；ModeIndex=效果抉择序号（多效果技能）
-                    return GameActions.ActivateHeroSkill(core, me, a.ModeIndex).GetAwaiter().GetResult();
+                    // 2026-11-15 目标选择对齐：英雄技能走带目标/动态数量的官方口（预选随
+                    // PendingEffect 入栈，结算期按预选队列消费，不再依赖 AiOrder 代选）。
+                    // ModeIndex=效果抉择序号（多效果技能）；targets/counts 为 null 时行为同旧口。
+                    return GameActions.ActivateHeroSkill(core, me, a.ModeIndex, a.Targets, a.DynamicCounts, out _);
                 case TideActionType.VoluntaryTrigger:
                     return a.Pending != null && core.StackEngine.PlayerActivateVoluntary(a.Pending);
                 case TideActionType.PassPriority:
                     return GameActions.PassPriority(core, me);
                 case TideActionType.RespondPlay:
-                    return GameActions.PlayCardInResponse(core, me, a.Card, a.Targets, a.ModeIndex);
+                    return GameActions.PlayCardInResponse(core, me, a.Card, a.Targets, a.ModeIndex,
+                        null, a.DynamicCounts, out _);
                 case TideActionType.Guard:
                     return a.Card != null && a.AttackInstance != null
                         && core.StackEngine.PushGuardDeclaration(a.Card, a.AttackInstance, me);
                 case TideActionType.TapCreature:
                     return GameActions.TapCreatureForElement(core, me, a.Card);
-                case TideActionType.Charge:
-                    // 充能（2026-11-05 系统动作化改版）：任意手牌卡宣充能（速度0系统动作）——
-                    // CanCharge 单源终审；颜色在结算期反问由引擎代选（AI 自动取最大余量色）
-                    return GameActions.DeclareCharge(core, me, a.Card, out _);
                 default:
                     return false;
             }
@@ -363,15 +374,21 @@ namespace CardCore.AI.NeuralEnv
 
         /// <summary>
         /// 带目标的主动激活（镜像 NetworkIntentApplier.ActivateWithTargets）：targets 空 → 公共入口
-        /// ActivateEffect；有预选目标 → PendingEffect.Create 携带 SelectedTargets 走 PlayerActivateVoluntary
+        /// ActivateEffect（响应窗口走 ActivateEffectInResponse——主阶段闸不适用于连锁）；
+        /// 有预选目标 → PendingEffect.Create 携带 SelectedTargets 走 PlayerActivateVoluntary
         /// （速度门/记速器在栈机器内；横置消耗同口径）。
+        /// 2026-11-15 目标选择对齐：dynamicCounts 先落效果原子（base×N 计价；null=无动态）。
         /// </summary>
         private static bool ActivateWithTargets(GameCore core, Player player, EffectDefinition effect,
-            Card source, List<Entity> targets)
+            Card source, List<Entity> targets, IReadOnlyList<int> dynamicCounts, bool responseContext)
         {
             if (effect == null) return false;
+            // 动态数量：预检/扣费/执行同表（幂等；null 无操作）
+            CostDerivationService.ApplyDynamicCounts(effect, dynamicCounts);
             if (targets == null || targets.Count == 0)
-                return GameActions.ActivateEffect(core, player, effect, source);
+                return responseContext
+                    ? GameActions.ActivateEffectInResponse(core, player, effect, source)
+                    : GameActions.ActivateEffect(core, player, effect, source, 0);
 
             var pending = PendingEffect.Create(
                 effect, source, player,
@@ -431,11 +448,12 @@ namespace CardCore.AI.NeuralEnv
                     if (!TargetDomainService.HasPlayableTargets(core, me, c, m)) continue; // 域空不可出（镜像 PlayCard 预检）
 
                     int src = TideObservation.CardIndex(me, me, Zone.Hand, i);
-                    // 普通行：全净费可付
+                    // 普通行：全净费可付（动态数量行按 base×N 预过滤，见 ExpandCardTargets）
                     if (GameActions.CanAffordCast(core, me, c, m))
-                        foreach (var targets in ExpandCardTargets(core, me, c, m))
-                            Actions.Add(BuildTargetedRow(TideActionType.PlayCard, c, m, src, targets,
-                                reference: ReferencePickOf(core, me, c, m, targets)));
+                        foreach (var set in ExpandCardTargets(core, me, c, m))
+                            Actions.Add(BuildTargetedRow(TideActionType.PlayCard, c, m, src, set.Targets,
+                                reference: ReferencePickOf(core, me, c, m, set.Targets),
+                                dynamicCounts: set.Counts));
                 }
             }
 
@@ -456,9 +474,10 @@ namespace CardCore.AI.NeuralEnv
                 if (!IsSpell(top) && !top.IsFieldCard() && !zm.HasBattlefieldSpace(me)) continue;
                 if (!TargetDomainService.HasPlayableTargets(core, me, top, m)) continue;
                 if (!GameActions.CanAffordCast(core, me, top, m)) continue;
-                foreach (var targets in ExpandCardTargets(core, me, top, m))
-                    Actions.Add(BuildTargetedRow(TideActionType.PlayCard, top, m, TideObservation.DeckTopSlot, targets,
-                        reference: ReferencePickOf(core, me, top, m, targets)));
+                foreach (var set in ExpandCardTargets(core, me, top, m))
+                    Actions.Add(BuildTargetedRow(TideActionType.PlayCard, top, m, TideObservation.DeckTopSlot, set.Targets,
+                        reference: ReferencePickOf(core, me, top, m, set.Targets),
+                        dynamicCounts: set.Counts));
             }
         }
 
@@ -491,31 +510,6 @@ namespace CardCore.AI.NeuralEnv
             }
         }
 
-        /// <summary>充能枚举（2026-11-05 系统动作化改版）：己方手牌 × 本回合未充过 × 有可充颜色
-        ///——**每卡一行**（不再逐色展开：颜色在结算期反问由引擎代选，AI 自动取最大余量色）。
-        /// CanCharge 单源闸（己方主阶段/空栈/手牌/一张卡一回合一次/余量全检）。
-        /// 对手回合响应档已随改版退役（充能=速度0系统动作，0 速无法接链）。</summary>
-        private void EnumerateCharge(GameCore core, Player me, ZoneManager zm)
-        {
-            var hand = zm.GetCards(me, Zone.Hand);
-            if (core.StackEngine != null) hand = hand.Where(c => !core.StackEngine.IsPendingCast(c)).ToList(); // S3b
-            for (int i = 0; i < hand.Count; i++)
-            {
-                var c = hand[i];
-                if (c == null) continue;
-                if (!GameActions.CanCharge(core, me, c, out _)) continue;
-                int src = TideObservation.CardIndex(me, me, Zone.Hand, i);
-                Actions.Add(new TideAction
-                {
-                    Type = TideActionType.Charge,
-                    Card = c,
-                    SourceIndex = src,
-                    TargetIndex = -1,
-                    TargetKindCode = 0,
-                });
-            }
-        }
-
         /// <summary>效果含移动原子（MoveUnit——2026-10-31 场面轴3c）：AI 枚举本阶段跳过
         ///（动作行无选格参数，发动=白付代价空转）；接线选格参数后移除本闸。</summary>
         private static bool ContainsMoveUnitAtom(EffectDefinition def)
@@ -527,17 +521,20 @@ namespace CardCore.AI.NeuralEnv
         }
 
         /// <summary>主动动作行（带逐目标展开）：Main=Activate / 响应窗口=RespondActivate 共用。
-        /// 展开口径：def 自身 SelectionMode/组合域（主动无抉择模式，modeIndex 恒 0）。</summary>
+        /// 展开口径：def 自身 SelectionMode/组合域（主动无抉择模式，modeIndex 恒 0）。
+        /// 2026-11-15：任意数量（-1）与动态数量（-3）也展开成显式目标集行（不再交给引擎代选）。</summary>
         private void AddActivatedRows(GameCore core, Player me, Card src, EffectDefinition def,
             TideActionType type, int sourceSlot = -2)
         {
             if (sourceSlot == -2) sourceSlot = TideObservation.IndexOfCard(core, me, src);
-            var expansions = new List<List<Entity>>();
+            var expansions = new List<TargetSet>();
             ExpandDefinitionTargets(core, me, src, def, 0, expansions);
-            if (expansions.Count == 0) expansions.Add(null);
+            if (expansions.Count == 0) expansions.Add(default);
             bool response = type == TideActionType.RespondActivate;
-            foreach (var targets in expansions)
-                Actions.Add(BuildTargetedRow(type, src, 0, sourceSlot, targets, response, def));
+            foreach (var set in expansions)
+                if (set.Counts == null || DynamicCountAffordable(core, me, def, set.Counts))
+                    Actions.Add(BuildTargetedRow(type, src, 0, sourceSlot, set.Targets, response, def,
+                        dynamicCounts: set.Counts));
         }
 
         private void EnumerateAttack(GameCore core, Player me, Player opp, ZoneManager zm)
@@ -619,8 +616,11 @@ namespace CardCore.AI.NeuralEnv
 
         /// <summary>英雄技能行（2026-10-15 改版：技能=技能区法术、每回合一次=横置闸）：技能卡在场/
         /// 未横置/未沉默 + 逐效果 CanActivate 预检（ActivateAsync 守卫镜像）。
-        /// 挂 1~3 效果——**逐效果一行**（ModeIndex=效果序号，发动时抉择）；技能卡在场地区——
-        /// v3 起场地区槽 [45] 已编码，SourceIndex 可解析。目标选择在结算期解析（单行）。</summary>
+        /// 挂 1~3 效果——**逐效果展开目标集**（ModeIndex=效果序号，发动时抉择）；技能卡在场地区——
+        /// v3 起场地区槽 [45] 已编码，SourceIndex 可解析。
+        /// 2026-11-15 目标选择对齐：与人类的「结算帧选择窗」同源展开（CollectSpecPlan 候选）——
+        /// 选一逐候选、选 N 组合、任意数量/动态数量按子集行展开；targets 随动作行下发，
+        /// 结算期按预选队列消费（不再靠 AiOrder 代选）。目标源=技能卡（与声明收集/结算同源）。</summary>
         private void EnumerateHeroSkill(GameCore core, Player me)
         {
             var skillCard = HeroSkillSystem.ResolveSkillCard(core, me);
@@ -640,15 +640,16 @@ namespace CardCore.AI.NeuralEnv
             {
                 var effect = effects[e];
                 if (!executor.CanActivate(effect, skillCard, me, me, phase, turn)) continue;
-                Actions.Add(new TideAction
+                var slots = new List<TargetSet>();
+                ExpandDefinitionTargets(core, me, skillCard, effect, 0, slots, sourceOverride: skillCard);
+                if (slots.Count == 0) slots.Add(default);
+                int slot = TideObservation.IndexOfCard(core, me, skillCard); // 场地区槽（v3 已编码）
+                foreach (var set in slots)
                 {
-                    Type = TideActionType.HeroSkill,
-                    Card = skillCard,
-                    Effect = effect,       // 特征[6] 效果身份哈希按所选效果编码
-                    ModeIndex = e,         // 效果抉择序号（单效果卡恒 0）
-                    SourceIndex = TideObservation.IndexOfCard(core, me, skillCard), // 场地区槽（v3 已编码）
-                    TargetIndex = -1,
-                });
+                    if (set.Counts != null && !DynamicCountAffordable(core, me, effect, set.Counts)) continue;
+                    Actions.Add(BuildTargetedRow(TideActionType.HeroSkill, skillCard, e, slot, set.Targets,
+                        effect: effect, dynamicCounts: set.Counts));
+                }
             }
         }
 
@@ -748,9 +749,10 @@ namespace CardCore.AI.NeuralEnv
                     if (!TargetDomainService.HasPlayableTargets(core, me, c, m)) continue;
 
                     int src = TideObservation.CardIndex(me, me, Zone.Hand, i);
-                    foreach (var targets in ExpandCardTargets(core, me, c, m))
-                        Actions.Add(BuildTargetedRow(TideActionType.RespondPlay, c, m, src, targets, response: true,
-                            reference: ReferencePickOf(core, me, c, m, targets)));
+                    foreach (var set in ExpandCardTargets(core, me, c, m))
+                        Actions.Add(BuildTargetedRow(TideActionType.RespondPlay, c, m, src, set.Targets, response: true,
+                            reference: ReferencePickOf(core, me, c, m, set.Targets),
+                            dynamicCounts: set.Counts));
                 }
             }
         }
@@ -759,7 +761,8 @@ namespace CardCore.AI.NeuralEnv
         /// 填 Target 兼容别名、槽位与目标类别特征。reference=参照角色选位镜像（步5 §3.5——
         /// Reference Enumerate spec 的选择结果带进动作行，特征 [11] 编码；null=无参照）。</summary>
         private TideAction BuildTargetedRow(TideActionType type, Card card, int modeIndex, int sourceSlot,
-            List<Entity> targets, bool response = false, EffectDefinition effect = null, Entity reference = null)
+            List<Entity> targets, bool response = false, EffectDefinition effect = null, Entity reference = null,
+            List<int> dynamicCounts = null)
         {
             var a = new TideAction
             {
@@ -767,6 +770,7 @@ namespace CardCore.AI.NeuralEnv
                 Card = card,
                 ModeIndex = modeIndex,
                 Targets = targets,
+                DynamicCounts = dynamicCounts,
                 Effect = effect,
                 SourceIndex = sourceSlot,
                 ResponseContext = response,
@@ -797,52 +801,62 @@ namespace CardCore.AI.NeuralEnv
 
         // ===================================================== 目标展开（镜像 SimpleAI.ChooseTargets 口径） =====================================================
 
+        /// <summary>目标集合行（2026-11-15 目标选择对齐）：Targets=预选目标集（null=引擎自动解析），
+        /// Counts=每原子动态数量（下标=效果原子序；null=非动态）。</summary>
+        private readonly struct TargetSet
+        {
+            public readonly List<Entity> Targets;
+            public readonly List<int> Counts;
+            public TargetSet(List<Entity> targets, List<int> counts = null) { Targets = targets; Counts = counts; }
+        }
+
         /// <summary>出牌目标展开（PlayCard/RespondPlay 共用）：FirstDomainEffect 找带组合域的施放即结算效果，
         /// 按其 SelectionMode 展开；无目标效果返回 [null]（单行，引擎自动解析）。</summary>
-        private static List<List<Entity>> ExpandCardTargets(GameCore core, Player me, Card card, int modeIndex)
+        private static List<TargetSet> ExpandCardTargets(GameCore core, Player me, Card card, int modeIndex)
         {
-            var result = new List<List<Entity>>();
+            var result = new List<TargetSet>();
             var def = FirstDomainEffect(card, modeIndex);
             if (def == null)
             {
-                result.Add(null); // 无需选目标 → 引擎自动
+                result.Add(default); // 无需选目标 → 引擎自动
                 return result;
             }
             ExpandDefinitionTargets(core, me, card, def, modeIndex, result);
-            if (result.Count == 0) result.Add(null);
+            result.RemoveAll(s => s.Counts != null && !DynamicCountAffordable(core, me, def, s.Counts));
+            if (result.Count == 0) result.Add(default);
             return result;
         }
 
-        /// <summary>按效果定义的目标模式展开（v8 多目标 2026-11-02 两口径分流）：
+        /// <summary>按效果定义的目标模式展开（v8 多目标 2026-11-02 两口径分流；2026-11-15 任意/动态对齐）：
         /// <para>逐原子口径（PerAtomTargets=true，header 无 kinds 声明）→ <see cref="ExpandPerAtomTargets"/>：
         /// 候选域=atom.kinds/filter、数量=每原子 effCount（>1 压过选一模式）——与人类声明期收集器/
         /// 结算路径 ResolveAtomTargetsAsync 完全同口径（CollectAtomTargetSpecs 单源）。</para>
-        /// 组合层口径（header 域共享）：None/无域/随机/任意数量 → 单行 null（引擎自动——随机档不弹选择自动抽取）；
-        /// Whole/WholeUnion → 单行全取候选；Single/SingleUnion → 逐候选一行；
+        /// 组合层口径（header 域共享）：无域/随机 → 单行 null（引擎自动）；Whole/WholeUnion → 单行全取；
+        /// Single/SingleUnion → 逐候选一行；任意数量（TargetCount=-1）→ 1..N 子集行；
         /// Multiple/MultipleUnion（TargetCount&gt;0）→ 引擎候选序组合枚举，上限 MaxTargetCombos 截断。
         /// 候选= ResolveCandidates（与引擎 ResolveCompositionTargetsAsync / SimpleAI.ChooseTargets 同源）。</summary>
         private static void ExpandDefinitionTargets(GameCore core, Player me, Card card, EffectDefinition def,
-            int modeIndex, List<List<Entity>> sink)
+            int modeIndex, List<TargetSet> sink, Entity sourceOverride = null)
         {
             if (def.PerAtomTargets)
             {
-                ExpandPerAtomTargets(core, me, card, def, sink);
-                if (sink.Count == 0) sink.Add(null); // 全部原子自动/任意 → 单行 null（引擎自解析）
+                ExpandPerAtomTargets(core, me, card, def, sink, sourceOverride);
+                if (sink.Count == 0) sink.Add(default); // 全部原子自动/免弹 → 单行 null（引擎自解析）
                 return;
             }
 
             var domain = DomainOfMode(def, modeIndex);
             if (domain == null || domain.Count == 0 || def.SelectionMode == SelectionMode.None)
             {
-                sink.Add(null);
+                sink.Add(default);
                 return;
             }
 
-            var ctx = BuildTargetCtx(core, me, card);
+            var ctx = BuildTargetCtx(core, me, card, sourceOverride);
             var candidates = CardCore.Attribute.EffectHandlerRegistry.ResolveCandidates(domain, def.TargetFilter, ctx);
             if (candidates == null || candidates.Count == 0)
             {
-                sink.Add(null);
+                sink.Add(default);
                 return;
             }
 
@@ -850,19 +864,26 @@ namespace CardCore.AI.NeuralEnv
             {
                 case SelectionMode.Whole:
                 case SelectionMode.WholeUnion:
-                    sink.Add(new List<Entity>(candidates)); // 全取档单行（不弹选择）
+                    sink.Add(new TargetSet(new List<Entity>(candidates))); // 全取档单行（不弹选择）
                     return;
             }
-            if (def.RandomTarget || def.DynamicTargetCount)
+            if (def.RandomTarget)
             {
-                sink.Add(null); // 随机自动抽取 / 运行时自选数量：单行交引擎（AI 应答代选）
+                sink.Add(default); // 随机自动抽取：单行交引擎
                 return;
             }
 
             if (SelectionModeRules.IsPickOne(def.SelectionMode))
             {
                 foreach (var t in candidates)
-                    sink.Add(new List<Entity> { t });
+                    sink.Add(new TargetSet(new List<Entity> { t }));
+                return;
+            }
+
+            // 任意数量（-1，2026-11-15 对齐人类「任意数量」窗）：1..N 任意子集 → 显式子集行
+            if (def.TargetCount == -1)
+            {
+                AddSubsetRows(candidates, -1, 0, sink);
                 return;
             }
 
@@ -870,10 +891,12 @@ namespace CardCore.AI.NeuralEnv
             int need = def.TargetCount;
             if (need <= 0 || need >= candidates.Count)
             {
-                sink.Add(new List<Entity>(candidates)); // 未声明/超出候选 → 全取兜底
+                sink.Add(new TargetSet(new List<Entity>(candidates))); // 未声明/超出候选 → 全取兜底
                 return;
             }
-            EmitCombinations(candidates, need, MaxTargetCombos, sink);
+            var combos = new List<List<Entity>>();
+            EmitCombinations(candidates, need, MaxTargetCombos, combos);
+            foreach (var combo in combos) sink.Add(new TargetSet(combo));
         }
 
         /// <summary>参照角色选位（步5 §3.5）：效果 spec 计划首个 Enumerate spec 为 Reference 时，
@@ -892,63 +915,141 @@ namespace CardCore.AI.NeuralEnv
                 ? targets[0] : null;
         }
 
-        /// <summary>逐原子目标展开（v8 多目标 2026-11-02；步5 2026-11-08 切 spec 计划单源）：
+        /// <summary>逐原子目标展开（v8 多目标 2026-11-02；步5 2026-11-08 切 spec 计划单源；
+        /// 2026-11-15 任意/动态数量对齐人类窗口）：
         /// 按 CollectSpecPlan 规格**仅展开 AiMode=Enumerate 的 spec**（参照 spec=逐参照候选一行；
         /// 分段受体 spec=Auto 不展开——结算期引擎/AiOrder 代选，不与参照维做笛卡尔积 §7 坑③；
         /// 同域共享组=单 spec 单选位——同域并列原子共享目标）；候选已完成两道过滤（与结算路径
-        /// 交互分支同序）；任意数量（-1）与单目标免弹档（AutoTake∧effCount&lt;=1）不占选择权；
-        /// 选 N 档被免弹自动取（候选≤需求）仍显式展开唯一组合=全候选；选一逐候选一行；
-        /// 选 N（effCount&gt;1）组合枚举；多规格=笛卡尔串接（返回序=计划序=预选队列有序消费对齐），
-        /// 总行数 cap=MaxTargetCombos 截断。行内 Targets 完整（特征只编码前 3 个目标）。</summary>
+        /// 交互分支同序）；**任意数量（-1）与动态数量（-3）展开 1..N 子集行**（人类任意数量窗的
+        /// 等价选择；动态行同时写每原子数量——base×N 计价与 N 消费预选同表）；单目标免弹档
+        /// （AutoTake∧effCount&lt;=1）不预选；选 N 档被免弹自动取（候选≤需求）仍显式展开唯一组合
+        /// =全候选；选一逐候选一行；选 N（effCount&gt;1）组合枚举；多规格=笛卡尔串接（返回序=计划序
+        /// =预选队列有序消费对齐），总行数 cap=MaxExpansionRows 截断。行内 Targets 完整
+        /// （特征只编码前 3 个目标 + 目标数）。</summary>
         private static void ExpandPerAtomTargets(GameCore core, Player me, Card card, EffectDefinition def,
-            List<List<Entity>> sink)
+            List<TargetSet> sink, Entity sourceOverride = null)
         {
-            var ctx = BuildTargetCtx(core, me, card);
+            var ctx = BuildTargetCtx(core, me, card, sourceOverride);
             var specs = CardCore.Attribute.EffectHandlerRegistry.CollectSpecPlan(def, ctx)
                 .Where(s => s.AiMode == CardCore.Attribute.AiPickMode.Enumerate)
                 .ToList();
             if (specs.Count == 0) return;
 
-            var rows = new List<List<Entity>> { new List<Entity>() }; // 笛卡尔种子（空行）
+            int atomCount = def.Effects?.Count ?? 0;
+            var rows = new List<TargetSet> { new TargetSet(new List<Entity>()) }; // 笛卡尔种子（空行）
             foreach (var spec in specs)
             {
-                if (spec.EffCount == -1 || spec.EffCount == -3
-                    || (spec.AutoTake && spec.EffCount <= 1)) continue; // 运行时自选/动态数量/单目标免弹——不预选
-
-                var atomRows = new List<List<Entity>>();
-                if (spec.AutoTake)
+                var atomRows = new List<TargetSet>();
+                bool dynamic = spec.EffCount == AtomicEffectInstance.DynamicTargetCount;
+                if (spec.EffCount == -1 || dynamic)
                 {
-                    var forced = new List<Entity>(); // 候选≤需求的选 N 档：唯一组合=全候选（与引擎 AutoTake.Take 同取值）
+                    // 任意数量/动态数量：1..N 子集行 = 人类窗口的任意子集选择；
+                    // 动态行写每原子数量（-3 → 引擎按 base×N 计价、按 N 消费预选）
+                    AddSubsetRows(spec.Candidates, dynamic ? spec.AtomIndex : -1, atomCount, atomRows);
+                }
+                else if (spec.AutoTake && spec.EffCount <= 1)
+                {
+                    continue; // 单目标免弹档：不预选（引擎自动取）
+                }
+                else if (spec.AutoTake)
+                {
+                    var forced = new List<Entity>(); // 候选≤需求的选 N 档：唯一组合=全候选（与引擎 AutoTake 同取值）
                     for (int i = 0; i < spec.Candidates.Count && i < spec.EffCount; i++) forced.Add(spec.Candidates[i]);
-                    atomRows.Add(forced);
+                    atomRows.Add(new TargetSet(forced));
                 }
                 else if (spec.EffCount <= 1)
                 {
                     foreach (var t in spec.Candidates)
-                        atomRows.Add(new List<Entity> { t }); // 选一：逐候选一行
+                        atomRows.Add(new TargetSet(new List<Entity> { t })); // 选一：逐候选一行
                 }
                 else
                 {
                     // 选 N：候选≤需求已由 AutoTake 吸收（ShouldAutoTake），此处恒组合枚举
-                    EmitCombinations(spec.Candidates, spec.EffCount, MaxTargetCombos, atomRows);
+                    var combos = new List<List<Entity>>();
+                    EmitCombinations(spec.Candidates, spec.EffCount, MaxTargetCombos, combos);
+                    foreach (var combo in combos) atomRows.Add(new TargetSet(combo));
                 }
 
-                var next = new List<List<Entity>>();
-                foreach (var prefix in rows)
-                {
-                    foreach (var tail in atomRows)
-                    {
-                        var merged = new List<Entity>(prefix);
-                        merged.AddRange(tail);
-                        next.Add(merged);
-                        if (next.Count >= MaxTargetCombos) break;
-                    }
-                    if (next.Count >= MaxTargetCombos) break;
-                }
-                rows = next;
+                if (atomRows.Count == 0) continue;
+                rows = MergeCartesian(rows, atomRows, atomCount);
             }
             foreach (var r in rows)
-                if (r.Count > 0) sink.Add(r);
+                if (r.Targets.Count > 0) sink.Add(r);
+        }
+
+        /// <summary>目标集笛卡尔串接（多 spec 合并；Counts 按原子下标合并——各 spec 只写自己的原子位）。</summary>
+        private static List<TargetSet> MergeCartesian(List<TargetSet> rows, List<TargetSet> atomRows, int atomCount)
+        {
+            var next = new List<TargetSet>();
+            foreach (var prefix in rows)
+            {
+                foreach (var tail in atomRows)
+                {
+                    var merged = new List<Entity>(prefix.Targets);
+                    merged.AddRange(tail.Targets);
+                    List<int> counts = null;
+                    if (prefix.Counts != null || tail.Counts != null)
+                    {
+                        counts = new List<int>(atomCount);
+                        for (int i = 0; i < atomCount; i++) counts.Add(0);
+                        if (prefix.Counts != null)
+                            for (int i = 0; i < atomCount && i < prefix.Counts.Count; i++) counts[i] = prefix.Counts[i];
+                        if (tail.Counts != null)
+                            for (int i = 0; i < atomCount && i < tail.Counts.Count; i++) counts[i] = tail.Counts[i];
+                    }
+                    next.Add(new TargetSet(merged, counts));
+                    if (next.Count >= MaxExpansionRows) return next;
+                }
+            }
+            return next;
+        }
+
+        /// <summary>任意子集行（2026-11-15 目标选择对齐）：k=1..N 的候选组合，上限 MaxSubsetRows；
+        /// 末尾恒补「全取」行（大数量选择：一次祭光全部候选）。atomIndex&lt;0=非动态（不写数量）。
+        /// 取舍说明：平坦动作空间无法枚举 2^N 全部子集（与固定 N 档的 24 组上限同一取舍）——
+        /// 这里覆盖「小数量全组合 + 全取」，训练可学「祭几张、祭哪几张」的核心决策；
+        /// 超出上限的大数量组合不在动作空间内（可走「全取」行或策略代选行）。</summary>
+        private static void AddSubsetRows(List<Entity> candidates, int atomIndex, int atomCount, List<TargetSet> sink)
+        {
+            int n = candidates.Count;
+            int start = sink.Count;
+            for (int k = 1; k <= n; k++)
+            {
+                int remain = MaxSubsetRows - (sink.Count - start);
+                if (remain <= 0) break;
+                var combos = new List<List<Entity>>();
+                EmitCombinations(candidates, k, remain, combos);
+                foreach (var combo in combos)
+                    sink.Add(new TargetSet(combo, atomIndex >= 0 ? NewCounts(atomCount, atomIndex, combo.Count) : null));
+            }
+            if (n > 1)
+            {
+                bool hasAll = false;
+                for (int i = start; i < sink.Count; i++)
+                    if (sink[i].Targets.Count == n) { hasAll = true; break; }
+                if (!hasAll)
+                    sink.Add(new TargetSet(new List<Entity>(candidates),
+                        atomIndex >= 0 ? NewCounts(atomCount, atomIndex, n) : null));
+            }
+        }
+
+        private static List<int> NewCounts(int atomCount, int atomIndex, int value)
+        {
+            var counts = new List<int>(atomCount);
+            for (int i = 0; i < atomCount; i++) counts.Add(0);
+            if (atomIndex >= 0 && atomIndex < counts.Count) counts[atomIndex] = value;
+            return counts;
+        }
+
+        /// <summary>动态数量行预过滤（2026-11-15）：按 base×N 推费用粗检（总费 ≤ 当前可用总量）——
+        /// 精确逐色可付性仍由 Apply 时引擎终审；此闸只去掉明显付不起的行（降动作掩码噪声）。</summary>
+        private static bool DynamicCountAffordable(GameCore core, Player me, EffectDefinition def,
+            IReadOnlyList<int> counts)
+        {
+            if (counts == null || def == null) return true;
+            var cost = CostDerivationService.DeriveElementCosts(def, 0, counts);
+            if (cost == null || cost.Total <= 0f) return true;
+            return cost.Total <= core.ElementPool.GetTotalAvailableMana(me) + 0.001f;
         }
 
         /// <summary>候选序组合枚举（字典序前 cap 组）：候选序=引擎 ResolveCandidates 返回序（契约口径）。</summary>
@@ -1003,7 +1104,8 @@ namespace CardCore.AI.NeuralEnv
                 // 目标展开的四类动作才有次目标；其余类型（Attack/Guard 恒单目标、无目标类）恒 -1/按
                 // TargetKindCode 单目标计数（构造点不设字段，struct 默认 0 在此闸强制归位，防误读为槽 0）
                 bool expanded = a.Type == TideActionType.PlayCard || a.Type == TideActionType.RespondPlay
-                    || a.Type == TideActionType.Activate || a.Type == TideActionType.RespondActivate;
+                    || a.Type == TideActionType.Activate || a.Type == TideActionType.RespondActivate
+                    || a.Type == TideActionType.HeroSkill; // 2026-11-15：英雄技能也按目标集展开（目标数/次目标可见）
                 Features[b + 8] = expanded ? a.TargetIndex2 : -1;            // Targets[1] 槽位（-1=无/截断）
                 Features[b + 9] = expanded ? a.TargetIndex3 : -1;            // Targets[2] 槽位（-1=无/截断）
                 Features[b + 10] = expanded                                  // 目标数（0..8 钳；全取行=候选数）
@@ -1022,14 +1124,13 @@ namespace CardCore.AI.NeuralEnv
             {
                 case TideActionType.PlayCard:
                 case TideActionType.RespondPlay:
-                    return GameActions.GetCardCost(a.Card, a.ModeIndex).Total;
+                    return GameActions.GetCardCost(a.Card, a.ModeIndex, a.DynamicCounts).Total; // 动态数量：base×N 同表
                 case TideActionType.Activate:
                 case TideActionType.RespondActivate:
                 case TideActionType.VoluntaryTrigger:
                 case TideActionType.HeroSkill: // 技能发动费（2026-11-01 锚价现付定案）：与主动效果同价源现推
-                    return CostDerivationService.DeriveElementCosts(a.Effect, 0).Total; // 效果费现推（主动/自愿桶发动时现付——L1 现推口径）
-                case TideActionType.Charge:
-                    return 0f; // 充能（2026-11-05 系统动作化）：免费落层（不支付元素）
+                    // 2026-11-15：动态数量行按本次所选 N 现推（base×N），与 Apply 的实际扣费同表
+                    return CostDerivationService.DeriveElementCosts(a.Effect, 0, a.DynamicCounts).Total; // 效果费现推（主动/自愿桶发动时现付——L1 现推口径）
                 default:
                     return 0f;
             }
@@ -1095,12 +1196,15 @@ namespace CardCore.AI.NeuralEnv
             return def.TargetDomain;
         }
 
-        /// <summary>目标解析上下文（镜像引擎来源归因：法术效果来源=角色、场上卡效果来源=该卡）。</summary>
-        private static EffectExecutionContext BuildTargetCtx(GameCore core, Player me, Card card)
+        /// <summary>目标解析上下文（镜像引擎来源归因：法术效果来源=角色、场上卡效果来源=该卡）。
+        /// sourceOverride：英雄技能=技能卡本体（与声明期收集 CollectEffectDeclarationTargetsAsync /
+        /// 结算 PendingEffect.Source 同源——技能卡是法术卡，但效果来源不是角色）。</summary>
+        private static EffectExecutionContext BuildTargetCtx(GameCore core, Player me, Card card,
+            Entity sourceOverride = null)
         {
             return new EffectExecutionContext
             {
-                Source = card.IsSpellCard() ? (Entity)me : card,
+                Source = sourceOverride ?? (card.IsSpellCard() ? (Entity)me : card),
                 Controller = me,
                 ZoneManager = core.ZoneManager,
                 ElementPool = core.ElementPool,

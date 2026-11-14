@@ -671,7 +671,7 @@ namespace CardCore
         /// **闸不过 → 返回 false：重复无效、层保留**（生效自减=真正生效才消耗，层等下一张）；
         /// 闸过 → 消耗 1 层+播报，返回 true（外层再执行一轮——代价溢出执行+效果行）。
         /// 重放轮由外层 replayed 标记拦截，不再到达此口（「重放不触发重放」）。
-        /// 触发式/自动效果/攻击守卫/技能/手牌主动（充能）不触发；诅咒载荷/预言验证/延迟效果/
+        /// 触发式/自动效果/攻击守卫/技能/手牌主动不触发；诅咒载荷/预言验证/延迟效果/
         /// 代价栏旁路 executor=设计内不重放。无回合限制（Exception 不倒数）——层跨回合存续直至消耗。
         /// </summary>
         private bool TryBeginReplayRerun(EffectInstance instance, List<CostInstance> specialCosts)

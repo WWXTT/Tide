@@ -27,7 +27,7 @@ namespace CardCore.Network
         DeckSubmit = 110,            // 开局握手：卡组提交（MsgDeckSubmit，见 网络协议.md §11）
         JoinRoom = 111,              // 会话层：进房分座/观战登记（MsgJoinRoom，见 网络协议.md §12）
         IntentActivateHeroSkill = 112, // 英雄技能发动（MsgIntentActivateHeroSkill——2026-10-21 协议补课；离散位在会话层消息之后）
-        IntentBuildCard = 113,       // 充能（2026-11-05 系统动作化改义）：任意手牌卡宣充能（MsgIntentBuildCard；结算期反问选色——Color 恒 −1 协议兼容）
+        // 113 = 已删除（原 IntentBuildCard 充能；2026-11-15 充能整链删除，号位不复用）
         TextResponse = 114,          // 文本反问应答（MsgTextResponse——2026-10-31 阶段C：卡名宣言开放集输入）
         RankedAck = 134,             // 上行：排位接受应答（MsgRankedAck——S8 排位：椅子位各自上报，双 true 服务器开局；上行段尾追加）
 
@@ -129,11 +129,10 @@ namespace CardCore.Network
             }
         }
 
-        /// <summary>intent 段（100..108 连续九连 + 离散位 112/113；分派口 NetRoom→对战通道同口径）。</summary>
+        /// <summary>intent 段（100..108 连续九连 + 离散位 112；分派口 NetRoom→对战通道同口径）。</summary>
         public static bool IsIntent(NetworkMessageType type)
             => (type >= NetworkMessageType.IntentPlayCard && type <= NetworkMessageType.IntentConcede)
-               || type == NetworkMessageType.IntentActivateHeroSkill
-               || type == NetworkMessageType.IntentBuildCard;
+               || type == NetworkMessageType.IntentActivateHeroSkill;
 
         public static bool IsRoom(NetworkMessageType type) => Of(type) == NetworkChannel.Room;
         public static bool IsBattle(NetworkMessageType type) => Of(type) == NetworkChannel.Battle;

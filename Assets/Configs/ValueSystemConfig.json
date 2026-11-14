@@ -123,8 +123,8 @@
     "InitialLife": 30.0,
 
     // 起手手牌数（双方对称抽满；教学 skipOpeningDraw/挑战 p2ExtraOpeningDraws 在此之上调整）
-
-    "OpeningHandSize": 6.0,
+    // 2026-11-15 用户定案：6 → 7（绿预组 T3 线要求起手就能摸到 精灵+沃土）
+    "OpeningHandSize": 7.0,
 
     // 手牌上限基值（仅回合末强制选弃，抽牌时不截断；IHandLimitModifier 修改链之上叠加，纳川仪典光环→+自己蓝色地牌数〔2026-10-30 改版，原固定15〕）
 

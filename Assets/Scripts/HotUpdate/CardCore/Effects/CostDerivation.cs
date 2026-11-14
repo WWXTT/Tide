@@ -241,6 +241,11 @@ namespace CardCore
         /// -1 任意同全部档；-2 未声明=单目标基准）。原"整数 ×N / 期望 4"口径退役。</summary>
         private static float QuantityFactor(AtomicEffectInstance atom, EffectDefinition def)
         {
+            // 域内单目标（2026-11-15 用户定案）：模板不含 {target} 的域行=默认从目标域取 1 个目标——
+            // 数量档恒 1（该行「取几张」由 value 表达；再乘数量档就是重复收费）。
+            // 先于动态/SummonToken/全取档判定：这几档对单目标行都不该生效。
+            var singleCfg = ResolvePricingConfig(atom);
+            if (singleCfg != null && singleCfg.IsSingleTargetRow) return 1f;
             // 动态数量（2026-11-14 用户定案）：**不吃 PricingTier 档位减免**——费用直接乘实际目标数
             //（1:1，2 个=2×，3 个=3×；未解析=base×1 起价）。先于 SummonToken/全取档判定。
             if (atom != null && atom.TargetCount == AtomicEffectInstance.DynamicTargetCount)
@@ -766,6 +771,12 @@ namespace CardCore
             // CostMultiplier 在表加载时默认 1.0；目标范围等可在配置中放大费用。
             float multiplier = cfg.CostMultiplier > 0f ? cfg.CostMultiplier : 1f;
             int magnitude = Math.Max(1, atom.Value);
+            // 2026-11-14 修复（回收类表病）：**表行模板不带 {value} 的原子，value 不是量级**——
+            // 「取几张/几个」属于目标数量，已由 QuantityFactor（数量档）计过；再乘 value 就是重复计费
+            //（例：回收「将{target}从墓地返回手牌」+ value=3 + 3 个目标，旧口径 2×3×2=12，应为 2×2=4）。
+            // 数据侧正确写法：目标数写 count，value 保持 1（handler 按 Targets 结算）。
+            if (cfg != null && (cfg.Description ?? "").IndexOf("{value}", StringComparison.Ordinal) < 0)
+                magnitude = 1;
 
             var attrCfg = ValueSystemConfigManager.Instance.GetOrCreateConfig().AttributeValueConfig;
             float durationFactor = attrCfg.GetDurationDiscount(def.Duration)
@@ -1358,7 +1369,7 @@ namespace CardCore
                 foreach (var eff in card.Effects)
                 {
                     if (eff == null) continue;
-                    slots += 1; // 每效果 1 槽（含充能效果——P12：充能照常计槽；Choice 分支计槽已随 kind==2 退役删除）
+                    slots += 1; // 每效果 1 槽（Choice 分支计槽已随 kind==2 退役删除）
                 }
             }
             return slots;

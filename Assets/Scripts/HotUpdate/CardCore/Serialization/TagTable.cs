@@ -1,4 +1,4 @@
-﻿// 此文件由 Tools/刷新属性排序（新增序列化字段时使用）自动生成，请勿手动修改
+// 此文件由 Tools/刷新属性排序（新增序列化字段时使用）自动生成，请勿手动修改
 // 如需添加新属性，请修改 RefreshMemoryPackOrder.cs 中的 GetTagDefinitions()
 // 生成口径（2026-11-11 起＝保值生成）：已有常量沿用现表现值（整行含注释原样保留），仅新字段
 // 按 Murmur32("类.属性", 0x53796E67) & 0x7FFFFFFF 取号；末尾「冻结值」段＝历史手算批，重算
@@ -248,10 +248,6 @@ namespace CardCore.Serialization
         public const int MsgIntentPlayCard_References = 271658474;
         public const int MsgIntentPlayCard_CellX = 591000053;
         public const int MsgIntentPlayCard_CellZ = 986477751;
-
-        // ---- MsgIntentBuildCard ----
-        public const int MsgIntentBuildCard_CardRuntimeId = 77691148;
-        public const int MsgIntentBuildCard_Color = 2040733387;
 
         // ---- MsgIntentAddToElementPool ----
         public const int MsgIntentAddToElementPool_CardRuntimeId = 713270002;

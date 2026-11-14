@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -113,7 +113,7 @@ namespace TideSim
                 {
                     bool aIsP1 = g % 2 == 0; // 换边：A 先手/后手各半
                     int seed = o.Seed + g; // 与 Unity 窗口批量同口径：第 1 局即单局 seed（基数+0）
-                    var r = Play(a, b, aIsP1, seed, o.MaxTurns, o.Detail, o.MatchLog);
+            var r = Play(a, b, aIsP1, seed, o.MaxTurns, o.Detail, o.MatchLog, o.LockDeckOrder);
                     r.Matchup = $"{a.Name} vs {b.Name}" + (mirror ? "（镜像）" : "");
                     r.Seed = seed;
                     allResults.Add(r);
@@ -228,7 +228,7 @@ namespace TideSim
 
         // ======================================== 单局 ========================================
 
-        private static GameResult Play(DeckSpec a, DeckSpec b, bool aIsP1, int seed, int maxTurns, bool detail, bool matchLog = false)
+        private static GameResult Play(DeckSpec a, DeckSpec b, bool aIsP1, int seed, int maxTurns, bool detail, bool matchLog = false, bool lockOrder = false)
         {
             var r = new GameResult();
             var d1 = aIsP1 ? a : b;
@@ -252,6 +252,7 @@ namespace TideSim
                 Seed = seed,
                 MaxTurns = maxTurns,
                 Detail = detail,
+                LockDeckOrder = lockOrder,
                 Label1 = d1.Name,
                 Label2 = d2.Name,
                 Log = detail ? (Action<string>)Console.WriteLine : null,

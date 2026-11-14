@@ -13,14 +13,6 @@ namespace SynergyUI
         Land,
     }
 
-    /// <summary>手牌特殊效果行种类（2026-11-01 上卡改版，SpUse 钮退役）：充能=任意卡型
-    ///（2026-11-06 opt-in：充能行只出现在卡面声明 chargeAbility 的卡上——不再是全卡统一行）。
-    /// 行交互（选中/再点取消）与 Use 钮分流见 HandFanCard/BattleScreen。</summary>
-    public enum SpEffectKind
-    {
-        Charge,
-    }
-
     /// <summary>
     /// UGUI 卡牌层显示模型（2026-09-30 方案2 定案：卡面改 UGUI SSO Canvas 整层压 UITK）。
     /// 对战 BattleCardView 与构筑 CardData 在此合并为同一口径——卡面 prefab 只认本模型，
@@ -79,15 +71,6 @@ namespace SynergyUI
         /// <summary>效果行代价组（与 ActiveEffectLines 平行；效果级代价分色面，null 项=该行无效果级代价
         /// ——消费方回落卡级 PayloadCost）。</summary>
         public List<ElementCost> ActiveEffectPayloadCosts;
-        /// <summary>特殊效果行（2026-11-01 上卡）：充能（有 Charge 原子效果，任意卡型）一行，
-        /// 渲染在效果模式行之后——手牌端点行选中（再点同行取消），
-        /// Use 钮文案随选中变「充能」并按此分流施放（SpUse 钮退役）。
-        /// 四表平行等长。</summary>
-        public List<string> SpEffectLabels;
-        public List<string> SpEffectLines;
-        public List<SpEffectKind> SpEffectKinds;
-        /// <summary>特殊行费用（充能=null——现付 1 点待选色，施放时才定）。</summary>
-        public List<ElementCost> SpEffectCosts;
         /// <summary>effect 行速度标签值（2026-11-06 速度显示改版：效果文字退役速度句首——速度归卡
         /// 类别，ACard effect 行 lbl-skill-speed 独显）：法术=旧底盘分配（EffectSpeedOf 单源）；
         /// 生物=0；结界/其余=null=藏标签（结界效果恒自动，无速度概念）。FromHand/FromCardDataFull 填充。</summary>
@@ -223,13 +206,6 @@ namespace SynergyUI
         private static string SpellEffectLabel(CardEffectData fx, int index)
             => string.IsNullOrEmpty(fx?.DisplayName) ? $"作用 {index + 1}" : fx.DisplayName;
 
-        /// <summary>充能行文案（2026-11-05 充能系统动作化改版；2026-11-06 opt-in 修订）：充能=速度0
-        /// 系统动作（不再是卡上 Charge 原子效果），卡面声明资格、一回合一次可宣——文案为系统规则
-        /// 描述（全卡统一；开资格计价=卡费固定 +1 灰）。</summary>
-        private static string ChargeRowText(CardData data)
-            => "充能：速度0系统动作，本回合一次（仅己方主阶段）；结算期选择此卡具有的颜色，"
-               + "为其放置1层同色费用降低指示物并展示这张卡（不支付元素；换区清除）";
-
         /// <summary>压制层数快照读数（沉默/失效/沉睡）——FromHand 与战场悬停面板
         /// 共用行级划线判定，与引擎 SuppressRules 计数原语同源。</summary>
         public static (int silence, int nullify, int sleep) SuppressionOf(
@@ -364,23 +340,6 @@ namespace SynergyUI
                         ?? CardCostService.GetRuntimeCost(data, i)));
                     it.ActiveEffectPayloadCosts.Add(CardComposerScreen.EffectPayloadCostOf(fx)); // 代价组=效果级代价
                 }
-            }
-            // 特殊效果行（2026-11-05 充能系统动作化改版；2026-11-06 opt-in 修订）：充能=速度0系统
-            // 动作（不再是卡上效果），**卡面声明 chargeAbility 才有资格**（组合界面 basicability
-            // 「具备充能」）——有资格的手牌卡带一行充能入口（选中→Use 钮变「充能」分流到
-            // DeclareCharge；颜色在结算期经引擎反问下拉选择）。渲染在模式行之后。
-            //（旧「有 Charge 原子效果才出充能行」行替代逻辑已随原子链退役；「全卡统一出充能行」
-            //  为 2026-11-05~11-06 间过渡口径，随 opt-in 收回。）
-            if (data != null && data.ChargeAbility)
-            {
-                it.SpEffectLabels = new List<string>();
-                it.SpEffectLines = new List<string>();
-                it.SpEffectKinds = new List<SpEffectKind>();
-                it.SpEffectCosts = new List<ElementCost>();
-                it.SpEffectLabels.Add("充能");
-                it.SpEffectLines.Add(ChargeRowText(data));
-                it.SpEffectKinds.Add(SpEffectKind.Charge);
-                it.SpEffectCosts.Add(null); // 免费落层（不支付元素）；可充色随卡费动态，无固定账单
             }
             if (data?.Effects != null)
             {

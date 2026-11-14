@@ -847,6 +847,12 @@ namespace SynergyUI
         private static bool IsImitateEntry(AtomicEffectEntry a)
             => AtomicEffectTable.GetByHashId(a?.refId)?.EnumName == nameof(AtomicEffectType.Morph);
 
+        /// <summary>域内单目标行（2026-11-15 用户定案）：行模板不含 {target} 的域行——默认从目标域取
+        /// 1 个目标，数量档钉 1（禁用 2/3/全部/动态；张数由 value 表达，再乘数量档=重复收费）。
+        /// 与转换器 count 收口、计价 QuantityFactor 同判（单源=AtomicEffectConfig.IsSingleTargetRow）。</summary>
+        private static bool IsSingleTargetRow(AtomicEffectEntry a)
+            => AtomicEffectTable.GetByHashId(a?.refId)?.IsSingleTargetRow == true;
+
         /// <summary>宣言编码行（2026-10-29 阶段3c 信息轴；2026-10-30 族改版后四行共用——
         /// 箭头宣言退役；2026-10-31 窃取入伙=五行）：derivative 输入行写 str（"维度:值"，
         /// ProphecyDimension 编码；输入域按行分化，见 DeclarationStrDomainHint）。</summary>

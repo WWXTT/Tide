@@ -253,6 +253,9 @@ namespace SynergyUI
             //（2026-10-15 补：live-query 反查来源，与加成计算同判定链；光环关键词不物化不入 _keywords，
             // 故与上方关键词段不重复；同源同增益叠加计 ×N——箭头叠加计数语义）
             var statusLines = new List<string>();
+            // 横置状态行（2026-11-15 横置显示定案）：横置的生物首行常显（地牌无全卡面，
+            // 走地牌格悬停「已横置 N」读数）
+            if (card.IsTapped) statusLines.Add("已横置");
             // 守护状态行（2026-11-05 简化定案）：固定保护己方角色——守护=FindWard 正查
             //（回自身控制器角色；不在场/无关键词不展示）。
             //（舍身配对行已删——2026-10-30 战斗法师改版：无状态关键词，散射无固定绑定对象，
@@ -625,16 +628,19 @@ namespace SynergyUI
                                        .GroupBy(c => c.Runtime.LockedColor))
                 {
                     int untapped = g.Count(c => !c.IsTapped);
+                    int tapped = g.Count(c => c.IsTapped);
                     int wallet = pv != null && g.Key >= 0 && g.Key < pv.WalletByColor.Length ? pv.WalletByColor[g.Key] : 0;
                     string color = g.Key >= 0 ? BattleView.ManaZh((ManaType)g.Key) : "?";
-                    toks.Add($"{color} {untapped + wallet}/{g.Count()}");
+                    // 拆分读数（2026-11-15 主动产色可观测性）：未横置/临时钱包分列，已横置随出现显示
+                    toks.Add($"{color} {untapped + wallet}/{g.Count()}（未横置 {untapped}＋临时 {wallet}"
+                             + (tapped > 0 ? $"，已横置 {tapped}" : "") + "）");
                 }
             }
             // 地牌上限显示迁移（2026-10-14 晚：上限格退役）——地牌格悬停就地报上限（本批措辞定案：【】值域）
             string capLine = $"当前地牌上限【{pv?.LandCap ?? 0}】（每回合开始双方同步加一，封顶10；效果可再提升）";
             return toks.Count == 0
                 ? $"{head}（暂无该色地牌）\n{capLine}"
-                : $"{head}\n{string.Join("\n", toks)}\n可用=未横置+钱包该色，上限=该色地牌张数；付费时自动横置\n{capLine}";
+                : $"{head}\n{string.Join("\n", toks)}\n可用=未横置+钱包该色，上限=该色地牌张数；付费时自动横置\n点地牌格开窗，可主动横置生成临时元素（回合结束消失；持有优先权/扳机时双方回合均可）\n{capLine}";
         }
 
         /// <summary>施放类型图标反查（cast-{RuntimeId} 命中名 → 视图数据施放占格卡；未命中=null）。</summary>

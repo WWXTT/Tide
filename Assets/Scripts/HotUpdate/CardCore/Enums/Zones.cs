@@ -541,7 +541,7 @@ namespace CardCore
         {
             if (from != to)
             {
-                // 攻/血指示物离场消失、费用指示物离手消失；充能进度（四色费用降低层，2026-10-31 P12）
+                // 攻/血指示物离场消失、费用指示物离手消失；四色费用降低层（换区清除）
                 // 同款在此清除——建造 BuildPaid 账单已随改版退役，ClearAll 覆盖全部清除面
                 CardCore.Attribute.CounterRules.ClearAll(card, from, to);
             }

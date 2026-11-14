@@ -232,7 +232,9 @@ namespace SynergyUI
             // 2026-10-18 拆分：骨架/开关/列卡池化收进 BattleRegionPanel，屏侧只留守卫转发）
             _regionPanelCtl = new BattleRegionPanel(() => Core, () => P1);
             _regionPanelCtl.Build(FindOptional("Select")); // 2026-11-03 prefab 改版：Region 节点更名 Select
-            _infoCtl = new BattleInformationPanel(() => Core, LandsOfOwnerIdx); // 区域卡查阅窗（Information 节点——同日改版）
+            _infoCtl = new BattleInformationPanel(() => Core, LandsOfOwnerIdx, // 区域卡查阅窗（Information 节点——同日改版）
+                canGenerateLand: () => !NetActive && !TutorialGuide.Active, // 【生成】显隐闸：本地局+非教学（联机阶段3再接 intent；时点闸在 GenerateFromLand）
+                generateLand: GenerateFromLand);                             // 点【生成】→ 主动横置该格一张未横置地牌（2026-11-15）
             _infoCtl.Build(FindOptional("Information"));
 
             UiKit.Updater.Attach(Root, () =>

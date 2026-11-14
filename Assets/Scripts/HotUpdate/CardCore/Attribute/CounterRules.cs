@@ -245,8 +245,8 @@ namespace CardCore.Attribute
         // legacy 恒灰档 CostDown 已删（2026-11-02 减费改造）：GetCardCost 不再读、无投放口
         //（2026-10-31 四色化后表原子退役）、无存量卡引用——四色档全面接棒。
         /// <summary>四色费用降低（2026-10-31 P12 充能定案）：灰/红/蓝/绿各一类，每层只减对应
-        /// 颜色的费用（GetCardCost 逐色套层、逐色钳 0 不串色）；充能投放、换区清除（Resident）。
-        /// 充能上限与净费预览读 GameActions.GetHandCardChargeInfo。</summary>
+        /// 颜色的费用（GetCardCost 逐色套层、逐色钳 0 不串色）；由「费用减少」指示物原子投放、
+        /// 换区清除（Resident）。2026-11-15 充能机制已整链删除——本四色层保留，供卡效果投放。</summary>
         public const string CostDownGrayCounter = "CostDownGray";
         /// <summary>费用降低（红）——每层红费 −1。</summary>
         public const string CostDownRedCounter = "CostDownRed";

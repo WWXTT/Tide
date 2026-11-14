@@ -1677,7 +1677,6 @@ namespace CardCore.Editor
                 Effects = src.Effects != null ? new List<CardEffectData>(src.Effects) : new List<CardEffectData>(),
                 AttackAbility = src.AttackAbility,
                 GuardAbility = src.GuardAbility,
-                ChargeAbility = src.ChargeAbility,
             };
         }
 

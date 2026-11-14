@@ -238,7 +238,7 @@ namespace CardCore
                         inquired = true;
                         // 连锁询问入日志（2026-11-03 连锁表现改日志定案）：有真实候选进入决策口才记
                         // ——0 候选自动 Pass 不询问不出行。应答三态：响应出牌=CardPlayEvent.IsResponseCast
-                        // 「连锁了」、充能=ChainRespondedEvent（无既有行）、让过=ChainDeclinedEvent。
+                        // 「连锁了」、让过=ChainDeclinedEvent。
                         core.PublishEvent(new ChainInquiryEvent { Holder = holder });
                         if (holder.IsAI)
                             choice = ResponseWindowService.AiResponder?.Invoke(core, holder, options)

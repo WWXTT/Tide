@@ -68,13 +68,12 @@ namespace CardCore
         // 连接光环声明（三轨制 2026-09-09）：箭头指向格占据者享受的持续效果（stat/keyword 二选一）
         public List<LinkAuraData> linkAuras;
 
-        // 系统动作资格位（2026-11-06 opt-in 改版）：攻/守/充能默认不带，卡面声明才有——
-        // 正向列（attackAbility/guardAbility/chargeAbility），旧 noAttack/noGuard opt-out 列
+        // 系统动作资格位（2026-11-06 opt-in 改版）：攻/守默认不带，卡面声明才有——
+        // 正向列（attackAbility/guardAbility），旧 noAttack/noGuard opt-out 列
         // 已随全表迁移退役（缺列=false=不带）。speedBonus 缺省 2（装载处迁移）；
         // surplusToDurability 已随拆分定案退役（残留列按未知字段忽略）
         public bool attackAbility;
         public bool guardAbility;
-        public bool chargeAbility;
         public int speedBonus;
 
         // 结界耐久（2026-09-24 定案：结界=耐久体，被攻击每次仅损失 1 点，归零销毁；0=无）——生物不使用
@@ -1380,11 +1379,10 @@ namespace CardCore
             //（与卡面直书值并集——兼容旧数据）；须在 EnsureCost 前完成（光环费/箭头累乘进计价）
             cardData.AggregateEffectAuras(false);
 
-            // 系统动作资格位（2026-11-06 opt-in 改版）：攻/守/充能默认不带，正向列声明才有。
+            // 系统动作资格位（2026-11-06 opt-in 改版）：攻/守默认不带，正向列声明才有。
             // 攻/守仅生物有意义——非生物带列记 Error 并降级（isField 先例：可见不炸，坏卡点名）。
             cardData.AttackAbility = entry.attackAbility;
             cardData.GuardAbility = entry.guardAbility;
-            cardData.ChargeAbility = entry.chargeAbility;
             if (cardData.Supertype != Cardtype.Creature && (cardData.AttackAbility || cardData.GuardAbility))
             {
                 TideLog.Error($"[CardLoader] {entry.id}：attackAbility/guardAbility 只属生物（当前 {cardData.Supertype}）——已降级剥离");

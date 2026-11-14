@@ -223,7 +223,8 @@ namespace CardCore
         /// </summary>
         private void OnTurnEnded(TurnEndEvent e)
         {
-            // 狩猎（2026-11-01 新增关键词·绿3）：回合方战场可行动单位随机对防守方发起一次攻击——
+            // 狩猎（2026-11-01 新增关键词·绿3）：回合方战场可行动单位自动对防守方生命值最少的
+            // 单位发起一次攻击（2026-11-15 改：取代旧「随机」；无合法单位则攻击角色）——
             // 系统区首位（组合根显式调，同归土惯例）：①直到回合结束的力量加成仍在
             //（DurationTracker 尚未清）②Temp 轨授予的狩猎常驻（2026-11-09 换区清除口径，回合末不再清）
             // ③狩猎击杀对手由随后的 CheckGameOver 兜住。同步结算，无守卫响应窗口。
@@ -331,6 +332,7 @@ namespace CardCore
                 Title = $"回合结束，手牌超出{limit}张，请选择丢弃",
                 Hint = $"弃掉 {over} 张手牌",
                 AllowCancel = false,
+                PromptAtom = AtomicEffectType.DiscardCard, // 2026-11-14：标注弃牌语义，AI 排序保留关键牌
             });
 
             foreach (var entity in chosen)

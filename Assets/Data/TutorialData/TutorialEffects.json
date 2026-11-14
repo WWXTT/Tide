@@ -2166,10 +2166,10 @@
       "selection": 0,
       "count": 1,
       "cost": [
-        9.0,
         0.0,
         0.0,
         0.0,
+        8.0,
         0.0
       ],
       "steps": [
@@ -2313,32 +2313,18 @@
     },
     {
       "id": "6229F9B6",
-      "name": "对一个己方单位附加1层减半",
-      "hash": "6229F9B6",
+      "name": "对一个己方角色附加1层减半；若为本回合第一张牌，再获得4层护甲",
+      "hash": "7702FE1C",
       "timing": 19,
       "activation": 2,
       "selection": 0,
       "count": 1,
       "cost": [
-        5.0,
         0.0,
         0.0,
         0.0,
+        4.0,
         0.0
-      ],
-      "costs": [
-        {
-          "type": 1,
-          "value": 0,
-          "manaType": 0,
-          "turns": 0,
-          "payload": {
-            "refId": "43ac095e",
-            "kinds": [
-              5
-            ]
-          }
-        }
       ],
       "steps": [
         {
@@ -2347,8 +2333,23 @@
             "refId": "f4918303",
             "kinds": [
               1
-            ]
+            ],
+            "domain": "己方角色"
           }
+        },
+        {
+          "kind": 1,
+          "gid": "FirstCardThisTurn",
+          "then": [
+            {
+              "refId": "9ff1954d",
+              "value": 4,
+              "kinds": [
+                1
+              ],
+              "domain": "己方角色"
+            }
+          ]
         }
       ]
     },
@@ -2405,7 +2406,7 @@
         0.0,
         0.0,
         0.0,
-        3.0,
+        1.5,
         0.0
       ],
       "steps": [
@@ -3983,53 +3984,55 @@
     },
     {
       "id": "FXGREEN02",
-      "name": "地牌上限+2，并从卡组随机将2张带元素费用的卡横置加入元素池；若操控地数量≥9，为一手牌添加2层绿色费用减少指示物",
-      "hash": "03471307",
+      "name": "地牌上限+3，并从卡组随机将3张带元素费用的卡横置加入元素池；代价：一个敌方单位获得6层护甲",
+      "hash": "B3B32F92",
       "timing": 19,
       "activation": 2,
       "cost": [
         0.0,
         0.0,
         0.0,
-        6.0,
+        9.0,
         0.0
+      ],
+      "costs": [
+        {
+          "type": 1,
+          "value": 0,
+          "manaType": 0,
+          "turns": 0,
+          "payload": {
+            "refId": "9ff1954d",
+            "value": 6,
+            "kinds": [
+              2
+            ]
+          }
+        }
       ],
       "steps": [
         {
           "kind": 0,
           "atom": {
             "refId": "cab6ae97",
-            "value": 2
+            "value": 3
           }
-        },
-        {
-          "kind": 1,
-          "gid": "LandsGt9",
-          "then": [
-            {
-              "refId": "48083c16",
-              "value": 2,
-              "kinds": [
-                5
-              ]
-            }
-          ]
         }
       ]
     },
     {
       "id": "FXGREEN03",
-      "name": "将3张己方墓地的卡返回手牌；若操控地数量≥9，为一手牌添加2层绿色费用减少指示物",
-      "hash": "F6F2EDB5",
+      "name": "将3张己方墓地的卡返回手牌；若操控地数量≥9，为己方单位或角色添加4层护甲",
+      "hash": "61FE4534",
       "timing": 19,
       "activation": 2,
-      "selection": 0,
+      "selection": 1,
       "count": 3,
       "cost": [
         0.0,
         0.0,
         0.0,
-        12.0,
+        4.0,
         0.0
       ],
       "steps": [
@@ -4037,7 +4040,6 @@
           "kind": 0,
           "atom": {
             "refId": "c03ef9fe",
-            "value": 3,
             "kinds": [
               9
             ],
@@ -4049,10 +4051,10 @@
           "gid": "LandsGt9",
           "then": [
             {
-              "refId": "48083c16",
-              "value": 2,
+              "refId": "9ff1954d",
+              "value": 4,
               "kinds": [
-                5
+                1
               ]
             }
           ]
@@ -4143,14 +4145,14 @@
     },
     {
       "id": "FXGREEN06",
-      "name": "将一个对方元素池中的地牌从本局游戏中抹除；若操控地数量≥9，为己方单位或角色添加4层护甲",
-      "hash": "34640845",
+      "name": "将对方元素池中的所有地牌从本局游戏中抹除；若操控地数量≥9，为己方单位或角色添加4层护甲",
+      "hash": "B3A6D9E8",
       "timing": 19,
       "activation": 2,
-      "selection": 0,
-      "count": 1,
+      "selection": 2,
+      "count": 0,
       "cost": [
-        6.0,
+        18.0,
         0.0,
         0.0,
         0.0,
@@ -4184,18 +4186,33 @@
     },
     {
       "id": "FXGREEN07",
-      "name": "对一个己方战场生物或己方角色附加1层无实体；若操控地数量≥9，为己方单位或角色添加4层护甲",
-      "hash": "E26F9071",
+      "name": "对一个己方战场生物或己方角色附加1层无实体；代价：一个敌方单位获得6层护甲",
+      "hash": "7572EE26",
       "timing": 19,
       "activation": 2,
       "selection": 0,
       "count": 1,
       "cost": [
-        9.0,
         0.0,
         0.0,
         0.0,
+        8.0,
         0.0
+      ],
+      "costs": [
+        {
+          "type": 1,
+          "value": 0,
+          "manaType": 0,
+          "turns": 0,
+          "payload": {
+            "refId": "9ff1954d",
+            "value": 6,
+            "kinds": [
+              2
+            ]
+          }
+        }
       ],
       "steps": [
         {
@@ -4203,29 +4220,16 @@
           "atom": {
             "refId": "6c38edaa"
           }
-        },
-        {
-          "kind": 1,
-          "gid": "LandsGt9",
-          "then": [
-            {
-              "refId": "9ff1954d",
-              "value": 4,
-              "kinds": [
-                1
-              ]
-            }
-          ]
         }
       ]
     },
     {
       "id": "FXGREEN08",
       "name": "自行选择一个己方战场单位或己方地牌送墓，获得1点临时彩元素",
-      "hash": "8683ADD7",
+      "hash": "D600A89E",
       "timing": 19,
       "activation": 2,
-      "selection": 0,
+      "selection": 1,
       "count": -1,
       "steps": [
         {
@@ -4238,14 +4242,22 @@
     },
     {
       "id": "FXGREEN09",
-      "name": "登场时，为己方角色添加2层护甲；若为本回合使用的第一张卡，为一手牌添加2层绿色费用减少指示物",
-      "hash": "36D7FCB7",
+      "name": "登场时，为己方角色添加4层护甲；若为本回合使用的第一张卡，为一手牌添加2层绿色费用减少指示物",
+      "hash": "1BB32D5A",
+      "cost": [
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0
+      ],
+      "costPin": 1,
       "steps": [
         {
           "kind": 0,
           "atom": {
             "refId": "9ff1954d",
-            "value": 2,
+            "value": 4,
             "domain": "己方角色"
           }
         },
@@ -4261,6 +4273,89 @@
               ]
             }
           ]
+        }
+      ]
+    },
+    {
+      "id": "FXGREEN11",
+      "name": "登场时，赋予一个己方单位系命；代价：一个敌方单位获得6层护甲",
+      "hash": "8BA91E98",
+      "selection": 0,
+      "count": 1,
+      "cost": [
+        0.0,
+        0.0,
+        0.0,
+        3.0,
+        0.0
+      ],
+      "costs": [
+        {
+          "type": 1,
+          "value": 0,
+          "manaType": 0,
+          "turns": 0,
+          "payload": {
+            "refId": "9ff1954d",
+            "value": 6,
+            "kinds": [
+              2
+            ]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "1e60cb92",
+            "kinds": [
+              1
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "FXGREEN12",
+      "name": "赋予一个己方单位狩猎；代价：对我方角色造成3点伤害",
+      "hash": "735BD3EC",
+      "timing": 19,
+      "activation": 2,
+      "selection": 0,
+      "count": 1,
+      "cost": [
+        0.0,
+        3.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "costs": [
+        {
+          "type": 1,
+          "value": 0,
+          "manaType": 0,
+          "turns": 0,
+          "payload": {
+            "refId": "a4b823fc",
+            "value": 3,
+            "kinds": [
+              1
+            ],
+            "domain": "己方角色"
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "a81e2068",
+            "kinds": [
+              1
+            ]
+          }
         }
       ]
     }

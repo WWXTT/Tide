@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using MemoryPack;
@@ -49,9 +49,9 @@ namespace CardCore.Serialization
         [MemoryPackOrder(TagTable.RCS_LockedColor)]
         public int LockedColor = -1;
 
-        /// <summary>建造已建额（2026-10-29 P7）——**恒空 legacy 字段**（2026-10-31 P12 建造→充能退役：
+        /// <summary>建造已建额（2026-10-29 P7）——**恒空 legacy 字段**（2026-10-31 P12 建造退役：
         /// 卡实例 BuildPaid 已删，FromCard 恒写全零、ApplyToCard 不再回灌；保留字段防协议断裂，
-        /// 充能进度经 Counters（CostDownGray/Red/Blue/Green + Exposed）承载，CounterEntryDTO 已覆盖）。</summary>
+        /// 费用降低进度经 Counters（CostDownGray/Red/Blue/Green）承载，CounterEntryDTO 已覆盖）。</summary>
         [MemoryPackOrder(TagTable.RCS_BuildPaid)]
         public float[] BuildPaid;
 
@@ -105,7 +105,7 @@ namespace CardCore.Serialization
                 DelayedDeath = card._delayedDeath,
             };
 
-            // 建造已建额 legacy（2026-10-31 P12）：恒写全零（卡实例 BuildPaid 已删；充能进度走 Counters）
+            // 建造已建额 legacy（2026-10-31 P12）：恒写全零（卡实例 BuildPaid 已删；费用降低进度走 Counters）
             dto.BuildPaid = new float[ElementCost.Length];
 
             dto.Keywords = card._keywords?.ToArray() ?? Array.Empty<string>();
@@ -158,7 +158,7 @@ namespace CardCore.Serialization
             }
 
             // 建造已建额回灌已删（2026-10-31 P12：卡实例 BuildPaid 已删——legacy 字段不再读写，
-            // 旧端载荷中非零值静默丢弃；充能进度经上方 Counters 回灌）
+            // 旧端载荷中非零值静默丢弃；费用降低进度经上方 Counters 回灌）
         }
     }
 

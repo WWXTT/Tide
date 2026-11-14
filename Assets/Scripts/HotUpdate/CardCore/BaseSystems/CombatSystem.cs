@@ -371,8 +371,10 @@ namespace CardCore
         /// 狩猎回合末攻击（GameCore.OnTurnEnded 系统区首位显式调——时序保证：直到回合结束的
         /// 力量加成仍在、Temp 轨授予的狩猎尚未清、击杀对手由随后的 CheckGameOver 兜住）：
         /// 回合方战场上持有狩猎的单位（2026-11-14 重做：**不再要求未横置**——横置的也强行出击），
-        /// 各随机对防守方发起一次攻击；本次战斗击杀防守方任一单位（直杀/溅射/碾压战果同认，
-        /// 击杀角色不算）则重置自身（解除横置，发 UntapEvent——战报「重置」行）。
+        /// 各自**自动攻击防守方生命值最少的目标**（2026-11-15 用户定案：目标选择取代旧「随机」——
+        /// 生物与角色**一起**按当前生命升序取最低；同血角色优先，生物同血取战场序最左；结界/装备等
+        /// 无生命耐久体不参与）；本次战斗击杀防守方任一单位（直杀/溅射/碾压战果同认，击杀角色不算）
+        /// 则重置自身（解除横置，发 UntapEvent——战报「重置」行）。
         /// 与普通攻击宣言的差异（定案）：①无守卫响应窗口——TurnEndEvent 内同步结算
         /// （同毒素回合末伤害先例，不入栈，回合折返不被打断）；②攻击不吃横置代价
         /// （payTap=false，出击不改变自身横置态——重置只经击杀奖励口）；③战斗计算与事件链
@@ -381,8 +383,10 @@ namespace CardCore
         /// 攻击者资格（2026-11-14 重做）：**不走 CanDeclareAttack**、不查横置态——即无攻资格的墙
         /// 被培育喂出攻击力后也能在回合末强行出击；0 攻仍不打（纯自杀）。
         /// 目标池=防守方角色∪防守方战场卡，CanAttackTarget 单源过滤（潜行/隐密/紊乱限角色域
-        /// 同口径），无合法目标=空转不播报。目标池先快照后逐猎结算（前一只猎物的战果——
-        /// 反杀/溅射杀人——经 CanAttackTarget 重检自然剔除死者）。
+        /// 同口径），无合法目标=空转不播报。**选择序**：合法生物与角色一起按当前生命升序取首位
+        /// （同血角色优先，生物同血取战场序最左；耐久体不参与）；目标池先快照后逐猎结算（前一只
+        /// 猎物的战果——反杀/溅射杀人——经 CanAttackTarget 重检自然剔除死者，下一只猎手重新按剩余
+        /// 目标的当前生命取最低）。
         /// </summary>
         public void ResolveHuntAttacks(Player turnPlayer)
         {
@@ -409,7 +413,16 @@ namespace CardCore
 
                 var candidates = pool.Where(t => CanAttackTarget(hunter, t, turnPlayer)).ToList();
                 if (candidates.Count == 0) continue; // 防守方无合法目标（全潜行/无存活）——空转不播报
-                var target = candidates[GameRng.Next(0, candidates.Count)];
+                // 目标选择（2026-11-15 用户定案；同日二次改：**生物∪角色一起比生命**）：合法目标
+                // （活体生物＋角色）一起按当前生命升序取最低；同血时角色优先（能打脸不打单位），
+                // 生物之间同血取战场序最左；结界/装备等无生命耐久体不是「生命值」目标，不参与择敌。
+                // 稳定排序 → 不再随机，回放/断言可复现。
+                Entity target = candidates
+                    .Where(t => t is Player || (t is Card c && c.IsLivingUnit()))
+                    .OrderBy(t => t.GetLife())
+                    .ThenBy(t => t is Player ? 0 : 1)
+                    .FirstOrDefault();
+                if (target == null) continue;
                 GameActions.Crumb($"CF-hunt atk={hunter.ID} power={GetPower(hunter)}"
                                   + $" tgt={(target as Card)?.ID ?? (target as Player)?.Name}");
 
