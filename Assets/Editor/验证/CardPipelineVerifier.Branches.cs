@@ -526,7 +526,8 @@ namespace CardCore.Editor
                 surgePool.TempElements[ManaType.Red] = p1Red;
                 surgePool2.TempElements[ManaType.Red] = p2Red;
             }
-            // 对手（p2）出牌载体：Spell+AddPowerUp1（红0.5 锚→支付进 1 红1/张——判据供能的阶梯口径）。
+            // 对手（p2）出牌载体：Spell+AddPowerUp1（灰0.5/点→支付进 1 灰1/张——2026-11-14 基础属性归灰；
+            // 判据供能的阶梯口径）。
             // 2026-11-05 改版注：原 DrawCard1 载体锚=蓝2（11-02 颜色规范重分配），色锁后红钱包付不了
             // 蓝账单；恒推导定案下声明费仅显示缓存（旧 Cost 钉红已失效）。载体效果=给 p1 生物+1攻
             // （指示物·无副作用），主动档（法术只挂主动效果——OnPlay 档会进 Derive E 桶与施放锚双扣）。
@@ -540,7 +541,7 @@ namespace CardCore.Editor
                 {
                     Id = "VERIFY_SURGE_SPELL_FX",
                     TriggerTiming = (int)CardCore.TriggerTiming.Activate_Active,
-                    // value 2 = 锚恰红1.0/张（0.5/点）→ 载体恒 1 费（判据阶梯按施放后剩余=钱包−1 精确步进）；
+                    // value 2 = 锚恰 1.0/张（0.5/点，2026-11-14 归灰）→ 载体恒 1 费（判据阶梯按施放后剩余=钱包−1 精确步进）；
                     // 不带 kinds——正极性原子锁对方域（kinds{2}）违反内容契约会被整颗剔除（空效果零费）。
                     // 2026-11-06 注：旧签名 SurgeSpell(float red) 的 red 是死参数——所有载体本就 1 费，
                     // 旧「0费载体」注释为幻觉（旧断言不卡剩余精度故未暴露，判据七 ==x 夹具修正时实证）。

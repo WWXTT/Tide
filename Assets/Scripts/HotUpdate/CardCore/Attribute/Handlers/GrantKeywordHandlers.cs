@@ -148,10 +148,11 @@ namespace CardCore.Attribute.Handlers
             // 复生已移出关键词族（2026-10-08 指示物化）：GrantReborn 原子改由 GrantRebornHandler
             // 执行（挂 RebornCounter 层）——refId 已重推 502be10d→94f6a32d（2026-10-08 全量 ID 重推）
             (AtomicEffectType.GrantIndestructible, "Indestructible", "赋予不灭"),
-            // 狩猎（2026-11-01，绿3）：回合结束时若可行动（未横置），随机对防守方发起一次攻击——
+            // 狩猎（2026-11-01，绿3；2026-11-14 重做）：回合结束时不管横置态强行随机对防守方
+            // 发起一次攻击，击杀防守方单位则重置自身——
             // 行为口=CombatSystem.ResolveHuntAttacks（GameCore.OnTurnEnded 首位显式调）；
             // 攻击不吃横置代价，战斗计算/事件链与普通攻击同口径
-            (AtomicEffectType.GrantHunt, "Hunt", "赋予狩猎（回合结束时，如果处于可行动状态，随机对对手发起一次攻击）"),
+            (AtomicEffectType.GrantHunt, "Hunt", "赋予狩猎（回合结束时，强行随机对对手发起一次攻击；若击杀对方单位，则重置自身）"),
         };
 
         /// <summary>落点为减益的关键词（2026-11-01 赋予粒子极性单源）：与指示物 CounterPolarity

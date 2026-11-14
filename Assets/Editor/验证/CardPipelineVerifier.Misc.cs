@@ -1322,7 +1322,7 @@ namespace CardCore.Editor
 
         /// <summary>P9-10（只报不改）：ValueSystemConfig.json 逐字段与代码默认值比对，列出「表值 == 默认值」
         /// 的字段——这类字段无论表写没写、写没写对，运行值都一样，疑似漏填/拼错（人眼不可分辨配置是否生效）。
-        /// 表未覆盖的字段不在清单（本就吃代码默认，如 CardCost.StatAnchor 等 10 个）。
+        /// 表未覆盖的字段不在清单（本就吃代码默认，如 CardCost.StatAnchor 已于 2026-11-14 入表，其余未覆盖字段仍吃默认）。
         /// 直接读表解析比对（不经装载缓存，编辑器改表重跑即取新读数）；顶层裸数组旧格式同样支持
         /// （回滚期跑验证器不空转）。未知 section/Key 不在此重复点名——装载期已 Error。</summary>
         private static void TestP9ConfigDefaultAudit()

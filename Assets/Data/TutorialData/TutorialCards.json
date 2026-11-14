@@ -28,10 +28,10 @@
       "power": 1,
       "life": 2,
       "costList": [
+        1.0,
         0.0,
         0.0,
-        0.0,
-        1.0
+        0.0
       ],
       "tags": [
         "教学",
@@ -48,10 +48,10 @@
       "power": 3,
       "life": 2,
       "costList": [
+        2.0,
         0.0,
-        1.0,
         0.0,
-        1.0
+        0.0
       ],
       "tags": [
         "教学",
@@ -69,10 +69,10 @@
       "power": 2,
       "life": 2,
       "costList": [
-        0.0,
         1.0,
         0.0,
-        1.0
+        0.0,
+        0.0
       ],
       "tags": [
         "教学"
@@ -89,10 +89,10 @@
       "power": 7,
       "life": 7,
       "costList": [
+        6.0,
         0.0,
-        3.0,
         0.0,
-        3.0
+        0.0
       ],
       "tags": [
         "教学"
@@ -109,10 +109,10 @@
       "power": 8,
       "life": 8,
       "costList": [
+        7.0,
         0.0,
-        4.0,
         0.0,
-        4.0
+        0.0
       ],
       "tags": [
         "教学"
@@ -129,8 +129,8 @@
       "power": 6,
       "life": 1,
       "costList": [
-        0.0,
         3.0,
+        0.0,
         0.0,
         0.0
       ],
@@ -203,10 +203,10 @@
       "power": 8,
       "life": 9,
       "costList": [
+        8.0,
         0.0,
-        4.0,
         0.0,
-        4.0
+        0.0
       ],
       "tags": [
         "教学"
@@ -223,10 +223,10 @@
       "power": 3,
       "life": 3,
       "costList": [
+        2.0,
         0.0,
-        1.0,
         0.0,
-        3.0
+        2.0
       ],
       "keywords": [
         "Indestructible"
@@ -246,10 +246,10 @@
       "power": 2,
       "life": 2,
       "costList": [
-        0.0,
         1.0,
         0.0,
-        1.0
+        0.0,
+        0.0
       ],
       "keywords": [
         "Stealth"
@@ -485,10 +485,10 @@
       "power": 2,
       "life": 7,
       "costList": [
+        4.0,
         0.0,
-        1.0,
         0.0,
-        4.0
+        1.0
       ],
       "tags": [
         "教学"
@@ -508,10 +508,10 @@
       "power": 1,
       "life": 2,
       "costList": [
+        2.0,
         0.0,
-        1.0,
         0.0,
-        1.0
+        0.0
       ],
       "tags": [
         "教学"
@@ -531,10 +531,10 @@
       "power": 2,
       "life": 3,
       "costList": [
+        3.0,
         0.0,
-        1.0,
         0.0,
-        2.0
+        0.0
       ],
       "tags": [
         "教学"
@@ -554,10 +554,10 @@
       "power": 1,
       "life": 2,
       "costList": [
+        2.0,
         0.0,
-        1.0,
         0.0,
-        1.0
+        0.0
       ],
       "tags": [
         "教学"
@@ -577,10 +577,10 @@
       "power": 1,
       "life": 2,
       "costList": [
+        2.0,
         0.0,
-        1.0,
         0.0,
-        1.0
+        0.0
       ],
       "tags": [
         "教学"
@@ -600,10 +600,10 @@
       "power": 1,
       "life": 2,
       "costList": [
+        2.0,
         0.0,
-        1.0,
         0.0,
-        1.0
+        0.0
       ],
       "tags": [
         "教学"
@@ -623,10 +623,10 @@
       "power": 1,
       "life": 2,
       "costList": [
+        2.0,
         0.0,
-        1.0,
         0.0,
-        1.0
+        0.0
       ],
       "tags": [
         "教学"
@@ -646,10 +646,10 @@
       "power": 1,
       "life": 2,
       "costList": [
+        2.0,
         0.0,
-        1.0,
         0.0,
-        1.0
+        0.0
       ],
       "tags": [
         "教学"
@@ -669,10 +669,10 @@
       "power": 1,
       "life": 2,
       "costList": [
+        2.0,
         0.0,
-        1.0,
         0.0,
-        1.0
+        0.0
       ],
       "tags": [
         "教学"
@@ -692,10 +692,10 @@
       "power": 1,
       "life": 1,
       "costList": [
-        0.0,
         1.0,
         0.0,
-        1.0
+        0.0,
+        0.0
       ],
       "tags": [
         "教学"
@@ -715,10 +715,10 @@
       "power": 1,
       "life": 2,
       "costList": [
+        2.0,
+        6.0,
         0.0,
-        7.0,
-        0.0,
-        1.0
+        0.0
       ],
       "tags": [
         "教学"
@@ -830,10 +830,10 @@
       "power": 1,
       "life": 2,
       "costList": [
+        2.0,
         0.0,
-        1.0,
         0.0,
-        1.0
+        0.0
       ],
       "tags": [
         "教学"
@@ -853,10 +853,10 @@
       "power": 1,
       "life": 2,
       "costList": [
+        2.0,
         0.0,
-        1.0,
         0.0,
-        1.0
+        0.0
       ],
       "tags": [
         "教学"
@@ -876,10 +876,10 @@
       "power": 1,
       "life": 1,
       "costList": [
-        0.0,
-        2.0,
+        1.0,
+        1.0,
         4.0,
-        1.0
+        0.0
       ],
       "keywords": [
         "Vigilance"
@@ -1082,10 +1082,10 @@
       "guardAbility": true,
       "life": 5,
       "costList": [
+        2.0,
         0.0,
         0.0,
-        0.0,
-        2.0
+        0.0
       ],
       "tags": [
         "ThemeBlueSurplus",
@@ -1102,10 +1102,10 @@
       "power": 2,
       "life": 4,
       "costList": [
+        2.0,
         0.0,
-        1.0,
         0.0,
-        2.0
+        0.0
       ],
       "tags": [
         "ThemeBlueSurplus",
@@ -1122,10 +1122,10 @@
       "power": 4,
       "life": 5,
       "costList": [
+        4.0,
         0.0,
-        2.0,
         0.0,
-        2.0
+        0.0
       ],
       "tags": [
         "ThemeBlueSurplus",
@@ -1159,10 +1159,10 @@
       "supertype": "Creature",
       "attackAbility": true,
       "costList": [
+        8.0,
         0.0,
-        4.0,
         0.0,
-        4.0
+        0.0
       ],
       "tags": [
         "ThemeGreenCountdown",
@@ -1181,10 +1181,10 @@
       "supertype": "Creature",
       "attackAbility": true,
       "costList": [
+        4.0,
         0.0,
-        2.0,
         0.0,
-        2.0
+        0.0
       ],
       "tags": [
         "ThemeGreenCountdown",
@@ -1225,7 +1225,7 @@
         0.0,
         0.0,
         0.0,
-        2.0
+        1.0
       ],
       "tags": [
         "ThemeGreenCountdown",
@@ -1244,10 +1244,10 @@
       "supertype": "Creature",
       "guardAbility": true,
       "costList": [
+        3.0,
         0.0,
         0.0,
-        0.0,
-        10.0
+        6.0
       ],
       "tags": [
         "ThemeGreenCountdown",
@@ -1315,10 +1315,10 @@
         "教学"
       ],
       "costList": [
+        2.0,
         0.0,
         0.0,
-        0.0,
-        4.0
+        1.0
       ],
       "hash": "C4A9FF45"
     },
@@ -1337,10 +1337,10 @@
         "099F66FB"
       ],
       "costList": [
+        2.0,
         0.0,
         0.0,
-        0.0,
-        2.0
+        0.0
       ],
       "hash": "43D54E86"
     },
@@ -1359,10 +1359,10 @@
         "AF36EA72"
       ],
       "costList": [
+        1.0,
         0.0,
         0.0,
-        0.0,
-        1.0
+        0.0
       ],
       "hash": "AA68BFD3"
     },
@@ -1381,10 +1381,10 @@
         "9170B00B"
       ],
       "costList": [
+        2.0,
         0.0,
         0.0,
-        0.0,
-        3.0
+        0.0
       ],
       "hash": "EB8B1B77"
     },
@@ -1403,10 +1403,10 @@
         "B4AA343A"
       ],
       "costList": [
+        2.0,
         0.0,
         0.0,
-        0.0,
-        2.0
+        0.0
       ],
       "hash": "2C435CC0"
     },
@@ -1446,10 +1446,10 @@
         "D0C61A63"
       ],
       "costList": [
-        0.0,
         1.0,
         0.0,
-        2.0
+        0.0,
+        1.0
       ],
       "hash": "8E2D7455"
     },
@@ -1468,10 +1468,10 @@
         "E404DB9B"
       ],
       "costList": [
+        2.0,
         0.0,
         0.0,
-        0.0,
-        3.0
+        0.0
       ],
       "hash": "7BECE823"
     },
@@ -1736,10 +1736,10 @@
       "power": 0,
       "life": 6,
       "costList": [
+        2.0,
         0.0,
         0.0,
-        0.0,
-        4.0
+        1.0
       ],
       "tags": [
         "ThemeBlueSurplus",
@@ -1930,8 +1930,8 @@
       "supertype": "Creature",
       "attackAbility": true,
       "costList": [
-        0.0,
         1.0,
+        0.0,
         0.0,
         0.0
       ],
@@ -1952,8 +1952,8 @@
       "supertype": "Creature",
       "guardAbility": true,
       "costList": [
-        0.0,
         1.0,
+        0.0,
         0.0,
         0.0
       ],
@@ -2091,8 +2091,8 @@
       "power": 4,
       "life": 2,
       "costList": [
-        0.0,
-        3.0,
+        1.0,
+        2.0,
         0.0,
         0.0
       ],
@@ -2112,8 +2112,8 @@
       "power": 4,
       "life": 2,
       "costList": [
-        0.0,
-        7.0,
+        1.0,
+        6.0,
         0.0,
         0.0
       ],
@@ -2133,10 +2133,10 @@
       "power": 2,
       "life": 4,
       "costList": [
+        1.0,
         0.0,
         0.0,
-        0.0,
-        1.0
+        0.0
       ],
       "tags": [
         "教学"
@@ -2151,10 +2151,10 @@
       "power": 2,
       "life": 8,
       "costList": [
+        3.0,
         0.0,
         0.0,
-        0.0,
-        3.0
+        0.0
       ],
       "tags": [
         "教学"
@@ -2169,8 +2169,8 @@
       "power": 6,
       "life": 2,
       "costList": [
-        0.0,
-        7.0,
+        2.0,
+        5.0,
         0.0,
         0.0
       ],
@@ -2190,10 +2190,10 @@
       "power": 6,
       "life": 3,
       "costList": [
+        3.0,
+        5.0,
         0.0,
-        7.0,
-        0.0,
-        1.0
+        0.0
       ],
       "keywords": [
         "Splash"
@@ -2211,10 +2211,10 @@
       "power": 2,
       "life": 6,
       "costList": [
+        2.0,
         0.0,
         0.0,
-        0.0,
-        2.0
+        0.0
       ],
       "tags": [
         "教学"
@@ -2245,10 +2245,10 @@
       "power": 3,
       "life": 3,
       "costList": [
-        0.0,
         1.0,
+        0.0,
         6.0,
-        1.0
+        0.0
       ],
       "keywords": [
         "Disarm"
@@ -2266,10 +2266,10 @@
       "power": 4,
       "life": 4,
       "costList": [
+        2.0,
         0.0,
-        1.0,
         3.0,
-        1.0
+        0.0
       ],
       "keywords": [
         "Vigilance"
@@ -2287,10 +2287,10 @@
       "power": 4,
       "life": 8,
       "costList": [
+        4.0,
+        2.0,
         0.0,
-        3.0,
-        0.0,
-        3.0
+        0.0
       ],
       "keywords": [
         "FirstStrike"
@@ -2308,10 +2308,10 @@
       "power": 2,
       "life": 8,
       "costList": [
-        0.0,
+        3.0,
         6.0,
         0.0,
-        3.0
+        0.0
       ],
       "keywords": [
         "DoubleStrike"
@@ -2350,10 +2350,10 @@
       "power": 2,
       "life": 7,
       "costList": [
-        0.0,
+        3.0,
         0.0,
         3.0,
-        3.0
+        0.0
       ],
       "keywords": [
         "Taunt"
@@ -2371,10 +2371,10 @@
       "power": 3,
       "life": 3,
       "costList": [
+        1.0,
+        3.0,
         0.0,
-        4.0,
-        0.0,
-        1.0
+        0.0
       ],
       "keywords": [
         "Lifesteal"
@@ -2392,10 +2392,10 @@
       "power": 3,
       "life": 3,
       "costList": [
-        0.0,
         1.0,
         0.0,
-        4.0
+        0.0,
+        3.0
       ],
       "keywords": [
         "Lifelink"
@@ -2413,10 +2413,10 @@
       "power": 3,
       "life": 3,
       "costList": [
-        0.0,
         1.0,
         0.0,
-        1.0
+        0.0,
+        0.0
       ],
       "tags": [
         "教学"
@@ -2452,10 +2452,10 @@
       "power": 8,
       "life": 8,
       "costList": [
+        6.0,
         0.0,
-        3.0,
         0.0,
-        5.0
+        2.0
       ],
       "keywords": [
         "Indestructible"
@@ -2473,10 +2473,10 @@
       "power": 3,
       "life": 5,
       "costList": [
+        2.0,
         0.0,
-        1.0,
         0.0,
-        7.0
+        5.0
       ],
       "keywords": [
         "Regeneration"
@@ -2494,10 +2494,10 @@
       "power": 2,
       "life": 7,
       "costList": [
+        3.0,
         0.0,
         0.0,
-        0.0,
-        4.0
+        1.0
       ],
       "keywords": [
         "Guardian"
@@ -2515,8 +2515,8 @@
       "power": 4,
       "life": 2,
       "costList": [
-        0.0,
-        4.0,
+        1.0,
+        3.0,
         0.0,
         0.0
       ],
@@ -2536,8 +2536,8 @@
       "power": 4,
       "life": 2,
       "costList": [
-        0.0,
-        7.0,
+        1.0,
+        6.0,
         0.0,
         0.0
       ],
@@ -2558,10 +2558,10 @@
       "power": 2,
       "life": 4,
       "costList": [
-        0.0,
+        1.0,
         3.0,
         0.0,
-        1.0
+        0.0
       ],
       "keywords": [
         "Pathogen"
@@ -2582,7 +2582,7 @@
         0.0,
         6.0,
         0.0,
-        1.0
+        0.0
       ],
       "keywords": [
         "DoubleStrike"
@@ -2618,10 +2618,10 @@
       "power": 4,
       "life": 4,
       "costList": [
-        6.0,
-        1.0,
+        8.0,
         0.0,
-        1.0
+        0.0,
+        0.0
       ],
       "keywords": [
         "Insulator"
@@ -2646,9 +2646,9 @@
         }
       ],
       "costList": [
-        7.0,
+        9.0,
         0.0,
-        2.0,
+        0.0,
         0.0
       ],
       "hash": "12705A5A"
@@ -2743,6 +2743,205 @@
         "教学"
       ],
       "hash": "CD942636"
+    },
+    {
+      "id": "C_C3B25F32",
+      "cardName": "萌芽",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeGreenCountdown",
+        "教学"
+      ],
+      "effectIds": [
+        "FXGREEN01"
+      ],
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "hash": "C3B25F32"
+    },
+    {
+      "id": "C_A92F5E99",
+      "cardName": "沃土",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeGreenCountdown",
+        "教学"
+      ],
+      "effectIds": [
+        "FXGREEN02"
+      ],
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "hash": "A92F5E99"
+    },
+    {
+      "id": "C_60D27A90",
+      "cardName": "归根",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeGreenCountdown",
+        "教学"
+      ],
+      "effectIds": [
+        "FXGREEN03"
+      ],
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "hash": "60D27A90"
+    },
+    {
+      "id": "C_21E4EAC1",
+      "cardName": "凋零",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeGreenCountdown",
+        "教学"
+      ],
+      "effectIds": [
+        "FXGREEN04"
+      ],
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "hash": "21E4EAC1"
+    },
+    {
+      "id": "C_EEF587D5",
+      "cardName": "溃散",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeGreenCountdown",
+        "教学"
+      ],
+      "effectIds": [
+        "FXGREEN05"
+      ],
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "hash": "EEF587D5"
+    },
+    {
+      "id": "C_91CE77A8",
+      "cardName": "枯竭",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeGreenCountdown",
+        "教学"
+      ],
+      "effectIds": [
+        "FXGREEN06"
+      ],
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "hash": "91CE77A8"
+    },
+    {
+      "id": "C_76B63B4D",
+      "cardName": "虚化",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeGreenCountdown",
+        "教学"
+      ],
+      "effectIds": [
+        "FXGREEN07"
+      ],
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "hash": "76B63B4D"
+    },
+    {
+      "id": "C_D1D6C529",
+      "cardName": "古木守卫",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 8,
+      "keywords": [
+        "Guardian"
+      ],
+      "tags": [
+        "ThemeGreenCountdown",
+        "教学"
+      ],
+      "effectIds": [],
+      "costList": [
+        2.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "hash": "D1D6C529"
+    },
+    {
+      "id": "C_B0EF3C08",
+      "cardName": "暗影豹",
+      "supertype": "Creature",
+      "power": 9,
+      "life": 9,
+      "attackAbility": true,
+      "guardAbility": true,
+      "keywords": [
+        "Hunt",
+        "Lifesteal"
+      ],
+      "tags": [
+        "ThemeGreenCountdown",
+        "教学"
+      ],
+      "effectIds": [],
+      "costList": [
+        8.0,
+        6.0,
+        0.0,
+        0.0
+      ],
+      "hash": "B0EF3C08"
+    },
+    {
+      "id": "C_AC7FC01F",
+      "cardName": "牺牲",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeGreenCountdown",
+        "教学"
+      ],
+      "effectIds": [
+        "FXGREEN08"
+      ],
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "hash": "AC7FC01F"
     }
   ]
 }

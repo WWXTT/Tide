@@ -125,7 +125,7 @@ namespace CardCore.AI
             var data = DataOf(card);
 
             // ① 0 费 2/2 火苗（免费底 2/2）最优先：不花资源先铺场
-            //    2026-11-04：火种统一 2/2 仅攻击（无守卫资格），费用 0；0.5 半费仍兼容（攻红/血绿）。
+            //    2026-11-04：火种统一 2/2 仅攻击（无守卫资格），费用 0；2026-11-14 基础属性归灰（攻/血同灰）。
             if (isCreature && cost <= 0.5f) score += 1200f;
             else if (isCreature && data != null && !data.AttackAbility) score += 150f; // 火灵·守：等大哥（ShouldHold 闸；2026-11-06 opt-in：无攻资格）
             else if (isCreature) score += 400f;                                  // 火灵·攻

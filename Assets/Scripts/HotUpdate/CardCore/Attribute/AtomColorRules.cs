@@ -16,6 +16,9 @@ namespace CardCore.Attribute
     /// 先命中先定色）+ 逐原子特例（SpecColorOf）+ 行级定案覆盖（SpecRowOverrides，键=中文短名，
     /// 全表生效——光环表 EffectType 全同，行级判色唯一落点）+ 豁免（SpecColorExempt：费用增减
     /// 四色行已按四色处理，不参与生成）。
+    /// **2026-11-14 基础属性归灰定案（优先于上面的轴映射）**：攻击力/生命值/耐久三类**数值**
+    ///（含永久档、角色攻击力、攻守互换）统一灰——0.5 灰 = 1 点数值（与 StatUnit=2 /
+    /// StatAnchor=0.5 / DurabilityUnitCost=0.5 / AtomTier.Dm1_25=0.5 同口径）。
     /// 改色定案流程不变：本表仍是定案记录处；表侧直写行由人按定案改（段 2/3 迁移），
     /// RunColorAudit 对账「生成值 vs 显式值」不等即 Fail（2026-11-10 收尾起零容忍，无白名单）。
     /// </summary>
@@ -29,11 +32,11 @@ namespace CardCore.Attribute
         public static readonly Dictionary<CardCore.AtomicEffectType, SpecColor> SpecColorOf =
             new Dictionary<CardCore.AtomicEffectType, SpecColor>
         {
-            // ---- 场面（红）：改变场上数字（攻/血/存亡）----
+            // ---- 场面（红）：改变场上数字（存亡/移场；攻/血/耐久自 2026-11-14 改归灰）----
             { CardCore.AtomicEffectType.DealDamage, SpecColor.Red },
             { CardCore.AtomicEffectType.LifeLoss, SpecColor.Red },                    // 流失=扣上限直伤（伤害族；表 2026-11-05 回红定案，11-03 绿口径作废）
             { CardCore.AtomicEffectType.DrainLife, SpecColor.Red | SpecColor.Green }, // 特例：吸取=伤害(红)+回复(绿) 双色
-            { CardCore.AtomicEffectType.AddHeroAttack, SpecColor.Red },               // 特例：加攻=红
+            { CardCore.AtomicEffectType.AddHeroAttack, SpecColor.Gray },              // 2026-11-14 基础属性归灰：角色攻击力=灰（原红）
             { CardCore.AtomicEffectType.Devour, SpecColor.Red },                      // 消灭=红
             { CardCore.AtomicEffectType.Smash, SpecColor.Red },                       // 摧毁=场面移除
             { CardCore.AtomicEffectType.Sacrifice, SpecColor.Red },
@@ -43,13 +46,13 @@ namespace CardCore.Attribute
             { CardCore.AtomicEffectType.BounceToBottom, SpecColor.Red },
             { CardCore.AtomicEffectType.GainControl, SpecColor.Red },
             { CardCore.AtomicEffectType.ChangeOwner, SpecColor.Red },
-            { CardCore.AtomicEffectType.AddPowerUp, SpecColor.Red },                   // 改攻击力=红
-            { CardCore.AtomicEffectType.AddPowerDown, SpecColor.Red },
-            { CardCore.AtomicEffectType.AddLifeDown, SpecColor.Green },                // 定案 2026-11-02：生命值族全绿（用户表侧改定；旧「减血=伤害族红」作废）
-            { CardCore.AtomicEffectType.AddPermanentPowerUp, SpecColor.Red },          // 永久攻血四轴（2026-11-02 拆分定案，原双属性±两行退役）：攻=红
-            { CardCore.AtomicEffectType.AddPermanentPowerDown, SpecColor.Red },
-            { CardCore.AtomicEffectType.AddPermanentLifeUp, SpecColor.Green },         // 血=绿（生命值族同口径）
-            { CardCore.AtomicEffectType.AddPermanentLifeDown, SpecColor.Green },
+            { CardCore.AtomicEffectType.AddPowerUp, SpecColor.Gray },                  // 2026-11-14 基础属性归灰：攻击力增加=灰（原红）
+            { CardCore.AtomicEffectType.AddPowerDown, SpecColor.Gray },                // 2026-11-14 基础属性归灰：攻击力减少=灰（原红）
+            { CardCore.AtomicEffectType.AddLifeDown, SpecColor.Gray },                 // 2026-11-14 基础属性归灰：生命值减少=灰（2026-11-02「生命族全绿」作废）
+            { CardCore.AtomicEffectType.AddPermanentPowerUp, SpecColor.Gray },         // 2026-11-14 基础属性归灰：永久攻=灰（原红；永久档单价仍 1 灰/点）
+            { CardCore.AtomicEffectType.AddPermanentPowerDown, SpecColor.Gray },       // 2026-11-14 基础属性归灰：永久攻=灰
+            { CardCore.AtomicEffectType.AddPermanentLifeUp, SpecColor.Gray },          // 2026-11-14 基础属性归灰：永久血=灰（原绿）
+            { CardCore.AtomicEffectType.AddPermanentLifeDown, SpecColor.Gray },        // 2026-11-14 基础属性归灰：永久血=灰
             { CardCore.AtomicEffectType.Purify, SpecColor.Red },                       // 驱散=全剥关键词/指示物（削场面）
             { CardCore.AtomicEffectType.AddToxin, SpecColor.Red },                     // 毒素=回合末造伤（伤害族）
             { CardCore.AtomicEffectType.GrantRetaliation, SpecColor.Red },             // 报复（旧枚举名；行 2026-11-09 随荆棘改名换 GrantRetaliate，本行保留防旧引用）
@@ -66,7 +69,7 @@ namespace CardCore.Attribute
             { CardCore.AtomicEffectType.BurstDamage, SpecColor.Red },
             { CardCore.AtomicEffectType.ShieldSlam, SpecColor.Red },                   // 护盾猛击=护甲转伤害（伤害产出族）
             { CardCore.AtomicEffectType.MoveUnit, SpecColor.Red },                     // 移动=场面（位置族；行级定案灰见 SpecRowOverrides）
-            { CardCore.AtomicEffectType.Attack, SpecColor.Red },                       // 系统行（预留）
+            { CardCore.AtomicEffectType.Attack, SpecColor.Gray },                      // 系统行（预留；2026-11-14 攻击族归灰）
             // ---- 资源/生存（绿）：手牌/牌库/墓地/元素池/生命总量/减伤/防护 ----
             { CardCore.AtomicEffectType.Heal, SpecColor.Green },
             { CardCore.AtomicEffectType.DrawCard, SpecColor.Green },                   // 特例：抽卡=绿（行级定案蓝见 SpecRowOverrides）
@@ -79,8 +82,8 @@ namespace CardCore.Attribute
             { CardCore.AtomicEffectType.ReturnFromGraveyard, SpecColor.Green },        // 苏生=墓地资源回流
             { CardCore.AtomicEffectType.IncreaseLandCap, SpecColor.Green },            // 成长=资源（地牌槽）
             { CardCore.AtomicEffectType.RemoveDebuffs, SpecColor.Green },              // 净化=解除负面（2026-10-28 P2a 先例）
-            { CardCore.AtomicEffectType.AddLifeUp, SpecColor.Green },                  // 改生命/回复=绿
-            { CardCore.AtomicEffectType.AddArmor, SpecColor.Green },                   // 护甲=绿（属性与卡体）
+            { CardCore.AtomicEffectType.AddLifeUp, SpecColor.Gray },                   // 2026-11-14 基础属性归灰：生命值增加=灰（回复 Heal 仍绿）
+            { CardCore.AtomicEffectType.AddArmor, SpecColor.Green },                   // 护甲=绿（生存轴，非基础属性）
             { CardCore.AtomicEffectType.GrantToughness, SpecColor.Green },             // 坚韧=减伤=生存（减半同口径）
             { CardCore.AtomicEffectType.ProtectionHalve, SpecColor.Gray },             // 减半指示物=伤害规则改写（2026-11-10 搬迁补录：此前 EffectType 未收录，行级「减半」→灰定案随本行入字典）
             { CardCore.AtomicEffectType.GrantProtection, SpecColor.Gray },             // 特例：减半=伤害规则改写（2026-11-05 定案灰；旧绿/蓝作废）
@@ -91,7 +94,7 @@ namespace CardCore.Attribute
             { CardCore.AtomicEffectType.GrantRegeneration, SpecColor.Green },          // 再生=生存
             { CardCore.AtomicEffectType.LivingArmor, SpecColor.Green },                // 活体护甲=护甲族
             { CardCore.AtomicEffectType.Guard, SpecColor.Green },                      // 系统行（预留）
-            { CardCore.AtomicEffectType.SetLife, SpecColor.Green },                    // 系统行（预留）
+            { CardCore.AtomicEffectType.SetLife, SpecColor.Gray },                     // 系统行（预留；2026-11-14 生命值族归灰）
             // ---- 信息/节奏（蓝）：行动许可·能不能被指定·看到什么·反制打断 ----
             { CardCore.AtomicEffectType.SearchDeck, SpecColor.Blue },                  // 特例：检索=蓝
             { CardCore.AtomicEffectType.LookAtTopCards, SpecColor.Blue },              // 特例：占卜=蓝
@@ -121,9 +124,9 @@ namespace CardCore.Attribute
             { CardCore.AtomicEffectType.GrantVigilance, SpecColor.Blue },              // 警戒=攻击不横置（行动许可）
             { CardCore.AtomicEffectType.GrantDisarm, SpecColor.Blue },                 // 缴械=压制反击（行动许可）
             { CardCore.AtomicEffectType.GrantTaunt, SpecColor.Blue },                  // 帷幕=指定限制（能否被指定）
-            { CardCore.AtomicEffectType.AddDurabilityUp, SpecColor.Blue },             // 特例：耐久=蓝（2026-11-03 定案：结界耐久轴同口径——身材耐久桶同日灰→蓝，0.5蓝/点）
+            { CardCore.AtomicEffectType.AddDurabilityUp, SpecColor.Gray },             // 2026-11-14 基础属性归灰：耐久=灰（2026-11-03「耐久=蓝」作废；0.5 灰/点）
             { CardCore.AtomicEffectType.SealUnit, SpecColor.Red },                     // 封印=场面移除（2026-11-05 确认定案红；11-03 蓝3 口径作废）
-            { CardCore.AtomicEffectType.SwapPowerLife, SpecColor.Blue },               // 特例：攻守互换=蓝（2026-11-09 用户定案 2蓝——属性重排双轴对消，轴映射红被特例覆盖）
+            { CardCore.AtomicEffectType.SwapPowerLife, SpecColor.Gray },               // 2026-11-14 基础属性归灰：攻守互换=灰（原 2026-11-09 蓝2 作废——属性重排归基础属性轴）
             // ---- 场面/生存双成分（红|绿）----
             { CardCore.AtomicEffectType.GrantLifesteal, SpecColor.Red },                  // 吸血=红（2026-11-03 用户定案·不随吸取双色同构；表侧行待段3颜色迁移）
             { CardCore.AtomicEffectType.GrantLifelink, SpecColor.Red | SpecColor.Green },   // 系命=伤害+回复 双色（行级定案绿见 SpecRowOverrides）

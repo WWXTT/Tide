@@ -1262,10 +1262,10 @@
       "selection": 0,
       "count": 1,
       "cost": [
-        0.0,
-        0.0,
-        0.0,
         1.5,
+        0.0,
+        0.0,
+        0.0,
         0.0
       ],
       "steps": [
@@ -1361,8 +1361,8 @@
       "selection": 0,
       "count": 1,
       "cost": [
-        0.0,
         1.0,
+        0.0,
         0.0,
         0.0,
         0.0
@@ -1492,10 +1492,10 @@
       "selection": 0,
       "count": 1,
       "cost": [
-        0.0,
-        0.0,
-        0.0,
         1.0,
+        0.0,
+        0.0,
+        0.0,
         0.0
       ],
       "steps": [
@@ -3942,6 +3942,296 @@
             "kinds": [
               2
             ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "FXGREEN01",
+      "name": "地牌上限+1，并从卡组随机将1张带元素费用的卡横置加入元素池；若为本回合使用的第一张卡，为一手牌添加2层绿色费用减少指示物",
+      "hash": "A1CE6161",
+      "timing": 19,
+      "activation": 2,
+      "cost": [
+        0.0,
+        0.0,
+        0.0,
+        3.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "cab6ae97"
+          }
+        },
+        {
+          "kind": 1,
+          "gid": "FirstCardThisTurn",
+          "then": [
+            {
+              "refId": "48083c16",
+              "value": 2,
+              "kinds": [
+                5
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "FXGREEN02",
+      "name": "地牌上限+2，并从卡组随机将2张带元素费用的卡横置加入元素池；若操控地数量≥9，为一手牌添加2层绿色费用减少指示物",
+      "hash": "03471307",
+      "timing": 19,
+      "activation": 2,
+      "cost": [
+        0.0,
+        0.0,
+        0.0,
+        6.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "cab6ae97",
+            "value": 2
+          }
+        },
+        {
+          "kind": 1,
+          "gid": "LandsGt9",
+          "then": [
+            {
+              "refId": "48083c16",
+              "value": 2,
+              "kinds": [
+                5
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "FXGREEN03",
+      "name": "将3张己方墓地的卡返回手牌；若操控地数量≥9，为一手牌添加2层绿色费用减少指示物",
+      "hash": "F6F2EDB5",
+      "timing": 19,
+      "activation": 2,
+      "selection": 0,
+      "count": 3,
+      "cost": [
+        0.0,
+        0.0,
+        0.0,
+        12.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "c03ef9fe",
+            "value": 3,
+            "kinds": [
+              9
+            ],
+            "count": 3
+          }
+        },
+        {
+          "kind": 1,
+          "gid": "LandsGt9",
+          "then": [
+            {
+              "refId": "48083c16",
+              "value": 2,
+              "kinds": [
+                5
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "FXGREEN04",
+      "name": "将一个对方战场生物从本局游戏中抹除；若操控地数量≥9，为己方单位或角色添加4层护甲",
+      "hash": "84F6682E",
+      "timing": 19,
+      "activation": 2,
+      "selection": 0,
+      "count": 1,
+      "cost": [
+        6.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "96155537",
+            "kinds": [
+              2
+            ],
+            "domain": "对方战场:生物"
+          }
+        },
+        {
+          "kind": 1,
+          "gid": "LandsGt9",
+          "then": [
+            {
+              "refId": "9ff1954d",
+              "value": 4,
+              "kinds": [
+                1
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "FXGREEN05",
+      "name": "将一个对方战场结界从本局游戏中抹除；若操控地数量≥9，为己方单位或角色添加4层护甲",
+      "hash": "E8D1EFAC",
+      "timing": 19,
+      "activation": 2,
+      "selection": 0,
+      "count": 1,
+      "cost": [
+        6.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "96155537",
+            "kinds": [
+              4
+            ],
+            "domain": "对方战场:结界"
+          }
+        },
+        {
+          "kind": 1,
+          "gid": "LandsGt9",
+          "then": [
+            {
+              "refId": "9ff1954d",
+              "value": 4,
+              "kinds": [
+                1
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "FXGREEN06",
+      "name": "将一个对方元素池中的地牌从本局游戏中抹除；若操控地数量≥9，为己方单位或角色添加4层护甲",
+      "hash": "34640845",
+      "timing": 19,
+      "activation": 2,
+      "selection": 0,
+      "count": 1,
+      "cost": [
+        6.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "96155537",
+            "kinds": [
+              14
+            ],
+            "domain": "对方元素池:卡"
+          }
+        },
+        {
+          "kind": 1,
+          "gid": "LandsGt9",
+          "then": [
+            {
+              "refId": "9ff1954d",
+              "value": 4,
+              "kinds": [
+                1
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "FXGREEN07",
+      "name": "对一个己方战场生物或己方角色附加1层无实体；若操控地数量≥9，为己方单位或角色添加4层护甲",
+      "hash": "E26F9071",
+      "timing": 19,
+      "activation": 2,
+      "selection": 0,
+      "count": 1,
+      "cost": [
+        9.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "6c38edaa"
+          }
+        },
+        {
+          "kind": 1,
+          "gid": "LandsGt9",
+          "then": [
+            {
+              "refId": "9ff1954d",
+              "value": 4,
+              "kinds": [
+                1
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "FXGREEN08",
+      "name": "自行选择一个己方战场单位或己方地牌送墓，获得1点临时彩元素",
+      "hash": "8683ADD7",
+      "timing": 19,
+      "activation": 2,
+      "selection": 0,
+      "count": 1,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "84136d36"
           }
         }
       ]

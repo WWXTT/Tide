@@ -11,8 +11,8 @@
     "MountKinds": "",
     "Tags": "生效自减型",
     "ManaList": [
-      0,
       1,
+      0,
       0,
       0
     ]
@@ -287,7 +287,7 @@
   },
   {
     "ID": "977df9e1",
-    "TextHash": "977df9e1",
+    "TextHash": "90265341",
     "Domain": "双方战场:生物; 双方角色",
     "EnumName": "坚韧",
     "DisplayName": "对{target}附加{value}层坚韧指示物，受到伤害时，每层使受到的最终伤害减1，生效后层数减半（向下取整）",

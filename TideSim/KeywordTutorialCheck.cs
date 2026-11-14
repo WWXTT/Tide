@@ -609,9 +609,9 @@ namespace TideSim
                 Assert(hunter != null && vamp != null && innate != null, "三只己方生物在位（狩猎/狩猎吸血/印刷绝缘体）");
 
                 // —— AI turn6：沉睡/失效四连（本体=印刷死层） ——
-                GameActions.EndTurn(core, p1); // 段首回合末：两只狩猎播种横置→不狩猎（AI 保持 30）
+                GameActions.EndTurn(core, p1); // 段首回合末：两只狩猎播种横置→2026-11-14 重做后横置也强行出击
                 Console.WriteLine($"    [段首回合末AI生命] {p2.Life}");
-                Assert(p2.Life == 30, "段首回合末无狩猎开火（两只播种横置）");
+                Assert(p2.Life == 22, "段首回合末狩猎双出击（横置也强行出击：4+4，AI 30→22；无单位可杀=不重置，仍横置）");
                 Pump(core);
                 core.ElementPool.AddMana(p2, ManaType.Blue, null, 15);
                 Assert(Cast(core, p2, "C_BA2BFFAD", new List<Entity> { OnField(core, p1, "C_030E8991") }), "AI 沉睡→狩猎 成功");
@@ -638,9 +638,10 @@ namespace TideSim
                 DumpField(core, p1, "光环后P1");
                 Assert(GameBoard.LinkAuraSystem.HasAuraKeyword(vamp, KeywordRules.Insulator),
                     "光环授予：狩猎吸血获得绝缘体【表位7拉黑未解除则红——装载期光环条目被剥】");
-                GameActions.EndTurn(core, p1); // 回合末：光环授予的绝缘体不压沉睡——狩猎吸血仍被压，不开火
+                GameActions.EndTurn(core, p1); // 回合末：光环授予的绝缘体不压沉睡——狩猎吸血仍被压不开火；
+                // 狩猎被法术绝缘救活关键词但横置（沉睡拦过重置）——2026-11-14 重做后横置也强行出击（4 点）
                 Console.WriteLine($"    [AI生命] {p2.Life}");
-                Assert(p2.Life == 30, $"光环授予的绝缘体压不住沉睡：AI 留 30（实际 {p2.Life}）【2026-11-09 定案：IsActive 只认本体轨】");
+                Assert(p2.Life == 18, $"狩猎横置强行出击 22→18、吸血者仍被压哑火（实际 {p2.Life}）【IsActive 只认本体轨】");
                 Assert(hunter.GetCounterCount(KeywordRules.SleepCounter) == 0, $"层的倒数照常结算：狩猎沉睡 1→0（实际 {hunter.GetCounterCount(KeywordRules.SleepCounter)}）");
                 Assert(vamp.GetCounterCount(CounterRules.NullifyCounter) == 1,
                     $"失效不自动倒数（非衰退档，账面保持——驱散才清；实际 {vamp.GetCounterCount(CounterRules.NullifyCounter)}）");

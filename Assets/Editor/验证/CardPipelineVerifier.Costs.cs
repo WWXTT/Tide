@@ -126,7 +126,7 @@ namespace CardCore.Editor
                 foreach (var c in rRed.DerivedCost.NonzeroColors()) dRed[c] = (int)rRed.DerivedCost[c];
                 Assert(dRed.Count == expectRed.Count && !dRed.Except(expectRed).Any(),
                        $"净费色内抵扣：红代价 {dmgPts} 点只扣红桶 [{Dump(preRed)}] → 期望 [{Dump(expectRed)}]"
-                       + $"（绿桶原样），实际 [{Dump(dRed)}]");
+                       + $"（灰桶原样），实际 [{Dump(dRed)}]");
                 int surcharge = (int)r1.Breakdown.Where(l => l.Stage == "C" && l.Value > 0).Sum(l => l.Value);
                 Assert(surcharge >= 0 && System.Math.Abs(r1.PrePayloadCost.Total - (r0.DerivedTotal + surcharge)) < 1e-4f,
                        $"代价栏计1槽（2026-10-04/10-22 定案）：抵扣前费 {r1.PrePayloadCost.Total}"
@@ -363,9 +363,9 @@ namespace CardCore.Editor
                 var d = new CardData
                 {
                     ID = id, CardName = "验证资敌卡" + id, Supertype = Cardtype.Creature,
-                    // 2026-11-06 opt-in 补攻守：② 段净费=抵扣前费−代价价的关系依赖 2/2 身材
-                    // 产出绿色分量（治疗代价行色锁绿）——无资格则免费属性底吞掉身材、绿色归零、
-                    // 抵扣落空净费≠pre−price
+                    // 2026-11-06 opt-in 补攻守：② 段净费=抵扣前费−代价价的关系依赖卡费有绿桶
+                    //（治疗代价行色锁绿）——2026-11-14 基础属性归灰后身材不再产绿，绿色分量改由
+                    // 效果内的 Heal 原子提供（0.5 绿/点 → 进位 1 绿）。
                     AttackAbility = true, GuardAbility = true,
                     Power = 2, Life = 2,
                     Effects = new List<CardEffectData>
@@ -374,7 +374,8 @@ namespace CardCore.Editor
                         {
                             Id = id + "_EFF",
                             AtomicEffects = new List<AtomicEffectEntry>
-                                { Atom(AtomicEffectType.DealDamage, value: 1, kinds: new List<int> { (int)CardCore.TargetKind.EnemyLivingUnit }) },
+                                { Atom(AtomicEffectType.DealDamage, value: 1, kinds: new List<int> { (int)CardCore.TargetKind.EnemyLivingUnit }),
+                                  Atom(AtomicEffectType.Heal, value: 1) }, // 绿色分量（0.5 绿/点）——2026-11-14 身材归灰后由本原子提供
                         },
                     },
                 };
@@ -833,8 +834,8 @@ namespace CardCore.Editor
                 Supertype = Cardtype.Creature, AttackAbility = true, GuardAbility = true, Power = 2, Life = 2 };
             half.ResetCache();
             var hr = CardCostService.Derive(half);
-            Assert(hr.DerivedCost[ManaType.Red] == 1f && hr.DerivedCost[ManaType.Green] == 1f && hr.DerivedTotal == 2,
-                $"逐色进位不是总额进位：2/2（免费底1）→ 红1绿1 D=2（实际 {hr.DerivedCost}）");
+            Assert(hr.DerivedCost[ManaType.Gray] == 1f && hr.DerivedTotal == 1,
+                $"逐色进位不是总额进位：2/2（免费底1）→ 灰1 D=1（攻/血同入灰桶 0.5+0.5 合并只进一次——2026-11-14 基础属性归灰；实际 {hr.DerivedCost}）");
             // ③ 效果费两侧口径
             var fx = new CardEffectData { Id = "VERIFY_CEIL_HEAL", TriggerTiming = (int)TriggerTiming.Activate_Active,
                 ActivationType = (int)EffectActivationType.Voluntary,

@@ -1160,18 +1160,20 @@ namespace SynergyUI
             var report = DeckCompositionValidator.Check(
                 _nameField != null ? _nameField.text : _currentDeckName, _deckCardIds);
             var landShort = DeckCompositionValidator.CheckLandSupport(_deckCardIds);
+            var costCap = DeckCompositionValidator.CheckCostOverNaturalCap(_deckCardIds);
             var bwGaps = DeckCompositionValidator.CheckBWCostCoverage(_deckCardIds);
             var tokenErrors = DeckTokenSupport.ValidateDeck(_deckCardIds, _tokenCardIds, _tokenBindings);
             bool skillOk = !string.IsNullOrEmpty(_skillCardId);
 
-            RenderTipLines(BuildStatsTipLines(report, landShort, bwGaps, tokenErrors, skillOk));
+            RenderTipLines(BuildStatsTipLines(report, landShort, costCap, bwGaps, tokenErrors, skillOk));
         }
 
         /// <summary>tip 行构造（纯文本+颜色，无富文本标签——探针可断言不含 '&lt;'）：
-        /// 绿 ✔ 通过行 / 红 ✘ 硬约束与地源 advisory / 灰 空卡组提示。分项折叠同旧口径
-        ///（衍生物 2 行、地源 2 行）。</summary>
+        /// 绿 ✔ 通过行 / 红 ✘ 硬约束与 advisory（地源、费用超自动上限）/ 灰 空卡组提示。分项折叠同旧口径
+        ///（衍生物 2 行、地源 2 行、费用上限 2 行）。</summary>
         internal static List<(string text, Color color)> BuildStatsTipLines(
             DeckCompositionValidator.Report report, List<DeckCompositionValidator.LandShortage> landShort,
+            List<DeckCompositionValidator.CostCapGap> costCap,
             List<DeckCompositionValidator.BWGap> bwGaps, List<string> tokenErrors, bool skillOk)
         {
             var lines = new List<(string, Color)>();
@@ -1214,6 +1216,20 @@ namespace SynergyUI
             }
             if (landShort.Count > maxLandRows)
                 lines.Add(($"……另有 {landShort.Count - maxLandRows} 张卡地源不足无法释放", UiStyle.DotRed));
+
+            // ---- 费用超自动上限（advisory，不拦保存；2026-11-14 用户定案；两行折叠）----
+            // 只在本卡组**不带成长**时出现（CheckCostOverNaturalCap 已按成长口径过滤）：
+            // 地牌上限只能自然曲线长，自动上限=LandCurveCap（现值 10），超过的卡本局打不出。
+            const int maxCostRows = 2;
+            int costShown = 0;
+            foreach (var gap in costCap)
+            {
+                if (costShown++ >= maxCostRows) break;
+                lines.Add(($"✘ {gap.CardName} ×{gap.Copies}｜费用 {gap.Cost}｜超过自动上限 {gap.Cap}"
+                           + "（本卡组不带「成长」）——本局打不出", UiStyle.DotRed));
+            }
+            if (costCap.Count > maxCostRows)
+                lines.Add(($"……另有 {costCap.Count - maxCostRows} 张卡费用超自动上限", UiStyle.DotRed));
             return lines;
         }
 

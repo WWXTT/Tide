@@ -38,11 +38,11 @@ namespace CardCore
  ///   结界 → 折免费耐久底（⌊N÷DurabilityUnitCost⌋，计价侧免除、入场耐久=印刷值下限1——
  ///   2026-11-04 碑族0费改版，取代旧「全入耐久=入场+N」）；
  ///   地牌/其余 → 全额抵价（ReduceBuckets 先灰后最高色）；
- ///   生物 → **免费属性底 n/n**（2026-11-03 底盘分配改版）：预算优先占坑 攻1+守1+**首个效果槽**，
- ///   剩余 n=3−(攻+守+首槽) 落成攻/血各 n 点的免费底——计价侧（StatBucketsOf/ComputeStatValue）
-    ///   直接免除前 n 点，超出部分按颜色收费（攻红/血绿，真实小数 0.5/点——卡层出口逐色向上取整，支付终点同规则）。
- ///   免费底固定 n/n 不可偏移（组合器以 n 为属性输入下限——无法做成 5-1 之类偏斜底）。
- ///   旧「盈余点先红后绿扣色桶」（StatOffsetOf）随之退役。
+///   生物 → **免费属性点数池 2n**（2026-11-03 底盘分配改版；2026-11-14 自由分配定案）：预算优先占坑 攻1+守1+**首个效果槽**，
+///   剩余 n=3−(攻+守+首槽) 折成 2n 点属性免费额度——计价侧（StatBucketsOf/ComputeStatValue）按合并点数
+///   一次免除 max(0,(攻+血)−2n)，超出部分按灰收费（攻/血/耐久同锚 0.5 灰/点——2026-11-14 基础属性归灰；
+///   真实小数，卡层出口逐色向上取整，支付终点同规则）。免费点可在攻/血间任意分配（3-1/0-8 之类偏斜同样合法，价不变），
+///   未用完作废。旧「盈余点先红后绿扣色桶」（StatOffsetOf）与「免费底 n/n 不可偏移」均已退役。
  /// ③超槽加价（2026-11-03 生物改版）：生物 = **首个效果槽之外每槽恒 +1 灰**（攻/守占坑不触发加价；
  ///   旧「结构项>3 差额」口径对攻守齐全生物等价、对 opt-out 生物少收——新口径统一按槽数计）；
  ///   非生物保持 结构项>3 差额 ×1 入灰；取整后入灰（不吃 d(C)）。
@@ -116,11 +116,12 @@ namespace CardCore
             return surplus;
         }
 
-        /// <summary>生物免费属性底 n（2026-11-03 底盘分配改版）：3 点预算优先占坑
-        /// 攻 1 + 守 1 + **首个效果槽**，剩余 n（≥0）= 攻/血各 n 点的免费底——计价侧
-        /// （StatBucketsOf/ComputeStatValue）直接免除前 n 点，超出部分按颜色收费；
-        /// 组合器以本值为属性输入下限（免费底固定 n/n 不可偏移，玩家只能在底之上加付属性，
-        /// 无法设置成 5-1 之类偏斜底）。非生物恒 0。旧「盈余点先红后绿扣色桶」（StatOffsetOf）随之退役。</summary>
+        /// <summary>生物免费属性底 n（2026-11-03 底盘分配改版；2026-11-14 自由分配定案）：3 点预算优先占坑
+        /// 攻 1 + 守 1 + **首个效果槽**，剩余 n（≥0）= 免费属性**点数池**——每点底盘 = 2 点属性
+        ///（1 点底盘 = 1 灰 = 2×0.5 灰 属性），攻/血可**任意分配**（不再固定 n/n，可做 3-1/0-8 之类偏斜身材）；
+        /// 计价侧（StatBucketsOf/ComputeStatValue）按合并点数一次免除 max(0,(攻+血)−2n)，超出部分按灰收费。
+        /// 组合器属性输入下限随之降为 0（未用完的免费点作废，不折价）。
+        /// 非生物恒 0。旧「盈余点先红后绿扣色桶」（StatOffsetOf）已退役。</summary>
         public static int FreeAttrBaseOf(CardData card)
         {
             if (card == null || card.Supertype != Cardtype.Creature) return 0;
@@ -130,6 +131,15 @@ namespace CardCore
             int slots = CostDerivationService.CountEffectSlots(card);
             int items = (card.AttackAbility ? 1 : 0) + (card.GuardAbility ? 1 : 0) + Math.Min(1, slots);
             return Math.Max(0, budget - items * rate);
+        }
+
+        /// <summary>生物免费属性**点数**（2026-11-14 自由分配定案）= FreeAttrBaseOf × StatUnit：
+        /// 1 点底盘额度折 2 点攻/血（StatUnit=2 且 0.5 灰/点）。计价口用它一次性抵扣合并点数；
+        /// 组合器用它算「还能白拿多少点属性」，玩家自行在攻/血间分配。非生物恒 0。</summary>
+        public static int FreeAttrPointsOf(CardData card)
+        {
+            float unit = ValueSystemConfigManager.Instance.GetOrCreateConfig().CardCostConfig.StatUnit;
+            return (int)Math.Round(FreeAttrBaseOf(card) * Math.Max(1f, unit), MidpointRounding.AwayFromZero);
         }
 
         /// <summary>卡型速度加成单源（2026-10-15 定案：速度归卡型免费额度默认分配；
@@ -152,7 +162,7 @@ namespace CardCore
 
         /// <summary>结界免费耐久底（2026-11-04 碑族0费改版）：免费点按耐久单价折算的免费耐久数
         /// ⌊SurplusOf ÷ DurabilityUnitCost⌋——1 槽碑=免费点 2 → 底 4（印刷耐久 4 内免卡价，
-        /// 超出部分 0.5蓝/点计价）。耐久单价≤0（全局免费耐久）→ 底=印刷值全免。非结界恒 0。
+        /// 超出部分 0.5灰/点计价）。耐久单价≤0（全局免费耐久）→ 底=印刷值全免。非结界恒 0。
         /// 计价消费：CardCostService.ComputeStatValue / StatBucketsOf（applyFreeBase 口径同生物属性底）。
         /// 取代旧「免费点全投耐久=入场+N 堆叠」（DurabilityBonusOf 同批退役）。</summary>
         public static int FreeDurabilityBaseOf(CardData card)

@@ -160,6 +160,18 @@ SkipTurn×4（整回合/End/Standby/Main 相位档）、ModifyGameRule×21（场
      （35 行，Enabled=false 影子模式）；触发一次消耗 D×1/3 点耐久（D 点恒兑现 3 次），
      耐久费 0.5 蓝/点只表达血量、不再兼作次数价。规格见 docs/时机系数规格_v0.1.md。
 
+2026-11-14 基础属性归灰（用户定案：攻/血/耐久全部划灰，0.5 灰 = 1 点数值）：
+  ① AtomColorRules.SpecColorOf：AddHeroAttack / AddPowerUp / AddPowerDown /
+     AddPermanentPowerUp / AddPermanentPowerDown / AddLifeUp / AddLifeDown /
+     AddPermanentLifeUp / AddPermanentLifeDown / AddDurabilityUp / SwapPowerLife /
+     SetLife / Attack 全改 Gray（Heal 仍绿、LifeLoss 仍红——用户确认边界）。
+  ② 指示物表「角色攻击力增加」ManaList 红1→灰1（唯一显式行；其余 Tier 行解析期自动生成灰）。
+  ③ CardCostService.StatBucketsOf / ComputeStatValue：攻/血/耐久三桶→单灰桶（0.5 灰/点）；
+     单桶合并后逐色进位只进一次（2/2 白板 2→1、4/4 白板 4→3、9/9+3伤 12→11、1/1+3抽 8→7 等）。
+  ④ ValueSystemConfig.CardCost 新增 StatAnchor=0.5（显式入表）；StatUnit=2 /
+     DurabilityUnitCost=0.5 数值不变，仅注释改「0.5 灰」。
+  ⑤ 验证器身材锚点同批重算；P9-8g 零容忍（生成色=表色）——改规则必须同批改显式行。
+
 【EffectType 族谱（按 MountKinds 分组的当前实测，2026-10-31 阶段B 复核）】
 普通行（MountKinds 空串 x44）: 造成伤害/全体伤害 回复生命 吸取 角色攻击力增加 抽卡 弃牌
     弹回 回收 除外 洗回 检索 苏生 占卜 激励(Untap) 生命流失 锁定 控制(原获得控制)

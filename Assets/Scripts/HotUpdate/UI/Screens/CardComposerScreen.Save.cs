@@ -222,7 +222,8 @@ namespace SynergyUI
 
         private void Recalculate()
         {
-            ApplyStatFloors(); // 2026-11-03 底盘改版：结构变动后免费属性底托底（先托底再算费）
+            // 2026-11-14 免费属性自由分配定案：属性不再有「免费底托底」——属性输入只钳上限，
+            // 免费点数在计价侧合并抵扣（白拿的点不用完作废，不下压属性）。
             var result = CardCostCalculator.Calculate(_card);
 
             // 自动算费直写（2026-10-16 定案：手动声明/采纳/建议标签全退役）——费用恒=内容推导分布。
@@ -323,14 +324,8 @@ namespace SynergyUI
                     ShowToast($"生物基础属性上限 {MaxCreatureStat}——攻/血至多 {MaxCreatureStat}，调整后保存");
                     return;
                 }
-                // 免费属性底闸（2026-11-03 底盘分配改版）：兜底拦「载入旧卡低于新底未触碰」的直存
-                //（编辑触碰即被输入钳制/托底收口）；底=FreeAttrBaseOf（3−攻守−首槽），n/n 固定不可偏移。
-                int statFloor = CardCompositionCost.FreeAttrBaseOf(_card);
-                if ((_card.Power ?? 0) < statFloor || (_card.Life ?? 0) < statFloor)
-                {
-                    ShowToast($"生物属性下限=免费属性底 {statFloor}（攻/血各至少 {statFloor}——免费底 n/n 固定获得），调整后保存");
-                    return;
-                }
+                // 2026-11-14 免费属性自由分配定案：**取消属性下限闸**——免费点数改成池子
+                //（底盘剩余×2，攻/血任意分配，未用完作废），不再强制攻/血各 ≥n。
             }
             else if (_kind == CardKind.Enchantment)
             {

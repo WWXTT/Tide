@@ -165,7 +165,7 @@ namespace CardCore
             // 池侧 14 硬顶 2026-10-15 已退役，此处是最后一处残留；成长效果加槽无上限，不影响本显示钳）。
             float rawTotal = statValue + keywordTotal + effectTotal;
 
-            // ---- 5) L2 组合：E/K 汇桶 + S 拆轴色入桶（2026-11-02 基地红绿：攻红/血绿），E/K 总额一次取整、最大余数法分色（无延迟折）；
+            // ---- 5) L2 组合：E/K 汇桶 + S 入单灰桶（2026-11-14 基础属性归灰：攻/血/耐久同锚），E/K 总额一次取整、最大余数法分色（无延迟折）；
             // 卡费出口的逐色向上取整见 5b ----
             // 底盘预算（2026-09-10 攻/守效果化，取代旧挂载口曲线）：取整后落位——
             // 退费先灰后最高色（法术常无灰分量），加价入灰。
@@ -177,15 +177,16 @@ namespace CardCore
                 result.Breakdown.Add(new CostBreakdownLine("C",
                     $"结构项 {CardCompositionCost.ChassisItems(card)} − 预算3 → +{surcharge} 入灰",
                     surcharge, ManaType.Gray));
-            // 生物：免费属性底 n/n（FreeAttrBaseOf——预算 3−攻守−首槽；不受旧 surplus 口径守门，
+            // 生物：免费属性点数池（FreeAttrBaseOf×2——预算 3−攻守−首槽；不受旧 surplus 口径守门，
             // 攻/守资格缺位（2026-11-06 opt-in）时底抬升同口径——旧 NoGuard+2槽 surplus=0 而新底=1 也要出明细行）
             if (card.Supertype == Cardtype.Creature)
             {
                 int freeBase = CardCompositionCost.FreeAttrBaseOf(card);
                 if (freeBase > 0)
                     result.Breakdown.Add(new CostBreakdownLine("C",
-                        $"免费属性底 {freeBase}/{freeBase}{(!card.AttackAbility || !card.GuardAbility ? "（攻/守资格缺位释放预算点）" : "")}"
-                        + "——攻/血各前 n 点免计（2026-11-03 底盘分配改版；旧「先红后绿扣桶」退役）", 0f));
+                        $"免费属性点 {CardCompositionCost.FreeAttrPointsOf(card)}（底盘剩余 {freeBase} 点×2）"
+                        + $"{(!card.AttackAbility || !card.GuardAbility ? "（攻/守资格缺位释放预算点）" : "")}"
+                        + "——攻/血自由分配，合并点数一次免计（2026-11-14 自由分配定案）", 0f));
             }
             else
             {
@@ -336,7 +337,7 @@ namespace CardCore
             }
 
             // 全额计价 + 结构费全额入灰——不走 ApplyChassis（衍生物无底盘，无剩余可支配）
-            //（2026-11-02 基地红绿：衍生物身材同样拆轴色——攻红/血绿，结构费仍灰）
+            //（2026-11-14 基础属性归灰：衍生物身材同样入单灰桶，结构费仍灰）
             var mounted = ApportionMounted(effBuckets, kwBuckets, StatBucketsOf(card, cc));
             int structureFee = CardCompositionCost.StructureFeeFull(card);
             if (structureFee > 0)
@@ -470,7 +471,7 @@ namespace CardCore
             keywordTotal += auraTotal;
 
             var effectDefs = CardEffectConverter.ConvertAll(card.Effects, card.ID);
-            // 2026-11-02 基地红绿：抉择各模式共用同一份身材轴色桶（攻红/血绿——模式无关块）；
+            // 2026-11-14 基础属性归灰：抉择各模式共用同一份身材单灰桶（模式无关块）；
             // 2026-11-03 底盘改版：免费属性底在桶内免除（与 Derive 同基）
             var statBuckets = StatBucketsOf(card, cc, applyFreeBase: true);
 
@@ -507,7 +508,7 @@ namespace CardCore
             if (rawTotals[0] < tierMax - 0.001f)
                 TideLog.Warn($"[CardCostService] 抉择卡 {card.ID} 模式0非最高消耗（{rawTotals[0]} < {tierMax}）——违反数据契约（编辑界面应把最高消耗放在序号0）");
 
-            // 卡层组合费用：抉择价差溢价已废（2026-09-21）——身材费拆轴色入桶（2026-11-02 基地红绿）；
+            // 卡层组合费用：抉择价差溢价已废（2026-09-21）——身材费入单灰桶（2026-11-14 基础属性归灰）；
             // 抉择的弹性费在结构项计槽（每分支一个效果槽，CountEffectSlots），对模式均匀。
 
             // ---- 第二遍：L2 组合 + 逐色进位（与 Derive 的 ApportionMounted/5b 同口径）----
@@ -1004,42 +1005,48 @@ namespace CardCore
 
         // —— 模式无关的三块（Derive 与 DeriveModeCosts 共用，防口径漂移；breakdown 传 null 则不记行）——
 
-        /// <summary>身材费 S（2026-11-03 底盘分配改版）：生物按**计费口径**=免除免费属性底 n/n 后
-        ///（FreeAttrBaseOf）的 (攻+血)/StatUnit——与 StatBucketsOf 同基（桶与标量两侧口径一致，
-        /// 规则一 D≤Ĉ 才闭合）；耐久体另计 耐久 × DurabilityUnitCost（0.5/点；2026-11-03 耐久改蓝定案
-        /// ——计价入蓝桶；2026-10-16 回调 0.5 灰/点口径退役）。结界/装备，0=无耐久档不计）。</summary>
+        /// <summary>身材费 S（2026-11-03 底盘分配改版；2026-11-14 基础属性归灰 + **免费属性自由分配**）：
+        /// 生物按**计费口径**=(攻+血 − 免费属性点数) / StatUnit——免费点数=2×FreeAttrBaseOf（1 点底盘=2 点属性），
+        /// 攻/血可任意分配，故合并点数一次抵扣 max(0,(攻+血)−2n)；与 StatBucketsOf 同基
+        ///（桶与标量两侧口径一致，规则一 D≤Ĉ 才闭合）。耐久体另计 耐久 × DurabilityUnitCost
+        ///（0.5 灰/点——攻/血/耐久同锚）。结界/装备，0=无耐久档不计）。</summary>
         private static float ComputeStatValue(CardData card, CardCostConfig cc, List<CostBreakdownLine> breakdown)
         {
-            int freeBase = CardCompositionCost.FreeAttrBaseOf(card);
-            int paidPower = Math.Max(0, (card.Power ?? 0) - freeBase);
-            int paidLife = Math.Max(0, (card.Life ?? 0) - freeBase);
-            int statPoints = paidPower + paidLife;
-            float statValue = statPoints / Math.Max(1f, cc.StatUnit);
-            // 2026-11-02 基地红绿定案（属性红/绿连带基地）+ 2026-11-03 免费底：计费=超出底的部分
-            breakdown?.Add(new CostBreakdownLine("S",
-                $"身材费·攻 (攻{card.Power ?? 0}{(freeBase > 0 ? $"−底{Math.Min(freeBase, card.Power ?? 0)}" : "")})", paidPower / Math.Max(1f, cc.StatUnit), ManaType.Red));
-            breakdown?.Add(new CostBreakdownLine("S",
-                $"身材费·血 (血{card.Life ?? 0}{(freeBase > 0 ? $"−底{Math.Min(freeBase, card.Life ?? 0)}" : "")})", paidLife / Math.Max(1f, cc.StatUnit), ManaType.Green));
+            float unit = Math.Max(1f, cc.StatUnit);
+            int power = card.Power ?? 0;
+            int life = card.Life ?? 0;
+            int freePoints = CardCompositionCost.FreeAttrPointsOf(card);
+            int freeUsed = Math.Min(freePoints, Math.Max(0, power) + Math.Max(0, life));
+            int statPoints = Math.Max(0, power + life - freePoints);
+            float statValue = statPoints / unit;
+            // 2026-11-14 基础属性归灰：攻/血/耐久明细行统一灰（0.5 灰 = 1 点；原攻红/血绿/耐久蓝退役）
+            // 免费属性点数独立成负行——攻/血两行按印刷值记，玩家一眼能看出「白拿了几点、怎么分都行」。
+            breakdown?.Add(new CostBreakdownLine("S", $"身材费·攻 (攻{power})", power / unit, ManaType.Gray));
+            breakdown?.Add(new CostBreakdownLine("S", $"身材费·血 (血{life})", life / unit, ManaType.Gray));
+            if (freeUsed > 0)
+                breakdown?.Add(new CostBreakdownLine("S",
+                    $"免费属性点 −{freeUsed}（底盘剩余 {CardCompositionCost.FreeAttrBaseOf(card)} 点 ×2，攻/血自由分配）",
+                    -freeUsed / unit, ManaType.Gray));
             if (card.Durability > 0)
             {
                 // 2026-11-04 碑族0费改版：结界免费耐久底（FreeDurabilityBaseOf）内免计——
-                // 超出部分按 0.5蓝/点计价（2026-11-03 耐久改蓝定案维持）。
+                // 超出部分按 0.5 灰/点计价（2026-11-14 基础属性归灰定案）。
                 int freeDur = CardCompositionCost.FreeDurabilityBaseOf(card);
                 int paidDur = Math.Max(0, card.Durability - freeDur);
                 float durValue = paidDur * cc.DurabilityUnitCost;
                 statValue += durValue;
                 breakdown?.Add(new CostBreakdownLine("S",
                     $"耐久费 (耐久{card.Durability}{(freeDur > 0 ? $"−底{Math.Min(freeDur, card.Durability)}" : "")})",
-                    durValue, ManaType.Blue));
+                    durValue, ManaType.Gray));
             }
             return statValue;
         }
 
-        /// <summary>身材费轴色分桶（2026-11-02 基地红绿定案；2026-11-03 底盘分配改版）：
-        /// 攻侧入红桶、血侧入绿桶——各 = 点数/StatUnit **真实小数**（总量与旧全灰口径一致，只拆色；
-        /// 2/2 → 1红+1绿）；耐久入蓝桶（2026-11-03 定案：结界耐久=蓝——0.5蓝/点，旧灰桶口径退役）。
-        /// applyFreeBase（生物 Derive/DeriveModeCosts 两口传 true）：先免除免费属性底 n/n
-        ///（FreeAttrBaseOf——预算 3−攻守−首槽 的剩余，攻/血各前 n 点免费，下限 0）与
+        /// <summary>身材费分桶（2026-11-14 基础属性归灰 + 免费属性自由分配）：攻/血/耐久**同入单灰桶**——
+        /// 攻/血合并 = max(0,(攻+血)−免费点数)/StatUnit、耐久 = 点数×DurabilityUnitCost，全部 0.5 灰 = 1 点
+        ///（真实小数；旧攻红/血绿/耐久蓝三桶退役）。免费点数=2×FreeAttrBaseOf，攻/血任意分配——
+        /// 合并后一次抵扣（旧「攻/血各前 n 点免费」会浪费单边不足 n 的免费点，2026-11-14 起不再浪费）。
+        /// applyFreeBase（生物 Derive/DeriveModeCosts 两口传 true）：先免除免费属性点数与
         /// 结界免费耐久底（FreeDurabilityBaseOf——2026-11-04 碑族0费改版）；
         /// 衍生物内容全价（ContentPriceByColor）传 false——无底盘不吃免费底。
         /// 消费口：Derive / ContentPriceByColor / DeriveModeCosts 三处的 ApportionMounted statAdd。</summary>
@@ -1048,16 +1055,16 @@ namespace CardCore
             var buckets = new Dictionary<ManaType, float>();
             if (card == null) return buckets;
             float unit = Math.Max(1f, cc.StatUnit);
-            int freeBase = applyFreeBase ? CardCompositionCost.FreeAttrBaseOf(card) : 0;
-            if ((card.Power ?? 0) > 0) buckets[ManaType.Red] = Math.Max(0, (card.Power ?? 0) - freeBase) / unit;
-            if ((card.Life ?? 0) > 0) buckets[ManaType.Green] = Math.Max(0, (card.Life ?? 0) - freeBase) / unit;
+            int freePoints = applyFreeBase ? CardCompositionCost.FreeAttrPointsOf(card) : 0;
+            float statAdd = Math.Max(0, (card.Power ?? 0) + (card.Life ?? 0) - freePoints) / unit;
             if (card.Durability > 0)
             {
                 // 免费耐久底（2026-11-04 碑族0费改版）：applyFreeBase 口径同生物属性底——
                 // Derive/DeriveModeCosts 免除；衍生物内容全价（无底盘）不免。
                 int freeDur = applyFreeBase ? CardCompositionCost.FreeDurabilityBaseOf(card) : 0;
-                buckets[ManaType.Blue] = Math.Max(0, card.Durability - freeDur) * cc.DurabilityUnitCost;
+                statAdd += Math.Max(0, card.Durability - freeDur) * cc.DurabilityUnitCost;
             }
+            if (statAdd > 0f) buckets[ManaType.Gray] = statAdd;
             return buckets;
         }
 
@@ -1315,8 +1322,8 @@ namespace CardCore
         // 当量表转由 CostCompensationService 消费——付代价=得黑/白元素）。
 
         /// <summary>底盘落位（取整后，2026-11-03 底盘分配改版）：超槽 → 加价入灰（生物=首槽外每槽 1 灰，
-        /// 非生物=结构项>3 差额——StructuralSurcharge 单源）；生物**无抵扣步**（免费属性底 n/n 已在
-        /// StatBucketsOf 桶内免除，旧「先红后绿扣桶」退役）；其余卡型 → 抵价（PriceOffsetOf：
+        /// 非生物=结构项>3 差额——StructuralSurcharge 单源）；生物**无抵扣步**（免费属性点数池 2n 已在
+        /// StatBucketsOf 桶内合并免除，旧「先红后绿扣桶」退役）；其余卡型 → 抵价（PriceOffsetOf：
         /// 法术扣除提速份额、结界 0=速1+耐久、地牌全额；ReduceBuckets 先灰后最高色）。
         /// 与 Derive/DeriveModeCosts 两处共用，防口径漂移。桶值 float（属性费真实小数）。</summary>
         private static void ApplyChassis(CardData card, Dictionary<ManaType, float> mounted)
@@ -1357,7 +1364,7 @@ namespace CardCore
         /// 再并列按枚举序）；**身材桶（statAdd）不再参与取整**——属性费真实小数直通
         ///（0.5/点，与效果锚价同款真实小数路线；显示 0.## 直显）。卡层出口由
         /// CeilBucketsInPlace 逐色向上取整（2026-11-09 定案），支付终点 NormalizeBill 同规则（幂等）。
-        /// statAdd：身材费轴色桶（攻红/血绿/耐久蓝，StatBucketsOf 单源；结构费/抵价由
+        /// statAdd：身材费单灰桶（攻/血/耐久同锚，StatBucketsOf 单源；结构费/抵价由
         /// ApplyChassis 在取整后另行落位）。返回 float 桶（≤1e-5 剔除）。
         /// </summary>
         private static Dictionary<ManaType, float> ApportionMounted(Dictionary<ManaType, float> effBuckets,

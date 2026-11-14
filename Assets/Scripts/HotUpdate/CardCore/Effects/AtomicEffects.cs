@@ -507,11 +507,13 @@ namespace CardCore
         /// GrantKeywordHandler 通用路径（GrantKeywordHandlerFactory.Specs 登记）。</summary>
         GrantPathogen,
 
-        /// <summary>狩猎（2026-11-01 新增，绿3 表行「狩猎」6eaa0d3f·关键词表）：授予「狩猎」
-        /// 关键词——回合结束时，持有单位若处于可行动状态（未横置），随机对防守方
-        /// （对方单位∪角色，CanAttackTarget 口径）发起一次攻击。攻击不吃横置代价
-        /// （打完仍可行动）；战斗计算与事件链与普通攻击同口径（潜行消耗/ResolvePair
-        /// 关键词管线/AttackResolvedEvent 照常）；回合末同步结算、无守卫响应窗口。
+        /// <summary>狩猎（2026-11-01 新增，绿3 表行「狩猎」6eaa0d3f·关键词表；2026-11-14 重做）：
+        /// 授予「狩猎」关键词——回合结束时，持有单位**不管横置态**（未横置闸已删）强行随机对
+        /// 防守方（对方单位∪角色，CanAttackTarget 口径）发起一次攻击；本次战斗击杀防守方
+        /// 任一单位（直杀/溅射/碾压同认，击杀角色不算）则重置自身（解除横置，发 UntapEvent）。
+        /// 攻击不吃横置代价（出击不改变自身横置态——重置只经击杀奖励口）；战斗计算与事件链
+        /// 与普通攻击同口径（潜行消耗/ResolvePair 关键词管线/AttackResolvedEvent 照常）；
+        /// 回合末同步结算、无守卫响应窗口。
         /// 触发口=CombatSystem.ResolveHuntAttacks（GameCore.OnTurnEnded 系统区首位显式调）。
         /// GrantKeywordHandler 通用路径（GrantKeywordHandlerFactory.Specs 登记）。</summary>
         GrantHunt,
@@ -524,12 +526,12 @@ namespace CardCore
         /// LastOutcome.RecordDamage 记账——可挂「消灭目标时」产出条件。</summary>
         ShieldSlam,
 
-        /// <summary>耐久增加（2026-11-03 新增，蓝0.5/层 表行「耐久增加」·指示物表）：对无生命单位
+        /// <summary>耐久增加（2026-11-03 新增，灰0.5/层 表行「耐久增加」·指示物表；2026-11-14 归灰）：对无生命单位
         ///（表域=双方无生命单位——结界/装备）附加 {value} 层耐久指示物（CounterRules.DurabilityCounter，
         /// Resident 常驻类——受击/被动触发消耗、归零送墓；加层即时扩池）。一次发动按 value 给层
         ///（≤0/未填=1，ResolveLayers 单源）；铭刻光环照沾 +1（非 System 类，绝缘体清零闸不拦——
-        /// 耐久非沉睡/缄默/StatKind）。计价=基础费用×层=0.5蓝/点（2026-11-03 耐久改蓝定案——
-        /// 与结界身材耐久轴 0.5蓝/点 同口径）。</summary>
+        /// 耐久非沉睡/缄默/StatKind）。计价=基础费用×层=0.5灰/点（2026-11-14 基础属性归灰——
+        /// 与结界身材耐久轴 0.5灰/点 同口径；2026-11-03 蓝口径作废）。</summary>
         AddDurabilityUp,
 
         /// <summary>封印（2026-11-03 新增，蓝3 表行「封印」·一般效果表）：弹选的{target}

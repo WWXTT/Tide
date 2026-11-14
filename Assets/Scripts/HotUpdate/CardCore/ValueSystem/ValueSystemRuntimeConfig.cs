@@ -231,10 +231,11 @@ namespace CardCore
     [Serializable]
     public class CardCostConfig
     {
-        public float StatUnit = 2f;                     // 1费=StatUnit点属性（攻血各 1/StatUnit 元素，灰）
+        public float StatUnit = 2f;                     // 1费=StatUnit点属性（灰；0.5 灰 = 1 点——2026-11-14 攻/血/耐久同锚）
         // MaxTier 已删（2026-11-03）：档帽=GameRules.LandCurveCap 单源（CardCostService.Derive 直读）——
         // 旧独立值 14 是地牌封顶 14 时代的残留（池侧 2026-10-15 已退役，本字段是最后一处）。
-        /// <summary>属性锚：+1 攻/+1 生命 = 0.5（攻血同锚；2026-10-05 自 CostDerivation 常量迁表）。</summary>
+        /// <summary>属性锚：0.5 灰 = 1 点数值（攻/血/耐久同锚；2026-10-05 自 CostDerivation 常量迁表；
+        /// 2026-11-14 基础属性归灰，并写入 ValueSystemConfig.CardCost.StatAnchor 显式口径）。</summary>
         public float StatAnchor = 0.5f;
         /// <summary>修改族持续档乘数：换区移除/条件持续 = 锚×3（=1.5/+1）；连接光环档同此乘数。</summary>
         public float StatSustainMultiplier = 3f;
@@ -244,8 +245,8 @@ namespace CardCore
         public float StatRewriteFlatCost = 3f;
         /// <summary>双方同时作用减半系数（双侧全取/规则光环 ×0.5；2026-10-05 迁表）。</summary>
         public float SymmetricDiscountFactor = 0.5f;
-        /// <summary>耐久单价：0.5/点（色=蓝——2026-11-03 耐久改蓝定案，落桶见 CardCostService.StatBucketsOf；
-        /// 2026-10-16 回调 0.5 灰/点口径退役）。</summary>
+        /// <summary>耐久单价：0.5 灰/点（2026-11-14 基础属性归灰定案，落桶见 CardCostService.StatBucketsOf；
+        /// 2026-11-03 耐久改蓝口径作废）。</summary>
         public float DurabilityUnitCost = 0.5f;
         /// <summary>场地光环（原规则光环）单侧溢价系数（2026-10-30 定案）：极性 ±1 仪典作用面收窄单侧
         ///（+1 仅己方 / −1 仅对方）后，表价（按对称双方校准）× 本系数；双方档仍 ×1。具体值用户可调。</summary>

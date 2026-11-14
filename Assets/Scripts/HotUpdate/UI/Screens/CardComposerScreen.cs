@@ -93,9 +93,10 @@ namespace SynergyUI
             (CardKind.Spell, "法术", "spell"),
         };
 
-        /// <summary>生物基础属性上限（2026-11-01 定案 9；2026-11-03 放宽 12）：攻/血至多 12——输入即时钳制回写，
-        /// 保存闸兜底拦「载入旧卡>12 未触碰」的直存（编辑触碰即被输入钳制收口）。</summary>
-        private const int MaxCreatureStat = 12;
+        /// <summary>生物基础属性上限（2026-11-01 定案 9；2026-11-03 放宽 12；2026-11-14 用户定案放宽 99）：
+        /// 攻/血至多 99——输入即时钳制回写，保存闸兜底拦「载入旧卡>99 未触碰」的直存
+        ///（编辑触碰即被输入钳制收口）。上限只为挡误输，不再当平衡闸。</summary>
+        private const int MaxCreatureStat = 99;
 
         private readonly CardData _card = new CardData
         {

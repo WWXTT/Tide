@@ -140,9 +140,11 @@ namespace CardCore.Attribute
         // 已删，Grant 映射/散射改写/战报播报同批注释）：
         // public const string BattleMage = "BattleMage";
 
-        /// <summary>狩猎（2026-11-01 新增，绿3 表行 6eaa0d3f）：回合结束时，持有单位若处于
-        /// 可行动状态（未横置），随机对防守方（对方单位∪角色，CanAttackTarget 口径）发起一次
-        /// 攻击——攻击不吃横置代价（打完仍可行动），战斗计算/事件链与普通攻击同口径。
+        /// <summary>狩猎（2026-11-01 新增，绿3 表行 6eaa0d3f；2026-11-14 重做）：回合结束时，
+        /// 持有单位**不管横置态**（未横置闸已删——横置的也强行出击），随机对防守方
+        /// （对方单位∪角色，CanAttackTarget 口径）发起一次攻击；本次战斗击杀防守方任一单位
+        /// （直杀/溅射/碾压同认，击杀角色不算）则重置自身（解除横置）。攻击不吃横置代价
+        /// （出击不改变自身横置态），战斗计算/事件链与普通攻击同口径。
         /// 触发口=CombatSystem.ResolveHuntAttacks（GameCore.OnTurnEnded 系统区首位显式调，
         /// 同步结算无守卫响应窗口——同毒素回合末伤害先例，不入栈）。</summary>
         public const string Hunt = "Hunt";

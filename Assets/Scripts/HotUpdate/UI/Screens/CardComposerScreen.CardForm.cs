@@ -56,10 +56,10 @@ namespace SynergyUI
             _attributeZone = UiKit.FindDeep(_fields, "attribute");
             _attackInput = BindIntInput(_attributeZone, "attack",
                 v => { _card.Power = ClampStat(v, _attackInput); Recalculate(); },
-                $"生物攻击力——计入自动算费（区间 [免费属性底, {MaxCreatureStat}]；底=3−攻守−首槽，动态）", MaxCreatureStat);
+                $"生物攻击力——计入自动算费（区间 [0, {MaxCreatureStat}]；底盘剩余点×2 免费、攻/血自由分配，动态）", MaxCreatureStat);
             _lifeInput = BindIntInput(_attributeZone, "life",
                 v => { _card.Life = ClampStat(v, _lifeInput); Recalculate(); },
-                $"生物生命值——计入自动算费（区间 [免费属性底, {MaxCreatureStat}]；底=3−攻守−首槽，动态）", MaxCreatureStat);
+                $"生物生命值——计入自动算费（区间 [0, {MaxCreatureStat}]；底盘剩余点×2 免费、攻/血自由分配，动态）", MaxCreatureStat);
             _durabilityInput = BindIntInput(_attributeZone, "durability",
                 v => { _card.Durability = v; Recalculate(); }, "结界耐久——免费点全投耐久，装/卸效果时即时重算");
 
@@ -312,30 +312,16 @@ namespace SynergyUI
             if (_nameInput != null) _nameInput.SetTextWithoutNotify(_card.CardName ?? "");
         }
 
-        /// <summary>生物属性输入钳制（2026-11-03 底盘分配改版）：区间=[免费属性底, MaxCreatureStat]。
-        /// 底=FreeAttrBaseOf（3−攻守−首槽，与计价同源）：免费 n/n 固定获得、不可偏移
-        ///（无法做成 5-1 之类偏斜底）——越界输入即时钳制回写。非生物不钳。</summary>
+        /// <summary>生物属性输入钳制（2026-11-14 免费属性自由分配定案）：区间=[0, MaxCreatureStat]。
+        /// 免费属性=底盘剩余点数×2，可在攻/血间任意分配（不再强制 n/n 底、也不设单边下限）；
+        /// 未用完的免费点在计价侧作废。越界输入即时钳制回写。非生物不钳。</summary>
         private int ClampStat(int v, UInputField field)
         {
             if (_kind != CardKind.Creature) return v;
-            int min = CardCompositionCost.FreeAttrBaseOf(_card);
-            int clamped = Math.Max(min, Math.Min(MaxCreatureStat, v));
+            int clamped = Math.Max(0, Math.Min(MaxCreatureStat, v));
             if (clamped != v && field != null)
                 field.SetTextWithoutNotify(clamped.ToString()); // 回写钳后值——输入框显示与卡数据不脱钩
             return clamped;
-        }
-
-        /// <summary>结构变动后托底（2026-11-03 底盘分配改版）：已填属性低于新底则抬到底
-        ///（「免费属性 n/n 固定获得」——如删技能/关攻守使底上升时自动补齐；
-        /// 未填(null)不强制——留待保存闸拦截）。字段经 SetAttrTexts 静默回显。</summary>
-        private void ApplyStatFloors()
-        {
-            if (_kind != CardKind.Creature) return;
-            int min = CardCompositionCost.FreeAttrBaseOf(_card);
-            bool changed = false;
-            if (_card.Power.HasValue && _card.Power.Value < min) { _card.Power = min; changed = true; }
-            if (_card.Life.HasValue && _card.Life.Value < min) { _card.Life = min; changed = true; }
-            if (changed) SetAttrTexts();
         }
 
         /// <summary>属性输入框显隐+回写（生物=攻/血、结界=耐久、法术=attribute 整区隐藏）。
@@ -465,11 +451,11 @@ namespace SynergyUI
             _basicAbilityZone = UiKit.FindDeep(_fields, "basicability");
             _attackToggle = BindAbilityToggle("ac", "具备攻击",
                 on => _card.AttackAbility = on,
-                "具备攻击能力（basicability，2026-11-06 opt-in）：默认不带；开启占 1 点底盘预算，关闭释放（关键词槽 +1、免费属性底抬升）",
+                "具备攻击能力（basicability，2026-11-06 opt-in）：默认不带；开启占 1 点底盘预算，关闭释放（关键词槽 +1、免费属性点 +2）",
                 affectsKeywordSlots: true);
             _guardToggle = BindAbilityToggle("dc", "具备守卫",
                 on => _card.GuardAbility = on,
-                "具备守卫能力（basicability，2026-11-06 opt-in）：默认不带；开启占 1 点底盘预算，关闭释放（关键词槽 +1、免费属性底抬升）",
+                "具备守卫能力（basicability，2026-11-06 opt-in）：默认不带；开启占 1 点底盘预算，关闭释放（关键词槽 +1、免费属性点 +2）",
                 affectsKeywordSlots: true);
             _chargeToggle = BindAbilityToggle("rc", "具备充能",
                 on => _card.ChargeAbility = on,

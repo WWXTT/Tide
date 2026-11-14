@@ -99,6 +99,10 @@ namespace TideSim
             if (args.Length > 0 && args[0] == "--keyword-scenario")
                 return KeywordTutorialCheck.Run();
 
+            // 狩猎重做探针（2026-11-14）：删未横置闸+击杀对手单位重置自身——横置强击/重置/幂等三场景。
+            if (args.Length > 0 && args[0] == "--hunt-reset")
+                return HuntResetProbe.Run();
+
             var options = SimOptions.Parse(args);
             if (options.Games <= 0) { Console.WriteLine("--games 必须 > 0"); return 2; }
             if (options.MaxTurns <= 0) { Console.WriteLine("--max-turns 必须 > 0"); return 2; }
@@ -117,6 +121,7 @@ namespace TideSim
             Console.WriteLine("  TideSim --scenario            场景回归（红快攻策略闸门直调断言）");
             Console.WriteLine("  TideSim --tutorial-scenario   教学式固定盘面回归（红快攻9场景 + 蓝充盈6场景 + 自由分支10场景）");
             Console.WriteLine("  TideSim --keyword-scenario    教学二关键词课回归（basics_plus 结构 + 11 段引擎断言）");
+            Console.WriteLine("  TideSim --hunt-reset          狩猎重做探针（横置强击 + 击杀重置 + 幂等三场景）");
             Console.WriteLine("  TideSim --charge-probe        规则探针（充能系统动作化 + 参照族声明域）");
             Console.WriteLine("  TideSim --chain-cast          连锁直伤探针（代价失败=效果无效 / 参照发动时快照 / 两张各付一次代价）");
             Console.WriteLine("  TideSim --deck-rule           卡组校验探针（代价×门奖励互斥；活体炸弹改版回归）");

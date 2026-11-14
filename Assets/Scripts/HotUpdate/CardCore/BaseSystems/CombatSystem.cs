@@ -370,12 +370,16 @@ namespace CardCore
         /// <summary>
         /// 狩猎回合末攻击（GameCore.OnTurnEnded 系统区首位显式调——时序保证：直到回合结束的
         /// 力量加成仍在、Temp 轨授予的狩猎尚未清、击杀对手由随后的 CheckGameOver 兜住）：
-        /// 回合方战场上持有狩猎且可行动（未横置）的单位，各随机对防守方发起一次攻击。
+        /// 回合方战场上持有狩猎的单位（2026-11-14 重做：**不再要求未横置**——横置的也强行出击），
+        /// 各随机对防守方发起一次攻击；本次战斗击杀防守方任一单位（直杀/溅射/碾压战果同认，
+        /// 击杀角色不算）则重置自身（解除横置，发 UntapEvent——战报「重置」行）。
         /// 与普通攻击宣言的差异（定案）：①无守卫响应窗口——TurnEndEvent 内同步结算
         /// （同毒素回合末伤害先例，不入栈，回合折返不被打断）；②攻击不吃横置代价
-        /// （payTap=false，打完仍可行动）；③战斗计算与事件链与普通攻击完全同口径
-        /// （重检→潜行消耗→ResolvePair 关键词管线→AttackResolvedEvent——触发/战报照常）。
-        /// 攻击者资格=CanDeclareAttack 全口径（战场/攻击能力/禁攻令/未横置=可行动/力量&gt;0）；
+        /// （payTap=false，出击不改变自身横置态——重置只经击杀奖励口）；③战斗计算与事件链
+        /// 与普通攻击完全同口径（重检→潜行消耗→ResolvePair 关键词管线→AttackResolvedEvent
+        /// ——触发/战报照常）。
+        /// 攻击者资格（2026-11-14 重做）：**不走 CanDeclareAttack**、不查横置态——即无攻资格的墙
+        /// 被培育喂出攻击力后也能在回合末强行出击；0 攻仍不打（纯自杀）。
         /// 目标池=防守方角色∪防守方战场卡，CanAttackTarget 单源过滤（潜行/隐密/紊乱限角色域
         /// 同口径），无合法目标=空转不播报。目标池先快照后逐猎结算（前一只猎物的战果——
         /// 反杀/溅射杀人——经 CanAttackTarget 重检自然剔除死者）。
@@ -394,11 +398,10 @@ namespace CardCore
             {
                 if (hunter == null || !hunter.IsAlive) continue;
                 if (!hunter.HasKeyword(KeywordRules.Hunt)) continue;
-                // 2026-11-03 用户定案：狩猎攻击**不走 CanDeclareAttack**，但要求「未横置 + 攻击力>0」——
-                // 即不查攻击资格位（opt-in 前后同语义）：无攻资格的墙被培育喂出攻击力后，
-                // 也能在回合末白嫖一次狩猎攻击。
+                // 2026-11-14 用户定案重做：**未横置闸删除**——横置的单位回合末也强行出击
+                //（2026-11-03 旧口径「未横置才打」退役）；仍不走 CanDeclareAttack，不查攻击资格位：
+                // 无攻资格的墙被培育喂出攻击力后，同样强行出击。
                 // 0 攻不打（否则纯自杀：0 攻打 3 攻会被反击打死）。
-                if (hunter.IsTapped()) continue;
                 if (GetPower(hunter) <= 0) continue;
                 // §11 高危关键词：过载狩猎者回合末额外攻击不触发（狩猎不走 CanDeclareAttack，须自带闸；
                 // 结算后计）
@@ -409,9 +412,33 @@ namespace CardCore
                 var target = candidates[GameRng.Next(0, candidates.Count)];
                 GameActions.Crumb($"CF-hunt atk={hunter.ID} power={GetPower(hunter)}"
                                   + $" tgt={(target as Card)?.ID ?? (target as Player)?.Name}");
+
+                // 击杀侦测快照：防守方战场单位存活账（战斗内致死即时落账 IsAlive=false，SBA 只负责
+                // 后续送葬——此刻差集即本次战斗战果；含直杀与溅射/碾压连带击杀）
+                var defenderUnits = pool.OfType<Card>().ToList();
+                var aliveBefore = defenderUnits.Where(u => u.IsAlive).ToList();
+
                 // 结算与普通攻击同管线（重检在 CanAttackTarget 已过、无守卫改写——declaredTarget=target）
                 ResolveAttackResolution(hunter, target, target, turnPlayer, payTap: false, guardBlocker: null);
                 CardCore.CardEffectBudget.CommitKeyword(hunter);
+
+                // 击杀奖励（2026-11-14 重做）：本次战斗击杀防守方任一单位 → 重置自身（解除横置，
+                // 不查 BlocksUntap——与激励/Untap 原子同口径：效果驱动的重置不受冻结/沉睡拦截）。
+                // 击杀角色不算（「单位」口径）；猎手自身死于反击则不重置（死人无横置观察面）。
+                // 事件走 GameCore 路由口（替代→总线→Trigger/Layer——OnUntap 触发式与战报「重置」行
+                // 都能收到；与 UntapHandler 同约定，不走总线直发）。
+                if (aliveBefore.Any(u => !u.IsAlive))
+                {
+                    if (hunter.IsAlive && hunter.IsTapped())
+                    {
+                        hunter.Untap();
+                        if (GameCore.Instance != null)
+                            GameCore.Instance.PublishEvent(new UntapEvent { UntappedEntity = hunter });
+                        else
+                            EventManager.Instance.Publish(new UntapEvent { UntappedEntity = hunter });
+                        GameActions.Crumb($"CF-hunt reset={hunter.ID}");
+                    }
+                }
             }
         }
 

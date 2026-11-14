@@ -361,6 +361,103 @@ namespace SynergyUI
             return result;
         }
 
+        // ======================================== 费用超自动上限（advisory，2026-11-14 用户定案） ========================================
+
+        /// <summary>费用超自动上限的卡（2026-11-14 用户定案·advisory 不拦保存）：
+        /// 卡组**不带成长**（任何卡效果树含 IncreaseLandCap 原子，含步骤/子效果/分支奖励）时，
+        /// 地牌上限只能靠自然曲线——自动上限=GameRules.LandCurveCap（现值 10）；施放总费超它的卡
+        /// 本局付不出。带成长=整组不提示（成长可无限抬上限）。</summary>
+        public sealed class CostCapGap
+        {
+            public string CardName;
+            public int Copies;
+            public int Cost;   // 施放总费（ceil，逐施放面取最小——任一模式付得起即不算打不出）
+            public int Cap;    // 自动上限（LandCurveCap）
+        }
+
+        /// <summary>费用超自动上限检测（advisory；2026-11-14 用户定案）——口径：
+        /// ①「带成长」= 卡组任一卡的效果树里出现 AtomicEffectType.IncreaseLandCap（步骤原子、
+        ///    子效果、槽级 branch.then 都算）→ 直接返回空；
+        /// ② 上限 = GameRules.LandCurveCap（不写死 10）；
+        /// ③ 费用 = 各施放面的总额向上取整，取**最小面**（BuildCastSurfaces 单源，法术含锚价）；
+        /// ④ 断链卡/衍生物模板跳过（断链另有硬约束报）。</summary>
+        public static List<CostCapGap> CheckCostOverNaturalCap(IEnumerable<string> cardIds)
+        {
+            var result = new List<CostCapGap>();
+            if (cardIds == null) return result;
+            var copies = new Dictionary<string, int>();
+            foreach (var id in cardIds)
+            {
+                if (string.IsNullOrEmpty(id)) continue;
+                copies.TryGetValue(id, out var n);
+                copies[id] = n + 1;
+            }
+            if (copies.Count == 0) return result;
+
+            foreach (var id in copies.Keys)
+            {
+                var c = CardCatalog.GetById(id);
+                if (c != null && HasLandGrowth(c)) return result; // 带成长=上限可抬，整组不提示
+            }
+
+            int cap = (int)CardCore.ValueSystemConfigManager.Instance.GetOrCreateConfig().GameRulesConfig.LandCurveCap;
+            foreach (var kv in copies)
+            {
+                var card = CardCatalog.GetById(kv.Key);
+                if (card == null || card.IsTokenTemplate) continue;
+                int cost = MinCastTotal(card);
+                if (cost <= cap) continue;
+                result.Add(new CostCapGap
+                {
+                    CardName = string.IsNullOrEmpty(card.CardName) ? card.ID : card.CardName,
+                    Copies = kv.Value,
+                    Cost = cost,
+                    Cap = cap,
+                });
+            }
+            return result;
+        }
+
+        /// <summary>本卡组是否带成长（含效果树的子效果/分支奖励）。</summary>
+        private static bool HasLandGrowth(CardData card)
+        {
+            if (card?.Effects == null) return false;
+            foreach (var def in CardEffectConverter.ConvertAll(card.Effects, card.ID))
+            {
+                if (def?.Effects == null) continue;
+                foreach (var atom in def.Effects)
+                    if (ContainsAtom(atom, AtomicEffectType.IncreaseLandCap)) return true;
+            }
+            return false;
+        }
+
+        private static bool ContainsAtom(AtomicEffectInstance atom, AtomicEffectType type)
+        {
+            if (atom == null) return false;
+            if (atom.Type == type) return true;
+            if (atom.SubEffects != null)
+                foreach (var sub in atom.SubEffects)
+                    if (ContainsAtom(sub, type)) return true;
+            if (atom.Branch?.Then != null)
+                foreach (var reward in atom.Branch.Then)
+                    if (ContainsAtom(reward, type)) return true;
+            return false;
+        }
+
+        /// <summary>施放总费（多面取最小，ceil）：BuildCastSurfaces 单源。</summary>
+        private static int MinCastTotal(CardData card)
+        {
+            var surfaces = BuildCastSurfaces(card);
+            if (surfaces.Count == 0) return 0;
+            int best = int.MaxValue;
+            foreach (var s in surfaces)
+            {
+                int total = (int)Math.Ceiling((s.Bill?.Total ?? 0f) - 1e-4f);
+                if (total < best) best = total;
+            }
+            return best == int.MaxValue ? 0 : best;
+        }
+
         /// <summary>施放账单面枚举（GetCardCost 镜像）：法术=卡面费+逐主动效果锚价（施放时择一效果，
         /// 每效果一面；modeIndex 传效果序同 GetCardCost 实参）；抉择永久物=逐模式费；其余=单面卡面费。</summary>
         private static List<CastSurface> BuildCastSurfaces(CardData card)

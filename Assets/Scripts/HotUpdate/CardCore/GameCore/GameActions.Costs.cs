@@ -181,8 +181,8 @@ namespace CardCore
         /// </summary>
         private static string CostRejectText(GameCore core, Player player, ElementCost cost)
         {
-            // 支付进1口径（2026-10-30）：逐色向上取整求和（与实付同账）——总额 Ceiling 会把
-            // 0.5红+0.5绿 报成 1 点（实付 2 点）
+            // 支付进1口径（2026-10-30）：逐色向上取整求和（与实付同账）——跨色各 0.5
+            // 报成 1 点（实付 2 点）
             int total = ElementPaymentValidator.NormalizeBill(cost).Values.Sum();
             int cap = core.ElementPool.GetLandCap(player);
             if (total > cap)
