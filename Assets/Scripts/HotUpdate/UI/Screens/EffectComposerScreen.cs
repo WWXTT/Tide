@@ -593,7 +593,8 @@ namespace SynergyUI
         // 描述开头前缀与本下拉共用一份）；下拉滤掉系统自用七值（不开放玩家选择：OnAtomicEffect*
         // 三段/OnSummon 召唤进场/OnPhase* 阶段开始结束，及 OnGameStart 游戏开始——2026-10-09
         // 同日收编系统自用）与主动三档（主动不设时机），另排除观察者/角色时点
-        // （OnOtherCreatureDeath/OnRoleDeath——旧下拉本就未开放），下拉维持 20 项面
+        // （OnOtherCreatureDeath/OnRoleDeath——旧下拉本就未开放）。
+        // 2026-11-14 档位制：OnTurnStart（回合开始）自本批起开放玩家挂载（一回合一次档）。
         private static readonly HashSet<TriggerTiming> SystemOnlyTimings = new HashSet<TriggerTiming>
         {
             TriggerTiming.OnAtomicEffectActivation,
@@ -620,20 +621,20 @@ namespace SynergyUI
             TriggerTiming.OnExile => "被除外时：这张卡被除外。",
             TriggerTiming.OnReturnFromGraveyard => "从墓地回到战场时（复活）。",
             TriggerTiming.OnLeaveBattlefield => "离场时：从战场去任何其他区域。",
-            TriggerTiming.OnDraw => "抽牌时：你抽到牌的那一刻。",
-            TriggerTiming.OnStandbyPhase => "准备阶段：回合开始系统处理（自动抽牌/倒计时等）之后的第一个阶段（2026-10-20 定案：回合开始收归系统专用，效果时点挂这里）。",
-            TriggerTiming.OnDealDamage => "造成伤害时：这张卡每次造成伤害。",
-            TriggerTiming.OnTakeDamage => "受到伤害时：这张卡每次受到伤害。",
-            TriggerTiming.OnTurnStart => "回合开始时：每回合的系统起点（系统专用——效果时点请挂准备阶段）。",
-            TriggerTiming.OnTurnEnd => "回合结束时：每个回合结束的时点。",
-            TriggerTiming.OnAttack => "攻击宣言时：这张卡宣言攻击（生物专属自动效果，计费 ×1.5）。",
-            TriggerTiming.OnAttacked => "被攻击时：这张卡被指定为攻击目标（生物专属自动效果，计费 ×1.5）。",
-            TriggerTiming.OnBlockDeclare => "阻拦宣言时：阻拦被宣言（生物专属自动效果，计费 ×1.5）。",
-            TriggerTiming.OnCardPlayed => "使用卡牌时：使用宣言的时点（付费前，含法术）。",
-            TriggerTiming.OnSpellCast => "施放法术时：有法术被使用。",
-            TriggerTiming.OnTap => "横置时：这张卡被横置（生物专属自动效果，计费 ×1.5）。",
-            TriggerTiming.OnUntap => "重置时：这张卡被重置（生物专属自动效果，计费 ×1.5）。",
-            TriggerTiming.OnTargeted => "被指定为目标时：有效果以这张卡为目标。",
+            TriggerTiming.OnDraw => "抽牌时：你抽到牌的那一刻（一回合多次——只能挂结界，每次触发扣 1 点耐久）。",
+            TriggerTiming.OnStandbyPhase => "准备阶段：回合开始系统处理（自动抽牌/倒计时等）之后的第一个阶段——一回合一次，系数 1。",
+            TriggerTiming.OnDealDamage => "造成伤害时：这张卡每次造成伤害（一回合多次——只能挂结界，每次触发扣 1 点耐久）。",
+            TriggerTiming.OnTakeDamage => "受到伤害时：这张卡每次受到伤害（一回合多次——只能挂结界，每次触发扣 1 点耐久）。",
+            TriggerTiming.OnTurnStart => "回合开始时：每回合的起点（早于准备阶段登记）——一回合一次，系数 1；与「准备阶段」同一回合窗口，先后不同。",
+            TriggerTiming.OnTurnEnd => "回合结束时：每个回合结束的时点（一回合一次，系数 1）。",
+            TriggerTiming.OnAttack => "攻击宣言时：这张卡宣言攻击（生物专属，一回合一次，系数 1）。",
+            TriggerTiming.OnAttacked => "被攻击时：这张卡被指定为攻击目标（生物/结界双宿主，一回合一次，系数 1）。",
+            TriggerTiming.OnBlockDeclare => "阻拦宣言时：阻拦被宣言（生物专属，一回合一次，系数 1）。",
+            TriggerTiming.OnCardPlayed => "使用卡牌时：使用宣言的时点（付费前，含法术；一回合多次——只能挂结界）。",
+            TriggerTiming.OnSpellCast => "施放法术时：有法术被使用（一回合多次——只能挂结界）。",
+            TriggerTiming.OnTap => "横置时：这张卡被横置（生物专属，一回合一次，系数 1）。",
+            TriggerTiming.OnUntap => "重置时：这张卡被重置（生物专属，一回合一次，系数 1）。",
+            TriggerTiming.OnTargeted => "被指定为目标时：有效果以这张卡为目标（一回合多次——只能挂结界）。",
             TriggerTiming.OnOtherCreatureEnter => "其他生物进场时（这张卡自己进场不算）。",
             TriggerTiming.OnScry => "占卜时：任一玩家结算占卜（查看并排列牌库顶）的那一刻——双方占卜都触发。",
             TriggerTiming.OnCardCastSettled => "效果结算后：任一方施放的卡成功结算、且整条连锁结算完成的那一刻（双方施放都触发；被无效的施放不算）。",

@@ -7,12 +7,12 @@ using SynergyUI;
 
 namespace TideSim
 {
-    /// <summary>规则探针（2026-11-05 收口，常驻 QA）：
+    /// <summary>规则探针（2026-11-05 收口，常驻 QA；2026-11-14 夹具更新）：
     /// ① 充能系统动作化端到端——宣入栈 → 结算期反问代选色（AI 取最大余量）→ 免费 +1 层
-    ///    同色费用降低 → 净费 -1 → 同回合不可再充；
-    /// ② 参照族声明域——活体炸弹卡必须是逐原子目标制（PerAtomTargets），第一段轴=
-    ///    己方战场:结界；己方战场:生物（伤害行 2026-11-05 扩含结界、实例 kinds=[1] 收窄落己方；
-    ///    不含角色 selector），第二段由 handler 代码常量承担。
+    ///    同色费用降低 → 净费 -1 → 同回合不可再充；探针卡=卡池中**声明 chargeAbility** 的卡
+    ///    （旧硬编码「活体炸弹」已无充能资格，2026-11-14 改为按资格选卡）；
+    /// ② 活体炸弹声明域——逐原子目标制（PerAtomTargets）+ 参照域=己方战场:生物 +
+    ///    主域=对方战场:生物/对方角色（2026-11-13 改版后的行域；旧「己方结界;己方生物」期望作废）。
     /// 用法：TideSim --charge-probe（退出码=失败项数）。</summary>
     internal static class ChargeProbe
     {
@@ -27,9 +27,12 @@ namespace TideSim
         public static int Run()
         {
             var catalog = CardCatalog.LoadAll().ToList();
-            var probe = catalog.FirstOrDefault(c => c.CardName == "活体炸弹")
-                        ?? catalog.FirstOrDefault(c => c.Supertype == Cardtype.Spell);
-            if (probe == null) { Console.WriteLine("无可用探针卡"); return 1; }
+            // 2026-11-14 夹具修正：探针卡按「声明 chargeAbility」选（活体炸弹已无充能资格）；
+            // 优先带费卡（充能净费 -1 需要可充颜色），无则退回灰源固定卡。
+            var probe = catalog.FirstOrDefault(c => c.ChargeAbility && c.Cost != null && c.Cost.Total > 0f)
+                        ?? catalog.FirstOrDefault(c => c.ChargeAbility)
+                        ?? catalog.FirstOrDefault(c => c.CardName == "教学·灰源");
+            if (probe == null) { Console.WriteLine("无可用充能探针卡"); return 1; }
 
             var deck1 = new List<CardData>();
             for (int i = 0; i < 6; i++) deck1.Add(probe);
@@ -72,23 +75,25 @@ namespace TideSim
             bool again = GameActions.CanCharge(core, p1, card, out var reason2);
             Check(!again, $"同回合不可再充（{reason2}）");
 
-            // ② 参照族声明域（活体炸弹）：不得再带 header 域，第一段轴=己方战场:生物、不含角色
+            // ② 活体炸弹声明域（2026-11-13 改版后）：逐原子目标制 + 主域=对方生物/角色 +
+            //    参照域=己方战场:生物；旧「己方结界;己方生物」主域期望已作废。
             var bomb = catalog.FirstOrDefault(c => c.CardName == "活体炸弹");
             Check(bomb != null, "卡池含活体炸弹");
             if (bomb != null)
             {
                 var def = CardEffectConverter.ConvertAll(bomb.Effects, bomb.ID).FirstOrDefault();
-                Check(def != null && def.PerAtomTargets, "活体炸弹=逐原子目标制（无 header 域）");
                 var atom = def?.Effects?.FirstOrDefault(a => a != null && a.Type == AtomicEffectType.BurstDamage);
-                Check(atom != null && atom.Axis != null, "活体炸弹原子挂轴（不为空）");
-                if (atom?.Axis != null)
-                {
-                    bool hasChar = atom.Axis.Selectors.Any(s => TargetRegionRules.IsCharacter(s.Region));
-                    // 2026-11-05 伤害行扩含结界：行域=双方战场:结界;己方战场:生物，实例 kinds=[1]
-                    // 把「双方结界」段收窄落己方（NarrowByKinds·Both 落单侧）→ 轴=己方结界;己方生物
-                    Check(atom.Axis.Zh == "己方战场:结界；己方战场:生物" && !hasChar,
-                          $"第一段轴=己方战场:结界；己方战场:生物（伤害行已扩含结界·2026-11-05·kinds[1] 收窄）且不含角色（实 {atom.Axis.Zh}）");
-                }
+                Console.WriteLine($"    诊断：PerAtomTargets={def?.PerAtomTargets} 原子={atom?.Type}"
+                                  + $" 主域={(atom?.Axis?.Zh ?? "null")} 参照域={(atom?.ReferenceAxis?.Zh ?? "null")}"
+                                  + $" 代价行={bomb.Effects?.FirstOrDefault()?.Costs?.Count ?? 0}");
+                Check(def != null && def.PerAtomTargets, "活体炸弹=逐原子目标制（无 header 域）");
+                Check(atom != null, "活体炸弹原子=BurstDamage");
+                Check(atom?.Axis != null && atom.Axis.Zh.Contains("对方战场:生物"),
+                      $"主域=对方战场:生物（实 {atom?.Axis?.Zh ?? "null"}）");
+                Check(atom?.ReferenceAxis != null && atom.ReferenceAxis.Zh.Contains("己方战场:生物"),
+                      $"参照域=己方战场:生物（实 {atom?.ReferenceAxis?.Zh ?? "null"}）");
+                Check(bomb.Effects?.FirstOrDefault()?.Costs?.Count > 0,
+                      "活体炸弹带代价行（2026-11-13 改版：参照生物为代价）");
             }
 
             Console.WriteLine(_fail == 0 ? "ChargeProbe PASS" : $"ChargeProbe FAIL {_fail}");

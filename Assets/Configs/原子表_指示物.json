@@ -38,7 +38,7 @@
   {
     "ID": "2b5fb180",
     "TextHash": "2b5fb180",
-    "Domain": "双方战场:生物; 双方角色",
+    "Domain": "双方战场:生物",
     "EnumName": "复生",
     "DisplayName": "对{target}附加{value}层复生指示物，每层在死亡结算时以1生命留场复活一次（不进墓地）",
     "EffectType": "GrantReborn",
@@ -290,7 +290,7 @@
     "TextHash": "977df9e1",
     "Domain": "双方战场:生物; 双方角色",
     "EnumName": "坚韧",
-    "DisplayName": "对{target}附加{value}层坚韧指示物，每次受到伤害每层使伤害减1，生效后层数减半（向下取整）",
+    "DisplayName": "对{target}附加{value}层坚韧指示物，受到伤害时，每层使受到的最终伤害减1，生效后层数减半（向下取整）",
     "EffectType": "GrantToughness",
     "TargetFilter": null,
     "Polarity": 1,
@@ -387,10 +387,10 @@
   },
   {
     "ID": "973884b1",
-    "TextHash": "973884b1",
+    "TextHash": "ee41fe03",
     "Domain": "双方战场:生物",
     "EnumName": "冻结",
-    "DisplayName": "冻结{target}：横置并放置{value}层冻结指示物，冻结期间无法重置，持有者回合结束时自动解除{value}层冻结",
+    "DisplayName": "冻结{target}：横置并放置{value}层冻结指示物，冻结期间无法重置，持有者回合结束时自动解除一层冻结",
     "EffectType": "Freeze",
     "TargetFilter": null,
     "Polarity": -1,
@@ -525,10 +525,10 @@
   },
   {
     "ID": "f4918303",
-    "TextHash": "f4918303",
-    "Domain": "己方战场:生物; 己方角色",
+    "TextHash": "955ad37d",
+    "Domain": "己方战场:生物; 双方角色",
     "EnumName": "减半",
-    "DisplayName": "对{target}附加{value}层减半指示物，持有期间受到的伤害减半（向上取整），自己回合结束自动解除一层",
+    "DisplayName": "对{target}附加{value}层减半指示物，持有期间受到的伤害减半（向上取整），自己回合结束自动解除一层减半",
     "EffectType": "ProtectionHalve",
     "TargetFilter": null,
     "Polarity": 1,
@@ -544,7 +544,7 @@
   {
     "ID": "6c38edaa",
     "TextHash": "6c38edaa",
-    "Domain": "己方战场:生物",
+    "Domain": "己方战场:生物; 双方角色",
     "EnumName": "无实体",
     "DisplayName": "对{target}附加{value}层无实体指示物：每次受到的伤害变为1",
     "EffectType": "GrantSpellban",
@@ -559,18 +559,5 @@
       0
     ],
     "特殊裁定": "伤害钳为 1 后仍可被易损放大；0 点伤害不触发"
-  },
-  {
-    "ID": "b55fddb8",
-    "TextHash": "b55fddb8",
-    "Domain": "双方战场:结界",
-    "EnumName": "耐久增加",
-    "DisplayName": "为{target}增加{value}点耐久",
-    "EffectType": "AddDurabilityUp",
-    "TargetFilter": null,
-    "Polarity": 1,
-    "MountKinds": "指示物,不可随机",
-    "Tags": "换区清除型",
-    "Tier": "Dm1_25"
   }
 ]

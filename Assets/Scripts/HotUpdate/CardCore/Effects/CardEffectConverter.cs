@@ -36,13 +36,9 @@ namespace CardCore
                 timing = data.TriggerTiming < 0 ? TriggerTiming.Activate_Active : TriggerTiming.OnPlay;
             }
 
-            // 回合开始收归系统专用（2026-10-20 定案）：自动抽牌/倒计时递减等系统行为专属时点，
-            // 效果不准再挂——存量声明一律归一为 准备阶段（同回合窗口、紧随系统处理，可观察行为等价）。
-            if (timing == TriggerTiming.OnTurnStart)
-            {
-                TideLog.Warn($"[CardEffectConverter] 卡 {sourceCardId} 效果 {data.Id} 时机=回合开始（2026-10-20 起系统专用），已归一为 准备阶段");
-                timing = TriggerTiming.OnStandbyPhase;
-            }
+            // 回合开始（2026-11-14 档位制）：OnTurnStart 恢复为可挂载的一回合一次时点，
+            // 与「准备阶段」并列（先后不同：回合开始=系统处理前的起点，准备阶段=系统处理后）——
+            // 旧 2026-10-20「归一为 OnStandbyPhase」的兜底删除。
 
             // 确定 ActivationType：未指定(0) 时根据 TriggerTiming 取默认值
             EffectActivationType activationType = data.ActivationType > 0
@@ -328,7 +324,7 @@ namespace CardCore
                 if (ehp.FreeTiming)
                 {
                     // 自然缺省组（运势/拼枪/团结·2026-11-10 R4 双通道修订）：一律自动；时机=效果头
-                    // **声明值**（构造期已按顶部归一：OnTurnStart 收归 OnStandbyPhase）——外层时机=
+                    // **声明值**（2026-11-14 档位制起 OnTurnStart 不再归一，按声明值走）——外层时机=
                     // 引擎评估窗口由玩家在合成器选（BranchEngines.RewardTimingOf 运行时同源读此值）。
                     // 不再随奖励效果时机反钉（2026-11-08 阶段3 旧口径）：R4 允许主动效果作奖励——
                     // 引用时机反钉会令事件类型永不匹配（主动档 Activate_* 无事件锚=引擎永不评估）。

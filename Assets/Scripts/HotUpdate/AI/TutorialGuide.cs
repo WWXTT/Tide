@@ -127,6 +127,12 @@ namespace SynergyUI
         /// 消费即清 + Begin/JumpTo 清零。</summary>
         private static bool _luckKillFired;
 
+        /// <summary>activate 步宣言闩锁（2026-11-14 牺牲域改版）：完成判据从「宣言入栈」改为
+        ///「结算事实」——玩家侧主动效果发动入栈只置闩（NotifyEffectActivated），彩元素入账
+        ///（ElementPoolGainEvent Any·P1，NotifySacrificeManaGained）才推进。双候选弹窗在结算帧：
+        /// 宣言帧推进会先切下步文案再弹选择窗（顺序错位）。消费即清 + Begin/JumpTo 清零。</summary>
+        private static bool _activateDeclared;
+
         /// <summary>引导步骤是否仍在进行（全部完成后=false，钩子留存到 End）。</summary>
         public static bool Active { get; private set; }
 
@@ -160,6 +166,7 @@ namespace SynergyUI
             _endWaitNextTurn = false;
             _deathTollSixFired = false;
             _engineRewardFired = false;
+            _activateDeclared = false;
             _luckKillFired = false;
             _luckRolledEngineCards.Clear();
             foreach (var s in guideOverride ?? tutorial?.guide ?? new List<TutorialGuideStepSpec>())
@@ -490,15 +497,30 @@ namespace SynergyUI
             Advance(missed: false);
         }
 
-        /// <summary>activate 步探针（2026-10-23 元素合成步）：玩家侧主动效果发动入栈成功
-        ///（GameActions.ActivateEffect 主路径尾部 RuleHooks 发射）即推进——元素合成无目标无连锁等待，
-        /// 宣言即教学事实完成；彩元素入账紧随其后。</summary>
+        /// <summary>activate 步探针（2026-11-14 牺牲域改版）：玩家侧主动效果发动入栈成功
+        ///（GameActions.ActivateEffect 主路径尾部 RuleHooks 发射）只置宣言闩锁——完成判据挪到
+        /// 结算事实（NotifySacrificeManaGained：彩元素入账）。旧「宣言即完成」口径（2026-10-23
+        /// 元素合成步=无目标原子，无弹窗）随牺牲域改版作废：basics_10 双候选弹窗在结算帧，
+        /// 宣言帧推进会先切下步文案再弹选择窗（顺序错位）。</summary>
         private static void NotifyEffectActivated(Player player, Card source)
         {
             var step = Current;
             if (step == null || step.type != "activate"
                 || player == null || player != GameCore.Instance?.Player1) return;
             if (!string.IsNullOrEmpty(step.card) && source?.ID != step.card) return; // card 空=宽松任意
+            _activateDeclared = true;
+        }
+
+        /// <summary>activate 步结算完成探针（2026-11-14 牺牲域改版）：宣言闩锁在位 +
+        /// P1 彩元素入账（ElementPoolGainEvent——牺牲原子 AddMana 官方口，弹窗选毕送墓后发布）
+        /// =教学事实完成，推进。结算帧晚于宣言帧：弹窗选择期间 basics_10 步保持在位，
+        /// 选毕入账才切 basics_11（召唤教学·3 的元素此时恰好可用）。</summary>
+        private static void NotifySacrificeManaGained(ElementPoolGainEvent e)
+        {
+            var step = Current;
+            if (step == null || step.type != "activate" || !_activateDeclared) return;
+            if (e?.Player == null || e.Player != GameCore.Instance?.Player1 || e.GainedType != ManaType.Any) return;
+            _activateDeclared = false;
             Advance(missed: false);
         }
 

@@ -386,7 +386,8 @@ namespace CardCore.Editor.Tests
             {
                 Id = "EFF_TODAY_AURA_PROBE",
                 DisplayName = "光环资格探针",
-                // OnAttack=绑横置多次档：IsRepeatTiming ✓ 且生物臂放行（周期/观察族结界专属不命中）
+                // OnAttack=生物动作族（2026-11-14 档位制归「一回合一次」档）：生物臂放行，
+                // 光环可授予；一回合多次（结界专属）不命中
                 TriggerTiming = (int)TriggerTiming.OnAttack,
                 ActivationType = 1, // Automatic（非主动、非可选触发）
                 SelectionMode = -1,

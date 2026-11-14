@@ -197,8 +197,8 @@ namespace SynergyUI
         // GraphHasChargeAtom/ApplyChargeHeaderLock/ChargeShapeError 三口随「充能系统动作化」改版删除：
         // 充能不再是卡上原子效果（原子表行已删，原子库本就不列系统位行），效果合成器无充能形态可言。
 
-        /// <summary>图内是否含引擎载荷（settle=Engine——步骤/扁平双扫）：宿主时机闸豁免口
-        ///（引擎通道自持重复经济，效果头时机=奖励发射窗——与计价 TimingCostFactor 豁免同口径）。</summary>
+        /// <summary>图内是否含引擎载荷（settle=Engine——步骤/扁平双扫）：引擎=无上限触发，
+        /// 2026-11-13 收口后只有结界可挂（生物没有耐久对价）——宿主闸据此拒生物，不再豁免。</summary>
         private static bool GraphHasEnginePayload(EffectGraphData g)
         {
             if (g?.steps != null)
@@ -212,13 +212,10 @@ namespace SynergyUI
             return false;
         }
 
-        /// <summary>宿主时机档位闸（2026-11-05 两档定案；2026-11-09 生物专属档拆分）：
-        /// 时机三档与宿主一一对应——生物=单次+生物专属（攻/守/横置 ×1.5）；结界=单次+周期/观察族；
-        /// 法术=仅单次（一次性形态）。违规=保存禁用。效果库模式无宿主不查；引擎载荷豁免
-        ///（效果头时机=奖励发射窗，与计价 TimingCostFactor 同口径——但结界挂攻/守/横置不豁免：
-        /// 该时机对结界无语义）。2026-11-10 资格层新口径：生物多次档按 E[N] 判
-        ///（CreatureCanTakeTiming 单源——与 RejectReason/装载校验同口径），OnAttacked 双宿主放行；
-        /// OnTurnStart 任何宿主拒（系统专用——引擎载荷豁免，raw 值经归一化）。</summary>
+        /// <summary>宿主时机档位闸（2026-11-14 档位制）：档位单源=TimingWeights.TierOf（表 Bucket）——
+        /// 生物=一回合一次+稀有两档（CreatureCanTakeTiming 单源）；结界=非生物动作族（一回合多次全开）；
+        /// 法术=仅登场（一次性形态）。违规=保存禁用。效果库模式无宿主不查。
+        /// 引擎载荷只有结界可挂（引擎无上限触发，生物没有耐久对价——2026-11-13 收口）。</summary>
         private string HostTimingTierError()
         {
             if (_editingCard == null) return null;
@@ -230,18 +227,19 @@ namespace SynergyUI
                 return null; // 主动档无时机（现付）
             string zh = TimingZh.TryGetValue(t, out var name) ? name : t.ToString();
             if (_editingCard.Supertype == Cardtype.Enchantment && EffectEligibility.IsTapAnchoredTiming(t))
-                return $"本卡宿主（{_editingCard.CardName}）挂不住生物专属时机「{zh}」——攻/守/横置族（4 值）是生物专属自动效果"
-                       + "（结界不横置，无从触发）；请改单次/周期/观察/双宿主（被攻击）时机，或把卡改为生物";
-            if (_editingCard.Supertype == Cardtype.Spell && CostDerivationService.IsRepeatTiming(t))
-                return $"本卡宿主（{_editingCard.CardName}）是一次性法术，挂不住反复触发时机「{zh}」；"
-                       + "请改单次时机（登场）或改为自动/驻场宿主";
-            if (GraphHasEnginePayload(_graph)) return null; // 引擎载荷：时机=奖励发射窗（以上宿主硬闸不豁免）
-            if (t == TriggerTiming.OnTurnStart)
-                return "回合开始已收归系统专用——效果时点不准挂（任何宿主），玩家侧由「准备阶段」承接";
-            if (_editingCard.Supertype == Cardtype.Creature && !EffectEligibility.CreatureCanTakeTiming(t))
-                return $"本卡宿主（{_editingCard.CardName}）挂不住期望触发 >1 次的周期时机「{zh}」"
-                       + $"（E[N]={CardCore.TimingWeights.ExpectedOf(t):0.##}）——结界专属（耐久即次数池）；"
-                       + "请改单次/攻守横置/双宿主（被攻击）/低频（E[N]≤1）时机，或把卡改为结界配耐久";
+                return $"本卡宿主（{_editingCard.CardName}）挂不住生物动作时机「{zh}」——攻/守/横置/重置只有生物会做"
+                       + "（结界不横置、不宣言攻击）；请改一回合一次/稀有/一回合多次时机，或把卡改为生物";
+            if (_editingCard.Supertype == Cardtype.Spell && t != TriggerTiming.OnPlay)
+                return $"本卡宿主（{_editingCard.CardName}）是一次性法术，只能挂「登场」时机；"
+                       + "请改登场，或改为生物/结界宿主";
+            if (_editingCard.Supertype == Cardtype.Creature && GraphHasEnginePayload(_graph))
+                return "引擎载荷只能挂结界（引擎无触发上限，结界用耐久买次数）——生物没有耐久对价；"
+                       + "请把引擎效果移到结界卡，或改为普通自动效果";
+            if (_editingCard.Supertype == Cardtype.Creature && TimingWeights.TierOf(t) == TimingTier.Multi)
+                return $"本卡宿主（{_editingCard.CardName}）挂不住一回合多次时机「{zh}」"
+                       + $"（每回合期望 {CardCore.TimingWeights.ExpectedOf(t):0.##} 次）——结界专属（耐久即次数池，每次触发 −1）；"
+                       + "请改一回合一次时机（攻击/守卫/回合开始/回合结束/登场等）或稀有（被破坏/被除外/死亡等），"
+                       + "或把卡改为结界配耐久";
             return null;
         }
 

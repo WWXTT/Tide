@@ -28,12 +28,13 @@ namespace CardCore
         ///   **每次递增都触发**（满值 6 天然封顶总次数；触发**不清零**，仅使用/换区清零重计）。
         ///   旧「场上·本回合合计·每回合一发」口径与 2026-10-19 手牌/场上双区口径均退役。
     /// - **元素充盈**（2026-09-22 定案；2026-11-06 判据七·充盈改造：**恰等于**——推翻 2026-10-20
-    ///     判据六「大于等于」，双方触发面让恰等重新可玩）：**只能是自动效果**——任一方施放的卡
+    ///     判据六「大于等于」，双方触发面让恰等重新可玩；**2026-11-13 再开放为 ≥ 门槛即触发**）：
+    ///     **只能是自动效果**——任一方施放的卡
     ///     成功结算、且**整条连锁结算完成后**（StackEngine.FinishResolution 稳定点统一 flush，
     ///     不再在本卡结算中段直调；横置触发口 2026-11-04 引入、本日随判据七退役）双方各自评估
     ///     己方场上引擎：比较双方**剩余元素总量**（GetRemainingElementTotal=未横置地牌+钱包，
-    ///     与支付同资源口径）——**己方剩余与对手的差**（封顶 6）**恰好等于**门槛（Then 锚价推导）
-    ///     即执行奖励（==x：差每+1踩一档各一次）；**每次达标都触发（2026-11-13 起无每回合上限，频率由耐久/挂载价付费）**
+    ///     与支付同资源口径）——**己方剩余与对手的差**（封顶 6）**达到或超过**门槛（Then 锚价推导）
+    ///     即执行奖励（≥x：每次施放每卡至多结算一次）；**每次达标都触发（2026-11-13 起无每回合上限，频率由耐久/挂载价付费）**
     ///     （2026-10-22 全局规则，引擎侧不看效果行 limit）；奖励恒直发（LaunchReward 直发例外），
     ///     目标由控制者结算期弹选。判据四「地牌上限差/≥x」、判据五/六均退役。
         /// - **团结**（2026-10-20 效果序位换轴·第6种改空间轴）：与此卡相邻的单位数（生物/结界占格、
@@ -57,20 +58,16 @@ namespace CardCore
         public static Func<Card, int> UnityAdjacentCountOf;
 
         // —— （2026-11-13 定案）引擎奖励**不再有单回合触发上限**：旧「每卡每回合 1 次」
-        //    （2026-10-22 全局规则）已删——自动效果的频率只由**结界耐久**（每次发动 −时机系数 f）
-        //    与宿主挂载价（生物=原价×f）承担，和卡面自动效果同口径。TriggerLimitPerTurn 对引擎分支
-        //    本就只是数据兼容列，不再有任何运行时闸。
+        //    （2026-10-22 全局规则）已删——自动效果的频率只由**结界耐久**（每次触发 −1）
+        //    与宿主挂载价（生物=原价×f；f 只留在生物计价侧）承担，和卡面自动效果同口径。
+        //    TriggerLimitPerTurn 对引擎分支本就只是数据兼容列，不再有任何运行时闸。
 
-        /// <summary>引擎奖励发动的耐久成本（2026-11-13 定案）：只有**结界宿主在战场**时按宿主效果
-        /// 的时机系数 f 扣耐久（每次发动 −f，浮点累计满 1 扣 1）；生物宿主已在挂载价里按 ×f 付过，
-        /// 法术宿主无耐久——均返回 0。</summary>
-        private static float DurabilityFactorOf(Card source, EffectDefinition def)
-        {
-            if (source == null || def == null) return 0f;
-            if (!(source is IHasSupertype st) || st.Supertype != Cardtype.Enchantment) return 0f;
-            if (source.GetZone() != Zone.Battlefield) return 0f;
-            return CostDerivationService.TimingCostFactorOf(def.TriggerTiming);
-        }
+        /// <summary>引擎奖励发动的耐久成本（2026-11-13 定案）：只有**结界宿主在战场**时付——
+        /// **每次触发扣 1 点耐久**（固定值）；生物宿主已在挂载价里按 ×f 付过、法术宿主无耐久。</summary>
+        private static bool PaysTriggerDurability(Card source)
+            => source != null
+               && source is IHasSupertype st && st.Supertype == Cardtype.Enchantment
+               && source.GetZone() == Zone.Battlefield;
 
         /// <summary>测试专用：清空未补发的使用结算残账（运势概率等需要独立同分布重掷的夹具用）。</summary>
         public static void ResetTurnCapsForTest()
@@ -204,7 +201,7 @@ namespace CardCore
                                             Target = card, Keyword = "倒计时",
                                             Detail = $"倒计时归零：自动触发奖励，重挂（{turns} 回合）",
                                         });
-                                        FireRewards(payload, card, player, core, DurabilityFactorOf(card, def));
+                                        FireRewards(payload, card, player, core, PaysTriggerDurability(card));
                                         break;
                                     }
                                     card.AddCounters(Attribute.CounterRules.CountdownCounter, -1);
@@ -218,7 +215,7 @@ namespace CardCore
                                             Target = card, Keyword = "倒计时",
                                             Detail = $"倒计时归零：自动触发奖励，重挂（{turns} 回合）",
                                         });
-                                        FireRewards(payload, card, player, core, DurabilityFactorOf(card, def));
+                                        FireRewards(payload, card, player, core, PaysTriggerDurability(card));
                                     }
                                     break;
                                 }
@@ -364,7 +361,7 @@ namespace CardCore
 
         /// <summary>引擎奖励效果时机（2026-11-08 阶段3 曾解析 payload.EffectId → 引用效果
         /// TriggerTiming；**2026-11-10 R4 修订**：以效果头时机为准——def.TriggerTiming=转换器
-        /// 归一值（声明值，OnTurnStart 收归 OnStandbyPhase）。运势/拼枪/团结的评估窗口由玩家
+        /// 声明值（2026-11-14 起 OnTurnStart 不再归一，按声明值当事件窗）。运势/拼枪/团结的评估窗口由玩家
         /// 在合成器外层时机选（converter/装载闸同口径），不再读引用效果时机——R4 允许主动效果
         /// 作奖励后，引用时机反钉会令事件类型永不匹配（引擎永不评估）。</summary>
         private static TriggerTiming RewardTimingOf(EffectDefinition def)
@@ -553,11 +550,12 @@ namespace CardCore
             }
         }
 
-        /// <summary>充盈评估（2026-11-06 判据七·双方）：任一方施放结算后各评估一侧——引擎主=owner
-        /// （与施放者无关，双方各自评估己方场上引擎），差=双方剩余元素总量（GetRemainingElementTotal=
-        /// 未横置地牌+钱包，与支付同资源口径）之差（己−对，封顶 <see cref="SurplusCap"/>）
-        /// **恰好等于** x（Then 锚价推导）即执行奖励；无每回合次数上限（2026-11-13：结界宿主每次发动扣时机系数耐久、生物宿主在挂载价 ×f 付费）；
-        /// 同卡单载荷单次。≥x（判据六）与「仅对手回合」单边限制均随判据七退役。</summary>
+        /// <summary>充盈评估（2026-11-06 判据七·双方；2026-11-13 条件开放为 ≥）：任一方施放结算后
+        /// 各评估一侧——引擎主=owner（与施放者无关，双方各自评估己方场上引擎），
+        /// 差=双方剩余元素总量（GetRemainingElementTotal=未横置地牌+钱包，与支付同资源口径）之差
+        /// （己−对，封顶 <see cref="SurplusCap"/>）**≥ x**（Then 锚价推导）即执行奖励；
+        /// 无每回合次数上限（2026-11-14：结界宿主每次触发扣 1 点耐久、生物宿主在挂载价 ×f 付费）；
+        /// 同卡单载荷单次。「仅对手回合」单边限制 2026-11-06 退役。</summary>
         private static void EvaluateManaSurplusEngines(Player owner, GameCore core)
         {
             var zm = core?.ZoneManager;
@@ -584,12 +582,12 @@ namespace CardCore
                     int mine = core.ElementPool?.GetRemainingElementTotal(owner) ?? 0;
                     int theirs = core.ElementPool?.GetRemainingElementTotal(opponent) ?? 0;
                     int diff = Math.Min(mine - theirs, SurplusCap);
-                    if (diff != x) continue; // 判据七（==x）：差恰等于门槛才触发（≥x 随判据六退役）
+                    if (diff < x) continue; // 2026-11-13 开放：差 **≥** 门槛即触发（旧「恰等于 ==x」判据七退役）
 
                     EventManager.Instance.Publish(new KeywordAppliedEvent
                     {
                         Target = card, Keyword = "元素充盈",
-                        Detail = $"效果结算后剩余元素差 {diff}（己 {mine}−对 {theirs}，封顶 {SurplusCap}）== {x}：执行奖励（双方施放·连锁终点·自动）",
+                        Detail = $"效果结算后剩余元素差 {diff}（己 {mine}−对 {theirs}，封顶 {SurplusCap}）≥ {x}：执行奖励（双方施放·连锁终点·自动）",
                     });
                     LaunchReward(payload, def, card, owner, core);
                     //（2026-11-13：无每回合上限——单次施放每卡只结算首个达标载荷，耐久/挂载价即刹车）
@@ -694,16 +692,16 @@ namespace CardCore
             Player controller, GameCore core, IGameEvent triggeringEvent = null)
         {
             if (BranchPayloadEmpty(payload)) return;
-            // 结界宿主的奖励发动成本（2026-11-13 定案）：每次发动 −时机系数 f（浮点累计满 1 扣 1）——
-            // 生物宿主在挂载价 ×f 里已付、法术宿主无耐久，二者 factor=0（DurabilityFactorOf 内判）。
-            float durabilityFactor = DurabilityFactorOf(source, def);
+            // 结界宿主的奖励发动成本（2026-11-14 档位制）：**每次触发扣 1 点耐久**（固定值）——
+            // 生物宿主在挂载价 ×f 里已付、法术宿主无耐久（PaysTriggerDurability 内判）。
+            bool payDurability = PaysTriggerDurability(source);
             // 固定三（2026-11-08 阶段3）：主干与奖励不拆开——无论 tactivate/效果头声明恒直发
             //（倒计时 2026-10-20 固定触发、充盈 2026-10-20 判据五「只能是自动效果」定案的延伸，
             //  死亡计数 2026-11-08 入列——主动奖励入待发队列的旧注释口径随之作废）。
             // 直发≠免弹选：目标仍走 ExecuteBranchRewardsAsync 结算期弹选（控制者择目标）。
             if (ComposerCatalog.IsActiveRewardEngine(payload.EngineKind))
             {
-                FireRewards(payload, source, controller, core, durabilityFactor);
+                FireRewards(payload, source, controller, core, payDurability);
                 return;
             }
             var launch = payload.ThenActivation >= 0
@@ -744,7 +742,7 @@ namespace CardCore
                     {
                         Id = "BRANCH_REWARD",
                         DisplayName = $"{ComposerCatalog.EngineZhOf(payload.EngineKind)}奖励",
-                        TriggerTiming = def?.TriggerTiming ?? TriggerTiming.OnTurnStart,
+                        TriggerTiming = def?.TriggerTiming ?? TriggerTiming.OnStandbyPhase,
                         ActivationType = EffectActivationType.Voluntary,
                         ElementCostPrepaid = true,
                         Effects = payload.Then,
@@ -757,7 +755,7 @@ namespace CardCore
                 }
                 return;
             }
-            FireRewards(payload, source, controller, core, durabilityFactor);
+            FireRewards(payload, source, controller, core, payDurability);
         }
 
         /// <summary>分支载荷双通道皆空（Then 原子列空 ∧ 效果引用空）=无奖励可发
@@ -786,13 +784,13 @@ namespace CardCore
         }
 
         private static void FireRewards(BranchPayload payload, Card source, Player controller, GameCore core,
-            float durabilityFactor = 0f)
+            bool payDurability = false)
         {
             if (BranchPayloadEmpty(payload)) return;
-            // 结界宿主：每次发动按时机系数 f 扣耐久（2026-11-13 定案·A 口径：浮点累计满 1 扣 1）。
-            // 生物/法术宿主 factor=0（生物在挂载价 ×f 已付；法术无耐久）。
-            if (durabilityFactor > 0f && source != null)
-                Attribute.CounterRules.ConsumeTriggerDurability(core, source, durabilityFactor, "引擎奖励发动（耐久即时机系数）");
+            // 结界宿主：每次触发扣 1 点耐久（2026-11-14 档位制）。
+            // 生物宿主在挂载价 ×f 已付、法术无耐久（payDurability=false）。
+            if (payDurability && source != null)
+                Attribute.CounterRules.ConsumeTriggerDurability(core, source, "引擎奖励发动（耐久−1/次）");
             var ctx = new EffectExecutionContext
             {
                 Source = source,

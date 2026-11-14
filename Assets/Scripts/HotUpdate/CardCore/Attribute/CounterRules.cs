@@ -216,8 +216,8 @@ namespace CardCore.Attribute
         /// 归零销毁入墓（Smash 同款直毁）。正面常驻（净化可削——对位手段）。</summary>
         public const string DurabilityCounter = "Durability";
         /// <summary>触发计数（2026-11-10 规格 §4；**2026-11-13 定案后退役**）：旧「每满 3 次触发扣整份
-        /// 入场耐久 D」的累计层——现耐久改按「每次发动 −时机系数 f」直接扣（浮点累计在卡实例上，
-        /// 见 ConsumeTriggerDurability），本计数不再读写。保留注册只为旧存档/快照 Counters 兼容
+        /// 入场耐久 D」的累计层——2026-11-14 档位制起耐久按「每次触发 −1」直接扣（见
+        /// ConsumeTriggerDurability），本计数不再读写。保留注册只为旧存档/快照 Counters 兼容
         ///（Reading 层、UI 全隐藏、换区清）。</summary>
         public const string DurabilityTriggerCounter = "DurabilityTrigger";
         /// <summary>过载（2026-11-09 §11 裁定；2026-11-10 实现）：每卡效果预算（CardEffectBudget）
@@ -561,22 +561,18 @@ namespace CardCore.Attribute
                : new CounterSpec { Id = id, Polarity = CounterPolarity.Positive, DisplayName = id };
 
         /// <summary>
-        /// 结界自动效果发动的耐久成本单口（2026-11-13 定案「结界用耐久买次数」·A 口径）：
-        /// **每次发动扣「时机系数」f**（f = CostDerivationService.TimingCostFactorOf，1.2^(E[N]−1)）；
-        /// f 可为小数（0.93~15.4）→ **浮点累计、满 1 扣 1**（卡面耐久恒整数，累计器存在卡实例上）。
-        /// 覆盖普通被动触发（StackEngine 入栈口）与引擎奖励直发（BranchEngines.FireRewards）；
+        /// 结界自动效果发动的耐久成本单口（2026-11-14 档位制定案「结界用耐久买次数」）：
+        /// **每次触发扣 1 点耐久**（固定值——时机系数 f 只保留在**生物挂载价**（原价×f）与展示侧，不进耐久）。
+        /// 覆盖普通被动触发（StackEngine 入栈口）与引擎奖励直发（BranchEngines.FireRewards）——
+        /// 一回合多次（Multi）档只有结界能挂，耐久即该档的次数池：D 点耐久 = 再触发 D 次。
         /// 生物宿主不扣（频率已在挂载价 ×f 里付），受伤扣耐久 1:1 不经本口。
-        /// 旧「每 3 次触发扣整份入场耐久 D」口径已随 2026-11-13 改版退役（D 只表达血量，次数= f 累计）。
+        /// 旧「每 3 次触发扣整份入场耐久 D」「每次 −f 浮点累计」「每次 −2」三版均已退役。
         /// </summary>
-        public static void ConsumeTriggerDurability(CardCore.GameCore core, Card enchant, float factor, string reason)
+        public static void ConsumeTriggerDurability(CardCore.GameCore core, Card enchant, string reason)
         {
-            if (core?.ZoneManager == null || enchant == null || factor <= 0f) return;
+            if (core?.ZoneManager == null || enchant == null) return;
             if (enchant is CardWrapper w && (w.GetData() == null || w.GetData().Durability <= 0)) return; // 非耐久体不扣
-            enchant.DurabilityCostAccumulator += factor;
-            int whole = (int)Math.Floor(enchant.DurabilityCostAccumulator);
-            if (whole <= 0) return;
-            enchant.DurabilityCostAccumulator -= whole;
-            LoseDurability(core, enchant, whole, $"{reason}（时机系数 {factor:0.##}）");
+            LoseDurability(core, enchant, 1, reason);
         }
 
         /// <summary>加层口统一层数解析（2026-10-31 晚定案）：系统指示物（Class=System，

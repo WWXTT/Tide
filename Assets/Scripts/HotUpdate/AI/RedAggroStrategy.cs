@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using CardCore;
@@ -272,10 +272,51 @@ namespace CardCore.AI
             return count >= 2 && power >= 2;
         }
 
-        /// <summary>英雄技能=激励（重置一个己方单位）：只为一只能再打一波的攻击单位发动
-        /// （已横置、有效伤害 ≥4——被 +2 攻养过），不空放。</summary>
+        /// <summary>英雄技能=激励（重置一个己方单位）：
+        /// ① 常规：只为一只能再打一波的攻击单位发动（已横置、有效伤害 ≥4——被 +2 攻养过），不空放；
+        /// ② 2026-11-14 用户定案：**手里还有余费、但没有任何能花掉它的牌**时绕开 ≥4 门槛——
+        ///    费反正要浪费，重置任意已横置攻击手（哪怕 2 伤）再打一波都是净赚。
+        ///    （0 费牌不花余费——它们照打，不算「有牌可用」；否则红套永远有 0 费火苗挡着，规则等于空转。
+        ///    余费 1 点或 2+ 都算：只看「技能付得起 + 没有 >0 费牌可出」，不再限定恰好 1 费。）</summary>
         public override bool WantHeroSkill(GameCore core, Player me)
-            => base.WantHeroSkill(core, me) && BestUntapTarget(core, me) != null;
+        {
+            if (!base.WantHeroSkill(core, me)) return false;
+            if (BestUntapTarget(core, me) != null) return true;
+            return RemainingElements(core, me) >= 1
+                   && !HasAffordableManaCard(core, me)
+                   && BestTappedAttacker(core, me) != null;
+        }
+
+        /// <summary>剩余元素总量（钱包+未横置地牌，与支付同口径）——「还有余费」判据。</summary>
+        private static int RemainingElements(GameCore core, Player me)
+            => core?.ElementPool?.GetRemainingElementTotal(me) ?? 0;
+
+        /// <summary>手里是否还有**能花掉这 1 费**的牌：可支付且总费 &gt;0（0 费牌不挡技能）。</summary>
+        private static bool HasAffordableManaCard(GameCore core, Player me)
+        {
+            foreach (var c in HandCards(core, me))
+            {
+                if (c == null) continue;
+                var cost = GameActions.GetCardCost(c, 0);
+                if (cost == null || cost.IsZero) continue;
+                if (GameActions.CanAffordCast(core, me, c, 0)) return true;
+            }
+            return false;
+        }
+
+        /// <summary>任意已横置攻击手（有效伤害最高）——绕开 ≥4 门槛的兜底重置目标。</summary>
+        private static Card BestTappedAttacker(GameCore core, Player me)
+        {
+            Card best = null;
+            int bestDmg = 0;
+            foreach (var c in OwnLivingUnits(core, me))
+            {
+                if (!c.IsTapped() || !c.HasAttackAbility()) continue;
+                int dmg = EffectiveDamage(core, c);
+                if (dmg > bestDmg) { best = c; bestDmg = dmg; }
+            }
+            return best;
+        }
 
         // ======================================== 连锁响应（2026-11-02 用户新定案） ========================================
 

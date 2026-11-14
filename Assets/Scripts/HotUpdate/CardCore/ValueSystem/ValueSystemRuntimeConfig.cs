@@ -55,8 +55,9 @@ namespace CardCore
     /// **作用次数档已退役**（2026-10-30 定案）：效果不再有每回合生效次数上限，
     /// TriggerLimit1/2/3/Infinite 与 TriggerLimitFactor 整删（此前已零消费，TriggerCostFactor 恒 1）。
     /// **发动时机系数已迁出本段**：2026-10-30 起配在 Category=TimingFactor——2026-11-05 收敛为
-    /// 单次/多次两档，2026-11-09 再拆出生物专属档（攻/守/横置 ×1.5，仅生物可挂，
-    /// 见 TimingFactorConfig），旧 TimingOnceFactor×0.8 / TimingRepeatFactor×1 两档与 31 行期望次数表先后删除。
+    /// 单次/多次两档，2026-11-09 再拆出生物专属档（攻/守/横置 ×1.5，仅生物可挂），
+    /// 2026-11-14 改为档位制（一回合一次/稀有/一回合多次，见 TimingFactorConfig），
+    /// 旧 TimingOnceFactor×0.8 / TimingRepeatFactor×1 两档与 31 行期望次数表先后删除。
     /// 速度档已随 2026-10-19 速度计价退役整删——三类卡分类把发动速度特化为法术专属类特性
     ///（速度=3−槽数、其余主动默认 0），不再是可购溢价轴。
     /// </summary>
@@ -84,26 +85,21 @@ namespace CardCore
     }
 
     /// <summary>
-    /// 发动时机系数（表 Category=TimingFactor）——2026-11-10 时机系数规格 v0.1 起**退化为桶默认**：
-    /// TimingWeights.json（35 行逐时机 f）Enabled=true 且行命中时计价读行 Factor，本段只在
-    /// 影子模式（Enabled=false，默认——恒走本段，不动任何卡价）与新时机缺权重行时兜底：
-    /// · 单次 Once=1：付清后只发生一次（登场/死亡/破坏/除外/离场/墓地回场/游戏开始/角色死亡）；
-    /// · 多次 Repeat=1：回合/阶段/抽牌/伤害/事件观察族——仅结界可挂；
-    /// · 生物专属 CreatureOnly=1.5：攻/守/横置族——只有生物能挂（结界不横置、法术不驻场）。
-    /// **段 2b 切换单**（Enabled:false→true 同批）：本值 1.5 → 1.0——新口径下攻/守/横置族次数由
-    /// 横置承担、已由 f 计价，不再叠加 1.5（缺行兜底也不该多收）；影子期间保持 1.5 = 旧价不变。
-    /// 单据 FiresOncePerPaidLifetime 判单次，EffectEligibility.IsTapAnchoredTiming 判生物专属
-    /// （CostDerivation 单源）；主动发动（Activate_*）与引擎载荷恒 1（TimingCostFactor 内判，不乘表）。
-    /// 消费方 CostDerivation.TimingCostFactor[Of]/IsRepeatTiming；合成器时机下拉档位标签与本段同源。
-    /// 旧 31 行逐时机期望次数表（2026-10-30 上线）已整删；2026-11-05 收敛两档 ×1；
-    /// 2026-11-09 拆出生物专属档 ×1.5；2026-11-10 起由 TimingWeights.json 逐时机表接管（影子开关）。
+    /// 发动时机系数桶（表 Category=TimingFactor）——**2026-11-14 档位制后只作兜底**：
+    /// 计价读 TimingWeights.json 的 Bucket（TimingTier）+ Factor；本段仅在权重表不可读/缺行时
+    /// 给**稀有档**回落 Once（一回合一次/一回合多次/主动三档恒 1，不经本段）。
+    /// 档位语义：PerTurn 一回合一次=1；Rare 稀有=触发概率；Multi 一回合多次=1（结界专属，耐久每次 −1）；
+    /// Active 主动=1（现付不进时序）。
+    /// 历史：2026-11-05 收敛单次/多次两档 ×1；2026-11-09 拆生物专属档 ×1.5；2026-11-10 由
+    /// TimingWeights.json 逐时机表接管；2026-11-14 改档位制（一回合一次/稀有/一回合多次）。
+    /// 字段留档：Once=稀有档兜底；Repeat/CreatureOnly 已无运行时消费方。
     /// </summary>
     [Serializable]
     public class TimingFactorConfig
     {
-        public float Once = 1f;           // 桶默认·单次档（FiresOncePerPaidLifetime=true 的时机）：基准 ×1
-        public float Repeat = 1f;         // 桶默认·多次档（周期/观察族，结界专属）：×1（影子模式=现行价；新口径下次数由 f 计价）
-        public float CreatureOnly = 1.5f; // 桶默认·生物专属档（攻/守/横置族）：影子期间 ×1.5（旧价不变）；段 2b 切换时改 1.0（次数已由 f 计价）
+        public float Once = 1f;           // 兜底·稀有档缺行时用（其余档恒 1，不经本口）
+        public float Repeat = 1f;         // 留档（档位制后无消费方）
+        public float CreatureOnly = 1.5f; // 留档（档位制后无消费方——生物动作族已归 PerTurn 恒 1）
     }
 
     /// <summary>
@@ -163,6 +159,7 @@ namespace CardCore
     // 2026-11-05 定案：期望次数口径退役——收敛为单次/多次两档且均 ×1（多次成本由结界耐久承担），
     // TimingFactorConfig 缩为 Once/Repeat 两字段，31 行逐时机表整删。
     // 2026-11-09 修订：攻/守/横置族为生物专属状态（结界不横置、法术不驻场），从多次档拆出
+    // 2026-11-14 修订：改档位制（一回合一次/稀有/一回合多次），本段只留稀有档兜底
     // CreatureOnly=1.5 单列计价，只有生物可挂；Repeat 回归周期/观察族结界专属口径。
 
     /// <summary>

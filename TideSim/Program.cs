@@ -53,6 +53,10 @@ namespace TideSim
             if (args.Length > 0 && args[0] == "--charge-probe")
                 return ChargeProbe.Run();
 
+            // 牺牲原子改版探针（2026-11-14 basics_10 修复验收）：域=候选声明 + handler 送墓入账
+            if (args.Length > 0 && args[0] == "--sacrifice-probe")
+                return SacrificeProbe.Run();
+
             // 红套改版取证（2026-11-13）：己方仅 1 生物时两张直伤法术的连锁 + 代价只付一次
             if (args.Length > 0 && args[0] == "--chain-cast")
                 return ChainCastCheck.Run();

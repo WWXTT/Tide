@@ -212,8 +212,9 @@ namespace CardCore
                 // 同批多个触发出队时，结算期记账会让读数滞后。
                 _executor.RecordQueuedActivation(next.Effect, next.Source);
 
-                // 结界被动触发消耗（2026-11-13 定案「结界用耐久买次数」·A 口径）：每次发动扣**时机系数 f**
-                // （f=1.2^(E[N]−1)，浮点累计满 1 扣 1）——旧「每 3 次扣整份 D」已退役（D 只表达血量）。
+                // 结界被动触发消耗（2026-11-14 档位制「结界用耐久买次数」）：**每次触发扣 1 点耐久**
+                // （固定值；时机系数 f 只用于生物挂载价，不进耐久）——一回合多次档只有结界能挂，
+                // 耐久即该档的次数池（D 点耐久 = 再触发 D 次）。
                 // 豁免：登场族（OnPlay/OnSummon/OnReturnFromGraveyard——入场结算属出牌/入场流程，
                 // 仪典载体不受影响）；光环条目=存在经济常驻，不经触发路径；离场族触发时源卡已离场
                 //（下方战场判定不过）→ 自然不消耗，兼防"耗尽→销毁→亡语→再耗"递归。
@@ -224,9 +225,7 @@ namespace CardCore
                     && !IsEntranceTiming(next.Effect.TriggerTiming))
                 {
                     Attribute.CounterRules.ConsumeTriggerDurability(
-                        GameCore.Instance, trigCard,
-                        CostDerivationService.TimingCostFactorOf(next.Effect.TriggerTiming),
-                        "被动触发（耐久即时机系数）");
+                        GameCore.Instance, trigCard, "被动触发（耐久−1/次）");
                 }
 
                 EventManager.Instance.Publish(new StackAddEvent

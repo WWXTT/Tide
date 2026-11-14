@@ -439,11 +439,11 @@ namespace CardCore
         ///——速度=3−槽数是法术的类特性而非可购溢价，旧规给速 2 效果 ×2 属历史遗留多收；
         /// 其余主动效果速度已全归默认 0。SpeedFactor/SpeedTier 配置位同批整删。）</summary>
 
-        /// <summary>发动时机计价系数（表 Category=TimingFactor 三档）：单次 / 多次（周期·观察族，
-        /// 结界专属）/ 生物专属（攻/守/横置族 ×1.5——只有生物可挂）。多次档仍 ×1：**多次生效的成本
-        /// 由耐久承担**（结界每次触发 −1 耐久、0.5 蓝/点——耐久即次数池），不按次数加价；生物专属档
-        /// 按 ×1.5 计费（宿主自身行动承担次数）。单据 FiresOncePerPaidLifetime / IsTapAnchoredTiming
-        /// 归类。引擎载荷豁免：重复性属引擎通道，效果头时机=奖励发射窗，不代表主干发射次数；
+        /// <summary>发动时机计价系数（2026-11-14 档位制）：档位见 <see cref="TimingWeights.TierOf"/>——
+        /// **一回合一次（PerTurn）恒 1**（攻击/守卫/回合开始/回合结束/登场…＝等效一张法术）；
+        /// **稀有（Rare）读表 Factor**（被破坏 0.55 / 被除外 0.12…沿用之前按概率得到的系数）；
+        /// **一回合多次（Multi）恒 1**（次数由结界耐久支付——每次触发 −1）；主动（Active）恒 1。
+        /// 引擎载荷豁免：重复性属引擎通道，效果头时机=奖励发射窗，不代表主干发射次数；
         /// 非触发式（主动现付）不乘（恒 1）。</summary>
         public static float TimingCostFactor(EffectDefinition def)
         {
@@ -454,7 +454,9 @@ namespace CardCore
 
         /// <summary>宿主挂载系数（2026-11-13 定案：「法术买速度 / 结界买次数」）：自动效果的时机系数 f
         /// 只对**生物宿主**计费——生物用元素买频率（卡层价=原价×f，无发动上限）；结界宿主价=原价，
-        /// 频率改由耐久支付（每次发动 −f，见 <see cref="Attribute.CounterRules.ConsumeTriggerDurability"/>）。
+        /// 频率改由耐久支付（每次触发 −1，见 <see cref="Attribute.CounterRules.ConsumeTriggerDurability"/>）。
+        /// 生物的合法时机只有一回合一次（f=1）与稀有（f=概率）两档（一回合多次=结界专属，装载期拦截）——
+        /// 因此生物挂载价只对**稀有档**打折，一回合一次按原价（2026-11-14 档位制）。
         /// 主动/非触发效果恒 1（现付不进时序；法术速度是类特性不入价）。</summary>
         public static float HostMountFactor(EffectDefinition def, Cardtype hostType)
         {
@@ -463,47 +465,30 @@ namespace CardCore
             return TimingCostFactor(def);
         }
 
-        /// <summary>时机系数单口（计价 TimingCostFactor 与时机下拉档位标签展示同源）：
-        /// **2026-11-10 用户定案 B（箭头版）：f = 1.2 ^ (E[N] − 1)**（E[N]=预估触发次数，
-        /// 表 TimingWeights.json 的 Expected 列）——与连接光环箭头计价完全同构
-        ///（CardCostService 箭头档 ×1.2^(n−1)：1 支=1、2 支=1.2）；取代旧 f=min(E[N],Cutoff)
-        /// 线性封顶。OnPlay/OnGameStart 等 E[N]=1 → f=1；E[N]&lt;1 的低频时机 f&lt;1（折扣）；
-        /// 主动三档 Expected=0 → 1（现付不进时序）；OnTurnStart 系统专用 → 0；
-        /// 缺行/表不可读回落 Category=TimingFactor 桶默认。改表 Expected 即同步改计价与展示。</summary>
+        /// <summary>时机系数单口（计价 TimingCostFactor 与时机下拉档位展示同源）：
+        /// **2026-11-14 档位制**——PerTurn/Multi/Active 恒 1；Rare 读权重表行 <c>Factor</c>
+        ///（=触发概率，沿续 2026-11-10 之前的概率口径；缺行/表不可读回落 TimingFactor 桶默认）。
+        /// 2026-11-10 的 f=1.2^(E[N]−1) 指数曲线随本批退役——「一回合一次的期望」不再随 E[N] 加价，
+        /// 稀有档直接按概率折算。改表 Factor 即同步改计价与展示。</summary>
         public static float TimingCostFactorOf(TriggerTiming timing)
         {
-            if (timing == TriggerTiming.OnTurnStart) return 0f; // 系统专用（表行 Expected=0 但语义是禁用）
+            var tier = TimingWeights.TierOf(timing);
+            if (tier == TimingTier.Active || tier == TimingTier.PerTurn || tier == TimingTier.Multi)
+                return 1f;
+            // Rare：系数=该时机的触发概率（表 Factor 列——「延续之前按概率得到的时机系数」）
             if (TimingWeights.TryGet(timing, out var row))
-                return row.Expected <= 0f ? 1f : (float)Math.Pow(1.2, row.Expected - 1.0);
+                return row.Factor > 0f ? row.Factor : 1f;
             var f = ValueSystemConfigManager.Instance.GetOrCreateConfig().TimingFactorConfig;
-            if (EffectEligibility.IsTapAnchoredTiming(timing)) return f.CreatureOnly;
-            return FiresOncePerPaidLifetime(timing) ? f.Once : f.Repeat;
+            return f.Once;
         }
 
-        /// <summary>多次档判定（2026-11-05 两档定案配套；合成器宿主过滤/装载校验/验证器共用）：
-        /// !FiresOncePerPaidLifetime——回合/阶段/抽牌/伤害/事件观察族 + 攻/守/横置族 + OnSummon。
-        /// 注意：攻/守/横置族虽归多次档，但**只有生物可挂**（EffectEligibility.IsTapAnchoredTiming；
-        /// 计价另走 CreatureOnly ×1.5，不再按 Repeat ×1）——周期/观察族才是结界专属（耐久即次数池）。</summary>
-        public static bool IsRepeatTiming(TriggerTiming t) => !FiresOncePerPaidLifetime(t);
-
-        /// <summary>一发时机分类——**单次档的唯一判定**（2026-10-16 入档；2026-10-30 与计价解耦；
-        /// 2026-11-05 两档收敛定案后为单次档的唯一单源）：付费后整个生命期望=1——
-        /// 登场/死亡/游戏开始·角色死亡（每局一发）/破坏·除外·离场·墓地回场（付费后基本一次）。
-        /// 非单次再分两族：周期/观察族（Repeat，结界专属）与攻/守/横置族（CreatureOnly ×1.5，生物专属，
-        /// EffectEligibility.IsTapAnchoredTiming）。
-        /// OnSummon 进场**不入档**：OnPlay 超集（token/复活/换主控可不付二次费再触发），有真实二次机会
-        /// ——归多次档（系数仍 ×1）。事件观察族（OnOtherCreature* 等）与每回合可复现时机（攻防/横置/
-        /// 阶段/抽牌/伤害）期望&gt;1 不入档。消费方：TimingCostFactorOf / IsRepeatTiming /
-        /// EffectEligibility（法术合法性+合成器时机排序）。</summary>
-        public static bool FiresOncePerPaidLifetime(TriggerTiming timing)
-            => timing == TriggerTiming.OnPlay
-               || timing == TriggerTiming.OnDeath
-               || timing == TriggerTiming.OnGameStart
-               || timing == TriggerTiming.OnRoleDeath
-               || timing == TriggerTiming.OnDestroy
-               || timing == TriggerTiming.OnExile
-               || timing == TriggerTiming.OnLeaveBattlefield
-               || timing == TriggerTiming.OnReturnFromGraveyard;
+        /// <summary>一回合多次档判定（2026-11-14 档位制；合成器宿主过滤/装载校验/验证器共用）：
+        /// <see cref="TimingWeights.TierOf"/>==Multi——抽牌/伤害/使用卡牌/结算观察/原子三阶段/
+        /// 阶段起止/其他生物进出场/施放法术。该档**只能挂结界**（耐久即次数池，每次触发 −1），
+        /// 生物/法术拒。一回合一次（PerTurn）与稀有（Rare）两档见 <see cref="TimingWeights.IsPerTurnTiming"/>/
+        /// <see cref="TimingWeights.IsRareTiming"/>。</summary>
+        public static bool IsMultiPerTurnTiming(TriggerTiming t)
+            => TimingWeights.TierOf(t) == TimingTier.Multi;
 
         /// <summary>死亡计数 amplification：+3×原子基准费=总费×4（用户定案）。</summary>
         public const float DeathTollAmplificationMultiplier = 4f;
@@ -540,7 +525,7 @@ namespace CardCore
 
             // 发动时机计价（2026-11-13 定案改版）：**时机系数 f 不再进效果锚价（锚价=原价）**——
             // 生物宿主在卡层按「原价×f」收（宿主用元素买频率，无发动上限）；结界宿主的频率由耐久支付
-            //（卡层价=原价，每次发动 −f，见 CounterRules.ConsumeTriggerDurability）。
+            //（卡层价=原价，每次触发 −1，见 CounterRules.ConsumeTriggerDurability）。
             // f 单口仍在 HostMountFactor/TimingCostFactor 保留，供卡层挂载与展示消费。
 
             // 发动速度计价已退役（2026-10-19：速度特化法术专属=类特性非溢价——旧 ×1.5/×2 档随拆）。
@@ -841,7 +826,7 @@ namespace CardCore
         ///（BaseExprOf 各分档 / QuantityFactor / IsSymmetricBothSides），不另立计价口径。
         /// 系数顺序与 ComputeAtomCost 管线一致：基准内系（量级/表乘数/持续/控制/赋予档）→数量档→双方减半
         ///（触发档已随 2026-10-30 无上限定案删除；时机档随 2026-11-13 宿主分叉改版退出锚价——
-        /// 生物宿主挂载时由卡层 ×f，结界宿主改由耐久 −f；错边拆分已随黑白获得经济删除，2026-10-28 P1）。
+        /// 生物宿主挂载时由卡层 ×f，结界宿主改由耐久 −1/次；错边拆分已随黑白获得经济删除，2026-10-28 P1）。
         /// 基准内的乘法在数值侧折叠为一次 round（ComputeAtomBaseAmount），展开链只作显示——
         /// 末端结果由调用方取 DeriveElementCosts 实值，不重算。</summary>
         public static (string baseExpr, List<string> factorExprs) AtomCostFormula(
@@ -858,7 +843,7 @@ namespace CardCore
             if ((domain == null || domain.Count == 0) && n > 1f) n = 1f; // 无目标域不乘数量（同 ComputeAtomCost）
             AddFactor(factors, "数量档", n);
             // 时机档已随 2026-11-13 定案退出效果锚价：锚价=原价；f 只在**生物卡挂载**时由卡层乘
-            //（HostMountFactor），结界卡改由耐久每次发动 −f——本展开不再列时机档。
+            //（HostMountFactor），结界卡改由耐久每次触发 −1——本展开不再列时机档。
             if (IsSymmetricBothSides(atom, def, domain))
                 AddFactor(factors, "双方减半", SymmetricDiscountFactor);
             return (baseExpr, factors);
@@ -1349,7 +1334,6 @@ namespace CardCore
             if (t >= 0 && Enum.IsDefined(typeof(TriggerTiming), t)) timing = (TriggerTiming)t;
             else if (t < 0) timing = TriggerTiming.Activate_Active; // 未声明哨兵（converter 同口径回落主动）
             else timing = TriggerTiming.OnPlay;                      // 越界回退（converter 告警口径）
-            if (timing == TriggerTiming.OnTurnStart) timing = TriggerTiming.OnStandbyPhase; // 系统专用归一
             bool timingActive = timing == TriggerTiming.Activate_Active
                                 || timing == TriggerTiming.Activate_Instant
                                 || timing == TriggerTiming.Activate_Response;

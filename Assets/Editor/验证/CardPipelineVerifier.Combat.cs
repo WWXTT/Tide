@@ -602,15 +602,15 @@ namespace CardCore.Editor
 
             try
             {
-                // ---- 牺牲（2026-10-09 舍弃并档定案）：直送墓·非死亡（不发 CardDestroyEvent=死亡时点不触发）----
+                // ---- 牺牲（2026-11-14 域=候选声明）：目标卡直送墓·非死亡（不发 CardDestroyEvent=死亡时点不触发）----
                 var victim = Make(p1, 2, 3);
                 int destroyEvents = 0;
                 void OnDeathAtomDestroy(CardDestroyEvent e) => destroyEvents++;
                 EventManager.Instance.Subscribe<CardDestroyEvent>(OnDeathAtomDestroy);
-                Atom(AtomicEffectType.Sacrifice, p1, p1, p1);
+                Atom(AtomicEffectType.Sacrifice, p1, p1, victim); // 2026-11-14：handler 目标=卡（旧 Player 目标作废）
                 EventManager.Instance.Unsubscribe<CardDestroyEvent>(OnDeathAtomDestroy);
                 Assert(!victim.IsAlive && core.ZoneManager.GetCards(p1, Zone.Graveyard).Contains(victim),
-                       "牺牲：持有者自选单位直送墓（非死亡定案）");
+                       "牺牲：目标卡直送墓（非死亡定案；域=候选声明后目标为卡）");
                 Assert(destroyEvents == 0,
                        "牺牲非死亡：不发 CardDestroyEvent（OnDeath/亡语/消灭替代/统计全不触发）");
 

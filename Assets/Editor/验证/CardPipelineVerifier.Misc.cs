@@ -540,14 +540,14 @@ namespace CardCore.Editor
             RetireCards(core, p2, b1, b2);
         }
 
-        // ======================================== 牺牲原子（2026-10-09 舍弃并档定案） ========================================
+        // ======================================== 牺牲原子（2026-11-14 域=候选声明改版） ========================================
 
         /// <summary>
-        /// 牺牲原子端到端：①表行锚（黑5 Polarity=-1 域 1,2,3,4 filter "Player"=仅角色）；
-        /// ②候选域=双方角色（单位不入候选——Player 过滤激活）；③行为：目标玩家（持有者）自行选择
-        /// 一个己方战场单位（生物+无生命单位，摒弃并池）**直送墓地**——非效果死亡：
-        /// 不发 CardDestroyEvent（死亡时点/消灭替代/击杀统计不触发），不灭无从拦
-        ///（非死亡路径；headless 自动选首个；多单位时走交互 Chooser=持有者）。
+        /// 牺牲原子端到端（2026-11-14 域=候选声明改版）：①表行锚=0费 Pol=0、域=己方战场:生物/
+        /// 己方战场:结界/己方元素池:卡（TargetKind 1/3/13，无 filter）——行域即牺牲候选；
+        /// ②候选域=己方三区卡（对手单位不入候选）；③行为：目标卡**规则送墓**（非效果死亡：
+        /// 不发 CardDestroyEvent，不灭无从拦），每张按归属者 +1 临时彩元素；地牌先出池再入墓。
+        /// 数量档由解析层选定，handler 逐目标送墓（不再自建弹窗/自收集候选）。
         /// </summary>
         private static void TestSacrificeAtom(GameCore core, Player p1, Player p2)
         {
@@ -566,17 +566,22 @@ namespace CardCore.Editor
             foreach (var orphan in core.ZoneManager.GetCards(p1, Zone.ElementPool).ToList())
                 core.ZoneManager.GetZoneContainer(p1).Remove(orphan, Zone.ElementPool);
 
-            // ---- 1. 表行锚（2026-11-03 改版：0费 Pol=0 域={1}——自选N送墓每个+1临时彩元素） ----
+            // ---- 1. 表行锚（2026-11-14 域=候选声明：0费 Pol=0 己方战场生物/结界+己方元素池地牌） ----
             var cfg = CardCore.Attribute.AtomicEffectTable.GetByType(AtomicEffectType.Sacrifice);
+            CardCore.TargetAxis sacAxis = null;
+            bool sacAxisOk = cfg != null && CardCore.TargetAxisRules.TryParseDomain(cfg.Domain, out sacAxis);
             Assert(cfg != null && cfg.TotalUnitCost == 0f && cfg.Polarity == 0f
-                   && cfg.GetTargetKindList().SequenceEqual(new[] { 1 })
+                   && cfg.GetTargetKindList().SequenceEqual(new[] { 1, 3, 13 })
                    && (cfg.TargetFilter ?? "") == ""
-                   && CardCore.TargetAxisRules.TryParseDomain(cfg.Domain, out var sacAxis)
-                   && sacAxis.Zh == "己方战场:卡"
+                   && sacAxisOk && sacAxis != null
+                   && sacAxis.Zh.Contains("己方战场:生物")
+                   && sacAxis.Zh.Contains("己方战场:结界")
+                   && sacAxis.Zh.Contains("己方元素池:卡")
                    && ElementAffinities.GetAffinityForEffect(AtomicEffectType.Sacrifice).IsGeneric,
-                   "牺牲表行：0费 Pol=0 域={1} Domain=己方战场:卡（A3 定案 2026-11-05：选单位送墓——生物+结界+池内地牌全卡）");
+                   $"牺牲表行：0费 Pol=0 域=己方战场:生物/结界 + 己方元素池:卡（2026-11-14 域=候选声明；" +
+                   $"kinds={string.Join("/", cfg.GetTargetKindList())}；axis={sacAxis?.Zh ?? "<null>"}）");
 
-            // ---- 2. 候选域：Player 过滤滤单位得角色（机制口四单位类→双方角色）；表行域收窄→仅己方角色 ----
+            // ---- 2. 候选域：表行域即候选（己方生物/结界/池内地牌；对手单位不入）----
             var ctx = new EffectExecutionContext
             {
                 Source = p1,
@@ -584,18 +589,8 @@ namespace CardCore.Editor
                 ZoneManager = core.ZoneManager,
                 ElementPool = core.ElementPool,
             };
-            var candidates = CardCore.Attribute.EffectHandlerRegistry.ResolveCandidates(
-                new List<int> { (int)CardCore.TargetKind.OwnLivingUnit, (int)CardCore.TargetKind.EnemyLivingUnit,
-                                (int)CardCore.TargetKind.OwnNonLivingUnit, (int)CardCore.TargetKind.EnemyNonLivingUnit },
-                "Player", ctx);
-            Assert(candidates.Contains(p1) && candidates.Contains(p2) && candidates.All(c => c is Player),
-                   "牺牲候选域：仅双方角色（Player 过滤滤除单位）");
-            var rowCandidates = CardCore.Attribute.EffectHandlerRegistry.ResolveCandidates(
-                cfg.GetTargetKindList(), "Player", ctx);
-            Assert(rowCandidates.Contains(p1) && !rowCandidates.Contains(p2),
-                   "牺牲候选域收窄：表行域={1}（己方单位）→ 仅己方角色（旧双方域作废）");
 
-            // ---- 3. 行为：持有者交出单位（规则送墓非死亡；不灭无从拦）——每个 +1 临时彩元素 ----
+            // ---- 3. 行为：目标卡规则送墓（非死亡；不灭无从拦）——每张按归属者 +1 临时彩元素 ----
             int seq = 0;
             Card Spawn(Player owner, int power, int life, params string[] keywords)
             {
@@ -611,39 +606,24 @@ namespace CardCore.Editor
                 card.Untap();
                 return card;
             }
-
-            var foeIndestructible = Spawn(p2, 3, 3, Attribute.KeywordRules.Indestructible); // 唯一单位=不灭——自动选它
-            var mine = Spawn(p1, 2, 2); // p1 唯一单位
-
-            var atom = new CardCore.AtomicEffectInstance { Type = AtomicEffectType.Sacrifice, Value = 1 };
-            var execCtx = new EffectExecutionContext
+            Card SpawnEnchant(Player owner)
             {
-                Source = p1,
-                Controller = p1, // 施法者=p1；送墓归属=各自持有者
-                ZoneManager = core.ZoneManager,
-                ElementPool = core.ElementPool,
-                Targets = new List<Entity> { p2, p1 }, // 作用对象=双方角色（handler 逐角色结算——机制口）
-            };
-            int sacDestroyEvents = 0;
-            void OnSacDestroy(CardDestroyEvent e) => sacDestroyEvents++;
-            EventManager.Instance.Subscribe<CardDestroyEvent>(OnSacDestroy);
-            int anyP1 = core.ElementPool.GetAvailableManaCount(ManaType.Any, p1);
-            int anyP2 = core.ElementPool.GetAvailableManaCount(ManaType.Any, p2);
-            Assert(CardCore.Attribute.EffectHandlerRegistry.ExecuteEffect(atom, execCtx), "牺牲原子执行（作用对象=双方角色）");
-            EventManager.Instance.Unsubscribe<CardDestroyEvent>(OnSacDestroy);
+                var data = new CardData
+                {
+                    ID = "VERIFY_SAC_E" + (++seq), CardName = "SACE" + seq,
+                    Supertype = Cardtype.Enchantment, Power = 0, Life = 0,
+                };
+                var card = new CardWrapper(data);
+                card.SetController(owner);
+                Assert(core.ZoneManager.TryAddToBattlefield(card, owner), $"牺牲段合成结界入场（{data.CardName}）");
+                return card;
+            }
 
-            Assert(!foeIndestructible.IsAlive && core.ZoneManager.IsCardInZone(foeIndestructible, p2, Zone.Graveyard),
-                   "牺牲：对手持有者交出唯一单位（规则送墓非死亡——不灭无从拦）");
-            Assert(!mine.IsAlive && core.ZoneManager.IsCardInZone(mine, p1, Zone.Graveyard),
-                   "牺牲：己方持有者同批交出（送墓归属=各自持有者）");
-            Assert(sacDestroyEvents == 0, "牺牲非死亡：全批不发 CardDestroyEvent（死亡时点不触发）");
-            Assert(core.ElementPool.GetAvailableManaCount(ManaType.Any, p1) == anyP1 + 1
-                   && core.ElementPool.GetAvailableManaCount(ManaType.Any, p2) == anyP2 + 1,
-                   "牺牲入账：每送墓一个单位 +1 临时彩元素（交出方各 +1，任一回合结束清空）");
-
-            // ---- 3b. 多选 {value}（2026-11-03 改版）：候选序前 N 送墓（战场序优先、地牌殿后——3 候选取 2） ----
-            var u1 = Spawn(p1, 1, 1);
-            var u2 = Spawn(p1, 1, 1);
+            // 候选：己方生物 + 己方结界 + 己方池内地牌；对手单位不入（行域=己方三区）
+            var mine = Spawn(p1, 2, 2);
+            var mineEnchant = SpawnEnchant(p1);
+            var foeUnit = Spawn(p2, 3, 3, Attribute.KeywordRules.Indestructible); // 不灭也不入对手候选
+            var foeEnchant = SpawnEnchant(p2);
             var landData = new CardData
             {
                 // 2/2 身材推导绿 1——锁色候选非空才可入池（0/1 零费卡 GetLandColorChoices 空被拒）；
@@ -651,102 +631,83 @@ namespace CardCore.Editor
                 ID = "VERIFY_SAC_LAND", CardName = "牺牲之地", Supertype = Cardtype.Creature,
                 AttackAbility = true, GuardAbility = true, Power = 2, Life = 2,
             };
-            // 正式放地路径：入手牌（路径闸要求）→ 三写齐全（池包装器+容器+卡 zone 字段——
-            // 裸 AddCardToPool 不写 zone 字段会让 SendToGrave 的 MoveCard 落空；旧手工补容器登记造重复条目）
             var land = InjectCard(core, p1, landData);
             Assert(GameActions.AddToElementPool(core, p1, land), "牺牲段：地牌入池");
+            var rowCandidates = CardCore.Attribute.EffectHandlerRegistry.ResolveCandidates(
+                cfg.GetTargetKindList(), null, ctx);
+            Assert(rowCandidates.Contains(mine) && rowCandidates.Contains(mineEnchant) && rowCandidates.Contains(land)
+                   && !rowCandidates.Contains(foeUnit) && !rowCandidates.Contains(foeEnchant),
+                   "牺牲候选域：己方生物/结界/池内地牌入候选，对手单位不入（行域=己方三区）");
 
-            var multiCtx = new EffectExecutionContext
+            // 行为：目标卡规则送墓（非死亡；不灭无从拦）——每张按归属者 +1 临时彩元素
+            var atom = new CardCore.AtomicEffectInstance { Type = AtomicEffectType.Sacrifice, Value = 1 };
+            var execCtx = new EffectExecutionContext
             {
                 Source = p1,
                 Controller = p1,
                 ZoneManager = core.ZoneManager,
                 ElementPool = core.ElementPool,
-                Targets = new List<Entity> { p1 },
+                Targets = new List<Entity> { mine, mineEnchant, land },
             };
-            int anyP1b = core.ElementPool.GetAvailableManaCount(ManaType.Any, p1);
-            Assert(CardCore.Attribute.EffectHandlerRegistry.ExecuteEffect(
-                       new CardCore.AtomicEffectInstance { Type = AtomicEffectType.Sacrifice, Value = 2 }, multiCtx),
-                   "牺牲原子多选执行（value=2·候选 3=单位2+地牌1）");
-            Assert(!u1.IsAlive && !u2.IsAlive
-                   && core.ZoneManager.IsCardInZone(u1, p1, Zone.Graveyard)
-                   && core.ZoneManager.IsCardInZone(u2, p1, Zone.Graveyard),
-                   "牺牲多选：自动取候选前 2 个送墓（战场序优先）");
-            Assert(core.ZoneManager.GetCards(p1, Zone.ElementPool).Contains(land),
-                   "牺牲多选：地牌殿后不占前 2 席（候选序=战场序→地牌序）");
-            Assert(core.ElementPool.GetAvailableManaCount(ManaType.Any, p1) == anyP1b + 2,
-                   "牺牲多选入账：2 个单位 = +2 临时彩元素");
+            int sacDestroyEvents = 0;
+            void OnSacDestroy(CardDestroyEvent e) => sacDestroyEvents++;
+            EventManager.Instance.Subscribe<CardDestroyEvent>(OnSacDestroy);
+            int anyP1 = core.ElementPool.GetAvailableManaCount(ManaType.Any, p1);
+            Assert(CardCore.Attribute.EffectHandlerRegistry.ExecuteEffect(atom, execCtx),
+                   "牺牲原子执行（目标=己方生物/结界/池内地牌）");
+            EventManager.Instance.Unsubscribe<CardDestroyEvent>(OnSacDestroy);
 
-            // ---- 3c. 地牌扩池（2026-11-03 定案：牺牲范围=场上地牌+生物+结界）：地牌出池入墓照计 Any ----
-            int anyP1c = core.ElementPool.GetAvailableManaCount(ManaType.Any, p1);
-            Assert(CardCore.Attribute.EffectHandlerRegistry.ExecuteEffect(atom, multiCtx),
-                   "牺牲原子再执行（战场空、仅池内地牌——地牌为唯一候选）");
-            Assert(core.ZoneManager.IsCardInZone(land, p1, Zone.Graveyard)
-                   && !core.ZoneManager.GetCards(p1, Zone.ElementPool).Contains(land),
-                   $"牺牲扩池：地牌入候选——出池直送墓（旧「地牌非单位不入池」口径作废）" +
-                   $"——诊断 land区={land.GetZone()} alive={land.IsAlive} 池内={core.ElementPool.GetPool(p1).PooledCards.Count}" +
-                   $" 战场余={core.ZoneManager.GetCards(p1, Zone.Battlefield).Count}");
-            Assert(!core.ElementPool.GetPool(p1).PooledCards.Any(pc => pc.SourceCard == land),
-                   "牺牲扩池：出池落账（PooledCards 移除）");
-            Assert(core.ElementPool.GetAvailableManaCount(ManaType.Any, p1) == anyP1c + 1,
-                   "牺牲扩池入账：地牌送墓同计 +1 临时彩元素");
+            Assert(!mine.IsAlive && core.ZoneManager.IsCardInZone(mine, p1, Zone.Graveyard)
+                   && !mineEnchant.IsAlive && core.ZoneManager.IsCardInZone(mineEnchant, p1, Zone.Graveyard)
+                   && core.ZoneManager.IsCardInZone(land, p1, Zone.Graveyard)
+                   && !core.ZoneManager.GetCards(p1, Zone.ElementPool).Contains(land)
+                   && !core.ElementPool.GetPool(p1).PooledCards.Any(pc => pc.SourceCard == land),
+                   "牺牲：目标卡全部规则送墓（生物/结界/地牌先出池——非死亡路径）");
+            Assert(sacDestroyEvents == 0, "牺牲非死亡：全批不发 CardDestroyEvent（死亡时点/消灭替代/击杀统计不触发）");
+            Assert(core.ElementPool.GetAvailableManaCount(ManaType.Any, p1) == anyP1 + 3,
+                   $"牺牲入账：每送墓一张 +1 临时彩元素（3 张 = +3；实际 {core.ElementPool.GetAvailableManaCount(ManaType.Any, p1) - anyP1}）");
 
-            // ---- 4. 帷幕豁免：牺牲类选择权在目标方——帷幕只约束对手的选择（机制口与表行域解耦：
-            //      手工四单位类域——域收窄后真实卡只能以己方角色为作用对象，豁免机制本段独立验证） ----
-            var curtain = Spawn(p2, 2, 5, Attribute.KeywordRules.Taunt);
-            var p1Second = Spawn(p1, 2, 2);
-            var sacDef = new CardCore.EffectDefinition
-            {
-                Id = "VERIFY_SAC_CURTAIN",
-                // 缺省 SelectionMode=None 会让组合解析早退返回空目标——显式选多·多范围（域跨双方角色）
-                SelectionMode = CardCore.SelectionMode.MultipleUnion,
-                // 候选序=单位在角色前：count=4 全取（两单位+两角色）——锚「角色不被帷幕收窄」本身
-                TargetCount = 4,
-                TargetDomain = new List<int> { (int)CardCore.TargetKind.OwnLivingUnit, (int)CardCore.TargetKind.EnemyLivingUnit,
-                                               (int)CardCore.TargetKind.OwnNonLivingUnit, (int)CardCore.TargetKind.EnemyNonLivingUnit },
-                // B2：Player 类别 token 已删——本段验证豁免机制（手工域，与表行域解耦）：域=四单位类直接表达
-                TargetFilter = null,
-                Effects = new List<CardCore.AtomicEffectInstance> { new CardCore.AtomicEffectInstance { Type = AtomicEffectType.Sacrifice, Value = 1 } },
-            };
-            var curtainPicked = CardCore.Attribute.EffectHandlerRegistry
-                .ResolveCompositionTargetsAsync(sacDef, ctx).GetAwaiter().GetResult();
-            Assert(curtainPicked.Contains(p2) && curtainPicked.Contains(p1),
-                   "牺牲豁免帷幕：对手有帷幕卡时角色目标照常可选（选择权在持有者）");
-            var dmgDef2 = new CardCore.EffectDefinition
-            {
-                Id = "VERIFY_SAC_VS_DMG", SelectionMode = CardCore.SelectionMode.Single,
-                TargetCount = 1,
-                TargetDomain = new List<int> { (int)CardCore.TargetKind.EnemyLivingUnit },
-            };
-            var dmgPicked2 = CardCore.Attribute.EffectHandlerRegistry
-                .ResolveCompositionTargetsAsync(dmgDef2, ctx).GetAwaiter().GetResult();
-            Assert(dmgPicked2.Count == 1 && dmgPicked2[0] == curtain,
-                   "对照：普通效果仍受帷幕收窄（对方侧仅帷幕卡）——豁免只给 edict");
-            RetireCards(core, p1, p1Second);
-            RetireCards(core, p2, curtain);
-
-            // ---- 5. 摒弃并池（2026-10-09 舍弃并档）：无生命单位入牺牲池，规则送墓照计 Any ----
-            var p2Enchant = new CardData
-            {
-                ID = "VERIFY_SAC_ENCH", CardName = "牺牲标的结界", Supertype = Cardtype.Enchantment, Power = 0, Life = 0,
-            };
-            var enchant = new CardWrapper(p2Enchant);
-            enchant.SetController(p2);
-            Assert(core.ZoneManager.TryAddToBattlefield(enchant, p2), "牺牲段：结界入场（无生命单位）");
+            // ---- 3b. 不灭无从拦（非死亡路径）：己方不灭单位照样规则送墓 ----
+            var indestructible = Spawn(p1, 3, 3, Attribute.KeywordRules.Indestructible);
             var sacCtx2 = new EffectExecutionContext
             {
                 Source = p1,
                 Controller = p1,
                 ZoneManager = core.ZoneManager,
                 ElementPool = core.ElementPool,
-                Targets = new List<Entity> { p2 }, // p2 唯一单位=结界——自动选它
+                Targets = new List<Entity> { indestructible },
             };
-            int anyP2b = core.ElementPool.GetAvailableManaCount(ManaType.Any, p2);
-            Assert(CardCore.Attribute.EffectHandlerRegistry.ExecuteEffect(atom, sacCtx2), "牺牲原子再执行（作用对象=对方角色）");
-            Assert(core.ZoneManager.IsCardInZone(enchant, p2, Zone.Graveyard),
-                   "牺牲并池：持有者交出唯一无生命单位（结界规则送墓——摒弃覆盖并入牺牲）");
-            Assert(core.ElementPool.GetAvailableManaCount(ManaType.Any, p2) == anyP2b + 1,
-                   "牺牲并池入账：结界送墓同计 +1 临时彩元素");
+            int anyP1b = core.ElementPool.GetAvailableManaCount(ManaType.Any, p1);
+            Assert(CardCore.Attribute.EffectHandlerRegistry.ExecuteEffect(atom, sacCtx2), "牺牲原子执行（目标=己方不灭单位）");
+            Assert(!indestructible.IsAlive && core.ZoneManager.IsCardInZone(indestructible, p1, Zone.Graveyard),
+                   "牺牲：不灭无从拦——规则送墓非死亡，不灭/复生不拦");
+            Assert(core.ElementPool.GetAvailableManaCount(ManaType.Any, p1) == anyP1b + 1,
+                   "牺牲不灭入账：送墓同计 +1 临时彩元素");
+
+            // ---- 3c. 多目标：数量档由解析层选定，handler 逐目标送墓（Value 不再驱动自选）----
+            var u1 = Spawn(p1, 1, 1);
+            var u2 = Spawn(p1, 1, 1);
+            var multiCtx = new EffectExecutionContext
+            {
+                Source = p1,
+                Controller = p1,
+                ZoneManager = core.ZoneManager,
+                ElementPool = core.ElementPool,
+                Targets = new List<Entity> { u1, u2 },
+            };
+            int anyP1c = core.ElementPool.GetAvailableManaCount(ManaType.Any, p1);
+            Assert(CardCore.Attribute.EffectHandlerRegistry.ExecuteEffect(
+                       new CardCore.AtomicEffectInstance { Type = AtomicEffectType.Sacrifice, Value = 2 }, multiCtx),
+                   "牺牲原子多目标执行（value=2·目标 2 个单位）");
+            Assert(!u1.IsAlive && !u2.IsAlive
+                   && core.ZoneManager.IsCardInZone(u1, p1, Zone.Graveyard)
+                   && core.ZoneManager.IsCardInZone(u2, p1, Zone.Graveyard),
+                   "牺牲多目标：逐目标全部送墓（落点由解析层选定，handler 不再自收集候选）");
+            Assert(core.ElementPool.GetAvailableManaCount(ManaType.Any, p1) == anyP1c + 2,
+                   "牺牲多目标入账：2 个单位 = +2 临时彩元素");
+
+            // 段界卫生：对手侧探针卡退场（不参与后续段）
+            RetireCards(core, p2, foeUnit, foeEnchant);
         }
 
         // ======================================== 守护（2026-11-05 简化定案：固定护角色） ========================================
@@ -903,8 +864,8 @@ namespace CardCore.Editor
             Assert(unlimited.TriggerLimitPerTurn == -1, "历史列：显式无限（-1）原样透传");
 
             // 历史档不再溢价：同一 OnDraw 伤害 5 在 limit 1/2/3/-1 下同价
-            //（2026-11-10 时机系数切正：f(OnDraw)=λ1.2×L4 封顶 3.0 直乘 → 红5×3=红15；
-            //  旧「时机两档均 ×1 → 红5」口径随公式定价退役——同价性断言本身不变）
+            //（2026-11-14 档位制：OnDraw=一回合多次，f=1（次数由结界耐久支付）；且 2026-11-13 起 f 不进锚价——
+            //  锚价=原价红5。旧「f=1.2^3.8≈2.0 → 红10」/「两档 ×1 → 红5」的口径均作废，同价性断言不变）
             CardCore.EffectDefinition TrigDef(int limit) => CardEffectConverter.ConvertOne(new CardEffectData
             {
                 Id = $"VERIFY_CAP_P{limit}",
@@ -913,11 +874,11 @@ namespace CardCore.Editor
                 AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(CardCore.AtomicEffectType.DealDamage, value: 5) },
             }, "VERIFY_CAP_P");
             float RedCostOf(CardCore.EffectDefinition d) => CardCore.CostDerivationService.DeriveElementCosts(d)[CardCore.ManaType.Red];
-            Assert(System.Math.Abs(RedCostOf(TrigDef(1)) - 10f) < 1e-2f
-                   && System.Math.Abs(RedCostOf(TrigDef(2)) - 10f) < 1e-2f
-                   && System.Math.Abs(RedCostOf(TrigDef(3)) - 10f) < 1e-2f
-                   && System.Math.Abs(RedCostOf(TrigDef(-1)) - 10f) < 1e-2f,
-                   "历史次数档零消费：limit 1/2/3/-1 同价（OnDraw E[N]=4.8 → f=1.2^3.8≈2.0 直乘 → 红10）");
+            Assert(System.Math.Abs(RedCostOf(TrigDef(1)) - 5f) < 1e-2f
+                   && System.Math.Abs(RedCostOf(TrigDef(2)) - 5f) < 1e-2f
+                   && System.Math.Abs(RedCostOf(TrigDef(3)) - 5f) < 1e-2f
+                   && System.Math.Abs(RedCostOf(TrigDef(-1)) - 5f) < 1e-2f,
+                   "历史次数档零消费：limit 1/2/3/-1 同价（OnDraw 一回合多次 f=1；锚价=原价红5）");
 
             // ---- 2. 运行时：同回合 3 次触发全部上栈（无闸门）----
             var src = SpawnCapSource(core, p1);
@@ -998,16 +959,17 @@ namespace CardCore.Editor
             => CardCore.PendingEffect.Create(def, source, controller, controller,
                 CardCore.PhaseType.Main, 0);
 
-        // ======================================== P9：时机三档 + 无次数上限 + 效果适用卡型（2026-11-10 资格层新口径修订） ========================================
+        // ======================================== P9：时机档位（一回合一次/稀有/一回合多次）+ 效果适用卡型（2026-11-14 档位制） ========================================
 
-        /// <summary>P9 断言（2026-11-05 两档收敛；2026-11-09 生物专属档拆分；2026-11-10 资格层对齐
-        /// 时机系数新口径）：①周期/观察族多次时机挂生物→按 E[N] 判（>1 拒/≤1 过——收回全量拒口径）、
-        /// 结界→过、法术→拒（含合成器候选谓词）；攻/守/横置族（4 值）为生物专属自动效果——生物过
-        ///（影子 ×1.5·宿主自身行动承担次数）、结界拒（不横置）、法术拒；双宿主 OnAttacked 生物/结界都过；
-        /// OnTurnStart 任何宿主拒；引擎载荷豁免（发射窗非重复语义）；②一次性触发三卡型通过；
-        /// ③关键词挂法术拒；④系数——影子桶（单次/多次 ×1、OnAttacked 归 Repeat ×1.0、攻/守/横置 ×1.5）
-        /// 或新表行 Factor+IsRepeatTiming 归类；⑤全链推导同证（红5×当前模式系数）；⑥历史次数档
-        /// limit=2/3/-1 运行时不再拦（同回合全上栈）；⑦内容审计（新口径）+35 行时机×宿主矩阵。</summary>
+        /// <summary>P9 断言（**2026-11-14 档位制**——取代 2026-11-05 单次/多次两档）：
+        /// ①一回合多次（OnDraw 等）挂生物→拒、结界→过、法术→拒（含合成器候选谓词）；
+        /// ②生物动作族（攻/守/横置/重置 4 值）挂生物→过（一回合一次 ×1）、挂结界→拒（不横置）；
+        /// ③引擎载荷只有结界可挂（生物拒）；④双宿主 OnAttacked 生物/结界都过（一回合一次 ×1）；
+        /// ⑤稀有档（被破坏/被除外/占卜…）生物/结界都过（按概率计价）；
+        /// ⑥OnTurnStart 自本批起属一回合一次档：生物/结界可挂、法术拒；
+        /// ⑦时机系数=档位制（一回合一次/主动/一回合多次恒 1，稀有=表 Factor 概率）；
+        /// ⑧全链推导同证（效果锚价=原价；生物挂载：一回合一次×1、稀有×概率）；
+        /// ⑨历史次数档 limit=2/3/-1 运行时不再拦；⑩内容审计（档位口径）+35 行时机×宿主矩阵。</summary>
         private static void TestP9TimingTiersAndEligibility(GameCore core, Player p1)
         {
             EnsureMainPhase(core, p1);
@@ -1019,13 +981,14 @@ namespace CardCore.Editor
                 TriggerTiming = t,
                 Effects = types.Select(tp => new CardCore.AtomicEffectInstance { Type = tp, Value = 1 }).ToList(),
             };
-            var repeatDef = Def(TriggerTiming.OnDraw, CardCore.AtomicEffectType.DrawCard); // 周期多次档（抽牌时）
-            var onceDef = Def(TriggerTiming.OnPlay, CardCore.AtomicEffectType.DealDamage); // 单次档（登场）
-            var tapDef = Def(TriggerTiming.OnAttack, CardCore.AtomicEffectType.DrawCard);  // 攻/守/横置族（生物专属 ×1.5）
-            var engineDef = new CardCore.EffectDefinition                                   // 引擎载荷+周期时机（豁免口）
+            var multiDef = Def(TriggerTiming.OnDraw, CardCore.AtomicEffectType.DrawCard);      // 一回合多次档（抽牌时）
+            var onceDef = Def(TriggerTiming.OnPlay, CardCore.AtomicEffectType.DealDamage);     // 一回合一次档（登场）
+            var tapDef = Def(TriggerTiming.OnAttack, CardCore.AtomicEffectType.DrawCard);      // 生物动作族（一回合一次）
+            var rareDef = Def(TriggerTiming.OnDestroy, CardCore.AtomicEffectType.DealDamage);  // 稀有档（被破坏）
+            var engineDef = new CardCore.EffectDefinition                                      // 引擎载荷（时机=奖励发射窗）
             {
                 Id = "VERIFY_P9_ENG",
-                TriggerTiming = TriggerTiming.OnTurnStart,
+                TriggerTiming = TriggerTiming.OnStandbyPhase,
                 Effects = new List<CardCore.AtomicEffectInstance>
                 {
                     new CardCore.AtomicEffectInstance
@@ -1041,15 +1004,14 @@ namespace CardCore.Editor
                 },
             };
 
-            // ---- 1. 周期/观察族多次时机：生物拒（2026-11-05 收回 10-30 放开——耐久经济专属）、
-            //      结界过（耐久即次数池）、法术拒（不驻场）----
-            Assert(CardCore.EffectEligibility.RejectReason(Cardtype.Creature, repeatDef) != null,
-                   "P9-1 周期多次时机挂生物：拒（两档收敛——周期价值须由耐久支付，生物白嫖无对价）");
-            Assert(CardCore.EffectEligibility.RejectReason(Cardtype.Enchantment, repeatDef) == null,
-                   "P9-1b 周期多次时机挂结界：过（耐久即次数池，每触发 −1 耐久）");
-            Assert(CardCore.EffectEligibility.RejectReason(Cardtype.Spell, repeatDef) != null,
-                   "P9-1c 周期多次时机挂法术：拒（法术不驻场）");
-            var repeatGraph = new SynergyUI.EffectGraphData("P9周期多次")
+            // ---- 1. 一回合多次档：结界专属（生物拒/结界过/法术拒）----
+            Assert(CardCore.EffectEligibility.RejectReason(Cardtype.Creature, multiDef) != null,
+                   "P9-1 一回合多次时机（抽牌）挂生物：拒（耐久即次数池，结界专属）");
+            Assert(CardCore.EffectEligibility.RejectReason(Cardtype.Enchantment, multiDef) == null,
+                   "P9-1b 一回合多次时机挂结界：过（每次触发耐久 −1，耐久归零销毁）");
+            Assert(CardCore.EffectEligibility.RejectReason(Cardtype.Spell, multiDef) != null,
+                   "P9-1c 一回合多次时机挂法术：拒（法术不驻场）");
+            var repeatGraph = new SynergyUI.EffectGraphData("P9一回合多次")
             {
                 header = new CardEffectData
                 {
@@ -1059,43 +1021,46 @@ namespace CardCore.Editor
                 },
             };
             Assert(SynergyUI.CardComposerScreen.HostRejectReason(Cardtype.Creature, repeatGraph) != null,
-                   "P9-1d 合成器候选分区谓词：周期多次图不进生物候选（原因可读）");
-            // 攻/守/横置族（2026-11-09 生物专属档）：归生物专属但生物能挂——宿主自身行动承担次数；结界不横置拒
+                   "P9-1d 合成器候选分区谓词：一回合多次图不进生物候选（原因可读）");
+            // 生物动作族（攻击/守卫/横置/重置）：一回合一次档，只有生物可挂
             Assert(CardCore.EffectEligibility.RejectReason(Cardtype.Creature, tapDef) == null,
-                   "P9-1e 攻/守/横置族（生物专属 ×1.5）挂生物：过（横置锚天然限频）");
+                   "P9-1e 攻击（生物动作族）挂生物：过（一回合一次 ×1，横置限频）");
             Assert(CardCore.EffectEligibility.RejectReason(Cardtype.Enchantment, tapDef) != null,
-                   "P9-1e2 攻/守/横置族挂结界：拒（结界不横置、无从触发）");
+                   "P9-1e2 攻击（生物动作族）挂结界：拒（结界不横置、不宣言攻击）");
             Assert(CardCore.EffectEligibility.HostCanTakeTiming(Cardtype.Creature, TriggerTiming.OnAttack)
                    && !CardCore.EffectEligibility.HostCanTakeTiming(Cardtype.Enchantment, TriggerTiming.OnAttack)
                    && !CardCore.EffectEligibility.HostCanTakeTiming(Cardtype.Spell, TriggerTiming.OnAttack),
-                   "P9-1e3 合成器时机下拉宿主过滤：攻/守/横置族仅生物可见");
-            // 引擎载荷豁免：效果头时机=奖励发射窗，非重复语义（倒计时/运势/充盈存量生物卡合法）
-            Assert(CardCore.EffectEligibility.RejectReason(Cardtype.Creature, engineDef) == null,
-                   "P9-1f 引擎载荷+周期时机挂生物：过（发射窗豁免——与计价 TimingCostFactor 同口径）");
-            // ---- 1b. 2026-11-10 资格层新口径：双宿主 / E[N] 门槛 / OnTurnStart 全宿主禁 ----
+                   "P9-1e3 合成器时机下拉宿主过滤：生物动作族仅生物可见");
+            // 引擎载荷（2026-11-13 收口）：引擎=无上限触发，生物没有耐久对价 → 生物拒，只有结界可挂
+            var engineReject = CardCore.EffectEligibility.RejectReason(Cardtype.Creature, engineDef);
+            Assert(engineReject != null,
+                   $"P9-1f 引擎载荷挂生物：拒（引擎只能挂结界——实际 {engineReject ?? "过"}）");
+            Assert(CardCore.EffectEligibility.RejectReason(Cardtype.Enchantment, engineDef) == null,
+                   "P9-1f2 引擎载荷挂结界：过（耐久买次数）");
+            // ---- 1b. 档位制：双宿主 / 稀有档 / 一回合一次高频锚点 / OnTurnStart 解禁 ----
             var uniDef = Def(TriggerTiming.OnAttacked, CardCore.AtomicEffectType.DrawCard); // 双宿主（被攻击）
             Assert(CardCore.EffectEligibility.RejectReason(Cardtype.Creature, uniDef) == null
                    && CardCore.EffectEligibility.RejectReason(Cardtype.Enchantment, uniDef) == null,
-                   "P9-1g 双宿主时机 OnAttacked：生物/结界都过（脱离生物专属，计价按 Repeat 桶/行 E[N]——无溢价）");
+                   "P9-1g 双宿主时机 OnAttacked：生物/结界都过（一回合一次 ×1，无溢价）");
             Assert(CardCore.EffectEligibility.HostCanTakeTiming(Cardtype.Creature, TriggerTiming.OnAttacked)
                    && CardCore.EffectEligibility.HostCanTakeTiming(Cardtype.Enchantment, TriggerTiming.OnAttacked),
                    "P9-1g2 合成器下拉：OnAttacked 生物/结界双宿主可见");
-            Assert(CardCore.EffectEligibility.RejectReason(Cardtype.Creature,
-                       Def(TriggerTiming.OnScry, CardCore.AtomicEffectType.DrawCard)) == null
-                   && CardCore.EffectEligibility.RejectReason(Cardtype.Enchantment,
+            Assert(CardCore.EffectEligibility.RejectReason(Cardtype.Creature, rareDef) == null
+                   && CardCore.EffectEligibility.RejectReason(Cardtype.Enchantment, rareDef) == null
+                   && CardCore.EffectEligibility.RejectReason(Cardtype.Creature,
                        Def(TriggerTiming.OnScry, CardCore.AtomicEffectType.DrawCard)) == null,
-                   $"P9-1h 低频多次档 E[N]≤1（OnScry={CardCore.TimingWeights.ExpectedOf(TriggerTiming.OnScry):0.##}）：生物/结界都过（接受方差，不加每回合闸）");
-            string creatureHi = CardCore.EffectEligibility.RejectReason(Cardtype.Creature,
-                Def(TriggerTiming.OnStandbyPhase, CardCore.AtomicEffectType.DrawCard));
-            Assert(creatureHi != null && creatureHi.Contains("结界专属"),
-                   $"P9-1i 高频多次档 E[N]>1（OnStandbyPhase={CardCore.TimingWeights.ExpectedOf(TriggerTiming.OnStandbyPhase):0.##}）：生物拒（reason 含「结界专属」——实际 {creatureHi ?? "null"}）");
+                   $"P9-1h 稀有档（被破坏×{CardCore.CostDerivationService.TimingCostFactorOf(TriggerTiming.OnDestroy):0.##}"
+                   + $" / 占卜×{CardCore.CostDerivationService.TimingCostFactorOf(TriggerTiming.OnScry):0.##}）：生物/结界都过（按概率计价）");
+            Assert(CardCore.EffectEligibility.RejectReason(Cardtype.Creature,
+                       Def(TriggerTiming.OnStandbyPhase, CardCore.AtomicEffectType.DrawCard)) == null,
+                   "P9-1i 一回合一次档（OnStandbyPhase）挂生物：过（旧 E[N]>1 全拒口径作废——档位制按次数不按 E[N]）");
             var turnStartDef = Def(TriggerTiming.OnTurnStart, CardCore.AtomicEffectType.DrawCard);
-            Assert(CardCore.EffectEligibility.RejectReason(Cardtype.Creature, turnStartDef) != null
-                   && CardCore.EffectEligibility.RejectReason(Cardtype.Enchantment, turnStartDef) != null
+            Assert(CardCore.EffectEligibility.RejectReason(Cardtype.Creature, turnStartDef) == null
+                   && CardCore.EffectEligibility.RejectReason(Cardtype.Enchantment, turnStartDef) == null
                    && CardCore.EffectEligibility.RejectReason(Cardtype.Spell, turnStartDef) != null
-                   && !CardCore.EffectEligibility.HostCanTakeTiming(Cardtype.Creature, TriggerTiming.OnTurnStart)
-                   && !CardCore.EffectEligibility.HostCanTakeTiming(Cardtype.Enchantment, TriggerTiming.OnTurnStart),
-                   "P9-1j OnTurnStart 任何宿主拒（系统专用——不靠 Factor=0 静默变免费，装载期点名 Error）");
+                   && CardCore.EffectEligibility.HostCanTakeTiming(Cardtype.Creature, TriggerTiming.OnTurnStart)
+                   && CardCore.EffectEligibility.HostCanTakeTiming(Cardtype.Enchantment, TriggerTiming.OnTurnStart),
+                   "P9-1j OnTurnStart 一回合一次：生物/结界可挂、法术拒（2026-11-14 解禁——与准备阶段并列）");
 
             // ---- 2. 一次性触发（登场=施放即结算的一次性形态）三种卡型都通过 ----
             Assert(CardCore.EffectEligibility.RejectReason(Cardtype.Creature, onceDef) == null
@@ -1122,45 +1087,84 @@ namespace CardCore.Editor
                    && CardCore.EffectEligibility.RejectReason(Cardtype.Enchantment, kwDef) == null,
                    "P9-3b 关键词挂生物/结界：可挂");
 
-            // ---- 4. 时机系数（2026-11-10 时机系数规格 v0.1，段 2b 已切正：影子开关删除）：
-            //      TimingCostFactorOf = TimingWeights 逐时机 f；缺行/表不可读才回落 TimingFactor 桶（安全侧）。----
+            // ---- 4. 时机系数（2026-11-14 档位制）：一回合一次/主动/一回合多次恒 1；
+            //      稀有档=表 Factor（触发概率）。缺行/表不可读回落 TimingFactor.Once（安全侧）。----
             float F(TriggerTiming t) => CardCore.CostDerivationService.TimingCostFactorOf(t);
             {
-                // 单源一致性：新表模式下 35 时机全部 = 行 Factor（缺行回落桶）；语义锚（校准不变式）：
-                // OnPlay=1（法术锚点）/主动三档=1（现付）/OnTurnStart=0（系统专用禁用）。
+                int checkedCount = 0;
                 bool srcOk = true;
                 foreach (TriggerTiming t in System.Enum.GetValues(typeof(TriggerTiming)))
                 {
-                    // 2026-11-10 用户定案 B：Factor 列仅留档/展示，计价读 Expected 公式
-                    // f=1.2^(E[N]−1)（OnTurnStart 系统专用恒 0；缺行才回落桶）。
+                    var tier = CardCore.TimingWeights.TierOf(t);
                     float want;
-                    if (t == TriggerTiming.OnTurnStart) want = 0f;
-                    else if (CardCore.TimingWeights.TryGet(t, out var w))
-                        want = w.Expected <= 0f ? 1f : (float)System.Math.Pow(1.2, w.Expected - 1.0);
-                    else want = TimingBucketFactorOf(t);
-                    if (System.Math.Abs(F(t) - want) > 1e-4f) { srcOk = false; break; }
+                    if (tier == CardCore.TimingTier.Rare)
+                        want = CardCore.TimingWeights.TryGet(t, out var w) && w.Factor > 0f ? w.Factor : 1f;
+                    else want = 1f; // Active / PerTurn / Multi
+                    checkedCount++;
+                    if (System.Math.Abs(F(t) - want) > 1e-4f)
+                    {
+                        Debug.LogError($"[P9-4 系数漂移] {t} 档位={tier} F={F(t):0.###} want={want:0.###}");
+                        srcOk = false;
+                        break;
+                    }
                 }
-                Assert(srcOk,
-                       "P9-4 新表模式单源：TimingCostFactorOf = TimingWeights.Expected 公式 f=1.2^(E−1)（Factor 列仅展示）");
+                Assert(srcOk && checkedCount == 35,
+                       $"P9-4 档位制单源：{checkedCount} 时机——一回合一次/主动/一回合多次=1，稀有=表 Factor（概率）");
                 Assert(System.Math.Abs(F(TriggerTiming.OnPlay) - 1f) < 1e-4f
                        && System.Math.Abs(F(TriggerTiming.Activate_Active) - 1f) < 1e-4f
                        && System.Math.Abs(F(TriggerTiming.Activate_Instant) - 1f) < 1e-4f
                        && System.Math.Abs(F(TriggerTiming.Activate_Response) - 1f) < 1e-4f
-                       && System.Math.Abs(F(TriggerTiming.OnTurnStart)) < 1e-4f,
-                       "P9-4a 新表语义锚：OnPlay=1（法术锚）/主动三档恒 1（现付）/OnTurnStart=0（禁用）");
+                       && System.Math.Abs(F(TriggerTiming.OnTurnStart) - 1f) < 1e-4f
+                       && System.Math.Abs(F(TriggerTiming.OnAttack) - 1f) < 1e-4f
+                       && System.Math.Abs(F(TriggerTiming.OnTurnEnd) - 1f) < 1e-4f,
+                       "P9-4a 档位语义锚：登场/回合开始/攻击/回合结束=1（一回合一次）、主动三档恒 1、一回合多次恒 1");
+                Assert(System.Math.Abs(F(TriggerTiming.OnDestroy) - 0.55f) < 1e-4f
+                       && System.Math.Abs(F(TriggerTiming.OnExile) - 0.12f) < 1e-4f
+                       && System.Math.Abs(F(TriggerTiming.OnDeath) - 0.6f) < 1e-4f,
+                       "P9-4a2 稀有档保留概率系数：被破坏 0.55 / 被除外 0.12 / 死亡 0.6");
             }
-            bool Once(TriggerTiming t) => !CardCore.CostDerivationService.IsRepeatTiming(t);
-            Assert(Once(TriggerTiming.OnPlay) && Once(TriggerTiming.OnDeath) && Once(TriggerTiming.OnDestroy)
-                   && Once(TriggerTiming.OnExile) && Once(TriggerTiming.OnLeaveBattlefield)
-                   && Once(TriggerTiming.OnReturnFromGraveyard) && Once(TriggerTiming.OnGameStart)
-                   && Once(TriggerTiming.OnRoleDeath)
-                   && !Once(TriggerTiming.OnDraw) && !Once(TriggerTiming.OnTurnEnd) && !Once(TriggerTiming.OnStandbyPhase)
-                   && !Once(TriggerTiming.OnDealDamage) && !Once(TriggerTiming.OnAttack) && !Once(TriggerTiming.OnTap)
-                   && !Once(TriggerTiming.OnCardPlayed) && !Once(TriggerTiming.OnSummon),
-                   "P9-4b 单次/多次归类（FiresOncePerPaidLifetime 唯一判定）：8 单次档；抽牌/回合末/准备/伤害/攻击/横置/使用卡牌/召唤进场归多次档");
+            {
+                int per = 0, rare = 0, multi = 0, active = 0;
+                foreach (TriggerTiming t in System.Enum.GetValues(typeof(TriggerTiming)))
+                    switch (CardCore.TimingWeights.TierOf(t))
+                    {
+                        case CardCore.TimingTier.PerTurn: per++; break;
+                        case CardCore.TimingTier.Rare: rare++; break;
+                        case CardCore.TimingTier.Multi: multi++; break;
+                        default: active++; break;
+                    }
+                Assert(per == 11 && rare == 7 && multi == 14 && active == 3,
+                       $"P9-4b 档位归类：一回合一次 {per}/11、稀有 {rare}/7、一回合多次 {multi}/14、主动 {active}/3");
+                Assert(CardCore.TimingWeights.IsPerTurnTiming(TriggerTiming.OnPlay)
+                       && CardCore.TimingWeights.IsPerTurnTiming(TriggerTiming.OnAttack)
+                       && CardCore.TimingWeights.IsPerTurnTiming(TriggerTiming.OnBlockDeclare)
+                       && CardCore.TimingWeights.IsPerTurnTiming(TriggerTiming.OnTurnStart)
+                       && CardCore.TimingWeights.IsPerTurnTiming(TriggerTiming.OnStandbyPhase)
+                       && CardCore.TimingWeights.IsPerTurnTiming(TriggerTiming.OnTurnEnd)
+                       && CardCore.TimingWeights.IsPerTurnTiming(TriggerTiming.OnAttacked)
+                       && CardCore.TimingWeights.IsPerTurnTiming(TriggerTiming.OnSummon)
+                       && CardCore.TimingWeights.IsRareTiming(TriggerTiming.OnDeath)
+                       && CardCore.TimingWeights.IsRareTiming(TriggerTiming.OnDestroy)
+                       && CardCore.TimingWeights.IsRareTiming(TriggerTiming.OnExile)
+                       && CardCore.TimingWeights.IsRareTiming(TriggerTiming.OnLeaveBattlefield)
+                       && CardCore.TimingWeights.IsRareTiming(TriggerTiming.OnReturnFromGraveyard)
+                       && CardCore.TimingWeights.IsRareTiming(TriggerTiming.OnRoleDeath)
+                       && CardCore.TimingWeights.IsRareTiming(TriggerTiming.OnScry)
+                       && CardCore.TimingWeights.IsMultiPerTurnTiming(TriggerTiming.OnDraw)
+                       && CardCore.TimingWeights.IsMultiPerTurnTiming(TriggerTiming.OnDealDamage)
+                       && CardCore.TimingWeights.IsMultiPerTurnTiming(TriggerTiming.OnTakeDamage)
+                       && CardCore.TimingWeights.IsMultiPerTurnTiming(TriggerTiming.OnCardPlayed)
+                       && CardCore.TimingWeights.IsMultiPerTurnTiming(TriggerTiming.OnCardCastSettled)
+                       && CardCore.TimingWeights.IsMultiPerTurnTiming(TriggerTiming.OnAtomicEffectResolution)
+                       && CardCore.TimingWeights.IsMultiPerTurnTiming(TriggerTiming.OnPhaseStart)
+                       && CardCore.TimingWeights.IsMultiPerTurnTiming(TriggerTiming.OnSpellCast),
+                       "P9-4c 档位成员：一回合一次/稀有/一回合多次的逐时机归类（含回合开始与攻击/守卫）");
+            }
 
-            // ---- 5. 全链推导同证：红5 × 当前模式系数（影子=×1/×1.5；新表=×f）----
-            float WantF(TriggerTiming t) => F(t); // 当前模式系数（P9-4 已钉单源）
+            // ---- 5. 全链推导同证（2026-11-13 计价改版后）：效果锚价=原价（不带 f）；f 只在
+            //      卡层宿主挂载系数 HostMountFactor——生物×f、结界×1；档位制下一回合一次 f=1、
+            //      稀有 f=概率、一回合多次 f=1（生成本不可挂）。----
+            float WantF(TriggerTiming t) => F(t); // 当前档位系数（P9-4 已钉单源）
             CardCore.EffectDefinition TimingDef(TriggerTiming t) => CardEffectConverter.ConvertOne(new CardEffectData
             {
                 Id = "VERIFY_P9_T" + (int)t,
@@ -1168,13 +1172,22 @@ namespace CardCore.Editor
                 AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(CardCore.AtomicEffectType.DealDamage, value: 5) },
             }, "VERIFY_P9_T");
             float RedOf(CardCore.EffectDefinition d) => CardCore.CostDerivationService.DeriveElementCosts(d)[CardCore.ManaType.Red];
-            Assert(System.Math.Abs(RedOf(TimingDef(TriggerTiming.OnPlay)) - 5f * WantF(TriggerTiming.OnPlay)) < 1e-4f
-                   && System.Math.Abs(RedOf(TimingDef(TriggerTiming.OnDraw)) - 5f * WantF(TriggerTiming.OnDraw)) < 1e-4f
-                   && System.Math.Abs(RedOf(TimingDef(TriggerTiming.OnDealDamage)) - 5f * WantF(TriggerTiming.OnDealDamage)) < 1e-4f,
-                   $"P9-5 时机系数入价：红5×f（新表已切正——登场 {5f * WantF(TriggerTiming.OnPlay):0.###} / 抽牌 {5f * WantF(TriggerTiming.OnDraw):0.###} / 造成伤害 {5f * WantF(TriggerTiming.OnDealDamage):0.###}）");
-            Assert(System.Math.Abs(RedOf(TimingDef(TriggerTiming.OnAttack)) - 5f * WantF(TriggerTiming.OnAttack)) < 1e-4f
-                   && System.Math.Abs(RedOf(TimingDef(TriggerTiming.OnTap)) - 5f * WantF(TriggerTiming.OnTap)) < 1e-4f,
-                   $"P9-5b 生物专属攻/守/横置入价：红5×f（攻击宣言 {5f * WantF(TriggerTiming.OnAttack):0.###} / 横置 {5f * WantF(TriggerTiming.OnTap):0.###}）");
+            float MountOf(CardCore.EffectDefinition d, Cardtype host)
+                => CardCore.CostDerivationService.HostMountFactor(d, host);
+            Assert(System.Math.Abs(RedOf(TimingDef(TriggerTiming.OnPlay)) - 5f) < 1e-4f
+                   && System.Math.Abs(RedOf(TimingDef(TriggerTiming.OnDraw)) - 5f) < 1e-4f
+                   && System.Math.Abs(RedOf(TimingDef(TriggerTiming.OnDealDamage)) - 5f) < 1e-4f,
+                   "P9-5 效果锚价=原价（红5，不乘 f——f 移出效果层）");
+            Assert(System.Math.Abs(MountOf(TimingDef(TriggerTiming.OnPlay), Cardtype.Creature) - 1f) < 1e-4f
+                   && System.Math.Abs(MountOf(TimingDef(TriggerTiming.OnDestroy), Cardtype.Creature) - WantF(TriggerTiming.OnDestroy)) < 1e-4f
+                   && System.Math.Abs(MountOf(TimingDef(TriggerTiming.OnDraw), Cardtype.Enchantment) - 1f) < 1e-4f
+                   && System.Math.Abs(MountOf(TimingDef(TriggerTiming.OnDestroy), Cardtype.Enchantment) - 1f) < 1e-4f,
+                   $"P9-5a 宿主挂载：生物——一回合一次×1、稀有×概率（被破坏 {WantF(TriggerTiming.OnDestroy):0.###}）；结界×1");
+            Assert(System.Math.Abs(MountOf(TimingDef(TriggerTiming.OnAttack), Cardtype.Creature) - 1f) < 1e-4f
+                   && System.Math.Abs(MountOf(TimingDef(TriggerTiming.OnBlockDeclare), Cardtype.Creature) - 1f) < 1e-4f
+                   && System.Math.Abs(MountOf(TimingDef(TriggerTiming.OnTap), Cardtype.Creature) - 1f) < 1e-4f
+                   && System.Math.Abs(MountOf(TimingDef(TriggerTiming.OnUntap), Cardtype.Creature) - 1f) < 1e-4f,
+                   "P9-5b 生物动作族（攻/守/横置/重置）全部 f=1（一回合一次档，2026-11-14）");
 
             // ---- 6. 历史次数档 limit=2/3/-1 无运行时限流（同回合全部入栈）----
             CardCore.EffectDefinition RuntimeDef(int limit) => CardEffectConverter.ConvertOne(new CardEffectData
@@ -1209,15 +1222,18 @@ namespace CardCore.Editor
             TestP9ConfigDefaultAudit();
         }
 
-        /// <summary>内容审计（2026-11-10 资格层对齐时机系数新口径；旧「生物+周期族」全量拒口径作废）：
-        /// 教学/预组+训练全表——①生物+多次档且 E[N]&gt;1 且非双宿主（OnAttacked）→ Error（E[N]≤1 低频放行）；
-        /// ②结界+攻/守/横置族（4 值）→ Error；③OnTurnStart 任何宿主 → Error（系统专用）。
-        /// 引擎载荷仅豁免生物臂与 OnTurnStart（效果头时机=奖励发射窗，raw 值经归一化）；结界+攻守横置
-        /// 即便带引擎载荷也不放行。与装载期 CardLoader.ValidateCreatureShape / ValidateEnchantShape 同口径，
+        /// <summary>内容审计（**2026-11-14 档位制**）：教学/预组+训练全表——
+        /// ①生物 + 一回合多次（Multi）→ Error（结界专属，每次触发耐久 −1）；
+        /// ②生物 + 引擎载荷 → Error（引擎无触发上限，只有结界能用耐久买次数——2026-11-13 收口）；
+        /// ③结界 + 生物动作族（攻/守/横置/重置 4 值）→ Error。
+        /// 一回合一次（含 OnTurnStart）与稀有两档对生物/结界全开（法术仅登场另拦）。
+        /// 与装载期 CardLoader.ValidateCreatureShape / ValidateEnchantShape 同口径，
         /// 命中点名。附 35 行「时机×生物/结界可挂」矩阵打印（CreatureCanTakeTiming 单源——验收用）。</summary>
         private static void AssertHostTimingAudit()
         {
             var hits = new List<string>();
+            int legacyEngineFixtures = 0; // 2026-11-13 引擎宿主收口遗留（教学/训练夹具；上限 22，见检查点注释）
+            const int LegacyEngineFixtureCap = 22;
             void Scan(string cardsPath, string fxPath, string label)
             {
                 if (!File.Exists(cardsPath) || !File.Exists(fxPath)) return;
@@ -1251,23 +1267,28 @@ namespace CardCore.Editor
                         if (t == (int)TriggerTiming.Activate_Active || t == (int)TriggerTiming.Activate_Instant
                             || t == (int)TriggerTiming.Activate_Response)
                             continue;
-                        // ③ OnTurnStart 任何宿主（引擎载荷豁免——raw 值经 NormalizeEngineTiming 归一）
-                        if (t == (int)TriggerTiming.OnTurnStart && !engine.Contains(id))
+                        // ② 生物 + 引擎载荷（2026-11-13 收口：引擎无上限触发，只有结界有耐久对价）
+                        //    2026-11-14：教学/训练池的引擎载体夹具是收口遗留债（教学内容待重做，见
+                        //    docs/循环控制盘点_v0.1.md §11）——只告警不失败，并以 22 为上限防新增；
+                        //    玩家池/新增夹具仍按硬违规点名。
+                        if (creature && engine.Contains(id))
                         {
-                            hits.Add($"{label} {(string)c["cardName"]}({(string)c["id"]}) 效果 {id} timing=OnTurnStart"
-                                     + "——系统专用时点（任何宿主禁挂，装载期 Error）");
+                            legacyEngineFixtures++;
+                            Debug.LogWarning($"[P9-7 遗留夹具] {label} {(string)c["cardName"]}({(string)c["id"]}) 效果 {id}"
+                                             + $" timing={(TriggerTiming)t}——生物+引擎载荷（2026-11-13 收口遗留，"
+                                             + $"上限 {LegacyEngineFixtureCap}；教学内容待重做）");
                             continue;
                         }
-                        // ① 生物 + 多次档 E[N]>1 且非双宿主（CreatureCanTakeTiming 单源——引擎豁免）
-                        if (creature && !CardCore.EffectEligibility.CreatureCanTakeTiming((TriggerTiming)t)
-                            && !engine.Contains(id))
+                        // ① 生物 + 一回合多次（Multi——结界专属；CreatureCanTakeTiming 单源）
+                        if (creature && !CardCore.EffectEligibility.CreatureCanTakeTiming((TriggerTiming)t))
                             hits.Add($"{label} {(string)c["cardName"]}({(string)c["id"]}) 效果 {id} timing={(TriggerTiming)t}"
-                                     + $"（E[N]={CardCore.TimingWeights.ExpectedOf((TriggerTiming)t):0.##}）"
-                                     + "——生物+期望触发>1 次的周期时机（结界专属）");
-                        // ② 结界 + 攻/守/横置族 4 值（引擎载荷也不放行）
+                                     + $"（档位={CardCore.TimingWeights.TierOf((TriggerTiming)t)}"
+                                     + $" 每回合≈{CardCore.TimingWeights.ExpectedOf((TriggerTiming)t):0.##} 次）"
+                                     + "——生物+一回合多次（结界专属，每次触发耐久 −1）");
+                        // ③ 结界 + 生物动作族 4 值
                         if (enchant && CardCore.EffectEligibility.IsTapAnchoredTiming((TriggerTiming)t))
                             hits.Add($"{label} {(string)c["cardName"]}({(string)c["id"]}) 效果 {id} timing={(TriggerTiming)t}"
-                                     + "——结界+攻/守/横置族（生物专属 4 值）");
+                                     + "——结界+生物动作族（攻/守/横置/重置）");
                     }
                 }
             }
@@ -1276,20 +1297,23 @@ namespace CardCore.Editor
             Scan(SynergyUI.CardDataPaths.TrainingFileIn("TrainingCards.json"),
                  SynergyUI.CardDataPaths.TrainingFileIn("TrainingEffects.json"), "训练");
             foreach (var h in hits) Debug.LogError($"[P9-7 内容审计] 宿主+时机不合规：{h}");
-            Assert(hits.Count == 0,
-                   $"P9-7 内容审计（2026-11-10 新口径）：教学/训练全表无「生物+E[N]>1 周期时机」、"
-                   + $"无「结界+攻/守/横置族 4 值」、无「任何宿主+OnTurnStart」（命中 {hits.Count}"
-                   + "——生物改挂单次/攻守横置/双宿主/低频时机或改宿主为结界；结界改挂单次/周期观察/双宿主时机）");
+            Assert(hits.Count == 0 && legacyEngineFixtures <= LegacyEngineFixtureCap,
+                   $"P9-7 内容审计（2026-11-14 档位制）：教学/训练全表无「生物+一回合多次时机」、"
+                   + $"无「结界+生物动作族 4 值」；生物+引擎载荷=收口遗留夹具只告警不失败"
+                   + $"（新违规 {hits.Count}；遗留 {legacyEngineFixtures}/{LegacyEngineFixtureCap}）"
+                   + "——生物改挂一回合一次/稀有或改宿主为结界；结界改挂一回合一次/稀有/一回合多次）");
 
-            // ---- 35 行「时机×宿主」可挂矩阵（CreatureCanTakeTiming / 结界=!攻守横置&&!OnTurnStart 单源） ----
+            // ---- 35 行「时机×宿主」可挂矩阵（CreatureCanTakeTiming / 结界=!生物动作族 单源） ----
             var sb = new System.Text.StringBuilder();
-            sb.AppendLine("[P9-7b 时机×宿主矩阵]（生物=CreatureCanTakeTiming：OnTurnStart✗ 单次✓ 攻守横置4值✓ "
-                          + "双宿主(OnAttacked)✓ 其余按 E[N]≤1；结界=非攻守横置且非OnTurnStart；E[N] 缺行回落 1.0）");
+            sb.AppendLine("[P9-7b 时机×宿主矩阵]（档位制：生物=一回合一次/稀有 ✓、一回合多次 ✗；"
+                          + "结界=非生物动作族；主动三档不经本闸；每回合≈=Expected 留档值）");
             foreach (TriggerTiming t in System.Enum.GetValues(typeof(TriggerTiming)))
             {
                 bool cr = CardCore.EffectEligibility.CreatureCanTakeTiming(t);
-                bool en = !CardCore.EffectEligibility.IsTapAnchoredTiming(t) && t != TriggerTiming.OnTurnStart;
-                sb.AppendLine($"  {t,-26} 生物 {(cr ? "✓" : "✗")}   结界 {(en ? "✓" : "✗")}   E[N]={CardCore.TimingWeights.ExpectedOf(t):0.###}");
+                bool en = !CardCore.EffectEligibility.IsTapAnchoredTiming(t);
+                sb.AppendLine($"  {t,-26} {CardCore.TimingWeights.TierOf(t),-8} 生物 {(cr ? "✓" : "✗")}   "
+                              + $"结界 {(en ? "✓" : "✗")}   每回合≈{CardCore.TimingWeights.ExpectedOf(t):0.###}"
+                              + $"   f={CardCore.CostDerivationService.TimingCostFactorOf(t):0.###}");
             }
             Debug.Log(sb.ToString());
         }
@@ -1364,47 +1388,15 @@ namespace CardCore.Editor
                       + (hits.Count > 0 ? string.Join("\n", hits) : "（无——所有表值均偏离代码默认值）"));
         }
 
-        // ======================================== P9-9：时机系数权重表对账 + 价差清单（2026-11-10 时机系数规格 v0.1 §5，只报不改） ========================================
+        // ======================================== P9-9：时机档位表对账（2026-11-14 档位制，只报不改） ========================================
 
-        /// <summary>桶默认系数（TimingFactorConfig 单源镜像——新表缺行兜底值；
-        /// 与 CostDerivation.TimingCostFactorOf 的回落链同口径）。</summary>
-        private static float TimingBucketFactorOf(TriggerTiming t)
-        {
-            var f = CardCore.ValueSystemConfigManager.Instance.GetOrCreateConfig().TimingFactorConfig;
-            if (CardCore.EffectEligibility.IsTapAnchoredTiming(t)) return f.CreatureOnly;
-            return CardCore.CostDerivationService.FiresOncePerPaidLifetime(t) ? f.Once : f.Repeat;
-        }
-
-        /// <summary>旧口径时机系数（规格 §7 影子侧）：非触发/引擎载荷恒 1，其余走桶（×1/×1/×1.5）。</summary>
-        private static float TimingOldFactorOf(CardCore.EffectDefinition def)
-        {
-            if (def == null || !def.IsTriggeredEffect
-                || CardCore.EffectEligibility.HasEnginePayload(def)) return 1f;
-            return TimingBucketFactorOf(def.TriggerTiming);
-        }
-
-        /// <summary>时机系数（TimingWeights 行 Factor，缺行回落桶；非触发/引擎载荷恒 1）——
-        /// 与 TimingCostFactorOf 同口径（段 2b 已切正：影子开关删除）。</summary>
-        private static float TimingNewFactorOf(CardCore.EffectDefinition def)
-        {
-            if (def == null || !def.IsTriggeredEffect
-                || CardCore.EffectEligibility.HasEnginePayload(def)) return 1f;
-            return CardCore.TimingWeights.TryGet(def.TriggerTiming, out var w) ? w.Factor
-                : TimingBucketFactorOf(def.TriggerTiming);
-        }
-
-        /// <summary>P9-9（2026-11-10 时机系数规格 v0.1 §5/§7）：TimingWeights.json 对账 + 影子价差清单
-        /// （只报不改——规格 §7 落地开关：切换前必看本段输出，段 2b 切换 = Enabled:true 与
-        /// ValueSystemConfig TimingFactor.CreatureOnly 1.5→1.0 **同批**）：
+        /// <summary>P9-9（2026-11-14 档位制）：TimingWeights.json 对账——
         /// ①表可读非空 35 行；②Timing 名与 TriggerTiming 枚举双射（无未知/重复/缺行）；
-        /// ③Bucket 与单源分类器一致（Once↔FiresOncePerPaidLifetime、TapAnchored↔IsTapAnchoredTiming、
-        ///   Active=Activate_* 三值、Disabled=OnTurnStart、其余=Repeat——Bucket 只用于归类与宿主校验不参与计算）；
-        /// ④公式自洽（行内）：Factor=min(Expected,Cutoff)（Active 恒 1=现付不进时序、Disabled 恒 0）；
-        ///   Repeat 的 Expected=λ×L(4)、TapAnchored 的 Expected=λ×Lc(3) 重算一致（Once 的 p 无重算源只验钳顶）；
-        /// ⑤35 行 f 表全量打印（含 Enabled/Cutoff/Base/share/每满 N 次触发扣整份读数；Cutoff≠Base 只警不 Fail——§9 风险1）；
-        /// ⑥影子价差清单（只报不改）：效果库全量效果锚价 旧系数 vs 新 f——基准价=时机中性 shim
-        ///  （同数据 timing=Activate_Active 推导，f 为全 def 一致乘数）×(f新−f旧)；命中数/价差合计
-        ///   + 教学·训练两池按卡 rollup。λ 校准（§6）后重跑即得新对账——断言只锁结构不锁数值。</summary>
+        /// ③Bucket 与内置档位镜像一致（PerTurn/Rare/Multi/Active——Bucket 只用于归类与宿主校验）；
+        /// ④档位×系数自洽（行内）：PerTurn/Multi/Active 的 Factor 恒 1；Rare 的 Factor=触发概率
+        ///   （0&lt;p≤1）且 Expected 同值；PerTurn 的 Expected=1、Multi 的 Expected=λ；
+        /// ⑤35 行档位×f 表全量打印（λ/Expected 只作每回合频率留档）。
+        /// 结构断言只锁档位语义，不锁具体概率——稀有档改概率只改表 Factor。</summary>
         private static void TestP9TimingWeightTable()
         {
             CardCore.TimingWeights.Invalidate(); // 改表后重跑验证器免域重载即取新读数
@@ -1430,129 +1422,57 @@ namespace CardCore.Editor
             Assert(unknown.Count == 0 && dup.Count == 0 && missing.Count == 0,
                    $"P9-9b Timing 名与枚举双射：未知 {unknown.Count} / 重复 {dup.Count} / 缺行 {missing.Count}");
 
-            // ---- ③ Bucket 与单源分类器一致 ----
+            // ---- ③ Bucket 与内置档位镜像一致（表是单源，镜像兜底——两边必须同档）----
             var bucketHits = new List<string>();
             foreach (var r in rows)
             {
                 if (r == null || string.IsNullOrEmpty(r.Timing)
                     || !System.Enum.TryParse(r.Timing, out TriggerTiming t)) continue;
-                string want = CardCore.EffectEligibility.IsTapAnchoredTiming(t) ? "TapAnchored"
-                    : CardCore.EffectEligibility.IsUniversalRepeatTiming(t) ? "Universal"
-                    : CardCore.CostDerivationService.FiresOncePerPaidLifetime(t) ? "Once"
-                    : t == TriggerTiming.OnTurnStart ? "Disabled"
-                    : t == TriggerTiming.Activate_Active || t == TriggerTiming.Activate_Instant
-                      || t == TriggerTiming.Activate_Response ? "Active"
-                    : "Repeat";
-                if (r.Bucket != want) bucketHits.Add($"{r.Timing}: 表={r.Bucket} 单源={want}");
+                string want = CardCore.TimingWeights.FallbackTierOf(t).ToString();
+                if (r.Bucket != want) bucketHits.Add($"{r.Timing}: 表={r.Bucket} 内置镜像={want}");
             }
             foreach (var h in bucketHits) Debug.LogError($"[P9-9c Bucket 漂移] {h}");
             Assert(bucketHits.Count == 0,
-                   $"P9-9c Bucket 与单源分类器一致（命中漂移 {bucketHits.Count}——Bucket 只用于归类与宿主校验，不参与计算）");
+                   $"P9-9c Bucket 与内置档位镜像一致（命中漂移 {bucketHits.Count}——PerTurn/Rare/Multi/Active）");
 
-            // ---- ④ 公式自洽 ----
-            float cutoff = CardCore.TimingWeights.Cutoff;
+            // ---- ④ 档位×系数自洽 ----
             var formulaHits = new List<string>();
             foreach (var r in rows)
             {
                 if (r == null || string.IsNullOrEmpty(r.Timing)) continue;
                 string tag = r.Timing;
-                if (r.Bucket == "Active")
+                CardCore.TimingWeights.TryParseTier(r.Bucket, out var tier);
+                switch (tier)
                 {
-                    if (System.Math.Abs(r.Factor - 1f) > 1e-4f) formulaHits.Add($"{tag}: Active Factor={r.Factor} ≠ 1（现付不进时序）");
-                    continue;
+                    case CardCore.TimingTier.Active:
+                    case CardCore.TimingTier.PerTurn:
+                    case CardCore.TimingTier.Multi:
+                        if (System.Math.Abs(r.Factor - 1f) > 1e-4f)
+                            formulaHits.Add($"{tag}: {tier} Factor={r.Factor:0.###} ≠ 1");
+                        break;
+                    case CardCore.TimingTier.Rare:
+                        if (r.Factor <= 0f || r.Factor > 1f)
+                            formulaHits.Add($"{tag}: Rare Factor={r.Factor:0.###} 须在 (0,1]（触发概率）");
+                        if (System.Math.Abs(r.Factor - r.Expected) > 0.01f)
+                            formulaHits.Add($"{tag}: Rare Factor={r.Factor:0.###} ≠ Expected(p)={r.Expected:0.###}");
+                        break;
                 }
-                if (r.Bucket == "Disabled")
-                {
-                    if (System.Math.Abs(r.Factor) > 1e-4f) formulaHits.Add($"{tag}: Disabled Factor={r.Factor} ≠ 0（系统专用禁用）");
-                    continue;
-                }
-                if (System.Math.Abs(r.Factor - System.Math.Min(r.Expected, cutoff)) > 0.01f)
-                    formulaHits.Add($"{tag}: Factor={r.Factor:0.###} ≠ min(Expected={r.Expected:0.###}, Cutoff={cutoff:0.###})");
-                if (r.Bucket == "Repeat")
-                {
-                    float e = r.Lambda * CardCore.TimingWeights.EnchantLifetimeTurns;
-                    if (System.Math.Abs(r.Expected - e) > 0.01f) formulaHits.Add($"{tag}: Repeat Expected={r.Expected:0.###} ≠ λ×L={e:0.###}");
-                }
-                else if (r.Bucket == "TapAnchored" || r.Bucket == "Universal")
-                {
-                    // Universal（OnAttacked，2026-11-10 解绑双宿主）沿用 λ×Lc 口径——存量 E=3=λ1×3
-                    float e = r.Lambda * CardCore.TimingWeights.CreatureLifetimeTurns;
-                    if (System.Math.Abs(r.Expected - e) > 0.01f) formulaHits.Add($"{tag}: {r.Bucket} Expected={r.Expected:0.###} ≠ λ×Lc={e:0.###}");
-                }
+                if (tier == CardCore.TimingTier.PerTurn && System.Math.Abs(r.Expected - 1f) > 0.01f)
+                    formulaHits.Add($"{tag}: PerTurn Expected={r.Expected:0.###} ≠ 1（每回合至多一次）");
+                if (tier == CardCore.TimingTier.Multi && System.Math.Abs(r.Expected - r.Lambda) > 0.01f)
+                    formulaHits.Add($"{tag}: Multi Expected={r.Expected:0.###} ≠ λ={r.Lambda:0.###}");
             }
-            foreach (var h in formulaHits) Debug.LogError($"[P9-9d 公式漂移] {h}");
+            foreach (var h in formulaHits) Debug.LogError($"[P9-9d 档位漂移] {h}");
             Assert(formulaHits.Count == 0,
-                   $"P9-9d 公式自洽：f=min(E[N],Cutoff)、Repeat E=λ×L、TapAnchored E=λ×Lc、Active=1、Disabled=0（漂移 {formulaHits.Count}）");
-            if (System.Math.Abs(CardCore.TimingWeights.Base - cutoff) > 0.01f)
-                Debug.LogWarning($"[P9-9] Cutoff={cutoff:0.###} ≠ Base={CardCore.TimingWeights.Base:0.###}——规格 §9 风险 1："
-                                 + "Cutoff 是次数、Base 是耐久点，两者解耦须有明确理由（耐久只兑现 min 次的口径会被破坏）");
+                   $"P9-9d 档位×系数自洽：PerTurn/Multi/Active=1、Rare=概率、PerTurn E=1、Multi E=λ（漂移 {formulaHits.Count}）");
 
-            // ---- ⑤ 35 行 f 表全量打印 ----
+            // ---- ⑤ 35 行档位×f 表全量打印 ----
             var sb = new System.Text.StringBuilder();
-            sb.AppendLine($"[P9-9e f 表] TimingWeights.json：已切正（段 2b·2026-11-10，影子开关已删：计价直接乘行 f）"
-                          + $" Cutoff={cutoff:0.###} Base={CardCore.TimingWeights.Base:0.###}"
-                          + $" share={CardCore.TimingWeights.DurabilitySharePerTrigger:0.######}"
-                          + $" 每满 {CardCore.TimingWeights.TriggersPerDeduction} 次触发扣整份耐久 D（D 恒兑现 3 次）");
+            sb.AppendLine("[P9-9e 档位表] TimingWeights.json（2026-11-14 档位制：一回合一次/稀有/一回合多次/主动）"
+                          + "——λ/Expected 只作每回合频率留档，计价读 Factor；耐久：结界每次触发 −1");
             foreach (var r in rows)
-                sb.AppendLine($"  {r.Timing,-26} {r.Bucket,-12} λ={r.Lambda,6:0.###} E[N]={r.Expected,7:0.###} f={r.Factor,6:0.###}  {r.Note}");
+                sb.AppendLine($"  {r.Timing,-26} {r.Bucket,-8} λ={r.Lambda,6:0.###} 每回合≈{r.Expected,6:0.###} f={r.Factor,6:0.###}  {r.Note}");
             Debug.Log(sb.ToString());
-
-            // ---- ⑥ 影子价差清单（只报不改）：效果库全量 旧系数 vs 新 f ----
-            var fxDelta = new Dictionary<string, (string name, float fOld, float fNew, float baseCost, float delta)>();
-            foreach (var it in CardCore.EffectsLibrary.GetAll())
-            {
-                var data = CardCore.EffectsLibrary.Resolve(it.id);
-                if (data == null) continue;
-                var def = CardEffectConverter.ConvertOne(data, it.id);
-                if (def == null) continue;
-                float fOld = TimingOldFactorOf(def), fNew = TimingNewFactorOf(def);
-                if (System.Math.Abs(fNew - fOld) < 1e-4f) continue; // 系数不变（非触发/引擎载荷/桶值恰同）不进清单
-                // 基准价：时机中性 shim（同数据 timing=Activate_Active——f 是全 def 一致乘数，可分离）
-                var nd = CardCore.TideJson.FromJson<CardEffectData>(CardCore.TideJson.ToJson(data));
-                nd.TriggerTiming = (int)TriggerTiming.Activate_Active;
-                float baseCost = CardCore.CostDerivationService.DeriveElementCosts(CardEffectConverter.ConvertOne(nd, it.id)).Total;
-                if (baseCost < 0.01f) continue; // 解析后零原子/零价（悬空引用剔空等）——系数无作用面
-                fxDelta[it.id] = (it.name, fOld, fNew, baseCost, baseCost * (fNew - fOld));
-            }
-            float fxSum = fxDelta.Values.Sum(v => v.delta);
-            var sbFx = new System.Text.StringBuilder();
-            sbFx.AppendLine($"[P9-9f 影子价差·效果清单]（只报不改）受影响效果 {fxDelta.Count} 条、效果锚价 Δ 合计 {fxSum:+0.##;-0.##;0}：");
-            foreach (var kv in fxDelta.OrderByDescending(kv => System.Math.Abs(kv.Value.delta)))
-                sbFx.AppendLine($"  {kv.Key} {kv.Value.name}: f {kv.Value.fOld:0.###}→{kv.Value.fNew:0.###}"
-                                + $" 基准 {kv.Value.baseCost:0.##} Δ {kv.Value.delta:+0.##;-0.##;0}");
-            Debug.Log(sbFx.ToString());
-
-            // ---- ⑥b 按卡 rollup（教学·训练两池——受影响卡数/Δ 合计/逐卡清单）----
-            void Rollup(string cardsPath, string label)
-            {
-                if (!File.Exists(cardsPath)) return;
-                var root = Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(cardsPath));
-                var sbC = new System.Text.StringBuilder();
-                int cardsHit = 0;
-                float sum = 0f;
-                foreach (var c in (root["cards"] as Newtonsoft.Json.Linq.JArray)
-                         ?? new Newtonsoft.Json.Linq.JArray())
-                {
-                    string idTok = (string)c["id"];
-                    float cardDelta = 0f;
-                    foreach (var e in (c["effectIds"] as Newtonsoft.Json.Linq.JArray)
-                             ?? new Newtonsoft.Json.Linq.JArray())
-                        if (fxDelta.TryGetValue((string)e, out var v)) cardDelta += v.delta;
-                    if (System.Math.Abs(cardDelta) < 0.01f) continue;
-                    cardsHit++;
-                    sum += cardDelta;
-                    sbC.AppendLine($"  {label} {(string)c["cardName"]}({idTok}): 效果锚价 Δ {cardDelta:+0.##;-0.##;0}");
-                }
-                Debug.Log($"[P9-9g 影子价差·{label}卡]（只报不改）受影响卡 {cardsHit} 张、Δ 合计 {sum:+0.##;-0.##;0}：\n{sbC}");
-            }
-            Rollup(SynergyUI.CardDataPaths.TutorialFileIn("TutorialCards.json"), "教学");
-            Rollup(SynergyUI.CardDataPaths.TrainingFileIn("TrainingCards.json"), "训练");
-
-            Debug.Log($"[P9-9h 切换检查单] 段 2b 切换 = TimingWeights.json Enabled:false→true **同批**"
-                      + " ValueSystemConfig TimingFactor.CreatureOnly 1.5→1.0（缺行兜底不加价）"
-                      + $"——受影响效果 {fxDelta.Count} 条、效果锚价 Δ 合计 {fxSum:+0.##;-0.##;0}"
-                      + "（耐久消耗口径随 Enabled 同批切 D/3 累计）。先看本段清单与卡费曲线再切（规格 §7）；"
-                      + "λ 实测校准（§6）后重跑本段即得新对账。");
         }
 
         // ======================================== P9-8：原子档位双轨对账（2026-11-10 定案；同日改版：d 值档名 + AtomColorRules 生成色） ========================================

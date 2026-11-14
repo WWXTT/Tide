@@ -252,11 +252,10 @@ namespace CardCore
         }
 
         /// <summary>结界形态校验（2026-10-15 深夜三类卡改版；2026-11-05 充能系统动作化修订；
-        /// 2026-11-09 生物专属时机收回；2026-11-10 资格层新口径）：只挂自动/光环，主动全拒；
-        /// 攻/守/横置族（4 值——OnAttacked 已解绑为双宿主）为生物专属自动效果（结界不横置、无从触发）
-        /// → Error 点名（引擎载荷也不放行——该时机对结界无语义）；OnTurnStart 任何宿主 Error 点名
-        ///（系统专用——不能靠 Factor=0 静默变免费；引擎载荷豁免，raw 值经 NormalizeEngineTiming 归一）。
-        /// 耐久语义保留（受击−1/被动触发按时机系数口径）。</summary>
+        /// **2026-11-14 档位制**）：只挂自动/光环，主动全拒；攻/守/横置/重置（4 值——生物动作族，
+        /// 被攻击 OnAttacked 属双宿主不在此列）为生物专属 → Error 点名；一回合一次/稀有/一回合多次
+        /// 三档全开（一回合多次=耐久即次数池，每次触发 −1）。OnTurnStart 自 2026-11-14 起属一回合一次档，
+        /// 随本批开放，不再 Error。耐久语义保留（受击−1/被动触发每次 −1）。</summary>
         private static void ValidateEnchantShape(List<CardData> cards)
         {
             foreach (var card in cards)
@@ -273,28 +272,21 @@ namespace CardCore
                                       "（结界只挂自动/光环，主动效果已退役）——构筑期拦截");
                         continue;
                     }
-                    if (t == (int)TriggerTiming.OnTurnStart && !HasEngineEntry(e))
-                    {
-                        TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：结界效果 {e.Id} 时机" +
-                                      "「OnTurnStart」——回合开始已收归系统专用（任何宿主禁挂），" +
-                                      "玩家侧由 OnStandbyPhase 承接——装载期拦截");
-                        continue;
-                    }
                     if (EffectEligibility.IsTapAnchoredTiming((TriggerTiming)t))
                         TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：结界效果 {e.Id} 时机" +
-                                      $"「{(TriggerTiming)t}」为攻/守/横置族（4 值）——生物专属自动效果" +
-                                      "（结界不横置，无从触发）——构筑期拦截");
+                                      $"「{(TriggerTiming)t}」为攻/守/横置/重置族（4 值）——生物动作时机" +
+                                      "（结界不横置、不宣言攻击，无从触发）——构筑期拦截");
                 }
             }
         }
 
-        /// <summary>生物形态校验（2026-11-05 时机两档定案；2026-11-09 生物专属档拆分；2026-11-10
-        /// 资格层对齐时机系数新口径）：生物（及非结界宿主）效果时机按 <see cref="EffectEligibility.
-        /// CreatureCanTakeTiming"/> 单源判（与 RejectReason/HostCanTakeTiming 三处同口径）——
-        /// 单次档/攻守横置族（4 值）/双宿主（OnAttacked）/E[N]≤1 低频多次档放行；
-        /// E[N]&gt;1 的周期时机（结界专属——耐久即次数池）与 OnTurnStart（系统专用）→ Error 点名
-        /// 卡/效果/时机（防直改 JSON 或旧档绕过合成器；引擎载荷放行——settle=Engine 的效果头时机
-        /// 只是奖励发射窗，与计价豁免同口径）。可见不炸——坏卡点名。</summary>
+        /// <summary>生物形态校验（**2026-11-14 档位制**）：生物（及非结界宿主）效果时机按
+        /// <see cref="EffectEligibility.CreatureCanTakeTiming"/> 单源判（与 RejectReason/HostCanTakeTiming
+        /// 三处同口径）——一回合一次（PerTurn）与稀有（Rare）两档放行；一回合多次（Multi——结界专属，
+        /// 耐久即次数池）→ Error 点名卡/效果/时机（防直改 JSON 或旧档绕过合成器）。
+        /// 引擎载荷（settle=Engine）只有结界可挂（2026-11-13 收口——引擎无触发上限、生物没有耐久对价）
+        /// → 玩家池 Error 点名；教学/训练池（tags 教学/训练池）的引擎载体夹具为收口遗留债，
+        /// 2026-11-14 起只告警（内容重做后移除）。可见不炸——坏卡点名。</summary>
         private static void ValidateCreatureShape(List<CardData> cards)
         {
             foreach (var card in cards)
@@ -307,19 +299,25 @@ namespace CardCore
                     if (t == (int)TriggerTiming.Activate_Active || t == (int)TriggerTiming.Activate_Instant
                         || t == (int)TriggerTiming.Activate_Response)
                         continue; // 主动档无时机（现付）
-                    if (HasEngineEntry(e)) continue; // 引擎载荷：时机=奖励发射窗，非重复语义（OnTurnStart 由 NormalizeEngineTiming 归一）
-                    if (t == (int)TriggerTiming.OnTurnStart)
+                    // 2026-11-13 收口：引擎载荷只有结界可挂（引擎=无上限触发，生物没有耐久对价）
+                    if (HasEngineEntry(e))
                     {
-                        TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：效果 {e.Id} 时机"
-                                      + "「OnTurnStart」——回合开始已收归系统专用（任何宿主禁挂），"
-                                      + "玩家侧由 OnStandbyPhase 承接——装载期拦截");
+                        // 2026-11-14：教学/训练池的引擎载体夹具是收口遗留债（教学内容待重做，
+                        // 见 docs/循环控制盘点 §11）——只告警；玩家池/新卡仍 Error 拦截。
+                        bool fixture = card.Tags != null
+                                       && (card.Tags.Contains("教学") || card.Tags.Contains("训练池"));
+                        string msg = $"[CardLoader] 卡 {card.ID}({card.CardName})：效果 {e.Id} 携带引擎载荷"
+                                     + "——引擎无触发上限，只有结界能用耐久买次数（2026-11-13 收口）";
+                        if (fixture) TideLog.Warn(msg + "（教学/训练夹具遗留，只告警；内容重做后移除）");
+                        else TideLog.Error(msg + "——装载期拦截");
                         continue;
                     }
                     if (EffectEligibility.CreatureCanTakeTiming((TriggerTiming)t)) continue;
                     TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：效果 {e.Id} 时机"
-                                  + $"「{(TriggerTiming)t}」期望触发 >1 次（E[N]={TimingWeights.ExpectedOf((TriggerTiming)t):0.##}）"
-                                  + "——周期时机为结界专属（耐久即次数池），生物只能挂单次/攻守横置族/"
-                                  + "双宿主（OnAttacked）/低频（E[N]≤1）时机——装载期拦截");
+                                  + $"「{(TriggerTiming)t}」一回合内会多次触发"
+                                  + "——一回合多次时机为结界专属（耐久即次数池，每次触发 −1），"
+                                  + "生物只能挂一回合一次（攻击/守卫/回合开始/回合结束/登场等）"
+                                  + "或稀有（被破坏/被除外/死亡等）时机——装载期拦截");
                 }
             }
         }

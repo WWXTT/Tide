@@ -387,10 +387,10 @@
   },
   {
     "ID": "84136d36",
-    "TextHash": "6865efcf",
-    "Domain": "己方战场:卡",
+    "TextHash": "40e7b7de",
+    "Domain": "己方战场:生物; 己方战场:结界;己方元素池:卡",
     "EnumName": "牺牲",
-    "DisplayName": "自行选择{target}规则送墓（共{value}个单位），每送墓一个单位，获得一点临时彩元素",
+    "DisplayName": "自行选择{target}规则送墓，每送墓一个单位，获得一点临时彩元素",
     "EffectType": "Sacrifice",
     "TargetFilter": null,
     "Polarity": 0,
@@ -724,5 +724,18 @@
     "参数": "Dimension",
     "ManaList": null,
     "Budget": 3
+  },
+  {
+    "ID": "b55fddb8",
+    "TextHash": "b55fddb8",
+    "Domain": "双方战场:结界",
+    "EnumName": "耐久增加",
+    "DisplayName": "为{target}增加{value}点耐久",
+    "EffectType": "AddDurabilityUp",
+    "TargetFilter": null,
+    "Polarity": 1,
+    "MountKinds": "不可随机",
+    "Tags": null,
+    "Tier": "Dm1_25"
   }
 ]

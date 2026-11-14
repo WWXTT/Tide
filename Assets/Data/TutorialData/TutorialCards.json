@@ -716,7 +716,7 @@
       "life": 2,
       "costList": [
         0.0,
-        9.0,
+        7.0,
         0.0,
         1.0
       ],
@@ -727,144 +727,6 @@
         "07F57EE1"
       ],
       "hash": "00095F30"
-    },
-    {
-      "id": "C_96610366",
-      "cardName": "教学·28",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "guardAbility": true,
-      "illustration": "PetitAngel",
-      "power": 1,
-      "life": 2,
-      "costList": [
-        0.0,
-        1.0,
-        0.0,
-        1.0
-      ],
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "6B9F7621"
-      ],
-      "hash": "C0096EE0"
-    },
-    {
-      "id": "C_5EAB2F1B",
-      "cardName": "教学·29",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "guardAbility": true,
-      "illustration": "PetitAngel",
-      "power": 1,
-      "life": 2,
-      "costList": [
-        0.0,
-        1.0,
-        0.0,
-        1.0
-      ],
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "64CDFD65"
-      ],
-      "hash": "35648A4D"
-    },
-    {
-      "id": "C_0C94B65F",
-      "cardName": "教学·30",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "guardAbility": true,
-      "illustration": "PetitAngel",
-      "power": 1,
-      "life": 2,
-      "costList": [
-        0.0,
-        1.0,
-        0.0,
-        1.0
-      ],
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "E2D48807"
-      ],
-      "hash": "326DC542"
-    },
-    {
-      "id": "C_0E166CA4",
-      "cardName": "教学·31",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "guardAbility": true,
-      "illustration": "PetitAngel",
-      "power": 1,
-      "life": 2,
-      "costList": [
-        0.0,
-        1.0,
-        0.0,
-        1.0
-      ],
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "AD5DD5DB"
-      ],
-      "hash": "7835FFE0"
-    },
-    {
-      "id": "C_AE964832",
-      "cardName": "教学·32",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "guardAbility": true,
-      "illustration": "PetitAngel",
-      "power": 1,
-      "life": 2,
-      "costList": [
-        0.0,
-        1.0,
-        0.0,
-        1.0
-      ],
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "14B9EF4F"
-      ],
-      "hash": "70ADC462"
-    },
-    {
-      "id": "C_A9ED8C5A",
-      "cardName": "教学·33",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "guardAbility": true,
-      "illustration": "PetitAngel",
-      "power": 1,
-      "life": 2,
-      "costList": [
-        0.0,
-        1.0,
-        0.0,
-        1.0
-      ],
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "CD0C3750"
-      ],
-      "hash": "10712B01"
     },
     {
       "id": "C_95187C1C",
@@ -947,7 +809,7 @@
       "costList": [
         0.0,
         0.0,
-        3.0,
+        2.0,
         0.0
       ],
       "tags": [
@@ -1979,10 +1841,10 @@
         "教学"
       ],
       "effectIds": [
-        "1FB7E6DA"
+        "851A70F1"
       ],
       "durability": 4,
-      "hash": "BDCBB315"
+      "hash": "A2D4FB0A"
     },
     {
       "id": "C_2BD6EDE2",
@@ -1999,10 +1861,10 @@
         "教学"
       ],
       "effectIds": [
-        "79655260"
+        "3442A01E"
       ],
       "durability": 4,
-      "hash": "0235B307"
+      "hash": "8FE81CD8"
     },
     {
       "id": "C_AAA266D0",

@@ -237,19 +237,23 @@ namespace SynergyUI
         private void BuildTimingDropdown()
         {
             if (_timingDropdown == null) return; // 预制体缺节点——BindDropdown 已报，时机编辑不可用
-            // 全中文时机下拉（主动三档 Activate_* 不入——主动不设时机；系统自用时点不入
-            // ——OnAtomicEffect* 三段/OnSummon 召唤进场/OnPhase* 阶段开始结束/OnGameStart 游戏开始，
-            // 2026-10-09 定案不开放玩家选择；**回合开始 2026-10-20 起同样收归系统专用**——
-            // 自动抽牌/倒计时递减等系统行为专属，效果时点改挂「准备阶段」）
+            // 全中文时机下拉（主动三档 Activate_* 不入——主动不设时机；系统自用/不面向玩家的时点不入
+            // ——OnAtomicEffect* 三段 / OnSummon 召唤进场 / OnPhase* 阶段起止 / OnGameStart 游戏开始 /
+            // OnOtherCreatureDeath / OnRoleDeath，2026-10-09 定案）。
             //
-            // 2026-11-05 两档收敛；2026-11-09 生物专属档拆分；2026-11-10 时机系数规格（段 2b 已切正，影子开关已删）：
-            // TimingWeights.json 逐时机 f 直接参与计价（缺行回落 ValueSystemConfig TimingFactor 桶）。
-            // 宿主过滤：生物=单次+攻/守/横置族+双宿主 OnAttacked+E[N]≤1 低频；结界=全时机（除攻/守/横置族与
-            // OnTurnStart）；法术=仅登场——HostCanTakeTiming 单源；效果库模式无宿主全开。
+            // **2026-11-14 档位制**：自动效果按一回合内触发次数分三档，档位单源=TimingWeights.TierOf
+            //（表 Bucket）：
+            // · 一回合一次（PerTurn）：攻击/守卫/回合开始/准备阶段/回合结束/登场/进场/游戏开始/被攻击/
+            //   横置/重置——默认每回合至多触发一次，时机系数恒 1；生物/结界可挂（攻/守/横置/重置=生物专属）。
+            // · 稀有（Rare）：被破坏/被除外/死亡/离场/墓地回场/角色死亡/占卜——比一回合一次更难触发，
+            //   按概率给系数（表 Factor）；生物/结界可挂。
+            // · 一回合多次（Multi）：抽牌/伤害/使用卡牌/结算观察/阶段起止/其他生物进出场/施法——
+            //   只能挂结界，每次触发扣 1 点耐久；生物/法术拒。
+            // 宿主过滤=EffectEligibility.HostCanTakeTiming 单源；效果库模式无宿主全开。
             bool hostFilters = _editingCard != null;
-            _timings = TimingZh.Keys.Where(t => t != TriggerTiming.OnTurnStart)
+            _timings = TimingZh.Keys
                 .Where(t => !hostFilters || EffectEligibility.HostCanTakeTiming(_editingCard.Supertype, t))
-                .OrderBy(t => CostDerivationService.FiresOncePerPaidLifetime(t) ? 0 : 1) // LINQ 稳定排序——组内维持表序
+                .OrderBy(t => (int)TimingWeights.TierOf(t)) // 一回合一次→稀有→一回合多次（LINQ 稳定排序——组内维持表序）
                 .ToList();
             var labels = _timings
                 .Select(t => $"{TimingZh[t]} · {TimingTierZh(t)}")
@@ -261,28 +265,33 @@ namespace SynergyUI
                 if (idx >= 0 && idx < _timings.Count) _graph.header.TriggerTiming = (int)_timings[idx];
                 RefreshName(); // 时机换档改计价——顶栏合计实时重推导
             };
-            float onceF = CostDerivationService.TimingCostFactorOf(TriggerTiming.OnPlay);
-            float repF = CostDerivationService.TimingCostFactorOf(TriggerTiming.OnDraw);
-            float creatureF = CostDerivationService.TimingCostFactorOf(TriggerTiming.OnAttack);
+            float perTurnF = CostDerivationService.TimingCostFactorOf(TriggerTiming.OnAttack);
+            float rareF = CostDerivationService.TimingCostFactorOf(TriggerTiming.OnDestroy);
+            float multiF = CostDerivationService.TimingCostFactorOf(TriggerTiming.OnDraw);
             _timingDropdown.Describe(
-                $"触发时机（单次 ×{onceF:0.###} / 多次 ×{repF:0.###} / 生物专属 ×{creatureF:0.###}）："
-                + "单次=付清这张卡后只发生一次（登场/死亡/破坏/除外/离场/墓地回场）；"
-                + "多次中的周期/观察族（回合/阶段/抽牌/伤害/事件观察）为结界专属——触发消耗耐久"
-                + "（旧口径每触发 −1；新口径每满 3 次触发扣整份耐久 D，见时机系数规格 §4），耐久归零销毁；"
-                + "攻/守/横置族为生物专属自动效果——只有生物可挂（结界不横置、法术不驻场，无从触发），次数由横置限频承担。"
-                + "系数单源：TimingWeights.json 逐时机 f（直接参与计价，2026-11-10 段 2b 已切正；"
-                + "缺行才回落 ValueSystemConfig TimingFactor 桶），改表即同步这里与计价。"
-                + "自由分支奖励仍限每张卡每回合 1 次；其余效果无次数限制，仅同一效果每回合超过 30 次按自循环截断。点选项看各时机说明。",
+                $"触发时机（一回合一次 ×{perTurnF:0.###} / 稀有 如被破坏 ×{rareF:0.###} / 一回合多次 ×{multiF:0.###}）："
+                + "一回合一次=攻击/守卫/回合开始/回合结束/准备阶段/登场/进场/被攻击——默认每回合只发生一次，系数恒 1"
+                + "（攻/守/横置/重置只有生物能挂）；"
+                + "稀有=被破坏/被除外/死亡/离场/墓地回场/角色死亡/占卜——更难以触发，沿用按概率得到的系数"
+                + "（如 被破坏 0.55、被除外 0.12）；"
+                + "一回合多次=抽牌/伤害/使用卡牌/结算观察/阶段起止/其他生物进出场等——只能挂在结界上，"
+                + "每次触发扣 1 点耐久，耐久归零销毁。"
+                + "系数单源=Configs/TimingWeights.json（Bucket 档位 + Factor 系数），改表即同步这里与计价。"
+                + "其余效果无次数限制，仅同一效果每回合超过 30 次按自循环截断。点选项看各时机说明。",
                 idx => idx >= 0 && idx < _timings.Count ? TimingDescZh(_timings[idx]) : null);
         }
 
-        /// <summary>时机档位标签（2026-11-10 资格层新口径）：双宿主（OnAttacked）/ 生物专属（攻/守/横置 4 值）/
-        /// 多次（周期·观察族，E[N]≤1 低频生物也可挂）/ 单次。</summary>
+        /// <summary>时机档位标签（2026-11-14 档位制）：一回合一次（生物动作族/双宿主分别标注）/
+        /// 稀有 / 一回合多次（结界专属）。</summary>
         private static string TimingTierZh(TriggerTiming t)
         {
-            if (EffectEligibility.IsUniversalRepeatTiming(t)) return "双宿主";
-            if (EffectEligibility.IsTapAnchoredTiming(t)) return "生物专属";
-            return CostDerivationService.IsRepeatTiming(t) ? "多次" : "单次";
+            var tier = TimingWeights.TierOf(t);
+            if (tier == TimingTier.Multi) return "一回合多次·结界专属";
+            if (tier == TimingTier.Rare) return "稀有";
+            if (tier == TimingTier.Active) return "主动";
+            if (EffectEligibility.IsTapAnchoredTiming(t)) return "一回合一次·生物专属";
+            if (EffectEligibility.IsDualHostTiming(t)) return "一回合一次·双宿主";
+            return "一回合一次";
         }
 
         private void SyncTimingDropdown()

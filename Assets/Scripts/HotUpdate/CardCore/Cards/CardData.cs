@@ -632,7 +632,8 @@ namespace CardCore
         public string keyword;
         /// <summary>效果库引用（2026-11-05 效果光环定案）：引用效果库组合效果 id——覆盖期间受益者
         /// 视为持有该触发效果（触发引擎实时枚举合成条目，Source=受益者）；与 stat/keyword 三选一。
-        /// 资格过滤（非主动∧多次档∧生物臂∧非Voluntary∧无代价∧非引擎主干）见装载校验与组合器单源。</summary>
+        /// 资格过滤（非主动∧生物臂可挂（一回合一次/稀有——一回合多次=结界专属）∧非Voluntary∧
+        /// 无代价∧非引擎主干）见装载校验与组合器单源。</summary>
         public string effectRef;
         /// <summary>条目级作用范围（2026-10-08 actuating-range 定案）：0=连接方向（随卡面箭头几何）；
         /// 1=己方/2=双方/3=对方（作用面档，不经箭头）。旧数据 0=未声明——效果级 header.AuraScope

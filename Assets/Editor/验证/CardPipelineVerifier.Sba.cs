@@ -822,7 +822,7 @@ namespace CardCore.Editor
                 {
                     Id = "TT_probe_onplay",
                     TriggerTiming = (int)TriggerTiming.OnPlay,
-                    // 档位由内容自决：E=红 dmg×1（登场=单次档 ×1）→ Ĉ=round(E[+S]) 所在档
+                    // 档位由内容自决：E=红 dmg×1（登场=一回合一次 ×1）→ Ĉ=round(E[+S]) 所在档
                     AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.DealDamage, value: dmg) },
                 });
                 return CardCore.CardCostService.Derive(d);

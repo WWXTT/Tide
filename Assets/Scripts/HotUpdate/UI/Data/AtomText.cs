@@ -33,8 +33,8 @@ namespace SynergyUI
             { TriggerTiming.OnDraw, "抽牌时" },
             { TriggerTiming.OnDealDamage, "造成伤害时" },
             { TriggerTiming.OnTakeDamage, "受到伤害时" },
-            { TriggerTiming.OnTurnStart, "回合开始时" }, // 系统专用（2026-10-20 定案）——效果时点归一 准备阶段，下拉不提供
-            { TriggerTiming.OnStandbyPhase, "准备阶段" }, // 2026-10-20 新增：承接旧「回合开始档」的效果时点语义
+            { TriggerTiming.OnTurnStart, "回合开始时" }, // 2026-11-14 档位制起开放玩家挂载（一回合一次档，与准备阶段并列）
+            { TriggerTiming.OnStandbyPhase, "准备阶段" }, // 系统处理完成后的回合内窗口（与「回合开始」并列、先后不同）
             { TriggerTiming.OnTurnEnd, "回合结束时" },
             { TriggerTiming.OnAttack, "攻击宣言时" },
             { TriggerTiming.OnAttacked, "被攻击时" },
@@ -634,9 +634,8 @@ namespace SynergyUI
                     // 2026-11-10 改版：只在手牌累计双方生物死亡（满6）；进战场冻结，离场清零。
                     return "手牌累计双方生物死亡（满6/增幅9）；此卡 {value} 增幅（1死亡=1费，离场清零）";
                 case BranchEngineKind.ManaSurplus:
-                    // 2026-11-06 判据七完整句：双方施放·整条连锁结算完成后（只能是自动效果），
-                    // 双方剩余元素（未横置地牌+钱包）之差恰==x 触发（差每+1踩一档各一次）
-                    return $"任一方使用卡牌、整条连锁结算完成后，双方剩余元素的差恰好等于{CostDerivationService.EngineRewardThreshold(ToInstances(then), timing)}时触发奖励（仅自动，差额封顶6）";
+                    // 2026-11-13：条件开放为「≥ 门槛」——完整句同步（旧「恰==x」退役）
+                    return $"任一方使用卡牌、整条连锁结算完成后，双方剩余元素的差达到或超过{CostDerivationService.EngineRewardThreshold(ToInstances(then), timing)}时触发奖励（仅自动，差额封顶6）";
                 case BranchEngineKind.Clash:
                     x = CostDerivationService.EngineRewardThreshold(ToInstances(then), timing);
                     break;

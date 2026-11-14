@@ -132,6 +132,13 @@ namespace CardCore
                     return gameEvent is TurnEndEvent te &&
                            ReferenceEquals(te.TurnPlayer, registered.Controller);
 
+                // ---- 回合开始（2026-11-14 开放玩家挂载，一回合一次档）----
+                // TurnStartEvent 每个玩家的回合都会发布：只认**自己**的回合开始（与 OnTurnEnd 同口径），
+                // 否则双方回合各触发一次、变成一回合两次。
+                case TriggerTiming.OnTurnStart:
+                    return gameEvent is TurnStartEvent ts &&
+                           ReferenceEquals(ts.TurnPlayer, registered.Controller);
+
                 // ---- 角色亡语（RoleDeathEvent，2026-09-15 定案；注册源=Player）----
                 case TriggerTiming.OnRoleDeath:
                     return gameEvent is RoleDeathEvent rd &&

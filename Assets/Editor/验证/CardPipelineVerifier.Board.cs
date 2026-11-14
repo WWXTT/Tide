@@ -295,13 +295,16 @@ namespace CardCore.Editor
                     };
                 Assert(EffectEligibility.AuraGrantRejectReason(EffectSlim.ToCardEffect(
                            GrantDto("VERIFY_AU_OK", (int)TriggerTiming.OnTap, 1))) == null,
-                       "效果光环资格谓词：横置族多次档·自动·无代价——可授予");
+                       "效果光环资格谓词：横置（生物动作族，一回合一次档）·自动·无代价——可授予");
                 Assert(EffectEligibility.AuraGrantRejectReason(EffectSlim.ToCardEffect(
                            GrantDto("VERIFY_AU_ONCE", (int)TriggerTiming.OnPlay, 1))) == null,
                        "效果光环资格谓词：单次时机（OnPlay）可授予（2026-11-10 用户定案：连接光环可赋予所有自动触发效果）");
                 Assert(EffectEligibility.AuraGrantRejectReason(EffectSlim.ToCardEffect(
-                           GrantDto("VERIFY_AU_PERIOD", (int)TriggerTiming.OnTurnEnd, 1))) != null,
-                       "效果光环资格谓词：周期族（OnTurnEnd）拒——受益者=生物，生物臂结界专属口径");
+                           GrantDto("VERIFY_AU_PERIOD_OK", (int)TriggerTiming.OnTurnEnd, 1))) == null,
+                       "效果光环资格谓词：一回合一次（OnTurnEnd）可授予（2026-11-14 档位制——生物可挂一回合一次档）");
+                Assert(EffectEligibility.AuraGrantRejectReason(EffectSlim.ToCardEffect(
+                           GrantDto("VERIFY_AU_PERIOD", (int)TriggerTiming.OnDraw, 1))) != null,
+                       "效果光环资格谓词：一回合多次（OnDraw）拒——受益者=生物，一回合多次=结界专属");
                 Assert(EffectEligibility.AuraGrantRejectReason(EffectSlim.ToCardEffect(
                            GrantDto("VERIFY_AU_ACT", (int)TriggerTiming.Activate_Active, 2))) != null,
                        "效果光环资格谓词：主动效果拒");

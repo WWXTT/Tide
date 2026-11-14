@@ -798,179 +798,6 @@
       ]
     },
     {
-      "id": "6B9F7621",
-      "name": "对手回合对手使用卡牌结算后，双方剩余元素的差恰为1时，对目标造成1点伤害（仅自动）",
-      "hash": "7859DA32",
-      "timing": 35,
-      "activation": 1,
-      "limit": 1,
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "fd645778",
-            "branch": {
-              "settle": 3,
-              "engine": 5,
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "64CDFD65",
-      "name": "对手回合对手使用卡牌结算后，双方剩余元素的差恰为2时，对目标造成2点伤害（仅自动）",
-      "hash": "6993517B",
-      "timing": 35,
-      "activation": 1,
-      "limit": 1,
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "fd645778",
-            "branch": {
-              "settle": 3,
-              "engine": 5,
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "value": 2,
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "E2D48807",
-      "name": "对手回合对手使用卡牌结算后，双方剩余元素的差恰为3时，对目标造成3点伤害（仅自动）",
-      "hash": "839B7AEB",
-      "timing": 35,
-      "activation": 1,
-      "limit": 1,
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "fd645778",
-            "branch": {
-              "settle": 3,
-              "engine": 5,
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "value": 3,
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "AD5DD5DB",
-      "name": "对手回合对手使用卡牌结算后，双方剩余元素的差恰为4时，对目标造成4点伤害（仅自动）",
-      "hash": "A8C4F499",
-      "timing": 35,
-      "activation": 1,
-      "limit": 1,
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "fd645778",
-            "branch": {
-              "settle": 3,
-              "engine": 5,
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "value": 4,
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "14B9EF4F",
-      "name": "对手回合对手使用卡牌结算后，双方剩余元素的差恰为5时，对目标造成5点伤害（仅自动）",
-      "hash": "2FA29474",
-      "timing": 35,
-      "activation": 1,
-      "limit": 1,
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "fd645778",
-            "branch": {
-              "settle": 3,
-              "engine": 5,
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "value": 5,
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "CD0C3750",
-      "name": "对手回合对手使用卡牌结算后，双方剩余元素的差恰为6时，对目标造成6点伤害（仅自动）",
-      "hash": "56961CCF",
-      "timing": 35,
-      "activation": 1,
-      "limit": 1,
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "fd645778",
-            "branch": {
-              "settle": 3,
-              "engine": 5,
-              "then": [
-                {
-                  "refId": "a4b823fc",
-                  "value": 6,
-                  "kinds": [
-                    2
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
       "id": "80B7DA7B",
       "name": "施放时给对手牌库随机1张卡附加诅咒指示物，对手抽到该卡时受到6点伤害并移除指示物",
       "hash": "80DCABEF",
@@ -2424,9 +2251,9 @@
       ]
     },
     {
-      "id": "1FB7E6DA",
-      "name": "元素充盈：剩余元素差恰好等于门槛时，对一个对方单位造成2点伤害",
-      "hash": "D531919A",
+      "id": "851A70F1",
+      "name": "元素充盈：剩余元素差达到或超过门槛时，对一个对方单位造成2点伤害",
+      "hash": "851A70F1",
       "timing": 35,
       "activation": 1,
       "limit": 1,
@@ -2453,9 +2280,9 @@
       ]
     },
     {
-      "id": "79655260",
-      "name": "元素充盈：剩余元素差恰好等于门槛时，回响1：选择双方战场的一张卡，将其1张带遗忘指示物的临时复制加入手牌",
-      "hash": "73EF5CC3",
+      "id": "3442A01E",
+      "name": "元素充盈：剩余元素差达到或超过门槛时，回响1：选择双方战场的一张卡，将其1张带遗忘指示物的临时复制加入手牌",
+      "hash": "3442A01E",
       "timing": 35,
       "activation": 1,
       "limit": 1,

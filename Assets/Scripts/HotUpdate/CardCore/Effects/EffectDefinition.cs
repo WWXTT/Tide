@@ -393,7 +393,7 @@ namespace CardCore
                 TriggerTiming.OnTakeDamage => typeof(DamageEvent),
 
                 // 回合/阶段族
-                TriggerTiming.OnTurnStart => typeof(TurnStartEvent), // 系统专用（2026-10-20 定案）——效果时点归一 OnStandbyPhase
+                TriggerTiming.OnTurnStart => typeof(TurnStartEvent), // 回合开始（2026-11-14 起开放玩家挂载，一回合一次档；载荷过滤只认自家回合）
                 TriggerTiming.OnStandbyPhase => typeof(PhaseStartEvent), // 准备阶段（载荷过滤限定 Phase==Standby）
                 TriggerTiming.OnTurnEnd => typeof(TurnEndEvent),
                 TriggerTiming.OnPhaseStart => typeof(PhaseStartEvent),
@@ -570,11 +570,11 @@ namespace CardCore
         /// <summary>死亡计数（2026-09-22 定案）：本回合**双方合计**生物死亡数 ≥ x 时执行奖励（计数单调，
         /// 每回合达标时刻唯一→天然一次/回合）；奖励预算=x（奖励原子锚价合计 ≤ x，引擎零计价）。x∈[1,9]</summary>
         DeathToll = 4,
-        /// <summary>元素充盈（2026-09-22 定案；2026-11-06 判据七·充盈改造）：**只能是自动效果**——
-        /// 任一方施放的卡成功结算、且整条连锁结算完成后（连锁终点稳定点补发 CardCastSettledEvent），
-        /// 双方各自评估己方场上引擎：比较双方剩余元素总量（未横置地牌+钱包）——己方与对手的差
-        /// （封顶 6）**恰好等于** x 即执行奖励（==x：差每+1踩一档各一次）；无每回合次数上限（2026-11-13）；奖励恒直发，
-        /// 目标由控制者结算期弹选；门槛=Then 锚价推导。</summary>
+        /// <summary>元素充盈（2026-09-22 定案；2026-11-06 判据七·充盈改造；2026-11-13 条件开放为 ≥）：
+        /// **只能是自动效果**——任一方施放的卡成功结算、且整条连锁结算完成后（连锁终点稳定点补发
+        /// CardCastSettledEvent），双方各自评估己方场上引擎：比较双方剩余元素总量（未横置地牌+钱包）——
+        /// 己方与对手的差（封顶 6）**达到或超过** x 即执行奖励（≥x）；无每回合次数上限（2026-11-13）；
+        /// 奖励恒直发，目标由控制者结算期弹选；门槛=Then 锚价推导。</summary>
         ManaSurplus = 5,
         // 2026-10-31 墓碑清理：原位 6（手牌序位·2026-10-19 退役）与位 7（Grant 赋予引擎·2026-10-05 解体）
         // 两处空洞已删，余位紧凑重排；`branch.engine` int 载荷已同步迁移（TutorialEffects.json 7 处：

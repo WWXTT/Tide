@@ -822,9 +822,10 @@ namespace SynergyUI
             }
 
             // ---- 效果光环（2026-11-05）：引用效果库组合效果——授予资格单源
-            // EffectEligibility.AuraGrantRejectReason（非主动∧多次档∧生物臂∧非可选∧无代价∧
-            // 非引擎主干）；箭头指向的单位在覆盖期间视为持有该触发效果（live-query：断链/载体
-            // 离场即失效；受益者失效/沉睡照发、仅绝缘体不收；元素费不逐次收——锚价随载体卡价）。
+            // EffectEligibility.AuraGrantRejectReason（非主动∧生物可挂的一回合一次/稀有档∧非可选∧
+            // 无代价∧非引擎主干；一回合多次=结界专属故不可授予）；箭头指向的单位在覆盖期间视为持有
+            // 该触发效果（live-query：断链/载体离场即失效；受益者失效/沉睡照发、仅绝缘体不收；
+            // 元素费不逐次收——锚价随载体卡价）。
             // 2026-11-06 三修：①库源=主∪教学（此前只读主表=空壳恒「暂无」；训练表不入——不随包
             // 下发，玩家设备引用悬空）；②去重=已挂到本光环（已加连接箭头）的效果不再显示，
             // 删条目随刷新回归（同 RestrictedUsedRefIds 交互）；③挂上即刷库（隐藏即时生效）+
@@ -841,7 +842,7 @@ namespace SynergyUI
             grantableFx.RemoveAll(g => usedEffectRefs.Contains(g.id));       // 已挂效果不显示
             if (grantableFx.Count == 0)
                 AddTableHint(_atomItems, _libraryList,
-                    "效果光环：效果库暂无可授予效果（要求多次触发时机·非主动·非可选·无代价·生物可挂口径——先在效果表组合）");
+                    "效果光环：效果库暂无可授予效果（要求生物可挂的自动效果·非主动·非可选·无代价——一回合多次=结界专属，先在效果表组合）");
             foreach (var g in grantableFx)
             {
                 var captured = g;

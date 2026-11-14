@@ -76,91 +76,35 @@ namespace CardCore.Attribute.Handlers
 
     // ---------------- 死亡原子（消灭 / 湮灭；牺牲 2026-10-09 转直送非死亡） ----------------
 
-    /// <summary>牺牲（2026-11-03 改版，0费，edict 形态）：作用对象=**角色**（表 filter "Player"、域=己方单位）——
-    /// 目标玩家（持有者）**自行选择** {value} 个己方场上单位（生物+结界+**地牌**——2026-11-03 地牌入池扩定，
-    /// 旧「地牌非单位不入池」口径作废）**规则送墓**。裁定：**非效果死亡**——不经 DeathRules、不发
-    /// CardDestroyEvent（OnDeath/亡语/消灭替代/击杀统计全不触发），不灭/复生无从拦截（非死亡路径天然
-    /// 绕过）；地牌先出池（余量写回卡——摧毁/抹除同口）再入墓；送墓归属=卡牌持有者。
-    /// 每送墓一个单位，该持有者临时钱包 +1 彩元素（AddMana 官方口，任一回合结束清空）。
-    /// 候选不足 {value} 个时全量送墓；空场空转（不空发整卡、不入账）。
-    /// 同步路径（触发式/headless）：自动选候选前 N 个（TargetSelectionService 代替选取同口径）。</summary>
+    /// <summary>牺牲（2026-11-14 域=候选声明改版，0费，edict 形态）：行域即牺牲候选
+    /// （己方战场:生物; 己方战场:结界;己方元素池:卡——地牌入池 2026-11-03 扩定照旧），
+    /// 数量档走原子 TargetCount，落点由解析层选定（结算期弹窗 / AI 与无头代选 / 超时兜底
+    /// ——全局选择口径，handler 不再自建弹窗、不再自收集候选池）。handler 只做送墓+入账。
+    /// 裁定：**非效果死亡**——不经 DeathRules、不发 CardDestroyEvent（OnDeath/亡语/消灭替代/
+    /// 击杀统计全不触发），不灭/复生无从拦截（非死亡路径天然绕过）；地牌先出池（余量写回卡
+    /// ——摧毁/抹除同口）再入墓；送墓归属=卡牌持有者。
+    /// 每送墓一张，其归属者临时钱包 +1 彩元素（AddMana 官方口，任一回合结束清空）——
+    /// 入账方按卡归属逐张计（双方域下各自按实交数入账）。
+    /// 候选空/解析空=空转（不空发整卡、不入账——CanExecute 缺目标拦）。</summary>
     public class SacrificeHandler : AtomicEffectHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.Sacrifice;
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            int count = Wanted(effect, context);
+            if (context.Targets == null) return; // 空解析=空转（不空发整卡、不入账）
             foreach (var target in context.Targets)
             {
-                if (!(target is Player holder)) continue; // 作用对象=角色
-                var pool = SacrificePool(holder, context);
-                if (pool.Count == 0) continue; // 空场空转
-                GrantAny(holder, SendAll(pool.Take(count), context), context);
-            }
-        }
-
-        public override async UniTask ExecuteAsync(AtomicEffectInstance effect, EffectExecutionContext context)
-        {
-            int count = Wanted(effect, context);
-            foreach (var target in context.Targets)
-            {
-                if (!(target is Player holder)) continue; // 作用对象=角色
-                var pool = SacrificePool(holder, context);
-                if (pool.Count == 0) continue; // 空场空转
-
-                List<Card> picks;
-                if (pool.Count <= count)
-                {
-                    picks = pool; // 无选择余地：全量送墓（ShouldAutoTake「操作越省越好」同口径）
-                }
-                else if (holder.IsAI || TargetSelectionService.Current == null)
-                {
-                    picks = pool.Take(count).ToList(); // AI/无头：自动取前 N
-                }
-                else
-                {
-                    var chosen = await TargetSelectionService.RequestAsync(new TargetSelectionRequest
-                    {
-                        Candidates = new List<Entity>(pool),
-                        MinCount = count,
-                        MaxCount = count,
-                        Chooser = holder, // 持有者自行选择（选择权在目标方——域收窄己方后恒自选）
-                        Title = $"{holder.Name}：选择 {count} 个单位送入墓地（每个 +1 彩元素）",
-                        AllowCancel = false,
-                        PromptSource = (Entity)context.CastCard ?? context.Source,
-                    });
-                    picks = chosen?.OfType<Card>().ToList();
-                    if (picks == null || picks.Count == 0)
-                        picks = pool.Take(count).ToList(); // 超时兜底双保险（Service 已代选）
-                }
-
-                GrantAny(holder, SendAll(picks, context), context);
-            }
-        }
-
-        /// <summary>送墓数量 {value}（缺省/≤0 钳 1）。</summary>
-        private static int Wanted(AtomicEffectInstance effect, EffectExecutionContext context)
-            => Math.Max(1, context.GetValueAfterModifiers(effect.Value > 0 ? effect.Value : 1));
-
-        private static int SendAll(IEnumerable<Card> picks, EffectExecutionContext context)
-        {
-            int sent = 0;
-            foreach (var card in picks)
-            {
+                if (!(target is Card card) || !card.IsAlive) continue;
+                var owner = card.GetOwner() ?? card.GetController();
+                if (owner == null) continue;
                 SendToGrave(card, context);
-                sent++;
+                if (context.ElementPool == null) continue;
+                // 每送墓一张 +1 **临时彩元素**（万能货币落临时钱包，任一回合结束清空；支付沿
+                // 各色链尾垫付）。AddMana 官方口（ElementPoolGainEvent 可观测），入账方=交出方
+                var from = context.Source as Card ?? context.CastCard as Card;
+                context.ElementPool.AddMana(owner, ManaType.Any, from, 1);
             }
-            return sent;
-        }
-
-        /// <summary>每送墓一个单位 +1 **临时彩元素**（万能货币落临时钱包，任一回合结束清空；
-        /// 支付沿各色链尾垫付）。AddMana 官方口（ElementPoolGainEvent 可观测），入账方=交出单位的一方。</summary>
-        private static void GrantAny(Player holder, int sent, EffectExecutionContext context)
-        {
-            if (sent <= 0 || context.ElementPool == null) return;
-            var from = context.Source as Card ?? context.CastCard as Card;
-            context.ElementPool.AddMana(holder, ManaType.Any, from, sent);
         }
 
         /// <summary>规则送墓（非效果死亡）：地牌先出池 + 落死档 + 按持有者归属入墓——不发
@@ -178,24 +122,8 @@ namespace CardCore.Attribute.Handlers
                 context.ZoneManager.MoveCard(card, owner, from, Zone.Graveyard);
         }
 
-        /// <summary>牺牲候选 = 持有者场上单位全集（2026-11-03 扩定）：战场生物+结界（2026-10-09
-        /// 摒弃并池承袭，含衍生物——召唤定案下衍生物=真实生物卡的 CardWrapper 实例）+ **元素池地牌**。
-        /// 序=战场序→地牌序（AutoSelect 取前 N 的确定性来源）。空集跳过该目标（不空发整卡、不入账）。</summary>
-        private static List<Card> SacrificePool(Player holder, EffectExecutionContext context)
-        {
-            var result = new List<Card>();
-            if (holder == null || context.ZoneManager == null) return result;
-            foreach (var c in context.ZoneManager.GetCards(holder, Zone.Battlefield))
-                if (c != null && c.IsAlive)
-                    result.Add(c);
-            foreach (var c in context.ZoneManager.GetCards(holder, Zone.ElementPool))
-                if (c != null && c.IsAlive)
-                    result.Add(c);
-            return result;
-        }
-
         protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => $"自行选择 {Math.Max(1, effect.Value > 0 ? effect.Value : 1)} 个场上单位（含地牌）规则送墓；每送墓一个单位，获得一点临时彩元素（非效果死亡，不触发死亡时点）";
+            => "自行选择场上单位（含地牌）规则送墓；每送墓一个单位，获得一点临时彩元素（非效果死亡，不触发死亡时点）";
     }
 
     /// <summary>消灭（2026-10-09 吞噬机制移除定案：原吞噬行改名，EffectType 沿用 Devour 枚举位）——

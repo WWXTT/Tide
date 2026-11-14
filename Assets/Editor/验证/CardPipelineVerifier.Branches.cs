@@ -223,8 +223,8 @@ namespace CardCore.Editor
                 GameActions.DrainStack(core);
             }
             finally { RuleHooks.UnregisterTurnStartInterceptor(cdShield); }
-            // 倒计时发射窗=持有者准备阶段（converter 把引擎载荷时机规范化 OnStandbyPhase——2026-11-05
-            // 时机两档收敛定案：引擎载荷豁免、发射窗非重复）：归零自动发奖（抽1）并重挂回初值。
+            // 倒计时发射窗=持有者准备阶段（引擎头预设默认 OnStandbyPhase——2026-11-14 档位制起
+            // OnTurnStart 不再归一，只有显式声明才走回合开始）：归零自动发奖（抽1）并重挂回初值。
             Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckBefore - 1,
                    $"倒计时：归零自动发奖抽1（引擎发射窗=准备相位）——诊断 deck {deckBefore}→{core.ZoneManager.GetCards(p1, Zone.Deck).Count}");
             Assert(cdCard.GetCounterCount(CardCore.Attribute.CounterRules.CountdownCounter) == 2,
@@ -564,27 +564,27 @@ namespace CardCore.Editor
                 + $"deck1={core.ZoneManager.GetCards(p1, Zone.Deck).Count} surgeZone={surgeCard.GetZone()} "
                 + $"turn={core.TurnEngine.TurnPlayer?.Name}";
 
-            // 对手回合阶梯（2026-11-06 判据七 ==x 语义·教学二段六同型）：p1 剩 6 恒定，p2 从 6 起
-            // 每打一张 1 费载体剩余 6→0 → 差 1..6 逐次递进；门槛 2 宿主只在差恰 2 触发
-            //（差 1 未到、差 3 越过均不发——判据六 ≥x「越线即发」退役）
-            EnsureMainPhase(core, p2); // 对手（p2）回合主阶段——判据七评估窗
+            // 对手回合阶梯（2026-11-14：差 ≥ 门槛即触发，无每回合上限；旧「==x 恰等」口径退役）：
+            // p1 剩 6 恒定，p2 从 6 起每打一张 1 费载体剩余 6→0 → 差 1..6 逐次递进；
+            // 门槛 2 宿主在差 ≥2 的每一档抽 1。
+            EnsureMainPhase(core, p2); // 对手（p2）回合主阶段——充盈评估窗
             SurgeWallets(p1Red: 6, p2Red: 6);
             surgeDeck = core.ZoneManager.GetCards(p1, Zone.Deck).Count;
             Assert(SurgeCast(SurgeSpell(), "ladder1"), "元素充盈：对手载体①（差1）打出");
             Crumb("surge ladder1: " + surgeState());
             Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == surgeDeck,
-                   "元素充盈：差 1 ≠ 门槛 2 不触发（==x——未达门槛）");
+                   "元素充盈：差 1 < 门槛 2 不触发");
             Assert(SurgeCast(SurgeSpell(), "ladder2"), "元素充盈：对手载体②（差2）打出");
             Crumb("surge ladder2: " + surgeState());
             Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == surgeDeck - 1,
-                   "元素充盈：差 2 == 门槛 2（Then 锚价推导）→ 恰等触发（引擎抽1）");
+                   $"元素充盈：差 2 ≥ 门槛 2 → 门槛2宿主抽1（实际抽 {surgeDeck - core.ZoneManager.GetCards(p1, Zone.Deck).Count}）");
             Assert(SurgeCast(SurgeSpell(), "ladder3"), "元素充盈：对手载体③（差3）打出");
             Crumb("surge ladder3: " + surgeState());
-            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == surgeDeck - 1,
-                   "元素充盈：差 3 ≠ 2 不触发（==x 恰等——差越过门槛不发）");
+            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == surgeDeck - 2,
+                   $"元素充盈：差 3 ≥ 门槛 2 仍触发（≥x 越线即发；实际抽 {surgeDeck - core.ZoneManager.GetCards(p1, Zone.Deck).Count}）");
 
-            // 2026-10-22 全局规则：所有自由分支同卡每回合 1 次——旧宿主与限一卡同场，
-            // 首次达标各发一次后，第二次达标两卡都被 EngineCapReached 收口
+            // 2026-11-13 起无每回合上限：同卡每回合可重复达标（TriggerLimitPerTurn 仅数据留档、不再有运行时闸）；
+            // 旧宿主与「限一」卡同场时，各宿主每次达标各发一次。
             var cappedData = new CardData
             {
                 ID = "VERIFY_ENGINE_SURGE_CAP", CardName = "验证充盈·限一", Supertype = Cardtype.Creature, Power = 3, Life = 3,
@@ -593,7 +593,7 @@ namespace CardCore.Editor
             {
                 Id = "VERIFY_SURGE_CAP_MAIN",
                 TriggerTiming = (int)CardCore.TriggerTiming.Activate_Active, // 引擎宿主惰性化（同上注）
-                TriggerLimitPerTurn = 1, // 显式声明（转换器尊重声明——引擎头预设无限只兜底未声明行）
+                TriggerLimitPerTurn = 1, // 历史列留档（2026-11-13 起无运行时消费）
                 AtomicEffects = new List<AtomicEffectEntry>
                 {
                     EngineAtom(CardCore.AtomicEffectType.DrawCard, 1, CardCore.BranchEngineKind.ManaSurplus, 1,
@@ -604,47 +604,47 @@ namespace CardCore.Editor
             cappedCard.SetController(p1);
             Assert(core.ZoneManager.TryAddToBattlefield(cappedCard, p1), "元素充盈：限一宿主入场");
             int capBase = core.ZoneManager.GetCards(p1, Zone.Deck).Count;
-            // ==x 对 ≥x 的可区分证据（限一卡预算全新·门槛 2）：付后差 3 越过门槛，若为 ≥x 裁量必发——恰等零发
-            SurgeWallets(p1Red: 6, p2Red: 4); // 施放付 1 → remain2=3 → 差 3（≥ 门槛、≠ 门槛）
-            Assert(SurgeCast(SurgeSpell(), "geq-proof"), "元素充盈：1费载体（付后差3·限一卡预算全新）打出");
+            // ≥x 判别证据（门槛2宿主×2）：付后差 3 ≥2 → 两宿主各抽1（旧 ==x 裁量会零发）
+            SurgeWallets(p1Red: 6, p2Red: 4); // 施放付 1 → remain2=3 → 差 3（≥ 门槛）
+            Assert(SurgeCast(SurgeSpell(), "geq-proof"), "元素充盈：1费载体（付后差3）打出");
             Crumb("surge geq-proof: " + surgeState());
-            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == capBase,
-                   "元素充盈：差 3 越过门槛 2 不触发（==x——限一卡本回合预算全新，若 ≥x 必发）");
-            // 差恰 2：两门槛2宿主每次达标都触发（2026-11-13 起无每回合上限——同回合可重复）
+            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == capBase - 2,
+                   $"元素充盈：差 3 ≥ 门槛 2 → 两门槛2宿主各抽1（旧 ==x 恰等口径作废；实际抽 {capBase - core.ZoneManager.GetCards(p1, Zone.Deck).Count}）");
+            // 差恰 2：两门槛2宿主每次达标都触发
             SurgeWallets(p1Red: 5, p2Red: 4); // 施放付 1 → remain2=3 → 差 = 5−3 = 2
             Assert(SurgeCast(SurgeSpell(), "eq-proof"), "元素充盈：1费载体（付后差恰2）打出");
             Crumb("surge eq-proof: " + surgeState());
-            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == capBase - 2,
-                   "元素充盈：差恰 2 两门槛2宿主各发 1（引擎抽1×2；2026-11-13 起无每回合上限）");
-            SurgeWallets(p1Red: 5, p2Red: 4); // 复位（否则上一载体的付款把差滑到 3——封口证据须钉回恰 2）
+            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == capBase - 4,
+                   $"元素充盈：差恰 2 两门槛2宿主各发 1（累计 −4；实际 −{capBase - core.ZoneManager.GetCards(p1, Zone.Deck).Count}）");
+            SurgeWallets(p1Red: 5, p2Red: 4); // 复位（否则上一载体的付款把差滑到 3——同差证据须钉回恰 2）
             Assert(SurgeCast(SurgeSpell(), "cap2"), "元素充盈：限一段载体③（付后差仍2）打出");
             Crumb("surge cap2: " + surgeState());
-            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == capBase - 4,
-                   "元素充盈：同差重复评估——两宿主再次各发 1（无每回合上限，同差可重复触发）");
+            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == capBase - 6,
+                   $"元素充盈：同差重复评估——两宿主再次各发 1（无每回合上限，同差可重复触发；实际 −{capBase - core.ZoneManager.GetCards(p1, Zone.Deck).Count}）");
 
-            // 双方触发面（判据七）：非出牌支付不触发 + 己方回合自触发——评估不再分施放者侧
+            // 双方触发面（2026-11-14 ≥x）：非出牌支付不触发 + 己方回合自触发——评估不再分施放者侧
             EnsureMainPhase(core, p1);
             SurgeWallets(p1Red: 6, p2Red: 6);
             surgeDeck = core.ZoneManager.GetCards(p1, Zone.Deck).Count;
-            // 非出牌支付（直接 PayCost）不触发：直付 p2 两红 → 差恰 2、两宿主预算全新（新回合翻章）——
-            // 若直付走评估口必双发，恰等读数下零抽=直付无评估的强证据
+            // 非出牌支付（直接 PayCost）不触发：直付 p2 两红 → 差恰 2、宿主预算全新——
+            // 零抽=直付无评估的强证据（评估只在施放结算口）
             core.ElementPool.TryPayCostWithAutoTap(CostOf((ManaType.Red, 2f)), p2);
             Crumb("surge manualpay: " + surgeState());
             Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == surgeDeck,
-                   "元素充盈：非出牌支付（直接扣款→差恰2、宿主预算全新）不触发——评估只在施放结算口");
-            // 己方回合自触发（双方评估）：1 费载体把付后差钉在恰 2，p1 自己施放结算后 p1 引擎开火
-            SurgeWallets(p1Red: 7, p2Red: 4); // 施放付 1 → remain1=6 → 差 = 6−4 = 2（清直付残留，口径纯化）
+                   "元素充盈：非出牌支付（直接扣款→差恰2）不触发——评估只在施放结算口");
+            // 己方回合自触发（双方评估）：1 费载体把付后差钉在 2，p1 自己施放结算后 p1 引擎开火
+            SurgeWallets(p1Red: 7, p2Red: 4); // 施放付 1 → remain1=6 → 差 = 6−4 = 2（清直付残留）
             var ownCard = InjectCard(core, p1, SurgeSpell());
             Assert(GameActions.PlayCard(core, p1, ownCard, null, Zone.Hand, 0, out var ownWhy),
-                   $"元素充盈：己方0费载体打出（拒因={ownWhy}）");
+                   $"元素充盈：己方1费载体打出（拒因={ownWhy}）");
             GameActions.DrainStack(core);
             Crumb("surge own-turn: " + surgeState());
             Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == surgeDeck - 2,
-                   "元素充盈：己方回合出牌（差恰2）也触发——双方评估，两门槛2宿主各抽1（「仅对手回合」单边退役）");
+                   $"元素充盈：己方回合出牌（差2）也触发——双方评估，两门槛2宿主各抽1（实际抽 {surgeDeck - core.ZoneManager.GetCards(p1, Zone.Deck).Count}）");
 
-            // 封顶 6 上界 + 六档阶梯全型（教学二段六同场景）：门槛 6 宿主（Then=3×DrawCard1 锚价 6），
-            // p2 剩余 6→0、差 1..6：恰等档位各中一次——门槛 2 双宿主（旧+限一）新回合翻章后恰差 2
-            // 各发 1、门槛 6 宿主恰差 6（读数封顶==6）抽 3；差 1/3/4/5 恰等不中
+            // 封顶 6 上界 + 差 1..6 阶梯（2026-11-14 ≥x）：门槛 6 宿主（Then=3×DrawCard1 锚价 6），
+            // p2 剩余 6→0、差 1..6：门槛2双宿主在差 ≥2 的每一档各抽 1；门槛6宿主在差 6 再抽 3；
+            // 合计 = 差2..6 五档 ×2 + 差6 的 3 = 13。
             var surgeData2 = new CardData
             {
                 ID = "VERIFY_ENGINE_SURGE2", CardName = "验证充盈封顶", Supertype = Cardtype.Creature, Power = 3, Life = 3,
@@ -666,11 +666,23 @@ namespace CardCore.Editor
             Assert(core.ZoneManager.TryAddToBattlefield(surgeCard2, p1), "元素充盈：封顶宿主入场");
             EnsureMainPhase(core, p2); // 回到对手回合（回合结束清钱包——重灌）
             SurgeWallets(p1Red: 6, p2Red: 6);
+            // 前面段把牌库抽得很薄：本段要一次兑现 −13 张，先补 20 张探针卡，避免「牌库抽空」截断读数
+            for (int i = 0; i < 20; i++)
+            {
+                var fillData = new CardData
+                {
+                    ID = "VERIFY_SURGE_FILL" + i, CardName = "充盈填充" + i,
+                    Supertype = Cardtype.Creature, Power = 1, Life = 1,
+                };
+                var fill = new CardWrapper(fillData);
+                fill.SetController(p1);
+                core.ZoneManager.GetZoneContainer(p1).Add(fill, Zone.Deck, DeckPosition.Top);
+            }
             surgeDeck = core.ZoneManager.GetCards(p1, Zone.Deck).Count;
             for (int k = 1; k <= 6; k++) Assert(SurgeCast(SurgeSpell(), $"cap{k}"), $"元素充盈：对手六连载体{k}（差{k}）打出");
             Crumb("surge ladder-done: " + surgeState());
-            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == surgeDeck - 5,
-                   "元素充盈：差 1..6 六档阶梯——门槛2双宿主恰差2各发1、恰差6封顶宿主抽3（差1/3/4/5 恰等不中；每卡每回合1次）");
+            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == surgeDeck - 13,
+                   $"元素充盈：差 1..6 六档阶梯——差≥2 各档两门槛2宿主各抽1（5档×2）＋差6 门槛6宿主抽3＝−13（实际 −{surgeDeck - core.ZoneManager.GetCards(p1, Zone.Deck).Count}）");
 
             core.ZoneManager.MoveCard(surgeCard, p1, Zone.Battlefield, Zone.Graveyard); // 门槛2宿主退场防连带
             core.ZoneManager.MoveCard(surgeCard2, p1, Zone.Battlefield, Zone.Graveyard);
@@ -720,8 +732,22 @@ namespace CardCore.Editor
             EventManager.Instance.Publish(new CardPlayEvent { Player = p1 });
             Assert(!EvalGate("FirstCardThisTurn"), "状态门：第二张出牌后 → 假");
 
+            // 前面段可能已把牌库抽空：补两张探针卡（本测试只验抽牌事件登记；禁抽令按回合计，若命中则下方前置断言报出）
+            for (int i = 0; i < 2; i++)
+            {
+                var probeData = new CardData
+                {
+                    ID = "VERIFY_DRAW_PROBE" + i, CardName = "抽牌探针" + i,
+                    Supertype = Cardtype.Creature, Power = 1, Life = 1,
+                };
+                var probeCard = new CardWrapper(probeData);
+                probeCard.SetController(p1);
+                core.ZoneManager.GetZoneContainer(p1).Add(probeCard, Zone.Deck, DeckPosition.Top);
+            }
             var standbyDrawn = ZoneManagerExtensions.DrawCard(core.ZoneManager, p1, firstDrawOfTurn: true);
             var effectDrawn = ZoneManagerExtensions.DrawCard(core.ZoneManager, p1, firstDrawOfTurn: false);
+            Assert(standbyDrawn != null && effectDrawn != null,
+                   "状态门前置：牌库可抽（补探针卡后自然抽/效果抽各 1 张）");
             var dctxStandby = new EffectExecutionContext
             { Controller = p1, ZoneManager = core.ZoneManager, ElementPool = core.ElementPool, CastCard = standbyDrawn };
             var dctxEffect = new EffectExecutionContext

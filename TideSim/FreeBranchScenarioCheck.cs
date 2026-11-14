@@ -310,7 +310,8 @@ namespace TideSim
                     }
                 }
             }
-            Assert(checkedCount >= 40, $"迁移覆盖面：全库引擎分支 ≥ 40 条（实际 {checkedCount}）");
+            // 2026-11-14：删 6 张生物载体教学卡后引擎条目 40→36，覆盖面下限随内容同步（≥36）
+            Assert(checkedCount >= 36, $"迁移覆盖面：全库引擎分支 ≥ 36 条（实际 {checkedCount}）");
             Console.WriteLine($"  扫描合并库引擎分支 {checkedCount} 条——校验完毕");
         }
 
@@ -355,8 +356,7 @@ namespace TideSim
                 case "unity-fire":
                 case "unity-miss":
                 case "unity-mixed-cells": return new[] { "教学·37" };
-                case "fullness-cap6": return new[] { "教学·33" };
-                case "curse-fire":
+                                case "curse-fire":
                 case "curse-empty-deck": return new[] { "教学·50" };
                 case "blessing-fire": return new[] { "教学·51" };
                 case "fullness-response-chain": return new[] { "潮痕碑", "教学·37" };
@@ -658,11 +658,27 @@ namespace TideSim
                             $"⑨ 蓝抽到→发作段播报（明细：{KwDetail("诅咒")}）");
                         Assert(_counters.Any(c => c.type == CounterRules.CurseCounter && c.amount >= 1),
                             "⑨ 诅咒指示物挂载事件（+1 层）");
-                        var cursed = (core.ZoneManager.GetCards(p1, Zone.Hand) ?? new List<Card>())
-                            .Concat(core.ZoneManager.GetCards(p1, Zone.ElementPool) ?? new List<Card>())
+                        Card FindCursed(Zone z) => (core.ZoneManager.GetCards(p1, z) ?? new List<Card>())
                             .FirstOrDefault(c => c is IHasName n && n.CardName == "教学·3");
+                        Card cursed = null;
+                        Zone cursedZone = Zone.None;
+                        foreach (var z in new[] { Zone.Hand, Zone.ElementPool, Zone.Battlefield })
+                        {
+                            var hit = FindCursed(z);
+                            if (hit == null) continue;
+                            cursed = hit;
+                            cursedZone = z;
+                            break;
+                        }
+                        string cursedWhere = cursed != null
+                            ? $"{cursedZone}(诅咒层={cursed.GetCounterCount(CounterRules.CurseCounter)})"
+                            : FindCursed(Zone.Graveyard) != null ? "墓地"
+                            : FindCursed(Zone.Exile) != null ? "除外区"
+                            : FindCursed(Zone.Deck) != null ? "仍在牌库（未抽到）" : "未找到";
+                        // 2026-11-14 夹具修正：教学·3 现为 0 费生物——旧「付不起 1 灰→铺为地」路径已不存在；
+                        // 被诅咒卡抽到后可能留在手牌，也可能被 AI 直接打出（战场）。语义只要求「正常入手且消层」。
                         Assert(cursed != null && cursed.GetCounterCount(CounterRules.CurseCounter) == 0,
-                            "⑨ 被诅咒卡已抽到入手（蓝付不起 1 灰随后铺为地）且指示物消层（先消层再结算·一次性）");
+                            $"⑨ 被诅咒卡已正常入手（手牌/元素池/战场任一）并消层（先消层再结算·一次性；实际 {cursedWhere}）");
                         Assert(_blueDraws.Count == 1 && _blueDraws[0] == "教学·3",
                             $"⑨ 蓝本回合恰抽 1 张=被诅咒卡（实际 [{string.Join(",", _blueDraws)}]）");
                         Assert(_engineDamage.Count == 2 && _engineDamage.All(d => d.dmg == 3 && d.target == p1.Name),
@@ -744,16 +760,6 @@ namespace TideSim
                         Assert(p1.Life == 24, $"⑮ 蓝终态 24（30−4−火苗攻击2）——实际 {p1.Life}");
                         break;
 
-                    case "fullness-cap6":
-                        Assert(EngineThresholdOf(_engine, BranchEngineKind.ManaSurplus) == 6,
-                            $"⑯ 门槛x=6（then 6伤锚价推导；实际 {EngineThresholdOf(_engine, BranchEngineKind.ManaSurplus)}）");
-                        Assert(Kw("元素充盈") == 1 && KwDetail("元素充盈").Contains("封顶 6）== 6") && KwDetail("元素充盈").Contains("己 8"),
-                            $"⑯ 差8读作封顶6仍恰等触发（明细：{KwDetail("元素充盈")}）");
-                        Assert(_engineDamage.Count == 1 && _engineDamage[0].dmg == 6 && _engineDamage[0].target == p1.Name,
-                            $"⑯ 奖励=6 伤落蓝角色（实际 {DescribeDamage()}）");
-                        Assert(p1.Life == 22, $"⑯ 蓝终态 22（30−6−火苗攻击2）——实际 {p1.Life}");
-                        break;
-
                     case "curse-empty-deck":
                         Assert(_redPlays == 1, $"⑰ 红确实施放教学·50（实际 {_redPlays}）——部署口确被进入，负例不是引擎没跑");
                         Assert(Kw("诅咒") == 0 && !_counters.Any(c => c.type == CounterRules.CurseCounter),
@@ -775,8 +781,8 @@ namespace TideSim
                             $"⑱ 四时点事件齐全（诅咒{seqCurse}/团结{seqUnity}/攻结{seqAtkRes}/充盈{seqFull}）——序号日志：{string.Join(" < ", _order.Select(o => o.tag))}");
                         Assert(seqCurse < seqAtkRes && seqAtkRes < seqUnity && seqUnity < seqFull,
                             $"⑱ 时点序：诅咒附加({seqCurse}) < 攻击结算({seqAtkRes}) < 团结连锁终点评估({seqUnity}) < 充盈整链落定后({seqFull})——团结与充盈同拍=连锁终点 CardCastSettledEvent（2026-11-08 阶段3：团结自单卡结算直调迁 OnRoutedEvent·时机=奖励效果 OnCardCastSettled，同一 flush 内团结先于充盈；攻击打脸伤害不走 AtomicDamageEvent，时点证据=AttackResolvedEvent）");
-                        Assert(Kw("元素充盈") == 1 && KwDetail("元素充盈").Contains("== 2"),
-                            $"⑱ 充盈恰等一次（红付费后剩余2；明细：{KwDetail("元素充盈")}）");
+                        Assert(Kw("元素充盈") == 1 && KwDetail("元素充盈").Contains("≥ 2"),
+                            $"⑱ 充盈触发一次（红付费后剩余 3 ≥ 2；明细：{KwDetail("元素充盈")}）");
                         Assert(_keywords.Any(k => k.keyword == "诅咒" && k.detail.Contains("附加")), "⑱ 响应出牌的诅咒部署照常（部署口与施放路径无关）");
                         Assert(Life(Unit(core, p1, "教学·8")) == 1,
                             $"⑱ 双引擎奖励均落蓝7/7（团结4伤+充盈2伤：7→1；实际生命 {Life(Unit(core, p1, "教学·8"))}）——蓝宣攻单位存活=攻击结算真实发生");
