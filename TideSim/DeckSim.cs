@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -144,9 +144,12 @@ namespace TideSim
                 Console.WriteLine($"[decksim] 预组 {name} 卡列表为空：{path}");
                 return null;
             }
+            // 2026-11-16：衍生物模板随组（tokenCardIds）——与 DeckTokenSupport.BuildCardList 同口径；
+            // 模板带「衍生物」tag，InitGame 会从牌库摘到额外区，不占 60 张。
+            var tokenIds = (root["tokenCardIds"] as JArray)?.Select(x => (string)x).ToList() ?? new List<string>();
             var cards = new List<CardData>();
             var missing = new List<string>();
-            foreach (var id in ids)
+            foreach (var id in ids.Concat(tokenIds))
             {
                 var c = CardCatalog.GetById(id);
                 if (c == null) missing.Add(id);

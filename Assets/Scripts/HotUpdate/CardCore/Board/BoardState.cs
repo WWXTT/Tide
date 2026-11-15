@@ -362,10 +362,8 @@ namespace GameBoard
             }
         }
 
-        /// <summary>团结邻接计数（2026-10-20 团结引擎·BranchEngines.UnityAdjacentCountOf 注入）：
-        /// 此卡 6 邻格中的"单位"数——生物/结界占格各 1（单位区占用者）、角色格恒 1（角色无卡实体按格计）、
-        /// 非空地牌格 1（同色组首张占格=非空；空地牌格无占用不计）；施放占位卡非在场单位不计
-        ///（战斗邻接同口径）；自身不计；未落格 = 0；六邻天然封顶 6。</summary>
+        /// <summary>团结邻接计数（2026-11-16 用户口径）：**只数 6 邻格中的相邻己方生物，不包含自身**——
+        /// 敌方生物、结界、角色格、地牌格、非空地牌格一律不计；自身不计；未落格=0；六邻天然封顶 6。</summary>
         public int AdjacentOccupantCount(Card card)
         {
             if (!TryGetCell(card, out int x, out int z)) return 0;
@@ -374,9 +372,10 @@ namespace GameBoard
             {
                 var (nx, nz) = BoardMath.Neighbor(x, z, dir);
                 if (!BoardMath.InBounds(nx, nz)) continue;
-                if (BoardLayout.RoleOf(nx, nz) == CellRole.Character) { count++; continue; }
                 var occupant = CardAt(nx, nz);
-                if (occupant != null && occupant != card) count++;
+                if (occupant != null && occupant != card && occupant.IsAlive && occupant.IsLivingUnit()
+                    && ReferenceEquals(occupant.GetController(), card.GetController()))
+                    count++;
             }
             return count;
         }
@@ -511,6 +510,9 @@ namespace GameBoard
 
         /// <summary>宿主装配（AttachBoard 调；幂等换挂）。</summary>
         public static void Attach(BoardState board) => _board = board;
+
+        /// <summary>当前装配的棋盘（未装配=null；召唤衍生物做聚集落格时读）。</summary>
+        public static BoardState Current => _board;
 
         /// <summary>宿主卸载（DetachBoard 调——静态不清理会指向过期占用层，S5 口径）。</summary>
         public static void Detach() => _board = null;

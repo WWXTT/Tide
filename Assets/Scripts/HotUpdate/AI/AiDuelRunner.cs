@@ -198,6 +198,18 @@ namespace CardCore.AI
                 .Select(NameOf).ToList();
             log($"[turn] T{core.TurnEngine.TurnNumber} {label} 地{lands} 血{p.Life}/{p.Opponent?.Life} " +
                 $"手[{string.Join("，", hand)}]");
+            // 2026-11-15 调试（TIDE_DEBUG_GREEN=1）：打印双方手牌 + 元素池地牌组成，
+            // 供「脚本回合结束后手牌/地牌有什么」逐局取证（不改行为）。
+            if (Environment.GetEnvironmentVariable("TIDE_DEBUG_GREEN") == "1")
+            {
+                foreach (var pl in new[] { core.Player1, core.Player2 })
+                {
+                    var h2 = (core.ZoneManager.GetCards(pl, Zone.Hand) ?? new List<Card>()).Select(NameOf);
+                    var pool2 = (core.ElementPool.GetPooledCards(pl) ?? new List<CardCore.PooledCard>())
+                        .Select(pc => pc?.SourceCard != null ? NameOf(pc.SourceCard) : "?");
+                    log($"[state] T{core.TurnEngine.TurnNumber} {NameOf(pl)} 手[{string.Join("，", h2)}] 地[{string.Join("，", pool2)}]");
+                }
+            }
         }
 
         private static string NameOf(Entity e)
@@ -218,6 +230,8 @@ namespace CardCore.AI
             CombatSystem.RoleAdjacentResolver = _board.FlankNeighborsOfRole;
             BranchEngines.UnityAdjacentCountOf = _board.AdjacentOccupantCount;
             GameBoard.LinkAuraSystem.Attach(_board);
+            // 2026-11-16：召唤衍生物聚集落格要读 MoveUnitRules.Current；headless 与 UI 同装配。
+            GameBoard.MoveUnitRules.Attach(_board);
             ctrl?.BindBoard(_board); // 2026-11-12 复盘录制：外部 ctrl 接管同一棋盘（投影器快照读 ctrl.Board）
         }
 
@@ -229,6 +243,7 @@ namespace CardCore.AI
             CombatSystem.RoleAdjacentResolver = null;
             BranchEngines.UnityAdjacentCountOf = null;
             GameBoard.LinkAuraSystem.Detach();
+            GameBoard.MoveUnitRules.Detach();
         }
     }
 }

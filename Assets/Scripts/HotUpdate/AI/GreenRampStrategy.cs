@@ -9,16 +9,19 @@ namespace CardCore.AI
     /// <summary>
     /// 绿·慢速 AI（2026-11-15 按用户口径改版）：
     /// **轮转引擎**（用户口径，手牌不够用的根因）：
-    ///   · T3 线：铺 3 地 → 小精灵（首卡，给手牌沃土 −2 绿 = 6→4）→ 牺牲**已横置的地**（+1 彩、腾出 1 槽）
-    ///     → 手牌补一块地（+1 绿）→ 3 绿 + 1 彩 = 4 费把沃土开出来；
-    ///   · T5 线（减半循环，2026-11-15 用户口径）：小精灵（首卡，给**归根** −2 → 4→2 绿）→ 牺牲小精灵
-    ///     （+1 彩，进墓后正是归根的捞回对象）→ 归根回收 3 张 → **落地 1**（腾出的牌位补成地，+1 费）；
-    ///     手里只留「小精灵 / 归根 / 减半」各一张，地每回合 +1，没抽到暗影豹就一直循环；
-    ///     减半**只在对手回合的响应窗贴自己**（自己回合贴 = 回合末清层白给）；
+    ///   · T3 线：铺 3 地 → 小精灵（首卡，给手牌沃土 −2 绿 = 6→4）→ 祭 1 张地或场上小精灵
+    ///     （+1 彩、腾出 1 槽）→ 手牌补一块地（+1 绿）→ 3 绿 + 1 彩 = 4 费把沃土开出来；
+    ///   · T5 线（固定序，2026-11-15 用户口径）：小精灵（首卡，给**归根** −2 → 4→2 绿）→
+    ///     牺牲**场上小精灵 + 一块灰地/非绿地**（+2 彩、腾 1 地槽）→ 归根（捞回 **沃土 + 小精灵×2**）→
+    ///     两只小精灵补地（全绿 7 块）→ **沃土**（绿4 + 任意2）→ T5 结束手牌压到 T7 key（暗影豹 + 虚化）。
+    ///     T5 不留 3 费给虚化；**T7 才是留 3 费、对手回合开虚化的回合**。
+    ///     虚化**只在对手回合的响应窗贴自己**（自己回合贴 = 回合末清层白给）；
     ///   · 关键：**牺牲腾出的槽位要用手牌立刻补回来**（否则地数掉档、牌白烧），墓地那批再用归根捞回手。
-    /// 中期：虚化（9 费保命，无实体钳伤害到 1）最优先；枯竭**全取**（对手元素池有几块抹几块）。
+    /// 中期：虚化（实付 3 绿，无实体钳伤害到 1）只在对**对手回合**的响应窗贴自己；枯竭**全取**（对手元素池有几块抹几块）。
     /// 后期：暗影豹收尾；地铺到 20 后靠成长与归根维持每回合「回收 + 大生物」。
-    /// 卡组（60）：小精灵×15 / 沃土×20 / 归根×15 / 枯竭×2 / 虚化×3 / 暗影豹×5（萌芽已退组）；技能=牺牲。
+    /// 卡组（60）：小精灵×20 / 归根×10 / 沃土×15 / 战斗母巢×10 / 系命母巢×5（虚化/暗影豹已退组）；技能=牺牲。
+    /// 胜点（2026-11-16）：母巢召唤 1/1 攻击守卫衍生物；战斗衍生物带团结4（回合末全体攻+2/血+2），
+    /// 系命衍生物带团结3（回合末赋予系命）。衍生物带遗忘，回合末结算后离场；buff 留在存活单位上。
     /// </summary>
     public sealed class GreenRampStrategy : AiStrategy
     {
@@ -28,16 +31,20 @@ namespace CardCore.AI
         private const string NameReturn = "归根";     // 回收 3 张
         private const string NameEraseLand = "枯竭";  // 抹除对方元素池地牌（2026-11-15 起=全取）
         private const string NamePanther = "暗影豹";  // 9/9 攻守 狩猎+吸血
-        private const string NameVeil = "虚化";       // 赋予无实体（钳伤害到 1）；代价：敌方 +6 甲（净 6 绿）
-        private const string NameHalve = "减半";      // 赋予减半（受到的伤害减半）；代价：敌方 +6 甲（净 2 绿）
+        // 虚化 = 2026-11-15 用户口径里替换掉旧的 4 费「减半」的 3 费保命件（无实体，钳伤害到 1）。
+        // 只能在对**对手回合**的响应窗贴自己；自己回合打 = 回合末掉层白给。全类只保留这一个名字。
+        private const string NameVeil = "虚化";
         private const string NameBeast = "荒原猎兽";  // 5/5 攻击 系命+狩猎（灰4红3绿3 = 10 费）
+        private const string NameBattleNest = "战斗母巢";   // 召唤 5 个 1/1 攻击守卫（团结4：回合末全体攻/血+2）
+        private const string NameLifelinkNest = "系命母巢"; // 召唤 3 个 1/1 攻击守卫（团结3：回合末赋予系命）
+        private const string NameWorkerNest = "工蜂母巢";   // 召唤 2 个 3/1 攻击（卡 1 + 召唤 3 = 4 费，T3 挤费线）
 
-        /// <summary>核心组件（全取抹除 + 虚化 + 暗影豹）——不当土地烧掉。</summary>
+        /// <summary>核心组件（全取抹除 + 虚化 + 暗影豹 + 两张母巢）——不当土地烧掉。</summary>
         private static readonly HashSet<string> CoreNames = new HashSet<string>
         {
             // 荒原猎兽（2026-11-15 修 bug）：此前不在核心件里 → 会被 PlayLands 当土地铺掉，
             // 手牌里永远留不住、T5 之后一次都打不出来。
-            NameEraseLand, NameVeil, NamePanther, NameBeast,
+            NameEraseLand, NameVeil, NamePanther, NameBeast, NameBattleNest, NameLifelinkNest, NameWorkerNest,
         };
 
         private static readonly HashSet<string> EraseNames = new HashSet<string> { NameEraseLand };
@@ -47,7 +54,7 @@ namespace CardCore.AI
 
         /// <summary>地牌门槛（门=操控地数量≥9；9 地后减费/护甲门开启，也是**虚化 9 费保命线**）。</summary>
         private const int GateLands = 9;
-        /// <summary>暗影豹总费 14（8 灰+3 红+3 绿）——钱不够先留手。</summary>
+        /// <summary>暗影豹总费 12（灰9+绿3）——2026-11-15 晚还原卡面后门槛回到 12（小精灵折扣另算）。</summary>
         private const int PantherMinTotal = 12;
         /// <summary>成长停手线（2026-11-14 用户定案）：一路成长到 **20 地**才停——20 地后每回合能稳定
         /// 打出一组「归根 + 暗影豹」。</summary>
@@ -75,16 +82,24 @@ namespace CardCore.AI
         public override bool WantHeroSkill(GameCore core, Player me)
         {
             if (!base.WantHeroSkill(core, me)) return false;
-            // 固定脚本：T5 的「牺牲场上小精灵」是循环的第一步，必须无条件发动（不看费缺口）。
+            // 2026-11-16：T7 母巢召唤差 1~2 点 → 牺牲横置地补费（用户固定序：落 1 地→10 费，
+            // 母巢本体 1 + 召唤 10，需再挤 1 点）。
+            if (NestActivationShort(core, me, out _)) return true;
+            // T7+ 母巢不差费就不再用旧的 T5 小精灵牺牲循环（否则会把循环材料白烧掉）。
+            if (core.TurnEngine != null && core.TurnEngine.TurnNumber >= 7) return false;
+            // 固定脚本：T5 的「牺牲场上小精灵」是循环的第一步，必须无条件发动（不看费缺口）；
+            // 真正的 T5 还会加祭一块灰地/非绿地（换彩 + 腾槽，沃土才付得出）。
             if (InScriptTurn(core, me, out int scriptTurn) && scriptTurn == 5
                 && HasSpiritOnField(core, me)) return true;
             // 脚本 T7（2026-11-15 第二版）：豹已经付得出（PantherReady）才进 T7 脚本——这时候
             // **不需要再牺牲凑费**（祭 4 补 4 那套正是用户要去掉的手牌浪费），所以这里不发动牺牲。
             if (InScriptTurn(core, me, out int t7) && t7 == 7) return false;
-            // 脚本 T3：**必须等「小精灵 + 沃土」把地横置出 2 块以上才牺牲**（用户推导的顺序），
-            // 否则一上来就祭会把 暗影豹/减半 这类材料白烧掉、沃土反而没费打。
+            // 脚本 T3（2026-11-15 用户口径：T3 要跳费）：小精灵先出、沃土还差 1~4 点时，
+            // 允许「牺牲 1 块地 → 腾槽 → 手牌补地」的轮转（净 +1 费）。
+            // 旧闸要求「已横置地 ≥2」——但小精灵只横置 1 块、沃土又还没打出来，条件永远不成立，
+            // T3 跳费被这条死锁卡住（实测 T3 只铺地、沃土 4 费打不出来）。这里改由缺口/补地判定。
             if (InScriptTurn(core, me, out int t3) && t3 == 3)
-                return TappedLands(core, me) >= 2 && HandCopies(core, me, NameReturn) > 0;
+                return T3RampSacrificeReady(core, me);
             if (CoreStuckInPool(core, me).Count > 0) return true;   // 救核心
             int need = ShortfallNeed(core, me);                     // 手里最接近可打的那张还差几点
             if (TotalLands(core, me) < 3) return false;             // 地没铺起来之前不烧（3 地=用户口径的 T3 线）
@@ -132,14 +147,34 @@ namespace CardCore.AI
         /// 其它回合一律拦下——启发式会一次烧 3 张（小精灵×2 + 归根），把循环材料全烧光。</summary>
         public override bool AllowVoluntaryActivation(GameCore core, Player me, Card source, string effectName)
         {
+            // 2026-11-16：母巢主动召唤——有剩余费就出母巢，但**召唤数量会把己方生物挤过 9 格时不发动**
+            //（母巢本体已占场；溢出判定=当前己方生物数 + 召唤数 > 9）。
+            string nestName = source != null ? NameOf(source) : null;
+            if (nestName == NameBattleNest) return HasSummonRoom(core, me, 5);
+            if (nestName == NameLifelinkNest) return HasSummonRoom(core, me, 3);
+            if (nestName == NameWorkerNest) return HasSummonRoom(core, me, 2);
+
             bool isSacrifice = (effectName != null && (effectName.Contains("牺牲") || effectName.Contains("送墓")))
                                || (source != null && NameOf(source) == "牺牲");
+            // 2026-11-16：T7 母巢召唤差 1~2 点 → 允许牺牲横置地补最后几点（随后主动召唤）。
+            if (isSacrifice && NestActivationShort(core, me, out _)) return true;
+            // T7+ 不再走旧的 T5 小精灵牺牲循环；母巢不差费就不祭。
+            if (isSacrifice && core.TurnEngine != null && core.TurnEngine.TurnNumber >= 7) return false;
             if (!isSacrifice) return true;
+            // 豹回收线（2026-11-15 用户口径）：T7/T8 起手里没豹、池里却有豹 → 允许祭豹送墓
+            // （不受「场上须有小精灵」的 T5 闸限制，也不要求先手脚本回合）。
+            if (PantherSalvageActive(core, me) && HasPantherInPool(core, me))
+            {
+                if (Environment.GetEnvironmentVariable("TIDE_DEBUG_GREEN") == "1")
+                    Console.WriteLine($"[dbg-green] sacrifice-allow 豹 turn={core.TurnEngine?.TurnNumber} pool={HasPantherInPool(core, me)}");
+                return true;
+            }
             if (!InScriptTurn(core, me, out int scriptTurn)) return false;
-            // 脚本 T3：必须已有 ≥2 块横置地（小精灵+沃土付过费）才准祭，否则会把材料白烧掉。
-            if (scriptTurn == 3) return TappedLands(core, me) >= 2;
-            // 脚本 T5（2026-11-15 循环）：牺牲的唯一材料是**场上小精灵**；没有小精灵就整条闸关死——
-            // 否则自愿队列会在「手里没小精灵」的回合照样发动，把地池里的地当材料烧掉（实测 T5 地 8→7）。
+            // 脚本 T3：与 WantHeroSkill 同一口径（跳费轮转闸）——不再要求 2 块已横置地。
+            if (scriptTurn == 3) return T3RampSacrificeReady(core, me);
+            // 脚本 T5（2026-11-15 循环）：材料=**场上小精灵**；真正 T5 再加一块非绿地。
+            // 没有小精灵就整条闸关死——否则自愿队列会在「手里没小精灵」的回合照样发动，
+            // 把地池里的地当材料烧掉（实测 T5 地 8→7）。
             if (scriptTurn == 5) return HasSpiritOnField(core, me);
             // 脚本 T7（2026-11-15 第二版）：豹已付得出 → 不需要牺牲凑费，闸直接关死。
             if (scriptTurn == 7) return false;
@@ -156,9 +191,9 @@ namespace CardCore.AI
             return CoreStuckInPool(core, me).Count > 0;
         }
 
-        /// <summary>响应窗（2026-11-15 用户口径）：**减半必须在对手回合打出**。
+        /// <summary>响应窗（2026-11-15 用户口径）：**虚化必须在对手回合打出**。
         /// 指示物是「自己回合结束清一层」——自己回合上等于白给（撑不到对手回合）。
-        /// 所以只在对面的回合、且有响应候选（手牌里的减半）时出手；目标=己方角色。</summary>
+        /// 所以只在对面的回合、且有响应候选（手牌里的虚化）时出手；目标=己方角色。</summary>
         public override ResponseOption PickResponse(GameCore core, Player me, List<ResponseOption> options)
         {
             if (options == null || options.Count == 0) return null;
@@ -166,14 +201,33 @@ namespace CardCore.AI
             var opp = me?.Opponent;
             if (opp == null) return null;
 
+            // 2026-11-16 用户口径：仅守卫生物（攻=false、守=true）按属性配对盯防——
+            // 己方最低属性 → 对手最高属性，依次一一对应；对应单位攻击时由该守卫拦截，
+            // 哪怕这一下会死。非对应单位不拦，剩余攻击打角色。
+            var attackSource = options.FirstOrDefault(o =>
+                o != null && o.Kind == ResponseOption.ResponseKind.GuardAbility)?.AttackInstance?.Source as Card;
+            if (attackSource != null)
+            {
+                var assigned = GuardAssignmentFor(core, me, attackSource);
+                if (assigned != null)
+                {
+                    var guardOpt = options.FirstOrDefault(o =>
+                        o != null && o.Kind == ResponseOption.ResponseKind.GuardAbility
+                        && ReferenceEquals(o.SourceCard, assigned));
+                    if (guardOpt != null && assigned.IsAlive && !assigned.IsTapped()) return guardOpt;
+                }
+            }
+
             ResponseOption pick = null;
             foreach (var o in options)
             {
                 if (o == null || o.Kind != ResponseOption.ResponseKind.HandCard || o.SourceCard == null) continue;
-                if (NameOf(o.SourceCard) != NameHalve) continue;
-                pick = o;                       // 减半在手 → 就在这个窗口上给自己
+                if (NameOf(o.SourceCard) != NameVeil) continue;
+                pick = o;                       // 虚化在手 → 就在这个窗口上给自己
                 break;
             }
+            if (Environment.GetEnvironmentVariable("TIDE_DEBUG_GREEN") == "1")
+                Console.WriteLine($"[dbg-green] resp turn={core.TurnEngine.TurnNumber} untapped={TotalLands(core, me) - TappedLands(core, me)} total={TotalLands(core, me)} opts={options.Count} halveOpt={pick != null} handHalve={HandCopies(core, me, NameVeil)}");
             if (pick == null) return null;
 
             // 结算期目标反问按本策略排序（己方角色优先，故队友/小精灵不会被误选）
@@ -190,8 +244,8 @@ namespace CardCore.AI
         //   T5：小精灵（首卡，−2 给归根）→ 牺牲小精灵（+1 彩）→ 归根（4−2=2，捞回 3 张）→ 落地 1
         //   T7：小精灵 → 牺牲 4 → 落 4 → 暗影豹（卡齐才走）
         // 脚本只改「分数/牺牲目标」，动作仍由引擎逐个执行，因此不会与费用/目标域校验冲突。
-        // 2026-11-15 补（T5 循环落地）：脚本回合内 小精灵/归根/减半 各留一张在手里（多册才铺地），
-        // 归根一回合只打一张且墓地 ≥3 才打（否则白扔 4 费、把对手回合贴减半的钱烧光）。
+        // 2026-11-15 补（T5 循环落地）：脚本回合内 小精灵/归根/虚化 各留一张在手里（多册才铺地），
+        // 归根一回合只打一张且墓地 ≥3 才打（否则白扔 4 费、把对手回合贴虚化的钱烧光）。
 
         /// <summary>元素池里**已横置**的地（按 Card 实例集合；池的横置状态记在 PooledCard 上，不在 Card 上）。</summary>
         private static HashSet<Card> TappedPoolCards(GameCore core, Player me)
@@ -211,6 +265,52 @@ namespace CardCore.AI
             => (core.ZoneManager.GetCards(me, Zone.Battlefield) ?? new List<Card>())
                 .Any(c => c != null && c.IsAlive && NameOf(c) == NameSpirit);
 
+        /// <summary>自方场上小精灵张数（T3 轮转可祭多只，按张数算可补的费）。</summary>
+        private static int SpiritsOnField(GameCore core, Player me)
+            => (core.ZoneManager.GetCards(me, Zone.Battlefield) ?? new List<Card>())
+                .Count(c => c != null && c.IsAlive && NameOf(c) == NameSpirit);
+
+        /// <summary>T3 跳费轮转闸（2026-11-15 用户口径）：沃土在手且只差 1~4 点，并且
+        /// 「池里有地可祭 + 手里有地可补回」（牺牲一块地 +1 彩、腾槽后补一块地 +1 绿，净 +1 费）；
+        /// 或者场上还有小精灵可祭（+1 彩）。这样 T3 不必等 2 块横置地也能把沃土开出来。</summary>
+        private static bool AnyBloomAffordable(GameCore core, Player me)
+        {
+            foreach (var c in core.ZoneManager.GetCards(me, Zone.Hand) ?? new List<Card>())
+                if (Is(c, NameBloom) && GameActions.CanAffordCast(core, me, c, 0)) return true;
+            return false;
+        }
+
+        private static bool T3RampSacrificeReady(GameCore core, Player me)
+        {
+            if (HandCopies(core, me, NameBloom) == 0) return false;
+            // 手里只要**有一张**沃土付得出，就先打它，别为了另一张 6 费沃土去牺牲（2026-11-15 回归：
+            // 两层减费把一张沃土压到 2 费时，旧闸被另一张 6 费沃土误触发，T3 反而没打出沃土）。
+            if (AnyBloomAffordable(core, me)) return false;
+            if (!BloomShort(core, me)) return false;                 // 沃土已付得出 → 不需要祭
+            if (PoolCount(core, me) <= 0) return false;
+            int need = ShortfallNeed(core, me);
+            if (need <= 0 || need > 3) return false;                 // T3 最多祭 3 张
+            // 每祭 1 张最多换回 1 点：横置/未横置地腾槽后靠手牌补 1，场上小精灵直接 +1。
+            // 场上可能不止一只小精灵（T1+T3 各一只），必须按**张数**算，不能只算 1。
+            int canGain = LandInHand(core, me) + SpiritsOnField(core, me);
+            return need <= canGain && HasT3SacrificeMaterial(core, me);
+        }
+
+        /// <summary>T3 是否真有可祭材料（场上小精灵，或池里一张不是 沃土/归根/虚化/暗影豹 的地）。
+        /// 防「闸通过但目标筛选为空」把英雄技能空放掉。</summary>
+        private static bool HasT3SacrificeMaterial(GameCore core, Player me)
+        {
+            if (HasSpiritOnField(core, me)) return true;
+            foreach (var pc in core.ElementPool.GetPooledCards(me))
+            {
+                string n = pc?.SourceCard != null ? NameOf(pc.SourceCard) : null;
+                if (n == null) continue;
+                if (n == NameSpirit || n == NameBloom || n == NameReturn || n == NameVeil || n == NamePanther) continue;
+                return true;
+            }
+            return false;
+        }
+
         /// <summary>当前是自方第几个回合（全局回合 → 自方回合，先手 = 奇数全局回合）。</summary>
         private static int OwnTurnIndex(GameCore core)
             => core?.TurnEngine == null ? 0 : (core.TurnEngine.TurnNumber + 1) / 2;
@@ -226,23 +326,42 @@ namespace CardCore.AI
             if (own == 3) { scriptTurn = 3; return true; }
             if (own == 5) { scriptTurn = 5; return true; }
             // 2026-11-15 用户口径（第二版）：**不再强求 T7 出豹**——手里有豹、且这一拍真付得出
-            // （地+临时彩 ≥12）才进豹脚本；付不出就继续走 T5 的减半循环长地，缓 1~2 个回合再出，
+            // （地+临时彩 ≥12）才进豹脚本；付不出就继续走 T5 的虚化循环长地，缓 1~2 个回合再出，
             // 这样不用为了凑 12 费一次祭 4 张（省手牌）。
             if (own >= 7 && HandCopies(core, me, NamePanther) > 0 && PantherReady(core, me))
             { scriptTurn = 7; return true; }
-            // 豹还没到位（或不在手）：7 回合后继续走 T5 的减半循环（小精灵/牺牲/回收/落地）。
+            // 豹还没到位（或不在手）：7 回合后继续走 T5 的虚化循环（小精灵/牺牲/回收/落地）。
             if (own >= 7) { scriptTurn = 5; return true; }
             return false;
         }
 
 
         /// <summary>暗影豹这一拍打不打得出去（操控地 + 临时彩 ≥ 12）——「缓一回合」的判据：
-        /// 不 ready 就让减半循环继续长地（每回合 +1~2），**不为了 T7 硬凑 12 费去祭 4 张**（省手牌）。</summary>
+        /// 不 ready 就让虚化循环继续长地（每回合 +1~2），**不为了 T7 硬凑 12 费去祭 4 张**（省手牌）。</summary>
         private static bool PantherReady(GameCore core, Player me)
         {
             var pool = core.ElementPool.GetPool(me);
             int temp = pool?.TempElements != null ? pool.TempElements[ManaType.Any] : 0;
             return TotalLands(core, me) + temp >= PantherCost;
+        }
+
+        /// <summary>豹回收线（2026-11-15 用户口径）：T7（先手）/T8（后手）起、**手里没有豹**时，
+        /// 回收优先拿豹（压过虚化）；若豹被当土地铺进元素池，牺牲优先祭它送墓，下一拍回收出豹。
+        /// 用 >= 而不是 ==：T7 祭进墓的豹，要留到下一个自己回合的归根再捞（当回合牌序是「先出牌后牺牲」）。</summary>
+        private static bool PantherSalvageActive(GameCore core, Player me)
+        {
+            if (core?.TurnEngine == null || !ReferenceEquals(core.TurnEngine.TurnPlayer, me)) return false;
+            if (HandCopies(core, me, NamePanther) > 0) return false;
+            int turn = core.TurnEngine.TurnNumber;
+            return ReferenceEquals(core.Player1, me) ? turn >= 7 : turn >= 8;
+        }
+
+        /// <summary>元素池里是否有豹（被当土地铺掉）。</summary>
+        private static bool HasPantherInPool(GameCore core, Player me)
+        {
+            foreach (var pc in core.ElementPool.GetPooledCards(me))
+                if (pc != null && NameOf(pc.SourceCard) == NamePanther) return true;
+            return false;
         }
         /// <summary>脚本内的卡片优先级（数字越大越先打）。</summary>
         private static float ScriptScore(GameCore core, Player me, int scriptTurn, string name, bool firstCard, bool spiritOnField)
@@ -251,14 +370,21 @@ namespace CardCore.AI
             {
                 case 3:
                     if (name == NameSpirit && firstCard) return 9900f;
+                    // 工蜂母巢 1+3=4：必须等小精灵/牺牲/补地挤出 4 费后再出；否则只拍 1 费本体、
+                    // 3 费召唤开不出来，下一拍就被红解掉（2026-11-16 实测）。
+                    if (name == NameWorkerNest) return AvailableMana(core, me) >= 5 ? 9850f : 300f;
                     if (name == NameBloom) return 9800f;
                     if (name == NameReturn) return 9700f;      // 用户推导：T3 收尾是「回收」
                     break;
                 case 5:
                     if (name == NameSpirit && firstCard) return 9900f;
                     // T5 循环的「回收」：墓地 ≥3 张才打（回收 3 才是纯收益）——不够的回合再打第二张
-                    // 只是把 4 费扔掉（实测 T5 二次归根捞 1 张、把留给对手回合贴减半的费烧光）。
+                    // 只是把 4 费扔掉（实测 T5 二次归根捞 1 张、把留给对手回合贴虚化的费烧光）。
                     if (name == NameReturn) return GyCount(core, me) >= 3 ? (spiritOnField ? 9850f : 9800f) : 150f;
+                    // 2026-11-16：第一组三回合（T1/T3/T5）的第二次成长仍在 T5 优先于母巢；
+                    // T7 起不再强制沃土，把费让给母巢+召唤。
+                    if (name == NameBloom && core.TurnEngine != null
+                        && core.TurnEngine.TurnNumber <= 5 && HandCopies(core, me, NameBloom) > 0) return 9800f;
                     break;
                 case 7:
                     if (name == NameSpirit && firstCard) return 9900f;
@@ -350,20 +476,32 @@ namespace CardCore.AI
                 return 5200f;
             }
 
-            if (name == NameVeil)
+            if (name == NameWorkerNest)
             {
-                // 虚化（净 6 绿，2026-11-15 代价化）：够费就出保命；但让位给沃土（成长引擎优先），
-                // 血量吃紧（≤15）才反超一切、先贴无实体。
-                if (AvailableMana(core, me) < VeilMana) return 800f;
-                return me.Life <= 15 ? 7000f : 5000f;
+                // 工蜂母巢：本体 1 + 召唤 3 = 4 费；能凑 4 费就早出（T3 挤费线），
+                // 2 只 3/1 攻击衍生物立刻能压场。
+                if (AvailableMana(core, me) >= 5) return 9400f;
+                if (GameActions.CanAffordCast(core, me, card, 0)) return 7500f;
+                return 1200f;
             }
 
-            if (name == NameHalve)
+            if (name == NameBattleNest || name == NameLifelinkNest)
             {
-                // 减半（2026-11-15 用户口径）：指示物在**自己回合结束清一层**，所以自己回合打=白给。
-                // 只在**对手回合**的响应窗里打（见 PickResponse）；自己回合一律不打。
+                // 新胜点（2026-11-16）：母巢=召唤衍生物的终端。**能一次付清「本体 1 + 召唤费」的
+                // 优先出**（战斗 11 / 系命 7），保证出场后下一拍能直接发动；付不起召唤费的只当
+                // 3/3 白板，分数低。T3/T5 的沃土仍在 ScriptScore 的 9800 之上，不抢成长。
+                int activation = name == NameBattleNest ? 10 : 6;
+                if (AvailableMana(core, me) >= activation + 1) return name == NameBattleNest ? 9300f : 9200f;
+                if (!GameActions.CanAffordCast(core, me, card, 0)) return 1200f;
+                return name == NameBattleNest ? 7300f : 7000f;
+            }
+
+            if (name == NameVeil)
+            {
+                // 虚化（2026-11-15 用户口径）= 替换旧的 4 费「减半」的 3 费保命件：无实体在自己回合结束会掉，
+                // 所以**自己回合一律不打**，只在对手回合的响应窗里打（见 PickResponse）。
                 if (core.TurnEngine != null && ReferenceEquals(core.TurnEngine.TurnPlayer, me)) return 0f;
-                if (AvailableMana(core, me) < HalveMana) return 600f;
+                if (AvailableMana(core, me) < VeilMana) return 600f;
                 return me.Life <= 18 ? 6600f : 3600f;
             }
 
@@ -378,15 +516,29 @@ namespace CardCore.AI
         {
             // 脚本回合（T3 收尾回收 / T5 循环）：回收必须能落地，不能被动「墓地不足 2 张」的攒牌闸拦住。
             // 但 T5 循环（2026-11-15）多一条：**同一回合的第二张归根不打**——墓地只剩 1 张时打回收
-            // 等于白扔 4 费，把留给对手回合贴减半的钱花光（实测 T5 第二次归根只捞 1 张）。
+            // 等于白扔 4 费，把留给对手回合贴虚化的钱花光（实测 T5 第二次归根只捞 1 张）。
             if (InScriptTurn(core, me, out int scriptTurn) && NameOf(card) == NameReturn)
             {
+                // T5 固定序：只要墓地里有沃土，第一张归根就允许打（哪怕墓地<3 张）——
+                // 否则新卡组把 虚化/豹 换掉后墓地常常只有 2 张，归根被攒住、T5 沃土出不来。
+                if (scriptTurn == 5 && GyHasBloom(core, me)) return false;
                 if (scriptTurn == 5 || scriptTurn == 7) return GyCount(core, me) < 3;
                 return false;
             }
             // T7 暗影豹：费一够就打出去——旧的「地 <11 先留手」会正好卡在「牺牲+补地后
             // 够 12 费」这一拍上，豹被攒在手里直到回合结束（2026-11-15 探针实测 hold=True）。
             if (scriptTurn == 7 && NameOf(card) == NamePanther) return false;
+            // T7 起（用户口径：T7 才是留费开虚化的回合）：手里有虚化时，**留 3 费**给下一拍对手回合，
+            // 非终端牌如果会花掉这 3 费就留手；暗影豹/荒原猎兽仍可打（它们是终端，不为虚化让路）。
+            if (core.TurnEngine != null && core.TurnEngine.TurnNumber >= 7
+                && ReferenceEquals(core.TurnEngine.TurnPlayer, me)
+                && HandCopies(core, me, NameVeil) > 0
+                && NameOf(card) != NameVeil
+                && NameOf(card) != NamePanther && NameOf(card) != NameBeast)
+            {
+                int cost = (int)Math.Ceiling(GameActions.GetCardCost(card, 0).Total - 1e-4f);
+                if (AvailableMana(core, me) - cost < VeilMana) return true;
+            }
             return ShouldHoldStatic(core, me, card);
         }
 
@@ -407,7 +559,7 @@ namespace CardCore.AI
             => LandsAsFodder(core, me, card, NameOf(card));
 
         /// <summary>这张牌能不能当土地打（ShouldLand/WantLand/LandInHand 共用单口径）：
-        /// 12 地封顶；核心件（枯竭/虚化/暗影豹）与减半永不当土地；带了「费用降低（绿）」指示物的牌也不当；
+        /// 12 地封顶；核心件（枯竭/虚化/暗影豹）与虚化永不当土地；带了「费用降低（绿）」指示物的牌也不当；
         /// 小精灵/沃土/归根 各留一张，多册才铺——**手里实在没有别的可铺的牌**时允许拿归根兜底
         /// （14 张、还能被自己回收），否则地数会卡在 1~2 不动，成长永远开不出来。</summary>
         private static bool LandsAsFodder(GameCore core, Player me, Card card, string name)
@@ -422,20 +574,41 @@ namespace CardCore.AI
             // 例外（用户 T3 推导）：手里有 ≥2 张归根时，可以拿一张铺地（另一张留着打回收）。
             if (InScriptTurn(core, me, out int st))
             {
-                // T5 循环（2026-11-15 用户口径）：手里**各留一张**小精灵 / 归根 / 减半——
+                // **T3 优先铺满 3 地**（2026-11-16 用户口径）：T3 地 <3 时，除 沃土/虚化 外都可垫地；
+                // 小精灵留 1 只打首卡，多册才铺；归根/暗影豹单张也垫（先把 3 地铺满再谈 T5/T7）。
+                if (st == 3 && TotalLands(core, me) < 3)
+                {
+                    // 母巢=新胜点，T3 垫地也不许烧；沃土/虚化同样保护。
+                    if (name == NameBloom || name == NameVeil
+                        || name == NameBattleNest || name == NameLifelinkNest || name == NameWorkerNest) return false;
+                    if (name == NameSpirit) return HandCopies(core, me, NameSpirit) >= 2;
+                    return true;
+                }
+                // **T5/T7 的沃土是成长目标，永不当土地**：T5 归根把沃土捞回手后，PlayLands 先把它
+                // 铺进元素池，T5 就永远打不出沃土。T3 例外——T3 允许把多册的 6 费沃土铺地凑 3 地，
+                // 只要带减费指示物的那张仍被上面的保护闸挡住（T3 跳费的旧口径）。
+                if (st >= 5 && name == NameBloom) return false;
+                // T5 循环（2026-11-15 用户口径）：手里**各留一张**小精灵 / 归根 / 虚化——
                 // 它们是下一回合「小精灵 → 牺牲 → 回收」的循环材料，铺成地等于把循环断掉。
                 // 注意判定用「手牌张数」而不是「手牌+墓地+地池」：池里/墓地里的归根救不了本回合要打的这张
                 //（旧口径 ReturnAvailable≥2 会把手里唯一一张归根铺掉，T5 回收永远打不出来）。
                 if (name == NameReturn) return HandCopies(core, me, NameReturn) >= 2;
-                if (name == NameSpirit) return HandCopies(core, me, NameSpirit) >= 2;
-                // 减半：T3 当补地材料；T5 起要留给对手回合的响应窗，只有多册才铺。
-                if (name == NameHalve) return st == 3 || HandCopies(core, me, NameHalve) >= 2;
+                // T5 固定序（2026-11-15 用户口径）：小精灵（首卡）→ 祭小精灵+灰地 → 归根（捞回 沃土+小精灵×2）
+                // → **两只小精灵都当土地补绿** → 沃土。手里有沃土且还差费时，小精灵（包括最后一张）
+                // 也铺地；这是 T5 把 8 块地全变成绿、凑出沃土 6 费的唯一来源。
+                if (name == NameSpirit)
+                {
+                    if (st == 5 && HandCopies(core, me, NameBloom) > 0 && BloomShort(core, me)) return true;
+                    return HandCopies(core, me, NameSpirit) >= 2;
+                }
+                // 虚化：**永远留一张在手里**给对手回合的响应窗（T3 也不能铺掉最后一张——
+                // 旧口径 T3 允许当补地材料，实测把唯一的虚化铺进池后 T4 就贴不出无实体了）；多册才铺。
+                if (name == NameVeil) return HandCopies(core, me, NameVeil) >= 2;
             }
-            // 脚本 T3：用户推导里「落地 2」用的是 未知牌 + 暗影豹——所以 T3 允许把 暗影豹/减半 铺成地，
-            // 先把地数顶到 3（否则 1 块地连沃土都开不出来）。
-            // 减半要留在手里（用户 T3 目标手牌），只有暗影豹可以铺成地凑地数。
-            if (InScriptTurn(core, me, out int st3) && st3 == 3 && name == NamePanther) return true;
-            if (CoreNames.Contains(name) || name == NameHalve) return false;  // 核心件/减半不当土地
+            // 2026-11-15 晚（豹减速线配套）：**豹不再当土地铺**——T3 旧口径允许拿豹凑 3 地，
+            // 实测把豹烧进元素池后再也回不来（池不满就不祭、归根只捞墓地），直接废掉唯一胜点。
+            // 现在小精灵 20 张，T3 有足够铺地材料，豹一律留手。
+            if (CoreNames.Contains(name)) return false;  // 核心件（含虚化）不当土地
             // 带了「费用降低（绿）」指示物的牌绝不当土地铺——那是小精灵首卡给的折扣，
             // 铺成地=把 2 层折扣直接吞掉（2026-11-15 用户抓到的 T3 连招打空）。
             if (card != null && card.GetCounterCount(CounterRules.CostDownGreenCounter) > 0) return false;
@@ -464,7 +637,7 @@ namespace CardCore.AI
                 if (c == null || ReferenceEquals(c, exclude)) continue;
                 string n = NameOf(c);
                 if (n == null) continue;
-                if (CoreNames.Contains(n) || n == NameHalve) continue;
+                if (CoreNames.Contains(n)) continue;
                 if (c.GetCounterCount(CounterRules.CostDownGreenCounter) > 0) continue;
                 if (n == NameSpirit || n == NameBloom || n == NameReturn)
                 {
@@ -516,57 +689,85 @@ namespace CardCore.AI
                 //（CandidatesInZone 走 TargetZoneGrouping 单一源——横置的战场生物不再可能被当成地；
                 // 小精灵按名挑是脚本材料语义，保持不动）。
                 var poolSet = new HashSet<Entity>(CandidatesInZone(req, 0, 2));
-                // 固定脚本 T5（2026-11-15 用户口径）：牺牲的是**场上小精灵**（不烧地、不烧手牌），
-                // 让它进墓地后由「回收」捞回手——循环靠这一手转起来。
+                // 2026-11-16 T7 母巢补费：只祭**池里已横置的地**，差几点祭几张；不碰核心件。
+                if (NestActivationShort(core, me, out int nestShort))
+                {
+                    var tappedSet = TappedPoolCards(core, me);
+                    var picks = list.Where(e => poolSet.Contains(e) && e is Card c
+                            && tappedSet.Contains(c) && !CoreNames.Contains(NameOf(c)))
+                        .OrderByDescending(e => e is Card c2 ? SacrificeScore(core, me, c2) : 0f)
+                        .Take(nestShort).ToList();
+                    if (picks.Count > 0) return picks;
+                }
+                // 固定脚本 T5（2026-11-15 用户口径）：**场上小精灵 + 一块非绿色地** 一起祭。
+                // 小精灵进墓给归根当回收料，同时 +1 彩；非绿地（池里的灰地）换成彩并腾出 1 个地槽，
+                // 下一步补绿地后 沃土 才付得出（只祭小精灵时 T5 会差 1 点绿，沃土永远打不出来）。
                 // 候选里没有小精灵就返回空表（本次不选目标，绝不退回「按分数挑」把地/手牌烧掉）。
                 if (InScriptTurn(core, me, out int scriptSac) && scriptSac == 5)
                 {
-                    return list.Where(e => e is Card c && c.IsAlive && NameOf(c) == NameSpirit)
-                               .Take(1)
-                               .ToList();
+                    var sac = new List<Entity>();
+                    var spirit = list.FirstOrDefault(e => e is Card c && c.IsAlive && NameOf(c) == NameSpirit);
+                    if (spirit != null) sac.Add(spirit);
+                    // 只有**真正的 T5** 才加祭一块非绿地：T5 固定序要 沃土 落地，必须把灰地换彩+腾槽。
+                    // T7+ 走回 T5 循环时只祭小精灵（省地/省 key，T7 的费要留给虚化）。
+                    if (core.TurnEngine != null && core.TurnEngine.TurnNumber == 5)
+                    {
+                        // 池里的暗影豹是「地」不是手牌 key：T5 正是要祭这块灰地换成彩+绿地，不能排除它。
+                        var land = list.Where(e => poolSet.Contains(e) && e is Card c
+                                && NameOf(c) != NameSpirit && NameOf(c) != NameBloom
+                                && NameOf(c) != NameReturn && NameOf(c) != NameVeil)
+                            .OrderByDescending(e => e is Card c2 && IsOffColorLand(core, me, c2))
+                            .ThenByDescending(e => e is Card c3 ? SacrificeScore(core, me, c3) : 0f)
+                            .FirstOrDefault();
+                        if (land != null) sac.Add(land);
+                    }
+                    return sac;
                 }
-                // 脚本 T3（2026-11-15 用户推导）：牺牲 **2 块已横置的地**——
-                // 绝不烧 沃土（成长引擎）/归根（回收口）/小精灵（T5 材料）。
+                // 脚本 T3（2026-11-15 用户口径：T3 跳费）：祭 **够用就好** 的 1~3 张地，
+                // 优先已横置地（色已花掉），其次未横置地（祭 1 补 1 = 净 +1 费），最后才轮到小精灵。
+                // 旧实现固定凑 3 张，且无条件先烧 2 张地上小精灵——把 T5 的循环材料烧光（用户战报抓到）。
                 if (InScriptTurn(core, me, out int t3sac) && t3sac == 3)
                 {
                     if (Environment.GetEnvironmentVariable("TIDE_DEBUG_SAC") == "1")
                         Console.WriteLine($"[dbg-sac] T3 candidates={list.Count} cards={list.Count(e => e is Card)} tapped={list.Count(e => e is Card c0 && c0.IsTapped())} names={string.Join(",", list.OfType<Card>().Select(c1 => (NameOf(c1) ?? c1.ID) + (c1.IsTapped() ? "*" : "")))}");
-                    // 2026-11-15 用户口径（T3 两种分支）：
-                    // 目标手牌 = 小精灵 + 归根 + 减半。若 T1 的小精灵还活着 → 祭 3（2 小精灵 + 1 横置地）；
-                    // 若它已经死了 → 墓地已够，祭到「够付回收」即可（1~2 张）。
+                    // 张数 = 沃土/回收还差几点（最多 3）：差 1 点只祭 1 张，绝不多烧。
+                    int t3Take = Math.Clamp(ShortfallNeed(core, me), 1, 3);
                     var tappedSet = TappedPoolCards(core, me);
                     var spirits = list.Where(e => e is Card cs && cs.IsAlive && NameOf(cs) == NameSpirit).ToList();
-                    // 祭的材料只取「可再生的」：小精灵最多 2 张 + 1 块多余的横置地（归根/沃土铺成的地）。
-                    // **暗影豹与减半必须留在手里**（用户 T3 目标手牌 = 小精灵 + 归根 + 减半）。
+                    // 绝不动：沃土（成长引擎）/归根（回收口，留在手里）/暗影豹 / 虚化（对手回合响应窗）。
                     var tapped = list.Where(e => poolSet.Contains(e) && e is Card c && tappedSet.Contains(c)
                             && NameOf(c) != NameSpirit && NameOf(c) != NameBloom
-                            && NameOf(c) != NamePanther && NameOf(c) != NameHalve)
+                            && NameOf(c) != NameReturn
+                            && NameOf(c) != NamePanther && NameOf(c) != NameVeil)
                         .OrderByDescending(e => e is Card c2 ? SacrificeScore(core, me, c2) : 0f)
                         .ToList();
+                    var anyPool = list.Where(e => poolSet.Contains(e) && e is Card cp && NameOf(cp) != NameSpirit
+                            && NameOf(cp) != NameBloom && NameOf(cp) != NameReturn
+                            && NameOf(cp) != NameVeil && NameOf(cp) != NamePanther)
+                        .OrderByDescending(e => e is Card cp2 ? SacrificeScore(core, me, cp2) : 0f)
+                        .ToList();
                     var picks3 = new List<Entity>();
-                    foreach (var sp in spirits.Take(2)) picks3.Add(sp);
                     foreach (var tl in tapped)
                     {
-                        if (picks3.Count >= 3) break;
+                        if (picks3.Count >= t3Take) break;
                         picks3.Add(tl);
                     }
-                    // 候选里没有「已横置的地」时也要补一张**地**凑第 3 张（2026-11-15 规格收窄：
-                    // 只在己方元素池组内补——战场生物永远不当地祭）：
-                    // 祭掉它虽然不增费（未横置=绿换彩），但能腾出地牌槽 → 下一步补地 +1 费，回收才够。
-                    if (picks3.Count < 3)
+                    // 横置地不够：用未横置地补齐（腾槽后 PlayLands 会从手牌补回来，净 +1 费）。
+                    foreach (var ap in anyPool)
                     {
-                        var anyPool = list.Where(e => poolSet.Contains(e) && e is Card cp && NameOf(cp) != NameSpirit
-                                && NameOf(cp) != NameBloom && NameOf(cp) != NameHalve
-                                && NameOf(cp) != NamePanther)
-                            .OrderByDescending(e => e is Card cp2 ? SacrificeScore(core, me, cp2) : 0f)
-                            .ToList();
-                        foreach (var ap in anyPool)
-                        {
-                            if (picks3.Count >= 3) break;
-                            if (!picks3.Contains(ap)) picks3.Add(ap);
-                        }
+                        if (picks3.Count >= t3Take) break;
+                        if (!picks3.Contains(ap)) picks3.Add(ap);
+                    }
+                    // 地还不够（例如池里已空）：才把小精灵当第 3 档材料。
+                    foreach (var sp in spirits)
+                    {
+                        if (picks3.Count >= t3Take) break;
+                        if (!picks3.Contains(sp)) picks3.Add(sp);
                     }
                     if (picks3.Count > 0) return picks3;
+                    // T3 脚本找不到合规材料（池里只剩要留的牌）→ 本次不祭；
+                    // 绝不能回落到底下的通用挑选，否则会把 虚化/归根 当废料烧掉。
+                    return new List<Entity>();
                 }
                 var stuck = CoreStuckInPool(core, me);
                 if (stuck.Count > 0)
@@ -622,9 +823,9 @@ namespace CardCore.AI
                 return list.OrderByDescending(e => e is Player).ToList();
             }
 
-            // 无实体 / 减半：保命配件——**只能贴自己**（角色优先，其次己方单位）。
+            // 无实体 / 虚化：保命配件——**只能贴自己**（角色优先，其次己方单位）。
             // 注意原子域写的是「己方战场:生物; 双方角色」，候选里会带对手角色，必须先筛己方，
-            // 否则 AI 会把减半贴到对手脸上（2026-11-15 用户战报抓到的错误目标）。
+            // 否则 AI 会把虚化贴到对手脸上（2026-11-15 用户战报抓到的错误目标）。
             if (atom == AtomicEffectType.GrantSpellban || atom == AtomicEffectType.ProtectionHalve)
             {
                 var own = list.Where(e => e is Player pl
@@ -643,8 +844,11 @@ namespace CardCore.AI
                         && ReferenceEquals(c.GetController(), me))
                     .ToList();
                 if (ownUnits.Count == 0) return list;
+                // 2026-11-16 用户口径：系命优先贴**属性最高**的己方生物（攻+血总和，同分看攻击）。
                 return ownUnits
-                    .OrderByDescending(e => e is Card c2 ? core.LayerEngine.CalculatePower(c2) : 0f)
+                    .OrderByDescending(e => e is Card c2
+                        ? core.LayerEngine.CalculatePower(c2) + core.LayerEngine.CalculateToughness(c2) : 0)
+                    .ThenByDescending(e => e is Card c3 ? core.LayerEngine.CalculatePower(c3) : 0)
                     .ToList();
             }
 
@@ -671,14 +875,21 @@ namespace CardCore.AI
         }
 
         /// <summary>牺牲落点估值（2026-11-15 轮转口径）：
-        /// 池中核心/**减半** 3000（救人：减半被成长拉进池 → 祭掉进墓地，再由归根捞回手）＞
+        /// 池中核心/**虚化** 3000（救人：虚化被成长拉进池 → 祭掉进墓地，再由归根捞回手）＞
         /// 已横置地 1500（色已花掉：再祭=1 彩 + 腾 1 槽，下一步补地）＞ 场上小精灵 700 ＞
         /// 未横置地/池中小精灵 300 ＞ 场上核心 −3000（绝不能祭）。</summary>
         private static float SacrificeScore(GameCore core, Player me, Card c)
         {
             string name = NameOf(c);
             bool inPool = c.GetZone() == Zone.ElementPool;
-            if (name == NameHalve) return inPool ? 3000f : -3000f;
+            // 豹回收线（T7/T8 起手里没豹）：池中豹优先祭掉送墓，下一个自己回合归根捞回手
+            if (name == NamePanther && inPool && PantherSalvageActive(core, me))
+            {
+                if (Environment.GetEnvironmentVariable("TIDE_DEBUG_GREEN") == "1")
+                    Console.WriteLine($"[dbg-green] sacrifice-score 豹 3600 turn={core.TurnEngine?.TurnNumber}");
+                return 3600f;
+            }
+            if (name == NameVeil) return inPool ? 3000f : -3000f;
             if (name != null && CoreNames.Contains(name)) return inPool ? 3000f : -3000f;
             if (inPool)
             {
@@ -698,6 +909,14 @@ namespace CardCore.AI
             return true;
         }
 
+        /// <summary>池里的地是否不是绿色（例如沃土随机拉进来的灰地暗影豹）——T5 优先祭它换彩/腾槽。</summary>
+        private static bool IsOffColorLand(GameCore core, Player me, Card card)
+        {
+            foreach (var pc in core.ElementPool.GetPooledCards(me))
+                if (pc != null && ReferenceEquals(pc.SourceCard, card)) return pc.LockedColor != ManaType.Green;
+            return false;
+        }
+
         /// <summary>当前元素池地牌数（=可用地数上限的分子）。</summary>
         private static int PoolCount(GameCore core, Player me)
             => core.ElementPool.GetPooledCards(me).Count();
@@ -706,20 +925,33 @@ namespace CardCore.AI
         private static bool PoolFull(GameCore core, Player me)
             => PoolCount(core, me) >= core.ElementPool.GetLandCap(me);
         /// <summary>回收落点（2026-11-15 用户口径）：
-        /// **减半 / 暗影豹 最优先**（保命件 + 终端）；小精灵/归根 其次；
+        /// **虚化 / 暗影豹 最优先**（保命件 + 终端）；小精灵/归根 其次；
         /// 沃土 在 **9 地之后不再回收**（成长上限已够，抽到才打），避免把回收额度浪费在它身上。</summary>
         private static float RecoverScore(GameCore core, Player me, Card c)
         {
             string name = NameOf(c);
             int lands = TotalLands(core, me);
-            // 减半循环的「回收三格」= 小精灵 + 归根 + **减半或豹**（2026-11-15 用户口径）：
-            //  · 豹还打不出去（地+彩 <12）→ 第三格给减半（保住对手回合的减伤）；
+            if (Environment.GetEnvironmentVariable("TIDE_DEBUG_GREEN") == "1" && PantherSalvageActive(core, me))
+                Console.WriteLine($"[dbg-green] recover-cand turn={core.TurnEngine?.TurnNumber} name={name}");
+            // T5 固定序（2026-11-15 用户口径）：归根**必须先把沃土捞回来**（T5 目标=小精灵→归根→沃土），
+            // 所以 T5 的沃土回收分压过小精灵/豹；否则会捞成小精灵×2+豹，沃土留在墓地，T5 打不出沃土。
+            if (core?.TurnEngine != null && core.TurnEngine.TurnNumber == 5 && name == NameBloom) return 1250f;
+            // 虚化循环的「回收三格」= 小精灵 + 归根 + **虚化或豹**（2026-11-15 用户口径）：
+            //  · 豹还打不出去（地+彩 <12）→ 第三格给虚化（保住对手回合的减伤）；
             //  · 豹打得出去 → 只把第三格换成豹（回收它 → 下一拍直接 9/9 系命再打一轮）。
-            //  排序刻意让 小精灵/归根 在最上（循环的燃料），第三格在 减半/豹 之间随 ready 切换。
+            //  排序刻意让 小精灵/归根 在最上（循环的燃料），第三格在 虚化/豹 之间随 ready 切换。
             if (name == NameSpirit) return 1200f;
             if (name == NameReturn) return 1190f;
-            if (name == NamePanther) return PantherReady(core, me) ? 1180f : 1050f;
-            if (name == NameHalve) return 1100f;
+            if (name == NamePanther)
+            {
+                if (Environment.GetEnvironmentVariable("TIDE_DEBUG_GREEN") == "1")
+                    Console.WriteLine($"[dbg-green] RecoverScore 豹 turn={core.TurnEngine?.TurnNumber} salvage={PantherSalvageActive(core, me)} ready={PantherReady(core, me)} hand={HandCopies(core, me, NamePanther)}");
+                if (PantherReady(core, me)) return 1180f;
+                // T7/T8 起手里没豹：回收豹压过虚化（先捞回手，下一拍出豹）
+                if (PantherSalvageActive(core, me)) return 1185f;
+                return 1050f;
+            }
+            if (name == NameVeil) return 1100f;
             if (name == NameBloom) return lands >= GateLands ? 80f : 800f;   // 9 地后不回收
             if (name != null && CoreNames.Contains(name)) return 1000f;
             return 100f;
@@ -755,11 +987,22 @@ namespace CardCore.AI
             // 旧口径在 T5 会把折扣给沃土（6→4），归根仍是 4 费，回收永远差费打不出来。
             if (InScriptTurn(core, me, out int scriptTurn) && scriptTurn >= 5)
             {
-                if (name == NameReturn) return 130f;
-                if (name == NameBloom) return 60f;
+                // T5 固定序：沃土在手里 → 折扣给沃土（6→4，腾出 4 费给归根）；
+                // 沃土在墓地、要靠归根捞 → 折扣给归根（4→2，先让回收转起来）。
+                bool bloomInHand = HandCopies(core, me, NameBloom) > 0;
+                if (bloomInHand)
+                {
+                    if (name == NameBloom) return 130f;
+                    if (name == NameReturn) return 60f;
+                }
+                else
+                {
+                    if (name == NameReturn) return 130f;
+                    if (name == NameBloom) return 60f;
+                }
             }
             if (name == NamePanther && HandCopies(core, me, NamePanther) > 0
-                && TotalLands(core, me) >= 7) return 120f;
+                && TotalLands(core, me) >= 6) return 120f;
             if (name == NameBeast && HandCopies(core, me, NameBeast) > 0
                 && TotalLands(core, me) >= 6) return 110f;
             return CostDownTargetScore(name, bothCastable);
@@ -815,12 +1058,11 @@ namespace CardCore.AI
         /// <summary>成长(沃土)的总费——2026-11-15 用户定案改为 **净 2.5**（锚 5.5 手钉 − 代价 3），
         /// 支付时逐色进位按 3 算。</summary>
         private const int BloomCost = 3;
-        /// <summary>暗影豹总费（灰9+绿3，2026-11-15 吸血改系命后仍为 12）。</summary>
+        /// <summary>暗影豹总费（灰9+绿3=12；2026-11-15 晚还原卡面）。</summary>
         private const int PantherCost = 12;
-        /// <summary>虚化总费——无实体 绿9 − 代价 3 = 净 6。</summary>
-        private const int VeilMana = 6;
-        /// <summary>减半总费——减半指示物 绿5 − 代价 3 = 净 2。</summary>
-        private const int HalveMana = 2;
+        /// <summary>虚化实付——2026-11-15 用户口径：替换「虚化」的这张 3 费保命件，结算实付 绿×3
+        /// （锚 6 − 代价 3；对局日志「支付 绿×3」为准，旧 6 是误读锚价）。</summary>
+        private const int VeilMana = 3;
 
         /// <summary>缺口：手里「最接近可打」的那张牌还差几点费（0=没有可补的）。留手牌不算。</summary>
         private static int ShortfallNeed(GameCore core, Player me)
@@ -884,43 +1126,43 @@ namespace CardCore.AI
             return false;
         }
         /// <summary>ShouldHold 的静态可用版（ShortfallNeed 里不能用实例方法递归调用）。
-        /// 2026-11-15 用户给的阶段标准：**T3/T4 只做成长，T5/T6 减半+成长，T7/T8 出暗影豹**——
-        /// 所以 9 地之前手里还有成长/减半时，回收先留手（别把 T4 的费花在「小精灵+回收」上）。</summary>
+        /// 2026-11-15 用户给的阶段标准：**T3/T4 只做成长，T5/T6 虚化+成长，T7/T8 出暗影豹**——
+        /// 所以 9 地之前手里还有成长/虚化时，回收先留手（别把 T4 的费花在「小精灵+回收」上）。</summary>
         private static bool ShouldHoldStatic(GameCore core, Player me, Card card)
         {
             string name = NameOf(card);
             if (name == null) return false;
             if (name == NameReturn)
             {
-                if (ReturnHeldEarly(core, me)) return true;                     // 成长/减半还没落地 → 回收留手
+                if (ReturnHeldEarly(core, me)) return true;                     // 成长/虚化还没落地 → 回收留手
                 return GyCount(core, me) < 2 || !HasUsefulGrave(core, me);      // 墓地≥2 且有货才捞
             }
-            // 减半（2026-11-15 修）：**自己回合永远留手**（指示物回合末清一层 → 打了等于白给），
+            // 虚化（2026-11-15 修）：**自己回合永远留手**（指示物回合末清一层 → 打了等于白给），
             // 只在对手回合的响应窗打。这一条必须放在「手里有回收就不攒」之前——否则手里有归根时
-            // 减半会被当成可打牌白扔在自己回合（实测 T5 自回合支付 绿×4 贴了个空）。
-            if (name == NameHalve && core.TurnEngine != null
+            // 虚化会被当成可打牌白扔在自己回合（实测 T5 自回合支付 绿×4 贴了个空）。
+            if (name == NameVeil && core.TurnEngine != null
                 && ReferenceEquals(core.TurnEngine.TurnPlayer, me)) return true;
             // 2026-11-15 用户定案：真正要留的 key 只有「回收」。手里有回收 → 其它都不攒；
             // 没有回收时枯竭等目标（全取，有地就打）、暗影豹等地/钱到位（下位替代）。
             if (HandCopies(core, me, NameReturn) > 0) return false;
-            if (name == NameHalve) return true;
+            if (name == NameVeil) return true;
             if (EraseNames.Contains(name)) return OpponentLands(core, me) == 0;
             // 小精灵（2026-11-15 用户定案）：**永远不攒**——每回合只要手里有，第一张就打它（首卡 −2 交出去）。
             if (name == NameSpirit) return false;
-            // 沃土就差 1~4 点、手里能补出来 → **别的牌先别花这笔费**（先凑成长；减半/回收都往后放）。
-            // 这是用户口径「手里有这两张卡就该 100% 达成」的关键：不中途把费花在减半/回收上。
-            if ((name == NameHalve || name == NameReturn) && BloomShort(core, me)) return true;
+            // 沃土就差 1~4 点、手里能补出来 → **别的牌先别花这笔费**（先凑成长；虚化/回收都往后放）。
+            // 这是用户口径「手里有这两张卡就该 100% 达成」的关键：不中途把费花在虚化/回收上。
+            if ((name == NameVeil || name == NameReturn) && BloomShort(core, me)) return true;
             if (name == NamePanther)
                 return HandCopies(core, me, name) <= 1 && TotalLands(core, me) < 11;
             return false;
         }
 
-        /// <summary>9 地之前、手里还有成长/减半可打 → 回收留手（把折扣和费让给成长线）。
+        /// <summary>9 地之前、手里还有成长/虚化可打 → 回收留手（把折扣和费让给成长线）。
         /// 2026-11-15 用户口径：T3/T4 只做成长（回收留手），**T5 起要先用回收开场**（回收+牺牲+补地
-        /// 把 8 费凑出来，再沃土+减半），所以门槛只卡到 5 地。</summary>
+        /// 把 8 费凑出来，再沃土+虚化），所以门槛只卡到 5 地。</summary>
         private static bool ReturnHeldEarly(GameCore core, Player me)
             => TotalLands(core, me) < 5
-               && (HandCopies(core, me, NameBloom) > 0 || HandCopies(core, me, NameHalve) > 0);
+               && (HandCopies(core, me, NameBloom) > 0 || HandCopies(core, me, NameVeil) > 0);
 
         /// <summary>「操作表」（2026-11-15 用户口径）：按当前费缺口返回（牺牲张数, 需要补地张数）。
         /// · 缺口 ≤1：小精灵首卡 −2 已经覆盖，不用祭；
@@ -996,7 +1238,7 @@ namespace CardCore.AI
         private static int OpponentLands(GameCore core, Player me)
             => core.ElementPool.GetPooledCards(me.Opponent).Count();
 
-        /// <summary>地牌池里躺着的关键件（被成长随机拉进去的核心组件 / 减半）——祭掉救回手。</summary>
+        /// <summary>地牌池里躺着的关键件（被成长随机拉进去的核心组件 / 虚化）——祭掉救回手。</summary>
         private static List<Card> CoreStuckInPool(GameCore core, Player me)
         {
             var result = new List<Card>();
@@ -1004,7 +1246,7 @@ namespace CardCore.AI
             {
                 if (pc?.SourceCard == null) continue;
                 string name = NameOf(pc.SourceCard);
-                if (name != null && (CoreNames.Contains(name) || name == NameHalve)) result.Add(pc.SourceCard);
+                if (name != null && (CoreNames.Contains(name) || name == NameVeil)) result.Add(pc.SourceCard);
             }
             return result;
         }
@@ -1038,6 +1280,11 @@ namespace CardCore.AI
         private static int GyCount(GameCore core, Player me)
             => (core.ZoneManager.GetCards(me, Zone.Graveyard) ?? new List<Card>()).Count;
 
+        /// <summary>墓地里是否有沃土（T5 归根必须优先把沃土捞回来）。</summary>
+        private static bool GyHasBloom(GameCore core, Player me)
+            => (core.ZoneManager.GetCards(me, Zone.Graveyard) ?? new List<Card>())
+                .Any(c => c != null && NameOf(c) == NameBloom);
+
         // ======================================== 小工具 ========================================
 
         private static string NameOf(Card card) => (card as CardWrapper)?.GetData()?.CardName;
@@ -1057,6 +1304,66 @@ namespace CardCore.AI
 
         private static int TotalLands(GameCore core, Player me)
             => core.ElementPool.GetPooledCards(me).Count();
+
+        /// <summary>2026-11-16 仅守卫生物配对：己方最低属性守 → 对手最高属性攻，依次一一对应。
+        /// 返回“这只攻击者对应的守卫”；不在配对表（对面攻击者多于守卫）返回 null。</summary>
+        private static Card GuardAssignmentFor(GameCore core, Player me, Card attacker)
+        {
+            if (core?.ZoneManager == null || me == null || attacker == null) return null;
+            int Stat(Card c)
+            {
+                if (c == null) return 0;
+                return core.LayerEngine.CalculatePower(c) + core.LayerEngine.CalculateToughness(c);
+            }
+            bool IsGuardOnly(Card c)
+            {
+                if (!(c is CardWrapper w)) return false;
+                var d = w.GetData();
+                return d != null && d.Supertype == Cardtype.Creature && d.GuardAbility && !d.AttackAbility;
+            }
+            var guards = (core.ZoneManager.GetCards(me, Zone.Battlefield) ?? new List<Card>())
+                .Where(c => c != null && c.IsAlive && !c.IsTapped() && IsGuardOnly(c))
+                .OrderBy(Stat).ThenBy(c => c.ID, StringComparer.Ordinal)
+                .ToList();
+            if (guards.Count == 0) return null;
+            var enemies = (core.ZoneManager.GetCards(me.Opponent, Zone.Battlefield) ?? new List<Card>())
+                .Where(c => c != null && c.IsAlive && c.IsLivingUnit() && core.LayerEngine.CalculatePower(c) > 0)
+                .OrderByDescending(Stat)
+                .ThenByDescending(c => core.LayerEngine.CalculatePower(c))
+                .ThenBy(c => c.ID, StringComparer.Ordinal)
+                .ToList();
+            int idx = enemies.FindIndex(c => ReferenceEquals(c, attacker));
+            return idx >= 0 && idx < guards.Count ? guards[idx] : null;
+        }
+
+        /// <summary>2026-11-16 T7 固定序：场上有母巢、召唤费只差 1~2 点，且池里有足够横置地可祭。</summary>
+        /// 典型：10 地 → 母巢本体 1 后剩 9，召唤 10，差 1；祭一块横置地 +1 彩正好补上。</summary>
+        private static bool NestActivationShort(GameCore core, Player me, out int shortBy)
+        {
+            shortBy = 0;
+            if (core?.TurnEngine == null || core.TurnEngine.TurnNumber < 7) return false;
+            var units = (core.ZoneManager.GetCards(me, Zone.Battlefield) ?? new List<Card>())
+                .Where(c => c != null && c.IsAlive && c.IsLivingUnit()).ToList();
+            bool battle = units.Any(c => NameOf(c) == NameBattleNest);
+            bool lifelink = units.Any(c => NameOf(c) == NameLifelinkNest);
+            bool worker = units.Any(c => NameOf(c) == NameWorkerNest);
+            if (!battle && !lifelink && !worker) return false;
+            int need = battle ? 5 : worker ? 2 : 3;
+            if (!HasSummonRoom(core, me, need)) return false;
+            int activation = battle ? 10 : worker ? 4 : 6;
+            shortBy = activation - AvailableMana(core, me);
+            return shortBy > 0 && shortBy <= TappedLands(core, me);
+        }
+
+        /// <summary>母巢已在场时，还能不能容下 need 个衍生物（单位区 9 格；母巢本体已在当前生物数里）。</summary>
+        private static bool HasSummonRoom(GameCore core, Player me, int need)
+        {
+            int idx = ReferenceEquals(me, core?.Player1) ? 0 : 1;
+            int cap = GameBoard.BoardLayout.UnitCells(idx).Count;
+            int units = (core.ZoneManager.GetCards(me, Zone.Battlefield) ?? new List<Card>())
+                .Count(c => c != null && c.IsAlive && c.IsLivingUnit());
+            return cap - units >= need;
+        }
     }
 }
 

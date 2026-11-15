@@ -124,6 +124,11 @@ namespace TideSim
             if (args.Length > 0 && args[0] == "--hunt-reset")
                 return HuntResetProbe.Run();
 
+            // 冻地探针（2026-11-16 冻结扩展到地牌验收）：产轴收窄/候选解析/冻地执行/
+            // 冻地不产色（付费规划跳过）/回合钩子（层>0 不恢复·回合末−1·归零恢复）
+            if (args.Length > 0 && args[0] == "--freeze-land-probe")
+                return FreezeLandProbe.Run();
+
             var options = SimOptions.Parse(args);
             if (options.Games <= 0) { Console.WriteLine("--games 必须 > 0"); return 2; }
             if (options.MaxTurns <= 0) { Console.WriteLine("--max-turns 必须 > 0"); return 2; }

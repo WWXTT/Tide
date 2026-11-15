@@ -78,9 +78,9 @@
   },
   {
     "ID": "fdf529cb",
-    "TextHash": "42f1b1c5",
+    "TextHash": "653d1a37",
     "EnumName": "倒计时",
-    "DisplayName": "自由分支·倒计时：准备阶段倒计时层数−1，归零则触发奖励并重挂倒计时（费用与回合数一比一）",
+    "DisplayName": "自由分支·倒计时：准备阶段倒计时层数−1，归零则触发奖励并重挂倒计时（只能自动触发，费用与回合数一比一）",
     "EffectType": "EngineCountdown",
     "TargetFilter": null,
     "Polarity": 0,
@@ -101,22 +101,10 @@
     "ManaList": null
   },
   {
-    "ID": "4b9a0393",
-    "TextHash": "4b9a0393",
-    "EnumName": "拼枪",
-    "DisplayName": "自由分支·拼枪：从双方牌库中随机展示一张生物卡比攻击力，无生物视为0，差额≥x，则触发奖励（最大值6）",
-    "EffectType": "EngineClash",
-    "TargetFilter": null,
-    "Polarity": 0,
-    "MountKinds": "引擎主干",
-    "Tags": null,
-    "ManaList": null
-  },
-  {
     "ID": "fd645778",
-    "TextHash": "dbaf032d",
+    "TextHash": "1d753cf1",
     "EnumName": "元素充盈",
-    "DisplayName": "自由分支·元素充盈：双方使用卡牌结算后，己方可用元素-对手可用元素的差恰等于x，则触发奖励（只能自动触发，差额上限为6）",
+    "DisplayName": "自由分支·元素充盈：双方使用卡牌结算后，己方可用元素-对手可用元素大于x，则触发奖励（只能自动触发，差额上限为6）",
     "EffectType": "EngineManaSurplus",
     "TargetFilter": null,
     "Polarity": 0,
@@ -128,7 +116,7 @@
     "ID": "83c150f2",
     "TextHash": "83c150f2",
     "EnumName": "团结",
-    "DisplayName": "自由分支·团结：与此卡相邻的单位数量（生物/结界/角色/非空地牌格各算一）达到 x 时触发奖励（最大值6）",
+    "DisplayName": "自由分支·团结：与此卡相邻的生物数量达到 x 时触发奖励（最大值6）",
     "EffectType": "EngineUnity",
     "TargetFilter": null,
     "Polarity": 0,
@@ -291,9 +279,9 @@
   },
   {
     "ID": "f8f622b6",
-    "TextHash": "f8f622b6",
-    "EnumName": "操控地数量≤3",
-    "DisplayName": "操控地数量≤3",
+    "TextHash": "6bfb9dec",
+    "EnumName": "操控地数量≤2",
+    "DisplayName": "操控地数量≤2",
     "EffectType": "SituationGate",
     "TargetFilter": null,
     "Polarity": 0,
@@ -345,5 +333,23 @@
     "GateId": "CostGate",
     "Budget": 3,
     "特殊裁定": "代价挪入有限分支（2026-11-06）：选中后第二槽填代价原子（一般效果行·双侧域，全价≤3）——减免等值费用。展示期合成/保存回写卡级代价行，本门不落盘。代价不是奖励（2026-11-10 R4）：全价≤3、同色逐行抵扣——不进奖励预算，带代价行的效果也不可被选作奖励效果引用。"
+  },
+  {
+    "ID": "f3ca462e",
+    "TextHash": "f3ca462e",
+    "EnumName": "召唤衍生物",
+    "DisplayName": "召唤{value}个衍生物至指定落区，并赋予一层遗忘指示物（{衍生物}=字符串参数指向一张真实生物卡，实例=该卡全参数复制）",
+    "EffectType": "SummonToken",
+    "TargetFilter": null,
+    "Polarity": 1,
+    "MountKinds": "动态费用",
+    "Tags": null,
+    "参数": "CardRef",
+    "ManaList": [
+      0,
+      0,
+      0,
+      0
+    ]
   }
 ]

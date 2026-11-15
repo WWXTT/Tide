@@ -6,7 +6,7 @@
       "hash": "7ABD0919",
       "timing": 19,
       "activation": 2,
-      "selection": 0,
+      "selection": 3,
       "count": 1,
       "cost": [
         0.0,
@@ -21,7 +21,8 @@
           "atom": {
             "refId": "973884b1",
             "kinds": [
-              2
+              2,
+              14
             ]
           }
         }
@@ -223,7 +224,7 @@
       "id": "9D4C9867",
       "name": "训练·全场冻结",
       "hash": "9D4C9867",
-      "selection": 2,
+      "selection": 5,
       "cost": [
         0.0,
         0.0,
@@ -237,7 +238,8 @@
           "atom": {
             "refId": "973884b1",
             "kinds": [
-              2
+              2,
+              14
             ]
           }
         }
@@ -513,7 +515,7 @@
       "hash": "D96F4E48",
       "timing": 21,
       "activation": 2,
-      "selection": 0,
+      "selection": 3,
       "count": 1,
       "cost": [
         0.0,
@@ -528,7 +530,8 @@
           "atom": {
             "refId": "973884b1",
             "kinds": [
-              2
+              2,
+              14
             ]
           }
         }
@@ -1019,6 +1022,13 @@
       "hash": "1A06F706",
       "timing": 19,
       "activation": 2,
+      "cost": [
+        0.0,
+        2.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "steps": [
         {
           "kind": 0,
@@ -1041,6 +1051,13 @@
       "hash": "0EDB028C",
       "timing": 19,
       "activation": 2,
+      "cost": [
+        0.0,
+        0.0,
+        0.0,
+        2.0,
+        0.0
+      ],
       "steps": [
         {
           "kind": 0,

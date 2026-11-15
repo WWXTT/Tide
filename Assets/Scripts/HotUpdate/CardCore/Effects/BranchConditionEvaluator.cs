@@ -84,10 +84,11 @@ namespace CardCore
                             == (context.SimulatedPreview ? 1 : 0);
                 case "LifeLe7":    // 角色生命值 ≤ 7
                     return context?.Controller != null && context.Controller.GetLife() <= 7;
-                case "LandsLe3":   // 操控地数量 ≤ 3（2026-11-03 红套火灵奖励门改版——早期地少=快攻奖励窗；
+                case "LandsLe3":   // 操控地数量 ≤ 2（2026-11-16 用户削弱：红套火灵抽1门 ≤3 → ≤2——早期地少=快攻奖励窗；
+                                   //  **key 名保留 LandsLe3 兼容存量数据**（同 LandsGt9 先例），语义以原子表行「操控地数量≤2」为准；
                                    //  地牌口径同 LandsGe7：元素池中未耗尽的地牌张数）
                     return context?.Controller != null && context.ElementPool != null
-                        && context.ElementPool.GetPooledCards(context.Controller).Count <= 3;
+                        && context.ElementPool.GetPooledCards(context.Controller).Count <= 2;
 
                 default:
                     return false; // 未知条件 id 恒假

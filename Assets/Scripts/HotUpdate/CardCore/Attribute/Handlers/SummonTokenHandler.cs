@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using CardCore.Attribute;
 
 namespace CardCore.Attribute.Handlers
@@ -146,8 +147,58 @@ namespace CardCore.Attribute.Handlers
                         break;
 
                     default:
+                        // 2026-11-16 用户口径：召唤衍生物**聚集落格**，不要 first-free 摊成一排——
+                        // 团结4 需要相邻己方生物；一排 5 只只有 1 只能达标，聚集后应有 2 只达标。
+                        // 选空格时按“相邻己方生物数”最高者钉格；无棋盘（纯核心测试）回落原自动落位。
+                        var board = GameBoard.MoveUnitRules.Current;
+                        int pinX = -1, pinZ = -1;
+                        if (board != null)
+                        {
+                            // 5 只战斗衍生物优先落成“2×3 六格块”（母巢+5 只），块里正好两只
+                            // 各有 4 个相邻己方生物 → 团结4 触发两次；落不成再回退到贪心聚集。
+                            // 主动效果的 context.Source 有时是玩家/效果而非母巢本体；落格计划必须拿母巢卡。
+                            Card mother = context.Source as Card;
+                            if (mother == null || !(mother is CardWrapper mw) || mw.GetData()?.CardName != "战斗母巢")
+                            {
+                                foreach (var c in context.ZoneManager.GetCards(context.Controller, Zone.Battlefield) ?? new List<Card>())
+                                {
+                                    if (c is CardWrapper cw && cw.GetData()?.CardName == "战斗母巢") { mother = c; break; }
+                                }
+                            }
+                            var plan = BuildClusterPlan(board, context.Controller, mother, count);
+                            if (plan != null && plan.Count > 0)
+                            {
+                                pinX = plan[0].x;
+                                pinZ = plan[0].z;
+                            }
+                            else
+                            {
+                                var cells = GameBoard.BoardLayout.UnitCells(board.PlayerIndex(context.Controller));
+                                int bestScore = -1;
+                                foreach (var cell in cells)
+                                {
+                                    if (board.CardAt(cell.x, cell.z) != null) continue;
+                                    int score = 0;
+                                    foreach (GameBoard.BoardDirection dir in Enum.GetValues(typeof(GameBoard.BoardDirection)))
+                                    {
+                                        var (nx, nz) = GameBoard.BoardMath.Neighbor(cell.x, cell.z, dir);
+                                        if (!GameBoard.BoardMath.InBounds(nx, nz)) continue;
+                                        var occ = board.CardAt(nx, nz);
+                                        if (occ != null && ReferenceEquals(occ.GetController(), context.Controller)) score++;
+                                    }
+                                    if (score > bestScore)
+                                    {
+                                        bestScore = score;
+                                        pinX = cell.x;
+                                        pinZ = cell.z;
+                                    }
+                                }
+                            }
+                        }
                         // 战场：满场入墓+失败事件、进场事件(TokenSpawned)、触发式注册 均由统一出口承担
                         context.ZoneManager.TryAddToBattlefield(token, context.Controller, EnterSource.TokenSpawned);
+                        // PinCard 必须等 token 真正在战场后再钉（入场前 Resync 会清掉 stale pin）。
+                        if (pinX >= 0) board.PinCard(token, pinX, pinZ);
                         break;
                 }
 
@@ -163,6 +214,45 @@ namespace CardCore.Attribute.Handlers
 
                 context.LastOutcome.AffectedTargets.Add(token);
             }
+        }
+
+        /// <summary>5 只召唤衍生物 + 母巢落成 2×3 六格块：块内正好两只各有 4 个相邻己方生物，
+        /// 团结4 触发两次。返回块内尚空的 5 格（按块序）；母巢不在任何 2×3 块/格被占=null 回退。</summary>
+        private static List<(int x, int z)> BuildClusterPlan(GameBoard.BoardState board, Player controller,
+            Entity source, int count)
+        {
+            if (board == null || count != 5) return null;
+            if (!(source is Card sourceCard)) return null;
+            if (!board.TryGetCell(sourceCard, out int mx, out int mz)) return null;
+            var cells = GameBoard.BoardLayout.UnitCells(board.PlayerIndex(controller));
+            int mi = -1;
+            for (int i = 0; i < cells.Count; i++)
+                if (cells[i].x == mx && cells[i].z == mz) { mi = i; break; }
+            if (mi < 0) return null;
+
+            // 单位格序：远端 4 格 idx0-3，近端 5 格 idx4-8。四个 2×3 块（块内两只达标）。
+            int[][] patterns =
+            {
+                new[] { 0, 1, 2, 4, 5, 6 },
+                new[] { 0, 1, 2, 5, 6, 7 },
+                new[] { 1, 2, 3, 5, 6, 7 },
+                new[] { 1, 2, 3, 6, 7, 8 },
+            };
+            foreach (var pattern in patterns)
+            {
+                bool contains = false;
+                foreach (int idx in pattern) if (idx == mi) { contains = true; break; }
+                if (!contains) continue;
+                var result = new List<(int x, int z)>();
+                foreach (int idx in pattern)
+                {
+                    if (idx == mi) continue;
+                    var c = cells[idx];
+                    if (board.CardAt(c.x, c.z) == null) result.Add(c);
+                }
+                if (result.Count > 0) return result;
+            }
+            return null;
         }
 
         protected override string DescribeTemplate(AtomicEffectInstance effect) =>

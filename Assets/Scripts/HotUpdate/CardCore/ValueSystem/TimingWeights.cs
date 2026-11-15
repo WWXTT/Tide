@@ -6,10 +6,11 @@ namespace CardCore
     /// <summary>
     /// 时机档位（2026-11-14 用户定案，取代 2026-11-05「单次/多次（付费后一生几次）」两档）。
     /// 自动效果改按**一回合内的触发次数**分档——档位同时决定宿主资格与时机系数：
-    /// · <see cref="PerTurn"/> 一回合一次：攻击/守卫（阻拦宣言）/回合开始/准备阶段/回合结束/登场/
-    ///   进场/游戏开始/被攻击/横置/重置——默认每回合至多触发一次，**时机系数恒 1**（等效一张法术）；
+    /// · <see cref="PerTurn"/> 一回合一次：攻击/守卫（阻拦宣言）/回合开始/准备阶段/回合结束/
+    ///   游戏开始/被攻击/横置/重置——默认每回合至多触发一次，**时机系数恒 1**（等效一张法术）；
     /// · <see cref="Rare"/> 稀有：被破坏/被除外/死亡/离场/墓地回场/角色死亡/占卜——比一回合一次
     ///   更难触发，**沿用之前按概率得到的系数**（表 Factor，如 被破坏 0.55、被除外 0.12）；
+    ///   登场（OnPlay）/进场（OnSummon）2026-11-16 归档本档：一生一次<一回合一次，Factor 0.9；
     /// · <see cref="Multi"/> 一回合多次：抽牌/伤害/使用卡牌/结算观察/原子三阶段/阶段起止/其他生物
     ///   进出场/施放法术——**只能挂结界**，每次触发扣 1 点耐久（耐久即次数池），系数 1；
     /// · <see cref="Active"/> 主动：Activate_* 三值，现付不进时序，恒 1。
@@ -74,18 +75,21 @@ namespace CardCore
         private static bool _loadAttempted;
         private static int _version = 1;
 
-        /// <summary>一回合一次族（表 Bucket=PerTurn 的镜像——缺行/表不可读时的兜底分类）。</summary>
+        /// <summary>一回合一次族（表 Bucket=PerTurn 的镜像——缺行/表不可读时的兜底分类；
+        /// 登场/进场 2026-11-16 迁 Rare 0.9 后移出本集）。</summary>
         private static readonly HashSet<TriggerTiming> PerTurnFallback = new HashSet<TriggerTiming>
         {
-            TriggerTiming.OnPlay, TriggerTiming.OnGameStart, TriggerTiming.OnTurnStart,
-            TriggerTiming.OnStandbyPhase, TriggerTiming.OnTurnEnd, TriggerTiming.OnSummon,
+            TriggerTiming.OnGameStart, TriggerTiming.OnTurnStart,
+            TriggerTiming.OnStandbyPhase, TriggerTiming.OnTurnEnd,
             TriggerTiming.OnAttack, TriggerTiming.OnAttacked, TriggerTiming.OnBlockDeclare,
             TriggerTiming.OnTap, TriggerTiming.OnUntap,
         };
 
-        /// <summary>稀有族（概率触发——表 Bucket=Rare 的镜像兜底）。</summary>
+        /// <summary>稀有族（概率触发——表 Bucket=Rare 的镜像兜底；含 2026-11-16 迁入的
+        /// 登场/进场——一生一次口径，Factor 0.9）。</summary>
         private static readonly HashSet<TriggerTiming> RareFallback = new HashSet<TriggerTiming>
         {
+            TriggerTiming.OnPlay, TriggerTiming.OnSummon,
             TriggerTiming.OnDeath, TriggerTiming.OnDestroy, TriggerTiming.OnExile,
             TriggerTiming.OnLeaveBattlefield, TriggerTiming.OnReturnFromGraveyard,
             TriggerTiming.OnRoleDeath, TriggerTiming.OnScry,

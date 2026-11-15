@@ -398,16 +398,22 @@ namespace CardCore
                             }
                             if (ComposerCatalog.IsAtomOnlyEngine(eng))
                             {
-                                if (!hasThen)
+                                // 2026-11-16：团结支持“奖励=效果引用（effectId）”，用于一次触发结算
+                                // 多原子组合（战斗衍生物：回合结束全体攻+2 + 全体血+2，引用 D1A00016）。
+                                bool unityEffectRef = eng == BranchEngineKind.Unity
+                                                      && !string.IsNullOrEmpty(branch.effectId);
+                                bool unityMultiAtom = eng == BranchEngineKind.Unity && branch.then != null && branch.then.Count > 1;
+                                if (!hasThen && !unityEffectRef)
                                     TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}：{engZh}分支"
-                                                  + "缺少原子奖励（前 6 引擎奖励=单个原子，禁止组合效果引用）——装载期拦截");
-                                else if (branch.then.Count > 1)
+                                                  + "缺少奖励（原子/效果引用至少一个）——装载期拦截");
+                                else if (branch.then != null && branch.then.Count > 1 && !unityMultiAtom)
                                     TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}：{engZh}分支"
-                                                  + $"携带 {branch.then.Count} 个原子奖励——前 6 引擎只收单个原子——装载期拦截");
-                                else if (!string.IsNullOrEmpty(branch.effectId) || !string.IsNullOrEmpty(atom.str))
+                                                  + $"携带 {branch.then.Count} 个原子奖励——除团结外只收单个原子——装载期拦截");
+                                else if (!string.IsNullOrEmpty(atom.str)
+                                         || (!string.IsNullOrEmpty(branch.effectId) && eng != BranchEngineKind.Unity))
                                     TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}：{engZh}分支"
-                                                  + "带效果引用（effectId/str）——前 6 引擎只收原子，组合效果请改用并列/有限分支/光环——装载期拦截");
-                                else
+                                                  + "带效果引用（effectId/str）——除团结外只收原子——装载期拦截");
+                                else if (hasThen)
                                 {
                                     var rewardRow = Attribute.AtomicEffectTable.GetByHashId(branch.then[0]?.refId);
                                     if (rewardRow == null)

@@ -316,24 +316,6 @@
     "Tier": "Dp1_5"
   },
   {
-    "ID": "f3ca462e",
-    "TextHash": "f3ca462e",
-    "EnumName": "召唤衍生物",
-    "DisplayName": "召唤{value}个衍生物至指定落区，并赋予一层遗忘指示物（{衍生物}=字符串参数指向一张真实生物卡，实例=该卡全参数复制）",
-    "EffectType": "SummonToken",
-    "TargetFilter": null,
-    "Polarity": 1,
-    "MountKinds": "动态费用",
-    "Tags": null,
-    "参数": "CardRef",
-    "ManaList": [
-      1,
-      0,
-      0,
-      0
-    ]
-  },
-  {
     "ID": "7e6840f3",
     "TextHash": "34675a99",
     "Domain": "双方战场:生物; 双方战场:结界",

@@ -691,12 +691,13 @@ namespace CardCore
                 var template = string.IsNullOrEmpty(atom.StringValue) ? null : resolver?.Invoke(atom.StringValue);
                 float anchor = cfg != null ? cfg.TotalUnitCost : 0f; // 本体费=表行锚价（恒收）
                 if (template == null) return anchor;
-                float unit = 0f;
-                foreach (var kv in SummonCompensatedBuckets(template, out _))
-                    unit += kv.Value;
-                if (unit <= 0f) return anchor;
+                // 2026-11-16 用户口径（最终）：召唤效果本体 0 费；单只计价 = **卡面推导费 + 2**，
+                // 再乘数量。1/1 去守卫/去攻击后卡面推导费=0，所以 5 只=10、3 只=6。
+                // 无底盘内容全价只作计价参考，不再用于召唤总价。
+                float unit = CardCostService.Derive(template)?.DerivedTotal ?? 0f;
+                if (unit < 0f) unit = 0f;
                 int count = Math.Max(1, atom.Value);
-                return anchor + unit * count;
+                return (unit + 2f) * count;
             }
 
             // 属性价梯（2026-09-13 定案：攻/血同锚 0.5/+1，按持续档定价——取代通用公式与持续折扣）：

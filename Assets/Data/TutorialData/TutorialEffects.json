@@ -2323,9 +2323,10 @@
         0.0,
         0.0,
         0.0,
-        4.0,
+        3.0,
         0.0
       ],
+      "costPin": 1,
       "steps": [
         {
           "kind": 0,
@@ -4186,8 +4187,8 @@
     },
     {
       "id": "FXGREEN07",
-      "name": "对一个己方战场生物或己方角色附加1层无实体；代价：一个敌方单位获得6层护甲",
-      "hash": "7572EE26",
+      "name": "对一个己方角色附加1层无实体；代价：一个敌方单位获得6层护甲",
+      "hash": "BCE955E2",
       "timing": 19,
       "activation": 2,
       "selection": 0,
@@ -4196,9 +4197,10 @@
         0.0,
         0.0,
         0.0,
-        8.0,
+        6.0,
         0.0
       ],
+      "costPin": 1,
       "costs": [
         {
           "type": 1,
@@ -4218,7 +4220,11 @@
         {
           "kind": 0,
           "atom": {
-            "refId": "6c38edaa"
+            "refId": "6c38edaa",
+            "kinds": [
+              1
+            ],
+            "domain": "己方角色"
           }
         }
       ]
@@ -4242,8 +4248,8 @@
     },
     {
       "id": "FXGREEN09",
-      "name": "登场时，为己方角色添加4层护甲；若为本回合使用的第一张卡，为一手牌添加2层绿色费用减少指示物",
-      "hash": "1BB32D5A",
+      "name": "登场时，为己方角色添加2层护甲；若为本回合使用的第一张卡，为一手牌添加2层绿色费用减少指示物",
+      "hash": "36D7FCB7",
       "cost": [
         0.0,
         0.0,
@@ -4251,13 +4257,12 @@
         1.0,
         0.0
       ],
-      "costPin": 1,
       "steps": [
         {
           "kind": 0,
           "atom": {
             "refId": "9ff1954d",
-            "value": 4,
+            "value": 2,
             "domain": "己方角色"
           }
         },
@@ -4355,6 +4360,280 @@
             "kinds": [
               1
             ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "AB57E454",
+      "name": "团结3，赋予一个友方生物系命",
+      "hash": "AB57E454",
+      "timing": 6,
+      "activation": 1,
+      "limit": 1,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "83c150f2",
+            "branch": {
+              "settle": 3,
+              "engine": 8,
+              "engineParam": 3,
+              "then": [
+                {
+                  "refId": "1e60cb92"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "962BF790",
+      "name": "全体攻击力增加2",
+      "hash": "962BF790",
+      "timing": 6,
+      "activation": 1,
+      "selection": 2,
+      "cost": [
+        4.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "39a3106c",
+            "value": 2,
+            "kinds": [
+              1
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "FD74D899",
+      "name": "全体生命值增加2",
+      "hash": "FD74D899",
+      "timing": 6,
+      "activation": 1,
+      "selection": 2,
+      "cost": [
+        4.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "7a97f666",
+            "value": 2,
+            "kinds": [
+              1
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "D1A00011",
+      "name": "团结4，回合结束时全体攻击力增加2",
+      "hash": "D1A00011",
+      "timing": 6,
+      "activation": 1,
+      "limit": -1,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "83c150f2",
+            "branch": {
+              "settle": 3,
+              "engine": 8,
+              "engineParam": 4,
+              "then": [
+                {
+                  "refId": "39a3106c",
+                  "value": 2,
+                  "kinds": [
+                    1
+                  ],
+                  "count": 10
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "selection": 2
+    },
+    {
+      "id": "D1A00012",
+      "name": "团结4，回合结束时全体生命值增加2",
+      "hash": "D1A00012",
+      "timing": 6,
+      "activation": 1,
+      "limit": -1,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "83c150f2",
+            "branch": {
+              "settle": 3,
+              "engine": 8,
+              "engineParam": 4,
+              "then": [
+                {
+                  "refId": "7a97f666",
+                  "value": 2,
+                  "kinds": [
+                    1
+                  ],
+                  "count": 10
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "selection": 2
+    },
+    {
+      "id": "D1A00013",
+      "name": "主动：召唤5个战斗衍生物",
+      "hash": "D1A00013",
+      "timing": 19,
+      "activation": 2,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "f3ca462e",
+            "value": 5,
+            "str": "C_D1A00003"
+          }
+        }
+      ]
+    },
+    {
+      "id": "D1A00014",
+      "name": "主动：召唤3个系命衍生物",
+      "hash": "D1A00014",
+      "timing": 19,
+      "activation": 2,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "f3ca462e",
+            "value": 3,
+            "str": "C_D1A00004"
+          }
+        }
+      ]
+    },
+    {
+      "id": "D1A00015",
+      "name": "团结4，回合结束时全体攻击力/生命值增加2",
+      "hash": "D1A00015",
+      "timing": 6,
+      "activation": 1,
+      "limit": 1,
+      "selection": 2,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "83c150f2",
+            "branch": {
+              "settle": 3,
+              "engine": 8,
+              "engineParam": 4,
+              "effectId": "D1A00016"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "D1A00016",
+      "name": "回合结束时，全体攻击力增加2、全体生命值增加2",
+      "hash": "D1A00016",
+      "timing": 6,
+      "activation": 1,
+      "selection": 2,
+      "cost": [
+        4.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "39a3106c",
+            "value": 2,
+            "kinds": [
+              1
+            ],
+            "count": 10
+          }
+        },
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "7a97f666",
+            "value": 2,
+            "kinds": [
+              1
+            ],
+            "count": 10
+          }
+        }
+      ]
+    },
+    {
+      "id": "D1A00017",
+      "name": "主动：召唤5个战斗衍生物（加血）",
+      "hash": "D1A00017",
+      "timing": 19,
+      "activation": 2,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "f3ca462e",
+            "value": 5,
+            "str": "C_D1A00006"
+          }
+        }
+      ]
+    },
+    {
+      "id": "D1A00018",
+      "name": "主动：召唤2个工蜂",
+      "hash": "D1A00018",
+      "timing": 19,
+      "activation": 2,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "f3ca462e",
+            "value": 2,
+            "str": "C_D1A00008"
           }
         }
       ]

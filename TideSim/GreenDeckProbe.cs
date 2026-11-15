@@ -21,6 +21,8 @@ namespace TideSim
         public static int Run(string[] ids)
         {
             CardCatalog.LoadAll();
+            // 2026-11-16：召唤衍生物的动态费用要解析模板卡；探针也注入解析器（与 AiDuelRunner 同口径）。
+            CardCore.Attribute.Handlers.SummonTokenHandler.ResolveTemplate = CardCatalog.GetById;
             if (ids == null || ids.Length == 0) ids = DefaultIds;
             int fail = 0;
             foreach (var id in ids)

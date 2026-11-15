@@ -2903,7 +2903,7 @@
         0.0,
         0.0
       ],
-      "hash": "92129581"
+      "hash": "5D9C0DDE"
     },
     {
       "id": "C_33367D9D",
@@ -2998,8 +2998,8 @@
       "cardName": "小精灵",
       "illustration": "PetitAngel",
       "supertype": "Creature",
-      "power": 1,
-      "life": 1,
+      "power": 2,
+      "life": 2,
       "tags": [
         "ThemeGreenCountdown",
         "教学"
@@ -3013,7 +3013,7 @@
         0.0,
         1.0
       ],
-      "hash": "310B634B"
+      "hash": "767953EB"
     },
     {
       "id": "C_046A30F8",
@@ -3037,6 +3037,192 @@
         0.0
       ],
       "hash": "18BCF9E5"
+    },
+    {
+      "id": "C_D1A00001",
+      "cardName": "战斗母巢",
+      "supertype": "Creature",
+      "attackAbility": false,
+      "guardAbility": false,
+      "power": 3,
+      "life": 3,
+      "costList": [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeGreenCountdown",
+        "教学"
+      ],
+      "effectIds": [
+        "D1A00013"
+      ],
+      "hash": "DA7CC42B"
+    },
+    {
+      "id": "C_D1A00002",
+      "cardName": "系命母巢",
+      "supertype": "Creature",
+      "attackAbility": false,
+      "guardAbility": false,
+      "power": 3,
+      "life": 3,
+      "costList": [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeGreenCountdown",
+        "教学"
+      ],
+      "effectIds": [
+        "D1A00014"
+      ],
+      "hash": "D7DAAB7E"
+    },
+    {
+      "id": "C_D1A00003",
+      "cardName": "战斗衍生物",
+      "supertype": "Creature",
+      "attackAbility": false,
+      "guardAbility": true,
+      "power": 1,
+      "life": 1,
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeGreenCountdown",
+        "教学",
+        "衍生物"
+      ],
+      "effectIds": [
+        "D1A00011"
+      ],
+      "hash": "0140DEA4"
+    },
+    {
+      "id": "C_D1A00004",
+      "cardName": "系命衍生物",
+      "supertype": "Creature",
+      "attackAbility": true,
+      "guardAbility": false,
+      "power": 1,
+      "life": 1,
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeGreenCountdown",
+        "教学",
+        "衍生物"
+      ],
+      "effectIds": [
+        "AB57E454"
+      ],
+      "hash": "1F82D399"
+    },
+    {
+      "id": "C_D1A00005",
+      "cardName": "战斗母巢",
+      "supertype": "Creature",
+      "attackAbility": false,
+      "guardAbility": false,
+      "power": 3,
+      "life": 3,
+      "costList": [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeGreenCountdown",
+        "教学"
+      ],
+      "effectIds": [
+        "D1A00017"
+      ],
+      "hash": "6E55F85C"
+    },
+    {
+      "id": "C_D1A00006",
+      "cardName": "战斗衍生物·血",
+      "supertype": "Creature",
+      "attackAbility": false,
+      "guardAbility": true,
+      "power": 1,
+      "life": 1,
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeGreenCountdown",
+        "教学",
+        "衍生物"
+      ],
+      "effectIds": [
+        "D1A00012"
+      ],
+      "hash": "C3A94FF1"
+    },
+    {
+      "id": "C_D1A00007",
+      "cardName": "工蜂母巢",
+      "supertype": "Creature",
+      "attackAbility": false,
+      "guardAbility": false,
+      "power": 3,
+      "life": 3,
+      "costList": [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeGreenCountdown",
+        "教学"
+      ],
+      "effectIds": [
+        "D1A00018"
+      ],
+      "hash": "3E21B168"
+    },
+    {
+      "id": "C_D1A00008",
+      "cardName": "工蜂",
+      "supertype": "Creature",
+      "attackAbility": true,
+      "guardAbility": false,
+      "power": 3,
+      "life": 1,
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "ThemeGreenCountdown",
+        "教学",
+        "衍生物"
+      ],
+      "effectIds": [],
+      "hash": "C3C52B64"
     }
   ]
 }

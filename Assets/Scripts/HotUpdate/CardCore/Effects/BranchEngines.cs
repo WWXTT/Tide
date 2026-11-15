@@ -37,8 +37,8 @@ namespace CardCore
     ///     即执行奖励（≥x：每次施放每卡至多结算一次）；**每次达标都触发（2026-11-13 起无每回合上限，频率由耐久/挂载价付费）**
     ///     （2026-10-22 全局规则，引擎侧不看效果行 limit）；奖励恒直发（LaunchReward 直发例外），
     ///     目标由控制者结算期弹选。判据四「地牌上限差/≥x」、判据五/六均退役。
-        /// - **团结**（2026-10-20 效果序位换轴·第6种改空间轴）：与此卡相邻的单位数（生物/结界占格、
-        ///   角色格、非空地牌格各算一；施放占位卡不计）≥ x 时执行奖励——评估口与元素充盈同拍
+        /// - **团结**（2026-10-20 效果序位换轴·第6种改空间轴；2026-11-16 用户口径）：
+        ///   与此卡相邻的**己方生物**数（只算相邻己方生物、不含自身；敌方生物/结界/角色/地/牌格不计）≥ x 时执行奖励——评估口与元素充盈同拍
         ///   （OnCardCastSettled；2026-10-22 起同卡每回合仅 1 次）；只观察己方场上引擎卡（手牌无格）；x∈[1,6] 手填；
         ///   邻接计数经 UnityAdjacentCountOf 注入（核心不绑棋盘，CombatSystem.AdjacentResolver 同惯例）。
         /// - **附加诅咒**（2026-10-08 自有限分支 CurseOnDraw 门接棒）：施放结算时给对手牌库
@@ -336,8 +336,8 @@ namespace CardCore
 
                                 case BranchEngineKind.Unity:
                                 {
-                                    // 团结评估（2026-10-20 效果序位换轴·空间轴）：与此卡相邻的单位数
-                                    //（生物/结界占格、角色格、非空地牌格各算一；施放占位卡不计）≥ x 即执行奖励
+                                    // 团结评估（2026-10-20 效果序位换轴·空间轴；2026-11-16 用户口径）：
+                                    // 与此卡相邻的**己方生物**数（只算相邻己方生物、不含自身；敌方生物/结界/角色/地/牌格不计）≥ x 即执行奖励
                                     //——2026-11-08 阶段3 自 OnCardCastSettled 直调迁本口（时机=奖励效果）。
                                     ComposerCatalog.EngineParamRange(BranchEngineKind.Unity, out int uMin, out int uMax);
                                     int x = Math.Max(uMin, Math.Min(uMax, payload.EngineParam));
@@ -347,7 +347,7 @@ namespace CardCore
                                     EventManager.Instance.Publish(new KeywordAppliedEvent
                                     {
                                         Target = card, Keyword = "团结",
-                                        Detail = $"评估时点相邻单位数 {n} ≥ {x}：执行奖励（生物/结界/角色/非空地牌格各算一）",
+                                        Detail = $"评估时点相邻己方生物数 {n} ≥ {x}：执行奖励（只算相邻己方生物、不含自身）",
                                     });
                                     LaunchReward(payload, def, card, player, core, e);
                                     break;
@@ -377,6 +377,9 @@ namespace CardCore
                 case BranchEngineKind.Clash:
                     return e is AttackDeclarationEvent a && a.AttackingPlayer != player;
                 case BranchEngineKind.Unity:
+                    // 2026-11-16：团结支持自由时机（用户定案：运势/团结都可自选发动窗口）。
+                    // OnTurnEnd 窗口按**回合玩家的团结卡**评估——否则双方团结在任意回合末都会触发。
+                    if (e is TurnEndEvent te) return te.TurnPlayer != player;
                     return e is CardCastSettledEvent cs && cs.Caster != player
                         || e is CardPlayEvent cp && cp.Player != player;
                 default:
@@ -512,7 +515,7 @@ namespace CardCore
                     int x = Math.Max(uMin, Math.Min(uMax, payload.EngineParam));
                     int n = card != null && UnityAdjacentCountOf != null ? UnityAdjacentCountOf(card) : 0;
                     bool success = n >= x;
-                    detail = $"相邻单位 {n}{(success ? " ≥ " : " < ")}{x}（生物/结界/角色/非空地牌格各算一）";
+                    detail = $"相邻己方生物 {n}{(success ? " ≥ " : " < ")}{x}（只算相邻己方生物、不含自身）";
                     return success;
                 }
                 default:

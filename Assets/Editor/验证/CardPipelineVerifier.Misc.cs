@@ -1110,18 +1110,20 @@ namespace CardCore.Editor
                 }
                 Assert(srcOk && checkedCount == 35,
                        $"P9-4 档位制单源：{checkedCount} 时机——一回合一次/主动/一回合多次=1，稀有=表 Factor（概率）");
-                Assert(System.Math.Abs(F(TriggerTiming.OnPlay) - 1f) < 1e-4f
-                       && System.Math.Abs(F(TriggerTiming.Activate_Active) - 1f) < 1e-4f
+                Assert(System.Math.Abs(F(TriggerTiming.Activate_Active) - 1f) < 1e-4f
                        && System.Math.Abs(F(TriggerTiming.Activate_Instant) - 1f) < 1e-4f
                        && System.Math.Abs(F(TriggerTiming.Activate_Response) - 1f) < 1e-4f
                        && System.Math.Abs(F(TriggerTiming.OnTurnStart) - 1f) < 1e-4f
                        && System.Math.Abs(F(TriggerTiming.OnAttack) - 1f) < 1e-4f
                        && System.Math.Abs(F(TriggerTiming.OnTurnEnd) - 1f) < 1e-4f,
-                       "P9-4a 档位语义锚：登场/回合开始/攻击/回合结束=1（一回合一次）、主动三档恒 1、一回合多次恒 1");
+                       "P9-4a 档位语义锚：回合开始/攻击/回合结束=1（一回合一次）、主动三档恒 1、一回合多次恒 1");
                 Assert(System.Math.Abs(F(TriggerTiming.OnDestroy) - 0.55f) < 1e-4f
                        && System.Math.Abs(F(TriggerTiming.OnExile) - 0.12f) < 1e-4f
                        && System.Math.Abs(F(TriggerTiming.OnDeath) - 0.6f) < 1e-4f,
                        "P9-4a2 稀有档保留概率系数：被破坏 0.55 / 被除外 0.12 / 死亡 0.6");
+                Assert(System.Math.Abs(F(TriggerTiming.OnPlay) - 0.9f) < 1e-4f
+                       && System.Math.Abs(F(TriggerTiming.OnSummon) - 0.9f) < 1e-4f,
+                       "P9-4a3 登场/进场一生一次（2026-11-16 迁 Rare）：0.9");
             }
             {
                 int per = 0, rare = 0, multi = 0, active = 0;
@@ -1133,16 +1135,16 @@ namespace CardCore.Editor
                         case CardCore.TimingTier.Multi: multi++; break;
                         default: active++; break;
                     }
-                Assert(per == 11 && rare == 7 && multi == 14 && active == 3,
-                       $"P9-4b 档位归类：一回合一次 {per}/11、稀有 {rare}/7、一回合多次 {multi}/14、主动 {active}/3");
-                Assert(CardCore.TimingWeights.IsPerTurnTiming(TriggerTiming.OnPlay)
-                       && CardCore.TimingWeights.IsPerTurnTiming(TriggerTiming.OnAttack)
+                Assert(per == 9 && rare == 9 && multi == 14 && active == 3,
+                       $"P9-4b 档位归类：一回合一次 {per}/9、稀有 {rare}/9（含 2026-11-16 迁入的登场/进场）、一回合多次 {multi}/14、主动 {active}/3");
+                Assert(CardCore.TimingWeights.IsPerTurnTiming(TriggerTiming.OnAttack)
                        && CardCore.TimingWeights.IsPerTurnTiming(TriggerTiming.OnBlockDeclare)
                        && CardCore.TimingWeights.IsPerTurnTiming(TriggerTiming.OnTurnStart)
                        && CardCore.TimingWeights.IsPerTurnTiming(TriggerTiming.OnStandbyPhase)
                        && CardCore.TimingWeights.IsPerTurnTiming(TriggerTiming.OnTurnEnd)
                        && CardCore.TimingWeights.IsPerTurnTiming(TriggerTiming.OnAttacked)
-                       && CardCore.TimingWeights.IsPerTurnTiming(TriggerTiming.OnSummon)
+                       && CardCore.TimingWeights.IsRareTiming(TriggerTiming.OnPlay)
+                       && CardCore.TimingWeights.IsRareTiming(TriggerTiming.OnSummon)
                        && CardCore.TimingWeights.IsRareTiming(TriggerTiming.OnDeath)
                        && CardCore.TimingWeights.IsRareTiming(TriggerTiming.OnDestroy)
                        && CardCore.TimingWeights.IsRareTiming(TriggerTiming.OnExile)

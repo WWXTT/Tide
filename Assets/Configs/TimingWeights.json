@@ -1,15 +1,15 @@
 {
-  "_Des": "时机档位与系数表 v0.3（2026-11-14 用户定案·档位制）。自动效果按一回合内触发次数分档：Bucket=PerTurn 一回合一次（攻击/守卫/回合开始/回合结束/准备阶段/登场/进场/游戏开始/被攻击/横置/重置）→ 时机系数 Factor 恒 1；Bucket=Rare 稀有（被破坏/被除外/死亡/离场/墓地回场/角色死亡/占卜）→ Factor=触发概率 p（沿用之前按概率得到的系数）；Bucket=Multi 一回合多次（抽牌/伤害/使用卡牌/结算观察/原子三阶段/阶段起止/其他生物进出场/施放法术）→ 只能挂结界，每次触发扣 1 点耐久，Factor 恒 1；Bucket=Active 主动 → 1。Lambda/Expected 只作每回合频率留档（Expected=PerTurn 1、Rare p、Multi λ），Base/Cutoff/DurabilitySharePerTrigger 已退役只留档。规格见 docs/时机系数规格_v0.1.md §0「2026-11-14 档位制」。",
+  "_Des": "时机档位与系数表 v0.4（2026-11-16：登场/进场迁 Rare——一生一次<一回合一次，Factor 0.9；其余沿 2026-11-14 档位制）。自动效果按一回合内触发次数分档：Bucket=PerTurn 一回合一次（攻击/守卫/回合开始/回合结束/准备阶段/游戏开始/被攻击/横置/重置）→ 时机系数 Factor 恒 1；Bucket=Rare 稀有（被破坏/被除外/死亡/离场/墓地回场/角色死亡/占卜/登场/进场）→ Factor=触发概率 p；Bucket=Multi 一回合多次（抽牌/伤害/使用卡牌/结算观察/原子三阶段/阶段起止/其他生物进出场/施放法术）→ 只能挂结界，每次触发扣 1 点耐久，Factor 恒 1；Bucket=Active 主动 → 1。Lambda/Expected 只作每回合频率留档（Expected=PerTurn 1、Rare p、Multi λ），Base/Cutoff/DurabilitySharePerTrigger 已退役只留档。规格见 docs/时机系数规格_v0.1.md §0「2026-11-14 档位制」。",
   "Base": 3.0,
   "Cutoff": 3.0,
   "DurabilitySharePerTrigger": 0.3333333,
   "Weights": [
-    { "Timing": "OnPlay", "Bucket": "PerTurn", "Lambda": 0.0, "Expected": 1.0, "Factor": 1.0, "Note": "登场：一回合一次（打出即结算）——系数 1" },
+    { "Timing": "OnPlay", "Bucket": "Rare", "Lambda": 0.0, "Expected": 0.9, "Factor": 0.9, "Note": "登场：一生一次（打出即结算，弹回重打才有二次）——2026-11-16 定案：生命周期一次<一回合一次，按概率 0.9" },
     { "Timing": "OnGameStart", "Bucket": "PerTurn", "Lambda": 0.0, "Expected": 1.0, "Factor": 1.0, "Note": "游戏开始：每局一次（≤一回合一次）——系数 1" },
     { "Timing": "OnTurnStart", "Bucket": "PerTurn", "Lambda": 1.0, "Expected": 1.0, "Factor": 1.0, "Note": "回合开始：一回合一次——系数 1（2026-11-14 起开放玩家挂载；早于准备阶段登记）" },
     { "Timing": "OnStandbyPhase", "Bucket": "PerTurn", "Lambda": 1.0, "Expected": 1.0, "Factor": 1.0, "Note": "准备阶段：一回合一次——系数 1（系统处理后的回合开始窗口）" },
     { "Timing": "OnTurnEnd", "Bucket": "PerTurn", "Lambda": 1.0, "Expected": 1.0, "Factor": 1.0, "Note": "回合结束：一回合一次——系数 1" },
-    { "Timing": "OnSummon", "Bucket": "PerTurn", "Lambda": 0.0, "Expected": 1.0, "Factor": 1.0, "Note": "进场：一回合至多一次（弹回再入场＝下一回合的同一预期）——系数 1" },
+    { "Timing": "OnSummon", "Bucket": "Rare", "Lambda": 0.0, "Expected": 0.9, "Factor": 0.9, "Note": "进场：一生一次为主（弹回/复活再进场才有二次）——2026-11-16 定案：生命周期一次<一回合一次，按概率 0.9" },
     { "Timing": "OnAttack", "Bucket": "PerTurn", "Lambda": 1.0, "Expected": 1.0, "Factor": 1.0, "Note": "攻击宣言：横置限频，一回合一次——系数 1（生物专属）" },
     { "Timing": "OnAttacked", "Bucket": "PerTurn", "Lambda": 1.0, "Expected": 1.0, "Factor": 1.0, "Note": "被攻击：一回合一次——系数 1（生物/结界双宿主）" },
     { "Timing": "OnBlockDeclare", "Bucket": "PerTurn", "Lambda": 1.0, "Expected": 1.0, "Factor": 1.0, "Note": "阻拦宣言（守卫）：一回合一次——系数 1（生物专属）" },
