@@ -374,8 +374,10 @@ namespace SynergyUI
                 }
             }
 
-            // 地牌（官方入池路径：资格/各自上限；锁色随 tokenType 覆写、横置态随后覆写——
-            // 2026-10-11 锁色定案：无指示物，tokenType=锁定产色、tokens 字段退役忽略）
+            // 地牌（官方入池路径：资格/各自上限；横置态随后覆写——
+            // 2026-11-15 地牌改版：正常入池不选色（可产集合快照）；tokenType=夹具强制单色
+            //（AddCardToPoolForced——完全复刻旧锁色行为，保住教学预设「四色各 10」局面；
+            // 空 tokenType 走正常路径）
             foreach (var land in side.lands ?? new List<TutorialLandSpec>())
             {
                 if (land == null || string.IsNullOrEmpty(land.card)) continue;
@@ -386,12 +388,12 @@ namespace SynergyUI
                     continue;
                 }
                 card.SetController(owner);
-                ManaType? lockColor = string.IsNullOrEmpty(land.tokenType)
-                    ? (ManaType?)null
-                    : ParseMana(land.tokenType);
-                if (!core.ElementPool.AddCardToPool(card, owner, lockColor))
+                bool added = string.IsNullOrEmpty(land.tokenType)
+                    ? core.ElementPool.AddCardToPool(card, owner)
+                    : core.ElementPool.AddCardToPoolForced(card, owner, ParseMana(land.tokenType));
+                if (!added)
                 {
-                    TideLog.Warn($"[TutorialScenarioSeeder] {land.card} 入元素池被拒（上限/资格）——退回牌库底");
+                    TideLog.Warn($"[TutorialScenarioSeeder] {land.card} 入元素池被拒（上限/资格/强制色不在候选）——退回牌库底");
                     container.Add(card, Zone.Deck);
                     continue;
                 }

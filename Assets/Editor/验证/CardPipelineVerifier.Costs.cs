@@ -292,8 +292,8 @@ namespace CardCore.Editor
                         };
                         var landCard = new CardWrapper(landData);
                         landCard.SetController(p1);
-                        Assert(core.ElementPool.TryAddToPool(landCard, p1, ManaType.Blue, out var landWhy),
-                               $"补第 {i + 1}/{blueGrant} 个蓝地入池（实际：{landWhy}）");
+                        Assert(core.ElementPool.TryAddToPoolForced(landCard, p1, ManaType.Blue, out var landWhy),
+                               $"补第 {i + 1}/{blueGrant} 个蓝地入池（forced 单色夹具口；实际：{landWhy}）");
                     }
                     Assert(GameActions.GetPayloadGateReject(core, p1, gateCard) == null,
                            $"蓝地 {blueGrant} = 蓝生成面 {blueGrant} → 过闸（等于放行）");

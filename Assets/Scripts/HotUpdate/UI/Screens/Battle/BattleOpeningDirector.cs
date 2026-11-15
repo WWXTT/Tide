@@ -615,8 +615,8 @@ namespace SynergyUI
             }
         }
 
-        // 2026-11-03：三档对手统一=预组主题策略 AI（AutoMatch）——0 档「全让过木桩」退役，标签随行
-        public static readonly string[] DifficultyLabels = { "木桩（预组打法）", "脚本（预组打法）", "AI（正式对手）" };
+        // 2026-11-15 用户定案：0=全让过木桩（PassiveDummyAi）·1=脚本（AutoMatch 预组打法）·2=AI（训练后 NeuralAiDriver）
+        public static readonly string[] DifficultyLabels = { "木桩（全让过）", "脚本（预组打法）", "AI（训练后）" };
 
         private RectTransform _root;
         private Pick _result;

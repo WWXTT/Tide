@@ -139,14 +139,15 @@ namespace SynergyUI
         /// 充满元素池路径由 DummyTestFlow 注入前自洗（场景管线恒锁序），两侧独立同开关。</summary>
         public static bool DummyShuffle = true;
 
-        /// <summary>木桩局元素池充满：true=双方各 40 锁色地牌+钱包 5白5黑+起跳回合 10
-        /// （TestStartFlow「地牌充满」预设的按所选卡组版）；false=常规开局。</summary>
+        /// <summary>木桩局元素池充满（2026-11-15 改版）：true=双方各 40 锁色地牌（灰红蓝绿各 10，
+        /// 黑白临时元素预置已退役——SeedBank 全零）+起跳回合 10（TestStartFlow 预设按所选卡组版）；
+        /// false=常规开局。</summary>
         public static bool DummyFullPool;
 
-        /// <summary>木桩局对手难度（2026-10-23 选卡组弹窗）：0=木桩（ScriptedAi 无剧本全让过）、
-        /// 1=脚本（2026-11-24 接入预组控制脚本：MakePacedAi+AutoMatch 按对方预组 Theme 标签映到
-        /// 红快攻/蓝控制/绿慢速主题策略；响应行为归驱动自身内置启发，不加外部约束）、
-        /// 2=AI（正式对手：MakePacedAi+AutoMatch 策略）。仅木桩分支消费（DummyOptionsPanel 弹窗写入、
+        /// <summary>木桩局对手难度（2026-11-15 用户定案）：0=木桩（PassiveDummyAi 纯空过——
+        /// 不动作/不产色/自动拒绝连锁/引擎自动弃牌）、1=脚本（预组主题策略：MakePacedAi+AutoMatch
+        /// 按对方预组 Theme 映红快攻/蓝控制/绿慢速）、2=AI（训练后 NeuralAiDriver——tide_policy.onnx，
+        /// 模型缺失响亮回落 SimpleAI）。仅木桩分支消费（DummyOptionsPanel 弹窗写入、
         /// DummyDeckPanel 段四消费），其他模式不读无需入口清。</summary>
         public static int DummyDifficulty;
 

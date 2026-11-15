@@ -213,20 +213,21 @@ namespace GameBoard
             var cards = SafeGetCards(player, Zone.ElementPool);
             if (cards == null) return;
 
-            // 锁色映射（池包装权威，卡上无地牌字段）：SourceCard -> LockedColor
-            var lockedOf = new Dictionary<Card, ManaType>();
+            // 展示色映射（池包装权威，卡上无地牌字段）：SourceCard -> DisplayColor
+            //（2026-11-15 地牌改版：落格锚点=展示色主色——展示格只是棋盘锚点，不参与产色/按色计数）
+            var displayOf = new Dictionary<Card, ManaType>();
             var pooled = _core?.ElementPool?.GetPooledCards(player);
             if (pooled != null)
                 foreach (var pc in pooled)
-                    if (pc?.SourceCard != null) lockedOf[pc.SourceCard] = pc.LockedColor;
+                    if (pc?.SourceCard != null) displayOf[pc.SourceCard] = pc.DisplayColor;
 
-            // 按色分组（无锁色映射的异常卡按灰聚拢）→ 各落自己的固定元素格（BoardLayout 单源）
+            // 按展示色分组（无映射的异常卡按灰聚拢）→ 各落自己的固定元素格（BoardLayout 单源）
             int pIdx = PlayerIndex(player);
             var byColor = new Dictionary<ManaType, List<Card>>();
             foreach (var card in cards)
             {
                 if (card == null) continue;
-                var color = lockedOf.TryGetValue(card, out var locked) ? locked : ManaType.Gray;
+                var color = displayOf.TryGetValue(card, out var display) ? display : ManaType.Gray;
                 if (!byColor.TryGetValue(color, out var list))
                 {
                     list = new List<Card>();

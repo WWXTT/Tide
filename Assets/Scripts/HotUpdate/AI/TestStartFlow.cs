@@ -9,8 +9,8 @@ namespace SynergyUI
     /// 测试开局（2026-10-16）：把教学「预设场面直入」管线（TutorialScenarioSeeder）解耦为
     /// 通用测试功能——主菜单一键进入预设局面，供人工实测卡牌效果。入口只写 BattleEntry
     /// （同 TutorialFlow 口径），跳转由调用方（MainMenuScreen）负责。
-    /// 首个预设「地牌充满」：双方各 40 张锁色地牌（灰/红/蓝/绿各 10）+ 黑白钱包 5白5黑
-    /// （黑白费只能从临时钱包出——地牌锁色不含黑白；钱包回合末清空），起跳回合 10 主阶段。
+    /// 首个预设「地牌充满」（2026-11-15 改版）：双方各 40 张锁色地牌（灰/红/蓝/绿各 10；
+    /// 黑白临时元素预置退役——SeedBank 全零），起跳回合 10 主阶段。
     /// 地牌素材=专用四色卡「试作·元素井」：AddCardToPool 显式锁色必须在卡自身费用色候选内，
     /// 卡池原无四色卡故新建（费用不入内容哈希，ID=ContentHasher.HashCard 口径）。
     /// 上限：自然曲线封顶 10 之外走 TutorialSideState.landCapBonus（成长同口径 LandCapBonus）。
@@ -30,8 +30,9 @@ namespace SynergyUI
         /// 落教学表 TutorialCards.json——主表用户池被并行重建不再承载；四色候选任选锁色）。</summary>
         public const string LandMaterialCardId = "C_50E2F45D";
 
-        /// <summary>预置临时钱包 [灰,红,蓝,绿,白,黑]（回合末清空——黑白费只能从钱包出）。</summary>
-        public static readonly int[] SeedBank = { 0, 0, 0, 0, 5, 5 };
+        /// <summary>预置临时钱包 [灰,红,蓝,绿,白,黑]（2026-11-15 用户改版：黑白临时元素机制
+        /// 退役——充满预设不再预置 5白5黑，全零起）。</summary>
+        public static readonly int[] SeedBank = { 0, 0, 0, 0, 0, 0 };
 
         /// <summary>测试卡组引用文件（2026-10-17 卡组文件化）：StreamingAssets/Tutorial/测试卡组.json
         /// （{name, cardIds} 红·快攻同款格式——id 引用即是卡组，可重复）。原 30 张入组口径（2026-10-16，

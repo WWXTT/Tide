@@ -43,7 +43,7 @@ namespace SynergyUI
         // 当前展示来源（Refresh 对账重拉用；两来源互斥）
         private Zone? _zone;
         private Player _zoneOwner;
-        private int _landOwnerIdx = -1, _landX, _landZ;
+        private int _landOwnerIdx = -1; // 2026-11-15 地牌改版：整区列表（不再按色格筛 x/z）
         private bool _ownerIsOpp;
 
         public bool IsOpen => _node != null && _node.gameObject.activeSelf;
@@ -104,11 +104,11 @@ namespace SynergyUI
             RefreshGenerateButton();
         }
 
-        /// <summary>开地牌格（ownerIdx 方 x,z 格上的全部地牌）。</summary>
-        public void OpenLands(int ownerIdx, int x, int z, bool ownerIsOpp)
+        /// <summary>开地牌整区列表（2026-11-15 地牌改版：不再按色格筛——多色地展示格≠产色，整区直列）。</summary>
+        public void OpenLands(int ownerIdx, bool ownerIsOpp)
         {
             if (_node == null || _content == null) return;
-            _zone = null; _zoneOwner = null; _landOwnerIdx = ownerIdx; _landX = x; _landZ = z; _ownerIsOpp = ownerIsOpp;
+            _zone = null; _zoneOwner = null; _landOwnerIdx = ownerIdx; _ownerIsOpp = ownerIsOpp;
             _node.gameObject.SetActive(true);
             ResetScroll();
             Refresh();
@@ -159,8 +159,8 @@ namespace SynergyUI
             else if (_landOwnerIdx >= 0 && _landsOf != null)
             {
                 var lands = _landsOf(_landOwnerIdx) ?? new List<BattleCardView>();
-                what = LandCellTitle();
-                foreach (var l in lands.Where(c => c.X == _landX && c.Z == _landZ && c.Runtime != null))
+                what = (_landOwnerIdx == 0 ? "己方" : "对方") + "元素池地牌（整区）";
+                foreach (var l in lands.Where(c => c != null && c.Runtime != null))
                     items.Add((CardOverlayItem.FromHand(l), true));
             }
             else return;
@@ -180,11 +180,10 @@ namespace SynergyUI
             if (_btnGenerate.gameObject.activeSelf != show) _btnGenerate.gameObject.SetActive(show);
         }
 
-        /// <summary>【生成】点击：转发屏侧 GenerateFromLand(x,z)（闸/引擎调用/toast 全在屏侧）。</summary>
+        /// <summary>【生成】点击（2026-11-15 地牌改版 §15-4 退役）：按钮不再接线恒隐藏——
+        /// 屏侧未传 generateLand 回调，本口保留为 no-op（烘焙节点 onClick 占位，永不触发）。</summary>
         private void OnGenerateClicked()
         {
-            if (!IsOpen || _zone.HasValue || _landOwnerIdx != 0) return;
-            _generateLand?.Invoke(_landX, _landZ);
         }
 
         private static string ZoneZh(Zone zone)
@@ -194,17 +193,7 @@ namespace SynergyUI
             : zone == Zone.Hand ? "手牌"
             : zone.ToString();
 
-        /// <summary>地牌格标题（2026-11-03 定案口径）：「对/己方元素池 X色地牌格」——元素按
-        /// BoardLayout 固定格序（LandCellElementOrder）从坐标反查；查不到回落旧坐标式。</summary>
-        private string LandCellTitle()
-        {
-            string who = _ownerIsOpp ? "对方" : "己方";
-            var cells = BoardLayout.LandCells(_landOwnerIdx);
-            for (int i = 0; i < cells.Count; i++)
-                if (cells[i].x == _landX && cells[i].z == _landZ)
-                    return $"{who}元素池 {BattleView.ManaZh(BoardLayout.LandCellElementOrder[i])}色地牌格";
-            return $"{who}地牌格({_landX},{_landZ})";
-        }
+        // LandCellTitle（按色格开窗标题）已随 2026-11-15 地牌改版整删：地牌窗=整区列表（标题内联于 Refresh）。
 
         private void ResetScroll()
         {

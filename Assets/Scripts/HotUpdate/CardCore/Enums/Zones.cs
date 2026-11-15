@@ -546,6 +546,13 @@ namespace CardCore
                 CardCore.Attribute.CounterRules.ClearAll(card, from, to);
             }
 
+            // 入场复活（2026-11-15 修）：卡再次进入战场 = 新的生物体——死亡/牺牲都会置 IsAlive=false，
+            // 而换区不会自动复位（此前只有复生/延迟死亡两条特例显式置 true）。后果：墓地/地池里
+            // 捞回手再打出的生物，入场即被 SBA 当「战场尸体」以「防御归零」秒杀
+            // （实测：T5 绿套 回收→重打小精灵 连续三回合入场即死，T5 循环断供）。
+            if (to == Zone.Battlefield && from != Zone.Battlefield)
+                card.IsAlive = true;
+
             if (to == Zone.Hand && from != Zone.Hand)
             {
                 card._isRevealed = false; // 入手重置：宣言确认手牌的"已展示"标记

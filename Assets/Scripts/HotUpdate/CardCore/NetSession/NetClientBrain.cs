@@ -147,7 +147,8 @@ namespace CardCore.Network
             if (phase != PhaseType.Main) return;
 
             // ④-1 横置产色已删（2026-10-11 现取现用：付费时服务器自动横置，bot 无此意图）
-            // ④-2 放地（每回合 1 张）：手牌首张生物（地牌资格=卡组正式生物）；锁色走缺省主色
+            // ④-2 放地（每回合 1 张）：手牌首张生物（地牌资格=卡组正式生物）；
+            // 2026-11-15 地牌改版：不选色（ModeIndex=-1，服务端快照可产集合）
             var hand = ZoneCards(snap, MyEngineSeat, Zone.Hand);
             if (!_landDropped)
             {
@@ -157,7 +158,7 @@ namespace CardCore.Network
                     MarkActed();
                     _landDropped = true;
                     channel.Send(NetworkMessageType.IntentAddToElementPool,
-                        new MsgIntentAddToElementPool { CardRuntimeId = creature.RuntimeId });
+                        new MsgIntentAddToElementPool { CardRuntimeId = creature.RuntimeId, ModeIndex = -1 });
                     return;
                 }
             }

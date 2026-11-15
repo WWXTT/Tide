@@ -1,6 +1,25 @@
 {
   "cards": [
     {
+      "id": "C_50E2F45D",
+      "cardName": "试作·元素井",
+      "supertype": "Creature",
+      "attackAbility": true,
+      "guardAbility": true,
+      "power": 1,
+      "life": 1,
+      "costList": [
+        1.0,
+        1.0,
+        1.0,
+        2.0
+      ],
+      "tags": [
+        "教学"
+      ],
+      "hash": "50E2F45D"
+    },
+    {
       "id": "C_DA499FAE",
       "cardName": "教学·3",
       "supertype": "Creature",

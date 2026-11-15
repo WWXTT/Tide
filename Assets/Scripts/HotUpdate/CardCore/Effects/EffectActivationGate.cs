@@ -98,7 +98,7 @@ namespace CardCore
                 foreach (var kv in CardCostService.PayloadGrantByColor(specialCosts))
                 {
                     int lands = ctx.ElementPool.GetPool(ctx.Payer)?.PooledCards?
-                        .Count(pc => pc != null && pc.LockedColor == kv.Key) ?? 0;
+                        .Count(pc => pc != null && pc.CanProduce(kv.Key)) ?? 0;
                     if (kv.Value > lands)
                         return $"{ManaTypeNames.ZhNameOf(kv.Key)}色代价 {kv.Value} 大于当前"
                              + $"{ManaTypeNames.ZhNameOf(kv.Key)}地 {lands}——效果不可发动";

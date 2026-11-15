@@ -152,8 +152,11 @@ namespace SynergyUI
 
         public void OnEndDrag(PointerEventData eventData)
         {
-            if (Fan != null && Fan.Dragging && Fan.DraggingCard == this)
-                Fan.EndDrag(eventData.position); // 落点裁决=宿主屏钩子（取消路径扇区自回手）
+            if (Fan == null || !Fan.Dragging || Fan.DraggingCard != this) return;
+            // 分端操作逻辑（2026-11-15 用户实测③）：触摸=按住拖动、抬起即按区域确定/取消；
+            // PC 鼠标=点击起拖后**保持选择态**（松开左键不结束）——屏侧循环里左键=确认、右键/ESC=取消。
+            if (eventData.pointerId >= 0) // 触摸（UGUI 口径：鼠标恒 -1）
+                Fan.EndDrag(eventData.position);
         }
 
         public void SetTarget(Vector2 pos, float rot, float scale)

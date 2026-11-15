@@ -215,6 +215,10 @@ namespace CardCore.Editor
                 Crumb("→TestLandEconomy");
                 TestLandEconomy(core, p1, p2, cardsData);
 
+                // 地牌改版（2026-11-15）：多色产色+最小费用流支付规划 §5.4 八用例
+                Crumb("→TestLandPoolMultiColor");
+                TestLandPoolMultiColor(core, p1);
+
                 Crumb("→TestSpell");
                 TestSpell(core, p1, p2, cardsData);
                 Crumb("→TestCreature");
@@ -456,11 +460,13 @@ namespace CardCore.Editor
             if (secondLand != null)
                 Assert(!GameActions.AddToElementPool(core, p1, secondLand), "超过地牌槽上限拒绝（T1 上限 1）");
 
-            // 锁色定案（2026-10-11）：入池锁定主色（费用份额最多色）；显式非法色拒绝
+            // 2026-11-15 地牌改版：入池不选色——ColorOptions=候选快照、展示色=首位主色；forced 非法色拒绝
             var choices1 = CardCore.ElementPoolSystem.GetLandColorChoices(land1);
-            Assert(choices1.Count > 0 && pooled1[0].LockedColor == choices1[0], "地牌入池锁定主色（份额最多色）");
-            Assert(!core.ElementPool.AddCardToPool(land1, p1, ManaType.Any),
-                   "显式非法锁色拒绝（Any 万能货币不可锁——候选恒不含 Any；2026-10-28 P2 后白/黑席位已删）——直接调池校验口");
+            Assert(choices1.Count > 0 && pooled1[0].DisplayColor == choices1[0], "地牌入池展示色=主色（份额最多色）");
+            Assert(pooled1[0].ColorOptions.Count == choices1.Count
+                   && choices1.All(c => pooled1[0].CanProduce(c)), "入池可产集合=放置瞬间候选快照");
+            Assert(!core.ElementPool.TryAddToPoolForced(land1, p1, ManaType.Any, out _),
+                   "夹具 forced 非法色拒绝（Any 万能货币不可产——候选恒不含 Any）——直接调池校验口");
 
             // 现取现用：无手动横置——付费时系统按账单自动横置（每地牌每回合一次）
             // 2026-10-16 口径：地牌上限只限元素产出（入池张数），不限使用——钱包无钳、

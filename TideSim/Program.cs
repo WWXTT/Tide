@@ -57,6 +57,10 @@ namespace TideSim
             if (args.Length > 0 && args[0] == "--sacrifice-probe")
                 return SacrificeProbe.Run();
 
+            // T7 暗影豹线探针（2026-11-15）：8/10 地盘面走完整一回合 → 牺牲 4/2 → 补地 → 豹落地
+            if (args.Length > 0 && args[0] == "--panther-probe")
+                return PantherLineProbe.Run();
+
             // 红套改版取证（2026-11-13）：己方仅 1 生物时两张直伤法术的连锁 + 代价只付一次
             if (args.Length > 0 && args[0] == "--chain-cast")
                 return ChainCastCheck.Run();

@@ -85,8 +85,8 @@ namespace CardCore.Attribute
             { CardCore.AtomicEffectType.AddLifeUp, SpecColor.Gray },                   // 2026-11-14 基础属性归灰：生命值增加=灰（回复 Heal 仍绿）
             { CardCore.AtomicEffectType.AddArmor, SpecColor.Green },                   // 护甲=绿（生存轴，非基础属性）
             { CardCore.AtomicEffectType.GrantToughness, SpecColor.Green },             // 坚韧=减伤=生存（减半同口径）
-            { CardCore.AtomicEffectType.ProtectionHalve, SpecColor.Gray },             // 减半指示物=伤害规则改写（2026-11-10 搬迁补录：此前 EffectType 未收录，行级「减半」→灰定案随本行入字典）
-            { CardCore.AtomicEffectType.GrantProtection, SpecColor.Gray },             // 特例：减半=伤害规则改写（2026-11-05 定案灰；旧绿/蓝作废）
+            { CardCore.AtomicEffectType.ProtectionHalve, SpecColor.Green },            // 减半指示物=生存减伤（2026-11-15 用户定案绿，与坚韧同轴；11-05 灰口径作废）
+            { CardCore.AtomicEffectType.GrantProtection, SpecColor.Green },            // 特例：减半=生存减伤（2026-11-15 随 ProtectionHalve 同批归绿；11-05 灰/更早绿蓝反复作废）
             { CardCore.AtomicEffectType.GrantReborn, SpecColor.Green },                // 复生=生存
             { CardCore.AtomicEffectType.GrantDivineShield, SpecColor.Green },          // 圣盾=生存
             { CardCore.AtomicEffectType.GrantGuardian, SpecColor.Green },              // 守护=拦截保护
@@ -133,7 +133,7 @@ namespace CardCore.Attribute
             // ---- 规则/工具（灰）：规则改写·属性定义·纯工具 ----
             { CardCore.AtomicEffectType.ModifyGameRule, SpecColor.Gray },              // 特例：各仪典/各禁令=灰（行级细化见 SpecRowOverrides）
             { CardCore.AtomicEffectType.Erase, SpecColor.Gray },                       // 特例：通用抹除=灰
-            { CardCore.AtomicEffectType.GrantSpellban, SpecColor.Gray },               // 特例：无实体=灰（伤害规则改写；表 2026-11-05 确认回灰，11-03 蓝5 作废）
+            { CardCore.AtomicEffectType.GrantSpellban, SpecColor.Green },              // 特例：无实体=生存减伤（2026-11-15 用户定案绿，与坚韧/减半同轴；11-05 灰、11-03 蓝5 口径作废）
             { CardCore.AtomicEffectType.GrantInsulator, SpecColor.Gray },              // 绝缘体=拦获得（规则改写，无实体同口径）
             { CardCore.AtomicEffectType.SummonToken, SpecColor.Gray },                 // 第三步：衍生物=纯工具
             { CardCore.AtomicEffectType.EchoCopy, SpecColor.Blue },                   // 回响=复制重演=节奏（2026-11-05 定案蓝；旧灰「纯工具」作废）
@@ -174,7 +174,7 @@ namespace CardCore.Attribute
             { "弃牌", SpecColor.Blue },                     // 定案 2026-11-02：蓝（字典绿作废）
             { "移动", SpecColor.Gray },                     // 定案 2026-11-02：灰（字典红作废）
             // ---- 指示物表 ----
-            { "减半", SpecColor.Gray },                     // 定案 2026-11-05：灰（字典同批改灰；11-02 蓝/更早绿均作废）
+            { "减半", SpecColor.Green },                    // 定案 2026-11-15：绿（生存减伤，字典同批改绿；11-05 灰、11-02 蓝/更早绿反复作废）
             // 属性减少 override 随行删除（2026-11-02 属性±行退役——用户定案「只能分开加减」）
             // 灵视 2026-11-02 回默认灰（旧蓝覆盖随本批作废——用户定案「按应值改：灵视→灰」）
         };

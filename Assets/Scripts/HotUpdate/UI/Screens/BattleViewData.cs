@@ -42,8 +42,12 @@ namespace SynergyUI
                                          // 战场头顶「(+x)」后缀显示，双模式统一从 Counters 快照取）
 
         // 派生显示
-        public int X = -1, Z = -1;  // 棋盘格位（-1=未落格；地牌=同色组共享格，2026-10-14 按色叠格）
+        public int X = -1, Z = -1;  // 棋盘格位（-1=未落格；地牌=展示色同格叠放，2026-10-14 按色叠格）
         public string LandTokensText;
+        /// <summary>地牌可产色位掩码（2026-11-15 地牌改版）：bit0=灰 bit1=红 bit2=蓝 bit3=绿（见
+        /// LandColorMaskOf）；非地牌=0。本地=池 ColorOptions 权威；网络=卡数据客户端推导。
+        /// 悬停「可产/可用」逐色统计与 Information 窗筛选按此判（不再按落格色）。</summary>
+        public int LandColorMask;
         public bool IsDead;         // 战场尸体（标死未收）
 
         public bool IsTapped => Runtime != null && Runtime.IsTapped;
@@ -51,6 +55,18 @@ namespace SynergyUI
         public string StatsText => Runtime != null
             ? $"{Runtime.Power}/{Runtime.Life}" + (IsTapped ? " 横" : "") + (IsFrozen ? " 冻" : "") + (IsDead ? " †" : "")
             : "";
+
+        /// <summary>色 → 可产掩码位（灰0/红1/蓝2/绿3；任意/黑白不参与地牌产色）。</summary>
+        public static int LandColorMaskOf(ManaType c) => c switch
+        {
+            ManaType.Red => 1 << 1,
+            ManaType.Blue => 1 << 2,
+            ManaType.Green => 1 << 3,
+            _ => 1 << 0,
+        };
+
+        /// <summary>该地牌视图能否产 color（LandColorMask 位判——悬停统计/筛选单源）。</summary>
+        public bool CanProduceColor(ManaType c) => (LandColorMask & LandColorMaskOf(c)) != 0;
     }
 
     /// <summary>对战玩家视图（公开面；己方手牌挂在整局视图上）。</summary>
@@ -203,9 +219,15 @@ namespace SynergyUI
                 v.Name = s.ID; // 查表 miss（如临时卡/token）退化为 ID
             }
 
-            // 2026-10-11 锁色定案：指示物余量→锁定产色（-1=非地牌）
+            // 2026-11-15 地牌改版：-1=非地牌；LockedColor 语义=展示色（协议字段名未改），
+            // 可产集合文案/掩码按卡数据客户端推导（协议未加字段，热更两侧卡表一致前提）
             if (s.LockedColor >= 0)
-                v.LandTokensText = $"锁:{ManaZh((ManaType)s.LockedColor)}";
+            {
+                var choices = CardCore.ElementPoolSystem.GetLandColorChoices(data);
+                if (choices.Count == 0) choices = new List<ManaType> { (ManaType)s.LockedColor };
+                v.LandTokensText = $"可产:{string.Join("/", choices.Select(c => ManaZh(c)))}";
+                v.LandColorMask = choices.Aggregate(0, (m, c) => m | BattleCardView.LandColorMaskOf(c));
+            }
 
             // 2026-10-16 修（结界悬停无信息根因）：非生物卡不再按 Life<=0 误判为战场尸体——
             // 无生命单位（结界/装备）_life 恒 0（耐久在指示物）、法术无生命字段，死亡由离场表达
@@ -375,10 +397,11 @@ namespace SynergyUI
                     view.Z = z; // 同色组共享格（2026-10-14 按色叠格；BoardState 权威）
                 }
 
-                // 池包装的锁色/横置态是权威（卡上无地牌字段）：覆写进 Runtime（显示与快照同源）
-                view.Runtime.LockedColor = (int)land.LockedColor;
+                // 池包装的展示色/横置态/可产集合是权威（卡上无地牌字段）：覆写进 Runtime（显示与快照同源）
+                view.Runtime.LockedColor = (int)land.DisplayColor; // 字段名保留=快照同构，语义=展示色
                 view.Runtime.IsTapped = land.IsTapped;
-                view.LandTokensText = $"锁:{ManaZh(land.LockedColor)}";
+                view.LandTokensText = $"可产:{string.Join("/", land.ColorOptions.Select(c => ManaZh(c)))}";
+                view.LandColorMask = land.ColorOptions.Aggregate(0, (m, c) => m | BattleCardView.LandColorMaskOf(c));
 
                 list.Add(view);
             }
@@ -589,9 +612,9 @@ namespace SynergyUI
             bool ownerIsOpponent, int viewerSeat)
         {
             // v19 快照坐标优先（同 FillUnitsNet）：服务端地牌固定色格真值随快照下发（绝对坐标）
-            //——直采并按观察者镜像；无坐标（旧快照）走锁色→固定元素格映射（与服务器
-            // AssignLandCells 同构，灰红蓝绿黑白，同色全部同格）。锁色权威在 Runtime.LockedColor
-            //（快照侧 BuildZone 覆写）；两径皆未命中不落格。
+            //——直采并按观察者镜像；无坐标（旧快照）走展示色→固定元素格映射（与服务器
+            // AssignLandCells 同构，灰红蓝绿黑白，同色全部同格）。展示色权威在 Runtime.LockedColor
+            //（快照侧 BuildZone 覆写，字段名保留语义=展示色）；两径皆未命中不落格。
             var lands = ZoneCardsNet(snap, seat, Zone.ElementPool);
             int owner = ownerIsOpponent ? 1 : 0;
             foreach (var s in lands)

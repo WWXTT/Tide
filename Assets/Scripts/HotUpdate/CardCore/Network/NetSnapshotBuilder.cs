@@ -216,7 +216,7 @@ namespace CardCore.Network
                         var wrap = pooled.FirstOrDefault(pc => pc?.SourceCard != null
                                                                && pc.SourceCard.RuntimeId == s.RuntimeId);
                         if (wrap == null) continue;
-                        s.LockedColor = (int)wrap.LockedColor;
+                        s.LockedColor = (int)wrap.DisplayColor; // 字段名保留=协议兼容，语义=展示色
                         s.IsTapped = wrap.IsTapped;
                     }
                 }

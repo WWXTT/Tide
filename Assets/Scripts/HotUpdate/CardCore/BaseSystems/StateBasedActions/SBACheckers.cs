@@ -63,6 +63,10 @@ namespace CardCore
                     if (card.IsLivingUnit() && (!card.IsAlive ||
                         (card.IsAlive && gameCore.LayerEngine.CalculateToughness(card) <= 0)))
                     {
+                        // 取证探针（TIDE_DEBUG_SBA=1）：入场即死类问题看「alive/防御/区域」三项即可定位
+                        //（2026-11-15 绿套回收→重打小精灵「防御归零」即由 alive=False 查出）。
+                        if (System.Environment.GetEnvironmentVariable("TIDE_DEBUG_SBA") == "1")
+                            System.Console.WriteLine($"[dbg-sba] {card.ID} {(card as CardWrapper)?.GetData()?.CardName} zone={card.GetZone()} alive={card.IsAlive} tough={gameCore.LayerEngine.CalculateToughness(card)}");
                         sba.AddAction(new SBAActionRecord
                         {
                             Type = SBAActionType.ZeroToughness,

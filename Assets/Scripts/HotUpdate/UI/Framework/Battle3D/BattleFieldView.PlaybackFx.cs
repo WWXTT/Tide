@@ -473,7 +473,7 @@ namespace SynergyUI
                 if (WalletCellsFx.CellAnchor(seat, kv.Key, out var at))
                 {
                     BattleEffectFx.PlaySpark(at, color, Mathf.Clamp(kv.Value, 0.5f, 4f) * 2600f);
-                    WalletCellsFx.Pulse(seat, kv.Key); // 数字下跳+脉冲
+                    // 数字随对账刷新（Reconcile 只写文本）；饼图动画归预制体，代码不脉冲（2026-11-15 用户定稿）
                 }
                 else
                 {

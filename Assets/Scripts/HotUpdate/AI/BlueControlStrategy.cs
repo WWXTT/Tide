@@ -307,7 +307,7 @@ namespace CardCore.AI
         {
             int n = 0;
             foreach (var pc in core.ElementPool.GetPooledCards(me))
-                if (pc != null && pc.LockedColor == color) n++;
+                if (pc != null && pc.CanProduce(color)) n++;
             return n;
         }
 

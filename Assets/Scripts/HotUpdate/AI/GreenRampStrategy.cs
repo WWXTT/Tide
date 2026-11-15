@@ -11,7 +11,10 @@ namespace CardCore.AI
     /// **轮转引擎**（用户口径，手牌不够用的根因）：
     ///   · T3 线：铺 3 地 → 小精灵（首卡，给手牌沃土 −2 绿 = 6→4）→ 牺牲**已横置的地**（+1 彩、腾出 1 槽）
     ///     → 手牌补一块地（+1 绿）→ 3 绿 + 1 彩 = 4 费把沃土开出来；
-    ///   · T5 线：沃土把地顶到 6 → 归根回收 3 张 → 横置 4 地打归根（−2 费）→ 牺牲横置地 → 再补 3 地 → 再开沃土；
+    ///   · T5 线（减半循环，2026-11-15 用户口径）：小精灵（首卡，给**归根** −2 → 4→2 绿）→ 牺牲小精灵
+    ///     （+1 彩，进墓后正是归根的捞回对象）→ 归根回收 3 张 → **落地 1**（腾出的牌位补成地，+1 费）；
+    ///     手里只留「小精灵 / 归根 / 减半」各一张，地每回合 +1，没抽到暗影豹就一直循环；
+    ///     减半**只在对手回合的响应窗贴自己**（自己回合贴 = 回合末清层白给）；
     ///   · 关键：**牺牲腾出的槽位要用手牌立刻补回来**（否则地数掉档、牌白烧），墓地那批再用归根捞回手。
     /// 中期：虚化（9 费保命，无实体钳伤害到 1）最优先；枯竭**全取**（对手元素池有几块抹几块）。
     /// 后期：暗影豹收尾；地铺到 20 后靠成长与归根维持每回合「回收 + 大生物」。
@@ -75,10 +78,9 @@ namespace CardCore.AI
             // 固定脚本：T5 的「牺牲场上小精灵」是循环的第一步，必须无条件发动（不看费缺口）。
             if (InScriptTurn(core, me, out int scriptTurn) && scriptTurn == 5
                 && HasSpiritOnField(core, me)) return true;
-            // 脚本 T7：手里有暗影豹、且还差费 → 发动牺牲（张数由 OrderTargetCandidates 按地数决定）
-            if (InScriptTurn(core, me, out int t7) && t7 == 7
-                && HandCopies(core, me, NamePanther) > 0
-                && PantherSacrificeCount(core, me, PantherCost) > 0) return true;
+            // 脚本 T7（2026-11-15 第二版）：豹已经付得出（PantherReady）才进 T7 脚本——这时候
+            // **不需要再牺牲凑费**（祭 4 补 4 那套正是用户要去掉的手牌浪费），所以这里不发动牺牲。
+            if (InScriptTurn(core, me, out int t7) && t7 == 7) return false;
             // 脚本 T3：**必须等「小精灵 + 沃土」把地横置出 2 块以上才牺牲**（用户推导的顺序），
             // 否则一上来就祭会把 暗影豹/减半 这类材料白烧掉、沃土反而没费打。
             if (InScriptTurn(core, me, out int t3) && t3 == 3)
@@ -136,7 +138,12 @@ namespace CardCore.AI
             if (!InScriptTurn(core, me, out int scriptTurn)) return false;
             // 脚本 T3：必须已有 ≥2 块横置地（小精灵+沃土付过费）才准祭，否则会把材料白烧掉。
             if (scriptTurn == 3) return TappedLands(core, me) >= 2;
-            return scriptTurn == 5 || scriptTurn == 7;
+            // 脚本 T5（2026-11-15 循环）：牺牲的唯一材料是**场上小精灵**；没有小精灵就整条闸关死——
+            // 否则自愿队列会在「手里没小精灵」的回合照样发动，把地池里的地当材料烧掉（实测 T5 地 8→7）。
+            if (scriptTurn == 5) return HasSpiritOnField(core, me);
+            // 脚本 T7（2026-11-15 第二版）：豹已付得出 → 不需要牺牲凑费，闸直接关死。
+            if (scriptTurn == 7) return false;
+            return false;
         }
 
         /// <summary>救核心要先于出牌（否则核心地牌会被当成普通地继续产色/被忽略）。</summary>
@@ -180,18 +187,11 @@ namespace CardCore.AI
         // 用户给的三条线是**固定操作序列**（启发式会把小精灵/归根当牺牲材料烧掉），
         // 所以「有对应卡时走脚本，没有则回落启发式」：
         //   T3：小精灵 → 沃土（卡齐才走）
-        //   T5：小精灵 → 牺牲小精灵 → 回收 → 落 1 地（卡齐才走）
+        //   T5：小精灵（首卡，−2 给归根）→ 牺牲小精灵（+1 彩）→ 归根（4−2=2，捞回 3 张）→ 落地 1
         //   T7：小精灵 → 牺牲 4 → 落 4 → 暗影豹（卡齐才走）
         // 脚本只改「分数/牺牲目标」，动作仍由引擎逐个执行，因此不会与费用/目标域校验冲突。
-
-        /// <summary>「还能再拿到一张归根」的总量（手牌 + 墓地 + 地牌池）。</summary>
-        private static int ReturnAvailable(GameCore core, Player me)
-        {
-            int n = HandCopies(core, me, NameReturn);
-            n += (core.ZoneManager.GetCards(me, Zone.Graveyard) ?? new List<Card>()).Count(c => NameOf(c) == NameReturn);
-            n += core.ElementPool.GetPooledCards(me).Count(pc => pc != null && NameOf(pc.SourceCard) == NameReturn);
-            return n;
-        }
+        // 2026-11-15 补（T5 循环落地）：脚本回合内 小精灵/归根/减半 各留一张在手里（多册才铺地），
+        // 归根一回合只打一张且墓地 ≥3 才打（否则白扔 4 费、把对手回合贴减半的钱烧光）。
 
         /// <summary>元素池里**已横置**的地（按 Card 实例集合；池的横置状态记在 PooledCard 上，不在 Card 上）。</summary>
         private static HashSet<Card> TappedPoolCards(GameCore core, Player me)
@@ -225,19 +225,24 @@ namespace CardCore.AI
             if (!ReferenceEquals(core.Player1, me)) return false;      // 脚本只对先手方（绿先手）
             if (own == 3) { scriptTurn = 3; return true; }
             if (own == 5) { scriptTurn = 5; return true; }
-            // 2026-11-15 用户口径：T7 起进入「暗影豹脚本」并**一直延续到抽出暗影豹为止**——
-            // 地越多需要祭的越少（8 地祭 4、9 地祭 3、10 地祭 2、11 地祭 1、12 地不祭）。
-            if (own >= 7 && HandCopies(core, me, NamePanther) > 0) { scriptTurn = 7; return true; }
-            // 没有暗影豹时，7 回合后继续走 T5 的减半循环（回收/小精灵循环）。
+            // 2026-11-15 用户口径（第二版）：**不再强求 T7 出豹**——手里有豹、且这一拍真付得出
+            // （地+临时彩 ≥12）才进豹脚本；付不出就继续走 T5 的减半循环长地，缓 1~2 个回合再出，
+            // 这样不用为了凑 12 费一次祭 4 张（省手牌）。
+            if (own >= 7 && HandCopies(core, me, NamePanther) > 0 && PantherReady(core, me))
+            { scriptTurn = 7; return true; }
+            // 豹还没到位（或不在手）：7 回合后继续走 T5 的减半循环（小精灵/牺牲/回收/落地）。
             if (own >= 7) { scriptTurn = 5; return true; }
             return false;
         }
 
-        /// <summary>出暗影豹还差几费 → 需要祭几张（地越多祭越少；12 地以上不祭）。</summary>
-        private static int PantherSacrificeCount(GameCore core, Player me, int pantherCost)
+
+        /// <summary>暗影豹这一拍打不打得出去（操控地 + 临时彩 ≥ 12）——「缓一回合」的判据：
+        /// 不 ready 就让减半循环继续长地（每回合 +1~2），**不为了 T7 硬凑 12 费去祭 4 张**（省手牌）。</summary>
+        private static bool PantherReady(GameCore core, Player me)
         {
-            int lands = TotalLands(core, me);
-            return Math.Max(0, pantherCost - lands);
+            var pool = core.ElementPool.GetPool(me);
+            int temp = pool?.TempElements != null ? pool.TempElements[ManaType.Any] : 0;
+            return TotalLands(core, me) + temp >= PantherCost;
         }
         /// <summary>脚本内的卡片优先级（数字越大越先打）。</summary>
         private static float ScriptScore(GameCore core, Player me, int scriptTurn, string name, bool firstCard, bool spiritOnField)
@@ -251,8 +256,9 @@ namespace CardCore.AI
                     break;
                 case 5:
                     if (name == NameSpirit && firstCard) return 9900f;
-                    if (name == NameReturn && spiritOnField) return 9850f;
-                    if (name == NameReturn) return 9800f;
+                    // T5 循环的「回收」：墓地 ≥3 张才打（回收 3 才是纯收益）——不够的回合再打第二张
+                    // 只是把 4 费扔掉（实测 T5 二次归根捞 1 张、把留给对手回合贴减半的费烧光）。
+                    if (name == NameReturn) return GyCount(core, me) >= 3 ? (spiritOnField ? 9850f : 9800f) : 150f;
                     break;
                 case 7:
                     if (name == NameSpirit && firstCard) return 9900f;
@@ -272,6 +278,10 @@ namespace CardCore.AI
             // 固定脚本优先（有对应卡才进脚本；否则完全走原启发式）
             if (InScriptTurn(core, me, out int scriptTurn))
             {
+                // T7 暗影豹：**费一够立刻落地**（高于一切）——循环/补地都是为它服务，
+                // 见底的费被下一张归根/沃土吃掉就永远出不来（2026-11-15 实测：12 地仍 0 次施放）。
+                if (scriptTurn == 7 && name == NamePanther && GameActions.CanAffordCast(core, me, card, 0))
+                    return 9990f;
                 bool first = IsFirstCardThisTurn(core, me);
                 bool spiritOnField = HasSpiritOnField(core, me);
                 float s = ScriptScore(core, me, scriptTurn, name, first, spiritOnField);
@@ -366,10 +376,17 @@ namespace CardCore.AI
         /// 归根——墓地没有核心组件、且墓地不足 2 张时留手。</summary>
         public override bool ShouldHold(GameCore core, Player me, Card card)
         {
-            // 脚本回合（T3 收尾回收 / T5 循环 / T7 暗影豹）：回收必须能落地，
-            // 不能被「墓地不足 2 张」的攒牌闸拦住
-            if (InScriptTurn(core, me, out int scriptTurn)
-                && NameOf(card) == NameReturn) return false;
+            // 脚本回合（T3 收尾回收 / T5 循环）：回收必须能落地，不能被动「墓地不足 2 张」的攒牌闸拦住。
+            // 但 T5 循环（2026-11-15）多一条：**同一回合的第二张归根不打**——墓地只剩 1 张时打回收
+            // 等于白扔 4 费，把留给对手回合贴减半的钱花光（实测 T5 第二次归根只捞 1 张）。
+            if (InScriptTurn(core, me, out int scriptTurn) && NameOf(card) == NameReturn)
+            {
+                if (scriptTurn == 5 || scriptTurn == 7) return GyCount(core, me) < 3;
+                return false;
+            }
+            // T7 暗影豹：费一够就打出去——旧的「地 <11 先留手」会正好卡在「牺牲+补地后
+            // 够 12 费」这一拍上，豹被攒在手里直到回合结束（2026-11-15 探针实测 hold=True）。
+            if (scriptTurn == 7 && NameOf(card) == NamePanther) return false;
             return ShouldHoldStatic(core, me, card);
         }
 
@@ -405,13 +422,14 @@ namespace CardCore.AI
             // 例外（用户 T3 推导）：手里有 ≥2 张归根时，可以拿一张铺地（另一张留着打回收）。
             if (InScriptTurn(core, me, out int st))
             {
-                // 归根/减半一律不铺地（分别是回收口和保命件）；
-                // 沃土/小精灵只在**多册**时铺一张（留一张打牌），暗影豹可以铺（本来就是白板地）。
-                // 归根（2026-11-15 用户口径）：**不必全部留在手里**——手里 ≥2 张、墓地有、或地牌池有，
-                // 只要还能再拿到一张打「回收」，多出来的一张就可以铺地。
-                if (name == NameReturn) return ReturnAvailable(core, me) >= 2;
-                if (name == NameBloom || name == NameSpirit) return HandCopies(core, me, name) >= 2;
-                if (name == NameHalve) return true;                      // 减半可当「补 1 地」的材料
+                // T5 循环（2026-11-15 用户口径）：手里**各留一张**小精灵 / 归根 / 减半——
+                // 它们是下一回合「小精灵 → 牺牲 → 回收」的循环材料，铺成地等于把循环断掉。
+                // 注意判定用「手牌张数」而不是「手牌+墓地+地池」：池里/墓地里的归根救不了本回合要打的这张
+                //（旧口径 ReturnAvailable≥2 会把手里唯一一张归根铺掉，T5 回收永远打不出来）。
+                if (name == NameReturn) return HandCopies(core, me, NameReturn) >= 2;
+                if (name == NameSpirit) return HandCopies(core, me, NameSpirit) >= 2;
+                // 减半：T3 当补地材料；T5 起要留给对手回合的响应窗，只有多册才铺。
+                if (name == NameHalve) return st == 3 || HandCopies(core, me, NameHalve) >= 2;
             }
             // 脚本 T3：用户推导里「落地 2」用的是 未知牌 + 暗影豹——所以 T3 允许把 暗影豹/减半 铺成地，
             // 先把地数顶到 3（否则 1 块地连沃土都开不出来）。
@@ -500,32 +518,12 @@ namespace CardCore.AI
                 var poolSet = new HashSet<Entity>(CandidatesInZone(req, 0, 2));
                 // 固定脚本 T5（2026-11-15 用户口径）：牺牲的是**场上小精灵**（不烧地、不烧手牌），
                 // 让它进墓地后由「回收」捞回手——循环靠这一手转起来。
+                // 候选里没有小精灵就返回空表（本次不选目标，绝不退回「按分数挑」把地/手牌烧掉）。
                 if (InScriptTurn(core, me, out int scriptSac) && scriptSac == 5)
                 {
-                    var spirit = list.Where(e => e is Card c && c.IsAlive && NameOf(c) == NameSpirit).ToList();
-                    if (spirit.Count > 0) return spirit.Take(1).ToList();
-                }
-                // 脚本 T7（暗影豹线，2026-11-15 用户口径）：**按地数决定祭几张**——
-                // 8 地祭 4、9 地祭 3、10 地祭 2、11 地祭 1、12 地以上不祭；优先已横置的地。
-                if (InScriptTurn(core, me, out int t7sac) && t7sac == 7)
-                {
-                    int need7 = PantherSacrificeCount(core, me, PantherCost);
-                    if (need7 <= 0) return list.OrderByDescending(e => e is Card c ? SacrificeScore(core, me, c) : 0f).Take(1).ToList();
-                    // 用户口径（2026-11-15 T7）：祭 4 = **3 块已横置地 + 场上小精灵**；回收留手里不放。
-                    var picks = new List<Entity>();
-                    var spiritCard = list.FirstOrDefault(e => e is Card c && c.IsAlive && NameOf(c) == NameSpirit);
-                    if (spiritCard != null) picks.Add(spiritCard);
-                    var tappedSet7 = TappedPoolCards(core, me);
-                    var tappedLands = list.Where(e => poolSet.Contains(e) && e is Card c2 && tappedSet7.Contains(c2)
-                            && NameOf(c2) != NameSpirit && NameOf(c2) != NameReturn)
-                        .OrderByDescending(e => e is Card c3 ? SacrificeScore(core, me, c3) : 0f)
-                        .ToList();
-                    foreach (var e in tappedLands)
-                    {
-                        if (picks.Count >= need7) break;
-                        picks.Add(e);
-                    }
-                    if (picks.Count > 0) return picks;
+                    return list.Where(e => e is Card c && c.IsAlive && NameOf(c) == NameSpirit)
+                               .Take(1)
+                               .ToList();
                 }
                 // 脚本 T3（2026-11-15 用户推导）：牺牲 **2 块已横置的地**——
                 // 绝不烧 沃土（成长引擎）/归根（回收口）/小精灵（T5 材料）。
@@ -714,10 +712,14 @@ namespace CardCore.AI
         {
             string name = NameOf(c);
             int lands = TotalLands(core, me);
+            // 减半循环的「回收三格」= 小精灵 + 归根 + **减半或豹**（2026-11-15 用户口径）：
+            //  · 豹还打不出去（地+彩 <12）→ 第三格给减半（保住对手回合的减伤）；
+            //  · 豹打得出去 → 只把第三格换成豹（回收它 → 下一拍直接 9/9 系命再打一轮）。
+            //  排序刻意让 小精灵/归根 在最上（循环的燃料），第三格在 减半/豹 之间随 ready 切换。
+            if (name == NameSpirit) return 1200f;
+            if (name == NameReturn) return 1190f;
+            if (name == NamePanther) return PantherReady(core, me) ? 1180f : 1050f;
             if (name == NameHalve) return 1100f;
-            if (name == NamePanther) return 1050f;
-            if (name == NameReturn) return 900f;
-            if (name == NameSpirit) return 700f;
             if (name == NameBloom) return lands >= GateLands ? 80f : 800f;   // 9 地后不回收
             if (name != null && CoreNames.Contains(name)) return 1000f;
             return 100f;
@@ -748,6 +750,14 @@ namespace CardCore.AI
         private static float CostDownTargetScore(string name, GameCore core, Player me, bool bothCastable)
         {
             if (name == null) return 0f;
+            // 脚本回合（2026-11-15 T5 循环）：折扣要落在「本回合真要打的那张」——
+            // T3 给沃土（成长引擎），T5/T7 给归根（回收 4→2 是循环的启动费）。
+            // 旧口径在 T5 会把折扣给沃土（6→4），归根仍是 4 费，回收永远差费打不出来。
+            if (InScriptTurn(core, me, out int scriptTurn) && scriptTurn >= 5)
+            {
+                if (name == NameReturn) return 130f;
+                if (name == NameBloom) return 60f;
+            }
             if (name == NamePanther && HandCopies(core, me, NamePanther) > 0
                 && TotalLands(core, me) >= 7) return 120f;
             if (name == NameBeast && HandCopies(core, me, NameBeast) > 0
@@ -885,10 +895,14 @@ namespace CardCore.AI
                 if (ReturnHeldEarly(core, me)) return true;                     // 成长/减半还没落地 → 回收留手
                 return GyCount(core, me) < 2 || !HasUsefulGrave(core, me);      // 墓地≥2 且有货才捞
             }
+            // 减半（2026-11-15 修）：**自己回合永远留手**（指示物回合末清一层 → 打了等于白给），
+            // 只在对手回合的响应窗打。这一条必须放在「手里有回收就不攒」之前——否则手里有归根时
+            // 减半会被当成可打牌白扔在自己回合（实测 T5 自回合支付 绿×4 贴了个空）。
+            if (name == NameHalve && core.TurnEngine != null
+                && ReferenceEquals(core.TurnEngine.TurnPlayer, me)) return true;
             // 2026-11-15 用户定案：真正要留的 key 只有「回收」。手里有回收 → 其它都不攒；
             // 没有回收时枯竭等目标（全取，有地就打）、暗影豹等地/钱到位（下位替代）。
             if (HandCopies(core, me, NameReturn) > 0) return false;
-            // 减半：**自己回合永远留手**（回合末清一层 → 打了等于没用），只在对手回合的响应窗打。
             if (name == NameHalve) return true;
             if (EraseNames.Contains(name)) return OpponentLands(core, me) == 0;
             // 小精灵（2026-11-15 用户定案）：**永远不攒**——每回合只要手里有，第一张就打它（首卡 −2 交出去）。
@@ -1039,9 +1053,10 @@ namespace CardCore.AI
         }
 
         private static int CountLands(GameCore core, Player me, ManaType color)
-            => core.ElementPool.GetPooledCards(me).Count(pc => pc != null && pc.LockedColor == color);
+            => core.ElementPool.GetPooledCards(me).Count(pc => pc != null && pc.CanProduce(color));
 
         private static int TotalLands(GameCore core, Player me)
             => core.ElementPool.GetPooledCards(me).Count();
     }
 }
+

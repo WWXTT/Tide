@@ -140,13 +140,10 @@ namespace SynergyUI
                 {
                     var card = FindInZone(core, me, Zone.Hand, action.card);
                     if (card == null) return LogResult(action, false, $"手牌无 {action.card}");
-                    // 2026-10-11 锁色定案：action.target 可选填产色名（红/蓝/绿/灰，缺省=主色）
-                    ManaType? color = null;
-                    if (!string.IsNullOrEmpty(action.target)
-                        && System.Enum.TryParse<ManaType>(action.target, true, out var lockColor))
-                        color = lockColor;
-                    return LogResult(action, GameActions.AddToElementPool(core, me, card, color),
-                        "入元素池被拒（上限/资格/无锁色候选）");
+                    // 2026-11-15 地牌改版：放置不再选色（action.target 的产色名参数随之退役——
+                    // 现存教学剧本零 element 带色用法，实证后删；入池快照可产集合）
+                    return LogResult(action, GameActions.AddToElementPool(core, me, card),
+                        "入元素池被拒（上限/资格/无可产候选）");
                 }
                 case "play":
                 {
@@ -332,4 +329,23 @@ namespace SynergyUI
             return any ? counts : null;
         }
     }
+    /// <summary>
+    /// 纯空过木桩驱动（2026-11-15 用户定案回滚：木桩 0 档=全让过——不动作、不产色、不响应）：
+    /// 回合=排干在途栈（双 Pass=自动拒绝连锁）→ 直接结束回合（引擎回合末自动弃牌到手牌上限）。
+    /// 与 SimpleAI 的"动作耗尽启发"相对——本驱动一个动作都不做。
+    /// </summary>
+    public sealed class PassiveDummyAi : IAiTurnDriver
+    {
+        public async Cysharp.Threading.Tasks.UniTask TakeTurnAsync(BattleController ctrl)
+        {
+            var core = ctrl?.Core;
+            var me = ctrl?.TurnPlayer;
+            if (core == null || me == null) return;
+            GameActions.DrainStack(core, 64); // 自动拒绝连锁（双 Pass 排干在途栈）
+            if (!core.IsGameOver)
+                GameActions.EndTurn(core, me); // 空过：直接结束回合（引擎自动弃牌）
+            await Cysharp.Threading.Tasks.UniTask.CompletedTask;
+        }
+    }
 }
+

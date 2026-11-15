@@ -233,10 +233,16 @@ namespace SynergyUI
                 var aiDummy = aiDeck ?? BattleController.RandomDeck(out aiRandomSkill);
                 string myDummySkill = matchSkill ?? myRandomSkill;
                 string aiDummySkill = aiSkill ?? aiRandomSkill;
-                // 2026-11-03 用户定案：木桩测试三档难度对手统一=预组主题策略 AI（AutoMatch——
-                // 红·快攻→红快攻、蓝·控制→蓝控制、绿·慢速→绿慢速；0 档旧「全让过木桩」退役）。
-                // 响应行为归驱动自身内置启发，不加外部约束（被动响应器只剩教学固定局在用）。
-                IAiTurnDriver dummyDriver = MakePacedAi(AiStrategy.AutoMatch(aiDummy));
+                // 2026-11-15 用户定案：三档口径——0=纯空过木桩（PassiveDummyAi：不动作/不产色/
+                // 自动拒绝连锁/引擎自动弃牌）；1=脚本（预组主题策略 AutoMatch）；2=AI（训练后
+                // NeuralAiDriver——tide_policy.onnx，模型缺失自动响亮回落 SimpleAI）。
+                IAiTurnDriver dummyDriver;
+                if (BattleEntry.DummyDifficulty == 0)
+                    dummyDriver = new PassiveDummyAi();
+                else if (BattleEntry.DummyDifficulty == 2)
+                    dummyDriver = new NeuralAiDriver();
+                else
+                    dummyDriver = MakePacedAi(AiStrategy.AutoMatch(aiDummy));
                 if (BattleEntry.DummyFullPool
                     && DummyTestFlow.TryBuildFullPool(myDummy, aiDummy, BattleEntry.DummyShuffle,
                         playerFirst != false, out var scen, out var mySeeded, out var aiSeeded))
@@ -335,7 +341,8 @@ namespace SynergyUI
                 OnUse = OnFanUse,
                 OnPlaceLand = OnFanPlaceLand,
                 OnDragEnd = HandleFanDragEnd, // 拖拽抬手三分流（2026-11-15 全拖拽改版主入口）
-                OnDragBegin = HandleFanDragBegin, // 阶段H：起手拉 3D 箭头（卡隐藏前的世界锚）
+                OnDragBegin = HandleFanDragBegin, // 阶段H：起手拉 3D 箭头（起点=角色格）
+                CanDrag = _ => DragInteractionAllowed(), // 实测①：对手回合无优先权——起手即取消
             });
 
             // 通用目标选择器（效果引擎结算期反问）：Region 面板选卡（2026-10-15 用户定案）。

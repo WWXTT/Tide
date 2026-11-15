@@ -36,14 +36,18 @@ namespace SynergyUI
         public const string OppNodeName = "land-strip-opp";
         public const string QuadPrefix = "land-quad-";
 
-        // 排布参数（2026-11-15 定案）：间距 pitch∈[Width, 0.62]（0.07 缝→极多时压到面片宽允许重叠），
-        // 数字段 0.72m 靠卡组一侧，上限 10 张单行放得下（10×0.62=6.2<面片区 6.90）
-        private const float CapWidth = 0.72f;
+        // 排布参数（2026-11-15 改版定稿）：cube 满长前面片间距 ≤0.62；满长后**收缩间距**密排至 0.28
         private const float MaxPitch = 0.62f;
+        private const float MinPitch = 0.28f;
         private const float TappedLayerY = 0.0015f; // 横置张分层抬升（后放的横置张依次抬高防叠面闪）
         private const float StripWidth = 0.9f;      // 长条底板宽（Z 向）
         private const float StripLift = 0.010f;     // 底板抬升（地块顶面 0 与面片 0.012 之间）
         private const float IconLocalScale = 0.38f; // 面片角标小元素图标（quad 本地系；世界≈0.38×0.55）
+        // 2026-11-15 地牌改版 §8.2：多色角标——底部一行小元素图标逐可产色点亮（仅多色地显示，
+        // 单色地主图标已表达；dot 共用 quad prefab 实例化=「实例化共用预制体」豁免口径）
+        private const float DotLocalScale = 0.20f;  // 角标小图标尺寸（IconLocalScale 的 ~0.53）
+        private const float DotPitch = 0.24f;       // 角标间距（quad 本地系）
+        private const float DotY = -0.50f;          // 角标行 Y（面片底部）
         private static readonly Color PlateColor = new Color(0.085f, 0.095f, 0.115f); // 底板深色不透明
         private static readonly Color CapFullColor = new Color(1f, 0.78f, 0.28f);     // 满槽金
         private static readonly Color CapFreeColor = Color.white;
@@ -53,7 +57,9 @@ namespace SynergyUI
             public GameObject Go;
             public LandCardQuadView View;
             public Renderer IconRend;
+            public readonly GameObject[] Dots = new GameObject[4]; // 可产色角标（灰/红/蓝/绿——下标=(int)ManaType）
             public int Color = -1;
+            public int Mask; // 当前角标掩码（0=全隐）
         }
 
         private static readonly Dictionary<uint, QuadEntry>[] _quads =
@@ -71,9 +77,8 @@ namespace SynergyUI
 
         private struct Geo
         {
-            public float FaceMin, FaceMax; // 面片区边界（Board 局部 X；已扣数字段）
-            public float RowZ, Dir;        // 地牌行 Z / 铺排方向（+1=P1 视角左→右=+x，-1=P2）
-            public bool CapAtHigh;         // 数字段在高 x 端（靠卡组侧）
+            public float StartX, DeckX;    // 临时元素格中心 / 卡组格中心（Board 局部 X——两锚定地牌区）
+            public float RowZ, Dir;        // 行 Z / 延伸方向（P1=+x、P2=−x：从临时元素格伸向卡组）
         }
 
         private static readonly Geo?[] _geo = new Geo?[2];
@@ -112,11 +117,13 @@ namespace SynergyUI
 
             var dict = _quads[owner];
             int n = lands != null ? lands.Count : 0;
-            float usable = g.FaceMax - g.FaceMin;
-            float pitch = n > 0 ? Mathf.Clamp(usable / n, CardPlateMetrics.Width, MaxPitch) : MaxPitch;
+            // 地牌区（2026-11-15 用户定稿）：cube 长=min(max(1.3, 1.3×n), 9.5)；满长后收面片间距
+            float len = Mathf.Clamp(BlockBase * Mathf.Max(n, 1), BlockBase, BlockMaxLen);
+            float faceStart = g.StartX + g.Dir * BlockStartOffset;          // 面片区起点（cube 头）
+            float usable = Mathf.Max(0.5f, len - 0.3f);                     // 面片区净长（两端内缩）
+            float pitch = n > 0 ? Mathf.Clamp(usable / n, MinPitch, MaxPitch) : MaxPitch;
             float groupW = pitch * n;
-            // 整组在面片区内居中；起点=视角左端（P1 低 x / P2 高 x）
-            float originX = (g.Dir > 0f ? g.FaceMin : g.FaceMax) + g.Dir * (usable - groupW) * 0.5f;
+            float originX = faceStart + g.Dir * (usable - groupW) * 0.5f;   // 面片区内居中
 
             var seen = new HashSet<uint>();
             int tappedSeen = 0;
@@ -129,6 +136,7 @@ namespace SynergyUI
                 bool tapped = land.IsTapped;
                 var e = EnsureQuad(owner, land.RuntimeId, color);
                 if (e == null) continue;
+                ApplyMask(e, land.LandColorMask); // 2026-11-15 地牌改版：多色角标（≥2 色才显示）
                 float x = originX + g.Dir * pitch * (i + 0.5f);
                 float y = CardPlateMetrics.LiftY + (tapped ? tappedSeen * TappedLayerY : 0f);
                 // 节点局部坐标（节点无旋转缩放，直接平移差）
@@ -153,7 +161,8 @@ namespace SynergyUI
                 }
             }
 
-            UpdateCapLabel(owner, node, g, anchor, n, cap);
+            UpdateCapTri(owner, n, cap);
+            SyncLandBlock(owner, g, n, len); // 2026-11-15 改版：cube 自临时元素格伸向卡组、满长封顶
 
             if (n != _lastCount[owner] || cap != _lastCap[owner]) // 对账证据日志（变更才刷，不随事件刷屏）
             {
@@ -208,22 +217,22 @@ namespace SynergyUI
                 }
         }
 
-        /// <summary>放地/选色高亮（拖拽期色带反馈）：亮对应色地牌格描边环（BattleTileFx 逐格环保留 API，
-        /// 改由长条调用——2026-11-15 §4.1.5）；null=清该方全部。</summary>
-        public static void SetStripHighlight(int owner, ManaType? color)
-        {
-            var cells = BoardLayout.LandCells(owner);
-            for (int i = 0; i < cells.Count; i++)
-            {
-                if (color.HasValue
-                    && i < BoardLayout.LandCellElementOrder.Length
-                    && BoardLayout.LandCellElementOrder[i] != color.Value) continue;
-                if (color.HasValue) BattleTileFx.SetLandGlow(cells[i].x, cells[i].z, (int)color.Value);
-                else BattleTileFx.ClearGlow(cells[i].x, cells[i].z);
-            }
-        }
+        // SetStripHighlight（拖拽期色带描边高亮）已随 2026-11-15 地牌改版整删：放地不再选色带，
+        // 拖拽视觉=3D 箭头+临时元素格波标（UpdateDragVisualAt 单源），零调用点实证后移除。
 
-        // ======================================== 内部 ========================================
+        /// <summary>单一地牌区 cube（2026-11-15 用户定稿）：挂临时元素格 tile 下——默认显示
+        /// 1.3×1.3（0 张也在）、长=1.3×n 封顶 9.5、pos.x=scale.x/2+1、高 0.25、y=-0.12、无旋转。</summary>
+        private static void SyncLandBlock(int owner, Geo g, int n, float len)
+        {
+            var start = BoardLayout.AnyElementCell(owner);
+            var anchor = BattleTileFx.TileOf(start.x, start.z);
+            var block = anchor != null ? anchor.Find("land-block") : null;
+            if (block == null) return; // 旧 prefab 未烘焙：面片照铺（降级口径）
+            block.localScale = new Vector3(len, 0.25f, BlockBase);
+            block.localPosition = new Vector3((len / 2f + BlockStartOffset) * g.Dir, -0.12f, 0f);
+            block.localRotation = Quaternion.identity;
+            if (!block.gameObject.activeSelf) block.gameObject.SetActive(true); // 默认显示（0 张=1.3 基线）
+        }
 
         private static Transform EnsureNode(int owner)
         {
@@ -242,8 +251,7 @@ namespace SynergyUI
                 var go = new GameObject(owner == 0 ? SelfNodeName : OppNodeName);
                 go.transform.SetParent(BattleBoardGrid.Root.transform, false);
                 var g = GeometryOf(owner);
-                var c = (g.FaceMin + g.FaceMax) * 0.5f;
-                go.transform.localPosition = new Vector3(c, 0f, g.RowZ);
+                go.transform.localPosition = new Vector3((g.StartX + g.DeckX) * 0.5f, 0f, g.RowZ);
                 node = go.transform;
             }
             _nodes[owner] = node;
@@ -265,27 +273,28 @@ namespace SynergyUI
         private static Geo GeometryOf(int owner)
         {
             if (_geo[owner] is Geo cached) return cached;
-            var cells = BoardLayout.LandCells(owner);
-            var c0 = BattleBoardGrid.CellCenterLocal(cells[0].x, cells[0].z);
-            var cN = BattleBoardGrid.CellCenterLocal(cells[cells.Count - 1].x, cells[cells.Count - 1].z);
-            float lo = Mathf.Min(c0.x, cN.x) - BattleBoardGrid.InnerRadius;
-            float hi = Mathf.Max(c0.x, cN.x) + BattleBoardGrid.InnerRadius;
+            var start = BoardLayout.AnyElementCell(owner); // 临时元素格=地牌区起点（2026-11-15 改版）
             var deck = owner == 0
                 ? (BoardLayout.P1DeckX, BoardLayout.P1DeckZ)
                 : BoardLayout.MirrorSeat(BoardLayout.P1DeckX, BoardLayout.P1DeckZ);
-            float deckX = BattleBoardGrid.CellCenterLocal(deck.Item1, deck.Item2).x;
-            bool capAtHigh = deckX > (lo + hi) * 0.5f; // 数字段靠卡组侧
+            var s = BattleBoardGrid.CellCenterLocal(start.x, start.z);
+            var d = BattleBoardGrid.CellCenterLocal(deck.Item1, deck.Item2);
             var g = new Geo
             {
-                FaceMin = capAtHigh ? lo : lo + CapWidth,
-                FaceMax = capAtHigh ? hi - CapWidth : hi,
-                RowZ = c0.z,
-                Dir = cN.x >= c0.x ? 1f : -1f, // 池序铺排方向=该方视角左→右
-                CapAtHigh = capAtHigh,
+                StartX = s.x,
+                DeckX = d.x,
+                RowZ = s.z,
+                Dir = d.x >= s.x ? 1f : -1f, // 从临时元素格伸向卡组
             };
             _geo[owner] = g;
             return g;
         }
+
+        /// <summary>地牌区 cube 规则（2026-11-15 用户定稿）：默认显示 1.3×1.3（0 张也在）、
+        /// 随张数伸长（1.3×n）、x 极限 9.5；pos.x=scale.x/2+1；满长后收**面片间距**（MinPitch）。</summary>
+        private const float BlockBase = 1.3f;      // 默认长=宽（1 张基线）
+        private const float BlockMaxLen = 9.5f;    // x 极限长度
+        private const float BlockStartOffset = 1f; // 起点偏移（临时元素格中心 → cube 左缘）
 
         private static QuadEntry EnsureQuad(int owner, uint rid, int color)
         {
@@ -330,7 +339,33 @@ namespace SynergyUI
             iconRend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             iconRend.receiveShadows = false;
 
-            e = new QuadEntry { Go = go, View = go.AddComponent<LandCardQuadView>(), IconRend = iconRend };
+            var e2 = new QuadEntry();
+            // 多色角标位（2026-11-15 §8.2）：4 个小图标位预建（dot-{c}，默认隐藏），ApplyMask 点亮
+            for (int c = 0; c < 4; c++)
+            {
+                var dot = Object.Instantiate(_quadPrefab, go.transform, false);
+                dot.name = "dot-" + c;
+                var dotCol = dot.GetComponent<Collider>();
+                if (dotCol != null)
+                {
+                    if (Application.isPlaying) Object.Destroy(dotCol);
+                    else Object.DestroyImmediate(dotCol);
+                }
+                dot.transform.localRotation = Quaternion.identity;
+                dot.transform.localScale = new Vector3(DotLocalScale / _quadBaseScale,
+                    DotLocalScale / CardPlateMetrics.Aspect / _quadBaseScale, 1f);
+                var dotRend = dot.GetComponent<MeshRenderer>();
+                dotRend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                dotRend.receiveShadows = false;
+                var dotMat = BattleTileFx.ElemIconMaterial(c);
+                if (dotMat != null) dotRend.sharedMaterial = dotMat;
+                dot.SetActive(false);
+                e2.Dots[c] = dot;
+            }
+            e2.Go = go;
+            e2.View = go.AddComponent<LandCardQuadView>();
+            e2.IconRend = iconRend;
+            e = e2;
             dict[rid] = e;
             ApplyColor(e, color);
             return e;
@@ -346,27 +381,48 @@ namespace SynergyUI
             if (bodyMat != null) e.View.SetMaterials(bodyMat, ColorMaterial(color, true));
         }
 
-        private static void UpdateCapLabel(int owner, Transform node, Geo g, Vector3 anchor, int n, int cap)
+        /// <summary>可产色角标（2026-11-15 地牌改版）：mask=LandColorMask（bit0..3=灰红蓝绿）。
+        /// **仅多色地**（≥2 位）点亮底部角标行——单色地主图标已表达，不添噪点；行内按位序居中排布。</summary>
+        private static void ApplyMask(QuadEntry e, int mask)
+        {
+            int masked = mask & 0xF;
+            if (e.Mask == masked) return;
+            e.Mask = masked;
+            int count = 0;
+            for (int c = 0; c < 4; c++) count += (masked >> c) & 1;
+            bool show = count >= 2;
+            int shown = 0;
+            for (int c = 0; c < 4; c++)
+            {
+                var dot = e.Dots[c];
+                if (dot == null) continue;
+                bool on = show && ((masked >> c) & 1) != 0;
+                if (on)
+                {
+                    dot.transform.localPosition = new Vector3(
+                        (shown - (count - 1) * 0.5f) * DotPitch, DotY, -0.003f);
+                    shown++;
+                }
+                if (dot.activeSelf != on) dot.SetActive(on);
+            }
+        }
+
+        /// <summary>地牌上限说明（2026-11-15 用户预制体口径）：**只写文本**——pie-0 下 cap-text
+        /// 写「当前地牌数/上限」（初始 "0/0"）；外观全归预制体，缺件不建。</summary>
+        private static void UpdateCapTri(int owner, int n, int cap)
         {
             var label = _capLabels[owner];
-            if (label == null) // 惰性建（平贴口径同 EnsureFlatCellLabel：LookRotation(down,forward)）
+            if (label == null)
             {
-                if (!EnsureTmpFont()) return;
-                var go = new GameObject("cap-label");
-                go.transform.SetParent(node, false);
-                float capCenterBoard = g.CapAtHigh ? g.FaceMax + CapWidth * 0.5f : g.FaceMin - CapWidth * 0.5f;
-                go.transform.localPosition = new Vector3(capCenterBoard - anchor.x, 0.014f, g.RowZ - anchor.z);
-                go.transform.localRotation = Quaternion.LookRotation(Vector3.down, Vector3.forward);
-                label = go.AddComponent<TextMeshPro>();
-                label.fontSize = 2.6f;
-                label.alignment = TextAlignmentOptions.Center;
-                label.rectTransform.sizeDelta = new Vector2(0.68f, 0.5f);
-                _capLabels[owner] = label;
+                var start = BoardLayout.AnyElementCell(owner);
+                var tile = BattleTileFx.TileOf(start.x, start.z);
+                var textT = tile != null ? tile.Find("land-pie/pie-0/cap-text") : null;
+                label = textT != null ? textT.GetComponent<TextMeshPro>() : null;
+                if (label != null) _capLabels[owner] = label;
             }
-            string txt = $"{n}/{cap}\n<size=70%>地牌</size>";
+            if (label == null) return; // 预制体缺件：不建不改（告警见 EnsureNode 口径）
+            string txt = $"{n}/{cap}";
             if (label.text != txt) label.text = txt;
-            var c = cap > 0 && n >= cap ? CapFullColor : CapFreeColor; // 满槽金（上限提升脉冲属可选优化后置）
-            if (label.color != c) label.color = c;
         }
 
         private static bool EnsureTmpFont()

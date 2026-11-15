@@ -31,6 +31,9 @@ namespace SynergyUI
         /// <summary>拖拽起手（2026-11-15 阶段H 视觉改版）：卡隐藏前一刻触发（卡屏幕位随参）——
         /// 宿主屏在此拉起 3D 箭头（BattleAttackArrow）并记录起点世界锚。</summary>
         public Action<HandFanCard, Vector2> OnDragBegin;
+        /// <summary>拖拽可起手闸（2026-11-15 用户实测①）：宿主屏注入——对手回合未持有优先权
+        /// （无连锁响应权）时返回 false，拖拽在起手（变箭头）那一步自动取消。</summary>
+        public Func<HandFanCard, bool> CanDrag;
     }
     /// <summary>手牌扇区的一条数据：对账键=引擎卡 RuntimeId；FaceUp=false 只显示卡背（内容被 back 覆盖）。</summary>
     public sealed class HandFanCardData
@@ -168,6 +171,7 @@ namespace SynergyUI
         internal void BeginDrag(HandFanCard card, Vector2 screenPoint)
         {
             if (Dragging || card == null || _hooks?.OwnerSide != true) return;
+            if (_hooks.CanDrag != null && !_hooks.CanDrag(card)) return; // 对手回合无优先权：起手即取消（不变箭头）
             Dragging = true;
             DraggingCard = card;
             _hovered = null;
@@ -197,6 +201,18 @@ namespace SynergyUI
             var cb = _hooks?.OnDragEnd;
             if (cb != null) cb(card, screenPoint);
             else RestoreDragCard(card, false); // 无裁决钩子=无条件回手
+        }
+
+        /// <summary>外部取消拖拽（2026-11-15 用户实测③：PC 右键/ESC、操作权丢失）：清拖拽态+回手
+        /// （与被拒路径同款；不走向落点裁决）。</summary>
+        public void CancelDrag()
+        {
+            if (!Dragging) return;
+            var card = DraggingCard;
+            Dragging = false;
+            DraggingCard = null;
+            RestoreDragCard(card, false);
+            Debug.Log("[HandDrag] cancel（外部取消：右键/ESC/失权）");
         }
 
         /// <summary>回手（取消/被拒路径；阶段H：恢复卡的可见性——拖拽期被隐藏）+恢复常态收缩档

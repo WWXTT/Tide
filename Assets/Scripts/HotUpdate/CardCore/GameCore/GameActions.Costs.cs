@@ -95,10 +95,11 @@ namespace CardCore
             return cost;
         }
 
-        /// <summary>元素池内指定色地牌数（LockedColor 计数，横置与否不计=持有口径，非可用口径；
-        /// 同禁召灰地/纳川蓝地/归土绿地）。代价地牌门槛（EvaluatePayloadGate ③）消费。</summary>
+        /// <summary>元素池内指定色地牌数（2026-11-15 地牌改版：CanProduce 计数——多色地同时计入
+        /// 多个颜色，决策3 平衡口径；横置与否不计=持有口径，非可用口径，同禁召/纳川/归土）。
+        /// 代价地牌门槛（EvaluatePayloadGate ③）消费。</summary>
         public static int CountLands(GameCore core, Player player, ManaType color)
-            => core?.ElementPool?.GetPool(player)?.PooledCards?.Count(pc => pc != null && pc.LockedColor == color) ?? 0;
+            => core?.ElementPool?.GetPool(player)?.PooledCards?.Count(pc => pc != null && pc.CanProduce(color)) ?? 0;
 
         /// <summary>
         /// 法术施放锚价（2026-10-15 深夜三类卡改版：法术只挂 1~3 个主动效果，出牌费不含锚价——

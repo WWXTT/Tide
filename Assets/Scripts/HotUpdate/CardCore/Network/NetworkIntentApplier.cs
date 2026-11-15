@@ -59,9 +59,9 @@ namespace CardCore.Network
                     var card = NetEntityDirectory.ResolveCard(core, intent.CardRuntimeId);
                     if (card == null) { error = $"卡不存在 RuntimeId={intent.CardRuntimeId}"; return false; }
 
-                    // ModeIndex 字段复用为锁色选择（2026-10-11：-1=缺省主色，否则=ManaType 枚举值）
-                    var colorChoice = intent.ModeIndex >= 0 ? (ManaType?)intent.ModeIndex : null;
-                    return Ok(GameActions.AddToElementPool(core, player, card, colorChoice), out error);
+                    // 2026-11-15 地牌改版：放置不再锁色——ModeIndex 被忽略（旧客户端传色兼容；
+                    // 服务端入池快照可产集合，展示色=首位主色）
+                    return Ok(GameActions.AddToElementPool(core, player, card), out error);
                 }
 
                 case NetworkMessageType.IntentSkipStandby:
