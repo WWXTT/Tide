@@ -280,11 +280,18 @@ namespace SynergyUI
         public static bool IsTrainingCard(CardData card)
             => card?.Tags != null && card.Tags.Contains("训练池");
 
-        /// <summary>玩家可用卡池：LoadAll 去除教学专用卡、衍生物模板卡、训练专用卡与瞬态网络内容卡
-        ///（随机组卡/卡牌编辑器/联机填位等消费面统一走此口，勿各自手写 tag 判断）。
+        /// <summary>对账样板卡判定（2026-11-15 训练池覆盖矩阵 P2，tags 含「对账样板」）：训练侧
+        /// 「玩家能做 / AI 不能做」逐项对账专用，**不进玩家任何卡池面**（随机组卡/卡牌编辑器/
+        /// 卡组构筑/联机填位）；训练随机池也不抽（不带训练池 tag，TrainingPool() 已排除）。</summary>
+        public static bool IsReconSampleCard(CardData card)
+            => card?.Tags != null && card.Tags.Contains("对账样板");
+
+        /// <summary>玩家可用卡池：LoadAll 去除教学专用卡、衍生物模板卡、训练专用卡、对账样板卡
+        /// 与瞬态网络内容卡（随机组卡/卡牌编辑器/联机填位等消费面统一走此口，勿各自手写 tag 逻辑）。
         /// 卡组构筑不走此口——见 LoadBuildPool（预组/自建卡带教学 tag，这里会整片滤掉）。</summary>
         public static List<CardData> LoadPlayPool()
             => LoadAll().Where(c => !IsTeachingCard(c) && !IsTokenCard(c) && !IsTrainingCard(c)
+                                    && !IsReconSampleCard(c)
                                     && !CardCore.Network.TransientNetContent.IsTransientCard(c.ID)).ToList();
 
         /// <summary>卡组构筑卡池（2026-11-13 用户定案「卡组构筑的卡池显示全卡——自定义和预组的全部卡」）：
@@ -295,7 +302,7 @@ namespace SynergyUI
         /// 仍走 LoadPlayPool（教学卡隔离不变）。</summary>
         public static List<CardData> LoadBuildPool()
             => LoadAll().Where(c => c != null && !string.IsNullOrEmpty(c.ID)
-                                    && !IsTokenCard(c) && !IsTrainingCard(c)
+                                    && !IsTokenCard(c) && !IsTrainingCard(c) && !IsReconSampleCard(c)
                                     && !CardCore.Network.TransientNetContent.IsTransientCard(c.ID)).ToList();
 
         // ======================================== 牌库查重（2026-11-13 定案） ========================================

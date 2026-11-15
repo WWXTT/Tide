@@ -108,14 +108,17 @@
       "life": 3,
       "costList": [
         2.0,
-        0.0,
+        6.0,
         0.0,
         0.0
       ],
       "tags": [
         "训练池"
       ],
-      "hash": "D99B9E33"
+      "hash": "D5523F0D",
+      "effectIds": [
+        "8c988c18"
+      ]
     },
     {
       "id": "C_79E3FBD5",
@@ -214,15 +217,18 @@
       "power": 1,
       "life": 4,
       "costList": [
-        2.0,
+        3.0,
         0.0,
         0.0,
-        0.0
+        5.0
       ],
       "tags": [
         "训练池"
       ],
-      "hash": "DC0F8DCB"
+      "hash": "6C81E1AF",
+      "effectIds": [
+        "02AA8CE2"
+      ]
     },
     {
       "id": "C_A49FDEE5",
@@ -1246,7 +1252,7 @@
         0.0,
         0.0
       ],
-      "hash": "D2FB9D0B"
+      "hash": "62C5CB0A"
     },
     {
       "id": "C_5AFFC259",
@@ -1303,6 +1309,401 @@
         0.0
       ],
       "hash": "977D4944"
+    },
+    {
+      "id": "C_AE694D08",
+      "cardName": "训练·再生卫队",
+      "supertype": "Creature",
+      "attackAbility": true,
+      "guardAbility": true,
+      "power": 3,
+      "life": 3,
+      "costList": [
+        3.0,
+        0.0,
+        0.0,
+        3.0
+      ],
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "6EFC3642"
+      ],
+      "hash": "64C82C97"
+    },
+    {
+      "id": "C_5D8F1B70",
+      "cardName": "训练·润泽",
+      "supertype": "Spell",
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "speedBonus": 2,
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "1785A20A"
+      ],
+      "hash": "5D8F1B70"
+    },
+    {
+      "id": "C_9C8D11A7",
+      "cardName": "训练·斩首",
+      "supertype": "Spell",
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "speedBonus": 2,
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "6313DF63"
+      ],
+      "hash": "9C8D11A7"
+    },
+    {
+      "id": "C_3631765F",
+      "cardName": "训练·抹消",
+      "supertype": "Spell",
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "speedBonus": 2,
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "E25B8999"
+      ],
+      "hash": "3631765F"
+    },
+    {
+      "id": "C_CCC27DC1",
+      "cardName": "训练·窥心",
+      "supertype": "Spell",
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "speedBonus": 2,
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "A3BBB218"
+      ],
+      "hash": "CCC27DC1"
+    },
+    {
+      "id": "C_5EBCF9FE",
+      "cardName": "训练·退潮",
+      "supertype": "Spell",
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "speedBonus": 2,
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "A15A94B8"
+      ],
+      "hash": "5EBCF9FE"
+    },
+    {
+      "id": "C_541E6CD6",
+      "cardName": "训练·蚀骨",
+      "supertype": "Spell",
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "speedBonus": 2,
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "8C78A716"
+      ],
+      "hash": "541E6CD6"
+    },
+    {
+      "id": "C_38BEA1AD",
+      "cardName": "训练·角力士",
+      "supertype": "Creature",
+      "attackAbility": true,
+      "guardAbility": true,
+      "power": 2,
+      "life": 3,
+      "costList": [
+        3.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "BF6957CF"
+      ],
+      "hash": "38BEA1AD"
+    },
+    {
+      "id": "C_23EB280A",
+      "cardName": "训练·培育者",
+      "supertype": "Creature",
+      "attackAbility": true,
+      "guardAbility": true,
+      "power": 1,
+      "life": 3,
+      "costList": [
+        2.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "C3D07616"
+      ],
+      "hash": "23EB280A"
+    },
+    {
+      "id": "C_8C419B71",
+      "cardName": "训练·破绽",
+      "supertype": "Spell",
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "speedBonus": 2,
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "EC10549D"
+      ],
+      "hash": "8C419B71"
+    },
+    {
+      "id": "C_673F5709",
+      "cardName": "训练·削骨",
+      "supertype": "Spell",
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "speedBonus": 2,
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "5041C573"
+      ],
+      "hash": "673F5709"
+    },
+    {
+      "id": "C_41BD20FA",
+      "cardName": "训练·净除",
+      "supertype": "Spell",
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "speedBonus": 2,
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "9B7308B7"
+      ],
+      "hash": "41BD20FA"
+    },
+    {
+      "id": "C_0CE6D3E4",
+      "cardName": "训练·疾行者",
+      "supertype": "Creature",
+      "attackAbility": true,
+      "guardAbility": true,
+      "power": 2,
+      "life": 2,
+      "costList": [
+        2.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "对账样板"
+      ],
+      "effectIds": [
+        "BA66529D"
+      ],
+      "hash": "0CE6D3E4"
+    },
+    {
+      "id": "C_60C4C7DF",
+      "cardName": "训练·强夺",
+      "supertype": "Spell",
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "speedBonus": 2,
+      "tags": [
+        "对账样板"
+      ],
+      "effectIds": [
+        "781D992E"
+      ],
+      "hash": "60C4C7DF"
+    },
+    {
+      "id": "C_FB07E117",
+      "cardName": "训练·窃取",
+      "supertype": "Spell",
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "speedBonus": 2,
+      "tags": [
+        "对账样板"
+      ],
+      "effectIds": [
+        "AFE00EB4"
+      ],
+      "hash": "FB07E117"
+    },
+    {
+      "id": "C_AB0405F5",
+      "cardName": "训练·天罚",
+      "supertype": "Spell",
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "speedBonus": 2,
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "6FF636FE"
+      ],
+      "hash": "AB0405F5"
+    },
+    {
+      "id": "C_FD1CB41B",
+      "cardName": "训练·净化风暴",
+      "supertype": "Spell",
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "speedBonus": 2,
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "0110A569"
+      ],
+      "hash": "FD1CB41B"
+    },
+    {
+      "id": "C_808BDF6A",
+      "cardName": "训练·增援号角",
+      "supertype": "Spell",
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "speedBonus": 2,
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "56012F1E"
+      ],
+      "hash": "808BDF6A"
+    },
+    {
+      "id": "C_596F96DC",
+      "cardName": "训练·三连射",
+      "supertype": "Spell",
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "speedBonus": 2,
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "6BF56292"
+      ],
+      "hash": "596F96DC"
+    },
+    {
+      "id": "C_4EAD3B38",
+      "cardName": "训练·群狼",
+      "supertype": "Creature",
+      "attackAbility": true,
+      "guardAbility": true,
+      "power": 6,
+      "life": 6,
+      "costList": [
+        9.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "08A59E5D"
+      ],
+      "hash": "4EAD3B38"
     }
   ],
   "deckConfig": {

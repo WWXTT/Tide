@@ -225,15 +225,8 @@ namespace CardCore
 
                 // ==== 钱包全生命周期（B1 补缺：支付/放地/授予/消耗四口齐） ====
                 case ElementPoolAddEvent add:
-                {
-                    // 2026-11-15 地牌改版：LockedColor=展示色（主色）；可产集合按卡数据推导展示
-                    var choices = CardCore.ElementPoolSystem.GetLandColorChoices(add.AddedCard);
-                    string produceText = choices.Count > 0
-                        ? string.Join("/", choices.Select(c => ManaZh(c)))
-                        : ManaZh(add.LockedColor);
-                    return new Line($"{Who(add.Player, isSelf)} 放地牌 {Name(add.AddedCard)}（主色 {ManaZh(add.LockedColor)}，可产 {produceText}）",
+                    return new Line($"{Who(add.Player, isSelf)} 放地牌 {Name(add.AddedCard)}（锁色 {ManaZh(add.LockedColor)}）",
                         "log-line--card");
-                }
                 case ElementPoolPayEvent pay:
                 {
                     // 零费支付（2026-11-04 用户定案）：实付组合为空（0 费卡打出/效果费 0）时旧文案

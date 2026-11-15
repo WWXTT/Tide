@@ -287,7 +287,11 @@ namespace CardCore.Editor
                         // 观测探针（2026-11-07 关键词特判后）：Grant 走 Temp，OnTurnEnd 发的关键词会在
                         // 同一回合末被清，不能作观测——改用攻击力增加指示物（Resident 持久），
                         // 锁实例域=自己；仅确认 OnTurnEnd 效果确实发动，不测关键词域/轨。
-                        new AtomicEffectEntry { refId = AtomRefs.New(AtomicEffectType.AddPowerUp).refId, domain = "自己" }
+                        new AtomicEffectEntry { refId = AtomRefs.New(AtomicEffectType.AddPowerUp).refId, domain = "自己" },
+                        // 绿锚探针（2026-11-15 P0 夹具校准）：4/4 身材的「血→绿」口径随 2026-11-14
+                        // 基础属性归灰湮灭（推导红1 绿0 灰3），「红绿彩三色全价照扣」测试意图断源——
+                        // 补 GrantToughness(绿·生存轴) domain=自己 保住绿字来源（断言全动态读不钉数值）。
+                        new AtomicEffectEntry { refId = AtomRefs.New(AtomicEffectType.GrantToughness).refId, domain = "自己" }
                     },
                 });
                 var sleepCard = InjectCard(core, p1, sleepData);

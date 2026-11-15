@@ -71,6 +71,15 @@ namespace SynergyUI
             sb.Append("SPD:").Append(card.SpeedBonus).Append('|');
             sb.Append("AB:").Append(card.AttackAbility ? 1 : 0).Append(',')
               .Append(card.GuardAbility ? 1 : 0).Append('|');
+            // 测试/夹具四色地（2026-11-15）：四色产色是功能身份——与同身材白板区分，防查重误报。
+            // 正常卡表不填（空段不写，存量 Seal 零漂移）。
+            if (card.TestLandColors != null && card.TestLandColors.Count > 0)
+            {
+                sb.Append("TL:");
+                foreach (var c in card.TestLandColors.Distinct().OrderBy(c => (int)c))
+                    sb.Append((int)c).Append(',');
+                sb.Append('|');
+            }
             return MurmurHash3.Hash32(sb.ToString()).ToString("X8");
         }
 

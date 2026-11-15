@@ -141,9 +141,13 @@ namespace SynergyUI
             _ribbonMesh.SetTriangles(tris, 0);
             _ribbonMesh.RecalculateBounds();
 
-            // 箭头贴终点、朝水平去向（root 恒在原点，位置必须写世界系）
+            // 箭头贴终点，朝**抛物线末端切线**（含俯仰；用户 2026-11-15：终点箭头沿抛物线方向，
+            // 不再只取水平去向）。切线退化时回落水平方向。
             _head.position = b;
-            if (flat.sqrMagnitude > 1e-4f)
+            Vector3 endTangent = pts[n - 1] - pts[Mathf.Max(0, n - 2)];
+            if (endTangent.sqrMagnitude > 1e-6f)
+                _head.rotation = Quaternion.LookRotation(endTangent.normalized, Vector3.up);
+            else if (flat.sqrMagnitude > 1e-4f)
                 _head.rotation = Quaternion.Euler(0f, Mathf.Atan2(flat.x, flat.z) * Mathf.Rad2Deg, 0f);
             _headMat.color = _headColor;
         }

@@ -111,6 +111,12 @@ namespace CardCore
         [NonSerialized]
         internal List<ManaType> LandColorChoicesCache;
 
+        /// <summary>测试/夹具专用四色可锁候选（2026-11-15 回退版）：非空时 GetLandColorChoices 直接返回
+        /// 该集合——仅供「测试开局·地牌充满」素材卡在灰/红/蓝/绿四格各锁 10 张；**不产多色**，
+        /// 入池仍由 colorChoice/放置格锁定单一色。正常卡表不得填。
+        /// 不参与 HashCard（ID 冻结），参与 SealCard（功能身份：可锁四色 ≠ 同身材白板，防查重误报）。</summary>
+        public List<ManaType> TestLandColors;
+
         // 内容身份（2026-09-09 定案，CardIdentityService 与 EnsureCost 同管线推导）：拆散到原子级——
         // 原子哈希数组（跨效果按执行序展平）+ 组合结构哈希 + 关键词/tag/光环组合哈希，全部混入
         // 原子表指纹。观测侧（TideObservation [15..22]）据此查 embedding，同原子跨卡共享行。

@@ -617,13 +617,12 @@ namespace CardCore
 
                 case ConditionType.SpecificManaTypeAvailable:
                     {
-                        // 2026-10-11 现取现用；2026-11-15 地牌改版：单色可用性=临时钱包该色
-                        // +未横置地牌中可产该色张数（CanProduce——多色地同时满足多色条件）
+                        // 2026-10-11 现取现用：单色可用性=临时钱包该色+未横置地牌中该锁色张数
                         var pool = context.ElementPool?.GetPool(context.Activator);
                         if (pool == null) return false;
                         var color = condition.ManaTypeParam ?? ManaType.Gray;
                         pool.TempElements.TryGetValue(color, out int count);
-                        count += pool.PooledCards.Count(pc => !pc.IsTapped && pc.CanProduce(color));
+                        count += pool.PooledCards.Count(pc => !pc.IsTapped && pc.LockedColor == color);
                         return count >= condition.Value;
                     }
                 #endregion

@@ -1019,13 +1019,6 @@
       "hash": "1A06F706",
       "timing": 19,
       "activation": 2,
-      "cost": [
-        0.0,
-        2.0,
-        0.0,
-        0.0,
-        0.0
-      ],
       "steps": [
         {
           "kind": 0,
@@ -1048,13 +1041,6 @@
       "hash": "0EDB028C",
       "timing": 19,
       "activation": 2,
-      "cost": [
-        0.0,
-        0.0,
-        0.0,
-        2.0,
-        0.0
-      ],
       "steps": [
         {
           "kind": 0,
@@ -1074,13 +1060,13 @@
     {
       "id": "1632B175",
       "name": "训练·检索",
-      "hash": "1632B175",
+      "hash": "C861C500",
       "timing": 19,
       "activation": 2,
       "cost": [
         0.0,
         0.0,
-        3.0,
+        1.0,
         0.0,
         0.0
       ],
@@ -1088,8 +1074,7 @@
         {
           "kind": 0,
           "atom": {
-            "refId": "c2abbd1f",
-            "str": "训练·01"
+            "refId": "c2abbd1f"
           }
         }
       ]
@@ -1356,6 +1341,564 @@
             "value": 3,
             "kinds": [
               2
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "02AA8CE2",
+      "name": "训练·无实体卫队登场",
+      "hash": "02AA8CE2",
+      "activation": 1,
+      "cost": [
+        0.0,
+        0.0,
+        0.0,
+        5.0,
+        0.0
+      ],
+      "costPin": 1,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "6c38edaa",
+            "kinds": [
+              0
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "1785A20A",
+      "name": "训练·润泽",
+      "hash": "1785A20A",
+      "timing": 19,
+      "activation": 2,
+      "selection": 0,
+      "count": 1,
+      "cost": [
+        0.0,
+        0.0,
+        0.0,
+        1.5,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "599fcc9a",
+            "value": 3,
+            "kinds": [
+              1
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "6313DF63",
+      "name": "训练·斩首",
+      "hash": "6313DF63",
+      "timing": 19,
+      "activation": 2,
+      "selection": 0,
+      "count": 1,
+      "cost": [
+        0.0,
+        3.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "a50b8c19",
+            "kinds": [
+              2
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "E25B8999",
+      "name": "训练·抹消",
+      "hash": "E25B8999",
+      "timing": 19,
+      "activation": 2,
+      "selection": 0,
+      "count": 1,
+      "cost": [
+        6.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "96155537",
+            "kinds": [
+              2
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "A3BBB218",
+      "name": "训练·窥心",
+      "hash": "A3BBB218",
+      "timing": 19,
+      "activation": 2,
+      "selection": 0,
+      "count": 1,
+      "cost": [
+        0.0,
+        0.0,
+        3.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "43ac095e",
+            "kinds": [
+              6
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "A15A94B8",
+      "name": "训练·退潮",
+      "hash": "A15A94B8",
+      "timing": 19,
+      "activation": 2,
+      "selection": 0,
+      "count": 1,
+      "cost": [
+        0.0,
+        3.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "c3673dae",
+            "kinds": [
+              2
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "8C78A716",
+      "name": "训练·蚀骨",
+      "hash": "8C78A716",
+      "timing": 19,
+      "activation": 2,
+      "selection": 0,
+      "count": 1,
+      "cost": [
+        0.0,
+        4.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "7b8c45bc",
+            "value": 2,
+            "kinds": [
+              1,
+              2
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "BF6957CF",
+      "name": "训练·角力士·拼枪",
+      "hash": "BF6957CF",
+      "timing": 7,
+      "activation": 1,
+      "limit": 1,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "4b9a0393",
+            "branch": {
+              "settle": 3,
+              "engine": 3,
+              "then": [
+                {
+                  "refId": "a4b823fc",
+                  "value": 4,
+                  "kinds": [
+                    2
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "C3D07616",
+      "name": "训练·培育",
+      "hash": "C3D07616",
+      "timing": 19,
+      "activation": 2,
+      "selection": 0,
+      "count": 1,
+      "cost": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "0afd7173",
+            "kinds": [
+              1
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "EC10549D",
+      "name": "训练·破绽",
+      "hash": "EC10549D",
+      "timing": 19,
+      "activation": 2,
+      "selection": 0,
+      "count": 1,
+      "cost": [
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "86e0fa7c",
+            "value": 2,
+            "kinds": [
+              2
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "5041C573",
+      "name": "训练·削骨",
+      "hash": "5041C573",
+      "timing": 19,
+      "activation": 2,
+      "selection": 0,
+      "count": 1,
+      "cost": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "d3d792bb",
+            "value": 2,
+            "kinds": [
+              2
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "9B7308B7",
+      "name": "训练·净除",
+      "hash": "9B7308B7",
+      "timing": 19,
+      "activation": 2,
+      "selection": 0,
+      "count": 1,
+      "cost": [
+        0.0,
+        3.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "22f33a1a",
+            "kinds": [
+              1
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "BA66529D",
+      "name": "训练·疾行",
+      "hash": "BA66529D",
+      "timing": 19,
+      "activation": 2,
+      "selection": 0,
+      "count": 1,
+      "cost": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "c69e2b96",
+            "kinds": [
+              1
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "781D992E",
+      "name": "训练·强夺",
+      "hash": "781D992E",
+      "timing": 19,
+      "activation": 2,
+      "cost": [
+        0.0,
+        0.0,
+        3.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "9a143fed"
+          }
+        }
+      ]
+    },
+    {
+      "id": "AFE00EB4",
+      "name": "训练·窃取",
+      "hash": "AFE00EB4",
+      "timing": 19,
+      "activation": 2,
+      "cost": [
+        0.0,
+        0.0,
+        2.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "5d05c712"
+          }
+        }
+      ]
+    },
+    {
+      "id": "6FF636FE",
+      "name": "训练·天罚",
+      "hash": "6FF636FE",
+      "timing": 19,
+      "activation": 2,
+      "selection": 2,
+      "cost": [
+        0.0,
+        9.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "a4b823fc",
+            "value": 3,
+            "kinds": [
+              2
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "0110A569",
+      "name": "训练·净化风暴",
+      "hash": "0110A569",
+      "timing": 19,
+      "activation": 2,
+      "selection": 2,
+      "cost": [
+        0.0,
+        9.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "22f33a1a",
+            "kinds": [
+              2
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "56012F1E",
+      "name": "训练·增援号角",
+      "hash": "56012F1E",
+      "timing": 19,
+      "activation": 2,
+      "selection": 2,
+      "cost": [
+        0.0,
+        0.0,
+        0.0,
+        3.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "9ff1954d",
+            "value": 2,
+            "kinds": [
+              1
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "6BF56292",
+      "name": "训练·三连射",
+      "hash": "6BF56292",
+      "timing": 19,
+      "activation": 2,
+      "selection": 1,
+      "count": 3,
+      "cost": [
+        0.0,
+        4.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "a4b823fc",
+            "value": 2,
+            "kinds": [
+              2
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "08A59E5D",
+      "name": "训练·群狼·增育",
+      "hash": "08A59E5D",
+      "activation": 1,
+      "selection": 2,
+      "cost": [
+        3.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "0afd7173",
+            "kinds": [
+              1
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "6EFC3642",
+      "name": "训练·再生卫队再生",
+      "hash": "6EFC3642",
+      "activation": 1,
+      "cost": [
+        0.0,
+        0.0,
+        0.0,
+        3.0,
+        0.0
+      ],
+      "costPin": 1,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "ea1df378",
+            "kinds": [
+              0
             ]
           }
         }

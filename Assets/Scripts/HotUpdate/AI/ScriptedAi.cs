@@ -140,10 +140,14 @@ namespace SynergyUI
                 {
                     var card = FindInZone(core, me, Zone.Hand, action.card);
                     if (card == null) return LogResult(action, false, $"手牌无 {action.card}");
-                    // 2026-11-15 地牌改版：放置不再选色（action.target 的产色名参数随之退役——
-                    // 现存教学剧本零 element 带色用法，实证后删；入池快照可产集合）
-                    return LogResult(action, GameActions.AddToElementPool(core, me, card),
-                        "入元素池被拒（上限/资格/无可产候选）");
+                    // 2026-10-11 锁色定案（2026-11-15 回退恢复）：action.target 可选填产色名
+                    //（红/蓝/绿/灰，缺省=主色）
+                    ManaType? color = null;
+                    if (!string.IsNullOrEmpty(action.target)
+                        && System.Enum.TryParse<ManaType>(action.target, true, out var lockColor))
+                        color = lockColor;
+                    return LogResult(action, GameActions.AddToElementPool(core, me, card, color),
+                        "入元素池被拒（上限/资格/无锁色候选）");
                 }
                 case "play":
                 {

@@ -57,6 +57,10 @@ namespace CardCore
         public List<string> tags;
         public List<CardEffectData> effects;
 
+        /// <summary>测试/夹具专用四色地（2026-11-15 地牌改版）：仅测试开局素材卡使用；正常卡表不填。
+        /// 值=ManaType 枚举序号（0灰/1红/2蓝/3绿），装载后写入 CardData.TestLandColors。</summary>
+        public List<int> landColors;
+
         // 扩展字段（缺省 → 旧行为，向后兼容）
         public string arrows;      // 逗号分隔的 HexDirection Flags 名，如 "Up,LowerRight"
 
@@ -520,9 +524,16 @@ namespace CardCore
                             continue;
                         if (string.IsNullOrEmpty(atom.str))
                         {
-                            TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}："
-                                          + $"原子行「{row.DisplayName}」声明参数（{row.Param}）但实例字符串参数为空"
-                                          + "——装载期拦截（不再静默空转/退回默认档）");
+                            // 2026-11-15 训练池矩阵 P0-D4/P2：检索预置名置空（宣言断链防白付）、
+                            // 强夺/窃取对账样板无预置——同引擎载荷夹具先例，教学/训练/对账夹具卡
+                            // 降级 Warn（结算期宣言反问兜底 + AI 闸拦白付）；玩家池仍 Error 拦截。
+                            bool paramFixture = card.Tags != null
+                                                && (card.Tags.Contains("教学") || card.Tags.Contains("训练池")
+                                                    || card.Tags.Contains("对账样板"));
+                            string msg = $"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}："
+                                         + $"原子行「{row.DisplayName}」声明参数（{row.Param}）但实例字符串参数为空";
+                            if (paramFixture) TideLog.Warn(msg + "——夹具无预置（结算期宣言反问/AI 闸拦白付）");
+                            else TideLog.Error(msg + "——装载期拦截（不再静默空转/退回默认档）");
                             continue;
                         }
                         if (row.Param == Attribute.AtomicParamKind.CardRef
@@ -1311,6 +1322,11 @@ namespace CardCore
                 Tags = entry.tags ?? new List<string>(),
                 Effects = entry.effects ?? new List<CardEffectData>(),
                 ArrowDirections = ParseFlags<HexDirection>(entry.arrows),
+                // 测试/夹具四色地覆盖（2026-11-15）：只收 0..3（灰/红/蓝/绿），去重保序；正常卡表缺列=空。
+                TestLandColors = entry.landColors != null
+                    ? entry.landColors.Where(i => i >= 0 && i <= 3)
+                        .Select(i => (ManaType)i).Distinct().ToList()
+                    : new List<ManaType>(),
             };
 
             // 效果引用解析（2026-09-14；2026-09-24 关键词引用化）：effectIds 双路——

@@ -447,7 +447,7 @@ namespace SynergyUI
 
         private static readonly string[] OrderLabels = { "掷硬币决定", "我方先手（固定）", "对方先手（固定）" };
         private static readonly string[] ShuffleLabels = { "洗牌", "不洗牌（卡组文件序）" };
-        private static readonly string[] PoolLabels = { "常规开局", "充满（40 地+5白5黑·起跳回合 10）" };
+        private static readonly string[] PoolLabels = { "常规开局", "充满40个四色地" };
         private const string HintText = "掷硬币后弹窗选定双方卡组与对手难度（木桩/脚本/AI）；对手卡组限三套主题卡组。";
 
         private RectTransform _root;

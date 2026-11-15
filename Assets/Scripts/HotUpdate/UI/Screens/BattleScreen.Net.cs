@@ -492,8 +492,7 @@ namespace SynergyUI
             if (!NetFanGate()) return false;
             var data = DataOf(NetHandViewOf(fan));
             if (data == null) return false;
-            // 放地资格=可产色候选非空（GetLandColorChoices 单源：卡面/各模式费 ∪ 主动效果锚价，去黑白；
-            // 2026-11-15 地牌改版：不再锁色，候选非空即可放）
+            // 锁色资格=可锁产色候选非空（GetLandColorChoices 单源：卡面/各模式费 ∪ 主动效果锚价，去黑白）
             if (NetLandColorChoices(data).Count == 0) return false;
             // 地牌池上限（快照 LandCap vs 我方已放地牌数——同本地 CanAddLand 口径）
             var d = _view;
@@ -646,25 +645,62 @@ namespace SynergyUI
         {
             var card = NetHandViewOf(fan);
             if (card == null || !NetFanGate()) return;
-            NetPlaceLand(card);
+            NetPlaceLandAsync(card).Forget();
         }
 
-        /// <summary>网络放地（2026-11-15 地牌改版）：**不再选色/选格**——直发
-        /// IntentAddToElementPool（ModeIndex=-1 缺省）；服务端入池快照可产集合，展示色自动取首位主色，
-        /// 落格由快照同步（AssignLandCells 同构）。资格预检同本地（拒绝走服务端 Error 帧）。</summary>
-        private void NetPlaceLand(BattleCardView card)
+        /// <summary>网络放地（2026-10-28 改版：棋盘选格取代 Region 弹窗——同本地交互）：
+        /// 候选格=可锁色 → BoardLayout 固定元素格（与 FillLandsNet/AssignLandCells 同构映射）；
+        /// 点格→单色直发 IntentAddToElementPool（ModeIndex=锁色）；同格多候选色=Region 列表消歧
+        ///（本地同款）；取消恢复手牌扇。</summary>
+        private async UniTaskVoid NetPlaceLandAsync(BattleCardView card)
         {
-            if (DataOf(card) == null) return;
-            NetLandFinal(card);
+            var colors = NetLandColorChoices(DataOf(card));
+            if (colors == null || colors.Count == 0) return;
+
+            // 候选格（cell → 候选色集）：颜色→固定元素格映射（观察者视角己方 owner=0）
+            var cellColors = new Dictionary<(int x, int z), List<ManaType>>();
+            var options = new List<BattleCellPicker.CellOption>();
+            foreach (var color in colors)
+            {
+                var cell = BoardLayout.LandCellOfElement(0, color);
+                if (cell.x < 0) continue;
+                if (!cellColors.TryGetValue((cell.x, cell.z), out var list))
+                {
+                    list = new List<ManaType>();
+                    cellColors[(cell.x, cell.z)] = list;
+                    options.Add(new BattleCellPicker.CellOption { X = cell.x, Z = cell.z, ColorIndex = (int)color });
+                }
+                list.Add(color);
+            }
+            if (options.Count == 0) { _toast.Show("地牌行无空位（颜色数超格）"); return; }
+
+            _choreo?.CancelTargeting();
+            _selfFan?.SetVisible(false);
+            var origin = BoardLayout.CharacterCell(0);
+            var picked = await PickCellAsync(BattleBoardGrid.WorldPositionOf(origin.x, origin.z), options);
+            if (picked == null) { RestoreFanNet(); return; } // 取消
+            RestoreFanNet();
+
+            var candidates = cellColors[(picked.Opt.X, picked.Opt.Z)];
+            if (candidates.Count == 1)
+            {
+                NetLandFinal(card, candidates[0]);
+                return;
+            }
+            // 同格多候选色：Region 列表消歧（本地 PickLandColorAsync 同款）
+            var labels = candidates.Select(c => $"锁定 {BattleView.ManaZh(c)} 产色").ToList();
+            int? idx = await PickRegionOptionAsync("选择地牌产色", labels);
+            if (idx == null) return;
+            NetLandFinal(card, candidates[idx.Value]);
         }
 
-        private void NetLandFinal(BattleCardView card)
+        private void NetLandFinal(BattleCardView card, ManaType color)
         {
-            Debug.Log($"[HandPlay] 网络放地：{card.Name} → 不选色（服务端取可产集合）");
+            Debug.Log($"[HandPlay] 网络放地：{card.Name} → 锁定 {BattleView.ManaZh(color)}（棋盘选格确认）");
             _netClient.Send(NetworkMessageType.IntentAddToElementPool, new MsgIntentAddToElementPool
             {
                 CardRuntimeId = card.RuntimeId,
-                ModeIndex = -1, // 2026-11-15 地牌改版：放置不再锁色（-1=缺省；服务端忽略该值）
+                ModeIndex = (int)color, // 2026-10-11 锁色定案：ModeIndex 复用为 ManaType 枚举值
             });
         }
 
@@ -890,19 +926,9 @@ namespace SynergyUI
             int[] indices;
             if (req.Max > 1 && _regionSelector != null)
             {
-                // v20 区域分组（2026-11-15 共享规格 v0.2 §7.3）：服务端下发的 ZoneGroups 连续段
-                // 交给选择窗按统一隔断规则渲染；null/空=平铺（旧行为）。回传下标=消息候选序
-                //（服务端 SelectAsync 统一翻译回引擎序）。
-                List<(string label, int start, int count)> groups = null;
-                if (req.ZoneGroups != null && req.ZoneGroups.Length > 0)
-                {
-                    groups = new List<(string, int, int)>(req.ZoneGroups.Length);
-                    foreach (var g in req.ZoneGroups)
-                        if (g != null) groups.Add((g.Label, g.Start, g.Count));
-                }
                 var picked = await _regionSelector.SelectIndicesAsync(
                     options, Math.Max(1, Math.Min(req.Min, options.Count)),
-                    Math.Min(Math.Max(req.Max, 1), options.Count), title, "", false, 60f, groups);
+                    Math.Min(Math.Max(req.Max, 1), options.Count), title, "", false, 60f);
                 indices = picked != null ? picked.ToArray() : Array.Empty<int>();
             }
             else

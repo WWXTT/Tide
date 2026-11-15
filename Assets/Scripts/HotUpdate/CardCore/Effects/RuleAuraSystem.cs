@@ -604,10 +604,9 @@ namespace CardCore
             var zm = core?.ZoneManager;
             if (zm == null) return;
 
-            // 己方绿色地牌数（2026-11-15 地牌改版：CanProduce 计数——可产绿即算，多色地同顶多色；
-            // 同纳川蓝色地牌/禁召红绿地牌口径）
+            // 己方绿色地牌数（元素池内锁色=绿的地牌——同纳川蓝色地牌计数口径）
             int greenLands = core.ElementPool.GetPool(turnPlayer)?.PooledCards
-                ?.Count(pc => pc != null && pc.CanProduce(ManaType.Green)) ?? 0;
+                ?.Count(pc => pc != null && pc.LockedColor == ManaType.Green) ?? 0;
 
             Card best = null;
             float bestCost = -1f;
@@ -676,16 +675,16 @@ namespace CardCore
         {
             // 2026-11-07 改版（2026-10-31 旧版=攻击/生命共用灰色地牌单阈值）：攻击>己方红色地牌数
             // 或生命>己方绿色地牌数的生物禁放（印刷值），等于放行（同归土"费用≤绿地数含等号"口径；
-            // 双色各 0 时仅剩 0 攻 0 血生物可放）。地牌计数=CanProduce 对应色（2026-11-15 地牌改版：
-            // 可产即算——多色地同时顶红绿；同纳川蓝地/归土绿地口径）。
+            // 双色各 0 时仅剩 0 攻 0 血生物可放）。地牌计数=元素池内 LockedColor 对应色的地牌
+            //（同纳川蓝地/归土绿地口径）。
             public bool CanPlay(GameCore core, Player player, Card card, Zone fromZone)
             {
                 if (!RuleAuraSystem.ScopeHits(NoCreatureAura, player)) return true;
                 if (!(card is CardWrapper w2) || !(w2.GetData() is CardData d2)
                     || d2.Supertype != Cardtype.Creature) return true;
                 var lands2 = core?.ElementPool?.GetPool(player)?.PooledCards;
-                int redLands = lands2?.Count(pc => pc != null && pc.CanProduce(ManaType.Red)) ?? 0;
-                int greenLands = lands2?.Count(pc => pc != null && pc.CanProduce(ManaType.Green)) ?? 0;
+                int redLands = lands2?.Count(pc => pc != null && pc.LockedColor == ManaType.Red) ?? 0;
+                int greenLands = lands2?.Count(pc => pc != null && pc.LockedColor == ManaType.Green) ?? 0;
                 return (d2.Power ?? 0) <= redLands && (d2.Life ?? 0) <= greenLands;
             }
 
@@ -737,7 +736,7 @@ namespace CardCore
             {
                 if (!RuleAuraSystem.ScopeHits(HandLimitNoFatigue, player)) return currentLimit;
                 var pool = GameCore.Instance?.ElementPool?.GetPool(player);
-                int blueLands = pool?.PooledCards?.Count(pc => pc != null && pc.CanProduce(ManaType.Blue)) ?? 0;
+                int blueLands = pool?.PooledCards?.Count(pc => pc != null && pc.LockedColor == ManaType.Blue) ?? 0;
                 return currentLimit + blueLands;
             }
         }

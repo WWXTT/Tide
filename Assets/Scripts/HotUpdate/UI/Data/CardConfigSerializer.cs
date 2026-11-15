@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using CardCore;
 using UnityEngine;
 
@@ -200,6 +201,10 @@ namespace SynergyUI
                 costList = new List<float>(), // 位置数组（2026-10-04：下标=ManaType 枚举序号），下方逐位回填
                 keywords = unmappedKeywords,
                 tags = card.Tags != null ? new List<string>(card.Tags) : new List<string>(),
+                // 测试/夹具四色地覆盖（2026-11-15）：仅测试素材卡有值；正常卡为空不落列。
+                landColors = card.TestLandColors != null && card.TestLandColors.Count > 0
+                    ? card.TestLandColors.Select(c => (int)c).ToList()
+                    : null,
                 effects = null, // 效果引用化（2026-09-14）：不内嵌——经 effectIds 引用 Effects.json
                 effectIds = effectIds,
                 arrows = card.ArrowDirections.ToString(),

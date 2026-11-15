@@ -215,10 +215,6 @@ namespace CardCore.Editor
                 Crumb("→TestLandEconomy");
                 TestLandEconomy(core, p1, p2, cardsData);
 
-                // 地牌改版（2026-11-15）：多色产色+最小费用流支付规划 §5.4 八用例
-                Crumb("→TestLandPoolMultiColor");
-                TestLandPoolMultiColor(core, p1);
-
                 Crumb("→TestSpell");
                 TestSpell(core, p1, p2, cardsData);
                 Crumb("→TestCreature");
@@ -460,13 +456,11 @@ namespace CardCore.Editor
             if (secondLand != null)
                 Assert(!GameActions.AddToElementPool(core, p1, secondLand), "超过地牌槽上限拒绝（T1 上限 1）");
 
-            // 2026-11-15 地牌改版：入池不选色——ColorOptions=候选快照、展示色=首位主色；forced 非法色拒绝
+            // 锁色定案（2026-10-11）：入池锁定主色（费用份额最多色）；显式非法色拒绝
             var choices1 = CardCore.ElementPoolSystem.GetLandColorChoices(land1);
-            Assert(choices1.Count > 0 && pooled1[0].DisplayColor == choices1[0], "地牌入池展示色=主色（份额最多色）");
-            Assert(pooled1[0].ColorOptions.Count == choices1.Count
-                   && choices1.All(c => pooled1[0].CanProduce(c)), "入池可产集合=放置瞬间候选快照");
-            Assert(!core.ElementPool.TryAddToPoolForced(land1, p1, ManaType.Any, out _),
-                   "夹具 forced 非法色拒绝（Any 万能货币不可产——候选恒不含 Any）——直接调池校验口");
+            Assert(choices1.Count > 0 && pooled1[0].LockedColor == choices1[0], "地牌入池锁定主色（份额最多色）");
+            Assert(!core.ElementPool.AddCardToPool(land1, p1, ManaType.Any),
+                   "显式非法锁色拒绝（Any 万能货币不可锁——候选恒不含 Any；2026-10-28 P2 后白/黑席位已删）——直接调池校验口");
 
             // 现取现用：无手动横置——付费时系统按账单自动横置（每地牌每回合一次）
             // 2026-10-16 口径：地牌上限只限元素产出（入池张数），不限使用——钱包无钳、
@@ -474,9 +468,10 @@ namespace CardCore.Editor
             // 2026-11-06 充能 opt-in 后弃「起手扫 1 费卡」：全池卡面费 +1 灰使原 1 费卡全变 2，
             // 卡面恰 1 的只剩「原 0 费 + 充能灰」的法术——主动效果锚价现付，实际账单 2~3，
             // T1 单地（上限 1）付不出（实测教学·43：账单 灰1红1，红无来源拒付）。
-            // 改注入推导费恰 1 灰的夹具（1/1 白板 + 攻守声明 + 充能位：身材全被免费属性底吸收，
-            // 账单 = 充能灰 1）。注：T2 的「灰色哨兵」夹具不可复用——costList=1 被免费底吸收后
-            // 实际 0 费，打出不触发横置。
+            // 2026-11-15 P0 夹具校准：旧版=1/1+攻守声明（账单靠「充能灰 1」），充能 2026-11-05
+            // 动作化免元素后口径湮灭→0 费（打出不横置=两断言连挂）。改挂**非主动** OnPlay 效果
+            // SetPower(灰锚 1 点) value=1 domain=自己：主动效果锚价不进卡费，只有非主动效果才进
+            // Derive；1/1 身材全被免费底吸收，账单=锚价恰 1 灰（SetPower 1→1 无实变）。
             {
                 var oneFee = new CardWrapper(new CardData
                 {
@@ -485,7 +480,21 @@ namespace CardCore.Editor
                     Supertype = Cardtype.Creature,
                     Power = 1, Life = 1,
                     AttackAbility = true, GuardAbility = true,
-                    Effects = new List<CardEffectData>(),
+                    Effects = new List<CardEffectData>
+                    {
+                        new CardEffectData
+                        {
+                            Id = "VERIFY_LAND_ONEFEE_EFF",
+                            TriggerTiming = (int)TriggerTiming.OnPlay,
+                            ActivationType = (int)EffectActivationType.Automatic,
+                            AtomicEffects = new List<AtomicEffectEntry>
+                            {
+                                new AtomicEffectEntry {
+                                    refId = AtomRefs.New(AtomicEffectType.SetPower).refId,
+                                    value = 1, domain = "自己" },
+                            },
+                        },
+                    },
                 });
                 oneFee.SetController(p1);
                 core.ZoneManager.GetZoneContainer(p1).Add(oneFee, Zone.Hand);

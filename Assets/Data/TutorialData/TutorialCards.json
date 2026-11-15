@@ -1,23 +1,30 @@
 {
   "cards": [
     {
-      "id": "C_50E2F45D",
-      "cardName": "试作·元素井",
+      "id": "C_895AC28D",
+      "cardName": "测试·四色地",
       "supertype": "Creature",
       "attackAbility": true,
       "guardAbility": true,
       "power": 1,
       "life": 1,
       "costList": [
-        1.0,
-        1.0,
-        1.0,
-        2.0
+        0.0,
+        0.0,
+        0.0,
+        0.0
       ],
       "tags": [
-        "教学"
+        "教学",
+        "测试"
       ],
-      "hash": "50E2F45D"
+      "landColors": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "hash": "895AC28D"
     },
     {
       "id": "C_DA499FAE",

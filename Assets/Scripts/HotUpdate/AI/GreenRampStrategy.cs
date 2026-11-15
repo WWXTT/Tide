@@ -1053,7 +1053,7 @@ namespace CardCore.AI
         }
 
         private static int CountLands(GameCore core, Player me, ManaType color)
-            => core.ElementPool.GetPooledCards(me).Count(pc => pc != null && pc.CanProduce(color));
+            => core.ElementPool.GetPooledCards(me).Count(pc => pc != null && pc.LockedColor == color);
 
         private static int TotalLands(GameCore core, Player me)
             => core.ElementPool.GetPooledCards(me).Count();

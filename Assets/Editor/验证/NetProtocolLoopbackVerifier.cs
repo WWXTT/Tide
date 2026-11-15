@@ -999,9 +999,13 @@ namespace CardCore.Editor
                     "非法 intent 被 Error 帧拒绝（RuntimeId 不存在）");
 
                 // ---- 6d. 整局脚本（双客户端 intent 驱动；回合上限后认输兜底）----
+                // 2026-11-15 地牌改版校参：放地不再锁色（ModeIndex=-1）→ bot 放地成功率 100% →
+                // 资源/出牌/结算量上升 → 局变长变真，90s wall-clock 跑不完 30 回合兜底（实证：
+                // 禁放地=314 全绿/放地=249+6 超时红，M3 对拍全等排除逻辑回归）。超时 90→240s +
+                // 认输兜底 30→22 回合，给「放地充分」的真实局长留余量。
                 var sw = System.Diagnostics.Stopwatch.StartNew();
                 bool conceded = false;
-                while (sw.ElapsedMilliseconds < 90000)
+                while (sw.ElapsedMilliseconds < 240000)
                 {
                     server.Pump();
                     a.Receive(5); b.Receive(5); spec.Receive(5);
@@ -1010,7 +1014,7 @@ namespace CardCore.Editor
                     if (a.LastRoomState?.Phase == (int)NetRoomPhase.Finished) break;
 
                     var snap = a.LastSnapshot ?? b.LastSnapshot;
-                    if (!conceded && snap != null && snap.CurrentTurn > 30)
+                    if (!conceded && snap != null && snap.CurrentTurn > 22)
                     {
                         conceded = true;
                         a.Send<object>(NetworkMessageType.IntentConcede, null);
@@ -1321,14 +1325,19 @@ namespace CardCore.Editor
             }
 
             var snap = c.LastSnapshot;
-            if (snap == null || snap.ActiveSeat != c.MyEngineSeat) return;
+            if (snap == null) return;
 
-            // 栈上有对象且优先权在我 → 让行（响应窗口放行；要响应的客户端走 PlayCardInResponse 同一消息位）
+            // 栈上有对象且优先权在我 → 让行（响应窗口放行；要响应的客户端走 PlayCardInResponse
+            // 同一消息位）。**须在 ActiveSeat 闸之前**（2026-11-15 地牌改版实证修复）：响应窗口期
+            // 优先权常在非活跃方（对手回合的响应权），若被 ActiveSeat 拦住=双方互等卡死——
+            // 旧口径放地被拒→出牌付不起→栈恒空踩不到；放地修好后出牌上栈即踩中（6d 超时红族）。
             if (snap.PrioritySeat == c.MyEngineSeat && snap.StackV2 != null && snap.StackV2.Length > 0)
             {
                 c.Send<object>(NetworkMessageType.IntentPassPriority, null);
                 return;
             }
+
+            if (snap.ActiveSeat != c.MyEngineSeat) return;
 
             var phase = (PhaseType)snap.CurrentPhase;
             if (phase == PhaseType.Standby)
@@ -1351,7 +1360,7 @@ namespace CardCore.Editor
                             ModeIndex = 0,
                         });
                         c.Send(NetworkMessageType.IntentAddToElementPool,
-                            new MsgIntentAddToElementPool { CardRuntimeId = handIds[handIds.Length - 1] });
+                            new MsgIntentAddToElementPool { CardRuntimeId = handIds[handIds.Length - 1], ModeIndex = -1 });
                     }
                     return; // 本帧动作上栈，等快照同步后再 EndTurn
                 }

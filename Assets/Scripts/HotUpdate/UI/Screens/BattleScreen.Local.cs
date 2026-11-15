@@ -342,7 +342,7 @@ namespace SynergyUI
                 OnPlaceLand = OnFanPlaceLand,
                 OnDragEnd = HandleFanDragEnd, // 拖拽抬手三分流（2026-11-15 全拖拽改版主入口）
                 OnDragBegin = HandleFanDragBegin, // 阶段H：起手拉 3D 箭头（起点=角色格）
-                CanDrag = _ => DragInteractionAllowed(), // 实测①：对手回合无优先权——起手即取消
+                CanDrag = CanDragCard, // 实测①：对手回合无优先权/卡未达使用条件——起手即取消（不出箭头）
             });
 
             // 通用目标选择器（效果引擎结算期反问）：Region 面板选卡（2026-10-15 用户定案）。

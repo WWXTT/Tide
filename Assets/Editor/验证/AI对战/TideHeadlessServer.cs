@@ -201,10 +201,10 @@ namespace CardCore.Editor.TideHeadless
 
         public static void RunSelfTest()
         {
-            var pool = BattleDeckSources.AllCards();
+            var pool = BattleDeckSources.TrainingPool(); // 2026-11-15 训练池定案（矩阵 §0 P0-C）：教学卡不参与训练
             if (pool == null || pool.Count == 0)
             {
-                Debug.LogError("[无头驱动] Cards.json 卡池加载失败（StreamingAssets/Card/Cards.json，先运行 Tools/构建三色主题卡组）");
+                Debug.LogError("[无头驱动] 训练池加载失败（tag「训练池」0 张——TrainingCards.json 缺失或全表掉标签）");
                 return;
             }
             TideCardIndex.ConfigureManifest(CardManifestPath); // 与训练路径同一份清单（追加式续排）
@@ -301,19 +301,26 @@ namespace CardCore.Editor.TideHeadless
                 driver.SetShapingLambda(shapingLambda);
 
             // 2026-09-21 主题卡组口径（数据层迁移到 Cards.json + StreamingAssets/Card/，TestDecks 已删）：
-            //   自对弈  = 主题整组（三套随机其一）vs Cards.json 随机 30 张，随机换座，双方模型驱动；
+            //   自对弈  = 主题整组（三套随机其一）vs 随机 30 张，随机换座，双方模型驱动；
             //   vs 脚本 = 模型卡组（modelTheme 命中→该主题整组，2026-10-30 红·快攻镜像口径；
-            //              缺省 Cards.json 随机 30）vs 随机主题整组，SimpleAI 按主题 AutoMatch 策略
+            //              缺省随机 30）vs 随机主题整组，SimpleAI 按主题 AutoMatch 策略
             //              整回合自动打，obs/reward 恒为模型视角（info.modelSeat 判胜负、info.theme 分主题统计）。
-            var pool = BattleDeckSources.AllCards();
+            // 2026-11-15 训练池定案（矩阵 §0 P0-C）：随机 30 只抽 tag「训练池」（教学卡不参与训练）；
+            // 主题整组（对手/镜像）不变；卡身份登记仍全量（manifest 要全量，见 RegisterIdentities）。
+            var pool = BattleDeckSources.TrainingPool();
             var themes = ThemeDeckCache.Where(t => t.deck.Count > 0).ToList();
             if (pool.Count == 0 || themes.Count == 0)
             {
                 _opponentTheme = "";
                 _modelTheme = "";
-                UnityEngine.Debug.LogError("[TideHeadless] 数据层缺失（Cards.json 卡池 "
-                    + $"{pool.Count} 张 / 有效主题卡组 {themes.Count} 套）——先运行 Tools/构建三色主题卡组");
+                UnityEngine.Debug.LogError("[TideHeadless] 数据层缺失（训练池 "
+                    + $"{pool.Count} 张 / 有效主题卡组 {themes.Count} 套）——TrainingCards.json 缺失或先运行 Tools/构建三色主题卡组");
                 return driver.Reset(new List<CardData>(), new List<CardData>());
+            }
+            if (!_poolLogged)
+            {
+                _poolLogged = true;
+                UnityEngine.Debug.Log($"[TideHeadless] 训练池 {pool.Count} 张（tag「训练池」；随机 30 张抽样口径，教学卡不参与）");
             }
 
             int addedIds = BattleDeckSources.RegisterIdentities(); // 追加式幂等：新卡身份自动续排进 manifest
@@ -371,6 +378,9 @@ namespace CardCore.Editor.TideHeadless
         }
 
         private const int RandomDeckSize = 30;
+
+        /// <summary>训练池规模日志一次性闸（reset 每局调用——只首次打印，防刷屏）。</summary>
+        private static bool _poolLogged;
 
         /// <summary>本局对手主题 key（vs 模式 red/green/blue；自对弈空串）——Serialize info.theme 用。
         /// 单连接单局串行，读写无竞态。</summary>

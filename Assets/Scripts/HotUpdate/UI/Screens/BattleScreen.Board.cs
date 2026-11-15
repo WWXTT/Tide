@@ -76,8 +76,8 @@ namespace SynergyUI
             if (_selfFan != null && _selfFan.Dragging)
             {
                 _hoverProv.Clear();
-                PollDragConfirmOrCancel(); // PC 左键确认/右键取消+失权自动取消（2026-11-15 实测③①）
-                UpdateDragVisual();        // 3D 箭头+可放置波标（阶段H：卡不跟手，箭头接管引导）
+                PollDragConfirmOrCancel(); // PC 左键确认/右键取消+失权自动取消（2026-11-15 拖拽释放）
+                UpdateDragVisual(); // 3D 箭头+可放置波标（阶段H：卡不跟手，箭头接管引导）
                 return;
             }
             HideDragVisual();
@@ -189,25 +189,10 @@ namespace SynergyUI
         /// <summary>左键点击路由（2026-10-26 定案：格前/弹窗两代入口退役——点有可行动作的己方单位/
         /// 角色格在头顶弹 3D 动作按钮组 BattleUnitActionButtons，动作处理器经 OnUnitActionButton
         /// 沿用既有入口；其余落点=收钮后走原信息展示语义）。功能地块/特殊格/地牌/施放图标路由不变。
-        /// 2026-11-15 地牌长条：面片（land-quad-*）直点横置产色、底板（land-strip-*）按 x 反推格
-        /// 开 Information。hitPoint=射线命中世界点（strip 反推用；未命中=default）。</summary>
+        /// 2026-11-15 地牌 UI 回退：恢复 5 个六边形格（4 色地牌格 + Any），点地牌格开该格 Information。</summary>
         private void HandleFieldClick(string hitName, Vector3 hitPoint = default)
         {
             CloseDeckPreview(); // 旧牌库预览条随 2026-11-03 牌组进 Information 退役——留收口兜底（恒空转）
-
-            // 地牌长条命中前置（2026-11-15）：面片=己方直点横置（OnLandQuadClick）；底板空白段=
-            // 按指针 x 反推最近有牌格开 Information（保留查阅）。二者 collider 在 4 格 tile 之上
-            // 必先命中，故先于 tile 路由。
-            if (LandStripFx.TryParseHit(hitName, out uint landQuadRid))
-            {
-                OnLandQuadClick(landQuadRid);
-                return;
-            }
-            if (LandStripFx.IsStripHit(hitName, out int stripOwner))
-            {
-                OnStripClick(stripOwner, hitPoint);
-                return;
-            }
 
             // 3D 动作钮命中前置（2026-10-26）：执行该动作即收钮——先于「关钮」防点击被吞
             if (TryUnitActionButton(hitName)) return;
@@ -266,16 +251,15 @@ namespace SynergyUI
             var unit = (_view.SelfUnits ?? new List<BattleCardView>()).FirstOrDefault(c => c.X == x && c.Z == z && !c.IsDead);
             if (unit != null) { CloseRegion(); return; }
 
-            // 地牌格（2026-11-03 Information 改版；2026-11-15 地牌改版）：双方地牌格点击开
-            // **整区**地牌列表（多色地展示格≠产色，不再按格筛；原=纯日志取证、对方格无响应）；
-            // 己方保留旧逐色日志。无地牌的空格照旧收面板。
+            // 地牌格（2026-11-03 Information 改版）：双方地牌格点击列出该格地牌（原=纯日志取证、
+            // 对方地牌格无响应）；己方保留旧逐色日志。无地牌的空格照旧收面板。
             int landOwnerIdx = BoardLayout.OwnerOf(x, z);
             var landList = landOwnerIdx == 0 ? _view.SelfLands : _view.OppLands;
             var land = (landList ?? new List<BattleCardView>()).FirstOrDefault(c => c.X == x && c.Z == z);
             if (land != null)
             {
                 if (landOwnerIdx == 0) OnClickMyLand(land); // 旧取证日志保留
-                OpenInformationLands(landOwnerIdx);
+                OpenInformationLands(landOwnerIdx, x, z);
                 return;
             }
             CloseRegion();
@@ -710,11 +694,11 @@ namespace SynergyUI
             _infoCtl?.OpenZone(zone, owner, owner != P1);
         }
 
-        private void OpenInformationLands(int ownerIdx)
+        private void OpenInformationLands(int ownerIdx, int x, int z)
         {
             if (!InformationAllowed()) return;
             CloseRegion();
-            _infoCtl?.OpenLands(ownerIdx, ownerIdx != 0);
+            _infoCtl?.OpenLands(ownerIdx, x, z, ownerIdx != 0);
         }
 
         /// <summary>Select 占窗（选择/文本/下拉/预览/btn-hide 切回显示）让位回调收口（需求4/7）。</summary>
@@ -723,85 +707,12 @@ namespace SynergyUI
         private List<BattleCardView> LandsOfOwnerIdx(int ownerIdx)
             => ownerIdx == 0 ? _view?.SelfLands : _view?.OppLands;
 
-        // ---- 主动产色（2026-11-15 地牌主动横置：长条面片直点 + Information 地牌格窗【生成】按钮两入口）----
+        // 主动横置地牌（2026-11-15）已按用户要求回退：删除 GateTapLand/TapLandFinal/OnLandQuadClick/
+        // GenerateFromLand/FirstUntappedLandAt 两入口；地牌只在付费时由系统自动横置。
 
-        /// <summary>主动产色公共闸（2026-11-15 长条直点与【生成】共用）：教学/联机拒绝 toast；
-        /// 时点闸=**持有优先权（扳机）**——双方回合均可（典型：对手回合响应窗口先兑现费用再打扳机）；
-        /// 或己方主阶段（原口径）。返回 false=已被 toast 拒。</summary>
-        private bool GateTapLand()
-        {
-            if (TutorialGuide.Active) { _toast.Show("教学进行中——暂不可主动产色"); return false; }
-            if (NetActive) { _toast.Show("联机模式暂不支持主动产色"); return false; } // 阶段 3 改走 intent
-            var se = Core?.StackEngine;
-            bool holdsPriority = se != null && se.CurrentPriorityHolder == P1;
-            bool ownMain = Core?.TurnEngine != null && Core.TurnEngine.TurnPlayer == P1
-                && Core.TurnEngine.CurrentPhase?.Phase == PhaseType.Main;
-            if (!holdsPriority && !ownMain)
-            {
-                bool oppTurn = Core?.TurnEngine != null && Core.TurnEngine.TurnPlayer != P1;
-                _toast.Show(oppTurn
-                    ? "对手回合——需持有优先权（扳机）才能主动产色"
-                    : "当前时点不可主动产色（需持有优先权或己方主阶段）");
-                return false;
-            }
-            return true;
-        }
+        // 长条底板 OnStripClick 随 5 六边形 UI 回退一并删除；点地牌格走 HandleZoneCellClick→OpenInformationLands。
 
-        /// <summary>横置产色终态（2026-11-15 地牌改版）：单色地直接产唯一色；多色地弹**已有选色窗**
-        ///（Region 列表，选项序=可产集合序·主色在前，不做默认高亮）——取消=不横置不产色。
-        /// 引擎时点/横置/冻结/集合闸全在 TapLandForElement(color)。via=调用侧取证文案前缀。</summary>
-        private void TapLandFinal(PooledCard pc, string via)
-            => TapLandFinalAsync(pc, via).Forget();
-
-        private async UniTaskVoid TapLandFinalAsync(PooledCard pc, string via)
-        {
-            ManaType color = pc.DisplayColor;
-            if (pc.ColorOptions.Count > 1)
-            {
-                var options = new List<string>(pc.ColorOptions.Count);
-                foreach (var c in pc.ColorOptions) options.Add($"生成 {BattleView.ManaZh(c)} 元素");
-                int? picked = await PickRegionOptionAsync("选择地牌产色", options);
-                if (picked == null || picked.Value < 0 || picked.Value >= pc.ColorOptions.Count)
-                    return; // 取消=不横置不产色（弹窗期间 3D 点击让路——Region 选择态现有行为）
-                color = pc.ColorOptions[picked.Value];
-            }
-            if (!GameActions.TapLandForElement(Core, P1, pc.SourceCard, color, out var reason))
-            { _toast.Show(reason); return; }
-
-            string name = (pc.SourceCard as CardWrapper)?.GetData()?.CardName ?? pc.SourceCard.ID;
-            _toast.Show($"已横置 {name}：生成 1 个{BattleView.ManaZh(color)}临时元素（回合结束消失）");
-            Debug.Log($"[LandStrip] tap rid={pc.SourceCard.RuntimeId} color={color} via={via}");
-            RefreshField();      // 同步重建 _view → 长条面片/5 分格对账（ViewVersion++，悬停缓存作废）
-            _infoCtl?.Refresh(); // 兜底（窗开着时）：同帧立即重拉卡面（RefreshField 同步完成后读到的是新横置态）
-        }
-
-        /// <summary>点地牌面片（2026-11-15 地牌长条·3D 射线直点横置）：land-quad-{rid} 命中路由——
-        /// 直接横置产色，不开窗不点按钮；点已横置面片=无操作（定案）；对方面片=无操作。
-        /// 点按反馈=面片缩放脉冲（LandStripFx.PressPop，不触发整格下沉）。</summary>
-        private void OnLandQuadClick(uint rid)
-        {
-            LandStripFx.PressPop(rid);
-            if (Core?.ElementPool == null || P1 == null) return;
-            PooledCard pc = null;
-            foreach (var c in Core.ElementPool.GetPooledCards(P1))
-                if (c?.SourceCard != null && c.SourceCard.RuntimeId == rid) { pc = c; break; }
-            if (pc == null || pc.IsTapped) return; // 已横置/已离池/对方面片：无操作
-            if (!GateTapLand()) return;
-            TapLandFinal(pc, "quad");
-        }
-
-        /// <summary>点长条空白段（2026-11-15 地牌改版）：**整区地牌列表**——不再按指针 x 反推色格
-        ///（多色地的展示格不代表产色，按色格开窗会误导）；整行无地牌收面板。</summary>
-        private void OnStripClick(int ownerIdx, Vector3 hitPoint)
-        {
-            var lands = LandsOfOwnerIdx(ownerIdx);
-            if (lands == null || lands.Count == 0) { CloseRegion(); return; }
-            OpenInformationLands(ownerIdx);
-        }
-
-        // FirstUntappedLandAt/GenerateFromLand（Information 窗【生成】按钮链）已随 2026-11-15
-        // 地牌改版 §15-4 定案退役：主动产色唯一入口=长条面片直点（OnLandQuadClick→TapLandFinal），
-        // 避免两入口多色选色体验不一致。按钮烘焙节点保留（面板侧无回调恒隐藏）。
+        // FirstUntappedLandAt/【生成】按钮链（2026-11-15 主动产色）已按用户要求回退删除。
 
         // ---- 牌库标记预览（2026-10-26 诅咒/祝福显示层补充——效果描述不提，纯可见性增强） ----
 

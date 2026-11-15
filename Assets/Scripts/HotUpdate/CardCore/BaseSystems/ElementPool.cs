@@ -1,35 +1,25 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
 namespace CardCore
 {
     /// <summary>
-    /// 元素池中的卡牌（地牌，产色体）——2026-11-15 地牌改版（单格放置·多色产色）：
-    /// 放置不再预选锁色。入池时把可产色候选（卡面/各模式费 ∪ 主动效果锚价的红/蓝/绿/灰——
-    /// 见 ElementPoolSystem.GetLandColorChoices）整体**快照**成 ColorOptions；之后一次横置
-    /// 只产 **1 个**元素，颜色 ∈ ColorOptions（自动付费由规划器按账单选定，手动产色由玩家选）。
-    /// 地牌不消耗、不耗竭、不入墓（移除口=摧毁/抹除效果）；每回合周期至多横置一次。
+    /// 元素池中的卡牌（地牌，锁色产色体）——2026-10-11 资源系统重做定案：
+    /// 指示物整套退役。入池时从锁色候选（卡面/各模式费 ∪ 主动效果锚价的红/蓝/绿/灰——
+    /// 见 ElementPoolSystem.GetLandColorChoices）中自选锁定一个产色，后续生成固定；
+    /// 地牌不消耗、不耗竭、不入墓（移除口=摧毁/抹除效果）。
+    /// 付费时系统按账单自动横置（强制系统动作，无速度交互，自己/对手回合都一样），
+    /// 每地牌每回合周期恰好横置一次，产 1 个锁定色元素**直接支付**（不入库）。
     /// </summary>
     public class PooledCard
     {
         public Card SourceCard { get; }
 
-        /// <summary>可产色集合（2026-11-15）：放置瞬间 GetLandColorChoices 的快照（按份额降序，
-        /// 首位=主色）——不随之后的费用增减/锚价变化重推导；空集合=非法态（正常入口不会产生）。</summary>
-        public List<ManaType> ColorOptions { get; }
+        /// <summary>入池时锁定的产色（红/蓝/绿/灰——黑白不由地牌产出）</summary>
+        public ManaType LockedColor { get; }
 
-        /// <summary>展示色（= ColorOptions 首位主色）：仅供面片底色/棋盘落格/战报展示，
-        /// **不限制产色**（付费规划与手动产色按集合匹配）。</summary>
-        public ManaType DisplayColor => ColorOptions != null && ColorOptions.Count > 0
-            ? ColorOptions[0] : ManaType.Gray;
-
-        /// <summary>该地牌能否产 color——按色地牌计数（禁召/归土/纳川/代价门槛/单色可用性）
-        /// 与支付匹配的**单源谓词**（2026-11-15 决策3：多色地同时计入多个颜色）。</summary>
-        public bool CanProduce(ManaType color)
-            => ColorOptions != null && ColorOptions.Contains(color);
-
-        /// <summary>本回合周期已横置（已为某次支付/手动产色贡献过 1 个元素）。己方回合开始时恢复（解除横置）。</summary>
+        /// <summary>本回合周期已横置（已为某次支付贡献过 1 个元素）。己方回合开始时恢复（解除横置）。</summary>
         public bool IsTapped { get; set; }
 
         /// <summary>冻地层数（2026-10-29 阶段3a 冻结扩展到元素池）：层=剩余回合数——冻结原子横置地牌
@@ -37,25 +27,11 @@ namespace CardCore
         /// 归零后的下个回合开始恢复。叠加=延长（与单位冻结同口径）。</summary>
         public int FreezeLayers { get; set; }
 
-        /// <summary>正常入口构造（可产集合快照；DisplayColor=首位主色）。</summary>
-        public PooledCard(Card card, IEnumerable<ManaType> colorOptions)
+        public PooledCard(Card card, ManaType lockedColor)
         {
             SourceCard = card;
-            ColorOptions = colorOptions != null
-                ? new List<ManaType>(colorOptions) : new List<ManaType>();
+            LockedColor = lockedColor;
         }
-
-        /// <summary>单色构造（旧快照恢复兜底 / 夹具 forced 色专用——完全复刻旧锁色行为）。</summary>
-        public PooledCard(Card card, ManaType singleColor)
-        {
-            SourceCard = card;
-            ColorOptions = new List<ManaType> { singleColor };
-        }
-
-        /// <summary>旧锁色口径（2026-11-15 退役）：等价于 DisplayColor（展示色）。
-        /// 仅为编译期找齐残留调用点保留的别名——序列化/网络字段名暂不改（协议兼容）。</summary>
-        [Obsolete("2026-11-15 地牌改版：锁色退役——展示用 DisplayColor，产色判定用 CanProduce(color)")]
-        public ManaType LockedColor => DisplayColor;
     }
 
     /// <summary>
@@ -100,22 +76,26 @@ namespace CardCore
     }
 
     /// <summary>
-    /// 元素池系统——2026-10-11 资源系统重做（现取现用）+ 2026-11-15 地牌改版（单格放置·多色产色）：
-    /// 1. 地牌 = 产色体：入池**不再选色**——可产集合=放置瞬间 GetLandColorChoices 快照（ColorOptions），
-    ///    一次横置只产 1 个元素、颜色 ∈ 集合（自动付费由规划器选，手动产色由玩家选）；
-    ///    不消耗不耗竭；移除口=摧毁/抹除效果。
-    /// 2. 地牌上限 = 每次回合开始双方同步 +1（全局曲线 CapAt(GlobalTurnIndex)，标准曲线 min(全局回合,10)）；
-    ///    自然上限 10（LandCurveCap），「成长」原子 +1/次**无封顶**。各自上限管各自地牌张数。
-    /// 3. 付费 = 现取现用：最小费用流一次规划「钱包扣减 + 地牌横置（地→色匹配）」——
-    ///    **钱包全链优先于任何横置**（手动预生成不白做）、横置张数最少、本色优先（链序罚分平局）；
-    ///    地牌横置=系统自动的强制动作（无速度交互），自己/对手回合都一样。
-    /// 4. 支付链（2026-10-28 四色重构沿用）：红/蓝/绿=[本色,任意]；灰=[灰,红,蓝,绿,任意]；
-    ///    **彩元素（Any）=万能货币**（效果授予落临时钱包），恒处各链末位垫付。旧浓度上限钳随
-    ///    「1 地 1 元素」模型退役（横置数 ≤ 池张数 ≤ 上限，天然有界）；钱包贡献不受钳。
-    /// 5. 临时钱包：效果授予/手动产色元素的唯一归宿（**同池同寿命，规则上不可区分**——2026-11-15 决策4），
-    ///    任一回合结束清空。
-    /// 6. 黑白/任意不由地牌产出；获取通道=代价补偿/错边转化等卡结算路径。
-    /// 7. 发动无效与地牌零交互；地牌的交互面只有摧毁/抹除（+主动横置产色=TapLandForElement）。
+    /// 元素池系统——2026-10-11 资源系统重做定案（现取现用）+ 2026-10-15 上限累加口径修订：
+    /// 1. 地牌 = 锁色产色体：入池时自选卡费颜色之一锁定；不消耗不耗竭；移除口=摧毁/抹除效果。
+    /// 2. 地牌上限 = 每次回合开始双方同步 +1（全局曲线 CapAt(GlobalTurnIndex)，标准曲线 min(全局回合,10)）：
+    ///    2026-10-11 的个人口径废止——先后手永差一步的观感过强，回归双方同步（10-11 前口径）；
+    ///    自然上限 10（LandCurveCap），「成长」原子 +1/次**无封顶**（旧 14 硬顶退役）。
+    ///    各自上限管各自地牌张数（10-10 的全场合计占用不复活）。
+    /// 3. 付费 = 现取现用：按账单规划「临时钱包余额 + 未横置地牌横置」组合，钱包优先消耗（回合末即逝），
+    ///    地牌横置=系统自动的强制动作（无速度交互），自己/对手回合都一样（跨回合支付不变）。
+        /// 4. 支付链（2026-10-28 四色重构）：红/蓝/绿仅本色；灰=灰→红→蓝→绿（黑白删除后不再垫灰，
+        ///    无需先行预留）；黑白等非四色需求沿本色链扣（过渡态，P2 删枚举成员后不再出现）；
+        ///    **彩元素（Any）=万能货币**（效果授予落临时钱包——牺牲送墓等资源族产出），恒处各链末位垫付
+        ///    ——可代替红蓝绿灰缺口（本色优先消耗）。浓度上限
+    ///    （2026-10-16 临时元素超上限改版）：只钳**地牌横置贡献**（每货币单次 ≤ 地牌上限——地牌张数
+    ///    本就有界，钳为双保险），临时钱包贡献不受钳（获取=对应地块可用+1、可用可超上限——
+    ///    纯色需求超帽部分由钱包覆盖即付）。
+        /// 5. 临时钱包：效果授予元素的唯一归宿，任一回合结束清空；生成无上限（2026-10-28 P3b 定案：
+        ///    全类型累计钳删除——代价已不产元素；2026-10-30 起效果无每回合次数上限，
+        ///    发电机节奏由卡自身时机期望系数与付费约束承担）。
+    /// 6. 黑白不由地牌产出（锁定色不含黑白）；获取通道=代价补偿/错边转化等卡结算路径。
+    /// 7. 发动无效与地牌零交互（净零靠付费在响应窗之后，本就无退款路径）；地牌的交互面只有摧毁/抹除。
     /// </summary>
     public class ElementPoolSystem
     {
@@ -199,6 +179,10 @@ namespace CardCore
         public static List<ManaType> GetLandColorChoices(CardData data)
         {
             if (data == null) return new List<ManaType>();
+            // 测试/夹具专用四色可锁候选（2026-11-15 回退版）：仅「测试·四色地」等素材卡填写；
+            // 正常卡表为空。旧锁色体系下只是四个可锁候选，放置时仍选中单色，不产多色。
+            if (data.TestLandColors != null && data.TestLandColors.Count > 0)
+                return new List<ManaType>(data.TestLandColors);
             if (data.LandColorChoicesCache != null) return new List<ManaType>(data.LandColorChoicesCache);
 
             var total = new ElementCost();
@@ -253,51 +237,16 @@ namespace CardCore
         /// <summary>
         /// 将手牌作为地牌放入元素池（主阶段调用，可用/未横置状态入场，不限张数/次数）。
         /// 张数受**各自**地牌槽上限约束（2026-10-15：全局同步曲线 min(全局回合,10)+成长加值，效果增加无封顶）。
-        /// 2026-11-15 地牌改版：放置**不再选色**——ColorOptions=放置瞬间 GetLandColorChoices 快照，
-        /// DisplayColor=首位主色（仅展示）；产色在横置时按集合选定（自动规划/手动选择）。
-        /// 地牌不消耗不耗竭；离池（弹回手等）后可再入池（集合按离池后卡数据重取）。
+        /// colorChoice：从 GetLandColorChoices 中自选锁定产色；null=缺省主色（份额最多色）。
+        /// 地牌不消耗不耗竭；离池（弹回手等）后可再入池重新选色。
         /// </summary>
-        public bool AddCardToPool(Card card, Player owner)
-            => TryAddToPool(card, owner, out _);
+        public bool AddCardToPool(Card card, Player owner, ManaType? colorChoice = null)
+            => TryAddToPool(card, owner, colorChoice, out _);
 
         /// <summary>带原因版（2026-11-03 失败提示细化）：与 AddCardToPool 同路径单源，四闸逐条可读。</summary>
-        public bool TryAddToPool(Card card, Player owner, out string reason)
-        {
-            if (!PassesLandGates(card, owner, out reason, out var pool, out var choices))
-                return false;
-
-            pool.PooledCards.Add(new PooledCard(card, choices));
-
-            // 事件发布延后（2026-09-26 时序定案沿用）：入池事件不在此发——调用方完成
-            // Zone.ElementPool 区域移动后调 PublishPoolAdd。
-            return true;
-        }
-
-        /// <summary>夹具专用强制单色入池（2026-11-15 地牌改版 §11）：ColorOptions={forcedColor}——
-        /// 完全复刻旧「显式锁色」行为，仅供 TutorialScenarioSeeder / TestStartFlow 等教学·测试预设
-        /// 保住「四色素材地 10/10/10/10」等局面；**正常 UI/AI/网络入口禁用**（语义=该地只能产这一色）。</summary>
-        public bool AddCardToPoolForced(Card card, Player owner, ManaType forcedColor)
-            => TryAddToPoolForced(card, owner, forcedColor, out _);
-
-        /// <summary>带原因版：夹具强制色重载（forcedColor 必须在该卡可产候选内——传错即拒，同旧锁色闸）。</summary>
-        public bool TryAddToPoolForced(Card card, Player owner, ManaType forcedColor, out string reason)
-        {
-            if (!PassesLandGates(card, owner, out reason, out var pool, out var choices))
-                return false;
-            if (!choices.Contains(forcedColor))
-            { reason = "所选颜色不在该卡可产的产色内"; return false; }
-
-            pool.PooledCards.Add(new PooledCard(card, forcedColor));
-            return true;
-        }
-
-        /// <summary>入池四闸单源（禁地令/资格/上限余位/可产候选非空）——正常与 forced 重载共用。</summary>
-        private bool PassesLandGates(Card card, Player owner, out string reason,
-            out PlayerElementPool pool, out List<ManaType> choices)
+        public bool TryAddToPool(Card card, Player owner, ManaType? colorChoice, out string reason)
         {
             reason = null;
-            pool = null;
-            choices = null;
             if (card == null || owner == null) { reason = "内部错误：空参数"; return false; }
 
             // 禁地令（2026-10-29）：受光环影响的一方不能将手牌作为地牌放置（权威校验，UI 预检之外兜底）
@@ -308,21 +257,32 @@ namespace CardCore
             if (!CanServeAsLand(card))
             { reason = "该卡不可作为地牌（衍生物/临时复制卡）"; return false; }
 
-            pool = GetPool(owner);
+            var pool = GetPool(owner);
 
             // 地牌槽上限（各自口径）
             if (pool.PooledCards.Count >= GetLandCap(owner))
             { reason = $"地牌槽已满（上限 {GetLandCap(owner)}）"; return false; }
 
-            // 可产色候选（卡面/各模式费 ∪ 主动效果锚价，去黑白）；空候选（真无费用元素）拒绝入池
-            choices = GetLandColorChoices(card);
+            // 锁色候选（卡面/各模式费 ∪ 主动效果锚价，去黑白）；空候选（真无费用元素）拒绝入池
+            var choices = GetLandColorChoices(card);
             if (choices.Count == 0)
-            { reason = "该卡无元素费用，不能作为地牌"; return false; }
+            { reason = "该卡无可锁定产色（无费用元素）"; return false; }
+
+            // 显式锁色必须在候选内（非法选择拒绝——UI 只给有效项，AI/夹具传错即拒）
+            if (colorChoice.HasValue && !choices.Contains(colorChoice.Value))
+            { reason = "所选颜色不在该卡可锁定的产色内"; return false; }
+
+            var color = colorChoice ?? choices[0]; // 缺省=主色（份额最多色）
+
+            pool.PooledCards.Add(new PooledCard(card, color));
+
+            // 事件发布延后（2026-09-26 时序定案沿用）：入池事件不在此发——调用方完成
+            // Zone.ElementPool 区域移动后调 PublishPoolAdd。
             return true;
         }
 
         /// <summary>发布地牌入池事件：调用方在 Zone.ElementPool 区域移动完成后调用
-        /// （AddCardToPool 本体不发——见其尾注；LockedColor 字段名保留=协议兼容，语义=展示色）。</summary>
+        /// （AddCardToPool 本体不发——见其尾注；事件携带锁定产色）。</summary>
         public void PublishPoolAdd(Card card, Player owner)
         {
             var pooled = GetPool(owner).PooledCards.FirstOrDefault(pc => pc.SourceCard == card);
@@ -330,7 +290,7 @@ namespace CardCore
             {
                 Player = owner,
                 AddedCard = card,
-                LockedColor = pooled?.DisplayColor ?? ManaType.Gray,
+                LockedColor = pooled?.LockedColor ?? ManaType.Gray,
             });
         }
 
@@ -436,30 +396,12 @@ namespace CardCore
 
         // ======================================== 支付（现取现用统一规划器） ========================================
 
-        /// <summary>支付规划结果：钱包扣减 + 横置地牌清单（含本次产出色）+ 实付组合（事件用）。
-        /// internal=PaymentPlanView（公开只读观测口）的构造参数。</summary>
-        internal sealed class PaymentPlan
+        /// <summary>支付规划结果：钱包扣减 + 横置地牌清单 + 实付组合（事件用）。</summary>
+        private sealed class PaymentPlan
         {
             public readonly Dictionary<ManaType, int> WalletUse = new Dictionary<ManaType, int>();
-            public readonly List<(PooledCard Land, ManaType Color)> Taps = new List<(PooledCard, ManaType)>();
+            public readonly List<PooledCard> Taps = new List<PooledCard>();
             public readonly Dictionary<ManaType, int> TotalPaid = new Dictionary<ManaType, int>();
-        }
-
-        /// <summary>支付规划只读视图（2026-11-15 地牌改版）：验证器/测试观测用——
-        /// 与 TryPayBillWithAutoTap 同源单规划（PlanBill），不动状态。</summary>
-        public sealed class PaymentPlanView
-        {
-            public IReadOnlyDictionary<ManaType, int> WalletUse { get; }
-            /// <summary>横置的地牌（池序）与本次产出色（多色地的规划选色）逐项对应。</summary>
-            public IReadOnlyList<(PooledCard Land, ManaType Color)> Taps { get; }
-            public IReadOnlyDictionary<ManaType, int> TotalPaid { get; internal set; }
-
-            internal PaymentPlanView(PaymentPlan plan)
-            {
-                WalletUse = new Dictionary<ManaType, int>(plan.WalletUse);
-                Taps = new List<(PooledCard, ManaType)>(plan.Taps);
-                TotalPaid = new Dictionary<ManaType, int>(plan.TotalPaid);
-            }
         }
 
         /// <summary>
@@ -469,12 +411,11 @@ namespace CardCore
         public bool CanPayCostWithAutoTap(ElementCost cost, Player player)
             => CanPayCostWithAutoTap(ElementPaymentValidator.NormalizeBill(cost), player);
 
-        /// <summary>同 CanPayCostWithAutoTap（已归一账单入口——GameActions.CanAfford 合并 pending 声明承诺后调用）。
-        /// 预检与结算同走 PlanBill 单源（2026-11-15 地牌改版：CanPay=true ⇒ Pay 必成功）。</summary>
+        /// <summary>同 CanPayCostWithAutoTap（已归一账单入口——GameActions.CanAfford 合并 pending 声明承诺后调用）。</summary>
         public bool CanPayCostWithAutoTap(Dictionary<ManaType, int> bill, Player player)
         {
             var pool = GetPool(player);
-            return PlanBill(bill, SnapshotWallet(pool), UntappedLands(pool)) != null;
+            return PlanBill(bill, SnapshotWallet(pool), UntappedLands(pool), GetLandCap(player)) != null;
         }
 
         /// <summary>
@@ -490,15 +431,15 @@ namespace CardCore
         public bool TryPayBillWithAutoTap(Dictionary<ManaType, int> bill, Player player, string sourceNote = null)
         {
             var pool = GetPool(player);
-            var plan = PlanBill(bill, SnapshotWallet(pool), UntappedLands(pool));
+            var plan = PlanBill(bill, SnapshotWallet(pool), UntappedLands(pool), GetLandCap(player));
             if (plan == null) return false;
 
             foreach (var kv in plan.WalletUse)
                 pool.TempElements[kv.Key] -= kv.Value;
 
-            foreach (var tap in plan.Taps)
+            foreach (var land in plan.Taps)
             {
-                tap.Land.IsTapped = true;
+                land.IsTapped = true;
                 pool.TapsThisTurn++;
             }
 
@@ -516,218 +457,111 @@ namespace CardCore
             return true;
         }
 
-        /// <summary>规划只读观测口（验证器/§5.4 用例）：与付费同源（PlanBill 纯函数），不动状态；
-        /// 不可付返回 null。供「两次规划逐项一致」「预检=结算」类断言读取 WalletUse/Taps/TotalPaid。</summary>
-        public PaymentPlanView PlanPayment(Dictionary<ManaType, int> bill, Player player)
-        {
-            var pool = GetPool(player);
-            var plan = PlanBill(bill, SnapshotWallet(pool), UntappedLands(pool));
-            return plan == null ? null : new PaymentPlanView(plan);
-        }
-
-        /// <summary>未横置的地牌（本回合周期尚可为支付贡献 1 个可产色元素）。</summary>
+        /// <summary>未横置的地牌（本回合周期尚可为支付贡献 1 个锁定色元素）。</summary>
         private static List<PooledCard> UntappedLands(PlayerElementPool pool)
             => pool.PooledCards.Where(pc => pc != null && !pc.IsTapped).ToList();
 
         private static Dictionary<ManaType, int> SnapshotWallet(PlayerElementPool pool)
             => new Dictionary<ManaType, int>(pool.TempElements);
 
-        // ===== 最小费用流支付规划（2026-11-15 地牌改版 §5）=====
-        // 旧「按 LockedColor 单色分桶 + 逐链贪心」在多色地下有两个结构性缺陷：
-        //   A. 一块多色地不能同时进多个单色队列（一地一回合只产 1 点，须做地→色匹配）；
-        //   B. 跨色链不是钱包优先（灰需求会先横灰地，把红钱包留到回合末清空——手动预产色白做）。
-        // 改为一次二部匹配/最小费用流：
-        //   源 S → 钱包货币节点 W_c（容量=余额，费 0） / 地牌节点 L_i（容量=1——每地一回合一次）
-        //   W_c → 需求 N_d：c ∈ ChainFor(d)，费用=链序（0=本色，越大越靠后）
-        //   L_i → 产色节点 C_c（c ∈ ColorOptions_i，容量 1，费用=BIG）→ N_d：c ∈ ChainFor(d)，费用=链序
-        //   N_d → T 容量=bill[d]
-        // 总费用 = BIG×横置张数 + Σ链序 ⇒ 优先级：横置张数最少 > 本色优先（钱包/地牌同链序口径）。
-        // 天然满足：钱包全链优先于任何横置、多色地只被分配一个色、经 C_c 可回读本次产出色写进台账。
-        // 确定性：节点/边按固定序建（ManaType 枚举序/池序/FourColorOrder），SPFA 平局按建边序——
-        // 同一状态两次规划逐项相同（回放/AI 对拍要求）。
-        // 规模：节点 ≤ 1+5+40+4+5+1、边 &lt; 200、流量 ≤ 账单总点数——CanAfford 每帧调用无压力。
-
-        /// <summary>横置一次的罚分权重：远大于「账单总点数 × 最大链序」（链序 ≤4、点数 ≤ 上限+钱包，
-        /// 10000 保证了同横置张数下链序只做平局，横置张数恒为第一优先级）。</summary>
-        private const long TapCostBig = 10000;
-
         /// <summary>
-        /// 账单支付规划（纯函数、非破坏）：求「钱包扣减 + 地牌横置（含产色选配）」组合使账单可付；
-        /// null = 无法补足。2026-11-15 地牌改版：旧分桶贪心退役，改最小费用流（见上方算法注释）；
-        /// cap 参数随「1 地 1 元素」模型退役（横置数 ≤ 池张数 ≤ 上限，天然有界）。
-        /// 非四色需求（任意/过渡态黑白）沿本色链只由钱包覆盖——地牌可产集合不含它们，流网络同构表达。
+        /// 账单支付规划（纯函数、非破坏）：求「钱包扣减 + 地牌横置」组合使账单可付；null = 无法补足。
+        /// 口径与旧 GetBillPaymentPlan+PlanAutoTaps 两段合一（2026-10-11 现取现用定案）：
+        /// ① 需求侧浓度上限已退役（2026-10-16 临时元素超上限改版）：纯色需求超帽不再直接拒付——
+        ///    钱包贡献不受浓度钳，能否覆盖由规划自身判定（地牌贡献仍每货币 ≤ cap，天然有界）；
+        /// ② 按 FourColorOrder×ChainFor 贪心扣减（支付链 2026-10-28 四色重构：三色仅本色；
+        ///    灰=灰→红→蓝→绿——黑白不再垫灰、无需先行预留）；
+        /// ③ 黑白等非四色需求（P2 删枚举成员前过渡态）垫后沿本色链扣（只来自钱包——地牌锁色不含黑白）；
+        /// ④ 同货币先扣钱包（临时元素回合末即逝，优先消耗，**不受浓度钳**——可用可超上限）再横置地牌
+        ///    （地牌每货币单次贡献 ≤ cap，双保险钳）。
         /// </summary>
         private static PaymentPlan PlanBill(
             Dictionary<ManaType, int> bill, Dictionary<ManaType, int> wallet,
-            List<PooledCard> untapped)
+            List<PooledCard> untapped, int cap)
         {
+            if (bill == null || bill.Count == 0) return new PaymentPlan();
+
+            var walletSim = new Dictionary<ManaType, int>();
+            var landsOf = new Dictionary<ManaType, Queue<PooledCard>>();
+            var used = new Dictionary<ManaType, int>();
+            var landUsed = new Dictionary<ManaType, int>(); // 地牌贡献台账（浓度钳只管地牌——钱包豁免）
+            foreach (ManaType c in Enum.GetValues(typeof(ManaType)))
+            {
+                walletSim[c] = wallet.TryGetValue(c, out var v) ? v : 0;
+                used[c] = 0;
+                landUsed[c] = 0;
+            }
+            foreach (var land in untapped)
+            {
+                if (!landsOf.TryGetValue(land.LockedColor, out var queue))
+                    landsOf[land.LockedColor] = queue = new Queue<PooledCard>();
+                queue.Enqueue(land);
+            }
+
             var plan = new PaymentPlan();
-            if (bill == null || bill.Count == 0) return plan;
 
-            // 需求固定序：FourColorOrder 优先，其余按枚举序（任意/过渡态黑白）——确定性建图
-            var needs = new List<ManaType>();
-            foreach (var n in ElementPaymentValidator.FourColorOrder)
-                if (bill.TryGetValue(n, out var v) && v > 0) needs.Add(n);
-            foreach (ManaType c in Enum.GetValues(typeof(ManaType)))
-                if (Array.IndexOf(ElementPaymentValidator.FourColorOrder, c) < 0
-                    && bill.TryGetValue(c, out var v) && v > 0) needs.Add(c);
-            if (needs.Count == 0) return plan;
-            int totalDemand = needs.Sum(n => bill[n]);
-
-            // 链序缓存（ChainFor 数组按下标即序）
-            var chains = new Dictionary<ManaType, ManaType[]>();
-            int Rank(ManaType currency, ManaType need)
+            void Record(ManaType currency, int take, PooledCard land)
             {
-                if (!chains.TryGetValue(need, out var chain)) chains[need] = chain = ElementPaymentValidator.ChainFor(need);
-                return Array.IndexOf(chain, currency);
-            }
-
-            // 节点布局（固定序）：S | 钱包（枚举序）| 地牌（池序）| 产色（FourColorOrder）| 需求 | T
-            int node = 0;
-            int S = node++;
-            var walletNode = new Dictionary<ManaType, int>();
-            foreach (ManaType c in Enum.GetValues(typeof(ManaType)))
-                if (wallet.TryGetValue(c, out var wv) && wv > 0)
-                    walletNode[c] = node++;
-            var landNode = new int[untapped.Count];
-            for (int i = 0; i < untapped.Count; i++) landNode[i] = node++;
-            var produceNode = new Dictionary<ManaType, int>();
-            foreach (var c in ElementPaymentValidator.FourColorOrder) produceNode[c] = node++;
-            var needNode = new Dictionary<ManaType, int>();
-            foreach (var n in needs) needNode[n] = node++;
-            int T = node++;
-
-            var mcf = new MinCostFlow(node);
-            var walletEdges = new List<(ManaType c, int idx)>();
-            var landEdges = new List<(int land, ManaType c, int idx)>(); // L→C（可产色邻接，费 BIG）
-
-            foreach (var kv in walletNode)
-                walletEdges.Add((kv.Key, mcf.AddEdge(S, kv.Value, wallet[kv.Key], 0)));
-            for (int i = 0; i < untapped.Count; i++)
-                mcf.AddEdge(S, landNode[i], 1, 0);
-            foreach (var wc in walletNode)
-                foreach (var n in needs)
+                used[currency] += take;
+                plan.TotalPaid[currency] = plan.TotalPaid.TryGetValue(currency, out var prev) ? prev + take : take;
+                if (land == null)
                 {
-                    int r = Rank(wc.Key, n);
-                    if (r >= 0) mcf.AddEdge(wc.Value, needNode[n], int.MaxValue, r);
+                    walletSim[currency] -= take;
+                    plan.WalletUse[currency] = plan.WalletUse.TryGetValue(currency, out var w) ? w + take : take;
                 }
-            for (int i = 0; i < untapped.Count; i++)
-                foreach (var c in ElementPaymentValidator.FourColorOrder)
-                    if (untapped[i].CanProduce(c))
-                        landEdges.Add((i, c, mcf.AddEdge(landNode[i], produceNode[c], 1, TapCostBig)));
-            foreach (var pc in produceNode)
-                foreach (var n in needs)
+                else
                 {
-                    int r = Rank(pc.Key, n);
-                    if (r >= 0) mcf.AddEdge(pc.Value, needNode[n], int.MaxValue, r);
-                }
-            foreach (var n in needs)
-                mcf.AddEdge(needNode[n], T, bill[n], 0);
-
-            // 增广至满需求（SSP：每步沿最短路增广，得到该流量值的最小费用流）
-            if (mcf.Run(S, T, totalDemand) < totalDemand) return null;
-
-            // 回读流：钱包用量 / 地牌横置与本次产出色 / 实付组合
-            foreach (var (c, idx) in walletEdges)
-            {
-                int used = mcf.FlowOf(idx);
-                if (used > 0)
-                {
-                    plan.WalletUse[c] = used;
-                    plan.TotalPaid[c] = plan.TotalPaid.TryGetValue(c, out var prev) ? prev + used : used;
+                    landUsed[currency] += take;
+                    plan.Taps.Add(land);
                 }
             }
-            foreach (var (i, c, idx) in landEdges)
-            {
-                if (mcf.FlowOf(idx) <= 0) continue;
-                plan.Taps.Add((untapped[i], c));
-                plan.TotalPaid[c] = plan.TotalPaid.TryGetValue(c, out var prev) ? prev + 1 : 1;
-            }
-            return plan;
-        }
 
-        /// <summary>最小费用流（SPFA/Bellman-Ford 连续最短路增广；规模极小，无外部依赖）。
-        /// 建边序固定 + 严格松弛 ⇒ 增广路径确定（同输入同结果）。</summary>
-        private sealed class MinCostFlow
-        {
-            private readonly int _n;
-            private readonly List<int> _to = new List<int>();
-            private readonly List<int> _cap = new List<int>();
-            private readonly List<long> _cost = new List<long>();
-            private readonly List<int> _cap0 = new List<int>(); // 原始容量（回读流量用）
-            private readonly List<List<int>> _g;
-
-            public MinCostFlow(int n)
+            // ② 四色需求按固定序×填链贪心：钱包优先（不受浓度钳，可超上限）、后横置地牌（每货币 ≤ cap）
+            foreach (var need in ElementPaymentValidator.FourColorOrder)
             {
-                _n = n;
-                _g = new List<List<int>>(n);
-                for (int i = 0; i < n; i++) _g.Add(new List<int>());
-            }
-
-            /// <summary>加边（返回边号——供 FlowOf 回读该边实流量）。</summary>
-            public int AddEdge(int u, int v, int cap, long cost)
-            {
-                int idx = _to.Count;
-                _g[u].Add(idx);
-                _to.Add(v); _cap.Add(cap); _cost.Add(cost); _cap0.Add(cap);
-                _g[v].Add(idx + 1);
-                _to.Add(u); _cap.Add(0); _cost.Add(-cost); _cap0.Add(0);
-                return idx;
-            }
-
-            /// <summary>沿最短路逐路增广至 need（或无路可增）：返回实达流量。</summary>
-            public int Run(int s, int t, int need)
-            {
-                int flow = 0;
-                while (flow < need)
+                if (!bill.TryGetValue(need, out var remaining) || remaining <= 0) continue;
+                foreach (var currency in ElementPaymentValidator.ChainFor(need))
                 {
-                    // SPFA 最短路（费用可为负——残量反向边）
-                    var dist = new long[_n];
-                    var inQueue = new bool[_n];
-                    var prevEdge = new int[_n];
-                    for (int i = 0; i < _n; i++) { dist[i] = long.MaxValue; prevEdge[i] = -1; }
-                    var queue = new Queue<int>();
-                    dist[s] = 0;
-                    queue.Enqueue(s);
-                    inQueue[s] = true;
-                    while (queue.Count > 0)
+                    if (remaining <= 0) break;
+                    int have = walletSim[currency];
+                    int take = Math.Min(have, remaining); // 钱包：无浓度钳（2026-10-16 超上限改版）
+                    if (take > 0)
                     {
-                        int u = queue.Dequeue();
-                        inQueue[u] = false;
-                        foreach (var ei in _g[u])
+                        Record(currency, take, null);
+                        remaining -= take;
+                    }
+                    if (remaining > 0 && landsOf.TryGetValue(currency, out var queue))
+                    {
+                        int room = cap - landUsed[currency]; // 地牌：浓度钳只计地牌贡献
+                        while (remaining > 0 && queue.Count > 0 && room > 0)
                         {
-                            if (_cap[ei] <= 0) continue;
-                            int v = _to[ei];
-                            if (dist[u] + _cost[ei] >= dist[v]) continue; // 严格松弛：平局保持首见路径
-                            dist[v] = dist[u] + _cost[ei];
-                            prevEdge[v] = ei;
-                            if (!inQueue[v]) { queue.Enqueue(v); inQueue[v] = true; }
+                            Record(currency, 1, queue.Dequeue());
+                            remaining--;
+                            room--;
                         }
                     }
-                    if (dist[t] == long.MaxValue) break;
-
-                    // 沿 prevEdge 回溯找瓶颈（同时受 need − flow 钳）
-                    int bottleneck = need - flow;
-                    for (int v = t; v != s;)
-                    {
-                        int ei = prevEdge[v];
-                        bottleneck = Math.Min(bottleneck, _cap[ei]);
-                        v = _to[ei ^ 1];
-                    }
-                    for (int v = t; v != s;)
-                    {
-                        int ei = prevEdge[v];
-                        _cap[ei] -= bottleneck;
-                        _cap[ei ^ 1] += bottleneck;
-                        v = _to[ei ^ 1];
-                    }
-                    flow += bottleneck;
                 }
-                return flow;
+                if (remaining > 0) return null;
             }
 
-            /// <summary>边 idx 的实流量（原始容量 − 残量）。</summary>
-            public int FlowOf(int idx) => _cap0[idx] - _cap[idx];
+            // ③ 黑白等非四色需求（过渡态）：沿各自填链（本色）扣钱包——灰链已不含黑白，
+            //    四色贪心动不到黑白货币，无需先行预留；地牌锁色不含黑白，横置侧天然不参与。
+            foreach (var need in bill.Keys)
+            {
+                if (Array.IndexOf(ElementPaymentValidator.FourColorOrder, need) >= 0) continue;
+                if (!bill.TryGetValue(need, out var remaining) || remaining <= 0) continue;
+                foreach (var currency in ElementPaymentValidator.ChainFor(need))
+                {
+                    if (remaining <= 0) break;
+                    int take = Math.Min(walletSim[currency], remaining);
+                    if (take <= 0) continue;
+                    Record(currency, take, null);
+                    remaining -= take;
+                }
+                if (remaining > 0) return null;
+            }
+
+            return plan;
         }
 
         // ======================================== 回合管理 ========================================
@@ -837,7 +671,7 @@ namespace CardCore
             {
                 var name = (pc.SourceCard as IHasName)?.CardName ?? pc.SourceCard.ID;
                 var tapStr = pc.IsTapped ? "（已横置）" : "";
-                result += $"  [{name}]{tapStr} 可产: {string.Join("/", pc.ColorOptions)}\n";
+                result += $"  [{name}]{tapStr} 锁色: {pc.LockedColor}\n";
             }
 
             var walletStr = string.Join(", ", pool.TempElements.Where(kv => kv.Value > 0).Select(kv => $"{kv.Key}:{kv.Value}"));
@@ -859,9 +693,7 @@ namespace CardCore
     {
         public Player Player { get; set; }
         public Card AddedCard { get; set; }
-        /// <summary>展示色（2026-11-15 地牌改版：字段名保留=协议/回放兼容，语义从「锁定产色」
-        /// 改为 ColorOptions 首位主色——仅供面片/脉冲/日志展示，不限制产色；
-        /// 实际产出看 ElementPoolGainEvent.GainedType）。</summary>
+        /// <summary>入池锁定的产色（2026-10-11：指示物 Tokens 退役，改单色字段）。</summary>
         public ManaType LockedColor { get; set; }
     }
 

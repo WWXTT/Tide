@@ -56,6 +56,8 @@ namespace CardCore
             }
             if (c.keywords != null && c.keywords.Count > 0) o["keywords"] = new JArray(c.keywords);
             if (c.tags != null && c.tags.Count > 0) o["tags"] = new JArray(c.tags);
+            // 测试/夹具四色地覆盖（2026-11-15）：仅测试素材卡有值；正常卡空表不写列。
+            if (c.landColors != null && c.landColors.Count > 0) o["landColors"] = new JArray(c.landColors);
             if (c.effects != null && c.effects.Count > 0)
                 o["effects"] = JArray.Parse(TideJson.ToJson(c.effects)); // 内嵌 PascalCase 全量（TestDecks 夹具 legacy 通道）
             if (!string.IsNullOrEmpty(c.arrows) && c.arrows != nameof(HexDirection.None)) o["arrows"] = c.arrows;

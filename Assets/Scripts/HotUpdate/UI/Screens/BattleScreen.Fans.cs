@@ -247,8 +247,8 @@ namespace SynergyUI
             return ok;
         }
 
-        // LandFlow（手牌直点放地的旧选色弹窗链）已随 2026-10-16 弹窗退役整删；2026-11-15 地牌改版
-        // 再删落格箭头/Region 选色：放地现役入口=OnFanPlaceLand（按钮直放）+ 拖拽整块落点，均不选色。
+        // LandFlow（手牌直点放地的旧选色弹窗链）已随 2026-10-16 弹窗退役整删：放地现役入口=
+        // OnFanPlaceLand 落格箭头（同格多候选色→PickLandColorAsync 走 Region 卡牌列表）。
 
         // ---- 法术发动声明流（2026-10-20 改案；2026-10-22 B4 反馈修订：恒自动落位→选目标（可取消）→连锁检测→扣费→效果） ----
 
@@ -359,15 +359,28 @@ namespace SynergyUI
             return (-1, -1);
         }
 
-        // PickLandColorAsync（放地选色）已随 2026-11-15 地牌改版整删：放置不再选色——
-        // 入池即快照可产集合，产色在横置时选定（自动规划/手动弹窗）。
+        /// <summary>放地锁产色（2026-10-16 弹窗退役：旧选色弹窗→Region 卡牌列表，min=1 强制选；
+        /// 单色直落）。null=缺 Region 静默取消（本次放置作废）。</summary>
+        private async UniTaskVoid PickLandColorAsync(BattleCardView view, List<ManaType> colors)
+        {
+            if (colors == null || colors.Count == 0) return;
+            if (colors.Count == 1)
+            {
+                LandFinal(view, colors[0]);
+                return;
+            }
+            var options = new List<string>(colors.Count);
+            foreach (var c in colors) options.Add($"锁定 {BattleView.ManaZh(c)} 产色");
+            int? picked = await PickRegionOptionAsync("选择地牌产色", options);
+            if (picked == null) return;
+            LandFinal(view, colors[picked.Value]);
+        }
 
-        /// <summary>放地终态（2026-11-15 地牌改版）：AddToElementPool 不传色——拒绝原因引擎直读
-        ///（2026-11-03 失败提示细化沿用）。</summary>
-        private void LandFinal(BattleCardView card)
+        /// <summary>放地终态：AddToElementPool(锁色)——拒绝原因引擎直读（2026-11-03 失败提示细化）。</summary>
+        private void LandFinal(BattleCardView card, ManaType color)
         {
             string landReason = null; // 预置 null：Core 为空短路时 out 不赋值（CS0165）
-            bool ok = Core != null && GameActions.AddToElementPool(Core, P1, card.CoreCard, out landReason);
+            bool ok = Core != null && GameActions.AddToElementPool(Core, P1, card.CoreCard, color, out landReason);
             if (!ok) _toast.Show(landReason ?? "无法放入元素池（上限/资格）");
             RestoreFan(); // 放地即时对账（2026-10-14）：手牌扇收卡+地格「可用/上限」上盘——
                           // RefreshLocal 只刷 2D 信息栏，扇区/3D 摆位原要等下一事件才补（入池只发 ElementPoolAddEvent）
@@ -569,23 +582,67 @@ namespace SynergyUI
             RefreshField();
         }
 
-        /// <summary>「放置」点击（2026-11-15 地牌改版）：**不再选色/选格**——直入 LandFinal
-        ///（引擎快照可产集合，落格由 AssignLandCells 按展示色主色自动分配）；资格/余位闸前置同旧。</summary>
+        /// <summary>「放置」点击（2026-10-14 定案）：藏手牌→放地箭头（候选=卡可锁色的落格：
+        /// 已有色=色组现格、新色=BoardState 落格预览；高亮按元素色）→确认入池（LandFinal 同源）；
+        /// 同格多候选新色=弹现选色窗消歧；取消（右键/ESC/无效格）恢复手牌。</summary>
         private void OnFanPlaceLand(HandFanCard fan)
         {
-            if (NetActive) { NetOnFanPlaceLand(fan); return; } // 网络局：intent 上行（ModeIndex=-1）
+            if (NetActive) { NetOnFanPlaceLand(fan); return; } // 网络局：锁色选择+intent 上行
             if (!GateFanMyMain()) return;
             var card = FanCardOf(fan);
             if (card == null) return;
             if (Core?.ElementPool == null || !ElementPoolSystem.CanServeAsLand(card) || !Core.ElementPool.CanAddLand(P1))
                 return;
 
-            if (ElementPoolSystem.GetLandColorChoices(card).Count == 0)
-            { _toast.Show("该卡无元素费用，不能作为地牌"); return; }
+            var choices = ElementPoolSystem.GetLandColorChoices(card);
+            if (choices.Count == 0) { _toast.Show("该卡无可锁定产色（无费用元素/纯黑白不可作地牌）"); return; }
 
             var view = BattleView.FromRuntime(SerializableRuntimeCardState.FromCard(card), card, false);
+            var board = _ctrl?.Board;
+            if (board == null) return;
+
+            // 候选格（cell → 候选色集）：确定性预览——与入池后 AssignLandCells 落格一致
+            var cellColors = new Dictionary<(int x, int z), List<ManaType>>();
+            var options = new List<BattleCellPicker.CellOption>();
+            foreach (var color in choices)
+            {
+                var cell = ExistingLandCellOf(color) ?? board.PreviewLandCell(P1, color);
+                if (cell == null) continue;
+                if (!cellColors.TryGetValue(cell.Value, out var list))
+                {
+                    list = new List<ManaType>();
+                    cellColors[cell.Value] = list;
+                    options.Add(new BattleCellPicker.CellOption { X = cell.Value.x, Z = cell.Value.z, ColorIndex = (int)color });
+                }
+                list.Add(color);
+            }
+            if (options.Count == 0) { _toast.Show("地牌行无空位（颜色数超格）"); return; }
+
+            _choreo?.CancelTargeting();
             _selfFan?.SetVisible(false);
-            LandFinal(view);
+            var hero = BoardLayout.CharacterCell(0);
+            _cellPicker.Begin(BattleBoardGrid.WorldPositionOf(hero.x, hero.z), options, opt =>
+            {
+                RestoreFan();
+                var colors = cellColors[(opt.X, opt.Z)];
+                if (colors.Count == 1)
+                {
+                    LandFinal(view, colors[0]);
+                    return;
+                }
+                PickLandColorAsync(view, colors).Forget(); // 同格多候选新色：Region 卡牌列表消歧（2026-10-16 弹窗退役）
+            }, RestoreFan);
+        }
+
+        /// <summary>色 → 现有地牌色组落格（BoardState 反查；无该色组=null）。</summary>
+        private (int x, int z)? ExistingLandCellOf(ManaType color)
+        {
+            var board = _ctrl?.Board;
+            if (board == null || Core?.ElementPool == null) return null;
+            foreach (var pc in Core.ElementPool.GetPooledCards(P1))
+                if (pc?.SourceCard != null && pc.LockedColor == color && board.TryGetCell(pc.SourceCard, out int x, out int z))
+                    return (x, z);
+            return null;
         }
 
         /// <summary>「使用」点击（2026-10-14 定案；2026-11-01 抉择上卡·SpUse 退役）：
@@ -727,26 +784,26 @@ namespace SynergyUI
             return await done.Task;
         }
 
-        /// <summary>点我方地牌（2026-10-11 现取现用 → 2026-11-15 地牌改版）：日志取证改**整区**
-        /// 逐色「可用/可产」汇总（CanProduceColor 位掩码——多色地计入各色；不再按落格/展示色分组）。
-        /// 付费时系统按账单自动横置（强制系统动作，无速度交互）。2026-10-16 lbl-toast 定案沿用：
-        /// 点击不写 toast，详情=悬停 hover-info。</summary>
+        /// <summary>点我方地牌（2026-10-11 现取现用 → 2026-10-14 按色叠格）：全自动结算口径不变——
+        /// 付费时系统按账单自动横置（强制系统动作，无速度交互）。2026-10-16 lbl-toast 定案：
+        /// 地牌格介绍属场面信息=hover-info 单源（LandCellInfo 悬停即有，含逐色可用/上限与地牌上限行），
+        /// 点击不再写 toast（旧汇总提示会覆盖选择/响应提示位——牛头不对马嘴），留日志取证。</summary>
         private void OnClickMyLand(BattleCardView card)
         {
             if (card == null) return;
             var toks = new List<string>();
             var pv = _view?.Self;
-            var lands = _view?.SelfLands ?? new List<BattleCardView>();
-            foreach (var element in BoardLayout.LandCellElementOrder)
+            foreach (var g in (_view?.SelfLands ?? new List<BattleCardView>())
+                     .Where(c => c.X == card.X && c.Z == card.Z && c.Runtime != null)
+                     .GroupBy(c => c.Runtime.LockedColor))
             {
-                int total = lands.Count(c => c != null && c.Runtime != null && c.CanProduceColor(element));
-                if (total == 0) continue;
-                int untapped = lands.Count(c => c != null && c.Runtime != null && c.CanProduceColor(element) && !c.IsTapped);
-                int wallet = pv != null && (int)element < pv.WalletByColor.Length ? pv.WalletByColor[(int)element] : 0;
-                toks.Add($"{BattleView.ManaZh(element)}{untapped + wallet}/{total}");
+                int untapped = g.Count(c => !c.IsTapped);
+                int wallet = pv != null && g.Key >= 0 && g.Key < pv.WalletByColor.Length ? pv.WalletByColor[g.Key] : 0;
+                string color = g.Key >= 0 ? BattleView.ManaZh((ManaType)g.Key) : "?";
+                toks.Add($"{color}{untapped + wallet}/{g.Count()}");
             }
-            Debug.Log($"[地牌区] {card.Name} 点击：{(toks.Count > 0 ? string.Join("  ", toks) : "暂无地牌")}"
-                      + "（逐色可用/可产详情=悬停地牌长条 hover-info）");
+            Debug.Log($"[地牌格] {card.Name} 点击：{(toks.Count > 0 ? string.Join("  ", toks) : "暂无地牌")}"
+                      + "（逐色可用/上限详情=悬停地牌格 hover-info）");
         }
 
         /// <summary>点我方单位：3D 寻路箭头选攻击目标（2026-10-13 攻击宣言改版）→ 攻击宣言。
@@ -792,13 +849,33 @@ namespace SynergyUI
         private readonly List<RaycastResult> _dragUiHits = new List<RaycastResult>();
         private BattleAttackArrow _dragArrow3D;     // 3D 拖拽箭头（BattleAttackArrow 同款虚线弧）
         private Vector3 _dragOrigin;                 // 箭头起点（起手时卡屏幕位投到地面）
-        private int _dragWaveX = -1, _dragWaveZ = -1; // 当前点亮的波格（-1=无；换格/收口时清）
+        private readonly HashSet<int> _dragCandidateCells = new HashSet<int>(); // 本帧已点亮的可用候选格（松手清）
 
         private enum DragDropKind { Field, Land, Cancel }
 
+        /// <summary>拖拽起手（HandFanView.BeginDrag→OnDragBegin 钩子，卡隐藏前一刻）：箭头起点=
+        /// **己方角色格脚下**（用户 2026-11-15 定案；与生物攻击选目标同锚），不再从被拖卡的屏幕位起步；
+        /// 棋盘根缺失时回落卡屏幕位地面投影。</summary>
+        private void HandleFanDragBegin(HandFanCard fan, Vector2 screenPoint)
+        {
+            if (_dragArrow3D == null) _dragArrow3D = new BattleAttackArrow();
+            if (BattleBoardGrid.Root != null)
+            {
+                var hero = BoardLayout.CharacterCell(0);
+                _dragOrigin = BattleBoardGrid.WorldPositionOf(hero.x, hero.z) + Vector3.up * 0.03f;
+                return;
+            }
+            var cam = BattleStageDirector.WorldCam;
+            Vector3 origin = default;
+            bool ok = cam != null && CombatChoreographer.MouseGroundPoint(cam, screenPoint, out origin);
+            if (!ok && cam != null)
+                CombatChoreographer.MouseGroundPoint(cam,
+                    new Vector2(Screen.width * 0.5f, Screen.height * 0.18f), out origin);
+            _dragOrigin = origin + Vector3.up * 0.03f;
+        }
+
         /// <summary>拖拽可操作闸（2026-11-15 用户实测①，静默口径）：己方主阶段 ∨ 持有优先权
-        /// （获得连锁=可响应）。对手回合未持有优先权时拖拽起手即取消、拖拽中途失权自动取消。
-        /// 点地牌产色同闸在 GateTapLand（toast 口径）——两处同源时点判定。</summary>
+        /// （获得连锁=可响应）。对手回合未持有优先权时拖拽起手即取消、拖拽中途失权自动取消。</summary>
         private bool DragInteractionAllowed()
         {
             if (_gameEnded || _ctrl == null || Core == null || P1 == null) return false;
@@ -806,13 +883,57 @@ namespace SynergyUI
             return Core.StackEngine != null && Core.StackEngine.CurrentPriorityHolder == P1; // 持有优先权（连锁响应权）
         }
 
-        /// <summary>拖拽起手（HandFanView.BeginDrag→OnDragBegin 钩子；2026-11-15 用户实测②）：
-        /// 3D 箭头起点=**己方角色格**（与生物攻击选目标同锚——放地/召唤选格 picker 同源）。</summary>
-        private void HandleFanDragBegin(HandFanCard fan, Vector2 screenPoint)
+        /// <summary>拖拽起手/持续闸（2026-11-15 用户实测②）：时点可操作 ∧ 该卡当前至少有一条可行路径
+        ///（能发动 或 能作地牌）；两条都不满足=不起箭头、拖拽自动取消（不出现箭头）。
+        /// 能发动=出牌限制/代价门槛/目标域/费用/单位区全过；能作地牌=正式三型+有可锁色+槽位余+己方主阶段。</summary>
+        private bool CanDragCard(HandFanCard fan)
         {
-            if (_dragArrow3D == null) _dragArrow3D = new BattleAttackArrow();
-            var hero = BoardLayout.CharacterCell(0);
-            _dragOrigin = BattleBoardGrid.WorldPositionOf(hero.x, hero.z); // 起点锚=角色格（picker 同款）
+            if (!DragInteractionAllowed()) return false;
+            var card = FanCardOf(fan);
+            if (card == null) return false;
+            if (CardUsableNow(card)) return true;
+            bool ownMain = Core?.TurnEngine != null && Core.TurnEngine.TurnPlayer == P1
+                && Core.TurnEngine.CurrentPhase?.Phase == PhaseType.Main;
+            return ownMain && card.GetZone() == Zone.Hand
+                && ElementPoolSystem.CanServeAsLand(card)
+                && ElementPoolSystem.GetLandColorChoices(card).Count > 0
+                && Core.ElementPool.CanAddLand(P1);
+        }
+
+        /// <summary>卡当前可发动（拖拽起手闸用；比 FanCanUse 多查出牌限制/代价门槛/目标域）：
+        /// 任一模式同时满足 RuleHooks.CanPlay / GetPayloadGateReject=null / HasPlayableTargets /
+        /// CanAffordCast；永久物另需单位区空格（场地卡不占容量）。</summary>
+        private bool CardUsableNow(Card card)
+        {
+            if (Core == null || P1 == null || card == null) return false;
+            if (!RuleHooks.CanPlay(Core, P1, card, card.GetZone())) return false;
+            var data = (card as CardWrapper)?.GetData();
+            if (data == null) return false;
+            if (data.Supertype == Cardtype.Spell)
+            {
+                bool hasCastingCell = false;
+                foreach (var u in BoardLayout.UnitCells(0))
+                    if (Core.ZoneManager.GetZoneContainer(P1) != null
+                        && (Core.BoardState?.CardAt(u.x, u.z) == null))
+                    { hasCastingCell = true; break; }
+                if (!hasCastingCell) return false; // 法术也要有发动占位格（BeginSpellCastAutoPlace 同口径）
+            }
+            else if (!data.IsField)
+            {
+                int n = 0;
+                foreach (var c in Core.ZoneManager.GetCards(P1, Zone.Battlefield))
+                    if (c == null || !c.IsFieldCard()) n++;
+                if (n >= BoardLayout.UnitCells(0).Count) return false;
+            }
+            int modes = Math.Max(1, CostDerivationService.GetModeCount(data));
+            for (int i = 0; i < modes; i++)
+            {
+                if (!GameActions.CanAffordCast(Core, P1, card, i)) continue;
+                if (GameActions.GetPayloadGateReject(Core, P1, card, i) != null) continue;
+                if (!TargetDomainService.HasPlayableTargets(Core, P1, card, i)) continue;
+                return true;
+            }
+            return false;
         }
 
         /// <summary>PC 拖拽选择态输入裁决（PollFieldPointer 拖拽分支逐帧调；2026-11-15 用户实测③）：
@@ -821,7 +942,7 @@ namespace SynergyUI
         private void PollDragConfirmOrCancel()
         {
             if (_selfFan == null || !_selfFan.Dragging) return;
-            if (!DragInteractionAllowed()) { CancelFanDrag(); return; } // 失权（对手回合轮转）——自动取消
+            if (!CanDragCard(_selfFan.DraggingCard)) { CancelFanDrag(); return; } // 失权/卡不再可用——自动取消
             if (BattlePointer.TouchTracked) return; // 触摸在轨：抬起裁决（OnEndDrag），不走鼠标口
             if (Input.GetMouseButtonDown(1) || Input.GetKeyDown(KeyCode.Escape))
             {
@@ -846,97 +967,118 @@ namespace SynergyUI
         /// 合法=ValidSkin 绿、非法=PlaceSkin 黄（与 BattleCellPicker 一致）。
         /// 波=悬停命中合法格点亮（单位空格=SetUnitGlow 蓝波；地牌色带=SetCellWave 元素色）；
         /// 法术不点候选格（自动落位，指针在战场即绿）；离开合法区清波。对账 ClearAll 会清波——
-        /// 合法格每帧重应用（picker 同款）。带指针位口（UpdateDragVisualAt）供自动测试模拟悬停。</summary>
-        private void UpdateDragVisual() => UpdateDragVisualAt(BattlePointer.AimPoint);
-
-        internal void UpdateDragVisualAt(Vector2 sp)
+        /// 合法格每帧重应用（picker 同款）。</summary>
+        private void UpdateDragVisual()
         {
             var fanCard = _selfFan != null && _selfFan.Dragging ? _selfFan.DraggingCard : null;
             if (fanCard == null) { HideDragVisual(); return; }
             var card = FanCardOf(fanCard);
             var data = card != null ? (card as CardWrapper)?.GetData() : null;
-            bool isSpell = data != null && data.Supertype == Cardtype.Spell;
 
-            var kind = ClassifyDragDrop(sp, out int cx, out int cz);
+            var kind = ClassifyDragDrop(BattlePointer.AimPoint, out int cx, out int cz, out var landColor);
+
+            bool canLand = card != null && card.GetZone() == Zone.Hand && Core?.ElementPool != null
+                && ElementPoolSystem.CanServeAsLand(card)
+                && ElementPoolSystem.GetLandColorChoices(card).Count > 0
+                && Core.ElementPool.CanAddLand(P1)
+                && Core.TurnEngine != null && Core.TurnEngine.TurnPlayer == P1
+                && Core.TurnEngine.CurrentPhase?.Phase == PhaseType.Main;
+            bool canUse = CardUsableNow(card);
+            var landChoices = canLand ? ElementPoolSystem.GetLandColorChoices(card) : new List<ManaType>();
+
+            // 可用位置提示波（2026-11-15 用户定案）：不再只亮指针指向格——松手可落/可用的所有格
+            // 同时铺提示波；先清上帧（BattleFieldView.Apply 的 ClearAll 也会清，逐帧重铺）。
+            ClearDragCandidateWaves();
+            if (canLand)
+                foreach (var color in landChoices)
+                {
+                    var lc = BoardLayout.LandCellOfElement(0, color);
+                    MarkDragCandidateWave(lc.x, lc.z, BattleTileFx.ElementColorOf((int)color));
+                }
+            if (canUse)
+            {
+                if (data != null && data.IsField)
+                {
+                    var fc = BoardLayout.FieldCell(0);
+                    MarkDragCandidateWave(fc.x, fc.z, null);
+                }
+                else
+                {
+                    foreach (var u in BoardLayout.UnitCells(0))
+                        if (_ctrl?.Board != null && _ctrl.Board.CardAt(u.x, u.z) == null)
+                            MarkDragCandidateWave(u.x, u.z, null);
+                }
+            }
 
             bool valid = false;
-            int waveX = -1, waveZ = -1;
             if (kind == DragDropKind.Land)
+                valid = canLand && landChoices.Contains(landColor);
+            else if (kind == DragDropKind.Field)
             {
-                valid = true;                       // 悬停地牌区=几何合法（资格闸在松手 DragPlaceLand）
-                var any = BoardLayout.AnyElementCell(0); // 地牌行 tile 已随改版删除——放地候选波
-                waveX = any.x; waveZ = any.z;            // 点亮临时元素格（元素色=该卡展示主色）
-            }
-            else if (kind == DragDropKind.Field && !isSpell)
-            {
-                var board = _ctrl?.Board;
-                bool isUnitCell = false;
-                if (cx >= 0)
-                    foreach (var u in BoardLayout.UnitCells(0))
-                        if (u.x == cx && u.z == cz) { isUnitCell = true; break; }
-                valid = isUnitCell && board != null && board.CardAt(cx, cz) == null; // 己方空单位格=合法
-                if (valid) { waveX = cx; waveZ = cz; } // 波=命中空格（蓝波 SetUnitGlow）
-            }
-            else if (kind == DragDropKind.Field) valid = true;    // 法术：指针在战场即合法（自动落位，无波）
-
-            // 波标：换格先清旧（波=候选期标志，非法/离开=无波）
-            if (waveX != _dragWaveX || waveZ != _dragWaveZ)
-            {
-                if (_dragWaveX >= 0) BattleTileFx.ClearUnitGlow(_dragWaveX, _dragWaveZ);
-                _dragWaveX = waveX; _dragWaveZ = waveZ;
-            }
-            if (_dragWaveX >= 0)
-            {
-                if (kind == DragDropKind.Land)
+                if (data != null && (data.Supertype == Cardtype.Spell || data.IsField))
+                    valid = canUse; // 法术自动落位/场地卡固定场地格：指针在战场即合法
+                else if (canUse && cx >= 0 && _ctrl?.Board != null)
                 {
-                    // 地牌改版：无色带可反推——波色=该卡可产集合首位主色（与入池展示色一致）
-                    var choices = card != null ? ElementPoolSystem.GetLandColorChoices(card) : null;
-                    var main = choices != null && choices.Count > 0 ? choices[0] : ManaType.Gray;
-                    BattleTileFx.SetCellWave(_dragWaveX, _dragWaveZ, BattleTileFx.ElementColorOf((int)main));
+                    foreach (var u in BoardLayout.UnitCells(0))
+                        if (u.x == cx && u.z == cz && _ctrl.Board.CardAt(cx, cz) == null)
+                        { valid = true; break; }
                 }
-                else BattleTileFx.SetUnitGlow(_dragWaveX, _dragWaveZ);
             }
 
             // 箭头：地平面跟随指针；合法绿 / 非法黄（PlaceSkin）；地面取不到=收箭头
             var cam = BattleStageDirector.WorldCam;
-            if (cam != null && CombatChoreographer.MouseGroundPoint(cam, sp, out var visPt))
+            if (cam != null && CombatChoreographer.MouseGroundPoint(cam, BattlePointer.AimPoint, out var visPt))
                 _dragArrow3D.Show(_dragOrigin, visPt, valid
                     ? BattleAttackArrow.ValidSkin : BattleAttackArrow.PlaceSkin);
             else if (_dragArrow3D != null) _dragArrow3D.Hide();
         }
 
-        /// <summary>拖拽视觉收口：收 3D 箭头+清残留波格（松手/取消路径；HideDragVisual 恒幂等）。</summary>
+        /// <summary>拖拽视觉收口：收 3D 箭头+清本帧候选提示波（松手/取消路径；HideDragVisual 恒幂等）。</summary>
         private void HideDragVisual()
         {
             if (_dragArrow3D != null) _dragArrow3D.Hide();
-            if (_dragWaveX >= 0)
-            {
-                BattleTileFx.ClearUnitGlow(_dragWaveX, _dragWaveZ);
-                _dragWaveX = _dragWaveZ = -1;
-            }
+            ClearDragCandidateWaves();
+        }
+
+        /// <summary>点亮一个可用候选格：地牌格=元素色波；单位空格/场地格=蓝波。</summary>
+        private void MarkDragCandidateWave(int x, int z, Color? color)
+        {
+            if (x < 0 || z < 0) return;
+            if (color.HasValue) BattleTileFx.SetCellWave(x, z, color.Value);
+            else BattleTileFx.SetUnitGlow(x, z);
+            _dragCandidateCells.Add(x * 100 + z);
+        }
+
+        /// <summary>熄本帧候选波（只清自己点亮的格；对账 ClearAll 也会清，逐帧重铺）。</summary>
+        private void ClearDragCandidateWaves()
+        {
+            foreach (var key in _dragCandidateCells)
+                BattleTileFx.ClearUnitGlow(key / 100, key % 100);
+            _dragCandidateCells.Clear();
         }
 
         /// <summary>拖拽落点分类（逐帧箭头与抬手裁决共用，指针屏幕位口径）：3D 射线——己方
-        /// land-quad/land-strip/地牌行 tile=放地（2026-11-15 地牌改版：整块任意落点=放地，不再反推色带）；
-        /// 其余 tile-*/hero-*/unit-*=战场（发动）；未命中/Env 装饰/对方面片长条/屏边 80px=取消。</summary>
-        private DragDropKind ClassifyDragDrop(Vector2 sp, out int cx, out int cz)
+        /// 地牌行 tile=放地（格色）；其余 tile-*/hero-*/unit-*=战场（发动）；
+        /// 未命中/Env 装饰/屏边 80px=取消。</summary>
+        private DragDropKind ClassifyDragDrop(Vector2 sp, out int cx, out int cz, out ManaType landColor)
         {
-            cx = -1; cz = -1;
+            cx = -1; cz = -1; landColor = ManaType.Gray;
             if (sp.x < 80f || sp.y < 80f || sp.x > Screen.width - 80f || sp.y > Screen.height - 80f)
                 return DragDropKind.Cancel; // 屏边 80px 取消带（定稿）
             var cam = BattleStageDirector.WorldCam;
             if (cam == null) return DragDropKind.Cancel;
             if (!Physics.Raycast(cam.ScreenPointToRay(sp), out var hit, 300f)) return DragDropKind.Cancel;
             var hn = hit.collider != null ? hit.collider.gameObject.name : "";
-            if (LandStripFx.IsStripHit(hn, out int stripOwner))
-                return stripOwner == 0 ? DragDropKind.Land : DragDropKind.Cancel; // 对方长条不可放地
-            if (LandStripFx.TryParseHit(hn, out uint quadRid))
-                return IsSelfLandQuad(quadRid) ? DragDropKind.Land : DragDropKind.Cancel; // 对方面片=取消
             if (hn.StartsWith("tile-", System.StringComparison.Ordinal)
                 && BattleHoverInfoProvider.TryParseTile(hn, out cx, out cz))
             {
                 if (BoardLayout.RoleOf(cx, cz) == CellRole.Land && BoardLayout.OwnerOf(cx, cz) == 0)
+                {
+                    var cells = BoardLayout.LandCells(0);
+                    for (int i = 0; i < cells.Count && i < BoardLayout.LandCellElementOrder.Length; i++)
+                        if (cells[i].x == cx && cells[i].z == cz) landColor = BoardLayout.LandCellElementOrder[i];
                     return DragDropKind.Land;
+                }
                 return DragDropKind.Field;
             }
             if (hn.StartsWith("hero-", System.StringComparison.Ordinal)
@@ -944,18 +1086,6 @@ namespace SynergyUI
                 return DragDropKind.Field;
             return DragDropKind.Cancel; // Env 装饰（side-tree/crypt/pit/flat-ground 等）
         }
-
-        /// <summary>面片 rid 是否己方地牌（放地色带反推用）。</summary>
-        private bool IsSelfLandQuad(uint rid)
-        {
-            var pool = Core?.ElementPool;
-            if (pool == null || P1 == null) return false;
-            foreach (var pc in pool.GetPooledCards(P1))
-                if (pc?.SourceCard != null && pc.SourceCard.RuntimeId == rid) return true;
-            return false;
-        }
-
-        // LandColorAtWorldX（世界 x 反推色带）已随 2026-11-15 地牌改版整删：放地不再按色带锁色。
 
         /// <summary>拖拽抬手（HandFanView.EndDrag→OnDragEnd 钩子）：吞同帧棋盘点击→落点三分
         ///（战场=发动/地牌长条=放地/边缘装饰=取消）；拒绝=toast 真因+回手（绝不静默吞）；
@@ -998,12 +1128,12 @@ namespace SynergyUI
                 if (anyUi) { _selfFan.RestoreDragCard(fan, false); return; }    // 落在其它面板：取消
             }
 
-            var kind = ClassifyDragDrop(screenPoint, out int cx, out int cz);
-            Debug.Log($"[HandDrag] drop kind={kind} cell=({cx},{cz}) screen=({screenPoint.x:F0},{screenPoint.y:F0})");
+            var kind = ClassifyDragDrop(screenPoint, out int cx, out int cz, out var landColor);
+            Debug.Log($"[HandDrag] drop kind={kind} cell=({cx},{cz}) color={landColor} screen=({screenPoint.x:F0},{screenPoint.y:F0})");
 
             if (NetActive)
             {
-                if (kind == DragDropKind.Land) NetOnFanPlaceLand(fan); // 网络局：intent 上行（ModeIndex=-1，不选色）
+                if (kind == DragDropKind.Land) NetOnFanPlaceLand(fan); // 网络局：intent 上行（锁色选择在 net 链内）
                 else if (kind == DragDropKind.Field) NetOnFanUse(fan);
                 else _selfFan.RestoreDragCard(fan, false);
                 return;
@@ -1012,15 +1142,13 @@ namespace SynergyUI
             var card = FanCardOf(fan);
             if (card == null) { _selfFan.RestoreDragCard(fan, false); return; }
             if (kind == DragDropKind.Cancel) { _selfFan.RestoreDragCard(fan, false); return; }
-            if (kind == DragDropKind.Land) { DragPlaceLand(fan, card); return; }
+            if (kind == DragDropKind.Land) { DragPlaceLand(fan, card, landColor); return; }
             DragUseOnField(fan, card, cx >= 0 && cz >= 0 ? ((int x, int z)?)(cx, cz) : null);
         }
 
-        // LastDragDropWorldX（色带反推用）已随 2026-11-15 地牌改版整删（唯一调用点=色带反推）。
-
-        /// <summary>拖拽放地（2026-11-15 地牌改版定稿）：整块任意落点=放地——不选色、不选格
-        ///（引擎快照可产集合，AssignLandCells 按展示主色落格）；不可作地牌→toast 回手。</summary>
-        private void DragPlaceLand(HandFanCard fan, Card card)
+        /// <summary>拖拽放地（定稿）：锁色=拖到的地牌格颜色（灰红蓝绿）；卡有该色→LandFinal；
+        /// 无该色→PickLandColorAsync 兜底（Region 列表）；不可作地牌→toast 回手。</summary>
+        private void DragPlaceLand(HandFanCard fan, Card card, ManaType colorBand)
         {
             if (Core?.ElementPool == null || !ElementPoolSystem.CanServeAsLand(card) || !Core.ElementPool.CanAddLand(P1))
             {
@@ -1028,15 +1156,21 @@ namespace SynergyUI
                 _selfFan.RestoreDragCard(fan, false);
                 return;
             }
-            if (ElementPoolSystem.GetLandColorChoices(card).Count == 0)
+            var choices = ElementPoolSystem.GetLandColorChoices(card);
+            if (choices.Count == 0)
             {
-                _toast.Show("该卡无元素费用，不能作为地牌");
+                _toast.Show("该卡无可锁定产色（无费用元素/纯黑白不可作地牌）");
                 _selfFan.RestoreDragCard(fan, false);
                 return;
             }
             var view = BattleView.FromRuntime(SerializableRuntimeCardState.FromCard(card), card, false);
             _selfFan.RestoreDragCard(fan, false); // 卡先回手（成功路径随 LandFinal→RestoreFan 对账离场）
-            LandFinal(view);
+            if (choices.Contains(colorBand))
+            {
+                LandFinal(view, colorBand);
+                return;
+            }
+            PickLandColorAsync(view, choices).Forget(); // 卡无该色：Region 选色兜底（可取消=放置作废）
         }
 
         /// <summary>拖拽到战场（发动）：法术=自动 first-free（无箭头·不取落点·声明期目标照旧）；
@@ -1088,8 +1222,8 @@ namespace SynergyUI
             DragSummonFlow(fan, view, card, picked.Value, hitCell);
         }
 
-        /// <summary>拖拽召唤（生物/结界）：落位=命中**空单位格**优先，否则自动 first-free（定稿）；
-        /// 场地卡恒落场地格（顶替旧场地）；费用/满区拒绝=toast+回手。</summary>
+        /// <summary>拖拽召唤（生物/结界）：必须命中**空单位格**才落位（用户 2026-11-15：未选中正确位置=取消，
+        /// 不再自动 first-free）；场地卡恒落场地格（顶替旧场地）；费用/满区拒绝=toast+回手。</summary>
         private void DragSummonFlow(HandFanCard fan, BattleCardView view, Card card, int modeIndex, (int x, int z)? hitCell)
         {
             if (Core == null || !GameActions.CanAffordCast(Core, P1, card, modeIndex))
@@ -1116,23 +1250,19 @@ namespace SynergyUI
             if (hitCell.HasValue)
             {
                 var hc = hitCell.Value;
-                bool isUnitCell = false;
                 foreach (var u in BoardLayout.UnitCells(0))
-                    if (u.x == hc.x && u.z == hc.z) { isUnitCell = true; break; }
-                if (isUnitCell && board.CardAt(hc.x, hc.z) == null) cell = hc; // 指向的空单位格优先（定稿）
+                    if (u.x == hc.x && u.z == hc.z && board.CardAt(hc.x, hc.z) == null)
+                    { cell = hc; break; }
             }
-            if (cell.x < 0) // 自动 first-free
-                foreach (var c in BoardLayout.UnitCells(0))
-                    if (board.CardAt(c.x, c.z) == null) { cell = c; break; }
             if (cell.x < 0)
             {
-                _toast.Show("单位区已满——无法打出");
+                _toast.Show("请拖到空的单位格——未选中正确位置，已取消");
                 _selfFan.RestoreDragCard(fan, false);
                 return;
             }
             _choreo?.CancelTargeting();
             _pendingPins[card.RuntimeId] = cell;
-            Debug.Log($"[HandDrag] drop field({cell.x},{cell.z})：{view.Name}（命中空格优先，否则 first-free）");
+            Debug.Log($"[HandDrag] drop field({cell.x},{cell.z})：{view.Name}（空单位格落位）");
             _selfFan.RestoreDragCard(fan, false);
             PlayCardFinal(view, null, modeIndex);
         }

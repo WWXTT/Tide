@@ -68,10 +68,7 @@ namespace CardCore.AI.NeuralEnv
         // v14（2026-11-15 目标区域共享规格 v0.2 §6）：动作特征 12→14 维——[12]targetZoneRank
         //（首目标区域序，TargetZoneGrouping.ZoneRankOf 单源）/ [13]targetSideRank（归属，枚举者视角）；
         // 训练未开始、无兼容负担；旧 ONNX/fixture 作废（python LAYOUT_VERSION/N_ACTION_FEATURES 同步升 14）。
-        // v15（2026-11-15 地牌改版）：卡特征 116→120 维——尾加 [116..119] 地牌可产掩码 4 位
-        //（灰/红/蓝/绿，=ManaType 枚举值 0..3 直映；非地牌恒 0）。配套：放地动作空间收敛为每卡一行
-        //（ModeIndex 弃用）——旧模型/旧动作索引作废（python LAYOUT_VERSION/N_CARD_FEATURES 同步升 15）。
-        public const int LayoutVersion = 15;
+        public const int LayoutVersion = 14;
         public const int MaxCardsPerPlayer = 77; // v10：43→77（墓地 4→30、除外 8 入册）
         // v9 己方牌库块（尾接全局块，不走 ZoneLayout 每玩家偏移语义——专用 DeckBase+排序名次路径）：
         public const int DeckSlots = 30;                                      // 截断护栏（初始整组 30 恰满；衍生物入库超出不编码）
@@ -104,11 +101,7 @@ namespace CardCore.AI.NeuralEnv
         // 4=发动区 5=场地区 6=己方牌库块；v10 扩 7=牌库顶虚拟手牌 8=对方牌库被展示 9=除外区。
         // 对方隐藏手牌=2（WriteConcealedCard；被展示卡豁免为全特征，仍写 2=手牌）。
         public const int ZoneKindSlot = PosZSlot + 1;                          // [115]
-        // v15 地牌可产掩码 [116..119]：灰/红/蓝/绿逐位（下标=(int)ManaType 0..3 直映）——
-        // 元素池卡按 PooledCard.ColorOptions 置位（多色地多位=1）；非地牌恒 0。
-        // 旧展示格坐标（posX/posZ=DisplayColor 落格）保留——掩码才是产色真值。
-        public const int LandMaskStart = ZoneKindSlot + 1;                     // [116..119]
-        public const int NCard = LandMaskStart + 4; // v15：116→120（尾加可产掩码 4 位）；python N_CARD_FEATURES 同步
+        public const int NCard = ZoneKindSlot + 1; // v9：115→116（尾加 zoneKind）；python N_CARD_FEATURES 同步
         // globals v3（50 维，契约 §5——重排序+归一化+放逐计数+弹药维；v2 g[48] 冗余删除）：
         //   g[0..16] 双方生命/30、回合/40、相位、座次、各区计数（墓地/30、牌库/60、放逐新）；
         //   g[17..28] 临时钱包 12 维；g[29] 栈占用；g[30..31] 势能 Φ/30；g[32..33] 地牌上限/14；
@@ -286,15 +279,10 @@ namespace CardCore.AI.NeuralEnv
                 {
                     pooledOf.TryGetValue(c, out var pc);
                     tappedOverride = pc?.IsTapped ?? false;
-                    var color = pc?.DisplayColor ?? ManaType.Gray; // 展示格锚点（主色落格，v15 保留）
+                    var color = pc?.LockedColor ?? ManaType.Gray;
                     var (lx, lz) = BoardLayout.LandCellOfElement(playerIdx, color);
                     posX = (float)lx / BoardLayout.Width;
                     posZ = (float)lz / BoardLayout.Height;
-                    // v15 可产掩码：ColorOptions 逐位置位（多色地多位=1——产色灵活性对 AI 可见）
-                    if (pc?.ColorOptions != null)
-                        foreach (var opt in pc.ColorOptions)
-                            if ((int)opt >= 0 && (int)opt < 4)
-                                Cards[(baseSlot + i) * NCard + LandMaskStart + (int)opt] = 1f;
                 }
 
                 WriteCard(layer, c, baseSlot + i, tappedOverride, posX, posZ, ZoneKindOf(zone));

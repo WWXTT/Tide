@@ -215,8 +215,6 @@ namespace SynergyUI
         public static void DismountBoard()
         {
             BattleTileFx.Unmount(); // 特效对象挂 tile 下随根销毁，此处只清索引
-            LandStripFx.Unmount(); // 地牌长条（2026-11-15）：面片随棋盘根销毁，清池+运行时材质显式销毁
-            WalletCellsFx.Unmount(); // 临时元素 5 分格（2026-11-15）：同口径清引用+材质实例
             BattleZoneProps.Unmount(); // 特殊格道具同口径（卡堆/漩涡随根销毁，运行时 mesh 显式销毁）
             BattleHudRow.Unmount(); // 功能地块行（独立根+运行时材质实例显式销毁）
             BattlePriorityGlow.Unmount(); // 优先权底部光条（Map 下独立根，显式销毁+清引用）

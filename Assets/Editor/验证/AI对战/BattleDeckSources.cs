@@ -29,6 +29,12 @@ namespace CardCore.Editor.Tests
         /// <summary>Cards.json 全池（CardCatalog 静态缓存；编辑器内改表后 Invalidate 再取）。</summary>
         public static List<CardData> AllCards() => CardCatalog.LoadAll();
 
+        /// <summary>训练池（2026-11-15 定案，训练池覆盖矩阵 §0 P0-C）：只抽 tag「训练池」的卡——
+        /// 教学卡不参与训练（教学表并行重写中）。当前 68 张 = TrainingCards 65 + 教学表双标签 3。
+        /// 卡身份登记（RegisterIdentities）仍走 AllCards 全量（manifest 要全量）。</summary>
+        public static List<CardData> TrainingPool()
+            => AllCards().Where(c => c.Tags != null && c.Tags.Contains("训练池")).ToList();
+
         /// <summary>
         /// 三套主题卡组（整组 30 张，三层引用链正式路径：DeckSerializer.Load → CardCatalog.GetById
         /// 还原）。缺失卡组的槽位为空列表并 LogError（调用方决定兜底）；调用方缓存结果即可——

@@ -117,21 +117,6 @@ namespace SynergyUI
                 return;
             }
 
-            // 地牌长条命中（2026-11-15）：面片（land-quad-{rid}）=该地牌四段卡信息；底板空白段
-            //（land-strip-*）=整行逐色汇总（面片/底板 collider 在 4 格 tile 之上必先命中）
-            if (LandStripFx.TryParseHit(hitName, out uint landRid))
-            {
-                var land = LandAt(landRid);
-                if (land != null) SetHoverInfo(CardHoverInfo(land));
-                else Clear();
-                return;
-            }
-            if (LandStripFx.IsStripHit(hitName, out int stripOwner))
-            {
-                SetHoverInfo(LandRowInfo(stripOwner));
-                return;
-            }
-
             int hx, hz;
             if (!TryParseTile(hitName, out hx, out hz)) { Clear(); return; }
 
@@ -622,9 +607,9 @@ namespace SynergyUI
             return r;
         }
 
-        /// <summary>地牌格悬停信息（2026-11-15 地牌改版）：格身份=LandCellElementOrder 序（灰红蓝绿，
-        /// 展示格锚点）；内容=**可产该色**的地牌统计（CanProduceColor 位掩码——多色地同时计入多格，
-        /// 不再按落格/锁色分组）：可用=未横置可产该色+钱包该色；可产=可产该色地牌张数。</summary>
+        /// <summary>地牌格悬停信息（2026-10-14 晚固定元素格·2026-10-28 元素缩编）：格身份=LandCellElementOrder
+        /// 序（灰红蓝绿——黑白格已随元素缩编退役）；计数报「可用/上限」（可用=未横置+钱包该色；
+        /// 上限=该色已放入地牌张数）。</summary>
         private string LandCellInfo(int x, int z, int ownerIdx)
         {
             var pv = ownerIdx == 0 ? View?.Self : View?.Opp;
@@ -636,59 +621,26 @@ namespace SynergyUI
                 if (cells[i].x == x && cells[i].z == z)
                     element = BoardLayout.LandCellElementOrder[i];
             string head = $"{(ownerIdx == 0 ? "我方" : "对手")}地牌 · {BattleView.ManaZh(element)}元素格";
-            int total = 0, untapped = 0, tapped = 0;
+            var toks = new List<string>();
             if (lands != null)
-                foreach (var c in lands)
+            {
+                foreach (var g in lands.Where(c => c.X == x && c.Z == z && c.Runtime != null)
+                                       .GroupBy(c => c.Runtime.LockedColor))
                 {
-                    if (c == null || c.Runtime == null || !c.CanProduceColor(element)) continue;
-                    total++;
-                    if (c.IsTapped) tapped++;
-                    else untapped++;
+                    int untapped = g.Count(c => !c.IsTapped);
+                    int tapped = g.Count(c => c.IsTapped);
+                    int wallet = pv != null && g.Key >= 0 && g.Key < pv.WalletByColor.Length ? pv.WalletByColor[g.Key] : 0;
+                    string color = g.Key >= 0 ? BattleView.ManaZh((ManaType)g.Key) : "?";
+                    // 拆分读数（2026-11-15 主动产色可观测性）：未横置/临时钱包分列，已横置随出现显示
+                    toks.Add($"{color} {untapped + wallet}/{g.Count()}（未横置 {untapped}＋临时 {wallet}"
+                             + (tapped > 0 ? $"，已横置 {tapped}" : "") + "）");
                 }
-            int wallet = pv != null && (int)element < pv.WalletByColor.Length ? pv.WalletByColor[(int)element] : 0;
+            }
             // 地牌上限显示迁移（2026-10-14 晚：上限格退役）——地牌格悬停就地报上限（本批措辞定案：【】值域）
             string capLine = $"当前地牌上限【{pv?.LandCap ?? 0}】（每回合开始双方同步加一，封顶10；效果可再提升）";
-            if (total == 0) return $"{head}（暂无可产{BattleView.ManaZh(element)}的地牌）\n{capLine}";
-            // 拆分读数（2026-11-15 主动产色可观测性）：未横置/临时钱包分列，已横置随出现显示
-            string tok = $"{BattleView.ManaZh(element)} 可用 {untapped + wallet}/{total}（未横置 {untapped}＋临时 {wallet}"
-                         + (tapped > 0 ? $"，已横置 {tapped}" : "") + "）";
-            return $"{head}（按可产该色统计——多色地同时计入各色格）\n{tok}\n"
-                   + "\n点地牌面片=横置生成临时元素（回合结束消失；持有优先权/扳机时双方回合均可）"
-                   + $"\n{capLine}";
-        }
-
-        /// <summary>RuntimeId 反查地牌面片卡（双方地牌行；未入池=null）。</summary>
-        internal BattleCardView LandAt(uint rid)
-        {
-            return (View.SelfLands ?? new List<BattleCardView>()).FirstOrDefault(c => c != null && c.RuntimeId == rid)
-                   ?? (View.OppLands ?? new List<BattleCardView>()).FirstOrDefault(c => c != null && c.RuntimeId == rid);
-        }
-
-        /// <summary>地牌长条底板悬停信息（2026-11-15 地牌改版）：整行逐色「可用/可产」汇总
-        ///（可产该色统计=CanProduceColor 位掩码，多色地同顶多色，不按落格；可用=未横置可产该色+钱包该色）。</summary>
-        private string LandRowInfo(int ownerIdx)
-        {
-            var pv = ownerIdx == 0 ? View?.Self : View?.Opp;
-            var lands = ownerIdx == 0 ? View?.SelfLands : View?.OppLands;
-            var toks = new List<string>();
-            foreach (var element in BoardLayout.LandCellElementOrder)
-            {
-                int total = 0, untapped = 0;
-                if (lands != null)
-                    foreach (var c in lands)
-                    {
-                        if (c == null || c.Runtime == null || !c.CanProduceColor(element)) continue;
-                        total++;
-                        if (!c.IsTapped) untapped++;
-                    }
-                int wallet = pv != null && (int)element < pv.WalletByColor.Length ? pv.WalletByColor[(int)element] : 0;
-                toks.Add($"{BattleView.ManaZh(element)} 可用 {untapped + wallet}/可产 {total}");
-            }
-            string capLine = $"当前地牌上限【{pv?.LandCap ?? 0}】（每回合开始双方同步加一，封顶10；效果可再提升）";
-            return $"{(ownerIdx == 0 ? "我方" : "对手")}地牌长条（灰红蓝绿 逐色 可用/可产——多色地计入各色）\n{string.Join("　", toks)}"
-                   + "\n可用=未横置可产该色+钱包该色；付费时自动横置（多色地按账单选色）"
-                   + "\n点地牌面片=横置生成临时元素（多色弹窗选色；回合结束消失；持有优先权/扳机时双方回合均可）"
-                   + $"\n{capLine}";
+            return toks.Count == 0
+                ? $"{head}（暂无该色地牌）\n{capLine}"
+                : $"{head}\n{string.Join("\n", toks)}\n可用=未横置+钱包该色，上限=该色地牌张数；付费时自动横置\n点地牌格开窗，可主动横置生成临时元素（回合结束消失；持有优先权/扳机时双方回合均可）\n{capLine}";
         }
 
         /// <summary>施放类型图标反查（cast-{RuntimeId} 命中名 → 视图数据施放占格卡；未命中=null）。</summary>

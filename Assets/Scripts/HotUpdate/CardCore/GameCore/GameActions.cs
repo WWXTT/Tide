@@ -17,14 +17,14 @@ namespace CardCore
         /// 主阶段：将手牌以可用（未横置）状态作为地牌放入元素池。
         /// 不限张数/次数；张数受**各自**地牌槽上限约束（2026-10-15 定案：全局同步曲线
         /// min(全局回合,10)+成长加值无封顶——每次回合开始双方同步 +1，先后手无差）。
-        /// 2026-11-15 地牌改版：放置**不再选色**——入池即快照可产集合（ColorOptions），
-        /// 展示色=首位主色；产色在横置时按集合选定（自动付费规划/手动选色）。
+        /// colorChoice（2026-10-11 锁色定案）：从卡费颜色（红/蓝/绿/灰）中自选锁定产色，
+        /// null=缺省主色（份额最多色）；后续生成固定，付费时系统按账单自动横置。
         /// </summary>
-        public static bool AddToElementPool(GameCore core, Player player, Card card)
-            => AddToElementPool(core, player, card, out _);
+        public static bool AddToElementPool(GameCore core, Player player, Card card, ManaType? colorChoice = null)
+            => AddToElementPool(core, player, card, colorChoice, out _);
 
         /// <summary>带原因版（2026-11-03 失败提示细化）：池内四闸经 ElementPool.TryAddToPool 单源透传。</summary>
-        public static bool AddToElementPool(GameCore core, Player player, Card card, out string reason)
+        public static bool AddToElementPool(GameCore core, Player player, Card card, ManaType? colorChoice, out string reason)
         {
             reason = null;
             if (core == null || player == null || card == null) { reason = "内部错误：空参数"; return false; }
@@ -45,9 +45,9 @@ namespace CardCore
                 return false;
             }
 
-            // 放入元素池（各自张数 ≤ 地牌上限；不选色——集合快照+主色展示）
+            // 放入元素池（各自张数 ≤ 地牌上限；锁色自选/缺省主色）
             var elementPool = core.ElementPool;
-            if (!elementPool.TryAddToPool(card, player, out reason))
+            if (!elementPool.TryAddToPool(card, player, colorChoice, out reason))
                 return false;
 
             // 从手牌移到元素池区域，然后发布入池事件（时序定案 2026-09-26：
@@ -84,43 +84,46 @@ namespace CardCore
 
         /// <summary>
         /// 主阶段：横置带地牌特性的生物产 1 元素（2026-09-13 英雄技能·培育赋予的特性）。
-        /// 2026-11-15 地牌改版 §15-2：与地牌同口径——可产色集合=GetLandColorChoices（卡面费 ∪ 锚价），
-        /// 多色时自动取首位主色（UI 手动路径走带 color 重载弹窗选色；AI/网络走本缺省口）。
+        /// 颜色随该生物费用构成（多色时自动取首个有份额的颜色；无费用→灰）。
         /// </summary>
         public static bool TapCreatureForElement(GameCore core, Player player, Card creature)
-            => TapCreatureForElement(core, player, creature, AutoCreatureColor(core, creature), out _);
-
-        /// <summary>显式产色版（UI 多色弹窗选色后调用）：color 必须在该生物可产集合内。</summary>
-        public static bool TapCreatureForElement(GameCore core, Player player, Card creature, ManaType color, out string reason)
         {
-            reason = null;
-            if (core == null || player == null || creature == null) { reason = "内部错误：空参数"; return false; }
-            if (core.TurnEngine.TurnPlayer != player) { reason = "现在不是你的回合"; return false; }
-            if (core.TurnEngine.CurrentPhase?.Phase != PhaseType.Main) { reason = "只能在己方主阶段产色"; return false; }
-            if (!creature.IsAlive || creature.IsTapped()) { reason = "该生物不可用（已阵亡/已横置）"; return false; }
-            if (!creature.HasKeyword(Attribute.KeywordRules.LandTrait)) { reason = "该生物无地牌特性"; return false; }
-            if (creature.GetController() != player) { reason = "该生物不受你操控"; return false; }
+            if (core == null || player == null || creature == null) return false;
+            if (core.TurnEngine.TurnPlayer != player) return false;
+            if (core.TurnEngine.CurrentPhase?.Phase != PhaseType.Main) return false;
+            if (!creature.IsAlive || creature.IsTapped()) return false;
+            if (!creature.HasKeyword(Attribute.KeywordRules.LandTrait)) return false;
+            if (creature.GetController() != player) return false;
 
             // 教学引导闸（2026-10-06 第二课）：tapcreature 步骤语义优先（非引导生物拒绝）
             var guideReject = RuleHooks.TutorialTapCreatureGate?.Invoke(player, creature);
             if (guideReject != null)
             {
-                reason = $"教学引导：{guideReject}";
                 TideLog.Warn($"[GameActions] 生物产色被教学引导拒绝：{guideReject}");
                 return false;
             }
 
-            var choices = ElementPoolSystem.GetLandColorChoices(creature);
-            if (!choices.Contains(color)) { reason = "所选颜色不在该生物可产的产色内"; return false; }
+            var data = (creature as CardWrapper)?.GetData();
+            var cost = data?.Cost;
+            ManaType type = ManaType.Gray;
+            if (cost != null && !cost.IsZero)
+            {
+                foreach (var color in cost.NonzeroColors())
+                {
+                    type = color; // 序数序首个有份额的颜色（多色取首色）
+                    break;
+                }
+            }
 
-            // 产色落**临时钱包**（任一回合结束清空）；事件走 core.PublishEvent 路由路径
-            //（Trigger/Layer 引擎可见——AddMana 直发 EventManager 会绕开，故不换路）。
+            // 产色落**临时钱包**（任一回合结束清空）；2026-10-28 P3b：全类型累计钳删除，直接入账。
+            // 事件走 core.PublishEvent 路由路径（Trigger/Layer 引擎可见——AddMana 直发 EventManager
+            // 会绕开，故不换路）。
             creature.Tap();
-            core.ElementPool.GetPool(player).TempElements[color] += 1;
+            core.ElementPool.GetPool(player).TempElements[type] += 1;
             core.PublishEvent(new ElementPoolGainEvent
             {
                 Player = player,
-                GainedType = color,
+                GainedType = type,
                 FromCard = creature,
                 Amount = 1,
             });
@@ -128,52 +131,8 @@ namespace CardCore
             return true;
         }
 
-        /// <summary>生物产色缺省色：可产集合首位（无候选兜底灰——与地牌 DisplayColor 同式）。</summary>
-        private static ManaType AutoCreatureColor(GameCore core, Card creature)
-        {
-            var choices = ElementPoolSystem.GetLandColorChoices(creature);
-            return choices.Count > 0 ? choices[0] : ManaType.Gray;
-        }
-
-        /// <summary>
-        /// 主动横置一张未横置的地牌，产 1 个 color 元素进**临时钱包**（2026-11-15 定案；同日地牌改版加 color 参）。
-        /// 时点闸：**持有优先权（扳机）**即可——双方回合/任意时点均允许
-        ///（典型：对手回合响应窗口先兑现费用再打扳机）；或己方主要阶段（原口径兜底，
-        /// 与 TapCreatureForElement 对齐）。与付费自动横置的区别：自动横置=按账单现取现用、
-        /// 产物直接抵账不入库；本口=提前兑现，产物落临时钱包，任一回合结束清空——
-        /// 钱包-地牌此消彼长，无净资源增益。地牌每回合仍只贡献一次（横置即闸）。
-        /// color 须 ∈ 该地 ColorOptions（多色地的手动选色；单色=唯一色）。
-        /// </summary>
-        public static bool TapLandForElement(GameCore core, Player player, Card landCard, ManaType color, out string reason)
-        {
-            reason = null;
-            if (core == null || player == null || landCard == null) { reason = "内部错误：空参数"; return false; }
-            bool holdsPriority = core.StackEngine != null && core.StackEngine.CurrentPriorityHolder == player;
-            bool ownMain = core.TurnEngine != null && core.TurnEngine.TurnPlayer == player
-                && core.TurnEngine.CurrentPhase != null && core.TurnEngine.CurrentPhase.Phase == PhaseType.Main;
-            if (!holdsPriority && !ownMain) { reason = "需持有优先权（扳机），或在己方主要阶段才能主动产色"; return false; }
-
-            var pool = core.ElementPool.GetPool(player);
-            var pc = pool.PooledCards.FirstOrDefault(x => x != null && ReferenceEquals(x.SourceCard, landCard));
-            if (pc == null) { reason = "该卡不在元素池"; return false; }
-            if (pc.IsTapped) { reason = "该地牌本回合已横置"; return false; }
-            if (pc.FreezeLayers > 0) { reason = "该地牌被冻结，无法主动产色"; return false; }
-            if (!pc.CanProduce(color)) { reason = "所选颜色不在该地牌可产的产色内"; return false; }
-
-            pc.IsTapped = true;
-            // 与 TapCreatureForElement 同口：直写钱包 + PublishEvent（Trigger/Layer/战报可见）；
-            // 不用 ElementPool.AddMana（它直发 EventManager，绕过 core 路由）；也不发 TapEvent
-            //（地牌不是 Entity）。不动 pool.TapsThisTurn（该字段口径=付费自动横置次数，纯观测）。
-            pool.TempElements[color] += 1;
-            core.PublishEvent(new ElementPoolGainEvent
-            {
-                Player = player,
-                GainedType = color,
-                FromCard = landCard,
-                Amount = 1,
-            });
-            return true;
-        }
+        // 主动横置地牌产元素（2026-11-15）已按用户要求回退删除：地牌只能在付费时由系统自动横置
+        //（现取现用），不再有玩家自行横置地牌的口子；生物「地牌特性」产色（TapCreatureForElement）保留。
 
         // 武器主动攻击（AttackWithWeapon）已随武器系统退役删除（2026-10-07）——
         // 角色主动攻击改走标准攻击宣言栈（GameActions.DeclareAttack，Player 攻击者），

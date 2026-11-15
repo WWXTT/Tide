@@ -88,14 +88,9 @@ namespace CardCore
             public sealed class PooledCardEntry
             {
                 public uint SourceRuntimeId;
-                /// <summary>展示色（2026-11-15 地牌改版：字段名保留=旧档兼容，值=ColorOptions 首位主色）。</summary>
                 public int LockedColor;
-                /// <summary>可产色集合（2026-11-15 地牌改版 §9.3）：放置瞬间快照——恢复/回滚后
-                /// 集合与放置时一致（费用增减/锚价变化不影响已放置的地牌）；空=旧档，恢复时按
-                /// GetLandColorChoices(源卡) 兜底。</summary>
-                public List<int> ColorOptions = new List<int>();
                 public bool IsTapped;
-                /// <summary>冻地层数（2026-10-29 阶段3a）：剩余回合数——池内包装态，与展示色/横置同源采集。</summary>
+                /// <summary>冻地层数（2026-10-29 阶段3a）：剩余回合数——池内包装态，与锁色/横置同源采集。</summary>
                 public int FreezeLayers;
             }
         }
@@ -177,8 +172,7 @@ namespace CardCore
                 ps.Pool.Pooled.Add(new PoolSnapshot.PooledCardEntry
                 {
                     SourceRuntimeId = pc.SourceCard.RuntimeId,
-                    LockedColor = (int)pc.DisplayColor,
-                    ColorOptions = pc.ColorOptions.Select(c => (int)c).ToList(),
+                    LockedColor = (int)pc.LockedColor,
                     IsTapped = pc.IsTapped,
                     FreezeLayers = pc.FreezeLayers,
                 });

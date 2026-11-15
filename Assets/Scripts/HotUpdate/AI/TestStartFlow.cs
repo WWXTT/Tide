@@ -9,10 +9,10 @@ namespace SynergyUI
     /// 测试开局（2026-10-16）：把教学「预设场面直入」管线（TutorialScenarioSeeder）解耦为
     /// 通用测试功能——主菜单一键进入预设局面，供人工实测卡牌效果。入口只写 BattleEntry
     /// （同 TutorialFlow 口径），跳转由调用方（MainMenuScreen）负责。
-    /// 首个预设「地牌充满」（2026-11-15 改版）：双方各 40 张锁色地牌（灰/红/蓝/绿各 10；
-    /// 黑白临时元素预置退役——SeedBank 全零），起跳回合 10 主阶段。
-    /// 地牌素材=专用四色卡「试作·元素井」：AddCardToPool 显式锁色必须在卡自身费用色候选内，
-    /// 卡池原无四色卡故新建（费用不入内容哈希，ID=ContentHasher.HashCard 口径）。
+    /// 首个预设「地牌充满」：双方各 40 张**同一张专用测试地**，四色格各锁 10 张
+    /// （灰/红/蓝/绿各 10；放置在哪一格/强制哪一色，该地只产那一色）；钱包全零，起跳回合 10 主阶段。
+    /// 地牌素材=「测试·四色地」C_895AC28D：landColors 提供灰/红/蓝/绿四个可锁候选，
+    /// 旧锁色体系下每张仍只产单色（不产多色）。
     /// 上限：自然曲线封顶 10 之外走 TutorialSideState.landCapBonus（成长同口径 LandCapBonus）。
     /// </summary>
     public static class TestStartFlow
@@ -26,12 +26,11 @@ namespace SynergyUI
         /// <summary>每种颜色的锁色地牌张数（灰/红/蓝/绿四色）。</summary>
         public const int LandsPerColor = 10;
 
-        /// <summary>地牌素材卡：试作·元素井（2026-10-22 恒推导改版：1灰1红1蓝2绿 1/1 警戒+入场直伤/潜行，
-        /// 落教学表 TutorialCards.json——主表用户池被并行重建不再承载；四色候选任选锁色）。</summary>
-        public const string LandMaterialCardId = "C_50E2F45D";
+        /// <summary>地牌素材卡：测试·四色地（2026-11-15 专用测试卡；landColors 覆盖为灰/红/蓝/绿
+        /// 四个可锁候选——旧锁色体系下每张只产“放置格/强制色”那一色，不产多色）。</summary>
+        public const string LandMaterialCardId = "C_895AC28D";
 
-        /// <summary>预置临时钱包 [灰,红,蓝,绿,白,黑]（2026-11-15 用户改版：黑白临时元素机制
-        /// 退役——充满预设不再预置 5白5黑，全零起）。</summary>
+        /// <summary>预置临时钱包 [灰,红,蓝,绿,白,黑]（黑白临时元素机制已退役——全零）。</summary>
         public static readonly int[] SeedBank = { 0, 0, 0, 0, 0, 0 };
 
         /// <summary>测试卡组引用文件（2026-10-17 卡组文件化）：StreamingAssets/Tutorial/测试卡组.json
@@ -189,8 +188,8 @@ namespace SynergyUI
             return true;
         }
 
-        /// <summary>单侧状态：手牌/剩余牌库=（已按开关洗好的）所选卡组前后段，地牌=素材卡
-        /// 四色各 10，钱包 5白5黑 + 地牌槽上限 30 加值（EnterFullLandsTest 同款对称口径）。</summary>
+        /// <summary>单侧状态：手牌/剩余牌库=（已按开关洗好的）所选卡组前后段，地牌=专用测试卡
+        /// 四色各 10（每张单锁色），钱包全零 + 地牌槽上限 30 加值（EnterFullLandsTest 同款对称口径）。</summary>
         private static TutorialSideState BuildSide(List<CardData> orderedDeck)
         {
             int handSize = Mathf.Max(1, GameCore.OpeningHandSize);

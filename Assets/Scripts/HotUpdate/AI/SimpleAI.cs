@@ -326,8 +326,8 @@ namespace SynergyUI
                 // 不再继续当地（例外：策略 WantLand 主动铺地，如绿套凑绿地）。
                 if (CanPlayCard(core, me, card, Zone.Hand) && !_strategy.WantLand(core, me, card))
                     continue;
-                // 2026-11-15 地牌改版：放地不选色（LandColorChoice 策略建议退役——入池快照可产集合）
-                GameActions.AddToElementPool(core, me, card);
+                var lc = _strategy.LandColorChoice(core, me, card);
+                GameActions.AddToElementPool(core, me, card, lc);
             }
         }
 

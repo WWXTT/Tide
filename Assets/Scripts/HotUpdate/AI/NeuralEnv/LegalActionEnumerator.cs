@@ -278,8 +278,9 @@ namespace CardCore.AI.NeuralEnv
                         core.ZoneManager.IsCardInZone(a.Card, me, Zone.Deck) ? Zone.Deck : Zone.Hand,
                         a.ModeIndex, null, a.DynamicCounts, out _);
                 case TideActionType.PlayLand:
-                    // 2026-11-15 地牌改版：放地不选色（ModeIndex 不再承载锁色；动作空间收敛为每卡一行）
-                    return GameActions.AddToElementPool(core, me, a.Card);
+                    // ModeIndex 复用为锁色选择（2026-10-11：-1=缺省主色，否则=ManaType 枚举值）
+                    return GameActions.AddToElementPool(core, me, a.Card,
+                        a.ModeIndex >= 0 ? (ManaType)a.ModeIndex : (ManaType?)null);
                 case TideActionType.Activate:
                 case TideActionType.RespondActivate:
                     return ActivateWithTargets(core, me, a.Effect, a.Card, a.Targets, a.DynamicCounts,
@@ -420,17 +421,19 @@ namespace CardCore.AI.NeuralEnv
             {
                 var c = hand[i];
                 if (!ElementPoolSystem.CanServeAsLand(c)) continue;
-                // 2026-11-15 地牌改版：动作空间收敛——放地不再展开锁色维度（旧=每候选色一行，
-                // 现=每张卡一行；ModeIndex 弃用恒 -1）。旧模型/旧动作索引不兼容，训练侧须版本化重训
-                if (ElementPoolSystem.GetLandColorChoices(c).Count == 0) continue; // 无可产色不可放地
-                Actions.Add(new TideAction
+                // 锁色维度展开（2026-10-11）：每候选色一行（单色卡=1 行不变；ModeIndex=锁色枚举值）
+                var colors = ElementPoolSystem.GetLandColorChoices(c);
+                foreach (var color in colors)
                 {
-                    Type = TideActionType.PlayLand,
-                    Card = c,
-                    SourceIndex = TideObservation.CardIndex(me, me, Zone.Hand, i),
-                    TargetIndex = -1,
-                    ModeIndex = -1,
-                });
+                    Actions.Add(new TideAction
+                    {
+                        Type = TideActionType.PlayLand,
+                        Card = c,
+                        SourceIndex = TideObservation.CardIndex(me, me, Zone.Hand, i),
+                        TargetIndex = -1,
+                        ModeIndex = (int)color,
+                    });
+                }
             }
         }
 
