@@ -164,6 +164,28 @@ namespace CardCore.Network
         /// 不靠 requestId 之外的弹窗顺序。null=非 spec 计划路径（代价/弃牌等既有反问）。</summary>
         [MemoryPackOrder(TagTable.MSelR_SpecKey)]
         public string SpecKey;
+
+        /// <summary>候选区域分组（2026-11-15 共享规格 v0.2 §7，协议 v20）：服务端把引擎
+        /// TargetZoneGrouping 分组投影成 (Label, Start, Count) 段下发——客户端无活实体算不了
+        /// 区域，须由服务端携带；null/空=不分组（旧行为）。Indices 语义不变（仍指 Candidates
+        /// 原下标）。</summary>
+        [MemoryPackOrder(TagTable.MSelR_ZoneGroups)]
+        public MsgSelectZoneGroup[] ZoneGroups;
+    }
+
+    /// <summary>候选区域分组段（v20）：Label=「己方战场」等；Start/Count=Candidates 的
+    /// 连续下标段（TargetZoneGroup.Indices 升序连续——引擎分组按插入序构建）。</summary>
+    [MemoryPackable]
+    public partial class MsgSelectZoneGroup
+    {
+        [MemoryPackOrder(TagTable.MSG_Label)]
+        public string Label;
+
+        [MemoryPackOrder(TagTable.MSG_Start)]
+        public int Start;
+
+        [MemoryPackOrder(TagTable.MSG_Count)]
+        public int Count;
     }
 
     /// <summary>反问应答：Indices 指向 MsgSelectRequest.Labels/Candidates 的下标。

@@ -268,8 +268,10 @@ namespace SynergyUI
 
         private readonly Dictionary<int, Dictionary<int, float>> _lastPaid = new(); // seat→最近实付（入场粒子颜色口径）
 
-        /// <summary>付费事件（投影器透传）：记最近实付账本 + 打出法术的扣费粒子走 Present
-        ///（「打出:」且栈上有施放中法术）。</summary>
+        /// <summary>付费事件（投影器透传）：记最近实付账本 + 扣费粒子走 Present——2026-11-15
+        /// 钱包粒改道：触发面从「打出法术」扩到**任意付费**（法术/单位/结界/技能/自动横置），
+        /// 同一次结算的多色 PaidCost 合并成一个 op（保持回放帧对齐）；粒子发射点=该 seat 的
+        /// 临时元素 5 分格（BattleFxOpExecutor.Paid→PlayWalletPayByRef）。</summary>
         public void OnPaid(ElementPoolPayEvent e)
         {
             if (e?.Player == null) return;
@@ -280,13 +282,8 @@ namespace SynergyUI
             int seat = SeatOf(e.Player);
             _lastPaid[seat] = paid;
             if (Film == null || _finalized) return;
-            if (paid.Count > 0 && e.SourceNote != null && e.SourceNote.StartsWith("打出:", StringComparison.Ordinal))
-            {
-                var spell = (_core()?.StackEngine?.GetPendingCastCards(e.Player) ?? new List<Card>())
-                    .FirstOrDefault(c => c != null && c.IsSpellCard()); // S3b A 切源：读栈不读区
-                if (spell != null)
-                    Present(new BattleFxOp { Kind = BattleFxKind.Paid, Seat = seat, Paid = paid });
-            }
+            if (paid.Count > 0)
+                Present(new BattleFxOp { Kind = BattleFxKind.Paid, Seat = seat, Paid = paid });
         }
 
         /// <summary>入场事件（投影器透传，2026-11-13 补位扩源）：CastPlayed 走原口径（2s 消融+地格汇聚，

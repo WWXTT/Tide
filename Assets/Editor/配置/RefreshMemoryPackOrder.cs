@@ -310,6 +310,9 @@ namespace CardCore.Tools
                 ("MsgSelectRequest", "Min"), ("MsgSelectRequest", "Max"),
                 ("MsgSelectRequest", "Labels"), ("MsgSelectRequest", "Candidates"),
                 ("MsgSelectRequest", "SpecKey"), // spec 计划关联键（2026-11-08 目标选择重构·协议 v10）
+                // 2026-11-15 共享规格 v0.2 §7（协议 v20）：反问候选区域分组下发
+                ("MsgSelectRequest", "ZoneGroups"),
+                ("MsgSelectZoneGroup", "Label"), ("MsgSelectZoneGroup", "Start"), ("MsgSelectZoneGroup", "Count"),
                 ("MsgSelectResponse", "RequestId"), ("MsgSelectResponse", "Indices"),
                 ("MsgTextRequest", "RequestId"), ("MsgTextRequest", "ChooserSeat"),
                 ("MsgTextRequest", "Title"), ("MsgTextRequest", "Default"),
@@ -492,6 +495,7 @@ namespace CardCore.Tools
                 "NetZoneCards" => "NZC",
                 "CardHandInfo" => "CHI",
                 "MsgSelectRequest" => "MSelR",
+                "MsgSelectZoneGroup" => "MSG", // 2026-11-15 规格区分组段（规格 v0.2 §7.1 常量名）
                 "MsgSelectResponse" => "MSelP",
                 "MsgTextRequest" => "MTxtR",
                 "MsgTextResponse" => "MTxtP",

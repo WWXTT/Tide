@@ -283,6 +283,12 @@ namespace CardCore.Serialization
         public const int MSelR_Labels = 108139152;
         public const int MSelR_Candidates = 1387773462;
         public const int MSelR_SpecKey = 317799922;
+        public const int MSelR_ZoneGroups = 2144781041; // 2026-11-15 规格区分组（协议 v20；Murmur32 手算=生成器同款，交付说明注明）
+
+        // ---- MsgSelectZoneGroup ----
+        public const int MSG_Label = 1448372103;
+        public const int MSG_Start = 206439514;
+        public const int MSG_Count = 319549238;
 
         // ---- MsgSelectResponse ----
         public const int MSelP_RequestId = 1596262577;

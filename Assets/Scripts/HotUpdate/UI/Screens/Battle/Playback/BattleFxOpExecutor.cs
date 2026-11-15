@@ -42,7 +42,7 @@ namespace SynergyUI
                             else f.EnqueueArrival(op.Target.Rid, op.Seat, op.Paid);
                         }
                         break;
-                    case BattleFxKind.Paid: f.PlayCastPayByRef(op.Seat, op.Paid); break;
+                    case BattleFxKind.Paid: f.PlayWalletPayByRef(op.Seat, op.Paid); break; // 2026-11-15 钱包粒改道：付费粒子从 5 分格发出（任意付费触发）
                     case BattleFxKind.Fatigue: // 疲劳受击（HeroFatigueHitAsync 本就是 ref 口：seat+伤害）
                         if (op.Seat >= 0) f.HeroFatigueHitAsync(op.Seat, op.Amount).Forget();
                         break;

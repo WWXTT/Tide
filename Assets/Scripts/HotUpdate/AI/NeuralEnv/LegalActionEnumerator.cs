@@ -46,6 +46,9 @@ namespace CardCore.AI.NeuralEnv
         public int ModeIndex;             // 抉择模式下标（非抉择恒 0；HeroSkill 行恒 0——技能卡在 Card 上）
         public PendingEffect Pending;     // VoluntaryTrigger/RespondActivate 的待发对象（引擎队列实例）
         public EffectInstance AttackInstance; // Guard 行：被拦截的攻击宣言栈对象
+        /// <summary>守卫者（2026-11-15 审计 §2.2 角色守卫入动作空间）：生物=SourceCard；
+        /// 角色守卫=Player（Card 为 null、SourceIndex=-1——TargetKindCode 已表达类别）。</summary>
+        public Entity Guarder;
 
         /// <summary>来源卡在 cards_ 中的槽位（-1 = 无 / 未编码区如 FieldZone 技能卡）。</summary>
         public int SourceIndex;
@@ -211,7 +214,9 @@ namespace CardCore.AI.NeuralEnv
                 switch (opt.Kind)
                 {
                     case ResponseOption.ResponseKind.GuardAbility:
-                        if (opt.SourceCard != null && opt.AttackInstance != null)
+                        // 角色守卫（2026-11-15 审计 §2.2）：SourcePlayer 候选此前被滤掉——AI 拿攻击弹药
+                        // 也不会用角色拦截，与本地人类能力不对齐。
+                        if (opt.AttackInstance != null && (opt.SourceCard != null || opt.SourcePlayer != null))
                             Actions.Add(BuildGuardAction(core, me, opt));
                         break;
                     case ResponseOption.ResponseKind.VoluntaryEffect:
@@ -299,8 +304,9 @@ namespace CardCore.AI.NeuralEnv
                     return GameActions.PlayCardInResponse(core, me, a.Card, a.Targets, a.ModeIndex,
                         null, a.DynamicCounts, out _);
                 case TideActionType.Guard:
-                    return a.Card != null && a.AttackInstance != null
-                        && core.StackEngine.PushGuardDeclaration(a.Card, a.AttackInstance, me);
+                    // 角色守卫（2026-11-15）：Guarder 承载生物/角色（Apply 收口单源）
+                    return a.Guarder != null && a.AttackInstance != null
+                        && core.StackEngine.PushGuardDeclaration(a.Guarder, a.AttackInstance, me);
                 case TideActionType.TapCreature:
                     return GameActions.TapCreatureForElement(core, me, a.Card);
                 default:
@@ -442,10 +448,13 @@ namespace CardCore.AI.NeuralEnv
                 if (GameActions.GetPayloadGateReject(core, me, c) != null) continue; // 代价门槛镜像（①可支付②无目标③按色地牌——2026-10-31 代价地牌统一定案）
 
                 int modes = ModeCount(c);
+                var castDefs = GameActions.GetCastableEffectDefinitions(c); // 模式序=Effects 声明序（modeIndex 同源）
                 for (int m = 0; m < modes; m++)
                 {
                     if (!IsSpell(c) && !c.IsFieldCard() && !zm.HasBattlefieldSpace(me)) continue; // 场地卡落场地格不计容量（P8）
                     if (!TargetDomainService.HasPlayableTargets(core, me, c, m)) continue; // 域空不可出（镜像 PlayCard 预检）
+                    // 2026-11-15 审计 §1：所选模式含 AI 无法执行的原子（选格/无预置卡名）→ 不枚举
+                    if (m < castDefs.Count && UnsupportedForAi(castDefs[m])) continue;
 
                     int src = TideObservation.CardIndex(me, me, Zone.Hand, i);
                     // 普通行：全净费可付（动态数量行按 base×N 预过滤，见 ExpandCardTargets）
@@ -469,11 +478,13 @@ namespace CardCore.AI.NeuralEnv
             if (!RuleHooks.CanPlay(core, me, top, Zone.Deck)) return;
             if (GameActions.GetPayloadGateReject(core, me, top) != null) return;
             int topModes = ModeCount(top);
+            var topDefs = GameActions.GetCastableEffectDefinitions(top);
             for (int m = 0; m < topModes; m++)
             {
                 if (!IsSpell(top) && !top.IsFieldCard() && !zm.HasBattlefieldSpace(me)) continue;
                 if (!TargetDomainService.HasPlayableTargets(core, me, top, m)) continue;
                 if (!GameActions.CanAffordCast(core, me, top, m)) continue;
+                if (m < topDefs.Count && UnsupportedForAi(topDefs[m])) continue; // 2026-11-15 审计 §1 同手牌口径
                 foreach (var set in ExpandCardTargets(core, me, top, m))
                     Actions.Add(BuildTargetedRow(TideActionType.PlayCard, top, m, TideObservation.DeckTopSlot, set.Targets,
                         reference: ReferencePickOf(core, me, top, m, set.Targets),
@@ -498,9 +509,9 @@ namespace CardCore.AI.NeuralEnv
                 foreach (var def in GetEffectDefinitions(src))
                 {
                     if (!def.IsActivatedEffect) continue;
-                    // 移动原子（2026-10-31 场面轴3c）：本阶段不枚举——枚举器的动作行无选格参数，
-                    // AI 发动=白付代价空转（handler Warn 后不动盘面）
-                    if (ContainsMoveUnitAtom(def)) continue;
+                    // 移动原子（2026-10-31 场面轴3c）+ 卡名宣言（2026-11-15 审计 §1.2）：不枚举——
+                    // 枚举器的动作行无选格/卡名参数，AI 发动=白付代价空转
+                    if (UnsupportedForAi(def)) continue;
                     //（充能跳过已随 2026-11-05 充能系统动作化改版删除——充能不再是卡上效果。）
                     if (!executor.CanActivate(def, src, me, me, phase, turn)) continue;
 
@@ -510,13 +521,23 @@ namespace CardCore.AI.NeuralEnv
             }
         }
 
-        /// <summary>效果含移动原子（MoveUnit——2026-10-31 场面轴3c）：AI 枚举本阶段跳过
-        ///（动作行无选格参数，发动=白付代价空转）；接线选格参数后移除本闸。</summary>
-        private static bool ContainsMoveUnitAtom(EffectDefinition def)
+        /// <summary>与 SimpleAI.UnsupportedForAi 同口径（2026-11-15 审计 §1）：AI 无法执行的交互原子
+        /// ——MoveUnit 需选格（动作行无选格参数，发动=白付代价空转）；SearchDeck/DeclareHand/DeclareDeck
+        /// 需卡名文本输入且无预置（结算期取消、费用不退）——枚举直接不产生动作行。接线交互参数后移除本闸。</summary>
+        private static bool UnsupportedForAi(EffectDefinition def)
         {
             if (def == null || def.Effects == null) return false;
             for (int i = 0; i < def.Effects.Count; i++)
-                if (def.Effects[i] != null && def.Effects[i].Type == AtomicEffectType.MoveUnit) return true;
+            {
+                var atom = def.Effects[i];
+                if (atom == null) continue;
+                if (atom.Type == AtomicEffectType.MoveUnit) return true;
+                if ((atom.Type == AtomicEffectType.SearchDeck
+                     || atom.Type == AtomicEffectType.DeclareHand
+                     || atom.Type == AtomicEffectType.DeclareDeck)
+                    && string.IsNullOrWhiteSpace(atom.StringValue))
+                    return true;
+            }
             return false;
         }
 
@@ -526,6 +547,7 @@ namespace CardCore.AI.NeuralEnv
         private void AddActivatedRows(GameCore core, Player me, Card src, EffectDefinition def,
             TideActionType type, int sourceSlot = -2)
         {
+            if (UnsupportedForAi(def)) return; // 2026-11-15 审计 §1：交互原子不支持（主动/响应共用闸）
             if (sourceSlot == -2) sourceSlot = TideObservation.IndexOfCard(core, me, src);
             var expansions = new List<TargetSet>();
             ExpandDefinitionTargets(core, me, src, def, 0, expansions);
@@ -639,6 +661,7 @@ namespace CardCore.AI.NeuralEnv
             for (int e = 0; e < effects.Count; e++)
             {
                 var effect = effects[e];
+                if (UnsupportedForAi(effect)) continue; // 2026-11-15 审计 §1：技能效果含不支持原子 → 该效果行不枚举
                 if (!executor.CanActivate(effect, skillCard, me, me, phase, turn)) continue;
                 var slots = new List<TargetSet>();
                 ExpandDefinitionTargets(core, me, skillCard, effect, 0, slots, sourceOverride: skillCard);
@@ -662,6 +685,7 @@ namespace CardCore.AI.NeuralEnv
             {
                 if (pe?.Effect == null) continue;
                 if (pe.Effect.IsActivatedEffect) continue;
+                if (UnsupportedForAi(pe.Effect)) continue; // 2026-11-15 审计 §1：镜像 SimpleAI.DrainVoluntaryQueue 闸
                 Actions.Add(BuildVoluntaryAction(core, me, pe));
             }
         }
@@ -699,6 +723,7 @@ namespace CardCore.AI.NeuralEnv
             {
                 Type = TideActionType.Guard,
                 Card = opt.SourceCard,
+                Guarder = opt.SourceCard != null ? (Entity)opt.SourceCard : (Entity)opt.SourcePlayer,
                 Target = attackTarget,
                 Targets = attackTarget != null ? new List<Entity> { attackTarget } : null,
                 AttackInstance = opt.AttackInstance,
@@ -743,10 +768,12 @@ namespace CardCore.AI.NeuralEnv
                 if (!IsSpell(c) && !c.IsFieldCard() && !core.ZoneManager.HasBattlefieldSpace(me)) continue; // 场地卡落场地格不计容量（P8）
 
                 int modes = ModeCount(c);
+                var castDefs = GameActions.GetCastableEffectDefinitions(c);
                 for (int m = 0; m < modes; m++)
                 {
                     if (!GameActions.CanAffordCast(core, me, c, m)) continue;
                     if (!TargetDomainService.HasPlayableTargets(core, me, c, m)) continue;
+                    if (m < castDefs.Count && UnsupportedForAi(castDefs[m])) continue; // 2026-11-15 审计 §1：镜像 EnumeratePlayCard 闸
 
                     int src = TideObservation.CardIndex(me, me, Zone.Hand, i);
                     foreach (var set in ExpandCardTargets(core, me, c, m))
@@ -1115,6 +1142,14 @@ namespace CardCore.AI.NeuralEnv
                 // AI 枚举了参照（活体炸弹的己方生物参照），特征必须可分（否则策略看不到选了哪个参照）。
                 // -1=无参照/玩家参照（与 TargetIndex 同口径）。
                 Features[b + 11] = expanded ? a.ReferenceIndex : -1;
+                // v14 目标区域（2026-11-15 共享规格 v0.2 §6）：首目标的区域序/归属——判定走
+                // TargetZoneGrouping 公开单源（枚举者视角=me），LAE 不另写规则；无目标=-1。
+                // 多目标只编码首目标（与 target2/3 截断同口径，其余经观测 zoneKind 可分辨）。
+                var firstTarget = a.Targets != null && a.Targets.Count > 0 ? a.Targets[0] : a.Target;
+                Features[b + 12] = firstTarget is Card tc1
+                    ? TargetZoneGrouping.ZoneRankOf(tc1.GetZone())
+                    : firstTarget != null ? 0 : -1; // Player 候选=角色组（rank0）
+                Features[b + 13] = firstTarget != null ? TargetZoneGrouping.SideRankOf(firstTarget, _me) : -1;
             }
         }
 

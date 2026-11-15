@@ -117,6 +117,21 @@ namespace SynergyUI
                 return;
             }
 
+            // 地牌长条命中（2026-11-15）：面片（land-quad-{rid}）=该地牌四段卡信息；底板空白段
+            //（land-strip-*）=整行逐色汇总（面片/底板 collider 在 4 格 tile 之上必先命中）
+            if (LandStripFx.TryParseHit(hitName, out uint landRid))
+            {
+                var land = LandAt(landRid);
+                if (land != null) SetHoverInfo(CardHoverInfo(land));
+                else Clear();
+                return;
+            }
+            if (LandStripFx.IsStripHit(hitName, out int stripOwner))
+            {
+                SetHoverInfo(LandRowInfo(stripOwner));
+                return;
+            }
+
             int hx, hz;
             if (!TryParseTile(hitName, out hx, out hz)) { Clear(); return; }
 
@@ -641,6 +656,43 @@ namespace SynergyUI
             return toks.Count == 0
                 ? $"{head}（暂无该色地牌）\n{capLine}"
                 : $"{head}\n{string.Join("\n", toks)}\n可用=未横置+钱包该色，上限=该色地牌张数；付费时自动横置\n点地牌格开窗，可主动横置生成临时元素（回合结束消失；持有优先权/扳机时双方回合均可）\n{capLine}";
+        }
+
+        /// <summary>RuntimeId 反查地牌面片卡（双方地牌行；未入池=null）。</summary>
+        internal BattleCardView LandAt(uint rid)
+        {
+            return (View.SelfLands ?? new List<BattleCardView>()).FirstOrDefault(c => c != null && c.RuntimeId == rid)
+                   ?? (View.OppLands ?? new List<BattleCardView>()).FirstOrDefault(c => c != null && c.RuntimeId == rid);
+        }
+
+        /// <summary>地牌长条底板悬停信息（2026-11-15）：整行逐色「可用/上限」汇总（口径同 LandCellInfo
+        /// 单色版：可用=未横置+钱包该色；上限=该色地牌张数）+长条操作口径行。</summary>
+        private string LandRowInfo(int ownerIdx)
+        {
+            var pv = ownerIdx == 0 ? View?.Self : View?.Opp;
+            var lands = ownerIdx == 0 ? View?.SelfLands : View?.OppLands;
+            var cells = BoardLayout.LandCells(ownerIdx);
+            var toks = new List<string>();
+            for (int i = 0; i < cells.Count && i < BoardLayout.LandCellElementOrder.Length; i++)
+            {
+                var element = BoardLayout.LandCellElementOrder[i];
+                var cell = cells[i];
+                int total = 0, untapped = 0;
+                if (lands != null)
+                    foreach (var c in lands)
+                        if (c != null && c.X == cell.x && c.Z == cell.z)
+                        {
+                            total++;
+                            if (!c.IsTapped) untapped++;
+                        }
+                int wallet = pv != null && (int)element < pv.WalletByColor.Length ? pv.WalletByColor[(int)element] : 0;
+                toks.Add($"{BattleView.ManaZh(element)} {untapped + wallet}/{total}");
+            }
+            string capLine = $"当前地牌上限【{pv?.LandCap ?? 0}】（每回合开始双方同步加一，封顶10；效果可再提升）";
+            return $"{(ownerIdx == 0 ? "我方" : "对手")}地牌长条（灰红蓝绿 逐色 可用/上限）\n{string.Join("　", toks)}"
+                   + "\n可用=未横置+钱包该色，上限=该色地牌张数；付费时自动横置"
+                   + "\n点地牌面片=横置生成临时元素（回合结束消失；持有优先权/扳机时双方回合均可）"
+                   + $"\n{capLine}";
         }
 
         /// <summary>施放类型图标反查（cast-{RuntimeId} 命中名 → 视图数据施放占格卡；未命中=null）。</summary>

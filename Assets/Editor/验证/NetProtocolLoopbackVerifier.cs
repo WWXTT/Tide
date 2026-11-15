@@ -625,6 +625,32 @@ namespace CardCore.Editor
                     && last.Candidates[0].CardId == hand[0].ID,
                     "候选实体引用双轨正确（RuntimeId+模板 CardId）");
 
+                // ---- 3a-2. v20 区域分组（2026-11-15 共享规格 v0.2 §7.4）：连续段往返 + 下标翻译 ----
+                // 盘面：战场 1 张（搬一张手牌上场）+ 余下手牌 → 引擎分组=「己方战场」「己方手牌」两段；
+                // 消息候选按组序重排（战场先）；模拟客户端选消息[0] → 翻译后引擎拿到**原下标**的战场卡。
+                selector.Seen.Clear();
+                var staged = hand[1];
+                core.ZoneManager.MoveCard(staged, core.Player1, Zone.Hand, Zone.Battlefield);
+                var mixed = new List<Entity> { hand[0], staged }; // 引擎序：手牌在前、战场在后（交错组）
+                var picked2 = TargetSelectionService.RequestAsync(new TargetSelectionRequest
+                {
+                    Candidates = mixed,
+                    MinCount = 1,
+                    MaxCount = 1,
+                    Chooser = core.Player1,
+                    Title = "分组回环",
+                    AllowCancel = false,
+                }).GetAwaiter().GetResult();
+                var zgMsg = selector.Seen.Last();
+                Assert(zgMsg.ZoneGroups != null && zgMsg.ZoneGroups.Length == 2
+                    && zgMsg.ZoneGroups[0].Label == "己方战场" && zgMsg.ZoneGroups[0].Start == 0 && zgMsg.ZoneGroups[0].Count == 1
+                    && zgMsg.ZoneGroups[1].Label == "己方手牌" && zgMsg.ZoneGroups[1].Start == 1 && zgMsg.ZoneGroups[1].Count == 1,
+                    "v20：ZoneGroups 连续段往返一致（战场段[0,1)+手牌段[1,1)——Label/Start/Count 不损）");
+                Assert(zgMsg.Candidates.Length == 2 && zgMsg.Candidates[0].RuntimeId == staged.RuntimeId,
+                    "v20：消息候选按组序重排（战场卡居首——服务端 ApplyZoneGroups 投影）");
+                Assert(picked2.Count == 1 && picked2[0].RuntimeId == staged.RuntimeId,
+                    "v20：客户端选消息[0] → 翻译回引擎原下标 → 引擎拿到战场卡（Indices 指向原候选语义不变）");
+
                 // ---- 3b. 手牌上限弃牌（真实引擎反问点：GameCore.OnTurnEnded → EnforceHandLimitAsync） ----
                 selector.Seen.Clear();
                 int before = core.ZoneManager.GetCards(core.Player1, Zone.Hand).Count;
@@ -1681,6 +1707,9 @@ namespace CardCore.Editor
                     Labels = request.Candidates.Count > 0 ? Array.Empty<string>() : labels.ToArray(),
                     Candidates = request.Candidates.Select(NetEntityMapper.FromEntity).ToArray(),
                 };
+                // v20（2026-11-15 规格 §7）：与 NetworkTargetSelector 同源投影（连续段+重排），
+                // 回传下标同样经 TranslatePicked 翻译回引擎序——fake 与真身行为零漂移。
+                var perm = NetworkTargetSelector.ApplyZoneGroups(msg, request);
 
                 // 去程：请求经完整协议栈到达"客户端"
                 var wire = NetworkSerializer.SerializeMessage(NetworkMessageType.SelectRequest, msg);
@@ -1700,7 +1729,8 @@ namespace CardCore.Editor
                 var decodedResponse = NetworkSerializer.DeserializePayload<MsgSelectResponse>(
                     NetworkSerializer.DeserializeEnvelope(respWire));
 
-                return UniTask.FromResult(decodedResponse.Indices.ToList());
+                return UniTask.FromResult(
+                    NetworkTargetSelector.TranslatePicked(decodedResponse.Indices.ToList(), perm));
             }
 
             public UniTask<int> SelectOneAsync(Player chooser, IReadOnlyList<string> options, string title,

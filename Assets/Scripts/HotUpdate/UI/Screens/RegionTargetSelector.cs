@@ -237,6 +237,15 @@ namespace SynergyUI
 
         public async UniTask<List<int>> SelectIndicesAsync(IReadOnlyList<string> labels,
             int min, int max, string title, string hint, bool allowCancel, float timeoutSeconds)
+            => await SelectIndicesAsync(labels, min, max, title, hint, allowCancel, timeoutSeconds, null);
+
+        /// <summary>带区域分组重载（2026-11-15 共享规格 v0.2 §7.3，协议 v20）：网络多选反问——
+        /// 服务端下发的 (Label,Start,Count) 连续段按统一隔断规则插 Isolation（首端只右列/组间双列/
+        /// 尾端只左列，与本地实体路径同款视觉）；条目仍是最小卡面（网络路径无实体）；单组/无组/
+        /// 模板缺失=平铺（静默退化）；回传下标仍指向 labels 原下标。</summary>
+        public async UniTask<List<int>> SelectIndicesAsync(IReadOnlyList<string> labels,
+            int min, int max, string title, string hint, bool allowCancel, float timeoutSeconds,
+            IReadOnlyList<(string label, int start, int count)> zoneGroups)
         {
             // 下拉识别（2026-11-03 用户定案）：单选纯选项且全部标签带白名单前缀（类别：/颜色：/费用：/维度：
             // ——与 ProphecyHandlerUtil 维度目录单源对应）→ 不列卡，改 Select/Dropdown 下拉+确认；
@@ -247,11 +256,33 @@ namespace SynergyUI
             for (int i = 0; i < labels.Count; i++)
                 items.Add(new CardOverlayItem { Key = "L" + i, Name = labels[i] });
             // 纯选项路径（响应窗/抉择）：提示=hint 优先（调用方写明「在响应什么」），回落 title——
-            // 同写 label-num（2026-10-17 并入）。无实体信息→不分组（全候选条目平铺，规格 §6.2）
+            // 同写 label-num（2026-10-17 并入）。无实体信息→不分组（全候选条目平铺，规格 §6.2）；
+            // 有分组段（v20 网络）→ 按段插隔断（段内下标连续=服务端投影保证）。
             string prompt = string.IsNullOrWhiteSpace(hint) ? title : hint;
             var entries = new List<PickEntry>(items.Count);
-            for (int i = 0; i < items.Count; i++)
-                entries.Add(new PickEntry { CandidateIndex = i, Item = items[i] });
+            bool grouped = zoneGroups != null && zoneGroups.Count > 1 && _isolationTemplate != null;
+            if (!grouped)
+            {
+                for (int i = 0; i < items.Count; i++)
+                    entries.Add(new PickEntry { CandidateIndex = i, Item = items[i] });
+            }
+            else
+            {
+                entries.Add(new PickEntry { IsIsolation = true, RightLabel = zoneGroups[0].label }); // 首端：只留右列
+                for (int gi = 0; gi < zoneGroups.Count; gi++)
+                {
+                    if (gi > 0) // 组间：左=前一段、右=后一段
+                        entries.Add(new PickEntry { IsIsolation = true, LeftLabel = zoneGroups[gi - 1].label, RightLabel = zoneGroups[gi].label });
+                    var seg = zoneGroups[gi];
+                    for (int k = 0; k < seg.count; k++)
+                    {
+                        int idx = seg.start + k;
+                        if (idx < 0 || idx >= items.Count) continue;
+                        entries.Add(new PickEntry { CandidateIndex = idx, Item = items[idx] });
+                    }
+                }
+                entries.Add(new PickEntry { IsIsolation = true, LeftLabel = zoneGroups[zoneGroups.Count - 1].label }); // 尾端：只留左列
+            }
             return await Run(entries, null, min, max, title, timeoutSeconds, prompt, allowCancel); // 纯选项路径无实体→无面片
         }
 
@@ -462,60 +493,27 @@ namespace SynergyUI
             public string RightLabel;       // 隔断右列标签（null=隐藏该列——尾端隔断）
         }
 
-        /// <summary>分组桶：「归属×区域」键 + 候选下标集（组内保持引擎候选原序——按序追加）。</summary>
+        /// <summary>分组桶（呈现侧轻量投影）：引擎 TargetZoneGroup 的标签+下标（2026-11-15
+        /// 共享规格 v0.2 §3——分组规则已上移 TargetZoneGrouping 单一源，本地不再实现判定）。</summary>
         private sealed class PickGroup
         {
-            public int SideRank;   // 己方0 / 对方1
-            public int ZoneRank;   // 角色0→战场1→元素池2→手牌3→墓地4→牌库5→除外6→技能栏7→发动区8→其他9
-            public string Label;   // 「归属字+区域字」标签（区域字单源 ZoneZh/角色）
-            public int FirstIndex; // 该组首个候选的引擎下标（同 rank 组间排序稳定键）
+            public string Label;   // 「归属字+区域字」标签（引擎侧拼好）
             public readonly List<int> Indices = new List<int>();
         }
 
-        /// <summary>按「归属×区域」把候选组装成呈现条目：单组或隔断模板缺失=平铺不插隔断
-        ///（静默退化，规格 §7）；多组=首端隔断只写右列、组间左右都写（左=前组/右=后组）、
-        /// 尾端只写左列。归属：Player 候选判自己、卡按 GetController()??GetOwner() 对注入的
-        /// _isLocalPlayer 判侧（null 判侧一律按对方——与角色文案口径一致）；区域：卡 GetZone()
-        /// 走 ZoneZh 单源、Player 候选归「角色」组（「角色格即区域格」既有口径，牌库折叠格
-        /// 不另造组）；未知实体防御性归「对方其他」末组。</summary>
+        /// <summary>把候选组装成呈现条目（分组=引擎 request.ZoneGroups 同一源；Chooser 视角）：
+        /// 单组或隔断模板缺失=平铺不插隔断（静默退化，规格 §7）；多组=首端隔断只写右列、
+        /// 组间左右都写（左=前组/右=后组）、尾端只写左列。组序/标签由引擎排序携带；
+        /// 组内保持引擎候选原序；null ZoneGroups（未计算/旧路径）=平铺（视觉同旧单组退化）。</summary>
         private List<PickEntry> BuildPickEntries(TargetSelectionRequest request, IReadOnlyList<CardOverlayItem> items)
         {
             var groups = new List<PickGroup>();
-            for (int i = 0; i < items.Count; i++)
+            foreach (var zg in request.ZoneGroups ?? new List<CardCore.TargetZoneGroup>())
             {
-                var e = request.Candidates != null && i < request.Candidates.Count ? request.Candidates[i] : null;
-                int sideRank, zoneRank;
-                string zoneWord;
-                if (e is Player role)
-                {
-                    sideRank = IsOwnSide(role) ? 0 : 1;
-                    zoneRank = 0;
-                    zoneWord = "角色";
-                }
-                else if (e is Card card)
-                {
-                    sideRank = IsOwnSide(card.GetController() ?? card.GetOwner()) ? 0 : 1;
-                    zoneRank = ZoneRankOf(card.GetZone());
-                    zoneWord = MatchLogRenderer.ZoneZh(card.GetZone());
-                }
-                else
-                {
-                    sideRank = 1; // 防御性兜底（规格 §4.1）：未知实体归对方末组
-                    zoneRank = 9;
-                    zoneWord = "其他";
-                }
-                string label = (sideRank == 0 ? "己方" : "对方") + zoneWord;
-                var g = groups.Find(x => x.SideRank == sideRank && x.ZoneRank == zoneRank && x.Label == label);
-                if (g == null)
-                {
-                    g = new PickGroup { SideRank = sideRank, ZoneRank = zoneRank, Label = label, FirstIndex = i };
-                    groups.Add(g);
-                }
-                g.Indices.Add(i);
+                if (zg?.Indices == null || zg.Indices.Count == 0) continue;
+                groups.Add(new PickGroup { Label = zg.Label });
+                foreach (var idx in zg.Indices) groups[groups.Count - 1].Indices.Add(idx);
             }
-            groups.Sort((a, b) => a.SideRank != b.SideRank ? a.SideRank.CompareTo(b.SideRank)
-                : a.ZoneRank != b.ZoneRank ? a.ZoneRank.CompareTo(b.ZoneRank)
-                : a.FirstIndex.CompareTo(b.FirstIndex)); // 组间固定序（规格 §4.2），不按候选出现先后
 
             var entries = new List<PickEntry>(items.Count);
             if (groups.Count <= 1 || _isolationTemplate == null)
@@ -538,24 +536,6 @@ namespace SynergyUI
             entries.Add(new PickEntry { IsIsolation = true, LeftLabel = groups[groups.Count - 1].Label }); // 尾端：只留左列
             return entries;
         }
-
-        /// <summary>归属判侧：注入的 _isLocalPlayer；未注入/无主一律按对方（与角色候选文案同口径）。</summary>
-        private bool IsOwnSide(Player p) => _isLocalPlayer != null && p != null && _isLocalPlayer(p);
-
-        /// <summary>区域组序（规格 §4.2：同归属内 角色→战场→元素池→手牌→墓地→牌库→除外→
-        /// 技能栏→发动区→其他；None/Extra 等未知落「其他」末组，标签由 ZoneZh 直出）。</summary>
-        private static int ZoneRankOf(Zone zone) => zone switch
-        {
-            Zone.Battlefield => 1,
-            Zone.ElementPool => 2,
-            Zone.Hand => 3,
-            Zone.Graveyard => 4,
-            Zone.Deck => 5,
-            Zone.Exile => 6,
-            Zone.FieldZone => 7,
-            Zone.Activation => 8,
-            _ => 9,
-        };
 
         // ==================== 选择面装配与驱动 ====================
 

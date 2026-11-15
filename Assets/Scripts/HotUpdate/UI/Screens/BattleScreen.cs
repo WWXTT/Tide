@@ -152,6 +152,7 @@ namespace SynergyUI
             _hoverProv = new BattleHoverInfoProvider(() => _view, () => Core, () => P1, () => P2,
                 () => _viewVersion, DataOf);
             _hoverProv.Bind(FindOptional("hover-info")); // 缺节点=悬停文本静默不显
+            _dragArrow.Bind(Root); // 拖拽 2D 箭头层（2026-11-15 全拖拽改版；缺节点=无箭头不阻塞）
             _decision = new BattleDecisionHub(() => _view, () => Core, () => P1, () => P2, () => _field, _toast,
                 hitName => _hoverProv.Handle(hitName),
                 text => _tutorial.RefreshBanner(text),
@@ -509,6 +510,8 @@ namespace SynergyUI
             _tutorial?.CloseIntroPanel(); // 介绍段配音卡片防跨屏残留（2026-10-17）
             CloseTipPrompt(); // TipPanel 提示弹窗防跨屏残留（2026-10-17）
             _unitButtons.Dispose(); // 单位动作 3D 按钮组防跨屏残留（2026-10-26 替弹窗）
+            _dragArrow3D?.Dispose(); // 拖拽 3D 箭头防跨屏残留（2026-11-15 阶段H：BattleAttackArrow 程序化网格）
+            _dragArrow3D = null;
             BattleRevealDirector.End(); // 语音联动显隐全恢复防跨屏残留（2026-10-17）
             //（教学守卫应答器卸载 2026-11-02 随教学三连战改版整删——_tutorialResponder 链退役）
             _toast.Hide();

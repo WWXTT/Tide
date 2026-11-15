@@ -34,6 +34,11 @@ namespace SynergyUI
 
         private readonly AiStrategy _strategy;
 
+        /// <summary>当回合棋盘（阶段5 2026-11-15 审计 §2.1）：TakeTurnAsync 入口赋值——
+        /// AI 出永久物时按策略 PickPlaceCell 钉格（默认首空格=原 first-free 同序）；
+        /// 无棋盘（旧探针/部分无头局）=null 自然跳过钉格。</summary>
+        private GameBoard.BoardState _board;
+
         /// <summary>注入策略（null=通用 GeneralAiStrategy，行为与策略化之前完全一致）。</summary>
         public SimpleAI(AiStrategy strategy = null) => _strategy = strategy ?? AiStrategy.General;
 
@@ -192,6 +197,7 @@ namespace SynergyUI
             var core = ctrl.Core;
             var me = ctrl.TurnPlayer;
             if (core == null || me == null || me != core.TurnEngine.TurnPlayer) return;
+            _board = ctrl.Board; // 阶段5：本回合棋盘（可能为 null——无棋盘局跳过落格）
 
             // AI 目标排序钩子（2026-11-01）：本回合的自动目标选择按策略排序
             //（解横置选最高攻 / 代价选低攻或已横置 / 加攻集中同一生物——红快攻专用；
@@ -221,17 +227,23 @@ namespace SynergyUI
             for (int i = 0; i < MaxActionRounds && !core.IsGameOver; i++)
             {
                 // 2026-11-14 用户定案：6 费前**先补满地再出牌**（策略钩子；默认 false 行为不变）
+                if (Environment.GetEnvironmentVariable("TIDE_DEBUG_LOOP") == "1")
+                    Console.WriteLine($"[dbg-loop] T{core.TurnEngine.TurnNumber} round={i} pool={core.ElementPool.GetPooledCards(me).Count()} topUp={_strategy.WantsLandTopUp(core, me)}");
                 if (_strategy.WantsLandTopUp(core, me)) PlayLands(core, me);
                 // 出牌/技能源已 async 化（含出牌舞台等待）；`|` 非短路——每轮仍全试一遍再判进展
                 //（墓地出牌臂已随 2026-10-30 归土改版整删——归土=回合末自动复活，无 AI 动作位）
                 // 2026-11-01：绿套·成长期技能先于出牌（策略钩子 SkillBeforeCards）——1 费回春藤
                 // 会把绿地花光，技能（绿 3）就发不动了。
                 bool progress = DrainVoluntaryQueue(core)
-                              | ActivateBattlefieldAbilities(core, me);
+                              | await ActivateBattlefieldAbilitiesAsync(core, me);
                 progress |= _strategy.SkillBeforeCards(core, me)
                     ? (await UseHeroSkillAsync(core, me) | await PlayBestAffordableCardAsync(core, me))
                     : (await PlayBestAffordableCardAsync(core, me) | await UseHeroSkillAsync(core, me));
+                if (Environment.GetEnvironmentVariable("TIDE_DEBUG_LOOP") == "1")
+                    Console.WriteLine($"[dbg-loop] T{core.TurnEngine.TurnNumber} round={i} progress={progress} pool={core.ElementPool.GetPooledCards(me).Count()}");
                 if (!progress) break;
+                // 阶段2（2026-11-15 A0）：本轮上栈动作（待发自愿/场上主动）给人响应窗后再进下一轮
+                await SettleAfterAiActionAsync(core, me);
                 await PaceAsync(); // 人机节奏：本轮动作落地后等表现层演完再做下一个动作
             }
 
@@ -250,11 +262,21 @@ namespace SynergyUI
             if (!core.IsGameOver)
             {
                 bool actedAfterCombat = await UseHeroSkillAsync(core, me);
-                for (int i = 0; i < 3; i++)
+                // 2026-11-15（用户口径）：技能发动成功后**回到主循环**——绿套 T3/T5 是
+                // 「牺牲 → 立刻补地 → 回收」，旧的「只补 3 张牌、不补地」会让回收永远差 1 费。
+                if (actedAfterCombat)
                 {
-                    if (!await PlayBestAffordableCardAsync(core, me)) break;
-                    actedAfterCombat = true;
-                    await PaceAsync(); // 人机节奏：战后补牌逐张可读
+                    for (int round = 0; round < MaxActionRounds && !core.IsGameOver; round++)
+                    {
+                        if (_strategy.WantsLandTopUp(core, me)) PlayLands(core, me);
+                        bool progress = DrainVoluntaryQueue(core) | await ActivateBattlefieldAbilitiesAsync(core, me);
+                        progress |= _strategy.SkillBeforeCards(core, me)
+                            ? (await UseHeroSkillAsync(core, me) | await PlayBestAffordableCardAsync(core, me))
+                            : (await PlayBestAffordableCardAsync(core, me) | await UseHeroSkillAsync(core, me));
+                        if (!progress) break;
+                        await SettleAfterAiActionAsync(core, me); // 阶段2：同主循环（A0）
+                        await PaceAsync();
+                    }
                 }
                 if (actedAfterCombat)
                     await DoCombatAsync(core, me);
@@ -294,6 +316,8 @@ namespace SynergyUI
             foreach (var card in unaffordable)
             {
                 // 各自地牌槽上限（2026-10-11：个人曲线；缺省锁色=主色份额最多色）
+                if (Environment.GetEnvironmentVariable("TIDE_DEBUG_PLAY") == "1")
+                    Console.WriteLine($"[dbg-land] T{core.TurnEngine.TurnNumber} {me.Name} pool={core.ElementPool.GetPooledCards(me).Count()} canAdd={core.ElementPool.CanAddLand(me)} hand={string.Join(",", (core.ZoneManager.GetCards(me, Zone.Hand) ?? new List<Card>()).Select(c => ((c as CardWrapper)?.GetData()?.CardName ?? c.ID) + ":" + _strategy.ShouldLand(core, me, c)))}");
                 if (!core.ElementPool.CanAddLand(me)) break;
                 // 2026-11-03：ShouldLand 允许按**当前地数**动态判定（红套「操控地≤3」奖励门）——
                 // 快照列表是按放地前的地数筛的，前面每放一张都可能改变判定，故逐张重问。
@@ -309,6 +333,41 @@ namespace SynergyUI
 
         // ======================================== 动作耗尽循环的动作源 ========================================
 
+        /// <summary>已提示过的「不支持原子」效果 Id（一次性告警去重——防每回合刷屏）。</summary>
+        private static readonly HashSet<string> _unsupportedAtomLogged = new HashSet<string>();
+
+        /// <summary>AI 无法正确执行的原子（2026-11-15 审计 §1.1）：MoveUnit 需选格交互（AI/无头/
+        /// 服务器无选格桥=移动空转）；SearchDeck/DeclareHand/DeclareDeck 需卡名文本输入（无预置=
+        /// 结算期取消、已付费用不退）。含这些原子且无可用预置的效果 AI 不发动/不打出
+        /// （防付费后空转），待交互接线后逐条移除本闸。</summary>
+        private static bool UnsupportedForAi(EffectDefinition def)
+        {
+            if (def?.Effects == null) return false;
+            foreach (var atom in def.Effects)
+            {
+                if (atom == null) continue;
+                if (atom.Type == AtomicEffectType.MoveUnit) return true;
+                if ((atom.Type == AtomicEffectType.SearchDeck
+                     || atom.Type == AtomicEffectType.DeclareHand
+                     || atom.Type == AtomicEffectType.DeclareDeck)
+                    && string.IsNullOrWhiteSpace(atom.StringValue))
+                    return true;
+            }
+            return false;
+        }
+
+        /// <summary>不支持原子的裁剪取证（§0.2.6 所有裁剪留日志）：每效果 Id 一次 TideLog 级告警；
+        /// TIDE_DEBUG_AI=1 时逐次 Console 明细（与 TIDE_DEBUG_PLAY 同款探针口径）。</summary>
+        private static void LogUnsupportedSkip(EffectDefinition def, string source)
+        {
+            if (def == null) return;
+            string key = def.Id ?? def.DisplayName ?? "?";
+            if (_unsupportedAtomLogged.Add(key))
+                TideLog.Warn($"[AI] 跳过 AI 无法执行的效果（选格/卡名交互缺失，防白付代价）：{source} {def.DisplayName}（{key}）——见 docs/AI与脚本执行修复_修改计划.md §1");
+            if (Environment.GetEnvironmentVariable("TIDE_DEBUG_AI") == "1")
+                Console.WriteLine($"[dbg-ai] skip unsupported effect={key} src={source}");
+        }
+
         /// <summary>英雄技能（2026-10-07 卡牌化：技能=构筑标记的结界卡）：在场/未横置/未沉默/
         /// 费用可付由 HeroSkillSystem.ActivateAsync 统一守卫（含 lazy 回填）——此处只做策略筛选。
         /// 2026-10-16 async 化：await 替代同步阻塞；技能非出牌——舞台仅 hold 1 秒节奏，无卡面/箭头。</summary>
@@ -317,11 +376,22 @@ namespace SynergyUI
             if (!_strategy.WantHeroSkill(core, me))
                 return false;
 
-            var ok = await GameActions.ActivateHeroSkill(core, me);
+            // 阶段4（2026-11-15 审计 §2.4）：多效果技能经策略择一（默认 0=旧行为）；
+            // 阶段1闸（§1.2）改按**所选效果**判：含 AI 无法执行的原子（选格/无预置卡名）→ 不发动。
+            var skillEffects = HeroSkillSystem.SkillEffectsOf(HeroSkillSystem.ResolveSkillCard(core, me));
+            int effectIndex = skillEffects.Count > 1 ? _strategy.PickHeroSkillEffect(core, me, skillEffects) : 0;
+            if (effectIndex < 0 || effectIndex >= skillEffects.Count) effectIndex = 0;
+            if (skillEffects.Count > 0 && UnsupportedForAi(skillEffects[effectIndex]))
+            {
+                LogUnsupportedSkip(skillEffects[effectIndex], $"skill#{effectIndex}");
+                return false;
+            }
+
+            var ok = await GameActions.ActivateHeroSkill(core, me, effectIndex);
             if (ok)
             {
                 await StageHoldAsync(core);
-                SettleStack(core);
+                await SettleAfterAiActionAsync(core, me); // 阶段2（2026-11-15 A0）：人类在场=开响应窗再结算
             }
             return ok;
         }
@@ -338,6 +408,8 @@ namespace SynergyUI
             foreach (var effect in pending)
             {
                 if (effect.Controller != me) continue; // 只发动自己队列里的待发
+                // 阶段1闸（2026-11-15 审计 §1.1）：AI 无法执行的原子不发动（防白付代价）
+                if (UnsupportedForAi(effect.Effect)) { LogUnsupportedSkip(effect.Effect, "voluntary"); continue; }
                 // 策略闸（2026-11-15）：自愿队列也必须经策略同意（绿套用它把「牺牲」锁进脚本）
                 if (!_strategy.AllowVoluntaryActivation(core, me, effect.Source as Card, null))
                     continue;
@@ -347,8 +419,10 @@ namespace SynergyUI
             return any;
         }
 
-        /// <summary>枚举场上卡的主动能力并逐个发动（CanActivate 预检 + 引擎权威校验）。</summary>
-        private bool ActivateBattlefieldAbilities(GameCore core, Player me)
+        /// <summary>枚举场上卡的主动能力并逐个发动（CanActivate 预检 + 引擎权威校验）。
+        /// 阶段2（2026-11-15 审计 A0）async 化：每次发动后走 SettleAfterAiActionAsync——
+        /// 人类在场=开响应窗，无头=同步排干（行为同旧）。</summary>
+        private async Cysharp.Threading.Tasks.UniTask<bool> ActivateBattlefieldAbilitiesAsync(GameCore core, Player me)
         {
             bool any = false;
             var battlefield = new List<Card>(core.ZoneManager.GetCards(me, Zone.Battlefield) ?? new List<Card>());
@@ -359,11 +433,16 @@ namespace SynergyUI
                 foreach (var def in GetEffectDefinitions(source))
                 {
                     if (!def.IsActivatedEffect) continue; // 只管主动；触发式由引擎事件驱动
+                    if (UnsupportedForAi(def)) { LogUnsupportedSkip(def, "activate"); continue; } // 阶段1闸（2026-11-15 审计 §1.1）：防白付代价
                     if (CardCore.Attribute.SuppressRules.IsOverloaded(source)) continue; // §11 预检：过载卡主动失效
                     if (!_strategy.AllowVoluntaryActivation(core, me, source, def.DisplayName)) continue; // 策略闸
                     if (!executor.CanActivate(def, source, me, me, phase, core.TurnEngine.TurnNumber)) continue;
                     if (GameActions.ActivateEffect(core, me, def, source))
+                    {
                         any = true;
+                        await SettleAfterAiActionAsync(core, me); // 阶段2：给人响应窗
+                        if (core.IsGameOver) return any;
+                    }
                 }
             }
             return any;
@@ -388,7 +467,7 @@ namespace SynergyUI
                     Console.WriteLine($"[dbg-play] T{core.TurnEngine.TurnNumber} {me.Name} {dn} canPlay={CanPlayCard(core, me, dc, Zone.Hand)}"
                         + $" hold={_strategy.ShouldHold(core, me, dc)}"
                         + $" score={_strategy.CardPlayScore(core, me, dc, ContainsHarmfulAtom, TotalCost):F0}"
-                        + $" cost={TotalCost(dc):F0} mana={core.ElementPool.GetTotalAvailableMana(me)}");
+                        + $" cost={TotalCost(dc):F0} real={GameActions.GetCardCost(dc, 0).Total:F1} mana={core.ElementPool.GetTotalAvailableMana(me)}");
                 }
             }
             var ordered = hand
@@ -400,6 +479,11 @@ namespace SynergyUI
             {
                 int mode = ChooseMode(core, me, card);
                 if (mode < 0) continue; // 抉择卡全模式不可发动 → 换下一张
+                // 阶段1闸（2026-11-15 审计 §1.1/§1.2）：所选模式含 AI 无法执行的原子
+                //（MoveUnit 选格 / 无预置卡名宣言）→ 不打出（引擎契约：不付费、卡留手）。
+                var modeDefs = GameActions.GetCastableEffectDefinitions(card);
+                var chosenDef = modeDefs != null && modeDefs.Count > 0 ? modeDefs[Math.Clamp(mode, 0, modeDefs.Count - 1)] : null;
+                if (UnsupportedForAi(chosenDef)) { LogUnsupportedSkip(chosenDef, "play"); continue; }
                 // 策略钉目标（2026-11-04 用户定案）：血偿只打 >4 血、连击只贴 ≥4 攻的可攻击单位——
                 // 通用择优够不到这些口径。null=不接管（回落通用），空表=本次不满足就不打。
                 var pinned = _strategy.PickSpellTargets(core, me, card, mode);
@@ -408,8 +492,10 @@ namespace SynergyUI
                 var targets = pinned ?? ChooseTargets(core, me, card, mode);
                 if (GameActions.PlayCard(core, me, card, targets, Zone.Hand, mode))
                 {
+                    TryPinPlacement(core, me, card); // 阶段5：永久物钉格（声明成功即 Pin，与人类 PlayCardFinal 同时点）
                     await StageCastAsync(core, card, targets); // 出牌舞台：亮 1 秒（卡面+箭头）再结算
-                    SettleStack(core); // cast 已上栈：双 Pass 排干（AI 无响应 → 立即结算付费）
+                    // 阶段2（2026-11-15 A0）：cast 已上栈——人类在场走响应窗泵（可反制），无头双 Pass 排干
+                    await SettleAfterAiActionAsync(core, me);
                     return true;
                 }
             }
@@ -417,6 +503,21 @@ namespace SynergyUI
         }
 
         // 墓地出牌（TryGraveyardPlayAsync）已随 2026-10-30 归土改版整删——归土=回合末自动复活，无出牌动作位。
+
+        /// <summary>AI 落格（阶段5 2026-11-15 审计 §2.1）：只对永久物（生物/结界——法术/场地卡不占
+        /// 单位区格）；声明成功后即 PinCard（与人类 PlayCardFinal 的钉格同时点，入场 Resync 钉优先
+        /// 生效）。无棋盘/无空格跳过；策略默认取首空格=与引擎 first-free 同序（默认行为不变）。</summary>
+        private void TryPinPlacement(GameCore core, Player me, Card card)
+        {
+            if (_board == null || card == null || card.IsSpellCard() || card.IsFieldCard()) return;
+            int ownerIdx = ReferenceEquals(me, core.Player1) ? 0 : 1;
+            var cells = new List<(int x, int z)>();
+            foreach (var c in GameBoard.BoardLayout.UnitCells(ownerIdx))
+                if (_board.CardAt(c.x, c.z) == null) cells.Add((c.x, c.z));
+            if (cells.Count == 0) return;
+            var pick = _strategy.PickPlaceCell(core, me, card, cells);
+            if (cells.Contains(pick)) _board.PinCard(card, pick.x, pick.z);
+        }
 
         // ======================================== 出牌辅助 ========================================
 
@@ -791,6 +892,23 @@ namespace SynergyUI
         // 力量口径同前——LayerEngine 实时值，权威结算仍在引擎）。
 
         // ======================================== 收尾 ========================================
+
+        /// <summary>AI 动作后的结算（2026-11-15 审计 A0）：人类对手在场时走响应窗泵——人类可响应 AI 的
+        /// 出牌/场上主动/英雄技能（与攻击窗同权，修复「AI 排干栈跳过人类」的规则不对称）；无头/AI-vs-AI
+        /// 仍走 DrainStack（同步、零行为变化——TakeTurn 同步路径不引入 await 死锁）。
+        /// 泵因并发让路/异常未收口时兜底排干；别的泵在途时不抢排（ResponsePumpInFlight 闸）。</summary>
+        private async Cysharp.Threading.Tasks.UniTask SettleAfterAiActionAsync(GameCore core, Player me)
+        {
+            if (core == null) return;
+            bool humanOpponent = me?.Opponent != null && !me.Opponent.IsAI
+                                 && ResponseWindowService.HumanResponder != null;
+            if (!humanOpponent || core.IsGameOver) { SettleStack(core); return; }
+
+            await GameActions.SettleResponseWindowAsync(core);
+            if (!core.ResponsePumpInFlight && !core.IsGameOver
+                && (!core.StackEngine.IsEmpty || core.StackEngine.HasPendingEffects))
+                SettleStack(core);
+        }
 
         /// <summary>排干栈：双 Pass 触发结算（AI 自动目标为同步路径，通常即时排干）。带重试上限保险。
         /// 引擎统一实现见 GameActions.DrainStack（验证器/UI 快进与 AI 共用）。</summary>

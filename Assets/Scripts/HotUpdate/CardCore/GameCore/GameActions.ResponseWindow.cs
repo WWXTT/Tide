@@ -304,7 +304,11 @@ namespace CardCore
             switch (opt.Kind)
             {
                 case ResponseOption.ResponseKind.GuardAbility:
-                    return core.StackEngine.PushGuardDeclaration(opt.SourceCard, opt.AttackInstance, p);
+                    // 角色守卫（2026-11-15 审计 §2.2 对齐）：SourcePlayer 非空=角色拦截者
+                    //（候选收集口早已有角色行，此前 AI 兜底把它过滤掉了）。
+                    return core.StackEngine.PushGuardDeclaration(
+                        opt.SourceCard != null ? (Entity)opt.SourceCard : (Entity)opt.SourcePlayer,
+                        opt.AttackInstance, p);
                 case ResponseOption.ResponseKind.HandCard:
                     return opt.SourceCard != null
                         && PlayCardInResponse(core, p, opt.SourceCard, opt.Targets, opt.ModeIndex,
@@ -327,7 +331,10 @@ namespace CardCore
         private static ResponseOption DefaultAiRespond(GameCore core, Player defender, List<ResponseOption> options)
         {
             if (options == null || options.Count == 0) return null;
-            var guards = options.Where(o => o.Kind == ResponseOption.ResponseKind.GuardAbility && o.SourceCard != null).ToList();
+            // 角色守卫入候选（2026-11-15 审计 §2.2）：此前只收 SourceCard!=null——AI 拿到攻击弹药
+            //（HeroAttackCounter）也不会用角色拦截，与本地人类能力不对齐。
+            var guards = options.Where(o => o.Kind == ResponseOption.ResponseKind.GuardAbility
+                                            && (o.SourceCard != null || o.SourcePlayer != null)).ToList();
             if (guards.Count == 0) return null;
 
             var first = guards[0];
@@ -352,7 +359,7 @@ namespace CardCore
             if (bigger <= 0)
                 return PickGuard(guards, incoming, preferSurvivor: true); // 最高威胁：盯防，打死了也拦
 
-            var survivors = guards.Where(g => g.SourceCard.GetLife() > incoming).ToList();
+            var survivors = guards.Where(g => GuarderLife(g) > incoming).ToList();
             // 富余守卫（> 更大威胁的数量）才白拦这一击；否则留给后面的高威胁
             return survivors.Count > bigger ? PickGuard(survivors, incoming, preferSurvivor: true) : null;
         }
@@ -364,7 +371,7 @@ namespace CardCore
             int bestLife = int.MaxValue;
             foreach (var g in guards)
             {
-                int life = g.SourceCard.GetLife();
+                int life = GuarderLife(g);
                 if (life <= incoming) continue;
                 if (life < bestLife) { best = g; bestLife = life; }
             }
@@ -373,12 +380,16 @@ namespace CardCore
             int lowest = int.MaxValue;
             foreach (var g in guards)
             {
-                int life = g.SourceCard.GetLife();
+                int life = GuarderLife(g);
                 if (life <= 0) continue;
                 if (life < lowest) { best = g; lowest = life; }
             }
             return best;
         }
+
+        /// <summary>拦截者生命读数（2026-11-15 角色守卫）：生物=SourceCard.GetLife()；角色=Player.Life。</summary>
+        private static int GuarderLife(ResponseOption g)
+            => g.SourceCard != null ? g.SourceCard.GetLife() : (g.SourcePlayer?.Life ?? 0);
 
         /// <summary>威胁比=攻击力/生命（7/3 远高于 1/1；同为 1 时用攻击力决胜）。</summary>
         private static float ThreatRatio(GameCore core, Entity e)

@@ -156,10 +156,13 @@ namespace SynergyUI
                     //（弹选清账后续排）没走完时直接施放会叠上未空栈=速度0非法连锁。教学剧本全部
                     // 串行动作，正常路径此处恒空栈零开销；DrainStack 幂等。
                     GameActions.DrainStack(core);
-                    var targets = ResolveTargets(core, me, action.targets);
+                    var playDef = CastDefOf(card, action.mode);
+                    var targets = ResolveTargets(core, me, action.targets, card, playDef, out var zf);
+                    if (zf && (targets == null || targets.Count == 0))
+                        return LogResult(action, false, "区域令牌失败（组不存在/def 缺失）——不回落代选");
                     // 2026-11-15 目标选择对齐：动态数量法术按「目标张数=本次选的 N」计费/执行
                     //（与人类声明期「选几个收几份」同口径；无动态原子=null，行为不变）
-                    var counts = BuildDynamicCounts(CastDefOf(card, action.mode), targets?.Count ?? 0);
+                    var counts = BuildDynamicCounts(playDef, targets?.Count ?? 0);
                     bool ok = GameActions.PlayCard(core, me, card, targets,
                         Zone.Hand, action.mode, null, counts, out var reason);
                     if (!ok) return LogResult(action, false, $"出牌被拒：{reason}");
@@ -189,7 +192,9 @@ namespace SynergyUI
                     var effects = skillCard != null ? HeroSkillSystem.SkillEffectsOf(skillCard) : null;
                     var def = effects != null && effects.Count > 0
                         ? effects[Math.Clamp(action.mode, 0, effects.Count - 1)] : null;
-                    var targets = ResolveTargets(core, me, action.targets);
+                    var targets = ResolveTargets(core, me, action.targets, skillCard, def, out var zfSkill);
+                    if (zfSkill && (targets == null || targets.Count == 0))
+                        return LogResult(action, false, "区域令牌失败（组不存在/def 缺失）——不回落代选");
                     var counts = BuildDynamicCounts(def, targets?.Count ?? 0);
                     bool ok = GameActions.ActivateHeroSkill(core, me,
                         Math.Max(0, action.mode), targets, counts, out var skillReason);
@@ -217,7 +222,9 @@ namespace SynergyUI
                     }
                     if (def == null)
                         return LogResult(action, false, $"{action.card} 无主动效果（或序号越界）");
-                    var actTargets = ResolveTargets(core, me, action.targets);
+                    var actTargets = ResolveTargets(core, me, action.targets, source, def, out var zfAct);
+                    if (zfAct && (actTargets == null || actTargets.Count == 0))
+                        return LogResult(action, false, "区域令牌失败（组不存在/def 缺失）——不回落代选");
                     var actCounts = BuildDynamicCounts(def, actTargets?.Count ?? 0);
                     if (!GameActions.ActivateEffect(core, me, def, source, actTargets, actCounts, 0, out var actReason))
                         return LogResult(action, false, actReason ?? "主动效果宣动被拒（主阶段/横置/速度门）");
@@ -288,19 +295,16 @@ namespace SynergyUI
             return FindOnBattlefield(core, me, token);
         }
 
-        /// <summary>出牌目标串（逗号分隔令牌）→ 目标列表；null/"auto"=引擎自动解析。</summary>
-        private static List<Entity> ResolveTargets(GameCore core, Player me, string spec)
-        {
-            if (string.IsNullOrEmpty(spec) || spec == "auto") return null;
-            var list = new List<Entity>();
-            foreach (var raw in spec.Split(','))
-            {
-                var entity = ResolveEntity(core, me, raw.Trim());
-                if (entity == null) TideLog.Warn($"[ScriptedAi] 目标令牌不可解析：{raw}");
-                else list.Add(entity);
-            }
-            return list.Count > 0 ? list : null;
-        }
+        /// <summary>出牌目标串（逗号分隔令牌）→ 目标列表；null/"auto"=引擎自动解析。
+        /// 2026-11-15 共享规格 v0.2 §5：区域令牌 `<归属><区域>[×N]` 走引擎单源
+        /// TargetZoneTokens.Resolve（候选=效果 def 的 spec 计划候选，与人类窗口同源；
+        /// 分组=TargetZoneGrouping）；旧令牌（卡 ID/hero）仍走本类 ResolveEntity。
+        /// zoneFailed=任一区域令牌失败（组不存在/def 缺失/×N 非法）——调用方在「最终目标为空」时
+        /// 判动作失败，不得回落引擎代选（防静默换区）。</summary>
+        private static List<Entity> ResolveTargets(GameCore core, Player me, string spec,
+            Card sourceCard, EffectDefinition def, out bool zoneFailed)
+            => TargetZoneTokens.Resolve(core, me, spec, sourceCard, def,
+                token => ResolveEntity(core, me, token), out zoneFailed);
 
         /// <summary>法术所选模式的施放效果（modeIndex 索引可施放列表；null=非目标卡/越界）。</summary>
         private static EffectDefinition CastDefOf(Card card, int modeIndex)

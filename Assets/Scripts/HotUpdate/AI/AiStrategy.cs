@@ -388,6 +388,10 @@ namespace CardCore.AI
         /// 先甩 1 费填充牌会把绿地榨干——所以 3 费起让技能先落地。默认 false（出牌优先）。</summary>
         public virtual bool SkillBeforeCards(GameCore core, Player me) => false;
 
+        /// <summary>多效果英雄技能的效果择一（2026-11-15 审计 §2.4）：默认 0=旧行为（AI 恒用
+        /// 第一个效果）；派生策略可按场面覆写。越界值由调用方钳回 0。</summary>
+        public virtual int PickHeroSkillEffect(GameCore core, Player me, IReadOnlyList<EffectDefinition> effects) => 0;
+
         /// <summary>响应窗口决策（2026-11-02 AI 响应窗·任务A）：AI 侧响应候选（对手回合连锁窗）
         /// 交策略抉择——返回所选候选即打出/发动；null=不作主（回落内置守卫启发 DefaultAiRespond，
         /// 见 GameActions.SettleResponseWindowAsync 的 ?? 兜底）。默认 null=与策略化之前同行为。
@@ -403,12 +407,53 @@ namespace CardCore.AI
         /// <summary>出牌目标接管（2026-11-04）：null=不接管（回落通用择优）；空表=本次不满足，别打。</summary>
         public virtual List<Entity> PickSpellTargets(GameCore core, Player me, Card card, int modeIndex) => null;
 
+        /// <summary>永久物落格（2026-11-15 审计 §2.1）：cells=己方单位区空格（BoardLayout.UnitCells
+        /// 序）。默认取首个=原 first-free 行为（站位价值为零但不倒退）；派生策略可按邻接/光环/攻击
+        /// 距离覆写。返回不在 cells 内的值=放弃钉格（回落自动落位）。</summary>
+        public virtual (int x, int z) PickPlaceCell(GameCore core, Player me, Card card,
+            IReadOnlyList<(int x, int z)> cells)
+            => cells != null && cells.Count > 0 ? cells[0] : (-1, -1);
+
         /// <summary>攻击前一拍（2026-11-04）：返回要「随这一击一起打出去」的牌（null=不打）。
         /// 由 SimpleAI.DoCombatAsync 在宣言攻击前调用——「攻击的同时使用法术」只是操作顺序。</summary>
         public virtual Card PickAttackTimeSpell(GameCore core, Player me, Card attacker, Entity target,
             List<Entity> outTargets) => null;
 
         // ======================================== 共用小工具（策略实现用） ========================================
+
+        /// <summary>取某区域组的候选（按引擎原序；2026-11-15 共享规格 v0.2 §4）：
+        /// sideRank=0 己方/1 对方（Chooser 视角）；组不存在=空表。分组走 TargetZoneGrouping
+        /// 单一源（req.ZoneGroups 未算时懒算，不写回请求）；返回实体引用=候选本尊。</summary>
+        protected static List<Entity> CandidatesInZone(TargetSelectionRequest req, int sideRank, int zoneRank)
+        {
+            var result = new List<Entity>();
+            if (req?.Candidates == null) return result;
+            var groups = req.ZoneGroups ?? TargetZoneGrouping.Build(req);
+            if (groups == null) return result;
+            foreach (var g in groups)
+            {
+                if (g?.Indices == null || g.SideRank != sideRank || g.ZoneRank != zoneRank) continue;
+                foreach (var i in g.Indices)
+                    if (i >= 0 && i < req.Candidates.Count && req.Candidates[i] != null)
+                        result.Add(req.Candidates[i]);
+            }
+            return result;
+        }
+
+        /// <summary>把候选重排成「按区域组序」（2026-11-15 共享规格 v0.2 §4）——组序=引擎分组排序，
+        /// 组内保持传入顺序（OrderBy 稳定排序）；不在任何组的候选按原相对序垫底。不重排 req.Candidates。</summary>
+        protected static List<Entity> OrderByZoneGroup(TargetSelectionRequest req, IEnumerable<Entity> ordered)
+        {
+            var list = ordered?.Where(e => e != null).ToList() ?? new List<Entity>();
+            if (req?.Candidates == null || list.Count <= 1) return list;
+            var groups = req.ZoneGroups ?? TargetZoneGrouping.Build(req);
+            var groupOrder = new Dictionary<Entity, int>();
+            for (int gi = 0; gi < (groups?.Count ?? 0); gi++)
+                foreach (var i in groups[gi].Indices)
+                    if (i >= 0 && i < req.Candidates.Count && req.Candidates[i] != null)
+                        groupOrder[req.Candidates[i]] = gi;
+            return list.OrderBy(e => groupOrder.TryGetValue(e, out var g) ? g : int.MaxValue).ToList();
+        }
 
         /// <summary>实体当前生命（EntityEffectExtensions.GetLife——含光环加成，Player/Card 同口径）。</summary>
         protected static int LifeOf(Entity e) => e != null ? e.GetLife() : 0;
@@ -464,11 +509,25 @@ namespace CardCore.AI
         /// <summary>整局解绑（对局结束/Shutdown——Player 实例每局新建，清空防跨局累积）。</summary>
         public static void Clear() => _byPlayer.Clear();
 
-        /// <summary>AiResponder 查表决策口：查不到绑定=null（回落 DefaultAiRespond）。</summary>
+        /// <summary>AiResponder 查表决策口：查不到绑定=null（回落 DefaultAiRespond）。
+        /// 2026-11-15 审计 §2.3：策略不作主（PickResponse=null）时，兜底发动「自愿待发」候选
+        ///（可选增益，多数情况发动即赚——人类在响应窗本就有此选择，AI 此前从不发动）；
+        /// 逐条经策略闸 AllowVoluntaryActivation（绿套「牺牲」脚本锁等例外由此放行/拦截）。
+        /// ActivatedAbility 不做通用兜底（需费用/收益判断，留给策略 PickResponse 扩展点）。</summary>
         public static ResponseOption PickFor(GameCore core, Player holder, List<ResponseOption> options)
-            => holder != null && _byPlayer.TryGetValue(holder, out var strategy)
-                ? strategy.PickResponse(core, holder, options)
-                : null;
+        {
+            if (holder == null || !_byPlayer.TryGetValue(holder, out var strategy)) return null;
+            var pick = strategy.PickResponse(core, holder, options);
+            if (pick != null) return pick;
+
+            foreach (var o in options ?? new List<ResponseOption>())
+            {
+                if (o?.Kind != ResponseOption.ResponseKind.VoluntaryEffect || o.Pending?.Effect == null) continue;
+                if (!strategy.AllowVoluntaryActivation(core, holder, o.SourceCard, o.Label)) continue;
+                return o;
+            }
+            return null;
+        }
     }
 
     /// <summary>通用策略=原 SimpleAI 行为（不注入策略时的缺省）。</summary>

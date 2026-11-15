@@ -198,10 +198,13 @@ namespace CardCore.Network
     /// v19（2026-11-12 落格坐标权威化）：MsgIntentPlayCard 新增 CellX/CellZ（声明期落格，-1=未指定）；
     /// SerializableRuntimeCardState 新增 CellX/CellZ（快照内绝对棋盘坐标，-1=非盘面卡）——服务端按
     /// 玩家选格钉格并回传，客户端按 ViewerSeat 镜像到观察者坐标（根治双方生物落格不一致）。
-    /// 布局变更，新旧端互拒（无兼容层）。</summary>
+    /// 布局变更，新旧端互拒（无兼容层）。
+    /// v20（2026-11-15 目标候选·区域信息共享规格 v0.2 §7）：MsgSelectRequest 新增 ZoneGroups
+    ///（MsgSelectZoneGroup{Label,Start,Count}——服务端把引擎 TargetZoneGrouping 分组投影成连续段
+    /// 下发，客户端选择窗同款分组渲染；null/空=不分组旧行为）。布局变更，新旧端互拒（无兼容层）。</summary>
     public static class NetworkProtocol
     {
-        public const ushort Version = 19;
+        public const ushort Version = 20;
 
         /// <summary>接收侧版本闸（v8 起）：信封版本与本端不符 = 新旧端互拒（无兼容层）。
         /// 0=legacy 草稿期数据，同样失配。</summary>

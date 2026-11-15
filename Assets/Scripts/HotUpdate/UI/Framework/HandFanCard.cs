@@ -21,9 +21,18 @@ namespace SynergyUI
     ///    手牌预制体上摆位的常开占位层（垫在嵌套 ACard 卡面之下）；运行时归一为「卡面四边
     ///    外扩 36px」的雾光画布并挂 SynergyUI/FogEdgeGlow 材质（逐卡随机 _Seed——雾形各异）。
     ///    雾带扩散/噪声翻涌/呼吸全在 shader 内 _Time 自驱，C# 只按可用性缓动 _Fade 淡入淡出。
+    /// ⑤ 拖拽出牌（2026-11-15 全拖拽改版）：IBeginDrag/IDrag/IEndDrag 三接口——起手 12px 位移门
+    ///    （防点选/点效果行误触），逻辑下沉 HandFanView（扇区状态机），落点裁决归宿主屏钩子
+    ///    OnDragEnd（战场=发动/地牌长条=放地/边缘=取消，见 BattleScreen.HandleFanDragEnd）。
     /// </summary>
-    public sealed class HandFanCard : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IPointerClickHandler
+    public sealed class HandFanCard : MonoBehaviour,
+        IPointerEnterHandler, IPointerExitHandler, IPointerClickHandler,
+        IBeginDragHandler, IDragHandler, IEndDragHandler
     {
+        // ---- 拖拽起手门（2026-11-15）：位移 > 12px 才真起拖（平方比较免开方；UGUI 自带
+        // dragThreshold 更小——10~12px 间只吞点击不误起拖，松手无行为=安全死区） ----
+        private const float DragBeginSq = 12f * 12f;
+        private Vector2 _dragPressPos;
         /// <summary>对账键（引擎卡实例运行时 id）。</summary>
         public uint RuntimeId;
 
@@ -123,6 +132,30 @@ namespace SynergyUI
             Fan?.NotifyCardClicked(this); // 卡体点击（2026-11-03 Information）：转发扇→宿主 OnCardClick；未挂=无操作
         }
 
+        // ---- 拖拽三接口（2026-11-15 全拖拽改版）：转发扇区状态机（HandFanView.Begin/Move/EndDrag） ----
+
+        public void OnBeginDrag(PointerEventData eventData)
+        {
+            _dragPressPos = eventData.position; // 起手门基准（OnDrag 逐帧比对）
+        }
+
+        public void OnDrag(PointerEventData eventData)
+        {
+            if (Fan == null) return;
+            if (!Fan.Dragging)
+            {
+                if ((eventData.position - _dragPressPos).sqrMagnitude < DragBeginSq) return; // 12px 位移门
+                Fan.BeginDrag(this, eventData.position);
+            }
+            if (Fan.DraggingCard == this) Fan.MoveDrag(eventData.position);
+        }
+
+        public void OnEndDrag(PointerEventData eventData)
+        {
+            if (Fan != null && Fan.Dragging && Fan.DraggingCard == this)
+                Fan.EndDrag(eventData.position); // 落点裁决=宿主屏钩子（取消路径扇区自回手）
+        }
+
         public void SetTarget(Vector2 pos, float rot, float scale)
         {
             TargetPos = pos;
@@ -150,7 +183,14 @@ namespace SynergyUI
             _flyArcLift = arcLift;
             Fresh = false; // 飞入接管首帧行为（不再吸附）
             if (_flyGroup == null)
-                _flyGroup = GetComponent<CanvasGroup>() ?? gameObject.AddComponent<CanvasGroup>();
+            {
+                // 2026-11-15 根因修复：编辑器下原生组件缺失时 GetComponent 返回「假 null 死包装」
+                //（ReferenceEquals 非空），?? 是 CLR 语义看不见它——AddComponent 从不执行，
+                // 下一行 .alpha 即抛 MissingComponentException（木桩测试进场即炸）。改 Unity ==
+                // 判空（同 BeginDissolve 口径）；打包后 GetComponent 返回真 null，两种写法等价。
+                _flyGroup = GetComponent<CanvasGroup>();
+                if (_flyGroup == null) _flyGroup = gameObject.AddComponent<CanvasGroup>();
+            }
             _flyGroup.alpha = 0f;
             Pos = origin;
             _flyStartRot = Mathf.Sign(origin.x - TargetPos.x) * 10f;
@@ -326,12 +366,11 @@ namespace SynergyUI
             if (outline != null) outline.enabled = outlined;
         }
 
-        /// <summary>切换选中效果行（模式行点击入口）：边框/费用/使用钮文案联动（费用=该模式现付费）。
-        /// 纯 UI 态，不设回合/阶段闸（出牌闸在「使用」链上）。
-        /// 行点击=点选本卡（2026-11-12 点选制）：按钮随选中亮（条件达成时）。</summary>
+        /// <summary>切换选中效果行（模式行点击入口）：边框/费用/文案联动（费用=该模式现付费）。
+        /// 纯 UI 态，不设回合/阶段闸（出牌闸在拖拽/使用链上）。
+        /// 点选制已随 2026-11-15 全拖拽改版退役——行点击只切模式（拖拽出牌按当前选中行直入）。</summary>
         public void SelectEffectMode(int index)
         {
-            Fan?.SetSelected(this);
             var rows = Face != null ? Face.ActiveEffectRows : null;
             int n = rows != null && rows.Count > 0 ? rows.Count
                 : (_chromeItem?.ActiveEffectCosts?.Count ?? 0);

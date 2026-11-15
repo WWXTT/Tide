@@ -43,7 +43,7 @@ namespace SynergyUI
         private readonly Dictionary<int, HeroVisual> _heroes = new Dictionary<int, HeroVisual>(); // key=归属 0/1
         private readonly Material[] _heroMats = new Material[2]; // 每方着色克隆唯一实例（建柱即上色+对账收养共用，随 Dispose 销毁）
         private readonly HashSet<int> _fatigueBusy = new HashSet<int>(); // 疲劳演出在途 owner（重入只补浮字，2026-10-17）
-        private readonly Dictionary<long, TextMeshPro> _landCounts = new Dictionary<long, TextMeshPro>(); // key=格(x<<32|z)：地牌格「可用/上限」计数
+        // 地牌格「可用/上限」计数条（_landCounts）已随 2026-11-15 地牌长条改版退役（LandStripFx 数字段接管）
         // 演出持有（2026-10-13 战斗编舞）——引用计数（2026-10-18 并行演出修复）：同一单位可同时
         // 被在途演出与新一轮攻击捕获共同持有（连续攻击共享目标），各持一票，全弃才放行对账销毁；
         // 旧 HashSet 单票制下第一场演出 finally 会偷走第二场的持有 → 死亡目标被 RemoveStale 提前销毁
@@ -160,13 +160,7 @@ namespace SynergyUI
                 }
             _heroes.Clear(); // 角色柱随 _root 销毁；着色克隆实例（HeroPillar_*）逐柱自清（2026-10-18）
             _heroMats[0] = null; _heroMats[1] = null; // 缓存引用随实例销毁同步清（防 fake-null 复用）
-            foreach (var l in _landCounts.Values)
-                if (l != null)
-                {
-                    if (Application.isPlaying) Object.Destroy(l.gameObject);
-                    else Object.DestroyImmediate(l.gameObject);
-                }
-            _landCounts.Clear(); // 2026-10-17 计数条钉在 tile 上不随 _root 销毁，须自清（同 _creatureArrows）
+            // 地牌计数条自清段已随 2026-11-15 地牌长条改版退役（LandStripFx/WalletCellsFx 静态生命周期自理）
             _castings.Clear(); // 类型图标是 _root 子物体随根销毁；材质实例（CastType_*/CastFallback_*）逐类自清
             _castingLingers.Clear(); // linger 期图标随根销毁（延迟协程对已销毁对象 fake-null 判死退出）
             _castingCells.Clear();

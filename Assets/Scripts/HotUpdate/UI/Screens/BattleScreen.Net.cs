@@ -926,9 +926,19 @@ namespace SynergyUI
             int[] indices;
             if (req.Max > 1 && _regionSelector != null)
             {
+                // v20 区域分组（2026-11-15 共享规格 v0.2 §7.3）：服务端下发的 ZoneGroups 连续段
+                // 交给选择窗按统一隔断规则渲染；null/空=平铺（旧行为）。回传下标=消息候选序
+                //（服务端 SelectAsync 统一翻译回引擎序）。
+                List<(string label, int start, int count)> groups = null;
+                if (req.ZoneGroups != null && req.ZoneGroups.Length > 0)
+                {
+                    groups = new List<(string, int, int)>(req.ZoneGroups.Length);
+                    foreach (var g in req.ZoneGroups)
+                        if (g != null) groups.Add((g.Label, g.Start, g.Count));
+                }
                 var picked = await _regionSelector.SelectIndicesAsync(
                     options, Math.Max(1, Math.Min(req.Min, options.Count)),
-                    Math.Min(Math.Max(req.Max, 1), options.Count), title, "", false, 60f);
+                    Math.Min(Math.Max(req.Max, 1), options.Count), title, "", false, 60f, groups);
                 indices = picked != null ? picked.ToArray() : Array.Empty<int>();
             }
             else

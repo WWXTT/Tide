@@ -61,6 +61,7 @@ namespace CardCore.Editor.Tests
                 RunLureScenarios(log, checks);
                 RunPerAtomScenario(log, checks);
                 RunParallelBounceRecoverScenario(log, checks);
+                RunTargetZoneFeatureScenario(log, checks);
             }
             catch (Exception ex)
             {
@@ -168,6 +169,7 @@ namespace CardCore.Editor.Tests
                                 break;
                         }
                     }
+                    CheckZoneFeatures(lae, core, p1, checks, "诱敌场景");
                 }
                 finally
                 {
@@ -230,6 +232,7 @@ namespace CardCore.Editor.Tests
                     // LAE：逐原子笛卡尔积 3×2=6 行 n=2
                     var lae = new LegalActionEnumerator();
                     lae.Enumerate(core, p1);
+                    CheckZoneFeatures(lae, core, p1, checks, "逐原子场景");
                     var rows = lae.Actions.Where(a => a.Type == TideActionType.PlayCard && ReferenceEquals(a.Card, tCard)).ToList();
                     log.AppendLine("[逐原子] LAE 行数=" + rows.Count + " :: " + string.Join(" ; ",
                         rows.Select(r => r.Targets == null ? "null" : "n=" + r.Targets.Count + "[" + string.Join("+", r.Targets.Select(NameOf).ToArray()) + "]").ToArray()));
@@ -368,6 +371,7 @@ namespace CardCore.Editor.Tests
                     // LAE：分段组合展开 C(3,2)×C(4,2)=18 行，行内 4 目标（前 2 敌方战场 / 后 2 己方墓地）
                     var lae = new LegalActionEnumerator();
                     lae.Enumerate(core, p1);
+                    CheckZoneFeatures(lae, core, p1, checks, "并列弹回回收场景");
                     var rows = lae.Actions.Where(a => a.Type == TideActionType.PlayCard && ReferenceEquals(a.Card, tCard)).ToList();
                     var enemySet = new HashSet<Card> { e1, e2, e3 };
                     var graveSet = new HashSet<Card>(grave);
@@ -439,6 +443,110 @@ namespace CardCore.Editor.Tests
         /// <summary>按卡名取出一首张（不移区——调用方自行 MoveCard）。</summary>
         private static Card TakeByName(ZoneManager zm, Player owner, string name, Zone zone)
             => zm.GetCards(owner, zone).FirstOrDefault(c => IsName(c, name));
+
+        // ======================================== ④ 目标区域特征（v14 [12]/[13]，2026-11-15 规格 v0.2 §9.5） ========================================
+
+        /// <summary>盘面：己方元素池 2 张地 + 战场 1 只己方生物（教学·2=牺牲原子宿主）→
+        /// LAE 的 Activate 行按首目标区域携带 [12]targetZoneRank / [13]targetSideRank：
+        /// 池内地行 (2,0)、战场生物行 (1,0)、无目标行（EndTurn）(-1,-1)；全行恒等式=与
+        /// TargetZoneGrouping 单源判定逐行一致。</summary>
+        private static void RunTargetZoneFeatureScenario(StringBuilder log, List<Check> checks)
+        {
+            var catalog = CardCatalog.LoadAll().ToList();
+            var unitData = ByName(catalog, "教学·2");
+            var landData = ByName(catalog, "教学·1");
+            checks.Add(new Check(unitData != null && landData != null, "教学·2/教学·1 在卡池（区域特征场景前提）"));
+            if (unitData == null || landData == null) return;
+
+            var core = GameCore.Instance;
+            var deck1 = new List<CardData> { unitData, landData, landData, landData };
+            var deck2 = new List<CardData> { unitData, unitData };
+            core.InitGame(CardLoader.BuildDeck(deck1, 1), CardLoader.BuildDeck(deck2, 1));
+            var p1 = core.Player1;
+            p1.IsAI = false; core.Player2.IsAI = false;
+            using (var board = new GameBoard.BoardState(core, p1, core.Player2,
+                GameBoard.HalfFieldData.Flat(), GameBoard.HalfFieldData.Flat()))
+            {
+                board.EnableAutoResync();
+                try
+                {
+                    AdvanceToMainPhase(core, p1);
+                    var zm = core.ZoneManager;
+                    var unit = TakeByName(zm, p1, "教学·2", Zone.Hand) ?? TakeByName(zm, p1, "教学·2", Zone.Deck);
+                    checks.Add(new Check(unit != null, "教学·2 可寻"));
+                    if (unit == null) return;
+                    zm.MoveCard(unit, p1, unit.GetZone(), Zone.Battlefield);
+                    var lands = new List<Card>();
+                    foreach (var c in zm.GetCards(p1, Zone.Hand).Concat(zm.GetCards(p1, Zone.Deck))
+                                 .Where(c => IsName(c, "教学·1")).ToList())
+                    {
+                        if (lands.Count >= 2) break;
+                        lands.Add(c);
+                    }
+                    // 直接入池（绕地牌槽上限——夹具播种；区域真源经 MoveCard 同步，镜像
+                    // GameActions.AddToElementPool 的落地两步：PooledCards.Add + Hand→ElementPool）
+                    var pool = core.ElementPool.GetPool(p1);
+                    foreach (var c in lands)
+                    {
+                        pool.PooledCards.Add(new PooledCard(c, ManaType.Green));
+                        zm.MoveCard(c, p1, c.GetZone(), Zone.ElementPool);
+                    }
+                    checks.Add(new Check(lands.Count == 2, $"池内 2 张教学·1（实际 {lands.Count}）"));
+
+                    var lae = new LegalActionEnumerator();
+                    lae.Enumerate(core, p1);
+                    CheckZoneFeatures(lae, core, p1, checks, "区域特征场景");
+
+                    var actRows = lae.Actions
+                        .Where(a => a.Type == TideActionType.Activate && ReferenceEquals(a.Card, unit)).ToList();
+                    var poolRows = actRows.Where(r => r.Targets != null && r.Targets.Count > 0
+                        && r.Targets[0] is Card tc && tc.GetZone() == Zone.ElementPool).ToList();
+                    var fieldRows = actRows.Where(r => r.Targets != null && r.Targets.Count > 0
+                        && r.Targets[0] is Card tc2 && tc2.GetZone() == Zone.Battlefield).ToList();
+                    log.AppendLine($"[区域特征] Activate 行={actRows.Count}（池首目标 {poolRows.Count} / 场首目标 {fieldRows.Count}）");
+                    checks.Add(new Check(poolRows.Count > 0 && poolRows.All(r =>
+                            FeatureOf(lae, r, 12) == 2f && FeatureOf(lae, r, 13) == 0f),
+                        $"首目标=元素池地行 [12]=2/[13]=0（池首目标行 {poolRows.Count}）"));
+                    checks.Add(new Check(fieldRows.Count > 0 && fieldRows.All(r =>
+                            FeatureOf(lae, r, 12) == 1f && FeatureOf(lae, r, 13) == 0f),
+                        $"首目标=战场生物行 [12]=1（场首目标行 {fieldRows.Count}）"));
+                    var endRow = lae.Actions.FirstOrDefault(a => a.Type == TideActionType.EndTurn);
+                    // 2026-11-15 DSH 修：TideAction 已是 struct，FirstOrDefault 返回 default，
+                    // 不能再用 `endRow != null`（CS0019）。EndTurn=4 ≠ default(0=PlayCard)，
+                    // 故以 Type 判"是否枚举到该行"，语义与原 `!= null` 等价。
+                    checks.Add(new Check(endRow.Type == TideActionType.EndTurn
+                            && FeatureOf(lae, endRow, 12) == -1f && FeatureOf(lae, endRow, 13) == -1f,
+                        "无目标行（EndTurn）[12]=[13]=-1"));
+                }
+                finally { }
+            }
+        }
+
+        /// <summary>全行恒等式（v14 规格验收）：每行动作特征 [12]/[13] 与 TargetZoneGrouping
+        /// 单源判定（首目标）逐行一致——三条既有场景各自枚举后调用。</summary>
+        private static void CheckZoneFeatures(LegalActionEnumerator lae, GameCore core, Player me,
+            List<Check> checks, string tag)
+        {
+            int nAction = TideObservation.NAction;
+            int bad = 0; int total = 0;
+            for (int k = 0; k < lae.Actions.Count; k++)
+            {
+                var a = lae.Actions[k];
+                var first = a.Targets != null && a.Targets.Count > 0 ? a.Targets[0] : a.Target;
+                float wantZone = first is Card tc ? TargetZoneGrouping.ZoneRankOf(tc.GetZone())
+                    : first != null ? 0f : -1f;
+                float wantSide = first != null ? TargetZoneGrouping.SideRankOf(first, me) : -1f;
+                float gotZone = lae.Features[k * nAction + 12];
+                float gotSide = lae.Features[k * nAction + 13];
+                total++;
+                if (gotZone != wantZone || gotSide != wantSide) bad++;
+            }
+            checks.Add(new Check(bad == 0,
+                $"{tag}：全 {total} 行 [12]/[13] 与单源判定一致（坏 {bad} 行）"));
+        }
+
+        private static float FeatureOf(LegalActionEnumerator lae, TideAction a, int slot)
+            => lae.Features[lae.Actions.IndexOf(a) * TideObservation.NAction + slot];
 
         // ======================================== 夹具辅助 ========================================
 

@@ -451,12 +451,38 @@ namespace SynergyUI
         }
 
         /// <summary>法术扣费粒子（ref 版·镜像 CapturePaid 的 PlayCastPay 段）：实付色粒子自地格汇聚
-        /// 至施放者角色格（座位→布局角色格，不查引擎棋盘）。</summary>
+        /// 至施放者角色格（座位→布局角色格，不查引擎棋盘）。
+        /// 2026-11-15 钱包粒改道：付费反馈口=Paid op→PlayWalletPayByRef（5 分格发粒）；本口保留
+        /// 给「召唤入场汇聚」链（PlayCastPay 地格→角色格 1s 汇聚与 _castPayArriveAt 时序门）。</summary>
         public void PlayCastPayByRef(int seat, Dictionary<int, float> paid)
         {
             if (seat < 0 || paid == null || paid.Count == 0) return;
             var (hx, hz) = BoardLayout.CharacterCell(seat);
             PlayCastPay(seat, paid, hx, hz);
+        }
+
+        /// <summary>钱包付费粒子（2026-11-15 定案）：实付各色粒子从该 seat 临时元素 5 分格的对应色片
+        /// 发出（数量∝实付值·主色=该色片色），数字下跳+缩放脉冲（WalletCellsFx.Pulse）。实时与回放
+        /// 同口（BattleFxOpExecutor.Paid）。5 分格未装（旧 prefab）回落 Spark 于角色格上。</summary>
+        public void PlayWalletPayByRef(int seat, Dictionary<int, float> paid)
+        {
+            if (seat < 0 || paid == null || paid.Count == 0) return;
+            foreach (var kv in paid)
+            {
+                var color = BattleTileFx.ElementColorOf(kv.Key);
+                if (WalletCellsFx.CellAnchor(seat, kv.Key, out var at))
+                {
+                    BattleEffectFx.PlaySpark(at, color, Mathf.Clamp(kv.Value, 0.5f, 4f) * 2600f);
+                    WalletCellsFx.Pulse(seat, kv.Key); // 数字下跳+脉冲
+                }
+                else
+                {
+                    var (hx, hz) = BoardLayout.CharacterCell(seat);
+                    BattleEffectFx.PlaySpark(BattleBoardGrid.WorldPositionOf(hx, hz) + Vector3.up * 0.4f,
+                        color, Mathf.Clamp(kv.Value, 0.5f, 4f) * 1800f); // 旧 prefab 回落：角色格上发粒
+                }
+                Debug.Log($"[Wallet] pay seat={seat} color={kv.Key} amount={kv.Value:F1}");
+            }
         }
 
         /// <summary>轻入场（2026-11-13 补位 L2-1）：召唤/复活/衍生物/控制权变更——单位脚下播一枚

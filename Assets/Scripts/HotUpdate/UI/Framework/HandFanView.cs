@@ -12,7 +12,9 @@ namespace SynergyUI
     /// 改版退役——可用性并入 CanUse。
     /// 2026-11-12 点选制改版：OwnerSide=true 的扇区（本地玩家出牌扇）改为点击选中制——
     /// 卡体点击=选中/再点取消，Use/Place 只在选中且条件达成时亮（悬停不再显钮），
-    /// btn 费用栏（CostSquares）常驻，扇外点击收扇到最小档。</summary>
+    /// btn 费用栏（CostSquares）常驻，扇外点击收扇到最小档。
+    /// 2026-11-15 全拖拽改版：主人扇出牌主入口=拖拽（OnDragEnd 落点三分——战场=发动/地牌长条
+    /// =放地/边缘=取消；分类与合法性在宿主屏，扇区只管跟手与回手）。</summary>
     public sealed class FanInteractions
     {
         /// <summary>主人扇标记：true=本地玩家出牌扇（点选制+费用栏常驻+扇外点击收扇）；
@@ -23,6 +25,12 @@ namespace SynergyUI
         public Action<HandFanCard> OnUse;
         public Action<HandFanCard> OnPlaceLand;
         public Action<HandFanCard> OnCardClick; // 卡体点击（2026-11-03 Information）：对方手牌扇开查阅窗——己方扇不挂=无操作
+        /// <summary>拖拽抬起（2026-11-15 全拖拽改版）：落点裁决单口（卡+指针屏幕位）——
+        /// 战场=发动/地牌长条=放地/边缘装饰=取消；拒绝路径须回手（调 fan.RestoreDragCard）。</summary>
+        public Action<HandFanCard, Vector2> OnDragEnd;
+        /// <summary>拖拽起手（2026-11-15 阶段H 视觉改版）：卡隐藏前一刻触发（卡屏幕位随参）——
+        /// 宿主屏在此拉起 3D 箭头（BattleAttackArrow）并记录起点世界锚。</summary>
+        public Action<HandFanCard, Vector2> OnDragBegin;
     }
     /// <summary>手牌扇区的一条数据：对账键=引擎卡 RuntimeId；FaceUp=false 只显示卡背（内容被 back 覆盖）。</summary>
     public sealed class HandFanCardData
@@ -91,8 +99,22 @@ namespace SynergyUI
         /// <summary>交互钩子（宿主屏注入；null=无交互——按钮层永不显示）。</summary>
         public FanInteractions Hooks => _hooks;
 
+        /// <summary>挂载层（宿主屏落点判定用：UGUI 射线落点是否本扇子树=取消回手）。</summary>
+        internal RectTransform Layer => _layer;
+
         /// <summary>当前点选中的卡（2026-11-12 点选制；null=未选）——Use/Place 按钮只在本卡选中时亮。</summary>
         public HandFanCard SelectedCard => _selected;
+
+        // ---- 拖拽状态机（2026-11-15 全拖拽改版）：起手收扇+卡跟手放大置顶；松手交宿主裁决 ----
+
+        /// <summary>拖拽中（起手门通过→抬起；期间 Tick 不推本卡 tween、扇外收扇轮询让路、
+        /// 宿主屏棋盘指针让路——见 BattleScreen.PollFieldPointer）。</summary>
+        public bool Dragging { get; private set; }
+
+        /// <summary>拖拽中的卡（null=无）。</summary>
+        public HandFanCard DraggingCard { get; private set; }
+
+        private Vector2 _dragOffset; // 起手时卡位（阶段H 后卡不跟手——留作回手参考）
 
         public HandFanView(RectTransform layer, Config cfg)
         {
@@ -112,13 +134,11 @@ namespace SynergyUI
                 _hovered?.RefreshActionButtons();
         }
 
-        /// <summary>卡体点击转发（HandFanCard.OnPointerClick）：主人扇（OwnerSide）先做点选
-        /// （2026-11-12 点选制：选中/再点同卡取消——按钮随之亮灭），再转发 OnCardClick 钩子
-        /// （对方手牌扇开「对方手牌」Information，2026-11-03；未挂=无操作）。</summary>
+        /// <summary>卡体点击转发（HandFanCard.OnPointerClick）：转发 OnCardClick 钩子（对方手牌扇开
+        /// 「对方手牌」Information，2026-11-03；未挂=无操作）。点选制已随 2026-11-15 全拖拽改版退役
+        ///（出牌主入口=拖拽；卡面效果行点击仍切施放模式）。</summary>
         internal void NotifyCardClicked(HandFanCard card)
         {
-            if (_hooks != null && _hooks.OwnerSide)
-                SetSelected(_selected == card ? null : card); // 再点同卡=取消选牌
             var cb = _hooks?.OnCardClick;
             if (cb != null) cb(card);
         }
@@ -142,12 +162,76 @@ namespace SynergyUI
             _collapsed = true;
         }
 
+        /// <summary>起手拖拽（HandFanCard.OnDrag 12px 门通过后调；2026-11-15 阶段H 视觉改版）：
+        /// 只有主人扇可拖；清悬停点选→收扇最小档→**隐藏被拖卡**（不跟手不放大——箭头接管引导，
+        /// OnDragBegin 钩子在隐藏前触发供宿主屏拉 3D 箭头）。</summary>
+        internal void BeginDrag(HandFanCard card, Vector2 screenPoint)
+        {
+            if (Dragging || card == null || _hooks?.OwnerSide != true) return;
+            Dragging = true;
+            DraggingCard = card;
+            _hovered = null;
+            Collapse(); // 清点选+置收缩态（手牌缩最小）
+            _dragOffset = card.Pos; // 保留起手位（RestoreDragCard 回位参考）
+            var cbBegin = _hooks?.OnDragBegin;
+            if (cbBegin != null) cbBegin(card, screenPoint); // 卡隐藏前一刻：屏侧取屏幕位→世界锚
+            card.gameObject.SetActive(false); // 卡不跟手（阶段H）：对账 SetCards 有拖拽豁免防复活
+            RebuildTargets();
+            Debug.Log("[HandDrag] begin rid=" + card.RuntimeId);
+        }
+
+        /// <summary>跟手（HandFanCard.OnDrag 逐帧调）：阶段H 后卡已隐藏不跟手——指针引导归
+        /// 宿主屏 3D 箭头（BattleScreen.UpdateDragVisual 逐帧），本口保留空转兼容事件流。</summary>
+        internal void MoveDrag(Vector2 screenPoint)
+        {
+        }
+
+        /// <summary>抬手（HandFanCard.OnEndDrag 调）：落点裁决交宿主屏钩子 OnDragEnd；无钩子/
+        /// 钩子拒绝路径由宿主调 RestoreDragCard 回手。本方法只清拖拽态（不还原卡位——留待裁决）。</summary>
+        internal void EndDrag(Vector2 screenPoint)
+        {
+            if (!Dragging) return;
+            var card = DraggingCard;
+            Dragging = false;
+            DraggingCard = null;
+            var cb = _hooks?.OnDragEnd;
+            if (cb != null) cb(card, screenPoint);
+            else RestoreDragCard(card, false); // 无裁决钩子=无条件回手
+        }
+
+        /// <summary>回手（取消/被拒路径；阶段H：恢复卡的可见性——拖拽期被隐藏）+恢复常态收缩档
+        /// +重排目标（卡随 Tick 驶回扇位）。keepCollapsed=true=落点在手牌扇自身（等同点扇外，保持收扇）。</summary>
+        public void RestoreDragCard(HandFanCard card, bool keepCollapsed)
+        {
+            if (card != null)
+            {
+                if (!card.gameObject.activeSelf) card.gameObject.SetActive(true); // 阶段H：拖拽隐藏复原
+                card.Scale = card.TargetScale = _cfg.BaseScale;
+                card.Rot = card.TargetRot = 0f;
+            }
+            if (!keepCollapsed) _collapsed = false;
+            RebuildTargets();
+            Debug.Log("[HandDrag] end cancel" + (keepCollapsed ? "（收扇保持）" : ""));
+        }
+
+        /// <summary>屏幕点 → 挂载层本地坐标（Canvas 按渲染模式自取相机；失败=false）。</summary>
+        private bool ScreenToLayer(Vector2 screenPoint, out Vector2 lp)
+        {
+            lp = default;
+            if (_layer == null) return false;
+            var canvas = _layer.GetComponentInParent<Canvas>();
+            if (canvas == null) return false;
+            var uiCam = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
+            return RectTransformUtility.ScreenPointToLocalPointInRectangle(_layer, screenPoint, uiCam, out lp);
+        }
+
         /// <summary>扇外点击检测（Tick 轮询，仅主人扇）：按下左键/触点且射线落点不在本扇
         /// 挂载层子树下（含 3D 战场/其他面板/空处）→ 收扇。悬停展开中指针必在本扇上，
         /// 天然不触发。</summary>
         private void PollOutsideClick()
         {
             if (_hooks == null || !_hooks.OwnerSide) return;
+            if (Dragging) return; // 拖拽期不收扇（2026-11-15：拖出即收扇由 BeginDrag 自理）
             if (_layer == null || !_layer.gameObject.activeInHierarchy) return;
             if (!Input.GetMouseButtonDown(0)) return; // 触摸0合成鼠标事件——移动端同轨
             var es = EventSystem.current;
@@ -170,6 +254,14 @@ namespace SynergyUI
         public void SetVisible(bool visible)
         {
             if (_layer == null) return;
+            if (!visible && Dragging)
+            {
+                // 流程隐藏扇区时拖拽必须终止（出牌流程接管/屏切换）：无裁决直接回手清态
+                var dc = DraggingCard;
+                Dragging = false;
+                DraggingCard = null;
+                RestoreDragCard(dc, false);
+            }
             if (!visible)
             {
                 bool had = _hovered != null || _selected != null;
@@ -305,7 +397,8 @@ namespace SynergyUI
                     card.Face.SetFaceUp(d.FaceUp);
                     card.HideActionButtons(); // 池复用重置（悬停卡随后重评估）
                     card.SetPlayable(false);  // 可用性由宿主屏对账后重设
-                    card.gameObject.SetActive(true);
+                    if (!(Dragging && card == DraggingCard))
+                        card.gameObject.SetActive(true); // 拖拽卡豁免（阶段H：拖拽期隐藏不被对账复活）
                     _cards.Add(card);
                 }
             }
@@ -326,6 +419,12 @@ namespace SynergyUI
 
             if (_hovered != null && !_cards.Contains(_hovered)) _hovered = null;
             if (_selected != null && !_cards.Contains(_selected)) _selected = null; // 选牌已离手（打出/被弃）——清选
+            if (Dragging && (DraggingCard == null || !_cards.Contains(DraggingCard)))
+            {
+                // 拖拽中卡被对账移除（打出/被弃/换场）：终止拖拽态不回手（卡已离场）
+                Dragging = false;
+                DraggingCard = null;
+            }
             _hovered?.RefreshActionButtons(); // 对账后悬停卡按钮条件可能已变（费用/上限）
             _selected?.RefreshActionButtons(); // 点选卡同评（2026-11-12 点选制：回合/费用变化即时收亮钮）
             _drawOrigin = null; // 未消费即弃（防武装后该拍无新卡、起点滞留到后续对账误飞）
@@ -371,6 +470,7 @@ namespace SynergyUI
             for (int i = 0; i < n; i++)
             {
                 var c = _cards[i];
+                if (Dragging && c == DraggingCard) continue; // 拖拽卡位姿归跟手（2026-11-15），不参与扇形目标
                 float x = (i - (n - 1) * 0.5f) * spacing;
                 if (hoverIdx >= 0 && i != hoverIdx)
                     x += Mathf.Sign(i - hoverIdx) * push; // 邻卡让位：悬停卡占更大扇形比例
@@ -455,6 +555,7 @@ namespace SynergyUI
                 var c = _cards[i];
                 if (c == null) continue; // 防销毁卡（同 SetCards 清扫口径）：防 Updater 链被单卡异常打断
                 c.TickGlow(_glowPhase);
+                if (Dragging && c == DraggingCard) continue; // 拖拽卡由 MoveDrag 直写（不走 tween）
                 if (c.Flying)
                 {
                     c.TickFlight(Time.deltaTime); // 抽卡飞入（2026-10-17）：优先于常规缓动，到达自动交还

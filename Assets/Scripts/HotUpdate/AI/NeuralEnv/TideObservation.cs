@@ -65,7 +65,10 @@ namespace CardCore.AI.NeuralEnv
         // 旧模型作废（python LAYOUT_VERSION 同步升 12）。
         // v13（2026-11-08 目标选择重构步5）：动作特征 11→12 维——[11]referenceIndex（参照角色选位
         // 镜像，Reference Enumerate spec 进动作空间）；旧模型作废（python LAYOUT_VERSION 同步升 13）。
-        public const int LayoutVersion = 13;
+        // v14（2026-11-15 目标区域共享规格 v0.2 §6）：动作特征 12→14 维——[12]targetZoneRank
+        //（首目标区域序，TargetZoneGrouping.ZoneRankOf 单源）/ [13]targetSideRank（归属，枚举者视角）；
+        // 训练未开始、无兼容负担；旧 ONNX/fixture 作废（python LAYOUT_VERSION/N_ACTION_FEATURES 同步升 14）。
+        public const int LayoutVersion = 14;
         public const int MaxCardsPerPlayer = 77; // v10：43→77（墓地 4→30、除外 8 入册）
         // v9 己方牌库块（尾接全局块，不走 ZoneLayout 每玩家偏移语义——专用 DeckBase+排序名次路径）：
         public const int DeckSlots = 30;                                      // 截断护栏（初始整组 30 恰满；衍生物入库超出不编码）
@@ -107,11 +110,14 @@ namespace CardCore.AI.NeuralEnv
         // v9 尾加 g[50..57]（对方牌库开局标签快照，DeckTagsOf——随卡组创建保留、整局恒定）。
         public const int NGlobal = 58; // v9：50→58（+8 对方牌库标签）
         public const int DeckTagStart = 50; // v9 g[50..57] = DeckTagsOf（对方牌库开局标签）
-        // 动作特征槽（v8 8→11 维；v13 11→12）：[0]valid [1]type [2]sourceIndex [3]targetIndex [4]modeIndex
+        // 动作特征槽（v8 8→11 维；v13 11→12；v14 12→14）：[0]valid [1]type [2]sourceIndex [3]targetIndex [4]modeIndex
         // [5]actionCost [6]effectIdentity [7]targetKind + v8 多目标追加：
         // [8]target2Index [9]target3Index（Targets[1]/[2] 槽位，-1=无/玩家目标/>3 截断不编码）[10]nTargets（0..8 钳）
-        // + v13 参照追加：[11]referenceIndex（Reference 角色选位镜像槽位，-1=无/玩家参照）。
-        public const int NAction = 12;
+        // + v13 参照追加：[11]referenceIndex（Reference 角色选位镜像槽位，-1=无/玩家参照）
+        // + v14 目标区域追加：[12]targetZoneRank（-1=无目标；角色0→其他9，ZoneRankOf 单源）
+        // [13]targetSideRank（-1=无目标；0=己方/1=对方，枚举者视角）——只编码首目标
+        //（多目标经 target2/3 槽位+观测 zoneKind 分辨，与「只编码前 3 目标」同口径）。
+        public const int NAction = 14;
 
         public float[] Cards = new float[MaxCardsTotal * NCard];
         public float[] Globals = new float[NGlobal];

@@ -184,6 +184,24 @@ namespace CardCore.AI
         //   T7：小精灵 → 牺牲 4 → 落 4 → 暗影豹（卡齐才走）
         // 脚本只改「分数/牺牲目标」，动作仍由引擎逐个执行，因此不会与费用/目标域校验冲突。
 
+        /// <summary>「还能再拿到一张归根」的总量（手牌 + 墓地 + 地牌池）。</summary>
+        private static int ReturnAvailable(GameCore core, Player me)
+        {
+            int n = HandCopies(core, me, NameReturn);
+            n += (core.ZoneManager.GetCards(me, Zone.Graveyard) ?? new List<Card>()).Count(c => NameOf(c) == NameReturn);
+            n += core.ElementPool.GetPooledCards(me).Count(pc => pc != null && NameOf(pc.SourceCard) == NameReturn);
+            return n;
+        }
+
+        /// <summary>元素池里**已横置**的地（按 Card 实例集合；池的横置状态记在 PooledCard 上，不在 Card 上）。</summary>
+        private static HashSet<Card> TappedPoolCards(GameCore core, Player me)
+        {
+            var set = new HashSet<Card>();
+            foreach (var pc in core.ElementPool.GetPooledCards(me))
+                if (pc != null && pc.IsTapped && pc.SourceCard != null) set.Add(pc.SourceCard);
+            return set;
+        }
+
         /// <summary>自方地牌池里已横置的地张数（脚本判定「够不够祭」用）。</summary>
         private static int TappedLands(GameCore core, Player me)
             => core.ElementPool.GetPooledCards(me).Count(pc => pc != null && pc.IsTapped);
@@ -379,12 +397,26 @@ namespace CardCore.AI
         {
             if (name == null) return false;
             if (TotalLands(core, me) >= LandMidCap) return false;
+            // 带「费用降低（绿）」指示物的牌**先于一切规则**保护——那是 T1/T3 小精灵叠出来的
+            // 两层 −2（沃土 6→2 的唯一来源），铺成地等于把连招的核心烧掉（2026-11-15 实测：
+            // T1 折扣过的那张沃土被 T3 的开局落地吃掉，导致 T3 沃土永远只能 4 费）。
+            if (card != null && card.GetCounterCount(CounterRules.CostDownGreenCounter) > 0) return false;
             // 脚本回合（T3/T5/T7）：**归根与沃土都不当土地**——它们分别负责回收和成长，铺成地线就断了。
-            if (InScriptTurn(core, me, out int st) && (name == NameReturn || name == NameBloom)) return false;
+            // 例外（用户 T3 推导）：手里有 ≥2 张归根时，可以拿一张铺地（另一张留着打回收）。
+            if (InScriptTurn(core, me, out int st))
+            {
+                // 归根/减半一律不铺地（分别是回收口和保命件）；
+                // 沃土/小精灵只在**多册**时铺一张（留一张打牌），暗影豹可以铺（本来就是白板地）。
+                // 归根（2026-11-15 用户口径）：**不必全部留在手里**——手里 ≥2 张、墓地有、或地牌池有，
+                // 只要还能再拿到一张打「回收」，多出来的一张就可以铺地。
+                if (name == NameReturn) return ReturnAvailable(core, me) >= 2;
+                if (name == NameBloom || name == NameSpirit) return HandCopies(core, me, name) >= 2;
+                if (name == NameHalve) return true;                      // 减半可当「补 1 地」的材料
+            }
             // 脚本 T3：用户推导里「落地 2」用的是 未知牌 + 暗影豹——所以 T3 允许把 暗影豹/减半 铺成地，
             // 先把地数顶到 3（否则 1 块地连沃土都开不出来）。
-            if (InScriptTurn(core, me, out int st3) && st3 == 3
-                && (name == NamePanther || name == NameHalve)) return true;
+            // 减半要留在手里（用户 T3 目标手牌），只有暗影豹可以铺成地凑地数。
+            if (InScriptTurn(core, me, out int st3) && st3 == 3 && name == NamePanther) return true;
             if (CoreNames.Contains(name) || name == NameHalve) return false;  // 核心件/减半不当土地
             // 带了「费用降低（绿）」指示物的牌绝不当土地铺——那是小精灵首卡给的折扣，
             // 铺成地=把 2 层折扣直接吞掉（2026-11-15 用户抓到的 T3 连招打空）。
@@ -462,6 +494,10 @@ namespace CardCore.AI
             // （排序后的列表长度就是 AI 要祭的张数——TargetSelection 任意档取排序全部候选）。
             if (atom == AtomicEffectType.Sacrifice)
             {
+                // 2026-11-15 共享规格 v0.2 §4：「地/池材料」判定收窄到**己方元素池组**
+                //（CandidatesInZone 走 TargetZoneGrouping 单一源——横置的战场生物不再可能被当成地；
+                // 小精灵按名挑是脚本材料语义，保持不动）。
+                var poolSet = new HashSet<Entity>(CandidatesInZone(req, 0, 2));
                 // 固定脚本 T5（2026-11-15 用户口径）：牺牲的是**场上小精灵**（不烧地、不烧手牌），
                 // 让它进墓地后由「回收」捞回手——循环靠这一手转起来。
                 if (InScriptTurn(core, me, out int scriptSac) && scriptSac == 5)
@@ -479,7 +515,8 @@ namespace CardCore.AI
                     var picks = new List<Entity>();
                     var spiritCard = list.FirstOrDefault(e => e is Card c && c.IsAlive && NameOf(c) == NameSpirit);
                     if (spiritCard != null) picks.Add(spiritCard);
-                    var tappedLands = list.Where(e => e is Card c2 && c2.IsTapped()
+                    var tappedSet7 = TappedPoolCards(core, me);
+                    var tappedLands = list.Where(e => poolSet.Contains(e) && e is Card c2 && tappedSet7.Contains(c2)
                             && NameOf(c2) != NameSpirit && NameOf(c2) != NameReturn)
                         .OrderByDescending(e => e is Card c3 ? SacrificeScore(core, me, c3) : 0f)
                         .ToList();
@@ -496,20 +533,48 @@ namespace CardCore.AI
                 {
                     if (Environment.GetEnvironmentVariable("TIDE_DEBUG_SAC") == "1")
                         Console.WriteLine($"[dbg-sac] T3 candidates={list.Count} cards={list.Count(e => e is Card)} tapped={list.Count(e => e is Card c0 && c0.IsTapped())} names={string.Join(",", list.OfType<Card>().Select(c1 => (NameOf(c1) ?? c1.ID) + (c1.IsTapped() ? "*" : "")))}");
-                    var tapped = list.Where(e => e is Card c && c.IsTapped()
-                            && NameOf(c) != NameSpirit && NameOf(c) != NameReturn && NameOf(c) != NameBloom)
+                    // 2026-11-15 用户口径（T3 两种分支）：
+                    // 目标手牌 = 小精灵 + 归根 + 减半。若 T1 的小精灵还活着 → 祭 3（2 小精灵 + 1 横置地）；
+                    // 若它已经死了 → 墓地已够，祭到「够付回收」即可（1~2 张）。
+                    var tappedSet = TappedPoolCards(core, me);
+                    var spirits = list.Where(e => e is Card cs && cs.IsAlive && NameOf(cs) == NameSpirit).ToList();
+                    // 祭的材料只取「可再生的」：小精灵最多 2 张 + 1 块多余的横置地（归根/沃土铺成的地）。
+                    // **暗影豹与减半必须留在手里**（用户 T3 目标手牌 = 小精灵 + 归根 + 减半）。
+                    var tapped = list.Where(e => poolSet.Contains(e) && e is Card c && tappedSet.Contains(c)
+                            && NameOf(c) != NameSpirit && NameOf(c) != NameBloom
+                            && NameOf(c) != NamePanther && NameOf(c) != NameHalve)
                         .OrderByDescending(e => e is Card c2 ? SacrificeScore(core, me, c2) : 0f)
                         .ToList();
-                    if (tapped.Count > 0) return tapped.Take(Math.Min(2, tapped.Count)).ToList();
-                    var anyLand = list.Where(e => e is Card c && NameOf(c) != NameSpirit
-                            && NameOf(c) != NameReturn && NameOf(c) != NameBloom)
-                        .ToList();
-                    if (anyLand.Count > 0) return anyLand.Take(1).ToList();
+                    var picks3 = new List<Entity>();
+                    foreach (var sp in spirits.Take(2)) picks3.Add(sp);
+                    foreach (var tl in tapped)
+                    {
+                        if (picks3.Count >= 3) break;
+                        picks3.Add(tl);
+                    }
+                    // 候选里没有「已横置的地」时也要补一张**地**凑第 3 张（2026-11-15 规格收窄：
+                    // 只在己方元素池组内补——战场生物永远不当地祭）：
+                    // 祭掉它虽然不增费（未横置=绿换彩），但能腾出地牌槽 → 下一步补地 +1 费，回收才够。
+                    if (picks3.Count < 3)
+                    {
+                        var anyPool = list.Where(e => poolSet.Contains(e) && e is Card cp && NameOf(cp) != NameSpirit
+                                && NameOf(cp) != NameBloom && NameOf(cp) != NameHalve
+                                && NameOf(cp) != NamePanther)
+                            .OrderByDescending(e => e is Card cp2 ? SacrificeScore(core, me, cp2) : 0f)
+                            .ToList();
+                        foreach (var ap in anyPool)
+                        {
+                            if (picks3.Count >= 3) break;
+                            if (!picks3.Contains(ap)) picks3.Add(ap);
+                        }
+                    }
+                    if (picks3.Count > 0) return picks3;
                 }
                 var stuck = CoreStuckInPool(core, me);
                 if (stuck.Count > 0)
                 {
-                    var rescue = list.Where(e => e is Card c && stuck.Contains(c)).ToList();
+                    // 2026-11-15 规格收窄：救援材料同样限定在己方元素池组内
+                    var rescue = list.Where(e => poolSet.Contains(e) && e is Card c && stuck.Contains(c)).ToList();
                     if (rescue.Count > 0) return rescue;
                 }
                 var ordered = list.OrderByDescending(e => e is Card c ? SacrificeScore(core, me, c) : 0f).ToList();

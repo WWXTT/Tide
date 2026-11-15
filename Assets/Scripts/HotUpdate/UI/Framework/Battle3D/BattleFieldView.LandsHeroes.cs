@@ -15,79 +15,16 @@ namespace SynergyUI
     {
         // ======================================== 地牌（固定元素格） ========================================
 
-        /// <summary>地牌固定元素格对账（2026-10-14 晚定案·2026-10-28 元素缩编）：4 格按 BoardLayout.LandCellElementOrder
-        ///（灰红蓝绿，玩家视角左→右）固定元素身份——图标常驻（空格也亮身份）；
-        /// 计数=「可用/上限」：可用=未横置张+钱包该色余额；上限=该色已放入地牌张数（含横置）；
-        /// 可用&gt;0 点亮顶面锁色描边环（2026-10-17 定案：整块菲涅尔壳颜色压住格面文字/图标退役，
-            /// 见 BattleTileFx；黑白格与中线产量双格已随 2026-10-28 元素缩编退役）。
-            /// 计数条=格面平铺 TMP（不看向相机——平贴地块，见 EnsureFlatCellLabel）。</summary>
+        /// <summary>地牌对账（2026-11-15 地牌长条改版）：4 格视觉合并为一条长条——每张地牌一张
+        /// 平贴面片（规格=CardPlateMetrics，与生物横置卡背同源）、长条靠卡组侧数字段「填充/上限」
+        ///（LandStripFx）；左下万能格拆 5 分格显示灰红蓝绿彩临时元素数量（WalletCellsFx）。
+        /// 旧逐格元素图标/「可用/上限」计数/锁色描边环随本改版退役（逐色详情仍走悬停 hover-info；
+        /// 引擎 4 格坐标零改动——BoardLayout.LandCells 硬约束，合并只发生在视觉与命中层）。
+        /// 对账消费模型不变：事件级幂等全量，由 Apply 每拍驱动。</summary>
         private void ReconcileLands(List<BattleCardView> lands, BattlePlayerView pv, int owner)
         {
-            // 按色聚合（引擎固定元素格保证同色同格；无锁色异常卡按灰聚拢=同引擎口径）
-            var byColor = new Dictionary<int, LandGroup>();
-            foreach (var card in lands ?? new List<BattleCardView>())
-            {
-                if (card == null) continue;
-                int color = card.Runtime != null ? card.Runtime.LockedColor : -1;
-                if (color < 0) color = (int)ManaType.Gray;
-                if (!byColor.TryGetValue(color, out var g))
-                {
-                    g = new LandGroup { Color = color };
-                    byColor[color] = g;
-                }
-                g.Total++;
-                if (!card.IsTapped) g.Untapped++;
-            }
-
-            var cells = BoardLayout.LandCells(owner);
-            int n = Mathf.Min(cells.Count, BoardLayout.LandCellElementOrder.Length);
-            for (int i = 0; i < n; i++)
-            {
-                int element = (int)BoardLayout.LandCellElementOrder[i];
-                var cell = cells[i];
-                // 元素标识常驻（空格也亮身份）。对手（owner=1）=图标 +z 0.42 靠格上缘、数字 -z 0.504
-                // 靠下缘；己方（owner=0）2026-10-21 调换定案：底部手牌收缩态压住格下缘——
-                // 数字上移 +z 0.42、图标下沉 -z 0.504（被手牌遮的只剩图标，读数不再被挡）。
-                // 2026-10-30 地块 mesh×1.2 联动：图标/数字 z 偏移同步 ×1.2（原 ±0.35/0.42）。
-                bool selfSide = owner == 0;
-                float iconZ = selfSide ? -0.504f : 0.42f;
-                BattleTileFx.AddElement(cell.x, cell.z, element, new Vector2(0f, iconZ));
-                int wallet = pv != null && element >= 0 && element < pv.WalletByColor.Length
-                    ? pv.WalletByColor[element] : 0;
-                byColor.TryGetValue(element, out var g);
-                int remaining = (g != null ? g.Untapped : 0) + wallet;
-                if (remaining > 0) BattleTileFx.SetLandGlow(cell.x, cell.z, element);
-                var label = EnsureFlatCellLabel(((long)cell.x << 32) | (uint)cell.z, cell.x, cell.z,
-                    selfSide ? 0.42f : -0.504f);
-                if (label != null)
-                {
-                    label.gameObject.SetActive(true);
-                    // 「可用/上限」（上限=该色已放入地牌张数，含横置；黑白格已随 2026-10-28 元素缩编退役）
-                    label.text = $"{remaining}/{(g != null ? g.Total : 0)}";
-                }
-            }
-
-            // 万能元素格（2026-10-29 对座镜像迁位 (1,0)/(6,6)·Any 角色只做展示）：图标常驻+余额数字+
-            // 余额>0 描边环（「可用即钱包」口径：Any 不由地牌产出，永不叠地牌卡）；
-            // 无点击行为（旧「点击开额外区面板」已随 P11 额外区格整删退役）
-            var anyCell = BoardLayout.AnyElementCell(owner);
-            float anyIconZ = owner == 0 ? -0.504f : 0.42f; // 2026-10-30 地块×1.2 联动（原 ±0.42/0.35）
-            BattleTileFx.AddElement(anyCell.x, anyCell.z, (int)ManaType.Any, new Vector2(0f, anyIconZ));
-            int anyWallet = pv != null && (int)ManaType.Any < pv.WalletByColor.Length
-                ? pv.WalletByColor[(int)ManaType.Any] : 0;
-            if (anyWallet > 0) BattleTileFx.SetLandGlow(anyCell.x, anyCell.z, (int)ManaType.Any);
-            var anyLabel = EnsureFlatCellLabel(((long)anyCell.x << 32) | (uint)anyCell.z, anyCell.x, anyCell.z,
-                owner == 0 ? 0.42f : -0.504f);
-            if (anyLabel != null)
-            {
-                anyLabel.gameObject.SetActive(true);
-                anyLabel.text = anyWallet.ToString(); // 只显余量（不挂上限数字）
-            }
-        }
-
-        private sealed class LandGroup
-        {
-            public int Color, Total, Untapped;
+            LandStripFx.Reconcile(owner, lands ?? new List<BattleCardView>(), pv != null ? pv.LandCap : 0);
+            WalletCellsFx.Reconcile(owner, pv?.WalletByColor);
         }
 
         // ======================================== 角色 ========================================
@@ -272,39 +209,9 @@ namespace SynergyUI
 
         // ======================================== 技能格（2026-10-16 撤销——空段留档） ========================================
 
-        /// <summary>地牌格平铺数字条（2026-10-14 晚定案：这类格子的文字不看向相机，平贴地块显示；
-        /// 晚二批=轴对齐 z 旋 0；本批修字向）：面朝上且**读向 +x、字头 +z、可读面（TMP 本地 -Z）朝相机**
-        /// ——正解=LookRotation(down, forward)=Euler(90,0,0)，相机 (7,8,-4)/(50,0,0) 自 -z 俯拍实测
-        /// （旧 LookRotation(up,…) 三项全反：字镜像且读向右到左，中文整句一眼翻反、1/1 回文数漏检）。
-        /// 贴格顶面 y=0.014（顶面 y=0、菲涅尔 0.004、图标 0.008 之上），zOffset=格心 z 向偏移
-        ///（默认 -0.504=视角前缘靠下缘；己方 2026-10-21 调换=+0.42 与图标换位——缓存复用路径
-        /// 同步校位，防实例跨局残留旧 z。2026-10-30 地块 mesh×1.2 联动：z 偏移整体 ×1.2，原 ±0.35/0.42）。
-        /// key=格(x&lt;&lt;32|z)。
-        /// 2026-10-17 改挂 tile 子物体（原挂 _root）：教学介绍段独占显隐按 tile SetActive 收格，
-        /// 文字不再悬空留在盘面上（与元素图标/HudRow 认领件同口径）。</summary>
-        private TextMeshPro EnsureFlatCellLabel(long key, int x, int z, float zOffset = -0.504f)
-        {
-            if (!EnsureTmpFont()) return null;
-            if (_landCounts.TryGetValue(key, out var label) && label != null)
-            {
-                label.transform.localPosition = new Vector3(0f, 0.014f, zOffset); // 防御性回写（同 AddElement 口径）
-                return label; // fake-null 判死重建
-            }
-            var tile = BattleBoardGrid.Root != null ? BattleBoardGrid.Root.transform.Find($"tile-{x}-{z}") : null;
-            if (tile == null) return null; // 未装台/格名异常：不建，下一事件重试（与 BattleTileFx.TileOf 同法）
-            var go = new GameObject("cell-flat-" + x + "-" + z);
-            go.transform.SetParent(tile, false); // tile 本体位姿=格心恒等变换，局部值即原世界偏移
-            go.transform.localPosition = new Vector3(0f, 0.014f, zOffset);
-            go.transform.localRotation = Quaternion.LookRotation(Vector3.down, Vector3.forward); // 平贴·轴对齐·字向正（2026-10-14 修）
-            go.transform.localScale = Vector3.one / BattleBoardGrid.TileScale; // P0 缩格补偿：计数条不随格缩小（2026-10-23）
-            label = go.AddComponent<TextMeshPro>();
-            label.fontSize = 3.5f;
-            label.alignment = TextAlignmentOptions.Center;
-            label.color = Color.white;
-            label.rectTransform.sizeDelta = new Vector2(1.6f, 0.9f);
-            _landCounts[key] = label;
-            return label;
-        }
+        // 地牌格平铺数字条 EnsureFlatCellLabel 已随 2026-11-15 地牌长条改版退役（计数迁长条数字段
+        ///LandStripFx.UpdateCapLabel 与 5 分格 WalletCellsFx；平贴字向正解 LookRotation(down,forward)
+        // 的口径记载由两处继承）。
 
     }
 }

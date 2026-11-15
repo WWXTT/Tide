@@ -92,7 +92,7 @@ FSP 口径；开启后日志/config 标注 `fsp=true`，`info.fsp=True`。
 | 冻结项 | 说明 |
 |---|---|
 | **卡表 + 原子表**（含所有 ID） | 观测编码的是卡 ID；重推工具会改 ID（例：火炬 `C_93E8DDD1`）→ 训练数据作废 |
-| **布局版本** | `TideObservation.LayoutVersion`（C#）与 `tide_features.LAYOUT_VERSION`（Python）必须一致，当前 **v8 / 动作 11 维** |
+| **布局版本** | `TideObservation.LayoutVersion`（C#）与 `tide_features.LAYOUT_VERSION`（Python）必须一致，当前 **v14 / 动作 14 维** |
 | **AI 决策代码** | `AiStrategy` / `SimpleAI` / `LegalActionEnumerator` |
 | **规则与费用推导** | 影响回报分布 = 换环境 |
 
@@ -145,3 +145,4 @@ FSP 口径；开启后日志/config 标注 `fsp=true`，`info.fsp=True`。
 | 2026-09-30 | v2c 动作空间（时机+目标+响应窗口进动作） | 旧空间表达不了响应与目标选择 |
 | 2026-11-02 | 布局升 v8（动作 11 维，多目标） | 多目标组合行需要目标2/目标3/目标数三个特征位 |
 | 2026-11-02 | 对手池（`--opponent-pool` themes/checkpoints/mixed）+ FSP（`--fsp`）+ 评估扩三主题（`--eval-theme` 默认空=每主题 50 局） | 对手分布太窄（同策略+单主题）是信号分布问题；绿/蓝脚本重设计完成后恢复三主题基准 |
+| 2026-11-15 | 布局升 v14（动作 12→14 维，目标区域特征 `[12]targetZoneRank/[13]targetSideRank`） | 目标候选·区域信息共享规格 v0.2 §6：动作行显式携带首目标区域/归属；**训练未开始，旧模型/ONNX/fixture 作废，无兼容负担** |

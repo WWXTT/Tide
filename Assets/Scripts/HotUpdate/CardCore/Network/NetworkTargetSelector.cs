@@ -124,6 +124,9 @@ namespace CardCore.Network
                 SpecKey = request.SpecKey,
             };
 
+            // v20 区域分组（2026-11-15 共享规格 v0.2 §7.2）：共享静态投影（回环验证器同源消费）。
+            int[] perm = ApplyZoneGroups(msg, request);
+
             var tcs = new UniTaskCompletionSource<List<int>>();
             _pending[msg.RequestId] = tcs;
 
@@ -148,7 +151,51 @@ namespace CardCore.Network
                 .ContinueWith(() => (List<int>)null);
             var (winIndex, uiResult, _) = await UniTask.WhenAny(tcs.Task, timeoutTask);
             _pending.Remove(msg.RequestId);
-            return winIndex == 0 ? uiResult : null;
+            return TranslatePicked(winIndex == 0 ? uiResult : null, perm);
+        }
+
+        /// <summary>v20 分组投影（2026-11-15 共享规格 v0.2 §7.2——公开静态：回环验证器同源消费）：
+        /// 把引擎 TargetZoneGrouping 分组投影成消息侧**连续段**（Label,Start,Count）。引擎候选序
+        /// 不重排（规格 §2.5）、组内下标不保证连续（跨域候选可交错）——消息候选按组序重排使段连续
+        ///（已连续时=恒等序，字节零差）。改写 msg.Candidates/ZoneGroups；返回 perm
+        ///（perm[消息下标]=引擎原下标；无分组=null 恒等）。</summary>
+        public static int[] ApplyZoneGroups(MsgSelectRequest msg, TargetSelectionRequest request)
+        {
+            var groups = request?.ZoneGroups;
+            if (msg == null || request?.Candidates == null || request.Candidates.Count == 0
+                || groups == null || groups.Count == 0)
+                return null;
+
+            var order = new List<int>(request.Candidates.Count);
+            var segs = new List<MsgSelectZoneGroup>(groups.Count);
+            foreach (var g in groups)
+            {
+                if (g?.Indices == null || g.Indices.Count == 0) continue;
+                int start = order.Count;
+                foreach (var i in g.Indices)
+                    if (i >= 0 && i < request.Candidates.Count && !order.Contains(i)) order.Add(i);
+                if (order.Count > start)
+                    segs.Add(new MsgSelectZoneGroup { Label = g.Label, Start = start, Count = order.Count - start });
+            }
+            if (segs.Count == 0) return null;
+            // 兜底：分组未覆盖的候选（不应发生——防御）按原相对序垫尾
+            if (order.Count < request.Candidates.Count)
+                for (int i = 0; i < request.Candidates.Count; i++)
+                    if (!order.Contains(i)) order.Add(i);
+            var perm = order.ToArray();
+            msg.Candidates = perm.Select(i => NetEntityMapper.FromEntity(request.Candidates[i])).ToArray();
+            msg.ZoneGroups = segs.ToArray();
+            return perm;
+        }
+
+        /// <summary>应答下标翻译（v20 §7.2 配套）：消息下标 → 引擎原下标（perm=null 恒等直通）。</summary>
+        public static List<int> TranslatePicked(List<int> picked, int[] perm)
+        {
+            if (picked == null || perm == null || perm.Length == 0 || picked.Count == 0) return picked;
+            var back = new List<int>(picked.Count);
+            foreach (var mi in picked)
+                if (mi >= 0 && mi < perm.Length) back.Add(perm[mi]);
+            return back;
         }
 
         /// <summary>纯选项反问（抉择/mode）：Candidates 空、min=max=1；负索引=取消/超时（引擎兜底 0）。</summary>

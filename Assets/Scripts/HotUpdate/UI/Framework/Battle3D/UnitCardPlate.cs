@@ -15,29 +15,19 @@ namespace SynergyUI
     /// LateUpdate 把世界 Y 钉回所在地块顶面并 slerp 到目标朝向（不随演出俯仰翻滚）。
     /// 依赖缺失告警一次降级为不显示，不阻塞对局（UnitBlobShadow 同口径）。
     ///
-    /// 调参：三个公共静态参数，Play 中 execute_code 直改即时生效（如
-    /// SynergyUI.UnitCardPlate.Width = 0.6f;），满意后写回缺省。
+    /// 调参：规格参数在 CardPlateMetrics（2026-11-15 起与地牌面片共读单源），Play 中
+    /// execute_code 直改即时生效（如 SynergyUI.CardPlateMetrics.Width = 0.6f;），满意后写回缺省。
     /// </summary>
     public class UnitCardPlate : MonoBehaviour
     {
         private const string ElementPrefabPath = "Assets/Art/Prefab/Element.prefab";
         private const string CardBackMatPath = "Assets/Art/Materials/BattleCardBack_Back_Mat.asset";
-        private const float CardAspect = 512f / 344f; // 竖版卡背高宽比（Cardbg-b 344×512）
 
-        // ---- 可调参数（即时生效；写回缺省=定稿） ----
-
-        /// <summary>卡宽（世界单位；高=宽×512/344）。缺省 0.55（格宽 1.1 的五成，模型旁探出边缘）。</summary>
-        public static float Width = 0.55f;
-        /// <summary>抬升（地块顶面之上，米；处假影 0.011 之上防叠面闪）。缺省 0.012。</summary>
-        public static float LiftY = 0.012f;
-        /// <summary>旋转到位时间（秒，0=瞬切）。缺省 0.12。</summary>
-        public static float TurnTime = 0.12f;
+        // 可调参数已迁 CardPlateMetrics（2026-11-15 地牌长条定案：与 LandStripFx 面片共读单源）——
+        // Width/LiftY/TurnTime/Portrait/Landscape 全部改引该类
 
         private static GameObject _prefab;
         private static Material _mat;
-
-        private static readonly Quaternion Portrait = Quaternion.Euler(90f, 0f, 0f);   // 可用=竖直
-        private static readonly Quaternion Landscape = Quaternion.Euler(90f, 90f, 0f); // 横置=原地旋 90°
 
         private Transform _tile;          // 建时所在地块（BattleTileFx.TileOf；tile 原点=顶面）
         private float _y = float.MinValue;
@@ -67,7 +57,7 @@ namespace SynergyUI
             self._baseScale = go.transform.localScale.x;
             self._tile = BattleTileFx.TileOf(x, z);
             self._rend = rend;
-            self.transform.localRotation = Portrait;
+            self.transform.localRotation = CardPlateMetrics.Portrait;
             self.ApplyVisual(); // 建=即对齐当前参数（尺寸/贴地）
             return self;
         }
@@ -83,12 +73,12 @@ namespace SynergyUI
         /// 不能 SetActive(false)（组件失活 LateUpdate 停跑，复活 SetVisible(true) 将永不生效）。</summary>
         private void ApplyVisual()
         {
-            float w = Mathf.Max(0.05f, Width);
+            float w = Mathf.Max(0.05f, CardPlateMetrics.Width);
             float target = w / _baseScale;
             var scale = Vector3.one * target;
-            scale.y = scale.x * CardAspect; // 四边形局部 Y=贴地后的长边（竖版高）
+            scale.y = scale.x * CardPlateMetrics.Aspect; // 四边形局部 Y=贴地后的长边（竖版高）
             transform.localScale = scale;
-            if (_tile != null) _y = _tile.position.y + Mathf.Max(0f, LiftY);
+            if (_tile != null) _y = _tile.position.y + Mathf.Max(0f, CardPlateMetrics.LiftY);
             if (_rend != null) _rend.enabled = _visible;
         }
 
@@ -101,12 +91,12 @@ namespace SynergyUI
                 p.y = _y;
                 transform.position = p;
             }
-            var targetRot = _tapped ? Landscape : Portrait;
+            var targetRot = _tapped ? CardPlateMetrics.Landscape : CardPlateMetrics.Portrait;
             // localRotation 相对 wrapper（演出期 wrapper 可能带世界旋转——本地口径与假影压平同理，
             // 直接写 local 至目标，保证贴地朝向不被演出姿态污染）
-            transform.localRotation = TurnTime <= 0f
+            transform.localRotation = CardPlateMetrics.TurnTime <= 0f
                 ? targetRot
-                : Quaternion.Slerp(transform.localRotation, targetRot, Mathf.Clamp01(Time.deltaTime / TurnTime));
+                : Quaternion.Slerp(transform.localRotation, targetRot, Mathf.Clamp01(Time.deltaTime / CardPlateMetrics.TurnTime));
         }
 
         private static bool EnsureDeps()

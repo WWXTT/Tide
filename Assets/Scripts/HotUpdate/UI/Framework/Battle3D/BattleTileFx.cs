@@ -511,6 +511,9 @@ namespace SynergyUI
             return _elemMats[lockedColor];
         }
 
+        /// <summary>元素图标材质公开出口（2026-11-15 地牌长条）：LandStripFx 面片角标同资产复用。</summary>
+        public static Material ElemIconMaterial(int lockedColor) => ElemMaterial(lockedColor);
+
         private static void WarnDeps(string what)
         {
             if (_depsLogged) return;

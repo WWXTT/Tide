@@ -56,6 +56,10 @@ namespace CardCore
         /// AI 策略按角色+PromptAtom 泛化分派（参照候选全己方→最高攻；受体窗打脸优先），不做类型
         /// 相等特判。null=非 spec 计划路径（代价/弃牌等，保持原策略）。</summary>
         public Attribute.TargetSpecRole? SpecRole;
+        /// <summary>归属×区域分组（2026-11-15 共享规格 v0.2 §3）：RequestAsync 在牌库折叠后计算一次
+        ///（TargetZoneGrouping 单一源）——UI 与 AiOrder 钩子看到同一份；null=未计算（AI/脚本侧
+        /// 可懒调 TargetZoneGrouping.Build(this)）。消费方回传选择仍用原候选下标。</summary>
+        public List<TargetZoneGroup> ZoneGroups;
     }
 
     /// <summary>
@@ -202,6 +206,9 @@ namespace CardCore
             var labels = req.Candidates.Select(
                 e => e is Player p && zoneLabels != null && zoneLabels.TryGetValue(p, out var zl) ? zl
                     : DescribeEntity(e)).ToList();
+            // 共享分组挂载（2026-11-15 规格 v0.2 §3）：牌库折叠后算一次——UI 与 AI 钩子同源；
+            // 不重排候选，Indices 指原下标（规格 §2 规则 5）。
+            req.ZoneGroups = TargetZoneGrouping.Build(req);
 
             PendingRequests++;
             try
