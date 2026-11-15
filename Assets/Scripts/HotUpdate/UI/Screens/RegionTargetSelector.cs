@@ -780,11 +780,13 @@ namespace SynergyUI
                 SyncReticles();
                 return;
             }
-            if (_picked.Count >= _max) return;
-            if (_max == 1) // 单选互斥：清其它高亮
+            // 已满额：取消**最早**选中的，再加入刚才点击的（2026-11-15 用户定案——省掉
+            // “先取消再重选”的两次点击；单选档同样适用，等价于直接换选）。
+            if (_max > 0 && _picked.Count >= _max)
             {
-                _picked.Clear();
-                foreach (var f in _frames) if (f != null) f.enabled = false;
+                int oldest = _picked[0];
+                _picked.RemoveAt(0);
+                if (_frames[oldest] != null) _frames[oldest].enabled = false;
             }
             _picked.Add(idx);
             if (_frames[idx] != null) _frames[idx].enabled = true;

@@ -44,6 +44,26 @@
 | C-1 占卜排列 / C-2 虚拟手牌 | **不排期**（§8） |
 | 反向 LandTrait UI / 联机缺口 | **单独立项**（§8） |
 
+### 0.3.1 对账实测表（2026-11-15 晚，step 2 出口证据）
+
+> 工具：训练池四张对账样板（`训练·疾行者 C_0CE6D3E4` / `训练·强夺 C_60C4C7DF` / `训练·窃取 C_FB07E117` / 池内 `训练·检索 C_D2FB9D0B`）。
+> 方法：LAE 定向探针（闸卡满卡组驱动 + 动作行逐行扫描）+ 编辑器 TCP 冒烟 39 局 / 5289 步。
+| 审计项 | 玩家 UI 有入口 | AI 有动作行 | 结论 |
+|---|---|---|---|
+| **A-1 移动（疾行者）** | ✅ CellSelectionService 弹格选格桥（与召唤落格同交互，`ThirdBatchEffectHandlers.cs:646`） | ❌ Activate 0 行（120 步探针累计 0；`UnsupportedForAi`·MoveUnit 闸；运行时兜底=handler 空转 Warn） | 形态分离成立：玩家可移动、AI 不吃不白付 |
+| **A-2 宣言·强夺（DeclareHand）** | ✅ 结算期文本输入窗（`AskCardNameAsync`→`RequestTextAsync`，输入替换预置、清空=取消） | ❌ PlayCard 0 行（无预置闸）+ `[LAE]` 一次性点名日志 | 同上 |
+| **A-2 宣言·窃取（DeclareDeck）** | ✅ 同上（同窗） | ❌ 同上（`AFE00EB4` 点名） | 同上 |
+| **A-2 宣言·检索（SearchDeck str=""）** | ✅ 同上（旧预置回填输入窗，玩家可改） | ❌ 同上（`1632B175` 点名） | 同上；等 v0.3 接线后删装载夹具豁免（验收记录 §4-R1） |
+| **A0 AI 回合响应窗** | —（人类侧入口=响应窗本身） | — | 阶段 2 已落地（`SettleAfterAiActionAsync` 在位）；本轮未单独复测 |
+| **B-1 角色守卫** | ✅ 玩家可宣言守卫（拦截栈上攻击） | ✅ LAE `Guard` 行携带 `Guarder`（角色守卫 Card=null/TargetKindCode 区分） | 阶段 3 已落地，双向都有 |
+| **B-2 响应窗自愿待发** | ✅ | ✅ `VoluntaryTrigger` 行 | 阶段 4 已落地，双向都有 |
+| **B-3 多效果英雄技能** | ✅ | ✅ `HeroSkill` 行 + `PickHeroSkillEffect` 择效果 | 阶段 4 已落地，双向都有 |
+| **B-4 永久物落格** | ✅ 玩家选格落位 | ✅（SimpleAI 兜底首格 + `PickPlaceCell` 策略口） | 阶段 5 已落地，双向都有 |
+| B-5 / C-1 / C-2 | — | — | 不排期（§8），无对账项 |
+| 反向 LandTrait UI / 联机 | — | — | 单独立项（§8） |
+
+> 闸卡满手探针：起手 8 检索+2 强夺+2 窃取+2 疾行者 → 12 动作行 = 11 PlayLand + 1 EndTurn，**0 行引用任何闸卡**（放地不受闸=设计内）。冒烟 39/39 完局 0 异常（详见训练池验收记录）。
+
 ---
 
 ## 1. 阶段 1：AI 不再白付代价（MoveUnit / 卡名宣言）

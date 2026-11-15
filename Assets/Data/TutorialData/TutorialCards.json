@@ -1953,6 +1953,7 @@
     {
       "id": "C_57BA44EC",
       "cardName": "火灵·攻",
+      "illustration": "FlameSwordsman",
       "supertype": "Creature",
       "attackAbility": true,
       "costList": [
@@ -1975,6 +1976,7 @@
     {
       "id": "C_5F93DCDD",
       "cardName": "火灵·守",
+      "illustration": "CharubinTheFireKnight",
       "supertype": "Creature",
       "guardAbility": true,
       "costList": [
@@ -1997,6 +1999,7 @@
     {
       "id": "C_138CE290",
       "cardName": "火苗",
+      "illustration": "FlameGhost",
       "supertype": "Creature",
       "attackAbility": true,
       "tags": [
@@ -2947,6 +2950,7 @@
     {
       "id": "C_B0EF3C08",
       "cardName": "暗影豹",
+      "illustration": "FlowerWolf",
       "supertype": "Creature",
       "power": 9,
       "life": 9,
@@ -2992,6 +2996,7 @@
     {
       "id": "C_F245F2F9",
       "cardName": "小精灵",
+      "illustration": "PetitAngel",
       "supertype": "Creature",
       "power": 1,
       "life": 1,

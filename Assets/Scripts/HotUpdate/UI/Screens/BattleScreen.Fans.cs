@@ -913,8 +913,7 @@ namespace SynergyUI
             {
                 bool hasCastingCell = false;
                 foreach (var u in BoardLayout.UnitCells(0))
-                    if (Core.ZoneManager.GetZoneContainer(P1) != null
-                        && (Core.BoardState?.CardAt(u.x, u.z) == null))
+                    if (_ctrl?.Board != null && _ctrl.Board.CardAt(u.x, u.z) == null)
                     { hasCastingCell = true; break; }
                 if (!hasCastingCell) return false; // 法术也要有发动占位格（BeginSpellCastAutoPlace 同口径）
             }

@@ -35,6 +35,8 @@ namespace SynergyUI
         public int ArrowFlags; // 屏幕六向箭头位（对手侧已按 LinkAuraSystem 同规镜像）
         public int ArrowDirs; // 原始卡面箭头位（HexDirection，未镜像——战场 3D 六向三角消费，2026-10-14）
         public Cardtype Type;  // 卡类型（战场 3D 区分生物模型/结界模型，2026-10-14；查表 miss 时=default 保持生物路径）
+        public bool AttackAbility; // 卡面攻击资格（opt-in，2026-11-06）：无攻击能力的生物不显示【攻击】
+        public bool GuardAbility;  // 卡面守卫资格（同上；保留给单位动作位图后续消费）
         public bool HasAura;   // 有链接光环效果（聚合缓存 LinkAuras 非空——结界光环环显隐，2026-10-14）
         public int? BasePower, BaseLife; // 印刷基础攻/血（卡表原值；2026-10-15 战场头顶属性配色：
                                          // 持平=白/低于=红/高于=绿；查表 miss=null 恒白）
@@ -192,6 +194,8 @@ namespace SynergyUI
                 v.ArrowFlags = ScreenArrowBits(data.ArrowDirections, ownerIsOpponent);
                 v.ArrowDirs = (int)data.ArrowDirections;
                 v.Type = data.Supertype;
+                v.AttackAbility = data.AttackAbility;
+                v.GuardAbility = data.GuardAbility;
                 v.HasAura = data.LinkAuras != null && data.LinkAuras.Count > 0; // 加载侧已聚合（CardLoader.AggregateEffectAuras）
                 v.BasePower = data.Power; // 印刷基础值（属性配色比较基准）
                 v.BaseLife = data.Life;

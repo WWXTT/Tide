@@ -409,7 +409,7 @@ namespace SynergyUI
                                   && _decision.GuardCandidates.Exists(o => o != null && ReferenceEquals(o.SourceCard, c.CoreCard));
                     else
                     {
-                        e.Attack = myMain && IsCreatureCard(c) && !c.IsTapped
+                        e.Attack = myMain && IsCreatureCard(c) && c.AttackAbility && !c.IsTapped
                                    && (c.Runtime == null || c.Runtime.Power > 0);
                         // 发动键：主动效果须未横置（引擎 ActivateEffect 横置闸的前置显示——一步点击
                         // 定案后发动即横置，亮死键=点两次案残留）；待发奖励不受横置影响
