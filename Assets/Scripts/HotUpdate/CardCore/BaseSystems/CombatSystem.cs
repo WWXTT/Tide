@@ -388,15 +388,27 @@ namespace CardCore
         /// 猎物的战果——反杀/溅射杀人——经 CanAttackTarget 重检自然剔除死者，下一只猎手重新按剩余
         /// 目标的当前生命取最低）。
         /// </summary>
+        /// <summary>狩猎同生命时的次级排序：护甲/圣盾/法盾/减半/全免层数越少越优先。</summary>
+        private static int DefenseLayerCount(Entity e)
+        {
+            if (e == null) return int.MaxValue;
+            return e.GetEffectiveCounterCount(KeywordRules.ArmorCounter)
+                 + e.GetEffectiveCounterCount(CounterRules.DivineShieldCounter)
+                 + e.GetEffectiveCounterCount(CounterRules.SpellShieldCounter)
+                 + e.GetEffectiveCounterCount(CounterRules.HalveShieldCounter)
+                 + e.GetEffectiveCounterCount(CounterRules.NullShieldCounter);
+        }
+
         public void ResolveHuntAttacks(Player turnPlayer)
         {
             if (turnPlayer == null) return;
             var defender = turnPlayer.Opponent;
             if (defender == null) return;
 
-            var pool = new List<Entity> { defender };
+            // 狩猎只攻击“对手生命最少的单位”，不把对手角色放进候选池。
+            var pool = new List<Entity>();
             foreach (var c in _zoneManager.GetCards(defender, Zone.Battlefield))
-                if (c != null) pool.Add(c);
+                if (c != null && c.IsAlive && c.IsLivingUnit()) pool.Add(c);
 
             foreach (var hunter in _zoneManager.GetCards(turnPlayer, Zone.Battlefield).ToList())
             {
@@ -418,9 +430,9 @@ namespace CardCore
                 // 生物之间同血取战场序最左；结界/装备等无生命耐久体不是「生命值」目标，不参与择敌。
                 // 稳定排序 → 不再随机，回放/断言可复现。
                 Entity target = candidates
-                    .Where(t => t is Player || (t is Card c && c.IsLivingUnit()))
+                    .Where(t => t is Card c && c.IsLivingUnit())
                     .OrderBy(t => t.GetLife())
-                    .ThenBy(t => t is Player ? 0 : 1)
+                    .ThenBy(DefenseLayerCount) // 同生命时优先打防护层更少的单位
                     .FirstOrDefault();
                 if (target == null) continue;
                 GameActions.Crumb($"CF-hunt atk={hunter.ID} power={GetPower(hunter)}"
@@ -428,30 +440,11 @@ namespace CardCore
 
                 // 击杀侦测快照：防守方战场单位存活账（战斗内致死即时落账 IsAlive=false，SBA 只负责
                 // 后续送葬——此刻差集即本次战斗战果；含直杀与溅射/碾压连带击杀）
-                var defenderUnits = pool.OfType<Card>().ToList();
-                var aliveBefore = defenderUnits.Where(u => u.IsAlive).ToList();
-
                 // 结算与普通攻击同管线（重检在 CanAttackTarget 已过、无守卫改写——declaredTarget=target）
                 ResolveAttackResolution(hunter, target, target, turnPlayer, payTap: false, guardBlocker: null);
                 CardCore.CardEffectBudget.CommitKeyword(hunter);
 
-                // 击杀奖励（2026-11-14 重做）：本次战斗击杀防守方任一单位 → 重置自身（解除横置，
-                // 不查 BlocksUntap——与激励/Untap 原子同口径：效果驱动的重置不受冻结/沉睡拦截）。
-                // 击杀角色不算（「单位」口径）；猎手自身死于反击则不重置（死人无横置观察面）。
-                // 事件走 GameCore 路由口（替代→总线→Trigger/Layer——OnUntap 触发式与战报「重置」行
-                // 都能收到；与 UntapHandler 同约定，不走总线直发）。
-                if (aliveBefore.Any(u => !u.IsAlive))
-                {
-                    if (hunter.IsAlive && hunter.IsTapped())
-                    {
-                        hunter.Untap();
-                        if (GameCore.Instance != null)
-                            GameCore.Instance.PublishEvent(new UntapEvent { UntappedEntity = hunter });
-                        else
-                            EventManager.Instance.Publish(new UntapEvent { UntappedEntity = hunter });
-                        GameActions.Crumb($"CF-hunt reset={hunter.ID}");
-                    }
-                }
+                // 2026-11-17 定案：狩猎不再具有击杀后重置能力。
             }
         }
 

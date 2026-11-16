@@ -125,7 +125,7 @@ namespace CardCore.Attribute
             { CardCore.AtomicEffectType.GrantDisarm, SpecColor.Blue },                 // 缴械=压制反击（行动许可）
             { CardCore.AtomicEffectType.GrantTaunt, SpecColor.Blue },                  // 帷幕=指定限制（能否被指定）
             { CardCore.AtomicEffectType.AddDurabilityUp, SpecColor.Gray },             // 2026-11-14 基础属性归灰：耐久=灰（2026-11-03「耐久=蓝」作废；0.5 灰/点）
-            { CardCore.AtomicEffectType.SealUnit, SpecColor.Red },                     // 封印=场面移除（2026-11-05 确认定案红；11-03 蓝3 口径作废；2026-11-15 曾试改绿供沃土代价用，同日回退=代价改回「对手+6甲」）
+            { CardCore.AtomicEffectType.SealUnit, SpecColor.Blue },                    // 封印（2026-11-16 用户定案蓝；11-05 红「场面移除」、11-15 绿试、11-03 蓝3 旧口径均作废；教学行绿钉价同批解除随推导）
             { CardCore.AtomicEffectType.SwapPowerLife, SpecColor.Gray },               // 2026-11-14 基础属性归灰：攻守互换=灰（原 2026-11-09 蓝2 作废——属性重排归基础属性轴）
             // ---- 场面/生存双成分（红|绿）----
             { CardCore.AtomicEffectType.GrantLifesteal, SpecColor.Green },                // 吸血=绿（2026-11-14 用户定案：与系命同属生命回复；表侧行已改绿，旧红口径作废）

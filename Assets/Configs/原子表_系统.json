@@ -279,9 +279,9 @@
   },
   {
     "ID": "f8f622b6",
-    "TextHash": "6bfb9dec",
-    "EnumName": "操控地数量≤2",
-    "DisplayName": "操控地数量≤2",
+    "TextHash": "f8f622b6",
+    "EnumName": "操控地数量≤3",
+    "DisplayName": "操控地数量≤3",
     "EffectType": "SituationGate",
     "TargetFilter": null,
     "Polarity": 0,

@@ -376,7 +376,7 @@
     "EffectType": "Sacrifice",
     "TargetFilter": null,
     "Polarity": 0,
-    "MountKinds": "不可全体",
+    "MountKinds": "",
     "Tags": null,
     "Tier": "Dm1_5"
   },

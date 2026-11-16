@@ -2949,15 +2949,16 @@
     },
     {
       "id": "C_B0EF3C08",
-      "cardName": "暗影豹",
+      "cardName": "系命者 阿格洛斯",
       "illustration": "FlowerWolf",
       "supertype": "Creature",
-      "power": 9,
-      "life": 9,
+      "power": 12,
+      "life": 8,
       "attackAbility": true,
-      "guardAbility": true,
+      "guardAbility": false,
       "keywords": [
-        "Lifelink"
+        "Lifelink",
+        "Hunt"
       ],
       "tags": [
         "ThemeGreenCountdown",
@@ -2968,11 +2969,12 @@
       ],
       "costList": [
         9.0,
+        2.0,
         0.0,
-        0.0,
-        3.0
+        3.0,
+        0.0
       ],
-      "hash": "52F593DE"
+      "hash": "C63D0547"
     },
     {
       "id": "C_AC7FC01F",
@@ -3223,6 +3225,69 @@
       ],
       "effectIds": [],
       "hash": "C3C52B64"
+    },
+    {
+      "id": "C_D1A00009",
+      "cardName": "归根",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeGreenCountdown",
+        "教学"
+      ],
+      "effectIds": [
+        "D1A00020"
+      ],
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "hash": "F6BBCACF"
+    },
+    {
+      "id": "C_D1A00010",
+      "cardName": "封印",
+      "supertype": "Spell",
+      "tags": [
+        "ThemeGreenCountdown",
+        "教学"
+      ],
+      "effectIds": [
+        "D1A00021"
+      ],
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "hash": "977D4944"
+    },
+    {
+      "id": "C_D1A00011",
+      "cardName": "枯木守卫",
+      "supertype": "Creature",
+      "guardAbility": true,
+      "power": 2,
+      "life": 8,
+      "keywords": [
+        "Guardian",
+        "Taunt"
+      ],
+      "tags": [
+        "ThemeGreenCountdown",
+        "教学"
+      ],
+      "effectIds": [],
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        5.0,
+        0.0
+      ],
+      "hash": "6DD75E8A"
     }
   ]
 }

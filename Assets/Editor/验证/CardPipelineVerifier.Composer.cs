@@ -397,7 +397,7 @@ namespace CardCore.Editor
             Assert(drawGates.First(g => g.Id == "LandsLe3").Budget == 2
                    && drawGates.First(g => g.Id == "HandEmpty").Budget == 2
                    && drawGates.First(g => g.Id == "LifeLe7").Budget == 2,
-                   "状态门二批预算锚：操控地≤2/手牌=0/生命≤7 均 2（表 Budget 列；2026-11-03 地门行≥7→≤3，2026-11-16 火灵门再削到≤2）");
+                   "状态门二批预算锚：操控地≤3/手牌=0/生命≤7 均 2（表 Budget 列；2026-11-03 地门行≥7→≤3，2026-11-16 火灵门曾削到≤2同日改回≤3）");
             // 改写门目录（2026-10-05 退役）：拦截式改写族已迁唯一光环——三族目录全清；
             // 诅咒门不还原（诅咒通道=引擎主干行 EngineCurseOnDraw，2026-10-08 接棒）
             Assert(CardCore.ComposerCatalog.OutcomeConditions.All(g => !g.Id.StartsWith("DmgRewrite"))

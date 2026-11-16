@@ -44,10 +44,14 @@ namespace CardCore.Editor.Tests
     /// 控制台播报器（P2b 薄壳化）：不再逐事件订阅——订阅 MatchLogService.Appended，
     /// 每条事件经 MatchLogRenderer 渲染成行后 Debug.Log（原 20 个回调已迁入运行时渲染器，
     /// 表现层契约说明随迁至 MatchLogRenderer 类注释；LineCount 语义不变，多行块按 \n 计数）。
+    /// 明细折叠（2026-11-17）：同一效果内重复影响行经 MatchLogDetailFold 聚合（与行流/导出同源），
+    /// 被吸收行不播报，收口时聚合行一次性播出——控制台与导出战报口径一致。
     /// </summary>
     public sealed class ConsoleAnnouncer
     {
         private int _lines;
+        private readonly MatchLogDetailFold _fold = new MatchLogDetailFold(null); // 控制台=中立实名口径
+        private readonly List<MatchLogLine> _foldEmits = new List<MatchLogLine>(4);
 
         public int LineCount => _lines;
 
@@ -60,12 +64,20 @@ namespace CardCore.Editor.Tests
         public void Detach()
         {
             MatchLogService.Appended -= OnAppended;
+            _fold.Reset();
         }
 
         private void OnAppended(MatchLogEntry entry)
         {
             var line = entry.FrozenText ?? MatchLogRenderer.Render(entry.Event);
-            if (string.IsNullOrEmpty(line)) return;
+            bool absorbed = _fold.Feed(entry.Event, new MatchLogRenderer.Line(line, null), entry.EventId, _foldEmits);
+            for (int i = 0; i < _foldEmits.Count; i++)
+            {
+                _lines += _foldEmits[i].Text.Split('\n').Length;
+                Debug.Log(_foldEmits[i].Text);
+            }
+            _foldEmits.Clear();
+            if (absorbed || string.IsNullOrEmpty(line)) return;
             _lines += line.Split('\n').Length;
             Debug.Log(line);
         }

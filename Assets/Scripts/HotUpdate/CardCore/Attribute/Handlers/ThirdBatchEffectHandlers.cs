@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Cysharp.Threading.Tasks;
@@ -95,7 +95,9 @@ namespace CardCore.Attribute.Handlers
             if (context.Targets == null) return; // 空解析=空转（不空发整卡、不入账）
             foreach (var target in context.Targets)
             {
-                if (!(target is Card card) || !card.IsAlive) continue;
+                if (!(target is Card card)) continue;
+                // 元素池地牌不是战场单位，IsAlive 可能为 false；地牌也必须能被牺牲。
+                if (!card.IsAlive && card.GetZone() != Zone.ElementPool) continue;
                 var owner = card.GetOwner() ?? card.GetController();
                 if (owner == null) continue;
                 SendToGrave(card, context);

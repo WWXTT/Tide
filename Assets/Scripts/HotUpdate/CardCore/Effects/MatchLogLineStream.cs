@@ -56,6 +56,8 @@ namespace CardCore
         private bool _armed;                          // 建局静默（首个回合头行前不入史）
         private readonly List<MatchLogLine> _standby = new List<MatchLogLine>(2); // 挂起的回合自然抽
         private MatchLogLineFlags _pendingFlags;      // 空行事件旗标前递兜底（现役旗标判据均必搭产出行，防御位）
+        private readonly MatchLogDetailFold _fold;    // 效果明细折叠（观侧口径与本流一致）
+        private readonly List<MatchLogLine> _foldEmits = new List<MatchLogLine>(4); // 折叠冲账缓冲（复用免逐事件分配）
 
         /// <param name="isSelf">观侧判定（座位归属）；null=中立实名（观战/导出）。</param>
         /// <param name="redactEffectSummary">R2：效果摘要只出短名、不出 Description（联机座位=true）。</param>
@@ -70,9 +72,10 @@ namespace CardCore
             _redactEffectSummary = redactEffectSummary;
             _redactHidden = redactHidden;
             _richValues = richValues;
+            _fold = new MatchLogDetailFold(isSelf);
         }
 
-        /// <summary>喂一条日志条目，产出 0..n 行追加到 sink（含挂起放行/旗标前递）。</summary>
+        /// <summary>喂一条日志条目，产出 0..n 行追加到 sink（含挂起放行/旗标前递/明细折叠冲账）。</summary>
         public void Append(MatchLogEntry entry, List<MatchLogLine> sink)
         {
             var e = entry.Event;
@@ -84,6 +87,15 @@ namespace CardCore
             if (!_armed) return; // 建局事件（起手抽牌/护甲注入等）不入史——首个回合头行前静默
             var line = MatchLogRenderer.Render(e, _isSelf, _redactEffectSummary, _redactHidden, _richValues);
             var flags = FlagsOf(e);
+            // 明细折叠（2026-11-17）：先行冲出聚合行（若本事件是收口边界），再判当前行是否被吸收。
+            // 冲账行不携旗标；Emit 会清 _pendingFlags，此处先存后还原——旗标仍归当前边界行。
+            var pendingBefore = _pendingFlags;
+            bool absorbed = _fold.Feed(e, line, entry.EventId, _foldEmits);
+            for (int i = 0; i < _foldEmits.Count; i++)
+                Emit(sink, _foldEmits[i].Text, _foldEmits[i].Class, MatchLogLineFlags.None, _foldEmits[i].EventId);
+            _foldEmits.Clear();
+            _pendingFlags = pendingBefore;
+            if (absorbed) return; // 可折叠事件在窗口内被吸收——收口时聚合出行
             if (string.IsNullOrEmpty(line.Text))
             {
                 // 空行：不出行。放行判定在行落定之后——空阶段行（Standby）不触发放行，与旧实现等价。
@@ -111,12 +123,13 @@ namespace CardCore
             _standby.Clear();
         }
 
-        /// <summary>跨局复位（武装/挂起/前递旗标清空）。</summary>
+        /// <summary>跨局复位（武装/挂起/前递旗标/明细折叠清空）。</summary>
         public void Reset()
         {
             _armed = false;
             _standby.Clear();
             _pendingFlags = MatchLogLineFlags.None;
+            _fold.Reset();
         }
 
         private void Emit(List<MatchLogLine> sink, string text, string cls, MatchLogLineFlags flags, uint eventId)
@@ -161,5 +174,193 @@ namespace CardCore
             (byte)MatchLogLineKind.System => "log-line--system",
             _ => "",
         };
+    }
+
+    /// <summary>
+    /// 效果明细折叠器（2026-11-17 用户定案：单个效果触发的重复影响行折叠成一行）。
+    /// 背景：效果执行摘要行（EffectExecutionSummaryEvent「　→ …」）已完整描述效果内容与逐目标
+    /// 清单，同一效果内逐原子重复行（「获得 1 个任意临时元素（来自 牺牲）」×12、墓地回收
+    /// 「获得 X（来自 墓地）+X 回到手牌」对×15）只刷屏不增信息。
+    ///
+    /// 规则定义（先定义后改码）：
+    /// - 折叠窗口=一次栈结算：StackResolutionStart（非阶段窗）开窗；EffectExecutionSummary /
+    ///   StackEmpty / TurnStart / GameOver 收口——收口时先冲聚合行再出边界行。窗口外行为不变。
+    /// - 可折叠事件（仅窗口内被吸收不出行）：
+    ///   ① ElementPoolGainEvent——同 (Player, GainedType, FromCard) 聚合，Amount 求和：
+    ///      「获得 12 个任意临时元素（来自 牺牲）」；
+    ///   ② CardEnterHandEvent（非抽牌且来区为公开区——牌库/无之外的区，天然不涉 R1 遮蔽）——
+    ///      同 (Player, FromZone) 聚合卡清单（DescribeCards 同名聚合）：
+    ///      「获得 沃土×4、小精灵×5（来自 墓地）」；其配对 CardReturnToHandEvent（同卡同组）一并
+    ///      吸收——聚合时「回到手牌」行不再单出（获得行已完整表达去向）。
+    /// - 单例不折叠：组内仅 1 条时原行原样冲出（含配对回手行）——单效果单目标的战报逐字不变。
+    /// - 聚合行文本由 MatchLogRenderer 公共辅助按消费方观侧（isSelf）现拼，与 RenderCore 同式；
+    ///   EventId=组内末条事件 id（对拍锚口径）；不携时序旗标。
+    ///
+    /// 消费方：MatchLogLineStream（本地 UI/联机座位流/观战流/全量流/回放录制同源受益）与
+    /// MatchLogService 导出、Editor 控制台播报器——同一状态机三处复用，口径单源。
+    /// 线程：与宿主（行流/日志服务）同线程同步调用，无锁。
+    /// </summary>
+    public sealed class MatchLogDetailFold
+    {
+        private readonly Func<Player, bool> _isSelf; // 观侧（null=中立实名——导出/控制台）
+        private bool _windowOpen;                    // 折叠窗口（栈结算进行中）
+        private readonly List<GainGroup> _gains = new List<GainGroup>(2);
+        private readonly List<HandGroup> _hands = new List<HandGroup>(2);
+
+        public MatchLogDetailFold(Func<Player, bool> isSelf) { _isSelf = isSelf; }
+
+        /// <summary>喂入当前事件与其已渲染行（消费方自己的观侧参数渲染产物——单例冲出时逐字保真）。
+        /// 返回 true=当前行被吸收（不出行）；emits=本次应先行外送的聚合冲账行（通常空）。</summary>
+        public bool Feed(IGameEvent e, MatchLogRenderer.Line rendered, uint eventId, List<MatchLogLine> emits)
+        {
+            switch (e)
+            {
+                case TurnStartEvent _:
+                case GameOverEvent _:
+                    Flush(emits); // 回合/终局边界：兜底冲账（正常已在摘要行/栈排干冲空）
+                    _windowOpen = false;
+                    return false;
+                case StackResolutionStartEvent srs:
+                    if (srs.TopItem != null && !srs.TopItem.IsPhaseWindow)
+                    {
+                        Flush(emits); // 防御（上窗残留）；开新窗
+                        _windowOpen = true;
+                    }
+                    return false;
+                case StackEmptyEvent _:
+                    Flush(emits);
+                    _windowOpen = false;
+                    return false;
+                case EffectExecutionSummaryEvent _:
+                    Flush(emits); // 摘要行收口：聚合行先行、摘要在后（明细→摘要旧序保持）
+                    return false;
+                case ElementPoolGainEvent g when _windowOpen:
+                {
+                    var grp = _gains.Find(x => x.Player == g.Player && x.Type == g.GainedType && x.From == g.FromCard);
+                    if (grp == null)
+                    {
+                        grp = new GainGroup { Player = g.Player, Type = g.GainedType, From = g.FromCard,
+                            First = ToLine(rendered, eventId) };
+                        _gains.Add(grp);
+                    }
+                    grp.Sum += g.Amount;
+                    grp.Count++;
+                    grp.LastEventId = eventId;
+                    return true;
+                }
+                case CardEnterHandEvent h when _windowOpen && !h.IsDraw
+                    && h.FromZone != Zone.Deck && h.FromZone != Zone.None: // 公开来区才折叠（隐藏区走 R1 遮蔽逐行）
+                {
+                    var grp = _hands.Find(x => x.Player == h.Player && x.FromZone == h.FromZone);
+                    if (grp == null)
+                    {
+                        grp = new HandGroup { Player = h.Player, FromZone = h.FromZone,
+                            First = ToLine(rendered, eventId) };
+                        _hands.Add(grp);
+                    }
+                    grp.Cards.Add(h.Card);
+                    grp.LastEventId = eventId;
+                    return true;
+                }
+                case CardCore.Attribute.CardReturnToHandEvent r when _windowOpen && HandGroupOf(r.Card, out var owner):
+                    owner.HeldReturns.Add(ToLine(rendered, eventId)); // 单例冲出时原样还原（逐字不变）
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        /// <summary>冲出全部聚合行并清组（收口边界/终局兜底共用口）。</summary>
+        public void Flush(List<MatchLogLine> emits)
+        {
+            foreach (var g in _gains)
+            {
+                if (g.Count == 1)
+                {
+                    emits.Add(g.First); // 单例：原行原样（EventId 已在 ToLine 定格）
+                }
+                else
+                {
+                    emits.Add(new MatchLogLine
+                    {
+                        Text = $"{MatchLogRenderer.Who(g.Player, _isSelf)} 获得 {g.Sum} 个" +
+                               $"{MatchLogRenderer.ManaZh(g.Type)}临时元素（来自 {MatchLogRenderer.Name(g.From)}）",
+                        Class = "log-line--effect",
+                        Kind = (byte)MatchLogLineKind.Effect,
+                        EventId = g.LastEventId,
+                    });
+                }
+            }
+            foreach (var h in _hands)
+            {
+                if (h.Cards.Count == 1)
+                {
+                    emits.Add(h.First);
+                    for (int i = 0; i < h.HeldReturns.Count; i++) emits.Add(h.HeldReturns[i]);
+                }
+                else
+                {
+                    emits.Add(new MatchLogLine
+                    {
+                        Text = $"{MatchLogRenderer.Who(h.Player, _isSelf)} 获得 " +
+                               $"{MatchLogRenderer.DescribeCards(h.Cards)}（来自 {MatchLogRenderer.ZoneZh(h.FromZone)}）",
+                        Class = "log-line--effect",
+                        Kind = (byte)MatchLogLineKind.Effect,
+                        EventId = h.LastEventId,
+                    });
+                    // 聚合时「回到手牌」配对行不再单出——获得行已完整表达去向
+                }
+            }
+            _gains.Clear();
+            _hands.Clear();
+        }
+
+        /// <summary>跨局复位（MatchLogLineStream.Reset / 导出器终局后共用）。</summary>
+        public void Reset()
+        {
+            _windowOpen = false;
+            _gains.Clear();
+            _hands.Clear();
+        }
+
+        /// <summary>卡→所属入手组（引用相等——配对判定只用同效果内同卡实例）。</summary>
+        private bool HandGroupOf(Card card, out HandGroup owner)
+        {
+            for (int i = 0; i < _hands.Count; i++)
+            {
+                if (_hands[i].Cards.Contains(card)) { owner = _hands[i]; return true; }
+            }
+            owner = null;
+            return false;
+        }
+
+        private static MatchLogLine ToLine(MatchLogRenderer.Line rendered, uint eventId) => new MatchLogLine
+        {
+            Text = rendered.Text,
+            Class = rendered.Class,
+            Kind = MatchLogLineStream.KindOf(rendered.Class),
+            EventId = eventId,
+        };
+
+        private sealed class GainGroup
+        {
+            public Player Player;
+            public ManaType Type;
+            public Card From;
+            public int Sum;
+            public int Count;
+            public MatchLogLine First;      // 首条原行（单例冲出保真）
+            public uint LastEventId;        // 聚合行对拍锚=组内末条
+        }
+
+        private sealed class HandGroup
+        {
+            public Player Player;
+            public Zone FromZone;
+            public readonly List<Card> Cards = new List<Card>(8);
+            public MatchLogLine First;
+            public uint LastEventId;
+            public readonly List<MatchLogLine> HeldReturns = new List<MatchLogLine>(8); // 吸收的配对回手行
+        }
     }
 }

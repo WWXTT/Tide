@@ -404,6 +404,19 @@ namespace CardCore.AI
         public virtual bool AllowVoluntaryActivation(GameCore core, Player me, Card source, string effectName)
             => true;
 
+        /// <summary>固定计划英雄技能（2026-11-16）：true=本拍必须先发动英雄技能，绕过 WantHeroSkill 的启发式。</summary>
+        public virtual bool ForceHeroSkill(GameCore core, Player me) => false;
+
+        /// <summary>英雄技能真正发动成功后回调（2026-11-16）：用于置“本回合已牺牲”状态，避免依赖目标选择路径。</summary>
+        public virtual void OnHeroSkillActivated(GameCore core, Player me) { }
+
+        /// <summary>英雄技能最终发动闸（2026-11-16）：策略层最后一道硬限制，先于实际 ActivateHeroSkill。</summary>
+        public virtual bool AllowHeroSkillActivation(GameCore core, Player me) => true;
+
+        /// <summary>固定计划出牌（2026-11-16）：返回下一张必须按顺序打出的牌；null=计划结束/没有对应牌，
+        /// 交给原本的 CardPlayScore。SimpleAI 会把它插到出牌队列最前，跳过留手闸。</summary>
+        public virtual Card ForcePlayCard(GameCore core, Player me) => null;
+
         /// <summary>出牌目标接管（2026-11-04）：null=不接管（回落通用择优）；空表=本次不满足，别打。</summary>
         public virtual List<Entity> PickSpellTargets(GameCore core, Player me, Card card, int modeIndex) => null;
 

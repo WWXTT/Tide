@@ -373,7 +373,9 @@ namespace SynergyUI
         /// 2026-10-16 async 化：await 替代同步阻塞；技能非出牌——舞台仅 hold 1 秒节奏，无卡面/箭头。</summary>
         private async Cysharp.Threading.Tasks.UniTask<bool> UseHeroSkillAsync(GameCore core, Player me)
         {
-            if (!_strategy.WantHeroSkill(core, me))
+            if (!_strategy.WantHeroSkill(core, me) && !_strategy.ForceHeroSkill(core, me))
+                return false;
+            if (!_strategy.AllowHeroSkillActivation(core, me))
                 return false;
 
             // 阶段4（2026-11-15 审计 §2.4）：多效果技能经策略择一（默认 0=旧行为）；
@@ -387,9 +389,28 @@ namespace SynergyUI
                 return false;
             }
 
-            var ok = await GameActions.ActivateHeroSkill(core, me, effectIndex);
+            // T7+ 牺牲：AI 预选全部池地+场上单位，显式传目标。否则 HeroSkillSystem 自动取
+            // 只拿 4 张（2026-11-16 实测 T7 只祭 4，费永远不够）。
+            List<Entity> heroTargets = null;
+            if (core.TurnEngine != null && core.TurnEngine.TurnNumber >= 7
+                && skillEffects.Count > 0 && skillEffects[effectIndex]?.Id == "FXGREEN08")
+            {
+                string N(Card c) => (c as CardWrapper)?.GetData()?.CardName;
+                var hand = core.ZoneManager.GetCards(me, Zone.Hand) ?? new List<Card>();
+                bool hasSecondAgros = hand.Any(c => c != null && N(c) == "系命者 阿格洛斯");
+                heroTargets = new List<Entity>();
+                heroTargets.AddRange((core.ZoneManager.GetCards(me, Zone.Battlefield) ?? new List<Card>())
+                    .Where(c => c != null && c.IsAlive && !(hasSecondAgros && N(c) == "系命者 阿格洛斯")));
+                heroTargets.AddRange(core.ElementPool.GetPooledCards(me)
+                    .Where(pc => pc?.SourceCard != null && !(hasSecondAgros && N(pc.SourceCard) == "系命者 阿格洛斯"))
+                    .Select(pc => (Entity)pc.SourceCard));
+            }
+            var ok = heroTargets != null
+                ? GameActions.ActivateHeroSkill(core, me, effectIndex, heroTargets, null, out _)
+                : await GameActions.ActivateHeroSkill(core, me, effectIndex);
             if (ok)
             {
+                _strategy.OnHeroSkillActivated(core, me);
                 await StageHoldAsync(core);
                 await SettleAfterAiActionAsync(core, me); // 阶段2（2026-11-15 A0）：人类在场=开响应窗再结算
             }
@@ -475,6 +496,14 @@ namespace SynergyUI
                 .Where(c => !_strategy.ShouldHold(core, me, c)) // 攒牌闸（2026-10-31 红快攻斩杀线）：刻意留手
                 .OrderByDescending(c => _strategy.CardPlayScore(core, me, c, ContainsHarmfulAtom, TotalCost))
                 .ToList();
+
+            // 2026-11-16 固定计划优先：策略指定下一张，直接插到队首（跳过留手闸/评分）。
+            var forced = _strategy.ForcePlayCard(core, me);
+            if (forced != null && hand.Contains(forced) && CanPlayCard(core, me, forced, Zone.Hand))
+            {
+                ordered.Remove(forced);
+                ordered.Insert(0, forced);
+            }
             foreach (var card in ordered)
             {
                 int mode = ChooseMode(core, me, card);
@@ -615,7 +644,15 @@ namespace SynergyUI
                 foreach (var spec in CardCore.Attribute.EffectHandlerRegistry.CollectSpecPlan(def, ctx))
                 {
                     if (spec.AiMode != CardCore.Attribute.AiPickMode.Enumerate) continue; // 受体 Auto：不进预选
-                    if (spec.AutoTake || spec.EffCount == -1) continue; // 引擎自动取/运行时自选——不预选
+                    if (spec.AutoTake) continue; // 引擎自动取——不预选
+                    if (spec.EffCount == -1)
+                    {
+                        // 牺牲是“任意数量/全取”语义；不能交给引擎自动取（2026-11-16 实测
+                        // T5 自动取 12、T7 自动取 4，导致 T7 循环费不够）。这里显式全选。
+                        if (spec.Atom != null && spec.Atom.Type == AtomicEffectType.Sacrifice)
+                            picked.AddRange(spec.Candidates);
+                        continue;
+                    }
                     IEnumerable<Entity> specOrdered;
                     if (IsHarmfulAtom(spec.Atom))
                         specOrdered = _strategy.OrderHarmfulTargets(core, me, spec.Candidates);

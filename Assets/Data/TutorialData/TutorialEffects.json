@@ -4244,7 +4244,15 @@
             "refId": "84136d36"
           }
         }
-      ]
+      ],
+      "cost": [
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "costPin": 1
     },
     {
       "id": "FXGREEN09",
@@ -4634,6 +4642,71 @@
             "refId": "f3ca462e",
             "value": 2,
             "str": "C_D1A00008"
+          }
+        }
+      ]
+    },
+    {
+      "id": "D1A00020",
+      "name": "将己方墓地全部卡返回手牌；若操控地数量<2，抽1张牌",
+      "hash": "D1A00020",
+      "timing": 19,
+      "activation": 2,
+      "selection": 0,
+      "count": 99,
+      "cost": [
+        0.0,
+        0.0,
+        0.0,
+        8.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "c03ef9fe",
+            "value": 99,
+            "kinds": [
+              9
+            ]
+          }
+        },
+        {
+          "kind": 1,
+          "gid": "LandsLe3",
+          "then": [
+            {
+              "refId": "03c85bc4"
+            }
+          ]
+        }
+      ],
+      "costPin": 1
+    },
+    {
+      "id": "D1A00021",
+      "name": "封印一个对方单位",
+      "hash": "D1A00021",
+      "timing": 19,
+      "activation": 2,
+      "selection": 0,
+      "count": 1,
+      "cost": [
+        0.0,
+        0.0,
+        3.0,
+        0.0,
+        0.0
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "c336be8f",
+            "kinds": [
+              2
+            ]
           }
         }
       ]

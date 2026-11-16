@@ -29,8 +29,11 @@ namespace CardCore.AI
         private const string NameSprout = "萌芽";     // 成长 1 + 首卡减费
         private const string NameBloom = "沃土";      // 成长 3；代价：一个敌方单位获得6层护甲（净 6 绿）
         private const string NameReturn = "归根";     // 回收 3 张
+        private const string NameRecycle = "回收";    // 全墓地回手（2026-11-16 绿线循环）
+        private const string NameSeal = "封印";       // 封印一个对方单位（绿线保命）
+        private const string NameWitheredGuard = "枯木守卫"; // 2/8 守护+帷幕，优先级低于暗影豹
         private const string NameEraseLand = "枯竭";  // 抹除对方元素池地牌（2026-11-15 起=全取）
-        private const string NamePanther = "暗影豹";  // 9/9 攻守 狩猎+吸血
+        private const string NamePanther = "系命者 阿格洛斯"; // 12/12 攻守 系命
         // 虚化 = 2026-11-15 用户口径里替换掉旧的 4 费「减半」的 3 费保命件（无实体，钳伤害到 1）。
         // 只能在对**对手回合**的响应窗贴自己；自己回合打 = 回合末掉层白给。全类只保留这一个名字。
         private const string NameVeil = "虚化";
@@ -39,12 +42,34 @@ namespace CardCore.AI
         private const string NameLifelinkNest = "系命母巢"; // 召唤 3 个 1/1 攻击守卫（团结3：回合末赋予系命）
         private const string NameWorkerNest = "工蜂母巢";   // 召唤 2 个 3/1 攻击（卡 1 + 召唤 3 = 4 费，T3 挤费线）
 
+        // 2026-11-16 固定序状态：T3 只下 1 只小精灵 + 1 张沃土；T5 只打 1 张沃土再牺牲。
+        private int _loopT3Turn = -1;
+        private bool _loopT3Spirit;
+        private int _loopT5Turn = -1;
+        private bool _loopT5Bloom;
+        private bool _loopT5Sacrificed;
+        private static bool LoopT5PostSacrifice; // T5 牺牲后：允许把沃土/小精灵也铺成地，只留 1 张归根
+        private bool _loopSacrificedThisTurn;
+        private int _loopSacrificeTurn = -1;
+        private bool _t7RefreshAgros;
+        private static bool T7PostSacrifice; // T7+ 牺牲后：允许铺地/留一张守卫
+        private bool _t5AgrosCast;
+        private bool _t1SpiritCast;
+        private bool _t3SpiritCast;
+        private bool _t3BloomCast;
+        private bool _returnUsedThisTurn;
+        private static int _statGameSeq;
+        // 固定计划执行步（ForcePlayCard）：T1/T3/T5 按序插队，计划外交给原评分。
+        private int _fixedTurn = -1;
+        private int _fixedStep;
+
         /// <summary>核心组件（全取抹除 + 虚化 + 暗影豹 + 两张母巢）——不当土地烧掉。</summary>
         private static readonly HashSet<string> CoreNames = new HashSet<string>
         {
             // 荒原猎兽（2026-11-15 修 bug）：此前不在核心件里 → 会被 PlayLands 当土地铺掉，
             // 手牌里永远留不住、T5 之后一次都打不出来。
             NameEraseLand, NameVeil, NamePanther, NameBeast, NameBattleNest, NameLifelinkNest, NameWorkerNest,
+            NameReturn, NameRecycle, NameSeal,
         };
 
         private static readonly HashSet<string> EraseNames = new HashSet<string> { NameEraseLand };
@@ -64,7 +89,7 @@ namespace CardCore.AI
         /// <summary>手牌铺地上限（2026-11-15 用户口径「轮转」）：牺牲会腾出地牌槽，腾出后要立刻用**手牌**
         /// 补一块回来（一张地出两份费）；这套牌一路铺到 12 地才停手牌铺地，之后全靠成长。
         /// 12 之后手牌只用来打成长/回收，不再当土地烧。</summary>
-        private const int LandMidCap = 12;
+        private const int LandMidCap = 16; // 阿格洛斯 14 费 + 2 费牺牲
         /// <summary>6 地之前**每回合必须用手牌把地铺满**（2026-11-15 用户口径：这是运转的地基；
         /// 地数不够 3 块以上，沃土 6 费根本开不出来）。</summary>
         private const int EarlyFill = 6;
@@ -81,19 +106,42 @@ namespace CardCore.AI
         /// ③ 槽位已满（铺不进新地）时同理：祭一块横置地，下一步 PlayLands 立刻补回来。</summary>
         public override bool WantHeroSkill(GameCore core, Player me)
         {
+            EnsureTurnState(core, me);
             if (!base.WantHeroSkill(core, me)) return false;
+            // T1/T3 固定步骤期间不牺牲（第一次跳费只靠小精灵/沃土）。
+            if (IsLoopDeck(core, me) && OwnTurn(core, me) < 5) return false;
+            // T3 循环卡组只走“小精灵→沃土”，不牺牲。
+            if (IsLoopDeck(core, me) && OwnTurn(core, me) == 3) return false;
+            // T5 循环：必须先打完沃土（_loopT5Bloom），再允许牺牲；否则池里的核心件会让技能抢在沃土前发动。
+            if (IsLoopT5(core, me) && !_loopT5Bloom) return false;
+            // T5 全取循环：沃土打完后，先牺牲（9 次），再归根。
+            if (IsLoopT5(core, me) && _loopT5Bloom && !_loopT5Sacrificed
+                && HandCopies(core, me, NameReturn) > 0)
+            {
+                _loopT5Sacrificed = true; LoopT5PostSacrifice = true; // Want 分支也会走，必须在这里置位，否则自由阶段仍按未牺牲处理
+                return true;
+            }
             // 2026-11-16：T7 母巢召唤差 1~2 点 → 牺牲横置地补费（用户固定序：落 1 地→10 费，
             // 母巢本体 1 + 召唤 10，需再挤 1 点）。
-            if (NestActivationShort(core, me, out _)) return true;
-            // T7+ 母巢不差费就不再用旧的 T5 小精灵牺牲循环（否则会把循环材料白烧掉）。
-            if (core.TurnEngine != null && core.TurnEngine.TurnNumber >= 7) return false;
             // 固定脚本：T5 的「牺牲场上小精灵」是循环的第一步，必须无条件发动（不看费缺口）；
             // 真正的 T5 还会加祭一块灰地/非绿地（换彩 + 腾槽，沃土才付得出）。
             if (InScriptTurn(core, me, out int scriptTurn) && scriptTurn == 5
-                && HasSpiritOnField(core, me)) return true;
-            // 脚本 T7（2026-11-15 第二版）：豹已经付得出（PantherReady）才进 T7 脚本——这时候
-            // **不需要再牺牲凑费**（祭 4 补 4 那套正是用户要去掉的手牌浪费），所以这里不发动牺牲。
-            if (InScriptTurn(core, me, out int t7) && t7 == 7) return false;
+                && HasSpiritOnField(core, me)
+                && (!IsLoopDeck(core, me) || _loopT5Bloom)) return true;
+            // T7+ 新循环：场上 1 只时先用沃土找第二只，不刷新；2 只以后才刷新最低属性的旧阿格洛斯。
+            if (OwnTurn(core, me) >= 7
+                && !_loopSacrificedThisTurn && AgrosOnField(core, me) > 0
+                && HandCopies(core, me, NameReturn) > 0
+                && ((AgrosOnField(core, me) >= 2 && HandCopies(core, me, NamePanther) == 0)
+                    || (HandCopies(core, me, NamePanther) > 0
+                        && !HasAffordableAgrosInHand(core, me)
+                        && HandCopies(core, me, NameReturn) > 0)))
+            {
+                _t7RefreshAgros = AgrosOnField(core, me) >= 2
+                    && HandCopies(core, me, NamePanther) == 0;
+                _loopSacrificeTurn = OwnTurn(core, me); _loopSacrificedThisTurn = true; T7PostSacrifice = true;
+                return true;
+            }
             // 脚本 T3（2026-11-15 用户口径：T3 要跳费）：小精灵先出、沃土还差 1~4 点时，
             // 允许「牺牲 1 块地 → 腾槽 → 手牌补地」的轮转（净 +1 费）。
             // 旧闸要求「已横置地 ≥2」——但小精灵只横置 1 块、沃土又还没打出来，条件永远不成立，
@@ -122,6 +170,8 @@ namespace CardCore.AI
         public override Entity PickAttackTarget(GameCore core, Player me, Card unit, Player opp)
         {
             if (unit == null || opp == null) return base.PickAttackTarget(core, me, unit, opp);
+            // 阿格洛斯走通用解场：能解的生物优先，不再用旧的“系命优先打脸”覆盖。
+            if (NameOf(unit) == NamePanther) return base.PickAttackTarget(core, me, unit, opp);
             var combat = core.CombatSystem;
             if (unit.HasKeyword(KeywordRules.Lifelink))
             {
@@ -156,10 +206,26 @@ namespace CardCore.AI
 
             bool isSacrifice = (effectName != null && (effectName.Contains("牺牲") || effectName.Contains("送墓")))
                                || (source != null && NameOf(source) == "牺牲");
+            // 牺牲和归根绑定：手里没有归根，就不使用牺牲。
+            if (isSacrifice && HandCopies(core, me, NameReturn) == 0) return false;
+            // T7+ 自愿牺牲：只要手里有归根就允许，并在技能入口置状态（不依赖目标选择回调）。
+            if (isSacrifice && OwnTurn(core, me) >= 7)
+            {
+                _loopSacrificeTurn = OwnTurn(core, me); _loopSacrificedThisTurn = true; T7PostSacrifice = true;
+                return true;
+            }
+            // T1/T3 固定步骤期间不牺牲（第一次跳费只靠小精灵/沃土）。
+            if (isSacrifice && OwnTurn(core, me) < 5) return false;
+            // T7 循环必须手里有第二张归根；只有 1 张时不牺牲，按普通评分。
+            if (isSacrifice && OwnTurn(core, me) >= 7
+                && HandCopies(core, me, NameReturn) < 2) return false;
+            // T3 循环卡组不牺牲。
+            if (isSacrifice && IsLoopDeck(core, me) && core.TurnEngine != null
+                && OwnTurn(core, me) == 3) return false;
+            // T5 全取循环：沃土打完后，允许牺牲全部 8 地 + 小精灵。
+            if (isSacrifice && IsLoopT5(core, me)
+                && _loopT5Bloom && !_loopT5Sacrificed) return true;
             // 2026-11-16：T7 母巢召唤差 1~2 点 → 允许牺牲横置地补最后几点（随后主动召唤）。
-            if (isSacrifice && NestActivationShort(core, me, out _)) return true;
-            // T7+ 不再走旧的 T5 小精灵牺牲循环；母巢不差费就不祭。
-            if (isSacrifice && core.TurnEngine != null && core.TurnEngine.TurnNumber >= 7) return false;
             if (!isSacrifice) return true;
             // 豹回收线（2026-11-15 用户口径）：T7/T8 起手里没豹、池里却有豹 → 允许祭豹送墓
             // （不受「场上须有小精灵」的 T5 闸限制，也不要求先手脚本回合）。
@@ -175,15 +241,25 @@ namespace CardCore.AI
             // 脚本 T5（2026-11-15 循环）：材料=**场上小精灵**；真正 T5 再加一块非绿地。
             // 没有小精灵就整条闸关死——否则自愿队列会在「手里没小精灵」的回合照样发动，
             // 把地池里的地当材料烧掉（实测 T5 地 8→7）。
-            if (scriptTurn == 5) return HasSpiritOnField(core, me);
-            // 脚本 T7（2026-11-15 第二版）：豹已付得出 → 不需要牺牲凑费，闸直接关死。
-            if (scriptTurn == 7) return false;
+            if (scriptTurn == 5) return HasSpiritOnField(core, me)
+                && (!IsLoopDeck(core, me) || _loopT5Bloom);
+            // T7+ 新循环：阿格洛斯在场即可牺牲回收；本轮只允许一次。
+            if (scriptTurn >= 7) return !_loopSacrificedThisTurn && AgrosOnField(core, me) > 0;
             return false;
         }
 
         /// <summary>救核心要先于出牌（否则核心地牌会被当成普通地继续产色/被忽略）。</summary>
         public override bool SkillBeforeCards(GameCore core, Player me)
         {
+            // T5 固定牺牲必须先于任何出牌（包括归根）。
+            if (ForceHeroSkill(core, me)) return true;
+            // T5 沃土之前不允许技能抢跑，否则会先牺牲、沃土永远打不出来。
+            if (IsLoopT5(core, me) && !_loopT5Bloom) return false;
+            // T3 循环卡组不牺牲，先出小精灵/沃土。
+            if (IsLoopDeck(core, me) && OwnTurn(core, me) == 3) return false;
+            // T5 全取循环：沃土打完后，牺牲必须先于归根。
+            if (IsLoopT5(core, me) && _loopT5Bloom && !_loopT5Sacrificed
+                && HandCopies(core, me, NameReturn) > 0) return true;
             // 脚本 T7（2026-11-15 用户口径）：**先出牌、后牺牲**——必须先打小精灵+回收把 3 块地横置出来，
             // 牺牲才拿得到「已横置的地」；否则一上来就祭，只能祭到没横置的地（净 0）或小精灵（+1）。
             // 2026-11-15：脚本回合一律「先出牌、后牺牲」（T3 也一样——先打小精灵+沃土把地横置出来）。
@@ -265,6 +341,14 @@ namespace CardCore.AI
             => (core.ZoneManager.GetCards(me, Zone.Battlefield) ?? new List<Card>())
                 .Any(c => c != null && c.IsAlive && NameOf(c) == NameSpirit);
 
+        private static int AgrosOnField(GameCore core, Player me)
+            => (core.ZoneManager.GetCards(me, Zone.Battlefield) ?? new List<Card>())
+                .Count(c => c != null && c.IsAlive && NameOf(c) == NamePanther);
+
+        private static bool HasAffordableAgrosInHand(GameCore core, Player me)
+            => (core.ZoneManager.GetCards(me, Zone.Hand) ?? new List<Card>())
+                .Any(c => c != null && NameOf(c) == NamePanther && GameActions.CanAffordCast(core, me, c, 0));
+
         /// <summary>自方场上小精灵张数（T3 轮转可祭多只，按张数算可补的费）。</summary>
         private static int SpiritsOnField(GameCore core, Player me)
             => (core.ZoneManager.GetCards(me, Zone.Battlefield) ?? new List<Card>())
@@ -320,18 +404,14 @@ namespace CardCore.AI
         {
             scriptTurn = 0;
             if (core.TurnEngine == null || !ReferenceEquals(core.TurnEngine.TurnPlayer, me)) return false;
-            // 用户口径的「T3/T5/T7」= **全局回合号**（先手方 = 奇数回合）。
-            int own = core.TurnEngine.TurnNumber;
-            if (!ReferenceEquals(core.Player1, me)) return false;      // 脚本只对先手方（绿先手）
+            // 2026-11-16 修正：用户口径 T1/T3/T5/T7 是**绿方自己的回合序**。
+            // 绿在后手时，它的 T1 是全局 T2、T3 是全局 T4、T5 是全局 T6、T7 是全局 T8。
+            int own = ReferenceEquals(core.Player1, me)
+                ? core.TurnEngine.TurnNumber
+                : core.TurnEngine.TurnNumber - 1;
             if (own == 3) { scriptTurn = 3; return true; }
             if (own == 5) { scriptTurn = 5; return true; }
-            // 2026-11-15 用户口径（第二版）：**不再强求 T7 出豹**——手里有豹、且这一拍真付得出
-            // （地+临时彩 ≥12）才进豹脚本；付不出就继续走 T5 的虚化循环长地，缓 1~2 个回合再出，
-            // 这样不用为了凑 12 费一次祭 4 张（省手牌）。
-            if (own >= 7 && HandCopies(core, me, NamePanther) > 0 && PantherReady(core, me))
-            { scriptTurn = 7; return true; }
-            // 豹还没到位（或不在手）：7 回合后继续走 T5 的虚化循环（小精灵/牺牲/回收/落地）。
-            if (own >= 7) { scriptTurn = 5; return true; }
+            if (own >= 7) { scriptTurn = 7; return true; }
             return false;
         }
 
@@ -377,6 +457,8 @@ namespace CardCore.AI
                     if (name == NameReturn) return 9700f;      // 用户推导：T3 收尾是「回收」
                     break;
                 case 5:
+                    // T5 循环：小精灵必须先下场给沃土 −2，再打沃土；即使铺地后已不是首卡。
+                    if (name == NameSpirit && !spiritOnField && HandCopies(core, me, NameBloom) > 0) return 9900f;
                     if (name == NameSpirit && firstCard) return 9900f;
                     // T5 循环的「回收」：墓地 ≥3 张才打（回收 3 才是纯收益）——不够的回合再打第二张
                     // 只是把 4 费扔掉（实测 T5 二次归根捞 1 张、把留给对手回合贴虚化的费烧光）。
@@ -384,7 +466,7 @@ namespace CardCore.AI
                     // 2026-11-16：第一组三回合（T1/T3/T5）的第二次成长仍在 T5 优先于母巢；
                     // T7 起不再强制沃土，把费让给母巢+召唤。
                     if (name == NameBloom && core.TurnEngine != null
-                        && core.TurnEngine.TurnNumber <= 5 && HandCopies(core, me, NameBloom) > 0) return 9800f;
+                        && OwnTurn(core, me) <= 5 && HandCopies(core, me, NameBloom) > 0) return 9800f;
                     break;
                 case 7:
                     if (name == NameSpirit && firstCard) return 9900f;
@@ -395,13 +477,284 @@ namespace CardCore.AI
             return 0f;
         }
 
+        /// <summary>绿预组全局硬闸：没有归根就不允许牺牲（固定序/评分逻辑都必须遵守）。</summary>
+        public override bool AllowHeroSkillActivation(GameCore core, Player me)
+            => !IsLoopDeck(core, me) || HandCopies(core, me, NameReturn) > 0;
+
+        public override void OnHeroSkillActivated(GameCore core, Player me)
+        {
+            if (IsLoopT5(core, me))
+            {
+                _loopT5Sacrificed = true; LoopT5PostSacrifice = true;
+            }
+            if (OwnTurn(core, me) >= 7)
+            {
+                _loopSacrificeTurn = OwnTurn(core, me);
+                _loopSacrificedThisTurn = true;
+                T7PostSacrifice = true;
+            }
+        }
+
+        /// <summary>T5 固定牺牲：沃土之后、归根之前，必须直接发动英雄技能。</summary>
+        public override bool ForceHeroSkill(GameCore core, Player me)
+        {
+            if (IsLoopT5(core, me))
+            {
+                if (!_loopT5Bloom || _loopT5Sacrificed
+                    || HandCopies(core, me, NameReturn) == 0) return false;
+                _loopT5Sacrificed = true; LoopT5PostSacrifice = true;
+                return true;
+            }
+            if (OwnTurn(core, me) >= 7
+                && !_loopSacrificedThisTurn && AgrosOnField(core, me) > 0
+                && HandCopies(core, me, NameReturn) > 0
+                && ((AgrosOnField(core, me) >= 2 && HandCopies(core, me, NamePanther) == 0)
+                    || (HandCopies(core, me, NamePanther) > 0
+                        && !HasAffordableAgrosInHand(core, me)
+                        && HandCopies(core, me, NameReturn) > 0)))
+            {
+                _t7RefreshAgros = AgrosOnField(core, me) >= 2
+                    && HandCopies(core, me, NamePanther) == 0;
+                _loopSacrificeTurn = OwnTurn(core, me); _loopSacrificedThisTurn = true; T7PostSacrifice = true;
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>回合状态必须在任何策略查询（ShouldHold/评分/技能）之前重置，不能等 ForcePlayCard。</summary>
+        private void EnsureTurnState(GameCore core, Player me)
+        {
+            int turn = ReferenceEquals(core.Player1, me)
+                ? core.TurnEngine.TurnNumber
+                : core.TurnEngine.TurnNumber - 1;
+            if (turn < 1 || _fixedTurn == turn) return;
+            _fixedTurn = turn; _fixedStep = 0;
+            _loopT5Bloom = false; _loopT5Sacrificed = false; LoopT5PostSacrifice = false;
+            if (_loopSacrificeTurn != turn)
+            {
+                _loopSacrificedThisTurn = false; _t7RefreshAgros = false; T7PostSacrifice = false;
+            }
+            _returnUsedThisTurn = false;
+            if (turn == 1)
+            {
+                _statGameSeq++;
+                Console.WriteLine($"[green-key] game={_statGameSeq} turn=1 S={HandCopies(core, me, NameSpirit) > 0}");
+                Console.WriteLine(KeyStateDump(core, me, _statGameSeq, 1));
+            }
+            if (turn == 3)
+            {
+                Console.WriteLine($"[green-key] game={_statGameSeq} turn=3 S={HandCopies(core, me, NameSpirit) > 0} B={HandCopies(core, me, NameBloom) > 0} R={HandCopies(core, me, NameReturn) > 0} t1S={_t1SpiritCast}");
+                Console.WriteLine(KeyStateDump(core, me, _statGameSeq, 3));
+            }
+            if (turn == 5)
+            {
+                var oppBoard = (core.ZoneManager.GetCards(me.Opponent, Zone.Battlefield) ?? new List<Card>())
+                    .Where(c => c != null && c.IsAlive)
+                    .Select(c => $"{NameOf(c)} {core.LayerEngine.CalculatePower(c)}/{core.LayerEngine.CalculateToughness(c)}"
+                        + $" armor={c.GetEffectiveCounterCount(KeywordRules.ArmorCounter)}")
+                    .ToList();
+                Console.WriteLine($"[opp-state] game={_statGameSeq} turn={turn} [{string.Join(", ", oppBoard)}]");
+                _t5AgrosCast = false;
+                Console.WriteLine($"[green-key] game={_statGameSeq} turn=5 B={HandCopies(core, me, NameBloom) > 0} R={HandCopies(core, me, NameReturn) > 0} A={HandCopies(core, me, NamePanther) > 0} t3S={_t3SpiritCast} t3B={_t3BloomCast} t3BloomGrave={GyHasBloom(core, me)}");
+                Console.WriteLine(KeyStateDump(core, me, _statGameSeq, 5));
+            }
+            if (turn == 6)
+                Console.WriteLine($"[green-key] game={_statGameSeq} turn=6 t5Agros={_t5AgrosCast}");
+            if (turn >= 7)
+                Console.WriteLine(KeyStateDump(core, me, _statGameSeq, turn));
+        }
+
+        /// <summary>2026-11-16 固定计划：T1 小精灵；T3 小精灵→沃土；T5 沃土→（牺牲后）归根。
+        /// 计划内的牌按顺序强制打出；计划外/盈余费回落 CardPlayScore。</summary>
+        public override Card ForcePlayCard(GameCore core, Player me)
+        {
+            if (core?.TurnEngine == null || !IsLoopDeck(core, me)) return null;
+            int turn = ReferenceEquals(core.Player1, me)
+                ? core.TurnEngine.TurnNumber
+                : core.TurnEngine.TurnNumber - 1;
+            if (turn < 1) return null;
+            if (_fixedTurn != turn)
+            {
+                _fixedTurn = turn; _fixedStep = 0;
+                _loopT5Bloom = false; _loopT5Sacrificed = false; LoopT5PostSacrifice = false;
+                if (_loopSacrificeTurn != turn)
+                {
+                    _loopSacrificedThisTurn = false; _t7RefreshAgros = false; T7PostSacrifice = false;
+                }
+                _returnUsedThisTurn = false;
+                if (turn >= 7)
+                    Console.WriteLine(KeyStateDump(core, me, _statGameSeq, turn));
+                if (turn == 1)
+                {
+                    _statGameSeq++;
+                    Console.WriteLine($"[green-key] game={_statGameSeq} turn=1 S={HandCopies(core, me, NameSpirit) > 0}");
+                    Console.WriteLine(KeyStateDump(core, me, _statGameSeq, 1));
+                }
+                if (turn == 3)
+                {
+                    Console.WriteLine($"[green-key] game={_statGameSeq} turn=3 S={HandCopies(core, me, NameSpirit) > 0} B={HandCopies(core, me, NameBloom) > 0} R={HandCopies(core, me, NameReturn) > 0} t1S={_t1SpiritCast}");
+                    Console.WriteLine(KeyStateDump(core, me, _statGameSeq, 3));
+                }
+                if (turn == 5)
+                {
+                    _t5AgrosCast = false;
+                    Console.WriteLine($"[green-key] game={_statGameSeq} turn=5 B={HandCopies(core, me, NameBloom) > 0} R={HandCopies(core, me, NameReturn) > 0} A={HandCopies(core, me, NamePanther) > 0} t3S={_t3SpiritCast} t3B={_t3BloomCast} t3BloomGrave={GyHasBloom(core, me)}");
+                    Console.WriteLine(KeyStateDump(core, me, _statGameSeq, 5));
+                }
+                if (turn == 6)
+                    Console.WriteLine($"[green-key] game={_statGameSeq} turn=6 t5Agros={_t5AgrosCast}");
+            }
+            var hand = core.ZoneManager.GetCards(me, Zone.Hand) ?? new List<Card>();
+            Card Find(string n) => hand.FirstOrDefault(c => c != null && NameOf(c) == n
+                && GameActions.CanAffordCast(core, me, c, 0));
+
+            if (turn == 1)
+            {
+                if (_fixedStep == 0)
+                {
+                    var s = Find(NameSpirit);
+                    if (s != null) { _t1SpiritCast = true; _fixedStep = 1; return s; }
+                }
+                return null;
+            }
+            if (turn == 3)
+            {
+                // T3 固定：小精灵 ×1 + 沃土 ×1（T1 已经出过第一张小精灵）。
+                if (_fixedStep == 0)
+                {
+                    var s = Find(NameSpirit);
+                    if (s != null) { _t3SpiritCast = true; _fixedStep = 1; return s; }
+                }
+                if (_fixedStep == 1)
+                {
+                    var b = Find(NameBloom);
+                    if (b != null) { _t3BloomCast = true; _fixedStep = 2; return b; }
+                }
+                return null;
+            }
+            if (turn == 5)
+            {
+                // 2026-11-16 用户拍板：T5 前置小精灵首卡（若在手且沃土还差减费层）——
+                // T5 手牌余册通常只够铺到 7 地（第 8 块地不存在），1 费缺口由 −2 折扣补上
+                // （沃土 6→4，7−1−4=2 恰付牺牲 2 费）；8 地局同样省 1 费，无副作用。
+                if (_fixedStep == 0)
+                {
+                    if (HandCopies(core, me, NameSpirit) > 0 && HandBloomNeedsLayers(core, me))
+                    {
+                        var s0 = Find(NameSpirit);
+                        if (s0 != null) { _fixedStep = 1; return s0; }
+                    }
+                    _fixedStep = 1; // 小精灵不在手/用不上 → 直接进沃土步，不卡步
+                }
+                if (_fixedStep == 1)
+                {
+                    var b = Find(NameBloom);
+                    if (b != null) { _fixedStep = 2; _loopT5Bloom = true; return b; }
+                }
+                if (_fixedStep == 2 && _loopT5Sacrificed)
+                {
+                    var r = Find(NameReturn);
+                    if (r != null) { _returnUsedThisTurn = true; _fixedStep = 3; return r; }
+                }
+                // 归根后：暗影豹最优先 → 枯木守卫 → 都没有才让原评分继续沃土。
+                if (_fixedStep == 3)
+                {
+                    var p = Find(NamePanther);
+                    if (p != null) { _t5AgrosCast = true; _fixedStep = 4; return p; }
+                }
+                if (_fixedStep == 4)
+                {
+                    var g = Find(NameWitheredGuard);
+                    if (g != null) { _fixedStep = 5; return g; }
+                }
+                return null;
+            }
+            if (turn >= 7)
+            {
+                // T7+：阿格洛斯 → 牺牲 → 归根 → 阿格洛斯（刷新）→ 枯木守卫。
+                if (_fixedStep == 0)
+                {
+                    var a = Find(NamePanther);
+                    if (a != null) { _fixedStep = 1; return a; }
+                    // 场/手都没有阿格洛斯：继续沃土成长，从牌库找阿格洛斯。
+                    if (AgrosOnField(core, me) < 2 && HandCopies(core, me, NamePanther) == 0
+                        && TotalLands(core, me) < LandMidCap)
+                    {
+                        var b = Find(NameBloom);
+                        if (b != null) return b; // 不推进 step，找到阿格洛斯后下一拍仍从这里出
+                    }
+                    _fixedStep = 1;
+                }
+                if (_fixedStep == 1 && _loopSacrificedThisTurn)
+                {
+                    var r = Find(NameReturn);
+                    if (r != null) { _returnUsedThisTurn = true; _fixedStep = 2; return r; }
+                    _fixedStep = 2;
+                }
+                if (_fixedStep == 2 && _loopSacrificedThisTurn)
+                {
+                    var a = Find(NamePanther);
+                    if (a != null) { _fixedStep = 3; return a; }
+                    _fixedStep = 3;
+                }
+                if (_fixedStep == 3 && _loopSacrificedThisTurn)
+                {
+                    var g = Find(NameWitheredGuard);
+                    if (g != null) { _fixedStep = 4; return g; }
+                    _fixedStep = 4;
+                }
+                return null;
+            }
+            return null;
+        }
+
         public override float CardPlayScore(GameCore core, Player me, Card card,
             Func<Card, bool> containsHarmfulAtom, Func<Card, float> totalCost)
         {
             string name = NameOf(card);
             if (name == null) return totalCost(card);
 
-            // 固定脚本优先（有对应卡才进脚本；否则完全走原启发式）
+            // T5 标记：只要沃土进入候选/被评分，就认为本回合的沃土环节已经开始，
+            // 后续技能闸（牺牲）不再依赖 ForcePlayCard 是否亲手打出它。
+            if (IsLoopT5(core, me) && name == NameBloom) _loopT5Bloom = true;
+
+            // 归根每回合只允许一张。
+            if (name == NameReturn && _returnUsedThisTurn) return 0f;
+
+            // T1 固定只打一张小精灵；第二张留给 T3 的「小精灵 → 沃土」。
+            if (OwnTurn(core, me) == 1 && name == NameSpirit && _fixedStep >= 1) return 0f;
+
+            // T7+：大生物/守卫优先；地到 16 后沃土不再成长。
+            if (OwnTurn(core, me) >= 7)
+            {
+                if (name == NamePanther) return 9990f;
+                if (name == NameWitheredGuard)
+                {
+                    // 手里还有阿格洛斯但暂时差费：先铺地/留费，不要把费花在守卫上。
+                    var agros = (core.ZoneManager.GetCards(me, Zone.Hand) ?? new List<Card>())
+                        .FirstOrDefault(c => c != null && NameOf(c) == NamePanther);
+                    if (agros != null && !GameActions.CanAffordCast(core, me, agros, 0)) return 0f;
+                    return 6000f;
+                }
+                if (name == NameBloom)
+                {
+                    if (TotalLands(core, me) >= LandMidCap) return 0f;
+                    // T7+ 场/手都没有阿格洛斯：沃土最高优先，靠成长从牌库找阿格洛斯。
+                    if (AgrosOnField(core, me) < 2 && HandCopies(core, me, NamePanther) == 0)
+                        return 9000f;
+                }
+            }
+
+            // T5 循环结束后的自由阶段：封印/暗影豹付得出时，沃土让位，不要继续无脑跳费。
+            if (IsLoopT5(core, me) && _loopT5Sacrificed && name == NameBloom)
+            {
+                // 只要手里有暗影豹/枯木守卫，沃土就让位——先铺地攒费，再按 豹 > 守卫 出。
+                bool keyInHand = HandCopies(core, me, NamePanther) > 0
+                    || HandCopies(core, me, NameWitheredGuard) > 0;
+                if (keyInHand) return 2500f;
+            }
+
+            // 固定计划由 ForcePlayCard 插队执行；这里只负责计划外的盈余出牌（原评分逻辑）。
             if (InScriptTurn(core, me, out int scriptTurn))
             {
                 // T7 暗影豹：**费一够立刻落地**（高于一切）——循环/补地都是为它服务，
@@ -435,8 +788,9 @@ namespace CardCore.AI
             {
                 // 小精灵（2026-11-15 用户定案：**每回合只要有就必须是第一张牌**，从头到尾不变）——
                 // 首卡全额优先（8000），把 −2 层减费交出去；不是首卡时只是普通 1 费 4 甲填线。
-                if (IsFirstCardThisTurn(core, me)) return 8000f;
-                return TotalLands(core, me) >= GateLands ? 1200f : 400f;
+                // 价值口径（2026-11-16）：第一只 = 1/1 + 2 甲 + 减 2 费 = 4；第二只只值 2。
+                if (IsFirstCardThisTurn(core, me)) return 4000f;
+                return 2000f;
             }
 
             if (EraseNames.Contains(name))
@@ -451,9 +805,11 @@ namespace CardCore.AI
                 // 归根=轮转的回收口（2026-11-15 用户口径）：**只要费够，穿插回收是纯收益**——
                 // 「回收 + 牺牲 + 生物」能整链打出来时，回收排到最前（6500），让这一手既捞牌又凑费。
                 if (CanChainReturnBeast(core, me)) return 6500f;
+                int gy = GyCount(core, me);
+                // 全取归根（净 5 绿）：墓地 ≥5 张就是循环收益峰值，优先于普通铺场。
+                if (gy >= 5) return 7600f;
                 int coreGy = CoreInGraveyard(core, me);
                 if (coreGy > 0) return 3400f;
-                int gy = GyCount(core, me);
                 if (gy >= 2) return 2400f;
                 return 300f;
             }
@@ -466,45 +822,6 @@ namespace CardCore.AI
                 return lands >= GateLands ? 3400f : 1600f;
             }
 
-            if (name == NameBeast)
-            {
-                // 荒原猎兽（5/5 系命+狩猎，8 费纯绿）：2026-11-15 用户口径——**首次召唤优先**，
-                // 场面压力减轻之后才回去继续成长；费够时优先走「回收+牺牲+生物」那条纯收益链。
-                int lands = TotalLands(core, me);
-                if (CanChainReturnBeast(core, me) || CanChainBeast(core, me)) return 6300f;
-                if (!HasSummonedBeast(core, me)) return lands >= 6 ? 6200f : 4000f;
-                return 5200f;
-            }
-
-            if (name == NameWorkerNest)
-            {
-                // 工蜂母巢：本体 1 + 召唤 3 = 4 费；能凑 4 费就早出（T3 挤费线），
-                // 2 只 3/1 攻击衍生物立刻能压场。
-                if (AvailableMana(core, me) >= 5) return 9400f;
-                if (GameActions.CanAffordCast(core, me, card, 0)) return 7500f;
-                return 1200f;
-            }
-
-            if (name == NameBattleNest || name == NameLifelinkNest)
-            {
-                // 新胜点（2026-11-16）：母巢=召唤衍生物的终端。**能一次付清「本体 1 + 召唤费」的
-                // 优先出**（战斗 11 / 系命 7），保证出场后下一拍能直接发动；付不起召唤费的只当
-                // 3/3 白板，分数低。T3/T5 的沃土仍在 ScriptScore 的 9800 之上，不抢成长。
-                int activation = name == NameBattleNest ? 10 : 6;
-                if (AvailableMana(core, me) >= activation + 1) return name == NameBattleNest ? 9300f : 9200f;
-                if (!GameActions.CanAffordCast(core, me, card, 0)) return 1200f;
-                return name == NameBattleNest ? 7300f : 7000f;
-            }
-
-            if (name == NameVeil)
-            {
-                // 虚化（2026-11-15 用户口径）= 替换旧的 4 费「减半」的 3 费保命件：无实体在自己回合结束会掉，
-                // 所以**自己回合一律不打**，只在对手回合的响应窗里打（见 PickResponse）。
-                if (core.TurnEngine != null && ReferenceEquals(core.TurnEngine.TurnPlayer, me)) return 0f;
-                if (AvailableMana(core, me) < VeilMana) return 600f;
-                return me.Life <= 18 ? 6600f : 3600f;
-            }
-
             return totalCost(card);
         }
 
@@ -514,6 +831,20 @@ namespace CardCore.AI
         /// 归根——墓地没有核心组件、且墓地不足 2 张时留手。</summary>
         public override bool ShouldHold(GameCore core, Player me, Card card)
         {
+            EnsureTurnState(core, me);
+            // T1 固定只打一张小精灵；第二张留到 T3。
+            if (OwnTurn(core, me) == 1 && NameOf(card) == NameSpirit && _fixedStep >= 1)
+                return true;
+            // 归根：每回合最多一张，且必须等牺牲完成后再打。
+            if (NameOf(card) == NameReturn)
+            {
+                if (OwnTurn(core, me) >= 7)
+                if (OwnTurn(core, me) >= 7 && _loopSacrificedThisTurn && !_returnUsedThisTurn)
+                    return false; // T7 牺牲后必须把这张归根打出去
+                if (_returnUsedThisTurn) return true;
+                if (IsLoopT5(core, me) && !_loopT5Sacrificed) return true;
+                if (OwnTurn(core, me) >= 7 && !_loopSacrificedThisTurn) return true;
+            }
             // 脚本回合（T3 收尾回收 / T5 循环）：回收必须能落地，不能被动「墓地不足 2 张」的攒牌闸拦住。
             // 但 T5 循环（2026-11-15）多一条：**同一回合的第二张归根不打**——墓地只剩 1 张时打回收
             // 等于白扔 4 费，把留给对手回合贴虚化的钱花光（实测 T5 第二次归根只捞 1 张）。
@@ -530,7 +861,7 @@ namespace CardCore.AI
             if (scriptTurn == 7 && NameOf(card) == NamePanther) return false;
             // T7 起（用户口径：T7 才是留费开虚化的回合）：手里有虚化时，**留 3 费**给下一拍对手回合，
             // 非终端牌如果会花掉这 3 费就留手；暗影豹/荒原猎兽仍可打（它们是终端，不为虚化让路）。
-            if (core.TurnEngine != null && core.TurnEngine.TurnNumber >= 7
+            if (OwnTurn(core, me) >= 7
                 && ReferenceEquals(core.TurnEngine.TurnPlayer, me)
                 && HandCopies(core, me, NameVeil) > 0
                 && NameOf(card) != NameVeil
@@ -565,6 +896,87 @@ namespace CardCore.AI
         private static bool LandsAsFodder(GameCore core, Player me, Card card, string name)
         {
             if (name == null) return false;
+            // 带「费用降低（绿）」指示物的牌**先于一切规则**不当土地（2026-11-16 §4.4 阶段A实证）：
+            // 循环卡组保留数分支原先提前 return 绕过了下方两处同名保护，T1 小精灵的 −2 折扣沃土
+            // 在 T3 被铺进元素池 → 手里沃土全价 6 付不起 → T3 固定序断链（dbg-land 实证折扣卡 True 可铺）。
+            if (card != null && card.GetCounterCount(CounterRules.CostDownGreenCounter) > 0) return false;
+            // 地牌极限 = 阿格洛斯 14 + 2 = 16；到顶后不再铺地/成长。
+            if (TotalLands(core, me) >= LandMidCap) return false;
+            // §4.3 阶段B（2026-11-16）：T1 第一块地优先「非 key 未知地=阿格洛斯」——单张也铺：
+            // 池中阿格洛斯仍算可用（§4.5 三位置口径），牺牲/归根随时回收；占着手牌位反而在 T5
+            // 少一块可铺余册（7 地费线缺 1 的成因之一）。没有阿格洛斯时不空过：余册兜底（落到下方
+            // 保留数规则，仍不烧 T3 key 的小精灵/沃土首册）。
+            if (IsLoopDeck(core, me) && OwnTurn(core, me) == 1 && TotalLands(core, me) < 1)
+            {
+                if (name == NamePanther) return true;
+                if (HandCopies(core, me, NamePanther) > 0) return false;
+            }
+            // 每阶段 key 需要几张：超出需要数量的同名卡才是余牌，可铺地。
+            if (IsLoopDeck(core, me) && (name == NameSpirit || name == NameBloom
+                || name == NameReturn || name == NamePanther))
+            {
+                int n = OwnTurn(core, me);
+                int need;
+                if (n <= 1) need = name == NameSpirit ? 2 : name == NameBloom ? 2 : name == NameReturn ? 1 : 0;
+                else if (n == 3) need = name == NameSpirit ? 1 : name == NameBloom ? 2 : name == NameReturn ? 1 : 0;
+                // T5 小精灵不是 key：优先当第二块地补到 8 费；阿格洛斯牺牲后留 1 张召唤。
+                else if (n == 5) need = name == NameSpirit
+                    ? 0
+                    : name == NameBloom ? 1 : name == NameReturn ? 1
+                    : name == NamePanther ? (LoopT5PostSacrifice ? 1 : 0) : 1;
+                else need = name == NameSpirit ? 0 : name == NameBloom ? 0 : name == NameReturn ? 1 : 1;
+                return HandCopies(core, me, name) > need;
+            }
+            // T1 固定只铺 1 张“未知”（阿格洛斯），不能把 key 小精灵/沃土铺掉，也不能铺到上限。
+            if (OwnTurn(core, me) == 1)
+            {
+                if (name != NamePanther) return false;
+                if (TotalLands(core, me) >= 1) return false;
+            }
+            // T5 之前 key = 小精灵×2 / 沃土×2 / 归根×1，不能当地铺掉；
+            // T5 之后 key 变成 归根 + 阿格洛斯。
+            if (OwnTurn(core, me) < 5)
+            {
+                // 按数量保留：2 小精灵 / 2 沃土 / 1 归根 是 key；多出来的才算余牌。
+                if (name == NameSpirit) return HandCopies(core, me, NameSpirit) > 2;
+                if (name == NameBloom) return HandCopies(core, me, NameBloom) > 2;
+                if (name == NameReturn) return HandCopies(core, me, NameReturn) > 1;
+            }
+            // 带「费用降低（绿）」的沃土绝不当土地——T1 的 −2 必须留到 T3 叠第二层（6→2）。
+            if (card != null && card.GetCounterCount(CounterRules.CostDownGreenCounter) > 0) return false;
+            // T1 固定铺小精灵，不铺封印——否则 T5 手牌只剩 1 张未知。
+            if (IsLoopDeck(core, me) && core.TurnEngine != null
+                && OwnTurn(core, me) == 1 && name == NameSeal) return false;
+            // 阿格洛斯 T1~T5 可当“未知”铺地（之后被牺牲/归根回手）；T7 起是终端，不再当土地。
+            if (name == NamePanther && core.TurnEngine != null
+                && OwnTurn(core, me) >= 7) return false;
+            // 2026-11-16 全取循环：key 只剩一张归根，其余卡全部可以当地填池到上限
+            //（此前 沃土/小精灵 被 T3/T5 保护，导致 T5 0 地、整套卡死）。
+            if (TotalReturnCopies(core, me) >= 5)
+            {
+                // T5 牺牲后：11 张可当地牌全部铺下去（含沃土/小精灵），只留 1 张归根做 key。
+                if (LoopT5PostSacrifice)
+                {
+                    // T5 之后 key = 1 张归根 + 1 张阿格洛斯；多出来的同名卡按数量保留，余牌可以铺地。
+                    if (name == NameReturn) return HandCopies(core, me, NameReturn) > 1;
+                    if (name == NamePanther) return HandCopies(core, me, NamePanther) > 1;
+                    return true;
+                }
+                // T7+ 牺牲后：铺到上限 16，保留 1 张枯木守卫做循环件。
+                if (T7PostSacrifice)
+                {
+                    if (name == NameReturn || name == NamePanther) return false;
+                    if (name == NameWitheredGuard) return HandCopies(core, me, NameWitheredGuard) > 1;
+                    return true;
+                }
+                if (name == NameReturn) return HandCopies(core, me, NameReturn) > 1;
+                // 沃土绝不当土地：T3/T5 各一张是固定成长/循环材料。
+                if (name == NameBloom) return false;
+                // T3 之前留一张小精灵给沃土 −2；T5 循环不需要再下小精灵，两张都可以铺成地。
+                if (name == NameSpirit && !IsLoopT5(core, me))
+                    return HandCopies(core, me, NameSpirit) > 1;
+                return true;
+            }
             if (TotalLands(core, me) >= LandMidCap) return false;
             // 带「费用降低（绿）」指示物的牌**先于一切规则**保护——那是 T1/T3 小精灵叠出来的
             // 两层 −2（沃土 6→2 的唯一来源），铺成地等于把连招的核心烧掉（2026-11-15 实测：
@@ -580,7 +992,8 @@ namespace CardCore.AI
                 {
                     // 母巢=新胜点，T3 垫地也不许烧；沃土/虚化同样保护。
                     if (name == NameBloom || name == NameVeil
-                        || name == NameBattleNest || name == NameLifelinkNest || name == NameWorkerNest) return false;
+                        || name == NameBattleNest || name == NameLifelinkNest || name == NameWorkerNest
+                        || name == NameRecycle || name == NameSeal) return false;
                     if (name == NameSpirit) return HandCopies(core, me, NameSpirit) >= 2;
                     return true;
                 }
@@ -671,7 +1084,12 @@ namespace CardCore.AI
         }
         /// <summary>绿地起步（成长/小精灵都要绿），够 3 块后补灰。</summary>
         public override ManaType? LandColorChoice(GameCore core, Player me, Card card)
-            => CountLands(core, me, ManaType.Green) < 3 ? ManaType.Green : (ManaType?)null;
+        {
+            // 阿格洛斯/枯木守卫作为“未知地”时必须锁绿；否则 T5 的沃土 6 绿/后续绿费付不出。
+            if (NameOf(card) == NameWitheredGuard || NameOf(card) == NamePanther)
+                return ManaType.Green;
+            return CountLands(core, me, ManaType.Green) < 3 ? ManaType.Green : (ManaType?)null;
+        }
 
         // ======================================== 目标排序 ========================================
 
@@ -689,15 +1107,32 @@ namespace CardCore.AI
                 //（CandidatesInZone 走 TargetZoneGrouping 单一源——横置的战场生物不再可能被当成地；
                 // 小精灵按名挑是脚本材料语义，保持不动）。
                 var poolSet = new HashSet<Entity>(CandidatesInZone(req, 0, 2));
-                // 2026-11-16 T7 母巢补费：只祭**池里已横置的地**，差几点祭几张；不碰核心件。
-                if (NestActivationShort(core, me, out int nestShort))
+                // T7+ 新循环：祭全部池地 + 非阿格洛斯战场单位；
+                // 只有 1 只阿格洛斯且手里没有第二只时，连它一起祭，归根后重召刷新。
+                if (OwnTurn(core, me) >= 7)
                 {
-                    var tappedSet = TappedPoolCards(core, me);
-                    var picks = list.Where(e => poolSet.Contains(e) && e is Card c
-                            && tappedSet.Contains(c) && !CoreNames.Contains(NameOf(c)))
-                        .OrderByDescending(e => e is Card c2 ? SacrificeScore(core, me, c2) : 0f)
-                        .Take(nestShort).ToList();
-                    if (picks.Count > 0) return picks;
+                    // 刷新模式：全选候选（含场上阿格洛斯）；
+                    // 非刷新模式（手里有第二张阿格洛斯）：保留旧阿格洛斯，只祭其它卡。
+                    var sac = list.Where(e => e is Card c && c.IsAlive).ToList();
+                    // req.Candidates 在 T7 有时只给 4 张（不含池地）；把元素池地牌补进牺牲目标。
+                    foreach (var pc in core.ElementPool.GetPooledCards(me))
+                        if (pc?.SourceCard != null && pc.SourceCard.IsAlive && !sac.Contains(pc.SourceCard))
+                            sac.Add(pc.SourceCard);
+                    // 阿格洛斯默认不祭；刷新模式只祭「攻+血」最低的 1 只场上阿格洛斯。
+                    sac.RemoveAll(e => e is Card c && NameOf(c) == NamePanther);
+                    if (_t7RefreshAgros)
+                    {
+                        var lowest = list.Where(e => e is Card c && c.IsAlive
+                                && NameOf(c) == NamePanther
+                                && c.GetZone() == Zone.Battlefield)
+                            .OrderBy(e => e is Card c2
+                                ? core.LayerEngine.CalculatePower(c2) + core.LayerEngine.CalculateToughness(c2)
+                                : int.MaxValue)
+                            .FirstOrDefault();
+                        if (lowest != null) sac.Add(lowest);
+                    }
+                    _loopSacrificeTurn = OwnTurn(core, me); _loopSacrificedThisTurn = true; T7PostSacrifice = true;
+                    return sac;
                 }
                 // 固定脚本 T5（2026-11-15 用户口径）：**场上小精灵 + 一块非绿色地** 一起祭。
                 // 小精灵进墓给归根当回收料，同时 +1 彩；非绿地（池里的灰地）换成彩并腾出 1 个地槽，
@@ -705,22 +1140,17 @@ namespace CardCore.AI
                 // 候选里没有小精灵就返回空表（本次不选目标，绝不退回「按分数挑」把地/手牌烧掉）。
                 if (InScriptTurn(core, me, out int scriptSac) && scriptSac == 5)
                 {
-                    var sac = new List<Entity>();
-                    var spirit = list.FirstOrDefault(e => e is Card c && c.IsAlive && NameOf(c) == NameSpirit);
+                    // 2026-11-16 全取循环：T5 不是只祭 1 张，而是**全部横置地 + 全部小精灵**一起祭。
+                    // 6 地补到 8 地后，8 地 + 1 小精灵 = 9 次牺牲；牺牲 2 费后净 +7，付归根 8。
+                    // T5 全取循环：**全部元素池地牌 + 全部小精灵** 都要祭，不再排除核心件
+                    //（封印/归根/暗影豹当土地时也属于“地牌”，不祭掉就凑不到 8/9 次）。
+                    // 用户口径：T5 牺牲 = 全部元素池地牌 + 场上小精灵（最多 1 只）。
+                    // 小精灵可能已被解掉：有就 9 张，没有就 8 张；不影响后续 11 地/11 费豹。
+                    var sac = list.Where(e => e is Card c && c.IsAlive && poolSet.Contains(e)).ToList();
+                    var spirit = list.FirstOrDefault(e => e is Card c && c.IsAlive
+                        && NameOf(c) == NameSpirit && ReferenceEquals(c.GetController(), me));
                     if (spirit != null) sac.Add(spirit);
-                    // 只有**真正的 T5** 才加祭一块非绿地：T5 固定序要 沃土 落地，必须把灰地换彩+腾槽。
-                    // T7+ 走回 T5 循环时只祭小精灵（省地/省 key，T7 的费要留给虚化）。
-                    if (core.TurnEngine != null && core.TurnEngine.TurnNumber == 5)
-                    {
-                        // 池里的暗影豹是「地」不是手牌 key：T5 正是要祭这块灰地换成彩+绿地，不能排除它。
-                        var land = list.Where(e => poolSet.Contains(e) && e is Card c
-                                && NameOf(c) != NameSpirit && NameOf(c) != NameBloom
-                                && NameOf(c) != NameReturn && NameOf(c) != NameVeil)
-                            .OrderByDescending(e => e is Card c2 && IsOffColorLand(core, me, c2))
-                            .ThenByDescending(e => e is Card c3 ? SacrificeScore(core, me, c3) : 0f)
-                            .FirstOrDefault();
-                        if (land != null) sac.Add(land);
-                    }
+                    if (IsLoopT5(core, me)) _loopT5Sacrificed = true;
                     return sac;
                 }
                 // 脚本 T3（2026-11-15 用户口径：T3 跳费）：祭 **够用就好** 的 1~3 张地，
@@ -857,6 +1287,16 @@ namespace CardCore.AI
             // （用户 T3 线：T1 和 T3 的小精灵都给沃土 → 6−4 = 2，先出沃土再牺牲 2 横置地、保留小精灵）。
             if (atom == AtomicEffectType.AddCostDownGreen)
             {
+                // T1/T3 两层 -2 强制都落在沃土，且优先已经带一层的那张（6→4→2）。
+                if (IsLoopDeck(core, me) && (OwnTurn(core, me) == 1 || OwnTurn(core, me) == 3))
+                {
+                    var blooms = list.Where(e => e is Card c && NameOf(c) == NameBloom).ToList();
+                    if (blooms.Count > 0)
+                        return blooms
+                            .OrderByDescending(e => e is Card c2 ? c2.GetCounterCount(CounterRules.CostDownGreenCounter) : 0)
+                            .ThenByDescending(e => e is Card c3 ? GameActions.GetCardCost(c3, 0).Total : 0f)
+                            .ToList();
+                }
                 bool both = CanCastReturnAndBloom(core, me);
                 return list
                     .OrderByDescending(e => e is Card c2 ? CostDownTargetScore(NameOf(c2), core, me, both) : 0f)
@@ -935,7 +1375,7 @@ namespace CardCore.AI
                 Console.WriteLine($"[dbg-green] recover-cand turn={core.TurnEngine?.TurnNumber} name={name}");
             // T5 固定序（2026-11-15 用户口径）：归根**必须先把沃土捞回来**（T5 目标=小精灵→归根→沃土），
             // 所以 T5 的沃土回收分压过小精灵/豹；否则会捞成小精灵×2+豹，沃土留在墓地，T5 打不出沃土。
-            if (core?.TurnEngine != null && core.TurnEngine.TurnNumber == 5 && name == NameBloom) return 1250f;
+            if (core?.TurnEngine != null && OwnTurn(core, me) == 5 && name == NameBloom) return 1250f;
             // 虚化循环的「回收三格」= 小精灵 + 归根 + **虚化或豹**（2026-11-15 用户口径）：
             //  · 豹还打不出去（地+彩 <12）→ 第三格给虚化（保住对手回合的减伤）；
             //  · 豹打得出去 → 只把第三格换成豹（回收它 → 下一拍直接 9/9 系命再打一轮）。
@@ -985,6 +1425,12 @@ namespace CardCore.AI
             // 脚本回合（2026-11-15 T5 循环）：折扣要落在「本回合真要打的那张」——
             // T3 给沃土（成长引擎），T5/T7 给归根（回收 4→2 是循环的启动费）。
             // 旧口径在 T5 会把折扣给沃土（6→4），归根仍是 4 费，回收永远差费打不出来。
+            // T1/T3 循环：两层 -2 都必须落在沃土（6→2），不能给归根。
+            if (IsLoopDeck(core, me) && (OwnTurn(core, me) == 1 || OwnTurn(core, me) == 3))
+            {
+                if (name == NameBloom) return 130f;
+                if (name == NameReturn) return 60f;
+            }
             if (InScriptTurn(core, me, out int scriptTurn) && scriptTurn >= 5)
             {
                 // T5 固定序：沃土在手里 → 折扣给沃土（6→4，腾出 4 费给归根）；
@@ -1277,13 +1723,79 @@ namespace CardCore.AI
             return stats.GetStat(me, MatchStatsService.CardsPlayed, StatScope.ThisTurn) == 0;
         }
 
+        private static int CardsPlayedThisTurn(GameCore core, Player me)
+        {
+            var stats = MatchStatsService.Instance;
+            return stats == null ? 0 : stats.GetStat(me, MatchStatsService.CardsPlayed, StatScope.ThisTurn);
+        }
+
+        /// <summary>全取循环卡组识别：牌库/手牌/墓地里的“归根”总数 ≥5。</summary>
+        private static bool IsLoopDeck(GameCore core, Player me)
+            => TotalReturnCopies(core, me) >= 5;
+
+        /// <summary>手里是否有沃土还没带满 2 层「费用降低（绿）」（2026-11-16 T5 小精灵首卡的
+        /// 启用条件：7 地费线要靠新 −2 层把沃土 6→4；没有沃土在手/都带满层 → 用不上）。</summary>
+        private static bool HandBloomNeedsLayers(GameCore core, Player me)
+        {
+            foreach (var c in core.ZoneManager.GetCards(me, Zone.Hand) ?? new List<Card>())
+                if (c != null && NameOf(c) == NameBloom
+                    && c.GetCounterCount(CounterRules.CostDownGreenCounter) < 2) return true;
+            return false;
+        }
+
+        /// <summary>绿方自己的回合序：先手 T1=全局1，后手 T1=全局2。</summary>
+        private static int OwnTurn(GameCore core, Player me)
+            => core?.TurnEngine == null ? 0
+                : ReferenceEquals(core.Player1, me)
+                    ? core.TurnEngine.TurnNumber
+                    : core.TurnEngine.TurnNumber - 1;
+
+        /// <summary>T5 全取循环：本方第 5 回合 且 是循环卡组。</summary>
+        private static bool IsLoopT5(GameCore core, Player me)
+            => OwnTurn(core, me) == 5 && IsLoopDeck(core, me);
+
         private static int GyCount(GameCore core, Player me)
             => (core.ZoneManager.GetCards(me, Zone.Graveyard) ?? new List<Card>()).Count;
+
+        /// <summary>全取循环识别：牌库/手牌/墓地里的“归根”总数 ≥5（本卡组 10 张；旧卡组 0）。</summary>
+        private static int TotalReturnCopies(GameCore core, Player me)
+        {
+            int n = 0;
+            foreach (Zone z in new[] { Zone.Deck, Zone.Hand, Zone.Graveyard })
+                foreach (var c in core.ZoneManager.GetCards(me, z) ?? new List<Card>())
+                    if (c != null && NameOf(c) == NameReturn) n++;
+            return n;
+        }
 
         /// <summary>墓地里是否有沃土（T5 归根必须优先把沃土捞回来）。</summary>
         private static bool GyHasBloom(GameCore core, Player me)
             => (core.ZoneManager.GetCards(me, Zone.Graveyard) ?? new List<Card>())
                 .Any(c => c != null && NameOf(c) == NameBloom);
+
+        /// <summary>阶段A诊断（2026-11-16 §4.2）：固定回合全量状态——手牌/场上/墓地/元素池(横置*)/可用费/阿格洛斯位置。
+        /// 纯日志、不改任何行为；排查口径 §0.4（状态优先于日志）。诊断期结束可整段删除。</summary>
+        private static string KeyStateDump(GameCore core, Player me, int game, int turn)
+        {
+            string Group(IEnumerable<Card> cs)
+                => string.Join(",", (cs ?? new List<Card>()).Where(c => c != null)
+                    .GroupBy(NameOf).Select(g => (g.Key ?? "?") + "×" + g.Count()));
+            string agros;
+            if (HandCopies(core, me, NamePanther) > 0) agros = "hand";
+            else if (AgrosOnField(core, me) > 0) agros = "field";
+            else if (core.ElementPool.GetPooledCards(me).Any(pc => pc?.SourceCard != null && NameOf(pc.SourceCard) == NamePanther)) agros = "pool";
+            else if ((core.ZoneManager.GetCards(me, Zone.Graveyard) ?? new List<Card>()).Any(c => c != null && NameOf(c) == NamePanther)) agros = "gy";
+            else agros = "deck";
+            var poolCards = string.Join(",", core.ElementPool.GetPooledCards(me)
+                .Where(pc => pc?.SourceCard != null)
+                .Select(pc => (NameOf(pc.SourceCard) ?? "?") + (pc.IsTapped ? "*" : "")));
+            string HandDisc() => string.Join(",", (core.ZoneManager.GetCards(me, Zone.Hand) ?? new List<Card>())
+                .Where(c => c != null && (NameOf(c) == NameBloom || NameOf(c) == NameReturn))
+                .Select(c => (NameOf(c) == NameBloom ? "B" : "R") + c.GetCounterCount(CounterRules.CostDownGreenCounter)));
+            return $"[green-state] game={game} turn={turn} hand=[{Group(core.ZoneManager.GetCards(me, Zone.Hand))}] " +
+                   $"field=[{Group(core.ZoneManager.GetCards(me, Zone.Battlefield))}] gy=[{Group(core.ZoneManager.GetCards(me, Zone.Graveyard))}] " +
+                   $"pool={TotalLands(core, me)}/{core.ElementPool.GetLandCap(me)}(绿{CountLands(core, me, ManaType.Green)},横{TappedLands(core, me)})[{poolCards}] " +
+                   $"mana={AvailableMana(core, me)} agros={agros} disc=[{HandDisc()}]";
+        }
 
         // ======================================== 小工具 ========================================
 
@@ -1341,7 +1853,7 @@ namespace CardCore.AI
         private static bool NestActivationShort(GameCore core, Player me, out int shortBy)
         {
             shortBy = 0;
-            if (core?.TurnEngine == null || core.TurnEngine.TurnNumber < 7) return false;
+            if (core?.TurnEngine == null || OwnTurn(core, me) < 7) return false;
             var units = (core.ZoneManager.GetCards(me, Zone.Battlefield) ?? new List<Card>())
                 .Where(c => c != null && c.IsAlive && c.IsLivingUnit()).ToList();
             bool battle = units.Any(c => NameOf(c) == NameBattleNest);

@@ -137,6 +137,8 @@ namespace CardCore
             sb.AppendLine();
 
             int? currentTurn = null;
+            var fold = new MatchLogDetailFold(null); // 明细折叠（2026-11-17）：导出=中立实名口径（isSelf=null）
+            var foldEmits = new List<MatchLogLine>(4);
             foreach (var entry in _entries)
             {
                 if (entry.TurnNumber != currentTurn)
@@ -146,9 +148,17 @@ namespace CardCore
                 }
 
                 var line = entry.FrozenText ?? MatchLogRenderer.Render(entry.Event);
-                if (!string.IsNullOrEmpty(line))
-                    sb.AppendLine(line);
+                // 同一效果内重复影响行聚合（规则定义见 MatchLogDetailFold 类注释）：
+                // 可折叠行被吸收不出，收口边界先冲聚合行再出边界行；单例逐字不变。
+                bool absorbed = fold.Feed(entry.Event, new MatchLogRenderer.Line(line, null), entry.EventId, foldEmits);
+                for (int i = 0; i < foldEmits.Count; i++) sb.AppendLine(foldEmits[i].Text);
+                foldEmits.Clear();
+                if (absorbed || string.IsNullOrEmpty(line))
+                    continue;
+                sb.AppendLine(line);
             }
+            fold.Flush(foldEmits); // 终局兜底冲账（无 GameOver 事件的异常终局防丢行）
+            for (int i = 0; i < foldEmits.Count; i++) sb.AppendLine(foldEmits[i].Text);
 
             // 附录：事件类型统计（含无人话行的事件，保完整可观察性）
             sb.AppendLine();
