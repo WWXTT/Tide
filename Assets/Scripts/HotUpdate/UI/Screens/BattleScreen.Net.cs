@@ -492,8 +492,9 @@ namespace SynergyUI
             if (!NetFanGate()) return false;
             var data = DataOf(NetHandViewOf(fan));
             if (data == null) return false;
-            // 锁色资格=可锁产色候选非空（GetLandColorChoices 单源：卡面/各模式费 ∪ 主动效果锚价，去黑白）
-            if (NetLandColorChoices(data).Count == 0) return false;
+            // 可作地牌（唯一判定口，静态口径）：三型/非抉择/非0费/有可锁色；
+            // 被费用指示物减到 0 的运行态由服务器 TryAddToPool 终审兜底
+            if (!ElementPoolSystem.CanPlaceAsLand(data)) return false;
             // 地牌池上限（快照 LandCap vs 我方已放地牌数——同本地 CanAddLand 口径）
             var d = _view;
             return (d?.SelfLands?.Count ?? 0) < (d?.Self.LandCap ?? 0);
@@ -645,6 +646,19 @@ namespace SynergyUI
         {
             var card = NetHandViewOf(fan);
             if (card == null || !NetFanGate()) return;
+            // 可作地牌闸（2026-11-17 拖拽改版后本口是联机放地主入口）：不满足=不发 intent
+            var data = DataOf(card);
+            if (!ElementPoolSystem.CanPlaceAsLand(data))
+            {
+                _toast.Show("不可作为地牌放置（抉择/0费/无可锁产色）");
+                return;
+            }
+            var d = _view;
+            if ((d?.SelfLands?.Count ?? 0) >= (d?.Self.LandCap ?? 0))
+            {
+                _toast.Show("地牌槽已满");
+                return;
+            }
             NetPlaceLandAsync(card).Forget();
         }
 

@@ -408,17 +408,15 @@ namespace SynergyUI
             return _ctrl.TurnPlayer == P1 && phase != null && phase.Phase == PhaseType.Main;
         }
 
-        /// <summary>「放置」按钮条件：可作地牌（正式三型/非衍生物/非临时——锁定卡可放地，2026-11-02）+ 有可锁产色
-        /// + 地牌池有余位（各自上限口径：PooledCards.Count &lt; GetLandCap）。
+        /// <summary>「放置」按钮条件：可作地牌（ElementPoolSystem.CanPlaceAsLand 唯一判定口：正式三型/非衍生物/
+        /// 非临时复制/非抉择/非0费/有可锁产色 + 地牌池有余位；2026-11-17 收口）。
         /// 牌库顶虚拟手牌（2026-10-29 阶段3b）「只可打出」——限手牌区，不放地。</summary>
         private bool FanCanPlaceLand(HandFanCard fan)
         {
             if (!FanGateQuiet()) return false;
             var card = FanCardOf(fan);
             if (card == null || card.GetZone() != Zone.Hand || Core?.ElementPool == null) return false;
-            return ElementPoolSystem.CanServeAsLand(card)
-                && ElementPoolSystem.GetLandColorChoices(card).Count > 0
-                && Core.ElementPool.CanAddLand(P1);
+            return ElementPoolSystem.CanPlaceAsLand(Core, card, P1);
         }
 
         /// <summary>「使用」按钮条件（2026-11-01 SpUse 退役·合并口径）：
@@ -591,7 +589,7 @@ namespace SynergyUI
             if (!GateFanMyMain()) return;
             var card = FanCardOf(fan);
             if (card == null) return;
-            if (Core?.ElementPool == null || !ElementPoolSystem.CanServeAsLand(card) || !Core.ElementPool.CanAddLand(P1))
+            if (Core?.ElementPool == null || !ElementPoolSystem.CanPlaceAsLand(Core, card, P1))
                 return;
 
             var choices = ElementPoolSystem.GetLandColorChoices(card);
@@ -885,7 +883,8 @@ namespace SynergyUI
 
         /// <summary>拖拽起手/持续闸（2026-11-15 用户实测②）：时点可操作 ∧ 该卡当前至少有一条可行路径
         ///（能发动 或 能作地牌）；两条都不满足=不起箭头、拖拽自动取消（不出现箭头）。
-        /// 能发动=出牌限制/代价门槛/目标域/费用/单位区全过；能作地牌=正式三型+有可锁色+槽位余+己方主阶段。</summary>
+        /// 能作地牌=ElementPoolSystem.CanPlaceAsLand（唯一判定口：三型/非衍生物/非临时复制/非抉择/非0费/
+        /// 有可锁色 + 槽位余，2026-11-17 收口）+ 己方主阶段。</summary>
         private bool CanDragCard(HandFanCard fan)
         {
             if (!DragInteractionAllowed()) return false;
@@ -895,9 +894,7 @@ namespace SynergyUI
             bool ownMain = Core?.TurnEngine != null && Core.TurnEngine.TurnPlayer == P1
                 && Core.TurnEngine.CurrentPhase?.Phase == PhaseType.Main;
             return ownMain && card.GetZone() == Zone.Hand
-                && ElementPoolSystem.CanServeAsLand(card)
-                && ElementPoolSystem.GetLandColorChoices(card).Count > 0
-                && Core.ElementPool.CanAddLand(P1);
+                && ElementPoolSystem.CanPlaceAsLand(Core, card, P1);
         }
 
         /// <summary>卡当前可发动（拖拽起手闸用；比 FanCanUse 多查出牌限制/代价门槛/目标域）：
@@ -977,9 +974,7 @@ namespace SynergyUI
             var kind = ClassifyDragDrop(BattlePointer.AimPoint, out int cx, out int cz, out var landColor);
 
             bool canLand = card != null && card.GetZone() == Zone.Hand && Core?.ElementPool != null
-                && ElementPoolSystem.CanServeAsLand(card)
-                && ElementPoolSystem.GetLandColorChoices(card).Count > 0
-                && Core.ElementPool.CanAddLand(P1)
+                && ElementPoolSystem.CanPlaceAsLand(Core, card, P1)
                 && Core.TurnEngine != null && Core.TurnEngine.TurnPlayer == P1
                 && Core.TurnEngine.CurrentPhase?.Phase == PhaseType.Main;
             bool canUse = CardUsableNow(card);
@@ -1149,9 +1144,9 @@ namespace SynergyUI
         /// 无该色→PickLandColorAsync 兜底（Region 列表）；不可作地牌→toast 回手。</summary>
         private void DragPlaceLand(HandFanCard fan, Card card, ManaType colorBand)
         {
-            if (Core?.ElementPool == null || !ElementPoolSystem.CanServeAsLand(card) || !Core.ElementPool.CanAddLand(P1))
+            if (Core?.ElementPool == null || !ElementPoolSystem.CanPlaceAsLand(Core, card, P1))
             {
-                _toast.Show("不可作为地牌放置（资格/地牌上限）");
+                _toast.Show("不可作为地牌放置（资格/0费/抉择/地牌上限）");
                 _selfFan.RestoreDragCard(fan, false);
                 return;
             }

@@ -75,9 +75,8 @@ namespace CardCore
     }
 
     /// <summary>可入池（token "Landable"，2026-11-03 封印原子启用）：仅指「可作地牌入池」的卡——
-    /// 地牌资格（CanServeAsLand：卡组正式三型，衍生物/临时复制卡拒）且带元素费用
-    ///（GetLandColorChoices 非空——与 AddCardToPool 空候选拒同口径；0费卡无主色可锁）。
-    /// 封印行与 NoRole 组合=敌方场上生物且费用&gt;0。</summary>
+    /// 与入池同口径（ElementPoolSystem.CanPlaceAsLand 唯一判定口：正式三型/非衍生物/非临时复制/
+    /// 非抉择/非0费/有可锁产色，2026-11-17 收口）。封印行与 NoRole 组合=敌方场上生物且费用&gt;0。</summary>
     public class LandableFilter : ITargetFilter
     {
         public string DisplayName => "可入池(带元素费用)";
@@ -85,8 +84,7 @@ namespace CardCore
         public List<Entity> Filter(List<Entity> candidates, EffectExecutionContext context)
         {
             return candidates.Where(e => e is Card c
-                                         && ElementPoolSystem.CanServeAsLand(c)
-                                         && ElementPoolSystem.GetLandColorChoices(c).Count > 0).ToList();
+                                         && ElementPoolSystem.CanPlaceAsLand(c)).ToList();
         }
     }
 

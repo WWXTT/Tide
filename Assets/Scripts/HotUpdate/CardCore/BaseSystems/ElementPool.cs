@@ -150,18 +150,54 @@ namespace CardCore
         /// 地牌资格（2026-10-03 定案沿用）：卡组正式 生物/法术/结界 三型可作地牌——
         /// 衍生物（IsToken，SummonToken 实例）、临时复制卡（回响——持临时指示物 TempCounter）不可
         ///（否则副本成免费地牌，2026-10-11 维持禁令）。
+        /// 抉择卡不可作地牌（2026-11-17 定案：多模式卡的地牌产色/费用口径歧义，直接不进地牌池）。
         /// 锁定卡（LockCounter&gt;0）可作地牌放置（2026-11-02 锁定改版：锁定只封「使用」，
         /// 放地不再算绕道封锁——旧 2026-10-13 禁令废止）。
-        /// UI/AI 预检与 AddCardToPool 权威校验共用此判据。
+        /// UI/AI 预检与 AddCardToPool 权威校验共用此判据；带 owner 的完整判定见 CanPlaceAsLand。
         /// </summary>
         public static bool CanServeAsLand(Card card)
-            => card is CardWrapper
+            => card is CardWrapper wrapper
                && card.GetCounterCount(Attribute.CounterRules.TempCounter) <= 0 // 临时复制卡（临时指示物标记）
                && !card.IsToken
                && card is IHasSupertype ht
                && (ht.Supertype == Cardtype.Creature
                    || ht.Supertype == Cardtype.Spell
-                   || ht.Supertype == Cardtype.Enchantment);
+                   || ht.Supertype == Cardtype.Enchantment)
+               && !CostDerivationService.HasChoiceEffect(wrapper.GetData());
+
+        /// <summary>同 CanServeAsLand（CardData 静态口径——网络客户端无引擎对象）：三型且非抉择卡
+        /// （衍生物/临时复制卡是运行时实例概念，客户端手牌里本就没有）。</summary>
+        public static bool CanServeAsLand(CardData data)
+            => data != null
+               && (data.Supertype == Cardtype.Creature
+                   || data.Supertype == Cardtype.Spell
+                   || data.Supertype == Cardtype.Enchantment)
+               && !CostDerivationService.HasChoiceEffect(data);
+
+        /// <summary>
+        /// 可作地牌（**唯一判定口**，2026-11-17 收口）：资格（CanServeAsLand：三型/非衍生物/非临时复制/非抉择）
+        /// ∧ 非 0 费（含被费用指示物减到 0 费）∧ 有可锁产色。不含地牌上限/禁地令——见 GameCore 重载。
+        /// UI 放地预检、AI 枚举、网络预判、效果过滤器全走本口，禁止各处自行拼条件。
+        /// </summary>
+        public static bool CanPlaceAsLand(Card card)
+            => card != null
+               && CanServeAsLand(card)
+               && !GameActions.IsFreeCastCard(card)
+               && GetLandColorChoices(card).Count > 0;
+
+        /// <summary>可作地牌 + 己方地牌上限/禁地令（本地 UI/AI 用完整口径）。</summary>
+        public static bool CanPlaceAsLand(GameCore core, Card card, Player owner)
+            => core?.ElementPool != null
+               && CanPlaceAsLand(card)
+               && core.ElementPool.CanAddLand(owner);
+
+        /// <summary>同 CanPlaceAsLand（CardData 静态口径——网络客户端）：0 费判定不含费用指示物层
+        ///（被减到 0 的运行态由服务器 TryAddToPool 终审兜底），地牌上限由调用方按快照另判。</summary>
+        public static bool CanPlaceAsLand(CardData data)
+            => data != null
+               && CanServeAsLand(data)
+               && !GameActions.IsFreeCastCard(data)
+               && GetLandColorChoices(data).Count > 0;
 
         /// <summary>
         /// 地牌可锁定的产色候选（2026-10-23 锚价开格定案，取代「仅卡面费取色」旧口径）：
@@ -253,9 +289,14 @@ namespace CardCore
             if (RuleAuraSystem.ScopeHits(RuleAuraComponents.NoLandAura, owner))
             { reason = "禁地令生效中——不能放置地牌"; return false; }
 
-            // 地牌资格：卡组正式三型（衍生物/临时复制卡不可）
+            // 地牌资格：卡组正式三型（衍生物/临时复制卡/抉择卡不可）
             if (!CanServeAsLand(card))
-            { reason = "该卡不可作为地牌（衍生物/临时复制卡）"; return false; }
+            { reason = "该卡不可作为地牌（衍生物/临时复制卡/抉择卡）"; return false; }
+
+            // 0费禁地（2026-11-17 定案）：0费卡与被费用指示物减到0费的卡不可作地——
+            // 免费可打出的卡不走资源转换通道（UI/AI 预检与本权威校验单源对齐）
+            if (GameActions.IsFreeCastCard(card))
+            { reason = "0费卡不可作为地牌（含被费用指示物减到0费的卡）"; return false; }
 
             var pool = GetPool(owner);
 

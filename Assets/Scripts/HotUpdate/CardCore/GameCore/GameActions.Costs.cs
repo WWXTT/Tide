@@ -95,6 +95,53 @@ namespace CardCore
             return cost;
         }
 
+        /// <summary>0费可出判定（2026-11-17 战场定案）：0费卡与被费用指示物减到0费的卡不允许
+        /// 作为地牌。口径=任一模式的实付账单（GetCardCost 全链：恒推导基价+法术锚价+施放期代价
+        /// 抵扣+四色费用指示物层）为 0——免费可打出的卡不走资源转换通道。UI 放地预检、
+        /// 元素池入池权威校验、AI 枚举共用本口。</summary>
+        public static bool IsFreeCastCard(Card card)
+        {
+            var data = (card as CardWrapper)?.GetData();
+            if (data == null) return false;
+            int modes = Math.Max(1, CostDerivationService.GetModeCount(data));
+            for (int m = 0; m < modes; m++)
+                if (GetCardCost(card, m).IsZero) return true;
+            return false;
+        }
+
+        /// <summary>同 IsFreeCastCard（CardData 静态口径——网络客户端无引擎对象）：基价+法术锚价
+        ///（含效果级代价净费与施放期抵扣），不含费用指示物层——被指示物减到 0 的运行态由服务器
+        /// AddToElementPool→TryAddToPool 终审兜底。</summary>
+        public static bool IsFreeCastCard(CardData data)
+        {
+            if (data == null) return false;
+            var defs = data.Supertype == Cardtype.Spell && data.Effects != null
+                ? CardEffectConverter.ConvertAll(data.Effects, data.ID) : null;
+            int modes = Math.Max(1, CostDerivationService.GetModeCount(data));
+            for (int m = 0; m < modes; m++)
+            {
+                var cost = CardCostService.GetRuntimeCost(data, m);
+                if (defs != null && defs.Count > 0)
+                {
+                    var def = defs[Math.Clamp(m, 0, defs.Count - 1)];
+                    if (def != null)
+                    {
+                        var anchor = CostDerivationService.DeriveElementCosts(def, 0) ?? new ElementCost();
+                        // 效果级代价净费（同 GetCardCost ①：主动行代价对锚价抵扣）
+                        var modeCosts = def.IsActivatedEffect && def.Costs != null
+                            ? def.Costs.Where(c => c != null && c.Type != CostType.ElementConsume).ToList() : null;
+                        if (modeCosts != null && modeCosts.Count > 0)
+                            anchor = EffectActivationGate.NetBill(anchor, modeCosts);
+                        foreach (var color in anchor.NonzeroColors())
+                            cost[color] = cost[color] + anchor[color];
+                    }
+                    CardCostService.ApplyCastDeduction(cost, data); // 施放期代价行（同 GetCardCost ②）
+                }
+                if (cost.IsZero) return true;
+            }
+            return false;
+        }
+
         /// <summary>元素池内指定色地牌数（LockedColor 计数，横置与否不计=持有口径，非可用口径；
         /// 同禁召灰地/纳川蓝地/归土绿地）。代价地牌门槛（EvaluatePayloadGate ③）消费。</summary>
         public static int CountLands(GameCore core, Player player, ManaType color)

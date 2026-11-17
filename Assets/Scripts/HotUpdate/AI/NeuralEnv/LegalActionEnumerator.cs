@@ -420,7 +420,8 @@ namespace CardCore.AI.NeuralEnv
             for (int i = 0; i < hand.Count; i++)
             {
                 var c = hand[i];
-                if (!ElementPoolSystem.CanServeAsLand(c)) continue;
+                // 可作地牌（唯一判定口，2026-11-17 收口：三型/非衍生物/非临时复制/非抉择/非0费/有可锁色）
+                if (!ElementPoolSystem.CanPlaceAsLand(c)) continue;
                 // 锁色维度展开（2026-10-11）：每候选色一行（单色卡=1 行不变；ModeIndex=锁色枚举值）
                 var colors = ElementPoolSystem.GetLandColorChoices(c);
                 foreach (var color in colors)

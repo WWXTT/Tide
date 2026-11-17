@@ -301,7 +301,7 @@ namespace SynergyUI
         {
             var lands = (core.ZoneManager.GetCards(me, Zone.Hand) ?? new List<Card>())
                 .Where(c => !core.StackEngine.IsPendingCast(c)) // S3b：剔施放中的卡
-                .Where(ElementPoolSystem.CanServeAsLand)
+                .Where(c => ElementPoolSystem.CanPlaceAsLand(c)) // 2026-11-17 唯一判定口（非抉择/非0费/有产色）
                 .ToList();
             // 打不出的卡按策略地牌优先级排序（红：血偿等直伤打不出去时直接当地占坑；
             // 默认=总费用降序——原口径；绿：WantLand 可主动把付得起的牌也铺下去凑色）。

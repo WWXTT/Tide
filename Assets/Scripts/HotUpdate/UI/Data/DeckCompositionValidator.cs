@@ -322,7 +322,8 @@ namespace SynergyUI
                 var card = CardCatalog.GetById(kv.Key);
                 var cands = card != null ? ElementPoolSystem.GetLandColorChoices(card) : new List<ManaType>();
                 candCache[kv.Key] = cands;
-                if (cands.Count == 0) continue;
+                // 与入池同口径（2026-11-17 唯一判定口）：非抉择/非0费才算地牌来源
+                if (cands.Count == 0 || !ElementPoolSystem.CanPlaceAsLand(card)) continue;
                 landCapableTotal += kv.Value;
                 int mask = 0;
                 for (int i = 0; i < landColors.Length; i++)
