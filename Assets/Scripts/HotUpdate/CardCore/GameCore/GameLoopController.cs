@@ -94,24 +94,30 @@ namespace CardCore
                     // 8.（2026-09-24 回合推进口径收敛）**只做 End→Standby 折返**，且等回合末
                     //    异步链（手牌上限弃牌等反问）收口——旧"空栈即自由滑当前阶段"会把主要
                     //    阶段滑进结束（同进程双驱动时整局相位空转、每圈多抽一张牌）；
-                    //    准备→主已由引擎自动推进（TurnEngine.StartNewTurn），主→结束仅 IntentEndTurn。
-                    if (_turnEngine.CurrentPhase?.Phase == PhaseType.End
+                    //    主→结束仅 IntentEndTurn。2026-11-18 增补 Standby→Main 补推进：
+                    //    准备阶段窗（窗③）挂起时 TurnEngine.AdvanceFromStandby 迟延了推进，
+                    //    排干后由此补口。必须走 AdvanceFromStandby（内含 _skipNextMain 消费），
+                    //    不能走 CheckPhaseTransition（会漏跳过主要阶段档）。
+                    var foldPhase = _turnEngine.CurrentPhase?.Phase;
+                    if (foldPhase == PhaseType.End
                         && CardCore.TargetSelectionService.PendingRequests == 0)
                     {
                         _turnEngine.CheckPhaseTransition();
+                    }
+                    else if (foldPhase == PhaseType.Standby
+                        && CardCore.TargetSelectionService.PendingRequests == 0)
+                    {
+                        // 迟延补推进：AdvanceFromStandby 自带 Standby+无窗守卫，多余调用幂等
+                        _turnEngine.AdvanceFromStandby();
                     }
                 }
             }
         }
 
-        /// <summary>栈上是否有阶段窗伪对象（帧泵自愈的补发判据——见 Update 0b 注记）。</summary>
+        /// <summary>栈上是否有阶段窗伪对象（帧泵自愈的补发判据——见 Update 0b 注记；
+        /// 2026-11-18 提升为 StackEngine 公有单源，本口转调）。</summary>
         private bool HasPhaseWindowOnStack()
-        {
-            foreach (var obj in _stackEngine.GetStackContents())
-                if (obj != null && obj.IsPhaseWindow)
-                    return true;
-            return false;
-        }
+            => _stackEngine != null && _stackEngine.HasPhaseWindowOnStack();
 
         /// <summary>
         /// 处理优先权。

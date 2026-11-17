@@ -387,6 +387,8 @@ namespace CardCore
         /// </summary>
         public bool PushPhaseWindow(Player firstResponder, string label = null)
         {
+            if (Environment.GetEnvironmentVariable("TIDE_DEBUG_RESP") == "1")
+                Console.WriteLine($"[dbg-window] push {label} turn={GameCore.Instance?.TurnEngine?.TurnNumber} phase={GameCore.Instance?.TurnEngine?.CurrentPhase?.Phase} player={(firstResponder == null ? "-" : (ReferenceEquals(firstResponder, GameCore.Instance?.Player1) ? "P1" : "P2"))}");
             if (firstResponder == null) return false;
             if (_stack.Count > 0) return false; // 栈上有待响应对象时不插（调用点栈必空）
             if (_speedCounter.IsResolving) return false; // 结算中不开窗（与玩家声明口同口径）
@@ -415,6 +417,16 @@ namespace CardCore
             GameActions.Crumb($"CF-phase-window-push({label ?? "?"}) by={firstResponder.Name} stack={_stack.Count}");
 
             return true;
+        }
+
+        /// <summary>栈上是否有阶段窗伪对象（帧泵自愈补发判据 / 准备阶段迟延推进判据，2026-11-18
+        /// 从 GameLoopController 私有助手提升为公有单源）。</summary>
+        public bool HasPhaseWindowOnStack()
+        {
+            foreach (var obj in _stack)
+                if (obj != null && obj.IsPhaseWindow)
+                    return true;
+            return false;
         }
 
         /// <summary>攻击宣言栈对象速度（2026-09-16 战斗接入栈机器定案）：攻击=速度0——

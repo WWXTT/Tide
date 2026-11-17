@@ -413,6 +413,14 @@ namespace CardCore.AI
         /// <summary>英雄技能最终发动闸（2026-11-16）：策略层最后一道硬限制，先于实际 ActivateHeroSkill。</summary>
         public virtual bool AllowHeroSkillActivation(GameCore core, Player me) => true;
 
+        /// <summary>英雄技能的显式目标（2026-11-18 用户定案：技能选牌归**策略**，SimpleAI 只做基础调用）。
+        /// null = 交给引擎自动取；空表 = 本次不发动；非空 = 用这些目标发动。</summary>
+        public virtual List<Entity> HeroSkillTargets(GameCore core, Player me, int effectIndex) => null;
+
+        /// <summary>英雄技能目标数量上限（-1=不限，取全部候选；2026-11-18 用户定案）：
+        /// 绿套「牺牲」用它表达"献到够费就停"，避免一次把地/小精灵全烧光导致回收时被除外。</summary>
+        public virtual int HeroSkillTargetCap(GameCore core, Player me) => -1;
+
         /// <summary>固定计划出牌（2026-11-16）：返回下一张必须按顺序打出的牌；null=计划结束/没有对应牌，
         /// 交给原本的 CardPlayScore。SimpleAI 会把它插到出牌队列最前，跳过留手闸。</summary>
         public virtual Card ForcePlayCard(GameCore core, Player me) => null;

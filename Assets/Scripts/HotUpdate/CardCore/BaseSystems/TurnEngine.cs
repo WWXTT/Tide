@@ -79,6 +79,10 @@ namespace CardCore
         private readonly HashSet<Player> _skipNextMain = new HashSet<Player>();
         // 跳过结束阶段档（2026-10-29 阶段3a）：OnEndPhaseStarted 消费——进入即折返下一回合
         private readonly HashSet<Player> _skipNextEnd = new HashSet<Player>();
+        // 结束阶段窗①延发收口（2026-11-18 End 相位窗口改版）：true=已真实推进到 End，但
+        // TurnEndEvent/终局检查延后到窗①排干由 CompleteEndPhase 补发——窗口存活期间
+        // CurrentPhase==End（观测/日志相位正确），OnEndPhaseStarted/CheckPhaseTransition 让路
+        private bool _endWindowPending = false;
         private List<PhaseType> _phaseOrder = new List<PhaseType>
         {
             PhaseType.Standby,
@@ -140,6 +144,7 @@ namespace CardCore
         {
             _turnPlayer = player;
             _turnNumber++;
+            _endWindowPending = false; // 防御复位：上回合窗①未收口不应跨回合存活（终局中断等异常态）
 
             // ① 快照（池子边界）：纯只读；未接线 GameCore（独立测试）跳过
             _gameCore?.CaptureTurnStartSnapshot();
@@ -257,6 +262,12 @@ namespace CardCore
         {
             if (_currentPhase?.Phase != PhaseType.Standby)
                 return;
+            // 准备阶段窗（2026-11-18）：窗在栈上（UI/联机泵可能挂起等人）时迟延推进——排干后由
+            // 驱动口（帧泵 GameLoopController/联机泵）重调本口补推进；同步环境（AI 对局/无头）
+            // 窗泵在事件派发内已收口，走到此处栈已空=零漂移直进。闸在 EndCurrentPhase 之前
+            //（否则会先发 PhaseEndEvent(Standby) 再折返，污染事件序）。
+            if (_gameCore?.StackEngine != null && _gameCore.StackEngine.HasPhaseWindowOnStack())
+                return;
             EndCurrentPhase();
             // 跳过主要阶段（2026-10-02 D2）：待定标记一次性消费——准备阶段后直进结束阶段，
             // 本回合无出牌/攻击窗口（阶段事件照发，玩家侧表现为主阶段被跳过）。
@@ -287,9 +298,16 @@ namespace CardCore
         {
             if (_turnPlayer != null && _skipNextEnd.Remove(_turnPlayer))
             {
+                _endWindowPending = false; // 折返路径无窗无收口（跳过档=该阶段系统行为一并跳过）
                 GoToNextPhase();
                 return;
             }
+
+            // 结束阶段窗①延发收口（2026-11-18）：EndTurnWithEndWindow 推进入 End 时已置位
+            // _endWindowPending——TurnEndEvent/终局检查延后到窗①排干由 CompleteEndPhase 补发；
+            // 遗留直入口径（旧 EndTurn/教学 AutoEndTurn 等）未置位，照旧即发。
+            if (_endWindowPending)
+                return;
 
             // 由 GameCore 调用 SBA 检查和清理
             // 这里只发布事件和推进
@@ -329,6 +347,50 @@ namespace CardCore
         }
 
         /// <summary>
+        /// 玩家结束回合——阶段窗①变体（2026-11-18 End 相位窗口改版）：守卫同 EndTurn()，
+        /// 真实推进 Main→End 但**延发**结束阶段收口（置位 _endWindowPending：OnEndPhaseStarted
+        /// 不发 TurnEndEvent，由调用方压「结束阶段开始」窗、排干后 CompleteEndPhase 补发）——
+        /// 窗口存活期间 CurrentPhase==End（观测/日志相位正确，旧版窗开在 Main 内已废弃）。
+        /// 跳过结束阶段档照旧进 End 即折返（_endWindowPending 复位；调用方以 CurrentPhase!=End
+        /// 识别折返态、不开窗不补发）。
+        /// </summary>
+        public bool EndTurnWithEndWindow()
+        {
+            if (_currentPhase?.Phase != PhaseType.Main)
+                return false;
+            if (_currentPhase?.State != PhaseState.Active)
+                return false;
+            // 栈未结算完毕时不能结束回合
+            if (_isStackEmpty != null && !_isStackEmpty())
+                return false;
+
+            _endWindowPending = true;
+            EndCurrentPhase();
+            GoToNextPhase();
+            return true;
+        }
+
+        /// <summary>
+        /// 结束阶段延发收口补发（2026-11-18，与 EndTurnWithEndWindow 配对）：窗①排干后由
+        /// GameActions 续链调用——发 TurnEndEvent（结束阶段系统行为链：狩猎/持续到期/延迟死亡/
+        /// 归土/指示物倒数/手牌上限弃牌）+ 终局检查。非延发态调用为 no-op（幂等防重发）。
+        /// </summary>
+        public void CompleteEndPhase()
+        {
+            if (_currentPhase?.Phase != PhaseType.End || !_endWindowPending)
+                return;
+            _endWindowPending = false;
+
+            PublishEvent(new TurnEndEvent
+            {
+                TurnPlayer = _turnPlayer,
+                TurnNumber = _turnNumber
+            });
+
+            CheckGameOver();
+        }
+
+        /// <summary>
         /// 检查是否可以进入下一阶段
         /// </summary>
         public void CheckPhaseTransition()
@@ -339,6 +401,11 @@ namespace CardCore
 
             // 栈不为空时不能进入下一阶段
             if (_isStackEmpty != null && !_isStackEmpty())
+                return;
+
+            // 结束阶段窗①延发收口期（2026-11-18）：窗已排干但 CompleteEndPhase 尚未补发前
+            // 不折返——防帧泵/联机泵/驱动器在「排干→补发」间隙抢跑折叠，跳过结束阶段系统行为
+            if (_currentPhase?.Phase == PhaseType.End && _endWindowPending)
                 return;
 
             EndCurrentPhase();

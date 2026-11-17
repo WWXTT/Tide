@@ -350,6 +350,8 @@ namespace CardCore.Attribute.Handlers
 
             // 2026-11-14 修复（回收类表病）：**张数=目标数**——「取几张」由 count/目标选择表达，
             // 不再读 value（回收行模板无 {value}；value 只作旧数据/无目标兜底的回退张数）。
+            // 2026-11-18 用户定案：回收受手牌上限约束——**放不下的留在墓地**（不再溢出进除外区）。
+            var controller = context.Controller;
             var targeted = context.Targets?.OfType<Card>().ToList();
             int fallback = effect.Value > 0 ? context.GetValueAfterModifiers(effect.Value) : 1;
             List<Card> toRecover = (targeted != null && targeted.Count > 0)

@@ -405,46 +405,35 @@ namespace CardCore
             var defender = turnPlayer.Opponent;
             if (defender == null) return;
 
-            // 狩猎只攻击“对手生命最少的单位”，不把对手角色放进候选池。
+            // 2026-11-18 用户定案：**狩猎也能打结界**——候选池收对方战场上的全部牌（生物 + 结界），
+            // 择敌按「生命」比较：生物=当前生命，结界=当前耐久。
             var pool = new List<Entity>();
             foreach (var c in _zoneManager.GetCards(defender, Zone.Battlefield))
-                if (c != null && c.IsAlive && c.IsLivingUnit()) pool.Add(c);
+                if (c != null && c.IsAlive) pool.Add(c);
+
+            int HealthOf(Entity t) => t is Card c && c.IsLivingUnit()
+                ? c.GetLife()
+                : (t is Card e ? e.GetCounterCount(Attribute.CounterRules.DurabilityCounter) : 0);
 
             foreach (var hunter in _zoneManager.GetCards(turnPlayer, Zone.Battlefield).ToList())
             {
                 if (hunter == null || !hunter.IsAlive) continue;
                 if (!hunter.HasKeyword(KeywordRules.Hunt)) continue;
-                // 2026-11-14 用户定案重做：**未横置闸删除**——横置的单位回合末也强行出击
-                //（2026-11-03 旧口径「未横置才打」退役）；仍不走 CanDeclareAttack，不查攻击资格位：
-                // 无攻资格的墙被培育喂出攻击力后，同样强行出击。
-                // 0 攻不打（否则纯自杀：0 攻打 3 攻会被反击打死）。
                 if (GetPower(hunter) <= 0) continue;
-                // §11 高危关键词：过载狩猎者回合末额外攻击不触发（狩猎不走 CanDeclareAttack，须自带闸；
-                // 结算后计）
                 if (!CardCore.CardEffectBudget.KeywordAllowed(hunter)) continue;
 
                 var candidates = pool.Where(t => CanAttackTarget(hunter, t, turnPlayer)).ToList();
-                if (candidates.Count == 0) continue; // 防守方无合法目标（全潜行/无存活）——空转不播报
-                // 目标选择（2026-11-15 用户定案；同日二次改：**生物∪角色一起比生命**）：合法目标
-                // （活体生物＋角色）一起按当前生命升序取最低；同血时角色优先（能打脸不打单位），
-                // 生物之间同血取战场序最左；结界/装备等无生命耐久体不是「生命值」目标，不参与择敌。
-                // 稳定排序 → 不再随机，回放/断言可复现。
+                if (candidates.Count == 0) continue;
                 Entity target = candidates
-                    .Where(t => t is Card c && c.IsLivingUnit())
-                    .OrderBy(t => t.GetLife())
-                    .ThenBy(DefenseLayerCount) // 同生命时优先打防护层更少的单位
+                    .Where(t => t is Card c && (c.IsLivingUnit() || c.GetCounterCount(Attribute.CounterRules.DurabilityCounter) > 0))
+                    .OrderBy(HealthOf)
+                    .ThenBy(DefenseLayerCount)
                     .FirstOrDefault();
                 if (target == null) continue;
                 GameActions.Crumb($"CF-hunt atk={hunter.ID} power={GetPower(hunter)}"
                                   + $" tgt={(target as Card)?.ID ?? (target as Player)?.Name}");
-
-                // 击杀侦测快照：防守方战场单位存活账（战斗内致死即时落账 IsAlive=false，SBA 只负责
-                // 后续送葬——此刻差集即本次战斗战果；含直杀与溅射/碾压连带击杀）
-                // 结算与普通攻击同管线（重检在 CanAttackTarget 已过、无守卫改写——declaredTarget=target）
                 ResolveAttackResolution(hunter, target, target, turnPlayer, payTap: false, guardBlocker: null);
                 CardCore.CardEffectBudget.CommitKeyword(hunter);
-
-                // 2026-11-17 定案：狩猎不再具有击杀后重置能力。
             }
         }
 
@@ -652,5 +641,3 @@ namespace CardCore
         // 攻击=速度0栈对象逐攻击开窗，死亡处理由栈机器 SBA 轮统一接管（见 ResolveAttackDeclaration）。
     }
 }
-
-

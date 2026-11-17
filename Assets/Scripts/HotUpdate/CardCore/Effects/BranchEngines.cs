@@ -757,6 +757,8 @@ namespace CardCore
                     int mine = core.ElementPool?.GetRemainingElementTotal(owner) ?? 0;
                     int theirs = core.ElementPool?.GetRemainingElementTotal(opponent) ?? 0;
                     int diff = Math.Min(mine - theirs, SurplusCap);
+                    if (Environment.GetEnvironmentVariable("TIDE_DEBUG_OVERFLOW") == "1")
+                        Console.WriteLine($"[dbg-overflow] card={NameOf(card)} owner={(ReferenceEquals(owner, core.Player1) ? "P1" : "P2")} x={x} mine={mine} theirs={theirs} diff={diff} pass={(diff >= x)}");
                     if (diff < x) continue; // 2026-11-13 开放：差 **≥** 门槛即触发（旧「恰等于 ==x」判据七退役）
 
                     EventManager.Instance.Publish(new KeywordAppliedEvent

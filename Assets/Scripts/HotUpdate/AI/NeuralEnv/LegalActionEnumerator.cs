@@ -190,6 +190,7 @@ namespace CardCore.AI.NeuralEnv
             EnumerateTapCreatures(core, me, zm);
             Actions.Add(EndTurnAction());
 
+            FoldEquivalentRows();                       // L3-B 折叠（2026-11-18 循环治理 §5.5）
             EnforceActionCap(TideActionType.EndTurn);
             BuildFeatures();
         }
@@ -243,6 +244,51 @@ namespace CardCore.AI.NeuralEnv
 
             EnforceActionCap(TideActionType.PassPriority);
             BuildFeatures();
+        }
+
+        // ===================================================== L3-B 动作表折叠（2026-11-18 循环治理 §5.5） =====
+
+        // static 字段而非 const = 编辑器反射可翻转（A/B 验证/紧急回退免改源码重编译）；默认恒开/关。
+        private static bool EquivalentFoldEnabled = true;  // 折叠开关（回退用）
+        private static bool EquivalentFoldLog = false;     // [ActionFold] 日志开关（验收取证用，防训练刷屏）
+
+        /// <summary>等价行动作折叠（方案 §5.5，仅 Enumerate 主表——响应表本就小）：
+        /// 键 = 动作特征行去掉 [2]sourceIndex——对模型而言唯一不可区分差异是「来源卡在
+        /// cards_ 的第几格」（同名同费同模式同目标的第 2..N 张手牌）。同键只留第一行：
+        /// 深潭碑类局面 177 行 → 约 8 行，EndTurn 概率不再被稀释到 1/177，同时省算力。
+        /// 费用/效果身份/目标槽/参照/区域特征全在键内——费用指示物不同的同名牌不会被误折。
+        /// 位于 EnforceActionCap 之前（折叠后通常远离 512 上限）。</summary>
+        private void FoldEquivalentRows()
+        {
+            if (!EquivalentFoldEnabled || Actions.Count <= 1) return;
+            BuildFeatures(); // 先按全表建特征——键语义=真实特征行（避免另写一套键计算与特征漂移）
+            var seen = new HashSet<string>(Actions.Count);
+            int w = 0;
+            for (int k = 0; k < Actions.Count; k++)
+            {
+                if (!seen.Add(FeatureKeyExceptSource(k))) continue; // 等价重复行：丢弃（保第一行）
+                if (w != k) Actions[w] = Actions[k];
+                w++;
+            }
+            if (w == Actions.Count) return;
+            int raw = Actions.Count;
+            Actions.RemoveRange(w, Actions.Count - w);
+            BuildFeatures(); // 特征张量必须按折叠后新表同步重建（错位=直接毁训练）
+            if (EquivalentFoldLog)
+                Console.WriteLine($"[ActionFold] raw={raw} folded={w}");
+        }
+
+        /// <summary>动作 k 的特征行去掉 sourceIndex（[2]）后的等价键（float 用 R 往返格式）。</summary>
+        private string FeatureKeyExceptSource(int k)
+        {
+            int b = k * TideObservation.NAction;
+            var parts = new string[TideObservation.NAction - 1];
+            for (int j = 0, i = 0; j < TideObservation.NAction; j++)
+            {
+                if (j == 2) continue;
+                parts[i++] = Features[b + j].ToString("R");
+            }
+            return string.Join(",", parts);
         }
 
         /// <summary>动作表硬上限守卫（v3 契约 §6）：超过 MaxActions 时保留前 MaxActions-1 行，

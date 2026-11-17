@@ -95,9 +95,9 @@ namespace CardCore.Attribute.Handlers
             // 2026-09-13 修复：真实链路（CardCatalog.GetById）返回裸 CardData——不实现 IHasSupertype
             // （仅 CardWrapper 实现），is 判定恒 false 导致全游戏 SummonToken 静默空转；改属性直判。
             var templateSupertype = template is IHasSupertype ht ? ht.Supertype : template.Supertype;
-            if (templateSupertype != Cardtype.Creature)
+            if (templateSupertype != Cardtype.Creature && templateSupertype != Cardtype.Enchantment)
             {
-                TideLog.Warn($"[SummonTokenHandler] 衍生物模板 {templateId} 不是生物卡，跳过");
+                TideLog.Warn($"[SummonTokenHandler] 衍生物模板 {templateId} 既不是生物也不是结界，跳过");
                 return;
             }
 

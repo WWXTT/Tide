@@ -478,6 +478,46 @@ namespace CardCore.AI
         }
 
         /// <summary>绿预组全局硬闸：没有归根就不允许牺牲（固定序/评分逻辑都必须遵守）。</summary>
+        /// <summary>2026-11-18 用户定案：T7+ 只献到「够打 归根 + 阿格洛斯」为止，
+        /// 不再把地/小精灵全烧光（否则回收时手牌超上限、核心被除外）。</summary>
+        public override int HeroSkillTargetCap(GameCore core, Player me)
+        {
+            if (OwnTurn(core, me) < 7) return -1;
+            var hand = core.ZoneManager.GetCards(me, Zone.Hand) ?? new List<Card>();
+            int need = 0;
+            foreach (var name in new[] { NameReturn, NamePanther })
+            {
+                var c = hand.FirstOrDefault(x => x != null && (x as IHasName)?.CardName == name);
+                if (c != null) need += (int)Math.Ceiling(GameActions.GetCardCost(c, 0).Total);
+            }
+            if (need <= 0) return 1;
+            int have = core.ElementPool.GetTotalAvailableMana(me);
+            int shortfall = Math.Max(0, need - have);
+            return Math.Max(1, shortfall);
+        }
+
+        /// <summary>牺牲技能的目标（2026-11-18 用户定案：技能选牌归策略）——
+        /// 只献**非 key 牌**：归根、系命者 阿格洛斯 永远不进牺牲名单；数量按 HeroSkillTargetCap 截断
+        /// （T7+ 献到够打 归根 + 阿格洛斯 为止）。</summary>
+        public override List<Entity> HeroSkillTargets(GameCore core, Player me, int effectIndex)
+        {
+            var effects = HeroSkillSystem.SkillEffectsOf(HeroSkillSystem.ResolveSkillCard(core, me));
+            if (effectIndex < 0 || effectIndex >= effects.Count || effects[effectIndex]?.Id != "FXGREEN08") return null;
+            // 2026-11-18 修复：T7 之前牺牲由**引擎自动取目标**（旧 SimpleAI 也只在 TurnNumber>=7 才显式传），
+            // 策略给空表会让 T3 的「牺牲小精灵」直接失败，T3 沃土线断。
+            if (OwnTurn(core, me) < 7) return null;
+            string N(Card x) => (x as IHasName)?.CardName;
+            var list = new List<Entity>();
+            list.AddRange((core.ZoneManager.GetCards(me, Zone.Battlefield) ?? new List<Card>())
+                .Where(x => x != null && x.IsAlive && N(x) != NameReturn && N(x) != NamePanther));
+            list.AddRange(core.ElementPool.GetPooledCards(me)
+                .Where(pc => pc?.SourceCard != null && N(pc.SourceCard) != NameReturn && N(pc.SourceCard) != NamePanther)
+                .Select(pc => (Entity)pc.SourceCard));
+            int cap = HeroSkillTargetCap(core, me);
+            if (cap >= 0 && list.Count > cap) list = list.Take(cap).ToList();
+            return list;
+        }
+
         public override bool AllowHeroSkillActivation(GameCore core, Player me)
             => !IsLoopDeck(core, me) || HandCopies(core, me, NameReturn) > 0;
 
@@ -831,14 +871,22 @@ namespace CardCore.AI
         /// 归根——墓地没有核心组件、且墓地不足 2 张时留手。</summary>
         public override bool ShouldHold(GameCore core, Player me, Card card)
         {
-            EnsureTurnState(core, me);
+            // 2026-11-18 用户定案：T5 牺牲后（含 T7+）——先铺完非 key 牌再打归根（顺序：牺牲 → 铺非 key → 回收）
+            if ((LoopT5PostSacrifice || T7PostSacrifice) && (card as IHasName)?.CardName == NameReturn)
+            {
+                var handNow = core.ZoneManager.GetCards(me, Zone.Hand) ?? new List<Card>();
+                bool nonKeyLeft = handNow.Any(hc => hc != null && (hc as IHasName)?.CardName != NameReturn && (hc as IHasName)?.CardName != NamePanther);
+                if (nonKeyLeft) return true;   // 手里还有非 key 牌 → 先不打归根
+            }
+            // 2026-11-18 用户定案：T5 牺牲后固定序收尾——**不再打小精灵/沃土**（只铺地），
+            // 让 归根 → 牺牲 → 归根 → 阿格洛斯 成为最后动作，手里只留 1 张 key（归根/阿格洛斯）。
+            if (LoopT5PostSacrifice && ((card as IHasName)?.CardName == NameSpirit || (card as IHasName)?.CardName == NameBloom)) return true;
             // T1 固定只打一张小精灵；第二张留到 T3。
             if (OwnTurn(core, me) == 1 && NameOf(card) == NameSpirit && _fixedStep >= 1)
                 return true;
             // 归根：每回合最多一张，且必须等牺牲完成后再打。
             if (NameOf(card) == NameReturn)
             {
-                if (OwnTurn(core, me) >= 7)
                 if (OwnTurn(core, me) >= 7 && _loopSacrificedThisTurn && !_returnUsedThisTurn)
                     return false; // T7 牺牲后必须把这张归根打出去
                 if (_returnUsedThisTurn) return true;
@@ -911,6 +959,9 @@ namespace CardCore.AI
                 if (name == NamePanther) return true;
                 if (HandCopies(core, me, NamePanther) > 0) return false;
             }
+            // 2026-11-18 用户定案：T5 牺牲后（含 T7+）——**先把手里的非 key 牌全部铺进地牌池，再归根回收**
+            if ((LoopT5PostSacrifice || T7PostSacrifice) && name != NameReturn && name != NamePanther) return true;
+
             // 每阶段 key 需要几张：超出需要数量的同名卡才是余牌，可铺地。
             if (IsLoopDeck(core, me) && (name == NameSpirit || name == NameBloom
                 || name == NameReturn || name == NamePanther))
@@ -1878,4 +1929,3 @@ namespace CardCore.AI
         }
     }
 }
-

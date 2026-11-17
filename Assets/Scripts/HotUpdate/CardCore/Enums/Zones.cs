@@ -663,6 +663,8 @@ namespace CardCore
         /// </summary>
         private bool HandAtLimit()
         {
+            // 2026-11-18 用户定案：**自己回合可以溢出**（不限）；只有对手回合中超过 7 张才送除外区。
+            if (ReferenceEquals(GameCore.Instance?.TurnEngine?.TurnPlayer, Owner)) return false;
             var hand = zones[Zone.Hand];
             int effective = hand.Count;
             var stack = GameCore.Instance != null ? GameCore.Instance.StackEngine : null;

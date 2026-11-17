@@ -42,7 +42,7 @@ namespace CardCore
         bool ShouldSkipTurnStartAutomation(Player player);
     }
 
-    /// <summary>手牌上限修改链：逐个套用，基值 RuleHooks.DefaultHandLimit（12，2026-11-18 规则改版）
+    /// <summary>手牌上限修改链：逐个套用，基值 RuleHooks.DefaultHandLimit（7，2026-11-18 定案：7 + 纳川仪典额外）
     /// ——修改链增量=结界给的额外上限（现役=纳川仪典结界 +自己蓝色地牌数）。</summary>
     public interface IHandLimitModifier
     {

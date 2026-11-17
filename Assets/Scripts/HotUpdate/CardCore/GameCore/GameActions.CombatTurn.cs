@@ -70,15 +70,17 @@ namespace CardCore
         // ======================================== 回合控制 ========================================
 
         /// <summary>
-        /// 结束回合（2026-11-01 阶段优先权窗改版；同日修订：双窗=①「结束阶段开始」（本口）+
-        /// ②「主阶段开始」（GameCore.OnMainPhaseStartedWindow 订阅 PhaseStartEvent(Main)，原
-        /// 「回合结束前」时点废弃））：
-        /// 主阶段可结束态（相位 Active+栈空+非结算中）时先压 0 速阶段窗伪对象开「结束阶段开始」窗，
-        /// 窗口排干（响应链/级联触发/SBA 轮一并收口）后才真实推进 Main→End（结束阶段系统行为照旧），
-        /// 之后折返照旧走既有口（帧泵 GameLoopController/驱动器 CheckPhaseTransition）——新回合
-        /// 主阶段开始时窗②自然开启。非可结束态（同帧双击/连锁未清）走引擎静默拒绝路径（行为与
-        /// 旧版一致）。无候选时响应窗泵自动双 Pass——AI/无头局全链同步收口不卡死；无响应者注册
-        /// （编辑器验证）时窗口自动让路，EndTurn 返回时已推进到位（行为同旧版）。
+        /// 结束回合（2026-11-01 阶段优先权窗改版；2026-11-18 End 相位窗口改版：双窗=①「结束阶段
+        /// 开始」（本口）+②「主阶段开始」（GameCore.OnMainPhaseStartedWindow 订阅
+        /// PhaseStartEvent(Main)，原「回合结束前」时点废弃））：
+        /// 主阶段可结束态（相位 Active+栈空+非结算中）时**先真实推进 Main→End**（EndTurnWithEndWindow
+        /// 延发结束收口），再压 0 速阶段窗伪对象在 End 相位内开「结束阶段开始」窗（窗口存活期间
+        /// CurrentPhase==End），窗口排干（响应链/级联触发/SBA 轮一并收口）后 CompleteEndPhase 补发
+        /// TurnEndEvent（结束阶段系统行为照旧），之后折返照旧走既有口（帧泵 GameLoopController/
+        /// 驱动器 CheckPhaseTransition）——新回合主阶段开始时窗②自然开启。非可结束态（同帧双击/
+        /// 连锁未清）走引擎静默拒绝路径（行为与旧版一致）。无候选时响应窗泵自动双 Pass——AI/无头局
+        /// 全链同步收口不卡死；无响应者注册（编辑器验证）时窗口自动让路，EndTurn 返回时已推进到位
+        ///（行为同旧版）。
         /// </summary>
         public static bool EndTurn(GameCore core, Player player)
             => EndTurn(core, player, out _);
@@ -100,15 +102,29 @@ namespace CardCore
                 return false;
             }
 
-            // 阶段窗①（2026-11-01）：可结束态先开「结束阶段开始」窗，续链内完成推进。
-            // Push 失败（栈非空等异常态）回落旧直进路径——EndTurn 内守卫会照常裁决。
+            // 阶段窗①（2026-11-18 End 相位窗口改版）：可结束态**先真实推进 Main→End**
+            //（EndTurnWithEndWindow 延发结束收口），窗开在 End 相位内——窗口存活期间
+            // CurrentPhase==End（旧版窗开在 Main 内、排干后才推进，phase 观测恒 Main 已废弃）；
+            // 排干后 CompleteEndPhase 补发 TurnEndEvent。跳过结束阶段档=进 End 即折返（相位
+            // 已非 End）不开窗——跳过口径本就「该阶段系统行为一并跳过」，无窗更自洽。
             if (core.TurnEngine.CurrentPhase?.Phase == PhaseType.Main
                 && core.TurnEngine.CurrentPhase?.State == PhaseState.Active
                 && core.StackEngine.IsEmpty
                 && !core.StackEngine.IsResolving
-                && core.StackEngine.PushPhaseWindow(core.TurnEngine.TurnPlayer, "结束阶段开始"))
+                && core.TurnEngine.EndTurnWithEndWindow())
             {
-                EndTurnWithPhaseWindowAsync(core, player).Forget();
+                if (core.TurnEngine.CurrentPhase?.Phase == PhaseType.End
+                    && core.StackEngine.PushPhaseWindow(core.TurnEngine.TurnPlayer, "结束阶段开始"))
+                {
+                    EndTurnWithPhaseWindowAsync(core, player).Forget(); // 排干→CompleteEndPhase→教学探针（续链内）
+                }
+                else
+                {
+                    if (core.TurnEngine.CurrentPhase?.Phase == PhaseType.End)
+                        Crumb("CF-end-window-push-fail"); // 压窗失败异常态（进 End 事件链留了栈内容）：无窗直发收口
+                    core.TurnEngine.CompleteEndPhase();   // 非 End（跳过档已折返）时幂等 no-op
+                    RuleHooks.OnTutorialTurnEnded?.Invoke(player);
+                }
                 return true;
             }
 
@@ -128,10 +144,10 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 阶段窗①「结束阶段开始」续链（2026-11-01 定案；同日修订：窗②迁「主阶段开始」，
-        /// 本续链只管窗①排干+真实推进）：
-        /// ① 排干窗①（含窗口内响应连锁）→ 真实推进 Main→End（真发才发教学探针，口径同旧版）。
-        /// 任何一步异常（终局/引擎拒绝）即止步，不重试不弹错——状态与旧版拒绝路径一致。
+        /// 阶段窗①「结束阶段开始」续链（2026-11-01 定案；2026-11-18 End 相位窗口改版：
+        /// 真实推进已前置到开窗前——EndTurnWithEndWindow 推进 Main→End 并延发结束收口，
+        /// 本续链只管窗①排干 + CompleteEndPhase 补发 TurnEndEvent/终局检查）。
+        /// 任何一步异常（终局等）即止步，不重试不弹错——状态与旧版拒绝路径一致。
         /// </summary>
         private static async Cysharp.Threading.Tasks.UniTask EndTurnWithPhaseWindowAsync(GameCore core, Player player)
         {
@@ -139,12 +155,8 @@ namespace CardCore
             await SettleResponseWindowAsync(core);
             if (core == null || core.IsGameOver || core.StackEngine == null) return;
 
-            // 真实推进（守卫与旧版一致：Main+Active+栈空；窗口期间外部不应推进相位，若被拒=异常态止步）
-            if (!core.TurnEngine.EndTurn())
-            {
-                Crumb("CF-phase-window-advance-reject");
-                return;
-            }
+            // 延发收口补发：TurnEndEvent（结束阶段系统行为链）+ 终局检查（真发才发教学探针，口径同旧版）
+            core.TurnEngine.CompleteEndPhase();
             RuleHooks.OnTutorialTurnEnded?.Invoke(player);
         }
 

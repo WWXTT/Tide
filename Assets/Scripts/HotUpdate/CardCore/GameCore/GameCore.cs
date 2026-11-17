@@ -203,6 +203,9 @@ namespace CardCore
             // 阶段窗②「主阶段开始」（2026-11-01 同日修订：原「回合结束前」窗迁此）——见 OnMainPhaseStartedWindow
             EventManager.Instance.Subscribe<PhaseStartEvent>(OnMainPhaseStartedWindow);
 
+            // 阶段窗③「准备阶段开始」（2026-11-18 补窗）——见 OnStandbyPhaseStartedWindow
+            EventManager.Instance.Subscribe<PhaseStartEvent>(OnStandbyPhaseStartedWindow);
+
             // 临时复制卡订阅已删（2026-10-10 微缩/放大退役）：回响走 EchoCopyHandler 结算期
             // 直调 TempCopyRules.CreateTemporaryCopy，无事件订阅；回合末移除仍由 OnTurnEnded 承担。
 
@@ -289,6 +292,27 @@ namespace CardCore
             if (StackEngine.PushPhaseWindow(first, "主阶段开始"))
                 GameActions.ForgetSafeAsync(
                     GameActions.SettleResponseWindowAsync(this), "主阶段开始响应窗", this).Forget();
+        }
+
+        /// <summary>
+        /// 阶段窗③「准备阶段开始」（2026-11-18 补窗，逐行镜像窗②范式）：
+        /// PhaseStartEvent(Standby) 时点（#33 锚=自动化+抽牌**之后**、进主阶段之前）压 0 速
+        /// 伪栈对象开响应窗——双方可用速1+手牌/主动效果响应（记速器=0），双 Pass 即让路。
+        /// 窗口存活期间 CurrentPhase==Standby；主阶段推进（StartNewTurn 末尾
+        /// AdvanceFromStandby）遇窗迟延（TurnEngine 迟延闸），排干后由驱动口
+        ///（帧泵 GameLoopController）补推进——同步环境（AI/无头）泵在事件派发内同步
+        /// 双 Pass 收口，StartNewTurn 返回时已推进，对 SimpleAI/验证器零影响；UI 局人类
+        /// 有候选→弹窗挂起、答毕排干后帧泵补推进。优先权起点=回合方（与窗①/②/SBA 同口径）。
+        /// </summary>
+        private void OnStandbyPhaseStartedWindow(PhaseStartEvent e)
+        {
+            if (e?.Phase != PhaseType.Standby || IsGameOver) return;
+            if (StackEngine == null || !StackEngine.IsEmpty || StackEngine.IsResolving) return;
+            var first = TurnEngine?.TurnPlayer;
+            if (first == null) return;
+            if (StackEngine.PushPhaseWindow(first, "准备阶段开始"))
+                GameActions.ForgetSafeAsync(
+                    GameActions.SettleResponseWindowAsync(this), "准备阶段开始响应窗", this).Forget();
         }
 
         /// <summary>初始手牌总量（2026-10-13 迁表：ValueSystemConfig GameRules.OpeningHandSize）。</summary>

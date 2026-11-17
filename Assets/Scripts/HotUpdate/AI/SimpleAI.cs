@@ -389,22 +389,8 @@ namespace SynergyUI
                 return false;
             }
 
-            // T7+ 牺牲：AI 预选全部池地+场上单位，显式传目标。否则 HeroSkillSystem 自动取
-            // 只拿 4 张（2026-11-16 实测 T7 只祭 4，费永远不够）。
-            List<Entity> heroTargets = null;
-            if (core.TurnEngine != null && core.TurnEngine.TurnNumber >= 7
-                && skillEffects.Count > 0 && skillEffects[effectIndex]?.Id == "FXGREEN08")
-            {
-                string N(Card c) => (c as CardWrapper)?.GetData()?.CardName;
-                var hand = core.ZoneManager.GetCards(me, Zone.Hand) ?? new List<Card>();
-                bool hasSecondAgros = hand.Any(c => c != null && N(c) == "系命者 阿格洛斯");
-                heroTargets = new List<Entity>();
-                heroTargets.AddRange((core.ZoneManager.GetCards(me, Zone.Battlefield) ?? new List<Card>())
-                    .Where(c => c != null && c.IsAlive && !(hasSecondAgros && N(c) == "系命者 阿格洛斯")));
-                heroTargets.AddRange(core.ElementPool.GetPooledCards(me)
-                    .Where(pc => pc?.SourceCard != null && !(hasSecondAgros && N(pc.SourceCard) == "系命者 阿格洛斯"))
-                    .Select(pc => (Entity)pc.SourceCard));
-            }
+            // 2026-11-18 用户定案：技能目标由**策略**提供（绿套「牺牲」自管选牌）；SimpleAI 只做基础调用。
+            List<Entity> heroTargets = _strategy.HeroSkillTargets(core, me, effectIndex);
             var ok = heroTargets != null
                 ? GameActions.ActivateHeroSkill(core, me, effectIndex, heroTargets, null, out _)
                 : await GameActions.ActivateHeroSkill(core, me, effectIndex);
@@ -955,5 +941,3 @@ namespace SynergyUI
         }
     }
 }
-
-

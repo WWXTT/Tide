@@ -1,3328 +1,3341 @@
-{
-  "cards": [
-    {
-      "id": "C_895AC28D",
-      "cardName": "测试·四色地",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "guardAbility": true,
-      "power": 1,
-      "life": 1,
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "教学",
-        "测试"
-      ],
-      "landColors": [
-        0,
-        1,
-        2,
-        3
-      ],
-      "hash": "895AC28D"
-    },
-    {
-      "id": "C_DA499FAE",
-      "cardName": "教学·3",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "guardAbility": true,
-      "power": 1,
-      "life": 1,
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "教学"
-      ],
-      "hash": "DA499FAE"
-    },
-    {
-      "id": "C_3D10E1A5",
-      "cardName": "教学·1",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "guardAbility": true,
-      "power": 1,
-      "life": 2,
-      "costList": [
-        1.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "教学",
-        "训练池"
-      ],
-      "hash": "1BD7389C"
-    },
-    {
-      "id": "C_C279F399",
-      "cardName": "教学·5",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "guardAbility": true,
-      "power": 3,
-      "life": 2,
-      "costList": [
-        2.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "教学",
-        "训练池"
-      ],
-      "hash": "C279F399"
-    },
-    {
-      "id": "C_E98E60F2",
-      "cardName": "教学·7",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "guardAbility": true,
-      "illustration": "PetitAngel",
-      "power": 2,
-      "life": 2,
-      "costList": [
-        1.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "教学"
-      ],
-      "hash": "E98E60F2"
-    },
-    {
-      "id": "C_03E4B181",
-      "cardName": "教学·8",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "guardAbility": true,
-      "illustration": "DragonessTheWickedKnight",
-      "power": 7,
-      "life": 7,
-      "costList": [
-        6.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "教学"
-      ],
-      "hash": "03E4B181"
-    },
-    {
-      "id": "C_8C47525E",
-      "cardName": "教学·9",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "guardAbility": true,
-      "illustration": "Kojikocy",
-      "power": 8,
-      "life": 8,
-      "costList": [
-        7.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "教学"
-      ],
-      "hash": "8C47525E"
-    },
-    {
-      "id": "C_C3D7138E",
-      "cardName": "教学·6",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "guardAbility": true,
-      "illustration": "DarkPrisoner",
-      "power": 6,
-      "life": 1,
-      "costList": [
-        3.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "教学"
-      ],
-      "hash": "C3D7138E"
-    },
-    {
-      "id": "C_C635DB5D",
-      "cardName": "教学·14",
-      "supertype": "Spell",
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "23E6AFE9"
-      ],
-      "costList": [
-        0.0,
-        3.0,
-        0.0,
-        0.0
-      ],
-      "hash": "C635DB5D"
-    },
-    {
-      "id": "C_36A84A34",
-      "cardName": "教学·15",
-      "supertype": "Spell",
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "E58E7758"
-      ],
-      "costList": [
-        0.0,
-        3.0,
-        0.0,
-        0.0
-      ],
-      "hash": "36A84A34"
-    },
-    {
-      "id": "C_AC7E32A2",
-      "cardName": "教学·16",
-      "supertype": "Spell",
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "6178B429"
-      ],
-      "costList": [
-        0.0,
-        3.0,
-        2.0,
-        0.0
-      ],
-      "hash": "AC7E32A2"
-    },
-    {
-      "id": "C_EA311EB8",
-      "cardName": "教学·17",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "guardAbility": true,
-      "illustration": "Kojikocy",
-      "power": 8,
-      "life": 9,
-      "costList": [
-        8.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "教学"
-      ],
-      "hash": "EA311EB8"
-    },
-    {
-      "id": "C_925E315C",
-      "cardName": "教学·18",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "guardAbility": true,
-      "illustration": "MukaMuka",
-      "power": 3,
-      "life": 3,
-      "costList": [
-        2.0,
-        0.0,
-        0.0,
-        2.0
-      ],
-      "keywords": [
-        "Indestructible"
-      ],
-      "tags": [
-        "教学"
-      ],
-      "hash": "925E315C"
-    },
-    {
-      "id": "C_6AB9B73A",
-      "cardName": "教学·19",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "guardAbility": true,
-      "illustration": "DarkPrisoner",
-      "power": 2,
-      "life": 2,
-      "costList": [
-        1.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "keywords": [
-        "Stealth"
-      ],
-      "tags": [
-        "教学"
-      ],
-      "hash": "6AB9B73A"
-    },
-    {
-      "id": "C_655C063A",
-      "cardName": "教学·39",
-      "supertype": "Spell",
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "E9FC6D18"
-      ],
-      "costList": [
-        0.0,
-        1.0,
-        0.0,
-        0.0
-      ],
-      "hash": "655C063A"
-    },
-    {
-      "id": "C_86771FC7",
-      "cardName": "教学·40",
-      "supertype": "Spell",
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "B6C60DE7"
-      ],
-      "costList": [
-        0.0,
-        1.0,
-        0.0,
-        0.0
-      ],
-      "hash": "86771FC7"
-    },
-    {
-      "id": "C_E1256CFE",
-      "cardName": "教学·41",
-      "supertype": "Spell",
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "29F8C17F"
-      ],
-      "costList": [
-        0.0,
-        1.0,
-        0.0,
-        0.0
-      ],
-      "hash": "E1256CFE"
-    },
-    {
-      "id": "C_A1AE2226",
-      "cardName": "教学·42",
-      "supertype": "Spell",
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "A082AF8E"
-      ],
-      "costList": [
-        0.0,
-        1.0,
-        0.0,
-        0.0
-      ],
-      "hash": "A1AE2226"
-    },
-    {
-      "id": "C_B3F95B21",
-      "cardName": "教学·13",
-      "supertype": "Spell",
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "D2F79EF4"
-      ],
-      "costList": [
-        0.0,
-        1.0,
-        0.0,
-        0.0
-      ],
-      "hash": "B3F95B21"
-    },
-    {
-      "id": "C_0A0BAC14",
-      "cardName": "教学·43",
-      "supertype": "Spell",
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "95ADEEFE"
-      ],
-      "costList": [
-        0.0,
-        1.0,
-        0.0,
-        0.0
-      ],
-      "hash": "0A0BAC14"
-    },
-    {
-      "id": "C_CA42AAF8",
-      "cardName": "教学·46",
-      "supertype": "Spell",
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "E0C8F461"
-      ],
-      "costList": [
-        0.0,
-        1.0,
-        0.0,
-        0.0
-      ],
-      "hash": "CA42AAF8"
-    },
-    {
-      "id": "C_1F9D64E0",
-      "cardName": "教学·44",
-      "supertype": "Spell",
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "0A8886CD"
-      ],
-      "costList": [
-        0.0,
-        1.0,
-        0.0,
-        0.0
-      ],
-      "hash": "1F9D64E0"
-    },
-    {
-      "id": "C_D824053B",
-      "cardName": "教学·45",
-      "supertype": "Spell",
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "1F3DB443"
-      ],
-      "costList": [
-        0.0,
-        1.0,
-        0.0,
-        0.0
-      ],
-      "hash": "D824053B"
-    },
-    {
-      "id": "C_D78B3E37",
-      "cardName": "教学·38",
-      "supertype": "Spell",
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "8DB8409B"
-      ],
-      "costList": [
-        0.0,
-        1.0,
-        0.0,
-        0.0
-      ],
-      "hash": "D78B3E37"
-    },
-    {
-      "id": "C_3B8E79AB",
-      "cardName": "教学·47",
-      "supertype": "Spell",
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "414EDEB4"
-      ],
-      "costList": [
-        0.0,
-        1.0,
-        0.0,
-        0.0
-      ],
-      "hash": "3B8E79AB"
-    },
-    {
-      "id": "C_260F2CCE",
-      "cardName": "教学·48",
-      "supertype": "Spell",
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "608055F5"
-      ],
-      "costList": [
-        0.0,
-        1.0,
-        0.0,
-        0.0
-      ],
-      "hash": "260F2CCE"
-    },
-    {
-      "id": "C_CD92D2A2",
-      "cardName": "教学·49",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "guardAbility": true,
-      "illustration": "MukaMuka",
-      "power": 2,
-      "life": 7,
-      "costList": [
-        4.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "91535cec"
-      ],
-      "hash": "CD92D2A2"
-    },
-    {
-      "id": "C_95DC98E5",
-      "cardName": "教学·2",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "guardAbility": true,
-      "illustration": "PetitAngel",
-      "power": 1,
-      "life": 2,
-      "costList": [
-        2.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "61D64777"
-      ],
-      "hash": "BCCE2FEB"
-    },
-    {
-      "id": "C_FFDF953C",
-      "cardName": "教学·20",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "guardAbility": true,
-      "illustration": "MukaMuka",
-      "power": 2,
-      "life": 3,
-      "costList": [
-        3.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "03271DDF"
-      ],
-      "hash": "DF3948C9"
-    },
-    {
-      "id": "C_2E00FB6A",
-      "cardName": "教学·21",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "guardAbility": true,
-      "illustration": "PetitAngel",
-      "power": 1,
-      "life": 2,
-      "costList": [
-        2.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "6BCD785C"
-      ],
-      "hash": "CC812F17"
-    },
-    {
-      "id": "C_052EB2FB",
-      "cardName": "教学·22",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "guardAbility": true,
-      "illustration": "DragonessTheWickedKnight",
-      "power": 1,
-      "life": 2,
-      "costList": [
-        2.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "1BB8B2DA"
-      ],
-      "hash": "FB6CEDF2"
-    },
-    {
-      "id": "C_2D6E5BFB",
-      "cardName": "教学·23",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "guardAbility": true,
-      "illustration": "Kojikocy",
-      "power": 1,
-      "life": 2,
-      "costList": [
-        2.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "B3A90B8C"
-      ],
-      "hash": "01F05C52"
-    },
-    {
-      "id": "C_B5C0296B",
-      "cardName": "教学·24",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "guardAbility": true,
-      "illustration": "DarkPrisoner",
-      "power": 1,
-      "life": 2,
-      "costList": [
-        2.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "BC5252DD"
-      ],
-      "hash": "E9544E45"
-    },
-    {
-      "id": "C_D04CC69F",
-      "cardName": "教学·25",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "guardAbility": true,
-      "illustration": "MukaMuka",
-      "power": 1,
-      "life": 2,
-      "costList": [
-        2.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "179CECE8"
-      ],
-      "hash": "5C158553"
-    },
-    {
-      "id": "C_E2122348",
-      "cardName": "教学·26",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "guardAbility": true,
-      "illustration": "Griffore",
-      "power": 1,
-      "life": 2,
-      "costList": [
-        2.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "60011B78"
-      ],
-      "hash": "95CA6F57"
-    },
-    {
-      "id": "C_CD77F233",
-      "cardName": "教学·10",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "guardAbility": true,
-      "illustration": "DragonessTheWickedKnight",
-      "power": 1,
-      "life": 1,
-      "costList": [
-        1.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "AE2C3BF2"
-      ],
-      "hash": "8D2A2661"
-    },
-    {
-      "id": "C_E84B9F8A",
-      "cardName": "教学·27",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "guardAbility": true,
-      "illustration": "DarkPrisoner",
-      "power": 1,
-      "life": 2,
-      "costList": [
-        2.0,
-        6.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "07F57EE1"
-      ],
-      "hash": "00095F30"
-    },
-    {
-      "id": "C_95187C1C",
-      "cardName": "教学·11",
-      "supertype": "Spell",
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "80B7DA7B"
-      ],
-      "costList": [
-        0.0,
-        3.0,
-        0.0,
-        0.0
-      ],
-      "hash": "97868E21"
-    },
-    {
-      "id": "C_AA96F206",
-      "cardName": "教学·12",
-      "supertype": "Spell",
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "FE4D4EBB"
-      ],
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        3.0
-      ],
-      "hash": "9C82FA44"
-    },
-    {
-      "id": "C_CC0DE001",
-      "cardName": "教学·50",
-      "supertype": "Spell",
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "CC0DE003"
-      ],
-      "costList": [
-        0.0,
-        3.0,
-        0.0,
-        0.0
-      ],
-      "hash": "F0DA96D1"
-    },
-    {
-      "id": "C_CC0DE002",
-      "cardName": "教学·51",
-      "supertype": "Spell",
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "CC0DE004"
-      ],
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        3.0
-      ],
-      "hash": "11FF0B88"
-    },
-    {
-      "id": "C_CC0DE003",
-      "cardName": "教学·52",
-      "supertype": "Creature",
-      "power": 0,
-      "life": 2,
-      "costList": [
-        0.0,
-        0.0,
-        2.0,
-        0.0
-      ],
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "CC0DE005"
-      ],
-      "hash": "DDC86148"
-    },
-    {
-      "id": "C_BD0822E9",
-      "cardName": "教学·37",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "guardAbility": true,
-      "illustration": "MukaMuka",
-      "power": 1,
-      "life": 2,
-      "costList": [
-        2.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "29C47333"
-      ],
-      "hash": "1AED2A26"
-    },
-    {
-      "id": "C_6E58021B",
-      "cardName": "教学·36",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "guardAbility": true,
-      "illustration": "Kojikocy",
-      "power": 1,
-      "life": 2,
-      "costList": [
-        2.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "540FB6C9"
-      ],
-      "hash": "6E58021B"
-    },
-    {
-      "id": "C_11B82155",
-      "cardName": "教学·35",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "guardAbility": true,
-      "illustration": "Morinphen",
-      "power": 1,
-      "life": 1,
-      "costList": [
-        1.0,
-        1.0,
-        4.0,
-        0.0
-      ],
-      "keywords": [
-        "Vigilance"
-      ],
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "4E21BFCF"
-      ],
-      "hash": "F751C8E2"
-    },
-    {
-      "id": "C_6A87E23A",
-      "cardName": "预组·17",
-      "supertype": "Enchantment",
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeBlueSurplus",
-        "教学"
-      ],
-      "effectIds": [
-        "38B76368"
-      ],
-      "durability": 2,
-      "hash": "89F2491F"
-    },
-    {
-      "id": "C_339E9C1F",
-      "cardName": "预组·18",
-      "supertype": "Enchantment",
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeBlueSurplus",
-        "教学"
-      ],
-      "effectIds": [
-        "B3EC27CE"
-      ],
-      "durability": 2,
-      "hash": "76A8072B"
-    },
-    {
-      "id": "C_EF25C2FD",
-      "cardName": "预组·19",
-      "supertype": "Enchantment",
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeBlueSurplus",
-        "教学"
-      ],
-      "effectIds": [
-        "72E637F4"
-      ],
-      "durability": 2,
-      "hash": "7A460BE9"
-    },
-    {
-      "id": "C_4B282868",
-      "cardName": "预组·20",
-      "supertype": "Enchantment",
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeBlueSurplus",
-        "教学"
-      ],
-      "effectIds": [
-        "3A891EB7"
-      ],
-      "durability": 2,
-      "hash": "DEA49A4C"
-    },
-    {
-      "id": "C_D0AF2ABB",
-      "cardName": "预组·21",
-      "supertype": "Spell",
-      "tags": [
-        "ThemeBlueSurplus",
-        "教学",
-        "训练池"
-      ],
-      "effectIds": [
-        "37833543"
-      ],
-      "speedBonus": 2,
-      "costList": [
-        0.0,
-        0.0,
-        2.0,
-        0.0
-      ],
-      "hash": "D0AF2ABB"
-    },
-    {
-      "id": "C_B19375C1",
-      "cardName": "预组·22",
-      "supertype": "Spell",
-      "tags": [
-        "ThemeBlueSurplus",
-        "教学"
-      ],
-      "effectIds": [
-        "972C6301"
-      ],
-      "speedBonus": 2,
-      "costList": [
-        0.0,
-        0.0,
-        3.0,
-        0.0
-      ],
-      "hash": "B19375C1"
-    },
-    {
-      "id": "C_2B79CDB1",
-      "cardName": "预组·23",
-      "supertype": "Spell",
-      "tags": [
-        "ThemeBlueSurplus",
-        "教学"
-      ],
-      "effectIds": [
-        "09A6106C"
-      ],
-      "speedBonus": 2,
-      "costList": [
-        0.0,
-        3.0,
-        0.0,
-        0.0
-      ],
-      "hash": "2B79CDB1"
-    },
-    {
-      "id": "C_0AD56075",
-      "cardName": "预组·24",
-      "supertype": "Spell",
-      "tags": [
-        "ThemeBlueSurplus",
-        "教学"
-      ],
-      "effectIds": [
-        "37833543",
-        "73DB24E3"
-      ],
-      "speedBonus": 1,
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "hash": "0AD56075"
-    },
-    {
-      "id": "C_AD521F40",
-      "cardName": "预组·25",
-      "supertype": "Spell",
-      "tags": [
-        "ThemeBlueSurplus",
-        "教学"
-      ],
-      "effectIds": [
-        "F0E98164"
-      ],
-      "speedBonus": 2,
-      "costList": [
-        0.0,
-        0.0,
-        2.0,
-        0.0
-      ],
-      "hash": "AD521F40"
-    },
-    {
-      "id": "C_66CE6354",
-      "cardName": "预组·26",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "guardAbility": true,
-      "life": 5,
-      "costList": [
-        2.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeBlueSurplus",
-        "教学"
-      ],
-      "hash": "66CE6354"
-    },
-    {
-      "id": "C_BD167F51",
-      "cardName": "预组·27",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "guardAbility": true,
-      "power": 2,
-      "life": 4,
-      "costList": [
-        2.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeBlueSurplus",
-        "教学"
-      ],
-      "hash": "BD167F51"
-    },
-    {
-      "id": "C_FFF2FD83",
-      "cardName": "预组·28",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "guardAbility": true,
-      "power": 4,
-      "life": 5,
-      "costList": [
-        4.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeBlueSurplus",
-        "教学"
-      ],
-      "hash": "FFF2FD83"
-    },
-    {
-      "id": "C_B98ABB51",
-      "cardName": "隐匿",
-      "supertype": "Spell",
-      "tags": [
-        "ThemeBlueSurplus",
-        "教学"
-      ],
-      "effectIds": [
-        "033AFF67"
-      ],
-      "speedBonus": 2,
-      "costList": [
-        0.0,
-        0.0,
-        1.0,
-        0.0
-      ],
-      "hash": "B98ABB51"
-    },
-    {
-      "id": "C_8A60A92A",
-      "cardName": "虚空巨像",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "costList": [
-        8.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeGreenCountdown",
-        "教学"
-      ],
-      "effectIds": [
-        "099F66FB"
-      ],
-      "power": 9,
-      "life": 9,
-      "hash": "C5D4AD40"
-    },
-    {
-      "id": "C_704F7F1C",
-      "cardName": "爆裂兽",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "costList": [
-        4.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeGreenCountdown",
-        "教学"
-      ],
-      "effectIds": [
-        "AF36EA72"
-      ],
-      "power": 5,
-      "life": 5,
-      "hash": "C07ADE9A"
-    },
-    {
-      "id": "C_6673D86B",
-      "cardName": "菌丝",
-      "supertype": "Spell",
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        2.0
-      ],
-      "tags": [
-        "ThemeGreenCountdown",
-        "教学"
-      ],
-      "effectIds": [
-        "2F27F745"
-      ],
-      "hash": "6673D86B"
-    },
-    {
-      "id": "C_97E1A674",
-      "cardName": "小守誓",
-      "supertype": "Creature",
-      "guardAbility": true,
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "tags": [
-        "ThemeGreenCountdown",
-        "教学"
-      ],
-      "effectIds": [],
-      "life": 4,
-      "keywords": [
-        "Guardian"
-      ],
-      "hash": "97E1A674"
-    },
-    {
-      "id": "C_71D2443F",
-      "cardName": "守誓",
-      "supertype": "Creature",
-      "guardAbility": true,
-      "costList": [
-        3.0,
-        0.0,
-        0.0,
-        6.0
-      ],
-      "tags": [
-        "ThemeGreenCountdown",
-        "教学"
-      ],
-      "effectIds": [],
-      "life": 9,
-      "keywords": [
-        "Guardian",
-        "Regeneration"
-      ],
-      "hash": "71D2443F"
-    },
-    {
-      "id": "C_C3C1B182",
-      "cardName": "培育",
-      "supertype": "Spell",
-      "costList": [
-        1.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeGreenCountdown",
-        "教学"
-      ],
-      "effectIds": [
-        "76EF235B"
-      ],
-      "hash": "C3C1B182"
-    },
-    {
-      "id": "C_E8686C24",
-      "cardName": "成长",
-      "supertype": "Spell",
-      "tags": [
-        "ThemeGreenCountdown",
-        "教学"
-      ],
-      "effectIds": [
-        "CC86792A"
-      ],
-      "speedBonus": 2,
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        3.0
-      ],
-      "hash": "3C39281A"
-    },
-    {
-      "id": "C_C4A9FF45",
-      "cardName": "林地守卫",
-      "supertype": "Creature",
-      "guardAbility": true,
-      "power": 1,
-      "life": 7,
-      "keywords": [
-        "Guardian"
-      ],
-      "tags": [
-        "ThemeGreenCountdown",
-        "教学"
-      ],
-      "costList": [
-        2.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "hash": "C4A9FF45"
-    },
-    {
-      "id": "C_F49188CC",
-      "cardName": "雾障",
-      "supertype": "Creature",
-      "guardAbility": true,
-      "power": 1,
-      "life": 5,
-      "tags": [
-        "ThemeGreenCountdown",
-        "教学"
-      ],
-      "effectIds": [
-        "099F66FB"
-      ],
-      "costList": [
-        2.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "hash": "43D54E86"
-    },
-    {
-      "id": "C_BFE245C2",
-      "cardName": "爆荚",
-      "supertype": "Creature",
-      "guardAbility": true,
-      "power": 1,
-      "life": 3,
-      "tags": [
-        "ThemeGreenCountdown",
-        "教学"
-      ],
-      "effectIds": [
-        "AF36EA72"
-      ],
-      "costList": [
-        1.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "hash": "AA68BFD3"
-    },
-    {
-      "id": "C_17CED892",
-      "cardName": "噬血藤",
-      "supertype": "Creature",
-      "guardAbility": true,
-      "power": 0,
-      "life": 6,
-      "tags": [
-        "ThemeGreenCountdown",
-        "教学"
-      ],
-      "effectIds": [
-        "9170B00B"
-      ],
-      "costList": [
-        2.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "hash": "EB8B1B77"
-    },
-    {
-      "id": "C_0D72F2B6",
-      "cardName": "獠牙",
-      "supertype": "Creature",
-      "guardAbility": true,
-      "power": 1,
-      "life": 5,
-      "tags": [
-        "ThemeGreenCountdown",
-        "教学"
-      ],
-      "effectIds": [
-        "B4AA343A"
-      ],
-      "costList": [
-        2.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "hash": "2C435CC0"
-    },
-    {
-      "id": "C_0C3A881F",
-      "cardName": "活体护甲",
-      "supertype": "Spell",
-      "tags": [
-        "ThemeGreenCountdown",
-        "教学"
-      ],
-      "effectIds": [
-        "41A6D862"
-      ],
-      "speedBonus": 2,
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "hash": "4A1DDEE2"
-    },
-    {
-      "id": "C_F8AA7D46",
-      "cardName": "藤盾",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "guardAbility": true,
-      "power": 1,
-      "life": 1,
-      "tags": [
-        "ThemeGreenCountdown",
-        "教学"
-      ],
-      "effectIds": [
-        "D0C61A63"
-      ],
-      "costList": [
-        1.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "hash": "8E2D7455"
-    },
-    {
-      "id": "C_DA012D06",
-      "cardName": "晨露",
-      "supertype": "Creature",
-      "guardAbility": true,
-      "power": 0,
-      "life": 6,
-      "tags": [
-        "ThemeGreenCountdown",
-        "教学"
-      ],
-      "effectIds": [
-        "E404DB9B"
-      ],
-      "costList": [
-        2.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "hash": "7BECE823"
-    },
-    {
-      "id": "C_DDB09243",
-      "cardName": "潮汐",
-      "supertype": "Spell",
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeBlueSurplus",
-        "教学"
-      ],
-      "effectIds": [
-        "C9BDE58E"
-      ],
-      "hash": "69535E51"
-    },
-    {
-      "id": "C_3FE20343",
-      "cardName": "乱流",
-      "supertype": "Spell",
-      "costList": [
-        0.0,
-        0.0,
-        1.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeBlueSurplus",
-        "教学"
-      ],
-      "effectIds": [
-        "1458E272"
-      ],
-      "hash": "3FE20343"
-    },
-    {
-      "id": "C_AB394031",
-      "cardName": "抹除",
-      "supertype": "Spell",
-      "costList": [
-        0.0,
-        3.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeBlueSurplus",
-        "教学"
-      ],
-      "effectIds": [
-        "F76F20C5"
-      ],
-      "hash": "AB394031"
-    },
-    {
-      "id": "C_48CB732A",
-      "cardName": "逐出",
-      "supertype": "Spell",
-      "costList": [
-        6.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeBlueSurplus",
-        "教学"
-      ],
-      "effectIds": [
-        "C672DDD7"
-      ],
-      "hash": "48CB732A"
-    },
-    {
-      "id": "C_7A517CA5",
-      "cardName": "窥手碑",
-      "supertype": "Enchantment",
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeBlueSurplus",
-        "教学"
-      ],
-      "effectIds": [
-        "643BFF5D"
-      ],
-      "durability": 4,
-      "hash": "E1C99089"
-    },
-    {
-      "id": "C_8B12838C",
-      "cardName": "汲涌碑",
-      "supertype": "Enchantment",
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeBlueSurplus",
-        "教学"
-      ],
-      "effectIds": [
-        "B3EC27CE"
-      ],
-      "durability": 4,
-      "hash": "B65AE29B"
-    },
-    {
-      "id": "C_5E135B65",
-      "cardName": "回春碑",
-      "supertype": "Enchantment",
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeBlueSurplus",
-        "教学"
-      ],
-      "effectIds": [
-        "302E1C7E"
-      ],
-      "durability": 4,
-      "hash": "8EDD8424"
-    },
-    {
-      "id": "C_7B43F386",
-      "cardName": "霜降碑",
-      "supertype": "Enchantment",
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeBlueSurplus",
-        "教学"
-      ],
-      "effectIds": [
-        "3A891EB7"
-      ],
-      "durability": 4,
-      "hash": "85412774"
-    },
-    {
-      "id": "C_40F826F1",
-      "cardName": "退潮碑",
-      "supertype": "Enchantment",
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeBlueSurplus",
-        "教学"
-      ],
-      "effectIds": [
-        "735B2360"
-      ],
-      "durability": 4,
-      "hash": "126ECF5A"
-    },
-    {
-      "id": "C_F65A8F31",
-      "cardName": "缓兵",
-      "supertype": "Spell",
-      "costList": [
-        0.0,
-        0.0,
-        6.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeBlueSurplus",
-        "教学"
-      ],
-      "effectIds": [
-        "1B5250E3"
-      ],
-      "hash": "788E7621"
-    },
-    {
-      "id": "C_6533A861",
-      "cardName": "沉沙",
-      "supertype": "Spell",
-      "costList": [
-        0.0,
-        0.0,
-        2.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeBlueSurplus",
-        "教学"
-      ],
-      "effectIds": [
-        "84969C65"
-      ],
-      "hash": "597291F0"
-    },
-    {
-      "id": "C_FBECD5BF",
-      "cardName": "遗策",
-      "supertype": "Spell",
-      "costList": [
-        0.0,
-        0.0,
-        2.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeBlueSurplus",
-        "教学"
-      ],
-      "effectIds": [
-        "9C4515B2"
-      ],
-      "hash": "54A36A87"
-    },
-    {
-      "id": "C_6DFA3132",
-      "cardName": "沉眠",
-      "supertype": "Spell",
-      "costList": [
-        0.0,
-        0.0,
-        1.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeBlueSurplus",
-        "教学"
-      ],
-      "effectIds": [
-        "42CBFCF7"
-      ],
-      "hash": "5DE9C95A"
-    },
-    {
-      "id": "C_12B4DF83",
-      "cardName": "冰垒",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "guardAbility": true,
-      "power": 0,
-      "life": 6,
-      "costList": [
-        2.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "tags": [
-        "ThemeBlueSurplus",
-        "教学"
-      ],
-      "effectIds": [
-        "91535cec"
-      ],
-      "hash": "12B4DF83"
-    },
-    {
-      "id": "C_33A7C78B",
-      "cardName": "蚀忆",
-      "supertype": "Spell",
-      "costList": [
-        0.0,
-        0.0,
-        4.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeBlueSurplus",
-        "教学"
-      ],
-      "effectIds": [
-        "91133E76"
-      ],
-      "hash": "3CCF2B54"
-    },
-    {
-      "id": "C_FD7387F5",
-      "cardName": "噬典",
-      "supertype": "Spell",
-      "costList": [
-        0.0,
-        0.0,
-        8.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeBlueSurplus",
-        "教学"
-      ],
-      "effectIds": [
-        "9A7B877E"
-      ],
-      "hash": "FD7387F5"
-    },
-    {
-      "id": "C_3F2E69F0",
-      "cardName": "幻壁",
-      "supertype": "Spell",
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        8.0
-      ],
-      "tags": [
-        "ThemeBlueSurplus",
-        "教学"
-      ],
-      "effectIds": [
-        "1976F557"
-      ],
-      "hash": "3F2E69F0"
-    },
-    {
-      "id": "C_F604F751",
-      "cardName": "乱锋",
-      "supertype": "Spell",
-      "costList": [
-        0.0,
-        0.0,
-        2.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeBlueSurplus",
-        "教学"
-      ],
-      "effectIds": [
-        "EA8346E6"
-      ],
-      "hash": "199C02D6"
-    },
-    {
-      "id": "C_DF45065E",
-      "cardName": "潮痕碑",
-      "supertype": "Enchantment",
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeBlueSurplus",
-        "教学"
-      ],
-      "effectIds": [
-        "851A70F1"
-      ],
-      "durability": 4,
-      "hash": "A2D4FB0A"
-    },
-    {
-      "id": "C_2BD6EDE2",
-      "cardName": "深潭碑",
-      "supertype": "Enchantment",
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeBlueSurplus",
-        "教学"
-      ],
-      "effectIds": [
-        "3442A01E"
-      ],
-      "durability": 4,
-      "hash": "8FE81CD8"
-    },
-    {
-      "id": "C_AAA266D0",
-      "cardName": "洗回",
-      "supertype": "Spell",
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        2.0
-      ],
-      "tags": [
-        "ThemeBlueSurplus",
-        "教学"
-      ],
-      "effectIds": [
-        "13DF0561"
-      ],
-      "hash": "AAA266D0"
-    },
-    {
-      "id": "C_6CE54813",
-      "cardName": "回收",
-      "supertype": "Spell",
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        2.0
-      ],
-      "tags": [
-        "ThemeGreenCountdown",
-        "教学"
-      ],
-      "effectIds": [
-        "F1C619E7"
-      ],
-      "hash": "6CE54813"
-    },
-    {
-      "id": "C_8A2A1F78",
-      "cardName": "回潮",
-      "supertype": "Spell",
-      "costList": [
-        0.0,
-        0.0,
-        2.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeBlueSurplus",
-        "教学"
-      ],
-      "effectIds": [
-        "6AAD18EB"
-      ],
-      "hash": "5DC89699"
-    },
-    {
-      "id": "C_57BA44EC",
-      "cardName": "火灵·攻",
-      "illustration": "FlameSwordsman",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "costList": [
-        1.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeRedClash",
-        "教学"
-      ],
-      "effectIds": [
-        "2C78A233"
-      ],
-      "power": 1,
-      "life": 1,
-      "hash": "88677C6C"
-    },
-    {
-      "id": "C_5F93DCDD",
-      "cardName": "火灵·守",
-      "illustration": "CharubinTheFireKnight",
-      "supertype": "Creature",
-      "guardAbility": true,
-      "costList": [
-        1.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeRedClash",
-        "教学"
-      ],
-      "effectIds": [
-        "2C78A233"
-      ],
-      "power": 1,
-      "life": 1,
-      "hash": "98B2054E"
-    },
-    {
-      "id": "C_138CE290",
-      "cardName": "火苗",
-      "illustration": "FlameGhost",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "tags": [
-        "ThemeRedClash",
-        "教学"
-      ],
-      "effectIds": [],
-      "power": 2,
-      "life": 2,
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "hash": "138CE290"
-    },
-    {
-      "id": "C_E105FABA",
-      "cardName": "血偿",
-      "supertype": "Spell",
-      "costList": [
-        0.0,
-        3.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeRedClash",
-        "教学"
-      ],
-      "effectIds": [
-        "FC0E95E4"
-      ],
-      "hash": "84A93863"
-    },
-    {
-      "id": "C_7118DF4D",
-      "cardName": "追击",
-      "supertype": "Spell",
-      "costList": [
-        0.0,
-        3.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeRedClash",
-        "教学"
-      ],
-      "effectIds": [
-        "8200C531"
-      ],
-      "hash": "D162C03B"
-    },
-    {
-      "id": "C_77A047CD",
-      "cardName": "激励",
-      "supertype": "Spell",
-      "costList": [
-        0.0,
-        1.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeRedClash",
-        "教学"
-      ],
-      "effectIds": [
-        "31CE6ACE"
-      ],
-      "hash": "62949B62"
-    },
-    {
-      "id": "C_8F136E25",
-      "cardName": "流失",
-      "supertype": "Spell",
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        2.0
-      ],
-      "tags": [
-        "ThemeGreenCountdown",
-        "教学"
-      ],
-      "effectIds": [
-        "C5180E36"
-      ],
-      "hash": "FB730C7F"
-    },
-    {
-      "id": "C_5705F9FE",
-      "cardName": "活体炸弹",
-      "supertype": "Spell",
-      "tags": [
-        "ThemeRedClash",
-        "教学"
-      ],
-      "effectIds": [
-        "0909E61B"
-      ],
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "hash": "8B2D6B95"
-    },
-    {
-      "id": "C_8E45017F",
-      "cardName": "教学·先攻甲",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "power": 4,
-      "life": 2,
-      "costList": [
-        1.0,
-        2.0,
-        0.0,
-        0.0
-      ],
-      "keywords": [
-        "FirstStrike"
-      ],
-      "tags": [
-        "教学"
-      ],
-      "hash": "8E45017F"
-    },
-    {
-      "id": "C_732BCF71",
-      "cardName": "教学·连击甲",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "power": 4,
-      "life": 2,
-      "costList": [
-        1.0,
-        6.0,
-        0.0,
-        0.0
-      ],
-      "keywords": [
-        "DoubleStrike"
-      ],
-      "tags": [
-        "教学"
-      ],
-      "hash": "732BCF71"
-    },
-    {
-      "id": "C_FC5BC585",
-      "cardName": "教学·白板2/4甲",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "power": 2,
-      "life": 4,
-      "costList": [
-        1.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "教学"
-      ],
-      "hash": "FC5BC585"
-    },
-    {
-      "id": "C_036D0A6A",
-      "cardName": "教学·白板2/8甲",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "power": 2,
-      "life": 8,
-      "costList": [
-        3.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "教学"
-      ],
-      "hash": "036D0A6A"
-    },
-    {
-      "id": "C_3AFBFB85",
-      "cardName": "教学·碾压",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "power": 6,
-      "life": 2,
-      "costList": [
-        2.0,
-        5.0,
-        0.0,
-        0.0
-      ],
-      "keywords": [
-        "Overwhelm"
-      ],
-      "tags": [
-        "教学"
-      ],
-      "hash": "3AFBFB85"
-    },
-    {
-      "id": "C_B9F338E2",
-      "cardName": "教学·溅射",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "power": 6,
-      "life": 3,
-      "costList": [
-        3.0,
-        5.0,
-        0.0,
-        0.0
-      ],
-      "keywords": [
-        "Splash"
-      ],
-      "tags": [
-        "教学"
-      ],
-      "hash": "B9F338E2"
-    },
-    {
-      "id": "C_0FDF4A1D",
-      "cardName": "教学·白板2/6甲",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "power": 2,
-      "life": 6,
-      "costList": [
-        2.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "教学"
-      ],
-      "hash": "0FDF4A1D"
-    },
-    {
-      "id": "C_9914CF8A",
-      "cardName": "教学·结界",
-      "supertype": "Enchantment",
-      "tags": [
-        "教学"
-      ],
-      "durability": 6,
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "hash": "9914CF8A"
-    },
-    {
-      "id": "C_202A366E",
-      "cardName": "教学·缴械甲",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "power": 3,
-      "life": 3,
-      "costList": [
-        1.0,
-        0.0,
-        6.0,
-        0.0
-      ],
-      "keywords": [
-        "Disarm"
-      ],
-      "tags": [
-        "教学"
-      ],
-      "hash": "202A366E"
-    },
-    {
-      "id": "C_7348D471",
-      "cardName": "教学·警戒",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "power": 4,
-      "life": 4,
-      "costList": [
-        2.0,
-        0.0,
-        3.0,
-        0.0
-      ],
-      "keywords": [
-        "Vigilance"
-      ],
-      "tags": [
-        "教学"
-      ],
-      "hash": "7348D471"
-    },
-    {
-      "id": "C_64AA066B",
-      "cardName": "教学·先攻巨兽",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "power": 4,
-      "life": 8,
-      "costList": [
-        4.0,
-        2.0,
-        0.0,
-        0.0
-      ],
-      "keywords": [
-        "FirstStrike"
-      ],
-      "tags": [
-        "教学"
-      ],
-      "hash": "64AA066B"
-    },
-    {
-      "id": "C_AC582815",
-      "cardName": "教学·连击巨兽",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "power": 2,
-      "life": 8,
-      "costList": [
-        3.0,
-        6.0,
-        0.0,
-        0.0
-      ],
-      "keywords": [
-        "DoubleStrike"
-      ],
-      "tags": [
-        "教学"
-      ],
-      "hash": "AC582815"
-    },
-    {
-      "id": "C_3D2CBFE6",
-      "cardName": "教学·隐密",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "power": 2,
-      "life": 2,
-      "costList": [
-        0.0,
-        0.0,
-        5.0,
-        0.0
-      ],
-      "keywords": [
-        "Concealed"
-      ],
-      "tags": [
-        "教学"
-      ],
-      "hash": "3D2CBFE6"
-    },
-    {
-      "id": "C_98135A73",
-      "cardName": "教学·帷幕",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "power": 2,
-      "life": 7,
-      "costList": [
-        3.0,
-        0.0,
-        3.0,
-        0.0
-      ],
-      "keywords": [
-        "Taunt"
-      ],
-      "tags": [
-        "教学"
-      ],
-      "hash": "98135A73"
-    },
-    {
-      "id": "C_E8B8EE22",
-      "cardName": "教学·吸血甲",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "power": 3,
-      "life": 3,
-      "costList": [
-        1.0,
-        0.0,
-        0.0,
-        3.0
-      ],
-      "keywords": [
-        "Lifesteal"
-      ],
-      "tags": [
-        "教学"
-      ],
-      "hash": "E8B8EE22"
-    },
-    {
-      "id": "C_E5D9D557",
-      "cardName": "教学·系命甲",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "power": 3,
-      "life": 3,
-      "costList": [
-        1.0,
-        0.0,
-        0.0,
-        3.0
-      ],
-      "keywords": [
-        "Lifelink"
-      ],
-      "tags": [
-        "教学"
-      ],
-      "hash": "E5D9D557"
-    },
-    {
-      "id": "C_BA6BE8EC",
-      "cardName": "教学·白板3/3甲",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "power": 3,
-      "life": 3,
-      "costList": [
-        1.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "教学"
-      ],
-      "hash": "BA6BE8EC"
-    },
-    {
-      "id": "C_DCDC05A7",
-      "cardName": "教学·剧毒甲",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "power": 2,
-      "life": 2,
-      "costList": [
-        0.0,
-        3.0,
-        0.0,
-        0.0
-      ],
-      "keywords": [
-        "Venom"
-      ],
-      "tags": [
-        "教学"
-      ],
-      "hash": "DCDC05A7"
-    },
-    {
-      "id": "C_750FFED3",
-      "cardName": "教学·不灭",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "power": 8,
-      "life": 8,
-      "costList": [
-        6.0,
-        0.0,
-        0.0,
-        2.0
-      ],
-      "keywords": [
-        "Indestructible"
-      ],
-      "tags": [
-        "教学"
-      ],
-      "hash": "750FFED3"
-    },
-    {
-      "id": "C_629A3AF5",
-      "cardName": "教学·再生",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "power": 3,
-      "life": 5,
-      "costList": [
-        2.0,
-        0.0,
-        0.0,
-        5.0
-      ],
-      "keywords": [
-        "Regeneration"
-      ],
-      "tags": [
-        "教学"
-      ],
-      "hash": "629A3AF5"
-    },
-    {
-      "id": "C_E73AEE6F",
-      "cardName": "教学·守护",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "power": 2,
-      "life": 7,
-      "costList": [
-        3.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "keywords": [
-        "Guardian"
-      ],
-      "tags": [
-        "教学"
-      ],
-      "hash": "E73AEE6F"
-    },
-    {
-      "id": "C_030E8991",
-      "cardName": "教学·狩猎",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "power": 4,
-      "life": 2,
-      "costList": [
-        1.0,
-        2.0,
-        0.0,
-        0.0
-      ],
-      "keywords": [
-        "Hunt"
-      ],
-      "tags": [
-        "教学"
-      ],
-      "hash": "030E8991"
-    },
-    {
-      "id": "C_59A3BB05",
-      "cardName": "教学·狩猎吸血",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "power": 4,
-      "life": 2,
-      "costList": [
-        1.0,
-        2.0,
-        0.0,
-        3.0
-      ],
-      "keywords": [
-        "Hunt",
-        "Lifesteal"
-      ],
-      "tags": [
-        "教学"
-      ],
-      "hash": "59A3BB05"
-    },
-    {
-      "id": "C_6454E497",
-      "cardName": "教学·病原体甲",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "power": 2,
-      "life": 4,
-      "costList": [
-        1.0,
-        3.0,
-        0.0,
-        0.0
-      ],
-      "keywords": [
-        "Pathogen"
-      ],
-      "tags": [
-        "教学"
-      ],
-      "hash": "6454E497"
-    },
-    {
-      "id": "C_DD519F03",
-      "cardName": "教学·连击小兵",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "power": 1,
-      "life": 3,
-      "costList": [
-        0.0,
-        6.0,
-        0.0,
-        0.0
-      ],
-      "keywords": [
-        "DoubleStrike"
-      ],
-      "tags": [
-        "教学"
-      ],
-      "hash": "DD519F03"
-    },
-    {
-      "id": "C_2730BF8F",
-      "cardName": "教学·一点法术",
-      "supertype": "Spell",
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "40CEACFC"
-      ],
-      "costList": [
-        0.0,
-        1.0,
-        0.0,
-        0.0
-      ],
-      "hash": "2730BF8F"
-    },
-    {
-      "id": "C_7FD01D48",
-      "cardName": "教学·绝缘体",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "power": 4,
-      "life": 4,
-      "costList": [
-        8.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "keywords": [
-        "Insulator"
-      ],
-      "tags": [
-        "教学"
-      ],
-      "hash": "7FD01D48"
-    },
-    {
-      "id": "C_12705A5A",
-      "cardName": "教学·绝缘光环",
-      "supertype": "Enchantment",
-      "arrows": "UpperLeft,LowerLeft",
-      "tags": [
-        "教学"
-      ],
-      "durability": 9,
-      "linkAuras": [
-        {
-          "keyword": "Insulator"
-        }
-      ],
-      "costList": [
-        9.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "hash": "12705A5A"
-    },
-    {
-      "id": "C_BA2BFFAD",
-      "cardName": "教学·沉睡术甲",
-      "supertype": "Spell",
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "871ED866"
-      ],
-      "costList": [
-        0.0,
-        0.0,
-        3.0,
-        0.0
-      ],
-      "hash": "BA2BFFAD"
-    },
-    {
-      "id": "C_3AC147C9",
-      "cardName": "教学·无效术甲",
-      "supertype": "Spell",
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "7899C88A"
-      ],
-      "costList": [
-        0.0,
-        0.0,
-        2.0,
-        0.0
-      ],
-      "hash": "4B7D55DF"
-    },
-    {
-      "id": "C_01835F2B",
-      "cardName": "教学·绝缘赋予",
-      "supertype": "Spell",
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "AC81853B"
-      ],
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "hash": "01835F2B"
-    },
-    {
-      "id": "C_483E94BC",
-      "cardName": "教学·驱散术甲",
-      "supertype": "Spell",
-      "tags": [
-        "教学"
-      ],
-      "effectIds": [
-        "CFE6FF68"
-      ],
-      "costList": [
-        0.0,
-        3.0,
-        0.0,
-        0.0
-      ],
-      "hash": "483E94BC"
-    },
-    {
-      "id": "C_CD942636",
-      "cardName": "教学·灰源",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "power": 1,
-      "life": 1,
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "教学"
-      ],
-      "hash": "CD942636"
-    },
-    {
-      "id": "C_C3B25F32",
-      "cardName": "萌芽",
-      "supertype": "Spell",
-      "tags": [
-        "ThemeGreenCountdown",
-        "教学"
-      ],
-      "effectIds": [
-        "FXGREEN01"
-      ],
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        3.0
-      ],
-      "hash": "C3B25F32"
-    },
-    {
-      "id": "C_A92F5E99",
-      "cardName": "沃土",
-      "supertype": "Spell",
-      "tags": [
-        "ThemeGreenCountdown",
-        "教学"
-      ],
-      "effectIds": [
-        "FXGREEN02"
-      ],
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        6.0
-      ],
-      "hash": "2591BE50"
-    },
-    {
-      "id": "C_60D27A90",
-      "cardName": "归根",
-      "supertype": "Spell",
-      "tags": [
-        "ThemeGreenCountdown",
-        "教学"
-      ],
-      "effectIds": [
-        "FXGREEN03"
-      ],
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        4.0
-      ],
-      "hash": "869E7FE5"
-    },
-    {
-      "id": "C_21E4EAC1",
-      "cardName": "凋零",
-      "supertype": "Spell",
-      "tags": [
-        "ThemeGreenCountdown",
-        "教学"
-      ],
-      "effectIds": [
-        "FXGREEN04"
-      ],
-      "costList": [
-        6.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "hash": "21E4EAC1"
-    },
-    {
-      "id": "C_EEF587D5",
-      "cardName": "溃散",
-      "supertype": "Spell",
-      "tags": [
-        "ThemeGreenCountdown",
-        "教学"
-      ],
-      "effectIds": [
-        "FXGREEN05"
-      ],
-      "costList": [
-        6.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "hash": "EEF587D5"
-    },
-    {
-      "id": "C_91CE77A8",
-      "cardName": "枯竭",
-      "supertype": "Spell",
-      "tags": [
-        "ThemeGreenCountdown",
-        "教学"
-      ],
-      "effectIds": [
-        "FXGREEN06"
-      ],
-      "costList": [
-        24.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "hash": "832609A5"
-    },
-    {
-      "id": "C_76B63B4D",
-      "cardName": "虚化",
-      "supertype": "Spell",
-      "tags": [
-        "ThemeGreenCountdown",
-        "教学"
-      ],
-      "effectIds": [
-        "FXGREEN07"
-      ],
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        3.0
-      ],
-      "hash": "5D9C0DDE"
-    },
-    {
-      "id": "C_33367D9D",
-      "cardName": "减半",
-      "supertype": "Spell",
-      "tags": [
-        "ThemeGreenCountdown",
-        "教学"
-      ],
-      "effectIds": [
-        "6229F9B6"
-      ],
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        3.0
-      ],
-      "hash": "FA00E427"
-    },
-    {
-      "id": "C_D1D6C529",
-      "cardName": "古木守卫",
-      "supertype": "Creature",
-      "power": 2,
-      "life": 8,
-      "keywords": [
-        "Guardian",
-        "Taunt"
-      ],
-      "tags": [
-        "ThemeGreenCountdown",
-        "教学"
-      ],
-      "effectIds": [],
-      "costList": [
-        2.0,
-        0.0,
-        3.0,
-        1.0
-      ],
-      "hash": "26428440"
-    },
-    {
-      "id": "C_B0EF3C08",
-      "cardName": "系命者 阿格洛斯",
-      "illustration": "FlowerWolf",
-      "supertype": "Creature",
-      "power": 12,
-      "life": 8,
-      "attackAbility": true,
-      "guardAbility": false,
-      "keywords": [
-        "Lifelink",
-        "Hunt"
-      ],
-      "tags": [
-        "ThemeGreenCountdown",
-        "教学"
-      ],
-      "effectIds": [
-        "FXGREEN11"
-      ],
-      "costList": [
-        9.0,
-        2.0,
-        0.0,
-        3.0
-      ],
-      "hash": "C63D0547"
-    },
-    {
-      "id": "C_AC7FC01F",
-      "cardName": "牺牲",
-      "supertype": "Spell",
-      "tags": [
-        "ThemeGreenCountdown",
-        "教学"
-      ],
-      "effectIds": [
-        "FXGREEN08"
-      ],
-      "costList": [
-        2.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "hash": "C2C07B15"
-    },
-    {
-      "id": "C_F245F2F9",
-      "cardName": "小精灵",
-      "illustration": "PetitAngel",
-      "supertype": "Creature",
-      "power": 2,
-      "life": 2,
-      "tags": [
-        "ThemeGreenCountdown",
-        "教学"
-      ],
-      "effectIds": [
-        "FXGREEN09"
-      ],
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "hash": "767953EB"
-    },
-    {
-      "id": "C_046A30F8",
-      "cardName": "荒原猎兽",
-      "supertype": "Creature",
-      "power": 7,
-      "life": 1,
-      "attackAbility": true,
-      "guardAbility": true,
-      "tags": [
-        "ThemeGreenCountdown",
-        "教学"
-      ],
-      "effectIds": [
-        "FXGREEN11"
-      ],
-      "costList": [
-        4.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "hash": "18BCF9E5"
-    },
-    {
-      "id": "C_D1A00001",
-      "cardName": "战斗母巢",
-      "supertype": "Creature",
-      "attackAbility": false,
-      "guardAbility": false,
-      "power": 3,
-      "life": 3,
-      "costList": [
-        1.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeGreenCountdown",
-        "教学"
-      ],
-      "effectIds": [
-        "D1A00013"
-      ],
-      "hash": "DA7CC42B"
-    },
-    {
-      "id": "C_D1A00002",
-      "cardName": "系命母巢",
-      "supertype": "Creature",
-      "attackAbility": false,
-      "guardAbility": false,
-      "power": 3,
-      "life": 3,
-      "costList": [
-        1.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeGreenCountdown",
-        "教学"
-      ],
-      "effectIds": [
-        "D1A00014"
-      ],
-      "hash": "D7DAAB7E"
-    },
-    {
-      "id": "C_D1A00003",
-      "cardName": "战斗衍生物",
-      "supertype": "Creature",
-      "attackAbility": false,
-      "guardAbility": true,
-      "power": 1,
-      "life": 1,
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeGreenCountdown",
-        "教学",
-        "衍生物"
-      ],
-      "effectIds": [
-        "D1A00011"
-      ],
-      "hash": "9F827DF3"
-    },
-    {
-      "id": "C_D1A00004",
-      "cardName": "系命衍生物",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "guardAbility": false,
-      "power": 1,
-      "life": 1,
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeGreenCountdown",
-        "教学",
-        "衍生物"
-      ],
-      "effectIds": [
-        "AB57E454"
-      ],
-      "hash": "1F82D399"
-    },
-    {
-      "id": "C_D1A00005",
-      "cardName": "战斗母巢",
-      "supertype": "Creature",
-      "attackAbility": false,
-      "guardAbility": false,
-      "power": 3,
-      "life": 3,
-      "costList": [
-        1.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeGreenCountdown",
-        "教学"
-      ],
-      "effectIds": [
-        "D1A00017"
-      ],
-      "hash": "6E55F85C"
-    },
-    {
-      "id": "C_D1A00006",
-      "cardName": "战斗衍生物·血",
-      "supertype": "Creature",
-      "attackAbility": false,
-      "guardAbility": true,
-      "power": 1,
-      "life": 1,
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeGreenCountdown",
-        "教学",
-        "衍生物"
-      ],
-      "effectIds": [
-        "D1A00012"
-      ],
-      "hash": "80DB08E1"
-    },
-    {
-      "id": "C_D1A00007",
-      "cardName": "工蜂母巢",
-      "supertype": "Creature",
-      "attackAbility": false,
-      "guardAbility": false,
-      "power": 3,
-      "life": 3,
-      "costList": [
-        1.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeGreenCountdown",
-        "教学"
-      ],
-      "effectIds": [
-        "D1A00018"
-      ],
-      "hash": "3E21B168"
-    },
-    {
-      "id": "C_D1A00008",
-      "cardName": "工蜂",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "guardAbility": false,
-      "power": 3,
-      "life": 1,
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeGreenCountdown",
-        "教学",
-        "衍生物"
-      ],
-      "effectIds": [],
-      "hash": "C3C52B64"
-    },
-    {
-      "id": "C_D1A00009",
-      "cardName": "归根",
-      "supertype": "Spell",
-      "tags": [
-        "ThemeGreenCountdown",
-        "教学"
-      ],
-      "effectIds": [
-        "D1A00020"
-      ],
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        8.0
-      ],
-      "hash": "F6BBCACF"
-    },
-    {
-      "id": "C_D1A00010",
-      "cardName": "封印",
-      "supertype": "Spell",
-      "tags": [
-        "ThemeGreenCountdown",
-        "教学"
-      ],
-      "effectIds": [
-        "D1A00021"
-      ],
-      "costList": [
-        0.0,
-        0.0,
-        3.0,
-        0.0
-      ],
-      "hash": "977D4944"
-    },
-    {
-      "id": "C_D1A00011",
-      "cardName": "枯木守卫",
-      "supertype": "Creature",
-      "guardAbility": true,
-      "power": 2,
-      "life": 8,
-      "keywords": [
-        "Guardian",
-        "Taunt"
-      ],
-      "tags": [
-        "ThemeGreenCountdown",
-        "教学"
-      ],
-      "effectIds": [],
-      "costList": [
-        3.0,
-        0.0,
-        3.0,
-        1.0
-      ],
-      "hash": "6DD75E8A"
-    },
-    {
-      "id": "C_23EE2486",
-      "cardName": "蛰伏",
-      "supertype": "Spell",
-      "tags": [
-        "ThemeBlueSurplus",
-        "教学"
-      ],
-      "effectIds": [
-        "E31E9EB0"
-      ],
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "hash": "23EE2486"
-    },
-    {
-      "id": "C_7A11E001",
-      "cardName": "寒冬",
-      "supertype": "Spell",
-      "costList": [
-        0.0,
-        0.0,
-        6.0,
-        0.0
-      ],
-      "tags": [
-        "ThemeBlueSurplus",
-        "教学"
-      ],
-      "effectIds": [
-        "7A11E001"
-      ],
-      "hash": "369A54F0"
-    }
-  ]
+﻿{
+    "cards":  [
+                  {
+                      "id":  "C_895AC28D",
+                      "cardName":  "测试·四色地",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "guardAbility":  true,
+                      "power":  1,
+                      "life":  1,
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "教学",
+                                   "测试"
+                               ],
+                      "landColors":  [
+                                         0,
+                                         1,
+                                         2,
+                                         3
+                                     ],
+                      "hash":  "895AC28D"
+                  },
+                  {
+                      "id":  "C_DA499FAE",
+                      "cardName":  "教学·3",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "guardAbility":  true,
+                      "power":  1,
+                      "life":  1,
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "hash":  "DA499FAE"
+                  },
+                  {
+                      "id":  "C_3D10E1A5",
+                      "cardName":  "教学·1",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "guardAbility":  true,
+                      "power":  1,
+                      "life":  2,
+                      "costList":  [
+                                       1.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "教学",
+                                   "训练池"
+                               ],
+                      "hash":  "1BD7389C"
+                  },
+                  {
+                      "id":  "C_C279F399",
+                      "cardName":  "教学·5",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "guardAbility":  true,
+                      "power":  3,
+                      "life":  2,
+                      "costList":  [
+                                       2.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "教学",
+                                   "训练池"
+                               ],
+                      "hash":  "C279F399"
+                  },
+                  {
+                      "id":  "C_E98E60F2",
+                      "cardName":  "教学·7",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "guardAbility":  true,
+                      "illustration":  "PetitAngel",
+                      "power":  2,
+                      "life":  2,
+                      "costList":  [
+                                       1.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "hash":  "E98E60F2"
+                  },
+                  {
+                      "id":  "C_03E4B181",
+                      "cardName":  "教学·8",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "guardAbility":  true,
+                      "illustration":  "DragonessTheWickedKnight",
+                      "power":  7,
+                      "life":  7,
+                      "costList":  [
+                                       6.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "hash":  "03E4B181"
+                  },
+                  {
+                      "id":  "C_8C47525E",
+                      "cardName":  "教学·9",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "guardAbility":  true,
+                      "illustration":  "Kojikocy",
+                      "power":  8,
+                      "life":  8,
+                      "costList":  [
+                                       7.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "hash":  "8C47525E"
+                  },
+                  {
+                      "id":  "C_C3D7138E",
+                      "cardName":  "教学·6",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "guardAbility":  true,
+                      "illustration":  "DarkPrisoner",
+                      "power":  6,
+                      "life":  1,
+                      "costList":  [
+                                       3.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "hash":  "C3D7138E"
+                  },
+                  {
+                      "id":  "C_C635DB5D",
+                      "cardName":  "教学·14",
+                      "supertype":  "Spell",
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "23E6AFE9"
+                                    ],
+                      "costList":  [
+                                       0.0,
+                                       3.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "hash":  "C635DB5D"
+                  },
+                  {
+                      "id":  "C_36A84A34",
+                      "cardName":  "教学·15",
+                      "supertype":  "Spell",
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "E58E7758"
+                                    ],
+                      "costList":  [
+                                       0.0,
+                                       3.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "hash":  "36A84A34"
+                  },
+                  {
+                      "id":  "C_AC7E32A2",
+                      "cardName":  "教学·16",
+                      "supertype":  "Spell",
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "6178B429"
+                                    ],
+                      "costList":  [
+                                       0.0,
+                                       3.0,
+                                       2.0,
+                                       0.0
+                                   ],
+                      "hash":  "AC7E32A2"
+                  },
+                  {
+                      "id":  "C_EA311EB8",
+                      "cardName":  "教学·17",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "guardAbility":  true,
+                      "illustration":  "Kojikocy",
+                      "power":  8,
+                      "life":  9,
+                      "costList":  [
+                                       8.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "hash":  "EA311EB8"
+                  },
+                  {
+                      "id":  "C_925E315C",
+                      "cardName":  "教学·18",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "guardAbility":  true,
+                      "illustration":  "MukaMuka",
+                      "power":  3,
+                      "life":  3,
+                      "costList":  [
+                                       2.0,
+                                       0.0,
+                                       0.0,
+                                       2.0
+                                   ],
+                      "keywords":  [
+                                       "Indestructible"
+                                   ],
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "hash":  "925E315C"
+                  },
+                  {
+                      "id":  "C_6AB9B73A",
+                      "cardName":  "教学·19",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "guardAbility":  true,
+                      "illustration":  "DarkPrisoner",
+                      "power":  2,
+                      "life":  2,
+                      "costList":  [
+                                       1.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "keywords":  [
+                                       "Stealth"
+                                   ],
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "hash":  "6AB9B73A"
+                  },
+                  {
+                      "id":  "C_655C063A",
+                      "cardName":  "教学·39",
+                      "supertype":  "Spell",
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "E9FC6D18"
+                                    ],
+                      "costList":  [
+                                       0.0,
+                                       1.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "hash":  "655C063A"
+                  },
+                  {
+                      "id":  "C_86771FC7",
+                      "cardName":  "教学·40",
+                      "supertype":  "Spell",
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "B6C60DE7"
+                                    ],
+                      "costList":  [
+                                       0.0,
+                                       1.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "hash":  "86771FC7"
+                  },
+                  {
+                      "id":  "C_E1256CFE",
+                      "cardName":  "教学·41",
+                      "supertype":  "Spell",
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "29F8C17F"
+                                    ],
+                      "costList":  [
+                                       0.0,
+                                       1.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "hash":  "E1256CFE"
+                  },
+                  {
+                      "id":  "C_A1AE2226",
+                      "cardName":  "教学·42",
+                      "supertype":  "Spell",
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "A082AF8E"
+                                    ],
+                      "costList":  [
+                                       0.0,
+                                       1.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "hash":  "A1AE2226"
+                  },
+                  {
+                      "id":  "C_B3F95B21",
+                      "cardName":  "教学·13",
+                      "supertype":  "Spell",
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "D2F79EF4"
+                                    ],
+                      "costList":  [
+                                       0.0,
+                                       1.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "hash":  "B3F95B21"
+                  },
+                  {
+                      "id":  "C_0A0BAC14",
+                      "cardName":  "教学·43",
+                      "supertype":  "Spell",
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "95ADEEFE"
+                                    ],
+                      "costList":  [
+                                       0.0,
+                                       1.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "hash":  "0A0BAC14"
+                  },
+                  {
+                      "id":  "C_CA42AAF8",
+                      "cardName":  "教学·46",
+                      "supertype":  "Spell",
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "E0C8F461"
+                                    ],
+                      "costList":  [
+                                       0.0,
+                                       1.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "hash":  "CA42AAF8"
+                  },
+                  {
+                      "id":  "C_1F9D64E0",
+                      "cardName":  "教学·44",
+                      "supertype":  "Spell",
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "0A8886CD"
+                                    ],
+                      "costList":  [
+                                       0.0,
+                                       1.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "hash":  "1F9D64E0"
+                  },
+                  {
+                      "id":  "C_D824053B",
+                      "cardName":  "教学·45",
+                      "supertype":  "Spell",
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "1F3DB443"
+                                    ],
+                      "costList":  [
+                                       0.0,
+                                       1.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "hash":  "D824053B"
+                  },
+                  {
+                      "id":  "C_D78B3E37",
+                      "cardName":  "教学·38",
+                      "supertype":  "Spell",
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "8DB8409B"
+                                    ],
+                      "costList":  [
+                                       0.0,
+                                       1.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "hash":  "D78B3E37"
+                  },
+                  {
+                      "id":  "C_3B8E79AB",
+                      "cardName":  "教学·47",
+                      "supertype":  "Spell",
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "414EDEB4"
+                                    ],
+                      "costList":  [
+                                       0.0,
+                                       1.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "hash":  "3B8E79AB"
+                  },
+                  {
+                      "id":  "C_260F2CCE",
+                      "cardName":  "教学·48",
+                      "supertype":  "Spell",
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "608055F5"
+                                    ],
+                      "costList":  [
+                                       0.0,
+                                       1.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "hash":  "260F2CCE"
+                  },
+                  {
+                      "id":  "C_CD92D2A2",
+                      "cardName":  "教学·49",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "guardAbility":  true,
+                      "illustration":  "MukaMuka",
+                      "power":  2,
+                      "life":  7,
+                      "costList":  [
+                                       4.0,
+                                       0.0,
+                                       0.0,
+                                       1.0
+                                   ],
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "91535cec"
+                                    ],
+                      "hash":  "CD92D2A2"
+                  },
+                  {
+                      "id":  "C_95DC98E5",
+                      "cardName":  "教学·2",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "guardAbility":  true,
+                      "illustration":  "PetitAngel",
+                      "power":  1,
+                      "life":  2,
+                      "costList":  [
+                                       2.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "61D64777"
+                                    ],
+                      "hash":  "BCCE2FEB"
+                  },
+                  {
+                      "id":  "C_FFDF953C",
+                      "cardName":  "教学·20",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "guardAbility":  true,
+                      "illustration":  "MukaMuka",
+                      "power":  2,
+                      "life":  3,
+                      "costList":  [
+                                       3.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "03271DDF"
+                                    ],
+                      "hash":  "DF3948C9"
+                  },
+                  {
+                      "id":  "C_2E00FB6A",
+                      "cardName":  "教学·21",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "guardAbility":  true,
+                      "illustration":  "PetitAngel",
+                      "power":  1,
+                      "life":  2,
+                      "costList":  [
+                                       2.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "6BCD785C"
+                                    ],
+                      "hash":  "CC812F17"
+                  },
+                  {
+                      "id":  "C_052EB2FB",
+                      "cardName":  "教学·22",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "guardAbility":  true,
+                      "illustration":  "DragonessTheWickedKnight",
+                      "power":  1,
+                      "life":  2,
+                      "costList":  [
+                                       2.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "1BB8B2DA"
+                                    ],
+                      "hash":  "FB6CEDF2"
+                  },
+                  {
+                      "id":  "C_2D6E5BFB",
+                      "cardName":  "教学·23",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "guardAbility":  true,
+                      "illustration":  "Kojikocy",
+                      "power":  1,
+                      "life":  2,
+                      "costList":  [
+                                       2.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "B3A90B8C"
+                                    ],
+                      "hash":  "01F05C52"
+                  },
+                  {
+                      "id":  "C_B5C0296B",
+                      "cardName":  "教学·24",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "guardAbility":  true,
+                      "illustration":  "DarkPrisoner",
+                      "power":  1,
+                      "life":  2,
+                      "costList":  [
+                                       2.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "BC5252DD"
+                                    ],
+                      "hash":  "E9544E45"
+                  },
+                  {
+                      "id":  "C_D04CC69F",
+                      "cardName":  "教学·25",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "guardAbility":  true,
+                      "illustration":  "MukaMuka",
+                      "power":  1,
+                      "life":  2,
+                      "costList":  [
+                                       2.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "179CECE8"
+                                    ],
+                      "hash":  "5C158553"
+                  },
+                  {
+                      "id":  "C_E2122348",
+                      "cardName":  "教学·26",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "guardAbility":  true,
+                      "illustration":  "Griffore",
+                      "power":  1,
+                      "life":  2,
+                      "costList":  [
+                                       2.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "60011B78"
+                                    ],
+                      "hash":  "95CA6F57"
+                  },
+                  {
+                      "id":  "C_CD77F233",
+                      "cardName":  "教学·10",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "guardAbility":  true,
+                      "illustration":  "DragonessTheWickedKnight",
+                      "power":  1,
+                      "life":  1,
+                      "costList":  [
+                                       1.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "AE2C3BF2"
+                                    ],
+                      "hash":  "8D2A2661"
+                  },
+                  {
+                      "id":  "C_E84B9F8A",
+                      "cardName":  "教学·27",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "guardAbility":  true,
+                      "illustration":  "DarkPrisoner",
+                      "power":  1,
+                      "life":  2,
+                      "costList":  [
+                                       2.0,
+                                       6.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "07F57EE1"
+                                    ],
+                      "hash":  "00095F30"
+                  },
+                  {
+                      "id":  "C_95187C1C",
+                      "cardName":  "教学·11",
+                      "supertype":  "Spell",
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "80B7DA7B"
+                                    ],
+                      "costList":  [
+                                       0.0,
+                                       3.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "hash":  "97868E21"
+                  },
+                  {
+                      "id":  "C_AA96F206",
+                      "cardName":  "教学·12",
+                      "supertype":  "Spell",
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "FE4D4EBB"
+                                    ],
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       0.0,
+                                       3.0
+                                   ],
+                      "hash":  "9C82FA44"
+                  },
+                  {
+                      "id":  "C_CC0DE001",
+                      "cardName":  "教学·50",
+                      "supertype":  "Spell",
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "CC0DE003"
+                                    ],
+                      "costList":  [
+                                       0.0,
+                                       3.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "hash":  "F0DA96D1"
+                  },
+                  {
+                      "id":  "C_CC0DE002",
+                      "cardName":  "教学·51",
+                      "supertype":  "Spell",
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "CC0DE004"
+                                    ],
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       0.0,
+                                       3.0
+                                   ],
+                      "hash":  "11FF0B88"
+                  },
+                  {
+                      "id":  "C_CC0DE003",
+                      "cardName":  "教学·52",
+                      "supertype":  "Creature",
+                      "power":  0,
+                      "life":  2,
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       2.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "CC0DE005"
+                                    ],
+                      "hash":  "DDC86148"
+                  },
+                  {
+                      "id":  "C_BD0822E9",
+                      "cardName":  "教学·37",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "guardAbility":  true,
+                      "illustration":  "MukaMuka",
+                      "power":  1,
+                      "life":  2,
+                      "costList":  [
+                                       2.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "29C47333"
+                                    ],
+                      "hash":  "1AED2A26"
+                  },
+                  {
+                      "id":  "C_6E58021B",
+                      "cardName":  "教学·36",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "guardAbility":  true,
+                      "illustration":  "Kojikocy",
+                      "power":  1,
+                      "life":  2,
+                      "costList":  [
+                                       2.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "540FB6C9"
+                                    ],
+                      "hash":  "6E58021B"
+                  },
+                  {
+                      "id":  "C_11B82155",
+                      "cardName":  "教学·35",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "guardAbility":  true,
+                      "illustration":  "Morinphen",
+                      "power":  1,
+                      "life":  1,
+                      "costList":  [
+                                       1.0,
+                                       1.0,
+                                       4.0,
+                                       0.0
+                                   ],
+                      "keywords":  [
+                                       "Vigilance"
+                                   ],
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "4E21BFCF"
+                                    ],
+                      "hash":  "F751C8E2"
+                  },
+                  {
+                      "id":  "C_6A87E23A",
+                      "cardName":  "预组·17",
+                      "supertype":  "Enchantment",
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "ThemeBlueSurplus",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "38B76368"
+                                    ],
+                      "durability":  2,
+                      "hash":  "89F2491F"
+                  },
+                  {
+                      "id":  "C_339E9C1F",
+                      "cardName":  "预组·18",
+                      "supertype":  "Enchantment",
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "ThemeBlueSurplus",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "B3EC27CE"
+                                    ],
+                      "durability":  2,
+                      "hash":  "76A8072B"
+                  },
+                  {
+                      "id":  "C_EF25C2FD",
+                      "cardName":  "预组·19",
+                      "supertype":  "Enchantment",
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "ThemeBlueSurplus",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "72E637F4"
+                                    ],
+                      "durability":  2,
+                      "hash":  "7A460BE9"
+                  },
+                  {
+                      "id":  "C_4B282868",
+                      "cardName":  "预组·20",
+                      "supertype":  "Enchantment",
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "ThemeBlueSurplus",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "3A891EB7"
+                                    ],
+                      "durability":  2,
+                      "hash":  "DEA49A4C"
+                  },
+                  {
+                      "id":  "C_D0AF2ABB",
+                      "cardName":  "预组·21",
+                      "supertype":  "Spell",
+                      "tags":  [
+                                   "ThemeBlueSurplus",
+                                   "教学",
+                                   "训练池"
+                               ],
+                      "effectIds":  [
+                                        "37833543"
+                                    ],
+                      "speedBonus":  2,
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       2.0,
+                                       0.0
+                                   ],
+                      "hash":  "D0AF2ABB"
+                  },
+                  {
+                      "id":  "C_B19375C1",
+                      "cardName":  "预组·22",
+                      "supertype":  "Spell",
+                      "tags":  [
+                                   "ThemeBlueSurplus",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "972C6301"
+                                    ],
+                      "speedBonus":  2,
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       3.0,
+                                       0.0
+                                   ],
+                      "hash":  "B19375C1"
+                  },
+                  {
+                      "id":  "C_2B79CDB1",
+                      "cardName":  "预组·23",
+                      "supertype":  "Spell",
+                      "tags":  [
+                                   "ThemeBlueSurplus",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "09A6106C"
+                                    ],
+                      "speedBonus":  2,
+                      "costList":  [
+                                       0.0,
+                                       3.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "hash":  "2B79CDB1"
+                  },
+                  {
+                      "id":  "C_0AD56075",
+                      "cardName":  "预组·24",
+                      "supertype":  "Spell",
+                      "tags":  [
+                                   "ThemeBlueSurplus",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "37833543",
+                                        "73DB24E3"
+                                    ],
+                      "speedBonus":  1,
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "hash":  "0AD56075"
+                  },
+                  {
+                      "id":  "C_AD521F40",
+                      "cardName":  "预组·25",
+                      "supertype":  "Spell",
+                      "tags":  [
+                                   "ThemeBlueSurplus",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "F0E98164"
+                                    ],
+                      "speedBonus":  2,
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       2.0,
+                                       0.0
+                                   ],
+                      "hash":  "AD521F40"
+                  },
+                  {
+                      "id":  "C_66CE6354",
+                      "cardName":  "预组·26",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "guardAbility":  true,
+                      "life":  5,
+                      "costList":  [
+                                       2.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "ThemeBlueSurplus",
+                                   "教学"
+                               ],
+                      "hash":  "66CE6354"
+                  },
+                  {
+                      "id":  "C_BD167F51",
+                      "cardName":  "预组·27",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "guardAbility":  true,
+                      "power":  2,
+                      "life":  4,
+                      "costList":  [
+                                       2.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "ThemeBlueSurplus",
+                                   "教学"
+                               ],
+                      "hash":  "BD167F51"
+                  },
+                  {
+                      "id":  "C_FFF2FD83",
+                      "cardName":  "预组·28",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "guardAbility":  true,
+                      "power":  4,
+                      "life":  5,
+                      "costList":  [
+                                       4.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "ThemeBlueSurplus",
+                                   "教学"
+                               ],
+                      "hash":  "FFF2FD83"
+                  },
+                  {
+                      "id":  "C_B98ABB51",
+                      "cardName":  "隐匿",
+                      "supertype":  "Spell",
+                      "tags":  [
+                                   "ThemeBlueSurplus",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "033AFF67"
+                                    ],
+                      "speedBonus":  2,
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       1.0,
+                                       0.0
+                                   ],
+                      "hash":  "B98ABB51"
+                  },
+                  {
+                      "id":  "C_8A60A92A",
+                      "cardName":  "虚空巨像",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "costList":  [
+                                       8.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "ThemeGreenCountdown",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "099F66FB"
+                                    ],
+                      "power":  9,
+                      "life":  9,
+                      "hash":  "C5D4AD40"
+                  },
+                  {
+                      "id":  "C_704F7F1C",
+                      "cardName":  "爆裂兽",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "costList":  [
+                                       4.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "ThemeGreenCountdown",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "AF36EA72"
+                                    ],
+                      "power":  5,
+                      "life":  5,
+                      "hash":  "C07ADE9A"
+                  },
+                  {
+                      "id":  "C_6673D86B",
+                      "cardName":  "菌丝",
+                      "supertype":  "Spell",
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       0.0,
+                                       2.0
+                                   ],
+                      "tags":  [
+                                   "ThemeGreenCountdown",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "2F27F745"
+                                    ],
+                      "hash":  "6673D86B"
+                  },
+                  {
+                      "id":  "C_97E1A674",
+                      "cardName":  "小守誓",
+                      "supertype":  "Creature",
+                      "guardAbility":  true,
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       0.0,
+                                       1.0
+                                   ],
+                      "tags":  [
+                                   "ThemeGreenCountdown",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+
+                                    ],
+                      "life":  4,
+                      "keywords":  [
+                                       "Guardian"
+                                   ],
+                      "hash":  "97E1A674"
+                  },
+                  {
+                      "id":  "C_71D2443F",
+                      "cardName":  "守誓",
+                      "supertype":  "Creature",
+                      "guardAbility":  true,
+                      "costList":  [
+                                       3.0,
+                                       0.0,
+                                       0.0,
+                                       6.0
+                                   ],
+                      "tags":  [
+                                   "ThemeGreenCountdown",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+
+                                    ],
+                      "life":  9,
+                      "keywords":  [
+                                       "Guardian",
+                                       "Regeneration"
+                                   ],
+                      "hash":  "71D2443F"
+                  },
+                  {
+                      "id":  "C_C3C1B182",
+                      "cardName":  "培育",
+                      "supertype":  "Spell",
+                      "costList":  [
+                                       1.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "ThemeGreenCountdown",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "76EF235B"
+                                    ],
+                      "hash":  "C3C1B182"
+                  },
+                  {
+                      "id":  "C_E8686C24",
+                      "cardName":  "成长",
+                      "supertype":  "Spell",
+                      "tags":  [
+                                   "ThemeGreenCountdown",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "CC86792A"
+                                    ],
+                      "speedBonus":  2,
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       0.0,
+                                       3.0
+                                   ],
+                      "hash":  "3C39281A"
+                  },
+                  {
+                      "id":  "C_C4A9FF45",
+                      "cardName":  "林地守卫",
+                      "supertype":  "Creature",
+                      "guardAbility":  true,
+                      "power":  1,
+                      "life":  7,
+                      "keywords":  [
+                                       "Guardian"
+                                   ],
+                      "tags":  [
+                                   "ThemeGreenCountdown",
+                                   "教学"
+                               ],
+                      "costList":  [
+                                       2.0,
+                                       0.0,
+                                       0.0,
+                                       1.0
+                                   ],
+                      "hash":  "C4A9FF45"
+                  },
+                  {
+                      "id":  "C_F49188CC",
+                      "cardName":  "雾障",
+                      "supertype":  "Creature",
+                      "guardAbility":  true,
+                      "power":  1,
+                      "life":  5,
+                      "tags":  [
+                                   "ThemeGreenCountdown",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "099F66FB"
+                                    ],
+                      "costList":  [
+                                       2.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "hash":  "43D54E86"
+                  },
+                  {
+                      "id":  "C_BFE245C2",
+                      "cardName":  "爆荚",
+                      "supertype":  "Creature",
+                      "guardAbility":  true,
+                      "power":  1,
+                      "life":  3,
+                      "tags":  [
+                                   "ThemeGreenCountdown",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "AF36EA72"
+                                    ],
+                      "costList":  [
+                                       1.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "hash":  "AA68BFD3"
+                  },
+                  {
+                      "id":  "C_17CED892",
+                      "cardName":  "噬血藤",
+                      "supertype":  "Creature",
+                      "guardAbility":  true,
+                      "power":  0,
+                      "life":  6,
+                      "tags":  [
+                                   "ThemeGreenCountdown",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "9170B00B"
+                                    ],
+                      "costList":  [
+                                       2.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "hash":  "EB8B1B77"
+                  },
+                  {
+                      "id":  "C_0D72F2B6",
+                      "cardName":  "獠牙",
+                      "supertype":  "Creature",
+                      "guardAbility":  true,
+                      "power":  1,
+                      "life":  5,
+                      "tags":  [
+                                   "ThemeGreenCountdown",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "B4AA343A"
+                                    ],
+                      "costList":  [
+                                       2.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "hash":  "2C435CC0"
+                  },
+                  {
+                      "id":  "C_0C3A881F",
+                      "cardName":  "活体护甲",
+                      "supertype":  "Spell",
+                      "tags":  [
+                                   "ThemeGreenCountdown",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "41A6D862"
+                                    ],
+                      "speedBonus":  2,
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "hash":  "4A1DDEE2"
+                  },
+                  {
+                      "id":  "C_F8AA7D46",
+                      "cardName":  "藤盾",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "guardAbility":  true,
+                      "power":  1,
+                      "life":  1,
+                      "tags":  [
+                                   "ThemeGreenCountdown",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "D0C61A63"
+                                    ],
+                      "costList":  [
+                                       1.0,
+                                       0.0,
+                                       0.0,
+                                       1.0
+                                   ],
+                      "hash":  "8E2D7455"
+                  },
+                  {
+                      "id":  "C_DA012D06",
+                      "cardName":  "晨露",
+                      "supertype":  "Creature",
+                      "guardAbility":  true,
+                      "power":  0,
+                      "life":  6,
+                      "tags":  [
+                                   "ThemeGreenCountdown",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "E404DB9B"
+                                    ],
+                      "costList":  [
+                                       2.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "hash":  "7BECE823"
+                  },
+                  {
+                      "id":  "C_DDB09243",
+                      "cardName":  "潮汐",
+                      "supertype":  "Spell",
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "ThemeBlueSurplus",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "C9BDE58E"
+                                    ],
+                      "hash":  "69535E51"
+                  },
+                  {
+                      "id":  "C_3FE20343",
+                      "cardName":  "乱流",
+                      "supertype":  "Spell",
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       1.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "ThemeBlueSurplus",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "1458E272"
+                                    ],
+                      "hash":  "3FE20343"
+                  },
+                  {
+                      "id":  "C_AB394031",
+                      "cardName":  "抹除",
+                      "supertype":  "Spell",
+                      "costList":  [
+                                       0.0,
+                                       3.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "ThemeBlueSurplus",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "F76F20C5"
+                                    ],
+                      "hash":  "AB394031"
+                  },
+                  {
+                      "id":  "C_48CB732A",
+                      "cardName":  "逐出",
+                      "supertype":  "Spell",
+                      "costList":  [
+                                       6.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "ThemeBlueSurplus",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "C672DDD7"
+                                    ],
+                      "hash":  "48CB732A"
+                  },
+                  {
+                      "id":  "C_7A517CA5",
+                      "cardName":  "窥手碑",
+                      "supertype":  "Enchantment",
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "ThemeBlueSurplus",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "643BFF5D"
+                                    ],
+                      "durability":  4,
+                      "hash":  "E1C99089"
+                  },
+                  {
+                      "id":  "C_8B12838C",
+                      "cardName":  "汲涌碑",
+                      "supertype":  "Enchantment",
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "ThemeBlueSurplus",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "B3EC27CE"
+                                    ],
+                      "durability":  4,
+                      "hash":  "B65AE29B"
+                  },
+                  {
+                      "id":  "C_5E135B65",
+                      "cardName":  "回春碑",
+                      "supertype":  "Enchantment",
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "ThemeBlueSurplus",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "302E1C7E"
+                                    ],
+                      "durability":  4,
+                      "hash":  "8EDD8424"
+                  },
+                  {
+                      "id":  "C_7B43F386",
+                      "cardName":  "霜降碑",
+                      "supertype":  "Enchantment",
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "ThemeBlueSurplus",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "3A891EB7"
+                                    ],
+                      "durability":  4,
+                      "hash":  "85412774"
+                  },
+                  {
+                      "id":  "C_40F826F1",
+                      "cardName":  "退潮碑",
+                      "supertype":  "Enchantment",
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "ThemeBlueSurplus",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "735B2360"
+                                    ],
+                      "durability":  4,
+                      "hash":  "126ECF5A"
+                  },
+                  {
+                      "id":  "C_F65A8F31",
+                      "cardName":  "缓兵",
+                      "supertype":  "Spell",
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       6.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "ThemeBlueSurplus",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "1B5250E3"
+                                    ],
+                      "hash":  "788E7621"
+                  },
+                  {
+                      "id":  "C_6533A861",
+                      "cardName":  "沉沙",
+                      "supertype":  "Spell",
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       2.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "ThemeBlueSurplus",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "84969C65"
+                                    ],
+                      "hash":  "597291F0"
+                  },
+                  {
+                      "id":  "C_FBECD5BF",
+                      "cardName":  "遗策",
+                      "supertype":  "Spell",
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       2.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "ThemeBlueSurplus",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "9C4515B2"
+                                    ],
+                      "hash":  "54A36A87"
+                  },
+                  {
+                      "id":  "C_6DFA3132",
+                      "cardName":  "沉眠",
+                      "supertype":  "Spell",
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       1.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "ThemeBlueSurplus",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "42CBFCF7"
+                                    ],
+                      "hash":  "5DE9C95A"
+                  },
+                  {
+                      "id":  "C_12B4DF83",
+                      "cardName":  "冰垒",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "guardAbility":  true,
+                      "power":  0,
+                      "life":  6,
+                      "costList":  [
+                                       2.0,
+                                       0.0,
+                                       0.0,
+                                       1.0
+                                   ],
+                      "tags":  [
+                                   "ThemeBlueSurplus",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "91535cec"
+                                    ],
+                      "hash":  "12B4DF83"
+                  },
+                  {
+                      "id":  "C_33A7C78B",
+                      "cardName":  "蚀忆",
+                      "supertype":  "Spell",
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       4.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "ThemeBlueSurplus",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "91133E76"
+                                    ],
+                      "hash":  "3CCF2B54"
+                  },
+                  {
+                      "id":  "C_FD7387F5",
+                      "cardName":  "噬典",
+                      "supertype":  "Spell",
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       8.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "ThemeBlueSurplus",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "9A7B877E"
+                                    ],
+                      "hash":  "FD7387F5"
+                  },
+                  {
+                      "id":  "C_3F2E69F0",
+                      "cardName":  "幻壁",
+                      "supertype":  "Spell",
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       0.0,
+                                       8.0
+                                   ],
+                      "tags":  [
+                                   "ThemeBlueSurplus",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "1976F557"
+                                    ],
+                      "hash":  "3F2E69F0"
+                  },
+                  {
+                      "id":  "C_F604F751",
+                      "cardName":  "乱锋",
+                      "supertype":  "Spell",
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       2.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "ThemeBlueSurplus",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "EA8346E6"
+                                    ],
+                      "hash":  "199C02D6"
+                  },
+                  {
+                      "id":  "C_DF45065E",
+                      "cardName":  "潮痕碑",
+                      "supertype":  "Enchantment",
+                      "costList":  [
+                                       0,
+                                       0,
+                                       0,
+                                       0
+                                   ],
+                      "tags":  [
+                                   "ThemeBlueSurplus",
+                                   "教学",
+                                   "衍生物"
+                               ],
+                      "effectIds":  [
+                                        "851A70F1"
+                                    ],
+                      "durability":  4,
+                      "hash":  "A2D4FB0A"
+                  },
+                  {
+                      "id":  "C_2BD6EDE2",
+                      "cardName":  "深潭碑",
+                      "supertype":  "Enchantment",
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "ThemeBlueSurplus",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "3442A01E"
+                                    ],
+                      "durability":  4,
+                      "hash":  "8FE81CD8"
+                  },
+                  {
+                      "id":  "C_AAA266D0",
+                      "cardName":  "洗回",
+                      "supertype":  "Spell",
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       0.0,
+                                       2.0
+                                   ],
+                      "tags":  [
+                                   "ThemeBlueSurplus",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "13DF0561"
+                                    ],
+                      "hash":  "AAA266D0"
+                  },
+                  {
+                      "id":  "C_6CE54813",
+                      "cardName":  "回收",
+                      "supertype":  "Spell",
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       0.0,
+                                       2.0
+                                   ],
+                      "tags":  [
+                                   "ThemeGreenCountdown",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "F1C619E7"
+                                    ],
+                      "hash":  "6CE54813"
+                  },
+                  {
+                      "id":  "C_8A2A1F78",
+                      "cardName":  "回潮",
+                      "supertype":  "Spell",
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       2.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "ThemeBlueSurplus",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "6AAD18EB"
+                                    ],
+                      "hash":  "5DC89699"
+                  },
+                  {
+                      "id":  "C_57BA44EC",
+                      "cardName":  "火灵·攻",
+                      "illustration":  "FlameSwordsman",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "costList":  [
+                                       1.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "ThemeRedClash",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "2C78A233"
+                                    ],
+                      "power":  1,
+                      "life":  1,
+                      "hash":  "88677C6C"
+                  },
+                  {
+                      "id":  "C_5F93DCDD",
+                      "cardName":  "火灵·守",
+                      "illustration":  "CharubinTheFireKnight",
+                      "supertype":  "Creature",
+                      "guardAbility":  true,
+                      "costList":  [
+                                       1.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "ThemeRedClash",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "2C78A233"
+                                    ],
+                      "power":  1,
+                      "life":  1,
+                      "hash":  "98B2054E"
+                  },
+                  {
+                      "id":  "C_138CE290",
+                      "cardName":  "火苗",
+                      "illustration":  "FlameGhost",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "tags":  [
+                                   "ThemeRedClash",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+
+                                    ],
+                      "power":  2,
+                      "life":  2,
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "hash":  "138CE290"
+                  },
+                  {
+                      "id":  "C_E105FABA",
+                      "cardName":  "血偿",
+                      "supertype":  "Spell",
+                      "costList":  [
+                                       0.0,
+                                       3.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "ThemeRedClash",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "FC0E95E4"
+                                    ],
+                      "hash":  "84A93863"
+                  },
+                  {
+                      "id":  "C_7118DF4D",
+                      "cardName":  "追击",
+                      "supertype":  "Spell",
+                      "costList":  [
+                                       0.0,
+                                       3.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "ThemeRedClash",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "8200C531"
+                                    ],
+                      "hash":  "D162C03B"
+                  },
+                  {
+                      "id":  "C_77A047CD",
+                      "cardName":  "激励",
+                      "supertype":  "Spell",
+                      "costList":  [
+                                       0.0,
+                                       1.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "ThemeRedClash",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "31CE6ACE"
+                                    ],
+                      "hash":  "62949B62"
+                  },
+                  {
+                      "id":  "C_8F136E25",
+                      "cardName":  "流失",
+                      "supertype":  "Spell",
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       0.0,
+                                       2.0
+                                   ],
+                      "tags":  [
+                                   "ThemeGreenCountdown",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "C5180E36"
+                                    ],
+                      "hash":  "FB730C7F"
+                  },
+                  {
+                      "id":  "C_5705F9FE",
+                      "cardName":  "活体炸弹",
+                      "supertype":  "Spell",
+                      "tags":  [
+                                   "ThemeRedClash",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "0909E61B"
+                                    ],
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "hash":  "8B2D6B95"
+                  },
+                  {
+                      "id":  "C_8E45017F",
+                      "cardName":  "教学·先攻甲",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "power":  4,
+                      "life":  2,
+                      "costList":  [
+                                       1.0,
+                                       2.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "keywords":  [
+                                       "FirstStrike"
+                                   ],
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "hash":  "8E45017F"
+                  },
+                  {
+                      "id":  "C_732BCF71",
+                      "cardName":  "教学·连击甲",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "power":  4,
+                      "life":  2,
+                      "costList":  [
+                                       1.0,
+                                       6.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "keywords":  [
+                                       "DoubleStrike"
+                                   ],
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "hash":  "732BCF71"
+                  },
+                  {
+                      "id":  "C_FC5BC585",
+                      "cardName":  "教学·白板2/4甲",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "power":  2,
+                      "life":  4,
+                      "costList":  [
+                                       1.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "hash":  "FC5BC585"
+                  },
+                  {
+                      "id":  "C_036D0A6A",
+                      "cardName":  "教学·白板2/8甲",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "power":  2,
+                      "life":  8,
+                      "costList":  [
+                                       3.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "hash":  "036D0A6A"
+                  },
+                  {
+                      "id":  "C_3AFBFB85",
+                      "cardName":  "教学·碾压",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "power":  6,
+                      "life":  2,
+                      "costList":  [
+                                       2.0,
+                                       5.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "keywords":  [
+                                       "Overwhelm"
+                                   ],
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "hash":  "3AFBFB85"
+                  },
+                  {
+                      "id":  "C_B9F338E2",
+                      "cardName":  "教学·溅射",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "power":  6,
+                      "life":  3,
+                      "costList":  [
+                                       3.0,
+                                       5.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "keywords":  [
+                                       "Splash"
+                                   ],
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "hash":  "B9F338E2"
+                  },
+                  {
+                      "id":  "C_0FDF4A1D",
+                      "cardName":  "教学·白板2/6甲",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "power":  2,
+                      "life":  6,
+                      "costList":  [
+                                       2.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "hash":  "0FDF4A1D"
+                  },
+                  {
+                      "id":  "C_9914CF8A",
+                      "cardName":  "教学·结界",
+                      "supertype":  "Enchantment",
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "durability":  6,
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "hash":  "9914CF8A"
+                  },
+                  {
+                      "id":  "C_202A366E",
+                      "cardName":  "教学·缴械甲",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "power":  3,
+                      "life":  3,
+                      "costList":  [
+                                       1.0,
+                                       0.0,
+                                       6.0,
+                                       0.0
+                                   ],
+                      "keywords":  [
+                                       "Disarm"
+                                   ],
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "hash":  "202A366E"
+                  },
+                  {
+                      "id":  "C_7348D471",
+                      "cardName":  "教学·警戒",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "power":  4,
+                      "life":  4,
+                      "costList":  [
+                                       2.0,
+                                       0.0,
+                                       3.0,
+                                       0.0
+                                   ],
+                      "keywords":  [
+                                       "Vigilance"
+                                   ],
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "hash":  "7348D471"
+                  },
+                  {
+                      "id":  "C_64AA066B",
+                      "cardName":  "教学·先攻巨兽",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "power":  4,
+                      "life":  8,
+                      "costList":  [
+                                       4.0,
+                                       2.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "keywords":  [
+                                       "FirstStrike"
+                                   ],
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "hash":  "64AA066B"
+                  },
+                  {
+                      "id":  "C_AC582815",
+                      "cardName":  "教学·连击巨兽",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "power":  2,
+                      "life":  8,
+                      "costList":  [
+                                       3.0,
+                                       6.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "keywords":  [
+                                       "DoubleStrike"
+                                   ],
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "hash":  "AC582815"
+                  },
+                  {
+                      "id":  "C_3D2CBFE6",
+                      "cardName":  "教学·隐密",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "power":  2,
+                      "life":  2,
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       5.0,
+                                       0.0
+                                   ],
+                      "keywords":  [
+                                       "Concealed"
+                                   ],
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "hash":  "3D2CBFE6"
+                  },
+                  {
+                      "id":  "C_98135A73",
+                      "cardName":  "教学·帷幕",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "power":  2,
+                      "life":  7,
+                      "costList":  [
+                                       3.0,
+                                       0.0,
+                                       3.0,
+                                       0.0
+                                   ],
+                      "keywords":  [
+                                       "Taunt"
+                                   ],
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "hash":  "98135A73"
+                  },
+                  {
+                      "id":  "C_E8B8EE22",
+                      "cardName":  "教学·吸血甲",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "power":  3,
+                      "life":  3,
+                      "costList":  [
+                                       1.0,
+                                       0.0,
+                                       0.0,
+                                       3.0
+                                   ],
+                      "keywords":  [
+                                       "Lifesteal"
+                                   ],
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "hash":  "E8B8EE22"
+                  },
+                  {
+                      "id":  "C_E5D9D557",
+                      "cardName":  "教学·系命甲",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "power":  3,
+                      "life":  3,
+                      "costList":  [
+                                       1.0,
+                                       0.0,
+                                       0.0,
+                                       3.0
+                                   ],
+                      "keywords":  [
+                                       "Lifelink"
+                                   ],
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "hash":  "E5D9D557"
+                  },
+                  {
+                      "id":  "C_BA6BE8EC",
+                      "cardName":  "教学·白板3/3甲",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "power":  3,
+                      "life":  3,
+                      "costList":  [
+                                       1.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "hash":  "BA6BE8EC"
+                  },
+                  {
+                      "id":  "C_DCDC05A7",
+                      "cardName":  "教学·剧毒甲",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "power":  2,
+                      "life":  2,
+                      "costList":  [
+                                       0.0,
+                                       3.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "keywords":  [
+                                       "Venom"
+                                   ],
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "hash":  "DCDC05A7"
+                  },
+                  {
+                      "id":  "C_750FFED3",
+                      "cardName":  "教学·不灭",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "power":  8,
+                      "life":  8,
+                      "costList":  [
+                                       6.0,
+                                       0.0,
+                                       0.0,
+                                       2.0
+                                   ],
+                      "keywords":  [
+                                       "Indestructible"
+                                   ],
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "hash":  "750FFED3"
+                  },
+                  {
+                      "id":  "C_629A3AF5",
+                      "cardName":  "教学·再生",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "power":  3,
+                      "life":  5,
+                      "costList":  [
+                                       2.0,
+                                       0.0,
+                                       0.0,
+                                       5.0
+                                   ],
+                      "keywords":  [
+                                       "Regeneration"
+                                   ],
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "hash":  "629A3AF5"
+                  },
+                  {
+                      "id":  "C_E73AEE6F",
+                      "cardName":  "教学·守护",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "power":  2,
+                      "life":  7,
+                      "costList":  [
+                                       3.0,
+                                       0.0,
+                                       0.0,
+                                       1.0
+                                   ],
+                      "keywords":  [
+                                       "Guardian"
+                                   ],
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "hash":  "E73AEE6F"
+                  },
+                  {
+                      "id":  "C_030E8991",
+                      "cardName":  "教学·狩猎",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "power":  4,
+                      "life":  2,
+                      "costList":  [
+                                       1.0,
+                                       2.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "keywords":  [
+                                       "Hunt"
+                                   ],
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "hash":  "030E8991"
+                  },
+                  {
+                      "id":  "C_59A3BB05",
+                      "cardName":  "教学·狩猎吸血",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "power":  4,
+                      "life":  2,
+                      "costList":  [
+                                       1.0,
+                                       2.0,
+                                       0.0,
+                                       3.0
+                                   ],
+                      "keywords":  [
+                                       "Hunt",
+                                       "Lifesteal"
+                                   ],
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "hash":  "59A3BB05"
+                  },
+                  {
+                      "id":  "C_6454E497",
+                      "cardName":  "教学·病原体甲",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "power":  2,
+                      "life":  4,
+                      "costList":  [
+                                       1.0,
+                                       3.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "keywords":  [
+                                       "Pathogen"
+                                   ],
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "hash":  "6454E497"
+                  },
+                  {
+                      "id":  "C_DD519F03",
+                      "cardName":  "教学·连击小兵",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "power":  1,
+                      "life":  3,
+                      "costList":  [
+                                       0.0,
+                                       6.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "keywords":  [
+                                       "DoubleStrike"
+                                   ],
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "hash":  "DD519F03"
+                  },
+                  {
+                      "id":  "C_2730BF8F",
+                      "cardName":  "教学·一点法术",
+                      "supertype":  "Spell",
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "40CEACFC"
+                                    ],
+                      "costList":  [
+                                       0.0,
+                                       1.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "hash":  "2730BF8F"
+                  },
+                  {
+                      "id":  "C_7FD01D48",
+                      "cardName":  "教学·绝缘体",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "power":  4,
+                      "life":  4,
+                      "costList":  [
+                                       8.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "keywords":  [
+                                       "Insulator"
+                                   ],
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "hash":  "7FD01D48"
+                  },
+                  {
+                      "id":  "C_12705A5A",
+                      "cardName":  "教学·绝缘光环",
+                      "supertype":  "Enchantment",
+                      "arrows":  "UpperLeft,LowerLeft",
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "durability":  9,
+                      "linkAuras":  [
+                                        {
+                                            "keyword":  "Insulator"
+                                        }
+                                    ],
+                      "costList":  [
+                                       9.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "hash":  "12705A5A"
+                  },
+                  {
+                      "id":  "C_BA2BFFAD",
+                      "cardName":  "教学·沉睡术甲",
+                      "supertype":  "Spell",
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "871ED866"
+                                    ],
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       3.0,
+                                       0.0
+                                   ],
+                      "hash":  "BA2BFFAD"
+                  },
+                  {
+                      "id":  "C_3AC147C9",
+                      "cardName":  "教学·无效术甲",
+                      "supertype":  "Spell",
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "7899C88A"
+                                    ],
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       2.0,
+                                       0.0
+                                   ],
+                      "hash":  "4B7D55DF"
+                  },
+                  {
+                      "id":  "C_01835F2B",
+                      "cardName":  "教学·绝缘赋予",
+                      "supertype":  "Spell",
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "AC81853B"
+                                    ],
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "hash":  "01835F2B"
+                  },
+                  {
+                      "id":  "C_483E94BC",
+                      "cardName":  "教学·驱散术甲",
+                      "supertype":  "Spell",
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "CFE6FF68"
+                                    ],
+                      "costList":  [
+                                       0.0,
+                                       3.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "hash":  "483E94BC"
+                  },
+                  {
+                      "id":  "C_CD942636",
+                      "cardName":  "教学·灰源",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "power":  1,
+                      "life":  1,
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "教学"
+                               ],
+                      "hash":  "CD942636"
+                  },
+                  {
+                      "id":  "C_C3B25F32",
+                      "cardName":  "萌芽",
+                      "supertype":  "Spell",
+                      "tags":  [
+                                   "ThemeGreenCountdown",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "FXGREEN01"
+                                    ],
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       0.0,
+                                       3.0
+                                   ],
+                      "hash":  "C3B25F32"
+                  },
+                  {
+                      "id":  "C_A92F5E99",
+                      "cardName":  "沃土",
+                      "supertype":  "Spell",
+                      "tags":  [
+                                   "ThemeGreenCountdown",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "FXGREEN02"
+                                    ],
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       0.0,
+                                       6.0
+                                   ],
+                      "hash":  "2591BE50"
+                  },
+                  {
+                      "id":  "C_60D27A90",
+                      "cardName":  "归根",
+                      "supertype":  "Spell",
+                      "tags":  [
+                                   "ThemeGreenCountdown",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "FXGREEN03"
+                                    ],
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       0.0,
+                                       4.0
+                                   ],
+                      "hash":  "869E7FE5"
+                  },
+                  {
+                      "id":  "C_21E4EAC1",
+                      "cardName":  "凋零",
+                      "supertype":  "Spell",
+                      "tags":  [
+                                   "ThemeGreenCountdown",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "FXGREEN04"
+                                    ],
+                      "costList":  [
+                                       6.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "hash":  "21E4EAC1"
+                  },
+                  {
+                      "id":  "C_EEF587D5",
+                      "cardName":  "溃散",
+                      "supertype":  "Spell",
+                      "tags":  [
+                                   "ThemeGreenCountdown",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "FXGREEN05"
+                                    ],
+                      "costList":  [
+                                       6.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "hash":  "EEF587D5"
+                  },
+                  {
+                      "id":  "C_91CE77A8",
+                      "cardName":  "枯竭",
+                      "supertype":  "Spell",
+                      "tags":  [
+                                   "ThemeGreenCountdown",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "FXGREEN06"
+                                    ],
+                      "costList":  [
+                                       24.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "hash":  "832609A5"
+                  },
+                  {
+                      "id":  "C_76B63B4D",
+                      "cardName":  "虚化",
+                      "supertype":  "Spell",
+                      "tags":  [
+                                   "ThemeGreenCountdown",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "FXGREEN07"
+                                    ],
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       0.0,
+                                       3.0
+                                   ],
+                      "hash":  "5D9C0DDE"
+                  },
+                  {
+                      "id":  "C_33367D9D",
+                      "cardName":  "减半",
+                      "supertype":  "Spell",
+                      "tags":  [
+                                   "ThemeGreenCountdown",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "6229F9B6"
+                                    ],
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       0.0,
+                                       3.0
+                                   ],
+                      "hash":  "FA00E427"
+                  },
+                  {
+                      "id":  "C_D1D6C529",
+                      "cardName":  "古木守卫",
+                      "supertype":  "Creature",
+                      "power":  2,
+                      "life":  8,
+                      "keywords":  [
+                                       "Guardian",
+                                       "Taunt"
+                                   ],
+                      "tags":  [
+                                   "ThemeGreenCountdown",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+
+                                    ],
+                      "costList":  [
+                                       2.0,
+                                       0.0,
+                                       3.0,
+                                       1.0
+                                   ],
+                      "hash":  "26428440"
+                  },
+                  {
+                      "id":  "C_B0EF3C08",
+                      "cardName":  "系命者 阿格洛斯",
+                      "illustration":  "FlowerWolf",
+                      "supertype":  "Creature",
+                      "power":  12,
+                      "life":  8,
+                      "attackAbility":  true,
+                      "guardAbility":  false,
+                      "keywords":  [
+                                       "Lifelink",
+                                       "Hunt"
+                                   ],
+                      "tags":  [
+                                   "ThemeGreenCountdown",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "FXGREEN11"
+                                    ],
+                      "costList":  [
+                                       9.0,
+                                       2.0,
+                                       0.0,
+                                       3.0
+                                   ],
+                      "hash":  "C63D0547"
+                  },
+                  {
+                      "id":  "C_AC7FC01F",
+                      "cardName":  "牺牲",
+                      "supertype":  "Spell",
+                      "tags":  [
+                                   "ThemeGreenCountdown",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "FXGREEN08"
+                                    ],
+                      "costList":  [
+                                       2.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "hash":  "C2C07B15"
+                  },
+                  {
+                      "id":  "C_F245F2F9",
+                      "cardName":  "小精灵",
+                      "illustration":  "PetitAngel",
+                      "supertype":  "Creature",
+                      "power":  2,
+                      "life":  2,
+                      "tags":  [
+                                   "ThemeGreenCountdown",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "FXGREEN09"
+                                    ],
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       0.0,
+                                       1.0
+                                   ],
+                      "hash":  "767953EB"
+                  },
+                  {
+                      "id":  "C_046A30F8",
+                      "cardName":  "荒原猎兽",
+                      "supertype":  "Creature",
+                      "power":  7,
+                      "life":  1,
+                      "attackAbility":  true,
+                      "guardAbility":  true,
+                      "tags":  [
+                                   "ThemeGreenCountdown",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "FXGREEN11"
+                                    ],
+                      "costList":  [
+                                       4.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "hash":  "18BCF9E5"
+                  },
+                  {
+                      "id":  "C_D1A00001",
+                      "cardName":  "战斗母巢",
+                      "supertype":  "Creature",
+                      "attackAbility":  false,
+                      "guardAbility":  false,
+                      "power":  3,
+                      "life":  3,
+                      "costList":  [
+                                       1.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "ThemeGreenCountdown",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "D1A00013"
+                                    ],
+                      "hash":  "DA7CC42B"
+                  },
+                  {
+                      "id":  "C_D1A00002",
+                      "cardName":  "系命母巢",
+                      "supertype":  "Creature",
+                      "attackAbility":  false,
+                      "guardAbility":  false,
+                      "power":  3,
+                      "life":  3,
+                      "costList":  [
+                                       1.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "ThemeGreenCountdown",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "D1A00014"
+                                    ],
+                      "hash":  "D7DAAB7E"
+                  },
+                  {
+                      "id":  "C_D1A00003",
+                      "cardName":  "战斗衍生物",
+                      "supertype":  "Creature",
+                      "attackAbility":  false,
+                      "guardAbility":  true,
+                      "power":  1,
+                      "life":  1,
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "ThemeGreenCountdown",
+                                   "教学",
+                                   "衍生物"
+                               ],
+                      "effectIds":  [
+                                        "D1A00011"
+                                    ],
+                      "hash":  "9F827DF3"
+                  },
+                  {
+                      "id":  "C_D1A00004",
+                      "cardName":  "系命衍生物",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "guardAbility":  false,
+                      "power":  1,
+                      "life":  1,
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "ThemeGreenCountdown",
+                                   "教学",
+                                   "衍生物"
+                               ],
+                      "effectIds":  [
+                                        "AB57E454"
+                                    ],
+                      "hash":  "1F82D399"
+                  },
+                  {
+                      "id":  "C_D1A00005",
+                      "cardName":  "战斗母巢",
+                      "supertype":  "Creature",
+                      "attackAbility":  false,
+                      "guardAbility":  false,
+                      "power":  3,
+                      "life":  3,
+                      "costList":  [
+                                       1.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "ThemeGreenCountdown",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "D1A00017"
+                                    ],
+                      "hash":  "6E55F85C"
+                  },
+                  {
+                      "id":  "C_D1A00006",
+                      "cardName":  "战斗衍生物·血",
+                      "supertype":  "Creature",
+                      "attackAbility":  false,
+                      "guardAbility":  true,
+                      "power":  1,
+                      "life":  1,
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "ThemeGreenCountdown",
+                                   "教学",
+                                   "衍生物"
+                               ],
+                      "effectIds":  [
+                                        "D1A00012"
+                                    ],
+                      "hash":  "80DB08E1"
+                  },
+                  {
+                      "id":  "C_D1A00007",
+                      "cardName":  "工蜂母巢",
+                      "supertype":  "Creature",
+                      "attackAbility":  false,
+                      "guardAbility":  false,
+                      "power":  3,
+                      "life":  3,
+                      "costList":  [
+                                       1.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "ThemeGreenCountdown",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "D1A00018"
+                                    ],
+                      "hash":  "3E21B168"
+                  },
+                  {
+                      "id":  "C_D1A00008",
+                      "cardName":  "工蜂",
+                      "supertype":  "Creature",
+                      "attackAbility":  true,
+                      "guardAbility":  false,
+                      "power":  3,
+                      "life":  1,
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "ThemeGreenCountdown",
+                                   "教学",
+                                   "衍生物"
+                               ],
+                      "effectIds":  [
+
+                                    ],
+                      "hash":  "C3C52B64"
+                  },
+                  {
+                      "id":  "C_D1A00009",
+                      "cardName":  "归根",
+                      "supertype":  "Spell",
+                      "tags":  [
+                                   "ThemeGreenCountdown",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "D1A00020"
+                                    ],
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       0.0,
+                                       8.0
+                                   ],
+                      "hash":  "F6BBCACF"
+                  },
+                  {
+                      "id":  "C_D1A00010",
+                      "cardName":  "封印",
+                      "supertype":  "Spell",
+                      "tags":  [
+                                   "ThemeGreenCountdown",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "D1A00021"
+                                    ],
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       3.0,
+                                       0.0
+                                   ],
+                      "hash":  "977D4944"
+                  },
+                  {
+                      "id":  "C_D1A00011",
+                      "cardName":  "枯木守卫",
+                      "supertype":  "Creature",
+                      "guardAbility":  true,
+                      "power":  2,
+                      "life":  8,
+                      "keywords":  [
+                                       "Guardian",
+                                       "Taunt"
+                                   ],
+                      "tags":  [
+                                   "ThemeGreenCountdown",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+
+                                    ],
+                      "costList":  [
+                                       3.0,
+                                       0.0,
+                                       3.0,
+                                       1.0
+                                   ],
+                      "hash":  "6DD75E8A"
+                  },
+                  {
+                      "id":  "C_23EE2486",
+                      "cardName":  "蛰伏",
+                      "supertype":  "Spell",
+                      "tags":  [
+                                   "ThemeBlueSurplus",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "E31E9EB0"
+                                    ],
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       0.0,
+                                       0.0
+                                   ],
+                      "hash":  "23EE2486"
+                  },
+                  {
+                      "id":  "C_7A11E001",
+                      "cardName":  "寒冬",
+                      "supertype":  "Spell",
+                      "costList":  [
+                                       0.0,
+                                       0.0,
+                                       6.0,
+                                       0.0
+                                   ],
+                      "tags":  [
+                                   "ThemeBlueSurplus",
+                                   "教学"
+                               ],
+                      "effectIds":  [
+                                        "7A11E001"
+                                    ],
+                      "hash":  "369A54F0"
+                  }
+              ]
 }

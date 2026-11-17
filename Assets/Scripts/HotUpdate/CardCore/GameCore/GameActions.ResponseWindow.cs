@@ -277,6 +277,7 @@ namespace CardCore
 
                     if (choice != null)
                     {
+                        if (Environment.GetEnvironmentVariable("TIDE_DEBUG_RESP") == "1") Console.WriteLine($"[dbg-resp-apply] kind={choice.Kind} label={choice.Label}");
                         bool applied = ApplyResponse(core, holder, choice);
                         Crumb($"CF-choice holder={holder.Name} kind={choice.Kind} label={choice.Label} applied={applied}");
                         if (applied)
@@ -310,9 +311,13 @@ namespace CardCore
                         opt.SourceCard != null ? (Entity)opt.SourceCard : (Entity)opt.SourcePlayer,
                         opt.AttackInstance, p);
                 case ResponseOption.ResponseKind.HandCard:
-                    return opt.SourceCard != null
-                        && PlayCardInResponse(core, p, opt.SourceCard, opt.Targets, opt.ModeIndex,
-                            null, opt.DynamicCounts, out _);
+                    {
+                        string rej0 = null;
+                        bool okR = opt.SourceCard != null && PlayCardInResponse(core, p, opt.SourceCard, opt.Targets, opt.ModeIndex, null, opt.DynamicCounts, out rej0);
+                        if (Environment.GetEnvironmentVariable("TIDE_DEBUG_RESP") == "1" && opt.SourceCard != null && opt.Label != null && opt.Label.Contains("乱锋"))
+                            Console.WriteLine($"[dbg-resp-play] 乱锋 ok={okR} reason={rej0 ?? "-"} priority={(core.StackEngine.CurrentPriorityHolder == null ? "-" : (ReferenceEquals(core.StackEngine.CurrentPriorityHolder, core.Player1) ? "P1" : "P2"))}");
+                        return okR;
+                    }
                 case ResponseOption.ResponseKind.ActivatedAbility:
                     return opt.Definition != null && opt.SourceCard != null
                         && ActivateEffectInResponse(core, p, opt.Definition, opt.SourceCard);

@@ -91,10 +91,16 @@ namespace CardCore.AI.NeuralEnv
         // 指纹只含"净变化"项，不含实例 ID/卡编号/时间戳（否则永不相等）；增长型循环交给 L2 预算。
         // 作用域：仅 Main 相决策点；响应窗沿用现有 StallDrawThreshold（方案 §5.2）。
         private const int LoopStallThreshold = 8;    // 停滞：连续 8 次 Main 相决策指纹不变
-        // 自检开关：true 时停滞阈值降为 1（验证检测器可触发）。static 字段而非 const =
-        // 编辑器反射即可翻转，免去「改源码→编译→验→改回→再编译」两轮（也杜绝忘改回）；默认恒 false。
-        private static bool LoopGuardSelfTest = false;
-        private readonly HashSet<ulong> _turnFingerprints = new HashSet<ulong>(); // 本回合出现过的指纹（回合切换清空）
+        // 自检开关（§7.1-② 探针级验收演示用）：true 时停滞阈值降为 1（验证检测器可触发）。
+        // public static + 环境变量 TIDE_LOOP_SELFTEST=1 双通道：batchmode/探针起进程时带环境变量
+        // 即生效（静态初始化读一次，无需反射/改码重编译），编辑器内也可直赋值翻转；默认恒 false。
+        public static bool LoopGuardSelfTest =
+            Environment.GetEnvironmentVariable("TIDE_LOOP_SELFTEST") == "1";
+        // R1 环形缓冲（方案 §5.2 原文口径，2026-11-18 用户定案）：本回合最近 32 条指纹，
+        // 更早的滑出窗口（周期 >32 步的慢循环交给 L2 预算兜底）；回合切换清空。
+        private const int FpRingCapacity = 32;
+        private readonly Queue<ulong> _fpRing = new Queue<ulong>();       // 指纹时序（淘汰队首用）
+        private readonly HashSet<ulong> _fpRingSet = new HashSet<ulong>(); // 指纹成员（O(1) 命中判）
         private ulong _lastFingerprint;              // 上一个 Main 相决策指纹（停滞比较用）
         private bool _hasLastFingerprint;            // _lastFingerprint 有效位（ulong 0 是合法哈希值）
         private int _stallCount;                     // 连续同指纹决策计数
@@ -214,7 +220,8 @@ namespace CardCore.AI.NeuralEnv
             _actionsThisTurn = 0;
             _budgetClosedThisTurn = false; // L2 预算收口状态归零（_loopBudgetCount 只增不清）
             _stallCounter = 0;
-            _turnFingerprints.Clear(); // L1 指纹状态归零（跨局残留会误报回环；计数器只增不清）
+            _fpRing.Clear();      // L1 指纹环形缓冲归零（跨局残留会误报回环；计数器只增不清）
+            _fpRingSet.Clear();
             _stallCount = 0;
             _hasLastFingerprint = false;
             _loopPrunedThisStep = false; // L3-A 单步标志归零
@@ -521,12 +528,13 @@ namespace CardCore.AI.NeuralEnv
             if (_gameOver || _responseStop) return;
             ulong fp = ComputeFingerprint();
             string reason = null;
-            if (!_turnFingerprints.Add(fp))
+            if (_fpRingSet.Contains(fp))
             {
-                reason = "cycle"; // 本回合内指纹重现 → 净零循环
+                reason = "cycle"; // 环形窗口内指纹重现 → 净零循环（命中不重入队，保持原时序位）
             }
             else
             {
+                FpRingAdd(fp);
                 int threshold = LoopGuardSelfTest ? 1 : LoopStallThreshold; // 自检：阈值降 1 验证检测器可触发
                 if (_hasLastFingerprint && fp == _lastFingerprint)
                 {
@@ -605,6 +613,15 @@ namespace CardCore.AI.NeuralEnv
         /// <summary>卡面名字（同名视为同物——指纹不用实例 ID/卡编号）。</summary>
         private static string CardNameOf(Card c) => (c as CardWrapper)?.GetData()?.CardName ?? "?";
 
+        /// <summary>指纹入环形缓冲（超容量滑出队首，成员集同步剔除）。</summary>
+        private void FpRingAdd(ulong fp)
+        {
+            _fpRing.Enqueue(fp);
+            _fpRingSet.Add(fp);
+            if (_fpRing.Count > FpRingCapacity)
+                _fpRingSet.Remove(_fpRing.Dequeue());
+        }
+
         /// <summary>FNV-1a 64 位（指纹哈希，自实现不引依赖；逐 char 累积，等值性判定足够）。</summary>
         private static ulong Fnv1a64(string s)
         {
@@ -635,7 +652,8 @@ namespace CardCore.AI.NeuralEnv
                 _bannedThisTurn.Clear();
                 _actionsThisTurn = 0;
                 _budgetClosedThisTurn = false; // L2 预算收口状态随回合切换复位
-                _turnFingerprints.Clear();     // L1 指纹按回合重开（回合号在指纹内，跨回合本就必不等——清空兼防膨胀）
+                _fpRing.Clear();              // L1 指纹环形缓冲按回合重开（回合号在指纹内，跨回合本就必不等）
+                _fpRingSet.Clear();
                 _stallCount = 0;
             }
 

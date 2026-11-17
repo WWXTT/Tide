@@ -25,6 +25,11 @@ namespace CardCore.AI
         // T2 起 放 2 地、下 1 个结界，然后潮汐连打触发结界（抽到潮汐继续打）。
         // 冻结/乱锋只在对手回合用（响应），冻结只冻对方地牌，乱锋只控生物。
         private int _steleTurnStamp = -1;
+        private int _recycleTurnStamp = -1;
+        private bool _needChaoXiAfterStele;
+        private int _chainTurn = -1;
+        private bool _chainEnded;
+        private int _chaoXiStamp = -1;
         private int _steleForcedThisTurn;
         private readonly int[] _landTurnStamp = { -1, -1 };
         private readonly int[] _landCountAtTurnStart = { 0, 0 };
@@ -77,11 +82,14 @@ namespace CardCore.AI
             if (bluePool != null && bluePool.LandCapOverride != 4) bluePool.LandCapOverride = 4;
 
             int turn = OwnTurnIndex(core, me);
-            int cap = turn <= 1 ? 1 : 2;
+            int cap = core.TurnEngine.TurnNumber <= 1 ? 1 : 2;
             if (LandsThisTurn(core, me) >= cap) return false;
 
             string name = CardNameOf(card);
-            if (name == "潮汐" || name == "深潭碑") return false; // 启动件绝不当地
+            // （0 费不可作地是全局规则：潮汐/碑本来入不了池，策略不需要再按名字挡）
+
+            // 寒冬：**不作地**（2026-11-18 定案——它是 4 地保底线的强开卡，当肥料吃掉就永远打不出）
+            if (name == "寒冬") return false;
 
             // 2026-11-18 用户定案：**先到 2 地，再谈留牌**——本回合没放满时，回潮/乱锋
             // 即使只剩 1 张也照铺（2 地达标 → 充盈能触发，收益远大于留一张控制）。
@@ -93,33 +101,54 @@ namespace CardCore.AI
         {
             if (core?.TurnEngine == null || !ReferenceEquals(core.TurnEngine.TurnPlayer, me)) return null;
             // 2026-11-18 用户定案（**全局固定序**）：T1 只下 1 地，不强制任何出牌。
-            if (OwnTurnIndex(core, me) <= 1) return null;
+            if (core.TurnEngine.TurnNumber <= 1) return null;
             var hand = core.ZoneManager.GetCards(me, Zone.Hand) ?? new List<Card>();
             bool steleOnBoard = HasOwnOverflowEnchantment(core, me);
 
-            // T2 起每回合最多下 1 个结界（T1 只落地，见 ShouldHold 全局闸）
-            int turn = core.TurnEngine.TurnNumber;
-            if (_steleTurnStamp != turn) { _steleTurnStamp = turn; _steleForcedThisTurn = 0; }
+            // 2026-11-18 用户定案：**乱锋只在对手回合用**——己方回合不再为"首张卡洗回"强制打它。
+            // （原「墓地有可回收件就首张打乱锋」的强制动作已删：那是它 37 次全打在自己回合的根因。）
 
-            // ① 碑：每回合 1 个（深潭碑优先，其次潮痕碑；含回响复制进手的临时碑）
-            if (_steleForcedThisTurn < 1)
+            // 固定循环（2026-11-18 用户定案·最终口径）：
+            // · 使用碑**依赖手里有潮汐**；潮汐的使用不依赖碑；
+            // · 顺序：**手里所有碑（含回响刚复制出来的临时碑）先全部落地 → 再打潮汐**；
+            // · 每打一张潮汐后回到"碑先落地"这一步——复制体进手就立刻打出去，再接下一张潮汐；
+            // · 手里没有潮汐时，只把**临时复制碑**打掉（会被回合末移除），永久碑留在手里。
+            bool IsStele(Card c) => c != null && (CardNameOf(c) == "深潭碑" || CardNameOf(c) == "潮痕碑");
+            bool IsTemp(Card c) => c != null && c.GetCounterCount(CounterRules.TempCounter) > 0;
+            bool playable(Card c) => !core.StackEngine.IsPendingCast(c);
+
+            // 新分支：已经 4 地、仍达不到充盈 → 用潮汐过牌找寒冬；寒冬到手就停手，交给蛰伏结束回合
+            if ((core.ElementPool.GetPooledCards(me)?.Count ?? 0) >= 4 && !CanOverflowTrigger(core, me)
+                && !hand.Any(c => c != null && CardNameOf(c) == "寒冬"))
             {
-                var shen = hand.FirstOrDefault(c => c != null && CardNameOf(c) == "深潭碑"
-                                                    && !core.StackEngine.IsPendingCast(c));
-                if (shen != null) { _steleForcedThisTurn++; return shen; }
-                var chao = hand.FirstOrDefault(c => c != null && CardNameOf(c) == "潮痕碑"
-                                                    && !core.StackEngine.IsPendingCast(c));
-                if (chao != null) { _steleForcedThisTurn++; return chao; }
+                var drawTide = hand.FirstOrDefault(c => c != null && CardNameOf(c) == "潮汐" && playable(c));
+                if (drawTide != null) return drawTide;
             }
 
-            // ② 碑在场 → 潮汐连打触发（抽到潮汐继续打，直到用完）
-            if (steleOnBoard)
+            var chaoshi = hand.FirstOrDefault(c => c != null && CardNameOf(c) == "潮汐" && playable(c));
+
+            if (chaoshi != null)
             {
-                var cx = hand.FirstOrDefault(c => c != null && CardNameOf(c) == "潮汐"
-                                                  && !core.StackEngine.IsPendingCast(c));
-                if (cx != null) return cx;
+                // 有潮汐：任何碑（永久或临时复制）都先落地，再打潮汐
+                var anyStele = hand.FirstOrDefault(c => IsStele(c) && playable(c));
+                if (anyStele != null) return anyStele;
+                return chaoshi;
             }
+
+            // 没潮汐：只清临时复制碑（永久碑留手，不当废牌打）
+            var tempStele = hand.FirstOrDefault(c => IsStele(c) && IsTemp(c) && playable(c));
+            if (tempStele != null) return tempStele;
             return null;
+        }
+
+        /// <summary>对手场上生物攻击力合计（乱锋使用条件：&gt; 4）。</summary>
+        private static int EnemyTotalPower(GameCore core, Player opp)
+        {
+            int sum = 0;
+            foreach (var c in core.ZoneManager.GetCards(opp, Zone.Battlefield) ?? new List<Card>())
+                if (c != null && c.IsAlive && c.IsLivingUnit())
+                    sum += core.LayerEngine?.CalculatePower(c) ?? 0;
+            return sum;
         }
 
         private static bool HasEnemyCreature(GameCore core, Player opp)
@@ -285,7 +314,7 @@ namespace CardCore.AI
             {
                 var grave = core.ZoneManager.GetCards(me, Zone.Graveyard) ?? new List<Card>();
                 var picks = new List<Entity>();
-                foreach (var name in new[] { "潮痕碑", "深潭碑", "潮汐", "回潮" })
+                foreach (var name in new[] { "寒冬", "乱锋", "潮痕碑", "深潭碑", "潮汐", "回潮" })
                 {
                     var c = grave.FirstOrDefault(x => x is IHasName n && n.CardName == name && !picks.Contains(x));
                     if (c != null) picks.Add(c);
@@ -306,9 +335,25 @@ namespace CardCore.AI
         public override bool WantHeroSkill(GameCore core, Player me)
         {
             if (!base.WantHeroSkill(core, me)) return false;
-            // 2026-11-18 用户定案（**全局固定序**）：T1 只下 1 地，不发动英雄技能。
-            if (OwnTurnIndex(core, me) <= 1) return false;
+            // 2026-11-18 用户定案（**固定序**）：T1 = 放地 → 开一次蛰伏 → 结束回合。
+            // 牌全部留手（ShouldHold 管），技能这一下不与任何出牌抢顺序。
+            if (core.TurnEngine.TurnNumber <= 1)
+                return core.ElementPool.GetPooledCards(me).Any(pc => pc != null && !pc.IsTapped);
             if (CanOverflowTrigger(core, me)) return false; // 差值踩得到档：本回合继续正常花
+            // 新分支（2026-11-18 用户定案）：**已经 4 地、仍达不到充盈** → 手里有寒冬就直接蛰伏
+            // （横置 4 地 → 下回合 4 地 + 4 临时 = 8 费，够打 6 费寒冬强行启动）。
+            bool winterReady = (core.ZoneManager.GetCards(me, Zone.Hand) ?? new List<Card>())
+                .Any(hc => hc != null && CardNameOf(hc) == "寒冬" && !core.StackEngine.IsPendingCast(hc));
+            if (winterReady && (core.ElementPool.GetPooledCards(me)?.Count ?? 0) >= 4)
+                return core.ElementPool.GetPooledCards(me).Any(pc => pc != null && !pc.IsTapped);
+            // 潮汐优先：手里还有潮汐就先让它吃剩余元素去触发，蛰伏押后——否则横置后差值=0，整轮潮汐全空转。
+            bool hasChaoXi = (core.ZoneManager.GetCards(me, Zone.Hand) ?? new List<Card>())
+                .Any(hc => hc != null && CardNameOf(hc) == "潮汐" && !core.StackEngine.IsPendingCast(hc));
+            if (hasChaoXi) return false;
+            // 2026-11-18 用户定案：循环打完，**手里有乱锋就留费用**（给对手回合的响应），没有才蛰伏。
+            bool hasLuanFeng = (core.ZoneManager.GetCards(me, Zone.Hand) ?? new List<Card>())
+                .Any(hc => hc != null && CardNameOf(hc) == "乱锋" && !core.StackEngine.IsPendingCast(hc));
+            if (hasLuanFeng) return false;
             return core.ElementPool.GetPooledCards(me).Any(pc => pc != null && !pc.IsTapped);
         }
 
@@ -373,7 +418,23 @@ namespace CardCore.AI
             return n;
         }
 
-        /// <summary>回响落点（2026-11-13 蓝套改版）：**只优先复制充盈碑**——
+        /// <summary>潮痕碑 2 伤的目标（2026-11-18 用户定案）：**优先解场**——对方场上单位按攻击力
+        /// 从高到低；对方没有单位时才打角色（角色放在最后）。</summary>
+        private static readonly Entity[] None = Array.Empty<Entity>();
+
+        private static List<Entity> OrderDamageTargets(GameCore core, Player me, List<Entity> list)
+        {
+            // 2026-11-18 用户定案：**结界也是合法攻击目标**——解场目标包含对方战场上的结界（攻击力 0，排在生物后），
+            var opp = me?.Opponent;
+            // 对方场上没有牌时才打角色。
+            return list.OrderByDescending(e =>
+            {
+                if (e is Card c && c.IsAlive && c.GetZone() == Zone.Battlefield && ReferenceEquals(c.GetController(), opp))
+                    return 1000 + (c.IsLivingUnit() ? (core?.LayerEngine?.CalculatePower(c) ?? 0) : 0);
+                return 0; // 角色/其他垫底
+            }).ToList();
+        }
+
         /// ① 两类碑都要续：场上数量少的一类优先（相等时先补伤害碑）；
         /// ② 己方碑略高于对面碑（同名复制，先拿自己的；镜像局对面碑也能补给）；
         /// ③ 耐久 ≤1 的碑最优先（下次触发就碎，复制体=满耐久接力）；
@@ -392,7 +453,7 @@ namespace CardCore.AI
             bool dmg = MonumentIsDamage(c);
             int dmgCount = CountOwnMonuments(core, me, damage: true);
             int copyCount = CountOwnMonuments(core, me, damage: false);
-            bool wanted = dmg ? dmgCount <= copyCount : copyCount < dmgCount;
+            bool wanted = dmg ? dmgCount < copyCount : copyCount <= dmgCount;
             int durability = c.GetCounterCount(CounterRules.DurabilityCounter);
             int score = 3000 + (wanted ? 400 : 0) + (own ? 120 : 0);
             // 耐久 ≤1：这块碑下一次触发就碎——复制体=满耐久接力。**复制碑（深潭碑）优先保住**：
@@ -461,13 +522,13 @@ namespace CardCore.AI
         public override bool ShouldHold(GameCore core, Player me, Card card)
         {
             // 2026-11-18 用户定案（**全局固定序**）：T1 = 只下 1 地，跳过所有操作，直接结束回合。
-            if (OwnTurnIndex(core, me) <= 1) return true;
+            if (core.TurnEngine.TurnNumber <= 1) return true;
 
             // 2026-11-18 用户定案：**冻结/乱锋只在对手回合用**（响应）——自己回合留手，
             // 不当作普通解场牌打出去（冻结只冻对方地牌、乱锋只控生物，见 PickResponse/PickSpellTargets）。
             // 例外：**寒冬**是己方回合的强开工具（T4 蛰伏 → 下回合 6 费寒冬冻住对方全部地），不留手。
-            if (CardNameOf(card) == "寒冬") return false;
-            if (HasBranchAtom(card, AtomicEffectType.Freeze)
+            // 2026-11-18 用户定案：寒冬不是 key 牌——优先铺成地（见 ShouldLand）。
+            if (CardNameOf(card) != "寒冬" && HasBranchAtom(card, AtomicEffectType.Freeze)
                 || HasBranchAtom(card, AtomicEffectType.RushSickness))
                 return true;
 
@@ -540,7 +601,13 @@ namespace CardCore.AI
         /// </summary>
         public override ResponseOption PickResponse(GameCore core, Player me, List<ResponseOption> options)
         {
+            if (Environment.GetEnvironmentVariable("TIDE_DEBUG_RESP") == "1") { EffectInstance t0 = null; foreach (var o0 in core.StackEngine.GetStackContents() ?? new List<EffectInstance>()) if (o0 != null) t0 = o0; Console.WriteLine($"[dbg-resp-in] me={(ReferenceEquals(me, core.Player1) ? "P1" : "P2")} turn={(ReferenceEquals(core.TurnEngine.TurnPlayer, me) ? "self" : "opp")} phase={core.TurnEngine.CurrentPhase?.Phase} top={(t0?.Controller == null ? "-" : (ReferenceEquals(t0.Controller, core.Player1) ? "P1" : "P2"))} opts={options?.Count ?? 0} enemyPow={EnemyTotalPower(core, me?.Opponent)} luanFengSeen={options != null && options.Any(o => o != null && o.SourceCard != null && CardNameOf(o.SourceCard) == "乱锋")}"); }
             if (options == null || options.Count == 0) return null;
+            if (Environment.GetEnvironmentVariable("TIDE_DEBUG_RESP") == "1")
+            {
+                var names = string.Join(",", options.Where(o => o != null && o.Kind == ResponseOption.ResponseKind.HandCard && o.SourceCard != null).Select(o => CardNameOf(o.SourceCard)));
+                Console.WriteLine($"[dbg-resp] opts={options.Count} hand=[{names}]");
+            }
             if (core.TurnEngine == null || ReferenceEquals(core.TurnEngine.TurnPlayer, me)) return null; // 只打对手回合
             var opp = me?.Opponent;
             if (opp == null) return null;
@@ -553,7 +620,7 @@ namespace CardCore.AI
 
             // 手牌 instant 候选分类（每张连同其模式原子与施放费）
             ResponseOption cheapest = null; int cheapestCost = int.MaxValue;
-            ResponseOption bounce = null, freeze = null, disrupt = null, directDamage = null;
+            ResponseOption bounce = null, freeze = null, disrupt = null, luanFeng = null, directDamage = null;
             ResponseOption spellban = null; // 组3 无实体候选（宣攻专道专用）
             int directDamageValue = 0;
             bool oppHasCreature = false;
@@ -563,6 +630,8 @@ namespace CardCore.AI
 
             foreach (var o in options)
             {
+                // 2026-11-18：乱锋可能以 ActivatedAbility 候选出现（不走 HandCard 分支）——先按卡名抓，再走 Kind 过滤
+                if (o != null && o.SourceCard != null && luanFeng == null && CardNameOf(o.SourceCard) == "乱锋" && EnemyTotalPower(core, opp) >= 4) luanFeng = o;
                 if (o == null || o.Kind != ResponseOption.ResponseKind.HandCard || o.SourceCard == null) continue;
                 // 组3 无实体卡（幻壁·GrantSpellban，2026-11-02 蓝套v3 用户口径）：剥离通用候选池，
                 // 只走下方宣攻专道——不在自家/非宣攻窗口被「低费换高费」当燃料烧掉。
@@ -571,11 +640,15 @@ namespace CardCore.AI
                     if (atom != null && atom.Type == AtomicEffectType.GrantSpellban) { isSpellban = true; break; }
                 if (isSpellban) { if (spellban == null) spellban = o; continue; }
                 int cost = TotalCostOf(core, o.SourceCard, o.ModeIndex);
+                // 2026-11-18：按卡名识别乱锋（原子的 ModeAtoms 走不到分支行，曾导致响应层永远选不中）
+                if (luanFeng == null && CardNameOf(o.SourceCard) == "乱锋" && EnemyTotalPower(core, opp) >= 4) luanFeng = o;
                 if (cost < cheapestCost) { cheapestCost = cost; cheapest = o; }
                 foreach (var atom in ModeAtoms(o.SourceCard, o.ModeIndex))
                 {
                     if (atom == null) continue;
                     if (atom.Type == AtomicEffectType.ReturnToHand && bounce == null && oppHasCreature) bounce = o;
+                    else if (atom.Type == AtomicEffectType.RushSickness && luanFeng == null
+                             && EnemyTotalPower(core, opp) >= 4) luanFeng = o; // 乱锋：只在对手回合、对方总攻 >= 4
                     else if (atom.Type == AtomicEffectType.Freeze && freeze == null
                              && HasEnemyPoolLand(core, opp)) freeze = o; // 2026-11-18：有对方地牌即合格
                     else if (disrupt == null && oppHasCreature && IsDisruptAtom(atom.Type)) disrupt = o; // 2026-11-18：有生物即合格
@@ -587,9 +660,20 @@ namespace CardCore.AI
                 }
             }
 
-            // 2026-11-18 用户定案：**冻结/乱锋 = 对手回合专用**——响应窗优先出手；
-            // 作为本回合己方第一张卡，还能稳定吃「若为本回合使用的第一张卡」的洗墓奖励。
-            if (disrupt != null) return disrupt;                       // 乱锋：只控生物
+            // 2026-11-18 用户定案：**乱锋只在对手回合用，且对手场上攻击力合计 > 4 才用**
+            //（小场面不值得交控制，留给真正压血的回合）。
+            if (luanFeng != null)
+            {
+                // 乱锋：把目标钉死——对方场上攻击力最高的 3 个（不足 3 个就全给）
+                var lfTargets = (core.ZoneManager.GetCards(opp, Zone.Battlefield) ?? new List<Card>())
+                    .Where(c => c != null && c.IsAlive && c.IsLivingUnit())
+                    .OrderByDescending(c => core.LayerEngine?.CalculatePower(c) ?? 0)
+                    .Take(3).Cast<Entity>().ToList();
+                luanFeng.Targets = lfTargets;
+                if (Environment.GetEnvironmentVariable("TIDE_DEBUG_RESP") == "1") Console.WriteLine($"[dbg-resp-pick] 乱锋 targets={lfTargets.Count}");
+                return luanFeng;
+            }
+            if (disrupt != null && EnemyTotalPower(core, opp) >= 4) return disrupt;
             if (freeze != null && HasEnemyPoolLand(core, opp)) return freeze; // 冻结：只冻对方地牌
 
             // 组3 无实体卡专道：只在对手回合、栈顶为对手**攻击宣言**时出手（对手回合+对手发起已由前置保证）。
@@ -641,6 +725,15 @@ namespace CardCore.AI
             var list = req?.Candidates;
             if (list == null || list.Count <= 1) return list;
             var opp = me?.Opponent;
+
+            // 乱锋：优先控攻击力最高的对方单位（2026-11-18 用户定案）——目标按攻击力降序。
+            if (req.PromptAtom == AtomicEffectType.RushSickness)
+                return list.OrderByDescending(e => e is Card u && u.IsAlive && u.IsLivingUnit()
+                        ? (core.LayerEngine?.CalculatePower(u) ?? 0) : -1).ToList();
+
+            // 潮痕碑 2 伤：**优先解场**（对方单位按攻击力降序），对方没单位才打角色。
+            if (req.PromptAtom == AtomicEffectType.DealDamage)
+                return OrderDamageTargets(core, me, list);
 
             // 回响落点（2026-11-13 蓝套改版）：充盈触发时优先复制两类碑（伤害/复制），把引擎续进手牌。
             if (req.PromptAtom == AtomicEffectType.EchoCopy)
