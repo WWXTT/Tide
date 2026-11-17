@@ -85,6 +85,25 @@ namespace CardCore.Editor.Tests
             return shuffled.GetRange(0, Math.Min(size, shuffled.Count));
         }
 
+        /// <summary>掺卡卡组（2026-11-17 阶段二口径，AI训练说明 §0.1）：主题整组按卡 Id 去重
+        /// 每种 −1 张（红·快攻 30 → 25），缺额从训练池随机补足回原张数（+5 随机）。
+        /// 保套路骨架、制造牌面差异；补卡与 SampleRandomDeck 同口径（池内各 id 至多 1 张）。</summary>
+        public static List<CardData> BuildDopedDeck(List<CardData> themeDeck, List<CardData> pool, System.Random rng)
+        {
+            var kept = new List<CardData>();
+            foreach (var group in themeDeck.GroupBy(c => c.ID))
+            {
+                var skip = true; // 每组第一张不保留 = 每种 −1
+                foreach (var card in group)
+                {
+                    if (skip) { skip = false; continue; }
+                    kept.Add(card);
+                }
+            }
+            kept.AddRange(SampleRandomDeck(pool, themeDeck.Count - kept.Count, rng));
+            return kept;
+        }
+
         /// <summary>卡身份登记（manifest 追加式幂等，新哈希自动续排）：Cards.json 全池含三主题卡。</summary>
         public static int RegisterIdentities()
         {

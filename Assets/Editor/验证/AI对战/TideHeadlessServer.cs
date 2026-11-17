@@ -31,13 +31,18 @@ namespace CardCore.Editor.TideHeadless
         ///                                                → vs 脚本口径下模型侧卡组固定该主题整组
         ///                                                  （2026-10-30 红·快攻镜像训练口径；缺省模型侧
         ///                                                  仍 Cards 随机 30；找不到主题 LogWarning 回落随机）
+        ///   请求  {"op":"reset","modelDoped":"red"}      → 掺卡口径（2026-11-17 阶段二，AI训练说明 §0.1）：
+        ///                                                  命中主题的一侧 = 整组每种 −1 张 + 训练池随机补足
+        ///                                                  （红 30→25+5）；vs 脚本=模型侧，自对弈=一侧
+        ///                                                  （另一侧主题整组/随机 30 各半）；优先级高于 modelTheme；
+        ///                                                  info.modelDoped 回显实际命中 key，未传零差
         ///   请求  {"op":"reset","shapingLambda":0,"shapingSet":1}
         ///                                                → 按局显式塑形 λ（2026-11-02：shapingSet=1
         ///                                                  时 shapingLambda 原样生效，0 = 关闭塑形只留
         ///                                                  终局 ±1——λ=0 基线；不带该组键 = 驱动默认 0.005）
         ///   请求  {"op":"step","action":N}                → 响应同上
         ///   响应 {op, obs{cards,globals,actions,nActions}, reward, done,
-        ///         info{toPlay,winner,reason,turn,modelSeat,theme,modelTheme,layoutVersion,dims,decisionSeat}}
+        ///         info{toPlay,winner,reason,turn,modelSeat,theme,modelTheme,modelDoped,layoutVersion,dims,decisionSeat}}
         ///   obs 恒为「当前决策座次」视角（v2：Main=回合玩家 / 响应窗口=优先权持有方；vs 脚本恒为模型视角），
         ///   reward 归属同视角；
         ///   info.toPlay：下一决策点行动方座次（0=P1 / 1=P2，终局 -1）——v2 起含响应窗口座次，Python 自对弈
@@ -175,7 +180,7 @@ namespace CardCore.Editor.TideHeadless
 
                     TideStepResult result = req.op == "reset"
                         ? HandleReset(driver, req.opponent, req.shapingLambda, req.theme, req.modelTheme,
-                                      req.shapingSet != 0)
+                                      req.modelDoped, req.shapingSet != 0)
                         : HandleStep(driver, req.action);
 
                     string resp = Serialize(req.op, result);
@@ -292,7 +297,7 @@ namespace CardCore.Editor.TideHeadless
 
         private static TideStepResult HandleReset(TideHeadlessDriver driver, string opponent,
             float shapingLambda = 0f, string themeKey = null, string modelThemeKey = null,
-            bool shapingExplicit = false)
+            string modelDopedKey = null, bool shapingExplicit = false)
         {
             // 按局塑形 λ（2026-11-02 显式协议）：shapingSet=1 = 客户端显式下发，shapingLambda
             // 原样生效（0 = 关闭塑形只留终局 ±1，驱动内联动关掉无进展扣分）；旧客户端不带该组
@@ -313,6 +318,7 @@ namespace CardCore.Editor.TideHeadless
             {
                 _opponentTheme = "";
                 _modelTheme = "";
+                _modelDoped = "";
                 UnityEngine.Debug.LogError("[TideHeadless] 数据层缺失（训练池 "
                     + $"{pool.Count} 张 / 有效主题卡组 {themes.Count} 套）——TrainingCards.json 缺失或先运行 Tools/构建三色主题卡组");
                 return driver.Reset(new List<CardData>(), new List<CardData>());
@@ -338,6 +344,7 @@ namespace CardCore.Editor.TideHeadless
                 if (theme.deck == null)
                     theme = themes[DeckRng.Next(themes.Count)];
                 _modelTheme = "";
+                _modelDoped = "";
                 if (opponent == "simpleai")
                 {
                     // 模型侧卡组：modelTheme 命中 → 该主题整组（红镜像等固定口径）；缺省 Cards 随机 30。
@@ -358,6 +365,25 @@ namespace CardCore.Editor.TideHeadless
                         }
                     }
 
+                    // 阶段二掺卡口径（2026-11-17，AI训练说明 §0.1）：modelDoped 命中 → 模型侧改
+                    // 掺卡卡组（主题整组每种 −1 + 训练池随机补足），优先级高于 modelTheme 整组；
+                    // 未传/未命中 = 旧行为零差，info.modelDoped 回显实际命中 key。
+                    if (!string.IsNullOrEmpty(modelDopedKey))
+                    {
+                        var dopedTheme = themes.FirstOrDefault(t => t.key == modelDopedKey);
+                        if (dopedTheme.deck != null && dopedTheme.deck.Count > 0)
+                        {
+                            modelDeck = BattleDeckSources.BuildDopedDeck(dopedTheme.deck, pool, DeckRng);
+                            _modelTheme = "";
+                            _modelDoped = dopedTheme.key;
+                        }
+                        else
+                        {
+                            UnityEngine.Debug.LogWarning(
+                                $"[TideHeadless] modelDoped '{modelDopedKey}' 未命中主题卡组，模型侧保持原口径");
+                        }
+                    }
+
                     // 卡组绑定模型座次（deck1 恒 P1 / deck2 恒 P2）：脚本侧 = 主题整组，
                     // 策略按主题自动匹配（红快攻/绿慢速/蓝控制）；模型座次随机 = 先后手各半。
                     _opponentTheme = theme.key;
@@ -368,8 +394,28 @@ namespace CardCore.Editor.TideHeadless
                         : driver.Reset(theme.deck, modelDeck, false, strategy);
                 }
 
-                // 自对弈：主题整组 vs Cards 随机 30，主题侧随机先后手
+                // 自对弈：主题整组 vs Cards 随机 30，主题侧随机先后手。
+                // 阶段二掺卡口径（2026-11-17，AI训练说明 §0.1）：modelDoped 命中 → 一侧 =
+                // 掺卡卡组（主题整组每种 −1 + 训练池随机补足），另一侧 = 旧口径
+                // （主题整组 / 随机 30 各半抽），座次随机；不传 = 旧行为零差。
                 _opponentTheme = "";
+                if (!string.IsNullOrEmpty(modelDopedKey))
+                {
+                    var dopedTheme = themes.FirstOrDefault(t => t.key == modelDopedKey);
+                    if (dopedTheme.deck != null && dopedTheme.deck.Count > 0)
+                    {
+                        _modelDoped = dopedTheme.key;
+                        var dopedDeck = BattleDeckSources.BuildDopedDeck(dopedTheme.deck, pool, DeckRng);
+                        var oppDeck = DeckRng.Next(2) == 0
+                            ? theme.deck
+                            : BattleDeckSources.SampleRandomDeck(pool, RandomDeckSize, DeckRng);
+                        return DeckRng.Next(2) == 0
+                            ? driver.Reset(dopedDeck, oppDeck)
+                            : driver.Reset(oppDeck, dopedDeck);
+                    }
+                    UnityEngine.Debug.LogWarning(
+                        $"[TideHeadless] modelDoped '{modelDopedKey}' 未命中主题卡组，自对弈保持旧口径");
+                }
                 var randomDeck = BattleDeckSources.SampleRandomDeck(pool, RandomDeckSize, DeckRng);
                 return DeckRng.Next(2) == 0
                     ? driver.Reset(theme.deck, randomDeck)
@@ -389,6 +435,10 @@ namespace CardCore.Editor.TideHeadless
         /// <summary>本局模型侧卡组实际命中的主题 key（vs 模式且 modelTheme 请求命中才有；其余空串）——
         /// Serialize info.modelTheme 用（Python 镜像口径断言）。</summary>
         private static string _modelTheme = "";
+
+        /// <summary>本局掺卡口径实际命中的主题 key（modelDoped 请求命中才有；其余空串）——
+        /// Serialize info.modelDoped 用（Python 阶段二口径断言，2026-11-17）。</summary>
+        private static string _modelDoped = "";
 
         /// <summary>主题卡组缓存（编辑器 TCP 重启时置空重载；batchmode 进程内加载一次）。</summary>
         private static List<(string key, List<CardData> deck)> _themeDecks;
@@ -426,6 +476,7 @@ namespace CardCore.Editor.TideHeadless
                     modelSeat = r.ModelSeat,
                     theme = _opponentTheme ?? "",
                     modelTheme = _modelTheme ?? "",
+                    modelDoped = _modelDoped ?? "",
                     // v2 版本握手（2026-09-30 契约第 5 节，防 2026-09-14 式静默炸）：
                     // Python reset 时断言逐值相等，不等报清晰错误（替代 reshape 炸）
                     // v8（2026-11-02 LAE 多目标）：NAction 8→11——直接引用 TideObservation.LayoutVersion
@@ -454,11 +505,11 @@ namespace CardCore.Editor.TideHeadless
 
         // ===================================================== JSON DTO（JsonUtility 字段名即协议键） =====================================================
 
-        [Serializable] public class HeadlessRequest { public string op; public int action; public string opponent; public float shapingLambda; public int shapingSet; public string theme; public string modelTheme; }
+        [Serializable] public class HeadlessRequest { public string op; public int action; public string opponent; public float shapingLambda; public int shapingSet; public string theme; public string modelTheme; public string modelDoped; }
         [Serializable] public class HeadlessObs { public List<float> cards; public List<float> globals; public List<float> actions; public int nActions; }
         // v2 布局握手字段（2026-09-30 契约第 5 节）：layoutVersion / dims / decisionSeat
         [Serializable] public class HeadlessDims { public int nCard; public int nGlobal; public int nAction; public int maxActions; public int maxCards; }
-        [Serializable] public class HeadlessInfo { public int toPlay; public string winner; public string reason; public int turn; public int modelSeat; public string theme; public string modelTheme; public int layoutVersion; public HeadlessDims dims; public int decisionSeat; }
+        [Serializable] public class HeadlessInfo { public int toPlay; public string winner; public string reason; public int turn; public int modelSeat; public string theme; public string modelTheme; public string modelDoped; public int layoutVersion; public HeadlessDims dims; public int decisionSeat; }
         [Serializable] public class HeadlessResponse { public string op; public HeadlessObs obs; public float reward; public bool done; public HeadlessInfo info; }
     }
 }
